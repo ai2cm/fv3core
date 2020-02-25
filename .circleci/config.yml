@@ -4,7 +4,7 @@ orbs:
 jobs:
   full_build:
     machine:
-      docker_layer_caching: true
+      docker_layer_caching: false
     environment:
       GOOGLE_APPLICATION_CREDENTIALS: /tmp/key.json
     steps:
@@ -20,7 +20,7 @@ jobs:
       - run: 
           name: "Build containers, run tests"
           command: |
-            PULL=False make tests
+            PULL=False TEST_ARGS="--exec_backend=dawn:gtmc --data_backend=gtmc" make tests
   just_run_tests:
     machine:
       docker_layer_caching: true
@@ -37,16 +37,13 @@ jobs:
           name: "Run tests"
           command: |
             make tests
+	    
      
 workflows:
   version: 2
   build:
     jobs:
-      - just_run_tests:
-          filters:
-            branches:
-              only:
-                - master
+      - just_run_tests
   nightly:
     triggers:
       - schedule:
