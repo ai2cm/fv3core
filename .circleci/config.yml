@@ -37,7 +37,6 @@ jobs:
           name: "Run tests"
           command: |
             make tests
-	    
      
 workflows:
   version: 2
