@@ -1,35 +1,34 @@
 GCR_URL = us.gcr.io/vcm-ml
-PYTAG ?= latest
-FORTRAN_TAG ?= serialize
-PULL ?=True
-#<serialization statement change>.<compile options configuration number>.<some other versioned change>
-FORTRAN_VERSION=0.0.0
-VOLUMES ?=
 CWD=$(shell pwd)
+#<some large conceptual version change>.<serialization statement change>.<compile options configuration number>
+FORTRAN_VERSION=0.1.0
 
-TEST_DATA_HOST ?=$(shell pwd)/test_data
-TEST_DATA_CONTAINER=/test_data
-TEST_DATA_TARGET=fv3gfs-serialization-test-data
 
-SERIALBOX_TARGET=fv3gfs-environment-serialbox
-FV3_TARGET ?=fv3ser
+PULL ?=True
+VOLUMES ?=
+TEST_DATA_HOST ?=$(CWD)/test_data
+FV3_IMAGE ?=$(GCR_URL)/fv3py:latest
+
 FV3_INSTALL_TARGET=fv3ser-install
-FORTRAN=$(CWD)/external/fv3gfs-fortran
+FV3_INSTALL_IMAGE=$(GCR_URL)/$(FV3_INSTALL_TARGET):latest
 
-FV3_IMAGE ?=$(GCR_URL)/fv3py:$(PYTAG)
-FV3_INSTALL_IMAGE ?=$(GCR_URL)/$(FV3_INSTALL_TARGET):latest
-COMPILED_IMAGE=$(GCR_URL)/fv3gfs-compiled:$(FORTRAN_VERSION)-$(FORTRAN_TAG)
+FORTRAN=$(CWD)/external/fv3gfs-fortran
+COMPILED_IMAGE=$(GCR_URL)/fv3gfs-compiled:$(FORTRAN_VERSION)-serialize
+SERIALBOX_TARGET=fv3gfs-environment-serialbox
 SERIALBOX_IMAGE=$(GCR_URL)/$(SERIALBOX_TARGET):latest
 BASE_ENV_IMAGE=$(GCR_URL)/fv3gfs-environment:latest
 RUNDIR_IMAGE=$(GCR_URL)/fv3gfs-rundir:$(FORTRAN_VERSION)
-RUN_TARGET ?=rundir
-TEST_DATA_REPO=$(GCR_URL)/$(TEST_DATA_TARGET)
+
+TEST_DATA_CONTAINER=/test_data
+TEST_DATA_REPO=$(GCR_URL)/fv3gfs-serialization-test-data
 TEST_DATA_IMAGE=$(TEST_DATA_REPO):$(FORTRAN_VERSION)
 TEST_IMAGE=$(GCR_URL)/fv3py-test:$(FORTRAN_VERSION)
+TEST_DATA_RUN_CONTAINER=TestDataContainer-$(FORTRAN_VERSION)
 
 FORTRAN_SHA=$(shell git --git-dir=$(FORTRAN)/.git rev-parse HEAD)
-FORTRAN_SHA_FILE=fortran_sha.txt
 REMOTE_TAGS="$(shell gcloud container images list-tags --format='get(tags)' $(TEST_DATA_REPO) | grep $(FORTRAN_VERSION))"
+
+
 build_environment_serialize:
 	if [ ! -d $(FORTRAN)/FV3 ]; then git submodule update --init --recursive ;fi
 	cd $(FORTRAN) && \
@@ -50,7 +49,7 @@ build:
 	docker build --build-arg build_image=$(FV3_INSTALL_IMAGE) -f docker/Dockerfile -t $(FV3_IMAGE) .
 
 pull_environment:
-	 docker pull $(FV3_INSTALL_IMAGE)
+	if [ -z $(shell docker images -q $(FV3_INSTALL_IMAGE)) ]; then docker pull $(FV3_INSTALL_IMAGE) ;fi
 
 push_environment:
 	docker push $(FV3_INSTALL_IMAGE)
@@ -61,10 +60,9 @@ rebuild_environment: build_environment
 dev:
 	docker run --rm -v $(TEST_DATA_HOST):$(TEST_DATA_CONTAINER) -v $(CWD):/port_dev -it $(FV3_IMAGE)
 
-rundir:
+rundir: #uses the 'serialize.yml' in the fv3gfs-fortran regression tests to configure a test run for generation serialization data
 	docker build \
 		--build-arg model_image=$(COMPILED_IMAGE) \
-		--build-arg fortran_sha_file=$(FORTRAN_SHA_FILE) \
 		--build-arg commit_hash=$(FORTRAN_SHA)\
 		-f docker/Dockerfile.rundir \
 		--target $(DATA_TARGET) \
@@ -94,23 +92,18 @@ post_test_data:
 
 
 pull_test_data:
-	if [ -z $(shell docker images -q $(TEST_DATA_IMAGE)) ]; then docker pull $(TEST_DATA_IMAGE) ;fi
-
-build_tests:
-	 DOCKER_BUILDKIT=1 docker build \
-		--build-arg fv3ser_image=$(FV3_IMAGE) \
-		--build-arg testdata_image=$(TEST_DATA_IMAGE) \
-		-f docker/Dockerfile.test \
-		--target test \
-		-t $(TEST_IMAGE) \
-	.
+	docker pull $(TEST_DATA_IMAGE)
 
 tests:
 	$(MAKE) build
-	$(MAKE) pull_test_data
-	$(MAKE) build_tests
+	if [ -z $(shell docker images -q $(TEST_DATA_IMAGE)) ]; then $(MAKE) pull_test_data ;fi
+	if [ -z $(shell docker ps -q -f name=$(TEST_DATA_RUN_CONTAINER)) ]; then \
+		docker run -d -it --name=$(TEST_DATA_RUN_CONTAINER) -v TestDataVolume$(FORTRAN_VERSION):/test_data $(TEST_DATA_IMAGE) ;fi
 	$(MAKE) run_tests_container
 
+cleanup_container:
+	docker stop $(TEST_DATA_RUN_CONTAINER)
+	docker rm $(TEST_DATA_RUN_CONTAINER)
 
 tests_host:
 	$(MAKE) pull_test_data
@@ -119,15 +112,17 @@ tests_host:
 
 
 test_base:
-	docker run --rm $(VOLUMES)\
-        -it $(RUNTEST_IMAGE) pytest -v -s  --data_path=$(TEST_DATA_CONTAINER) ${TEST_ARGS} /fv3/test
+	docker run --rm $(VOLUMES) \
+	-it $(RUNTEST_IMAGE) pytest -v -s  --data_path=$(TEST_DATA_CONTAINER) ${TEST_ARGS} /fv3/test
 
-run_tests_container: 
-	RUNTEST_IMAGE=$(TEST_IMAGE) $(MAKE) test_base
+run_tests_container:
+	VOLUMES='--volumes-from $(TEST_DATA_RUN_CONTAINER)' \
+	RUNTEST_IMAGE=$(FV3_IMAGE) $(MAKE) test_base
 
 run_tests_host_data: 
 	VOLUMES='-v $(TEST_DATA_HOST):$(TEST_DATA_CONTAINER)' \
 	RUNTEST_IMAGE=$(FV3_IMAGE) \
 	$(MAKE) test_base
 
-.PHONY: build tests test_data dev
+.PHONY: build tests tests_host test_base run_tests_container run_tests_host_data dev rundir cleanup_container
+
