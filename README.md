@@ -35,7 +35,7 @@ After you have extracted the test data:
 The run the tests from /port_dev instead of /fv3
 
 If you prefer using docker run directly:
-docker run -v <Local fv3gfs checkout>:/port_dev -v <TEST DATA PATH>:/test_data   --name <your favorite name> -it us.gcr.io/vcm-ml/fv3py
+docker run -v <Local fv3gfs checkout>:/port_dev -v <TEST DATA PATH>:/test_data   --name <your favorite name> -it us.gcr.io/vcm-ml/fv3ser
 Then in the container :
 pytest -v -s --data_path=/test_data/ /port_dev/fv3/test --which_modules=<Your stencil>
 
@@ -43,7 +43,7 @@ pytest -v -s --data_path=/test_data/ /port_dev/fv3/test --which_modules=<Your st
 Installation
 ------------
 
--- build the us.gcr.io/vcm-ml/fv3py container with required dependencies for running the python code 
+-- build the us.gcr.io/vcm-ml/fv3ser container with required dependencies for running the python code 
 make build
 
 To build from scratch (without docker pulling)
@@ -74,9 +74,9 @@ Test options:
 
    --failure_stride: whhen printing failures, print avery n failures only
    
-   --data_path : path to where you have the Generator*.dat and *.json serialization regression data. Defaults to current directory.
+   --data_path : path to where you have the 'Generator*.dat' and '*.json' serialization regression data. Defaults to current directory.
    
-   --data_backend : which backend to use for data storage, defulat: numpy, other options: gtmc, gtx86, gtcuda, debug
+   --data_backend : which backend to use for data storage, default: numpy, other options: gtmc, gtx86, gtcuda, debug
    
    --exec_backend: which backend to use for stencil computation, default numpy, other options: gtmc, gtx86, gtcuda, debug, and dawn:gtmc
 
@@ -89,7 +89,7 @@ Generating test data
 3. 'make generate_test_data' -- this will
         * git submodule update if you have not already
 	* compile the fortran model with serialization on
-	* generate a run directory using fv3config in a container (also submoduled) and the 'serialize.yml' configuration used in the fortran regression tests
+	* generate a run directory using fv3config in a container (also submoduled) and the 'serialize.yml' configuration specified in fv3/test
 	* run the model on this configuration
 	* copy the data to a new image and delete the rundirectory image (it is large and usually don't need it anymore)
 4. if you want to commit this, open a PR, merge and run 'post_test_data'
@@ -100,5 +100,5 @@ Dockerfiles
 
 There are 3 main Dockerfiles in the 'docker' folder
  1) Dockerfile.build_environment -- builds off of the serialbox environment from fv3gfs-fortran, installs Dawn and Gt4py
- 2) Dockerfile -- uses the build environment and copies in the fv3 folder only. This is to make development easier so that when you change a file in fv3, 'make build' does not accidentally or otherwise trigger a 20 minute rebuild of all of those installations, but just updates the code in the fv3py image. 
- 3) Dockerfile.rundir -- builds the fv3gfs-fortran model with serialization on, sets up a run directory and generates test data. This is to be done infrequently and is orthogonal to the content in the other dockerfiles. 
+ 2) Dockerfile -- uses the build environment and copies in the fv3 folder only. This is to make development easier so that when you change a file in fv3, 'make build' does not accidentally or otherwise trigger a 20 minute rebuild of all of those installations, but just updates the code in the fv3ser image. 
+ 3) Dockerfile.fortran_model_data -- builds the fv3gfs-fortran model with serialization on, sets up a run directory and generates test data. This is to be done infrequently and is orthogonal to the content in the other dockerfiles. 
