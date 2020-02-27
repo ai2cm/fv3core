@@ -64,7 +64,7 @@ devc:
 	if [ -z $(shell docker ps -q -f name=$(TEST_DATA_RUN_CONTAINER)) ]; then $(MAKE) data_container;fi
 	docker run --rm --volumes-from $(TEST_DATA_RUN_CONTAINER) -v $(CWD):/port_dev -it $(FV3_IMAGE)
 
-fortran_model_data: #uses the 'serialize.yml' in the fv3gfs-fortran regression tests to configure a test run for generation serialization data
+fortran_model_data: #uses the 'fv3config.yml' in the fv3gfs-fortran regression tests to configure a test run for generation serialization data
 	docker build \
 		--build-arg model_image=$(COMPILED_IMAGE) \
 		--build-arg commit_hash=$(FORTRAN_SHA)\

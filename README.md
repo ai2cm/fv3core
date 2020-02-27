@@ -91,7 +91,7 @@ Generating test data
 3. 'make generate_test_data' -- this will
         * git submodule update if you have not already
 	* compile the fortran model with serialization on
-	* generate a run directory using fv3config in a container (also submoduled) and the 'serialize.yml' configuration specified in fv3/test
+	* generate a run directory using fv3config in a container (also submoduled) and the 'fv3config.yml' configuration specified in fv3/test
 	* run the model on this configuration
 	* copy the data to a new image and delete the rundirectory image (it is large and usually don't need it anymore)
 4. if you want to commit this, open a PR, merge and run 'post_test_data'
