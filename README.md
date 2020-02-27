@@ -23,16 +23,18 @@ Developing stencils
 ------------
 Make a code change in the 'fv3' directory, then run 'make tests'
 OR
-Option: develop stencils using data and code as volumes into a container: 
-
-Extracting test data: 
+Option: develop stencils using data and code as volumes into a container, there are a couple of possibilities: 
+1. Using test data in a container:
+make pull_test_data
+'make devc'
+2. Extracting test data: 
 
 * To extract test data from the container if you want to work with it outside the container
 make pull_test_data
 make extract_test_data
 After you have extracted the test data:
 'make dev'
-The run the tests from /port_dev instead of /fv3
+Then run the tests from /port_dev instead of /fv3
 
 If you prefer using docker run directly:
 docker run -v <Local fv3gfs checkout>:/port_dev -v <TEST DATA PATH>:/test_data   --name <your favorite name> -it us.gcr.io/vcm-ml/fv3ser
@@ -74,7 +76,7 @@ Test options:
 
    --failure_stride: whhen printing failures, print avery n failures only
    
-   --data_path : path to where you have the 'Generator*.dat' and '*.json' serialization regression data. Defaults to current directory.
+   --data_path : path to where you have the `Generator*.dat` and `*.json` serialization regression data. Defaults to current directory.
    
    --data_backend : which backend to use for data storage, default: numpy, other options: gtmc, gtx86, gtcuda, debug
    
