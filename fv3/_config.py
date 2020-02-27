@@ -4,11 +4,11 @@ import fv3.utils.gt4py_utils as utils
 from fv3.utils.grid import Grid
 
 
-def namelist_to_dict(source):
+def namelist_to_flatish_dict(source):
     namelist = dict(source)
     for name, value in namelist.items():
         if isinstance(value, f90nml.Namelist):
-            namelist[name] = namelist_to_dict(value)
+            namelist[name] = namelist_to_flatish_dict(value)
     flatter_namelist = {}
     for key, value in namelist.items():
         if isinstance(value, dict):
@@ -50,7 +50,7 @@ def set_grid(in_grid):
     grid = in_grid
 
 
-namelist = namelist_to_dict(f90nml.read(os.environ['NAMELIST_FILENAME']).items())
+namelist = namelist_to_flatish_dict(f90nml.read(os.environ['NAMELIST_FILENAME']).items())
 namelist = merge_namelist_defaults(namelist)
 try:
     grid
