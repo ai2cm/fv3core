@@ -130,5 +130,15 @@ run_tests_host_data:
 	RUNTEST_IMAGE=$(FV3_IMAGE) \
 	$(MAKE) test_base
 
+lint:
+	black --diff --check $(PYTHON_FILES) $(PYTHON_INIT_FILES)
+	flake8 $(PYTHON_FILES)
+	# ignore unused import error in __init__.py files
+	flake8 --ignore=F401 $(PYTHON_INIT_FILES)
+	@echo "LINTING SUCCESSFUL"
+
+reformat:
+	black $(PYTHON_FILES) $(PYTHON_INIT_FILES)
+
 .PHONY: build tests tests_host test_base run_tests_container run_tests_host_data dev rundir cleanup_container
 
