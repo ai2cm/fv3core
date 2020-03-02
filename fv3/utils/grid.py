@@ -182,6 +182,9 @@ class Grid:
     
     def domain_shape_buffer_1cell(self):
         return (int(self.nid + 1), int(self.njd + 1), int(self.npz + 1))
+    
+    def domain2d_ik_buffer_1cell(self):
+        return (int(self.nid + 1), int(self.npz + 1), 1)
 
     def domain_shape_y(self):
         return (int(self.nid), int(self.njd + 1), int(self.npz))
