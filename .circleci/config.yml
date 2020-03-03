@@ -75,6 +75,7 @@ workflows:
               only:
                 - master
     jobs:
+      - lint
       - just_run_dawn_tests
       - full_build
           
