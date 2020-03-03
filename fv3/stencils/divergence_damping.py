@@ -15,43 +15,43 @@ sd = utils.sd
 @gtscript.stencil(backend=utils.exec_backend)
 def ptc_main(u: sd, va: sd, cosa_v: sd, sina_v: sd, dyc: sd, ptc: sd):
     with computation(PARALLEL), interval(...):
-        ptc = (u - 0.5 * (va[0, -1, 0] + va) * cosa_v) * dyc * sina_v
+        ptc[0, 0, 0] = (u - 0.5 * (va[0, -1, 0] + va) * cosa_v) * dyc * sina_v
 
 
 @gtscript.stencil(backend=utils.exec_backend)
 def ptc_y_edge(u: sd, vc: sd, dyc: sd, sin_sg4: sd, sin_sg2: sd, ptc: sd):
     with computation(PARALLEL), interval(...):
-        ptc = u * dyc * sin_sg4[0, -1, 0] if vc > 0 else u * dyc * sin_sg2
+        ptc[0, 0, 0] = u * dyc * sin_sg4[0, -1, 0] if vc > 0 else u * dyc * sin_sg2
 
 
 @gtscript.stencil(backend=utils.exec_backend)
 def vorticity_main(v: sd, ua: sd, cosa_u: sd, sina_u: sd, dxc: sd, vort: sd):
     with computation(PARALLEL), interval(...):
-        vort = (v - 0.5 * (ua[-1, 0, 0] + ua) * cosa_u) * dxc * sina_u
+        vort[0, 0, 0] = (v - 0.5 * (ua[-1, 0, 0] + ua) * cosa_u) * dxc * sina_u
 
 
 @gtscript.stencil(backend=utils.exec_backend)
 def vorticity_x_edge(v: sd, uc: sd, dxc: sd, sin_sg3: sd, sin_sg1: sd, vort: sd):
     with computation(PARALLEL), interval(...):
-        vort = v * dxc * sin_sg3[-1, 0, 0] if uc > 0 else v * dxc * sin_sg1
+        vort[0, 0, 0] = v * dxc * sin_sg3[-1, 0, 0] if uc > 0 else v * dxc * sin_sg1
 
 
 @gtscript.stencil(backend=utils.exec_backend)
 def delpc_main(vort: sd, ptc: sd, delpc: sd):
     with computation(PARALLEL), interval(...):
-        delpc = vort[0, -1, 0] - vort + ptc[-1, 0, 0] - ptc
+        delpc[0, 0, 0] = vort[0, -1, 0] - vort + ptc[-1, 0, 0] - ptc
 
 
 @gtscript.stencil(backend=utils.exec_backend)
 def corner_south_remove_extra_term(vort: sd, delpc: sd):
     with computation(PARALLEL), interval(...):
-        delpc = delpc - vort[0, -1, 0]
+        delpc[0, 0, 0] = delpc - vort[0, -1, 0]
 
 
 @gtscript.stencil(backend=utils.exec_backend)
 def corner_north_remove_extra_term(vort: sd, delpc: sd):
     with computation(PARALLEL), interval(...):
-        delpc = delpc + vort
+        delpc[0, 0, 0] = delpc + vort
 
 
 @gtscript.function
@@ -75,12 +75,12 @@ def damping_nord0_stencil(
     dt: float,
 ):
     with computation(PARALLEL), interval(...):
-        delpc = rarea_c * delpc
+        delpc[0, 0, 0] = rarea_c * delpc
         delpcdt = delpc * dt
         absdelpcdt = delpcdt if delpcdt >= 0 else -delpcdt
         damp = damp_tmp(absdelpcdt, da_min_c, d2_bg, dddmp)
-        vort = damp * delpc
-        ke = ke + vort
+        vort[0, 0, 0] = damp * delpc
+        ke[0, 0, 0] = ke + vort
 
 
 @gtscript.stencil(backend=utils.exec_backend)
@@ -103,19 +103,19 @@ def damping_nord_highorder_stencil(
 @gtscript.stencil(backend=utils.exec_backend)
 def vc_from_divg(divg_d: sd, divg_u: sd, vc: sd):
     with computation(PARALLEL), interval(...):
-        vc = (divg_d[1, 0, 0] - divg_d) * divg_u
+        vc[0, 0, 0] = (divg_d[1, 0, 0] - divg_d) * divg_u
 
 
 @gtscript.stencil(backend=utils.exec_backend)
 def uc_from_divg(divg_d: sd, divg_v: sd, uc: sd):
     with computation(PARALLEL), interval(...):
-        uc = (divg_d[0, 1, 0] - divg_d) * divg_v
+        uc[0, 0, 0] = (divg_d[0, 1, 0] - divg_d) * divg_v
 
 
 @gtscript.stencil(backend=utils.exec_backend)
 def redo_divg_d(uc: sd, vc: sd, divg_d: sd):
     with computation(PARALLEL), interval(...):
-        divg_d = uc[0, -1, 0] - uc + vc[-1, 0, 0] - vc
+        divg_d[0, 0, 0] = uc[0, -1, 0] - uc + vc[-1, 0, 0] - vc
 
 
 # TODO: can we make this a stencil? docs refer to IR native functions...
@@ -151,9 +151,7 @@ def nord_compute(data, nord_column):
 
 def compute(u, v, va, ptc, vort, ua, divg_d, vc, uc, delpc, ke, wk, d2_bg, dt, nord):
     grid = spec.grid
-    js2 = max(grid.halo + 1, grid.js)
     is2 = max(grid.halo + 1, grid.is_)
-    je1 = min(grid.npy + 1, grid.je + 1)
     ie1 = min(grid.npx + 1, grid.ie + 1)
     nord = int(nord)
     if nord == 0:

@@ -64,7 +64,15 @@ def p_grad_c(
 ):
     with computation(PARALLEL), interval(0, -1):
         uc_in, vc_in = p_grad_c_fn(
-            uc_in, vc_in, delpc, pkc, gz, rdxc, rdyc, hydrostatic, dt2
+            uc_in,
+            vc_in,
+            delpc,
+            pkc,
+            gz,
+            rdxc,
+            rdyc,
+            hydrostatic,
+            dt2,  # TODO: add [0, 0, 0] when gt4py bug is fixed
         )
 
 
@@ -73,7 +81,9 @@ def p_grad_c_ustencil(
     uc_in: sd, delpc: sd, pkc: sd, gz: sd, rdxc: sd, *, hydrostatic: int, dt2: float
 ):
     with computation(PARALLEL), interval(0, -1):
-        uc_in = p_grad_c_u_wk(uc_in, delpc, pkc, gz, rdxc, hydrostatic, dt2)
+        uc_in = p_grad_c_u_wk(
+            uc_in, delpc, pkc, gz, rdxc, hydrostatic, dt2
+        )  # TODO: add [0, 0, 0] when gt4py bug is fixed
 
 
 @gtscript.stencil(backend=utils.exec_backend, rebuild=True)
@@ -81,7 +91,9 @@ def p_grad_c_vstencil(
     vc_in: sd, delpc: sd, pkc: sd, gz: sd, rdyc: sd, hydrostatic: int, dt2: float
 ):
     with computation(PARALLEL), interval(0, -1):
-        vc_in = p_grad_c_v_wk(vc_in, delpc, pkc, gz, rdyc, hydrostatic, dt2)
+        vc_in = p_grad_c_v_wk(
+            vc_in, delpc, pkc, gz, rdyc, hydrostatic, dt2
+        )  # TODO: add [0, 0, 0] when gt4py bug is fixed
 
 
 def compute(uc, vc, delpc, pkc, gz, dt2):

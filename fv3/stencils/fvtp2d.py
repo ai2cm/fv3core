@@ -16,14 +16,14 @@ sd = utils.sd
 def q_i_stencil(q: sd, area: sd, yfx: sd, fy2: sd, ra_y: sd, q_i: sd):
     with computation(PARALLEL), interval(...):
         fyy = yfx * fy2
-        q_i = (q * area + fyy - fyy[0, 1, 0]) / ra_y
+        q_i[0, 0, 0] = (q * area + fyy - fyy[0, 1, 0]) / ra_y
 
 
 @gtscript.stencil(backend=utils.exec_backend, rebuild=True)
 def q_j_stencil(q: sd, area: sd, xfx: sd, fx2: sd, ra_x: sd, q_j: sd):
     with computation(PARALLEL), interval(...):
         fx1 = xfx * fx2
-        q_j = (q * area + fx1 - fx1[1, 0, 0]) / ra_x
+        q_j[0, 0, 0] = (q * area + fx1 - fx1[1, 0, 0]) / ra_x
 
 
 @gtscript.stencil(backend=utils.exec_backend, rebuild=True)

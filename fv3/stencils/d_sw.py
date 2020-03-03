@@ -53,39 +53,43 @@ def flux_adjust(w: sd, delp: sd, gx: sd, gy: sd, rarea: sd):
 @gtscript.stencil(backend=utils.exec_backend, rebuild=True)
 def not_inlineq_pressure(gx: sd, gy: sd, rarea: sd, fx: sd, fy: sd, pt: sd, delp: sd):
     with computation(PARALLEL), interval(...):
-        pt = flux_integral(pt, delp, gx, gy, rarea)
-        delp = delp + flux_component(fx, fy, rarea)
-        pt = pt / delp
+        pt = flux_integral(
+            pt, delp, gx, gy, rarea
+        )  # TODO: put [0, 0, 0] on left when gt4py bug is fixed
+        delp = delp + flux_component(
+            fx, fy, rarea
+        )  # TODO: put [0, 0, 0] on left when gt4py bug is fixed
+        pt[0, 0, 0] = pt / delp
 
 
 @gtscript.stencil(backend=utils.exec_backend, rebuild=True)
 def ke_from_bwind(ke: sd, ub: sd, vb: sd):
     with computation(PARALLEL), interval(...):
-        ke = 0.5 * (ke + ub * vb)
+        ke[0, 0, 0] = 0.5 * (ke + ub * vb)
 
 
 @gtscript.stencil(backend=utils.exec_backend, rebuild=True)
 def ub_from_vort(vort: sd, ub: sd):
     with computation(PARALLEL), interval(...):
-        ub = vort - vort[1, 0, 0]
+        ub[0, 0, 0] = vort - vort[1, 0, 0]
 
 
 @gtscript.stencil(backend=utils.exec_backend, rebuild=True)
 def vb_from_vort(vort: sd, vb: sd):
     with computation(PARALLEL), interval(...):
-        vb = vort - vort[0, 1, 0]
+        vb[0, 0, 0] = vort - vort[0, 1, 0]
 
 
 @gtscript.stencil(backend=utils.exec_backend, rebuild=True)
 def u_from_ke(ke: sd, vt: sd, fy: sd, u: sd):
     with computation(PARALLEL), interval(...):
-        u = vt + ke - ke[1, 0, 0] + fy
+        u[0, 0, 0] = vt + ke - ke[1, 0, 0] + fy
 
 
 @gtscript.stencil(backend=utils.exec_backend, rebuild=True)
 def v_from_ke(ke: sd, ut: sd, fx: sd, v: sd):
     with computation(PARALLEL), interval(...):
-        v = ut + ke - ke[0, 1, 0] - fx
+        v[0, 0, 0] = ut + ke - ke[0, 1, 0] - fx
 
 
 # TODO: this is untested and the radius may be incorrect
@@ -96,13 +100,13 @@ def coriolis_force_correction(zh: sd, z_rat: sd):
     from __externals__ import radius
 
     with computation(PARALLEL), interval(...):
-        z_rat = 1.0 + (zh + zh[0, 0, 1]) / radius
+        z_rat[0, 0, 0] = 1.0 + (zh + zh[0, 0, 1]) / radius
 
 
 @gtscript.stencil(backend=utils.exec_backend)
 def zrat_vorticity(wk: sd, f0: sd, z_rat: sd, vort: sd):
     with computation(PARALLEL), interval(...):
-        vort = wk + f0 * z_rat
+        vort[0, 0, 0] = wk + f0 * z_rat
 
 
 @gtscript.function
@@ -123,9 +127,9 @@ def adjust_w_and_qcon(w: sd, delp: sd, dw: sd, q_con: sd, damp_w: float):
 @gtscript.stencil(backend=utils.exec_backend, rebuild=True)
 def heatdamping_setup(ub: sd, vt: sd, fy: sd, u: sd, gy: sd, rdx: sd):
     with computation(PARALLEL), interval(...):
-        ub = (ub + vt) * rdx
-        fy = u * rdx
-        gy = fy * ub
+        ub[0, 0, 0] = (ub + vt) * rdx
+        fy[0, 0, 0] = u * rdx
+        gy[0, 0, 0] = fy * ub
 
 
 @gtscript.function
@@ -159,8 +163,8 @@ def heatdamping(
         v2 = fx + fx[1, 0, 0]
         dv2 = vb + vb[1, 0, 0]
         dampterm = heat_damping_term(ub, vb, gx, gy, rsin2, cosa_s, u2, v2, du2, dv2)
-        heat_source = delp * (heat_source - damp * dampterm)
-        diss_est = diss_est - dampterm if do_skeb == 1 else diss_est
+        heat_source[0, 0, 0] = delp * (heat_source - damp * dampterm)
+        diss_est[0, 0, 0] = diss_est - dampterm if do_skeb == 1 else diss_est
 
 
 def initialize_heat_source(heat_source, diss_est):
@@ -237,7 +241,6 @@ def max_d2_bg1():
 
 def get_column_namelist():
     ks = [k[0] for k in k_indices()]
-    nk = len(ks)
     col = {"column_namelist": []}
     for ki in ks:
         col["column_namelist"].append(column_namelist_options(ki))
@@ -246,17 +249,6 @@ def get_column_namelist():
 
 def column_namelist_options(k):
     direct_namelist = ["ke_bg", "d_con", "nord"]
-    column_vars = [
-        "nord",
-        "nord_v",
-        "nord_w",
-        "nord_t",
-        "damp_vt",
-        "damp_w",
-        "damp_t",
-        "d2_divg",
-        "ke_bg",
-    ]
     col = {}
     for name in direct_namelist:
         col[name] = spec.namelist[name]
@@ -271,7 +263,8 @@ def column_namelist_options(k):
     col["damp_w"] = col["damp_vt"]
     col["damp_t"] = col["damp_vt"]
     if grid().npz == 1 or spec.namelist["n_sponge"] < 0:
-        d2_divg = spec.namelist["d2_bg"]
+        pass
+    #     d2_divg = spec.namelist["d2_bg"]  # commenting because unused, never gets set into col
     else:
         if k == 0:
             col["d2_divg"] = max_d2_bg0()

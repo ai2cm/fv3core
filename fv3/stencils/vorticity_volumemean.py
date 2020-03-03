@@ -8,13 +8,13 @@ from gt4py.gtscript import computation, interval, PARALLEL
 @gtscript.stencil(backend=exec_backend)
 def vorticity(u: sd, dx: sd, vt: sd):
     with computation(PARALLEL), interval(...):
-        vt = u * dx
+        vt[0, 0, 0] = u * dx
 
 
 @gtscript.stencil(backend=exec_backend)
 def volume_mean_relative_vorticity(ut: sd, vt: sd, rarea: sd, wk: sd):
     with computation(PARALLEL), interval(...):
-        wk = rarea * (vt - vt[0, 1, 0] - ut + ut[1, 0, 0])
+        wk[0, 0, 0] = rarea * (vt - vt[0, 1, 0] - ut + ut[1, 0, 0])
 
 
 def compute(u, v, ut, vt, wk):

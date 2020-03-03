@@ -32,7 +32,7 @@ def grid():
 @gtscript.stencil(backend=utils.exec_backend, externals={"p1": p1, "p2": p2})
 def main_al(q: sd, al: sd):
     with computation(PARALLEL), interval(0, None):
-        al = p1 * (q[0, -1, 0] + q) + p2 * (q[0, -2, 0] + q[0, 1, 0])
+        al[0, 0, 0] = p1 * (q[0, -1, 0] + q) + p2 * (q[0, -2, 0] + q[0, 1, 0])
 
 
 @gtscript.stencil(backend=utils.exec_backend, externals={"c1": c1, "c2": c2, "c3": c3})
@@ -137,7 +137,8 @@ def get_flux_stencil(q: sd, c: sd, al: sd, flux: sd, mord: int):
     with computation(PARALLEL), interval(0, None):
         bl, br, b0, tmp = flux_intermediates(q, al, mord)
         fx1 = fx1_fn(c, br, b0, bl)
-        flux = final_flux(c, q, fx1, tmp)
+        # TODO: add [0, 0, 0] when gt4py bug is fixed
+        flux = final_flux(c, q, fx1, tmp)  # noqa
         # flux = get_flux(q, c, al, mord)
         # ...Ended up adding 1 to y direction of  storage shape with the
         # addition of  fx1[0,0,0] * tmp[0,0,0], e.g. the smt5 conditional.
@@ -181,7 +182,6 @@ def compute_al(q, dyvar, jord, ifirst, ilast, js1, je3):
 def compute_flux(q, c, jord, ifirst, ilast):
     js1 = max(5, grid().js - 1)
     je3 = min(grid().npy, grid().je + 2)
-    je1 = min(grid().npy - 1, grid().je + 1)
     al = compute_al(q, grid().dya, jord, ifirst, ilast, js1, je3)
     mord = abs(jord)
     flux = utils.make_storage_from_shape(q.shape, origin)

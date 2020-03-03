@@ -11,19 +11,19 @@ sd = utils.sd
 @gtscript.stencil(backend=utils.exec_backend, rebuild=utils.rebuild)
 def main_ub(uc: sd, vc: sd, cosa: sd, rsina: sd, ub: sd, *, dt5: float):
     with computation(PARALLEL), interval(...):
-        ub = dt5 * (uc[0, -1, 0] + uc - (vc[-1, 0, 0] + vc) * cosa) * rsina
+        ub[0, 0, 0] = dt5 * (uc[0, -1, 0] + uc - (vc[-1, 0, 0] + vc) * cosa) * rsina
 
 
 @gtscript.stencil(backend=utils.exec_backend, rebuild=utils.rebuild)
 def x_edge(ut: sd, ub: sd, *, dt5: float):
     with computation(PARALLEL), interval(...):
-        ub = dt5 * (ut[0, -1, 0] + ut)
+        ub[0, 0, 0] = dt5 * (ut[0, -1, 0] + ut)
 
 
 @gtscript.stencil(backend=utils.exec_backend, rebuild=utils.rebuild)
 def y_edge(ut: sd, ub: sd, *, dt4: float):
     with computation(PARALLEL), interval(...):
-        ub = dt4 * (-ut[0, -2, 0] + 3.0 * (ut[0, -1, 0] + ut) - ut[0, 1, 0])
+        ub[0, 0, 0] = dt4 * (-ut[0, -2, 0] + 3.0 * (ut[0, -1, 0] + ut) - ut[0, 1, 0])
 
 
 def compute(uc, vc, ut, ub, dt5, dt4):

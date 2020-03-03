@@ -27,7 +27,7 @@ def grid():
 @gtscript.stencil(backend=utils.exec_backend, externals={"p1": p1, "p2": p2})
 def main_al(q: sd, al: sd):
     with computation(PARALLEL), interval(0, None):
-        al = p1 * (q[-1, 0, 0] + q) + p2 * (q[-2, 0, 0] + q[1, 0, 0])
+        al[0, 0, 0] = p1 * (q[-1, 0, 0] + q) + p2 * (q[-2, 0, 0] + q[1, 0, 0])
 
 
 @gtscript.stencil(backend=utils.exec_backend, externals={"c1": c1, "c2": c2, "c3": c3})
@@ -82,7 +82,8 @@ def get_flux(q: sd, c: sd, al: sd, flux: sd, *, mord: int):
     with computation(PARALLEL), interval(0, None):
         bl, br, b0, tmp = flux_intermediates(q, al, mord)
         fx1 = fx1_fn(c, br, b0, bl)
-        flux = final_flux(c, q, fx1, tmp)
+        # TODO: add [0, 0, 0] when gt4py bug gets fixed
+        flux = final_flux(c, q, fx1, tmp)  # noqa
         # bl = get_bl(al=al, q=q)
         # br = get_br(al=al, q=q)
         # b0 = get_b0(bl=bl, br=br)

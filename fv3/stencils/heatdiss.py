@@ -19,9 +19,9 @@ def heat_diss(
     dd8: float,
 ):
     with computation(PARALLEL), interval(...):
-        dw = (fx2 - fx2[1, 0, 0] + fy2 - fy2[0, 1, 0]) * rarea
-        heat_source = dd8 - dw * (w + 0.5 * dw)
-        diss_est = heat_source
+        dw[0, 0, 0] = (fx2 - fx2[1, 0, 0] + fy2 - fy2[0, 1, 0]) * rarea
+        heat_source[0, 0, 0] = dd8 - dw * (w + 0.5 * dw)
+        diss_est[0, 0, 0] = heat_source
 
 
 def compute(fx2, fy2, w, dd8, dw, heat_source, diss_est):

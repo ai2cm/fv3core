@@ -248,10 +248,10 @@ def update_dz_c(
             )
         with interval(-1, None):
             rdt = 1.0 / dt
-            ws3 = (zs - gz) * rdt
+            ws3[0, 0, 0] = (zs - gz) * rdt
     with computation(BACKWARD), interval(0, -1):
         gz_kp1 = gz[0, 0, 1] + DZ_MIN
-        gz = gz if gz > gz_kp1 else gz_kp1
+        gz[0, 0, 0] = gz if gz > gz_kp1 else gz_kp1
 
 
 def compute(dp_ref, zs, ut, vt, gz_in, ws3, dt2):

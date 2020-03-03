@@ -95,12 +95,12 @@ def yfx_adv_stencil(
     dt: float,
 ):
     with computation(PARALLEL), interval(...):
-        yfx_adv = dt * vt
-        cry_adv = yfx_adv * rdya[0, -1, 0] if yfx_adv > 0 else yfx_adv * rdya
-        yfx_adv = (
+        yfx_adv[0, 0, 0] = dt * vt
+        cry_adv[0, 0, 0] = yfx_adv * rdya[0, -1, 0] if yfx_adv > 0 else yfx_adv * rdya
+        yfx_adv[0, 0, 0] = (
             dx * yfx_adv * sin_sg4[0, -1, 0] if yfx_adv > 0 else dx * yfx_adv * sin_sg2
         )
-        ra_y = area + yfx_adv - yfx_adv[0, 1, 0]
+        ra_y[0, 0, 0] = area + yfx_adv - yfx_adv[0, 1, 0]
 
 
 def compute(uc_in, vc_in, ut_in, vt_in, xfx_adv, yfx_adv, crx_adv, cry_adv, dt):
@@ -397,7 +397,6 @@ def sw_corner(uc, vc, ut, vt, cosa_u, cosa_v, corner_shape):
     t = grid().is_ + 1
     n = grid().is_
     z = grid().is_ - 1
-    m = grid().is_ - 2
     corner_ut(uc, vc, ut, vt, cosa_u, cosa_v, t, z, n, z, west=True, lower=True)
     corner_ut(
         vc, uc, vt, ut, cosa_v, cosa_u, z, t, z, n, west=True, lower=True, vswitch=True
@@ -412,7 +411,6 @@ def se_corner(uc, vc, ut, vt, cosa_u, cosa_v, corner_shape):
     t = grid().js + 1
     n = grid().js
     z = grid().js - 1
-    m = grid().js - 2
     corner_ut(
         uc,
         vc,
@@ -540,7 +538,6 @@ def nw_corner(uc, vc, ut, vt, cosa_u, cosa_v, corner_shape):
     t = grid().js + 1
     n = grid().js
     z = grid().js - 1
-    m = grid().js - 2
     corner_ut(
         uc,
         vc,
