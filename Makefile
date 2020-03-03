@@ -28,6 +28,8 @@ TEST_DATA_RUN_CONTAINER=TestDataContainer-$(FORTRAN_VERSION)
 FORTRAN_SHA=$(shell git --git-dir=$(FORTRAN_DIR)/.git rev-parse HEAD)
 REMOTE_TAGS="$(shell gcloud container images list-tags --format='get(tags)' $(TEST_DATA_REPO) | grep $(FORTRAN_VERSION))"
 
+PYTHON_FILES = $(shell git ls-files | grep -e 'py$$' | grep -v -e '__init__.py')
+PYTHON_INIT_FILES = $(shell git ls-files | grep '__init__.py')
 
 build_environment_serialize:
 	if [ ! -d $(FORTRAN_DIR)/FV3 ]; then git submodule update --init --recursive ;fi
