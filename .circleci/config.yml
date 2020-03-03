@@ -24,6 +24,7 @@ jobs:
           name: "Pull Submodules"
           command: |
             git submodule update --init --recursive
+      - gcp-gcr/gcr-auth
       - run: 
           name: "Build containers, run tests"
           command: |
