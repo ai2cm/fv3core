@@ -14,6 +14,7 @@ jobs:
       docker_layer_caching: false
     environment:
       GOOGLE_APPLICATION_CREDENTIALS: /tmp/key.json
+      BUILD_IMAGE: us.gcr.io/vcm-ml/fv3ser-install:latest
     steps:
       - checkout
       - run:
@@ -29,6 +30,11 @@ jobs:
           name: "Build containers, run tests"
           command: |
             PULL=False make tests
+      
+      - run: 
+          name: "Push new image"
+          command: |
+            docker push $BUILD_IMAGE
   just_run_tests:
     machine:
       docker_layer_caching: true
@@ -81,11 +87,11 @@ workflows:
   nightly_dawn_tests:
     triggers:
       - schedule:
-          cron: "0 6 * * *"
+          cron: "0 9 * * *"
           filters:
             branches:
               only:
-                - dawn
+                - master
     jobs:
       - just_run_dawn_tests
 
