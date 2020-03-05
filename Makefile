@@ -148,5 +148,8 @@ flake8:
 reformat:
 	black $(PYTHON_FILES) $(PYTHON_INIT_FILES)
 
-.PHONY: build tests tests_host test_base run_tests_container run_tests_host_data dev rundir cleanup_container flake8 lint reformat
+.PHONY: build tests tests_host test_base run_tests_container run_tests_host_data \
+	dev devc generate_test_data extract_test_data post_test_data pull_test_data \
+	data_container fortran_model_data pull_environment push_environment  \
+	build_environment build_environment_serialize cleanup_container flake8 lint reformat
 
