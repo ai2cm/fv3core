@@ -68,7 +68,7 @@ workflows:
     jobs:
       - lint
       - just_run_tests
-  nightly:
+  nightly_build:
     triggers:
       - schedule:
           cron: "0 7 * * *"
@@ -77,6 +77,16 @@ workflows:
               only:
                 - master
     jobs:
-      - just_run_dawn_tests
       - full_build
+  nightly_dawn_tests:
+    triggers:
+      - schedule:
+          cron: "0 6 * * *"
+          filters:
+            branches:
+              only:
+                - dawn
+    jobs:
+      - just_run_dawn_tests
+
           
