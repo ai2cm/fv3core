@@ -9,9 +9,6 @@ def grid():
 
 
 sd = utils.sd
-origin = grid().default_origin()
-u_origin = (grid().isd + 1, grid().jsd, 0)
-v_origin = (grid().isd, grid().jsd + 1, 0)
 stencil_corner = True
 
 

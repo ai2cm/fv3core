@@ -3,7 +3,7 @@ CWD=$(shell pwd)
 #<some large conceptual version change>.<serialization statement change>.<hotfix>
 FORTRAN_VERSION=0.1.1
 
-
+TEST_ARGS ?= '-v -s'
 PULL ?=True
 VOLUMES ?=
 MOUNTS ?=
@@ -123,7 +123,7 @@ dev_tests:
 
 test_base:
 	docker run --rm $(VOLUMES) $(MOUNTS) \
-	-it $(RUNTEST_IMAGE) pytest -s  --data_path=$(TEST_DATA_CONTAINER) ${TEST_ARGS} /fv3/test
+	-it $(RUNTEST_IMAGE) pytest --data_path=$(TEST_DATA_CONTAINER) ${TEST_ARGS} /fv3/test
 
 run_tests_container:
 	VOLUMES='--volumes-from $(TEST_DATA_RUN_CONTAINER)' \

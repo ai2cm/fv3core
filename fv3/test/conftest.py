@@ -6,7 +6,7 @@ import os
 import fv3
 import fv3._config
 import fv3.utils.gt4py_utils
-import fv3.translate.translate
+import fv3.translate
 import collections
 
 sys.path.append("/serialbox2/install/python")  # noqa
@@ -27,6 +27,7 @@ def data_backend(pytestconfig, backend):
     if data_backend is None:
         data_backend = backend
     fv3.utils.gt4py_utils.data_backend = data_backend
+    return data_backend
 
 
 @pytest.fixture()
@@ -35,6 +36,7 @@ def exec_backend(pytestconfig, backend):
     if exec_backend is None:
         exec_backend = backend
     fv3.utils.gt4py_utils.exec_backend = exec_backend
+    return exec_backend
 
 
 @pytest.fixture()
@@ -93,36 +95,33 @@ def process_grid_savepoint(serializer, grid_savepoint):
 
 def get_test_class_instance(test_name, grid):
     try:
-        module_name = f'fv3.translate.translate_{test_name.lower()}'
-        module = importlib.import_module(module_name)
-        instance = getattr(module, f"Translate{test_name.replace('-', '_')}")(grid)
+        instance = getattr(fv3.translate, f"Translate{test_name.replace('-', '_')}")(grid)
     except (AttributeError, ImportError):
         instance = None
     return instance
 
 
 def get_savepoint_names(metafunc, data_path, total_ranks):
-    skip_names = metafunc.config.getoption("skip_modules").split(",")
-    only_names = metafunc.config.getoption("which_modules").split(",")
-    if '' in skip_names:
-        skip_names.remove('')
-    if '' in only_names:
-        only_names.remove('')
-    savepoint_names = set()
-    for rank in range(total_ranks):
-        serializer = get_serializer(data_path, rank)
-        for savepoint in serializer.savepoint_list():
-            if is_input_name(savepoint.name):
-                savepoint_names.add(savepoint.name[:-3])
-    savepoint_names.difference_update(skip_names)
-    if len(only_names) > 0:
-        savepoint_names.intersection_update(only_names)
+    only_names = metafunc.config.getoption("which_modules")
+    if only_names is None:
+        savepoint_names = set()
+        for rank in range(total_ranks):
+            serializer = get_serializer(data_path, rank)
+            for savepoint in serializer.savepoint_list():
+                if is_input_name(savepoint.name):
+                    savepoint_names.add(savepoint.name[:-3])
+    else:
+        savepoint_names = set(only_names.split(','))
+        savepoint_names.discard('')
+    skip_names = metafunc.config.getoption("skip_modules")
+    if skip_names is not None:
+        savepoint_names.difference_update(skip_names.split(','))
     return savepoint_names
 
 
 SavepointCase = collections.namedtuple(
     "SavepointCase",
-    ["test_name", "rank", "serializer", "input_savepoints", "output_savepoints"]
+    ["test_name", "rank", "serializer", "input_savepoints", "output_savepoints", "grid"]
 )
 
 
@@ -132,6 +131,8 @@ def savepoint_cases(metafunc, data_path):
     savepoint_names = get_savepoint_names(metafunc, data_path, total_ranks)
     for rank in reversed(range(total_ranks)):
         serializer = get_serializer(data_path, rank)
+        grid_savepoint = serializer.get_savepoint(GRID_SAVEPOINT_NAME)[0]
+        grid = process_grid_savepoint(serializer, grid_savepoint)
         for test_name in sorted(list(savepoint_names)):
             input_savepoints = serializer.get_savepoint(f'{test_name}-In')
             output_savepoints = serializer.get_savepoint(f'{test_name}-Out')
@@ -139,8 +140,11 @@ def savepoint_cases(metafunc, data_path):
                 warnings.warn(
                     f'number of input and output savepoints not equal for {test_name}:'
                     f' {len(input_savepoints)} in and {len(output_savepoints)} out')
+            elif len(input_savepoints) == 0:
+                warnings.warn(
+                    f'no savepoints found for {test_name}')
             yield SavepointCase(
-                test_name, rank, serializer, input_savepoints, output_savepoints
+                test_name, rank, serializer, input_savepoints, output_savepoints, grid
             )
 
 
@@ -152,28 +156,24 @@ def generate_basic_stencil_tests(metafunc):
     arg_names = ["testobj", "test_name", "serializer", "savepoint_in", "savepoint_out", "rank", "grid"]
     if all(name in metafunc.fixturenames for name in arg_names):
         data_path = data_path_from_config(metafunc.config)
-        serializer = get_serializer(data_path, rank=0)
-        grid_savepoint = serializer.get_savepoint(GRID_SAVEPOINT_NAME)[0]
-        grid = process_grid_savepoint(serializer, grid_savepoint)
         param_list = []
 
         for case in savepoint_cases(metafunc, data_path):
-            testobj = get_test_class_instance(case.test_name, grid)
+            testobj = get_test_class_instance(case.test_name, case.grid)
             for i, (savepoint_in, savepoint_out) in enumerate(zip(case.input_savepoints, case.output_savepoints)):
                 param_list.append(
                     pytest.param(
-                        testobj, case.test_name, case.serializer, savepoint_in, savepoint_out, case.rank, grid,
+                        testobj, case.test_name, case.serializer, savepoint_in, savepoint_out, case.rank, case.grid,
                         id=f"{case.test_name}-rank={case.rank}-call_count={i}"
                     )
                 )
         arg_names = ["testobj", "test_name", "serializer", "savepoint_in", "savepoint_out", "rank", "grid"]
-        # param_list = []
         metafunc.parametrize(", ".join(arg_names), param_list)
 
 
 def pytest_addoption(parser):
-    parser.addoption("--which_modules", action="store", default="")
-    parser.addoption("--skip_modules", action="store", default="")
+    parser.addoption("--which_modules", action="store", default=None)
+    parser.addoption("--skip_modules", action="store", default=None)
     parser.addoption("--data_path", action="store", default=".")
     parser.addoption("--data_backend", action="store", default=None)
     parser.addoption("--exec_backend", action="store", default=None)

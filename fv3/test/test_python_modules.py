@@ -49,7 +49,7 @@ def test_savepoint(
     output = testobj.compute(input_data)
     for varname in testobj.serialnames(testobj.out_vars):
         ref_data = read_serialized_data(serializer, savepoint_out, varname)
-        with subtests.test(varname):
+        with subtests.test(varname=varname):
             np.testing.assert_allclose(output[varname], ref_data, rtol=testobj.max_error)
 
 
@@ -65,7 +65,7 @@ def state_from_savepoint(serializer, savepoint, name_to_std_name):
     state = {}
     for name, std_name in name_to_std_name.items():
         array = serializer.read(name, savepoint)
-        extent = list(np.asarray(array.shape) - 2 * np.asarray(origin))
+        extent = tuple(np.asarray(array.shape) - 2 * np.asarray(origin))
         state['air_temperature'] = fv3util.Quantity(
             array,
             dims=reversed(properties['air_temperature']['dims']),
