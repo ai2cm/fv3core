@@ -5,7 +5,10 @@ import gt4py as gt
 import gt4py.gtscript as gtscript
 import copy as cp
 import math
+import logging
 
+
+logger = logging.getLogger('fv3ser')
 data_backend = "numpy"  # Options: numpy, gtmc, gtx86, gtcuda, debug
 exec_backend = "numpy"  # Options: numpy, gtmc, gtx86, gtcuda, debug, and dawn:gtmc
 rebuild = True
@@ -128,7 +131,7 @@ def k_subset_run(func, data, splitvars, ki, outputs, grid_data, grid):
 
 def collect_results(data, results, outputs, ki):
     outnames = list(outputs.keys())
-    print("Computing results for k indices:", ki[:-1])
+    logger.debug("Computing results for k indices:", ki[:-1])
     for k in outnames:
         if k in data:
             # passing fields with single item in 3rd dimension leads to errors
