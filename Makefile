@@ -121,7 +121,7 @@ tests_host:
 
 test_base:
 	docker run --rm $(VOLUMES) \
-	-it $(RUNTEST_IMAGE) pytest -v -s  --data_path=$(TEST_DATA_CONTAINER) ${TEST_ARGS} /fv3/test
+	-it $(RUNTEST_IMAGE) pytest -s  --data_path=$(TEST_DATA_CONTAINER) ${TEST_ARGS} /fv3/test
 
 run_tests_container:
 	VOLUMES='--volumes-from $(TEST_DATA_RUN_CONTAINER)' \
