@@ -17,9 +17,12 @@ import fv3.stencils.basic_operations as basic
 import fv3.stencils.vorticity_volumemean as vort_mean
 import fv3.stencils.divergence_damping as divdamp
 from gt4py.gtscript import computation, interval, PARALLEL
+import logging
 
 dcon_threshold = 1e-5
 sd = utils.sd
+
+logger = logging.getLogger('fv3ser')
 
 
 def grid():
@@ -422,7 +425,7 @@ def d_sw(
     dt,
     column_namelist,
 ):
-    print("Parameters that vary with k", column_namelist)
+    logger.debug("Parameters that vary with k", column_namelist)
     shape = heat_s.shape
     ub = utils.make_storage_from_shape(shape, grid().compute_origin())
     vb = utils.make_storage_from_shape(shape, grid().compute_origin())

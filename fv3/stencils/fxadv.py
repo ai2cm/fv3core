@@ -353,7 +353,7 @@ def corner_ut(
     uy = uj + index_offset(lower, True, south) * lowerfactor
     if stencil_corner:
         decorator = gtscript.stencil(
-            utils.exec_backend,
+            backend=utils.exec_backend,
             externals={
                 "vi": vi - ui,
                 "vj": vj - uj,
