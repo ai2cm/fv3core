@@ -2,9 +2,9 @@ FV3ser
 ======
 FV3ser ('ef-vee-threezer') is a Python (using Gt4py with Dawn) version of the FV3 dynamical core (fv3gfs-fortran repo), with regression test data of computation units coming from serialized output from the fortran model generated with the Gridtools/serialbox repo.
 
-------------
+
 Getting started
-------------
+---------------
 * To run the existing unit tests 
 'make tests'
 See 'Unit Testing' section below for unit test options
@@ -18,9 +18,20 @@ make rebuild_environment
 make tests
 
 
-------------
+Porting a new stencil
+---------------------
+
+1. git grep the name of the stencil in ``fv3gfs-fortran`` to find the place in code
+   where the save-point is added
+2. create a class that translates from the serialized save-point data to a call
+   to the stencil (or function that calls the relevant stencil(s) -- fv3/translate/translate_<lowercase name> 
+3. write a python function the translate function calls that does the calculation of interest,
+   in fv3/stencils/<lower case stencil name>.py 
+4. test using ``pytest -–which_modules <stencil name>``
+
+
 Developing stencils
-------------
+-------------------
 Make a code change in the 'fv3' directory, then run 'make tests'
 OR
 Option: develop stencils using data and code as volumes into a container, there are a couple of possibilities: 
@@ -41,7 +52,7 @@ docker run -v <Local fv3gfs checkout>:/port_dev -v <TEST DATA PATH>:/test_data  
 Then in the container :
 pytest -v -s --data_path=/test_data/ /port_dev/fv3/test --which_modules=<Your stencil>
 
-------------
+
 Installation
 ------------
 
@@ -51,9 +62,9 @@ make build
 To build from scratch (without docker pulling)
 PULL=False make build
 
-------------
+
 Relevant repositories
-------------
+---------------------
 This package uses submodules that can be used to generate serialization data. If you would like to work with them (e.g. to make new serialization data etc.), after you check out the repository, you can run
 `git submodule update --init --recursive`
 
@@ -64,9 +75,10 @@ https://github.com/GridTools/gt4py
 https://github.com/MeteoSwiss-APN/dawn
 
 
-------------
-'Unit' testing stencils -- running regression tests of python FV3 functions and comparing to data serialized from the fortran model
-------------
+
+'Unit' testing stencils
+-----------------------
+How to run regression tests of python FV3 functions and comparing to data serialized from the fortran model
 TEST_ARGS="add pytest command line args (see below)" make tests (or run_tests_container or run_tests_host_data)
 
 Test options:
@@ -82,9 +94,9 @@ Test options:
    
    --exec_backend: which backend to use for stencil computation, default numpy, other options: gtmc, gtx86, gtcuda, debug, and dawn:gtmc
 
-------------
+
 Generating test data
-------------
+--------------------
 * This should be done hopefully infrequently in conjunction with a change to the serialization statements in fv3gfs-fortran
 1. make changes to fv3gfs-fortran, PR and merge changes to master (or if just testing an idea, 'git submodule update --init --recursive' to work on the fortran code locally)
 2. increment the FORTRAN_VERSION in the Makefile
@@ -96,9 +108,9 @@ Generating test data
 	* copy the data to a new image and delete the rundirectory image (it is large and usually don't need it anymore)
 4. if you want to commit this, open a PR, merge and run 'post_test_data'
 
-------------
+
 Dockerfiles
-------------
+-----------
 
 There are 3 main Dockerfiles in the 'docker' folder
  1) Dockerfile.build_environment -- builds off of the serialbox environment from fv3gfs-fortran, installs Dawn and Gt4py
@@ -106,7 +118,6 @@ There are 3 main Dockerfiles in the 'docker' folder
  3) Dockerfile.fortran_model_data -- builds the fv3gfs-fortran model with serialization on, sets up a run directory and generates test data. This is to be done infrequently and is orthogonal to the content in the other dockerfiles.
 
 
--------
 Linting
 -------
 
