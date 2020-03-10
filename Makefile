@@ -6,6 +6,7 @@ FORTRAN_VERSION=0.1.1
 
 PULL ?=True
 VOLUMES ?=
+MOUNTS ?=
 TEST_DATA_HOST ?=$(CWD)/test_data
 FV3_IMAGE ?=$(GCR_URL)/fv3ser:latest
 
@@ -33,12 +34,11 @@ PYTHON_INIT_FILES = $(shell git ls-files | grep '__init__.py')
 
 build_environment_serialize:
 	if [ ! -d $(FORTRAN_DIR)/FV3 ]; then git submodule update --init --recursive ;fi
-	cd $(FORTRAN_DIR) && \
 	DOCKERFILE=$(FORTRAN_DIR)/docker/Dockerfile \
 	ENVIRONMENT_TARGET=$(SERIALBOX_TARGET) \
 	$(MAKE) build_environment
 
-build_environment: build_environment_serialize
+build_environment:
 	DOCKER_BUILDKIT=1 docker build \
 		--build-arg serialbox_image=$(SERIALBOX_IMAGE) \
 		-f docker/Dockerfile.build_environment \
@@ -118,9 +118,11 @@ tests_host:
 	$(MAKE) extract_test_data
 	$(MAKE) run_tests_host_data
 
+dev_tests:
+	MOUNTS='-v $(CWD)/fv3:/fv3 -v $(CWD)/external/fv3gfs-python/external/fv3util:/usr/src/fv3util' $(MAKE) run_tests_container
 
 test_base:
-	docker run --rm $(VOLUMES) \
+	docker run --rm $(VOLUMES) $(MOUNTS) \
 	-it $(RUNTEST_IMAGE) pytest -s  --data_path=$(TEST_DATA_CONTAINER) ${TEST_ARGS} /fv3/test
 
 run_tests_container:

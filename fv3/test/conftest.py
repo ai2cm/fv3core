@@ -2,15 +2,15 @@ import pytest
 import sys
 import importlib
 import warnings
-
-sys.path.append("/serialbox2/install/python")  # noqa
-import serialbox
 import os
 import fv3
 import fv3._config
 import fv3.utils.gt4py_utils
 import fv3.translate.translate
 import collections
+
+sys.path.append("/serialbox2/install/python")  # noqa
+import serialbox
 
 
 GRID_SAVEPOINT_NAME = 'Grid-Info'
@@ -128,9 +128,9 @@ SavepointCase = collections.namedtuple(
 
 def savepoint_cases(metafunc, data_path):
     layout = fv3._config.namelist['layout']
-    total_ranks = layout[0] * layout[1]
+    total_ranks = 6 * layout[0] * layout[1]
     savepoint_names = get_savepoint_names(metafunc, data_path, total_ranks)
-    for rank in range(total_ranks):
+    for rank in reversed(range(total_ranks)):
         serializer = get_serializer(data_path, rank)
         for test_name in sorted(list(savepoint_names)):
             input_savepoints = serializer.get_savepoint(f'{test_name}-In')
@@ -145,22 +145,30 @@ def savepoint_cases(metafunc, data_path):
 
 
 def pytest_generate_tests(metafunc):
-    data_path = data_path_from_config(metafunc.config)
-    serializer = get_serializer(data_path, rank=0)
-    grid_savepoint = serializer.get_savepoint(GRID_SAVEPOINT_NAME)[0]
-    grid = process_grid_savepoint(serializer, grid_savepoint)
-    param_list = []
+    generate_basic_stencil_tests(metafunc)
 
-    for case in savepoint_cases(metafunc, data_path):
-        testobj = get_test_class_instance(case.test_name, grid)
-        for i, (savepoint_in, savepoint_out) in enumerate(zip(case.input_savepoints, case.output_savepoints)):
-            param_list.append(
-                pytest.param(
-                    testobj, case.test_name, case.serializer, savepoint_in, savepoint_out, case.rank, grid,
-                    id=f"{case.test_name}-rank={case.rank}-call_count={i}"
+
+def generate_basic_stencil_tests(metafunc):
+    arg_names = ["testobj", "test_name", "serializer", "savepoint_in", "savepoint_out", "rank", "grid"]
+    if all(name in metafunc.fixturenames for name in arg_names):
+        data_path = data_path_from_config(metafunc.config)
+        serializer = get_serializer(data_path, rank=0)
+        grid_savepoint = serializer.get_savepoint(GRID_SAVEPOINT_NAME)[0]
+        grid = process_grid_savepoint(serializer, grid_savepoint)
+        param_list = []
+
+        for case in savepoint_cases(metafunc, data_path):
+            testobj = get_test_class_instance(case.test_name, grid)
+            for i, (savepoint_in, savepoint_out) in enumerate(zip(case.input_savepoints, case.output_savepoints)):
+                param_list.append(
+                    pytest.param(
+                        testobj, case.test_name, case.serializer, savepoint_in, savepoint_out, case.rank, grid,
+                        id=f"{case.test_name}-rank={case.rank}-call_count={i}"
+                    )
                 )
-            )
-    metafunc.parametrize("testobj, test_name, serializer, savepoint_in, savepoint_out, rank, grid", param_list)
+        arg_names = ["testobj", "test_name", "serializer", "savepoint_in", "savepoint_out", "rank", "grid"]
+        # param_list = []
+        metafunc.parametrize(", ".join(arg_names), param_list)
 
 
 def pytest_addoption(parser):
@@ -170,3 +178,13 @@ def pytest_addoption(parser):
     parser.addoption("--data_backend", action="store", default=None)
     parser.addoption("--exec_backend", action="store", default=None)
     parser.addoption("--backend", action="store", default="numpy")
+
+
+def pytest_configure(config):
+    # register an additional marker
+    config.addinivalue_line(
+        "markers", "basic(name): mark test as a basic test"
+    )
+    config.addinivalue_line(
+        "markers", "halo(name): mark test as involving a halo update"
+    )
