@@ -12,21 +12,19 @@ class TranslateSIM1_solver(TranslateFortranData2Py):
         self.in_vars['data_vars'] = {}
         for f in in_fields:
             self.in_vars['data_vars'][f] = {'astart': grid.is_ - 1}
-        self.in_vars['parameters'] = ['dt', 'p_fac']
-        #self.out_vars = {'pe2':  {'istart': grid.is_ - 1, 'iend': grid.ie + 1, 'kstart': 0, 'kend': grid.npz},
-        #                 'dz2':  {'istart': grid.is_ - 1, 'iend': grid.ie + 1, 'kstart': 0, 'kend': grid.npz - 1},
-        #                 'w2':   {'istart': grid.is_ - 1, 'iend': grid.ie + 1, 'kstart': 0, 'kend': grid.npz - 1},
+        self.in_vars['parameters'] = ['dt']
         self.out_vars = {'pe2':  {'kstart': 0, 'kend': grid.npz},
                          'dz2':  {'kstart': 0, 'kend': grid.npz - 1},
                          'w2':   {'kstart': 0, 'kend': grid.npz - 1},
         }
+        self.max_error=1e-13
 
     def make_2d_storage_data(self, array2d, shape2d, astart=0, bstart=0):
         storage = utils.make_2d_storage_data(array2d, shape2d, istart=astart, jstart=bstart, origin=(astart, bstart, 0), backend=utils.data_backend)
         return storage.data[self.grid.is_ - 1:self.grid.ie + 2, 0:array2d.shape[1], 0]
        
     def compute(self, inputs):
-        shape2d=self.grid.domain2d_ik_buffer_1cell()
+        shape2d = self.grid.domain2d_ik_buffer_1cell()
         for d, info in self.in_vars['data_vars'].items():
             if d == 'ptr':
                 inputs[d] = inputs[d][:,0,:]
@@ -34,11 +32,8 @@ class TranslateSIM1_solver(TranslateFortranData2Py):
             if len(arr.shape) == 1:
                 arr = np.repeat(arr[:, np.newaxis], shape2d[1], axis=1)
                 inputs[d] = arr
-            #inputs[d] = self.make_2d_storage_data(arr,
-            #                                      shape2d, astart=info['astart'])
         inputs['is_'] = self.grid.is_ - 1
         inputs['ie'] = self.grid.ie + 1
-        #self.make_storage_data_input_vars(inputs)
         self.compute_func(**inputs)
         out = {}
         for var in self.out_vars.keys():
@@ -46,6 +41,5 @@ class TranslateSIM1_solver(TranslateFortranData2Py):
             self.update_info(info, inputs)   
             ds = self.grid.default_domain_dict()
             ds.update(info)
-            #out[var] = np.squeeze(inputs[var][:, ds['kstart']:ds['kend'] + 1])
             out[var] = np.squeeze(inputs[var])
         return out
