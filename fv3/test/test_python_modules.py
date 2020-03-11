@@ -28,8 +28,8 @@ def collect_input_data(testobj, serializer, savepoint,):
     return input_data
 
 
-@pytest.mark.basic
-def test_savepoint(
+@pytest.mark.sequential
+def test_sequential_savepoint(
     testobj,
     test_name,
     grid,
@@ -86,7 +86,7 @@ def get_communicator(comm, layout):
     return communicator
 
 
-@pytest.mark.halo
+@pytest.mark.parallel
 def test_halo_update(data_path, subtests):
     n_ghost = fv3.utils.gt4py_utils.halo
     layout = fv3._config.namelist['layout']

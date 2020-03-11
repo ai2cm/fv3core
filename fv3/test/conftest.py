@@ -14,6 +14,7 @@ import serialbox
 
 
 GRID_SAVEPOINT_NAME = 'Grid-Info'
+PARALLEL_SAVEPOINT_NAMES = ['HaloUpdate']
 
 
 @pytest.fixture()
@@ -101,18 +102,30 @@ def get_test_class_instance(test_name, grid):
     return instance
 
 
-def get_savepoint_names(metafunc, data_path, total_ranks):
+def get_sequential_savepoint_names(metafunc, data_path):
     only_names = metafunc.config.getoption("which_modules")
     if only_names is None:
         savepoint_names = set()
-        for rank in range(total_ranks):
-            serializer = get_serializer(data_path, rank)
-            for savepoint in serializer.savepoint_list():
-                if is_input_name(savepoint.name):
-                    savepoint_names.add(savepoint.name[:-3])
+        serializer = get_serializer(data_path, rank=0)
+        for savepoint in serializer.savepoint_list():
+            if is_input_name(savepoint.name):
+                savepoint_names.add(savepoint.name[:-3])
     else:
         savepoint_names = set(only_names.split(','))
         savepoint_names.discard('')
+    skip_names = metafunc.config.getoption("skip_modules")
+    if skip_names is not None:
+        savepoint_names.difference_update(skip_names.split(','))
+    savepoint_names.difference_update(PARALLEL_SAVEPOINT_NAMES)
+    return savepoint_names
+
+
+def get_parallel_savepoint_names(metafunc, data_path):
+    only_names = metafunc.config.getoption("which_modules")
+    if only_names is None:
+        savepoint_names = set(PARALLEL_SAVEPOINT_NAMES)
+    else:
+        savepoint_names = set(only_names.split(',')).intersection(PARALLEL_SAVEPOINT_NAMES)
     skip_names = metafunc.config.getoption("skip_modules")
     if skip_names is not None:
         savepoint_names.difference_update(skip_names.split(','))
@@ -125,10 +138,10 @@ SavepointCase = collections.namedtuple(
 )
 
 
-def savepoint_cases(metafunc, data_path):
+def sequential_savepoint_cases(metafunc, data_path):
     layout = fv3._config.namelist['layout']
     total_ranks = 6 * layout[0] * layout[1]
-    savepoint_names = get_savepoint_names(metafunc, data_path, total_ranks)
+    savepoint_names = get_sequential_savepoint_names(metafunc, data_path)
     for rank in reversed(range(total_ranks)):
         serializer = get_serializer(data_path, rank)
         grid_savepoint = serializer.get_savepoint(GRID_SAVEPOINT_NAME)[0]
@@ -136,39 +149,101 @@ def savepoint_cases(metafunc, data_path):
         for test_name in sorted(list(savepoint_names)):
             input_savepoints = serializer.get_savepoint(f'{test_name}-In')
             output_savepoints = serializer.get_savepoint(f'{test_name}-Out')
-            if len(input_savepoints) != len(output_savepoints):
-                warnings.warn(
-                    f'number of input and output savepoints not equal for {test_name}:'
-                    f' {len(input_savepoints)} in and {len(output_savepoints)} out')
-            elif len(input_savepoints) == 0:
-                warnings.warn(
-                    f'no savepoints found for {test_name}')
+            check_savepoint_counts(test_name, input_savepoints, output_savepoints)
             yield SavepointCase(
                 test_name, rank, serializer, input_savepoints, output_savepoints, grid
             )
 
 
+def check_savepoint_counts(test_name, input_savepoints, output_savepoints):
+    if len(input_savepoints) != len(output_savepoints):
+        warnings.warn(
+            f'number of input and output savepoints not equal for {test_name}:'
+            f' {len(input_savepoints)} in and {len(output_savepoints)} out')
+    elif len(input_savepoints) == 0:
+        warnings.warn(
+            f'no savepoints found for {test_name}')
+
+
+def parallel_savepoint_cases(metafunc, data_path):
+    layout = fv3._config.namelist['layout']
+    total_ranks = 6 * layout[0] * layout[1]
+    grid_list = []
+    for rank in reversed(range(total_ranks)):
+        serializer = get_serializer(data_path, rank)
+        grid_savepoint = serializer.get_savepoint(GRID_SAVEPOINT_NAME)[0]
+        grid_list.append(process_grid_savepoint(serializer, grid_savepoint))
+    savepoint_names = get_parallel_savepoint_names(metafunc, data_path)
+    for test_name in sorted(list(savepoint_names)):
+        input_list = []
+        output_list = []
+        for rank in reversed(range(total_ranks)):
+            serializer = get_serializer(data_path, rank)
+            input_savepoints = serializer.get_savepoint(f'{test_name}-In')
+            output_savepoints = serializer.get_savepoint(f'{test_name}-Out')
+            check_savepoint_counts(test_name, input_savepoints, output_savepoints)
+            input_list.append(input_savepoints)
+            output_list.append(output_savepoints)
+        yield SavepointCase(
+            test_name, None, serializer, zip(input_list), zip(output_list), grid_list
+        )
+
+
 def pytest_generate_tests(metafunc):
-    generate_basic_stencil_tests(metafunc)
+    if metafunc.function.__name__ == 'test_sequential_savepoint':
+        generate_sequential_stencil_tests(metafunc)
+    if metafunc.function.__name__ == 'test_parallel_savepoint':
+        generate_parallel_stencil_tests(metafunc)
 
 
-def generate_basic_stencil_tests(metafunc):
+def generate_sequential_stencil_tests(metafunc):
     arg_names = ["testobj", "test_name", "serializer", "savepoint_in", "savepoint_out", "rank", "grid"]
     if all(name in metafunc.fixturenames for name in arg_names):
         data_path = data_path_from_config(metafunc.config)
-        param_list = []
+        _generate_stencil_tests(
+            metafunc,
+            arg_names,
+            sequential_savepoint_cases(metafunc, data_path),
+            get_sequential_param
+        )
 
-        for case in savepoint_cases(metafunc, data_path):
+
+def generate_parallel_stencil_tests(metafunc):
+    arg_names = ["testobj", "test_name", "serializer", "savepoint_in", "savepoint_out", "grid"]
+    if all(name in metafunc.fixturenames for name in arg_names):
+        data_path = data_path_from_config(metafunc.config)
+        _generate_stencil_tests(
+            metafunc,
+            arg_names,
+            parallel_savepoint_cases(metafunc, data_path),
+            get_parallel_param
+        )
+
+
+def _generate_stencil_tests(metafunc, arg_names, savepoint_cases, get_param):
+    if all(name in metafunc.fixturenames for name in arg_names):
+        param_list = []
+        for case in savepoint_cases:
             testobj = get_test_class_instance(case.test_name, case.grid)
             for i, (savepoint_in, savepoint_out) in enumerate(zip(case.input_savepoints, case.output_savepoints)):
                 param_list.append(
-                    pytest.param(
-                        testobj, case.test_name, case.serializer, savepoint_in, savepoint_out, case.rank, case.grid,
-                        id=f"{case.test_name}-rank={case.rank}-call_count={i}"
-                    )
+                    get_param(case, testobj, savepoint_in, savepoint_out, i)
                 )
-        arg_names = ["testobj", "test_name", "serializer", "savepoint_in", "savepoint_out", "rank", "grid"]
         metafunc.parametrize(", ".join(arg_names), param_list)
+
+
+def get_parallel_param(case, testobj, savepoint_in, savepoint_out, call_count):
+    return pytest.param(
+        testobj, case.test_name, case.serializer, savepoint_in, savepoint_out, case.grid,
+        id=f"{case.test_name}-call_count={call_count}"
+    )
+
+
+def get_sequential_param(case, testobj, savepoint_in, savepoint_out, call_count):
+    return pytest.param(
+        testobj, case.test_name, case.serializer, savepoint_in, savepoint_out, case.rank, case.grid,
+        id=f"{case.test_name}-rank={case.rank}-call_count={call_count}"
+    )
 
 
 def pytest_addoption(parser):
@@ -183,8 +258,8 @@ def pytest_addoption(parser):
 def pytest_configure(config):
     # register an additional marker
     config.addinivalue_line(
-        "markers", "basic(name): mark test as a basic test"
+        "markers", "sequential(name): mark test as running sequentially on ranks"
     )
     config.addinivalue_line(
-        "markers", "halo(name): mark test as involving a halo update"
+        "markers", "parallel(name): mark test as running in parallel across ranks"
     )
