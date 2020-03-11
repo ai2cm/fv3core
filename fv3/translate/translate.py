@@ -4,7 +4,7 @@ import numpy as np
 
 import logging
 
-logger = logging.getLogger('fv3ser')
+logger = logging.getLogger("fv3ser")
 
 
 class TranslateFortranData2Py:

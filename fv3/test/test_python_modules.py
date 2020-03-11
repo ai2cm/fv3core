@@ -19,10 +19,13 @@ def read_serialized_data(serializer, savepoint, variable):
     return data
 
 
-def collect_input_data(testobj, serializer, savepoint,):
+def collect_input_data(
+    testobj, serializer, savepoint,
+):
     input_data = {}
     for varname in (
-        testobj.serialnames(testobj.in_vars["data_vars"]) + testobj.in_vars["parameters"]
+        testobj.serialnames(testobj.in_vars["data_vars"])
+        + testobj.in_vars["parameters"]
     ):
         input_data[varname] = read_serialized_data(serializer, savepoint, varname)
     return input_data
@@ -42,7 +45,7 @@ def test_sequential_savepoint(
     subtests,
 ):
     if testobj is None:
-        pytest.xfail(f'no translate object available for savepoint {test_name}')
+        pytest.xfail(f"no translate object available for savepoint {test_name}")
     fv3._config.set_grid(grid)
     input_data = collect_input_data(testobj, serializer, savepoint_in)
     # run python version of functionality
@@ -50,7 +53,9 @@ def test_sequential_savepoint(
     for varname in testobj.serialnames(testobj.out_vars):
         ref_data = read_serialized_data(serializer, savepoint_out, varname)
         with subtests.test(varname=varname):
-            np.testing.assert_allclose(output[varname], ref_data, rtol=testobj.max_error)
+            np.testing.assert_allclose(
+                output[varname], ref_data, rtol=testobj.max_error
+            )
 
 
 def get_serializer(data_path, rank):
@@ -66,50 +71,48 @@ def state_from_savepoint(serializer, savepoint, name_to_std_name):
     for name, std_name in name_to_std_name.items():
         array = serializer.read(name, savepoint)
         extent = tuple(np.asarray(array.shape) - 2 * np.asarray(origin))
-        state['air_temperature'] = fv3util.Quantity(
+        state["air_temperature"] = fv3util.Quantity(
             array,
-            dims=reversed(properties['air_temperature']['dims']),
-            units=properties['air_temperature']['units'],
+            dims=reversed(properties["air_temperature"]["dims"]),
+            units=properties["air_temperature"]["units"],
             origin=origin,
-            extent=extent
+            extent=extent,
         )
     return state
 
 
 def get_communicator(comm, layout):
-    partitioner = fv3util.CubedSpherePartitioner(
-        fv3util.TilePartitioner(layout)
-    )
-    communicator = fv3util.CubedSphereCommunicator(
-        comm, partitioner
-    )
+    partitioner = fv3util.CubedSpherePartitioner(fv3util.TilePartitioner(layout))
+    communicator = fv3util.CubedSphereCommunicator(comm, partitioner)
     return communicator
 
 
 @pytest.mark.parallel
 def test_halo_update(data_path, subtests):
     n_ghost = fv3.utils.gt4py_utils.halo
-    layout = fv3._config.namelist['layout']
+    layout = fv3._config.namelist["layout"]
     total_ranks = 6 * layout[0] * layout[1]
     shared_buffer = {}
     states = []
     communicators = []
     for rank in range(total_ranks):
         serializer = get_serializer(data_path, rank)
-        savepoint = serializer.savepoint['HaloUpdate-In']
-        state = state_from_savepoint(serializer, savepoint, {"array": "air_temperature"})
+        savepoint = serializer.savepoint["HaloUpdate-In"]
+        state = state_from_savepoint(
+            serializer, savepoint, {"array": "air_temperature"}
+        )
         states.append(state)
         comm = fv3util.testing.DummyComm(rank, total_ranks, buffer_dict=shared_buffer)
         communicator = get_communicator(comm, layout)
-        communicator.start_halo_update(state['air_temperature'], n_ghost=n_ghost)
+        communicator.start_halo_update(state["air_temperature"], n_ghost=n_ghost)
         communicators.append(communicator)
     for rank, (state, communicator) in enumerate(zip(states, communicators)):
         serializer = ser.Serializer(
             ser.OpenModeKind.Read, data_path, "Generator_rank" + str(rank)
         )
-        savepoint = serializer.savepoint['HaloUpdate-Out']
+        savepoint = serializer.savepoint["HaloUpdate-Out"]
         array = serializer.read("array", savepoint)
-        quantity = state['air_temperature']
+        quantity = state["air_temperature"]
         communicator.finish_halo_update(quantity, n_ghost=n_ghost)
         with subtests.test(rank=rank):
             quantity.np.testing.assert_array_equal(quantity.data, array)

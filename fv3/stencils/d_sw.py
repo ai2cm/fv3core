@@ -22,7 +22,7 @@ import logging
 dcon_threshold = 1e-5
 sd = utils.sd
 
-logger = logging.getLogger('fv3ser')
+logger = logging.getLogger("fv3ser")
 
 
 def grid():

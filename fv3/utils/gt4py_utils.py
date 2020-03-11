@@ -8,7 +8,7 @@ import math
 import logging
 
 
-logger = logging.getLogger('fv3ser')
+logger = logging.getLogger("fv3ser")
 data_backend = "numpy"  # Options: numpy, gtmc, gtx86, gtcuda, debug
 exec_backend = "numpy"  # Options: numpy, gtmc, gtx86, gtcuda, debug, and dawn:gtmc
 rebuild = True

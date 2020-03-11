@@ -61,12 +61,10 @@ def set_namelist(filename):
     global grid
     global namelist
     namelist = merge_namelist_defaults(
-        namelist_to_flatish_dict(
-            f90nml.read(filename).items()
-        )
+        namelist_to_flatish_dict(f90nml.read(filename).items())
     )
     grid = make_grid_from_namelist(namelist)
 
 
 if "NAMELIST_FILENAME" in os.environ:
-    set_namelist(os.environ['NAMELIST_FILENAME'])
+    set_namelist(os.environ["NAMELIST_FILENAME"])
