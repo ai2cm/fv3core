@@ -40,7 +40,10 @@ def al_y_edge_0(q: sd, dya: sd, al: sd):
 def al_y_edge_1(q: sd, dya: sd, al: sd):
     with computation(PARALLEL), interval(0, None):
         al[0, 0, 0] = 0.5 * (
-            ((2.0 * dya[-1, 0, 0] + dya[-2, 0, 0]) * q[-1, 0, 0] - dya[-1, 0, 0] * q[-2, 0, 0])
+            (
+                (2.0 * dya[-1, 0, 0] + dya[-2, 0, 0]) * q[-1, 0, 0]
+                - dya[-1, 0, 0] * q[-2, 0, 0]
+            )
             / (dya[-2, 0, 0] + dya[-1, 0, 0])
             + (
                 (2.0 * dya[0, 0, 0] + dya[1, 0, 0]) * q[0, 0, 0]
@@ -48,6 +51,7 @@ def al_y_edge_1(q: sd, dya: sd, al: sd):
             )
             / (dya[0, 0, 0] + dya[1, 0, 0])
         )
+
 
 @gtscript.stencil(backend=utils.exec_backend, externals={"c1": c1, "c2": c2, "c3": c3})
 def al_y_edge_2(q: sd, dya: sd, al: sd):

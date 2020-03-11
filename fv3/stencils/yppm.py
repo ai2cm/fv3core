@@ -45,7 +45,10 @@ def al_x_edge_0(q: sd, dya: sd, al: sd):
 def al_x_edge_1(q: sd, dya: sd, al: sd):
     with computation(PARALLEL), interval(0, None):
         al[0, 0, 0] = 0.5 * (
-            ((2.0 * dya[0, -1, 0] + dya[0, -2, 0]) * q[0, -1, 0] - dya[0, -1, 0] * q[0, -2, 0])
+            (
+                (2.0 * dya[0, -1, 0] + dya[0, -2, 0]) * q[0, -1, 0]
+                - dya[0, -1, 0] * q[0, -2, 0]
+            )
             / (dya[0, -2, 0] + dya[0, -1, 0])
             + (
                 (2.0 * dya[0, 0, 0] + dya[0, 1, 0]) * q[0, 0, 0]
@@ -180,14 +183,26 @@ def compute_al(q, dyvar, jord, ifirst, ilast, js1, je3):
         if not grid().nested and spec.namelist["grid_type"] < 3:
             # South Edge
             if grid().south_edge:
-                al_x_edge_0(q, dyvar, al, origin=(0, grid().js - 1, 0), domain=x_edge_domain)
-                al_x_edge_1(q, dyvar, al, origin=(0, grid().js, 0), domain=x_edge_domain)
-                al_x_edge_2(q, dyvar, al, origin=(0, grid().js + 1, 0), domain=x_edge_domain)
+                al_x_edge_0(
+                    q, dyvar, al, origin=(0, grid().js - 1, 0), domain=x_edge_domain
+                )
+                al_x_edge_1(
+                    q, dyvar, al, origin=(0, grid().js, 0), domain=x_edge_domain
+                )
+                al_x_edge_2(
+                    q, dyvar, al, origin=(0, grid().js + 1, 0), domain=x_edge_domain
+                )
             # North Edge
             if grid().north_edge:
-                al_x_edge_0(q, dyvar, al, origin=(0, grid().je, 0), domain=x_edge_domain)
-                al_x_edge_1(q, dyvar, al, origin=(0, grid().je + 1, 0), domain=x_edge_domain)
-                al_x_edge_2(q, dyvar, al, origin=(0, grid().je + 2, 0), domain=x_edge_domain)
+                al_x_edge_0(
+                    q, dyvar, al, origin=(0, grid().je, 0), domain=x_edge_domain
+                )
+                al_x_edge_1(
+                    q, dyvar, al, origin=(0, grid().je + 1, 0), domain=x_edge_domain
+                )
+                al_x_edge_2(
+                    q, dyvar, al, origin=(0, grid().je + 2, 0), domain=x_edge_domain
+                )
     return al
 
 
