@@ -15,8 +15,8 @@ RUN update-alternatives --install /usr/bin/pip pip /usr/bin/pip3 10
 FROM fv3ser-environment as fv3ser-install
 RUN pip install --no-cache-dir scikit-build && \
     git clone https://github.com/MeteoSwiss-APN/dawn.git /usr/src/dawn && \
-    pip install --no-cache-dir /usr/src/dawn/dawn && \
-    git clone --depth 1 -b new-gt4py https://github.com/twicki/gt4py.git /usr/src/gt4py && \
+    pip install --no-cache-dir /usr/src/dawn/dawn
+RUN git clone --depth 1 -b new-gt4py https://github.com/twicki/gt4py.git /usr/src/gt4py && \
     pip install --no-cache-dir -e /usr/src/gt4py && \
     cd /usr/src/gt4py && python -m gt4py.gt_src_manager install
 #RUN git clone --depth 1 -b feature/halo https://github.com/VulcanClimateModeling/fv3gfs-python.git /usr/src/fv3gfs-python && \
