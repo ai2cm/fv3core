@@ -293,12 +293,7 @@ def process_savepoint(serializer, sp, args):
 
 
 def test_serialized_savepoints(
-    which_modules,
-    skip_modules,
-    print_failures,
-    failure_stride,
-    data_path,
-    backend,
+    which_modules, skip_modules, print_failures, failure_stride, data_path, backend,
 ):
     args = {
         "which_modules": which_modules,
