@@ -299,7 +299,6 @@ def test_serialized_savepoints(
     failure_stride,
     data_path,
     backend,
-    backend,
 ):
     args = {
         "which_modules": which_modules,
