@@ -13,6 +13,7 @@ class TranslateFortranData2Py:
         self.max_error = 1e-14
         self.grid = grid
         self.maxshape = grid.domain_shape_buffer_1cell()
+        self.backend = utils.backend
         self.ordered_input_vars = None
         self.compute_func = None
 
