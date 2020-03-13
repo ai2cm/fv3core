@@ -45,7 +45,7 @@ def test_sequential_savepoint(
     exec_backend,
     data_backend,
     subtests,
-    caplog
+    caplog,
 ):
     caplog.set_level(logging.DEBUG, logger="fv3ser")
     if testobj is None:

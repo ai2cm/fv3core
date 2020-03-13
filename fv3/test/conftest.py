@@ -18,7 +18,6 @@ PARALLEL_SAVEPOINT_NAMES = ["HaloUpdate"]
 
 
 class ReplaceRepr:
-
     def __init__(self, wrapped, new_repr):
         self._wrapped = wrapped
         self._repr = new_repr
@@ -246,17 +245,23 @@ def _generate_stencil_tests(metafunc, arg_names, savepoint_cases, get_param):
         param_list = []
         for case in savepoint_cases:
             testobj = get_test_class_instance(case.test_name, case.grid)
-            max_call_count = min(len(case.input_savepoints), len(case.output_savepoints))
+            max_call_count = min(
+                len(case.input_savepoints), len(case.output_savepoints)
+            )
             for i, (savepoint_in, savepoint_out) in enumerate(
                 zip(case.input_savepoints, case.output_savepoints)
             ):
                 param_list.append(
-                    get_param(case, testobj, savepoint_in, savepoint_out, i, max_call_count)
+                    get_param(
+                        case, testobj, savepoint_in, savepoint_out, i, max_call_count
+                    )
                 )
         metafunc.parametrize(", ".join(arg_names), param_list)
 
 
-def get_parallel_param(case, testobj, savepoint_in, savepoint_out, call_count, max_call_count):
+def get_parallel_param(
+    case, testobj, savepoint_in, savepoint_out, call_count, max_call_count
+):
     return pytest.param(
         testobj,
         case.test_name,
@@ -270,12 +275,14 @@ def get_parallel_param(case, testobj, savepoint_in, savepoint_out, call_count, m
             depends=[
                 f"{case.test_name}-{lower_count}"
                 for lower_count in range(0, call_count)
-            ]
+            ],
         ),
     )
 
 
-def get_sequential_param(case, testobj, savepoint_in, savepoint_out, call_count, max_call_count):
+def get_sequential_param(
+    case, testobj, savepoint_in, savepoint_out, call_count, max_call_count
+):
     return pytest.param(
         testobj,
         case.test_name,
@@ -292,10 +299,11 @@ def get_sequential_param(case, testobj, savepoint_in, savepoint_out, call_count,
                 f"{case.test_name}-{lower_rank}-{count}"
                 for lower_rank in range(0, case.rank)
                 for count in range(0, max_call_count)
-            ] + [
+            ]
+            + [
                 f"{case.test_name}-{case.rank}-{lower_count}"
                 for lower_count in range(0, call_count)
-            ]
+            ],
         ),
     )
 
