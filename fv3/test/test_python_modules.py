@@ -42,8 +42,7 @@ def test_sequential_savepoint(
     savepoint_in,
     savepoint_out,
     rank,
-    exec_backend,
-    data_backend,
+    backend,
     subtests,
     caplog,
 ):

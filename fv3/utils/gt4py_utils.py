@@ -6,6 +6,7 @@ import gt4py.gtscript as gtscript
 import copy as cp
 import math
 import logging
+import functools
 
 logger = logging.getLogger("fv3ser")
 backend = "numpy"  # Options: numpy, gtmc, gtx86, gtcuda, debug, dawn:gtmc
@@ -15,6 +16,22 @@ sd = gtscript.Field[_dtype]
 halo = 3
 origin = (halo, halo, 0)
 # 1 indexing to 0 and halos: -2, -1, 0 --> 0, 1,2
+
+
+def stencil(**stencil_kwargs):
+    def decorator(func):
+        stencils = {}
+        @functools.wraps(func)
+        def wrapped(*args, **kwargs):
+            key = (backend, rebuild)
+            if key not in stencils:
+                stencils[key] = gtscript.stencil(
+                    backend=backend,
+                    rebuild=rebuild,
+                    **stencil_kwargs)(func)
+            return stencils[key](*args, **kwargs)
+        return wrapped
+    return decorator
 
 
 def _data_backend(backend: str):

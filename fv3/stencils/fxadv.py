@@ -12,7 +12,7 @@ sd = utils.sd
 stencil_corner = True
 
 
-@gtscript.stencil(backend=utils.backend, rebuild=utils.rebuild)
+@utils.stencil()
 def main_ut(uc: sd, vc: sd, cosa_u: sd, rsin_u: sd, ut: sd):
     with computation(PARALLEL), interval(...):
         ut[0, 0, 0] = (
@@ -20,13 +20,13 @@ def main_ut(uc: sd, vc: sd, cosa_u: sd, rsin_u: sd, ut: sd):
         ) * rsin_u
 
 
-@gtscript.stencil(backend=utils.backend, rebuild=utils.rebuild)
+@utils.stencil()
 def ut_y_edge(uc: sd, sin_sg1: sd, sin_sg3: sd, ut: sd, *, dt: float):
     with computation(PARALLEL), interval(0, -1):
         ut[0, 0, 0] = (uc / sin_sg3[-1, 0, 0]) if (uc * dt > 0) else (uc / sin_sg1)
 
 
-@gtscript.stencil(backend=utils.backend, rebuild=utils.rebuild)
+@utils.stencil()
 def ut_x_edge(uc: sd, cosa_u: sd, vt: sd, ut: sd):
     with computation(PARALLEL), interval(0, -1):
         ut[0, 0, 0] = uc - 0.25 * cosa_u * (
@@ -34,7 +34,7 @@ def ut_x_edge(uc: sd, cosa_u: sd, vt: sd, ut: sd):
         )
 
 
-@gtscript.stencil(backend=utils.backend, rebuild=True)
+@utils.stencil()
 def main_vt(uc: sd, vc: sd, cosa_v: sd, rsin_v: sd, vt: sd):
     with computation(PARALLEL), interval(...):
         vt[0, 0, 0] = (
@@ -42,7 +42,7 @@ def main_vt(uc: sd, vc: sd, cosa_v: sd, rsin_v: sd, vt: sd):
         ) * rsin_v
 
 
-@gtscript.stencil(backend=utils.backend, rebuild=utils.rebuild)
+@utils.stencil()
 def vt_y_edge(vc: sd, cosa_v: sd, ut: sd, vt: sd):
     with computation(PARALLEL), interval(0, -1):
         vt[0, 0, 0] = vc - 0.25 * cosa_v * (
@@ -50,13 +50,13 @@ def vt_y_edge(vc: sd, cosa_v: sd, ut: sd, vt: sd):
         )
 
 
-@gtscript.stencil(backend=utils.backend, rebuild=utils.rebuild)
+@utils.stencil()
 def vt_x_edge(vc: sd, sin_sg2: sd, sin_sg4: sd, vt: sd, *, dt: float):
     with computation(PARALLEL), interval(0, -1):
         vt[0, 0, 0] = (vc / sin_sg4[0, -1, 0]) if (vc * dt > 0) else (vc / sin_sg2)
 
 
-@gtscript.stencil(backend=utils.backend, rebuild=True)
+@utils.stencil()
 def xfx_adv_stencil(
     ut: sd,
     rdxa: sd,
@@ -78,7 +78,7 @@ def xfx_adv_stencil(
         ra_x[0, 0, 0] = area + xfx_adv - xfx_adv[1, 0, 0]
 
 
-@gtscript.stencil(backend=utils.backend, rebuild=True)
+@utils.stencil()
 def yfx_adv_stencil(
     vt: sd,
     rdya: sd,
@@ -625,7 +625,7 @@ def nw_corner(uc, vc, ut, vt, cosa_u, cosa_v, corner_shape):
     north_corner_vt_adjacent(uc, vc, ut, vt, cosa_u, cosa_v, origin=(grid().is_, grid().je, 0), domain=corner_shape)
 
 
-@gtscript.stencil(backend=utils.backend, rebuild=utils.rebuild)
+@utils.stencil()
 def west_corner_ut_lowest(uc: sd, vc: sd, ut: sd, vt: sd, cosa_u: sd, cosa_v: sd):
     with computation(PARALLEL), interval(...):
         damp_u = 1. / (1.0 - 0.0625 * cosa_u[0, 0, 0] * cosa_v[-1, 0, 0])
@@ -634,7 +634,7 @@ def west_corner_ut_lowest(uc: sd, vc: sd, ut: sd, vt: sd, cosa_u: sd, cosa_v: sd
                                                                                         ut[0, -1, 0]))) * damp_u
 
 
-@gtscript.stencil(backend=utils.backend, rebuild=utils.rebuild)
+@utils.stencil()
 def west_corner_ut_adjacent(uc: sd, vc: sd, ut: sd, vt: sd, cosa_u: sd, cosa_v: sd):
     with computation(PARALLEL), interval(...):
         damp = 1. / (1. - 0.0625 * cosa_u[0, 0, 0] * cosa_v[-1, 1, 0])
@@ -643,7 +643,7 @@ def west_corner_ut_adjacent(uc: sd, vc: sd, ut: sd, vt: sd, cosa_u: sd, cosa_v: 
                                                                                           ut[0, 1, 0]))) * damp
 
 
-@gtscript.stencil(backend=utils.backend, rebuild=utils.rebuild)
+@utils.stencil()
 def south_corner_vt_left(uc: sd, vc: sd, ut: sd, vt: sd, cosa_u: sd, cosa_v: sd):
     with computation(PARALLEL), interval(...):
         damp_v = 1. / (1.0 - 0.0625 * cosa_u[0, -1, 0] * cosa_v[0, 0, 0])
@@ -652,7 +652,7 @@ def south_corner_vt_left(uc: sd, vc: sd, ut: sd, vt: sd, cosa_u: sd, cosa_v: sd)
                                                                (vt[0, -1, 0] + vt[-1, -1, 0] + vt[-1, 0, 0]))) * damp_v
 
 
-@gtscript.stencil(backend=utils.backend, rebuild=utils.rebuild)
+@utils.stencil()
 def south_corner_vt_adjacent(uc: sd, vc: sd, ut: sd, vt: sd, cosa_u: sd, cosa_v: sd):
     with computation(PARALLEL), interval(...):
         damp_v = 1. / (1.0 - 0.0625 * cosa_u[1, -1, 0] * cosa_v[0, 0, 0])
@@ -661,7 +661,7 @@ def south_corner_vt_adjacent(uc: sd, vc: sd, ut: sd, vt: sd, cosa_u: sd, cosa_v:
                                                                (vt[0, -1, 0] + vt[1, -1, 0] + vt[1, 0, 0]))) * damp_v
 
 
-@gtscript.stencil(backend=utils.backend, rebuild=utils.rebuild)
+@utils.stencil()
 def east_corner_ut_lowest(uc: sd, vc: sd, ut: sd, vt: sd, cosa_u: sd, cosa_v: sd):
     with computation(PARALLEL), interval(...):
         damp_u = 1. / (1.0 - 0.0625 * cosa_u[0, 0, 0] * cosa_v[0, 0, 0])
@@ -670,7 +670,7 @@ def east_corner_ut_lowest(uc: sd, vc: sd, ut: sd, vt: sd, cosa_u: sd, cosa_v: sd
                                                                                        ut[0, -1, 0]))) * damp_u
 
 
-@gtscript.stencil(backend=utils.backend, rebuild=utils.rebuild)
+@utils.stencil()
 def east_corner_ut_adjacent(uc: sd, vc: sd, ut: sd, vt: sd, cosa_u: sd, cosa_v: sd):
     with computation(PARALLEL), interval(...):
         damp = 1. / (1. - 0.0625 * cosa_u[0, 0, 0] * cosa_v[0, 1, 0])
@@ -679,7 +679,7 @@ def east_corner_ut_adjacent(uc: sd, vc: sd, ut: sd, vt: sd, cosa_u: sd, cosa_v: 
                                                                                          ut[0, 1, 0]))) * damp
 
 
-@gtscript.stencil(backend=utils.backend, rebuild=utils.rebuild)
+@utils.stencil()
 def north_corner_vt_left(uc: sd, vc: sd, ut: sd, vt: sd, cosa_u: sd, cosa_v: sd):
     with computation(PARALLEL), interval(...):
         damp_v = 1. / (1.0 - 0.0625 * cosa_u[0, 0, 0] * cosa_v[0, 0, 0])
@@ -687,7 +687,7 @@ def north_corner_vt_left(uc: sd, vc: sd, ut: sd, vt: sd, cosa_u: sd, cosa_v: sd)
                                                                0.25 * cosa_u[0, 0, 0] *
                                                                (vt[0, 1, 0] + vt[-1, 1, 0] + vt[-1, 0, 0]))) * damp_v
 
-@gtscript.stencil(backend=utils.backend, rebuild=utils.rebuild)
+@utils.stencil()
 def north_corner_vt_adjacent(uc: sd, vc: sd, ut: sd, vt: sd, cosa_u: sd, cosa_v: sd):
     with computation(PARALLEL), interval(...):
         damp_v = 1. / (1.0 - 0.0625 * cosa_u[1, 0, 0] * cosa_v[0, 0, 0])
