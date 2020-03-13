@@ -94,6 +94,21 @@ Test options:
    
    --exec_backend: which backend to use for stencil computation, default numpy, other options: gtmc, gtx86, gtcuda, debug, and dawn:gtmc
 
+Pytest provides a lot of options, which you can see with `pytest --help`. Here are some
+common options for our tests, which you can add to `TEST_ARGS`:
+
+- `-r` is used to report test types other than failure. It can be provided `s` for
+  skipped (e.g. tests which were not run because earlier tests of the same stencil
+  failed), `x` for xfail or "expected to fail" tests (like tests with no translate
+  class), or `p` for pass. For example, to report skipped and xfail tests you would
+  use `-rsx`.
+- `--disable-warnings` will stop all warnings from being printed at the end of the tests,
+  for example warnings that translate classes are not yet implemented
+- `-v` will increase test verbosity, while `-q` will decrease it
+- `-s` will let stdout print directly to console instead of capturing the output and
+  printing it when a test fails only. Note that logger lines will always be printed
+  both during (by setting log_cli in our pytest.ini file) and after tests.
+
 
 Generating test data
 --------------------

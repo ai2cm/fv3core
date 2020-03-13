@@ -17,6 +17,19 @@ GRID_SAVEPOINT_NAME = "Grid-Info"
 PARALLEL_SAVEPOINT_NAMES = ["HaloUpdate"]
 
 
+class ReplaceRepr:
+
+    def __init__(self, wrapped, new_repr):
+        self._wrapped = wrapped
+        self._repr = new_repr
+
+    def __repr__(self):
+        return self._repr
+
+    def __getattr__(self, attr):
+        return getattr(self._wrapped, attr)
+
+
 @pytest.fixture()
 def backend(pytestconfig):
     return pytestconfig.getoption("backend")
@@ -263,7 +276,7 @@ def get_parallel_param(case, testobj, savepoint_in, savepoint_out, call_count, m
     return pytest.param(
         testobj,
         case.test_name,
-        case.serializer,
+        ReplaceRepr(case.serializer, f"<Serializer>"),
         savepoint_in,
         savepoint_out,
         case.grid,
@@ -282,7 +295,7 @@ def get_sequential_param(case, testobj, savepoint_in, savepoint_out, call_count,
     return pytest.param(
         testobj,
         case.test_name,
-        case.serializer,
+        ReplaceRepr(case.serializer, f"<Serializer for rank {case.rank}>"),
         savepoint_in,
         savepoint_out,
         case.rank,
