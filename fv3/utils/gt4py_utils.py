@@ -131,7 +131,7 @@ def k_subset_run(func, data, splitvars, ki, outputs, grid_data, grid):
 
 def collect_results(data, results, outputs, ki):
     outnames = list(outputs.keys())
-    logger.debug("Computing results for k indices:", ki[:-1])
+    logger.debug("Computing results for k indices: {}".format(ki[:-1]))
     for k in outnames:
         if k in data:
             # passing fields with single item in 3rd dimension leads to errors

@@ -425,7 +425,7 @@ def d_sw(
     dt,
     column_namelist,
 ):
-    logger.debug("Parameters that vary with k", column_namelist)
+    logger.debug("Parameters that vary with k: {}".format(column_namelist))
     shape = heat_s.shape
     ub = utils.make_storage_from_shape(shape, grid().compute_origin())
     vb = utils.make_storage_from_shape(shape, grid().compute_origin())

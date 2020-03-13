@@ -100,12 +100,7 @@ class TranslateFortranData2Py:
                 inputs[serialname].shape, info
             )
             logger.debug(
-                "Making storage for ",
-                d,
-                "with istart = ",
-                istart,
-                " jstart = ",
-                jstart,
+                "Making storage for {} with istart = {}, jstart = {}".format(d, istart, jstart)
             )
             inputs[d] = self.make_storage_data(
                 np.squeeze(inputs[serialname]),
@@ -191,7 +186,7 @@ class TranslateGrid:
             if type(v) is np.ndarray:
                 # TODO: when grid initialization model exists, may want to use it to inform this
                 istart, jstart = pygrid.horizontal_starts_from_shape(v.shape)
-                logger.debug("Storage for Grid variable", k, istart, jstart, v.shape)
+                logger.debug("Storage for Grid variable {}, {}, {}, {}".format(k, istart, jstart, v.shape))
                 self.data[k] = utils.make_storage_data(
                     v,
                     shape,

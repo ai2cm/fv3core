@@ -10,6 +10,8 @@ import fv3._config
 import fv3.utils.gt4py_utils
 import pytest
 import fv3util
+import logging
+import sys
 
 
 def read_serialized_data(serializer, savepoint, variable):
@@ -43,7 +45,9 @@ def test_sequential_savepoint(
     exec_backend,
     data_backend,
     subtests,
+    caplog
 ):
+    caplog.set_level(logging.DEBUG, logger="fv3ser")
     if testobj is None:
         pytest.xfail(f"no translate object available for savepoint {test_name}")
     fv3._config.set_grid(grid)
@@ -52,10 +56,14 @@ def test_sequential_savepoint(
     output = testobj.compute(input_data)
     for varname in testobj.serialnames(testobj.out_vars):
         ref_data = read_serialized_data(serializer, savepoint_out, varname)
+        failing_names = []
         with subtests.test(varname=varname):
+            failing_names.append(varname)
             np.testing.assert_allclose(
                 output[varname], ref_data, rtol=testobj.max_error
             )
+            failing_names.pop()
+    assert failing_names == []
 
 
 def get_serializer(data_path, rank):

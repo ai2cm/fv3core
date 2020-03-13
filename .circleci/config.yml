@@ -63,6 +63,10 @@ jobs:
     steps:
       - checkout
       - run:
+          name: "Pull Submodules"
+          command: |
+            git submodule update --init --recursive
+      - run:
           name: "gcloud auth"
           command: |
             echo $ENCODED_GCR_KEY | base64 -d > $GOOGLE_APPLICATION_CREDENTIALS
@@ -70,7 +74,7 @@ jobs:
       - run: 
           name: "Run tests"
           command: |
-            TEST_ARGS="--exec_backend=dawn:gtmc --data_backend=gtmc" make tests
+            TEST_ARGS="--exec_backend=dawn:gtmc --data_backend=gtmc -v -s" make tests
      
 workflows:
   version: 2
