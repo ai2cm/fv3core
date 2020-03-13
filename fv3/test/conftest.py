@@ -295,6 +295,7 @@ def get_sequential_param(case, testobj, savepoint_in, savepoint_out, call_count,
     return pytest.param(
         testobj,
         case.test_name,
+        # serializer repr is very verbose, and not all that useful, so we hide it here
         ReplaceRepr(case.serializer, f"<Serializer for rank {case.rank}>"),
         savepoint_in,
         savepoint_out,
