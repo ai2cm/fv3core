@@ -120,6 +120,11 @@ class Grid:
         mydict['kend'] = self.npz
         return mydict
     
+    def compute_buffer_k_dict(self):
+        mydict = self.compute_dict()
+        mydict['kend'] = self.npz
+        return mydict
+    
     def x3d_domain_dict(self):
         horizontal_dict = {'istart': self.isd, 'iend': self.ied + 1,
                            'jstart': self.jsd, 'jend': self.jed}

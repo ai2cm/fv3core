@@ -2,7 +2,7 @@ import fv3.utils.gt4py_utils as utils
 from fv3.utils.grid import Grid
 import numpy as np
 
-debug = False
+debug = True
 class TranslateFortranData2Py:
     def __init__(self, grid, origin=utils.origin):
         self.origin = origin
@@ -86,6 +86,8 @@ class TranslateFortranData2Py:
         for d, info in storage_vars.items():
             serialname = info['serialname'] if 'serialname' in info else d
             self.update_info(info, inputs)
+            if 'kaxis' in info:
+                inputs[serialname] = np.moveaxis(inputs[serialname], info['kaxis'], 2)
             istart, jstart, kstart = self.collect_start_indices(inputs[serialname].shape, info)
             if debug:
                 print('Making storage for ', d, 'with istart = ', istart,' jstart = ', jstart)
@@ -106,6 +108,8 @@ class TranslateFortranData2Py:
             ds = self.grid.default_domain_dict()
             ds.update(info)
             out[serialname] = np.squeeze(out_data[var].data[self.grid.slice_dict(ds)])
+            if 'kaxis' in info:
+                out[serialname] = np.moveaxis(out[serialname], 2, info['kaxis'])
         return out
 
     def serialnames(self, dict):
