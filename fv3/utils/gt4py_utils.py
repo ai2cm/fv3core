@@ -21,16 +21,18 @@ origin = (halo, halo, 0)
 def stencil(**stencil_kwargs):
     def decorator(func):
         stencils = {}
+
         @functools.wraps(func)
         def wrapped(*args, **kwargs):
             key = (backend, rebuild)
             if key not in stencils:
                 stencils[key] = gtscript.stencil(
-                    backend=backend,
-                    rebuild=rebuild,
-                    **stencil_kwargs)(func)
+                    backend=backend, rebuild=rebuild, **stencil_kwargs
+                )(func)
             return stencils[key](*args, **kwargs)
+
         return wrapped
+
     return decorator
 
 

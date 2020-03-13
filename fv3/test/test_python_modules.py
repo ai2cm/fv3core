@@ -108,7 +108,16 @@ def test_sequential_savepoint(
         failing_names = []
         with subtests.test(varname=varname):
             failing_names.append(varname)
-            assert success(output[varname], ref_data, testobj.max_error), sample_wherefail(output[varname], ref_data, testobj.max_error, print_failures, failure_stride, test_name)
+            assert success(
+                output[varname], ref_data, testobj.max_error
+            ), sample_wherefail(
+                output[varname],
+                ref_data,
+                testobj.max_error,
+                print_failures,
+                failure_stride,
+                test_name,
+            )
             failing_names.pop()
     assert failing_names == []
 
