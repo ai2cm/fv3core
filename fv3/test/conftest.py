@@ -144,6 +144,7 @@ SavepointCase = collections.namedtuple(
 
 
 def sequential_savepoint_cases(metafunc, data_path):
+    return_list = []
     layout = fv3._config.namelist["layout"]
     total_ranks = 6 * layout[0] * layout[1]
     savepoint_names = get_sequential_savepoint_names(metafunc, data_path)
@@ -155,9 +156,10 @@ def sequential_savepoint_cases(metafunc, data_path):
             input_savepoints = serializer.get_savepoint(f"{test_name}-In")
             output_savepoints = serializer.get_savepoint(f"{test_name}-Out")
             check_savepoint_counts(test_name, input_savepoints, output_savepoints)
-            yield SavepointCase(
+            return_list.append(SavepointCase(
                 test_name, rank, serializer, input_savepoints, output_savepoints, grid
-            )
+            ))
+    return return_list
 
 
 def check_savepoint_counts(test_name, input_savepoints, output_savepoints):
@@ -171,6 +173,7 @@ def check_savepoint_counts(test_name, input_savepoints, output_savepoints):
 
 
 def parallel_savepoint_cases(metafunc, data_path):
+    return_list = []
     layout = fv3._config.namelist["layout"]
     total_ranks = 6 * layout[0] * layout[1]
     grid_list = []
@@ -189,9 +192,10 @@ def parallel_savepoint_cases(metafunc, data_path):
             check_savepoint_counts(test_name, input_savepoints, output_savepoints)
             input_list.append(input_savepoints)
             output_list.append(output_savepoints)
-        yield SavepointCase(
+        return_list.append(SavepointCase(
             test_name, None, serializer, zip(input_list), zip(output_list), grid_list
-        )
+        ))
+    return return_list
 
 
 def pytest_generate_tests(metafunc):
