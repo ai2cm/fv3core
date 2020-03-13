@@ -5,17 +5,17 @@ FV3ser ('ef-vee-threezer') is a Python (using Gt4py with Dawn) version of the FV
 
 Getting started
 ---------------
-* To run the existing unit tests 
-'make tests'
-See 'Unit Testing' section below for unit test options
+* To run the existing unit tests use
+`make tests`.
+See 'Unit Testing' section below for unit test options.
 This will create a running container TestDataContainer-<version> which can be used to volume the test data from.
-'make cleanup_container' will stop and remove this container
+`make cleanup_container` will stop and remove this container.
 
-* To rebuild the backend Dawn/Gt4py environment before running tests
-PULL=False make tests
+* To rebuild the backend Dawn/Gt4py environment before running tests run
+`PULL=False make tests`
 OR
-make rebuild_environment
-make tests
+`make rebuild_environment` followed by
+`make tests`
 
 
 Porting a new stencil
@@ -34,11 +34,11 @@ Developing stencils
 -------------------
 Make a code change in the 'fv3' directory, then run 'make tests'
 OR
-Option: develop stencils using data and code as volumes into a container, there are a couple of possibilities: 
+Option: develop stencils using data and code as volumes into a container, there are a couple of possibilities:
 1. Using test data in a container:
 make pull_test_data
 'make devc'
-2. Extracting test data: 
+2. Extracting test data:
 
 * To extract test data from the container if you want to work with it outside the container
 make pull_test_data
@@ -49,14 +49,14 @@ Then run the tests from /port_dev instead of /fv3
 
 If you prefer using docker run directly:
 docker run -v <Local fv3gfs checkout>:/port_dev -v <TEST DATA PATH>:/test_data   --name <your favorite name> -it us.gcr.io/vcm-ml/fv3ser
-Then in the container :
+Then in the container:
 pytest -v -s --data_path=/test_data/ /port_dev/fv3/test --which_modules=<Your stencil>
 
 
 Installation
 ------------
 
--- build the us.gcr.io/vcm-ml/fv3ser container with required dependencies for running the python code 
+-- build the us.gcr.io/vcm-ml/fv3ser container with required dependencies for running the python code
 make build
 
 To build from scratch (without docker pulling)
@@ -83,16 +83,14 @@ TEST_ARGS="add pytest command line args (see below)" make tests (or run_tests_co
 
 Test options:
    --which_modules <modules to run tests for> : comma separated list of which modules to test (default 'all')
-   
+
    --print_failures : if your test fails, it will only report the first datapoint. If you want all the nonmatching regression data to print out (so you can see if there are patterns, e.g. just incorrect for the first 'i' or whatever'), this will print out for every failing test all the non-matching data
 
    --failure_stride: whhen printing failures, print avery n failures only
-   
+
    --data_path : path to where you have the `Generator*.dat` and `*.json` serialization regression data. Defaults to current directory.
-   
-   --data_backend : which backend to use for data storage, default: numpy, other options: gtmc, gtx86, gtcuda, debug
-   
-   --exec_backend: which backend to use for stencil computation, default numpy, other options: gtmc, gtx86, gtcuda, debug, and dawn:gtmc
+
+   --backend : which backend to use for the computation. Defaults to numpy. Other options: gtmc, gtcuda, dawn:gtmc
 
 Pytest provides a lot of options, which you can see with `pytest --help`. Here are some
 common options for our tests, which you can add to `TEST_ARGS`:
@@ -129,7 +127,7 @@ Dockerfiles
 
 There are 3 main Dockerfiles in the 'docker' folder
  1) Dockerfile.build_environment -- builds off of the serialbox environment from fv3gfs-fortran, installs Dawn and Gt4py
- 2) Dockerfile -- uses the build environment and copies in the fv3 folder only. This is to make development easier so that when you change a file in fv3, 'make build' does not accidentally or otherwise trigger a 20 minute rebuild of all of those installations, but just updates the code in the fv3ser image. 
+ 2) Dockerfile -- uses the build environment and copies in the fv3 folder only. This is to make development easier so that when you change a file in fv3, 'make build' does not accidentally or otherwise trigger a 20 minute rebuild of all of those installations, but just updates the code in the fv3ser image.
  3) Dockerfile.fortran_model_data -- builds the fv3gfs-fortran model with serialization on, sets up a run directory and generates test data. This is to be done infrequently and is orthogonal to the content in the other dockerfiles.
 
 

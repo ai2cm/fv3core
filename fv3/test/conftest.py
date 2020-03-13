@@ -32,25 +32,9 @@ class ReplaceRepr:
 
 @pytest.fixture()
 def backend(pytestconfig):
-    return pytestconfig.getoption("backend")
-
-
-@pytest.fixture()
-def data_backend(pytestconfig, backend):
-    data_backend = pytestconfig.getoption("data_backend")
-    if data_backend is None:
-        data_backend = backend
-    fv3.utils.gt4py_utils.data_backend = data_backend
-    return data_backend
-
-
-@pytest.fixture()
-def exec_backend(pytestconfig, backend):
-    exec_backend = pytestconfig.getoption("exec_backend")
-    if exec_backend is None:
-        exec_backend = backend
-    fv3.utils.gt4py_utils.exec_backend = exec_backend
-    return exec_backend
+    backend = pytestconfig.getoption("backend")
+    fv3.utils.gt4py_utils.backend = backend
+    return backend
 
 
 @pytest.fixture()
@@ -317,11 +301,11 @@ def get_sequential_param(case, testobj, savepoint_in, savepoint_out, call_count,
 
 
 def pytest_addoption(parser):
-    parser.addoption("--which_modules", action="store", default=None)
-    parser.addoption("--skip_modules", action="store", default=None)
-    parser.addoption("--data_path", action="store", default=".")
-    parser.addoption("--data_backend", action="store", default=None)
-    parser.addoption("--exec_backend", action="store", default=None)
+    parser.addoption("--which_modules", action="store", default="all")
+    parser.addoption("--skip_modules", action="store", default="none")
+    parser.addoption("--print_failures", action="store_true")
+    parser.addoption("--failure_stride", action="store", default=1)
+    parser.addoption("--data_path", action="store", default="./")
     parser.addoption("--backend", action="store", default="numpy")
 
 
