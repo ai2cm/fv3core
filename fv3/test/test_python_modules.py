@@ -33,6 +33,54 @@ def collect_input_data(
     return input_data
 
 
+def compare_arr(computed_data, ref_data):
+    denom = np.abs(ref_data) + np.abs(computed_data)
+    compare = 2.0 * np.abs(computed_data - ref_data) / denom
+    compare[denom == 0] = 0.0
+    return compare
+
+
+def success_array(computed_data, ref_data, eps):
+    return np.logical_or(
+        compare_arr(computed_data, ref_data) < eps,
+        np.logical_and(np.isnan(computed_data), np.isnan(ref_data)),
+    )
+
+
+def success(computed_data, ref_data, eps):
+    return np.all(success_array(computed_data, ref_data, eps))
+
+
+def sample_wherefail(
+    computed_data, ref_data, eps, print_failures, failure_stride, test_name
+):
+    found_indices = np.where(
+        np.logical_not(success_array(computed_data, ref_data, eps))
+    )
+    computed_failures = computed_data[found_indices]
+    reference_failures = ref_data[found_indices]
+    return_strings = []
+    bad_indices_count = len(found_indices[0])
+    if print_failures:
+        for b in range(0, bad_indices_count, failure_stride):
+            full_index = [f[b] for f in found_indices]
+            return_strings.append(
+                f"index: {full_index}, computed {computed_failures[b]}, "
+                f"reference {reference_failures[b]}, "
+                f"diff {abs(computed_failures[b] - reference_failures[b])}"
+            )
+    sample = [f[0] for f in found_indices]
+    fullcount = len(ref_data.flatten())
+    return_strings.append(
+        f"Failed count: {bad_indices_count}/{fullcount} "
+        f"({round(100.0 * (bad_indices_count / fullcount), 2)}%),\n"
+        f"first failed index {sample}, computed:{computed_failures[0]}, "
+        f"reference: {reference_failures[0]}, "
+        f"diff: {abs(computed_failures[0] - reference_failures[0])}\n"
+    )
+    return "\n".join(return_strings)
+
+
 @pytest.mark.sequential
 def test_sequential_savepoint(
     testobj,
@@ -43,6 +91,8 @@ def test_sequential_savepoint(
     savepoint_out,
     rank,
     backend,
+    print_failures,
+    failure_stride,
     subtests,
     caplog,
 ):
@@ -58,9 +108,7 @@ def test_sequential_savepoint(
         failing_names = []
         with subtests.test(varname=varname):
             failing_names.append(varname)
-            np.testing.assert_allclose(
-                output[varname], ref_data, rtol=testobj.max_error
-            )
+            assert success(output[varname], ref_data, testobj.max_error), sample_wherefail(output[varname], ref_data, testobj.max_error, print_failures, failure_stride, test_name)
             failing_names.pop()
     assert failing_names == []
 

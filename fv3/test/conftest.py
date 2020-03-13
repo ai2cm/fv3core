@@ -325,3 +325,13 @@ def pytest_configure(config):
     config.addinivalue_line(
         "markers", "parallel(name): mark test as running in parallel across ranks"
     )
+
+
+@pytest.fixture()
+def print_failures(pytestconfig):
+    return pytestconfig.getoption("print_failures")
+
+
+@pytest.fixture()
+def failure_stride(pytestconfig):
+    return int(pytestconfig.getoption("failure_stride"))
