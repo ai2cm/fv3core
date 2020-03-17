@@ -156,9 +156,16 @@ def sequential_savepoint_cases(metafunc, data_path):
             input_savepoints = serializer.get_savepoint(f"{test_name}-In")
             output_savepoints = serializer.get_savepoint(f"{test_name}-Out")
             check_savepoint_counts(test_name, input_savepoints, output_savepoints)
-            return_list.append(SavepointCase(
-                test_name, rank, serializer, input_savepoints, output_savepoints, grid
-            ))
+            return_list.append(
+                SavepointCase(
+                    test_name,
+                    rank,
+                    serializer,
+                    input_savepoints,
+                    output_savepoints,
+                    grid,
+                )
+            )
     return return_list
 
 
@@ -192,9 +199,16 @@ def parallel_savepoint_cases(metafunc, data_path):
             check_savepoint_counts(test_name, input_savepoints, output_savepoints)
             input_list.append(input_savepoints)
             output_list.append(output_savepoints)
-        return_list.append(SavepointCase(
-            test_name, None, serializer, zip(input_list), zip(output_list), grid_list
-        ))
+        return_list.append(
+            SavepointCase(
+                test_name,
+                None,
+                serializer,
+                zip(input_list),
+                zip(output_list),
+                grid_list,
+            )
+        )
     return return_list
 
 
