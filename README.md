@@ -106,6 +106,9 @@ common options for our tests, which you can add to `TEST_ARGS`:
 - `-s` will let stdout print directly to console instead of capturing the output and
   printing it when a test fails only. Note that logger lines will always be printed
   both during (by setting log_cli in our pytest.ini file) and after tests.
+- `-m` will let you run only certain groups of tests. For example, `-m=parallel` will
+  run only parallel stencils, while `-m=sequential` will run only stencils that operate
+  on one rank at a time
 
 
 Generating test data
