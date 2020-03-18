@@ -103,10 +103,10 @@ def test_sequential_savepoint(
     input_data = collect_input_data(testobj, serializer, savepoint_in)
     # run python version of functionality
     output = testobj.compute(input_data)
+    failing_names = []
+    passing_names = []
     for varname in testobj.serialnames(testobj.out_vars):
         ref_data = read_serialized_data(serializer, savepoint_out, varname)
-        failing_names = []
-        passing_names = []
         with subtests.test(varname=varname):
             failing_names.append(varname)
             assert success(
