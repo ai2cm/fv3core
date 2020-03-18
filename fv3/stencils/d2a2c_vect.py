@@ -25,7 +25,7 @@ def lagrange_y_func_p1(qx):
 @gtscript.stencil(backend=utils.exec_backend)
 def lagrange_interpolation_y_p1(qx: sd, qout: sd):
     with computation(PARALLEL), interval(...):
-        qout = lagrange_y_func(qx)
+        qout = lagrange_y_func_p1(qx)
 
 
 @gtscript.function
@@ -172,7 +172,8 @@ def compute(dord4, uc, vc, u, v, ua, va, utc, vtc):
     ny = grid.npy + 2
     i1 = grid.is_ - 1
     j1 = grid.js - 1
-    if dord4 != 0:
+   
+    if dord4:
         id_ = 1
     else:
         id_ = 0
@@ -191,7 +192,7 @@ def compute(dord4, uc, vc, u, v, ua, va, utc, vtc):
     print('u', (is1, js1, 0),(ie1 - is1 + 1, je1 - js1 + 1, grid.npz))
     lagrange_interpolation_y_p1(u, utmp, origin=(is1, js1, 0),
                                 domain=(ie1 - is1 + 1, je1 - js1 + 1, grid.npz))
-
+   
     is1 = npt if grid.west_edge else grid.is_ - 1
     ie1 = nx - npt if grid.east_edge else grid.ie + 1
     js1 = npt if grid.south_edge else grid.jsd
@@ -207,6 +208,7 @@ def compute(dord4, uc, vc, u, v, ua, va, utc, vtc):
         je2 = ny - npt + 1
         avg_box(u, v, utmp, vtmp, origin=(grid.isd, je2, 0),
                 domain=(grid.nid, grid.jed - je2 + 1, grid.npz))
+   
     js2 = max(npt, grid.jsd)
     je2 = min(ny - npt, grid.jed)
     jdiff = je2 - js2 + 1
@@ -310,24 +312,28 @@ def compute(dord4, uc, vc, u, v, ua, va, utc, vtc):
         domain_edge_y = (grid.nic + 2, 1,  grid.npz) # TODO SHOULD BE + 2
         domain_edge_y_hack = (grid.nic + 1, 1,  grid.npz)
         islice = slice(grid.is_ - 1, grid.ie + 1)
-        
+        print('before edges',vc[53, 7, 0])
         if grid.south_edge:
             print(vtmp.shape, vc.shape, i1, j1, grid.cosa_v.shape, grid.rsin_v.shape, vtc.shape, domain_edge_y)
-            vt_edge(vtmp, vc, u, grid.cosa_v, grid.rsin_v,  vtc,  0, origin=(i1, j1, 0), domain=domain_edge_y_hack)
+            vt_edge(vtmp, vc, u, grid.cosa_v, grid.rsin_v,  vtc,  0, origin=(i1, j1, 0), domain=domain_edge_y)
+            print(vc[53, 7, 0])
             jslice = slice(grid.js - 2, grid.js + 2)
             vtc[islice, grid.js, :] = edge_interpolate4_y(va[islice, jslice, :], grid.dya[islice, jslice, :])
-            vc_y_edge1(vtc, grid.sin_sg4, grid.sin_sg2, vc, origin=(grid.is_ - 1, grid.js, 0), domain=domain_edge_y)
-            vt_edge(vtmp, vc, u, grid.cosa_v, grid.rsin_v,  vtc,  1, origin=(is1, js1 + 1, 0), domain=domain_edge_y_hack)
-
+            print(vc[53, 7, 0])
+            vc_y_edge1(vtc, grid.sin_sg4, grid.sin_sg2, vc, origin=(i1, grid.js, 0), domain=domain_edge_y)
+            print(vc[53, 7, 0], is1, js1 + 1, domain_edge_y, grid.nic + 2)
+            vt_edge(vtmp, vc, u, grid.cosa_v, grid.rsin_v,  vtc,  1, origin=(i1, grid.js + 1, 0), domain=domain_edge_y)
+        print(vc[53, 7, 0])
         if grid.north_edge:
-            vt_edge(vtmp, vc, u, grid.cosa_v, grid.rsin_v,  vtc,  0, origin=(is1, ny - 1, 0), domain=domain_edge_y_hack)
+            vt_edge(vtmp, vc, u, grid.cosa_v, grid.rsin_v,  vtc,  0, origin=(i1, ny - 1, 0), domain=domain_edge_y)
             jslice = slice(ny - 2, ny + 2)
             vtc[islice, ny, :] = edge_interpolate4_y(va[islice, jslice, :], grid.dya[islice, jslice, :])
             vc_y_edge1(vtc, grid.sin_sg4, grid.sin_sg2, vc, origin=(grid.is_ - 1, ny, 0), domain=domain_edge_y)
-            vt_edge(vtmp, vc, u, grid.cosa_v, grid.rsin_v,  vtc,  1, origin=(is1, ny + 1, 0), domain=domain_edge_y_hack)
-        
+            vt_edge(vtmp, vc, u, grid.cosa_v, grid.rsin_v,  vtc,  1, origin=(i1, ny + 1, 0), domain=domain_edge_y)
+        print(vc[53, 7, 0])
         vt_main(vtmp, vc, u, grid.cosa_v, grid.rsin_v,  vtc,
                 origin=(i1, j1, 0),
                 domain=(grid.nic + 2, grid.njc + 3, grid.npz))
+        print(vc[53, 7, 0])
     else:
         raise Exception('unimplemented grid_type >= 3')
