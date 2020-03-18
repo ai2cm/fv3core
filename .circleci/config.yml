@@ -83,7 +83,7 @@ jobs:
       - run:
           name: "Run tests"
           command: |
-            TEST_ARGS="--backend=dawn:gtmc -v -s" make tests
+            TEST_ARGS="--backend=dawn:gtmc -v -s -rsx" make tests
 
 workflows:
   version: 2

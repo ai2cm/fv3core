@@ -27,7 +27,7 @@ Porting a new stencil
    to the stencil (or function that calls the relevant stencil(s) -- fv3/translate/translate_<lowercase name> 
 3. write a python function the translate function calls that does the calculation of interest,
    in fv3/stencils/<lower case stencil name>.py 
-4. test using ``pytest -–which_modules <stencil name>``
+4. test using ``pytest -–which_modules=<stencil name>``, either with one name or a comma-separated list
 
 
 Developing stencils

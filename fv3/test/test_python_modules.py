@@ -106,6 +106,7 @@ def test_sequential_savepoint(
     for varname in testobj.serialnames(testobj.out_vars):
         ref_data = read_serialized_data(serializer, savepoint_out, varname)
         failing_names = []
+        passing_names = []
         with subtests.test(varname=varname):
             failing_names.append(varname)
             assert success(
@@ -118,8 +119,8 @@ def test_sequential_savepoint(
                 failure_stride,
                 test_name,
             )
-            failing_names.pop()
-    assert failing_names == []
+            passing_names.append(failing_names.pop())
+    assert failing_names == [], f"only the following variables passed: {passing_names}"
 
 
 def get_serializer(data_path, rank):
