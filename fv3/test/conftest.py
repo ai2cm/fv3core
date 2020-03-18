@@ -89,12 +89,16 @@ def process_grid_savepoint(serializer, grid_savepoint):
 
 
 def get_test_class_instance(test_name, grid):
+    translate_class_name = f"Translate{test_name.replace('-', '_')}"
     try:
-        instance = getattr(fv3.translate, f"Translate{test_name.replace('-', '_')}")(
+        instance = getattr(fv3.translate, translate_class_name)(
             grid
         )
-    except (AttributeError, ImportError):
-        instance = None
+    except AttributeError as err:
+        if translate_class_name in err.args[0]:
+            instance = None
+        else:
+            raise err
     return instance
 
 
