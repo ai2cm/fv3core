@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 import fv3.utils.gt4py_utils as utils
 import numpy as np
-import gt4py as gt
 import gt4py.gtscript as gtscript
+from gt4py.gtscript import computation, interval, PARALLEL
 import fv3._config as spec
 import fv3.stencils.copy_stencil as cp
 
@@ -27,13 +27,13 @@ def grid():
 @gtscript.stencil(backend=utils.backend)
 def ppm_volume_mean_x(qin: sd, qx: sd):
     with computation(PARALLEL), interval(...):
-        qx = b2 * (qin[-2, 0, 0] + qin[1, 0, 0]) + b1 * (qin[-1, 0, 0] + qin)
+        qx[0, 0, 0] = b2 * (qin[-2, 0, 0] + qin[1, 0, 0]) + b1 * (qin[-1, 0, 0] + qin)
 
 
 @gtscript.stencil(backend=utils.backend)
 def ppm_volume_mean_y(qin: sd, qy: sd):
     with computation(PARALLEL), interval(...):
-        qy = b2 * (qin[0, -2, 0] + qin[0, 1, 0]) + b1 * (qin[0, -1, 0] + qin)
+        qy[0, 0, 0] = b2 * (qin[0, -2, 0] + qin[0, 1, 0]) + b1 * (qin[0, -1, 0] + qin)
 
 
 @gtscript.function
@@ -61,25 +61,25 @@ def lagrange_interpolation_x(qy: sd, qout: sd):
 @gtscript.stencil(backend=utils.backend)
 def cubic_interpolation_south(qx: sd, qout: sd, qxx: sd):
     with computation(PARALLEL), interval(...):
-        qxx = c1 * (qx[0, -1, 0] + qx) + c2 * (qout[0, -1, 0] + qxx[0, 1, 0])
+        qxx[0, 0, 0] = c1 * (qx[0, -1, 0] + qx) + c2 * (qout[0, -1, 0] + qxx[0, 1, 0])
 
 
 @gtscript.stencil(backend=utils.backend)
 def cubic_interpolation_north(qx: sd, qout: sd, qxx: sd):
     with computation(PARALLEL), interval(...):
-        qxx = c1 * (qx[0, -1, 0] + qx) + c2 * (qout[0, 1, 0] + qxx[0, -1, 0])
+        qxx[0, 0, 0] = c1 * (qx[0, -1, 0] + qx) + c2 * (qout[0, 1, 0] + qxx[0, -1, 0])
 
 
 @gtscript.stencil(backend=utils.backend)
 def cubic_interpolation_west(qy: sd, qout: sd, qyy: sd):
     with computation(PARALLEL), interval(...):
-        qyy = c1 * (qy[-1, 0, 0] + qy) + c2 * (qout[-1, 0, 0] + qyy[1, 0, 0])
+        qyy[0, 0, 0] = c1 * (qy[-1, 0, 0] + qy) + c2 * (qout[-1, 0, 0] + qyy[1, 0, 0])
 
 
 @gtscript.stencil(backend=utils.backend)
 def cubic_interpolation_east(qy: sd, qout: sd, qyy: sd):
     with computation(PARALLEL), interval(...):
-        qyy = c1 * (qy[-1, 0, 0] + qy) + c2 * (qout[1, 0, 0] + qyy[-1, 0, 0])
+        qyy[0, 0, 0] = c1 * (qy[-1, 0, 0] + qy) + c2 * (qout[1, 0, 0] + qyy[-1, 0, 0])
 
 
 @gtscript.stencil(backend=utils.backend)
@@ -198,16 +198,6 @@ def qy_edge_north2(qin: sd, dya: sd, qy: sd):
             3.0 * (qin[0, -1, 0] + g_in * qin) - (g_in * qy[0, 1, 0] + qy[0, -1, 0])
         ) / (2.0 + 2.0 * g_in)
 
-
-# TODO: all of these offsets are either 0,1 or -1, -2. Totally should be able to consolidate
-def ec1_offsets_dir(corner, lower_direction):
-    if lower_direction in corner:
-        a = 0
-        b = 1
-    else:
-        a = -1
-        b = -2
-    return i1a, i1b
 
 
 def ec1_offsets(corner):
