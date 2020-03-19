@@ -144,7 +144,7 @@ def qx_edge_east(qin: sd, dxa: sd, qx: sd):
     with computation(PARALLEL), interval(...):
         g_in = dxa[-2, 0, 0] / dxa[-1, 0, 0]
         g_ou = dxa[1, 0, 0] / dxa
-        qx = 0.5 * (
+        qx[0, 0, 0] = 0.5 * (
             ((2.0 + g_in) * qin[-1, 0, 0] - qin[-2, 0, 0]) / (1.0 + g_in)
             + ((2.0 + g_ou) * qin - qin[1, 0, 0]) / (1.0 + g_ou)
         )
