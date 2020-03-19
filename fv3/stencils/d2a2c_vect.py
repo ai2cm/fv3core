@@ -5,16 +5,24 @@ import gt4py as gt
 import gt4py.gtscript as gtscript
 import fv3._config as spec
 import fv3.stencils.copy_stencil as cp
-from fv3.stencils.a2b_ord4 import lagrange_interpolation_y, lagrange_interpolation_x, lagrange_x_func, lagrange_y_func, a1, a2
+from fv3.stencils.a2b_ord4 import (
+    lagrange_interpolation_y,
+    lagrange_interpolation_x,
+    lagrange_x_func,
+    lagrange_y_func,
+    a1,
+    a2,
+)
 
 sd = utils.sd
-c1 = -2./14.
-c2 = 11./14.
-c3 = 5./14.
+c1 = -2.0 / 14.0
+c2 = 11.0 / 14.0
+c3 = 5.0 / 14.0
 
 
 def grid():
     return spec.grid
+
 
 # almost the same as a2b_ord4's version
 @gtscript.function
@@ -75,14 +83,14 @@ def contravariant_components(utmp: sd, vtmp: sd, cosa_s: sd, rsin2: sd, ua: sd, 
 
 
 @gtscript.stencil(backend=utils.exec_backend)
-def ut_main(utmp: sd, uc: sd, v: sd, cosa_u: sd, rsin_u: sd,  ut: sd):
+def ut_main(utmp: sd, uc: sd, v: sd, cosa_u: sd, rsin_u: sd, ut: sd):
     with computation(PARALLEL), interval(...):
         uc = lagrange_x_func(utmp)
         ut = contravariant(uc, v, cosa_u, rsin_u)
 
 
 @gtscript.stencil(backend=utils.exec_backend)
-def vt_main(vtmp: sd, vc: sd, u: sd, cosa_v: sd, rsin_v: sd,  vt: sd):
+def vt_main(vtmp: sd, vc: sd, u: sd, cosa_v: sd, rsin_v: sd, vt: sd):
     with computation(PARALLEL), interval(...):
         vc = lagrange_y_func(vtmp)
         vt = contravariant(vc, u, cosa_v, rsin_v)
@@ -113,26 +121,35 @@ def vol_conserv_cubic_interp_x(utmp: sd, uc: sd):
     with computation(PARALLEL), interval(...):
         uc = vol_conserv_cubic_interp_func_x(utmp)
 
+
 @gtscript.stencil(backend=utils.exec_backend)
 def vol_conserv_cubic_interp_x_rev(utmp: sd, uc: sd):
     with computation(PARALLEL), interval(...):
         uc = vol_conserv_cubic_interp_func_x_rev(utmp)
+
 
 @gtscript.stencil(backend=utils.exec_backend)
 def vol_conserv_cubic_interp_y(vtmp: sd, vc: sd):
     with computation(PARALLEL), interval(...):
         vc = vol_conserv_cubic_interp_func_y(vtmp)
 
+
 @gtscript.stencil(backend=utils.exec_backend)
-def vt_edge(vtmp: sd, vc: sd, u: sd, cosa_v: sd, rsin_v: sd,  vt: sd, rev: int):
+def vt_edge(vtmp: sd, vc: sd, u: sd, cosa_v: sd, rsin_v: sd, vt: sd, rev: int):
     with computation(PARALLEL), interval(...):
-        vc = vol_conserv_cubic_interp_func_y(vtmp) if rev == 0 else vol_conserv_cubic_interp_func_y_rev(vtmp)
+        vc = (
+            vol_conserv_cubic_interp_func_y(vtmp)
+            if rev == 0
+            else vol_conserv_cubic_interp_func_y_rev(vtmp)
+        )
         vt = contravariant(vc, u, cosa_v, rsin_v)
+
 
 @gtscript.stencil(backend=utils.exec_backend)
 def uc_x_edge1(ut: sd, sin_sg3: sd, sin_sg1: sd, uc: sd):
     with computation(PARALLEL), interval(...):
         uc = ut * sin_sg3[-1, 0, 0] if ut > 0 else ut * sin_sg1
+
 
 @gtscript.stencil(backend=utils.exec_backend)
 def vc_y_edge1(vt: sd, sin_sg4: sd, sin_sg2: sd, vc: sd):
@@ -165,7 +182,7 @@ def compute(dord4, uc, vc, u, v, ua, va, utc, vtc):
     i1 = grid.is_ - 1
     j1 = grid.js - 1
     id_ = 1 if dord4 else 0
-    npt = 4 if spec.namelist['grid_type'] < 3 and not grid.nested else 0
+    npt = 4 if spec.namelist["grid_type"] < 3 and not grid.nested else 0
 
     utmp = utils.make_storage_from_shape(ua.shape, grid.default_origin())
     vtmp = utils.make_storage_from_shape(va.shape, grid.default_origin())
@@ -175,40 +192,73 @@ def compute(dord4, uc, vc, u, v, ua, va, utc, vtc):
     je1 = ny - npt if grid.north_edge else grid.je + 1
     is1 = npt + grid.is_ - 1 if grid.west_edge else grid.isd
     ie1 = nx - npt if grid.east_edge else grid.ied
-    lagrange_interpolation_y_p1(u, utmp, origin=(is1, js1, 0),
-                                domain=(ie1 - is1 + 1, je1 - js1 + 1, grid.npz))
+    lagrange_interpolation_y_p1(
+        u, utmp, origin=(is1, js1, 0), domain=(ie1 - is1 + 1, je1 - js1 + 1, grid.npz)
+    )
 
     is1 = npt + grid.is_ - 1 if grid.west_edge else grid.is_ - 1
     ie1 = nx - npt if grid.east_edge else grid.ie + 1
     js1 = npt + grid.js - 1 if grid.south_edge else grid.jsd
     je1 = ny - npt if grid.north_edge else grid.jed
 
-    lagrange_interpolation_x_p1(v, vtmp, origin=(is1, js1, 0),
-                                domain=(ie1 - is1 + 1, je1 - js1 + 1, grid.npz))
+    lagrange_interpolation_x_p1(
+        v, vtmp, origin=(is1, js1, 0), domain=(ie1 - is1 + 1, je1 - js1 + 1, grid.npz)
+    )
     # tmp edges
     if grid.south_edge or grid.jsd < npt:
-        avg_box(u, v, utmp, vtmp, origin=(grid.isd, grid.jsd, 0),
-                domain=(grid.nid, npt + grid.js - 1 - grid.jsd, grid.npz))
+        avg_box(
+            u,
+            v,
+            utmp,
+            vtmp,
+            origin=(grid.isd, grid.jsd, 0),
+            domain=(grid.nid, npt + grid.js - 1 - grid.jsd, grid.npz),
+        )
     if grid.north_edge or grid.jed >= (ny - npt):
         je2 = ny - npt + 1
-        avg_box(u, v, utmp, vtmp, origin=(grid.isd, je2, 0),
-                domain=(grid.nid, grid.jed - je2 + 1, grid.npz))
+        avg_box(
+            u,
+            v,
+            utmp,
+            vtmp,
+            origin=(grid.isd, je2, 0),
+            domain=(grid.nid, grid.jed - je2 + 1, grid.npz),
+        )
 
     js2 = npt + grid.js - 1 if grid.south_edge else grid.jsd
     je2 = ny - npt if grid.north_edge else grid.jed
     jdiff = je2 - js2 + 1
     if grid.west_edge or grid.isd < npt:
-        avg_box(u, v, utmp, vtmp, origin=(grid.isd, js2, 0),
-                domain=(npt + grid.is_ - 1 - grid.isd, jdiff, grid.npz))
+        avg_box(
+            u,
+            v,
+            utmp,
+            vtmp,
+            origin=(grid.isd, js2, 0),
+            domain=(npt + grid.is_ - 1 - grid.isd, jdiff, grid.npz),
+        )
     if grid.east_edge or grid.ied >= (nx - npt):
-        avg_box(u, v, utmp, vtmp, origin=(nx + 1 - npt, js2, 0),
-                domain=(grid.ied - nx + npt, jdiff, grid.npz))
+        avg_box(
+            u,
+            v,
+            utmp,
+            vtmp,
+            origin=(nx + 1 - npt, js2, 0),
+            domain=(grid.ied - nx + npt, jdiff, grid.npz),
+        )
 
     # contra-variant components at cell center
     pad = 2 + 2 * id_
-    contravariant_components(utmp, vtmp, grid.cosa_s, grid.rsin2, ua, va,
-                             origin=(grid.is_ - 1 - id_, grid.js - 1 - id_, 0),
-                             domain=(grid.nic + pad, grid.njc + pad, grid.npz))
+    contravariant_components(
+        utmp,
+        vtmp,
+        grid.cosa_s,
+        grid.rsin2,
+        ua,
+        va,
+        origin=(grid.is_ - 1 - id_, grid.js - 1 - id_, 0),
+        domain=(grid.nic + pad, grid.njc + pad, grid.npz),
+    )
     # Fix the edges
     # Xdir:
     # TODO, make stencils? need variable offsets
@@ -216,25 +266,25 @@ def compute(dord4, uc, vc, u, v, ua, va, utc, vtc):
     if grid.sw_corner:
         for i in range(-2, 1):
             utmp[i + 2, grid.js - 1, :] = -vtmp[grid.is_ - 1, grid.js - i, :]
-        if spec.namelist['grid_type'] < 3:
+        if spec.namelist["grid_type"] < 3:
             ua[i1 - 1, j1, :] = -va[i1, j1 + 2, :]
             ua[i1, j1, :] = -va[i1, j1 + 1, :]
     if grid.se_corner:
         for i in range(0, 3):
             utmp[nx + i, grid.js - 1, :] = vtmp[nx, i + grid.js, :]
-        if spec.namelist['grid_type'] < 3:
+        if spec.namelist["grid_type"] < 3:
             ua[nx, j1, :] = va[nx, j1 + 1, :]
             ua[nx + 1, j1, :] = va[nx, j1 + 2, :]
     if grid.ne_corner:
         for i in range(0, 3):
             utmp[nx + i, ny, :] = -vtmp[nx, grid.je - i, :]
-        if spec.namelist['grid_type'] < 3:
-            ua[nx, ny, :] = -va[nx,  ny - 1, :]
+        if spec.namelist["grid_type"] < 3:
+            ua[nx, ny, :] = -va[nx, ny - 1, :]
             ua[nx + 1, ny, :] = -va[nx, ny - 2, :]
     if grid.nw_corner:
         for i in range(-2, 1):
             utmp[i + 2, ny, :] = vtmp[grid.is_ - 1, grid.je + i, :]
-        if spec.namelist['grid_type'] < 3:
+        if spec.namelist["grid_type"] < 3:
             ua[i1 - 1, ny, :] = va[i1, ny - 2, :]
             ua[i1, ny, :] = va[i1, ny - 1, :]
 
@@ -242,35 +292,95 @@ def compute(dord4, uc, vc, u, v, ua, va, utc, vtc):
     ilast = grid.npx if grid.east_edge else grid.ie + 2
     idiff = ilast - ifirst + 1
 
-    ut_main(utmp, uc, v, grid.cosa_u, grid.rsin_u, utc, origin=(ifirst, grid.js - 1, 0),
-            domain=(idiff, grid.njc + 2, grid.npz))
-    
-    if spec.namelist['grid_type'] < 3:
-        domain_edge_x = (1, grid.njc + 2, grid. npz)
+    ut_main(
+        utmp,
+        uc,
+        v,
+        grid.cosa_u,
+        grid.rsin_u,
+        utc,
+        origin=(ifirst, grid.js - 1, 0),
+        domain=(idiff, grid.njc + 2, grid.npz),
+    )
+
+    if spec.namelist["grid_type"] < 3:
+        domain_edge_x = (1, grid.njc + 2, grid.npz)
         jslice = slice(grid.js - 1, grid.je + 2)
         if grid.west_edge and not grid.nested:
-            vol_conserv_cubic_interp_x(utmp, uc, origin=(i1, j1, 0),
-                                       domain=domain_edge_x)
+            vol_conserv_cubic_interp_x(
+                utmp, uc, origin=(i1, j1, 0), domain=domain_edge_x
+            )
             islice = slice(grid.is_ - 2, grid.is_ + 2)
-            utc[grid.is_, jslice, :] = edge_interpolate4_x(ua[islice, jslice, :], grid.dxa[islice, jslice, :])
-            uc_x_edge1(utc, grid.sin_sg3, grid.sin_sg1, uc, origin=(i1 + 1, j1, 0), domain=domain_edge_x)
-            vol_conserv_cubic_interp_x_rev(utmp, uc, origin=(i1 + 2, j1, 0),
-                                           domain=domain_edge_x)
-            contravariant_stencil(uc, v, grid.cosa_u, grid.rsin_u, utc, origin=(i1, j1, 0),
-                                  domain=domain_edge_x)
-            contravariant_stencil(uc, v, grid.cosa_u, grid.rsin_u, utc, origin=(i1 + 2, j1, 0),
-                                  domain=domain_edge_x)
+            utc[grid.is_, jslice, :] = edge_interpolate4_x(
+                ua[islice, jslice, :], grid.dxa[islice, jslice, :]
+            )
+            uc_x_edge1(
+                utc,
+                grid.sin_sg3,
+                grid.sin_sg1,
+                uc,
+                origin=(i1 + 1, j1, 0),
+                domain=domain_edge_x,
+            )
+            vol_conserv_cubic_interp_x_rev(
+                utmp, uc, origin=(i1 + 2, j1, 0), domain=domain_edge_x
+            )
+            contravariant_stencil(
+                uc,
+                v,
+                grid.cosa_u,
+                grid.rsin_u,
+                utc,
+                origin=(i1, j1, 0),
+                domain=domain_edge_x,
+            )
+            contravariant_stencil(
+                uc,
+                v,
+                grid.cosa_u,
+                grid.rsin_u,
+                utc,
+                origin=(i1 + 2, j1, 0),
+                domain=domain_edge_x,
+            )
 
         if grid.east_edge and not grid.nested:
-            vol_conserv_cubic_interp_x(utmp, uc, origin=(nx - 1, j1, 0), domain=domain_edge_x)
+            vol_conserv_cubic_interp_x(
+                utmp, uc, origin=(nx - 1, j1, 0), domain=domain_edge_x
+            )
             islice = slice(nx - 2, nx + 2)
-            utc[nx, jslice, :] = edge_interpolate4_x(ua[islice, jslice, :], grid.dxa[islice, jslice, :])
-            uc_x_edge1(utc, grid.sin_sg3, grid.sin_sg1, uc, origin=(nx, j1, 0), domain=domain_edge_x)
-            vol_conserv_cubic_interp_x_rev(utmp, uc, origin=(nx + 1, j1, 0), domain=domain_edge_x)
-            contravariant_stencil(uc, v, grid.cosa_u, grid.rsin_u, utc,  origin=(grid.npx + 1, j1, 0),
-                                  domain=domain_edge_x)
-            contravariant_stencil(uc, v, grid.cosa_u, grid.rsin_u, utc, origin=(nx + 1, j1, 0),
-                                  domain=domain_edge_x)
+            utc[nx, jslice, :] = edge_interpolate4_x(
+                ua[islice, jslice, :], grid.dxa[islice, jslice, :]
+            )
+            uc_x_edge1(
+                utc,
+                grid.sin_sg3,
+                grid.sin_sg1,
+                uc,
+                origin=(nx, j1, 0),
+                domain=domain_edge_x,
+            )
+            vol_conserv_cubic_interp_x_rev(
+                utmp, uc, origin=(nx + 1, j1, 0), domain=domain_edge_x
+            )
+            contravariant_stencil(
+                uc,
+                v,
+                grid.cosa_u,
+                grid.rsin_u,
+                utc,
+                origin=(grid.npx + 1, j1, 0),
+                domain=domain_edge_x,
+            )
+            contravariant_stencil(
+                uc,
+                v,
+                grid.cosa_u,
+                grid.rsin_u,
+                utc,
+                origin=(nx + 1, j1, 0),
+                domain=domain_edge_x,
+            )
     # Ydir:
     if grid.sw_corner:
         for j in range(-2, 1):
@@ -290,27 +400,92 @@ def compute(dord4, uc, vc, u, v, ua, va, utc, vtc):
     if grid.ne_corner:
         for j in range(0, 3):
             vtmp[nx, ny + j, :] = -utmp[grid.ie - j, ny, :]
-        va[nx, ny, :] = -ua[nx - 1,  ny, :]
+        va[nx, ny, :] = -ua[nx - 1, ny, :]
         va[nx, ny + 1, :] = -ua[nx - 2, ny, :]
 
-    if spec.namelist['grid_type'] < 3:
-        domain_edge_y = (grid.nic + 2, 1,  grid.npz)
+    if spec.namelist["grid_type"] < 3:
+        domain_edge_y = (grid.nic + 2, 1, grid.npz)
         islice = slice(grid.is_ - 1, grid.ie + 2)
         if grid.south_edge:
-            vt_edge(vtmp, vc, u, grid.cosa_v, grid.rsin_v,  vtc,  0, origin=(i1, j1, 0), domain=domain_edge_y)
+            vt_edge(
+                vtmp,
+                vc,
+                u,
+                grid.cosa_v,
+                grid.rsin_v,
+                vtc,
+                0,
+                origin=(i1, j1, 0),
+                domain=domain_edge_y,
+            )
             jslice = slice(grid.js - 2, grid.js + 2)
-            vtc[islice, grid.js, :] = edge_interpolate4_y(va[islice, jslice, :], grid.dya[islice, jslice, :])
-            vc_y_edge1(vtc, grid.sin_sg4, grid.sin_sg2, vc, origin=(i1, grid.js, 0), domain=domain_edge_y)
-            vt_edge(vtmp, vc, u, grid.cosa_v, grid.rsin_v,  vtc,  1, origin=(i1, grid.js + 1, 0), domain=domain_edge_y)
+            vtc[islice, grid.js, :] = edge_interpolate4_y(
+                va[islice, jslice, :], grid.dya[islice, jslice, :]
+            )
+            vc_y_edge1(
+                vtc,
+                grid.sin_sg4,
+                grid.sin_sg2,
+                vc,
+                origin=(i1, grid.js, 0),
+                domain=domain_edge_y,
+            )
+            vt_edge(
+                vtmp,
+                vc,
+                u,
+                grid.cosa_v,
+                grid.rsin_v,
+                vtc,
+                1,
+                origin=(i1, grid.js + 1, 0),
+                domain=domain_edge_y,
+            )
         if grid.north_edge:
-            vt_edge(vtmp, vc, u, grid.cosa_v, grid.rsin_v,  vtc,  0, origin=(i1, ny - 1, 0), domain=domain_edge_y)
+            vt_edge(
+                vtmp,
+                vc,
+                u,
+                grid.cosa_v,
+                grid.rsin_v,
+                vtc,
+                0,
+                origin=(i1, ny - 1, 0),
+                domain=domain_edge_y,
+            )
             jslice = slice(ny - 2, ny + 2)
-            vtc[islice, ny, :] = edge_interpolate4_y(va[islice, jslice, :], grid.dya[islice, jslice, :])
-            vc_y_edge1(vtc, grid.sin_sg4, grid.sin_sg2, vc, origin=(grid.is_ - 1, ny, 0), domain=domain_edge_y)
-            vt_edge(vtmp, vc, u, grid.cosa_v, grid.rsin_v,  vtc,  1, origin=(i1, ny + 1, 0), domain=domain_edge_y)
-        vt_main(vtmp, vc, u, grid.cosa_v, grid.rsin_v,  vtc,
-                origin=(i1, grid.js + 2, 0),
-                domain=(grid.nic + 2, ny - grid.js - 3, grid.npz))
+            vtc[islice, ny, :] = edge_interpolate4_y(
+                va[islice, jslice, :], grid.dya[islice, jslice, :]
+            )
+            vc_y_edge1(
+                vtc,
+                grid.sin_sg4,
+                grid.sin_sg2,
+                vc,
+                origin=(grid.is_ - 1, ny, 0),
+                domain=domain_edge_y,
+            )
+            vt_edge(
+                vtmp,
+                vc,
+                u,
+                grid.cosa_v,
+                grid.rsin_v,
+                vtc,
+                1,
+                origin=(i1, ny + 1, 0),
+                domain=domain_edge_y,
+            )
+        vt_main(
+            vtmp,
+            vc,
+            u,
+            grid.cosa_v,
+            grid.rsin_v,
+            vtc,
+            origin=(i1, grid.js + 2, 0),
+            domain=(grid.nic + 2, ny - grid.js - 3, grid.npz),
+        )
 
     else:
-        raise Exception('unimplemented grid_type >= 3')
+        raise Exception("unimplemented grid_type >= 3")
