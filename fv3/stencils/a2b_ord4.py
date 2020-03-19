@@ -164,7 +164,7 @@ def qy_edge_south(qin: sd, dya: sd, qy: sd):
     with computation(PARALLEL), interval(...):
         g_in = dya[0, 1, 0] / dya
         g_ou = dya[0, -2, 0] / dya[0, -1, 0]
-        qy[0, 0, 0 = 0.5 * (
+        qy[0, 0, 0] = 0.5 * (
             ((2.0 + g_in) * qin - qin[0, 1, 0]) / (1.0 + g_in)
             + ((2.0 + g_ou) * qin[0, -1, 0] - qin[0, -2, 0]) / (1.0 + g_ou)
         )
