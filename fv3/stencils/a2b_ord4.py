@@ -85,13 +85,13 @@ def cubic_interpolation_east(qy: sd, qout: sd, qyy: sd):
 @gtscript.stencil(backend=utils.backend)
 def qout_avg(qxx: sd, qyy: sd, qout: sd):
     with computation(PARALLEL), interval(...):
-        qout = 0.5 * (qxx + qyy)
+        qout[0, 0, 0] = 0.5 * (qxx + qyy)
 
 
 @gtscript.stencil(backend=utils.backend)
 def vort_adjust(qxx: sd, qyy: sd, qout: sd):
     with computation(PARALLEL), interval(...):
-        qout = 0.5 * (qxx + qyy)
+        qout[0, 0, 0] = 0.5 * (qxx + qyy)
 
 
 # @gtscript.stencil(backend=utils.backend)
@@ -107,14 +107,14 @@ def vort_adjust(qxx: sd, qyy: sd, qout: sd):
 def qout_x_edge(qin: sd, dxa: sd, edge_w: sd, qout: sd):
     with computation(PARALLEL), interval(...):
         q2 = (qin[-1, 0, 0] * dxa + qin * dxa[-1, 0, 0]) / (dxa[-1, 0, 0] + dxa)
-        qout = edge_w * q2[0, -1, 0] + (1.0 - edge_w) * q2
+        qout[0, 0, 0] = edge_w * q2[0, -1, 0] + (1.0 - edge_w) * q2
 
 
 @gtscript.stencil(backend=utils.backend)
 def qout_y_edge(qin: sd, dya: sd, edge_s: sd, qout: sd):
     with computation(PARALLEL), interval(...):
         q1 = (qin[0, -1, 0] * dya + qin * dya[0, -1, 0]) / (dya[0, -1, 0] + dya)
-        qout = edge_s * q1[-1, 0, 0] + (1.0 - edge_s) * q1
+        qout[0, 0, 0] = edge_s * q1[-1, 0, 0] + (1.0 - edge_s) * q1
 
 
 @gtscript.stencil(backend=utils.backend)
@@ -122,7 +122,7 @@ def qx_edge_west(qin: sd, dxa: sd, qx: sd):
     with computation(PARALLEL), interval(...):
         g_in = dxa[1, 0, 0] / dxa
         g_ou = dxa[-2, 0, 0] / dxa[-1, 0, 0]
-        qx = 0.5 * (
+        qx[0, 0, 0] = 0.5 * (
             ((2.0 + g_in) * qin - qin[1, 0, 0]) / (1.0 + g_in)
             + ((2.0 + g_ou) * qin[-1, 0, 0] - qin[-2, 0, 0]) / (1.0 + g_ou)
         )
@@ -134,7 +134,7 @@ def qx_edge_west(qin: sd, dxa: sd, qx: sd):
 def qx_edge_west2(qin: sd, dxa: sd, qx: sd):
     with computation(PARALLEL), interval(...):
         g_in = dxa / dxa[-1, 0, 0]
-        qx = (
+        qx[0, 0, 0] = (
             3.0 * (g_in * qin[-1, 0, 0] + qin) - (g_in * qx[-1, 0, 0] + qx[1, 0, 0])
         ) / (2.0 + 2.0 * g_in)
 
@@ -154,7 +154,7 @@ def qx_edge_east(qin: sd, dxa: sd, qx: sd):
 def qx_edge_east2(qin: sd, dxa: sd, qx: sd):
     with computation(PARALLEL), interval(...):
         g_in = dxa[-1, 0, 0] / dxa
-        qx = (
+        qx[0, 0, 0] = (
             3.0 * (qin[-1, 0, 0] + g_in * qin) - (g_in * qx[1, 0, 0] + qx[-1, 0, 0])
         ) / (2.0 + 2.0 * g_in)
 
@@ -164,7 +164,7 @@ def qy_edge_south(qin: sd, dya: sd, qy: sd):
     with computation(PARALLEL), interval(...):
         g_in = dya[0, 1, 0] / dya
         g_ou = dya[0, -2, 0] / dya[0, -1, 0]
-        qy = 0.5 * (
+        qy[0, 0, 0 = 0.5 * (
             ((2.0 + g_in) * qin - qin[0, 1, 0]) / (1.0 + g_in)
             + ((2.0 + g_ou) * qin[0, -1, 0] - qin[0, -2, 0]) / (1.0 + g_ou)
         )
@@ -174,7 +174,7 @@ def qy_edge_south(qin: sd, dya: sd, qy: sd):
 def qy_edge_south2(qin: sd, dya: sd, qy: sd):
     with computation(PARALLEL), interval(...):
         g_in = dya / dya[0, -1, 0]
-        qy = (
+        qy[0, 0, 0] = (
             3.0 * (g_in * qin[0, -1, 0] + qin) - (g_in * qy[0, -1, 0] + qy[0, 1, 0])
         ) / (2.0 + 2.0 * g_in)
 
@@ -184,7 +184,7 @@ def qy_edge_north(qin: sd, dya: sd, qy: sd):
     with computation(PARALLEL), interval(...):
         g_in = dya[0, -2, 0] / dya[0, -1, 0]
         g_ou = dya[0, 1, 0] / dya
-        qy = 0.5 * (
+        qy[0, 0, 0] = 0.5 * (
             ((2.0 + g_in) * qin[0, -1, 0] - qin[0, -2, 0]) / (1.0 + g_in)
             + ((2.0 + g_ou) * qin - qin[0, 1, 0]) / (1.0 + g_ou)
         )
@@ -194,7 +194,7 @@ def qy_edge_north(qin: sd, dya: sd, qy: sd):
 def qy_edge_north2(qin: sd, dya: sd, qy: sd):
     with computation(PARALLEL), interval(...):
         g_in = dya[0, -1, 0] / dya
-        qy = (
+        qy[0, 0, 0] = (
             3.0 * (qin[0, -1, 0] + g_in * qin) - (g_in * qy[0, 1, 0] + qy[0, -1, 0])
         ) / (2.0 + 2.0 * g_in)
 
