@@ -8,6 +8,7 @@ from .translate_del6vtflux import TranslateDel6VtFlux
 from .translate_delnflux import TranslateDelnFlux, TranslateDelnFlux_2
 from .translate_divergencedamping import TranslateDivergenceDamping
 from .translate_fill4corners import TranslateFill4Corners
+from .translate_fill2_4corners import TranslateFill2_4Corners
 from .translate_fillcorners import TranslateFillCorners
 from .translate_fillcornersvector import TranslateFillCornersVector
 from .translate_fluxcapacitor import TranslateFluxCapacitor
