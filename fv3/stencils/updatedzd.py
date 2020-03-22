@@ -90,7 +90,7 @@ def edge_python(q1, q2, qe1, qe2, dp0, gam, islice, jslice):
     xt2 = gk * (gk + 0.5) - a_bot * gam[islice, jslice, km]
     qe1[islice, jslice, km+1] = (xt1 * q1[islice, jslice, km] + q1[islice, jslice, km - 1] - a_bot * qe1[islice, jslice, km]) / xt2
     qe2[islice, jslice, km+1] = (xt1 * q2[islice, jslice, km] + q2[islice, jslice, km - 1] - a_bot * qe2[islice, jslice, km]) / xt2
-    for k in range(km+1, -1, -1):
+    for k in range(km, -1, -1):
         qe1[islice, jslice, k] = qe1[islice, jslice, k] - gam[islice, jslice, k] * qe1[islice, jslice, k+1]
         qe2[islice, jslice, k] = qe2[islice, jslice, k] - gam[islice, jslice, k] * qe2[islice, jslice, k+1]
 @gtscript.stencil(backend=utils.backend)
