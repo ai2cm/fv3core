@@ -23,6 +23,7 @@ def ra_y_stencil(area: sd, yfx_adv: sd, ra_y: sd):
     with computation(PARALLEL), interval(...):
         ra_y = ra_y_func(area, yfx_adv)
 
+
 @gtscript.function
 def zh_base(z2, area, fx, fy, ra_x, ra_y):
     return (z2 * area + fx - fx[1, 0, 0] + fy - fy[0, 1, 0]) / (ra_x + ra_y - area)
@@ -34,10 +35,12 @@ def zh_damp_stencil(area: sd, z2: sd, fx: sd, fy: sd, ra_x: sd, ra_y: sd, fx2: s
         zhbase =  zh_base(z2, area, fx, fy, ra_x, ra_y)
         zh[0, 0, 0] =  zhbase + (fx2 - fx2[1, 0, 0] + fy2 - fy2[0, 1, 0]) * rarea
 
+
 @gtscript.stencil(backend=utils.backend)
 def zh_stencil(area: sd, zh: sd, fx: sd, fy: sd, ra_x: sd, ra_y: sd):
     with computation(PARALLEL), interval(...):
         zh = zh_base(zh, area, fx, fy, ra_x, ra_y)
+
 
 # NOTE: we have not ported the uniform_grid True option as it is never called that way in this model,
 # we have also ignored limite != 0 for the same reason
@@ -69,14 +72,14 @@ def edge_profile(q1: sd, q2: sd, qe1: sd, qe2: sd, dp0: sd, gam: sd):
 def edge_python(q1, q2, qe1, qe2, dp0, gam, islice, jslice,  qe1_2, gam_2):
     grid = spec.grid
     dcol = dp0[0, 0, :]
-    #print(dcol, islice, jslice)
+  
     km = grid.npz - 1
     g0 = dcol[1] / dcol[0]
     xt1 = 2.0 * g0 * (g0 + 1.0)
     bet = g0 * (g0 + 0.5)
     
     qe1[islice, jslice, 0] = (xt1 * q1[islice, jslice, 0] + q1[islice, jslice, 1]) / bet
-    #print('very beginning', qe1[3, 0, 0])
+   
     qe2[islice, jslice, 0] = (xt1 * q2[islice, jslice, 0] + q2[islice, jslice, 1]) / bet
     gam[islice, jslice, 0] = (1.0 + g0 * (g0 + 1.5)) / bet
    
@@ -86,36 +89,17 @@ def edge_python(q1, q2, qe1, qe2, dp0, gam, islice, jslice,  qe1_2, gam_2):
         qe1[islice, jslice, k] = (3.0 * (q1[islice, jslice, k-1] + gk * q1[islice, jslice, k]) - qe1[islice, jslice, k-1]) / bet
         qe2[islice, jslice, k] = (3.0 * (q2[islice, jslice, k-1] + gk * q2[islice, jslice, k]) - qe2[islice, jslice, k-1]) / bet
         gam[islice, jslice, k] = gk / bet
-    print('gam22222222',np.all(gam[islice, 2, :km+1] == gam_2[islice, 2, :km+1]))
-    count = 0
-    for i in range(55):
-        for k in range(km+1):
-            com = gam[i, 2, k]
-            res = gam_2[i, 2, k]
-            if com != res:
-                print('gam', i, k, com, res, com - res)
-                count += 1
-    print(count)
-    print('qe1_22222222',np.all(qe1[islice, 2, :km+1] == qe1_2[islice, 2, :km+1]))
-    count = 0
-    for i in range(55):
-        for k in range(km+1):
-            com = qe1[i, 2, k]
-            res = qe1_2[i, 2, k]
-            if com != res:
-                print('qe1', i, k, com, res, com - res)
-                count += 1
-    print(count)
+    
     a_bot = 1.0 + gk * (gk + 1.5)
     xt1 = 2.0 * gk * (gk + 1.0)
     xt2 = gk * (gk + 0.5) - a_bot * gam[islice, jslice, km]
     qe1[islice, jslice, km+1] = (xt1 * q1[islice, jslice, km] + q1[islice, jslice, km - 1] - a_bot * qe1[islice, jslice, km]) / xt2
     qe2[islice, jslice, km+1] = (xt1 * q2[islice, jslice, km] + q2[islice, jslice, km - 1] - a_bot * qe2[islice, jslice, km]) / xt2
     for k in range(km, -1, -1):
-        #print('---', k, qe1[3, 0, k], gam[3, 0, k], qe1[3, 0, k+1])
         qe1[islice, jslice, k] = qe1[islice, jslice, k] - gam[islice, jslice, k] * qe1[islice, jslice, k+1]
-        #print('changed to ',qe1[3, 0, k])
         qe2[islice, jslice, k] = qe2[islice, jslice, k] - gam[islice, jslice, k] * qe2[islice, jslice, k+1]
+
+
 @gtscript.stencil(backend=utils.backend)
 def out(zs: sd, zh: sd, ws: sd, dt: float):
     with computation(BACKWARD):
@@ -130,7 +114,7 @@ def compute(ndif, damp_vtd, dp0, zs, zh, crx, cry, xfx, yfx, wsd, dt):
    
     ndif[:, :, -1] = ndif[:, :, -2]
     damp_vtd[:, :, -1] = damp_vtd[:, :, -2]
-    
+   
     crx_adv = utils.make_storage_from_shape(crx.shape, grid.compute_x_origin())
     cry_adv = utils.make_storage_from_shape(cry.shape, grid.compute_y_origin())
     xfx_adv = utils.make_storage_from_shape(xfx.shape, grid.compute_x_origin())
@@ -144,20 +128,7 @@ def compute(ndif, damp_vtd, dp0, zs, zh, crx, cry, xfx, yfx, wsd, dt):
    
     gam = utils.make_storage_from_shape(zs.shape, grid.default_origin())
     edge_profile(cry, yfx, cry_adv, yfx_adv, dp0, gam, origin=(grid.isd, grid.js, 0), domain=(grid.nid, grid.njc + 1, grid.npz + 1))
-    '''
-    print('cry_adv', np.all(cry_adv == cry_adv_edge))
-    print('yfx_adv', np.all(yfx_adv == yfx_adv_edge))
-    count = 0
-    for i in range(55):
-        for j in range(55):
-            for k in range(64):
-                comp = cry_adv[i,j,k]
-                res = cry_adv_edge[i,j,k]
-                if comp != res:
-                    print(i,j, k, comp, res, comp - res)
-                    count += 1
-    print(count)
-    '''
+    
     ra_x_stencil(grid.area, xfx_adv, ra_x, origin=grid.compute_x_origin(), domain=(grid.nic, grid.njd, grid.npz + 1))
     ra_y_stencil(grid.area, yfx_adv, ra_y, origin=grid.compute_y_origin(), domain=(grid.nid, grid.njc, grid.npz + 1))
     # TODO, when consoldiating k plitting, change this too
@@ -169,14 +140,12 @@ def compute(ndif, damp_vtd, dp0, zs, zh, crx, cry, xfx, yfx, wsd, dt):
     col = {"column_namelist": []}
     for ki in ks:
         col["column_namelist"].append({'ndif': ndif[0, 0, ki], 'damp': damp_vtd[0, 0, ki]})
-    d_sw.d_sw_ksplit(column_calls, data, col, outputs, grid, allz=True)
-    #utils.k_split_run(func, data, k_indices(), splitvars_values, outputs, grid, allz)
+    utils.k_split_run(column_calls, data, [[0], [1], list(range(2, grid.npz + 1))], col, outputs, grid, allz=True)
     out(zs, zh, wsd, dt, origin=grid.compute_origin(), domain=(grid.nic, grid.njc, grid.npz + 1))
 
 
 def column_calls(zh, crx_adv, cry_adv, xfx_adv, yfx_adv, ra_x, ra_y, column_namelist):
     grid = spec.grid
-    print(column_namelist)
     if column_namelist['damp'] > 1e-5:
         wk = utils.make_storage_from_shape(zh.shape, grid.default_origin())
         fx2 = utils.make_storage_from_shape(zh.shape, grid.default_origin())

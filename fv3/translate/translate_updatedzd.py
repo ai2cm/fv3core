@@ -19,8 +19,7 @@ class TranslateUpdateDzD(TranslateFortranData2Py):
             "yfx": grid.y3d_compute_domain_x_dict(),
             "wsd": grid.compute_dict()
         }
-        #self.in_vars["data_vars"]["qe1_2"]["kaxis"] = 1
-        #self.in_vars["data_vars"]["gam_2"]["kaxis"] = 1
+       
         self.in_vars["parameters"] = ['dt']
         out_vars = ['zh', 'crx', 'cry', 'xfx', 'yfx', 'wsd']
         self.out_vars = {}
