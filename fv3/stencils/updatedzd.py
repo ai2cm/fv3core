@@ -8,6 +8,7 @@ from fv3.stencils.fxadv import ra_x_func, ra_y_func
 import fv3.stencils.delnflux as delnflux
 import fv3.stencils.fvtp2d as fvtp2d
 import fv3.stencils.d_sw as d_sw
+import numpy as np
 sd = utils.sd
 DZ_MIN = 2.0
 
@@ -53,8 +54,8 @@ def edge_profile(q1: sd, q2: sd, qe1: sd, qe2: sd, dp0: sd, gam: sd):
         with interval(1, -1):
             gk = dp0[0, 0, -1] / dp0
             bet = 2.0 + 2.0 * gk - gam[0, 0, -1]
-            qe1 = 3.0 * (q1[0, 0, -1] + gk * q1 - qe1[0, 0, -1]) / bet
-            qe2 = 3.0 * (q2[0, 0, -1] + gk * q2 - qe2[0, 0, -1]) / bet
+            qe1 = (3.0 * (q1[0, 0, -1] + gk * q1) - qe1[0, 0, -1]) / bet
+            qe2 = (3.0 * (q2[0, 0, -1] + gk * q2) - qe2[0, 0, -1]) / bet
             gam = gk / bet
         with interval(-1, None):
             a_bot = 1.0 + gk[0, 0, -1] * (gk[0, 0, -1] + 1.5)
@@ -65,33 +66,55 @@ def edge_profile(q1: sd, q2: sd, qe1: sd, qe2: sd, dp0: sd, gam: sd):
     with computation(BACKWARD), interval(0, -1):
         qe1 = qe1 - gam * qe1[0, 0, 1]
         qe2 = qe2 - gam * qe2[0, 0, 1]
-def edge_python(q1, q2, qe1, qe2, dp0, gam, islice, jslice):
+def edge_python(q1, q2, qe1, qe2, dp0, gam, islice, jslice,  qe1_2, gam_2):
     grid = spec.grid
     dcol = dp0[0, 0, :]
-    print(dcol)
+    #print(dcol, islice, jslice)
     km = grid.npz - 1
     g0 = dcol[1] / dcol[0]
     xt1 = 2.0 * g0 * (g0 + 1.0)
     bet = g0 * (g0 + 0.5)
-    print(g0, xt1, bet)
+    
     qe1[islice, jslice, 0] = (xt1 * q1[islice, jslice, 0] + q1[islice, jslice, 1]) / bet
+    #print('very beginning', qe1[3, 0, 0])
     qe2[islice, jslice, 0] = (xt1 * q2[islice, jslice, 0] + q2[islice, jslice, 1]) / bet
     gam[islice, jslice, 0] = (1.0 + g0 * (g0 + 1.5)) / bet
-
+   
     for k in range(1, km + 1):
         gk = dcol[k - 1] / dcol[k]
-        print(gk,  dcol[k - 1],  dcol[k])
         bet = (2.0 + 2.0*gk - gam[islice, jslice, k-1])
-        qe1[islice, jslice, k] = 3.0 * (q1[islice, jslice, k-1] + gk * q1[islice, jslice, k] - qe1[islice, jslice, k-1]) / bet
-        qe2[islice, jslice, k] = 3.0 * (q2[islice, jslice, k-1] + gk * q2[islice, jslice, k] - qe2[islice, jslice, k-1]) / bet
+        qe1[islice, jslice, k] = (3.0 * (q1[islice, jslice, k-1] + gk * q1[islice, jslice, k]) - qe1[islice, jslice, k-1]) / bet
+        qe2[islice, jslice, k] = (3.0 * (q2[islice, jslice, k-1] + gk * q2[islice, jslice, k]) - qe2[islice, jslice, k-1]) / bet
         gam[islice, jslice, k] = gk / bet
+    print('gam22222222',np.all(gam[islice, 2, :km+1] == gam_2[islice, 2, :km+1]))
+    count = 0
+    for i in range(55):
+        for k in range(km+1):
+            com = gam[i, 2, k]
+            res = gam_2[i, 2, k]
+            if com != res:
+                print('gam', i, k, com, res, com - res)
+                count += 1
+    print(count)
+    print('qe1_22222222',np.all(qe1[islice, 2, :km+1] == qe1_2[islice, 2, :km+1]))
+    count = 0
+    for i in range(55):
+        for k in range(km+1):
+            com = qe1[i, 2, k]
+            res = qe1_2[i, 2, k]
+            if com != res:
+                print('qe1', i, k, com, res, com - res)
+                count += 1
+    print(count)
     a_bot = 1.0 + gk * (gk + 1.5)
     xt1 = 2.0 * gk * (gk + 1.0)
     xt2 = gk * (gk + 0.5) - a_bot * gam[islice, jslice, km]
     qe1[islice, jslice, km+1] = (xt1 * q1[islice, jslice, km] + q1[islice, jslice, km - 1] - a_bot * qe1[islice, jslice, km]) / xt2
     qe2[islice, jslice, km+1] = (xt1 * q2[islice, jslice, km] + q2[islice, jslice, km - 1] - a_bot * qe2[islice, jslice, km]) / xt2
     for k in range(km, -1, -1):
+        #print('---', k, qe1[3, 0, k], gam[3, 0, k], qe1[3, 0, k+1])
         qe1[islice, jslice, k] = qe1[islice, jslice, k] - gam[islice, jslice, k] * qe1[islice, jslice, k+1]
+        #print('changed to ',qe1[3, 0, k])
         qe2[islice, jslice, k] = qe2[islice, jslice, k] - gam[islice, jslice, k] * qe2[islice, jslice, k+1]
 @gtscript.stencil(backend=utils.backend)
 def out(zs: sd, zh: sd, ws: sd, dt: float):
@@ -102,12 +125,12 @@ def out(zs: sd, zh: sd, ws: sd, dt: float):
             other = zh[0, 0, 1] + DZ_MIN
             zh[0, 0, 0] = zh if zh > other else other
 
-def compute(ndif, damp_vtd, dp0, zs, zh, crx, cry, xfx, yfx, wsd, dt, crx_adv_edge, cry_adv_edge):
+def compute(ndif, damp_vtd, dp0, zs, zh, crx, cry, xfx, yfx, wsd, dt):
     grid = spec.grid
-    print(crx_adv_edge.shape, (grid.is_, grid.jsd, 0),(grid.nic + 1, grid.njd, grid.npz + 1) )
+   
     ndif[:, :, -1] = ndif[:, :, -2]
     damp_vtd[:, :, -1] = damp_vtd[:, :, -2]
-  
+    
     crx_adv = utils.make_storage_from_shape(crx.shape, grid.compute_x_origin())
     cry_adv = utils.make_storage_from_shape(cry.shape, grid.compute_y_origin())
     xfx_adv = utils.make_storage_from_shape(xfx.shape, grid.compute_x_origin())
@@ -115,27 +138,26 @@ def compute(ndif, damp_vtd, dp0, zs, zh, crx, cry, xfx, yfx, wsd, dt, crx_adv_ed
     ra_x = utils.make_storage_from_shape(crx.shape, grid.compute_x_origin())
     ra_y = utils.make_storage_from_shape(cry.shape, grid.compute_y_origin())
 
-    crx_adv2 = utils.make_storage_from_shape(crx.shape, grid.compute_x_origin())
-    xfx_adv2 = utils.make_storage_from_shape(xfx.shape, grid.compute_x_origin())
-    #g0 = dp0[0, 0, 1] / dp0[0, 0, 0]
-    #xt1 = 2.0 * g0 * (g0 + 1.0)
-    #bet = g0 * (g0 + 0.5)
     gam = utils.make_storage_from_shape(zs.shape, grid.default_origin())
-    #edge_profile(crx, xfx, crx_adv, xfx_adv, dp0, gam, origin=(grid.is_, grid.jsd, 0), domain=(grid.nic + 1, grid.njd, grid.npz + 1))
-    edge_python(crx, xfx, crx_adv, xfx_adv, dp0, gam, slice(grid.is_, grid.ie + 2), slice(grid.jsd, grid.jed+1))
-    print(gam[5, 5, :])
+    edge_profile(crx, xfx, crx_adv, xfx_adv, dp0, gam, origin=(grid.is_, grid.jsd, 0), domain=(grid.nic + 1, grid.njd, grid.npz + 1))
+    #edge_python(crx, xfx, crx_adv, xfx_adv, dp0, gam, slice(grid.is_, grid.ie + 2), slice(grid.jsd, grid.jed+1),  qe1_2, gam_2)
+   
     gam = utils.make_storage_from_shape(zs.shape, grid.default_origin())
-    #edge_profile(cry, yfx, cry_adv, yfx_adv, dp0, gam, origin=(grid.isd, grid.js, 0), domain=(grid.nid, grid.njc + 1, grid.npz + 1))
+    edge_profile(cry, yfx, cry_adv, yfx_adv, dp0, gam, origin=(grid.isd, grid.js, 0), domain=(grid.nid, grid.njc + 1, grid.npz + 1))
+    '''
+    print('cry_adv', np.all(cry_adv == cry_adv_edge))
+    print('yfx_adv', np.all(yfx_adv == yfx_adv_edge))
     count = 0
-    for i in range(5):
-        for j in range(5):
-            for k in [0, 1, 2, 61, 62, 63] :
-                comp = crx_adv[i,j,k]
-                res = crx_adv_edge[i,j,k]
+    for i in range(55):
+        for j in range(55):
+            for k in range(64):
+                comp = cry_adv[i,j,k]
+                res = cry_adv_edge[i,j,k]
                 if comp != res:
                     print(i,j, k, comp, res, comp - res)
                     count += 1
     print(count)
+    '''
     ra_x_stencil(grid.area, xfx_adv, ra_x, origin=grid.compute_x_origin(), domain=(grid.nic, grid.njd, grid.npz + 1))
     ra_y_stencil(grid.area, yfx_adv, ra_y, origin=grid.compute_y_origin(), domain=(grid.nid, grid.njc, grid.npz + 1))
     # TODO, when consoldiating k plitting, change this too
@@ -148,6 +170,7 @@ def compute(ndif, damp_vtd, dp0, zs, zh, crx, cry, xfx, yfx, wsd, dt, crx_adv_ed
     for ki in ks:
         col["column_namelist"].append({'ndif': ndif[0, 0, ki], 'damp': damp_vtd[0, 0, ki]})
     d_sw.d_sw_ksplit(column_calls, data, col, outputs, grid, allz=True)
+    #utils.k_split_run(func, data, k_indices(), splitvars_values, outputs, grid, allz)
     out(zs, zh, wsd, dt, origin=grid.compute_origin(), domain=(grid.nic, grid.njc, grid.npz + 1))
 
 
@@ -165,6 +188,7 @@ def column_calls(zh, crx_adv, cry_adv, xfx_adv, yfx_adv, ra_x, ra_y, column_name
                         origin=grid.compute_origin(),
                         domain=grid.domain_shape_compute())
     else:
+        raise Exception('untested')
         zh, fx, fy = fvtp2d.compute_no_sg(zh, crx_adv, cry_adv, spec.namelist['hord_tm'], xfx_adv, yfx_adv, ra_x, ra_y)
         zh_stencil(grid.area, zh, fx, fy, ra_x, ra_y,
                    origin=grid.compute_origin(),
