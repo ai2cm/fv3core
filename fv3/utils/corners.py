@@ -33,6 +33,7 @@ def fill_4corners(q, direction, grid):
     else:
         raise ValueError("Direction not recognized. Specify either x or y")
 
+
 def fill2_4corners(q1, q2, direction, grid):
     if direction == "x":
         for k in range(q1.shape[2]):
@@ -145,6 +146,7 @@ def fill3_4corners(q1, q2, q3, direction, grid):
                 q3[grid.ie + 1, grid.je + 2, k] = q3[grid.ie - 1, grid.je + 1, k]
     else:
         raise ValueError("Direction not recognized. Specify either x or y")
+
 
 def copy_sw_corner(q, direction, grid):
     for j in range(grid.js - grid.halo, grid.js):
