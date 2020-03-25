@@ -14,6 +14,8 @@ class TranslateNH_P_Grad(TranslateFortranData2Py):
             "pk3": {},
             "delp": {},
             "dt": {},
+            "ptop": {},
+            "akap": {}
         }
         self.out_vars = {
             "u": {},
