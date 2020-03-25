@@ -7,6 +7,13 @@ import logging
 logger = logging.getLogger("fv3ser")
 
 
+def read_serialized_data(serializer, savepoint, variable):
+    data = serializer.read(variable, savepoint)
+    if len(data.flatten()) == 1:
+        return data[0]
+    return data
+
+
 class TranslateFortranData2Py:
     def __init__(self, grid, origin=utils.origin):
         self.origin = origin
@@ -15,16 +22,25 @@ class TranslateFortranData2Py:
         self.max_error = 1e-14
         self.grid = grid
         self.maxshape = grid.domain_shape_buffer_1cell()
-        self.backend = utils.backend
         self.ordered_input_vars = None
-        self.compute_func = None
+
+    def compute_func(self, **inputs):
+        raise NotImplementedError("Implement a child class compute method")
 
     def compute(self, inputs):
         self.make_storage_data_input_vars(inputs)
         outputs = self.compute_func(**inputs)
-        if outputs is not None:
-            raise Exception("Implement a child class compute method")
         return self.slice_output(inputs)
+
+    def collect_input_data(
+        self, serializer, savepoint,
+    ):
+        input_data = {}
+        for varname in (
+            self.serialnames(self.in_vars["data_vars"]) + self.in_vars["parameters"]
+        ):
+            input_data[varname] = read_serialized_data(serializer, savepoint, varname)
+        return input_data
 
     def make_storage_data(self, array, istart=0, jstart=0, kstart=0):
         return utils.make_storage_data(
@@ -34,7 +50,7 @@ class TranslateFortranData2Py:
             jstart,
             kstart,
             origin=(istart, jstart, kstart),
-            backend=self.backend,
+            backend=utils.backend,
         )
 
     def storage_vars(self):
