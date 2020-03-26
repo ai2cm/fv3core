@@ -199,7 +199,6 @@ def qy_edge_north2(qin: sd, dya: sd, qy: sd):
         ) / (2.0 + 2.0 * g_in)
 
 
-
 def ec1_offsets(corner):
     i1a, i1b = ec1_offsets_dir(corner, "w")
     j1a, j1b = ec1_offsets_dir(corner, "s")
