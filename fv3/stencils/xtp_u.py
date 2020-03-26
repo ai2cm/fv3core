@@ -15,6 +15,7 @@ from gt4py.gtscript import computation, interval, PARALLEL
 
 sd = utils.sd
 
+
 @utils.stencil()
 def get_flux_u_stencil_old(q: sd, c: sd, al: sd, rdx: sd, flux: sd, mord: int):
     with computation(PARALLEL), interval(...):

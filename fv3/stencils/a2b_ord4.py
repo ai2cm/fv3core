@@ -1,5 +1,3 @@
-
-
 #!/usr/bin/env python3
 import fv3.utils.gt4py_utils as utils
 import numpy as np
@@ -433,7 +431,7 @@ def compute_qxx(qx, qout):
     qxx = utils.make_storage_from_shape(qx.shape, origin=grid().default_origin())
     js = grid().js + 2 if grid().south_edge else grid().js
     je = grid().je - 1 if grid().north_edge else grid().je + 1
-    is_ = grid().is_ + 1 if grid().west_edge else grid().is_ 
+    is_ = grid().is_ + 1 if grid().west_edge else grid().is_
     ie = grid().ie if grid().east_edge else grid().ie + 1
     di = ie - is_ + 1
     lagrange_interpolation_y(
@@ -454,7 +452,7 @@ def compute_qyy(qy, qout):
     qyy = utils.make_storage_from_shape(qy.shape, origin=grid().default_origin())
     js = grid().js + 1 if grid().south_edge else grid().js
     je = grid().je if grid().north_edge else grid().je + 1
-    is_ = grid().is_ + 2 if grid().west_edge else grid().is_ 
+    is_ = grid().is_ + 2 if grid().west_edge else grid().is_
     ie = grid().ie - 1 if grid().east_edge else grid().ie + 1
     dj = je - js + 1
     lagrange_interpolation_x(

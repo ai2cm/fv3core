@@ -15,6 +15,7 @@ from gt4py.gtscript import computation, interval, PARALLEL
 
 sd = utils.sd
 
+
 @utils.stencil()
 def get_flux_v_stencil(
     q: sd, c: sd, al: sd, rdy: sd, bl: sd, br: sd, flux: sd, mord: int
@@ -57,7 +58,7 @@ def compute(c, u, v, flux):
     tmp_origin = (grid.is_, grid.js - 1, 0)
     bl = utils.make_storage_from_shape(u.shape, tmp_origin)
     br = utils.make_storage_from_shape(u.shape, tmp_origin)
-   
+
     if jord < 8:
         # this not get the exact right edges
         al = compute_al(v, grid.dy, jord, grid.is_, grid.ie + 1, js3, je3 + 1)

@@ -31,7 +31,7 @@ class Grid:
         self.east_edge = self.ie - rank_offset[0] == self.npx + self.halo - 2
         self.south_edge = self.js - rank_offset[1] == self.halo
         self.north_edge = self.je - rank_offset[1] == self.npy + self.halo - 2
-        
+
         self.j_offset = self.js - self.jsd - 1
         self.i_offset = self.is_ - self.isd - 1
         self.sw_corner = self.west_edge and self.south_edge
