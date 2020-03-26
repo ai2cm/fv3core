@@ -180,7 +180,6 @@ class TranslateGrid:
             del inputs[i]
 
         self.data = inputs
-       
 
     def get_directional_rank_offset(self, partitioner, rank, index_name):
         st_ind = partitioner.tile.subtile_index(rank)
