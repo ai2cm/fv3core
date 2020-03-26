@@ -21,9 +21,10 @@ class TranslateYPPM(TranslateFortranData2Py):
         }
 
     def ivars(self, inputs):
-        rank_offset = self.grid.rank_offset[0]
-        inputs["ifirst"] += TranslateGrid.fpy_model_index_offset + rank_offset
-        inputs["ilast"] += TranslateGrid.fpy_model_index_offset + rank_offset
+        inputs["ifirst"] += TranslateGrid.fpy_model_index_offset
+        inputs["ilast"] += TranslateGrid.fpy_model_index_offset
+        inputs["ifirst"] = self.grid.global_to_local_x(inputs["ifirst"])
+        inputs["ilast"] = self.grid.global_to_local_x(inputs["ilast"])
 
     def process_inputs(self, inputs):
         self.ivars(inputs)
