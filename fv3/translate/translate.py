@@ -158,15 +158,18 @@ class TranslateGrid:
         self.indices = {}
         self.shape_params = {}
         self.data = {}
-        layout = fv3._config.namelist["layout"]
-        partitioner = fv3util.CubedSpherePartitioner(fv3util.TilePartitioner(layout))
-
         for s in Grid.shape_params:
             self.shape_params[s] = inputs[s]
             del inputs[s]
+        layout = fv3._config.namelist["layout"]
+        partitioner = fv3util.CubedSpherePartitioner(fv3util.TilePartitioner(layout))
         self.subtile_ratio = (
             (self.shape_params["npx"] - 1) / layout[0],
             (self.shape_params["npy"] - 1) / layout[1],
+        )
+        self.rank_offset = (
+            self.get_directional_rank_offset(partitioner, rank, "i"),
+            self.get_directional_rank_offset(partitioner, rank, "j"),
         )
         for i in Grid.indices:
             self.indices[i] = (
@@ -177,10 +180,7 @@ class TranslateGrid:
             del inputs[i]
 
         self.data = inputs
-        self.rank_offset = (
-            self.get_directional_rank_offset(partitioner, rank, "i"),
-            self.get_directional_rank_offset(partitioner, rank, "j"),
-        )
+       
 
     def get_directional_rank_offset(self, partitioner, rank, index_name):
         st_ind = partitioner.tile.subtile_index(rank)
