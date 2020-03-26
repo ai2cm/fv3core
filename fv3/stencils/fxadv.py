@@ -63,6 +63,7 @@ def vt_x_edge(vc: sd, sin_sg2: sd, sin_sg4: sd, vt: sd, *, dt: float):
 def ra_x_func(area, xfx_adv):
     return area + xfx_adv - xfx_adv[1, 0, 0]
 
+
 @gtscript.stencil(backend=utils.backend, rebuild=True)
 def xfx_adv_stencil(
     ut: sd,
@@ -88,6 +89,7 @@ def xfx_adv_stencil(
 @gtscript.function
 def ra_y_func(area, yfx_adv):
     return area + yfx_adv - yfx_adv[0, 1, 0]
+
 
 @gtscript.stencil(backend=utils.backend, rebuild=True)
 def yfx_adv_stencil(

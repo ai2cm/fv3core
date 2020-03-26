@@ -308,7 +308,7 @@ def compute(
     # TODO: remove paired with removal of #d_sw belos
     # column_namelist = column_namelist_options(0)
     column_namelist = get_column_namelist()
-   
+
     heat_s = utils.make_storage_from_shape(heat_source.shape, grid().compute_origin())
     diss_e = utils.make_storage_from_shape(heat_source.shape, grid().compute_origin())
     z_rat = utils.make_storage_from_shape(heat_source.shape, grid().default_origin())
