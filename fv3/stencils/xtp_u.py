@@ -1,5 +1,4 @@
 import fv3.utils.gt4py_utils as utils
-import gt4py.gtscript as gtscript
 import fv3._config as spec
 from .xppm import (
     compute_al,
@@ -15,9 +14,6 @@ from .xppm import (
 from gt4py.gtscript import computation, interval, PARALLEL
 
 sd = utils.sd
-origin = (0, 0, 0)
-halo = utils.halo
-
 
 @utils.stencil()
 def get_flux_u_stencil_old(q: sd, c: sd, al: sd, rdx: sd, flux: sd, mord: int):

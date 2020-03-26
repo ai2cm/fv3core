@@ -10,7 +10,7 @@ class Grid:
     # But we need to add the halo - 1 to change this check to 0 based python arrays
     # grid.ie == npx + halo - 2
 
-    def __init__(self, indices, shape_params, data_fields={}):
+    def __init__(self, indices, shape_params, data_fields={}, rank_offset=(0, 0)):
         for i in self.indices:
             setattr(self, i, int(indices[i]))
         for s in self.shape_params:
@@ -27,10 +27,11 @@ class Grid:
         self.jsf = 0
         self.jef = self.npy - 1
 
-        self.west_edge = self.is_ == self.halo
-        self.east_edge = self.ie == self.npx + self.halo - 2
-        self.south_edge = self.js == self.halo
-        self.north_edge = self.je == self.npy + self.halo - 2
+        self.west_edge = self.is_ - rank_offset[0] == self.halo
+        self.east_edge = self.ie - rank_offset[0] == self.npx + self.halo - 2
+        self.south_edge = self.js - rank_offset[1] == self.halo
+        self.north_edge = self.je - rank_offset[1] == self.npy + self.halo - 2
+        
         self.j_offset = self.js - self.jsd - 1
         self.i_offset = self.is_ - self.isd - 1
         self.sw_corner = self.west_edge and self.south_edge
@@ -39,6 +40,7 @@ class Grid:
         self.ne_corner = self.east_edge and self.north_edge
         self.data_fields = {}
         self.add_data(data_fields)
+        self.rank_offset = rank_offset
 
     def add_data(self, data_dict):
         self.data_fields.update(data_dict)

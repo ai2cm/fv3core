@@ -14,9 +14,6 @@ from .yppm import (
 from gt4py.gtscript import computation, interval, PARALLEL
 
 sd = utils.sd
-origin = (0, 0, 0)
-halo = utils.halo
-
 
 @utils.stencil()
 def get_flux_v_stencil(
@@ -55,12 +52,12 @@ def compute(c, u, v, flux):
     jord = spec.namelist["hord_mt"]
     if jord != 5:
         raise Exception("Currently ytp_v is only supported for hord_mt == 5")
-    js3 = max(5, grid.js - 1)
-    je3 = min(grid.npy - 1, grid.je + 1)
+    js3 = grid.js - 1
+    je3 = grid.je + 1
     tmp_origin = (grid.is_, grid.js - 1, 0)
     bl = utils.make_storage_from_shape(u.shape, tmp_origin)
     br = utils.make_storage_from_shape(u.shape, tmp_origin)
-
+   
     if jord < 8:
         # this not get the exact right edges
         al = compute_al(v, grid.dy, jord, grid.is_, grid.ie + 1, js3, je3 + 1)

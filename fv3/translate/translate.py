@@ -1,9 +1,9 @@
 import fv3.utils.gt4py_utils as utils
 from fv3.utils.grid import Grid
 import numpy as np
-
+import fv3._config
 import logging
-
+import fv3util
 logger = logging.getLogger("fv3ser")
 
 
@@ -104,6 +104,7 @@ class TranslateFortranData2Py:
                     d, istart, jstart
                 )
             )
+
             inputs[d] = self.make_storage_data(
                 np.squeeze(inputs[serialname]),
                 istart=istart,
@@ -152,17 +153,32 @@ class TranslateGrid:
     #     |       |
     #     6---2---7
 
-    def __init__(self, inputs):
+    def __init__(self, inputs, rank):
         self.indices = {}
         self.shape_params = {}
         self.data = {}
-        for i in Grid.indices:
-            self.indices[i] = inputs[i] + self.fpy_model_index_offset
-            del inputs[i]
+        layout = fv3._config.namelist["layout"]
+        partitioner = fv3util.CubedSpherePartitioner(fv3util.TilePartitioner(layout))
+       
         for s in Grid.shape_params:
             self.shape_params[s] = inputs[s]
             del inputs[s]
+        self.subtile_ratio = ((self.shape_params['npx'] - 1) / layout[0],
+                              (self.shape_params['npy'] - 1) / layout[1])
+        for i in Grid.indices:
+            self.indices[i] = inputs[i] + self.fpy_model_index_offset + self.get_directional_rank_offset(partitioner, rank, i)
+            del inputs[i]
+        
         self.data = inputs
+        self.rank_offset = (self.get_directional_rank_offset(partitioner, rank, 'i'),
+                            self.get_directional_rank_offset(partitioner, rank, 'j'))
+    
+
+    def get_directional_rank_offset(self, partitioner, rank, index_name):
+        st_ind = partitioner.tile.subtile_index(rank)
+        if 'j' in index_name:
+            return int(-st_ind[0] * self.subtile_ratio[1])
+        return int(-st_ind[1] * self.subtile_ratio[0])
 
     def make_composite_var_storage(self, varname, data3d, shape):
         for s in range(9):
@@ -179,10 +195,14 @@ class TranslateGrid:
             if k in self.data:
                 self.make_composite_var_storage(k, self.data[k], shape)
                 del self.data[k]
+        # TODO fix this
         for k, axis in TranslateGrid.edge_var_axis.items():
             if k in self.data:
+                edge_offset = -self.rank_offset[axis]
+                edgeslice = slice(int(edge_offset),
+                                  int(edge_offset + self.subtile_ratio[axis]) + 1)  
                 self.data[k] = utils.make_storage_data_from_1d(
-                    self.data[k], shape, kstart=pygrid.halo, axis=axis
+                    self.data[k][edgeslice], shape, kstart=pygrid.halo, axis=axis
                 )
         for k, v in self.data.items():
             if type(v) is np.ndarray:
@@ -203,7 +223,7 @@ class TranslateGrid:
                 )
 
     def python_grid(self):
-        pygrid = Grid(self.indices, self.shape_params)
+        pygrid = Grid(self.indices, self.shape_params, rank_offset=self.rank_offset)
         self.make_grid_storage(pygrid)
         pygrid.add_data(self.data)
         return pygrid
