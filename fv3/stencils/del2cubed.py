@@ -17,7 +17,7 @@ origin = utils.origin
 @utils.stencil()
 def compute_sw_corner(A: sd):
     with computation(PARALLEL), interval(...):
-        A = (A + A[-1, 0, 0] + A[0, -1, 0])
+        A = A + A[-1, 0, 0] + A[0, -1, 0]
 
 
 ##
@@ -70,13 +70,10 @@ def corner_fill(grid, q):
         # copy_row(q, origin=(grid.is_-1,grid.js,0), domain=grid.corner_domain())
         # copy_column(q, origin=(grid.is_,grid.js-1,0), domain=grid.corner_domain())
         q[grid.is_, grid.js, :] = (
-            (
-                q[grid.is_, grid.js, :]
-                + q[grid.is_ - 1, grid.js, :]
-                + q[grid.is_, grid.js - 1, :]
-            )
-            * r3
-        )
+            q[grid.is_, grid.js, :]
+            + q[grid.is_ - 1, grid.js, :]
+            + q[grid.is_, grid.js - 1, :]
+        ) * r3
         q[grid.is_ - 1, grid.js, :] = q[grid.is_, grid.js, :]
         q[grid.is_, grid.js - 1, :] = q[grid.is_, grid.js, :]
     if grid.se_corner:
