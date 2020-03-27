@@ -303,6 +303,7 @@ def compute_qout_edges(qin, qout):
 
 def compute_qout_x_edges(qin, qout):
     # qout bounds
+    # avoid running west/east computation on south/north tile edges, since they'll be overwritten.
     js2 = grid().js + 1 if grid().south_edge else grid().js
     je1 = grid().je if grid().north_edge else grid().je + 1
     dj2 = je1 - js2 + 1
@@ -327,6 +328,7 @@ def compute_qout_x_edges(qin, qout):
 
 
 def compute_qout_y_edges(qin, qout):
+    # avoid running south/north computation on west/east tile edges, since they'll be overwritten.
     is2 = grid().is_ + 1 if grid().west_edge else grid().is_
     ie1 = grid().ie if grid().east_edge else grid().ie + 1
     di2 = ie1 - is2 + 1
@@ -353,6 +355,7 @@ def compute_qout_y_edges(qin, qout):
 def compute_qx(qin, qout):
     qx = utils.make_storage_from_shape(qin.shape, origin=(grid().is_, grid().jsd, 0))
     # qx bounds
+    # avoid running center-domain computation on tile edges, since they'll be overwritten.
     js = grid().js if grid().south_edge else grid().js - 2
     je = grid().je if grid().north_edge else grid().je + 2
     is_ = grid().is_ + 2 if grid().west_edge else grid().is_
@@ -392,6 +395,7 @@ def compute_qx(qin, qout):
 def compute_qy(qin, qout):
     qy = utils.make_storage_from_shape(qin.shape, origin=(grid().isd, grid().js, 0))
     # qy bounds
+    # avoid running center-domain computation on tile edges, since they'll be overwritten.
     js = grid().js + 2 if grid().south_edge else grid().js
     je = grid().je - 1 if grid().north_edge else grid().je + 1
     is_ = grid().is_ if grid().west_edge else grid().is_ - 2
@@ -429,6 +433,7 @@ def compute_qy(qin, qout):
 
 def compute_qxx(qx, qout):
     qxx = utils.make_storage_from_shape(qx.shape, origin=grid().default_origin())
+    # avoid running center-domain computation on tile edges, since they'll be overwritten.
     js = grid().js + 2 if grid().south_edge else grid().js
     je = grid().je - 1 if grid().north_edge else grid().je + 1
     is_ = grid().is_ + 1 if grid().west_edge else grid().is_
@@ -450,6 +455,7 @@ def compute_qxx(qx, qout):
 
 def compute_qyy(qy, qout):
     qyy = utils.make_storage_from_shape(qy.shape, origin=grid().default_origin())
+    # avoid running center-domain computation on tile edges, since they'll be overwritten.
     js = grid().js + 1 if grid().south_edge else grid().js
     je = grid().je if grid().north_edge else grid().je + 1
     is_ = grid().is_ + 2 if grid().west_edge else grid().is_
@@ -470,6 +476,7 @@ def compute_qyy(qy, qout):
 
 
 def compute_qout(qxx, qyy, qout):
+    # avoid running center-domain computation on tile edges, since they'll be overwritten.
     js = grid().js + 1 if grid().south_edge else grid().js
     je = grid().je if grid().north_edge else grid().je + 1
     is_ = grid().is_ + 1 if grid().west_edge else grid().is_

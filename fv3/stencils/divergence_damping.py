@@ -151,6 +151,7 @@ def nord_compute(data, nord_column):
 
 def compute(u, v, va, ptc, vort, ua, divg_d, vc, uc, delpc, ke, wk, d2_bg, dt, nord):
     grid = spec.grid
+    # avoid running center-domain computation on tile edges, since they'll be overwritten.
     is2 = grid.is_ + 1 if grid.west_edge else grid.is_
     ie1 = grid.ie if grid.east_edge else grid.ie + 1
     nord = int(nord)

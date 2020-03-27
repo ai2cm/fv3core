@@ -27,6 +27,7 @@ def x_edge(vt: sd, vb: sd, dt4: float):
 
 def compute(uc, vc, vt, vb, dt5, dt4):
     grid = spec.grid
+    # avoid running center-domain computation on tile edges, since they'll be overwritten.
     js2 = grid.js + 1 if grid.south_edge else grid.js
     is2 = grid.is_ + 1 if grid.west_edge else grid.is_
     je1 = grid.je if grid.north_edge else grid.je + 1
