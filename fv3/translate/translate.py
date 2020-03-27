@@ -2,7 +2,9 @@ import fv3.utils.gt4py_utils as utils
 from fv3.utils.grid import Grid
 import numpy as np
 
-debug = False
+import logging
+
+logger = logging.getLogger("fv3ser")
 
 
 class TranslateFortranData2Py:
@@ -97,15 +99,11 @@ class TranslateFortranData2Py:
             istart, jstart, kstart = self.collect_start_indices(
                 inputs[serialname].shape, info
             )
-            if debug:
-                print(
-                    "Making storage for ",
-                    d,
-                    "with istart = ",
-                    istart,
-                    " jstart = ",
-                    jstart,
+            logger.debug(
+                "Making storage for {} with istart = {}, jstart = {}".format(
+                    d, istart, jstart
                 )
+            )
             inputs[d] = self.make_storage_data(
                 np.squeeze(inputs[serialname]),
                 istart=istart,
@@ -139,6 +137,8 @@ class TranslateFortranData2Py:
     def column_namelist_vals(self, varname, inputs):
         info = self.in_vars["data_vars"][varname]
         name = info["serialname"] if "serialname" in info else varname
+        if len(inputs[name].shape) == 1:
+            return inputs[name]
         return [i for i in inputs[name][0, 0, :]]
 
 
@@ -190,8 +190,11 @@ class TranslateGrid:
             if type(v) is np.ndarray:
                 # TODO: when grid initialization model exists, may want to use it to inform this
                 istart, jstart = pygrid.horizontal_starts_from_shape(v.shape)
-                if debug:
-                    print("Storage for Grid variable", k, istart, jstart, v.shape)
+                logger.debug(
+                    "Storage for Grid variable {}, {}, {}, {}".format(
+                        k, istart, jstart, v.shape
+                    )
+                )
                 self.data[k] = utils.make_storage_data(
                     v,
                     shape,

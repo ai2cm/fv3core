@@ -5,7 +5,10 @@ import gt4py as gt
 import gt4py.gtscript as gtscript
 import copy as cp
 import math
+import logging
+import functools
 
+logger = logging.getLogger("fv3ser")
 backend = "numpy"  # Options: numpy, gtmc, gtx86, gtcuda, debug, dawn:gtmc
 rebuild = True
 _dtype = np.float_
@@ -13,6 +16,24 @@ sd = gtscript.Field[_dtype]
 halo = 3
 origin = (halo, halo, 0)
 # 1 indexing to 0 and halos: -2, -1, 0 --> 0, 1,2
+
+
+def stencil(**stencil_kwargs):
+    def decorator(func):
+        stencils = {}
+
+        @functools.wraps(func)
+        def wrapped(*args, **kwargs):
+            key = (backend, rebuild)
+            if key not in stencils:
+                stencils[key] = gtscript.stencil(
+                    backend=backend, rebuild=rebuild, **stencil_kwargs
+                )(func)
+            return stencils[key](*args, **kwargs)
+
+        return wrapped
+
+    return decorator
 
 
 def _data_backend(backend: str):
@@ -47,10 +68,7 @@ def make_storage_data(
             istart : istart + isize, jstart : jstart + jsize, kstart : kstart + ksize
         ] = array
         return gt.storage.from_array(
-            data=full_np_arr,
-            backend=_data_backend(backend),
-            default_origin=origin,
-            shape=full_shape,
+            data=full_np_arr, backend=backend, default_origin=origin, shape=full_shape,
         )
 
 
@@ -64,10 +82,7 @@ def make_storage_data_from_2d(
     # full_np_arr_3d = np.lib.stride_tricks.as_strided(full_np_arr_2d, shape=full_shape, strides=(*full_np_arr_2d.strides, 0))
     full_np_arr_3d = np.repeat(full_np_arr_2d[:, :, np.newaxis], full_shape[2], axis=2)
     return gt.storage.from_array(
-        data=full_np_arr_3d,
-        backend=_data_backend(backend),
-        default_origin=origin,
-        shape=full_shape,
+        data=full_np_arr_3d, backend=backend, default_origin=origin, shape=full_shape,
     )
 
 
@@ -90,16 +105,13 @@ def make_storage_data_from_1d(
         y = np.repeat(full_1d[:, np.newaxis], full_shape[1], axis=1)
         r = np.repeat(y[:, :, np.newaxis], full_shape[2], axis=2)
     return gt.storage.from_array(
-        data=r, backend=_data_backend(backend), default_origin=origin, shape=full_shape
+        data=r, backend=backend, default_origin=origin, shape=full_shape
     )
 
 
 def make_storage_from_shape(shape, origin, backend=backend):
     return gt.storage.from_array(
-        data=np.zeros(shape),
-        backend=_data_backend(backend),
-        default_origin=origin,
-        shape=shape,
+        data=np.zeros(shape), backend=backend, default_origin=origin, shape=shape,
     )
 
 
@@ -124,48 +136,55 @@ def k_slice(data_dict, ki):
     return new_dict
 
 
-def compute_column_split(func, data, column_split, split_varname, outputs, grid):
+def compute_column_split(
+    func, data, column_split, split_varname, outputs, grid, allz=False
+):
     num_k = grid.npz
     grid_data = cp.deepcopy(grid.data_fields)
     for kval in np.unique(column_split):
         ki = [i for i in range(num_k) if column_split[i] == kval]
-        k_subset_run(func, data, {split_varname: kval}, ki, outputs, grid_data, grid)
+        k_subset_run(
+            func, data, {split_varname: kval}, ki, outputs, grid_data, grid, allz
+        )
     grid.npz = num_k
 
 
-def k_subset_run(func, data, splitvars, ki, outputs, grid_data, grid):
+def k_subset_run(func, data, splitvars, ki, outputs, grid_data, grid, allz=False):
     grid.npz = len(ki)
     grid.slice_data_k(ki)
     d = k_slice(data, ki)
     d.update(splitvars)
     results = func(**d)
-    collect_results(d, results, outputs, ki)
+    collect_results(d, results, outputs, ki, allz)
     grid.add_data(grid_data)
 
 
-def collect_results(data, results, outputs, ki):
+def collect_results(data, results, outputs, ki, allz=False):
     outnames = list(outputs.keys())
-    print("Computing results for k indices:", ki[:-1])
+    endz = None if allz else -1
+    logger.debug("Computing results for k indices: {}".format(ki[:-1]))
     for k in outnames:
         if k in data:
             # passing fields with single item in 3rd dimension leads to errors
-            outputs[k][:, :, ki[:-1]] = data[k][:, :, :-1]
+            outputs[k][:, :, ki[:endz]] = data[k][:, :, :endz]
             # outnames.remove(k)
         # else:
         #    print(k, 'not in data')
     if results is not None:
         for ri in range(len(results)):
-            outputs[outnames[ri]][:, :, ki[:-1]] = results[ri][:, :, :-1]
+            outputs[outnames[ri]][:, :, ki[:endz]] = results[ri][:, :, :endz]
 
 
-def k_split_run(func, data, k_indices_array, splitvars_values, outputs, grid):
+def k_split_run(
+    func, data, k_indices_array, splitvars_values, outputs, grid, allz=False
+):
     num_k = grid.npz
     grid_data = cp.deepcopy(grid.data_fields)
     for ki in k_indices_array:
         splitvars = {}
         for name, value_array in splitvars_values.items():
             splitvars[name] = value_array[ki[0]]
-        k_subset_run(func, data, splitvars, ki, outputs, grid_data, grid)
+        k_subset_run(func, data, splitvars, ki, outputs, grid_data, grid, allz)
     grid.npz = num_k
 
 
