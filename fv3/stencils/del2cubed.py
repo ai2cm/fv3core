@@ -75,8 +75,7 @@ def corner_fill(grid, q):
                 + q[grid.is_ - 1, grid.js, :]
                 + q[grid.is_, grid.js - 1, :]
             )
-            * 1.0
-            / 3.0
+            * r3
         )
         q[grid.is_ - 1, grid.js, :] = q[grid.is_, grid.js, :]
         q[grid.is_, grid.js - 1, :] = q[grid.is_, grid.js, :]
