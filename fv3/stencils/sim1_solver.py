@@ -10,13 +10,6 @@ import fv3.stencils.copy_stencil as cp
 sd = utils.sd
 
 
-# TODO: merge with vbke?
-@gtscript.stencil(backend=utils.exec_backend, rebuild=utils.rebuild)
-def main_pe(gm2: sd, pe: sd):
-    with computation(PARALLEL), interval(...):
-        pe = gm2 * 2.0
-
-
 # TODO: implement MOIST_CAPPA=false
 def solve(is_, ie, dt, gm2, cp2, pe2, dm, pm2, pem, w2, dz2, ptr, wsr):
     nic = ie - is_ + 1

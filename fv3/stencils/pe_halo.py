@@ -6,7 +6,7 @@ import fv3._config as spec
 sd = utils.sd
 
 
-@gtscript.stencil(backend=utils.exec_backend, rebuild=utils.rebuild)
+@utils.stencil()
 def edge_pe(pe: sd, delp: sd, ptop: float):
     with computation(FORWARD):
         with interval(0, 1):
