@@ -190,7 +190,12 @@ class TranslateGrid:
                 edge_offset = pygrid.local_to_global_indices(pygrid.isd, pygrid.jsd)[
                     axis
                 ]
-                width = pygrid.subtile_width_x if axis == 0 else pygrid.subtile_width_y
+                if axis == 0:
+                    edge_offset = pygrid.global_isd
+                    width = pygrid.subtile_width_x
+                else:
+                    edge_offset = pygrid.global_jsd
+                    width = pygrid.subtile_width_y
                 edgeslice = slice(int(edge_offset), int(edge_offset + width + 1))
                 self.data[k] = utils.make_storage_data_from_1d(
                     self.data[k][edgeslice], shape, kstart=pygrid.halo, axis=axis

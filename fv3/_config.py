@@ -49,7 +49,7 @@ def make_grid_from_namelist(namelist, rank):
         "js": utils.halo,
         "je": namelist["npy"] + utils.halo - 2,
     }
-    return Grid(indices, shape_params, rank, namelist['layout'])
+    return Grid(indices, shape_params, rank, namelist["layout"])
 
 
 def set_grid(in_grid):
