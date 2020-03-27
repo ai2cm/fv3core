@@ -56,6 +56,11 @@ def vt_x_edge(vc: sd, sin_sg2: sd, sin_sg4: sd, vt: sd, *, dt: float):
         vt[0, 0, 0] = (vc / sin_sg4[0, -1, 0]) if (vc * dt > 0) else (vc / sin_sg2)
 
 
+@gtscript.function
+def ra_x_func(area, xfx_adv):
+    return area + xfx_adv - xfx_adv[1, 0, 0]
+
+
 @utils.stencil()
 def xfx_adv_stencil(
     ut: sd,
@@ -75,7 +80,12 @@ def xfx_adv_stencil(
         xfx_adv[0, 0, 0] = (
             dy * xfx_adv * sin_sg3[-1, 0, 0] if xfx_adv > 0 else dy * xfx_adv * sin_sg1
         )
-        ra_x[0, 0, 0] = area + xfx_adv - xfx_adv[1, 0, 0]
+        ra_x = ra_x_func(area, xfx_adv)
+
+
+@gtscript.function
+def ra_y_func(area, yfx_adv):
+    return area + yfx_adv - yfx_adv[0, 1, 0]
 
 
 @utils.stencil()
@@ -97,7 +107,7 @@ def yfx_adv_stencil(
         yfx_adv[0, 0, 0] = (
             dx * yfx_adv * sin_sg4[0, -1, 0] if yfx_adv > 0 else dx * yfx_adv * sin_sg2
         )
-        ra_y[0, 0, 0] = area + yfx_adv - yfx_adv[0, 1, 0]
+        ra_y = ra_y_func(area, yfx_adv)
 
 
 def compute(uc_in, vc_in, ut_in, vt_in, xfx_adv, yfx_adv, crx_adv, cry_adv, dt):
@@ -212,8 +222,8 @@ def update_ut_y_edge(uc, sin_sg1, sin_sg3, ut, dt):
 
 
 def update_ut_x_edge(uc, cosa_u, vt, ut):
-    i1 = max(grid().is_, 5)
-    i2 = min(grid().npx, grid().ie + 1)
+    i1 = grid().is_ + 2 if grid().west_edge else grid().is_
+    i2 = grid().ie - 1 if grid().east_edge else grid().ie + 1
     edge_shape = (i2 - i1 + 1, 2, ut.shape[2])
     if grid().south_edge:
         ut_x_edge(uc, cosa_u, vt, ut, origin=(i1, grid().js - 1, 0), domain=edge_shape)
@@ -246,8 +256,8 @@ def compute_vt(uc_in, vc_in, cosa_v, rsin_v, sin_sg2, sin_sg4, vt_in):
 
 def update_vt_y_edge(vc, cosa_v, ut, vt):
     if grid().west_edge or grid().east_edge:
-        j1 = max(grid().js, grid().halo + 2)
-        j2 = min(grid().je + 1, grid().npy) + 1
+        j1 = grid().js + 2 if grid().south_edge else grid().js
+        j2 = grid().je if grid().north_edge else grid().je + 2
         edge_shape = (2, j2 - j1, ut.shape[2])
         if grid().west_edge:
             vt_y_edge(
