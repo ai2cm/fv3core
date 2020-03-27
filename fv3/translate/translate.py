@@ -182,9 +182,7 @@ class TranslateGrid:
     def make_composite_var_storage(self, varname, data3d, shape):
         for s in range(9):
             self.data[varname + str(s + 1)] = utils.make_storage_data(
-                np.squeeze(data3d[:, :, s]),
-                shape,
-                origin=(0, 0, 0),
+                np.squeeze(data3d[:, :, s]), shape, origin=(0, 0, 0),
             )
 
     def make_grid_storage(self, pygrid):
@@ -208,11 +206,7 @@ class TranslateGrid:
                     )
                 )
                 self.data[k] = utils.make_storage_data(
-                    v,
-                    shape,
-                    origin=(istart, jstart, 0),
-                    istart=istart,
-                    jstart=jstart,
+                    v, shape, origin=(istart, jstart, 0), istart=istart, jstart=jstart,
                 )
 
     def python_grid(self):

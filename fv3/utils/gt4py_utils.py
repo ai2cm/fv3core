@@ -45,17 +45,11 @@ def _data_backend(backend: str):
         return backend
 
 
-def make_storage_data(
-    array, full_shape, istart=0, jstart=0, kstart=0, origin=origin
-):
+def make_storage_data(array, full_shape, istart=0, jstart=0, kstart=0, origin=origin):
     full_np_arr = np.zeros(full_shape)
     if len(array.shape) == 2:
         return make_storage_data_from_2d(
-            array,
-            full_shape,
-            istart=istart,
-            jstart=jstart,
-            origin=origin,
+            array, full_shape, istart=istart, jstart=jstart, origin=origin,
         )
     elif len(array.shape) == 1:
         return make_storage_data_from_1d(
@@ -71,9 +65,7 @@ def make_storage_data(
         )
 
 
-def make_storage_data_from_2d(
-    array2d, full_shape, istart=0, jstart=0, origin=origin
-):
+def make_storage_data_from_2d(array2d, full_shape, istart=0, jstart=0, origin=origin):
     shape2d = full_shape[0:2]
     isize, jsize = array2d.shape
     full_np_arr_2d = np.zeros(shape2d)
@@ -86,9 +78,7 @@ def make_storage_data_from_2d(
 
 
 # TODO: surely there's a shorter, more generic way to do this.
-def make_storage_data_from_1d(
-    array1d, full_shape, kstart=0, origin=origin, axis=2
-):
+def make_storage_data_from_1d(array1d, full_shape, kstart=0, origin=origin, axis=2):
     # r = np.zeros(full_shape)
     tilespec = list(full_shape)
     full_1d = np.zeros(full_shape[axis])
