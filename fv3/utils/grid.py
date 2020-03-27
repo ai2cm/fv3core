@@ -39,8 +39,12 @@ class Grid:
         self.jef = self.npy - 1
         self.global_is, self.global_js = self.local_to_global_indices(self.is_, self.js)
         self.global_ie, self.global_je = self.local_to_global_indices(self.ie, self.je)
-        self.global_isd, self.global_jsd = self.local_to_global_indices(self.isd, self.jsd)
-        self.global_ied, self.global_jed = self.local_to_global_indices(self.ied, self.jed)
+        self.global_isd, self.global_jsd = self.local_to_global_indices(
+            self.isd, self.jsd
+        )
+        self.global_ied, self.global_jed = self.local_to_global_indices(
+            self.ied, self.jed
+        )
         self.west_edge = self.global_is == self.halo
         self.east_edge = self.global_ie == self.npx + self.halo - 2
         self.south_edge = self.global_js == self.halo
