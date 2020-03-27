@@ -53,7 +53,7 @@ class TranslateHaloUpdate_2(TranslateHaloUpdate):
         "array2": {
             "name": "height_on_interface_levels",
             "dims": [fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_INTERFACE_DIM],
-            "units": "degK",
+            "units": "m",
             "n_halo": utils.halo,
         }
     }
@@ -62,7 +62,7 @@ class TranslateHaloUpdate_2(TranslateHaloUpdate):
         "array2": {
             "name": "height_on_interface_levels",
             "dims": [fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_INTERFACE_DIM],
-            "units": "degK",
+            "units": "m",
             "n_halo": utils.halo,
         }
     }

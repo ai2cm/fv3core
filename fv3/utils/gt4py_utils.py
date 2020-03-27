@@ -9,7 +9,7 @@ import logging
 import functools
 
 logger = logging.getLogger("fv3ser")
-backend = "numpy"  # Options: numpy, gtmc, gtx86, gtcuda, debug, dawn:gtmc
+backend = None  # Options: numpy, gtmc, gtx86, gtcuda, debug, dawn:gtmc
 rebuild = True
 _dtype = np.float_
 sd = gtscript.Field[_dtype]
@@ -46,7 +46,7 @@ def _data_backend(backend: str):
 
 
 def make_storage_data(
-    array, full_shape, istart=0, jstart=0, kstart=0, origin=origin, backend=backend
+    array, full_shape, istart=0, jstart=0, kstart=0, origin=origin
 ):
     full_np_arr = np.zeros(full_shape)
     if len(array.shape) == 2:
@@ -56,11 +56,10 @@ def make_storage_data(
             istart=istart,
             jstart=jstart,
             origin=origin,
-            backend=backend,
         )
     elif len(array.shape) == 1:
         return make_storage_data_from_1d(
-            array, full_shape, kstart=kstart, origin=origin, backend=backend
+            array, full_shape, kstart=kstart, origin=origin
         )
     else:
         isize, jsize, ksize = array.shape
@@ -73,7 +72,7 @@ def make_storage_data(
 
 
 def make_storage_data_from_2d(
-    array2d, full_shape, istart=0, jstart=0, origin=origin, backend=backend
+    array2d, full_shape, istart=0, jstart=0, origin=origin
 ):
     shape2d = full_shape[0:2]
     isize, jsize = array2d.shape
@@ -88,7 +87,7 @@ def make_storage_data_from_2d(
 
 # TODO: surely there's a shorter, more generic way to do this.
 def make_storage_data_from_1d(
-    array1d, full_shape, kstart=0, origin=origin, backend=backend, axis=2
+    array1d, full_shape, kstart=0, origin=origin, axis=2
 ):
     # r = np.zeros(full_shape)
     tilespec = list(full_shape)
@@ -109,7 +108,7 @@ def make_storage_data_from_1d(
     )
 
 
-def make_storage_from_shape(shape, origin, backend=backend):
+def make_storage_from_shape(shape, origin):
     return gt.storage.from_array(
         data=np.zeros(shape), backend=backend, default_origin=origin, shape=shape,
     )

@@ -50,7 +50,6 @@ class TranslateFortranData2Py:
             jstart,
             kstart,
             origin=(istart, jstart, kstart),
-            backend=utils.backend,
         )
 
     def storage_vars(self):
@@ -186,7 +185,6 @@ class TranslateGrid:
                 np.squeeze(data3d[:, :, s]),
                 shape,
                 origin=(0, 0, 0),
-                backend=utils.backend,
             )
 
     def make_grid_storage(self, pygrid):
@@ -215,7 +213,6 @@ class TranslateGrid:
                     origin=(istart, jstart, 0),
                     istart=istart,
                     jstart=jstart,
-                    backend=utils.backend,
                 )
 
     def python_grid(self):

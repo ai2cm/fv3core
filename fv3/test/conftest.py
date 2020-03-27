@@ -228,6 +228,8 @@ def parallel_savepoint_cases(metafunc, data_path):
 
 
 def pytest_generate_tests(metafunc):
+    backend = metafunc.config.getoption("backend")
+    fv3.utils.gt4py_utils.backend = backend
     if metafunc.function.__name__ == "test_sequential_savepoint":
         generate_sequential_stencil_tests(metafunc)
     if metafunc.function.__name__ == "test_parallel_savepoint_sequentially":
