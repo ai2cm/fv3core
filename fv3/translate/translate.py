@@ -169,7 +169,7 @@ class TranslateGrid:
                 del inputs[index]
 
         self.data = inputs
-   
+
     def make_composite_var_storage(self, varname, data3d, shape):
         for s in range(9):
             self.data[varname + str(s + 1)] = utils.make_storage_data(
@@ -185,10 +185,11 @@ class TranslateGrid:
             if k in self.data:
                 self.make_composite_var_storage(k, self.data[k], shape)
                 del self.data[k]
-        # TODO fix this
         for k, axis in TranslateGrid.edge_var_axis.items():
             if k in self.data:
-                edge_offset = pygrid.local_to_global_indices(pygrid.isd, pygrid.jsd)[axis]
+                edge_offset = pygrid.local_to_global_indices(pygrid.isd, pygrid.jsd)[
+                    axis
+                ]
                 width = pygrid.subtile_width_x if axis == 0 else pygrid.subtile_width_y
                 edgeslice = slice(int(edge_offset), int(edge_offset + width + 1))
                 self.data[k] = utils.make_storage_data_from_1d(
