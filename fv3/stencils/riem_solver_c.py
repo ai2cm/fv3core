@@ -18,12 +18,14 @@ def compute(ms, dt2, akap, cappa, ptop, hs, w3, ptc, q_con, delpc, gz, pef, ws):
     kslice_shift = slice(1, km+2)
     shape1 = (spec.grid.nic + 2, km + 2)
     dm = cp.copy(delpc, (0, 0, 0))
+    cp3 = cp.copy(cappa, (0, 0, 0))
     pef[islice, spec.grid.js-1:spec.grid.je+2, 0] = ptop
     pem = np.zeros(shape1)
     peg = np.zeros(shape1)
     pe2 = np.zeros(shape1)
     for j in range(spec.grid.js - 1, spec.grid.je + 2):
         dm2 = np.squeeze(dm.data[islice, j, kslice])
+        cp2 = np.squeeze(cp3[islice, j, kslice])
         ptr = ptc.data[islice, j, kslice]
         wsr = ws[islice, j, :]
         pem[:, 0] = ptop
@@ -33,7 +35,6 @@ def compute(ms, dt2, akap, cappa, ptop, hs, w3, ptc, q_con, delpc, gz, pef, ws):
             peg[:, k] = peg[:, k - 1] + dm2[:, k - 1] * (1.0 - q_con[islice, j, k-1])
         dz2 = gz[islice, j, kslice_shift] - gz[islice, j, kslice]
         pm2 = (peg[:, kslice_shift] - peg[:, kslice]) / np.log(peg[:, kslice_shift] / peg[:, kslice])
-        cp2 = np.squeeze(np.copy(cappa[islice, j, kslice]))
         gm2 = 1.0 / (1 - cp2)
         dm2 = dm2 / constants.GRAV
         w2 = np.copy(w3[islice, j, kslice])

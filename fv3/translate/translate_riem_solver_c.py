@@ -12,4 +12,3 @@ class TranslateRiem_Solver_C(TranslateFortranData2Py):
         self.out_vars = {'pef':  {'kend': grid.npz},
                          'gz':  {'kend': grid.npz},
                          }
-        self.max_error=1e-14

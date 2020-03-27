@@ -25,7 +25,8 @@ def merge_namelist_defaults(nml):
     defaults = {'grid_type': 0,
                 'do_f3d': False,
                 'inline_q': False,
-                'do_skeb': False  # save dissipation estimate
+                'do_skeb': False,  # save dissipation estimate
+                'use_logp': False
     }
     defaults.update(nml)
     return defaults
