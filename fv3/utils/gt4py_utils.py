@@ -72,31 +72,44 @@ def make_storage_data(
         )
 
 
-def make_storage_data_from_2d(array2d, full_shape, istart=0, jstart=0, origin=origin, backend=backend, axis=2):
-    
-    #full_np_arr_3d = np.lib.stride_tricks.as_strided(full_np_arr_2d, shape=full_shape, strides=(*full_np_arr_2d.strides, 0))
+def make_storage_data_from_2d(
+    array2d, full_shape, istart=0, jstart=0, origin=origin, backend=backend, axis=2
+):
+
+    # full_np_arr_3d = np.lib.stride_tricks.as_strided(full_np_arr_2d, shape=full_shape, strides=(*full_np_arr_2d.strides, 0))
     if axis == 2:
         shape2d = full_shape[0:2]
         isize, jsize = array2d.shape
         full_np_arr_2d = np.zeros(shape2d)
-        full_np_arr_2d[istart:istart+isize, jstart:jstart+jsize] = array2d
-        full_np_arr_3d = np.repeat(full_np_arr_2d[:, :, np.newaxis], full_shape[2], axis=2)
+        full_np_arr_2d[istart : istart + isize, jstart : jstart + jsize] = array2d
+        full_np_arr_3d = np.repeat(
+            full_np_arr_2d[:, :, np.newaxis], full_shape[2], axis=2
+        )
     if axis == 1:
         shape2d = (full_shape[0], full_shape[2])
         isize, jsize = array2d.shape
         full_np_arr_2d = np.zeros(shape2d)
-        full_np_arr_2d[istart:istart+isize, jstart:jstart+jsize] = array2d
-        full_np_arr_3d = np.repeat(full_np_arr_2d[:, np.newaxis, :], full_shape[1], axis=1)
-    return gt.storage.from_array(data=full_np_arr_3d, backend=backend, default_origin=origin, shape=full_shape)
+        full_np_arr_2d[istart : istart + isize, jstart : jstart + jsize] = array2d
+        full_np_arr_3d = np.repeat(
+            full_np_arr_2d[:, np.newaxis, :], full_shape[1], axis=1
+        )
+    return gt.storage.from_array(
+        data=full_np_arr_3d, backend=backend, default_origin=origin, shape=full_shape
+    )
 
 
-def make_2d_storage_data(array2d, shape2d, istart=0, jstart=0, origin=origin, backend=backend):
+def make_2d_storage_data(
+    array2d, shape2d, istart=0, jstart=0, origin=origin, backend=backend
+):
     # might not be i and j, could be i and k, j and k
     isize, jsize = array2d.shape
     full_np_arr_2d = np.zeros(shape2d)
-    full_np_arr_2d[istart:istart+isize, jstart:jstart+jsize, 0] = array2d
-    
-    return gt.storage.from_array(data=full_np_arr_2d, backend=backend, default_origin=origin, shape=shape2d)
+    full_np_arr_2d[istart : istart + isize, jstart : jstart + jsize, 0] = array2d
+
+    return gt.storage.from_array(
+        data=full_np_arr_2d, backend=backend, default_origin=origin, shape=shape2d
+    )
+
 
 # TODO: surely there's a shorter, more generic way to do this.
 def make_storage_data_from_1d(
