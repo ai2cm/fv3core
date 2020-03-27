@@ -28,3 +28,4 @@ from .translate_yppm import TranslateYPPM, TranslateYPPM_2
 from .translate_ytp_v import TranslateYTP_V
 from .translate_transportdelp import TranslateTransportDelp
 from .translate_del2cubed import TranslateDel2Cubed
+from .translate_updatedzd import TranslateUpdateDzD
