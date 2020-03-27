@@ -63,9 +63,9 @@ class ParallelTranslate:
     def outputs_from_state(self, state: dict):
         return_dict = {}
         for name, properties in self.outputs.items():
-            name = properties[name]
-            output_slice = _serialize_slice(state[name], utils.halo)
-            return_dict[name] = state[name].data[output_slice]
+            standard_name = properties["name"]
+            output_slice = _serialize_slice(state[standard_name], utils.halo)
+            return_dict[name] = state[standard_name].data[output_slice]
         return return_dict
 
     @property
@@ -97,7 +97,7 @@ def _serialize_slice(quantity, n_halo):
         else:
             halo = 0
         slice_list.append(slice(origin - halo, origin + extent + halo))
-    return quantity.data[tuple(slice_list)]
+    return tuple(slice_list)
 
 
 def get_origin_and_extent(dims, shape, npx, npy, npz, n_halo, layout):
