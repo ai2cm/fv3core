@@ -124,7 +124,7 @@ def k_slice(data_dict, ki):
         k_slice_operation(k, v, ki, new_dict)
     return new_dict
 
-
+'''
 def compute_column_split(
     func, data, column_split, split_varname, outputs, grid, allz=False
 ):
@@ -175,8 +175,33 @@ def k_split_run(
             splitvars[name] = value_array[ki[0]]
         k_subset_run(func, data, splitvars, ki, outputs, grid_data, grid, allz)
     grid.npz = num_k
-
-
+'''
+def get_kstarts(column_info, npz):
+    compare = None
+    kstarts = []
+    for k in range(npz):
+        column_vals = {}
+        for q, v in column_info.items():
+            if k < len(v):
+                column_vals[q] = v[k]
+        if column_vals != compare:
+            kstarts.append(k)
+            compare = column_vals
+    for i in range(len(kstarts) - 1):
+        kstarts[i] = (kstarts[i], kstarts[i + 1] - kstarts[i])
+    kstarts[-1] = (kstarts[-1], npz - kstarts[-1])
+    return kstarts
+    
+def k_split_run(func, data, k_indices, splitvars_values):
+    for ki, nk in k_indices:
+        splitvars = {}
+        for name, value_array in splitvars_values.items():
+            splitvars[name] = value_array[ki]
+        data.update(splitvars)
+        data['kstart'] = ki
+        data['nk'] = nk
+        func(**data)
+        
 def great_circle_dist(p1, p2, radius=None):
     beta = (
         math.asin(
