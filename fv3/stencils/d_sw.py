@@ -34,7 +34,7 @@ def k_indices():
 
 
 def d_sw_ksplit(func, data, splitvars_values, outputs, grid, allz=False):
-    utils.k_split_run(func, data, k_indices(), splitvars_values, outputs, grid, allz)
+    utils.k_split_run_dataslice(func, data, k_indices(), splitvars_values, outputs, grid, allz)
 
 
 @gtscript.function
@@ -280,30 +280,10 @@ def column_namelist_options(k):
 
 
 def compute(
-    delpc,
-    delp,
-    ptc,
-    pt,
-    u,
-    v,
-    w,
-    uc,
-    vc,
-    ua,
-    va,
-    divgd,
-    mfx,
-    mfy,
-    cx,
-    cy,
-    crx,
-    cry,
-    xfx,
-    yfx,
-    q_con,
-    zh,
-    heat_source,
-    diss_est,
+    delpc, delp, ptc, pt, u, v, w,
+    uc, vc, ua, va, divgd, mfx, mfy,
+    cx, cy, crx, cry, xfx, yfx,
+    q_con, zh, heat_source, diss_est,
     dt,
 ):
     # TODO: remove paired with removal of #d_sw belos
@@ -330,29 +310,10 @@ def compute(
     xflux = mfx
     yflux = mfy
     inout_vars = [
-        "delpc",
-        "delp",
-        "ptc",
-        "pt",
-        "u",
-        "v",
-        "w",
-        "uc",
-        "vc",
-        "ua",
-        "va",
-        "divgd",
-        "xflux",
-        "yflux",
-        "cx",
-        "cy",
-        "crx",
-        "cry",
-        "xfx",
-        "yfx",
-        "q_con",
-        "heat_s",
-        "diss_e",
+        "delpc", "delp", "ptc", "pt", "u", "v", "w",
+        "uc", "vc", "ua", "va", "divgd", "xflux", "yflux",
+        "cx", "cy", "crx", "cry", "xfx", "yfx", "q_con",
+        "heat_s", "diss_e",
     ]
     data = {}
     for varname in inout_vars + in_only_vars:
@@ -397,31 +358,10 @@ def damp_vertical_wind(w, heat_s, diss_e, dt, column_namelist):
 
 
 def d_sw(
-    delpc,
-    delp,
-    ptc,
-    pt,
-    u,
-    v,
-    w,
-    uc,
-    vc,
-    ua,
-    va,
-    divgd,
-    xflux,
-    yflux,
-    cx,
-    cy,
-    crx,
-    cry,
-    xfx,
-    yfx,
-    q_con,
-    z_rat,
-    heat_s,
-    diss_e,
-    dt,
+    delpc, delp, ptc, pt, u, v, w,
+    uc, vc, ua, va, divgd, xflux, yflux,
+    cx, cy, crx, cry, xfx, yfx, q_con,
+    z_rat, heat_s, diss_e, dt,
     column_namelist,
 ):
     logger.debug("Parameters that vary with k: {}".format(column_namelist))
@@ -432,20 +372,18 @@ def d_sw(
     vort = utils.make_storage_from_shape(shape, grid().default_origin())
     ut = utils.make_storage_from_shape(shape, grid().default_origin())
     vt = utils.make_storage_from_shape(shape, grid().default_origin())
-
+    fx = utils.make_storage_from_shape(shape, grid().compute_origin())
+    fy = utils.make_storage_from_shape(shape, grid().compute_origin())
+    gx = utils.make_storage_from_shape(shape, grid().compute_origin())
+    gy = utils.make_storage_from_shape(shape, grid().compute_origin())
     ra_x, ra_y = fxadv.compute(uc, vc, ut, vt, xfx, yfx, crx, cry, dt)
 
-    delp, fx, fy = fvtp2d.compute_no_sg(
-        delp,
-        crx,
-        cry,
+    fvtp2d.compute_no_sg(
+        delp, crx, cry,
         spec.namelist["hord_dp"],
-        xfx,
-        yfx,
-        ra_x,
-        ra_y,
-        column_namelist["nord_v"],
-        column_namelist["damp_vt"],
+        xfx, yfx, ra_x, ra_y, fx, fy,
+        nord=column_namelist["nord_v"],
+        damp_c=column_namelist["damp_vt"],
     )
 
     fluxcap.compute(cx, cy, xflux, yflux, crx, cry, fx, fy)
@@ -454,70 +392,47 @@ def d_sw(
 
     if not spec.namelist["hydrostatic"]:
         dw, wk = damp_vertical_wind(w, heat_s, diss_e, dt, column_namelist)
-        w, gx, gy = fvtp2d.compute_no_sg(
-            w,
-            crx,
-            cry,
+        fvtp2d.compute_no_sg(
+            w, crx, cry,
             spec.namelist["hord_vt"],
-            xfx,
-            yfx,
-            ra_x,
-            ra_y,
-            column_namelist["nord_v"],
-            column_namelist["damp_vt"],
+            xfx, yfx, ra_x, ra_y, gx, gy,
+            nord=column_namelist["nord_v"],
+            damp_c=column_namelist["damp_vt"],
             mfx=fx,
             mfy=fy,
         )
 
         flux_adjust(
-            w,
-            delp,
-            gx,
-            gy,
-            grid().rarea,
+            w, delp, gx, gy, grid().rarea,
             origin=grid().compute_origin(),
             domain=grid().domain_shape_compute(),
         )
 
     # USE_COND
-    q_con, gx, gy = fvtp2d.compute_no_sg(
-        q_con,
-        crx,
-        cry,
+    fvtp2d.compute_no_sg(
+        q_con, crx, cry,
         spec.namelist["hord_dp"],
-        xfx,
-        yfx,
-        ra_x,
-        ra_y,
-        column_namelist["nord_t"],
-        column_namelist["damp_t"],
+        xfx, yfx, ra_x, ra_y, gx, gy,
+        nord=column_namelist["nord_t"],
+        damp_c=column_namelist["damp_t"],
         mass=delp,
         mfx=fx,
         mfy=fy,
     )
 
     flux_adjust(
-        q_con,
-        delp,
-        gx,
-        gy,
-        grid().rarea,
+        q_con, delp, gx, gy, grid().rarea,
         origin=grid().compute_origin(),
         domain=grid().domain_shape_compute(),
     )
 
     # END USE_COND
-    pt, gx, gy = fvtp2d.compute_no_sg(
-        pt,
-        crx,
-        cry,
+    fvtp2d.compute_no_sg(
+        pt, crx, cry,
         spec.namelist["hord_tm"],
-        xfx,
-        yfx,
-        ra_x,
-        ra_y,
-        column_namelist["nord_v"],
-        column_namelist["damp_vt"],
+        xfx, yfx, ra_x, ra_y, gx, gy,
+        nord=column_namelist["nord_v"],
+        damp_c=column_namelist["damp_vt"],
         mass=delp,
         mfx=fx,
         mfy=fy,
@@ -527,13 +442,7 @@ def d_sw(
         raise Exception("inline_q not yet implemented")
     else:
         not_inlineq_pressure(
-            gx,
-            gy,
-            grid().rarea,
-            fx,
-            fy,
-            pt,
-            delp,
+            gx, gy, grid().rarea, fx, fy, pt, delp,
             origin=grid().compute_origin(),
             domain=grid().domain_shape_compute(),
         )
@@ -545,9 +454,7 @@ def d_sw(
     ytp_v.compute(vb, u, v, ub)
 
     basic.multiply_stencil(
-        vb,
-        ub,
-        ke,
+        vb, ub, ke,
         origin=grid().compute_origin(),
         domain=grid().domain_shape_compute_buffer_2d(),
     )
@@ -557,9 +464,7 @@ def d_sw(
     xtp_u.compute(ub, u, v, vb)
 
     ke_from_bwind(
-        ke,
-        ub,
-        vb,
+        ke, ub, vb,
         origin=grid().compute_origin(),
         domain=grid().domain_shape_compute_buffer_2d(),
     )
@@ -571,43 +476,27 @@ def d_sw(
 
     # TODO if spec.namelist['d_f3d'] and ROT3 unimplemeneted
     adjust_w_and_qcon(
-        w,
-        delp,
-        dw,
-        q_con,
+        w, delp, dw, q_con,
         column_namelist["damp_w"],
         origin=grid().compute_origin(),
         domain=grid().domain_shape_compute(),
     )
 
     vort, ke, delpc = divdamp.compute(
-        u,
-        v,
-        va,
-        ptc,
-        vort,
-        ua,
-        divgd,
-        vc,
-        uc,
-        delpc,
-        ke,
-        wk,
-        column_namelist["d2_divg"],
-        dt,
+        u, v, va, ptc, vort, ua,
+        divgd, vc, uc, delpc, ke, wk,
+        column_namelist["d2_divg"], dt,
         column_namelist["nord"],
     )
 
     if column_namelist["d_con"] > dcon_threshold:
         ub_from_vort(
-            vort,
-            ub,
+            vort, ub,
             origin=grid().compute_origin(),
             domain=grid().domain_shape_compute_y(),
         )
         vb_from_vort(
-            vort,
-            vb,
+            vort, vb,
             origin=grid().compute_origin(),
             domain=grid().domain_shape_compute_x(),
         )
@@ -615,40 +504,29 @@ def d_sw(
     # Vorticity transport
     if spec.namelist["do_f3d"] and not spec.namelist["hydrostatic"]:
         zrat_vorticity(
-            wk,
-            grid().f0,
-            z_rat,
-            vort,
+            wk, grid().f0, z_rat, vort,
             orgin=grid().default_origin(),
             domain=grid().domain_shape_standard(),
         )
     else:
         basic.addition_stencil(
-            wk,
-            grid().f0,
-            vort,
+            wk, grid().f0, vort,
             origin=grid().default_origin(),
             domain=grid().domain_shape_standard(),
         )
 
-    vort, fx, fy = fvtp2d.compute_no_sg(
-        vort, crx, cry, spec.namelist["hord_vt"], xfx, yfx, ra_x, ra_y
+    fvtp2d.compute_no_sg(
+        vort, crx, cry, spec.namelist["hord_vt"], xfx, yfx, ra_x, ra_y, fx, fy
     )
 
     u_from_ke(
-        ke,
-        vt,
-        fy,
-        u,
+        ke, vt, fy, u,
         origin=grid().compute_origin(),
         domain=grid().domain_shape_compute_y(),
     )
 
     v_from_ke(
-        ke,
-        ut,
-        fx,
-        v,
+        ke, ut, fx, v,
         origin=grid().compute_origin(),
         domain=grid().domain_shape_compute_x(),
     )

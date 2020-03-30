@@ -39,9 +39,6 @@ class TranslateD_SW(TranslateFortranData2Py):
         self.out_vars = self.in_vars["data_vars"].copy()
         del self.out_vars["zh"]
 
-        # self.out_vars['damp_vt'] = {}
-        # self.out_vars['nord_v'] = {}
-
     # use_sg -- 'dx', 'dy', 'rdxc', 'rdyc', 'sin_sg needed
     def compute(self, inputs):
         self.make_storage_data_input_vars(inputs)
@@ -82,7 +79,7 @@ class TranslateD_SW(TranslateFortranData2Py):
         raise Exception('stop')
         """
         return self.slice_output(inputs)
-
+    '''
     # For child tranlate tests where nord and damp column processing applies
     def nord_column_split_compute(self, inputs, func):
         return self.column_split_compute(
@@ -115,3 +112,4 @@ class TranslateD_SW(TranslateFortranData2Py):
                 outputs[outvar] = inputs[outvar]
         d_sw.d_sw_ksplit(func, inputs, column_info, outputs, self.grid)
         return self.slice_output(outputs)
+    '''

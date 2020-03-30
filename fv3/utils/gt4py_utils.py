@@ -136,7 +136,7 @@ def compute_column_split(
             func, data, {split_varname: kval}, ki, outputs, grid_data, grid, allz
         )
     grid.npz = num_k
-
+'''
 
 def k_subset_run(func, data, splitvars, ki, outputs, grid_data, grid, allz=False):
     grid.npz = len(ki)
@@ -164,7 +164,7 @@ def collect_results(data, results, outputs, ki, allz=False):
             outputs[outnames[ri]][:, :, ki[:endz]] = results[ri][:, :, :endz]
 
 
-def k_split_run(
+def k_split_run_dataslice(
     func, data, k_indices_array, splitvars_values, outputs, grid, allz=False
 ):
     num_k = grid.npz
@@ -175,7 +175,7 @@ def k_split_run(
             splitvars[name] = value_array[ki[0]]
         k_subset_run(func, data, splitvars, ki, outputs, grid_data, grid, allz)
     grid.npz = num_k
-'''
+
 def get_kstarts(column_info, npz):
     compare = None
     kstarts = []
@@ -190,6 +190,7 @@ def get_kstarts(column_info, npz):
     for i in range(len(kstarts) - 1):
         kstarts[i] = (kstarts[i], kstarts[i + 1] - kstarts[i])
     kstarts[-1] = (kstarts[-1], npz - kstarts[-1])
+    print(kstarts)
     return kstarts
     
 def k_split_run(func, data, k_indices, splitvars_values):
@@ -200,8 +201,22 @@ def k_split_run(func, data, k_indices, splitvars_values):
         data.update(splitvars)
         data['kstart'] = ki
         data['nk'] = nk
+        print('running with', ki, nk, splitvars)
         func(**data)
-        
+
+
+def kslice_from_inputs(kstart, nk, grid):
+    if nk is None:
+        nk = grid.npz - kstart
+    kslice = slice(kstart, kstart + nk)
+    return [kslice, nk]
+
+def krange_from_slice(kslice, grid):
+    kstart = kslice.start
+    kend = kslice.stop
+    nk = grid.npz - kstart if kend is None else kend - kstart
+    return kstart, nk
+
 def great_circle_dist(p1, p2, radius=None):
     beta = (
         math.asin(
