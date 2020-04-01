@@ -13,11 +13,13 @@ sd = utils.sd
 def grid():
     return spec.grid
 
+
 @utils.stencil()
 def set_k0(pp: sd, pk3: sd, top_value: float):
     with computation(PARALLEL), interval(...):
         pp[0, 0, 0] = 0.0
         pk3[0, 0, 0] = top_value
+
 
 @utils.stencil()
 def CalcWk(pk: sd, wk: sd):
@@ -45,7 +47,7 @@ def CalcU(u: sd, du: sd, dt: float, wk: sd, wk1: sd, gz: sd, pk3: sd, pp: sd, rd
             / (wk1[0, 0, 0] + wk1[1, 0, 0])
             * (
                 (gz[0, 0, 1] - gz[1, 0, 0]) * (pp[1, 0, 1] - pp[0, 0, 0])
-                + (gz[0, 0, 0] - gz[1, 0, 1]) * (pp[1, 0, 1] - pp[1, 0, 0])
+                + (gz[0, 0, 0] - gz[1, 0, 1]) * (pp[0, 0, 1] - pp[1, 0, 0])
             )
         ) * rdx[0, 0, 0]
 
@@ -84,7 +86,7 @@ def compute(u, v, pp, gz, pk3, delp, dt, ptop, akap):
 
     # peln1 = log(ptop)
     ptk = ptop ** akap
-    top_value = ptk # = peln1 if spec.namelist["use_logp"] else ptk
+    top_value = ptk  # = peln1 if spec.namelist["use_logp"] else ptk
 
     wk1 = utils.make_storage_from_shape(pp.shape, origin=orig)
     wk = utils.make_storage_from_shape(pk3.shape, origin=orig)
@@ -92,18 +94,15 @@ def compute(u, v, pp, gz, pk3, delp, dt, ptop, akap):
     # do i=is,ie+1
 
     set_k0(
-        pp,
-        pk3,
-        top_value,
-        origin=orig,
-        domain=(grid.nic + 1, grid.njc + 1, 1),
+        pp, pk3, top_value, origin=orig, domain=(grid.nic + 1, grid.njc + 1, 1),
     )
-    assert pp[3, 3, 0]==0.0
-    assert pk3[3, 3, 0]==top_value
+
     a2b_ord4.compute(pp, wk1, kstart=1, nk=grid.npz, replace=True)
     a2b_ord4.compute(pk3, wk1, kstart=1, nk=grid.npz, replace=True)
-    a2b_ord4.compute(gz, wk1, kstart=0, nk=grid.npz+1, replace=True)
-    a2b_ord4.compute(delp, wk1, replace=True)
+    assert pp[3, 3, 0] == 0.0
+    assert pk3[3, 3, 0] == top_value
+    a2b_ord4.compute(gz, wk1, kstart=0, nk=grid.npz + 1, replace=True)
+    a2b_ord4.compute(delp, wk1)
 
     # do j=js,je+1
     # do i=is,ie+1

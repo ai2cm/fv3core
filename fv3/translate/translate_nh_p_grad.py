@@ -14,17 +14,13 @@ class TranslateNH_P_Grad(TranslateFortranData2Py):
             "pk3": {},
             "delp": {},
         }
-        self.in_vars["parameters"] = [
-            "dt",
-            "ptop",
-            "akap"
-        ]
+        self.in_vars["parameters"] = ["dt", "ptop", "akap"]
         self.out_vars = {
-            "u": {},
-            "v": {},
-            "pp": {},
-            "gz": {},
-            "pk3": {},
+            "u": grid.y3d_domain_dict(),
+            "v": grid.x3d_domain_dict(),
+            "pp": {"kend": grid.npz + 1},
+            "gz": {"kend": grid.npz + 1},
+            "pk3": {"kend": grid.npz + 1},
             "delp": {},
         }
 
