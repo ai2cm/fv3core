@@ -190,7 +190,6 @@ def get_kstarts(column_info, npz):
     for i in range(len(kstarts) - 1):
         kstarts[i] = (kstarts[i], kstarts[i + 1] - kstarts[i])
     kstarts[-1] = (kstarts[-1], npz - kstarts[-1])
-    print(kstarts)
     return kstarts
     
 def k_split_run(func, data, k_indices, splitvars_values):
@@ -201,7 +200,7 @@ def k_split_run(func, data, k_indices, splitvars_values):
         data.update(splitvars)
         data['kstart'] = ki
         data['nk'] = nk
-        print('running with', ki, nk, splitvars)
+        logger.debug("Running kstart: {}, num k:{}, variables:{}".format(ki, nk, splitvars))
         func(**data)
 
 

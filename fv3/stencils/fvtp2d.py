@@ -60,18 +60,18 @@ def compute_no_sg(q, crx, cry, hord, xfx, yfx, ra_x, ra_y, fx, fy,
         ord_in = hord
     ord_ou = hord
     corners.copy_corners(q, "y", grid, kslice)
-    yppm.compute_flux(q, cry, fy2, ord_in, grid.isd, grid.ied, kslice=kslice)
+    yppm.compute_flux(q, cry, fy2, ord_in, grid.isd, grid.ied, kstart=kstart, nk=nk)
     q_i_stencil(q, grid.area, yfx, fy2, ra_y, q_i,
                 origin=(grid.isd, grid.js, kstart),
                 domain=(grid.nid, grid.njc + 1, nk))
     
-    xppm.compute_flux(q_i, crx, fx, ord_ou, grid.js, grid.je, kslice=kslice)
+    xppm.compute_flux(q_i, crx, fx, ord_ou, grid.js, grid.je, kstart=kstart, nk=nk)
     corners.copy_corners(q, "x", grid, kslice)
-    xppm.compute_flux(q, crx, fx2, ord_in, grid.jsd, grid.jed, kslice=kslice)
+    xppm.compute_flux(q, crx, fx2, ord_in, grid.jsd, grid.jed, kstart=kstart, nk=nk)
     q_j_stencil(q, grid.area, xfx, fx2, ra_x, q_j,
                 origin=(grid.is_, grid.jsd, kstart),
                 domain=(grid.nic + 1, grid.njd, nk))
-    yppm.compute_flux(q_j, cry, fy, ord_ou, grid.is_, grid.ie, kslice=kslice)
+    yppm.compute_flux(q_j, cry, fy, ord_ou, grid.is_, grid.ie, kstart=kstart, nk=nk)
     
     if mfx is not None and mfy is not None:
         transport_flux(fx, fx2, mfx,

@@ -169,8 +169,9 @@ def get_flux_stencil(q: sd, c: sd, al: sd, flux: sd, mord: int):
         #    flux = tmp
 
 
-def compute_al(q, dyvar, jord, ifirst, ilast, js1, je3, kslice=slice(0, None)):
-    kstart, nk = utils.krange_from_slice(kslice, grid())
+def compute_al(q, dyvar, jord, ifirst, ilast, js1, je3, kstart=0, nk=None):
+    if nk is None:
+        nk = grid().npz - kstart
     dimensions = q.shape
     local_origin = (origin[0], origin[1], kstart)
     al = utils.make_storage_from_shape(dimensions, local_origin)
@@ -208,11 +209,12 @@ def compute_al(q, dyvar, jord, ifirst, ilast, js1, je3, kslice=slice(0, None)):
     return al
 
 
-def compute_flux(q, c, flux, jord, ifirst, ilast, kslice=slice(0, None)):
-    kstart, nk = utils.krange_from_slice(kslice, grid())
+def compute_flux(q, c, flux, jord, ifirst, ilast, kstart=0, nk=None):
+    if nk is None:
+        nk = grid().npz - kstart
     js1 = grid().js + 2 if grid().south_edge else grid().js - 1
     je3 = grid().je - 1 if grid().north_edge else grid().je + 2
-    al = compute_al(q, grid().dya, jord, ifirst, ilast, js1, je3, kslice)
+    al = compute_al(q, grid().dya, jord, ifirst, ilast, js1, je3, kstart, nk)
     mord = abs(jord)
     flux_domain = (ilast - ifirst + 1, grid().njc + 1, nk)
     get_flux_stencil(
