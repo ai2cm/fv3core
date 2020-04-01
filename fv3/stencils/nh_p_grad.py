@@ -15,25 +15,9 @@ def grid():
 
 @utils.stencil()
 def set_k0(pp: sd, pk3: sd, top_value: float):
-    with computation(PARALLEL):
-        with interval(0, 1):
-            pp[0, 0, 0] = 0.0
-            pk3[0, 0, 0] = top_value
-
-@utils.stencil()
-def applya2b(pp: sd, pk3: sd, gz: sd, delp: sd, wk1: sd, top_value: float):
-    with computation(PARALLEL):
-        with interval(0, 1):
-            pp[0, 0, 0] = 0.0
-            pk3[0, 0, 0] = top_value
-        with interval(1, -1):
-            a2b_ord4.compute(pp, wk1, True)
-            a2b_ord4.compute(pk3, wk1, True)
-        with interval(...):
-            a2b_ord4.compute(gz, wk1, True)
-        with interval(0, -2):
-            a2b_ord4.compute(delp, wk1, True)
-
+    with computation(PARALLEL), interval(...):
+        pp[0, 0, 0] = 0.0
+        pk3[0, 0, 0] = top_value
 
 @utils.stencil()
 def CalcWk(pk: sd, wk: sd):
@@ -74,7 +58,7 @@ def CalcV(v: sd, dv: sd, dt: float, wk: sd, wk1: sd, gz: sd, pk3: sd, pp: sd, rd
             dt
             / (wk[0, 0, 0] + wk[0, 1, 0])
             * (
-                (gz[0, 0, 1] - gz[0, 1, 0]) * (pk3[0, 1, 1] - pk[0, 0, 0])
+                (gz[0, 0, 1] - gz[0, 1, 0]) * (pk3[0, 1, 1] - pk3[0, 0, 0])
                 + (gz[0, 0, 0] - gz[0, 1, 1]) * (pk3[0, 0, 1] - pk3[0, 1, 0])
             )
         )
@@ -107,16 +91,19 @@ def compute(u, v, pp, gz, pk3, delp, dt, ptop, akap):
     # do j=js,je+1
     # do i=is,ie+1
 
-    applya2b(
+    set_k0(
         pp,
         pk3,
-        gz,
-        delp,
-        wk1,
         top_value,
         origin=orig,
-        domain=(grid.nic + 1, grid.njc + 1, grid.npz + 1),
+        domain=(grid.nic + 1, grid.njc + 1, 1),
     )
+    assert pp[3, 3, 0]==0.0
+    assert pk3[3, 3, 0]==top_value
+    a2b_ord4.compute(pp, wk1, kstart=1, nk=grid.npz, replace=True)
+    a2b_ord4.compute(pk3, wk1, kstart=1, nk=grid.npz, replace=True)
+    a2b_ord4.compute(gz, wk1, kstart=0, nk=grid.npz+1, replace=True)
+    a2b_ord4.compute(delp, wk1, replace=True)
 
     # do j=js,je+1
     # do i=is,ie+1
@@ -155,3 +142,4 @@ def compute(u, v, pp, gz, pk3, delp, dt, ptop, akap):
         origin=orig,
         domain=(grid.nic + 1, grid.njc, grid.npz),
     )
+    return u, v, pp, gz, pk3, delp

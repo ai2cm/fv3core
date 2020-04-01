@@ -499,7 +499,7 @@ def compute(qin, qout, kstart=0, nk=None, replace=False):
                 qout,
                 qin,
                 origin=(grid().is_, grid().js, kstart),
-                domain=(ie - is_ + 1, je - js + 1, nk),
+                domain=(grid().ie - grid().is_ + 1, grid().je - grid().js + 1, nk),
             )
     else:
         raise Exception("grid_type >= 3 is not implemented")
