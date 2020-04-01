@@ -256,6 +256,7 @@ def ec3_offsets(corner):
 def extrapolate_corner_qout(qin, qout, i, j, kstart, nk, corner):
     if not getattr(grid(), corner + "_corner"):
         return
+    kslice = slice(kstart, kstart + nk)
     bgrid = np.stack((grid().bgrid1[:, :, 0], grid().bgrid2[:, :, 0]), axis=2)
     agrid = np.stack((grid().agrid1[:, :, 0], grid().agrid2[:, :, 0]), axis=2)
     p0 = bgrid[i, j, :]
@@ -267,25 +268,28 @@ def extrapolate_corner_qout(qin, qout, i, j, kstart, nk, corner):
         p0,
         agrid[i + i1a, j + j1a, :],
         agrid[i + i1b, j + j1b, :],
-        qin[i + i1a, j + j1a, kstart : kstart + nk],
-        qin[i + i1b, j + j1b, kstart : kstart + nk],
+        qin[i + i1a, j + j1a, kslice],
+        qin[i + i1b, j + j1b, kslice],
+
     )
     ec2 = utils.extrap_corner(
         p0,
         agrid[i + i2a, j + j2a, :],
         agrid[i + i2b, j + j2b, :],
-        qin[i + i2a, j + j2a, kstart : kstart + nk],
-        qin[i + i2b, j + j2b, kstart : kstart + nk],
+        qin[i + i2a, j + j2a, kslice],
+        qin[i + i2b, j + j2b, kslice],
+
     )
     ec3 = utils.extrap_corner(
         p0,
         agrid[i + i3a, j + j3a, :],
         agrid[i + i3b, j + j3b, :],
-        qin[i + i3a, j + j3a, kstart : kstart + nk],
-        qin[i + i3b, j + j3b, kstart : kstart + nk],
+
+        qin[i + i3a, j + j3a, kslice],
+        qin[i + i3b, j + j3b, kslice],
     )
     r3 = 1.0 / 3.0
-    qout[i, j, kstart : kstart + nk] = (ec1 + ec2 + ec3) * r3
+    qout[i, j, kslice] = (ec1 + ec2 + ec3) * r3
 
 
 def extrapolate_corners(qin, qout, kstart, nk):
@@ -294,6 +298,7 @@ def extrapolate_corners(qin, qout, kstart, nk):
     extrapolate_corner_qout(qin, qout, grid().ie + 1, grid().js, kstart, nk, "se")
     extrapolate_corner_qout(qin, qout, grid().ie + 1, grid().je + 1, kstart, nk, "ne")
     extrapolate_corner_qout(qin, qout, grid().is_, grid().je + 1, kstart, nk, "nw")
+
 
 
 def compute_qout_edges(qin, qout, kstart, nk):
@@ -353,7 +358,7 @@ def compute_qout_y_edges(qin, qout, kstart, nk):
 
 
 def compute_qx(qin, qout, kstart, nk):
-    qx = utils.make_storage_from_shape(qin.shape, origin=(grid().is_, grid().jsd, 0))
+    qx = utils.make_storage_from_shape(qin.shape, origin=(grid().is_, grid().jsd, kstart))
     # qx bounds
     # avoid running center-domain computation on tile edges, since they'll be overwritten.
     js = grid().js if grid().south_edge else grid().js - 2
@@ -377,17 +382,13 @@ def compute_qx(qin, qout, kstart, nk):
             domain=(1, dj, nk),
         )
     if grid().east_edge:
-        qx_edge_east(
-            qin, grid().dxa, qx, origin=(grid().ie + 1, js, kstart), domain=(1, dj, nk),
-        )
-        qx_edge_east2(
-            qin, grid().dxa, qx, origin=(grid().ie, js, kstart), domain=(1, dj, nk)
-        )
+        qx_edge_east(qin, grid().dxa, qx, origin=(grid().ie + 1, js, kstart), domain=(1, dj, nk))
+        qx_edge_east2(qin, grid().dxa, qx, origin=(grid().ie, js, kstart), domain=(1, dj, nk))
     return qx
 
 
 def compute_qy(qin, qout, kstart, nk):
-    qy = utils.make_storage_from_shape(qin.shape, origin=(grid().isd, grid().js, 0))
+    qy = utils.make_storage_from_shape(qin.shape, origin=(grid().isd, grid().js, kstart))
     # qy bounds
     # avoid running center-domain computation on tile edges, since they'll be overwritten.
     js = grid().js + 2 if grid().south_edge else grid().js
@@ -482,10 +483,10 @@ def compute_qout(qxx, qyy, qout, kstart, nk):
     )
 
 
+
 def compute(qin, qout, kstart=0, nk=None, replace=False):
     if nk == None:
         nk = grid().npz - kstart
-        print(nk)
     extrapolate_corners(qin, qout, kstart, nk)
     if spec.namelist["grid_type"] < 3:
         compute_qout_edges(qin, qout, kstart, nk)

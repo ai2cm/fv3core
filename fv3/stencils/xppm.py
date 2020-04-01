@@ -106,8 +106,9 @@ def get_flux(q: sd, c: sd, al: sd, flux: sd, *, mord: int):
         # flux = q[-1, 0, 0] + fx1 * tmp if c > 0.0 else q + fx1 * tmp
 
 
-def compute_al(q, dxa, iord, is1, ie3, jfirst, jlast, kslice=slice(0, None)):
-    kstart, nk = utils.krange_from_slice(kslice, grid())
+def compute_al(q, dxa, iord, is1, ie3, jfirst, jlast, kstart=0, nk=None):
+    if nk is None:
+        nk = grid().npz - kstart
     dimensions = q.shape
     local_origin = (origin[0], origin[1], kstart)
     al = utils.make_storage_from_shape(dimensions, local_origin)
@@ -131,13 +132,14 @@ def compute_al(q, dxa, iord, is1, ie3, jfirst, jlast, kslice=slice(0, None)):
     return al
 
 
-def compute_flux(q, c, xflux, iord, jfirst, jlast, kslice=slice(0, None)):
-    kstart, nk = utils.krange_from_slice(kslice, grid())
+def compute_flux(q, c, xflux, iord, jfirst, jlast, kstart=0, nk=None):
+    if nk is None:
+        nk = grid().npz - kstart
     mord = abs(iord)
     # output  storage
     is1 = grid().is_ + 2 if grid().west_edge else grid().is_ - 1
     ie3 = grid().ie - 1 if grid().east_edge else grid().ie + 2
-    al = compute_al(q, grid().dxa, iord, is1, ie3, jfirst, jlast, kslice)
+    al = compute_al(q, grid().dxa, iord, is1, ie3, jfirst, jlast, kstart, nk)
     get_flux(
         q,
         c,
