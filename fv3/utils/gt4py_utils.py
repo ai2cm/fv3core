@@ -125,21 +125,6 @@ def k_slice(data_dict, ki):
     return new_dict
 
 
-"""
-def compute_column_split(
-    func, data, column_split, split_varname, outputs, grid, allz=False
-):
-    num_k = grid.npz
-    grid_data = cp.deepcopy(grid.data_fields)
-    for kval in np.unique(column_split):
-        ki = [i for i in range(num_k) if column_split[i] == kval]
-        k_subset_run(
-            func, data, {split_varname: kval}, ki, outputs, grid_data, grid, allz
-        )
-    grid.npz = num_k
-"""
-
-
 def k_subset_run(func, data, splitvars, ki, outputs, grid_data, grid, allz=False):
     grid.npz = len(ki)
     grid.slice_data_k(ki)
@@ -158,9 +143,6 @@ def collect_results(data, results, outputs, ki, allz=False):
         if k in data:
             # passing fields with single item in 3rd dimension leads to errors
             outputs[k][:, :, ki[:endz]] = data[k][:, :, :endz]
-            # outnames.remove(k)
-        # else:
-        #    print(k, 'not in data')
     if results is not None:
         for ri in range(len(results)):
             outputs[outnames[ri]][:, :, ki[:endz]] = results[ri][:, :, :endz]
