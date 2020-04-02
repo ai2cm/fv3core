@@ -124,7 +124,8 @@ def k_slice(data_dict, ki):
         k_slice_operation(k, v, ki, new_dict)
     return new_dict
 
-'''
+
+"""
 def compute_column_split(
     func, data, column_split, split_varname, outputs, grid, allz=False
 ):
@@ -136,7 +137,8 @@ def compute_column_split(
             func, data, {split_varname: kval}, ki, outputs, grid_data, grid, allz
         )
     grid.npz = num_k
-'''
+"""
+
 
 def k_subset_run(func, data, splitvars, ki, outputs, grid_data, grid, allz=False):
     grid.npz = len(ki)
@@ -176,6 +178,7 @@ def k_split_run_dataslice(
         k_subset_run(func, data, splitvars, ki, outputs, grid_data, grid, allz)
     grid.npz = num_k
 
+
 def get_kstarts(column_info, npz):
     compare = None
     kstarts = []
@@ -191,16 +194,19 @@ def get_kstarts(column_info, npz):
         kstarts[i] = (kstarts[i], kstarts[i + 1] - kstarts[i])
     kstarts[-1] = (kstarts[-1], npz - kstarts[-1])
     return kstarts
-    
+
+
 def k_split_run(func, data, k_indices, splitvars_values):
     for ki, nk in k_indices:
         splitvars = {}
         for name, value_array in splitvars_values.items():
             splitvars[name] = value_array[ki]
         data.update(splitvars)
-        data['kstart'] = ki
-        data['nk'] = nk
-        logger.debug("Running kstart: {}, num k:{}, variables:{}".format(ki, nk, splitvars))
+        data["kstart"] = ki
+        data["nk"] = nk
+        logger.debug(
+            "Running kstart: {}, num k:{}, variables:{}".format(ki, nk, splitvars)
+        )
         func(**data)
 
 
@@ -210,11 +216,13 @@ def kslice_from_inputs(kstart, nk, grid):
     kslice = slice(kstart, kstart + nk)
     return [kslice, nk]
 
+
 def krange_from_slice(kslice, grid):
     kstart = kslice.start
     kend = kslice.stop
     nk = grid.npz - kstart if kend is None else kend - kstart
     return kstart, nk
+
 
 def great_circle_dist(p1, p2, radius=None):
     beta = (

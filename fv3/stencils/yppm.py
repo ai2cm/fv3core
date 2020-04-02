@@ -187,13 +187,21 @@ def compute_al(q, dyvar, jord, ifirst, ilast, js1, je3, kstart=0, nk=None):
             # South Edge
             if grid().south_edge:
                 al_x_edge_0(
-                    q, dyvar, al, origin=(0, grid().js - 1, kstart), domain=x_edge_domain
+                    q,
+                    dyvar,
+                    al,
+                    origin=(0, grid().js - 1, kstart),
+                    domain=x_edge_domain,
                 )
                 al_x_edge_1(
                     q, dyvar, al, origin=(0, grid().js, kstart), domain=x_edge_domain
                 )
                 al_x_edge_2(
-                    q, dyvar, al, origin=(0, grid().js + 1, kstart), domain=x_edge_domain
+                    q,
+                    dyvar,
+                    al,
+                    origin=(0, grid().js + 1, kstart),
+                    domain=x_edge_domain,
                 )
             # North Edge
             if grid().north_edge:
@@ -201,10 +209,18 @@ def compute_al(q, dyvar, jord, ifirst, ilast, js1, je3, kstart=0, nk=None):
                     q, dyvar, al, origin=(0, grid().je, kstart), domain=x_edge_domain
                 )
                 al_x_edge_1(
-                    q, dyvar, al, origin=(0, grid().je + 1, kstart), domain=x_edge_domain
+                    q,
+                    dyvar,
+                    al,
+                    origin=(0, grid().je + 1, kstart),
+                    domain=x_edge_domain,
                 )
                 al_x_edge_2(
-                    q, dyvar, al, origin=(0, grid().je + 2, kstart), domain=x_edge_domain
+                    q,
+                    dyvar,
+                    al,
+                    origin=(0, grid().je + 2, kstart),
+                    domain=x_edge_domain,
                 )
     return al
 
@@ -218,5 +234,11 @@ def compute_flux(q, c, flux, jord, ifirst, ilast, kstart=0, nk=None):
     mord = abs(jord)
     flux_domain = (ilast - ifirst + 1, grid().njc + 1, nk)
     get_flux_stencil(
-        q, c, al, flux, mord=mord, origin=(ifirst, grid().js, kstart), domain=flux_domain
+        q,
+        c,
+        al,
+        flux,
+        mord=mord,
+        origin=(ifirst, grid().js, kstart),
+        domain=flux_domain,
     )

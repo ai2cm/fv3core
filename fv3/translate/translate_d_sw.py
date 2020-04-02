@@ -79,6 +79,7 @@ class TranslateD_SW(TranslateFortranData2Py):
         raise Exception('stop')
         """
         return self.slice_output(inputs)
+
     '''
     # For child tranlate tests where nord and damp column processing applies
     def nord_column_split_compute(self, inputs, func):

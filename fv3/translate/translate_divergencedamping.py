@@ -31,5 +31,3 @@ class TranslateDivergenceDamping(TranslateFortranData2Py):
 
     def compute(self, inputs):
         return self.column_split_compute(inputs, {"nord": "nord_col", "d2_bg": "d2_bg"})
-
-   

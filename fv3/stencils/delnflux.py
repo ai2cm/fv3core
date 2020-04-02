@@ -79,7 +79,9 @@ def diffusive_damp_y(fy: sd, fy2: sd, mass: sd, damp: float):
         fy[0, 0, 0] = fy + 0.5 * damp * (mass[0, -1, 0] + mass) * fy2
 
 
-def compute_delnflux_no_sg(q, fx, fy, nord, damp_c, kstart=0, nk=None, d2=None, mass=None):
+def compute_delnflux_no_sg(
+    q, fx, fy, nord, damp_c, kstart=0, nk=None, d2=None, mass=None
+):
     grid = spec.grid
     if nk is None:
         nk = grid.npz - kstart
@@ -158,12 +160,7 @@ def compute_no_sg(q, fx2, fy2, nord, damp_c, d2, kstart=0, nk=None, mass=None):
             nt_ny = grid.je - grid.js + 3 + 2 * nt
             nt_nx = grid.ie - grid.is_ + 3 + 2 * nt
             d2_highorder(
-                fx2,
-                fy2,
-                grid.rarea,
-                d2,
-                origin=nt_origin,
-                domain=(nt_nx, nt_ny, nk),
+                fx2, fy2, grid.rarea, d2, origin=nt_origin, domain=(nt_nx, nt_ny, nk),
             )
 
             corners.copy_corners(d2, "x", grid, kslice)
@@ -187,5 +184,3 @@ def compute_no_sg(q, fx2, fy2, nord, damp_c, d2, kstart=0, nk=None, mass=None):
                 origin=nt_origin,
                 domain=(nt_nx - 2, nt_ny - 1, nk),
             )
-
-    

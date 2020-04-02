@@ -132,7 +132,7 @@ def smagorinksy_diffusion_approx(delpc, vort, dt, kstart, nk):
 def vorticity_calc(wk, vort, delpc, dt, nord, kstart, nk):
     if nord != 0:
         if spec.namelist["dddmp"] < 1e-5:
-            vort[:, :, kstart:kstart + nk] = 0
+            vort[:, :, kstart : kstart + nk] = 0
         else:
             if spec.namelist["grid_type"] < 3:
                 a2b_ord4.compute(wk, vort, kstart, nk, False)
@@ -141,7 +141,25 @@ def vorticity_calc(wk, vort, delpc, dt, nord, kstart, nk):
                 raise Exception("Not implemented, smag_corner")
 
 
-def compute(u, v, va, ptc, vort, ua, divg_d, vc, uc, delpc, ke, wk, d2_bg, dt, nord, kstart=0, nk=None):
+def compute(
+    u,
+    v,
+    va,
+    ptc,
+    vort,
+    ua,
+    divg_d,
+    vc,
+    uc,
+    delpc,
+    ke,
+    wk,
+    d2_bg,
+    dt,
+    nord,
+    kstart=0,
+    nk=None,
+):
     grid = spec.grid
     if nk is None:
         nk = grid.npz - kstart
@@ -158,7 +176,7 @@ def compute(u, v, va, ptc, vort, ua, divg_d, vc, uc, delpc, ke, wk, d2_bg, dt, n
             divg_d,
             delpc,
             origin=(grid.is_, grid.js, kstart),
-            domain=(grid.nic + 1, grid.njc + 1, nk)
+            domain=(grid.nic + 1, grid.njc + 1, nk),
         )
         for n in range(1, nord + 1):
             nt = nord - n
@@ -250,13 +268,15 @@ def compute(u, v, va, ptc, vort, ua, divg_d, vc, uc, delpc, ke, wk, d2_bg, dt, n
             spec.namelist["dddmp"],
             dd8,
             origin=(grid.is_, grid.js, kstart),
-            domain=(grid.nic + 1, grid.njc + 1, nk)
+            domain=(grid.nic + 1, grid.njc + 1, nk),
         )
 
     return vort, ke, delpc
 
 
-def damping_zero_order(u, v, va, ptc, vort, ua, vc, uc, delpc, ke, d2_bg, dt, is2, ie1, kstart, nk):
+def damping_zero_order(
+    u, v, va, ptc, vort, ua, vc, uc, delpc, ke, d2_bg, dt, is2, ie1, kstart, nk
+):
     grid = spec.grid
     if not grid.nested:
         # TODO: ptc and vort are equivalent, but x vs y, consolidate if possible
@@ -332,11 +352,7 @@ def damping_zero_order(u, v, va, ptc, vort, ua, vc, uc, delpc, ke, d2_bg, dt, is
     compute_origin = (grid.is_, grid.js, kstart)
     compute_domain = (grid.nic + 1, grid.njc + 1, nk)
     delpc_main(
-        vort,
-        ptc,
-        delpc,
-        origin=compute_origin,
-        domain=compute_domain,
+        vort, ptc, delpc, origin=compute_origin, domain=compute_domain,
     )
     corner_domain = (1, 1, nk)
     if grid.sw_corner:
