@@ -9,16 +9,6 @@ import fv3.utils.corners as corners
 sd = utils.sd
 origin = utils.origin
 
-##
-## Corner value stencils
-##-----------------------
-
-
-@utils.stencil()
-def compute_sw_corner(A: sd):
-    with computation(PARALLEL), interval(...):
-        A = A + A[-1, 0, 0] + A[0, -1, 0]
-
 
 ##
 ## Flux value stencils
@@ -66,9 +56,6 @@ def copy_column(A: sd):
 def corner_fill(grid, q):
     r3 = 1.0 / 3.0
     if grid.sw_corner:
-        # compute_sw_corner(q, origin=grid.compute_origin(), domain=grid.corner_domain())
-        # copy_row(q, origin=(grid.is_-1,grid.js,0), domain=grid.corner_domain())
-        # copy_column(q, origin=(grid.is_,grid.js-1,0), domain=grid.corner_domain())
         q[grid.is_, grid.js, :] = (
             q[grid.is_, grid.js, :]
             + q[grid.is_ - 1, grid.js, :]
