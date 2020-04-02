@@ -81,14 +81,17 @@ def diffusive_damp_y(fy: sd, fy2: sd, mass: sd, damp: float):
 
 def compute_delnflux_no_sg(q, fx, fy, nord, damp_c, kstart=0, nk=None, d2=None, mass=None):
     grid = spec.grid
+    if nk is None:
+        nk = grid.npz - kstart
+    default_origin = (grid.isd, grid.jsd, kstart)
     if d2 is None:
-        d2 = utils.make_storage_from_shape(q.shape, grid.default_origin())
+        d2 = utils.make_storage_from_shape(q.shape, default_origin)
     if damp_c <= 1e-4:
         return fx, fy
     damp = (damp_c * grid.da_min) ** (nord + 1)
-    fx2 = utils.make_storage_from_shape(q.shape, grid.default_origin())
-    fy2 = utils.make_storage_from_shape(q.shape, grid.default_origin())
-    fx2, fy2, d2, q = compute_no_sg(q, fx2, fy2, nord, damp, d2, kstart, nk, mass)
+    fx2 = utils.make_storage_from_shape(q.shape, default_origin)
+    fy2 = utils.make_storage_from_shape(q.shape, default_origin)
+    compute_no_sg(q, fx2, fy2, nord, damp, d2, kstart, nk, mass)
     diffuse_domain = (grid.nic + 1, grid.njc + 1, nk)
     if mass is None:
         add_diffusive(
@@ -185,4 +188,4 @@ def compute_no_sg(q, fx2, fy2, nord, damp_c, d2, kstart=0, nk=None, mass=None):
                 domain=(nt_nx - 2, nt_ny - 1, nk),
             )
 
-    return fx2, fy2, d2, q
+    
