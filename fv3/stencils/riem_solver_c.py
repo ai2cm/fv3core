@@ -39,7 +39,7 @@ def compute(ms, dt2, akap, cappa, ptop, hs, w3, ptc, q_con, delpc, gz, pef, ws):
             peg[:, kslice_shift] / peg[:, kslice]
         )
         gm2 = 1.0 / (1 - cp2)
-        dm2 = dm2 / constants.GRAV
+        dm2 = dm2 / constants.GRAV_APPROX
         w2 = np.copy(w3[islice, j, kslice])
 
         sim1_solver.solve(

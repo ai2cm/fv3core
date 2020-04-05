@@ -9,7 +9,6 @@ import math
 
 sd = utils.sd
 
-
 # TODO: this is totally inefficient, can we use stencils?
 def compute(
     last_call,
@@ -31,7 +30,7 @@ def compute(
     peln,
     wsd,
 ):
-    rgrav = 1.0 / constants.GRAV
+    rgrav = 1.0 / constants.GRAV_APPROX
     km = spec.grid.npz - 1
     peln1 = math.log(ptop)
     ptk = math.exp(akap * peln1)
@@ -48,7 +47,6 @@ def compute(
     peln2 = np.zeros(shape1)
     peg = np.zeros(shape1)
     pelng = np.zeros(shape1)
-
     for j in range(spec.grid.js, spec.grid.je + 1):
         dm2 = np.squeeze(dm.data[islice, j, kslice])
         cp2 = np.squeeze(cp3.data[islice, j, kslice])
@@ -74,7 +72,6 @@ def compute(
         w2 = w[islice, j, kslice]
         pt2 = pt.data[islice, j, kslice]
         ws2 = wsd[islice, j, :]
-
         sim1_solver.solve(
             spec.grid.is_,
             spec.grid.ie,

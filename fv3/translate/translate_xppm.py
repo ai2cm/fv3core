@@ -1,5 +1,6 @@
 from fv3.translate.translate import TranslateFortranData2Py, TranslateGrid
 import fv3.stencils.xppm as xppm
+import fv3.utils.gt4py_utils as utils
 
 
 class TranslateXPPM(TranslateFortranData2Py):
@@ -23,6 +24,8 @@ class TranslateXPPM(TranslateFortranData2Py):
     def jvars(self, inputs):
         inputs["jfirst"] += TranslateGrid.fpy_model_index_offset
         inputs["jlast"] += TranslateGrid.fpy_model_index_offset
+        inputs["jfirst"] = self.grid.global_to_local_y(inputs["jfirst"])
+        inputs["jlast"] = self.grid.global_to_local_y(inputs["jlast"])
 
     def process_inputs(self, inputs):
         self.jvars(inputs)
@@ -30,8 +33,9 @@ class TranslateXPPM(TranslateFortranData2Py):
 
     def compute(self, inputs):
         self.process_inputs(inputs)
-        flux = self.compute_func(**inputs)
-        return self.slice_output(inputs, {"xflux": flux})
+        inputs["xflux"] = utils.make_storage_from_shape(inputs["q"].shape, xppm.origin)
+        self.compute_func(**inputs)
+        return self.slice_output(inputs)
 
 
 class TranslateXPPM_2(TranslateXPPM):

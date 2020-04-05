@@ -9,7 +9,7 @@ import logging
 import functools
 
 logger = logging.getLogger("fv3ser")
-backend = "numpy"  # Options: numpy, gtmc, gtx86, gtcuda, debug, dawn:gtmc
+backend = None  # Options: numpy, gtmc, gtx86, gtcuda, debug, dawn:gtmc
 rebuild = True
 _dtype = np.float_
 sd = gtscript.Field[_dtype]
@@ -45,22 +45,15 @@ def _data_backend(backend: str):
         return backend
 
 
-def make_storage_data(
-    array, full_shape, istart=0, jstart=0, kstart=0, origin=origin, backend=backend
-):
+def make_storage_data(array, full_shape, istart=0, jstart=0, kstart=0, origin=origin):
     full_np_arr = np.zeros(full_shape)
     if len(array.shape) == 2:
         return make_storage_data_from_2d(
-            array,
-            full_shape,
-            istart=istart,
-            jstart=jstart,
-            origin=origin,
-            backend=backend,
+            array, full_shape, istart=istart, jstart=jstart, origin=origin,
         )
     elif len(array.shape) == 1:
         return make_storage_data_from_1d(
-            array, full_shape, kstart=kstart, origin=origin, backend=backend
+            array, full_shape, kstart=kstart, origin=origin
         )
     else:
         isize, jsize, ksize = array.shape
@@ -73,9 +66,8 @@ def make_storage_data(
 
 
 def make_storage_data_from_2d(
-    array2d, full_shape, istart=0, jstart=0, origin=origin, backend=backend, axis=2
+    array2d, full_shape, istart=0, jstart=0, origin=origin, axis=2
 ):
-
     # full_np_arr_3d = np.lib.stride_tricks.as_strided(full_np_arr_2d, shape=full_shape, strides=(*full_np_arr_2d.strides, 0))
     if axis == 2:
         shape2d = full_shape[0:2]
@@ -98,23 +90,18 @@ def make_storage_data_from_2d(
     )
 
 
-def make_2d_storage_data(
-    array2d, shape2d, istart=0, jstart=0, origin=origin, backend=backend
-):
+def make_2d_storage_data(array2d, shape2d, istart=0, jstart=0, origin=origin):
     # might not be i and j, could be i and k, j and k
     isize, jsize = array2d.shape
     full_np_arr_2d = np.zeros(shape2d)
     full_np_arr_2d[istart : istart + isize, jstart : jstart + jsize, 0] = array2d
-
     return gt.storage.from_array(
         data=full_np_arr_2d, backend=backend, default_origin=origin, shape=shape2d
     )
 
 
 # TODO: surely there's a shorter, more generic way to do this.
-def make_storage_data_from_1d(
-    array1d, full_shape, kstart=0, origin=origin, backend=backend, axis=2
-):
+def make_storage_data_from_1d(array1d, full_shape, kstart=0, origin=origin, axis=2):
     # r = np.zeros(full_shape)
     tilespec = list(full_shape)
     full_1d = np.zeros(full_shape[axis])
@@ -134,7 +121,7 @@ def make_storage_data_from_1d(
     )
 
 
-def make_storage_from_shape(shape, origin, backend=backend):
+def make_storage_from_shape(shape, origin):
     return gt.storage.from_array(
         data=np.zeros(shape), backend=backend, default_origin=origin, shape=shape,
     )
@@ -161,49 +148,85 @@ def k_slice(data_dict, ki):
     return new_dict
 
 
-def compute_column_split(func, data, column_split, split_varname, outputs, grid):
-    num_k = grid.npz
-    grid_data = cp.deepcopy(grid.data_fields)
-    for kval in np.unique(column_split):
-        ki = [i for i in range(num_k) if column_split[i] == kval]
-        k_subset_run(func, data, {split_varname: kval}, ki, outputs, grid_data, grid)
-    grid.npz = num_k
-
-
-def k_subset_run(func, data, splitvars, ki, outputs, grid_data, grid):
+def k_subset_run(func, data, splitvars, ki, outputs, grid_data, grid, allz=False):
     grid.npz = len(ki)
     grid.slice_data_k(ki)
     d = k_slice(data, ki)
     d.update(splitvars)
     results = func(**d)
-    collect_results(d, results, outputs, ki)
+    collect_results(d, results, outputs, ki, allz)
     grid.add_data(grid_data)
 
 
-def collect_results(data, results, outputs, ki):
+def collect_results(data, results, outputs, ki, allz=False):
     outnames = list(outputs.keys())
+    endz = None if allz else -1
     logger.debug("Computing results for k indices: {}".format(ki[:-1]))
     for k in outnames:
         if k in data:
             # passing fields with single item in 3rd dimension leads to errors
-            outputs[k][:, :, ki[:-1]] = data[k][:, :, :-1]
-            # outnames.remove(k)
-        # else:
-        #    print(k, 'not in data')
+            outputs[k][:, :, ki[:endz]] = data[k][:, :, :endz]
     if results is not None:
         for ri in range(len(results)):
-            outputs[outnames[ri]][:, :, ki[:-1]] = results[ri][:, :, :-1]
+            outputs[outnames[ri]][:, :, ki[:endz]] = results[ri][:, :, :endz]
 
 
-def k_split_run(func, data, k_indices_array, splitvars_values, outputs, grid):
+def k_split_run_dataslice(
+    func, data, k_indices_array, splitvars_values, outputs, grid, allz=False
+):
     num_k = grid.npz
     grid_data = cp.deepcopy(grid.data_fields)
     for ki in k_indices_array:
         splitvars = {}
         for name, value_array in splitvars_values.items():
             splitvars[name] = value_array[ki[0]]
-        k_subset_run(func, data, splitvars, ki, outputs, grid_data, grid)
+        k_subset_run(func, data, splitvars, ki, outputs, grid_data, grid, allz)
     grid.npz = num_k
+
+
+def get_kstarts(column_info, npz):
+    compare = None
+    kstarts = []
+    for k in range(npz):
+        column_vals = {}
+        for q, v in column_info.items():
+            if k < len(v):
+                column_vals[q] = v[k]
+        if column_vals != compare:
+            kstarts.append(k)
+            compare = column_vals
+    for i in range(len(kstarts) - 1):
+        kstarts[i] = (kstarts[i], kstarts[i + 1] - kstarts[i])
+    kstarts[-1] = (kstarts[-1], npz - kstarts[-1])
+    return kstarts
+
+
+def k_split_run(func, data, k_indices, splitvars_values):
+    for ki, nk in k_indices:
+        splitvars = {}
+        for name, value_array in splitvars_values.items():
+            splitvars[name] = value_array[ki]
+        data.update(splitvars)
+        data["kstart"] = ki
+        data["nk"] = nk
+        logger.debug(
+            "Running kstart: {}, num k:{}, variables:{}".format(ki, nk, splitvars)
+        )
+        func(**data)
+
+
+def kslice_from_inputs(kstart, nk, grid):
+    if nk is None:
+        nk = grid.npz - kstart
+    kslice = slice(kstart, kstart + nk)
+    return [kslice, nk]
+
+
+def krange_from_slice(kslice, grid):
+    kstart = kslice.start
+    kend = kslice.stop
+    nk = grid.npz - kstart if kend is None else kend - kstart
+    return kstart, nk
 
 
 def great_circle_dist(p1, p2, radius=None):
