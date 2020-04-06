@@ -49,4 +49,4 @@ def compute(ms, dt2, akap, cappa, ptop, hs, w3, ptc, q_con, delpc, gz, pef, ws):
         pef[islice, j, kslice_shift] = pe2[:, kslice_shift] + pem[:, kslice_shift]
         gz[islice, j, km + 1] = hs[islice, j, 0]
         for k in range(km, -1, -1):
-            gz[islice, j, k] = gz[islice, j, k + 1] - dz2[:, k] * constants.GRAV
+            gz[islice, j, k] = gz[islice, j, k + 1] - dz2[:, k] * constants.GRAV_APPROX
