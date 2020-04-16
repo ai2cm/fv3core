@@ -38,6 +38,7 @@ from .translate_riem_solver3 import TranslateRiem_Solver3
 from .translate_riem_solver_c import TranslateRiem_Solver_C
 from .translate_pe_halo import TranslatePE_Halo
 from .translate_pk3_halo import TranslatePK3_Halo
+from .translate_del2cubed import TranslateDel2Cubed
 from .translate_d2a2c_vect import TranslateD2A2C_Vect
 from .translate_updatedzd import TranslateUpdateDzD
 from .translate_nh_p_grad import TranslateNH_P_Grad
