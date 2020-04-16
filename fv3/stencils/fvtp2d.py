@@ -42,9 +42,25 @@ def compute(data, nord_column):
     raise NotImplementedError()
 
 
-def compute_no_sg(q, crx, cry, hord, xfx, yfx, ra_x, ra_y, fx, fy,
-                  kstart=0, nk=None, nord=None, damp_c=None,
-                  mass=None, mfx=None, mfy=None):
+def compute_no_sg(
+    q,
+    crx,
+    cry,
+    hord,
+    xfx,
+    yfx,
+    ra_x,
+    ra_y,
+    fx,
+    fy,
+    kstart=0,
+    nk=None,
+    nord=None,
+    damp_c=None,
+    mass=None,
+    mfx=None,
+    mfy=None,
+):
     grid = spec.grid
     if nk is None:
         nk = grid.npz - kstart
@@ -61,34 +77,50 @@ def compute_no_sg(q, crx, cry, hord, xfx, yfx, ra_x, ra_y, fx, fy,
     ord_ou = hord
     corners.copy_corners(q, "y", grid, kslice)
     yppm.compute_flux(q, cry, fy2, ord_in, grid.isd, grid.ied, kstart=kstart, nk=nk)
-    q_i_stencil(q, grid.area, yfx, fy2, ra_y, q_i,
-                origin=(grid.isd, grid.js, kstart),
-                domain=(grid.nid, grid.njc + 1, nk))
-    
+    q_i_stencil(
+        q,
+        grid.area,
+        yfx,
+        fy2,
+        ra_y,
+        q_i,
+        origin=(grid.isd, grid.js, kstart),
+        domain=(grid.nid, grid.njc + 1, nk),
+    )
+
     xppm.compute_flux(q_i, crx, fx, ord_ou, grid.js, grid.je, kstart=kstart, nk=nk)
     corners.copy_corners(q, "x", grid, kslice)
     xppm.compute_flux(q, crx, fx2, ord_in, grid.jsd, grid.jed, kstart=kstart, nk=nk)
-    q_j_stencil(q, grid.area, xfx, fx2, ra_x, q_j,
-                origin=(grid.is_, grid.jsd, kstart),
-                domain=(grid.nic + 1, grid.njd, nk))
+    q_j_stencil(
+        q,
+        grid.area,
+        xfx,
+        fx2,
+        ra_x,
+        q_j,
+        origin=(grid.is_, grid.jsd, kstart),
+        domain=(grid.nic + 1, grid.njd, nk),
+    )
     yppm.compute_flux(q_j, cry, fy, ord_ou, grid.is_, grid.ie, kstart=kstart, nk=nk)
-    
+
     if mfx is not None and mfy is not None:
-        transport_flux(fx, fx2, mfx,
-                       origin=compute_origin,
-                       domain=(grid.nic + 1, grid.njc, nk))
-        transport_flux(fy, fy2, mfy,
-                       origin=compute_origin,
-                       domain=(grid.nic, grid.njc + 1, nk))
+        transport_flux(
+            fx, fx2, mfx, origin=compute_origin, domain=(grid.nic + 1, grid.njc, nk)
+        )
+        transport_flux(
+            fy, fy2, mfy, origin=compute_origin, domain=(grid.nic, grid.njc + 1, nk)
+        )
         if (mass is not None) and (nord is not None) and (damp_c is not None):
-            delnflux.compute_delnflux_no_sg(q, fx, fy, nord, damp_c, kstart, nk, mass=mass)
+            delnflux.compute_delnflux_no_sg(
+                q, fx, fy, nord, damp_c, kstart, nk, mass=mass
+            )
     else:
 
-        transport_flux(fx, fx2, xfx,
-                       origin=compute_origin,
-                       domain=(grid.nic + 1, grid.njc, nk))
-        transport_flux(fy, fy2, yfx,
-                       origin=compute_origin,
-                       domain=(grid.nic, grid.njc + 1, nk))
+        transport_flux(
+            fx, fx2, xfx, origin=compute_origin, domain=(grid.nic + 1, grid.njc, nk)
+        )
+        transport_flux(
+            fy, fy2, yfx, origin=compute_origin, domain=(grid.nic, grid.njc + 1, nk)
+        )
         if (nord is not None) and (damp_c is not None):
             delnflux.compute_delnflux_no_sg(q, fx, fy, nord, damp_c, kstart, nk)

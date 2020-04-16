@@ -2,6 +2,7 @@ import fv3.stencils.fvtp2d as fvtp2d
 from fv3.translate.translate import TranslateFortranData2Py
 import fv3.utils.gt4py_utils as utils
 
+
 class TranslateFvTp2d(TranslateFortranData2Py):
     def __init__(self, grid):
         super().__init__(grid)
@@ -30,13 +31,19 @@ class TranslateFvTp2d(TranslateFortranData2Py):
 
     # use_sg -- 'dx', 'dy', 'rdxc', 'rdyc', 'sin_sg needed
     def compute(self, inputs):
-        inputs['fx'] = utils.make_storage_from_shape(self.maxshape, self.grid.default_origin())
-        inputs['fy'] = utils.make_storage_from_shape(self.maxshape, self.grid.default_origin())
+        inputs["fx"] = utils.make_storage_from_shape(
+            self.maxshape, self.grid.default_origin()
+        )
+        inputs["fy"] = utils.make_storage_from_shape(
+            self.maxshape, self.grid.default_origin()
+        )
         for optional_arg in ["mass", "mfx", "mfy"]:
             if optional_arg not in inputs:
                 inputs[optional_arg] = None
-        return self.column_split_compute(inputs, {"nord": "nord_column", "damp_c": "damp_c"})
-    
+        return self.column_split_compute(
+            inputs, {"nord": "nord_column", "damp_c": "damp_c"}
+        )
+
 
 class TranslateFvTp2d_2(TranslateFvTp2d):
     def __init__(self, grid):

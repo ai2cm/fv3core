@@ -38,12 +38,12 @@ class TranslateCS_Profile_2d(TranslateFortranData2Py):
             print(serialname)
 
             shapes = np.squeeze(inputs[serialname]).shape
-            if len(shapes)==2:
-                #suppress j
+            if len(shapes) == 2:
+                # suppress j
                 dummy_axes = [1]
-            elif len(shapes)==1:
-                #suppress j and k
-                dummy_axes = [1,2]
+            elif len(shapes) == 1:
+                # suppress j and k
+                dummy_axes = [1, 2]
             else:
                 dummy_axes = None
 

@@ -45,7 +45,9 @@ def _data_backend(backend: str):
         return backend
 
 
-def make_storage_data(array, full_shape, istart=0, jstart=0, kstart=0, origin=origin,dummy=None):
+def make_storage_data(
+    array, full_shape, istart=0, jstart=0, kstart=0, origin=origin, dummy=None
+):
     full_np_arr = np.zeros(full_shape)
     if len(array.shape) == 2:
         return make_storage_data_from_2d(
@@ -53,8 +55,8 @@ def make_storage_data(array, full_shape, istart=0, jstart=0, kstart=0, origin=or
         )
     elif len(array.shape) == 1:
         if dummy:
-            axes=[0,1,2]
-            axis=list(set(axes).difference(dummy))[0]
+            axes = [0, 1, 2]
+            axis = list(set(axes).difference(dummy))[0]
             return make_storage_data_from_1d(
                 array, full_shape, kstart=kstart, origin=origin, axis=axis, dummy=dummy,
             )
@@ -72,10 +74,12 @@ def make_storage_data(array, full_shape, istart=0, jstart=0, kstart=0, origin=or
         )
 
 
-def make_storage_data_from_2d(array2d, full_shape, istart=0, jstart=0, origin=origin,dummy=None):
+def make_storage_data_from_2d(
+    array2d, full_shape, istart=0, jstart=0, origin=origin, dummy=None
+):
     if dummy:
         d_axis = dummy[0]
-        shape2d = full_shape[:d_axis] + full_shape[d_axis+1:]
+        shape2d = full_shape[:d_axis] + full_shape[d_axis + 1 :]
     else:
         shape2d = full_shape[0:2]
     isize, jsize = array2d.shape
@@ -85,14 +89,18 @@ def make_storage_data_from_2d(array2d, full_shape, istart=0, jstart=0, origin=or
     if dummy:
         full_np_arr_3d = full_np_arr_2d.reshape(full_shape)
     else:
-        full_np_arr_3d = np.repeat(full_np_arr_2d[:, :, np.newaxis], full_shape[2], axis=2)
+        full_np_arr_3d = np.repeat(
+            full_np_arr_2d[:, :, np.newaxis], full_shape[2], axis=2
+        )
     return gt.storage.from_array(
         data=full_np_arr_3d, backend=backend, default_origin=origin, shape=full_shape,
     )
 
 
 # TODO: surely there's a shorter, more generic way to do this.
-def make_storage_data_from_1d(array1d, full_shape, kstart=0, origin=origin, axis=2, dummy=None):
+def make_storage_data_from_1d(
+    array1d, full_shape, kstart=0, origin=origin, axis=2, dummy=None
+):
     # r = np.zeros(full_shape)
     tilespec = list(full_shape)
     full_1d = np.zeros(full_shape[axis])
@@ -141,7 +149,8 @@ def k_slice(data_dict, ki):
         k_slice_operation(k, v, ki, new_dict)
     return new_dict
 
-'''
+
+"""
 def compute_column_split(
     func, data, column_split, split_varname, outputs, grid, allz=False
 ):
@@ -153,7 +162,8 @@ def compute_column_split(
             func, data, {split_varname: kval}, ki, outputs, grid_data, grid, allz
         )
     grid.npz = num_k
-'''
+"""
+
 
 def k_subset_run(func, data, splitvars, ki, outputs, grid_data, grid, allz=False):
     grid.npz = len(ki)
@@ -193,6 +203,7 @@ def k_split_run_dataslice(
         k_subset_run(func, data, splitvars, ki, outputs, grid_data, grid, allz)
     grid.npz = num_k
 
+
 def get_kstarts(column_info, npz):
     compare = None
     kstarts = []
@@ -208,16 +219,19 @@ def get_kstarts(column_info, npz):
         kstarts[i] = (kstarts[i], kstarts[i + 1] - kstarts[i])
     kstarts[-1] = (kstarts[-1], npz - kstarts[-1])
     return kstarts
-    
+
+
 def k_split_run(func, data, k_indices, splitvars_values):
     for ki, nk in k_indices:
         splitvars = {}
         for name, value_array in splitvars_values.items():
             splitvars[name] = value_array[ki]
         data.update(splitvars)
-        data['kstart'] = ki
-        data['nk'] = nk
-        logger.debug("Running kstart: {}, num k:{}, variables:{}".format(ki, nk, splitvars))
+        data["kstart"] = ki
+        data["nk"] = nk
+        logger.debug(
+            "Running kstart: {}, num k:{}, variables:{}".format(ki, nk, splitvars)
+        )
         func(**data)
 
 
@@ -227,11 +241,13 @@ def kslice_from_inputs(kstart, nk, grid):
     kslice = slice(kstart, kstart + nk)
     return [kslice, nk]
 
+
 def krange_from_slice(kslice, grid):
     kstart = kslice.start
     kend = kslice.stop
     nk = grid.npz - kstart if kend is None else kend - kstart
     return kstart, nk
+
 
 def great_circle_dist(p1, p2, radius=None):
     beta = (

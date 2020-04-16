@@ -7,79 +7,107 @@ import fv3.stencils.copy_stencil as cp
 
 sd = utils.sd
 
+
 def grid():
     return spec.grid
+
 
 @gtscript.function
 def absolute_value(in_array):
     abs_value = in_array if in_array > 0 else -in_array
     return abs_value
 
+
 @utils.stencil()
-def posdef_constraint_iv0(a4_1:sd, a4_2:sd, a4_3:sd, a4_4:sd):
+def posdef_constraint_iv0(a4_1: sd, a4_2: sd, a4_3: sd, a4_4: sd):
     with computation(PARALLEL), interval(...):
-        if a4_1 <= 0.:
+        if a4_1 <= 0.0:
             a4_2 = a4_1
             a4_3 = a4_1
-            a4_4 = 0.
+            a4_4 = 0.0
         else:
-            a32 = a4_3 - a4_2 
+            a32 = a4_3 - a4_2
             abs_32 = absolute_value(a32)
-            if abs_32 < -a4_4 :
-                if (a4_1 + 0.25*(a4_3-a4_2)**2 / a4_4 + a4_4*1./12.) < 0.:
+            if abs_32 < -a4_4:
+                if (a4_1 + 0.25 * (a4_3 - a4_2) ** 2 / a4_4 + a4_4 * 1.0 / 12.0) < 0.0:
                     if (a4_1 < a4_3) and (a4_1 < a4_2):
                         a4_3 = a4_1
                         a4_2 = a4_1
-                        a4_4 = 0.
+                        a4_4 = 0.0
                     elif a4_3 > a4_2:
-                        a4_4 = 3.*(a4_2-a4_1)
+                        a4_4 = 3.0 * (a4_2 - a4_1)
                         a4_3 = a4_2 - a4_4
                     else:
-                        a4_4 = 3.*(a4_3-a4_1)
+                        a4_4 = 3.0 * (a4_3 - a4_1)
                         a4_2 = a4_3 - a4_4
 
-@utils.stencil()
-def posdef_constraint_iv1(a4_1:sd, a4_2:sd, a4_3:sd, a4_4:sd):
-    with computation(PARALLEL), interval(...):
-        if ((a4_1 - a4_2) * (a4_1 - a4_3)) >= 0.:
-            a4_2 = a4_1
-            a4_3 = a4_1
-            a4_4 = 0.
-        else:
-            da1 = a4_3 - a4_2
-            da2 = da1**2
-            a6da = a4_4 * da1
-            if a6da < -da2:
-                a4_4 = 3.*(a4_2-a4_1)
-                a4_3 = a4_2 - a4_4
-            elif a6da > da2:
-                a4_4 = 3.*(a4_3-a4_1)
-                a4_2 = a4_3 - a4_4
 
 @utils.stencil()
-def ppm_constraint(a4_1:sd, a4_2:sd, a4_3:sd, a4_4:sd, extm:sd):
+def posdef_constraint_iv1(a4_1: sd, a4_2: sd, a4_3: sd, a4_4: sd):
+    with computation(PARALLEL), interval(...):
+        if ((a4_1 - a4_2) * (a4_1 - a4_3)) >= 0.0:
+            a4_2 = a4_1
+            a4_3 = a4_1
+            a4_4 = 0.0
+        else:
+            da1 = a4_3 - a4_2
+            da2 = da1 ** 2
+            a6da = a4_4 * da1
+            if a6da < -da2:
+                a4_4 = 3.0 * (a4_2 - a4_1)
+                a4_3 = a4_2 - a4_4
+            elif a6da > da2:
+                a4_4 = 3.0 * (a4_3 - a4_1)
+                a4_2 = a4_3 - a4_4
+
+
+@utils.stencil()
+def ppm_constraint(a4_1: sd, a4_2: sd, a4_3: sd, a4_4: sd, extm: sd):
     with computation(PARALLEL), interval(...):
         if extm:
             a4_2 = a4_1
             a4_3 = a4_1
-            a4_4 = 0.
+            a4_4 = 0.0
         else:
             da1 = a4_3 - a4_2
-            da2 = da1**2
+            da2 = da1 ** 2
             a6da = a4_4 * da1
             if a6da < -da2:
-                a4_4 = 3.*(a4_2-a4_1)
+                a4_4 = 3.0 * (a4_2 - a4_1)
                 a4_3 = a4_2 - a4_4
             elif a6da > da2:
-                a4_4 = 3.*(a4_3-a4_1)
+                a4_4 = 3.0 * (a4_3 - a4_1)
                 a4_2 = a4_3 - a4_4
+
 
 def compute(a4_1, a4_2, a4_3, a4_4, extm, iv, i1, i_extent, kstart, nk):
 
-    if iv==0:
-        posdef_constraint_iv0(a4_1, a4_2, a4_3, a4_4, origin=(i1, grid().js, kstart), domain=(i_extent, 1, nk))
-    elif iv==1:
-        posdef_constraint_iv1(a4_1, a4_2, a4_3, a4_4, origin=(i1, grid().js, kstart), domain=(i_extent, 1, nk))
+    if iv == 0:
+        posdef_constraint_iv0(
+            a4_1,
+            a4_2,
+            a4_3,
+            a4_4,
+            origin=(i1, grid().js, kstart),
+            domain=(i_extent, 1, nk),
+        )
+    elif iv == 1:
+        posdef_constraint_iv1(
+            a4_1,
+            a4_2,
+            a4_3,
+            a4_4,
+            origin=(i1, grid().js, kstart),
+            domain=(i_extent, 1, nk),
+        )
     else:
-        ppm_constraint(a4_1, a4_2, a4_3, a4_4, extm, origin=(i1, grid().js, kstart), domain=(i_extent, 1, nk))
+        ppm_constraint(
+            a4_1,
+            a4_2,
+            a4_3,
+            a4_4,
+            extm,
+            origin=(i1, grid().js, kstart),
+            domain=(i_extent, 1, nk),
+        )
     return a4_1, a4_2, a4_3, a4_4
