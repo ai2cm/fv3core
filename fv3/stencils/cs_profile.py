@@ -5,7 +5,6 @@ import fv3._config as spec
 from gt4py.gtscript import computation, interval, PARALLEL
 import fv3.stencils.copy_stencil as cp
 import fv3.stencils.cs_limiters as cs_limiters
-from math import log, abs
 
 sd = utils.sd
 
@@ -18,7 +17,7 @@ def absolute_value(in_array):
     abs_value = in_array if in_array > 0 else -in_array
     return abs_value
 
-@utils.stencil
+@utils.stencil()
 def set_vals_0(gam:sd, q:sd, delp:sd, a4_1:sd, qs:sd):
     with computation(PARALLEL):
         with interval(0,2):
@@ -41,7 +40,7 @@ def set_vals_0(gam:sd, q:sd, delp:sd, a4_1:sd, qs:sd):
     with computation(BACKWARD), interval(0,-2):
         q = q - (gam[0,0,1] * q[0,0,1])
 
-@utils.stencil
+@utils.stencil()
 def set_vals_1(gam:sd, q:sd, delp:sd, a4_1:sd, qs:sd):
     with computation(PARALLEL):
         with interval(0,1):
@@ -66,14 +65,14 @@ def set_vals_1(gam:sd, q:sd, delp:sd, a4_1:sd, qs:sd):
     with computation(BACKWARD), interval(0,-1):
         q = q - (gam[0,0,0] * q[0,0,1])
 
-@utils.stencil
+@utils.stencil()
 def set_avals(q: sd, a4_1:sd, a4_2:sd, a4_3:sd, a4_4:sd):
     with computation(PARALLEL), interval(...):
         a4_2 = q
         a4_3 = q[0, 0, 1]
         a4_4 = 3.*(2.*a4_1 - (q+q[0,0,1]))
 
-@utils.stencil
+@utils.stencil()
 def Apply_constraints(q:sd, gam:sd, a4_1:sd, a4_2:sd, a4_3:sd, iv: float):
     with computation(PARALLEL):
         with interval(1,1):
@@ -101,7 +100,7 @@ def Apply_constraints(q:sd, gam:sd, a4_1:sd, a4_2:sd, a4_3:sd, iv: float):
             a4_2 = q
             a4_3 = q[0, 0, 1]
  
-@utils.stencil
+@utils.stencil()
 def set_extm(extm:sd, a4_1:sd, a4_2:sd, a4_3:sd, gam:sd):
     with computation(PARALLEL):
         with interval(0,1):
@@ -111,7 +110,7 @@ def set_extm(extm:sd, a4_1:sd, a4_2:sd, a4_3:sd, gam:sd):
         with interval(1,-1):
             extm - gam*gam[0,0,1] < 0.
         
-@utils.stencil
+@utils.stencil()
 def set_exts(a4_4:sd, ext5:sd, ext6:sd, a4_1:sd, a4_2:sd, a4_3:sd):
     with computation(PARALLEL), interval(...):
         x0 = 2.*a4_1 - (a4_2+a4_3)
@@ -120,7 +119,7 @@ def set_exts(a4_4:sd, ext5:sd, ext6:sd, a4_1:sd, a4_2:sd, a4_3:sd):
         ext5 = absolute_value(x0) > x1
         ext6 = absolute_value(a4_4) > x1
 
-@utils.stencil
+@utils.stencil()
 def set_top_as(a4_1:sd, a4_2:sd, a4_3:sd, a4_4:sd, iv:int):
     with computation(PARALLEL):
         with interval(0,1):
@@ -138,7 +137,7 @@ def set_top_as(a4_1:sd, a4_2:sd, a4_3:sd, a4_4:sd, iv:int):
         with interval(1,None):
             a4_4 = 3*(2*a4_1 - (a4_2 + a4_3))                
 
-@utils.stencil
+@utils.stencil()
 def set_inner_as(a4_1:sd, a4_2:sd, a4_3:sd, a4_4:sd, gam:sd, extm:sd, ext5:sd, ext6:sd, kord:int):
     with computation(PARALLEL), interval(...):
         if abs(kord) < 9:
@@ -208,7 +207,7 @@ def set_inner_as(a4_1:sd, a4_2:sd, a4_3:sd, a4_4:sd, gam:sd, extm:sd, ext5:sd, e
             pass
 
 
-@utils.stencil
+@utils.stencil()
 def set_bottom_as(a4_1:sd, a4_2:sd, a4_3:sd, a4_4:sd, iv:int):
     with computation(PARALLEL):
         with interval(1,None):

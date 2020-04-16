@@ -36,3 +36,5 @@ from .translate_ytp_v import TranslateYTP_V
 from .translate_transportdelp import TranslateTransportDelp
 from .translate_updatedzd import TranslateUpdateDzD
 from .translate_nh_p_grad import TranslateNH_P_Grad
+from .translate_map1_ppm_2d import TranslateMap1_PPM_2D
+from .translate_cs_profile_2d import TranslateCS_Profile_2d

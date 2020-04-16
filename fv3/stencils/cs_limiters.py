@@ -4,7 +4,6 @@ import gt4py.gtscript as gtscript
 import fv3._config as spec
 from gt4py.gtscript import computation, interval, PARALLEL
 import fv3.stencils.copy_stencil as cp
-from math import log, abs
 
 sd = utils.sd
 
@@ -16,7 +15,7 @@ def absolute_value(in_array):
     abs_value = in_array if in_array > 0 else -in_array
     return abs_value
 
-@utils.stencil
+@utils.stencil()
 def posdef_constraint_iv0(a4_1:sd, a4_2:sd, a4_3:sd, a4_4:sd):
     with computation(PARALLEL), interval(...):
         if a4_1 <= 0.:
@@ -39,7 +38,7 @@ def posdef_constraint_iv0(a4_1:sd, a4_2:sd, a4_3:sd, a4_4:sd):
                         a4_4 = 3.*(a4_3-a4_1)
                         a4_2 = a4_3 - a4_4
 
-@utils.stencil
+@utils.stencil()
 def posdef_constraint_iv1(a4_1:sd, a4_2:sd, a4_3:sd, a4_4:sd):
     with computation(PARALLEL), interval(...):
         if ((a4_1 - a4_2) * (a4_1 - a4_3)) >= 0.:
@@ -57,7 +56,7 @@ def posdef_constraint_iv1(a4_1:sd, a4_2:sd, a4_3:sd, a4_4:sd):
                 a4_4 = 3.*(a4_3-a4_1)
                 a4_2 = a4_3 - a4_4
 
-@utils.stencil
+@utils.stencil()
 def ppm_constraint(a4_1:sd, a4_2:sd, a4_3:sd, a4_4:sd, extm:sd):
     with computation(PARALLEL), interval(...):
         if extm:

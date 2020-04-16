@@ -6,7 +6,6 @@ from gt4py.gtscript import computation, interval, PARALLEL
 import fv3.stencils.copy_stencil as cp
 import fv3.stencils.cs_profile as cs_profile
 #import fv3.stencils.ppm_profile as ppm_profile
-from math import log
 import numpy as np
 
 sd = utils.sd
@@ -16,15 +15,18 @@ def grid():
     return spec.grid
 
 @utils.stencil()
-def set_locals(dp: sd, q4_1: sd, pe1: sd, q1: sd):
+def set_locals(dp1: sd, q4_1: sd, pe1: sd, q1: sd):
     with computation(PARALLEL), interval(...):
         dp1 = pe1[0, 0, 1] - pe1
         q4_1 = q1
 
-def compute(q1, q2, pe1, pe2, km, kn, i1, i2, iv, jj, kord, qs):
+def compute(q1, pe1, pe2, qs, iv, jj, kord):
     grid = spec.grid
-    i_extent = i2-i1+1
-    km = grid.npz
+    i1=grid.is_
+    i_extent = grid.nid
+    i2= i1 + i_extent - 1
+    km = grid.npz - 1
+    kn = grid.npz - 1
     r3 = 1./3.
     r23 = 2./3.
     orig = (grid.is_, grid.js, 0)
@@ -43,7 +45,6 @@ def compute(q1, q2, pe1, pe2, km, kn, i1, i2, iv, jj, kord, qs):
     # else:
     #     ppm_profile.compute(q4_1, q4_2, q4_3, q4_4, dp1, km, i1, i2, iv, kord)
 
-    i_domain = i2-i1+1
     i_vals = np.arange(i1,i2+1)
     for ii in i_vals:
         k0 = 0
