@@ -33,6 +33,17 @@ class TranslateFortranData2Py:
         outputs = self.compute_func(**inputs)
         return self.slice_output(inputs)
 
+    def column_split_compute(self, inputs, info_mapping):
+        column_info = {}
+        for pyfunc_var, serialbox_var in info_mapping.items():
+            column_info[pyfunc_var] = self.column_namelist_vals(serialbox_var, inputs)
+        self.make_storage_data_input_vars(inputs)
+        for k in info_mapping.values():
+            del inputs[k]
+        kstarts = utils.get_kstarts(column_info, self.grid.npz)
+        utils.k_split_run(self.compute_func, inputs, kstarts, column_info)
+        return self.slice_output(inputs)
+
     def collect_input_data(
         self, serializer, savepoint,
     ):
@@ -112,9 +123,12 @@ class TranslateFortranData2Py:
         for d, info in storage_vars.items():
             serialname = info["serialname"] if "serialname" in info else d
             self.update_info(info, inputs)
+            if "kaxis" in info:
+                inputs[serialname] = np.moveaxis(inputs[serialname], info["kaxis"], 2)
             istart, jstart, kstart = self.collect_start_indices(
                 inputs[serialname].shape, info
             )
+
             logger.debug(
                 "Making storage for {} with istart = {}, jstart = {}".format(
                     d, istart, jstart
@@ -143,6 +157,8 @@ class TranslateFortranData2Py:
             ds = self.grid.default_domain_dict()
             ds.update(info)
             out[serialname] = np.squeeze(out_data[var].data[self.grid.slice_dict(ds)])
+            if "kaxis" in info:
+                out[serialname] = np.moveaxis(out[serialname], 2, info["kaxis"])
         return out
 
     def serialnames(self, dict):
