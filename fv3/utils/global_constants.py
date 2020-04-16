@@ -7,7 +7,8 @@ RVGAS = 461.50  # Gas constant for water vapor [J/kg/deg]
 HLV = 2.5e6  # Latent heat of evaporation [J/kg]
 HLF = 3.34e5  # 3.3358e5  # Latent heat of fusion [J/kg]
 KAPPA = 2.0 / 7.0  # RDGAS / CP_AIR
-CP_AIR = RDGAS / KAPPA# 1004.6  # Specific heat capacity of dry air at constant pressure [J/kg/deg]
+# 1004.6  # Specific heat capacity of dry air at constant pressure [J/kg/deg]
+CP_AIR = RDGAS / KAPPA
 DZ_MIN = 2.0
 CV_AIR = CP_AIR - RDGAS
 RDG = -RDGAS / GRAV
