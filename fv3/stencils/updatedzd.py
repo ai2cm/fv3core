@@ -240,9 +240,7 @@ def column_calls(
             kstart=kstart,
             nk=nk,
         )
-        fx2, fy2, wk, z2 = delnflux.compute_no_sg(
-            z2, fx2, fy2, ndif, damp, wk, kstart=kstart, nk=nk
-        )
+        delnflux.compute_no_sg(z2, fx2, fy2, ndif, damp, wk, kstart=kstart, nk=nk)
         zh_damp_stencil(
             grid.area,
             z2,

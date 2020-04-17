@@ -97,12 +97,16 @@ def compute(u, v, pp, gz, pk3, delp, dt, ptop, akap):
 
     a2b_ord4.compute(pp, wk1, kstart=1, nk=grid.npz, replace=True)
     a2b_ord4.compute(pk3, wk1, kstart=1, nk=grid.npz, replace=True)
+
+    assert pp[3, 3, 0] == 0.0
+    assert pk3[3, 3, 0] == top_value
     a2b_ord4.compute(gz, wk1, kstart=0, nk=grid.npz + 1, replace=True)
     a2b_ord4.compute(delp, wk1)
 
     CalcWk(pk3, wk, origin=orig, domain=(grid.nic + 1, grid.njc + 1, grid.npz))
 
     du = utils.make_storage_from_shape(u.shape, origin=orig)
+   
     CalcU(
         u,
         du,
@@ -118,6 +122,7 @@ def compute(u, v, pp, gz, pk3, delp, dt, ptop, akap):
     )
 
     dv = utils.make_storage_from_shape(v.shape, origin=orig)
+
     CalcV(
         v,
         dv,
