@@ -108,7 +108,7 @@ class TranslateFortranData2Py:
 
     def update_info(self, info, inputs):
         for k, v in info.items():
-            if k == "serialname":
+            if k == "serialname" or isinstance(v, list):
                 continue
             if v in inputs.keys():
                 info[k] = inputs[v]
@@ -140,12 +140,14 @@ class TranslateFortranData2Py:
                     d, istart, jstart
                 )
             )
-
+           
+            dummy_axes = info.get("dummy_axes", None)
             inputs[d] = self.make_storage_data(
                 np.squeeze(inputs[serialname]),
                 istart=istart,
                 jstart=jstart,
                 kstart=kstart,
+                dummy_axes=dummy_axes
             )
             if d != serialname:
                 del inputs[serialname]

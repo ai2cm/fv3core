@@ -118,7 +118,15 @@ def make_storage_data_from_1d(
     full_1d[kstart : kstart + len(array1d)] = array1d
     tilespec[axis] = 1
     if dummy:
-        r = full_1d.reshape((full_shape))
+        if len(dummy) == len(tilespec) - 1:
+            r = full_1d.reshape((full_shape))
+        else:
+            # TODO maybe, this is a little silly (repeat the array, then squash the dim), though eventually we shouldn't need this general capability if we refactor stencils to operate on 3d
+            full_1d = make_storage_data_from_1d(array1d, full_shape, kstart=kstart, origin=origin, axis=axis, dummy=None)
+            dimslice = [slice(None)] * len(tilespec)
+            for dummy_axis in dummy:
+                dimslice[dummy_axis] = slice(0, 1)
+            r = full_1d[tuple(dimslice)]
     else:
         if axis == 2:
             r = np.tile(full_1d, tuple(tilespec))
