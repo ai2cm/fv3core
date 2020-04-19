@@ -46,23 +46,23 @@ def _data_backend(backend: str):
 
 
 def make_storage_data(
-    array, full_shape, istart=0, jstart=0, kstart=0, origin=origin, dummy=None
+        array, full_shape, istart=0, jstart=0, kstart=0, origin=origin, dummy=None, axis=2
 ):
     full_np_arr = np.zeros(full_shape)
     if len(array.shape) == 2:
         return make_storage_data_from_2d(
-            array, full_shape, istart=istart, jstart=jstart, origin=origin, dummy=dummy
+            array, full_shape, istart=istart, jstart=jstart, origin=origin, dummy=dummy, axis=axis
         )
     elif len(array.shape) == 1:
         if dummy:
             axes = [0, 1, 2]
             axis = list(set(axes).difference(dummy))[0]
             return make_storage_data_from_1d(
-                array, full_shape, kstart=kstart, origin=origin, axis=axis, dummy=dummy,
+                array, full_shape, kstart=kstart, origin=origin, axis=axis, dummy=dummy
             )
         else:
             return make_storage_data_from_1d(
-                array, full_shape, kstart=kstart, origin=origin,
+                array, full_shape, kstart=kstart, origin=origin, axis=axis
             )
     else:
         isize, jsize, ksize = array.shape

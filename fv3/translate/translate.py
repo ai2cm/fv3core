@@ -54,7 +54,7 @@ class TranslateFortranData2Py:
             input_data[varname] = read_serialized_data(serializer, savepoint, varname)
         return input_data
 
-    def make_storage_data(self, array, istart=0, jstart=0, kstart=0, dummy_axes=None):
+    def make_storage_data(self, array, istart=0, jstart=0, kstart=0, dummy_axes=None, axis=2):
         use_shape = list(self.maxshape)
         if dummy_axes:
             for axis in dummy_axes:
@@ -68,6 +68,7 @@ class TranslateFortranData2Py:
             kstart,
             origin=(istart, jstart, kstart),
             dummy=dummy_axes,
+            axis=axis
         )
 
     def storage_vars(self):
@@ -142,12 +143,14 @@ class TranslateFortranData2Py:
             )
            
             dummy_axes = info.get("dummy_axes", None)
+            axis = info.get("axis", 2)
             inputs[d] = self.make_storage_data(
                 np.squeeze(inputs[serialname]),
                 istart=istart,
                 jstart=jstart,
                 kstart=kstart,
-                dummy_axes=dummy_axes
+                dummy_axes=dummy_axes,
+                axis=axis
             )
             if d != serialname:
                 del inputs[serialname]
