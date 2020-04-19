@@ -11,7 +11,8 @@ KAPPA = 2.0 / 7.0  # RDGAS / CP_AIR
 CP_AIR = RDGAS / KAPPA
 DZ_MIN = 2.0
 CV_AIR = CP_AIR - RDGAS
-RDG = -RDGAS / GRAV
+RDG = -RDGAS / GRAV  # also rrg
+K1K = RDGAS / CV_AIR
 CNST_0P20 = 0.2
 # in fv_mapz, might want to localize these to remapping
 CV_VAP = 3.0 * RVGAS
