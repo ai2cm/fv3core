@@ -22,9 +22,9 @@ def set_locals(dp1: sd, q4_1: sd, pe1: sd, q1: sd):
 
 def compute(q1, pe1, pe2, qs, iv, jj, kord):
     grid = spec.grid
-    i1=grid.is_
+    i1 = grid.is_
+    i2 = grid.ie
     i_extent = grid.nid
-    i2= i1 + i_extent - 1
     km = grid.npz - 1
     kn = grid.npz - 1
     r3 = 1./3.
