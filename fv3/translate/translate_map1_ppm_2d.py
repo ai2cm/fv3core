@@ -21,6 +21,4 @@ class TranslateMap1_PPM_2D(TranslateFortranData2Py):
     def compute(self, inputs):
         self.make_storage_data_input_vars(inputs)
         var_inout = self.compute_func(**inputs)
-        return self.slice_output(
-            inputs, {"var_inout": var_inout}
-        )
+        return self.slice_output(inputs, {"var_inout": var_inout})

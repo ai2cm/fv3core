@@ -36,16 +36,26 @@ def ppm_volume_mean_y(qin: sd, qy: sd):
         qy[0, 0, 0] = b2 * (qin[0, -2, 0] + qin[0, 1, 0]) + b1 * (qin[0, -1, 0] + qin)
 
 
+@gtscript.function
+def lagrange_y_func(qx):
+    return a2 * (qx[0, -2, 0] + qx[0, 1, 0]) + a1 * (qx[0, -1, 0] + qx)
+
+
 @utils.stencil()
 def lagrange_interpolation_y(qx: sd, qout: sd):
     with computation(PARALLEL), interval(...):
-        qout[0, 0, 0] = a2 * (qx[0, -2, 0] + qx[0, 1, 0]) + a1 * (qx[0, -1, 0] + qx)
+        qout = lagrange_y_func(qx)
+
+
+@gtscript.function
+def lagrange_x_func(qy):
+    return a2 * (qy[-2, 0, 0] + qy[1, 0, 0]) + a1 * (qy[-1, 0, 0] + qy)
 
 
 @utils.stencil()
 def lagrange_interpolation_x(qy: sd, qout: sd):
     with computation(PARALLEL), interval(...):
-        qout[0, 0, 0] = a2 * (qy[-2, 0, 0] + qy[1, 0, 0]) + a1 * (qy[-1, 0, 0] + qy)
+        qout = lagrange_x_func(qy)
 
 
 @utils.stencil()
@@ -189,18 +199,6 @@ def qy_edge_north2(qin: sd, dya: sd, qy: sd):
         ) / (2.0 + 2.0 * g_in)
 
 
-# # TODO: all of these offsets are either 0,1 or -1, -2. Totally should be able to consolidate
-# implemented below in a re-definition, can this be deleted?
-# def ec1_offsets_dir(corner, lower_direction):
-#     if lower_direction in corner:
-#         a = 0
-#         b = 1
-#     else:
-#         a = -1
-#         b = -2
-#     return i1a, i1b
-
-
 def ec1_offsets(corner):
     i1a, i1b = ec1_offsets_dir(corner, "w")
     j1a, j1b = ec1_offsets_dir(corner, "s")
@@ -270,7 +268,6 @@ def extrapolate_corner_qout(qin, qout, i, j, kstart, nk, corner):
         agrid[i + i1b, j + j1b, :],
         qin[i + i1a, j + j1a, kslice],
         qin[i + i1b, j + j1b, kslice],
-
     )
     ec2 = utils.extrap_corner(
         p0,
@@ -278,13 +275,11 @@ def extrapolate_corner_qout(qin, qout, i, j, kstart, nk, corner):
         agrid[i + i2b, j + j2b, :],
         qin[i + i2a, j + j2a, kslice],
         qin[i + i2b, j + j2b, kslice],
-
     )
     ec3 = utils.extrap_corner(
         p0,
         agrid[i + i3a, j + j3a, :],
         agrid[i + i3b, j + j3b, :],
-
         qin[i + i3a, j + j3a, kslice],
         qin[i + i3b, j + j3b, kslice],
     )
@@ -298,7 +293,6 @@ def extrapolate_corners(qin, qout, kstart, nk):
     extrapolate_corner_qout(qin, qout, grid().ie + 1, grid().js, kstart, nk, "se")
     extrapolate_corner_qout(qin, qout, grid().ie + 1, grid().je + 1, kstart, nk, "ne")
     extrapolate_corner_qout(qin, qout, grid().is_, grid().je + 1, kstart, nk, "nw")
-
 
 
 def compute_qout_edges(qin, qout, kstart, nk):
@@ -358,7 +352,9 @@ def compute_qout_y_edges(qin, qout, kstart, nk):
 
 
 def compute_qx(qin, qout, kstart, nk):
-    qx = utils.make_storage_from_shape(qin.shape, origin=(grid().is_, grid().jsd, kstart))
+    qx = utils.make_storage_from_shape(
+        qin.shape, origin=(grid().is_, grid().jsd, kstart)
+    )
     # qx bounds
     # avoid running center-domain computation on tile edges, since they'll be overwritten.
     js = grid().js if grid().south_edge else grid().js - 2
@@ -382,13 +378,19 @@ def compute_qx(qin, qout, kstart, nk):
             domain=(1, dj, nk),
         )
     if grid().east_edge:
-        qx_edge_east(qin, grid().dxa, qx, origin=(grid().ie + 1, js, kstart), domain=(1, dj, nk))
-        qx_edge_east2(qin, grid().dxa, qx, origin=(grid().ie, js, kstart), domain=(1, dj, nk))
+        qx_edge_east(
+            qin, grid().dxa, qx, origin=(grid().ie + 1, js, kstart), domain=(1, dj, nk)
+        )
+        qx_edge_east2(
+            qin, grid().dxa, qx, origin=(grid().ie, js, kstart), domain=(1, dj, nk)
+        )
     return qx
 
 
 def compute_qy(qin, qout, kstart, nk):
-    qy = utils.make_storage_from_shape(qin.shape, origin=(grid().isd, grid().js, kstart))
+    qy = utils.make_storage_from_shape(
+        qin.shape, origin=(grid().isd, grid().js, kstart)
+    )
     # qy bounds
     # avoid running center-domain computation on tile edges, since they'll be overwritten.
     js = grid().js + 2 if grid().south_edge else grid().js
@@ -481,7 +483,6 @@ def compute_qout(qxx, qyy, qout, kstart, nk):
         origin=(is_, js, kstart),
         domain=(ie - is_ + 1, je - js + 1, nk),
     )
-
 
 
 def compute(qin, qout, kstart=0, nk=None, replace=False):

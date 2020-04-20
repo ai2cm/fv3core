@@ -57,8 +57,9 @@ class TranslateFortranData2Py:
     def make_storage_data(self, array, istart=0, jstart=0, kstart=0, dummy_axes=None):
         use_shape = list(self.maxshape)
         if dummy_axes:
-            for axis in dummy_axes: use_shape[axis] = 1
-        use_shape=tuple(use_shape)
+            for axis in dummy_axes:
+                use_shape[axis] = 1
+        use_shape = tuple(use_shape)
         return utils.make_storage_data(
             array,
             use_shape,
@@ -128,9 +129,12 @@ class TranslateFortranData2Py:
         for d, info in storage_vars.items():
             serialname = info["serialname"] if "serialname" in info else d
             self.update_info(info, inputs)
+            if "kaxis" in info:
+                inputs[serialname] = np.moveaxis(inputs[serialname], info["kaxis"], 2)
             istart, jstart, kstart = self.collect_start_indices(
                 inputs[serialname].shape, info
             )
+
             logger.debug(
                 "Making storage for {} with istart = {}, jstart = {}".format(
                     d, istart, jstart
@@ -159,6 +163,8 @@ class TranslateFortranData2Py:
             ds = self.grid.default_domain_dict()
             ds.update(info)
             out[serialname] = np.squeeze(out_data[var].data[self.grid.slice_dict(ds)])
+            if "kaxis" in info:
+                out[serialname] = np.moveaxis(out[serialname], 2, info["kaxis"])
         return out
 
     def serialnames(self, dict):

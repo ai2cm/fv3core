@@ -7,8 +7,10 @@ import fv3.stencils.copy_stencil as cp
 
 sd = utils.sd
 
+
 def grid():
     return spec.grid
+
 
 @gtscript.function
 def absolute_value(in_array):
@@ -48,7 +50,7 @@ def semipos_a4(a4_1, a4_2, a4_3, a4_4):
     return a4_2, a4_3, a4_4
 
 @utils.stencil()
-def posdef_constraint_iv0(a4_1:sd, a4_2:sd, a4_3:sd, a4_4:sd):
+def posdef_constraint_iv0(a4_1: sd, a4_2: sd, a4_3: sd, a4_4: sd):
     with computation(PARALLEL), interval(...):
         # a4_2 = a4_1 if a4_1 <= 0. else semipos_a4(a4_1, a4_2, a4_3, a4_4)
         # a4_3 = a4_1 if a4_1 <= 0. else semipos_a4(a4_1, a4_2, a4_3, a4_4)
@@ -81,8 +83,9 @@ def calc_iv1(a4_1, a4_2, a4_3, a4_4):
     a4_2, a4_3, a4_4 = calc_2_a3(a4_1, a4_2, a4_3, a4_4) if a6da < -da2 else calc_2_a2(a4_1, a4_2, a4_3, a4_4) if a6da > da2 else a4_2, a4_3, a4_4
     return a4_2, a4_3, a4_4
 
+
 @utils.stencil()
-def posdef_constraint_iv1(a4_1:sd, a4_2:sd, a4_3:sd, a4_4:sd):
+def posdef_constraint_iv1(a4_1: sd, a4_2: sd, a4_3: sd, a4_4: sd):
     with computation(PARALLEL), interval(...):
         da1 = a4_3 - a4_2
         da2 = da1**2
@@ -105,8 +108,9 @@ def posdef_constraint_iv1(a4_1:sd, a4_2:sd, a4_3:sd, a4_4:sd):
         #         a4_4 = 3.*(a4_3-a4_1)
         #         a4_2 = a4_3 - a4_4
 
+
 @utils.stencil()
-def ppm_constraint(a4_1:sd, a4_2:sd, a4_3:sd, a4_4:sd, extm:sd):
+def ppm_constraint(a4_1: sd, a4_2: sd, a4_3: sd, a4_4: sd, extm: sd):
     with computation(PARALLEL), interval(...):
         da1 = a4_3 - a4_2
         da2 = da1**2
@@ -128,6 +132,7 @@ def ppm_constraint(a4_1:sd, a4_2:sd, a4_3:sd, a4_4:sd, extm:sd):
         #     elif a6da > da2:
         #         a4_4 = 3.*(a4_3-a4_1)
         #         a4_2 = a4_3 - a4_4
+
 
 def compute(a4_1, a4_2, a4_3, a4_4, extm, iv, i1, i_extent, kstart, nk):
 

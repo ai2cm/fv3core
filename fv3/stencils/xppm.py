@@ -122,13 +122,21 @@ def compute_al(q, dxa, iord, is1, ie3, jfirst, jlast, kstart=0, nk=None):
         )
         if not grid().nested and spec.namelist["grid_type"] < 3:
             if grid().west_edge:
-                al_y_edge_0(q, dxa, al, origin=(grid().is_ - 1, 0, kstart), domain=domain_y)
+                al_y_edge_0(
+                    q, dxa, al, origin=(grid().is_ - 1, 0, kstart), domain=domain_y
+                )
                 al_y_edge_1(q, dxa, al, origin=(grid().is_, 0, kstart), domain=domain_y)
-                al_y_edge_2(q, dxa, al, origin=(grid().is_ + 1, 0, kstart), domain=domain_y)
+                al_y_edge_2(
+                    q, dxa, al, origin=(grid().is_ + 1, 0, kstart), domain=domain_y
+                )
             if grid().east_edge:
                 al_y_edge_0(q, dxa, al, origin=(grid().ie, 0, kstart), domain=domain_y)
-                al_y_edge_1(q, dxa, al, origin=(grid().ie + 1, 0, kstart), domain=domain_y)
-                al_y_edge_2(q, dxa, al, origin=(grid().ie + 2, 0, kstart), domain=domain_y)
+                al_y_edge_1(
+                    q, dxa, al, origin=(grid().ie + 1, 0, kstart), domain=domain_y
+                )
+                al_y_edge_2(
+                    q, dxa, al, origin=(grid().ie + 2, 0, kstart), domain=domain_y
+                )
     return al
 
 

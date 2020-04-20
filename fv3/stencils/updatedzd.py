@@ -198,8 +198,8 @@ def compute(ndif, damp_vtd, dp0, zs, zh, crx, cry, xfx, yfx, wsd, dt):
     data = {}
     for varname in ["zh", "crx_adv", "cry_adv", "xfx_adv", "yfx_adv", "ra_x", "ra_y"]:
         data[varname] = locals()[varname]
-    col = {"ndif" :  ndif[0, 0, :], "damp" : damp_vtd[0, 0, :]}
-    
+    col = {"ndif": ndif[0, 0, :], "damp": damp_vtd[0, 0, :]}
+
     kstarts = utils.get_kstarts(col, grid.npz + 1)
     utils.k_split_run(column_calls, data, kstarts, col)
     out(
@@ -212,7 +212,9 @@ def compute(ndif, damp_vtd, dp0, zs, zh, crx, cry, xfx, yfx, wsd, dt):
     )
 
 
-def column_calls(zh, crx_adv, cry_adv, xfx_adv, yfx_adv, ra_x, ra_y, ndif, damp, kstart, nk):
+def column_calls(
+    zh, crx_adv, cry_adv, xfx_adv, yfx_adv, ra_x, ra_y, ndif, damp, kstart, nk
+):
     grid = spec.grid
     default_origin = (grid.isd, grid.jsd, kstart)
     compute_origin = (grid.is_, grid.js, kstart)
@@ -225,12 +227,20 @@ def column_calls(zh, crx_adv, cry_adv, xfx_adv, yfx_adv, ra_x, ra_y, ndif, damp,
         fy = utils.make_storage_from_shape(zh.shape, default_origin)
         z2 = cp.copy(zh, origin=default_origin)
         fvtp2d.compute_no_sg(
-            z2, crx_adv, cry_adv, spec.namelist["hord_tm"], xfx_adv, yfx_adv, ra_x, ra_y,
-            fx, fy, kstart=kstart, nk=nk
+            z2,
+            crx_adv,
+            cry_adv,
+            spec.namelist["hord_tm"],
+            xfx_adv,
+            yfx_adv,
+            ra_x,
+            ra_y,
+            fx,
+            fy,
+            kstart=kstart,
+            nk=nk,
         )
-        fx2, fy2, wk, z2 = delnflux.compute_no_sg(
-            z2, fx2, fy2, ndif, damp, wk, kstart=kstart, nk=nk
-        )
+        delnflux.compute_no_sg(z2, fx2, fy2, ndif, damp, wk, kstart=kstart, nk=nk)
         zh_damp_stencil(
             grid.area,
             z2,
@@ -248,8 +258,18 @@ def column_calls(zh, crx_adv, cry_adv, xfx_adv, yfx_adv, ra_x, ra_y, ndif, damp,
     else:
         raise Exception("untested")
         fvtp2d.compute_no_sg(
-            zh, crx_adv, cry_adv, spec.namelist["hord_tm"], xfx_adv, yfx_adv, ra_x, ra_y,
-            fx, fy, kstart=kstart, nk=nk
+            zh,
+            crx_adv,
+            cry_adv,
+            spec.namelist["hord_tm"],
+            xfx_adv,
+            yfx_adv,
+            ra_x,
+            ra_y,
+            fx,
+            fy,
+            kstart=kstart,
+            nk=nk,
         )
         zh_stencil(
             grid.area,
