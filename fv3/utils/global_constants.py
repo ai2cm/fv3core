@@ -39,3 +39,6 @@ ql_gen = 1.0e-3  #  max cloud water generation during remapping step if fast_sat
 ql_mlt = 2.0e-3  # max value of cloud water allowed from melted cloud ice
 qs_mlt = 1.0e-6  # max cloud water due to snow melt
 ql0_max = 2.0e-3  # max cloud water value (auto converted to rain)
+t_sub = 184.  # min temp for sublimation of cloud ice
+qi_gen = 1.82e-6  # max cloud ice generation during remapping step
+qi_lim = 1.  # cloud ice limiter to prevent large ice build up

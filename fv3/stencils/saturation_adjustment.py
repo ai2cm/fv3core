@@ -22,11 +22,13 @@ satmix = {'table': None, 'table2': None, 'tablew': None, 'des2': None, 'desw': N
 TICE = 273.16  #constants.TICE
 T_WFR = TICE - 40. #homogeneous freezing temperature
 TICE0 = TICE - 0.01
+
+LAT2 = (constants.HLV + constants.HLF) ** 2  # used in bigg mechanism
 # melting of cloud ice to cloud water and rain
 # TODO, when if blocks are possible,, only compute when 'melting'
-
+QS_LENGTH = 2621
 def qs_init():
-    length = 2621
+    length = QS_LENGTH
     for tablename in satmix.keys():
         if satmix[tablename] is None:
             satmix[tablename] = np.zeros(length)
@@ -282,6 +284,46 @@ def autoconversion_cloud_to_rain(ql, qr, fac_l2r, ql0_max):
     else:
         sink=sink
     return ql, qr
+
+@gtscript.function
+def sublimation(pt1, cvm, expsubl, qv, qi, q_liq, q_sol, iqs2, tcp2, den, dqsdt, sdt, adj_fac, mc_air, c_vap, c_liq, c_ice, lhl, lhi ):
+        src = 0.
+        dq = 0.
+        sink = 0.
+        pidep = 0.
+        tmp = 0.
+        maxtmp = 0.
+        dimtmp = 0.
+        qi_crt = 0.
+        if pt1 < constants.t_sub:
+            src = qv - 1e-6 if (qv - 1e-6) > 0 else 0  # dim(qv, 1e-6) TODO THIS BREAKS
+        elif pt1 < TICE0:
+            #qsi = iqs2
+            dq = qv - iqs2
+            sink = adj_fac * dq / (1. + tcp2 * dqsdt)
+            if qi > 1e-8:
+                pidep = sdt * dq * 349138.78 * expsubl / (iqs2 * den * LAT2 / (0.0243 * constants.RVGAS * pt1 ** 2) + 4.42478e4)
+            else:
+                pidep = 0.
+            if dq > 0.:
+                tmp = TICE - pt1
+                qi_crt = constants.qi_gen * constants.qi_lim / den if constants.qi_lim < 0.1 * tmp else constants.qi_gen * 0.1 * tmp / den
+                maxtmp = qi_crt - qi if qi_crt - qi > pidep else pidep
+                src = sink if sink < maxtmp else maxtmp
+                src = src if src < tmp / tcp2 else tmp / tcp2
+            else:
+                dimtmp = pt1 - constants.t_sub if (pt1 - constants.t_sub) > 0 else 0 # dim(pt1, constants.t_sub) * 0.2 TODO WHY DOES THIS NOT WORK
+                pidep = pidep if 1 < dimtmp else pidep * dimtmp
+                src = pidep if pidep > sink else sink
+                src = src if src > -qi else -qi
+        else:
+            src = 0.
+        qv = qv - src
+        qi = qi + src
+        q_sol = q_sol + src
+        cvm = compute_cvm(mc_air, qv, c_vap, q_liq, c_liq, q_sol, c_ice)
+        pt1 = pt1 + src * (lhl + lhi) / cvm 
+        return qv, qi, q_sol, cvm , pt1
 @gtscript.function
 def update_latent_heat_coefficient_i(pt1, cvm):
     lhi = LI00 + DC_ICE * pt1
@@ -333,7 +375,6 @@ def wqsat_correct(src, pt1, lhl, qv, ql, q_liq, q_sol, mc_air, c_vap, c_liq, c_i
 
 
 
-
 @gtscript.function
 def min_fn(a, b):
     return a if a < b else b
@@ -343,39 +384,60 @@ def min_fn(a, b):
 def max_fn(a, b):
     return a if a > b else a
 
+@utils.stencil()
+def ap1_for_wqs2(ta:sd, ap1:sd):
+    with computation(PARALLEL), interval(...):
+        ap1 = 10.0 * dim(ta, TMIN) + 1.0
+        ap1 = min_fn(ap1, QS_LENGTH) - 1
 
+@utils.stencil()
+def wqs2_stencil(ta:sd, den:sd, ap1:sd, it: sd, it2:sd, tablew_lookup:sd,  desw_lookup: sd,  desw2_lookup: sd, desw_p1_lookup: sd, wqsat: sd, dqdt: sd):
+    with computation(PARALLEL), interval(...):
+        es = tablew_lookup + (ap1 - it) * desw_lookup
+        denom = (constants.RVGAS * ta * den)
+        wqsat = es / denom
+        dqdt = 10.0 * (desw2_lookup + (ap1 - it2) * (desw_p1_lookup - desw2_lookup))
+        dqdt = dqdt / denom
 def numpy_dim(a, b):
     diff = a - b
     diff[diff < 0] = 0
     return diff
 
+# Does not work
+# @utils.stencil(externals={'lookup': satmix})
+# def experiment(es: sd, it: sd):
+#    from __externals__ import lookup
+#    with computation(PARALLEL), interval(...):
+#        es = lookup['desw'][it]
 
 # it's not clear yet how this can be in a stencil
 #  gradient of saturated specific humidity for table ii.
 # TODO oh so bad, how to put in gt4py
-def wqs2_vect(ta, den):
-    ap1 = 10.0 * numpy_dim(ta.data, TMIN) + 1.0
-    min_index = np.zeros(ap1.shape) + 2620
-    ap1 = np.minimum(ap1, min_index)
-    it = ap1
-    es = np.zeros(ap1.shape)
-    for i in range(es.shape[0]):
-        for j in range(es.shape[1]):
-            for k in range(es.shape[2]):
-                it = int(ap1[i, j, k])
-                es[i, j, k] = satmix['tablew'][it] + (ap1[i, j, k] - it) * satmix['desw'][it]
-    wqsat = es / (constants.RVGAS * ta.data * den.data)
+# The function wqs2_vect computes the gradient of saturated specific humidity for table ii. with arguments tablename=tablew, desname=desw
+# iqs2 computes the gradient of saturated specific humidity for table iii. with arguments tablename=table2, desname=des2
+def wqs2_iqs2(ta, den, wqsat, dqdt, tablename='tablew', desname='desw'):
+    ap1 = utils.make_storage_from_shape(ta.shape, utils.origin)
+    ap1_for_wqs2(ta, ap1, origin=(0, 0, 0), domain=spec.grid.domain_shape_standard())
+    it = ap1.data.astype(int)
+    itgt = utils.make_storage_data(it, ta.shape)
+    tablew_lookup = utils.make_storage_data(satmix[tablename][it], ta.shape)
+    desw_lookup = utils.make_storage_data(satmix[desname][it], ta.shape)
+    it2 = (ap1 - 0.5).data.astype(int)
+    it2gt = utils.make_storage_data(it2, ta.shape)
+    desw2_lookup = utils.make_storage_data(satmix[desname][it2], ta.shape)
+    desw2_p1_lookup = utils.make_storage_data(satmix[desname][it2 + 1], ta.shape)
+    wqs2_stencil(ta, den, ap1, itgt, it2gt, tablew_lookup,  desw_lookup, desw2_lookup, desw2_p1_lookup, wqsat, dqdt, origin=(0, 0, 0), domain=spec.grid.domain_shape_standard())
+    # numpy only version -- is it better to use multiple stencils or do this? Or is there a way to get a lookup inside a stencil?
+    #ap1 = 10.0 * numpy_dim(ta.data, TMIN) + 1.0
+    #ap1 = np.minimum(ap1, QS_LENGTH) - 1.0
+    #it = ap1.astype(int)
+    #es = satmix['tablew'][it] + (ap1 - it) * satmix['desw'][it]
+    #wqsat = es / (constants.RVGAS * ta.data * den.data)
+    ## finite diff, del_t = 0.1:
+    #it = (ap1 - 0.5).astype(int)
+    #dqdt = 10.0 * (satmix['desw'][it] + (ap1 - it) * (satmix['desw'][it + 1] - satmix['desw'][it])) / (constants.RVGAS * ta.data * den.data)
     
-    # finite diff, del_t = 0.1:
-    dqdt = np.zeros(ap1.shape)
-    for i in range(es.shape[0]):
-        for j in range(es.shape[1]):
-            for k in range(es.shape[2]):
-                it = int(ap1[i, j, k] - 0.5)
-                dqdt[i, j, k] = 10.0 * (satmix['desw'][it] + (ap1[i, j, k] - it) * (satmix['desw'][it + 1] - satmix['desw'][it]))
-    dqdt = dqdt / (constants.RVGAS * ta.data * den.data)
-    
-    return wqsat, dqdt
+    #return wqsat, dqdt
 
 
 @utils.stencil(externals={'cv_air': constants.CV_AIR, 'cv_vap': constants.CV_VAP, 'c_liq': constants.C_LIQ, 'c_ice': constants.C_ICE, 'rdgas': constants.RDGAS, 'rvgas': constants.RVGAS, 'grav': constants.GRAV, 'tice':constants.TICE})
@@ -479,7 +541,6 @@ def satadjust_part3(wqsat: sd, dq2dt: sd, pt1: sd, cvm: sd, mc_air: sd, tcp3: sd
         dq0 = 0.
         src = 0.
         factor = 0.
-        adj_fac = sat_adj0   
         if last_step:
             dq0 = compute_dq0(qv, wqsat, dq2dt, tcp3)
             if dq0 > 0:
@@ -490,14 +551,13 @@ def satadjust_part3(wqsat: sd, dq2dt: sd, pt1: sd, cvm: sd, mc_air: sd, tcp3: sd
                 factor = fac_l2v * 10. * (1. - qv / wqsat)
                 factor = -1 if 1 < factor else -factor  # min_fn(1, factor) * -1
                 src = -ql if ql < factor * dq0 else -factor*dq0  # min_func(ql, factor * dq0) * -1
-            adj_fac = 1.0
             # TOD this is all repeated, but not implemented error 
             #qv, ql, q_liq, cvm, pt1 = wqsat_correct(src, pt1, lhl, qv, ql, q_liq, q_sol, mc_air, c_vap, c_liq, c_ice)
             #lhl, lhi, lcp2, icp2 = update_latent_heat_coefficient(pt1, cvm, lv00, d0_vap)
             qv = qv - src
             ql = ql + src
             q_liq = q_liq + src
-            # TODO WHY does cvm not work but adjust_pt1 does? new = vs function of self?
+            # TODO WHY does cvm not work but adjust_pt1 does? after a nested if-else?, but why does pt1 work?
             #cvm = compute_cvm(mc_air, qv, c_vap, q_liq, c_liq, q_sol, c_ice)
             cvm = mc_air + qv * c_vap + q_liq * c_liq + q_sol * c_ice
             pt1 = adjust_pt1(pt1, src, lhl, cvm) # pt1 + src * lhl / cvm
@@ -507,7 +567,7 @@ def satadjust_part3(wqsat: sd, dq2dt: sd, pt1: sd, cvm: sd, mc_air: sd, tcp3: sd
             lcp2 = lhl / cvm
             icp2 = lhi / cvm
         else:
-            adj_fac = sat_adj0
+            dq0=0
         # homogeneous freezing of cloud water to cloud ice
         ql, qi, q_liq, q_sol, cvm, pt1 = homogenous_freezing(qv, ql, qi, q_liq, q_sol, pt1, cvm, icp2, mc_air, lhi, c_vap, c_ice, c_liq)
         # update some of the latent heat coefficients
@@ -516,7 +576,7 @@ def satadjust_part3(wqsat: sd, dq2dt: sd, pt1: sd, cvm: sd, mc_air: sd, tcp3: sd
         
 @utils.stencil(externals={'cv_air': constants.CV_AIR, 'cv_vap': constants.CV_VAP, 'c_liq': constants.C_LIQ, 'c_ice': constants.C_ICE,
                           'rdgas': constants.RDGAS, 'rvgas': constants.RVGAS, 'grav': constants.GRAV, 'tice':constants.TICE, 'sat_adj0': constants.sat_adj0,
-                          'ql_gen': constants.ql_gen, 'qs_mlt': constants.qs_mlt, 'ql0_max': constants.ql0_max
+                          'ql_gen': constants.ql_gen, 'qs_mlt': constants.qs_mlt, 'ql0_max': constants.ql0_max,
 })
 def satadjust_part4(wqsat: sd, dq2dt: sd, den:sd, pt1: sd, cvm: sd, mc_air: sd, tcp3: sd, lhl:sd, lhi:sd, lcp2:sd, icp2:sd, exptc:sd, last_step:bool, qv: sd, ql:sd, q_liq:sd, qi:sd, q_sol:sd, qr:sd, qg:sd, qs:sd, fac_v2l:float, fac_l2v: float, lv00:float, d0_vap: float, c_vap: float, mdt:float, fac_r2g: float, fac_smlt: float, fac_l2r:float):
     from __externals__ import rdgas, rvgas, grav, c_liq, c_ice, sat_adj0, ql_gen, qs_mlt, ql0_max
@@ -531,20 +591,28 @@ def satadjust_part4(wqsat: sd, dq2dt: sd, den:sd, pt1: sd, cvm: sd, mc_air: sd, 
         qs, ql, qr, q_liq, q_sol, cvm, pt1= melt_snow(pt1, cvm, fac_smlt, qs, ql, qr, q_liq, q_sol, lhi, icp2, mc_air, qv, c_vap, c_liq, c_ice, qs_mlt)
         #  autoconversion from cloud water to rain
         ql, qr = autoconversion_cloud_to_rain(ql, qr, fac_l2r, ql0_max)
-        lhl, lhi, lcp2, icp2 = update_latent_heat_coefficient(pt1, cvm, lv00, d0_vap)
-        tcp2 = lcp2 + icp2
+        #lhl, lhi, lcp2, icp2 = update_latent_heat_coefficient(pt1, cvm, lv00, d0_vap)
+        #tcp2 = lcp2 + icp2
         # sublimation / deposition between water vapor and cloud ice
         #qv, qi, q_sol, cvm, pt1 = sublimation_deposition_vapor_ice(pt1, cvm, qv, den, dqsdt, tcp2, )
 
+@utils.stencil(externals={'cv_air': constants.CV_AIR, 'cv_vap': constants.CV_VAP, 'c_liq': constants.C_LIQ, 'c_ice': constants.C_ICE,
+                          'rdgas': constants.RDGAS, 'rvgas': constants.RVGAS, 'grav': constants.GRAV, 'tice':constants.TICE, 'sat_adj0': constants.sat_adj0,
+                          'ql_gen': constants.ql_gen, 'qi_gen': constants.qi_gen, 'qs_mlt': constants.qs_mlt, 'ql0_max': constants.ql0_max, 't_sub': constants.t_sub, 'qi_lim': constants.qi_lim,
+})
+def satadjust_part5(expsubl: sd, iqs2: sd, dqsdt: sd, den:sd, pt1: sd, cvm: sd, mc_air: sd, tcp3: sd, lhl:sd, lhi:sd, lcp2:sd, icp2:sd, exptc:sd, last_step:bool, qv: sd, ql:sd, q_liq:sd, qi:sd, q_sol:sd, qr:sd, qg:sd, qs:sd, fac_v2l:float, fac_l2v: float, lv00:float, d0_vap: float, c_vap: float, mdt:float, fac_r2g: float, fac_smlt: float, fac_l2r:float, sdt: float, adj_fac: float):
+    from __externals__ import rdgas, rvgas, grav, c_liq, c_ice, sat_adj0, ql_gen, qs_mlt, ql0_max, qi_gen, qi_lim
+    with computation(PARALLEL), interval(...):
+        lhl, lhi, lcp2, icp2 = update_latent_heat_coefficient(pt1, cvm, lv00, d0_vap)
+        tcp2 = lcp2 + icp2
+        qv, qi, q_sol, cvm , pt1 = sublimation(pt1, cvm, expsubl, qv, qi, q_liq, q_sol, iqs2, tcp2, den, dqsdt, sdt, adj_fac, mc_air, c_vap, c_liq, c_ice, lhl, lhi)
 def compute(dpln, te, qvapor, qliquid, qice, qrain, qsnow, qgraupel, qcld, hs, peln, delp, delz, q_con, pt, pkz, cappa, r_vir, mdt, fast_mp_consv, out_dt, last_step, akap, kmp):
     grid = spec.grid
     qs_init()
     hydrostatic = spec.namelist['hydrostatic']
     sdt = 0.5 * mdt # half remapping time step
     dt_bigg = mdt # bigg mechinism time step
-    tice0 = TICE - 0.01 # 273.15, standard freezing temperature
     # define conversion scalar / factor
-    #delnadjust()
     fac_i2s = 1. - math.exp(-mdt / constants.tau_i2s)
     fac_v2l = 1. - math.exp(-sdt / constants.tau_v2l)
     fac_r2g = 1. - math.exp(-mdt / constants.tau_r2g)
@@ -569,6 +637,8 @@ def compute(dpln, te, qvapor, qliquid, qice, qrain, qsnow, qgraupel, qcld, hs, p
     lv00 = constants.HLV - d0_vap * TICE
     # temporaries needed for wqs2_vect, and then for passing info before and after this call
     den = utils.make_storage_from_shape(peln.shape, utils.origin)
+    wqsat = utils.make_storage_from_shape(peln.shape, utils.origin)
+    dq2dt = utils.make_storage_from_shape(peln.shape, utils.origin)
     pt1 = utils.make_storage_from_shape(peln.shape, utils.origin)
     cvm = utils.make_storage_from_shape(peln.shape, utils.origin)
     q_liq = utils.make_storage_from_shape(peln.shape, utils.origin)
@@ -585,21 +655,30 @@ def compute(dpln, te, qvapor, qliquid, qice, qrain, qsnow, qgraupel, qcld, hs, p
               origin=grid.compute_origin(), domain=grid.domain_shape_compute()
     )
     
-    wqsat, dq2dt = wqs2_vect(pt1, den)
+    wqs2_iqs2(pt1, den,  wqsat, dq2dt )
     wqsat = utils.make_storage_data(wqsat, peln.shape, origin=utils.origin)
     dq2dt = utils.make_storage_data(dq2dt, peln.shape, origin=utils.origin)
     satadjust_part2(wqsat, dq2dt, pt1, cvm, mc_air, tcp3, lhl, lhi, lcp2, icp2, qvapor, qliquid, q_liq, q_sol, fac_v2l, fac_l2v, lv00, d0_vap, c_vap, origin=grid.compute_origin(), domain=grid.domain_shape_compute())
+
+    adj_fac = constants.sat_adj0
     if last_step:
+        adj_fac = 1.0
         #condensation / evaporation between water vapor and cloud water, last time step
         #  enforce upper (no super_sat) & lower (critical rh) bounds
         # final iteration:
-        wqsat, dq2dt = wqs2_vect(pt1, den)
+        wqs2_iqs2(pt1, den,  wqsat, dq2dt)
         wqsat = utils.make_storage_data(wqsat, peln.shape, origin=utils.origin)
         dq2dt = utils.make_storage_data(dq2dt, peln.shape, origin=utils.origin)
     satadjust_part3(wqsat, dq2dt, pt1, cvm, mc_air, tcp3, lhl,lhi, lcp2, icp2,last_step, qvapor, qliquid, q_liq, qice, q_sol, fac_v2l,
                     fac_l2v, lv00, d0_vap, c_vap, origin=grid.compute_origin(), domain=grid.domain_shape_compute())
     exptc = np.exp(0.66 *( TICE0 - pt1))
+    print('----------------exp', type(exptc))
     satadjust_part4(wqsat, dq2dt, den, pt1, cvm, mc_air, tcp3, lhl,  lhi, lcp2, icp2, exptc, last_step, qvapor, qliquid, q_liq, qice, q_sol, qrain, qgraupel, qsnow, fac_v2l, fac_l2v, lv00, d0_vap, c_vap, mdt, fac_r2g, fac_smlt, fac_l2r, origin=grid.compute_origin(), domain=grid.domain_shape_compute())
+    iqs2 = utils.make_storage_from_shape(peln.shape, utils.origin)
+    dqsdt = utils.make_storage_from_shape(peln.shape, utils.origin)
+    wqs2_iqs2(pt1, den, iqs2, dqsdt, tablename='table2', desname='des2')
+    expsubl = np.exp(0.875 * np.log (qice * den))
+    satadjust_part5(expsubl,iqs2, dqsdt, den, pt1, cvm, mc_air, tcp3, lhl,  lhi, lcp2, icp2, exptc, last_step, qvapor, qliquid, q_liq, qice, q_sol, qrain, qgraupel, qsnow, fac_v2l, fac_l2v, lv00, d0_vap, c_vap, mdt, fac_r2g, fac_smlt, fac_l2r, sdt, adj_fac, origin=grid.compute_origin(), domain=grid.domain_shape_compute())
     # TODO put into stencil when exp allowed inside stencil
     tmpslice = (slice(grid.is_, grid.ie + 1), slice(grid.js, grid.je+1), slice(kmp, grid.npz))
     pkz[tmpslice] = np.exp(cappa[tmpslice]*np.log(constants.RDG*delp[tmpslice]/delz[tmpslice]*pt[tmpslice]))
