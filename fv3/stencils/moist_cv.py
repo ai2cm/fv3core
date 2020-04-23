@@ -12,106 +12,122 @@ import numpy as np
 sd = utils.sd
 
 @gtscript.function
-def set_cappa(qvapor, cvm, r_vir, rdgas):
-    cappa = rdgas / (rdgas + cvm / (1.0 + r_vir * qvapor))
+def set_cappa(qvapor, cvm, r_vir):
+    cappa = constants.RDGAS / (constants.RDGAS + cvm / (1.0 + r_vir * qvapor))
     return cappa
+
+
 @gtscript.function
-def moist_cvm(qvapor, gz, ql, qs, cv_air, cv_vap, c_liq, c_ice):
-    cvm = (1.0 - (qvapor + gz)) * cv_air + qvapor * cv_vap + ql * c_liq + qs * c_ice
+def moist_cvm(qvapor, gz, ql, qs):
+    cvm = (1.0 - (qvapor + gz)) * constants.CV_AIR + qvapor * constants.CV_VAP + ql * constants.C_LIQ + qs * constants.C_ICE
     return cvm
 
 @gtscript.function
-def moist_cv_nwat6_fn(qvapor, qliquid, qrain, qsnow, qice, qgraupel, cv_air, cv_vap, c_liq, c_ice):
+def moist_cv_nwat6_fn(qvapor, qliquid, qrain, qsnow, qice, qgraupel):
     ql = qliquid + qrain
     qs = qice + qsnow + qgraupel
     gz = ql + qs
-    cvm = moist_cvm(qvapor, gz, ql, qs, cv_air, cv_vap, c_liq, c_ice)
+    cvm = moist_cvm(qvapor, gz, ql, qs)
     return cvm, gz
 
 # TODO : note untested
 @gtscript.function
-def moist_cv_nwat5_fn(qvapor, qliquid, qrain, qsnow, qice, cv_air, cv_vap, c_liq, c_ice):
+def moist_cv_nwat5_fn(qvapor, qliquid, qrain, qsnow, qice):
     ql = qliquid + qrain
     qs = qice + qsnow
     gz = ql + qs
-    cvm = moist_cvm(qvapor, gz, ql, qs, cv_air, cv_vap, c_liq, c_ice)
+    cvm = moist_cvm(qvapor, gz, ql, qs)
     return cvm, gz
 
 # TODO : note untested
 @gtscript.function
-def moist_cv_nwat4_fn(qvapor, qliquid, qrain, cv_air, cv_vap, c_liq):
+def moist_cv_nwat4_fn(qvapor, qliquid, qrain):
     gz = qliquid + qrain
-    cvm = moist_cvm(qvapor, gz, gz, gz, cv_air, cv_vap, c_liq, 0)
+    cvm = (1.0 - (qvapor + gz)) * constants.CV_AIR + qvapor * constants.CV_VAP + gz * constants.C_LIQ
     return cvm, gz
 
 # TODO : note untested
 @gtscript.function
-def moist_cv_nwat3_fn(qvapor, qliquid, qice, cv_air, cv_vap, c_liq, c_ice):
+def moist_cv_nwat3_fn(qvapor, qliquid, qice):
     gz = qliquid + qice
-    cvm = moist_cvm(qvapor, gz, qliquid, qice, cv_air, cv_vap, c_liq, c_ice)
+    cvm = moist_cvm(qvapor, gz, qliquid, qice)
     return cvm, gz
 
 # TODO : note untested
 @gtscript.function
-def moist_cv_nwat2_fn(qvapor, qliquid, cv_air, cv_vap):
+def moist_cv_nwat2_fn(qvapor, qliquid):
     qv = qvapor if qvapor > 0 else 0.0
     qs = qliquid if qliquid > 0 else 0.0
     gz = qs
-    cvm = (1.0 - qv) * cv_air + qv * cv_vap
+    cvm = (1.0 - qv) * constants.CV_AIR + qv * constants.CV_VAP
     return cvm, gz
 
 # TODO : note untested
 @gtscript.function
-def moist_cv_nwat2_gfs_fn(qvapor, qliquid, cv_air, cv_vap, c_liq, c_ice, t1, tice): #note constants.TICE
+def moist_cv_nwat2_gfs_fn(qvapor, qliquid, t1):
     gz = qliquid if qliquid > 0 else 0.0
-    qtmp = gz if t1 < tice - 15.0 else gz * (tice - t1) / 15.0
-    qs = 0 if t1 > tice else qtmp
+    qtmp = gz if t1 < constants.TICE - 15.0 else gz * (constants.TICE - t1) / 15.0
+    qs = 0 if t1 > constants.TICE else qtmp
     ql = gz - qs
     qv = qvapor if qvapor > 0 else 0.0
-    cvm = moist_cvm(qv, gz, ql, qs, cv_air, cv_vap, c_liq, c_ice)
+    cvm = moist_cvm(qv, gz, ql, qs)
     return cvm, gz
 
 # TODO : note untested
 @gtscript.function
-def moist_cv_default_fn(cv_air):
+def moist_cv_default_fn():
     gz = 0
-    cvm = cv_air
+    cvm = constants.CV_AIR
     return cvm, gz
 
-@utils.stencil(externals={'cv_air': constants.CV_AIR, 'cv_vap': constants.CV_VAP, 'c_liq': constants.C_LIQ, 'c_ice': constants.C_ICE})
+@utils.stencil()
 def moist_cv_nwat6(qvapor: sd, qliquid: sd, qrain: sd, qsnow: sd,qice: sd,  qgraupel: sd, cvm: sd):
-    from __externals__ import cv_air, cv_vap, c_liq, c_ice
     with computation(PARALLEL), interval(...):
-        cvm = moist_cv_nwat6_fn(qvapor, qliquid, qrain, qsnow, qice, qgraupel, cv_air, cv_vap, c_liq, c_ice)
-       
-@utils.stencil(externals={'cv_air': constants.CV_AIR, 'cv_vap': constants.CV_VAP, 'c_liq': constants.C_LIQ, 'c_ice': constants.C_ICE})
+        cvm = moist_cv_nwat6_fn(qvapor, qliquid, qrain, qsnow, qice, qgraupel)
+
+@gtscript.function
+def te_always_part(u, v, w, phis, rsin2, cosa_s):
+    return  0.5 * (phis + phis[0, 0, 1] + w**2 + 0.5 * rsin2 *
+                   (u**2 + u[0, 1, 0]**2 + v**2 + v[1, 0, 0]**2 -
+                    (u + u[0, 1, 0]) * (v + v[1, 0, 0]) * cosa_s))
+@utils.stencil()
 def moist_te_2d(qvapor: sd, qliquid: sd, qrain: sd, qsnow: sd, qice: sd, qgraupel: sd, q_con: sd, gz: sd, cvm: sd, te_2d: sd, delp: sd, pt: sd, phis: sd, u: sd, v: sd, w: sd, rsin2: sd, cosa_s: sd, r_vir: float, nwat: int):
-    from __externals__ import cv_air, cv_vap, c_liq, c_ice
     with computation(FORWARD), interval(...):
-        cvm, gz = moist_cv_nwat6_fn(qvapor, qliquid, qrain, qsnow, qice, qgraupel, cv_air, cv_vap, c_liq, c_ice) #if (nwat == 6) else moist_cv_default_fn(cv_air)
+        cvm, gz = moist_cv_nwat6_fn(qvapor, qliquid, qrain, qsnow, qice, qgraupel) #if (nwat == 6) else moist_cv_default_fn()
         q_con[0, 0, 0] = gz
-        te_2d[0, 0, 0] = te_2d[0, 0, -1] + delp * (cvm * pt / ((1.0 + r_vir * qvapor) * (1.0 - gz)) +
-                                     0.5 * (phis + phis[0, 0, 1] + w**2 + 0.5 * rsin2 *
-                                            (u**2 + u[0, 1, 0]**2 + v**2 + v[1, 0, 0]**2 -
-                                             (u + u[0, 1, 0]) * (v + v[1, 0, 0]) * cosa_s)))
-
-@utils.stencil(externals={'cv_air': constants.CV_AIR, 'cv_vap': constants.CV_VAP, 'c_liq': constants.C_LIQ, 'c_ice': constants.C_ICE, 'rdgas': constants.RDGAS, 'rrg': constants.RDG})
+        te_2d[0, 0, 0] = te_2d[0, 0, -1] + delp * (cvm * pt / ((1.0 + r_vir * qvapor) * (1.0 - gz)) + te_always_part(u, v, w, phis, rsin2, cosa_s))
+# # TODO calling gtscript functions from inside the if statements is causing problems, if we want 'moist_phys' to be changeable, we either need to duplicate the stencil code or fix the gt4py bug                          
+@utils.stencil()
+def moist_te_total_energy(qvapor: sd, qliquid: sd, qrain: sd, qsnow: sd, qice: sd, qgraupel: sd, te_2d: sd, delp: sd, pt: sd, phis: sd, u: sd, v: sd, w: sd, rsin2: sd, cosa_s: sd, delz: sd, r_vir: float, nwat: int, moist_phys: bool):
+    with computation(BACKWARD):
+        with interval(-1, None):
+            phiz = phis
+        with interval(0, -1):
+            phiz = phiz[0, 0, 1] - constants.GRAV * delz
+            te_2d = 0.
+    with computation(FORWARD), interval(0, -1):
+        qd = 0.
+        cvm = 0.
+        #if moist_phys:
+        cvm, qd = moist_cv_nwat6_fn(qvapor, qliquid, qrain, qsnow, qice, qgraupel) #if (nwat == 6) else moist_cv_default_fn()
+        te_2d = te_2d[0, 0, -1] + delp * (cvm * pt + te_always_part(u, v, w, phiz, rsin2, cosa_s))
+        #else:
+        #    te_2d = te_2d[0, 0, -1] + delp * (constants.CV_AIR * pt + te_always_part(u, v, w, phiz, rsin2, cosa_s))
+@utils.stencil()
 def moist_pt(qvapor: sd, qliquid: sd, qrain: sd, qsnow: sd,qice: sd, qgraupel: sd, q_con: sd, gz: sd, cvm: sd, pt: sd, cappa: sd, delp: sd, delz: sd, r_vir: float, nwat: int):
-    from __externals__ import cv_air, cv_vap, c_liq, c_ice, rdgas, rrg
     with computation(FORWARD), interval(...):
-        cvm, gz = moist_cv_nwat6_fn(qvapor, qliquid, qrain, qsnow, qice, qgraupel, cv_air, cv_vap, c_liq, c_ice) #if (nwat == 6) else moist_cv_default_fn(cv_air)
+        cvm, gz = moist_cv_nwat6_fn(qvapor, qliquid, qrain, qsnow, qice, qgraupel) #if (nwat == 6) else moist_cv_default_fn(cv_air)
         q_con[0, 0, 0] = gz
-        cappa = set_cappa(qvapor, cvm, r_vir, rdgas)
-        #pt[0, 0, 0] = pt * exp(cappa / (1.0 - cappa) * log(rrg * delp / delz * pt))
+        cappa = set_cappa(qvapor, cvm, r_vir)
+        #pt[0, 0, 0] = pt * exp(cappa / (1.0 - cappa) * log(constants.RDG * delp / delz * pt))
 
-@utils.stencil(externals={'cv_air': constants.CV_AIR, 'cv_vap': constants.CV_VAP, 'c_liq': constants.C_LIQ, 'c_ice': constants.C_ICE, 'rdgas': constants.RDGAS, 'rrg': constants.RDG})
+@utils.stencil()
 def moist_pkz(qvapor: sd, qliquid: sd, qrain: sd, qsnow: sd,qice: sd, qgraupel: sd, q_con: sd, gz: sd, cvm: sd, pkz: sd, pt:sd, cappa: sd, delp: sd, delz: sd, r_vir: float, nwat: int):
-    from __externals__ import cv_air, cv_vap, c_liq, c_ice, rdgas, rrg
     with computation(FORWARD), interval(...):
-        cvm, gz = moist_cv_nwat6_fn(qvapor, qliquid, qrain, qsnow, qice, qgraupel, cv_air, cv_vap, c_liq, c_ice) #if (nwat == 6) else moist_cv_default_fn(cv_air)
+        cvm, gz = moist_cv_nwat6_fn(qvapor, qliquid, qrain, qsnow, qice, qgraupel) #if (nwat == 6) else moist_cv_default_fn(cv_air)
         q_con[0, 0, 0] = gz
-        cappa = set_cappa(qvapor, cvm, r_vir, rdgas)
-        #pkz[0, 0, 0] = exp(cappa * log(rrg * delp /delz * pt))
+        cappa = set_cappa(qvapor, cvm, r_vir)
+        #pkz[0, 0, 0] = exp(cappa * log(constants.RDG * delp /delz * pt))
 # 
 # Computes the FV3-consistent moist heat capacity under constant volume,
 # including the heating capacity of water vapor and condensates.
@@ -149,3 +165,15 @@ def compute_pkz(qvapor_js, qliquid_js, qice_js, qrain_js, qsnow_js, qgraupel_js,
     # TODO push theis inside stencil one we can do exp and log there
     tmpslice = (slice(grid.is_, grid.ie + 1), slice(j_2d, j_2d + 1), slice(0, grid.npz))
     pkz[tmpslice] = np.exp(cappa[tmpslice] * np.log(constants.RDG * delp[tmpslice] / delz[tmpslice] * pt[tmpslice]))
+
+def compute_total_energy(u, v, w, delz, pt, delp, qc, pe, peln, hs, zvir, te_2d, qvapor, qliquid, qice, qrain, qsnow, qgraupel, ):
+    grid = spec.grid
+    if spec.namelist['hydrostatic']:
+        raise Exception('Porting compute_total_energy incomplete for hydrostatic=True')
+    if not spec.namelist['moist_phys']:
+        raise Exception('To run without moist_phys, the if conditional bug needs to be fixed, or code needs to be duplicated')
+    moist_te_total_energy(qvapor, qliquid, qrain, qsnow, qice, qgraupel,
+                          te_2d, delp, pt, hs, u, v, w,
+                          grid.rsin2, grid.cosa_s, delz, zvir, spec.namelist['nwat'], spec.namelist['moist_phys'],
+                          origin=(grid.is_, grid.js, 0), domain=(grid.nic, grid.njc, grid.npz+1)
+    )
