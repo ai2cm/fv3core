@@ -398,6 +398,13 @@ def wqs2_stencil(ta:sd, den:sd, ap1:sd, it: sd, it2:sd, tablew_lookup:sd,  desw_
         wqsat = es / denom
         dqdt = 10.0 * (desw2_lookup + (ap1 - it2) * (desw_p1_lookup - desw2_lookup))
         dqdt = dqdt / denom
+
+@utils.stencil()
+def wqs1_stencil(ta:sd, den:sd, ap1:sd, it: sd, tablew_lookup:sd,  desw_lookup: sd, wqsat: sd):
+    with computation(PARALLEL), interval(...):
+        es = tablew_lookup + (ap1 - it) * desw_lookup
+        wqsat = es / (constants.RVGAS * ta * den)
+
 def numpy_dim(a, b):
     diff = a - b
     diff[diff < 0] = 0
@@ -439,10 +446,18 @@ def wqs2_iqs2(ta, den, wqsat, dqdt, tablename='tablew', desname='desw'):
     
     #return wqsat, dqdt
 
+def wqs1_iqs1(ta, den, wqsat, tablename='tablew', desname='desw'):
+    ap1 = utils.make_storage_from_shape(ta.shape, utils.origin)
+    ap1_for_wqs2(ta, ap1, origin=(0, 0, 0), domain=spec.grid.domain_shape_standard())
+    it = ap1.data.astype(int)
+    itgt = utils.make_storage_data(it, ta.shape)
+    tablew_lookup = utils.make_storage_data(satmix[tablename][it], ta.shape)
+    desw_lookup = utils.make_storage_data(satmix[desname][it], ta.shape)
+    wqs1_stencil(ta, den, ap1, itgt, tablew_lookup, desw_lookup, wqsat, origin=(0, 0, 0), domain=spec.grid.domain_shape_standard())
 
 @utils.stencil(externals={'cv_air': constants.CV_AIR, 'cv_vap': constants.CV_VAP, 'c_liq': constants.C_LIQ, 'c_ice': constants.C_ICE, 'rdgas': constants.RDGAS, 'rvgas': constants.RVGAS, 'grav': constants.GRAV, 'tice':constants.TICE})
 def satadjust_part1(dpln: sd, den: sd, pt1: sd, cvm:sd, mc_air: sd, peln: sd, qv:sd, ql: sd, q_liquid:sd, qi: sd, qr: sd, qs: sd, q_sol:sd, qg: sd,
-              pt: sd, dp: sd, delz: sd, te0: sd, zvir: float, hydrostatic: bool, consv_te: bool, c_air: float, c_vap: float, fac_imlt: float, d0_vap: float, lv00: float):
+                    pt: sd, dp: sd, delz: sd, te0: sd, qpz: sd, zvir: float, hydrostatic: bool, consv_te: bool, c_air: float, c_vap: float, fac_imlt: float, d0_vap: float, lv00: float):
     from __externals__ import rdgas, rvgas, grav, c_liq, c_ice
     with computation(PARALLEL), interval(...):
         dpln = peln[0, 0, 1] - peln
@@ -600,12 +615,141 @@ def satadjust_part4(wqsat: sd, dq2dt: sd, den:sd, pt1: sd, cvm: sd, mc_air: sd, 
                           'rdgas': constants.RDGAS, 'rvgas': constants.RVGAS, 'grav': constants.GRAV, 'tice':constants.TICE, 'sat_adj0': constants.sat_adj0,
                           'ql_gen': constants.ql_gen, 'qi_gen': constants.qi_gen, 'qs_mlt': constants.qs_mlt, 'ql0_max': constants.ql0_max, 't_sub': constants.t_sub, 'qi_lim': constants.qi_lim,
 })
-def satadjust_part5(expsubl: sd, iqs2: sd, dqsdt: sd, den:sd, pt1: sd, cvm: sd, mc_air: sd, tcp3: sd, lhl:sd, lhi:sd, lcp2:sd, icp2:sd, exptc:sd, last_step:bool, qv: sd, ql:sd, q_liq:sd, qi:sd, q_sol:sd, qr:sd, qg:sd, qs:sd, fac_v2l:float, fac_l2v: float, lv00:float, d0_vap: float, c_vap: float, mdt:float, fac_r2g: float, fac_smlt: float, fac_l2r:float, sdt: float, adj_fac: float):
+def satadjust_part5(tin:sd, te0: sd, dp:sd,  q_cond:sd, q_con:sd, expsubl: sd, iqs2: sd, dqsdt: sd, den:sd, pt1: sd, cvm: sd, mc_air: sd, tcp3: sd, lhl:sd, lhi:sd, lcp2:sd, icp2:sd, exptc:sd, last_step:bool, qv: sd, ql:sd, q_liq:sd, qi:sd, q_sol:sd, qr:sd, qg:sd, qs:sd, fac_v2l:float, fac_l2v: float, lv00:float, d0_vap: float, c_vap: float, mdt:float, fac_r2g: float, fac_smlt: float, fac_l2r:float, sdt: float, adj_fac: float, zvir: float, fac_i2s: float, c_air: float, out_dt: bool, consv_te: bool, hydrostatic: bool, do_qa: bool):
     from __externals__ import rdgas, rvgas, grav, c_liq, c_ice, sat_adj0, ql_gen, qs_mlt, ql0_max, qi_gen, qi_lim
     with computation(PARALLEL), interval(...):
         lhl, lhi, lcp2, icp2 = update_latent_heat_coefficient(pt1, cvm, lv00, d0_vap)
         tcp2 = lcp2 + icp2
         qv, qi, q_sol, cvm , pt1 = sublimation(pt1, cvm, expsubl, qv, qi, q_liq, q_sol, iqs2, tcp2, den, dqsdt, sdt, adj_fac, mc_air, c_vap, c_liq, c_ice, lhl, lhi)
+        # virtual temp updated
+        q_con = q_liq + q_sol
+        tmp = 1. + zvir * qv
+        pt = pt1 * tmp * (1. - q_con)
+        tmp = constants.RDGAS * tmp
+        cappa = tmp / (tmp + cvm)
+        #  fix negative graupel with available cloud ice
+        maxtmp = 0.
+        if qg < 0:
+            maxtmp = 0. if 0. > qi else 0.
+            tmp = -qg if -qg < maxtmp else maxtmp
+            qg = qg + tmp
+            qi = qi - tmp
+        else:
+            qg=qg
+        #  autoconversion from cloud ice to snow
+        qim = constants.qi0_max / den
+        sink = 0.
+        if qi > qim:
+            sink = fac_i2s * (qi - qim)
+            qi = qi - sink
+            qs = qs + sink
+        else:
+            qi = qi
+        # fix energy conservation
+        if consv_te:
+            if hydrostatic:
+                te0 = dp * (te0 + c_air * pt1)
+            else:
+                te0 = dp * (te0 + cvm * pt1)
+        else:
+            qi = qi
+        # update latent heat coefficient
+        cvm = compute_cvm(mc_air, qv, c_vap, q_liq, c_liq, q_sol, c_ice)
+        lhl, lhi, lcp2, icp2 = update_latent_heat_coefficient(pt1, cvm, lv00, d0_vap)
+        # compute cloud fraction
+        tin = 0.
+        if (do_qa and last_step):
+            # combine water species
+            #if constants.rad_snow:
+            #    if constants.rad_graupel:
+            q_sol = qi + qs + qg
+            #    else:
+            #        q_sol = qi + qs
+            #else:
+            #    q_sol = qi
+            #if constants.rad_rain:
+            q_liq = ql + qr
+            #else:
+            #    q_liq = ql
+            q_cond = q_sol + q_liq
+            # use the "liquid - frozen water temperature" (tin) to compute saturated specific humidity
+            #if constants.tintqs:
+            #    tin = pt1
+            #else:
+            tin = pt1 - (lcp2 * q_cond + icp2 * q_sol)
+            # determine saturated specific humidity
+            
+            
+        else:
+            qi = qi
+@utils.stencil()
+def satadjust_part6_laststep_qa(area:sd, qpz:sd,  hs: sd, tin: sd, te: sd, q_cond:sd, q_con:sd, expsubl: sd, iqs1: sd, wqs1: sd, den:sd, pt1: sd, cvm: sd, mc_air: sd, tcp3: sd, lhl:sd, lhi:sd, lcp2:sd, icp2:sd, exptc:sd, last_step:bool, qv: sd, ql:sd, q_liq:sd, qi:sd, q_sol:sd, qr:sd, qg:sd, qs:sd, fac_v2l:float, fac_l2v: float, lv00:float, d0_vap: float, c_vap: float, mdt:float, fac_r2g: float, fac_smlt: float, fac_l2r:float, sdt: float, adj_fac: float, zvir: float, fac_i2s: float, out_dt: bool, consv_te: bool, hydrostatic: bool, do_qa: bool):
+    with computation(PARALLEL), interval(...):
+        qstar = 0.
+        rqi = 0.
+        #determine saturated specific humidity
+        if tin < T_WFR:
+            # ice phase
+            qstar = iqs1
+        elif tin >= TICE:
+            qstar = wqs1
+        else:
+            #qsi = iqs1
+            #qsw = wqs1
+            if q_cond > 1e-6:
+                rqi = q_sol / q_cond
+            else:
+                rqi = (TICE - tin) / (TICE - T_WFR)
+            qstar = rqi * iqs1 + (1. - rqi) * wqs1
+        #  higher than 10 m is considered "land" and will have higher subgrid variability
+        abshs = hs if hs > 0 else - hs
+        mindw = min_fn(1., abshs / (10. * constants.GRAV))
+        dw = constants.dw_ocean + (constants.dw_land - constants.dw_ocean) * mindw
+        # "scale - aware" subgrid variability: 100 - km as the base
+        hvar = min_fn(0.2, max_fn(0.01, dw * (area**0.5 / 100.e3)**0.5)) #sqrt (sqrt (area) / 100.e3)))
+        # partial cloudiness by pdf:
+        # assuming subgrid linear distribution in horizontal; this is effectively a smoother for the
+        # binary cloud scheme; qa = 0.5 if qstar == qpz        
+        rh = qpz / qstar
+        # icloud_f = 0: bug - fixed
+        # icloud_f = 1: old fvgfs gfdl) mp implementation
+        # icloud_f = 2: binary cloud scheme (0 / 1)
+# end
+'''                       
+        if (rh > 0.75 .and. qpz > 1.e-8):
+            dq = hvar * qpz
+            q_plus = qpz + dq
+            q_minus = qpz - dq
+            if (icloud_f == 2):
+                if (qpz > qstar):
+                    qa = 1.
+                elif (qstar < q_plus .and. q_cond > 1.e-8):
+                    qa = ((q_plus - qstar) / dq) ** 2
+                    qa = min (1., qa)
+                else:
+                    qa = 0.    
+            else
+            if (qstar < q_minus):
+                qa = 1.
+            else:
+                if (qstar < q_plus):
+                    if (icloud_f == 0):
+                        qa = (q_plus - qstar) / (dq + dq)
+                    else:
+                        qa = (q_plus - qstar) / (2. * dq * (1. - q_cond))
+                    
+                else:
+                    qa = 0.
+                
+                # impose minimum cloudiness if substantial q_cond exist
+                if (q_cond > 1.e-8):
+                    qa = max (cld_min, qa)
+                else:
+                    qa=qa
+                qa = min (1., qa)
+        else:
+            qa = 0.
+ '''           
 def compute(dpln, te, qvapor, qliquid, qice, qrain, qsnow, qgraupel, qcld, hs, peln, delp, delz, q_con, pt, pkz, cappa, r_vir, mdt, fast_mp_consv, out_dt, last_step, akap, kmp):
     grid = spec.grid
     qs_init()
@@ -649,9 +793,12 @@ def compute(dpln, te, qvapor, qliquid, qice, qrain, qsnow, qgraupel, qcld, hs, p
     lhi = utils.make_storage_from_shape(peln.shape, utils.origin)
     lcp2 = utils.make_storage_from_shape(peln.shape, utils.origin)
     icp2 = utils.make_storage_from_shape(peln.shape, utils.origin)
+    tin = utils.make_storage_from_shape(peln.shape, utils.origin)
+    q_cond = utils.make_storage_from_shape(peln.shape, utils.origin)
+    qpz = utils.make_storage_from_shape(peln.shape, utils.origin)
     #lhi:sd, icp2:sd, lcp2:sd,
     satadjust_part1(dpln, den, pt1, cvm, mc_air, peln, qvapor, qliquid, q_liq, qice, qrain, qsnow, q_sol, qgraupel,
-              pt, delp, delz, te, r_vir, hydrostatic, fast_mp_consv, c_air, c_vap, fac_imlt, d0_vap, lv00,
+                    pt, delp, delz, te, qpz, r_vir, hydrostatic, fast_mp_consv, c_air, c_vap, fac_imlt, d0_vap, lv00,
               origin=grid.compute_origin(), domain=grid.domain_shape_compute()
     )
     
@@ -669,16 +816,29 @@ def compute(dpln, te, qvapor, qliquid, qice, qrain, qsnow, qgraupel, qcld, hs, p
         wqs2_iqs2(pt1, den,  wqsat, dq2dt)
         wqsat = utils.make_storage_data(wqsat, peln.shape, origin=utils.origin)
         dq2dt = utils.make_storage_data(dq2dt, peln.shape, origin=utils.origin)
+        
     satadjust_part3(wqsat, dq2dt, pt1, cvm, mc_air, tcp3, lhl,lhi, lcp2, icp2,last_step, qvapor, qliquid, q_liq, qice, q_sol, fac_v2l,
                     fac_l2v, lv00, d0_vap, c_vap, origin=grid.compute_origin(), domain=grid.domain_shape_compute())
+    
     exptc = np.exp(0.66 *( TICE0 - pt1))
     print('----------------exp', type(exptc))
+    
     satadjust_part4(wqsat, dq2dt, den, pt1, cvm, mc_air, tcp3, lhl,  lhi, lcp2, icp2, exptc, last_step, qvapor, qliquid, q_liq, qice, q_sol, qrain, qgraupel, qsnow, fac_v2l, fac_l2v, lv00, d0_vap, c_vap, mdt, fac_r2g, fac_smlt, fac_l2r, origin=grid.compute_origin(), domain=grid.domain_shape_compute())
+    
     iqs2 = utils.make_storage_from_shape(peln.shape, utils.origin)
     dqsdt = utils.make_storage_from_shape(peln.shape, utils.origin)
     wqs2_iqs2(pt1, den, iqs2, dqsdt, tablename='table2', desname='des2')
-    expsubl = np.exp(0.875 * np.log (qice * den))
-    satadjust_part5(expsubl,iqs2, dqsdt, den, pt1, cvm, mc_air, tcp3, lhl,  lhi, lcp2, icp2, exptc, last_step, qvapor, qliquid, q_liq, qice, q_sol, qrain, qgraupel, qsnow, fac_v2l, fac_l2v, lv00, d0_vap, c_vap, mdt, fac_r2g, fac_smlt, fac_l2r, sdt, adj_fac, origin=grid.compute_origin(), domain=grid.domain_shape_compute())
+    expsubl = np.exp(0.875 * np.log(qice * den))
+    do_qa = True # TODO read this
+    satadjust_part5(tin, te, delp, q_cond, q_con, expsubl,iqs2, dqsdt, den, pt1, cvm, mc_air, tcp3, lhl,  lhi, lcp2, icp2, exptc, last_step, qvapor, qliquid, q_liq, qice, q_sol, qrain, qgraupel, qsnow, fac_v2l, fac_l2v, lv00, d0_vap, c_vap, mdt, fac_r2g, fac_smlt, fac_l2r, sdt, adj_fac, r_vir, fac_i2s, c_air, out_dt, fast_mp_consv, hydrostatic, do_qa,origin=grid.compute_origin(), domain=grid.domain_shape_compute())
+
+    if do_qa and last_step:
+        iqs1 = utils.make_storage_from_shape(peln.shape, utils.origin)
+        wqs1 = utils.make_storage_from_shape(peln.shape, utils.origin)
+        wqs1_iqs1(tin, den, wqs1, tablename='tablew', desname='desw')
+        wqs1_iqs1(tin, den, iqs1, tablename='table2', desname='des2')
+        #TODO change area to area_64
+        satadjust_part6_laststep_qa(grid.area, qpz, hs, tin, te, q_cond, q_con, expsubl,iqs1, wqs1, den, pt1, cvm, mc_air, tcp3, lhl,  lhi, lcp2, icp2, exptc, last_step, qvapor, qliquid, q_liq, qice, q_sol, qrain, qgraupel, qsnow, fac_v2l, fac_l2v, lv00, d0_vap, c_vap, mdt, fac_r2g, fac_smlt, fac_l2r, sdt, adj_fac, r_vir, fac_i2s, out_dt, fast_mp_consv, hydrostatic, do_qa,origin=grid.compute_origin(), domain=grid.domain_shape_compute())
     # TODO put into stencil when exp allowed inside stencil
     tmpslice = (slice(grid.is_, grid.ie + 1), slice(grid.js, grid.je+1), slice(kmp, grid.npz))
     pkz[tmpslice] = np.exp(cappa[tmpslice]*np.log(constants.RDG*delp[tmpslice]/delz[tmpslice]*pt[tmpslice]))
