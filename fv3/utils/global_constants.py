@@ -49,3 +49,5 @@ rad_graupel = True # consider graupel in cloud fraction calculation
 tintqs = False  # use temperature in the saturation mixing in PDF 
 dw_ocean = 0.10  # base value for ocean
 dw_land = 0.20  # base value for subgrid deviation / variability over land
+icloud_f = 0  # cloud scheme 0 - ?, 1: old fvgfs gfdl) mp implementation, 2: binary cloud scheme (0 / 1)
+cld_min = 0.05 # !< minimum cloud fraction

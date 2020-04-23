@@ -302,7 +302,7 @@ def sublimation(pt1, cvm, expsubl, qv, qi, q_liq, q_sol, iqs2, tcp2, den, dqsdt,
             dq = qv - iqs2
             sink = adj_fac * dq / (1. + tcp2 * dqsdt)
             if qi > 1e-8:
-                pidep = sdt * dq * 349138.78 * expsubl / (iqs2 * den * LAT2 / (0.0243 * constants.RVGAS * pt1 ** 2) + 4.42478e4)
+                pidep = sdt * dq * 349138.78 * expsubl / (iqs2 * den * LAT2 / (0.0243 * constants.RVGAS * pt1**2) + 4.42478e4)
             else:
                 pidep = 0.
             if dq > 0.:
@@ -455,10 +455,11 @@ def wqs1_iqs1(ta, den, wqsat, tablename='tablew', desname='desw'):
     desw_lookup = utils.make_storage_data(satmix[desname][it], ta.shape)
     wqs1_stencil(ta, den, ap1, itgt, tablew_lookup, desw_lookup, wqsat, origin=(0, 0, 0), domain=spec.grid.domain_shape_standard())
 
-@utils.stencil(externals={'cv_air': constants.CV_AIR, 'cv_vap': constants.CV_VAP, 'c_liq': constants.C_LIQ, 'c_ice': constants.C_ICE, 'rdgas': constants.RDGAS, 'rvgas': constants.RVGAS, 'grav': constants.GRAV, 'tice':constants.TICE})
+
+@utils.stencil(externals={'cv_air': constants.CV_AIR, 'cv_vap': constants.CV_VAP, 'c_liq': constants.C_LIQ, 'c_ice': constants.C_ICE, 'rvgas': constants.RVGAS, 'grav': constants.GRAV, 'tice':constants.TICE})
 def satadjust_part1(dpln: sd, den: sd, pt1: sd, cvm:sd, mc_air: sd, peln: sd, qv:sd, ql: sd, q_liquid:sd, qi: sd, qr: sd, qs: sd, q_sol:sd, qg: sd,
                     pt: sd, dp: sd, delz: sd, te0: sd, qpz: sd, zvir: float, hydrostatic: bool, consv_te: bool, c_air: float, c_vap: float, fac_imlt: float, d0_vap: float, lv00: float):
-    from __externals__ import rdgas, rvgas, grav, c_liq, c_ice
+    from __externals__ import rvgas, grav, c_liq, c_ice
     with computation(PARALLEL), interval(...):
         dpln = peln[0, 0, 1] - peln
         q_liq = ql + qr
@@ -468,7 +469,7 @@ def satadjust_part1(dpln: sd, den: sd, pt1: sd, cvm:sd, mc_air: sd, peln: sd, qv
         t0 = pt1  # true temperature
         qpz = qpz + qv  # total_wat conserved in this routine
         # define air density based on hydrostatical property
-        den = dp / (dpln * rdgas * pt) if hydrostatic else -dp / (grav * delz)
+        den = dp / (dpln * constants.RDGAS * pt) if hydrostatic else -dp / (grav * delz)
         # define heat capacity and latend heat coefficient
         mc_air = (1. - qpz) * c_air
         cvm = compute_cvm(mc_air, qv, c_vap, q_liq, c_liq, q_sol, c_ice)
@@ -542,8 +543,7 @@ def satadjust_part2(wqsat:sd, dq2dt:sd, pt1:sd, cvm: sd, mc_air:sd, tcp3: sd, lh
         #pt1 = adjust_pt1(pt1, src, lhl, cvm) # pt1 + src * lhl / cvm
         # update latent heat coefficient
         lhl, lhi, lcp2, icp2 = update_latent_heat_coefficient(pt1, cvm, lv00, d0_vap)
-        # TODO uncomment when exp and log are supported
-        # pkz = exp(cappa * log(rrg * delp / delz * pt)) #rrg = constants.RDG
+      
 
 @utils.stencil(externals={'cv_air': constants.CV_AIR, 'cv_vap': constants.CV_VAP, 'c_liq': constants.C_LIQ, 'c_ice': constants.C_ICE,
                           'rdgas': constants.RDGAS, 'rvgas': constants.RVGAS, 'grav': constants.GRAV, 'tice':constants.TICE, 'sat_adj0': constants.sat_adj0,
@@ -683,7 +683,7 @@ def satadjust_part5(tin:sd, te0: sd, dp:sd,  q_cond:sd, q_con:sd, expsubl: sd, i
         else:
             qi = qi
 @utils.stencil()
-def satadjust_part6_laststep_qa(area:sd, qpz:sd,  hs: sd, tin: sd, te: sd, q_cond:sd, q_con:sd, expsubl: sd, iqs1: sd, wqs1: sd, den:sd, pt1: sd, cvm: sd, mc_air: sd, tcp3: sd, lhl:sd, lhi:sd, lcp2:sd, icp2:sd, exptc:sd, last_step:bool, qv: sd, ql:sd, q_liq:sd, qi:sd, q_sol:sd, qr:sd, qg:sd, qs:sd, fac_v2l:float, fac_l2v: float, lv00:float, d0_vap: float, c_vap: float, mdt:float, fac_r2g: float, fac_smlt: float, fac_l2r:float, sdt: float, adj_fac: float, zvir: float, fac_i2s: float, out_dt: bool, consv_te: bool, hydrostatic: bool, do_qa: bool):
+def satadjust_part6_laststep_qa(qa: sd, area:sd, qpz:sd,  hs: sd, tin: sd, te: sd, q_cond:sd, q_con:sd, expsubl: sd, iqs1: sd, wqs1: sd, den:sd, pt1: sd, cvm: sd, mc_air: sd, tcp3: sd, lhl:sd, lhi:sd, lcp2:sd, icp2:sd, exptc:sd, qv: sd, ql:sd, q_liq:sd, qi:sd, q_sol:sd, qr:sd, qg:sd, qs:sd, fac_v2l:float, fac_l2v: float, lv00:float, d0_vap: float, c_vap: float, mdt:float, fac_r2g: float, fac_smlt: float, fac_l2r:float, sdt: float, adj_fac: float, zvir: float, fac_i2s: float, out_dt: bool, consv_te: bool, hydrostatic: bool, do_qa: bool):
     with computation(PARALLEL), interval(...):
         qstar = 0.
         rqi = 0.
@@ -706,7 +706,8 @@ def satadjust_part6_laststep_qa(area:sd, qpz:sd,  hs: sd, tin: sd, te: sd, q_con
         mindw = min_fn(1., abshs / (10. * constants.GRAV))
         dw = constants.dw_ocean + (constants.dw_land - constants.dw_ocean) * mindw
         # "scale - aware" subgrid variability: 100 - km as the base
-        hvar = min_fn(0.2, max_fn(0.01, dw * (area**0.5 / 100.e3)**0.5)) #sqrt (sqrt (area) / 100.e3)))
+        maxtmp = max_fn(0.01, dw * (area**0.5 / 100.e3)**0.5)
+        hvar = min_fn(0.2, maxtmp) #sqrt (sqrt (area) / 100.e3)))
         # partial cloudiness by pdf:
         # assuming subgrid linear distribution in horizontal; this is effectively a smoother for the
         # binary cloud scheme; qa = 0.5 if qstar == qpz        
@@ -714,48 +715,49 @@ def satadjust_part6_laststep_qa(area:sd, qpz:sd,  hs: sd, tin: sd, te: sd, q_con
         # icloud_f = 0: bug - fixed
         # icloud_f = 1: old fvgfs gfdl) mp implementation
         # icloud_f = 2: binary cloud scheme (0 / 1)
-# end
-'''                       
-        if (rh > 0.75 .and. qpz > 1.e-8):
+        dq = 0.
+        q_plus = 0.
+        q_minus = 0.
+        if (rh > 0.75 and qpz > 1.e-8):
             dq = hvar * qpz
             q_plus = qpz + dq
             q_minus = qpz - dq
-            if (icloud_f == 2):
-                if (qpz > qstar):
-                    qa = 1.
-                elif (qstar < q_plus .and. q_cond > 1.e-8):
-                    qa = ((q_plus - qstar) / dq) ** 2
-                    qa = min (1., qa)
-                else:
-                    qa = 0.    
-            else
+            # if/elif/else is broken right now, and icloud_f is a constant, ignoring for now
+            #if (constants.icloud_f == 2):
+            #    if (qpz > qstar):
+            #        qa = 1.
+            #    elif ((qstar < q_plus) and (q_cond > 1.e-8)):
+            #        qa = ((q_plus - qstar) / dq)**2
+            #        qa = 1. if 1. < qa else qa  # min_fn(1., qa)
+            #    else:
+            #        qa = 0.
+            #else:
+            qa = 0.
             if (qstar < q_minus):
                 qa = 1.
             else:
                 if (qstar < q_plus):
-                    if (icloud_f == 0):
-                        qa = (q_plus - qstar) / (dq + dq)
-                    else:
-                        qa = (q_plus - qstar) / (2. * dq * (1. - q_cond))
-                    
+                    #if (constants.icloud_f == 0):  # this also seems to trigger a Value error
+                    qa = (q_plus - qstar) / (dq + dq)
+                    #else:
+                    #    qa = (q_plus - qstar) / (2. * dq * (1. - q_cond))
+            
                 else:
                     qa = 0.
-                
                 # impose minimum cloudiness if substantial q_cond exist
                 if (q_cond > 1.e-8):
-                    qa = max (cld_min, qa)
+                    qa =  constants.cld_min if constants.cld_min > qa else qa # max_fn(constants.cld_min, qa)
                 else:
                     qa=qa
-                qa = min (1., qa)
+                qa = 1. if 1. < qa else qa  # min_fn(1., qa)
         else:
             qa = 0.
- '''           
+    
 def compute(dpln, te, qvapor, qliquid, qice, qrain, qsnow, qgraupel, qcld, hs, peln, delp, delz, q_con, pt, pkz, cappa, r_vir, mdt, fast_mp_consv, out_dt, last_step, akap, kmp):
     grid = spec.grid
     qs_init()
     hydrostatic = spec.namelist['hydrostatic']
     sdt = 0.5 * mdt # half remapping time step
-    dt_bigg = mdt # bigg mechinism time step
     # define conversion scalar / factor
     fac_i2s = 1. - math.exp(-mdt / constants.tau_i2s)
     fac_v2l = 1. - math.exp(-sdt / constants.tau_v2l)
@@ -799,7 +801,7 @@ def compute(dpln, te, qvapor, qliquid, qice, qrain, qsnow, qgraupel, qcld, hs, p
     #lhi:sd, icp2:sd, lcp2:sd,
     satadjust_part1(dpln, den, pt1, cvm, mc_air, peln, qvapor, qliquid, q_liq, qice, qrain, qsnow, q_sol, qgraupel,
                     pt, delp, delz, te, qpz, r_vir, hydrostatic, fast_mp_consv, c_air, c_vap, fac_imlt, d0_vap, lv00,
-              origin=grid.compute_origin(), domain=grid.domain_shape_compute()
+                    origin=grid.compute_origin(), domain=grid.domain_shape_compute()
     )
     
     wqs2_iqs2(pt1, den,  wqsat, dq2dt )
@@ -820,9 +822,7 @@ def compute(dpln, te, qvapor, qliquid, qice, qrain, qsnow, qgraupel, qcld, hs, p
     satadjust_part3(wqsat, dq2dt, pt1, cvm, mc_air, tcp3, lhl,lhi, lcp2, icp2,last_step, qvapor, qliquid, q_liq, qice, q_sol, fac_v2l,
                     fac_l2v, lv00, d0_vap, c_vap, origin=grid.compute_origin(), domain=grid.domain_shape_compute())
     
-    exptc = np.exp(0.66 *( TICE0 - pt1))
-    print('----------------exp', type(exptc))
-    
+    exptc = np.exp(0.66 * (TICE0 - pt1))  
     satadjust_part4(wqsat, dq2dt, den, pt1, cvm, mc_air, tcp3, lhl,  lhi, lcp2, icp2, exptc, last_step, qvapor, qliquid, q_liq, qice, q_sol, qrain, qgraupel, qsnow, fac_v2l, fac_l2v, lv00, d0_vap, c_vap, mdt, fac_r2g, fac_smlt, fac_l2r, origin=grid.compute_origin(), domain=grid.domain_shape_compute())
     
     iqs2 = utils.make_storage_from_shape(peln.shape, utils.origin)
@@ -837,8 +837,8 @@ def compute(dpln, te, qvapor, qliquid, qice, qrain, qsnow, qgraupel, qcld, hs, p
         wqs1 = utils.make_storage_from_shape(peln.shape, utils.origin)
         wqs1_iqs1(tin, den, wqs1, tablename='tablew', desname='desw')
         wqs1_iqs1(tin, den, iqs1, tablename='table2', desname='des2')
-        #TODO change area to area_64
-        satadjust_part6_laststep_qa(grid.area, qpz, hs, tin, te, q_cond, q_con, expsubl,iqs1, wqs1, den, pt1, cvm, mc_air, tcp3, lhl,  lhi, lcp2, icp2, exptc, last_step, qvapor, qliquid, q_liq, qice, q_sol, qrain, qgraupel, qsnow, fac_v2l, fac_l2v, lv00, d0_vap, c_vap, mdt, fac_r2g, fac_smlt, fac_l2r, sdt, adj_fac, r_vir, fac_i2s, out_dt, fast_mp_consv, hydrostatic, do_qa,origin=grid.compute_origin(), domain=grid.domain_shape_compute())
+        satadjust_part6_laststep_qa(qcld, grid.area_64, qpz, hs, tin, te, q_cond, q_con, expsubl,iqs1, wqs1, den, pt1, cvm, mc_air, tcp3, lhl,  lhi, lcp2, icp2, exptc, qvapor, qliquid, q_liq, qice, q_sol, qrain, qgraupel, qsnow, fac_v2l, fac_l2v, lv00, d0_vap, c_vap, mdt, fac_r2g, fac_smlt, fac_l2r, sdt, adj_fac, r_vir, fac_i2s, out_dt, fast_mp_consv, hydrostatic, do_qa,origin=grid.compute_origin(), domain=grid.domain_shape_compute())
     # TODO put into stencil when exp allowed inside stencil
+    # e.g. pkz = exp(cappa * log(rrg * delp / delz * pt)) #rrg = constants.RDG
     tmpslice = (slice(grid.is_, grid.ie + 1), slice(grid.js, grid.je+1), slice(kmp, grid.npz))
     pkz[tmpslice] = np.exp(cappa[tmpslice]*np.log(constants.RDG*delp[tmpslice]/delz[tmpslice]*pt[tmpslice]))
