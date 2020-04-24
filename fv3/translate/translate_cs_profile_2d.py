@@ -14,13 +14,21 @@ class TranslateCS_Profile_2d(TranslateFortranData2Py):
             "a4_3": {"serialname": "q4_3"},
             "a4_4": {"serialname": "q4_4"},
             "delp": {"serialname": "dp1_2d"},
+            "set_gam":{}, 
+            "set_q":{}, 
+            "b_q":{}, 
+            "b_gam":{},
+            "b_a4":{}, 
+            "b_extm":{}, 
+            "b_ext5":{}, 
+            "b_ext6":{},
         }
         self.in_vars["parameters"] = ["km", "i1", "i2", "iv", "kord"]
         self.out_vars = {
-            "a4_1": {"serialname": "q4_1"},
-            "a4_2": {"serialname": "q4_2"},
-            "a4_3": {"serialname": "q4_3"},
-            "a4_4": {"serialname": "q4_4"},
+            "a4_1": {"serialname": "q4_1", "istart": grid.is_,"iend": grid.ie+1},
+            "a4_2": {"serialname": "q4_2", "istart": grid.is_,"iend": grid.ie+1},
+            "a4_3": {"serialname": "q4_3", "istart": grid.is_,"iend": grid.ie+1},
+            "a4_4": {"serialname": "q4_4", "istart": grid.is_,"iend": grid.ie+1},
         }
 
     def make_storage_data_input_vars(self, inputs, storage_vars=None):
