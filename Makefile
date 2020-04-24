@@ -3,7 +3,7 @@ CWD=$(shell pwd)
 
 #<some large conceptual version change>.<serialization statement change>.<hotfix>
 
-FORTRAN_VERSION=0.3.csprofile
+FORTRAN_VERSION=0.3.csprofile.2
 
 TEST_ARGS ?=-v -s -rsx
 PULL ?=True

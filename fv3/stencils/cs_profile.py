@@ -5,6 +5,7 @@ import fv3._config as spec
 from gt4py.gtscript import computation, interval, PARALLEL
 import fv3.stencils.copy_stencil as cp
 import fv3.stencils.cs_limiters as cs_limiters
+import numpy as np
 
 sd = utils.sd
 
@@ -84,11 +85,11 @@ def set_vals_1(gam:sd, q:sd, delp:sd, a4_1:sd, q_bot:sd):
             #set bottom
             d4 = delp[0,0,-2] / delp[0,0,-1]
             a_bot = 1.+d4*(d4+1.5)
-            q = (2.*d4*(d4+1.) * a4_1 + a4_1[0,0,-1] - a_bot*q) / (d4*(d4+0.5) - a_bot * gam)
+            q = (2.*d4*(d4+1.) * a4_1[0,0,-1] + a4_1[0,0,-2] - a_bot*q[0,0,-1]) / (d4*(d4+0.5) - a_bot * gam[0,0,-1])
             # q_bot = (2.*d4*(d4+1.) * a4_1 + a4_1[0,0,-1] - a_bot*q) / (d4*(d4+0.5) - a_bot * gam)
             # q = q - (gam * q_bot)
     with computation(BACKWARD), interval(0,-1):
-        q = q - (gam[0,0,0] * q[0,0,1])
+        q = q - gam[0,0,0] * q[0,0,1]
 
 @utils.stencil()
 def set_avals(q: sd, a4_1:sd, a4_2:sd, a4_3:sd, a4_4:sd, q_bot:sd):
@@ -102,8 +103,33 @@ def set_avals(q: sd, a4_1:sd, a4_2:sd, a4_3:sd, a4_4:sd, q_bot:sd):
         #     a4_3 = q_bot
         #     a4_4 = 3.*(2.*a4_1 - (q+q_bot))
 
+def numpy_constraints(q, gam, a4_1, a4_2, a4_3, km, i1, i_extent, iv):
+    for ii in np.array(range(i_extent))+i1:
+        q[ii,0,1]=min(q[ii,0,1], max(a4_1[ii,0,1], a4_1[ii,0,0]))
+        q[ii,0,1]=max(q[ii,0,1], min(a4_1[ii,0,1], a4_1[ii,0,0]))
+        for kk in range(km):
+            if kk>0:
+                gam[ii,0,kk] = a4_1[ii,0,kk] - a4_1[ii,0,kk-1]
+        for kk in range(2,km-1):
+            if gam[ii,0,kk-1]*gam[ii,0,kk+1]>0:
+                q[ii,0,kk]=min(q[ii,0,kk], max(a4_1[ii,0,kk], a4_1[ii,0,kk-1]))
+                q[ii,0,kk]=max(q[ii,0,kk], min(a4_1[ii,0,kk], a4_1[ii,0,kk-1]))
+            elif gam[ii,0,kk-1]>0:
+                q[ii,0,kk]=max(q[ii,0,kk], min(a4_1[ii,0,kk], a4_1[ii,0,kk-1]))
+            else:
+                q[ii,0,kk]=min(q[ii,0,kk], max(a4_1[ii,0,kk], a4_1[ii,0,kk-1]))
+                if iv == 0:
+                    q[ii,0,kk] = max(q[ii,0,kk],0)
+        q[ii,0,km-1]=min(q[ii,0,km-1], max(a4_1[ii,0,km-1], a4_1[ii,0,km-2]))
+        q[ii,0,km-1]=max(q[ii,0,km-1], min(a4_1[ii,0,km-1], a4_1[ii,0,km-2]))
+        for kk in range(km):
+            a4_2[ii,0,kk]=q[ii,0,kk]
+            a4_3[ii,0,kk]=q[ii,0,kk+1]
+    return 0
+
+
 @utils.stencil()
-def Apply_constraints(q:sd, gam:sd, a4_1:sd, a4_2:sd, a4_3:sd, q_bot:sd, iv: int):
+def Apply_constraints(q:sd, gam:sd, a4_1:sd, a4_2:sd, a4_3:sd, iv: int):
     with computation(PARALLEL):
         with interval(1,None):
             tmp = a4_1[0,0,-1] if a4_1[0,0,-1] > a4_1 else a4_1
@@ -181,8 +207,7 @@ def set_top_as_iv0(a4_1:sd, a4_2:sd, a4_3:sd, a4_4:sd):
     with computation(PARALLEL):
         with interval(0,1):
             a4_2 = a4_2 if a4_2 > 0. else 0.
-            a4_4 = 3*(2*a4_1 - (a4_2 + a4_3))
-        with interval(1,None):
+        with interval(...):
             a4_4 = 3*(2*a4_1 - (a4_2 + a4_3)) 
 
 @utils.stencil()
@@ -190,8 +215,7 @@ def set_top_as_iv1(a4_1:sd, a4_2:sd, a4_3:sd, a4_4:sd):
     with computation(PARALLEL):
         with interval(0,1):
                 a4_2 = 0. if a4_2*a4_1 <= 0. else a4_2
-                a4_4 = 3*(2*a4_1 - (a4_2 + a4_3))
-        with interval(1,None):
+        with interval(...):
             a4_4 = 3*(2*a4_1 - (a4_2 + a4_3))                
 
 @utils.stencil()
@@ -377,7 +401,7 @@ def set_bottom_as_else(a4_1:sd, a4_2:sd, a4_3:sd, a4_4:sd):
             a4_4 = 3.0 * (2.0 * a4_1 - (a4_2 + a4_3))
 
 
-def compute(qs, a4_1, a4_2, a4_3, a4_4, delp, set_gam, set_q, b_q, b_gam, b_a4, b_extm, b_ext5, b_ext6, km, i1, i2, iv, kord):
+def compute(qs, a4_1, a4_2, a4_3, a4_4, delp, set_gam, set_q, set_a4, b_q, b_gam, b_a4, b_extm, b_ext5, b_ext6,cs1_extm,cs1_a4_1,cs1_a4_2,cs1_a4_3,cs1_a4_4,cs1b_a4_1,cs1b_a4_2,cs1b_a4_3,cs1b_a4_4,cs2_extm,cs2_a4_1,cs2_a4_2,cs2_a4_3,cs2_a4_4,cs2b_a4_1,cs2b_a4_2,cs2b_a4_3,cs2b_a4_4,huy_a4_1,huy_a4_2,huy_a4_3,huy_a4_4, km, i1, i2, iv, kord):
     # TODO: how do we handle 2d-stencils/take a 2d slice of a 3d array?
     # TODO: how do we handle loopy stencils, e.g. q(i,k) = q(i,k) - gam(i,k+1)*q(i,k+1)?
     # Or q(i,k) = (3.*(a4(1,i,k-1)+a4(1,i,k)) - q(i,k-1))/bet?
@@ -386,6 +410,7 @@ def compute(qs, a4_1, a4_2, a4_3, a4_4, delp, set_gam, set_q, b_q, b_gam, b_a4, 
     # a4 is 3d but weirdly shaped, probably only care about i=1?
     # TODO how put these all together??
     i_extent = i2 - i1 + 1
+    
     grid = spec.grid
     orig = (i1, 0, 0)
     full_orig = (grid.is_, 0, 0)
@@ -407,48 +432,89 @@ def compute(qs, a4_1, a4_2, a4_3, a4_4, delp, set_gam, set_q, b_q, b_gam, b_a4, 
     else:
         set_vals_1(gam, q, delp, a4_1, q_bot, origin=orig, domain=(i_extent, 1, km+1))
 
+    # for ii in range(km):
+    #     if (set_q[i1:i2,:,ii]==q[i1:i2,:,ii]).all():
+    #         print(ii)
+    #     else:
+    #         #print("yikes")
+    #         print(max(set_q[i1:i2,0,ii]-q[i1:i2,0,ii]))
+    # assert (set_q[i1:i2,:,:] == q[i1:i2,:,:]).all()
     if abs(kord) > 16:
         set_avals(q, a4_1, a4_2, a4_3, a4_4, q_bot, origin=orig, domain=dom)
     else:
-        Apply_constraints(q, gam, a4_1, a4_2, a4_3, q_bot, iv, origin=orig, domain=dom)
+        Apply_constraints(q, gam, a4_1, a4_2, a4_3, iv, origin=orig, domain=dom)
+        # p0 = numpy_constraints(q, gam, a4_1, a4_2, a4_3, km, i1, i_extent, iv)
         set_extm(extm, a4_1, a4_2, a4_3, gam, origin=orig, domain=dom)
 
         if abs(kord) > 9:
             set_exts(a4_4, ext5, ext6, a4_1, a4_2, a4_3, origin=orig, domain=dom)
 
 
-        for ii in range(km):
-            if (b_a4[0,i1:i2,ii]==a4_1[i1:i2,0,ii]).all():
-                print(ii)
-            else:
-                #print("yikes")
-                print(max(b_a4[0,i1:i2,ii]-a4_1[i1:i2,0,ii]))
+        # for ii in range(km):
+        #     if (b_gam[i1:i2,0,ii]==gam[i1:i2,0,ii]).all():
+        #         print(ii)
+        #     else:
+        #         #print("yikes")
+        #         print(max(gam[i1:i2,0,ii]-gam[i1:i2,0,ii]))
 
-        for ii in range(km):
-            if (b_q[i1:i2,:,ii]==q[i1:i2,:,ii]).all():
-                print(ii)
-            else:
-                #print("yikes")
-                print(max(b_q[i1:i2,:,ii]-q[i1:i2,:,ii]))
+        # for ii in range(km):
+        #     if (b_q[i1:i2,:,ii]==q[i1:i2,:,ii]).all():
+        #         print(ii)
+        #     else:
+        #         #print("yikes")
+        #         print(max(b_q[i1:i2,0,ii]-q[i1:i2,0,ii]))
 
-        print(b_a4.shape)
+        # print(b_a4.shape)
 
-        assert (b_a4[0,i1:i2,ii]==a4_1[i1:i2,0,ii]).all()
-        assert (b_q[i1:i2,:,:] == q[i1:i2,:,:]).all()
-        assert (b_gam[i1:i2,:,:] == gam[i1:i2,:,:]).all()
-        assert (b_a4[1,i1:i2,ii]==a4_2[i1:i2,0,ii]).all()
-        assert (b_a4[2,i1:i2,ii]==a4_3[i1:i2,0,ii]).all()
-        assert (b_a4[3,i1:i2,ii]==a4_4[i1:i2,0,ii]).all()
-        assert (b_extm[i1:i2,:,:] == extm[i1:i2,:,:]).all()
-        assert (b_ext5[i1:i2,:,:] == ext5[i1:i2,:,:]).all()
-        assert (b_ext6[i1:i2,:,:] == ext6[i1:i2,:,:]).all()
+        # examine = (b_q[i1:i2,0,31] != q[i1:i2,0,31])
+
+        # print(gam[i1:i2,0,61][examine])
+        # print(gam[i1:i2,0,59][examine])
+        # print(a4_1[i1:i2,0,60][examine])
+        # print(a4_1[i1:i2,0,59][examine])
+        # print(q[i1:i2,0,60][examine])
+        # print(b_q[i1:i2,0,60][examine])
+
+        # assert (b_a4[0,i1:i2,:]==a4_1[i1:i2,0,:]).all()
+        # assert (b_gam[i1:i2,:,:] == gam[i1:i2,:,:]).all()
+        # assert (b_q[i1:i2,:,:] == q[i1:i2,:,:]).all()
+        # assert (b_a4[1,i1:i2,:]==a4_2[i1:i2,0,:]).all()
+        # assert (b_a4[2,i1:i2,:]==a4_3[i1:i2,0,:]).all()
+        # assert (b_a4[3,i1:i2,:]==a4_4[i1:i2,0,:]).all()
+        # assert (b_extm[i1:i2,:,:] == extm[i1:i2,:,:]).all()
+        # assert (b_ext5[i1:i2,:,:] == ext5[i1:i2,:,:]).all()
+        # assert (b_ext6[i1:i2,:,:] == ext6[i1:i2,:,:]).all()
 
         if iv == 0:
             set_top_as_iv0(a4_1, a4_2, a4_3, a4_4, origin=orig, domain=(i_extent, 1, 2))
+            assert (cs1_a4_1[i1:i2,0,:]==a4_1[i1:i2,0,:]).all()
+            assert (cs1_a4_2[i1:i2,0,:]==a4_2[i1:i2,0,:]).all()
+            assert (cs1_a4_3[i1:i2,0,:]==a4_3[i1:i2,0,:]).all()
+            assert (cs1_a4_4[i1:i2,0,:]==a4_4[i1:i2,0,:]).all()
             a4_1, a4_2, a4_3, a4_4 = cs_limiters.compute(a4_1, a4_2, a4_3, a4_4, extm, 1, i1, i_extent, 0, 1)
+            print(a4_2[i1:i2,0,0][cs1b_a4_2[i1:i2,0,0]!=a4_2[i1:i2,0,0]])
+            print(cs1b_a4_2[i1:i2,0,0][cs1b_a4_2[i1:i2,0,0]!=a4_2[i1:i2,0,0]].shape)
+            print(cs1b_a4_2[i1:i2,0,0][cs1b_a4_2[i1:i2,0,0]!=a4_2[i1:i2,0,0]])
+            print(a4_1[i1:i2,0,0][cs1b_a4_2[i1:i2,0,0]!=a4_2[i1:i2,0,0]])
+            assert (cs1b_a4_1[i1:i2,0,0]==a4_1[i1:i2,0,0]).all()
+            assert (cs1b_a4_2[i1:i2,0,0]==a4_2[i1:i2,0,0]).all()
+            assert (cs1b_a4_3[i1:i2,0,0]==a4_3[i1:i2,0,0]).all()
+            assert (cs1b_a4_4[i1:i2,0,0]==a4_4[i1:i2,0,0]).all()
         elif iv == -1:
             set_top_as_iv1(a4_1, a4_2, a4_3, a4_4, origin=orig, domain=(i_extent, 1, 2))
+            assert (cs1_a4_1[i1:i2,0,:]==a4_1[i1:i2,0,:]).all()
+            assert (cs1_a4_2[i1:i2,0,:]==a4_2[i1:i2,0,:]).all()
+            assert (cs1_a4_3[i1:i2,0,:]==a4_3[i1:i2,0,:]).all()
+            assert (cs1_a4_4[i1:i2,0,:]==a4_4[i1:i2,0,:]).all()
             a4_1, a4_2, a4_3, a4_4 = cs_limiters.compute(a4_1, a4_2, a4_3, a4_4, extm, 1, i1, i_extent, 0, 1)
+            print(a4_2[i1:i2,0,0][cs1b_a4_2[i1:i2,0,0]!=a4_2[i1:i2,0,0]])
+            print(cs1b_a4_2[i1:i2,0,0][cs1b_a4_2[i1:i2,0,0]!=a4_2[i1:i2,0,0]].shape)
+            print(cs1b_a4_2[i1:i2,0,0][cs1b_a4_2[i1:i2,0,0]!=a4_2[i1:i2,0,0]])
+            print(a4_1[i1:i2,0,0][cs1b_a4_2[i1:i2,0,0]!=a4_2[i1:i2,0,0]])
+            assert (cs1b_a4_1[i1:i2,0,:]==a4_1[i1:i2,0,:]).all()
+            assert (cs1b_a4_2[i1:i2,0,:]==a4_2[i1:i2,0,:]).all()
+            assert (cs1b_a4_3[i1:i2,0,:]==a4_3[i1:i2,0,:]).all()
+            assert (cs1b_a4_4[i1:i2,0,:]==a4_4[i1:i2,0,:]).all()
         elif iv == 2:
             set_top_as_iv2(a4_1, a4_2, a4_3, a4_4, origin=orig, domain=(i_extent, 1, 2))
         else:

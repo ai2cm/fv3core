@@ -108,7 +108,7 @@ def posdef_constraint_iv1(a4_1: sd, a4_2: sd, a4_3: sd, a4_4: sd):
             # da1 = a4_3 - a4_2
             # da2 = da1**2
             # a6da = a4_4 * da1
-            if a6da < -da2:
+            if a6da < -1.*da2:
                 a4_4 = 3.*(a4_2-a4_1)
                 a4_3 = a4_2 - a4_4
             elif a6da > da2:
