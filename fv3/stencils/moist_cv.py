@@ -121,6 +121,25 @@ def moist_pt(qvapor: sd, qliquid: sd, qrain: sd, qsnow: sd,qice: sd, qgraupel: s
         cappa = set_cappa(qvapor, cvm, r_vir)
         #pt[0, 0, 0] = pt * exp(cappa / (1.0 - cappa) * log(constants.RDG * delp / delz * pt))
 
+@gtscript.function
+def last_pt(pt, dtmp, pkz, gz, qv, zvir):
+    return (pt + dtmp * pkz) / ((1. + zvir* qv) * (1. - gz))
+
+@utils.stencil()
+def moist_pt_last_step(qvapor: sd, qliquid: sd, qrain: sd, qsnow: sd, qice: sd, qgraupel: sd, gz: sd, pt: sd, pkz: sd, dtmp:float, zvir: float, nwat: int):
+    with computation(FORWARD), interval(...):
+        #if nwat == 2:
+        #    gz = qliquid if qliquid > 0. else 0.
+        #    qv = qvapor if qvapor > 0. else 0.
+        #    pt = last_pt(pt, dtmp, pkz, gz, qv, zvir)
+        #elif nwat == 6:
+        gz = qliquid + qrain + qice + qsnow + qgraupel
+        pt = last_pt(pt, dtmp, pkz, gz, qvapor, zvir)
+        #else:
+        #    cvm, gz = moist_cv_nwat6_fn(qvapor, qliquid, qrain, qsnow, qice, qgraupel)
+        #    pt = last_pt(pt, dtmp, pkz, gz, qvapor, zvir)
+            
+
 @utils.stencil()
 def moist_pkz(qvapor: sd, qliquid: sd, qrain: sd, qsnow: sd,qice: sd, qgraupel: sd, q_con: sd, gz: sd, cvm: sd, pkz: sd, pt:sd, cappa: sd, delp: sd, delz: sd, r_vir: float, nwat: int):
     with computation(FORWARD), interval(...):
@@ -176,4 +195,9 @@ def compute_total_energy(u, v, w, delz, pt, delp, qc, pe, peln, hs, zvir, te_2d,
                           te_2d, delp, pt, hs, u, v, w,
                           grid.rsin2, grid.cosa_s, delz, zvir, spec.namelist['nwat'], spec.namelist['moist_phys'],
                           origin=(grid.is_, grid.js, 0), domain=(grid.nic, grid.njc, grid.npz+1)
+    )
+
+def compute_last_step(pt, pkz, dtmp, r_vir, qvapor, qliquid, qice, qrain, qsnow, qgraupel,gz):
+    grid = spec.grid
+    moist_pt_last_step(qvapor, qliquid, qrain, qsnow, qice, qgraupel, gz, pt, pkz, dtmp, r_vir, spec.namelist['nwat'],origin=(grid.is_, grid.js, 0), domain=(grid.nic, grid.njc, grid.npz+1)
     )
