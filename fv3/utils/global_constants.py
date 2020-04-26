@@ -24,30 +24,6 @@ TICE = 273.16
 T_MIN = 184.0  # below which applies stricter constraint
 CONSV_MIN = 0.001  # Below which no correction applies
 # gfdl_cloud_mucrophys.F90
-tau_r2g = 900.  # rain freezing during fast_sat
-tau_smlt = 900.  # snow melting
-tau_g2r = 600.  # graupel melting to rain
-tau_imlt = 600.  # cloud ice melting
-tau_i2s = 1000.  # cloud ice to snow auto - conversion
-tau_l2r = 900.  # cloud water to rain auto - conversion
-tau_v2l = 150.  # water vapor to cloud water (condensation)
-tau_l2v = 300.  # cloud water to water vapor (evaporation)
-tau_g2v = 900.  # graupel sublimation
-tau_v2g = 21600.  # graupel deposition -- make it a slow process
-sat_adj0 = 0.90  # adjustment factor (0: no, 1: full) during fast_sat_adj
-ql_gen = 1.0e-3  #  max cloud water generation during remapping step if fast_sat_adj = .t.
-ql_mlt = 2.0e-3  # max value of cloud water allowed from melted cloud ice
-qs_mlt = 1.0e-6  # max cloud water due to snow melt
+# TODO leftover having problems using as runtime flags
 ql0_max = 2.0e-3  # max cloud water value (auto converted to rain)
 t_sub = 184.  # min temp for sublimation of cloud ice
-qi_gen = 1.82e-6  # max cloud ice generation during remapping step
-qi_lim = 1.  # cloud ice limiter to prevent large ice build up
-qi0_max = 1.0e-4  # max cloud ice value (by other sources)
-rad_snow = True  # consider snow in cloud fraciton calculation
-rad_rain = True # consider rain in cloud fraction calculation
-rad_graupel = True # consider graupel in cloud fraction calculation
-tintqs = False  # use temperature in the saturation mixing in PDF 
-dw_ocean = 0.10  # base value for ocean
-dw_land = 0.20  # base value for subgrid deviation / variability over land
-icloud_f = 0  # cloud scheme 0 - ?, 1: old fvgfs gfdl) mp implementation, 2: binary cloud scheme (0 / 1)
-cld_min = 0.05 # !< minimum cloud fraction
