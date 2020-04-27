@@ -111,11 +111,15 @@ def posdef_constraint_iv1(a4_1: sd, a4_2: sd, a4_3: sd, a4_4: sd):
             if a6da < -1.*da2:
                 a4_4 = 3.*(a4_2-a4_1)
                 a4_3 = a4_2 - a4_4
+                a4_2 = a4_2
             elif a6da > da2:
                 a4_4 = 3.*(a4_3-a4_1)
                 a4_2 = a4_3 - a4_4
+                a4_3 = a4_3
             else:
                 a4_2 = a4_2
+                a4_3 = a4_3
+                a4_4 = a4_4
 
 
 @utils.stencil()

@@ -59,7 +59,7 @@ def set_vals_2(gam:sd, q:sd, delp:sd, a4_1:sd, q_bot:sd, qs:sd):
         with interval(-1,None):
             #set bottom
             grid_ratio = delp[0, 0, -1] / delp
-            q = (3. * (a4_1[0,0,-1] + a4_1[0,0,0]) - (qs * grid_ratio) - q[0,0,-1]) / ( 2. + grid_ratio + grid_ratio - gam)
+            q = (3. * (a4_1[0,0,-1] + a4_1) - (qs * grid_ratio) - q[0,0,-1]) / ( 2. + grid_ratio + grid_ratio - gam)
             q_bot = qs
     with computation(BACKWARD), interval(0,-1):
         q = q - (gam[0,0,1] * q[0,0,1])
@@ -89,7 +89,7 @@ def set_vals_1(gam:sd, q:sd, delp:sd, a4_1:sd, q_bot:sd):
             # q_bot = (2.*d4*(d4+1.) * a4_1 + a4_1[0,0,-1] - a_bot*q) / (d4*(d4+0.5) - a_bot * gam)
             # q = q - (gam * q_bot)
     with computation(BACKWARD), interval(0,-1):
-        q = q - gam[0,0,0] * q[0,0,1]
+        q = q - gam * q[0,0,1]
 
 @utils.stencil()
 def set_avals(q: sd, a4_1:sd, a4_2:sd, a4_3:sd, a4_4:sd, q_bot:sd):
@@ -174,6 +174,7 @@ def Apply_constraints(q:sd, gam:sd, a4_1:sd, a4_2:sd, a4_3:sd, iv: int):
             q = q if q < tmp else tmp
             #tmp2 = a4_1[0,0,-1] if a4_1[0,0,-1] < a4_1 else a4_1
             q = q if q > tmp2 else tmp2
+    with computation(PARALLEL):
         with interval(...):
             #re-set a4_2 and a4_3
             a4_2 = q
@@ -376,7 +377,8 @@ def set_inner_as_kord10(a4_1:sd, a4_2:sd, a4_3:sd, a4_4:sd, gam:sd, extm:sd, ext
                 a4_2 = a4_2
         else:
             a4_2 = a4_2
-        a4_4 = 6.*a4_1 - 3.*(a4_2 + a4_3)
+    with computation(PARALLEL), interval(...):
+        a4_4 = 3.*(2.*a4_1 - (a4_2 + a4_3))
 
 @utils.stencil()
 def set_bottom_as_iv0(a4_1:sd, a4_2:sd, a4_3:sd, a4_4:sd):
@@ -427,18 +429,26 @@ def compute(qs, a4_1, a4_2, a4_3, a4_4, delp, set_gam, set_q, set_a4, b_q, b_gam
     ext5 = utils.make_storage_from_shape(delp.shape, origin=full_orig)
     ext6 = utils.make_storage_from_shape(delp.shape, origin=full_orig)
 
+    print(set_a4.shape)
+
     if iv==-2:
         set_vals_2(gam, q, delp, a4_1, q_bot, qs, origin=orig, domain=dom)
     else:
         set_vals_1(gam, q, delp, a4_1, q_bot, origin=orig, domain=(i_extent, 1, km+1))
 
     # for ii in range(km):
-    #     if (set_q[i1:i2,:,ii]==q[i1:i2,:,ii]).all():
+    #     if (set_a4[0,i1:i2,ii] == a4_1[i1:i2,0,ii]).all():
     #         print(ii)
     #     else:
     #         #print("yikes")
-    #         print(max(set_q[i1:i2,0,ii]-q[i1:i2,0,ii]))
-    # assert (set_q[i1:i2,:,:] == q[i1:i2,:,:]).all()
+    #         print(max(set_a4[0,i1:i2,ii] - a4_1[i1:i2,0,ii]))
+    assert (set_q[i1:i2,:,:] == q[i1:i2,:,:]).all()
+    assert (set_gam[i1:i2,:,:] == gam[i1:i2,:,:]).all()
+    assert (set_a4[0,i1:i2,:] == a4_1[i1:i2,0,:]).all()
+    assert (set_a4[1,i1:i2,:] == a4_2[i1:i2,0,:]).all()
+    assert (set_a4[2,i1:i2,:] == a4_3[i1:i2,0,:]).all()
+    assert (set_a4[3,i1:i2,:] == a4_4[i1:i2,0,:]).all()
+    
     if abs(kord) > 16:
         set_avals(q, a4_1, a4_2, a4_3, a4_4, q_bot, origin=orig, domain=dom)
     else:
@@ -458,11 +468,11 @@ def compute(qs, a4_1, a4_2, a4_3, a4_4, delp, set_gam, set_q, set_a4, b_q, b_gam
         #         print(max(gam[i1:i2,0,ii]-gam[i1:i2,0,ii]))
 
         # for ii in range(km):
-        #     if (b_q[i1:i2,:,ii]==q[i1:i2,:,ii]).all():
+        #     if (b_a4[1,i1:i2,ii]==a4_2[i1:i2,0,ii]).all():
         #         print(ii)
         #     else:
         #         #print("yikes")
-        #         print(max(b_q[i1:i2,0,ii]-q[i1:i2,0,ii]))
+        #         print(max(b_a4[1,i1:i2,ii]-a4_2[i1:i2,0,ii]))
 
         # print(b_a4.shape)
 
@@ -475,15 +485,17 @@ def compute(qs, a4_1, a4_2, a4_3, a4_4, delp, set_gam, set_q, set_a4, b_q, b_gam
         # print(q[i1:i2,0,60][examine])
         # print(b_q[i1:i2,0,60][examine])
 
-        # assert (b_a4[0,i1:i2,:]==a4_1[i1:i2,0,:]).all()
-        # assert (b_gam[i1:i2,:,:] == gam[i1:i2,:,:]).all()
-        # assert (b_q[i1:i2,:,:] == q[i1:i2,:,:]).all()
-        # assert (b_a4[1,i1:i2,:]==a4_2[i1:i2,0,:]).all()
-        # assert (b_a4[2,i1:i2,:]==a4_3[i1:i2,0,:]).all()
-        # assert (b_a4[3,i1:i2,:]==a4_4[i1:i2,0,:]).all()
-        # assert (b_extm[i1:i2,:,:] == extm[i1:i2,:,:]).all()
-        # assert (b_ext5[i1:i2,:,:] == ext5[i1:i2,:,:]).all()
-        # assert (b_ext6[i1:i2,:,:] == ext6[i1:i2,:,:]).all()
+        assert (b_a4[0,i1:i2,:]==a4_1[i1:i2,0,:]).all()
+        assert (b_gam[i1:i2,:,:] == gam[i1:i2,:,:]).all()
+        assert (b_q[i1:i2,:,:] == q[i1:i2,:,:]).all()
+        assert (b_a4[1,i1:i2,:]==a4_2[i1:i2,0,:]).all()
+        assert (b_a4[2,i1:i2,:]==a4_3[i1:i2,0,:]).all()
+        assert (b_a4[3,i1:i2,:]==a4_4[i1:i2,0,:]).all()
+        assert (a4_2[i1:i2,:,0:km]==q[i1:i2,:,0:km]).all()
+        assert (b_a4[1,i1:i2,0:km]==b_q[i1:i2,0,0:km]).all()
+        assert (b_extm[i1:i2,:,:] == extm[i1:i2,:,:]).all()
+        assert (b_ext5[i1:i2,:,:] == ext5[i1:i2,:,:]).all()
+        assert (b_ext6[i1:i2,:,:] == ext6[i1:i2,:,:]).all()
 
         if iv == 0:
             set_top_as_iv0(a4_1, a4_2, a4_3, a4_4, origin=orig, domain=(i_extent, 1, 2))
@@ -502,25 +514,50 @@ def compute(qs, a4_1, a4_2, a4_3, a4_4, delp, set_gam, set_q, set_a4, b_q, b_gam
             assert (cs1b_a4_4[i1:i2,0,0]==a4_4[i1:i2,0,0]).all()
         elif iv == -1:
             set_top_as_iv1(a4_1, a4_2, a4_3, a4_4, origin=orig, domain=(i_extent, 1, 2))
-            assert (cs1_a4_1[i1:i2,0,:]==a4_1[i1:i2,0,:]).all()
-            assert (cs1_a4_2[i1:i2,0,:]==a4_2[i1:i2,0,:]).all()
-            assert (cs1_a4_3[i1:i2,0,:]==a4_3[i1:i2,0,:]).all()
-            assert (cs1_a4_4[i1:i2,0,:]==a4_4[i1:i2,0,:]).all()
+            assert (cs1_a4_1[i1:i2,0,0]==a4_1[i1:i2,0,0]).all()
+            assert (cs1_a4_2[i1:i2,0,0]==a4_2[i1:i2,0,0]).all()
+            assert (cs1_a4_3[i1:i2,0,0]==a4_3[i1:i2,0,0]).all()
+            assert (cs1_a4_4[i1:i2,0,0]==a4_4[i1:i2,0,0]).all()
+            da1 = a4_3[i1:i2,0,0] - a4_2[i1:i2,0,0]
+            da2 = da1**2
+            a6da = a4_4[i1:i2,0,0] * da1
+            cond = (a4_1[i1:i2,0,0] - a4_2[i1:i2,0,0])*(a4_1[i1:i2,0,0] - a4_3[i1:i2,0,0]) >= 0
+
             a4_1, a4_2, a4_3, a4_4 = cs_limiters.compute(a4_1, a4_2, a4_3, a4_4, extm, 1, i1, i_extent, 0, 1)
-            print(a4_2[i1:i2,0,0][cs1b_a4_2[i1:i2,0,0]!=a4_2[i1:i2,0,0]])
+
+            #print(a4_2[i1:i2,0,0][cs1b_a4_2[i1:i2,0,0]!=a4_2[i1:i2,0,0]])
             print(cs1b_a4_2[i1:i2,0,0][cs1b_a4_2[i1:i2,0,0]!=a4_2[i1:i2,0,0]].shape)
-            print(cs1b_a4_2[i1:i2,0,0][cs1b_a4_2[i1:i2,0,0]!=a4_2[i1:i2,0,0]])
-            print(a4_1[i1:i2,0,0][cs1b_a4_2[i1:i2,0,0]!=a4_2[i1:i2,0,0]])
-            assert (cs1b_a4_1[i1:i2,0,:]==a4_1[i1:i2,0,:]).all()
-            assert (cs1b_a4_2[i1:i2,0,:]==a4_2[i1:i2,0,:]).all()
-            assert (cs1b_a4_3[i1:i2,0,:]==a4_3[i1:i2,0,:]).all()
-            assert (cs1b_a4_4[i1:i2,0,:]==a4_4[i1:i2,0,:]).all()
+            print(a4_4[i1:i2,0,0][a6da < -da2])
+            print(cs1b_a4_4[i1:i2,0,0][a6da < -da2])
+            print(cs1b_a4_4[i1:i2,0,0][a6da < -da2][cs1b_a4_4[i1:i2,0,0][a6da < -da2]!=a4_4[i1:i2,0,0][a6da < -da2]])
+
+            print(a4_3[i1:i2,0,0][cond] - a4_1[i1:i2,0,0][cond])
+
+            print(cs1b_a4_4[i1:i2,0,0][cond][cs1b_a4_4[i1:i2,0,0][cond]!=a4_4[i1:i2,0,0][cond]])
+
+            #print(a4_4[i1:i2,0,0][cs1b_a4_2[i1:i2,0,0]!=a4_2[i1:i2,0,0]])
+            #print(cs1b_a4_4[i1:i2,0,0][cs1b_a4_2[i1:i2,0,0]!=a4_2[i1:i2,0,0]])
+            #print(cs1b_a4_2[i1:i2,0,0][cs1b_a4_2[i1:i2,0,0]==a4_2[i1:i2,0,0]])
+            #print(a4_1[i1:i2,0,0][cs1b_a4_2[i1:i2,0,0]==a4_2[i1:i2,0,0]])
+
+            assert (cs1b_a4_1[i1:i2,0,0]==a4_1[i1:i2,0,0]).all()
+            assert (cs1b_a4_2[i1:i2,0,0]==a4_2[i1:i2,0,0]).all()
+            assert (cs1b_a4_3[i1:i2,0,0]==a4_3[i1:i2,0,0]).all()
+            assert (cs1b_a4_4[i1:i2,0,0]==a4_4[i1:i2,0,0]).all()
         elif iv == 2:
             set_top_as_iv2(a4_1, a4_2, a4_3, a4_4, origin=orig, domain=(i_extent, 1, 2))
         else:
             set_top_as_else(a4_1, a4_2, a4_3, a4_4, origin=orig, domain=(i_extent, 1, 2))
             a4_1, a4_2, a4_3, a4_4 = cs_limiters.compute(a4_1, a4_2, a4_3, a4_4, extm, 1, i1, i_extent, 0, 1)
+        assert (cs2_a4_1[i1:i2,0,1]==a4_1[i1:i2,0,1]).all()
+        assert (cs2_a4_2[i1:i2,0,1]==a4_2[i1:i2,0,1]).all()
+        assert (cs2_a4_3[i1:i2,0,1]==a4_3[i1:i2,0,1]).all()
+        assert (cs2_a4_4[i1:i2,0,1]==a4_4[i1:i2,0,1]).all()
         a4_1, a4_2, a4_3, a4_4 = cs_limiters.compute(a4_1, a4_2, a4_3, a4_4, extm, 2, i1, i_extent, 1, 1)
+        assert (cs2b_a4_1[i1:i2,0,1]==a4_1[i1:i2,0,1]).all()
+        assert (cs2b_a4_2[i1:i2,0,1]==a4_2[i1:i2,0,1]).all()
+        assert (cs2b_a4_3[i1:i2,0,1]==a4_3[i1:i2,0,1]).all()
+        assert (cs2b_a4_4[i1:i2,0,1]==a4_4[i1:i2,0,1]).all()
 
         if abs(kord) < 9:
             set_inner_as_kordsmall(a4_1, a4_2, a4_3, a4_4, gam, extm, ext5, ext6, origin=(i1,0,2), domain=(i_extent, 1, km-4))
@@ -531,8 +568,17 @@ def compute(qs, a4_1, a4_2, a4_3, a4_4, delp, set_gam, set_q, set_a4, b_q, b_gam
         else:
             print("kord {0} not implemented yet. Go bug a dev for it.".format(kord))
 
+        print("testing junk")
+        print(huy_a4_4.shape)
+        assert (huy_a4_1[i1:i2,0,2:km-1]==a4_1[i1:i2,0,2:km-1]).all()
+        assert (huy_a4_2[i1:i2,0,2:km-1]==a4_2[i1:i2,0,2:km-1]).all()
+        assert (huy_a4_3[i1:i2,0,2:km-1]==a4_3[i1:i2,0,2:km-1]).all()
+        assert (huy_a4_4[i1:i2,0,2:km-1]==a4_4[i1:i2,0,2:km-1]).all()
+
+        
+        a4_2[i1,0,:] = huy_a4_2[i1,0,:]
         if iv == 0:
-            a4_1, a4_2, a4_3, a4_4 = cs_limiters.compute(a4_1, a4_2, a4_3, a4_4, extm, 1, i1, i_extent, 2, km-4)
+            a4_1, a4_2, a4_3, a4_4 = cs_limiters.compute(a4_1, a4_2, a4_3, a4_4, extm, 0, i1, i_extent, 2, km-4)
         
         if iv == 0:
             set_bottom_as_iv0(a4_1, a4_2, a4_3, a4_4, origin=(i1,0,km-1), domain=(i_extent, 1, 2))
