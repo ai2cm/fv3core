@@ -118,11 +118,13 @@ class TranslateSatAdjust3d(TranslateFortranData2Py):
             'p5_cappa':{},
             "psub_src":{"axis": 0, 'kstart': 3},
             "psub_sink":{"axis": 0, 'kstart': 3},
-           
+            "pq_qstar":{"axis": 0, 'kstart': 3},
+            "pq_hvar":{"axis": 0, 'kstart': 3},
+            "pq_qa":{},
         }
-        self.max_error=1e-12
+        self.max_error=1e-10
         #te0 is off by 1e-10 when you do nothing...
-        self.in_vars["parameters"] = ["r_vir", "mdt", "fast_mp_consv", "out_dt","last_step", "akap", "kmp", "psub_qsi", "psub_dqsdt", "psub_pidep",]
+        self.in_vars["parameters"] = ["r_vir", "mdt", "fast_mp_consv", "out_dt","last_step", "akap", "kmp", "psub_qsi", "psub_dqsdt", "psub_pidep","pq_q_minus","pq_dq","pq_qsi","pq_qsw","pq_rqi","pq_dw","pq_rh","pq_tin"]
         #"p2_factor",'p2_ql_gen', 'p2_fac_l2v', 'p2i_wqsat', 'p2i_qv','p2i_src']
         self.out_vars = {
             "te": {},
