@@ -668,7 +668,7 @@ def satadjust_part5a(pt: sd, cappa: sd, tin:sd, te0: sd, dp:sd, q_cond:sd, q_con
             qi = qi
 
 @utils.stencil()
-def satadjust_part6_laststep_qa(qstar:sd, hvar:sd, dw:sd, qa: sd, area:sd, qpz:sd,  hs: sd, tin: sd, te: sd, q_cond:sd, q_con:sd,  iqs1: sd, wqs1: sd, den:sd, pt1: sd, cvm: sd, mc_air: sd, tcp3: sd, lhl:sd, lhi:sd, lcp2:sd, icp2:sd, exptc:sd, qv: sd, ql:sd, q_liq:sd, qi:sd, q_sol:sd, qr:sd, qg:sd, qs:sd, fac_v2l:float, fac_l2v: float, lv00:float, d0_vap: float, c_vap: float, mdt:float, fac_r2g: float, fac_smlt: float, fac_l2r:float, sdt: float, adj_fac: float, zvir: float, fac_i2s: float, dw_ocean: float, dw_land: float, icloud_f: float, cld_min: float, out_dt: bool, consv_te: bool, hydrostatic: bool, do_qa: bool):
+def satadjust_part6_laststep_qa(qstar:sd, hvar:sd, dw:sd, qa: sd, area:sd, qpz:sd,  hs: sd, tin: sd, te: sd, q_cond:sd, q_con:sd,  iqs1: sd, wqs1: sd, den:sd, pt1: sd, cvm: sd, mc_air: sd, tcp3: sd, lhl:sd, lhi:sd, lcp2:sd, icp2:sd, exptc:sd, qv: sd, ql:sd, q_liq:sd, qi:sd, q_sol:sd, qr:sd, qg:sd, qs:sd, fac_v2l:float, fac_l2v: float, lv00:float, d0_vap: float, c_vap: float, mdt:float, fac_r2g: float, fac_smlt: float, fac_l2r:float, sdt: float, adj_fac: float, zvir: float, fac_i2s: float, dw_ocean: float, dw_land: float, icloud_f: int, cld_min: float, out_dt: bool, consv_te: bool, hydrostatic: bool, do_qa: bool):
     with computation(PARALLEL), interval(...):
         qstar = 0.
         rqi = 0.
@@ -708,7 +708,7 @@ def satadjust_part6_laststep_qa(qstar:sd, hvar:sd, dw:sd, qa: sd, area:sd, qpz:s
             dq = hvar * qpz
             q_plus = qpz + dq
             q_minus = qpz - dq 
-            #if (icloud_f == 2):
+            #if (icloud_f == 2): # this many if conditionals triggers an assertion error
             #    if (qpz > qstar):
             #        qa = 1.
             #    elif ((qstar < q_plus) and (q_cond > 1.e-8)):
@@ -722,18 +722,17 @@ def satadjust_part6_laststep_qa(qstar:sd, hvar:sd, dw:sd, qa: sd, area:sd, qpz:s
                 qa = 1.
             else:
                 if (qstar < q_plus):
-                    #if (icloud_f == 0):  # this also seems to trigger a Value error
-                    #qa = (q_plus - qstar) / (dq + dq)
-                    #else:
-                    qa = (q_plus - qstar) / (2. * dq * (1. - q_cond))
-            
+                    if (icloud_f == 0):  
+                        qa = (q_plus - qstar) / (dq +  dq)
+                    else:
+                        qa = (q_plus - qstar) / (2. * dq * (1. - q_cond))
                 else:
                     qa = 0.
                 # impose minimum cloudiness if substantial q_cond exist
                 if (q_cond > 1.e-8):
-                    qa =  cld_min if cld_min > qa else qa # max_fn(cld_min, qa)
+                    qa = cld_min if cld_min > qa else qa # max_fn(cld_min, qa)
                 else:
-                    qa=qa
+                    qa = qa
                 qa = 1. if 1. < qa else qa  # min_fn(1., qa)
         else:
             qa = 0.
@@ -968,9 +967,9 @@ def compute(dpln, te, qvapor, qliquid, qice, qrain, qsnow, qgraupel, qcld, hs, p
         dbl_sqrt_area = (grid.area_64**0.5 / 100.e3)**0.5
         print(dbl_sqrt_area[3, 3, 34])
         satadjust_part6_laststep_qa(qstar, hvar, dw,qcld, grid.area_64, qpz, hs, tin, te, q_cond, q_con, iqs1, wqs1, den, pt1, cvm, mc_air, tcp3, lhl,  lhi, lcp2, icp2, exptc, qvapor, qliquid, q_liq, qice, q_sol, qrain, qgraupel, qsnow, fac_v2l, fac_l2v, lv00, d0_vap, c_vap, mdt, fac_r2g, fac_smlt, fac_l2r, sdt, adj_fac, r_vir, fac_i2s, namelist['dw_ocean'], namelist['dw_land'], namelist['icloud_f'], namelist['cld_min'], out_dt, fast_mp_consv, hydrostatic, do_qa, origin=origin, domain=domain)
-        ic = 3
-        jc = 3
-        kc = 34
+        ic = 39
+        jc = 36
+        kc = 52
         print('tin', tin[ic, jc ,kc], pq_tin, T_WFR, TICE)
         print('iqs1', iqs1[ic, jc, kc], pq_qsi)
         print('wqs1',wqs1[ic, jc, kc], pq_qsw)
@@ -981,5 +980,5 @@ def compute(dpln, te, qvapor, qliquid, qice, qrain, qsnow, qgraupel, qcld, hs, p
         print(grid.area_64[ic, jc, kc])
     # TODO put into stencil when exp allowed inside stencil
     # e.g. pkz = exp(cappa * log(rrg * delp / delz * pt)) #rrg = constants.RDG
-    tmpslice = (slice(grid.is_, grid.ie + 1), slice(grid.js, grid.je+1), slice(kmp, grid.npz))
+    tmpslice = (slice(grid.is_, grid.ie + 1), slice(grid.js, grid.je+1), slice(kmp-1, grid.npz))
     pkz[tmpslice] = np.exp(cappa[tmpslice]*np.log(constants.RDG*delp[tmpslice]/delz[tmpslice]*pt[tmpslice]))
