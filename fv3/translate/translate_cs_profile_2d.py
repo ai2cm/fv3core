@@ -14,37 +14,6 @@ class TranslateCS_Profile_2d(TranslateFortranData2Py):
             "a4_3": {"serialname": "q4_3"},
             "a4_4": {"serialname": "q4_4"},
             "delp": {"serialname": "dp1_2d"},
-            "set_gam":{}, 
-            "set_q":{},
-            "set_a4":{}, 
-            "b_q":{}, 
-            "b_gam":{},
-            "b_a4":{}, 
-            "b_extm":{}, 
-            "b_ext5":{}, 
-            "b_ext6":{},
-            "cs1_extm":{},
-            "cs1_a4_1":{},
-            "cs1_a4_2":{},
-            "cs1_a4_3":{},
-            "cs1_a4_4":{},
-            "cs1b_a4_1":{},
-            "cs1b_a4_2":{},
-            "cs1b_a4_3":{},
-            "cs1b_a4_4":{},
-            "cs2_extm":{},
-            "cs2_a4_1":{},
-            "cs2_a4_2":{},
-            "cs2_a4_3":{},
-            "cs2_a4_4":{},
-            "cs2b_a4_1":{},
-            "cs2b_a4_2":{},
-            "cs2b_a4_3":{},
-            "cs2b_a4_4":{},
-            "huy_a4_1":{},
-            "huy_a4_2":{},
-            "huy_a4_3":{},
-            "huy_a4_4":{},
         }
         self.in_vars["parameters"] = ["km", "i1", "i2", "iv", "kord"]
         self.out_vars = {
@@ -90,6 +59,8 @@ class TranslateCS_Profile_2d(TranslateFortranData2Py):
 
     def compute(self, inputs):
         self.make_storage_data_input_vars(inputs)
+        inputs["i1"]-=1
+        inputs["i2"]-=1
         q4_1, q4_2, q4_3, q4_4 = self.compute_func(**inputs)
         return self.slice_output(
             inputs, {"q4_1": q4_1, "q4_2": q4_2, "q4_3": q4_3, "q4_4": q4_4}
