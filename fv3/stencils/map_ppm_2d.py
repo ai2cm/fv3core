@@ -17,31 +17,40 @@ def grid():
 
 
 @utils.stencil()
-def set_locals(dp1: sd, q4_1: sd, pe1: sd, q1: sd):
+def set_locals(dp1: sd, q4_1: sd, pe1: sd, q_2d: sd):
     with computation(PARALLEL), interval(...):
         dp1 = pe1[0, 0, 1] - pe1
-        q4_1 = q1
+        q4_1 = q_2d
 
 
-def compute(q1, pe1, pe2, qs, jj, i1, i2, iv, kord):
+def compute(q1, pe1, pe2, qs, j_2d, i1, i2, mode, kord):
     grid = spec.grid
     i1 = grid.is_
     i2 = grid.ie
+    iv = mode
     i_extent = grid.nid
     km = grid.npz
     kn = grid.npz
     r3 = 1.0 / 3.0
     r23 = 2.0 / 3.0
     orig = (grid.is_, grid.js, 0)
+    q_2d = q1[:,j_2d:j_2d+1,:]
     dp1 = utils.make_storage_from_shape(pe1.shape, origin=orig)
-    q4_1 = utils.make_storage_from_shape(q1.shape, origin=orig)
-    q4_2 = cp.copy(q4_1, origin=orig)
-    q4_3 = cp.copy(q4_1, origin=orig)
-    q4_4 = cp.copy(q4_1, origin=orig)
+    q4_1 = utils.make_storage_from_shape(q_2d.shape, origin=(grid.is_, 0, 0))
+    q4_2 = utils.make_storage_from_shape(q_2d.shape, origin=(grid.is_, 0, 0))
+    q4_3 = utils.make_storage_from_shape(q_2d.shape, origin=(grid.is_, 0, 0))
+    q4_4 = utils.make_storage_from_shape(q_2d.shape, origin=(grid.is_, 0, 0))
 
     q2 = utils.make_storage_from_shape(q1.shape, origin=orig)
 
-    set_locals(dp1, q4_1, pe1, q1, origin=(i1, grid.js, 0), domain=(i_extent, 1, km))
+    print(q_2d.shape)
+    print(q4_1.shape)
+    print(pe1.shape)
+    print(i1)
+    print(i2)
+    print(i_extent)
+
+    set_locals(dp1, q4_1, pe1, q_2d, origin=(i1, 0, 0), domain=(i_extent, 1, km))
 
     if kord > 7:
         q4_1, q4_2, q4_3, q4_4 = cs_profile.compute(
@@ -62,7 +71,7 @@ def compute(q1, pe1, pe2, qs, jj, i1, i2, iv, kord):
             if pe2[ii,k2+1] <= pe1[ii,k1+1]:
                 #The new grid is contained within the old one
                 pr = (pe2[ii, k2 + 1] - pe1[ii, k1]) / dp1[ii, k1]
-                q2[ii, jj, k2] = (
+                q2[ii, j_2d, k2] = (
                     q4_2[ii, 0, k1]
                     + 0.5
                     * (q4_4[ii, 0, k1] + q4_3[ii, 0, k1] - q4_2[ii, 0, k1])
@@ -97,10 +106,10 @@ def compute(q1, pe1, pe2, qs, jj, i1, i2, iv, kord):
                         )
                     )
                     k0 = mm
-                    q2[ii, jj, k2] = qsum / (pe2[ii, k2 + 1] - pe2[ii, k2])
+                    q2[ii, j_2d, k2] = qsum / (pe2[ii, k2 + 1] - pe2[ii, k2])
                 else:
                     qsum += dp1[ii, k1+1:kn] * q4_1[ii, 0, k1+1:kn]
-                    q2[ii, jj, k2] = qsum / (pe2[ii, k2 + 1] - pe2[ii, k2])'''
+                    q2[ii, j_2d, k2] = qsum / (pe2[ii, k2 + 1] - pe2[ii, k2])'''
 
 
     #transliterated fortran
@@ -116,7 +125,7 @@ def compute(q1, pe1, pe2, qs, jj, i1, i2, iv, kord):
                         pe2[ii, k2 + 1] <= pe1[ii, k1 + 1]
                     ):  # then the new grid layer is entirely within the old one
                         pr = (pe2[ii, k2 + 1] - pe1[ii, k1]) / dp1[ii, k1]
-                        q2[ii, jj, k2] = (
+                        q2[ii, j_2d, k2] = (
                             q4_2[ii, 0, k1]
                             + 0.5
                             * (q4_4[ii, 0, k1] + q4_3[ii, 0, k1] - q4_2[ii, 0, k1])
@@ -151,9 +160,9 @@ def compute(q1, pe1, pe2, qs, jj, i1, i2, iv, kord):
                                     )
                                 )
                                 k0 = mm
-                                q2[ii, jj, k2] = qsum / (pe2[ii, k2 + 1] - pe2[ii, k2])
+                                q2[ii, j_2d, k2] = qsum / (pe2[ii, k2 + 1] - pe2[ii, k2])
                                 flag=1
                                 break
                         if flag==0:
-                            q2[ii, jj, k2] = qsum / (pe2[ii, k2 + 1] - pe2[ii, k2])
+                            q2[ii, j_2d, k2] = qsum / (pe2[ii, k2 + 1] - pe2[ii, k2])
     return q2
