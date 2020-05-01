@@ -40,44 +40,56 @@ def posdef_constraint_iv0(a4_1: sd, a4_2: sd, a4_3: sd, a4_4: sd):
                     else:
                         a4_4 = 3.0 * (a4_3 - a4_1)
                         a4_2 = a4_3 - a4_4
+                else:
+                    a4_2 = a4_2
+            else:
+                a4_2 = a4_2
 
 
 @utils.stencil()
 def posdef_constraint_iv1(a4_1: sd, a4_2: sd, a4_3: sd, a4_4: sd):
     with computation(PARALLEL), interval(...):
+        da1 = a4_3 - a4_2
+        da2 = da1 ** 2
+        a6da = a4_4 * da1
         if ((a4_1 - a4_2) * (a4_1 - a4_3)) >= 0.0:
             a4_2 = a4_1
             a4_3 = a4_1
             a4_4 = 0.0
         else:
-            da1 = a4_3 - a4_2
-            da2 = da1 ** 2
-            a6da = a4_4 * da1
-            if a6da < -da2:
+            if a6da < -1.0 * da2:
                 a4_4 = 3.0 * (a4_2 - a4_1)
                 a4_3 = a4_2 - a4_4
+                a4_2 = a4_2
             elif a6da > da2:
                 a4_4 = 3.0 * (a4_3 - a4_1)
                 a4_2 = a4_3 - a4_4
+                a4_3 = a4_3
+            else:
+                a4_2 = a4_2
+                a4_3 = a4_3
+                a4_4 = a4_4
 
 
 @utils.stencil()
 def ppm_constraint(a4_1: sd, a4_2: sd, a4_3: sd, a4_4: sd, extm: sd):
     with computation(PARALLEL), interval(...):
-        if extm:
+        da1 = a4_3 - a4_2
+        da2 = da1 ** 2
+        a6da = a4_4 * da1
+        if extm == 1:
             a4_2 = a4_1
             a4_3 = a4_1
             a4_4 = 0.0
         else:
-            da1 = a4_3 - a4_2
-            da2 = da1 ** 2
-            a6da = a4_4 * da1
             if a6da < -da2:
                 a4_4 = 3.0 * (a4_2 - a4_1)
                 a4_3 = a4_2 - a4_4
             elif a6da > da2:
                 a4_4 = 3.0 * (a4_3 - a4_1)
                 a4_2 = a4_3 - a4_4
+            else:
+                a4_2 = a4_2
 
 
 def compute(a4_1, a4_2, a4_3, a4_4, extm, iv, i1, i_extent, kstart, nk):
@@ -93,12 +105,7 @@ def compute(a4_1, a4_2, a4_3, a4_4, extm, iv, i1, i_extent, kstart, nk):
         )
     elif iv == 1:
         posdef_constraint_iv1(
-            a4_1,
-            a4_2,
-            a4_3,
-            a4_4,
-            origin=(i1, grid().js, kstart),
-            domain=(i_extent, 1, nk),
+            a4_1, a4_2, a4_3, a4_4, origin=(i1, 0, kstart), domain=(i_extent, 1, nk)
         )
     else:
         ppm_constraint(
@@ -107,7 +114,7 @@ def compute(a4_1, a4_2, a4_3, a4_4, extm, iv, i1, i_extent, kstart, nk):
             a4_3,
             a4_4,
             extm,
-            origin=(i1, grid().js, kstart),
+            origin=(i1, 0, kstart),
             domain=(i_extent, 1, nk),
         )
     return a4_1, a4_2, a4_3, a4_4

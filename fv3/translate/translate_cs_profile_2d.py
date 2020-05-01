@@ -17,10 +17,10 @@ class TranslateCS_Profile_2d(TranslateFortranData2Py):
         }
         self.in_vars["parameters"] = ["km", "i1", "i2", "iv", "kord"]
         self.out_vars = {
-            "a4_1": {"serialname": "q4_1"},
-            "a4_2": {"serialname": "q4_2"},
-            "a4_3": {"serialname": "q4_3"},
-            "a4_4": {"serialname": "q4_4"},
+            "a4_1": {"serialname": "q4_1", "istart": 0, "iend": grid.ie - 2},
+            "a4_2": {"serialname": "q4_2", "istart": 0, "iend": grid.ie - 2},
+            "a4_3": {"serialname": "q4_3", "istart": 0, "iend": grid.ie - 2},
+            "a4_4": {"serialname": "q4_4", "istart": 0, "iend": grid.ie - 2},
         }
 
     def make_storage_data_input_vars(self, inputs, storage_vars=None):
@@ -59,6 +59,8 @@ class TranslateCS_Profile_2d(TranslateFortranData2Py):
 
     def compute(self, inputs):
         self.make_storage_data_input_vars(inputs)
+        inputs["i1"] -= 1
+        inputs["i2"] -= 1
         q4_1, q4_2, q4_3, q4_4 = self.compute_func(**inputs)
         return self.slice_output(
             inputs, {"q4_1": q4_1, "q4_2": q4_2, "q4_3": q4_3, "q4_4": q4_4}

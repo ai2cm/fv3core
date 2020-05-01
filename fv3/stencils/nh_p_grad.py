@@ -106,7 +106,7 @@ def compute(u, v, pp, gz, pk3, delp, dt, ptop, akap):
     CalcWk(pk3, wk, origin=orig, domain=(grid.nic + 1, grid.njc + 1, grid.npz))
 
     du = utils.make_storage_from_shape(u.shape, origin=orig)
-   
+
     CalcU(
         u,
         du,
