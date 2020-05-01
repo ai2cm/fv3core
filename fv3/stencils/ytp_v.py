@@ -44,6 +44,7 @@ def br_bl_corner(br: sd, bl: sd):
         bl = 0
         br = 0
 
+
 def compute(c, u, v, flux):
     grid = spec.grid
     # This is an input argument in the Fortran code, but is never called with anything but this namelist option
@@ -73,21 +74,14 @@ def compute(c, u, v, flux):
         #    br[grid.is_, grid.js - 1:grid.js+1, :] = 0
         if grid.se_corner:
             br_bl_corner(
-                br,
-                bl,
-                origin=(grid.ie + 1, grid.js - 1, 0),
-                domain=corner_domain,
+                br, bl, origin=(grid.ie + 1, grid.js - 1, 0), domain=corner_domain,
             )
         #    bl[grid.ie+1, grid.js - 1:grid.js+1, :] = 0
         #    br[grid.ie+1, grid.js - 1:grid.js+1, :] = 0
         if grid.nw_corner:
-            br_bl_corner(
-                br, bl, origin=(grid.is_, grid.je, 0), domain=corner_domain
-            )
+            br_bl_corner(br, bl, origin=(grid.is_, grid.je, 0), domain=corner_domain)
         if grid.ne_corner:
-            br_bl_corner(
-                br, bl, origin=(grid.ie + 1, grid.je, 0), domain=corner_domain
-            )
+            br_bl_corner(br, bl, origin=(grid.ie + 1, grid.je, 0), domain=corner_domain)
         get_flux_v_stencil(
             v,
             c,

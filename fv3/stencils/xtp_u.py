@@ -87,20 +87,13 @@ def compute(c, u, v, flux):
                 br, bl, origin=(grid.is_ - 1, grid.js, 0), domain=corner_domain
             )
         if grid.se_corner:
-            br_bl_corner(
-                br, bl, origin=(grid.ie, grid.js, 0), domain=corner_domain
-            )
+            br_bl_corner(br, bl, origin=(grid.ie, grid.js, 0), domain=corner_domain)
         if grid.nw_corner:
             br_bl_corner(
-                br,
-                bl,
-                origin=(grid.is_ - 1, grid.je + 1, 0),
-                domain=corner_domain,
+                br, bl, origin=(grid.is_ - 1, grid.je + 1, 0), domain=corner_domain,
             )
         if grid.ne_corner:
-            br_bl_corner(
-                br, bl, origin=(grid.ie, grid.je + 1, 0), domain=corner_domain
-            )
+            br_bl_corner(br, bl, origin=(grid.ie, grid.je + 1, 0), domain=corner_domain)
 
         get_flux_u_stencil(
             u,
