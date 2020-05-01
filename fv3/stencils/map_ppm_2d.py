@@ -23,20 +23,28 @@ def set_locals(dp1: sd, q4_1: sd, pe1: sd, q_2d: sd):
         q4_1 = q_2d
 
 
+@utils.stencil()
+def set_dp(dp1: sd, pe1: sd):
+    with computation(PARALLEL), interval(...):
+        dp1 = pe1[0, 0, 1] - pe1
+
+
 def compute(q1, pe1, pe2, qs, j_2d, i1, i2, mode, kord):
     grid = spec.grid
     i1 = grid.is_
     i2 = grid.ie
     iv = mode
-    i_extent = grid.nid
+    i_extent = i2 - i1
     km = grid.npz
     kn = grid.npz
     r3 = 1.0 / 3.0
     r23 = 2.0 / 3.0
     orig = (grid.is_, grid.js, 0)
-    q_2d = q1[:,j_2d:j_2d+1,:]
+    q_2d = q1[:, j_2d : j_2d + 1, :]
     dp1 = utils.make_storage_from_shape(pe1.shape, origin=orig)
+    # q4_1 = cp.copy(q_2d, origin=(i1, 0, 0))
     q4_1 = utils.make_storage_from_shape(q_2d.shape, origin=(grid.is_, 0, 0))
+    # cp.copy_stencil(q4_1, q_2d, origin=(i1, 0, 0), domain = (i_extent, 1, km))
     q4_2 = utils.make_storage_from_shape(q_2d.shape, origin=(grid.is_, 0, 0))
     q4_3 = utils.make_storage_from_shape(q_2d.shape, origin=(grid.is_, 0, 0))
     q4_4 = utils.make_storage_from_shape(q_2d.shape, origin=(grid.is_, 0, 0))
@@ -50,7 +58,8 @@ def compute(q1, pe1, pe2, qs, j_2d, i1, i2, mode, kord):
     print(i2)
     print(i_extent)
 
-    set_locals(dp1, q4_1, pe1, q_2d, origin=(i1, 0, 0), domain=(i_extent, 1, km))
+    # set_locals(dp1, q4_1, pe1, q_2d, origin=(i1, 0, 0), domain=(i_extent, 1, km))
+    set_dp(dp1, pe1, origin=(i1, 0, 0), domain=(i_extent, 1, km))
 
     if kord > 7:
         q4_1, q4_2, q4_3, q4_4 = cs_profile.compute(
@@ -59,7 +68,7 @@ def compute(q1, pe1, pe2, qs, j_2d, i1, i2, mode, kord):
     # else:
     #     ppm_profile.compute(q4_1, q4_2, q4_3, q4_4, dp1, km, i1, i2, iv, kord)
 
-    '''#Pythonized
+    """#Pythonized
     i_vals = np.arange(i1, i2 + 1)
     k0=0
     klevs = np.arange(km)
@@ -109,12 +118,11 @@ def compute(q1, pe1, pe2, qs, j_2d, i1, i2, mode, kord):
                     q2[ii, j_2d, k2] = qsum / (pe2[ii, k2 + 1] - pe2[ii, k2])
                 else:
                     qsum += dp1[ii, k1+1:kn] * q4_1[ii, 0, k1+1:kn]
-                    q2[ii, j_2d, k2] = qsum / (pe2[ii, k2 + 1] - pe2[ii, k2])'''
+                    q2[ii, j_2d, k2] = qsum / (pe2[ii, k2 + 1] - pe2[ii, k2])"""
 
-
-    #transliterated fortran
+    # transliterated fortran
     i_vals = np.arange(i1, i2 + 1)
-    k0=0
+    k0 = 0
     for ii in i_vals:
         for k2 in np.arange(kn):  # loop over new, remapped ks]
             for k1 in np.arange(k0, km):  # loop over old ks
@@ -143,7 +151,7 @@ def compute(q1, pe1, pe2, qs, j_2d, i1, i2, mode, kord):
                             - q4_4[ii, 0, k1] * (r3 * (1.0 + pl * (1.0 + pl)))
                         )
                         for mm in np.arange(k1 + 1, km):  # find the bottom edge
-                            flag=0
+                            flag = 0
                             if pe2[ii, k2 + 1] > pe1[ii, mm + 1]:  # add the whole layer
                                 qsum += dp1[ii, mm] * q4_1[ii, 1, mm]
                             else:
@@ -160,9 +168,11 @@ def compute(q1, pe1, pe2, qs, j_2d, i1, i2, mode, kord):
                                     )
                                 )
                                 k0 = mm
-                                q2[ii, j_2d, k2] = qsum / (pe2[ii, k2 + 1] - pe2[ii, k2])
-                                flag=1
+                                q2[ii, j_2d, k2] = qsum / (
+                                    pe2[ii, k2 + 1] - pe2[ii, k2]
+                                )
+                                flag = 1
                                 break
-                        if flag==0:
+                        if flag == 0:
                             q2[ii, j_2d, k2] = qsum / (pe2[ii, k2 + 1] - pe2[ii, k2])
     return q2
