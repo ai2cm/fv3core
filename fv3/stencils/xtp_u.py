@@ -22,7 +22,7 @@ def get_flux_u_stencil_old(q: sd, c: sd, al: sd, rdx: sd, flux: sd, mord: int):
         bl, br, b0, tmp = flux_intermediates(q, al, mord)
         cfl = c * rdx[-1, 0, 0] if c > 0 else c * rdx
         fx0 = fx1_fn(cfl, br, b0, bl)
-        # TODO: add [0, 0, 0] when gt4py bug is fixed
+        # TODO: add  when gt4py bug is fixed
         flux = final_flux(c, q, fx0, tmp)  # noqa
 
 
@@ -36,14 +36,14 @@ def get_flux_u_stencil(
         tmp = smt5[-1, 0, 0] + smt5 * (smt5[-1, 0, 0] == 0)
         cfl = c * rdx[-1, 0, 0] if c > 0 else c * rdx
         fx0 = fx1_fn(cfl, br, b0, bl)
-        # TODO: add [0, 0, 0] when gt4py bug is fixed
+        # TODO: add  when gt4py bug is fixed
         flux = final_flux(c, q, fx0, tmp)  # noqa
 
 
 @utils.stencil()
 def br_bl_main(q: sd, al: sd, bl: sd, br: sd):
     with computation(PARALLEL), interval(...):
-        # TODO: add [0, 0, 0] when gt4py bug is fixed
+        # TODO: add  when gt4py bug is fixed
         bl = get_bl(al=al, q=q)  # noqa
         br = get_br(al=al, q=q)  # noqa
 
@@ -53,8 +53,6 @@ def br_bl_corner(br: sd, bl: sd):
     with computation(PARALLEL), interval(...):
         bl = 0
         br = 0
-        bl[1, 0, 0] = 0
-        br[1, 0, 0] = 0
 
 
 def compute(c, u, v, flux):
@@ -68,6 +66,7 @@ def compute(c, u, v, flux):
     tmp_origin = (is3, grid.js, 0)
     bl = utils.make_storage_from_shape(v.shape, tmp_origin)
     br = utils.make_storage_from_shape(v.shape, tmp_origin)
+    corner_domain = (2, 1, grid.npz)
     if iord < 8:
 
         al = compute_al(u, grid.dx, iord, is3, ie3 + 1, grid.js, grid.je + 1)
@@ -85,22 +84,22 @@ def compute(c, u, v, flux):
 
         if grid.sw_corner:
             br_bl_corner(
-                br, bl, origin=(grid.is_ - 1, grid.js, 0), domain=grid.corner_domain()
+                br, bl, origin=(grid.is_ - 1, grid.js, 0), domain=corner_domain
             )
         if grid.se_corner:
             br_bl_corner(
-                br, bl, origin=(grid.ie, grid.js, 0), domain=grid.corner_domain()
+                br, bl, origin=(grid.ie, grid.js, 0), domain=corner_domain
             )
         if grid.nw_corner:
             br_bl_corner(
                 br,
                 bl,
                 origin=(grid.is_ - 1, grid.je + 1, 0),
-                domain=grid.corner_domain(),
+                domain=corner_domain,
             )
         if grid.ne_corner:
             br_bl_corner(
-                br, bl, origin=(grid.ie, grid.je + 1, 0), domain=grid.corner_domain()
+                br, bl, origin=(grid.ie, grid.je + 1, 0), domain=corner_domain
             )
 
         get_flux_u_stencil(
