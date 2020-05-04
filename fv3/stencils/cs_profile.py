@@ -55,20 +55,32 @@ def constrain_interior(q, gam, a4):
 @utils.stencil()
 def set_vals_2(gam: sd, q: sd, delp: sd, a4_1: sd, q_bot: sd, qs: sd):
     with computation(PARALLEL):
-        with interval(0, 2):
+        with interval(0, 1):
             # set top
-            gam = 0.5
+            # gam = 0.5
             q = 1.5 * a4_1
-    with computation(FORWARD):
-        with interval(1, -1):
-            # set middle
+    with computation(PARALLEL):
+        with interval(1,2):
+            gam = 0.5
             grid_ratio = delp[0, 0, -1] / delp
             bet = 2.0 + grid_ratio + grid_ratio - gam
             q = (3.0 * (a4_1[0, 0, -1] + a4_1) - q[0, 0, -1]) / bet
-            gam[0, 0, 1] = grid_ratio / bet
+    with computation(FORWARD):
+        with interval(2, -1):
+            # set middle
+            old_grid_ratio = delp[0, 0, -2] / delp[0,0,-1]
+            old_bet = 2.0 + grid_ratio + grid_ratio - gam[0,0,-1]
+            gam = old_grid_ratio / old_bet
+            grid_ratio = delp[0, 0, -1] / delp
+            bet = 2.0 + grid_ratio + grid_ratio - gam
+            q = (3.0 * (a4_1[0, 0, -1] + a4_1) - q[0, 0, -1]) / bet
+            # gam[0, 0, 1] = grid_ratio / bet
     with computation(PARALLEL):
         with interval(-1, None):
             # set bottom
+            # old_grid_ratio = delp[0, 0, -2] / delp[0,0,-1]
+            # old_bet = 2.0 + grid_ratio + grid_ratio - gam[0,0,-1]
+            # gam = old_grid_ratio / old_bet
             grid_ratio = delp[0, 0, -1] / delp
             q = (3.0 * (a4_1[0, 0, -1] + a4_1) - (qs * grid_ratio) - q[0, 0, -1]) / (
                 2.0 + grid_ratio + grid_ratio - gam
