@@ -2,7 +2,7 @@ GCR_URL = us.gcr.io/vcm-ml
 CWD=$(shell pwd)
 
 #<some large conceptual version change>.<serialization statement change>.<hotfix>
-FORTRAN_VERSION=0.2.0
+FORTRAN_VERSION=0.3.8
 
 TEST_ARGS ?=-v -s -rsx
 PULL ?=True
