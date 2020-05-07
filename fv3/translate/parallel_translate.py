@@ -10,14 +10,14 @@ class ParallelTranslate:
 
     inputs = {}
 
-    def __init__(self, rank_grids):
-        self._base = TranslateFortranData2Py(rank_grids[0])
+    def __init__(self, grid):
+        self._base = TranslateFortranData2Py(grid)
         self._base.in_vars = {
             "data_vars": {name: {} for name in self.inputs},
             "parameters": {},
         }
         self.max_error = self._base.max_error
-        self._rank_grids = rank_grids  # one for each rank
+        self.grid = grid
 
     def state_list_from_inputs_list(self, inputs_list: List[list]) -> list:
         state_list = []
@@ -72,13 +72,13 @@ class ParallelTranslate:
     def layout(self):
         return fv3._config.namelist["layout"]
 
-    @property
-    def grid(self):
-        return self._rank_grids[0]
+    #@property
+    #def grid(self):
+    #    return self._rank_grid
 
-    @property
-    def rank_grids(self):
-        return self._rank_grids
+    # @property
+    #def rank_grids(self):
+    #    return self._rank_grids
 
     def compute_sequential(self, inputs_list, communicator_list):
         """Compute the outputs while iterating over a set of communicator objects sequentially"""
@@ -86,8 +86,8 @@ class ParallelTranslate:
 
     def compute_parallel(self, inputs, communicator):
         """Compute the outputs using one communicator operating in parallel"""
-        self.compute_sequential(self, [inputs], [communicator])
-
+        #self.compute_sequential(self, [inputs], [communicator])
+        self.compute_sequential(self, inputs, communicator)
 
 def _serialize_slice(quantity, n_halo):
     slice_list = []
