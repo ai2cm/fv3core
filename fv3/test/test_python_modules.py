@@ -210,12 +210,11 @@ def test_parallel_savepoint(
         pytest.xfail(f"no translate object available for savepoint {test_name}")
     fv3._config.set_grid(grid)
     input_data = testobj.collect_input_data(serializer, savepoint_in)
-    comm.barrier()  # synchronize across ranks
     # run python version of functionality
     output = testobj.compute_parallel(input_data, rank_communicator)
     comm.barrier()  # synchronize across ranks
-    rank = comm.Get_rank()
-    print('eeeeeeks', rank, rank_communicator.rank, rank_communicator.comm.Get_rank())
+    #rank = comm.Get_rank()
+    #print('rank sanity', rank, rank_communicator.rank)
     #all_output = comm.gather({rank:output}, root=0)
     
    
@@ -228,7 +227,6 @@ def test_parallel_savepoint(
         if comm.Get_rank() == 0:
             with subtests.test(varname=varname):
                 failing_names.append(varname)
-                # this is getting a different rank order each time
                 assert success(
                     output[varname], ref_data, testobj.max_error
                 ), sample_wherefail(

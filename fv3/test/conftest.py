@@ -313,7 +313,6 @@ def generate_parallel_stencil_tests(metafunc):
     data_path = data_path_from_config(metafunc.config)
     # get MPI environment
     comm = MPI.COMM_WORLD
-    #mpi_size = comm.Get_size()
     mpi_rank = comm.Get_rank()
     # make sure each rank has its own gt4py cache directory
     gt.config.cache_settings["dir_name"] = ".gt_cache_{:0>6d}".format(mpi_rank)
@@ -345,23 +344,12 @@ def get_parallel_param(
     return pytest.param(
         testobj,
         case.test_name,
-        #[
-        #    ReplaceRepr(ser, f"<Serializer for rank {rank}>")
-        #    for rank, ser in enumerate(case.serializer)
-        #],
         ReplaceRepr(case.serializer, f"<Serializer for rank {case.rank}>"),
         savepoint_in,
         savepoint_out,
         case.grid,
         case.layout,
         id=f"{case.test_name}-rank={case.rank}-call_count={call_count}",#f"{case.test_name}-call_count={call_count}",
-        #marks=pytest.mark.dependency(
-        #    name=f"{case.test_name}-{call_count}",
-        #    depends=[
-        #        f"{case.test_name}-{lower_count}"
-        #        for lower_count in range(0, call_count)
-        #    ],
-        #),
     )
 
 def get_parallel_mock_param(
@@ -416,10 +404,6 @@ def get_sequential_param(
 
 @pytest.fixture()
 def rank_communicator(layout):
-    #total_ranks = 6 * fv3util.TilePartitioner(layout).total_ranks
-    #shared_buffer = {}
-    #comm = fv3util.testing.DummyComm(MPI.COMM_WORLD.Get_rank(), total_ranks, buffer_dict=shared_buffer)
-    #communicator = get_communicator(comm, layout)
     communicator = get_communicator(MPI.COMM_WORLD, layout)
     return communicator
 
