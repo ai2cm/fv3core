@@ -1,6 +1,6 @@
-RADIUS =  6.3712e6  # Radius of the Earth [m] #6371.0e3
-PI =  3.1415926535897931  #  3.14159265358979323846
-OMEGA = 7.2921e-5  # Rotation of the earth  # 7.292e-5 
+RADIUS = 6.3712e6  # Radius of the Earth [m] #6371.0e3
+PI = 3.1415926535897931  #  3.14159265358979323846
+OMEGA = 7.2921e-5  # Rotation of the earth  # 7.292e-5
 GRAV = 9.80665  # Acceleration due to gravity [m/s^2]
 RDGAS = 287.05  # Gas constant for dry air [J/kg/deg] # 287.04
 RVGAS = 461.50  # Gas constant for water vapor [J/kg/deg]
