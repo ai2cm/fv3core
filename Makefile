@@ -3,7 +3,7 @@ CWD=$(shell pwd)
 
 #<some large conceptual version change>.<serialization statement change>.<hotfix>
 FORTRAN_VERSION=0.3.8
-
+SHELL=/bin/bash
 TEST_ARGS ?=-v -s -rsx
 PULL ?=True
 VOLUMES ?=
