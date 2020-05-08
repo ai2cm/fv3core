@@ -65,3 +65,8 @@ class TranslateCS_Profile_2d(TranslateFortranData2Py):
         return self.slice_output(
             inputs, {"q4_1": q4_1, "q4_2": q4_2, "q4_3": q4_3, "q4_4": q4_4}
         )
+
+
+class TranslateCS_Profile_2d_2(TranslateFortranData2Py):
+    def __init__(self, grid):
+        super().__init__(grid)
