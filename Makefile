@@ -55,7 +55,7 @@ build:
 	docker build --build-arg build_image=$(FV3_INSTALL_IMAGE) -f docker/Dockerfile -t $(FV3_IMAGE) .
 
 pull_environment:
-	 docker pull $(FV3_INSTALL_IMAGE)
+	if [ -z $(shell docker images -q $(FV3_INSTALL_IMAGE)) ]; then docker pull $(FV3_INSTALL_IMAGE) ;fi
 
 push_environment:
 	docker push $(FV3_INSTALL_IMAGE)
