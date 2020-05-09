@@ -201,3 +201,27 @@ def compute_last_step(pt, pkz, dtmp, r_vir, qvapor, qliquid, qice, qrain, qsnow,
     grid = spec.grid
     moist_pt_last_step(qvapor, qliquid, qrain, qsnow, qice, qgraupel, gz, pt, pkz, dtmp, r_vir, spec.namelist['nwat'],origin=(grid.is_, grid.js, 0), domain=(grid.nic, grid.njc, grid.npz+1)
     )
+
+@utils.stencil()
+def fvsetup_stencil(qvapor: sd, qliquid: sd, qrain: sd, qsnow: sd,qice: sd, qgraupel: sd, q_con: sd, cvm: sd, pkz: sd, pt: sd, cappa: sd, delp: sd, delz: sd, dp1: sd, zvir: float, nwat: int, moist_phys: bool):
+    with computation(PARALLEL), interval(...):
+        #TODO the conditional with gtscript function triggers and undefined termporary variable, even though there are no new temporaries
+        #if moist_phys:
+        cvm, q_con = moist_cv_nwat6_fn(qvapor, qliquid, qrain, qsnow, qice, qgraupel) #if (nwat == 6) else moist_cv_default_fn(cv_air)
+        dp1 = zvir * qvapor
+        cappa = constants.RDGAS / (constants.RDGAS + cvm / (1.0 + dp1))
+        #else:
+        #    dp1 = 0
+
+def fv_setup(pt, pkz, delz, delp, cappa, q_con, zvir, qvapor, qliquid, qice, qrain, qsnow, qgraupel, cvm, dp1):
+    grid = spec.grid
+    fvsetup_stencil(qvapor, qliquid, qrain, qsnow,qice, qgraupel, q_con, cvm, pkz, pt, cappa, delp, delz, dp1, zvir, spec.namelist['nwat'], spec.namelist['moist_phys'], origin=grid.compute_origin(), domain=grid.domain_shape_compute())
+    
+    # TODO push theis inside stencil one we can do exp and log there. This is also the same as a function above except the order of operations when pt gets multiplied :/
+    tmpslice = (slice(grid.is_, grid.ie + 1), slice(grid.js, grid.je + 1), slice(0, grid.npz))
+    if spec.namelist['moist_phys']:
+        pkz[tmpslice] = np.exp(cappa[tmpslice] * np.log(constants.RDG * delp[tmpslice] * pt[tmpslice] * (1. + dp1[tmpslice]) * (1. - q_con[tmpslice])/ delz[tmpslice]))
+
+    else:
+        dp1[tmpslice] = 0.0
+        pkz[tmpslice] = np.exp(constants.KAPPA * np.log(constants.RDG * delp[tmpslice] * pt[tmpslice] / delz[tmpslice]))
