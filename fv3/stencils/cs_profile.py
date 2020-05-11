@@ -2,7 +2,7 @@ import fv3.utils.gt4py_utils as utils
 from fv3.utils.corners import fill2_4corners, fill_4corners
 import gt4py.gtscript as gtscript
 import fv3._config as spec
-from gt4py.gtscript import computation, interval, PARALLEL
+from gt4py.gtscript import computation, interval, PARALLEL, FORWARD, BACKWARD
 import fv3.stencils.copy_stencil as cp
 import fv3.stencils.cs_limiters as cs_limiters
 import numpy as np
@@ -69,7 +69,7 @@ def set_vals_2(gam: sd, q: sd, delp: sd, a4_1: sd, q_bot: sd, qs: sd):
         with interval(2, -1):
             # set middle
             old_grid_ratio = delp[0, 0, -2] / delp[0, 0, -1]
-            old_bet = 2.0 + grid_ratio + grid_ratio - gam[0, 0, -1]
+            old_bet = 2.0 + old_grid_ratio + old_grid_ratio - gam[0, 0, -1]
             gam = old_grid_ratio / old_bet
             grid_ratio = delp[0, 0, -1] / delp
             bet = 2.0 + grid_ratio + grid_ratio - gam
@@ -78,16 +78,16 @@ def set_vals_2(gam: sd, q: sd, delp: sd, a4_1: sd, q_bot: sd, qs: sd):
     with computation(PARALLEL):
         with interval(-1, None):
             # set bottom
-            # old_grid_ratio = delp[0, 0, -2] / delp[0,0,-1]
-            # old_bet = 2.0 + grid_ratio + grid_ratio - gam[0,0,-1]
-            # gam = old_grid_ratio / old_bet
+            old_grid_ratio = delp[0, 0, -2] / delp[0,0,-1]
+            old_bet = 2.0 + old_grid_ratio + old_grid_ratio - gam[0,0,-1]
+            gam = old_grid_ratio / old_bet
             grid_ratio = delp[0, 0, -1] / delp
-            q = (3.0 * (a4_1[0, 0, -1] + a4_1) - (qs * grid_ratio) - q[0, 0, -1]) / (
+            q = (3.0 * (a4_1[0, 0, -1] + a4_1) - grid_ratio * qs - q[0, 0, -1]) / (
                 2.0 + grid_ratio + grid_ratio - gam
             )
             q_bot = qs
     with computation(BACKWARD), interval(0, -1):
-        q = q - (gam[0, 0, 1] * q[0, 0, 1])
+        q = q - gam[0, 0, 1] * q[0, 0, 1]
 
 
 @utils.stencil()
@@ -229,7 +229,7 @@ def set_top_as_iv2(a4_1: sd, a4_2: sd, a4_3: sd, a4_4: sd):
 def set_top_as_else(a4_1: sd, a4_2: sd, a4_3: sd, a4_4: sd):
     with computation(PARALLEL):
         with interval(...):
-            a4_4 = 3 * (2 * a4_1 - (a4_2 + a4_3))
+            a4_4 = 3. * (2. * a4_1 - (a4_2 + a4_3))
 
 
 @utils.stencil()
@@ -430,6 +430,8 @@ def set_bottom_as_else(a4_1: sd, a4_2: sd, a4_3: sd, a4_4: sd):
 def compute(qs, a4_1, a4_2, a4_3, a4_4, delp, km, i1, i2, iv, kord):
     i_extent = i2 - i1 + 1
 
+    print(iv, kord)
+
     grid = spec.grid
     orig = (i1, 0, 0)
     full_orig = (grid.is_, 0, 0)
@@ -438,12 +440,15 @@ def compute(qs, a4_1, a4_2, a4_3, a4_4, delp, km, i1, i2, iv, kord):
     q = utils.make_storage_from_shape(delp.shape, origin=full_orig)
     q_bot = utils.make_storage_from_shape(delp.shape, origin=full_orig)
 
+    qs_field = utils.make_storage_from_shape(delp.shape, origin=full_orig)
+    qs_field[:,:,-1] = qs.data[:,:,0] # make a qs that can be passed to a stencil
+
     extm = utils.make_storage_from_shape(delp.shape, origin=full_orig)
     ext5 = utils.make_storage_from_shape(delp.shape, origin=full_orig)
     ext6 = utils.make_storage_from_shape(delp.shape, origin=full_orig)
 
     if iv == -2:
-        set_vals_2(gam, q, delp, a4_1, q_bot, qs, origin=orig, domain=dom)
+        set_vals_2(gam, q, delp, a4_1, q_bot, qs_field, origin=orig, domain=dom)
     else:
         set_vals_1(gam, q, delp, a4_1, q_bot, origin=orig, domain=(i_extent, 1, km + 1))
 

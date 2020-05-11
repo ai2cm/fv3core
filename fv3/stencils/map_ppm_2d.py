@@ -94,9 +94,6 @@ def compute(q1, pe1, pe2, qs, j_2d, i1, i2, mode, kord):
     km = grid.npz
     j_2d -= 1
     j_2d += grid.is_
-    kn = grid.npz
-    r3 = 1.0 / 3.0
-    r23 = 2.0 / 3.0
     orig = (grid.is_, grid.js, 0)
     q_2d = utils.make_storage_data(
         q1[:, j_2d : j_2d + 1, :], (q1.shape[0], 1, q1.shape[2])
@@ -152,7 +149,6 @@ def compute(q1, pe1, pe2, qs, j_2d, i1, i2, mode, kord):
         )
 
         q2[i1 : i2 + 1, j_2d, k_eul] = np.sum(q2_adds.data[i1 : i2 + 1, 0, :], axis=1)
-        # print(q2[:,j_2d,k_eul])
 
     # #Pythonized
     # i_vals = np.arange(i1, i2 + 1)
@@ -255,7 +251,5 @@ def compute(q1, pe1, pe2, qs, j_2d, i1, i2, mode, kord):
     #                             break
     #                     if flag == 0: #if we get to the bottom of the column then we just take everything
     #                         q2[ii, j_2d, k2] = qsum / (pe2[ii, 0, k2 + 1] - pe2[ii, 0, k2])
-
-    # print(n_contained, contained_index)
 
     return q2

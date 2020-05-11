@@ -67,6 +67,22 @@ class TranslateCS_Profile_2d(TranslateFortranData2Py):
         )
 
 
-class TranslateCS_Profile_2d_2(TranslateFortranData2Py):
+class TranslateCS_Profile_2d_2(TranslateCS_Profile_2d):
     def __init__(self, grid):
         super().__init__(grid)
+        self.compute_func = CS_Profile.compute
+        self.in_vars["data_vars"] = {
+            "qs": {"serialname": "qs_column_2"},
+            "a4_1": {"serialname": "q4_1_2"},
+            "a4_2": {"serialname": "q4_2_2"},
+            "a4_3": {"serialname": "q4_3_2"},
+            "a4_4": {"serialname": "q4_4_2"},
+            "delp": {"serialname": "dp1_2d_2"},
+        }
+        self.in_vars["parameters"] = ["km", "i1", "i2", "iv", "kord"]
+        self.out_vars = {
+            "a4_1": {"serialname": "q4_1_2", "istart": 0, "iend": grid.ie - 3},
+            "a4_2": {"serialname": "q4_2_2", "istart": 0, "iend": grid.ie - 3},
+            "a4_3": {"serialname": "q4_3_2", "istart": 0, "iend": grid.ie - 3},
+            "a4_4": {"serialname": "q4_4_2", "istart": 0, "iend": grid.ie - 3},
+        }
