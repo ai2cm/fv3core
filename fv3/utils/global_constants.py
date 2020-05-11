@@ -28,3 +28,5 @@ CONSV_MIN = 0.001  # Below which no correction applies
 # TODO leftover having problems using as runtime flags
 ql0_max = 2.0e-3  # max cloud water value (auto converted to rain)
 t_sub = 184.  # min temp for sublimation of cloud ice
+DC_ICE = C_LIQ - C_ICE
+LI0 =  HLF - DC_ICE * TICE

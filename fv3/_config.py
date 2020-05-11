@@ -34,6 +34,7 @@ def merge_namelist_defaults(nml):
         "do_skeb": False,  # save dissipation estimate
         "use_logp": False,
         "moist_phys": True,
+        "check_negative": False,
         # gfdl_cloud_mucrophys.F90
         "tau_r2g": 900.,  # rain freezing during fast_sat
         "tau_smlt": 900.,  # snow melting
