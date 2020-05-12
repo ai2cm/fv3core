@@ -1,7 +1,7 @@
 from .translate import TranslateFortranData2Py
 import fv3.stencils.saturation_adjustment as satadjust
 
-class TranslateQCInit(TranslateFortranData2Py):
+class TranslateQSInit(TranslateFortranData2Py):
     def __init__(self, grid):
         super().__init__(grid)
         self.compute_func = satadjust.compute
