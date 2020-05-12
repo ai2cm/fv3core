@@ -45,3 +45,4 @@ from .translate_updatedzd import TranslateUpdateDzD
 from .translate_nh_p_grad import TranslateNH_P_Grad
 from .translate_c2l_ord2 import TranslateC2L_Ord2
 from .translate_cubedtolatlon import TranslateCubedToLatLon
+from .translate_rayleigh_super import TranslateRayleigh_Super
