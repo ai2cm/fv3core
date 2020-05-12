@@ -46,12 +46,18 @@ def _data_backend(backend: str):
 
 
 def make_storage_data(
-        array, full_shape, istart=0, jstart=0, kstart=0, origin=origin, dummy=None, axis=2
+    array, full_shape, istart=0, jstart=0, kstart=0, origin=origin, dummy=None, axis=2
 ):
     full_np_arr = np.zeros(full_shape)
     if len(array.shape) == 2:
         return make_storage_data_from_2d(
-            array, full_shape, istart=istart, jstart=jstart, origin=origin, dummy=dummy, axis=axis
+            array,
+            full_shape,
+            istart=istart,
+            jstart=jstart,
+            origin=origin,
+            dummy=dummy,
+            axis=axis,
         )
     elif len(array.shape) == 1:
         if dummy:
@@ -73,8 +79,11 @@ def make_storage_data(
             data=full_np_arr, backend=backend, default_origin=origin, shape=full_shape,
         )
 
+
 # axis refers to which axis should be repeated (when making a full 3d data), dummy refers to a singleton axis
-def make_storage_data_from_2d(array2d, full_shape, istart=0, jstart=0, origin=origin, dummy=None, axis=2):
+def make_storage_data_from_2d(
+    array2d, full_shape, istart=0, jstart=0, origin=origin, dummy=None, axis=2
+):
     if dummy or axis != 2:
         d_axis = dummy[0] if dummy else axis
         shape2d = full_shape[:d_axis] + full_shape[d_axis + 1 :]
@@ -92,7 +101,7 @@ def make_storage_data_from_2d(array2d, full_shape, istart=0, jstart=0, origin=or
         )
         if axis != 2:
             full_np_arr_3d = np.moveaxis(full_np_arr_3d, 2, axis)
-       
+
     return gt.storage.from_array(
         data=full_np_arr_3d, backend=backend, default_origin=origin, shape=full_shape
     )
@@ -122,7 +131,9 @@ def make_storage_data_from_1d(
             r = full_1d.reshape((full_shape))
         else:
             # TODO maybe, this is a little silly (repeat the array, then squash the dim), though eventually we shouldn't need this general capability if we refactor stencils to operate on 3d
-            full_1d = make_storage_data_from_1d(array1d, full_shape, kstart=kstart, origin=origin, axis=axis, dummy=None)
+            full_1d = make_storage_data_from_1d(
+                array1d, full_shape, kstart=kstart, origin=origin, axis=axis, dummy=None
+            )
             dimslice = [slice(None)] * len(tilespec)
             for dummy_axis in dummy:
                 dimslice[dummy_axis] = slice(0, 1)
@@ -182,6 +193,7 @@ def compute_column_split(
         )
     grid.npz = num_k
 """
+
 
 def k_subset_run(func, data, splitvars, ki, outputs, grid_data, grid, allz=False):
     grid.npz = len(ki)

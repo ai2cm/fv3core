@@ -14,7 +14,9 @@ class TranslateNeg_Adj3(TranslateFortranData2Py):
             "qsnow": {},
             "qgraupel": {},
             "qcld": {},
-            "pt": {}, "delp": {}, "delz": {},
+            "pt": {},
+            "delp": {},
+            "delz": {},
             "peln": {"istart": grid.is_, "jstart": grid.js, "kaxis": 1},
         }
         self.in_vars["parameters"] = []
@@ -25,8 +27,10 @@ class TranslateNeg_Adj3(TranslateFortranData2Py):
             "qrain": {},
             "qsnow": {},
             "qgraupel": {},
-            "qcld": {}, "pt":{}
+            "qcld": {},
+            "pt": {},
         }
-    #def compute(self, inputs):
+
+    # def compute(self, inputs):
     #    print('to cloud or not to cloud', inputs['cld_amt'])
     #    return []

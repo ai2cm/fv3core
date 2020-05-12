@@ -2,6 +2,7 @@ from .translate import TranslateFortranData2Py
 import fv3.stencils.moist_cv as moist_cv
 import fv3.utils.gt4py_utils as utils
 
+
 class TranslateLastStep(TranslateFortranData2Py):
     def __init__(self, grid):
         super().__init__(grid)
@@ -13,14 +14,20 @@ class TranslateLastStep(TranslateFortranData2Py):
             "qrain": {},
             "qsnow": {},
             "qgraupel": {},
-            "pt": {}, "pkz": {"istart": grid.is_, "jstart": grid.js},
+            "pt": {},
+            "pkz": {"istart": grid.is_, "jstart": grid.js},
             "gz": {"serialname": "gz1d", "kstart": grid.is_, "axis": 0},
-    
         }
         self.in_vars["parameters"] = ["r_vir", "dtmp"]
         self.out_vars = {
-            "gz": {"serialname": "gz1d", "istart": grid.is_, "iend": grid.ie , "jstart":grid.je, "jend":grid.je, "kstart":grid.npz - 1, "kend":grid.npz - 1},
-            "pt": {}
-            
+            "gz": {
+                "serialname": "gz1d",
+                "istart": grid.is_,
+                "iend": grid.ie,
+                "jstart": grid.je,
+                "jend": grid.je,
+                "kstart": grid.npz - 1,
+                "kend": grid.npz - 1,
+            },
+            "pt": {},
         }
-
