@@ -19,9 +19,9 @@ import serialbox
 GRID_SAVEPOINT_NAME = "Grid-Info"
 PARALLEL_SAVEPOINT_NAMES = [
     "HaloUpdate",
-#    "HaloUpdate-2",
-#    "HaloVectorUpdate",
-#    "MPPUpdateDomains",
+    "HaloUpdate-2",
+    "HaloVectorUpdate",
+    "MPPUpdateDomains",
 ]
 
 

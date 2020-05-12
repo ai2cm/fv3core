@@ -17,13 +17,12 @@ from .translate_fvtp2d import TranslateFvTp2d
 from .translate_fvtp2d import TranslateFvTp2d_2
 from .translate_fxadv import TranslateFxAdv
 from .translate_heatdiss import TranslateHeatDiss
-from .translate_haloupdate import TranslateHaloUpdate
-'''
+from .translate_haloupdate import (
+    TranslateHaloUpdate,
     TranslateHaloUpdate_2,
     TranslateMPPUpdateDomains,
     TranslateHaloVectorUpdate,
 )
-'''
 from .translate_ke_c_sw import TranslateKE_C_SW
 from .translate_pgradc import TranslatePGradC
 from .translate_ubke import TranslateUbKE

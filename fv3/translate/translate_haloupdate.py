@@ -30,38 +30,16 @@ class TranslateHaloUpdate(ParallelTranslate):
     halo_update_varname = "air_temperature"
     def __init__(self, grid):
         super().__init__(grid)
-        #self.compute_func = yppm.compute_flux
-        #self.in_vars["data_vars"] = {
-        #    "array": {}
-        #}
-        #self.in_vars["parameters"] = []
-        #self.out_vars = {
-        #    "array": {
-        #    }
-        #}
 
     def compute_parallel(self, inputs, rank_communicator):
         state = self.state_from_inputs(inputs)
-        name = self.halo_update_varname 
-        datapoint = 70.6421745627577
-        #print('rank',rank_communicator.rank,'shape',state[name].data.shape, 'data', state[name].data[0, 4, 0])
-        before = np.argwhere(state[name].data == datapoint)
-        if len(before) > 0:
-            print('\nBEFORE HALO UPDATE rank', rank_communicator.rank, 'at', before)
-        
-        rank_communicator.start_halo_update(state[name], n_points=utils.halo)
-       
-        rank_communicator.finish_halo_update(state[name], n_points=utils.halo)
-        found = np.argwhere(state[name].data == datapoint)
-        if len(found) > 0:
-            print('AFTER FOUND at rank',rank_communicator.rank, 'at', found)
-        #print('after, rank',rank_communicator.rank, state[name].data[0, 4, 0])
-       
+        arr_halo = rank_communicator.start_halo_update(state[self.halo_update_varname], n_points=utils.halo)
+        arr_halo.wait()
         return self.outputs_from_state(state)
    
 
    
-'''
+
 class TranslateHaloUpdate_2(TranslateHaloUpdate):
 
     inputs = {
@@ -140,24 +118,18 @@ class TranslateHaloVectorUpdate(ParallelTranslate):
         },
     }
 
-    def __init__(self, rank_grids):
-        super(TranslateHaloVectorUpdate, self).__init__(rank_grids)
+    def __init__(self, grid):
+        super(TranslateHaloVectorUpdate, self).__init__(grid)
 
-    def compute_sequential(self, inputs_list, communicator_list):
-        state_list = self.state_list_from_inputs_list(inputs_list)
-        for state, communicator in zip(state_list, communicator_list):
-            logger.debug(f"starting on {communicator.rank}")
-            communicator.start_vector_halo_update(
-                state["x_wind_on_c_grid"],
-                state["y_wind_on_c_grid"],
-                n_points=utils.halo,
-            )
-        for state, communicator in zip(state_list, communicator_list):
-            logger.debug(f"finishing on {communicator.rank}")
-            communicator.finish_vector_halo_update(
-                state["x_wind_on_c_grid"],
-                state["y_wind_on_c_grid"],
-                n_points=utils.halo,
-            )
-        return self.outputs_list_from_state_list(state_list)
-'''
+    def compute_parallel(self, inputs, rank_communicator):
+        logger.debug(f"starting on {rank_communicator.rank}")
+        state = self.state_from_inputs(inputs)
+        req = rank_communicator.start_vector_halo_update(
+            state["x_wind_on_c_grid"],
+            state["y_wind_on_c_grid"],
+            n_points=utils.halo,
+        )
+        
+        logger.debug(f"finishing on {rank_communicator.rank}")
+        req.wait()
+        return self.outputs_from_state(state)

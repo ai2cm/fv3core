@@ -128,7 +128,12 @@ dev_tests:
 test_base:
 	docker run --rm $(VOLUMES) $(MOUNTS) \
 	-it $(RUNTEST_IMAGE) pytest --data_path=$(TEST_DATA_CONTAINER) ${TEST_ARGS} /fv3/test
-
+test_base_parallel:
+	docker run --rm $(VOLUMES) $(MOUNTS) \
+	-it $(RUNTEST_IMAGE) mpirun --allow-run-as-root --mca btl_vader_single_copy_mechanism none --oversubscribe -np 6 pytest --data_path=$(TEST_DATA_CONTAINER) ${TEST_ARGS} -m parallel /fv3/test
+run_tests_parallel_container:
+	VOLUMES='--volumes-from $(TEST_DATA_RUN_CONTAINER)' \
+	RUNTEST_IMAGE=$(FV3_IMAGE) $(MAKE) test_base_parallel
 run_tests_container:
 	VOLUMES='--volumes-from $(TEST_DATA_RUN_CONTAINER)' \
 	RUNTEST_IMAGE=$(FV3_IMAGE) $(MAKE) test_base
