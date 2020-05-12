@@ -4,7 +4,6 @@ import gt4py.gtscript as gtscript
 import fv3._config as spec
 from gt4py.gtscript import computation, interval, PARALLEL
 import fv3.stencils.copy_stencil as cp
-import fv3.stencils.cs_profile as cs_profile
 import fv3.utils.global_constants as constants
 # import fv3.stencils.ppm_profile as ppm_profile
 import numpy as np
