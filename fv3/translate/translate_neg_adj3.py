@@ -25,7 +25,7 @@ class TranslateNeg_Adj3(TranslateFortranData2Py):
             "qrain": {},
             "qsnow": {},
             "qgraupel": {},
-            "qcld": {},#pt:{}
+            "qcld": {}, "pt":{}
         }
     #def compute(self, inputs):
     #    print('to cloud or not to cloud', inputs['cld_amt'])

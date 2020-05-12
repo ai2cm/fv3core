@@ -4,6 +4,7 @@ import gt4py.gtscript as gtscript
 import fv3._config as spec
 from gt4py.gtscript import computation, interval, PARALLEL
 import fv3.utils.global_constants as constants
+import numpy as np
 sd = utils.sd
 ZVIR =  constants.RVGAS/constants.RDGAS - 1.
 
@@ -24,7 +25,7 @@ def fix_negative_ice(qv, qi, qs, qg, qr, ql, pt, lcpk, icpk, dq):
     if qg < 0.:
         dq = qs if qs < -qg else -qg
         qs = qs - dq
-        qg = qs + dq
+        qg = qg + dq
         if qg < 0.:
             dq = qi if qi < -qg else -qg
             qi = qi - dq
@@ -132,7 +133,8 @@ def fix_neg_water(pt: sd, dp: sd, delz: sd, qv: sd, ql: sd, qr: sd, qs: sd, qi: 
     with computation(PARALLEL), interval(...):
         q_liq = 0. if 0. > ql + qr else ql + qr
         q_sol = 0. if 0. > qi + qs else qi + qs
-        p2 = -dp / (constants.GRAV * delz) * constants.RDGAS * pt * (1. + ZVIR * qv)
+        # only for is not GFS_PHYS
+        # p2 = -dp / (constants.GRAV * delz) * constants.RDGAS * pt * (1. + ZVIR * qv)
         cpm = (1. - (qv + q_liq + q_sol)) * constants.CV_AIR + qv * constants.CV_VAP + q_liq * constants.C_LIQ + q_sol * constants.C_ICE
         lcpk = (lv00 + d0_vap * pt) / cpm
         icpk = (constants.LI0 + constants.DC_ICE * pt) / cpm
@@ -162,28 +164,32 @@ def fix_neg_cloud(dp: sd, qcld: sd):
                 dq = -qcld * dp if -qcld * dp < qcld[0, 0, -1] * dp[0, 0, -1] else qcld[0, 0, -1] * dp[0, 0, -1]
                 qcld = qcld + dq / dp
                 qcld = 0. if 0. > qcld else qcld
+''''
+# TODO revisit this algorithm, put into stencil
 @utils.stencil()
 def fix_water_vapor(dp: sd, qv: sd):
     with computation(BACKWARD):
         with interval(0, 1):
-            qv = 0.
             dq = 0.
+            if qv < 0:
+                qv = 0.
             if qv[0, 0, 1] < 0. and qv > 0.:
                 dq = -qv[0, 0, 1] * dp[0, 0, 1] if -qv[0, 0, 1] * dp[0, 0, 1] < qv * dp else qv * dp
                 qv[0, 0, 0] = qv - dq[0, 0, 1] / dp
         with interval(1, 2):
-            qv = qv + qv[0, 0, -1] * dp[0, 0, -1] / dp
+            if qv[0, 0, -1] < 0.:
+                qv = qv + qv[0, 0, -1] * dp[0, 0, -1] / dp
     with computation(FORWARD):
         with interval(1, -2):
             dq = 0.
+            if qv[0, 0, -1] < 0.:
+                qv = qv + qv[0, 0, -1] * dp[0, 0, -1] / dp
+            if qv[0, 0, 1] < 0. and qv > 0.:
+                dq = -qv[0, 0, 1] * dp[0, 0, 1] if -qv[0, 0, 1] * dp[0, 0, 1] < qv * dp else qv * dp
+                qv = qv - dq[0, 0, 1] / dp
             if qv < 0. and qv[0, 0, -1] > 0.:
                 dq = -qv * dp if -qv * dp < qv[0, 0, -1] * dp[0, 0, -1] else qv[0, 0, -1] * dp[0, 0, -1]
                 qv = qv + dq / dp
-            if qv[0, 0, 1] < 0. and qv > 0.:
-                dq = -qv[0, 0, 1] * dp[0, 0, 1] if -qv[0, 0, 1] * dp[0, 0, 1] < qv * dp else qv * dp
-                qv[0, 0, 0] = qv - dq[0, 0, 1] / dp
-            if qv[0, 0, -1] < 0.:
-                qv = qv + qv[0, 0, -1] * dp[0, 0, -1] / dp
             if qv < 0.:
                 qv = 0.
         with interval(-2, -1):
@@ -195,7 +201,27 @@ def fix_water_vapor(dp: sd, qv: sd):
         with interval(-1, None):
             if qv[0, 0, -1] < 0.:
                 qv = qv + qv[0, 0, -1] * dp[0, 0, -1] / dp
-
+ '''
+# TODO replace with stencil above when refactored to validate
+def fix_water_vapor_nonstencil(grid, qv, dp):
+    k = 0
+    for j in range(grid.js, grid.je + 1):
+        for i in range(grid.is_, grid.ie + 1):
+            if qv[i, j, k] < 0.:
+                qv[i, j, k + 1] = qv[i, j, k + 1] + qv[i, j, k] * dp[i, j, k] / dp[i, j, k + 1]
+                    
+    kbot = grid.npz - 1
+    for j in range(grid.js, grid.je + 1):
+        for k in range(1, kbot - 1):
+            for i in range(grid.is_, grid.ie + 1):
+                if qv[i, j, k] < 0 and qv[i, j, k - 1] > 0.:
+                    dq = min(-qv[i, j, k] * dp[i, j, k], qv[i, j, k - 1] * dp[i, j, k - 1])
+                    qv[i, j, k - 1] -= dq / dp[i, j, k - 1]
+                    qv[i, j, k] += dq / dp[i, j, k]
+                if qv[i, j, k] < 0.:
+                    qv[i, j, k + 1] += qv[i, j, k] * dp[i, j, k] / dp[i, j, k + 1]
+                    qv[i, j, k] = 0.                      
+                       
 # TODO put into stencil
 def fix_water_vapor_bottom(grid, qv, dp):
     kbot = grid.npz - 1
@@ -222,11 +248,12 @@ def compute(qvapor, qliquid, qrain, qsnow, qice, qgraupel, qcld, pt, delp, delz,
         raise Exception('Unimplemented namelist hydrostatic=True')
     else:
         d0_vap = constants.CV_VAP - constants.C_LIQ
-
     lv00 = constants.HLV - d0_vap * constants.TICE
     fix_neg_water(pt, delp, delz, qvapor, qliquid, qrain, qsnow, qice, qgraupel, lv00, d0_vap, origin=grid.compute_origin(), domain=grid.domain_shape_compute())
     fillq(qgraupel, delp, grid)
     fillq(qrain, delp, grid)
-    fix_water_vapor(delp, qvapor, origin=grid.compute_origin(), domain=grid.domain_shape_compute())
+    # fix_water_vapor(delp, qvapor, origin=grid.compute_origin(), domain=grid.domain_shape_compute())
+    fix_water_vapor_nonstencil(grid, qvapor, delp)
     fix_water_vapor_bottom(grid, qvapor, delp)
     fix_neg_cloud(delp, qcld,  origin=grid.compute_origin(), domain=grid.domain_shape_compute())
+    
