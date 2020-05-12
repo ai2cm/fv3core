@@ -43,8 +43,6 @@ from .translate_del2cubed import TranslateDel2Cubed
 from .translate_d2a2c_vect import TranslateD2A2C_Vect
 from .translate_updatedzd import TranslateUpdateDzD
 from .translate_nh_p_grad import TranslateNH_P_Grad
-from .translate_map1_ppm_2d import TranslateMap1_PPM_2D
-from .translate_cs_profile_2d import TranslateCS_Profile_2d
 from .translate_moistcvpluste_2d import TranslateMoistCVPlusTe_2d
 from .translate_moistcvpluspt_2d import TranslateMoistCVPlusPt_2d
 from .translate_moistcvpluspkz_2d import TranslateMoistCVPlusPkz_2d
@@ -55,3 +53,4 @@ from .translate_compute_total_energy import TranslateComputeTotalEnergy
 from .translate_last_step import TranslateLastStep
 from .translate_fvsetup import TranslateFVSetup
 from .translate_neg_adj3 import TranslateNeg_Adj3
+
