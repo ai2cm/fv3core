@@ -17,7 +17,7 @@ OR
 `make rebuild_environment` followed by
 `make tests`
 
-
+If you'd like to run mpi parallel tests (as opposed to parallel tests run sequentially), after a `make tests` you may run `make run_tests_parallel_container`.
 
 Porting a new stencil
 ---------------------
