@@ -11,6 +11,11 @@ class ParallelTranslate:
     inputs = {}
 
     def __init__(self, grid):
+        if isinstance(grid, list):
+            self._rank_grids = grid
+            grid = grid[0]
+        else:
+            self._rank_grids = None
         self._base = TranslateFortranData2Py(grid)
         self._base.in_vars = {
             "data_vars": {name: {} for name in self.inputs},
@@ -72,12 +77,12 @@ class ParallelTranslate:
     def layout(self):
         return fv3._config.namelist["layout"]
 
-    #@property
-    #def grid(self):
-    #    return self._rank_grid
+    # @property
+    # def grid(self):
+    #    return self.grid
 
     # @property
-    #def rank_grids(self):
+    # def rank_grids(self):
     #    return self._rank_grids
 
     def compute_sequential(self, inputs_list, communicator_list):
@@ -86,8 +91,8 @@ class ParallelTranslate:
 
     def compute_parallel(self, inputs, communicator):
         """Compute the outputs using one communicator operating in parallel"""
-        #self.compute_sequential(self, [inputs], [communicator])
-        self.compute_sequential(self, inputs, communicator)
+        self.compute_sequential(self, [inputs], [communicator])
+
 
 def _serialize_slice(quantity, n_halo):
     slice_list = []

@@ -11,6 +11,7 @@ import collections
 import fv3util
 import gt4py as gt
 from mpi4py import MPI
+
 # get MPI environment
 sys.path.append("/serialbox2/install/python")  # noqa
 import serialbox
@@ -228,6 +229,7 @@ def mock_parallel_savepoint_cases(metafunc, data_path):
         )
     return return_list
 
+
 def parallel_savepoint_cases(metafunc, data_path, mpi_rank):
     serializer = get_serializer(data_path, mpi_rank)
     grid_savepoint = serializer.get_savepoint(GRID_SAVEPOINT_NAME)[0]
@@ -252,13 +254,14 @@ def parallel_savepoint_cases(metafunc, data_path, mpi_rank):
         )
     return return_list
 
+
 def pytest_generate_tests(metafunc):
     backend = metafunc.config.getoption("backend")
     fv3.utils.gt4py_utils.backend = backend
-    #if metafunc.function.__name__ == "test_sequential_savepoint":
-    #    generate_sequential_stencil_tests(metafunc)
-    #if metafunc.function.__name__ == "test_mock_parallel_savepoint_sequentially":
-    #    generate_mock_parallel_stencil_tests(metafunc)
+    if metafunc.function.__name__ == "test_sequential_savepoint":
+        generate_sequential_stencil_tests(metafunc)
+    if metafunc.function.__name__ == "test_mock_parallel_savepoint_sequentially":
+        generate_mock_parallel_stencil_tests(metafunc)
     if metafunc.function.__name__ == "test_parallel_savepoint":
         generate_parallel_stencil_tests(metafunc)
 
@@ -299,7 +302,8 @@ def generate_mock_parallel_stencil_tests(metafunc):
         mock_parallel_savepoint_cases(metafunc, data_path),
         get_parallel_mock_param,
     )
-    
+
+
 def generate_parallel_stencil_tests(metafunc):
     arg_names = [
         "testobj",
@@ -349,8 +353,9 @@ def get_parallel_param(
         savepoint_out,
         case.grid,
         case.layout,
-        id=f"{case.test_name}-rank={case.rank}-call_count={call_count}",#f"{case.test_name}-call_count={call_count}",
+        id=f"{case.test_name}-rank={case.rank}-call_count={call_count}",
     )
+
 
 def get_parallel_mock_param(
     case, testobj, savepoint_in_list, savepoint_out_list, call_count, max_call_count
@@ -375,6 +380,8 @@ def get_parallel_mock_param(
             ],
         ),
     )
+
+
 def get_sequential_param(
     case, testobj, savepoint_in, savepoint_out, call_count, max_call_count
 ):
@@ -402,10 +409,12 @@ def get_sequential_param(
         ),
     )
 
+
 @pytest.fixture()
-def rank_communicator(layout):
+def communicator(layout):
     communicator = get_communicator(MPI.COMM_WORLD, layout)
     return communicator
+
 
 @pytest.fixture()
 def communicator_list(layout):
