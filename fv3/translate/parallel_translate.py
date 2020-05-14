@@ -9,6 +9,7 @@ import fv3
 class ParallelTranslate:
 
     inputs = {}
+    outputs = {}
 
     def __init__(self, rank_grids):
         self._base = TranslateFortranData2Py(rank_grids[0])
@@ -30,22 +31,29 @@ class ParallelTranslate:
         self._base.make_storage_data_input_vars(inputs)
         state = {}
         for name, properties in self.inputs.items():
-            origin, extent = get_origin_and_extent(
-                properties["dims"],
-                inputs[name].shape,
-                self.grid.npx,
-                self.grid.npy,
-                self.grid.npz,
-                utils.halo,
-                self.layout,
-            )
-            state[properties["name"]] = fv3util.Quantity(
-                inputs[name],
-                dims=properties["dims"],
-                units=properties["units"],
-                origin=origin,
-                extent=extent,
-            )
+            if len(properties["dims"]) == 3:
+                origin, extent = get_origin_and_extent(
+                    properties["dims"],
+                    inputs[name].shape,
+                    self.grid.npx,
+                    self.grid.npy,
+                    self.grid.npz,
+                    utils.halo,
+                    self.layout,
+                )
+                state[properties["name"]] = fv3util.Quantity(
+                    inputs[name],
+                    dims=properties["dims"],
+                    units=properties["units"],
+                    origin=origin,
+                    extent=extent,
+                )
+            elif len(properties["dims"]) == 0:
+                state[properties["name"]] = inputs[name]
+            else:
+                raise NotImplementedError(
+                    "only 0-d parameters or 3-d variables are currently supported"
+                )
         return state
 
     def outputs_list_from_state_list(self, state_list):
