@@ -72,7 +72,7 @@ def sample_wherefail(
 @pytest.mark.sequential
 @pytest.mark.skipif(
     MPI is not None and MPI.COMM_WORLD.Get_size() > 1,
-    reason="mpi4py is not available or pytest was not run in parallel",
+    reason="Running in parallel with mpi",
 )
 def test_sequential_savepoint(
     testobj,
@@ -141,9 +141,9 @@ def state_from_savepoint(serializer, savepoint, name_to_std_name):
 @pytest.mark.mock_parallel
 @pytest.mark.skipif(
     MPI is not None and MPI.COMM_WORLD.Get_size() > 1,
-    reason="Do not generate these tests when running with mpi4py",
+    reason="Running in parallel with mpi",
 )
-def test_mock_parallel_savepoint_sequentially(
+def test_mock_parallel_savepoint(
     testobj,
     test_name,
     grid,
@@ -202,7 +202,7 @@ def test_mock_parallel_savepoint_sequentially(
 @pytest.mark.parallel
 @pytest.mark.skipif(
     MPI is None or MPI.COMM_WORLD.Get_size() == 1,
-    reason="Do not generate these tests when running with mpi4py",
+    reason="Not running in parallel with mpi",
 )
 def test_parallel_savepoint(
     testobj,
@@ -226,8 +226,7 @@ def test_parallel_savepoint(
     input_data = testobj.collect_input_data(serializer, savepoint_in)
     # run python version of functionality
     output = testobj.compute_parallel(input_data, communicator)
-    comm.barrier()  # synchronize across ranks
-
+   
     failing_names = []
     passing_names = []
 

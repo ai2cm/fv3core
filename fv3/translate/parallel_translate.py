@@ -77,13 +77,6 @@ class ParallelTranslate:
     def layout(self):
         return fv3._config.namelist["layout"]
 
-    # @property
-    # def grid(self):
-    #    return self.grid
-
-    # @property
-    # def rank_grids(self):
-    #    return self._rank_grids
 
     def compute_sequential(self, inputs_list, communicator_list):
         """Compute the outputs while iterating over a set of communicator objects sequentially"""

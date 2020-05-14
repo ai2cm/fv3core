@@ -104,11 +104,18 @@ post_test_data:
 pull_test_data:
 	docker pull $(TEST_DATA_IMAGE)
 
-tests:
+setup_tests:
 	$(MAKE) build
 	if [ -z $(shell docker images -q $(TEST_DATA_IMAGE)) ]; then $(MAKE) pull_test_data ;fi
 	if [ -z $(shell docker ps -q -f name=$(TEST_DATA_RUN_CONTAINER)) ]; then $(MAKE) data_container;fi
+
+tests:
+	$(MAKE) setup_tests
 	$(MAKE) run_tests_container
+
+tests_mpi:
+	$(MAKE) setup_tests
+	$(MAKE) run_tests_parallel_container
 
 data_container:
 	docker run -d -it --name=$(TEST_DATA_RUN_CONTAINER) -v TestDataVolume$(FORTRAN_VERSION):/test_data $(TEST_DATA_IMAGE)

@@ -35,10 +35,10 @@ class TranslateHaloUpdate(ParallelTranslate):
 
     def compute_parallel(self, inputs, communicator):
         state = self.state_from_inputs(inputs)
-        arr_halo = communicator.start_halo_update(
+        req = communicator.start_halo_update(
             state[self.halo_update_varname], n_points=utils.halo
         )
-        arr_halo.wait()
+        req.wait()
         return self.outputs_from_state(state)
 
     def compute_sequential(self, inputs_list, communicator_list):
