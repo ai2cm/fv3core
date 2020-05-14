@@ -77,7 +77,6 @@ class ParallelTranslate:
     def layout(self):
         return fv3._config.namelist["layout"]
 
-
     def compute_sequential(self, inputs_list, communicator_list):
         """Compute the outputs while iterating over a set of communicator objects sequentially"""
         raise NotImplementedError()
