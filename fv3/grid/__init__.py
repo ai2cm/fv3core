@@ -1,1 +1,1 @@
-from .mesh_generator import MeshGenerator
+from .mesh_generator import generate_mesh

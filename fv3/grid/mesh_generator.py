@@ -2,7 +2,12 @@ from typing import Tuple
 import math
 import numpy as np
 
-from constants import N_HALO_DEFAULT
+from fv3util.constants import N_HALO_DEFAULT
+
+
+def generate_mesh(*args, **kwargs):
+    gen = MeshGenerator(*args, **kwargs)
+    return gen.lat, gen.lon
 
 
 class MeshGenerator:
@@ -14,7 +19,9 @@ class MeshGenerator:
     def __init__(
         self,
         grid_type: int,  # type of grid (0 = equal-distance Gnomonic)
-        shape: Tuple[int, int],  # number of nodes on tile in x- and y-direction
+        # number of nodes on tile in x- and y-direction
+        npx: int,
+        npy: int,
         ntiles: int,  # number of tiles
         ng: int,  # number of halo-points
         shift_fac=18.0,  # shift of prime meridian
@@ -25,7 +32,6 @@ class MeshGenerator:
 
         self.grid_type = grid_type
         self.ntiles = ntiles
-        npx, npy = shape
         self.npx = npx
         self.npy = npy
         self.ng = ng
@@ -47,7 +53,7 @@ class MeshGenerator:
         npx = namelist["fv_core_nml"]["npx"]
         npy = namelist["fv_core_nml"]["npy"]
         ng = N_HALO_DEFAULT
-        return cls(grid_type, [npx, npy], ntiles, ng)
+        return cls(grid_type, npx, npy, ntiles, ng)
 
     @classmethod
     def from_name(cls, name):

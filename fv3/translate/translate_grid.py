@@ -1,4 +1,10 @@
 from .parallel_translate import ParallelTranslate
+from ..grid import generate_mesh
+import fv3util
+
+
+# would be helpful to serialize gnomonic_grids call on line 681 of fv_grid_tools.F90
+# also mirror_grid on L691
 
 
 def init_grid(grid_spec_filename: str):
@@ -10,12 +16,37 @@ def init_grid(grid_spec_filename: str):
 
     """
     print(grid_spec_filename)
+    npx, npy = 1, 1
+    lat, lon = generate_mesh(grid_type=0, npx=npx, npy=npy, ntiles=6, ng=3, shift_fac=18.0)
     raise NotImplementedError()
+
+
+class TranslateDxDy(ParallelTranslate):
+
+    inputs = {
+        "gridvar": {},
+    }
+    outputs = {
+        "dx": {"dims": [fv3util.X_DIM, fv3util.Y_DIM]},
+        "dy": {"dims": [fv3util.X_DIM, fv3util.Y_DIM]},
+    }
+
+    def compute_sequential(self, inputs_list, communicator_list):
+        outputs = []
+        for inputs in inputs_list:
+            outputs.append(self.compute(inputs))
+        return outputs
+
+    def compute(self, inputs):
+        state = self.state_from_inputs(inputs)
+        pass
+        outputs = self.outputs_from_state(state)
+        return outputs
 
 
 class TranslateInitGrid(ParallelTranslate):
 
-    """
+    """ need to add npx, npy, npz, ng
     !$ser
     data
     grid_file=grid_file

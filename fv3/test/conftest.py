@@ -15,12 +15,20 @@ import serialbox
 
 
 GRID_SAVEPOINT_NAME = "Grid-Info"
-PARALLEL_SAVEPOINT_NAMES = [
-    "HaloUpdate",
-    "HaloUpdate-2",
-    "HaloVectorUpdate",
-    "MPPUpdateDomains",
-]
+
+
+def get_parallel_savepoint_names(module):
+    return_list = []
+    for member_name in dir(module):
+        member = getattr(module, member_name)
+        if isinstance(member, type) and (
+                issubclass(member, fv3.translate.ParallelTranslate)) and (
+                member is not fv3.translate.ParallelTranslate):
+            return_list.append(member_name[len("Translate"):].replace('_', '-'))
+    return return_list
+
+
+PARALLEL_SAVEPOINT_NAMES = get_parallel_savepoint_names(fv3.translate)
 
 
 class ReplaceRepr:
