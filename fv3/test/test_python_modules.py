@@ -226,7 +226,6 @@ def test_parallel_savepoint(
     input_data = testobj.collect_input_data(serializer, savepoint_in)
     # run python version of functionality
     output = testobj.compute_parallel(input_data, communicator)
-
     failing_names = []
     passing_names = []
 

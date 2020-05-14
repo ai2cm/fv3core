@@ -260,7 +260,7 @@ def pytest_generate_tests(metafunc):
     fv3.utils.gt4py_utils.backend = backend
     if metafunc.function.__name__ == "test_sequential_savepoint":
         generate_sequential_stencil_tests(metafunc)
-    if metafunc.function.__name__ == "test_mock_parallel_savepoint_sequentially":
+    if metafunc.function.__name__ == "test_mock_parallel_savepoint":
         generate_mock_parallel_stencil_tests(metafunc)
     if metafunc.function.__name__ == "test_parallel_savepoint":
         generate_parallel_stencil_tests(metafunc)
@@ -318,8 +318,6 @@ def generate_parallel_stencil_tests(metafunc):
     # get MPI environment
     comm = MPI.COMM_WORLD
     mpi_rank = comm.Get_rank()
-    # make sure each rank has its own gt4py cache directory
-    gt.config.cache_settings["dir_name"] = ".gt_cache_{:0>6d}".format(mpi_rank)
     _generate_stencil_tests(
         metafunc,
         arg_names,
