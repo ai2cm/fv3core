@@ -10,19 +10,14 @@ class ParallelTranslate:
 
     inputs = {}
 
-    def __init__(self, grid):
-        if isinstance(grid, list):
-            self._rank_grids = grid
-            grid = grid[0]
-        else:
-            self._rank_grids = None
-        self._base = TranslateFortranData2Py(grid)
+    def __init__(self, rank_grids):
+        self._base = TranslateFortranData2Py(rank_grids[0])
         self._base.in_vars = {
             "data_vars": {name: {} for name in self.inputs},
             "parameters": {},
         }
         self.max_error = self._base.max_error
-        self.grid = grid
+        self._rank_grids = rank_grids
 
     def state_list_from_inputs_list(self, inputs_list: List[list]) -> list:
         state_list = []
@@ -72,6 +67,14 @@ class ParallelTranslate:
             output_slice = _serialize_slice(state[standard_name], utils.halo)
             return_dict[name] = state[standard_name].data[output_slice]
         return return_dict
+
+    @property
+    def rank_grids(self):
+        return self._rank_grids
+
+    @property
+    def grid(self):
+        return self._rank_grids[0]
 
     @property
     def layout(self):

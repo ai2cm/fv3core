@@ -248,7 +248,7 @@ def parallel_savepoint_cases(metafunc, data_path, mpi_rank):
                 serializer,
                 input_savepoints,
                 output_savepoints,
-                grid,
+                [grid],
                 layout,
             )
         )

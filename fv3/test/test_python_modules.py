@@ -222,7 +222,7 @@ def test_parallel_savepoint(
     caplog.set_level(logging.DEBUG, logger="fv3ser")
     if testobj is None:
         pytest.xfail(f"no translate object available for savepoint {test_name}")
-    fv3._config.set_grid(grid)
+    fv3._config.set_grid([grid])
     input_data = testobj.collect_input_data(serializer, savepoint_in)
     # run python version of functionality
     output = testobj.compute_parallel(input_data, communicator)
