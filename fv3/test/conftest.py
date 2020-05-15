@@ -80,7 +80,6 @@ def make_grid(grid_savepoint, serializer, rank):
     grid_data = {}
     grid_fields = serializer.fields_at_savepoint(grid_savepoint)
     for field in grid_fields:
-        # if field in ['is_', 'ie','isd','ied', 'js', 'je', 'js', 'jsd', 'jed', 'npx', 'npy', 'npz', 'nested', 'grid_type']:
         grid_data[field] = read_serialized_data(serializer, grid_savepoint, field)
     return fv3.translate.translate.TranslateGrid(grid_data, rank).python_grid()
 
