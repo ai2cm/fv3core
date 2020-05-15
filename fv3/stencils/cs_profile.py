@@ -66,7 +66,7 @@ def set_vals_2(gam: sd, q: sd, delp: sd, a4_1: sd, q_bot: sd, qs: sd):
             bet = 2.0 + grid_ratio + grid_ratio - gam
             q = (3.0 * (a4_1[0, 0, -1] + a4_1) - q[0, 0, -1]) / bet
     with computation(FORWARD):
-        with interval(2, -1):
+        with interval(2, -2):
             # set middle
             old_grid_ratio = delp[0, 0, -2] / delp[0, 0, -1]
             old_bet = 2.0 + old_grid_ratio + old_grid_ratio - gam[0, 0, -1]
@@ -76,17 +76,21 @@ def set_vals_2(gam: sd, q: sd, delp: sd, a4_1: sd, q_bot: sd, qs: sd):
             q = (3.0 * (a4_1[0, 0, -1] + a4_1) - q[0, 0, -1]) / bet
             # gam[0, 0, 1] = grid_ratio / bet
     with computation(PARALLEL):
-        with interval(-1, None):
+        with interval(-2, -1):
             # set bottom
-            old_grid_ratio = delp[0, 0, -2] / delp[0,0,-1]
-            old_bet = 2.0 + old_grid_ratio + old_grid_ratio - gam[0,0,-1]
+            old_grid_ratio = delp[0, 0, -2] / delp[0, 0, -1]
+            old_bet = 2.0 + old_grid_ratio + old_grid_ratio - gam[0, 0, -1]
             gam = old_grid_ratio / old_bet
             grid_ratio = delp[0, 0, -1] / delp
-            q = (3.0 * (a4_1[0, 0, -1] + a4_1) - grid_ratio * qs - q[0, 0, -1]) / (
-                2.0 + grid_ratio + grid_ratio - gam
-            )
+            q = (
+                3.0 * (a4_1[0, 0, -1] + a4_1) - grid_ratio * qs[0, 0, 1] - q[0, 0, -1]
+            ) / (2.0 + grid_ratio + grid_ratio - gam)
             q_bot = qs
-    with computation(BACKWARD), interval(0, -1):
+    with computation(PARALLEL):
+        with interval(-1, None):
+            q_bot = qs
+            q = qs
+    with computation(BACKWARD), interval(0, -2):
         q = q - gam[0, 0, 1] * q[0, 0, 1]
 
 
@@ -125,10 +129,15 @@ def set_vals_1(gam: sd, q: sd, delp: sd, a4_1: sd, q_bot: sd):
 @utils.stencil()
 def set_avals(q: sd, a4_1: sd, a4_2: sd, a4_3: sd, a4_4: sd, q_bot: sd):
     with computation(PARALLEL):
-        with interval(...):
+        with interval(0, -1):
             a4_2 = q
             a4_3 = q[0, 0, 1]
-            a4_4 = 3.0 * (2.0 * a4_1 - (q + q[0, 0, 1]))
+            a4_4 = 3.0 * (2.0 * a4_1 - (a4_2 + a4_3))
+    with computation(PARALLEL):
+        with interval(-1, None):
+            a4_2 = q
+            a4_3 = q_bot
+            a4_4 = 3.0 * (2.0 * a4_1 - (a4_2 + a4_3))
 
 
 @utils.stencil()
@@ -229,7 +238,7 @@ def set_top_as_iv2(a4_1: sd, a4_2: sd, a4_3: sd, a4_4: sd):
 def set_top_as_else(a4_1: sd, a4_2: sd, a4_3: sd, a4_4: sd):
     with computation(PARALLEL):
         with interval(...):
-            a4_4 = 3. * (2. * a4_1 - (a4_2 + a4_3))
+            a4_4 = 3.0 * (2.0 * a4_1 - (a4_2 + a4_3))
 
 
 @utils.stencil()
@@ -428,9 +437,8 @@ def set_bottom_as_else(a4_1: sd, a4_2: sd, a4_3: sd, a4_4: sd):
 
 
 def compute(qs, a4_1, a4_2, a4_3, a4_4, delp, km, i1, i2, iv, kord):
-    i_extent = i2 - i1 + 1
 
-    print(iv, kord)
+    i_extent = i2 - i1 + 1
 
     grid = spec.grid
     orig = (i1, 0, 0)
@@ -441,14 +449,25 @@ def compute(qs, a4_1, a4_2, a4_3, a4_4, delp, km, i1, i2, iv, kord):
     q_bot = utils.make_storage_from_shape(delp.shape, origin=full_orig)
 
     qs_field = utils.make_storage_from_shape(delp.shape, origin=full_orig)
-    qs_field[:,:,-1] = qs.data[:,:,0] # make a qs that can be passed to a stencil
+    qs_field[i1 : i2 + 1, :, -1] = qs.data[
+        :i_extent, :, 0
+    ]  # make a qs that can be passed to a stencil
 
     extm = utils.make_storage_from_shape(delp.shape, origin=full_orig)
     ext5 = utils.make_storage_from_shape(delp.shape, origin=full_orig)
     ext6 = utils.make_storage_from_shape(delp.shape, origin=full_orig)
 
     if iv == -2:
-        set_vals_2(gam, q, delp, a4_1, q_bot, qs_field, origin=orig, domain=dom)
+        set_vals_2(
+            gam,
+            q,
+            delp,
+            a4_1,
+            q_bot,
+            qs_field,
+            origin=orig,
+            domain=(i_extent, 1, km + 1),
+        )
     else:
         set_vals_1(gam, q, delp, a4_1, q_bot, origin=orig, domain=(i_extent, 1, km + 1))
 

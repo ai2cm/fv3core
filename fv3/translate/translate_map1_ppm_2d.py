@@ -65,11 +65,26 @@ class TranslateMap1_PPM_2d_3(TranslateMap1_PPM_2d):
         super().__init__(grid)
         self.in_vars["data_vars"]["pe1"]["serialname"] = "pe1_2"
         self.in_vars["data_vars"]["pe2"]["serialname"] = "pe2_2"
-        self.in_vars["data_vars"]["q1"]["serialname"] = "var_inout_3"
+        self.in_vars["data_vars"]["q1"]["serialname"] = "var_in_3"
         self.out_vars = {
             "var_inout": {
                 "serialname": "var_inout_3",
                 "istart": 0,
                 "iend": grid.ied + 1,
+            },
+        }
+
+
+class TranslateMap1_PPM_2d_2(TranslateMap1_PPM_2d):
+    def __init__(self, grid):
+        super().__init__(grid)
+        self.in_vars["data_vars"]["pe1"]["serialname"] = "pe1_2"
+        self.in_vars["data_vars"]["pe2"]["serialname"] = "pe2_2"
+        self.in_vars["data_vars"]["q1"]["serialname"] = "var_in_2"
+        self.out_vars = {
+            "var_inout": {
+                "serialname": "var_inout_2",
+                "jstart": 0,
+                "jend": grid.ied + 1,
             },
         }

@@ -34,6 +34,8 @@ def lagrangian_contributions(
     q4_4: sd,
     dp1: sd,
     q2_adds: sd,
+    r3: float,
+    r23: float,
 ):
     with computation(PARALLEL), interval(...):
         pl = pe1
@@ -51,7 +53,7 @@ def lagrangian_contributions(
                     q2_adds = (
                         q4_2
                         + 0.5 * (q4_4 + q4_3 - q4_2) * (pr + pl)
-                        - q4_4 * (1.0 / 3.0) * (pr * (pr + pl) + pl ** 2)
+                        - q4_4 * r3 * (pr * (pr + pl) + pl ** 2)
                     )
                 else:
                     # Eulerian element encompasses multiple Lagrangian elements and this is just the first one
@@ -60,7 +62,7 @@ def lagrangian_contributions(
                         * (
                             q4_2
                             + 0.5 * (q4_4 + q4_3 - q4_2) * (1.0 + pl)
-                            - q4_4 * (1.0 / 3.0) * (1.0 + pl * (1.0 + pl))
+                            - q4_4 * r3 * (1.0 + pl * (1.0 + pl))
                         )
                         / (pbot - ptop)
                     )
@@ -75,12 +77,7 @@ def lagrangian_contributions(
                     esl = dp / dp1
                     q2_adds = (
                         dp
-                        * (
-                            q4_2
-                            + 0.5
-                            * esl
-                            * (q4_3 - q4_2 + q4_4 * (1.0 - (2.0 / 3.0) * esl))
-                        )
+                        * (q4_2 + 0.5 * esl * (q4_3 - q4_2 + q4_4 * (1.0 - r23 * esl)))
                         / (pbot - ptop)
                     )
         else:
@@ -95,14 +92,12 @@ def compute(q1, pe1, pe2, qs, j_2d, i1, i2, mode, kord):
     j_2d -= 1
     j_2d += grid.is_
     orig = (grid.is_, grid.js, 0)
+    r3 = 1.0 / 3.0
+    r23 = 2.0 / 3.0
     q_2d = utils.make_storage_data(
         q1[:, j_2d : j_2d + 1, :], (q1.shape[0], 1, q1.shape[2])
     )
     dp1 = utils.make_storage_from_shape(pe1.shape, origin=orig)
-
-    print(pe1.shape)
-    print(iv, kord)
-    print(i1, i2, i_extent)
 
     q4_1 = cp.copy(q_2d, origin=(0, 0, 0))
     q4_2 = utils.make_storage_from_shape(q4_1.shape, origin=(grid.is_, 0, 0))
@@ -114,11 +109,10 @@ def compute(q1, pe1, pe2, qs, j_2d, i1, i2, mode, kord):
     set_dp(dp1, pe1, origin=(i1, 0, 0), domain=(i_extent, 1, km))
 
     if kord > 7:
-        padded_qs = utils.make_storage_from_shape(q_2d.shape, origin=(grid.is_, 0, 0))
-        padded_qs[:, :, -1] = qs[:, :, 0]
         q4_1, q4_2, q4_3, q4_4 = cs_profile.compute(
-            padded_qs, q4_1, q4_2, q4_3, q4_4, dp1, km, i1, i2, iv, kord
+            qs, q4_1, q4_2, q4_3, q4_4, dp1, km, i1, i2, iv, kord
         )
+
     # else:
     #     ppm_profile.compute(q4_1, q4_2, q4_3, q4_4, dp1, km, i1, i2, iv, kord)
 
@@ -144,6 +138,8 @@ def compute(q1, pe1, pe2, qs, j_2d, i1, i2, mode, kord):
             q4_4,
             dp1,
             q2_adds,
+            r3,
+            r23,
             origin=(i1, 0, 0),
             domain=(i_extent, 1, km),
         )
@@ -151,6 +147,10 @@ def compute(q1, pe1, pe2, qs, j_2d, i1, i2, mode, kord):
         q2[i1 : i2 + 1, j_2d, k_eul] = np.sum(q2_adds.data[i1 : i2 + 1, 0, :], axis=1)
 
     # #Pythonized
+    # n_cont = 0
+    # n_ext = 0
+    # n_bot = 0
+    # kn = grid.npz
     # i_vals = np.arange(i1, i2 + 1)
     # klevs = np.arange(km+1)
     # for ii in i_vals:
@@ -168,6 +168,7 @@ def compute(q1, pe1, pe2, qs, j_2d, i1, i2, mode, kord):
     #                 * (pr + pl)
     #                 - q4_4[ii, 0, k1] * r3 * (pr * (pr + pl) + pl ** 2)
     #             )
+    #             n_cont+=1
     #             # continue
     #         else:
     #             # new grid layer extends into more old grid layers
@@ -194,10 +195,18 @@ def compute(q1, pe1, pe2, qs, j_2d, i1, i2, mode, kord):
     #                         + q4_4[ii, 0, mm] * (1.0 - r23 * esl)
     #                     )
     #                 )
+    #                 n_ext+=1
+    #             else:
+    #                 n_bot+=1
     #             q2[ii, j_2d, k2] = qsum / (pe2[ii, 0, k2 + 1] - pe2[ii, 0, k2])
 
     # # transliterated fortran
+    # n_cont = 0
+    # n_ext = 0
+    # n_bot = 0
     # i_vals = np.arange(i1, i2 + 1)
+    # kn = grid.npz
+    # elems = np.ones((i_extent,kn))
     # for ii in i_vals:
     #     k0 = 0
     #     for k2 in np.arange(kn):  # loop over new, remapped ks]
@@ -217,6 +226,8 @@ def compute(q1, pe1, pe2, qs, j_2d, i1, i2, mode, kord):
     #                         - q4_4[ii, 0, k1] * r3 * (pr * (pr + pl) + pl ** 2)
     #                     )
     #                     k0 = k1
+    #                     n_cont +=1
+    #                     elems[ii-i1,k2]=0
     #                     break
     #                 else:  # new grid layer extends into more old grid layers
     #                     qsum = (pe1[ii, 0, k1 + 1] - pe2[ii, 0, k2]) * (
@@ -226,8 +237,8 @@ def compute(q1, pe1, pe2, qs, j_2d, i1, i2, mode, kord):
     #                         * (1.0 + pl)
     #                         - q4_4[ii, 0, k1] * (r3 * (1.0 + pl * (1.0 + pl)))
     #                     )
+
     #                     for mm in np.arange(k1 + 1, km):  # find the bottom edge
-    #                         flag = 0
     #                         if pe2[ii, 0, k2 + 1] > pe1[ii, 0, mm + 1]:  #Not there yet; add the whole layer
     #                             qsum = qsum + dp1[ii, 0, mm] * q4_1[ii, 0, mm]
     #                         else:
@@ -244,12 +255,19 @@ def compute(q1, pe1, pe2, qs, j_2d, i1, i2, mode, kord):
     #                                 )
     #                             )
     #                             k0 = mm
-    #                             q2[ii, j_2d, k2] = qsum / (
-    #                                 pe2[ii, 0, k2 + 1] - pe2[ii, 0, k2]
-    #                             )
     #                             flag = 1
+    #                             n_ext+=1
+    #                             elems[ii-i1,k2]=0
     #                             break
-    #                     if flag == 0: #if we get to the bottom of the column then we just take everything
-    #                         q2[ii, j_2d, k2] = qsum / (pe2[ii, 0, k2 + 1] - pe2[ii, 0, k2])
+    #                     if flag == 0:
+    #                         print("Huh")
+    #                         n_bot+=1
+    #                     #Add everything up and divide by the pressure difference
+    #                     q2[ii, j_2d, k2] = qsum / (pe2[ii, 0, k2 + 1] - pe2[ii, 0, k2])
+    #                     break
+
+    # print(n_cont, n_ext, n_bot)
+    # print(n_cont+ n_ext+ n_bot)
+    # print(kn * (i_extent))
 
     return q2
