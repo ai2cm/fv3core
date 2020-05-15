@@ -8,16 +8,21 @@ import fv3
 
 class ParallelTranslate:
 
+    max_error = TranslateFortranData2Py.max_error
+
     inputs = {}
     outputs = {}
 
     def __init__(self, rank_grids):
+        if not hasattr(rank_grids, '__getitem__'):
+            raise TypeError(
+                "rank_grids should be a sequence of grids, one for each rank"
+            )
         self._base = TranslateFortranData2Py(rank_grids[0])
         self._base.in_vars = {
             "data_vars": {name: {} for name in self.inputs},
             "parameters": {},
         }
-        self.max_error = self._base.max_error
         self._rank_grids = rank_grids
 
     def state_list_from_inputs_list(self, inputs_list: List[list]) -> list:
@@ -33,19 +38,22 @@ class ParallelTranslate:
         self._base.make_storage_data_input_vars(inputs)
         state = {}
         for name, properties in self.inputs.items():
-            if len(properties["dims"]) == 3:
+            if len(properties["dims"]) > 0:
                 state[properties["name"]] = grid.quantity_factory.empty(
                     properties["dims"],
                     properties["units"],
                     dtype=inputs[name].dtype
                 )
-                state[properties["name"]].data[:] = inputs[name]
-            elif len(properties["dims"]) == 0:
-                state[properties["name"]] = inputs[name]
+                if len(properties["dims"]) == 3:
+                    state[properties["name"]].data[:] = inputs[name]
+                elif len(properties["dims"]) == 2:
+                    state[properties["name"]].data[:] = inputs[name][:, :, 0]
+                else:
+                    raise NotImplementedError(
+                        "only 0, 2, and 3-d variables are supported"
+                    )
             else:
-                raise NotImplementedError(
-                    "only 0-d parameters or 3-d variables are currently supported"
-                )
+                state[properties["name"]] = inputs[name]
         return state
 
     def outputs_list_from_state_list(self, state_list):
@@ -64,7 +72,7 @@ class ParallelTranslate:
         return_dict = {}
         for name, properties in self.outputs.items():
             standard_name = properties["name"]
-            output_slice = _serialize_slice(state[standard_name], utils.halo)
+            output_slice = _serialize_slice(state[standard_name], properties.get("n_halo", utils.halo))
             return_dict[name] = state[standard_name].data[output_slice]
         return return_dict
 

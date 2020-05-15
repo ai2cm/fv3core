@@ -1,5 +1,6 @@
 from .parallel_translate import ParallelTranslate
-from ..grid import generate_mesh
+from ..grid import generate_mesh, gnomonic_grid
+from ..utils import gt4py_utils as utils
 import fv3util
 
 
@@ -19,6 +20,56 @@ def init_grid(grid_spec_filename: str):
     npx, npy = 1, 1
     lat, lon = generate_mesh(grid_type=0, npx=npx, npy=npy, ntiles=6, ng=3, shift_fac=18.0)
     raise NotImplementedError()
+
+
+class TranslateGnomonic_Grids(ParallelTranslate):
+
+    max_error = 2e-14
+
+    inputs = {
+        "lon": {
+            "name": "longitude_on_cell_corners",
+            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM],
+            "units": "degrees",
+            "n_halo": 0,
+        },
+        "lat": {
+            "name": "latitude_on_cell_corners",
+            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM],
+            "units": "degrees",
+            "n_halo": 0,
+        }
+    }
+    outputs = {
+        "lon": {
+            "name": "longitude_on_cell_corners",
+            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM],
+            "units": "degrees",
+            "n_halo": 0,
+        },
+        "lat": {
+            "name": "latitude_on_cell_corners",
+            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM],
+            "units": "degrees",
+            "n_halo": 0,
+        }
+    }
+
+    def compute_sequential(self, inputs_list, communicator_list):
+        outputs = []
+        for inputs in inputs_list:
+            outputs.append(self.compute(inputs))
+        return outputs
+
+    def compute(self, inputs):
+        state = self.state_from_inputs(inputs)
+        gnomonic_grid(
+            self.grid.grid_type,
+            state["longitude_on_cell_corners"].view[:],
+            state["latitude_on_cell_corners"].view[:]
+        )
+        outputs = self.outputs_from_state(state)
+        return outputs
 
 
 class TranslateDxDy(ParallelTranslate):
@@ -95,7 +146,7 @@ cubedsphere=Atm(n)%gridstruct%latlon
     pass
 
 
-class TranslateGridUtilsInit(ParallelTranslate):
+class TranslateGridUtils_Init(ParallelTranslate):
 
     """!$ser
     data

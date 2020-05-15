@@ -20,18 +20,18 @@ import serialbox
 GRID_SAVEPOINT_NAME = "Grid-Info"
 
 
-def get_parallel_savepoint_names(module):
+def get_parallel_savepoint_names_from_module(module):
     return_list = []
     for member_name in dir(module):
         member = getattr(module, member_name)
         if isinstance(member, type) and (
                 issubclass(member, fv3.translate.ParallelTranslate)) and (
                 member is not fv3.translate.ParallelTranslate):
-            return_list.append(member_name[len("Translate"):].replace('_', '-'))
+            return_list.append(member_name[len("Translate"):])
     return return_list
 
 
-PARALLEL_SAVEPOINT_NAMES = get_parallel_savepoint_names(fv3.translate)
+PARALLEL_SAVEPOINT_NAMES = get_parallel_savepoint_names_from_module(fv3.translate)
 
 
 class ReplaceRepr:
@@ -146,6 +146,7 @@ def get_parallel_savepoint_names(metafunc, data_path):
     skip_names = metafunc.config.getoption("skip_modules")
     if skip_names is not None:
         savepoint_names.difference_update(skip_names.split(","))
+    print('PARALLEL NAMES', savepoint_names)
     return savepoint_names
 
 
@@ -460,6 +461,9 @@ def pytest_configure(config):
     )
     config.addinivalue_line(
         "markers", "parallel(name): mark test as running in parallel across ranks"
+    )
+    config.addinivalue_line(
+        "markers", "mock_parallel(name): mark test as running in mock parallel across ranks"
     )
 
 

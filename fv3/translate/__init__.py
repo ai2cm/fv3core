@@ -16,7 +16,7 @@ from .translate_fluxcapacitor import TranslateFluxCapacitor
 from .translate_fvtp2d import TranslateFvTp2d
 from .translate_fvtp2d import TranslateFvTp2d_2
 from .translate_fxadv import TranslateFxAdv
-from .translate_grid import TranslateInitGrid, TranslateGridUtilsInit
+from .translate_grid import TranslateInitGrid, TranslateGridUtils_Init, TranslateGnomonic_Grids
 from .translate_heatdiss import TranslateHeatDiss
 from .translate_haloupdate import (
     TranslateHaloUpdate,

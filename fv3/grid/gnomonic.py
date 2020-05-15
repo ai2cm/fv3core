@@ -1,4 +1,4 @@
-from ..constants import pi
+from ..utils.global_constants import PI
 import numpy as np
 
 
@@ -7,8 +7,8 @@ def gnomonic_grid(grid_type: int, lon, lat):
 
     Args:
         grid_type: ???
-        lon: array with dimensions [x, y]
-        lat: array with dimensions [x, y]
+        lon: longitude array with dimensions [x, y]
+        lat: latitude array with dimensions [x, y]
     """
     _check_shapes(lon, lat)
     if grid_type == 0:
@@ -19,7 +19,7 @@ def gnomonic_grid(grid_type: int, lon, lat):
         gnomonic_angl(lon, lat)
     if grid_type < 3:
         symm_ed(lon, lat)
-        lon = lon - pi
+        lon[:] -= PI
 
 
 def _check_shapes(lon, lat):
@@ -39,7 +39,7 @@ def _check_shapes(lon, lat):
 
 
 def gnomonic_ed(lon, lat):
-    im = lon.shape[0]
+    im = lon.shape[0] - 1
     alpha = np.arcsin(3 ** -.5)
 
     dely = 2.0 * alpha / float(im)
@@ -47,8 +47,8 @@ def gnomonic_ed(lon, lat):
     pp = np.empty((3, im + 1, im + 1))
 
     for j in range(0, im + 1):
-        lon[0, j] = 0.75 * np.pi  # West edge
-        lon[im, j] = 1.25 * np.pi  # East edge
+        lon[0, j] = 0.75 * PI  # West edge
+        lon[im, j] = 1.25 * PI  # East edge
         lat[0, j] = -alpha + dely * float(j)  # West edge
         lat[im, j] = lat[0, j]  # East edge
 
@@ -114,10 +114,10 @@ def _cart_to_latlon(im, q, xs, ys):
             if np.abs(p[0]) + np.abs(p[1]) < esl:
                 lon = 0.0
             else:
-                lon = np.arctan2(p[1], p[0])  # range [-pi, pi]
+                lon = np.arctan2(p[1], p[0])  # range [-PI, PI]
 
             if lon < 0.0:
-                lon = 2.0 * np.pi + lon
+                lon = 2.0 * PI + lon
 
             lat = np.arcsin(p[2])
 
