@@ -14,7 +14,7 @@ class ParallelTranslate:
     outputs = {}
 
     def __init__(self, rank_grids):
-        if not hasattr(rank_grids, '__getitem__'):
+        if not hasattr(rank_grids, "__getitem__"):
             raise TypeError(
                 "rank_grids should be a sequence of grids, one for each rank"
             )
@@ -41,9 +41,7 @@ class ParallelTranslate:
         for name, properties in self.inputs.items():
             if len(properties["dims"]) > 0:
                 state[properties["name"]] = grid.quantity_factory.empty(
-                    properties["dims"],
-                    properties["units"],
-                    dtype=inputs[name].dtype
+                    properties["dims"], properties["units"], dtype=inputs[name].dtype
                 )
                 if len(properties["dims"]) == 3:
                     state[properties["name"]].data[:] = inputs[name]
@@ -73,7 +71,9 @@ class ParallelTranslate:
         return_dict = {}
         for name, properties in self.outputs.items():
             standard_name = properties["name"]
-            output_slice = _serialize_slice(state[standard_name], properties.get("n_halo", utils.halo))
+            output_slice = _serialize_slice(
+                state[standard_name], properties.get("n_halo", utils.halo)
+            )
             return_dict[name] = state[standard_name].data[output_slice]
         return return_dict
 

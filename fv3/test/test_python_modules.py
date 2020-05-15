@@ -176,9 +176,7 @@ def test_mock_parallel_savepoint(
                 zip(savepoint_out_list, serializer_list, output_list)
             ):
                 with _subtest(failing_ranks, subtests, varname=varname, rank=rank):
-                    ref_data[varname].append(
-                        serializer.read(varname, savepoint_out)
-                    )
+                    ref_data[varname].append(serializer.read(varname, savepoint_out))
                     assert success(
                         output[varname], ref_data[varname][-1], testobj.max_error
                     ), sample_wherefail(

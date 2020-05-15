@@ -72,7 +72,7 @@ class Grid:
                 nz=self.npz,
                 n_halo=self.halo,
                 extra_dim_lengths={},
-                layout=self.layout
+                layout=self.layout,
             )
         return self._sizer
 
