@@ -3,9 +3,8 @@ CWD=$(shell pwd)
 
 #<some large conceptual version change>.<serialization statement change>.<hotfix>
 
-FORTRAN_VERSION=0.3.7
-#FORTRAN_VERSION=0.3.csprofile.2
-
+FORTRAN_VERSION=0.3.9
+SHELL=/bin/bash
 TEST_ARGS ?=-v -s -rsx
 PULL ?=True
 VOLUMES ?=
