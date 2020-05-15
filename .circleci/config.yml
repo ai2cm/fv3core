@@ -43,7 +43,6 @@ jobs:
       docker_layer_caching: true
     environment:
       GOOGLE_APPLICATION_CREDENTIALS: /tmp/key.json
-      NODE_OPTIONS: --max_old_space_size=4096
     steps:
       - checkout
       - add_ssh_keys:
@@ -58,10 +57,10 @@ jobs:
           command: |
             git submodule update --init --recursive
       - gcp-gcr/gcr-auth
-      #- run:
-      #    name: "Run tests"
-      #    command: |
-      #      make tests
+      - run:
+          name: "Run tests"
+          command: |
+            make tests
       - run:
           name: "Run parallel tests"
           command: |

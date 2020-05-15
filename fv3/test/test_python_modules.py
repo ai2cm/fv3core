@@ -218,7 +218,6 @@ def test_parallel_savepoint(
     subtests,
     caplog,
 ):
-    comm = communicator.comm
     caplog.set_level(logging.DEBUG, logger="fv3ser")
     if testobj is None:
         pytest.xfail(f"no translate object available for savepoint {test_name}")

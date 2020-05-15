@@ -80,11 +80,13 @@ def make_grid(grid_savepoint, serializer, rank):
     grid_data = {}
     grid_fields = serializer.fields_at_savepoint(grid_savepoint)
     for field in grid_fields:
+        # if field in ['is_', 'ie','isd','ied', 'js', 'je', 'js', 'jsd', 'jed', 'npx', 'npy', 'npz', 'nested', 'grid_type']:
         grid_data[field] = read_serialized_data(serializer, grid_savepoint, field)
     return fv3.translate.translate.TranslateGrid(grid_data, rank).python_grid()
 
 
 def read_serialized_data(serializer, savepoint, variable):
+
     data = serializer.read(variable, savepoint)
     if len(data.flatten()) == 1:
         return data[0]
@@ -258,12 +260,14 @@ def parallel_savepoint_cases(metafunc, data_path, mpi_rank):
 def pytest_generate_tests(metafunc):
     backend = metafunc.config.getoption("backend")
     fv3.utils.gt4py_utils.backend = backend
-    if metafunc.function.__name__ == "test_sequential_savepoint":
-        generate_sequential_stencil_tests(metafunc)
-    if metafunc.function.__name__ == "test_mock_parallel_savepoint":
-        generate_mock_parallel_stencil_tests(metafunc)
-    if metafunc.function.__name__ == "test_parallel_savepoint":
-        generate_parallel_stencil_tests(metafunc)
+    if MPI is not None and MPI.COMM_WORLD.Get_size() > 1:
+        if metafunc.function.__name__ == "test_parallel_savepoint":
+            generate_parallel_stencil_tests(metafunc)
+    else:
+        if metafunc.function.__name__ == "test_sequential_savepoint":
+            generate_sequential_stencil_tests(metafunc)
+        if metafunc.function.__name__ == "test_mock_parallel_savepoint":
+            generate_mock_parallel_stencil_tests(metafunc)
 
 
 def generate_sequential_stencil_tests(metafunc):
