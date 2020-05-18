@@ -16,7 +16,8 @@ class ParallelTranslate:
     def __init__(self, rank_grids):
         if not hasattr(rank_grids, "__getitem__"):
             raise TypeError(
-                "rank_grids should be a sequence of grids, one for each rank"
+                "rank_grids should be a sequence of grids, one for each rank, "
+                f"is {self.__class__} being properly called as a parallel test?"
             )
         self._base = TranslateFortranData2Py(rank_grids[0])
         self._base.in_vars = {
