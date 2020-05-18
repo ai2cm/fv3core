@@ -2,7 +2,7 @@ GCR_URL = us.gcr.io/vcm-ml
 CWD=$(shell pwd)
 
 #<some large conceptual version change>.<serialization statement change>.<hotfix>
-FORTRAN_VERSION=0.2.0
+FORTRAN_VERSION=0.3.9
 SHELL=/bin/bash
 TEST_ARGS ?=-v -s -rsx
 PULL ?=True
@@ -138,7 +138,7 @@ test_base:
 
 test_base_parallel:
 	docker run --rm $(VOLUMES) $(MOUNTS) \
-	-it $(RUNTEST_IMAGE) mpirun --allow-run-as-root --mca btl_vader_single_copy_mechanism none --oversubscribe --mca mpi_yield_when_idle false --mca mpi_abort_print_stack 1  --mca mpi_show_handle_leaks 1  --mca orte_base_help_aggregate 0 --mca mpi_param_check 1 -np 6  pytest --data_path=$(TEST_DATA_CONTAINER) ${TEST_ARGS} -m parallel /fv3/test
+	-it $(RUNTEST_IMAGE) mpirun --allow-run-as-root --mca btl_vader_single_copy_mechanism none --oversubscribe -np 6  pytest --data_path=$(TEST_DATA_CONTAINER) ${TEST_ARGS} -m parallel /fv3/test
 
 run_tests_parallel_container:
 	VOLUMES='--volumes-from $(TEST_DATA_RUN_CONTAINER)' \

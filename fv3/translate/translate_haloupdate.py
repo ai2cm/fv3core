@@ -3,7 +3,6 @@ from .translate import TranslateFortranData2Py
 import fv3util
 from fv3.utils import gt4py_utils as utils
 import logging
-from mpi4py import MPI
 import numpy as np
 
 logger = logging.getLogger("fv3ser")
