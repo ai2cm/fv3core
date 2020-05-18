@@ -10,7 +10,7 @@ import fv3util
 import logging
 import os
 import xarray as xr
-from mpi4py import MPI
+from fv3.utils.mpi import MPI
 
 sys.path.append("/serialbox2/install/python")  # noqa
 import serialbox as ser
@@ -147,7 +147,7 @@ def test_mock_parallel_savepoint(
     testobj,
     test_name,
     grid,
-    communicator_list,
+    mock_communicator_list,
     serializer_list,
     savepoint_in_list,
     savepoint_out_list,
@@ -165,7 +165,7 @@ def test_mock_parallel_savepoint(
     inputs_list = []
     for savepoint_in, serializer in zip(savepoint_in_list, serializer_list):
         inputs_list.append(testobj.collect_input_data(serializer, savepoint_in))
-    output_list = testobj.compute_sequential(inputs_list, communicator_list)
+    output_list = testobj.compute_sequential(inputs_list, mock_communicator_list)
     failing_names = []
     ref_data = {}
     for varname in testobj.outputs.keys():
@@ -201,7 +201,7 @@ def test_mock_parallel_savepoint(
 
 @pytest.mark.parallel
 @pytest.mark.skipif(
-    MPI is None or MPI.COMM_WORLD.Get_size() == 1,
+    MPI is not None and MPI.COMM_WORLD.Get_size() == 1,
     reason="Not running in parallel with mpi",
 )
 def test_parallel_savepoint(

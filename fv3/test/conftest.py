@@ -10,7 +10,7 @@ import fv3.translate
 import collections
 import fv3util
 import gt4py as gt
-from mpi4py import MPI
+from fv3.utils.mpi import MPI
 
 # get MPI environment
 sys.path.append("/serialbox2/install/python")  # noqa
@@ -418,11 +418,11 @@ def communicator(layout):
 
 
 @pytest.fixture()
-def communicator_list(layout):
-    return get_communicator_list(layout)
+def mock_communicator_list(layout):
+    return get_mock_communicator_list(layout)
 
 
-def get_communicator_list(layout):
+def get_mock_communicator_list(layout):
     total_ranks = 6 * fv3util.TilePartitioner(layout).total_ranks
     shared_buffer = {}
     communicators = []
