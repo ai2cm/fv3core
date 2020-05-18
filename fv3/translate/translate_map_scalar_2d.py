@@ -11,7 +11,7 @@ class TranslateMapScalar_2d(TranslateFortranData2Py):
             "q1": {"serialname": "pt"},
             "pe1": {"istart": 3, "iend": grid.ie - 2, "serialname": "peln"},
             "pe2": {"istart": 3, "iend": grid.ie - 2, "serialname": "pn2"},
-            "qs": {"serialname": "ws_1d"},
+            "qs": {"serialname": "gz1d"},
         }
         self.in_vars["parameters"] = ["j_2d", "mode"]
         self.out_vars = {
@@ -42,6 +42,9 @@ class TranslateMapScalar_2d(TranslateFortranData2Py):
             else:
                 dummy_axes = None
 
+            print(dummy_axes)
+            print(shapes)
+            print(self.maxshape)
             inputs[d] = self.make_storage_data(
                 np.squeeze(inputs[serialname]),
                 istart=istart,
