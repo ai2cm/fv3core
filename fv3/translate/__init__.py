@@ -49,3 +49,4 @@ from .translate_map1_ppm_2d import (
     TranslateMap1_PPM_2d_3,
 )
 from .translate_cs_profile_2d import TranslateCS_Profile_2d, TranslateCS_Profile_2d_2
+from .translate_map_scalar_2d import TranslateMapScalar_2d
