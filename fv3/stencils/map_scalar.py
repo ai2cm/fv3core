@@ -84,7 +84,7 @@ def lagrangian_contributions(
             q2_adds = 0
 
 
-def compute(q1, pe1, pe2, qs, j_2d, mode):
+def compute(q1, peln, pe2, qs, j_2d, mode):
     grid = spec.grid
     kord = abs(spec.namelist['kord_tm'])
     qmin = 184.
@@ -100,6 +100,9 @@ def compute(q1, pe1, pe2, qs, j_2d, mode):
     r23 = 2.0 / 3.0
     q_2d = utils.make_storage_data(
         q1[:, j_2d : j_2d + 1, :], (q1.shape[0], 1, q1.shape[2])
+    )
+    pe1 = utils.make_storage_data(
+        peln[:, j_2d : j_2d + 1, :], (peln.shape[0], 1, peln.shape[2])
     )
     dp1 = utils.make_storage_from_shape(pe1.shape, origin=orig)
 

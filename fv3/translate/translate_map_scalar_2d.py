@@ -9,7 +9,7 @@ class TranslateMapScalar_2d(TranslateFortranData2Py):
         self.compute_func = Map_Scalar.compute
         self.in_vars["data_vars"] = {
             "q1": {"serialname": "pt"},
-            "pe1": {"istart": 3, "iend": grid.ie - 2, "serialname": "peln"},
+            "peln": {"istart": 3, "iend": grid.ie - 2, "kaxis":1},
             "pe2": {"istart": 3, "iend": grid.ie - 2, "serialname": "pn2"},
             "qs": {"serialname": "gz1d"},
         }
@@ -27,10 +27,11 @@ class TranslateMapScalar_2d(TranslateFortranData2Py):
         for d, info in storage_vars.items():
             serialname = info["serialname"] if "serialname" in info else d
             self.update_info(info, inputs)
+            if "kaxis" in info:
+                inputs[serialname] = np.moveaxis(inputs[serialname], info["kaxis"], 2)
             istart, jstart, kstart = self.collect_start_indices(
                 inputs[serialname].shape, info
             )
-            print(serialname)
 
             shapes = np.squeeze(inputs[serialname]).shape
             if len(shapes) == 2:
@@ -42,9 +43,6 @@ class TranslateMapScalar_2d(TranslateFortranData2Py):
             else:
                 dummy_axes = None
 
-            print(dummy_axes)
-            print(shapes)
-            print(self.maxshape)
             inputs[d] = self.make_storage_data(
                 np.squeeze(inputs[serialname]),
                 istart=istart,
@@ -57,7 +55,5 @@ class TranslateMapScalar_2d(TranslateFortranData2Py):
 
     def compute(self, inputs):
         self.make_storage_data_input_vars(inputs)
-        inputs["i1"] += 2
-        inputs["i2"] += 2
         var_inout = self.compute_func(**inputs)
         return self.slice_output(inputs, {"pt": var_inout})

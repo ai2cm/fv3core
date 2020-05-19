@@ -43,10 +43,5 @@ from .translate_del2cubed import TranslateDel2Cubed
 from .translate_d2a2c_vect import TranslateD2A2C_Vect
 from .translate_updatedzd import TranslateUpdateDzD
 from .translate_nh_p_grad import TranslateNH_P_Grad
-from .translate_map1_ppm_2d import (
-    TranslateMap1_PPM_2d,
-    TranslateMap1_PPM_2d_2,
-    TranslateMap1_PPM_2d_3,
-)
 from .translate_cs_profile_2d import TranslateCS_Profile_2d, TranslateCS_Profile_2d_2
 from .translate_map_scalar_2d import TranslateMapScalar_2d
