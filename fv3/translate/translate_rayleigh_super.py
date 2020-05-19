@@ -3,6 +3,8 @@ import fv3.stencils.rayleigh_super as super_ray
 
 
 class TranslateRayleigh_Super(ParallelTranslate):
+    NO_SEQUENTIAL_METHOD = True
+
     def __init__(self, grids):
         super().__init__(grids)
         self._base.compute_func = super_ray.compute

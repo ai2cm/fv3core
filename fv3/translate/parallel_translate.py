@@ -12,6 +12,7 @@ class ParallelTranslate:
 
     inputs = {}
     outputs = {}
+    NO_SEQUENTIAL_METHOD = False
 
     def __init__(self, rank_grids):
         if not hasattr(rank_grids, "__getitem__"):

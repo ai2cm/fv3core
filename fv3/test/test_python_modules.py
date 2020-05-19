@@ -161,6 +161,9 @@ def test_mock_parallel_savepoint(
     caplog.set_level(logging.DEBUG, logger="fv3util")
     if testobj is None:
         pytest.xfail(f"no translate object available for savepoint {test_name}")
+    if testobj.NO_SEQUENTIAL_METHOD:
+        return
+
     fv3._config.set_grid(grid)
     inputs_list = []
     for savepoint_in, serializer in zip(savepoint_in_list, serializer_list):
