@@ -19,7 +19,7 @@ CNST_0P20 = 0.2
 CV_VAP = 3.0 * RVGAS
 CV_AIR = CP_AIR - RDGAS
 C_ICE = 1972.0
-C_LIQ = 4.1855e+3
+C_LIQ = 4.1855e3
 CP_VAP = 4.0 * RVGAS
 TICE = 273.16
 T_MIN = 184.0  # below which applies stricter constraint
@@ -27,6 +27,6 @@ CONSV_MIN = 0.001  # Below which no correction applies
 # gfdl_cloud_mucrophys.F90
 # TODO leftover having problems using as runtime flags
 ql0_max = 2.0e-3  # max cloud water value (auto converted to rain)
-t_sub = 184.  # min temp for sublimation of cloud ice
+t_sub = 184.0  # min temp for sublimation of cloud ice
 DC_ICE = C_LIQ - C_ICE
-LI0 =  HLF - DC_ICE * TICE
+LI0 = HLF - DC_ICE * TICE

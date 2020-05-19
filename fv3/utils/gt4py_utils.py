@@ -49,17 +49,22 @@ def _data_backend(backend: str):
     else:
         return backend
 
+
 def start_halo_update(comm, data):
     return comm.start_halo_update(data, n_points=halo)
+
 
 def halo_update(comm, data):
     return comm.halo_update(data, n_points=halo)
 
+
 def start_vector_halo_update(comm, data):
     return comm.start_vector_halo_update(data, n_points=halo)
 
+
 def vector_halo_update(comm, data):
     return comm.vector_halo_update(data, n_points=halo)
+
 
 def make_storage_data(array, full_shape, istart=0, jstart=0, kstart=0, origin=origin):
     full_np_arr = np.zeros(full_shape)
