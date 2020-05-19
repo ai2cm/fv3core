@@ -3,7 +3,7 @@ import fv3.stencils.rayleigh_super as super_ray
 
 
 class TranslateRayleigh_Super(ParallelTranslate):
-    inputs = {}
+    
     def __init__(self, grids):
         super().__init__(grids)
         self._base.compute_func = super_ray.compute
@@ -29,10 +29,11 @@ class TranslateRayleigh_Super(ParallelTranslate):
             "pt": {},
             "delz": {}
         }
+        self.outputs = self._base.out_vars.keys()
     
     def collect_input_data(self, serializer, savepoint):
         return self._base.collect_input_data(serializer, savepoint)
 
     def compute_parallel(self, inputs, communicator):
-        print(inputs.keys())
+        inputs['comm'] = communicator
         return self._base.compute(inputs)

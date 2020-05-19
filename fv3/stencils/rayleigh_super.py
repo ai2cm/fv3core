@@ -8,6 +8,7 @@ import fv3.utils.global_constants as constants
 import numpy as np
 import math
 import fv3util
+
 sd = utils.sd
 U0   = 60.
 SDAY = 86400.
@@ -44,16 +45,15 @@ def rayleigh_v(v: sd, pfull: sd, u2f: sd, rf_cutoff: float):
         if (pfull < rf_cutoff):
             v = 0.5 * (u2f[-1, 0, 0] + u2f) * v
             
-def compute(u, v, w, ua, va, pt, delz, phis, bdt, ptop, pfull):
+def compute(u, v, w, ua, va, pt, delz, phis, bdt, ptop, pfull, comm):
     grid = spec.grid
-    rf_initialized = False  # TODO pull this into args
+    rf_initialized = False  # TODO pull this into a state dict or arguments that get updated when called
     conserve = (not (grid.nested or spec.namelist['regional']))
     rf_cutoff = spec.namelist['rf_cutoff']
     rcv = 1. / (constants.CP_AIR - constants.RDGAS)
     if not rf_initialized:
         tau0 = abs(spec.namelist['tau'] * SDAY)
         # is only a column actually
-        #rf = utils.make_storage_from_shape(u.shape, origin=grid.default_origin())
         rf = np.zeros(grid.npz)
         if spec.namelist['tau'] < 0:
             rfvals = bdt / tau0 * (np.log(rf_cutoff / pfull[0, 0, 0:grid.npz]))**2
@@ -66,15 +66,12 @@ def compute(u, v, w, ua, va, pt, delz, phis, bdt, ptop, pfull):
         rf = utils.make_storage_data(rf, u.shape, origin=grid.default_origin())
         rf_initialized = True  # TODO propoagate to global scope
     c2l_ord.compute_ord2(u, v, ua, va)
-    #u2f = utils.make_storage_from_shape((grid.nid, grid.njd, kmax), origin=grid.default_origin())
-    # TODO this really only needs to be kmax sized in the 3rd dimension...
-    u2f = utils.make_storage_from_shape(u.shape, origin=grid.default_origin())
-    #sizer = fv3util.SubtileGridSizer.from_namelist({"fv_core_nml": spec.namelist})
-    #self.quantity_allocator = fv3util.QuantityFactory(sizer, np)   
-    #u2f = allocator.zeros([X_DIM, Y_DIM, Z_DIM], ’m/s’)
-
-    initialize_u2f(rf, pfull, u2f, rf_cutoff, origin=grid.compute_origin(), domain=(grid.nic, grid.njc, kmax))
-    # HALO UPDATE u2f (mpp_update_domains)
-    rayleigh_pt_vert(pt, ua, va, w, pfull, u2f, rcv, ptop, rf_cutoff, conserve, spec.namelist['hydrostatic'], origin=grid.compute_origin(), domain=(grid.nic, grid.njc, kmax))
-    rayleigh_u(u, pfull, u2f, rf_cutoff, origin=grid.compute_origin(), domain=(grid.nic, grid.njc + 1, kmax))
-    rayleigh_v(v, pfull, u2f, rf_cutoff, origin=grid.compute_origin(), domain=(grid.nic + 1, grid.njc, kmax))
+   
+    # TODO this really only needs to be kmax size in the 3rd dimension...  
+    u2f = grid.quantity_factory.zeros([fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_DIM], 'm/s')
+   
+    initialize_u2f(rf, pfull, u2f.data, rf_cutoff, origin=grid.compute_origin(), domain=(grid.nic, grid.njc, kmax))
+    utils.halo_update(comm, u2f)
+    rayleigh_pt_vert(pt, ua, va, w, pfull, u2f.data, rcv, ptop, rf_cutoff, conserve, spec.namelist['hydrostatic'], origin=grid.compute_origin(), domain=(grid.nic, grid.njc, kmax))
+    rayleigh_u(u, pfull, u2f.data, rf_cutoff, origin=grid.compute_origin(), domain=(grid.nic, grid.njc + 1, kmax))
+    rayleigh_v(v, pfull, u2f.data, rf_cutoff, origin=grid.compute_origin(), domain=(grid.nic + 1, grid.njc, kmax))
