@@ -9,18 +9,15 @@ import fv3.utils.gt4py_utils
 import fv3.translate
 import collections
 import fv3util
+import gt4py as gt
+from fv3.utils.mpi import MPI
 
+# get MPI environment
 sys.path.append("/serialbox2/install/python")  # noqa
 import serialbox
 
 
 GRID_SAVEPOINT_NAME = "Grid-Info"
-PARALLEL_SAVEPOINT_NAMES = [
-    "HaloUpdate",
-    "HaloUpdate-2",
-    "HaloVectorUpdate",
-    "MPPUpdateDomains",
-]
 
 
 class ReplaceRepr:
@@ -82,6 +79,7 @@ def make_grid(grid_savepoint, serializer, rank):
 
 
 def read_serialized_data(serializer, savepoint, variable):
+
     data = serializer.read(variable, savepoint)
     if len(data.flatten()) == 1:
         return data[0]
@@ -94,19 +92,35 @@ def process_grid_savepoint(serializer, grid_savepoint, rank):
     return grid
 
 
-def get_test_class_instance(test_name, grid):
+def get_test_class(test_name):
     translate_class_name = f"Translate{test_name.replace('-', '_')}"
     try:
-        instance = getattr(fv3.translate, translate_class_name)(grid)
+        return_class = getattr(fv3.translate, translate_class_name)
     except AttributeError as err:
         if translate_class_name in err.args[0]:
-            instance = None
+            return_class = None
         else:
             raise err
-    return instance
+    return return_class
 
 
-def get_sequential_savepoint_names(metafunc, data_path):
+def is_parallel_test(test_name):
+    test_class = get_test_class(test_name)
+    if test_class is None:
+        return False
+    else:
+        return issubclass(test_class, fv3.translate.ParallelTranslate)
+
+
+def get_test_class_instance(test_name, grid):
+    translate_class = get_test_class(test_name)
+    if translate_class is None:
+        return None
+    else:
+        return translate_class(grid)
+
+
+def get_all_savepoint_names(metafunc, data_path):
     only_names = metafunc.config.getoption("which_modules")
     if only_names is None:
         savepoint_names = set()
@@ -120,22 +134,25 @@ def get_sequential_savepoint_names(metafunc, data_path):
     skip_names = metafunc.config.getoption("skip_modules")
     if skip_names is not None:
         savepoint_names.difference_update(skip_names.split(","))
-    savepoint_names.difference_update(PARALLEL_SAVEPOINT_NAMES)
     return savepoint_names
+
+
+def get_sequential_savepoint_names(metafunc, data_path):
+    all_names = get_all_savepoint_names(metafunc, data_path)
+    sequential_names = []
+    for name in all_names:
+        if not is_parallel_test(name):
+            sequential_names.append(name)
+    return sequential_names
 
 
 def get_parallel_savepoint_names(metafunc, data_path):
-    only_names = metafunc.config.getoption("which_modules")
-    if only_names is None:
-        savepoint_names = set(PARALLEL_SAVEPOINT_NAMES)
-    else:
-        savepoint_names = set(only_names.split(",")).intersection(
-            PARALLEL_SAVEPOINT_NAMES
-        )
-    skip_names = metafunc.config.getoption("skip_modules")
-    if skip_names is not None:
-        savepoint_names.difference_update(skip_names.split(","))
-    return savepoint_names
+    all_names = get_all_savepoint_names(metafunc, data_path)
+    parallel_names = []
+    for name in all_names:
+        if is_parallel_test(name):
+            parallel_names.append(name)
+    return parallel_names
 
 
 SavepointCase = collections.namedtuple(
@@ -189,12 +206,12 @@ def check_savepoint_counts(test_name, input_savepoints, output_savepoints):
         warnings.warn(f"no savepoints found for {test_name}")
 
 
-def parallel_savepoint_cases(metafunc, data_path):
+def mock_parallel_savepoint_cases(metafunc, data_path):
     return_list = []
     layout = fv3._config.namelist["layout"]
     total_ranks = 6 * layout[0] * layout[1]
     grid_list = []
-    for rank in reversed(range(total_ranks)):
+    for rank in range(total_ranks):
         serializer = get_serializer(data_path, rank)
         grid_savepoint = serializer.get_savepoint(GRID_SAVEPOINT_NAME)[0]
         grid_list.append(process_grid_savepoint(serializer, grid_savepoint, rank))
@@ -227,13 +244,42 @@ def parallel_savepoint_cases(metafunc, data_path):
     return return_list
 
 
+def parallel_savepoint_cases(metafunc, data_path, mpi_rank):
+    serializer = get_serializer(data_path, mpi_rank)
+    grid_savepoint = serializer.get_savepoint(GRID_SAVEPOINT_NAME)[0]
+    grid = process_grid_savepoint(serializer, grid_savepoint, mpi_rank)
+    savepoint_names = get_parallel_savepoint_names(metafunc, data_path)
+    return_list = []
+    layout = fv3._config.namelist["layout"]
+    for test_name in sorted(list(savepoint_names)):
+        input_savepoints = serializer.get_savepoint(f"{test_name}-In")
+        output_savepoints = serializer.get_savepoint(f"{test_name}-Out")
+        check_savepoint_counts(test_name, input_savepoints, output_savepoints)
+        return_list.append(
+            SavepointCase(
+                test_name,
+                mpi_rank,
+                serializer,
+                input_savepoints,
+                output_savepoints,
+                [grid],
+                layout,
+            )
+        )
+    return return_list
+
+
 def pytest_generate_tests(metafunc):
     backend = metafunc.config.getoption("backend")
     fv3.utils.gt4py_utils.backend = backend
-    if metafunc.function.__name__ == "test_sequential_savepoint":
-        generate_sequential_stencil_tests(metafunc)
-    if metafunc.function.__name__ == "test_parallel_savepoint_sequentially":
-        generate_parallel_stencil_tests(metafunc)
+    if MPI is not None and MPI.COMM_WORLD.Get_size() > 1:
+        if metafunc.function.__name__ == "test_parallel_savepoint":
+            generate_parallel_stencil_tests(metafunc)
+    else:
+        if metafunc.function.__name__ == "test_sequential_savepoint":
+            generate_sequential_stencil_tests(metafunc)
+        if metafunc.function.__name__ == "test_mock_parallel_savepoint":
+            generate_mock_parallel_stencil_tests(metafunc)
 
 
 def generate_sequential_stencil_tests(metafunc):
@@ -255,7 +301,7 @@ def generate_sequential_stencil_tests(metafunc):
     )
 
 
-def generate_parallel_stencil_tests(metafunc):
+def generate_mock_parallel_stencil_tests(metafunc):
     arg_names = [
         "testobj",
         "test_name",
@@ -269,7 +315,29 @@ def generate_parallel_stencil_tests(metafunc):
     _generate_stencil_tests(
         metafunc,
         arg_names,
-        parallel_savepoint_cases(metafunc, data_path),
+        mock_parallel_savepoint_cases(metafunc, data_path),
+        get_parallel_mock_param,
+    )
+
+
+def generate_parallel_stencil_tests(metafunc):
+    arg_names = [
+        "testobj",
+        "test_name",
+        "serializer",
+        "savepoint_in",
+        "savepoint_out",
+        "grid",
+        "layout",
+    ]
+    data_path = data_path_from_config(metafunc.config)
+    # get MPI environment
+    comm = MPI.COMM_WORLD
+    mpi_rank = comm.Get_rank()
+    _generate_stencil_tests(
+        metafunc,
+        arg_names,
+        parallel_savepoint_cases(metafunc, data_path, mpi_rank),
         get_parallel_param,
     )
 
@@ -289,6 +357,21 @@ def _generate_stencil_tests(metafunc, arg_names, savepoint_cases, get_param):
 
 
 def get_parallel_param(
+    case, testobj, savepoint_in, savepoint_out, call_count, max_call_count
+):
+    return pytest.param(
+        testobj,
+        case.test_name,
+        ReplaceRepr(case.serializer, f"<Serializer for rank {case.rank}>"),
+        savepoint_in,
+        savepoint_out,
+        case.grid,
+        case.layout,
+        id=f"{case.test_name}-rank={case.rank}-call_count={call_count}",
+    )
+
+
+def get_parallel_mock_param(
     case, testobj, savepoint_in_list, savepoint_out_list, call_count, max_call_count
 ):
     return pytest.param(
@@ -342,11 +425,17 @@ def get_sequential_param(
 
 
 @pytest.fixture()
-def communicator_list(layout):
-    return get_communicator_list(layout)
+def communicator(layout):
+    communicator = get_communicator(MPI.COMM_WORLD, layout)
+    return communicator
 
 
-def get_communicator_list(layout):
+@pytest.fixture()
+def mock_communicator_list(layout):
+    return get_mock_communicator_list(layout)
+
+
+def get_mock_communicator_list(layout):
     total_ranks = 6 * fv3util.TilePartitioner(layout).total_ranks
     shared_buffer = {}
     communicators = []
@@ -379,6 +468,10 @@ def pytest_configure(config):
     )
     config.addinivalue_line(
         "markers", "parallel(name): mark test as running in parallel across ranks"
+    )
+    config.addinivalue_line(
+        "markers",
+        "mock_parallel(name): mark test as running in mock parallel across ranks",
     )
 
 
