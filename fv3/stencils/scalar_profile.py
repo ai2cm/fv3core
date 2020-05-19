@@ -289,7 +289,15 @@ def set_inner_as_kordsmall(
 
 @utils.stencil()
 def set_inner_as_kord9(
-    a4_1: sd, a4_2: sd, a4_3: sd, a4_4: sd, gam: sd, extm: sd, ext5: sd, ext6: sd, qmin: sd
+    a4_1: sd,
+    a4_2: sd,
+    a4_3: sd,
+    a4_4: sd,
+    gam: sd,
+    extm: sd,
+    ext5: sd,
+    ext6: sd,
+    qmin: sd,
 ):
     with computation(PARALLEL), interval(...):
         pmp_1 = a4_1 - 2.0 * gam[0, 0, 1]
@@ -313,7 +321,7 @@ def set_inner_as_kord9(
             a4_3 = a4_1
             a4_4 = 0.0
         else:
-            a4_4 = 3.0 * (2. * a4_1 - (a4_2 + a4_3))
+            a4_4 = 3.0 * (2.0 * a4_1 - (a4_2 + a4_3))
             if absolute_value(a4_4) > absolute_value(a4_2 - a4_3):
                 tmp_min = (
                     a4_1
@@ -347,7 +355,7 @@ def set_inner_as_kord9(
                     else lac_2
                 )
                 a4_3 = tmp_max0 if tmp_max0 < tmp_max else tmp_max
-                a4_4 = 3.0 * (2. * a4_1 - (a4_2 + a4_3))
+                a4_4 = 3.0 * (2.0 * a4_1 - (a4_2 + a4_3))
             else:
                 a4_2 = a4_2
 

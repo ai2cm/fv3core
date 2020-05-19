@@ -9,7 +9,7 @@ class TranslateMapScalar_2d(TranslateFortranData2Py):
         self.compute_func = Map_Scalar.compute
         self.in_vars["data_vars"] = {
             "q1": {"serialname": "pt"},
-            "peln": {"istart": 3, "iend": grid.ie - 2, "kaxis":1},
+            "peln": {"istart": 3, "iend": grid.ie - 2, "kaxis": 1},
             "pe2": {"istart": 3, "iend": grid.ie - 2, "serialname": "pn2"},
             "qs": {"serialname": "gz1d"},
         }

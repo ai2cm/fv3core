@@ -86,8 +86,8 @@ def lagrangian_contributions(
 
 def compute(q1, peln, pe2, qs, j_2d, mode):
     grid = spec.grid
-    kord = abs(spec.namelist['kord_tm'])
-    qmin = 184.
+    kord = abs(spec.namelist["kord_tm"])
+    qmin = 184.0
     i1 = grid.is_
     i2 = grid.ie
     iv = mode
