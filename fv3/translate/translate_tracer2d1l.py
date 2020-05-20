@@ -1,13 +1,44 @@
-from .translate import TranslateFortranData2Py
+from .parallel_translate import JustParallelTranslate
 import fv3.stencils.tracer_2d_1l as tracer_2d_1l
+import fv3util
 
-
-class TranslateTracer2D1L(TranslateFortranData2Py):
-    def __init__(self, grid):
-        super().__init__(grid)
-        self.compute_func = tracer_2d_1l.compute
-        self.in_vars["data_vars"] = {
-            "qvapor" :{},
+class TranslateTracer2D1L(JustParallelTranslate):
+    inputs = {
+        "qvapor": {
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_DIM],
+            "units": "kg/m^2",
+        },
+        "qliquid": {
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_DIM],
+            "units": "kg/m^2",
+        },
+        "qice": {
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_DIM],
+            "units": "kg/m^2",
+        },
+        "qrain": {
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_DIM],
+            "units": "kg/m^2",
+        },
+        "qsnow": {
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_DIM],
+            "units": "kg/m^2",
+        },
+        "qgraupel": {
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_DIM],
+            "units": "kg/m^2",
+        },
+        "qcld": {
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_DIM],
+            "units": "kg/m^2",
+        },
+    }
+    def __init__(self, grids):
+        super().__init__(grids)
+        self._base.compute_func = tracer_2d_1l.compute
+        grid = grids[0]
+        self._base.in_vars["data_vars"] = {
+            "qvapor" : {},
             "qliquid": {},
             "qice": {},
             "qrain": {},
@@ -20,6 +51,5 @@ class TranslateTracer2D1L(TranslateFortranData2Py):
             "cxd": grid.x3d_compute_domain_y_dict(),
             "cyd": grid.y3d_compute_domain_x_dict(),
         }
-        self.in_vars["parameters"] = ["nq", "q_split", "mdt"]
-        # q_split is a namelist var
-        self.out_vars = self.in_vars["data_vars"]
+        self._base.in_vars["parameters"] = ["nq", "mdt"]
+        self._base.out_vars = self._base.in_vars["data_vars"]
