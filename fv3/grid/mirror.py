@@ -13,9 +13,7 @@ def mirror_grid(grid_global, ng: int, npx: int, npy: int, np):
                 np.abs(grid_global[ng + i, ng + j, 0, nreg])
                 + np.abs(grid_global[ng + npx - (i + 1), ng + j, 0, nreg])
                 + np.abs(grid_global[ng + i, ng + npy - (j + 1), 0, nreg])
-                + np.abs(
-                    grid_global[ng + npx - (i + 1), ng + npy - (j + 1), 0, nreg]
-                )
+                + np.abs(grid_global[ng + npx - (i + 1), ng + npy - (j + 1), 0, nreg])
             )
             grid_global[ng + i, ng + j, 0, nreg] = np.copysign(
                 x1, grid_global[ng + i, ng + j, 0, nreg]
@@ -26,9 +24,7 @@ def mirror_grid(grid_global, ng: int, npx: int, npy: int, np):
             grid_global[ng + i, ng + npy - (j + 1), 0, nreg] = np.copysign(
                 x1, grid_global[ng + i, ng + npy - (j + 1), 0, nreg]
             )
-            grid_global[
-                ng + npx - (i + 1), ng + npy - (j + 1), 0, nreg
-            ] = np.copysign(
+            grid_global[ng + npx - (i + 1), ng + npy - (j + 1), 0, nreg] = np.copysign(
                 x1, grid_global[ng + npx - (i + 1), ng + npy - (j + 1), 0, nreg]
             )
 
@@ -36,9 +32,7 @@ def mirror_grid(grid_global, ng: int, npx: int, npy: int, np):
                 np.abs(grid_global[ng + i, ng + j, 1, nreg])
                 + np.abs(grid_global[ng + npx - (i + 1), ng + j, 1, nreg])
                 + np.abs(grid_global[ng + i, ng + npy - (j + 1), 1, nreg])
-                + np.abs(
-                    grid_global[ng + npx - (i + 1), ng + npy - (j + 1), 1, nreg]
-                )
+                + np.abs(grid_global[ng + npx - (i + 1), ng + npy - (j + 1), 1, nreg])
             )
             grid_global[ng + i, ng + j, 1, nreg] = np.copysign(
                 y1, grid_global[ng + i, ng + j, 1, nreg]
@@ -49,9 +43,7 @@ def mirror_grid(grid_global, ng: int, npx: int, npy: int, np):
             grid_global[ng + i, ng + npy - (j + 1), 1, nreg] = np.copysign(
                 y1, grid_global[ng + i, ng + npy - (j + 1), 1, nreg]
             )
-            grid_global[
-                ng + npx - (i + 1), ng + npy - (j + 1), 1, nreg
-            ] = np.copysign(
+            grid_global[ng + npx - (i + 1), ng + npy - (j + 1), 1, nreg] = np.copysign(
                 y1, grid_global[ng + npx - (i + 1), ng + npy - (j + 1), 1, nreg]
             )
 

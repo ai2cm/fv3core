@@ -72,11 +72,8 @@ class Grid:
                 ny_tile=self.npy - 1,
                 nz=self.npz,
                 n_halo=self.halo,
-                extra_dim_lengths={
-                    LON_OR_LAT_DIM: 2,
-                    TILE_DIM: N_TILES,
-                },
-                layout=self.layout
+                extra_dim_lengths={LON_OR_LAT_DIM: 2, TILE_DIM: N_TILES,},
+                layout=self.layout,
             )
         return self._sizer
 

@@ -18,7 +18,9 @@ def init_grid(grid_spec_filename: str):
     """
     print(grid_spec_filename)
     npx, npy = 1, 1
-    lat, lon = generate_mesh(grid_type=0, npx=npx, npy=npy, ntiles=6, ng=3, shift_fac=18.0)
+    lat, lon = generate_mesh(
+        grid_type=0, npx=npx, npy=npy, ntiles=6, ng=3, shift_fac=18.0
+    )
     raise NotImplementedError()
 
 
@@ -38,7 +40,7 @@ class TranslateGnomonic_Grids(ParallelTranslate):
             "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM],
             "units": "degrees",
             "n_halo": 0,
-        }
+        },
     }
     outputs = {
         "lon": {
@@ -52,7 +54,7 @@ class TranslateGnomonic_Grids(ParallelTranslate):
             "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM],
             "units": "degrees",
             "n_halo": 0,
-        }
+        },
     }
 
     def compute_sequential(self, inputs_list, communicator_list):
@@ -66,7 +68,7 @@ class TranslateGnomonic_Grids(ParallelTranslate):
         gnomonic_grid(
             self.grid.grid_type,
             state["longitude_on_cell_corners"].view[:],
-            state["latitude_on_cell_corners"].view[:]
+            state["latitude_on_cell_corners"].view[:],
         )
         outputs = self.outputs_from_state(state)
         return outputs
@@ -100,7 +102,13 @@ class TranslateMirror_Grid(ParallelTranslate):
 
     def compute(self, inputs):
         state = self.state_from_inputs(inputs)
-        mirror_grid(state['grid_global'].data, state['ng'], state['npx'], state['npy'], state['grid_global'].np)
+        mirror_grid(
+            state["grid_global"].data,
+            state["ng"],
+            state["npx"],
+            state["npy"],
+            state["grid_global"].np,
+        )
         outputs = self.outputs_from_state(state)
         return outputs
 
@@ -110,7 +118,7 @@ class TranslateDxDy(ParallelTranslate):
     inputs = {
         "gridvar": {
             "name": "grid",
-            "dims": [fv3util.X_DIM, fv3util.Y_DIM, LON_OR_LAT_DIM]
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM, LON_OR_LAT_DIM],
         },
     }
     outputs = {
@@ -145,12 +153,8 @@ class TranslateInitGrid(ParallelTranslate):
     ne_corner=Atm(n)%gridstruct%ne_corner
     nw_corner=Atm(n)%gridstruct%nw_corner
     """
-    inputs = {
-        "grid_file": {
-            "name": "grid_spec_filename",
-            "dims": [],
-        }
-    }
+
+    inputs = {"grid_file": {"name": "grid_spec_filename", "dims": [],}}
     """!$ser
 data
 iinta=Atm(n)%gridstruct%iinta
@@ -198,6 +202,7 @@ class TranslateGridUtils_Init(ParallelTranslate):
     dyc=Atm(n)%gridstruct%dyc_64
     dxa=Atm(n)%gridstruct%dxa_64
     dya=Atm(n)%gridstruct%dya_64"""
+
     inputs = {}
     """!$ser
 data

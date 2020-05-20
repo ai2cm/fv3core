@@ -40,7 +40,7 @@ def _check_shapes(lon, lat):
 
 def gnomonic_ed(lon, lat):
     im = lon.shape[0] - 1
-    alpha = np.arcsin(3 ** -.5)
+    alpha = np.arcsin(3 ** -0.5)
 
     dely = 2.0 * alpha / float(im)
 
@@ -70,16 +70,16 @@ def gnomonic_ed(lon, lat):
     i = 0
     for j in range(1, im):
         pp[:, i, j] = _latlon2xyz(lon[i, j], lat[i, j])
-        pp[1, i, j] = -pp[1, i, j] * (3 ** -.5) / pp[0, i, j]
-        pp[2, i, j] = -pp[2, i, j] * (3 ** -.5) / pp[0, i, j]
+        pp[1, i, j] = -pp[1, i, j] * (3 ** -0.5) / pp[0, i, j]
+        pp[2, i, j] = -pp[2, i, j] * (3 ** -0.5) / pp[0, i, j]
 
     j = 0
     for i in range(1, im):
         pp[:, i, j] = _latlon2xyz(lon[i, j], lat[i, j])
-        pp[1, i, j] = -pp[1, i, j] * (3 ** -.5) / pp[0, i, j]
-        pp[2, i, j] = -pp[2, i, j] * (3 ** -.5) / pp[0, i, j]
+        pp[1, i, j] = -pp[1, i, j] * (3 ** -0.5) / pp[0, i, j]
+        pp[2, i, j] = -pp[2, i, j] * (3 ** -0.5) / pp[0, i, j]
 
-    pp[0, :, :] = -(3 ** -.5)
+    pp[0, :, :] = -(3 ** -0.5)
 
     for j in range(1, im + 1):
         # copy y-z face of the cube along j=0
