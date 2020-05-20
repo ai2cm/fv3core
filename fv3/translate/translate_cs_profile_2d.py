@@ -35,7 +35,6 @@ class TranslateCS_Profile_2d(TranslateFortranData2Py):
             istart, jstart, kstart = self.collect_start_indices(
                 inputs[serialname].shape, info
             )
-            print(serialname)
 
             shapes = np.squeeze(inputs[serialname]).shape
             if len(shapes) == 2:
