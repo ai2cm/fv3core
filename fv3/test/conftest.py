@@ -1,6 +1,5 @@
 import pytest
 import sys
-import importlib
 import warnings
 import os
 import fv3
@@ -9,8 +8,7 @@ import fv3.utils.gt4py_utils
 import fv3.translate
 import collections
 import fv3util
-import gt4py as gt
-from mpi4py import MPI
+from fv3.utils.mpi import MPI
 
 # get MPI environment
 sys.path.append("/serialbox2/install/python")  # noqa
@@ -93,6 +91,7 @@ def make_grid(grid_savepoint, serializer, rank):
 
 
 def read_serialized_data(serializer, savepoint, variable):
+
     data = serializer.read(variable, savepoint)
     if len(data.flatten()) == 1:
         return data[0]
@@ -267,12 +266,14 @@ def parallel_savepoint_cases(metafunc, data_path, mpi_rank):
 def pytest_generate_tests(metafunc):
     backend = metafunc.config.getoption("backend")
     fv3.utils.gt4py_utils.backend = backend
-    if metafunc.function.__name__ == "test_sequential_savepoint":
-        generate_sequential_stencil_tests(metafunc)
-    if metafunc.function.__name__ == "test_mock_parallel_savepoint":
-        generate_mock_parallel_stencil_tests(metafunc)
-    if metafunc.function.__name__ == "test_parallel_savepoint":
-        generate_parallel_stencil_tests(metafunc)
+    if MPI is not None and MPI.COMM_WORLD.Get_size() > 1:
+        if metafunc.function.__name__ == "test_parallel_savepoint":
+            generate_parallel_stencil_tests(metafunc)
+    else:
+        if metafunc.function.__name__ == "test_sequential_savepoint":
+            generate_sequential_stencil_tests(metafunc)
+        if metafunc.function.__name__ == "test_mock_parallel_savepoint":
+            generate_mock_parallel_stencil_tests(metafunc)
 
 
 def generate_sequential_stencil_tests(metafunc):
@@ -423,12 +424,11 @@ def communicator(layout):
     return communicator
 
 
-@pytest.fixture()
-def communicator_list(layout):
-    return get_communicator_list(layout)
+def mock_communicator_list(layout):
+    return get_mock_communicator_list(layout)
 
 
-def get_communicator_list(layout):
+def get_mock_communicator_list(layout):
     total_ranks = 6 * fv3util.TilePartitioner(layout).total_ranks
     shared_buffer = {}
     communicators = []

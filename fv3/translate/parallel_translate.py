@@ -24,6 +24,7 @@ class ParallelTranslate:
             "data_vars": {name: {} for name in self.inputs},
             "parameters": {},
         }
+        self.max_error = self._base.max_error
         self._rank_grids = rank_grids
 
     def state_list_from_inputs_list(self, inputs_list: List[list]) -> list:
