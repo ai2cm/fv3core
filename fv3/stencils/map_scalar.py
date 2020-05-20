@@ -44,7 +44,7 @@ def lagrangian_contributions(
         esl = pe1
         if pe1 < pbot and pe1[0, 0, 1] > ptop:
             # We are in the right pressure range to contribute to the Eulerian cell
-            if pe1 < ptop:
+            if pe1 <= ptop:
                 # we are in the first Lagrangian level that conributes
                 pl = (ptop - pe1) / dp1
                 if pbot <= pe1[0, 0, 1]:
