@@ -168,6 +168,7 @@ def k_slice(data_dict, ki):
         k_slice_operation(k, v, ki, new_dict)
     return new_dict
 
+
 def k_subset_run(func, data, splitvars, ki, outputs, grid_data, grid, allz=False):
     grid.npz = len(ki)
     grid.slice_data_k(ki)
