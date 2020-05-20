@@ -9,7 +9,6 @@ class TranslateA2B_Ord4(TranslateFortranData2Py):
         self.in_vars["data_vars"] = {"wk": {}, "vort": {}, "delpc": {}, "nord_col": {}}
         self.in_vars["parameters"] = ["dt"]
         self.out_vars = {"wk": {}, "vort": {}}
-        self.compute_func = dd.vorticity_calc
 
     def compute(self, inputs):
         return self.column_split_compute(inputs, {"nord": "nord_col"})
