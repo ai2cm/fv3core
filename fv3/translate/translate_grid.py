@@ -1,5 +1,5 @@
 from .parallel_translate import ParallelTranslate
-from ..grid import generate_mesh, gnomonic_grid
+from ..grid import generate_mesh, gnomonic_grid, mirror_grid
 from ..utils import gt4py_utils as utils
 import fv3util
 
@@ -68,6 +68,31 @@ class TranslateGnomonic_Grids(ParallelTranslate):
             state["longitude_on_cell_corners"].view[:],
             state["latitude_on_cell_corners"].view[:]
         )
+        outputs = self.outputs_from_state(state)
+        return outputs
+
+
+class TranslateMirror_Grid(ParallelTranslate):
+
+    inputs = {
+        "grid_global": {"name": "grid_global", "dims": [fv3util.X_DIM, fv3util.Y_DIM, ]},
+        "ng": {"name": "n_ghost", "dims": []},
+        "npx": {"name": "npx", "dims": []},
+        "npy": {"name": "npy", "dims": []},
+    }
+    outputs = {
+        "grid_global": {"name": "grid_global", "dims": []},
+    }
+
+    def compute_sequential(self, inputs_list, communicator_list):
+        outputs = []
+        for inputs in inputs_list:
+            outputs.append(self.compute(inputs))
+        return outputs
+
+    def compute(self, inputs):
+        state = self.state_from_inputs(inputs)
+        mirror_grid(state['grid_global'].data, state['ng'], state['npx'], state['npy'], state['grid_global'].np)
         outputs = self.outputs_from_state(state)
         return outputs
 

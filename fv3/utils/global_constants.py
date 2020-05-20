@@ -13,3 +13,4 @@ CV_AIR = CP_AIR - RDGAS
 RDG = -RDGAS / GRAV
 CNST_0P20 = 0.2
 TFREEZE = 273.15  # Freezing temperature of fresh water [K]
+RIGHT_HAND_GRID = False

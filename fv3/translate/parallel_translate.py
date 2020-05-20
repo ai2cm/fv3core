@@ -1,4 +1,5 @@
 from typing import List
+import collections
 import copy
 from .translate import TranslateFortranData2Py, read_serialized_data
 import fv3util
@@ -14,7 +15,7 @@ class ParallelTranslate:
     outputs = {}
 
     def __init__(self, rank_grids):
-        if not hasattr(rank_grids, '__getitem__'):
+        if isinstance(rank_grids, collections.Sequence):
             raise TypeError(
                 "rank_grids should be a sequence of grids, one for each rank"
             )
