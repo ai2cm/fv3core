@@ -7,7 +7,6 @@ from gt4py.gtscript import computation, interval, PARALLEL
 import fv3.stencils.copy_stencil as cp
 import fv3.stencils.scalar_profile as scalar_profile
 
-# import fv3.stencils.ppm_profile as ppm_profile
 import numpy as np
 
 sd = utils.sd
@@ -119,9 +118,6 @@ def compute(q1, peln, pe2, qs, j_2d, mode):
         q4_1, q4_2, q4_3, q4_4 = scalar_profile.compute(
             qs, q4_1, q4_2, q4_3, q4_4, dp1, km, i1, i2, iv, kord, qmin
         )
-
-    # else:
-    #     ppm_profile.compute(q4_1, q4_2, q4_3, q4_4, dp1, km, i1, i2, iv, kord)
 
     # Trying a stencil with a loop over k2:
     klevs = np.arange(km)
