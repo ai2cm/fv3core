@@ -109,3 +109,14 @@ def _serialize_slice(quantity, n_halo):
             halo = 0
         slice_list.append(slice(origin - halo, origin + extent + halo))
     return tuple(slice_list)
+
+
+class JustParallelTranslate(ParallelTranslate):
+    NO_SEQUENTIAL_METHOD = True
+
+    def collect_input_data(self, serializer, savepoint):
+        return self._base.collect_input_data(serializer, savepoint)
+
+    def compute_parallel(self, inputs, communicator):
+        inputs["comm"] = communicator
+        return self._base.compute(inputs)
