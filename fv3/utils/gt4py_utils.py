@@ -7,6 +7,7 @@ import copy as cp
 import math
 import logging
 import functools
+from fv3.utils.mpi import MPI
 
 logger = logging.getLogger("fv3ser")
 backend = None  # Options: numpy, gtmc, gtx86, gtcuda, debug, dawn:gtmc
@@ -16,6 +17,10 @@ sd = gtscript.Field[_dtype]
 halo = 3
 origin = (halo, halo, 0)
 # 1 indexing to 0 and halos: -2, -1, 0 --> 0, 1,2
+if MPI is not None and MPI.COMM_WORLD.Get_size() > 1:
+    gt.config.cache_settings["dir_name"] = ".gt_cache_{:0>6d}".format(
+        MPI.COMM_WORLD.Get_rank()
+    )
 
 
 def stencil(**stencil_kwargs):
@@ -43,6 +48,22 @@ def _data_backend(backend: str):
         return backend[len(prefix) :]
     else:
         return backend
+
+
+def start_halo_update(comm, data):
+    return comm.start_halo_update(data, n_points=halo)
+
+
+def halo_update(comm, data):
+    return comm.halo_update(data, n_points=halo)
+
+
+def start_vector_halo_update(comm, data):
+    return comm.start_vector_halo_update(data, n_points=halo)
+
+
+def vector_halo_update(comm, data):
+    return comm.vector_halo_update(data, n_points=halo)
 
 
 def make_storage_data(array, full_shape, istart=0, jstart=0, kstart=0, origin=origin):
