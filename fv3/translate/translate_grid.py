@@ -1,6 +1,6 @@
 from .parallel_translate import ParallelTranslate
 from ..grid import generate_mesh, gnomonic_grid, mirror_grid
-from ..utils import gt4py_utils as utils
+from ..utils.global_constants import LON_OR_LAT_DIM, TILE_DIM
 import fv3util
 
 
@@ -75,13 +75,21 @@ class TranslateGnomonic_Grids(ParallelTranslate):
 class TranslateMirror_Grid(ParallelTranslate):
 
     inputs = {
-        "grid_global": {"name": "grid_global", "dims": [fv3util.X_DIM, fv3util.Y_DIM, ]},
+        "grid_global": {
+            "name": "grid_global",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM, LON_OR_LAT_DIM, TILE_DIM],
+            "units": "degrees",
+        },
         "ng": {"name": "n_ghost", "dims": []},
         "npx": {"name": "npx", "dims": []},
         "npy": {"name": "npy", "dims": []},
     }
     outputs = {
-        "grid_global": {"name": "grid_global", "dims": []},
+        "grid_global": {
+            "name": "grid_global",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM, LON_OR_LAT_DIM, TILE_DIM],
+            "units": "degrees",
+        },
     }
 
     def compute_sequential(self, inputs_list, communicator_list):
@@ -100,7 +108,10 @@ class TranslateMirror_Grid(ParallelTranslate):
 class TranslateDxDy(ParallelTranslate):
 
     inputs = {
-        "gridvar": {},
+        "gridvar": {
+            "name": "grid",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM, LON_OR_LAT_DIM]
+        },
     }
     outputs = {
         "dx": {"dims": [fv3util.X_DIM, fv3util.Y_DIM]},

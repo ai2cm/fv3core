@@ -1,4 +1,5 @@
 import fv3.utils.gt4py_utils as utils
+from .global_constants import N_TILES, LON_OR_LAT_DIM, TILE_DIM
 import numpy as np
 import fv3util
 
@@ -71,7 +72,10 @@ class Grid:
                 ny_tile=self.npy - 1,
                 nz=self.npz,
                 n_halo=self.halo,
-                extra_dim_lengths={},
+                extra_dim_lengths={
+                    LON_OR_LAT_DIM: 2,
+                    TILE_DIM: N_TILES,
+                },
                 layout=self.layout
             )
         return self._sizer

@@ -1,7 +1,5 @@
-from ..utils.global_constants import RADIUS, RIGHT_HAND_GRID
+from ..utils.global_constants import RADIUS, RIGHT_HAND_GRID, N_TILES
 import math
-
-N_TILES = 6
 
 __all__ = ["mirror_grid"]
 

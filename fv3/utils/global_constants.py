@@ -14,3 +14,6 @@ RDG = -RDGAS / GRAV
 CNST_0P20 = 0.2
 TFREEZE = 273.15  # Freezing temperature of fresh water [K]
 RIGHT_HAND_GRID = False
+N_TILES = 6
+LON_OR_LAT_DIM = "lon_or_lat"
+TILE_DIM = "tile"
