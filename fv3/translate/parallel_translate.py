@@ -4,6 +4,7 @@ from .translate import TranslateFortranData2Py, read_serialized_data
 import fv3util
 from fv3.utils import gt4py_utils as utils
 import fv3
+import pytest
 
 
 class ParallelTranslate:
@@ -129,3 +130,8 @@ class JustParallelTranslate(ParallelTranslate):
         quantity_result = self.outputs_from_state(inputs)
         result.update(quantity_result)
         return result
+
+    def compute_sequential(self, a, b):
+        pytest.skip(
+            f"{self.__class__} only has a mpirun implementation, not running in mock-parallel"
+        )

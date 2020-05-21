@@ -104,12 +104,12 @@ def get_test_class(test_name):
     return return_class
 
 
-def is_parallel_test_type(test_name, parent_class=fv3.translate.ParallelTranslate):
+def is_parallel_test(test_name):
     test_class = get_test_class(test_name)
     if test_class is None:
         return False
     else:
-        return issubclass(test_class, parent_class)
+        return issubclass(test_class, fv3.translate.ParallelTranslate)
 
 
 def get_test_class_instance(test_name, grid):
@@ -141,7 +141,7 @@ def get_sequential_savepoint_names(metafunc, data_path):
     all_names = get_all_savepoint_names(metafunc, data_path)
     sequential_names = []
     for name in all_names:
-        if not is_parallel_test_type(name):
+        if not is_parallel_test(name):
             sequential_names.append(name)
     return sequential_names
 
@@ -150,7 +150,7 @@ def get_parallel_savepoint_names(metafunc, data_path):
     all_names = get_all_savepoint_names(metafunc, data_path)
     parallel_names = []
     for name in all_names:
-        if is_parallel_test_type(name):
+        if is_parallel_test(name):
             parallel_names.append(name)
     return parallel_names
 
@@ -159,9 +159,7 @@ def get_mock_parallel_savepoint_names(metafunc, data_path):
     all_names = get_all_savepoint_names(metafunc, data_path)
     parallel_names = []
     for name in all_names:
-        if is_parallel_test_type(name) and not is_parallel_test_type(
-            name, fv3.translate.parallel_translate.JustParallelTranslate
-        ):
+        if is_parallel_test(name):
             parallel_names.append(name)
     return parallel_names
 
