@@ -21,7 +21,7 @@ class TranslateFortranData2Py:
     def __init__(self, grid, origin=utils.origin):
         self.origin = origin
         self.in_vars = {"data_vars": {}, "parameters": []}
-        self.out_vars = []
+        self.out_vars = {}
         self.grid = grid
         self.maxshape = grid.domain_shape_buffer_1cell()
         self.ordered_input_vars = None
