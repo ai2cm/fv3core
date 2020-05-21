@@ -63,6 +63,11 @@ def al_x_edge_2(q: sd, dya: sd, al: sd):
     with computation(PARALLEL), interval(0, None):
         al[0, 0, 0] = c3 * q[0, -1, 0] + c2 * q[0, 0, 0] + c1 * q[0, 1, 0]
 
+@utils.stencil()
+def floor_cap(var: sd, floor_value: float):
+    with computation(PARALLEL), interval(0, None):
+        var[0, 0, 0] = var if var > floor_value else floor_value
+        
 
 @gtscript.function
 def get_bl(al, q):
@@ -222,6 +227,8 @@ def compute_al(q, dyvar, jord, ifirst, ilast, js1, je3, kstart=0, nk=None):
                     origin=(0, grid().je + 2, kstart),
                     domain=x_edge_domain,
                 )
+        if jord < 0:
+            floor_cap(al, 0., origin=(ifirst, grid().js - 1, kstart), domain=(ilast - ifirst + 1, grid().njc + 3, nk))
     return al
 
 

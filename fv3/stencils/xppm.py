@@ -13,6 +13,7 @@ from .yppm import (
     is_smt5_mord5,
     is_smt5_most_mords,
     fx1_c_negative,
+    floor_cap,
 )
 from gt4py.gtscript import computation, interval, PARALLEL
 
@@ -137,6 +138,8 @@ def compute_al(q, dxa, iord, is1, ie3, jfirst, jlast, kstart=0, nk=None):
                 al_y_edge_2(
                     q, dxa, al, origin=(grid().ie + 2, 0, kstart), domain=domain_y
                 )
+        if iord < 0:
+            floor_cap(al, 0., origin=(grid().is_ - 1, jfirst, kstart), domain=(grid().nic + 3, jlast - jfirst + 1, nk))
     return al
 
 
