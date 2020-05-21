@@ -9,7 +9,7 @@ import fv3.stencils.fvtp2d as fvtp2d
 #from mpi4py import MPI
 import numpy as np
 sd = utils.sd
-
+from mpi4py import MPI
 
 @utils.stencil()
 def flux_x(cx: sd, dxa:sd, dy:sd, sin_sg3: sd, sin_sg1: sd, xfx: sd):
@@ -63,15 +63,16 @@ def q_other_adjust(q:sd, qset:sd, dp1: sd, fx:sd, fy:sd, rarea: sd, dp2: sd):
     with computation(PARALLEL), interval(...):
         qset = adjustment(q, dp1, fx, fy, rarea, dp2)
         
-def compute(qvapor, qliquid, qice, qrain, qsnow, qgraupel, qcld, dp1, mfxd, mfyd, cxd, cyd, mdt, nq, comm):
+def compute(qvapor, qliquid, qice, qrain, qsnow, qgraupel, qcld, dp1, mfxd, mfyd, cxd, cyd, mdt, nq, comm):#, qv_a, qv_b, qv_c, dp1_c, dp2_c, fx_c, fy_c, xfx_b, yfx_b, cx_b, cy_b, rax_b, ray_b):
     grid = spec.grid
+   
     # start HALO update on q (in dyn_core in fortran -- just has started when this function is called...)
-    xfx = utils.make_storage_from_shape(qvapor.data.shape, origin=grid.compute_origin())
-    yfx = utils.make_storage_from_shape(qvapor.data.shape, origin=grid.compute_origin())
+    xfx = utils.make_storage_from_shape(qvapor.data.shape, origin=grid.compute_x_origin())
+    yfx = utils.make_storage_from_shape(qvapor.data.shape, origin=grid.compute_y_origin())
     fx = utils.make_storage_from_shape(qvapor.data.shape, origin=grid.compute_origin())
     fy = utils.make_storage_from_shape(qvapor.data.shape, origin=grid.compute_origin())
-    ra_x = utils.make_storage_from_shape(qvapor.data.shape, origin=grid.compute_origin())
-    ra_y = utils.make_storage_from_shape(qvapor.data.shape, origin=grid.compute_origin())
+    ra_x = utils.make_storage_from_shape(qvapor.data.shape, origin=grid.compute_x_origin())
+    ra_y = utils.make_storage_from_shape(qvapor.data.shape, origin=grid.compute_y_origin())
     cmax = utils.make_storage_from_shape(qvapor.data.shape, origin=grid.compute_origin())
     dp2 = utils.make_storage_from_shape(qvapor.data.shape, origin=grid.compute_origin())
     flux_x(cxd, grid.dxa, grid.dy, grid.sin_sg3, grid.sin_sg1, xfx,
@@ -100,25 +101,28 @@ def compute(qvapor, qliquid, qice, qrain, qsnow, qgraupel, qcld, dp1, mfxd, mfyd
     cmax_split(cyd, nsplt3d, origin=grid.compute_y_origin(), domain=grid.domain_x_compute_ybuffer())
     cmax_split(yfx, nsplt3d, origin=grid.compute_y_origin(), domain=grid.domain_x_compute_ybuffer())
     cmax_split(mfyd, nsplt3d, origin=grid.compute_origin(), domain=grid.domain_shape_compute_y())
-
+    ns = 1
     # complete HALO update on q
     for q in [qvapor, qliquid, qice, qrain, qsnow, qgraupel]:
         utils.halo_update(comm, q)
    
     ra_x_stencil(grid.area, xfx, ra_x,
                  origin=grid.compute_x_origin(),
-                 domain=grid.domain_y_compute_xbuffer())
+                 domain=grid.domain_y_compute_x())
     ra_y_stencil(grid.area, yfx, ra_y,
                  origin=grid.compute_y_origin(),
-                 domain=grid.domain_x_compute_ybuffer())
-    dp_fluxadjustment(dp1, mfxd, mfyd, grid.rarea, dp2, origin=grid.compute_origin(), domain=grid.domain_shape_compute())
+                 domain=grid.domain_x_compute_y())
+    for it in range(int(ns)):
+        dp_fluxadjustment(dp1, mfxd, mfyd, grid.rarea, dp2, origin=grid.compute_origin(), domain=grid.domain_shape_compute())
     #for k in range(grid.npz):
     #    ns = nsplt[k]
     #    for it in range(int(ns)):
-    ns = 1
+    h = 0
     for q in [qvapor, qliquid, qice, qrain, qsnow, qgraupel]:
+        h += 1
         for it in range(int(ns)):
             if ns != 1:
+                raise Exception('untested')
                 if it == 0:
                     # TODO 1d
                     qn2 = cp.copy(q.data)
@@ -127,14 +131,57 @@ def compute(qvapor, qliquid, qice, qrain, qsnow, qgraupel, qcld, dp1, mfxd, mfyd
                 fvtp2d.compute_no_sg(qn2, cxd, cyd, spec.namelist['hord_tr'], xfx, yfx, ra_x, ra_y, fx, fy,
                                      mfx=mfxd, mfy=mfyd)
                 if it < ns - 1:
-                    q_adjust(qn2, dp1, fx, fy, grid.rarea, dp1, origin=grid.compute_origin(), domain=grid.domain_shape_compute())
+                    q_adjust(qn2, dp1, fx, fy, grid.rarea, dp2, origin=grid.compute_origin(), domain=grid.domain_shape_compute())
                 else:
-                    q_other_adjust(qn2, q, dp1, fx, fy, grid.rarea, dp1, origin=grid.compute_origin(), domain=grid.domain_shape_compute())
-            else:   
+                    q_other_adjust(qn2, q, dp1, fx, fy, grid.rarea, dp2, origin=grid.compute_origin(), domain=grid.domain_shape_compute())
+            else:
+                '''
+                if h ==1 and MPI.COMM_WORLD.Get_rank() ==0 :
+                    print('++++++++++++++++++++++++++ before fv_tp_2d', np.all(qv_a==qvapor.data), it,h)
+                    print('b xfx ', np.all(xfx_b==xfx))
+                    print('b yfx ', np.all(yfx_b==yfx))
+                    print('b cx ', np.all(cx_b==cxd))
+                    print('b cy ', np.all(cy_b==cyd))
+                    print('b rax ', np.all(rax_b==ra_x), grid.ie)
+                    print('b ray ', np.all(ray_b==ra_y))
+                    print( 'rax b passing',len(np.where(rax_b==ra_x)[0]))
+                    print( 'rax b failing',len(np.where(rax_b!=ra_x)[0]))
+                    for i in range(55):
+                        for j in range(55):
+                            for k in range(1):
+                                if rax_b[i, j, k] != ra_x[i, j, k]:
+                                    print('grrr', i, j, k, rax_b[i, j, k], ra_x[i, j, k],rax_b[i, j, k] - ra_x[i, j, k])
+                '''
+                fx = utils.make_storage_from_shape(qvapor.data.shape, origin=grid.compute_origin())
+                fy = utils.make_storage_from_shape(qvapor.data.shape, origin=grid.compute_origin())
                 fvtp2d.compute_no_sg(q.data, cxd, cyd, spec.namelist['hord_tr'], xfx, yfx, ra_x, ra_y, fx, fy,
                                      mfx=mfxd, mfy=mfyd)
-                q_adjust(q.data, dp1, fx, fy, grid.rarea, dp1, origin=grid.compute_origin(), domain=grid.domain_shape_compute())
+                '''
+                if h ==1 and MPI.COMM_WORLD.Get_rank() == 0:
+                    print('++++++++++++++++++++++++++ after fv_tp_2d', np.all(qv_b==qvapor.data), it,h)
+                    print( 'b passing',len(np.where(qv_b==qvapor.data)[0]))
+                    print( 'b failing',len(np.where(qv_b!=qvapor.data)[0]))
+                '''    
+                q_adjust(q.data, dp1, fx, fy, grid.rarea, dp2, origin=grid.compute_origin(), domain=grid.domain_shape_compute())
+                '''
+                if h ==1 and MPI.COMM_WORLD.Get_rank() == 0:
+                    print('++++++++++++++++++++++++++ after adjust ', np.all(qv_c==qvapor.data), it,h)
+                    print( 'c passing',len(np.where(qv_c==qvapor.data)[0]))
+                    print( 'c failing',len(np.where(qv_c!=qvapor.data)[0]))
+                    #print('c dp1', np.all(dp1_c == dp1))
+                    #print('c dp2', np.all(dp2_c == dp2))
+                    print('c fx', np.all(fx_c[3:51,3:51,:-1] == fx[3:51,3:51,:-1]))
+                    print('c fy', np.all(fy_c[3:51,3:51,:-1] == fy[3:51,3:51,:-1]))
+                    print( 'c fx passing',len(np.where(fx_c[3:51,3:51,:-1]==fx[3:51,3:51,:-1])[0]))
+                    print( 'c fx failing',len(np.where(fx_c[3:51,3:51,:-1]!=fx[3:51,3:51,:-1])[0]))
+                    for i in range(55):
+                        for j in range(55):
+                            for k in range(64):
+                                if fx_c[i, j, k] != fx[i, j, k]:
+                                    print('grrr', i, j, k,  fx_c[i, j, k],  fx[i, j, k], fx_c[i, j, k] - fx[i, j, k])
+                '''
             if it < ns - 1:
+                raise Exception('untested')
                 dp1 = cp.copy(dp2, origin=grid.compute_origin, domain=grid.domain_shape_compute())
                 # HALO UPDATE qn2
                 utils.halo_update(comm, qn2)

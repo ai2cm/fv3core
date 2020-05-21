@@ -38,7 +38,7 @@ class TranslateTracer2D1L(JustParallelTranslate):
         self._base.compute_func = tracer_2d_1l.compute
         grid = grids[0]
         self._base.in_vars["data_vars"] = {
-            "qvapor" : {},
+            "qvapor" : {},      
             "qliquid": {},
             "qice": {},
             "qrain": {},
@@ -53,3 +53,13 @@ class TranslateTracer2D1L(JustParallelTranslate):
         }
         self._base.in_vars["parameters"] = ["nq", "mdt"]
         self._base.out_vars = self._base.in_vars["data_vars"]
+'''
+ "qv_a":{},"qv_b":{}, "qv_c":{},"dp1_c":{},
+            "dp2_c":{"istart":grid.is_, "jstart": grid.js},"fx_c":{"istart":grid.is_, "jstart": grid.js}, "fy_c":{"istart":grid.is_, "jstart": grid.js},
+            "xfx_b": {"istart":grid.is_},
+            "yfx_b": {"jstart":grid.js},
+            "cx_b": {"istart":grid.is_},
+            "cy_b": {"jstart":grid.js},
+            "rax_b":{"istart":grid.is_},
+            "ray_b":{"jstart": grid.js},
+'''
