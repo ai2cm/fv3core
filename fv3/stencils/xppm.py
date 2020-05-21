@@ -139,7 +139,12 @@ def compute_al(q, dxa, iord, is1, ie3, jfirst, jlast, kstart=0, nk=None):
                     q, dxa, al, origin=(grid().ie + 2, 0, kstart), domain=domain_y
                 )
         if iord < 0:
-            floor_cap(al, 0., origin=(grid().is_ - 1, jfirst, kstart), domain=(grid().nic + 3, jlast - jfirst + 1, nk))
+            floor_cap(
+                al,
+                0.0,
+                origin=(grid().is_ - 1, jfirst, kstart),
+                domain=(grid().nic + 3, jlast - jfirst + 1, nk),
+            )
     return al
 
 
@@ -147,6 +152,10 @@ def compute_flux(q, c, xflux, iord, jfirst, jlast, kstart=0, nk=None):
     if nk is None:
         nk = grid().npz - kstart
     mord = abs(iord)
+    if mord != 5:
+        raise Exception(
+            "We have only implemented xppm for hord=5 and -5, not " + str(iord)
+        )
     # output  storage
     is1 = grid().is_ + 2 if grid().west_edge else grid().is_ - 1
     ie3 = grid().ie - 1 if grid().east_edge else grid().ie + 2

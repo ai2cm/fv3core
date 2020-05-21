@@ -63,11 +63,12 @@ def al_x_edge_2(q: sd, dya: sd, al: sd):
     with computation(PARALLEL), interval(0, None):
         al[0, 0, 0] = c3 * q[0, -1, 0] + c2 * q[0, 0, 0] + c1 * q[0, 1, 0]
 
+
 @utils.stencil()
 def floor_cap(var: sd, floor_value: float):
     with computation(PARALLEL), interval(0, None):
         var[0, 0, 0] = var if var > floor_value else floor_value
-        
+
 
 @gtscript.function
 def get_bl(al, q):
@@ -228,7 +229,12 @@ def compute_al(q, dyvar, jord, ifirst, ilast, js1, je3, kstart=0, nk=None):
                     domain=x_edge_domain,
                 )
         if jord < 0:
-            floor_cap(al, 0., origin=(ifirst, grid().js - 1, kstart), domain=(ilast - ifirst + 1, grid().njc + 3, nk))
+            floor_cap(
+                al,
+                0.0,
+                origin=(ifirst, grid().js - 1, kstart),
+                domain=(ilast - ifirst + 1, grid().njc + 3, nk),
+            )
     return al
 
 
@@ -239,6 +245,10 @@ def compute_flux(q, c, flux, jord, ifirst, ilast, kstart=0, nk=None):
     je3 = grid().je - 1 if grid().north_edge else grid().je + 2
     al = compute_al(q, grid().dya, jord, ifirst, ilast, js1, je3, kstart, nk)
     mord = abs(jord)
+    if mord != 5:
+        raise Exception(
+            "We have only implemented yppm for hord=5 and -5, not " + str(jord)
+        )
     flux_domain = (ilast - ifirst + 1, grid().njc + 1, nk)
     get_flux_stencil(
         q,
