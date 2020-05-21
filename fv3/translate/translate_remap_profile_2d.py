@@ -1,12 +1,12 @@
 from .translate import TranslateFortranData2Py
-import fv3.stencils.cs_profile as CS_Profile
+import fv3.stencils.remap_profile as Profile
 import numpy as np
 
 
 class TranslateCS_Profile_2d(TranslateFortranData2Py):
     def __init__(self, grid):
         super().__init__(grid)
-        self.compute_func = CS_Profile.compute
+        self.compute_func = Profile.compute
         self.in_vars["data_vars"] = {
             "qs": {"serialname": "qs_column"},
             "a4_1": {"serialname": "q4_1"},
@@ -69,7 +69,7 @@ class TranslateCS_Profile_2d(TranslateFortranData2Py):
 class TranslateCS_Profile_2d_2(TranslateCS_Profile_2d):
     def __init__(self, grid):
         super().__init__(grid)
-        self.compute_func = CS_Profile.compute
+        self.compute_func = Profile.compute
         self.in_vars["data_vars"] = {
             "qs": {"serialname": "qs_column_2"},
             "a4_1": {"serialname": "q4_1_2"},

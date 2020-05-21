@@ -5,7 +5,7 @@ import fv3._config as spec
 import math as math
 from gt4py.gtscript import computation, interval, PARALLEL
 import fv3.stencils.copy_stencil as cp
-import fv3.stencils.scalar_profile as scalar_profile
+import fv3.stencils.remap_profile as remap_profile
 
 import numpy as np
 
@@ -92,8 +92,6 @@ def compute(q1, peln, pe2, qs, j_2d, mode):
     iv = mode
     i_extent = i2 - i1 + 1
     km = grid.npz
-    j_2d -= 1
-    j_2d += grid.is_
     orig = (grid.is_, grid.js, 0)
     r3 = 1.0 / 3.0
     r23 = 2.0 / 3.0
@@ -114,10 +112,7 @@ def compute(q1, peln, pe2, qs, j_2d, mode):
 
     set_dp(dp1, pe1, origin=(i1, 0, 0), domain=(i_extent, 1, km))
 
-    if kord > 7:
-        q4_1, q4_2, q4_3, q4_4 = scalar_profile.compute(
-            qs, q4_1, q4_2, q4_3, q4_4, dp1, km, i1, i2, iv, kord, qmin
-        )
+    q4_1, q4_2, q4_3, q4_4 = remap_profile.compute_scalar(qs, q4_1, q4_2, q4_3, q4_4, dp1, km, i1, i2, iv, kord, qmin)
 
     # Trying a stencil with a loop over k2:
     klevs = np.arange(km)
@@ -150,9 +145,6 @@ def compute(q1, peln, pe2, qs, j_2d, mode):
         q2[i1 : i2 + 1, j_2d, k_eul] = np.sum(q2_adds.data[i1 : i2 + 1, 0, :], axis=1)
 
     # #Pythonized
-    # n_cont = 0
-    # n_ext = 0
-    # n_bot = 0
     # kn = grid.npz
     # i_vals = np.arange(i1, i2 + 1)
     # klevs = np.arange(km+1)
@@ -171,7 +163,6 @@ def compute(q1, peln, pe2, qs, j_2d, mode):
     #                 * (pr + pl)
     #                 - q4_4[ii, 0, k1] * r3 * (pr * (pr + pl) + pl ** 2)
     #             )
-    #             n_cont+=1
     #             # continue
     #         else:
     #             # new grid layer extends into more old grid layers
@@ -198,15 +189,9 @@ def compute(q1, peln, pe2, qs, j_2d, mode):
     #                         + q4_4[ii, 0, mm] * (1.0 - r23 * esl)
     #                     )
     #                 )
-    #                 n_ext+=1
-    #             else:
-    #                 n_bot+=1
     #             q2[ii, j_2d, k2] = qsum / (pe2[ii, 0, k2 + 1] - pe2[ii, 0, k2])
 
     # # transliterated fortran
-    # n_cont = 0
-    # n_ext = 0
-    # n_bot = 0
     # i_vals = np.arange(i1, i2 + 1)
     # kn = grid.npz
     # elems = np.ones((i_extent,kn))
@@ -229,7 +214,6 @@ def compute(q1, peln, pe2, qs, j_2d, mode):
     #                         - q4_4[ii, 0, k1] * r3 * (pr * (pr + pl) + pl ** 2)
     #                     )
     #                     k0 = k1
-    #                     n_cont +=1
     #                     elems[ii-i1,k2]=0
     #                     break
     #                 else:  # new grid layer extends into more old grid layers
@@ -259,18 +243,10 @@ def compute(q1, peln, pe2, qs, j_2d, mode):
     #                             )
     #                             k0 = mm
     #                             flag = 1
-    #                             n_ext+=1
     #                             elems[ii-i1,k2]=0
     #                             break
-    #                     if flag == 0:
-    #                         print("Huh")
-    #                         n_bot+=1
     #                     #Add everything up and divide by the pressure difference
     #                     q2[ii, j_2d, k2] = qsum / (pe2[ii, 0, k2 + 1] - pe2[ii, 0, k2])
     #                     break
-
-    # print(n_cont, n_ext, n_bot)
-    # print(n_cont+ n_ext+ n_bot)
-    # print(kn * (i_extent))
 
     return q2

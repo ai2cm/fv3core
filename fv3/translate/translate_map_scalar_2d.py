@@ -55,5 +55,6 @@ class TranslateMapScalar_2d(TranslateFortranData2Py):
 
     def compute(self, inputs):
         self.make_storage_data_input_vars(inputs)
+        inputs["j_2d"] += 2
         var_inout = self.compute_func(**inputs)
         return self.slice_output(inputs, {"pt": var_inout})

@@ -349,6 +349,78 @@ def set_inner_as_kord9(
 
 
 @utils.stencil()
+def set_inner_as_kord9_scalar(
+    a4_1: sd,
+    a4_2: sd,
+    a4_3: sd,
+    a4_4: sd,
+    gam: sd,
+    extm: sd,
+    ext5: sd,
+    ext6: sd,
+    qmin: sd,
+):
+    with computation(PARALLEL), interval(...):
+        pmp_1 = a4_1 - 2.0 * gam[0, 0, 1]
+        lac_1 = pmp_1 + 1.5 * gam[0, 0, 2]
+        pmp_2 = a4_1 + 2.0 * gam
+        lac_2 = pmp_2 - 1.5 * gam[0, 0, -1]
+        tmp_min = a4_1
+        tmp_max = a4_2
+        tmp_max0 = a4_1
+
+        if extm and extm[0, 0, -1]:
+            a4_2 = a4_1
+            a4_3 = a4_1
+            a4_4 = 0.0
+        elif extm and extm[0, 0, 1]:
+            a4_2 = a4_1
+            a4_3 = a4_1
+            a4_4 = 0.0
+        elif extm and a4_1 < qmin:
+            a4_2 = a4_1
+            a4_3 = a4_1
+            a4_4 = 0.0
+        else:
+            a4_4 = 3.0 * (2.0 * a4_1 - (a4_2 + a4_3))
+            if absolute_value(a4_4) > absolute_value(a4_2 - a4_3):
+                tmp_min = (
+                    a4_1
+                    if (a4_1 < pmp_1) and (a4_1 < lac_1)
+                    else pmp_1
+                    if pmp_1 < lac_1
+                    else lac_1
+                )
+                tmp_max0 = a4_2 if a4_2 > tmp_min else tmp_min
+                tmp_max = (
+                    a4_1
+                    if (a4_1 > pmp_1) and (a4_1 > lac_1)
+                    else pmp_1
+                    if pmp_1 > lac_1
+                    else lac_1
+                )
+                a4_2 = tmp_max0 if tmp_max0 < tmp_max else tmp_max
+                tmp_min = (
+                    a4_1
+                    if (a4_1 < pmp_2) and (a4_1 < lac_2)
+                    else pmp_2
+                    if pmp_2 < lac_2
+                    else lac_2
+                )
+                tmp_max0 = a4_3 if a4_3 > tmp_min else tmp_min
+                tmp_max = (
+                    a4_1
+                    if (a4_1 > pmp_2) and (a4_1 > lac_2)
+                    else pmp_2
+                    if pmp_2 > lac_2
+                    else lac_2
+                )
+                a4_3 = tmp_max0 if tmp_max0 < tmp_max else tmp_max
+                a4_4 = 3.0 * (2.0 * a4_1 - (a4_2 + a4_3))
+            else:
+                a4_2 = a4_2
+
+@utils.stencil()
 def set_inner_as_kord10(
     a4_1: sd, a4_2: sd, a4_3: sd, a4_4: sd, gam: sd, extm: sd, ext5: sd, ext6: sd
 ):
@@ -507,6 +579,7 @@ def compute(qs, a4_1, a4_2, a4_3, a4_4, delp, km, i1, i2, iv, kord):
         )
 
         if abs(kord) < 9:
+            print("WARNING: Only kord=10 has been tested.")
             set_inner_as_kordsmall(
                 a4_1,
                 a4_2,
@@ -520,6 +593,7 @@ def compute(qs, a4_1, a4_2, a4_3, a4_4, delp, km, i1, i2, iv, kord):
                 domain=(i_extent, 1, km - 4),
             )
         elif abs(kord) == 9:
+            print("WARNING: Only kord=10 has been tested.")
             set_inner_as_kord9(
                 a4_1,
                 a4_2,
@@ -546,7 +620,148 @@ def compute(qs, a4_1, a4_2, a4_3, a4_4, delp, km, i1, i2, iv, kord):
                 domain=(i_extent, 1, km - 4),
             )
         else:
-            print("kord {0} not implemented yet. Go bug a dev for it.".format(kord))
+            raise Exception("kord {0} not implemented.".format(kord))
+
+        if iv == 0:
+            a4_1, a4_2, a4_3, a4_4 = cs_limiters.compute(
+                a4_1, a4_2, a4_3, a4_4, extm, 0, i1, i_extent, 2, km - 4
+            )
+
+        if iv == 0:
+            set_bottom_as_iv0(
+                a4_1, a4_2, a4_3, a4_4, origin=(i1, 0, km - 2), domain=(i_extent, 1, 2)
+            )
+        elif iv == -1:
+            set_bottom_as_iv1(
+                a4_1, a4_2, a4_3, a4_4, origin=(i1, 0, km - 2), domain=(i_extent, 1, 2)
+            )
+        else:
+            set_bottom_as_else(
+                a4_1, a4_2, a4_3, a4_4, origin=(i1, 0, km - 2), domain=(i_extent, 1, 2)
+            )
+        a4_1, a4_2, a4_3, a4_4 = cs_limiters.compute(
+            a4_1, a4_2, a4_3, a4_4, extm, 2, i1, i_extent, km - 2, 1
+        )
+        a4_1, a4_2, a4_3, a4_4 = cs_limiters.compute(
+            a4_1, a4_2, a4_3, a4_4, extm, 1, i1, i_extent, km - 1, 1
+        )
+
+    return a4_1, a4_2, a4_3, a4_4
+
+def compute_scalar(qs, a4_1, a4_2, a4_3, a4_4, delp, km, i1, i2, iv, kord, qmin):
+
+    i_extent = i2 - i1 + 1
+
+    grid = spec.grid
+    orig = (i1, 0, 0)
+    full_orig = (grid.is_, 0, 0)
+    dom = (i_extent, 1, km)
+    gam = utils.make_storage_from_shape(delp.shape, origin=full_orig)
+    q = utils.make_storage_from_shape(delp.shape, origin=full_orig)
+    q_bot = utils.make_storage_from_shape(delp.shape, origin=full_orig)
+
+    qs_field = utils.make_storage_from_shape(delp.shape, origin=full_orig)
+    qs_field[i1 : i2 + 1, :, -1] = qs.data[
+        :i_extent, :, 0
+    ]  # make a qs that can be passed to a stencil
+
+    extm = utils.make_storage_from_shape(delp.shape, origin=full_orig)
+    ext5 = utils.make_storage_from_shape(delp.shape, origin=full_orig)
+    ext6 = utils.make_storage_from_shape(delp.shape, origin=full_orig)
+
+    if iv == -2:
+        set_vals_2(
+            gam,
+            q,
+            delp,
+            a4_1,
+            q_bot,
+            qs_field,
+            origin=orig,
+            domain=(i_extent, 1, km + 1),
+        )
+    else:
+        set_vals_1(gam, q, delp, a4_1, q_bot, origin=orig, domain=(i_extent, 1, km + 1))
+
+    if abs(kord) > 16:
+        set_avals(q, a4_1, a4_2, a4_3, a4_4, q_bot, origin=orig, domain=dom)
+    else:
+        Apply_constraints(q, gam, a4_1, a4_2, a4_3, iv, origin=orig, domain=dom)
+        set_extm(extm, a4_1, a4_2, a4_3, gam, origin=orig, domain=dom)
+
+        if abs(kord) > 9:
+            set_exts(a4_4, ext5, ext6, a4_1, a4_2, a4_3, origin=orig, domain=dom)
+
+        if iv == 0:
+            set_top_as_iv0(a4_1, a4_2, a4_3, a4_4, origin=orig, domain=(i_extent, 1, 2))
+            a4_1, a4_2, a4_3, a4_4 = cs_limiters.compute(
+                a4_1, a4_2, a4_3, a4_4, extm, 1, i1, i_extent, 0, 1
+            )
+        elif iv == -1:
+            set_top_as_iv1(a4_1, a4_2, a4_3, a4_4, origin=orig, domain=(i_extent, 1, 2))
+
+            a4_1, a4_2, a4_3, a4_4 = cs_limiters.compute(
+                a4_1, a4_2, a4_3, a4_4, extm, 1, i1, i_extent, 0, 1
+            )
+
+        elif iv == 2:
+            set_top_as_iv2(a4_1, a4_2, a4_3, a4_4, origin=orig, domain=(i_extent, 1, 2))
+        else:
+            set_top_as_else(
+                a4_1, a4_2, a4_3, a4_4, origin=orig, domain=(i_extent, 1, 2)
+            )
+            a4_1, a4_2, a4_3, a4_4 = cs_limiters.compute(
+                a4_1, a4_2, a4_3, a4_4, extm, 1, i1, i_extent, 0, 1
+            )
+
+        a4_1, a4_2, a4_3, a4_4 = cs_limiters.compute(
+            a4_1, a4_2, a4_3, a4_4, extm, 2, i1, i_extent, 1, 1
+        )
+
+        if abs(kord) < 9:
+            print("WARNING: Only kord=10 has been tested.")
+            set_inner_as_kordsmall(
+                a4_1,
+                a4_2,
+                a4_3,
+                a4_4,
+                gam,
+                extm,
+                ext5,
+                ext6,
+                origin=(i1, 0, 2),
+                domain=(i_extent, 1, km - 4),
+            )
+        elif abs(kord) == 9:
+            print("WARNING: Only kord=10 has been tested.")
+            set_inner_as_kord9_scalar(
+                a4_1,
+                a4_2,
+                a4_3,
+                a4_4,
+                gam,
+                extm,
+                ext5,
+                ext6,
+                qmin,
+                origin=(i1, 0, 2),
+                domain=(i_extent, 1, km - 4),
+            )
+        elif abs(kord) == 10:
+            set_inner_as_kord10(
+                a4_1,
+                a4_2,
+                a4_3,
+                a4_4,
+                gam,
+                extm,
+                ext5,
+                ext6,
+                origin=(i1, 0, 2),
+                domain=(i_extent, 1, km - 4),
+            )
+        else:
+            raise Exception("kord {0} not implemented.".format(kord))
 
         if iv == 0:
             a4_1, a4_2, a4_3, a4_4 = cs_limiters.compute(
