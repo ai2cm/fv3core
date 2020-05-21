@@ -12,7 +12,6 @@ class ParallelTranslate:
 
     inputs = {}
     outputs = {}
-    NO_SEQUENTIAL_METHOD = False
 
     def __init__(self, rank_grids):
         if not hasattr(rank_grids, "__getitem__"):
@@ -34,13 +33,16 @@ class ParallelTranslate:
             state_list.append(self.state_from_inputs(inputs))
         return state_list
 
-    def state_from_inputs(self, inputs: dict, grid=None) -> dict:
+    def state_from_inputs(self, inputs: dict, grid=None, copy_inputs=True) -> dict:
         if grid is None:
             grid = self.grid
-        inputs = copy.copy(inputs)  # don't want to modify the dict we were passed
+        if copy_inputs:
+            inputs = copy.copy(inputs)  # don't want to modify the dict we were passed
         self._base.make_storage_data_input_vars(inputs)
         state = {}
         for name, properties in self.inputs.items():
+            if "name" not in properties:
+                properties["name"] = name
             if len(properties["dims"]) > 0:
                 state[properties["name"]] = grid.quantity_factory.empty(
                     properties["dims"], properties["units"], dtype=inputs[name].dtype
@@ -71,6 +73,8 @@ class ParallelTranslate:
 
     def outputs_from_state(self, state: dict):
         return_dict = {}
+        if len(self.outputs) == 0:
+            return return_dict
         for name, properties in self.outputs.items():
             standard_name = properties["name"]
             output_slice = _serialize_slice(
@@ -112,11 +116,16 @@ def _serialize_slice(quantity, n_halo):
 
 
 class JustParallelTranslate(ParallelTranslate):
-    NO_SEQUENTIAL_METHOD = True
-
     def collect_input_data(self, serializer, savepoint):
-        return self._base.collect_input_data(serializer, savepoint)
+        input_data = super().collect_input_data(serializer, savepoint)
+        input_data.update(self._base.collect_input_data(serializer, savepoint))
+        return input_data
 
     def compute_parallel(self, inputs, communicator):
         inputs["comm"] = communicator
-        return self._base.compute(inputs)
+        state = self.state_from_inputs(inputs, copy_inputs=False)
+        inputs.update(state)
+        result = self._base.compute_from_storage(inputs)
+        quantity_result = self.outputs_from_state(inputs)
+        result.update(quantity_result)
+        return result
