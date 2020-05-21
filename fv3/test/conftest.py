@@ -155,15 +155,6 @@ def get_parallel_savepoint_names(metafunc, data_path):
     return parallel_names
 
 
-def get_mock_parallel_savepoint_names(metafunc, data_path):
-    all_names = get_all_savepoint_names(metafunc, data_path)
-    parallel_names = []
-    for name in all_names:
-        if is_parallel_test(name):
-            parallel_names.append(name)
-    return parallel_names
-
-
 SavepointCase = collections.namedtuple(
     "SavepointCase",
     [
@@ -224,7 +215,7 @@ def mock_parallel_savepoint_cases(metafunc, data_path):
         serializer = get_serializer(data_path, rank)
         grid_savepoint = serializer.get_savepoint(GRID_SAVEPOINT_NAME)[0]
         grid_list.append(process_grid_savepoint(serializer, grid_savepoint, rank))
-    savepoint_names = get_mock_parallel_savepoint_names(metafunc, data_path)
+    savepoint_names = get_parallel_savepoint_names(metafunc, data_path)
     for test_name in sorted(list(savepoint_names)):
         input_list = []
         output_list = []
