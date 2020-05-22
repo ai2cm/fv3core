@@ -4,7 +4,8 @@ import gt4py.gtscript as gtscript
 import fv3._config as spec
 from gt4py.gtscript import computation, interval, PARALLEL, FORWARD, BACKWARD
 import fv3.stencils.copy_stencil as cp
-import fv3.stencils.cs_limiters as cs_limiters
+import fv3.stencils.profile_limiters as limiters
+from fv3.stencils.basic_operations import absolute_value
 import numpy as np
 
 sd = utils.sd
@@ -12,12 +13,6 @@ sd = utils.sd
 
 def grid():
     return spec.grid
-
-
-@gtscript.function
-def absolute_value(in_array):
-    abs_value = in_array if in_array > 0 else -in_array
-    return abs_value
 
 
 @gtscript.function
@@ -420,6 +415,7 @@ def set_inner_as_kord9_scalar(
             else:
                 a4_2 = a4_2
 
+
 @utils.stencil()
 def set_inner_as_kord10(
     a4_1: sd, a4_2: sd, a4_3: sd, a4_4: sd, gam: sd, extm: sd, ext5: sd, ext6: sd
@@ -554,13 +550,13 @@ def compute(qs, a4_1, a4_2, a4_3, a4_4, delp, km, i1, i2, iv, kord):
 
         if iv == 0:
             set_top_as_iv0(a4_1, a4_2, a4_3, a4_4, origin=orig, domain=(i_extent, 1, 2))
-            a4_1, a4_2, a4_3, a4_4 = cs_limiters.compute(
+            a4_1, a4_2, a4_3, a4_4 = limiters.compute(
                 a4_1, a4_2, a4_3, a4_4, extm, 1, i1, i_extent, 0, 1
             )
         elif iv == -1:
             set_top_as_iv1(a4_1, a4_2, a4_3, a4_4, origin=orig, domain=(i_extent, 1, 2))
 
-            a4_1, a4_2, a4_3, a4_4 = cs_limiters.compute(
+            a4_1, a4_2, a4_3, a4_4 = limiters.compute(
                 a4_1, a4_2, a4_3, a4_4, extm, 1, i1, i_extent, 0, 1
             )
 
@@ -570,11 +566,11 @@ def compute(qs, a4_1, a4_2, a4_3, a4_4, delp, km, i1, i2, iv, kord):
             set_top_as_else(
                 a4_1, a4_2, a4_3, a4_4, origin=orig, domain=(i_extent, 1, 2)
             )
-            a4_1, a4_2, a4_3, a4_4 = cs_limiters.compute(
+            a4_1, a4_2, a4_3, a4_4 = limiters.compute(
                 a4_1, a4_2, a4_3, a4_4, extm, 1, i1, i_extent, 0, 1
             )
 
-        a4_1, a4_2, a4_3, a4_4 = cs_limiters.compute(
+        a4_1, a4_2, a4_3, a4_4 = limiters.compute(
             a4_1, a4_2, a4_3, a4_4, extm, 2, i1, i_extent, 1, 1
         )
 
@@ -623,7 +619,7 @@ def compute(qs, a4_1, a4_2, a4_3, a4_4, delp, km, i1, i2, iv, kord):
             raise Exception("kord {0} not implemented.".format(kord))
 
         if iv == 0:
-            a4_1, a4_2, a4_3, a4_4 = cs_limiters.compute(
+            a4_1, a4_2, a4_3, a4_4 = limiters.compute(
                 a4_1, a4_2, a4_3, a4_4, extm, 0, i1, i_extent, 2, km - 4
             )
 
@@ -639,14 +635,15 @@ def compute(qs, a4_1, a4_2, a4_3, a4_4, delp, km, i1, i2, iv, kord):
             set_bottom_as_else(
                 a4_1, a4_2, a4_3, a4_4, origin=(i1, 0, km - 2), domain=(i_extent, 1, 2)
             )
-        a4_1, a4_2, a4_3, a4_4 = cs_limiters.compute(
+        a4_1, a4_2, a4_3, a4_4 = limiters.compute(
             a4_1, a4_2, a4_3, a4_4, extm, 2, i1, i_extent, km - 2, 1
         )
-        a4_1, a4_2, a4_3, a4_4 = cs_limiters.compute(
+        a4_1, a4_2, a4_3, a4_4 = limiters.compute(
             a4_1, a4_2, a4_3, a4_4, extm, 1, i1, i_extent, km - 1, 1
         )
 
     return a4_1, a4_2, a4_3, a4_4
+
 
 def compute_scalar(qs, a4_1, a4_2, a4_3, a4_4, delp, km, i1, i2, iv, kord, qmin):
 
@@ -694,13 +691,13 @@ def compute_scalar(qs, a4_1, a4_2, a4_3, a4_4, delp, km, i1, i2, iv, kord, qmin)
 
         if iv == 0:
             set_top_as_iv0(a4_1, a4_2, a4_3, a4_4, origin=orig, domain=(i_extent, 1, 2))
-            a4_1, a4_2, a4_3, a4_4 = cs_limiters.compute(
+            a4_1, a4_2, a4_3, a4_4 = limiters.compute(
                 a4_1, a4_2, a4_3, a4_4, extm, 1, i1, i_extent, 0, 1
             )
         elif iv == -1:
             set_top_as_iv1(a4_1, a4_2, a4_3, a4_4, origin=orig, domain=(i_extent, 1, 2))
 
-            a4_1, a4_2, a4_3, a4_4 = cs_limiters.compute(
+            a4_1, a4_2, a4_3, a4_4 = limiters.compute(
                 a4_1, a4_2, a4_3, a4_4, extm, 1, i1, i_extent, 0, 1
             )
 
@@ -710,11 +707,11 @@ def compute_scalar(qs, a4_1, a4_2, a4_3, a4_4, delp, km, i1, i2, iv, kord, qmin)
             set_top_as_else(
                 a4_1, a4_2, a4_3, a4_4, origin=orig, domain=(i_extent, 1, 2)
             )
-            a4_1, a4_2, a4_3, a4_4 = cs_limiters.compute(
+            a4_1, a4_2, a4_3, a4_4 = limiters.compute(
                 a4_1, a4_2, a4_3, a4_4, extm, 1, i1, i_extent, 0, 1
             )
 
-        a4_1, a4_2, a4_3, a4_4 = cs_limiters.compute(
+        a4_1, a4_2, a4_3, a4_4 = limiters.compute(
             a4_1, a4_2, a4_3, a4_4, extm, 2, i1, i_extent, 1, 1
         )
 
@@ -764,7 +761,7 @@ def compute_scalar(qs, a4_1, a4_2, a4_3, a4_4, delp, km, i1, i2, iv, kord, qmin)
             raise Exception("kord {0} not implemented.".format(kord))
 
         if iv == 0:
-            a4_1, a4_2, a4_3, a4_4 = cs_limiters.compute(
+            a4_1, a4_2, a4_3, a4_4 = limiters.compute(
                 a4_1, a4_2, a4_3, a4_4, extm, 0, i1, i_extent, 2, km - 4
             )
 
@@ -780,10 +777,10 @@ def compute_scalar(qs, a4_1, a4_2, a4_3, a4_4, delp, km, i1, i2, iv, kord, qmin)
             set_bottom_as_else(
                 a4_1, a4_2, a4_3, a4_4, origin=(i1, 0, km - 2), domain=(i_extent, 1, 2)
             )
-        a4_1, a4_2, a4_3, a4_4 = cs_limiters.compute(
+        a4_1, a4_2, a4_3, a4_4 = limiters.compute(
             a4_1, a4_2, a4_3, a4_4, extm, 2, i1, i_extent, km - 2, 1
         )
-        a4_1, a4_2, a4_3, a4_4 = cs_limiters.compute(
+        a4_1, a4_2, a4_3, a4_4 = limiters.compute(
             a4_1, a4_2, a4_3, a4_4, extm, 1, i1, i_extent, km - 1, 1
         )
 

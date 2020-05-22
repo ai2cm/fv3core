@@ -4,18 +4,13 @@ import gt4py.gtscript as gtscript
 import fv3._config as spec
 from gt4py.gtscript import computation, interval, PARALLEL
 import fv3.stencils.copy_stencil as cp
+from fv3.stencils.basic_operations import absolute_value
 
 sd = utils.sd
 
 
 def grid():
     return spec.grid
-
-
-@gtscript.function
-def absolute_value(in_array):
-    abs_value = in_array if in_array > 0 else -in_array
-    return abs_value
 
 
 @utils.stencil()
