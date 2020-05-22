@@ -28,7 +28,7 @@ class TranslateNeg_Adj3(TranslateFortranData2Py):
             "qsnow": {},
             "qgraupel": {},
             "qcld": {},
-            "pt": {},
+            #"pt": {},
         }
 
     # def compute(self, inputs):
