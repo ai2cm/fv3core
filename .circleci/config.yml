@@ -60,8 +60,8 @@ jobs:
       - gcp-gcr/gcr-auth
       - run:
           name: "Pull environment image"
-	  command: |
-	    docker pull $BUILD_IMAGE
+          command: |
+            docker pull $BUILD_IMAGE
       - run:
           name: "Run tests"
           command: |
