@@ -288,7 +288,16 @@ def moist_pkz(
         cappa = set_cappa(qvapor, cvm, r_vir)
         # pkz[0, 0, 0] = exp(cappa * log(constants.RDG * delp /delz * pt))
 
-
+def region_mode(j_2d, grid): 
+    if j_2d is None:
+        origin = grid.compute_origin()
+        domain = grid.domain_shape_compute()
+        jslice = slice(grid.js, grid.je + 1)
+    else:
+        origin = (grid.is_, j_2d, 0)
+        domain= (grid.nic, 1, grid.npz)
+        jslice = slice(j_2d, j_2d + 1)
+    return origin, domain, jslice
 #
 # Computes the FV3-consistent moist heat capacity under constant volume,
 # including the heating capacity of water vapor and condensates.
@@ -313,15 +322,16 @@ def compute_te(
     u,
     v,
     r_vir,
-    j_2d,
+    j_2d=None,
 ):
     grid = spec.grid
-
+    origin, domain, jslice = region_mode(j_2d, grid)
     nwat = spec.namelist["nwat"]
     if (
         nwat != 6
     ):  # TODO -- to do this cleanly, we probably need if blocks working inside stencils
         raise Exception("We still need to implement other nwats for moist_cv")
+   
     moist_te_2d(
         qvapor_js,
         qliquid_js,
@@ -343,8 +353,8 @@ def compute_te(
         grid.cosa_s,
         r_vir,
         spec.namelist["nwat"],
-        origin=(grid.is_, j_2d, 0),
-        domain=(grid.nic, 1, grid.npz),
+        origin=origin,
+        domain=domain,
     )
 
 
@@ -363,9 +373,10 @@ def compute_pt(
     delp,
     delz,
     r_vir,
-    j_2d,
+    j_2d=None,
 ):
     grid = spec.grid
+    origin, domain,jslice = region_mode(j_2d, grid)
     moist_pt(
         qvapor_js,
         qliquid_js,
@@ -382,11 +393,11 @@ def compute_pt(
         delz,
         r_vir,
         spec.namelist["nwat"],
-        origin=(grid.is_, j_2d, 0),
-        domain=(grid.nic, 1, grid.npz),
+        origin=origin,
+        domain=domain,
     )
     # TODO push theis inside stencil one we can do exp and log there
-    tmpslice = (slice(grid.is_, grid.ie + 1), slice(j_2d, j_2d + 1), slice(0, grid.npz))
+    tmpslice = (slice(grid.is_, grid.ie + 1), jslice, slice(0, grid.npz))
     pt[tmpslice] = pt[tmpslice] * np.exp(
         cappa[tmpslice]
         / (1.0 - cappa[tmpslice])
@@ -410,9 +421,10 @@ def compute_pkz(
     delp,
     delz,
     r_vir,
-    j_2d,
+    j_2d=None,
 ):
     grid = spec.grid
+    origin, domain, jslice = region_mode(j_2d, grid)
     moist_pkz(
         qvapor_js,
         qliquid_js,
@@ -430,17 +442,18 @@ def compute_pkz(
         delz,
         r_vir,
         spec.namelist["nwat"],
-        origin=(grid.is_, j_2d, 0),
-        domain=(grid.nic, 1, grid.npz),
+        origin=origin,
+        domain=domain,
     )
     # TODO push theis inside stencil one we can do exp and log there
-    tmpslice = (slice(grid.is_, grid.ie + 1), slice(j_2d, j_2d + 1), slice(0, grid.npz))
+    tmpslice = (slice(grid.is_, grid.ie + 1), jslice, slice(0, grid.npz))
+    compute_pkz(pkz, cappa, delp, delz, pt, grid, jslice)
+
+def compute_pkz(pkz, cappa, delp, delz, pt, tmpslice):     
     pkz[tmpslice] = np.exp(
         cappa[tmpslice]
         * np.log(constants.RDG * delp[tmpslice] / delz[tmpslice] * pt[tmpslice])
     )
-
-
 def compute_total_energy(
     u,
     v,
