@@ -53,7 +53,7 @@ build_environment: build_environment_serialbox
 		-f docker/Dockerfile.build_environment \
 		-t $(FV3_INSTALL_IMAGE) \
 		--target $(FV3_INSTALL_TARGET) \
-    	.
+		.
 
 build: update_submodules
 	if [ $(PULL) == True ]; then \
