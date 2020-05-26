@@ -46,7 +46,7 @@ def layer_gradient(peln: sd, dpln: sd):
 def sum_te(te: sd, te0_2d: sd):
     with computation(FORWARD):
         with interval(1, None):
-            te_2d = te0_2d[0, 0, -1] + te
+            te0_2d = te0_2d[0, 0, -1] + te
 
 def compute(qvapor, qliquid, qrain, qsnow, qice, qgraupel, qcld, pt, delp, delz, peln, u, v, w, ua, cappa, q_con, gz, pkz, pk, pe, hs, te_2d, te0_2d, te, cvm, zsum1, ptop, akap, r_vir, last_step, pdt, mdt, out_dt, consv):
     grid = spec.grid
@@ -62,12 +62,11 @@ def compute(qvapor, qliquid, qrain, qsnow, qice, qgraupel, qcld, pt, delp, delz,
             if spec.namelist['hydrostatic']:
                 raise Exception('Hydrostatic not supported')
             else:
-                init_phis(hs, delz, phis, te_2d)
+                init_phis(hs, delz, phis, te_2d, origin=grid.compute_origin(), domain=(grid.nic, grid.njc, grid.npz + 1))
                 moist_cv.compute_te(qvapor, qliquid, qice, qrain,
                                     qsnow, qgraupel, te_2d, gz, cvm,
-                                    delp, q_con, pt, hs, w, u, v, r_vir)
-            
-            sum_z1(pkz, delp, te0_2d, te_2d, zsum1, origin=grid.compute_origin(), domain=grid.domain_shape_compute())
+                                    delp, q_con, pt, phis, w, u, v, r_vir)
+            sum_z1(pkz, delp, te0_2d, te_2d, zsum1, origin=grid.compute_origin(), domain=(grid.nic, grid.njc, grid.npz))
             # dtmp = consv * g_sum(te_2d, grid.area_64)  # global mpi step
             # dtmp = dtmp / (constants.CV_AIR * g_sum(zsum1, grid.area_64))
             dtmp = -4.5874105210330514e-07  # TODO replace with computed value
@@ -80,9 +79,9 @@ def compute(qvapor, qliquid, qrain, qsnow, qice, qgraupel, qcld, pt, delp, delz,
     
     if spec.namelist['do_sat_adj']:
         kmp = 9 # TODO get as an input
-        fast_mp_consv = (not do_adiabatic_init) and consv > CONSV_MIN
-        kmp_origin = (grid.is_, grid.js, kmp)
-        kmp_domain = (grid.nic, grid.njc, grid.npz - kmp)
+        fast_mp_consv =  (not do_adiabatic_init) and consv > CONSV_MIN
+        kmp_origin = (grid.is_, grid.js, kmp - 1)
+        kmp_domain = (grid.nic, grid.njc, grid.npz - kmp + 1)
         layer_gradient(peln, dpln, origin=kmp_origin, domain=kmp_domain)
         saturation_adjustment.compute(dpln, te, qvapor, qliquid, qice, qrain, qsnow, qgraupel, qcld, hs, peln, delp,
                                       delz, q_con, pt, pkz, cappa, r_vir, mdt, fast_mp_consv, out_dt, last_step,
@@ -90,7 +89,6 @@ def compute(qvapor, qliquid, qrain, qsnow, qice, qgraupel, qcld, pt, delp, delz,
         if not spec.namelist['hydrostatic']:
             tmpslice = (slice(grid.is_, grid.ie + 1), slice(grid.js, grid.je + 1), slice(kmp, grid.npz))
             moist_cv.compute_pkz(pkz, cappa, delp, delz, pt, tmpslice)
-        
         if fast_mp_consv:
             sum_te(te, te0_2d, origin=kmp_origin, domain=kmp_domain)
     if last_step:
@@ -98,3 +96,4 @@ def compute(qvapor, qliquid, qrain, qsnow, qice, qgraupel, qcld, pt, delp, delz,
     else:
         # TODO currently untested
         adjust_divide_stencil(pkz, pt, origin=grid.compute_origin, domain=grid.domain_shape_compute())
+   
