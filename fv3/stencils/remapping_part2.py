@@ -45,7 +45,7 @@ def layer_gradient(peln: sd, dpln: sd):
 @utils.stencil()
 def sum_te(te: sd, te0_2d: sd):
     with computation(FORWARD):
-        with interval(1, None):
+        with interval(0, None):
             te0_2d = te0_2d[0, 0, -1] + te
 
 def compute(qvapor, qliquid, qrain, qsnow, qice, qgraupel, qcld, pt, delp, delz, peln, u, v, w, ua, cappa, q_con, gz, pkz, pk, pe, hs, te_2d, te0_2d, te, cvm, zsum1, ptop, akap, r_vir, last_step, pdt, mdt, out_dt, consv):
@@ -90,7 +90,7 @@ def compute(qvapor, qliquid, qrain, qsnow, qice, qgraupel, qcld, pt, delp, delz,
             tmpslice = (slice(grid.is_, grid.ie + 1), slice(grid.js, grid.je + 1), slice(kmp, grid.npz))
             moist_cv.compute_pkz(pkz, cappa, delp, delz, pt, tmpslice)
         if fast_mp_consv:
-            sum_te(te, te0_2d, origin=kmp_origin, domain=kmp_domain)
+            sum_te(te, te0_2d, origin= kmp_origin, domain=kmp_domain)
     if last_step:
         moist_cv.compute_last_step(pt, pkz, dtmp, r_vir, qvapor, qliquid, qice, qrain, qsnow, qgraupel, gz)
     else:
