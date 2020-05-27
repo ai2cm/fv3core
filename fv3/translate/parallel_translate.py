@@ -39,8 +39,9 @@ class ParallelTranslate:
             grid = self.grid
         if copy_inputs:
             inputs = copy.copy(inputs)  # don't want to modify the dict we were passed
+        
         self._base.make_storage_data_input_vars(inputs)
-        state = {}
+        state = {} if copy_inputs else inputs
         for name, properties in self.inputs.items():
             if "name" not in properties:
                 properties["name"] = name
@@ -124,8 +125,7 @@ class ParallelTranslate2Py(ParallelTranslate):
 
     def compute_parallel(self, inputs, communicator):
         inputs["comm"] = communicator
-        state = self.state_from_inputs(inputs, copy_inputs=False)
-        inputs.update(state)
+        inputs = self.state_from_inputs(inputs, copy_inputs=False)
         result = self._base.compute_from_storage(inputs)
         quantity_result = self.outputs_from_state(inputs)
         result.update(quantity_result)
