@@ -447,9 +447,9 @@ def compute_pkz(
     )
     # TODO push theis inside stencil one we can do exp and log there
     tmpslice = (slice(grid.is_, grid.ie + 1), jslice, slice(0, grid.npz))
-    compute_pkz(pkz, cappa, delp, delz, pt, grid, jslice)
+    compute_pkz_slice(pkz, cappa, delp, delz, pt, tmpslice)
 
-def compute_pkz(pkz, cappa, delp, delz, pt, tmpslice):     
+def compute_pkz_slice(pkz, cappa, delp, delz, pt, tmpslice):     
     pkz[tmpslice] = np.exp(
         cappa[tmpslice]
         * np.log(constants.RDG * delp[tmpslice] / delz[tmpslice] * pt[tmpslice])
