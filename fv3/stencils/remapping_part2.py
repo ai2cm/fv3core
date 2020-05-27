@@ -88,7 +88,7 @@ def compute(qvapor, qliquid, qrain, qsnow, qice, qgraupel, qcld, pt, delp, delz,
                                       akap, kmp)
         if not spec.namelist['hydrostatic']:
             tmpslice = (slice(grid.is_, grid.ie + 1), slice(grid.js, grid.je + 1), slice(kmp, grid.npz))
-            moist_cv.compute_pkz(pkz, cappa, delp, delz, pt, tmpslice)
+            moist_cv.compute_pkz_slice(pkz, cappa, delp, delz, pt, tmpslice)
         if fast_mp_consv:
             sum_te(te, te0_2d, origin= kmp_origin, domain=kmp_domain)
     if last_step:
