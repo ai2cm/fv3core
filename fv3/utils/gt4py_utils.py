@@ -50,7 +50,6 @@ def _data_backend(backend: str):
         return backend
 
 
-
 def make_storage_data(array, full_shape, istart=0, jstart=0, kstart=0, origin=origin):
     full_np_arr = np.zeros(full_shape)
     if len(array.shape) == 2:
