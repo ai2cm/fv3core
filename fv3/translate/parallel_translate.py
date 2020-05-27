@@ -42,20 +42,21 @@ class ParallelTranslate:
         for name, properties in self.inputs.items():
             if "name" not in properties:
                 properties["name"] = name
+            input_data = state[name]
             if len(properties["dims"]) > 0:
                 state[properties["name"]] = grid.quantity_factory.empty(
                     properties["dims"], properties["units"], dtype=inputs[name].dtype
                 )
                 if len(properties["dims"]) == 3:
-                    state[properties["name"]].data[:] = inputs[name]
+                    state[properties["name"]].data[:] = input_data
                 elif len(properties["dims"]) == 2:
-                    state[properties["name"]].data[:] = inputs[name][:, :, 0]
+                    state[properties["name"]].data[:] = input_data[:, :, 0]
                 else:
                     raise NotImplementedError(
                         "only 0, 2, and 3-d variables are supported"
                     )
             else:
-                state[properties["name"]] = inputs[name]
+                state[properties["name"]] = input_data
         return state
 
     def outputs_list_from_state_list(self, state_list):
