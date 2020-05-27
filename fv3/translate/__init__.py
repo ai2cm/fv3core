@@ -45,3 +45,6 @@ from .translate_updatedzd import TranslateUpdateDzD
 from .translate_nh_p_grad import TranslateNH_P_Grad
 from .translate_remap_profile_2d import TranslateCS_Profile_2d, TranslateCS_Profile_2d_2
 from .translate_map_scalar_2d import TranslateMapScalar_2d
+from .translate_c2l_ord2 import TranslateC2L_Ord2
+from .translate_cubedtolatlon import TranslateCubedToLatLon
+from .translate_rayleigh_super import TranslateRayleigh_Super
