@@ -82,8 +82,18 @@ def lagrangian_contributions(
         else:
             q2_adds = 0
 
+def region_mode(j_2d, i1, i_extent, grid):
+    origin = (i1, 0, 0) # TODO don't we want jstart to be grid.js? more would need to be rejiggered first
+    if j_2d is None:
+        j_extent = grid.njc
+        jslice = slice(grid.js, grid.je + 1)
+    else:
+        j_extent = 1
+        jslice = slice(j_2d, j_2d + 1)
+    domain = (i_extent, j_extent, grid.npz)
+    return origin, domain, jslice, j_extent
 
-def compute(q1, peln, pe2, qs, j_2d, mode):
+def compute(q1, peln, pe2, qs, mode, j_2d=None):
     grid = spec.grid
     kord = abs(spec.namelist["kord_tm"])
     qmin = 184.0
@@ -91,43 +101,51 @@ def compute(q1, peln, pe2, qs, j_2d, mode):
     i2 = grid.ie
     iv = mode
     i_extent = i2 - i1 + 1
+    origin, domain, jslice, j_extent = region_mode(j_2d, i1, i_extent, grid)
     km = grid.npz
     orig = (grid.is_, grid.js, 0)
     r3 = 1.0 / 3.0
     r23 = 2.0 / 3.0
     q_2d = utils.make_storage_data(
-        q1[:, j_2d : j_2d + 1, :], (q1.shape[0], 1, q1.shape[2])
+        q1[:, jslice, :], (q1.shape[0], j_extent, q1.shape[2])
     )
     pe1 = utils.make_storage_data(
-        peln[:, j_2d : j_2d + 1, :], (peln.shape[0], 1, peln.shape[2])
+        peln[:, jslice, :], (peln.shape[0], j_extent, peln.shape[2])
     )
-    dp1 = utils.make_storage_from_shape(pe1.shape, origin=orig)
-
+    dp1 = utils.make_storage_from_shape(pe1.shape, origin=origin)
+  
+    qs_input = utils.make_storage_data(qs.data[:, jslice, :], pe1.shape)
+   
     q4_1 = cp.copy(q_2d, origin=(0, 0, 0))
     q4_2 = utils.make_storage_from_shape(q4_1.shape, origin=(grid.is_, 0, 0))
     q4_3 = utils.make_storage_from_shape(q4_1.shape, origin=(grid.is_, 0, 0))
     q4_4 = utils.make_storage_from_shape(q4_1.shape, origin=(grid.is_, 0, 0))
 
-    q2 = cp.copy(q1, origin=(0, 0, 0))
-
-    set_dp(dp1, pe1, origin=(i1, 0, 0), domain=(i_extent, 1, km))
-
+    set_dp(dp1, pe1, origin=origin, domain=(i_extent, j_extent, km))
+  
     q4_1, q4_2, q4_3, q4_4 = remap_profile.compute_scalar(
-        qs, q4_1, q4_2, q4_3, q4_4, dp1, km, i1, i2, iv, kord, qmin
+        qs_input, q4_1, q4_2, q4_3, q4_4, dp1, km, i1, i2, iv, kord, qmin, 0, j_extent
     )
-
+    
     # Trying a stencil with a loop over k2:
     klevs = np.arange(km)
     ptop = utils.make_storage_from_shape(pe2.shape, origin=orig)
     pbot = utils.make_storage_from_shape(pe2.shape, origin=orig)
     q2_adds = utils.make_storage_from_shape(q4_1.shape, origin=orig)
+
     for k_eul in klevs:
         eulerian_top_pressure = pe2.data[:, :, k_eul]
         eulerian_bottom_pressure = pe2.data[:, :, k_eul + 1]
         top_p = np.repeat(eulerian_top_pressure[:, :, np.newaxis], km, axis=2)
         bot_p = np.repeat(eulerian_bottom_pressure[:, :, np.newaxis], km, axis=2)
-        ptop = utils.make_storage_data(top_p, pe1.shape)
-        pbot = utils.make_storage_data(bot_p, pe1.shape)
+        if j_2d is None:
+            ptop = utils.make_storage_data(top_p[:, jslice, :], pe1.shape)
+            pbot = utils.make_storage_data(bot_p[:, jslice, :], pe1.shape)
+        else:
+            ptop = utils.make_storage_data(top_p, pe1.shape)
+            pbot = utils.make_storage_data(bot_p, pe1.shape)
+      
+       
         lagrangian_contributions(
             pe1,
             ptop,
@@ -140,11 +158,11 @@ def compute(q1, peln, pe2, qs, j_2d, mode):
             q2_adds,
             r3,
             r23,
-            origin=(i1, 0, 0),
-            domain=(i_extent, 1, km),
+            origin=origin,
+            domain=domain,
         )
 
-        q2[i1 : i2 + 1, j_2d, k_eul] = np.sum(q2_adds.data[i1 : i2 + 1, 0, :], axis=1)
+        q1[i1 : i2 + 1, jslice, k_eul] = np.sum(q2_adds.data[i1 : i2 + 1, 0:j_extent, :], axis=2)
 
     # #Pythonized
     # kn = grid.npz
@@ -251,4 +269,4 @@ def compute(q1, peln, pe2, qs, j_2d, mode):
     #                     q2[ii, j_2d, k2] = qsum / (pe2[ii, 0, k2 + 1] - pe2[ii, 0, k2])
     #                     break
 
-    return q2
+    return q1
