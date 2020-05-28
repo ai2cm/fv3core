@@ -85,6 +85,12 @@ def lagrangian_contributions(
 
 # TODO: this is VERY similar to map_scalar -- once matches, consolidate code
 def compute(q1, pe1, pe2, qs, i1, i2, mode, kord, j_2d=None):
+    i= 3
+    j = 3
+    k = 0
+    #print('inputs', q1[i, j, k], pe1[i, j, k], pe1[i, j, k+1], qs[i, j, k], i1, i2, mode, kord, j_2d)
+    #  0.007027400809571855 64.247 138.24733238480297 -2.7386315404751397e-35 3 50 -2 10 3
+    #  0.007027400809571855 64.247 138.24733238480297 0.000259479861638933 3 50 -2 10 None
     grid = spec.grid
     iv = mode
     i_extent = i2 - i1 + 1
@@ -96,8 +102,13 @@ def compute(q1, pe1, pe2, qs, i1, i2, mode, kord, j_2d=None):
     q_2d = utils.make_storage_data(
         q1[:, jslice, :], (q1.shape[0], j_extent, q1.shape[2])
     )
-    dp1 = utils.make_storage_from_shape(pe1.shape, origin=orig)
-    qs_input = utils.make_storage_data(qs.data[:, jslice, :], pe1.shape)
+    
+    dp1 = utils.make_storage_from_shape(q_2d.shape, origin=orig)
+    if j_2d is None: #TODO fix this, not needed for map_scalar, so why here
+        qs = utils.make_storage_data(qs.data[:, jslice, :], q_2d.shape)
+        pe1 = utils.make_storage_data(
+        pe1[:, jslice, :], (pe1.shape[0], j_extent, pe1.shape[2])
+    )
     q4_1 = cp.copy(q_2d, origin=(0, 0, 0))
     q4_2 = utils.make_storage_from_shape(q4_1.shape, origin=(grid.is_, 0, 0))
     q4_3 = utils.make_storage_from_shape(q4_1.shape, origin=(grid.is_, 0, 0))
@@ -107,7 +118,7 @@ def compute(q1, pe1, pe2, qs, i1, i2, mode, kord, j_2d=None):
 
     if kord > 7:
         q4_1, q4_2, q4_3, q4_4 = remap_profile.compute(
-            qs_input, q4_1, q4_2, q4_3, q4_4, dp1, km, i1, i2, iv, kord, 0, j_extent
+            qs, q4_1, q4_2, q4_3, q4_4, dp1, km, i1, i2, iv, kord, 0, j_extent
         )
 
     # else:
@@ -124,11 +135,11 @@ def compute(q1, pe1, pe2, qs, i1, i2, mode, kord, j_2d=None):
         top_p = np.repeat(eulerian_top_pressure[:, :, np.newaxis], km, axis=2)
         bot_p = np.repeat(eulerian_bottom_pressure[:, :, np.newaxis], km, axis=2)
         if j_2d is None:
-            ptop = utils.make_storage_data(top_p[:, jslice, :], pe1.shape)
-            pbot = utils.make_storage_data(bot_p[:, jslice, :], pe1.shape)
+            ptop = utils.make_storage_data(top_p[:, jslice, :], q_2d.shape)
+            pbot = utils.make_storage_data(bot_p[:, jslice, :], q_2d.shape)
         else:
-            ptop = utils.make_storage_data(top_p, pe1.shape)
-            pbot = utils.make_storage_data(bot_p, pe1.shape)
+            ptop = utils.make_storage_data(top_p, q_2d.shape)
+            pbot = utils.make_storage_data(bot_p, q_2d.shape)
         lagrangian_contributions(
             pe1,
             ptop,
@@ -146,7 +157,21 @@ def compute(q1, pe1, pe2, qs, i1, i2, mode, kord, j_2d=None):
         )
 
         q1[i1 : i2 + 1, jslice, k_eul] = np.sum(q2_adds.data[i1 : i2 + 1, 0:j_extent, :], axis=2)
+    print(q1[3, 3, :])
+    '''
+[ 0.00702984 -0.00801616 -0.06602874 -0.08471319 -0.07124542 -0.06901264
+ -0.0607066  -0.05432758 -0.05004505 -0.04735575 -0.0458133  -0.04462703
+ -0.04162227 -0.03511939 -0.02744192 -0.023686   -0.02288945 -0.02356103
+ -0.0207161  -0.00530568 -0.00824895 -0.03491334 -0.04393568 -0.03728279
+ -0.03406701 -0.02385777 -0.00504872  0.02510467  0.02937964  0.02208558
+  0.03615616  0.05122582  0.06445273  0.07320621  0.07929228  0.0850266
+  0.09162092  0.10379068  0.12236691  0.13435491  0.13506218  0.12673853
+  0.10929293  0.08705788  0.06614519  0.04959823  0.03676787  0.0281662
+  0.02399111  0.02312374  0.02383426  0.02378537  0.02262924  0.02058514
+  0.01786852  0.01493874  0.01214819  0.00951903  0.00716697  0.00512713
+  0.00333111  0.00176921  0.00066804  0.        ]
 
+    '''
     # #Pythonized
     # n_cont = 0
     # n_ext = 0

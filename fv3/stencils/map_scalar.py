@@ -118,9 +118,9 @@ def compute(q1, peln, pe2, qs, mode, j_2d=None):
     pe1 = utils.make_storage_data(
         peln[:, jslice, :], (peln.shape[0], j_extent, peln.shape[2])
     )
-    dp1 = utils.make_storage_from_shape(pe1.shape, origin=origin)
+    dp1 = utils.make_storage_from_shape(q_2d.shape, origin=origin)
 
-    qs_input = utils.make_storage_data(qs.data[:, jslice, :], pe1.shape)
+    qs_input = utils.make_storage_data(qs.data[:, jslice, :], q_2d.shape)
 
     q4_1 = cp.copy(q_2d, origin=(0, 0, 0))
     q4_2 = utils.make_storage_from_shape(q4_1.shape, origin=(grid.is_, 0, 0))
@@ -145,11 +145,11 @@ def compute(q1, peln, pe2, qs, mode, j_2d=None):
         top_p = np.repeat(eulerian_top_pressure[:, :, np.newaxis], km, axis=2)
         bot_p = np.repeat(eulerian_bottom_pressure[:, :, np.newaxis], km, axis=2)
         if j_2d is None:
-            ptop = utils.make_storage_data(top_p[:, jslice, :], pe1.shape)
-            pbot = utils.make_storage_data(bot_p[:, jslice, :], pe1.shape)
+            ptop = utils.make_storage_data(top_p[:, jslice, :], q_2d.shape)
+            pbot = utils.make_storage_data(bot_p[:, jslice, :], q_2d.shape)
         else:
-            ptop = utils.make_storage_data(top_p, pe1.shape)
-            pbot = utils.make_storage_data(bot_p, pe1.shape)
+            ptop = utils.make_storage_data(top_p, q_2d.shape)
+            pbot = utils.make_storage_data(bot_p, q_2d.shape)
 
         lagrangian_contributions(
             pe1,

@@ -8,8 +8,8 @@ import fv3.stencils.moist_cv as moist_cv
 import fv3.stencils.saturation_adjustment as saturation_adjustment
 import fv3.stencils.basic_operations as basic
 import fv3.stencils.map_scalar as map_scalar
+import fv3.stencils.map_ppm_2d as map1_ppm
 
-# import fv3.stencils.map_ppm_2d as map_ppm
 import numpy as np
 import fv3.stencils.copy_stencil as cp
 
@@ -182,14 +182,14 @@ def compute(
         map_scalar.compute(pt, peln, pn2, gz, 1)
     else:
         print("map ppm")
-        # map_ppm.compute(pt, pe1, pe2, gz, i1, i2, 1, abs(spec.namelist['kord_tm']))
+        # map1_ppm.compute(pt, pe1, pe2, gz, i1, i2, 1, abs(spec.namelist['kord_tm']))
     # TODO if nq > 5:
     # mapn_tracer(pe1, pe2,(qvapor, qliquid, qrain, qsnow, qice, qgraupel, qcld )
     # TODO else if nq > 0:
     # TODO map1_q2, fillz
     if not hydrostatic:
-        # map_ppm.compute(w, pe1, pe2, wsd, -2, spec.namelist['kord_wz'])
-        # map_ppm.compute(delz, pe1, pe2, gz, 1, spec.namelist['kord_wz'])
+        map1_ppm.compute(w, pe1, pe2, wsd, grid.is_, grid.ie, -2, spec.namelist['kord_wz'])
+        # map1_ppm.compute(delz, pe1, pe2, gz, 1, spec.namelist['kord_wz'])
         undo_delz_adjust(
             delp, delz, origin=grid.compute_origin(), domain=grid.domain_shape_compute()
         )
@@ -245,7 +245,7 @@ def compute(
         origin=grid.compute_origin(),
         domain=domain_jextra,
     )
-    #  map_ppm.compute(u, pe0, pe3, gz, -1, spec.namelist['kord_mt'])
+    #  map1_ppm.compute(u, pe0, pe3, gz, -1, spec.namelist['kord_mt'])
     domain_iextra = (grid.nic + 1, grid.njc, grid.npz + 1)
     pressures_mapv(
         pe,
@@ -257,5 +257,5 @@ def compute(
         origin=grid.compute_origin(),
         domain=domain_iextra,
     )
-    # map_ppm.compute(v, pe0, pe3, gz, -1, spec.namelist['kord_mt'])
+    # map1_ppm.compute(v, pe0, pe3, gz, -1, spec.namelist['kord_mt'])
     update_ua(pe2, ua, origin=grid.compute_origin(), domain=domain_jextra)
