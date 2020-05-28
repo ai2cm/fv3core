@@ -8,7 +8,7 @@ class TranslateFillz(TranslateFortranData2Py):
         super().__init__(grid)
         self.compute_func = Fillz.compute_test
         self.in_vars["data_vars"] = {
-            "dp2": {"istart": grid.is_, "iend": grid.ie - 2,},
+            "dp2": {},
             "qvapor": {"serialname": "q2vapor_js"},
             "qliquid": {"serialname": "q2liquid_js"},
             "qice": {"serialname": "q2ice_js"},
@@ -19,13 +19,13 @@ class TranslateFillz(TranslateFortranData2Py):
         }
         self.in_vars["parameters"] = ["im", "km", "nq"]
         self.out_vars = {
-            "qvapor": {"serialname": "q2vapor_js"},
-            "qliquid": {"serialname": "q2liquid_js"},
-            "qice": {"serialname": "q2ice_js"},
-            "qrain": {"serialname": "q2rain_js"},
-            "qsnow": {"serialname": "q2snow_js"},
-            "qgraupel": {"serialname": "q2graupel_js"},
-            "qcld": {"serialname": "q2cld_js"}
+            "qvapor": {"serialname": "q2vapor_js", "istart": grid.is_, "iend":grid.ie},
+            "qliquid": {"serialname": "q2liquid_js", "istart": grid.is_, "iend":grid.ie},
+            "qice": {"serialname": "q2ice_js", "istart": grid.is_, "iend":grid.ie},
+            "qrain": {"serialname": "q2rain_js", "istart": grid.is_, "iend":grid.ie},
+            "qsnow": {"serialname": "q2snow_js", "istart": grid.is_, "iend":grid.ie},
+            "qgraupel": {"serialname": "q2graupel_js", "istart": grid.is_, "iend":grid.ie},
+            "qcld": {"serialname": "q2cld_js", "istart": grid.is_, "iend":grid.ie}
         }
 
     def make_storage_data_input_vars(self, inputs, storage_vars=None):

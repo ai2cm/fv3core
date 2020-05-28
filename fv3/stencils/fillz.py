@@ -104,6 +104,7 @@ def compute(q, dp, i1, i2, km):
 
 def compute_test(dp2, qvapor, qliquid, qice, qrain, qsnow, qgraupel, qcld, im, km, nq):
     print(qvapor.shape)
+    print(im)
     i1=grid().is_
     orig = (i1,0,0)
     zfix = utils.make_storage_from_shape(qvapor.shape, origin=(0,0,0))
