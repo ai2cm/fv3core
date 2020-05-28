@@ -82,8 +82,13 @@ def lagrangian_contributions(
         else:
             q2_adds = 0
 
+
 def region_mode(j_2d, i1, i_extent, grid):
-    origin = (i1, 0, 0) # TODO don't we want jstart to be grid.js? more would need to be rejiggered first
+    origin = (
+        i1,
+        0,
+        0,
+    )  # TODO don't we want jstart to be grid.js? more would need to be rejiggered first
     if j_2d is None:
         j_extent = grid.njc
         jslice = slice(grid.js, grid.je + 1)
@@ -92,6 +97,7 @@ def region_mode(j_2d, i1, i_extent, grid):
         jslice = slice(j_2d, j_2d + 1)
     domain = (i_extent, j_extent, grid.npz)
     return origin, domain, jslice, j_extent
+
 
 def compute(q1, peln, pe2, qs, mode, j_2d=None):
     grid = spec.grid
@@ -113,20 +119,20 @@ def compute(q1, peln, pe2, qs, mode, j_2d=None):
         peln[:, jslice, :], (peln.shape[0], j_extent, peln.shape[2])
     )
     dp1 = utils.make_storage_from_shape(pe1.shape, origin=origin)
-  
+
     qs_input = utils.make_storage_data(qs.data[:, jslice, :], pe1.shape)
-   
+
     q4_1 = cp.copy(q_2d, origin=(0, 0, 0))
     q4_2 = utils.make_storage_from_shape(q4_1.shape, origin=(grid.is_, 0, 0))
     q4_3 = utils.make_storage_from_shape(q4_1.shape, origin=(grid.is_, 0, 0))
     q4_4 = utils.make_storage_from_shape(q4_1.shape, origin=(grid.is_, 0, 0))
 
     set_dp(dp1, pe1, origin=origin, domain=(i_extent, j_extent, km))
-  
+
     q4_1, q4_2, q4_3, q4_4 = remap_profile.compute_scalar(
         qs_input, q4_1, q4_2, q4_3, q4_4, dp1, km, i1, i2, iv, kord, qmin, 0, j_extent
     )
-    
+
     # Trying a stencil with a loop over k2:
     klevs = np.arange(km)
     ptop = utils.make_storage_from_shape(pe2.shape, origin=orig)
@@ -144,8 +150,7 @@ def compute(q1, peln, pe2, qs, mode, j_2d=None):
         else:
             ptop = utils.make_storage_data(top_p, pe1.shape)
             pbot = utils.make_storage_data(bot_p, pe1.shape)
-      
-       
+
         lagrangian_contributions(
             pe1,
             ptop,
@@ -162,7 +167,9 @@ def compute(q1, peln, pe2, qs, mode, j_2d=None):
             domain=domain,
         )
 
-        q1[i1 : i2 + 1, jslice, k_eul] = np.sum(q2_adds.data[i1 : i2 + 1, 0:j_extent, :], axis=2)
+        q1[i1 : i2 + 1, jslice, k_eul] = np.sum(
+            q2_adds.data[i1 : i2 + 1, 0:j_extent, :], axis=2
+        )
 
     # #Pythonized
     # kn = grid.npz

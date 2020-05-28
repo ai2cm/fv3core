@@ -100,7 +100,12 @@ def compute(a4_1, a4_2, a4_3, a4_4, extm, iv, i1, i_extent, kstart, nk, js, j_ex
         )
     elif iv == 1:
         posdef_constraint_iv1(
-            a4_1, a4_2, a4_3, a4_4, origin=(i1, js, kstart), domain=(i_extent, j_extent, nk)
+            a4_1,
+            a4_2,
+            a4_3,
+            a4_4,
+            origin=(i1, js, kstart),
+            domain=(i_extent, j_extent, nk),
         )
     else:
         ppm_constraint(

@@ -22,37 +22,100 @@ class TranslateRemapping_Part2(TranslateFortranData2Py):
             "delz": {},
             "pt": {},
             "delp": {},
-            "cappa":{},
+            "cappa": {},
             "q_con": {},
             "gz": {"serialname": "gz1d", "kstart": grid.is_, "axis": 0},
             "cvm": {"kstart": grid.is_, "axis": 0},
             "pkz": grid.compute_dict(),
-            "pk": {"istart": grid.is_, "iend": grid.ie, "jstart": grid.js, "jend": grid.je,  "kend": grid.npz},
-            "peln": {"istart": grid.is_, "iend": grid.ie, "jstart": grid.js,"jend": grid.je,  "kaxis": 1, "kend": grid.npz},
-            "pe": {"istart": grid.is_ - 1, "iend": grid.ie + 1, "jstart": grid.js - 1, "jend": grid.je + 1,
-                   "kend": grid.npz + 1,"kaxis": 1},
+            "pk": {
+                "istart": grid.is_,
+                "iend": grid.ie,
+                "jstart": grid.js,
+                "jend": grid.je,
+                "kend": grid.npz,
+            },
+            "peln": {
+                "istart": grid.is_,
+                "iend": grid.ie,
+                "jstart": grid.js,
+                "jend": grid.je,
+                "kaxis": 1,
+                "kend": grid.npz,
+            },
+            "pe": {
+                "istart": grid.is_ - 1,
+                "iend": grid.ie + 1,
+                "jstart": grid.js - 1,
+                "jend": grid.je + 1,
+                "kend": grid.npz + 1,
+                "kaxis": 1,
+            },
             "hs": {},
             "te_2d": {
-                "istart": grid.is_, "iend": grid.ie, "jstart": grid.js, "jend": grid.je,
-                "kstart": grid.npz - 1, "kend": grid.npz - 1,
+                "istart": grid.is_,
+                "iend": grid.ie,
+                "jstart": grid.js,
+                "jend": grid.je,
+                "kstart": grid.npz - 1,
+                "kend": grid.npz - 1,
             },
             "te0_2d": {
-                "istart": grid.is_, "iend": grid.ie, "jstart": grid.js, "jend": grid.je,
-                "kstart": grid.npz - 1, "kend": grid.npz - 1,
+                "istart": grid.is_,
+                "iend": grid.ie,
+                "jstart": grid.js,
+                "jend": grid.je,
+                "kstart": grid.npz - 1,
+                "kend": grid.npz - 1,
             },
             "te": {},
-            "zsum1": {"istart": grid.is_, "jstart": grid.js,  "iend": grid.ie, "jend": grid.je, "kstart": grid.npz - 1, "kend": grid.npz - 1,}
+            "zsum1": {
+                "istart": grid.is_,
+                "jstart": grid.js,
+                "iend": grid.ie,
+                "jend": grid.je,
+                "kstart": grid.npz - 1,
+                "kend": grid.npz - 1,
+            },
         }
-        self.in_vars["parameters"] = ["ptop", "akap", "r_vir", "last_step", "pdt", "mdt",  "consv"]
+        self.in_vars["parameters"] = [
+            "ptop",
+            "akap",
+            "r_vir",
+            "last_step",
+            "pdt",
+            "mdt",
+            "consv",
+        ]
         self.out_vars = {}
-        for k in ["pe", "pkz","pk","peln","pt", "qvapor", "qliquid", "qice", "qrain", "qsnow", "qgraupel", "qcld", "cappa", "delp", "delz", "q_con", "te", "te_2d", "te0_2d", "zsum1"]:
+        for k in [
+            "pe",
+            "pkz",
+            "pk",
+            "peln",
+            "pt",
+            "qvapor",
+            "qliquid",
+            "qice",
+            "qrain",
+            "qsnow",
+            "qgraupel",
+            "qcld",
+            "cappa",
+            "delp",
+            "delz",
+            "q_con",
+            "te",
+            "te_2d",
+            "te0_2d",
+            "zsum1",
+        ]:
             self.out_vars[k] = self.in_vars["data_vars"][k]
-            
+
     def compute(self, inputs):
         self.make_storage_data_input_vars(inputs)
-        #inputs['kmp'] -= 1  # TODO serialize kmp
-        inputs['kmp'] = 8
-        inputs['fast_mp_consv'] = True # TODO serialize, also will be false in new data
-        inputs['do_adiabatic_init'] = False # TODO serialize
+        # inputs['kmp'] -= 1  # TODO serialize kmp
+        inputs["kmp"] = 8
+        inputs["fast_mp_consv"] = True  # TODO serialize, also will be false in new data
+        inputs["do_adiabatic_init"] = False  # TODO serialize
         self.compute_func(**inputs)
         return self.slice_output(inputs)

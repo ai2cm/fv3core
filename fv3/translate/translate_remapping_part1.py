@@ -21,34 +21,86 @@ class TranslateRemapping_Part1(TranslateFortranData2Py):
             "v": grid.x3d_domain_dict(),
             "delz": {},
             "pt": {},
-           
             "delp": {},
-            "cappa":{},
+            "cappa": {},
             "q_con": {},
             "gz": {"serialname": "gz1d", "kstart": grid.is_, "axis": 0},
             "cvm": {"kstart": grid.is_, "axis": 0},
             "pkz": grid.compute_dict(),
-            "pk": {"istart": grid.is_, "iend": grid.ie, "jstart": grid.js, "jend": grid.je,  "kend": grid.npz},
-            "peln": {"istart": grid.is_, "iend": grid.ie, "jstart": grid.js,"jend": grid.je,  "kaxis": 1, "kend": grid.npz},
-            "pe": {"istart": grid.is_ - 1, "iend": grid.ie + 1, "jstart": grid.js - 1, "jend": grid.je + 1,
-                   "kend": grid.npz + 1,"kaxis": 1},
+            "pk": {
+                "istart": grid.is_,
+                "iend": grid.ie,
+                "jstart": grid.js,
+                "jend": grid.je,
+                "kend": grid.npz,
+            },
+            "peln": {
+                "istart": grid.is_,
+                "iend": grid.ie,
+                "jstart": grid.js,
+                "jend": grid.je,
+                "kaxis": 1,
+                "kend": grid.npz,
+            },
+            "pe": {
+                "istart": grid.is_ - 1,
+                "iend": grid.ie + 1,
+                "jstart": grid.js - 1,
+                "jend": grid.je + 1,
+                "kend": grid.npz + 1,
+                "kaxis": 1,
+            },
             "hs": {},
             "te": {},
             "ps": {},
-            "wsd": {"istart": grid.is_, "iend": grid.ie, "jstart": grid.js,"jend": grid.je},
+            "wsd": {
+                "istart": grid.is_,
+                "iend": grid.ie,
+                "jstart": grid.js,
+                "jend": grid.je,
+            },
             "omga": {},
             # column variables...
-            "ak":{}, "bk":{},
+            "ak": {},
+            "bk": {},
             "gz": {"serialname": "gz1d", "kstart": grid.is_, "axis": 0},
             "cvm": {"kstart": grid.is_, "axis": 0},
-           
         }
-        self.in_vars["parameters"] = ["ptop", "akap", "r_vir", ]
+        self.in_vars["parameters"] = [
+            "ptop",
+            "akap",
+            "r_vir",
+        ]
         self.out_vars = {}
-        for k in ["pe", "pkz","pk","peln","pt", "qvapor", "qliquid", "qice", "qrain", "qsnow", "qgraupel", "qcld", "cappa", "delp", "delz", "q_con", "te", "u", "v", "w", "ps", "wsd", "omga", "ua"]:
+        for k in [
+            "pe",
+            "pkz",
+            "pk",
+            "peln",
+            "pt",
+            "qvapor",
+            "qliquid",
+            "qice",
+            "qrain",
+            "qsnow",
+            "qgraupel",
+            "qcld",
+            "cappa",
+            "delp",
+            "delz",
+            "q_con",
+            "te",
+            "u",
+            "v",
+            "w",
+            "ps",
+            "wsd",
+            "omga",
+            "ua",
+        ]:
             self.out_vars[k] = self.in_vars["data_vars"][k]
-        self.out_vars['wsd']['kstart']=grid.npz-1
-        self.out_vars['wsd']['kend']= grid.npz-1
-        #column_var = {'istart': grid.is_, 'iend': grid.ie, 'jstart': grid.js, 'jend': grid.je, "kend": grid.npz + 1}
-        #self.out_vars['ak'] = column_var
-        #self.out_vars['bk'] = column_var
+        self.out_vars["wsd"]["kstart"] = grid.npz - 1
+        self.out_vars["wsd"]["kend"] = grid.npz - 1
+        # column_var = {'istart': grid.is_, 'iend': grid.ie, 'jstart': grid.js, 'jend': grid.je, "kend": grid.npz + 1}
+        # self.out_vars['ak'] = column_var
+        # self.out_vars['bk'] = column_var

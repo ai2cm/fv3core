@@ -65,6 +65,6 @@ class TranslateSatAdjust3d(TranslateFortranData2Py):
 
     def compute(self, inputs):
         self.make_storage_data_input_vars(inputs)
-        inputs['kmp'] -= 1
+        inputs["kmp"] -= 1
         self.compute_func(**inputs)
         return self.slice_output(inputs)

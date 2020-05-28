@@ -288,16 +288,19 @@ def moist_pkz(
         cappa = set_cappa(qvapor, cvm, r_vir)
         # pkz[0, 0, 0] = exp(cappa * log(constants.RDG * delp /delz * pt))
 
-def region_mode(j_2d, grid): 
+
+def region_mode(j_2d, grid):
     if j_2d is None:
         origin = grid.compute_origin()
         domain = grid.domain_shape_compute()
         jslice = slice(grid.js, grid.je + 1)
     else:
         origin = (grid.is_, j_2d, 0)
-        domain= (grid.nic, 1, grid.npz)
+        domain = (grid.nic, 1, grid.npz)
         jslice = slice(j_2d, j_2d + 1)
     return origin, domain, jslice
+
+
 #
 # Computes the FV3-consistent moist heat capacity under constant volume,
 # including the heating capacity of water vapor and condensates.
@@ -331,7 +334,7 @@ def compute_te(
         nwat != 6
     ):  # TODO -- to do this cleanly, we probably need if blocks working inside stencils
         raise Exception("We still need to implement other nwats for moist_cv")
-   
+
     moist_te_2d(
         qvapor_js,
         qliquid_js,
@@ -376,7 +379,7 @@ def compute_pt(
     j_2d=None,
 ):
     grid = spec.grid
-    origin, domain,jslice = region_mode(j_2d, grid)
+    origin, domain, jslice = region_mode(j_2d, grid)
     moist_pt(
         qvapor_js,
         qliquid_js,
@@ -449,11 +452,14 @@ def compute_pkz(
     tmpslice = (slice(grid.is_, grid.ie + 1), jslice, slice(0, grid.npz))
     compute_pkz_slice(pkz, cappa, delp, delz, pt, tmpslice)
 
-def compute_pkz_slice(pkz, cappa, delp, delz, pt, tmpslice):     
+
+def compute_pkz_slice(pkz, cappa, delp, delz, pt, tmpslice):
     pkz[tmpslice] = np.exp(
         cappa[tmpslice]
         * np.log(constants.RDG * delp[tmpslice] / delz[tmpslice] * pt[tmpslice])
     )
+
+
 def compute_total_energy(
     u,
     v,

@@ -537,7 +537,9 @@ def compute(qs, a4_1, a4_2, a4_3, a4_4, delp, km, i1, i2, iv, kord, js, j_extent
             domain=(i_extent, j_extent, km + 1),
         )
     else:
-        set_vals_1(gam, q, delp, a4_1, q_bot, origin=orig, domain=(i_extent, j_extent, km + 1))
+        set_vals_1(
+            gam, q, delp, a4_1, q_bot, origin=orig, domain=(i_extent, j_extent, km + 1)
+        )
 
     if abs(kord) > 16:
         set_avals(q, a4_1, a4_2, a4_3, a4_4, q_bot, origin=orig, domain=dom)
@@ -549,19 +551,25 @@ def compute(qs, a4_1, a4_2, a4_3, a4_4, delp, km, i1, i2, iv, kord, js, j_extent
             set_exts(a4_4, ext5, ext6, a4_1, a4_2, a4_3, origin=orig, domain=dom)
 
         if iv == 0:
-            set_top_as_iv0(a4_1, a4_2, a4_3, a4_4, origin=orig, domain=(i_extent, j_extent, 2))
+            set_top_as_iv0(
+                a4_1, a4_2, a4_3, a4_4, origin=orig, domain=(i_extent, j_extent, 2)
+            )
             a4_1, a4_2, a4_3, a4_4 = limiters.compute(
                 a4_1, a4_2, a4_3, a4_4, extm, 1, i1, i_extent, 0, 1, js, j_extent
             )
         elif iv == -1:
-            set_top_as_iv1(a4_1, a4_2, a4_3, a4_4, origin=orig, domain=(i_extent, j_extent, 2))
+            set_top_as_iv1(
+                a4_1, a4_2, a4_3, a4_4, origin=orig, domain=(i_extent, j_extent, 2)
+            )
 
             a4_1, a4_2, a4_3, a4_4 = limiters.compute(
                 a4_1, a4_2, a4_3, a4_4, extm, 1, i1, i_extent, 0, 1, js, j_extent
             )
 
         elif iv == 2:
-            set_top_as_iv2(a4_1, a4_2, a4_3, a4_4, origin=orig, domain=(i_extent, j_extent, 2))
+            set_top_as_iv2(
+                a4_1, a4_2, a4_3, a4_4, origin=orig, domain=(i_extent, j_extent, 2)
+            )
         else:
             set_top_as_else(
                 a4_1, a4_2, a4_3, a4_4, origin=orig, domain=(i_extent, j_extent, 2)
@@ -625,15 +633,30 @@ def compute(qs, a4_1, a4_2, a4_3, a4_4, delp, km, i1, i2, iv, kord, js, j_extent
 
         if iv == 0:
             set_bottom_as_iv0(
-                a4_1, a4_2, a4_3, a4_4, origin=(i1, js, km - 2), domain=(i_extent, j_extent, 2)
+                a4_1,
+                a4_2,
+                a4_3,
+                a4_4,
+                origin=(i1, js, km - 2),
+                domain=(i_extent, j_extent, 2),
             )
         elif iv == -1:
             set_bottom_as_iv1(
-                a4_1, a4_2, a4_3, a4_4, origin=(i1, js, km - 2), domain=(i_extent, j_extent, 2)
+                a4_1,
+                a4_2,
+                a4_3,
+                a4_4,
+                origin=(i1, js, km - 2),
+                domain=(i_extent, j_extent, 2),
             )
         else:
             set_bottom_as_else(
-                a4_1, a4_2, a4_3, a4_4, origin=(i1, js, km - 2), domain=(i_extent, j_extent, 2)
+                a4_1,
+                a4_2,
+                a4_3,
+                a4_4,
+                origin=(i1, js, km - 2),
+                domain=(i_extent, j_extent, 2),
             )
         a4_1, a4_2, a4_3, a4_4 = limiters.compute(
             a4_1, a4_2, a4_3, a4_4, extm, 2, i1, i_extent, km - 2, 1, js, j_extent
@@ -645,7 +668,9 @@ def compute(qs, a4_1, a4_2, a4_3, a4_4, delp, km, i1, i2, iv, kord, js, j_extent
     return a4_1, a4_2, a4_3, a4_4
 
 
-def compute_scalar(qs, a4_1, a4_2, a4_3, a4_4, delp, km, i1, i2, iv, kord, qmin, js, j_extent):
+def compute_scalar(
+    qs, a4_1, a4_2, a4_3, a4_4, delp, km, i1, i2, iv, kord, qmin, js, j_extent
+):
     i_extent = i2 - i1 + 1
     grid = spec.grid
     orig = (i1, js, 0)
@@ -676,7 +701,9 @@ def compute_scalar(qs, a4_1, a4_2, a4_3, a4_4, delp, km, i1, i2, iv, kord, qmin,
             domain=(i_extent, j_extent, km + 1),
         )
     else:
-        set_vals_1(gam, q, delp, a4_1, q_bot, origin=orig, domain=(i_extent, j_extent, km + 1))
+        set_vals_1(
+            gam, q, delp, a4_1, q_bot, origin=orig, domain=(i_extent, j_extent, km + 1)
+        )
 
     if abs(kord) > 16:
         set_avals(q, a4_1, a4_2, a4_3, a4_4, q_bot, origin=orig, domain=dom)
@@ -686,19 +713,25 @@ def compute_scalar(qs, a4_1, a4_2, a4_3, a4_4, delp, km, i1, i2, iv, kord, qmin,
         if abs(kord) > 9:
             set_exts(a4_4, ext5, ext6, a4_1, a4_2, a4_3, origin=orig, domain=dom)
         if iv == 0:
-            set_top_as_iv0(a4_1, a4_2, a4_3, a4_4, origin=orig, domain=(i_extent, j_extent, 2))
+            set_top_as_iv0(
+                a4_1, a4_2, a4_3, a4_4, origin=orig, domain=(i_extent, j_extent, 2)
+            )
             a4_1, a4_2, a4_3, a4_4 = limiters.compute(
                 a4_1, a4_2, a4_3, a4_4, extm, 1, i1, i_extent, 0, 1, js, j_extent
             )
         elif iv == -1:
-            set_top_as_iv1(a4_1, a4_2, a4_3, a4_4, origin=orig, domain=(i_extent, j_extent, 2))
+            set_top_as_iv1(
+                a4_1, a4_2, a4_3, a4_4, origin=orig, domain=(i_extent, j_extent, 2)
+            )
 
             a4_1, a4_2, a4_3, a4_4 = limiters.compute(
                 a4_1, a4_2, a4_3, a4_4, extm, 1, i1, i_extent, 0, 1, js, j_extent
             )
 
         elif iv == 2:
-            set_top_as_iv2(a4_1, a4_2, a4_3, a4_4, origin=orig, domain=(i_extent, j_extent, 2))
+            set_top_as_iv2(
+                a4_1, a4_2, a4_3, a4_4, origin=orig, domain=(i_extent, j_extent, 2)
+            )
         else:
             set_top_as_else(
                 a4_1, a4_2, a4_3, a4_4, origin=orig, domain=(i_extent, j_extent, 2)
@@ -760,15 +793,30 @@ def compute_scalar(qs, a4_1, a4_2, a4_3, a4_4, delp, km, i1, i2, iv, kord, qmin,
 
         if iv == 0:
             set_bottom_as_iv0(
-                a4_1, a4_2, a4_3, a4_4, origin=(i1, js, km - 2), domain=(i_extent, j_extent, 2)
+                a4_1,
+                a4_2,
+                a4_3,
+                a4_4,
+                origin=(i1, js, km - 2),
+                domain=(i_extent, j_extent, 2),
             )
         elif iv == -1:
             set_bottom_as_iv1(
-                a4_1, a4_2, a4_3, a4_4, origin=(i1, js, km - 2), domain=(i_extent, j_extent, 2)
+                a4_1,
+                a4_2,
+                a4_3,
+                a4_4,
+                origin=(i1, js, km - 2),
+                domain=(i_extent, j_extent, 2),
             )
         else:
             set_bottom_as_else(
-                a4_1, a4_2, a4_3, a4_4, origin=(i1, js, km - 2), domain=(i_extent, j_extent, 2)
+                a4_1,
+                a4_2,
+                a4_3,
+                a4_4,
+                origin=(i1, js, km - 2),
+                domain=(i_extent, j_extent, 2),
             )
         a4_1, a4_2, a4_3, a4_4 = limiters.compute(
             a4_1, a4_2, a4_3, a4_4, extm, 2, i1, i_extent, km - 2, 1, js, j_extent
