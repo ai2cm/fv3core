@@ -58,3 +58,6 @@ from .translate_map_scalar_2d import TranslateMapScalar_2d
 from .translate_remapping import TranslateRemapping
 from .translate_remapping_part1 import TranslateRemapping_Part1
 from .translate_remapping_part2 import TranslateRemapping_Part2
+from .translate_c2l_ord2 import TranslateC2L_Ord2
+from .translate_cubedtolatlon import TranslateCubedToLatLon
+from .translate_rayleigh_super import TranslateRayleigh_Super

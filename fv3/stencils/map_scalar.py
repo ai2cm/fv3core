@@ -166,7 +166,6 @@ def compute(q1, peln, pe2, qs, mode, j_2d=None):
             origin=origin,
             domain=domain,
         )
-
         q1[i1 : i2 + 1, jslice, k_eul] = np.sum(
             q2_adds.data[i1 : i2 + 1, 0:j_extent, :], axis=2
         )

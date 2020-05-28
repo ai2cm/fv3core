@@ -42,6 +42,7 @@ class TranslateMapScalar_2d(TranslateFortranData2Py):
                 dummy_axes = [1, 2]
             else:
                 dummy_axes = None
+
             inputs[d] = self.make_storage_data(
                 np.squeeze(inputs[serialname]),
                 istart=istart,

@@ -825,6 +825,7 @@ def satadjust_part4(
             qs_mlt,
         )
         #  autoconversion from cloud water to rain
+        # TODO ql0_max is supposed to come from the namelist, but runtime floats cause an error while constants do not
         ql, qr = autoconversion_cloud_to_rain(ql, qr, fac_l2r, constants.ql0_max)
 
 
@@ -881,6 +882,7 @@ def satadjust_part5(
     with computation(PARALLEL), interval(...):
         lhl, lhi, lcp2, icp2 = update_latent_heat_coefficient(pt1, cvm, lv00, d0_vap)
         tcp2 = lcp2 + icp2
+        # TODO t_sub is supposed to come from the namelist, but currently gt4py breaks with a coniditional comparison of a runtime float (vs a constant)
         qv, qi, q_sol, cvm, pt1 = sublimation(
             pt1,
             cvm,

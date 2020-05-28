@@ -505,7 +505,6 @@ def set_bottom_as_else(a4_1: sd, a4_2: sd, a4_3: sd, a4_4: sd):
 
 
 def compute(qs, a4_1, a4_2, a4_3, a4_4, delp, km, i1, i2, iv, kord, js, j_extent):
-
     i_extent = i2 - i1 + 1
 
     grid = spec.grid
@@ -517,8 +516,8 @@ def compute(qs, a4_1, a4_2, a4_3, a4_4, delp, km, i1, i2, iv, kord, js, j_extent
     q_bot = utils.make_storage_from_shape(delp.shape, origin=full_orig)
 
     qs_field = utils.make_storage_from_shape(delp.shape, origin=full_orig)
-    qs_field[i1 : i2 + 1, :, -1] = qs.data[
-        :i_extent, :, 0
+    qs_field[i1 : i2 + 1, js : js + j_extent, -1] = qs.data[
+        :i_extent, js : js + j_extent, 0
     ]  # make a qs that can be passed to a stencil
 
     extm = utils.make_storage_from_shape(delp.shape, origin=full_orig)
@@ -681,8 +680,9 @@ def compute_scalar(
     q_bot = utils.make_storage_from_shape(delp.shape, origin=full_orig)
 
     qs_field = utils.make_storage_from_shape(delp.shape, origin=full_orig)
-    qs_field[i1 : i2 + 1, js:j_extent, -1] = qs.data[
-        :i_extent, js:j_extent, 0
+
+    qs_field[i1 : i2 + 1, js : js + j_extent, -1] = qs.data[
+        :i_extent, js : js + j_extent, 0
     ]  # make a qs that can be passed to a stencil
 
     extm = utils.make_storage_from_shape(delp.shape, origin=full_orig)
@@ -786,6 +786,7 @@ def compute_scalar(
             )
         else:
             raise Exception("kord {0} not implemented.".format(kord))
+
         if iv == 0:
             a4_1, a4_2, a4_3, a4_4 = limiters.compute(
                 a4_1, a4_2, a4_3, a4_4, extm, 0, i1, i_extent, 2, km - 4

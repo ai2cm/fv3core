@@ -63,6 +63,8 @@ def merge_namelist_defaults(nml):
         "cld_min": 0.05,  # !< minimum cloud fraction
         "tau_l2v": 300.0,  # cloud water to water vapor (evaporation)
         "tau_v2l": 150.0,  # water vapor to cloud water (condensation)
+        "c2l_ord": 4,
+        "regional": False,
     }
     defaults.update(nml)
     return defaults

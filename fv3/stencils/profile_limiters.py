@@ -88,7 +88,6 @@ def ppm_constraint(a4_1: sd, a4_2: sd, a4_3: sd, a4_4: sd, extm: sd):
 
 
 def compute(a4_1, a4_2, a4_3, a4_4, extm, iv, i1, i_extent, kstart, nk, js, j_extent):
-
     if iv == 0:
         posdef_constraint_iv0(
             a4_1,
