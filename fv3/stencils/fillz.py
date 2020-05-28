@@ -100,3 +100,36 @@ def compute(q, dp, i1, i2, km):
     fac = utils.make_storage_data(np.repeat(fix_cols[:,:,np.newaxis], km+1, axis=2), q.shape)
     final_check(q, dp, dm, zfix, fac, origin=(i1, 0, 1), domain=(i_extent, 1, km-1))
     return q
+
+
+def compute_test(dp2, qvapor, qliquid, qice, qrain, qsnow, qgraupel, qcld, im, km, nq):
+    print(qvapor.shape)
+    i1=grid().is_
+    orig = (i1,0,0)
+    zfix = utils.make_storage_from_shape(qvapor.shape, origin=(0,0,0))
+    upper_fix = utils.make_storage_from_shape(qvapor.shape, origin=(0,0,0))
+    lower_fix = utils.make_storage_from_shape(qvapor.shape, origin=(0,0,0))
+    dm = utils.make_storage_from_shape(qvapor.shape, origin=(0,0,0))
+    dm_pos = utils.make_storage_from_shape(qvapor.shape, origin=(0,0,0))
+    fac = utils.make_storage_from_shape(qvapor.shape, origin=(0,0,0))
+    #TODO: implement dev_gfs_physics ifdef when we implement compiler defs
+
+    tracers = ["qvapor", "qliquid", "qice", "qrain", "qsnow", "qgraupel", "qcld"]
+    tracer_qs = {"qvapor":qvapor, "qliquid":qliquid, "qice":qice, "qrain":qrain, "qsnow":qsnow, "qgraupel":qgraupel, "qcld":qcld}
+
+    for q in tracer_qs:
+        zfix.data[:] = np.zeros(qvapor.shape)
+        fix_top(tracer_qs[q], dp2, dm, origin=orig, domain=(im, 1, 2))
+        fix_interior(tracer_qs[q], dp2, zfix, upper_fix, lower_fix, dm, dm_pos, origin=(i1, 0, 1), domain=(im, 1, km-2))
+        fix_bottom(tracer_qs[q], dp2, zfix, upper_fix, dm, dm_pos, origin=(i1, 0, km-1), domain=(im, 1, 2))
+
+        fix_cols = np.sum(zfix.data, axis=2)
+        zfix.data[:]=np.repeat(fix_cols[:,:,np.newaxis], km+1, axis=2)
+        sum0 = np.sum(dm.data[:,:,1:], axis=2)
+        sum1 = np.sum(dm_pos.data, axis=2)
+        adj_factor = sum0
+        adj_factor[sum0 > 0] = sum0[sum0 > 0]/sum1[sum0 > 0]
+        fac.data[:] = np.repeat(fix_cols[:,:,np.newaxis], km+1, axis=2)
+        final_check(tracer_qs[q], dp2, dm, zfix, fac, origin=(i1, 0, 1), domain=(im, 1, km-1))
+
+    return [tracer_qs[tracer] for tracer in tracers]

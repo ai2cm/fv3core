@@ -1,33 +1,31 @@
 from .translate import TranslateFortranData2Py
-import fv3.stencils.mapn_tracer as MapN_Tracer
+import fv3.stencils.fillz as Fillz
 import numpy as np
 
 
-class TranslateMapN_Tracer_2d(TranslateFortranData2Py):
+class TranslateFillz(TranslateFortranData2Py):
     def __init__(self, grid):
         super().__init__(grid)
-        self.compute_func = MapN_Tracer.compute
+        self.compute_func = Fillz.compute_test
         self.in_vars["data_vars"] = {
-            "pe1": {"istart": 3, "iend": grid.ie - 2,},
-            "pe2": {"istart": 3, "iend": grid.ie - 2,},
-            "dp2": {"istart": 3, "iend": grid.ie - 2,},
-            "qvapor": {"serialname": "qvapor_js"},
-            "qliquid": {"serialname": "qliquid_js"},
-            "qice": {"serialname": "qice_js"},
-            "qrain": {"serialname": "qrain_js"},
-            "qsnow": {"serialname": "qsnow_js"},
-            "qgraupel": {"serialname": "qgraupel_js"},
-            "qcld": {"serialname": "qcld_js"},
+            "dp2": {"istart": grid.is_, "iend": grid.ie - 2,},
+            "qvapor": {"serialname": "q2vapor_js"},
+            "qliquid": {"serialname": "q2liquid_js"},
+            "qice": {"serialname": "q2ice_js"},
+            "qrain": {"serialname": "q2rain_js"},
+            "qsnow": {"serialname": "q2snow_js"},
+            "qgraupel": {"serialname": "q2graupel_js"},
+            "qcld": {"serialname": "q2cld_js"}
         }
-        self.in_vars["parameters"] = ["j_2d", "nq", "q_min"]
+        self.in_vars["parameters"] = ["im", "km", "nq"]
         self.out_vars = {
-            "qvapor": {"serialname": "qvapor_js"},
-            "qliquid": {"serialname": "qliquid_js"},
-            "qice": {"serialname": "qice_js"},
-            "qrain": {"serialname": "qrain_js"},
-            "qsnow": {"serialname": "qsnow_js"},
-            "qgraupel": {"serialname": "qgraupel_js"},
-            "qcld": {"serialname": "qcld_js"},
+            "qvapor": {"serialname": "q2vapor_js"},
+            "qliquid": {"serialname": "q2liquid_js"},
+            "qice": {"serialname": "q2ice_js"},
+            "qrain": {"serialname": "q2rain_js"},
+            "qsnow": {"serialname": "q2snow_js"},
+            "qgraupel": {"serialname": "q2graupel_js"},
+            "qcld": {"serialname": "q2cld_js"}
         }
 
     def make_storage_data_input_vars(self, inputs, storage_vars=None):
@@ -67,6 +65,5 @@ class TranslateMapN_Tracer_2d(TranslateFortranData2Py):
 
     def compute(self, inputs):
         self.make_storage_data_input_vars(inputs)
-        inputs["j_2d"] += 2
         qvapor, qliquid, qice, qrain, qsnow, qgraupel, qcld = self.compute_func(**inputs)
         return self.slice_output(inputs, {"qvapor_js": qvapor, "qliquid_js":qliquid, "qice_js":qice, "qrain_js":qrain, "qsnow_js":qsnow, "qgraupel_js":qgraupel, "qcld_js":qcld})
