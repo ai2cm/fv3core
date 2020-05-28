@@ -83,7 +83,7 @@ def lagrangian_contributions(
         else:
             q2_adds = 0
 
-
+# TODO: this is VERY similar to map_scalar -- once matches, consolidate code
 def compute(q1, pe1, pe2, qs, i1, i2, mode, kord, j_2d=None):
     grid = spec.grid
     iv = mode
@@ -97,19 +97,17 @@ def compute(q1, pe1, pe2, qs, i1, i2, mode, kord, j_2d=None):
         q1[:, jslice, :], (q1.shape[0], j_extent, q1.shape[2])
     )
     dp1 = utils.make_storage_from_shape(pe1.shape, origin=orig)
-
+    qs_input = utils.make_storage_data(qs.data[:, jslice, :], pe1.shape)
     q4_1 = cp.copy(q_2d, origin=(0, 0, 0))
     q4_2 = utils.make_storage_from_shape(q4_1.shape, origin=(grid.is_, 0, 0))
     q4_3 = utils.make_storage_from_shape(q4_1.shape, origin=(grid.is_, 0, 0))
     q4_4 = utils.make_storage_from_shape(q4_1.shape, origin=(grid.is_, 0, 0))
 
-    #q2 = cp.copy(q1, origin=(0, 0, 0))
-
     set_dp(dp1, pe1, origin=origin, domain=domain)
 
     if kord > 7:
         q4_1, q4_2, q4_3, q4_4 = remap_profile.compute(
-            qs, q4_1, q4_2, q4_3, q4_4, dp1, km, i1, i2, iv, kord, 0, j_extent
+            qs_input, q4_1, q4_2, q4_3, q4_4, dp1, km, i1, i2, iv, kord, 0, j_extent
         )
 
     # else:
@@ -143,8 +141,8 @@ def compute(q1, pe1, pe2, qs, i1, i2, mode, kord, j_2d=None):
             q2_adds,
             r3,
             r23,
-            origin=(i1, 0, 0),
-            domain=(i_extent, 1, km),
+            origin=origin,
+            domain=domain,
         )
 
         q1[i1 : i2 + 1, jslice, k_eul] = np.sum(q2_adds.data[i1 : i2 + 1, 0:j_extent, :], axis=2)

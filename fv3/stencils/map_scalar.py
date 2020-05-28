@@ -127,7 +127,7 @@ def compute(q1, peln, pe2, qs, mode, j_2d=None):
     q4_3 = utils.make_storage_from_shape(q4_1.shape, origin=(grid.is_, 0, 0))
     q4_4 = utils.make_storage_from_shape(q4_1.shape, origin=(grid.is_, 0, 0))
 
-    set_dp(dp1, pe1, origin=origin, domain=(i_extent, j_extent, km))
+    set_dp(dp1, pe1, origin=origin, domain=domain)
 
     q4_1, q4_2, q4_3, q4_4 = remap_profile.compute_scalar(
         qs_input, q4_1, q4_2, q4_3, q4_4, dp1, km, i1, i2, iv, kord, qmin, 0, j_extent

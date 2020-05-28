@@ -666,7 +666,7 @@ def compute(qs, a4_1, a4_2, a4_3, a4_4, delp, km, i1, i2, iv, kord, js, j_extent
 
     return a4_1, a4_2, a4_3, a4_4
 
-
+# TODO, can this be merged with compute() -- these are very similar
 def compute_scalar(
     qs, a4_1, a4_2, a4_3, a4_4, delp, km, i1, i2, iv, kord, qmin, js, j_extent
 ):
