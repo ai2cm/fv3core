@@ -43,7 +43,16 @@ class TranslateRemapping_Part2(TranslateFortranData2Py):
             "te": {},
             "zsum1": {"istart": grid.is_, "jstart": grid.js,  "iend": grid.ie, "jend": grid.je, "kstart": grid.npz - 1, "kend": grid.npz - 1,}
         }
-        self.in_vars["parameters"] = ["ptop", "akap", "r_vir", "last_step", "pdt", "mdt", "out_dt", "consv"]
+        self.in_vars["parameters"] = ["ptop", "akap", "r_vir", "last_step", "pdt", "mdt",  "consv"]
         self.out_vars = {}
         for k in ["pe", "pkz","pk","peln","pt", "qvapor", "qliquid", "qice", "qrain", "qsnow", "qgraupel", "qcld", "cappa", "delp", "delz", "q_con", "te", "te_2d", "te0_2d", "zsum1"]:
             self.out_vars[k] = self.in_vars["data_vars"][k]
+            
+    def compute(self, inputs):
+        self.make_storage_data_input_vars(inputs)
+        #inputs['kmp'] -= 1  # TODO serialize kmp
+        inputs['kmp'] = 8
+        inputs['fast_mp_consv'] = True # TODO serialize, also will be false in new data
+        inputs['do_adiabatic_init'] = False # TODO serialize
+        self.compute_func(**inputs)
+        return self.slice_output(inputs)

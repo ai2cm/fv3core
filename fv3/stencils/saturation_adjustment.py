@@ -1064,15 +1064,14 @@ def compute(
     r_vir,
     mdt,
     fast_mp_consv,
-    out_dt,
     last_step,
     akap,
     kmp,
 ):
     grid = spec.grid
     namelist = spec.namelist
-    origin = (grid.is_, grid.js, kmp - 1)
-    domain = (grid.nic, grid.njc, (grid.npz - kmp + 1))
+    origin = (grid.is_, grid.js, kmp)
+    domain = (grid.nic, grid.njc, (grid.npz - kmp))
 
     qs_init()
     hydrostatic = spec.namelist["hydrostatic"]
@@ -1333,7 +1332,7 @@ def compute(
     tmpslice = (
         slice(grid.is_, grid.ie + 1),
         slice(grid.js, grid.je + 1),
-        slice(kmp - 1, grid.npz),
+        slice(kmp, grid.npz),
     )
     pkz[tmpslice] = np.exp(
         cappa[tmpslice]

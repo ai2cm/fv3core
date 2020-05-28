@@ -31,7 +31,6 @@ class TranslateSatAdjust3d(TranslateFortranData2Py):
             "r_vir",
             "mdt",
             "fast_mp_consv",
-            "out_dt",
             "last_step",
             "akap",
             "kmp",
@@ -63,3 +62,9 @@ class TranslateSatAdjust3d(TranslateFortranData2Py):
             },
             "cappa": {},
         }
+
+    def compute(self, inputs):
+        self.make_storage_data_input_vars(inputs)
+        inputs['kmp'] -= 1
+        self.compute_func(**inputs)
+        return self.slice_output(inputs)

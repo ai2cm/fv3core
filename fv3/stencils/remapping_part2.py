@@ -10,7 +10,6 @@ import fv3.stencils.basic_operations as basic
 import numpy as np
 
 sd = utils.sd
-CONSV_MIN = 0.001
 
 @utils.stencil()
 def copy_from_below(a: sd, b: sd):
@@ -48,7 +47,7 @@ def sum_te(te: sd, te0_2d: sd):
         with interval(0, None):
             te0_2d = te0_2d[0, 0, -1] + te
 
-def compute(qvapor, qliquid, qrain, qsnow, qice, qgraupel, qcld, pt, delp, delz, peln, u, v, w, ua, cappa, q_con, gz, pkz, pk, pe, hs, te_2d, te0_2d, te, cvm, zsum1, ptop, akap, r_vir, last_step, pdt, mdt, out_dt, consv):
+def compute(qvapor, qliquid, qrain, qsnow, qice, qgraupel, qcld, pt, delp, delz, peln, u, v, w, ua, cappa, q_con, gz, pkz, pk, pe, hs, te_2d, te0_2d, te, cvm, zsum1, ptop, akap, r_vir, last_step, pdt, mdt, consv, kmp, fast_mp_consv, do_adiabatic_init):
     grid = spec.grid
    
     copy_from_below(ua, pe, origin=grid.compute_origin(), domain=grid.domain_shape_compute())
@@ -56,9 +55,8 @@ def compute(qvapor, qliquid, qrain, qsnow, qice, qgraupel, qcld, pt, delp, delz,
     phis = utils.make_storage_from_shape(pt.shape, grid.compute_origin())
     dpln = utils.make_storage_from_shape(pt.shape, grid.compute_origin())
     # TODO do_adiabatic_init needs to be serialized, pt for neg_adj3, cs_profile out, g_sum for dtmp, parallel test, use -5 for hord_tr, save kmp for part2
-    do_adiabatic_init = spec.namelist['na_init']  #TODO WRONG
     if last_step and not do_adiabatic_init:
-        if consv > CONSV_MIN:
+        if consv > constants.CONSV_MIN:
             if spec.namelist['hydrostatic']:
                 raise Exception('Hydrostatic not supported')
             else:
@@ -71,20 +69,19 @@ def compute(qvapor, qliquid, qrain, qsnow, qice, qgraupel, qcld, pt, delp, delz,
             # dtmp = dtmp / (constants.CV_AIR * g_sum(zsum1, grid.area_64))
             dtmp = -4.5874105210330514e-07  # TODO replace with computed value
             # E_Flux = dtmp / (constants.GRAV * pdt * 4. * constants.PI * constants.RADIUS**2)
-        elif consv < -CONSV_MIN:
+        elif consv < -constants.CONSV_MIN:
             sum_z1(pkz, delp, te0_2d, te_2d, zsum1, origin=grid.compute_origin(), domain=grid.domain_shape_compute())
             #E_Flux = consv
             #dtmp  = E_Flux *  (constants.GRAV * pdt * 4. * constants.PI * constants.RADIUS**2) / (constants.CV_AIR * g_sum(zsum1, grid,.area_64))
-            raise Exception('Unimplemented/untested case consv(' + str(consv) + ')  < -CONSV_MIN(' + str(-CONSV_MIN) + ')')
+            raise Exception('Unimplemented/untested case consv(' + str(consv) + ')  < -CONSV_MIN(' + str(-constants.CONSV_MIN) + ')')
     
     if spec.namelist['do_sat_adj']:
-        kmp = 9 # TODO get as an input
-        fast_mp_consv =  (not do_adiabatic_init) and consv > CONSV_MIN
-        kmp_origin = (grid.is_, grid.js, kmp - 1)
-        kmp_domain = (grid.nic, grid.njc, grid.npz - kmp + 1)
+       
+        kmp_origin = (grid.is_, grid.js, kmp)
+        kmp_domain = (grid.nic, grid.njc, grid.npz - kmp)
         layer_gradient(peln, dpln, origin=kmp_origin, domain=kmp_domain)
         saturation_adjustment.compute(dpln, te, qvapor, qliquid, qice, qrain, qsnow, qgraupel, qcld, hs, peln, delp,
-                                      delz, q_con, pt, pkz, cappa, r_vir, mdt, fast_mp_consv, out_dt, last_step,
+                                      delz, q_con, pt, pkz, cappa, r_vir, mdt, fast_mp_consv, last_step,
                                       akap, kmp)
         if not spec.namelist['hydrostatic']:
             tmpslice = (slice(grid.is_, grid.ie + 1), slice(grid.js, grid.je + 1), slice(kmp, grid.npz))
