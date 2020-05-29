@@ -202,7 +202,7 @@ def compute(
     ns = 1  # TODO remove
     # complete HALO update on q
     for q in [qvapor, qliquid, qice, qrain, qsnow, qgraupel]:
-        utils.halo_update(comm, q)
+        comm.halo_update(q, n_points=utils.halo)
 
     ra_x_stencil(
         grid.area,
@@ -309,4 +309,4 @@ def compute(
                     dp2, origin=grid.compute_origin, domain=grid.domain_shape_compute()
                 )
                 # HALO UPDATE qn2
-                utils.halo_update(comm, qn2)
+                comm.halo_update(comm, n_points=utils.halo)
