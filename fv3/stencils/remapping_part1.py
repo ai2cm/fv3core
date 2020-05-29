@@ -182,10 +182,10 @@ def compute(
     if spec.namelist["kord_tm"] < 0:
         map_scalar.compute(pt, peln, pn2, gz, 1)
     else:
-        print("map ppm")
-        # map1_ppm.compute(pt, pe1, pe2, gz, i1, i2, 1, abs(spec.namelist['kord_tm']))
+        raise Exception("map ppm, untested mode where kord_tm >= 0")
+        map1_ppm.compute(pt, pe1, pe2, gz, grid.is_, grid.ie, 1, abs(spec.namelist['kord_tm']))
     # TODO if nq > 5:
-    # mapn_tracer(pe1, pe2,(qvapor, qliquid, qrain, qsnow, qice, qgraupel, qcld )
+    # mapn_tracer(pe1, pe2, dp2, qvapor, qliquid, qrain, qsnow, qice, qgraupel, qcld, spec.namelist['kord_tr'] )
     # TODO else if nq > 0:
     # TODO map1_q2, fillz
     if not hydrostatic:
