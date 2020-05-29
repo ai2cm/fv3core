@@ -86,9 +86,16 @@ def lagrangian_contributions(
 # TODO: this is VERY similar to map_scalar -- once matches, consolidate code
 def compute(q1, pe1, pe2, qs, i1, i2, mode, kord, j_2d=None):
     i= 3
-    j = 3
-    k = 0
-    #print('inputs', q1[i, j, k], pe1[i, j, k], pe1[i, j, k+1], qs[i, j, k], i1, i2, mode, kord, j_2d)
+    j = 0
+    k = 51
+    #print(qs.shape, qs[3,:,0])
+    #print(qs[0,:,0], np.any(qs ==  -2.7386315404751397e-35))
+    #for i in range(55):
+    #    for j in range(55):
+    #        if qs[i, j, 0] ==  -2.7386315404751397e-35:
+    #            print('found it', i, j)
+   
+    #print('inputs', q1[i, j, k], pe1[i, j, k], pe1[i, j, k+1], qs[i, j, k], qs[i, 0, k], i1, i2, mode, kord, j_2d)
     #  0.007027400809571855 64.247 138.24733238480297 -2.7386315404751397e-35 3 50 -2 10 3
     #  0.007027400809571855 64.247 138.24733238480297 0.000259479861638933 3 50 -2 10 None
     grid = spec.grid
@@ -109,6 +116,23 @@ def compute(q1, pe1, pe2, qs, i1, i2, mode, kord, j_2d=None):
         pe1 = utils.make_storage_data(
         pe1[:, jslice, :], (pe1.shape[0], j_extent, pe1.shape[2])
     )
+    print('qs', qs.shape, qs[:, 0, 0])
+    '''
+   [ 0.00000000e+00  0.00000000e+00  0.00000000e+00  2.59479862e-04
+  1.73193719e-07  1.89966046e-06 -2.73863154e-35  0.00000000e+00
+  0.00000000e+00  0.00000000e+00  0.00000000e+00  0.00000000e+00
+  0.00000000e+00  0.00000000e+00  0.00000000e+00  0.00000000e+00
+  0.00000000e+00  0.00000000e+00  0.00000000e+00  0.00000000e+00
+  0.00000000e+00  0.00000000e+00  0.00000000e+00  0.00000000e+00
+  0.00000000e+00 -8.19446808e-10 -7.78272176e-09 -3.17952861e-07
+ -7.69738112e-09  2.04340486e-09  0.00000000e+00  0.00000000e+00
+  0.00000000e+00  0.00000000e+00  0.00000000e+00  0.00000000e+00
+  0.00000000e+00  0.00000000e+00  0.00000000e+00  0.00000000e+00
+  0.00000000e+00 -1.31685854e-36 -2.26789832e-35 -5.56935880e-35
+ -2.00463172e-34 -2.16413166e-33 -2.85677942e-33 -1.25167614e-34
+  0.00000000e+00  0.00000000e+00  0.00000000e+00  0.00000000e+00
+  0.00000000e+00  0.00000000e+00  0.00000000e+00]
+    '''
     q4_1 = cp.copy(q_2d, origin=(0, 0, 0))
     q4_2 = utils.make_storage_from_shape(q4_1.shape, origin=(grid.is_, 0, 0))
     q4_3 = utils.make_storage_from_shape(q4_1.shape, origin=(grid.is_, 0, 0))
@@ -120,7 +144,9 @@ def compute(q1, pe1, pe2, qs, i1, i2, mode, kord, j_2d=None):
         q4_1, q4_2, q4_3, q4_4 = remap_profile.compute(
             qs, q4_1, q4_2, q4_3, q4_4, dp1, km, i1, i2, iv, kord, 0, j_extent
         )
-
+    print('intermediate',q4_1[i, j, k], q4_2[i, j, k], q4_3[i, j, k], q4_4[i, j, k])
+    # intermediate 0.023853538110226953 0.023853538110226953 0.023853538110226953 0.0
+    #              0.023853538110226953 0.023853538110226953 0.023853538110226953 0.0
     # else:
     #     ppm_profile.compute(q4_1, q4_2, q4_3, q4_4, dp1, km, i1, i2, iv, kord)
 
@@ -158,6 +184,7 @@ def compute(q1, pe1, pe2, qs, i1, i2, mode, kord, j_2d=None):
 
         q1[i1 : i2 + 1, jslice, k_eul] = np.sum(q2_adds.data[i1 : i2 + 1, 0:j_extent, :], axis=2)
     print(q1[3, 3, :])
+    print(q1[3, 3, 51])
     '''
 [ 0.00702984 -0.00801616 -0.06602874 -0.08471319 -0.07124542 -0.06901264
  -0.0607066  -0.05432758 -0.05004505 -0.04735575 -0.0458133  -0.04462703

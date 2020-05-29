@@ -506,7 +506,7 @@ def set_bottom_as_else(a4_1: sd, a4_2: sd, a4_3: sd, a4_4: sd):
 
 def compute(qs, a4_1, a4_2, a4_3, a4_4, delp, km, i1, i2, iv, kord, js, j_extent):
     i_extent = i2 - i1 + 1
-
+    print(i1, i2, delp.shape)
     grid = spec.grid
     orig = (i1, js, 0)
     full_orig = (grid.is_, js, 0)
@@ -517,7 +517,7 @@ def compute(qs, a4_1, a4_2, a4_3, a4_4, delp, km, i1, i2, iv, kord, js, j_extent
 
     qs_field = utils.make_storage_from_shape(delp.shape, origin=full_orig)
     qs_field[i1 : i2 + 1, js : js + j_extent, -1] = qs.data[
-        :i_extent, js : js + j_extent, 0
+        i1:i2+1, js : js + j_extent, 0
     ]  # make a qs that can be passed to a stencil
 
     extm = utils.make_storage_from_shape(delp.shape, origin=full_orig)
@@ -682,7 +682,7 @@ def compute_scalar(
     qs_field = utils.make_storage_from_shape(delp.shape, origin=full_orig)
 
     qs_field[i1 : i2 + 1, js : js + j_extent, -1] = qs.data[
-        :i_extent, js : js + j_extent, 0
+        i1:i2 + 1, js : js + j_extent, 0
     ]  # make a qs that can be passed to a stencil
 
     extm = utils.make_storage_from_shape(delp.shape, origin=full_orig)
