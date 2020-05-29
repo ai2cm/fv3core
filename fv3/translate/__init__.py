@@ -55,7 +55,11 @@ from .translate_fvsetup import TranslateFVSetup
 from .translate_neg_adj3 import TranslateNeg_Adj3
 from .translate_remap_profile_2d import TranslateCS_Profile_2d, TranslateCS_Profile_2d_2
 from .translate_map_scalar_2d import TranslateMapScalar_2d
-from .translate_map1_ppm_2d import TranslateMap1_PPM_2d
+from .translate_map1_ppm_2d import (
+    TranslateMap1_PPM_2d,
+    TranslateMap1_PPM_2d_2,
+    TranslateMap1_PPM_2d_3
+    )
 from .translate_remapping import TranslateRemapping
 from .translate_remapping_part1 import TranslateRemapping_Part1
 from .translate_remapping_part2 import TranslateRemapping_Part2

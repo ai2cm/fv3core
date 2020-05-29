@@ -189,7 +189,7 @@ def compute(
     # TODO map1_q2, fillz
     if not hydrostatic:
         map1_ppm.compute(w, pe1, pe2, wsd, grid.is_, grid.ie, -2, spec.namelist['kord_wz'])
-        # map1_ppm.compute(delz, pe1, pe2, gz, 1, spec.namelist['kord_wz'])
+        map1_ppm.compute(delz, pe1, pe2, gz, grid.is_, grid.ie, 1, spec.namelist['kord_wz'])
         undo_delz_adjust(
             delp, delz, origin=grid.compute_origin(), domain=grid.domain_shape_compute()
         )
@@ -223,7 +223,9 @@ def compute(
             delz,
             r_vir,
         )
-
+        # fix gz -- is supposed to be 1d
+        print('fixing gz', gz[3, 3, grid.npz - 2:],  gz[3, grid.je, grid.npz - 2:])
+        gz = utils.make_storage_data(np.squeeze(gz[:, grid.je, grid.npz - 1]), gz.shape, axis=0)
     # if do_omega:
     # dp2 update, if larger than pe0 and smaller than one level up, update omega and  exit
 
@@ -245,7 +247,7 @@ def compute(
         origin=grid.compute_origin(),
         domain=domain_jextra,
     )
-    #  map1_ppm.compute(u, pe0, pe3, gz, -1, spec.namelist['kord_mt'])
+    map1_ppm.compute(u, pe0, pe3, gz, grid.is_, grid.ie, -1, spec.namelist['kord_mt'])
     domain_iextra = (grid.nic + 1, grid.njc, grid.npz + 1)
     pressures_mapv(
         pe,
@@ -257,5 +259,5 @@ def compute(
         origin=grid.compute_origin(),
         domain=domain_iextra,
     )
-    # map1_ppm.compute(v, pe0, pe3, gz, -1, spec.namelist['kord_mt'])
+    map1_ppm.compute(v, pe0, pe3, gz, grid.is_, grid.ie + 1, -1, spec.namelist['kord_mt'])
     update_ua(pe2, ua, origin=grid.compute_origin(), domain=domain_jextra)
