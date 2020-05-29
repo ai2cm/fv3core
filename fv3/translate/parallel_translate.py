@@ -115,7 +115,6 @@ def _serialize_slice(quantity, n_halo):
     return tuple(slice_list)
 
 
-
 class ParallelTranslate2Py(ParallelTranslate):
     def collect_input_data(self, serializer, savepoint):
         input_data = super().collect_input_data(serializer, savepoint)
