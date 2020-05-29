@@ -4,6 +4,7 @@ from .translate import TranslateFortranData2Py, read_serialized_data
 import fv3util
 from fv3.utils import gt4py_utils as utils
 import fv3
+import pytest
 
 
 class ParallelTranslate:
@@ -33,30 +34,29 @@ class ParallelTranslate:
             state_list.append(self.state_from_inputs(inputs))
         return state_list
 
-    def state_from_inputs(self, inputs: dict, grid=None, copy_inputs=True) -> dict:
+    def state_from_inputs(self, inputs: dict, grid=None) -> dict:
         if grid is None:
             grid = self.grid
-        if copy_inputs:
-            inputs = copy.copy(inputs)  # don't want to modify the dict we were passed
-        self._base.make_storage_data_input_vars(inputs)
-        state = {}
+        state = copy.copy(inputs)
+        self._base.make_storage_data_input_vars(state)
         for name, properties in self.inputs.items():
             if "name" not in properties:
                 properties["name"] = name
+            input_data = state[name]
             if len(properties["dims"]) > 0:
                 state[properties["name"]] = grid.quantity_factory.empty(
                     properties["dims"], properties["units"], dtype=inputs[name].dtype
                 )
                 if len(properties["dims"]) == 3:
-                    state[properties["name"]].data[:] = inputs[name]
+                    state[properties["name"]].data[:] = input_data
                 elif len(properties["dims"]) == 2:
-                    state[properties["name"]].data[:] = inputs[name][:, :, 0]
+                    state[properties["name"]].data[:] = input_data[:, :, 0]
                 else:
                     raise NotImplementedError(
                         "only 0, 2, and 3-d variables are supported"
                     )
             else:
-                state[properties["name"]] = inputs[name]
+                state[properties["name"]] = input_data
         return state
 
     def outputs_list_from_state_list(self, state_list):
@@ -115,7 +115,8 @@ def _serialize_slice(quantity, n_halo):
     return tuple(slice_list)
 
 
-class JustParallelTranslate(ParallelTranslate):
+
+class ParallelTranslate2Py(ParallelTranslate):
     def collect_input_data(self, serializer, savepoint):
         input_data = super().collect_input_data(serializer, savepoint)
         input_data.update(self._base.collect_input_data(serializer, savepoint))
@@ -123,9 +124,13 @@ class JustParallelTranslate(ParallelTranslate):
 
     def compute_parallel(self, inputs, communicator):
         inputs["comm"] = communicator
-        state = self.state_from_inputs(inputs, copy_inputs=False)
-        inputs.update(state)
+        inputs = self.state_from_inputs(inputs)
         result = self._base.compute_from_storage(inputs)
         quantity_result = self.outputs_from_state(inputs)
         result.update(quantity_result)
         return result
+
+    def compute_sequential(self, a, b):
+        pytest.skip(
+            f"{self.__class__} only has a mpirun implementation, not running in mock-parallel"
+        )
