@@ -40,7 +40,6 @@ def undo_delz_adjust(delp: sd, delz: sd):
 
 @utils.stencil()
 def pressure_updates(
-    ps: sd,
     pe1: sd,
     pe2: sd,
     pe: sd,
@@ -51,8 +50,6 @@ def pressure_updates(
     pn2: sd,
     peln: sd,
 ):
-    with computation(PARALLEL), interval(-1, None):
-        ps = pe1
     with computation(FORWARD), interval(1, -1):
         pe2 = ak + bk * pe_bottom
     with computation(FORWARD), interval(0, -1):
@@ -93,13 +90,18 @@ def pressures_mapv(pe: sd, ak: sd, bk: sd, pe_bottom: sd, pe0: sd, pe3: sd):
             pe0 = 0.5 * (pe[-1, 0, 0] + pe)
             pe3 = ak + bkh * (pe_bottom[-1, 0, 0] + pe_bottom)
 
-
+@utils.stencil()
+def copy_j_adjacent(pe2: sd):
+    with computation(PARALLEL), interval(...):
+        pe2 = pe2[0, -1, 0]
 @utils.stencil()
 def update_ua(pe2: sd, ua: sd):
     with computation(PARALLEL), interval(0, -1):
         ua = pe2[0, 0, 1]
 
-
+# TODO remove this, this is a hack to deal with the fact that gz is a column
+def reset_gz(gz):
+    return utils.make_storage_data(np.squeeze(gz[:, spec.grid.je, spec.grid.npz - 1]), gz.shape, axis=0)
 def compute(
     qvapor,
     qliquid,
@@ -165,14 +167,23 @@ def compute(
                 delz,
                 r_vir,
             )
+            gz = reset_gz(gz)
     if not hydrostatic:
         delz_adjust(
             delp, delz, origin=grid.compute_origin(), domain=grid.domain_shape_compute()
         )
     pe_bottom = utils.make_storage_data(
-        np.repeat(pe.data[:, :, grid.npz :], pe.shape[2], axis=2), pe.shape
+        np.repeat(pe.data[:, :, grid.npz:], pe.shape[2], axis=2), pe.shape
     )
-    pressure_updates(ps, pe1, pe2, pe, ak, bk, delp, pe_bottom, pn2, peln)
+    pe1_bottom = utils.make_storage_data(
+        np.repeat(pe1.data[:, :, grid.npz:], pe1.shape[2], axis=2), pe1.shape
+    )
+    # TODO ps is a 2d stencil...
+    cp.copy_stencil(pe1_bottom, ps, origin=grid.compute_origin(), domain=grid. domain_shape_compute_buffer_k())
+    pressure_updates(pe1, pe2, pe, ak, bk, delp, pe_bottom, pn2, peln, origin=grid.compute_origin(), domain=grid.domain_shape_compute_buffer_k())
+    # TODO fix silly hack due to pe2 being 2d, so pe[:, je+1, 1:npz] should be the same as it was for pe[:, je, 1:npz] (unchanged)
+    copy_j_adjacent(pe2, origin=(grid.is_, grid.je + 1, 1), domain=(grid.nic, 1, grid.npz - 1))
+
     # TODO merge into pressure updates when math available
     islice = slice(grid.is_, grid.ie + 1)
     jslice = slice(grid.js, grid.je + 1)
@@ -226,7 +237,7 @@ def compute(
         )
         # fix gz -- is supposed to be 1d
         print('fixing gz', gz[3, 3, grid.npz - 2:],  gz[3, grid.je, grid.npz - 2:])
-        gz = utils.make_storage_data(np.squeeze(gz[:, grid.je, grid.npz - 1]), gz.shape, axis=0)
+        gz = reset_gz(gz)
     # if do_omega:
     # dp2 update, if larger than pe0 and smaller than one level up, update omega and  exit
 
