@@ -23,7 +23,7 @@ class ParallelTranslate:
         self._base = TranslateFortranData2Py(rank_grids[0])
         self._base.in_vars = {
             "data_vars": {name: {} for name in self.inputs},
-            "parameters": {},
+            "parameters": [],
         }
         self.max_error = self._base.max_error
         self._rank_grids = rank_grids

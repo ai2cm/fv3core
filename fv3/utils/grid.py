@@ -83,6 +83,13 @@ class Grid:
                 self.sizer, backend=utils.backend
             )
         return self._quantity_factory
+    
+    def make_quantity(self, array, dims=[fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_DIM], units="Unknown", origin=None, extent=None):
+        if origin is None:
+            origin = self.compute_origin()
+        if extent is None:
+            extent = self.domain_shape_compute()
+        return fv3util.Quantity(array, dims=dims, units=units, origin=origin, extent=extent)
 
     def global_to_local_1d(self, global_value, subtile_index, subtile_length):
         return global_value - subtile_index * subtile_length

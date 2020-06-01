@@ -249,6 +249,12 @@ def get_column_namelist():
         col["column_namelist"].append(column_namelist_options(ki))
     return col
 
+def get_single_column(key):
+    col = []
+    for k in range(0, grid().npz):
+        col.append(column_namelist_options(k)[key])
+    col.append(0.0)
+    return col
 
 def column_namelist_options(k):
     direct_namelist = ["ke_bg", "d_con", "nord"]
@@ -308,10 +314,10 @@ def compute(
     diss_est,
     dt,
 ):
+   
     # TODO: remove paired with removal of #d_sw belos
     # column_namelist = column_namelist_options(0)
     column_namelist = get_column_namelist()
-
     heat_s = utils.make_storage_from_shape(heat_source.shape, grid().compute_origin())
     diss_e = utils.make_storage_from_shape(heat_source.shape, grid().compute_origin())
     z_rat = utils.make_storage_from_shape(heat_source.shape, grid().default_origin())
@@ -362,13 +368,13 @@ def compute(
     outputs = {}
     for iv in inout_vars:
         outputs[iv] = data[iv]
-
     d_sw_ksplit(d_sw, data, column_namelist, outputs, grid())
-
+    print('MFX after d_sw', xflux[7, 35, 36])
     # TODO: remove when it has been decided how to handle the parameter arguments that change in the vertical. helpful for debugging
     # d_sw(delpc, delp, ptc, pt, u, v, w, uc, vc,  ua, va, divgd, mfx, mfy, cx, cy,  crx, cry, xfx, yfx, q_con, z_rat, heat_s, diss_e, dt,column_namelist)
     # TODO if namelist['hydrostatic' and not namelist['use_old_omega'] and last_step
     # TODO if namelist['d_ext'] > 0
+    
     if spec.namelist["d_con"] > dcon_threshold or spec.namelist["do_skeb"]:
         basic.add_term_two_vars(
             heat_s,
@@ -378,7 +384,9 @@ def compute(
             origin=grid().compute_origin(),
             domain=grid().domain_shape_compute(),
         )
-    # return col['nord_v'], col['damp_vt']
+    nord_v = get_single_column('nord_v')
+    damp_vt = get_single_column('damp_vt')
+    return nord_v, damp_vt
 
 
 def damp_vertical_wind(w, heat_s, diss_e, dt, column_namelist):
@@ -391,6 +399,7 @@ def damp_vertical_wind(w, heat_s, diss_e, dt, column_namelist):
         damp4 = (column_namelist["damp_w"] * grid().da_min_c) ** (
             column_namelist["nord_w"] + 1
         )
+      
         delnflux.compute_no_sg(w, fx2, fy2, column_namelist["nord_w"], damp4, wk)
         heatdiss.compute(fx2, fy2, w, dd8, dw, heat_s, diss_e)
     return dw, wk
@@ -424,6 +433,7 @@ def d_sw(
     dt,
     column_namelist,
 ):
+   
     logger.debug("Parameters that vary with k: {}".format(column_namelist))
     shape = heat_s.shape
     ub = utils.make_storage_from_shape(shape, grid().compute_origin())
@@ -437,7 +447,6 @@ def d_sw(
     gx = utils.make_storage_from_shape(shape, grid().compute_origin())
     gy = utils.make_storage_from_shape(shape, grid().compute_origin())
     ra_x, ra_y = fxadv.compute(uc, vc, ut, vt, xfx, yfx, crx, cry, dt)
-
     fvtp2d.compute_no_sg(
         delp,
         crx,
@@ -452,9 +461,8 @@ def d_sw(
         nord=column_namelist["nord_v"],
         damp_c=column_namelist["damp_vt"],
     )
-
+     
     fluxcap.compute(cx, cy, xflux, yflux, crx, cry, fx, fy)
-
     initialize_heat_source(heat_s, diss_e)
 
     if not spec.namelist["hydrostatic"]:
@@ -475,7 +483,7 @@ def d_sw(
             mfx=fx,
             mfy=fy,
         )
-
+      
         flux_adjust(
             w,
             delp,
@@ -485,7 +493,6 @@ def d_sw(
             origin=grid().compute_origin(),
             domain=grid().domain_shape_compute(),
         )
-
     # USE_COND
     fvtp2d.compute_no_sg(
         q_con,
@@ -504,7 +511,7 @@ def d_sw(
         mfx=fx,
         mfy=fy,
     )
-
+    
     flux_adjust(
         q_con,
         delp,
@@ -533,7 +540,7 @@ def d_sw(
         mfx=fx,
         mfy=fy,
     )
-
+   
     if spec.namelist["inline_q"]:
         raise Exception("inline_q not yet implemented")
     else:
@@ -675,7 +682,6 @@ def d_sw(
         heat_from_damping(
             ub, vb, ut, vt, u, v, delp, fx, fy, gx, gy, heat_s, diss_e, damp
         )
-
     if column_namelist["damp_vt"] > 1e-5:
         basic.add_term_stencil(
             vt,

@@ -35,6 +35,12 @@ def merge_namelist_defaults(nml):
         "use_logp": False,
         "c2l_ord": 4,
         "regional": False,
+        "m_split" : 0,
+        "convert_ke": False,
+        "breed_vortex_inline": False,
+        "use_old_omega" : True,
+        "use_logp": False,
+        "RF_fast": False,
     }
     defaults.update(nml)
     return defaults
