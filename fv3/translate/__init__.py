@@ -48,3 +48,4 @@ from .translate_map_scalar_2d import TranslateMapScalar_2d
 from .translate_c2l_ord2 import TranslateC2L_Ord2
 from .translate_cubedtolatlon import TranslateCubedToLatLon
 from .translate_rayleigh_super import TranslateRayleigh_Super
+from .translate_fvdynamics import TranslateFVDynamics
