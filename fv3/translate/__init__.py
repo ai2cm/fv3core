@@ -49,3 +49,10 @@ from .translate_c2l_ord2 import TranslateC2L_Ord2
 from .translate_cubedtolatlon import TranslateCubedToLatLon
 from .translate_rayleigh_super import TranslateRayleigh_Super
 from .translate_fvdynamics import TranslateFVDynamics
+from .translate_divergencecorner import TranslateDivergenceCorner
+from .translate_vorticitytransport_cgrid import TranslateVorticityTransport_Cgrid
+from .translate_pressureadjustedtemperature_nonhydrostatic import (
+    TranslatePressureAdjustedTemperature_NonHydrostatic,
+)
+from .translate_c_sw import TranslateC_SW
+from .translate_dyncore import TranslateDynCore

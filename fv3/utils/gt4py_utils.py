@@ -148,6 +148,11 @@ def make_storage_from_shape(shape, origin):
     )
 
 
+def storage_dict(st_dict, names, shape, origin):
+    for name in names:
+        st_dict[name] = make_storage_from_shape(shape, origin)
+
+
 def k_slice_operation(key, value, ki, dictionary):
     if isinstance(value, gt.storage.storage.Storage):
         dictionary[key] = make_storage_data(
