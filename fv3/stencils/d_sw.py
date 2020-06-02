@@ -369,7 +369,6 @@ def compute(
     for iv in inout_vars:
         outputs[iv] = data[iv]
     d_sw_ksplit(d_sw, data, column_namelist, outputs, grid())
-    print('MFX after d_sw', xflux[7, 35, 36])
     # TODO: remove when it has been decided how to handle the parameter arguments that change in the vertical. helpful for debugging
     # d_sw(delpc, delp, ptc, pt, u, v, w, uc, vc,  ua, va, divgd, mfx, mfy, cx, cy,  crx, cry, xfx, yfx, q_con, z_rat, heat_s, diss_e, dt,column_namelist)
     # TODO if namelist['hydrostatic' and not namelist['use_old_omega'] and last_step
