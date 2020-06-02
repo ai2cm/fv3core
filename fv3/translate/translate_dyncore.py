@@ -131,8 +131,7 @@ class TranslateDynCore(ParallelTranslate2Py):
     def compute_parallel(self, inputs, communicator):
         self._base.make_storage_data_input_vars(inputs)
         for name, properties in self.inputs.items():
-            inputs[name + '_quantity'] = self.grid.make_quantity(inputs[name], dims=[fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_DIM], units=properties['units'])
-           
+            inputs[name + '_quantity'] = self.grid.quantity_wrap(inputs[name], dims=properties['dims'], units=properties['units'])
         state = {'data': inputs, 'comm': communicator}
         self._base.compute_func(**state)
         return self._base.slice_output(state['data'])

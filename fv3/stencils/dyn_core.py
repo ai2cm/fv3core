@@ -124,6 +124,7 @@ def compute(data, comm):
     for halovar in ['q_con_quantity', 'cappa_quantity','delp_quantity', 'pt_quantity']:
         reqs[halovar] = comm.start_halo_update(data[halovar], n_points=utils.halo)
     reqs_vector = comm.start_vector_halo_update(data['u_quantity'], data['v_quantity'], n_points=utils.halo)
+   
     #    data['cappa_quantity'] = HALO_utils.make_quantity(data['cappa'], grid=rank_grid)
     #    HALO_utils.start_halo_update_comm(communicator, data['cappa_quantity'])
     #    data['delp_quantity'] = HALO_utils.make_quantity(data['delp'], grid=rank_grid)
@@ -136,6 +137,7 @@ def compute(data, comm):
     #for data, communicator, rank_grid in zipped:
     #    HALO_utils.finish_halo_update_comm(communicator, data['q_con_quantity'])
     #    HALO_utils.finish_halo_update_comm(communicator, data['cappa_quantity'])
+    
     reqs['q_con_quantity'].wait()
     reqs['cappa_quantity'].wait()
     #    #data['cappa'] =  data['cappa_quantity'].data
@@ -205,6 +207,7 @@ def compute(data, comm):
                         origin=(grid.is_ - 1, grid.js - 1, 0), domain=(grid.nic + 2, grid.njc + 2, grid.npz))
         #HALO_utils.finish_vector_halo_update_comm(communicator, data['u_quantity'], data['v_quantity'])
         reqs_vector.wait()
+        
         if not hydrostatic:
             #HALO_utils.finish_halo_update_comm(communicator, data['w_quantity'])
             reqs['w_quantity'].wait()
