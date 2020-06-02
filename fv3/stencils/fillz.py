@@ -81,6 +81,7 @@ def final_check(q:sd, dp:sd, dm:sd, zfix:sd, fac:sd):
 
 
 def compute(q, dp, i1, i2, km):
+    #Run on one tracer
     i_extent = i2-i1+1
     orig = (i1,0,0)
     zfix = utils.make_storage_from_shape(q.shape, origin=(0,0,0))
@@ -99,6 +100,7 @@ def compute(q, dp, i1, i2, km):
     sum0 = np.sum(dm[:,:,1:], axis=2)
     sum1 = np.sum(dm_pos[:,:,1:], axis=2)
     adj_factor = np.zeros(sum0.shape)
+    adj_factor[sum0 > 0] = sum0[sum0 > 0]/sum1[sum0 > 0]
     fac = utils.make_storage_data(np.repeat(adj_factor[:,:,np.newaxis], km+1, axis=2), q.shape)
     final_check(q, dp, dm, zfix, fac, origin=(i1, 0, 1), domain=(i_extent, 1, km-1))
     return q

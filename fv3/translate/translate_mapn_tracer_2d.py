@@ -8,9 +8,9 @@ class TranslateMapN_Tracer_2d(TranslateFortranData2Py):
         super().__init__(grid)
         self.compute_func = MapN_Tracer.compute
         self.in_vars["data_vars"] = {
-            "pe1": {},
-            "pe2": {},
-            "dp2": {},
+            "pe1": {"istart": grid.is_, "iend": grid.ie - 2,},
+            "pe2": {"istart": grid.is_, "iend": grid.ie - 2,},
+            "dp2": {"istart": grid.is_, "iend": grid.ie - 2,},
             "qvapor": {"serialname": "qvapor_js"},
             "qliquid": {"serialname": "qliquid_js"},
             "qice": {"serialname": "qice_js"},
