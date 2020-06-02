@@ -6,12 +6,9 @@ from gt4py.gtscript import computation, interval, PARALLEL
 from fv3.stencils.updatedzd import ra_x_stencil, ra_y_stencil
 import fv3.stencils.copy_stencil as cp
 import fv3.stencils.fvtp2d as fvtp2d
-
-# from mpi4py import MPI
 import numpy as np
 
 sd = utils.sd
-from mpi4py import MPI
 
 
 @utils.stencil()
@@ -141,6 +138,8 @@ def compute(
         origin=grid.compute_y_origin(),
         domain=grid.domain_x_compute_ybuffer(),
     )
+    """
+    # TODO for if we end up using the Allreduce and compute cmax globally (or locally). For now, hardcoded
     split = int(grid.npz / 6)
     cmax_stencil1(
         cxd, cyd, cmax, origin=grid.compute_origin(), domain=(grid.nic, grid.njc, split)
@@ -157,12 +156,15 @@ def compute(
     # cmax_flat is a gt4py storage still, but of dimension [npz+1]...
 
     cmax_max_all_ranks = cmax_flat.data
+    # TODO mpi allreduce.... can we not?
     # comm.Allreduce(cmax_flat, cmax_max_all_ranks, op=MPI.MAX)
-
+    """
+    cmax_max_all_ranks = 2.0
     nsplt = np.floor(1.0 + cmax_max_all_ranks)
 
     # for nsplit > 1
-    nsplt3d = utils.make_storage_data(nsplt, cmax.shape, origin=grid.compute_origin())
+    nsplt3d = utils.make_storage_from_shape(cyd.shape, origin=grid.compute_origin())
+    nsplt3d[:] = nsplt
     cmax_split(
         cxd,
         nsplt3d,
@@ -199,7 +201,7 @@ def compute(
         origin=grid.compute_origin(),
         domain=grid.domain_shape_compute_y(),
     )
-    ns = 1  # TODO remove
+
     # complete HALO update on q
     for q in [qvapor, qliquid, qice, qrain, qsnow, qgraupel]:
         comm.halo_update(q, n_points=utils.halo)
@@ -218,30 +220,45 @@ def compute(
         origin=grid.compute_y_origin(),
         domain=grid.domain_x_compute_y(),
     )
-    for it in range(int(ns)):
-        dp_fluxadjustment(
-            dp1,
-            mfxd,
-            mfyd,
-            grid.rarea,
-            dp2,
-            origin=grid.compute_origin(),
-            domain=grid.domain_shape_compute(),
-        )
 
+    # TODO revisit: the loops over q and nsplt have two inefficient options duplicating storages/stencil calls,
+    # return to this, maybe you have more options now, or maybe the one chosen here is the worse one
+
+    dp1_orig = cp.copy(
+        dp1, origin=grid.default_origin(), domain=grid.domain_shape_standard()
+    )
     for q in [qvapor, qliquid, qice, qrain, qsnow, qgraupel]:
-        for it in range(int(ns)):
-            if ns != 1:
-                raise Exception("untested")
+        # handling the q and it loop switching
+        cp.copy_stencil(
+            dp1_orig,
+            dp1,
+            origin=grid.default_origin(),
+            domain=grid.domain_shape_standard(),
+        )
+        for it in range(int(nsplt)):
+            dp_fluxadjustment(
+                dp1,
+                mfxd,
+                mfyd,
+                grid.rarea,
+                dp2,
+                origin=grid.compute_origin(),
+                domain=grid.domain_shape_compute(),
+            )
+            if nsplt != 1:
                 if it == 0:
                     # TODO 1d
-                    qn2 = cp.copy(q.data)
-                else:
-                    qn2 = utils.make_storage_from_shape(
-                        q.data.shape, origin=grid.compute_origin()
+                    qn2 = grid.quantity_wrap(
+                        cp.copy(
+                            q.data,
+                            origin=grid.default_origin(),
+                            domain=grid.domain_shape_standard(),
+                        ),
+                        units="kg/m^2",
                     )
+
                 fvtp2d.compute_no_sg(
-                    qn2,
+                    qn2.data,
                     cxd,
                     cyd,
                     spec.namelist["hord_tr"],
@@ -254,9 +271,9 @@ def compute(
                     mfx=mfxd,
                     mfy=mfyd,
                 )
-                if it < ns - 1:
+                if it < nsplt - 1:
                     q_adjust(
-                        qn2,
+                        qn2.data,
                         dp1,
                         fx,
                         fy,
@@ -267,8 +284,8 @@ def compute(
                     )
                 else:
                     q_other_adjust(
-                        qn2,
-                        q,
+                        qn2.data,
+                        q.data,
                         dp1,
                         fx,
                         fy,
@@ -303,10 +320,11 @@ def compute(
                     domain=grid.domain_shape_compute(),
                 )
 
-            if it < ns - 1:
-                raise Exception("untested")
-                dp1 = cp.copy(
-                    dp2, origin=grid.compute_origin, domain=grid.domain_shape_compute()
+            if it < nsplt - 1:
+                cp.copy_stencil(
+                    dp2,
+                    dp1,
+                    origin=grid.compute_origin(),
+                    domain=grid.domain_shape_compute(),
                 )
-                # HALO UPDATE qn2
-                comm.halo_update(comm, n_points=utils.halo)
+                comm.halo_update(qn2, n_points=utils.halo)
