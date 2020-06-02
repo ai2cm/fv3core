@@ -16,4 +16,3 @@ class TranslatePressureAdjustedTemperature_NonHydrostatic(TranslateFortranData2P
         }
         self.in_vars["parameters"] = ["bdt", "n_con"]
         self.out_vars = {"pt": {}, "pkz": grid.compute_dict()}
-        

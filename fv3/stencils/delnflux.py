@@ -52,16 +52,19 @@ def d2_damp(q: sd, d2: sd, damp: float):
     with computation(PARALLEL), interval(...):
         d2[0, 0, 0] = damp * q
 
+
 @utils.stencil()
-def add_diffusive(fx: sd, fx2: sd, fy: sd, fy2:sd):
+def add_diffusive(fx: sd, fx2: sd, fy: sd, fy2: sd):
     with computation(PARALLEL), interval(...):
         fx[0, 0, 0] = fx + fx2
         fy[0, 0, 0] = fy + fy2
-        
+
+
 @utils.stencil()
 def add_diffusive_x(fx: sd, fx2: sd):
     with computation(PARALLEL), interval(...):
         fx[0, 0, 0] = fx + fx2
+
 
 @utils.stencil()
 def add_diffusive_y(fy: sd, fy2: sd):
@@ -107,19 +110,19 @@ def compute_delnflux_no_sg(
     diffuse_domain_x = (grid.nic + 1, grid.njc, nk)
     diffuse_domain_y = (grid.nic, grid.njc + 1, nk)
     if mass is None:
-        #add_diffusive_x(
+        # add_diffusive_x(
         #    fx, fx2, origin=diffuse_origin, domain=(grid.nic + 1, grid.njc + 1, nk))
-        add_diffusive_x(
-            fx, fx2, origin=diffuse_origin, domain=diffuse_domain_x
-        )
-        add_diffusive_y(
-            fy, fy2, origin=diffuse_origin, domain=diffuse_domain_y
-        )
+        add_diffusive_x(fx, fx2, origin=diffuse_origin, domain=diffuse_domain_x)
+        add_diffusive_y(fy, fy2, origin=diffuse_origin, domain=diffuse_domain_y)
     else:
         # TODO to join these stencils you need to overcompute, making the edges 'wrong', but not actually used, separating now for comparison sanity
-        #diffusive_damp(fx, fx2, fy, fy2, mass, damp,origin=diffuse_origin,domain=(grid.nic + 1, grid.njc + 1, nk))
-        diffusive_damp_x(fx, fx2, mass, damp, origin=diffuse_origin, domain=diffuse_domain_x)
-        diffusive_damp_y(fy, fy2,  mass, damp, origin=diffuse_origin, domain=diffuse_domain_y)
+        # diffusive_damp(fx, fx2, fy, fy2, mass, damp,origin=diffuse_origin,domain=(grid.nic + 1, grid.njc + 1, nk))
+        diffusive_damp_x(
+            fx, fx2, mass, damp, origin=diffuse_origin, domain=diffuse_domain_x
+        )
+        diffusive_damp_y(
+            fy, fy2, mass, damp, origin=diffuse_origin, domain=diffuse_domain_y
+        )
     return fx, fy
 
 
@@ -139,17 +142,17 @@ def compute_no_sg(q, fx2, fy2, nord, damp_c, d2, kstart=0, nk=None, mass=None):
         d2_damp(q, d2, damp_c, origin=origin_d2, domain=domain_d2)
     else:
         d2 = cp.copy(q, origin_d2, domain=domain_d2)
-   
+
     if nord > 0:
         corners.copy_corners(d2, "x", grid, kslice)
     f1_ny = grid.je - grid.js + 1 + 2 * nord
     f1_nx = grid.ie - grid.is_ + 2 + 2 * nord
     fx_origin = (grid.is_ - nord, grid.js - nord, kstart)
-   
+
     fx2_order(
         d2, grid.del6_v, fx2, order=1, origin=fx_origin, domain=(f1_nx, f1_ny, nk)
     )
-  
+
     if nord > 0:
         corners.copy_corners(d2, "y", grid, kslice)
     fy2_order(

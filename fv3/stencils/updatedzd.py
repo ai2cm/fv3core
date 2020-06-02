@@ -198,7 +198,7 @@ def compute(ndif, damp_vtd, dp0, zs, zh, crx, cry, xfx, yfx, wsd, dt):
     data = {}
     for varname in ["zh", "crx_adv", "cry_adv", "xfx_adv", "yfx_adv", "ra_x", "ra_y"]:
         data[varname] = locals()[varname]
-    
+
     col = {"ndif": ndif, "damp": damp_vtd}
 
     kstarts = utils.get_kstarts(col, grid.npz + 1)
@@ -211,6 +211,7 @@ def compute(ndif, damp_vtd, dp0, zs, zh, crx, cry, xfx, yfx, wsd, dt):
         origin=grid.compute_origin(),
         domain=(grid.nic, grid.njc, grid.npz + 1),
     )
+
 
 def column_calls(
     zh, crx_adv, cry_adv, xfx_adv, yfx_adv, ra_x, ra_y, ndif, damp, kstart, nk

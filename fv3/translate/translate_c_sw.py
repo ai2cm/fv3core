@@ -9,14 +9,16 @@ class TranslateC_SW(TranslateFortranData2Py):
         self.in_vars["data_vars"] = {
             "delp": {},
             "pt": {},
-            "u" : {'jend': grid.jed + 1},
-            "v": {'iend': grid.ied + 1},
-            "w" : {},
-            "uc" : {'iend': grid.ied + 1},
-            "vc": {'jend': grid.jed + 1},
-            "ua" : {}, "va" : {},
-            "ut" : {}, "vt": {},
-            "divgd" : {'iend': grid.ied + 1, 'jend': grid.jed + 1},
+            "u": {"jend": grid.jed + 1},
+            "v": {"iend": grid.ied + 1},
+            "w": {},
+            "uc": {"iend": grid.ied + 1},
+            "vc": {"jend": grid.jed + 1},
+            "ua": {},
+            "va": {},
+            "ut": {},
+            "vt": {},
+            "divgd": {"iend": grid.ied + 1, "jend": grid.jed + 1},
         }
         self.in_vars["parameters"] = ["dt2"]
         for name, info in self.in_vars["data_vars"].items():
@@ -24,7 +26,7 @@ class TranslateC_SW(TranslateFortranData2Py):
         self.out_vars = {}
         for v, d in self.in_vars["data_vars"].items():
             self.out_vars[v] = d
-        for servar in ['delpcd', 'ptcd', 'omgad']:
+        for servar in ["delpcd", "ptcd", "omgad"]:
             self.out_vars[servar] = {}
         # TODO - fix edge_interpolate4 in d2a2c_vect to match closer and the variables here should as well
         self.max_error = 1e-10
