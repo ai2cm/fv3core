@@ -57,14 +57,7 @@ def compute(
 ):
     grid = spec.grid
 
-    if spec.namelist["do_sat_adj"]:
-        fast_mp_consv = (
-            not do_adiabatic_init and consv_te > constants.CONSV_MIN
-        )  # TODO pass when change serialiazation data
-        kmp = np.where(pfull[0, 0, :] > 10.0e2)[0]
-        kmp = kmp[0] if len(kmp) > 0 else grid.npz
-        # TODO USE KMP WHEN YOU FIX SERIALIZATION DATA
-        # Fortran does a qs_init here, but it does not need to happen here
+    
     gz = utils.make_storage_from_shape(pt.shape, grid.compute_origin())
     cvm = utils.make_storage_from_shape(pt.shape, grid.compute_origin())
     te = utils.make_storage_from_shape(pt.shape, grid.default_origin())
@@ -132,6 +125,7 @@ def compute(
         te,
         cvm,
         zsum1,
+        pfull,
         ptop,
         akap,
         zvir,
@@ -139,7 +133,5 @@ def compute(
         bdt,
         mdt,
         consv_te,
-        kmp,
-        fast_mp_consv,
         do_adiabatic_init,
     )

@@ -3,7 +3,7 @@ import fv3.utils.gt4py_utils as utils
 import gt4py.gtscript as gtscript
 import fv3._config as spec
 from gt4py.gtscript import computation, interval, PARALLEL
-
+from fv3.stencils.basic_operations import absolute_value
 input_vars = ["q", "c"]
 inputs_params = ["jord", "ifirst", "ilast"]
 output_vars = ["flux"]
@@ -80,12 +80,6 @@ def get_br(al, q):
 def get_b0(bl, br):
     b0 = bl + br
     return b0
-
-
-@gtscript.function
-def absolute_value(in_array):
-    abs_value = in_array if in_array > 0 else -in_array
-    return abs_value
 
 
 @gtscript.function

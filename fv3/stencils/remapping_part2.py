@@ -81,6 +81,7 @@ def compute(
     te,
     cvm,
     zsum1,
+    pfull,
     ptop,
     akap,
     r_vir,
@@ -88,8 +89,8 @@ def compute(
     pdt,
     mdt,
     consv,
-    kmp,
-    fast_mp_consv,
+    #kmp,
+    #fast_mp_consv,
     do_adiabatic_init,
 ):
     grid = spec.grid
@@ -100,7 +101,13 @@ def compute(
     dtmp = 0.0
     phis = utils.make_storage_from_shape(pt.shape, grid.compute_origin())
     dpln = utils.make_storage_from_shape(pt.shape, grid.compute_origin())
-    # TODO do_adiabatic_init needs to be serialized, pt for neg_adj3, cs_profile out, g_sum for dtmp, parallel test, use -5 for hord_tr, save kmp for part2
+    if spec.namelist["do_sat_adj"]:
+        fast_mp_consv = (
+            not do_adiabatic_init and consv > constants.CONSV_MIN
+        )
+        #TODO pfull is a 1d var, does not need to be a storage
+        kmp = np.where(pfull[0, 0, :] > 10.0e2)[0]
+        kmp = kmp[0] if len(kmp) > 0 else grid.npz - 1
     if last_step and not do_adiabatic_init:
         if consv > constants.CONSV_MIN:
             if spec.namelist["hydrostatic"]:
@@ -211,6 +218,6 @@ def compute(
         )
     else:
         # TODO currently untested
-        adjust_divide_stencil(
+        basic.adjust_divide_stencil(
             pkz, pt, origin=grid.compute_origin, domain=grid.domain_shape_compute()
         )
