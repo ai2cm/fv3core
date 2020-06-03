@@ -29,7 +29,7 @@ def init_ph_columns(ak: sd, bk: sd, pfull: sd, ph1: sd, ph2: sd, p_ref: float):
 @utils.stencil()
 def pt_adjust(pkz: sd, dp1: sd, q_con: sd, pt: sd):
     with computation(PARALLEL), interval(...):
-        pt = pt * (1. + dp1) * (1. - q_con / pkz)
+        pt = pt * (1. + dp1) * (1. - q_con) / pkz
 
 @utils.stencil()
 def set_omega(delp: sd, delz: sd, w: sd, omga: sd):
@@ -102,7 +102,7 @@ def compute(state, comm):
                                      state.cxd, state.cyd, state.mdt, nq, comm)
             else:
                 raise Exception('tracer_2d no =t implemented, turn on z_tracer')
-    '''
+
         if grid.npz > 4:
             kord_tracer = np.ones(nq) * spec.namelist['kord_tr']
             kord_tracer[6] = 9
@@ -125,5 +125,3 @@ def compute(state, comm):
     else:
         raise Exception('Unimplemented, anything but 7 water species')
     compute_cubed_to_latlon(state.u, state.v, state.ua, state.va)
-    
-    '''
