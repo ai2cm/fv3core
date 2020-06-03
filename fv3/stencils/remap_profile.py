@@ -504,21 +504,20 @@ def set_bottom_as_else(a4_1: sd, a4_2: sd, a4_3: sd, a4_4: sd):
             a4_4 = 3.0 * (2.0 * a4_1 - (a4_2 + a4_3))
 
 
-def compute(qs, a4_1, a4_2, a4_3, a4_4, delp, km, i1, i2, iv, kord):
-
+def compute(qs, a4_1, a4_2, a4_3, a4_4, delp, km, i1, i2, iv, kord, js, j_extent):
     i_extent = i2 - i1 + 1
-
+    print(i1, i2, delp.shape)
     grid = spec.grid
-    orig = (i1, 0, 0)
-    full_orig = (grid.is_, 0, 0)
-    dom = (i_extent, 1, km)
+    orig = (i1, js, 0)
+    full_orig = (grid.is_, js, 0)
+    dom = (i_extent, j_extent, km)
     gam = utils.make_storage_from_shape(delp.shape, origin=full_orig)
     q = utils.make_storage_from_shape(delp.shape, origin=full_orig)
     q_bot = utils.make_storage_from_shape(delp.shape, origin=full_orig)
 
     qs_field = utils.make_storage_from_shape(delp.shape, origin=full_orig)
-    qs_field[i1 : i2 + 1, :, -1] = qs.data[
-        :i_extent, :, 0
+    qs_field[i1 : i2 + 1, js : js + j_extent, -1] = qs.data[
+        i1:i2+1, js : js + j_extent, 0
     ]  # make a qs that can be passed to a stencil
 
     extm = utils.make_storage_from_shape(delp.shape, origin=full_orig)
@@ -534,10 +533,12 @@ def compute(qs, a4_1, a4_2, a4_3, a4_4, delp, km, i1, i2, iv, kord):
             q_bot,
             qs_field,
             origin=orig,
-            domain=(i_extent, 1, km + 1),
+            domain=(i_extent, j_extent, km + 1),
         )
     else:
-        set_vals_1(gam, q, delp, a4_1, q_bot, origin=orig, domain=(i_extent, 1, km + 1))
+        set_vals_1(
+            gam, q, delp, a4_1, q_bot, origin=orig, domain=(i_extent, j_extent, km + 1)
+        )
 
     if abs(kord) > 16:
         set_avals(q, a4_1, a4_2, a4_3, a4_4, q_bot, origin=orig, domain=dom)
@@ -549,29 +550,35 @@ def compute(qs, a4_1, a4_2, a4_3, a4_4, delp, km, i1, i2, iv, kord):
             set_exts(a4_4, ext5, ext6, a4_1, a4_2, a4_3, origin=orig, domain=dom)
 
         if iv == 0:
-            set_top_as_iv0(a4_1, a4_2, a4_3, a4_4, origin=orig, domain=(i_extent, 1, 2))
+            set_top_as_iv0(
+                a4_1, a4_2, a4_3, a4_4, origin=orig, domain=(i_extent, j_extent, 2)
+            )
             a4_1, a4_2, a4_3, a4_4 = limiters.compute(
-                a4_1, a4_2, a4_3, a4_4, extm, 1, i1, i_extent, 0, 1
+                a4_1, a4_2, a4_3, a4_4, extm, 1, i1, i_extent, 0, 1, js, j_extent
             )
         elif iv == -1:
-            set_top_as_iv1(a4_1, a4_2, a4_3, a4_4, origin=orig, domain=(i_extent, 1, 2))
+            set_top_as_iv1(
+                a4_1, a4_2, a4_3, a4_4, origin=orig, domain=(i_extent, j_extent, 2)
+            )
 
             a4_1, a4_2, a4_3, a4_4 = limiters.compute(
-                a4_1, a4_2, a4_3, a4_4, extm, 1, i1, i_extent, 0, 1
+                a4_1, a4_2, a4_3, a4_4, extm, 1, i1, i_extent, 0, 1, js, j_extent
             )
 
         elif iv == 2:
-            set_top_as_iv2(a4_1, a4_2, a4_3, a4_4, origin=orig, domain=(i_extent, 1, 2))
+            set_top_as_iv2(
+                a4_1, a4_2, a4_3, a4_4, origin=orig, domain=(i_extent, j_extent, 2)
+            )
         else:
             set_top_as_else(
-                a4_1, a4_2, a4_3, a4_4, origin=orig, domain=(i_extent, 1, 2)
+                a4_1, a4_2, a4_3, a4_4, origin=orig, domain=(i_extent, j_extent, 2)
             )
             a4_1, a4_2, a4_3, a4_4 = limiters.compute(
-                a4_1, a4_2, a4_3, a4_4, extm, 1, i1, i_extent, 0, 1
+                a4_1, a4_2, a4_3, a4_4, extm, 1, i1, i_extent, 0, 1, js, j_extent
             )
 
         a4_1, a4_2, a4_3, a4_4 = limiters.compute(
-            a4_1, a4_2, a4_3, a4_4, extm, 2, i1, i_extent, 1, 1
+            a4_1, a4_2, a4_3, a4_4, extm, 2, i1, i_extent, 1, 1, js, j_extent
         )
 
         if abs(kord) < 9:
@@ -585,8 +592,8 @@ def compute(qs, a4_1, a4_2, a4_3, a4_4, delp, km, i1, i2, iv, kord):
                 extm,
                 ext5,
                 ext6,
-                origin=(i1, 0, 2),
-                domain=(i_extent, 1, km - 4),
+                origin=(i1, js, 2),
+                domain=(i_extent, j_extent, km - 4),
             )
         elif abs(kord) == 9:
             print("WARNING: Only kord=10 has been tested.")
@@ -599,8 +606,8 @@ def compute(qs, a4_1, a4_2, a4_3, a4_4, delp, km, i1, i2, iv, kord):
                 extm,
                 ext5,
                 ext6,
-                origin=(i1, 0, 2),
-                domain=(i_extent, 1, km - 4),
+                origin=(i1, js, 2),
+                domain=(i_extent, j_extent, km - 4),
             )
         elif abs(kord) == 10:
             set_inner_as_kord10(
@@ -612,8 +619,8 @@ def compute(qs, a4_1, a4_2, a4_3, a4_4, delp, km, i1, i2, iv, kord):
                 extm,
                 ext5,
                 ext6,
-                origin=(i1, 0, 2),
-                domain=(i_extent, 1, km - 4),
+                origin=(i1, js, 2),
+                domain=(i_extent, j_extent, km - 4),
             )
         else:
             raise Exception("kord {0} not implemented.".format(kord))
@@ -625,41 +632,57 @@ def compute(qs, a4_1, a4_2, a4_3, a4_4, delp, km, i1, i2, iv, kord):
 
         if iv == 0:
             set_bottom_as_iv0(
-                a4_1, a4_2, a4_3, a4_4, origin=(i1, 0, km - 2), domain=(i_extent, 1, 2)
+                a4_1,
+                a4_2,
+                a4_3,
+                a4_4,
+                origin=(i1, js, km - 2),
+                domain=(i_extent, j_extent, 2),
             )
         elif iv == -1:
             set_bottom_as_iv1(
-                a4_1, a4_2, a4_3, a4_4, origin=(i1, 0, km - 2), domain=(i_extent, 1, 2)
+                a4_1,
+                a4_2,
+                a4_3,
+                a4_4,
+                origin=(i1, js, km - 2),
+                domain=(i_extent, j_extent, 2),
             )
         else:
             set_bottom_as_else(
-                a4_1, a4_2, a4_3, a4_4, origin=(i1, 0, km - 2), domain=(i_extent, 1, 2)
+                a4_1,
+                a4_2,
+                a4_3,
+                a4_4,
+                origin=(i1, js, km - 2),
+                domain=(i_extent, j_extent, 2),
             )
         a4_1, a4_2, a4_3, a4_4 = limiters.compute(
-            a4_1, a4_2, a4_3, a4_4, extm, 2, i1, i_extent, km - 2, 1
+            a4_1, a4_2, a4_3, a4_4, extm, 2, i1, i_extent, km - 2, 1, js, j_extent
         )
         a4_1, a4_2, a4_3, a4_4 = limiters.compute(
-            a4_1, a4_2, a4_3, a4_4, extm, 1, i1, i_extent, km - 1, 1
+            a4_1, a4_2, a4_3, a4_4, extm, 1, i1, i_extent, km - 1, 1, js, j_extent
         )
 
     return a4_1, a4_2, a4_3, a4_4
 
-
-def compute_scalar(qs, a4_1, a4_2, a4_3, a4_4, delp, km, i1, i2, iv, kord, qmin):
-
+# TODO, can this be merged with compute() -- these are very similar
+def compute_scalar(
+    qs, a4_1, a4_2, a4_3, a4_4, delp, km, i1, i2, iv, kord, qmin, js, j_extent
+):
     i_extent = i2 - i1 + 1
-
     grid = spec.grid
-    orig = (i1, 0, 0)
-    full_orig = (grid.is_, 0, 0)
-    dom = (i_extent, 1, km)
+    orig = (i1, js, 0)
+    full_orig = (grid.is_, js, 0)
+    dom = (i_extent, j_extent, km)
     gam = utils.make_storage_from_shape(delp.shape, origin=full_orig)
     q = utils.make_storage_from_shape(delp.shape, origin=full_orig)
     q_bot = utils.make_storage_from_shape(delp.shape, origin=full_orig)
 
     qs_field = utils.make_storage_from_shape(delp.shape, origin=full_orig)
-    qs_field[i1 : i2 + 1, :, -1] = qs.data[
-        :i_extent, :, 0
+
+    qs_field[i1 : i2 + 1, js : js + j_extent, -1] = qs.data[
+        i1:i2 + 1, js : js + j_extent, 0
     ]  # make a qs that can be passed to a stencil
 
     extm = utils.make_storage_from_shape(delp.shape, origin=full_orig)
@@ -675,46 +698,50 @@ def compute_scalar(qs, a4_1, a4_2, a4_3, a4_4, delp, km, i1, i2, iv, kord, qmin)
             q_bot,
             qs_field,
             origin=orig,
-            domain=(i_extent, 1, km + 1),
+            domain=(i_extent, j_extent, km + 1),
         )
     else:
-        set_vals_1(gam, q, delp, a4_1, q_bot, origin=orig, domain=(i_extent, 1, km + 1))
+        set_vals_1(
+            gam, q, delp, a4_1, q_bot, origin=orig, domain=(i_extent, j_extent, km + 1)
+        )
 
     if abs(kord) > 16:
         set_avals(q, a4_1, a4_2, a4_3, a4_4, q_bot, origin=orig, domain=dom)
     else:
         Apply_constraints(q, gam, a4_1, a4_2, a4_3, iv, origin=orig, domain=dom)
         set_extm(extm, a4_1, a4_2, a4_3, gam, origin=orig, domain=dom)
-
         if abs(kord) > 9:
             set_exts(a4_4, ext5, ext6, a4_1, a4_2, a4_3, origin=orig, domain=dom)
-
         if iv == 0:
-            set_top_as_iv0(a4_1, a4_2, a4_3, a4_4, origin=orig, domain=(i_extent, 1, 2))
+            set_top_as_iv0(
+                a4_1, a4_2, a4_3, a4_4, origin=orig, domain=(i_extent, j_extent, 2)
+            )
             a4_1, a4_2, a4_3, a4_4 = limiters.compute(
-                a4_1, a4_2, a4_3, a4_4, extm, 1, i1, i_extent, 0, 1
+                a4_1, a4_2, a4_3, a4_4, extm, 1, i1, i_extent, 0, 1, js, j_extent
             )
         elif iv == -1:
-            set_top_as_iv1(a4_1, a4_2, a4_3, a4_4, origin=orig, domain=(i_extent, 1, 2))
+            set_top_as_iv1(
+                a4_1, a4_2, a4_3, a4_4, origin=orig, domain=(i_extent, j_extent, 2)
+            )
 
             a4_1, a4_2, a4_3, a4_4 = limiters.compute(
-                a4_1, a4_2, a4_3, a4_4, extm, 1, i1, i_extent, 0, 1
+                a4_1, a4_2, a4_3, a4_4, extm, 1, i1, i_extent, 0, 1, js, j_extent
             )
 
         elif iv == 2:
-            set_top_as_iv2(a4_1, a4_2, a4_3, a4_4, origin=orig, domain=(i_extent, 1, 2))
+            set_top_as_iv2(
+                a4_1, a4_2, a4_3, a4_4, origin=orig, domain=(i_extent, j_extent, 2)
+            )
         else:
             set_top_as_else(
-                a4_1, a4_2, a4_3, a4_4, origin=orig, domain=(i_extent, 1, 2)
+                a4_1, a4_2, a4_3, a4_4, origin=orig, domain=(i_extent, j_extent, 2)
             )
             a4_1, a4_2, a4_3, a4_4 = limiters.compute(
-                a4_1, a4_2, a4_3, a4_4, extm, 1, i1, i_extent, 0, 1
+                a4_1, a4_2, a4_3, a4_4, extm, 1, i1, i_extent, 0, 1, js, j_extent
             )
-
         a4_1, a4_2, a4_3, a4_4 = limiters.compute(
-            a4_1, a4_2, a4_3, a4_4, extm, 2, i1, i_extent, 1, 1
+            a4_1, a4_2, a4_3, a4_4, extm, 2, i1, i_extent, 1, 1, js, j_extent
         )
-
         if abs(kord) < 9:
             print("WARNING: Only kord=10 has been tested.")
             set_inner_as_kordsmall(
@@ -726,8 +753,8 @@ def compute_scalar(qs, a4_1, a4_2, a4_3, a4_4, delp, km, i1, i2, iv, kord, qmin)
                 extm,
                 ext5,
                 ext6,
-                origin=(i1, 0, 2),
-                domain=(i_extent, 1, km - 4),
+                origin=(i1, js, 2),
+                domain=(i_extent, j_extent, km - 4),
             )
         elif abs(kord) == 9:
             print("WARNING: Only kord=10 has been tested.")
@@ -741,8 +768,8 @@ def compute_scalar(qs, a4_1, a4_2, a4_3, a4_4, delp, km, i1, i2, iv, kord, qmin)
                 ext5,
                 ext6,
                 qmin,
-                origin=(i1, 0, 2),
-                domain=(i_extent, 1, km - 4),
+                origin=(i1, js, 2),
+                domain=(i_extent, j_extent, km - 4),
             )
         elif abs(kord) == 10:
             set_inner_as_kord10(
@@ -754,8 +781,8 @@ def compute_scalar(qs, a4_1, a4_2, a4_3, a4_4, delp, km, i1, i2, iv, kord, qmin)
                 extm,
                 ext5,
                 ext6,
-                origin=(i1, 0, 2),
-                domain=(i_extent, 1, km - 4),
+                origin=(i1, js, 2),
+                domain=(i_extent, j_extent, km - 4),
             )
         else:
             raise Exception("kord {0} not implemented.".format(kord))
@@ -767,21 +794,36 @@ def compute_scalar(qs, a4_1, a4_2, a4_3, a4_4, delp, km, i1, i2, iv, kord, qmin)
 
         if iv == 0:
             set_bottom_as_iv0(
-                a4_1, a4_2, a4_3, a4_4, origin=(i1, 0, km - 2), domain=(i_extent, 1, 2)
+                a4_1,
+                a4_2,
+                a4_3,
+                a4_4,
+                origin=(i1, js, km - 2),
+                domain=(i_extent, j_extent, 2),
             )
         elif iv == -1:
             set_bottom_as_iv1(
-                a4_1, a4_2, a4_3, a4_4, origin=(i1, 0, km - 2), domain=(i_extent, 1, 2)
+                a4_1,
+                a4_2,
+                a4_3,
+                a4_4,
+                origin=(i1, js, km - 2),
+                domain=(i_extent, j_extent, 2),
             )
         else:
             set_bottom_as_else(
-                a4_1, a4_2, a4_3, a4_4, origin=(i1, 0, km - 2), domain=(i_extent, 1, 2)
+                a4_1,
+                a4_2,
+                a4_3,
+                a4_4,
+                origin=(i1, js, km - 2),
+                domain=(i_extent, j_extent, 2),
             )
         a4_1, a4_2, a4_3, a4_4 = limiters.compute(
-            a4_1, a4_2, a4_3, a4_4, extm, 2, i1, i_extent, km - 2, 1
+            a4_1, a4_2, a4_3, a4_4, extm, 2, i1, i_extent, km - 2, 1, js, j_extent
         )
         a4_1, a4_2, a4_3, a4_4 = limiters.compute(
-            a4_1, a4_2, a4_3, a4_4, extm, 1, i1, i_extent, km - 1, 1
+            a4_1, a4_2, a4_3, a4_4, extm, 1, i1, i_extent, km - 1, 1, js, j_extent
         )
 
     return a4_1, a4_2, a4_3, a4_4
