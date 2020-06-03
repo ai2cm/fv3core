@@ -77,7 +77,7 @@ def compute(u, v, w, ua, va, pt, delz, phis, bdt, ptop, pfull, comm):
         # is only a column actually
         rf = np.zeros(grid.npz)
         if spec.namelist["tau"] < 0:
-            rfvals = bdt / tau0 * (np.log(rf_cutoff / pfull[0, 0, 0 : grid.npz])) ** 2
+            rfvals = bdt / tau0 * (np.log(rf_cutoff / pfull[grid.is_, grid.js, 0 : grid.npz])) ** 2
         else:
             rfvals = (
                 bdt
@@ -85,24 +85,24 @@ def compute(u, v, w, ua, va, pt, delz, phis, bdt, ptop, pfull, comm):
                 * np.sin(
                     0.5
                     * constants.PI
-                    * np.log(rf_cutoff / np.squeeze(pfull[0, 0, 0 : grid.npz]))
+                    * np.log(rf_cutoff / np.squeeze(pfull[grid.is_, grid.js, 0 : grid.npz]))
                     / math.log(rf_cutoff / ptop)
                 )
                 ** 2
             )
-        neg_pfull = np.argwhere(pfull[0, 0, 0 : grid.npz] < rf_cutoff)
+        neg_pfull = np.argwhere(pfull[grid.is_, grid.js, 0 : grid.npz] < rf_cutoff)
+       
         if len(neg_pfull) == 0:
             kmax = 1
         else:
-            kmax = (
-                neg_pfull[-1][-1] + 1
-            )
+            kmax = (neg_pfull[-1][-1] + 1)
+       
         rf[neg_pfull] = rfvals[neg_pfull]
         # TODO this makes the column 3d, undo when you can
         rf = utils.make_storage_data(rf, u.shape, origin=grid.default_origin())
-        rf_initialized = True  # TODO propoagate to global scope
+        rf_initialized = True  # TODO propagate to global scope
     c2l_ord.compute_ord2(u, v, ua, va)
-
+    
     # TODO this really only needs to be kmax size in the 3rd dimension...
     u2f = grid.quantity_factory.zeros(
         [fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_DIM], "m/s"
@@ -116,7 +116,7 @@ def compute(u, v, w, ua, va, pt, delz, phis, bdt, ptop, pfull, comm):
         origin=grid.compute_origin(),
         domain=(grid.nic, grid.njc, kmax),
     )
-
+   
     comm.halo_update(u2f, n_points=utils.halo)
     rayleigh_pt_vert(
         pt,
@@ -149,3 +149,4 @@ def compute(u, v, w, ua, va, pt, delz, phis, bdt, ptop, pfull, comm):
         origin=grid.compute_origin(),
         domain=(grid.nic + 1, grid.njc, kmax),
     )
+   

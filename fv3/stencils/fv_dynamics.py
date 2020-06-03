@@ -41,7 +41,7 @@ def set_omega(delp: sd, delz: sd, w: sd, omga: sd):
 def fvdyn_temporaries(shape):
     grid = spec.grid
     tmps = {}
-    halo_vars = ["cappa", "pt", "delp", "q_con"]
+    halo_vars = ["cappa"]
     storage_vars = ['te_2d', 'dp1', 'ph1', 'ph2', 'dp1', 'wsd']
     column_vars = ["pfull", "gz", "cvm"]
     plane_vars = ["te_2d", "te0_2d"]
@@ -59,16 +59,18 @@ def compute(state, comm):
     state.akap = constants.KAPPA
     state.dt2 = 0.5 * state.bdt
     nq = state.nq_tot - spec.namelist['dnats']
-    init_ph_columns(state.ak, state.bk, state.pfull, state.ph1, state.ph2, spec.namelist['p_ref'], origin=grid.compute_origin(), domain=grid.domain_shape_compute()) # TODO put pfull into stencil
-    state.pfull = (state.ph2 - state.ph1) / np.log(state.ph2 / state.ph1)
+    init_ph_columns(state.ak, state.bk, state.pfull, state.ph1, state.ph2, spec.namelist['p_ref'], origin=grid.compute_origin(), domain=grid.domain_shape_compute()) # TODO put pfull calc below into stencil
+    tmpslice = grid.compute_interface()
+    state.pfull[tmpslice] = (state.ph2[tmpslice] - state.ph1[tmpslice]) / np.log(state.ph2[tmpslice] / state.ph1[tmpslice])
     if spec.namelist['hydrostatic']:
         raise Exception('Hydrostatic is not implemented')
     
     moist_cv.fv_setup(state.pt, state.pkz, state.delz, state.delp, state.cappa, state.q_con,
                       state.zvir, state.qvapor, state.qliquid, state.qice, state.qrain, state.qsnow, state.qgraupel,
                       state.cvm, state.dp1)
-    # NOTE untested
+    
     if state.consv_te > 0 and not state.do_adiabatic_init:
+        # NOTE untested
         moist_cv.compute_total_energy(state.u, state.v, state.w, state.delz, state.pt, state.delp, state.qc,
                                       state.pe, state.peln, state.phis, state.zvir, state.te_2d,
                                       state.qvapor, state.qliquid, state.qice, state.qrain, state.qsnow, state.qgraupel)
@@ -87,7 +89,7 @@ def compute(state, comm):
     state.mdt = state.bdt / k_split
     
     for n_map in range(k_split):
-        state.n_map_step = n_map
+        state.n_map_step = n_map + 1
         if n_map == k_split - 1:
             last_step = True
         cp.copy_stencil(state.delp, state.dp1, origin=grid.default_origin(), domain=grid.domain_shape_standard())
@@ -100,7 +102,7 @@ def compute(state, comm):
                                      state.cxd, state.cyd, state.mdt, nq, comm)
             else:
                 raise Exception('tracer_2d no =t implemented, turn on z_tracer')
-    
+    '''
         if grid.npz > 4:
             kord_tracer = np.ones(nq) * spec.namelist['kord_tr']
             kord_tracer[6] = 9
@@ -124,3 +126,4 @@ def compute(state, comm):
         raise Exception('Unimplemented, anything but 7 water species')
     compute_cubed_to_latlon(state.u, state.v, state.ua, state.va)
     
+    '''
