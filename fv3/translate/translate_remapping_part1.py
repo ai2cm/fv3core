@@ -24,8 +24,6 @@ class TranslateRemapping_Part1(TranslateFortranData2Py):
             "delp": {},
             "cappa": {},
             "q_con": {},
-            "gz": {"serialname": "gz1d", "kstart": grid.is_, "axis": 0},
-            "cvm": {"kstart": grid.is_, "axis": 0},
             "pkz": grid.compute_dict(),
             "pk": {
                 "istart": grid.is_,

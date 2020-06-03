@@ -1,14 +1,68 @@
 from .parallel_translate import ParallelTranslate2Py
 import fv3.stencils.fv_dynamics as fv_dynamics
-
-
-class TranslateFVDYnamics(ParallelTranslate2Py):
-    def __init__(self, grid):
-        super().__init__(grid)
-        self.compute_func = fv_dynamics.compute
-        self.in_vars["data_vars"] = {
-            "u": {},
-            "v": {},
+from .translate_dyncore import TranslateDynCore
+from .translate_tracer2d1l import TranslateTracer2D1L
+import fv3.utils.gt4py_utils as utils
+import fv3util
+import copy
+class TranslateFVDynamics(ParallelTranslate2Py):
+    # This is cleaner, except dyncore has variables that are not inputs to this function
+    # inputs = {**TranslateDynCore.inputs , **TranslateTracer2D1L.inputs}
+    inputs = {
+        "u": {
+            "dims": [fv3util.X_DIM, fv3util.Y_INTERFACE_DIM, fv3util.Z_DIM],
+            "units": "m/s",
+        },
+        "v": {
+            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM, fv3util.Z_DIM],
+            "units": "m/s",
+        },
+        "uc": {
+            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM, fv3util.Z_DIM],
+            "units": "m/s",
+        },
+        "vc": {
+            "dims": [fv3util.X_DIM, fv3util.Y_INTERFACE_DIM, fv3util.Z_DIM],
+            "units": "m/s",
+        },
+        "w": {"dims": [fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_DIM],
+              "units": "m/s"},
+        "qvapor": {
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_DIM],
+            "units": "kg/m^2",
+        },
+        "qliquid": {
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_DIM],
+            "units": "kg/m^2",
+        },
+        "qice": {
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_DIM],
+            "units": "kg/m^2",
+        },
+        "qrain": {
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_DIM],
+            "units": "kg/m^2",
+        },
+        "qsnow": {
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_DIM],
+            "units": "kg/m^2",
+        },
+        "qgraupel": {
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_DIM],
+            "units": "kg/m^2",
+        },
+        "qcld": {
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_DIM],
+            "units": "kg/m^2",
+        },
+    }
+    def __init__(self, grids):
+        super().__init__(grids)
+        self._base.compute_func = fv_dynamics.compute
+        grid = grids[0]
+        self._base.in_vars["data_vars"] = {
+            "u": grid.y3d_domain_dict(),
+            "v": grid.x3d_domain_dict(),
             "w": {},
             "delz": {},
             "qvapor": {},
@@ -19,26 +73,48 @@ class TranslateFVDYnamics(ParallelTranslate2Py):
             "qgraupel": {},
             "qcld": {},
             "ps": {},
-            "pe": {},
-            "pk": {},
-            "peln": {},
-            "pkz": {},
+            "pe": {
+                "istart": grid.is_ - 1,
+                "iend": grid.ie + 1,
+                "jstart": grid.js - 1,
+                "jend": grid.je + 1,
+                "kend": grid.npz + 1,
+                "kaxis": 1,
+            },
+            "pk": grid.compute_buffer_k_dict(),
+            "peln": {"istart": grid.is_, "iend": grid.ie - 2, "kaxis": 1},
+            "pkz": grid.compute_dict(),
             "phis": {},
             "q_con": {},
             "omga": {},
             "ua": {},
             "va": {},
-            "uc": {},
-            "vc":{},
-            "ak":{},
+            "uc": grid.x3d_domain_dict(),
+            "vc": grid.y3d_domain_dict(),
+            "ak": {},
             "bk": {},
-            "mfxd":{},
-            "mfyd":{},
-            "cxd":{},
-            "cyd":{},
+            "mfxd": grid.x3d_compute_dict(),
+            "mfyd": grid.y3d_compute_dict(),
+            "cxd": grid.x3d_compute_domain_y_dict(),
+            "cyd": grid.y3d_compute_domain_x_dict(),
             "diss_estd": {}
         }
-        self.in_vars["parameters"] = ["bdt", "zvir", "ptop", "ks", "n_split"]
-        self.out_vars = self.in_vars["data_vars"]
+        self._base.in_vars["parameters"] = ["bdt", "zvir", "ptop", "ks", "n_split", "nq_tot", "do_adiabatic_init", "consv_te"]
+        self._base.out_vars = copy.copy(self._base.in_vars["data_vars"])
         for var in ['ak', 'bk']:
-            del  self.out_vars[var]
+            del self._base.out_vars[var]
+
+    def compute_parallel(self, inputs, communicator):
+        self._base.make_storage_data_input_vars(inputs)
+
+        for name, properties in self.inputs.items():
+            # Currently using fvdyn_temporaries method
+            #if name not in inputs:
+            #    inputs[name] = utils.make_storage_from_shape(inputs['u'].shape, origin=self.grid.compute_origin())
+            if name in inputs:
+                inputs[name + "_quantity"] = self.grid.quantity_wrap(
+                    inputs[name], dims=properties["dims"], units=properties["units"]
+                )
+        state = {"state": inputs, "comm": communicator}
+        self._base.compute_func(**state)
+        return self._base.slice_output(state["state"])

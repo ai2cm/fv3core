@@ -631,3 +631,6 @@ def fv_setup(
             constants.KAPPA
             * np.log(constants.RDG * delp[tmpslice] * pt[tmpslice] / delz[tmpslice])
         )
+    if spec.grid.rank == 0:
+        print(cvm[3, 3, 0], dp1[3, 3, 0], q_con[3, 3, 0], pkz[3, 3, 0], cappa[3, 3, 0])
+        # 717.5561798381157 5.631151923044217e-06 2.0040437257026224e-21 3.6889583074605317 0.2857350077221477

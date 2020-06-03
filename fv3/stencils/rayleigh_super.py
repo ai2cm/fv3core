@@ -91,9 +91,12 @@ def compute(u, v, w, ua, va, pt, delz, phis, bdt, ptop, pfull, comm):
                 ** 2
             )
         neg_pfull = np.argwhere(pfull[0, 0, 0 : grid.npz] < rf_cutoff)
-        kmax = (
-            neg_pfull[-1][-1] + 1
-        )  # TODO why + 1? this doesn't seem like it should be + 1
+        if len(neg_pfull) == 0:
+            kmax = 1
+        else:
+            kmax = (
+                neg_pfull[-1][-1] + 1
+            )
         rf[neg_pfull] = rfvals[neg_pfull]
         # TODO this makes the column 3d, undo when you can
         rf = utils.make_storage_data(rf, u.shape, origin=grid.default_origin())

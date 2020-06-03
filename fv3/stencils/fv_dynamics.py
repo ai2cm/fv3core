@@ -9,11 +9,18 @@ import fv3.stencils.rayleigh_super as rayleigh_super
 import fv3.stencils.dyn_core as dyn_core
 import fv3.stencils.copy_stencil as cp
 import fv3.stencils.tracer_2d_1l as tracer_2d_1l
+import fv3.stencils.remapping as lagrangian_to_eulerian
+import fv3.stencils.del2cubed as del2cubed
+import fv3.stencils.neg_adj3 as neg_adj3
+from fv3.stencils.c2l_ord import compute_cubed_to_latlon
+import fv3util
+import numpy as np
+from types import SimpleNamespace
 sd = utils.sd
 
 
 @utils.stencil()
-def init_ph_columns(ak:sd, bk: sd, pfull: sd, ph1: sd, ph2: sd, p_ref: float):
+def init_ph_columns(ak: sd, bk: sd, pfull: sd, ph1: sd, ph2: sd, p_ref: float):
     with computation(PARALLEL), interval(...):
         ph1 = ak + bk * p_ref
         ph2 = ak[0, 0, 1] + bk[0, 0, 1] * p_ref
@@ -26,61 +33,94 @@ def pt_adjust(pkz: sd, dp1: sd, q_con: sd, pt: sd):
 
 @utils.stencil()
 def set_omega(delp: sd, delz: sd, w: sd, omga: sd):
-    with computation(PARALLEL), interval(..):
+    with computation(PARALLEL), interval(...):
         omga = delp / delz * w
-    
+
+
+
+def fvdyn_temporaries(shape):
+    grid = spec.grid
+    tmps = {}
+    halo_vars = ["cappa", "pt", "delp", "q_con"]
+    storage_vars = ['te_2d', 'dp1', 'ph1', 'ph2', 'dp1', 'wsd']
+    column_vars = ["pfull", "gz", "cvm"]
+    plane_vars = ["te_2d", "te0_2d"]
+    utils.storage_dict(tmps, halo_vars + storage_vars + column_vars + plane_vars, shape, grid.default_origin())
+    for q in halo_vars:
+        tmps[q + "_quantity"] = grid.quantity_wrap(tmps[q])
+    return tmps
+
 def compute(state, comm):
     grid = spec.grid
+    state.update(fvdyn_temporaries(state['u'].shape))
+    state = SimpleNamespace(**state)
     agrav = 1.0 / constants.GRAV
-    dt2 = 0.5 * bdt
-    rdg = - constants.RDGAS / agrav
-    for tmpvar in ['te_2d', 'dp1', 'cappa', 'ph1', 'ph2']:
-        state[tmpvar] = utils.make_storage_from_shape(state['u'].shape, grid.compute_origin())
-   
-    akap = constants.KAPPA
+    state.rdg = - constants.RDGAS / agrav
+    state.akap = constants.KAPPA
+    state.dt2 = 0.5 * state.bdt
+    nq = state.nq_tot - spec.namelist['dnats']
     init_ph_columns(state.ak, state.bk, state.pfull, state.ph1, state.ph2, spec.namelist['p_ref'], origin=grid.compute_origin(), domain=grid.domain_shape_compute()) # TODO put pfull into stencil
     state.pfull = (state.ph2 - state.ph1) / np.log(state.ph2 / state.ph1)
     if spec.namelist['hydrostatic']:
         raise Exception('Hydrostatic is not implemented')
-    moist_cv.fv_setup(pt, pkz, delz, delp, cappa, q_con,
-                      zvir, qvapor, qliquid, qice, qrain, qsnow, qgraupel,
-                      cvm, dp1)
-    if consv_te > 0 and not do_adiabatic_init:
-        moist_cv.compute_total_energy(u, v, w, delz, pt, delp, qc,
-                             pe, peln, hs, zvir, te_2d,
-                             qvapor, qliquid, qice, qrain, qsnow, qgraupel)
-        
+    
+    moist_cv.fv_setup(state.pt, state.pkz, state.delz, state.delp, state.cappa, state.q_con,
+                      state.zvir, state.qvapor, state.qliquid, state.qice, state.qrain, state.qsnow, state.qgraupel,
+                      state.cvm, state.dp1)
+    # NOTE untested
+    if state.consv_te > 0 and not state.do_adiabatic_init:
+        moist_cv.compute_total_energy(state.u, state.v, state.w, state.delz, state.pt, state.delp, state.qc,
+                                      state.pe, state.peln, state.phis, state.zvir, state.te_2d,
+                                      state.qvapor, state.qliquid, state.qice, state.qrain, state.qsnow, state.qgraupel)
+      
     if (not spec.namelist['RF_fast']) and spec.namelist['tau'] != 0:
         if grid.grid_type < 4:
-            rayleigh_super.compute(u, v, w, ua, va, pt, delz, phis, bdt, ptop, pfull, comm)
+            rayleigh_super.compute(state.u, state.v, state.w, state.ua, state.va, state.pt, state.delz, state.phis, state.bdt, state.ptop, state.pfull, comm)
+    
     if spec.namelist['adiabatic'] and spec.namelist['kord_tm'] > 0:
         raise Exception('unimplemented namelist options adiabatic with positive kord_tm')
     else:
-        pt_adjust(pkz, dp1, q_con, pt, origin=grid.compute_origin(), domain=grid.domain_shape_compute())
-
+        pt_adjust(state.pkz, state.dp1, state.q_con, state.pt, origin=grid.compute_origin(), domain=grid.domain_shape_compute())
+    
     last_step = False
     k_split = spec.namelist['k_split']
-    mdt = bdt / ksplit
-
+    state.mdt = state.bdt / k_split
+    
     for n_map in range(k_split):
+        state.n_map_step = n_map
         if n_map == k_split - 1:
             last_step = True
-        dp1 = cp.copy(delp, origin=grid.default_origin(), domain=grid.domain_shape_standard())
-        dyn_core.compute(state, comm)
+        cp.copy_stencil(state.delp, state.dp1, origin=grid.default_origin(), domain=grid.domain_shape_standard())
+        dyn_core.compute(vars(state), comm)
     
-        if not spec.namelist['inline_q']: # TODO and nq !=0
+        if not spec.namelist['inline_q'] and nq != 0:
             if spec.namelist['z_tracer']:
-                tracer_2d_1l.compute(state, comm)
+                tracer_2d_1l.compute(state.qvapor_quantity, state.qliquid_quantity, state.qice_quantity, state.qrain_quantity, state.qsnow_quantity,
+                                     state.qgraupel_quantity, state.qcld_quantity, state.dp1, state.mfxd, state.mfyd,
+                                     state.cxd, state.cyd, state.mdt, nq, comm)
             else:
                 raise Exception('tracer_2d no =t implemented, turn on z_tracer')
+    
         if grid.npz > 4:
-            # TODO kord_tracer set to namelist except kord_tr, handle lower down?
+            kord_tracer = np.ones(nq) * spec.namelist['kord_tr']
+            kord_tracer[6] = 9
             do_omega = spec.namelist['hydrostatic'] and last_step
-            remapping.compute()
+            lagrangian_to_eulerian.compute(state.qvapor, state.qliquid, state.qrain, state.qsnow,
+                                           state.qice, state.qgraupel, state.qcld, state.pt, state.delp,
+                                           state.delz, state.peln, state.u, state.v, state.w, state.ua,
+                                           state.va, state.cappa, state.q_con, state.pkz, state.pk,
+                                           state.pe, state.phis, state.te0_2d, state.ps, state.wsd,
+                                           state.omga, state.ak, state.bk, state.pfull, state.dp1,
+                                           state.ptop, state.akap, state.zvir, last_step,
+                                           state.consv_te, state.mdt, state.bdt, kord_tracer, state.do_adiabatic_init,)
             if last_step and not spec.namelist['hydrostatic']:
-                set_omega(delp, delz, w, omga, origin=grid.compute_origin(), domain=grid.domain_shape_compute())
-            
+                set_omega(state.delp, state.delz, state.w, state.omga, origin=grid.compute_origin(), domain=grid.domain_shape_compute())
+    
             if spec.namelist['nf_omega'] > 0:
-                del2_cubed.compute()
-    neg_adj3.compute()
-    cubed_to_latlon.compute()
+                del2cubed.compute(state.omga, spec.namelist['nf_omega'], 0.18 * grid.da_min, grid.npz)
+    if nq == 7:
+        neg_adj3.compute(state.qvapor, state.qliquid, state.qrain, state.qsnow, state.qice, state.qgraupel, state.qcld, state.pt, state.delp, state.delz, state.peln)
+    else:
+        raise Exception('Unimplemented, anything but 7 water species')
+    compute_cubed_to_latlon(state.u, state.v, state.ua, state.va)
+    
