@@ -28,15 +28,15 @@ def fix_top(q:sd, dp:sd, dm:sd):
 
 @utils.stencil()
 def fix_interior(q:sd, dp:sd, zfix:sd, upper_fix:sd, lower_fix:sd, dm:sd, dm_pos:sd):
-    with computation(FORWARD), interval(...):
+    with computation(FORWARD), interval(...):#if a higher layer borrowed from this one, account for that here
         if lower_fix[0,0,-1] != 0.:
-            q = q-(lower_fix[0,0,-1]/dp) #if a higher layer borrowed from this one, account for that here
+            q = q-(lower_fix[0,0,-1]/dp)
         dq = q * dp
         if q < 0.:
             zfix = 1.
             if q[0,0,-1] > 0.:
                 #Borrow from the layer above
-                dq = q[0,0,-1] * dp[0,0,-1] if q[0,0,-1] * dp[0,0,-1] < -dq else -dq
+                dq = q[0,0,-1] * dp[0,0,-1] if q[0,0,-1] * dp[0,0,-1] < -(q*dp) else -(q*dp)
                 q = q + dq/dp
                 upper_fix = dq
             if (q < 0.) and (q[0,0,1] > 0.):
@@ -54,8 +54,8 @@ def fix_interior(q:sd, dp:sd, zfix:sd, upper_fix:sd, lower_fix:sd, dm:sd, dm_pos
 @utils.stencil()
 def fix_bottom(q:sd, dp:sd, zfix:sd, upper_fix:sd, lower_fix:sd, dm:sd, dm_pos:sd):
     with computation(PARALLEL), interval(1,2):
-        if lower_fix[0,0,-1] !=0.:
-            q = q - (lower_fix[0,0,-1]/dp) #the 2nd-to-last layer borrowed from this one, account for that here
+        if lower_fix[0,0,-1] !=0.:#the 2nd-to-last layer borrowed from this one, account for that here
+            q = q - (lower_fix[0,0,-1]/dp)
         qup = q[0,0,-1]*dp[0,0,-1]
         qly = -q*dp
         dup = qup if qup < qly else qly
@@ -66,8 +66,8 @@ def fix_bottom(q:sd, dp:sd, zfix:sd, upper_fix:sd, lower_fix:sd, dm:sd, dm_pos:s
         dm = q*dp
         dm_pos = dm if dm > 0. else 0.
     with computation(PARALLEL), interval(0,1):
-        if upper_fix[0,0,1] != 0.:
-            q = q - (upper_fix[0,0,1]/dp) #if the bottom layer borrowed from this one, adjust
+        if upper_fix[0,0,1] != 0.: #if the bottom layer borrowed from this one, adjust
+            q = q - (upper_fix[0,0,1]/dp) 
             dm = q*dp
             dm_pos = dm if dm > 0. else 0. #now we gotta update these too
 
@@ -91,9 +91,32 @@ def compute(q, dp, i1, i2, km):
     dm_pos = utils.make_storage_from_shape(q.shape, origin=(0,0,0))
     #TODO: implement dev_gfs_physics ifdef when we implement compiler defs
 
+    # x=q[38,0,14]*dp[38,0,14]
+    # print(q[38,0,14]-(x/dp[38,0,14]))
+    # print(q[38,0,14]-(q[38,0,14]*dp[38,0,14]/dp[38,0,14]))
+    # print(q[38,0,14], dp[38,0,14])
+
+    # print(q[12,0,35:43])
+    # x=q[12,0,40]*dp[12,0,40]
+    # print(q[12,0,40]-(x/dp[12,0,40]))
+    # print(q[12,0,40]-(q[12,0,40]*dp[12,0,40]/dp[12,0,40]))
+    # print(q[12,0,40], dp[12,0,40])
+
+    print(q[49,0,3:10])
+    x=q[49,0,6]*dp[49,0,6]
+    print(q[49,0,6]-(x/dp[49,0,6]))
+    print(q[49,0,6]-(q[49,0,6]*dp[49,0,6]/dp[49,0,6]))
+    print(q[49,0,6], dp[49,0,6])
+
     fix_top(q, dp, dm, origin=orig, domain=(i_extent, 1, 2))
     fix_interior(q, dp, zfix, upper_fix, lower_fix, dm, dm_pos, origin=(i1, 0, 1), domain=(i_extent, 1, km-2))
     fix_bottom(q, dp, zfix, upper_fix, lower_fix, dm, dm_pos, origin=(i1, 0, km-2), domain=(i_extent, 1, 2))
+
+    # print(q[33,0,14:20])
+    # print(q[12,0,35:43])
+    print(q[49,0,3:10])
+
+    print(np.sum(q[49,0,:]))
 
     fix_cols = np.sum(zfix.data, axis=2)
     zfix.data[:]=np.repeat(fix_cols[:,:,np.newaxis], km+1, axis=2)
@@ -120,6 +143,10 @@ def compute_test(dp2, qvapor, qliquid, qice, qrain, qsnow, qgraupel, qcld, im, k
 
     tracers = ["qvapor", "qliquid", "qice", "qrain", "qsnow", "qgraupel", "qcld"]
     tracer_qs = {"qvapor":qvapor, "qliquid":qliquid, "qice":qice, "qrain":qrain, "qsnow":qsnow, "qgraupel":qgraupel, "qcld":qcld}
+
+    # print(qvapor.shape)
+
+    # print(dp2[35:42,0,:])
 
     for q in tracer_qs:
         #reset fields
