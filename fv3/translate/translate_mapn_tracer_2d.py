@@ -29,6 +29,7 @@ class TranslateMapN_Tracer_2d(TranslateFortranData2Py):
             "qgraupel": {"serialname": "qgraupel_js"},
             "qcld": {"serialname": "qcld_js"},
         }
+        self.max_error = 1e-13
 
     def make_storage_data_input_vars(self, inputs, storage_vars=None):
         if storage_vars is None:

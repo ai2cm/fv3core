@@ -179,7 +179,7 @@ def compute(pe1, pe2, dp2, qvapor, qliquid, qice, qrain, qsnow, qgraupel, qcld, 
         q4_3.data[:] = np.zeros(q4_1.shape)
         q4_4.data[:] = np.zeros(q4_1.shape)
 
-        q4_1, q4_2, q4_3, q4_4 = remap_profile.compute_tracer(q4_1, q4_2, q4_3, q4_4, dp1, km, i1, i2, kord, q_min)
+        q4_1, q4_2, q4_3, q4_4 = remap_profile.compute_tracer(q4_1, q4_2, q4_3, q4_4, dp1, km, i1, i2, kord, q_min, 0, 1)
 
         i_vals = np.arange(i1, i2 + 1)
         kn = grid.npz
