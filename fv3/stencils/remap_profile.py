@@ -834,9 +834,9 @@ def compute_tracer(a4_1, a4_2, a4_3, a4_4, delp, km, i1, i2, kord, qmin, js, j_e
     iv=0
 
     grid = spec.grid
-    orig = (i1, 0, 0)
-    full_orig = (grid.is_, 0, 0)
-    dom = (i_extent, 1, km)
+    orig = (i1, js, 0)
+    full_orig = (grid.is_, js, 0)
+    dom = (i_extent, j_extent, km)
     gam = utils.make_storage_from_shape(delp.shape, origin=full_orig)
     q = utils.make_storage_from_shape(delp.shape, origin=full_orig)
     q_bot = utils.make_storage_from_shape(delp.shape, origin=full_orig)
@@ -845,7 +845,7 @@ def compute_tracer(a4_1, a4_2, a4_3, a4_4, delp, km, i1, i2, kord, qmin, js, j_e
     ext5 = utils.make_storage_from_shape(delp.shape, origin=full_orig)
     ext6 = utils.make_storage_from_shape(delp.shape, origin=full_orig)
 
-    set_vals_1(gam, q, delp, a4_1, q_bot, origin=orig, domain=(i_extent, 1, km + 1))
+    set_vals_1(gam, q, delp, a4_1, q_bot, origin=orig, domain=(i_extent, j_extent, km + 1))
 
     if abs(kord) > 16:
         set_avals(q, a4_1, a4_2, a4_3, a4_4, q_bot, origin=orig, domain=dom)
@@ -856,7 +856,7 @@ def compute_tracer(a4_1, a4_2, a4_3, a4_4, delp, km, i1, i2, kord, qmin, js, j_e
         if abs(kord) > 9:
             set_exts(a4_4, ext5, ext6, a4_1, a4_2, a4_3, origin=orig, domain=dom)
 
-        set_top_as_iv0(a4_1, a4_2, a4_3, a4_4, origin=orig, domain=(i_extent, 1, 2))
+        set_top_as_iv0(a4_1, a4_2, a4_3, a4_4, origin=orig, domain=(i_extent, j_extent, 2))
         a4_1, a4_2, a4_3, a4_4 = limiters.compute(
             a4_1, a4_2, a4_3, a4_4, extm, 1, i1, i_extent, 0, 1, js, j_extent
         )
@@ -876,8 +876,8 @@ def compute_tracer(a4_1, a4_2, a4_3, a4_4, delp, km, i1, i2, kord, qmin, js, j_e
                 extm,
                 ext5,
                 ext6,
-                origin=(i1, 0, 2),
-                domain=(i_extent, 1, km - 4),
+                origin=(i1, js, 2),
+                domain=(i_extent, j_extent, km - 4),
             )
         elif abs(kord) == 9:
             print("WARNING: Only kord=10 has been tested.")
@@ -891,8 +891,8 @@ def compute_tracer(a4_1, a4_2, a4_3, a4_4, delp, km, i1, i2, kord, qmin, js, j_e
                 ext5,
                 ext6,
                 qmin,
-                origin=(i1, 0, 2),
-                domain=(i_extent, 1, km - 4),
+                origin=(i1, js, 2),
+                domain=(i_extent, j_extent, km - 4),
             )
         elif abs(kord) == 10:
             set_inner_as_kord10(
@@ -904,8 +904,8 @@ def compute_tracer(a4_1, a4_2, a4_3, a4_4, delp, km, i1, i2, kord, qmin, js, j_e
                 extm,
                 ext5,
                 ext6,
-                origin=(i1, 0, 2),
-                domain=(i_extent, 1, km - 4),
+                origin=(i1, js, 2),
+                domain=(i_extent, j_extent, km - 4),
             )
         else:
             raise Exception("kord {0} not implemented.".format(kord))
@@ -915,7 +915,7 @@ def compute_tracer(a4_1, a4_2, a4_3, a4_4, delp, km, i1, i2, kord, qmin, js, j_e
         )
 
         set_bottom_as_iv0(
-            a4_1, a4_2, a4_3, a4_4, origin=(i1, 0, km - 2), domain=(i_extent, 1, 2)
+            a4_1, a4_2, a4_3, a4_4, origin=(i1, 0, km - 2), domain=(i_extent, j_extent, 2)
         )
         a4_1, a4_2, a4_3, a4_4 = limiters.compute(
             a4_1, a4_2, a4_3, a4_4, extm, 2, i1, i_extent, km - 2, 1, js, j_extent
