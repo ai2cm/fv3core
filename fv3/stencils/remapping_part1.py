@@ -9,7 +9,7 @@ import fv3.stencils.saturation_adjustment as saturation_adjustment
 import fv3.stencils.basic_operations as basic
 import fv3.stencils.map_scalar as map_scalar
 import fv3.stencils.map_ppm_2d as map1_ppm
-
+import fv3.stencils.mapn_tracer as mapn_tracer
 import numpy as np
 import fv3.stencils.copy_stencil as cp
 
@@ -138,10 +138,12 @@ def compute(
 ):
     grid = spec.grid
     hydrostatic = spec.namelist["hydrostatic"]
+    nq = 7
     # do_omega = hydrostatic and last_step # TODO pull into inputs
     domain_jextra = (grid.nic, grid.njc + 1, grid.npz + 1)
     pe1 = cp.copy(pe, origin=grid.compute_origin(), domain=domain_jextra)
     pe2 = utils.make_storage_from_shape(pe.shape, grid.compute_origin())
+    dp2= utils.make_storage_from_shape(pe.shape, grid.compute_origin())
     pn2 = utils.make_storage_from_shape(pe.shape, grid.compute_origin())
     pe0 = utils.make_storage_from_shape(pe.shape, grid.compute_origin())
     pe3 = utils.make_storage_from_shape(pe.shape, grid.compute_origin())
@@ -180,7 +182,7 @@ def compute(
     )
     # TODO ps is a 2d stencil...
     cp.copy_stencil(pe1_bottom, ps, origin=grid.compute_origin(), domain=grid. domain_shape_compute_buffer_k())
-    pressure_updates(pe1, pe2, pe, ak, bk, delp, pe_bottom, pn2, peln, origin=grid.compute_origin(), domain=grid.domain_shape_compute_buffer_k())
+    pressure_updates(pe1, pe2, pe, ak, bk, dp2, pe_bottom, pn2, peln, origin=grid.compute_origin(), domain=grid.domain_shape_compute_buffer_k())
     # TODO fix silly hack due to pe2 being 2d, so pe[:, je+1, 1:npz] should be the same as it was for pe[:, je, 1:npz] (unchanged)
     copy_j_adjacent(pe2, origin=(grid.is_, grid.je + 1, 1), domain=(grid.nic, 1, grid.npz - 1))
 
@@ -196,7 +198,7 @@ def compute(
         raise Exception("map ppm, untested mode where kord_tm >= 0")
         map1_ppm.compute(pt, pe1, pe2, gz, grid.is_, grid.ie, 1, abs(spec.namelist['kord_tm']))
     # TODO if nq > 5:
-    # mapn_tracer(pe1, pe2, dp2, qvapor, qliquid, qrain, qsnow, qice, qgraupel, qcld, spec.namelist['kord_tr'] )
+    mapn_tracer.compute(pe1, pe2, dp2, qvapor, qliquid, qice, qrain, qsnow, qgraupel, qcld, nq, 0. )
     # TODO else if nq > 0:
     # TODO map1_q2, fillz
     if not hydrostatic:
