@@ -97,6 +97,13 @@ def compute(pe1, pe2, dp2, qvapor, qliquid, qice, qrain, qsnow, qgraupel, qcld, 
     r3 = 1.0 / 3.0
     r23 = 2.0 / 3.0
 
+    if j_2d is None:
+        pi = 3; pj = 48; pk = 39
+    else:
+        pi=3; pj=0; pk=39
+    print('all tracerns in', pe1[pi, pj, pk], pe2[pi, pj, pk], dp2[pi, pj, pk], qvapor[pi, pj, pk], qliquid[pi, pj, pk], qice[pi, pj, pk], qrain[pi, pj, pk], qsnow[pi, pj, pk], qgraupel[pi, pj, pk], qcld[pi, pj, pk])
+  
+
     klevs = np.arange(km)
     if j_2d is None:
         pe1 = utils.make_storage_data(
@@ -118,7 +125,8 @@ def compute(pe1, pe2, dp2, qvapor, qliquid, qice, qrain, qsnow, qgraupel, qcld, 
     q4_3 = utils.make_storage_from_shape(q4_1.shape, origin=(grid.is_, 0, 0))
     q4_4 = utils.make_storage_from_shape(q4_1.shape, origin=(grid.is_, 0, 0))
     q2_adds = utils.make_storage_from_shape(q4_1.shape, origin=origin)
-
+  
+    print('inputs', qice[pi, pj, pk], qliquid[pi, pj, pk])
     print(qice[33,0,15:20])
 
     tracers = ["qvapor", "qliquid", "qice", "qrain", "qsnow", "qgraupel", "qcld"]
@@ -181,7 +189,9 @@ def compute(pe1, pe2, dp2, qvapor, qliquid, qice, qrain, qsnow, qgraupel, qcld, 
     
    
     # transliterated fortran
+    trc= 0
     for q in tracers:
+        trc += 1
         if j_2d is None:
             q4_1.data[:] = tracer_qs[q].data[:, jslice, :]
         else:
@@ -189,8 +199,11 @@ def compute(pe1, pe2, dp2, qvapor, qliquid, qice, qrain, qsnow, qgraupel, qcld, 
         q4_2.data[:] = np.zeros(q4_1.shape)
         q4_3.data[:] = np.zeros(q4_1.shape)
         q4_4.data[:] = np.zeros(q4_1.shape)
+        if trc == 2:
+            print('liq a', q4_1[pi, 0, pk], dp1[pi, 0, pk], pe1[pi, 0, pk], pe2[pi, 0, pk])
         q4_1, q4_2, q4_3, q4_4 = remap_profile.compute_tracer(q4_1, q4_2, q4_3, q4_4, dp1, km, i1, i2, kord, q_min, 0, j_extent)
-        
+        if trc == 2:
+            print('liq b', q4_1[pi, 0, pk], q4_2[pi, 0, pk], q4_3[pi, 0, pk], q4_4[pi, 0, pk], dp1[pi, 0, pk])
         i_vals = np.arange(i1, i2 + 1)
         kn = grid.npz
         if j_2d is None:
@@ -252,13 +265,33 @@ def compute(pe1, pe2, dp2, qvapor, qliquid, qice, qrain, qsnow, qgraupel, qcld, 
                                 #Add everything up and divide by the pressure difference
                               
                                 tracer_qs[q][ii, j + js, k2] = qsum / dp2[ii, j + js, k2]
+                                if trc == 2 and j == 0 and ii == pk and k2 == pk:
+                                    print('liq c', tracer_qs[q][ii, j + js, k2], qsum, dp2[ii, j + js, k2])
                                 break
 
     #     if fill:
     #         tracer_qs[q] = fillz.compute(tracer_qs[q], dp2, i1, i2, km)
+    print('eek', qliquid[pi, pj, pk])
     if fill:
-        qvapor, qliquid, qice, qrain, qsnow, qgraupel, qcld = fillz.compute_test(dp2, qvapor, qliquid, qice, qrain, qsnow, qgraupel, qcld, i_extent, km, nq)
+        qvapor, qliquid, qice, qrain, qsnow, qgraupel, qcld = fillz.compute_test(dp2, qvapor, qliquid, qice, qrain, qsnow, qgraupel, qcld, i_extent, km, nq, js, j_extent)
+    print('tracerned', qliquid[pi, pj, pk])
    
+    '''
+all tracerns in 52662.526339696604 52658.58872136251 3654.141826133331 0.0023948781373326496 6.123990018472203e-07 4.84906453317363e-08 0.0 0.0 0.0 0.0
+all tracerns in 52662.526339696604 52658.58872136251 3654.141826133331 0.0023948781373326496 6.123990018472203e-07 4.84906453317363e-08 0.0 0.0 0.0 0.0
+inputs 4.84906453317363e-08 6.123990018472203e-07
+       4.84906453317363e-08 6.123990018472203e-07
+liq a 6.123990018472203e-07 3652.1492551087504 52662.526339696604 52658.58872136251
+      2.4398910242356216e-05 3553.134032758222 51668.26841456245 52089.637148614944
+liq b 6.123990018472203e-07 6.123990018472203e-07 6.123990018472203e-07 0.0 3652.1492551087504
+liq c 1.2134168728669816e-08 4.375661402289796e-05 3606.0660603402284
+eek 6.118043438470045e-07
+    6.118043438470045e-07
+tracerned 6.106682992485844e-07
+          6.106682992485844e-07
+          6.118043438470045e-07
+
+    '''
     return qvapor, qliquid, qice, qrain, qsnow, qgraupel, qcld
 
     # return [tracer_qs[tracer] for tracer in tracers]

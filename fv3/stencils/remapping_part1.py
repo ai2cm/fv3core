@@ -100,8 +100,8 @@ def update_ua(pe2: sd, ua: sd):
         ua = pe2[0, 0, 1]
 
 # TODO remove this, this is a hack to deal with the fact that gz is a column
-def reset_gz(gz):
-    return utils.make_storage_data(np.squeeze(gz[:, spec.grid.je, spec.grid.npz - 1]), gz.shape, axis=0)
+def reset_1d_x(gz):
+    return utils.make_storage_data(np.squeeze(gz[:, :, spec.grid.npz - 1]), gz.shape)
 def compute(
     qvapor,
     qliquid,
@@ -169,7 +169,8 @@ def compute(
                 delz,
                 r_vir,
             )
-            gz = reset_gz(gz)
+            gz = reset_1d_x(gz)
+            cvm = reset_1d_x(cvm)
     if not hydrostatic:
         delz_adjust(
             delp, delz, origin=grid.compute_origin(), domain=grid.domain_shape_compute()
@@ -185,7 +186,7 @@ def compute(
     pressure_updates(pe1, pe2, pe, ak, bk, dp2, pe_bottom, pn2, peln, origin=grid.compute_origin(), domain=grid.domain_shape_compute_buffer_k())
     # TODO fix silly hack due to pe2 being 2d, so pe[:, je+1, 1:npz] should be the same as it was for pe[:, je, 1:npz] (unchanged)
     copy_j_adjacent(pe2, origin=(grid.is_, grid.je + 1, 1), domain=(grid.nic, 1, grid.npz - 1))
-
+    cp.copy_stencil(dp2, delp,  origin=grid.compute_origin(), domain=grid.domain_shape_compute())
     # TODO merge into pressure updates when math available
     islice = slice(grid.is_, grid.ie + 1)
     jslice = slice(grid.js, grid.je + 1)
@@ -213,9 +214,7 @@ def compute(
     pe0 = cp.copy(
         peln, grid.compute_origin(), domain=(grid.nic, grid.njc, grid.npz + 1)
     )
-    peln = cp.copy(
-        pn2, grid.compute_origin(), domain=(grid.nic, grid.njc, grid.npz + 1)
-    )
+    cp.copy_stencil(pn2, peln, origin=grid.compute_origin(), domain=(grid.nic, grid.njc, grid.npz + 1))
     if hydrostatic:
         # pkz
         pass
@@ -239,7 +238,8 @@ def compute(
         )
         # fix gz -- is supposed to be 1d
         print('fixing gz', gz[3, 3, grid.npz - 2:],  gz[3, grid.je, grid.npz - 2:])
-        gz = reset_gz(gz)
+        gz = reset_1d_x(gz)
+        cvm = reset_1d_x(cvm)
     # if do_omega:
     # dp2 update, if larger than pe0 and smaller than one level up, update omega and  exit
 
@@ -261,7 +261,7 @@ def compute(
         origin=grid.compute_origin(),
         domain=domain_jextra,
     )
-    map1_ppm.compute(u, pe0, pe3, gz, grid.is_, grid.ie, -1, spec.namelist['kord_mt'])
+    map1_ppm.compute(u, pe0, pe3, gz, grid.is_, grid.ie, -1, spec.namelist['kord_mt'], j_interface=True)
     domain_iextra = (grid.nic + 1, grid.njc, grid.npz + 1)
     pressures_mapv(
         pe,

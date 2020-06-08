@@ -84,7 +84,7 @@ def lagrangian_contributions(
             q2_adds = 0
 
 # TODO: this is VERY similar to map_scalar -- once matches, consolidate code
-def compute(q1, pe1, pe2, qs, i1, i2, mode, kord, j_2d=None):
+def compute(q1, pe1, pe2, qs, i1, i2, mode, kord, j_2d=None, j_interface=False):
     i= 3
     if j_2d is None:
         j = 3
@@ -101,6 +101,10 @@ def compute(q1, pe1, pe2, qs, i1, i2, mode, kord, j_2d=None):
     i_extent = i2 - i1 + 1
     km = grid.npz
     origin, domain, jslice, j_extent = region_mode(j_2d, i1, i_extent, grid)
+    if j_interface:
+        j_extent += 1
+        jslice = slice(jslice.start, jslice.stop + 1)
+        domain = (domain[0], j_extent, domain[2])
     orig = (grid.is_, grid.js, 0)
     r3 = 1.0 / 3.0
     r23 = 2.0 / 3.0
