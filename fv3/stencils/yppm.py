@@ -2,6 +2,7 @@
 import fv3.utils.gt4py_utils as utils
 import gt4py.gtscript as gtscript
 import fv3._config as spec
+import fv3.stencils.basic_operations as basic
 from gt4py.gtscript import computation, interval, PARALLEL
 
 input_vars = ["q", "c"]
@@ -62,12 +63,6 @@ def al_x_edge_1(q: sd, dya: sd, al: sd):
 def al_x_edge_2(q: sd, dya: sd, al: sd):
     with computation(PARALLEL), interval(0, None):
         al[0, 0, 0] = c3 * q[0, -1, 0] + c2 * q[0, 0, 0] + c1 * q[0, 1, 0]
-
-
-@utils.stencil()
-def floor_cap(var: sd, floor_value: float):
-    with computation(PARALLEL), interval(0, None):
-        var[0, 0, 0] = var if var > floor_value else floor_value
 
 
 @gtscript.function
@@ -229,7 +224,7 @@ def compute_al(q, dyvar, jord, ifirst, ilast, js1, je3, kstart=0, nk=None):
                     domain=x_edge_domain,
                 )
         if jord < 0:
-            floor_cap(
+            basic.floor_cap(
                 al,
                 0.0,
                 origin=(ifirst, grid().js - 1, kstart),
