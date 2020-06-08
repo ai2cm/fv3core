@@ -2,6 +2,7 @@
 import fv3.utils.gt4py_utils as utils
 import gt4py.gtscript as gtscript
 import fv3._config as spec
+import fv3.stencils.basic_operations as basic
 from .yppm import (
     p1,
     p2,
@@ -13,7 +14,6 @@ from .yppm import (
     is_smt5_mord5,
     is_smt5_most_mords,
     fx1_c_negative,
-    floor_cap,
 )
 from gt4py.gtscript import computation, interval, PARALLEL
 
@@ -139,7 +139,7 @@ def compute_al(q, dxa, iord, is1, ie3, jfirst, jlast, kstart=0, nk=None):
                     q, dxa, al, origin=(grid().ie + 2, 0, kstart), domain=domain_y
                 )
         if iord < 0:
-            floor_cap(
+            basic.floor_cap(
                 al,
                 0.0,
                 origin=(grid().is_ - 1, jfirst, kstart),
