@@ -75,3 +75,6 @@ from .translate_pressureadjustedtemperature_nonhydrostatic import (
 )
 from .translate_c_sw import TranslateC_SW
 from .translate_dyncore import TranslateDynCore
+from .translate_mapn_tracer_2d import TranslateMapN_Tracer_2d
+from .translate_fillz import TranslateFillz
+

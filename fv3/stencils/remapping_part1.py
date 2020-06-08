@@ -9,7 +9,7 @@ import fv3.stencils.saturation_adjustment as saturation_adjustment
 import fv3.stencils.basic_operations as basic
 import fv3.stencils.map_scalar as map_scalar
 import fv3.stencils.map_ppm_2d as map1_ppm
-
+import fv3.stencils.mapn_tracer as mapn_tracer
 import numpy as np
 import fv3.stencils.copy_stencil as cp
 
@@ -100,8 +100,8 @@ def update_ua(pe2: sd, ua: sd):
         ua = pe2[0, 0, 1]
 
 # TODO remove this, this is a hack to deal with the fact that gz is a column
-def reset_gz(gz):
-    return utils.make_storage_data(np.squeeze(gz[:, spec.grid.je, spec.grid.npz - 1]), gz.shape, axis=0)
+def reset_1d_x(gz):
+    return utils.make_storage_data(np.squeeze(gz[:, :, spec.grid.npz - 1]), gz.shape)
 def compute(
     qvapor,
     qliquid,
@@ -138,10 +138,12 @@ def compute(
 ):
     grid = spec.grid
     hydrostatic = spec.namelist["hydrostatic"]
+    nq = 7
     # do_omega = hydrostatic and last_step # TODO pull into inputs
     domain_jextra = (grid.nic, grid.njc + 1, grid.npz + 1)
     pe1 = cp.copy(pe, origin=grid.compute_origin(), domain=domain_jextra)
     pe2 = utils.make_storage_from_shape(pe.shape, grid.compute_origin())
+    dp2= utils.make_storage_from_shape(pe.shape, grid.compute_origin())
     pn2 = utils.make_storage_from_shape(pe.shape, grid.compute_origin())
     pe0 = utils.make_storage_from_shape(pe.shape, grid.compute_origin())
     pe3 = utils.make_storage_from_shape(pe.shape, grid.compute_origin())
@@ -167,7 +169,8 @@ def compute(
                 delz,
                 r_vir,
             )
-            gz = reset_gz(gz)
+            gz = reset_1d_x(gz)
+            cvm = reset_1d_x(cvm)
     if not hydrostatic:
         delz_adjust(
             delp, delz, origin=grid.compute_origin(), domain=grid.domain_shape_compute()
@@ -180,10 +183,10 @@ def compute(
     )
     # TODO ps is a 2d stencil...
     cp.copy_stencil(pe1_bottom, ps, origin=grid.compute_origin(), domain=grid. domain_shape_compute_buffer_k())
-    pressure_updates(pe1, pe2, pe, ak, bk, delp, pe_bottom, pn2, peln, origin=grid.compute_origin(), domain=grid.domain_shape_compute_buffer_k())
+    pressure_updates(pe1, pe2, pe, ak, bk, dp2, pe_bottom, pn2, peln, origin=grid.compute_origin(), domain=grid.domain_shape_compute_buffer_k())
     # TODO fix silly hack due to pe2 being 2d, so pe[:, je+1, 1:npz] should be the same as it was for pe[:, je, 1:npz] (unchanged)
     copy_j_adjacent(pe2, origin=(grid.is_, grid.je + 1, 1), domain=(grid.nic, 1, grid.npz - 1))
-
+    cp.copy_stencil(dp2, delp,  origin=grid.compute_origin(), domain=grid.domain_shape_compute())
     # TODO merge into pressure updates when math available
     islice = slice(grid.is_, grid.ie + 1)
     jslice = slice(grid.js, grid.je + 1)
@@ -196,7 +199,7 @@ def compute(
         raise Exception("map ppm, untested mode where kord_tm >= 0")
         map1_ppm.compute(pt, pe1, pe2, gz, grid.is_, grid.ie, 1, abs(spec.namelist['kord_tm']))
     # TODO if nq > 5:
-    # mapn_tracer(pe1, pe2, dp2, qvapor, qliquid, qrain, qsnow, qice, qgraupel, qcld, spec.namelist['kord_tr'] )
+    mapn_tracer.compute(pe1, pe2, dp2, qvapor, qliquid, qice, qrain, qsnow, qgraupel, qcld, nq, 0. )
     # TODO else if nq > 0:
     # TODO map1_q2, fillz
     if not hydrostatic:
@@ -211,9 +214,7 @@ def compute(
     pe0 = cp.copy(
         peln, grid.compute_origin(), domain=(grid.nic, grid.njc, grid.npz + 1)
     )
-    peln = cp.copy(
-        pn2, grid.compute_origin(), domain=(grid.nic, grid.njc, grid.npz + 1)
-    )
+    cp.copy_stencil(pn2, peln, origin=grid.compute_origin(), domain=(grid.nic, grid.njc, grid.npz + 1))
     if hydrostatic:
         # pkz
         pass
@@ -235,9 +236,9 @@ def compute(
             delz,
             r_vir,
         )
-        # fix gz -- is supposed to be 1d
-        print('fixing gz', gz[3, 3, grid.npz - 2:],  gz[3, grid.je, grid.npz - 2:])
-        gz = reset_gz(gz)
+        # fix gz
+        gz = reset_1d_x(gz)
+        cvm = reset_1d_x(cvm)
     # if do_omega:
     # dp2 update, if larger than pe0 and smaller than one level up, update omega and  exit
 
@@ -259,7 +260,7 @@ def compute(
         origin=grid.compute_origin(),
         domain=domain_jextra,
     )
-    map1_ppm.compute(u, pe0, pe3, gz, grid.is_, grid.ie, -1, spec.namelist['kord_mt'])
+    map1_ppm.compute(u, pe0, pe3, gz, grid.is_, grid.ie, -1, spec.namelist['kord_mt'], j_interface=True)
     domain_iextra = (grid.nic + 1, grid.njc, grid.npz + 1)
     pressures_mapv(
         pe,

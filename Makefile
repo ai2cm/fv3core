@@ -4,7 +4,8 @@ SED := $(shell { command -v gsed || command -v sed; } 2>/dev/null)
 
 #<some large conceptual version change>.<serialization statement change>.<hotfix>
 
-FORTRAN_VERSION=0.5.1
+
+FORTRAN_VERSION=0.5.0
 SHELL=/bin/bash
 
 TEST_ARGS ?=-v -s -rsx

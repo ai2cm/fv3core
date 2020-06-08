@@ -406,8 +406,7 @@ def compute_pt(
         / (1.0 - cappa[tmpslice])
         * np.log(constants.RDG * delp[tmpslice] / delz[tmpslice] * pt[tmpslice])
     )
-
-
+   
 def compute_pkz(
     qvapor_js,
     qliquid_js,
@@ -428,6 +427,7 @@ def compute_pkz(
 ):
     grid = spec.grid
     origin, domain, jslice = region_mode(j_2d, grid)
+   
     moist_pkz(
         qvapor_js,
         qliquid_js,
@@ -451,8 +451,7 @@ def compute_pkz(
     # TODO push theis inside stencil one we can do exp and log there
     tmpslice = (slice(grid.is_, grid.ie + 1), jslice, slice(0, grid.npz))
     compute_pkz_slice(pkz, cappa, delp, delz, pt, tmpslice)
-    print(gz[3, 3, :])
-    print(gz[3, 0, :])
+   
 def compute_pkz_slice(pkz, cappa, delp, delz, pt, tmpslice):
     pkz[tmpslice] = np.exp(
         cappa[tmpslice]

@@ -89,8 +89,6 @@ def compute(
     pdt,
     mdt,
     consv,
-    #kmp,
-    #fast_mp_consv,
     do_adiabatic_init,
 ):
     grid = spec.grid
