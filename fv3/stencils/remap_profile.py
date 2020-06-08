@@ -506,7 +506,6 @@ def set_bottom_as_else(a4_1: sd, a4_2: sd, a4_3: sd, a4_4: sd):
 
 def compute(qs, a4_1, a4_2, a4_3, a4_4, delp, km, i1, i2, iv, kord, js, j_extent):
     i_extent = i2 - i1 + 1
-    print(i1, i2, delp.shape)
     grid = spec.grid
     orig = (i1, js, 0)
     full_orig = (grid.is_, js, 0)

@@ -103,11 +103,11 @@ def compute(q, dp, i1, i2, km, js, j_extent):
     # print(q[12,0,40]-(q[12,0,40]*dp[12,0,40]/dp[12,0,40]))
     # print(q[12,0,40], dp[12,0,40])
 
-    print(q[49,0,3:10])
-    x=q[49,0,6]*dp[49,0,6]
-    print(q[49,0,6]-(x/dp[49,0,6]))
-    print(q[49,0,6]-(q[49,0,6]*dp[49,0,6]/dp[49,0,6]))
-    print(q[49,0,6], dp[49,0,6])
+    #print(q[49,0,3:10])
+    #x=q[49,0,6]*dp[49,0,6]
+    #print(q[49,0,6]-(x/dp[49,0,6]))
+    #print(q[49,0,6]-(q[49,0,6]*dp[49,0,6]/dp[49,0,6]))
+    #print(q[49,0,6], dp[49,0,6])
 
     fix_top(q, dp, dm, origin=orig, domain=(i_extent, j_extent, 2))
     fix_interior(q, dp, zfix, upper_fix, lower_fix, dm, dm_pos, origin=(i1, 0, 1), domain=(i_extent, j_extent, km-2))
@@ -115,9 +115,9 @@ def compute(q, dp, i1, i2, km, js, j_extent):
 
     # print(q[33,0,14:20])
     # print(q[12,0,35:43])
-    print(q[49,0,3:10])
+    #print(q[49,0,3:10])
 
-    print(np.sum(q[49,0,:]))
+    #print(np.sum(q[49,0,:]))
 
     fix_cols = np.sum(zfix.data, axis=2)
     zfix.data[:]=np.repeat(fix_cols[:,:,np.newaxis], km+1, axis=2)
