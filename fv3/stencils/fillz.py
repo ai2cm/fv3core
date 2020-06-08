@@ -110,7 +110,7 @@ def compute(q, dp, i1, i2, km, js, j_extent):
     #print(q[49,0,6], dp[49,0,6])
 
     fix_top(q, dp, dm, origin=orig, domain=(i_extent, j_extent, 2))
-    fix_interior(q, dp, zfix, upper_fix, lower_fix, dm, dm_pos, origin=(i1, 0, 1), domain=(i_extent, j_extent, km-2))
+    fix_interior(q, dp, zfix, upper_fix, lower_fix, dm, dm_pos, origin=(i1, 0, 0), domain=(i_extent, j_extent, km-1))
     fix_bottom(q, dp, zfix, upper_fix, lower_fix, dm, dm_pos, origin=(i1, 0, km-2), domain=(i_extent, j_extent, 2))
 
     # print(q[33,0,14:20])
