@@ -236,8 +236,7 @@ def compute(
             delz,
             r_vir,
         )
-        # fix gz -- is supposed to be 1d
-        print('fixing gz', gz[3, 3, grid.npz - 2:],  gz[3, grid.je, grid.npz - 2:])
+        # fix gz
         gz = reset_1d_x(gz)
         cvm = reset_1d_x(cvm)
     # if do_omega:

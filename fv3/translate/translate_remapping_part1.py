@@ -102,7 +102,7 @@ class TranslateRemapping_Part1(TranslateFortranData2Py):
         self.out_vars["wsd"]["kstart"] = grid.npz - 1
         self.out_vars["wsd"]["kend"] = grid.npz - 1
         self.out_vars["ps"] = {'kstart': grid.npz - 1, "kend": grid.npz - 1}
-        self.max_error = 1e-10
+        self.max_error = 1e-11
         # column_var = {'istart': grid.is_, 'iend': grid.ie, 'jstart': grid.js, 'jend': grid.je, "kend": grid.npz + 1}
         # self.out_vars['ak'] = column_var
         # self.out_vars['bk'] = column_var
