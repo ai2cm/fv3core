@@ -117,7 +117,6 @@ def compute(data, comm):
     # n_split = nint( real(n0split)/real(k_split*abs(p_split)) * stretch_fac + 0.5 )
     ms = max(1, spec.namelist["m_split"] / 2.0)
     shape = data["delz"].shape
-
     # NOTE in Fortran model the halo update starts happens in fv_dynamics, not here
 
     reqs = {}
@@ -193,7 +192,7 @@ def compute(data, comm):
 
         if not hydrostatic:
             reqs["w_quantity"].wait()
-
+        
         data["delpc"], data["ptc"], data["omga"] = c_sw.compute(
             data["delp"],
             data["pt"],
@@ -269,7 +268,34 @@ def compute(data, comm):
         if spec.namelist["nord"] > 0:
             reqs["divgd_quantity"].wait()
         reqc_vector.wait()
-
+        if grid.rank == 0:
+            print('D_SW INPUTS', data["vt"][3, 3, 0],
+                  data["delp"][3, 3, 0],
+                  data["ptc"][3, 3, 0],
+                  data["pt"][3, 3, 0],
+                  data["u"][3, 3, 0],
+                  data["v"][3, 3, 0],
+                  data["w"][3, 3, 0],
+                  data["uc"][3, 3, 0],
+                  data["vc"][3, 3, 0],
+                  data["ua"][3, 3, 0],
+                  data["va"][3, 3, 0],
+                  data["divgd"][3, 3, 0],
+                  data["mfxd"][3, 3, 0],
+                  data["mfyd"][3, 3, 0],
+                  data["cxd"][3, 3, 0],
+                  data["cyd"][3, 3, 0],
+                  data["crx"][3, 3, 0],
+                  data["cry"][3, 3, 0],
+                  data["xfx"][3, 3, 0],
+                  data["yfx"][3, 3, 0],
+                  data["q_con"][3, 3, 0],
+                  data["zh"][3, 3, 0],
+                  data["heat_source"][3, 3, 0],
+                  data["diss_estd"][3, 3, 0]
+            )
+              
+            # ptc, pt, uc, vc 
         data["nord_v"], data["damp_vt"] = d_sw.compute(
             data["vt"],
             data["delp"],

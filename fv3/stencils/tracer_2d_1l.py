@@ -102,6 +102,7 @@ def compute(
     if grid.rank == 0:
         print('input', qvapor.data[i, j, k], qliquid.data[i, j, k], qice.data[i, j, k], qrain.data[i, j, k], qsnow.data[i, j, k], qgraupel.data[i, j, k], qcld.data[i, j, k], dp1[i, j, k], mfxd[i, j, k], mfyd[i, j, k], cxd[i, j, k])
         # 9.26581920040036e-06 1.4411174474442906e-21 5.629262782583318e-22 0.0 0.0 0.0 0.0 73.54299999999999 514569739867.48285 164898232594.65247 0.2998456609268374
+        # 9.26581920040036e-06 1.4411174474442906e-21 5.629262782583318e-22 0.0 0.0 0.0 0.0 73.54299999999999 514569739867.48346 164898232594.6542  0.2998456609268378
     # start HALO update on q (in dyn_core in fortran -- just has started when this function is called...)
     xfx = utils.make_storage_from_shape(
         qvapor.data.shape, origin=grid.compute_x_origin()
@@ -331,3 +332,5 @@ def compute(
                     domain=grid.domain_shape_compute(),
                 )
                 comm.halo_update(qn2, n_points=utils.halo)
+    i=3;j=3;k=0
+    print(qvapor[i, j, k], qliquid[i, j, k], qice[i, j, k], qrain[i, j, k], qsnow[i, j, k], qgraupel[i, j, k], dp1[i, j, k], mfxd[i, j, k], mfyd[i, j, k], cxd[i, j, k], cyd[i, j, k])
