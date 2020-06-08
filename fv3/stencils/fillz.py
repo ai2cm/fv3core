@@ -25,10 +25,10 @@ def fix_top(q:sd, dp:sd, dm:sd):
         if q < 0:
             q = 0
         dm = q*dp
-
+            
 @utils.stencil()
 def fix_interior(q:sd, dp:sd, zfix:sd, upper_fix:sd, lower_fix:sd, dm:sd, dm_pos:sd):
-    with computation(FORWARD), interval(...):#if a higher layer borrowed from this one, account for that here
+    with computation(FORWARD), interval(1, None):#if a higher layer borrowed from this one, account for that here
         if lower_fix[0,0,-1] != 0.:
             q = q-(lower_fix[0,0,-1]/dp)
         dq = q * dp
@@ -50,6 +50,7 @@ def fix_interior(q:sd, dp:sd, zfix:sd, upper_fix:sd, lower_fix:sd, dm:sd, dm_pos
             q = q - upper_fix[0,0,1]/dp
         dm = q*dp
         dm_pos = dm if dm > 0. else 0.
+
 
 @utils.stencil()
 def fix_bottom(q:sd, dp:sd, zfix:sd, upper_fix:sd, lower_fix:sd, dm:sd, dm_pos:sd):
@@ -147,16 +148,14 @@ def compute_test(dp2, qvapor, qliquid, qice, qrain, qsnow, qgraupel, qcld, im, k
     # print(qvapor.shape)
 
     # print(dp2[35:42,0,:])
-
     for q in tracer_qs:
         #reset fields
         zfix.data[:] = np.zeros(qvapor.shape)
         fac.data[:] = np.zeros(qvapor.shape)
         lower_fix.data[:] = np.zeros(qvapor.shape)
-        upper_fix.data[:] = np.zeros(qvapor.shape)
-
+        upper_fix.data[:] = np.zeros(qvapor.shape)   
         fix_top(tracer_qs[q], dp2, dm, origin=orig, domain=(im, j_extent, 2))
-        fix_interior(tracer_qs[q], dp2, zfix, upper_fix, lower_fix, dm, dm_pos, origin=(i1, js, 1), domain=(im, j_extent, km-2))
+        fix_interior(tracer_qs[q], dp2, zfix, upper_fix, lower_fix, dm, dm_pos, origin=(i1, js, 0), domain=(im, j_extent, km-1))
         fix_bottom(tracer_qs[q], dp2, zfix, upper_fix, lower_fix, dm, dm_pos, origin=(i1, js, km-2), domain=(im, j_extent, 2))
 
         fix_cols = np.sum(zfix.data[:], axis=2)

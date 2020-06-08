@@ -67,3 +67,4 @@ from .translate_c2l_ord2 import TranslateC2L_Ord2
 from .translate_cubedtolatlon import TranslateCubedToLatLon
 from .translate_rayleigh_super import TranslateRayleigh_Super
 from .translate_mapn_tracer_2d import TranslateMapN_Tracer_2d
+from .translate_fillz import TranslateFillz
