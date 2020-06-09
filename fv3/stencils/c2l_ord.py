@@ -3,7 +3,7 @@ import fv3.utils.gt4py_utils as utils
 import gt4py.gtscript as gtscript
 import fv3._config as spec
 from gt4py.gtscript import computation, interval, PARALLEL
-
+import fv3util 
 sd = utils.sd
 
 a1 = 0.5625
@@ -39,7 +39,7 @@ def compute_ord2(u, v, ua, va, do_halo=False):
         i2 += 1
         j1 -= 1
         j2 += 1
-
+    
     c2l_ord2(
         u,
         v,
@@ -95,20 +95,22 @@ def ord4_transform(
         va = a21 * utmp + a22 * vtmp
 
 
-def compute_ord4(u, v, ua, va, mode=1):
+def compute_ord4(u, v, ua, va, comm, mode=1):
     grid = spec.grid
-    # TODO needs a halo update? but already passes tests without...
-    # if mode > 0:
-    # 1) vector halo update (u, v)
-    utmp = utils.make_storage_from_shape(u.shape, utils.origin)
-    vtmp = utils.make_storage_from_shape(v.shape, utils.origin)
+    if mode > 0:
+        comm.vector_halo_update(
+            u, v, n_points=utils.halo
+        )
+        
+    utmp = utils.make_storage_from_shape(ua.shape, utils.origin)
+    vtmp = utils.make_storage_from_shape(va.shape, utils.origin)
     j1 = grid.js + 1 if grid.south_edge else grid.js
     j2 = grid.je - 1 if grid.north_edge else grid.je
     i1 = grid.is_ + 1 if grid.west_edge else grid.is_
     i2 = grid.ie - 1 if grid.east_edge else grid.ie
     vector_tmp(
-        u,
-        v,
+        u.data,
+        v.data,
         utmp,
         vtmp,
         origin=(i1, j1, 0),
@@ -116,8 +118,8 @@ def compute_ord4(u, v, ua, va, mode=1):
     )
     if grid.south_edge:
         y_edge_tmp(
-            u,
-            v,
+            u.data,
+            v.data,
             utmp,
             vtmp,
             grid.dx,
@@ -127,8 +129,8 @@ def compute_ord4(u, v, ua, va, mode=1):
         )
     if grid.north_edge:
         y_edge_tmp(
-            u,
-            v,
+            u.data,
+            v.data,
             utmp,
             vtmp,
             grid.dx,
@@ -137,9 +139,9 @@ def compute_ord4(u, v, ua, va, mode=1):
             domain=(grid.nic, 1, grid.npz),
         )
     if grid.west_edge:
-        wv = utils.make_storage_from_shape(u.shape, utils.origin)
+        wv = utils.make_storage_from_shape(ua.shape, utils.origin)
         x_edge_wv(
-            v,
+            v.data,
             grid.dy,
             wv,
             origin=(grid.is_, grid.js, 0),
@@ -147,8 +149,8 @@ def compute_ord4(u, v, ua, va, mode=1):
         )
         x_edge_tmp(
             wv,
-            u,
-            v,
+            u.data,
+            v.data,
             utmp,
             vtmp,
             grid.dx,
@@ -157,14 +159,14 @@ def compute_ord4(u, v, ua, va, mode=1):
             domain=(1, grid.njc, grid.npz),
         )
     if grid.east_edge:
-        wv = utils.make_storage_from_shape(u.shape, utils.origin)
+        wv = utils.make_storage_from_shape(ua.shape, utils.origin)
         x_edge_wv(
-            v, grid.dy, wv, origin=(grid.ie, grid.js, 0), domain=(2, grid.njc, grid.npz)
+            v.data, grid.dy, wv, origin=(grid.ie, grid.js, 0), domain=(2, grid.njc, grid.npz)
         )
         x_edge_tmp(
             wv,
-            u,
-            v,
+            u.data,
+            v.data,
             utmp,
             vtmp,
             grid.dx,
@@ -187,8 +189,9 @@ def compute_ord4(u, v, ua, va, mode=1):
     )
 
 
-def compute_cubed_to_latlon(u, v, ua, va):
+def compute_cubed_to_latlon(u, v, ua, va, comm, mode=1):
     if spec.namelist["c2l_ord"] == 2:
         compute_ord2(u, v, ua, va, False)
     else:
-        compute_ord4(u, v, ua, va)
+        compute_ord4(u, v, ua, va, comm, mode)
+    
