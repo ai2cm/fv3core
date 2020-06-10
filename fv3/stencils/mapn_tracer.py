@@ -119,8 +119,6 @@ def compute(pe1, pe2, dp2, qvapor, qliquid, qice, qrain, qsnow, qgraupel, qcld, 
     q4_4 = utils.make_storage_from_shape(q4_1.shape, origin=(grid.is_, 0, 0))
     q2_adds = utils.make_storage_from_shape(q4_1.shape, origin=origin)
 
-    print(qice[33,0,15:20])
-
     tracers = ["qvapor", "qliquid", "qice", "qrain", "qsnow", "qgraupel", "qcld"]
     tracer_qs = {"qvapor":qvapor, "qliquid":qliquid, "qice":qice, "qrain":qrain, "qsnow":qsnow, "qgraupel":qgraupel, "qcld":qcld}
     assert len(tracer_qs)==nq
@@ -181,16 +179,17 @@ def compute(pe1, pe2, dp2, qvapor, qliquid, qice, qrain, qsnow, qgraupel, qcld, 
     
    
     # transliterated fortran
+    trc= 0
     for q in tracers:
+        trc += 1
         if j_2d is None:
             q4_1.data[:] = tracer_qs[q].data[:, jslice, :]
         else:
             q4_1.data[:] = tracer_qs[q].data[:]
         q4_2.data[:] = np.zeros(q4_1.shape)
         q4_3.data[:] = np.zeros(q4_1.shape)
-        q4_4.data[:] = np.zeros(q4_1.shape)
+        q4_4.data[:] = np.zeros(q4_1.shape)     
         q4_1, q4_2, q4_3, q4_4 = remap_profile.compute_tracer(q4_1, q4_2, q4_3, q4_4, dp1, km, i1, i2, kord, q_min, 0, j_extent)
-        
         i_vals = np.arange(i1, i2 + 1)
         kn = grid.npz
         if j_2d is None:
@@ -256,9 +255,10 @@ def compute(pe1, pe2, dp2, qvapor, qliquid, qice, qrain, qsnow, qgraupel, qcld, 
 
     #     if fill:
     #         tracer_qs[q] = fillz.compute(tracer_qs[q], dp2, i1, i2, km)
+    
     if fill:
-        qvapor, qliquid, qice, qrain, qsnow, qgraupel, qcld = fillz.compute_test(dp2, qvapor, qliquid, qice, qrain, qsnow, qgraupel, qcld, i_extent, km, nq)
-   
+        qvapor, qliquid, qice, qrain, qsnow, qgraupel, qcld = fillz.compute_test(dp2, qvapor, qliquid, qice, qrain, qsnow, qgraupel, qcld, i_extent, km, nq, js, j_extent)
+  
     return qvapor, qliquid, qice, qrain, qsnow, qgraupel, qcld
 
     # return [tracer_qs[tracer] for tracer in tracers]

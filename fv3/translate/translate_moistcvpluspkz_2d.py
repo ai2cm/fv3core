@@ -27,7 +27,7 @@ class TranslateMoistCVPlusPkz_2d(TranslateFortranData2Py):
             if k not in ["gz", "cvm"]:
                 v["axis"] = 1
 
-        self.in_vars["parameters"] = ["r_vir"]
+        self.in_vars["parameters"] = ["r_vir", "j_2d"]
         self.out_vars = {
             "gz": {
                 "serialname": "gz1d",
@@ -54,7 +54,7 @@ class TranslateMoistCVPlusPkz_2d(TranslateFortranData2Py):
 
     def compute(self, inputs):
         self.make_storage_data_input_vars(inputs)
-        inputs["j_2d"] = 3  # TODO fix serialization data so this is a parameter
+        inputs["j_2d"] += 2
         self.compute_func(**inputs)
         for var in ["gz", "cvm"]:
             inputs[var] = inputs[var][:, inputs["j_2d"] : inputs["j_2d"] + 1, :]

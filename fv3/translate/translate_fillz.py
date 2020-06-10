@@ -65,5 +65,7 @@ class TranslateFillz(TranslateFortranData2Py):
 
     def compute(self, inputs):
         self.make_storage_data_input_vars(inputs)
+        inputs["js"] = 0
+        inputs["j_extent"] = 1
         qvapor, qliquid, qice, qrain, qsnow, qgraupel, qcld = self.compute_func(**inputs)
         return self.slice_output(inputs, {"qvapor_js": qvapor, "qliquid_js":qliquid, "qice_js":qice, "qrain_js":qrain, "qsnow_js":qsnow, "qgraupel_js":qgraupel, "qcld_js":qcld})
