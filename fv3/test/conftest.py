@@ -109,7 +109,7 @@ def get_test_class_instance(test_name, grid):
     try:
         instance = getattr(fv3.translate, translate_class_name)(grid)
     except AttributeError as err:
-        if translate_class_name in err.args[0]:
+        if translate_class_name in err.args[0] and err.args[0].startswith("module"):
             instance = None
         else:
             raise err
@@ -145,7 +145,6 @@ def get_parallel_savepoint_names(metafunc, data_path):
     skip_names = metafunc.config.getoption("skip_modules")
     if skip_names is not None:
         savepoint_names.difference_update(skip_names.split(","))
-    print('PARALLEL NAMES', savepoint_names)
     return savepoint_names
 
 
@@ -424,6 +423,7 @@ def communicator(layout):
     return communicator
 
 
+@pytest.fixture()
 def mock_communicator_list(layout):
     return get_mock_communicator_list(layout)
 

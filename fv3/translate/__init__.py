@@ -22,7 +22,10 @@ from .translate_grid import (
     TranslateGridUtils_Init,
     TranslateGnomonic_Grids,
     TranslateMirror_Grid,
-    TranslateDxDy,
+    TranslateGrid_DxDy,
+    TranslateGrid_Grid,
+    TranslateGrid_Agrid,
+    TranslateGrid_Areas,
 )
 from .translate_heatdiss import TranslateHeatDiss
 from .translate_haloupdate import (

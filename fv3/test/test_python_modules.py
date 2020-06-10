@@ -263,11 +263,12 @@ def save_netcdf(
         attrs = {
             "units": testobj.outputs[varname]["units"],
         }
-        data_vars[f"{varname}_in"] = xr.DataArray(
-            np.stack([in_data[varname] for in_data in inputs_list]),
-            dims=("rank",) + tuple(dims),
-            attrs=attrs,
-        )
+        if varname in inputs_list[0]:
+            data_vars[f"{varname}_in"] = xr.DataArray(
+                np.stack([in_data[varname] for in_data in inputs_list]),
+                dims=("rank",) + tuple(dims),
+                attrs=attrs,
+            )
         data_vars[f"{varname}_ref"] = xr.DataArray(
             np.stack(ref_data[varname]), dims=("rank",) + tuple(dims), attrs=attrs
         )

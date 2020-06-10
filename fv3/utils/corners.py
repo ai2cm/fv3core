@@ -154,34 +154,38 @@ def fill_se_corner_2d_bgrid(q, i, j, direction, grid):
 
 
 def fill_ne_corner_2d_bgrid(q, i, j, direction, grid):
+    i_end = grid.halo + grid.npx - 2  # index of last value in compute domain
+    j_end = grid.halo + grid.npy - 2
     if direction == "x":
-        q[grid.ie + 1 + i, grid.je + 1 + j, :] = q[grid.ie + 1 + j, grid.je + 1 - i, :]
+        q[i_end + i, j_end + j, :] = q[i_end + j, j_end - i + 1, :]
     if direction == "y":
-        q[grid.ie + 1 + j, grid.je + 1 + i, :] = q[grid.ie + 1 - i, grid.je + 1 + j, :]
+        q[i_end + j, j_end + i, :] = q[i_end - i + 1, j_end + j, :]
 
 
 def fill_sw_corner_2d_agrid(q, i, j, direction, grid):
     if direction == "x":
-        q[grid.is_ - i, grid.js - j, :] = q[grid.is_ - j, i, :]
+        q[grid.halo - i, grid.halo - j, :] = q[grid.halo - j, grid.halo - 1 + i, :]
     if direction == "y":
-        q[grid.is_ - j, grid.js - i, :] = q[i, grid.js - j, :]
+        q[grid.halo - j, grid.halo - i, :] = q[grid.halo - 1 + i, grid.halo - j, :]
 
 
 def fill_nw_corner_2d_agrid(q, i, j, direction, grid):
+    j_end = grid.halo + grid.npy - 2
     if direction == "x":
-        q[grid.is_ - i, grid.je + j, :] = q[grid.is_ - j, grid.je - i + 1, :]
+        q[grid.halo - i, j_end + j, :] = q[grid.halo - j, j_end - i + 1, :]
     if direction == "y":
-        q[grid.is_ - j, grid.je + i, :] = q[i, grid.je + j, :]
+        q[grid.halo - j, j_end + i, :] = q[grid.halo - 1 + i, j_end + j, :]
 
 
 def fill_se_corner_2d_agrid(q, i, j, direction, grid):
+    i_end = grid.halo + grid.npx - 2  # index of last value in compute domain
     if direction == "x":
-        q[grid.ie + i, grid.js - j, :] = q[grid.ie + j, i, :]
+        q[i_end + i, grid.halo - j, :] = q[i_end + j, grid.halo - 1 + i, :]
     if direction == "y":
-        q[grid.ie + j, grid.js - i, :] = q[grid.ie - i + 1, grid.js - j, :]
+        q[i_end + j, grid.halo - i, :] = q[i_end - i + 1, grid.halo - j, :]
 
 
-def fill_ne_corner_2d_agrid(q, i, j, direction, grid, mysign=1.0):
+def fill_ne_corner_2d_agrid(q, i, j, direction, grid):
     if direction == "x":
         q[grid.ie + i, grid.je + j, :] = q[grid.ie + j, grid.je - i + 1, :]
     if direction == "y":
@@ -245,6 +249,29 @@ def fill_corners_dgrid(x, y, grid, vector):
                 fill_se_corner_vector_dgrid(x, y, i, j, grid)
             if grid.ne_corner:
                 fill_ne_corner_vector_dgrid(x, y, i, j, grid, mysign)
+
+
+def fill_corners_agrid(x, y, grid, vector):
+    if vector:
+        mysign = -1.0
+    else:
+        mysign = 1.0
+    i_end = grid.halo + grid.npx - 2  # index of last value in compute domain
+    j_end = grid.halo + grid.npy - 2
+    for i in range(1, 1 + grid.halo):
+        for j in range(1, 1 + grid.halo):
+            if grid.sw_corner:
+                x[grid.halo - i, grid.halo - j, :] = mysign * y[grid.halo - j, grid.halo - 1 + i, :]
+                y[grid.halo - j, grid.halo - i, :] = mysign * x[grid.halo - 1 + i, grid.halo - j, :]
+            if grid.nw_corner:
+                x[grid.halo - i, j_end + j, :] = y[grid.halo - j, j_end - i + 1, :]
+                y[grid.halo - j, j_end + i, :] = x[grid.halo - 1 + i, j_end + j, :]
+            if grid.se_corner:
+                x[i_end + i, grid.halo - j, :] = y[i_end + j, grid.halo - 1 + i, :]
+                y[i_end + j, grid.halo - i, :] = x[i_end - i + 1, grid.halo - j, :]
+            if grid.ne_corner:
+                x[i_end + i, j_end + j, :] = mysign * y[i_end + j, j_end - i + 1, :]
+                y[i_end + j, j_end + i, :] = mysign * x[i_end - i + 1, j_end + j, :]
 
 
 def corner_ke(ke, u, v, ut, vt, i, j, dt, offsets, vsign):

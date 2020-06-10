@@ -15,16 +15,16 @@ class ParallelTranslate:
     outputs = {}
 
     def __init__(self, rank_grids):
-        if isinstance(rank_grids, collections.Sequence):
+        if not isinstance(rank_grids, collections.abc.Sequence):
             raise TypeError(
-                "rank_grids should be a sequence of grids, one for each rank"
+                f"for {self.__class__} rank_grids should be a sequence of grids, "
+                f"one for each rank, got {rank_grids}"
             )
         self._base = TranslateFortranData2Py(rank_grids[0])
         self._base.in_vars = {
             "data_vars": {name: {} for name in self.inputs},
             "parameters": {},
         }
-        self.max_error = self._base.max_error
         self._rank_grids = rank_grids
 
     def state_list_from_inputs_list(self, inputs_list: List[list]) -> list:
@@ -46,14 +46,13 @@ class ParallelTranslate:
                     properties["units"],
                     dtype=inputs[name].dtype
                 )
-                if len(properties["dims"]) == 3:
-                    state[properties["name"]].data[:] = inputs[name]
-                elif len(properties["dims"]) == 2:
+                if len(properties["dims"]) > 3:
+                    input_slice = _serialize_slice(state[properties["name"]], properties.get("n_halo", utils.halo))
+                    state[properties["name"]].data[input_slice] = inputs[name]
+                if len(properties["dims"]) == 2:
                     state[properties["name"]].data[:] = inputs[name][:, :, 0]
                 else:
-                    raise NotImplementedError(
-                        "only 0, 2, and 3-d variables are supported"
-                    )
+                    state[properties["name"]].data[:] = inputs[name]
             else:
                 state[properties["name"]] = inputs[name]
         return state
@@ -77,6 +76,16 @@ class ParallelTranslate:
             output_slice = _serialize_slice(state[standard_name], properties.get("n_halo", utils.halo))
             return_dict[name] = state[standard_name].data[output_slice]
         return return_dict
+
+    def allocate_output_state(self):
+        state = {}
+        for name, properties in self.outputs.items():
+            if len(properties["dims"]) > 0:
+                state[properties["name"]] = self.grid.quantity_factory.empty(
+                    properties["dims"],
+                    properties["units"],
+                )
+        return state
 
     @property
     def rank_grids(self):
@@ -108,3 +117,32 @@ def _serialize_slice(quantity, n_halo):
             halo = 0
         slice_list.append(slice(origin - halo, origin + extent + halo))
     return tuple(slice_list)
+
+
+class ParallelTranslateGrid(ParallelTranslate):
+    """Translation class which only uses quantity factory for initialization, to
+    support some non-standard array dimension layouts not supported by the
+    TranslateFortranData2Py initializers.
+    """
+    
+    def state_from_inputs(self, inputs: dict, grid=None) -> dict:
+        if grid is None:
+            grid = self.grid
+        state = {}
+        for name, properties in self.inputs.items():
+            if len(properties["dims"]) > 0:
+                state[properties["name"]] = grid.quantity_factory.empty(
+                    properties["dims"],
+                    properties["units"],
+                    dtype=inputs[name].dtype
+                )
+                input_slice = _serialize_slice(state[properties["name"]], properties.get("n_halo", utils.halo))
+                state[properties["name"]].data[input_slice] = inputs[name]
+                if len(properties["dims"]) > 0:
+                    state[properties["name"]].data[input_slice] = inputs[name]
+                else:
+                    state[properties["name"]].data[:] = inputs[name]
+            else:
+                state[properties["name"]] = inputs[name]
+        return state
+

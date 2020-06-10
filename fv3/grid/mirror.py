@@ -1,4 +1,4 @@
-from ..utils.global_constants import RADIUS, RIGHT_HAND_GRID, N_TILES
+from ..utils.global_constants import RADIUS, RIGHT_HAND_GRID, N_TILES, PI
 import math
 
 __all__ = ["mirror_grid"]
@@ -53,6 +53,8 @@ def mirror_grid(grid_global, ng: int, npx: int, npy: int, np):
                     grid_global[ng + i, ng + j, 0, nreg] = 0.0
                     grid_global[ng + i, ng + npy - (j + 1), 0, nreg] = 0.0
 
+    i_mid = (npx - 1) // 2
+    j_mid = (npy - 1) // 2
     for nreg in range(1, N_TILES):
         for j in range(0, npy):
             x1 = grid_global[ng : ng + npx, ng + j, 0, 0]
@@ -75,13 +77,12 @@ def mirror_grid(grid_global, ng: int, npx: int, npy: int, np):
                 )
                 # force North Pole and dateline/Greenwich-Meridian consistency
                 if npx % 2 != 0:
-                    if i == (npx - 1) // 2 and i == j:
-                        x2[:] = 0.0
-                        y2[:] = np.pi / 2.0
-                    if j == (npy - 1) // 2 and i < (npx - 1) // 2:
-                        x2[:] = 0.0
-                    if j == (npy - 1) // 2 and i > (npx - 1) // 2:
-                        x2[:] = np.pi
+                    if j == i_mid:
+                        x2[i_mid] = 0.
+                        y2[i_mid] = PI / 2.0
+                    if j == j_mid:
+                        x2[:i_mid] = 0.
+                        x2[i_mid + 1] = PI
             elif nreg == 3:
                 ang = -180.0
                 x2, y2, z2 = _rot_3d(
@@ -94,7 +95,7 @@ def mirror_grid(grid_global, ng: int, npx: int, npy: int, np):
                 # force dateline/Greenwich-Meridian consistency
                 if npx % 2 != 0:
                     if j == (npy - 1) // 2:
-                        x2[:] = np.pi
+                        x2[:] = PI
             elif nreg == 4:
                 ang = 90.0
                 x2, y2, z2 = _rot_3d(
@@ -115,13 +116,13 @@ def mirror_grid(grid_global, ng: int, npx: int, npy: int, np):
                 )
                 # force South Pole and dateline/Greenwich-Meridian consistency
                 if npx % 2 != 0:
-                    if i == (npx - 1) // 2 and i == j:
-                        x2[:] = 0.0
-                        y2[:] = -np.pi / 2.0
-                    if i == (npx - 1) // 2 and j > (npy - 1) // 2:
-                        x2[:] = 0.0
-                    if i == (npx - 1) // 2 and j < (npy - 1) // 2:
-                        x2[:] = np.pi
+                    if j == i_mid:
+                        x2[i_mid] = 0.
+                        y2[i_mid] = -PI / 2.0
+                    if j > j_mid:
+                        x2[i_mid] = 0.
+                    elif j < j_mid:
+                        x2[i_mid] = PI
 
             grid_global[ng : ng + npx, ng + j, 0, nreg] = x2
             grid_global[ng : ng + npx, ng + j, 1, nreg] = y2
@@ -129,7 +130,7 @@ def mirror_grid(grid_global, ng: int, npx: int, npy: int, np):
     return grid_global
 
 
-def _rot_3d(self, axis, p, angle, np, degrees=False, convert=False):
+def _rot_3d(axis, p, angle, np, degrees=False, convert=False):
 
     if convert:
         p1 = _spherical_to_cartesian(p, np)
@@ -183,5 +184,5 @@ def _cartesian_to_spherical(p, np):
     if RIGHT_HAND_GRID:
         lat = np.arcsin(z / r)
     else:
-        lat = np.arccos(z / r) - np.pi / 2.0
+        lat = np.arccos(z / r) - PI / 2.0
     return [lon, lat, r]
