@@ -1,10 +1,10 @@
-from .parallel_translate import ParallelTranslate2Py
+from .parallel_translate import ParallelTranslate2PyState
 from .translate import TranslateFortranData2Py
 import fv3.stencils.dyn_core as dyn_core
 import fv3util
 
 
-class TranslateDynCore(ParallelTranslate2Py):
+class TranslateDynCore(ParallelTranslate2PyState):
     inputs = {
         "q_con": {
             "dims": [fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_DIM],
@@ -109,14 +109,14 @@ class TranslateDynCore(ParallelTranslate2Py):
         del self._base.out_vars["bk"]
 
         # TODO - fix edge_interpolate4 in d2a2c_vect to match closer and the variables here should as well
-        self.max_error = 1e-6
+        self.max_error = 1e-7
 
-    def compute_parallel(self, inputs, communicator):
-        self._base.make_storage_data_input_vars(inputs)
-        for name, properties in self.inputs.items():
-            inputs[name + "_quantity"] = self.grid.quantity_wrap(
-                inputs[name], dims=properties["dims"], units=properties["units"]
-            )
-        state = {"data": inputs, "comm": communicator}
-        self._base.compute_func(**state)
-        return self._base.slice_output(state["data"])
+    #def compute_parallel(self, inputs, communicator):
+    #    self._base.make_storage_data_input_vars(inputs)
+    #    for name, properties in self.inputs.items():
+    #        inputs[name + "_quantity"] = self.grid.quantity_wrap(
+    #            inputs[name], dims=properties["dims"], units=properties["units"]
+    #        )
+    #    state = {"data": inputs, "comm": communicator}
+    #    self._base.compute_func(**state)
+    #    return self._base.slice_output(state["data"])

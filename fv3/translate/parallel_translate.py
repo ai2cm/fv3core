@@ -5,7 +5,7 @@ import fv3util
 from fv3.utils import gt4py_utils as utils
 import fv3
 import pytest
-
+from types import SimpleNamespace
 
 class ParallelTranslate:
 
@@ -133,3 +133,15 @@ class ParallelTranslate2Py(ParallelTranslate):
         pytest.skip(
             f"{self.__class__} only has a mpirun implementation, not running in mock-parallel"
         )
+
+class ParallelTranslate2PyState(ParallelTranslate2Py):
+   
+    def compute_parallel(self, inputs, communicator):
+        self._base.make_storage_data_input_vars(inputs)
+        for name, properties in self.inputs.items():
+            self.grid.quantity_dict_update(inputs, name, dims=properties["dims"], units=properties["units"]
+            )
+        statevars = SimpleNamespace(**inputs)
+        state = {"state": statevars, "comm": communicator}
+        self._base.compute_func(**state)
+        return self._base.slice_output(vars(state["state"]))

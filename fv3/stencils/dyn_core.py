@@ -85,67 +85,61 @@ def dyncore_temporaries(shape):
     )
     utils.storage_dict(tmps, ["crx", "xfx"], shape, grid.compute_x_origin())
     utils.storage_dict(tmps, ["cry", "yfx"], shape, grid.compute_y_origin())
-    tmps["heat_source_quantity"] = grid.quantity_wrap(
-        tmps["heat_source"], dims=[fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_DIM]
-    )
+    grid.quantity_dict_update(tmps, "heat_source", dims=[fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_DIM])
     for q in ["gz", "pkc", "zh"]:
-        tmps[q + "_quantity"] = grid.quantity_wrap(
-            tmps[q], dims=[fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_INTERFACE_DIM]
-        )
-    tmps["divgd_quantity"] = grid.quantity_wrap(
-        tmps["divgd"],
-        dims=[fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM, fv3util.Z_DIM],
-    )
+        grid.quantity_dict_update(tmps, q, dims=[fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_INTERFACE_DIM])
+    grid.quantity_dict_update(tmps, "divgd", dims=[fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM, fv3util.Z_DIM])
     return tmps
 
 
-def compute(data, comm):
+def compute(state, comm):
     # u, v, w, delz, delp, pt, pe, pk, phis, wsd, omga, ua, va, uc, vc, mfxd, mfyd, cxd, cyd, pkz, peln, q_con, ak, bk, diss_estd, cappa, mdt, n_split, akap, ptop, pfull, n_map_step, comm):
     grid = spec.grid
-    init_step = data["n_map_step"] == 1
-    end_step = data["n_map_step"] == spec.namelist["k_split"]
-    akap = data["akap"]
+    
+    init_step = state.n_map_step == 1
+    end_step = state.n_map_step == spec.namelist["k_split"]
+    akap = state.akap
     # peln1 = math.log(ptop)
     # ptk = ptop**akap
-    dt = data["mdt"] / data["n_split"]
+    dt = state.mdt / state.n_split
     dt2 = 0.5 * dt
     hydrostatic = spec.namelist["hydrostatic"]
     rgrav = 1.0 / constants.GRAV
-    n_split = data["n_split"]
+    n_split = state.n_split
     # TODO -- put defaults into code
     # m_split = 1. + abs(dt_atmos)/real(k_split*n_split*abs(p_split))
     # n_split = nint( real(n0split)/real(k_split*abs(p_split)) * stretch_fac + 0.5 )
     ms = max(1, spec.namelist["m_split"] / 2.0)
-    shape = data["delz"].shape
+    shape = state.delz.shape
     # NOTE in Fortran model the halo update starts happens in fv_dynamics, not here
 
     reqs = {}
     for halovar in ["q_con_quantity", "cappa_quantity", "delp_quantity", "pt_quantity"]:
-        reqs[halovar] = comm.start_halo_update(data[halovar], n_points=utils.halo)
+        reqs[halovar] = comm.start_halo_update(state.__getattribute__(halovar), n_points=utils.halo)
     reqs_vector = comm.start_vector_halo_update(
-        data["u_quantity"], data["v_quantity"], n_points=utils.halo
+        state.u_quantity, state.v_quantity, n_points=utils.halo
     )
     reqs["q_con_quantity"].wait()
     reqs["cappa_quantity"].wait()
 
-    data.update(dyncore_temporaries(shape))
+    state.__dict__.update(dyncore_temporaries(shape))
     if init_step:
-        data["gz"][:-1, :-1, :] = HUGE_R
-        data["diss_estd"][grid.slice_dict(grid.compute_dict())] = 0.0
+        state.gz[:-1, :-1, :] = HUGE_R
+        state.diss_estd[grid.slice_dict(grid.compute_dict())] = 0.0
         if not hydrostatic:
-            data["pk3"][:-1, :-1, :] = HUGE_R
-    data["mfxd"][grid.slice_dict(grid.x3d_compute_dict())] = 0.0
-    data["mfyd"][grid.slice_dict(grid.y3d_compute_dict())] = 0.0
-    data["cxd"][grid.slice_dict(grid.x3d_compute_domain_y_dict())] = 0.0
-    data["cyd"][grid.slice_dict(grid.y3d_compute_domain_x_dict())] = 0.0
+            state.pk3[:-1, :-1, :] = HUGE_R
+    state.mfxd[grid.slice_dict(grid.x3d_compute_dict())] = 0.0
+    state.mfyd[grid.slice_dict(grid.y3d_compute_dict())] = 0.0
+    state.cxd[grid.slice_dict(grid.x3d_compute_domain_y_dict())] = 0.0
+    state.cyd[grid.slice_dict(grid.y3d_compute_domain_x_dict())] = 0.0
     if not hydrostatic:
         # k1k = akap / (1.0 - akap)
         # TODO -- is really just a column... when different shapes are supported perhaps change this
-        data["dp_ref"] = utils.make_storage_from_shape(
-            data["ak"].shape, grid.default_origin()
+        state.dp_ref = utils.make_storage_from_shape(
+            state.ak.shape, grid.default_origin()
         )
-        dp_ref_compute(data["ak"], data["bk"], data["dp_ref"])
-        data["zs"] = data["phis"] * rgrav
+        dp_ref_compute(state.ak, state.bk, state.dp_ref)
+        state.zs = state.phis * rgrav
     n_con = get_n_con()
 
     for it in range(n_split):
@@ -155,18 +149,18 @@ def compute(data, comm):
 
         if not hydrostatic:
             reqs["w_quantity"] = comm.start_halo_update(
-                data["w_quantity"], n_points=utils.halo
+                state.w_quantity, n_points=utils.halo
             )
             if it == 0:
                 set_gz(
-                    data["zs"],
-                    data["delz"],
-                    data["gz"],
+                    state.zs,
+                    state.delz,
+                    state.gz,
                     origin=grid.compute_origin(),
                     domain=(grid.nic, grid.njc, grid.npz + 1),
                 )
                 reqs["gz_quantity"] = comm.start_halo_update(
-                    data["gz_quantity"], n_points=utils.halo
+                    state.gz_quantity, n_points=utils.halo
                 )
         if it == 0:
             reqs["delp_quantity"].wait()
@@ -181,9 +175,9 @@ def compute(data, comm):
         if it == n_split - 1 and end_step:
             if spec.namelist["use_old_omega"]:  # apparently true
                 set_pem(
-                    data["delp"],
-                    data["pem"],
-                    data["ptop"],
+                    state.delp,
+                    state.pem,
+                    state.ptop,
                     origin=(grid.is_ - 1, grid.js - 1, 0),
                     domain=(grid.nic + 2, grid.njc + 2, grid.npz),
                 )
@@ -193,139 +187,139 @@ def compute(data, comm):
         if not hydrostatic:
             reqs["w_quantity"].wait()
         
-        data["delpc"], data["ptc"], data["omga"] = c_sw.compute(
-            data["delp"],
-            data["pt"],
-            data["u"],
-            data["v"],
-            data["w"],
-            data["uc"],
-            data["vc"],
-            data["ua"],
-            data["va"],
-            data["ut"],
-            data["vt"],
-            data["divgd"],
+        state.delpc, state.ptc = c_sw.compute(
+            state.delp,
+            state.pt,
+            state.u,
+            state.v,
+            state.w,
+            state.uc,
+            state.vc,
+            state.ua,
+            state.va,
+            state.ut,
+            state.vt,
+            state.divgd,
+            state.omga,
             dt2,
         )
-
         if spec.namelist["nord"] > 0:
             reqs["divgd_quantity"] = comm.start_halo_update(
-                data["divgd_quantity"], n_points=utils.halo
+                state.divgd_quantity, n_points=utils.halo
             )
         if not hydrostatic:
             if it == 0:
                 reqs["gz_quantity"].wait()
                 cp.copy_stencil(
-                    data["gz"],
-                    data["zh"],
+                    state.gz,
+                    state.zh,
                     origin=grid.default_origin(),
                     domain=grid.domain_shape_buffer_k(),
                 )
             else:
                 cp.copy_stencil(
-                    data["gz"],
-                    data["zh"],
+                    state.gz,
+                    state.zh,
                     origin=grid.default_origin(),
                     domain=grid.domain_shape_buffer_k(),
                 )
         if not hydrostatic:
-            data["gz"], data["ws3"] = updatedzc.compute(
-                data["dp_ref"],
-                data["zs"],
-                data["ut"],
-                data["vt"],
-                data["gz"],
-                data["ws3"],
+            state.gz, state.ws3 = updatedzc.compute(
+                state.dp_ref,
+                state.zs,
+                state.ut,
+                state.vt,
+                state.gz,
+                state.ws3,
                 dt2,
             )
             # TODO this is really a 2d field.
-            data["ws3"] = utils.make_storage_data_from_2d(
-                data["ws3"][:, :, -1], shape, origin=(0, 0, 0)
+            state.ws3 = utils.make_storage_data_from_2d(
+                state.ws3[:, :, -1], shape, origin=(0, 0, 0)
             )
             riem_solver_c.compute(
                 ms,
                 dt2,
                 akap,
-                data["cappa"],
-                data["ptop"],
-                data["phis"],
-                data["omga"],
-                data["ptc"],
-                data["q_con"],
-                data["delpc"],
-                data["gz"],
-                data["pkc"],
-                data["ws3"],
+                state.cappa,
+                state.ptop,
+                state.phis,
+                state.omga,
+                state.ptc,
+                state.q_con,
+                state.delpc,
+                state.gz,
+                state.pkc,
+                state.ws3,
             )
 
         pgradc.compute(
-            data["uc"], data["vc"], data["delpc"], data["pkc"], data["gz"], dt2
+            state.uc, state.vc, state.delpc, state.pkc, state.gz, dt2
         )
         reqc_vector = comm.start_vector_halo_update(
-            data["uc_quantity"], data["vc_quantity"], n_points=utils.halo
+            state.uc_quantity, state.vc_quantity, n_points=utils.halo
         )
         if spec.namelist["nord"] > 0:
             reqs["divgd_quantity"].wait()
         reqc_vector.wait()
-        if grid.rank == 0:
-            print('D_SW INPUTS', data["vt"][3, 3, 0],
-                  data["delp"][3, 3, 0],
-                  data["ptc"][3, 3, 0],
-                  data["pt"][3, 3, 0],
-                  data["u"][3, 3, 0],
-                  data["v"][3, 3, 0],
-                  data["w"][3, 3, 0],
-                  data["uc"][3, 3, 0],
-                  data["vc"][3, 3, 0],
-                  data["ua"][3, 3, 0],
-                  data["va"][3, 3, 0],
-                  data["divgd"][3, 3, 0],
-                  data["mfxd"][3, 3, 0],
-                  data["mfyd"][3, 3, 0],
-                  data["cxd"][3, 3, 0],
-                  data["cyd"][3, 3, 0],
-                  data["crx"][3, 3, 0],
-                  data["cry"][3, 3, 0],
-                  data["xfx"][3, 3, 0],
-                  data["yfx"][3, 3, 0],
-                  data["q_con"][3, 3, 0],
-                  data["zh"][3, 3, 0],
-                  data["heat_source"][3, 3, 0],
-                  data["diss_estd"][3, 3, 0]
+        if grid.rank == 5:
+            print('D_SW INPUTS', state.vt[3, 3, 0],
+                  state.delp[3, 3, 0],
+                  state.ptc[3, 3, 0],
+                  state.pt[3, 3, 0],
+                  state.u[3, 3, 0],
+                  state.v[3, 3, 0],
+                  state.w[3, 3, 0],
+                  state.uc[3, 3, 0],
+                  state.vc[3, 3, 0],
+                  state.ua[3, 3, 0],
+                  state.va[3, 3, 0],
+                  state.divgd[3, 3, 0],
+                  state.mfxd[3, 3, 0],
+                  state.mfyd[3, 3, 0],
+                  state.cxd[3, 3, 0],
+                  state.cyd[3, 3, 0],
+                  state.crx[3, 3, 0],
+                  state.cry[3, 3, 0],
+                  state.xfx[3, 3, 0],
+                  state.yfx[3, 3, 0],
+                  state.q_con[3, 3, 0],
+                  state.zh[3, 3, 0],
+                  state.heat_source[3, 3, 0],
+                  state.diss_estd[3, 3, 0]
             )
               
             # ptc, pt, uc, vc 
-        data["nord_v"], data["damp_vt"] = d_sw.compute(
-            data["vt"],
-            data["delp"],
-            data["ptc"],
-            data["pt"],
-            data["u"],
-            data["v"],
-            data["w"],
-            data["uc"],
-            data["vc"],
-            data["ua"],
-            data["va"],
-            data["divgd"],
-            data["mfxd"],
-            data["mfyd"],
-            data["cxd"],
-            data["cyd"],
-            data["crx"],
-            data["cry"],
-            data["xfx"],
-            data["yfx"],
-            data["q_con"],
-            data["zh"],
-            data["heat_source"],
-            data["diss_estd"],
+        state.nord_v, state.damp_vt = d_sw.compute(
+            state.vt,
+            state.delp,
+            state.ptc,
+            state.pt,
+            state.u,
+            state.v,
+            state.w,
+            state.uc,
+            state.vc,
+            state.ua,
+            state.va,
+            state.divgd,
+            state.mfxd,
+            state.mfyd,
+            state.cxd,
+            state.cyd,
+            state.crx,
+            state.cry,
+            state.xfx,
+            state.yfx,
+            state.q_con,
+            state.zh,
+            state.heat_source,
+            state.diss_estd,
             dt,
         )
 
         for halovar in ["delp_quantity", "pt_quantity", "q_con_quantity"]:
-            comm.halo_update(data[halovar], n_points=utils.halo)
+            comm.halo_update(state.__getattribute__(halovar), n_points=utils.halo)
 
         # Not used unless we implement other betas and alternatives to nh_p_grad
         # if spec.namelist['d_ext'] > 0:
@@ -335,70 +329,70 @@ def compute(data, comm):
 
         if not hydrostatic:
             updatedzd.compute(
-                data["nord_v"],
-                data["damp_vt"],
-                data["dp_ref"],
-                data["zs"],
-                data["zh"],
-                data["crx"],
-                data["cry"],
-                data["xfx"],
-                data["yfx"],
-                data["wsd"],
+                state.nord_v,
+                state.damp_vt,
+                state.dp_ref,
+                state.zs,
+                state.zh,
+                state.crx,
+                state.cry,
+                state.xfx,
+                state.yfx,
+                state.wsd,
                 dt,
             )
 
             # TODO this is really a 2d field.
-            data["wsd"] = utils.make_storage_data_from_2d(
-                data["wsd"][:, :, -1], shape, origin=grid.compute_origin()
+            state.wsd = utils.make_storage_data_from_2d(
+                state.wsd[:, :, -1], shape, origin=grid.compute_origin()
             )
             riem_solver3.compute(
                 remap_step,
                 dt,
                 akap,
-                data["cappa"],
-                data["ptop"],
-                data["zs"],
-                data["w"],
-                data["delz"],
-                data["q_con"],
-                data["delp"],
-                data["pt"],
-                data["zh"],
-                data["pe"],
-                data["pkc"],
-                data["pk3"],
-                data["pk"],
-                data["peln"],
-                data["wsd"],
+                state.cappa,
+                state.ptop,
+                state.zs,
+                state.w,
+                state.delz,
+                state.q_con,
+                state.delp,
+                state.pt,
+                state.zh,
+                state.pe,
+                state.pkc,
+                state.pk3,
+                state.pk,
+                state.peln,
+                state.wsd,
             )
 
             reqs["zh_quantity"] = comm.start_halo_update(
-                data["zh_quantity"], n_points=utils.halo
+                state.zh_quantity, n_points=utils.halo
             )
             if grid.npx == grid.npy:
                 reqs["pkc_quantity"] = comm.start_halo_update(
-                    data["pkc_quantity"], n_points=2
+                    state.pkc_quantity, n_points=2
                 )
             else:
                 reqs["pkc_quantity"] = comm.start_halo_update(
-                    data["pkc_quantity"], n_points=utils.halo
+                    state.pkc_quantity, n_points=utils.halo
                 )
             if remap_step:
-                pe_halo.compute(data["pe"], data["delp"], data["ptop"])
+                pe_halo.compute(state.pe, state.delp, state.ptop)
             if spec.namelist["use_logp"]:
                 raise Exception("unimplemented namelist option use_logp=True")
             else:
-                pk3_halo.compute(data["pk3"], data["delp"], data["ptop"], akap)
+                pk3_halo.compute(state.pk3, state.delp, state.ptop, akap)
         if not hydrostatic:
             reqs["zh_quantity"].wait()
             if grid.npx != grid.npy:
                 reqs["pkc_quantity"].wait()
         if not hydrostatic:
             basic.multiply_constant(
-                data["zh"],
+                state.zh,
                 constants.GRAV,
-                data["gz"],
+                state.gz,
                 origin=(grid.is_ - 2, grid.js - 2, 0),
                 domain=(grid.nic + 4, grid.njc + 4, grid.npz + 1),
             )
@@ -410,14 +404,14 @@ def compute(data, comm):
                 )
         if not hydrostatic:
             nh_p_grad.compute(
-                data["u"],
-                data["v"],
-                data["pkc"],
-                data["gz"],
-                data["pk3"],
-                data["delp"],
+                state.u,
+                state.v,
+                state.pkc,
+                state.gz,
+                state.pk3,
+                state.delp,
                 dt,
-                data["ptop"],
+                state.ptop,
                 akap,
             )
 
@@ -428,22 +422,37 @@ def compute(data, comm):
 
         if it != n_split - 1:
             reqs_vector = comm.start_vector_halo_update(
-                data["u_quantity"], data["v_quantity"], n_points=utils.halo
+                state.u_quantity, state.v_quantity, n_points=utils.halo
             )
     if n_con != 0 and spec.namelist["d_con"] > 1.0e-5:
         nf_ke = min(3, spec.namelist["nord"] + 1)
 
-        comm.halo_update(data["heat_source_quantity"], n_points=utils.halo)
+        comm.halo_update(state.heat_source_quantity, n_points=utils.halo)
         cd = constants.CNST_0P20 * grid.da_min
-        del2cubed.compute(data["heat_source"], nf_ke, cd, grid.npz)
+        del2cubed.compute(state.heat_source, nf_ke, cd, grid.npz)
         if not hydrostatic:
             temperature_adjust.compute(
-                data["pt"],
-                data["pkz"],
-                data["heat_source"],
-                data["delz"],
-                data["delp"],
-                data["cappa"],
+                state.pt,
+                state.pkz,
+                state.heat_source,
+                state.delz,
+                state.delp,
+                state.cappa,
                 n_con,
                 dt,
             )
+    if grid.rank == 0:
+        print('dyncore out', state.omga[2, 2, 0])
+    #  dyncore in 86.60791984809413 -22.34613988348352
+    #  dyncore in 86.60791984809413 -22.34613988348352
+
+    # D_SW INPUTS 1099046544.6892679 73.54299999999999 70.97212196697538 71.00618475183278 97.04416238696193 -21.777196668151216 -0.025528061054710678 95.16267718480961 30.49568612563921 109.83298778912048 31.58702154629114 7.816862046341417e-06 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 2.0040437257026224e-21 50218.52753276463 0.0 0.0
+    # D_SW INPUTS 1099046544.6892679 73.54299999999999 70.97212196697538 71.00618475183278 97.04416238696193 -21.777196668151216 -0.025528061054710678 95.16267718480961 30.49568612563921 109.83298778912048 31.58702154629114 7.816862046341417e-06 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 2.0040437257026224e-21 50218.52753276463 0.0 0.0
+    # dyncore out 86.52342338850544 -22.32433853195655
+    # dyncore out 86.52342338850544 -22.32433853195655
+
+    # dyncore in -17.635839693678264 22.181103227073567
+    # dyncore in -17.635839693678264 22.181103227073567
+    #D_SW INPUTS -48351327.18739123 73.54299999999999 65.52308912452013 65.53914509544042 -48.00222892226768 24.739919900363827 -0.018875030502620124 -42.948972160257405 -1.267368025051373 -50.10317219754034 -0.38672261250846407 1.6949631197586148e-06 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 2.078346214948682e-21 50011.81267911985 0.0 0.0
+    # dyncore out -17.61863380744288 22.15946288868712
+    # dyncore out -17.61863380744288 22.15946288868712

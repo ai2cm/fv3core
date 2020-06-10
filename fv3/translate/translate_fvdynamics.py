@@ -1,11 +1,12 @@
-from .parallel_translate import ParallelTranslate2Py
+from .parallel_translate import ParallelTranslate2PyState
 import fv3.stencils.fv_dynamics as fv_dynamics
 from .translate_dyncore import TranslateDynCore
 from .translate_tracer2d1l import TranslateTracer2D1L
 import fv3.utils.gt4py_utils as utils
+
 import fv3util
 import copy
-class TranslateFVDynamics(ParallelTranslate2Py):
+class TranslateFVDynamics(ParallelTranslate2PyState):
     inputs = {**TranslateDynCore.inputs , **TranslateTracer2D1L.inputs}
     del inputs['cappa']
     def __init__(self, grids):
@@ -34,7 +35,14 @@ class TranslateFVDynamics(ParallelTranslate2Py):
                 "kaxis": 1,
             },
             "pk": grid.compute_buffer_k_dict(),
-            "peln": {"istart": grid.is_, "iend": grid.ie - 2, "kaxis": 1},
+            "peln": {
+                "istart": grid.is_,
+                "iend": grid.ie,
+                "jstart": grid.js,
+                "jend": grid.je,
+                "kend": grid.npz,
+                "kaxis": 1,
+            },
             "pkz": grid.compute_dict(),
             "phis": {},
             "q_con": {},
@@ -55,16 +63,11 @@ class TranslateFVDynamics(ParallelTranslate2Py):
         }
         self._base.in_vars["parameters"] = ["bdt", "zvir", "ptop", "ks", "n_split", "nq_tot", "do_adiabatic_init", "consv_te"]
         self._base.out_vars = copy.copy(self._base.in_vars["data_vars"])
+        self.max_error = 1e-8
         for var in ['ak', 'bk']:
             del self._base.out_vars[var]
+        self._base.out_vars["ps"] = {'kstart': grid.npz - 1, "kend": grid.npz - 1}
+        self._base.out_vars["phis"] = {"kstart": 0, "kend": 0}
 
-    def compute_parallel(self, inputs, communicator):
-        self._base.make_storage_data_input_vars(inputs)
-
-        for name, properties in self.inputs.items():
-            inputs[name + "_quantity"] = self.grid.quantity_wrap(
-                inputs[name], dims=properties["dims"], units=properties["units"]
-            )
-        state = {"state": inputs, "comm": communicator}
-        self._base.compute_func(**state)
-        return self._base.slice_output(state["state"])
+   
+        # w, 17,10 0

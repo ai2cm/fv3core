@@ -18,6 +18,7 @@ class TranslateC_SW(TranslateFortranData2Py):
             "va": {},
             "ut": {},
             "vt": {},
+            "omga": {"serialname": "omgad"},
             "divgd": {"iend": grid.ied + 1, "jend": grid.jed + 1},
         }
         self.in_vars["parameters"] = ["dt2"]
@@ -26,12 +27,12 @@ class TranslateC_SW(TranslateFortranData2Py):
         self.out_vars = {}
         for v, d in self.in_vars["data_vars"].items():
             self.out_vars[v] = d
-        for servar in ["delpcd", "ptcd", "omgad"]:
+        for servar in ["delpcd", "ptcd"]:
             self.out_vars[servar] = {}
         # TODO - fix edge_interpolate4 in d2a2c_vect to match closer and the variables here should as well
         self.max_error = 1e-10
 
     def compute(self, inputs):
         self.make_storage_data_input_vars(inputs)
-        delpc, ptc, omega = self.compute_func(**inputs)
-        return self.slice_output(inputs, {"delpcd": delpc, "ptcd": ptc, "omgad": omega})
+        delpc, ptc = self.compute_func(**inputs)
+        return self.slice_output(inputs, {"delpcd": delpc, "ptcd": ptc})

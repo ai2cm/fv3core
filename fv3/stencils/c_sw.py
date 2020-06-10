@@ -35,7 +35,7 @@ def absolute_vorticity(vort: sd, fC: sd, rarea_c: sd):
         vort[0, 0, 0] = fC + rarea_c * vort
 
 
-def compute(delp, pt, u, v, w, uc, vc, ua, va, ut, vt, divgd, dt2):
+def compute(delp, pt, u, v, w, uc, vc, ua, va, ut, vt, divgd, omga, dt2):
     grid = spec.grid
     dord4 = True
     nord = spec.namelist["nord"]
@@ -64,7 +64,7 @@ def compute(delp, pt, u, v, w, uc, vc, ua, va, ut, vt, divgd, dt2):
         origin=geo_origin,
         domain=(grid.nic + 2, grid.njc + 3, grid.npz),
     )
-    delpc, ptc, omega = transportdelp.compute(delp, pt, w, ut, vt)
+    delpc, ptc = transportdelp.compute(delp, pt, w, ut, vt, omga)
     ke, vort = ke_c_sw.compute(uc, vc, u, v, ua, va, dt2)
     circulation_cgrid.compute(uc, vc, vort)
     absolute_vorticity(
@@ -75,4 +75,4 @@ def compute(delp, pt, u, v, w, uc, vc, ua, va, ut, vt, divgd, dt2):
         domain=(grid.nic + 1, grid.njc + 1, grid.npz),
     )
     vorticity_transport.compute(uc, vc, vort, ke, v, u, fx, fy, dt2)
-    return delpc, ptc, omega
+    return delpc, ptc

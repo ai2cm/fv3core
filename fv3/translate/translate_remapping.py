@@ -114,3 +114,4 @@ class TranslateRemapping(TranslateFortranData2Py):
         ]:
             self.out_vars[k] = self.in_vars["data_vars"][k]
         self.out_vars["ps"] = {'kstart': grid.npz, "kend": grid.npz}
+        self.max_error = 1e-8
