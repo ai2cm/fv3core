@@ -299,6 +299,47 @@ def get_area(lon, lat, radius, np):
     return (total_angle - 2 * PI) * radius ** 2
 
 
+def set_corner_area_to_triangle_area(lon, lat, area, radius, np):
+    """
+    Given latitude and longitude on cell corners, and an array of cell areas, set the
+    four corner areas to the area of the inner triangle at those corners.
+    """
+    xyz = np.concatenate(
+        [arr[:, :, None] for arr in _latlon2xyz(lon, lat, np)], axis=-1
+    )
+    xyz /= np.sqrt(np.sum(xyz**2, axis=-1))[:, :, None]
+    lower_left = xyz[(slice(None, -1), slice(None, -1), slice(None, None))]
+    lower_right = xyz[(slice(1, None), slice(None, -1), slice(None, None))]
+    upper_left = xyz[(slice(None, -1), slice(1, None), slice(None, None))]
+    upper_right = xyz[(slice(1, None), slice(1, None), slice(None, None))]
+    area[0, 0] = get_triangle_area(upper_left[0, 0], upper_right[0, 0], lower_right[0, 0], radius, np)
+    area[-1, 0] = get_triangle_area(upper_right[-1, 0], upper_left[-1, 0], lower_left[-1, 0], radius, np)
+    area[-1, -1] = get_triangle_area(lower_right[-1, -1], lower_left[-1, -1], upper_left[-1, -1], radius, np)
+    area[0, -1] = get_triangle_area(lower_left[0, -1], lower_right[0, -1], upper_right[0, -1], radius, np)
+
+
+def get_triangle_area(p1, p2, p3, radius, np):
+    """
+    Given three point arrays whose last dimensions are x/y/z, return an array of
+    spherical triangle areas.
+    """
+
+    total_angle = spherical_angle(p1, p2, p3, np)
+    for q1, q2, q3 in (
+            (p2, p3, p1),
+            (p3, p1, p2)):
+        total_angle += spherical_angle(q1, q2, q3, np)
+    # total_angle = spherical_angle(xyz[upper_left], xyz[lower_left], xyz[upper_right], np)
+    # for corners in (
+    #         (upper_right, upper_left, lower_right),
+    #         (lower_right, upper_right, lower_left),
+    #         (lower_left, lower_right, upper_left)):
+    #     total_angle += spherical_angle(
+    #         xyz[corners[0]], xyz[corners[1]], xyz[corners[2]], np
+    #     )
+    return (total_angle - PI) * radius ** 2
+
+
 def spherical_angle(p_center, p2, p3, np):
     """
     Given ndarrays whose last dimension is x/y/z, compute the spherical angle between

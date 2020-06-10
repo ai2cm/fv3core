@@ -1,7 +1,7 @@
 from .parallel_translate import ParallelTranslateGrid
 from ..grid import (
     gnomonic_grid, mirror_grid, great_circle_dist, lat_lon_corner_to_cell_center,
-    lat_lon_midpoint, get_area
+    lat_lon_midpoint, get_area, set_corner_area_to_triangle_area
 )
 from ..utils.global_constants import LON_OR_LAT_DIM, TILE_DIM, PI, RADIUS
 from ..utils.corners import fill_corners_2d, fill_corners_dgrid, fill_corners_agrid
@@ -210,6 +210,16 @@ class TranslateGrid_Areas(ParallelTranslateGrid):
         state = self.state_from_inputs(inputs)
         state["area"].data[3:-4, 3:-4] = get_area(
             state["grid"].data[3:-3, 3:-3, 0], state["grid"].data[3:-3, 3:-3, 1], RADIUS, state["grid"].np
+        )
+        state["area_cgrid"].data[3:-3, 3:-3] = get_area(
+            state["agrid"].data[2:-3, 2:-3, 0], state["agrid"].data[2:-3, 2:-3, 1], RADIUS, state["grid"].np
+        )
+        set_corner_area_to_triangle_area(
+            lon=state["agrid"].data[2:-3, 2:-3, 0],
+            lat=state["agrid"].data[2:-3, 2:-3, 1],
+            area=state["area_cgrid"].data[3:-3, 3:-3],
+            radius=RADIUS,
+            np=state["grid"].np
         )
         return state
 
