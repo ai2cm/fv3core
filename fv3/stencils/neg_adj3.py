@@ -287,7 +287,7 @@ def fix_water_vapor_k_loop(i, j, kbot, qv, dp):
 
 
 @utils.stencil()
-def fix_water_vapor_down(qv:sd, dp:sd, upper_fix:sd, lower_fix:sd, dp_bot):
+def fix_water_vapor_down(qv:sd, dp:sd, upper_fix:sd, lower_fix:sd, dp_bot:sd):
     with computation(PARALLEL): 
         with interval(1,2):
             if qv[0,0,-1] < 0:
@@ -297,9 +297,9 @@ def fix_water_vapor_down(qv:sd, dp:sd, upper_fix:sd, lower_fix:sd, dp_bot):
     with computation(FORWARD), interval(1,-1):
             dq = qv[0,0,-1]*dp[0,0,-1]
             if lower_fix[0,0,-1] != 0:
-                qv = qv + lower_fix/dp
+                qv = qv + lower_fix[0,0,-1]/dp
             if (qv < 0) and (qv[0,0,-1] > 0):
-                dq = dq if dq < - qv*dp else -qv*dp
+                dq = dq if dq < -qv*dp else -qv*dp
                 upper_fix = dq
                 qv = qv + dq/dp
             if qv < 0:
@@ -307,13 +307,13 @@ def fix_water_vapor_down(qv:sd, dp:sd, upper_fix:sd, lower_fix:sd, dp_bot):
                 qv = 0
     with computation(PARALLEL), interval(0,-2):
         if upper_fix[0,0,1] != 0:
-            qv = qv - upper_fix/dp
+            qv = qv - upper_fix[0,0,1]/dp
     with computation(PARALLEL), interval(-1,None):
         if lower_fix[0,0,-1] > 0:
             qv =  qv + lower_fix/dp
         # Here we're re-using upper_fix to represent the current version of qv[k_bot] fixed from above
         # we could also re-use lower_fix instead of dp_bot, but that's probably over-optimized for now
-        upper_fix = qv if qv < 0 else 0 
+        upper_fix = qv
         #if we didn't have to worry about float valitation and negative column mass we could set qv[k_bot] to 0 here...
     with computation(BACKWARD), interval(0,-1):
         dq = qv * dp
@@ -361,12 +361,11 @@ def compute(qvapor, qliquid, qrain, qsnow, qice, qgraupel, qcld, pt, delp, delz,
     # fix_water_vapor_bottom(grid, qvapor, delp)
     upper_fix = utils.make_storage_from_shape(qvapor.shape, origin=(0,0,0))
     lower_fix = utils.make_storage_from_shape(qvapor.shape, origin=(0,0,0))
-    dp_bot = utils.make_storage_from_shape(qvapor.shape, origin=(0,0,0))
-    bot_dp = delp[:,:,-2]
-    full_bot_dp = np.repeat(bot_dp[:,:,np.newaxis], k_ext+1, axis=2)
-    dp_bot.data[:] = full_bot_dp
+    bot_dp = delp.data[:,:,grid.npz-1]
+    full_bot_arr = np.repeat(bot_dp[:,:,np.newaxis], k_ext+1, axis=2)
+    dp_bot = utils.make_storage_data(full_bot_arr, full_bot_arr.shape)
     fix_water_vapor_down(qvapor, delp, upper_fix, lower_fix, dp_bot, origin=grid.compute_origin(), domain=grid.domain_shape_compute())
-    qvapor.data[:,:,-2] = upper_fix.data[:,:,0]
+    qvapor.data[:,:,grid.npz] = upper_fix.data[:,:,0]
     fix_neg_cloud(
         delp, qcld, origin=grid.compute_origin(), domain=grid.domain_shape_compute()
     )
