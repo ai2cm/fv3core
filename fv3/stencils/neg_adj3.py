@@ -2,7 +2,7 @@
 import fv3.utils.gt4py_utils as utils
 import gt4py.gtscript as gtscript
 import fv3._config as spec
-from gt4py.gtscript import computation, interval, PARALLEL
+from gt4py.gtscript import computation, interval, PARALLEL, FORWARD, BACKWARD
 import fv3.utils.global_constants as constants
 import numpy as np
 
@@ -286,8 +286,51 @@ def fix_water_vapor_k_loop(i, j, kbot, qv, dp):
             qv[i, j, kbot] = qv[i, j, kbot] + dq / dp[i, j, kbot]
 
 
+@utils.stencil()
+def fix_water_vapor_down(qv:sd, dp:sd, upper_fix:sd, lower_fix:sd, dp_bot):
+    with computation(PARALLEL): 
+        with interval(1,2):
+            if qv[0,0,-1] < 0:
+                qv = qv + qv[0,0,-1]*dp[0,0,-1]/dp
+        with interval(0,1):
+            qv = qv if qv >= 0 else 0
+    with computation(FORWARD), interval(1,-1):
+            dq = qv[0,0,-1]*dp[0,0,-1]
+            if lower_fix[0,0,-1] != 0:
+                qv = qv + lower_fix/dp
+            if (qv < 0) and (qv[0,0,-1] > 0):
+                dq = dq if dq < - qv*dp else -qv*dp
+                upper_fix = dq
+                qv = qv + dq/dp
+            if qv < 0:
+                lower_fix = qv * dp
+                qv = 0
+    with computation(PARALLEL), interval(0,-2):
+        if upper_fix[0,0,1] != 0:
+            qv = qv - upper_fix/dp
+    with computation(PARALLEL), interval(-1,None):
+        if lower_fix[0,0,-1] > 0:
+            qv =  qv + lower_fix/dp
+        # Here we're re-using upper_fix to represent the current version of qv[k_bot] fixed from above
+        # we could also re-use lower_fix instead of dp_bot, but that's probably over-optimized for now
+        upper_fix = qv if qv < 0 else 0 
+        #if we didn't have to worry about float valitation and negative column mass we could set qv[k_bot] to 0 here...
+    with computation(BACKWARD), interval(0,-1):
+        dq = qv * dp
+        if (upper_fix[0,0,1] < 0) and (qv > 0):
+            dq = dq if dq < -upper_fix[0,0,1] * dp_bot else -upper_fix[0,0,1] * dp_bot
+            qv = qv - dq/dp
+            upper_fix = upper_fix[0,0,1] + dq/dp_bot
+        else:
+            upper_fix = upper_fix[0,0,1]
+            
+
+
 def compute(qvapor, qliquid, qrain, qsnow, qice, qgraupel, qcld, pt, delp, delz, peln):
     grid = spec.grid
+    i_ext = grid.domain_shape_compute()[0]
+    j_ext = grid.domain_shape_compute()[1]
+    k_ext = grid.domain_shape_compute()[2]
     if spec.namelist["check_negative"]:
         raise Exception("Unimplemented namelist value check_negative=True")
     if spec.namelist["hydrostatic"]:
@@ -313,9 +356,17 @@ def compute(qvapor, qliquid, qrain, qsnow, qice, qgraupel, qcld, pt, delp, delz,
     )
     fillq(qgraupel, delp, grid)
     fillq(qrain, delp, grid)
-    # fix_water_vapor(delp, qvapor, origin=grid.compute_origin(), domain=grid.domain_shape_compute())
-    fix_water_vapor_nonstencil(grid, qvapor, delp)
-    fix_water_vapor_bottom(grid, qvapor, delp)
+    # # fix_water_vapor(delp, qvapor, origin=grid.compute_origin(), domain=grid.domain_shape_compute())
+    # fix_water_vapor_nonstencil(grid, qvapor, delp)
+    # fix_water_vapor_bottom(grid, qvapor, delp)
+    upper_fix = utils.make_storage_from_shape(qvapor.shape, origin=(0,0,0))
+    lower_fix = utils.make_storage_from_shape(qvapor.shape, origin=(0,0,0))
+    dp_bot = utils.make_storage_from_shape(qvapor.shape, origin=(0,0,0))
+    bot_dp = delp[:,:,-2]
+    full_bot_dp = np.repeat(bot_dp[:,:,np.newaxis], k_ext+1, axis=2)
+    dp_bot.data[:] = full_bot_dp
+    fix_water_vapor_down(qvapor, delp, upper_fix, lower_fix, dp_bot, origin=grid.compute_origin(), domain=grid.domain_shape_compute())
+    qvapor.data[:,:,-2] = upper_fix.data[:,:,0]
     fix_neg_cloud(
         delp, qcld, origin=grid.compute_origin(), domain=grid.domain_shape_compute()
     )
