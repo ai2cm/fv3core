@@ -204,45 +204,7 @@ def fix_neg_cloud(dp: sd, qcld: sd):
                 qcld = 0.0 if 0.0 > qcld else qcld
 
 
-"""'
-# TODO revisit this algorithm, put into stencil
-@utils.stencil()
-def fix_water_vapor(dp: sd, qv: sd):
-    with computation(BACKWARD):
-        with interval(0, 1):
-            dq = 0.
-            if qv < 0:
-                qv = 0.
-            if qv[0, 0, 1] < 0. and qv > 0.:
-                dq = -qv[0, 0, 1] * dp[0, 0, 1] if -qv[0, 0, 1] * dp[0, 0, 1] < qv * dp else qv * dp
-                qv[0, 0, 0] = qv - dq[0, 0, 1] / dp
-        with interval(1, 2):
-            if qv[0, 0, -1] < 0.:
-                qv = qv + qv[0, 0, -1] * dp[0, 0, -1] / dp
-    with computation(FORWARD):
-        with interval(1, -2):
-            dq = 0.
-            if qv[0, 0, -1] < 0.:
-                qv = qv + qv[0, 0, -1] * dp[0, 0, -1] / dp
-            if qv[0, 0, 1] < 0. and qv > 0.:
-                dq = -qv[0, 0, 1] * dp[0, 0, 1] if -qv[0, 0, 1] * dp[0, 0, 1] < qv * dp else qv * dp
-                qv = qv - dq[0, 0, 1] / dp
-            if qv < 0. and qv[0, 0, -1] > 0.:
-                dq = -qv * dp if -qv * dp < qv[0, 0, -1] * dp[0, 0, -1] else qv[0, 0, -1] * dp[0, 0, -1]
-                qv = qv + dq / dp
-            if qv < 0.:
-                qv = 0.
-        with interval(-2, -1):
-            if qv < 0. and qv[0, 0, -1] > 0.:
-                dq = -qv * dp if -qv * dp < qv[0, 0, -1] * dp[0, 0, -1] else qv[0, 0, -1] * dp[0, 0, -1]
-                qv = qv + dq / dp
-            if qv < 0.:
-                qv = 0.
-        with interval(-1, None):
-            if qv[0, 0, -1] < 0.:
-                qv = qv + qv[0, 0, -1] * dp[0, 0, -1] / dp
- """
-# TODO replace with stencil above when refactored to validate
+#Nonstencil code for reference:
 def fix_water_vapor_nonstencil(grid, qv, dp):
     k = 0
     for j in range(grid.js, grid.je + 1):
@@ -266,8 +228,6 @@ def fix_water_vapor_nonstencil(grid, qv, dp):
                     qv[i, j, k + 1] += qv[i, j, k] * dp[i, j, k] / dp[i, j, k + 1]
                     qv[i, j, k] = 0.0
 
-
-# TODO put into stencil
 def fix_water_vapor_bottom(grid, qv, dp):
     kbot = grid.npz - 1
     for j in range(grid.js, grid.je + 1):
@@ -286,6 +246,8 @@ def fix_water_vapor_k_loop(i, j, kbot, qv, dp):
             qv[i, j, kbot] = qv[i, j, kbot] + dq / dp[i, j, kbot]
 
 
+
+#Stencil version
 @utils.stencil()
 def fix_water_vapor_down(qv:sd, dp:sd, upper_fix:sd, lower_fix:sd, dp_bot:sd):
     with computation(PARALLEL): 
