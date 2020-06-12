@@ -26,6 +26,7 @@ from .translate_grid import (
     TranslateGrid_Grid,
     TranslateGrid_Agrid,
     TranslateGrid_Areas,
+    TranslateGrid_MoreAreas,
 )
 from .translate_heatdiss import TranslateHeatDiss
 from .translate_haloupdate import (
