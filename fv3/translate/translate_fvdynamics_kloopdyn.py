@@ -2,15 +2,15 @@ from .parallel_translate import ParallelTranslate2PyState
 import fv3.stencils.fv_dynamics as fv_dynamics
 from .translate_dyncore import TranslateDynCore
 from .translate_tracer2d1l import TranslateTracer2D1L
-from .translate_fvdynamics_klooppostremap import TranslateFVDynamics_KLoopPostRemap
-
 import copy
-class TranslateFVDynamics(ParallelTranslate2PyState):
-    inputs = {**TranslateDynCore.inputs , **TranslateTracer2D1L.inputs, **TranslateFVDynamics_KLoopPostRemap.inputs}
-    del inputs['cappa']
+
+
+class TranslateFVDynamics_KLoopDyn(ParallelTranslate2PyState):
+    inputs = {**TranslateDynCore.inputs , **TranslateTracer2D1L.inputs}
+
     def __init__(self, grids):
         super().__init__(grids)
-        self._base.compute_func = fv_dynamics.compute
+        self._base.compute_func = fv_dynamics.do_dyn
         grid = grids[0]
         self._base.in_vars["data_vars"] = {
             "u": grid.y3d_domain_dict(),
@@ -24,7 +24,6 @@ class TranslateFVDynamics(ParallelTranslate2PyState):
             "qsnow": {},
             "qgraupel": {},
             "qcld": {},
-            "ps": {},
             "pe": {
                 "istart": grid.is_ - 1,
                 "iend": grid.ie + 1,
@@ -54,19 +53,21 @@ class TranslateFVDynamics(ParallelTranslate2PyState):
             "vc": grid.y3d_domain_dict(),
             "ak": {},
             "bk": {},
+            "dp1": {},
             "mfxd": grid.x3d_compute_dict(),
             "mfyd": grid.y3d_compute_dict(),
             "cxd": grid.x3d_compute_domain_y_dict(),
             "cyd": grid.y3d_compute_domain_x_dict(),
-            "diss_estd": {}
+            "diss_estd": {},
+            "cappa": {},
+            "wsd": grid.compute_dict()
         }
-        self._base.in_vars["parameters"] = ["bdt", "zvir", "ptop", "ks", "n_split", "nq_tot", "do_adiabatic_init", "consv_te"]
+        self._base.in_vars["parameters"] = ["n_map", "mdt", "nq", "n_split", "akap", "zvir", "ptop", "ks"]
         self._base.out_vars = copy.copy(self._base.in_vars["data_vars"])
-        self.max_error = 1e-4
+        self.max_error = 1e-7
         for var in ['ak', 'bk']:
             del self._base.out_vars[var]
-        self._base.out_vars["ps"] = {'kstart': grid.npz - 1, "kend": grid.npz - 1}
         self._base.out_vars["phis"] = {"kstart": 0, "kend": 0}
-
+        self._base.in_vars["data_vars"]["wsd"]["kstart"] = grid.npz
+        self._base.in_vars["data_vars"]["wsd"]["kend"] = None
    
-        # w, 17,10 0

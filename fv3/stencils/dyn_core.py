@@ -93,11 +93,11 @@ def dyncore_temporaries(shape):
 
 
 def compute(state, comm):
-    # u, v, w, delz, delp, pt, pe, pk, phis, wsd, omga, ua, va, uc, vc, mfxd, mfyd, cxd, cyd, pkz, peln, q_con, ak, bk, diss_estd, cappa, mdt, n_split, akap, ptop, pfull, n_map_step, comm):
+    # u, v, w, delz, delp, pt, pe, pk, phis, wsd, omga, ua, va, uc, vc, mfxd, mfyd, cxd, cyd, pkz, peln, q_con, ak, bk, diss_estd, cappa, mdt, n_split, akap, ptop, pfull, n_map, comm):
     grid = spec.grid
     
-    init_step = state.n_map_step == 1
-    end_step = state.n_map_step == spec.namelist["k_split"]
+    init_step = state.n_map == 1
+    end_step = state.n_map == spec.namelist["k_split"]
     akap = state.akap
     # peln1 = math.log(ptop)
     # ptk = ptop**akap

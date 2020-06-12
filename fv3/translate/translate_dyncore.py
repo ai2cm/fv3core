@@ -99,7 +99,7 @@ class TranslateDynCore(ParallelTranslate2PyState):
             "akap",
             "ptop",
             "pfull",
-            "n_map_step",
+            "n_map",
         ]
         self._base.out_vars = {}
 

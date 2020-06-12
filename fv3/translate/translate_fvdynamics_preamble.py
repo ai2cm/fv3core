@@ -1,16 +1,14 @@
 from .parallel_translate import ParallelTranslate2PyState
 import fv3.stencils.fv_dynamics as fv_dynamics
-from .translate_dyncore import TranslateDynCore
-from .translate_tracer2d1l import TranslateTracer2D1L
-from .translate_fvdynamics_klooppostremap import TranslateFVDynamics_KLoopPostRemap
-
 import copy
-class TranslateFVDynamics(ParallelTranslate2PyState):
-    inputs = {**TranslateDynCore.inputs , **TranslateTracer2D1L.inputs, **TranslateFVDynamics_KLoopPostRemap.inputs}
-    del inputs['cappa']
+
+
+class TranslateFVDynamics_Preamble(ParallelTranslate2PyState):
+    inputs = {}
+    
     def __init__(self, grids):
         super().__init__(grids)
-        self._base.compute_func = fv_dynamics.compute
+        self._base.compute_func = fv_dynamics.compute_preamble
         grid = grids[0]
         self._base.in_vars["data_vars"] = {
             "u": grid.y3d_domain_dict(),
@@ -24,7 +22,8 @@ class TranslateFVDynamics(ParallelTranslate2PyState):
             "qsnow": {},
             "qgraupel": {},
             "qcld": {},
-            "ps": {},
+            "ph1": {},
+            "ph2": {},
             "pe": {
                 "istart": grid.is_ - 1,
                 "iend": grid.ie + 1,
@@ -33,7 +32,7 @@ class TranslateFVDynamics(ParallelTranslate2PyState):
                 "kend": grid.npz + 1,
                 "kaxis": 1,
             },
-            "pk": grid.compute_buffer_k_dict(),
+           
             "peln": {
                 "istart": grid.is_,
                 "iend": grid.ie,
@@ -47,26 +46,19 @@ class TranslateFVDynamics(ParallelTranslate2PyState):
             "q_con": {},
             "delp": {},
             "pt": {},
-            "omga": {},
+            "dp1": {},
             "ua": {},
             "va": {},
-            "uc": grid.x3d_domain_dict(),
-            "vc": grid.y3d_domain_dict(),
             "ak": {},
             "bk": {},
-            "mfxd": grid.x3d_compute_dict(),
-            "mfyd": grid.y3d_compute_dict(),
-            "cxd": grid.x3d_compute_domain_y_dict(),
-            "cyd": grid.y3d_compute_domain_x_dict(),
-            "diss_estd": {}
+            "pfull": {},
+            #"te_2d":{},
+            "cappa": {},
+            "cvm": {"kstart": grid.is_, "axis": 0},
         }
-        self._base.in_vars["parameters"] = ["bdt", "zvir", "ptop", "ks", "n_split", "nq_tot", "do_adiabatic_init", "consv_te"]
+        self._base.in_vars["parameters"] = ["bdt", "ptop", "do_adiabatic_init", "consv_te", "zvir"]
         self._base.out_vars = copy.copy(self._base.in_vars["data_vars"])
-        self.max_error = 1e-4
-        for var in ['ak', 'bk']:
+        for var in ['ak', 'bk', 'cappa', 'cvm', 'ph1', 'ph2']:
             del self._base.out_vars[var]
-        self._base.out_vars["ps"] = {'kstart': grid.npz - 1, "kend": grid.npz - 1}
         self._base.out_vars["phis"] = {"kstart": 0, "kend": 0}
-
-   
-        # w, 17,10 0
+        self._base.out_vars["pfull"] = {"istart": grid.is_, "iend": grid.is_, "jstart":grid.js, "jend": grid.js}
