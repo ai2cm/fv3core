@@ -129,8 +129,8 @@ def compute(q1, peln, pe2, qs, mode, j_2d=None):
 
     set_dp(dp1, pe1, origin=origin, domain=domain)
 
-    q4_1, q4_2, q4_3, q4_4 = remap_profile.compute_scalar(
-        qs_input, q4_1, q4_2, q4_3, q4_4, dp1, km, i1, i2, iv, kord, qmin, 0, j_extent
+    q4_1, q4_2, q4_3, q4_4 = remap_profile.compute(
+        qs_input, q4_1, q4_2, q4_3, q4_4, dp1, km, i1, i2, iv, kord, 0, j_extent, qmin
     )
 
     # Trying a stencil with a loop over k2:

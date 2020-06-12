@@ -119,6 +119,8 @@ def compute(pe1, pe2, dp2, qvapor, qliquid, qice, qrain, qsnow, qgraupel, qcld, 
     q4_4 = utils.make_storage_from_shape(q4_1.shape, origin=(grid.is_, 0, 0))
     q2_adds = utils.make_storage_from_shape(q4_1.shape, origin=origin)
 
+    qs = utils.make_storage_from_shape(q4_1.shape, origin=(grid.is_, 0, 0))
+
     tracers = ["qvapor", "qliquid", "qice", "qrain", "qsnow", "qgraupel", "qcld"]
     tracer_qs = {"qvapor":qvapor, "qliquid":qliquid, "qice":qice, "qrain":qrain, "qsnow":qsnow, "qgraupel":qgraupel, "qcld":qcld}
     assert len(tracer_qs)==nq
@@ -133,7 +135,7 @@ def compute(pe1, pe2, dp2, qvapor, qliquid, qice, qrain, qsnow, qgraupel, qcld, 
     #     q4_4.data[:] = np.zeros(q4_1.shape)
     #     q2_adds.data[:] = np.zeros(q4_1.shape)
 
-    #     q4_1, q4_2, q4_3, q4_4 = remap_profile.compute_tracer(q4_1, q4_2, q4_3, q4_4, dp1, km, i1, i2, kord, q_min)
+    #     q4_1, q4_2, q4_3, q4_4 = remap_profile.compute(qs, q4_1, q4_2, q4_3, q4_4, dp1, km, i1, i2, 0, kord, 0, j_extent, q_min)
 
     #     # if q=="qice":
     #     #     print(pe1[33,0,:])
@@ -189,7 +191,7 @@ def compute(pe1, pe2, dp2, qvapor, qliquid, qice, qrain, qsnow, qgraupel, qcld, 
         q4_2.data[:] = np.zeros(q4_1.shape)
         q4_3.data[:] = np.zeros(q4_1.shape)
         q4_4.data[:] = np.zeros(q4_1.shape)     
-        q4_1, q4_2, q4_3, q4_4 = remap_profile.compute_tracer(q4_1, q4_2, q4_3, q4_4, dp1, km, i1, i2, kord, q_min, 0, j_extent)
+        q4_1, q4_2, q4_3, q4_4 = remap_profile.compute(qs, q4_1, q4_2, q4_3, q4_4, dp1, km, i1, i2, 0, kord, 0, j_extent, q_min)
         i_vals = np.arange(i1, i2 + 1)
         kn = grid.npz
         if j_2d is None:

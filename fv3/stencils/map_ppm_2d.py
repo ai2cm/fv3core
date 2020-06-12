@@ -115,13 +115,9 @@ def compute(q1, pe1, pe2, qs, i1, i2, mode, kord, j_2d=None, j_interface=False):
 
     set_dp(dp1, pe1, origin=origin, domain=domain)
 
-    if kord > 7:
-        q4_1, q4_2, q4_3, q4_4 = remap_profile.compute(
-            qs, q4_1, q4_2, q4_3, q4_4, dp1, km, i1, i2, iv, kord, 0, j_extent
-        )
-   
-    # else:
-    #     ppm_profile.compute(q4_1, q4_2, q4_3, q4_4, dp1, km, i1, i2, iv, kord)
+    q4_1, q4_2, q4_3, q4_4 = remap_profile.compute(
+        qs, q4_1, q4_2, q4_3, q4_4, dp1, km, i1, i2, iv, kord, 0, j_extent
+    )
 
     # Trying a stencil with a loop over k2:
     klevs = np.arange(km)
