@@ -593,7 +593,7 @@ def compute(
                 domain=(i_extent, j_extent, km - 4),
             )
         elif abs(kord) == 9:
-            if qmin is not None:
+            if qmin is None:
                 print("WARNING: Only kord=10 has been tested.")
                 set_inner_as_kord9(
                     a4_1,
