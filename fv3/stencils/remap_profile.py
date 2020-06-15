@@ -282,69 +282,69 @@ def set_inner_as_kordsmall(
         a4_4 = 3.0 * (2.0 * a4_1 - (a4_2 + a4_3))
 
 
+# @utils.stencil()
+# def set_inner_as_kord9(
+#     a4_1: sd, a4_2: sd, a4_3: sd, a4_4: sd, gam: sd, extm: sd, ext5: sd, ext6: sd
+# ):
+#     with computation(PARALLEL), interval(...):
+#         pmp_1 = a4_1 - 2.0 * gam[0, 0, 1]
+#         lac_1 = pmp_1 + 1.5 * gam[0, 0, 2]
+#         pmp_2 = a4_1 + 2.0 * gam
+#         lac_2 = pmp_2 - 1.5 * gam[0, 0, -1]
+#         tmp_min = a4_1
+#         tmp_max = a4_2
+#         tmp_max0 = a4_1
+
+#         if extm and extm[0, 0, -1]:
+#             a4_2 = a4_1
+#             a4_3 = a4_1
+#             a4_4 = 0.0
+#         elif extm and extm[0, 0, 1]:
+#             a4_2 = a4_1
+#             a4_3 = a4_1
+#             a4_4 = 0.0
+#         else:
+#             a4_4 = 6.0 * a4_1 - 3.0 * (a4_2 + a4_3)
+#             if absolute_value(a4_4) > absolute_value(a4_2 - a4_3):
+#                 tmp_min = (
+#                     a4_1
+#                     if (a4_1 < pmp_1) and (a4_1 < lac_1)
+#                     else pmp_1
+#                     if pmp_1 < lac_1
+#                     else lac_1
+#                 )
+#                 tmp_max0 = a4_2 if a4_2 > tmp_min else tmp_min
+#                 tmp_max = (
+#                     a4_1
+#                     if (a4_1 > pmp_1) and (a4_1 > lac_1)
+#                     else pmp_1
+#                     if pmp_1 > lac_1
+#                     else lac_1
+#                 )
+#                 a4_2 = tmp_max0 if tmp_max0 < tmp_max else tmp_max
+#                 tmp_min = (
+#                     a4_1
+#                     if (a4_1 < pmp_2) and (a4_1 < lac_2)
+#                     else pmp_2
+#                     if pmp_2 < lac_2
+#                     else lac_2
+#                 )
+#                 tmp_max0 = a4_3 if a4_3 > tmp_min else tmp_min
+#                 tmp_max = (
+#                     a4_1
+#                     if (a4_1 > pmp_2) and (a4_1 > lac_2)
+#                     else pmp_2
+#                     if pmp_2 > lac_2
+#                     else lac_2
+#                 )
+#                 a4_3 = tmp_max0 if tmp_max0 < tmp_max else tmp_max
+#                 a4_4 = 6.0 * a4_1 - 3.0 * (a4_2 + a4_3)
+#             else:
+#                 a4_2 = a4_2
+
+
 @utils.stencil()
 def set_inner_as_kord9(
-    a4_1: sd, a4_2: sd, a4_3: sd, a4_4: sd, gam: sd, extm: sd, ext5: sd, ext6: sd
-):
-    with computation(PARALLEL), interval(...):
-        pmp_1 = a4_1 - 2.0 * gam[0, 0, 1]
-        lac_1 = pmp_1 + 1.5 * gam[0, 0, 2]
-        pmp_2 = a4_1 + 2.0 * gam
-        lac_2 = pmp_2 - 1.5 * gam[0, 0, -1]
-        tmp_min = a4_1
-        tmp_max = a4_2
-        tmp_max0 = a4_1
-
-        if extm and extm[0, 0, -1]:
-            a4_2 = a4_1
-            a4_3 = a4_1
-            a4_4 = 0.0
-        elif extm and extm[0, 0, 1]:
-            a4_2 = a4_1
-            a4_3 = a4_1
-            a4_4 = 0.0
-        else:
-            a4_4 = 6.0 * a4_1 - 3.0 * (a4_2 + a4_3)
-            if absolute_value(a4_4) > absolute_value(a4_2 - a4_3):
-                tmp_min = (
-                    a4_1
-                    if (a4_1 < pmp_1) and (a4_1 < lac_1)
-                    else pmp_1
-                    if pmp_1 < lac_1
-                    else lac_1
-                )
-                tmp_max0 = a4_2 if a4_2 > tmp_min else tmp_min
-                tmp_max = (
-                    a4_1
-                    if (a4_1 > pmp_1) and (a4_1 > lac_1)
-                    else pmp_1
-                    if pmp_1 > lac_1
-                    else lac_1
-                )
-                a4_2 = tmp_max0 if tmp_max0 < tmp_max else tmp_max
-                tmp_min = (
-                    a4_1
-                    if (a4_1 < pmp_2) and (a4_1 < lac_2)
-                    else pmp_2
-                    if pmp_2 < lac_2
-                    else lac_2
-                )
-                tmp_max0 = a4_3 if a4_3 > tmp_min else tmp_min
-                tmp_max = (
-                    a4_1
-                    if (a4_1 > pmp_2) and (a4_1 > lac_2)
-                    else pmp_2
-                    if pmp_2 > lac_2
-                    else lac_2
-                )
-                a4_3 = tmp_max0 if tmp_max0 < tmp_max else tmp_max
-                a4_4 = 6.0 * a4_1 - 3.0 * (a4_2 + a4_3)
-            else:
-                a4_2 = a4_2
-
-
-@utils.stencil()
-def set_inner_as_kord9_scalar(
     a4_1: sd,
     a4_2: sd,
     a4_3: sd,
@@ -372,7 +372,7 @@ def set_inner_as_kord9_scalar(
             a4_2 = a4_1
             a4_3 = a4_1
             a4_4 = 0.0
-        elif extm and a4_1 < qmin:
+        elif extm and qmin and a4_1 < qmin:
             a4_2 = a4_1
             a4_3 = a4_1
             a4_4 = 0.0
@@ -593,35 +593,35 @@ def compute(
                 domain=(i_extent, j_extent, km - 4),
             )
         elif abs(kord) == 9:
-            if qmin is None:
-                print("WARNING: Only kord=10 has been tested.")
-                set_inner_as_kord9(
-                    a4_1,
-                    a4_2,
-                    a4_3,
-                    a4_4,
-                    gam,
-                    extm,
-                    ext5,
-                    ext6,
-                    origin=(i1, js, 2),
-                    domain=(i_extent, j_extent, km - 4),
-                )
-            else:
-                print("WARNING: Only kord=10 has been tested.")
-                set_inner_as_kord9_scalar(
-                    a4_1,
-                    a4_2,
-                    a4_3,
-                    a4_4,
-                    gam,
-                    extm,
-                    ext5,
-                    ext6,
-                    qmin,
-                    origin=(i1, js, 2),
-                    domain=(i_extent, j_extent, km - 4),
-                )
+            # if qmin is None:
+            #     print("WARNING: Only kord=10 has been tested.")
+            #     set_inner_as_kord9(
+            #         a4_1,
+            #         a4_2,
+            #         a4_3,
+            #         a4_4,
+            #         gam,
+            #         extm,
+            #         ext5,
+            #         ext6,
+            #         origin=(i1, js, 2),
+            #         domain=(i_extent, j_extent, km - 4),
+            #     )
+            # else:
+            print("WARNING: Only kord=10 has been tested.")
+            set_inner_as_kord9(
+                a4_1,
+                a4_2,
+                a4_3,
+                a4_4,
+                gam,
+                extm,
+                ext5,
+                ext6,
+                qmin,
+                origin=(i1, js, 2),
+                domain=(i_extent, j_extent, km - 4),
+            )
         elif abs(kord) == 10:
             set_inner_as_kord10(
                 a4_1,
