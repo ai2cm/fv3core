@@ -84,12 +84,9 @@ def lagrangian_tracer_contributions(
             q2_adds = 0
 
 
-def compute(pe1, pe2, dp2, qvapor, qliquid, qice, qrain, qsnow, qgraupel, qcld, nq, q_min, j_2d=None):
+def compute(pe1, pe2, dp2, qvapor, qliquid, qice, qrain, qsnow, qgraupel, qcld, nq, q_min, i1, i2, kord, j_2d=None):
     grid = spec.grid
-    kord = abs(spec.namelist["kord_tr"])
     fill = spec.namelist["fill"]
-    i1 = grid.is_
-    i2 = grid.ie
     i_extent = i2 - i1 + 1
     km = grid.npz
     origin, domain, jslice, j_extent = region_mode(j_2d, i1, i_extent, grid)

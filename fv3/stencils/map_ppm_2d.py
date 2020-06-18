@@ -44,7 +44,7 @@ def lagrangian_contributions(
         esl = pe1
         if pe1 < pbot and pe1[0, 0, 1] > ptop:
             # We are in the right pressure range to contribute to the Eulerian cell
-            if pe1 < ptop:
+            if pe1 <= ptop:
                 # we are in the first Lagrangian level that conributes
                 pl = (ptop - pe1) / dp1
                 if pbot <= pe1[0, 0, 1]:
@@ -83,13 +83,15 @@ def lagrangian_contributions(
         else:
             q2_adds = 0
 
+
+
 # TODO: this is VERY similar to map_scalar -- once matches, consolidate code
-def compute(q1, pe1, pe2, qs, i1, i2, mode, kord, j_2d=None, j_interface=False):
+def compute(q1, pe1, pe2, qs, i1, i2, mode, kord, qmin=None, j_2d=None, j_interface=False):
     grid = spec.grid
     iv = mode
     i_extent = i2 - i1 + 1
-    km = grid.npz
     origin, domain, jslice, j_extent = region_mode(j_2d, i1, i_extent, grid)
+    km = grid.npz
     if j_interface:
         j_extent += 1
         jslice = slice(jslice.start, jslice.stop + 1)
@@ -101,13 +103,12 @@ def compute(q1, pe1, pe2, qs, i1, i2, mode, kord, j_2d=None, j_interface=False):
         q1[:, jslice, :], (q1.shape[0], j_extent, q1.shape[2])
     )
     
-    dp1 = utils.make_storage_from_shape(q_2d.shape, origin=orig)
     if j_2d is None: #TODO fix this, not needed for map_scalar, so why here
         qs = utils.make_storage_data(qs.data[:, jslice, :], q_2d.shape)
         pe1 = utils.make_storage_data(
         pe1[:, jslice, :], (pe1.shape[0], j_extent, pe1.shape[2])
     )
-   
+    dp1 = utils.make_storage_from_shape(q_2d.shape, origin=origin)
     q4_1 = cp.copy(q_2d, origin=(0, 0, 0))
     q4_2 = utils.make_storage_from_shape(q4_1.shape, origin=(grid.is_, 0, 0))
     q4_3 = utils.make_storage_from_shape(q4_1.shape, origin=(grid.is_, 0, 0))
@@ -124,6 +125,7 @@ def compute(q1, pe1, pe2, qs, i1, i2, mode, kord, j_2d=None, j_interface=False):
     ptop = utils.make_storage_from_shape(pe2.shape, origin=orig)
     pbot = utils.make_storage_from_shape(pe2.shape, origin=orig)
     q2_adds = utils.make_storage_from_shape(q4_1.shape, origin=orig)
+    
     for k_eul in klevs:
         eulerian_top_pressure = pe2.data[:, :, k_eul]
         eulerian_bottom_pressure = pe2.data[:, :, k_eul + 1]
@@ -135,6 +137,7 @@ def compute(q1, pe1, pe2, qs, i1, i2, mode, kord, j_2d=None, j_interface=False):
         else:
             ptop = utils.make_storage_data(top_p, q_2d.shape)
             pbot = utils.make_storage_data(bot_p, q_2d.shape)
+
         lagrangian_contributions(
             pe1,
             ptop,
@@ -154,9 +157,6 @@ def compute(q1, pe1, pe2, qs, i1, i2, mode, kord, j_2d=None, j_interface=False):
         q1[i1 : i2 + 1, jslice, k_eul] = np.sum(q2_adds.data[i1 : i2 + 1, 0:j_extent, :], axis=2)
    
     # #Pythonized
-    # n_cont = 0
-    # n_ext = 0
-    # n_bot = 0
     # kn = grid.npz
     # i_vals = np.arange(i1, i2 + 1)
     # klevs = np.arange(km+1)
@@ -175,7 +175,6 @@ def compute(q1, pe1, pe2, qs, i1, i2, mode, kord, j_2d=None, j_interface=False):
     #                 * (pr + pl)
     #                 - q4_4[ii, 0, k1] * r3 * (pr * (pr + pl) + pl ** 2)
     #             )
-    #             n_cont+=1
     #             # continue
     #         else:
     #             # new grid layer extends into more old grid layers
@@ -202,15 +201,9 @@ def compute(q1, pe1, pe2, qs, i1, i2, mode, kord, j_2d=None, j_interface=False):
     #                         + q4_4[ii, 0, mm] * (1.0 - r23 * esl)
     #                     )
     #                 )
-    #                 n_ext+=1
-    #             else:
-    #                 n_bot+=1
     #             q2[ii, j_2d, k2] = qsum / (pe2[ii, 0, k2 + 1] - pe2[ii, 0, k2])
 
     # # transliterated fortran
-    # n_cont = 0
-    # n_ext = 0
-    # n_bot = 0
     # i_vals = np.arange(i1, i2 + 1)
     # kn = grid.npz
     # elems = np.ones((i_extent,kn))
@@ -233,7 +226,6 @@ def compute(q1, pe1, pe2, qs, i1, i2, mode, kord, j_2d=None, j_interface=False):
     #                         - q4_4[ii, 0, k1] * r3 * (pr * (pr + pl) + pl ** 2)
     #                     )
     #                     k0 = k1
-    #                     n_cont +=1
     #                     elems[ii-i1,k2]=0
     #                     break
     #                 else:  # new grid layer extends into more old grid layers
@@ -263,18 +255,10 @@ def compute(q1, pe1, pe2, qs, i1, i2, mode, kord, j_2d=None, j_interface=False):
     #                             )
     #                             k0 = mm
     #                             flag = 1
-    #                             n_ext+=1
     #                             elems[ii-i1,k2]=0
     #                             break
-    #                     if flag == 0:
-    #                         print("Huh")
-    #                         n_bot+=1
     #                     #Add everything up and divide by the pressure difference
     #                     q2[ii, j_2d, k2] = qsum / (pe2[ii, 0, k2 + 1] - pe2[ii, 0, k2])
     #                     break
-
-    # print(n_cont, n_ext, n_bot)
-    # print(n_cont+ n_ext+ n_bot)
-    # print(kn * (i_extent))
 
     return q1

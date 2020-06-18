@@ -7,8 +7,9 @@ import fv3.utils.global_constants as constants
 import fv3.stencils.moist_cv as moist_cv
 import fv3.stencils.saturation_adjustment as saturation_adjustment
 import fv3.stencils.basic_operations as basic
-import fv3.stencils.map_scalar as map_scalar
-import fv3.stencils.map_ppm_2d as map1_ppm
+# import fv3.stencils.map_scalar as map_scalar
+import fv3.stencils.map_single as map_single
+# import fv3.stencils.map_ppm_2d as map1_ppm
 import fv3.stencils.mapn_tracer as mapn_tracer
 import numpy as np
 import fv3.stencils.copy_stencil as cp
@@ -194,17 +195,17 @@ def compute(
     pn2[islice, jslice, kslice] = np.log(pe2[islice, jslice, kslice])
     pk[islice, jslice, kslice] = np.exp(akap * pn2[islice, jslice, kslice])
     if spec.namelist["kord_tm"] < 0:
-        map_scalar.compute(pt, peln, pn2, gz, 1)
+        map_single.compute(pt, peln, pn2, gz, 1, grid.is_, grid.ie, abs(spec.namelist["kord_tm"]),184.0)
     else:
         raise Exception("map ppm, untested mode where kord_tm >= 0")
-        map1_ppm.compute(pt, pe1, pe2, gz, grid.is_, grid.ie, 1, abs(spec.namelist['kord_tm']))
+        map_single.compute(pt, pe1, pe2, gz, 1, grid.is_, grid.ie, abs(spec.namelist['kord_tm']), 184.0)
     # TODO if nq > 5:
-    mapn_tracer.compute(pe1, pe2, dp2, qvapor, qliquid, qice, qrain, qsnow, qgraupel, qcld, nq, 0. )
+    mapn_tracer.compute(pe1, pe2, dp2, qvapor, qliquid, qice, qrain, qsnow, qgraupel, qcld, nq, 0., grid.is_, grid.ie, abs(spec.namelist["kord_tr"]))
     # TODO else if nq > 0:
     # TODO map1_q2, fillz
     if not hydrostatic:
-        map1_ppm.compute(w, pe1, pe2, wsd, grid.is_, grid.ie, -2, spec.namelist['kord_wz'])
-        map1_ppm.compute(delz, pe1, pe2, gz, grid.is_, grid.ie, 1, spec.namelist['kord_wz'])
+        map_single.compute(w, pe1, pe2, wsd, -2, grid.is_, grid.ie, spec.namelist['kord_wz'])
+        map_single.compute(delz, pe1, pe2, gz, 1, grid.is_, grid.ie, spec.namelist['kord_wz'])
         undo_delz_adjust(
             delp, delz, origin=grid.compute_origin(), domain=grid.domain_shape_compute()
         )
@@ -260,7 +261,7 @@ def compute(
         origin=grid.compute_origin(),
         domain=domain_jextra,
     )
-    map1_ppm.compute(u, pe0, pe3, gz, grid.is_, grid.ie, -1, spec.namelist['kord_mt'], j_interface=True)
+    map_single.compute(u, pe0, pe3, gz, -1, grid.is_, grid.ie, spec.namelist['kord_mt'], j_interface=True)
     domain_iextra = (grid.nic + 1, grid.njc, grid.npz + 1)
     pressures_mapv(
         pe,
@@ -272,5 +273,5 @@ def compute(
         origin=grid.compute_origin(),
         domain=domain_iextra,
     )
-    map1_ppm.compute(v, pe0, pe3, gz, grid.is_, grid.ie + 1, -1, spec.namelist['kord_mt'])
+    map_single.compute(v, pe0, pe3, gz, -1, grid.is_, grid.ie + 1, spec.namelist['kord_mt'])
     update_ua(pe2, ua, origin=grid.compute_origin(), domain=domain_jextra)
