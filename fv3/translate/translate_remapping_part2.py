@@ -112,3 +112,4 @@ class TranslateRemapping_Part2(TranslateFortranData2Py):
             "zsum1",
         ]:
             self.out_vars[k] = self.in_vars["data_vars"][k]
+        self.max_error = 2e-14
