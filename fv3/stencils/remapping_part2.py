@@ -92,10 +92,10 @@ def compute(
     do_adiabatic_init,
 ):
     grid = spec.grid
-
     copy_from_below(
         ua, pe, origin=grid.compute_origin(), domain=grid.domain_shape_compute()
     )
+
     dtmp = 0.0
     phis = utils.make_storage_from_shape(pt.shape, grid.compute_origin())
     dpln = utils.make_storage_from_shape(pt.shape, grid.compute_origin())
@@ -104,7 +104,7 @@ def compute(
             not do_adiabatic_init and consv > constants.CONSV_MIN
         )
         #TODO pfull is a 1d var, does not need to be a storage
-        kmp = np.where(pfull[0, 0, :] > 10.0e2)[0]
+        kmp = np.where(pfull[grid.is_, grid.js, :] > 10.0e2)[0]
         kmp = kmp[0] if len(kmp) > 0 else grid.npz - 1
     if last_step and not do_adiabatic_init:
         if consv > constants.CONSV_MIN:
@@ -176,6 +176,7 @@ def compute(
         kmp_origin = (grid.is_, grid.js, kmp)
         kmp_domain = (grid.nic, grid.njc, grid.npz - kmp)
         layer_gradient(peln, dpln, origin=kmp_origin, domain=kmp_domain)
+        
         saturation_adjustment.compute(
             dpln,
             te,
