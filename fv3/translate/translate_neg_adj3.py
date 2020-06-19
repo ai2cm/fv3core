@@ -30,7 +30,3 @@ class TranslateNeg_Adj3(TranslateFortranData2Py):
             "qcld": {},
             # "pt": {},
         }
-
-    # def compute(self, inputs):
-    #    print('to cloud or not to cloud', inputs['cld_amt'])
-    #    return []

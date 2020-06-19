@@ -42,7 +42,6 @@ class TranslateMap1_PPM_2d(TranslateFortranData2Py):
             else:
                 dummy_axes = None
             axis = info.get("axis", 2)
-            print(d, istart, jstart, kstart, inputs[serialname].shape)
             inputs[d] = self.make_storage_data(
                 np.squeeze(inputs[serialname]),
                 istart=istart,

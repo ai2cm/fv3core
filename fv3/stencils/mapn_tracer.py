@@ -248,8 +248,6 @@ def compute(pe1, pe2, dp2, qvapor, qliquid, qice, qrain, qsnow, qgraupel, qcld, 
                                         break
                                 #Add everything up and divide by the pressure difference
                                 tracer_qs[q][ii, j + js, k2] = qsum / dp2[ii, j + js, k2]
-                                if grid.rank == 2 and q == "qcld" and ii == pi and (j+js) == pj and k2 == pk:
-                                    print('CONCLUSION that way conclusion', k2, k1,qsum,  dp2[ii, j + js, k2],  tracer_qs[q][ii, j + js, k2] )
                                 break
     #     if fill:
     #         tracer_qs[q] = fillz.compute(tracer_qs[q], dp2, i1, i2, km)
