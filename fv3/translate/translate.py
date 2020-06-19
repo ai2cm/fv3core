@@ -26,7 +26,7 @@ class TranslateFortranData2Py:
         self.maxshape = grid.domain_shape_buffer_1cell()
         self.ordered_input_vars = None
         self.ignore_near_zero_errors = {}
-      
+
     def compute_func(self, **inputs):
         raise NotImplementedError("Implement a child class compute method")
 

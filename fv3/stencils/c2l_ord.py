@@ -3,7 +3,8 @@ import fv3.utils.gt4py_utils as utils
 import gt4py.gtscript as gtscript
 import fv3._config as spec
 from gt4py.gtscript import computation, interval, PARALLEL
-import fv3util 
+import fv3util
+
 sd = utils.sd
 
 a1 = 0.5625
@@ -39,7 +40,7 @@ def compute_ord2(u, v, ua, va, do_halo=False):
         i2 += 1
         j1 -= 1
         j2 += 1
-    
+
     c2l_ord2(
         u,
         v,
@@ -98,10 +99,8 @@ def ord4_transform(
 def compute_ord4(u, v, ua, va, comm, mode=1):
     grid = spec.grid
     if mode > 0:
-        comm.vector_halo_update(
-            u, v, n_points=utils.halo
-        )
-        
+        comm.vector_halo_update(u, v, n_points=utils.halo)
+
     utmp = utils.make_storage_from_shape(ua.shape, utils.origin)
     vtmp = utils.make_storage_from_shape(va.shape, utils.origin)
     j1 = grid.js + 1 if grid.south_edge else grid.js
@@ -161,7 +160,11 @@ def compute_ord4(u, v, ua, va, comm, mode=1):
     if grid.east_edge:
         wv = utils.make_storage_from_shape(ua.shape, utils.origin)
         x_edge_wv(
-            v.data, grid.dy, wv, origin=(grid.ie, grid.js, 0), domain=(2, grid.njc, grid.npz)
+            v.data,
+            grid.dy,
+            wv,
+            origin=(grid.ie, grid.js, 0),
+            domain=(2, grid.njc, grid.npz),
         )
         x_edge_tmp(
             wv,
@@ -194,4 +197,3 @@ def compute_cubed_to_latlon(u, v, ua, va, comm, mode=1):
         compute_ord2(u, v, ua, va, False)
     else:
         compute_ord4(u, v, ua, va, comm, mode)
-    

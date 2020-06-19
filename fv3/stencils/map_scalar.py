@@ -136,9 +136,9 @@ def compute(q1, peln, pe2, qs, mode, j_2d=None):
     q4_1, q4_2, q4_3, q4_4 = remap_profile.compute_scalar(
         qs_input, q4_1, q4_2, q4_3, q4_4, dp1, km, i1, i2, iv, kord, qmin, 0, j_extent
     )
-    
-    # 
-    '''
+
+    #
+    """
     # Trying a stencil with a loop over k2:
     klevs = np.arange(km)
     ptop = utils.make_storage_from_shape(pe2.shape, origin=orig)
@@ -230,22 +230,25 @@ def compute(q1, peln, pe2, qs, mode, j_2d=None):
                             )
                         )
                     q1[ii, j + js, k2] = qsum / (pe2[ii, j, k2 + 1] - pe2[ii, j, k2])
-    '''
+    """
     # transliterated fortran
     i_vals = np.arange(i1, i2 + 1)
     kn = grid.npz
     if j_2d is None:
         js = grid.js
-    else:    
+    else:
         js = j_2d
     for j in range(j_extent):
-        elems = np.ones((i_extent,kn))
+        elems = np.ones((i_extent, kn))
         for ii in i_vals:
             k0 = 0
             for k2 in np.arange(kn):  # loop over new, remapped ks]
                 for k1 in np.arange(k0, km):  # loop over old ks
                     # find the top edge of new grid: pe2[ii, k2]
-                    if pe2[ii, j, k2] >= pe1[ii, j, k1] and pe2[ii, j, k2] <= pe1[ii, j, k1 + 1]:
+                    if (
+                        pe2[ii, j, k2] >= pe1[ii, j, k1]
+                        and pe2[ii, j, k2] <= pe1[ii, j, k1 + 1]
+                    ):
                         pl = (pe2[ii, j, k2] - pe1[ii, j, k1]) / dp1[ii, j, k1]
                         if (
                             pe2[ii, j, k2 + 1] <= pe1[ii, j, k1 + 1]
@@ -259,7 +262,7 @@ def compute(q1, peln, pe2, qs, mode, j_2d=None):
                                 - q4_4[ii, j, k1] * r3 * (pr * (pr + pl) + pl ** 2)
                             )
                             k0 = k1
-                            elems[ii-i1,k2]=0
+                            elems[ii - i1, k2] = 0
                             break
                         else:  # new grid layer extends into more old grid layers
                             qsum = (pe1[ii, j, k1 + 1] - pe2[ii, j, k2]) * (
@@ -271,7 +274,9 @@ def compute(q1, peln, pe2, qs, mode, j_2d=None):
                             )
 
                             for mm in np.arange(k1 + 1, km):  # find the bottom edge
-                                if pe2[ii, j, k2 + 1] > pe1[ii, j, mm + 1]:  #Not there yet; add the whole layer
+                                if (
+                                    pe2[ii, j, k2 + 1] > pe1[ii, j, mm + 1]
+                                ):  # Not there yet; add the whole layer
                                     qsum = qsum + dp1[ii, j, mm] * q4_1[ii, j, mm]
                                 else:
                                     dp = pe2[ii, j, k2 + 1] - pe1[ii, j, mm]
@@ -288,10 +293,12 @@ def compute(q1, peln, pe2, qs, mode, j_2d=None):
                                     )
                                     k0 = mm
                                     flag = 1
-                                    elems[ii-i1,k2]=0
+                                    elems[ii - i1, k2] = 0
                                     break
-                            #Add everything up and divide by the pressure difference
-                            q1[ii, j + js, k2] = qsum / (pe2[ii, j, k2 + 1] - pe2[ii, j, k2])
+                            # Add everything up and divide by the pressure difference
+                            q1[ii, j + js, k2] = qsum / (
+                                pe2[ii, j, k2 + 1] - pe2[ii, j, k2]
+                            )
                             break
-    
+
     return q1

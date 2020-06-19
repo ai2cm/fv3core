@@ -12,7 +12,7 @@ class TranslateTransportDelp(TranslateFortranData2Py):
             "w": {},
             "utc": {},
             "vtc": {},
-            "wc": {}
+            "wc": {},
         }
         self.out_vars = {
             "delpc": {},

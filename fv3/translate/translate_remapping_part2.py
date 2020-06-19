@@ -86,7 +86,7 @@ class TranslateRemapping_Part2(TranslateFortranData2Py):
             "pdt",
             "mdt",
             "consv",
-            "do_adiabatic_init"
+            "do_adiabatic_init",
         ]
         self.out_vars = {}
         for k in [

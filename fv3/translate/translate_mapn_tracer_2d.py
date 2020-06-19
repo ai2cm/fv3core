@@ -69,5 +69,18 @@ class TranslateMapN_Tracer_2d(TranslateFortranData2Py):
     def compute(self, inputs):
         self.make_storage_data_input_vars(inputs)
         inputs["j_2d"] += 2
-        qvapor, qliquid, qice, qrain, qsnow, qgraupel, qcld = self.compute_func(**inputs)
-        return self.slice_output(inputs, {"qvapor_js": qvapor, "qliquid_js":qliquid, "qice_js":qice, "qrain_js":qrain, "qsnow_js":qsnow, "qgraupel_js":qgraupel, "qcld_js":qcld})
+        qvapor, qliquid, qice, qrain, qsnow, qgraupel, qcld = self.compute_func(
+            **inputs
+        )
+        return self.slice_output(
+            inputs,
+            {
+                "qvapor_js": qvapor,
+                "qliquid_js": qliquid,
+                "qice_js": qice,
+                "qrain_js": qrain,
+                "qsnow_js": qsnow,
+                "qgraupel_js": qgraupel,
+                "qcld_js": qcld,
+            },
+        )

@@ -31,22 +31,36 @@ def compare_arr(computed_data, ref_data):
 def success_array(computed_data, ref_data, eps, ignore_near_zero_errors):
     success = np.logical_or(
         compare_arr(computed_data, ref_data) < eps,
-        np.logical_and(np.isnan(computed_data), np.isnan(ref_data))
+        np.logical_and(np.isnan(computed_data), np.isnan(ref_data)),
     )
     if ignore_near_zero_errors:
         small_number = 1e-20
-        success = np.logical_or(success, np.logical_and(np.abs(computed_data) < small_number, np.abs(ref_data) < small_number))
+        success = np.logical_or(
+            success,
+            np.logical_and(
+                np.abs(computed_data) < small_number, np.abs(ref_data) < small_number
+            ),
+        )
     return success
+
 
 def success(computed_data, ref_data, eps, ignore_near_zero_errors):
     return np.all(success_array(computed_data, ref_data, eps, ignore_near_zero_errors))
 
 
 def sample_wherefail(
-        computed_data, ref_data, eps, print_failures, failure_stride, test_name, ignore_near_zero_errors
+    computed_data,
+    ref_data,
+    eps,
+    print_failures,
+    failure_stride,
+    test_name,
+    ignore_near_zero_errors,
 ):
     found_indices = np.where(
-        np.logical_not(success_array(computed_data, ref_data, eps, ignore_near_zero_errors))
+        np.logical_not(
+            success_array(computed_data, ref_data, eps, ignore_near_zero_errors)
+        )
     )
     computed_failures = computed_data[found_indices]
     reference_failures = ref_data[found_indices]
@@ -113,7 +127,8 @@ def test_sequential_savepoint(
                 testobj.max_error,
                 print_failures,
                 failure_stride,
-                test_name, near0
+                test_name,
+                near0,
             )
             passing_names.append(failing_names.pop())
     assert failing_names == [], f"only the following variables passed: {passing_names}"
@@ -191,7 +206,8 @@ def test_mock_parallel_savepoint(
                         testobj.max_error,
                         print_failures,
                         failure_stride,
-                        test_name, near0
+                        test_name,
+                        near0,
                     )
             assert failing_ranks == []
     failing_names = [item["varname"] for item in failing_names]
@@ -246,7 +262,8 @@ def test_parallel_savepoint(
                 testobj.max_error,
                 print_failures,
                 failure_stride,
-                test_name, near0
+                test_name,
+                near0,
             )
             passing_names.append(failing_names.pop())
     assert failing_names == [], f"only the following variables passed: {passing_names}"

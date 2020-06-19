@@ -72,8 +72,8 @@ def merge_namelist_defaults(nml):
         "use_logp": False,
         "RF_fast": False,
         "p_ref": 1e5,  # Surface pressure used to construct a horizontally-uniform reference
-        'adiabatic': False,
-        "nf_omega": 1
+        "adiabatic": False,
+        "nf_omega": 1,
     }
     defaults.update(nml)
     return defaults

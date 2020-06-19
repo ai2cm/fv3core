@@ -6,7 +6,7 @@ class TranslateSatAdjust3d(TranslateFortranData2Py):
     def __init__(self, grid):
         super().__init__(grid)
         self.compute_func = satadjust.compute
-        cvar = {'axis':0,'kstart':3}
+        cvar = {"axis": 0, "kstart": 3}
         self.in_vars["data_vars"] = {
             "te": {},
             "dpln": {"istart": grid.is_, "jstart": grid.js},
@@ -63,7 +63,6 @@ class TranslateSatAdjust3d(TranslateFortranData2Py):
             },
             "cappa": {},
         }
-        
 
     def compute(self, inputs):
         self.make_storage_data_input_vars(inputs)

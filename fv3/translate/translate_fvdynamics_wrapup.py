@@ -6,7 +6,7 @@ import copy
 
 class TranslateFVDynamics_Wrapup(ParallelTranslate2PyState):
     inputs = TranslateCubedToLatLon.inputs
-    
+
     def __init__(self, grids):
         super().__init__(grids)
         self._base.compute_func = fv_dynamics.wrapup
@@ -38,5 +38,5 @@ class TranslateFVDynamics_Wrapup(ParallelTranslate2PyState):
         self._base.in_vars["parameters"] = ["nq"]
         self._base.out_vars = copy.copy(self._base.in_vars["data_vars"])
         # could do this, but don't have to
-        #for var in ['delp', 'delz']:
+        # for var in ['delp', 'delz']:
         #    del self._base.out_vars[var]

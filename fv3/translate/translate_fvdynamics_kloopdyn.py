@@ -6,7 +6,7 @@ import copy
 
 
 class TranslateFVDynamics_KLoopDyn(ParallelTranslate2PyState):
-    inputs = {**TranslateDynCore.inputs , **TranslateTracer2D1L.inputs}
+    inputs = {**TranslateDynCore.inputs, **TranslateTracer2D1L.inputs}
 
     def __init__(self, grids):
         super().__init__(grids)
@@ -60,14 +60,22 @@ class TranslateFVDynamics_KLoopDyn(ParallelTranslate2PyState):
             "cyd": grid.y3d_compute_domain_x_dict(),
             "diss_estd": {},
             "cappa": {},
-            "wsd": grid.compute_dict()
+            "wsd": grid.compute_dict(),
         }
-        self._base.in_vars["parameters"] = ["n_map", "mdt", "nq", "n_split", "akap", "zvir", "ptop", "ks"]
+        self._base.in_vars["parameters"] = [
+            "n_map",
+            "mdt",
+            "nq",
+            "n_split",
+            "akap",
+            "zvir",
+            "ptop",
+            "ks",
+        ]
         self._base.out_vars = copy.copy(self._base.in_vars["data_vars"])
         self.max_error = 1e-7
-        for var in ['ak', 'bk']:
+        for var in ["ak", "bk"]:
             del self._base.out_vars[var]
         self._base.out_vars["phis"] = {"kstart": 0, "kend": 0}
         self._base.in_vars["data_vars"]["wsd"]["kstart"] = grid.npz
         self._base.in_vars["data_vars"]["wsd"]["kend"] = None
-   

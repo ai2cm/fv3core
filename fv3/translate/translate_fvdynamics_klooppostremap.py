@@ -8,7 +8,8 @@ class TranslateFVDynamics_KLoopPostRemap(ParallelTranslate2PyState):
         "omga": {
             "dims": [fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_DIM],
             "units": "default",
-        }}
+        }
+    }
 
     def __init__(self, grids):
         super().__init__(grids)
@@ -21,5 +22,3 @@ class TranslateFVDynamics_KLoopPostRemap(ParallelTranslate2PyState):
         }
         self._base.in_vars["parameters"] = []
         self._base.out_vars = {"omga": {}}
-        
-   

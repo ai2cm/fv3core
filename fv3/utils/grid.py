@@ -84,7 +84,6 @@ class Grid:
             )
         return self._quantity_factory
 
-
     def make_quantity(
         self,
         array,
@@ -100,12 +99,20 @@ class Grid:
         return fv3util.Quantity(
             array, dims=dims, units=units, origin=origin, extent=extent
         )
-    
-    def quantity_dict_update(self, data_dict, varname, dims=[fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_DIM], units="Unknown"):
-        data_dict[varname + "_quantity"] = self.quantity_wrap(data_dict[varname], dims=dims, units=units)
+
+    def quantity_dict_update(
+        self,
+        data_dict,
+        varname,
+        dims=[fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_DIM],
+        units="Unknown",
+    ):
+        data_dict[varname + "_quantity"] = self.quantity_wrap(
+            data_dict[varname], dims=dims, units=units
+        )
 
     def quantity_wrap(
-            self, data, dims=[fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_DIM], units="Unknown"
+        self, data, dims=[fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_DIM], units="Unknown"
     ):
         origin = self.sizer.get_origin(dims)
         extent = self.sizer.get_extent(dims)

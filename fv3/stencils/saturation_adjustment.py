@@ -139,9 +139,11 @@ def compute_cvm(mc_air, qv, c_vap, q_liq, q_sol):
 def add_src_pt1(pt1, src, lhl, cvm):
     return pt1 + src * lhl / cvm
 
+
 @gtscript.function
 def subtract_sink_pt1(pt1, sink, lhl, cvm):
     return pt1 - sink * lhl / cvm
+
 
 @gtscript.function
 def melt_cloud_ice(
@@ -273,9 +275,11 @@ def make_graupel(pt1, cvm, fac_r2g, qr, qg, q_liq, q_sol, lhi, icp2, mc_air, qv,
         cvm = compute_cvm(mc_air, qv, c_vap, q_liq, q_sol)
         pt1 = add_src_pt1(pt1, sink, lhi, cvm)
     return qr, qg, q_liq, q_sol, cvm, pt1
+
+
 # qr, qg, q_liq, q_sol, cvm, pt1 = make_graupel(
 #            pt1, cvm, fac_r2g, qr, qg, q_liq, q_sol, lhi, icp2, mc_air, qv, c_vap
-        
+
 
 @gtscript.function
 def melt_snow(
@@ -303,6 +307,7 @@ def melt_snow(
         cvm = compute_cvm(mc_air, qv, c_vap, q_liq, q_sol)
         pt1 = subtract_sink_pt1(pt1, sink, lhi, cvm)
     return qs, ql, qr, q_liq, q_sol, cvm, pt1
+
 
 @gtscript.function
 def autoconversion_cloud_to_rain(ql, qr, fac_l2r, ql0_max):
@@ -553,8 +558,38 @@ def wqs1_iqs1(ta, den, wqsat, tablename="tablew", desname="desw"):
         domain=spec.grid.domain_shape_standard(),
     )
 
+
 @utils.stencil()
-def satadjust_part1( dpln: sd, den: sd, pt1: sd, cvm: sd, mc_air: sd, peln: sd, qv: sd, ql: sd, q_liq: sd, qi: sd, qr: sd, qs: sd, q_sol: sd, qg: sd, pt: sd, dp: sd, delz: sd, te0: sd, qpz: sd, lhi: sd, icp2: sd, zvir: float, hydrostatic: bool, consv_te: bool, c_air: float, c_vap: float, fac_imlt: float, d0_vap: float, lv00: float,
+def satadjust_part1(
+    dpln: sd,
+    den: sd,
+    pt1: sd,
+    cvm: sd,
+    mc_air: sd,
+    peln: sd,
+    qv: sd,
+    ql: sd,
+    q_liq: sd,
+    qi: sd,
+    qr: sd,
+    qs: sd,
+    q_sol: sd,
+    qg: sd,
+    pt: sd,
+    dp: sd,
+    delz: sd,
+    te0: sd,
+    qpz: sd,
+    lhi: sd,
+    icp2: sd,
+    zvir: float,
+    hydrostatic: bool,
+    consv_te: bool,
+    c_air: float,
+    c_vap: float,
+    fac_imlt: float,
+    d0_vap: float,
+    lv00: float,
 ):
     with computation(PARALLEL), interval(...):
         dpln = peln[0, 0, 1] - peln
@@ -603,7 +638,28 @@ def satadjust_part1( dpln: sd, den: sd, pt1: sd, cvm: sd, mc_air: sd, peln: sd, 
 
 
 @utils.stencil()
-def satadjust_part2(wqsat: sd, dq2dt: sd, pt1: sd, cvm: sd, mc_air: sd, tcp3: sd, lhl: sd, lhi: sd, lcp2: sd, icp2: sd, qv: sd, ql: sd, q_liq: sd, q_sol: sd, fac_v2l: float, fac_l2v: float, lv00: float, d0_vap: float, c_vap: float, adj_fac: float, ql_gen: float,
+def satadjust_part2(
+    wqsat: sd,
+    dq2dt: sd,
+    pt1: sd,
+    cvm: sd,
+    mc_air: sd,
+    tcp3: sd,
+    lhl: sd,
+    lhi: sd,
+    lcp2: sd,
+    icp2: sd,
+    qv: sd,
+    ql: sd,
+    q_liq: sd,
+    q_sol: sd,
+    fac_v2l: float,
+    fac_l2v: float,
+    lv00: float,
+    d0_vap: float,
+    c_vap: float,
+    adj_fac: float,
+    ql_gen: float,
 ):
     with computation(PARALLEL), interval(...):
         # update latent heat coefficient
@@ -624,7 +680,9 @@ def satadjust_part2(wqsat: sd, dq2dt: sd, pt1: sd, cvm: sd, mc_air: sd, tcp3: sd
         if dq0 > 0:  # whole grid - box saturated
             a = ql_gen - ql
             b = fac_v2l * dq0
-            tmpmax = a if a > b else b #max_fn(a, b) -- this yields an incorrect answer
+            tmpmax = (
+                a if a > b else b
+            )  # max_fn(a, b) -- this yields an incorrect answer
             src = adj_fac * dq0 if adj_fac * dq0 < tmpmax else tmpmax
         else:
             # TODO -- we'd like to use this abstraction rather than duplicate code, but inside the if conditional complains 'not implemented'
@@ -644,7 +702,28 @@ def satadjust_part2(wqsat: sd, dq2dt: sd, pt1: sd, cvm: sd, mc_air: sd, tcp3: sd
 
 
 @utils.stencil()
-def satadjust_part3( wqsat: sd, dq2dt: sd, pt1: sd, cvm: sd, mc_air: sd, tcp3: sd, lhl: sd, lhi: sd, lcp2: sd, icp2: sd, last_step: bool, qv: sd, ql: sd, q_liq: sd, qi: sd, q_sol: sd, fac_v2l: float, fac_l2v: float, lv00: float, d0_vap: float, c_vap: float,
+def satadjust_part3(
+    wqsat: sd,
+    dq2dt: sd,
+    pt1: sd,
+    cvm: sd,
+    mc_air: sd,
+    tcp3: sd,
+    lhl: sd,
+    lhi: sd,
+    lcp2: sd,
+    icp2: sd,
+    last_step: bool,
+    qv: sd,
+    ql: sd,
+    q_liq: sd,
+    qi: sd,
+    q_sol: sd,
+    fac_v2l: float,
+    fac_l2v: float,
+    lv00: float,
+    d0_vap: float,
+    c_vap: float,
 ):
     with computation(PARALLEL), interval(...):
         dq0 = 0.0
@@ -686,7 +765,32 @@ def satadjust_part3( wqsat: sd, dq2dt: sd, pt1: sd, cvm: sd, mc_air: sd, tcp3: s
 
 # TODO reading in ql0_max as a runtime argument causes problems for the if statement
 @utils.stencil()
-def satadjust_part4(den: sd, pt1: sd, cvm: sd, mc_air: sd, lhl: sd, lhi: sd, lcp2: sd, icp2: sd, exptc: sd, qv: sd, ql: sd, q_liq: sd, qi: sd, q_sol: sd, qr: sd, qg: sd, qs: sd, c_vap: float, mdt: float, fac_r2g: float, fac_smlt: float, fac_l2r: float, qs_mlt: float, ql0_max: float, last_step: bool
+def satadjust_part4(
+    den: sd,
+    pt1: sd,
+    cvm: sd,
+    mc_air: sd,
+    lhl: sd,
+    lhi: sd,
+    lcp2: sd,
+    icp2: sd,
+    exptc: sd,
+    qv: sd,
+    ql: sd,
+    q_liq: sd,
+    qi: sd,
+    q_sol: sd,
+    qr: sd,
+    qg: sd,
+    qs: sd,
+    c_vap: float,
+    mdt: float,
+    fac_r2g: float,
+    fac_smlt: float,
+    fac_l2r: float,
+    qs_mlt: float,
+    ql0_max: float,
+    last_step: bool,
 ):
     with computation(PARALLEL), interval(...):
         # bigg mechanism (heterogeneous freezing of cloud water to cloud ice)
@@ -737,7 +841,52 @@ def satadjust_part4(den: sd, pt1: sd, cvm: sd, mc_air: sd, lhl: sd, lhi: sd, lcp
 # TODO -- reading in t_sub, as runtime variables is causing weird issues with the if statements
 @utils.stencil()
 def satadjust_part5(
-    pt: sd,cappa: sd,tin: sd, te0: sd, dp: sd, q_cond: sd, q_con: sd, expsubl: sd, iqs2: sd, dqsdt: sd, den: sd, pt1: sd, cvm: sd, mc_air: sd, lhl: sd, lhi: sd, lcp2: sd, icp2: sd, last_step: bool, qv: sd, ql: sd, q_liq: sd, qi: sd, q_sol: sd, qr: sd, qg: sd, qs: sd, lv00: float, d0_vap: float, c_vap: float, sdt: float, adj_fac: float, zvir: float, fac_i2s: float, c_air: float, t_sub: float, qi_gen: float, qi_lim: float, qi0_max: float, consv_te: bool, hydrostatic: bool, do_qa: bool, rad_snow: bool, rad_rain: bool, rad_graupel: bool, tintqs: bool,
+    pt: sd,
+    cappa: sd,
+    tin: sd,
+    te0: sd,
+    dp: sd,
+    q_cond: sd,
+    q_con: sd,
+    expsubl: sd,
+    iqs2: sd,
+    dqsdt: sd,
+    den: sd,
+    pt1: sd,
+    cvm: sd,
+    mc_air: sd,
+    lhl: sd,
+    lhi: sd,
+    lcp2: sd,
+    icp2: sd,
+    last_step: bool,
+    qv: sd,
+    ql: sd,
+    q_liq: sd,
+    qi: sd,
+    q_sol: sd,
+    qr: sd,
+    qg: sd,
+    qs: sd,
+    lv00: float,
+    d0_vap: float,
+    c_vap: float,
+    sdt: float,
+    adj_fac: float,
+    zvir: float,
+    fac_i2s: float,
+    c_air: float,
+    t_sub: float,
+    qi_gen: float,
+    qi_lim: float,
+    qi0_max: float,
+    consv_te: bool,
+    hydrostatic: bool,
+    do_qa: bool,
+    rad_snow: bool,
+    rad_rain: bool,
+    rad_graupel: bool,
+    tintqs: bool,
 ):
     with computation(PARALLEL), interval(...):
         lhl, lhi, lcp2, icp2 = update_latent_heat_coefficient(pt1, cvm, lv00, d0_vap)
@@ -763,7 +912,7 @@ def satadjust_part5(
             lhi,
             constants.t_sub,
             qi_gen,
-            qi_lim
+            qi_lim,
         )
         # virtual temp updated
         q_con = q_liq + q_sol
@@ -927,7 +1076,7 @@ def compute(
     last_step,
     akap,
     kmp,
-   ):
+):
     grid = spec.grid
     namelist = spec.namelist
     origin = (grid.is_, grid.js, kmp)
@@ -978,13 +1127,66 @@ def compute(
     tin = utils.make_storage_from_shape(peln.shape, utils.origin)
     q_cond = utils.make_storage_from_shape(peln.shape, utils.origin)
     qpz = utils.make_storage_from_shape(peln.shape, utils.origin)
-   
+
     satadjust_part1(
-        dpln, den, pt1, cvm, mc_air, peln, qvapor, qliquid, q_liq, qice, qrain, qsnow, q_sol, qgraupel, pt, delp, delz, te, qpz, lhi, icp2, r_vir, hydrostatic, fast_mp_consv, c_air, c_vap, fac_imlt, d0_vap, lv00, origin=origin, domain=domain,
+        dpln,
+        den,
+        pt1,
+        cvm,
+        mc_air,
+        peln,
+        qvapor,
+        qliquid,
+        q_liq,
+        qice,
+        qrain,
+        qsnow,
+        q_sol,
+        qgraupel,
+        pt,
+        delp,
+        delz,
+        te,
+        qpz,
+        lhi,
+        icp2,
+        r_vir,
+        hydrostatic,
+        fast_mp_consv,
+        c_air,
+        c_vap,
+        fac_imlt,
+        d0_vap,
+        lv00,
+        origin=origin,
+        domain=domain,
     )
     wqs2_iqs2(pt1, den, wqsat, dq2dt)
     adj_fac = namelist["sat_adj0"]
-    satadjust_part2(wqsat, dq2dt, pt1, cvm, mc_air, tcp3, lhl, lhi, lcp2, icp2, qvapor, qliquid, q_liq, q_sol, fac_v2l, fac_l2v, lv00, d0_vap, c_vap, adj_fac, namelist["ql_gen"], origin=origin, domain=domain,
+    satadjust_part2(
+        wqsat,
+        dq2dt,
+        pt1,
+        cvm,
+        mc_air,
+        tcp3,
+        lhl,
+        lhi,
+        lcp2,
+        icp2,
+        qvapor,
+        qliquid,
+        q_liq,
+        q_sol,
+        fac_v2l,
+        fac_l2v,
+        lv00,
+        d0_vap,
+        c_vap,
+        adj_fac,
+        namelist["ql_gen"],
+        origin=origin,
+        domain=domain,
     )
     if last_step:
         adj_fac = 1.0
@@ -993,24 +1195,138 @@ def compute(
         # final iteration:
         wqs2_iqs2(pt1, den, wqsat, dq2dt)
 
-    satadjust_part3(wqsat, dq2dt, pt1, cvm, mc_air, tcp3, lhl, lhi, lcp2, icp2, last_step, qvapor, qliquid, q_liq, qice, q_sol, fac_v2l, fac_l2v, lv00, d0_vap, c_vap, origin=origin, domain=domain,
+    satadjust_part3(
+        wqsat,
+        dq2dt,
+        pt1,
+        cvm,
+        mc_air,
+        tcp3,
+        lhl,
+        lhi,
+        lcp2,
+        icp2,
+        last_step,
+        qvapor,
+        qliquid,
+        q_liq,
+        qice,
+        q_sol,
+        fac_v2l,
+        fac_l2v,
+        lv00,
+        d0_vap,
+        c_vap,
+        origin=origin,
+        domain=domain,
     )
     exptc = np.exp(0.66 * (TICE0 - pt1))
-    satadjust_part4(den,pt1,cvm,mc_air,lhl,lhi,lcp2,icp2,exptc,qvapor,qliquid,q_liq,qice,q_sol,qrain,qgraupel,qsnow,c_vap,mdt,fac_r2g,fac_smlt,fac_l2r,namelist["qs_mlt"],namelist["ql0_max"],last_step,origin=origin,domain=domain,
+    satadjust_part4(
+        den,
+        pt1,
+        cvm,
+        mc_air,
+        lhl,
+        lhi,
+        lcp2,
+        icp2,
+        exptc,
+        qvapor,
+        qliquid,
+        q_liq,
+        qice,
+        q_sol,
+        qrain,
+        qgraupel,
+        qsnow,
+        c_vap,
+        mdt,
+        fac_r2g,
+        fac_smlt,
+        fac_l2r,
+        namelist["qs_mlt"],
+        namelist["ql0_max"],
+        last_step,
+        origin=origin,
+        domain=domain,
     )
     iqs2 = utils.make_storage_from_shape(peln.shape, utils.origin)
     dqsdt = utils.make_storage_from_shape(peln.shape, utils.origin)
     wqs2_iqs2(pt1, den, iqs2, dqsdt, tablename="table2", desname="des2")
     expsubl = np.exp(0.875 * np.log(qice * den))
     do_qa = True  # TODO  -- this isn't a namelist option in Fortran, it is whether or not cld_amount is a tracer. If/when we support different sets of tracers, this will need to change
-    satadjust_part5(pt, cappa, tin, te, delp, q_cond, q_con, expsubl, iqs2, dqsdt, den, pt1, cvm, mc_air, lhl, lhi, lcp2, icp2, last_step, qvapor, qliquid, q_liq, qice, q_sol, qrain, qgraupel, qsnow, lv00, d0_vap, c_vap, sdt, adj_fac, r_vir, fac_i2s, c_air, namelist["t_sub"], namelist["qi_gen"], namelist["qi_lim"], namelist["qi0_max"], fast_mp_consv, hydrostatic, do_qa, namelist["rad_snow"], namelist["rad_rain"], namelist["rad_graupel"], namelist["tintqs"], origin=origin, domain=domain,)
+    satadjust_part5(
+        pt,
+        cappa,
+        tin,
+        te,
+        delp,
+        q_cond,
+        q_con,
+        expsubl,
+        iqs2,
+        dqsdt,
+        den,
+        pt1,
+        cvm,
+        mc_air,
+        lhl,
+        lhi,
+        lcp2,
+        icp2,
+        last_step,
+        qvapor,
+        qliquid,
+        q_liq,
+        qice,
+        q_sol,
+        qrain,
+        qgraupel,
+        qsnow,
+        lv00,
+        d0_vap,
+        c_vap,
+        sdt,
+        adj_fac,
+        r_vir,
+        fac_i2s,
+        c_air,
+        namelist["t_sub"],
+        namelist["qi_gen"],
+        namelist["qi_lim"],
+        namelist["qi0_max"],
+        fast_mp_consv,
+        hydrostatic,
+        do_qa,
+        namelist["rad_snow"],
+        namelist["rad_rain"],
+        namelist["rad_graupel"],
+        namelist["tintqs"],
+        origin=origin,
+        domain=domain,
+    )
     if do_qa and last_step:
         iqs1 = utils.make_storage_from_shape(peln.shape, utils.origin)
         wqs1 = utils.make_storage_from_shape(peln.shape, utils.origin)
         wqs1_iqs1(tin, den, wqs1, tablename="tablew", desname="desw")
         wqs1_iqs1(tin, den, iqs1, tablename="table2", desname="des2")
 
-        satadjust_part6_laststep_qa(qcld, grid.area_64, qpz,hs,tin, q_cond, iqs1, wqs1, q_sol, namelist["dw_ocean"], namelist["dw_land"], namelist["icloud_f"], namelist["cld_min"], origin=origin, domain=domain,
+        satadjust_part6_laststep_qa(
+            qcld,
+            grid.area_64,
+            qpz,
+            hs,
+            tin,
+            q_cond,
+            iqs1,
+            wqs1,
+            q_sol,
+            namelist["dw_ocean"],
+            namelist["dw_land"],
+            namelist["icloud_f"],
+            namelist["cld_min"],
+            origin=origin,
+            domain=domain,
         )
     # TODO put into stencil when exp allowed inside stencil
     # e.g. pkz = exp(cappa * log(rrg * delp / delz * pt)) #rrg = constants.RDG

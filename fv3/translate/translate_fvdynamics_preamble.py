@@ -5,7 +5,7 @@ import copy
 
 class TranslateFVDynamics_Preamble(ParallelTranslate2PyState):
     inputs = {}
-    
+
     def __init__(self, grids):
         super().__init__(grids)
         self._base.compute_func = fv_dynamics.compute_preamble
@@ -32,7 +32,6 @@ class TranslateFVDynamics_Preamble(ParallelTranslate2PyState):
                 "kend": grid.npz + 1,
                 "kaxis": 1,
             },
-           
             "peln": {
                 "istart": grid.is_,
                 "iend": grid.ie,
@@ -52,13 +51,24 @@ class TranslateFVDynamics_Preamble(ParallelTranslate2PyState):
             "ak": {},
             "bk": {},
             "pfull": {},
-            #"te_2d":{},
+            # "te_2d":{},
             "cappa": {},
             "cvm": {"kstart": grid.is_, "axis": 0},
         }
-        self._base.in_vars["parameters"] = ["bdt", "ptop", "do_adiabatic_init", "consv_te", "zvir"]
+        self._base.in_vars["parameters"] = [
+            "bdt",
+            "ptop",
+            "do_adiabatic_init",
+            "consv_te",
+            "zvir",
+        ]
         self._base.out_vars = copy.copy(self._base.in_vars["data_vars"])
-        for var in ['ak', 'bk', 'cappa', 'cvm', 'ph1', 'ph2']:
+        for var in ["ak", "bk", "cappa", "cvm", "ph1", "ph2"]:
             del self._base.out_vars[var]
         self._base.out_vars["phis"] = {"kstart": 0, "kend": 0}
-        self._base.out_vars["pfull"] = {"istart": grid.is_, "iend": grid.is_, "jstart":grid.js, "jend": grid.js}
+        self._base.out_vars["pfull"] = {
+            "istart": grid.is_,
+            "iend": grid.is_,
+            "jstart": grid.js,
+            "jend": grid.js,
+        }

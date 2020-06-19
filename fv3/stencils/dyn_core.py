@@ -85,17 +85,25 @@ def dyncore_temporaries(shape):
     )
     utils.storage_dict(tmps, ["crx", "xfx"], shape, grid.compute_x_origin())
     utils.storage_dict(tmps, ["cry", "yfx"], shape, grid.compute_y_origin())
-    grid.quantity_dict_update(tmps, "heat_source", dims=[fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_DIM])
+    grid.quantity_dict_update(
+        tmps, "heat_source", dims=[fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_DIM]
+    )
     for q in ["gz", "pkc", "zh"]:
-        grid.quantity_dict_update(tmps, q, dims=[fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_INTERFACE_DIM])
-    grid.quantity_dict_update(tmps, "divgd", dims=[fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM, fv3util.Z_DIM])
+        grid.quantity_dict_update(
+            tmps, q, dims=[fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_INTERFACE_DIM]
+        )
+    grid.quantity_dict_update(
+        tmps,
+        "divgd",
+        dims=[fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM, fv3util.Z_DIM],
+    )
     return tmps
 
 
 def compute(state, comm):
     # u, v, w, delz, delp, pt, pe, pk, phis, wsd, omga, ua, va, uc, vc, mfxd, mfyd, cxd, cyd, pkz, peln, q_con, ak, bk, diss_estd, cappa, mdt, n_split, akap, ptop, pfull, n_map, comm):
     grid = spec.grid
-    
+
     init_step = state.n_map == 1
     end_step = state.n_map == spec.namelist["k_split"]
     akap = state.akap
@@ -115,7 +123,9 @@ def compute(state, comm):
 
     reqs = {}
     for halovar in ["q_con_quantity", "cappa_quantity", "delp_quantity", "pt_quantity"]:
-        reqs[halovar] = comm.start_halo_update(state.__getattribute__(halovar), n_points=utils.halo)
+        reqs[halovar] = comm.start_halo_update(
+            state.__getattribute__(halovar), n_points=utils.halo
+        )
     reqs_vector = comm.start_vector_halo_update(
         state.u_quantity, state.v_quantity, n_points=utils.halo
     )
@@ -186,7 +196,7 @@ def compute(state, comm):
 
         if not hydrostatic:
             reqs["w_quantity"].wait()
-        
+
         state.delpc, state.ptc = c_sw.compute(
             state.delp,
             state.pt,
@@ -225,13 +235,7 @@ def compute(state, comm):
                 )
         if not hydrostatic:
             state.gz, state.ws3 = updatedzc.compute(
-                state.dp_ref,
-                state.zs,
-                state.ut,
-                state.vt,
-                state.gz,
-                state.ws3,
-                dt2,
+                state.dp_ref, state.zs, state.ut, state.vt, state.gz, state.ws3, dt2,
             )
             # TODO this is really a 2d field.
             state.ws3 = utils.make_storage_data_from_2d(
@@ -253,9 +257,7 @@ def compute(state, comm):
                 state.ws3,
             )
 
-        pgradc.compute(
-            state.uc, state.vc, state.delpc, state.pkc, state.gz, dt2
-        )
+        pgradc.compute(state.uc, state.vc, state.delpc, state.pkc, state.gz, dt2)
         reqc_vector = comm.start_vector_halo_update(
             state.uc_quantity, state.vc_quantity, n_points=utils.halo
         )

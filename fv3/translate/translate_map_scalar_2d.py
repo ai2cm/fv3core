@@ -11,7 +11,7 @@ class TranslateMapScalar_2d(TranslateFortranData2Py):
             "q1": {"serialname": "pt"},
             "peln": {"istart": grid.is_, "iend": grid.ie - 2, "kaxis": 1},
             "pe2": {"istart": grid.is_, "iend": grid.ie - 2, "serialname": "pn2"},
-            "qs": {"serialname": "gz1d", 'kstart': grid.is_, 'axis': 0},
+            "qs": {"serialname": "gz1d", "kstart": grid.is_, "axis": 0},
         }
         self.in_vars["parameters"] = ["j_2d", "mode"]
         self.out_vars = {

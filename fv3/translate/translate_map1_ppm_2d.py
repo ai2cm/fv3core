@@ -11,7 +11,7 @@ class TranslateMap1_PPM_2d(TranslateFortranData2Py):
             "q1": {"serialname": "var_in"},
             "pe1": {"istart": 3, "iend": grid.ie - 2},
             "pe2": {"istart": 3, "iend": grid.ie - 2},
-            "qs": {"serialname": "ws_1d", "kstart":grid.is_, 'axis': 0},
+            "qs": {"serialname": "ws_1d", "kstart": grid.is_, "axis": 0},
         }
         self.in_vars["parameters"] = ["j_2d", "i1", "i2", "mode", "kord"]
         self.out_vars = {
@@ -48,7 +48,7 @@ class TranslateMap1_PPM_2d(TranslateFortranData2Py):
                 jstart=jstart,
                 kstart=kstart,
                 dummy_axes=dummy_axes,
-                axis=axis
+                axis=axis,
             )
             if d != serialname:
                 del inputs[serialname]

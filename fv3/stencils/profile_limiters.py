@@ -14,9 +14,9 @@ def grid():
 
 
 @utils.stencil()
-def posdef_constraint_iv0(a4_1: sd, a4_2: sd, a4_3: sd, a4_4: sd, r12:float):
+def posdef_constraint_iv0(a4_1: sd, a4_2: sd, a4_3: sd, a4_4: sd, r12: float):
     with computation(PARALLEL), interval(...):
-        a32 = a4_3-a4_2
+        a32 = a4_3 - a4_2
         absa32 = absolute_value(a32)
         if a4_1 <= 0.0:
             a4_2 = a4_1
@@ -83,9 +83,8 @@ def ppm_constraint(a4_1: sd, a4_2: sd, a4_3: sd, a4_4: sd, extm: sd):
                 a4_2 = a4_2
 
 
-
 def compute(a4_1, a4_2, a4_3, a4_4, extm, iv, i1, i_extent, kstart, nk, js, j_extent):
-    r12 = 1./12.
+    r12 = 1.0 / 12.0
     if iv == 0:
         posdef_constraint_iv0(
             a4_1,
