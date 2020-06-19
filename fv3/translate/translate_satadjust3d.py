@@ -6,6 +6,7 @@ class TranslateSatAdjust3d(TranslateFortranData2Py):
     def __init__(self, grid):
         super().__init__(grid)
         self.compute_func = satadjust.compute
+        cvar = {'axis':0,'kstart':3}
         self.in_vars["data_vars"] = {
             "te": {},
             "dpln": {"istart": grid.is_, "jstart": grid.js},
@@ -25,7 +26,7 @@ class TranslateSatAdjust3d(TranslateFortranData2Py):
             "pkz": {"istart": grid.is_, "jstart": grid.js},
             "cappa": {},
         }
-        self.max_error = 1e-14
+        self.max_error = 2e-14
         # te0 is off by 1e-10 when you do nothing...
         self.in_vars["parameters"] = [
             "r_vir",
@@ -62,6 +63,7 @@ class TranslateSatAdjust3d(TranslateFortranData2Py):
             },
             "cappa": {},
         }
+        
 
     def compute(self, inputs):
         self.make_storage_data_input_vars(inputs)
