@@ -62,11 +62,10 @@ class TranslateFVDynamics(ParallelTranslate2PyState):
         }
         self._base.in_vars["parameters"] = ["bdt", "zvir", "ptop", "ks", "n_split", "nq_tot", "do_adiabatic_init", "consv_te"]
         self._base.out_vars = copy.copy(self._base.in_vars["data_vars"])
-        self.max_error = 1e-4
+        self.max_error = 1e-6
         for var in ['ak', 'bk']:
             del self._base.out_vars[var]
         self._base.out_vars["ps"] = {'kstart': grid.npz - 1, "kend": grid.npz - 1}
         self._base.out_vars["phis"] = {"kstart": 0, "kend": 0}
-
-   
-        # w, 17,10 0
+        for qvar in ["qice", "qvapor", "qliquid", "qgraupel", "qrain", "qsnow", "qcld", "q_con"]:
+            self.ignore_near_zero_errors[qvar] = True

@@ -27,6 +27,7 @@ class ParallelTranslate:
         }
         self.max_error = self._base.max_error
         self._rank_grids = rank_grids
+        self.ignore_near_zero_errors = {}
 
     def state_list_from_inputs_list(self, inputs_list: List[list]) -> list:
         state_list = []

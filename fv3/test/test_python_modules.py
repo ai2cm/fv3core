@@ -28,22 +28,25 @@ def compare_arr(computed_data, ref_data):
     return compare
 
 
-def success_array(computed_data, ref_data, eps):
-    return np.logical_or(
+def success_array(computed_data, ref_data, eps, ignore_near_zero_errors):
+    success = np.logical_or(
         compare_arr(computed_data, ref_data) < eps,
-        np.logical_and(np.isnan(computed_data), np.isnan(ref_data)),
+        np.logical_and(np.isnan(computed_data), np.isnan(ref_data))
     )
+    if ignore_near_zero_errors:
+        small_number = 1e-20
+        success = np.logical_or(success, np.logical_and(np.abs(computed_data) < small_number, np.abs(ref_data) < small_number))
+    return success
 
-
-def success(computed_data, ref_data, eps):
-    return np.all(success_array(computed_data, ref_data, eps))
+def success(computed_data, ref_data, eps, ignore_near_zero_errors):
+    return np.all(success_array(computed_data, ref_data, eps, ignore_near_zero_errors))
 
 
 def sample_wherefail(
-    computed_data, ref_data, eps, print_failures, failure_stride, test_name
+        computed_data, ref_data, eps, print_failures, failure_stride, test_name, ignore_near_zero_errors
 ):
     found_indices = np.where(
-        np.logical_not(success_array(computed_data, ref_data, eps))
+        np.logical_not(success_array(computed_data, ref_data, eps, ignore_near_zero_errors))
     )
     computed_failures = computed_data[found_indices]
     reference_failures = ref_data[found_indices]
@@ -98,18 +101,19 @@ def test_sequential_savepoint(
     failing_names = []
     passing_names = []
     for varname in testobj.serialnames(testobj.out_vars):
+        near0 = testobj.ignore_near_zero_errors.get(varname, False)
         ref_data = serializer.read(varname, savepoint_out)
         with subtests.test(varname=varname):
             failing_names.append(varname)
             assert success(
-                output[varname], ref_data, testobj.max_error
+                output[varname], ref_data, testobj.max_error, near0
             ), sample_wherefail(
                 output[varname],
                 ref_data,
                 testobj.max_error,
                 print_failures,
                 failure_stride,
-                test_name,
+                test_name, near0
             )
             passing_names.append(failing_names.pop())
     assert failing_names == [], f"only the following variables passed: {passing_names}"
@@ -171,6 +175,7 @@ def test_mock_parallel_savepoint(
     ref_data = {}
     for varname in testobj.outputs.keys():
         ref_data[varname] = []
+        near0 = testobj.ignore_near_zero_errors.get(varname, False)
         with _subtest(failing_names, subtests, varname=varname):
             failing_ranks = []
             for rank, (savepoint_out, serializer, output) in enumerate(
@@ -179,14 +184,14 @@ def test_mock_parallel_savepoint(
                 with _subtest(failing_ranks, subtests, varname=varname, rank=rank):
                     ref_data[varname].append(serializer.read(varname, savepoint_out))
                     assert success(
-                        output[varname], ref_data[varname][-1], testobj.max_error
+                        output[varname], ref_data[varname][-1], testobj.max_error, near0
                     ), sample_wherefail(
                         output[varname],
                         ref_data[varname][-1],
                         testobj.max_error,
                         print_failures,
                         failure_stride,
-                        test_name,
+                        test_name, near0
                     )
             assert failing_ranks == []
     failing_names = [item["varname"] for item in failing_names]
@@ -230,17 +235,18 @@ def test_parallel_savepoint(
     out_vars.update(list(testobj._base.out_vars.keys()))
     for varname in out_vars:
         ref_data = serializer.read(varname, savepoint_out)
+        near0 = testobj.ignore_near_zero_errors.get(varname, False)
         with subtests.test(varname=varname):
             failing_names.append(varname)
             assert success(
-                output[varname], ref_data, testobj.max_error
+                output[varname], ref_data, testobj.max_error, near0
             ), sample_wherefail(
                 output[varname],
                 ref_data,
                 testobj.max_error,
                 print_failures,
                 failure_stride,
-                test_name,
+                test_name, near0
             )
             passing_names.append(failing_names.pop())
     assert failing_names == [], f"only the following variables passed: {passing_names}"
