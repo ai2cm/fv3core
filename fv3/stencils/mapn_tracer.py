@@ -96,7 +96,6 @@ def compute(pe1, pe2, dp2, qvapor, qliquid, qice, qrain, qsnow, qgraupel, qcld, 
     orig = (grid.is_, grid.js, 0)
     r3 = 1.0 / 3.0
     r23 = 2.0 / 3.0
-
     klevs = np.arange(km)
     if j_2d is None:
         pe1 = utils.make_storage_data(
@@ -119,7 +118,7 @@ def compute(pe1, pe2, dp2, qvapor, qliquid, qice, qrain, qsnow, qgraupel, qcld, 
     q4_4 = utils.make_storage_from_shape(q4_1.shape, origin=(grid.is_, 0, 0))
     q2_adds = utils.make_storage_from_shape(q4_1.shape, origin=origin)
 
-    tracers = ["qvapor", "qliquid", "qice", "qrain", "qsnow", "qgraupel", "qcld"]
+    tracers = ["qvapor", "qliquid", "qice", "qrain", "qsnow", "qgraupel"]#, "qcld"]
     tracer_qs = {"qvapor":qvapor, "qliquid":qliquid, "qice":qice, "qrain":qrain, "qsnow":qsnow, "qgraupel":qgraupel, "qcld":qcld}
     assert len(tracer_qs)==nq
 
@@ -188,8 +187,8 @@ def compute(pe1, pe2, dp2, qvapor, qliquid, qice, qrain, qsnow, qgraupel, qcld, 
             q4_1.data[:] = tracer_qs[q].data[:]
         q4_2.data[:] = np.zeros(q4_1.shape)
         q4_3.data[:] = np.zeros(q4_1.shape)
-        q4_4.data[:] = np.zeros(q4_1.shape)     
-        q4_1, q4_2, q4_3, q4_4 = remap_profile.compute_tracer(q4_1, q4_2, q4_3, q4_4, dp1, km, i1, i2, kord, q_min, 0, j_extent)
+        q4_4.data[:] = np.zeros(q4_1.shape)
+        q4_1, q4_2, q4_3, q4_4 = remap_profile.compute_tracer(q4_1, q4_2, q4_3, q4_4, dp1, km, i1, i2, kord, q_min, 0, j_extent,qvar=q)
         i_vals = np.arange(i1, i2 + 1)
         kn = grid.npz
         if j_2d is None:
@@ -228,7 +227,6 @@ def compute(pe1, pe2, dp2, qvapor, qliquid, qice, qrain, qsnow, qgraupel, qcld, 
                                     q4_2[ii, j, k1] + (q4_4[ii, j, k1] + q4_3[ii, j, k1] - q4_2[ii, j, k1])
                                     * fac1 - q4_4[ii, j, k1] * fac2
                                 )
-
                                 for mm in np.arange(k1 + 1, km):  # find the bottom edge
                                     if pe2[ii, j, k2 + 1] > pe1[ii, j, mm + 1]:  #Not there yet; add the whole layer
                                         qsum = qsum + dp1[ii, j, mm] * q4_1[ii, j, mm]
@@ -249,16 +247,14 @@ def compute(pe1, pe2, dp2, qvapor, qliquid, qice, qrain, qsnow, qgraupel, qcld, 
                                         elems[ii-i1,k2]=0
                                         break
                                 #Add everything up and divide by the pressure difference
-                              
                                 tracer_qs[q][ii, j + js, k2] = qsum / dp2[ii, j + js, k2]
+                                if grid.rank == 2 and q == "qcld" and ii == pi and (j+js) == pj and k2 == pk:
+                                    print('CONCLUSION that way conclusion', k2, k1,qsum,  dp2[ii, j + js, k2],  tracer_qs[q][ii, j + js, k2] )
                                 break
-
     #     if fill:
     #         tracer_qs[q] = fillz.compute(tracer_qs[q], dp2, i1, i2, km)
-    
     if fill:
         qvapor, qliquid, qice, qrain, qsnow, qgraupel, qcld = fillz.compute_test(dp2, qvapor, qliquid, qice, qrain, qsnow, qgraupel, qcld, i_extent, km, nq, js, j_extent)
-  
     return qvapor, qliquid, qice, qrain, qsnow, qgraupel, qcld
 
     # return [tracer_qs[tracer] for tracer in tracers]
