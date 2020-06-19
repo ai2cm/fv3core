@@ -294,7 +294,9 @@ def set_inner_as_kord9(
         tmp_min = a4_1
         tmp_max = a4_2
         tmp_max0 = a4_1
-
+        diff23 = 0.
+        abs_diff23 = 0.
+        abs_a4=0.
         if extm and extm[0, 0, -1]:
             a4_2 = a4_1
             a4_3 = a4_1
@@ -304,8 +306,11 @@ def set_inner_as_kord9(
             a4_3 = a4_1
             a4_4 = 0.0
         else:
+            diff23 = a4_2 - a4_3
+            abs_diff23 = diff23 if diff23 > 0 else -diff23 
             a4_4 = 6.0 * a4_1 - 3.0 * (a4_2 + a4_3)
-            if absolute_value(a4_4) > absolute_value(a4_2 - a4_3):
+            abs_a4 = a4_4 if a4_4 > 0 else -a4_4
+            if abs_a4 > abs_diff23:
                 tmp_min = (
                     a4_1
                     if (a4_1 < pmp_1) and (a4_1 < lac_1)
@@ -353,7 +358,7 @@ def set_inner_as_kord9_scalar(
     extm: sd,
     ext5: sd,
     ext6: sd,
-    qmin: sd,
+    qmin: float,
 ):
     with computation(PARALLEL), interval(...):
         pmp_1 = a4_1 - 2.0 * gam[0, 0, 1]
@@ -363,7 +368,9 @@ def set_inner_as_kord9_scalar(
         tmp_min = a4_1
         tmp_max = a4_2
         tmp_max0 = a4_1
-
+        diff_23 = 0.
+        abs_a44=0.
+        abs_diff23=0.
         if extm and extm[0, 0, -1]:
             a4_2 = a4_1
             a4_3 = a4_1
@@ -377,8 +384,11 @@ def set_inner_as_kord9_scalar(
             a4_3 = a4_1
             a4_4 = 0.0
         else:
+            diff_23 = a4_2 - a4_3
+            abs_diff23 = diff_23 if diff_23 > 0 else -diff_23
             a4_4 = 3.0 * (2.0 * a4_1 - (a4_2 + a4_3))
-            if absolute_value(a4_4) > absolute_value(a4_2 - a4_3):
+            abs_a44= a4_4 if a4_4 > 0 else -a4_4
+            if abs_a44 > abs_diff23:
                 tmp_min = (
                     a4_1
                     if (a4_1 < pmp_1) and (a4_1 < lac_1)
@@ -418,7 +428,7 @@ def set_inner_as_kord9_scalar(
 
 @utils.stencil()
 def set_inner_as_kord10(
-    a4_1: sd, a4_2: sd, a4_3: sd, a4_4: sd, gam: sd, extm: sd, ext5: sd, ext6: sd
+        a4_1: sd, a4_2: sd, a4_3: sd, a4_4: sd, gam: sd, extm: sd, ext5: sd, ext6: sd, pmp_2:sd, lac_2:sd, tmp_min3:sd, tmp_max3:sd,  tmp3:sd,
 ):
     with computation(PARALLEL), interval(...):
         pmp_1 = a4_1 - 2.0 * gam[0, 0, 1]
@@ -441,20 +451,24 @@ def set_inner_as_kord10(
         )
         tmp2 = a4_2 if a4_2 > tmp_min2 else tmp_min2
 
-        tmp_min3 = (
-            a4_1
-            if (a4_1 < pmp_2) and (a4_1 < lac_2)
-            else pmp_2
-            if pmp_2 < lac_2
-            else lac_2
-        )
-        tmp_max3 = (
-            a4_1
-            if (a4_1 > pmp_2) and (a4_1 > lac_2)
-            else pmp_2
-            if pmp_2 > lac_2
-            else lac_2
-        )
+        #tmp_min3 = (
+        #    a4_1
+        #    if (a4_1 < pmp_2) and (a4_1 < lac_2)
+        #    else pmp_2
+        #    if pmp_2 < lac_2
+        #    else lac_2
+        #)
+        #tmp_max3 = (
+        #    a4_1
+        #    if (a4_1 > pmp_2) and (a4_1 > lac_2)
+        #    else pmp_2
+        #    if pmp_2 > lac_2
+        #    else lac_2
+        #)
+        tmp_min3 = a4_1 if a4_1 < pmp_2 else pmp_2
+        tmp_min3 = lac_2 if lac_2 < tmp_min3 else tmp_min3
+        tmp_max3 = a4_1 if a4_1 > pmp_2 else pmp_2
+        tmp_max3 = lac_2 if lac_2 > tmp_max3 else tmp_max3
         tmp3 = a4_3 if a4_3 > tmp_min3 else tmp_min3
         if ext5:
             if ext5[0, 0, -1] or ext5[0, 0, 1]:
@@ -522,7 +536,11 @@ def compute(qs, a4_1, a4_2, a4_3, a4_4, delp, km, i1, i2, iv, kord, js, j_extent
     extm = utils.make_storage_from_shape(delp.shape, origin=full_orig)
     ext5 = utils.make_storage_from_shape(delp.shape, origin=full_orig)
     ext6 = utils.make_storage_from_shape(delp.shape, origin=full_orig)
-
+    pmp_2= utils.make_storage_from_shape(delp.shape, origin=full_orig)
+    lac_2 = utils.make_storage_from_shape(delp.shape, origin=full_orig)
+    tmp_min3 = utils.make_storage_from_shape(delp.shape, origin=full_orig)
+    tmp_max3 = utils.make_storage_from_shape(delp.shape, origin=full_orig)
+    tmp3 = utils.make_storage_from_shape(delp.shape, origin=full_orig)
     if iv == -2:
         set_vals_2(
             gam,
@@ -581,7 +599,7 @@ def compute(qs, a4_1, a4_2, a4_3, a4_4, delp, km, i1, i2, iv, kord, js, j_extent
         )
 
         if abs(kord) < 9:
-            print("WARNING: Only kord=10 has been tested.")
+            print("WARNING: Only kord=10 and 9 have been tested.")
             set_inner_as_kordsmall(
                 a4_1,
                 a4_2,
@@ -595,7 +613,6 @@ def compute(qs, a4_1, a4_2, a4_3, a4_4, delp, km, i1, i2, iv, kord, js, j_extent
                 domain=(i_extent, j_extent, km - 4),
             )
         elif abs(kord) == 9:
-            print("WARNING: Only kord=10 has been tested.")
             set_inner_as_kord9(
                 a4_1,
                 a4_2,
@@ -617,7 +634,7 @@ def compute(qs, a4_1, a4_2, a4_3, a4_4, delp, km, i1, i2, iv, kord, js, j_extent
                 gam,
                 extm,
                 ext5,
-                ext6,
+                ext6, pmp_2, lac_2, tmp_min3, tmp_max3,  tmp3,
                 origin=(i1, js, 2),
                 domain=(i_extent, j_extent, km - 4),
             )
@@ -687,7 +704,11 @@ def compute_scalar(
     extm = utils.make_storage_from_shape(delp.shape, origin=full_orig)
     ext5 = utils.make_storage_from_shape(delp.shape, origin=full_orig)
     ext6 = utils.make_storage_from_shape(delp.shape, origin=full_orig)
-
+    pmp_2= utils.make_storage_from_shape(delp.shape, origin=full_orig)
+    lac_2 = utils.make_storage_from_shape(delp.shape, origin=full_orig)
+    tmp_min3 = utils.make_storage_from_shape(delp.shape, origin=full_orig)
+    tmp_max3 = utils.make_storage_from_shape(delp.shape, origin=full_orig)
+    tmp3 = utils.make_storage_from_shape(delp.shape, origin=full_orig)
     if iv == -2:
         set_vals_2(
             gam,
@@ -742,7 +763,7 @@ def compute_scalar(
             a4_1, a4_2, a4_3, a4_4, extm, 2, i1, i_extent, 1, 1, js, j_extent
         )
         if abs(kord) < 9:
-            print("WARNING: Only kord=10 has been tested.")
+            print("WARNING: Only kord=10 and 9 have been tested.")
             set_inner_as_kordsmall(
                 a4_1,
                 a4_2,
@@ -756,7 +777,6 @@ def compute_scalar(
                 domain=(i_extent, j_extent, km - 4),
             )
         elif abs(kord) == 9:
-            print("WARNING: Only kord=10 has been tested.")
             set_inner_as_kord9_scalar(
                 a4_1,
                 a4_2,
@@ -779,7 +799,7 @@ def compute_scalar(
                 gam,
                 extm,
                 ext5,
-                ext6,
+                ext6,pmp_2, lac_2, tmp_min3, tmp_max3,  tmp3,
                 origin=(i1, js, 2),
                 domain=(i_extent, j_extent, km - 4),
             )
@@ -827,11 +847,10 @@ def compute_scalar(
 
     return a4_1, a4_2, a4_3, a4_4
 
-def compute_tracer(a4_1, a4_2, a4_3, a4_4, delp, km, i1, i2, kord, qmin, js, j_extent):
+def compute_tracer(a4_1, a4_2, a4_3, a4_4, delp, km, i1, i2, kord, qmin, js, j_extent,qvar=None):
 
     i_extent = i2 - i1 + 1
     iv=0
-
     grid = spec.grid
     orig = (i1, js, 0)
     full_orig = (grid.is_, js, 0)
@@ -843,9 +862,12 @@ def compute_tracer(a4_1, a4_2, a4_3, a4_4, delp, km, i1, i2, kord, qmin, js, j_e
     extm = utils.make_storage_from_shape(delp.shape, origin=full_orig)
     ext5 = utils.make_storage_from_shape(delp.shape, origin=full_orig)
     ext6 = utils.make_storage_from_shape(delp.shape, origin=full_orig)
-
+    pmp_2= utils.make_storage_from_shape(delp.shape, origin=full_orig)
+    lac_2 = utils.make_storage_from_shape(delp.shape, origin=full_orig)
+    tmp_min3 = utils.make_storage_from_shape(delp.shape, origin=full_orig)
+    tmp_max3 = utils.make_storage_from_shape(delp.shape, origin=full_orig)
+    tmp3 = utils.make_storage_from_shape(delp.shape, origin=full_orig)
     set_vals_1(gam, q, delp, a4_1, q_bot, origin=orig, domain=(i_extent, j_extent, km + 1))
-
     if abs(kord) > 16:
         set_avals(q, a4_1, a4_2, a4_3, a4_4, q_bot, origin=orig, domain=dom)
     else:
@@ -853,19 +875,18 @@ def compute_tracer(a4_1, a4_2, a4_3, a4_4, delp, km, i1, i2, kord, qmin, js, j_e
         set_extm(extm, a4_1, a4_2, a4_3, gam, origin=orig, domain=dom)
 
         if abs(kord) > 9:
+            x0 = 2.0 * a4_1[i,j,k] - (a4_2[i,j,k] + a4_3[i,j,k])
+            x1 = abs(a4_2[i,j,k] - a4_3[i,j,k])
             set_exts(a4_4, ext5, ext6, a4_1, a4_2, a4_3, origin=orig, domain=dom)
-
         set_top_as_iv0(a4_1, a4_2, a4_3, a4_4, origin=orig, domain=(i_extent, j_extent, 2))
         a4_1, a4_2, a4_3, a4_4 = limiters.compute(
             a4_1, a4_2, a4_3, a4_4, extm, 1, i1, i_extent, 0, 1, js, j_extent
         )
-
         a4_1, a4_2, a4_3, a4_4 = limiters.compute(
             a4_1, a4_2, a4_3, a4_4, extm, 2, i1, i_extent, 1, 1, js, j_extent
         )
-
         if abs(kord) < 9:
-            print("WARNING: Only kord=10 has been tested.")
+            print("WARNING: Only kord=10 and kord == 9 have been tested.")
             set_inner_as_kordsmall(
                 a4_1,
                 a4_2,
@@ -879,7 +900,6 @@ def compute_tracer(a4_1, a4_2, a4_3, a4_4, delp, km, i1, i2, kord, qmin, js, j_e
                 domain=(i_extent, j_extent, km - 4),
             )
         elif abs(kord) == 9:
-            print("WARNING: Only kord=10 has been tested.")
             set_inner_as_kord9_scalar(
                 a4_1,
                 a4_2,
@@ -902,7 +922,7 @@ def compute_tracer(a4_1, a4_2, a4_3, a4_4, delp, km, i1, i2, kord, qmin, js, j_e
                 gam,
                 extm,
                 ext5,
-                ext6,
+                ext6,pmp_2, lac_2, tmp_min3, tmp_max3,  tmp3,
                 origin=(i1, js, 2),
                 domain=(i_extent, j_extent, km - 4),
             )
@@ -912,7 +932,7 @@ def compute_tracer(a4_1, a4_2, a4_3, a4_4, delp, km, i1, i2, kord, qmin, js, j_e
         a4_1, a4_2, a4_3, a4_4 = limiters.compute(
             a4_1, a4_2, a4_3, a4_4, extm, 0, i1, i_extent, 2, km - 4, js, j_extent
         )
-
+        
         set_bottom_as_iv0(
             a4_1, a4_2, a4_3, a4_4, origin=(i1, 0, km - 2), domain=(i_extent, j_extent, 2)
         )
@@ -922,5 +942,4 @@ def compute_tracer(a4_1, a4_2, a4_3, a4_4, delp, km, i1, i2, kord, qmin, js, j_e
         a4_1, a4_2, a4_3, a4_4 = limiters.compute(
             a4_1, a4_2, a4_3, a4_4, extm, 1, i1, i_extent, km - 1, 1, js, j_extent
         )
-
     return a4_1, a4_2, a4_3, a4_4
