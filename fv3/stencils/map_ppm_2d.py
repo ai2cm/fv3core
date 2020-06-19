@@ -6,7 +6,10 @@ import math as math
 from gt4py.gtscript import computation, interval, PARALLEL
 import fv3.stencils.copy_stencil as cp
 import fv3.stencils.remap_profile as remap_profile
-from fv3.stencils.map_scalar import region_mode # TODO import more of this, very similar code
+from fv3.stencils.map_scalar import (
+    region_mode,
+)  # TODO import more of this, very similar code
+
 # import fv3.stencils.ppm_profile as ppm_profile
 import numpy as np
 
@@ -84,9 +87,10 @@ def lagrangian_contributions(
             q2_adds = 0
 
 
-
 # TODO: this is VERY similar to map_scalar -- once matches, consolidate code
-def compute(q1, pe1, pe2, qs, i1, i2, mode, kord, qmin=None, j_2d=None, j_interface=False):
+def compute(
+    q1, pe1, pe2, qs, i1, i2, mode, kord, qmin=None, j_2d=None, j_interface=False
+):
     grid = spec.grid
     iv = mode
     i_extent = i2 - i1 + 1
@@ -102,12 +106,12 @@ def compute(q1, pe1, pe2, qs, i1, i2, mode, kord, qmin=None, j_2d=None, j_interf
     q_2d = utils.make_storage_data(
         q1[:, jslice, :], (q1.shape[0], j_extent, q1.shape[2])
     )
-    
-    if j_2d is None: #TODO fix this, not needed for map_scalar, so why here
+
+    if j_2d is None:  # TODO fix this, not needed for map_scalar, so why here
         qs = utils.make_storage_data(qs.data[:, jslice, :], q_2d.shape)
         pe1 = utils.make_storage_data(
-        pe1[:, jslice, :], (pe1.shape[0], j_extent, pe1.shape[2])
-    )
+            pe1[:, jslice, :], (pe1.shape[0], j_extent, pe1.shape[2])
+        )
     dp1 = utils.make_storage_from_shape(q_2d.shape, origin=origin)
     q4_1 = cp.copy(q_2d, origin=(0, 0, 0))
     q4_2 = utils.make_storage_from_shape(q4_1.shape, origin=(grid.is_, 0, 0))
@@ -125,7 +129,7 @@ def compute(q1, pe1, pe2, qs, i1, i2, mode, kord, qmin=None, j_2d=None, j_interf
     ptop = utils.make_storage_from_shape(pe2.shape, origin=orig)
     pbot = utils.make_storage_from_shape(pe2.shape, origin=orig)
     q2_adds = utils.make_storage_from_shape(q4_1.shape, origin=orig)
-    
+
     for k_eul in klevs:
         eulerian_top_pressure = pe2.data[:, :, k_eul]
         eulerian_bottom_pressure = pe2.data[:, :, k_eul + 1]
@@ -154,8 +158,10 @@ def compute(q1, pe1, pe2, qs, i1, i2, mode, kord, qmin=None, j_2d=None, j_interf
             domain=domain,
         )
 
-        q1[i1 : i2 + 1, jslice, k_eul] = np.sum(q2_adds.data[i1 : i2 + 1, 0:j_extent, :], axis=2)
-   
+        q1[i1 : i2 + 1, jslice, k_eul] = np.sum(
+            q2_adds.data[i1 : i2 + 1, 0:j_extent, :], axis=2
+        )
+
     # #Pythonized
     # kn = grid.npz
     # i_vals = np.arange(i1, i2 + 1)

@@ -11,9 +11,14 @@ class TranslateMapScalar_2d(TranslateFortranData2Py):
         self.compute_func = Map_Single.compute
         self.in_vars["data_vars"] = {
             "q1": {"serialname": "pt"},
-            "pe1": {"serialname": "peln", "istart": grid.is_, "iend": grid.ie - 2, "kaxis": 1},
+            "pe1": {
+                "serialname": "peln",
+                "istart": grid.is_,
+                "iend": grid.ie - 2,
+                "kaxis": 1,
+            },
             "pe2": {"istart": grid.is_, "iend": grid.ie - 2, "serialname": "pn2"},
-            "qs": {"serialname": "gz1d", 'kstart': grid.is_, 'axis': 0},
+            "qs": {"serialname": "gz1d", "kstart": grid.is_, "axis": 0},
         }
         self.in_vars["parameters"] = ["j_2d", "mode"]
         self.out_vars = {

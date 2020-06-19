@@ -99,7 +99,9 @@ def region_mode(j_2d, i1, i_extent, grid):
     return origin, domain, jslice, j_extent
 
 
-def compute(q1, pe1, pe2, qs, mode, i1, i2, kord, qmin=None, j_2d=None, j_interface=False):
+def compute(
+    q1, pe1, pe2, qs, mode, i1, i2, kord, qmin=None, j_2d=None, j_interface=False
+):
     grid = spec.grid
     iv = mode
     i_extent = i2 - i1 + 1
@@ -120,11 +122,13 @@ def compute(q1, pe1, pe2, qs, mode, i1, i2, kord, qmin=None, j_2d=None, j_interf
     # )
     # qs = utils.make_storage_data(qs.data[:, jslice, :], q_2d.shape)
 
-    if (j_2d is None) or (j_2d is not None and pe1.shape[1]>1): #TODO fix this, not needed for map_scalar, so why here
+    if (j_2d is None) or (
+        j_2d is not None and pe1.shape[1] > 1
+    ):  # TODO fix this, not needed for map_scalar, so why here
         qs = utils.make_storage_data(qs.data[:, jslice, :], q_2d.shape)
         pe1 = utils.make_storage_data(
-        pe1[:, jslice, :], (pe1.shape[0], j_extent, pe1.shape[2])
-    )
+            pe1[:, jslice, :], (pe1.shape[0], j_extent, pe1.shape[2])
+        )
     dp1 = utils.make_storage_from_shape(q_2d.shape, origin=origin)
     q4_1 = cp.copy(q_2d, origin=(0, 0, 0))
     q4_2 = utils.make_storage_from_shape(q4_1.shape, origin=(grid.is_, 0, 0))
@@ -171,7 +175,9 @@ def compute(q1, pe1, pe2, qs, mode, i1, i2, kord, qmin=None, j_2d=None, j_interf
             domain=domain,
         )
 
-        q1[i1 : i2 + 1, jslice, k_eul] = np.sum(q2_adds.data[i1 : i2 + 1, 0:j_extent, :], axis=2)
+        q1[i1 : i2 + 1, jslice, k_eul] = np.sum(
+            q2_adds.data[i1 : i2 + 1, 0:j_extent, :], axis=2
+        )
 
     # #Pythonized
     # kn = grid.npz

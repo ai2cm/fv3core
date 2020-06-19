@@ -8,24 +8,40 @@ class TranslateFillz(TranslateFortranData2Py):
         super().__init__(grid)
         self.compute_func = Fillz.compute_test
         self.in_vars["data_vars"] = {
-            "dp2": {"istart": grid.is_, "iend":grid.ie},
-            "qvapor": {"serialname": "q2vapor_js", "istart": grid.is_, "iend":grid.ie},
-            "qliquid": {"serialname": "q2liquid_js", "istart": grid.is_, "iend":grid.ie},
-            "qice": {"serialname": "q2ice_js", "istart": grid.is_, "iend":grid.ie},
-            "qrain": {"serialname": "q2rain_js", "istart": grid.is_, "iend":grid.ie},
-            "qsnow": {"serialname": "q2snow_js", "istart": grid.is_, "iend":grid.ie},
-            "qgraupel": {"serialname": "q2graupel_js", "istart": grid.is_, "iend":grid.ie},
-            "qcld": {"serialname": "q2cld_js", "istart": grid.is_, "iend":grid.ie}
+            "dp2": {"istart": grid.is_, "iend": grid.ie},
+            "qvapor": {"serialname": "q2vapor_js", "istart": grid.is_, "iend": grid.ie},
+            "qliquid": {
+                "serialname": "q2liquid_js",
+                "istart": grid.is_,
+                "iend": grid.ie,
+            },
+            "qice": {"serialname": "q2ice_js", "istart": grid.is_, "iend": grid.ie},
+            "qrain": {"serialname": "q2rain_js", "istart": grid.is_, "iend": grid.ie},
+            "qsnow": {"serialname": "q2snow_js", "istart": grid.is_, "iend": grid.ie},
+            "qgraupel": {
+                "serialname": "q2graupel_js",
+                "istart": grid.is_,
+                "iend": grid.ie,
+            },
+            "qcld": {"serialname": "q2cld_js", "istart": grid.is_, "iend": grid.ie},
         }
         self.in_vars["parameters"] = ["im", "km", "nq"]
         self.out_vars = {
-            "qvapor": {"serialname": "q2vapor_js", "istart": grid.is_, "iend":grid.ie},
-            "qliquid": {"serialname": "q2liquid_js", "istart": grid.is_, "iend":grid.ie},
-            "qice": {"serialname": "q2ice_js", "istart": grid.is_, "iend":grid.ie},
-            "qrain": {"serialname": "q2rain_js", "istart": grid.is_, "iend":grid.ie},
-            "qsnow": {"serialname": "q2snow_js", "istart": grid.is_, "iend":grid.ie},
-            "qgraupel": {"serialname": "q2graupel_js", "istart": grid.is_, "iend":grid.ie},
-            "qcld": {"serialname": "q2cld_js", "istart": grid.is_, "iend":grid.ie}
+            "qvapor": {"serialname": "q2vapor_js", "istart": grid.is_, "iend": grid.ie},
+            "qliquid": {
+                "serialname": "q2liquid_js",
+                "istart": grid.is_,
+                "iend": grid.ie,
+            },
+            "qice": {"serialname": "q2ice_js", "istart": grid.is_, "iend": grid.ie},
+            "qrain": {"serialname": "q2rain_js", "istart": grid.is_, "iend": grid.ie},
+            "qsnow": {"serialname": "q2snow_js", "istart": grid.is_, "iend": grid.ie},
+            "qgraupel": {
+                "serialname": "q2graupel_js",
+                "istart": grid.is_,
+                "iend": grid.ie,
+            },
+            "qcld": {"serialname": "q2cld_js", "istart": grid.is_, "iend": grid.ie},
         }
 
     def make_storage_data_input_vars(self, inputs, storage_vars=None):
@@ -67,5 +83,18 @@ class TranslateFillz(TranslateFortranData2Py):
         self.make_storage_data_input_vars(inputs)
         inputs["js"] = 0
         inputs["j_extent"] = 1
-        qvapor, qliquid, qice, qrain, qsnow, qgraupel, qcld = self.compute_func(**inputs)
-        return self.slice_output(inputs, {"qvapor_js": qvapor, "qliquid_js":qliquid, "qice_js":qice, "qrain_js":qrain, "qsnow_js":qsnow, "qgraupel_js":qgraupel, "qcld_js":qcld})
+        qvapor, qliquid, qice, qrain, qsnow, qgraupel, qcld = self.compute_func(
+            **inputs
+        )
+        return self.slice_output(
+            inputs,
+            {
+                "qvapor_js": qvapor,
+                "qliquid_js": qliquid,
+                "qice_js": qice,
+                "qrain_js": qrain,
+                "qsnow_js": qsnow,
+                "qgraupel_js": qgraupel,
+                "qcld_js": qcld,
+            },
+        )

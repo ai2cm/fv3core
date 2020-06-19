@@ -113,4 +113,4 @@ class TranslateRemapping(TranslateFortranData2Py):
             "dp1",
         ]:
             self.out_vars[k] = self.in_vars["data_vars"][k]
-        self.out_vars["ps"] = {'kstart': grid.npz, "kend": grid.npz}
+        self.out_vars["ps"] = {"kstart": grid.npz, "kend": grid.npz}

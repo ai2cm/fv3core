@@ -58,8 +58,8 @@ from .translate_map_scalar_2d import TranslateMapScalar_2d
 from .translate_map1_ppm_2d import (
     TranslateMap1_PPM_2d,
     TranslateMap1_PPM_2d_2,
-    TranslateMap1_PPM_2d_3
-    )
+    TranslateMap1_PPM_2d_3,
+)
 from .translate_remapping import TranslateRemapping
 from .translate_remapping_part1 import TranslateRemapping_Part1
 from .translate_remapping_part2 import TranslateRemapping_Part2

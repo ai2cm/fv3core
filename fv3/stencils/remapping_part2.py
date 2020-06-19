@@ -100,10 +100,8 @@ def compute(
     phis = utils.make_storage_from_shape(pt.shape, grid.compute_origin())
     dpln = utils.make_storage_from_shape(pt.shape, grid.compute_origin())
     if spec.namelist["do_sat_adj"]:
-        fast_mp_consv = (
-            not do_adiabatic_init and consv > constants.CONSV_MIN
-        )
-        #TODO pfull is a 1d var, does not need to be a storage
+        fast_mp_consv = not do_adiabatic_init and consv > constants.CONSV_MIN
+        # TODO pfull is a 1d var, does not need to be a storage
         kmp = np.where(pfull[0, 0, :] > 10.0e2)[0]
         kmp = kmp[0] if len(kmp) > 0 else grid.npz - 1
     if last_step and not do_adiabatic_init:

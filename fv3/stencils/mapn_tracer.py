@@ -23,7 +23,6 @@ def set_dp(dp: sd, pe1: sd):
         dp = pe1[0, 0, 1] - pe1
 
 
-
 @utils.stencil()
 def lagrangian_tracer_contributions(
     pe1: sd,
@@ -54,16 +53,20 @@ def lagrangian_tracer_contributions(
                     # eulerian grid element is contained in the Lagrangian element
                     pr = (pbot - pe1) / dp1
                     fac1 = pr + pl
-                    fac2 = r3 * (pr*fac1 + pl*pl)
-                    fac1 = 0.5*fac1
-                    q2_adds = q4_2 + (q4_4 + q4_3 - q4_2)*fac1 - q4_4*fac2
+                    fac2 = r3 * (pr * fac1 + pl * pl)
+                    fac1 = 0.5 * fac1
+                    q2_adds = q4_2 + (q4_4 + q4_3 - q4_2) * fac1 - q4_4 * fac2
                 else:
                     # Eulerian element encompasses multiple Lagrangian elements and this is just the first one
-                    dp = pe1[0,0,1] - ptop
-                    fac1 = 1.+pl
-                    fac2 = r3*(1.+pl*fac1)
-                    fac1 = 0.5*fac1
-                    q2_adds = dp * (q4_2 + (q4_4 + q4_3 - q4_2)*fac1 - q4_4*fac2) / (pbot - ptop)
+                    dp = pe1[0, 0, 1] - ptop
+                    fac1 = 1.0 + pl
+                    fac2 = r3 * (1.0 + pl * fac1)
+                    fac1 = 0.5 * fac1
+                    q2_adds = (
+                        dp
+                        * (q4_2 + (q4_4 + q4_3 - q4_2) * fac1 - q4_4 * fac2)
+                        / (pbot - ptop)
+                    )
             else:
                 # we are in a farther-down level
                 if pbot > pe1[0, 0, 1]:
@@ -73,18 +76,33 @@ def lagrangian_tracer_contributions(
                     # this is the bottom layer that contributes
                     dp = pbot - pe1
                     esl = dp / dp1
-                    fac1 = 0.5*esl
-                    fac2 = 1.-r23*esl
+                    fac1 = 0.5 * esl
+                    fac2 = 1.0 - r23 * esl
                     q2_adds = (
-                        dp
-                        * (q4_2 + fac1*(q4_3-q4_2+q4_4*fac2))
-                        / (pbot - ptop)
+                        dp * (q4_2 + fac1 * (q4_3 - q4_2 + q4_4 * fac2)) / (pbot - ptop)
                     )
         else:
             q2_adds = 0
 
 
-def compute(pe1, pe2, dp2, qvapor, qliquid, qice, qrain, qsnow, qgraupel, qcld, nq, q_min, i1, i2, kord, j_2d=None):
+def compute(
+    pe1,
+    pe2,
+    dp2,
+    qvapor,
+    qliquid,
+    qice,
+    qrain,
+    qsnow,
+    qgraupel,
+    qcld,
+    nq,
+    q_min,
+    i1,
+    i2,
+    kord,
+    j_2d=None,
+):
     grid = spec.grid
     fill = spec.namelist["fill"]
     i_extent = i2 - i1 + 1
@@ -119,8 +137,16 @@ def compute(pe1, pe2, dp2, qvapor, qliquid, qice, qrain, qsnow, qgraupel, qcld, 
     qs = utils.make_storage_from_shape(q4_1.shape, origin=(grid.is_, 0, 0))
 
     tracers = ["qvapor", "qliquid", "qice", "qrain", "qsnow", "qgraupel", "qcld"]
-    tracer_qs = {"qvapor":qvapor, "qliquid":qliquid, "qice":qice, "qrain":qrain, "qsnow":qsnow, "qgraupel":qgraupel, "qcld":qcld}
-    assert len(tracer_qs)==nq
+    tracer_qs = {
+        "qvapor": qvapor,
+        "qliquid": qliquid,
+        "qice": qice,
+        "qrain": qrain,
+        "qsnow": qsnow,
+        "qgraupel": qgraupel,
+        "qcld": qcld,
+    }
+    assert len(tracer_qs) == nq
 
     # for q in tracers:
     #     print(q)
@@ -175,10 +201,9 @@ def compute(pe1, pe2, dp2, qvapor, qliquid, qice, qrain, qsnow, qgraupel, qcld, 
     #     qvapor, qliquid, qice, qrain, qsnow, qgraupel, qcld = fillz.compute_test(dp2, qvapor, qliquid, qice, qrain, qsnow, qgraupel, qcld, i_extent, km, nq)
 
     # return qvapor, qliquid, qice, qrain, qsnow, qgraupel, qcld
-    
-   
+
     # transliterated fortran
-    trc= 0
+    trc = 0
     for q in tracers:
         trc += 1
         if j_2d is None:
@@ -187,8 +212,10 @@ def compute(pe1, pe2, dp2, qvapor, qliquid, qice, qrain, qsnow, qgraupel, qcld, 
             q4_1.data[:] = tracer_qs[q].data[:]
         q4_2.data[:] = np.zeros(q4_1.shape)
         q4_3.data[:] = np.zeros(q4_1.shape)
-        q4_4.data[:] = np.zeros(q4_1.shape)     
-        q4_1, q4_2, q4_3, q4_4 = remap_profile.compute(qs, q4_1, q4_2, q4_3, q4_4, dp1, km, i1, i2, 0, kord, 0, j_extent, q_min)
+        q4_4.data[:] = np.zeros(q4_1.shape)
+        q4_1, q4_2, q4_3, q4_4 = remap_profile.compute(
+            qs, q4_1, q4_2, q4_3, q4_4, dp1, km, i1, i2, 0, kord, 0, j_extent, q_min
+        )
         i_vals = np.arange(i1, i2 + 1)
         kn = grid.npz
         if j_2d is None:
@@ -196,68 +223,104 @@ def compute(pe1, pe2, dp2, qvapor, qliquid, qice, qrain, qsnow, qgraupel, qcld, 
         else:
             js = 0
         for j in range(j_extent):
-            elems = np.ones((i_extent,kn))
+            elems = np.ones((i_extent, kn))
             for ii in i_vals:
                 k0 = 0
                 for k2 in np.arange(kn):  # loop over new, remapped ks]
                     for k1 in np.arange(k0, km):  # loop over old ks
                         # find the top edge of new grid: pe2[ii, k2]
-                        if pe2[ii, j, k2] >= pe1[ii, j, k1] and pe2[ii, j, k2] <= pe1[ii, j, k1 + 1]:
+                        if (
+                            pe2[ii, j, k2] >= pe1[ii, j, k1]
+                            and pe2[ii, j, k2] <= pe1[ii, j, k1 + 1]
+                        ):
                             pl = (pe2[ii, j, k2] - pe1[ii, j, k1]) / dp1[ii, j, k1]
                             if (
                                 pe2[ii, j, k2 + 1] <= pe1[ii, j, k1 + 1]
                             ):  # then the new grid layer is entirely within the old one
-                                pr = (pe2[ii, j, k2 + 1] - pe1[ii, j, k1]) / dp1[ii, j, k1]
-                                fac1 = pr+pl
-                                fac2 = r3*(pr*fac1 + pl*pl)
-                                fac1 = 0.5*fac1
+                                pr = (pe2[ii, j, k2 + 1] - pe1[ii, j, k1]) / dp1[
+                                    ii, j, k1
+                                ]
+                                fac1 = pr + pl
+                                fac2 = r3 * (pr * fac1 + pl * pl)
+                                fac1 = 0.5 * fac1
                                 tracer_qs[q][ii, j + js, k2] = (
-                                    q4_2[ii, j, k1] + (q4_4[ii, j, k1] + q4_3[ii, j, k1] - q4_2[ii, j, k1]) * fac1
+                                    q4_2[ii, j, k1]
+                                    + (
+                                        q4_4[ii, j, k1]
+                                        + q4_3[ii, j, k1]
+                                        - q4_2[ii, j, k1]
+                                    )
+                                    * fac1
                                     - q4_4[ii, j, k1] * fac2
                                 )
                                 k0 = k1
-                                elems[ii-i1,k2]=0
+                                elems[ii - i1, k2] = 0
                                 break
                             else:  # new grid layer extends into more old grid layers
-                                dp = pe1[ii, j, k1+1] - pe2[ii, j, k2]
-                                fac1 = 1.+pl
-                                fac2 = r3*(1.+pl*fac1)
-                                fac1 = 0.5*fac1
+                                dp = pe1[ii, j, k1 + 1] - pe2[ii, j, k2]
+                                fac1 = 1.0 + pl
+                                fac2 = r3 * (1.0 + pl * fac1)
+                                fac1 = 0.5 * fac1
                                 qsum = dp * (
-                                    q4_2[ii, j, k1] + (q4_4[ii, j, k1] + q4_3[ii, j, k1] - q4_2[ii, j, k1])
-                                    * fac1 - q4_4[ii, j, k1] * fac2
+                                    q4_2[ii, j, k1]
+                                    + (
+                                        q4_4[ii, j, k1]
+                                        + q4_3[ii, j, k1]
+                                        - q4_2[ii, j, k1]
+                                    )
+                                    * fac1
+                                    - q4_4[ii, j, k1] * fac2
                                 )
 
                                 for mm in np.arange(k1 + 1, km):  # find the bottom edge
-                                    if pe2[ii, j, k2 + 1] > pe1[ii, j, mm + 1]:  #Not there yet; add the whole layer
+                                    if (
+                                        pe2[ii, j, k2 + 1] > pe1[ii, j, mm + 1]
+                                    ):  # Not there yet; add the whole layer
                                         qsum = qsum + dp1[ii, j, mm] * q4_1[ii, j, mm]
                                     else:
                                         dp = pe2[ii, j, k2 + 1] - pe1[ii, j, mm]
                                         esl = dp / dp1[ii, j, mm]
-                                        fac1 = 0.5*esl
-                                        fac2 = 1.-r23*esl
+                                        fac1 = 0.5 * esl
+                                        fac2 = 1.0 - r23 * esl
                                         qsum = qsum + dp * (
                                             q4_2[ii, j, mm]
-                                            + fac1 * (
+                                            + fac1
+                                            * (
                                                 q4_3[ii, j, mm]
                                                 - q4_2[ii, j, mm]
                                                 + q4_4[ii, j, mm] * fac2
                                             )
                                         )
                                         k0 = mm
-                                        elems[ii-i1,k2]=0
+                                        elems[ii - i1, k2] = 0
                                         break
-                                #Add everything up and divide by the pressure difference
-                              
-                                tracer_qs[q][ii, j + js, k2] = qsum / dp2[ii, j + js, k2]
+                                # Add everything up and divide by the pressure difference
+
+                                tracer_qs[q][ii, j + js, k2] = (
+                                    qsum / dp2[ii, j + js, k2]
+                                )
                                 break
 
     #     if fill:
     #         tracer_qs[q] = fillz.compute(tracer_qs[q], dp2, i1, i2, km)
-    
+
     if fill:
-        qvapor, qliquid, qice, qrain, qsnow, qgraupel, qcld = fillz.compute_test(dp2, qvapor, qliquid, qice, qrain, qsnow, qgraupel, qcld, i_extent, km, nq, js, j_extent)
-  
+        qvapor, qliquid, qice, qrain, qsnow, qgraupel, qcld = fillz.compute_test(
+            dp2,
+            qvapor,
+            qliquid,
+            qice,
+            qrain,
+            qsnow,
+            qgraupel,
+            qcld,
+            i_extent,
+            km,
+            nq,
+            js,
+            j_extent,
+        )
+
     return qvapor, qliquid, qice, qrain, qsnow, qgraupel, qcld
 
     # return [tracer_qs[tracer] for tracer in tracers]

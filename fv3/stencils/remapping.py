@@ -57,7 +57,6 @@ def compute(
 ):
     grid = spec.grid
 
-    
     gz = utils.make_storage_from_shape(pt.shape, grid.compute_origin())
     cvm = utils.make_storage_from_shape(pt.shape, grid.compute_origin())
     te = utils.make_storage_from_shape(pt.shape, grid.default_origin())
