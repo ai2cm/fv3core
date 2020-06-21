@@ -10,7 +10,8 @@ import fv3.stencils.remap_profile as remap_profile
 import numpy as np
 
 sd = utils.sd
-
+r3 = 1.0 / 3.0
+r23 = 2.0 / 3.0
 
 def grid():
     return spec.grid
@@ -102,17 +103,23 @@ def region_mode(j_2d, i1, i_extent, grid):
 def compute(
         q1, pe1, pe2, qs, mode, i1, i2, kord, qmin=0.0, j_2d=None, j_interface=False
 ):
-    grid = spec.grid
     iv = mode
+    qs, pe1, pe2, dp1, q4_1, q4_2, q4_3, q4_4, origin, domain, jslice, j_extent, i_extent = setup_data(q1, pe1, pe2, qs, i1, i2, j_2d, j_interface)
+    q4_1, q4_2, q4_3, q4_4 = remap_profile.compute(
+        qs, q4_1, q4_2, q4_3, q4_4, dp1, spec.grid.npz, i1, i2, iv, kord, 0, j_extent, qmin
+    )
+    lagrangian_contributions_transliterated(q1, pe1, pe2, q4_1, q4_2, q4_3, q4_4, dp1, i1, i2, kord, j_extent, j_2d)
+    return q1
+
+def setup_data(q1, pe1, pe2, qs, i1, i2, j_2d=None, j_interface=False):
+    grid = spec.grid   
     i_extent = i2 - i1 + 1
     origin, domain, jslice, j_extent = region_mode(j_2d, i1, i_extent, grid)
-    km = grid.npz
     if j_interface:
         j_extent += 1
         jslice = slice(jslice.start, jslice.stop + 1)
         domain = (domain[0], j_extent, domain[2])
-    r3 = 1.0 / 3.0
-    r23 = 2.0 / 3.0
+    
     q_2d = utils.make_storage_data(
         q1[:, jslice, :], (q1.shape[0], j_extent, q1.shape[2])
     )
@@ -134,29 +141,29 @@ def compute(
     q4_3 = utils.make_storage_from_shape(q4_1.shape, origin=(grid.is_, 0, 0))
     q4_4 = utils.make_storage_from_shape(q4_1.shape, origin=(grid.is_, 0, 0))
     set_dp(dp1, pe1, origin=origin, domain=domain)
-
-    q4_1, q4_2, q4_3, q4_4 = remap_profile.compute(
-        qs, q4_1, q4_2, q4_3, q4_4, dp1, km, i1, i2, iv, kord, 0, j_extent, qmin
-    )
-
-    '''
-    # Trying a stencil with a loop over k2:
+    return qs, pe1, pe2, dp1, q4_1, q4_2, q4_3, q4_4, origin, domain, jslice, j_extent, i_extent
+  
+   
+def lagrangian_contributions_stencil(q1, pe1, pe2, q4_1, q4_2, q4_3, q4_4, dp1, i1, i2, kord, origin, domain, jslice, j_extent, j_2d):
+    # A stencil with a loop over k2:
+    km = spec.grid.npz
     klevs = np.arange(km)
+    orig = spec.grid.default_origin()
     ptop = utils.make_storage_from_shape(pe2.shape, origin=orig)
     pbot = utils.make_storage_from_shape(pe2.shape, origin=orig)
     q2_adds = utils.make_storage_from_shape(q4_1.shape, origin=orig)
-
+    
     for k_eul in klevs:
         eulerian_top_pressure = pe2.data[:, :, k_eul]
         eulerian_bottom_pressure = pe2.data[:, :, k_eul + 1]
         top_p = np.repeat(eulerian_top_pressure[:, :, np.newaxis], km, axis=2)
         bot_p = np.repeat(eulerian_bottom_pressure[:, :, np.newaxis], km, axis=2)
         if j_2d is None:
-            ptop = utils.make_storage_data(top_p[:, jslice, :], q_2d.shape)
-            pbot = utils.make_storage_data(bot_p[:, jslice, :], q_2d.shape)
+            ptop = utils.make_storage_data(top_p[:, jslice, :], q4_1.shape)
+            pbot = utils.make_storage_data(bot_p[:, jslice, :], q4_1.shape)
         else:
-            ptop = utils.make_storage_data(top_p, q_2d.shape)
-            pbot = utils.make_storage_data(bot_p, q_2d.shape)
+            ptop = utils.make_storage_data(top_p, q4_1.shape)
+            pbot = utils.make_storage_data(bot_p, q4_1.shape)
 
         lagrangian_contributions(
             pe1,
@@ -177,6 +184,79 @@ def compute(
         q1[i1 : i2 + 1, jslice, k_eul] = np.sum(
             q2_adds.data[i1 : i2 + 1, 0:j_extent, :], axis=2
         )
+def dimensional_js(j_2d):
+    if j_2d is None:
+        js = grid.js
+    else:
+        js = j_2d
+    return js
+def lagrangian_contributions_transliterated(q1, pe1, pe2, q4_1, q4_2, q4_3, q4_4, dp1, i1, i2, kord, j_extent, j_2d=None):
+    print(q1.shape, q4_1.shape)
+    grid = spec.grid
+    i_vals = np.arange(i1, i2 + 1)
+    kn = grid.npz
+    km = grid.npz
+    js = dimensional_js(j_2d)
+    for j in range(j_extent):
+        for ii in i_vals:
+            k0 = 0
+            for k2 in np.arange(kn):  # loop over new, remapped ks]
+                for k1 in np.arange(k0, km):  # loop over old ks
+                    # find the top edge of new grid: pe2[ii, k2]
+                    if (
+                        pe2[ii, j, k2] >= pe1[ii, j, k1]
+                        and pe2[ii, j, k2] <= pe1[ii, j, k1 + 1]
+                    ):
+                        pl = (pe2[ii, j, k2] - pe1[ii, j, k1]) / dp1[ii, j, k1]
+                        if (
+                            pe2[ii, j, k2 + 1] <= pe1[ii, j, k1 + 1]
+                        ):  # then the new grid layer is entirely within the old one
+                            pr = (pe2[ii, j, k2 + 1] - pe1[ii, j, k1]) / dp1[ii, j, k1]
+                            q1[ii, j + js, k2] = (
+                                q4_2[ii, j, k1]
+                                + 0.5
+                                * (q4_4[ii, j, k1] + q4_3[ii, j, k1] - q4_2[ii, j, k1])
+                                * (pr + pl)
+                                - q4_4[ii, j, k1] * r3 * (pr * (pr + pl) + pl ** 2)
+                            )
+                            k0 = k1
+                            break
+                        else:  # new grid layer extends into more old grid layers
+                            qsum = (pe1[ii, j, k1 + 1] - pe2[ii, j, k2]) * (
+                                q4_2[ii, j, k1]
+                                + 0.5
+                                * (q4_4[ii, j, k1] + q4_3[ii, j, k1] - q4_2[ii, j, k1])
+                                * (1.0 + pl)
+                                - q4_4[ii, j, k1] * (r3 * (1.0 + pl * (1.0 + pl)))
+                            )
+
+                            for mm in np.arange(k1 + 1, km):  # find the bottom edge
+                                if (
+                                    pe2[ii, j, k2 + 1] > pe1[ii, j, mm + 1]
+                                ):  # Not there yet; add the whole layer
+                                    qsum = qsum + dp1[ii, j, mm] * q4_1[ii, j, mm]
+                                else:
+                                    dp = pe2[ii, j, k2 + 1] - pe1[ii, j, mm]
+                                    esl = dp / dp1[ii, j, mm]
+                                    qsum = qsum + dp * (
+                                        q4_2[ii, j, mm]
+                                        + 0.5
+                                        * esl
+                                        * (
+                                            q4_3[ii, j, mm]
+                                            - q4_2[ii, j, mm]
+                                            + q4_4[ii, j, mm] * (1.0 - r23 * esl)
+                                        )
+                                    )
+                                    k0 = mm
+                                    flag = 1
+                                    break
+                            # Add everything up and divide by the pressure difference
+                            q1[ii, j + js, k2] = qsum / (
+                                pe2[ii, j, k2 + 1] - pe2[ii, j, k2]
+                            )
+                            break
+
     '''
     # #Pythonized
     # kn = grid.npz
@@ -282,75 +362,4 @@ def compute(
     #                     #Add everything up and divide by the pressure difference
     #                     q2[ii, j_2d, k2] = qsum / (pe2[ii, 0, k2 + 1] - pe2[ii, 0, k2])
     #                     break
-    
-    # transliterated fortran for 3d or 2d 
-    i_vals = np.arange(i1, i2 + 1)
-    kn = grid.npz
-    if j_2d is None:
-        js = grid.js
-    else:
-        js = j_2d
-    for j in range(j_extent):
-        elems = np.ones((i_extent, kn))
-        for ii in i_vals:
-            k0 = 0
-            for k2 in np.arange(kn):  # loop over new, remapped ks]
-                for k1 in np.arange(k0, km):  # loop over old ks
-                    # find the top edge of new grid: pe2[ii, k2]
-                    if (
-                        pe2[ii, j, k2] >= pe1[ii, j, k1]
-                        and pe2[ii, j, k2] <= pe1[ii, j, k1 + 1]
-                    ):
-                        pl = (pe2[ii, j, k2] - pe1[ii, j, k1]) / dp1[ii, j, k1]
-                        if (
-                            pe2[ii, j, k2 + 1] <= pe1[ii, j, k1 + 1]
-                        ):  # then the new grid layer is entirely within the old one
-                            pr = (pe2[ii, j, k2 + 1] - pe1[ii, j, k1]) / dp1[ii, j, k1]
-                            q1[ii, j + js, k2] = (
-                                q4_2[ii, j, k1]
-                                + 0.5
-                                * (q4_4[ii, j, k1] + q4_3[ii, j, k1] - q4_2[ii, j, k1])
-                                * (pr + pl)
-                                - q4_4[ii, j, k1] * r3 * (pr * (pr + pl) + pl ** 2)
-                            )
-                            k0 = k1
-                            elems[ii - i1, k2] = 0
-                            break
-                        else:  # new grid layer extends into more old grid layers
-                            qsum = (pe1[ii, j, k1 + 1] - pe2[ii, j, k2]) * (
-                                q4_2[ii, j, k1]
-                                + 0.5
-                                * (q4_4[ii, j, k1] + q4_3[ii, j, k1] - q4_2[ii, j, k1])
-                                * (1.0 + pl)
-                                - q4_4[ii, j, k1] * (r3 * (1.0 + pl * (1.0 + pl)))
-                            )
-
-                            for mm in np.arange(k1 + 1, km):  # find the bottom edge
-                                if (
-                                    pe2[ii, j, k2 + 1] > pe1[ii, j, mm + 1]
-                                ):  # Not there yet; add the whole layer
-                                    qsum = qsum + dp1[ii, j, mm] * q4_1[ii, j, mm]
-                                else:
-                                    dp = pe2[ii, j, k2 + 1] - pe1[ii, j, mm]
-                                    esl = dp / dp1[ii, j, mm]
-                                    qsum = qsum + dp * (
-                                        q4_2[ii, j, mm]
-                                        + 0.5
-                                        * esl
-                                        * (
-                                            q4_3[ii, j, mm]
-                                            - q4_2[ii, j, mm]
-                                            + q4_4[ii, j, mm] * (1.0 - r23 * esl)
-                                        )
-                                    )
-                                    k0 = mm
-                                    flag = 1
-                                    elems[ii - i1, k2] = 0
-                                    break
-                            # Add everything up and divide by the pressure difference
-                            q1[ii, j + js, k2] = qsum / (
-                                pe2[ii, j, k2 + 1] - pe2[ii, j, k2]
-                            )
-                            break
-    
-    return q1
+    '''
