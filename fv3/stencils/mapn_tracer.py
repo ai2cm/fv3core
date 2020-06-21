@@ -98,13 +98,13 @@ def compute(
     qcld,
     nq,
     q_min,
+    i1,
+    i2,
+    kord,
     j_2d=None,
 ):
     grid = spec.grid
-    kord = abs(spec.namelist["kord_tr"])
     fill = spec.namelist["fill"]
-    i1 = grid.is_
-    i2 = grid.ie
     i_extent = i2 - i1 + 1
     km = grid.npz
     origin, domain, jslice, j_extent = region_mode(j_2d, i1, i_extent, grid)
@@ -133,7 +133,9 @@ def compute(
     q4_4 = utils.make_storage_from_shape(q4_1.shape, origin=(grid.is_, 0, 0))
     q2_adds = utils.make_storage_from_shape(q4_1.shape, origin=origin)
 
-    tracers = ["qvapor", "qliquid", "qice", "qrain", "qsnow", "qgraupel"]  # , "qcld"]
+    qs = utils.make_storage_from_shape(q4_1.shape, origin=(grid.is_, 0, 0))
+
+    tracers = ["qvapor", "qliquid", "qice", "qrain", "qsnow", "qgraupel", "qcld"]
     tracer_qs = {
         "qvapor": qvapor,
         "qliquid": qliquid,
@@ -155,7 +157,7 @@ def compute(
     #     q4_4.data[:] = np.zeros(q4_1.shape)
     #     q2_adds.data[:] = np.zeros(q4_1.shape)
 
-    #     q4_1, q4_2, q4_3, q4_4 = remap_profile.compute_tracer(q4_1, q4_2, q4_3, q4_4, dp1, km, i1, i2, kord, q_min)
+    #     q4_1, q4_2, q4_3, q4_4 = remap_profile.compute(qs, q4_1, q4_2, q4_3, q4_4, dp1, km, i1, i2, 0, kord, 0, j_extent, q_min)
 
     #     # if q=="qice":
     #     #     print(pe1[33,0,:])
@@ -210,8 +212,8 @@ def compute(
         q4_2.data[:] = np.zeros(q4_1.shape)
         q4_3.data[:] = np.zeros(q4_1.shape)
         q4_4.data[:] = np.zeros(q4_1.shape)
-        q4_1, q4_2, q4_3, q4_4 = remap_profile.compute_tracer(
-            q4_1, q4_2, q4_3, q4_4, dp1, km, i1, i2, kord, q_min, 0, j_extent, qvar=q
+        q4_1, q4_2, q4_3, q4_4 = remap_profile.compute(
+            qs, q4_1, q4_2, q4_3, q4_4, dp1, km, i1, i2, 0, kord, 0, j_extent, q_min
         )
         i_vals = np.arange(i1, i2 + 1)
         kn = grid.npz

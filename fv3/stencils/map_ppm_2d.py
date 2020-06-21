@@ -47,7 +47,7 @@ def lagrangian_contributions(
         esl = pe1
         if pe1 < pbot and pe1[0, 0, 1] > ptop:
             # We are in the right pressure range to contribute to the Eulerian cell
-            if pe1 < ptop:
+            if pe1 <= ptop:
                 # we are in the first Lagrangian level that conributes
                 pl = (ptop - pe1) / dp1
                 if pbot <= pe1[0, 0, 1]:
@@ -88,12 +88,14 @@ def lagrangian_contributions(
 
 
 # TODO: this is VERY similar to map_scalar -- once matches, consolidate code
-def compute(q1, pe1, pe2, qs, i1, i2, mode, kord, j_2d=None, j_interface=False):
+def compute(
+    q1, pe1, pe2, qs, i1, i2, mode, kord, qmin=None, j_2d=None, j_interface=False
+):
     grid = spec.grid
     iv = mode
     i_extent = i2 - i1 + 1
-    km = grid.npz
     origin, domain, jslice, j_extent = region_mode(j_2d, i1, i_extent, grid)
+    km = grid.npz
     if j_interface:
         j_extent += 1
         jslice = slice(jslice.start, jslice.stop + 1)
@@ -106,6 +108,7 @@ def compute(q1, pe1, pe2, qs, i1, i2, mode, kord, j_2d=None, j_interface=False):
     )
     dp1 = utils.make_storage_from_shape(q_2d.shape, origin=orig)
     if j_2d is None:
+
         qs = utils.make_storage_data(qs.data[:, jslice, :], q_2d.shape)
         pe1 = utils.make_storage_data(
             pe1[:, jslice, :], (pe1.shape[0], j_extent, pe1.shape[2])
@@ -120,6 +123,7 @@ def compute(q1, pe1, pe2, qs, i1, i2, mode, kord, j_2d=None, j_interface=False):
 
     set_dp(dp1, pe1, origin=origin, domain=domain)
 
+
     if kord > 7:
         q4_1, q4_2, q4_3, q4_4 = remap_profile.compute(
             qs, q4_1, q4_2, q4_3, q4_4, dp1, km, i1, i2, iv, kord, 0, j_extent
@@ -128,11 +132,13 @@ def compute(q1, pe1, pe2, qs, i1, i2, mode, kord, j_2d=None, j_interface=False):
     # else:
     #     ppm_profile.compute(q4_1, q4_2, q4_3, q4_4, dp1, km, i1, i2, iv, kord)
     """
+
     # Trying a stencil with a loop over k2:
     klevs = np.arange(km)
     ptop = utils.make_storage_from_shape(pe2.shape, origin=orig)
     pbot = utils.make_storage_from_shape(pe2.shape, origin=orig)
     q2_adds = utils.make_storage_from_shape(q4_1.shape, origin=orig)
+
     for k_eul in klevs:
         eulerian_top_pressure = pe2.data[:, :, k_eul]
         eulerian_bottom_pressure = pe2.data[:, :, k_eul + 1]
@@ -144,6 +150,7 @@ def compute(q1, pe1, pe2, qs, i1, i2, mode, kord, j_2d=None, j_interface=False):
         else:
             ptop = utils.make_storage_data(top_p, q_2d.shape)
             pbot = utils.make_storage_data(bot_p, q_2d.shape)
+
         lagrangian_contributions(
             pe1,
             ptop,
@@ -159,6 +166,7 @@ def compute(q1, pe1, pe2, qs, i1, i2, mode, kord, j_2d=None, j_interface=False):
             origin=origin,
             domain=domain,
         )
+
 
         q1[i1 : i2 + 1, jslice, k_eul] = np.sum(q2_adds.data[i1 : i2 + 1, 0:j_extent, :], axis=2)
     
@@ -299,9 +307,6 @@ def compute(q1, pe1, pe2, qs, i1, i2, mode, kord, j_2d=None, j_interface=False):
                                 pe2[ii, j, k2 + 1] - pe2[ii, j, k2]
                             )
                             break
-
-    # print(n_cont, n_ext, n_bot)
-    # print(n_cont+ n_ext+ n_bot)
-    # print(kn * (i_extent))
+=
 
     return q1

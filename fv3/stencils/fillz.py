@@ -34,9 +34,8 @@ def fix_top(q: sd, dp: sd, dm: sd):
 def fix_interior(
     q: sd, dp: sd, zfix: sd, upper_fix: sd, lower_fix: sd, dm: sd, dm_pos: sd
 ):
-    with computation(FORWARD), interval(
-        1, -1
-    ):  # if a higher layer borrowed from this one, account for that here
+    with computation(FORWARD), interval(1, -1):
+        # if a higher layer borrowed from this one, account for that here
         if lower_fix[0, 0, -1] != 0.0:
             q = q - (lower_fix[0, 0, -1] / dp)
         dq = q * dp
@@ -105,15 +104,15 @@ def final_check(q: sd, dp: sd, dm: sd, zfix: sd, fac: sd):
 
 """
 def compute(q, dp, i1, i2, km, js, j_extent):
-    #Run on one tracer
-    i_extent = i2-i1+1
-    orig = (i1,js,0)
-    zfix = utils.make_storage_from_shape(q.shape, origin=(0,0,0))
-    upper_fix = utils.make_storage_from_shape(q.shape, origin=(0,0,0))
-    lower_fix = utils.make_storage_from_shape(q.shape, origin=(0,0,0))
-    dm = utils.make_storage_from_shape(q.shape, origin=(0,0,0))
-    dm_pos = utils.make_storage_from_shape(q.shape, origin=(0,0,0))
-    #TODO: implement dev_gfs_physics ifdef when we implement compiler defs
+    # Run on one tracer
+    i_extent = i2 - i1 + 1
+    orig = (i1, js, 0)
+    zfix = utils.make_storage_from_shape(q.shape, origin=(0, 0, 0))
+    upper_fix = utils.make_storage_from_shape(q.shape, origin=(0, 0, 0))
+    lower_fix = utils.make_storage_from_shape(q.shape, origin=(0, 0, 0))
+    dm = utils.make_storage_from_shape(q.shape, origin=(0, 0, 0))
+    dm_pos = utils.make_storage_from_shape(q.shape, origin=(0, 0, 0))
+    # TODO: implement dev_gfs_physics ifdef when we implement compiler defs
 
     # x=q[38,0,14]*dp[38,0,14]
     # print(q[38,0,14]-(x/dp[38,0,14]))
@@ -126,26 +125,16 @@ def compute(q, dp, i1, i2, km, js, j_extent):
     # print(q[12,0,40]-(q[12,0,40]*dp[12,0,40]/dp[12,0,40]))
     # print(q[12,0,40], dp[12,0,40])
 
-    #print(q[49,0,3:10])
-    #x=q[49,0,6]*dp[49,0,6]
-    #print(q[49,0,6]-(x/dp[49,0,6]))
-    #print(q[49,0,6]-(q[49,0,6]*dp[49,0,6]/dp[49,0,6]))
-    #print(q[49,0,6], dp[49,0,6])
+
    
     fix_top(q, dp, dm, origin=orig, domain=(i_extent, j_extent, 2))
     fix_interior(q, dp, zfix, upper_fix, lower_fix, dm, dm_pos, origin=(i1, 0, 0), domain=(i_extent, j_extent, km))
     fix_bottom(q, dp, zfix, upper_fix, lower_fix, dm, dm_pos, origin=(i1, 0, km-2), domain=(i_extent, j_extent, 2))
 
-    # print(q[33,0,14:20])
-    # print(q[12,0,35:43])
-    #print(q[49,0,3:10])
-
-    #print(np.sum(q[49,0,:]))
-
     fix_cols = np.sum(zfix.data, axis=2)
-    zfix.data[:]=np.repeat(fix_cols[:,:,np.newaxis], km+1, axis=2)
-    sum0 = np.sum(dm[:,:,1:], axis=2)
-    sum1 = np.sum(dm_pos[:,:,1:], axis=2)
+    zfix.data[:] = np.repeat(fix_cols[:, :, np.newaxis], km + 1, axis=2)
+    sum0 = np.sum(dm[:, :, 1:], axis=2)
+    sum1 = np.sum(dm_pos[:, :, 1:], axis=2)
     adj_factor = np.zeros(sum0.shape)
     adj_factor[sum0 > 0] = sum0[sum0 > 0]/sum1[sum0 > 0]
     fac = utils.make_storage_data(np.repeat(adj_factor[:,:,np.newaxis], km+1, axis=2), q.shape)

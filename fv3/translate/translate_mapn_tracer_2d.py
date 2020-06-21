@@ -1,6 +1,7 @@
 from .translate import TranslateFortranData2Py
 import fv3.stencils.mapn_tracer as MapN_Tracer
 import numpy as np
+import fv3._config as spec
 
 
 class TranslateMapN_Tracer_2d(TranslateFortranData2Py):
@@ -29,6 +30,8 @@ class TranslateMapN_Tracer_2d(TranslateFortranData2Py):
             "qgraupel": {"serialname": "qgraupel_js"},
             "qcld": {"serialname": "qcld_js"},
         }
+        self.is_ = grid.is_
+        self.ie = grid.ie
         self.max_error = 1e-13
 
     def make_storage_data_input_vars(self, inputs, storage_vars=None):
@@ -69,6 +72,9 @@ class TranslateMapN_Tracer_2d(TranslateFortranData2Py):
     def compute(self, inputs):
         self.make_storage_data_input_vars(inputs)
         inputs["j_2d"] += 2
+        inputs["i1"] = self.is_
+        inputs["i2"] = self.ie
+        inputs["kord"] = abs(spec.namelist["kord_tr"])
         qvapor, qliquid, qice, qrain, qsnow, qgraupel, qcld = self.compute_func(
             **inputs
         )

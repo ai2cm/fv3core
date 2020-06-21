@@ -1,12 +1,14 @@
 from .translate import TranslateFortranData2Py
 import fv3.stencils.map_ppm_2d as Map1_PPM_2d
+import fv3.stencils.map_scalar as Map_Scalar
+import fv3.stencils.map_single as Map_Single
 import numpy as np
 
 
 class TranslateMap1_PPM_2d(TranslateFortranData2Py):
     def __init__(self, grid):
         super().__init__(grid)
-        self.compute_func = Map1_PPM_2d.compute
+        self.compute_func = Map_Single.compute
         self.in_vars["data_vars"] = {
             "q1": {"serialname": "var_in"},
             "pe1": {"istart": 3, "iend": grid.ie - 2},
@@ -57,6 +59,7 @@ class TranslateMap1_PPM_2d(TranslateFortranData2Py):
         self.make_storage_data_input_vars(inputs)
         inputs["i1"] += 2
         inputs["i2"] += 2
+        inputs["qmin"] = None
         inputs["j_2d"] += 2
         var_inout = self.compute_func(**inputs)
         return self.slice_output(inputs, {"var_inout": var_inout})

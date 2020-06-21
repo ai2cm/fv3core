@@ -99,22 +99,25 @@ def region_mode(j_2d, i1, i_extent, grid):
     return origin, domain, jslice, j_extent
 
 
-def compute(q1, peln, pe2, qs, mode, j_2d=None):
+def compute(
+    q1, pe1, pe2, qs, mode, i1, i2, kord, qmin=None, j_2d=None, j_interface=False
+):
     grid = spec.grid
-    kord = abs(spec.namelist["kord_tm"])
-    qmin = 184.0
-    i1 = grid.is_
-    i2 = grid.ie
     iv = mode
     i_extent = i2 - i1 + 1
     origin, domain, jslice, j_extent = region_mode(j_2d, i1, i_extent, grid)
     km = grid.npz
+    if j_interface:
+        j_extent += 1
+        jslice = slice(jslice.start, jslice.stop + 1)
+        domain = (domain[0], j_extent, domain[2])
     orig = (grid.is_, grid.js, 0)
     r3 = 1.0 / 3.0
     r23 = 2.0 / 3.0
     q_2d = utils.make_storage_data(
         q1[:, jslice, :], (q1.shape[0], j_extent, q1.shape[2])
     )
+    '''
     pe1 = utils.make_storage_data(
         peln.data[:, jslice, :], (peln.shape[0], j_extent, peln.shape[2])
     )
@@ -125,7 +128,21 @@ def compute(q1, peln, pe2, qs, mode, j_2d=None):
     dp1 = utils.make_storage_from_shape(q_2d.shape, origin=origin)
 
     qs_input = utils.make_storage_data(qs.data[:, jslice, :], q_2d.shape)
+    '''
+    # pe1 = utils.make_storage_data(
+    #     pe1[:, jslice, :], (pe1.shape[0], j_extent, pe1.shape[2])
+    # )
+    # qs = utils.make_storage_data(qs.data[:, jslice, :], q_2d.shape)
 
+
+    if (j_2d is None) or (
+        j_2d is not None and pe1.shape[1] > 1
+    ):  # TODO fix this, not needed for map_scalar, so why here
+        qs = utils.make_storage_data(qs.data[:, jslice, :], q_2d.shape)
+        pe1 = utils.make_storage_data(
+            pe1[:, jslice, :], (pe1.shape[0], j_extent, pe1.shape[2])
+        )
+    dp1 = utils.make_storage_from_shape(q_2d.shape, origin=origin)
     q4_1 = cp.copy(q_2d, origin=(0, 0, 0))
     q4_2 = utils.make_storage_from_shape(q4_1.shape, origin=(grid.is_, 0, 0))
     q4_3 = utils.make_storage_from_shape(q4_1.shape, origin=(grid.is_, 0, 0))
@@ -133,8 +150,8 @@ def compute(q1, peln, pe2, qs, mode, j_2d=None):
 
     set_dp(dp1, pe1, origin=origin, domain=domain)
 
-    q4_1, q4_2, q4_3, q4_4 = remap_profile.compute_scalar(
-        qs_input, q4_1, q4_2, q4_3, q4_4, dp1, km, i1, i2, iv, kord, qmin, 0, j_extent
+    q4_1, q4_2, q4_3, q4_4 = remap_profile.compute(
+        qs, q4_1, q4_2, q4_3, q4_4, dp1, km, i1, i2, iv, kord, 0, j_extent, qmin
     )
 
     #
@@ -172,6 +189,7 @@ def compute(q1, peln, pe2, qs, mode, j_2d=None):
             origin=origin,
             domain=domain,
         )
+
         q1[i1 : i2 + 1, jslice, k_eul] = np.sum(
             q2_adds.data[i1 : i2 + 1, 0:j_extent, :], axis=2
         )
