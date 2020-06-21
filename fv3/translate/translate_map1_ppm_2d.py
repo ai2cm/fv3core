@@ -19,7 +19,6 @@ class TranslateMap1_PPM_2d(TranslateFortranData2Py):
         self.out_vars = {
             "var_inout": {},
         }
-        self.max_error = 1e-13
 
     def make_storage_data_input_vars(self, inputs, storage_vars=None):
         if storage_vars is None:
@@ -59,7 +58,7 @@ class TranslateMap1_PPM_2d(TranslateFortranData2Py):
         self.make_storage_data_input_vars(inputs)
         inputs["i1"] += 2
         inputs["i2"] += 2
-        inputs["qmin"] = None
+        inputs["qmin"] = 0.0
         inputs["j_2d"] += 2
         var_inout = self.compute_func(**inputs)
         return self.slice_output(inputs, {"var_inout": var_inout})

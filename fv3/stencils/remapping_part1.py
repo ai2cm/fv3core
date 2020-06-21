@@ -1,17 +1,9 @@
 #!/usr/bin/env python3
 import fv3.utils.gt4py_utils as utils
-import gt4py.gtscript as gtscript
 import fv3._config as spec
 from gt4py.gtscript import computation, interval, PARALLEL
-import fv3.utils.global_constants as constants
 import fv3.stencils.moist_cv as moist_cv
-import fv3.stencils.saturation_adjustment as saturation_adjustment
-import fv3.stencils.basic_operations as basic
-
-# import fv3.stencils.map_scalar as map_scalar
 import fv3.stencils.map_single as map_single
-
-# import fv3.stencils.map_ppm_2d as map1_ppm
 import fv3.stencils.mapn_tracer as mapn_tracer
 import numpy as np
 import fv3.stencils.copy_stencil as cp
@@ -148,6 +140,7 @@ def compute(
     grid = spec.grid
     hydrostatic = spec.namelist["hydrostatic"]
     nq = 7
+    t_min=184.
     # do_omega = hydrostatic and last_step # TODO pull into inputs
     domain_jextra = (grid.nic, grid.njc + 1, grid.npz + 1)
     pe1 = cp.copy(pe, origin=grid.compute_origin(), domain=domain_jextra)
@@ -233,12 +226,12 @@ def compute(
             grid.is_,
             grid.ie,
             abs(spec.namelist["kord_tm"]),
-            184.0,
+            qmin=t_min,
         )
     else:
         raise Exception("map ppm, untested mode where kord_tm >= 0")
         map_single.compute(
-            pt, pe1, pe2, gz, 1, grid.is_, grid.ie, abs(spec.namelist["kord_tm"]), 184.0
+            pt, pe1, pe2, gz, 1, grid.is_, grid.ie, abs(spec.namelist["kord_tm"]), qmin=t_min
         )
     # TODO if nq > 5:
     mapn_tracer.compute(

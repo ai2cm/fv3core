@@ -78,7 +78,7 @@ class TranslateFVDynamics(ParallelTranslate2PyState):
             "consv_te",
         ]
         self._base.out_vars = copy.copy(self._base.in_vars["data_vars"])
-        self.max_error = 1e-6
+        self.max_error = 1e-5
         for var in ["ak", "bk"]:
             del self._base.out_vars[var]
         self._base.out_vars["ps"] = {"kstart": grid.npz - 1, "kend": grid.npz - 1}

@@ -126,8 +126,10 @@ def compute(
     set_dp(dp1, pe1, origin=origin, domain=domain)
     if j_2d is None:
         q4_1 = utils.make_storage_data(qvapor[:, jslice, :], pe1.shape)
+        js = grid.js
     else:
         q4_1 = utils.make_storage_data(qvapor, pe1.shape)
+        js = 0
     q4_2 = utils.make_storage_from_shape(q4_1.shape, origin=(grid.is_, 0, 0))
     q4_3 = utils.make_storage_from_shape(q4_1.shape, origin=(grid.is_, 0, 0))
     q4_4 = utils.make_storage_from_shape(q4_1.shape, origin=(grid.is_, 0, 0))
@@ -135,7 +137,7 @@ def compute(
 
     qs = utils.make_storage_from_shape(q4_1.shape, origin=(grid.is_, 0, 0))
 
-    tracers = ["qvapor", "qliquid", "qice", "qrain", "qsnow", "qgraupel", "qcld"]
+    tracers = ["qvapor", "qliquid", "qice", "qrain", "qsnow", "qgraupel"]
     tracer_qs = {
         "qvapor": qvapor,
         "qliquid": qliquid,
@@ -143,65 +145,56 @@ def compute(
         "qrain": qrain,
         "qsnow": qsnow,
         "qgraupel": qgraupel,
-        "qcld": qcld,
+        "qcld": qcld # TODO testing found this is not run through this, double check
     }
     assert len(tracer_qs) == nq
+    '''
+    for q in tracers:
+        q4_1.data[:] = tracer_qs[q].data[:]
+        q4_2.data[:] = np.zeros(q4_1.shape)
+        q4_3.data[:] = np.zeros(q4_1.shape)
+        q4_4.data[:] = np.zeros(q4_1.shape)
+        q2_adds.data[:] = np.zeros(q4_1.shape)
 
-    # for q in tracers:
-    #     print(q)
-    #     print((tracer_qs[q]>0.).all())
-    #     #reset fields
-    #     q4_1.data[:] = tracer_qs[q].data[:]
-    #     q4_2.data[:] = np.zeros(q4_1.shape)
-    #     q4_3.data[:] = np.zeros(q4_1.shape)
-    #     q4_4.data[:] = np.zeros(q4_1.shape)
-    #     q2_adds.data[:] = np.zeros(q4_1.shape)
+        q4_1, q4_2, q4_3, q4_4 = remap_profile.compute(qs, q4_1, q4_2, q4_3, q4_4, dp1, km, i1, i2, 0, kord, 0, j_extent, q_min)
 
-    #     q4_1, q4_2, q4_3, q4_4 = remap_profile.compute(qs, q4_1, q4_2, q4_3, q4_4, dp1, km, i1, i2, 0, kord, 0, j_extent, q_min)
+        # if q=="qice":
+        #     print(pe1[33,0,:])
+        #     print(pe2[33,0,:])
 
-    #     # if q=="qice":
-    #     #     print(pe1[33,0,:])
-    #     #     print(pe2[33,0,:])
+        #Trying a stencil with a loop over k2:
+        for k_eul in klevs:
+            eulerian_top_pressure = pe2.data[:, :, k_eul]
+            eulerian_bottom_pressure = pe2.data[:, :, k_eul + 1]
+            top_p = np.repeat(eulerian_top_pressure[:, :, np.newaxis], km, axis=2)
+            bot_p = np.repeat(eulerian_bottom_pressure[:, :, np.newaxis], km, axis=2)
+            ptop = utils.make_storage_data(top_p, pe2.shape)
+            pbot = utils.make_storage_data(bot_p, pe2.shape)
+            lagrangian_tracer_contributions(
+                pe1,
+                ptop,
+                pbot,
+                q4_1,
+                q4_2,
+                q4_3,
+                q4_4,
+                dp1,
+                q2_adds,
+                r3,
+                r23,
+                origin=origin,
+                domain=domain,
+            )
 
-    #     # Trying a stencil with a loop over k2:
-    #     for k_eul in klevs:
-    #         eulerian_top_pressure = pe2.data[:, :, k_eul]
-    #         eulerian_bottom_pressure = pe2.data[:, :, k_eul + 1]
-    #         top_p = np.repeat(eulerian_top_pressure[:, :, np.newaxis], km, axis=2)
-    #         bot_p = np.repeat(eulerian_bottom_pressure[:, :, np.newaxis], km, axis=2)
-    #         ptop = utils.make_storage_data(top_p, pe2.shape)
-    #         pbot = utils.make_storage_data(bot_p, pe2.shape)
-    #         lagrangian_tracer_contributions(
-    #             pe1,
-    #             ptop,
-    #             pbot,
-    #             q4_1,
-    #             q4_2,
-    #             q4_3,
-    #             q4_4,
-    #             dp1,
-    #             q2_adds,
-    #             r3,
-    #             r23,
-    #             origin=origin,
-    #             domain=domain,
-    #         )
-
-    #         # if (q=="qliquid") and (k_eul>0) and (k_eul < 4):
-    #         #     print(q2_adds.data[33,0,:])
-
-    #         tracer_qs[q][i1 : i2 + 1, 0, k_eul] = np.sum(q2_adds.data[i1 : i2 + 1, 0, :], axis=1)
-    #     if q=="qice":
-    #         print(tracer_qs[q][38,0,10:17])
-    #         print(np.sum(tracer_qs[q][33,0,:]))
-    #     # if fill:
-    #     #     tracer_qs[q] = fillz.compute(tracer_qs[q], dp2, i1, i2, km)
-    # if fill:
+            tracer_qs[q][i1 : i2 + 1, jslice, k_eul] = np.sum(q2_adds.data[i1 : i2 + 1, 0:j_extent, :], axis=2)
+        # if fill:
+        #     tracer_qs[q] = fillz.compute(tracer_qs[q], dp2, i1, i2, km)
+    #if fill:
     #     qvapor, qliquid, qice, qrain, qsnow, qgraupel, qcld = fillz.compute_test(dp2, qvapor, qliquid, qice, qrain, qsnow, qgraupel, qcld, i_extent, km, nq)
 
     # return qvapor, qliquid, qice, qrain, qsnow, qgraupel, qcld
-
-    # transliterated fortran
+    '''
+    # transliterated fortran 3d or 2d validate, not bit-for bit
     trc = 0
     for q in tracers:
         trc += 1
@@ -297,6 +290,7 @@ def compute(
                                     qsum / dp2[ii, j + js, k2]
                                 )
                                 break
+    
     #     if fill:
     #         tracer_qs[q] = fillz.compute(tracer_qs[q], dp2, i1, i2, km)
     if fill:

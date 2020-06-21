@@ -145,7 +145,7 @@ def compute(q, dp, i1, i2, km, js, j_extent):
 
 
 def compute_test(
-    dp2, qvapor, qliquid, qice, qrain, qsnow, qgraupel, qcld, im, km, nq, js, j_extent
+        dp2, qvapor, qliquid, qice, qrain, qsnow, qgraupel, qcld, im, km, nq, js, j_extent
 ):
     # Same as above, but with multiple tracer fields
     i1 = grid().is_
@@ -166,7 +166,6 @@ def compute_test(
         "qrain": qrain,
         "qsnow": qsnow,
         "qgraupel": qgraupel,
-        "qcld": qcld,
     }
 
     for q in tracer_qs:
@@ -214,4 +213,5 @@ def compute_test(
             origin=(i1, js, 1),
             domain=(im, j_extent, km - 1),
         )
+    tracer_qs["qcld"] = qcld # TODO, testing found qcld is not run through this
     return [tracer_qs[tracer] for tracer in tracers]

@@ -117,7 +117,6 @@ def compute(
     q_2d = utils.make_storage_data(
         q1[:, jslice, :], (q1.shape[0], j_extent, q1.shape[2])
     )
-    '''
     pe1 = utils.make_storage_data(
         peln.data[:, jslice, :], (peln.shape[0], j_extent, peln.shape[2])
     )
@@ -128,12 +127,6 @@ def compute(
     dp1 = utils.make_storage_from_shape(q_2d.shape, origin=origin)
 
     qs_input = utils.make_storage_data(qs.data[:, jslice, :], q_2d.shape)
-    '''
-    # pe1 = utils.make_storage_data(
-    #     pe1[:, jslice, :], (pe1.shape[0], j_extent, pe1.shape[2])
-    # )
-    # qs = utils.make_storage_data(qs.data[:, jslice, :], q_2d.shape)
-
 
     if (j_2d is None) or (
         j_2d is not None and pe1.shape[1] > 1
