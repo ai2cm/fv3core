@@ -16,10 +16,6 @@ import numpy as np
 sd = utils.sd
 
 
-def grid():
-    return spec.grid
-
-
 @utils.stencil()
 def set_dp(dp1: sd, pe1: sd):
     with computation(PARALLEL), interval(...):
@@ -122,7 +118,6 @@ def compute(
     q4_4 = utils.make_storage_from_shape(q4_1.shape, origin=(grid.is_, 0, 0))
 
     set_dp(dp1, pe1, origin=origin, domain=domain)
-
 
     if kord > 7:
         q4_1, q4_2, q4_3, q4_4 = remap_profile.compute(
@@ -307,6 +302,5 @@ def compute(
                                 pe2[ii, j, k2 + 1] - pe2[ii, j, k2]
                             )
                             break
-=
 
     return q1

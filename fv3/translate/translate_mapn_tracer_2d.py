@@ -9,65 +9,30 @@ class TranslateMapN_Tracer_2d(TranslateFortranData2Py):
         super().__init__(grid)
         self.compute_func = MapN_Tracer.compute
         self.in_vars["data_vars"] = {
-            "pe1": {"istart": grid.is_, "iend": grid.ie - 2,},
-            "pe2": {"istart": grid.is_, "iend": grid.ie - 2,},
-            "dp2": {"istart": grid.is_, "iend": grid.ie - 2,},
-            "qvapor": {"serialname": "qvapor_js"},
-            "qliquid": {"serialname": "qliquid_js"},
-            "qice": {"serialname": "qice_js"},
-            "qrain": {"serialname": "qrain_js"},
-            "qsnow": {"serialname": "qsnow_js"},
-            "qgraupel": {"serialname": "qgraupel_js"},
-            "qcld": {"serialname": "qcld_js"},
+            "pe1": {"istart": grid.is_, "iend": grid.ie - 2, "axis": 1},
+            "pe2": {"istart": grid.is_, "iend": grid.ie - 2, "axis": 1},
+            "dp2": {"istart": grid.is_, "iend": grid.ie - 2, "axis": 1},
+            "qvapor": {},
+            "qliquid": {},
+            "qice": {},
+            "qrain": {},
+            "qsnow": {},
+            "qgraupel": {},
+            "qcld": {},
         }
         self.in_vars["parameters"] = ["j_2d", "nq", "q_min"]
         self.out_vars = {
-            "qvapor": {"serialname": "qvapor_js"},
-            "qliquid": {"serialname": "qliquid_js"},
-            "qice": {"serialname": "qice_js"},
-            "qrain": {"serialname": "qrain_js"},
-            "qsnow": {"serialname": "qsnow_js"},
-            "qgraupel": {"serialname": "qgraupel_js"},
-            "qcld": {"serialname": "qcld_js"},
+            "qvapor": {},
+            "qliquid": {},
+            "qice": {},
+            "qrain": {},
+            "qsnow": {},
+            "qgraupel": {},
+            "qcld": {},
         }
         self.is_ = grid.is_
         self.ie = grid.ie
         self.max_error = 1e-13
-
-    def make_storage_data_input_vars(self, inputs, storage_vars=None):
-        if storage_vars is None:
-            storage_vars = self.storage_vars()
-        for p in self.in_vars["parameters"]:
-            if type(inputs[p]) in [np.int64, np.int32]:
-                inputs[p] = int(inputs[p])
-        for d, info in storage_vars.items():
-            serialname = info["serialname"] if "serialname" in info else d
-            self.update_info(info, inputs)
-            if "kaxis" in info:
-                inputs[serialname] = np.moveaxis(inputs[serialname], info["kaxis"], 2)
-            istart, jstart, kstart = self.collect_start_indices(
-                inputs[serialname].shape, info
-            )
-
-            shapes = np.squeeze(inputs[serialname]).shape
-            if len(shapes) == 2:
-                # suppress j
-                dummy_axes = [1]
-            elif len(shapes) == 1:
-                # suppress j and k
-                dummy_axes = [1, 2]
-            else:
-                dummy_axes = None
-
-            inputs[d] = self.make_storage_data(
-                np.squeeze(inputs[serialname]),
-                istart=istart,
-                jstart=jstart,
-                kstart=kstart,
-                dummy_axes=dummy_axes,
-            )
-            if d != serialname:
-                del inputs[serialname]
 
     def compute(self, inputs):
         self.make_storage_data_input_vars(inputs)

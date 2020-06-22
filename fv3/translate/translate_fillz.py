@@ -6,7 +6,7 @@ import numpy as np
 class TranslateFillz(TranslateFortranData2Py):
     def __init__(self, grid):
         super().__init__(grid)
-        self.compute_func = Fillz.compute_test
+        self.compute_func = Fillz.compute
         self.in_vars["data_vars"] = {
             "dp2": {"istart": grid.is_, "iend": grid.ie},
             "qvapor": {"serialname": "q2vapor_js", "istart": grid.is_, "iend": grid.ie},
@@ -43,6 +43,7 @@ class TranslateFillz(TranslateFortranData2Py):
             },
             "qcld": {"serialname": "q2cld_js", "istart": grid.is_, "iend": grid.ie},
         }
+        # self.max_error = 1e-13
 
     def make_storage_data_input_vars(self, inputs, storage_vars=None):
         if storage_vars is None:
@@ -81,8 +82,7 @@ class TranslateFillz(TranslateFortranData2Py):
 
     def compute(self, inputs):
         self.make_storage_data_input_vars(inputs)
-        inputs["js"] = 0
-        inputs["j_extent"] = 1
+        inputs["jslice"] = slice(0, 1)
         qvapor, qliquid, qice, qrain, qsnow, qgraupel, qcld = self.compute_func(
             **inputs
         )

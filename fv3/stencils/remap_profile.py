@@ -282,7 +282,6 @@ def set_inner_as_kordsmall(
         a4_4 = 3.0 * (2.0 * a4_1 - (a4_2 + a4_3))
 
 
-
 @utils.stencil()
 def set_inner_as_kord9(
     a4_1: sd,
@@ -314,14 +313,14 @@ def set_inner_as_kord9(
             a4_2 = a4_1
             a4_3 = a4_1
             a4_4 = 0.0
-        elif (extm > 0.0 and (qmin > 0.0 and a4_1 < qmin)):
+        elif extm > 0.0 and (qmin > 0.0 and a4_1 < qmin):
             a4_2 = a4_1
             a4_3 = a4_1
             a4_4 = 0.0
         else:
             diff_23 = a4_2 - a4_3
             abs_diff23 = diff_23 if diff_23 > 0 else -diff_23
-            a4_4 = 6. * a4_1 - 3. * (a4_2 + a4_3)
+            a4_4 = 6.0 * a4_1 - 3.0 * (a4_2 + a4_3)
             abs_a44 = a4_4 if a4_4 > 0 else -a4_4
             if abs_a44 > abs_diff23:
                 tmp_min = (
@@ -356,7 +355,7 @@ def set_inner_as_kord9(
                     else lac_2
                 )
                 a4_3 = tmp_max0 if tmp_max0 < tmp_max else tmp_max
-                a4_4 = 6. * a4_1 - 3. * (a4_2 + a4_3)
+                a4_4 = 6.0 * a4_1 - 3.0 * (a4_2 + a4_3)
             else:
                 a4_2 = a4_2
 
@@ -465,10 +464,10 @@ def set_bottom_as_else(a4_1: sd, a4_2: sd, a4_3: sd, a4_4: sd):
             a4_4 = 3.0 * (2.0 * a4_1 - (a4_2 + a4_3))
 
 
-def compute(
-    qs, a4_1, a4_2, a4_3, a4_4, delp, km, i1, i2, iv, kord, js, j_extent, qmin=0.0
-):
+def compute(qs, a4_1, a4_2, a4_3, a4_4, delp, km, i1, i2, iv, kord, jslice, qmin=0.0):
     i_extent = i2 - i1 + 1
+    j_extent = jslice.stop - jslice.start
+    js = jslice.start
     grid = spec.grid
     orig = (i1, js, 0)
     full_orig = (grid.is_, js, 0)

@@ -140,7 +140,7 @@ def compute(
     grid = spec.grid
     hydrostatic = spec.namelist["hydrostatic"]
     nq = 7
-    t_min=184.
+    t_min = 184.0
     # do_omega = hydrostatic and last_step # TODO pull into inputs
     domain_jextra = (grid.nic, grid.njc + 1, grid.npz + 1)
     pe1 = cp.copy(pe, origin=grid.compute_origin(), domain=domain_jextra)
@@ -231,7 +231,15 @@ def compute(
     else:
         raise Exception("map ppm, untested mode where kord_tm >= 0")
         map_single.compute(
-            pt, pe1, pe2, gz, 1, grid.is_, grid.ie, abs(spec.namelist["kord_tm"]), qmin=t_min
+            pt,
+            pe1,
+            pe2,
+            gz,
+            1,
+            grid.is_,
+            grid.ie,
+            abs(spec.namelist["kord_tm"]),
+            qmin=t_min,
         )
     # TODO if nq > 5:
     mapn_tracer.compute(
@@ -250,7 +258,6 @@ def compute(
         grid.is_,
         grid.ie,
         abs(spec.namelist["kord_tr"]),
-
     )
     # TODO else if nq > 0:
     # TODO map1_q2, fillz
