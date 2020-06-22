@@ -43,7 +43,7 @@ class TranslateFillz(TranslateFortranData2Py):
             },
             "qcld": {"serialname": "q2cld_js", "istart": grid.is_, "iend": grid.ie},
         }
-        # self.max_error = 1e-13
+        self.max_error = 1e-13
 
     def make_storage_data_input_vars(self, inputs, storage_vars=None):
         if storage_vars is None:
