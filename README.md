@@ -69,14 +69,14 @@ Changes to code in the `fv3/` directory can be validated by running all tests us
 Alternatively, you can develop stencils using data and code as volumes into the container.
 Two approaches:
 
-1. Using test data in a container
+### Using test data in a container
 
 ```shell
 $ make pull_test_data
 $ make devc
 ```
 
-2. Extracting test data
+### Extracting test data
 
 If you want to work with test data outside the container, set the env variable `TEST_DATA_HOST` (by default `./test-data`) to a location, then run
 
@@ -208,11 +208,11 @@ This should be done hopefully infrequently in conjunction with a change to the s
 4. If you want to make this change permanent, then open a PR, merge, and run `post_test_data`
 
 
-## Docker Files
+## Dockerfiles
 
-There are three main Dockerfiles:
+There are three main driver files:
 
-1. `docker/Dockerfile.build_environment` - builds off of the serialbox environment from fv3gfs-fortran, installs Dawn and Gt4py
+1. `docker/Dockerfile.build_environment` - builds off of the serialbox environment from fv3gfs-fortran, installs Dawn and GT4Py
 
 2. `docker/Dockerfile` - uses the build environment and copies in the fv3 folder only. This is to make development easier so that when you change a file in fv3, 'make build' does not accidentally or otherwise trigger a 20 minute rebuild of all of those installations, but just updates the code in the fv3ser image.
 
