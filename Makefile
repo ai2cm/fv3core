@@ -5,7 +5,7 @@ SED := $(shell { command -v gsed || command -v sed; } 2>/dev/null)
 #<some large conceptual version change>.<serialization statement change>.<hotfix>
 
 
-FORTRAN_VERSION=0.5.0
+FORTRAN_VERSION=0.5.1
 SHELL=/bin/bash
 
 TEST_ARGS ?=-v -s -rsx
@@ -170,7 +170,7 @@ test_base:
 
 test_base_parallel:
 	docker run --rm $(VOLUMES) $(MOUNTS) \
-	-it $(RUNTEST_IMAGE) mpirun --allow-run-as-root --mca btl_vader_single_copy_mechanism none --oversubscribe -np 6  pytest --data_path=$(TEST_DATA_CONTAINER) ${TEST_ARGS} -m parallel /fv3/test
+	-it $(RUNTEST_IMAGE) mpirun --allow-run-as-root --mca btl_vader_single_copy_mechanism none --oversubscribe -np 6 pytest --data_path=$(TEST_DATA_CONTAINER) ${TEST_ARGS} -m parallel /fv3/test
 
 run_tests_parallel_container:
 	VOLUMES='--volumes-from $(TEST_DATA_RUN_CONTAINER)' \

@@ -1,7 +1,5 @@
 from .translate import TranslateFortranData2Py
-import fv3.stencils.map_scalar as Map_Scalar
 import fv3.stencils.map_single as Map_Single
-import numpy as np
 import fv3._config as spec
 
 
