@@ -83,7 +83,7 @@ class Grid:
                 self.sizer, backend=utils.backend
             )
         return self._quantity_factory
-     
+
     def make_quantity(
         self,
         array,
