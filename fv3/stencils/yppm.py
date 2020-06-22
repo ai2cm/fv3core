@@ -2,6 +2,7 @@
 import fv3.utils.gt4py_utils as utils
 import gt4py.gtscript as gtscript
 import fv3._config as spec
+import fv3.stencils.basic_operations as basic
 from gt4py.gtscript import computation, interval, PARALLEL
 from fv3.stencils.basic_operations import absolute_value
 
@@ -224,7 +225,7 @@ def compute_al(q, dyvar, jord, ifirst, ilast, js1, je3, kstart=0, nk=None):
                     domain=x_edge_domain,
                 )
         if jord < 0:
-            floor_cap(
+            basic.floor_cap(
                 al,
                 0.0,
                 origin=(ifirst, grid().js - 1, kstart),

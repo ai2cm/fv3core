@@ -58,3 +58,9 @@ def multiply_constant(in1: sd, in2: float, out: sd):
 def absolute_value(in_array):
     abs_value = in_array if in_array > 0 else -in_array
     return abs_value
+
+
+@utils.stencil()
+def floor_cap(var: sd, floor_value: float):
+    with computation(PARALLEL), interval(0, None):
+        var[0, 0, 0] = var if var > floor_value else floor_value
