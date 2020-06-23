@@ -94,10 +94,10 @@ def gnomonic_ed(lon, lat, np):
 def _corner_to_center_mean(corner_array):
     """Given a 2D array on cell corners, return a 2D array on cell centers with the
     mean value of each of the corners."""
-    return 0.25 * (
-        corner_array[1:, 1:] +
-        corner_array[:-1, :-1] +
-        corner_array[1:, :-1] +
+    return xyz_midpoint(
+        corner_array[1:, 1:],
+        corner_array[:-1, :-1],
+        corner_array[1:, :-1],
         corner_array[:-1, 1:]
     )
 
@@ -108,14 +108,19 @@ def normalize_vector(np, *vector_components):
 
 
 def normalize_xyz(xyz):
-    return xyz / (xyz ** 2).sum(axis=-1) ** 0.5
+    # double transpose to broadcast along last dimension instead of first
+    return (xyz.T / ((xyz ** 2).sum(axis=-1) ** 0.5).T).T
 
 
 def lon_lat_midpoint(lon1, lon2, lat1, lat2, np):
     p1 = lon_lat_to_xyz(lon1, lat1, np)
     p2 = lon_lat_to_xyz(lon2, lat2, np)
-    midpoint = 0.5 * (p1 + p2)
-    return xyz_to_lon_lat(midpoint)
+    midpoint = xyz_midpoint(p1, p2)
+    return xyz_to_lon_lat(midpoint, np)
+
+
+def xyz_midpoint(*points):
+    return normalize_xyz(sum(points))
 
 
 def lon_lat_corner_to_cell_center(lon, lat, np):
@@ -160,7 +165,10 @@ def xyz_to_lon_lat(xyz, np):
         lat: 2d array of latitudes
     """
     xyz = normalize_xyz(xyz)
-    x, y, z = xyz[:, :, 0], xyz[:, :, 1], xyz[:, :, 2]
+    # double transpose to index last dimension, regardless of number of dimensions
+    x = xyz.T[0, :].T
+    y = xyz.T[1, :].T
+    z = xyz.T[2, :].T
     lon = 0. * x
     nonzero_lon = np.abs(x) + np.abs(y) >= 1.0e-10
     lon[nonzero_lon] = np.arctan2(y[nonzero_lon], x[nonzero_lon])
@@ -264,9 +272,22 @@ def symm_ed(lon, lat):
     pass
 
 
-def great_circle_beta(lon, lat, np, axis=0):
+def _great_circle_beta_lon_lat(lon1, lon2, lat1, lat2, np):
     """Returns the great-circle distance between points along the desired axis,
     as a fraction of the radius of the sphere."""
+    return (
+        np.arcsin(
+            np.sqrt(
+                np.sin((lat1 - lat2) / 2.0) ** 2
+                + np.cos(lat1) * np.cos(lat2) * np.sin((lon1 - lon2) / 2.0) ** 2
+            )
+        )
+        * 2.0
+    )
+
+
+def great_circle_distance_along_axis(lon, lat, radius, np, axis=0):
+    """Returns the great-circle distance between points along the desired axis."""
     lon, lat = np.broadcast_arrays(lon, lat)
     if len(lon.shape) == 1:
         case_1d = True
@@ -278,40 +299,23 @@ def great_circle_beta(lon, lat, np, axis=0):
     swap_dims[axis], swap_dims[0] = swap_dims[0], swap_dims[axis]
     # below code computes distance along first axis, so we put the desired axis there
     lon, lat = lon.transpose(swap_dims), lat.transpose(swap_dims)
-    result = (
-        np.arcsin(
-            np.sqrt(
-                np.sin((lat[:-1, :] - lat[1:, :]) / 2.0) ** 2
-                + np.cos(lat[:-1, :]) * np.cos(lat[1:, :]) * np.sin((lon[:-1, :] - lon[1:, :]) / 2.0) ** 2
-            )
-        )
-        * 2.0
+    result = great_circle_distance_lon_lat(
+        lon[:-1, :], lon[1:, :], lat[:-1, :], lat[1:, :], radius, np
     )
     result = result.transpose(swap_dims)  # remember to swap back
     if case_1d:
         result = result[:, 0]  # remove the singleton dimension we added
-    return result
+    return _great_circle_beta(lon, lat, np, axis=axis) * radius
 
 
-def great_circle_dist(lon, lat, radius, np, axis=0):
-    """Returns the great-circle distance between points along the desired axis."""
-    return great_circle_beta(lon, lat, np, axis=axis) * radius
+def great_circle_distance_lon_lat(lon1, lon2, lat1, lat2, radius, np):
+    return radius * _great_circle_beta_lon_lat(lon1, lon2, lat1, lat2, np)
 
 
-def _great_circle_beta(p1, p2, np):
-    return (
-        np.arcsin(
-            np.sqrt(
-                np.sin((p1[1] - p2[1]) / 2.0) ** 2
-                + np.cos(p1[1]) * np.cos(p2[1]) * np.sin((p1[0] - p2[0]) / 2.0) ** 2
-            )
-        )
-        * 2.0
-    )
-
-
-def _great_circle_dist(p1, p2, radius, np):
-    return great_circle_beta(p1, p2, np) * radius
+def great_circle_distance_xyz(p1, p2, radius, np):
+    lon1, lat1 = xyz_to_lon_lat(p1, np)
+    lon2, lat2 = xyz_to_lon_lat(p2, np)
+    return great_circle_distance_lon_lat(lon1, lon2, lat1, lat2, radius, np)
 
 
 def get_area(lon, lat, radius, np):
@@ -434,22 +438,50 @@ def _set_c_grid_southeast_corner_area(xyz_dgrid, xyz_agrid, area_cgrid, radius, 
     )
 
 
-def set_c_grid_halo_edge_area(xyz_dgrid, xyz_agrid, area_cgrid, tile_partitioner, rank, np):
-    """
-    Using latitude and longitude with halo points, fix C-grid area
-    at halo edges and corners.
+def set_tile_border_dxc(xyz_dgrid, xyz_agrid, radius, dxc, tile_partitioner, rank, np):
+    if tile_partitioner.on_tile_left(rank):
+        _set_tile_west_dxc(xyz_dgrid, xyz_agrid, radius, dxc, np)
+    if tile_partitioner.on_tile_right(rank):
+        _set_tile_east_dxc(xyz_dgrid, xyz_agrid, radius, dxc, np)
 
-    Args:
-        xyz_dgrid: d-grid cartesian coordinates as a 3-d array, last dimension
-            of length 3 indicating x/y/z
-        xyz_agrid: a-grid cartesian coordinates as a 3-d array, last dimension
-            of length 3 indicating x/y/z
-        area_cgrid: 2d array of c-grid areas
-        tile_partitioner: partitioner class to determine subtile position
-        rank: rank of current tile
-        np: numpy-like module to interact with arrays
-    """
-    raise NotImplementedError()
+
+def _set_tile_west_dxc(xyz_dgrid, xyz_agrid, radius, dxc, np):
+    tile_edge_point = xyz_midpoint(xyz_dgrid[0, 1:], xyz_dgrid[0, :-1])
+    cell_center_point = xyz_agrid[0, :]
+    dxc[0, :] = 2 * great_circle_distance_xyz(
+        tile_edge_point, cell_center_point, radius, np
+    )
+
+
+def _set_tile_east_dxc(xyz_dgrid, xyz_agrid, radius, dxc, np):
+    _set_tile_west_dxc(xyz_dgrid[::-1, :], xyz_agrid[::-1, :], radius, dxc[::-1, :], np)
+
+
+def set_tile_border_dyc(xyz_dgrid, xyz_agrid, radius, dyc, tile_partitioner, rank, np):
+    if tile_partitioner.on_tile_top(rank):
+        _set_tile_north_dyc(xyz_dgrid, xyz_agrid, radius, dyc, np)
+    if tile_partitioner.on_tile_bottom(rank):
+        _set_tile_south_dyc(xyz_dgrid, xyz_agrid, radius, dyc, np)
+
+
+def _set_tile_north_dyc(xyz_dgrid, xyz_agrid, radius, dyc, np):
+    _set_tile_east_dxc(
+        xyz_dgrid.transpose(1, 0, 2),
+        xyz_agrid.transpose(1, 0, 2),
+        radius,
+        dyc.transpose(1, 0),
+        np
+    )
+
+
+def _set_tile_south_dyc(xyz_dgrid, xyz_agrid, radius, dyc, np):
+    _set_tile_west_dxc(
+        xyz_dgrid.transpose(1, 0, 2),
+        xyz_agrid.transpose(1, 0, 2),
+        radius,
+        dyc.transpose(1, 0),
+        np
+    )
 
 
 def get_rectangle_area(p1, p2, p3, p4, radius, np):
