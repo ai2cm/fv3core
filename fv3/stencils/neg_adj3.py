@@ -116,6 +116,7 @@ def fillq(q, dp, grid):
 
 
 """
+# TODO fix this to do fillq with a stencil that validates
 # need sum1, sum2 to be an accumulating floats
 @utils.stencil()
 def fillq(q:sd, dp:sd):
