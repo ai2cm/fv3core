@@ -485,8 +485,6 @@ def wqs1_stencil(
         wqsat = es / (constants.RVGAS * ta * den)
 
 
-
-
 # TODO put in gt4py (compute table values on the fly rather than using a lookup?)
 # The function wqs2_vect computes the gradient of saturated specific humidity for table ii. with arguments tablename=tablew, desname=desw
 # iqs2 computes the gradient of saturated specific humidity for table iii. with arguments tablename=table2, desname=des2

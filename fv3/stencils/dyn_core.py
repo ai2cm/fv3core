@@ -55,7 +55,9 @@ def set_pem(delp: sd, pem: sd, ptop: float):
 
 
 @utils.stencil()
-def heatadjust_temperature_lowlevel(pt: sd, heat_source: sd, delp: sd, pkz: sd, cp_air: float):
+def heatadjust_temperature_lowlevel(
+    pt: sd, heat_source: sd, delp: sd, pkz: sd, cp_air: float
+):
     with computation(PARALLEL), interval(...):
         pt[0, 0, 0] = pt + heat_source / (cp_air * delp * pkz)
 
