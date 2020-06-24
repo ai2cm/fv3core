@@ -49,15 +49,11 @@ def pressure_updates(
         pe2 = ak + bk * pe_bottom
     with computation(FORWARD), interval(0, -1):
         delp = pe2[0, 0, 1] - pe2
-    # with computation(FORWARD), interval(...):
-    #    pk1 = pk
     with computation(PARALLEL):
         with interval(0, 1):
             pn2 = peln
-            # pk2 = pk
         with interval(-1, None):
             pn2 = peln
-            # pk2 = pk
 
 
 @utils.stencil()
