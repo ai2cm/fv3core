@@ -61,15 +61,9 @@ def add_diffusive(fx: sd, fx2: sd, fy: sd, fy2: sd):
 
 
 @utils.stencil()
-def add_diffusive_x(fx: sd, fx2: sd):
+def add_diffusive_component(fx: sd, fx2: sd):
     with computation(PARALLEL), interval(...):
         fx[0, 0, 0] = fx + fx2
-
-
-@utils.stencil()
-def add_diffusive_y(fy: sd, fy2: sd):
-    with computation(PARALLEL), interval(...):
-        fy[0, 0, 0] = fy + fy2
 
 
 @utils.stencil()
@@ -110,10 +104,8 @@ def compute_delnflux_no_sg(
     diffuse_domain_x = (grid.nic + 1, grid.njc, nk)
     diffuse_domain_y = (grid.nic, grid.njc + 1, nk)
     if mass is None:
-        # add_diffusive_x(
-        #    fx, fx2, origin=diffuse_origin, domain=(grid.nic + 1, grid.njc + 1, nk))
-        add_diffusive_x(fx, fx2, origin=diffuse_origin, domain=diffuse_domain_x)
-        add_diffusive_y(fy, fy2, origin=diffuse_origin, domain=diffuse_domain_y)
+        add_diffusive_component(fx, fx2, origin=diffuse_origin, domain=diffuse_domain_x)
+        add_diffusive_component(fy, fy2, origin=diffuse_origin, domain=diffuse_domain_y)
     else:
         # TODO to join these stencils you need to overcompute, making the edges 'wrong', but not actually used, separating now for comparison sanity
         # diffusive_damp(fx, fx2, fy, fy2, mass, damp,origin=diffuse_origin,domain=(grid.nic + 1, grid.njc + 1, nk))
