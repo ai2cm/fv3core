@@ -485,17 +485,6 @@ def wqs1_stencil(
         wqsat = es / (constants.RVGAS * ta * den)
 
 
-# def numpy_dim(a, b):
-#    diff = a - b
-#    diff[diff < 0] = 0
-#    return diff
-
-# Does not work
-# @utils.stencil(externals={'lookup': satmix})
-# def experiment(es: sd, it: sd):
-#    from __externals__ import lookup
-#    with computation(PARALLEL), interval(...):
-#        es = lookup['desw'][it]
 
 
 # TODO put in gt4py (compute table values on the fly rather than using a lookup?)
@@ -527,16 +516,6 @@ def wqs2_iqs2(ta, den, wqsat, dqdt, tablename="tablew", desname="desw"):
         origin=(0, 0, 0),
         domain=spec.grid.domain_shape_standard(),
     )
-    # numpy only version
-    # ap1 = 10.0 * numpy_dim(ta.data, TMIN) + 1.0
-    # ap1 = np.minimum(ap1, QS_LENGTH) - 1.0
-    # it = ap1.astype(int)
-    # es = satmix['tablew'][it] + (ap1 - it) * satmix['desw'][it]
-    # wqsat = es / (constants.RVGAS * ta.data * den.data)
-    ## finite diff, del_t = 0.1:
-    # it = (ap1 - 0.5).astype(int)
-    # dqdt = 10.0 * (satmix['desw'][it] + (ap1 - it) * (satmix['desw'][it + 1] - satmix['desw'][it])) / (constants.RVGAS * ta.data * den.data)
-    # return wqsat, dqdt
 
 
 def wqs1_iqs1(ta, den, wqsat, tablename="tablew", desname="desw"):
