@@ -108,7 +108,7 @@ def compute(state, comm):
 
     init_step = state.n_map == 1
     end_step = state.n_map == spec.namelist["k_split"]
-    akap = state.akap
+    akap = constants.KAPPA
     # peln1 = math.log(ptop)
     # ptk = ptop**akap
     dt = state.mdt / state.n_split
