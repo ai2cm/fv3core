@@ -256,33 +256,36 @@ def set_constants(state):
     ArgSpec("pt", "air_temperature", "degK", intent="inout"),
     ArgSpec("delp", "pressure_thickness_of_atmospheric_layer", "Pa", intent="inout"),
     ArgSpec("delz", "vertical_thickness_of_atmospheric_layer", "m", intent="inout"),
-    ArgSpec("peln", "logarithm_of_edge_pressure", "ln(Pa)", intent="inout"),
+    ArgSpec("peln", "logarithm_of_interface_pressure", "ln(Pa)", intent="inout"),
     ArgSpec("u", "x_wind", "m/s", intent="inout"),
     ArgSpec("v", "y_wind", "m/s", intent="inout"),
     ArgSpec("w", "vertical_wind", "m/s", intent="inout"),
     ArgSpec("ua", "x_wind_on_a_grid", "m/s", intent="inout"),
     ArgSpec("va", "y_wind_on_a_grid", "m/s", intent="inout"),
+    ArgSpec("uc", "x_wind_on_c_grid", "m/s", intent="inout"),
+    ArgSpec("vc", "y_wind_on_c_grid", "m/s", intent="inout"),
     ArgSpec("q_con", "total_condensate_mixing_ratio", "kg/kg", intent="inout"),
-    ArgSpec("pe", "edge_pressure", "Pa", intent="inout"),
+    ArgSpec("pe", "interface_pressure", "Pa", intent="inout"),
     ArgSpec("phis", "surface_geopotential", "m^2 s^-2", intent="inout"),
-    ArgSpec("pk", "edge_pressure_raised_to_power_of_kappa", "unknown", intent="inout"),
-    ArgSpec("pkz", "finite_volume_mean_edge_pressure_raised_to_power_of_kappa", "unknown", intent="inout"),
+    ArgSpec("pk", "interface_pressure_raised_to_power_of_kappa", "unknown", intent="inout"),
+    ArgSpec("pkz", "finite_volume_mean_pressure_raised_to_power_of_kappa", "unknown", intent="inout"),
     ArgSpec("ps", "surface_pressure", "Pa", intent="inout"),
     ArgSpec("omga", "vertical_pressure_velocity", "Pa/s", intent="inout"),
     ArgSpec("ak", "atmosphere_hybrid_a_coordinate", "Pa", intent="in"),
     ArgSpec("bk", "atmosphere_hybrid_b_coordinate", "", intent="in"),
-    #ArgSpec("ptop"),  # still need a getter, stored on fv_atmos_type as a real
     ArgSpec("mfxd", "accumulated_x_mass_flux", "unknown", intent="inout"),
     ArgSpec("mfyd", "accumulated_y_mass_flux", "unknown", intent="inout"),
     ArgSpec("cxd", "accumulated_x_courant_number", "unknown", intent="inout"),
     ArgSpec("cyd", "accumulated_y_courant_number", "unknown", intent="inout"),
+    ArgSpec("diss_estd", "dissipation_estimate_from_heat_source", "unknown", intent="inout"),
 )
-def fv_dynamics(state, comm, last_step, consv_te, do_adiabatic_init, dt_atmos, p_split):
+def fv_dynamics(state, comm, consv_te, do_adiabatic_init, dt_atmos, p_split, ptop, n_split):
     state.__dict__.update({
         "consv_te": consv_te,
-        "last_step": last_step,
         "bdt": dt_atmos / abs(p_split),
         "do_adiabatic_init": do_adiabatic_init,
+        "ptop": ptop,
+        "n_split": n_split,
     })
     return compute(state, comm)
 

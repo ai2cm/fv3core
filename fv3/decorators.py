@@ -15,7 +15,7 @@ def state_inputs(*arg_specs):
     def decorator(func):
         @functools.wraps(func)
         def wrapped(state, *args, **kwargs):
-            kwargs = {}
+            namespace_kwargs = {}
             for spec in arg_specs:
                 arg_name, standard_name, units, intent = spec
                 if standard_name not in state:
@@ -23,7 +23,8 @@ def state_inputs(*arg_specs):
                 elif units != state[standard_name].units:
                     raise ValueError(f"{standard_name} has units {state[standard_name].units} when {units} is required")
                 else:
-                    kwargs[spec.arg_name] = state[standard_name]
-            return func(types.SimpleNamespace(**kwargs), *args, **kwargs)
-        return func
+                    namespace_kwargs[arg_name] = state[standard_name].storage
+                    namespace_kwargs[arg_name + '_quantity'] = state[standard_name]
+            return func(types.SimpleNamespace(**namespace_kwargs), *args, **kwargs)
+        return wrapped
     return decorator
