@@ -1,10 +1,10 @@
-from .parallel_translate import ParallelTranslateGrid
+from .parallel_translate import ParallelTranslate
 import fv3.stencils.fv_dynamics as fv_dynamics
 import fv3util
 import pytest
 
 
-class TranslateFVDynamics(ParallelTranslateGrid):
+class TranslateFVDynamics(ParallelTranslate):
 
     inputs = {
         "q_con": {
@@ -133,7 +133,7 @@ class TranslateFVDynamics(ParallelTranslateGrid):
         "phis": {
             "name": "surface_geopotential",
             "units": "m^2 s^-2",
-            "dims": [fv3util.Y_DIM, fv3util.X_DIM],
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
         },
         "qvapor": {
             "name": "specific_humidity",
@@ -182,13 +182,87 @@ class TranslateFVDynamics(ParallelTranslateGrid):
         "n_split": {"dims": []},
     }
 
+    outputs = inputs.copy()
+
+    for name in ("do_adiabatic_init", "consv_te", "bdt", "ptop", "n_split", "ak", "bk"):
+        outputs.pop(name)
+
+    def __init__(self, grids, *args, **kwargs):
+        super().__init__(grids, *args, **kwargs)
+        grid = grids[0]
+        self._base.in_vars["data_vars"] = {
+            "u": grid.y3d_domain_dict(),
+            "v": grid.x3d_domain_dict(),
+            "w": {},
+            "delz": {},
+            "qvapor": {},
+            "qliquid": {},
+            "qice": {},
+            "qrain": {},
+            "qsnow": {},
+            "qgraupel": {},
+            "qcld": {},
+            "ps": {},
+            "pe": {
+                "istart": grid.is_ - 1,
+                "iend": grid.ie + 1,
+                "jstart": grid.js - 1,
+                "jend": grid.je + 1,
+                "kend": grid.npz + 1,
+                "kaxis": 1,
+            },
+            "pk": grid.compute_buffer_k_dict(),
+            "peln": {
+                "istart": grid.is_,
+                "iend": grid.ie,
+                "jstart": grid.js,
+                "jend": grid.je,
+                "kend": grid.npz,
+                "kaxis": 1,
+            },
+            "pkz": grid.compute_dict(),
+            "phis": {},
+            "q_con": {},
+            "delp": {},
+            "pt": {},
+            "omga": {},
+            "ua": {},
+            "va": {},
+            "uc": grid.x3d_domain_dict(),
+            "vc": grid.y3d_domain_dict(),
+            "ak": {},
+            "bk": {},
+            "mfxd": grid.x3d_compute_dict(),
+            "mfyd": grid.y3d_compute_dict(),
+            "cxd": grid.x3d_compute_domain_y_dict(),
+            "cyd": grid.y3d_compute_domain_x_dict(),
+            "diss_estd": {},
+        }
+        self._base.out_vars = self._base.in_vars["data_vars"].copy()
+        for var in ["ak", "bk"]:
+            self._base.out_vars.pop(var)
+        self._base.out_vars["ps"] = {"kstart": grid.npz - 1, "kend": grid.npz - 1}
+        self._base.out_vars["phis"] = {"kstart": grid.npz - 1, "kend": grid.npz - 1}
+
+        self.max_error = 1e-5
+
+        self.ignore_near_zero_errors = {}
+        for qvar in [
+            "qice",
+            "qvapor",
+            "qliquid",
+            "qgraupel",
+            "qrain",
+            "qsnow",
+            "qcld",
+            "q_con",
+        ]:
+            self.ignore_near_zero_errors[qvar] = True
+
     def compute_parallel(self, inputs, communicator):
         inputs["comm"] = communicator
         state = self.state_from_inputs(inputs)
-        # dummy values, used to compute the correct bdt
-        dt_atmos = inputs["bdt"]
-        p_split = 1
-        fv_dynamics.fv_dynamics(state, communicator, inputs["consv_te"], inputs["do_adiabatic_init"], dt_atmos, p_split, inputs["ptop"], inputs["n_split"])
+        fv_dynamics.fv_dynamics(state, communicator, inputs["consv_te"], inputs["do_adiabatic_init"], inputs["bdt"], inputs["ptop"], inputs["n_split"])
         outputs = self.outputs_from_state(state)
         return outputs
 

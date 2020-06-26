@@ -287,7 +287,7 @@ def fv_dynamics(state, comm, consv_te, do_adiabatic_init, timestep, ptop, n_spli
         "ptop": ptop,
         "n_split": n_split,
     })
-    return compute(state, comm)
+    compute(state, comm)
 
 
 def compute(state, comm):
