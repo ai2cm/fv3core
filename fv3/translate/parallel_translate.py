@@ -97,15 +97,6 @@ class ParallelTranslate:
                 outputs[name] = state[name]  # scalar
         outputs.update(self._base.slice_output(storages))
         return outputs
-        #     name: state[name].storage for name, q in self.outputs if isinstance(state[name], fv3util.Quantity)
-        # }
-        # for name, properties in self.outputs.items():
-        #     standard_name = properties["name"]
-        #     output_slice = _serialize_slice(
-        #         state[standard_name], properties.get("n_halo", utils.halo), real_dims=properties["dims"]
-        #     )
-        #     return_dict[name] = state[standard_name].data[output_slice]
-        # return return_dict
 
     @property
     def rank_grids(self):
