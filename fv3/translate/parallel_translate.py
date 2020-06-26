@@ -38,6 +38,7 @@ class ParallelTranslate:
             "data_vars": {name: {} for name in self.inputs},
             "parameters": [],
         }
+        self._base.out_vars = {name: {} for name in self.outputs}
         self.max_error = self._base.max_error
         self._rank_grids = rank_grids
         self.ignore_near_zero_errors = {}
@@ -84,19 +85,16 @@ class ParallelTranslate:
         return input_data
 
     def outputs_from_state(self, state: dict):
+        return_dict = {}
         if len(self.outputs) == 0:
-            return {}
-        outputs = {}
-        storages = {}
-        for name in self.outputs:
-            if isinstance(state[name], fv3util.Quantity):
-                storages[name] = state[name].storage
-            elif len(self.outputs[name]["dims"]) > 0:
-                storages[name] = state[name]  # assume it's a storage
-            else:
-                outputs[name] = state[name]  # scalar
-        outputs.update(self._base.slice_output(storages))
-        return outputs
+            return return_dict
+        for name, properties in self.outputs.items():
+            standard_name = properties["name"]
+            output_slice = _serialize_slice(
+                state[standard_name], properties.get("n_halo", utils.halo)
+            )
+            return_dict[name] = state[standard_name].data[output_slice]
+        return return_dict
 
     @property
     def rank_grids(self):
@@ -117,6 +115,25 @@ class ParallelTranslate:
     def compute_parallel(self, inputs, communicator):
         """Compute the outputs using one communicator operating in parallel"""
         self.compute_sequential(self, [inputs], [communicator])
+
+
+class ParallelTranslateBaseSlicing(ParallelTranslate):
+
+    def outputs_from_state(self, state: dict):
+        if len(self.outputs) == 0:
+            return {}
+        outputs = {}
+        storages = {}
+        for name, properties in self.outputs.items():
+            standard_name = properties.get("name", name)
+            if isinstance(state[name], fv3util.Quantity):
+                storages[name] = state[standard_name].storage
+            elif len(self.outputs[name]["dims"]) > 0:
+                storages[name] = state[standard_name]  # assume it's a storage
+            else:
+                outputs[name] = state[standard_name]  # scalar
+        outputs.update(self._base.slice_output(storages))
+        return outputs
 
 
 def _serialize_slice(quantity, n_halo, real_dims=None):

@@ -1,10 +1,10 @@
-from .parallel_translate import ParallelTranslate
+from .parallel_translate import ParallelTranslateBaseSlicing
 import fv3.stencils.fv_dynamics as fv_dynamics
 import fv3util
 import pytest
 
 
-class TranslateFVDynamics(ParallelTranslate):
+class TranslateFVDynamics(ParallelTranslateBaseSlicing):
 
     inputs = {
         "q_con": {
