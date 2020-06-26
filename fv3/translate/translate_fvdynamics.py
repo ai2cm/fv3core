@@ -77,7 +77,7 @@ class TranslateFVDynamics(ParallelTranslate):
             "name": "accumulated_x_courant_number",
             "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM, fv3util.Z_DIM],
             "units": "unknown",
-            "n_halo": (0, 3)
+            "n_halo": (0, 3),
         },
         "cyd": {
             "name": "accumulated_y_courant_number",
@@ -262,7 +262,15 @@ class TranslateFVDynamics(ParallelTranslate):
     def compute_parallel(self, inputs, communicator):
         inputs["comm"] = communicator
         state = self.state_from_inputs(inputs)
-        fv_dynamics.fv_dynamics(state, communicator, inputs["consv_te"], inputs["do_adiabatic_init"], inputs["bdt"], inputs["ptop"], inputs["n_split"])
+        fv_dynamics.fv_dynamics(
+            state,
+            communicator,
+            inputs["consv_te"],
+            inputs["do_adiabatic_init"],
+            inputs["bdt"],
+            inputs["ptop"],
+            inputs["n_split"],
+        )
         outputs = self.outputs_from_state(state)
         return outputs
 

@@ -289,7 +289,7 @@ def save_netcdf(
 ):
     data_vars = {}
     for i, varname in enumerate(failing_names):
-        dims = [dim_name + f'_{i}' for dim_name in testobj.outputs[varname]["dims"]]
+        dims = [dim_name + f"_{i}" for dim_name in testobj.outputs[varname]["dims"]]
         attrs = {
             "units": testobj.outputs[varname]["units"],
         }
