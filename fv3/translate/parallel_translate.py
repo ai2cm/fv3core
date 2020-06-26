@@ -118,7 +118,6 @@ class ParallelTranslate:
 
 
 class ParallelTranslateBaseSlicing(ParallelTranslate):
-
     def outputs_from_state(self, state: dict):
         if len(self.outputs) == 0:
             return {}
