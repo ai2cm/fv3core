@@ -150,10 +150,19 @@ def blbr_iord8(q: sd, al: sd, bl:sd, br:sd, dm: sd):
         min_aldiffj = min_fn(absxt, abs_aldiffj)
         bl = -1. * sign(min_aldiff, xt)
         br = sign(min_aldiffj, xt)
+
+@gtscript.function
+def xt_dxa_edge_0_base(q, dxa):
+    return 0.5*(((2.*dxa+dxa[-1, 0, 0])*q-dxa*q[-1, 0, 0])/(dxa[-1, 0, 0]+dxa) +
+                ((2.*dxa[1, 0, 0]+dxa[2, 0, 0 ])*q[1, 0, 0]-dxa[1, 0, 0]*q[2, 0, 0])/(dxa[1, 0, 0]+dxa[2, 0, 0]))
+
+@gtscript.function
+def xt_dxa_edge_1_base(q, dxa):
+    return 0.5*(((2.*dxa[-1, 0, 0]+dxa[-2, 0, 0])*q[-1, 0, 0]-dxa[-1, 0, 0]*q[-2, 0, 0])/(dxa[-2, 0, 0]+dxa[-1, 0, 0]) +  ((2.*dxa + dxa[1, 0, 0])*q -dxa *q[1, 0, 0])/(dxa+dxa[1, 0, 0]))
+
 @gtscript.function
 def xt_dxa_edge_0(q, dxa):
-    xt = 0.5*(((2.*dxa+dxa[-1, 0, 0])*q-dxa*q[-1, 0, 0])/(dxa[-1, 0, 0]+dxa) +
-              ((2.*dxa[1, 0, 0]+dxa[2, 0, 0 ])*q[1, 0, 0]-dxa[1, 0, 0]*q[2, 0, 0])/(dxa[1, 0, 0]+dxa[2, 0, 0]))
+    xt = xt_dxa_edge_0_base(q, dxa)
     minq = min_fn(q[-1, 0, 0], q)
     minq = min_fn(minq, q[1, 0, 0])
     minq = min_fn(minq, q[2, 0, 0])
@@ -166,7 +175,7 @@ def xt_dxa_edge_0(q, dxa):
 
 @gtscript.function
 def xt_dxa_edge_1(q, dxa):
-    xt = 0.5*(((2.*dxa[-1, 0, 0]+dxa[-2, 0, 0])*q[-1, 0, 0]-dxa[-1, 0, 0]*q[-2, 0, 0])/(dxa[-2, 0, 0]+dxa[-1, 0, 0]) +  ((2.*dxa + dxa[1, 0, 0])*q -dxa *q[1, 0, 0])/(dxa+dxa[1, 0, 0]))
+    xt = xt_dxa_edge_1_base(q, dxa)
     minq = min_fn(q[-2, 0, 0], q[-1, 0, 0])
     minq = min_fn(minq, q)
     minq = min_fn(minq, q[1, 0, 0])
@@ -222,6 +231,7 @@ def east_edge_iord8plus_2(q: sd, dxa: sd, dm: sd, bl: sd, br: sd):
         xt = xt_dxa_edge_1(q, dxa)
         bl = xt - q
         br = s11 * (q[1, 0, 0] - q) - s14*dm[1, 0, 0]
+
 def compute_al(q, dxa, iord, is1, ie3, jfirst, jlast, kstart=0, nk=None):
     if nk is None:
         nk = grid().npz - kstart
