@@ -25,6 +25,6 @@ def state_inputs(*arg_specs):
                 else:
                     namespace_kwargs[arg_name] = state[standard_name].storage
                     namespace_kwargs[arg_name + '_quantity'] = state[standard_name]
-            return func(types.SimpleNamespace(**namespace_kwargs), *args, **kwargs)
+            func(types.SimpleNamespace(**namespace_kwargs), *args, **kwargs)
         return wrapped
     return decorator

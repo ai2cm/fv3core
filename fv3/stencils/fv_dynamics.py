@@ -266,7 +266,7 @@ def set_constants(state):
     ArgSpec("vc", "y_wind_on_c_grid", "m/s", intent="inout"),
     ArgSpec("q_con", "total_condensate_mixing_ratio", "kg/kg", intent="inout"),
     ArgSpec("pe", "interface_pressure", "Pa", intent="inout"),
-    ArgSpec("phis", "surface_geopotential", "m^2 s^-2", intent="inout"),
+    ArgSpec("phis", "surface_geopotential", "m^2 s^-2", intent="in"),
     ArgSpec("pk", "interface_pressure_raised_to_power_of_kappa", "unknown", intent="inout"),
     ArgSpec("pkz", "finite_volume_mean_pressure_raised_to_power_of_kappa", "unknown", intent="inout"),
     ArgSpec("ps", "surface_pressure", "Pa", intent="inout"),
@@ -279,10 +279,10 @@ def set_constants(state):
     ArgSpec("cyd", "accumulated_y_courant_number", "unknown", intent="inout"),
     ArgSpec("diss_estd", "dissipation_estimate_from_heat_source", "unknown", intent="inout"),
 )
-def fv_dynamics(state, comm, consv_te, do_adiabatic_init, dt_atmos, p_split, ptop, n_split):
+def fv_dynamics(state, comm, consv_te, do_adiabatic_init, timestep, ptop, n_split):
     state.__dict__.update({
         "consv_te": consv_te,
-        "bdt": dt_atmos / abs(p_split),
+        "bdt": timestep,
         "do_adiabatic_init": do_adiabatic_init,
         "ptop": ptop,
         "n_split": n_split,
