@@ -128,13 +128,14 @@ def compute(c, u, v, flux):
         
         if spec.namelist["grid_type"] < 3 and not (grid.nested or spec.namelist["regional"]):
             x_edge_domain = (di, 1, nk)
+            do_xt_minmax = False
             if grid.south_edge:
-                south_edge_jord8plus_0(v, grid.dy, dm, bl, br,
-                                       origin=(ifirst, grid.js - 1, kstart),
-                                       domain=x_edge_domain)
-                south_edge_jord8plus_1(v, grid.dy, dm, bl, br,
-                                       origin=(ifirst, grid.js, kstart),
-                                       domain=x_edge_domain)
+                yppm.south_edge_jord8plus_0(v, grid.dy, dm, bl, br,False,
+                                            origin=(ifirst, grid.js - 1, kstart),
+                                            domain=x_edge_domain)
+                yppm.south_edge_jord8plus_1(v, grid.dy, dm, bl, br, False,
+                                            origin=(ifirst, grid.js, kstart),
+                                            domain=x_edge_domain)
                 yppm.south_edge_jord8plus_2(v, grid.dy, dm, al, bl, br,
                                             origin=(ifirst, grid.js + 1, kstart),
                                             domain=x_edge_domain)
@@ -145,61 +146,13 @@ def compute(c, u, v, flux):
                 yppm.north_edge_jord8plus_0(v, grid.dy, dm, al, bl, br,
                                             origin=(ifirst, grid.je - 1, kstart),
                                             domain=x_edge_domain)
-                north_edge_jord8plus_1(v, grid.dy, dm, bl, br,
-                                       origin=(ifirst, grid.je, kstart),
-                                       domain=x_edge_domain)
-                north_edge_jord8plus_2(v, grid.dy, dm, bl, br,
-                                       origin=(ifirst, grid.je + 1, kstart),
-                                       domain=x_edge_domain)
+                yppm.north_edge_jord8plus_1(v, grid.dy, dm, bl, br,False,
+                                            origin=(ifirst, grid.je, kstart),
+                                            domain=x_edge_domain)
+                yppm.north_edge_jord8plus_2(v, grid.dy, dm, bl, br, False,
+                                            origin=(ifirst, grid.je + 1, kstart),
+                                            domain=x_edge_domain)
                 zero_br_bl_corners_north(br, bl)
                 yppm.pert_ppm(v, bl, br, -1, ifirst, grid.je-1, kstart, di, 1, nk)
         get_flux_v_ord8plus(v, c, grid.rdy, bl, br, flux, origin=(grid.is_, grid.js, kstart), domain=(grid.nic+1, grid.njc+1, nk))
             
-# TODO merge these with functions in yppm, the only difference is whetehr or not xt goes through a minmax filter
-
-@utils.stencil()
-def south_edge_jord8plus_0(q: sd, dya: sd, dm: sd, bl: sd, br: sd):
-    with computation(PARALLEL), interval(...):
-        bl = s14 * dm[0, -1, 0] + s11 * (q[0, -1, 0] - q)
-        xt = xt_dya_edge_0_base(q, dya)      
-        br = xt - q
-
-@utils.stencil()
-def south_edge_jord8plus_1(q: sd, dya: sd, dm: sd, bl: sd, br: sd):
-    with computation(PARALLEL), interval(...):
-        xt = xt_dya_edge_1_base(q, dya)
-        bl = xt - q
-        xt = s15 * q + s11 * q[0, 1, 0] - s14*dm[0, 1, 0]
-        br = xt - q
-        
-
-
-@utils.stencil()
-def north_edge_jord8plus_1(q: sd, dya: sd, dm: sd, bl: sd, br: sd):
-    with computation(PARALLEL), interval(...):
-        xt = s15 * q + s11 * q[0, -1, 0] + s14*dm[0, -1, 0]
-        bl = xt - q
-        xt = xt_dya_edge_0_base(q, dya)
-        br = xt - q
-    
-@utils.stencil()
-def north_edge_jord8plus_2(q: sd, dya: sd, dm: sd, bl: sd, br: sd):
-    with computation(PARALLEL), interval(...):
-        xt = xt_dya_edge_1_base(q, dya)
-        bl = xt - q
-        br = s11 * (q[0, 1, 0] - q) - s14*dm[0, 1, 0]
-        
-@utils.stencil()
-def south_edge_jord8plus_2(q: sd, dya: sd, dm: sd, al: sd, bl: sd, br: sd):
-    with computation(PARALLEL), interval(...):
-        xt = s15 * q[0, -1, 0] + s11 * q - s14*dm
-        bl = xt - q
-        br = al[0, 1, 0] - q
-
-
-@utils.stencil()
-def north_edge_jord8plus_0(q: sd, dya: sd, dm: sd, al: sd, bl: sd, br: sd):
-    with computation(PARALLEL), interval(...):
-        bl = al - q
-        xt = s15 * q[0, 1, 0] + s11 * q + s14*dm
-        br = xt - q

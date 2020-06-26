@@ -139,13 +139,14 @@ def compute(c, u, v, flux):
         
         if spec.namelist["grid_type"] < 3 and not (grid.nested or spec.namelist["regional"]):
             y_edge_domain = (1, dj, nk)
+            do_xt_minmax = False
             if grid.west_edge:
-                west_edge_iord8plus_0(u, grid.dx, dm, bl, br,
-                                      origin=(grid.is_ - 1, jfirst, kstart),
-                                      domain=y_edge_domain)
-                west_edge_iord8plus_1(u, grid.dx, dm, bl, br,
-                                      origin=(grid.is_, jfirst, kstart),
-                                      domain=y_edge_domain)
+                xppm.west_edge_iord8plus_0(u, grid.dx, dm, bl, br, do_xt_minmax,
+                                           origin=(grid.is_ - 1, jfirst, kstart),
+                                           domain=y_edge_domain)
+                xppm.west_edge_iord8plus_1(u, grid.dx, dm, bl, br,do_xt_minmax,
+                                           origin=(grid.is_, jfirst, kstart),
+                                           domain=y_edge_domain)
                 xppm.west_edge_iord8plus_2(u, grid.dx, dm, al, bl, br,
                                            origin=(grid.is_ + 1,jfirst, kstart),
                                            domain=y_edge_domain)
@@ -156,12 +157,12 @@ def compute(c, u, v, flux):
                 xppm.east_edge_iord8plus_0(u, grid.dx, dm, al, bl, br,
                                            origin=(grid.ie - 1, jfirst,kstart),
                                            domain=y_edge_domain)
-                east_edge_iord8plus_1(u, grid.dx, dm, bl, br,
-                                      origin=(grid.ie, jfirst, kstart),
-                                      domain=y_edge_domain)
-                east_edge_iord8plus_2(u, grid.dx, dm, bl, br,
-                                      origin=(grid.ie + 1, jfirst, kstart),
-                                      domain=y_edge_domain)
+                xppm.east_edge_iord8plus_1(u, grid.dx, dm, bl, br, do_xt_minmax,
+                                           origin=(grid.ie, jfirst, kstart),
+                                           domain=y_edge_domain)
+                xppm.east_edge_iord8plus_2(u, grid.dx, dm, bl, br, do_xt_minmax,
+                                           origin=(grid.ie + 1, jfirst, kstart),
+                                           domain=y_edge_domain)
                 zero_br_bl_corners_east(br, bl)
                 xppm.pert_ppm(u, bl, br, -1, grid.ie-1, jfirst, kstart, 1, dj, nk)
         get_flux_u_ord8plus(u, c, grid.rdx, bl, br, flux, origin=(grid.is_, grid.js, kstart), domain=(grid.nic+1, grid.njc+1, nk))

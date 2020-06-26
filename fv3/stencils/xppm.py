@@ -161,43 +161,65 @@ def xt_dxa_edge_1_base(q, dxa):
     return 0.5*(((2.*dxa[-1, 0, 0]+dxa[-2, 0, 0])*q[-1, 0, 0]-dxa[-1, 0, 0]*q[-2, 0, 0])/(dxa[-2, 0, 0]+dxa[-1, 0, 0]) +  ((2.*dxa + dxa[1, 0, 0])*q -dxa *q[1, 0, 0])/(dxa+dxa[1, 0, 0]))
 
 @gtscript.function
-def xt_dxa_edge_0(q, dxa):
+def xt_dxa_edge_0(q, dxa, xt_minmax):
     xt = xt_dxa_edge_0_base(q, dxa)
-    minq = min_fn(q[-1, 0, 0], q)
-    minq = min_fn(minq, q[1, 0, 0])
-    minq = min_fn(minq, q[2, 0, 0])
-    maxq = max_fn(q[-1, 0, 0], q)
-    maxq = max_fn(maxq, q[1, 0, 0])
-    maxq = max_fn(maxq, q[2, 0, 0])
-    xt = max_fn(xt, minq)
-    xt = min_fn(xt, maxq)
+    minq = 0.
+    maxq = 0.
+    if xt_minmax:
+        #minq = min_fn(q[-1, 0, 0], q)
+        #minq = min_fn(minq, q[1, 0, 0])
+        #minq = min_fn(minq, q[2, 0, 0])
+        #maxq = max_fn(q[-1, 0, 0], q)
+        #maxq = max_fn(maxq, q[1, 0, 0])
+        #maxq = max_fn(maxq, q[2, 0, 0])
+        #xt = max_fn(xt, minq)
+        #xt = min_fn(xt, maxq)
+        minq = q[-1, 0, 0] if q[-1, 0, 0] < q else q
+        minq = minq if minq < q[1, 0, 0] else q[1, 0, 0]
+        minq = minq if minq < q[2, 0, 0] else q[2, 0, 0]
+        maxq = q[-1, 0, 0] if q[-1, 0, 0] > q else q
+        maxq = maxq if maxq > q[1, 0, 0] else q[1, 0, 0]
+        maxq = maxq if maxq > q[2, 0, 0] else q[2, 0, 0]
+        xt = xt if xt > minq else minq
+        xt = xt if xt < maxq else maxq
     return xt
 
 @gtscript.function
-def xt_dxa_edge_1(q, dxa):
+def xt_dxa_edge_1(q, dxa, xt_minmax):
     xt = xt_dxa_edge_1_base(q, dxa)
-    minq = min_fn(q[-2, 0, 0], q[-1, 0, 0])
-    minq = min_fn(minq, q)
-    minq = min_fn(minq, q[1, 0, 0])
-    maxq = max_fn(q[-2, 0, 0], q[-1, 0, 0])
-    maxq = max_fn(maxq, q)
-    maxq = max_fn(maxq, q[1, 0, 0])
-    xt = max_fn(xt, minq)
-    xt = min_fn(xt, maxq)
+    minq = 0.
+    maxq = 0.
+    if xt_minmax:
+        #minq = min_fn(q[-2, 0, 0], q[-1, 0, 0])
+        #minq = min_fn(minq, q)
+        #minq = min_fn(minq, q[1, 0, 0])
+        #maxq = max_fn(q[-2, 0, 0], q[-1, 0, 0])
+        #maxq = max_fn(maxq, q)
+        #maxq = max_fn(maxq, q[1, 0, 0])
+        #xt = max_fn(xt, minq)
+        #xt = min_fn(xt, maxq)
+        minq = q[-2, 0, 0] if q[-2, 0, 0] < q[-1, 0, 0] else q[-1, 0, 0]
+        minq = minq if minq < q else q
+        minq = minq if minq < q[1, 0, 0] else q[1, 0, 0]
+        maxq = q[-2, 0, 0] if q[-2, 0, 0] > q[-1, 0, 0] else q[-1, 0, 0]
+        maxq = maxq if maxq > q else q
+        maxq = maxq if maxq > q[1, 0, 0] else q[1, 0, 0]
+        xt = xt if xt > minq else minq
+        xt = xt if xt < maxq else maxq
     return xt
 
 
 @utils.stencil()
-def west_edge_iord8plus_0(q: sd, dxa: sd, dm: sd, bl: sd, br: sd):
+def west_edge_iord8plus_0(q: sd, dxa: sd, dm: sd, bl: sd, br: sd, xt_minmax: bool):
     with computation(PARALLEL), interval(...):
         bl = s14 * dm[-1, 0, 0] + s11 * (q[-1, 0, 0] - q)
-        xt = xt_dxa_edge_0(q, dxa)      
+        xt = xt_dxa_edge_0(q, dxa, xt_minmax)  
         br = xt - q
 
 @utils.stencil()
-def west_edge_iord8plus_1(q: sd, dxa: sd, dm: sd, bl: sd, br: sd):
+def west_edge_iord8plus_1(q: sd, dxa: sd, dm: sd, bl: sd, br: sd, xt_minmax: bool):
     with computation(PARALLEL), interval(...):
-        xt = xt_dxa_edge_1(q, dxa)
+        xt = xt_dxa_edge_1(q, dxa, xt_minmax)
         bl = xt - q
         xt = s15 * q + s11 * q[1, 0, 0] - s14*dm[1, 0, 0]
         br = xt - q
@@ -218,17 +240,17 @@ def east_edge_iord8plus_0(q: sd, dxa: sd, dm: sd, al: sd, bl: sd, br: sd):
         br = xt - q
 
 @utils.stencil()
-def east_edge_iord8plus_1(q: sd, dxa: sd, dm: sd, bl: sd, br: sd):
+def east_edge_iord8plus_1(q: sd, dxa: sd, dm: sd, bl: sd, br: sd, xt_minmax: bool):
     with computation(PARALLEL), interval(...):
         xt = s15 * q + s11 * q[-1, 0, 0] + s14*dm[-1, 0, 0]
         bl = xt - q
-        xt = xt_dxa_edge_0(q, dxa)
+        xt = xt_dxa_edge_0(q, dxa, xt_minmax)
         br = xt - q
     
 @utils.stencil()
-def east_edge_iord8plus_2(q: sd, dxa: sd, dm: sd, bl: sd, br: sd):
+def east_edge_iord8plus_2(q: sd, dxa: sd, dm: sd, bl: sd, br: sd, xt_minmax: bool):
     with computation(PARALLEL), interval(...):
-        xt = xt_dxa_edge_1(q, dxa)
+        xt = xt_dxa_edge_1(q, dxa, xt_minmax)
         bl = xt - q
         br = s11 * (q[1, 0, 0] - q) - s14*dm[1, 0, 0]
 
@@ -290,11 +312,12 @@ def compute_blbr_ord8plus(q, iord, jfirst, jlast, is1, ie1, kstart, nk):
         
     if spec.namelist["grid_type"] < 3 and not (grid.nested or spec.namelist["regional"]):
         y_edge_domain = (1, dj, nk)
+        do_xt_minmax = True
         if grid.west_edge:
-            west_edge_iord8plus_0(q, grid.dxa, dm, bl, br,
+            west_edge_iord8plus_0(q, grid.dxa, dm, bl, br, do_xt_minmax,
                                   origin=(grid.is_ - 1, jfirst, kstart),
                                   domain=y_edge_domain)
-            west_edge_iord8plus_1(q, grid.dxa, dm, bl, br,
+            west_edge_iord8plus_1(q, grid.dxa, dm, bl, br, do_xt_minmax,
                                   origin=(grid.is_, jfirst, kstart),
                                   domain=y_edge_domain)
             west_edge_iord8plus_2(q, grid.dxa, dm, al, bl, br,
@@ -305,10 +328,10 @@ def compute_blbr_ord8plus(q, iord, jfirst, jlast, is1, ie1, kstart, nk):
             east_edge_iord8plus_0(q, grid.dxa, dm, al, bl, br,
                                   origin=(grid.ie - 1, jfirst, kstart),
                                   domain=y_edge_domain)
-            east_edge_iord8plus_1(q, grid.dxa, dm, bl, br,
+            east_edge_iord8plus_1(q, grid.dxa, dm, bl, br, do_xt_minmax,
                                   origin=(grid.ie, jfirst, kstart),
                                   domain=y_edge_domain)
-            east_edge_iord8plus_2(q, grid.dxa, dm, bl, br,
+            east_edge_iord8plus_2(q, grid.dxa, dm, bl, br, do_xt_minmax,
                                   origin=(grid.ie + 1, jfirst, kstart),
                                   domain=y_edge_domain)
             pert_ppm(q, bl, br, 1, grid.ie-1,jfirst, kstart, 3, dj, nk)

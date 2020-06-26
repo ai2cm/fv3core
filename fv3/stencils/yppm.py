@@ -219,50 +219,72 @@ def blbr_jord8(q: sd, al: sd, bl:sd, br:sd, dm: sd):
 @gtscript.function
 def xt_dya_edge_0_base(q, dya):
     return 0.5*(((2.*dya+dya[0, -1, 0])*q-dya*q[0, -1, 0])/(dya[0, -1, 0]+dya) +
-              ((2.*dya[0, 1, 0]+dya[0, 2, 0])*q[0, 1, 0]-dya[0, 1, 0]*q[0, 2, 0])/(dya[0, 1, 0]+dya[0, 2, 0]))
+                ((2.*dya[0, 1, 0]+dya[0, 2, 0])*q[0, 1, 0]-dya[0, 1, 0]*q[0, 2, 0])/(dya[0, 1, 0]+dya[0, 2, 0]))
 
 @gtscript.function
 def xt_dya_edge_1_base(q, dya):
-    return  0.5*(((2.*dya[0, -1, 0]+dya[0, -2, 0])*q[0, -1, 0]-dya[0, -1, 0]*q[0, -2, 0])/(dya[0, -2, 0]+dya[0, -1, 0]) +  ((2.*dya + dya[0, 1, 0])*q -dya *q[0, 1, 0])/(dya+dya[0, 1, 0]))
+    return 0.5*(((2.*dya[0, -1, 0]+dya[0, -2, 0])*q[0, -1, 0]-dya[0, -1, 0]*q[0, -2, 0])/(dya[0, -2, 0]+dya[0, -1, 0]) +  ((2.*dya + dya[0, 1, 0])*q -dya *q[0, 1, 0])/(dya+dya[0, 1, 0]))
 
 @gtscript.function
-def xt_dya_edge_0(q, dya):
+def xt_dya_edge_0(q, dya, xt_minmax):
     xt = xt_dya_edge_0_base(q, dya)
-    minq = min_fn(q[0, -1, 0], q)
-    minq = min_fn(minq, q[0,1,0])
-    minq = min_fn(minq, q[0, 2, 0])
-    maxq = max_fn(q[0, -1, 0], q)
-    maxq = max_fn(maxq, q[0,1,0])
-    maxq = max_fn(maxq, q[0, 2, 0])
-    xt = max_fn(xt, minq)
-    xt = min_fn(xt, maxq)
+    minq = 0.
+    maxq = 0.
+    if xt_minmax:
+        #minq = min_fn(q[0, -1, 0], q)
+        #minq = min_fn(minq, q[0,1,0])
+        #minq = min_fn(minq, q[0, 2, 0])
+        #maxq = max_fn(q[0, -1, 0], q)
+        #maxq = max_fn(maxq, q[0,1,0])
+        #maxq = max_fn(maxq, q[0, 2, 0])
+        #xt = max_fn(xt, minq)
+        #xt = min_fn(xt, maxq)
+        minq = q[0, -1, 0] if q[0, -1, 0] < q else q
+        minq = minq if minq < q[0, 1, 0] else q[0, 1, 0]
+        minq = minq if minq < q[0, 2, 0] else q[0, 2, 0]
+        maxq = q[0, -1, 0] if q[0, -1, 0] > q else q
+        maxq = maxq if maxq > q[0, 1, 0] else q[0, 1, 0]
+        maxq = maxq if maxq > q[0, 2, 0] else q[0, 2, 0]
+        xt = xt if xt > minq else minq
+        xt = xt if xt < maxq else maxq
     return xt
 
 
 @gtscript.function
-def xt_dya_edge_1(q, dya):
+def xt_dya_edge_1(q, dya, xt_minmax):
     xt = xt_dya_edge_1_base(q, dya)
-    minq = min_fn(q[0, -2, 0], q[0, -1, 0])
-    minq = min_fn(minq, q)
-    minq = min_fn(minq, q[0, 1, 0])
-    maxq = max_fn(q[0, -2, 0], q[0, -1, 0])
-    maxq = max_fn(maxq, q)
-    maxq = max_fn(maxq, q[0, 1, 0])
-    xt = max_fn(xt, minq)
-    xt = min_fn(xt, maxq)
+    minq = 0.
+    maxq = 0.
+    if xt_minmax:
+        #minq = min_fn(q[0, -2, 0], q[0, -1, 0])
+        #minq = min_fn(minq, q)
+        #minq = min_fn(minq, q[0, 1, 0])
+        #maxq = max_fn(q[0, -2, 0], q[0, -1, 0])
+        #maxq = max_fn(maxq, q)
+        #maxq = max_fn(maxq, q[0, 1, 0])
+        #xt = max_fn(xt, minq)
+        #xt = min_fn(xt, maxq)
+        minq = q[0, -2, 0] if q[0, -2, 0] < q[0, -1, 0] else q[0, -1, 0]
+        minq = minq if minq < q else q
+        minq = minq if minq < q[0, 1, 0] else q[0, 1, 0]
+        maxq = q[0, -2, 0] if q[0, -2, 0] > q[0, -1, 0] else q[0, -1, 0]
+        maxq = maxq if maxq > q else q
+        maxq = maxq if maxq > q[0, 1, 0] else q[0, 1, 0]
+        xt = xt if xt > minq else minq
+        xt = xt if xt < maxq else maxq
     return xt
 
 @utils.stencil()
-def south_edge_jord8plus_0(q: sd, dya: sd, dm: sd, bl: sd, br: sd):
+def south_edge_jord8plus_0(q: sd, dya: sd, dm: sd, bl: sd, br: sd, xt_minmax: bool):
     with computation(PARALLEL), interval(...):
         bl = s14 * dm[0, -1, 0] + s11 * (q[0, -1, 0] - q)
-        xt = xt_dya_edge_0(q, dya)     
+        xt = xt_dya_edge_0(q, dya, xt_minmax)     
         br = xt - q
 
 @utils.stencil()
-def south_edge_jord8plus_1(q: sd, dya: sd, dm: sd, bl: sd, br: sd):
+def south_edge_jord8plus_1(q: sd, dya: sd, dm: sd, bl: sd, br: sd, xt_minmax: bool):
     with computation(PARALLEL), interval(...):
-        xt = xt_dya_edge_1(q, dya)
+        xt = xt_dya_edge_1(q, dya, xt_minmax)
         bl = xt - q
         xt = s15 * q + s11 * q[0, 1, 0] - s14*dm[0, 1, 0]
         br = xt - q
@@ -283,17 +305,17 @@ def north_edge_jord8plus_0(q: sd, dya: sd, dm: sd, al: sd, bl: sd, br: sd):
         br = xt - q
 
 @utils.stencil()
-def north_edge_jord8plus_1(q: sd, dya: sd, dm: sd, bl: sd, br: sd):
+def north_edge_jord8plus_1(q: sd, dya: sd, dm: sd, bl: sd, br: sd, xt_minmax: bool):
     with computation(PARALLEL), interval(...):
         xt = s15 * q + s11 * q[0, -1, 0] + s14*dm[0, -1, 0]
         bl = xt - q
-        xt = xt_dya_edge_0(q, dya)
+        xt = xt_dya_edge_0(q, dya, xt_minmax)
         br = xt - q
     
 @utils.stencil()
-def north_edge_jord8plus_2(q: sd, dya: sd, dm: sd, bl: sd, br: sd):
+def north_edge_jord8plus_2(q: sd, dya: sd, dm: sd, bl: sd, br: sd, xt_minmax:bool):
     with computation(PARALLEL), interval(...):
-        xt = xt_dya_edge_1(q, dya)
+        xt = xt_dya_edge_1(q, dya, xt_minmax)
         bl = xt - q
         br = s11 * (q[0, 1, 0] - q) - s14*dm[0, 1, 0]
        
@@ -422,11 +444,12 @@ def compute_blbr_ord8plus(q, jord, dya, ifirst, ilast, js1, je1, kstart, nk):
         
     if spec.namelist["grid_type"] < 3 and not (grid.nested or spec.namelist["regional"]):
         x_edge_domain = (di, 1, nk)
+        do_xt_minmax = True
         if grid.south_edge:
-            south_edge_jord8plus_0(q, dya, dm, bl, br,
+            south_edge_jord8plus_0(q, dya, dm, bl, br, do_xt_minmax,
                                    origin=(ifirst, grid.js - 1, kstart),
                                    domain=x_edge_domain)
-            south_edge_jord8plus_1(q, dya, dm, bl, br,
+            south_edge_jord8plus_1(q, dya, dm, bl, br, do_xt_minmax,
                                    origin=(ifirst, grid.js, kstart),
                                    domain=x_edge_domain)
             south_edge_jord8plus_2(q, dya, dm, al, bl, br,
@@ -437,10 +460,10 @@ def compute_blbr_ord8plus(q, jord, dya, ifirst, ilast, js1, je1, kstart, nk):
             north_edge_jord8plus_0(q, dya, dm, al, bl, br,
                                    origin=(ifirst, grid.je - 1, kstart),
                                    domain=x_edge_domain)
-            north_edge_jord8plus_1(q, dya, dm, bl, br,
+            north_edge_jord8plus_1(q, dya, dm, bl, br, do_xt_minmax,
                                    origin=(ifirst, grid.je, kstart),
                                    domain=x_edge_domain)
-            north_edge_jord8plus_2(q, dya, dm, bl, br,
+            north_edge_jord8plus_2(q, dya, dm, bl, br, do_xt_minmax,
                                    origin=(ifirst, grid.je + 1, kstart),
                                    domain=x_edge_domain)
             pert_ppm(q, bl, br, 1, ifirst, grid.je-1, kstart, di, 3, nk)
