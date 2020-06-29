@@ -236,6 +236,7 @@ def wrapup(state, comm):
 def set_constants(state):
     agrav = 1.0 / constants.GRAV
     state.rdg = -constants.RDGAS / agrav
+    state.akap = constants.KAPPA
     state.dt2 = 0.5 * state.bdt
     # nq is actually given by ncnst - pnats, where those are given in atmosphere.F90 by:
     # ncnst = Atm(mytile)%ncnst
@@ -351,7 +352,7 @@ def compute(state, comm):
                 state.pfull,
                 state.dp1,
                 state.ptop,
-                constants.KAPPA,
+                state.akap,
                 state.zvir,
                 last_step,
                 state.consv_te,
