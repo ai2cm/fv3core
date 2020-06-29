@@ -189,32 +189,3 @@ class ParallelTranslate2PyState(ParallelTranslate2Py):
         state = {"state": statevars, "comm": communicator}
         self._base.compute_func(**state)
         return self._base.slice_output(vars(state["state"]))
-
-
-class ParallelTranslateGrid(ParallelTranslate):
-    """Translation class which only uses quantity factory for initialization, to
-    support some non-standard array dimension layouts not supported by the
-    TranslateFortranData2Py initializers.
-    """
-
-    def state_from_inputs(self, inputs: dict, grid=None) -> dict:
-        if grid is None:
-            grid = self.grid
-        state = {}
-        for name, properties in self.inputs.items():
-            state_name = properties.get("name", name)
-            if len(properties["dims"]) > 0:
-                state[state_name] = grid.quantity_factory.empty(
-                    properties["dims"], properties["units"], dtype=inputs[name].dtype
-                )
-                input_slice = _serialize_slice(
-                    state[state_name], properties.get("n_halo", utils.halo)
-                )
-                state[state_name].data[input_slice] = inputs[name]
-                if len(properties["dims"]) > 0:
-                    state[state_name].data[input_slice] = inputs[name]
-                else:
-                    state[state_name].data[:] = inputs[name]
-            else:
-                state[state_name] = inputs[name]
-        return state
