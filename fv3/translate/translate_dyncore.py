@@ -89,6 +89,7 @@ class TranslateDynCore(ParallelTranslate2PyState):
             "ak": {},
             "bk": {},
             "diss_estd": {},
+            "pfull": {},
         }
         self._base.in_vars["data_vars"]["wsd"]["kstart"] = grid.npz
         self._base.in_vars["data_vars"]["wsd"]["kend"] = None
@@ -98,8 +99,8 @@ class TranslateDynCore(ParallelTranslate2PyState):
             "n_split",
             "akap",
             "ptop",
-            "pfull",
             "n_map",
+            "ks"
         ]
         self._base.out_vars = {}
 
