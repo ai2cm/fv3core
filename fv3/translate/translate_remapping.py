@@ -83,6 +83,7 @@ class TranslateRemapping(TranslateFortranData2Py):
             "bdt",
             "kord_tracer",
             "do_adiabatic_init",
+            "nq"
         ]
         self.out_vars = {}
         for k in [

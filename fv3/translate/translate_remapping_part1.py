@@ -68,6 +68,7 @@ class TranslateRemapping_Part1(TranslateFortranData2Py):
             "ptop",
             "akap",
             "r_vir",
+            "nq"
         ]
         self.out_vars = {}
         for k in [

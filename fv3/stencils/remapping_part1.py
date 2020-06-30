@@ -132,10 +132,10 @@ def compute(
     ptop,
     akap,
     r_vir,
+    nq
 ):
     grid = spec.grid
     hydrostatic = spec.namelist["hydrostatic"]
-    nq = 7
     t_min = 184.0
     # do_omega = hydrostatic and last_step # TODO pull into inputs
     domain_jextra = (grid.nic, grid.njc + 1, grid.npz + 1)

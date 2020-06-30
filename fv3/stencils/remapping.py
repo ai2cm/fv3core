@@ -54,6 +54,7 @@ def compute(
     bdt,
     kord_tracer,
     do_adiabatic_init,
+    nq
 ):
     grid = spec.grid
 
@@ -95,6 +96,7 @@ def compute(
         ptop,
         akap,
         zvir,
+        nq
     )
     remap_part2.compute(
         qvapor,
