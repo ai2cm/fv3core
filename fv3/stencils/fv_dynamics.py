@@ -94,7 +94,7 @@ def compute_preamble(state, comm):
         state.cvm,
         state.dp1,
     )
-
+    
     if state.consv_te > 0 and not state.do_adiabatic_init:
         # NOTE not run in default configuration (turned off consv_te so we don't need a global allreduce)
         print("Compute Total Energy", grid.rank)
@@ -118,8 +118,8 @@ def compute_preamble(state, comm):
             state.qsnow,
             state.qgraupel,
         )
-
-    if (not spec.namelist["RF_fast"]) and spec.namelist["tau"] != 0:
+    
+    if (not spec.namelist["rf_fast"]) and spec.namelist["tau"] != 0:
         if grid.grid_type < 4:
             print("Rayleigh Super", grid.rank)
             rayleigh_super.compute(
@@ -136,7 +136,9 @@ def compute_preamble(state, comm):
                 state.pfull,
                 comm,
             )
-
+        # else:
+        #     rayleigh_friction.compute()
+    
     if spec.namelist["adiabatic"] and spec.namelist["kord_tm"] > 0:
         raise Exception(
             "unimplemented namelist options adiabatic with positive kord_tm"
