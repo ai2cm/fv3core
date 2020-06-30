@@ -214,7 +214,6 @@ def compute(
             pt, pkz, dtmp, r_vir, qvapor, qliquid, qice, qrain, qsnow, qgraupel, gz
         )
     else:
-        # TODO currently untested
         basic.adjust_divide_stencil(
-            pkz, pt, origin=grid.compute_origin, domain=grid.domain_shape_compute()
+            pkz, pt, origin=grid.compute_origin(), domain=grid.domain_shape_compute()
         )
