@@ -15,13 +15,7 @@ sd = utils.sd
 
 
 def compute(
-    qvapor,
-    qliquid,
-    qrain,
-    qsnow,
-    qice,
-    qgraupel,
-    qcld,
+    tracers,
     pt,
     delp,
     delz,
@@ -64,13 +58,7 @@ def compute(
     te_2d = utils.make_storage_from_shape(pt.shape, grid.compute_origin())
     zsum1 = utils.make_storage_from_shape(pt.shape, grid.compute_origin())
     remap_part1.compute(
-        qvapor,
-        qliquid,
-        qrain,
-        qsnow,
-        qice,
-        qgraupel,
-        qcld,
+        tracers,
         pt,
         delp,
         delz,
@@ -99,13 +87,13 @@ def compute(
         nq
     )
     remap_part2.compute(
-        qvapor,
-        qliquid,
-        qrain,
-        qsnow,
-        qice,
-        qgraupel,
-        qcld,
+        tracers["qvapor"],
+        tracers["qliquid"],
+        tracers["qice"],
+        tracers["qrain"],
+        tracers["qsnow"],
+        tracers["qgraupel"],
+        tracers["qcld"],
         pt,
         delp,
         delz,

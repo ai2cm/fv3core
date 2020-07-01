@@ -3,15 +3,47 @@ import fv3.stencils.fv_dynamics as fv_dynamics
 from .translate_dyncore import TranslateDynCore
 from .translate_tracer2d1l import TranslateTracer2D1L
 from .translate_fvdynamics_klooppostremap import TranslateFVDynamics_KLoopPostRemap
-
+import fv3util
+import fv3.utils.gt4py_utils as utils
 import copy
 
 
 class TranslateFVDynamics(ParallelTranslate2PyState):
     inputs = {
         **TranslateDynCore.inputs,
-        **TranslateTracer2D1L.inputs,
         **TranslateFVDynamics_KLoopPostRemap.inputs,
+        "qvapor": {
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_DIM],
+            "units": "kg/m^2",
+        },
+        "qliquid": {
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_DIM],
+            "units": "kg/m^2",
+        },
+        "qice": {
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_DIM],
+            "units": "kg/m^2",
+        },
+        "qrain": {
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_DIM],
+            "units": "kg/m^2",
+        },
+        "qsnow": {
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_DIM],
+            "units": "kg/m^2",
+        },
+        "qgraupel": {
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_DIM],
+            "units": "kg/m^2",
+        },
+        "qo3mr": {
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_DIM],
+            "units": "kg/m^2",
+        },
+        "qsgs_tke": {
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_DIM],
+            "units": "kg/m^2",
+        },
     }
     del inputs["cappa"]
 
@@ -30,6 +62,8 @@ class TranslateFVDynamics(ParallelTranslate2PyState):
             "qrain": {},
             "qsnow": {},
             "qgraupel": {},
+            "qo3mr": {},
+            "qsgs_tke": {},
             "qcld": {},
             "ps": {},
             "pe": {
@@ -83,14 +117,5 @@ class TranslateFVDynamics(ParallelTranslate2PyState):
             del self._base.out_vars[var]
         self._base.out_vars["ps"] = {"kstart": grid.npz - 1, "kend": grid.npz - 1}
         self._base.out_vars["phis"] = {"kstart": 0, "kend": 0}
-        for qvar in [
-            "qice",
-            "qvapor",
-            "qliquid",
-            "qgraupel",
-            "qrain",
-            "qsnow",
-            "qcld",
-            "q_con",
-        ]:
+        for qvar in utils.tracer_variables:
             self.ignore_near_zero_errors[qvar] = True

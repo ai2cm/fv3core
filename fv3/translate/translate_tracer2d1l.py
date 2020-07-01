@@ -1,52 +1,23 @@
-from .parallel_translate import ParallelTranslate2Py
+from .parallel_translate import ParallelTranslate
 import fv3.stencils.tracer_2d_1l as tracer_2d_1l
+import fv3.stencils.fv_dynamics as fv_dynamics
+import fv3.utils.gt4py_utils as utils
 import fv3util
+from types import SimpleNamespace
 
-
-class TranslateTracer2D1L(ParallelTranslate2Py):
-    inputs = {
-        "qvapor": {
-            "dims": [fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_DIM],
-            "units": "kg/m^2",
-        },
-        "qliquid": {
-            "dims": [fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_DIM],
-            "units": "kg/m^2",
-        },
-        "qice": {
-            "dims": [fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_DIM],
-            "units": "kg/m^2",
-        },
-        "qrain": {
-            "dims": [fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_DIM],
-            "units": "kg/m^2",
-        },
-        "qsnow": {
-            "dims": [fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_DIM],
-            "units": "kg/m^2",
-        },
-        "qgraupel": {
-            "dims": [fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_DIM],
-            "units": "kg/m^2",
-        },
-        "qcld": {
-            "dims": [fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_DIM],
-            "units": "kg/m^2",
-        },
+class TranslateTracer2D1L(ParallelTranslate):
+    inputs = {"tracers": {
+        "dims": [fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_DIM],
+        "units": "kg/m^2",
     }
-
+    }
+   
     def __init__(self, grids):
         super().__init__(grids)
         self._base.compute_func = tracer_2d_1l.compute
         grid = grids[0]
         self._base.in_vars["data_vars"] = {
-            "qvapor": {},
-            "qliquid": {},
-            "qice": {},
-            "qrain": {},
-            "qsnow": {},
-            "qgraupel": {},
-            "qcld": {},
+            "tracers":{} ,
             "dp1": {},
             "mfxd": grid.x3d_compute_dict(),
             "mfyd": grid.y3d_compute_dict(),
@@ -55,3 +26,23 @@ class TranslateTracer2D1L(ParallelTranslate2Py):
         }
         self._base.in_vars["parameters"] = ["nq", "mdt"]
         self._base.out_vars = self._base.in_vars["data_vars"]
+    
+   
+    def collect_input_data(self, serializer, savepoint):
+        input_data = self._base.collect_input_data(serializer, savepoint)
+        return input_data
+
+    def compute_parallel(self, inputs, communicator):
+        inputs["comm"] = communicator
+       
+        self._base.make_storage_data_input_vars(inputs)
+        properties = self.inputs["tracers"]
+        for name in utils.tracer_variables:
+            self.grid.quantity_dict_update(
+                inputs['tracers'], name, dims=properties["dims"], units=properties["units"]
+            )
+        self._base.compute_func(**inputs)
+        for name in utils.tracer_variables:
+            del inputs["tracers"][name+ '_quantity']
+        return self._base.slice_output(inputs)
+   

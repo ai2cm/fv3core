@@ -56,9 +56,9 @@ def sum_te(te: sd, te0_2d: sd):
 def compute(
     qvapor,
     qliquid,
+    qice,
     qrain,
     qsnow,
-    qice,
     qgraupel,
     qcld,
     pt,
@@ -95,7 +95,6 @@ def compute(
     copy_from_below(
         ua, pe, origin=grid.compute_origin(), domain=grid.domain_shape_compute()
     )
-
     dtmp = 0.0
     phis = utils.make_storage_from_shape(pt.shape, grid.compute_origin())
     dpln = utils.make_storage_from_shape(pt.shape, grid.compute_origin())

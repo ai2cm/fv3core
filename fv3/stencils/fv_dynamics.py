@@ -39,7 +39,16 @@ def set_omega(delp: sd, delz: sd, w: sd, omga: sd):
     with computation(PARALLEL), interval(...):
         omga = delp / delz * w
 
-
+# TODO replace with something from fv3config probably, using the field_table
+def tracers_dict(state):
+    tracers = {}
+    for tracername in utils.tracer_variables:
+        tracers[tracername] = state.__getattribute__(tracername)
+        quantity_name = utils.quantity_name(tracername)
+        if  quantity_name in state.__dict__:
+            tracers[quantity_name] = state.__getattribute__(quantity_name)
+    state.tracers = tracers
+    
 def fvdyn_temporaries(shape):
     grid = spec.grid
     tmps = {}
@@ -169,13 +178,8 @@ def do_dyn(state, comm):
         if spec.namelist["z_tracer"]:
             print("Tracer2D1L", grid.rank)
             tracer_2d_1l.compute(
-                state.qvapor_quantity,
-                state.qliquid_quantity,
-                state.qice_quantity,
-                state.qrain_quantity,
-                state.qsnow_quantity,
-                state.qgraupel_quantity,
-                state.qcld_quantity,
+                comm,
+                state.tracers,
                 state.dp1,
                 state.mfxd,
                 state.mfyd,
@@ -183,7 +187,6 @@ def do_dyn(state, comm):
                 state.cyd,
                 state.mdt,
                 state.nq,
-                comm,
             )
         else:
             raise Exception("tracer_2d no =t implemented, turn on z_tracer")
@@ -211,23 +214,20 @@ def post_remap(state, comm):
 
 def wrapup(state, comm):
     grid = spec.grid
-    if state.nq == 7:
-        print("Neg Adj 3", grid.rank)
-        neg_adj3.compute(
-            state.qvapor,
-            state.qliquid,
-            state.qrain,
-            state.qsnow,
-            state.qice,
-            state.qgraupel,
-            state.qcld,
-            state.pt,
-            state.delp,
-            state.delz,
-            state.peln,
-        )
-    else:
-        raise Exception("Unimplemented, anything but 7 water species")
+    print("Neg Adj 3", grid.rank)
+    neg_adj3.compute(
+        state.qvapor,
+        state.qliquid,
+        state.qrain,
+        state.qsnow,
+        state.qice,
+        state.qgraupel,
+        state.qcld,
+        state.pt,
+        state.delp,
+        state.delz,
+        state.peln,
+    )
     print("CubedToLatLon", grid.rank)
     compute_cubed_to_latlon(
         state.u_quantity, state.v_quantity, state.ua, state.va, comm, 1
@@ -246,6 +246,7 @@ def compute(state, comm):
     grid = spec.grid
     state.__dict__.update(fvdyn_temporaries(state.u.shape))
     set_constants(state)
+    tracers_dict(state)
     last_step = False
     k_split = spec.namelist["k_split"]
     state.mdt = state.bdt / k_split
@@ -261,13 +262,7 @@ def compute(state, comm):
             # do_omega = spec.namelist['hydrostatic'] and last_step
             print("Remapping", grid.rank)
             lagrangian_to_eulerian.compute(
-                state.qvapor,
-                state.qliquid,
-                state.qrain,
-                state.qsnow,
-                state.qice,
-                state.qgraupel,
-                state.qcld,
+                state.tracers,
                 state.pt,
                 state.delp,
                 state.delz,
@@ -300,6 +295,7 @@ def compute(state, comm):
                 state.bdt,
                 kord_tracer,
                 state.do_adiabatic_init,
+                state.nq
             )
             if last_step:
                 post_remap(state, comm)
