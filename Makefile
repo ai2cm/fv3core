@@ -201,8 +201,6 @@ dev_tests_mpi:
 dev_tests_mpi_host:
 	MOUNTS='-v $(CWD)/fv3:/fv3 -v $(CWD)/external/fv3gfs-python/external/fv3util:/usr/src/fv3util' $(MAKE) run_tests_parallel_host
 
-dev_tests_host:
-	MOUNTS='-v $(CWD)/fv3:/fv3 -v $(CWD)/external/fv3gfs-python/external/fv3util:/usr/src/fv3util' $(MAKE) run_tests_host_data
 
 test_base:
 	docker run --rm $(VOLUMES) $(MOUNTS) \

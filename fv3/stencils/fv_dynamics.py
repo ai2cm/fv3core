@@ -259,6 +259,8 @@ def set_constants(state):
     ArgSpec("qsnow", "snow_mixing_ratio", "kg/kg", intent="inout"),
     ArgSpec("qice", "ice_mixing_ratio", "kg/kg", intent="inout"),
     ArgSpec("qgraupel", "graupel_mixing_ratio", "kg/kg", intent="inout"),
+    ArgSpec("qo3mr", "ozone_mixing_ratio", "kg/kg", intent="inout"),
+    ArgSpec("qsgs_tke", "turbulent_kinetic_energy", "m**2/s**2", intent="inout"),
     ArgSpec("qcld", "cloud_fraction", "", intent="inout"),
     ArgSpec("pt", "air_temperature", "degK", intent="inout"),
     ArgSpec("delp", "pressure_thickness_of_atmospheric_layer", "Pa", intent="inout"),
