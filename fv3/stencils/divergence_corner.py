@@ -199,4 +199,3 @@ def compute(u, v, ua, va, divg_d):
         origin=(grid.is_, grid.js, 0),
         domain=(grid.nic + 1, grid.njc + 1, grid.npz),
     )
-
