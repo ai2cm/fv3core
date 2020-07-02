@@ -4,6 +4,7 @@ import gt4py.gtscript as gtscript
 import fv3._config as spec
 from gt4py.gtscript import computation, interval, PARALLEL
 import fv3.utils.global_constants as constants
+from fv3.stencils.basic_operations import max_fn, min_fn, dim
 import math
 import numpy as np
 
@@ -113,11 +114,6 @@ def qs_tablew(n):
         fac2 = get_fac2(tem, get_fac0(tem) * LV0, DC_VAP)
         satmix["tablew"][i] = E00 * math.exp(fac2)
 
-
-@gtscript.function
-def dim(a, b):
-    diff = a - b if a - b > 0 else 0
-    return diff
 
 
 @gtscript.function
