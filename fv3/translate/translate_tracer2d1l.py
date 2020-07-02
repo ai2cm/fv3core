@@ -46,3 +46,7 @@ class TranslateTracer2D1L(ParallelTranslate):
             del inputs["tracers"][name+ '_quantity']
         return self._base.slice_output(inputs)
    
+    def compute_sequential(self, a, b):
+        pytest.skip(
+            f"{self.__class__} only has a mpirun implementation, not running in mock-parallel"
+        )
