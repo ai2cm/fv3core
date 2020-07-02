@@ -1,9 +1,9 @@
-
 from .parallel_translate import ParallelTranslateBaseSlicing
 import fv3.stencils.fv_dynamics as fv_dynamics
 import fv3util
 import pytest
 import fv3.utils.gt4py_utils as utils
+
 
 class TranslateFVDynamics(ParallelTranslateBaseSlicing):
 
@@ -191,12 +191,21 @@ class TranslateFVDynamics(ParallelTranslateBaseSlicing):
         "bdt": {"dims": []},
         "ptop": {"dims": []},
         "n_split": {"dims": []},
-        "ks": {"dims": []}
+        "ks": {"dims": []},
     }
 
     outputs = inputs.copy()
 
-    for name in ("do_adiabatic_init", "consv_te", "bdt", "ptop", "n_split", "ak", "bk", "ks"):
+    for name in (
+        "do_adiabatic_init",
+        "consv_te",
+        "bdt",
+        "ptop",
+        "n_split",
+        "ak",
+        "bk",
+        "ks",
+    ):
         outputs.pop(name)
 
     def __init__(self, grids, *args, **kwargs):
@@ -264,7 +273,7 @@ class TranslateFVDynamics(ParallelTranslateBaseSlicing):
         self.ignore_near_zero_errors = {}
         for qvar in utils.tracer_variables:
             self.ignore_near_zero_errors[qvar] = True
-        
+
     def compute_parallel(self, inputs, communicator):
         inputs["comm"] = communicator
         state = self.state_from_inputs(inputs)
@@ -276,7 +285,7 @@ class TranslateFVDynamics(ParallelTranslateBaseSlicing):
             inputs["bdt"],
             inputs["ptop"],
             inputs["n_split"],
-            inputs["ks"]
+            inputs["ks"],
         )
         outputs = self.outputs_from_state(state)
         return outputs
@@ -286,4 +295,3 @@ class TranslateFVDynamics(ParallelTranslateBaseSlicing):
             f"{self.__class__} only has a mpirun implementation, "
             "not running in mock-parallel"
         )
-
