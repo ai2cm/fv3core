@@ -72,7 +72,7 @@ build: update_submodules
 		.
 
 pull_environment:
-	if [ -z $(shell docker images -q $(FV3_INSTALL_IMAGE)) ]; then \
+	if [ -z "$(shell docker images -q $(FV3_INSTALL_IMAGE))" ]; then \
 		docker pull $(FV3_INSTALL_IMAGE); \
 	fi
 
@@ -90,7 +90,7 @@ dev:
 		$(FV3_IMAGE)
 
 devc:
-	if [ -z $(shell docker ps -q -f name=$(TEST_DATA_RUN_CONTAINER)) ]; then \
+	if [ -z "$(shell docker ps -q -f name=$(TEST_DATA_RUN_CONTAINER))" ]; then \
 		$(MAKE) data_container; \
 	fi
 	docker run --rm -it \
@@ -140,7 +140,7 @@ extract_test_data:
 
 
 post_test_data:
-	if [ -z $(REMOTE_TAGS) ]; then \
+	if [ -z "$(REMOTE_TAGS)" ]; then \
 		docker push $(TEST_DATA_IMAGE); \
 	else \
 		echo "ERROR: $(FORTRAN_VERSION) of test data has already been pushed. Do a direct docker push if you really intend to overwrite it" && exit 1; \
@@ -155,10 +155,10 @@ move_test_data:
 
 setup_tests:
 	$(MAKE) build
-	if [ -z $(shell docker images -q $(TEST_DATA_IMAGE)) ]; then \
+	if [ -z "$(shell docker images -q $(TEST_DATA_IMAGE))" ]; then \
 		$(MAKE) pull_test_data; \
 	fi
-	if [ -z $(shell docker ps -q -f name=$(TEST_DATA_RUN_CONTAINER)) ]; then \
+	if [ -z "$(shell docker ps -q -f name=$(TEST_DATA_RUN_CONTAINER))" ]; then \
 		$(MAKE) data_container; \
 	fi
 
