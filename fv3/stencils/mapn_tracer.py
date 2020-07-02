@@ -1,8 +1,6 @@
 import fv3.utils.gt4py_utils as utils
-from fv3.utils.corners import fill2_4corners, fill_4corners
 import gt4py.gtscript as gtscript
 import fv3._config as spec
-import math as math
 from gt4py.gtscript import computation, interval, PARALLEL
 import fv3.stencils.copy_stencil as cp
 import fv3.stencils.remap_profile as remap_profile

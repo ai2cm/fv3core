@@ -404,6 +404,7 @@ def compute(state, comm):
                 state.ptop,
                 state.ks,
             )
+
         if it != n_split - 1:
             reqs_vector = comm.start_vector_halo_update(
                 state.u_quantity, state.v_quantity, n_points=utils.halo

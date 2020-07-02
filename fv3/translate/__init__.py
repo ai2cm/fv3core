@@ -67,7 +67,6 @@ from .translate_remapping_part2 import TranslateRemapping_Part2
 from .translate_c2l_ord2 import TranslateC2L_Ord2
 from .translate_cubedtolatlon import TranslateCubedToLatLon
 from .translate_rayleigh_super import TranslateRayleigh_Super
-from .translate_rayleigh_friction import TranslateRayleigh_Friction
 from .translate_divergencecorner import TranslateDivergenceCorner
 from .translate_vorticitytransport_cgrid import TranslateVorticityTransport_Cgrid
 from .translate_pressureadjustedtemperature_nonhydrostatic import (

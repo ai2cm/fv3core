@@ -215,4 +215,4 @@ def compute(
     else:
         basic.adjust_divide_stencil(
             pkz, pt, origin=grid.compute_origin(), domain=grid.domain_shape_compute()
-        )
+

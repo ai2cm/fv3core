@@ -116,16 +116,6 @@ def qs_tablew(n):
 
 
 @gtscript.function
-def min_fn(a, b):
-    return a if a < b else b
-
-
-@gtscript.function
-def max_fn(a, b):
-    return a if a > b else a
-
-
-@gtscript.function
 def compute_cvm(mc_air, qv, c_vap, q_liq, q_sol):
     return mc_air + qv * c_vap + q_liq * constants.C_LIQ + q_sol * constants.C_ICE
 

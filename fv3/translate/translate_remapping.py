@@ -104,25 +104,3 @@ class TranslateRemapping(TranslateFortranData2Py):
             self.out_vars[k] = self.in_vars["data_vars"][k]
         self.out_vars["ps"] = {"kstart": grid.npz, "kend": grid.npz}
         self.max_error = 1e-8
-
-    """
-    def compute(self, inputs):
-        self.make_storage_data_input_vars(inputs)
-        #for wi in range(len(utils.tracer_variables)):
-        #    inputs["tracer_qs"][utils.tracer_variables[i]] = inputs["tracer_qs"]["var_" + str(i)]
-       
-        tracer_qs = {}
-        for d, info in self.in_vars["data_vars"].items():
-            if d[0] == 'q' and d[1] != "_":
-                tracer_qs[d] = inputs[d]
-                del inputs[d]
-        inputs["tracer_qs"] = tracer_qs
-     
-        self.compute_func(
-            **inputs
-        )
-        #for name, data in inputs["tracer_qs"].items():
-        #    inputs[name] = data
-        #del inputs["tracer_qs"]
-        return self.slice_output(inputs)
-    """
