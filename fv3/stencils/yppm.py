@@ -3,7 +3,13 @@ import fv3.utils.gt4py_utils as utils
 import gt4py.gtscript as gtscript
 import fv3._config as spec
 from gt4py.gtscript import computation, interval, PARALLEL
-from fv3.stencils.basic_operations import absolute_value, floor_cap, min_fn, max_fn, sign
+from fv3.stencils.basic_operations import (
+    absolute_value,
+    floor_cap,
+    min_fn,
+    max_fn,
+    sign,
+)
 
 input_vars = ["q", "c"]
 inputs_params = ["jord", "ifirst", "ilast"]
@@ -128,6 +134,7 @@ def flux_intermediates(q, al, mord):
     tmp = smt5[0, -1, 0] + smt5 * (smt5[0, -1, 0] == 0)
     return bl, br, b0, tmp
 
+
 @gtscript.function
 def get_flux(q, c, al, mord):
     # this does not work  -- too many layers of gtscript.function fails
@@ -143,13 +150,15 @@ def get_flux(q, c, al, mord):
     )  # final_flux(c, q, fx1, tmp)
     return flux
 
+
 @utils.stencil()
 def get_flux_stencil_ord6(q: sd, c: sd, al: sd, flux: sd, mord: int):
     with computation(PARALLEL), interval(0, None):
         bl, br, b0, tmp = flux_intermediate_ord6(q, al, mord)
         fx1 = fx1_fn(c, br, b0, bl)
         flux = final_flux(c, q, fx1, tmp)  # noqa
-        
+
+
 # TODO: remove when validated
 @utils.stencil()
 def get_flux_stencil(q: sd, c: sd, al: sd, flux: sd, mord: int):
@@ -184,28 +193,31 @@ def finalflux_ord8plus(q: sd, c: sd, bl: sd, br: sd, flux: sd):
 
 
 @utils.stencil()
-def dm_jord8plus(q:sd, al:sd, dm:sd):
+def dm_jord8plus(q: sd, al: sd, dm: sd):
     with computation(PARALLEL), interval(...):
         xt = 0.25 * (q[0, 1, 0] - q[0, -1, 0])
         maxqj = max_fn(q, q[0, -1, 0])
-        maxqj = max_fn(maxqj, q[0,1, 0])
+        maxqj = max_fn(maxqj, q[0, 1, 0])
         minqj = min_fn(q, q[0, -1, 0])
-        minqj = min_fn(minqj, q[0,1, 0])
+        minqj = min_fn(minqj, q[0, 1, 0])
         dqr = maxqj - q
         dql = q - minqj
         absxt = absolute_value(xt)
         minmaxq = min_fn(absxt, dqr)
         minmaxq = min_fn(minmaxq, dql)
         dm = sign(minmaxq, xt)
-       
+
+
 @utils.stencil()
-def al_jord8plus(q:sd, al:sd, dm:sd, r3:float):
+def al_jord8plus(q: sd, al: sd, dm: sd, r3: float):
     with computation(PARALLEL), interval(...):
         al = 0.5 * (q[0, -1, 0] + q) + r3 * (dm[0, -1, 0] - dm)
+
+
 @utils.stencil()
-def blbr_jord8(q: sd, al: sd, bl:sd, br:sd, dm: sd):
+def blbr_jord8(q: sd, al: sd, bl: sd, br: sd, dm: sd):
     with computation(PARALLEL), interval(...):
-        xt = 2. * dm
+        xt = 2.0 * dm
         aldiff = al - q
         aldiffj = al[0, 1, 0] - q
         absxt = absolute_value(xt)
@@ -213,32 +225,45 @@ def blbr_jord8(q: sd, al: sd, bl:sd, br:sd, dm: sd):
         abs_aldiffj = absolute_value(aldiffj)
         min_aldiff = min_fn(absxt, abs_aldiff)
         min_aldiffj = min_fn(absxt, abs_aldiffj)
-        bl = -1. * sign(min_aldiff, xt)
+        bl = -1.0 * sign(min_aldiff, xt)
         br = sign(min_aldiffj, xt)
+
 
 @gtscript.function
 def xt_dya_edge_0_base(q, dya):
-    return 0.5*(((2.*dya+dya[0, -1, 0])*q-dya*q[0, -1, 0])/(dya[0, -1, 0]+dya) +
-                ((2.*dya[0, 1, 0]+dya[0, 2, 0])*q[0, 1, 0]-dya[0, 1, 0]*q[0, 2, 0])/(dya[0, 1, 0]+dya[0, 2, 0]))
+    return 0.5 * (
+        ((2.0 * dya + dya[0, -1, 0]) * q - dya * q[0, -1, 0]) / (dya[0, -1, 0] + dya)
+        + ((2.0 * dya[0, 1, 0] + dya[0, 2, 0]) * q[0, 1, 0] - dya[0, 1, 0] * q[0, 2, 0])
+        / (dya[0, 1, 0] + dya[0, 2, 0])
+    )
+
 
 @gtscript.function
 def xt_dya_edge_1_base(q, dya):
-    return 0.5*(((2.*dya[0, -1, 0]+dya[0, -2, 0])*q[0, -1, 0]-dya[0, -1, 0]*q[0, -2, 0])/(dya[0, -2, 0]+dya[0, -1, 0]) +  ((2.*dya + dya[0, 1, 0])*q -dya *q[0, 1, 0])/(dya+dya[0, 1, 0]))
+    return 0.5 * (
+        (
+            (2.0 * dya[0, -1, 0] + dya[0, -2, 0]) * q[0, -1, 0]
+            - dya[0, -1, 0] * q[0, -2, 0]
+        )
+        / (dya[0, -2, 0] + dya[0, -1, 0])
+        + ((2.0 * dya + dya[0, 1, 0]) * q - dya * q[0, 1, 0]) / (dya + dya[0, 1, 0])
+    )
+
 
 @gtscript.function
 def xt_dya_edge_0(q, dya, xt_minmax):
     xt = xt_dya_edge_0_base(q, dya)
-    minq = 0.
-    maxq = 0.
+    minq = 0.0
+    maxq = 0.0
     if xt_minmax:
-        #minq = min_fn(q[0, -1, 0], q)
-        #minq = min_fn(minq, q[0,1,0])
-        #minq = min_fn(minq, q[0, 2, 0])
-        #maxq = max_fn(q[0, -1, 0], q)
-        #maxq = max_fn(maxq, q[0,1,0])
-        #maxq = max_fn(maxq, q[0, 2, 0])
-        #xt = max_fn(xt, minq)
-        #xt = min_fn(xt, maxq)
+        # minq = min_fn(q[0, -1, 0], q)
+        # minq = min_fn(minq, q[0,1,0])
+        # minq = min_fn(minq, q[0, 2, 0])
+        # maxq = max_fn(q[0, -1, 0], q)
+        # maxq = max_fn(maxq, q[0,1,0])
+        # maxq = max_fn(maxq, q[0, 2, 0])
+        # xt = max_fn(xt, minq)
+        # xt = min_fn(xt, maxq)
         minq = q[0, -1, 0] if q[0, -1, 0] < q else q
         minq = minq if minq < q[0, 1, 0] else q[0, 1, 0]
         minq = minq if minq < q[0, 2, 0] else q[0, 2, 0]
@@ -253,17 +278,17 @@ def xt_dya_edge_0(q, dya, xt_minmax):
 @gtscript.function
 def xt_dya_edge_1(q, dya, xt_minmax):
     xt = xt_dya_edge_1_base(q, dya)
-    minq = 0.
-    maxq = 0.
+    minq = 0.0
+    maxq = 0.0
     if xt_minmax:
-        #minq = min_fn(q[0, -2, 0], q[0, -1, 0])
-        #minq = min_fn(minq, q)
-        #minq = min_fn(minq, q[0, 1, 0])
-        #maxq = max_fn(q[0, -2, 0], q[0, -1, 0])
-        #maxq = max_fn(maxq, q)
-        #maxq = max_fn(maxq, q[0, 1, 0])
-        #xt = max_fn(xt, minq)
-        #xt = min_fn(xt, maxq)
+        # minq = min_fn(q[0, -2, 0], q[0, -1, 0])
+        # minq = min_fn(minq, q)
+        # minq = min_fn(minq, q[0, 1, 0])
+        # maxq = max_fn(q[0, -2, 0], q[0, -1, 0])
+        # maxq = max_fn(maxq, q)
+        # maxq = max_fn(maxq, q[0, 1, 0])
+        # xt = max_fn(xt, minq)
+        # xt = min_fn(xt, maxq)
         minq = q[0, -2, 0] if q[0, -2, 0] < q[0, -1, 0] else q[0, -1, 0]
         minq = minq if minq < q else q
         minq = minq if minq < q[0, 1, 0] else q[0, 1, 0]
@@ -274,25 +299,28 @@ def xt_dya_edge_1(q, dya, xt_minmax):
         xt = xt if xt < maxq else maxq
     return xt
 
+
 @utils.stencil()
 def south_edge_jord8plus_0(q: sd, dya: sd, dm: sd, bl: sd, br: sd, xt_minmax: bool):
     with computation(PARALLEL), interval(...):
         bl = s14 * dm[0, -1, 0] + s11 * (q[0, -1, 0] - q)
-        xt = xt_dya_edge_0(q, dya, xt_minmax)     
+        xt = xt_dya_edge_0(q, dya, xt_minmax)
         br = xt - q
+
 
 @utils.stencil()
 def south_edge_jord8plus_1(q: sd, dya: sd, dm: sd, bl: sd, br: sd, xt_minmax: bool):
     with computation(PARALLEL), interval(...):
         xt = xt_dya_edge_1(q, dya, xt_minmax)
         bl = xt - q
-        xt = s15 * q + s11 * q[0, 1, 0] - s14*dm[0, 1, 0]
+        xt = s15 * q + s11 * q[0, 1, 0] - s14 * dm[0, 1, 0]
         br = xt - q
-        
+
+
 @utils.stencil()
 def south_edge_jord8plus_2(q: sd, dya: sd, dm: sd, al: sd, bl: sd, br: sd):
     with computation(PARALLEL), interval(...):
-        xt = s15 * q[0, -1, 0] + s11 * q - s14*dm
+        xt = s15 * q[0, -1, 0] + s11 * q - s14 * dm
         bl = xt - q
         br = al[0, 1, 0] - q
 
@@ -301,68 +329,73 @@ def south_edge_jord8plus_2(q: sd, dya: sd, dm: sd, al: sd, bl: sd, br: sd):
 def north_edge_jord8plus_0(q: sd, dya: sd, dm: sd, al: sd, bl: sd, br: sd):
     with computation(PARALLEL), interval(...):
         bl = al - q
-        xt = s15 * q[0, 1, 0] + s11 * q + s14*dm
+        xt = s15 * q[0, 1, 0] + s11 * q + s14 * dm
         br = xt - q
+
 
 @utils.stencil()
 def north_edge_jord8plus_1(q: sd, dya: sd, dm: sd, bl: sd, br: sd, xt_minmax: bool):
     with computation(PARALLEL), interval(...):
-        xt = s15 * q + s11 * q[0, -1, 0] + s14*dm[0, -1, 0]
+        xt = s15 * q + s11 * q[0, -1, 0] + s14 * dm[0, -1, 0]
         bl = xt - q
         xt = xt_dya_edge_0(q, dya, xt_minmax)
         br = xt - q
-    
+
+
 @utils.stencil()
-def north_edge_jord8plus_2(q: sd, dya: sd, dm: sd, bl: sd, br: sd, xt_minmax:bool):
+def north_edge_jord8plus_2(q: sd, dya: sd, dm: sd, bl: sd, br: sd, xt_minmax: bool):
     with computation(PARALLEL), interval(...):
         xt = xt_dya_edge_1(q, dya, xt_minmax)
         bl = xt - q
-        br = s11 * (q[0, 1, 0] - q) - s14*dm[0, 1, 0]
-       
+        br = s11 * (q[0, 1, 0] - q) - s14 * dm[0, 1, 0]
+
+
 @utils.stencil()
 def pert_ppm_positive_definite_constraint(a0: sd, al: sd, ar: sd, r12: float):
     with computation(PARALLEL), interval(...):
-        da1 = 0.
+        da1 = 0.0
         absda1 = 0.0
-        a4 = 0.
-        fmin = 0.
-        if (a0 <= 0.0):
+        a4 = 0.0
+        fmin = 0.0
+        if a0 <= 0.0:
             al = 0.0
             ar = 0.0
         else:
             a4 = -3.0 * (ar + al)
             da1 = ar - al
             absda1 = da1 if da1 > 0 else -da1
-            if (absda1 < -a4):
+            if absda1 < -a4:
                 fmin = a0 + 0.25 / a4 * da1 ** 2 + a4 * r12
-                if (fmin < 0.0):
-                    if (ar > 0.0 and al > 0.0):
+                if fmin < 0.0:
+                    if ar > 0.0 and al > 0.0:
                         ar = 0.0
                         al = 0.0
                     elif da1 > 0.0:
-                        ar = -2. * al
+                        ar = -2.0 * al
                 else:
-                    al = -2. * ar
+                    al = -2.0 * ar
+
 
 @utils.stencil()
 def pert_ppm_standard_constraint(a0: sd, al: sd, ar: sd):
     with computation(PARALLEL), interval(...):
-        da1 = 0.
-        da2 = 0.
-        a6da = 0.
-        if (al * ar < 0.):
+        da1 = 0.0
+        da2 = 0.0
+        a6da = 0.0
+        if al * ar < 0.0:
             da1 = al - ar
             da2 = da1 ** 2
-            a6da = 3. * (al + ar) * da1
-            if (a6da < -da2):
-                ar = -2. * al
-            elif(a6da > da2):
-                al = -2. * ar
+            a6da = 3.0 * (al + ar) * da1
+            if a6da < -da2:
+                ar = -2.0 * al
+            elif a6da > da2:
+                al = -2.0 * ar
         else:
             # effect of dm=0 included here
-            al = 0.
-            ar = 0.
-    
+            al = 0.0
+            ar = 0.0
+
+
 def compute_al(q, dyvar, jord, ifirst, ilast, js1, je3, kstart=0, nk=None):
     if nk is None:
         nk = grid().npz - kstart
@@ -423,8 +456,9 @@ def compute_al(q, dyvar, jord, ifirst, ilast, js1, je3, kstart=0, nk=None):
                 origin=(ifirst, grid().js - 1, kstart),
                 domain=(ilast - ifirst + 1, grid().njc + 3, nk),
             )
-        
+
     return al
+
 
 def compute_blbr_ord8plus(q, jord, dya, ifirst, ilast, js1, je1, kstart, nk):
     r3 = 1.0 / 3.0
@@ -435,38 +469,94 @@ def compute_blbr_ord8plus(q, jord, dya, ifirst, ilast, js1, je1, kstart, nk):
     dm = utils.make_storage_from_shape(q.shape, local_origin)
     al = utils.make_storage_from_shape(q.shape, local_origin)
     di = ilast - ifirst + 1
-    dm_jord8plus(q, al, dm, origin=(ifirst, grid.js - 2, kstart), domain=(di, grid.njc+4, nk))
-    al_jord8plus(q, al, dm, r3, origin=(ifirst, js1, kstart), domain=(di, je1-js1 + 2, nk))
+    dm_jord8plus(
+        q, al, dm, origin=(ifirst, grid.js - 2, kstart), domain=(di, grid.njc + 4, nk)
+    )
+    al_jord8plus(
+        q, al, dm, r3, origin=(ifirst, js1, kstart), domain=(di, je1 - js1 + 2, nk)
+    )
     if jord == 8:
-        blbr_jord8(q, al, bl, br, dm, origin=(ifirst, js1, kstart), domain=(di, je1 - js1 + 1, nk))
+        blbr_jord8(
+            q,
+            al,
+            bl,
+            br,
+            dm,
+            origin=(ifirst, js1, kstart),
+            domain=(di, je1 - js1 + 1, nk),
+        )
     else:
-        raise Exception('Unimplemented jord=' + str(jord))
-        
-    if spec.namelist["grid_type"] < 3 and not (grid.nested or spec.namelist["regional"]):
+        raise Exception("Unimplemented jord=" + str(jord))
+
+    if spec.namelist["grid_type"] < 3 and not (
+        grid.nested or spec.namelist["regional"]
+    ):
         x_edge_domain = (di, 1, nk)
         do_xt_minmax = True
         if grid.south_edge:
-            south_edge_jord8plus_0(q, dya, dm, bl, br, do_xt_minmax,
-                                   origin=(ifirst, grid.js - 1, kstart),
-                                   domain=x_edge_domain)
-            south_edge_jord8plus_1(q, dya, dm, bl, br, do_xt_minmax,
-                                   origin=(ifirst, grid.js, kstart),
-                                   domain=x_edge_domain)
-            south_edge_jord8plus_2(q, dya, dm, al, bl, br,
-                                   origin=(ifirst, grid.js + 1, kstart),
-                                   domain=x_edge_domain)
+            south_edge_jord8plus_0(
+                q,
+                dya,
+                dm,
+                bl,
+                br,
+                do_xt_minmax,
+                origin=(ifirst, grid.js - 1, kstart),
+                domain=x_edge_domain,
+            )
+            south_edge_jord8plus_1(
+                q,
+                dya,
+                dm,
+                bl,
+                br,
+                do_xt_minmax,
+                origin=(ifirst, grid.js, kstart),
+                domain=x_edge_domain,
+            )
+            south_edge_jord8plus_2(
+                q,
+                dya,
+                dm,
+                al,
+                bl,
+                br,
+                origin=(ifirst, grid.js + 1, kstart),
+                domain=x_edge_domain,
+            )
             pert_ppm(q, bl, br, 1, ifirst, grid.js - 1, kstart, di, 3, nk)
         if grid.north_edge:
-            north_edge_jord8plus_0(q, dya, dm, al, bl, br,
-                                   origin=(ifirst, grid.je - 1, kstart),
-                                   domain=x_edge_domain)
-            north_edge_jord8plus_1(q, dya, dm, bl, br, do_xt_minmax,
-                                   origin=(ifirst, grid.je, kstart),
-                                   domain=x_edge_domain)
-            north_edge_jord8plus_2(q, dya, dm, bl, br, do_xt_minmax,
-                                   origin=(ifirst, grid.je + 1, kstart),
-                                   domain=x_edge_domain)
-            pert_ppm(q, bl, br, 1, ifirst, grid.je-1, kstart, di, 3, nk)
+            north_edge_jord8plus_0(
+                q,
+                dya,
+                dm,
+                al,
+                bl,
+                br,
+                origin=(ifirst, grid.je - 1, kstart),
+                domain=x_edge_domain,
+            )
+            north_edge_jord8plus_1(
+                q,
+                dya,
+                dm,
+                bl,
+                br,
+                do_xt_minmax,
+                origin=(ifirst, grid.je, kstart),
+                domain=x_edge_domain,
+            )
+            north_edge_jord8plus_2(
+                q,
+                dya,
+                dm,
+                bl,
+                br,
+                do_xt_minmax,
+                origin=(ifirst, grid.je + 1, kstart),
+                domain=x_edge_domain,
+            )
+            pert_ppm(q, bl, br, 1, ifirst, grid.je - 1, kstart, di, 3, nk)
         return bl, br
 
 
@@ -487,24 +577,24 @@ def compute_flux(q, c, flux, jord, ifirst, ilast, kstart=0, nk=None):
     if mord < 8:
         al = compute_al(q, grid.dya, jord, ifirst, ilast, js1, je3, kstart, nk)
         get_flux_stencil(
-            q,
-            c,
-            al,
-            flux,
-            mord=mord,
-            origin=flux_origin,
-            domain=flux_domain,
+            q, c, al, flux, mord=mord, origin=flux_origin, domain=flux_domain,
         )
     else:
-        bl, br = compute_blbr_ord8plus(q, jord, grid.dya, ifirst, ilast, js1, je1, kstart, nk)
+        bl, br = compute_blbr_ord8plus(
+            q, jord, grid.dya, ifirst, ilast, js1, je1, kstart, nk
+        )
         finalflux_ord8plus(q, c, bl, br, flux, origin=flux_origin, domain=flux_domain)
 
- # Optimized PPM in perturbation form:
-def pert_ppm(a0, al, ar, iv, istart, jstart,kstart, ni, nj, nk):
-    r12 = 1.0/12.0
-    if iv == 0: 
-        pert_ppm_positive_definite_constraint(a0, al, ar, r12, origin=(istart, jstart, kstart), domain=(ni, nj, nk))
-    else:
-        pert_ppm_standard_constraint(a0, al, ar, origin=(istart, jstart, kstart), domain=(ni, nj, nk))
-    return al,ar
 
+# Optimized PPM in perturbation form:
+def pert_ppm(a0, al, ar, iv, istart, jstart, kstart, ni, nj, nk):
+    r12 = 1.0 / 12.0
+    if iv == 0:
+        pert_ppm_positive_definite_constraint(
+            a0, al, ar, r12, origin=(istart, jstart, kstart), domain=(ni, nj, nk)
+        )
+    else:
+        pert_ppm_standard_constraint(
+            a0, al, ar, origin=(istart, jstart, kstart), domain=(ni, nj, nk)
+        )
+    return al, ar

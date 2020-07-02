@@ -126,7 +126,7 @@ def compute(
     ptop,
     akap,
     r_vir,
-    nq
+    nq,
 ):
     grid = spec.grid
     hydrostatic = spec.namelist["hydrostatic"]

@@ -102,9 +102,7 @@ def final_check(q: sd, dp: sd, dm: sd, zfix: sd, fac: sd):
                 q = fac * dm / dp if fac * dm / dp > 0.0 else 0.0
 
 
-def compute(
-        dp2, tracers, im, km, nq, jslice
-):
+def compute(dp2, tracers, im, km, nq, jslice):
     # Same as above, but with multiple tracer fields
     shape = tracers[utils.tracer_variables[0]].shape
     i1 = grid().is_

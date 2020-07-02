@@ -77,7 +77,7 @@ class TranslateRemapping(TranslateFortranData2Py):
             "bdt",
             "kord_tracer",
             "do_adiabatic_init",
-            "nq"
+            "nq",
         ]
         self.out_vars = {}
         for k in [
@@ -104,7 +104,8 @@ class TranslateRemapping(TranslateFortranData2Py):
             self.out_vars[k] = self.in_vars["data_vars"][k]
         self.out_vars["ps"] = {"kstart": grid.npz, "kend": grid.npz}
         self.max_error = 1e-8
-    '''
+
+    """
     def compute(self, inputs):
         self.make_storage_data_input_vars(inputs)
         #for wi in range(len(utils.tracer_variables)):
@@ -124,4 +125,4 @@ class TranslateRemapping(TranslateFortranData2Py):
         #    inputs[name] = data
         #del inputs["tracer_qs"]
         return self.slice_output(inputs)
-    '''
+    """

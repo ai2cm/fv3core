@@ -12,16 +12,18 @@ import fv3util
 
 sd = utils.sd
 SDAY = 86400.0  # seconds per day
-U000 = 4900.   # scaling velocity
+U000 = 4900.0  # scaling velocity
 RCV = ray_super.RCV
 
+
 @utils.stencil()
-def initialize_u2f_friction(ua: sd, va:sd, w: sd, u2f: sd, hydrostatic: bool):
+def initialize_u2f_friction(ua: sd, va: sd, w: sd, u2f: sd, hydrostatic: bool):
     with computation(PARALLEL), interval(...):
         if hydrostatic:
-            u2f = ua** 2 + va**2
+            u2f = ua ** 2 + va ** 2
         else:
-            u2f = ua**2 + va**2 + w**2
+            u2f = ua ** 2 + va ** 2 + w ** 2
+
 
 @utils.stencil()
 def rayleigh_pt_friction(
@@ -38,17 +40,22 @@ def rayleigh_pt_friction(
     with computation(PARALLEL), interval(...):
         if conserve:
             if hydrostatic:
-                pt = pt + 0.5 * u2f / (constants.CP_AIR - constants.RDGAS * ptop / pfull) * (1.0 - 1.0 / (1.0 + rk * (u2f / U000)**0.5))
+                pt = pt + 0.5 * u2f / (
+                    constants.CP_AIR - constants.RDGAS * ptop / pfull
+                ) * (1.0 - 1.0 / (1.0 + rk * (u2f / U000) ** 0.5))
             else:
                 delz = delz / pt
-                pt = pt + 0.5 * u2f * RCV * (1. - 1. / (1. + rf *(u2f/U000)**0.5))
+                pt = pt + 0.5 * u2f * RCV * (
+                    1.0 - 1.0 / (1.0 + rf * (u2f / U000) ** 0.5)
+                )
         if not hydrostatic:
             w = w / (1.0 + u2f)
+
 
 @utils.stencil()
 def update_u2f(u2f: sd, rf: sd):
     with computation(PARALLEL), interval(...):
-        u2f = rf * (u2f / U000)**0.5
+        u2f = rf * (u2f / U000) ** 0.5
 
 
 @utils.stencil()
@@ -71,7 +78,9 @@ def compute(u, v, w, ua, va, pt, delz, phis, bdt, ptop, pfull, comm):
     if not rf_initialized:
         # is only a column actually
         rf = np.zeros(grid.npz)
-        rfvals = ray_super.rayleigh_rfvals(bdt, spec.namelist["tau"] * SDAY, rf_cutoff, pfull, ptop)
+        rfvals = ray_super.rayleigh_rfvals(
+            bdt, spec.namelist["tau"] * SDAY, rf_cutoff, pfull, ptop
+        )
         rf, kmax = ray_super.fill_rf(rf, rfvals, rf_cutoff, pfull, u.shape)
         rf_initialized = True  # TODO propagate to global scope
     c2l_ord.compute_ord2(u, v, ua, va)
@@ -82,9 +91,11 @@ def compute(u, v, w, ua, va, pt, delz, phis, bdt, ptop, pfull, comm):
     )
 
     initialize_u2f_friction(
-        ua, va, w,
+        ua,
+        va,
+        w,
         u2f.data,
-        spec.namelist['hydrostatic'],
+        spec.namelist["hydrostatic"],
         origin=grid.compute_origin(),
         domain=(grid.nic, grid.njc, kmax),
     )
@@ -103,7 +114,12 @@ def compute(u, v, w, ua, va, pt, delz, phis, bdt, ptop, pfull, comm):
         origin=grid.compute_origin(),
         domain=(grid.nic, grid.njc, kmax),
     )
-    update_u2f(u2f.data, rf, origin=(grid.is_ - 1, grid.js - 1, 0), domain=(grid.nic+2, grid.njc+2, kmax))
+    update_u2f(
+        u2f.data,
+        rf,
+        origin=(grid.is_ - 1, grid.js - 1, 0),
+        domain=(grid.nic + 2, grid.njc + 2, kmax),
+    )
     rayleigh_u_friction(
         u,
         u2f.data,

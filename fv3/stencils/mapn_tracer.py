@@ -40,7 +40,7 @@ def compute(
         jslice,
         i_extent,
     ) = map_single.setup_data(tracers[utils.tracer_variables[0]], pe1, i1, i2, j_2d)
-   
+
     # transliterated fortran 3d or 2d validate, not bit-for bit
     trc = 0
     for q in utils.tracer_variables[0:nq]:
@@ -74,10 +74,5 @@ def compute(
         )
     if fill:
         fillz.compute(
-            dp2,
-            tracers,
-            i_extent,
-            spec.grid.npz,
-            nq,
-            jslice,
+            dp2, tracers, i_extent, spec.grid.npz, nq, jslice,
         )

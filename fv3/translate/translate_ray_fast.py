@@ -18,4 +18,4 @@ class TranslateRay_Fast(TranslateFortranData2Py):
             "u": grid.y3d_domain_dict(),
             "v": grid.x3d_domain_dict(),
             "w": {},
-            }
+        }

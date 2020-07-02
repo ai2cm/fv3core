@@ -11,12 +11,11 @@ class TranslateMapN_Tracer_2d(TranslateFortranData2Py):
             "pe1": {"istart": grid.is_, "iend": grid.ie - 2, "axis": 1},
             "pe2": {"istart": grid.is_, "iend": grid.ie - 2, "axis": 1},
             "dp2": {"istart": grid.is_, "iend": grid.ie - 2, "axis": 1},
-            "tracers": {"serialname": "qtracers"}
-        
+            "tracers": {"serialname": "qtracers"},
         }
         self.in_vars["parameters"] = ["j_2d", "nq", "q_min"]
         self.out_vars = {"tracers": {"serialname": "qtracers"}}
-        
+
         self.is_ = grid.is_
         self.ie = grid.ie
         self.max_error = 1e-13
@@ -27,9 +26,5 @@ class TranslateMapN_Tracer_2d(TranslateFortranData2Py):
         inputs["i1"] = self.is_
         inputs["i2"] = self.ie
         inputs["kord"] = abs(spec.namelist["kord_tr"])
-        self.compute_func(
-            **inputs
-        )
-        return self.slice_output(
-            inputs,
-        )
+        self.compute_func(**inputs)
+        return self.slice_output(inputs,)

@@ -12,7 +12,9 @@ from .xppm import (
     get_b0,
     xt_dxa_edge_0_base,
     xt_dxa_edge_1_base,
-    s15, s14, s11
+    s15,
+    s14,
+    s11,
 )
 import fv3.stencils.xppm as xppm
 from gt4py.gtscript import computation, interval, PARALLEL
@@ -43,6 +45,7 @@ def get_flux_u_stencil(
         # TODO: add [0, 0, 0] when gt4py bug is fixed
         flux = final_flux(c, q, fx0, tmp)  # noqa
 
+
 @utils.stencil()
 def get_flux_u_ord8plus(q: sd, c: sd, rdx: sd, bl: sd, br: sd, flux: sd):
     with computation(PARALLEL), interval(...):
@@ -50,6 +53,7 @@ def get_flux_u_ord8plus(q: sd, c: sd, rdx: sd, bl: sd, br: sd, flux: sd):
         cfl = c * rdx[-1, 0, 0] if c > 0 else c * rdx
         fx1 = fx1_fn(cfl, br, b0, bl)
         flux = q[-1, 0, 0] + fx1 if c > 0.0 else q + fx1
+
 
 @utils.stencil()
 def br_bl_main(q: sd, al: sd, bl: sd, br: sd):
@@ -64,17 +68,19 @@ def br_bl_corner(br: sd, bl: sd):
     with computation(PARALLEL), interval(...):
         bl = 0
         br = 0
+
+
 def zero_br_bl_corners_west(br, bl):
     grid = spec.grid
     corner_domain = (2, 1, grid.npz)
     if grid.sw_corner:
-        br_bl_corner(
-            br, bl, origin=(grid.is_ - 1, grid.js, 0), domain=corner_domain
-        )
+        br_bl_corner(br, bl, origin=(grid.is_ - 1, grid.js, 0), domain=corner_domain)
     if grid.nw_corner:
         br_bl_corner(
             br, bl, origin=(grid.is_ - 1, grid.je + 1, 0), domain=corner_domain,
         )
+
+
 def zero_br_bl_corners_east(br, bl):
     grid = spec.grid
     corner_domain = (2, 1, grid.npz)
@@ -82,6 +88,7 @@ def zero_br_bl_corners_east(br, bl):
         br_bl_corner(br, bl, origin=(grid.ie, grid.js, 0), domain=corner_domain)
     if grid.ne_corner:
         br_bl_corner(br, bl, origin=(grid.ie, grid.je + 1, 0), domain=corner_domain)
+
 
 def compute(c, u, v, flux):
     # This is an input argument in the Fortran code, but is never called with anything but this namelist option
@@ -107,7 +114,7 @@ def compute(c, u, v, flux):
         )
         zero_br_bl_corners_west(br, bl)
         zero_br_bl_corners_east(br, bl)
-        
+
         get_flux_u_stencil(
             u,
             c,
@@ -130,71 +137,145 @@ def compute(c, u, v, flux):
         kstart = 0
         nk = grid.npz
         r3 = 1.0 / 3.0
-        xppm.dm_iord8plus(u, al, dm, origin=(grid.is_ - 2, jfirst, kstart), domain=(grid.nic+4,dj, nk))
-        xppm.al_iord8plus(u, al, dm, r3, origin=(is1, jfirst, kstart), domain=(ie1-is1 + 2, dj, nk))
+        xppm.dm_iord8plus(
+            u,
+            al,
+            dm,
+            origin=(grid.is_ - 2, jfirst, kstart),
+            domain=(grid.nic + 4, dj, nk),
+        )
+        xppm.al_iord8plus(
+            u, al, dm, r3, origin=(is1, jfirst, kstart), domain=(ie1 - is1 + 2, dj, nk)
+        )
         if iord == 8:
-            xppm.blbr_iord8(u, al, bl, br, dm, origin=(is1, jfirst, kstart), domain=(ie1 - is1 + 2, dj, nk))
+            xppm.blbr_iord8(
+                u,
+                al,
+                bl,
+                br,
+                dm,
+                origin=(is1, jfirst, kstart),
+                domain=(ie1 - is1 + 2, dj, nk),
+            )
         else:
-            raise Exception('Unimplemented iord=' + str(iord))
-        
-        if spec.namelist["grid_type"] < 3 and not (grid.nested or spec.namelist["regional"]):
+            raise Exception("Unimplemented iord=" + str(iord))
+
+        if spec.namelist["grid_type"] < 3 and not (
+            grid.nested or spec.namelist["regional"]
+        ):
             y_edge_domain = (1, dj, nk)
             do_xt_minmax = False
             if grid.west_edge:
-                xppm.west_edge_iord8plus_0(u, grid.dx, dm, bl, br, do_xt_minmax,
-                                           origin=(grid.is_ - 1, jfirst, kstart),
-                                           domain=y_edge_domain)
-                xppm.west_edge_iord8plus_1(u, grid.dx, dm, bl, br,do_xt_minmax,
-                                           origin=(grid.is_, jfirst, kstart),
-                                           domain=y_edge_domain)
-                xppm.west_edge_iord8plus_2(u, grid.dx, dm, al, bl, br,
-                                           origin=(grid.is_ + 1,jfirst, kstart),
-                                           domain=y_edge_domain)
+                xppm.west_edge_iord8plus_0(
+                    u,
+                    grid.dx,
+                    dm,
+                    bl,
+                    br,
+                    do_xt_minmax,
+                    origin=(grid.is_ - 1, jfirst, kstart),
+                    domain=y_edge_domain,
+                )
+                xppm.west_edge_iord8plus_1(
+                    u,
+                    grid.dx,
+                    dm,
+                    bl,
+                    br,
+                    do_xt_minmax,
+                    origin=(grid.is_, jfirst, kstart),
+                    domain=y_edge_domain,
+                )
+                xppm.west_edge_iord8plus_2(
+                    u,
+                    grid.dx,
+                    dm,
+                    al,
+                    bl,
+                    br,
+                    origin=(grid.is_ + 1, jfirst, kstart),
+                    domain=y_edge_domain,
+                )
                 zero_br_bl_corners_west(br, bl)
                 xppm.pert_ppm(u, bl, br, -1, grid.is_ + 1, jfirst, kstart, 1, dj, nk)
 
             if grid.east_edge:
-                xppm.east_edge_iord8plus_0(u, grid.dx, dm, al, bl, br,
-                                           origin=(grid.ie - 1, jfirst,kstart),
-                                           domain=y_edge_domain)
-                xppm.east_edge_iord8plus_1(u, grid.dx, dm, bl, br, do_xt_minmax,
-                                           origin=(grid.ie, jfirst, kstart),
-                                           domain=y_edge_domain)
-                xppm.east_edge_iord8plus_2(u, grid.dx, dm, bl, br, do_xt_minmax,
-                                           origin=(grid.ie + 1, jfirst, kstart),
-                                           domain=y_edge_domain)
+                xppm.east_edge_iord8plus_0(
+                    u,
+                    grid.dx,
+                    dm,
+                    al,
+                    bl,
+                    br,
+                    origin=(grid.ie - 1, jfirst, kstart),
+                    domain=y_edge_domain,
+                )
+                xppm.east_edge_iord8plus_1(
+                    u,
+                    grid.dx,
+                    dm,
+                    bl,
+                    br,
+                    do_xt_minmax,
+                    origin=(grid.ie, jfirst, kstart),
+                    domain=y_edge_domain,
+                )
+                xppm.east_edge_iord8plus_2(
+                    u,
+                    grid.dx,
+                    dm,
+                    bl,
+                    br,
+                    do_xt_minmax,
+                    origin=(grid.ie + 1, jfirst, kstart),
+                    domain=y_edge_domain,
+                )
                 zero_br_bl_corners_east(br, bl)
-                xppm.pert_ppm(u, bl, br, -1, grid.ie-1, jfirst, kstart, 1, dj, nk)
-        get_flux_u_ord8plus(u, c, grid.rdx, bl, br, flux, origin=(grid.is_, grid.js, kstart), domain=(grid.nic+1, grid.njc+1, nk))
+                xppm.pert_ppm(u, bl, br, -1, grid.ie - 1, jfirst, kstart, 1, dj, nk)
+        get_flux_u_ord8plus(
+            u,
+            c,
+            grid.rdx,
+            bl,
+            br,
+            flux,
+            origin=(grid.is_, grid.js, kstart),
+            domain=(grid.nic + 1, grid.njc + 1, nk),
+        )
 
-#TODO merge better with equivalent xppm functions, the main difference is there is no minmax on xt here
+
+# TODO merge better with equivalent xppm functions, the main difference is there is no minmax on xt here
+
 
 @utils.stencil()
 def west_edge_iord8plus_0(q: sd, dxa: sd, dm: sd, bl: sd, br: sd):
     with computation(PARALLEL), interval(...):
         bl = s14 * dm[-1, 0, 0] + s11 * (q[-1, 0, 0] - q)
-        xt = xt_dxa_edge_0_base(q, dxa)      
+        xt = xt_dxa_edge_0_base(q, dxa)
         br = xt - q
+
 
 @utils.stencil()
 def west_edge_iord8plus_1(q: sd, dxa: sd, dm: sd, bl: sd, br: sd):
     with computation(PARALLEL), interval(...):
         xt = xt_dxa_edge_1_base(q, dxa)
         bl = xt - q
-        xt = s15 * q + s11 * q[1, 0, 0] - s14*dm[1, 0, 0]
+        xt = s15 * q + s11 * q[1, 0, 0] - s14 * dm[1, 0, 0]
         br = xt - q
+
 
 @utils.stencil()
 def east_edge_iord8plus_1(q: sd, dxa: sd, dm: sd, bl: sd, br: sd):
     with computation(PARALLEL), interval(...):
-        xt = s15 * q + s11 * q[-1, 0, 0] + s14*dm[-1, 0, 0]
+        xt = s15 * q + s11 * q[-1, 0, 0] + s14 * dm[-1, 0, 0]
         bl = xt - q
         xt = xt_dxa_edge_0_base(q, dxa)
         br = xt - q
-    
+
+
 @utils.stencil()
 def east_edge_iord8plus_2(q: sd, dxa: sd, dm: sd, bl: sd, br: sd):
     with computation(PARALLEL), interval(...):
         xt = xt_dxa_edge_1_base(q, dxa)
         bl = xt - q
-        br = s11 * (q[1, 0, 0] - q) - s14*dm[1, 0, 0]
+        br = s11 * (q[1, 0, 0] - q) - s14 * dm[1, 0, 0]

@@ -14,6 +14,7 @@ U0 = 60.0
 SDAY = 86400.0
 RCV = 1.0 / (constants.CP_AIR - constants.RDGAS)
 
+
 @utils.stencil()
 def initialize_u2f(rf: sd, pfull: sd, u2f: sd, rf_cutoff: float):
     with computation(PARALLEL), interval(...):
@@ -64,7 +65,8 @@ def rayleigh_v(v: sd, pfull: sd, u2f: sd, rf_cutoff: float):
         if pfull < rf_cutoff:
             v = 0.5 * (u2f[-1, 0, 0] + u2f) * v
 
-# TODO put in stencil 
+
+# TODO put in stencil
 def rayleigh_rfvals(bdt, tau0, rf_cutoff, pfull, ptop):
     rfvals = (
         bdt
@@ -73,7 +75,8 @@ def rayleigh_rfvals(bdt, tau0, rf_cutoff, pfull, ptop):
             0.5
             * constants.PI
             * np.log(
-                rf_cutoff / np.squeeze(pfull[spec.grid.is_, spec.grid.js, 0 : spec.grid.npz])
+                rf_cutoff
+                / np.squeeze(pfull[spec.grid.is_, spec.grid.js, 0 : spec.grid.npz])
             )
             / math.log(rf_cutoff / ptop)
         )
@@ -81,13 +84,17 @@ def rayleigh_rfvals(bdt, tau0, rf_cutoff, pfull, ptop):
     )
     return rfvals
 
+
 def get_kmax(pfull, rf_cutoff):
-    neg_pfull = np.argwhere(pfull[spec.grid.is_, spec.grid.js, 0 : spec.grid.npz] < rf_cutoff)
+    neg_pfull = np.argwhere(
+        pfull[spec.grid.is_, spec.grid.js, 0 : spec.grid.npz] < rf_cutoff
+    )
     if len(neg_pfull) == 0:
         kmax = 1
     else:
         kmax = neg_pfull[-1][-1] + 1
     return kmax, neg_pfull
+
 
 def fill_rf(rf, rfvals, rf_cutoff, pfull, shape3d):
     kmax, neg_pfull = get_kmax(pfull, rf_cutoff)
@@ -95,6 +102,7 @@ def fill_rf(rf, rfvals, rf_cutoff, pfull, shape3d):
     # TODO this makes the column 3d, undo when you can
     rf = utils.make_storage_data(rf, shape3d, origin=spec.grid.default_origin())
     return rf, kmax
+
 
 def compute(u, v, w, ua, va, pt, delz, phis, bdt, ptop, pfull, comm):
     grid = spec.grid

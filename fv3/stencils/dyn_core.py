@@ -394,7 +394,16 @@ def compute(state, comm):
 
         if spec.namelist["rf_fast"]:
             # TODO pass through ks, or remove, inconsistent representation vs Fortran
-            ray_fast.compute(state.u, state.v, state.w, state.dp_ref, state.pfull, dt, state.ptop, state.ks)
+            ray_fast.compute(
+                state.u,
+                state.v,
+                state.w,
+                state.dp_ref,
+                state.pfull,
+                dt,
+                state.ptop,
+                state.ks,
+            )
         if it != n_split - 1:
             reqs_vector = comm.start_vector_halo_update(
                 state.u_quantity, state.v_quantity, n_points=utils.halo

@@ -39,16 +39,18 @@ def set_omega(delp: sd, delz: sd, w: sd, omga: sd):
     with computation(PARALLEL), interval(...):
         omga = delp / delz * w
 
+
 # TODO replace with something from fv3config probably, using the field_table
 def tracers_dict(state):
     tracers = {}
     for tracername in utils.tracer_variables:
         tracers[tracername] = state.__getattribute__(tracername)
         quantity_name = utils.quantity_name(tracername)
-        if  quantity_name in state.__dict__:
+        if quantity_name in state.__dict__:
             tracers[quantity_name] = state.__getattribute__(quantity_name)
     state.tracers = tracers
-    
+
+
 def fvdyn_temporaries(shape):
     grid = spec.grid
     tmps = {}
@@ -103,7 +105,7 @@ def compute_preamble(state, comm):
         state.cvm,
         state.dp1,
     )
-    
+
     if state.consv_te > 0 and not state.do_adiabatic_init:
         # NOTE not run in default configuration (turned off consv_te so we don't need a global allreduce)
         print("Compute Total Energy", grid.rank)
@@ -127,7 +129,7 @@ def compute_preamble(state, comm):
             state.qsnow,
             state.qgraupel,
         )
-    
+
     if (not spec.namelist["rf_fast"]) and spec.namelist["tau"] != 0:
         if grid.grid_type < 4:
             print("Rayleigh Super", grid.rank)
@@ -147,7 +149,7 @@ def compute_preamble(state, comm):
             )
         # else:
         #     rayleigh_friction.compute()
-    
+
     if spec.namelist["adiabatic"] and spec.namelist["kord_tm"] > 0:
         raise Exception(
             "unimplemented namelist options adiabatic with positive kord_tm"
@@ -295,7 +297,7 @@ def compute(state, comm):
                 state.bdt,
                 kord_tracer,
                 state.do_adiabatic_init,
-                state.nq
+                state.nq,
             )
             if last_step:
                 post_remap(state, comm)
