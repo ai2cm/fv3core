@@ -190,10 +190,6 @@ dev_tests:
 	MOUNTS='-v $(CWD)/fv3:/fv3 -v $(CWD)/external/fv3gfs-python/external/fv3util:/usr/src/fv3util' \
 		$(MAKE) run_tests_container
 		
-dev_tests_host:
-	MOUNTS='-v $(CWD)/fv3:/fv3 -v $(CWD)/external/fv3gfs-python/external/fv3util:/usr/src/fv3util' \
-    		$(MAKE) run_tests_host_data
-
 dev_tests_mpi:
 	MOUNTS='-v $(CWD)/fv3:/fv3 -v $(CWD)/external/fv3gfs-python/external/fv3util:/usr/src/fv3util' \
 		$(MAKE) run_tests_parallel_container
