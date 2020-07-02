@@ -46,8 +46,8 @@ update_submodules:
 
 build_environment_serialbox: update_submodules
 	DOCKERFILE=$(FORTRAN_DIR)/docker/Dockerfile \
-	ENVIRONMENT_TARGET=$(SERIALBOX_TARGET) \
-	$(MAKE) -C $(FORTRAN_DIR) build_environment
+		ENVIRONMENT_TARGET=$(SERIALBOX_TARGET) \
+		$(MAKE) -C $(FORTRAN_DIR) build_environment
 
 build_environment: build_environment_serialbox
 	DOCKER_BUILDKIT=1 docker build \
@@ -110,7 +110,6 @@ fortran_model_data: #uses the 'fv3config.yml' in the fv3gfs-fortran regression t
 		.
 
 generate_test_data: update_submodules
-
 	cd $(FORTRAN_DIR) && DOCKER_BUILDKIT=1 SERIALIZE_IMAGE_GT4PYDEV=$(COMPILED_IMAGE) $(MAKE) build_serialize_gt4pydev
 	DATA_IMAGE=$(RUNDIR_IMAGE) DATA_TARGET=rundir $(MAKE) fortran_model_data
 	DATA_IMAGE=$(TEST_DATA_IMAGE) DATA_TARGET=test_data_storage $(MAKE) fortran_model_data
@@ -118,7 +117,7 @@ generate_test_data: update_submodules
 
 generate_test_data_local:
 	cd $(FORTRAN_DIR) && DOCKER_BUILDKIT=1 SERIALIZE_IMAGE_GT4PYDEV=$(COMPILED_IMAGE) $(MAKE) build_serialize_gt4pydev
-	docker run --network host --rm -v $(CWD)/rundir:/rundir -it $(COMPILED_IMAGE) /rundir/submit_job.sh
+	docker run --network host --rm -v $(CWD)/rundir:/rundir $(COMPILED_IMAGE) /rundir/submit_job.sh
 
 generate_coverage: update_submodules
 	rm -rf coverage
@@ -127,14 +126,14 @@ generate_coverage: update_submodules
 	DATA_IMAGE=$(GCOV_IMAGE) COMPILED_IMAGE=fv3gfs-compiled:gcov DATA_TARGET=rundir $(MAKE) fortran_model_data
 	git checkout fv3/test/fv3config.yml
 	mkdir coverage
-	docker run -it --rm --network host --mount type=bind,source=$(PWD)/coverage,target=/coverage $(GCR_URL)/fv3gfs-gcov-data:$(FORTRAN_VERSION) bash -c "pip install gcovr; cd /coverage; mkdir physics; cd physics; gcovr -d -r /FV3/gfsphysics --html --html-details -o index.html; cd ../; mkdir dycore; cd dycore; gcovr -d -r /FV3/atmos_cubed_sphere --html --html-details -o index.html"
+	docker run --rm --network host --mount type=bind,source=$(PWD)/coverage,target=/coverage $(GCR_URL)/fv3gfs-gcov-data:$(FORTRAN_VERSION) bash -c "pip install gcovr; cd /coverage; mkdir physics; cd physics; gcovr -d -r /FV3/gfsphysics --html --html-details -o index.html; cd ../; mkdir dycore; cd dycore; gcovr -d -r /FV3/atmos_cubed_sphere --html --html-details -o index.html"
 	@echo "==== Coverage ananlysis done. Now open coverage/dycore/index.html coverage/physics/index.html in your browser ===="
 
 extract_test_data:
 	if [ -d $(TEST_DATA_HOST) ]; then \
 		echo "NOTE: $(TEST_DATA_HOST) already exists, move or delete it if you want a new extraction"; \
 	else \
-		docker create --name tmp_modelrundata -it $(TEST_DATA_IMAGE)  && \
+		docker create --name tmp_modelrundata $(TEST_DATA_IMAGE)  && \
 		docker cp tmp_modelrundata:/test_data $(TEST_DATA_HOST)  && \
 		docker rm -f tmp_modelrundata; \
 	fi
@@ -173,7 +172,7 @@ tests_mpi:
 
 
 data_container:
-	docker run -d -it \
+	docker run -d \
 		--name=$(TEST_DATA_RUN_CONTAINER) \
 		-v TestDataVolume$(FORTRAN_VERSION):/test_data \
 		$(TEST_DATA_IMAGE)
@@ -190,41 +189,45 @@ tests_host:
 dev_tests:
 	MOUNTS='-v $(CWD)/fv3:/fv3 -v $(CWD)/external/fv3gfs-python/external/fv3util:/usr/src/fv3util' \
 		$(MAKE) run_tests_container
+		
 dev_tests_host:
 	MOUNTS='-v $(CWD)/fv3:/fv3 -v $(CWD)/external/fv3gfs-python/external/fv3util:/usr/src/fv3util' \
-    $(MAKE) run_tests_host_data
+    		$(MAKE) run_tests_host_data
 
 dev_tests_mpi:
-	MOUNTS='-v $(CWD)/fv3:/fv3 -v $(CWD)/external/fv3gfs-python/external/fv3util:/usr/src/fv3util' $(MAKE) run_tests_parallel_container
+	MOUNTS='-v $(CWD)/fv3:/fv3 -v $(CWD)/external/fv3gfs-python/external/fv3util:/usr/src/fv3util' \
+		$(MAKE) run_tests_parallel_container
 
 dev_tests_mpi_host:
-	MOUNTS='-v $(CWD)/fv3:/fv3 -v $(CWD)/external/fv3gfs-python/external/fv3util:/usr/src/fv3util' $(MAKE) run_tests_parallel_host
+	MOUNTS='-v $(CWD)/fv3:/fv3 -v $(CWD)/external/fv3gfs-python/external/fv3util:/usr/src/fv3util' \
+		$(MAKE) run_tests_parallel_host
 
 dev_tests_host:
-	MOUNTS='-v $(CWD)/fv3:/fv3 -v $(CWD)/external/fv3gfs-python/external/fv3util:/usr/src/fv3util' $(MAKE) run_tests_host_data
+	MOUNTS='-v $(CWD)/fv3:/fv3 -v $(CWD)/external/fv3gfs-python/external/fv3util:/usr/src/fv3util' \
+		$(MAKE) run_tests_host_data
 
 test_base:
 	docker run --rm $(VOLUMES) $(MOUNTS) \
-	-it $(RUNTEST_IMAGE) pytest --data_path=$(TEST_DATA_CONTAINER) ${TEST_ARGS} /fv3/test
+		$(RUNTEST_IMAGE) pytest --data_path=$(TEST_DATA_CONTAINER) ${TEST_ARGS} /fv3/test
 
 test_base_parallel:
 	docker run --rm $(VOLUMES) $(MOUNTS) \
-		-it $(RUNTEST_IMAGE) \
+		$(RUNTEST_IMAGE) \
 		mpirun -np 6 --allow-run-as-root --mca btl_vader_single_copy_mechanism none --oversubscribe \
 		pytest --data_path=$(TEST_DATA_CONTAINER) ${TEST_ARGS} -m parallel /fv3/test
 
 run_tests_parallel_container:
 	VOLUMES='--volumes-from $(TEST_DATA_RUN_CONTAINER)' \
-	RUNTEST_IMAGE=$(FV3_IMAGE) $(MAKE) test_base_parallel
+		RUNTEST_IMAGE=$(FV3_IMAGE) $(MAKE) test_base_parallel
 
 run_tests_container:
 	VOLUMES='--volumes-from $(TEST_DATA_RUN_CONTAINER)' \
-	RUNTEST_IMAGE=$(FV3_IMAGE) $(MAKE) test_base
+		RUNTEST_IMAGE=$(FV3_IMAGE) $(MAKE) test_base
 
 run_tests_host_data:
 	VOLUMES='-v $(TEST_DATA_HOST):$(TEST_DATA_CONTAINER)' \
-	RUNTEST_IMAGE=$(FV3_IMAGE) \
-	$(MAKE) test_base
+		RUNTEST_IMAGE=$(FV3_IMAGE) \
+		$(MAKE) test_base
 
 run_tests_parallel_host:
 	VOLUMES='-v $(TEST_DATA_HOST):$(TEST_DATA_CONTAINER)' \
