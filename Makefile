@@ -172,7 +172,7 @@ tests_mpi:
 
 
 data_container:
-	docker run -d \
+	docker run -d -it \
 		--name=$(TEST_DATA_RUN_CONTAINER) \
 		-v TestDataVolume$(FORTRAN_VERSION):/test_data \
 		$(TEST_DATA_IMAGE)
