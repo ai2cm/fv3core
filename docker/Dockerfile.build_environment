@@ -14,7 +14,7 @@ RUN update-alternatives --install /usr/bin/pip pip /usr/bin/pip3 10
 
 FROM fv3ser-environment as fv3ser-install
 RUN pip install --no-cache-dir scikit-build && \
-    git clone https://github.com/MeteoSwiss-APN/dawn.git /usr/src/dawn && \
+    git clone --depth 1 https://github.com/MeteoSwiss-APN/dawn.git /usr/src/dawn && \
     pip install --no-cache-dir /usr/src/dawn/dawn
 
 RUN git clone --depth 1 https://github.com/GridTools/gt4py.git /usr/src/gt4py &&  \
