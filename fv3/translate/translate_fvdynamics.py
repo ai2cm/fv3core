@@ -273,6 +273,7 @@ class TranslateFVDynamics(ParallelTranslateBaseSlicing):
         self.ignore_near_zero_errors = {}
         for qvar in utils.tracer_variables:
             self.ignore_near_zero_errors[qvar] = True
+        self.ignore_near_zero_errors["q_con"] = True
 
     def compute_parallel(self, inputs, communicator):
         inputs["comm"] = communicator
