@@ -360,7 +360,7 @@ def compute(state, nq, dt):
     k2d = 27
     i2d= 5
    
-    for n in range(1):
+    for n in range(m):
         ratio = ratios[n]
         compute_qcon(qcon, q0["qliquid"], q0["qrain"], q0["qice"], q0["qsnow"], q0["qgraupel"], origin=origin, domain=kbot_domain)
         for k in range(k_bot - 1, 0, -1):
