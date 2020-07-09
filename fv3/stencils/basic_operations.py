@@ -53,6 +53,10 @@ def multiply_constant(in1: sd, in2: float, out: sd):
     with computation(PARALLEL), interval(...):
         out[0, 0, 0] = in1 * in2
 
+@utils.stencil()
+def multiply_constant_inout(inout: sd, in_float: float):
+    with computation(PARALLEL), interval(...):
+        inout[0, 0, 0] = in_float * inout
 
 @utils.stencil()
 def floor_cap(var: sd, floor_value: float):
