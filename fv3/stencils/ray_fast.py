@@ -121,4 +121,5 @@ def compute(u, v, w, dp, pfull, dt, ptop, ks):
         u, dmu, dm, origin=grid.compute_origin(), domain=(grid.nic, grid.njc + 1, k_rf)
     )
     ray_fast_horizontal_dm(
+        v, dmv, dm, origin=grid.compute_origin(), domain=(grid.nic + 1, grid.njc, k_rf)
     )
