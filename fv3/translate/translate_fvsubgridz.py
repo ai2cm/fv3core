@@ -110,47 +110,10 @@ class TranslateFVSubgridZ(ParallelTranslateBaseSlicing):
             "dims": [fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_DIM],
             "units": "m/s**2",
         },
-        "te_1": {
-            "name": "te_1",
-            "dims": [fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_DIM],
-            "units": "",
-        },
-        "gzh_1": {
-            "name": "gzh_1",
-            "dims": [fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_DIM],
-            "units": "",
-        },
-        "gz_1": {
-            "name": "gz_1",
-            "dims": [fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_DIM],
-            "units": "",
-        },
-        "cvm_1": {
-            "name": "cvm_1",
-            "dims": [fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_DIM],
-            "units": "",
-        },
-        "u0_2": {
-            "name": "u0_2",
-            "dims": [fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_DIM],
-            "units": "",
-        },
         "nq": {"dims": []},
         "dt": {"dims": []},
     }
     outputs = inputs.copy()
-    """
-    outputs = { "ua": {
-            "name": "x_wind_on_a_grid",
-            "dims": [fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_DIM],
-            "units": "m/s",
-        },
-     "qliquid": {
-            "name": "cloud_water_mixing_ratio",
-            "dims": [fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_DIM],
-            "units": "kg/kg",
-        },} #inputs.copy()
-    """
 
     for name in (
         "nq",
@@ -160,11 +123,6 @@ class TranslateFVSubgridZ(ParallelTranslateBaseSlicing):
         "delp",
         "delz",
         "pkz",
-        "u0_2",
-        "cvm_1",
-        "gz_1",
-        "gzh_1",
-        "te_1",
     ):
         outputs.pop(name)
 
@@ -206,30 +164,17 @@ class TranslateFVSubgridZ(ParallelTranslateBaseSlicing):
             "qcld": {},
             "u_dt": {},
             "v_dt": {},
-            # "cpm_1": {'istart': 3, 'jstart':3, 'axis': 0, 'kstart': 3},
-            "cvm_1": {"istart": 3, "jstart": 3, "axis": 0, "kstart": 3},
-            "te_1": {"istart": 3, "dummy_axes": [1]},
-            "gz_1": {"istart": 3, "dummy_axes": [1]},
-            "gzh_1": {"istart": 3, "jstart": 3, "axis": 0, "kstart": 3},
-            "u0_2": {"istart": 3, "dummy_axes": [1]},
         }
 
         self._base.out_vars = self._base.in_vars["data_vars"].copy()
-        # self._base.out_vars = {"ua":{}, "qliquid":{}}
         for var in [
             "pe",
             "peln",
             "delp",
             "delz",
             "pkz",
-            "u0_2",
-            "cvm_1",
-            "gz_1",
-            "gzh_1",
-            "te_1",
         ]:
             self._base.out_vars.pop(var)
-        self.max_error = 1e-14
 
         self.ignore_near_zero_errors = {}
         for qvar in utils.tracer_variables:

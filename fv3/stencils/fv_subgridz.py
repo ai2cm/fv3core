@@ -429,11 +429,6 @@ def tracers_dict(state):
     ArgSpec("qcld", "cloud_fraction", "", intent="inout"),
     ArgSpec("u_dt", "x_wind_tendency", "m/s**2", intent="inout"),
     ArgSpec("v_dt", "y_wind_tendency", "m/s**2", intent="inout"),
-    ArgSpec("te_1", "te_1", "", intent="in"),
-    ArgSpec("gzh_1", "gzh_1", "", intent="in"),
-    ArgSpec("gz_1", "gz_1", "", intent="in"),
-    ArgSpec("cvm_1", "cvm_1", "", intent="in"),
-    ArgSpec("u0_2", "u0_2", "", intent="in"),
 )
 def compute(state, nq, dt):
     tracers_dict(state)  # TODO get rid of this when finalize representation of tracers
@@ -516,57 +511,7 @@ def compute(state, nq, dt):
         origin=origin,
         domain=kbot_domain,
     )
-    """
-    print(np.where(state.gzh_1[:, 3, 0] != gzh[:, 3, 0]))
-    print(np.any(gzh == (state.gzh_1[3, 3, 0])))
-    print(np.where(gzh == (state.gzh_1[3, 3, 0])))
-    print(gzh[3, 3, 0] == state.gzh_1[3, 3, 0])
-    print(gzh[:, 3,0])
-    print('ref',state.gzh_1[:, 3, 0])
-    for i in range(grid.is_, grid.ie + 1):
-        ref = state.gzh_1[i, 3, 0]
-        comp = gzh[i, 3, 0]
-        if ref != comp:
-            print(i, comp, ref, ref - comp)
-    
-    print('CVM COMPARE')
-    print(np.where(state.cvm_1[:, 3, 0] != cvm[:, 3, 0]))
-    print(np.any(cvm == (state.cvm_1[3, 3, 0])))
-    print(np.where(cvm == (state.cvm_1[3, 3, 0])))
-    print(cvm[3, 3, 0] == state.cvm_1[3, 3, 0])
-    print(cvm[:, 3,0])
-    print('ref',state.cvm_1[:, 3, 0])
-    for i in range(grid.is_, grid.ie + 1):
-        ref = state.cvm_1[i, 3, 0]
-        comp = cvm[i, 3, 0]
-        if ref != comp:
-            print(i, comp, ref, ref - comp)
-    print('COMPARE omg te')
-    print(np.where(state.te_1[:, 0, 0] != te[:, 3, 0]))
-    print(np.any(te == (state.te_1[3, 0, 0])), state.te_1.shape)
-    print(np.where(te == (state.te_1[3, 0, 0])))
-    print(te[3, 3, 0] == state.te_1[3, 0, 0])
-    print('computed', te[:, 3,0])
-    print('ref',state.te_1[:, 0, 0])
-    for i in range(grid.is_, grid.ie + 1):
-        ref = state.te_1[i, 0, 0]
-        comp = te[i, 3, 0]
-        if ref != comp:
-            print(i, comp, ref, ref - comp)
-    print('COMPARE omg GZ')
-    print(np.where(state.gz_1[:, 0, 0] != gz[:, 3, 0]))
-    print(np.any(gz == (state.gz_1[3, 0, 0])), state.gz_1.shape)
-    print(np.where(gz == (state.gz_1[3, 0, 0])))
-    print(gz[3, 3, 0] == state.gz_1[3, 0, 0])
-    print('computed', gz[:, 3,0])
-    print('ref',state.gz_1[:, 0, 0])
-    
-    for i in range(grid.is_, grid.ie + 1):
-        ref = state.gz_1[i, 0, 0]
-        comp = gz[i, 3, 0]
-        if ref != comp:
-            print(i, comp, ref, ref - comp)
-    """
+
     ri = utils.make_storage_from_shape(shape, origin)
     ri_ref = utils.make_storage_from_shape(shape, origin)
     mc = utils.make_storage_from_shape(shape, origin)
@@ -575,9 +520,6 @@ def compute(state, nq, dt):
     pt2 = utils.make_storage_from_shape(shape, origin)
     tv2 = utils.make_storage_from_shape(shape, origin)
     ratios = {0: 0.25, 1: 0.5, 2: 0.999}
-    j2d = 26
-    k2d = 27
-    i2d = 5
 
     for n in range(m):
         ratio = ratios[n]
@@ -596,8 +538,7 @@ def compute(state, nq, dt):
             korigin_m1 = (grid.is_, grid.js, k - 1)
             kdomain = (grid.nic, grid.njc, 1)
             kdomain_m1 = (grid.nic, grid.njc, 2)
-            if k == k2d:
-                print("input t0", qcon[i2d, j2d, k2d])
+
             m_loop(
                 ri,
                 ri_ref,
@@ -646,16 +587,6 @@ def compute(state, nq, dt):
                     origin=korigin,
                     domain=kdomain,
                 )
-            if k == k2d + 1:
-                print(
-                    "input tracers",
-                    qcon[i2d, j2d, k2d],
-                    q0["qliquid"][i2d, j2d, k2d],
-                    q0["qrain"][i2d, j2d, k2d],
-                    q0["qice"][i2d, j2d, k2d],
-                    q0["qsnow"][i2d, j2d, k2d],
-                    q0["qgraupel"][i2d, j2d, k2d],
-                )
 
             recompute_qcon(
                 ri,
@@ -669,90 +600,10 @@ def compute(state, nq, dt):
                 origin=korigin_m1,
                 domain=kdomain,
             )
-            if k == k2d + 1:
-                print(
-                    "after input tracers",
-                    qcon[i2d, j2d, k2d],
-                    q0["qliquid"][i2d, j2d, k2d],
-                    q0["qrain"][i2d, j2d, k2d],
-                    q0["qice"][i2d, j2d, k2d],
-                    q0["qsnow"][i2d, j2d, k2d],
-                    q0["qgraupel"][i2d, j2d, k2d],
-                )
 
-            # input tracers 7.4409851198972536e-09 0.0 0.0 6.980017722948923e-09 0.0 0.0
-            # after input tracers 7.4409851198972536e-09 0.0 0.0 6.980017722948923e-09 0.0 0.0
             KH_instability_adjustment(
                 ri, ri_ref, mc, u0, state.delp, h0, origin=korigin, domain=kdomain
             )
-
-            if n == 0 and k == k2d:
-
-                print("COMPARE u0")
-                print(np.where(state.u0_2[:, 0, k2d] != u0[:, j2d, k2d]))
-                print(np.any(u0 == (state.u0_2[i2d, 0, k2d])), state.u0_2.shape)
-                print(np.where(u0 == (state.u0_2[i2d, 0, k2d])))
-                print(u0[3, j2d, k2d] == state.u0_2[i2d, 0, k2d])
-                print("computed", u0[:, j2d, k2d])
-                print("ref", state.u0_2[:, 0, k2d])
-                for ki in range(k, k_bot):
-                    ref = state.u0_2[i2d, 0, ki]
-                    comp = u0[i2d, j2d, ki]
-                    if ref != comp:
-                        print(
-                            "BROKE",
-                            ki,
-                            ri[i2d, j2d, ki] < ri_ref[i2d, j2d, ki],
-                            ri[i2d, j2d, ki],
-                            ri_ref[i2d, j2d, ki],
-                            "h0",
-                            h0[i2d, j2d, ki],
-                            state.delp[i2d, j2d, ki],
-                            "mc",
-                            mc[i2d, j2d, ki],
-                            comp,
-                            ref,
-                            ref - comp,
-                        )
-                        print(
-                            pt1[i2d, j2d, ki],
-                            pt2[i2d, j2d, ki],
-                            tv2[i2d, j2d, ki],
-                            t0[i2d, j2d, ki],
-                        )
-                    else:
-                        print(
-                            ki,
-                            ri[i2d, j2d, ki] < ri_ref[i2d, j2d, ki],
-                            ri[i2d, j2d, ki],
-                            ri_ref[i2d, j2d, ki],
-                            "h0",
-                            h0[i2d, j2d, ki],
-                            state.delp[i2d, j2d, ki],
-                            "mc",
-                            mc[i2d, j2d, ki],
-                            ref,
-                        )
-                """
-                for i in range(grid.is_, grid.ie + 1):
-                ref = state.u0_2[i, 0, k2d]
-                comp = u0[i, j2d, k2d]
-                if ref != comp:
-                print(i, ri[i, j2d, k2d]< ri_ref[i, j2d, k2d], ri[i, j2d,  k2d], ri_ref[i, j2d, k2d], comp, ref, ref- comp)
-                else:
-                print(i, ri[i, j2d, k2d]< ri_ref[i, j2d, k2d], ri[i, j2d,  k2d], ri_ref[i, j2d, k2d], ref)
-                """
-                # BROKE 23 True -1.7486147469239424 1.0 h0 -230.22997640362954 1272.893593285895 mc 155.7299509952383 13.178566660886279 12.99769531577305 -0.18087134511322844
-                # 13.059474639156168 13.078025261274892 211.20182034576501
-                # BAD RIS   u0=12.702255173037734  ri=0.88078096720304144  gz1=73925.800432355230  gz=69658.794003553558  u01=9.8646853339093035  u0=12.702255173037734  v01=1.3318337031843186 v0=5.8722371633355577
-                # t01=221.41877166853371 t0=224.34975868858552  qcon1=1.8288245669175295E-008   qcon=6.9800177229489227E-009 pkz1=17.170058033070525    pkz=17.500624285911066
-                # pt1=12.895976358714460  pt2=12.819891091362800   tv1=221.42466247223280    tv2=224.35609737623872
-                # pt1=12.89597635871446   pt2=12.801212283662595                             tv2=224.35609727282076
-                # t0=224.34975868858552
-                #    224.34975868858552
-                #  t0 * (1. + xvir * q0_vapor - qcon)
-                #  qcon=6.9800177229489227E-009
-                #       7.4409851198972536e-09
 
             KH_instability_adjustment(
                 ri, ri_ref, mc, v0, state.delp, h0, origin=korigin, domain=kdomain
@@ -763,8 +614,7 @@ def compute(state, nq, dt):
             KH_instability_adjustment_te(
                 ri, ri_ref, mc, te, state.delp, h0, hd, origin=korigin, domain=kdomain
             )
-            if k == k2d + 1:
-                print("double trouble", t0[i2d, j2d, k2d + 1], t0[i2d, j2d, k2d])
+
             double_adjust_cvm(
                 cvm,
                 cpm,
@@ -784,8 +634,6 @@ def compute(state, nq, dt):
                 origin=korigin_m1,
                 domain=kdomain_m1,
             )
-            if k == k2d + 1:
-                print("after double trouble", t0[i2d, j2d, k2d + 1], t0[i2d, j2d, k2d])
     if fra < 1.0:
         fraction_adjust(
             t0,
