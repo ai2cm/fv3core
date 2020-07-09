@@ -181,10 +181,13 @@ class TranslateFVSubgridZ(ParallelTranslateBaseSlicing):
             self.ignore_near_zero_errors[qvar] = True
 
     def compute_parallel(self, inputs, communicator):
-        return self.compute_sequential(inputs)
-
-    def compute_sequential(self, inputs):
         state = self.state_from_inputs(inputs)
         fv_subgridz.compute(state, inputs["nq"], inputs["dt"])
         outputs = self.outputs_from_state(state)
         return outputs
+
+    def compute_sequential(self, inputs_list, communicator_list):
+        pytest.skip(
+            f"{self.__class__} only has a mpirun implementation, "
+            "not running in mock-parallel"
+        )
