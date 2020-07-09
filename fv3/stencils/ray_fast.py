@@ -38,26 +38,17 @@ def ray_fast_v(
 
 
 @utils.stencil()
-def ray_fast_w(w: sd, rf: sd, hydrostatic: bool):
+def ray_fast_w(w: sd, rf: sd):
     with computation(PARALLEL), interval(...):
-        if not hydrostatic:
-            w = rf * w
+        w = rf * w
 
 
 @utils.stencil()
-def ray_fast_u_dm(u: sd, dmu: sd, dm: sd):
+def ray_fast_horizontal_dm(wind: sd, dmwind: sd, dm: sd):
     with computation(PARALLEL):
         with interval(...):
-            dmu = dmu / dm
-            u = u + dmu
-
-
-@utils.stencil()
-def ray_fast_v_dm(v: sd, dmv: sd, dm: sd):
-    with computation(PARALLEL):
-        with interval(...):
-            dmv = dmv / dm
-            v = v + dmv
+            dmwind = dmwind / dm
+            wind = wind + dmwind
 
 
 @utils.stencil()
@@ -120,18 +111,15 @@ def compute(u, v, w, dp, pfull, dt, ptop, ks):
         origin=grid.compute_origin(),
         domain=(grid.nic + 1, grid.njc, kmax),
     )
-    ray_fast_w(
-        w,
-        rf,
-        spec.namelist["hydrostatic"],
-        origin=grid.compute_origin(),
-        domain=(grid.nic, grid.njc, kmax),
-    )
+    if not spec.namelist["hydrostatic"]:
+        ray_fast_w(
+            w, rf, origin=grid.compute_origin(), domain=(grid.nic, grid.njc, kmax),
+        )
     dmu = utils.make_storage_data(np.squeeze(dmu[:, :, kmax - 1]), dm.shape)
     dmv = utils.make_storage_data(np.squeeze(dmv[:, :, kmax - 1]), dm.shape)
-    ray_fast_u_dm(
+    ray_fast_horizontal_dm(
         u, dmu, dm, origin=grid.compute_origin(), domain=(grid.nic, grid.njc + 1, k_rf)
     )
-    ray_fast_v_dm(
+    ray_fast_horizontal_dm(
         v, dmv, dm, origin=grid.compute_origin(), domain=(grid.nic + 1, grid.njc, k_rf)
     )
