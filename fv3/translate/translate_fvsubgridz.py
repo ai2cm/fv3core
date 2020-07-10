@@ -26,7 +26,7 @@ class TranslateFVSubgridZ(ParallelTranslateBaseSlicing):
             "n_halo": 1,
         },
         "pkz": {
-            "name": "finite_volume_mean_pressure_raised_to_power_of_kappa",
+            "name": "layer_mean_pressure_raised_to_power_of_kappa",
             "units": "unknown",
             "dims": [fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_DIM],
             "n_halo": 0,

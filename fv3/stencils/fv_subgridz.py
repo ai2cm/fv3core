@@ -407,7 +407,7 @@ def tracers_dict(state):
     ArgSpec("pe", "interface_pressure", "Pa", intent="in"),
     ArgSpec(
         "pkz",
-        "finite_volume_mean_pressure_raised_to_power_of_kappa",
+        "layer_mean_pressure_raised_to_power_of_kappa",
         "unknown",
         intent="in",
     ),
