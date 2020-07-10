@@ -1,10 +1,12 @@
 from .parallel_translate import ParallelTranslateBaseSlicing
 import fv3.stencils.fv_subgridz as fv_subgridz
 import fv3util
-import pytest
 import fv3.utils.gt4py_utils as utils
+import fv3._config as spec
 
-# NOTE, does no halo updates, does not need to be a Parallel test, but doing so here to make the interface match fv_dynamics. could add support to the TranslateFortranData2Py class
+# NOTE, does no halo updates, does not need to be a Parallel test,
+# but doing so here to make the interface match fv_dynamics.
+# Could add support to the TranslateFortranData2Py class
 class TranslateFVSubgridZ(ParallelTranslateBaseSlicing):
     inputs = {
         "delp": {
@@ -187,7 +189,10 @@ class TranslateFVSubgridZ(ParallelTranslateBaseSlicing):
         return outputs
 
     def compute_sequential(self, inputs_list, communicator_list):
-        pytest.skip(
-            f"{self.__class__} only has a mpirun implementation, "
-            "not running in mock-parallel"
-        )
+        outputs_list = []
+        for inputs, communicator, grid_rank in zip(
+            inputs_list, communicator_list, spec.grid
+        ):
+            spec.set_grid(grid_rank)
+            outputs_list.append(self.compute_parallel(inputs, communicator))
+        return outputs_list

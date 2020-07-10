@@ -17,7 +17,6 @@ from fv3.utils.global_constants import (
 from fv3.stencils.basic_operations import dim, multiply_constant_inout
 import fv3.stencils.copy_stencil as cp
 from ..decorators import ArgSpec, state_inputs
-import numpy as np
 
 sd = utils.sd
 RK = CP_AIR / RDGAS + 1.0
@@ -104,7 +103,6 @@ def init(
         gzh = gzh[0, 0, 1] - GRAV * delz
 
 
-#
 @gtscript.function
 def qcon_func(qcon, q0_liquid, q0_ice, q0_snow, q0_rain, q0_graupel):
     return q0_liquid + q0_ice + q0_snow + q0_rain + q0_graupel
@@ -404,16 +402,16 @@ def tracers_dict(state):
 
 
 @state_inputs(
-    ArgSpec("delp", "pressure_thickness_of_atmospheric_layer", "Pa", intent="inout"),
-    ArgSpec("delz", "vertical_thickness_of_atmospheric_layer", "m", intent="inout"),
-    ArgSpec("pe", "interface_pressure", "Pa", intent="inout"),
+    ArgSpec("delp", "pressure_thickness_of_atmospheric_layer", "Pa", intent="in"),
+    ArgSpec("delz", "vertical_thickness_of_atmospheric_layer", "m", intent="in"),
+    ArgSpec("pe", "interface_pressure", "Pa", intent="in"),
     ArgSpec(
         "pkz",
         "finite_volume_mean_pressure_raised_to_power_of_kappa",
         "unknown",
-        intent="inout",
+        intent="in",
     ),
-    ArgSpec("peln", "logarithm_of_interface_pressure", "ln(Pa)", intent="inout"),
+    ArgSpec("peln", "logarithm_of_interface_pressure", "ln(Pa)", intent="in"),
     ArgSpec("pt", "air_temperature", "degK", intent="inout"),
     ArgSpec("ua", "x_wind_on_a_grid", "m/s", intent="inout"),
     ArgSpec("va", "y_wind_on_a_grid", "m/s", intent="inout"),
@@ -565,11 +563,11 @@ def compute(state, nq, dt):
             )
 
             if k == 1:
-                multiply_constant_inout(ri_ref, 4.0, origin=korigin, domain=kdomain)
+                ri_ref *= 4.0
             if k == 2:
-                multiply_constant_inout(ri_ref, 2.0, origin=korigin, domain=kdomain)
+                ri_ref *= 2.0
             if k == 3:
-                multiply_constant_inout(ri_ref, 1.5, origin=korigin, domain=kdomain)
+                ri_ref *= 1.5
 
             # work around that gt4py will not accept interval(3, 4), no longer used, mc calc per k
             # m_loop_hack_interval_3_4(ri, ri_ref, mc, state.delp, ratio, origin=(grid.is_, grid.js, 1), domain=(grid.nic, grid.njc, k_bot - 1))
