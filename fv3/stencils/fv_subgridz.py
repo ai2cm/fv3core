@@ -406,10 +406,7 @@ def tracers_dict(state):
     ArgSpec("delz", "vertical_thickness_of_atmospheric_layer", "m", intent="in"),
     ArgSpec("pe", "interface_pressure", "Pa", intent="in"),
     ArgSpec(
-        "pkz",
-        "layer_mean_pressure_raised_to_power_of_kappa",
-        "unknown",
-        intent="in",
+        "pkz", "layer_mean_pressure_raised_to_power_of_kappa", "unknown", intent="in",
     ),
     ArgSpec("peln", "logarithm_of_interface_pressure", "ln(Pa)", intent="in"),
     ArgSpec("pt", "air_temperature", "degK", intent="inout"),
