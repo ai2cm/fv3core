@@ -43,12 +43,12 @@ class TranslateFVSubgridZ(ParallelTranslateBaseSlicing):
             "units": "degK",
         },
         "ua": {
-            "name": "x_wind_on_a_grid",
+            "name": "eastward_wind_on_a_grid",
             "dims": [fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_DIM],
             "units": "m/s",
         },
         "va": {
-            "name": "y_wind_on_a_grid",
+            "name": "northward_wind_on_a_grid",
             "dims": [fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_DIM],
             "units": "m/s",
         },
