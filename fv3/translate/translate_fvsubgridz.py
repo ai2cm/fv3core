@@ -103,12 +103,12 @@ class TranslateFVSubgridZ(ParallelTranslateBaseSlicing):
             "units": "",
         },
         "u_dt": {
-            "name": "x_wind_tendency",
+            "name": "eastward_wind_tendency",
             "dims": [fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_DIM],
             "units": "m/s**2",
         },
         "v_dt": {
-            "name": "y_wind_tendency",
+            "name": "northward_wind_tendency",
             "dims": [fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_DIM],
             "units": "m/s**2",
         },
