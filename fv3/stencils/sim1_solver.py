@@ -10,10 +10,10 @@ from gt4py.gtscript import computation, interval, PARALLEL
 
 sd = utils.sd
 @utils.stencil()
-def initial(w: sd, dm: sd, gm: sd, dz: sd, ptr: sd, pm:sd, pe: sd, g_rat: sd, bb: sd, dd: sd, w1: sd):
+def initial(w: sd, dm: sd, gm: sd, dz: sd, ptr: sd, pm: sd, pe: sd, g_rat: sd, bb: sd, dd: sd, w1: sd):
     with computation(PARALLEL), interval(...):
         w1 = w
-        pe = (-dm / dz * constants.RDGAS * ptr)**gm - pm
+        #pe = (-dm / dz * constants.RDGAS * ptr)**gm - pm
     with computation(PARALLEL):
         with interval(0, -1):
             g_rat = dm / dm[0, 0, 1]
@@ -92,12 +92,15 @@ def solve(is_, ie, js, je, dt, gm, cp3, pe, dm, pm, pem, w, dz, ptr, wsr):
     pp = utils.make_storage_from_shape(simshape, simorigin)
     t1g = 2.0 * dt * dt
     rdt = 1.0 / dt
+    tmpslice = (slice(is_, ie+1), slice(js, je+1), slice(0, grid.npz))
+    # putting this into stencil removing the exp and log from the equation makes it not validate
+    pe[tmpslice] = np.exp(gm[tmpslice] * np.log(-dm[tmpslice] / dz[tmpslice] * constants.RDGAS * ptr[tmpslice])) - pm[tmpslice]
     initial(w, dm, gm, dz, ptr, pm, pe, g_rat, bb, dd, w1, origin=simorigin, domain=simdomain)
     bet = utils.make_storage_data(bb.data[:,:,0], simshape)
     w_solver(aa, bet, g_rat, gam, pp, dd, gm, dz, pem, dm, pe, bb, t1g, origin=simorigin, domain=simdomainplus)
+  
     # reset bet column to the new value. TODO reuse the same storage
     bet = utils.make_storage_data(dm.data[:,:,0] - aa.data[:, :, 1], simshape)
     wsr_top = utils.make_storage_data(wsr.data[:,:,0], simshape)
 
     w_pe_dz_compute(dm, w1, pp, aa, gm, dz, pem, wsr_top, bb, g_rat, bet, gam, p1, pe, w, pm, ptr, cp3, dt, t1g, rdt,  spec.namelist['p_fac'], origin=simorigin, domain=simdomainplus)
-     
