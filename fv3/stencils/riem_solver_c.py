@@ -50,59 +50,22 @@ def compute(ms, dt2, akap, cappa, ptop, hs, w3, ptc, q_con, delpc, gz, pef, ws):
     dm = cp.copy(delpc, (0, 0, 0))
     cp3 = cp.copy(cappa, (0, 0, 0))
     w = cp.copy(w3, (0, 0, 0))
-    #pef[islice, spec.grid.js - 1 : spec.grid.je + 2, 0] = ptop
-    pem = utils.make_storage_from_shape(shape, riemorigin) #np.zeros(shape1)
-    peg = utils.make_storage_from_shape(shape, riemorigin) #np.zeros(shape1)
-    pe = utils.make_storage_from_shape(shape, riemorigin) #np.zeros(shape1)
+  
+    pem = utils.make_storage_from_shape(shape, riemorigin) 
+    peg = utils.make_storage_from_shape(shape, riemorigin)
+    pe = utils.make_storage_from_shape(shape, riemorigin)
     gm = utils.make_storage_from_shape(shape, riemorigin)
     dz = utils.make_storage_from_shape(shape, riemorigin)
     pm = utils.make_storage_from_shape(shape, riemorigin)
     precompute(cp3, gz, dm, q_con, pem, peg, dz, gm, pef, ptop, origin=riemorigin, domain=domain)
-    print(ptop, np.where(dz[:, grid.js - 1, 0] == 0.0))
     #TODO add to stencil when we have math functions
     jslice=slice(grid.js - 1, grid.je + 2)
     tmpslice_shift = (islice, jslice, kslice_shift)
     tmpslice = (islice, jslice, kslice)
     pm[tmpslice] = (peg[tmpslice_shift] - peg[tmpslice]) / np.log(peg[tmpslice_shift] / peg[tmpslice])
-    print(np.any(np.isnan(peg)))
-    #for j in range(shape[1]):
-    #    print(j, np.where(np.isnan(pm[:, j, :])))
-    print('pre solve', np.any(np.isnan(dz.data)))
-    print(np.any(np.isnan(gm.data)))
-    print(np.any(np.isnan(cp3.data)))
-    print(np.any(np.isnan(pe.data)))
-    print(np.any(np.isnan(dm.data)),  np.any(np.isnan(pm.data)),  np.any(np.isnan(pem.data)),  np.any(np.isnan(w.data)),  np.any(np.isnan(ptc.data)),  np.any(np.isnan(ws.data)))
     sim1_solver.solve(
         is1, ie1, dt2, gm, cp3, pe, dm, pm, pem, w, dz, ptc, ws
     )
-    print('post solve', np.any(np.isnan(dz)))
     hs_0 = utils.make_storage_data(hs[:, :, 0].data, shape)
     finalize(pe, pem, hs_0, dz, pef, gz, origin=riemorigin, domain=domain)
-    '''
-    for j in range(spec.grid.js - 1, spec.grid.je + 2):
-        dm2 = np.squeeze(dm.data[islice, j, kslice])
-        cp2 = np.squeeze(cp3[islice, j, kslice])
-        ptr = ptc.data[islice, j, kslice]
-        wsr = ws[islice, j, :]
-        pem[:, 0] = ptop
-        peg[:, 0] = ptop
-        for k in range(1, km + 2):
-            pem[:, k] = pem[:, k - 1] + dm2[:, k - 1]
-            peg[:, k] = peg[:, k - 1] + dm2[:, k - 1] * (1.0 - q_con[islice, j, k - 1])
-        dz2 = gz[islice, j, kslice_shift] - gz[islice, j, kslice]
-        pm2 = (peg[:, kslice_shift] - peg[:, kslice]) / np.log(
-            peg[:, kslice_shift] / peg[:, kslice]
-        )
-        gm2 = 1.0 / (1 - cp2)
-        dm2 = dm2 / constants.GRAV
-        w2 = np.copy(w3[islice, j, kslice])
-
-        sim1_solver.solve(
-            is1, ie1, dt2, gm2, cp2, pe2, dm2, pm2, pem, w2, dz2, ptr, wsr
-        )
-
-        pef[islice, j, kslice_shift] = pe2[:, kslice_shift] + pem[:, kslice_shift]
-        gz[islice, j, km + 1] = hs[islice, j, 0]
-        for k in range(km, -1, -1):
-            gz[islice, j, k] = gz[islice, j, k + 1] - dz2[:, k] * constants.GRAV
-    '''
+   

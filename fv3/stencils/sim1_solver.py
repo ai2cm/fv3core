@@ -10,9 +10,10 @@ from gt4py.gtscript import computation, interval, PARALLEL
 
 sd = utils.sd
 @utils.stencil()
-def initial(w2: sd, dm: sd, pe2: sd, g_rat: sd, bb: sd, dd: sd, w1: sd):
+def initial(w2: sd, dm: sd, gm2: sd, dz2: sd, ptr: sd, pm2:sd, pe2: sd, g_rat: sd, bb: sd, dd: sd, w1: sd):
     with computation(PARALLEL), interval(...):
         w1 = w2
+        pe2 = (-dm / dz2 * constants.RDGAS * ptr)**gm2 - pm2
     with computation(PARALLEL):
         with interval(0, -1):
             g_rat = dm / dm[0, 0, 1]
@@ -21,6 +22,8 @@ def initial(w2: sd, dm: sd, pe2: sd, g_rat: sd, bb: sd, dd: sd, w1: sd):
         with interval(-1, None):
             bb = 2.0
             dd = 3.0 * pe2
+
+
 @utils.stencil()
 def w_solver(aa: sd, bet: sd, g_rat: sd, gam: sd, pp: sd, dd: sd, gm2: sd, dz2: sd, pem: sd, dm: sd, pe2: sd, bb: sd, t1g: float):
     with computation(PARALLEL):
@@ -39,7 +42,7 @@ def w_solver(aa: sd, bet: sd, g_rat: sd, gam: sd, pp: sd, dd: sd, gm2: sd, dz2: 
         aa = t1g * 0.5 * (gm2[0, 0, -1] + gm2) / (dz2[0, 0, -1] + dz2) * (pem + pp)
 
 @utils.stencil()
-def w2_pe2_compute(dm: sd, w1: sd, pp: sd, aa: sd, gm2: sd, dz2: sd, pem: sd, wsr_top: sd, bb: sd, g_rat: sd, bet: sd, gam: sd, p1: sd, pe2: sd, w2: sd, dt: float, t1g: float, rdt: float):
+def w2_pe2_dz2_compute(dm: sd, w1: sd, pp: sd, aa: sd, gm2: sd, dz2: sd, pem: sd, wsr_top: sd, bb: sd, g_rat: sd, bet: sd, gam: sd, p1: sd, pe2: sd, w2: sd,  pm: sd, ptr: sd, cp: sd, dt: float, t1g: float, rdt: float, p_fac: float):
     with computation(FORWARD):
         with interval(0, 1):
             w2 = (dm * w1 + dt * pp[0, 0, 1]) / bet
@@ -54,8 +57,6 @@ def w2_pe2_compute(dm: sd, w1: sd, pp: sd, aa: sd, gm2: sd, dz2: sd, pem: sd, ws
             w2 = (dm * w1 + dt * (pp[0, 0, 1] - pp) - p1 * wsr_top - aa * w2[0, 0, -1]) / bet
     with computation(BACKWARD), interval(0, -1):
         w2 = w2 - gam[0, 0, 1] * w2[0, 0, 1]
-@utils.stencil()
-def pe2_compute(dm: sd, w1: sd, pp: sd, aa: sd, gm2: sd, dz2: sd, pem: sd, wsr_top: sd, bb: sd, g_rat: sd, bet: sd, gam: sd, p1: sd, pe2: sd, w2: sd, dt: float, t1g: float, rdt: float):
     with computation(FORWARD):
         with interval(0, 1):
             pe2 = 0.0
@@ -66,6 +67,10 @@ def pe2_compute(dm: sd, w1: sd, pp: sd, aa: sd, gm2: sd, dz2: sd, pem: sd, wsr_t
             p1 = (pe2 + 2.0 * pe2[0, 0, 1]) * 1.0 / 3.0
         with interval(0, -2):
             p1 = (pe2 + bb * pe2[0, 0, 1] + g_rat * pe2[0, 0, 2]) * 1.0 / 3.0 - g_rat * p1[0, 0, 1]
+    with computation(PARALLEL), interval(0, -1):
+        maxp = p_fac * pm if p_fac * dm >  p1 + pm else  p1 + pm
+        dz2 = -dm * constants.RDGAS * ptr * maxp**(cp - 1.0)
+                    
 
 # TODO: implement MOIST_CAPPA=false
 def solve(is_, ie, dt, gm2, cp2, pe2, dm, pm2, pem, w2, dz2, ptr, wsr):
@@ -73,238 +78,31 @@ def solve(is_, ie, dt, gm2, cp2, pe2, dm, pm2, pem, w2, dz2, ptr, wsr):
     nic = ie - is_ + 1
     km = grid.npz - 1
     npz = grid.npz
-    #tmpshape = (nic, km + 1)
-    #tmpshape_p1 = (nic, km + 2)
     simshape = pe2.shape
     simorigin=(is_, grid.js - 1, 0)
     simdomain=(nic, grid.njc + 2, grid.npz)
     simdomainplus=(nic, grid.njc + 2, grid.npz+1)
     t1g = 2.0 * dt * dt
     rdt = 1.0 / dt
-    slice_m = slice(0, km + 1)
-    slice_m2 = slice(1, km + 1)
-    slice_n = slice(0, km)
-    tmpslice = (slice(is_, ie+1), slice(grid.js - 1, grid.je+2), slice_m)
-    tmpslice_shift = (slice(is_, ie+1), slice(grid.js - 1, grid.je+2), slice_m2)
-    g_rat = utils.make_storage_from_shape(simshape, simorigin)#np.zeros(simshape)
-    bb = utils.make_storage_from_shape(simshape, simorigin)#np.zeros(simshape)
-    aa = utils.make_storage_from_shape(simshape, simorigin)#np.zeros(simshape)
-    dd = utils.make_storage_from_shape(simshape, simorigin)#np.zeros(simshape)
-    gam = utils.make_storage_from_shape(simshape, simorigin)# np.zeros(simshape)
-    w1 = utils.make_storage_from_shape(simshape, simorigin)#np.zeros(simshape)
-    pp = utils.make_storage_from_shape(simshape, simorigin)#np.zeros(simshape_p1)
-    #bet = np.zeros(nic)
-    p1 = utils.make_storage_from_shape(simshape, simorigin)#np.zeros(nic)
-    pp = utils.make_storage_from_shape(simshape, simorigin)#np.zeros(pem.shape)
+    tmpslice = (slice(is_, ie+1), slice(grid.js - 1, grid.je+2), slice(0, km + 1))
+    g_rat = utils.make_storage_from_shape(simshape, simorigin)
+    bb = utils.make_storage_from_shape(simshape, simorigin)
+    aa = utils.make_storage_from_shape(simshape, simorigin)
+    dd = utils.make_storage_from_shape(simshape, simorigin)
+    gam = utils.make_storage_from_shape(simshape, simorigin)
+    w1 = utils.make_storage_from_shape(simshape, simorigin)
+    pp = utils.make_storage_from_shape(simshape, simorigin)
+    p1 = utils.make_storage_from_shape(simshape, simorigin)
+    pp = utils.make_storage_from_shape(simshape, simorigin)
     # TODO put into a stencil
-    print(pe2.shape, gm2.shape, dm.shape, ptr.shape, pm2.shape, pe2[3, 3, 0])
-    pe2[tmpslice] = np.exp(gm2[tmpslice] * np.log(-dm[tmpslice] / dz2[tmpslice] * constants.RDGAS * ptr[tmpslice])) - pm2[tmpslice]
-    print('preinitial', np.any(np.isnan(pe2)), -dm[3, 3, 0] / dz2[3, 3, 0] * constants.RDGAS * ptr[3, 3, 0])
-    #for k in range(simshape[2]):
-    #    print('eeks', k, pe2[3,3,k], 'dz', dz2[3, 3, k], 'ptr',ptr[3, 3, k], 'pm2', pm2[3, 3, k], 'dm', dm[3, 3, 2], 'gm', gm2[3, 3, k])
-    initial(w2, dm, pe2, g_rat, bb, dd, w1, origin=simorigin, domain=simdomain)
-    for k in [0, 1, 77, 78, 79]:
-        print('initial', w2[3, 3, k], dm[3, 3, k], pe2[3, 3, k], g_rat[3, 3, k], w1[3, 3, k], bb[3, 3, k], dd[3, 3, k])
-    '''
-initial -0.01608911155431324 35.329097263023094 -0.3811800470443245 0.8696215933870245 -0.01608911155431324 3.7392431867740488 -1.165327135528992
-initial -0.01608911155431324 35.329097263023094 -0.3811800470443245 0.8696215933870245 -0.01608911155431324 3.7392431867740488 -1.165327135528992
-
-initial -0.007845923418073459 40.6258279827464 -0.008351139760748083 0.940080660180363 -0.007845923418073459 3.8801613203607257 -0.7565507656239995
-initial -0.007845923418073459 40.6258279827464 -0.008351139760748083 0.940080660180363 -0.007845923418073459 3.8801613203607257 -0.7565507656239995
-
-initial 0.0010140209068972793 45.384356511554756 474.38137094788544 1.2666278343399526 0.0010140209068972793 4.533255668679905 2729.252174081997
-initial 0.0010140209068972793 45.384356511554756 474.38137094788544 1.2666278343399526 0.0010140209068972793 4.533255668679905 2729.252174081997
-initial 0.00033922862617279657 35.83085361076469 343.72318525037554 0.0 0.00033922862617279657 2.0 1031.1695557511266
-initial 0.00033922862617279657 35.83085361076469 343.72318525037554 0.0 0.00033922862617279657 2.0 1031.1695557511266
-initial 0.0 0.0 0.0 0.0 0.0 0.0 0.0
-
-    '''
-    #w1 = np.copy(w2)
-    #g_rat[:, slice_n] = dm[:, slice_n] / dm[:, slice_m2]
-    #bb[:, slice_n] = 2.0 * (1.0 + g_rat[:, slice_n])
-    #dd[:, slice_n] = 3.0 * (pe2[:, slice_n] + g_rat[:, slice_n] * pe2[:, slice_m2])
-    bet = utils.make_storage_data(np.copy(bb.data[:,:,0]), simshape)
-    #bet[:] = bb[:, 0]
+    #pe2[tmpslice] = np.exp(gm2[tmpslice] * np.log(-dm[tmpslice] / dz2[tmpslice] * constants.RDGAS * ptr[tmpslice])) - pm2[tmpslice]
     
-    '''
-    pp[:, 0] = 0.0
-    pp[:, 1] = dd[:, 0] / bet
-    bb[:, km] = 2.0
-    dd[:, km] = 3.0 * pe2[:, km]
-
-    for k in range(1, npz):
-        for i in range(nic):
-            gam[i, k] = g_rat[i, k - 1] / bet[i]
-            bet[i] = bb[i, k] - gam[i, k]
-            pp[i, k + 1] = (dd[i, k] - pp[i, k]) / bet[i]
-
-    for k in range(km, 0, -1):
-        pp[:, k] = pp[:, k] - gam[:, k] * pp[:, k + 1]
-
-    # w solver
-    aa[:, slice_m2] = (
-        t1g
-        * 0.5
-        * (gm2[:, slice_n] + gm2[:, slice_m2])
-        / (dz2[:, slice_n] + dz2[:, slice_m2])
-        * (pem[:, slice_m2] + pp[:, slice_m2])
-    )
-    '''
-    print(pp[3, 3, 78], dd[3, 3, 0], bet[3, 3, 0])
+    initial(w2, dm, gm2, dz2, ptr, pm2, pe2, g_rat, bb, dd, w1, origin=simorigin, domain=simdomain)
+    bet = utils.make_storage_data(bb.data[:,:,0], simshape)
     w_solver(aa, bet, g_rat, gam, pp, dd, gm2, dz2, pem, dm, pe2, bb, t1g, origin=simorigin, domain=simdomainplus)
-    for k in [0, 1, 2, 77, 78, 79]:
-        print('w solver', k, dz2[3, 3, k], pp[3, 3, k], dd[3, 3, k], dm[3, 3, k], pe2[3, 3, k], bb[3, 3, k], gam[3, 3, k], bet[3, 3, k], g_rat[3, 3, k], aa[3, 3, k])
-    '''
-w solver 0 -5336.073067678582 0.0 -1.165327135528992 35.329097263023094 -0.3811800470443245 3.7392431867740488 0.0 3.7392431867740488 0.8696215933870245 0.0
-w solver 0 -5336.073067678582 0.0 -1.165327135528992 35.329097263023094 -0.3811800470443245 3.7392431867740488 0.0 1.7013268656869363 0.8696215933870245 0.0
-w solver 1 -3087.3701886602685 -0.28440628340806556 -0.7565507656239995 40.6258279827464 -0.008351139760748083 3.8801613203607257 0.23256620389466343 3.6475951164660625 0.940080660180363 -2718.546705158919
-w solver 1 -3087.3701886602685 -0.28440628340806556 -0.7565507656239995 40.6258279827464 -0.008351139760748083 3.8801613203607257 0.23256620389466343 1.7013268656869363 0.940080660180363 -2718.546705158919
-
-w solver 2 -2146.576221960353 -0.11713471559844271 -0.07929901076585724 43.215257693900405 -0.2593739655635545 3.9776080557325275 0.2577261538531588 3.7198819018793685 0.9888040278662638 -7073.875367115784
- solver 2 -2146.576221960353 -0.11713471559844271 -0.07929901076585724 43.215257693900405 -0.2593739655635545 3.9776080557325275 0.2577261538531588 1.7013268656869363 0.9888040278662638 -7073.875367115784
-
-w solver 77 -37.41242509058436 491.58728805885977 2729.252174081997 45.384356511554756 474.38137094788544 4.533255668679905 0.2924060949372051 4.240849573742699 1.2666278343399526 -43165934.00607269
-w solver 77 -37.41242509058436 519.1816651506986  2729.252174081997 45.384356511554756 474.38137094788544 4.533255668679905 0.2924060949372051 1.70132686568693631.2666278343399526 -43177744.54277382
-w solver 77 -37.41242509058436 519.1816651506986 2729.252174081997 45.384356511554756 474.38137094788544 4.533255668679905 0.2924060949372051 4.240849573742699 1.2666278343399526 -43177744.54277382
-w solver 77 -37.41242509058436 635.9221544156624 2729.252174081997 45.384356511554756 474.38137094788544 4.533255668679905 0.2924060949372051 4.240849573742699 1.2666278343399526 0.0
-w solver 78 -29.432218707943356 493.6110048861972 1031.1695557511266 35.83085361076469 343.72318525037554 2.0 0.0                3.7392431867740488 0.0 -53655873.20593878
-w solver 78 -29.432218707943356 399.2409573064273 1031.1695557511266 35.83085361076469 343.72318525037554 2.0 0.2986731343130638 1.7013268656869363 0.0 -53605888.36292727
-w solver 78 -29.432218707943356 399.2409573064273 1031.1695557511266 35.83085361076469 343.72318525037554 2.0 0.2986731343130638 1.7013268656869363 0.0 -53605888.36292727
-w solver 78 -29.432218707943356 493.6110048861972 1031.1695557511266 35.83085361076469 343.72318525037554 2.0 0.2986731343130638 1.7013268656869363 0.0 -53655873.20593878
-w solver 79 0.0 0.0 0.0 0.0 0.0 0.0 0.0 3.7392431867740488 0.0 0.0
-
-w solver 78 -29.432218707943356 493.6110048861972 1031.1695557511266 35.83085361076469 343.72318525037554 2.0 0.0 3.7392431867740488 0.0 0.0
-w solver 79 0.0 0.0 0.0 0.0 0.0 0.0 0.0 3.7392431867740488 0.0 0.0
-
-    '''
-    #TODO reuse the same storage
+    # reset bet column to the new value. TODO reuse the same storage
     bet = utils.make_storage_data(dm.data[:,:,0] - aa.data[:, :, 1], simshape)
-    wsr_top = utils.make_storage_data(np.copy(wsr.data[:,:,0]), simshape)
-    #bet[:] = dm[:, 0] - aa[:, 1]
-    '''
-    w2[:, 0] = (dm[:, 0] * w1[:, 0] + dt * pp[:, 1]) / bet
-    for k in range(1, km):
-        for i in range(nic):
-            gam[i, k] = aa[i, k] / bet[i]
-            bet[i] = dm[i, k] - (aa[i, k] + aa[i, k + 1] + aa[i, k] * gam[i, k])
-            w2[i, k] = (
-                dm[i, k] * w1[i, k]
-                + dt * (pp[i, k + 1] - pp[i, k])
-                - aa[i, k] * w2[i, k - 1]
-            ) / bet[i]
-    
-   
-    for i in range(nic):
-        p1[i] = t1g * gm2[i, km] / dz2[i, km] * (pem[i, km + 1] + pp[i, km + 1])
-        gam[i, km] = aa[i, km] / bet[i]
-        bet[i] = dm[i, km] - (aa[i, km] + p1[i] + aa[i, km] * gam[i, km])
-        w2[i, km] = (
-            dm[i, km] * w1[i, km]
-            + dt * (pp[i, km + 1] - pp[i, km])
-            - p1[i] * wsr[i, 0]
-            - aa[i, km] * w2[i, km - 1]
-        ) / bet[i]
+    wsr_top = utils.make_storage_data(wsr.data[:,:,0], simshape)
 
-    for k in range(km - 1, -1, -1):
-        w2[:, k] = w2[:, k] - gam[:, k + 1] * w2[:, k + 1]
-    
-    
-    pe2[:, 0] = 0.0
-    for k in range(npz):
-        pe2[:, k + 1] = pe2[:, k] + dm[:, k] * (w2[:, k] - w1[:, k]) * rdt
-
-    p1[:] = (pe2[:, km] + 2.0 * pe2[:, km + 1]) * 1.0 / 3.0
-    
-    for i in range(nic):
-        dz2[i, km] = (
-            -dm[i, km]
-            * constants.RDGAS
-            * ptr[i, km]
-            * np.exp(
-                (cp2[i, km] - 1.0)
-                * np.log(max(spec.namelist["p_fac"] * pm2[i, km], p1[i] + pm2[i, km]))
-            )
-        )
-
---------- [-43177744.54277382 -53605888.36292727         0.        ]
------     [-43177744.54277382 -53605888.36292727]
-    '''
-    print('---------', aa[3, 3, 77:])
-    
-    w2_pe2_compute(dm, w1, pp, aa, gm2, dz2, pem, wsr_top, bb, g_rat, bet, gam, p1, pe2, w2, dt, t1g, rdt, origin=simorigin, domain=simdomainplus)
-    for k in  [0, 1, 2, 77, 78, 79]:
-        print('w2', k,dm[3, 3, k], w1[3, 3, k], pp[3, 3, k], aa[3, 3, k], gm2[3, 3, k], dz2[3, 3, k], pem[3, 3, k], wsr_top[3, 3, k], bb[3, 3, k], g_rat[3, 3, k], gam[3, 3, k], pe2[3, 3, k], w2[3, 3, k], bet[3, 3, k], p1[3, 3, k] )
-        print('w2',w2[3, 3, k])
-    pe2_compute(dm, w1, pp, aa, gm2, dz2, pem, wsr_top, bb, g_rat, bet, gam, p1, pe2, w2, dt, t1g, rdt, origin=simorigin, domain=simdomainplus)
-    '''
-w2 0 35.329097263023094 -0.01608911155431324 0.0 0.0 1.4000410980022941 -5336.073067678582 300.0 -7.181257746207987e-05 3.7392431867740488 0.8696215933870245 0.0 -0.3811800470443245 -0.035879484581151824 2753.875802421942 0.0
-w2 0 35.329097263023094 -0.01608911155431324 0.0 0.0 1.4000410980022941 -5336.073067678582 300.0 -7.181257746207987e-05 3.7392431867740488 0.8696215933870245 0.0 -0.3811800470443245 -0.035879484581151824 -122069051.86007239 122078940.32027799
-
-w2 -0.035879484581151824
-w2 1 40.6258279827464 -0.007845923418073459 -0.28440628340806556 -2718.546705158919 1.4000412016207402 -3087.3701886602685 646.4600916744255 -7.181257746207987e-05 3.8801613203607257 0.940080660180363 -0.987171136319237 -0.008351139760748083 -0.02436725607667918 7149.377060188802 0.0
-w2 1 40.6258279827464 -0.007845923418073459 -0.28440628340806556 -2718.546705158919 1.4000412016207402 -3087.3701886602685 646.4600916744255 -7.181257746207987e-05 3.8801613203607257 0.940080660180363 -0.987171136319237 -0.008351139760748083 -0.02436725607667918 -122069051.86007239 122078940.32027799
-
-w2 -0.02436725607667918
-w2 2 43.215257693900405 -0.006857935019964098 -0.11713471559844271 -7073.875367115784 1.4000412299274292 -2146.576221960353 1044.8633676614254 -7.181257746207987e-05 3.9776080557325275 0.9888040278662638 -0.9894394025608961 -0.2593739655635545 -0.02269811631100813 14010.996101294784 0.0
-w2 -0.02269811631100813
-w2 77 45.384356511554756 0.0010140209068972793 519.1816651506986 -43177744.54277382 1.3987343104645171 -37.41242509058436 100362.17496063378 -7.181257746207987e-05 4.533255668679905 1.2666278343399526 -0.9997728214773354 474.38137094788544 0.001057168562820613 53615742.80350101 0.0
-w2 0.001057168562820613
-w2 78 35.83085361076469 0.00033922862617279657 399.2409573064273 -53605888.36292727 1.3987375513815343 -29.432218707943356 100807.24346041783 -7.181257746207987e-05 2.0 0.0 -0.9998162024797483 343.72318525037554 0.00021935824727543047 122078940.32027799 -122069051.86007239
-w2 78 35.83085361076469 0.00033922862617279657 399.2409573064273 -53605888.36292727 1.3987375513815343 -29.432218707943356 100807.24346041783 -7.181257746207987e-05 2.0 0.0 -0.9998162024797483 343.72318525037554 0.00021935824727543047 -122069051.86007239 122078940.32027799
-
-w2 0.00021935824727543047
-w2 79 0.0 0.0 315.96429922234967 0.0 1.0 0.0 101158.62410097984 -7.181257746207987e-05 0.0 0.0 0.0 0.0 0.0 2753.875802421942 0.0
-w2 0.0
-
-
-
-    '''
-    # TODO put in stencil when have math functions
-    kmslice = (slice(is_, ie + 1), slice(grid.js - 1, grid.je+2), slice(0, km+  1))
-    dz2[kmslice] = (-dm[kmslice] * constants.RDGAS * ptr[kmslice]
-                    * np.exp(
-                        (cp2[kmslice] - 1.0)
-                        * np.log(np.maximum(spec.namelist["p_fac"] * pm2[kmslice], p1[kmslice] + pm2[kmslice]))
-                    ))
-    for k in  [0, 1, 2, 77, 78, 79]:
-        print(k, dz2[3, 3, k], pe2[3, 3, k], dm[3, 3, k], cp2[3, 3, k], pm2[3, 3, k], p1[3, 3, k])
-    '''
-
-0 -5332.950754305825 35.329097263023094 0.2857352534672796 451.27915626358583 -0.011540153549038774
--5247.1433363938295
-0 -5332.875859064888 0.0 35.329097263023094 0.2857352534672796 451.27915626358583 -0.0026671854239062303
-1 -3087.3471916876415  -0.0062148978981039025  40.6258279827464 0.28573530633072614 829.7821947906648 0.00030225270952882743
-1 -3087.3743075592247  -0.0062148978981039025 40.6258279827464 0.28573530633072614 829.7821947906648 -0.0026671854239062303
-2 -2146.2879794537357 -0.01218105628596387 43.215257693900405 0.28573532077206415 1244.7610039496265 -0.02537281461834481
-2 -2146.274612258585  -0.01218105628596387 43.215257693900405 0.28573532077206415 1244.7610039496265 -0.0026671854239062303
-77 -37.5384843452261  0.02701772729675385 45.384356511554756 0.28506794141061587 100578.86131473651 0.038443815928453424
-77 -37.5384873866519  0.02701772729675385 45.384356511554756 0.28506794141061587 100578.86131473651 -0.0026671854239062303
-78 -29.503808420346836  0.02703513377318996 35.83085361076469 0.2850695979297196 100977.14811185081 0.009011711257729987
-78 -29.503804660742254  0.02703513377318996 35.83085361076469 0.2850695979297196 100977.14811185081 -0.0026671854239062303
-79 0.0 0.0 0.0 0.0 0.0
-0 -5332.875859064888 0.0 35.329097263023094 0.2857352534672796 451.27915626358583 -0.0026671854239062303
-1 -3087.3743075592247 -0.0062148978981039025 40.6258279827464 0.28573530633072614 829.7821947906648 -0.009900999133119051
-2 -2146.274612258585 -0.01218105628596387 43.215257693900405 0.28573532077206415 1244.7610039496265 -0.014519222714124282
-77 -37.53848738665196 0.02701772729675385 45.384356511554756 0.28506794141061587 100578.86131473651 0.0270454508440403
-78 -29.503804660742254 0.02703513377318996 35.83085361076469 0.2850695979297196 100977.14811185081 0.027009681577643066
-
-0 -5247.1433363938295 0.0 35.35734970000624 0.28573533147824426 451.38810872933044 0.001572584953731927
-1 -3244.6884819628312 0.0026274805893019264 40.63082460300472 0.28573531719353257 830.0856269772719 0.0034552050487430827
-2 -2249.92877976131 0.00449332444933773 43.228316817650004 0.2857353278900482 1245.1475724871382 0.00575730411208274
-77 -37.095065845468945 -0.2366899017872419 45.21146998961791 0.2853401416193088 100744.44867550053 -0.23668245349148093
-78 -29.232046410031337 -0.23667658713460038 35.71955861662641 0.2853251216922591 101141.34131895482 -0.23667433051668274
-    for k in range(npz - 2, -1, -1):
-        for i in range(nic):
-           p1[i] = (
-                pe2[i, k] + bb[i, k] * pe2[i, k + 1] + g_rat[i, k] * pe2[i, k + 2]
-            ) * 1.0 / 3.0 - g_rat[i, k] * p1[i]
-            dz2[i, k] = (
-                -dm[i, k]
-                * constants.RDGAS
-                * ptr[i, k]
-                * np.exp(
-                    (cp2[i, k] - 1.0)
-                    * np.log(max(spec.namelist["p_fac"] * pm2[i, k], p1[i] + pm2[i, k]))
-                )
-            )
-    '''
+    w2_pe2_dz2_compute(dm, w1, pp, aa, gm2, dz2, pem, wsr_top, bb, g_rat, bet, gam, p1, pe2, w2, pm2, ptr, cp2, dt, t1g, rdt,  spec.namelist['p_fac'], origin=simorigin, domain=simdomainplus)
+     
