@@ -40,13 +40,15 @@ def compute(ms, dt2, akap, cappa, ptop, hs, w3, ptc, q_con, delpc, gz, pef, ws):
     grid = spec.grid
     is1 = grid.is_ - 1
     ie1 = grid.ie + 1
+    js1 = grid.js - 1
+    je1 = grid.je + 1
     km = spec.grid.npz - 1
     islice = slice(is1, ie1 + 1)
     kslice = slice(0, km + 1)
     kslice_shift = slice(1, km + 2)
     shape = w3.shape
     domain = (spec.grid.nic + 2, grid.njc + 2, km + 2)
-    riemorigin=(is1, grid.js - 1, 0)
+    riemorigin=(is1, js1, 0)
     dm = cp.copy(delpc, (0, 0, 0))
     cp3 = cp.copy(cappa, (0, 0, 0))
     w = cp.copy(w3, (0, 0, 0))
@@ -59,12 +61,12 @@ def compute(ms, dt2, akap, cappa, ptop, hs, w3, ptc, q_con, delpc, gz, pef, ws):
     pm = utils.make_storage_from_shape(shape, riemorigin)
     precompute(cp3, gz, dm, q_con, pem, peg, dz, gm, pef, ptop, origin=riemorigin, domain=domain)
     #TODO add to stencil when we have math functions
-    jslice=slice(grid.js - 1, grid.je + 2)
+    jslice=slice(js1, je1 + 1)
     tmpslice_shift = (islice, jslice, kslice_shift)
     tmpslice = (islice, jslice, kslice)
     pm[tmpslice] = (peg[tmpslice_shift] - peg[tmpslice]) / np.log(peg[tmpslice_shift] / peg[tmpslice])
     sim1_solver.solve(
-        is1, ie1, dt2, gm, cp3, pe, dm, pm, pem, w, dz, ptc, ws
+        is1, ie1, js1, je1, dt2, gm, cp3, pe, dm, pm, pem, w, dz, ptc, ws
     )
     hs_0 = utils.make_storage_data(hs[:, :, 0].data, shape)
     finalize(pe, pem, hs_0, dz, pef, gz, origin=riemorigin, domain=domain)

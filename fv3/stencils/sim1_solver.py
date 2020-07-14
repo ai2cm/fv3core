@@ -42,7 +42,7 @@ def w_solver(aa: sd, bet: sd, g_rat: sd, gam: sd, pp: sd, dd: sd, gm: sd, dz: sd
         aa = t1g * 0.5 * (gm[0, 0, -1] + gm) / (dz[0, 0, -1] + dz) * (pem + pp)
 
 @utils.stencil()
-def w_pe_dz_compute(dm: sd, w1: sd, pp: sd, aa: sd, gm: sd, dz: sd, pem: sd, wsr_top: sd, bb: sd, g_rat: sd, bet: sd, gam: sd, p1: sd, pe: sd, w: sd,  pm: sd, ptr: sd, cp: sd, dt: float, t1g: float, rdt: float, p_fac: float):
+def w_pe_dz_compute(dm: sd, w1: sd, pp: sd, aa: sd, gm: sd, dz: sd, pem: sd, wsr_top: sd, bb: sd, g_rat: sd, bet: sd, gam: sd, p1: sd, pe: sd, w: sd,  pm: sd, ptr: sd, cp3: sd, dt: float, t1g: float, rdt: float, p_fac: float):
     with computation(FORWARD):
         with interval(0, 1):
             w = (dm * w1 + dt * pp[0, 0, 1]) / bet
@@ -69,17 +69,18 @@ def w_pe_dz_compute(dm: sd, w1: sd, pp: sd, aa: sd, gm: sd, dz: sd, pem: sd, wsr
             p1 = (pe + bb * pe[0, 0, 1] + g_rat * pe[0, 0, 2]) * 1.0 / 3.0 - g_rat * p1[0, 0, 1]
     with computation(PARALLEL), interval(0, -1):
         maxp = p_fac * pm if p_fac * dm >  p1 + pm else  p1 + pm
-        dz = -dm * constants.RDGAS * ptr * maxp**(cp - 1.0)
+        dz = -dm * constants.RDGAS * ptr * maxp**(cp3 - 1.0)
                     
 
 # TODO: implement MOIST_CAPPA=false
-def solve(is_, ie, dt, gm, cp, pe, dm, pm, pem, w, dz, ptr, wsr):
+def solve(is_, ie, js, je, dt, gm, cp3, pe, dm, pm, pem, w, dz, ptr, wsr):
     grid = spec.grid
     nic = ie - is_ + 1
+    njc = je - js + 1
     simshape = pe.shape
-    simorigin = (is_, grid.js - 1, 0)
-    simdomain = (nic, grid.njc + 2, grid.npz)
-    simdomainplus = (nic, grid.njc + 2, grid.npz + 1)
+    simorigin = (is_, js, 0)
+    simdomain = (nic, njc, grid.npz)
+    simdomainplus = (nic, njc, grid.npz + 1)
     g_rat = utils.make_storage_from_shape(simshape, simorigin)
     bb = utils.make_storage_from_shape(simshape, simorigin)
     aa = utils.make_storage_from_shape(simshape, simorigin)
@@ -98,5 +99,5 @@ def solve(is_, ie, dt, gm, cp, pe, dm, pm, pem, w, dz, ptr, wsr):
     bet = utils.make_storage_data(dm.data[:,:,0] - aa.data[:, :, 1], simshape)
     wsr_top = utils.make_storage_data(wsr.data[:,:,0], simshape)
 
-    w_pe_dz_compute(dm, w1, pp, aa, gm, dz, pem, wsr_top, bb, g_rat, bet, gam, p1, pe, w, pm, ptr, cp, dt, t1g, rdt,  spec.namelist['p_fac'], origin=simorigin, domain=simdomainplus)
+    w_pe_dz_compute(dm, w1, pp, aa, gm, dz, pem, wsr_top, bb, g_rat, bet, gam, p1, pe, w, pm, ptr, cp3, dt, t1g, rdt,  spec.namelist['p_fac'], origin=simorigin, domain=simdomainplus)
      
