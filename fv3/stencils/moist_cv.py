@@ -225,6 +225,7 @@ def moist_pt(
         )  # if (nwat == 6) else moist_cv_default_fn(cv_air)
         q_con[0, 0, 0] = gz
         cappa = set_cappa(qvapor, cvm, r_vir)
+        # pt[0, 0, 0] = pt * exp(cappa / (1.0 - cappa) * log(constants.RDG * delp / delz * pt))
         pt[0, 0, 0] = pt * (constants.RDG * delp / delz * pt)**(cappa / (1.0 - cappa))
 
 
@@ -262,6 +263,7 @@ def moist_pt_last_step(
 
 @gtscript.function
 def compute_pkz_func(delp, delz, pt, cappa):
+    # return exp(cappa * log(constants.RDG * delp /delz * pt))
     return (constants.RDG * delp /delz * pt)**cappa
 @utils.stencil()
 def moist_pkz(
@@ -402,6 +404,7 @@ def compute_pt(
         domain=domain,
     )
    
+
 
 def compute_pkz(
     qvapor_js,
@@ -554,6 +557,7 @@ def fvsetup_stencil(
         )  # if (nwat == 6) else moist_cv_default_fn(cv_air)
         dp1 = zvir * qvapor
         cappa = constants.RDGAS / (constants.RDGAS + cvm / (1.0 + dp1))
+        # pkz = exp(cappa * np.log(constants.RDG * delp * pt * (1.0 + dp1) * (1.0 - q_con) / delz))
         pkz = (constants.RDG * delp * pt * (1.0 + dp1) * (1.0 - q_con) / delz)**cappa
         # else:
         #    dp1 = 0

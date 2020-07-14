@@ -69,6 +69,7 @@ def w_pe_dz_compute(dm: sd, w1: sd, pp: sd, aa: sd, gm: sd, dz: sd, pem: sd, wsr
             p1 = (pe + bb * pe[0, 0, 1] + g_rat * pe[0, 0, 2]) * 1.0 / 3.0 - g_rat * p1[0, 0, 1]
     with computation(PARALLEL), interval(0, -1):
         maxp = p_fac * pm if p_fac * dm >  p1 + pm else  p1 + pm
+        # dz = -dm * constants.RDGAS * ptr * exp((cp3 - 1.0) * log(maxp)
         dz = -dm * constants.RDGAS * ptr * maxp**(cp3 - 1.0)
                     
 

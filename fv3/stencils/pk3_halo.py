@@ -15,11 +15,9 @@ def edge_pe(pe: sd, delp: sd, pk3: sd, ptop: float, akap: float):
         with interval(1, None):
             pe[0, 0, 0] = pe[0, 0, -1] + delp[0, 0, -1]
     with computation(PARALLEL), interval(1, None):
+        # pk3 = exp(akap * log(pe))
         pk3 = pe**akap
-@utils.stencil()
-def compute_pk3(pk3: sd, pe: sd, akap: float):
-    with computation(PARALLEL), interval(...):
-        pk3 = pe**akap
+
 
 # TODO: exp and log aren't in gt4py, if they ever are could push slicing into a stencil
 def compute(pk3, delp, ptop, akap):
