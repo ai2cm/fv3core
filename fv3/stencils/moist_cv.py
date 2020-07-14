@@ -226,7 +226,7 @@ def moist_pt(
         q_con[0, 0, 0] = gz
         cappa = set_cappa(qvapor, cvm, r_vir)
         # pt[0, 0, 0] = pt * exp(cappa / (1.0 - cappa) * log(constants.RDG * delp / delz * pt))
-        pt[0, 0, 0] = pt * (constants.RDG * delp / delz * pt)**(cappa / (1.0 - cappa))
+        pt[0, 0, 0] = pt * (constants.RDG * delp / delz * pt) ** (cappa / (1.0 - cappa))
 
 
 @gtscript.function
@@ -261,10 +261,13 @@ def moist_pt_last_step(
         #    cvm, gz = moist_cv_nwat6_fn(qvapor, qliquid, qrain, qsnow, qice, qgraupel)
         #    pt = last_pt(pt, dtmp, pkz, gz, qvapor, zvir)
 
+
 @gtscript.function
 def compute_pkz_func(delp, delz, pt, cappa):
     # return exp(cappa * log(constants.RDG * delp /delz * pt))
-    return (constants.RDG * delp /delz * pt)**cappa
+    return (constants.RDG * delp / delz * pt) ** cappa
+
+
 @utils.stencil()
 def moist_pkz(
     qvapor: sd,
@@ -403,7 +406,6 @@ def compute_pt(
         origin=origin,
         domain=domain,
     )
-   
 
 
 def compute_pkz(
@@ -447,13 +449,13 @@ def compute_pkz(
         origin=origin,
         domain=domain,
     )
-   
+
 
 @utils.stencil()
 def compute_pkz_stencil_func(pkz: sd, cappa: sd, delp: sd, delz: sd, pt: sd):
     with computation(PARALLEL), interval(...):
         pkz = compute_pkz_func(delp, delz, pt, cappa)
-   
+
 
 def compute_total_energy(
     u,
@@ -558,11 +560,12 @@ def fvsetup_stencil(
         dp1 = zvir * qvapor
         cappa = constants.RDGAS / (constants.RDGAS + cvm / (1.0 + dp1))
         # pkz = exp(cappa * np.log(constants.RDG * delp * pt * (1.0 + dp1) * (1.0 - q_con) / delz))
-        pkz = (constants.RDG * delp * pt * (1.0 + dp1) * (1.0 - q_con) / delz)**cappa
+        pkz = (constants.RDG * delp * pt * (1.0 + dp1) * (1.0 - q_con) / delz) ** cappa
         # else:
         #    dp1 = 0
         #    pkz = (constants.RDG * delp * pt / delz)**constants.KAPPA
         #
+
 
 def fv_setup(
     pt,
@@ -582,8 +585,8 @@ def fv_setup(
     dp1,
 ):
     grid = spec.grid
-    if not spec.namelist['moist_phys']:
-        raise Exception('fvsetup is only implem ented for moist_phys=true')
+    if not spec.namelist["moist_phys"]:
+        raise Exception("fvsetup is only implem ented for moist_phys=true")
     fvsetup_stencil(
         qvapor,
         qliquid,

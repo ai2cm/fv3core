@@ -199,7 +199,7 @@ def compute(
             akap,
             kmp,
         )
-        #if not spec.namelist["hydrostatic"]:
+        # if not spec.namelist["hydrostatic"]:
         #    moist_cv.compute_pkz_stencil_func(pkz, cappa, delp, delz, pt, origin=kmp_origin, domain=kmp_domain)
         if fast_mp_consv:
             sum_te(te, te0_2d, origin=kmp_origin, domain=kmp_domain)
