@@ -1293,6 +1293,13 @@ def compute(
             domain=domain,
         )
     if not spec.namelist["hydrostatic"]:
-        moist_cv.compute_pkz_stencil_func(
-            pkz, cappa, delp, delz, pt, origin=origin, domain=domain
+        # moist_cv.compute_pkz_stencil_func(
+        #    pkz, cappa, delp, delz, pt, origin=origin, domain=domain
+        # )
+        # TODO when we have math functions replace the below with the above
+        tmpslice = (
+            slice(grid.is_, grid.ie + 1),
+            slice(grid.js, grid.je + 1),
+            slice(kmp, grid.npz),
         )
+        moist_cv.compute_pkz_slice(pkz, cappa, delp, delz, pt, tmpslice)

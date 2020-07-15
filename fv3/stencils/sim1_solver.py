@@ -90,6 +90,7 @@ def w_pe_dz_compute(
     pm: sd,
     ptr: sd,
     cp3: sd,
+    maxp: sd,
     dt: float,
     t1g: float,
     rdt: float,
@@ -126,7 +127,7 @@ def w_pe_dz_compute(
     with computation(PARALLEL), interval(0, -1):
         maxp = p_fac * pm if p_fac * dm > p1 + pm else p1 + pm
         # dz = -dm * constants.RDGAS * ptr * exp((cp3 - 1.0) * log(maxp)
-        dz = -dm * constants.RDGAS * ptr * maxp ** (cp3 - 1.0)
+        # dz = -dm * constants.RDGAS * ptr * maxp ** (cp3 - 1.0)
 
 
 # TODO: implement MOIST_CAPPA=false
@@ -195,7 +196,8 @@ def solve(is_, ie, js, je, dt, gm, cp3, pe, dm, pm, pem, w, dz, ptr, wsr):
     # reset bet column to the new value. TODO reuse the same storage
     bet = utils.make_storage_data(dm.data[:, :, 0] - aa.data[:, :, 1], simshape)
     wsr_top = utils.make_storage_data(wsr.data[:, :, 0], simshape)
-
+    # TODO remove when put exponential function into stencil
+    maxp = utils.make_storage_from_shape(simshape, simorigin)
     w_pe_dz_compute(
         dm,
         w1,
@@ -215,10 +217,18 @@ def solve(is_, ie, js, je, dt, gm, cp3, pe, dm, pm, pem, w, dz, ptr, wsr):
         pm,
         ptr,
         cp3,
+        maxp,
         dt,
         t1g,
         rdt,
         spec.namelist["p_fac"],
         origin=simorigin,
         domain=simdomainplus,
+    )
+    # TODO put back into w_pe_dz stencil when have exp and log
+    dz[tmpslice] = (
+        -dm[tmpslice]
+        * constants.RDGAS
+        * ptr[tmpslice]
+        * np.exp((cp3[tmpslice] - 1.0) * np.log(maxp[tmpslice]))
     )
