@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+
 
 
 def fill_4corners(q, direction, grid):

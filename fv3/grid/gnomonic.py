@@ -104,7 +104,7 @@ def _corner_to_center_mean(corner_array):
 
 def normalize_vector(np, *vector_components):
     scale = 1 / sum(item ** 2 for item in vector_components) ** 0.5
-    return (item * scale for item in vector_components)
+    return tuple(item * scale for item in vector_components)
 
 
 def normalize_xyz(xyz):
@@ -305,7 +305,7 @@ def great_circle_distance_along_axis(lon, lat, radius, np, axis=0):
     result = result.transpose(swap_dims)  # remember to swap back
     if case_1d:
         result = result[:, 0]  # remove the singleton dimension we added
-    return _great_circle_beta(lon, lat, np, axis=axis) * radius
+    return result
 
 
 def great_circle_distance_lon_lat(lon1, lon2, lat1, lat2, radius, np):

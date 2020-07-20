@@ -398,8 +398,11 @@ class TranslateGrid_Grid(ParallelTranslateGrid):
             )
         for communicator, req in zip(communicator_list, req_list):
             req.wait()
-        for state in state_list:
-            fill_corners_2d(state["grid"].data[:, :, :], self.grid, gridtype="B", direction="x")
+        for state, communicator in zip(state_list, communicator_list):
+            fv3util.fill_scalar_corners(
+                state["grid"], direction="x", tile_partitioner=communicator.tile.partitioner, rank=communicator.rank, n_halo=self.grid.halo,
+            )
+            #fill_corners_2d(state["grid"].data[:, :, :], self.grid, gridtype="B", direction="x")
         return self.outputs_list_from_state_list(state_list)
 
     def compute_parallel(self, inputs, communicator):
@@ -491,6 +494,27 @@ class TranslateGrid_DxDy(ParallelTranslateGrid):
         return state
 
 
+def split_lon_lat(grid_quantity):
+    """Given a 3D quantity whose last dimension is lon/lat, return a quantity for
+    longitude and one for latitude.
+    """
+    lon = fv3util.Quantity(
+        grid_quantity.data[:, :, 0],
+        dims=grid_quantity.dims[:-1],
+        units=grid_quantity.units,
+        origin=grid_quantity.origin[:-1],
+        extent=grid_quantity.extent[:-1]
+    )
+    lat = fv3util.Quantity(
+        grid_quantity.data[:, :, 1],
+        dims=grid_quantity.dims[:-1],
+        units=grid_quantity.units,
+        origin=grid_quantity.origin[:-1],
+        extent=grid_quantity.extent[:-1]
+    )
+    return lon, lat
+
+
 class TranslateGrid_Agrid(ParallelTranslateGrid):
 
     inputs = {
@@ -562,6 +586,13 @@ class TranslateGrid_Agrid(ParallelTranslateGrid):
         for communicator, req in zip(communicator_list, req_list):
             req.wait()
         for i, state in enumerate(state_list):
+            lon_agrid, lat_agrid = split_lon_lat(state["agrid"])
+            # fv3util.fill_scalar_corners(
+            #     lon_agrid, direction="x", tile_partitioner=communicator.tile.partitioner, rank=communicator.rank, n_halo=self.grid.halo,
+            # )
+            # fv3util.fill_scalar_corners(
+            #     lat_agrid, direction="y", tile_partitioner=communicator.tile.partitioner, rank=communicator.rank, n_halo=self.grid.halo,
+            # )
             fill_corners_2d(state["agrid"].data[:, :, 0][:, :, None], self.grid, gridtype="A", direction="x")
             fill_corners_2d(state["agrid"].data[:, :, 1][:, :, None], self.grid, gridtype="A", direction="y")
             state_list[i] = self._compute_local_part2(state)
