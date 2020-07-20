@@ -1,8 +1,16 @@
 from .parallel_translate import ParallelTranslateGrid
 from ..grid import (
-    gnomonic_grid, mirror_grid, great_circle_distance_along_axis, lon_lat_corner_to_cell_center,
-    lon_lat_midpoint, get_area, set_corner_area_to_triangle_area,
-    set_c_grid_tile_border_area, lon_lat_to_xyz, set_tile_border_dxc, set_tile_border_dyc
+    gnomonic_grid,
+    mirror_grid,
+    great_circle_distance_along_axis,
+    lon_lat_corner_to_cell_center,
+    lon_lat_midpoint,
+    get_area,
+    set_corner_area_to_triangle_area,
+    set_c_grid_tile_border_area,
+    lon_lat_to_xyz,
+    set_tile_border_dxc,
+    set_tile_border_dyc,
 )
 from ..utils.global_constants import LON_OR_LAT_DIM, TILE_DIM, PI, RADIUS
 from ..utils.corners import fill_corners_2d, fill_corners_dgrid, fill_corners_agrid
@@ -127,7 +135,12 @@ class TranslateMirror_Grid(ParallelTranslateGrid):
     inputs = {
         "grid_global": {
             "name": "grid_global",
-            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM, LON_OR_LAT_DIM, TILE_DIM],
+            "dims": [
+                fv3util.X_INTERFACE_DIM,
+                fv3util.Y_INTERFACE_DIM,
+                LON_OR_LAT_DIM,
+                TILE_DIM,
+            ],
             "units": "radians",
             "n_halo": 3,
         },
@@ -138,7 +151,12 @@ class TranslateMirror_Grid(ParallelTranslateGrid):
     outputs = {
         "grid_global": {
             "name": "grid_global",
-            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM, LON_OR_LAT_DIM, TILE_DIM],
+            "dims": [
+                fv3util.X_INTERFACE_DIM,
+                fv3util.Y_INTERFACE_DIM,
+                LON_OR_LAT_DIM,
+                TILE_DIM,
+            ],
             "units": "radians",
             "n_halo": 3,
         },
@@ -210,17 +228,23 @@ class TranslateGrid_Areas(ParallelTranslateGrid):
     def _compute_local(self, inputs):
         state = self.state_from_inputs(inputs)
         state["area"].data[3:-4, 3:-4] = get_area(
-            state["grid"].data[3:-3, 3:-3, 0], state["grid"].data[3:-3, 3:-3, 1], RADIUS, state["grid"].np
+            state["grid"].data[3:-3, 3:-3, 0],
+            state["grid"].data[3:-3, 3:-3, 1],
+            RADIUS,
+            state["grid"].np,
         )
         state["area_cgrid"].data[3:-3, 3:-3] = get_area(
-            state["agrid"].data[2:-3, 2:-3, 0], state["agrid"].data[2:-3, 2:-3, 1], RADIUS, state["grid"].np
+            state["agrid"].data[2:-3, 2:-3, 0],
+            state["agrid"].data[2:-3, 2:-3, 1],
+            RADIUS,
+            state["grid"].np,
         )
         set_corner_area_to_triangle_area(
             lon=state["agrid"].data[2:-3, 2:-3, 0],
             lat=state["agrid"].data[2:-3, 2:-3, 1],
             area=state["area_cgrid"].data[3:-3, 3:-3],
             radius=RADIUS,
-            np=state["grid"].np
+            np=state["grid"].np,
         )
         return state
 
@@ -301,11 +325,12 @@ class TranslateGrid_MoreAreas(ParallelTranslateGrid):
     def _compute_local(self, inputs, communicator):
         state = self.state_from_inputs(inputs)
         xyz_dgrid = lon_lat_to_xyz(
-            state["grid"].data[:, :, 0], state["grid"].data[:, :, 1], state["grid"].np)
+            state["grid"].data[:, :, 0], state["grid"].data[:, :, 1], state["grid"].np
+        )
         xyz_agrid = lon_lat_to_xyz(
             state["agrid"].data[:-1, :-1, 0],
             state["agrid"].data[:-1, :-1, 1],
-            state["agrid"].np
+            state["agrid"].np,
         )
         set_c_grid_tile_border_area(
             xyz_dgrid[3:-3, 3:-3, :],
@@ -314,7 +339,7 @@ class TranslateGrid_MoreAreas(ParallelTranslateGrid):
             state["area_cgrid"].data[3:-3, 3:-3],
             communicator.tile.partitioner,
             communicator.tile.rank,
-            state["grid"].np
+            state["grid"].np,
         )
         set_tile_border_dxc(
             xyz_dgrid[3:-3, 3:-3, :],
@@ -323,7 +348,7 @@ class TranslateGrid_MoreAreas(ParallelTranslateGrid):
             state["dx_cgrid"].data[3:-3, 3:-4],
             communicator.tile.partitioner,
             communicator.tile.rank,
-            state["grid"].np
+            state["grid"].np,
         )
         set_tile_border_dyc(
             xyz_dgrid[3:-3, 3:-3, :],
@@ -332,7 +357,7 @@ class TranslateGrid_MoreAreas(ParallelTranslateGrid):
             state["dy_cgrid"].data[3:-4, 3:-3],
             communicator.tile.partitioner,
             communicator.tile.rank,
-            state["grid"].np
+            state["grid"].np,
         )
         return state
 
@@ -340,69 +365,75 @@ class TranslateGrid_MoreAreas(ParallelTranslateGrid):
 class TranslateGrid_Grid(ParallelTranslateGrid):
 
     max_error = 1e-14
-    inputs = {
-    }
+    inputs = {}
     outputs = {
         "gridvar": {
             "name": "grid",
             "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM, LON_OR_LAT_DIM],
-            "units": "radians"
+            "units": "radians",
         },
     }
 
     def compute_sequential(self, inputs_list, communicator_list):
         shift_fac = 18
         grid_global = self.grid.quantity_factory.zeros(
-            [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM, LON_OR_LAT_DIM, TILE_DIM],
+            [
+                fv3util.X_INTERFACE_DIM,
+                fv3util.Y_INTERFACE_DIM,
+                LON_OR_LAT_DIM,
+                TILE_DIM,
+            ],
             "radians",
-            dtype=float
+            dtype=float,
         )
         lon = self.grid.quantity_factory.zeros(
-            [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM],
-            "radians",
-            dtype=float
+            [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM], "radians", dtype=float
         )
         lat = self.grid.quantity_factory.zeros(
-            [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM],
-            "radians",
-            dtype=float
+            [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM], "radians", dtype=float
         )
         gnomonic_grid(
-            self.grid.grid_type,
-            lon.view[:],
-            lat.view[:],
-            lon.np,
+            self.grid.grid_type, lon.view[:], lat.view[:], lon.np,
         )
         grid_global.view[:, :, 0, 0] = lon.view[:]
         grid_global.view[:, :, 1, 0] = lat.view[:]
-        mirror_grid(grid_global.data, self.grid.halo, self.grid.npx, self.grid.npy, grid_global.np)
+        mirror_grid(
+            grid_global.data,
+            self.grid.halo,
+            self.grid.npx,
+            self.grid.npy,
+            grid_global.np,
+        )
         # Shift the corner away from Japan
         # This will result in the corner close to east coast of China
         grid_global.view[:, :, 0, :] -= PI / shift_fac
         lon = grid_global.data[:, :, 0, :]
         lon[lon < 0] += 2 * PI
-        grid_global.data[grid_global.np.abs(grid_global.data[:]) < 1e-10] = 0.
+        grid_global.data[grid_global.np.abs(grid_global.data[:]) < 1e-10] = 0.0
         state_list = []
         for i, inputs in enumerate(inputs_list):
             grid = self.grid.quantity_factory.empty(
                 dims=[fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM, LON_OR_LAT_DIM],
-                units="radians")
+                units="radians",
+            )
             grid.data[:] = grid_global.data[:, :, :, i]
             state_list.append({"grid": grid})
         req_list = []
         for state, communicator in zip(state_list, communicator_list):
             req_list.append(
-                communicator.start_halo_update(
-                    state["grid"], n_points=self.grid.halo
-                )
+                communicator.start_halo_update(state["grid"], n_points=self.grid.halo)
             )
         for communicator, req in zip(communicator_list, req_list):
             req.wait()
         for state, communicator in zip(state_list, communicator_list):
             fv3util.fill_scalar_corners(
-                state["grid"], direction="x", tile_partitioner=communicator.tile.partitioner, rank=communicator.rank, n_halo=self.grid.halo,
+                state["grid"],
+                direction="x",
+                tile_partitioner=communicator.tile.partitioner,
+                rank=communicator.rank,
+                n_halo=self.grid.halo,
             )
-            #fill_corners_2d(state["grid"].data[:, :, :], self.grid, gridtype="B", direction="x")
+            # fill_corners_2d(state["grid"].data[:, :, :], self.grid, gridtype="B", direction="x")
         return self.outputs_list_from_state_list(state_list)
 
     def compute_parallel(self, inputs, communicator):
@@ -465,16 +496,16 @@ class TranslateGrid_DxDy(ParallelTranslateGrid):
                 state["dx"].data[:, :, None],
                 state["dy"].data[:, :, None],
                 grid,
-                vector=False
+                vector=False,
             )
         return self.outputs_list_from_state_list(state_list)
 
     def _compute_local(self, inputs):
         state = self.state_from_inputs(inputs)
-        state['dx'] = self.grid.quantity_factory.zeros(
+        state["dx"] = self.grid.quantity_factory.zeros(
             [fv3util.X_DIM, fv3util.Y_INTERFACE_DIM], "m"
         )
-        state['dy'] = self.grid.quantity_factory.zeros(
+        state["dy"] = self.grid.quantity_factory.zeros(
             [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM], "m"
         )
         state["dx"].view[:, :] = great_circle_distance_along_axis(
@@ -482,14 +513,14 @@ class TranslateGrid_DxDy(ParallelTranslateGrid):
             state["grid"].view[:, :, 1],
             RADIUS,
             state["grid"].np,
-            axis=0
+            axis=0,
         )
         state["dy"].view[:, :] = great_circle_distance_along_axis(
             state["grid"].view[:, :, 0],
             state["grid"].view[:, :, 1],
             RADIUS,
             state["grid"].np,
-            axis=1
+            axis=1,
         )
         return state
 
@@ -503,14 +534,14 @@ def split_lon_lat(grid_quantity):
         dims=grid_quantity.dims[:-1],
         units=grid_quantity.units,
         origin=grid_quantity.origin[:-1],
-        extent=grid_quantity.extent[:-1]
+        extent=grid_quantity.extent[:-1],
     )
     lat = fv3util.Quantity(
         grid_quantity.data[:, :, 1],
         dims=grid_quantity.dims[:-1],
         units=grid_quantity.units,
         origin=grid_quantity.origin[:-1],
-        extent=grid_quantity.extent[:-1]
+        extent=grid_quantity.extent[:-1],
     )
     return lon, lat
 
@@ -579,22 +610,28 @@ class TranslateGrid_Agrid(ParallelTranslateGrid):
         req_list = []
         for state, communicator in zip(state_list, communicator_list):
             req_list.append(
-                communicator.start_halo_update(
-                    state["agrid"], n_points=self.grid.halo
-                )
+                communicator.start_halo_update(state["agrid"], n_points=self.grid.halo)
             )
         for communicator, req in zip(communicator_list, req_list):
             req.wait()
         for i, state in enumerate(state_list):
             lon_agrid, lat_agrid = split_lon_lat(state["agrid"])
-            # fv3util.fill_scalar_corners(
-            #     lon_agrid, direction="x", tile_partitioner=communicator.tile.partitioner, rank=communicator.rank, n_halo=self.grid.halo,
-            # )
-            # fv3util.fill_scalar_corners(
-            #     lat_agrid, direction="y", tile_partitioner=communicator.tile.partitioner, rank=communicator.rank, n_halo=self.grid.halo,
-            # )
-            fill_corners_2d(state["agrid"].data[:, :, 0][:, :, None], self.grid, gridtype="A", direction="x")
-            fill_corners_2d(state["agrid"].data[:, :, 1][:, :, None], self.grid, gridtype="A", direction="y")
+            fv3util.fill_scalar_corners(
+                lon_agrid,
+                direction="x",
+                tile_partitioner=communicator.tile.partitioner,
+                rank=communicator.rank,
+                n_halo=self.grid.halo,
+            )
+            fv3util.fill_scalar_corners(
+                lat_agrid,
+                direction="y",
+                tile_partitioner=communicator.tile.partitioner,
+                rank=communicator.rank,
+                n_halo=self.grid.halo,
+            )
+            # fill_corners_2d(state["agrid"].data[:, :, 0][:, :, None], self.grid, gridtype="A", direction="x")
+            # fill_corners_2d(state["agrid"].data[:, :, 1][:, :, None], self.grid, gridtype="A", direction="y")
             state_list[i] = self._compute_local_part2(state)
         return self.outputs_list_from_state_list(state_list)
 
@@ -602,25 +639,41 @@ class TranslateGrid_Agrid(ParallelTranslateGrid):
         state = self.state_from_inputs(inputs)
         lon, lat = state["grid"].data[:, :, 0], state["grid"].data[:, :, 1]
         agrid_lon, agrid_lat = lon_lat_corner_to_cell_center(lon, lat, state["grid"].np)
-        state["agrid"].data[:-1, :-1, 0], state["agrid"].data[:-1, :-1, 1] = agrid_lon, agrid_lat
+        state["agrid"].data[:-1, :-1, 0], state["agrid"].data[:-1, :-1, 1] = (
+            agrid_lon,
+            agrid_lat,
+        )
         return state
 
     def _compute_local_part2(self, state):
         lon, lat = state["grid"].data[:, :, 0], state["grid"].data[:, :, 1]
-        lon_y_center, lat_y_center = lon_lat_midpoint(lon[:, :-1], lon[:, 1:], lat[:, :-1], lat[:, 1:], state["grid"].np)
+        lon_y_center, lat_y_center = lon_lat_midpoint(
+            lon[:, :-1], lon[:, 1:], lat[:, :-1], lat[:, 1:], state["grid"].np
+        )
         dx_agrid = great_circle_distance_along_axis(
-            lon_y_center, lat_y_center, RADIUS, state["grid"].np, axis=0)
-        lon_x_center, lat_x_center = lon_lat_midpoint(lon[:-1, :], lon[1:, :], lat[:-1, :], lat[1:, :], state["grid"].np)
+            lon_y_center, lat_y_center, RADIUS, state["grid"].np, axis=0
+        )
+        lon_x_center, lat_x_center = lon_lat_midpoint(
+            lon[:-1, :], lon[1:, :], lat[:-1, :], lat[1:, :], state["grid"].np
+        )
         dy_agrid = great_circle_distance_along_axis(
-            lon_x_center, lat_x_center, RADIUS, state["grid"].np, axis=1)
-        fill_corners_agrid(dx_agrid[:, :, None], dy_agrid[:, :, None], self.grid, vector=False)
-        lon_agrid, lat_agrid = state["agrid"].data[:-1, :-1, 0], state["agrid"].data[:-1, :-1, 1]
+            lon_x_center, lat_x_center, RADIUS, state["grid"].np, axis=1
+        )
+        fill_corners_agrid(
+            dx_agrid[:, :, None], dy_agrid[:, :, None], self.grid, vector=False
+        )
+        lon_agrid, lat_agrid = (
+            state["agrid"].data[:-1, :-1, 0],
+            state["agrid"].data[:-1, :-1, 1],
+        )
         dx_cgrid = great_circle_distance_along_axis(
-            lon_agrid, lat_agrid, RADIUS, state["grid"].np, axis=0)
+            lon_agrid, lat_agrid, RADIUS, state["grid"].np, axis=0
+        )
         dy_cgrid = great_circle_distance_along_axis(
-            lon_agrid, lat_agrid, RADIUS, state["grid"].np, axis=1)
+            lon_agrid, lat_agrid, RADIUS, state["grid"].np, axis=1
+        )
         outputs = self.allocate_output_state()
-        for name in ('dx_agrid', 'dy_agrid'):
+        for name in ("dx_agrid", "dy_agrid"):
             state[name] = outputs[name]
         state["dx_agrid"].data[:-1, :-1] = dx_agrid
         state["dy_agrid"].data[:-1, :-1] = dy_agrid
@@ -633,8 +686,8 @@ class TranslateGrid_Agrid(ParallelTranslateGrid):
         state["dx_cgrid"].data[-1, :-1] = dx_cgrid[-1, :]
 
         state["dy_cgrid"].data[:-1, 1:-1] = dy_cgrid
-        state['dy_cgrid'].data[:-1, 0] = dy_cgrid[:, 0]
-        state['dy_cgrid'].data[:-1, -1] = dy_cgrid[:, -1]
+        state["dy_cgrid"].data[:-1, 0] = dy_cgrid[:, 0]
+        state["dy_cgrid"].data[:-1, -1] = dy_cgrid[:, -1]
 
         return state
 

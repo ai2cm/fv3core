@@ -78,10 +78,10 @@ def mirror_grid(grid_global, ng: int, npx: int, npy: int, np):
                 # force North Pole and dateline/Greenwich-Meridian consistency
                 if npx % 2 != 0:
                     if j == i_mid:
-                        x2[i_mid] = 0.
+                        x2[i_mid] = 0.0
                         y2[i_mid] = PI / 2.0
                     if j == j_mid:
-                        x2[:i_mid] = 0.
+                        x2[:i_mid] = 0.0
                         x2[i_mid + 1] = PI
             elif nreg == 3:
                 ang = -180.0
@@ -117,10 +117,10 @@ def mirror_grid(grid_global, ng: int, npx: int, npy: int, np):
                 # force South Pole and dateline/Greenwich-Meridian consistency
                 if npx % 2 != 0:
                     if j == i_mid:
-                        x2[i_mid] = 0.
+                        x2[i_mid] = 0.0
                         y2[i_mid] = -PI / 2.0
                     if j > j_mid:
-                        x2[i_mid] = 0.
+                        x2[i_mid] = 0.0
                     elif j < j_mid:
                         x2[i_mid] = PI
 

@@ -98,7 +98,7 @@ def _corner_to_center_mean(corner_array):
         corner_array[1:, 1:],
         corner_array[:-1, :-1],
         corner_array[1:, :-1],
-        corner_array[:-1, 1:]
+        corner_array[:-1, 1:],
     )
 
 
@@ -145,9 +145,7 @@ def lon_lat_to_xyz(lon, lat, np):
     y = np.cos(lat) * np.sin(lon)
     z = np.sin(lat)
     x, y, z = normalize_vector(np, x, y, z)
-    xyz = np.concatenate(
-        [arr[:, :, None] for arr in (x, y, z)], axis=-1
-    )
+    xyz = np.concatenate([arr[:, :, None] for arr in (x, y, z)], axis=-1)
     return xyz
 
 
@@ -167,13 +165,13 @@ def xyz_to_lon_lat(xyz, np):
     x = xyz.T[0, :].T
     y = xyz.T[1, :].T
     z = xyz.T[2, :].T
-    lon = 0. * x
+    lon = 0.0 * x
     nonzero_lon = np.abs(x) + np.abs(y) >= 1.0e-10
     lon[nonzero_lon] = np.arctan2(y[nonzero_lon], x[nonzero_lon])
-    negative_lon = lon < 0.
+    negative_lon = lon < 0.0
     while np.any(negative_lon):
         lon[negative_lon] += 2 * PI
-        negative_lon = lon < 0.
+        negative_lon = lon < 0.0
     lat = np.arcsin(z)
     return lon, lat
 
@@ -189,13 +187,13 @@ def _latlon2xyz(lon, lat, np):
 def _xyz2latlon(x, y, z, np):
     """map (x, y, z) to (lon, lat)"""
     x, y, z = normalize_vector(np, x, y, z)
-    lon = 0. * x
+    lon = 0.0 * x
     nonzero_lon = np.abs(x) + np.abs(y) >= 1.0e-10
     lon[nonzero_lon] = np.arctan2(y[nonzero_lon], x[nonzero_lon])
-    negative_lon = lon < 0.
+    negative_lon = lon < 0.0
     while np.any(negative_lon):
         lon[negative_lon] += 2 * PI
-        negative_lon = lon < 0.
+        negative_lon = lon < 0.0
     lat = np.arcsin(z)
 
     return lon, lat
@@ -325,7 +323,9 @@ def get_area(lon, lat, radius, np):
     lower_right = xyz[(slice(1, None), slice(None, -1), slice(None, None))]
     upper_left = xyz[(slice(None, -1), slice(1, None), slice(None, None))]
     upper_right = xyz[(slice(1, None), slice(1, None), slice(None, None))]
-    return get_rectangle_area(lower_left, upper_left, upper_right, lower_right, radius, np)
+    return get_rectangle_area(
+        lower_left, upper_left, upper_right, lower_right, radius, np
+    )
 
 
 def set_corner_area_to_triangle_area(lon, lat, area, radius, np):
@@ -338,13 +338,23 @@ def set_corner_area_to_triangle_area(lon, lat, area, radius, np):
     lower_right = xyz[(slice(1, None), slice(None, -1), slice(None, None))]
     upper_left = xyz[(slice(None, -1), slice(1, None), slice(None, None))]
     upper_right = xyz[(slice(1, None), slice(1, None), slice(None, None))]
-    area[0, 0] = get_triangle_area(upper_left[0, 0], upper_right[0, 0], lower_right[0, 0], radius, np)
-    area[-1, 0] = get_triangle_area(upper_right[-1, 0], upper_left[-1, 0], lower_left[-1, 0], radius, np)
-    area[-1, -1] = get_triangle_area(lower_right[-1, -1], lower_left[-1, -1], upper_left[-1, -1], radius, np)
-    area[0, -1] = get_triangle_area(lower_left[0, -1], lower_right[0, -1], upper_right[0, -1], radius, np)
+    area[0, 0] = get_triangle_area(
+        upper_left[0, 0], upper_right[0, 0], lower_right[0, 0], radius, np
+    )
+    area[-1, 0] = get_triangle_area(
+        upper_right[-1, 0], upper_left[-1, 0], lower_left[-1, 0], radius, np
+    )
+    area[-1, -1] = get_triangle_area(
+        lower_right[-1, -1], lower_left[-1, -1], upper_left[-1, -1], radius, np
+    )
+    area[0, -1] = get_triangle_area(
+        lower_left[0, -1], lower_right[0, -1], upper_right[0, -1], radius, np
+    )
 
 
-def set_c_grid_tile_border_area(xyz_dgrid, xyz_agrid, radius, area_cgrid, tile_partitioner, rank, np):
+def set_c_grid_tile_border_area(
+    xyz_dgrid, xyz_agrid, radius, area_cgrid, tile_partitioner, rank, np
+):
     """
     Using latitude and longitude without halo points, fix C-grid area at tile edges and
     corners.
@@ -371,36 +381,61 @@ def set_c_grid_tile_border_area(xyz_dgrid, xyz_agrid, radius, area_cgrid, tile_p
     if tile_partitioner.on_tile_left(rank):
         _set_c_grid_west_edge_area(xyz_dgrid, xyz_agrid, area_cgrid, radius, np)
         if tile_partitioner.on_tile_top(rank):
-            _set_c_grid_northwest_corner_area(xyz_dgrid, xyz_agrid, area_cgrid, radius, np)
+            _set_c_grid_northwest_corner_area(
+                xyz_dgrid, xyz_agrid, area_cgrid, radius, np
+            )
     if tile_partitioner.on_tile_top(rank):
         _set_c_grid_north_edge_area(xyz_dgrid, xyz_agrid, area_cgrid, radius, np)
         if tile_partitioner.on_tile_right(rank):
-            _set_c_grid_northeast_corner_area(xyz_dgrid, xyz_agrid, area_cgrid, radius, np)
+            _set_c_grid_northeast_corner_area(
+                xyz_dgrid, xyz_agrid, area_cgrid, radius, np
+            )
     if tile_partitioner.on_tile_right(rank):
         _set_c_grid_east_edge_area(xyz_dgrid, xyz_agrid, area_cgrid, radius, np)
         if tile_partitioner.on_tile_bottom(rank):
-            _set_c_grid_southeast_corner_area(xyz_dgrid, xyz_agrid, area_cgrid, radius, np)
+            _set_c_grid_southeast_corner_area(
+                xyz_dgrid, xyz_agrid, area_cgrid, radius, np
+            )
     if tile_partitioner.on_tile_bottom(rank):
         _set_c_grid_south_edge_area(xyz_dgrid, xyz_agrid, area_cgrid, radius, np)
         if tile_partitioner.on_tile_left(rank):
-            _set_c_grid_southwest_corner_area(xyz_dgrid, xyz_agrid, area_cgrid, radius, np)
+            _set_c_grid_southwest_corner_area(
+                xyz_dgrid, xyz_agrid, area_cgrid, radius, np
+            )
 
 
 def _set_c_grid_west_edge_area(xyz_dgrid, xyz_agrid, area_cgrid, radius, np):
     xyz_y_center = 0.5 * (xyz_dgrid[0, :-1] + xyz_dgrid[0, 1:])
-    area_cgrid[0, 1:-1] = 2 * get_rectangle_area(xyz_y_center[:-1], xyz_agrid[0, :-1], xyz_agrid[0, 1:], xyz_y_center[1:], radius, np)
+    area_cgrid[0, 1:-1] = 2 * get_rectangle_area(
+        xyz_y_center[:-1],
+        xyz_agrid[0, :-1],
+        xyz_agrid[0, 1:],
+        xyz_y_center[1:],
+        radius,
+        np,
+    )
 
 
 def _set_c_grid_east_edge_area(xyz_dgrid, xyz_agrid, area_cgrid, radius, np):
-    _set_c_grid_west_edge_area(xyz_dgrid[::-1, :], xyz_agrid[::-1, :], area_cgrid[::-1, :], radius, np)
+    _set_c_grid_west_edge_area(
+        xyz_dgrid[::-1, :], xyz_agrid[::-1, :], area_cgrid[::-1, :], radius, np
+    )
 
 
 def _set_c_grid_north_edge_area(xyz_dgrid, xyz_agrid, area_cgrid, radius, np):
-    _set_c_grid_south_edge_area(xyz_dgrid[:, ::-1], xyz_agrid[:, ::-1], area_cgrid[:, ::-1], radius, np)
+    _set_c_grid_south_edge_area(
+        xyz_dgrid[:, ::-1], xyz_agrid[:, ::-1], area_cgrid[:, ::-1], radius, np
+    )
 
 
 def _set_c_grid_south_edge_area(xyz_dgrid, xyz_agrid, area_cgrid, radius, np):
-    _set_c_grid_west_edge_area(xyz_dgrid.transpose(1, 0, 2), xyz_agrid.transpose(1, 0, 2), area_cgrid.transpose(1, 0), radius, np)
+    _set_c_grid_west_edge_area(
+        xyz_dgrid.transpose(1, 0, 2),
+        xyz_agrid.transpose(1, 0, 2),
+        area_cgrid.transpose(1, 0),
+        radius,
+        np,
+    )
 
 
 def _set_c_grid_southwest_corner_area(xyz_dgrid, xyz_agrid, area_cgrid, radius, np):
@@ -468,7 +503,7 @@ def _set_tile_north_dyc(xyz_dgrid, xyz_agrid, radius, dyc, np):
         xyz_agrid.transpose(1, 0, 2),
         radius,
         dyc.transpose(1, 0),
-        np
+        np,
     )
 
 
@@ -478,7 +513,7 @@ def _set_tile_south_dyc(xyz_dgrid, xyz_agrid, radius, dyc, np):
         xyz_agrid.transpose(1, 0, 2),
         radius,
         dyc.transpose(1, 0),
-        np
+        np,
     )
 
 
@@ -488,10 +523,7 @@ def get_rectangle_area(p1, p2, p3, p4, radius, np):
     counterclockwise order, return an array of spherical rectangle areas.
     """
     total_angle = spherical_angle(p2, p1, p3, np)
-    for q1, q2, q3, in (
-            (p3, p2, p4),
-            (p4, p3, p1),
-            (p1, p4, p2)):
+    for q1, q2, q3, in ((p3, p2, p4), (p4, p3, p1), (p1, p4, p2)):
         total_angle += spherical_angle(q1, q2, q3, np)
     return (total_angle - 2 * PI) * radius ** 2
 
@@ -503,9 +535,7 @@ def get_triangle_area(p1, p2, p3, radius, np):
     """
 
     total_angle = spherical_angle(p1, p2, p3, np)
-    for q1, q2, q3 in (
-            (p2, p3, p1),
-            (p3, p1, p2)):
+    for q1, q2, q3 in ((p2, p3, p1), (p3, p1, p2)):
         total_angle += spherical_angle(q1, q2, q3, np)
     return (total_angle - PI) * radius ** 2
 
@@ -523,14 +553,14 @@ def spherical_angle(p_center, p2, p3, np):
 !           p2
     """
 
-# ! Vector P:
-#    px = e1(2)*e2(3) - e1(3)*e2(2)
-#    py = e1(3)*e2(1) - e1(1)*e2(3)
-#    pz = e1(1)*e2(2) - e1(2)*e2(1)
-# ! Vector Q:
-#    qx = e1(2)*e3(3) - e1(3)*e3(2)
-#    qy = e1(3)*e3(1) - e1(1)*e3(3)
-#    qz = e1(1)*e3(2) - e1(2)*e3(1)
+    # ! Vector P:
+    #    px = e1(2)*e2(3) - e1(3)*e2(2)
+    #    py = e1(3)*e2(1) - e1(1)*e2(3)
+    #    pz = e1(1)*e2(2) - e1(2)*e2(1)
+    # ! Vector Q:
+    #    qx = e1(2)*e3(3) - e1(3)*e3(2)
+    #    qy = e1(3)*e3(1) - e1(1)*e3(3)
+    #    qz = e1(1)*e3(2) - e1(2)*e3(1)
     p = np.cross(p_center, p2)
     q = np.cross(p_center, p3)
     # ddd = np.sum(p**2, axis=-1) * np.sum(q**2, axis=-1)
@@ -541,7 +571,10 @@ def spherical_angle(p_center, p2, p3, np):
     # angle[np.abs(ddd) > 1] = 0.5 * PI
     # angle[ddd < 0] = PI
     # return angle
-    return np.arccos(np.sum(p * q, axis=-1) / np.sqrt(np.sum(p**2, axis=-1) * np.sum(q**2, axis=-1)))
+    return np.arccos(
+        np.sum(p * q, axis=-1)
+        / np.sqrt(np.sum(p ** 2, axis=-1) * np.sum(q ** 2, axis=-1))
+    )
 
 
 #    ddd = (px*px+py*py+pz*pz)*(qx*qx+qy*qy+qz*qz)
@@ -556,7 +589,7 @@ def spherical_angle(p_center, p2, p3, np):
 #            if (ddd < 0.d0) then
 #               angle = 4.d0*atan(1.0d0) !should be pi
 #            else
-#               angle = 0.d0 
+#               angle = 0.d0
 #            end if
 #         else
 #              angle = acos( ddd )

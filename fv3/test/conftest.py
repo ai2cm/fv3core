@@ -22,10 +22,12 @@ def get_parallel_savepoint_names_from_module(module):
     return_list = []
     for member_name in dir(module):
         member = getattr(module, member_name)
-        if isinstance(member, type) and (
-                issubclass(member, fv3.translate.ParallelTranslate)) and (
-                member is not fv3.translate.ParallelTranslate):
-            return_list.append(member_name[len("Translate"):])
+        if (
+            isinstance(member, type)
+            and (issubclass(member, fv3.translate.ParallelTranslate))
+            and (member is not fv3.translate.ParallelTranslate)
+        ):
+            return_list.append(member_name[len("Translate") :])
     return return_list
 
 
@@ -463,7 +465,8 @@ def pytest_configure(config):
         "markers", "parallel(name): mark test as running in parallel across ranks"
     )
     config.addinivalue_line(
-        "markers", "mock_parallel(name): mark test as running in mock parallel across ranks"
+        "markers",
+        "mock_parallel(name): mark test as running in mock parallel across ranks",
     )
 
 

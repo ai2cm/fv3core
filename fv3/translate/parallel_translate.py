@@ -42,12 +42,12 @@ class ParallelTranslate:
         for name, properties in self.inputs.items():
             if len(properties["dims"]) > 0:
                 state[properties["name"]] = grid.quantity_factory.empty(
-                    properties["dims"],
-                    properties["units"],
-                    dtype=inputs[name].dtype
+                    properties["dims"], properties["units"], dtype=inputs[name].dtype
                 )
                 if len(properties["dims"]) > 3:
-                    input_slice = _serialize_slice(state[properties["name"]], properties.get("n_halo", utils.halo))
+                    input_slice = _serialize_slice(
+                        state[properties["name"]], properties.get("n_halo", utils.halo)
+                    )
                     state[properties["name"]].data[input_slice] = inputs[name]
                 if len(properties["dims"]) == 2:
                     state[properties["name"]].data[:] = inputs[name][:, :, 0]
@@ -73,7 +73,9 @@ class ParallelTranslate:
         return_dict = {}
         for name, properties in self.outputs.items():
             standard_name = properties["name"]
-            output_slice = _serialize_slice(state[standard_name], properties.get("n_halo", utils.halo))
+            output_slice = _serialize_slice(
+                state[standard_name], properties.get("n_halo", utils.halo)
+            )
             return_dict[name] = state[standard_name].data[output_slice]
         return return_dict
 
@@ -82,8 +84,7 @@ class ParallelTranslate:
         for name, properties in self.outputs.items():
             if len(properties["dims"]) > 0:
                 state[properties["name"]] = self.grid.quantity_factory.empty(
-                    properties["dims"],
-                    properties["units"],
+                    properties["dims"], properties["units"],
                 )
         return state
 
@@ -124,7 +125,7 @@ class ParallelTranslateGrid(ParallelTranslate):
     support some non-standard array dimension layouts not supported by the
     TranslateFortranData2Py initializers.
     """
-    
+
     def state_from_inputs(self, inputs: dict, grid=None) -> dict:
         if grid is None:
             grid = self.grid
@@ -132,11 +133,11 @@ class ParallelTranslateGrid(ParallelTranslate):
         for name, properties in self.inputs.items():
             if len(properties["dims"]) > 0:
                 state[properties["name"]] = grid.quantity_factory.empty(
-                    properties["dims"],
-                    properties["units"],
-                    dtype=inputs[name].dtype
+                    properties["dims"], properties["units"], dtype=inputs[name].dtype
                 )
-                input_slice = _serialize_slice(state[properties["name"]], properties.get("n_halo", utils.halo))
+                input_slice = _serialize_slice(
+                    state[properties["name"]], properties.get("n_halo", utils.halo)
+                )
                 state[properties["name"]].data[input_slice] = inputs[name]
                 if len(properties["dims"]) > 0:
                     state[properties["name"]].data[input_slice] = inputs[name]
@@ -145,4 +146,3 @@ class ParallelTranslateGrid(ParallelTranslate):
             else:
                 state[properties["name"]] = inputs[name]
         return state
-
