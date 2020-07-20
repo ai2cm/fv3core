@@ -125,11 +125,9 @@ def xyz_midpoint(*points):
 
 def lon_lat_corner_to_cell_center(lon, lat, np):
     # just perform the mean in x-y-z space and convert back
-    x, y, z = _latlon2xyz(lon, lat, np)
-    x_center = _corner_to_center_mean(x)
-    y_center = _corner_to_center_mean(y)
-    z_center = _corner_to_center_mean(z)
-    return _xyz2latlon(x_center, y_center, z_center, np)
+    xyz = lon_lat_to_xyz(lon, lat, np)
+    center = _corner_to_center_mean(xyz)
+    return xyz_to_lon_lat(center, np)
 
 
 def lon_lat_to_xyz(lon, lat, np):
