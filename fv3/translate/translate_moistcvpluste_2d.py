@@ -56,7 +56,9 @@ class TranslateMoistCVPlusTe_2d(TranslateFortranData2Py):
 
     def compute(self, inputs):
         self.make_storage_data_input_vars(inputs)
-        inputs["j_2d"] = self.grid.global_to_local_y(inputs["j_2d"]+ TranslateGrid.fpy_model_index_offset)
+        inputs["j_2d"] = self.grid.global_to_local_y(
+            inputs["j_2d"] + TranslateGrid.fpy_model_index_offset
+        )
         self.compute_func(**inputs)
         for var in ["gz", "cvm"]:
             inputs[var] = inputs[var][:, inputs["j_2d"] : inputs["j_2d"] + 1, :]
