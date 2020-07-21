@@ -13,9 +13,8 @@ from ..grid import (
     set_tile_border_dyc,
 )
 from ..utils.global_constants import LON_OR_LAT_DIM, TILE_DIM, PI, RADIUS
-from ..utils.corners import fill_corners_2d, fill_corners_dgrid, fill_corners_agrid
+from ..utils.corners import fill_corners_dgrid, fill_corners_agrid
 import fv3util
-import functools
 
 
 # TODO: After metric term code is all ported, could refactor code to use this container
