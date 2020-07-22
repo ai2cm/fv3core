@@ -85,6 +85,42 @@ class Grid:
             )
         return self._quantity_factory
 
+    def make_quantity(
+        self,
+        array,
+        dims=[fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_DIM],
+        units="Unknown",
+        origin=None,
+        extent=None,
+    ):
+        if origin is None:
+            origin = self.compute_origin()
+        if extent is None:
+            extent = self.domain_shape_compute()
+        return fv3util.Quantity(
+            array, dims=dims, units=units, origin=origin, extent=extent
+        )
+
+    def quantity_dict_update(
+        self,
+        data_dict,
+        varname,
+        dims=[fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_DIM],
+        units="Unknown",
+    ):
+        data_dict[varname + "_quantity"] = self.quantity_wrap(
+            data_dict[varname], dims=dims, units=units
+        )
+
+    def quantity_wrap(
+        self, data, dims=[fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_DIM], units="Unknown"
+    ):
+        origin = self.sizer.get_origin(dims)
+        extent = self.sizer.get_extent(dims)
+        return fv3util.Quantity(
+            data, dims=dims, units=units, origin=origin, extent=extent
+        )
+
     def global_to_local_1d(self, global_value, subtile_index, subtile_length):
         return global_value - subtile_index * subtile_length
 
@@ -276,6 +312,9 @@ class Grid:
     def domain_shape_compute_buffer_2d(self):
         return (self.nic + 1, self.njc + 1, self.npz)
 
+    def domain_shape_compute_buffer_k(self):
+        return (self.nic, self.njc, self.npz + 1)
+
     def domain_shape_compute_x(self):
         return (self.nic + 1, self.njc, self.npz)
 
@@ -380,6 +419,8 @@ class Grid:
             self.domain_shape_compute_buffer_2d()[0:2],
         ]:
             return self.is_, self.js
+        elif shape[0:2] == (self.nic + 2, self.njc + 2):
+            return self.is_ - 1, self.js - 1
         else:
             return 0, 0
 

@@ -22,17 +22,24 @@ class TranslateFortranData2Py:
     def __init__(self, grid, origin=utils.origin):
         self.origin = origin
         self.in_vars = {"data_vars": {}, "parameters": []}
-        self.out_vars = []
+        self.out_vars = {}
         self.grid = grid
         self.maxshape = grid.domain_shape_buffer_1cell()
         self.ordered_input_vars = None
+        self.ignore_near_zero_errors = {}
 
     def compute_func(self, **inputs):
         raise NotImplementedError("Implement a child class compute method")
 
     def compute(self, inputs):
         self.make_storage_data_input_vars(inputs)
+        return self.compute_from_storage(inputs)
+
+    # assume inputs already has been turned into gt4py storages (or Quantities)
+    def compute_from_storage(self, inputs):
         outputs = self.compute_func(**inputs)
+        if outputs is not None:
+            inputs.update(outputs)
         return self.slice_output(inputs)
 
     def column_split_compute(self, inputs, info_mapping):
@@ -56,14 +63,31 @@ class TranslateFortranData2Py:
             input_data[varname] = read_serialized_data(serializer, savepoint, varname)
         return input_data
 
-    def make_storage_data(self, array, istart=0, jstart=0, kstart=0):
+    def make_storage_data(
+        self,
+        array,
+        istart=0,
+        jstart=0,
+        kstart=0,
+        dummy_axes=None,
+        axis=2,
+        names_4d=None,
+    ):
+        use_shape = list(self.maxshape)
+        if dummy_axes:
+            for axis in dummy_axes:
+                use_shape[axis] = 1
+        use_shape = tuple(use_shape)
         return utils.make_storage_data(
             array,
-            self.maxshape,
+            use_shape,
             istart,
             jstart,
             kstart,
             origin=(istart, jstart, kstart),
+            dummy=dummy_axes,
+            axis=axis,
+            names_4d=names_4d,
         )
 
     def storage_vars(self):
@@ -104,7 +128,7 @@ class TranslateFortranData2Py:
 
     def update_info(self, info, inputs):
         for k, v in info.items():
-            if k == "serialname":
+            if k == "serialname" or isinstance(v, list):
                 continue
             if v in inputs.keys():
                 info[k] = inputs[v]
@@ -136,12 +160,20 @@ class TranslateFortranData2Py:
                     d, istart, jstart
                 )
             )
+            names_4d = None
+            if len(inputs[serialname].shape) == 4:
+                names_4d = info.get("names_4d", utils.tracer_variables)
 
+            dummy_axes = info.get("dummy_axes", None)
+            axis = info.get("axis", 2)
             inputs[d] = self.make_storage_data(
                 np.squeeze(inputs[serialname]),
                 istart=istart,
                 jstart=jstart,
                 kstart=kstart,
+                dummy_axes=dummy_axes,
+                axis=axis,
+                names_4d=names_4d,
             )
             if d != serialname:
                 del inputs[serialname]
@@ -158,7 +190,25 @@ class TranslateFortranData2Py:
             serialname = info["serialname"] if "serialname" in info else var
             ds = self.grid.default_domain_dict()
             ds.update(info)
-            out[serialname] = np.squeeze(out_data[var].data[self.grid.slice_dict(ds)])
+            data_result = out_data[var]
+            if isinstance(data_result, dict):
+                names_4d = info.get("names_4d", utils.tracer_variables)
+                var4d = np.zeros(
+                    (
+                        ds["iend"] - ds["istart"] + 1,
+                        ds["jend"] - ds["jstart"] + 1,
+                        ds["kend"] - ds["kstart"] + 1,
+                        len(data_result),
+                    )
+                )
+                for varname, data_element in data_result.items():
+                    index = names_4d.index(varname)
+                    var4d[:, :, :, index] = np.squeeze(
+                        data_element.data[self.grid.slice_dict(ds)]
+                    )
+                out[serialname] = var4d
+            else:
+                out[serialname] = np.squeeze(data_result.data[self.grid.slice_dict(ds)])
             if "kaxis" in info:
                 out[serialname] = np.moveaxis(out[serialname], 2, info["kaxis"])
         return out

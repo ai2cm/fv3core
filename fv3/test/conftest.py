@@ -106,19 +106,35 @@ def process_grid_savepoint(serializer, grid_savepoint, rank):
     return grid
 
 
-def get_test_class_instance(test_name, grid):
+def get_test_class(test_name):
     translate_class_name = f"Translate{test_name.replace('-', '_')}"
     try:
-        instance = getattr(fv3.translate, translate_class_name)(grid)
+        return_class = getattr(fv3.translate, translate_class_name)
     except AttributeError as err:
         if translate_class_name in err.args[0] and err.args[0].startswith("module"):
-            instance = None
+            return_class = None
         else:
             raise err
-    return instance
+    return return_class
 
 
-def get_sequential_savepoint_names(metafunc, data_path):
+def is_parallel_test(test_name):
+    test_class = get_test_class(test_name)
+    if test_class is None:
+        return False
+    else:
+        return issubclass(test_class, fv3.translate.ParallelTranslate)
+
+
+def get_test_class_instance(test_name, grid):
+    translate_class = get_test_class(test_name)
+    if translate_class is None:
+        return None
+    else:
+        return translate_class(grid)
+
+
+def get_all_savepoint_names(metafunc, data_path):
     only_names = metafunc.config.getoption("which_modules")
     if only_names is None:
         savepoint_names = set()
@@ -132,22 +148,25 @@ def get_sequential_savepoint_names(metafunc, data_path):
     skip_names = metafunc.config.getoption("skip_modules")
     if skip_names is not None:
         savepoint_names.difference_update(skip_names.split(","))
-    savepoint_names.difference_update(PARALLEL_SAVEPOINT_NAMES)
     return savepoint_names
+
+
+def get_sequential_savepoint_names(metafunc, data_path):
+    all_names = get_all_savepoint_names(metafunc, data_path)
+    sequential_names = []
+    for name in all_names:
+        if not is_parallel_test(name):
+            sequential_names.append(name)
+    return sequential_names
 
 
 def get_parallel_savepoint_names(metafunc, data_path):
-    only_names = metafunc.config.getoption("which_modules")
-    if only_names is None:
-        savepoint_names = set(PARALLEL_SAVEPOINT_NAMES)
-    else:
-        savepoint_names = set(only_names.split(",")).intersection(
-            PARALLEL_SAVEPOINT_NAMES
-        )
-    skip_names = metafunc.config.getoption("skip_modules")
-    if skip_names is not None:
-        savepoint_names.difference_update(skip_names.split(","))
-    return savepoint_names
+    all_names = get_all_savepoint_names(metafunc, data_path)
+    parallel_names = []
+    for name in all_names:
+        if is_parallel_test(name):
+            parallel_names.append(name)
+    return parallel_names
 
 
 SavepointCase = collections.namedtuple(
