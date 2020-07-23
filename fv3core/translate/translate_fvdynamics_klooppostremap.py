@@ -1,6 +1,6 @@
 from .parallel_translate import ParallelTranslate2PyState
 import fv3core.stencils.fv_dynamics as fv_dynamics
-import fv3core.til
+import fv3util
 
 
 class TranslateFVDynamics_KLoopPostRemap(ParallelTranslate2PyState):

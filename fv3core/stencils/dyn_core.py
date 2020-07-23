@@ -23,7 +23,7 @@ import fv3core.stencils.nh_p_grad as nh_p_grad
 import fv3core.stencils.del2cubed as del2cubed
 import fv3core.stencils.temperature_adjust as temperature_adjust
 import fv3core.stencils.ray_fast as ray_fast
-import fv3core.til
+import fv3util
 import copy
 
 sd = utils.sd

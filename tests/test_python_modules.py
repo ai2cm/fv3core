@@ -6,7 +6,7 @@ import numpy as np
 import fv3core._config
 import fv3core.utils.gt4py_utils
 import pytest
-import fv3core.til
+import fv3util
 import logging
 import os
 import xarray as xr

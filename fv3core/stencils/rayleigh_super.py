@@ -7,7 +7,7 @@ from gt4py.gtscript import computation, interval, PARALLEL
 import fv3core.utils.global_constants as constants
 import numpy as np
 import math
-import fv3core.til
+import fv3util
 
 sd = utils.sd
 U0 = 60.0

@@ -1,7 +1,7 @@
 from .parallel_translate import ParallelTranslate2PyState
 from .translate import TranslateFortranData2Py
 import fv3core.stencils.dyn_core as dyn_core
-import fv3core.til
+import fv3util
 
 
 class TranslateDynCore(ParallelTranslate2PyState):
