@@ -1,4 +1,4 @@
-from fv3core.translate.translate import TranslateFortranData2Py, TranslateGrid
+from .translate import TranslateFortranData2Py, TranslateGrid
 import fv3core.stencils.yppm as yppm
 import fv3core.utils.gt4py_utils as utils
 

@@ -1,5 +1,5 @@
 import fv3core.stencils.divergence_damping as dd
-from fv3core.translate.translate import TranslateFortranData2Py
+from .translate import TranslateFortranData2Py
 
 
 class TranslateDivergenceDamping(TranslateFortranData2Py):

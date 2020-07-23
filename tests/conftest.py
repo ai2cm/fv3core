@@ -1,15 +1,13 @@
 import pytest
 import sys
-import importlib
 import warnings
 import os
-import fv3
+import fv3core
 import fv3core._config
 import fv3core.utils.gt4py_utils
-import fv3core.translate
+import translate
 import collections
 import fv3util
-import gt4py as gt
 from fv3core.utils.mpi import MPI
 
 # get MPI environment
@@ -75,7 +73,7 @@ def make_grid(grid_savepoint, serializer, rank):
     grid_fields = serializer.fields_at_savepoint(grid_savepoint)
     for field in grid_fields:
         grid_data[field] = read_serialized_data(serializer, grid_savepoint, field)
-    return fv3core.translate.translate.TranslateGrid(grid_data, rank).python_grid()
+    return translate.translate.TranslateGrid(grid_data, rank).python_grid()
 
 
 def read_serialized_data(serializer, savepoint, variable):
@@ -95,7 +93,7 @@ def process_grid_savepoint(serializer, grid_savepoint, rank):
 def get_test_class(test_name):
     translate_class_name = f"Translate{test_name.replace('-', '_')}"
     try:
-        return_class = getattr(fv3core.translate, translate_class_name)
+        return_class = getattr(translate, translate_class_name)
     except AttributeError as err:
         if translate_class_name in err.args[0]:
             return_class = None
@@ -109,7 +107,7 @@ def is_parallel_test(test_name):
     if test_class is None:
         return False
     else:
-        return issubclass(test_class, fv3core.translate.ParallelTranslate)
+        return issubclass(test_class, translate.ParallelTranslate)
 
 
 def get_test_class_instance(test_name, grid):

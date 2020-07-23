@@ -11,6 +11,7 @@ TEST_ARGS ?=-v -s -rsx
 PULL ?=True
 VOLUMES ?=
 MOUNTS ?=
+DEV_MOUNTS = '-v $(CWD)/fv3core:/fv3core/fv3core -v $(CWD)/tests:/fv3core/tests -v $(FV3UTIL_DIR):/usr/src/fv3util'
 TEST_DATA_HOST ?=$(CWD)/test_data
 FV3_IMAGE ?=$(GCR_URL)/fv3ser:latest
 
@@ -38,6 +39,9 @@ REMOTE_TAGS="$(shell gcloud container images list-tags --format='get(tags)' $(TE
 
 PYTHON_FILES = $(shell git ls-files | grep -e 'py$$' | grep -v -e '__init__.py')
 PYTHON_INIT_FILES = $(shell git ls-files | grep '__init__.py')
+
+clean:
+	find . -name ""
 
 update_submodules:
 	if [ ! -d $(FORTRAN_DIR)/FV3 -o ! -d $(FV3UTIL_DIR) ]; then \
@@ -189,22 +193,20 @@ tests_host:
 	$(MAKE) run_tests_host_data
 
 dev_tests:
-	MOUNTS='-v $(CWD)/fv3:/fv3 -v $(FV3UTIL_DIR):/usr/src/fv3util' \
-		$(MAKE) run_tests_container
+	MOUNTS=$(DEV_MOUNTS) $(MAKE) run_tests_container
+
 dev_tests_host:
-	MOUNTS='-v $(CWD)/fv3:/fv3 -v $(FV3UTIL_DIR):/usr/src/fv3util' \
-    $(MAKE) run_tests_host_data
+	MOUNTS=$(DEV_MOUNTS) $(MAKE) run_tests_host_data
 
 dev_tests_mpi:
-	MOUNTS='-v $(CWD)/fv3:/fv3 -v $(FV3UTIL_DIR):/usr/src/fv3util' $(MAKE) run_tests_parallel_container
+	MOUNTS=$(DEV_MOUNTS) $(MAKE) run_tests_parallel_container
 
 dev_tests_mpi_host:
-	MOUNTS='-v $(CWD)/fv3:/fv3 -v $(FV3UTIL_DIR):/usr/src/fv3util' $(MAKE) run_tests_parallel_host
-
+	MOUNTS=$(DEV_MOUNTS) $(MAKE) run_tests_parallel_host
 
 test_base:
 	docker run --rm $(VOLUMES) $(MOUNTS) \
-	-it $(RUNTEST_IMAGE) pytest --data_path=$(TEST_DATA_CONTAINER) ${TEST_ARGS} /fv3/test
+	-it $(RUNTEST_IMAGE) pytest --data_path=$(TEST_DATA_CONTAINER) ${TEST_ARGS} /fv3core/tests
 
 test_base_parallel:
 	docker run --rm $(VOLUMES) $(MOUNTS) \

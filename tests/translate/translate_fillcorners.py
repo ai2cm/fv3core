@@ -1,5 +1,5 @@
 from .translate import TranslateFortranData2Py
-from ..utils.corners import fill_corners_2d
+from fv3core.utils.corners import fill_corners_2d
 import fv3core.utils.gt4py_utils as utils
 import numpy as np
 

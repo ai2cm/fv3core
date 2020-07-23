@@ -1,5 +1,5 @@
 from .translate import TranslateFortranData2Py
-from ..utils.corners import fill2_4corners
+from fv3core.utils.corners import fill2_4corners
 
 
 class TranslateFill2_4Corners(TranslateFortranData2Py):

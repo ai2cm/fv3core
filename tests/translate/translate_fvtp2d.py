@@ -1,5 +1,5 @@
 import fv3core.stencils.fvtp2d as fvtp2d
-from fv3core.translate.translate import TranslateFortranData2Py
+from .translate import TranslateFortranData2Py
 import fv3core.utils.gt4py_utils as utils
 
 
