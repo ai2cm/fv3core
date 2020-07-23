@@ -6,8 +6,6 @@ import fv3core._config as spec
 sd = utils.sd
 origin = utils.origin
 
-# from fv3core.test.test_python_modules import global_grid
-
 
 @gtscript.function
 def p_grad_c_u(uc_in, wk, pkc, gz, rdxc, dt2):
