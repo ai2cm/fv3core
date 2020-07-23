@@ -1,5 +1,5 @@
 from .translate import TranslateFortranData2Py
-import fv3.stencils.del2cubed as Del2Cubed
+import fv3core.stencils.del2cubed as Del2Cubed
 
 
 class TranslateDel2Cubed(TranslateFortranData2Py):

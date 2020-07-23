@@ -1,5 +1,5 @@
 from .translate import TranslateFortranData2Py
-import fv3.stencils.divergence_corner as DivergenceCorner
+import fv3core.stencils.divergence_corner as DivergenceCorner
 
 
 class TranslateDivergenceCorner(TranslateFortranData2Py):

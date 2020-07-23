@@ -1,12 +1,12 @@
-import fv3.utils.gt4py_utils as utils
+import fv3core.utils.gt4py_utils as utils
 from gt4py.gtscript import computation, interval, PARALLEL
 import gt4py.gtscript as gtscript
-import fv3._config as spec
+import fv3core._config as spec
 
 sd = utils.sd
 origin = utils.origin
 
-# from fv3.test.test_python_modules import global_grid
+# from fv3core.test.test_python_modules import global_grid
 
 
 @gtscript.function

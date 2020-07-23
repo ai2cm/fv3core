@@ -1,5 +1,5 @@
 from .translate import TranslateFortranData2Py
-import fv3.stencils.ytp_v as ytpv
+import fv3core.stencils.ytp_v as ytpv
 
 
 class TranslateYTP_V(TranslateFortranData2Py):

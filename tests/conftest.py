@@ -4,13 +4,13 @@ import importlib
 import warnings
 import os
 import fv3
-import fv3._config
-import fv3.utils.gt4py_utils
-import fv3.translate
+import fv3core._config
+import fv3core.utils.gt4py_utils
+import fv3core.translate
 import collections
-import fv3util
+import fv3core.til
 import gt4py as gt
-from fv3.utils.mpi import MPI
+from fv3core.utils.mpi import MPI
 
 # get MPI environment
 sys.path.append("/serialbox2/install/python")  # noqa
@@ -35,7 +35,7 @@ class ReplaceRepr:
 @pytest.fixture()
 def backend(pytestconfig):
     backend = pytestconfig.getoption("backend")
-    fv3.utils.gt4py_utils.backend = backend
+    fv3core.utils.gt4py_utils.backend = backend
     return backend
 
 
@@ -47,7 +47,7 @@ def data_path(pytestconfig):
 def data_path_from_config(config):
     data_path = config.getoption("data_path")
     namelist_filename = os.path.join(data_path, "input.nml")
-    fv3._config.set_namelist(namelist_filename)
+    fv3core._config.set_namelist(namelist_filename)
     return data_path
 
 
@@ -75,7 +75,7 @@ def make_grid(grid_savepoint, serializer, rank):
     grid_fields = serializer.fields_at_savepoint(grid_savepoint)
     for field in grid_fields:
         grid_data[field] = read_serialized_data(serializer, grid_savepoint, field)
-    return fv3.translate.translate.TranslateGrid(grid_data, rank).python_grid()
+    return fv3core.translate.translate.TranslateGrid(grid_data, rank).python_grid()
 
 
 def read_serialized_data(serializer, savepoint, variable):
@@ -88,14 +88,14 @@ def read_serialized_data(serializer, savepoint, variable):
 
 def process_grid_savepoint(serializer, grid_savepoint, rank):
     grid = make_grid(grid_savepoint, serializer, rank)
-    fv3._config.set_grid(grid)
+    fv3core._config.set_grid(grid)
     return grid
 
 
 def get_test_class(test_name):
     translate_class_name = f"Translate{test_name.replace('-', '_')}"
     try:
-        return_class = getattr(fv3.translate, translate_class_name)
+        return_class = getattr(fv3core.translate, translate_class_name)
     except AttributeError as err:
         if translate_class_name in err.args[0]:
             return_class = None
@@ -109,7 +109,7 @@ def is_parallel_test(test_name):
     if test_class is None:
         return False
     else:
-        return issubclass(test_class, fv3.translate.ParallelTranslate)
+        return issubclass(test_class, fv3core.translate.ParallelTranslate)
 
 
 def get_test_class_instance(test_name, grid):
@@ -171,7 +171,7 @@ SavepointCase = collections.namedtuple(
 
 def sequential_savepoint_cases(metafunc, data_path):
     return_list = []
-    layout = fv3._config.namelist["layout"]
+    layout = fv3core._config.namelist["layout"]
     total_ranks = 6 * layout[0] * layout[1]
     savepoint_names = get_sequential_savepoint_names(metafunc, data_path)
     for rank in range(total_ranks):
@@ -208,7 +208,7 @@ def check_savepoint_counts(test_name, input_savepoints, output_savepoints):
 
 def mock_parallel_savepoint_cases(metafunc, data_path):
     return_list = []
-    layout = fv3._config.namelist["layout"]
+    layout = fv3core._config.namelist["layout"]
     total_ranks = 6 * layout[0] * layout[1]
     grid_list = []
     for rank in range(total_ranks):
@@ -250,7 +250,7 @@ def parallel_savepoint_cases(metafunc, data_path, mpi_rank):
     grid = process_grid_savepoint(serializer, grid_savepoint, mpi_rank)
     savepoint_names = get_parallel_savepoint_names(metafunc, data_path)
     return_list = []
-    layout = fv3._config.namelist["layout"]
+    layout = fv3core._config.namelist["layout"]
     for test_name in sorted(list(savepoint_names)):
         input_savepoints = serializer.get_savepoint(f"{test_name}-In")
         output_savepoints = serializer.get_savepoint(f"{test_name}-Out")
@@ -271,7 +271,7 @@ def parallel_savepoint_cases(metafunc, data_path, mpi_rank):
 
 def pytest_generate_tests(metafunc):
     backend = metafunc.config.getoption("backend")
-    fv3.utils.gt4py_utils.backend = backend
+    fv3core.utils.gt4py_utils.backend = backend
     if MPI is not None and MPI.COMM_WORLD.Get_size() > 1:
         if metafunc.function.__name__ == "test_parallel_savepoint":
             generate_parallel_stencil_tests(metafunc)

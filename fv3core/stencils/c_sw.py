@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
-import fv3.utils.gt4py_utils as utils
+import fv3core.utils.gt4py_utils as utils
 import gt4py.gtscript as gtscript
-import fv3._config as spec
+import fv3core._config as spec
 from gt4py.gtscript import computation, interval, PARALLEL
-import fv3.stencils.d2a2c_vect as d2a2c
-import fv3.stencils.divergence_corner as divergence_corner
-import fv3.stencils.transportdelp as transportdelp
-import fv3.stencils.ke_c_sw as ke_c_sw
-import fv3.stencils.circulation_cgrid as circulation_cgrid
-import fv3.stencils.vorticitytransport_cgrid as vorticity_transport
+import fv3core.stencils.d2a2c_vect as d2a2c
+import fv3core.stencils.divergence_corner as divergence_corner
+import fv3core.stencils.transportdelp as transportdelp
+import fv3core.stencils.ke_c_sw as ke_c_sw
+import fv3core.stencils.circulation_cgrid as circulation_cgrid
+import fv3core.stencils.vorticitytransport_cgrid as vorticity_transport
 
 sd = utils.sd
 

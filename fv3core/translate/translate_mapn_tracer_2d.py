@@ -1,6 +1,6 @@
 from .translate import TranslateFortranData2Py
-import fv3.stencils.mapn_tracer as MapN_Tracer
-import fv3._config as spec
+import fv3core.stencils.mapn_tracer as MapN_Tracer
+import fv3core._config as spec
 
 
 class TranslateMapN_Tracer_2d(TranslateFortranData2Py):

@@ -1,8 +1,8 @@
 from .parallel_translate import ParallelTranslateBaseSlicing
-import fv3.stencils.fv_dynamics as fv_dynamics
-import fv3util
+import fv3core.stencils.fv_dynamics as fv_dynamics
+import fv3core.til
 import pytest
-import fv3.utils.gt4py_utils as utils
+import fv3core.utils.gt4py_utils as utils
 
 
 class TranslateFVDynamics(ParallelTranslateBaseSlicing):

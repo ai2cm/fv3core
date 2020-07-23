@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
-import fv3.utils.gt4py_utils as utils
+import fv3core.utils.gt4py_utils as utils
 import gt4py.gtscript as gtscript
-import fv3._config as spec
-import fv3.stencils.c2l_ord as c2l_ord
+import fv3core._config as spec
+import fv3core.stencils.c2l_ord as c2l_ord
 from gt4py.gtscript import computation, interval, PARALLEL
-import fv3.utils.global_constants as constants
+import fv3core.utils.global_constants as constants
 import numpy as np
 import math
-import fv3util
+import fv3core.til
 
 sd = utils.sd
 U0 = 60.0

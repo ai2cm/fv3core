@@ -1,19 +1,19 @@
 #!/usr/bin/env python3
-import fv3.utils.gt4py_utils as utils
+import fv3core.utils.gt4py_utils as utils
 import gt4py.gtscript as gtscript
-import fv3._config as spec
-import fv3.utils.global_constants as constants
+import fv3core._config as spec
+import fv3core.utils.global_constants as constants
 from gt4py.gtscript import computation, interval, PARALLEL
-import fv3.stencils.moist_cv as moist_cv
-import fv3.stencils.rayleigh_super as rayleigh_super
-import fv3.stencils.dyn_core as dyn_core
-import fv3.stencils.copy_stencil as cp
-import fv3.stencils.tracer_2d_1l as tracer_2d_1l
-import fv3.stencils.remapping as lagrangian_to_eulerian
-import fv3.stencils.del2cubed as del2cubed
-import fv3.stencils.neg_adj3 as neg_adj3
-from fv3.stencils.c2l_ord import compute_cubed_to_latlon
-import fv3util
+import fv3core.stencils.moist_cv as moist_cv
+import fv3core.stencils.rayleigh_super as rayleigh_super
+import fv3core.stencils.dyn_core as dyn_core
+import fv3core.stencils.copy_stencil as cp
+import fv3core.stencils.tracer_2d_1l as tracer_2d_1l
+import fv3core.stencils.remapping as lagrangian_to_eulerian
+import fv3core.stencils.del2cubed as del2cubed
+import fv3core.stencils.neg_adj3 as neg_adj3
+from fv3core.stencils.c2l_ord import compute_cubed_to_latlon
+import fv3core.til
 import numpy as np
 from types import SimpleNamespace
 from ..decorators import ArgSpec, state_inputs
@@ -41,7 +41,7 @@ def set_omega(delp: sd, delz: sd, w: sd, omga: sd):
         omga = delp / delz * w
 
 
-# TODO replace with something from fv3config probably, using the field_table
+# TODO replace with something from fv3core.onfig probably, using the field_table
 def tracers_dict(state):
     tracers = {}
     for tracername in utils.tracer_variables:

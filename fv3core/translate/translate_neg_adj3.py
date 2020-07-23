@@ -1,6 +1,6 @@
 from .translate import TranslateFortranData2Py
-import fv3.stencils.neg_adj3 as neg_adj3
-import fv3.utils.gt4py_utils as utils
+import fv3core.stencils.neg_adj3 as neg_adj3
+import fv3core.utils.gt4py_utils as utils
 
 
 class TranslateNeg_Adj3(TranslateFortranData2Py):

@@ -1,6 +1,6 @@
 from .translate import TranslateFortranData2Py
-import fv3.stencils.moist_cv as moist_cv
-import fv3.utils.gt4py_utils as utils
+import fv3core.stencils.moist_cv as moist_cv
+import fv3core.utils.gt4py_utils as utils
 
 
 class TranslateMoistCVPlusPt_2d(TranslateFortranData2Py):

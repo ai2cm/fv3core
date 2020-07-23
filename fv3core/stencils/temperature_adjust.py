@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-import fv3.utils.gt4py_utils as utils
+import fv3core.utils.gt4py_utils as utils
 import gt4py.gtscript as gtscript
-import fv3._config as spec
-import fv3.utils.global_constants as constants
-from fv3.stencils.basic_operations import absolute_value, min_fn
+import fv3core._config as spec
+import fv3core.utils.global_constants as constants
+from fv3core.stencils.basic_operations import absolute_value, min_fn
 from gt4py.gtscript import computation, interval, PARALLEL
 import numpy as np
 import math

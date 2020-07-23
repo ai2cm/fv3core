@@ -1,5 +1,5 @@
 from .translate import TranslateFortranData2Py
-import fv3.stencils.transportdelp as TransportDelp
+import fv3core.stencils.transportdelp as TransportDelp
 
 
 class TranslateTransportDelp(TranslateFortranData2Py):

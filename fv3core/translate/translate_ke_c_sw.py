@@ -1,5 +1,5 @@
 from .translate import TranslateFortranData2Py
-import fv3.stencils.ke_c_sw as KE_C_SW
+import fv3core.stencils.ke_c_sw as KE_C_SW
 
 
 class TranslateKE_C_SW(TranslateFortranData2Py):

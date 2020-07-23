@@ -1,6 +1,6 @@
 from .translate import TranslateFortranData2Py
-import fv3.stencils.remapping as remapping
-import fv3.utils.gt4py_utils as utils
+import fv3core.stencils.remapping as remapping
+import fv3core.utils.gt4py_utils as utils
 
 
 class TranslateRemapping(TranslateFortranData2Py):

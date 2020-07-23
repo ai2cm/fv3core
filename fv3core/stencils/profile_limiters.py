@@ -1,10 +1,10 @@
-import fv3.utils.gt4py_utils as utils
-from fv3.utils.corners import fill2_4corners, fill_4corners
+import fv3core.utils.gt4py_utils as utils
+from fv3core.utils.corners import fill2_4corners, fill_4corners
 import gt4py.gtscript as gtscript
-import fv3._config as spec
+import fv3core._config as spec
 from gt4py.gtscript import computation, interval, PARALLEL
-import fv3.stencils.copy_stencil as cp
-from fv3.stencils.basic_operations import absolute_value
+import fv3core.stencils.copy_stencil as cp
+from fv3core.stencils.basic_operations import absolute_value
 
 sd = utils.sd
 

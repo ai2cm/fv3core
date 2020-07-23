@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-import fv3.utils.gt4py_utils as utils
-import fv3.utils.corners as corners
+import fv3core.utils.gt4py_utils as utils
+import fv3core.utils.corners as corners
 import gt4py.gtscript as gtscript
-import fv3._config as spec
-import fv3.stencils.yppm as yppm
-import fv3.stencils.xppm as xppm
-import fv3.stencils.delnflux as delnflux
+import fv3core._config as spec
+import fv3core.stencils.yppm as yppm
+import fv3core.stencils.xppm as xppm
+import fv3core.stencils.delnflux as delnflux
 from gt4py.gtscript import computation, interval, PARALLEL
 
 origin = (0, 0, 0)

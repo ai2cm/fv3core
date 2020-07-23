@@ -1,29 +1,29 @@
 #!/usr/bin/env python3
-import fv3.utils.gt4py_utils as utils
+import fv3core.utils.gt4py_utils as utils
 
 import gt4py.gtscript as gtscript
-import fv3._config as spec
+import fv3core._config as spec
 from types import SimpleNamespace
 from gt4py.gtscript import computation, interval, PARALLEL
-import fv3.stencils.d2a2c_vect as d2a2c
+import fv3core.stencils.d2a2c_vect as d2a2c
 import math
-import fv3.utils.global_constants as constants
-import fv3.stencils.basic_operations as basic
-import fv3.stencils.c_sw as c_sw
-import fv3.stencils.copy_stencil as cp
-import fv3.stencils.updatedzc as updatedzc
-import fv3.stencils.updatedzd as updatedzd
-import fv3.stencils.riem_solver_c as riem_solver_c
-import fv3.stencils.riem_solver3 as riem_solver3
-import fv3.stencils.pgradc as pgradc
-import fv3.stencils.d_sw as d_sw
-import fv3.stencils.pe_halo as pe_halo
-import fv3.stencils.pk3_halo as pk3_halo
-import fv3.stencils.nh_p_grad as nh_p_grad
-import fv3.stencils.del2cubed as del2cubed
-import fv3.stencils.temperature_adjust as temperature_adjust
-import fv3.stencils.ray_fast as ray_fast
-import fv3util
+import fv3core.utils.global_constants as constants
+import fv3core.stencils.basic_operations as basic
+import fv3core.stencils.c_sw as c_sw
+import fv3core.stencils.copy_stencil as cp
+import fv3core.stencils.updatedzc as updatedzc
+import fv3core.stencils.updatedzd as updatedzd
+import fv3core.stencils.riem_solver_c as riem_solver_c
+import fv3core.stencils.riem_solver3 as riem_solver3
+import fv3core.stencils.pgradc as pgradc
+import fv3core.stencils.d_sw as d_sw
+import fv3core.stencils.pe_halo as pe_halo
+import fv3core.stencils.pk3_halo as pk3_halo
+import fv3core.stencils.nh_p_grad as nh_p_grad
+import fv3core.stencils.del2cubed as del2cubed
+import fv3core.stencils.temperature_adjust as temperature_adjust
+import fv3core.stencils.ray_fast as ray_fast
+import fv3core.til
 import copy
 
 sd = utils.sd

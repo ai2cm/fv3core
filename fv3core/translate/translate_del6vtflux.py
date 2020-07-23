@@ -1,5 +1,5 @@
-import fv3.stencils.delnflux as delnflux
-from fv3.translate.translate import TranslateFortranData2Py
+import fv3core.stencils.delnflux as delnflux
+from fv3core.translate.translate import TranslateFortranData2Py
 
 
 class TranslateDel6VtFlux(TranslateFortranData2Py):

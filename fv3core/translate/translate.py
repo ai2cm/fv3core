@@ -1,7 +1,7 @@
-import fv3.utils.gt4py_utils as utils
-from fv3.utils.grid import Grid
+import fv3core.utils.gt4py_utils as utils
+from fv3core.utils.grid import Grid
 import numpy as np
-import fv3._config
+import fv3core._config
 import logging
 
 
@@ -104,7 +104,7 @@ class TranslateFortranData2Py:
     #[data[key] for parent_key in ['data_vars', 'parameters'] for key in self.in_vars[parent_key]]
 
     def make_storage_data_input_vars(self, inputs, storage_vars=None):
-        from fv3._config import grid
+        from fv3core._config import grid
         if storage_vars is None:
             storage_vars = self.storage_vars()
         storage = {}
@@ -246,7 +246,7 @@ class TranslateGrid:
             self.shape_params[s] = inputs[s]
             del inputs[s]
         self.rank = rank
-        self.layout = fv3._config.namelist["layout"]
+        self.layout = fv3core._config.namelist["layout"]
         for i, j in Grid.index_pairs:
             for index in [i, j]:
                 self.indices[index] = inputs[index] + self.fpy_model_index_offset

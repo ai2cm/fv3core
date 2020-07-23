@@ -3,14 +3,14 @@
 import sys
 import contextlib
 import numpy as np
-import fv3._config
-import fv3.utils.gt4py_utils
+import fv3core._config
+import fv3core.utils.gt4py_utils
 import pytest
-import fv3util
+import fv3core.til
 import logging
 import os
 import xarray as xr
-from fv3.utils.mpi import MPI
+from fv3core.utils.mpi import MPI
 
 sys.path.append("/serialbox2/install/python")  # noqa
 import serialbox as ser
@@ -108,7 +108,7 @@ def test_sequential_savepoint(
     caplog.set_level(logging.DEBUG, logger="fv3ser")
     if testobj is None:
         pytest.xfail(f"no translate object available for savepoint {test_name}")
-    fv3._config.set_grid(grid)
+    fv3core._config.set_grid(grid)
     input_data = testobj.collect_input_data(serializer, savepoint_in)
     # run python version of functionality
     output = testobj.compute(input_data)
@@ -142,7 +142,7 @@ def get_serializer(data_path, rank):
 
 def state_from_savepoint(serializer, savepoint, name_to_std_name):
     properties = fv3util.fortran_info.properties_by_std_name
-    origin = fv3.utils.gt4py_utils.origin
+    origin = fv3core.utils.gt4py_utils.origin
     state = {}
     for name, std_name in name_to_std_name.items():
         array = serializer.read(name, savepoint)
@@ -181,7 +181,7 @@ def test_mock_parallel_savepoint(
     if testobj is None:
         pytest.xfail(f"no translate object available for savepoint {test_name}")
 
-    fv3._config.set_grid(grid)
+    fv3core._config.set_grid(grid)
     inputs_list = []
     for savepoint_in, serializer in zip(savepoint_in_list, serializer_list):
         inputs_list.append(testobj.collect_input_data(serializer, savepoint_in))
@@ -244,7 +244,7 @@ def test_parallel_savepoint(
     caplog.set_level(logging.DEBUG, logger="fv3ser")
     if testobj is None:
         pytest.xfail(f"no translate object available for savepoint {test_name}")
-    fv3._config.set_grid(grid[0])
+    fv3core._config.set_grid(grid[0])
     input_data = testobj.collect_input_data(serializer, savepoint_in)
     # run python version of functionality
     output = testobj.compute_parallel(input_data, communicator)

@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-import fv3.utils.gt4py_utils as utils
-import fv3._config as spec
+import fv3core.utils.gt4py_utils as utils
+import fv3core._config as spec
 from gt4py.gtscript import computation, interval, PARALLEL
-import fv3.stencils.moist_cv as moist_cv
-import fv3.stencils.map_single as map_single
-import fv3.stencils.mapn_tracer as mapn_tracer
+import fv3core.stencils.moist_cv as moist_cv
+import fv3core.stencils.map_single as map_single
+import fv3core.stencils.mapn_tracer as mapn_tracer
 import numpy as np
-import fv3.stencils.copy_stencil as cp
+import fv3core.stencils.copy_stencil as cp
 
 sd = utils.sd
 CONSV_MIN = 0.001

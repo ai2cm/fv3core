@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
-import fv3.utils.gt4py_utils as utils
-import fv3._config as spec
-import fv3.utils.global_constants as constants
+import fv3core.utils.gt4py_utils as utils
+import fv3core._config as spec
+import fv3core.utils.global_constants as constants
 import numpy as np
-import fv3.stencils.sim1_solver as sim1_solver
-import fv3.stencils.copy_stencil as cp
-import fv3.stencils.basic_operations as basic
+import fv3core.stencils.sim1_solver as sim1_solver
+import fv3core.stencils.copy_stencil as cp
+import fv3core.stencils.basic_operations as basic
 import math
-import fv3.decorators as decorators
+import fv3core.decorators as decorators
 
 sd = utils.sd
 

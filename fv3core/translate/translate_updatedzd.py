@@ -1,5 +1,5 @@
 from .translate import TranslateFortranData2Py
-import fv3.stencils.updatedzd as updatedzd
+import fv3core.stencils.updatedzd as updatedzd
 from .translate_d_sw import TranslateD_SW
 
 

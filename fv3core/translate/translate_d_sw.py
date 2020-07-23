@@ -1,6 +1,6 @@
-from fv3.translate.translate import TranslateFortranData2Py
-import fv3.stencils.d_sw as d_sw
-import fv3.utils.gt4py_utils as utils
+from fv3core.translate.translate import TranslateFortranData2Py
+import fv3core.stencils.d_sw as d_sw
+import fv3core.utils.gt4py_utils as utils
 
 
 class TranslateD_SW(TranslateFortranData2Py):

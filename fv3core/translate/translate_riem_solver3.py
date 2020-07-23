@@ -1,5 +1,5 @@
 from .translate import TranslateFortranData2Py
-import fv3.stencils.riem_solver3 as riem_solver3
+import fv3core.stencils.riem_solver3 as riem_solver3
 
 
 class TranslateRiem_Solver3(TranslateFortranData2Py):

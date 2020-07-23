@@ -1,5 +1,5 @@
 from .translate import TranslateFortranData2Py
-import fv3.stencils.saturation_adjustment as satadjust
+import fv3core.stencils.saturation_adjustment as satadjust
 
 
 class TranslateQSInit(TranslateFortranData2Py):

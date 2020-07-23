@@ -1,6 +1,6 @@
-import fv3.stencils.fvtp2d as fvtp2d
-from fv3.translate.translate import TranslateFortranData2Py
-import fv3.utils.gt4py_utils as utils
+import fv3core.stencils.fvtp2d as fvtp2d
+from fv3core.translate.translate import TranslateFortranData2Py
+import fv3core.utils.gt4py_utils as utils
 
 
 class TranslateFvTp2d(TranslateFortranData2Py):

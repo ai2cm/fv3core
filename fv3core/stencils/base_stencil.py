@@ -1,7 +1,7 @@
-import fv3.utils.gt4py_utils as utils
+import fv3core.utils.gt4py_utils as utils
 import gt4py.gtscript as gtscript
 
-# from fv3._config import grid
+# from fv3core._config import grid
 
 
 class BaseStencil:

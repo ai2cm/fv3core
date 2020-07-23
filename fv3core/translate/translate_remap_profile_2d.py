@@ -1,5 +1,5 @@
 from .translate import TranslateFortranData2Py
-import fv3.stencils.remap_profile as Profile
+import fv3core.stencils.remap_profile as Profile
 import numpy as np
 
 

@@ -1,5 +1,5 @@
 from .translate import TranslateFortranData2Py
-import fv3.stencils.pe_halo as pe_halo
+import fv3core.stencils.pe_halo as pe_halo
 
 
 class TranslatePE_Halo(TranslateFortranData2Py):

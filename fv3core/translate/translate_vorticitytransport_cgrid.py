@@ -1,5 +1,5 @@
 from .translate import TranslateFortranData2Py
-import fv3.stencils.vorticitytransport_cgrid as VorticityTransport_Cgrid
+import fv3core.stencils.vorticitytransport_cgrid as VorticityTransport_Cgrid
 
 
 class TranslateVorticityTransport_Cgrid(TranslateFortranData2Py):

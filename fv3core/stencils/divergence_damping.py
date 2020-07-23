@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-import fv3.utils.gt4py_utils as utils
+import fv3core.utils.gt4py_utils as utils
 import numpy as np
 import gt4py.gtscript as gtscript
-import fv3._config as spec
-import fv3.stencils.copy_stencil as cp
-import fv3.utils.corners as corners
-import fv3.stencils.basic_operations as basic
-import fv3.stencils.a2b_ord4 as a2b_ord4
+import fv3core._config as spec
+import fv3core.stencils.copy_stencil as cp
+import fv3core.utils.corners as corners
+import fv3core.stencils.basic_operations as basic
+import fv3core.stencils.a2b_ord4 as a2b_ord4
 from gt4py.gtscript import computation, interval, PARALLEL
 
 sd = utils.sd

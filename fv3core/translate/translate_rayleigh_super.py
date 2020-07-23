@@ -1,5 +1,5 @@
 from .parallel_translate import ParallelTranslate2Py
-import fv3.stencils.rayleigh_super as super_ray
+import fv3core.stencils.rayleigh_super as super_ray
 
 
 class TranslateRayleigh_Super(ParallelTranslate2Py):

@@ -1,5 +1,5 @@
 from .translate_ytp_v import TranslateYTP_V
-import fv3.stencils.xtp_u as xtpu
+import fv3core.stencils.xtp_u as xtpu
 
 
 class TranslateXTP_U(TranslateYTP_V):

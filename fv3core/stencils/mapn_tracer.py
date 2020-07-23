@@ -1,11 +1,11 @@
-import fv3.utils.gt4py_utils as utils
+import fv3core.utils.gt4py_utils as utils
 import gt4py.gtscript as gtscript
-import fv3._config as spec
+import fv3core._config as spec
 from gt4py.gtscript import computation, interval, PARALLEL
-import fv3.stencils.copy_stencil as cp
-import fv3.stencils.remap_profile as remap_profile
-import fv3.stencils.fillz as fillz
-import fv3.stencils.map_single as map_single
+import fv3core.stencils.copy_stencil as cp
+import fv3core.stencils.remap_profile as remap_profile
+import fv3core.stencils.fillz as fillz
+import fv3core.stencils.map_single as map_single
 import numpy as np
 
 sd = utils.sd

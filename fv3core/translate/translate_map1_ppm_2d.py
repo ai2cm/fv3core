@@ -1,5 +1,5 @@
 from .translate import TranslateFortranData2Py
-import fv3.stencils.map_single as Map_Single
+import fv3core.stencils.map_single as Map_Single
 import numpy as np
 
 

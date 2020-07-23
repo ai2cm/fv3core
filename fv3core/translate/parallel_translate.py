@@ -2,8 +2,8 @@ from typing import List
 import copy
 from .translate import TranslateFortranData2Py, read_serialized_data
 import fv3util
-from fv3.utils import gt4py_utils as utils
-import fv3
+from fv3core.utils import gt4py_utils as utils
+import fv3core
 import pytest
 from types import SimpleNamespace
 
@@ -106,7 +106,7 @@ class ParallelTranslate:
 
     @property
     def layout(self):
-        return fv3._config.namelist["layout"]
+        return fv3core._config.namelist["layout"]
 
     def compute_sequential(self, inputs_list, communicator_list):
         """Compute the outputs while iterating over a set of communicator objects sequentially"""

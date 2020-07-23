@@ -1,7 +1,7 @@
 from .parallel_translate import ParallelTranslate, _serialize_slice
 from .translate import TranslateFortranData2Py
 import fv3util
-from fv3.utils import gt4py_utils as utils
+from fv3core.utils import gt4py_utils as utils
 import logging
 import numpy as np
 

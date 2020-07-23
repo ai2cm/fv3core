@@ -1,5 +1,5 @@
 from .translate import TranslateFortranData2Py
-import fv3.stencils.c2l_ord as c2l_ord
+import fv3core.stencils.c2l_ord as c2l_ord
 
 
 class TranslateC2L_Ord2(TranslateFortranData2Py):

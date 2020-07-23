@@ -1,7 +1,7 @@
 import f90nml
 import os
-import fv3.utils.gt4py_utils as utils
-from fv3.utils.grid import Grid
+import fv3core.utils.gt4py_utils as utils
+from fv3core.utils.grid import Grid
 import gt4py.gtscript as gtscript
 
 grid = None

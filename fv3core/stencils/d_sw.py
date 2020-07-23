@@ -1,21 +1,21 @@
 #!/usr/bin/env python3
-import fv3.utils.gt4py_utils as utils
-import fv3.utils.global_constants as constants
-import fv3.utils.corners as corners
+import fv3core.utils.gt4py_utils as utils
+import fv3core.utils.global_constants as constants
+import fv3core.utils.corners as corners
 import gt4py.gtscript as gtscript
-import fv3._config as spec
-import fv3.stencils.fxadv as fxadv
-import fv3.stencils.fvtp2d as fvtp2d
-import fv3.stencils.flux_capacitor as fluxcap
-import fv3.stencils.delnflux as delnflux
-import fv3.stencils.heatdiss as heatdiss
-import fv3.stencils.vbke as vbke
-import fv3.stencils.ytp_v as ytp_v
-import fv3.stencils.xtp_u as xtp_u
-import fv3.stencils.ubke as ubke
-import fv3.stencils.basic_operations as basic
-import fv3.stencils.vorticity_volumemean as vort_mean
-import fv3.stencils.divergence_damping as divdamp
+import fv3core._config as spec
+import fv3core.stencils.fxadv as fxadv
+import fv3core.stencils.fvtp2d as fvtp2d
+import fv3core.stencils.flux_capacitor as fluxcap
+import fv3core.stencils.delnflux as delnflux
+import fv3core.stencils.heatdiss as heatdiss
+import fv3core.stencils.vbke as vbke
+import fv3core.stencils.ytp_v as ytp_v
+import fv3core.stencils.xtp_u as xtp_u
+import fv3core.stencils.ubke as ubke
+import fv3core.stencils.basic_operations as basic
+import fv3core.stencils.vorticity_volumemean as vort_mean
+import fv3core.stencils.divergence_damping as divdamp
 from gt4py.gtscript import computation, interval, PARALLEL
 import logging
 

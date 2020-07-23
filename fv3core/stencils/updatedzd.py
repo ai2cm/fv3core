@@ -1,13 +1,13 @@
-import fv3.utils.gt4py_utils as utils
-from fv3.utils.corners import fill_4corners
+import fv3core.utils.gt4py_utils as utils
+from fv3core.utils.corners import fill_4corners
 import gt4py.gtscript as gtscript
-import fv3._config as spec
-import fv3.stencils.copy_stencil as cp
+import fv3core._config as spec
+import fv3core.stencils.copy_stencil as cp
 from gt4py.gtscript import computation, interval, PARALLEL, BACKWARD
-from fv3.stencils.fxadv import ra_x_func, ra_y_func
-import fv3.stencils.delnflux as delnflux
-import fv3.stencils.fvtp2d as fvtp2d
-import fv3.utils.global_constants as constants
+from fv3core.stencils.fxadv import ra_x_func, ra_y_func
+import fv3core.stencils.delnflux as delnflux
+import fv3core.stencils.fvtp2d as fvtp2d
+import fv3core.utils.global_constants as constants
 
 sd = utils.sd
 DZ_MIN = constants.DZ_MIN

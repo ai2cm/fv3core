@@ -7,7 +7,7 @@ import copy as cp
 import math
 import logging
 import functools
-from fv3.utils.mpi import MPI
+from fv3core.utils.mpi import MPI
 
 logger = logging.getLogger("fv3ser")
 backend = None  # Options: numpy, gtmc, gtx86, gtcuda, debug, dawn:gtmc

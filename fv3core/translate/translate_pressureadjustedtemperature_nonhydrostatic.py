@@ -1,5 +1,5 @@
 from .translate import TranslateFortranData2Py
-import fv3.stencils.temperature_adjust as temperature_adjust
+import fv3core.stencils.temperature_adjust as temperature_adjust
 
 
 class TranslatePressureAdjustedTemperature_NonHydrostatic(TranslateFortranData2Py):

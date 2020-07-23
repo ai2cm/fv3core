@@ -1,5 +1,5 @@
 from .parallel_translate import ParallelTranslate2PyState
-import fv3.stencils.fv_dynamics as fv_dynamics
+import fv3core.stencils.fv_dynamics as fv_dynamics
 import copy
 
 

@@ -1,10 +1,10 @@
-import fv3.utils.gt4py_utils as utils
+import fv3core.utils.gt4py_utils as utils
 import gt4py.gtscript as gtscript
 import gt4py.storage as gt_storage
-import fv3._config as spec
+import fv3core._config as spec
 import numpy as np
 from gt4py.gtscript import computation, interval, PARALLEL
-import fv3.utils.corners as corners
+import fv3core.utils.corners as corners
 
 sd = utils.sd
 origin = utils.origin

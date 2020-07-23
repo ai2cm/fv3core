@@ -1,5 +1,5 @@
 from .parallel_translate import ParallelTranslate2Py
-import fv3.stencils.rayleigh_friction as ray_friction
+import fv3core.stencils.rayleigh_friction as ray_friction
 
 
 class TranslateRayleigh_Friction(ParallelTranslate2Py):

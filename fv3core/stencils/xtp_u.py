@@ -1,5 +1,5 @@
-import fv3.utils.gt4py_utils as utils
-import fv3._config as spec
+import fv3core.utils.gt4py_utils as utils
+import fv3core._config as spec
 from .xppm import (
     compute_al,
     flux_intermediates,
@@ -16,7 +16,7 @@ from .xppm import (
     s14,
     s11,
 )
-import fv3.stencils.xppm as xppm
+import fv3core.stencils.xppm as xppm
 from gt4py.gtscript import computation, interval, PARALLEL
 
 sd = utils.sd

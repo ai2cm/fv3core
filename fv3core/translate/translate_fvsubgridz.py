@@ -1,8 +1,8 @@
 from .parallel_translate import ParallelTranslateBaseSlicing
-import fv3.stencils.fv_subgridz as fv_subgridz
-import fv3util
-import fv3.utils.gt4py_utils as utils
-import fv3._config as spec
+import fv3core.stencils.fv_subgridz as fv_subgridz
+import fv3core.til
+import fv3core.utils.gt4py_utils as utils
+import fv3core._config as spec
 
 # NOTE, does no halo updates, does not need to be a Parallel test,
 # but doing so here to make the interface match fv_dynamics.

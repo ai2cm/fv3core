@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-import fv3.utils.gt4py_utils as utils
+import fv3core.utils.gt4py_utils as utils
 import gt4py.gtscript as gtscript
-import fv3._config as spec
-import fv3.stencils.moist_cv as moist_cv
+import fv3core._config as spec
+import fv3core.stencils.moist_cv as moist_cv
 from gt4py.gtscript import computation, interval, PARALLEL
-import fv3.utils.global_constants as constants
-from fv3.stencils.basic_operations import max_fn, min_fn, dim
+import fv3core.utils.global_constants as constants
+from fv3core.stencils.basic_operations import max_fn, min_fn, dim
 import math
 import numpy as np
 

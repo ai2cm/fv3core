@@ -1,5 +1,5 @@
 from .translate import TranslateFortranData2Py
-import fv3.stencils.nh_p_grad as NH_P_Grad
+import fv3core.stencils.nh_p_grad as NH_P_Grad
 
 
 class TranslateNH_P_Grad(TranslateFortranData2Py):

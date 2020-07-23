@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-import fv3.utils.gt4py_utils as utils
+import fv3core.utils.gt4py_utils as utils
 import gt4py.gtscript as gtscript
-import fv3._config as spec
+import fv3core._config as spec
 from gt4py.gtscript import computation, interval, PARALLEL
 
 sd = utils.sd

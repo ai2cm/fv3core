@@ -1,5 +1,5 @@
 from .translate import TranslateFortranData2Py
-import fv3.stencils.heatdiss as heatdiss
+import fv3core.stencils.heatdiss as heatdiss
 
 
 class TranslateHeatDiss(TranslateFortranData2Py):
