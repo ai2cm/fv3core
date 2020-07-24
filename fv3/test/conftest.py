@@ -13,7 +13,7 @@ import gt4py as gt
 from fv3.utils.mpi import MPI
 
 # get MPI environment
-sys.path.append("/serialbox2/install/python")  # noqa
+sys.path.append("/usr/src/serialbox/install/python")  # noqa
 import serialbox
 
 
