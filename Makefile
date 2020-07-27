@@ -11,19 +11,25 @@ PULL ?=True
 NUM_RANKS ?=6
 VOLUMES ?=
 MOUNTS ?=
+
 TEST_DATA_HOST ?=$(CWD)/test_data/$(EXPERIMENT)
 FV3_IMAGE ?=$(GCR_URL)/fv3core:$(FV3CORE_VERSION)
+FV3UTIL_DIR=$(CWD)/external/fv3util
+DEV_MOUNTS = '-v $(CWD)/fv3core:/fv3core/fv3core -v $(CWD)/tests:/fv3core/tests -v $(FV3UTIL_DIR):/usr/src/fv3util'
 
 FV3_INSTALL_TARGET=fv3core-install
 FV3_INSTALL_IMAGE=$(GCR_URL)/$(FV3_INSTALL_TARGET):latest
 
-FV3UTIL_DIR=$(CWD)/external/fv3gfs-python/external/fv3util
+
 TEST_DATA_CONTAINER=/test_data
 
 PYTHON_FILES = $(shell git ls-files | grep -e 'py$$' | grep -v -e '__init__.py')
 PYTHON_INIT_FILES = $(shell git ls-files | grep '__init__.py')
 TEST_DATA_TARFILE=dat_files.tar.gz
 TEST_DATA_TARPATH=$(TEST_DATA_HOST)/$(TEST_DATA_TARFILE)
+
+clean:
+	find . -name ""
 
 update_submodules:
 	if [ ! -d $(FV3UTIL_DIR) ]; then \
@@ -41,7 +47,7 @@ build_environment:
 
 build: update_submodules
 	if [ $(PULL) == True ]; then \
-		$(MAKE) pull_environment; \
+		$(MAKE) pull_environment_if_needed; \
 	else \
 		$(MAKE) build_environment; \
 	fi
@@ -52,16 +58,32 @@ build: update_submodules
 		-t $(FV3_IMAGE) \
 		.
 
-pull_environment:
+pull_environment_if_needed:
 	if [ -z $(shell docker images -q $(FV3_INSTALL_IMAGE)) ]; then \
 		docker pull $(FV3_INSTALL_IMAGE); \
 	fi
+
+pull_environment:
+	docker pull $(FV3_INSTALL_IMAGE)
 
 push_environment:
 	docker push $(FV3_INSTALL_IMAGE)
 
 rebuild_environment: build_environment
 	$(MAKE) push_environment
+
+
+tests: build
+	$(MAKE) get_test_data
+	$(MAKE) run_tests_sequential
+
+test: tests
+
+tests_mpi: build
+	$(MAKE) get_test_data
+	$(MAKE) run_tests_parallel
+
+test_mpi: tests_mpi
 
 dev:
 	docker run --rm -it \
@@ -70,31 +92,28 @@ dev:
 		-v $(CWD):/port_dev \
 		$(FV3_IMAGE)
 
-tests: build
-	$(MAKE) get_test_data
-	$(MAKE) run_tests_sequential
-
-tests_mpi: build
-	$(MAKE) get_test_data
-	$(MAKE) run_tests_parallel
 
 dev_tests:
-	MOUNTS='-v $(CWD)/fv3:/fv3' \
-    $(MAKE) run_tests_sequential
+	MOUNTS=$(DEV_MOUNTS) $(MAKE) run_tests_sequential
 
 dev_tests_mpi:
-	MOUNTS='-v $(CWD)/fv3:/fv3' \
-    $(MAKE) run_tests_parallel
+	MOUNTS=$(DEV_MOUNTS) $(MAKE) run_tests_parallel
 
+dev_test_mpi: dev_tests_mpi
+
+
+dev_tests_mpi_host:
+	MOUNTS=$(DEV_MOUNTS) $(MAKE) run_tests_parallel_host
 
 test_base:
 	docker run --rm $(VOLUMES) $(MOUNTS) \
-	$(FV3_IMAGE) pytest --data_path=$(TEST_DATA_CONTAINER) ${TEST_ARGS} /fv3/test
+	$(FV3_IMAGE) pytest --data_path=$(TEST_DATA_CONTAINER) ${TEST_ARGS} /fv3core/tests
 
 test_base_parallel:
 	docker run --rm $(VOLUMES) $(MOUNTS) $(FV3_IMAGE) \
 	mpirun -np $(NUM_RANKS) \
-	pytest --data_path=$(TEST_DATA_CONTAINER) ${TEST_ARGS} -m parallel /fv3/test
+	pytest --data_path=$(TEST_DATA_CONTAINER) ${TEST_ARGS} -m parallel /fv3core/tests
+
 
 run_tests_sequential:
 	VOLUMES='-v $(TEST_DATA_HOST):$(TEST_DATA_CONTAINER)' \
@@ -103,7 +122,6 @@ run_tests_sequential:
 run_tests_parallel:
 	VOLUMES='-v $(TEST_DATA_HOST):$(TEST_DATA_CONTAINER)' \
 	$(MAKE) test_base_parallel
-
 
 get_test_data:
 	if [ ! -d $(TEST_DATA_HOST) ]; then \

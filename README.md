@@ -62,7 +62,7 @@ $ make dev
 Then in the container:
 
 ```shell
-$ pytest -v -s --data_path=/test_data/ /port_dev/fv3/test --which_modules=<stencil name>
+$ pytest -v -s --data_path=/test_data/ /port_dev/tests --which_modules=<stencil name>
 ```
 The 'stencil name' can be determined from the associated Translate class. e.g. TranslateXPPM is a test class that translate data serialized from a run of the fortran model, and 'XPPM' is the name you can use with --which_modules.
 
@@ -125,12 +125,12 @@ These are usually named `fv3/translate/translate_<lowercase name>`
 
 3. Write a Python function wrapper that the translate function (created above) calls.
 
-By convention, we name these `fv3/stencils/<lower case stencil name>.py`
+By convention, we name these `fv3core/stencils/<lower case stencil name>.py`
 
 4. Run the test, either with one name or a comma-separated list
 
 ```shell
-$ pytest -–which_modules=<stencil name(s)>
+$ make dev_tests TEST_ARGS="-–which_modules=<stencil name(s)>"
 ```
 
 
