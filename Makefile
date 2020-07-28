@@ -32,7 +32,7 @@ clean:
 	find . -name ""
 
 update_submodules:
-	if [ ! -d $(FV3UTIL_DIR) ]; then \
+	if [ ! -f $(FV3UTIL_DIR)/requirements.txt  ]; then \
 		git submodule update --init --recursive; \
 	fi
 
