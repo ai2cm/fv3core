@@ -64,4 +64,3 @@ RUN git clone -b v2.6.0 --depth 1 https://github.com/GridTools/serialbox.git /us
     mkdir build && cd build && \
     cmake -DSERIALBOX_USE_NETCDF=ON -DSERIALBOX_TESTING=ON ../ && \
     make -j8 && make install
-RUN apt-get update && apt-get install -y libglib2.0-0 
