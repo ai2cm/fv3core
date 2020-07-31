@@ -1,4 +1,4 @@
-FROM ubuntu:19.10 as fv3core-install
+FROM ubuntu:19.10 as fv3core-install-base
 COPY requirements_hpc.txt requirements_hpc.txt
 ###
 ### Install some prerequisite system packages
@@ -18,10 +18,7 @@ RUN apt-get update && apt-get install -y \
 ### Download necessary source code tarballs and directories
 ###
 RUN wget -q http://www.mpich.org/static/downloads/3.1.4/mpich-3.1.4.tar.gz && \
-    wget -q https://dl.bintray.com/boostorg/release/1.73.0/source/boost_1_73_0.tar.gz && \
-    git clone --depth 1 -b fv3_validation https://github.com/eddie-c-davis/gt4py.git /usr/src/gt4py && \
-    git clone https://github.com/MeteoSwiss-APN/dawn.git /usr/src/dawn && \
-    git clone -b v2.6.0 --depth 1 https://github.com/GridTools/serialbox.git /usr/src/serialbox 
+    wget -q https://dl.bintray.com/boostorg/release/1.73.0/source/boost_1_73_0.tar.gz
 ###
 ### Build and install MPICH
 ###
@@ -42,7 +39,12 @@ RUN tar xzf mpich-3.1.4.tar.gz && \
 #    cd .. && rm boost_1_73_0.tar.gz 
 RUN tar xzf boost_1_73_0.tar.gz -C /usr/local && \
     cd /usr/local/boost_1_73_0 && \
-    cp -r boost /usr/include/ 
+    cp -r boost /usr/include/
+###
+### Download repos that we want to stay up to date with
+###
+RUN git clone --depth 1 https://github.com/GridTools/gt4py.git /usr/src/gt4py && \
+    git clone https://github.com/MeteoSwiss-APN/dawn.git /usr/src/dawn
 ###
 ### Build and install GT4Py and DAWN
 ###
@@ -53,10 +55,13 @@ RUN export BOOST_HOME=/usr/local/boost_1_73_0 CPP_FLAGS="-I/usr/local/boost_1_73
     pip wheel /usr/src/dawn/dawn
 RUN pip3 install --no-cache-dir /usr/src/dawn/dawn4py-0.0.2-cp37-cp37m-linux_x86_64.whl && \
     pip3 install --no-cache-dir /usr/src/gt4py
+
+FROM fv3core-install-base as fv3core-install
 ###
 ### Build and install Serialbox 
 ###
-RUN cd /usr/src/serialbox && \
+RUN git clone -b v2.6.0 --depth 1 https://github.com/GridTools/serialbox.git /usr/src/serialbox  && cd /usr/src/serialbox && \
     mkdir build && cd build && \
     cmake -DSERIALBOX_USE_NETCDF=ON -DSERIALBOX_TESTING=ON ../ && \
     make -j8 && make install
+RUN apt-get update && apt-get install -y libglib2.0-0 
