@@ -27,6 +27,7 @@ PYTHON_FILES = $(shell git ls-files | grep -e 'py$$' | grep -v -e '__init__.py')
 PYTHON_INIT_FILES = $(shell git ls-files | grep '__init__.py')
 TEST_DATA_TARFILE=dat_files.tar.gz
 TEST_DATA_TARPATH=$(TEST_DATA_HOST)/$(TEST_DATA_TARFILE)
+CORE_TAR=fv3core.tar
 
 clean:
 	find . -name ""
@@ -72,6 +73,12 @@ push_environment:
 rebuild_environment: build_environment
 	$(MAKE) push_environment
 
+push_core:
+	docker push $(FV3_IMAGE)
+
+tar_core:
+	docker save $(FV3_IMAGE) -o $(CORE_TAR)
+	gsutil copy $(CORE_TAR) gs://vcm-ml-public/jenkins-tmp/$(CORE_TAR)
 
 tests: build
 	$(MAKE) get_test_data
