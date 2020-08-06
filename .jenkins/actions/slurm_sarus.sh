@@ -34,7 +34,7 @@ script="${envloc}/env/submit.${host}.slurm"
 test -f ${script} || exitError 1252 ${LINENO} "cannot find script ${script}"
 
 # define command
-cmd="module load sarus\n export CONTAINER=load/library/fv3core:latest\n ${mpilaunch} sarus run --mount=type=bind,source=/scratch/snx3000/rgeorge/test_data/c12_6ranks_standard,destination=/test_data ${CONTAINER} pytest --data_path=/test_data -v -s -rsx /fv3core/tests"
+cmd="module load sarus\n${mpilaunch} sarus run --mount=type=bind,source=/scratch/snx3000/rgeorge/test_data/c12_6ranks_standard,destination=/test_data load/library/fv3core:latest pytest --data_path=/test_data -v -s -rsx /fv3core/tests"
 
 # setup SLURM job
 out="fv3core_${BUILD_ID}.out"
