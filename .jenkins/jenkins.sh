@@ -1,0 +1,99 @@
+#!/bin/bash -f
+# This is the master script used to trigger Jenkins actions.
+# The idea of this script is to keep the amount of code in the "Execute shell" field small
+#
+# Example syntax:
+# .jenkins/jenkins.sh test
+#
+# Other actions such as test/build/deploy can be defined.
+
+### Some environment variables available from Jenkins
+### Note: for a complete list see https://jenkins.ginko.ch/env-vars.html
+# host              The name of the build host (daint, kesch, ...).
+# BUILD_NUMBER       The current build number, such as "153".
+# BUILD_ID           The current build id, such as "2005-08-22_23-59-59" (YYYY-MM-DD_hh-mm-ss).
+# BUILD_DISPLAY_NAME The display name of the current build, something like "#153" by default.
+# NODE_NAME          Name of the host.
+# NODE_LABELS        Whitespace-separated list of labels that the node is assigned.
+# JENKINS_HOME       The absolute path of the data storage directory assigned on the master node.
+# JENKINS_URL        Full URL of Jenkins, like http://server:port/jenkins/
+# BUILD_URL          Full URL of this build, like http://server:port/jenkins/job/foo/15/
+# JOB_URL            Full URL of this job, like http://server:port/jenkins/job/foo/
+
+exitError()
+{
+    echo "ERROR $1: $3" 1>&2
+    echo "ERROR     LOCATION=$0" 1>&2
+    echo "ERROR     LINE=$2" 1>&2
+    exit $1
+}
+
+# echo basic setup
+echo "####### executing: $0 $* (PID=$$ HOST=$HOSTNAME TIME=`date '+%D %H:%M:%S'`)"
+
+# start timer
+T="$(date +%s)"
+
+# check sanity of environment
+test -n "$1" || exitError 1001 ${LINENO} "must pass an argument"
+test -n "${host}" || exitError 1005 ${LINENO} "host is not defined"
+shorthost=`echo ${host} | sed 's/[0-9]*$//g'`
+
+# some global variables
+action="$1"
+optarg="$2"
+
+# check presence of env directory
+pushd `dirname $0` > /dev/null
+envloc=`/bin/pwd`
+popd > /dev/null
+
+# Download the env
+. ${envloc}/env.sh
+
+# setup module environment and default queue
+test -f ${envloc}/env/machineEnvironment.sh || exitError 1201 ${LINENO} "cannot find machineEnvironment.sh script"
+. ${envloc}/env/machineEnvironment.sh
+
+# check that host (define in machineEnvironment.sh) and shorthost are consistent
+echo ${host} | grep "${shorthost}" || exitError 1006 ${LINENO} "host does not contain shorthost"
+
+# get root directory of where jenkins.sh is sitting
+root=`dirname $0`
+
+# load machine dependent environment
+if [ ! -f ${envloc}/env/env.${host}.sh ] ; then
+    exitError 1202 ${LINENO} "could not find ${envloc}/env/env.${host}.sh"
+fi
+. ${envloc}/env/env.${host}.sh
+
+
+# load slurm tools
+if [ ! -f ${envloc}/env/slurmTools.sh ] ; then
+    exitError 1203 ${LINENO} "could not find ${envloc}/env/slurmTools.sh"
+fi
+. ${envloc}/env/slurmTools.sh
+
+# check if SLURM script exists
+submit_script="${envloc}/env/submit.${host}.slurm"
+test -f ${submit_script} || exitError 1252 ${LINENO} "cannot find script ${script}"
+
+# check if action script exists
+script="${root}/actions/${action}.sh"
+test -f "${script}" || exitError 1301 ${LINENO} "cannot find script ${script}"
+
+${script} ${slurm_script} ${optarg}
+if [ $? -ne 0 ] ; then
+  exitError 1510 ${LINENO} "problem while executing script ${script}"
+fi
+echo "### ACTION ${action} SUCCESSFUL"
+
+# end timer and report time taken
+T="$(($(date +%s)-T))"
+printf "####### time taken: %02d:%02d:%02d:%02d\n" "$((T/86400))" "$((T/3600%24))" "$((T/60%60))" "$((T%60))"
+
+# no errors encountered
+echo "####### finished: $0 $* (PID=$$ HOST=$HOSTNAME TIME=`date '+%D %H:%M:%S'`)"
+exit 0
+
+# so long, Earthling!
