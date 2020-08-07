@@ -1,5 +1,5 @@
 #!/bin/bash
 set -e
 set -x
-make tests
-make tests_mpi
+make tests TEST_ARGS="$ARGS"
+make tests_mpi TEST_ARGS="$ARGS"
