@@ -1,5 +1,4 @@
 envdir="${envloc}/env"
-if [ -z `which git`
 if [ -d "${envdir}" ] ; then
     pushd "${envdir}" > /dev/null
         `git pull &>/dev/null`
