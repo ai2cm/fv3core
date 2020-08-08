@@ -1,4 +1,4 @@
-#!/bin/bash -f
+#!/bin/bash
 set -e
 set -x
 # This is the master script used to trigger Jenkins actions.
