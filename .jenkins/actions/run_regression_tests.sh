@@ -3,7 +3,7 @@ envloc=$1
 BACKEND=$2
 ARGS="-v -s -rsx --backend=${BACKEND}"
 if [ "`hostname | grep daint`" != "" ] ; then
-
+. ${envloc}/env/machineEnvironment.sh
 # check if SLURM script exists
 script="${envloc}/env/submit.${host}.slurm"
 test -f ${script} || exitError 1252 ${LINENO} "cannot find script ${script}"
