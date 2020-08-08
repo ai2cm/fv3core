@@ -70,21 +70,11 @@ fi
 . ${envloc}/env/env.${host}.sh
 
 
-# load slurm tools
-if [ ! -f ${envloc}/env/slurmTools.sh ] ; then
-    exitError 1203 ${LINENO} "could not find ${envloc}/env/slurmTools.sh"
-fi
-. ${envloc}/env/slurmTools.sh
-
-# check if SLURM script exists
-submit_script="${envloc}/env/submit.${host}.slurm"
-test -f ${submit_script} || exitError 1252 ${LINENO} "cannot find script ${script}"
-
 # check if action script exists
 script="${root}/actions/${action}.sh"
 test -f "${script}" || exitError 1301 ${LINENO} "cannot find script ${script}"
 
-${script} ${slurm_script} ${optarg}
+${script} ${envloc} ${optarg}
 if [ $? -ne 0 ] ; then
   exitError 1510 ${LINENO} "problem while executing script ${script}"
 fi
