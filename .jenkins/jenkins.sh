@@ -1,9 +1,11 @@
 #!/bin/bash -f
+set -e
+set -x
 # This is the master script used to trigger Jenkins actions.
 # The idea of this script is to keep the amount of code in the "Execute shell" field small
 #
 # Example syntax:
-# .jenkins/jenkins.sh test
+# .jenkins/jenkins.sh run_regression_tests
 #
 # Other actions such as test/build/deploy can be defined.
 
