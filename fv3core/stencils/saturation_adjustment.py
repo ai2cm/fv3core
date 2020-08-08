@@ -51,7 +51,6 @@ def qs_init():
     satmix["des2"][length - 1] = satmix["des2"][length - 2]
     satmix["desw"][length - 1] = satmix["desw"][length - 2]
 
-
 def get_fac0(tem):
     return (tem - TICE) / (tem * TICE)
 
@@ -59,7 +58,39 @@ def get_fac0(tem):
 def get_fac2(tem, fac1, d):
     return (d * math.log(tem / TICE) + fac1) / constants.RVGAS
 
+@gtscript.function
+def get_fac0_fn(tem):
+    return (tem - TICE) / (tem * TICE)
 
+@gtscript.function
+def get_fac2_fn(tem, fac1, d):
+    return (d * log(tem / TICE) + fac1) / constants.RVGAS
+
+@gtscript.function
+def qs_table_fn(i):
+    table = 0
+    tem = TMIN + DELT * i
+    fac2 = get_fac2_fn(tem, get_fac0_fn(tem) * LI2, D2ICE)
+    table = E00 * exp(fac2)
+    if i >= 1600: # unecessary?
+        table = 0.
+    
+    tem = 253.16 + DELT * i
+    fac2 = get_fac2_fn(tem, get_fac0_fn(tem) * LV0, DC_VAP)
+    esh20 = E00 * exp(fac2)
+    if i >= 1221: # TODO if temporaries allowed in conditionals, check before the above code
+        esh20 = 0.0
+    if i >= 1600:
+        tem = 253.16 + DELT * (i - 1400)
+        fac2 = get_fac2_fn(tem, get_fac0_fn(tem) * LV0, DC_VAP)
+        esh206 = E00 * exp(fac2)
+        table = esh206
+    if i >= 1400 and i < 1600:
+        tem = 253.16 + DELT * i  # real (i - 1)
+        wice = 0.05 * (TICE - tem)
+        wh2o = 0.05 * (tem - 253.16)
+        table = wice * table + wh2o * esh20
+    return table
 # TODO refactor into streamlined array calcs
 def qs_table(n):
     esupc = np.zeros(200)
@@ -86,7 +117,22 @@ def qs_table(n):
         wh2o = 0.05 * (tem - 253.16)
         satmix["table"][i + 1400] = wice * satmix["table"][i + 1400] + wh2o * esupc[i]
 
-
+@gtscript.function
+def qs_table2_fn(i):
+    tem0 = TMIN + DELT * i
+    fac0 = get_fac0_fn(tem0)
+    if i < 1600:
+        # compute es over ice between - 160 deg c and 0 deg c.
+        fac2 = get_fac2_fn(tem0, fac0 * LI2, D2ICE)
+    else:
+        # compute es over water between 0 deg c and 102 deg c.
+        fac2 = get_fac2_fn(tem0, fac0 * LV0, DC_VAP)
+    table2 = E00 * exp(fac2)
+    #if i == 1599:
+    #    table2 = table2(i-1) + 2.0 * qs_table_fn(i) + qs_table2_fn(i+1)
+    #if i == 1600:
+    #    table2 = table2(i-1) + 2.0 * qs_table_fn(i) + qs_table2_fn(i+1)
+    return table2
 def qs_table2(n):
     for i in range(n):
         tem0 = TMIN + DELT * i
@@ -109,12 +155,37 @@ def qs_table2(n):
         satmix["table2"][i] = v
 
 
+@gtscript.function
+def qs_tablew_fn(i):
+    tem = TMIN + DELT * i
+    fac2 = get_fac2_fn(tem, get_fac0_fn(tem) * LV0, DC_VAP)
+    return  E00 * exp(fac2)
+
 def qs_tablew(n):
     for i in range(n):
         tem = TMIN + DELT * i
         fac2 = get_fac2(tem, get_fac0(tem) * LV0, DC_VAP)
         satmix["tablew"][i] = E00 * math.exp(fac2)
 
+
+@gtscript.function
+def des2_table(i):
+    #des2 = 0.
+    #if i ==  QS_LENGTH - 1:
+    #    des2 = des2_table(i - 1)
+    #else:
+    #    des2 = max(0.0, qs_table2(i+1) - qs_table2(i))
+    #return des2
+    return max(0.0, qs_table2_fn(i+1) - qs_table2_fn(i))
+@gtscript.function
+def desw_table(i):
+    #desw = 0.
+    #if i ==  QS_LENGTH - 1:
+    #    desw = desw_table(i - 1)
+    #else:
+    #    desw = max(0.0, qs_tablew(i+1) - qs_tablew(i))
+    #return desw
+    return max(0.0, qs_tablew_fn(i+1) - qs_tablew_fn(i))
 
 @gtscript.function
 def compute_cvm(mc_air, qv, c_vap, q_liq, q_sol):
@@ -663,7 +734,7 @@ def satadjust_part2(
         dimmin = min_fn(1.0, diff_ice)
         tcp3 = lcp2 + icp2 * dimmin
 
-
+# TODO reading in ql0_max as a runtime argument causes problems for the if statement
 @utils.stencil()
 def satadjust_part3(
     wqsat: sd,
@@ -676,17 +747,27 @@ def satadjust_part3(
     lhi: sd,
     lcp2: sd,
     icp2: sd,
-    last_step: bool,
     qv: sd,
     ql: sd,
     q_liq: sd,
     qi: sd,
     q_sol: sd,
+    den: sd,
+    qr: sd,
+    qg: sd,
+    qs: sd,
     fac_v2l: float,
     fac_l2v: float,
     lv00: float,
     d0_vap: float,
     c_vap: float,
+    mdt: float,
+    fac_r2g: float,
+    fac_smlt: float,
+    fac_l2r: float,
+    qs_mlt: float,
+    ql0_max: float,
+    last_step: bool,
 ):
     with computation(PARALLEL), interval(...):
         dq0 = 0.0
@@ -724,38 +805,7 @@ def satadjust_part3(
         )
         # update some of the latent heat coefficients
         lhi, icp2 = update_latent_heat_coefficient_i(pt1, cvm)
-
-
-# TODO reading in ql0_max as a runtime argument causes problems for the if statement
-@utils.stencil()
-def satadjust_part4(
-    den: sd,
-    pt1: sd,
-    cvm: sd,
-    mc_air: sd,
-    lhl: sd,
-    lhi: sd,
-    lcp2: sd,
-    icp2: sd,
-    exptc: sd,
-    qv: sd,
-    ql: sd,
-    q_liq: sd,
-    qi: sd,
-    q_sol: sd,
-    qr: sd,
-    qg: sd,
-    qs: sd,
-    c_vap: float,
-    mdt: float,
-    fac_r2g: float,
-    fac_smlt: float,
-    fac_l2r: float,
-    qs_mlt: float,
-    ql0_max: float,
-    last_step: bool,
-):
-    with computation(PARALLEL), interval(...):
+        exptc = exp(0.66 * (TICE0 - pt1))
         # bigg mechanism (heterogeneous freezing of cloud water to cloud ice)
         ql, qi, q_liq, q_sol, cvm, pt1 = heterogeneous_freezing(
             exptc,
@@ -1169,39 +1219,19 @@ def compute(
         lhi,
         lcp2,
         icp2,
-        last_step,
         qvapor,
         qliquid,
         q_liq,
         qice,
         q_sol,
+        den,
+        qrain,
+        qgraupel,
+        qsnow,
         fac_v2l,
         fac_l2v,
         lv00,
         d0_vap,
-        c_vap,
-        origin=origin,
-        domain=domain,
-    )
-    exptc = np.exp(0.66 * (TICE0 - pt1))
-    satadjust_part4(
-        den,
-        pt1,
-        cvm,
-        mc_air,
-        lhl,
-        lhi,
-        lcp2,
-        icp2,
-        exptc,
-        qvapor,
-        qliquid,
-        q_liq,
-        qice,
-        q_sol,
-        qrain,
-        qgraupel,
-        qsnow,
         c_vap,
         mdt,
         fac_r2g,
@@ -1213,6 +1243,7 @@ def compute(
         origin=origin,
         domain=domain,
     )
+    
     iqs2 = utils.make_storage_from_shape(peln.shape, utils.origin)
     dqsdt = utils.make_storage_from_shape(peln.shape, utils.origin)
     wqs2_iqs2(pt1, den, iqs2, dqsdt, tablename="table2", desname="des2")
