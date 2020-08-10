@@ -121,20 +121,7 @@ def qs_table(n):
         satmix["table"][i + 1400] = wice * satmix["table"][i + 1400] + wh2o * esupc[i]
 
 
-@gtscript.function
-def qs_table2_1599(i):
-    tem0 = TMIN + DELT * i
-    fac0 = get_fac0_fn(tem0)
-    fac2 = 0.
-    if i < 1600:
-        # compute es over ice between - 160 deg c and 0 deg c.
-        #fac2 = get_fac2_fn(tem0, fac0 * LI2, D2ICE)
-        fac2 = (D2ICE * log(tem0 / TICE) + fac0 * LI2) / constants.RVGAS
-    else:
-        # compute es over water between 0 deg c and 102 deg c.
-        #fac2 = get_fac2_fn(tem0, fac0 * LV0, DC_VAP)
-        fac2 = (DC_VAP * log(tem0 / TICE) + fac0 * LV0) / constants.RVGAS
-    table2 = E00 * exp(fac2)
+
 @gtscript.function
 def qs_table2_fn(i):
     tem0 = TMIN + DELT * i
@@ -152,6 +139,7 @@ def qs_table2_fn(i):
     # TODO what a mess
     table2_m1=0.
     table2_p1 = 0.
+    # TODO bring these in as external storages precomputed? copy all that code?
     table_1599 =  qs_table_fn(1599)
     table_1600 =  qs_table_fn(1600)
     if i == 1599:
@@ -219,25 +207,35 @@ def qs_tablew(n):
             # 113.16000000000003 -30.740311242079944 611.21 4.46326276324293e-14 2.7279908335217112e-11
         satmix["tablew"][i] = E00 * math.exp(fac2)
 
-
+#TODO always computing des2end, ick
 @gtscript.function
 def des2_table(i):
-    #des2 = 0.
-    #if i ==  QS_LENGTH - 1:
-    #    des2 = des2_table(i - 1)
-    #else:
-    #    des2 = max(0.0, qs_table2(i+1) - qs_table2(i))
-    #return des2
-    return max(0.0, qs_table2_fn(i+1) - qs_table2_fn(i))
+    t_p1 = qs_table2_fn(i+1)
+    t = qs_table2_fn(i)
+    diff = t_p1 - t
+    z = 0.0
+    des2 = max(z, diff)
+    t_m1 = qs_table2_fn(i - 1)
+    diffend = t - t_m1
+    des2end = max(z, diffend)
+    if i == QS_LENGTH - 1:
+        des2 = des2end
+    return des2
+#TODO always computing deswend, ick
 @gtscript.function
 def desw_table(i):
-    #desw = 0.
-    #if i ==  QS_LENGTH - 1:
-    #    desw = desw_table(i - 1)
-    #else:
-    #    desw = max(0.0, qs_tablew(i+1) - qs_tablew(i))
-    #return desw
-    return max(0.0, qs_tablew_fn(i+1) - qs_tablew_fn(i))
+    t_p1 = qs_tablew_fn(i+1)
+    t = qs_tablew_fn(i)
+    diff = t_p1 - t
+    z = 0.0
+    desw = max(z, diff)
+    t_m1 = qs_tablew_fn(i - 1)
+    diffend = t - t_m1
+    deswend = max(z, diffend)
+    if i == QS_LENGTH - 1:
+        desw = deswend
+    return desw
+   
 
 @gtscript.function
 def compute_cvm(mc_air, qv, c_vap, q_liq, q_sol):
@@ -572,12 +570,12 @@ def wqs2_stencil(
     den: sd,
     ap1: sd,
     tablew: sd,
-    it: si,
-    it2: sd,
+    #it: si,
+    #it2: si,
     #tablew_lookup: sd,
-    desw_lookup: sd,
-    desw2_lookup: sd,
-    desw_p1_lookup: sd,
+    #desw_lookup: sd,
+    #desw2_lookup: sd,
+    #desw_p1_lookup: sd,
     wqsat: sd,
     dqdt: sd,
     tw: bool
@@ -585,15 +583,28 @@ def wqs2_stencil(
     with computation(PARALLEL), interval(...):
         ap1 = 10 * dim(ta, TMIN) + 1
         ap1 = min_fn(ap1, QS_LENGTH) - 1
+        it = 0
         it = ap1
         tablew = qs_tablew_fn(it)
         table2 = qs_table2_fn(it)
+        desw = desw_table(it)
+        des2 = des2_table(it)
+        it2 = 0
+        it2 = (ap1 - 0.5)
+        it2_p1 = it2 + 1
+        desw2 = desw_table(it2)
+        des22 = des2_table(it2)
+        desw_p1 = desw_table(it2_p1)
+        des2_p1 = des2_table(it2_p1)
         if not tw:
             tablew = table2
-        es = tablew + (ap1 - it) * desw_lookup
+            desw = des2
+            desw2 = des22
+            desw_p1 = des2_p1
+        es = tablew + (ap1 - it) * desw 
         denom = constants.RVGAS * ta * den
         wqsat = es / denom
-        dqdt = 10.0 * (desw2_lookup + (ap1 - it2) * (desw_p1_lookup - desw2_lookup))
+        dqdt = 10.0 * (desw2 + (ap1 - it2) * (desw_p1 - desw2))
         dqdt = dqdt / denom
 
 
@@ -621,27 +632,29 @@ def wqs2_iqs2(ta, den, wqsat, dqdt, tablename="tablew", desname="desw"):
     itgt = utils.make_storage_from_shape(ta.shape, utils.origin, dtype=np.int)
    
     #tablew_lookup = utils.make_storage_data(satmix[tablename][it], ta.shape)
-    desw_lookup = utils.make_storage_data(satmix[desname][it], ta.shape)
+    #desw_lookup = utils.make_storage_data(satmix[desname][it], ta.shape)
     it2 = (ap1 - 0.5).data.astype(int)
-    it2gt = utils.make_storage_data(it2, ta.shape)
-    desw2_lookup = utils.make_storage_data(satmix[desname][it2], ta.shape)
-    desw2_p1_lookup = utils.make_storage_data(satmix[desname][it2 + 1], ta.shape)
+    #it2gt = utils.make_storage_data(it2, ta.shape)
+    it2gt = utils.make_storage_from_shape(ta.shape, utils.origin, dtype=np.int)
+    #desw2_lookup = utils.make_storage_data(satmix[desname][it2], ta.shape)
+    #desw2_p1_lookup = utils.make_storage_data(satmix[desname][it2 + 1], ta.shape)
     wqs2_stencil(
         ta,
         den,
         ap1,
         tablew,
-        itgt,
-        it2gt,
+        #itgt,
+        #it2gt,
         #tablew_lookup,
-        desw_lookup,
-        desw2_lookup,
-        desw2_p1_lookup,
+        #desw_lookup,
+        #desw2_lookup,
+        #desw2_p1_lookup,
         wqsat,
         dqdt,tablename == "tablew",
         origin=(0, 0, 0),
         domain=spec.grid.domain_shape_standard(),
     )
+    '''
     tablef = utils.make_storage_from_shape(ta.shape, utils.origin)
     faketable(tablef, itgt, origin=(0, 0, 0), domain=spec.grid.domain_shape_standard(),)
     print(np.any(tablef.data != 0.0))
@@ -655,7 +668,7 @@ def wqs2_iqs2(ta, den, wqsat, dqdt, tablename="tablew", desname="desw"):
                 if n != l:
                     print("bad table", i, j, k, n, l, it[i,j,k], itgt[i, j, k])
   
-    '''
+    
     print(tablew.shape, tablew_lookup.shape)
     print("----------TABLEW COMPARE",tablename, tablew[3, 3, 5], tablew_lookup[3, 3, 5], 'ap1', ap1[3, 3, 5], itgt[3, 3, 5])
     
