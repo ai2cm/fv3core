@@ -32,31 +32,6 @@ LAT2 = (constants.HLV + constants.HLF) ** 2  # used in bigg mechanism
 QS_LENGTH = 2621
 
 
-def qs_init():
-    length = QS_LENGTH
-    for tablename in satmix.keys():
-        if satmix[tablename] is None:
-            satmix[tablename] = np.zeros(length)
-        else:
-            return  # already initialized any table means initializec them all
-    qs_table(length)
-    qs_table2(length)
-    qs_tablew(length)
-    for i in range(length - 1):
-        satmix["des2"][i] = max(0.0, satmix["table2"][i + 1] - satmix["table2"][i])
-        satmix["desw"][i] = max(0.0, satmix["tablew"][i + 1] - satmix["tablew"][i])
-    satmix["des2"][length - 1] = satmix["des2"][length - 2]
-    satmix["desw"][length - 1] = satmix["desw"][length - 2]
-
-
-def get_fac0(tem):
-    return (tem - TICE) / (tem * TICE)
-
-
-def get_fac2(tem, fac1, d):
-    return (d * math.log(tem / TICE) + fac1) / constants.RVGAS
-
-
 @gtscript.function
 def get_fac0_fn(tem):
     return (tem - TICE) / (tem * TICE)
@@ -66,17 +41,16 @@ def get_fac0_fn(tem):
 def get_fac2_fn(tem, fac1, d):
     return (d * log(tem / TICE) + fac1) / constants.RVGAS
 
-
+#TODO math can be consolidated if we can call gtscript functions from conditionals, fac0 and fac2 functions and others
 @gtscript.function
 def qs_table_fn(i):
     table = 0.0
-    tem = TMIN + DELT * i
-    fac0 = get_fac0_fn(tem)
-    fac2 = get_fac2_fn(tem, fac0 * LI2, D2ICE)
-    table = E00 * exp(fac2)
-    if i >= 1600:  # unecessary?
+    if i < 1600:
+        tem = TMIN + DELT * i
+        table = E00 * exp((D2ICE * log(tem / TICE) +  (tem - TICE) / (tem * TICE) * LI2) / constants.RVGAS)
+    if i >= 1600:  
         table = 0.0
-    if i >= 1600 and i < (1400 + 1221):  # should not have to compute these unless > 1600, but gt4py temporaries error
+    if i >= 1600 and i < (1400 + 1221): 
         tem = 253.16 + DELT * (i - 1400)
         fac0 = (tem - TICE) / (tem * TICE)
         fac2 = (DC_VAP * log(tem / TICE) + fac0 * LV0) / constants.RVGAS
@@ -89,40 +63,13 @@ def qs_table_fn(i):
         fac0 = (tem - TICE) / (tem * TICE)
         fac2 = (DC_VAP * log(tem / TICE) + fac0 * LV0) / constants.RVGAS
         esupc = E00 * exp(fac2)
-        tem = 253.16 + DELT * (i - 1400)  # real (i - 1)
+        tem = 253.16 + DELT * (i - 1400)
         wice = 0.05 * (TICE - tem)
         wh2o = 0.05 * (tem - 253.16)
         table = wice * table + wh2o * esupc
     return table
 
-
-# TODO refactor into streamlined array calcs
-def qs_table(n):
-    esupc = np.zeros(200)
-    # compute es over ice between - 160 deg c and 0 deg c.
-    for i in range(1600):
-        tem = TMIN + DELT * i
-        fac2 = get_fac2(tem, get_fac0(tem) * LI2, D2ICE)
-        satmix["table"][i] = E00 * math.exp(fac2)
-
-    # compute es over water between - 20 deg c and 102 deg c.
-    for i in range(1221):
-        tem = 253.16 + DELT * i  # real (i - 1)
-        fac2 = get_fac2(tem, get_fac0(tem) * LV0, DC_VAP)
-        esh20 = E00 * math.exp(fac2)
-        if i < 200:
-            esupc[i] = esh20
-        else:
-            satmix["table"][i + 1400] = esh20  # TODO
-
-    #  derive blended es over ice and supercooled water between - 20 deg c and 0 deg c
-    for i in range(200):
-        tem = 253.16 + DELT * i  # real (i - 1)
-        wice = 0.05 * (TICE - tem)
-        wh2o = 0.05 * (tem - 253.16)
-        satmix["table"][i + 1400] = wice * satmix["table"][i + 1400] + wh2o * esupc[i]
-
-
+# TODO math can be consolidated if we can call gtscript functions from conditionals, fac0 and fac2 functions and others
 @gtscript.function
 def qs_table2_fn(i):
     tem0 = TMIN + DELT * i
@@ -137,58 +84,39 @@ def qs_table2_fn(i):
         # fac2 = get_fac2_fn(tem0, fac0 * LV0, DC_VAP)
         fac2 = (DC_VAP * log(tem0 / TICE) + fac0 * LV0) / constants.RVGAS
     table2 = E00 * exp(fac2)
-    # TODO what a mess
     table2_m1 = 0.0
     table2_p1 = 0.0
-    # TODO bring these in as external storages precomputed? copy all that code?
-    table_1599 = qs_table_fn(1599)
-    table_1600 = qs_table_fn(1600)
-    if i == 1599:
-        tem0 = TMIN + DELT * 1598
-        fac0 = (tem0 - TICE) / (tem0 * TICE)
-        fac2 = (D2ICE * log(tem0 / TICE) + fac0 * LI2) / constants.RVGAS
-        table2_m1 = E00 * exp(fac2)
-        tem0 = TMIN + DELT * 1600
-        fac0 = (tem0 - TICE) / (tem0 * TICE)
-        fac2 = (DC_VAP * log(tem0 / TICE) + fac0 * LV0) / constants.RVGAS
-        table2_p1 = E00 * exp(fac2)
-        table2 = 0.25 * (table2_m1 + 2.0 * table_1599 + table2_p1)
-    if i == 1600:
-        tem0 = TMIN + DELT * 1599
-        fac0 = (tem0 - TICE) / (tem0 * TICE)
-        fac2 = (D2ICE * log(tem0 / TICE) + fac0 * LI2) / constants.RVGAS
-        table2_m1 = E00 * exp(fac2)
-        tem0 = TMIN + DELT * 1601
-        fac0 = (tem0 - TICE) / (tem0 * TICE)
-        fac2 = (DC_VAP * log(tem0 / TICE) + fac0 * LV0) / constants.RVGAS
-        table2_p1 = E00 * exp(fac2)
-        table2 = 0.25 * (table2_m1 + 2.0 * table_1600 + table2_p1)
+    # TODO is there way to express the code below with something closer to this?:
     # if i == 1599:
     #    table2 = 0.25 * (table2(i-1) + 2.0 * qs_table_fn(i) + qs_table2_fn(i+1))
     # if i == 1600:
     #    table2 = 0.25 * (table2(i-1) + 2.0 * qs_table_fn(i) + qs_table2_fn(i+1))
-    return table2
-
-
-def qs_table2(n):
-    for i in range(n):
+    table = 0.
+    if i == 1599:
+        # table(i)
         tem0 = TMIN + DELT * i
-        fac0 = get_fac0(tem0)
-        if i < 1600:
-            # compute es over ice between - 160 deg c and 0 deg c.
-            fac2 = get_fac2(tem0, fac0 * LI2, D2ICE)
-        else:
-            # compute es over water between 0 deg c and 102 deg c.
-            fac2 = get_fac2(tem0, fac0 * LV0, DC_VAP)
-        satmix["table2"][i] = E00 * math.exp(fac2)
-
-    # smoother around 0 deg c
-    smooth_indices = {1599: None, 1600: None}
-    for i in smooth_indices.keys():
-        smooth_indices[i] = 0.25 * (satmix["table2"][i - 1] + 2.0 * satmix["table"][i] + satmix["table2"][i + 1])
-    for i, v in smooth_indices.items():
-        satmix["table2"][i] = v
-
+        table = E00 * exp((D2ICE * log(tem0 / TICE) +  (tem0 - TICE) / (tem0 * TICE) * LI2) / constants.RVGAS)
+        tem0 = 253.16 + DELT * (i - 1400)
+        table = (0.05 * (TICE - tem0)) * table + (0.05 * (tem0 - 253.16)) * (E00 * exp((DC_VAP * log(tem0 / TICE) + (tem0 - TICE) / (tem0 * TICE) * LV0) / constants.RVGAS))
+        # table2(i - 1)
+        tem0 = TMIN + DELT * 1598
+        table2_m1 = E00 * exp((D2ICE * log(tem0 / TICE) + (tem0 - TICE) / (tem0 * TICE) * LI2) / constants.RVGAS)
+        # table2(i + 1)
+        tem0 = TMIN + DELT * 1600
+        table2_p1 = E00 * exp((DC_VAP * log(tem0 / TICE) + (tem0 - TICE) / (tem0 * TICE) * LV0) / constants.RVGAS)
+        table2 = 0.25 * (table2_m1 + 2.0 * table + table2_p1)
+    if i == 1600:
+        # table(i)
+        tem0 = 253.16 + DELT * (i - 1400)
+        table = E00 * exp((DC_VAP * log(tem0 / TICE) + (tem0 - TICE) / (tem0 * TICE) * LV0) / constants.RVGAS)
+        # table2(i - 1)
+        tem0 = TMIN + DELT * 1599
+        table2_m1 = E00 * exp((D2ICE * log(tem0 / TICE) + (tem0 - TICE) / (tem0 * TICE) * LI2) / constants.RVGAS)
+        # table2(i + 1)
+        tem0 = TMIN + DELT * 1601
+        table2_p1 = E00 * exp((DC_VAP * log(tem0 / TICE) +  (tem0 - TICE) / (tem0 * TICE) * LV0) / constants.RVGAS)
+        table2 = 0.25 * (table2_m1 + 2.0 * table + table2_p1)
+    return table2
 
 @gtscript.function
 def qs_tablew_fn(i):
@@ -197,16 +125,7 @@ def qs_tablew_fn(i):
     fac2 = get_fac2_fn(tem, fac0 * LV0, DC_VAP)
     return E00 * exp(fac2)
 
-
-def qs_tablew(n):
-    for i in range(n):
-        tem = TMIN + DELT * i
-        fac0 = get_fac0(tem)
-        fac2 = get_fac2(tem, get_fac0(tem) * LV0, DC_VAP)
-        satmix["tablew"][i] = E00 * math.exp(fac2)
-
-
-# TODO always computing des2end, ick
+# TODO there might be a cleaner way to set des2[QS_LENGTH - 1] to des2[QS_LENGTH - 2]
 @gtscript.function
 def des2_table(i):
     t_p1 = qs_table2_fn(i + 1)
@@ -214,15 +133,19 @@ def des2_table(i):
     diff = t_p1 - t
     z = 0.0
     des2 = max(z, diff)
-    t_m1 = qs_table2_fn(i - 1)
-    diffend = t - t_m1
-    des2end = max(z, diffend)
+    t_m1 = 0.
+    tem0 = 0.
     if i == QS_LENGTH - 1:
-        des2 = des2end
+        # TODO if able to call function inside of conditional
+        #t_m1 = qs_table2_fn(i - 1)
+        tem0 = TMIN + DELT * (i - 1)
+        t_m1 = E00 * exp((DC_VAP * log(tem0 / TICE) + (tem0 - TICE) / (tem0 * TICE) * LV0) / constants.RVGAS)
+        diff = t - t_m1
+        des2 = max(z, diff)
     return des2
 
 
-# TODO always computing deswend, ick
+# TODO there might be a cleaner way to set desw[QS_LENGTH - 1] to desw[QS_LENGTH - 2]
 @gtscript.function
 def desw_table(i):
     t_p1 = qs_tablew_fn(i + 1)
@@ -230,11 +153,16 @@ def desw_table(i):
     diff = t_p1 - t
     z = 0.0
     desw = max(z, diff)
-    t_m1 = qs_tablew_fn(i - 1)
-    diffend = t - t_m1
-    deswend = max(z, diffend)
+    t_m1 = 0.
+    tem0 = 0.
     if i == QS_LENGTH - 1:
-        desw = deswend
+        # TODO if able to call function in this if
+        # t_m1 = qs_tablew_fn(i - 1)
+        tem0 = TMIN + DELT * (i - 1)
+        t_m1 = E00 * exp((DC_VAP * log(tem0 / TICE) +  (tem0 - TICE) / (tem0 * TICE) * LV0) / constants.RVGAS)
+        diff = t - t_m1
+        desw = max(z, diff)
+       
     return desw
 
 
@@ -482,13 +410,13 @@ def compute_dq0(qv, wqsat, dq2dt, tcp3):
 @gtscript.function
 def get_factor(wqsat, qv, fac_l2v):
     factor = fac_l2v * 10.0 * (1.0 - qv / wqsat)
-    factor = -1 if 1 < factor else -factor  # min_fn(1, factor) * -1
+    factor = - min(1, factor)
     return factor
 
 
 @gtscript.function
 def get_src(ql, factor, dq0):
-    src = -ql if ql < factor * dq0 else -factor * dq0  # min_func(ql, factor * dq0) * -1
+    src = - min(ql, factor * dq0)
     return src
 
 
@@ -679,7 +607,7 @@ def satadjust_part1(
 
 # TODO reading in ql0_max as a runtime argument causes problems for the if statement
 @utils.stencil()
-def satadjust_part3(
+def satadjust_part2(
     wqsat: sd, dq2dt: sd, pt1: sd, pt: sd, cvm: sd, mc_air: sd, tcp3: sd, lhl: sd, lhi: sd, lcp2: sd, icp2: sd, qv: sd, ql: sd, q_liq: sd, qi: sd, q_sol: sd, den: sd, qr: sd, qg: sd, qs: sd, cappa: sd, dp: sd, tin: sd, te0: sd, q_cond: sd, q_con: sd, sdt: float, adj_fac: float, zvir: float, fac_i2s: float, c_air: float, consv_te: bool, hydrostatic: bool, do_qa: bool, fac_v2l: float, fac_l2v: float, lv00: float, d0_vap: float, c_vap: float, mdt: float, fac_r2g: float, fac_smlt: float, fac_l2r: float, last_step: bool, qs_mlt: float, ql0_max: float,  t_sub: float, qi_gen: float, qi_lim: float, qi0_max: float, rad_snow: bool, rad_rain: bool, rad_graupel: bool, tintqs: bool,
 ):
     with computation(PARALLEL), interval(...):
@@ -787,7 +715,7 @@ def satadjust_part3(
 
 
 @utils.stencil()
-def satadjust_part6_laststep_qa(
+def satadjust_part3_laststep_qa(
         qa: sd, area: sd, qpz: sd, hs: sd, tin: sd, q_cond: sd, q_sol: sd, den: sd, dw_ocean: float, dw_land: float, icloud_f: int, cld_min: float,
 ):
     with computation(PARALLEL), interval(...):
@@ -867,7 +795,6 @@ def compute(
     namelist = spec.namelist
     origin = (grid.is_, grid.js, kmp)
     domain = (grid.nic, grid.njc, (grid.npz - kmp))
-    qs_init()
     hydrostatic = spec.namelist["hydrostatic"]
     sdt = 0.5 * mdt  # half remapping time step
     # define conversion scalar / factor
@@ -926,12 +853,12 @@ def compute(
             pt1, den, wqsat, dq2dt, origin=(0, 0, 0), domain=spec.grid.domain_shape_standard(),
         )
     do_qa = True  # TODO  -- this isn't a namelist option in Fortran, it is whether or not cld_amount is a tracer. If/when we support different sets of tracers, this will need to change
-    satadjust_part3(
+    satadjust_part2(
         wqsat, dq2dt, pt1, pt, cvm, mc_air, tcp3, lhl, lhi, lcp2, icp2, qvapor, qliquid, q_liq, qice, q_sol, den, qrain, qgraupel, qsnow, cappa, delp, tin, te, q_cond, q_con, sdt, adj_fac, r_vir, fac_i2s, c_air,  fast_mp_consv, hydrostatic, do_qa, fac_v2l, fac_l2v, lv00, d0_vap, c_vap, mdt, fac_r2g, fac_smlt, fac_l2r,  last_step, namelist["qs_mlt"], namelist["ql0_max"], namelist["t_sub"], namelist["qi_gen"], namelist["qi_lim"], namelist["qi0_max"],  namelist["rad_snow"], namelist["rad_rain"], namelist["rad_graupel"], namelist["tintqs"], origin=origin, domain=domain,
     )
 
     if do_qa and last_step:
-        satadjust_part6_laststep_qa(
+        satadjust_part3_laststep_qa(
             qcld, grid.area_64, qpz, hs, tin, q_cond, q_sol, den, namelist["dw_ocean"], namelist["dw_land"], namelist["icloud_f"], namelist["cld_min"], origin=origin, domain=domain,
         )
     if not spec.namelist["hydrostatic"]:
