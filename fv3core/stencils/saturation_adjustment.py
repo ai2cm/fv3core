@@ -565,13 +565,18 @@ def ap1_for_wqs2(ta):
     return ap1
 
 @gtscript.function
-def ap1_indices(ap1):
+def ap1_index(ap1):
     it = 0
     it = ap1
+    return it
+@gtscript.function
+def ap1_indices(ap1):
+    it = ap1_index(ap1)
     it2 = 0
     it2 = (ap1 - 0.5)
     it2_p1 = it2 + 1
     return it, it2, it2_p1
+
 
 @gtscript.function
 def wqsat_and_dqdt(tablew, desw, desw2, desw_p1, ap1, it, it2, ta, den, wqsat, dqdt):
@@ -581,6 +586,11 @@ def wqsat_and_dqdt(tablew, desw, desw2, desw_p1, ap1, it, it2, ta, den, wqsat, d
     dqdt = 10.0 * (desw2 + (ap1 - it2) * (desw_p1 - desw2))
     dqdt = dqdt / denom
     return wqsat, dqdt
+
+@gtscript.function
+def wqsat_wsq1(table, des, ap1, it, ta, den):
+    es = table + (ap1 - it) * des
+    return es / (constants.RVGAS * ta * den)
 
 @utils.stencil()
 def wqs2_stencil_2(
@@ -614,13 +624,26 @@ def wqs2_stencil_w(
         desw_p1 = desw_table(it2_p1)  
         wqsat, dqdt = wqsat_and_dqdt(tablew, desw, desw2, desw_p1, ap1, it, it2, ta, den, wqsat, dqdt)
 @utils.stencil()
-def wqs1_stencil(
-    ta: sd, den: sd, ap1: sd, it: sd, tablew_lookup: sd, desw_lookup: sd, wqsat: sd
+def wqs1_stencil_2(
+    ta: sd, den: sd, wqsat: sd
 ):
     with computation(PARALLEL), interval(...):
-        es = tablew_lookup + (ap1 - it) * desw_lookup
-        wqsat = es / (constants.RVGAS * ta * den)
+        ap1 = ap1_for_wqs2(ta)
+        it = ap1_index(ap1)
+        table2 = qs_table2_fn(it)
+        des2 = des2_table(it)
+        wqsat = wqsat_wsq1(table2, des2, ap1, it, ta, den)
 
+@utils.stencil()
+def wqs1_stencil_w(
+    ta: sd, den: sd, wqsat: sd
+):
+    with computation(PARALLEL), interval(...):
+        ap1 = ap1_for_wqs2(ta)
+        it = ap1_index(ap1)
+        tablew = qs_tablew_fn(it)
+        desw = desw_table(it)
+        wqsat = wqsat_wsq1(tablew, desw, ap1, it, ta, den)
 
 # TODO put in gt4py (compute table values on the fly rather than using a lookup?)
 # The function wqs2_vect computes the gradient of saturated specific humidity for table ii. with arguments tablename=tablew, desname=desw
@@ -631,18 +654,6 @@ def wqs2_iqs2(ta, den, wqsat, dqdt, tablename="tablew", desname="desw"):
     tem = utils.make_storage_from_shape(ta.shape, utils.origin)
     fac0 = utils.make_storage_from_shape(ta.shape, utils.origin)
     fac2 = utils.make_storage_from_shape(ta.shape, utils.origin)
-    #ap1_for_wqs2(ta, ap1, origin=(0, 0, 0), domain=spec.grid.domain_shape_standard())
-    #it = ap1.data.astype(int)
-    #itgt = utils.make_storage_data(it, ta.shape)
-    #itgt = utils.make_storage_from_shape(ta.shape, utils.origin, dtype=np.int)
-   
-    #tablew_lookup = utils.make_storage_data(satmix[tablename][it], ta.shape)
-    #desw_lookup = utils.make_storage_data(satmix[desname][it], ta.shape)
-    #it2 = (ap1 - 0.5).data.astype(int)
-    #it2gt = utils.make_storage_data(it2, ta.shape)
-    #it2gt = utils.make_storage_from_shape(ta.shape, utils.origin, dtype=np.int)
-    #desw2_lookup = utils.make_storage_data(satmix[desname][it2], ta.shape)
-    #desw2_p1_lookup = utils.make_storage_data(satmix[desname][it2 + 1], ta.shape)
     if tablename == "tablew":
         wqs2_stencil_w(
             ta,
@@ -661,57 +672,25 @@ def wqs2_iqs2(ta, den, wqsat, dqdt, tablename="tablew", desname="desw"):
             origin=(0, 0, 0),
             domain=spec.grid.domain_shape_standard(),
         )
-    '''
-    tablef = utils.make_storage_from_shape(ta.shape, utils.origin)
-    faketable(tablef, itgt, origin=(0, 0, 0), domain=spec.grid.domain_shape_standard(),)
-    print(np.any(tablef.data != 0.0))
-    table_lookup = utils.make_storage_data(satmix["table"][it], ta.shape)
-    for i in range(18):
-        for j in range(18):
-            for k in range(79):
-                n = tablef[i, j, k]
-                l = table_lookup[i, j, k]
-                #print(i, j, k, it[i, j, k], tem[i, j, k])
-                if n != l:
-                    print("bad table", i, j, k, n, l, it[i,j,k], itgt[i, j, k])
-  
-    
-    print(tablew.shape, tablew_lookup.shape)
-    print("----------TABLEW COMPARE",tablename, tablew[3, 3, 5], tablew_lookup[3, 3, 5], 'ap1', ap1[3, 3, 5], itgt[3, 3, 5])
-    
-   print('EEEEEKk', tem, fac2, E00, math.exp(fac2), E00 * math.exp(fac2))
-            # 113.16000000000003 -0.005176186787048205 -30.740311242079944 611.21 4.46326276324293e-14 2.7279908335217112e-11
-              113.16000000000003 -0.005176186787048205 -30.740311242079944  
-
-    if True: #tablename == "table":
-        for i in range(18):
-            for j in range(18):
-                for k in range(79):
-                    n = tablew[i, j, k]
-                    l = tablew_lookup[i, j, k]
-                    #print(i, j, k, it[i, j, k], tem[i, j, k])
-                    if n != l:
-                        print(tablename, i, j, k, n, l, it[i,j,k], itgt[i, j, k])
-    '''
+   
     
 def wqs1_iqs1(ta, den, wqsat, tablename="tablew", desname="desw"):
-    ap1 = utils.make_storage_from_shape(ta.shape, utils.origin)
-    ap1_stencil(ta, ap1, origin=(0, 0, 0), domain=spec.grid.domain_shape_standard())
-    it = ap1.data.astype(int)
-    itgt = utils.make_storage_data(it, ta.shape)
-    tablew_lookup = utils.make_storage_data(satmix[tablename][it], ta.shape)
-    desw_lookup = utils.make_storage_data(satmix[desname][it], ta.shape)
-    wqs1_stencil(
-        ta,
-        den,
-        ap1,
-        itgt,
-        tablew_lookup,
-        desw_lookup,
-        wqsat,
-        origin=(0, 0, 0),
-        domain=spec.grid.domain_shape_standard(),
-    )
+    if tablename == "tablew":
+        wqs1_stencil_w(
+            ta,
+            den,
+            wqsat,
+            origin=(0, 0, 0),
+            domain=spec.grid.domain_shape_standard(),
+        )
+    else:
+        wqs1_stencil_2(
+            ta,
+            den,         
+            wqsat,
+            origin=(0, 0, 0),
+            domain=spec.grid.domain_shape_standard(),
+        )
 
 
 @utils.stencil()
