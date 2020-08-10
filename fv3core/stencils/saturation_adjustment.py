@@ -553,61 +553,66 @@ def wqsat_correct(src, pt1, lhl, qv, ql, q_liq, q_sol, mc_air, c_vap):
     pt1 = add_src_pt1(pt1, src, lhl, cvm)  # pt1 + src * lhl / cvm
     return qv, ql, q_liq, cvm, pt1
 
+@utils.stencil()
+def ap1_stencil(ta: sd, ap1: sd):
+    with computation(PARALLEL), interval(...):
+        ap1 = ap1_for_wqs2(ta)
+        
+@gtscript.function
+def ap1_for_wqs2(ta):
+    ap1 = 10.0 * dim(ta, TMIN) + 1.0
+    ap1 = min_fn(ap1, QS_LENGTH) - 1
+    return ap1
+
+@gtscript.function
+def ap1_indices(ap1):
+    it = 0
+    it = ap1
+    it2 = 0
+    it2 = (ap1 - 0.5)
+    it2_p1 = it2 + 1
+    return it, it2, it2_p1
+
+@gtscript.function
+def wqsat_and_dqdt(tablew, desw, desw2, desw_p1, ap1, it, it2, ta, den, wqsat, dqdt):
+    es = tablew + (ap1 - it) * desw 
+    denom = constants.RVGAS * ta * den
+    wqsat = es / denom
+    dqdt = 10.0 * (desw2 + (ap1 - it2) * (desw_p1 - desw2))
+    dqdt = dqdt / denom
+    return wqsat, dqdt
 
 @utils.stencil()
-def ap1_for_wqs2(ta: sd, ap1: sd):
-    with computation(PARALLEL), interval(...):
-        ap1 = 10.0 * dim(ta, TMIN) + 1.0
-        ap1 = min_fn(ap1, QS_LENGTH) - 1
-
-@utils.stencil()
-def faketable(table: sd, it: si):
-    with computation(PARALLEL), interval(...):
-        table = qs_table_fn(it)
-@utils.stencil()
-def wqs2_stencil(
+def wqs2_stencil_2(
     ta: sd,
     den: sd,
-    ap1: sd,
-    tablew: sd,
-    #it: si,
-    #it2: si,
-    #tablew_lookup: sd,
-    #desw_lookup: sd,
-    #desw2_lookup: sd,
-    #desw_p1_lookup: sd,
     wqsat: sd,
-    dqdt: sd,
-    tw: bool
+    dqdt: sd
 ):
     with computation(PARALLEL), interval(...):
-        ap1 = 10 * dim(ta, TMIN) + 1
-        ap1 = min_fn(ap1, QS_LENGTH) - 1
-        it = 0
-        it = ap1
-        tablew = qs_tablew_fn(it)
+        ap1 = ap1_for_wqs2(ta)
+        it, it2, it2_p1 =  ap1_indices(ap1)
         table2 = qs_table2_fn(it)
-        desw = desw_table(it)
         des2 = des2_table(it)
-        it2 = 0
-        it2 = (ap1 - 0.5)
-        it2_p1 = it2 + 1
-        desw2 = desw_table(it2)
         des22 = des2_table(it2)
-        desw_p1 = desw_table(it2_p1)
         des2_p1 = des2_table(it2_p1)
-        if not tw:
-            tablew = table2
-            desw = des2
-            desw2 = des22
-            desw_p1 = des2_p1
-        es = tablew + (ap1 - it) * desw 
-        denom = constants.RVGAS * ta * den
-        wqsat = es / denom
-        dqdt = 10.0 * (desw2 + (ap1 - it2) * (desw_p1 - desw2))
-        dqdt = dqdt / denom
+        wqsat, dqdt = wqsat_and_dqdt(table2, des2, des22, des2_p1, ap1, it, it2, ta, den, wqsat, dqdt)
 
-
+@utils.stencil()
+def wqs2_stencil_w(
+    ta: sd,
+    den: sd,
+    wqsat: sd,
+    dqdt: sd
+):
+    with computation(PARALLEL), interval(...):
+        ap1 = ap1_for_wqs2(ta)
+        it, it2, it2_p1 = ap1_indices(ap1)
+        tablew = qs_tablew_fn(it)
+        desw = desw_table(it)
+        desw2 = desw_table(it2)
+        desw_p1 = desw_table(it2_p1)  
+        wqsat, dqdt = wqsat_and_dqdt(tablew, desw, desw2, desw_p1, ap1, it, it2, ta, den, wqsat, dqdt)
 @utils.stencil()
 def wqs1_stencil(
     ta: sd, den: sd, ap1: sd, it: sd, tablew_lookup: sd, desw_lookup: sd, wqsat: sd
@@ -626,34 +631,36 @@ def wqs2_iqs2(ta, den, wqsat, dqdt, tablename="tablew", desname="desw"):
     tem = utils.make_storage_from_shape(ta.shape, utils.origin)
     fac0 = utils.make_storage_from_shape(ta.shape, utils.origin)
     fac2 = utils.make_storage_from_shape(ta.shape, utils.origin)
-    ap1_for_wqs2(ta, ap1, origin=(0, 0, 0), domain=spec.grid.domain_shape_standard())
-    it = ap1.data.astype(int)
+    #ap1_for_wqs2(ta, ap1, origin=(0, 0, 0), domain=spec.grid.domain_shape_standard())
+    #it = ap1.data.astype(int)
     #itgt = utils.make_storage_data(it, ta.shape)
-    itgt = utils.make_storage_from_shape(ta.shape, utils.origin, dtype=np.int)
+    #itgt = utils.make_storage_from_shape(ta.shape, utils.origin, dtype=np.int)
    
     #tablew_lookup = utils.make_storage_data(satmix[tablename][it], ta.shape)
     #desw_lookup = utils.make_storage_data(satmix[desname][it], ta.shape)
-    it2 = (ap1 - 0.5).data.astype(int)
+    #it2 = (ap1 - 0.5).data.astype(int)
     #it2gt = utils.make_storage_data(it2, ta.shape)
-    it2gt = utils.make_storage_from_shape(ta.shape, utils.origin, dtype=np.int)
+    #it2gt = utils.make_storage_from_shape(ta.shape, utils.origin, dtype=np.int)
     #desw2_lookup = utils.make_storage_data(satmix[desname][it2], ta.shape)
     #desw2_p1_lookup = utils.make_storage_data(satmix[desname][it2 + 1], ta.shape)
-    wqs2_stencil(
-        ta,
-        den,
-        ap1,
-        tablew,
-        #itgt,
-        #it2gt,
-        #tablew_lookup,
-        #desw_lookup,
-        #desw2_lookup,
-        #desw2_p1_lookup,
-        wqsat,
-        dqdt,tablename == "tablew",
-        origin=(0, 0, 0),
-        domain=spec.grid.domain_shape_standard(),
-    )
+    if tablename == "tablew":
+        wqs2_stencil_w(
+            ta,
+            den,
+            wqsat,
+            dqdt,
+            origin=(0, 0, 0),
+            domain=spec.grid.domain_shape_standard(),
+        )
+    else:
+        wqs2_stencil_2(
+            ta,
+            den,
+            wqsat,
+            dqdt,
+            origin=(0, 0, 0),
+            domain=spec.grid.domain_shape_standard(),
+        )
     '''
     tablef = utils.make_storage_from_shape(ta.shape, utils.origin)
     faketable(tablef, itgt, origin=(0, 0, 0), domain=spec.grid.domain_shape_standard(),)
@@ -689,7 +696,7 @@ def wqs2_iqs2(ta, den, wqsat, dqdt, tablename="tablew", desname="desw"):
     
 def wqs1_iqs1(ta, den, wqsat, tablename="tablew", desname="desw"):
     ap1 = utils.make_storage_from_shape(ta.shape, utils.origin)
-    ap1_for_wqs2(ta, ap1, origin=(0, 0, 0), domain=spec.grid.domain_shape_standard())
+    ap1_stencil(ta, ap1, origin=(0, 0, 0), domain=spec.grid.domain_shape_standard())
     it = ap1.data.astype(int)
     itgt = utils.make_storage_data(it, ta.shape)
     tablew_lookup = utils.make_storage_data(satmix[tablename][it], ta.shape)
