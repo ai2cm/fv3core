@@ -649,11 +649,6 @@ def wqs1_stencil_w(
 # The function wqs2_vect computes the gradient of saturated specific humidity for table ii. with arguments tablename=tablew, desname=desw
 # iqs2 computes the gradient of saturated specific humidity for table iii. with arguments tablename=table2, desname=des2
 def wqs2_iqs2(ta, den, wqsat, dqdt, tablename="tablew", desname="desw"):
-    ap1 = utils.make_storage_from_shape(ta.shape, utils.origin)
-    tablew = utils.make_storage_from_shape(ta.shape, utils.origin)
-    tem = utils.make_storage_from_shape(ta.shape, utils.origin)
-    fac0 = utils.make_storage_from_shape(ta.shape, utils.origin)
-    fac2 = utils.make_storage_from_shape(ta.shape, utils.origin)
     if tablename == "tablew":
         wqs2_stencil_w(
             ta,
@@ -686,7 +681,7 @@ def wqs1_iqs1(ta, den, wqsat, tablename="tablew", desname="desw"):
     else:
         wqs1_stencil_2(
             ta,
-            den,         
+            den,      
             wqsat,
             origin=(0, 0, 0),
             domain=spec.grid.domain_shape_standard(),
