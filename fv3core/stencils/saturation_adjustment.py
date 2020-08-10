@@ -11,6 +11,7 @@ import numpy as np
 
 # TODO, this code could be reduced greatly with abstraction, but first gt4py needs to support gtscript function calls of arbitrary depth embedded in conditionals
 sd = utils.sd
+si = utils.si
 DC_VAP = constants.CP_VAP - constants.C_LIQ  # - 2339.5, isobaric heating / cooling
 DC_ICE = constants.C_LIQ - constants.C_ICE  # 2213.5, isobaric heating / cooling
 LV0 = (
@@ -70,23 +71,28 @@ def get_fac2_fn(tem, fac1, d):
 def qs_table_fn(i):
     table = 0
     tem = TMIN + DELT * i
-    fac2 = get_fac2_fn(tem, get_fac0_fn(tem) * LI2, D2ICE)
+    fac0 = get_fac0_fn(tem)
+    fac2 = get_fac2_fn(tem, fac0 * LI2, D2ICE)
     table = E00 * exp(fac2)
     if i >= 1600: # unecessary?
         table = 0.
     
     tem = 253.16 + DELT * i
-    fac2 = get_fac2_fn(tem, get_fac0_fn(tem) * LV0, DC_VAP)
+    fac0 = get_fac0_fn(tem)
+    fac2 = get_fac2_fn(tem, fac0 * LV0, DC_VAP)
     esh20 = E00 * exp(fac2)
     if i >= 1221: # TODO if temporaries allowed in conditionals, check before the above code
         esh20 = 0.0
+    #if i >= 1600: # should not have to compute these unless > 1600, but gt4py temporaries error
+    tem = 253.16 + DELT * (i - 1400)
+    fac0 = get_fac0_fn(tem)
+    fac2 = get_fac2_fn(tem, fac0 * LV0, DC_VAP)
     if i >= 1600:
-        tem = 253.16 + DELT * (i - 1400)
-        fac2 = get_fac2_fn(tem, get_fac0_fn(tem) * LV0, DC_VAP)
-        esh206 = E00 * exp(fac2)
-        table = esh206
+        table = E00 * exp(fac2)
+    wice = 0.
+    wh2o = 0.
     if i >= 1400 and i < 1600:
-        tem = 253.16 + DELT * i  # real (i - 1)
+        tem = 253.16 + DELT * (i - 1400)  # real (i - 1)
         wice = 0.05 * (TICE - tem)
         wh2o = 0.05 * (tem - 253.16)
         table = wice * table + wh2o * esh20
@@ -96,7 +102,7 @@ def qs_table(n):
     esupc = np.zeros(200)
     # compute es over ice between - 160 deg c and 0 deg c.
     for i in range(1600):
-        tem = TMIN + DELT * i  # (i - 1)
+        tem = TMIN + DELT * i 
         fac2 = get_fac2(tem, get_fac0(tem) * LI2, D2ICE)
         satmix["table"][i] = E00 * math.exp(fac2)
 
@@ -117,21 +123,64 @@ def qs_table(n):
         wh2o = 0.05 * (tem - 253.16)
         satmix["table"][i + 1400] = wice * satmix["table"][i + 1400] + wh2o * esupc[i]
 
+
+@gtscript.function
+def qs_table2_1599(i):
+    tem0 = TMIN + DELT * i
+    fac0 = get_fac0_fn(tem0)
+    fac2 = 0.
+    if i < 1600:
+        # compute es over ice between - 160 deg c and 0 deg c.
+        #fac2 = get_fac2_fn(tem0, fac0 * LI2, D2ICE)
+        fac2 = (D2ICE * log(tem0 / TICE) + fac0 * LI2) / constants.RVGAS
+    else:
+        # compute es over water between 0 deg c and 102 deg c.
+        #fac2 = get_fac2_fn(tem0, fac0 * LV0, DC_VAP)
+        fac2 = (DC_VAP * log(tem0 / TICE) + fac0 * LV0) / constants.RVGAS
+    table2 = E00 * exp(fac2)
 @gtscript.function
 def qs_table2_fn(i):
     tem0 = TMIN + DELT * i
     fac0 = get_fac0_fn(tem0)
+    fac2 = 0.
     if i < 1600:
         # compute es over ice between - 160 deg c and 0 deg c.
-        fac2 = get_fac2_fn(tem0, fac0 * LI2, D2ICE)
+        #fac2 = get_fac2_fn(tem0, fac0 * LI2, D2ICE)
+        fac2 = (D2ICE * log(tem0 / TICE) + fac0 * LI2) / constants.RVGAS
     else:
         # compute es over water between 0 deg c and 102 deg c.
-        fac2 = get_fac2_fn(tem0, fac0 * LV0, DC_VAP)
+        #fac2 = get_fac2_fn(tem0, fac0 * LV0, DC_VAP)
+        fac2 = (DC_VAP * log(tem0 / TICE) + fac0 * LV0) / constants.RVGAS
     table2 = E00 * exp(fac2)
+    # TODO what a mess
+    table2_m1=0.
+    table2_p1 = 0.
+    table_1599 =  qs_table_fn(1599)
+    table_1600 =  qs_table_fn(1600)
+    if i == 1599:
+        tem0 = TMIN + DELT * 1598
+        fac0 = (tem0 - TICE) / (tem0 * TICE)
+        fac2 = (D2ICE * log(tem0 / TICE) + fac0 * LI2) / constants.RVGAS
+        table2_m1 = E00 * exp(fac2)
+        tem0 = TMIN + DELT * 1600
+        fac0 = (tem0 - TICE) / (tem0 * TICE)
+        fac2 = (DC_VAP * log(tem0 / TICE) + fac0 * LV0) / constants.RVGAS
+        table2_p1 = E00 * exp(fac2)
+        table2 = 0.25 * (table2_m1 + 2.0 * table_1599 + table2_p1)
+    if i == 1600:
+        tem0 = TMIN + DELT * 1599
+        fac0 = (tem0 - TICE) / (tem0 * TICE)
+        fac2 = (D2ICE * log(tem0 / TICE) + fac0 * LI2) / constants.RVGAS
+        table2_m1 = E00 * exp(fac2)
+        tem0 = TMIN + DELT * 1601
+        fac0 = (tem0 - TICE) / (tem0 * TICE)
+        fac2 = (DC_VAP * log(tem0 / TICE) + fac0 * LV0) / constants.RVGAS
+        table2_p1 = E00 * exp(fac2)
+        table2 = 0.25 * (table2_m1 + 2.0 * table_1600 + table2_p1)
     #if i == 1599:
-    #    table2 = table2(i-1) + 2.0 * qs_table_fn(i) + qs_table2_fn(i+1)
+    #    table2 = 0.25 * (table2(i-1) + 2.0 * qs_table_fn(i) + qs_table2_fn(i+1))
     #if i == 1600:
-    #    table2 = table2(i-1) + 2.0 * qs_table_fn(i) + qs_table2_fn(i+1)
+    #    table2 = 0.25 * (table2(i-1) + 2.0 * qs_table_fn(i) + qs_table2_fn(i+1))
     return table2
 def qs_table2(n):
     for i in range(n):
@@ -158,13 +207,19 @@ def qs_table2(n):
 @gtscript.function
 def qs_tablew_fn(i):
     tem = TMIN + DELT * i
-    fac2 = get_fac2_fn(tem, get_fac0_fn(tem) * LV0, DC_VAP)
-    return  E00 * exp(fac2)
+    fac0 = get_fac0_fn(tem)
+    fac2 = get_fac2_fn(tem, fac0 * LV0, DC_VAP)
+    return E00 * exp(fac2)
 
 def qs_tablew(n):
     for i in range(n):
+            
         tem = TMIN + DELT * i
+        fac0 = get_fac0(tem)
         fac2 = get_fac2(tem, get_fac0(tem) * LV0, DC_VAP)
+        if i == 0:
+            print('EEEEEKk', tem, fac0, fac2, E00, math.exp(fac2), E00 * math.exp(fac2))
+            # 113.16000000000003 -30.740311242079944 611.21 4.46326276324293e-14 2.7279908335217112e-11
         satmix["tablew"][i] = E00 * math.exp(fac2)
 
 
@@ -510,13 +565,17 @@ def ap1_for_wqs2(ta: sd, ap1: sd):
         ap1 = 10.0 * dim(ta, TMIN) + 1.0
         ap1 = min_fn(ap1, QS_LENGTH) - 1
 
-
+@utils.stencil()
+def faketable(table: sd, it: si):
+    with computation(PARALLEL), interval(...):
+        table = qs_table_fn(it)
 @utils.stencil()
 def wqs2_stencil(
     ta: sd,
     den: sd,
     ap1: sd,
-    it: sd,
+    tablew: sd,
+    it: si,
     it2: sd,
     tablew_lookup: sd,
     desw_lookup: sd,
@@ -524,9 +583,17 @@ def wqs2_stencil(
     desw_p1_lookup: sd,
     wqsat: sd,
     dqdt: sd,
+    tw: bool
 ):
     with computation(PARALLEL), interval(...):
-        es = tablew_lookup + (ap1 - it) * desw_lookup
+        ap1 = 10 * dim(ta, TMIN) + 1
+        ap1 = min_fn(ap1, QS_LENGTH) - 1
+        it = ap1
+        tablew = qs_tablew_fn(it)
+        table2 = qs_table2_fn(it)
+        if not tw:
+            tablew=table2 # w_lookup
+        es = tablew + (ap1 - it) * desw_lookup
         denom = constants.RVGAS * ta * den
         wqsat = es / denom
         dqdt = 10.0 * (desw2_lookup + (ap1 - it2) * (desw_p1_lookup - desw2_lookup))
@@ -547,9 +614,15 @@ def wqs1_stencil(
 # iqs2 computes the gradient of saturated specific humidity for table iii. with arguments tablename=table2, desname=des2
 def wqs2_iqs2(ta, den, wqsat, dqdt, tablename="tablew", desname="desw"):
     ap1 = utils.make_storage_from_shape(ta.shape, utils.origin)
+    tablew = utils.make_storage_from_shape(ta.shape, utils.origin)
+    tem = utils.make_storage_from_shape(ta.shape, utils.origin)
+    fac0 = utils.make_storage_from_shape(ta.shape, utils.origin)
+    fac2 = utils.make_storage_from_shape(ta.shape, utils.origin)
     ap1_for_wqs2(ta, ap1, origin=(0, 0, 0), domain=spec.grid.domain_shape_standard())
     it = ap1.data.astype(int)
-    itgt = utils.make_storage_data(it, ta.shape)
+    #itgt = utils.make_storage_data(it, ta.shape)
+    itgt = utils.make_storage_from_shape(ta.shape, utils.origin, dtype=np.int)
+   
     tablew_lookup = utils.make_storage_data(satmix[tablename][it], ta.shape)
     desw_lookup = utils.make_storage_data(satmix[desname][it], ta.shape)
     it2 = (ap1 - 0.5).data.astype(int)
@@ -560,6 +633,7 @@ def wqs2_iqs2(ta, den, wqsat, dqdt, tablename="tablew", desname="desw"):
         ta,
         den,
         ap1,
+        tablew,
         itgt,
         it2gt,
         tablew_lookup,
@@ -567,11 +641,42 @@ def wqs2_iqs2(ta, den, wqsat, dqdt, tablename="tablew", desname="desw"):
         desw2_lookup,
         desw2_p1_lookup,
         wqsat,
-        dqdt,
+        dqdt,tablename == "tablew",
         origin=(0, 0, 0),
         domain=spec.grid.domain_shape_standard(),
     )
+    tablef = utils.make_storage_from_shape(ta.shape, utils.origin)
+    faketable(tablef, itgt, origin=(0, 0, 0), domain=spec.grid.domain_shape_standard(),)
+    print(np.any(tablef.data != 0.0))
+    table_lookup = utils.make_storage_data(satmix["table"][it], ta.shape)
+    for i in range(18):
+        for j in range(18):
+            for k in range(79):
+                n = tablef[i, j, k]
+                l = table_lookup[i, j, k]
+                #print(i, j, k, it[i, j, k], tem[i, j, k])
+                if n != l:
+                    print("bad table", i, j, k, n, l, it[i,j,k], itgt[i, j, k])
+  
 
+    print(tablew.shape, tablew_lookup.shape)
+    print("----------TABLEW COMPARE",tablename, tablew[3, 3, 5], tablew_lookup[3, 3, 5], 'ap1', ap1[3, 3, 5], itgt[3, 3, 5])
+    print(np.any(itgt == 1599), np.any(itgt==1600), np.any(it==1599), np.any(it==1600))
+    '''
+   print('EEEEEKk', tem, fac2, E00, math.exp(fac2), E00 * math.exp(fac2))
+            # 113.16000000000003 -0.005176186787048205 -30.740311242079944 611.21 4.46326276324293e-14 2.7279908335217112e-11
+              113.16000000000003 -0.005176186787048205 -30.740311242079944  
+    '''
+    if True: #tablename == "table":
+        for i in range(18):
+            for j in range(18):
+                for k in range(79):
+                    n = tablew[i, j, k]
+                    l = tablew_lookup[i, j, k]
+                    #print(i, j, k, it[i, j, k], tem[i, j, k])
+                    if n != l:
+                        print(tablename, i, j, k, n, l, it[i,j,k], itgt[i, j, k])
+  
 
 def wqs1_iqs1(ta, den, wqsat, tablename="tablew", desname="desw"):
     ap1 = utils.make_storage_from_shape(ta.shape, utils.origin)

@@ -14,6 +14,7 @@ backend = None  # Options: numpy, gtmc, gtx86, gtcuda, debug, dawn:gtmc
 rebuild = True
 _dtype = np.float_
 sd = gtscript.Field[_dtype]
+si = gtscript.Field[np.int_]
 halo = 3
 origin = (halo, halo, 0)
 # TODO get from field_table
@@ -198,9 +199,9 @@ def make_storage_data_from_1d(
     )
 
 
-def make_storage_from_shape(shape, origin):
+def make_storage_from_shape(shape, origin, dtype=np.float64):
     return gt.storage.from_array(
-        data=np.zeros(shape), backend=backend, default_origin=origin, shape=shape,
+        data=np.zeros(shape, dtype=dtype), backend=backend, default_origin=origin, shape=shape,
     )
 
 
