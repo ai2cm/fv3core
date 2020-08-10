@@ -69,33 +69,30 @@ def get_fac2_fn(tem, fac1, d):
 
 @gtscript.function
 def qs_table_fn(i):
-    table = 0
+    table = 0.
     tem = TMIN + DELT * i
     fac0 = get_fac0_fn(tem)
     fac2 = get_fac2_fn(tem, fac0 * LI2, D2ICE)
     table = E00 * exp(fac2)
     if i >= 1600: # unecessary?
         table = 0.
-    
-    tem = 253.16 + DELT * i
-    fac0 = get_fac0_fn(tem)
-    fac2 = get_fac2_fn(tem, fac0 * LV0, DC_VAP)
-    esh20 = E00 * exp(fac2)
-    if i >= 1221: # TODO if temporaries allowed in conditionals, check before the above code
-        esh20 = 0.0
-    #if i >= 1600: # should not have to compute these unless > 1600, but gt4py temporaries error
-    tem = 253.16 + DELT * (i - 1400)
-    fac0 = get_fac0_fn(tem)
-    fac2 = get_fac2_fn(tem, fac0 * LV0, DC_VAP)
-    if i >= 1600:
+    if i >= 1600 and i < (1400 + 1221): # should not have to compute these unless > 1600, but gt4py temporaries error
+        tem = 253.16 + DELT * (i - 1400)
+        fac0 = (tem - TICE) / (tem * TICE)
+        fac2 = (DC_VAP * log(tem / TICE) + fac0 * LV0) / constants.RVGAS
         table = E00 * exp(fac2)
     wice = 0.
     wh2o = 0.
+    esupc = 0.
     if i >= 1400 and i < 1600:
+        tem = 253.16 + DELT * (i - 1400)
+        fac0 = (tem - TICE) / (tem * TICE)
+        fac2 = (DC_VAP * log(tem / TICE) + fac0 * LV0) / constants.RVGAS
+        esupc = E00 * exp(fac2)
         tem = 253.16 + DELT * (i - 1400)  # real (i - 1)
         wice = 0.05 * (TICE - tem)
         wh2o = 0.05 * (tem - 253.16)
-        table = wice * table + wh2o * esh20
+        table = wice * table + wh2o * esupc
     return table
 # TODO refactor into streamlined array calcs
 def qs_table(n):
@@ -577,7 +574,7 @@ def wqs2_stencil(
     tablew: sd,
     it: si,
     it2: sd,
-    tablew_lookup: sd,
+    #tablew_lookup: sd,
     desw_lookup: sd,
     desw2_lookup: sd,
     desw_p1_lookup: sd,
@@ -592,7 +589,7 @@ def wqs2_stencil(
         tablew = qs_tablew_fn(it)
         table2 = qs_table2_fn(it)
         if not tw:
-            tablew=table2 # w_lookup
+            tablew = table2
         es = tablew + (ap1 - it) * desw_lookup
         denom = constants.RVGAS * ta * den
         wqsat = es / denom
@@ -623,7 +620,7 @@ def wqs2_iqs2(ta, den, wqsat, dqdt, tablename="tablew", desname="desw"):
     #itgt = utils.make_storage_data(it, ta.shape)
     itgt = utils.make_storage_from_shape(ta.shape, utils.origin, dtype=np.int)
    
-    tablew_lookup = utils.make_storage_data(satmix[tablename][it], ta.shape)
+    #tablew_lookup = utils.make_storage_data(satmix[tablename][it], ta.shape)
     desw_lookup = utils.make_storage_data(satmix[desname][it], ta.shape)
     it2 = (ap1 - 0.5).data.astype(int)
     it2gt = utils.make_storage_data(it2, ta.shape)
@@ -636,7 +633,7 @@ def wqs2_iqs2(ta, den, wqsat, dqdt, tablename="tablew", desname="desw"):
         tablew,
         itgt,
         it2gt,
-        tablew_lookup,
+        #tablew_lookup,
         desw_lookup,
         desw2_lookup,
         desw2_p1_lookup,
@@ -658,15 +655,14 @@ def wqs2_iqs2(ta, den, wqsat, dqdt, tablename="tablew", desname="desw"):
                 if n != l:
                     print("bad table", i, j, k, n, l, it[i,j,k], itgt[i, j, k])
   
-
+    '''
     print(tablew.shape, tablew_lookup.shape)
     print("----------TABLEW COMPARE",tablename, tablew[3, 3, 5], tablew_lookup[3, 3, 5], 'ap1', ap1[3, 3, 5], itgt[3, 3, 5])
-    print(np.any(itgt == 1599), np.any(itgt==1600), np.any(it==1599), np.any(it==1600))
-    '''
+    
    print('EEEEEKk', tem, fac2, E00, math.exp(fac2), E00 * math.exp(fac2))
             # 113.16000000000003 -0.005176186787048205 -30.740311242079944 611.21 4.46326276324293e-14 2.7279908335217112e-11
               113.16000000000003 -0.005176186787048205 -30.740311242079944  
-    '''
+
     if True: #tablename == "table":
         for i in range(18):
             for j in range(18):
@@ -676,8 +672,8 @@ def wqs2_iqs2(ta, den, wqsat, dqdt, tablename="tablew", desname="desw"):
                     #print(i, j, k, it[i, j, k], tem[i, j, k])
                     if n != l:
                         print(tablename, i, j, k, n, l, it[i,j,k], itgt[i, j, k])
-  
-
+    '''
+    
 def wqs1_iqs1(ta, den, wqsat, tablename="tablew", desname="desw"):
     ap1 = utils.make_storage_from_shape(ta.shape, utils.origin)
     ap1_for_wqs2(ta, ap1, origin=(0, 0, 0), domain=spec.grid.domain_shape_standard())
