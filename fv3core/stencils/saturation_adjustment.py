@@ -198,13 +198,9 @@ def qs_tablew_fn(i):
 
 def qs_tablew(n):
     for i in range(n):
-            
         tem = TMIN + DELT * i
         fac0 = get_fac0(tem)
         fac2 = get_fac2(tem, get_fac0(tem) * LV0, DC_VAP)
-        if i == 0:
-            print('EEEEEKk', tem, fac0, fac2, E00, math.exp(fac2), E00 * math.exp(fac2))
-            # 113.16000000000003 -30.740311242079944 611.21 4.46326276324293e-14 2.7279908335217112e-11
         satmix["tablew"][i] = E00 * math.exp(fac2)
 
 #TODO always computing des2end, ick
@@ -221,6 +217,7 @@ def des2_table(i):
     if i == QS_LENGTH - 1:
         des2 = des2end
     return des2
+
 #TODO always computing deswend, ick
 @gtscript.function
 def desw_table(i):
@@ -569,6 +566,7 @@ def ap1_index(ap1):
     it = 0
     it = ap1
     return it
+
 @gtscript.function
 def ap1_indices(ap1):
     it = ap1_index(ap1)
@@ -579,7 +577,7 @@ def ap1_indices(ap1):
 
 
 @gtscript.function
-def wqsat_and_dqdt(tablew, desw, desw2, desw_p1, ap1, it, it2, ta, den, wqsat, dqdt):
+def wqsat_and_dqdt(tablew, desw, desw2, desw_p1, ap1, it, it2, ta, den):
     es = tablew + (ap1 - it) * desw 
     denom = constants.RVGAS * ta * den
     wqsat = es / denom
@@ -591,6 +589,16 @@ def wqsat_and_dqdt(tablew, desw, desw2, desw_p1, ap1, it, it2, ta, den, wqsat, d
 def wqsat_wsq1(table, des, ap1, it, ta, den):
     es = table + (ap1 - it) * des
     return es / (constants.RVGAS * ta * den)
+@gtscript.function
+def wqs2_fn_2(ta, den):
+    ap1 = ap1_for_wqs2(ta)
+    it, it2, it2_p1 = ap1_indices(ap1)
+    table2 = qs_table2_fn(it)
+    des2 = des2_table(it)
+    des22 = des2_table(it2)
+    des2_p1 = des2_table(it2_p1)
+    wqsat, dqdt = wqsat_and_dqdt(table2, des2, des22, des2_p1, ap1, it, it2, ta, den)
+    return wqsat, dqdt
 
 @utils.stencil()
 def wqs2_stencil_2(
@@ -600,13 +608,18 @@ def wqs2_stencil_2(
     dqdt: sd
 ):
     with computation(PARALLEL), interval(...):
-        ap1 = ap1_for_wqs2(ta)
-        it, it2, it2_p1 =  ap1_indices(ap1)
-        table2 = qs_table2_fn(it)
-        des2 = des2_table(it)
-        des22 = des2_table(it2)
-        des2_p1 = des2_table(it2_p1)
-        wqsat, dqdt = wqsat_and_dqdt(table2, des2, des22, des2_p1, ap1, it, it2, ta, den, wqsat, dqdt)
+        wqsat, dqdt = wqs2_fn_2(ta, den)
+         
+@gtscript.function
+def wqs2_fn_w(ta, den):
+    ap1 = ap1_for_wqs2(ta)
+    it, it2, it2_p1 = ap1_indices(ap1)
+    tablew = qs_tablew_fn(it)
+    desw = desw_table(it)
+    desw2 = desw_table(it2)
+    desw_p1 = desw_table(it2_p1)  
+    wqsat, dqdt = wqsat_and_dqdt(tablew, desw, desw2, desw_p1, ap1, it, it2, ta, den)
+    return wqsat, dqdt
 
 @utils.stencil()
 def wqs2_stencil_w(
@@ -616,36 +629,41 @@ def wqs2_stencil_w(
     dqdt: sd
 ):
     with computation(PARALLEL), interval(...):
-        ap1 = ap1_for_wqs2(ta)
-        it, it2, it2_p1 = ap1_indices(ap1)
-        tablew = qs_tablew_fn(it)
-        desw = desw_table(it)
-        desw2 = desw_table(it2)
-        desw_p1 = desw_table(it2_p1)  
-        wqsat, dqdt = wqsat_and_dqdt(tablew, desw, desw2, desw_p1, ap1, it, it2, ta, den, wqsat, dqdt)
+        wqsat, dqdt = wqs2_fn_w(ta, den)
+        
+@gtscript.function
+def wqs1_fn_2(ta, den):
+    ap1 = ap1_for_wqs2(ta)
+    it = ap1_index(ap1)
+    table2 = qs_table2_fn(it)
+    des2 = des2_table(it)
+    wqsat = wqsat_wsq1(table2, des2, ap1, it, ta, den)
+    return wqsat
+
 @utils.stencil()
 def wqs1_stencil_2(
     ta: sd, den: sd, wqsat: sd
 ):
     with computation(PARALLEL), interval(...):
-        ap1 = ap1_for_wqs2(ta)
-        it = ap1_index(ap1)
-        table2 = qs_table2_fn(it)
-        des2 = des2_table(it)
-        wqsat = wqsat_wsq1(table2, des2, ap1, it, ta, den)
+        wqsat = wqs1_fn_2(ta, den)
+
+@gtscript.function
+def wqs1_fn_w(ta, den):
+    ap1 = ap1_for_wqs2(ta)
+    it = ap1_index(ap1)
+    tablew = qs_tablew_fn(it)
+    desw = desw_table(it)
+    wqsat = wqsat_wsq1(tablew, desw, ap1, it, ta, den)
+    return wqsat
 
 @utils.stencil()
 def wqs1_stencil_w(
     ta: sd, den: sd, wqsat: sd
 ):
     with computation(PARALLEL), interval(...):
-        ap1 = ap1_for_wqs2(ta)
-        it = ap1_index(ap1)
-        tablew = qs_tablew_fn(it)
-        desw = desw_table(it)
-        wqsat = wqsat_wsq1(tablew, desw, ap1, it, ta, den)
+        wqsat = wqs1_fn_w(ta, den)
+        
 
-# TODO put in gt4py (compute table values on the fly rather than using a lookup?)
 # The function wqs2_vect computes the gradient of saturated specific humidity for table ii. with arguments tablename=tablew, desname=desw
 # iqs2 computes the gradient of saturated specific humidity for table iii. with arguments tablename=table2, desname=des2
 def wqs2_iqs2(ta, den, wqsat, dqdt, tablename="tablew", desname="desw"):
@@ -690,6 +708,8 @@ def wqs1_iqs1(ta, den, wqsat, tablename="tablew", desname="desw"):
 
 @utils.stencil()
 def satadjust_part1(
+    wqsat: sd,
+    dq2dt: sd,
     dpln: sd,
     den: sd,
     pt1: sd,
@@ -709,8 +729,11 @@ def satadjust_part1(
     delz: sd,
     te0: sd,
     qpz: sd,
+    lhl: sd,
     lhi: sd,
+    lcp2: sd,
     icp2: sd,
+    tcp3: sd,
     zvir: float,
     hydrostatic: bool,
     consv_te: bool,
@@ -718,7 +741,8 @@ def satadjust_part1(
     c_vap: float,
     fac_imlt: float,
     d0_vap: float,
-    lv00: float,
+    lv00: float, fac_v2l: float, fac_l2v: float, ql_gen: float,
+    adj_fac: float,
 ):
     with computation(PARALLEL), interval(...):
         dpln = peln[0, 0, 1] - peln
@@ -764,33 +788,7 @@ def satadjust_part1(
         ql, qi, q_liq, q_sol, cvm, pt1 = complete_freezing(
             qv, ql, qi, q_liq, q_sol, pt1, cvm, icp2, mc_air, lhi, c_vap
         )
-
-
-@utils.stencil()
-def satadjust_part2(
-    wqsat: sd,
-    dq2dt: sd,
-    pt1: sd,
-    cvm: sd,
-    mc_air: sd,
-    tcp3: sd,
-    lhl: sd,
-    lhi: sd,
-    lcp2: sd,
-    icp2: sd,
-    qv: sd,
-    ql: sd,
-    q_liq: sd,
-    q_sol: sd,
-    fac_v2l: float,
-    fac_l2v: float,
-    lv00: float,
-    d0_vap: float,
-    c_vap: float,
-    adj_fac: float,
-    ql_gen: float,
-):
-    with computation(PARALLEL), interval(...):
+        wqsat, dq2dt = wqs2_fn_w(pt1, den)
         # update latent heat coefficient
         lhl, lhi, lcp2, icp2 = update_latent_heat_coefficient(pt1, cvm, lv00, d0_vap)
         diff_ice = dim(TICE, pt1) / 48.0
@@ -1237,6 +1235,8 @@ def compute(
     qpz = utils.make_storage_from_shape(peln.shape, utils.origin)
 
     satadjust_part1(
+        wqsat,
+        dq2dt,
         dpln,
         den,
         pt1,
@@ -1256,8 +1256,8 @@ def compute(
         delz,
         te,
         qpz,
-        lhi,
-        icp2,
+        lhl, lhi,
+        lcp2, icp2, tcp3,
         r_vir,
         hydrostatic,
         fast_mp_consv,
@@ -1265,37 +1265,13 @@ def compute(
         c_vap,
         fac_imlt,
         d0_vap,
-        lv00,
+        lv00,fac_v2l,fac_l2v, namelist["ql_gen"],
+        namelist["sat_adj0"],
         origin=origin,
         domain=domain,
     )
-    wqs2_iqs2(pt1, den, wqsat, dq2dt)
-    adj_fac = namelist["sat_adj0"]
-    satadjust_part2(
-        wqsat,
-        dq2dt,
-        pt1,
-        cvm,
-        mc_air,
-        tcp3,
-        lhl,
-        lhi,
-        lcp2,
-        icp2,
-        qvapor,
-        qliquid,
-        q_liq,
-        q_sol,
-        fac_v2l,
-        fac_l2v,
-        lv00,
-        d0_vap,
-        c_vap,
-        adj_fac,
-        namelist["ql_gen"],
-        origin=origin,
-        domain=domain,
-    )
+   
+
     if last_step:
         adj_fac = 1.0
         # condensation / evaporation between water vapor and cloud water, last time step
