@@ -201,7 +201,10 @@ def make_storage_data_from_1d(
 
 def make_storage_from_shape(shape, origin, dtype=np.float64):
     return gt.storage.from_array(
-        data=np.zeros(shape, dtype=dtype), backend=backend, default_origin=origin, shape=shape,
+        data=np.zeros(shape, dtype=dtype),
+        backend=backend,
+        default_origin=origin,
+        shape=shape,
     )
 
 

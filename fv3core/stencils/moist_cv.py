@@ -265,8 +265,7 @@ def moist_pt_last_step(
 @gtscript.function
 def compute_pkz_func(delp, delz, pt, cappa):
     # TODO use the exponential form for closer answer matching
-    return exp(cappa * log(constants.RDG * delp /delz * pt))
-    
+    return exp(cappa * log(constants.RDG * delp / delz * pt))
 
 
 @utils.stencil()
