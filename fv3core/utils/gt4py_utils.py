@@ -363,5 +363,5 @@ def repeat(array, repeats, axis=None):
     return xp.repeat(array.data, repeats, axis)
 
 
-def slice(array, key):
+def index(array, key):
     return asarray(array, type(key))[key]

@@ -479,12 +479,12 @@ def wqs2_iqs2(ta, den, wqsat, dqdt, tablename="tablew", desname="desw"):
     ap1_for_wqs2(ta, ap1, origin=(0, 0, 0), domain=spec.grid.domain_shape_standard())
     it = ap1.data.astype(int)
     itgt = utils.make_storage_data(it, ta.shape)
-    tablew_lookup = utils.make_storage_data(utils.slice(satmix[tablename], it), ta.shape)
-    desw_lookup = utils.make_storage_data(utils.slice(satmix[desname], it), ta.shape)
+    tablew_lookup = utils.make_storage_data(utils.index(satmix[tablename], it), ta.shape)
+    desw_lookup = utils.make_storage_data(utils.index(satmix[desname], it), ta.shape)
     it2 = (ap1 - 0.5).data.astype(int)
     it2gt = utils.make_storage_data(it2, ta.shape)
-    desw2_lookup = utils.make_storage_data(utils.slice(satmix[desname], it2), ta.shape)
-    desw2_p1_lookup = utils.make_storage_data(utils.slice(satmix[desname], it2 + 1), ta.shape)
+    desw2_lookup = utils.make_storage_data(utils.index(satmix[desname], it2), ta.shape)
+    desw2_p1_lookup = utils.make_storage_data(utils.index(satmix[desname], it2 + 1), ta.shape)
     wqs2_stencil(
         ta,
         den,
@@ -507,8 +507,8 @@ def wqs1_iqs1(ta, den, wqsat, tablename="tablew", desname="desw"):
     ap1_for_wqs2(ta, ap1, origin=(0, 0, 0), domain=spec.grid.domain_shape_standard())
     it = ap1.data.astype(int)
     itgt = utils.make_storage_data(it, ta.shape)
-    tablew_lookup = utils.make_storage_data(utils.slice(satmix[tablename], it), ta.shape)
-    desw_lookup = utils.make_storage_data(utils.slice(satmix[desname], it), ta.shape)
+    tablew_lookup = utils.make_storage_data(utils.index(satmix[tablename], it), ta.shape)
+    desw_lookup = utils.make_storage_data(utils.index(satmix[desname], it), ta.shape)
     wqs1_stencil(
         ta,
         den,
