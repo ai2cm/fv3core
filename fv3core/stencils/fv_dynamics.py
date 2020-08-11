@@ -27,6 +27,7 @@ def init_ph_columns(ak: sd, bk: sd, pfull: sd, ph1: sd, ph2: sd, p_ref: float):
         ph2 = ak[0, 0, 1] + bk[0, 0, 1] * p_ref
         pfull = (ph2 - ph1) / log(ph2 / ph1)
 
+
 @utils.stencil()
 def pt_adjust(pkz: sd, dp1: sd, q_con: sd, pt: sd):
     with computation(PARALLEL), interval(...):
@@ -79,7 +80,7 @@ def compute_preamble(state, comm):
         spec.namelist["p_ref"],
         origin=grid.compute_origin(),
         domain=grid.domain_shape_compute(),
-    ) 
+    )
     if spec.namelist["hydrostatic"]:
         raise Exception("Hydrostatic is not implemented")
     print("FV Setup", grid.rank)
