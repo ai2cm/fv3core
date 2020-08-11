@@ -7,7 +7,6 @@ from gt4py.gtscript import computation, interval, PARALLEL
 import fv3core.utils.global_constants as constants
 from fv3core.stencils.basic_operations import max_fn, min_fn, dim
 import math
-import numpy as np
 
 # TODO, this code could be reduced greatly with abstraction, but first gt4py needs to support gtscript function calls of arbitrary depth embedded in conditionals
 sd = utils.sd
@@ -660,6 +659,9 @@ def satadjust_part1(
     ql_gen: float,
     adj_fac: float,
 ):
+    with computation(FORWARD), interval(1, None):
+        if hydrostatic:
+            delz = delz[0, 0, -1]
     with computation(PARALLEL), interval(...):
         dpln = peln[0, 0, 1] - peln
         q_liq = ql + qr
@@ -1096,9 +1098,6 @@ def compute(
     if hydrostatic:
         c_air = constants.CP_AIR
         c_vap = constants.CP_VAP
-        delz = utils.make_storage_data(
-            np.squeeze(delz.data[:, :, 0]), te.shape, utils.origin()
-        )
     else:
         c_air = constants.CV_AIR
         c_vap = constants.CV_VAP
