@@ -125,7 +125,7 @@ class ParallelTranslateBaseSlicing(ParallelTranslate):
         storages = {}
         for name, properties in self.outputs.items():
             standard_name = properties.get("name", name)
-            if isinstance(state[name], fv3util.Quantity):
+            if isinstance(state[standard_name], fv3util.Quantity):
                 storages[name] = state[standard_name].storage
             elif len(self.outputs[name]["dims"]) > 0:
                 storages[name] = state[standard_name]  # assume it's a storage
