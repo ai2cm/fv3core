@@ -31,23 +31,24 @@ def flux_y(cy: sd, dya: sd, dx: sd, sin_sg4: sd, sin_sg2: sd, yfx: sd):
         )
 
 
+@gtscript.function
+def mult_frac(var, frac):
+    var_tmp = var
+    var = var_tmp * frac
+    return var
+
+
 @utils.stencil()
 def cmax_split_vars(
     cxd: sd, xfx: sd, mfxd: sd, cyd: sd, yfx: sd, mfyd: sd, frac: float
 ):
     with computation(PARALLEL), interval(...):
-        cxd_tmp = cxd
-        cxd = cxd_tmp * frac
-        xfx_tmp = xfx
-        xfx = xfx_tmp * frac
-        mfxd_tmp = mfxd
-        mfxd = mfxd_tmp * frac
-        cyd_tmp = cyd
-        cyd = cyd_tmp * frac
-        yfx_tmp = yfx
-        yfx = yfx_tmp * frac
-        mfyd_tmp = mfyd
-        mfyd = mfyd_tmp * frac
+        cxd = mult_frac(cxd, frac)
+        xfx = mult_frac(xfx, frac)
+        mfxd = mult_frac(mfxd, frac)
+        cyd = mult_frac(cyd, frac)
+        yfx = mult_frac(yfx, frac)
+        mfyd = mult_frac(mfyd, frac)
 
 
 @utils.stencil()
