@@ -168,8 +168,12 @@ class ParallelTranslate2Py(ParallelTranslate):
         inputs["comm"] = communicator
         inputs = self.state_from_inputs(inputs)
         result = self._base.compute_from_storage(inputs)
-        quantity_result = self.outputs_from_state(inputs)
+        quantity_result = self.outputs_from_state(result)
         result.update(quantity_result)
+        for name, data in result.items():
+            if isinstance(data, fv3util.Quantity):
+                result[name] = data.storage
+        result.update(self._base.slice_output(result))
         return result
 
     def compute_sequential(self, a, b):
