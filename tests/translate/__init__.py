@@ -48,6 +48,7 @@ from .translate_moistcvpluste_2d import TranslateMoistCVPlusTe_2d
 from .translate_moistcvpluspt_2d import TranslateMoistCVPlusPt_2d
 from .translate_moistcvpluspkz_2d import TranslateMoistCVPlusPkz_2d
 from .translate_satadjust3d import TranslateSatAdjust3d
+from .translate_qsinit import TranslateQSInit
 from .translate_neg_adj3 import TranslateNeg_Adj3
 from .translate_compute_total_energy import TranslateComputeTotalEnergy
 from .translate_last_step import TranslateLastStep

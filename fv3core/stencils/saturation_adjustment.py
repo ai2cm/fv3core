@@ -45,34 +45,68 @@ def get_fac2_fn(tem, fac1, d):
     return (d * log(tem / TICE) + fac1) / constants.RVGAS
 
 
+@gtscript.function
+def tem_lower(i):
+    return TMIN + DELT * i
+
+
+@gtscript.function
+def tem_upper(i):
+    return 253.16 + DELT * i
+
+
+# Can't really use due to all the temporaries when called from conditionals
+@gtscript.function
+def q_table_eqn(i, d, l, tem):
+    fac0 = get_fac0_fn(tem)
+    lfac = fac0 * l
+    fac2 = get_fac2_fn(tem, lfac, d)
+    table = E00 * exp(fac2)
+
+
+@gtscript.function
+def table_vapor(i, tem):
+    table = q_table_eqn(i, DC_VAP, LV0, tem)
+
+
+@gtscript.function
+def table_ice(i, tem):
+    table = q_table_eqn(i, D2ICE, LI2, tem)
+
+
+@gtscript.function
+def table_vapor_oneline(tem):
+    return E00 * exp(
+        (DC_VAP * log(tem / TICE) + (tem - TICE) / (tem * TICE) * LV0) / constants.RVGAS
+    )
+
+
+@gtscript.function
+def table_ice_oneline(tem):
+    return E00 * exp(
+        (D2ICE * log(tem / TICE) + (tem - TICE) / (tem * TICE) * LI2) / constants.RVGAS
+    )
+
+
 # TODO math can be consolidated if we can call gtscript functions from conditionals, fac0 and fac2 functions and others
 @gtscript.function
 def qs_table_fn(i):
     table = 0.0
+    tem_l = tem_lower(i)
+    tem_u = tem_upper(i - 1400)
     if i < 1600:
-        tem = TMIN + DELT * i
-        table = E00 * exp(
-            (D2ICE * log(tem / TICE) + (tem - TICE) / (tem * TICE) * LI2)
-            / constants.RVGAS
-        )
+        table = table_ice_oneline(tem_l)
     if i >= 1600:
         table = 0.0
     if i >= 1600 and i < (1400 + 1221):
-        tem = 253.16 + DELT * (i - 1400)
-        fac0 = (tem - TICE) / (tem * TICE)
-        fac2 = (DC_VAP * log(tem / TICE) + fac0 * LV0) / constants.RVGAS
-        table = E00 * exp(fac2)
+        table = table_vapor_oneline(tem_u)
     wice = 0.0
     wh2o = 0.0
     esupc = 0.0
     if i >= 1400 and i < 1600:
-        tem = 253.16 + DELT * (i - 1400)
-        fac0 = (tem - TICE) / (tem * TICE)
-        fac2 = (DC_VAP * log(tem / TICE) + fac0 * LV0) / constants.RVGAS
-        esupc = E00 * exp(fac2)
-        tem = 253.16 + DELT * (i - 1400)
-        wice = 0.05 * (TICE - tem)
-        wh2o = 0.05 * (tem - 253.16)
+        esupc = table_vapor_oneline(tem_u)
+        wice = 0.05 * (TICE - tem_u)
+        wh2o = 0.05 * (tem_u - 253.16)
         table = wice * table + wh2o * esupc
     return table
 
@@ -80,18 +114,14 @@ def qs_table_fn(i):
 # TODO math can be consolidated if we can call gtscript functions from conditionals, fac0 and fac2 functions and others
 @gtscript.function
 def qs_table2_fn(i):
-    tem0 = TMIN + DELT * i
-    fac0 = get_fac0_fn(tem0)
-    fac2 = 0.0
+    tem0 = tem_lower(i)
+    table2 = 0.0
     if i < 1600:
         # compute es over ice between - 160 deg c and 0 deg c.
-        # fac2 = get_fac2_fn(tem0, fac0 * LI2, D2ICE)
-        fac2 = (D2ICE * log(tem0 / TICE) + fac0 * LI2) / constants.RVGAS
+        table2 = table_ice_oneline(tem0)
     else:
         # compute es over water between 0 deg c and 102 deg c.
-        # fac2 = get_fac2_fn(tem0, fac0 * LV0, DC_VAP)
-        fac2 = (DC_VAP * log(tem0 / TICE) + fac0 * LV0) / constants.RVGAS
-    table2 = E00 * exp(fac2)
+        table2 = table_vapor_oneline(tem0)
     table2_m1 = 0.0
     table2_p1 = 0.0
     # TODO is there way to express the code below with something closer to this?:
@@ -102,12 +132,9 @@ def qs_table2_fn(i):
     table = 0.0
     if i == 1599:
         # table(i)
-        tem0 = TMIN + DELT * i
-        table = E00 * exp(
-            (D2ICE * log(tem0 / TICE) + (tem0 - TICE) / (tem0 * TICE) * LI2)
-            / constants.RVGAS
-        )
-        tem0 = 253.16 + DELT * (i - 1400)
+        table = table_ice_oneline(tem0)
+        tem0 = 253.16 + DELT * (i - 1400)  # tem_upper(i - 1400)
+        # table_vapor_oneline(tem0)
         table = (0.05 * (TICE - tem0)) * table + (0.05 * (tem0 - 253.16)) * (
             E00
             * exp(
@@ -116,47 +143,45 @@ def qs_table2_fn(i):
             )
         )
         # table2(i - 1)
-        tem0 = TMIN + DELT * 1598
-        table2_m1 = E00 * exp(
-            (D2ICE * log(tem0 / TICE) + (tem0 - TICE) / (tem0 * TICE) * LI2)
-            / constants.RVGAS
-        )
+        tem0 = TMIN + DELT * 1598  # tem_lower(1598)
+        table2_m1 = table_ice_oneline(tem0)
         # table2(i + 1)
-        tem0 = TMIN + DELT * 1600
-        table2_p1 = E00 * exp(
-            (DC_VAP * log(tem0 / TICE) + (tem0 - TICE) / (tem0 * TICE) * LV0)
-            / constants.RVGAS
-        )
+        tem0 = TMIN + DELT * 1600  # tem_lower(1600)
+        table2_p1 = table_vapor_oneline(tem0)
         table2 = 0.25 * (table2_m1 + 2.0 * table + table2_p1)
     if i == 1600:
         # table(i)
-        tem0 = 253.16 + DELT * (i - 1400)
-        table = E00 * exp(
-            (DC_VAP * log(tem0 / TICE) + (tem0 - TICE) / (tem0 * TICE) * LV0)
-            / constants.RVGAS
-        )
+        tem0 = 253.16 + DELT * (i - 1400)  # tem_upper(i - 1400)
+        table = table_vapor_oneline(tem0)
         # table2(i - 1)
-        tem0 = TMIN + DELT * 1599
-        table2_m1 = E00 * exp(
-            (D2ICE * log(tem0 / TICE) + (tem0 - TICE) / (tem0 * TICE) * LI2)
-            / constants.RVGAS
-        )
+        tem0 = TMIN + DELT * 1599  # tem_lower(1599)
+        table2_m1 = table_ice_oneline(tem0)
         # table2(i + 1)
-        tem0 = TMIN + DELT * 1601
-        table2_p1 = E00 * exp(
-            (DC_VAP * log(tem0 / TICE) + (tem0 - TICE) / (tem0 * TICE) * LV0)
-            / constants.RVGAS
-        )
+        tem0 = TMIN + DELT * 1601  # tem_lower(1601)
+        table2_p1 = table_vapor_oneline(tem0)
         table2 = 0.25 * (table2_m1 + 2.0 * table + table2_p1)
     return table2
 
 
 @gtscript.function
 def qs_tablew_fn(i):
-    tem = TMIN + DELT * i
-    fac0 = get_fac0_fn(tem)
-    fac2 = get_fac2_fn(tem, fac0 * LV0, DC_VAP)
-    return E00 * exp(fac2)
+    tem = tem_lower(i)
+    return table_vapor_oneline(tem)
+
+
+@gtscript.function
+def des_end(t, i, z, des2):
+    t_m1 = 0.0
+    tem0 = 0.0
+    diff = 0.0
+    if i == QS_LENGTH - 1:
+        # TODO if able to call function inside of conditional
+        # t_m1 = qs_table2_fn(i - 1)
+        tem0 = TMIN + DELT * (i - 1)  # tem_lower(i - 1)
+        t_m1 = table_vapor_oneline(tem0)
+        diff = t - t_m1
+        des2 = max(z, diff)
+    return des2
 
 
 # TODO there might be a cleaner way to set des2[QS_LENGTH - 1] to des2[QS_LENGTH - 2]
@@ -167,18 +192,7 @@ def des2_table(i):
     diff = t_p1 - t
     z = 0.0
     des2 = max(z, diff)
-    t_m1 = 0.0
-    tem0 = 0.0
-    if i == QS_LENGTH - 1:
-        # TODO if able to call function inside of conditional
-        # t_m1 = qs_table2_fn(i - 1)
-        tem0 = TMIN + DELT * (i - 1)
-        t_m1 = E00 * exp(
-            (DC_VAP * log(tem0 / TICE) + (tem0 - TICE) / (tem0 * TICE) * LV0)
-            / constants.RVGAS
-        )
-        diff = t - t_m1
-        des2 = max(z, diff)
+    des2 = des_end(t, i, z, des2)
     return des2
 
 
@@ -190,19 +204,7 @@ def desw_table(i):
     diff = t_p1 - t
     z = 0.0
     desw = max(z, diff)
-    t_m1 = 0.0
-    tem0 = 0.0
-    if i == QS_LENGTH - 1:
-        # TODO if able to call function in this if
-        # t_m1 = qs_tablew_fn(i - 1)
-        tem0 = TMIN + DELT * (i - 1)
-        t_m1 = E00 * exp(
-            (DC_VAP * log(tem0 / TICE) + (tem0 - TICE) / (tem0 * TICE) * LV0)
-            / constants.RVGAS
-        )
-        diff = t - t_m1
-        desw = max(z, diff)
-
+    desw = des_end(t, i, z, desw)
     return desw
 
 
@@ -616,6 +618,16 @@ def wqs1_fn_w(ta, den):
 def wqs2_stencil_w(ta: sd, den: sd, wqsat: sd, dqdt: sd):
     with computation(PARALLEL), interval(...):
         wqsat, dqdt = wqs2_fn_w(ta, den)
+
+
+@utils.stencil()
+def compute_q_tables(index: sd, tablew: sd, table2: sd, table: sd, desw: sd, des2: sd):
+    with computation(PARALLEL), interval(...):
+        tablew = qs_tablew_fn(index)
+        table2 = qs_table2_fn(index)
+        table = qs_table_fn(index)
+        desw = desw_table(index)
+        des2 = des2_table(index)
 
 
 @utils.stencil()
