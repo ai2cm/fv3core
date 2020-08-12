@@ -36,16 +36,6 @@ QS_LENGTH = 2621
 
 
 @gtscript.function
-def get_fac0_fn(tem):
-    return (tem - TICE) / (tem * TICE)
-
-
-@gtscript.function
-def get_fac2_fn(tem, fac1, d):
-    return (d * log(tem / TICE) + fac1) / constants.RVGAS
-
-
-@gtscript.function
 def tem_lower(i):
     return TMIN + DELT * i
 
@@ -55,23 +45,23 @@ def tem_upper(i):
     return 253.16 + DELT * i
 
 
-# Can't really use due to all the temporaries when called from conditionals
+"""
+# TODO this abstraction is not possible in gt4py as these are called in conditionals and temporaries get created. but would be nice to have 1 version of the equation
 @gtscript.function
-def q_table_eqn(i, d, l, tem):
-    fac0 = get_fac0_fn(tem)
-    lfac = fac0 * l
-    fac2 = get_fac2_fn(tem, lfac, d)
-    table = E00 * exp(fac2)
-
-
-@gtscript.function
-def table_vapor(i, tem):
-    table = q_table_eqn(i, DC_VAP, LV0, tem)
-
+def q_table_oneline(delta_heat_capacity, latent_heat_coefficient, tem):
+    return E00 * exp(
+        (delta_heat_capacity * log(tem / TICE) + (tem - TICE) / (tem * TICE) *  latent_heat_coefficient) / constants.RVGAS
+    )
 
 @gtscript.function
-def table_ice(i, tem):
-    table = q_table_eqn(i, D2ICE, LI2, tem)
+def table_vapor_oneline(tem):
+    return q_table_oneline(DC_VAP, LV0, tem)
+
+
+@gtscript.function
+def table_ice_oneline(tem):
+    return q_table_oneline(D2ICE, LI2, tem)
+"""
 
 
 @gtscript.function
