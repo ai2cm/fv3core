@@ -17,7 +17,7 @@ except ImportError:
 logger = logging.getLogger("fv3ser")
 backend = "numpy"  # Options: numpy, gtmc, gtx86, gtcuda, debug, dawn:gtmc
 rebuild = True
-managed_memory = False
+managed_memory = True
 _dtype = np.float_
 sd = gtscript.Field[_dtype]
 halo = 3
@@ -360,7 +360,8 @@ def extrap_corner(p0, p1, p2, q1, q2):
 
 def asarray(array, to_type=np.ndarray, dtype=None, order=None):
     if cp and (
-        isinstance(array.data, cp.ndarray)
+        isinstance(array, memoryview)
+        or isinstance(array.data, cp.ndarray)
         or isinstance(array.data, cp.cuda.memory.MemoryPointer)
     ):
         if to_type is np.ndarray:
@@ -392,6 +393,13 @@ def repeat(array, repeats, axis=None):
 
 def index(array, key):
     return asarray(array, type(key))[key]
+
+
+def astype(array, dtype):
+    if cp and type(array.data) in (cp.ndarray, memoryview):
+        return cp.asarray(array.data).astype(dtype)
+    else:
+        return array.data.astype(dtype)
 
 
 def compare_arr(computed_data, ref_data):

@@ -174,7 +174,7 @@ def solve(is_, ie, js, je, dt, gm, cp3, pe, dm, pm, pem, w, dz, ptr, wsr):
         origin=simorigin,
         domain=simdomain,
     )
-    bet = utils.make_storage_data(bb.data[:, :, 0], simshape)
+    bet = utils.make_storage_data(bb[:, :, 0], simshape)
     w_solver(
         aa,
         bet,
@@ -194,8 +194,8 @@ def solve(is_, ie, js, je, dt, gm, cp3, pe, dm, pm, pem, w, dz, ptr, wsr):
     )
 
     # reset bet column to the new value. TODO reuse the same storage
-    bet = utils.make_storage_data(dm.data[:, :, 0] - aa.data[:, :, 1], simshape)
-    wsr_top = utils.make_storage_data(wsr.data[:, :, 0], simshape)
+    bet = utils.make_storage_data(dm[:, :, 0] - aa[:, :, 1], simshape)
+    wsr_top = utils.make_storage_data(wsr[:, :, 0], simshape)
     # TODO remove when put exponential function into stencil
     maxp = utils.make_storage_from_shape(simshape, simorigin)
     w_pe_dz_compute(

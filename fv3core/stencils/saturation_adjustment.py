@@ -477,11 +477,11 @@ def wqs1_stencil(
 def wqs2_iqs2(ta, den, wqsat, dqdt, tablename="tablew", desname="desw"):
     ap1 = utils.make_storage_from_shape(ta.shape, utils.origin)
     ap1_for_wqs2(ta, ap1, origin=(0, 0, 0), domain=spec.grid.domain_shape_standard())
-    it = ap1.data.astype(int)
+    it = utils.astype(ap1, int)
     itgt = utils.make_storage_data(it, ta.shape)
     tablew_lookup = utils.make_storage_data(utils.index(satmix[tablename], it), ta.shape)
     desw_lookup = utils.make_storage_data(utils.index(satmix[desname], it), ta.shape)
-    it2 = (ap1 - 0.5).data.astype(int)
+    it2 = utils.astype((ap1 - 0.5), int)
     it2gt = utils.make_storage_data(it2, ta.shape)
     desw2_lookup = utils.make_storage_data(utils.index(satmix[desname], it2), ta.shape)
     desw2_p1_lookup = utils.make_storage_data(utils.index(satmix[desname], it2 + 1), ta.shape)
@@ -505,7 +505,7 @@ def wqs2_iqs2(ta, den, wqsat, dqdt, tablename="tablew", desname="desw"):
 def wqs1_iqs1(ta, den, wqsat, tablename="tablew", desname="desw"):
     ap1 = utils.make_storage_from_shape(ta.shape, utils.origin)
     ap1_for_wqs2(ta, ap1, origin=(0, 0, 0), domain=spec.grid.domain_shape_standard())
-    it = ap1.data.astype(int)
+    it = utils.astype(ap1, int)
     itgt = utils.make_storage_data(it, ta.shape)
     tablew_lookup = utils.make_storage_data(utils.index(satmix[tablename], it), ta.shape)
     desw_lookup = utils.make_storage_data(utils.index(satmix[desname], it), ta.shape)
@@ -1065,7 +1065,7 @@ def compute(
         c_air = constants.CP_AIR
         c_vap = constants.CP_VAP
         delz = utils.make_storage_data(
-            np.squeeze(delz.data[:, :, 0]), te.shape, utils.origin()
+            np.squeeze(delz[:, :, 0]), te.shape, utils.origin()
         )
     else:
         c_air = constants.CV_AIR
