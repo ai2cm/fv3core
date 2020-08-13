@@ -55,9 +55,6 @@ cat ${out}
 rm ${out}
 
 else
-    echo "EXPNAME"
-    echo ${EXPNAME}
-    echo "make the tests"
     export EXPERIMENT=${EXPNAME}
     make tests TEST_ARGS="${ARGS}"
     make tests_mpi TEST_ARGS="${ARGS}"
