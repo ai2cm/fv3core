@@ -19,12 +19,12 @@ fi
 
 FORTRAN_VERSION = grep "FORTRAN_SERIALIZED_DATA_VERSION=" Makefile  | cut -d '=' -f 2
 DATA_DIR="/scratch/snx3000/rgeorge/fv3core_serialized_test_data/${FORTRAN_SERIALIZED_DATA_VERSION}/${EXPERIMENT}"
-PROJECT_DATA_DIR = "/project/d107/fv3core_serialized_test_data/${FORTRAN_SERIALIZED_DATA_VERSION}/${EXPERIMENT}"
+PROJECT_DATA_DIR="/project/d107/fv3core_serialized_test_data/${FORTRAN_SERIALIZED_DATA_VERSION}/${EXPERIMENT}"
 if [ ! -d ${DATA_DIR} ] ; then
     TEST_DATA_HOST=${PROJECT_DATA_DIR} make sync_test_data
     mkdir ${DATA_DIR}
     cp -r ${PROJECT_DATA_DIR} ${DATA_DIR}
-    TEST_DATA_HOST= ${DATA_DIR} $(MAKE) unpack_test_data
+    TEST_DATA_HOST=${DATA_DIR} $(MAKE) unpack_test_data
 fi
 # define command
 cmd="module load sarus\n${mpilaunch} sarus run --mount=type=bind,source=${DATA_DIR},destination=/test_data load/library/fv3core:latest pytest --data_path=/test_data ${ARGS} /fv3core/tests"
