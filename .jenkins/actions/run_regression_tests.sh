@@ -27,7 +27,7 @@ PROJECT_DATA_DIR="/project/d107/fv3core_serialized_test_data/${FORTRAN_VERSION}/
 # sync the test data if it does not live in /scratch
 if [ ! -d ${DATA_DIR} ] ; then
     TEST_DATA_HOST=${PROJECT_DATA_DIR} make sync_test_data
-    mkdir ${DATA_DIR}
+    mkdir -p ${DATA_DIR}
     cp -r ${PROJECT_DATA_DIR}/* ${DATA_DIR}
     TEST_DATA_HOST=${DATA_DIR} make unpack_test_data
 fi
