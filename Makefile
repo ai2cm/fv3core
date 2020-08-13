@@ -138,8 +138,8 @@ sync_test_data:
 
 get_test_data:
 	if [ ! -d $(TEST_DATA_HOST) ]; then \
-	$(MAKE) sync_test_data && \
-	$(MAKE) unpack_test_data ;\
+	TEST_DATA_HOST=$(TEST_DATA_HOST) $(MAKE) sync_test_data && \
+	TEST_DATA_HOST=$(TEST_DATA_HOST) $(MAKE) unpack_test_data ;\
 	fi
 
 unpack_test_data:
