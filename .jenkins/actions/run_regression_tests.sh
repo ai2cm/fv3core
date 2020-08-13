@@ -1,7 +1,9 @@
 #!/bin/bash
+set -e
+set -x
 envloc=$1
 BACKEND=$2
-EXPERIMENT=$3
+EXPERIMENT_NAME=$3
 ARGS="-v -s -rsx --backend=${BACKEND}"
 maxsleep=9000
 if [ "`hostname | grep daint`" != "" ] ; then
@@ -22,13 +24,13 @@ module add /project/d107/install/modulefiles/
 module load gcloud
 # get the test data version from the Makefile
 FORTRAN_VERSION=`grep "FORTRAN_SERIALIZED_DATA_VERSION=" Makefile  | cut -d '=' -f 2`
-DATA_DIR="/scratch/snx3000/rgeorge/fv3core_serialized_test_data/${FORTRAN_VERSION}/${EXPERIMENT}"
-PROJECT_DATA_DIR="/project/d107/fv3core_serialized_test_data/${FORTRAN_VERSION}/${EXPERIMENT}"
+DATA_DIR="/scratch/snx3000/rgeorge/fv3core_test_data/${FORTRAN_VERSION}/${EXPERIMENT_NAME}/"
+PROJECT_DATA_DIR="/project/d107/fv3core_serialized_test_data/${FORTRAN_VERSION}/${EXPERIMENT_NAME}/"
 # sync the test data if it does not live in /scratch
 if [ ! -d ${DATA_DIR} ] ; then
     TEST_DATA_HOST=${PROJECT_DATA_DIR} make sync_test_data
     mkdir ${DATA_DIR}
-    cp -r ${PROJECT_DATA_DIR} ${DATA_DIR}
+    cp -r ${PROJECT_DATA_DIR}/* ${DATA_DIR}
     TEST_DATA_HOST=${DATA_DIR} make unpack_test_data
 fi
 # define command
@@ -55,6 +57,10 @@ cat ${out}
 rm ${out}
 
 else
-    EXPERIMENT=${EXPERIMENT} make tests TEST_ARGS="${ARGS}"
-    EXPERIMENT=${EXPERIMENT} make tests_mpi TEST_ARGS="${ARGS}"
+    echo "EXPERIMENT_NAME"
+    echo ${EXPERIMENT_NAME}
+    echo "make the tests"
+    export EXPERIMENT=${EXPERIMENT_NAME}
+    make tests TEST_ARGS="${ARGS}"
+    make tests_mpi TEST_ARGS="${ARGS}"
 fi
