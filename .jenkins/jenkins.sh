@@ -43,7 +43,7 @@ shorthost_machine=`echo ${host_machine} | sed 's/[0-9]*$//g'`
 # some global variables
 action="$1"
 optarg="$2"
-
+optarg2="$3"
 # check presence of env directory
 pushd `dirname $0` > /dev/null
 envloc=`/bin/pwd`
@@ -73,7 +73,7 @@ fi
 script="${root}/actions/${action}.sh"
 test -f "${script}" || exitError 1301 ${LINENO} "cannot find script ${script}"
 
-${script} ${envloc} ${optarg}
+${script} ${envloc} ${optarg} ${optarg2}
 if [ $? -ne 0 ] ; then
   exitError 1510 ${LINENO} "problem while executing script ${script}"
 fi
