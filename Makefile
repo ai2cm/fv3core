@@ -76,6 +76,9 @@ rebuild_environment: build_environment
 push_core:
 	docker push $(FV3_IMAGE)
 
+pull_core:
+	docker pull $(FV3_IMAGE)
+
 tar_core:
 	docker save $(FV3_IMAGE) -o $(CORE_TAR)
 	gsutil copy $(CORE_TAR) gs://vcm-ml-public/jenkins-tmp/$(CORE_TAR)
@@ -130,10 +133,12 @@ run_tests_parallel:
 	VOLUMES='-v $(TEST_DATA_HOST):$(TEST_DATA_CONTAINER)' \
 	$(MAKE) test_base_parallel
 
+sync_test_data:
+	mkdir -p $(TEST_DATA_HOST) && gsutil -m rsync $(REGRESSION_DATA_STORAGE_BUCKET)/$(FORTRAN_SERIALIZED_DATA_VERSION)/$(EXPERIMENT)/ $(TEST_DATA_HOST)
+
 get_test_data:
 	if [ ! -d $(TEST_DATA_HOST) ]; then \
-	mkdir -p $(TEST_DATA_HOST) && \
-	gsutil -m rsync $(REGRESSION_DATA_STORAGE_BUCKET)/$(FORTRAN_SERIALIZED_DATA_VERSION)/$(EXPERIMENT)/ $(TEST_DATA_HOST) && \
+	$(MAKE) sync_test_data && \
 	$(MAKE) unpack_test_data ;\
 	fi
 

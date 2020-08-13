@@ -17,7 +17,15 @@ if [ ! -f ${envloc}/env/slurmTools.sh ] ; then
 fi
 . ${envloc}/env/slurmTools.sh
 
-DATA_DIR="/scratch/snx3000/rgeorge/test_data/c12_6ranks_standard"
+FORTRAN_VERSION = grep "FORTRAN_SERIALIZED_DATA_VERSION=" Makefile  | cut -d '=' -f 2
+DATA_DIR="/scratch/snx3000/rgeorge/fv3core_serialized_test_data/${FORTRAN_SERIALIZED_DATA_VERSION}/${EXPERIMENT}"
+PROJECT_DATA_DIR = "/project/d107/fv3core_serialized_test_data/${FORTRAN_SERIALIZED_DATA_VERSION}/${EXPERIMENT}"
+if [ ! -d ${DATA_DIR} ] ; then
+    TEST_DATA_HOST=${PROJECT_DATA_DIR} make sync_test_data
+    mkdir ${DATA_DIR}
+    cp -r ${PROJECT_DATA_DIR} ${DATA_DIR}
+    TEST_DATA_HOST= ${DATA_DIR} $(MAKE) unpack_test_data
+fi
 # define command
 cmd="module load sarus\n${mpilaunch} sarus run --mount=type=bind,source=${DATA_DIR},destination=/test_data load/library/fv3core:latest pytest --data_path=/test_data ${ARGS} /fv3core/tests"
 
@@ -42,6 +50,6 @@ cat ${out}
 rm ${out}
 
 else
-    make tests TEST_ARGS="${ARGS}"
-    make tests_mpi TEST_ARGS="${ARGS}"
+    EXPERIMENT=${EXPERIMENT} make tests TEST_ARGS="${ARGS}"
+    EXPERIMENT=${EXPERIMENT} make tests_mpi TEST_ARGS="${ARGS}"
 fi
