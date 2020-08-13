@@ -22,7 +22,7 @@ module add /project/d107/install/modulefiles/
 module load gcloud
 # get the test data version from the Makefile
 FORTRAN_VERSION=`grep "FORTRAN_SERIALIZED_DATA_VERSION=" Makefile  | cut -d '=' -f 2`
-DATA_DIR="/scratch/snx3000/rgeorge/fv3core_test_data/${FORTRAN_VERSION}/${EXPNAME}/"
+DATA_DIR="/scratch/snx3000/rgeorge/fv3core_fortran_data/${FORTRAN_VERSION}/${EXPNAME}/"
 PROJECT_DATA_DIR="/project/d107/fv3core_serialized_test_data/${FORTRAN_VERSION}/${EXPNAME}/"
 # sync the test data if it does not live in /scratch
 if [ ! -d ${DATA_DIR} ] ; then
