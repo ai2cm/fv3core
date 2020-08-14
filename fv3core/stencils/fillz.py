@@ -19,15 +19,17 @@ def grid():
 
 @utils.stencil()
 def fix_top(q: sd, dp: sd, dm: sd):
-    with computation(PARALLEL), interval(1, 2):
-        if q[0, 0, -1] < 0.0:
-            q = (
-                q + q[0, 0, -1] * dp[0, 0, -1] / dp
-            )  # move enough mass up so that the top layer isn't negative
-    with computation(PARALLEL), interval(0, 1):
-        if q < 0:
-            q = 0
-        dm = q * dp
+    with computation(FORWARD):
+        with interval(0, 1):
+            if q < 0:
+                q = 0
+            dm = q * dp
+
+        with interval(1, 2):
+            if q[0, 0, -1] < 0.0:
+                q = (
+                    q + q[0, 0, -1] * dp[0, 0, -1] / dp
+                )  # move enough mass up so that the top layer isn't negative
 
 
 @utils.stencil()
@@ -71,27 +73,30 @@ def fix_interior(
 def fix_bottom(
     q: sd, dp: sd, zfix: sd, upper_fix: sd, lower_fix: sd, dm: sd, dm_pos: sd
 ):
-    with computation(PARALLEL), interval(1, 2):
-        if (
-            lower_fix[0, 0, -1] != 0.0
-        ):  # the 2nd-to-last layer borrowed from this one, account for that here
-            q = q - (lower_fix[0, 0, -1] / dp)
-        qup = q[0, 0, -1] * dp[0, 0, -1]
-        qly = -q * dp
-        dup = qup if qup < qly else qly
-        if (q < 0.0) and (q[0, 0, -1] > 0.0):
-            zfix = 1.0
-            q = q + (dup / dp)
-            upper_fix = dup
-        dm = q * dp
-        dm_pos = dm if dm > 0.0 else 0.0
-    with computation(PARALLEL), interval(0, 1):
-        if (
-            upper_fix[0, 0, 1] != 0.0
-        ):  # if the bottom layer borrowed from this one, adjust
-            q = q - (upper_fix[0, 0, 1] / dp)
+    with computation(FORWARD):
+        with interval(0, 1):
+            if (
+                upper_fix[0, 0, 1] != 0.0
+            ):  # if the bottom layer borrowed from this one, adjust
+                q = q - (upper_fix[0, 0, 1] / dp)
+                dm = q * dp
+                dm_pos = dm if dm > 0.0 else 0.0  # now we gotta update these too
+
+        with interval(1, 2):
+            if (
+                lower_fix[0, 0, -1] != 0.0
+            ):  # the 2nd-to-last layer borrowed from this one, account for that here
+                q = q - (lower_fix[0, 0, -1] / dp)
+            qup = q[0, 0, -1] * dp[0, 0, -1]
+            qly = -q * dp
+            dup = qup if qup < qly else qly
+            if (q < 0.0) and (q[0, 0, -1] > 0.0):
+                zfix = 1.0
+                q = q + (dup / dp)
+                upper_fix = dup
             dm = q * dp
-            dm_pos = dm if dm > 0.0 else 0.0  # now we gotta update these too
+            dm_pos = dm if dm > 0.0 else 0.0
+
 
 
 @utils.stencil()

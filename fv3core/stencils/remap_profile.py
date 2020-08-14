@@ -54,7 +54,7 @@ def set_vals_2(gam: sd, q: sd, delp: sd, a4_1: sd, q_bot: sd, qs: sd):
             # set top
             # gam = 0.5
             q = 1.5 * a4_1
-    with computation(PARALLEL):
+    with computation(FORWARD):
         with interval(1, 2):
             gam = 0.5
             grid_ratio = delp[0, 0, -1] / delp
@@ -70,7 +70,7 @@ def set_vals_2(gam: sd, q: sd, delp: sd, a4_1: sd, q_bot: sd, qs: sd):
             bet = 2.0 + grid_ratio + grid_ratio - gam
             q = (3.0 * (a4_1[0, 0, -1] + a4_1) - q[0, 0, -1]) / bet
             # gam[0, 0, 1] = grid_ratio / bet
-    with computation(PARALLEL):
+    with computation(FORWARD):
         with interval(-2, -1):
             # set bottom
             old_grid_ratio = delp[0, 0, -2] / delp[0, 0, -1]
@@ -107,7 +107,7 @@ def set_vals_1(gam: sd, q: sd, delp: sd, a4_1: sd, q_bot: sd):
             bet = 2.0 + d4 + d4 - gam[0, 0, -1]
             q = (3.0 * (a4_1[0, 0, -1] + d4 * a4_1) - q[0, 0, -1]) / bet
             gam = d4 / bet
-    with computation(PARALLEL):
+    with computation(FORWARD):
         with interval(-1, None):
             # set bottom
             d4 = delp[0, 0, -2] / delp[0, 0, -1]

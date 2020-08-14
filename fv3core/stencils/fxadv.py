@@ -296,9 +296,7 @@ def update_vt_x_edge(vc, sin_sg2, sin_sg4, vt, dt):
 
 
 def corner_ut_stencil(uc: sd, vc: sd, ut: sd, vt: sd, cosa_u: sd, cosa_v: sd):
-    from __externals__ import vi, vj, ux, uy, vx, vy
-
-    with computation(PARALLEL), interval(...):
+    with computation(FORWARD), interval(...):
         ut[0, 0, 0] = (
             (
                 uc[0, 0, 0]

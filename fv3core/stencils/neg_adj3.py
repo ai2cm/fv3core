@@ -251,7 +251,7 @@ def fix_water_vapor_k_loop(i, j, kbot, qv, dp):
 # Stencil version
 @utils.stencil()
 def fix_water_vapor_down(qv: sd, dp: sd, upper_fix: sd, lower_fix: sd, dp_bot: sd):
-    with computation(PARALLEL):
+    with computation(FORWARD):
         with interval(1, 2):
             if qv[0, 0, -1] < 0:
                 qv = qv + qv[0, 0, -1] * dp[0, 0, -1] / dp

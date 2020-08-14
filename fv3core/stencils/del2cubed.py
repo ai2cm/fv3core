@@ -38,14 +38,14 @@ def update_q(q: sd, rarea: sd, fx: sd, fy: sd, cd: float):
 
 @utils.stencil()
 def copy_row(A: sd):
-    with computation(PARALLEL), interval(...):
+    with computation(FORWARD), interval(...):
         A0 = A
         A = A0[1, 0, 0]
 
 
 @utils.stencil()
 def copy_column(A: sd):
-    with computation(PARALLEL), interval(...):
+    with computation(FORWARD), interval(...):
         A0 = A
         A = A0[0, 1, 0]
 
