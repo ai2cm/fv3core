@@ -32,8 +32,15 @@ if [ ! -d ${DATA_DIR} ] ; then
     cp -r ${PROJECT_DATA_DIR}/* ${DATA_DIR}
     TEST_DATA_HOST=${DATA_DIR} make unpack_test_data
 fi
+cd $SCRATCH
+export FV3_CONTAINER=fv3core
+export TAR_FILE=fv3core.tar
+module load daint-gpu
+module load sarus
+gsutil copy gs://vcm-fv3core/${TAR_FILE} .
+sarus load ./${TAR_FILE} ${FV3_CONTAINER}
 # define command
-cmd="module load sarus\n${mpilaunch} sarus run --mount=type=bind,source=${DATA_DIR},destination=/test_data load/library/fv3core:latest pytest --data_path=/test_data ${ARGS} /fv3core/tests"
+cmd="${mpilaunch} sarus run --mount=type=bind,source=${DATA_DIR},destination=/test_data load/library/${FV3_CONTAINER}:latest pytest --data_path=/test_data ${ARGS} /fv3core/tests"
 
 # setup SLURM job
 out="fv3core_${BUILD_ID}.out"

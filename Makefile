@@ -81,7 +81,7 @@ pull_core:
 
 tar_core:
 	docker save $(FV3_IMAGE) -o $(CORE_TAR)
-	gsutil copy $(CORE_TAR) gs://vcm-ml-public/jenkins-tmp/$(CORE_TAR)
+	gsutil copy $(CORE_TAR) gs://vcm-fv3core/$(CORE_TAR)
 
 tests: build
 	$(MAKE) get_test_data
