@@ -737,7 +737,6 @@ def satadjust_part4(
     lhi: sd,
     lcp2: sd,
     icp2: sd,
-    exptc: sd,
     qv: sd,
     ql: sd,
     q_liq: sd,
@@ -757,6 +756,7 @@ def satadjust_part4(
 ):
     with computation(PARALLEL), interval(...):
         # bigg mechanism (heterogeneous freezing of cloud water to cloud ice)
+        exptc = exp(0.66 * (TICE0 - pt1))
         ql, qi, q_liq, q_sol, cvm, pt1 = heterogeneous_freezing(
             exptc,
             pt1,
@@ -811,7 +811,6 @@ def satadjust_part5(
     dp: sd,
     q_cond: sd,
     q_con: sd,
-    expsubl: sd,
     iqs2: sd,
     dqsdt: sd,
     den: sd,
@@ -854,6 +853,7 @@ def satadjust_part5(
     with computation(PARALLEL), interval(...):
         lhl, lhi, lcp2, icp2 = update_latent_heat_coefficient(pt1, cvm, lv00, d0_vap)
         tcp2 = lcp2 + icp2
+        expsubl = exp(0.875 * log(qi * den))
         # TODO t_sub is supposed to come from the namelist, but currently gt4py breaks with a coniditional comparison of a runtime float (vs a constant)
         qv, qi, q_sol, cvm, pt1 = sublimation(
             pt1,
@@ -1157,7 +1157,6 @@ def compute(
         #  enforce upper (no super_sat) & lower (critical rh) bounds
         # final iteration:
         wqs2_iqs2(pt1, den, wqsat, dq2dt)
-
     satadjust_part3(
         wqsat,
         dq2dt,
@@ -1183,7 +1182,6 @@ def compute(
         origin=origin,
         domain=domain,
     )
-    exptc = np.exp(0.66 * (TICE0 - pt1))
     satadjust_part4(
         den,
         pt1,
@@ -1193,7 +1191,6 @@ def compute(
         lhi,
         lcp2,
         icp2,
-        exptc,
         qvapor,
         qliquid,
         q_liq,
@@ -1216,8 +1213,6 @@ def compute(
     iqs2 = utils.make_storage_from_shape(peln.shape, utils.origin)
     dqsdt = utils.make_storage_from_shape(peln.shape, utils.origin)
     wqs2_iqs2(pt1, den, iqs2, dqsdt, tablename="table2", desname="des2")
-    # TODO: this can be pushed into the stencil function as (qice * den)**0.875, but breaks validation
-    expsubl = np.exp(0.875 * np.log(qice * den))
     do_qa = True  # TODO  -- this isn't a namelist option in Fortran, it is whether or not cld_amount is a tracer. If/when we support different sets of tracers, this will need to change
     satadjust_part5(
         pt,
@@ -1227,7 +1222,6 @@ def compute(
         delp,
         q_cond,
         q_con,
-        expsubl,
         iqs2,
         dqsdt,
         den,
