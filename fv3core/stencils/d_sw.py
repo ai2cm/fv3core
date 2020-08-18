@@ -692,8 +692,8 @@ def d_sw(
             origin=grid().compute_origin(),
             domain=grid().domain_shape_compute_y(),
         )
-        basic.add_term_stencil(
-            -ut,
+        basic.subtract_term_stencil(
+            ut,
             v,
             origin=grid().compute_origin(),
             domain=grid().domain_shape_compute_x(),
