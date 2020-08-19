@@ -34,8 +34,8 @@ def flux_y(cy: sd, dya: sd, dx: sd, sin_sg4: sd, sin_sg2: sd, yfx: sd):
 @gtscript.function
 def mult_frac(var, frac):
     var_tmp = var
-    var = var_tmp * frac
-    return var
+    return var_tmp * frac
+    
 
 
 @utils.stencil()
