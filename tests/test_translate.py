@@ -4,7 +4,7 @@ import sys
 import contextlib
 import numpy as np
 import fv3core._config
-import fv3core.utils.gt4py_utils as utils
+import fv3core.utils.gt4py_utils
 import pytest
 import fv3util
 import logging
@@ -19,12 +19,18 @@ import serialbox as ser
 np.set_printoptions(threshold=4096)
 
 OUTDIR = os.path.join(os.path.dirname(os.path.realpath(__file__)), "output")
-GPU_MAX_ERR = 1e-10
+
+
+def compare_arr(computed_data, ref_data):
+    denom = np.abs(ref_data) + np.abs(computed_data)
+    compare = 2.0 * np.abs(computed_data - ref_data) / denom
+    compare[denom == 0] = 0.0
+    return compare
 
 
 def success_array(computed_data, ref_data, eps, ignore_near_zero_errors):
     success = np.logical_or(
-        utils.compare_arr(computed_data, ref_data) < eps,
+        compare_arr(computed_data, ref_data) < eps,
         np.logical_and(np.isnan(computed_data), np.isnan(ref_data)),
     )
     if ignore_near_zero_errors:
@@ -102,9 +108,6 @@ def test_sequential_savepoint(
     caplog.set_level(logging.DEBUG, logger="fv3ser")
     if testobj is None:
         pytest.xfail(f"no translate object available for savepoint {test_name}")
-    # Reduce error threshold for GPU
-    if backend.endswith("cuda"):
-        testobj.max_error = GPU_MAX_ERR
     fv3core._config.set_grid(grid)
     input_data = testobj.collect_input_data(serializer, savepoint_in)
     # run python version of functionality
@@ -139,7 +142,7 @@ def get_serializer(data_path, rank):
 
 def state_from_savepoint(serializer, savepoint, name_to_std_name):
     properties = fv3util.fortran_info.properties_by_std_name
-    origin = utils.origin
+    origin = fv3core.utils.gt4py_utils.origin
     state = {}
     for name, std_name in name_to_std_name.items():
         array = serializer.read(name, savepoint)
@@ -241,9 +244,6 @@ def test_parallel_savepoint(
     caplog.set_level(logging.DEBUG, logger="fv3ser")
     if testobj is None:
         pytest.xfail(f"no translate object available for savepoint {test_name}")
-    # Reduce error threshold for GPU
-    if backend.endswith("cuda"):
-        testobj.max_error = GPU_MAX_ERR
     fv3core._config.set_grid(grid[0])
     input_data = testobj.collect_input_data(serializer, savepoint_in)
     # run python version of functionality

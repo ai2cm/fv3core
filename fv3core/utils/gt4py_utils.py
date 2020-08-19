@@ -15,7 +15,7 @@ except ImportError:
     cp = None
 
 logger = logging.getLogger("fv3ser")
-backend = "numpy"  # Options: numpy, gtmc, gtx86, gtcuda, debug, dawn:gtmc
+backend = None  # Options: numpy, gtmc, gtx86, gtcuda, debug, dawn:gtmc
 rebuild = True
 managed_memory = True
 _dtype = np.float_
@@ -50,14 +50,11 @@ def stencil(**stencil_kwargs):
 
         @functools.wraps(func)
         def wrapped(*args, **kwargs):
-            if "backend" not in stencil_kwargs:
-                stencil_kwargs["backend"] = backend
-            if "rebuild" not in stencil_kwargs:
-                stencil_kwargs["rebuild"] = rebuild
-
-            key = (stencil_kwargs["backend"], stencil_kwargs["rebuild"])
+            key = (backend, rebuild)
             if key not in stencils:
-                stencils[key] = gtscript.stencil(**stencil_kwargs)(func)
+                stencils[key] = gtscript.stencil(
+                    backend=backend, rebuild=rebuild, **stencil_kwargs
+                )(func)
             return stencils[key](*args, **kwargs)
 
         return wrapped
@@ -400,26 +397,3 @@ def astype(array, dtype):
         return cp.asarray(array.data).astype(dtype)
     else:
         return array.data.astype(dtype)
-
-
-def compare_arr(computed_data, ref_data):
-    denom = np.abs(ref_data) + np.abs(computed_data)
-    compare = 2.0 * np.abs(computed_data - ref_data) / denom
-    compare[denom == 0] = 0.0
-    return compare
-
-
-def success_arr(computed_data, ref_data, eps=1e-12, ignore_near_zero_errors=True):
-    success = np.logical_or(
-        compare_arr(computed_data, ref_data) < eps,
-        np.logical_and(np.isnan(computed_data), np.isnan(ref_data)),
-    )
-    if ignore_near_zero_errors:
-        small_number = 1e-18
-        success = np.logical_or(
-            success,
-            np.logical_and(
-                np.abs(computed_data) < small_number, np.abs(ref_data) < small_number
-            ),
-        )
-    return success
