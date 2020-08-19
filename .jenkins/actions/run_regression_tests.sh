@@ -33,6 +33,8 @@ if [ ! -d ${DATA_DIR} ] ; then
     TEST_DATA_HOST=${DATA_DIR} make unpack_test_data
 fi
 cd $SCRATCH
+mkdir -p $EXPNAME
+cd $EXPNAME
 export FV3_CONTAINER=fv3core
 export TAR_FILE=fv3core.tar
 module load daint-gpu
@@ -61,7 +63,8 @@ fi
 # echo output of SLURM job
 cat ${out}
 rm ${out}
-
+cd $SCRATCH
+rm -r $EXPNAME
 else
     export EXPERIMENT=${EXPNAME}
     make tests TEST_ARGS="${ARGS}"
