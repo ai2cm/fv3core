@@ -130,8 +130,7 @@ def adjust_w_and_qcon(w: sd, delp: sd, dw: sd, q_con: sd, damp_w: float):
 @utils.stencil()
 def heatdamping_setup(ub: sd, vt: sd, fy: sd, u: sd, gy: sd, rdx: sd, sign: float):
     with computation(PARALLEL), interval(...):
-        ub[0, 0, 0] = (ub + sign * vt)
-         * rdx
+        ub[0, 0, 0] = (ub + sign * vt) * rdx
         fy[0, 0, 0] = u * rdx
         gy[0, 0, 0] = fy * ub
 
