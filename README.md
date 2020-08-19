@@ -150,7 +150,6 @@ Add `PULL=False` to build from scratch without running `docker pull`:
 PULL=False make build
 ```
 
-
 ## Relevant repositories
 - https://github.com/VulcanClimateModeling/serialbox2 -
   Serialbox generates serialized data when the Fortran model runs and has bindings to manage data from Python
