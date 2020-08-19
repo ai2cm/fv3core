@@ -397,3 +397,4 @@ def astype(array, dtype):
         return cp.asarray(array.data).astype(dtype)
     else:
         return array.data.astype(dtype)
+
