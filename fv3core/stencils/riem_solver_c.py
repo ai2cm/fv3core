@@ -43,6 +43,7 @@ def precompute(
 
 @utils.stencil()
 def finalize(pe2: sd, pem: sd, hs: sd, dz: sd, pef: sd, gz: sd):
+    # TODO: we only want to bottom level of hd, so this could be removed once hd0 is a 2d field
     with computation(FORWARD):
         with interval(0, 1):
             hs_0 = hs
