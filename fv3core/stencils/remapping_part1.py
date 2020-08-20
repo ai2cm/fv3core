@@ -173,7 +173,6 @@ def compute(
         delz_adjust(
             delp, delz, origin=grid.compute_origin(), domain=grid.domain_shape_compute()
         )
-
     pressure_updates(
         pe1,
         pe2,
