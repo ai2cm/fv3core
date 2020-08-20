@@ -1237,7 +1237,6 @@ def compute(
         namelist["rad_rain"],
         namelist["rad_graupel"],
         namelist["tintqs"],
-        last_step,
         origin=origin,
         domain=domain,
     )
