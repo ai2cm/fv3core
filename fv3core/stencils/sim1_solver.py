@@ -28,6 +28,7 @@ def sim1_solver(
     rdt: float,
     p_fac: float,
 ):
+    # TODO: we only want to bottom level of wsr, so this could be removed once wsr_top is a 2d field
     with computation(FORWARD):
         with interval(0, 1):
             wsr_top = wsr
