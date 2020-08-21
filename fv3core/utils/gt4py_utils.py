@@ -42,6 +42,26 @@ if MPI is not None and MPI.COMM_WORLD.Get_size() > 1:
 def quantity_name(name):
     return name + "_quantity"
 
+def print_statistics(iir):
+    print(f"Stencil: {iir.name}")
+    print(f" -- Fields involved: {len(iir.fields)}")
+
+
+    print(f" -- # Multistages: {len(iir.multi_stages)}")
+    for imultistage, multistage in enumerate(iir.multi_stages):
+        stmts = 0
+        stages = 0
+        for group in multistage.groups:
+            stages += len(group.stages)
+            for stage in group.stages:
+                stmts += sum(len(apply_block.body.stmts) for apply_block in stage.apply_blocks)
+
+        print(f"     {imultistage}: # Stages: {stages}")
+        istage = 0
+        for group in multistage.groups:
+            for stage in group.stages:
+                print(f"         {istage}: # Statements: {sum(len(apply_block.body.stmts) for apply_block in stage.apply_blocks)}")
+                istage += 1
 
 def stencil(**stencil_kwargs):
     def decorator(func):
@@ -51,9 +71,21 @@ def stencil(**stencil_kwargs):
         def wrapped(*args, **kwargs):
             key = (backend, rebuild)
             if key not in stencils:
+
+                if "stats" in stencil_kwargs:
+                    stats = stencil_kwargs["stats"]
+                    del stencil_kwargs["stats"]
+                else:
+                    stats = False
+
+                build_info = {}
                 stencils[key] = gtscript.stencil(
-                    backend=backend, rebuild=rebuild, **stencil_kwargs
+                    backend=backend, rebuild=rebuild, build_info=build_info, **stencil_kwargs
                 )(func)
+
+                if stats:
+                    print_statistics(build_info["iir"])
+
             return stencils[key](*args, **kwargs)
 
         return wrapped

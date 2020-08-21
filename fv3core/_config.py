@@ -1,12 +1,15 @@
-import f90nml
 import os
+from types import SimpleNamespace
+
+import f90nml
+import gt4py.gtscript as gtscript
+
 import fv3core.utils.gt4py_utils as utils
 from fv3core.utils.grid import Grid
-import gt4py.gtscript as gtscript
 
 grid = None
 namelist = None
-
+config = None
 
 def namelist_to_flatish_dict(source):
     namelist = dict(source)
@@ -115,10 +118,12 @@ def set_grid(in_grid):
 def set_namelist(filename):
     global grid
     global namelist
+    global config
     namelist = merge_namelist_defaults(
         namelist_to_flatish_dict(f90nml.read(filename).items())
     )
     grid = make_grid_from_namelist(namelist, 0)
+    config = SimpleNamespace(**namelist)
 
 
 if "NAMELIST_FILENAME" in os.environ:

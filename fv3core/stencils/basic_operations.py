@@ -74,11 +74,11 @@ def absolute_value(in_array):
 
 @gtscript.function
 def sign(a, b):
-    asignb = absolute_value(a)
+    asignb = abs(a)
     if b > 0:
         asignb = asignb
     else:
-        asignb = -asignb
+        asignb = -1.0 * asignb
     return asignb
 
 
