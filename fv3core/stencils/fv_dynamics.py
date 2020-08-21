@@ -257,7 +257,7 @@ def set_constants(state):
     ArgSpec("qliquid", "cloud_water_mixing_ratio", "kg/kg", intent="inout"),
     ArgSpec("qrain", "rain_mixing_ratio", "kg/kg", intent="inout"),
     ArgSpec("qsnow", "snow_mixing_ratio", "kg/kg", intent="inout"),
-    ArgSpec("qice", "ice_mixing_ratio", "kg/kg", intent="inout"),
+    ArgSpec("qice", "cloud_ice_mixing_ratio", "kg/kg", intent="inout"),
     ArgSpec("qgraupel", "graupel_mixing_ratio", "kg/kg", intent="inout"),
     ArgSpec("qo3mr", "ozone_mixing_ratio", "kg/kg", intent="inout"),
     ArgSpec("qsgs_tke", "turbulent_kinetic_energy", "m**2/s**2", intent="inout"),
@@ -291,8 +291,8 @@ def set_constants(state):
     ArgSpec("bk", "atmosphere_hybrid_b_coordinate", "", intent="in"),
     ArgSpec("mfxd", "accumulated_x_mass_flux", "unknown", intent="inout"),
     ArgSpec("mfyd", "accumulated_y_mass_flux", "unknown", intent="inout"),
-    ArgSpec("cxd", "accumulated_x_courant_number", "unknown", intent="inout"),
-    ArgSpec("cyd", "accumulated_y_courant_number", "unknown", intent="inout"),
+    ArgSpec("cxd", "accumulated_x_courant_number", "", intent="inout"),
+    ArgSpec("cyd", "accumulated_y_courant_number", "", intent="inout"),
     ArgSpec(
         "diss_estd", "dissipation_estimate_from_heat_source", "unknown", intent="inout"
     ),
