@@ -19,7 +19,7 @@ DEV_MOUNTS = '-v $(CWD)/fv3core:/fv3core/fv3core -v $(CWD)/tests:/fv3core/tests 
 FV3_INSTALL_TAG=develop
 FV3_INSTALL_TARGET=fv3core-install
 FV3_INSTALL_IMAGE=$(GCR_URL)/$(FV3_INSTALL_TARGET):$(FV3_INSTALL_TAG)
-
+FV3_INSTALL_BASE=$(GCR_URL)/$(FV3_INSTALL_TARGET)_base:$(FV3_INSTALL_TAG)
 
 TEST_DATA_CONTAINER=/test_data
 
@@ -37,8 +37,14 @@ update_submodules:
 	fi
 
 
-build_environment: 
+build_environment:
 	DOCKER_BUILDKIT=1 docker build \
+		--network host \
+		-f $(CWD)/docker/Dockerfile.base_build_environment \
+		-t $(FV3_INSTALL_BASE) \
+		.
+	DOCKER_BUILDKIT=1 docker build --no-cache \
+		--build-arg BASEBUILD=$(FV3_INSTALL_BASE) \
 		--network host \
 		-f $(CWD)/docker/Dockerfile.build_environment \
 		-t $(FV3_INSTALL_IMAGE) \
@@ -116,7 +122,7 @@ test_base_parallel:
 
 
 run_tests_sequential:
-	VOLUMES='-v $(TEST_DATA_HOST):$(TEST_DATA_CONTAINER)' \
+	VOLUMES='-v $(TEST_DATA_HOST):$(TEST_DATA_CONTAINER) -v /Volumes/Dev/devcode/mathd/cache:/.gt_cache/' \
 	$(MAKE) test_base
 
 run_tests_parallel:
