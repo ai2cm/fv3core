@@ -122,7 +122,7 @@ test_base_parallel:
 
 
 run_tests_sequential:
-	VOLUMES='-v $(TEST_DATA_HOST):$(TEST_DATA_CONTAINER) -v /Volumes/Dev/devcode/mathd/cache:/.gt_cache/' \
+	VOLUMES='-v $(TEST_DATA_HOST):$(TEST_DATA_CONTAINER)' \
 	$(MAKE) test_base
 
 run_tests_parallel:
