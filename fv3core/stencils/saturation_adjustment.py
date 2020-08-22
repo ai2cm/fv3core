@@ -524,22 +524,18 @@ def ap1_stencil(ta: sd, ap1: sd):
 @gtscript.function
 def ap1_for_wqs2(ta):
     ap1 = 10.0 * dim(ta, TMIN) + 1.0
-    ap1 = min_fn(ap1, QS_LENGTH) - 1
-    return ap1
+    return min_fn(ap1, QS_LENGTH) - 1
 
 
 @gtscript.function
 def ap1_index(ap1):
-    it = 0
-    it = ap1
-    return it
+    return floor(ap1)
 
 
 @gtscript.function
 def ap1_indices(ap1):
     it = ap1_index(ap1)
-    it2 = 0
-    it2 = ap1 - 0.5
+    it2 = floor(ap1 - 0.5)
     it2_p1 = it2 + 1
     return it, it2, it2_p1
 
@@ -575,7 +571,8 @@ def wqsat_wsq1(table, des, ap1, it, ta, den):
 
 
 @gtscript.function
-def wqs2_fn_2(it, it2, it2_p1, ap1, ta, den):
+def wqs2_fn_2(ta, den):
+    ap1, it, it2, it2_p1 = ap1_and_indices(ta)
     table2 = qs_table2_fn(it)
     des2 = des2_table(it)
     des22 = des2_table(it2)
@@ -585,7 +582,8 @@ def wqs2_fn_2(it, it2, it2_p1, ap1, ta, den):
 
 
 @gtscript.function
-def wqs2_fn_w(it, it2, it2_p1, ap1, ta, den):
+def wqs2_fn_w(ta, den):
+    ap1, it, it2, it2_p1 = ap1_and_indices(ta)
     tablew = qs_tablew_fn(it)
     desw = desw_table(it)
     desw2 = desw_table(it2)
@@ -609,10 +607,9 @@ def wqs1_fn_2(it, ap1, ta, den):
 
 
 @utils.stencil()
-def wqs2_stencil_w(it: si, it2: si, it2_p1: si, ta: sd, den: sd, wqsat: sd, dqdt: sd):
+def wqs2_stencil_w(ta: sd, den: sd, wqsat: sd, dqdt: sd):
     with computation(PARALLEL), interval(...):
-        ap1, it, it2, it2_p1 = ap1_and_indices(ta)
-        wqsat, dqdt = wqs2_fn_w(it, it2, it2_p1, ap1, ta, den)
+        wqsat, dqdt = wqs2_fn_w(ta, den)
 
 
 @utils.stencil()
@@ -627,9 +624,6 @@ def compute_q_tables(index: sd, tablew: sd, table2: sd, table: sd, desw: sd, des
 
 @utils.stencil()
 def satadjust_part1(
-    it: si,
-    it2: si,
-    it2_p1: si,
     wqsat: sd,
     dq2dt: sd,
     dpln: sd,
@@ -716,8 +710,7 @@ def satadjust_part1(
         ql, qi, q_liq, q_sol, cvm, pt1 = complete_freezing(
             qv, ql, qi, q_liq, q_sol, pt1, cvm, icp2, mc_air, lhi, c_vap
         )
-        ap1, it, it2, it2_p1 = ap1_and_indices(pt1)
-        wqsat, dq2dt = wqs2_fn_w(it, it2, it2_p1, ap1, pt1, den)
+        wqsat, dq2dt = wqs2_fn_w(pt1, den)
         # update latent heat coefficient
         lhl, lhi, lcp2, icp2 = update_latent_heat_coefficient(pt1, cvm, lv00, d0_vap)
         diff_ice = dim(TICE, pt1) / 48.0
@@ -760,9 +753,6 @@ def satadjust_part1(
 # TODO reading in ql0_max as a runtime argument causes problems for the if statement
 @utils.stencil()
 def satadjust_part2(
-    it: si,
-    it2: si,
-    it2_p1: si,
     wqsat: sd,
     dq2dt: sd,
     pt1: sd,
@@ -898,8 +888,7 @@ def satadjust_part2(
         #  autoconversion from cloud water to rain
         # TODO ql0_max is supposed to come from the namelist, but runtime floats cause an error while constants do not
         ql, qr = autoconversion_cloud_to_rain(ql, qr, fac_l2r, constants.ql0_max)
-        ap1, it, it2, it2_p1 = ap1_and_indices(pt1)
-        iqs2, dqsdt = wqs2_fn_2(it, it2, it2_p1, ap1, pt1, den)
+        iqs2, dqsdt = wqs2_fn_2(pt1, den)
         expsubl = exp(0.875 * log(qi * den))
         lhl, lhi, lcp2, icp2 = update_latent_heat_coefficient(pt1, cvm, lv00, d0_vap)
         tcp2 = lcp2 + icp2
@@ -982,7 +971,6 @@ def satadjust_part2(
 
 @utils.stencil()
 def satadjust_part3_laststep_qa(
-    it: si,
     qa: sd,
     area: sd,
     qpz: sd,
@@ -1138,14 +1126,8 @@ def compute(
     tin = utils.make_storage_from_shape(peln.shape, utils.origin)
     q_cond = utils.make_storage_from_shape(peln.shape, utils.origin)
     qpz = utils.make_storage_from_shape(peln.shape, utils.origin)
-    it = utils.make_storage_from_shape(peln.shape, utils.origin, dtype=int)
-    it2 = utils.make_storage_from_shape(peln.shape, utils.origin, dtype=int)
-    it2_p1 = utils.make_storage_from_shape(peln.shape, utils.origin, dtype=int)
     adj_fac = namelist["sat_adj0"]
     satadjust_part1(
-        it,
-        it2,
-        it2_p1,
         wqsat,
         dq2dt,
         dpln,
@@ -1195,9 +1177,6 @@ def compute(
         # final iteration:
         # TODO, if can call functions from conditionals, can call function inside the stencil
         wqs2_stencil_w(
-            it,
-            it2,
-            it2_p1,
             pt1,
             den,
             wqsat,
@@ -1207,9 +1186,6 @@ def compute(
         )
     do_qa = True  # TODO  -- this isn't a namelist option in Fortran, it is whether or not cld_amount is a tracer. If/when we support different sets of tracers, this will need to change
     satadjust_part2(
-        it,
-        it2,
-        it2_p1,
         wqsat,
         dq2dt,
         pt1,
@@ -1270,7 +1246,6 @@ def compute(
 
     if do_qa and last_step:
         satadjust_part3_laststep_qa(
-            it,
             qcld,
             grid.area_64,
             qpz,
