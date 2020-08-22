@@ -43,7 +43,7 @@ RUN tar xzf boost_1_73_0.tar.gz -C /usr/local && \
 ###
 ### Download repos that we want to stay up to date with
 ###
-RUN git clone --depth 1 https://github.com/GridTools/gt4py.git /usr/src/gt4py && \
+RUN git clone --depth 1 -b develop https://github.com/VulcanClimateModeling/gt4py.git /usr/src/gt4py && \
     git clone https://github.com/MeteoSwiss-APN/dawn.git /usr/src/dawn
 ###
 ### Build and install GT4Py and DAWN
