@@ -576,8 +576,6 @@ def wqsat_wsq1(table, des, ap1, it, ta, den):
 
 @gtscript.function
 def wqs2_fn_2(it, it2, it2_p1, ap1, ta, den):
-    # ap1 = ap1_for_wqs2(ta)
-    # it, it2, it2_p1 = ap1_indices(ap1)
     table2 = qs_table2_fn(it)
     des2 = des2_table(it)
     des22 = des2_table(it2)
@@ -588,8 +586,6 @@ def wqs2_fn_2(it, it2, it2_p1, ap1, ta, den):
 
 @gtscript.function
 def wqs2_fn_w(it, it2, it2_p1, ap1, ta, den):
-    # ap1 = ap1_for_wqs2(ta)
-    # it, it2, it2_p1 = ap1_indices(ap1)
     tablew = qs_tablew_fn(it)
     desw = desw_table(it)
     desw2 = desw_table(it2)
