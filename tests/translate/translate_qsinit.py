@@ -23,12 +23,8 @@ class TranslateQSInit(TranslateFortranData2Py):
         inputs["index"] = utils.make_storage_data_from_1d(
             np.arange(satadjust.QS_LENGTH), self.maxshape, origin=(0, 0, 0)
         )
-
-        inputs["origin"] = (0, 0, 0)
-        inputs["domain"] = self.maxshape
-        self.compute_func(**inputs)
-        del inputs["origin"]
-        del inputs["domain"]
+        kwargs = {"origin": (0, 0, 0), "domain": self.maxshape}
+        self.compute_func(**inputs, **kwargs)
         for k, v in inputs.items():
             if v.shape == self.maxshape:
                 inputs[k] = np.squeeze(v)
