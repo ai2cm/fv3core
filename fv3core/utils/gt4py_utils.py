@@ -391,11 +391,3 @@ def repeat(array, repeats, axis=None):
 
 def index(array, key):
     return asarray(array, type(key))[key]
-
-
-def astype(array, dtype):
-    if cp and type(array.data) in (cp.ndarray, memoryview):
-        return cp.asarray(array.data).astype(dtype)
-    else:
-        return array.data.astype(dtype)
-
