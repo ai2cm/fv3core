@@ -369,24 +369,24 @@ def get_xflux(xflux: sd, q: sd, c: sd, dxa: sd, iord: int, mord: int):
     ----------
     config.grid_type (int): The grid type
     """
-    from __splitters__ import is_, ie
+    from __splitters__ import istart, iend
 
     with computation(PARALLEL), interval(...):
         al = p1 * (q[-1, 0, 0] + q[0, 0, 0]) + p2 * (q[-2, 0, 0] + q[1, 0, 0])
 
         if __INLINED(spec.config.grid_type < 3):
-            with parallel(region[is_ - 1 : is_, :]):
+            with parallel(region[istart - 1 : istart, :]):
                 al = al_y_edge_0_func(q, dxa)
-            with parallel(region[is_ : is_ + 1, :]):
+            with parallel(region[istart : istart + 1, :]):
                 al = al_y_edge_1_func(q, dxa)
-            with parallel(region[is_ + 1 : is_ + 2, :]):
+            with parallel(region[istart + 1 : istart + 2, :]):
                 al = al_y_edge_2_func(q, dxa)
 
-            with parallel(region[ie : ie + 1, :]):
+            with parallel(region[iend : iend + 1, :]):
                 al = al_y_edge_0_func(q, dxa)
-            with parallel(region[ie + 1 : ie + 2, :]):
+            with parallel(region[iend + 1 : iend + 2, :]):
                 al = al_y_edge_1_func(q, dxa)
-            with parallel(region[ie + 2 : ie + 3, :]):
+            with parallel(region[iend + 2 : iend + 3, :]):
                 al = al_y_edge_2_func(q, dxa)
 
         # al = min(al, 0.0) but does not work with literals yet
@@ -500,6 +500,8 @@ def compute_blbr_ord8plus(q, iord, jfirst, jlast, is1, ie1, kstart, nk):
 
 @utils.stencil()
 def get_xflux_order8plus(xflux: sd, q: sd, c: sd, iord: int):
+    from __splitters__ import istart, iend
+
     with computation(PARALLEL), interval(...):
         xt = 0.25 * (q[1, 0, 0] - q[-1, 0, 0])
         maxqj = max(max(q, q[-1, 0, 0]), q[1, 0, 0])
@@ -522,30 +524,30 @@ def get_xflux_order8plus(xflux: sd, q: sd, c: sd, iord: int):
         #  if spec.namelist["grid_type"] < 3 and not (grid.nested or spec.namelist["regional"])
         # However grid.nested is not a compile-time constant. Therefore 'nested' is not checked for now.
         if __INLINED(spec.config.grid_type < 3 and not spec.config.regional):
-            with parallel(region[is_ - 1 : is_, :]):
+            with parallel(region[istart - 1 : istart, :]):
                 bl = s14 * dm[-1, 0, 0] + s11 * (q[-1, 0, 0] - q)
                 xt = xt_dxa_edge_0(q, dxa, True)
                 br = xt - q
-            with parallel(region[is_ : is_ + 1, :]):
+            with parallel(region[istart : istart + 1, :]):
                 xt = xt_dxa_edge_1(q, dxa, True)
                 bl = xt - q
                 xt = s15 * q + s11 * q[1, 0, 0] - s14 * dm[1, 0, 0]
                 br = xt - q
-            with parallel(region[is_ + 1 : is_ + 2, :]):
+            with parallel(region[istart + 1 : istart + 2, :]):
                 xt = s15 * q[-1, 0, 0] + s11 * q - s14 * dm
                 bl = xt - q
                 br = al[1, 0, 0] - q
 
-            with parallel(region[ie - 1 : ie, :]):
+            with parallel(region[iend - 1 : iend, :]):
                 bl = al - q
                 xt = s15 * q[1, 0, 0] + s11 * q + s14 * dm
                 br = xt - q
-            with parallel(region[ie : ie + 1, :]):
+            with parallel(region[iend : iend + 1, :]):
                 xt = s15 * q + s11 * q[-1, 0, 0] + s14 * dm[-1, 0, 0]
                 bl = xt - q
                 xt = xt_dxa_edge_0(q, dxa, True)
                 br = xt - q
-            with parallel(region[ie + 1 : ie + 2, :]):
+            with parallel(region[iend + 1 : iend + 2, :]):
                 xt = xt_dxa_edge_1(q, dxa, True)
                 bl = xt - q
                 br = s11 * (q[1, 0, 0] - q) - s14 * dm[1, 0, 0]
@@ -573,7 +575,7 @@ def compute_flux(q, c, xflux, iord, jfirst, jlast, kstart=0, nk=None):
 
     flux_origin = (grid.is_, jfirst, kstart)
     flux_domain = (grid.nic + 1, jlast - jfirst + 1, nk)
-    flux_splitters = {"is_": 0, "ie": grid.global_ie - grid.global_is}
+    flux_splitters = {"istart": grid.global_is - grid.is_, "iend": grid.global_ie - (grid.global_is - grid.is_)}
     if mord < 8:
         get_xflux(
             xflux,
