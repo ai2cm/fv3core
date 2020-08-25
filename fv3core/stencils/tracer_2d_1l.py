@@ -181,6 +181,7 @@ def compute(
     # complete HALO update on q
     for qname in utils.tracer_variables[0:nq]:
         q = tracers[qname + "_quantity"]
+        print(qname, type(q))
         comm.halo_update(q, n_points=utils.halo)
 
     ra_x_stencil(

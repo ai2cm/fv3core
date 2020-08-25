@@ -9,7 +9,7 @@ def grid():
 
 
 sd = utils.sd
-stencil_corner = True
+stencil_corner = False
 
 
 @utils.stencil()
