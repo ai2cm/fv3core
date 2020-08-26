@@ -575,7 +575,7 @@ def compute_flux(q, c, xflux, iord, jfirst, jlast, kstart=0, nk=None):
 
     flux_origin = (grid.is_, jfirst, kstart)
     flux_domain = (grid.nic + 1, jlast - jfirst + 1, nk)
-    flux_splitters = {"istart": grid.global_is - grid.is_, "iend": grid.global_ie - grid.global_is}
+    flux_splitters = {"istart": grid.global_is - grid.is_, "iend": grid.global_ie - grid.is_}
     if mord < 8:
         get_xflux(
             xflux,
