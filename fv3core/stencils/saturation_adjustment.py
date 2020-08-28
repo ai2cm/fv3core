@@ -1052,7 +1052,7 @@ def compute(
     fac_r2g = 1.0 - math.exp(-mdt / spec.namelist.tau_r2g)
     fac_l2r = 1.0 - math.exp(-mdt / spec.namelist.tau_l2r)
 
-    fac_l2v = 1.0 - math.exp(-sdt / spec.namelist.tau_l2)
+    fac_l2v = 1.0 - math.exp(-sdt / spec.namelist.tau_l2v)
     fac_l2v = min(spec.namelist.sat_adj0, fac_l2v)
 
     fac_imlt = 1.0 - math.exp(-sdt / spec.namelist.tau_imlt)
