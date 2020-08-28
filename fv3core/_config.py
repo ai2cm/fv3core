@@ -122,6 +122,7 @@ def set_namelist(filename):
         namelist_to_flatish_dict(f90nml.read(filename).items())
     )
     grid = make_grid_from_namelist(namelist, 0)
+    config.__dict__.clear()
     config.__dict__.update(namelist)
 
 
