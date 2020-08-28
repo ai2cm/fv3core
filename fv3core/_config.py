@@ -64,12 +64,12 @@ namelist_defaults = {
 
 
 def namelist_to_flatish_dict(nml_input):
-    namelist = dict(nml_input)
-    for name, value in namelist.items():
+    nml = dict(nml_input)
+    for name, value in nml.items():
         if isinstance(value, f90nml.Namelist):
-            namelist[name] = namelist_to_flatish_dict(value)
+            nml[name] = namelist_to_flatish_dict(value)
     flatter_namelist = {}
-    for key, value in namelist.items():
+    for key, value in nml.items():
         if isinstance(value, dict):
             for subkey, subvalue in value.items():
                 if subkey in flatter_namelist:
@@ -87,18 +87,18 @@ def namelist_to_flatish_dict(nml_input):
 def make_grid_from_namelist(namelist, rank):
     shape_params = {}
     for narg in ["npx", "npy", "npz"]:
-        shape_params[narg] = namelist[narg]
+        shape_params[narg] = getattr(namelist, narg)
     indices = {
         "isd": 0,
-        "ied": namelist["npx"] + 2 * utils.halo - 2,
+        "ied": namelist.npx + 2 * utils.halo - 2,
         "is_": utils.halo,
-        "ie": namelist["npx"] + utils.halo - 2,
+        "ie": namelist.npx + utils.halo - 2,
         "jsd": 0,
-        "jed": namelist["npy"] + 2 * utils.halo - 2,
+        "jed": namelist.npy + 2 * utils.halo - 2,
         "js": utils.halo,
-        "je": namelist["npy"] + utils.halo - 2,
+        "je": namelist.npy + utils.halo - 2,
     }
-    return Grid(indices, shape_params, rank, namelist["layout"])
+    return Grid(indices, shape_params, rank, namelist.layout)
 
 
 def namelist_externals_decorator():
