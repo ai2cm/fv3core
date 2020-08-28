@@ -9,7 +9,7 @@ from fv3core.utils.grid import Grid
 
 grid = None
 namelist = None
-config = None
+config = SimpleNamespace()
 
 def namelist_to_flatish_dict(source):
     namelist = dict(source)
@@ -118,12 +118,11 @@ def set_grid(in_grid):
 def set_namelist(filename):
     global grid
     global namelist
-    global config
     namelist = merge_namelist_defaults(
         namelist_to_flatish_dict(f90nml.read(filename).items())
     )
     grid = make_grid_from_namelist(namelist, 0)
-    config = SimpleNamespace(**namelist)
+    config.__dict__.update(namelist)
 
 
 if "NAMELIST_FILENAME" in os.environ:
