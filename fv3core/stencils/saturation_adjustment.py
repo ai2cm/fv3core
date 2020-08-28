@@ -1045,7 +1045,7 @@ def compute(
     origin = (grid.is_, grid.js, kmp)
     domain = (grid.nic, grid.njc, (grid.npz - kmp))
     qs_init()
-    hydrostatic = spec.namelist["hydrostatic"]
+    hydrostatic = spec.namelist.hydrostatic
     sdt = 0.5 * mdt  # half remapping time step
     # define conversion scalar / factor
     fac_i2s = 1.0 - math.exp(-mdt / namelist["tau_i2s"])
@@ -1292,7 +1292,7 @@ def compute(
             origin=origin,
             domain=domain,
         )
-    if not spec.namelist["hydrostatic"]:
+    if not spec.namelist.hydrostatic:
         # moist_cv.compute_pkz_stencil_func(
         #    pkz, cappa, delp, delz, pt, origin=origin, domain=domain
         # )
