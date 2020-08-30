@@ -78,12 +78,10 @@ def finalize(
     ppe: sd,
     last_call: bool,
 ):
-    from __externals__ import beta, use_logp
-
     with computation(PARALLEL), interval(...):
-        if __INLINED(use_logp):
+        if __INLINED(spec.namelist.use_logp):
             pk3 = peln_run
-        if __INLINED(beta < -0.1):
+        if __INLINED(spec.namelist.beta < -0.1):
             ppe = pe + pem
         else:
             ppe = pe
@@ -180,8 +178,7 @@ def compute(
         wsd,
     )
 
-    finalize_stencil = spec.namelist_externals_decorator()(finalize)
-    finalize_stencil(
+    finalize(
         zs,
         delz,
         zh,
