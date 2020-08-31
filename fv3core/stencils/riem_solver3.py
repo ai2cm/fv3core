@@ -65,6 +65,7 @@ def last_call_copy(peln_run: sd, peln: sd, pk3: sd, pk: sd, pem: sd, pe: sd):
         pe = pem
 
 
+@utils.stencil()
 def finalize(
     zs: sd,
     dz: sd,
