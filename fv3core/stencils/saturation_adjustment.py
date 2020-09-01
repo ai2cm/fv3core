@@ -1125,7 +1125,7 @@ def compute(
     tin = utils.make_storage_from_shape(peln.shape, utils.origin)
     q_cond = utils.make_storage_from_shape(peln.shape, utils.origin)
     qpz = utils.make_storage_from_shape(peln.shape, utils.origin)
-    adj_fac = namelist["sat_adj0"]
+    adj_fac = spec.namelist.sat_adj0
     satadjust_part1(
         wqsat,
         dq2dt,
@@ -1163,7 +1163,7 @@ def compute(
         lv00,
         fac_v2l,
         fac_l2v,
-        namelist.ql_gen,
+        spec.namelist.ql_gen,
         adj_fac,
         origin=origin,
         domain=domain,
@@ -1229,16 +1229,16 @@ def compute(
         fac_smlt,
         fac_l2r,
         last_step,
-        namelist["qs_mlt"],
-        namelist["ql0_max"],
-        namelist["t_sub"],
-        namelist["qi_gen"],
-        namelist["qi_lim"],
-        namelist["qi0_max"],
-        namelist["rad_snow"],
-        namelist["rad_rain"],
-        namelist["rad_graupel"],
-        namelist["tintqs"],
+        spec.namelist.qs_mlt,
+        spec.namelist.ql0_max,
+        spec.namelist.t_sub,
+        spec.namelist.qi_gen,
+        spec.namelist.qi_lim,
+        spec.namelist.qi0_max,
+        spec.namelist.rad_snow,
+        spec.namelist.rad_rain,
+        spec.namelist.rad_graupel,
+        spec.namelist.tintqs,
         origin=origin,
         domain=domain,
     )
@@ -1253,14 +1253,14 @@ def compute(
             q_cond,
             q_sol,
             den,
-            namelist["dw_ocean"],
-            namelist["dw_land"],
-            namelist["icloud_f"],
-            namelist["cld_min"],
+            spec.namelist.dw_ocean,
+            spec.namelist.dw_land,
+            spec.namelist.icloud_f,
+            spec.namelist.cld_min,
             origin=origin,
             domain=domain,
         )
-    if not spec.namelist["hydrostatic"]:
+    if not spec.namelist.hydrostatic:
         moist_cv.compute_pkz_stencil_func(
             pkz, cappa, delp, delz, pt, origin=origin, domain=domain
         )
