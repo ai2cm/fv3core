@@ -12,7 +12,7 @@ NUM_RANKS ?=6
 VOLUMES ?=
 MOUNTS ?=
 
-TEST_DATA_HOST ?=$(CWD)/../updated/test_data/$(EXPERIMENT)
+TEST_DATA_HOST ?=$(CWD)/test_data/$(EXPERIMENT)
 FV3_IMAGE ?=$(GCR_URL)/fv3core:$(FV3CORE_VERSION)
 FV3UTIL_DIR=$(CWD)/external/fv3util
 DEV_MOUNTS = '-v $(CWD)/fv3core:/fv3core/fv3core -v $(CWD)/tests:/fv3core/tests -v $(FV3UTIL_DIR):/usr/src/fv3util'

@@ -18,7 +18,7 @@ sd = utils.sd
 c1 = -2.0 / 14.0
 c2 = 11.0 / 14.0
 c3 = 5.0 / 14.0
-
+OFFSET = 2.0
 
 def grid():
     return spec.grid
@@ -183,23 +183,23 @@ def compute(dord4, uc, vc, u, v, ua, va, utc, vtc):
     j1 = grid.js - 1
     id_ = 1 if dord4 else 0
     npt = 4 if spec.namelist.grid_type < 3 and not grid.nested else 0
-    if (npt > grid.nic - 1 or npt > grid.njc - 1):
+    if npt > grid.nic - 1 or npt > grid.njc - 1:
         npt = 0
     utmp = utils.make_storage_from_shape(ua.shape, grid.default_origin())
     vtmp = utils.make_storage_from_shape(va.shape, grid.default_origin())
     utmp[:] = big_number
     vtmp[:] = big_number
-    js1 = npt + 2 if grid.south_edge else grid.js - 1
+    js1 = npt + OFFSET if grid.south_edge else grid.js - 1
     je1 = ny - npt if grid.north_edge else grid.je + 1
-    is1 = npt + 2 if grid.west_edge else grid.isd
+    is1 = npt + OFFSET if grid.west_edge else grid.isd
     ie1 = nx - npt if grid.east_edge else grid.ied
     lagrange_interpolation_y_p1(
         u, utmp, origin=(is1, js1, 0), domain=(ie1 - is1 + 1, je1 - js1 + 1, grid.npz)
     )
 
-    is1 = npt + 2 if grid.west_edge else grid.is_ - 1
+    is1 = npt + OFFSET if grid.west_edge else grid.is_ - 1
     ie1 = nx - npt if grid.east_edge else grid.ie + 1
-    js1 = npt + 2 if grid.south_edge else grid.jsd
+    js1 = npt + OFFSET if grid.south_edge else grid.jsd
     je1 = ny - npt if grid.north_edge else grid.jed
 
     lagrange_interpolation_x_p1(
@@ -214,7 +214,7 @@ def compute(dord4, uc, vc, u, v, ua, va, utc, vtc):
             utmp,
             vtmp,
             origin=(grid.isd, grid.jsd, 0),
-            domain=(grid.nid, npt + 2 - grid.jsd, grid.npz),
+            domain=(grid.nid, npt + OFFSET - grid.jsd, grid.npz),
         )
     if grid.north_edge:
         je2 = ny - npt + 1
@@ -227,7 +227,7 @@ def compute(dord4, uc, vc, u, v, ua, va, utc, vtc):
             domain=(grid.nid, grid.jed - je2 + 1, grid.npz),
         )
 
-    js2 = npt + 2 if grid.south_edge else grid.jsd
+    js2 = npt + OFFSET if grid.south_edge else grid.jsd
     je2 = ny - npt if grid.north_edge else grid.jed
     jdiff = je2 - js2 + 1
     if grid.west_edge:
@@ -237,7 +237,7 @@ def compute(dord4, uc, vc, u, v, ua, va, utc, vtc):
             utmp,
             vtmp,
             origin=(grid.isd, js2, 0),
-            domain=(npt + 2 - grid.isd, jdiff, grid.npz),
+            domain=(npt + OFFSET - grid.isd, jdiff, grid.npz),
         )
     if grid.east_edge:
         avg_box(
