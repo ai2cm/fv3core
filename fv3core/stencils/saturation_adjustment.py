@@ -1081,22 +1081,21 @@ def compute(
     kmp,
 ):
     grid = spec.grid
-    namelist = spec.namelist
     origin = (grid.is_, grid.js, kmp)
     domain = (grid.nic, grid.njc, (grid.npz - kmp))
-    hydrostatic = spec.namelist["hydrostatic"]
+    hydrostatic = spec.namelist.hydrostatic
     sdt = 0.5 * mdt  # half remapping time step
     # define conversion scalar / factor
-    fac_i2s = 1.0 - math.exp(-mdt / namelist["tau_i2s"])
-    fac_v2l = 1.0 - math.exp(-sdt / namelist["tau_v2l"])
-    fac_r2g = 1.0 - math.exp(-mdt / namelist["tau_r2g"])
-    fac_l2r = 1.0 - math.exp(-mdt / namelist["tau_l2r"])
+    fac_i2s = 1.0 - math.exp(-mdt / spec.namelist.tau_i2s)
+    fac_v2l = 1.0 - math.exp(-sdt / spec.namelist.tau_v2l)
+    fac_r2g = 1.0 - math.exp(-mdt / spec.namelist.tau_r2g)
+    fac_l2r = 1.0 - math.exp(-mdt / spec.namelist.tau_l2r)
 
-    fac_l2v = 1.0 - math.exp(-sdt / namelist["tau_l2v"])
-    fac_l2v = min(namelist["sat_adj0"], fac_l2v)
+    fac_l2v = 1.0 - math.exp(-sdt / spec.namelist.tau_l2v)
+    fac_l2v = min(spec.namelist.sat_adj0, fac_l2v)
 
-    fac_imlt = 1.0 - math.exp(-sdt / namelist["tau_imlt"])
-    fac_smlt = 1.0 - math.exp(-mdt / namelist["tau_smlt"])
+    fac_imlt = 1.0 - math.exp(-sdt / spec.namelist.tau_imlt)
+    fac_smlt = 1.0 - math.exp(-mdt / spec.namelist.tau_smlt)
 
     # define heat capacity of dry air and water vapor based on hydrostatical property
 
@@ -1164,7 +1163,7 @@ def compute(
         lv00,
         fac_v2l,
         fac_l2v,
-        namelist["ql_gen"],
+        namelist.ql_gen,
         adj_fac,
         origin=origin,
         domain=domain,
