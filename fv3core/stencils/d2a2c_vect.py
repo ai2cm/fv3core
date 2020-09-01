@@ -207,7 +207,7 @@ def compute(dord4, uc, vc, u, v, ua, va, utc, vtc):
     )
    
     # tmp edges
-    if grid.south_edge:# or grid.global_jsd < npt + 2:
+    if grid.south_edge:
         avg_box(
             u,
             v,
@@ -216,7 +216,7 @@ def compute(dord4, uc, vc, u, v, ua, va, utc, vtc):
             origin=(grid.isd, grid.jsd, 0),
             domain=(grid.nid, npt + 2 - grid.jsd, grid.npz),
         )
-    if grid.north_edge:# or grid.global_jed >=grid.npx - npt:
+    if grid.north_edge:
         je2 = ny - npt + 1
         avg_box(
             u,
@@ -230,7 +230,7 @@ def compute(dord4, uc, vc, u, v, ua, va, utc, vtc):
     js2 = npt + 2 if grid.south_edge else grid.jsd
     je2 = ny - npt if grid.north_edge else grid.jed
     jdiff = je2 - js2 + 1
-    if grid.west_edge:# or grid.global_isd < npt + 2:
+    if grid.west_edge:
         avg_box(
             u,
             v,
@@ -239,7 +239,7 @@ def compute(dord4, uc, vc, u, v, ua, va, utc, vtc):
             origin=(grid.isd, js2, 0),
             domain=(npt + 2 - grid.isd, jdiff, grid.npz),
         )
-    if grid.east_edge:# or grid.global_ied >=grid.npx - npt:
+    if grid.east_edge:
         avg_box(
             u,
             v,
