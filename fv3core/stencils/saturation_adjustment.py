@@ -1081,22 +1081,22 @@ def compute(
     kmp,
 ):
     grid = spec.grid
-    namelist = spec.namelist
     origin = (grid.is_, grid.js, kmp)
     domain = (grid.nic, grid.njc, (grid.npz - kmp))
-    hydrostatic = spec.namelist["hydrostatic"]
+    qs_init()
+    hydrostatic = spec.namelist.hydrostatic
     sdt = 0.5 * mdt  # half remapping time step
     # define conversion scalar / factor
-    fac_i2s = 1.0 - math.exp(-mdt / namelist["tau_i2s"])
-    fac_v2l = 1.0 - math.exp(-sdt / namelist["tau_v2l"])
-    fac_r2g = 1.0 - math.exp(-mdt / namelist["tau_r2g"])
-    fac_l2r = 1.0 - math.exp(-mdt / namelist["tau_l2r"])
+    fac_i2s = 1.0 - math.exp(-mdt / spec.namelist.tau_i2s)
+    fac_v2l = 1.0 - math.exp(-sdt / spec.namelist.tau_v2l)
+    fac_r2g = 1.0 - math.exp(-mdt / spec.namelist.tau_r2g)
+    fac_l2r = 1.0 - math.exp(-mdt / spec.namelist.tau_l2r)
 
-    fac_l2v = 1.0 - math.exp(-sdt / namelist["tau_l2v"])
-    fac_l2v = min(namelist["sat_adj0"], fac_l2v)
+    fac_l2v = 1.0 - math.exp(-sdt / spec.namelist.tau_l2v)
+    fac_l2v = min(spec.namelist.sat_adj0, fac_l2v)
 
-    fac_imlt = 1.0 - math.exp(-sdt / namelist["tau_imlt"])
-    fac_smlt = 1.0 - math.exp(-mdt / namelist["tau_smlt"])
+    fac_imlt = 1.0 - math.exp(-sdt / spec.namelist.tau_imlt)
+    fac_smlt = 1.0 - math.exp(-mdt / spec.namelist.tau_smlt)
 
     # define heat capacity of dry air and water vapor based on hydrostatical property
 
@@ -1162,10 +1162,33 @@ def compute(
         fac_imlt,
         d0_vap,
         lv00,
+        origin=origin,
+        domain=domain,
+    )
+    wqs2_iqs2(pt1, den, wqsat, dq2dt)
+    adj_fac = spec.namelist.sat_adj0
+    satadjust_part2(
+        wqsat,
+        dq2dt,
+        pt1,
+        cvm,
+        mc_air,
+        tcp3,
+        lhl,
+        lhi,
+        lcp2,
+        icp2,
+        qvapor,
+        qliquid,
+        q_liq,
+        q_sol,
         fac_v2l,
         fac_l2v,
-        namelist["ql_gen"],
+        lv00,
+        d0_vap,
+        c_vap,
         adj_fac,
+        spec.namelist.ql_gen,
         origin=origin,
         domain=domain,
     )
@@ -1206,6 +1229,25 @@ def compute(
         qrain,
         qgraupel,
         qsnow,
+        c_vap,
+        mdt,
+        fac_r2g,
+        fac_smlt,
+        fac_l2r,
+        spec.namelist.qs_mlt,
+        spec.namelist.ql0_max,
+        last_step,
+        origin=origin,
+        domain=domain,
+    )
+    iqs2 = utils.make_storage_from_shape(peln.shape, utils.origin)
+    dqsdt = utils.make_storage_from_shape(peln.shape, utils.origin)
+    wqs2_iqs2(pt1, den, iqs2, dqsdt, tablename="table2", desname="des2")
+    # TODO: this can be pushed into the stencil function as (qice * den)**0.875, but breaks validation
+    expsubl = np.exp(0.875 * np.log(qice * den))
+    do_qa = True  # TODO  -- this isn't a namelist option in Fortran, it is whether or not cld_amount is a tracer. If/when we support different sets of tracers, this will need to change
+    satadjust_part5(
+        pt,
         cappa,
         delp,
         tin,
@@ -1217,29 +1259,18 @@ def compute(
         r_vir,
         fac_i2s,
         c_air,
+        spec.namelist.t_sub,
+        spec.namelist.qi_gen,
+        spec.namelist.qi_lim,
+        spec.namelist.qi0_max,
         fast_mp_consv,
         hydrostatic,
         do_qa,
-        fac_v2l,
-        fac_l2v,
-        lv00,
-        d0_vap,
-        c_vap,
-        mdt,
-        fac_r2g,
-        fac_smlt,
-        fac_l2r,
+        spec.namelist.rad_snow,
+        spec.namelist.rad_rain,
+        spec.namelist.rad_graupel,
+        spec.namelist.tintqs,
         last_step,
-        namelist["qs_mlt"],
-        namelist["ql0_max"],
-        namelist["t_sub"],
-        namelist["qi_gen"],
-        namelist["qi_lim"],
-        namelist["qi0_max"],
-        namelist["rad_snow"],
-        namelist["rad_rain"],
-        namelist["rad_graupel"],
-        namelist["tintqs"],
         origin=origin,
         domain=domain,
     )
@@ -1253,15 +1284,20 @@ def compute(
             tin,
             q_cond,
             q_sol,
-            den,
-            namelist["dw_ocean"],
-            namelist["dw_land"],
-            namelist["icloud_f"],
-            namelist["cld_min"],
+            spec.namelist.dw_ocean,
+            spec.namelist.dw_land,
+            spec.namelist.icloud_f,
+            spec.namelist.cld_min,
             origin=origin,
             domain=domain,
         )
-    if not spec.namelist["hydrostatic"]:
-        moist_cv.compute_pkz_stencil_func(
-            pkz, cappa, delp, delz, pt, origin=origin, domain=domain
+    if not spec.namelist.hydrostatic:
+        # moist_cv.compute_pkz_stencil_func(
+        #    pkz, cappa, delp, delz, pt, origin=origin, domain=domain
+        # )
+        # TODO when we have math functions replace the below with the above
+        tmpslice = (
+            slice(grid.is_, grid.ie + 1),
+            slice(grid.js, grid.je + 1),
+            slice(kmp, grid.npz),
         )

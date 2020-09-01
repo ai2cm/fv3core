@@ -137,7 +137,7 @@ def compute(
     nq,
 ):
     grid = spec.grid
-    hydrostatic = spec.namelist["hydrostatic"]
+    hydrostatic = spec.namelist.hydrostatic
     t_min = 184.0
     # do_omega = hydrostatic and last_step # TODO pull into inputs
     domain_jextra = (grid.nic, grid.njc + 1, grid.npz + 1)
@@ -149,7 +149,7 @@ def compute(
     pe3 = utils.make_storage_from_shape(pe.shape, grid.compute_origin())
     # pk2 = utils.make_storage_from_shape(pe.shape, grid.compute_origin())
     init_pe2(pe, pe2, ptop, origin=grid.compute_origin(), domain=domain_jextra)
-    if spec.namelist["kord_tm"] < 0:
+    if spec.namelist.kord_tm < 0:
         if hydrostatic:
             raise Exception("Hydrostatic is not implemented")
         else:
@@ -193,15 +193,14 @@ def compute(
     cp.copy_stencil(
         dp2, delp, origin=grid.compute_origin(), domain=grid.domain_shape_compute()
     )
-    pn2_and_pk(
-        pe2,
-        pn2,
-        pk,
-        akap,
-        origin=grid.compute_origin(),
-        domain=grid.domain_shape_compute(),
-    )
-    if spec.namelist["kord_tm"] < 0:
+
+    # TODO merge into pressure updates when math available
+    islice = slice(grid.is_, grid.ie + 1)
+    jslice = slice(grid.js, grid.je + 1)
+    kslice = slice(1, grid.npz)
+    pn2[islice, jslice, kslice] = np.log(pe2[islice, jslice, kslice])
+    pk[islice, jslice, kslice] = np.exp(akap * pn2[islice, jslice, kslice])
+    if spec.namelist.kord_tm < 0:
         map_single.compute(
             pt,
             peln,
@@ -210,7 +209,7 @@ def compute(
             1,
             grid.is_,
             grid.ie,
-            abs(spec.namelist["kord_tm"]),
+            abs(spec.namelist.kord_tm),
             qmin=t_min,
         )
     else:
@@ -223,7 +222,7 @@ def compute(
             1,
             grid.is_,
             grid.ie,
-            abs(spec.namelist["kord_tm"]),
+            abs(spec.namelist.kord_tm),
             qmin=t_min,
         )
     # TODO if nq > 5:
@@ -236,16 +235,16 @@ def compute(
         0.0,
         grid.is_,
         grid.ie,
-        abs(spec.namelist["kord_tr"]),
+        abs(spec.namelist.kord_tr),
     )
     # TODO else if nq > 0:
     # TODO map1_q2, fillz
     if not hydrostatic:
         map_single.compute(
-            w, pe1, pe2, wsd, -2, grid.is_, grid.ie, spec.namelist["kord_wz"]
+            w, pe1, pe2, wsd, -2, grid.is_, grid.ie, spec.namelist.kord_wz
         )
         map_single.compute(
-            delz, pe1, pe2, gz, 1, grid.is_, grid.ie, spec.namelist["kord_wz"]
+            delz, pe1, pe2, gz, 1, grid.is_, grid.ie, spec.namelist.kord_wz
         )
         undo_delz_adjust(
             delp, delz, origin=grid.compute_origin(), domain=grid.domain_shape_compute()
@@ -297,7 +296,7 @@ def compute(
         -1,
         grid.is_,
         grid.ie,
-        spec.namelist["kord_mt"],
+        spec.namelist.kord_mt,
         j_interface=True,
     )
     domain_iextra = (grid.nic + 1, grid.njc, grid.npz + 1)
@@ -305,6 +304,6 @@ def compute(
         pe, ak, bk, pe0, pe3, origin=grid.compute_origin(), domain=domain_iextra,
     )
     map_single.compute(
-        v, pe0, pe3, gz, -1, grid.is_, grid.ie + 1, spec.namelist["kord_mt"]
+        v, pe0, pe3, gz, -1, grid.is_, grid.ie + 1, spec.namelist.kord_mt
     )
     update_ua(pe2, ua, origin=grid.compute_origin(), domain=domain_jextra)

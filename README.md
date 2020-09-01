@@ -70,7 +70,6 @@ The 'stencil name' can be determined from the associated Translate class. e.g. T
 
 ## Testing interactively outside the container
 
-
 After `make tests` has been run at least once (or you have data in test_data and the docker image fv3core exists because `make build` has been run), you can iterate on code changes using
 
 ```shell
@@ -84,8 +83,8 @@ $ make dev_tests_mpi
 These will mount your current code into the fv3core container and run it rather than the code that was built when `make build` ran. 
 
 
-
 ### Test options
+
 All of the make endpoints involved running tests can be prefixed with the `TEST_ARGS` environment variable to set test options or pytest CLI args (see below) when running inside the container.
 
 * `--which_modules <modules to run tests for>` - comma separated list of which modules to test (default 'all').
@@ -136,7 +135,6 @@ $ make dev_tests TEST_ARGS="-–which_modules=<stencil name(s)>"
 
 
 ## Installation
-
 
 To build the `us.gcr.io/vcm-ml/fv3core` image with required dependencies for running the Python code, run
 
