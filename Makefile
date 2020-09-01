@@ -2,7 +2,7 @@ GCR_URL = us.gcr.io/vcm-ml
 REGRESSION_DATA_STORAGE_BUCKET = gs://vcm-fv3gfs-serialized-regression-data
 EXPERIMENT ?=c12_6ranks_standard
 FV3CORE_VERSION=0.0.0
-FORTRAN_SERIALIZED_DATA_VERSION=7.0.0
+FORTRAN_SERIALIZED_DATA_VERSION=7.1.1
 
 SHELL=/bin/bash
 CWD=$(shell pwd)
@@ -12,7 +12,7 @@ NUM_RANKS ?=6
 VOLUMES ?=
 MOUNTS ?=
 
-TEST_DATA_HOST ?=$(CWD)/test_data/$(EXPERIMENT)
+TEST_DATA_HOST ?=$(CWD)/../updated/test_data/$(EXPERIMENT)
 FV3_IMAGE ?=$(GCR_URL)/fv3core:$(FV3CORE_VERSION)
 FV3UTIL_DIR=$(CWD)/external/fv3util
 DEV_MOUNTS = '-v $(CWD)/fv3core:/fv3core/fv3core -v $(CWD)/tests:/fv3core/tests -v $(FV3UTIL_DIR):/usr/src/fv3util'
