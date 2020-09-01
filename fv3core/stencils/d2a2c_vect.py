@@ -18,7 +18,7 @@ sd = utils.sd
 c1 = -2.0 / 14.0
 c2 = 11.0 / 14.0
 c3 = 5.0 / 14.0
-OFFSET = 2.0
+OFFSET = 2
 
 def grid():
     return spec.grid
