@@ -321,7 +321,7 @@ def compute(state, comm):
             last_step = True
         do_dyn(state, comm)
         if grid.npz > 4:
-            kord_tracer = np.ones(state.nq) * spec.namelist.kord_tr
+            kord_tracer = [spec.namelist.kord_tr] * state.nq
             kord_tracer[6] = 9
             # do_omega = spec.namelist.hydrostatic and last_step
             print("Remapping", grid.rank)
