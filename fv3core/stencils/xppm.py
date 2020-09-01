@@ -375,18 +375,18 @@ def get_xflux(xflux: sd, q: sd, c: sd, dxa: sd, iord: int, mord: int):
         al = p1 * (q[-1, 0, 0] + q[0, 0, 0]) + p2 * (q[-2, 0, 0] + q[1, 0, 0])
 
         if __INLINED(spec.config.grid_type < 3):
-            with parallel(region[istart - 1 : istart, :]):
+            with parallel(region[istart - 1, :]):
                 al = al_y_edge_0_func(q, dxa)
-            with parallel(region[istart : istart + 1, :]):
+            with parallel(region[istart, :]):
                 al = al_y_edge_1_func(q, dxa)
-            with parallel(region[istart + 1 : istart + 2, :]):
+            with parallel(region[istart + 1, :]):
                 al = al_y_edge_2_func(q, dxa)
 
-            with parallel(region[iend : iend + 1, :]):
+            with parallel(region[iend, :]):
                 al = al_y_edge_0_func(q, dxa)
-            with parallel(region[iend + 1 : iend + 2, :]):
+            with parallel(region[iend + 1, :]):
                 al = al_y_edge_1_func(q, dxa)
-            with parallel(region[iend + 2 : iend + 3, :]):
+            with parallel(region[iend + 2, :]):
                 al = al_y_edge_2_func(q, dxa)
 
         # al = min(al, 0.0) but does not work with literals yet
@@ -524,30 +524,30 @@ def get_xflux_order8plus(xflux: sd, q: sd, c: sd, iord: int):
         #  if spec.namelist["grid_type"] < 3 and not (grid.nested or spec.namelist["regional"])
         # However grid.nested is not a compile-time constant. Therefore 'nested' is not checked for now.
         if __INLINED(spec.config.grid_type < 3 and not spec.config.regional):
-            with parallel(region[istart - 1 : istart, :]):
+            with parallel(region[istart - 1, :]):
                 bl = s14 * dm[-1, 0, 0] + s11 * (q[-1, 0, 0] - q)
                 xt = xt_dxa_edge_0(q, dxa, True)
                 br = xt - q
-            with parallel(region[istart : istart + 1, :]):
+            with parallel(region[istart, :]):
                 xt = xt_dxa_edge_1(q, dxa, True)
                 bl = xt - q
                 xt = s15 * q + s11 * q[1, 0, 0] - s14 * dm[1, 0, 0]
                 br = xt - q
-            with parallel(region[istart + 1 : istart + 2, :]):
+            with parallel(region[istart + 1, :]):
                 xt = s15 * q[-1, 0, 0] + s11 * q - s14 * dm
                 bl = xt - q
                 br = al[1, 0, 0] - q
 
-            with parallel(region[iend - 1 : iend, :]):
+            with parallel(region[iend - 1, :]):
                 bl = al - q
                 xt = s15 * q[1, 0, 0] + s11 * q + s14 * dm
                 br = xt - q
-            with parallel(region[iend : iend + 1, :]):
+            with parallel(region[iend, :]):
                 xt = s15 * q + s11 * q[-1, 0, 0] + s14 * dm[-1, 0, 0]
                 bl = xt - q
                 xt = xt_dxa_edge_0(q, dxa, True)
                 br = xt - q
-            with parallel(region[iend + 1 : iend + 2, :]):
+            with parallel(region[iend + 1, :]):
                 xt = xt_dxa_edge_1(q, dxa, True)
                 bl = xt - q
                 br = s11 * (q[1, 0, 0] - q) - s14 * dm[1, 0, 0]
