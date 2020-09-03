@@ -35,10 +35,10 @@ RUN tar xzf mpich-3.1.4.tar.gz && \
 #    ./b2 stage -j4 threading=multi link=shared && \
 #    ./b2 install threading=multi link=shared && \
 #    ln -svf detail/sha1.hpp /usr/include/boost/uuid/sha1.hpp && \
-#    cd .. && rm boost_1_73_0.tar.gz 
+#    cd .. && rm boost_1_73_0.tar.gz
 RUN tar xzf boost_1_73_0.tar.gz -C /usr/local && \
     cd /usr/local/boost_1_73_0 && \
-    cp -r boost /usr/include/
+    cp -r boost /usr/local/include/
 
 FROM fv3core-install-base as fv3core-install-serialbox
 ###
@@ -46,8 +46,8 @@ FROM fv3core-install-base as fv3core-install-serialbox
 ###
 RUN git clone -b v2.6.0 --depth 1 https://github.com/GridTools/serialbox.git /usr/src/serialbox  && cd /usr/src/serialbox && \
     mkdir build && cd build && \
-    cmake -DSERIALBOX_USE_NETCDF=ON -DSERIALBOX_TESTING=ON ../ && \
-    make -j8 && make install
+    cmake -DSERIALBOX_USE_NETCDF=ON -DSERIALBOX_TESTING=ON -DCMAKE_BUILD_TYPE=Release ../ && \
+    make -j8 && make install && rm -rf /usr/src/serialbox/build
    
 FROM $MIDBASE as fv3core-install
 ###
