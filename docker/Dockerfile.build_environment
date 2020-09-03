@@ -53,5 +53,7 @@ FROM $MIDBASE as fv3core-install
 ###
 ### Build and install GT4Py
 ###
-RUN export BOOST_HOME=/usr/local/boost_1_73_0 CPP_FLAGS="-I/usr/local/boost_1_73_0 -I/usr/local/boost_1_73_0/boost" && \
-    CPPFLAGS="-I/usr/local/boost_1_73_0 -I/usr/local/boost_1_73_0/boost" pip install git+https://github.com/VulcanClimateModeling/gt4py.git@develop  && python -m gt4py.gt_src_manager install
+ENV BOOST_HOME=/usr/local/boost_1_73_0
+ARG CPP_FLAGS="-I/usr/local/boost_1_73_0 -I/usr/local/boost_1_73_0/boost"
+ARG CPPFLAGS="-I/usr/local/boost_1_73_0 -I/usr/local/boost_1_73_0/boost"
+RUN pip install git+https://github.com/VulcanClimateModeling/gt4py.git@develop  && python -m gt4py.gt_src_manager install
