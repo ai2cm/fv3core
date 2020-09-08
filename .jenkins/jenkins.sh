@@ -10,7 +10,7 @@
 
 ### Some environment variables available from Jenkins
 ### Note: for a complete list see https://jenkins.ginko.ch/env-vars.html
-# host_machine              The name of the build host (daint, kesch, ...).
+# slave              The name of the build host (daint, kesch, ...).
 # BUILD_NUMBER       The current build number, such as "153".
 # BUILD_ID           The current build id, such as "2005-08-22_23-59-59" (YYYY-MM-DD_hh-mm-ss).
 # BUILD_DISPLAY_NAME The display name of the current build, something like "#153" by default.
@@ -37,8 +37,7 @@ T="$(date +%s)"
 
 # check sanity of environment
 test -n "$1" || exitError 1001 ${LINENO} "must pass an argument"
-test -n "${host_machine}" || exitError 1005 ${LINENO} "host_machine is not defined"
-shorthost_machine=`echo ${host_machine} | sed 's/[0-9]*$//g'`
+test -n "${slave}" || exitError 1005 ${LINENO} "slave is not defined"
 
 # some global variables
 action="$1"
@@ -55,9 +54,6 @@ popd > /dev/null
 # setup module environment and default queue
 test -f ${envloc}/env/machineEnvironment.sh || exitError 1201 ${LINENO} "cannot find machineEnvironment.sh script"
 . ${envloc}/env/machineEnvironment.sh
-
-# check that host (define in machineEnvironment.sh) and shorthost_machine are consistent
-echo ${host} | grep "${shorthost_machine}" || exitError 1006 ${LINENO} "host does not contain shorthost_machine"
 
 # get root directory of where jenkins.sh is sitting
 root=`dirname $0`
