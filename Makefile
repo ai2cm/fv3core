@@ -11,13 +11,15 @@ PULL ?=True
 NUM_RANKS ?=6
 VOLUMES ?=
 MOUNTS ?=
-
+CONTAINER_ENGINE ?=$(CONTAINER_ENGINE)
+RM_FLAG ?="--rm"
+FV3=fv3core
 TEST_DATA_HOST ?=$(CWD)/test_data/$(EXPERIMENT)
-FV3_IMAGE ?=$(GCR_URL)/fv3core:$(FV3CORE_VERSION)
+FV3_IMAGE ?=$(GCR_URL)/$(FV3):$(FV3CORE_VERSION)
 FV3UTIL_DIR=$(CWD)/external/fv3util
-DEV_MOUNTS = '-v $(CWD)/fv3core:/fv3core/fv3core -v $(CWD)/tests:/fv3core/tests -v $(FV3UTIL_DIR):/usr/src/fv3util'
+DEV_MOUNTS = '-v $(CWD)/$(FV3):/$(FV3)/$(FV3) -v $(CWD)/tests:/$(FV3)/tests -v $(FV3UTIL_DIR):/usr/src/fv3util'
 FV3_INSTALL_TAG ?= master
-FV3_INSTALL_TARGET=fv3core-install
+FV3_INSTALL_TARGET=$(FV3)-install
 FV3_INSTALL_IMAGE=$(GCR_URL)/$(FV3_INSTALL_TARGET):$(FV3_INSTALL_TAG)
 
 
@@ -27,8 +29,8 @@ PYTHON_FILES = $(shell git ls-files | grep -e 'py$$' | grep -v -e '__init__.py')
 PYTHON_INIT_FILES = $(shell git ls-files | grep '__init__.py')
 TEST_DATA_TARFILE=dat_files.tar.gz
 TEST_DATA_TARPATH=$(TEST_DATA_HOST)/$(TEST_DATA_TARFILE)
-CORE_TAR=fv3core.tar
-
+CORE_TAR=$(FV3).tar
+CORE_BUCKET_LOC=gs://vcm-$(FV3)/${CORE_TAR}
 clean:
 	find . -name ""
 
@@ -81,8 +83,10 @@ pull_core:
 
 tar_core:
 	docker save $(FV3_IMAGE) -o $(CORE_TAR)
-	gsutil copy $(CORE_TAR) gs://vcm-fv3core/$(CORE_TAR)
-
+	gsutil copy $(CORE_TAR) $(CORE_BUCKET_LOC)
+sarus_load_tar:
+	gsutil copy $(CORE_BUCKET_LOC) .
+	sarus load ./$(CORE_TAR) ${FV3_IMAGE}
 tests: build
 	$(MAKE) get_test_data
 	$(MAKE) run_tests_sequential
@@ -116,21 +120,21 @@ dev_tests_mpi_host:
 	MOUNTS=$(DEV_MOUNTS) $(MAKE) run_tests_parallel_host
 
 test_base:
-	docker run --rm $(VOLUMES) $(MOUNTS) \
-	$(FV3_IMAGE) pytest --data_path=$(TEST_DATA_CONTAINER) ${TEST_ARGS} /fv3core/tests
+	$(CONTAINER_ENGINE) run $(RM_FLAG) $(VOLUMES) $(MOUNTS) \
+	$(FV3_IMAGE) pytest --data_path=$(TEST_DATA_CONTAINER) ${TEST_ARGS} /$(FV3)/tests
 
 test_base_parallel:
-	docker run --rm $(VOLUMES) $(MOUNTS) $(FV3_IMAGE) \
+	$(CONTAINER_ENGINE) run $(RM_FLAG) $(VOLUMES) $(MOUNTS) $(FV3_IMAGE) \
 	mpirun -np $(NUM_RANKS) \
-	pytest --data_path=$(TEST_DATA_CONTAINER) ${TEST_ARGS} -m parallel /fv3core/tests
+	pytest --data_path=$(TEST_DATA_CONTAINER) ${TEST_ARGS} -m parallel /$(FV3)/tests
 
 
 run_tests_sequential:
-	VOLUMES='-v $(TEST_DATA_HOST):$(TEST_DATA_CONTAINER)' \
+	VOLUMES='--mount=type=bind,source=$(TEST_DATA_HOST),destination=$(TEST_DATA_CONTAINER)' \
 	$(MAKE) test_base
 
 run_tests_parallel:
-	VOLUMES='-v $(TEST_DATA_HOST):$(TEST_DATA_CONTAINER)' \
+	VOLUMES='--mount=type=bind,source=$(TEST_DATA_HOST),destination=$(TEST_DATA_CONTAINER)' \
 	$(MAKE) test_base_parallel
 
 sync_test_data:

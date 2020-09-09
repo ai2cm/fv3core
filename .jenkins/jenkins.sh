@@ -68,8 +68,8 @@ fi
 # check if action script exists
 script="${root}/actions/${action}.sh"
 test -f "${script}" || exitError 1301 ${LINENO} "cannot find script ${script}"
+run_command "${script} ${optarg} ${optarg2}" Job${action}
 
-${script} ${envloc} ${optarg} ${optarg2}
 if [ $? -ne 0 ] ; then
   exitError 1510 ${LINENO} "problem while executing script ${script}"
 fi
