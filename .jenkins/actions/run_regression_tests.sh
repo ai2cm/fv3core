@@ -39,8 +39,9 @@ fi
 #else
    
 #fi
-make run_tests_sequential TEST_ARGS="${ARGS}"
+#make run_tests_sequential TEST_ARGS="${ARGS}"
 make run_tests_parallel TEST_ARGS="${ARGS}"
+# sarus run --mount=type=bind,source=/scratch/snx3000/olifu/fv3core_fortran_data/7.0.0/c12_6ranks_standard/,destination=/test_data  load/library/fv3core mpirun -np 6 pytest --data_path=/test_data -v -s -rsx --backend=numpy -m parallel /fv3core/tests --which_modules=CubedToLatLon
 
 #cd ../
 #rm -r $EXPNAME
