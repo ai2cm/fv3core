@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e -x
 BACKEND=$1
 EXPNAME=$2
 ARGS="-v -s -rsx --backend=${BACKEND}"
@@ -13,8 +14,8 @@ module load sarus
 
 # get the test data version from the Makefile
 FORTRAN_VERSION=`grep "FORTRAN_SERIALIZED_DATA_VERSION=" Makefile  | cut -d '=' -f 2`
-if [ ! -d ${DATA_DIR} ] ; then
-    export SCRATCH=`pwd`
+if [ -z ${SCRATCH} ] ; then
+    SCRATCH=`pwd`
 fi
 #cd $SCRATCH
 #mkdir -p $EXPNAME
@@ -26,11 +27,11 @@ if [ ! -d ${TEST_DATA_HOST} ] ; then
 fi
 if [ ${host} == "daint"] ; then
     make sarus_load_tar
-    export CONTAINER_ENGINE="sarus"
+    CONTAINER_ENGINE="sarus"
     export RM_FLAG=""
     export FV3_IMAGE="load/library/fv3core"
 else
-    export CONTAINER_ENGINE="docker"
+    CONTAINER_ENGINE="docker"
 fi
 #get_container
 # define command
