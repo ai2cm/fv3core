@@ -64,10 +64,10 @@ if [ ! -f ${envloc}/env/env.${host}.sh ] ; then
 fi
 . ${envloc}/env/env.${host}.sh
 
-
 # check if action script exists
 script="${root}/actions/${action}.sh"
 test -f "${script}" || exitError 1301 ${LINENO} "cannot find script ${script}"
+${envloc}/env/schedulerTools.sh 
 run_command "${script} ${optarg} ${optarg2}" Job${action}
 
 if [ $? -ne 0 ] ; then
