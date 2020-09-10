@@ -12,15 +12,15 @@ module load sarus
 # get the test data version from the Makefile
 FORTRAN_VERSION=`grep "FORTRAN_SERIALIZED_DATA_VERSION=" Makefile  | cut -d '=' -f 2`
 if [ ! -d ${DATA_DIR} ] ; then
-    export SCRATCH="."
+    export SCRATCH=`pwd`
 fi
 #cd $SCRATCH
 #mkdir -p $EXPNAME
 #cd $EXPNAME
-DATA_DIR="${SCRATCH}/fv3core_fortran_data/${FORTRAN_VERSION}/${EXPNAME}/"
+export TEST_DATA_HOST="${SCRATCH}/fv3core_fortran_data/${FORTRAN_VERSION}/${EXPNAME}/"
 # sync the test data if it does not live in /scratch
-if [ ! -d ${DATA_DIR} ] ; then
-    TEST_DATA_HOST=${DATA_DIR} make get_test_data
+if [ ! -d ${TEST_DATA_HOST} ] ; then
+    make get_test_data
 fi
 if [ "`hostname | grep daint`" != "" ] ; then
     make sarus_load_tar
