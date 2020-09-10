@@ -6,7 +6,7 @@ ARGS="-v -s -rsx --backend=${BACKEND}"
 export EXPERIMENT=${EXPNAME}
 envloc=`pwd`
 echo `ls -lh`
-. ${envloc}/env/env.${host}.sh
+. ${envloc}/.jenkins/env/env.${host}.sh
 module add /project/d107/install/modulefiles/
 module load gcloud
 module load daint-gpu
