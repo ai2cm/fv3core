@@ -1260,7 +1260,6 @@ def compute(
             origin=origin,
             domain=domain,
         )
-
     if not spec.namelist.hydrostatic:
         moist_cv.compute_pkz_stencil_func(
             pkz, cappa, delp, delz, pt, origin=origin, domain=domain
