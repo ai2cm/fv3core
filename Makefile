@@ -87,7 +87,7 @@ tar_core:
 sarus_load_tar:
 	if [ ! -f `pwd`/$(CORE_TAR) ] then \
 		gsutil copy $(CORE_BUCKET_LOC) . && \
-		sarus load ./$(CORE_TAR) ${FV3_IMAGE}; \
+		sarus load ./$(CORE_TAR) ${FV3}; \
 	fi
 tests: build
 	$(MAKE) get_test_data
