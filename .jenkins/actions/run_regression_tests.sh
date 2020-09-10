@@ -26,13 +26,11 @@ export TEST_DATA_HOST="${SCRATCH}/fv3core_fortran_data/${FORTRAN_VERSION}/${EXPN
 if [ ! -d ${TEST_DATA_HOST} ] ; then
     make get_test_data
 fi
-if [ ${host} == "daint"] ; then
+if [ ${host} == "daint" ] ; then
     make sarus_load_tar
     export CONTAINER_ENGINE="sarus"
     export RM_FLAG=""
     export FV3_IMAGE="load/library/fv3core"
-else
-    export CONTAINER_ENGINE="docker"
 fi
 #get_container
 # define command
@@ -41,8 +39,8 @@ fi
 #else
    
 #fi
-CONTAINER_ENGINE=${CONTAINER_ENGINE} make run_tests_sequential TEST_ARGS="${ARGS}"
-CONTAINER_ENGINE=${CONTAINER_ENGINE} make run_tests_parallel TEST_ARGS="${ARGS}"
+make run_tests_sequential TEST_ARGS="${ARGS}"
+make run_tests_parallel TEST_ARGS="${ARGS}"
 
 #cd ../
 #rm -r $EXPNAME
