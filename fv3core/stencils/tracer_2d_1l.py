@@ -181,8 +181,6 @@ def compute(
     # complete HALO update on q
     for qname in utils.tracer_variables[0:nq]:
         q = tracers[qname + "_quantity"]
-        print(qname, type(q))
-        print(q.data.shape, q.origin, q.extent)
         comm.halo_update(q, n_points=utils.halo)
 
     ra_x_stencil(
@@ -208,7 +206,6 @@ def compute(
     )
     for qname in utils.tracer_variables[0:nq]:
         q = tracers[qname + "_quantity"]
-        print(qname, type(q.storage))
         # handling the q and it loop switching
         cp.copy_stencil(
             dp1_orig,
