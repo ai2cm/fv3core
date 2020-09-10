@@ -4,8 +4,8 @@ BACKEND=$1
 EXPNAME=$2
 ARGS="-v -s -rsx --backend=${BACKEND}"
 export EXPERIMENT=${EXPNAME}
+shopt -s expand_aliases
 envloc=`pwd`
-echo `ls -lh`
 . ${envloc}/.jenkins/env/env.${host}.sh
 module add /project/d107/install/modulefiles/
 module load gcloud
