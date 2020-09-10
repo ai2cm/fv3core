@@ -29,7 +29,7 @@ fi
 if [ ${host} == "daint" ] ; then
     make sarus_load_tar
     export CONTAINER_ENGINE="sarus"
-    export RM_FLAG=""
+    export RM_FLAG="-m"
     export FV3_IMAGE="load/library/fv3core"
 fi
 #get_container
