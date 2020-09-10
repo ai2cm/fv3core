@@ -39,7 +39,6 @@ def state_inputs(*arg_specs):
                     namespace_kwargs[arg_name + "_quantity"] = state[standard_name]
                 if isinstance(state[standard_name].storage, numpy.ndarray):
                     dat = state[standard_name].storage
-                    # print(len(state[standard_name].storage.shape))
                     dims = state[standard_name].dims
                     origin = namespace_kwargs[arg_name + "_quantity"].origin
                     extent = namespace_kwargs[arg_name + "_quantity"].extent
@@ -48,22 +47,16 @@ def state_inputs(*arg_specs):
                         ycheck = ["y" in dim for dim in dims]
                         xcheck = ["x" in dim for dim in dims]
                         indices = numpy.array([0,1,2])
-                        # print(dims)
-                        # print(indices[zcheck])
                         ind=[indices[zcheck][0],indices[ycheck][0],indices[xcheck][0]]
                         dat = dat.transpose(ind)
-                        # print(numpy.asarray(dims))
-                        # print(ind)
                         dims = tuple(numpy.asarray(dims)[ind]) #lol
                         origin = tuple(numpy.asarray(origin)[ind])
                         extent = tuple(numpy.asarray(extent)[ind])
-                        # print(dat.shape)
                     elif len(state[standard_name].storage.shape) == 2: #TODO maybe add handling for non (y,x) arrays
                         dat = numpy.tile(dat, (spec.namelist["npz"]+1,1,1))
                         dims = ("z", dims[0], dims[1])
                         origin = (0, origin[0], origin[1])
                         extent = (spec.namelist["npz"], extent[0], extent[1])
-                        # print(dat.shape)
                     elif len(state[standard_name].storage.shape) == 1: #fml
                         xdim = spec.namelist["npx"]+6# 3 halo on each side
                         ydim = spec.namelist["npy"]+6# ditto
@@ -72,7 +65,6 @@ def state_inputs(*arg_specs):
                         dims = (dims[0], "y", "x")#TODO maybe add handling for non z arrays
                         origin = (origin[0], 3, 3)
                         extent = (extent[0], spec.namelist["npy"]-1, spec.namelist["npx"]-1)
-                        # print(dat.shape)
                     else:
                         raise IndexError(
                             f"{standard_name} is {len(state[standard_name].storage.shape)} dimensional, but arrays must have 1, 2, or 3 dimensions"

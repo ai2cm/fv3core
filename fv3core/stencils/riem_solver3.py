@@ -121,7 +121,6 @@ def compute(
     grid = spec.grid
     rgrav = 1.0 / constants.GRAV
     km = grid.npz - 1
-    print(ptop)
     peln1 = math.log(ptop)
     ptk = math.exp(akap * peln1)
     islice = slice(grid.is_, grid.ie + 1)
