@@ -29,6 +29,8 @@ if [ ${host} == "daint"] ; then
     export CONTAINER_ENGINE="sarus"
     export RM_FLAG=""
     export FV3_IMAGE="load/library/fv3core"
+else
+    export CONTAINER_ENGINE="docker"
 fi
 #get_container
 # define command
