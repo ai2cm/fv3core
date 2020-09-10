@@ -3,6 +3,8 @@ BACKEND=$1
 EXPNAME=$2
 ARGS="-v -s -rsx --backend=${BACKEND}"
 export EXPERIMENT=${EXPNAME}
+envloc=`pwd`
+. ${envloc}/env/env.${host}.sh
 module add /project/d107/install/modulefiles/
 module load gcloud
 module load daint-gpu
