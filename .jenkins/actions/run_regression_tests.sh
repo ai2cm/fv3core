@@ -40,9 +40,6 @@ fi
    
 #fi
 make run_tests_sequential TEST_ARGS="${ARGS}"
-if [ ${host} == "daint" ] ; then
-    export RM_FLAG="-m"
-fi
 make run_tests_parallel TEST_ARGS="${ARGS}"
 
 #cd ../
