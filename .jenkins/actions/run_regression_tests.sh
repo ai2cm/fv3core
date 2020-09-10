@@ -5,6 +5,7 @@ EXPNAME=$2
 ARGS="-v -s -rsx --backend=${BACKEND}"
 export EXPERIMENT=${EXPNAME}
 envloc=`pwd`
+echo `ls -lh`
 . ${envloc}/env/env.${host}.sh
 module add /project/d107/install/modulefiles/
 module load gcloud
@@ -27,11 +28,11 @@ if [ ! -d ${TEST_DATA_HOST} ] ; then
 fi
 if [ ${host} == "daint"] ; then
     make sarus_load_tar
-    CONTAINER_ENGINE="sarus"
+    export CONTAINER_ENGINE="sarus"
     export RM_FLAG=""
     export FV3_IMAGE="load/library/fv3core"
 else
-    CONTAINER_ENGINE="docker"
+    export CONTAINER_ENGINE="docker"
 fi
 #get_container
 # define command
@@ -40,8 +41,8 @@ fi
 #else
    
 #fi
-CONTAINER_ENGINE=$(CONTAINER_ENGINE) make run_tests_sequential TEST_ARGS="${ARGS}"
-CONTAINER_ENGINE=$(CONTAINER_ENGINE) make run_tests_parallel TEST_ARGS="${ARGS}"
+CONTAINER_ENGINE=${CONTAINER_ENGINE} make run_tests_sequential TEST_ARGS="${ARGS}"
+CONTAINER_ENGINE=${CONTAINER_ENGINE} make run_tests_parallel TEST_ARGS="${ARGS}"
 
 #cd ../
 #rm -r $EXPNAME
