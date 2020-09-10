@@ -29,7 +29,7 @@ fi
 if [ ${host} == "daint" ] ; then
     make sarus_load_tar
     export CONTAINER_ENGINE="sarus"
-    export RM_FLAG="-m"
+    export RM_FLAG=""
     export FV3_IMAGE="load/library/fv3core"
 fi
 #get_container
@@ -40,6 +40,9 @@ fi
    
 #fi
 make run_tests_sequential TEST_ARGS="${ARGS}"
+if [ ${host} == "daint" ] ; then
+    export RM_FLAG="-m"
+fi
 make run_tests_parallel TEST_ARGS="${ARGS}"
 
 #cd ../
