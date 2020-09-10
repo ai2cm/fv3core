@@ -85,8 +85,10 @@ tar_core:
 	docker save $(FV3_IMAGE) -o $(CORE_TAR)
 	gsutil copy $(CORE_TAR) $(CORE_BUCKET_LOC)
 sarus_load_tar:
-	gsutil copy $(CORE_BUCKET_LOC) .
-	sarus load ./$(CORE_TAR) ${FV3_IMAGE}
+	if [ ! -f `pwd`/$(CORE_TAR) ] then \
+		gsutil copy $(CORE_BUCKET_LOC) . && \
+		sarus load ./$(CORE_TAR) ${FV3_IMAGE}; \
+	fi
 tests: build
 	$(MAKE) get_test_data
 	$(MAKE) run_tests_sequential
