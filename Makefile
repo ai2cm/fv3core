@@ -30,7 +30,7 @@ PYTHON_INIT_FILES = $(shell git ls-files | grep '__init__.py')
 TEST_DATA_TARFILE=dat_files.tar.gz
 TEST_DATA_TARPATH=$(TEST_DATA_HOST)/$(TEST_DATA_TARFILE)
 CORE_TAR=$(FV3).tar
-CORE_BUCKET_LOC=gs://vcm-$(FV3)/${CORE_TAR}
+CORE_BUCKET_LOC=gs://vcm-jenkins/${CORE_TAR}
 clean:
 	find . -name ""
 
