@@ -17,6 +17,7 @@ module load sarus
 FORTRAN_VERSION=`grep "FORTRAN_SERIALIZED_DATA_VERSION=" Makefile  | cut -d '=' -f 2`
 if [ -z ${SCRATCH} ] ; then
     SCRATCH=`pwd`
+
 fi
 
 export TEST_DATA_HOST="${SCRATCH}/fv3core_fortran_data/${FORTRAN_VERSION}/${EXPNAME}/"
@@ -26,7 +27,7 @@ if [ ! -d ${TEST_DATA_HOST} ] ; then
 fi
 if [ ${host} == "daint" ] ; then #container_engine == sarus
     make sarus_load_tar
-    export CONTAINER_ENGINE="sarus"
+    export CONTAINER_ENGINE="srun sarus"
     export RM_FLAG="--mpi"
     export FV3_IMAGE="load/library/fv3core"
     export MPIRUN_CALL=""
