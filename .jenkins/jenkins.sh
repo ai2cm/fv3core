@@ -75,7 +75,7 @@ if grep -q "ranks" <<< "${optarg2}"; then
 fi
 
 
-run_command "${script} ${optarg} ${optarg2}" Job${action} ${scheduler_script}
+run_command "${script} ${optarg} ${optarg2} " Job${action} ${scheduler_script}
 
 if [ $? -ne 0 ] ; then
   exitError 1510 ${LINENO} "problem while executing script ${script}"

@@ -31,6 +31,7 @@ TEST_DATA_TARFILE=dat_files.tar.gz
 TEST_DATA_TARPATH=$(TEST_DATA_HOST)/$(TEST_DATA_TARFILE)
 CORE_TAR=$(FV3).tar
 CORE_BUCKET_LOC=gs://vcm-jenkins/${CORE_TAR}
+MPIRUN_CALL ?=mpirun -np $(NUM_RANKS)
 clean:
 	find . -name ""
 
@@ -127,7 +128,7 @@ test_base:
 
 test_base_parallel:
 	$(CONTAINER_ENGINE) run $(RM_FLAG) $(VOLUMES) $(MOUNTS) $(FV3_IMAGE) \
-	mpirun -np $(NUM_RANKS) \
+	$(MPIRUN_CALL) \
 	pytest --data_path=$(TEST_DATA_CONTAINER) ${TEST_ARGS} -m parallel /$(FV3)/tests
 
 
