@@ -69,7 +69,7 @@ script="${root}/actions/${action}.sh"
 test -f "${script}" || exitError 1301 ${LINENO} "cannot find script ${script}"
 . ${envloc}/env/schedulerTools.sh
 scheduler_script="`dirname $0`/env/submit.${host}.${scheduler}"
-if grep -q "ranks" <<< "${optarg2}"; then
+if [ grep -q "parallel" <<< "${script}" ] && [ grep -q "ranks" <<< "${optarg2}" ] ; then
     NUM_RANKS=`echo ${optarg2} | grep -o -E '[0-9]+ranks' | grep -o -E '[0-9]+'`
     if [ -f ${envloc}/env/env.${host}.sh ] ; then
 	sed -i 's|<NTASKS>|"'${NUM_RANKS}'"|g' ${scheduler_script}
