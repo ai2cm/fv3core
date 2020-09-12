@@ -13,29 +13,32 @@ origin = utils.origin
 
 # Flux field computations
 @utils.stencil()
-def compute_tmp_flux(
-    tmp_flux: sd, velocity: sd, velocity_c: sd, cosa: sd, sina: sd, dt2: float
-):
+def compute_tmp_flux1( flux: sd, vorticity: sd, tmp_flux: sd, velocity: sd, velocity_c: sd, cosa: sd, sina: sd, dt2: float ):
+    from __splitters__ import j_start, j_end
+
     with computation(PARALLEL), interval(...):
         tmp_flux = dt2 * (velocity - velocity_c * cosa) / sina
-
+    with computation(PARALLEL), interval(...):
+        with parallel(region[:,j_start:j_start+1]):
+            tmp_flux = dt2 * velocity
+        with parallel(region[:,j_end+1:j_end+2]):
+            tmp_flux = dt2 * velocity
+    with computation(PARALLEL), interval(...):
+        flux = vorticity if tmp_flux > 0.0 else vorticity[1, 0, 0]
 
 @utils.stencil()
-def compute_meridional_flux(flux: sd, tmp_flux: sd, vort: sd):
+def compute_tmp_flux2( flux: sd, vorticity: sd, tmp_flux: sd, velocity: sd, velocity_c: sd, cosa: sd, sina: sd, dt2: float ):
+    from __splitters__ import i_start, i_end
+
     with computation(PARALLEL), interval(...):
-        flux = vort if tmp_flux > 0.0 else vort[0, 1, 0]
-
-
-@utils.stencil()
-def compute_zonal_flux(flux: sd, tmp_flux: sd, vort: sd):
+        tmp_flux = dt2 * (velocity - velocity_c * cosa) / sina
     with computation(PARALLEL), interval(...):
-        flux = vort if tmp_flux > 0.0 else vort[1, 0, 0]
-
-
-@utils.stencil()
-def compute_f1_edge_values(flux: sd, velocity: sd, dt2: float):
+        with parallel(region[i_start:i_start+1,:]):
+            tmp_flux = dt2 * velocity
+        with parallel(region[i_end+1:i_end+2,:]):
+            tmp_flux = dt2 * velocity
     with computation(PARALLEL), interval(...):
-        flux = dt2 * velocity
+        flux = vorticity if tmp_flux > 0.0 else vorticity[0, 1, 0]
 
 
 # Wind speed updates
@@ -61,35 +64,19 @@ def compute(uc, vc, vort_c, ke_c, v, u, fxv, fyv, dt2):
     fx1 = utils.make_storage_from_shape(uc.shape, origin=co)
     fy1 = utils.make_storage_from_shape(vc.shape, origin=co)
 
-    # Compute the temporary fluxes in the zonal and meridional coordimate directions
-    compute_tmp_flux(
-        fx1, u, vc, grid.cosa_v, grid.sina_v, dt2, origin=co, domain=meridional_domain
-    )
-    compute_tmp_flux(
-        fy1, v, uc, grid.cosa_u, grid.sina_u, dt2, origin=co, domain=zonal_domain
-    )
+    # Compute the flux values in the zonal coordinate direction
+    compute_tmp_flux1( fxv, vort_c, fx1, u, vc, grid.cosa_v, grid.sina_v, dt2, 
+                      origin=co, 
+                      domain=meridional_domain,
+                      splitters={"j_start": grid.js-grid.js,
+                                 "j_end": grid.je-grid.js} )
 
-    # Add edge effects if we are not in a regional or nested grid configuration
-    if not grid.nested and spec.namelist.grid_type < 3:
-        edge_domain = (1, grid.njc, grid.npz)
-        if grid.west_edge:
-            compute_f1_edge_values(fy1, v, dt2, origin=co, domain=edge_domain)
-        if grid.east_edge:
-            compute_f1_edge_values(
-                fy1, v, dt2, origin=(grid.ie + 1, grid.js, 0), domain=edge_domain
-            )
-
-        edge_domain = (grid.nic, 1, grid.npz)
-        if grid.south_edge:
-            compute_f1_edge_values(fx1, u, dt2, origin=co, domain=edge_domain)
-        if grid.north_edge:
-            compute_f1_edge_values(
-                fx1, u, dt2, origin=(grid.is_, grid.je + 1, 0), domain=edge_domain
-            )
-
-    # Compute main flux fields (ignoring edge values)
-    compute_zonal_flux(fxv, fx1, vort_c, origin=co, domain=meridional_domain)
-    compute_meridional_flux(fyv, fy1, vort_c, origin=co, domain=zonal_domain)
+    # Compute the flux values in the meridional coordinate direction
+    compute_tmp_flux2( fyv, vort_c, fy1, v, uc, grid.cosa_u, grid.sina_u, dt2, 
+                       origin=co, 
+                       domain=zonal_domain,
+                       splitters={"i_start": grid.is_-grid.is_,
+                                  "i_end": grid.ie-grid.is_} )
 
     # Update time-centered winds on C-grid
     update_uc(uc, fy1, fyv, grid.rdxc, ke_c, origin=co, domain=zonal_domain)
