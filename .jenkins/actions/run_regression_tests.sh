@@ -9,7 +9,7 @@ export NUM_RANKS=`echo ${EXPNAME} | grep -o -E '[0-9]+ranks' | grep -o -E '[0-9]
 shopt -s expand_aliases
 envloc=`pwd`
 #. ${envloc}/.jenkins/env/env.${host}.sh
-. ${envloc}/env/schedulerTools.sh
+. ${envloc}/.jenkins/env/schedulerTools.sh
 module add /project/d107/install/modulefiles/
 module load gcloud
 module load daint-gpu
@@ -48,7 +48,11 @@ if [ -f ${scheduler_script} ] ; then
     scheduler_script_parallel=job_parallel.sh
     sed -i 's|<NTASKS>|"'${NUM_RANKS}'"|g' ${scheduler_script_parallel}
 fi
-
+if [ ${host} == "daint" ] ; then #container_engine == sarus
+    export CONTAINER_ENGINE="srun sarus"
+    export RM_FLAG="--mpi"
+    export MPIRUN_CALL=""
+fi
 # The default of this set to 1 causes a segfault
 export MPICH_RDMA_ENABLED_CUDA=0
 run_command "make run_tests_parallel TEST_ARGS=\"${ARGS}\"" FV3CoreParallelTests ${scheduler_script_parallel}
