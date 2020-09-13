@@ -7,9 +7,9 @@ export EXPERIMENT=${EXPNAME}
 export NUM_RANKS=`echo ${EXPNAME} | grep -o -E '[0-9]+ranks' | grep -o -E '[0-9]+'`
 
 shopt -s expand_aliases
-envloc=`pwd`
-#. ${envloc}/.jenkins/env/env.${host}.sh
-. ${envloc}/.jenkins/env/schedulerTools.sh
+cd=`pwd`
+. ${cd}/.jenkins/env/env.${host}.sh
+. ${cd}/.jenkins/env/schedulerTools.sh
 module add /project/d107/install/modulefiles/
 module load gcloud
 module load daint-gpu
