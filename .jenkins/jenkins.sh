@@ -77,7 +77,9 @@ if grep -q "parallel" <<< "${script}"; then
 	fi
     fi
 fi
-
+if [ ${host} == "daint" ] ; then
+    make sarus_load_tar
+fi
 
 run_command "${script} ${optarg} ${optarg2} " Job${action} ${scheduler_script}
 

@@ -21,12 +21,8 @@ if [ -z ${SCRATCH} ] ; then
 fi
 
 export TEST_DATA_HOST="${SCRATCH}/fv3core_fortran_data/${FORTRAN_VERSION}/${EXPNAME}/"
-# sync the test data if it does not live in /scratch
-if [ ! -d ${TEST_DATA_HOST} ] ; then
-    make get_test_data
-fi
+# assume test data is already present from sequential testing
 if [ ${host} == "daint" ] ; then #container_engine == sarus
-    make sarus_load_tar
     export CONTAINER_ENGINE="srun sarus"
     export RM_FLAG="--mpi"
     export FV3_IMAGE="load/library/fv3core"

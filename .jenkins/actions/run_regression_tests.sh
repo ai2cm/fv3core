@@ -27,7 +27,6 @@ if [ ! -d ${TEST_DATA_HOST} ] ; then
     make get_test_data
 fi
 if [ ${host} == "daint" ] ; then
-    make sarus_load_tar
     export CONTAINER_ENGINE="sarus"
     export RM_FLAG=""
     export FV3_IMAGE="load/library/fv3core"
