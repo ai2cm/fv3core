@@ -27,5 +27,5 @@ if [ ${host} == "daint" ] ; then #container_engine == sarus
     export FV3_IMAGE="load/library/fv3core"
     export MPIRUN_CALL=""
 fi
-
+echo `module list`
 make run_tests_parallel TEST_ARGS="${ARGS}"
