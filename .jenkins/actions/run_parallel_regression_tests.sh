@@ -5,12 +5,6 @@ EXPNAME=$2
 ARGS="-v -s -rsx --backend=${BACKEND}"
 export EXPERIMENT=${EXPNAME}
 export NUM_RANKS=`echo ${EXPNAME} | grep -o -E '[0-9]+ranks' | grep -o -E '[0-9]+'`
-shopt -s expand_aliases
-envloc=`pwd`
-. ${envloc}/.jenkins/env/env.${host}.sh
-module add /project/d107/install/modulefiles/
-module load daint-gpu
-module load sarus
 
 # get the test data version from the Makefile
 FORTRAN_VERSION=`grep "FORTRAN_SERIALIZED_DATA_VERSION=" Makefile  | cut -d '=' -f 2`

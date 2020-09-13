@@ -4,23 +4,13 @@ BACKEND=$1
 EXPNAME=$2
 ARGS="-v -s -rsx --backend=${BACKEND}"
 export EXPERIMENT=${EXPNAME}
-shopt -s expand_aliases
-envloc=`pwd`
-. ${envloc}/.jenkins/env/env.${host}.sh
-module add /project/d107/install/modulefiles/
-module load gcloud
-module load daint-gpu
-module load sarus
-#if [ "`hostname | grep daint`" != "" ] ; then
 
 # get the test data version from the Makefile
 FORTRAN_VERSION=`grep "FORTRAN_SERIALIZED_DATA_VERSION=" Makefile  | cut -d '=' -f 2`
 if [ -z ${SCRATCH} ] ; then
     SCRATCH=`pwd`
 fi
-#cd $SCRATCH
-#mkdir -p $EXPNAME
-#cd $EXPNAME
+
 export TEST_DATA_HOST="${SCRATCH}/fv3core_fortran_data/${FORTRAN_VERSION}/${EXPNAME}/"
 # sync the test data if it does not live in /scratch
 if [ ! -d ${TEST_DATA_HOST} ] ; then
@@ -31,16 +21,5 @@ if [ ${host} == "daint" ] ; then
     export RM_FLAG=""
     export FV3_IMAGE="load/library/fv3core"
 fi
-#get_container
-# define command
-#cmd="${mpilaunch} sarus run --mount=type=bind,source=${DATA_DIR},destination=/test_data load/library/${FV3_CONTAINER}:latest pytest --data_path=/test_data ${ARGS} /fv3core/tests"
 
-#else
-   
-#fi
 make run_tests_sequential TEST_ARGS="${ARGS}"
-
-# sarus run --mount=type=bind,source=/scratch/snx3000/olifu/fv3core_fortran_data/7.0.0/c12_6ranks_standard/,destination=/test_data  load/library/fv3core mpirun -np 6 pytest --data_path=/test_data -v -s -rsx --backend=numpy -m parallel /fv3core/tests --which_modules=CubedToLatLon
-
-#cd ../
-#rm -r $EXPNAME
