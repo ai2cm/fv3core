@@ -53,6 +53,5 @@ if [ ${host} == "daint" ] ; then #container_engine == sarus
     export RM_FLAG="--mpi"
     export MPIRUN_CALL=""
 fi
-# The default of this set to 1 causes a segfault
-export MPICH_RDMA_ENABLED_CUDA=0
-run_command "make run_tests_parallel TEST_ARGS=\"${ARGS}\"" FV3CoreParallelTests ${scheduler_script_parallel}
+
+run_command "export MPICH_RDMA_ENABLED_CUDA=0\nmake run_tests_parallel TEST_ARGS=\"${ARGS}\"" FV3CoreParallelTests ${scheduler_script_parallel}
