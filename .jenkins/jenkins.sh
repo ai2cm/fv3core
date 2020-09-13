@@ -89,12 +89,13 @@ if grep -q "parallel" <<< "${script}"; then
     fi
 fi
 
-# load common modules
-module load gcloud
-module load sarus
 
-# If on daint, load the sarus image (TODO add compute_engine to machineEnvironment in buildenv?)
-if [ ${host} == "daint" ]; then
+module add ${installdir}/modulefiles
+module load gcloud
+
+# If using sarus, load the image and set variables for running tests
+if [ ${container_engine} == "sarus" ]; then
+    module load sarus
     make sarus_load_tar
     export FV3_IMAGE="load/library/fv3core"
     if grep -q "parallel" <<< "${script}"; then
