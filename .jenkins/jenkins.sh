@@ -75,7 +75,7 @@ scheduler_script="`dirname $0`/env/submit.${host}.${scheduler}"
 # if there is a scheduler script, make a copy for this job
 if [ -f ${scheduler_script} ] ; then
     cp  ${scheduler_script} job_${action}.sh
-    scheduler_script = job_${action}.sh
+    scheduler_script=job_${action}.sh
 fi
 
 # if this is a parallel job and the number of ranks is specified in optarg2, set NUM_RANKS
