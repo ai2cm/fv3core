@@ -54,7 +54,7 @@ popd > /dev/null
 # setup module environment and default queue
 test -f ${envloc}/env/machineEnvironment.sh || exitError 1201 ${LINENO} "cannot find machineEnvironment.sh script"
 . ${envloc}/env/machineEnvironment.sh
-export scheduler
+
 # get root directory of where jenkins.sh is sitting
 root=`dirname $0`
 
@@ -67,30 +67,59 @@ fi
 # check if action script exists
 script="${root}/actions/${action}.sh"
 test -f "${script}" || exitError 1301 ${LINENO} "cannot find script ${script}"
+
+# load scheduler tools
 . ${envloc}/env/schedulerTools.sh
+scheduler_script="`dirname $0`/env/submit.${host}.${scheduler}"
 
-#scheduler_script="`dirname $0`/env/submit.${host}.${scheduler}"
-#if [ -f ${scheduler_script} ] ; then
-#    cp  ${scheduler_script} job_${action}.sh
-#    scheduler_script=job_${action}.sh
-#fi
-#if grep -q "parallel" <<< "${parallel}"; then
-#    if grep -q "ranks" <<< "${optarg2}"; then
-#	NUM_RANKS=`echo ${optarg2} | grep -o -E '[0-9]+ranks' | grep -o -E '[0-9]+'`
-#	if [ -f ${scheduler_script} ] ; then
-#	    sed -i 's|<NTASKS>|"'${NUM_RANKS}'"|g' ${scheduler_script}
-#	fi
-#    fi
-#fi
-#if [ ${host} == "daint" ] ; then
-#    module load gcloud
-#    module load sarus
-#    make sarus_load_tar
-#fi
+# if there is a scheduler script, make a copy for this job
+if [ -f ${scheduler_script} ] ; then
+    cp  ${scheduler_script} job_${action}.sh
+    scheduler_script = job_${action}.sh
+fi
 
-#run_command "${script} ${optarg} ${optarg2} " Job${action} ${scheduler_script}
+# if this is a parallel job and the number of ranks is specified in optarg2, set NUM_RANKS
+# and update the scheduler script if there is one
+if grep -q "parallel" <<< "${script}"; then
+    if grep -q "ranks" <<< "${optarg2}"; then
+	export NUM_RANKS=`echo ${optarg2} | grep -o -E '[0-9]+ranks' | grep -o -E '[0-9]+'`
+	if [ -f ${scheduler_script} ] ; then
+	    sed -i 's|<NTASKS>|"'${NUM_RANKS}'"|g' ${scheduler_script}
+	fi
+    fi
+fi
 
-. ${script} ${optarg} ${optarg2}
+# load common modules
+module load gcloud
+module load sarus
+
+# If on daint, load the sarus image (TODO add compute_engine to machineEnvironment in buildenv?)
+if [ ${host} == "daint" ]; then
+    make sarus_load_tar
+    export FV3_IMAGE="load/library/fv3core"
+    if grep -q "parallel" <<< "${script}"; then
+	export CONTAINER_ENGINE="srun sarus"
+	export RUN_FLAGS="--mpi"
+	export MPIRUN_CALL=""
+    else
+	export CONTAINER_ENGINE="sarus"
+	export RUN_FLAGS=""
+    fi 
+fi
+
+# get the test data version from the Makefile
+export FORTRAN_VERSION=`grep "FORTRAN_SERIALIZED_DATA_VERSION=" Makefile  | cut -d '=' -f 2`
+
+# Set the SCRATCH directory to the working directory if not set (e.g. for running on gce)
+if [ -z ${SCRATCH} ] ; then
+    export SCRATCH=`pwd`
+fi
+
+# Set the host data location
+export TEST_DATA_HOST="${SCRATCH}/fv3core_fortran_data/${FORTRAN_VERSION}/${EXPNAME}/"
+
+# Run the jenkins command
+run_command "${script} ${optarg} ${optarg2} " Job${action} ${scheduler_script}
 
 if [ $? -ne 0 ] ; then
   exitError 1510 ${LINENO} "problem while executing script ${script}"

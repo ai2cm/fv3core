@@ -12,7 +12,7 @@ NUM_RANKS ?=6
 VOLUMES ?=
 MOUNTS ?=
 CONTAINER_ENGINE ?=docker
-RM_FLAG ?="--rm"
+RUN_FLAGS ?="--rm"
 FV3=fv3core
 TEST_DATA_HOST ?=$(CWD)/test_data/$(EXPERIMENT)
 FV3_IMAGE ?=$(GCR_URL)/$(FV3):$(FV3CORE_VERSION)
@@ -123,11 +123,11 @@ dev_tests_mpi_host:
 	MOUNTS=$(DEV_MOUNTS) $(MAKE) run_tests_parallel_host
 
 test_base:
-	$(CONTAINER_ENGINE) run $(RM_FLAG) $(VOLUMES) $(MOUNTS) \
+	$(CONTAINER_ENGINE) run $(RUN_FLAGS) $(VOLUMES) $(MOUNTS) \
 	$(FV3_IMAGE) pytest --data_path=$(TEST_DATA_CONTAINER) ${TEST_ARGS} /$(FV3)/tests
 
 test_base_parallel:
-	$(CONTAINER_ENGINE) run $(RM_FLAG) $(VOLUMES) $(MOUNTS) $(FV3_IMAGE) \
+	$(CONTAINER_ENGINE) run $(RUN_FLAGS) $(VOLUMES) $(MOUNTS) $(FV3_IMAGE) \
 	$(MPIRUN_CALL) \
 	pytest --data_path=$(TEST_DATA_CONTAINER) ${TEST_ARGS} -m parallel /$(FV3)/tests
 
