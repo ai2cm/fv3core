@@ -78,6 +78,7 @@ if grep -q "parallel" <<< "${script}"; then
     fi
 fi
 if [ ${host} == "daint" ] ; then
+    module load gcloud
     make sarus_load_tar
 fi
 

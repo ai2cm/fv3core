@@ -9,7 +9,6 @@ shopt -s expand_aliases
 envloc=`pwd`
 . ${envloc}/.jenkins/env/env.${host}.sh
 module add /project/d107/install/modulefiles/
-module load gcloud
 module load daint-gpu
 module load sarus
 
