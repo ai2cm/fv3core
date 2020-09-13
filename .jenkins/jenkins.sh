@@ -54,7 +54,7 @@ popd > /dev/null
 # setup module environment and default queue
 test -f ${envloc}/env/machineEnvironment.sh || exitError 1201 ${LINENO} "cannot find machineEnvironment.sh script"
 . ${envloc}/env/machineEnvironment.sh
-
+export scheduler
 # get root directory of where jenkins.sh is sitting
 root=`dirname $0`
 
@@ -68,6 +68,7 @@ fi
 script="${root}/actions/${action}.sh"
 test -f "${script}" || exitError 1301 ${LINENO} "cannot find script ${script}"
 . ${envloc}/env/schedulerTools.sh
+
 #scheduler_script="`dirname $0`/env/submit.${host}.${scheduler}"
 #if [ -f ${scheduler_script} ] ; then
 #    cp  ${scheduler_script} job_${action}.sh
