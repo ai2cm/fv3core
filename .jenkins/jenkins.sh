@@ -88,7 +88,13 @@ test -f "${script}" || exitError 1301 ${LINENO} "cannot find script ${script}"
 #fi
 
 #run_command "${script} ${optarg} ${optarg2} " Job${action} ${scheduler_script}
-${script} ${optarg} ${optarg2}
+. ${cd}/.jenkins/env/schedulerTools.sh
+module add /project/d107/install/modulefiles/
+module load gcloud
+module load daint-gpu
+module load sarus
+
+. ${script} ${optarg} ${optarg2}
 
 if [ $? -ne 0 ] ; then
   exitError 1510 ${LINENO} "problem while executing script ${script}"

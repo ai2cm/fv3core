@@ -6,10 +6,10 @@ ARGS="-v -s -rsx --backend=${BACKEND}"
 export EXPERIMENT=${EXPNAME}
 export NUM_RANKS=`echo ${EXPNAME} | grep -o -E '[0-9]+ranks' | grep -o -E '[0-9]+'`
 
-shopt -s expand_aliases
-cd=`pwd`
-. ${cd}/.jenkins/env/env.${host}.sh
-. ${cd}/.jenkins/env/schedulerTools.sh
+#shopt -s expand_aliases
+#cd=`pwd`
+#. ${cd}/.jenkins/env/env.${host}.sh
+#. ${cd}/.jenkins/env/schedulerTools.sh
 module add /project/d107/install/modulefiles/
 module load gcloud
 module load daint-gpu
