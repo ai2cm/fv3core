@@ -115,9 +115,6 @@ if [ -z ${SCRATCH} ] ; then
     export SCRATCH=`pwd`
 fi
 
-# Set the host data location
-export TEST_DATA_HOST="${SCRATCH}/fv3core_fortran_data/${FORTRAN_VERSION}/${EXPNAME}/"
-
 # Run the jenkins command
 run_command "${script} ${optarg} ${optarg2} " Job${action} ${scheduler_script}
 
