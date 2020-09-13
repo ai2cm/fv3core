@@ -67,7 +67,7 @@ fi
 # check if action script exists
 script="${root}/actions/${action}.sh"
 test -f "${script}" || exitError 1301 ${LINENO} "cannot find script ${script}"
-. ${envloc}/env/schedulerTools.sh
+#. ${envloc}/env/schedulerTools.sh
 #scheduler_script="`dirname $0`/env/submit.${host}.${scheduler}"
 #if [ -f ${scheduler_script} ] ; then
 #    cp  ${scheduler_script} job_${action}.sh
