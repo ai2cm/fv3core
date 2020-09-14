@@ -297,9 +297,9 @@ def compute(qvapor, qliquid, qrain, qsnow, qice, qgraupel, qcld, pt, delp, delz,
     i_ext = grid.domain_shape_compute()[0]
     j_ext = grid.domain_shape_compute()[1]
     k_ext = grid.domain_shape_compute()[2]
-    if spec.namelist["check_negative"]:
+    if spec.namelist.check_negative:
         raise Exception("Unimplemented namelist value check_negative=True")
-    if spec.namelist["hydrostatic"]:
+    if spec.namelist.hydrostatic:
         d0_vap = constants.CP_VAP - constants.C_LIQ
         raise Exception("Unimplemented namelist hydrostatic=True")
     else:
@@ -328,7 +328,7 @@ def compute(qvapor, qliquid, qrain, qsnow, qice, qgraupel, qcld, pt, delp, delz,
     upper_fix = utils.make_storage_from_shape(qvapor.shape, origin=(0, 0, 0))
     lower_fix = utils.make_storage_from_shape(qvapor.shape, origin=(0, 0, 0))
     bot_dp = delp.data[:, :, grid.npz - 1]
-    full_bot_arr = np.repeat(bot_dp[:, :, np.newaxis], k_ext + 1, axis=2)
+    full_bot_arr = utils.repeat(bot_dp[:, :, np.newaxis], k_ext + 1, axis=2)
     dp_bot = utils.make_storage_data(full_bot_arr, full_bot_arr.shape)
     fix_water_vapor_down(
         qvapor,

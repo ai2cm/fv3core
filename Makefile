@@ -2,8 +2,7 @@ GCR_URL = us.gcr.io/vcm-ml
 REGRESSION_DATA_STORAGE_BUCKET = gs://vcm-fv3gfs-serialized-regression-data
 EXPERIMENT ?=c12_6ranks_standard
 FV3CORE_VERSION=0.0.0
-FORTRAN_SERIALIZED_DATA_VERSION=7.0.0
-
+FORTRAN_SERIALIZED_DATA_VERSION=7.1.1
 SHELL=/bin/bash
 CWD=$(shell pwd)
 TEST_ARGS ?=-v -s -rsx
@@ -18,10 +17,11 @@ TEST_DATA_HOST ?=$(CWD)/test_data/$(EXPERIMENT)
 FV3_IMAGE ?=$(GCR_URL)/$(FV3):$(FV3CORE_VERSION)
 FV3UTIL_DIR=$(CWD)/external/fv3util
 DEV_MOUNTS = '-v $(CWD)/$(FV3):/$(FV3)/$(FV3) -v $(CWD)/tests:/$(FV3)/tests -v $(FV3UTIL_DIR):/usr/src/fv3util'
-FV3_INSTALL_TAG ?= master
+FV3_INSTALL_TAG ?= develop
 FV3_INSTALL_TARGET=$(FV3)-install
-FV3_INSTALL_IMAGE=$(GCR_URL)/$(FV3_INSTALL_TARGET):$(FV3_INSTALL_TAG)
 
+FV3_INSTALL_IMAGE=$(GCR_URL)/$(FV3_INSTALL_TARGET):$(FV3_INSTALL_TAG)
+FV3_IMAGE ?=$(GCR_URL)/fv3core:$(FV3CORE_VERSION)-$(FV3_INSTALL_TAG)
 
 TEST_DATA_CONTAINER=/test_data
 
@@ -32,6 +32,8 @@ TEST_DATA_TARPATH=$(TEST_DATA_HOST)/$(TEST_DATA_TARFILE)
 CORE_TAR=$(FV3).tar
 CORE_BUCKET_LOC=gs://vcm-jenkins/${CORE_TAR}
 MPIRUN_CALL ?=mpirun -np $(NUM_RANKS)
+BASE_INSTALL?=fv3core-install-serialbox
+
 clean:
 	find . -name ""
 
@@ -44,6 +46,7 @@ update_submodules:
 build_environment: 
 	DOCKER_BUILDKIT=1 docker build \
 		--network host \
+		--build-arg MIDBASE=$(BASE_INSTALL) \
 		-f $(CWD)/docker/Dockerfile.build_environment \
 		-t $(FV3_INSTALL_IMAGE) \
 		--target $(FV3_INSTALL_TARGET) \
