@@ -47,7 +47,7 @@ optarg2="$3"
 pushd `dirname $0` > /dev/null
 envloc=`/bin/pwd`
 popd > /dev/null
-
+shopt -s expand_aliases
 # Download the env
 . ${envloc}/env.sh
 
