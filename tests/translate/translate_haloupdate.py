@@ -1,6 +1,6 @@
 from .parallel_translate import ParallelTranslate, _serialize_slice
 from .translate import TranslateFortranData2Py
-import fv3util
+import fv3gfs-util
 from fv3core.utils import gt4py_utils as utils
 import logging
 import numpy as np
@@ -13,7 +13,7 @@ class TranslateHaloUpdate(ParallelTranslate):
     inputs = {
         "array": {
             "name": "air_temperature",
-            "dims": [fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_DIM],
+            "dims": [fv3gfs-util.X_DIM, fv3gfs-util.Y_DIM, fv3gfs-util.Z_DIM],
             "units": "degK",
             "n_halo": utils.halo,
         }
@@ -22,7 +22,7 @@ class TranslateHaloUpdate(ParallelTranslate):
     outputs = {
         "array": {
             "name": "air_temperature",
-            "dims": [fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_DIM],
+            "dims": [fv3gfs-util.X_DIM, fv3gfs-util.Y_DIM, fv3gfs-util.Z_DIM],
             "units": "degK",
             "n_halo": utils.halo,
         }
@@ -61,7 +61,7 @@ class TranslateHaloUpdate_2(TranslateHaloUpdate):
     inputs = {
         "array2": {
             "name": "height_on_interface_levels",
-            "dims": [fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_INTERFACE_DIM],
+            "dims": [fv3gfs-util.X_DIM, fv3gfs-util.Y_DIM, fv3gfs-util.Z_INTERFACE_DIM],
             "units": "m",
             "n_halo": utils.halo,
         }
@@ -70,7 +70,7 @@ class TranslateHaloUpdate_2(TranslateHaloUpdate):
     outputs = {
         "array2": {
             "name": "height_on_interface_levels",
-            "dims": [fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_INTERFACE_DIM],
+            "dims": [fv3gfs-util.X_DIM, fv3gfs-util.Y_DIM, fv3gfs-util.Z_INTERFACE_DIM],
             "units": "m",
             "n_halo": utils.halo,
         }
@@ -84,7 +84,7 @@ class TranslateMPPUpdateDomains(TranslateHaloUpdate):
     inputs = {
         "update_arr": {
             "name": "z_wind_as_tendency_of_pressure",
-            "dims": [fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_DIM],
+            "dims": [fv3gfs-util.X_DIM, fv3gfs-util.Y_DIM, fv3gfs-util.Z_DIM],
             "units": "Pa/s",
             "n_halo": utils.halo,
         }
@@ -93,7 +93,7 @@ class TranslateMPPUpdateDomains(TranslateHaloUpdate):
     outputs = {
         "update_arr": {
             "name": "z_wind_as_tendency_of_pressure",
-            "dims": [fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_DIM],
+            "dims": [fv3gfs-util.X_DIM, fv3gfs-util.Y_DIM, fv3gfs-util.Z_DIM],
             "units": "Pa/s",
             "n_halo": utils.halo,
         }
@@ -107,13 +107,13 @@ class TranslateHaloVectorUpdate(ParallelTranslate):
     inputs = {
         "array_u": {
             "name": "x_wind_on_c_grid",
-            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM, fv3util.Z_DIM],
+            "dims": [fv3gfs-util.X_INTERFACE_DIM, fv3gfs-util.Y_DIM, fv3gfs-util.Z_DIM],
             "units": "m/s",
             "n_halo": utils.halo,
         },
         "array_v": {
             "name": "y_wind_on_c_grid",
-            "dims": [fv3util.X_DIM, fv3util.Y_INTERFACE_DIM, fv3util.Z_DIM],
+            "dims": [fv3gfs-util.X_DIM, fv3gfs-util.Y_INTERFACE_DIM, fv3gfs-util.Z_DIM],
             "units": "m/s",
             "n_halo": utils.halo,
         },
@@ -122,13 +122,13 @@ class TranslateHaloVectorUpdate(ParallelTranslate):
     outputs = {
         "array_u": {
             "name": "x_wind_on_c_grid",
-            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM, fv3util.Z_DIM],
+            "dims": [fv3gfs-util.X_INTERFACE_DIM, fv3gfs-util.Y_DIM, fv3gfs-util.Z_DIM],
             "units": "m/s",
             "n_halo": utils.halo,
         },
         "array_v": {
             "name": "y_wind_on_c_grid",
-            "dims": [fv3util.X_DIM, fv3util.Y_INTERFACE_DIM, fv3util.Z_DIM],
+            "dims": [fv3gfs-util.X_DIM, fv3gfs-util.Y_INTERFACE_DIM, fv3gfs-util.Z_DIM],
             "units": "m/s",
             "n_halo": utils.halo,
         },

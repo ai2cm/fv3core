@@ -175,7 +175,7 @@ $ git submodule update --init --recursive
 
 The submodule include:
 
-- `external/fv3util` - git@github.com:VulcanClimateModeling/fv3util.git
+- `external/fv3gfs-util` - git@github.com:VulcanClimateModeling/fv3gfs-util.git
 
 
 

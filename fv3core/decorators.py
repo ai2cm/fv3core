@@ -6,7 +6,7 @@ import gt4py as gt
 import fv3core
 import numpy
 import fv3core._config as spec
-from fv3util import Quantity
+from fv3gfs-util import Quantity
 import xarray as xr
 
 ArgSpec = collections.namedtuple(

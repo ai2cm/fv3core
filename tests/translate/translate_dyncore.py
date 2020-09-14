@@ -1,41 +1,41 @@
 from .parallel_translate import ParallelTranslate2PyState
 from .translate import TranslateFortranData2Py
 import fv3core.stencils.dyn_core as dyn_core
-import fv3util
+import fv3gfs-util
 
 
 class TranslateDynCore(ParallelTranslate2PyState):
     inputs = {
         "q_con": {
-            "dims": [fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_DIM],
+            "dims": [fv3gfs-util.X_DIM, fv3gfs-util.Y_DIM, fv3gfs-util.Z_DIM],
             "units": "default",
         },
         "cappa": {
-            "dims": [fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_DIM],
+            "dims": [fv3gfs-util.X_DIM, fv3gfs-util.Y_DIM, fv3gfs-util.Z_DIM],
             "units": "default",
         },
         "delp": {
-            "dims": [fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_DIM],
+            "dims": [fv3gfs-util.X_DIM, fv3gfs-util.Y_DIM, fv3gfs-util.Z_DIM],
             "units": "default",
         },
-        "pt": {"dims": [fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_DIM], "units": "K",},
+        "pt": {"dims": [fv3gfs-util.X_DIM, fv3gfs-util.Y_DIM, fv3gfs-util.Z_DIM], "units": "K",},
         "u": {
-            "dims": [fv3util.X_DIM, fv3util.Y_INTERFACE_DIM, fv3util.Z_DIM],
+            "dims": [fv3gfs-util.X_DIM, fv3gfs-util.Y_INTERFACE_DIM, fv3gfs-util.Z_DIM],
             "units": "m/s",
         },
         "v": {
-            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM, fv3util.Z_DIM],
+            "dims": [fv3gfs-util.X_INTERFACE_DIM, fv3gfs-util.Y_DIM, fv3gfs-util.Z_DIM],
             "units": "m/s",
         },
         "uc": {
-            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM, fv3util.Z_DIM],
+            "dims": [fv3gfs-util.X_INTERFACE_DIM, fv3gfs-util.Y_DIM, fv3gfs-util.Z_DIM],
             "units": "m/s",
         },
         "vc": {
-            "dims": [fv3util.X_DIM, fv3util.Y_INTERFACE_DIM, fv3util.Z_DIM],
+            "dims": [fv3gfs-util.X_DIM, fv3gfs-util.Y_INTERFACE_DIM, fv3gfs-util.Z_DIM],
             "units": "m/s",
         },
-        "w": {"dims": [fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_DIM], "units": "m/s",},
+        "w": {"dims": [fv3gfs-util.X_DIM, fv3gfs-util.Y_DIM, fv3gfs-util.Z_DIM], "units": "m/s",},
     }
 
     def __init__(self, grids):

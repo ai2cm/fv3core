@@ -1,14 +1,14 @@
 from .parallel_translate import ParallelTranslate
 import fv3core.stencils.tracer_2d_1l as tracer_2d_1l
 import fv3core.utils.gt4py_utils as utils
-import fv3util
+import fv3gfs-util
 import pytest
 
 
 class TranslateTracer2D1L(ParallelTranslate):
     inputs = {
         "tracers": {
-            "dims": [fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_DIM],
+            "dims": [fv3gfs-util.X_DIM, fv3gfs-util.Y_DIM, fv3gfs-util.Z_DIM],
             "units": "kg/m^2",
         }
     }

@@ -7,7 +7,7 @@ import fv3core._config
 import fv3core.utils.gt4py_utils
 import translate
 import collections
-import fv3util
+import fv3gfs-util
 from fv3core.utils.mpi import MPI
 
 # get MPI environment
@@ -434,19 +434,19 @@ def mock_communicator_list(layout):
 
 
 def get_mock_communicator_list(layout):
-    total_ranks = 6 * fv3util.TilePartitioner(layout).total_ranks
+    total_ranks = 6 * fv3gfs-util.TilePartitioner(layout).total_ranks
     shared_buffer = {}
     communicators = []
     for rank in range(total_ranks):
-        comm = fv3util.testing.DummyComm(rank, total_ranks, buffer_dict=shared_buffer)
+        comm = fv3gfs-util.testing.DummyComm(rank, total_ranks, buffer_dict=shared_buffer)
         communicator = get_communicator(comm, layout)
         communicators.append(communicator)
     return communicators
 
 
 def get_communicator(comm, layout):
-    partitioner = fv3util.CubedSpherePartitioner(fv3util.TilePartitioner(layout))
-    communicator = fv3util.CubedSphereCommunicator(comm, partitioner)
+    partitioner = fv3gfs-util.CubedSpherePartitioner(fv3gfs-util.TilePartitioner(layout))
+    communicator = fv3gfs-util.CubedSphereCommunicator(comm, partitioner)
     return communicator
 
 

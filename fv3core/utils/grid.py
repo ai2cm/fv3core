@@ -1,6 +1,6 @@
 import fv3core.utils.gt4py_utils as utils
 import numpy as np
-import fv3util
+import fv3gfs-util
 
 
 class Grid:
@@ -14,7 +14,7 @@ class Grid:
 
     def __init__(self, indices, shape_params, rank, layout, data_fields={}):
         self.rank = rank
-        self.partitioner = fv3util.TilePartitioner(layout)
+        self.partitioner = fv3gfs-util.TilePartitioner(layout)
         self.subtile_index = self.partitioner.subtile_index(self.rank)
         self.layout = layout
         for s in self.shape_params:
@@ -66,7 +66,7 @@ class Grid:
         if self._sizer is None:
             # in the future this should use from_namelist, when we have a non-flattened
             # namelist
-            self._sizer = fv3util.SubtileGridSizer._from_tile_params(
+            self._sizer = fv3gfs-util.SubtileGridSizer._from_tile_params(
                 nx_tile=self.npx - 1,
                 ny_tile=self.npy - 1,
                 nz=self.npz,
@@ -79,7 +79,7 @@ class Grid:
     @property
     def quantity_factory(self):
         if self._quantity_factory is None:
-            self._quantity_factory = fv3util.QuantityFactory.from_backend(
+            self._quantity_factory = fv3gfs-util.QuantityFactory.from_backend(
                 self.sizer, backend=utils.backend
             )
         return self._quantity_factory
@@ -87,7 +87,7 @@ class Grid:
     def make_quantity(
         self,
         array,
-        dims=[fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_DIM],
+        dims=[fv3gfs-util.X_DIM, fv3gfs-util.Y_DIM, fv3gfs-util.Z_DIM],
         units="Unknown",
         origin=None,
         extent=None,
@@ -96,7 +96,7 @@ class Grid:
             origin = self.compute_origin()
         if extent is None:
             extent = self.domain_shape_compute()
-        return fv3util.Quantity(
+        return fv3gfs-util.Quantity(
             array, dims=dims, units=units, origin=origin, extent=extent
         )
 
@@ -104,7 +104,7 @@ class Grid:
         self,
         data_dict,
         varname,
-        dims=[fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_DIM],
+        dims=[fv3gfs-util.X_DIM, fv3gfs-util.Y_DIM, fv3gfs-util.Z_DIM],
         units="Unknown",
     ):
         data_dict[varname + "_quantity"] = self.quantity_wrap(
@@ -112,11 +112,11 @@ class Grid:
         )
 
     def quantity_wrap(
-        self, data, dims=[fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_DIM], units="Unknown"
+        self, data, dims=[fv3gfs-util.X_DIM, fv3gfs-util.Y_DIM, fv3gfs-util.Z_DIM], units="Unknown"
     ):
         origin = self.sizer.get_origin(dims)
         extent = self.sizer.get_extent(dims)
-        return fv3util.Quantity(
+        return fv3gfs-util.Quantity(
             data, dims=dims, units=units, origin=origin, extent=extent
         )
 
