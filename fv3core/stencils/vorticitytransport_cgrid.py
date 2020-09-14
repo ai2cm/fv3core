@@ -59,6 +59,10 @@ def compute(uc, vc, vort_c, ke_c, v, u, fxv, fyv, dt2):
     co = grid.compute_origin()
     zonal_domain = (grid.nic + 1, grid.njc, grid.npz)
     meridional_domain = (grid.nic, grid.njc + 1, grid.npz)
+    splitters={"i_start": grid.is_-grid.is_,
+               "i_end": grid.ie-grid.is_,
+               "j_start": grid.js-grid.js,
+               "j_end": grid.je-grid.js}
 
     # Create storage objects for the temporary flux fields
     fx1 = utils.make_storage_from_shape(uc.shape, origin=co)
@@ -68,15 +72,13 @@ def compute(uc, vc, vort_c, ke_c, v, u, fxv, fyv, dt2):
     compute_tmp_flux1( fxv, vort_c, fx1, u, vc, grid.cosa_v, grid.sina_v, dt2, 
                       origin=co, 
                       domain=meridional_domain,
-                      splitters={"j_start": grid.js-grid.js,
-                                 "j_end": grid.je-grid.js} )
+                      splitters=splitters )
 
     # Compute the flux values in the meridional coordinate direction
     compute_tmp_flux2( fyv, vort_c, fy1, v, uc, grid.cosa_u, grid.sina_u, dt2, 
                        origin=co, 
                        domain=zonal_domain,
-                       splitters={"i_start": grid.is_-grid.is_,
-                                  "i_end": grid.ie-grid.is_} )
+                       splitters=splitters )
 
     # Update time-centered winds on C-grid
     update_uc(uc, fy1, fyv, grid.rdxc, ke_c, origin=co, domain=zonal_domain)
