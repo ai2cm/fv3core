@@ -1,6 +1,7 @@
 #!/bin/bash
 set -e -x
 export DOCKER_BUILDKIT=1
+make lint
 make build_environment
 make build  
 make push_core
