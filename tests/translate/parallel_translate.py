@@ -1,7 +1,7 @@
 from typing import List
 import copy
 from .translate import TranslateFortranData2Py, read_serialized_data
-import fv3util
+import fv3gfs-util
 from fv3core.utils import gt4py_utils as utils
 import fv3core
 import pytest
@@ -9,9 +9,9 @@ from types import SimpleNamespace
 
 
 def ensure_3d_dims(dims_in):
-    dims_out = [fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_DIM]
+    dims_out = [fv3gfs-util.X_DIM, fv3gfs-util.Y_DIM, fv3gfs-util.Z_DIM]
     for dim in dims_in:
-        for i, dim_set in enumerate([fv3util.X_DIMS, fv3util.Y_DIMS, fv3util.Z_DIMS]):
+        for i, dim_set in enumerate([fv3gfs-util.X_DIMS, fv3gfs-util.Y_DIMS, fv3gfs-util.Z_DIMS]):
             if dim in dim_set:
                 dims_out[i] = dim
                 break
@@ -61,7 +61,7 @@ class ParallelTranslate:
             if len(properties["dims"]) > 0:
                 # self._base will always make a 3D array
                 dims = ensure_3d_dims(properties["dims"])
-                state[properties["name"]] = fv3util.Quantity(
+                state[properties["name"]] = fv3gfs-util.Quantity(
                     input_data,
                     dims,
                     properties["units"],
@@ -125,7 +125,7 @@ class ParallelTranslateBaseSlicing(ParallelTranslate):
         storages = {}
         for name, properties in self.outputs.items():
             standard_name = properties.get("name", name)
-            if isinstance(state[standard_name], fv3util.Quantity):
+            if isinstance(state[standard_name], fv3gfs-util.Quantity):
                 storages[name] = state[standard_name].storage
             elif len(self.outputs[name]["dims"]) > 0:
                 storages[name] = state[standard_name]  # assume it's a storage
@@ -141,12 +141,12 @@ def _serialize_slice(quantity, n_halo, real_dims=None):
     slice_list = []
     for dim, origin, extent in zip(quantity.dims, quantity.origin, quantity.extent):
         if dim in real_dims:
-            if dim in fv3util.HORIZONTAL_DIMS:
+            if dim in fv3gfs-util.HORIZONTAL_DIMS:
                 if isinstance(n_halo, int):
                     halo = n_halo
-                elif dim in fv3util.X_DIMS:
+                elif dim in fv3gfs-util.X_DIMS:
                     halo = n_halo[0]
-                elif dim in fv3util.Y_DIMS:
+                elif dim in fv3gfs-util.Y_DIMS:
                     halo = n_halo[1]
                 else:
                     raise RuntimeError(n_halo)
@@ -171,7 +171,7 @@ class ParallelTranslate2Py(ParallelTranslate):
         quantity_result = self.outputs_from_state(result)
         result.update(quantity_result)
         for name, data in result.items():
-            if isinstance(data, fv3util.Quantity):
+            if isinstance(data, fv3gfs-util.Quantity):
                 result[name] = data.storage
         result.update(self._base.slice_output(result))
         return result
