@@ -14,7 +14,6 @@ CONTAINER_ENGINE ?=docker
 RUN_FLAGS ?="--rm"
 FV3=fv3core
 TEST_DATA_HOST ?=$(CWD)/test_data/$(EXPERIMENT)
-FV3_IMAGE ?=$(GCR_URL)/$(FV3):$(FV3CORE_VERSION)
 FV3UTIL_DIR=$(CWD)/external/fv3util
 DEV_MOUNTS = '-v $(CWD)/$(FV3):/$(FV3)/$(FV3) -v $(CWD)/tests:/$(FV3)/tests -v $(FV3UTIL_DIR):/usr/src/fv3util'
 FV3_INSTALL_TAG ?= develop
@@ -161,6 +160,7 @@ list_test_data_options:
 	gsutil ls $(REGRESSION_DATA_STORAGE_BUCKET)/$(FORTRAN_SERIALIZED_DATA_VERSION)
 
 lint:
+	# sudo pip3 install black==19.10b0 flake8==3.7.8
 	black --diff --check $(PYTHON_FILES) $(PYTHON_INIT_FILES)
 	# disable flake8 tests for now, re-enable when dycore is "running"
 	#flake8 $(PYTHON_FILES)
