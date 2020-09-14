@@ -160,7 +160,6 @@ list_test_data_options:
 	gsutil ls $(REGRESSION_DATA_STORAGE_BUCKET)/$(FORTRAN_SERIALIZED_DATA_VERSION)
 
 lint:
-	# sudo pip3 install black==19.10b0 flake8==3.7.8
 	black --diff --check $(PYTHON_FILES) $(PYTHON_INIT_FILES)
 	# disable flake8 tests for now, re-enable when dycore is "running"
 	#flake8 $(PYTHON_FILES)
