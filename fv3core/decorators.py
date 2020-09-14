@@ -47,7 +47,7 @@ def state_inputs(*arg_specs):
                         ycheck = ["y" in dim for dim in dims]
                         xcheck = ["x" in dim for dim in dims]
                         indices = numpy.array([0,1,2])
-                        ind=[indices[zcheck][0],indices[ycheck][0],indices[xcheck][0]]
+                        ind=[indices[xcheck][0],indices[ycheck][0],indices[zcheck][0]]
                         dat = dat.transpose(ind)
                         dims = tuple(numpy.asarray(dims)[ind]) #lol
                         origin = tuple(numpy.asarray(origin)[ind])
