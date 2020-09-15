@@ -90,7 +90,7 @@ if grep -q "parallel" <<< "${script}"; then
 fi
 
 
-module add ${installdir}/modulefiles
+module add "${installdir}/modulefiles"
 module load gcloud
 
 # If using sarus, load the image and set variables for running tests

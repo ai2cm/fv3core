@@ -8,9 +8,7 @@ export EXPERIMENT=${EXPNAME}
 # Set the host data location
 export TEST_DATA_HOST="${TEST_DATA_DIR}/${EXPNAME}/"
 
-# sync the test data if it does not live in /scratch
-if [ ! -d ${TEST_DATA_HOST} ] ; then
-    make get_test_data
-fi
+# sync the test data 
+make get_test_data
 
 make run_tests_sequential TEST_ARGS="${ARGS}"
