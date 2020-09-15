@@ -119,8 +119,10 @@ fi
 # Set the host data location
 export TEST_DATA_DIR="${SCRATCH}/fv3core_fortran_data/${FORTRAN_VERSION}"
 
+G2G="false"
+
 # Run the jenkins command
-run_command "${script} ${optarg} ${optarg2} " Job${action} ${scheduler_script}
+run_command "${script} ${optarg} ${optarg2} " Job${action} ${G2G} ${scheduler_script}
 
 if [ $? -ne 0 ] ; then
   exitError 1510 ${LINENO} "problem while executing script ${script}"
