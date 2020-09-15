@@ -1,7 +1,7 @@
 import sys
 import fv3gfs
 import fv3core
-from fv3util import Quantity, io
+from fv3gfs-util import Quantity, io
 import numpy as np
 import xarray as xr
 import yaml
