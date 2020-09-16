@@ -18,7 +18,7 @@ FV3UTIL_DIR=$(CWD)/external/fv3util
 DEV_MOUNTS = '-v $(CWD)/$(FV3):/$(FV3)/$(FV3) -v $(CWD)/tests:/$(FV3)/tests -v $(FV3UTIL_DIR):/usr/src/fv3util'
 FV3_INSTALL_TAG ?= develop
 FV3_INSTALL_TARGET=$(FV3)-install
-BRANCH=$(shell git symbolic-ref --short HEAD)
+BRANCH=$(shell git rev-parse --abbrev-ref HEAD)
 FV3_INSTALL_IMAGE=$(GCR_URL)/$(FV3_INSTALL_TARGET):$(FV3_INSTALL_TAG)
 FV3_IMAGE ?=$(GCR_URL)/fv3core:$(FV3CORE_VERSION)-$(FV3_INSTALL_TAG)-$(BRANCH)
 
