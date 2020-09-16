@@ -86,6 +86,7 @@ pull_core:
 	docker pull $(FV3_IMAGE)
 
 tar_core:
+	echo $(BRANCH)
 	docker save $(FV3_IMAGE) -o $(CORE_TAR)
 	gsutil copy $(CORE_TAR) $(CORE_BUCKET_LOC)
 
