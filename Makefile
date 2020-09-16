@@ -93,7 +93,7 @@ sarus_load_tar:
 	if [ ! -f `pwd`/$(CORE_TAR) ]; then \
 		gsutil copy $(CORE_BUCKET_LOC) . && \
 		sarus load ./$(CORE_TAR) $(CORE_NAME) && \
-		export FV3_IMAGE="load/library/$(CORE_NAME)"; \
+		$(shell export FV3_IMAGE="load/library/$(CORE_NAME)"); \
 	fi
 tests: build
 	$(MAKE) get_test_data
