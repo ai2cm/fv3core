@@ -89,7 +89,7 @@ if grep -q "parallel" <<< "${script}"; then
     fi
 fi
 
-
+module load daint-gpu
 module add "${installdir}/modulefiles"
 module load gcloud
 
@@ -97,7 +97,6 @@ module load gcloud
 if [ ${container_engine} == "sarus" ]; then
     module load sarus
     make sarus_load_tar
-    export FV3_IMAGE="load/library/fv3core"
     if grep -q "parallel" <<< "${script}"; then
 	export CONTAINER_ENGINE="srun sarus"
 	export RUN_FLAGS="--mpi"

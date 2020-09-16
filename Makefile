@@ -18,9 +18,9 @@ FV3UTIL_DIR=$(CWD)/external/fv3util
 DEV_MOUNTS = '-v $(CWD)/$(FV3):/$(FV3)/$(FV3) -v $(CWD)/tests:/$(FV3)/tests -v $(FV3UTIL_DIR):/usr/src/fv3util'
 FV3_INSTALL_TAG ?= develop
 FV3_INSTALL_TARGET=$(FV3)-install
-
+BRANCH=$(shell git rev-parse --abbrev-ref HEAD)
 FV3_INSTALL_IMAGE=$(GCR_URL)/$(FV3_INSTALL_TARGET):$(FV3_INSTALL_TAG)
-FV3_IMAGE ?=$(GCR_URL)/fv3core:$(FV3CORE_VERSION)-$(FV3_INSTALL_TAG)
+FV3_IMAGE ?=$(GCR_URL)/fv3core:$(FV3CORE_VERSION)-$(FV3_INSTALL_TAG)-$(BRANCH)
 
 TEST_DATA_CONTAINER=/test_data
 
@@ -28,8 +28,9 @@ PYTHON_FILES = $(shell git ls-files | grep -e 'py$$' | grep -v -e '__init__.py')
 PYTHON_INIT_FILES = $(shell git ls-files | grep '__init__.py')
 TEST_DATA_TARFILE=dat_files.tar.gz
 TEST_DATA_TARPATH=$(TEST_DATA_HOST)/$(TEST_DATA_TARFILE)
-CORE_TAR=$(FV3).tar
-CORE_BUCKET_LOC=gs://vcm-jenkins/${CORE_TAR}
+CORE_NAME=$(FV3)-$(FV3CORE_VERSION)-$(FV3_INSTALL_TAG)-$(BRANCH)
+CORE_TAR=$(CORE_NAME).tar
+CORE_BUCKET_LOC=gs://vcm-jenkins/$(CORE_TAR)
 MPIRUN_CALL ?=mpirun -np $(NUM_RANKS)
 BASE_INSTALL?=fv3core-install-serialbox
 
@@ -87,10 +88,12 @@ pull_core:
 tar_core:
 	docker save $(FV3_IMAGE) -o $(CORE_TAR)
 	gsutil copy $(CORE_TAR) $(CORE_BUCKET_LOC)
+
 sarus_load_tar:
 	if [ ! -f `pwd`/$(CORE_TAR) ]; then \
 		gsutil copy $(CORE_BUCKET_LOC) . && \
-		sarus load ./$(CORE_TAR) ${FV3}; \
+		sarus load ./$(CORE_TAR) $(CORE_NAME) && \
+		export FV3_IMAGE="load/library/$(CORE_NAME)"; \
 	fi
 tests: build
 	$(MAKE) get_test_data
@@ -126,12 +129,12 @@ dev_tests_mpi_host:
 
 test_base:
 	$(CONTAINER_ENGINE) run $(RUN_FLAGS) $(VOLUMES) $(MOUNTS) \
-	$(FV3_IMAGE) pytest --data_path=$(TEST_DATA_CONTAINER) ${TEST_ARGS} /$(FV3)/tests
+	$(FV3_IMAGE) pytest --data_path=$(TEST_DATA_CONTAINER) $(TEST_ARGS) /$(FV3)/tests
 
 test_base_parallel:
 	$(CONTAINER_ENGINE) run $(RUN_FLAGS) $(VOLUMES) $(MOUNTS) $(FV3_IMAGE) \
 	$(MPIRUN_CALL) \
-	pytest --data_path=$(TEST_DATA_CONTAINER) ${TEST_ARGS} -m parallel /$(FV3)/tests
+	pytest --data_path=$(TEST_DATA_CONTAINER) $(TEST_ARGS) -m parallel /$(FV3)/tests
 
 
 run_tests_sequential:
@@ -178,4 +181,4 @@ reformat:
 .PHONY: update_submodules build_environment build dev dev_tests dev_tests_mpi flake8 lint get_test_data unpack_test_data \
 	 list_test_data_options pull_environment pull_test_data push_environment \
 	rebuild_environment reformat run_tests_sequential run_tests_parallel test_base test_base_parallel \
-	tests update_submodules 
+	tests update_submodules push_core pull_core tar_core sarus_load_tar
