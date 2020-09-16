@@ -14,8 +14,8 @@ MOUNTS ?=
 
 TEST_DATA_HOST ?=$(CWD)/test_data/$(EXPERIMENT)
 FV3_IMAGE ?=$(GCR_URL)/fv3core:$(FV3CORE_VERSION)
-FV3UTIL_DIR=$(CWD)/external/fv3util
-DEV_MOUNTS = '-v $(CWD)/fv3core:/fv3core/fv3core -v $(CWD)/tests:/fv3core/tests -v $(FV3UTIL_DIR):/usr/src/fv3util'
+FV3UTIL_DIR=$(CWD)/external/fv3gfs-util
+DEV_MOUNTS = '-v $(CWD)/fv3core:/fv3core/fv3core -v $(CWD)/tests:/fv3core/tests -v $(FV3UTIL_DIR):/usr/src/fv3gfs-util'
 FV3_INSTALL_TAG=develop
 
 FV3_INSTALL_TARGET=fv3core-install
@@ -117,11 +117,11 @@ test_base_parallel:
 
 
 run_tests_sequential:
-	VOLUMES='-v $(TEST_DATA_HOST):$(TEST_DATA_CONTAINER)' \
+	VOLUMES='--mount=type=bind,source=$(TEST_DATA_HOST),destination=$(TEST_DATA_CONTAINER)' \
 	$(MAKE) test_base
 
 run_tests_parallel:
-	VOLUMES='-v $(TEST_DATA_HOST):$(TEST_DATA_CONTAINER)' \
+	VOLUMES='--mount=type=bind,source=$(TEST_DATA_HOST),destination=$(TEST_DATA_CONTAINER)' \
 	$(MAKE) test_base_parallel
 
 get_test_data:
