@@ -98,6 +98,8 @@ tar_core:
 
 sarus_load_tar:
 	echo 'run the artifacts'
+	ls -lh
+	ls -lh .jenkins
 	./collect_artifact_vars.sh
 	echo $(PARENT_BUILD_NUMBER)
 	echo $(FV3CORE_BUILD_ID)
