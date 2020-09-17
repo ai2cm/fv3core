@@ -92,6 +92,7 @@ fi
 module load daint-gpu
 module add "${installdir}/modulefiles"
 module load gcloud
+# Artifact from build_for_daint jenkins plan
 . .jenkins/collect_artifact_vars.sh
 export FV3_TAG="${PARENT_TRIGGER}-${PARENT_BUILD_NUMBER}"
 # If using sarus, load the image and set variables for running tests
