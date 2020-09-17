@@ -98,7 +98,7 @@ tar_core:
 
 sarus_load_tar:
 	echo 'here'
-	.jenkins/collect_artifact_vars.sh
+	./collect_artifact_vars.sh
 	echo $(PARENT_BUILD_NUMBER)
 	echo $(FV3CORE_BUILD_ID)
 	if [ ! -f `pwd`/$(CORE_TAR) ]; then \
