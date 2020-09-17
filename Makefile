@@ -88,10 +88,15 @@ pull_core:
 
 tar_core:
 	echo $(BUILD_TAG)
+	echo $(BUILD_NUMBER)
+	export FV3CORE_BUILD_ID=$(BUILD_TAG)
 	docker save $(FV3_IMAGE) -o $(CORE_TAR)
 	gsutil copy $(CORE_TAR) $(CORE_BUCKET_LOC)
 
 sarus_load_tar:
+	echo 'here'
+	echo $(PARENT_BUILD_NUMBER)
+	echo $(FV3CORE_BUILD_ID)
 	if [ ! -f `pwd`/$(CORE_TAR) ]; then \
 		gsutil copy $(CORE_BUCKET_LOC) . && \
 		sarus load ./$(CORE_TAR) $(CORE_NAME) && \
