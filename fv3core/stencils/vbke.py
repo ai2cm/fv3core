@@ -12,9 +12,9 @@ def main_vb(vc: sd, uc: sd, cosa: sd, rsina: sd, vt: sd, vb: sd, dt4: float, dt5
     from __splitters__ import i_start, i_end, j_start, j_end
     with computation(PARALLEL), interval(...):
         vb[0, 0, 0] = dt5 * (vc[-1, 0, 0] + vc - (uc[0, -1, 0] + uc) * cosa) * rsina
-        with parallel(region[i_start:i_start+1, j_start:j_end], region[i_end:i_end+1, j_start:j_end]):
+        with parallel(region[i_start, j_start:j_end], region[i_end, j_start:j_end]):
             vb[0, 0, 0] = dt4 * (-vt[-2, 0, 0] + 3.0 * (vt[-1, 0, 0] + vt) - vt[1, 0, 0])
-        with parallel(region[i_start:i_end+1, j_start:j_start+1], region[i_start:i_end+1, j_end:j_end+1]):
+        with parallel(region[i_start:i_end+1, j_start], region[i_start:i_end+1, j_end]):
             vb[0, 0, 0] = dt5 * (vt[-1, 0, 0] + vt)
 
 
