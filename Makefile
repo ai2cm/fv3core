@@ -15,7 +15,7 @@ RUN_FLAGS ?="--rm"
 FV3=fv3core
 TEST_DATA_HOST ?=$(CWD)/test_data/$(EXPERIMENT)
 FV3UTIL_DIR=$(CWD)/external/fv3util
-DEV_MOUNTS = '-v $(CWD)/$(FV3):/$(FV3)/$(FV3) -v $(CWD)/tests:/$(FV3)/tests -v $(FV3UTIL_DIR):/usr/src/fv3util'
+
 FV3_INSTALL_TAG ?= develop
 FV3_INSTALL_TARGET=$(FV3)-install
 # Gets set in Jenkins for tests, otherwise default the the branch name
@@ -26,7 +26,6 @@ FV3_TAG ?= $(FV3CORE_VERSION)-$(FV3_INSTALL_TAG)
 FV3_IMAGE ?=$(GCR_URL)/fv3core:$(FV3_TAG)
 
 TEST_DATA_CONTAINER=/test_data
-
 PYTHON_FILES = $(shell git ls-files | grep -e 'py$$' | grep -v -e '__init__.py')
 PYTHON_INIT_FILES = $(shell git ls-files | grep '__init__.py')
 TEST_DATA_TARFILE=dat_files.tar.gz
@@ -35,7 +34,7 @@ CORE_TAR=$(FV3_TAG).tar
 CORE_BUCKET_LOC=gs://vcm-jenkins/$(CORE_TAR)
 MPIRUN_CALL ?=mpirun -np $(NUM_RANKS)
 BASE_INSTALL?=fv3core-install-serialbox
-
+DEV_MOUNTS = '-v $(CWD)/$(FV3):/$(FV3)/$(FV3) -v $(CWD)/tests:/$(FV3)/tests -v $(FV3UTIL_DIR):/usr/src/fv3util -v $(TEST_DATA_HOST):$(TEST_DATA_CONTAINER)'
 clean:
 	find . -name ""
 
@@ -122,10 +121,10 @@ dev:
 
 
 dev_tests:
-	MOUNTS=$(DEV_MOUNTS) $(MAKE) run_tests_sequential
+	VOLUMES=$(DEV_MOUNTS) $(MAKE) test_base
 
 dev_tests_mpi:
-	MOUNTS=$(DEV_MOUNTS) $(MAKE) run_tests_parallel
+	VOLUMES=$(DEV_MOUNTS) $(MAKE) test_base_parallel
 
 dev_test_mpi: dev_tests_mpi
 
