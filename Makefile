@@ -19,9 +19,9 @@ DEV_MOUNTS = '-v $(CWD)/$(FV3):/$(FV3)/$(FV3) -v $(CWD)/tests:/$(FV3)/tests -v $
 FV3_INSTALL_TAG ?= develop
 FV3_INSTALL_TARGET=$(FV3)-install
 # Gets set in Jenkins for tests, otherwise default the the branch name
-BRANCH_NAME ?=$(shell git rev-parse --abbrev-ref HEAD)
+BUILD_TAG ?=$(shell git rev-parse --abbrev-ref HEAD)
 FV3_INSTALL_IMAGE=$(GCR_URL)/$(FV3_INSTALL_TARGET):$(FV3_INSTALL_TAG)
-FV3_IMAGE ?=$(GCR_URL)/fv3core:$(FV3CORE_VERSION)-$(FV3_INSTALL_TAG)-$(BRANCH_NAME)
+FV3_IMAGE ?=$(GCR_URL)/fv3core:$(FV3CORE_VERSION)-$(FV3_INSTALL_TAG)-$(BUILD_TAG)
 
 TEST_DATA_CONTAINER=/test_data
 
@@ -29,7 +29,7 @@ PYTHON_FILES = $(shell git ls-files | grep -e 'py$$' | grep -v -e '__init__.py')
 PYTHON_INIT_FILES = $(shell git ls-files | grep '__init__.py')
 TEST_DATA_TARFILE=dat_files.tar.gz
 TEST_DATA_TARPATH=$(TEST_DATA_HOST)/$(TEST_DATA_TARFILE)
-CORE_NAME=$(FV3)-$(FV3CORE_VERSION)-$(FV3_INSTALL_TAG)-$(BRANCH_NAME)
+CORE_NAME=$(FV3)-$(FV3CORE_VERSION)-$(FV3_INSTALL_TAG)-$(BUILD_TAG)
 CORE_TAR=$(CORE_NAME).tar
 CORE_BUCKET_LOC=gs://vcm-jenkins/$(CORE_TAR)
 MPIRUN_CALL ?=mpirun -np $(NUM_RANKS)
@@ -87,7 +87,7 @@ pull_core:
 	docker pull $(FV3_IMAGE)
 
 tar_core:
-	echo $(BRANCH_NAME)
+	echo $(BUILD_TAG)
 	docker save $(FV3_IMAGE) -o $(CORE_TAR)
 	gsutil copy $(CORE_TAR) $(CORE_BUCKET_LOC)
 
