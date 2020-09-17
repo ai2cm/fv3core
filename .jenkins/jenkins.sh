@@ -92,12 +92,11 @@ fi
 module load daint-gpu
 module add "${installdir}/modulefiles"
 module load gcloud
-
+. .jenkins/collect_artifact_vars.sh
+export FV3_TAG="${PARENT_TRIGGER}-${PARENT_BUILD_NUMBER}"
 # If using sarus, load the image and set variables for running tests
 if [ ${container_engine} == "sarus" ]; then
     module load sarus
-    . .jenkins/collect_artifact_vars.sh
-    export FV3_TAG="${PARENT_TRIGGER}-${PARENT_BUILD_NUMBER}"
     export FV3_IMAGE="load/library/${FV3_TAG}"
     make sarus_load_tar
     if grep -q "parallel" <<< "${script}"; then
