@@ -96,6 +96,8 @@ module load gcloud
 # If using sarus, load the image and set variables for running tests
 if [ ${container_engine} == "sarus" ]; then
     module load sarus
+    . .jenkins/collect_artifact_vars.sh
+    echo $(PARENT_BUILD_NUMBER)
     make sarus_load_tar
     if grep -q "parallel" <<< "${script}"; then
 	export CONTAINER_ENGINE="srun sarus"
