@@ -100,7 +100,7 @@ sarus_load_tar:
 	echo 'run the artifacts'
 	ls -lh
 	ls -lh .jenkins
-	source .jenkins/collect_artifact_vars.sh
+	. .jenkins/collect_artifact_vars.sh
 	echo $(PARENT_BUILD_NUMBER)
 	echo $(FV3CORE_BUILD_ID)
 	if [ ! -f `pwd`/$(CORE_TAR) ]; then \
