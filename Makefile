@@ -22,7 +22,8 @@ FV3_INSTALL_TARGET=$(FV3)-install
 BUILD_NUMBER ?=$(shell git rev-parse --abbrev-ref HEAD)
 TRIGGER ?="manual"
 FV3_INSTALL_IMAGE=$(GCR_URL)/$(FV3_INSTALL_TARGET):$(FV3_INSTALL_TAG)
-FV3_IMAGE ?=$(GCR_URL)/fv3core:$(FV3CORE_VERSION)-$(FV3_INSTALL_TAG)-$(BUILD_NUMBER)
+FV3_TAG ?= $(FV3CORE_VERSION)-$(FV3_INSTALL_TAG)
+FV3_IMAGE ?=$(GCR_URL)/fv3core:$(FV3_TAG)
 
 TEST_DATA_CONTAINER=/test_data
 
@@ -30,8 +31,8 @@ PYTHON_FILES = $(shell git ls-files | grep -e 'py$$' | grep -v -e '__init__.py')
 PYTHON_INIT_FILES = $(shell git ls-files | grep '__init__.py')
 TEST_DATA_TARFILE=dat_files.tar.gz
 TEST_DATA_TARPATH=$(TEST_DATA_HOST)/$(TEST_DATA_TARFILE)
-CORE_NAME=$(FV3)-$(FV3CORE_VERSION)-$(FV3_INSTALL_TAG)-$(BUILD_NUMBER)-$(TRIGGER)
-CORE_TAR=$(CORE_NAME).tar
+CORE_NAME=$(TRIGGER)-$(BUILD_NUMBER)
+CORE_TAR=$(FV3_TAG).tar
 CORE_BUCKET_LOC=gs://vcm-jenkins/$(CORE_TAR)
 MPIRUN_CALL ?=mpirun -np $(NUM_RANKS)
 BASE_INSTALL?=fv3core-install-serialbox
@@ -97,6 +98,11 @@ sarus_load_tar:
 		sarus load ./$(CORE_TAR) $(CORE_NAME) && \
 		export FV3_IMAGE="load/library/$(CORE_NAME)"; \
 	fi
+cleanup_remote:
+	echo $(CORE_BUCKET_LOC)
+	echo $(FV3_IMAGE)
+	#gsutil rm $(CORE_BUCKET_LOC)
+	#gcloud container images delete $(FV3_IMAGE)
 tests: build
 	$(MAKE) get_test_data
 	$(MAKE) run_tests_sequential
