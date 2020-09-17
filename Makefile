@@ -20,6 +20,7 @@ FV3_INSTALL_TAG ?= develop
 FV3_INSTALL_TARGET=$(FV3)-install
 # Gets set in Jenkins for tests, otherwise default the the branch name
 BUILD_NUMBER ?=$(shell git rev-parse --abbrev-ref HEAD)
+TRIGGER ?="manual"
 FV3_INSTALL_IMAGE=$(GCR_URL)/$(FV3_INSTALL_TARGET):$(FV3_INSTALL_TAG)
 FV3_IMAGE ?=$(GCR_URL)/fv3core:$(FV3CORE_VERSION)-$(FV3_INSTALL_TAG)-$(BUILD_NUMBER)
 
@@ -29,7 +30,7 @@ PYTHON_FILES = $(shell git ls-files | grep -e 'py$$' | grep -v -e '__init__.py')
 PYTHON_INIT_FILES = $(shell git ls-files | grep '__init__.py')
 TEST_DATA_TARFILE=dat_files.tar.gz
 TEST_DATA_TARPATH=$(TEST_DATA_HOST)/$(TEST_DATA_TARFILE)
-CORE_NAME=$(FV3)-$(FV3CORE_VERSION)-$(FV3_INSTALL_TAG)-$(BUILD_NUMBER)
+CORE_NAME=$(FV3)-$(FV3CORE_VERSION)-$(FV3_INSTALL_TAG)-$(BUILD_NUMBER)-$(TRIGGER)
 CORE_TAR=$(CORE_NAME).tar
 CORE_BUCKET_LOC=gs://vcm-jenkins/$(CORE_TAR)
 MPIRUN_CALL ?=mpirun -np $(NUM_RANKS)
