@@ -97,8 +97,8 @@ module load gcloud
 if [ ${container_engine} == "sarus" ]; then
     module load sarus
     . .jenkins/collect_artifact_vars.sh
-    echo "Building from ${PARENT_BUILD_NUMBER}"
     export FV3_TAG="${PARENT_TRIGGER}-${PARENT_BUILD_NUMBER}"
+    export FV3_IMAGE="load/library/${FV3_TAG}"
     make sarus_load_tar
     if grep -q "parallel" <<< "${script}"; then
 	export CONTAINER_ENGINE="srun sarus"

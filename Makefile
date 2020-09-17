@@ -31,7 +31,6 @@ PYTHON_FILES = $(shell git ls-files | grep -e 'py$$' | grep -v -e '__init__.py')
 PYTHON_INIT_FILES = $(shell git ls-files | grep '__init__.py')
 TEST_DATA_TARFILE=dat_files.tar.gz
 TEST_DATA_TARPATH=$(TEST_DATA_HOST)/$(TEST_DATA_TARFILE)
-CORE_NAME=$(TRIGGER)-$(BUILD_NUMBER)
 CORE_TAR=$(FV3_TAG).tar
 CORE_BUCKET_LOC=gs://vcm-jenkins/$(CORE_TAR)
 MPIRUN_CALL ?=mpirun -np $(NUM_RANKS)
@@ -95,8 +94,7 @@ tar_core:
 sarus_load_tar:
 	if [ ! -f `pwd`/$(CORE_TAR) ]; then \
 		gsutil copy $(CORE_BUCKET_LOC) . && \
-		sarus load ./$(CORE_TAR) $(CORE_NAME) && \
-		export FV3_IMAGE="load/library/$(CORE_NAME)"; \
+		sarus load ./$(CORE_TAR) $(FV3_TAG); \
 	fi
 cleanup_remote:
 	echo $(CORE_BUCKET_LOC)
