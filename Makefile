@@ -91,11 +91,14 @@ tar_core:
 	echo $(BUILD_NUMBER)
 	export FV3CORE_BUILD_ID=$(BUILD_TAG)
 	export PARENT_BUILD_NUMBER=$(BUILD_NUMBER)
+	cp .jenkins/artifact_vars.sh .jenkins/collect_artifact_vars.sh
+	sed -i 's|<BUILD_NUM>|"'${BUILD_NUMBER}'"|g' .jenkins/collect_artifact_vars.sh
 	docker save $(FV3_IMAGE) -o $(CORE_TAR)
 	gsutil copy $(CORE_TAR) $(CORE_BUCKET_LOC)
 
 sarus_load_tar:
 	echo 'here'
+	.jenkins/collect_artifact_vars.sh
 	echo $(PARENT_BUILD_NUMBER)
 	echo $(FV3CORE_BUILD_ID)
 	if [ ! -f `pwd`/$(CORE_TAR) ]; then \
