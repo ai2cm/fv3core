@@ -97,7 +97,7 @@ tar_core:
 	gsutil copy $(CORE_TAR) $(CORE_BUCKET_LOC)
 
 sarus_load_tar:
-	echo 'here'
+	echo 'run the artifacts'
 	./collect_artifact_vars.sh
 	echo $(PARENT_BUILD_NUMBER)
 	echo $(FV3CORE_BUILD_ID)
