@@ -21,12 +21,14 @@ def main_ub(uc: sd, vc: sd, cosa: sd, rsina: sd, ut:sd, ub: sd, *, dt4: float, d
 
 def compute(uc, vc, ut, ub, dt5, dt4):
     grid = spec.grid
+    print(grid.west_edge, grid.south_edge, grid.north_edge, grid.east_edge)
     splitters = {
-        "i_start": 0,
-        "i_end": grid.ie + 1 - grid.is_,
-        "j_start": 0,
-        "j_end": grid.je + 1 - grid.js,
+        "i_start": 0 if grid.west_edge else -2,
+        "i_end": grid.ie + 1 - grid.is_ if grid.east_edge else grid.ie + 1 - grid.is_ + 2,
+        "j_start": 0 if grid.south_edge else -2,
+        "j_end": grid.je + 1 - grid.js if grid.north_edge else grid.je + 1 - grid.js + 2,
     }
+    print(splitters)
     if spec.namelist.grid_type < 3 and not grid.nested:
         main_ub(
             uc,
