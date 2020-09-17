@@ -1,7 +1,7 @@
 import sys
 import fv3gfs
 import fv3core
-from fv3gfs-util import Quantity, io
+from fv3gfs.util import Quantity, io
 import numpy as np
 import xarray as xr
 import yaml
@@ -11,7 +11,7 @@ import fv3core._config as spec
 sys.path.append("/serialbox2/python")  # noqa: E402
 sys.path.append("/fv3gfs-python/external/fv3core/tests/translate")  # noqa: E402
 import serialbox
-import translate
+import tests.translate as translate
 
 # May need to run 'ulimit -s unlimited' before running this example
 # If you're running in our prepared docker container, you definitely need to do this

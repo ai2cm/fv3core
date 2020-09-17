@@ -6,7 +6,7 @@ import numpy as np
 import fv3core._config
 import fv3core.utils.gt4py_utils
 import pytest
-import fv3gfs-util
+import fv3gfs.util
 import logging
 import os
 import xarray as xr
@@ -141,13 +141,13 @@ def get_serializer(data_path, rank):
 
 
 def state_from_savepoint(serializer, savepoint, name_to_std_name):
-    properties = fv3gfs-util.fortran_info.properties_by_std_name
+    properties = fv3gfs.util.fortran_info.properties_by_std_name
     origin = fv3core.utils.gt4py_utils.origin
     state = {}
     for name, std_name in name_to_std_name.items():
         array = serializer.read(name, savepoint)
         extent = tuple(np.asarray(array.shape) - 2 * np.asarray(origin))
-        state["air_temperature"] = fv3gfs-util.Quantity(
+        state["air_temperature"] = fv3gfs.util.Quantity(
             array,
             dims=reversed(properties["air_temperature"]["dims"]),
             units=properties["air_temperature"]["units"],
@@ -177,7 +177,7 @@ def test_mock_parallel_savepoint(
     caplog,
 ):
     caplog.set_level(logging.DEBUG, logger="fv3ser")
-    caplog.set_level(logging.DEBUG, logger="fv3gfs-util")
+    caplog.set_level(logging.DEBUG, logger="fv3gfs.util")
     if testobj is None:
         pytest.xfail(f"no translate object available for savepoint {test_name}")
 

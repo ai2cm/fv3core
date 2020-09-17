@@ -8,7 +8,7 @@ import fv3core.utils.global_constants as constants
 import fv3core.stencils.rayleigh_super as ray_super
 import numpy as np
 import math
-import fv3gfs-util
+import fv3gfs.util
 
 sd = utils.sd
 SDAY = 86400.0  # seconds per day
@@ -87,7 +87,7 @@ def compute(u, v, w, ua, va, pt, delz, phis, bdt, ptop, pfull, comm):
 
     # TODO this really only needs to be kmax size in the 3rd dimension...
     u2f = grid.quantity_factory.zeros(
-        [fv3gfs-util.X_DIM, fv3gfs-util.Y_DIM, fv3gfs-util.Z_DIM], "m/s"
+        [fv3gfs.util.X_DIM, fv3gfs.util.Y_DIM, fv3gfs.util.Z_DIM], "m/s"
     )
 
     initialize_u2f_friction(

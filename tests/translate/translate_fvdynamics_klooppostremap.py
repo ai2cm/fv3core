@@ -1,12 +1,12 @@
 from .parallel_translate import ParallelTranslate2PyState
 import fv3core.stencils.fv_dynamics as fv_dynamics
-import fv3gfs-util
+import fv3gfs.util
 
 
 class TranslateFVDynamics_KLoopPostRemap(ParallelTranslate2PyState):
     inputs = {
         "omga": {
-            "dims": [fv3gfs-util.X_DIM, fv3gfs-util.Y_DIM, fv3gfs-util.Z_DIM],
+            "dims": [fv3gfs.util.X_DIM, fv3gfs.util.Y_DIM, fv3gfs.util.Z_DIM],
             "units": "default",
         }
     }

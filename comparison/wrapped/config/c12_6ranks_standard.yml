@@ -1,6 +1,6 @@
 data_table: default
 diag_table: default
-field_table: /fv3gfs-python/examples/runfiles/field_table
+field_table: /fv3core/comparison/wrapped/config/field_table
 experiment_name: c12_6ranks_standard
 forcing: "gs://vcm-fv3config/data/base_forcing/v1.1/"
 orographic_forcing: gs://vcm-fv3config/data/orographic_data/v1.0

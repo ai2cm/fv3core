@@ -23,7 +23,7 @@ import fv3core.stencils.nh_p_grad as nh_p_grad
 import fv3core.stencils.del2cubed as del2cubed
 import fv3core.stencils.temperature_adjust as temperature_adjust
 import fv3core.stencils.ray_fast as ray_fast
-import fv3gfs-util
+import fv3gfs.util
 import copy
 
 sd = utils.sd
@@ -89,16 +89,16 @@ def dyncore_temporaries(shape):
     utils.storage_dict(tmps, ["crx", "xfx"], shape, grid.compute_x_origin())
     utils.storage_dict(tmps, ["cry", "yfx"], shape, grid.compute_y_origin())
     grid.quantity_dict_update(
-        tmps, "heat_source", dims=[fv3gfs-util.X_DIM, fv3gfs-util.Y_DIM, fv3gfs-util.Z_DIM]
+        tmps, "heat_source", dims=[fv3gfs.util.X_DIM, fv3gfs.util.Y_DIM, fv3gfs.util.Z_DIM]
     )
     for q in ["gz", "pkc", "zh"]:
         grid.quantity_dict_update(
-            tmps, q, dims=[fv3gfs-util.X_DIM, fv3gfs-util.Y_DIM, fv3gfs-util.Z_INTERFACE_DIM]
+            tmps, q, dims=[fv3gfs.util.X_DIM, fv3gfs.util.Y_DIM, fv3gfs.util.Z_INTERFACE_DIM]
         )
     grid.quantity_dict_update(
         tmps,
         "divgd",
-        dims=[fv3gfs-util.X_INTERFACE_DIM, fv3gfs-util.Y_INTERFACE_DIM, fv3gfs-util.Z_DIM],
+        dims=[fv3gfs.util.X_INTERFACE_DIM, fv3gfs.util.Y_INTERFACE_DIM, fv3gfs.util.Z_DIM],
     )
     return tmps
 
