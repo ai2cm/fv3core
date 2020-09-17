@@ -98,7 +98,7 @@ if [ ${container_engine} == "sarus" ]; then
     module load sarus
     . .jenkins/collect_artifact_vars.sh
     echo $(PARENT_BUILD_NUMBER)
-    make sarus_load_tar
+    BUILD_NUMBER=${PARENT_BUILD_NUMBER} make sarus_load_tar
     if grep -q "parallel" <<< "${script}"; then
 	export CONTAINER_ENGINE="srun sarus"
 	export RUN_FLAGS="--mpi"

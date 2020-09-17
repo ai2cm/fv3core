@@ -19,9 +19,9 @@ DEV_MOUNTS = '-v $(CWD)/$(FV3):/$(FV3)/$(FV3) -v $(CWD)/tests:/$(FV3)/tests -v $
 FV3_INSTALL_TAG ?= develop
 FV3_INSTALL_TARGET=$(FV3)-install
 # Gets set in Jenkins for tests, otherwise default the the branch name
-BUILD_TAG ?=$(shell git rev-parse --abbrev-ref HEAD)
+BUILD_NUMBER ?=$(shell git rev-parse --abbrev-ref HEAD)
 FV3_INSTALL_IMAGE=$(GCR_URL)/$(FV3_INSTALL_TARGET):$(FV3_INSTALL_TAG)
-FV3_IMAGE ?=$(GCR_URL)/fv3core:$(FV3CORE_VERSION)-$(FV3_INSTALL_TAG)-$(BUILD_TAG)
+FV3_IMAGE ?=$(GCR_URL)/fv3core:$(FV3CORE_VERSION)-$(FV3_INSTALL_TAG)-$(BUILD_NUMBER)
 
 TEST_DATA_CONTAINER=/test_data
 
@@ -87,22 +87,10 @@ pull_core:
 	docker pull $(FV3_IMAGE)
 
 tar_core:
-	echo $(BUILD_TAG)
-	echo $(BUILD_NUMBER)
-	export FV3CORE_BUILD_ID=$(BUILD_TAG)
-	export PARENT_BUILD_NUMBER=$(BUILD_NUMBER)
-	cp .jenkins/artifact_vars.sh .jenkins/collect_artifact_vars.sh
-	sed -i 's|<BUILD_NUM>|"'${BUILD_NUMBER}'"|g' .jenkins/collect_artifact_vars.sh
 	docker save $(FV3_IMAGE) -o $(CORE_TAR)
 	gsutil copy $(CORE_TAR) $(CORE_BUCKET_LOC)
 
 sarus_load_tar:
-	echo 'run the artifacts'
-	ls -lh
-	ls -lh .jenkins
-	. .jenkins/collect_artifact_vars.sh
-	echo $(PARENT_BUILD_NUMBER)
-	echo $(FV3CORE_BUILD_ID)
 	if [ ! -f `pwd`/$(CORE_TAR) ]; then \
 		gsutil copy $(CORE_BUCKET_LOC) . && \
 		sarus load ./$(CORE_TAR) $(CORE_NAME) && \
