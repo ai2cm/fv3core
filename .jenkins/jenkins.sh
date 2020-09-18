@@ -84,7 +84,10 @@ if grep -q "parallel" <<< "${script}"; then
 	export NUM_RANKS=`echo ${optarg2} | grep -o -E '[0-9]+ranks' | grep -o -E '[0-9]+'`
 	echo "Setting NUM_RANKS=${NUM_RANKS}"
 	if [ -f ${scheduler_script} ] ; then
-	    sed -i 's|<NTASKS>|"'${NUM_RANKS}'"|g' ${scheduler_script}
+	    NUM_NODES=`expr ${NUM_RANKS} /  ${nthreads} + 1`
+	    NODES_STR="\n#SBATCH --nodes=${NUM_NODES}"
+	    sed -i 's|<NTASKS>|"'${NUM_RANKS}${NODES_STR}'"|g' ${scheduler_script}
+	    sed -i 's|<NTASKSPERNODE>|"'${nthreads}'"|g' ${scheduler_script}
 	fi
     fi
 fi
