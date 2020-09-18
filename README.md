@@ -13,7 +13,7 @@ $ make tests
 ```
 This will pull the test data from the Google storage bucket (using the `make get_test_data') `if it does not exist locally yet, build the fv3core docker image, and run all of the seqential tests using that image.
 
-See the [Unit Testing]() section below for options.
+See the [Unit Testing]() section below for options. 
 
 If you'd like to run MPI parallel tests (which are needed for parts of the code with halo updates), run
 
