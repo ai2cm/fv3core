@@ -88,7 +88,8 @@ if grep -q "parallel" <<< "${script}"; then
 	fi
     fi
 fi
-
+echo "BUILD number"
+echo ${BUILD_NUMBER}
 module load daint-gpu
 module add "${installdir}/modulefiles"
 module load gcloud
