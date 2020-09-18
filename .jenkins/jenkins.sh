@@ -91,11 +91,10 @@ fi
 module load daint-gpu
 module add "${installdir}/modulefiles/"
 module load gcloud
-# Set in build_for_daint jenkins plan, to mark what fv3core image to pull
-echo ${UPSTREAM_PROJECT}
+
 if [ ! -z "${UPSTREAM_PROJECT}" ] ; then
+    # Set in build_for_daint jenkins plan, to mark what fv3core image to pull
     export FV3_TAG="${UPSTREAM_PROJECT}-${UPSTREAM_BUILD_NUMBER}"
-    echo "Using FV3 tag ${FV3_TAG}"
 fi
 # If using sarus, load the image and set variables for running tests
 if [ ${container_engine} == "sarus" ]; then

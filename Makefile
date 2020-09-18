@@ -98,7 +98,7 @@ sarus_load_tar:
 
 cleanup_remote:
 	gsutil rm $(CORE_BUCKET_LOC)
-	gcloud container images delete $(FV3_IMAGE)
+	gcloud container images delete -q --force-delete-tags $(FV3_IMAGE)
 
 tests: build
 	$(MAKE) get_test_data
