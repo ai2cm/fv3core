@@ -82,6 +82,7 @@ fi
 if grep -q "parallel" <<< "${script}"; then
     if grep -q "ranks" <<< "${optarg2}"; then
 	export NUM_RANKS=`echo ${optarg2} | grep -o -E '[0-9]+ranks' | grep -o -E '[0-9]+'`
+	echo "Setting NUM_RANKS=${NUM_RANKS}"
 	if [ -f ${scheduler_script} ] ; then
 	    sed -i 's|<NTASKS>|"'${NUM_RANKS}'"|g' ${scheduler_script}
 	fi
@@ -95,11 +96,13 @@ module load gcloud
 if [ ! -z "${UPSTREAM_PROJECT}" ] ; then
     # Set in build_for_daint jenkins plan, to mark what fv3core image to pull
     export FV3_TAG="${UPSTREAM_PROJECT}-${UPSTREAM_BUILD_NUMBER}"
+    echo "Downstream project using FV3_TAG=${FV3_TAG}"
 fi
 # If using sarus, load the image and set variables for running tests
 if [ ${container_engine} == "sarus" ]; then
     module load sarus
     export FV3_IMAGE="load/library/${FV3_TAG}"
+    echo "Using FV3_IMAGE=${FV3_IMAGE}"
     make sarus_load_tar
     if grep -q "parallel" <<< "${script}"; then
 	export CONTAINER_ENGINE="srun sarus"
