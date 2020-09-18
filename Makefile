@@ -91,9 +91,9 @@ tar_core:
 
 sarus_load_tar:
 	export FOUND_IMAGE=`sarus images | grep $(FV3_TAG)`
-        if [ -z $(FOUND_IMAGE) ] && [ ! -f `pwd`/$(CORE_TAR) ]; then \
-                gsutil copy $(CORE_BUCKET_LOC) . && \
-                sarus load ./$(CORE_TAR) $(FV3_TAG); \
+	if [ -z $(FOUND_IMAGE) ] && [ ! -f `pwd`/$(CORE_TAR) ]; then \
+		gsutil copy $(CORE_BUCKET_LOC) . && \
+		sarus load ./$(CORE_TAR) $(FV3_TAG); \
         fi
 
 cleanup_remote:
