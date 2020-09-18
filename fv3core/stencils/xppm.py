@@ -74,7 +74,7 @@ def al_y_edge_2(q: sd, dxa: sd, al: sd):
 
 @gtscript.function
 def get_br(al, q):
-    br = al[0, 0, 0] - q
+    br = al[1, 0, 0] - q
     return br
 
 
@@ -100,7 +100,7 @@ def fx1_fn(c, br, b0, bl):
 
 @gtscript.function
 def final_flux(c, q, fx1, tmp):
-    return q[0, 0, 0] + fx1 * tmp if c > 0.0 else q + fx1 * tmp
+    return q[-1, 0, 0] + fx1 * tmp if c > 0.0 else q + fx1 * tmp
 
 
 @utils.stencil()
@@ -355,7 +355,9 @@ def compute_blbr_ord8plus(q, iord, jfirst, jlast, is1, ie1, kstart, nk):
     else:
         raise Exception("Unimplemented iord=" + str(iord))
 
-    if spec.namelist.grid_type < 3 and not (grid.nested or spec.namelist.regional):
+    if spec.namelist.grid_type < 3 and not (
+        grid.nested or spec.namelist.regional
+    ):
         y_edge_domain = (1, dj, nk)
         do_xt_minmax = True
         if grid.west_edge:
