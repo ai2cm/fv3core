@@ -6,7 +6,7 @@ The code here includes regression test data of computation units coming from ser
 
 ## Getting started
 
-Use the `tests` target of the Makefile to run the unit tests. 
+Use the `tests` target of the Makefile to run the unit tests.
 
 ```shell
 $ make tests
