@@ -9,7 +9,7 @@ COPY tests /fv3core/tests
 COPY setup.py setup.cfg HISTORY.md README.md /fv3core/
 
 ###
-### Install FV3Util
+### Install FV3GFS-Util
 ###
 RUN pip install --no-cache-dir -e /usr/src/fv3gfs-util
 

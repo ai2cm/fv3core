@@ -3,6 +3,7 @@ REGRESSION_DATA_STORAGE_BUCKET = gs://vcm-fv3gfs-serialized-regression-data
 EXPERIMENT ?=c12_6ranks_standard
 FV3CORE_VERSION=0.1.0
 FORTRAN_SERIALIZED_DATA_VERSION=7.1.1
+WRAPPER_IMAGE = us.gcr.io/vcm-ml/fv3gfs-wrapper:fv3core
 
 SHELL=/bin/bash
 CWD=$(shell pwd)
@@ -15,10 +16,12 @@ CONTAINER_ENGINE ?=docker
 RUN_FLAGS ?="--rm"
 FV3=fv3core
 TEST_DATA_HOST ?=$(CWD)/test_data/$(EXPERIMENT)
+FV3_IMAGE ?=$(GCR_URL)/fv3core:$(FV3CORE_VERSION)
 FV3UTIL_DIR=$(CWD)/external/fv3gfs-util
 DEV_MOUNTS = '-v $(CWD)/$(FV3):/$(FV3)/$(FV3) -v $(CWD)/tests:/$(FV3)/tests -v $(FV3UTIL_DIR):/usr/src/fv3gfs-util'
-FV3_INSTALL_TAG ?= develop
-FV3_INSTALL_TARGET=$(FV3)-install
+FV3_INSTALL_TAG ?= integration
+FV3_INSTALL_TARGET=fv3core-install
+FV3_INSTALL_IMAGE=$(GCR_URL)/$(FV3_INSTALL_TARGET):$(FV3_INSTALL_TAG)
 
 FV3_INSTALL_IMAGE=$(GCR_URL)/$(FV3_INSTALL_TARGET):$(FV3_INSTALL_TAG)
 FV3_IMAGE ?=$(GCR_URL)/fv3core:$(FV3CORE_VERSION)-$(FV3_INSTALL_TAG)
@@ -52,6 +55,15 @@ build_environment:
 		--target $(FV3_INSTALL_TARGET) \
 		.
 
+build_wrapped_environment: 
+	DOCKER_BUILDKIT=1 docker build \
+		--network host \
+		-f $(CWD)/docker/Dockerfile.build_environment \
+		-t $(FV3_INSTALL_IMAGE) \
+		--target $(FV3_INSTALL_TARGET) \
+		--build-arg WRAPPER_IMAGE=$(WRAPPER_IMAGE) \
+		.
+
 build: update_submodules
 	if [ $(PULL) == True ]; then \
 		$(MAKE) pull_environment_if_needed; \
@@ -64,6 +76,16 @@ build: update_submodules
 		-f $(CWD)/docker/Dockerfile \
 		-t $(FV3_IMAGE) \
 		.
+
+build-wrapped: update_submodules
+	$(MAKE) build_wrapped_environment
+	docker build \
+		--network host \
+		--build-arg build_image=$(FV3_INSTALL_IMAGE) \
+		-f $(CWD)/docker/Dockerfile \
+		-t $(FV3_IMAGE) \
+		.
+
 
 pull_environment_if_needed:
 	if [ -z $(shell docker images -q $(FV3_INSTALL_IMAGE)) ]; then \
