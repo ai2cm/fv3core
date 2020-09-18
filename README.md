@@ -45,6 +45,7 @@ $EXPERIMENT=c48_6ranks_standard make tests
 
 
 ## Running tests  inside a container
+
 If you to prefer to work interactively inside the fv3core container, get the test data and build the docker image:
 ```shell
 $ make get_test_data
@@ -69,7 +70,6 @@ The 'stencil name' can be determined from the associated Translate class. e.g. T
 
 ## Testing interactively outside the container
 
-
 After `make tests` has been run at least once (or you have data in test_data and the docker image fv3core exists because `make build` has been run), you can iterate on code changes using
 
 ```shell
@@ -80,11 +80,11 @@ or for the parallel tests:
 ```shell
 $ make dev_tests_mpi
 ```
-These will mount your current code into the fv3core container and run it rather than the code that was built when `make build` ran. 
-
+These will mount your current code into the fv3core container and run it rather than the code that was built when `make build` ran.
 
 
 ### Test options
+
 All of the make endpoints involved running tests can be prefixed with the `TEST_ARGS` environment variable to set test options or pytest CLI args (see below) when running inside the container.
 
 * `--which_modules <modules to run tests for>` - comma separated list of which modules to test (default 'all').
@@ -134,9 +134,7 @@ $ make dev_tests TEST_ARGS="-–which_modules=<stencil name(s)>"
 ```
 
 
-
 ## Installation
-
 
 To build the `us.gcr.io/vcm-ml/fv3core` image with required dependencies for running the Python code, run
 
@@ -150,11 +148,11 @@ Add `PULL=False` to build from scratch without running `docker pull`:
 PULL=False make build
 ```
 
-
 ## Relevant repositories
+
 - https://github.com/VulcanClimateModeling/serialbox2 -
   Serialbox generates serialized data when the Fortran model runs and has bindings to manage data from Python
-  
+
 - https://github.com/VulcanClimateModeling/fv3gfs-fortran -
   This is the existing Fortran model decorated with serialization statements from which the test data is generated
 
@@ -204,3 +202,7 @@ To list linting issues
 ```shell
 $ make lint
 ```
+
+## License
+
+FV3Core is provided under the terms of the [GPLv3](https://www.gnu.org/licenses/gpl-3.0.en.html) license.

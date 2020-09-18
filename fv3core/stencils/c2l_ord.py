@@ -3,7 +3,11 @@ import fv3core.utils.gt4py_utils as utils
 import gt4py.gtscript as gtscript
 import fv3core._config as spec
 from gt4py.gtscript import computation, interval, PARALLEL
+<<<<<<< HEAD
 import fv3gfs.util
+=======
+import fv3gfs.util as fv3util
+>>>>>>> origin/master
 
 sd = utils.sd
 
@@ -193,7 +197,7 @@ def compute_ord4(u, v, ua, va, comm, mode=1):
 
 
 def compute_cubed_to_latlon(u, v, ua, va, comm, mode=1):
-    if spec.namelist["c2l_ord"] == 2:
+    if spec.namelist.c2l_ord == 2:
         compute_ord2(u, v, ua, va, False)
     else:
         compute_ord4(u, v, ua, va, comm, mode)

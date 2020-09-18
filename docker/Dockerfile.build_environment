@@ -1,7 +1,10 @@
 ARG WRAPPER_IMAGE=ubuntu:19.10
 
+
+ARG MIDBASE=fv3core-install-serialbox
 FROM $WRAPPER_IMAGE as fv3core-install-base
 COPY requirements_hpc.txt requirements_hpc.txt
+ENV MPICC=/usr/bin/mpicc
 ###
 ### Install some prerequisite system packages
 ###
@@ -11,9 +14,7 @@ RUN apt-get update && apt-get install -y \
     cmake \
     libnetcdf-dev libnetcdff-dev \
     libssl-dev \
-    git \
-    llvm-9-dev \
-    libclang-9-dev && \
+    git && \
     update-alternatives --install /usr/bin/python python /usr/bin/python3 10 && \
     update-alternatives --install /usr/bin/pip pip /usr/bin/pip3 10 
 ###
@@ -38,7 +39,7 @@ RUN tar xzf mpich-3.1.4.tar.gz && \
 #    ./b2 stage -j4 threading=multi link=shared && \
 #    ./b2 install threading=multi link=shared && \
 #    ln -svf detail/sha1.hpp /usr/include/boost/uuid/sha1.hpp && \
-#    cd .. && rm boost_1_73_0.tar.gz 
+#    cd .. && rm boost_1_73_0.tar.gz
 RUN tar xzf boost_1_73_0.tar.gz -C /usr/local && \
     cd /usr/local/boost_1_73_0 && \
     cp -r boost /usr/include/
@@ -55,11 +56,21 @@ RUN export BOOST_HOME=/usr/local/boost_1_73_0 CPP_FLAGS="-I/usr/local/boost_1_73
     cd /usr/src/gt4py && python -m gt4py.gt_src_manager install && \
     pip3 install --no-cache-dir /usr/src/gt4py
 
-FROM fv3core-install-base as fv3core-install
+FROM fv3core-install-base as fv3core-install-serialbox
 ###
 ### Build and install Serialbox 
 ###
 RUN git clone -b v2.6.0 --depth 1 https://github.com/GridTools/serialbox.git /usr/src/serialbox  && cd /usr/src/serialbox && \
     mkdir build && cd build && \
-    cmake -DSERIALBOX_USE_NETCDF=ON -DSERIALBOX_TESTING=ON ../ && \
-    make -j8 && make install
+    cmake -DSERIALBOX_USE_NETCDF=ON -DSERIALBOX_TESTING=ON -DCMAKE_BUILD_TYPE=Release ../ && \
+    make -j8 && make install && rm -rf /usr/src/serialbox/build
+   
+FROM $MIDBASE as fv3core-install
+###
+### Build and install GT4Py
+###
+ENV BOOST_HOME=/usr/local/boost_1_73_0
+ARG CPP_FLAGS="-I/usr/local/boost_1_73_0 -I/usr/local/boost_1_73_0/boost"
+ARG CPPFLAGS="-I/usr/local/boost_1_73_0 -I/usr/local/boost_1_73_0/boost"
+
+RUN pip install git+https://github.com/VulcanClimateModeling/gt4py.git@develop  && python -m gt4py.gt_src_manager install

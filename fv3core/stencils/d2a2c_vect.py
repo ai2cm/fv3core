@@ -18,6 +18,7 @@ sd = utils.sd
 c1 = -2.0 / 14.0
 c2 = 11.0 / 14.0
 c3 = 5.0 / 14.0
+OFFSET = 2
 
 
 def grid():
@@ -182,28 +183,30 @@ def compute(dord4, uc, vc, u, v, ua, va, utc, vtc):
     i1 = grid.is_ - 1
     j1 = grid.js - 1
     id_ = 1 if dord4 else 0
-    npt = 4 if spec.namelist["grid_type"] < 3 and not grid.nested else 0
-
+    npt = 4 if spec.namelist.grid_type < 3 and not grid.nested else 0
+    if npt > grid.nic - 1 or npt > grid.njc - 1:
+        npt = 0
     utmp = utils.make_storage_from_shape(ua.shape, grid.default_origin())
     vtmp = utils.make_storage_from_shape(va.shape, grid.default_origin())
     utmp[:] = big_number
     vtmp[:] = big_number
-    js1 = npt + grid.js - 1 if grid.south_edge else grid.js - 1
+    js1 = npt + OFFSET if grid.south_edge else grid.js - 1
     je1 = ny - npt if grid.north_edge else grid.je + 1
-    is1 = npt + grid.is_ - 1 if grid.west_edge else grid.isd
+    is1 = npt + OFFSET if grid.west_edge else grid.isd
     ie1 = nx - npt if grid.east_edge else grid.ied
     lagrange_interpolation_y_p1(
         u, utmp, origin=(is1, js1, 0), domain=(ie1 - is1 + 1, je1 - js1 + 1, grid.npz)
     )
 
-    is1 = npt + grid.is_ - 1 if grid.west_edge else grid.is_ - 1
+    is1 = npt + OFFSET if grid.west_edge else grid.is_ - 1
     ie1 = nx - npt if grid.east_edge else grid.ie + 1
-    js1 = npt + grid.js - 1 if grid.south_edge else grid.jsd
+    js1 = npt + OFFSET if grid.south_edge else grid.jsd
     je1 = ny - npt if grid.north_edge else grid.jed
 
     lagrange_interpolation_x_p1(
         v, vtmp, origin=(is1, js1, 0), domain=(ie1 - is1 + 1, je1 - js1 + 1, grid.npz)
     )
+
     # tmp edges
     if grid.south_edge:
         avg_box(
@@ -212,7 +215,7 @@ def compute(dord4, uc, vc, u, v, ua, va, utc, vtc):
             utmp,
             vtmp,
             origin=(grid.isd, grid.jsd, 0),
-            domain=(grid.nid, npt + grid.js - 1 - grid.jsd, grid.npz),
+            domain=(grid.nid, npt + OFFSET - grid.jsd, grid.npz),
         )
     if grid.north_edge:
         je2 = ny - npt + 1
@@ -225,7 +228,7 @@ def compute(dord4, uc, vc, u, v, ua, va, utc, vtc):
             domain=(grid.nid, grid.jed - je2 + 1, grid.npz),
         )
 
-    js2 = npt + grid.js - 1 if grid.south_edge else grid.jsd
+    js2 = npt + OFFSET if grid.south_edge else grid.jsd
     je2 = ny - npt if grid.north_edge else grid.jed
     jdiff = je2 - js2 + 1
     if grid.west_edge:
@@ -235,7 +238,7 @@ def compute(dord4, uc, vc, u, v, ua, va, utc, vtc):
             utmp,
             vtmp,
             origin=(grid.isd, js2, 0),
-            domain=(npt + grid.is_ - 1 - grid.isd, jdiff, grid.npz),
+            domain=(npt + OFFSET - grid.isd, jdiff, grid.npz),
         )
     if grid.east_edge:
         avg_box(
@@ -266,32 +269,31 @@ def compute(dord4, uc, vc, u, v, ua, va, utc, vtc):
     if grid.sw_corner:
         for i in range(-2, 1):
             utmp[i + 2, grid.js - 1, :] = -vtmp[grid.is_ - 1, grid.js - i, :]
-        if spec.namelist["grid_type"] < 3:
+        if spec.namelist.grid_type < 3:
             ua[i1 - 1, j1, :] = -va[i1, j1 + 2, :]
             ua[i1, j1, :] = -va[i1, j1 + 1, :]
     if grid.se_corner:
         for i in range(0, 3):
             utmp[nx + i, grid.js - 1, :] = vtmp[nx, i + grid.js, :]
-        if spec.namelist["grid_type"] < 3:
+        if spec.namelist.grid_type < 3:
             ua[nx, j1, :] = va[nx, j1 + 1, :]
             ua[nx + 1, j1, :] = va[nx, j1 + 2, :]
     if grid.ne_corner:
         for i in range(0, 3):
             utmp[nx + i, ny, :] = -vtmp[nx, grid.je - i, :]
-        if spec.namelist["grid_type"] < 3:
+        if spec.namelist.grid_type < 3:
             ua[nx, ny, :] = -va[nx, ny - 1, :]
             ua[nx + 1, ny, :] = -va[nx, ny - 2, :]
     if grid.nw_corner:
         for i in range(-2, 1):
             utmp[i + 2, ny, :] = vtmp[grid.is_ - 1, grid.je + i, :]
-        if spec.namelist["grid_type"] < 3:
+        if spec.namelist.grid_type < 3:
             ua[i1 - 1, ny, :] = va[i1, ny - 2, :]
             ua[i1, ny, :] = va[i1, ny - 1, :]
 
     ifirst = grid.is_ + 2 if grid.west_edge else grid.is_ - 1
     ilast = grid.ie - 1 if grid.east_edge else grid.ie + 2
     idiff = ilast - ifirst + 1
-
     ut_main(
         utmp,
         uc,
@@ -299,11 +301,11 @@ def compute(dord4, uc, vc, u, v, ua, va, utc, vtc):
         grid.cosa_u,
         grid.rsin_u,
         utc,
-        origin=(ifirst, grid.js - 1, 0),
+        origin=(ifirst, j1, 0),
         domain=(idiff, grid.njc + 2, grid.npz),
     )
 
-    if spec.namelist["grid_type"] < 3:
+    if spec.namelist.grid_type < 3:
         domain_edge_x = (1, grid.njc + 2, grid.npz)
         jslice = slice(grid.js - 1, grid.je + 2)
         if grid.west_edge and not grid.nested:
@@ -403,7 +405,7 @@ def compute(dord4, uc, vc, u, v, ua, va, utc, vtc):
         va[nx, ny, :] = -ua[nx - 1, ny, :]
         va[nx, ny + 1, :] = -ua[nx - 2, ny, :]
 
-    if spec.namelist["grid_type"] < 3:
+    if spec.namelist.grid_type < 3:
         domain_edge_y = (grid.nic + 2, 1, grid.npz)
         islice = slice(grid.is_ - 1, grid.ie + 2)
         if grid.south_edge:

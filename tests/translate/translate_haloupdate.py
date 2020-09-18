@@ -1,7 +1,8 @@
 from .parallel_translate import ParallelTranslate, _serialize_slice
 from .translate import TranslateFortranData2Py
-import fv3gfs.util
+import fv3gfs.util as fv3util
 from fv3core.utils import gt4py_utils as utils
+import fv3core._config as spec
 import logging
 import numpy as np
 
@@ -13,7 +14,7 @@ class TranslateHaloUpdate(ParallelTranslate):
     inputs = {
         "array": {
             "name": "air_temperature",
-            "dims": [fv3gfs.util.X_DIM, fv3gfs.util.Y_DIM, fv3gfs.util.Z_DIM],
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_DIM],
             "units": "degK",
             "n_halo": utils.halo,
         }
@@ -22,7 +23,7 @@ class TranslateHaloUpdate(ParallelTranslate):
     outputs = {
         "array": {
             "name": "air_temperature",
-            "dims": [fv3gfs.util.X_DIM, fv3gfs.util.Y_DIM, fv3gfs.util.Z_DIM],
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_DIM],
             "units": "degK",
             "n_halo": utils.halo,
         }
@@ -61,7 +62,7 @@ class TranslateHaloUpdate_2(TranslateHaloUpdate):
     inputs = {
         "array2": {
             "name": "height_on_interface_levels",
-            "dims": [fv3gfs.util.X_DIM, fv3gfs.util.Y_DIM, fv3gfs.util.Z_INTERFACE_DIM],
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_INTERFACE_DIM],
             "units": "m",
             "n_halo": utils.halo,
         }
@@ -70,7 +71,7 @@ class TranslateHaloUpdate_2(TranslateHaloUpdate):
     outputs = {
         "array2": {
             "name": "height_on_interface_levels",
-            "dims": [fv3gfs.util.X_DIM, fv3gfs.util.Y_DIM, fv3gfs.util.Z_INTERFACE_DIM],
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_INTERFACE_DIM],
             "units": "m",
             "n_halo": utils.halo,
         }
@@ -84,7 +85,7 @@ class TranslateMPPUpdateDomains(TranslateHaloUpdate):
     inputs = {
         "update_arr": {
             "name": "z_wind_as_tendency_of_pressure",
-            "dims": [fv3gfs.util.X_DIM, fv3gfs.util.Y_DIM, fv3gfs.util.Z_DIM],
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_DIM],
             "units": "Pa/s",
             "n_halo": utils.halo,
         }
@@ -93,7 +94,7 @@ class TranslateMPPUpdateDomains(TranslateHaloUpdate):
     outputs = {
         "update_arr": {
             "name": "z_wind_as_tendency_of_pressure",
-            "dims": [fv3gfs.util.X_DIM, fv3gfs.util.Y_DIM, fv3gfs.util.Z_DIM],
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_DIM],
             "units": "Pa/s",
             "n_halo": utils.halo,
         }
@@ -107,13 +108,13 @@ class TranslateHaloVectorUpdate(ParallelTranslate):
     inputs = {
         "array_u": {
             "name": "x_wind_on_c_grid",
-            "dims": [fv3gfs.util.X_INTERFACE_DIM, fv3gfs.util.Y_DIM, fv3gfs.util.Z_DIM],
+            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM, fv3util.Z_DIM],
             "units": "m/s",
             "n_halo": utils.halo,
         },
         "array_v": {
             "name": "y_wind_on_c_grid",
-            "dims": [fv3gfs.util.X_DIM, fv3gfs.util.Y_INTERFACE_DIM, fv3gfs.util.Z_DIM],
+            "dims": [fv3util.X_DIM, fv3util.Y_INTERFACE_DIM, fv3util.Z_DIM],
             "units": "m/s",
             "n_halo": utils.halo,
         },
@@ -122,13 +123,13 @@ class TranslateHaloVectorUpdate(ParallelTranslate):
     outputs = {
         "array_u": {
             "name": "x_wind_on_c_grid",
-            "dims": [fv3gfs.util.X_INTERFACE_DIM, fv3gfs.util.Y_DIM, fv3gfs.util.Z_DIM],
+            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM, fv3util.Z_DIM],
             "units": "m/s",
             "n_halo": utils.halo,
         },
         "array_v": {
             "name": "y_wind_on_c_grid",
-            "dims": [fv3gfs.util.X_DIM, fv3gfs.util.Y_INTERFACE_DIM, fv3gfs.util.Z_DIM],
+            "dims": [fv3util.X_DIM, fv3util.Y_INTERFACE_DIM, fv3util.Z_DIM],
             "units": "m/s",
             "n_halo": utils.halo,
         },
@@ -158,6 +159,66 @@ class TranslateHaloVectorUpdate(ParallelTranslate):
                     state["x_wind_on_c_grid"],
                     state["y_wind_on_c_grid"],
                     n_points=utils.halo,
+                )
+            )
+        for communicator, req in zip(communicator_list, req_list):
+            logger.debug(f"finishing on {communicator.rank}")
+            req.wait()
+        return self.outputs_list_from_state_list(state_list)
+
+
+class TranslateMPPBoundaryAdjust(ParallelTranslate):
+
+    inputs = {
+        "u": {
+            "name": "x_wind_on_d_grid",
+            "dims": [fv3util.X_DIM, fv3util.Y_INTERFACE_DIM, fv3util.Z_DIM],
+            "units": "m/s",
+            "n_halo": utils.halo,
+        },
+        "v": {
+            "name": "y_wind_on_d_grid",
+            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM, fv3util.Z_DIM],
+            "units": "m/s",
+            "n_halo": utils.halo,
+        },
+    }
+
+    outputs = {
+        "u": {
+            "name": "x_wind_on_d_grid",
+            "dims": [fv3util.X_DIM, fv3util.Y_INTERFACE_DIM, fv3util.Z_DIM],
+            "units": "m/s",
+            "n_halo": utils.halo,
+        },
+        "v": {
+            "name": "y_wind_on_d_grid",
+            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM, fv3util.Z_DIM],
+            "units": "m/s",
+            "n_halo": utils.halo,
+        },
+    }
+
+    def __init__(self, grid):
+        super(TranslateMPPBoundaryAdjust, self).__init__(grid)
+
+    def compute_parallel(self, inputs, communicator):
+        logger.debug(f"starting on {communicator.rank}")
+        state = self.state_from_inputs(inputs)
+        req = communicator.start_synchronize_vector_interfaces(
+            state["x_wind_on_d_grid"], state["y_wind_on_d_grid"]
+        )
+        logger.debug(f"finishing on {communicator.rank}")
+        req.wait()
+        return self.outputs_from_state(state)
+
+    def compute_sequential(self, inputs_list, communicator_list):
+        state_list = self.state_list_from_inputs_list(inputs_list)
+        req_list = []
+        for state, communicator, grid in zip(state_list, communicator_list, spec.grid):
+            req_list.append(
+                communicator.start_synchronize_vector_interfaces(
+                    state["x_wind_on_d_grid"], state["y_wind_on_d_grid"]
                 )
             )
         for communicator, req in zip(communicator_list, req_list):

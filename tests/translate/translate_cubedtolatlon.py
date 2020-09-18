@@ -1,16 +1,16 @@
 from .parallel_translate import ParallelTranslate2Py
 import fv3core.stencils.c2l_ord as c2l_ord
-import fv3gfs.util
+import fv3gfs.util as fv3util
 
 
 class TranslateCubedToLatLon(ParallelTranslate2Py):
     inputs = {
         "u": {
-            "dims": [fv3gfs.util.X_DIM, fv3gfs.util.Y_INTERFACE_DIM, fv3gfs.util.Z_DIM],
+            "dims": [fv3util.X_DIM, fv3util.Y_INTERFACE_DIM, fv3util.Z_DIM],
             "units": "m/s",
         },
         "v": {
-            "dims": [fv3gfs.util.X_INTERFACE_DIM, fv3gfs.util.Y_DIM, fv3gfs.util.Z_DIM],
+            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM, fv3util.Z_DIM],
             "units": "m/s",
         },
     }

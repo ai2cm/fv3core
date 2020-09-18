@@ -7,7 +7,7 @@ import fv3core._config
 import fv3core.utils.gt4py_utils
 import translate
 import collections
-import fv3gfs.util
+import fv3gfs.util as fv3util
 from fv3core.utils.mpi import MPI
 
 # get MPI environment
@@ -169,7 +169,7 @@ SavepointCase = collections.namedtuple(
 
 def sequential_savepoint_cases(metafunc, data_path):
     return_list = []
-    layout = fv3core._config.namelist["layout"]
+    layout = fv3core._config.namelist.layout
     total_ranks = 6 * layout[0] * layout[1]
     savepoint_names = get_sequential_savepoint_names(metafunc, data_path)
     for rank in range(total_ranks):
@@ -206,7 +206,7 @@ def check_savepoint_counts(test_name, input_savepoints, output_savepoints):
 
 def mock_parallel_savepoint_cases(metafunc, data_path):
     return_list = []
-    layout = fv3core._config.namelist["layout"]
+    layout = fv3core._config.namelist.layout
     total_ranks = 6 * layout[0] * layout[1]
     grid_list = []
     for rank in range(total_ranks):
@@ -248,7 +248,7 @@ def parallel_savepoint_cases(metafunc, data_path, mpi_rank):
     grid = process_grid_savepoint(serializer, grid_savepoint, mpi_rank)
     savepoint_names = get_parallel_savepoint_names(metafunc, data_path)
     return_list = []
-    layout = fv3core._config.namelist["layout"]
+    layout = fv3core._config.namelist.layout
     for test_name in sorted(list(savepoint_names)):
         input_savepoints = serializer.get_savepoint(f"{test_name}-In")
         output_savepoints = serializer.get_savepoint(f"{test_name}-Out")
@@ -434,19 +434,19 @@ def mock_communicator_list(layout):
 
 
 def get_mock_communicator_list(layout):
-    total_ranks = 6 * fv3gfs.util.TilePartitioner(layout).total_ranks
+    total_ranks = 6 * fv3util.TilePartitioner(layout).total_ranks
     shared_buffer = {}
     communicators = []
     for rank in range(total_ranks):
-        comm = fv3gfs.util.testing.DummyComm(rank, total_ranks, buffer_dict=shared_buffer)
+        comm = fv3util.testing.DummyComm(rank, total_ranks, buffer_dict=shared_buffer)
         communicator = get_communicator(comm, layout)
         communicators.append(communicator)
     return communicators
 
 
 def get_communicator(comm, layout):
-    partitioner = fv3gfs.util.CubedSpherePartitioner(fv3gfs.util.TilePartitioner(layout))
-    communicator = fv3gfs.util.CubedSphereCommunicator(comm, partitioner)
+    partitioner = fv3util.CubedSpherePartitioner(fv3util.TilePartitioner(layout))
+    communicator = fv3util.CubedSphereCommunicator(comm, partitioner)
     return communicator
 
 

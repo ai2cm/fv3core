@@ -17,8 +17,10 @@ except ImportError:
 logger = logging.getLogger("fv3ser")
 backend = None  # Options: numpy, gtmc, gtx86, gtcuda, debug, dawn:gtmc
 rebuild = True
+managed_memory = True
 _dtype = np.float_
 sd = gtscript.Field[_dtype]
+si = gtscript.Field[np.int_]
 halo = 3
 origin = (halo, halo, 0)
 # TODO get from field_table
@@ -117,7 +119,11 @@ def make_storage_data(
             istart : istart + isize, jstart : jstart + jsize, kstart : kstart + ksize
         ] = asarray(array, type(full_np_arr))
         return gt.storage.from_array(
-            data=full_np_arr, backend=backend, default_origin=origin, shape=full_shape,
+            data=full_np_arr,
+            backend=backend,
+            default_origin=origin,
+            shape=full_shape,
+            managed_memory=managed_memory,
         )
 
 
@@ -132,9 +138,9 @@ def make_storage_data_from_2d(
         shape2d = full_shape[0:2]
     isize, jsize = array2d.shape
     full_np_arr_2d = np.zeros(shape2d)
-    full_np_arr_2d[
-        istart : istart + isize, jstart : jstart + jsize
-    ] = asarray(array2d, type(full_np_arr_2d))
+    full_np_arr_2d[istart : istart + isize, jstart : jstart + jsize] = asarray(
+        array2d, type(full_np_arr_2d)
+    )
     # full_np_arr_3d = np.lib.stride_tricks.as_strided(full_np_arr_2d, shape=full_shape, strides=(*full_np_arr_2d.strides, 0))
     if dummy:
         full_np_arr_3d = full_np_arr_2d.reshape(full_shape)
@@ -146,7 +152,11 @@ def make_storage_data_from_2d(
             full_np_arr_3d = np.moveaxis(full_np_arr_3d, 2, axis)
 
     return gt.storage.from_array(
-        data=full_np_arr_3d, backend=backend, default_origin=origin, shape=full_shape
+        data=full_np_arr_3d,
+        backend=backend,
+        default_origin=origin,
+        shape=full_shape,
+        managed_memory=managed_memory,
     )
 
 
@@ -156,7 +166,11 @@ def make_2d_storage_data(array2d, shape2d, istart=0, jstart=0, origin=origin):
     full_np_arr_2d = np.zeros(shape2d)
     full_np_arr_2d[istart : istart + isize, jstart : jstart + jsize, 0] = array2d
     return gt.storage.from_array(
-        data=full_np_arr_2d, backend=backend, default_origin=origin, shape=shape2d
+        data=full_np_arr_2d,
+        backend=backend,
+        default_origin=origin,
+        shape=shape2d,
+        managed_memory=managed_memory,
     )
 
 
@@ -192,13 +206,22 @@ def make_storage_data_from_1d(
             y = np.repeat(full_1d[:, np.newaxis], full_shape[1], axis=1)
             r = np.repeat(y[:, :, np.newaxis], full_shape[2], axis=2)
     return gt.storage.from_array(
-        data=r, backend=backend, default_origin=origin, shape=full_shape
+        data=r,
+        backend=backend,
+        default_origin=origin,
+        shape=full_shape,
+        managed_memory=managed_memory,
     )
 
 
-def make_storage_from_shape(shape, origin):
+def make_storage_from_shape(shape, origin, dtype=np.float64):
     return gt.storage.from_array(
-        data=np.zeros(shape), backend=backend, default_origin=origin, shape=shape,
+        data=np.zeros(shape),
+        dtype=dtype,
+        backend=backend,
+        default_origin=origin,
+        shape=shape,
+        managed_memory=managed_memory,
     )
 
 
@@ -335,7 +358,10 @@ def extrap_corner(p0, p1, p2, q1, q2):
 
 
 def asarray(array, to_type=np.ndarray, dtype=None, order=None):
-    if cp and (isinstance(array.data, cp.ndarray) or isinstance(array.data, cp.cuda.memory.MemoryPointer)):
+    if cp and (
+        isinstance(array.data, cp.ndarray)
+        or isinstance(array.data, cp.cuda.memory.MemoryPointer)
+    ):
         if to_type is np.ndarray:
             order = "F" if order is None else order
             return cp.asnumpy(array, order=order)
