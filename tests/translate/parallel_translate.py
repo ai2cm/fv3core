@@ -9,7 +9,7 @@ from types import SimpleNamespace
 
 
 def ensure_3d_dims(dims_in):
-    dims_out = [util.X_DIM, fv3util.Y_DIM, fv3util.Z_DIM]
+    dims_out = [fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_DIM]
     for dim in dims_in:
         for i, dim_set in enumerate([fv3util.X_DIMS, fv3util.Y_DIMS, fv3util.Z_DIMS]):
             if dim in dim_set:
