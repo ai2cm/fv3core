@@ -35,6 +35,7 @@ CORE_BUCKET_LOC=gs://vcm-jenkins/$(CORE_TAR)
 MPIRUN_CALL ?=mpirun -np $(NUM_RANKS)
 BASE_INSTALL?=fv3core-install-serialbox
 DEV_MOUNTS = '-v $(CWD)/$(FV3):/$(FV3)/$(FV3) -v $(CWD)/tests:/$(FV3)/tests -v $(FV3UTIL_DIR):/usr/src/fv3util -v $(TEST_DATA_HOST):$(TEST_DATA_CONTAINER)'
+
 clean:
 	find . -name ""
 
