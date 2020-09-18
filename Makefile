@@ -95,11 +95,11 @@ sarus_load_tar:
 		gsutil copy $(CORE_BUCKET_LOC) . && \
 		sarus load ./$(CORE_TAR) $(FV3_TAG); \
 	fi
+
 cleanup_remote:
-	echo $(CORE_BUCKET_LOC)
-	echo $(FV3_IMAGE)
-	#gsutil rm $(CORE_BUCKET_LOC)
-	#gcloud container images delete $(FV3_IMAGE)
+	gsutil rm $(CORE_BUCKET_LOC)
+	gcloud container images delete $(FV3_IMAGE)
+
 tests: build
 	$(MAKE) get_test_data
 	$(MAKE) run_tests_sequential

@@ -1,5 +1,5 @@
 #!/bin/bash
-set -x -e
+set -x
 # This is the master script used to trigger Jenkins actions.
 # The idea of this script is to keep the amount of code in the "Execute shell" field small
 #
