@@ -15,7 +15,6 @@ RUN_FLAGS ?="--rm"
 TEST_DATA_HOST ?=$(CWD)/test_data/$(EXPERIMENT)
 FV3=fv3core
 FV3UTIL_DIR=$(CWD)/external/fv3util
-
 FV3_INSTALL_TAG ?= develop
 FV3_INSTALL_TARGET=$(FV3)-install
 # Gets set in Jenkins for tests, otherwise default the the branch name
