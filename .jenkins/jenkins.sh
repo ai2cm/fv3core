@@ -1,5 +1,5 @@
 #!/bin/bash
-
+set -x -e
 # This is the master script used to trigger Jenkins actions.
 # The idea of this script is to keep the amount of code in the "Execute shell" field small
 #
@@ -88,15 +88,14 @@ if grep -q "parallel" <<< "${script}"; then
 	fi
     fi
 fi
-echo "BUILD number"
-echo ${BUILD_NUMBER}
-echo ${UPSTREAM_BUILD_NUMBER}
+
 module load daint-gpu
-module add "${installdir}/modulefiles"
+module add "${installdir}/modulefiles/"
 module load gcloud
-# Artifact from build_for_daint jenkins plan
-#. .jenkins/collect_artifact_vars.sh
-export FV3_TAG="${PARENT_TRIGGER}-${UPSTREAM_BUILD_NUMBER}"
+# Set in build_for_daint jenkins plan, to mark what fv3core image to pull
+if [ ! -z ${UPSTREAM_PROJECT} ] ; then 
+    export FV3_TAG="${UPSTREAM_PROJECT}-${UPSTREAM_BUILD_NUMBER}"
+fi
 # If using sarus, load the image and set variables for running tests
 if [ ${container_engine} == "sarus" ]; then
     module load sarus
