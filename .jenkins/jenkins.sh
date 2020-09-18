@@ -130,9 +130,6 @@ G2G="false"
 # Run the jenkins command
 run_command "${script} ${optarg} ${optarg2} " Job${action} ${G2G} ${scheduler_script}
 
-if [ ${container_engine} == "sarus" ]; then
-    sarus rmi ${FV3_IMAGE}
-fi
 if [ $? -ne 0 ] ; then
   exitError 1510 ${LINENO} "problem while executing script ${script}"
 fi
