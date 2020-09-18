@@ -121,7 +121,7 @@ $ git grep <stencil_name> <checkout of fv3gfs-fortran>
 
 2. Create a `translate` class from the serialized save-point data to a call to the stencil or function that calls the relevant stencil(s).
 
-These are usually named `fv3/translate/translate_<lowercase name>`
+These are usually named `tests/translate/translate_<lowercase name>`
 
 3. Write a Python function wrapper that the translate function (created above) calls.
 
