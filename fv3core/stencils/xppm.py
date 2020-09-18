@@ -74,7 +74,7 @@ def al_y_edge_2(q: sd, dxa: sd, al: sd):
 
 @gtscript.function
 def get_br(al, q):
-    br = al[1, 0, 0] - q
+    br = al[0, 0, 0] - q
     return br
 
 
@@ -100,7 +100,7 @@ def fx1_fn(c, br, b0, bl):
 
 @gtscript.function
 def final_flux(c, q, fx1, tmp):
-    return q[-1, 0, 0] + fx1 * tmp if c > 0.0 else q + fx1 * tmp
+    return q[0, 0, 0] + fx1 * tmp if c > 0.0 else q + fx1 * tmp
 
 
 @utils.stencil()
