@@ -90,12 +90,13 @@ if grep -q "parallel" <<< "${script}"; then
 fi
 echo "BUILD number"
 echo ${BUILD_NUMBER}
+echo ${UPSTREAM_BUILD_NUMBER}
 module load daint-gpu
 module add "${installdir}/modulefiles"
 module load gcloud
 # Artifact from build_for_daint jenkins plan
-. .jenkins/collect_artifact_vars.sh
-export FV3_TAG="${PARENT_TRIGGER}-${PARENT_BUILD_NUMBER}"
+#. .jenkins/collect_artifact_vars.sh
+export FV3_TAG="${PARENT_TRIGGER}-${UPSTREAM_BUILD_NUMBER}"
 # If using sarus, load the image and set variables for running tests
 if [ ${container_engine} == "sarus" ]; then
     module load sarus
