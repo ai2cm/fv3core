@@ -90,6 +90,8 @@ tar_core:
 	gsutil copy $(CORE_TAR) $(CORE_BUCKET_LOC)
 
 sarus_load_tar:
+	echo "SARUS IMAGES"
+	echo `sarus images`
 	if [ ! -f `pwd`/$(CORE_TAR) ]; then \
 		gsutil copy $(CORE_BUCKET_LOC) . && \
 		sarus load ./$(CORE_TAR) $(FV3_TAG); \
