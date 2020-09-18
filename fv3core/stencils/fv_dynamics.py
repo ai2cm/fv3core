@@ -14,7 +14,6 @@ import fv3core.stencils.del2cubed as del2cubed
 import fv3core.stencils.neg_adj3 as neg_adj3
 from fv3core.stencils.c2l_ord import compute_cubed_to_latlon
 import fv3gfs.util as fv3util
-import numpy as np
 from types import SimpleNamespace
 from ..decorators import ArgSpec, state_inputs
 

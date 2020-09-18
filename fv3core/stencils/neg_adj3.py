@@ -297,15 +297,9 @@ def compute(qvapor, qliquid, qrain, qsnow, qice, qgraupel, qcld, pt, delp, delz,
     i_ext = grid.domain_shape_compute()[0]
     j_ext = grid.domain_shape_compute()[1]
     k_ext = grid.domain_shape_compute()[2]
-<<<<<<< HEAD
     if spec.namelist.check_negative:
         raise Exception("Unimplemented namelist value check_negative=True")
     if spec.namelist.hydrostatic:
-=======
-    if spec.namelist["check_negative"]:
-        raise Exception("Unimplemented namelist value check_negative=True")
-    if spec.namelist["hydrostatic"]:
->>>>>>> 6263ce04ca70edc3fd106e397ad5b8aeb085a0ca
         d0_vap = constants.CP_VAP - constants.C_LIQ
         raise Exception("Unimplemented namelist hydrostatic=True")
     else:

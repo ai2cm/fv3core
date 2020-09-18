@@ -1,7 +1,7 @@
 import sys
-import fv3gfs
+import fv3gfs.wrapper as wrapper
 import fv3core
-from fv3gfs.util import Quantity, io
+from fv3gfs.util import Quantity, io, CubedSphereCommunicator, CubedSpherePartitioner
 import numpy as np
 import xarray as xr
 import yaml
@@ -9,9 +9,9 @@ import mpi4py
 import fv3core._config as spec
 
 sys.path.append("/serialbox2/python")  # noqa: E402
-sys.path.append("/fv3gfs-python/external/fv3core/tests/translate")  # noqa: E402
+sys.path.append("/fv3core/tests/translate")  # noqa: E402
 import serialbox
-import tests.translate as translate
+import translate as translate
 
 # May need to run 'ulimit -s unlimited' before running this example
 # If you're running in our prepared docker container, you definitely need to do this
@@ -36,10 +36,10 @@ if __name__ == "__main__":
     spec.set_namelist("input.nml")
     # nsplit = spec.namelist["n_split"]
     # consv_te = spec.namelist["consv_te"]
-    dt_atmos = spec.namelist["dt_atmos"]
+    dt_atmos = spec.namelist.dt_atmos
 
     # get another namelist for the communicator??
-    nml2 = yaml.safe_load(open("../default.yml", "r"))["namelist"]
+    nml2 = yaml.safe_load(open("/fv3core/comparison/wrapped/config/c12_6ranks_standard.yml", "r"))["namelist"]
 
     # set backend
     fv3core.utils.gt4py_utils.backend = "numpy"
@@ -47,8 +47,8 @@ if __name__ == "__main__":
     # MPI stuff
     comm = mpi4py.MPI.COMM_WORLD
     rank = comm.Get_rank()
-    cube_comm = fv3gfs.CubedSphereCommunicator(
-        comm, fv3gfs.CubedSpherePartitioner.from_namelist(nml2)
+    cube_comm = CubedSphereCommunicator(
+        comm, CubedSpherePartitioner.from_namelist(nml2)
     )
 
     # Set the names of quantities in State
@@ -86,6 +86,7 @@ if __name__ == "__main__":
         "eastward_wind",
         "northward_wind",
         "layer_mean_pressure_raised_to_power_of_kappa",
+        "time"
     ]
 
     names = [
@@ -123,12 +124,13 @@ if __name__ == "__main__":
         "accumulated_x_courant_number",
         "accumulated_y_courant_number",
         "dissipation_estimate_from_heat_source",
+        "time"
     ]
 
     # get grid from serialized data
     serializer = serialbox.Serializer(
         serialbox.OpenModeKind.Read,
-        "/fv3gfs-python/external/fv3core/test_data/c12_6ranks_standard",
+        "/fv3core/test_data/c12_6ranks_standard",
         "Generator_rank" + str(rank),
     )
     grid_savepoint = serializer.get_savepoint("Grid-Info")[0]
@@ -142,13 +144,13 @@ if __name__ == "__main__":
     fv3core._config.set_grid(grid)
 
     # startup
-    fv3gfs.initialize()
+    wrapper.initialize()
 
     # add things to State
     origin = (0, 3, 3)
-    extent = (spec.namelist["npz"], spec.namelist["npy"] - 1, spec.namelist["npx"] - 1)
+    extent = (spec.namelist.npz, spec.namelist.npy - 1, spec.namelist.npx - 1)
     arr = np.zeros(
-        (spec.namelist["npz"] + 1, spec.namelist["npy"] + 6, spec.namelist["npx"] + 6)
+        (spec.namelist.npz + 1, spec.namelist.npy + 6, spec.namelist.npx + 6)
     )
     turbulent_kinetic_energy = Quantity.from_data_array(
         xr.DataArray(
@@ -160,16 +162,16 @@ if __name__ == "__main__":
         extent=extent,
     )
 
-    flags = fv3gfs.Flags()
-    for i in range(fv3gfs.get_step_count()):
+    flags = wrapper.Flags()
+    for i in range(wrapper.get_step_count()):
         if i == 0:
-            state = fv3gfs.get_state(names=names0)
+            state = wrapper.get_state(names=names0)
             state["turbulent_kinetic_energy"] = turbulent_kinetic_energy
             # just gotta make sure everything is the right shape...
             # for quant in state.keys():
             #     state[quant] = state[quant].transpose([X_DIMS, Y_DIMS, Z_DIMS])
         else:
-            state = fv3gfs.get_state(names=names)
+            state = wrapper.get_state(names=names)
         fv3core.fv_dynamics(
             state,
             cube_comm,
@@ -180,12 +182,12 @@ if __name__ == "__main__":
             flags.n_split,
             flags.ks,
         )
-        fv3gfs.set_state(state)
-        fv3gfs.step_physics()
-        fv3gfs.save_intermediate_restart_if_enabled()
-    state = fv3gfs.get_state(names=names)
-    state["time"] = "{0}.{1}".format(spec.namelist["minutes"], spec.namelist["seconds"])
+        wrapper.set_state(state)
+        wrapper.step_physics()
+        wrapper.save_intermediate_restart_if_enabled()
+    state = wrapper.get_state(names=names)
+    # state["time"] = "{0}.{1}".format(spec.namelist["minutes"], spec.namelist["seconds"])
     print("HEY!")
     print(type(state["surface_pressure"]))
     io.write_state(state, "outstate_{0}.nc".format(rank))
-    fv3gfs.cleanup()
+    wrapper.cleanup()
