@@ -604,8 +604,8 @@ def d_sw(
         vb,
         dt4,
         dt5,
-        origin=(grid().is_, grid().js, 0),
-        domain=(grid().ie - grid().is_ + 2, grid().je - grid().js + 2, grid().npz),
+        origin=grid().compute_origin(),
+        domain=grid().domain_shape_compute_buffer_2d(),
         splitters=grid().splitters,
     )
 
@@ -628,8 +628,8 @@ def d_sw(
         ub,
         dt4,
         dt5,
-        origin=(grid().is_, grid().js, 0),
-        domain=(grid().ie - grid().is_ + 2, grid().je - grid().js + 2, grid().npz),
+        origin=grid().compute_origin(),
+        domain=grid().domain_shape_compute_buffer_2d(),
         splitters=grid().splitters,
     )
 

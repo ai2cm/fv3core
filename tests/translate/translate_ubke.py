@@ -9,12 +9,8 @@ class TranslateUbKE(TranslateFortranData2Py):
             **kwargs,
             cosa=self.grid.cosa,
             rsina=self.grid.rsina,
-            origin=(self.grid.is_, self.grid.js, 0),
-            domain=(
-                self.grid.ie - self.grid.is_ + 2,
-                self.grid.je - self.grid.js + 2,
-                self.grid.npz,
-            ),
+            origin=self.grid.compute_origin(),
+            domain=self.grid.domain_shape_compute_buffer_2d(),
             splitters=self.grid.splitters,
         )
 
