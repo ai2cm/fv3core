@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
-import fv3core.utils.gt4py_utils as utils
+import math
+
 import gt4py.gtscript as gtscript
+from gt4py.gtscript import PARALLEL, computation, interval
+
 import fv3core._config as spec
 import fv3core.stencils.moist_cv as moist_cv
-from gt4py.gtscript import computation, interval, PARALLEL
 import fv3core.utils.global_constants as constants
-from fv3core.stencils.basic_operations import max_fn, min_fn, dim
-import math
+import fv3core.utils.gt4py_utils as utils
+from fv3core.stencils.basic_operations import dim, max_fn, min_fn
 
 # TODO, this code could be reduced greatly with abstraction, but first gt4py needs to support gtscript function calls of arbitrary depth embedded in conditionals
 sd = utils.sd
@@ -217,7 +219,9 @@ def subtract_sink_pt1(pt1, sink, lhl, cvm):
 def melt_cloud_ice(
     qv, qi, ql, q_liq, q_sol, pt1, icp2, fac_imlt, mc_air, c_vap, lhi, cvm
 ):
-    factmp = 0.0  # TODO, if temporaries inside of if-statements become supported, remove this
+    factmp = (
+        0.0
+    )  # TODO, if temporaries inside of if-statements become supported, remove this
     sink = 0.0  # TODO ditto factmp
     if (qi > 1.0e-8) and (pt1 > TICE):
         factmp = fac_imlt * (pt1 - TICE) / icp2
@@ -1183,7 +1187,9 @@ def compute(
             origin=(0, 0, 0),
             domain=spec.grid.domain_shape_standard(),
         )
-    do_qa = True  # TODO  -- this isn't a namelist option in Fortran, it is whether or not cld_amount is a tracer. If/when we support different sets of tracers, this will need to change
+    do_qa = (
+        True
+    )  # TODO  -- this isn't a namelist option in Fortran, it is whether or not cld_amount is a tracer. If/when we support different sets of tracers, this will need to change
     satadjust_part2(
         wqsat,
         dq2dt,
