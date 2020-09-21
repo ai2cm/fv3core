@@ -85,8 +85,8 @@ if grep -q "parallel" <<< "${script}"; then
 	echo "Setting NUM_RANKS=${NUM_RANKS}"
 	if [ -f ${scheduler_script} ] ; then
 	    NUM_NODES=`expr ${NUM_RANKS} /  ${nthreads} + 1`
-	    NODES_STR="\n#SBATCH --nodes=${NUM_NODES}"
-	    sed -i 's|<NTASKS>|"'${NUM_RANKS}${NODES_STR}'"|g' ${scheduler_script}
+	    sed -i 's|<NTASKS>|<NTASKS>\n#SBATCH \-\-nodes="'${NUM_NODES}'"|g'
+	    sed -i 's|<NTASKS>|"'${NUM_RANKS}'"|g' ${scheduler_script}
 	    sed -i 's|<NTASKSPERNODE>|"'${nthreads}'"|g' ${scheduler_script}
 	fi
     fi
