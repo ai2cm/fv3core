@@ -74,6 +74,7 @@ def sim1_solver(
     with computation(FORWARD):
         with interval(0, 1):
             bet = dm[0, 0, 0] - aa[0, 0, 1]
+    with computation(BACKWARD):
         with interval(1, None):
             bet = bet[0, 0, -1]
     ### w_pe_dz_compute
