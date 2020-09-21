@@ -9,10 +9,10 @@ import fv3core.stencils.fvtp2d as fvtp2d
 import fv3core.stencils.flux_capacitor as fluxcap
 import fv3core.stencils.delnflux as delnflux
 import fv3core.stencils.heatdiss as heatdiss
-import fv3core.stencils.vbke as vbke
+from fv3core.stencils.vbke import vbke
 import fv3core.stencils.ytp_v as ytp_v
 import fv3core.stencils.xtp_u as xtp_u
-import fv3core.stencils.ubke as ubke
+from fv3core.stencils.ubke import ubke
 import fv3core.stencils.basic_operations as basic
 import fv3core.stencils.vorticity_volumemean as vort_mean
 import fv3core.stencils.divergence_damping as divdamp
@@ -561,7 +561,25 @@ def d_sw(
 
     dt5 = 0.5 * dt
     dt4 = 0.25 * dt
-    vbke.compute(uc, vc, vt, vb, dt5, dt4)
+
+    # ubke and vbke require this
+    # {
+    assert spec.namelist.grid_type < 3 and not grid().nested
+    # }
+
+    vbke(
+        vc,
+        uc,
+        grid().cosa,
+        grid().rsina,
+        vt,
+        vb,
+        dt4,
+        dt5,
+        origin=(grid().is_, grid().js, 0),
+        domain=(grid().ie - grid().is_ + 2, grid().je - grid().js + 2, grid().npz),
+        splitters=grid().splitters,
+    )
 
     ytp_v.compute(vb, u, v, ub)
 
@@ -573,7 +591,19 @@ def d_sw(
         domain=grid().domain_shape_compute_buffer_2d(),
     )
 
-    ubke.compute(uc, vc, ut, ub, dt5, dt4)
+    ubke(
+        uc,
+        vc,
+        grid().cosa,
+        grid().rsina,
+        ut,
+        ub,
+        dt4,
+        dt5,
+        origin=(grid().is_, grid().js, 0),
+        domain=(grid().ie - grid().is_ + 2, grid().je - grid().js + 2, grid().npz),
+        splitters=grid().splitters,
+    )
 
     xtp_u.compute(ub, u, v, vb)
 

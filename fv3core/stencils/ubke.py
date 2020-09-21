@@ -9,7 +9,7 @@ sd = utils.sd
 
 # TODO: merge with vbke?
 @utils.stencil()
-def main_ub(uc: sd, vc: sd, cosa: sd, rsina: sd, ut:sd, ub: sd, *, dt4: float, dt5: float):
+def ubke(uc: sd, vc: sd, cosa: sd, rsina: sd, ut:sd, ub: sd, *, dt4: float, dt5: float):
     from __splitters__ import i_start, i_end, j_start, j_end
     with computation(PARALLEL), interval(...):
         ub[0, 0, 0] = dt5 * (uc[0, -1, 0] + uc - (vc[-1, 0, 0] + vc) * cosa) * rsina

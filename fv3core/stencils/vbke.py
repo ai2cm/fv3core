@@ -8,12 +8,15 @@ sd = utils.sd
 
 
 @utils.stencil()
-def main_vb(vc: sd, uc: sd, cosa: sd, rsina: sd, vt: sd, vb: sd, dt4: float, dt5: float):
+def vbke(vc: sd, uc: sd, cosa: sd, rsina: sd, vt: sd, vb: sd, dt4: float, dt5: float):
     from __splitters__ import i_start, i_end, j_start, j_end
+
     with computation(PARALLEL), interval(...):
         vb[0, 0, 0] = dt5 * (vc[-1, 0, 0] + vc - (uc[0, -1, 0] + uc) * cosa) * rsina
         with parallel(region[i_start, :], region[i_end + 1, :]):
-            vb[0, 0, 0] = dt4 * (-vt[-2, 0, 0] + 3.0 * (vt[-1, 0, 0] + vt) - vt[1, 0, 0])
+            vb[0, 0, 0] = dt4 * (
+                -vt[-2, 0, 0] + 3.0 * (vt[-1, 0, 0] + vt) - vt[1, 0, 0]
+            )
         with parallel(region[:, j_start], region[:, j_end + 1]):
             vb[0, 0, 0] = dt5 * (vt[-1, 0, 0] + vt)
 
@@ -21,7 +24,7 @@ def main_vb(vc: sd, uc: sd, cosa: sd, rsina: sd, vt: sd, vb: sd, dt4: float, dt5
 def compute(uc, vc, vt, vb, dt5, dt4):
     grid = spec.grid
     if spec.namelist.grid_type < 3 and not grid.nested:
-        main_vb(
+        vbke(
             vc,
             uc,
             grid.cosa,
@@ -32,7 +35,7 @@ def compute(uc, vc, vt, vb, dt5, dt4):
             dt5=dt5,
             origin=(grid.is_, grid.js, 0),
             domain=(grid.ie - grid.is_ + 2, grid.je - grid.js + 2, grid.npz),
-            splitters=grid.splitters
+            splitters=grid.splitters,
         )
     else:
         # should be a stencil like vb = dt5 * (vc[-1, 0,0] + vc)
