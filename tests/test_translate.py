@@ -134,6 +134,7 @@ def test_sequential_savepoint(
     assert failing_names == [], f"only the following variables passed: {passing_names}"
     assert len(passing_names) > 0, f"No tests passed"
 
+
 def get_serializer(data_path, rank):
     return ser.Serializer(
         ser.OpenModeKind.Read, data_path, "Generator_rank" + str(rank)
@@ -222,6 +223,7 @@ def test_mock_parallel_savepoint(
     assert failing_names == [], f"names tested: {list(testobj.outputs.keys())}"
     assert len(passing_names) > 0, f"No tests passed"
 
+
 @pytest.mark.parallel
 @pytest.mark.skipif(
     MPI is not None and MPI.COMM_WORLD.Get_size() == 1,
@@ -281,6 +283,7 @@ def test_parallel_savepoint(
             print(error)
     assert failing_names == [], f"only the following variables passed: {passing_names}"
     assert len(passing_names) > 0, f"No tests passed"
+
 
 @contextlib.contextmanager
 def _subtest(failure_list, subtests, **kwargs):
