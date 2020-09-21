@@ -1,5 +1,5 @@
 from .translate import TranslateFortranData2Py
-from fv3core.stencils.vbke import vbke
+from fv3core.stencils.d_sw import vbke
 
 
 class TranslateVbKE(TranslateFortranData2Py):

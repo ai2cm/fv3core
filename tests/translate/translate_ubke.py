@@ -1,5 +1,5 @@
 from .translate import TranslateFortranData2Py
-from fv3core.stencils.ubke import ubke
+from fv3core.stencils.d_sw import ubke
 
 
 class TranslateUbKE(TranslateFortranData2Py):

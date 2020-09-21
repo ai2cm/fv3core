@@ -9,10 +9,8 @@ import fv3core.stencils.fvtp2d as fvtp2d
 import fv3core.stencils.flux_capacitor as fluxcap
 import fv3core.stencils.delnflux as delnflux
 import fv3core.stencils.heatdiss as heatdiss
-from fv3core.stencils.vbke import vbke
 import fv3core.stencils.ytp_v as ytp_v
 import fv3core.stencils.xtp_u as xtp_u
-from fv3core.stencils.ubke import ubke
 import fv3core.stencils.basic_operations as basic
 import fv3core.stencils.vorticity_volumemean as vort_mean
 import fv3core.stencils.divergence_damping as divdamp
@@ -406,6 +404,36 @@ def damp_vertical_wind(w, heat_s, diss_e, dt, column_namelist):
         delnflux.compute_no_sg(w, fx2, fy2, column_namelist["nord_w"], damp4, wk)
         heatdiss.compute(fx2, fy2, w, dd8, dw, heat_s, diss_e)
     return dw, wk
+
+
+@utils.stencil()
+def ubke(
+    uc: sd, vc: sd, cosa: sd, rsina: sd, ut: sd, ub: sd, *, dt4: float, dt5: float
+):
+    from __splitters__ import i_start, i_end, j_start, j_end
+
+    with computation(PARALLEL), interval(...):
+        ub[0, 0, 0] = dt5 * (uc[0, -1, 0] + uc - (vc[-1, 0, 0] + vc) * cosa) * rsina
+        with parallel(region[:, j_start], region[:, j_end + 1]):
+            ub[0, 0, 0] = dt4 * (
+                -ut[0, -2, 0] + 3.0 * (ut[0, -1, 0] + ut) - ut[0, 1, 0]
+            )
+        with parallel(region[i_start, :], region[i_end + 1, :]):
+            ub[0, 0, 0] = dt5 * (ut[0, -1, 0] + ut)
+
+
+@utils.stencil()
+def vbke(vc: sd, uc: sd, cosa: sd, rsina: sd, vt: sd, vb: sd, dt4: float, dt5: float):
+    from __splitters__ import i_start, i_end, j_start, j_end
+
+    with computation(PARALLEL), interval(...):
+        vb[0, 0, 0] = dt5 * (vc[-1, 0, 0] + vc - (uc[0, -1, 0] + uc) * cosa) * rsina
+        with parallel(region[i_start, :], region[i_end + 1, :]):
+            vb[0, 0, 0] = dt4 * (
+                -vt[-2, 0, 0] + 3.0 * (vt[-1, 0, 0] + vt) - vt[1, 0, 0]
+            )
+        with parallel(region[:, j_start], region[:, j_end + 1]):
+            vb[0, 0, 0] = dt5 * (vt[-1, 0, 0] + vt)
 
 
 def d_sw(
