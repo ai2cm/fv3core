@@ -132,7 +132,7 @@ def test_sequential_savepoint(
             )
             passing_names.append(failing_names.pop())
     assert failing_names == [], f"only the following variables passed: {passing_names}"
-
+    assert len(passing_names) > 0, f"No tests passed"
 
 def get_serializer(data_path, rank):
     return ser.Serializer(
@@ -220,7 +220,7 @@ def test_mock_parallel_savepoint(
         except Exception as error:
             print(error)
     assert failing_names == [], f"names tested: {list(testobj.outputs.keys())}"
-
+    assert len(passing_names) > 0, f"No tests passed"
 
 @pytest.mark.parallel
 @pytest.mark.skipif(
@@ -280,7 +280,7 @@ def test_parallel_savepoint(
         except Exception as error:
             print(error)
     assert failing_names == [], f"only the following variables passed: {passing_names}"
-
+    assert len(passing_names) > 0, f"No tests passed"
 
 @contextlib.contextmanager
 def _subtest(failure_list, subtests, **kwargs):
