@@ -221,7 +221,6 @@ def test_mock_parallel_savepoint(
         except Exception as error:
             print(error)
     assert failing_names == [], f"names tested: {list(testobj.outputs.keys())}"
-    assert len(passing_names) > 0, f"No tests passed"
 
 
 @pytest.mark.parallel
