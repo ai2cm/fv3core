@@ -96,7 +96,8 @@ fi
 module load daint-gpu
 module add "${installdir}/modulefiles/"
 module load gcloud
-
+echo "UPSTREAM_PROJECT: ${UPSTREAM_PROJECT}"
+echo "UPSTREAM_BUILD_NUMBER: ${UPSTREAM_BUILD_NUMBER}"
 if [ ! -z "${UPSTREAM_PROJECT}" ] ; then
     # Set in build_for_daint jenkins plan, to mark what fv3core image to pull
     export FV3_TAG="${UPSTREAM_PROJECT}-${UPSTREAM_BUILD_NUMBER}"
