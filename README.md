@@ -43,7 +43,7 @@ e.g.
 ```shell
 $EXPERIMENT=c48_6ranks_standard make tests
 ```
-If you choose an experiment with a different number of ranks than 6, also set NUM_RANKS=<num ranks>
+If you choose an experiment with a different number of ranks than 6, also set `NUM_RANKS=<num ranks>`
 
 ## Running tests  inside a container
 
