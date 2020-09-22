@@ -124,7 +124,7 @@ $ git grep <stencil_name> <checkout of fv3gfs-fortran>
 
 These are usually named `tests/translate/translate_<lowercase name>`
 
-Import this class in the tests/translate/__init__.py file
+Import this class in the `tests/translate/__init__.py` file
 
 3. Write a Python function wrapper that the translate function (created above) calls.
 
