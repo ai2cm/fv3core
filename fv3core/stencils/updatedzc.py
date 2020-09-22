@@ -231,7 +231,7 @@ def update_dz_c(
     gz_y: sd,
     ws3: sd,
     *,
-    dt: float
+    dt: float,
 ):
     with computation(PARALLEL):
         with interval(0, 1):
