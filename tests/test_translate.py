@@ -14,8 +14,10 @@ import fv3core._config
 import fv3core.utils.gt4py_utils
 from fv3core.utils.mpi import MPI
 
+
 sys.path.append("/serialbox2/install/python")  # noqa
 import serialbox as ser
+
 
 # this only matters for manually-added print statements
 np.set_printoptions(threshold=4096)

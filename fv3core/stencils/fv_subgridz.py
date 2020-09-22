@@ -6,10 +6,20 @@ import fv3core._config as spec
 import fv3core.stencils.copy_stencil as cp
 import fv3core.utils.gt4py_utils as utils
 from fv3core.stencils.basic_operations import dim, multiply_constant_inout
-from fv3core.utils.global_constants import (C_ICE, C_LIQ, CP_AIR, CP_VAP,
-                                            CV_AIR, CV_VAP, GRAV, RDGAS, ZVIR)
+from fv3core.utils.global_constants import (
+    C_ICE,
+    C_LIQ,
+    CP_AIR,
+    CP_VAP,
+    CV_AIR,
+    CV_VAP,
+    GRAV,
+    RDGAS,
+    ZVIR,
+)
 
 from ..decorators import ArgSpec, state_inputs
+
 
 sd = utils.sd
 RK = CP_AIR / RDGAS + 1.0

@@ -7,6 +7,7 @@ import fv3core._config as spec
 import fv3core.stencils.copy_stencil as cp
 import fv3core.utils.gt4py_utils as utils
 
+
 # comact 4-pt cubic interpolation
 c1 = 2.0 / 3.0
 c2 = -1.0 / 6.0

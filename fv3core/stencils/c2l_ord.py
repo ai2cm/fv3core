@@ -6,6 +6,7 @@ from gt4py.gtscript import PARALLEL, computation, interval
 import fv3core._config as spec
 import fv3core.utils.gt4py_utils as utils
 
+
 sd = utils.sd
 
 a1 = 0.5625

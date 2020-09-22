@@ -10,6 +10,7 @@ import fv3core.utils.gt4py_utils as utils
 from fv3core.stencils.fxadv import ra_x_func, ra_y_func
 from fv3core.utils.corners import fill_4corners
 
+
 sd = utils.sd
 DZ_MIN = constants.DZ_MIN
 

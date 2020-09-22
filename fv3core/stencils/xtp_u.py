@@ -4,9 +4,23 @@ import fv3core._config as spec
 import fv3core.stencils.xppm as xppm
 import fv3core.utils.gt4py_utils as utils
 
-from .xppm import (compute_al, final_flux, flux_intermediates, fx1_fn, get_b0,
-                   get_bl, get_br, is_smt5_mord5, is_smt5_most_mords, s11, s14,
-                   s15, xt_dxa_edge_0_base, xt_dxa_edge_1_base)
+from .xppm import (
+    compute_al,
+    final_flux,
+    flux_intermediates,
+    fx1_fn,
+    get_b0,
+    get_bl,
+    get_br,
+    is_smt5_mord5,
+    is_smt5_most_mords,
+    s11,
+    s14,
+    s15,
+    xt_dxa_edge_0_base,
+    xt_dxa_edge_1_base,
+)
+
 
 sd = utils.sd
 

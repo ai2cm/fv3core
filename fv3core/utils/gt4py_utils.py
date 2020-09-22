@@ -11,6 +11,7 @@ import numpy as np
 
 from fv3core.utils.mpi import MPI
 
+
 try:
     import cupy as cp
 except ImportError:

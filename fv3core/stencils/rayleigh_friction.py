@@ -12,6 +12,7 @@ import fv3core.stencils.rayleigh_super as ray_super
 import fv3core.utils.global_constants as constants
 import fv3core.utils.gt4py_utils as utils
 
+
 sd = utils.sd
 SDAY = 86400.0  # seconds per day
 U000 = 4900.0  # scaling velocity
