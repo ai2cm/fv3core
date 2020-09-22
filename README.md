@@ -11,7 +11,7 @@ Use the `tests` target of the Makefile to run the unit tests.
 ```shell
 $ make tests
 ```
-This will pull the test data from the Google storage bucket (using the `make get_test_data') `if it does not exist locally yet, build the fv3core docker image, and run all of the seqential tests using that image.
+This will pull the test data from the Google storage bucket (using the `make get_test_data`) if it does not exist locally yet, build the fv3core docker image, and run all of the sequential tests using that image.
 
 See the [Unit Testing]() section below for options.
 
