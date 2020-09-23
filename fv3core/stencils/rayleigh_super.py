@@ -109,9 +109,8 @@ def fill_rf(rf, rfvals, rf_cutoff, pfull, shape3d):
 
 def compute(u, v, w, ua, va, pt, delz, phis, bdt, ptop, pfull, comm):
     grid = spec.grid
-    rf_initialized = (
-        False
-    )  # TODO pull this into a state dict or arguments that get updated when called
+    # TODO pull this into a state dict or arguments that get updated when called
+    rf_initialized = False
     conserve = not (grid.nested or spec.namelist.regional)
     rf_cutoff = spec.namelist.rf_cutoff
     if not rf_initialized:

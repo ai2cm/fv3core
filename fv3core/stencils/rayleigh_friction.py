@@ -75,9 +75,8 @@ def rayleigh_v_friction(v: sd, pfull: sd, u2f: sd, rf_cutoff: float):
 
 def compute(u, v, w, ua, va, pt, delz, phis, bdt, ptop, pfull, comm):
     grid = spec.grid
-    rf_initialized = (
-        False
-    )  # TODO pull this into a state dict or arguments that get updated when called
+    # TODO pull this into a state dict or arguments that get updated when called
+    rf_initialized = False
     conserve = not (grid.nested or spec.namelist.regional)
     rf_cutoff = spec.namelist.rf_cutoff
     if not rf_initialized:
