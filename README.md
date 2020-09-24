@@ -201,7 +201,7 @@ $ pre-commit install
 pre-commit installed at .git/hooks/pre-commit
 ```
 
-As a convenience, the `lint` target of the top-level makefile executes `pre-commit run`.
+As a convenience, the `lint` target of the top-level makefile executes `pre-commit run --all-files`.
 
 ## License
 

@@ -168,7 +168,7 @@ list_test_data_options:
 	gsutil ls $(REGRESSION_DATA_STORAGE_BUCKET)/$(FORTRAN_SERIALIZED_DATA_VERSION)
 
 lint:
-	pre-commit run
+	pre-commit run --all-files
 	# pre-commit runs black for now. Will also run flake8 eventually.
 	# black --diff --check $(PYTHON_FILES) $(PYTHON_INIT_FILES)
 	# disable flake8 tests for now, re-enable when dycore is "running"
