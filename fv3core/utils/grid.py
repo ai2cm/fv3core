@@ -1,6 +1,10 @@
-import fv3core.utils.gt4py_utils as utils
+from typing import Tuple
+
 import numpy as np
+
+# FYI: 'utils' is mentioned 5 times on the next two lines... :P
 import fv3gfs.util as fv3util
+import fv3core.utils.gt4py_utils as utils
 
 
 class Grid:
@@ -317,8 +321,8 @@ class Grid:
     def domain_shape_compute(self):
         return (self.nic, self.njc, self.npz)
 
-    def domain_shape_compute_buffer_2d(self):
-        return (self.nic + 1, self.njc + 1, self.npz)
+    def domain_shape_compute_buffer_2d(self, add: Tuple[int, int, int] = (0, 0, 0)):
+        return (self.nic + add[0], self.njc + add[1], self.npz + add[2])
 
     def domain_shape_compute_buffer_k(self):
         return (self.nic, self.njc, self.npz + 1)
