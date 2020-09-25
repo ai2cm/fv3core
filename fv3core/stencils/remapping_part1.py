@@ -41,15 +41,15 @@ def pressure_updates(
             ps = pe
         with interval(0, -1):
             ps = ps[0, 0, 1]
-    with computation(FORWARD), interval(1, -1):
-        pe2 = ak + bk * ps
-    with computation(FORWARD), interval(0, -1):
-        delp = pe2[0, 0, 1] - pe2
     with computation(PARALLEL):
+        with interval(1, -1):
+            pe2 = ak + bk * ps
         with interval(0, 1):
             pn2 = peln
         with interval(-1, None):
             pn2 = peln
+    with computation(BACKWARD), interval(0, -1):
+        delp = pe2[0, 0, 1] - pe2
 
 
 @utils.stencil()
@@ -98,7 +98,8 @@ def pressures_mapv(pe: sd, ak: sd, bk: sd, pe0: sd, pe3: sd):
 @utils.stencil()
 def copy_j_adjacent(pe2: sd):
     with computation(PARALLEL), interval(...):
-        pe2 = pe2[0, -1, 0]
+        pe2_0 = pe2[0, -1, 0]
+        pe2 = pe2_0
 
 
 @utils.stencil()
@@ -228,15 +229,7 @@ def compute(
         )
     # TODO if nq > 5:
     mapn_tracer.compute(
-        pe1,
-        pe2,
-        dp2,
-        tracers,
-        nq,
-        0.0,
-        grid.is_,
-        grid.ie,
-        abs(spec.namelist.kord_tr),
+        pe1, pe2, dp2, tracers, nq, 0.0, grid.is_, grid.ie, abs(spec.namelist.kord_tr),
     )
     # TODO else if nq > 0:
     # TODO map1_q2, fillz
@@ -290,15 +283,7 @@ def compute(
         pe, pe1, ak, bk, pe0, pe3, origin=grid.compute_origin(), domain=domain_jextra,
     )
     map_single.compute(
-        u,
-        pe0,
-        pe3,
-        gz,
-        -1,
-        grid.is_,
-        grid.ie,
-        spec.namelist.kord_mt,
-        j_interface=True,
+        u, pe0, pe3, gz, -1, grid.is_, grid.ie, spec.namelist.kord_mt, j_interface=True,
     )
     domain_iextra = (grid.nic + 1, grid.njc, grid.npz + 1)
     pressures_mapv(

@@ -222,7 +222,6 @@ def make_storage_from_shape(shape, origin, dtype=np.float64):
         default_origin=origin,
         shape=shape,
         managed_memory=managed_memory,
-
     )
 
 
@@ -360,7 +359,8 @@ def extrap_corner(p0, p1, p2, q1, q2):
 
 def asarray(array, to_type=np.ndarray, dtype=None, order=None):
     if cp and (
-        isinstance(array.data, cp.ndarray)
+        isinstance(array, memoryview)
+        or isinstance(array.data, cp.ndarray)
         or isinstance(array.data, cp.cuda.memory.MemoryPointer)
     ):
         if to_type is np.ndarray:
