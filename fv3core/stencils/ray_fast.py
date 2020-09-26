@@ -64,8 +64,8 @@ def dm_stencil(dp: sd, dm: sd):
 def compute(u, v, w, dp, pfull, dt, ptop, ks):
     grid = spec.grid
     rff_initialized = (
-        False
-    )  # TODO pull this out to higher level so don't do over and over
+        False  # TODO pull this out to higher level so don't do over and over
+    )
     rf_cutoff = spec.namelist.rf_cutoff
     rf_cutoff_nudge = rf_cutoff + min(100.0, 10.0 * ptop)
     if not rff_initialized:
