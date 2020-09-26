@@ -53,8 +53,14 @@ def stencil(**stencil_kwargs):
         def wrapped(*args, **kwargs):
             key = (backend, rebuild)
             if key not in stencils:
+                other_args = dict(
+                    filter(
+                        lambda key_val: key_val[0] not in ("backend", "rebuild"),
+                        stencil_kwargs.items(),
+                    )
+                )
                 stencils[key] = gtscript.stencil(
-                    backend=backend, rebuild=rebuild, **stencil_kwargs
+                    backend=backend, rebuild=rebuild, **other_args
                 )(func)
             return stencils[key](*args, **kwargs)
 

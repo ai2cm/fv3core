@@ -25,7 +25,7 @@ def update_zonal_velocity(
             with parallel(region[i_start, :], region[i_end + 1, :]):
                 tmp_flux = dt2 * velocity
         flux = vorticity[0, 0, 0] if tmp_flux > 0.0 else vorticity[0, 1, 0]
-        velocity_c = velocity_c + tmp_flux * flux + rdxc * (ke[-1, 0, 0] - ke)
+        velocity_c += tmp_flux * flux + rdxc * (ke[-1, 0, 0] - ke)
 
 
 @utils.stencil()
@@ -48,7 +48,7 @@ def update_meridional_velocity(
             with parallel(region[:, j_start], region[:, j_end + 1]):
                 tmp_flux = dt2 * velocity
         flux = vorticity[0, 0, 0] if tmp_flux > 0.0 else vorticity[1, 0, 0]
-        velocity_c = velocity_c - tmp_flux * flux + rdyc * (ke[0, -1, 0] - ke)
+        velocity_c -= tmp_flux * flux - rdyc * (ke[0, -1, 0] - ke)
 
 
 # Update the C-Grid zonal and meridional velocity fields
