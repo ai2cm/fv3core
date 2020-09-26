@@ -191,7 +191,7 @@ There are three main driver files:
 
 Requirements for developing fv3core have pinned versions in `requirements.txt`, and should be installed.
 This adds `pre-commit`, which we use to lint and enforce style on the code.
-After changing files and before pushing, run `pre-commit` to ensure changes conform to the style.
+After changing files and before pushing, run `pre-commit run` or equivalently `make lint` to ensure changes conform to the style.
 The `pre-commit` command can also be installed as a pre-commit git hook, to ensure tests pass before committing code.
 
 ```bash
