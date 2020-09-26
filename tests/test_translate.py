@@ -68,7 +68,7 @@ def sample_wherefail(
             np.logical_not(
                 success_array(computed_data, ref_data, eps, ignore_near_zero_errors)
             ),
-            axis=2
+            axis=2,
         )
     )
     computed_failures = computed_data[found_indices]
@@ -92,7 +92,9 @@ def sample_wherefail(
         f"reference: {reference_failures[0]}, "
         f"diff: {abs(computed_failures[0] - reference_failures[0])}\n"
     )
-    return_strings.append("failed horizontal indices:" + str(list(zip(*found_xy_indices))))
+    return_strings.append(
+        "failed horizontal indices:" + str(list(zip(*found_xy_indices)))
+    )
     return "\n".join(return_strings)
 
 
