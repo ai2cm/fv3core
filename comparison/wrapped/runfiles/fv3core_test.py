@@ -58,6 +58,26 @@ def transpose(state, dims, npz, npx, npy):
             
     return return_state
 
+def convert_3d_to_2d(state, fieldnames):
+    return_state = state
+    for field in fieldnames:
+        value = state[field]
+        #Assuming we've already transposed from xyz to zyx
+        dat = value.data[0,:,:] #take the bottom level since they should all be the same
+        newval = Quantity.from_data_array(xr.DataArray(dat, attrs=value.attrs, dims=[value.dims[1], value.dims[2]]), origin=(value.origin[1], value.origin[2]), extent=(value.extent[1], value.extent[2]))
+        return_state[field] = newval
+    return return_state
+
+def convert_3d_to_1d(state, fieldnames):
+    return_state = state
+    for field in fieldnames:
+        value = state[field]
+        #Assuming we've already transposed from xyz to zyx
+        dat = value.data[:,0,0] #take the first column since they should be the same
+        newval = Quantity.from_data_array(xr.DataArray(dat, attrs=value.attrs, dims=[value.dims[0]]), origin=[value.origin[0]], extent=[value.extent[0]])
+        return_state[field] = newval
+    return return_state
+
 if __name__ == "__main__":
 
     # read in the namelist
@@ -158,6 +178,16 @@ if __name__ == "__main__":
         "time",
     ]
 
+    field2d = [
+        "surface_geopotential",
+        "surface_pressure",
+    ]
+
+    field1d = [
+       "atmosphere_hybrid_a_coordinate",
+       "atmosphere_hybrid_b_coordinate"
+    ]
+
     # get grid from serialized data
     serializer = serialbox.Serializer(
         serialbox.OpenModeKind.Read,
@@ -216,7 +246,9 @@ if __name__ == "__main__":
             wrapper.flags.n_split,
             wrapper.flags.ks,
         )
-        # state = transpose(state, [Z_DIMS, Y_DIMS, X_DIMS], spec.namelist.npz)
+        state = transpose(state, [Z_DIMS, Y_DIMS, X_DIMS], spec.namelist.npz, spec.namelist.npx, spec.namelist.npy)
+        state = convert_3d_to_2d(state, field2d)
+        state = convert_3d_to_1d(state, field1d)
         wrapper.set_state(state)
         wrapper.step_physics()
         wrapper.save_intermediate_restart_if_enabled()
