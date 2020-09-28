@@ -48,7 +48,7 @@ def quantity_name(name):
     return name + "_quantity"
 
 
-def module_level_var_error(var: str, func: str):
+def module_level_var_errmsg(var: str, func: str):
     loc = f"fv3core.utils.gt4py_utils.{var}"
     return f"The {var} flag should be set in {loc} instead of as an argument to {func}"
 
@@ -62,9 +62,9 @@ def stencil(**stencil_kwargs):
             key = (backend, rebuild)
             if key not in stencils:
                 if "rebuild" in stencil_kwargs:
-                    raise ValueError(module_level_var_error("rebuild", "fv3core.utils.gt4py_utils.stencil"))
+                    raise ValueError(module_level_var_errmsg("rebuild", __module__))
                 if "backend" in stencil_kwargs:
-                    raise ValueError(module_level_var_error("backend", "fv3core.utils.gt4py_utils.stencil"))
+                    raise ValueError(module_level_var_errmsg("backend", __module__))
                 stencil_kwargs["rebuild"] = rebuild
                 stencil_kwargs["backend"] = backend
                 stencils[key] = gtscript.stencil(**stencil_kwargs)(func)
