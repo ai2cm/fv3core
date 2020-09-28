@@ -1,11 +1,11 @@
 data_table: default
-diag_table: /fv3gfs-python/examples/runfiles/diag_table_test
+diag_table: /fv3core/comparison/wrapped/config/diag_table_baroclinic
 experiment_name: default
 forcing: gs://vcm-fv3config/data/base_forcing/v1.1/
 orographic_forcing: gs://vcm-fv3config/data/orographic_data/v1.0
 #To use internal test cases point to an empty ICs directory,
 # otherwise the model will try to read files, generate a conflict, and crash
-initial_conditions: /fv3gfs-python/empty/
+initial_conditions: gs://vcm-fv3config/data/initial_conditions/gfs_c12_example/v1.0 
 namelist:
   amip_interp_nml:
     data_set: reynolds_oi

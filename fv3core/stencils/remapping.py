@@ -57,6 +57,7 @@ def compute(
     te = utils.make_storage_from_shape(pt.shape, grid.default_origin())
     te_2d = utils.make_storage_from_shape(pt.shape, grid.compute_origin())
     zsum1 = utils.make_storage_from_shape(pt.shape, grid.compute_origin())
+    print("Part 1")
     remap_part1.compute(
         tracers,
         pt,
@@ -86,6 +87,7 @@ def compute(
         zvir,
         nq,
     )
+    print("Part 2")
     remap_part2.compute(
         tracers["qvapor"],
         tracers["qliquid"],
@@ -124,3 +126,4 @@ def compute(
         consv_te,
         do_adiabatic_init,
     )
+    print("Finished Remapping")

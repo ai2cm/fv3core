@@ -264,6 +264,7 @@ def compute(dp_ref, zs, ut, vt, gz_in, ws3, dt2):
     fill_4corners(gz_x, "x", grid)
     gz_y = cp.copy(gz_x, origin)
     fill_4corners(gz_y, "y", grid)
+    # print(gz_x.shape, gz_y.shape, grid.area.shape, dp_ref.shape, zs.shape, ut.shape, vt.shape, ws3.shape)
     update_dz_c(
         dp_ref,
         zs,

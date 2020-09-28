@@ -77,10 +77,11 @@ build: update_submodules
 		-t $(FV3_IMAGE) \
 		.
 
-build-wrapped: update_submodules
+build_wrapped: update_submodules
 	$(MAKE) build_wrapped_environment
 	docker build \
 		--network host \
+		--no-cache \
 		--build-arg build_image=$(FV3_INSTALL_IMAGE) \
 		-f $(CWD)/docker/Dockerfile \
 		-t $(FV3_IMAGE) \
