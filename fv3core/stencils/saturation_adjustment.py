@@ -968,7 +968,14 @@ def satadjust_part2(
 
 @utils.stencil()
 def satadjust_part3_laststep_qa(
-    qa: sd, area: sd, qpz: sd, hs: sd, tin: sd, q_cond: sd, q_sol: sd, den: sd,
+    qa: sd,
+    area: sd,
+    qpz: sd,
+    hs: sd,
+    tin: sd,
+    q_cond: sd,
+    q_sol: sd,
+    den: sd,
 ):
     with computation(PARALLEL), interval(...):
         it, ap1 = ap1_and_index(tin)
@@ -1173,7 +1180,7 @@ def compute(
         )
     else:
         adj_fac = spec.namelist.sat_adj0
-    
+
     # TODO  -- this isn't a namelist option in Fortran, it is whether or not cld_amount is a tracer. If/when we support different sets of tracers, this will need to change
     do_qa = True
     satadjust_part2(
