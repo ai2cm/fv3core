@@ -11,7 +11,7 @@ import fv3gfs.util as fv3util
 from fv3core.utils.mpi import MPI
 
 # get MPI environment
-sys.path.append("/usr/src/serialbox/install/python")  # noqa
+sys.path.append("/usr/local/python")  # noqa
 import serialbox
 
 
