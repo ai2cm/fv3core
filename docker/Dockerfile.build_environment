@@ -20,14 +20,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 ###
 ### Build and install MPICH
 ###
-ENV MPI_ROOT=/usr
+ENV MPI_ROOT=/usr/local
 RUN wget -q http://www.mpich.org/static/downloads/3.1.4/mpich-3.1.4.tar.gz && \
     tar -xzf mpich-3.1.4.tar.gz && \
     (cd mpich-3.1.4 && \
     ./configure  --enable-cxx --prefix=${MPI_ROOT} --disable-fortran --enable-fast=all,O3 && \
     make -j$(nproc) && make install) && ldconfig && \
     rm -rf mpich-3.1.4*
-ENV MPICC=/usr/bin/mpicc
+ENV MPICC=${MPI_ROOT}/bin/mpicc
 
 ###
 ### Build and install Boost Libraries
