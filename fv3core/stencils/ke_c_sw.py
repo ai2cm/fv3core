@@ -14,10 +14,33 @@ def copy_vc_values(vort: sd, vc: sd, va: sd):
 
 
 @utils.stencil()
+def update_vorticity(vort: sd, va: sd, u: sd, sin_sg2: sd, cos_sg2: sd, sin_sg4: sd, cos_sg4: sd):
+    from __splitters__ import i_start, i_end, j_start, j_end
+
+    # update_vorticity_outer_edge_values (if grid.south_edge)
+    with computation(PARALLEL), interval(...):
+            vort = vort * sin_sg4 + u[0, 1, 0] * cos_sg4 if va <= 0.0 else vort
+
+    # update_vorticity_edge_values (if grid.south_edge)
+    with computation(PARALLEL), interval(...):
+        with parallel(region[:, j_start+1:]):
+            vort = vort * sin_sg2 + u * cos_sg2 if va > 0.0 else vort
+
+    # update_vorticity_outer_edge_values (if grid.north_edge)
+    with computation(PARALLEL), interval(...):
+        with parallel(region[:,j_end:]):
+            vort = vort * sin_sg4 + u[0, 1, 0] * cos_sg4 if va <= 0.0 else vort
+
+    # update_vorticity_edge_values (if grid.north_edge)
+    with computation(PARALLEL), interval(...):
+        with parallel(region[:,j_start+1:]):
+            vort = vort * sin_sg2 + u * cos_sg2 if va > 0.0 else vort
+
+
+@utils.stencil()
 def update_vorticity_edge_values(vort: sd, va: sd, u: sd, sin: sd, cos: sd):
     with computation(PARALLEL), interval(...):
         vort[0, 0, 0] = vort * sin + u * cos if va > 0.0 else vort
-
 
 @utils.stencil()
 def update_vorticity_outer_edge_values(vort: sd, va: sd, u: sd, sin: sd, cos: sd):
@@ -55,6 +78,13 @@ def compute(uc, vc, u, v, ua, va, dt2):
     # co = grid.compute_origin()
     origin = (grid.is_ - 1, grid.js - 1, 0)
 
+    splitters = {
+        "i_start": grid.is_ - grid.is_,
+        "i_end": grid.ie - grid.is_,
+        "j_start": grid.js - grid.js,
+        "j_end": grid.je - grid.js,
+    }
+
     # Create storage objects to hold the new vorticity and kinetic energy values
     ke_c = utils.make_storage_from_shape(uc.shape, origin=origin)
     vort_c = utils.make_storage_from_shape(vc.shape, origin=origin)
@@ -64,48 +94,60 @@ def compute(uc, vc, u, v, ua, va, dt2):
     copy_uc_values(ke_c, uc, ua, origin=origin, domain=copy_domain)
     copy_vc_values(vort_c, vc, va, origin=origin, domain=copy_domain)
 
+    vort_domain = (grid.ie + 1, 1, grid.npz)
+    update_vorticity(
+        vort_c,
+        va,
+        u,
+        grid.sin_sg2,
+        grid.cos_sg2,
+        grid.sin_sg,
+        grid.cos_sg4,
+        origin=origin,
+        domain=vort_domain,
+    )
+
     # If we are NOT using a nested grid configuration, then edge values need to be evaluated separately
     if spec.namelist.grid_type < 3 and not grid.nested:
-        vort_domain = (grid.ie + 1, 1, grid.npz)
-        if grid.south_edge:
-            update_vorticity_outer_edge_values(
-                vort_c,
-                va,
-                u,
-                grid.sin_sg4,
-                grid.cos_sg4,
-                origin=origin,
-                domain=vort_domain,
-            )
-            update_vorticity_edge_values(
-                vort_c,
-                va,
-                u,
-                grid.sin_sg2,
-                grid.cos_sg2,
-                origin=(grid.is_ - 1, grid.js, 0),
-                domain=vort_domain,
-            )
+        # if grid.south_edge:
+        #     update_vorticity_outer_edge_values(
+        #         vort_c,
+        #         va,
+        #         u,
+        #         grid.sin_sg4,
+        #         grid.cos_sg4,
+        #         origin=origin,
+        #         domain=vort_domain,
+        #     )
+        #     update_vorticity_edge_values(
+        #         vort_c,
+        #         va,
+        #         u,
+        #         grid.sin_sg2,
+        #         grid.cos_sg2,
+        #         origin=(grid.is_ - 1, grid.js, 0),
+        #         domain=vort_domain,
+        #     )
 
-        if grid.north_edge:
-            update_vorticity_outer_edge_values(
-                vort_c,
-                va,
-                u,
-                grid.sin_sg4,
-                grid.cos_sg4,
-                origin=(grid.is_ - 1, grid.je, 0),
-                domain=vort_domain,
-            )
-            update_vorticity_edge_values(
-                vort_c,
-                va,
-                u,
-                grid.sin_sg2,
-                grid.cos_sg2,
-                origin=(grid.is_ - 1, grid.je + 1, 0),
-                domain=vort_domain,
-            )
+        # if grid.north_edge:
+        #     update_vorticity_outer_edge_values(
+        #         vort_c,
+        #         va,
+        #         u,
+        #         grid.sin_sg4,
+        #         grid.cos_sg4,
+        #         origin=(grid.is_ - 1, grid.je, 0),
+        #         domain=vort_domain,
+        #     )
+        #     update_vorticity_edge_values(
+        #         vort_c,
+        #         va,
+        #         u,
+        #         grid.sin_sg2,
+        #         grid.cos_sg2,
+        #         origin=(grid.is_ - 1, grid.je + 1, 0),
+        #         domain=vort_domain,
+        #     )
 
         ke_domain = (1, grid.je + 2, grid.npz)
         if grid.east_edge:
