@@ -117,12 +117,13 @@ for f in files:
 
         # savin' variables
         for var in nc_vars:
-            if "time" not in var:
-                if var not in vardict.keys():
-                    vardict[var] = []
-                field1 = ncfile[var][:]
-                field2 = ncf2[var][:]
-                vardict[var].append((field1 - field2) / field2)
+            if ("time" not in var):
+                if var in ncf2.variables.keys():
+                    if var not in vardict.keys():
+                        vardict[var] = []
+                    field1 = ncfile[var][:]
+                    field2 = ncf2[var][:]
+                    vardict[var].append((field1 - field2) / field2)
 
     else:
         ps_plots.append(ps)

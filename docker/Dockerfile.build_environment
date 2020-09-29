@@ -38,14 +38,14 @@ RUN tar xzf boost_1_73_0.tar.gz -C /usr/local && \
 ###
 ### Download repos that we want to stay up to date with
 ###
-RUN git clone --depth 1 https://github.com/GridTools/gt4py.git /usr/src/gt4py
+# RUN git clone --depth 1 https://github.com/GridTools/gt4py.git /usr/src/gt4py
 ###
 ### Build and install GT4Py and DAWN
 ###
-RUN export BOOST_HOME=/usr/local/boost_1_73_0 CPP_FLAGS="-I/usr/local/boost_1_73_0 -I/usr/local/boost_1_73_0/boost" && \
-    CPPFLAGS="-I/usr/local/boost_1_73_0 -I/usr/local/boost_1_73_0/boost" pip install --no-cache-dir -e /usr/src/gt4py && \
-    cd /usr/src/gt4py && python -m gt4py.gt_src_manager install && \
-    pip3 install --no-cache-dir /usr/src/gt4py
+# RUN export BOOST_HOME=/usr/local/boost_1_73_0 CPP_FLAGS="-I/usr/local/boost_1_73_0 -I/usr/local/boost_1_73_0/boost" && \
+#     CPPFLAGS="-I/usr/local/boost_1_73_0 -I/usr/local/boost_1_73_0/boost" pip install --no-cache-dir -e /usr/src/gt4py && \
+#     cd /usr/src/gt4py && python -m gt4py.gt_src_manager install && \
+#     pip3 install --no-cache-dir /usr/src/gt4py
 
 FROM fv3core-install-base as fv3core-install-serialbox
 ###
@@ -65,6 +65,6 @@ ARG CPP_FLAGS="-I/usr/local/boost_1_73_0 -I/usr/local/boost_1_73_0/boost"
 ARG CPPFLAGS="-I/usr/local/boost_1_73_0 -I/usr/local/boost_1_73_0/boost"
 
 
-# RUN pip uninstall -y gt4py && \ 
-#     pip install git+https://github.com/VulcanClimateModeling/gt4py.git@develop  && \
-#     python -m gt4py.gt_src_manager install
+RUN pip uninstall -y gt4py && \ 
+    pip install git+https://github.com/VulcanClimateModeling/gt4py.git@develop  && \
+    python -m gt4py.gt_src_manager install
