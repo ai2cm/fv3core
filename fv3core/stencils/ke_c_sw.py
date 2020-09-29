@@ -6,41 +6,58 @@ from gt4py.gtscript import computation, interval, PARALLEL
 sd = utils.sd
 origin = utils.origin
 
-# Vorticity field computation
+
 @utils.stencil()
-def copy_vc_values(vort: sd, vc: sd, va: sd):
+def copy_values(ke: sd, uc: sd, ua: sd, vort: sd, vc: sd, va: sd):
     with computation(PARALLEL), interval(...):
+        ke[0, 0, 0] = uc if ua > 0.0 else uc[1, 0, 0]
         vort[0, 0, 0] = vc if va > 0.0 else vc[0, 1, 0]
 
 
+# @utils.stencil()
+# def copy_uc_values(ke: sd, uc: sd, ua: sd):
+#     with computation(PARALLEL), interval(...):
+#         ke[0, 0, 0] = uc if ua > 0.0 else uc[1, 0, 0]
+
+
+# @utils.stencil()
+# def copy_vc_values(vort: sd, vc: sd, va: sd):
+#     with computation(PARALLEL), interval(...):
+#         vort[0, 0, 0] = vc if va > 0.0 else vc[0, 1, 0]
+
+
+# Vorticity field computation
+
+
 @utils.stencil()
-def update_vorticity(vort: sd, va: sd, u: sd, sin_sg2: sd, cos_sg2: sd, sin_sg4: sd, cos_sg4: sd):
-    from __splitters__ import i_start, i_end, j_start, j_end
+def update_vorticity(
+    vort: sd, va: sd, u: sd, sin_sg2: sd, cos_sg2: sd, sin_sg4: sd, cos_sg4: sd
+):
+    from __splitters__ import j_start, j_end
 
-    # update_vorticity_outer_edge_values (if grid.south_edge)
-    with computation(PARALLEL), interval(...):
+    with computation(PARALLEL):
+        with interval(...):
+            # update_vorticity_outer_edge_values (if grid.south_edge)
             vort = vort * sin_sg4 + u[0, 1, 0] * cos_sg4 if va <= 0.0 else vort
 
-    # update_vorticity_edge_values (if grid.south_edge)
-    with computation(PARALLEL), interval(...):
-        with parallel(region[:, j_start+1:]):
-            vort = vort * sin_sg2 + u * cos_sg2 if va > 0.0 else vort
+            # update_vorticity_edge_values (if grid.south_edge)
+            with parallel(region[:, j_start + 1 :]):
+                vort = vort * sin_sg2 + u * cos_sg2 if va > 0.0 else vort
 
-    # update_vorticity_outer_edge_values (if grid.north_edge)
-    with computation(PARALLEL), interval(...):
-        with parallel(region[:,j_end:]):
-            vort = vort * sin_sg4 + u[0, 1, 0] * cos_sg4 if va <= 0.0 else vort
+            # update_vorticity_outer_edge_values (if grid.north_edge)
+            with parallel(region[:, j_end:]):
+                vort = vort * sin_sg4 + u[0, 1, 0] * cos_sg4 if va <= 0.0 else vort
 
-    # update_vorticity_edge_values (if grid.north_edge)
-    with computation(PARALLEL), interval(...):
-        with parallel(region[:,j_start+1:]):
-            vort = vort * sin_sg2 + u * cos_sg2 if va > 0.0 else vort
+            # update_vorticity_edge_values (if grid.north_edge)
+            with parallel(region[:, j_start + 1 :]):
+                vort = vort * sin_sg2 + u * cos_sg2 if va > 0.0 else vort
 
 
 @utils.stencil()
 def update_vorticity_edge_values(vort: sd, va: sd, u: sd, sin: sd, cos: sd):
     with computation(PARALLEL), interval(...):
         vort[0, 0, 0] = vort * sin + u * cos if va > 0.0 else vort
+
 
 @utils.stencil()
 def update_vorticity_outer_edge_values(vort: sd, va: sd, u: sd, sin: sd, cos: sd):
@@ -49,10 +66,6 @@ def update_vorticity_outer_edge_values(vort: sd, va: sd, u: sd, sin: sd, cos: sd
 
 
 # Kinetic energy field computations
-@utils.stencil()
-def copy_uc_values(ke: sd, uc: sd, ua: sd):
-    with computation(PARALLEL), interval(...):
-        ke[0, 0, 0] = uc if ua > 0.0 else uc[1, 0, 0]
 
 
 @utils.stencil()
@@ -75,7 +88,6 @@ def update_ke_outer_edge_values(ke: sd, ua: sd, v: sd, sin: sd, cos: sd):
 
 def compute(uc, vc, u, v, ua, va, dt2):
     grid = spec.grid
-    # co = grid.compute_origin()
     origin = (grid.is_ - 1, grid.js - 1, 0)
 
     splitters = {
@@ -91,8 +103,9 @@ def compute(uc, vc, u, v, ua, va, dt2):
 
     # Set vorticity and kinetic energy values (ignoring edge values)
     copy_domain = (grid.nic + 2, grid.njc + 2, grid.npz)
-    copy_uc_values(ke_c, uc, ua, origin=origin, domain=copy_domain)
-    copy_vc_values(vort_c, vc, va, origin=origin, domain=copy_domain)
+    # copy_uc_values(ke_c, uc, ua, origin=origin, domain=copy_domain)
+    # copy_vc_values(vort_c, vc, va, origin=origin, domain=copy_domain)
+    copy_values(ke_c, uc, ua, vort_c, vc, va, origin=origin, domain=copy_domain)
 
     vort_domain = (grid.ie + 1, 1, grid.npz)
     update_vorticity(
