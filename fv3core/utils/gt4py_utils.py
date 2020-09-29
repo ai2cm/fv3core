@@ -68,6 +68,8 @@ def stencil(**stencil_kwargs):
                 stencil_kwargs["rebuild"] = rebuild
                 stencil_kwargs["backend"] = backend
                 stencils[key] = gtscript.stencil(**stencil_kwargs)(func)
+            kwargs["exec_info"] = {}
+            kwargs["validate_args"] = False
             return stencils[key](*args, **kwargs)
 
         return wrapped
@@ -404,3 +406,54 @@ def repeat(array, repeats, axis=None):
 
 def index(array, key):
     return asarray(array, type(key))[key]
+
+
+def compare_arr(computed_data, ref_data):
+    denom = np.abs(ref_data) + np.abs(computed_data)
+    compare = 2.0 * np.abs(computed_data - ref_data) / denom
+    compare[denom == 0.0] = 0.0
+    return compare
+
+
+def success_array(computed_data, ref_data, eps, ignore_near_zero_errors):
+    success = np.logical_or(
+        compare_arr(computed_data, ref_data) < eps,
+        np.logical_and(np.isnan(computed_data), np.isnan(ref_data)),
+    )
+    if ignore_near_zero_errors:
+        small_number = 1e-18
+        success = np.logical_or(
+            success,
+            np.logical_and(
+                np.abs(computed_data) < small_number, np.abs(ref_data) < small_number
+            ),
+        )
+    return success
+
+
+def success(computed_data, ref_data, eps=1e-10, ignore_near_zero_errors=True):
+    return np.all(success_array(computed_data, ref_data, eps, ignore_near_zero_errors))
+
+
+"""
+    Usage:
+        if utils.backend == "numpy":  # Serialize numpy data...
+            utils.serialize("/tmp/compute", arr1=arr1, arr2=arr2, arr3=arr3, ...)
+        else:  # Derializize numpy data
+            data = utils.deserialize("/tmp/compute")
+            assert utils.success(arr1, data["arr1"])
+            and utils.success(arr2, data["arr2"])
+            and utils.success(arr3, data["arr3"])
+            ...
+"""
+
+
+def serialize(file: str, **kwargs):
+    arrays = {name: np.asarray(storage.data) for (name, storage) in kwargs.items()}
+    np.savez(file, **arrays)
+
+
+def deserialize(file: str):
+    if not file.endswith(".npz"):
+        file += ".npz"
+    return np.load(file)
