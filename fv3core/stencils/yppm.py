@@ -5,7 +5,6 @@ from gt4py.gtscript import PARALLEL, computation, interval
 import fv3core._config as spec
 import fv3core.utils.gt4py_utils as utils
 from fv3core.stencils.basic_operations import (
-    absolute_value,
     floor_cap,
     max_fn,
     min_fn,
@@ -104,7 +103,7 @@ def is_smt5_mord5(bl, br):
 
 @gtscript.function
 def is_smt5_most_mords(bl, br, b0):
-    return (3.0 * absolute_value(in_array=b0)) < absolute_value(in_array=(bl - br))
+    return (3.0 * abs(b0)) < abs(bl - br)
 
 
 @gtscript.function
@@ -204,7 +203,7 @@ def dm_jord8plus(q: sd, al: sd, dm: sd):
         minqj = min_fn(minqj, q[0, 1, 0])
         dqr = maxqj - q
         dql = q - minqj
-        absxt = absolute_value(xt)
+        absxt = abs(xt)
         minmaxq = min_fn(absxt, dqr)
         minmaxq = min_fn(minmaxq, dql)
         dm = sign(minmaxq, xt)
@@ -222,9 +221,9 @@ def blbr_jord8(q: sd, al: sd, bl: sd, br: sd, dm: sd):
         xt = 2.0 * dm
         aldiff = al - q
         aldiffj = al[0, 1, 0] - q
-        absxt = absolute_value(xt)
-        abs_aldiff = absolute_value(aldiff)
-        abs_aldiffj = absolute_value(aldiffj)
+        absxt = abs(xt)
+        abs_aldiff = abs(aldiff)
+        abs_aldiffj = abs(aldiffj)
         min_aldiff = min_fn(absxt, abs_aldiff)
         min_aldiffj = min_fn(absxt, abs_aldiffj)
         bl = -1.0 * sign(min_aldiff, xt)
