@@ -61,13 +61,14 @@ def stencil(**stencil_kwargs):
         def wrapped(*args, **kwargs):
             key = (backend, rebuild)
             if key not in stencils:
-                if "rebuild" in stencil_kwargs:
+                build_kwargs = stencil_kwargs.copy()
+                if "rebuild" in build_kwargs:
                     raise ValueError(module_level_var_errmsg("rebuild", __module__))
-                if "backend" in stencil_kwargs:
+                if "backend" in build_kwargs:
                     raise ValueError(module_level_var_errmsg("backend", __module__))
-                stencil_kwargs["rebuild"] = rebuild
-                stencil_kwargs["backend"] = backend
-                stencils[key] = gtscript.stencil(**stencil_kwargs)(func)
+                build_kwargs["rebuild"] = rebuild
+                build_kwargs["backend"] = backend
+                stencils[key] = gtscript.stencil(**build_kwargs)(func)
             return stencils[key](*args, **kwargs)
 
         return wrapped
