@@ -70,7 +70,7 @@ def stencil(**stencil_kwargs) -> Callable[..., None]:
             # This uses the module-level globals backend and rebuild (defined above)
             key = (backend, rebuild)
             if key not in stencils:
-                # add globals to stencil_kwargs
+                # Add globals to stencil_kwargs
                 stencil_kwargs["rebuild"] = rebuild
                 stencil_kwargs["backend"] = backend
                 # Generate stencil
