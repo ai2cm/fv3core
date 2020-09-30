@@ -8,7 +8,7 @@ import fv3core._config as spec
 import fv3core.stencils.moist_cv as moist_cv
 import fv3core.utils.global_constants as constants
 import fv3core.utils.gt4py_utils as utils
-from fv3core.stencils.basic_operations import dim, max_fn, min_fn
+from fv3core.stencils.basic_operations import dim, max_fn
 
 
 # TODO, this code could be reduced greatly with abstraction, but first gt4py needs to support gtscript function calls of arbitrary depth embedded in conditionals
@@ -527,7 +527,7 @@ def ap1_stencil(ta: sd, ap1: sd):
 @gtscript.function
 def ap1_for_wqs2(ta):
     ap1 = 10.0 * dim(ta, TMIN) + 1.0
-    return min_fn(ap1, QS_LENGTH) - 1
+    return min(ap1, QS_LENGTH) - 1
 
 
 @gtscript.function
@@ -715,7 +715,7 @@ def satadjust_part1(
         # update latent heat coefficient
         lhl, lhi, lcp2, icp2 = update_latent_heat_coefficient(pt1, cvm, lv00, d0_vap)
         diff_ice = dim(TICE, pt1) / 48.0
-        dimmin = min_fn(1.0, diff_ice)
+        dimmin = min(1.0, diff_ice)
         tcp3 = lcp2 + icp2 * dimmin
 
         dq0 = (qv - wqsat) / (
@@ -751,7 +751,7 @@ def satadjust_part1(
         lhl, lhi, lcp2, icp2 = update_latent_heat_coefficient(pt1, cvm, lv00, d0_vap)
         # TODO remove duplicate
         diff_ice = dim(TICE, pt1) / 48.0
-        dimmin = min_fn(1.0, diff_ice)
+        dimmin = min(1.0, diff_ice)
         tcp3 = lcp2 + icp2 * dimmin
 
 
@@ -819,7 +819,7 @@ def satadjust_part2(
                 # TODO -- we'd like to use this abstraction rather than duplicate code, but inside the if conditional complains 'not implemented'
                 # factor, src = ql_evaporation(wqsat, qv, ql, dq0,fac_l2v)
                 factor = fac_l2v * 10.0 * (1.0 - qv / wqsat)
-                factor = -1.0 if 1.0 < factor else -factor  # min_fn(1, factor) * -1
+                factor = -1.0 * min(1, factor)
                 src = (
                     -ql if ql < factor * dq0 else -factor * dq0
                 )  # min_func(ql, factor * dq0) * -1
@@ -998,7 +998,7 @@ def satadjust_part3_laststep_qa(
             qstar = rqi * iqs1 + (1.0 - rqi) * wqs1
         #  higher than 10 m is considered "land" and will have higher subgrid variability
         abshs = hs if hs > 0 else -hs
-        mindw = min_fn(1.0, abshs / (10.0 * constants.GRAV))
+        mindw = min(1.0, abshs / (10.0 * constants.GRAV))
         dw = (
             spec.namelist.dw_ocean
             + (spec.namelist.dw_land - spec.namelist.dw_ocean) * mindw
@@ -1006,7 +1006,7 @@ def satadjust_part3_laststep_qa(
         # "scale - aware" subgrid variability: 100 - km as the base
         dbl_sqrt_area = dw * (area ** 0.5 / 100.0e3) ** 0.5
         maxtmp = 0.01 if 0.01 > dbl_sqrt_area else dbl_sqrt_area
-        hvar = min_fn(0.2, maxtmp)
+        hvar = min(0.2, maxtmp)
         # partial cloudiness by pdf:
         # assuming subgrid linear distribution in horizontal; this is effectively a smoother for the
         # binary cloud scheme; qa = 0.5 if qstar == qpz
@@ -1026,7 +1026,7 @@ def satadjust_part3_laststep_qa(
             #        qa = 1.
             #    elif ((qstar < q_plus) and (q_cond > 1.e-8)):
             #        qa = ((q_plus - qstar) / dq)**2
-            #        qa = 1. if 1. < qa else qa  # min_fn(1., qa)
+            #        qa = 1. if 1. < qa else qa  # min(1., qa)
             #    else:
             #        qa = 0.
             # else:
@@ -1048,7 +1048,7 @@ def satadjust_part3_laststep_qa(
                     )  # max_fn(spec.namelist.cld_min, qa)
                 else:
                     qa = qa
-                qa = 1.0 if 1.0 < qa else qa  # min_fn(1., qa)
+                qa = 1.0 if 1.0 < qa else qa  # min(1., qa)
         else:
             qa = 0.0
 
