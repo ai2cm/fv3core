@@ -7,7 +7,6 @@ import fv3core.utils.gt4py_utils as utils
 from fv3core.stencils.basic_operations import (
     absolute_value,
     floor_cap,
-    max_fn,
     sign,
 )
 
@@ -132,8 +131,8 @@ def finalflux_ord8plus(q: sd, c: sd, bl: sd, br: sd, flux: sd):
 def dm_iord8plus(q: sd, al: sd, dm: sd):
     with computation(PARALLEL), interval(...):
         xt = 0.25 * (q[1, 0, 0] - q[-1, 0, 0])
-        maxqj = max_fn(q, q[-1, 0, 0])
-        maxqj = max_fn(maxqj, q[1, 0, 0])
+        maxqj = max(q, q[-1, 0, 0])
+        maxqj = max(maxqj, q[1, 0, 0])
         minqj = min(q, q[-1, 0, 0])
         minqj = min(minqj, q[1, 0, 0])
         dqr = maxqj - q
@@ -196,10 +195,10 @@ def xt_dxa_edge_0(q, dxa, xt_minmax):
         # minq = min(q[-1, 0, 0], q)
         # minq = min(minq, q[1, 0, 0])
         # minq = min(minq, q[2, 0, 0])
-        # maxq = max_fn(q[-1, 0, 0], q)
-        # maxq = max_fn(maxq, q[1, 0, 0])
-        # maxq = max_fn(maxq, q[2, 0, 0])
-        # xt = max_fn(xt, minq)
+        # maxq = max(q[-1, 0, 0], q)
+        # maxq = max(maxq, q[1, 0, 0])
+        # maxq = max(maxq, q[2, 0, 0])
+        # xt = max(xt, minq)
         # xt = min(xt, maxq)
         minq = q[-1, 0, 0] if q[-1, 0, 0] < q else q
         minq = minq if minq < q[1, 0, 0] else q[1, 0, 0]
@@ -221,10 +220,10 @@ def xt_dxa_edge_1(q, dxa, xt_minmax):
         # minq = min(q[-2, 0, 0], q[-1, 0, 0])
         # minq = min(minq, q)
         # minq = min(minq, q[1, 0, 0])
-        # maxq = max_fn(q[-2, 0, 0], q[-1, 0, 0])
-        # maxq = max_fn(maxq, q)
-        # maxq = max_fn(maxq, q[1, 0, 0])
-        # xt = max_fn(xt, minq)
+        # maxq = max(q[-2, 0, 0], q[-1, 0, 0])
+        # maxq = max(maxq, q)
+        # maxq = max(maxq, q[1, 0, 0])
+        # xt = max(xt, minq)
         # xt = min(xt, maxq)
         minq = q[-2, 0, 0] if q[-2, 0, 0] < q[-1, 0, 0] else q[-1, 0, 0]
         minq = minq if minq < q else q

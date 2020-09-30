@@ -8,7 +8,7 @@ import fv3core._config as spec
 import fv3core.stencils.moist_cv as moist_cv
 import fv3core.utils.global_constants as constants
 import fv3core.utils.gt4py_utils as utils
-from fv3core.stencils.basic_operations import dim, max_fn
+from fv3core.stencils.basic_operations import dim
 
 
 # TODO, this code could be reduced greatly with abstraction, but first gt4py needs to support gtscript function calls of arbitrary depth embedded in conditionals
@@ -732,7 +732,7 @@ def satadjust_part1(
             b = fac_v2l * dq0
             tmpmax = (
                 a if a > b else b
-            )  # max_fn(a, b) -- this yields an incorrect answer
+            )  # max(a, b) -- this yields an incorrect answer
             src = (
                 spec.namelist.sat_adj0 * dq0
                 if spec.namelist.sat_adj0 * dq0 < tmpmax
@@ -1045,7 +1045,7 @@ def satadjust_part3_laststep_qa(
                 if q_cond > 1.0e-8:
                     qa = (
                         spec.namelist.cld_min if spec.namelist.cld_min > qa else qa
-                    )  # max_fn(spec.namelist.cld_min, qa)
+                    )  # max(spec.namelist.cld_min, qa)
                 else:
                     qa = qa
                 qa = 1.0 if 1.0 < qa else qa  # min(1., qa)
