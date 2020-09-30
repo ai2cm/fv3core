@@ -6,7 +6,7 @@ from gt4py.gtscript import PARALLEL, computation, interval
 import fv3core._config as spec
 import fv3core.stencils.a2b_ord4 as a2b_ord4
 import fv3core.stencils.basic_operations as basic
-import fv3core.stencils.copy_stencil as cp
+from fv3core.stencils.basic_operations import copy_stencil
 import fv3core.utils.corners as corners
 import fv3core.utils.gt4py_utils as utils
 
@@ -175,7 +175,7 @@ def compute(
             u, v, va, ptc, vort, ua, vc, uc, delpc, ke, d2_bg, dt, is2, ie1, kstart, nk
         )
     else:
-        cp.copy_stencil(
+        copy_stencil(
             divg_d,
             delpc,
             origin=(grid.is_, grid.js, kstart),

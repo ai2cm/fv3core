@@ -10,7 +10,7 @@ from gt4py.gtscript import PARALLEL, computation, interval
 import fv3core._config as spec
 import fv3core.stencils.basic_operations as basic
 import fv3core.stencils.c_sw as c_sw
-import fv3core.stencils.copy_stencil as cp
+from fv3core.stencils.basic_operations import copy_stencil
 import fv3core.stencils.d2a2c_vect as d2a2c
 import fv3core.stencils.d_sw as d_sw
 import fv3core.stencils.del2cubed as del2cubed
@@ -221,14 +221,14 @@ def compute(state, comm):
         if not hydrostatic:
             if it == 0:
                 reqs["gz_quantity"].wait()
-                cp.copy_stencil(
+                copy_stencil(
                     state.gz,
                     state.zh,
                     origin=grid.default_origin(),
                     domain=grid.domain_shape_buffer_k(),
                 )
             else:
-                cp.copy_stencil(
+                copy_stencil(
                     state.gz,
                     state.zh,
                     origin=grid.default_origin(),

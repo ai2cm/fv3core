@@ -4,7 +4,7 @@ import numpy as np
 from gt4py.gtscript import PARALLEL, computation, interval
 
 import fv3core._config as spec
-import fv3core.stencils.copy_stencil as cp
+from fv3core.stencils.basic_operations import copy_stencil
 import fv3core.utils.gt4py_utils as utils
 
 
@@ -488,7 +488,7 @@ def compute(qin, qout, kstart=0, nk=None, replace=False):
         qyy = compute_qyy(qy, qout, kstart, nk)
         compute_qout(qxx, qyy, qout, kstart, nk)
         if replace:
-            cp.copy_stencil(
+            copy_stencil(
                 qout,
                 qin,
                 origin=(grid().is_, grid().js, kstart),

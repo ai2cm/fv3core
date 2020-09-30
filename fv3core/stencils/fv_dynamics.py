@@ -6,7 +6,7 @@ import gt4py.gtscript as gtscript
 from gt4py.gtscript import PARALLEL, computation, interval
 
 import fv3core._config as spec
-import fv3core.stencils.copy_stencil as cp
+from fv3core.stencils.basic_operations import copy_stencil
 import fv3core.stencils.del2cubed as del2cubed
 import fv3core.stencils.dyn_core as dyn_core
 import fv3core.stencils.moist_cv as moist_cv
@@ -168,7 +168,7 @@ def compute_preamble(state, comm):
 
 def do_dyn(state, comm):
     grid = spec.grid
-    cp.copy_stencil(
+    copy_stencil(
         state.delp,
         state.dp1,
         origin=grid.default_origin(),

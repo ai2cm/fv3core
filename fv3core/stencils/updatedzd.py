@@ -2,7 +2,7 @@ import gt4py.gtscript as gtscript
 from gt4py.gtscript import BACKWARD, PARALLEL, computation, interval
 
 import fv3core._config as spec
-import fv3core.stencils.copy_stencil as cp
+from fv3core.stencils.basic_operations import copy
 import fv3core.stencils.delnflux as delnflux
 import fv3core.stencils.fvtp2d as fvtp2d
 import fv3core.utils.global_constants as constants
@@ -228,7 +228,7 @@ def column_calls(
         fy2 = utils.make_storage_from_shape(zh.shape, default_origin)
         fx = utils.make_storage_from_shape(zh.shape, default_origin)
         fy = utils.make_storage_from_shape(zh.shape, default_origin)
-        z2 = cp.copy(zh, origin=default_origin)
+        z2 = copy(zh, origin=default_origin)
         fvtp2d.compute_no_sg(
             z2,
             crx_adv,
