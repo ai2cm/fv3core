@@ -1,3 +1,5 @@
+from typing import Union
+
 import gt4py.gtscript as gtscript
 from gt4py.gtscript import PARALLEL, computation, interval
 
@@ -22,7 +24,9 @@ def copy_stencil(q_in: DataField, q_out: DataField):
         q_out = q_in
 
 
-def copy(q_in: DataField, *, origin: Int3 = (0, 0, 0), domain: Int3 = None):
+def copy(
+    q_in: DataField, *, origin: Int3 = (0, 0, 0), domain: Union[Int3, None] = None
+):
     """Copy q_in to a field returned.
 
     Args:
