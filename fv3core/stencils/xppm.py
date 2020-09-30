@@ -4,11 +4,7 @@ from gt4py.gtscript import PARALLEL, computation, interval
 
 import fv3core._config as spec
 import fv3core.utils.gt4py_utils as utils
-from fv3core.stencils.basic_operations import (
-    absolute_value,
-    floor_cap,
-    sign,
-)
+from fv3core.stencils.basic_operations import absolute_value, floor_cap, sign
 
 from .yppm import (
     c1,

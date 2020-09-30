@@ -730,9 +730,7 @@ def satadjust_part1(
         if dq0 > 0:  # whole grid - box saturated
             a = spec.namelist.ql_gen - ql
             b = fac_v2l * dq0
-            tmpmax = (
-                a if a > b else b
-            )  # max(a, b) -- this yields an incorrect answer
+            tmpmax = a if a > b else b  # max(a, b) -- this yields an incorrect answer
             src = (
                 spec.namelist.sat_adj0 * dq0
                 if spec.namelist.sat_adj0 * dq0 < tmpmax
