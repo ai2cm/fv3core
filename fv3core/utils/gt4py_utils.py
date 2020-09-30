@@ -57,17 +57,22 @@ def stencil(**stencil_kwargs):
     def decorator(func):
         stencils = {}
 
+        build_kwargs = stencil_kwargs.copy()
+
+        MODULE_NAME = "fv3core.utils.gt4py_utils"
+        if "rebuild" in build_kwargs:
+            raise ValueError(module_level_var_errmsg("rebuild", MODULE_NAME))
+        if "backend" in build_kwargs:
+            raise ValueError(module_level_var_errmsg("backend", MODULE_NAME))
+
+        # Add to build_kwargs
+        build_kwargs["rebuild"] = rebuild
+        build_kwargs["backend"] = backend
+
         @functools.wraps(func)
         def wrapped(*args, **kwargs):
             key = (backend, rebuild)
             if key not in stencils:
-                build_kwargs = stencil_kwargs.copy()
-                if "rebuild" in build_kwargs:
-                    raise ValueError(module_level_var_errmsg("rebuild", __module__))
-                if "backend" in build_kwargs:
-                    raise ValueError(module_level_var_errmsg("backend", __module__))
-                build_kwargs["rebuild"] = rebuild
-                build_kwargs["backend"] = backend
                 stencils[key] = gtscript.stencil(**build_kwargs)(func)
             return stencils[key](*args, **kwargs)
 
