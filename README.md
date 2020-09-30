@@ -160,6 +160,9 @@ PULL=False make build
 - https://github.com/GridTools/gt4py -
   Python package for the DSL language
 
+- https://github.com/VulcanClimateModeling/fv3gfs-wrapper -
+  The wrapper used to drive model runs with both the Fortran and DSL models.
+
 - https://github.com/MeteoSwiss-APN/dawn -
   DSL language compiler using the GridTools parallel execution model
 
@@ -176,9 +179,6 @@ The submodule include:
 - `external/fv3gfs-util` - git@github.com:VulcanClimateModeling/fv3gfs-util.git
 
 
-
-
-
 ## Dockerfiles
 
 There are three main driver files:
@@ -188,6 +188,37 @@ There are three main driver files:
 2. `docker/Dockerfile` - uses the build environment and copies in the fv3 folder only. This is to make development easier so that when you change a file in fv3, 'make build' does not accidentally or otherwise trigger a 20 minute rebuild of all of those installations, but just updates the code in the fv3core image.
 
 
+## Running with fv3gfs-wrapper
+
+To use the python dynamical core for model runs, use use fv3gfs-wrapper. After initializing the submodules, go to `external/fv3gfs-wrapper` and run 
+
+```shell
+$ make build-docker
+```
+
+to generate a docker image for the wrapper. Then go back to the main fv3core directory and run 
+
+```shell
+$ make build_wrapped
+```
+
+to build an fv3core docker image based on the wrapper image. The main way to run the model for now is to then execute `dev_docker.sh` to enter the image interactively. Once inside the image run 
+
+```shell
+$ python setup.py install
+```
+
+to install fv3core as an importable module. Alternatively, you can specify `develop` instead of `install` if you want to edit the fv3core code. To set up a model run, the `write_run_directory` command will create a rundir containing the needed inputs and structure for the model run based on a configuration yaml file:
+
+```shell
+$ write_run_directory path/to/configuration/yaml path/to/rundir
+```
+
+A few example config files are provided in the `fv3config` repository and `fv3core/comparison/wrapped/config`. After the rundir has been created you can link or copy `fv3core/comparison/wrapped/runfiles/fv3core_test.py` to your rundir and run with mpirun:
+
+```shell
+$ mpirun -np X --allow-run-as-root python fv3core_test.py
+```
 
 ## Linting
 
