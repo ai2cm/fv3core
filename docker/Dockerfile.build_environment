@@ -72,5 +72,5 @@ RUN pip install --no-cache-dir --use-feature=2020-resolver -r requirements_hpc.t
 ###
 ENV BOOST_HOME=/usr/local/boost_1_73_0
 ARG CPPFLAGS="-I${BOOST_HOME} -I${BOOST_HOME}/boost"
-RUN pip install --no-cache-dir --use-feature=2020-resolver git+https://github.com/VulcanClimateModeling/gt4py.git@develop[cuda102] && \
+RUN pip install --no-cache-dir --use-feature=2020-resolver git+https://github.com/VulcanClimateModeling/gt4py.git@develop#egg=gt4py[cuda102] && \
     python -m gt4py.gt_src_manager install
