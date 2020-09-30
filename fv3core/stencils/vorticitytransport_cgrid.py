@@ -1,5 +1,10 @@
-import fv3core.utils.gt4py_utils as utils
+import gt4py as gt
+import gt4py.gtscript as gtscript
+import numpy as np
+
 import fv3core._config as spec
+import fv3core.utils.gt4py_utils as utils
+
 
 sd = utils.sd
 origin = utils.origin
@@ -16,7 +21,7 @@ def update_zonal_velocity(
     rdxc: sd,
     dt2: float,
 ):
-    from __splitters__ import i_start, i_end
+    from __splitters__ import i_end, i_start
 
     with computation(PARALLEL), interval(...):
         tmp_flux = dt2 * (velocity - velocity_c * cosa) / sina
@@ -39,7 +44,7 @@ def update_meridional_velocity(
     rdyc: sd,
     dt2: float,
 ):
-    from __splitters__ import j_start, j_end
+    from __splitters__ import j_end, j_start
 
     with computation(PARALLEL), interval(...):
         tmp_flux = dt2 * (velocity - velocity_c * cosa) / sina

@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
-import fv3core.utils.gt4py_utils as utils
 import gt4py.gtscript as gtscript
-import fv3core._config as spec
-from gt4py.gtscript import computation, interval, PARALLEL, FORWARD, BACKWARD
-import fv3core.utils.global_constants as constants
 import numpy as np
+from gt4py.gtscript import BACKWARD, FORWARD, PARALLEL, computation, interval
+
+import fv3core._config as spec
+import fv3core.utils.global_constants as constants
+import fv3core.utils.gt4py_utils as utils
+
 
 sd = utils.sd
 ZVIR = constants.RVGAS / constants.RDGAS - 1.0
@@ -327,7 +329,7 @@ def compute(qvapor, qliquid, qrain, qsnow, qice, qgraupel, qcld, pt, delp, delz,
     # fix_water_vapor_bottom(grid, qvapor, delp)
     upper_fix = utils.make_storage_from_shape(qvapor.shape, origin=(0, 0, 0))
     lower_fix = utils.make_storage_from_shape(qvapor.shape, origin=(0, 0, 0))
-    bot_dp = delp.data[:, :, grid.npz - 1]
+    bot_dp = delp[:, :, grid.npz - 1]
     full_bot_arr = utils.repeat(bot_dp[:, :, np.newaxis], k_ext + 1, axis=2)
     dp_bot = utils.make_storage_data(full_bot_arr, full_bot_arr.shape)
     fix_water_vapor_down(
@@ -339,7 +341,7 @@ def compute(qvapor, qliquid, qrain, qsnow, qice, qgraupel, qcld, pt, delp, delz,
         origin=grid.compute_origin(),
         domain=grid.domain_shape_compute(),
     )
-    qvapor.data[:, :, grid.npz] = upper_fix.data[:, :, 0]
+    qvapor[:, :, grid.npz] = upper_fix[:, :, 0]
     fix_neg_cloud(
         delp, qcld, origin=grid.compute_origin(), domain=grid.domain_shape_compute()
     )

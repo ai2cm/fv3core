@@ -1,9 +1,8 @@
 from typing import Tuple
 
+import fv3gfs.util as fv3util
 import numpy as np
 
-# FYI: 'utils' is mentioned 5 times on the next two lines... :P
-import fv3gfs.util as fv3util
 import fv3core.utils.gt4py_utils as utils
 
 
