@@ -141,4 +141,5 @@ dmypy.json
 **/.gt_cache/
 
 #Run outputs
-copmarison/wrapped/output/
+comparison/wrapped/output/
+comparison/wrapped/plots/
