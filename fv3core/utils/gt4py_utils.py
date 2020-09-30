@@ -4,6 +4,7 @@ import copy
 import functools
 import logging
 import math
+from typing import Callable
 
 import gt4py as gt
 import gt4py.gtscript as gtscript
@@ -53,27 +54,31 @@ def module_level_var_errmsg(var: str, func: str):
     return f"The {var} flag should be set in {loc} instead of as an argument to {func}"
 
 
-def stencil(**stencil_kwargs):
-    def decorator(func):
+def stencil(**stencil_kwargs) -> Callable[..., None]:
+    def decorator(func) -> Callable[..., None]:
         stencils = {}
 
-        build_kwargs = stencil_kwargs.copy()
+        def make_build_kwargs() -> dict:
+            build_kwargs = stencil_kwargs.copy()
 
-        MODULE_NAME = "fv3core.utils.gt4py_utils"
-        if "rebuild" in build_kwargs:
-            raise ValueError(module_level_var_errmsg("rebuild", MODULE_NAME))
-        if "backend" in build_kwargs:
-            raise ValueError(module_level_var_errmsg("backend", MODULE_NAME))
+            MODULE_NAME = "fv3core.utils.gt4py_utils"
+            if "rebuild" in build_kwargs:
+                raise ValueError(module_level_var_errmsg("rebuild", MODULE_NAME))
+            if "backend" in build_kwargs:
+                raise ValueError(module_level_var_errmsg("backend", MODULE_NAME))
 
-        # Add to build_kwargs
-        build_kwargs["rebuild"] = rebuild
-        build_kwargs["backend"] = backend
+            # Add to build_kwargs
+            build_kwargs["rebuild"] = rebuild
+            build_kwargs["backend"] = backend
+
+            return build_kwargs
 
         @functools.wraps(func)
-        def wrapped(*args, **kwargs):
+        def wrapped(*args, **kwargs) -> None:
+            # This uses the module-level globals backend and rebuild (defined above)
             key = (backend, rebuild)
             if key not in stencils:
-                stencils[key] = gtscript.stencil(**build_kwargs)(func)
+                stencils[key] = gtscript.stencil(**make_build_kwargs())(func)
             return stencils[key](*args, **kwargs)
 
         return wrapped
