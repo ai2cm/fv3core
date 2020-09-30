@@ -55,30 +55,26 @@ def module_level_var_errmsg(var: str, func: str):
 
 
 def stencil(**stencil_kwargs) -> Callable[..., None]:
+
+    MODULE_NAME = "fv3core.utils.gt4py_utils"
+    if "rebuild" in stencil_kwargs:
+        raise ValueError(module_level_var_errmsg("rebuild", MODULE_NAME))
+    if "backend" in stencil_kwargs:
+        raise ValueError(module_level_var_errmsg("backend", MODULE_NAME))
+
     def decorator(func) -> Callable[..., None]:
         stencils = {}
-
-        def make_build_kwargs() -> dict:
-            build_kwargs = stencil_kwargs.copy()
-
-            MODULE_NAME = "fv3core.utils.gt4py_utils"
-            if "rebuild" in build_kwargs:
-                raise ValueError(module_level_var_errmsg("rebuild", MODULE_NAME))
-            if "backend" in build_kwargs:
-                raise ValueError(module_level_var_errmsg("backend", MODULE_NAME))
-
-            # Add to build_kwargs
-            build_kwargs["rebuild"] = rebuild
-            build_kwargs["backend"] = backend
-
-            return build_kwargs
 
         @functools.wraps(func)
         def wrapped(*args, **kwargs) -> None:
             # This uses the module-level globals backend and rebuild (defined above)
             key = (backend, rebuild)
             if key not in stencils:
-                stencils[key] = gtscript.stencil(**make_build_kwargs())(func)
+                # add globals to stencil_kwargs
+                stencil_kwargs["rebuild"] = rebuild
+                stencil_kwargs["backend"] = backend
+                # Generate stencil
+                stencils[key] = gtscript.stencil(**stencil_kwargs)(func)
             return stencils[key](*args, **kwargs)
 
         return wrapped
