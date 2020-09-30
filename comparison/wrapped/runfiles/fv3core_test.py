@@ -257,9 +257,11 @@ if __name__ == "__main__":
         origin=origin,
         extent=extent,
     )
+    nq = 6 #why not
 
     turbulent_kinetic_energy.metadata.gt4py_backend = "numpy"
 
+    #Step through time
     for i in range(wrapper.get_step_count()):
         print("STEP IS ", i)
         if i == 0:
@@ -274,9 +276,7 @@ if __name__ == "__main__":
             spec.namelist.npx,
             spec.namelist.npy,
         )
-        # print('HEY! LISTEN!')
-        # print(state['surface_geopotential'].storage.shape)
-        # print(state["vertical_thickness_of_atmospheric_layer"].storage.shape)
+        
         fv3core.fv_dynamics(
             state,
             cube_comm,
@@ -287,6 +287,8 @@ if __name__ == "__main__":
             wrapper.flags.n_split,
             wrapper.flags.ks,
         )
+        fv3core.fv_subgridz(state, nq, dt_atmos)
+
         state = transpose(
             state,
             [Z_DIMS, Y_DIMS, X_DIMS],
@@ -300,8 +302,6 @@ if __name__ == "__main__":
         wrapper.step_physics()
         wrapper.save_intermediate_restart_if_enabled()
     state = wrapper.get_state(allocator=allocator, names=names)
-    # state["time"] = "{0}.{1}".format(spec.namelist.minutes, spec.namelist.seconds)
-    print("HEY!")
-    print(type(state["surface_pressure"]))
+    
     io.write_state(state, "outstate_{0}.nc".format(rank))
     wrapper.cleanup()
