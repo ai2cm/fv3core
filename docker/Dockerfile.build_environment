@@ -57,20 +57,20 @@ RUN git clone -b v2.6.0 --depth 1 https://github.com/GridTools/serialbox.git /us
 FROM $MIDBASE as fv3core-install
 
 ###
-### Build and install GT4Py
-###
-ENV BOOST_HOME=/usr/local/boost_1_73_0
-
-# GT4Py requires a few packages for the build system
-RUN pip install --no-cache-dir --upgrade pip setuptools wheel tox
-
-ARG CPPFLAGS="-I${BOOST_HOME} -I${BOOST_HOME}/boost"
-RUN pip install --no-cache-dir --use-feature=2020-resolver git+https://github.com/VulcanClimateModeling/gt4py.git@develop && python -m gt4py.gt_src_manager install
-
-###
 ### Install fv3core requirements
 ###
 # Copy pinned requirements file
 COPY requirements_hpc.txt requirements_hpc.txt
-
 RUN pip install --no-cache-dir --use-feature=2020-resolver -r requirements_hpc.txt
+
+###
+### Build and install GT4Py
+###
+ENV BOOST_HOME=/usr/local/boost_1_73_0
+
+# GT4Py requirements for the build system and extras
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel tox cupy-cuda102==7.7.0
+
+ARG CPPFLAGS="-I${BOOST_HOME} -I${BOOST_HOME}/boost"
+RUN pip install --no-cache-dir --use-feature=2020-resolver git+https://github.com/VulcanClimateModeling/gt4py.git@develop[cupy-cuda102] && \
+    python -m gt4py.gt_src_manager install
