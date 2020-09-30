@@ -2,9 +2,9 @@ import gt4py.gtscript as gtscript
 from gt4py.gtscript import BACKWARD, PARALLEL, computation, interval
 
 import fv3core._config as spec
-from fv3core.stencils.basic_operations import copy
 import fv3core.utils.global_constants as constants
 import fv3core.utils.gt4py_utils as utils
+from fv3core.stencils.basic_operations import copy
 from fv3core.utils.corners import fill_4corners
 
 

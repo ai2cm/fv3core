@@ -2,10 +2,10 @@
 import numpy as np
 
 import fv3core._config as spec
-from fv3core.stencils.basic_operations import copy
 import fv3core.stencils.sim1_solver as sim1_solver
 import fv3core.utils.global_constants as constants
 import fv3core.utils.gt4py_utils as utils
+from fv3core.stencils.basic_operations import copy
 
 
 sd = utils.sd

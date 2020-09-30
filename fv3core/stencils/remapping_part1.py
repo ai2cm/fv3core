@@ -2,11 +2,11 @@
 from gt4py.gtscript import PARALLEL, computation, interval
 
 import fv3core._config as spec
-from fv3core.stencils.basic_operations import copy_stencil, copy
 import fv3core.stencils.map_single as map_single
 import fv3core.stencils.mapn_tracer as mapn_tracer
 import fv3core.stencils.moist_cv as moist_cv
 import fv3core.utils.gt4py_utils as utils
+from fv3core.stencils.basic_operations import copy, copy_stencil
 
 
 sd = utils.sd

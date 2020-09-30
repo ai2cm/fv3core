@@ -5,9 +5,9 @@ import gt4py.gtscript as gtscript
 from gt4py.gtscript import PARALLEL, computation, interval
 
 import fv3core._config as spec
-from fv3core.stencils.basic_operations import copy_stencil, copy
 import fv3core.stencils.fvtp2d as fvtp2d
 import fv3core.utils.gt4py_utils as utils
+from fv3core.stencils.basic_operations import copy, copy_stencil
 from fv3core.stencils.updatedzd import ra_x_stencil, ra_y_stencil
 
 

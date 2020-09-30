@@ -1,12 +1,14 @@
 import gt4py.gtscript as gtscript
 from gt4py.gtscript import PARALLEL, computation, interval
 
-from fv3core.utils.types import Field, Int3
 import fv3core.utils.gt4py_utils as utils
+from fv3core.utils.types import Field, Int3
+
 
 # The stencils here are compiled for this data type
 DATA_TYPE = float
 DataField = Field[DATA_TYPE]
+
 
 @utils.stencil()
 def copy_stencil(q_in: DataField, q_out: DataField):
@@ -18,6 +20,7 @@ def copy_stencil(q_in: DataField, q_out: DataField):
     """
     with computation(PARALLEL), interval(...):
         q_out = q_in
+
 
 def copy(q_in: DataField, *, origin: Int3 = (0, 0, 0), domain: Int3 = None):
     """Copy q_in to a field returned.
