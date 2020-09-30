@@ -18,6 +18,8 @@ try:
 except ImportError:
     cp = None
 
+MODULE_NAME = "fv3core.utils.gt4py_utils"
+
 logger = logging.getLogger("fv3ser")
 backend = None  # Options: numpy, gtmc, gtx86, gtcuda, debug, dawn:gtmc
 rebuild = True
@@ -55,8 +57,6 @@ def module_level_var_errmsg(var: str, func: str):
 
 
 def stencil(**stencil_kwargs) -> Callable[..., None]:
-
-    MODULE_NAME = "fv3core.utils.gt4py_utils"
     if "rebuild" in stencil_kwargs:
         raise ValueError(module_level_var_errmsg("rebuild", MODULE_NAME))
     if "backend" in stencil_kwargs:
