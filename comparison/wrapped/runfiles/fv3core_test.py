@@ -257,9 +257,30 @@ if __name__ == "__main__":
         origin=origin,
         extent=extent,
     )
-    nq = 6 #why not
+    u_tendency = Quantity.from_data_array(
+        xr.DataArray(
+            arr.reshape((spec.namelist.npx + 6, spec.namelist.npy + 6, spec.namelist.npz + 1)),
+            attrs={"fortran_name": "u_dt", "units": "m/s**2"},
+            dims=["x", "y", "z"],
+        ),
+        origin=(3,3,0),
+        extent=(spec.namelist.npx -1, spec.namelist.npy - 1, spec.namelist.npz),
+    )
+    v_tendency = Quantity.from_data_array(
+        xr.DataArray(
+            arr.reshape((spec.namelist.npx + 6, spec.namelist.npy + 6, spec.namelist.npz + 1)),
+            attrs={"fortran_name": "v_dt", "units": "m/s**2"},
+            dims=["x", "y", "z"],
+        ),
+        origin=(3,3,0),
+        extent=(spec.namelist.npx -1, spec.namelist.npy - 1, spec.namelist.npz),
+    )
 
     turbulent_kinetic_energy.metadata.gt4py_backend = "numpy"
+    u_tendency.metadata.gt4py_backend = "numpy"
+    v_tendency.metadata.gt4py_backend = "numpy"
+
+    nq = 6 #why not
 
     #Step through time
     for i in range(wrapper.get_step_count()):
@@ -287,6 +308,13 @@ if __name__ == "__main__":
             wrapper.flags.n_split,
             wrapper.flags.ks,
         )
+
+        #zero out tendencies
+        # state["eastward_wind_tendency"].data[:] = arr.reshape((arr.shape[2], arr.shape[1], arr.shape[0]))
+        # state["northward_wind_tendency"].data[:] = arr.reshape((arr.shape[2], arr.shape[1], arr.shape[0]))
+
+        state["eastward_wind_tendency"] = u_tendency
+        state["northward_wind_tendency"] = v_tendency
         fv3core.fv_subgridz(state, nq, dt_atmos)
 
         state = transpose(
