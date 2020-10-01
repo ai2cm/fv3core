@@ -58,15 +58,14 @@ def stencil(**stencil_kwargs):
         stencils = {}
 
         @functools.wraps(func)
-        def wrapped(*args, **kwargs):
+        def wrapped(*args, **kwargs) -> None:
+            # This uses the module-level globals backend and rebuild (defined above)
             key = (backend, rebuild)
             if key not in stencils:
-                if "rebuild" in stencil_kwargs:
-                    raise ValueError(module_level_var_errmsg("rebuild", __module__))
-                if "backend" in stencil_kwargs:
-                    raise ValueError(module_level_var_errmsg("backend", __module__))
+                # Add globals to stencil_kwargs
                 stencil_kwargs["rebuild"] = rebuild
                 stencil_kwargs["backend"] = backend
+                # Generate stencil
                 stencils[key] = gtscript.stencil(**stencil_kwargs)(func)
             kwargs["exec_info"] = {}
             kwargs["validate_args"] = False
