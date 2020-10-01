@@ -188,22 +188,14 @@ def xt_dxa_edge_0(q, dxa, xt_minmax):
     minq = 0.0
     maxq = 0.0
     if xt_minmax:
-        # minq = min(q[-1, 0, 0], q)
-        # minq = min(minq, q[1, 0, 0])
-        # minq = min(minq, q[2, 0, 0])
-        # maxq = max(q[-1, 0, 0], q)
-        # maxq = max(maxq, q[1, 0, 0])
-        # maxq = max(maxq, q[2, 0, 0])
-        # xt = max(xt, minq)
-        # xt = min(xt, maxq)
-        minq = q[-1, 0, 0] if q[-1, 0, 0] < q else q
-        minq = minq if minq < q[1, 0, 0] else q[1, 0, 0]
-        minq = minq if minq < q[2, 0, 0] else q[2, 0, 0]
-        maxq = q[-1, 0, 0] if q[-1, 0, 0] > q else q
-        maxq = maxq if maxq > q[1, 0, 0] else q[1, 0, 0]
-        maxq = maxq if maxq > q[2, 0, 0] else q[2, 0, 0]
-        xt = xt if xt > minq else minq
-        xt = xt if xt < maxq else maxq
+        minq = min(q[-1, 0, 0], q)
+        minq = min(minq, q[1, 0, 0])
+        minq = min(minq, q[2, 0, 0])
+        maxq = max(q[-1, 0, 0], q)
+        maxq = max(maxq, q[1, 0, 0])
+        maxq = max(maxq, q[2, 0, 0])
+        xt = max(xt, minq)
+        xt = min(xt, maxq)
     return xt
 
 
@@ -213,22 +205,14 @@ def xt_dxa_edge_1(q, dxa, xt_minmax):
     minq = 0.0
     maxq = 0.0
     if xt_minmax:
-        # minq = min(q[-2, 0, 0], q[-1, 0, 0])
-        # minq = min(minq, q)
-        # minq = min(minq, q[1, 0, 0])
-        # maxq = max(q[-2, 0, 0], q[-1, 0, 0])
-        # maxq = max(maxq, q)
-        # maxq = max(maxq, q[1, 0, 0])
-        # xt = max(xt, minq)
-        # xt = min(xt, maxq)
-        minq = q[-2, 0, 0] if q[-2, 0, 0] < q[-1, 0, 0] else q[-1, 0, 0]
-        minq = minq if minq < q else q
-        minq = minq if minq < q[1, 0, 0] else q[1, 0, 0]
-        maxq = q[-2, 0, 0] if q[-2, 0, 0] > q[-1, 0, 0] else q[-1, 0, 0]
-        maxq = maxq if maxq > q else q
-        maxq = maxq if maxq > q[1, 0, 0] else q[1, 0, 0]
-        xt = xt if xt > minq else minq
-        xt = xt if xt < maxq else maxq
+        minq = min(q[-2, 0, 0], q[-1, 0, 0])
+        minq = min(minq, q)
+        minq = min(minq, q[1, 0, 0])
+        maxq = max(q[-2, 0, 0], q[-1, 0, 0])
+        maxq = max(maxq, q)
+        maxq = max(maxq, q[1, 0, 0])
+        xt = max(xt, minq)
+        xt = min(xt, maxq)
     return xt
 
 
