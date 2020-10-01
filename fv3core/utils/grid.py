@@ -1,6 +1,7 @@
-import fv3core.utils.gt4py_utils as utils
-import numpy as np
 import fv3gfs.util as fv3util
+import numpy as np
+
+import fv3core.utils.gt4py_utils as utils
 
 
 class Grid:
@@ -83,6 +84,15 @@ class Grid:
                 self.sizer, backend=utils.backend
             )
         return self._quantity_factory
+
+    @property
+    def splitters(self):
+        return {
+            "i_start": self.is_ - self.global_is,
+            "i_end": self.npx + self.halo - 2 - self.global_is,
+            "j_start": self.js - self.global_js,
+            "j_end": self.npy + self.halo - 2 - self.global_js,
+        }
 
     def make_quantity(
         self,

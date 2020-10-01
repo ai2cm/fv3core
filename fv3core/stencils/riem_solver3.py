@@ -1,13 +1,16 @@
 #!/usr/bin/env python3
-import fv3core.utils.gt4py_utils as utils
-import fv3core._config as spec
-import fv3core.utils.global_constants as constants
-import numpy as np
-import fv3core.stencils.sim1_solver as sim1_solver
-import fv3core.stencils.copy_stencil as cp
-import fv3core.stencils.basic_operations as basic
 import math
+
+import numpy as np
+
+import fv3core._config as spec
 import fv3core.decorators as decorators
+import fv3core.stencils.basic_operations as basic
+import fv3core.stencils.copy_stencil as cp
+import fv3core.stencils.sim1_solver as sim1_solver
+import fv3core.utils.global_constants as constants
+import fv3core.utils.gt4py_utils as utils
+
 
 sd = utils.sd
 
@@ -46,13 +49,12 @@ def precompute(
             peg = peg[0, 0, -1] + dm[0, 0, -1] * (1.0 - q_con[0, 0, -1])
             pelng = log(peg)
             pk3 = exp(akap * peln)
-    with computation(PARALLEL), interval(0, -1):
-        dz = zh[0, 0, 1] - zh
     with computation(PARALLEL), interval(...):
-        gm = 1.0 / (1 - cp3)
+        gm = 1.0 / (1.0 - cp3)
         dm = dm * rgrav
     with computation(PARALLEL), interval(0, -1):
         pm = (peg[0, 0, 1] - peg) / (pelng[0, 0, 1] - pelng)
+        dz = zh[0, 0, 1] - zh
 
 
 @utils.stencil()
@@ -75,6 +77,7 @@ def finalize(
     pem: sd,
     pe: sd,
     ppe: sd,
+    pe_init: sd,
     last_call: bool,
 ):
     with computation(PARALLEL), interval(...):
@@ -88,6 +91,8 @@ def finalize(
             peln = peln_run
             pk = pk3
             pe = pem
+        else:
+            pe = pe_init
     with computation(BACKWARD):
         with interval(-1, None):
             zh = zs
@@ -128,6 +133,7 @@ def compute(
     riemorigin = (grid.is_, grid.js, 0)
     dm = cp.copy(delp, (0, 0, 0))
     cp3 = cp.copy(cappa, (0, 0, 0))
+    pe_init = cp.copy(pe, (0, 0, 0))
     pm = utils.make_storage_from_shape(shape, riemorigin)
     pem = utils.make_storage_from_shape(shape, riemorigin)
     peln_run = utils.make_storage_from_shape(shape, riemorigin)
@@ -184,6 +190,7 @@ def compute(
         pem,
         pe,
         ppe,
+        pe_init,
         last_call,
         origin=riemorigin,
         domain=domain,

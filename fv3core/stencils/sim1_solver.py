@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
-import fv3core.utils.gt4py_utils as utils
 import gt4py as gt
 import gt4py.gtscript as gtscript
-import fv3core._config as spec
-import fv3core.utils.global_constants as constants
 import numpy as np
+from gt4py.gtscript import PARALLEL, computation, interval
+
+import fv3core._config as spec
 import fv3core.stencils.copy_stencil as cp
-from gt4py.gtscript import computation, interval, PARALLEL
+import fv3core.utils.global_constants as constants
+import fv3core.utils.gt4py_utils as utils
+
 
 sd = utils.sd
 
@@ -38,7 +40,7 @@ def sim1_solver(
     with computation(PARALLEL), interval(...):
         pe = exp(gm * log(-dm / dz * constants.RDGAS * ptr)) - pm
         w1 = w
-    with computation(PARALLEL):
+    with computation(FORWARD):
         with interval(0, -2):
             g_rat = dm / dm[0, 0, 1]
             bb = 2.0 * (1.0 + g_rat)

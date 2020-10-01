@@ -1,17 +1,18 @@
 # FV3core
 
-FV3core is a Python version, using GT4Py with Dawn, of the FV3 dynamical core (fv3gfs-fortran repo).
+FV3core is a Python version, using GT4Py with CPU and GPU backend options, of the FV3 dynamical core (fv3gfs-fortran repo).
 The code here includes regression test data of computation units coming from serialized output from the Fortran model generated using the `GridTools/serialbox` framework.
 
 
 ## Getting started
 
-Use the `tests` target of the Makefile to run the unit tests
+Use the `tests` target of the Makefile to run the unit tests.
 
 ```shell
 $ make tests
 ```
-This will pull the test data from the Google storage bucket (using the `make get_test_data') `if it does not exist locally yet, build the fv3core docker image, and run all of the seqential tests using that image.
+This will pull the test data from the Google storage bucket (using the `make get_test_data`) if it does not exist locally yet, build the fv3core docker image, and run all of the sequential tests using that image.
+
 See the [Unit Testing]() section below for options.
 
 If you'd like to run MPI parallel tests (which are needed for parts of the code with halo updates), run
@@ -42,7 +43,7 @@ e.g.
 ```shell
 $EXPERIMENT=c48_6ranks_standard make tests
 ```
-
+If you choose an experiment with a different number of ranks than 6, also set `NUM_RANKS=<num ranks>`
 
 ## Running tests  inside a container
 
@@ -121,7 +122,9 @@ $ git grep <stencil_name> <checkout of fv3gfs-fortran>
 
 2. Create a `translate` class from the serialized save-point data to a call to the stencil or function that calls the relevant stencil(s).
 
-These are usually named `fv3/translate/translate_<lowercase name>`
+These are usually named `tests/translate/translate_<lowercase name>`
+
+Import this class in the `tests/translate/__init__.py` file
 
 3. Write a Python function wrapper that the translate function (created above) calls.
 
@@ -219,20 +222,21 @@ A few example config files are provided in the `fv3config` repository and `fv3co
 ```shell
 $ mpirun -np X --allow-run-as-root python fv3core_test.py
 ```
+## Development
 
-## Linting
+Requirements for developing fv3core have pinned versions in `requirements.txt`, and should be installed.
+This adds `pre-commit`, which we use to lint and enforce style on the code.
+After changing files and before pushing, run `pre-commit run` or equivalently `make lint` to ensure changes conform to the style.
+The `pre-commit` command can also be installed as a pre-commit git hook, to ensure tests pass before committing code.
 
-Before committing your code, you can automatically fix many common style linting errors by running
-
-```shell
-$ make reformat
+```bash
+$ pip install -r requirements.txt
+... installs packages...
+$ pre-commit install
+pre-commit installed at .git/hooks/pre-commit
 ```
 
-To list linting issues
-
-```shell
-$ make lint
-```
+As a convenience, the `lint` target of the top-level makefile executes `pre-commit run --all-files`.
 
 ## License
 

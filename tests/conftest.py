@@ -1,17 +1,20 @@
-import pytest
+import collections
+import os
 import sys
 import warnings
-import os
+
+import fv3gfs.util as fv3util
+import pytest
+import translate
+
 import fv3core
 import fv3core._config
 import fv3core.utils.gt4py_utils
-import translate
-import collections
-import fv3gfs.util as fv3util
 from fv3core.utils.mpi import MPI
 
+
 # get MPI environment
-sys.path.append("/usr/src/serialbox/install/python")  # noqa
+sys.path.append("/usr/local/python")  # noqa
 import serialbox
 
 
@@ -200,8 +203,7 @@ def check_savepoint_counts(test_name, input_savepoints, output_savepoints):
             f"number of input and output savepoints not equal for {test_name}:"
             f" {len(input_savepoints)} in and {len(output_savepoints)} out"
         )
-    elif len(input_savepoints) == 0:
-        warnings.warn(f"no savepoints found for {test_name}")
+    assert len(input_savepoints) > 0, f"no savepoints found for {test_name}"
 
 
 def mock_parallel_savepoint_cases(metafunc, data_path):
