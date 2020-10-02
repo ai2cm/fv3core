@@ -24,6 +24,7 @@ logger = logging.getLogger("fv3ser")
 backend = None  # Options: numpy, gtmc, gtx86, gtcuda, debug, dawn:gtmc
 rebuild = True
 managed_memory = True
+stencil_infos = {}
 _dtype = np.float_
 sd = gtscript.Field[_dtype]
 si = gtscript.Field[np.int_]
@@ -74,7 +75,9 @@ def stencil(**stencil_kwargs) -> Callable[..., None]:
                 stencil_kwargs["rebuild"] = rebuild
                 stencil_kwargs["backend"] = backend
                 # Generate stencil
-                stencils[key] = gtscript.stencil(**stencil_kwargs)(func)
+                build_info = {}
+                stencils[key] = gtscript.stencil(build_info=build_info, **stencil_kwargs)(func)
+                stencil_infos[build_info["def_ir"].name] = build_info
             return stencils[key](*args, **kwargs)
 
         return wrapped
