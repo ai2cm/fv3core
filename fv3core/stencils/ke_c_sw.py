@@ -8,9 +8,6 @@ import fv3core.utils.gt4py_utils as utils
 sd = utils.sd
 
 
-# Vorticity and kinetic energy field computations
-
-
 @utils.stencil()
 def update_vorticity_and_kinetic_energy(
     ke: sd,
@@ -34,21 +31,20 @@ def update_vorticity_and_kinetic_energy(
     from __splitters__ import i_start, i_end, j_start, j_end
 
     with computation(PARALLEL), interval(...):
-        # copy_values
         ke = uc if ua > 0.0 else uc[1, 0, 0]
         vort = vc if va > 0.0 else vc[0, 1, 0]
 
-        # update_vorticity
-        with parallel(region[:, j_start], region[:, j_end + 1]):
-            vort = vort * sin_sg4 + u[0, 1, 0] * cos_sg4 if va <= 0.0 else vort
-        with parallel(region[:, j_start + 1], region[:, j_end + 2]):
-            vort = vort * sin_sg2 + u * cos_sg2 if va > 0.0 else vort
+        if __INLINED(spec.namelist.grid_type < 3):
+            # additional assumption: not __INLINED(spec.grid.nested)
+            with parallel(region[:, j_start], region[:, j_end + 1]):
+                vort = vort * sin_sg4 + u[0, 1, 0] * cos_sg4 if va <= 0.0 else vort
+            with parallel(region[:, j_start + 1], region[:, j_end + 2]):
+                vort = vort * sin_sg2 + u * cos_sg2 if va > 0.0 else vort
 
-        # update_ke_edges
-        with parallel(region[i_end + 1, :], region[i_start, :]):
-            ke = ke * sin_sg3 + v[1, 0, 0] * cos_sg3 if ua <= 0.0 else ke
-        with parallel(region[i_end + 2, :], region[i_start + 1, :]):
-            ke = ke * sin_sg1 + v * cos_sg1 if ua > 0.0 else ke
+            with parallel(region[i_end + 1, :], region[i_start, :]):
+                ke = ke * sin_sg3 + v[1, 0, 0] * cos_sg3 if ua <= 0.0 else ke
+            with parallel(region[i_end + 2, :], region[i_start + 1, :]):
+                ke = ke * sin_sg1 + v * cos_sg1 if ua > 0.0 else ke
 
         ke = 0.5 * dt2 * (ua * ke + va * vort)
 
