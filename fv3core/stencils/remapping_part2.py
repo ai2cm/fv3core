@@ -150,7 +150,7 @@ def compute(
             )
             # dtmp = consv * g_sum(te_2d, grid.area_64)  # global mpi step
             # dtmp = dtmp / (constants.CV_AIR * g_sum(zsum1, grid.area_64))
-            dtmp = 1.0929569463050134e-06  # TODO hardcode into fortran side with GT4PY_DEV and replace the value here
+            raise NotImplementedError("We do not support consv_te > 0.001 because that would trigger an allReduce")
             # E_Flux = dtmp / (constants.GRAV * pdt * 4. * constants.PI * constants.RADIUS**2)
         elif consv < -constants.CONSV_MIN:
             sum_z1(
