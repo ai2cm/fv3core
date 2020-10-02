@@ -28,31 +28,25 @@ def update_vorticity(
     with computation(PARALLEL):
         with interval(...):
             # update_vorticity_outer_edge_values (if grid.south_edge)
-            vort = vort * sin_sg4 + u[0, 1, 0] * cos_sg4 if va <= 0.0 else vort
-
-            # update_vorticity_edge_values (if grid.south_edge)
-            with parallel(region[:, j_start + 1 :]):
-                vort = vort * sin_sg2 + u * cos_sg2 if va > 0.0 else vort
-
-            # update_vorticity_outer_edge_values (if grid.north_edge)
-            with parallel(region[:, j_end:]):
+            with parallel(region[:, j_start], region[:, j_end + 1]):
                 vort = vort * sin_sg4 + u[0, 1, 0] * cos_sg4 if va <= 0.0 else vort
 
-            # update_vorticity_edge_values (if grid.north_edge)
-            with parallel(region[:, j_end + 1 :]):
+            # update_vorticity_edge_values (if grid.south_edge)
+            with parallel(region[:, j_start + 1], region[:, j_end + 2]):
                 vort = vort * sin_sg2 + u * cos_sg2 if va > 0.0 else vort
 
 
-@utils.stencil()
-def update_vorticity_edge_values(vort: sd, va: sd, u: sd, sin: sd, cos: sd):
-    with computation(PARALLEL), interval(...):
-        vort[0, 0, 0] = vort * sin + u * cos if va > 0.0 else vort
+
+# @utils.stencil()
+# def update_vorticity_edge_values(vort: sd, va: sd, u: sd, sin: sd, cos: sd):
+#     with computation(PARALLEL), interval(...):
+#         vort[0, 0, 0] = vort * sin + u * cos if va > 0.0 else vort
 
 
-@utils.stencil()
-def update_vorticity_outer_edge_values(vort: sd, va: sd, u: sd, sin: sd, cos: sd):
-    with computation(PARALLEL), interval(...):
-        vort[0, 0, 0] = vort * sin + u[0, 1, 0] * cos if va <= 0.0 else vort
+# @utils.stencil()
+# def update_vorticity_outer_edge_values(vort: sd, va: sd, u: sd, sin: sd, cos: sd):
+#     with computation(PARALLEL), interval(...):
+#         vort[0, 0, 0] = vort * sin + u[0, 1, 0] * cos if va <= 0.0 else vort
 
 
 # Kinetic energy field computations
@@ -100,16 +94,19 @@ def update_ke_outer_edge_values(ke: sd, ua: sd, v: sd, sin: sd, cos: sd):
 def compute(uc, vc, u, v, ua, va, dt2):
     grid = spec.grid
     origin = (grid.is_ - 1, grid.js - 1, 0)
+    domain = (grid.nic + 2, grid.njc + 2, grid.npz)
 
     # Create storage objects to hold the new vorticity and kinetic energy values
     ke_c = utils.make_storage_from_shape(uc.shape, origin=origin)
     vort_c = utils.make_storage_from_shape(vc.shape, origin=origin)
 
     # Set vorticity and kinetic energy values (ignoring edge values)
-    copy_domain = (grid.nic + 2, grid.njc + 2, grid.npz)
-    copy_values(ke_c, uc, ua, vort_c, vc, va, origin=origin, domain=copy_domain)
+    copy_values(ke_c, uc, ua, vort_c, vc, va, origin=origin, domain=domain)
 
-    vort_domain = (grid.ie + 1, 1, grid.npz)
+    ke_domain = (1, grid.je + 2, grid.npz)
+
+    # do_regions = False
+    # if do_regions:
     update_vorticity(
         vort_c,
         va,
@@ -119,12 +116,11 @@ def compute(uc, vc, u, v, ua, va, dt2):
         grid.sin_sg4,
         grid.cos_sg4,
         origin=origin,
-        domain=vort_domain,
+        domain=domain,
         splitters=grid.splitters,
     )
-
-    # If we are NOT using a nested grid configuration, then edge values need to be evaluated separately
-    # if spec.namelist.grid_type < 3 and not grid.nested:
+    # else:
+    # vort_domain = (grid.ie + 1, 1, grid.npz)
     # if grid.south_edge:
     #     update_vorticity_outer_edge_values(
     #         vort_c,
@@ -165,59 +161,60 @@ def compute(uc, vc, u, v, ua, va, dt2):
     #         domain=vort_domain,
     #     )
 
-    ke_domain = (1, grid.je + 2, grid.npz)
-    update_ke_edges(
-        ke_c,
-        ua,
-        v,
-        grid.sin_sg1,
-        grid.cos_sg1,
-        grid.sin_sg3,
-        grid.cos_sg3,
-        origin=origin,
-        domain=ke_domain,
-        splitters=grid.splitters,
-    )
+    do_regions = False
+    if do_regions:
+        update_ke_edges(
+            ke_c,
+            ua,
+            v,
+            grid.sin_sg1,
+            grid.cos_sg1,
+            grid.sin_sg3,
+            grid.cos_sg3,
+            origin=origin,
+            domain=ke_domain,
+            splitters=grid.splitters,
+        )
+    else:
+        if grid.east_edge:
+            update_ke_outer_edge_values(
+                ke_c,
+                ua,
+                v,
+                grid.sin_sg3,
+                grid.cos_sg3,
+                origin=(grid.ie, grid.js - 1, 0),
+                domain=ke_domain,
+            )
+            update_ke_edge_values(
+                ke_c,
+                ua,
+                v,
+                grid.sin_sg1,
+                grid.cos_sg1,
+                origin=(grid.ie + 1, grid.js - 1, 0),
+                domain=ke_domain,
+            )
 
-    # if grid.east_edge:
-    #     update_ke_outer_edge_values(
-    #         ke_c,
-    #         ua,
-    #         v,
-    #         grid.sin_sg3,
-    #         grid.cos_sg3,
-    #         origin=(grid.ie, grid.js - 1, 0),
-    #         domain=ke_domain,
-    #     )
-    #     update_ke_edge_values(
-    #         ke_c,
-    #         ua,
-    #         v,
-    #         grid.sin_sg1,
-    #         grid.cos_sg1,
-    #         origin=(grid.ie + 1, grid.js - 1, 0),
-    #         domain=ke_domain,
-    #     )
-
-    # if grid.west_edge:
-    #     update_ke_outer_edge_values(
-    #         ke_c,
-    #         ua,
-    #         v,
-    #         grid.sin_sg3,
-    #         grid.cos_sg3,
-    #         origin=(grid.is_ - 1, grid.js - 1, 0),
-    #         domain=ke_domain,
-    #     )
-    #     update_ke_edge_values(
-    #         ke_c,
-    #         ua,
-    #         v,
-    #         grid.sin_sg1,
-    #         grid.cos_sg1,
-    #         origin=(grid.is_, grid.js - 1, 0),
-    #         domain=ke_domain,
-    #     )
+        if grid.west_edge:
+            update_ke_outer_edge_values(
+                ke_c,
+                ua,
+                v,
+                grid.sin_sg3,
+                grid.cos_sg3,
+                origin=(grid.is_ - 1, grid.js - 1, 0),
+                domain=ke_domain,
+            )
+            update_ke_edge_values(
+                ke_c,
+                ua,
+                v,
+                grid.sin_sg1,
+                grid.cos_sg1,
+                origin=(grid.is_, grid.js - 1, 0),
+                domain=ke_domain,
+            )
 
     # Update kinetic energy field using computed vorticity
     update_kinetic_energy(
@@ -227,6 +224,6 @@ def compute(uc, vc, u, v, ua, va, dt2):
         va,
         dt2,
         origin=origin,
-        domain=(grid.nic + 2, grid.njc + 2, grid.npz),
+        domain=domain,
     )
     return ke_c, vort_c
