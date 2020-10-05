@@ -2,7 +2,7 @@
 import logging
 
 import gt4py.gtscript as gtscript
-from gt4py.gtscript import PARALLEL, computation, interval
+from gt4py.gtscript import PARALLEL, computation, interval, parallel, region
 
 import fv3core._config as spec
 import fv3core.stencils.basic_operations as basic
@@ -411,7 +411,7 @@ def damp_vertical_wind(w, heat_s, diss_e, dt, column_namelist):
 
 @utils.stencil()
 def ubke(
-    uc: sd, vc: sd, cosa: sd, rsina: sd, ut: sd, ub: sd, *, dt4: float, dt5: float
+    uc: sd, vc: sd, cosa: sd, rsina: sd, ut: sd, ub: sd, dt4: float, dt5: float
 ):
     from __splitters__ import i_end, i_start, j_end, j_start
 

@@ -67,10 +67,8 @@ from .translate_riem_solver_c import TranslateRiem_Solver_C
 from .translate_satadjust3d import TranslateSatAdjust3d
 from .translate_tracer2d1l import TranslateTracer2D1L
 from .translate_transportdelp import TranslateTransportDelp
-from .translate_ubke import TranslateUbKE
 from .translate_updatedzc import TranslateUpdateDzC
 from .translate_updatedzd import TranslateUpdateDzD
-from .translate_vbke import TranslateVbKE
 from .translate_vorticitytransport_cgrid import TranslateVorticityTransport_Cgrid
 from .translate_vorticityvolumemean import TranslateVorticityVolumeMean
 from .translate_wdivergence import TranslateWdivergence
