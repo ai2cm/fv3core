@@ -1,18 +1,24 @@
 #!/usr/bin/env python3
 
-import numpy as np
+import copy
+import functools
+import logging
+import math
+from typing import Callable
+
 import gt4py as gt
 import gt4py.gtscript as gtscript
-import copy
-import math
-import logging
-import functools
+import numpy as np
+
 from fv3core.utils.mpi import MPI
+
 
 try:
     import cupy as cp
 except ImportError:
     cp = None
+
+MODULE_NAME = "fv3core.utils.gt4py_utils"
 
 logger = logging.getLogger("fv3ser")
 backend = None  # Options: numpy, gtmc, gtx86, gtcuda, debug, dawn:gtmc
@@ -45,17 +51,30 @@ def quantity_name(name):
     return name + "_quantity"
 
 
-def stencil(**stencil_kwargs):
-    def decorator(func):
+def module_level_var_errmsg(var: str, func: str):
+    loc = f"fv3core.utils.gt4py_utils.{var}"
+    return f"The {var} flag should be set in {loc} instead of as an argument to {func}"
+
+
+def stencil(**stencil_kwargs) -> Callable[..., None]:
+    if "rebuild" in stencil_kwargs:
+        raise ValueError(module_level_var_errmsg("rebuild", MODULE_NAME))
+    if "backend" in stencil_kwargs:
+        raise ValueError(module_level_var_errmsg("backend", MODULE_NAME))
+
+    def decorator(func) -> Callable[..., None]:
         stencils = {}
 
         @functools.wraps(func)
-        def wrapped(*args, **kwargs):
+        def wrapped(*args, **kwargs) -> None:
+            # This uses the module-level globals backend and rebuild (defined above)
             key = (backend, rebuild)
             if key not in stencils:
-                stencils[key] = gtscript.stencil(
-                    backend=backend, rebuild=rebuild, **stencil_kwargs
-                )(func)
+                # Add globals to stencil_kwargs
+                stencil_kwargs["rebuild"] = rebuild
+                stencil_kwargs["backend"] = backend
+                # Generate stencil
+                stencils[key] = gtscript.stencil(**stencil_kwargs)(func)
             return stencils[key](*args, **kwargs)
 
         return wrapped
