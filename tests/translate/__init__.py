@@ -7,9 +7,9 @@ from .translate_c_sw import TranslateC_SW
 from .translate_circulation_cgrid import TranslateCirculation_Cgrid
 from .translate_compute_total_energy import TranslateComputeTotalEnergy
 from .translate_copycorners import TranslateCopyCorners
-from .translate_d_sw import TranslateD_SW, TranslateUbKE, TranslateVbKE
 from .translate_cubedtolatlon import TranslateCubedToLatLon
 from .translate_d2a2c_vect import TranslateD2A2C_Vect
+from .translate_d_sw import TranslateD_SW, TranslateUbKE, TranslateVbKE
 from .translate_del2cubed import TranslateDel2Cubed
 from .translate_del6vtflux import TranslateDel6VtFlux
 from .translate_delnflux import TranslateDelnFlux, TranslateDelnFlux_2

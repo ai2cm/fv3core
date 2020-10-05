@@ -12,9 +12,6 @@ import fv3core.stencils.flux_capacitor as fluxcap
 import fv3core.stencils.fvtp2d as fvtp2d
 import fv3core.stencils.fxadv as fxadv
 import fv3core.stencils.heatdiss as heatdiss
-import fv3core.stencils.ytp_v as ytp_v
-import fv3core.stencils.xtp_u as xtp_u
-import fv3core.stencils.basic_operations as basic
 import fv3core.stencils.vorticity_volumemean as vort_mean
 import fv3core.stencils.xtp_u as xtp_u
 import fv3core.stencils.ytp_v as ytp_v
@@ -416,7 +413,7 @@ def damp_vertical_wind(w, heat_s, diss_e, dt, column_namelist):
 def ubke(
     uc: sd, vc: sd, cosa: sd, rsina: sd, ut: sd, ub: sd, *, dt4: float, dt5: float
 ):
-    from __splitters__ import i_start, i_end, j_start, j_end
+    from __splitters__ import i_end, i_start, j_end, j_start
 
     with computation(PARALLEL), interval(...):
         ub[0, 0, 0] = dt5 * (uc[0, -1, 0] + uc - (vc[-1, 0, 0] + vc) * cosa) * rsina
@@ -430,7 +427,7 @@ def ubke(
 
 @utils.stencil()
 def vbke(vc: sd, uc: sd, cosa: sd, rsina: sd, vt: sd, vb: sd, dt4: float, dt5: float):
-    from __splitters__ import i_start, i_end, j_start, j_end
+    from __splitters__ import i_end, i_start, j_end, j_start
 
     with computation(PARALLEL), interval(...):
         vb[0, 0, 0] = dt5 * (vc[-1, 0, 0] + vc - (uc[0, -1, 0] + uc) * cosa) * rsina
