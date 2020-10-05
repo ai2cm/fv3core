@@ -320,7 +320,7 @@ class Grid:
     def domain_shape_compute(self):
         return (self.nic, self.njc, self.npz)
 
-    def domain_shape_compute_buffer_2d(self, add: Tuple[int, int, int] = (0, 0, 0)):
+    def domain_shape_compute_buffer_2d(self, add: Tuple[int, int, int] = (1, 1, 0)):
         return (self.nic + add[0], self.njc + add[1], self.npz + add[2])
 
     def domain_shape_compute_buffer_k(self):
