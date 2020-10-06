@@ -6,7 +6,6 @@ from gt4py.gtscript import PARALLEL, computation, interval
 import fv3core.utils.gt4py_utils as utils
 
 
-Int3 = Tuple[int, int, int]
 sd = utils.sd
 
 
@@ -22,7 +21,12 @@ def copy_stencil(q_in: sd, q_out: sd):
         q_out = q_in
 
 
-def copy(q_in: sd, *, origin: Int3 = (0, 0, 0), domain: Union[Int3, None] = None):
+def copy(
+    q_in: sd,
+    *,
+    origin: Tuple[int, int, int] = (0, 0, 0),
+    domain: Union[Tuple[int, int, int], None] = None,
+):
     """Copy q_in to a field returned.
 
     Args:
@@ -31,7 +35,7 @@ def copy(q_in: sd, *, origin: Int3 = (0, 0, 0), domain: Union[Int3, None] = None
         domain: Extent to copy
 
     Returns:
-        types.Field[float]: Copied field
+        gtscript.Field[float]: Copied field
     """
     q_out = utils.make_storage_from_shape(q_in.shape, origin)
     copy_stencil(q_in, q_out, origin=origin, domain=domain)
