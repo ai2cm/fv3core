@@ -299,8 +299,6 @@ def set_inner_as_kord9(
         tmp_max = a4_2
         tmp_max0 = a4_1
         diff_23 = 0.0
-        abs_a44 = 0.0
-        abs_diff23 = 0.0
         if extm and extm[0, 0, -1]:
             a4_2 = a4_1
             a4_3 = a4_1
@@ -315,10 +313,8 @@ def set_inner_as_kord9(
             a4_4 = 0.0
         else:
             diff_23 = a4_2 - a4_3
-            abs_diff23 = diff_23 if diff_23 > 0 else -diff_23
             a4_4 = 6.0 * a4_1 - 3.0 * (a4_2 + a4_3)
-            abs_a44 = a4_4 if a4_4 > 0 else -a4_4
-            if abs_a44 > abs_diff23:
+            if abs(a4_4) > abs(diff_23):
                 tmp_min = (
                     a4_1
                     if (a4_1 < pmp_1) and (a4_1 < lac_1)

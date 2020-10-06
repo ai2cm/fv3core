@@ -350,7 +350,6 @@ def north_edge_jord8plus_2(q: sd, dya: sd, dm: sd, bl: sd, br: sd, xt_minmax: bo
 def pert_ppm_positive_definite_constraint(a0: sd, al: sd, ar: sd, r12: float):
     with computation(PARALLEL), interval(...):
         da1 = 0.0
-        absda1 = 0.0
         a4 = 0.0
         fmin = 0.0
         if a0 <= 0.0:
@@ -359,8 +358,7 @@ def pert_ppm_positive_definite_constraint(a0: sd, al: sd, ar: sd, r12: float):
         else:
             a4 = -3.0 * (ar + al)
             da1 = ar - al
-            absda1 = da1 if da1 > 0 else -da1
-            if absda1 < -a4:
+            if abs(da1) < -a4:
                 fmin = a0 + 0.25 / a4 * da1 ** 2 + a4 * r12
                 if fmin < 0.0:
                     if ar > 0.0 and al > 0.0:
