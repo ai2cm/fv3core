@@ -1,5 +1,70 @@
 #!/usr/bin/env python3
 
+@gtscript.function
+def fill_4corners_x_func(q: sd):
+    from __splitters__ import i_end, i_start, j_end, j_start
+
+    # copy field
+    q_out = q
+
+    # Southwest
+    with parallel(region[i_start - 2, j_start - 1]):
+        q_out = q[i_start - 1, j_start + 1]
+    with parallel(region[i_start - 1, j_start - 1]):
+        q_out = q[i_start - 1, j_start]
+
+    # Southeast
+    with parallel(region[i_end + 2, j_start - 1]):
+        q_out = q[i_end + 1, j_start + 1]
+    with parallel(region[i_end + 1, j_start - 1]):
+        q_out = q[i_end + 1, j_start]
+
+    # Northwest
+    with parallel(region[i_start - 1, j_end + 1]):
+        q_out = q[i_start - 1, j_end]
+    with parallel(region[i_start - 2, j_end + 1]):
+        q_out = q[i_start - 1, j_end - 1]
+
+    # Northeast
+    with parallel(region[i_end + 1, j_end + 1]):
+        q_out = q[i_end + 1, j_end]
+    with parallel(region[i_end + 2, j_end + 1]):
+        q_out = q[i_end + 1, j_end - 1]
+
+    return q_out
+
+@gtscript.function
+def fill_4corners_y_func(q: sd):
+    from __splitters__ import i_end, i_start, j_end, j_start
+
+    # copy field
+    q_out = q
+
+    # Southwest
+    with parallel(region[i_start - 1, j_start - 1]):
+        q_out = q[i_start, j_start - 1]
+    with parallel(region[i_start - 1, j_start - 2]):
+        q_out = q[i_start + 1, j_start - 1]
+
+    # Southeast
+    with parallel(region[i_end + 1, j_start - 1]):
+        q_out = q[i_end, j_start - 1]
+    with parallel(region[i_end + 1, j_start - 2]):
+        q_out = q[i_end - 1, j_start - 1]
+
+    # Northwest
+    with parallel(region[i_start - 1, j_end + 1]):
+        q_out = q[i_start, j_end + 1]
+    with parallel(region[i_start - 1, j_end + 2]):
+        q_out = q[i_start + 1, j_end + 1]
+
+    # Northeast
+    with parallel(region[i_end + 1, j_end + 1]):
+        q_out = q[i_end, j_end + 1]
+    with parallel(region[i_end + 1, j_end + 2]):
+        q_out = q[i_end - 1, j_end + 1]
+
+    return q_out
 
 def fill_4corners(q, direction, grid):
     if direction == "x":
