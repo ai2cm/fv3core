@@ -51,6 +51,7 @@ if MPI is not None and MPI.COMM_WORLD.Get_size() > 1:
 
 class FV3StencilObject:
     """GT4Py stencil object used for fv3core"""
+
     def __init__(self, stencil_object: gt.StencilObject, build_info: dict):
         self.stencil_object = stencil_object
         self._build_info = build_info
