@@ -51,7 +51,6 @@ def update_vorticity_and_kinetic_energy(
 
 def compute(uc, vc, u, v, ua, va, dt2):
     grid = spec.grid
-    origin = (grid.is_ - 1, grid.js - 1, 0)
 
     # Create storage objects to hold the new vorticity and kinetic energy values
     ke_c = utils.make_storage_from_shape(uc.shape, origin=origin)
@@ -76,7 +75,7 @@ def compute(uc, vc, u, v, ua, va, dt2):
         grid.sin_sg4,
         grid.cos_sg4,
         dt2,
-        origin=origin,
+        origin=(grid.is_ - 1, grid.js - 1, 0),
         domain=(grid.nic + 2, grid.njc + 2, grid.npz),
         splitters=grid.splitters,
     )
