@@ -56,8 +56,18 @@ def update_meridional_velocity(
         velocity_c = velocity_c - tmp_flux * flux + rdyc * (ke[0, -1, 0] - ke)
 
 
-# Update the C-Grid zonal and meridional velocity fields
-def compute(uc, vc, vort_c, ke_c, v, u, fxv, fyv, dt2):
+def compute(uc: sd, vc: sd, vort_c: sd, ke_c: sd, v: sd, u: sd, dt2: float):
+    """Update the C-Grid zonal and meridional velocity fields.
+
+    Args:
+        uc (input, output): x-velocity on C-grid
+        vc (input, output): y-velocity on C-grid
+        vort_c (input): Vorticity on C-grid
+        ke_c (input): kinetic energy on C-grid
+        v (input): y-velocit on D-grid
+        u (input): x-velocity on D-grid
+        dt2 (input): timestep
+    """
     grid = spec.grid
     update_meridional_velocity(
         vort_c,
