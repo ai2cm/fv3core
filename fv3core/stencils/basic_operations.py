@@ -1,5 +1,3 @@
-from typing import Tuple, Union
-
 import gt4py.gtscript as gtscript
 from gt4py.gtscript import PARALLEL, computation, interval
 
@@ -21,13 +19,8 @@ def copy_stencil(q_in: sd, q_out: sd):
         q_out = q_in
 
 
-def copy(
-    q_in: sd,
-    *,
-    origin: Tuple[int, int, int] = (0, 0, 0),
-    domain: Union[Tuple[int, int, int], None] = None,
-):
-    """Copy q_in to a field returned.
+def copy(q_in, origin=(0, 0, 0), domain=None):
+    """Copy q_in inside the origin and domain, and zero outside.
 
     Args:
         q_in: input field
@@ -37,7 +30,7 @@ def copy(
     Returns:
         gtscript.Field[float]: Copied field
     """
-    q_out = utils.make_storage_from_shape(q_in.shape, origin)
+    q_out = utils.make_storage_from_shape(q_in.shape, origin, init=True)
     copy_stencil(q_in, q_out, origin=origin, domain=domain)
     return q_out
 
