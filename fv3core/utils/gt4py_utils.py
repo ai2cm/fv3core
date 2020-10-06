@@ -8,6 +8,7 @@ from typing import Callable
 
 import gt4py as gt
 import gt4py.gtscript as gtscript
+import gt4py.ir as gt_ir
 import numpy as np
 
 from fv3core.utils.mpi import MPI
@@ -24,7 +25,6 @@ logger = logging.getLogger("fv3ser")
 backend = None  # Options: numpy, gtmc, gtx86, gtcuda, debug, dawn:gtmc
 rebuild = True
 managed_memory = True
-stencil_infos = {}
 _dtype = np.float_
 sd = gtscript.Field[_dtype]
 si = gtscript.Field[np.int_]
@@ -47,6 +47,23 @@ if MPI is not None and MPI.COMM_WORLD.Get_size() > 1:
     gt.config.cache_settings["dir_name"] = ".gt_cache_{:0>6d}".format(
         MPI.COMM_WORLD.Get_rank()
     )
+
+
+class FV3StencilObject:
+    """GT4Py stencil object used for fv3core"""
+    def __init__(self, stencil_object: gt.StencilObject, build_info: dict):
+        self.stencil_object = stencil_object
+        self._build_info = build_info
+
+    @property
+    def build_info(self) -> dict:
+        """Return the build_info created when compiling the stencil"""
+        return self._build_info
+
+    def __call__(self, *args, **kwargs):
+        return self.stencil_object(*args, **kwargs)
+
+
 # TODO remove when using quantities throughout model
 def quantity_name(name):
     return name + "_quantity"
@@ -76,8 +93,10 @@ def stencil(**stencil_kwargs) -> Callable[..., None]:
                 stencil_kwargs["backend"] = backend
                 # Generate stencil
                 build_info = {}
-                stencils[key] = gtscript.stencil(build_info=build_info, **stencil_kwargs)(func)
-                stencil_infos[build_info["def_ir"].name] = build_info
+                stencil = gtscript.stencil(build_info=build_info, **stencil_kwargs)(
+                    func
+                )
+                stencils[key] = FV3StencilObject(stencil, build_info)
             return stencils[key](*args, **kwargs)
 
         return wrapped
