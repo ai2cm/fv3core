@@ -1,12 +1,14 @@
-from typing import Union
+from typing import Tuple, Union
 
 import gt4py.gtscript as gtscript
 from gt4py.gtscript import PARALLEL, computation, interval
 
 import fv3core.utils.gt4py_utils as utils
 
+
 Int3 = Tuple[int, int, int]
 sd = utils.sd
+
 
 @utils.stencil()
 def copy_stencil(q_in: sd, q_out: sd):
@@ -20,9 +22,7 @@ def copy_stencil(q_in: sd, q_out: sd):
         q_out = q_in
 
 
-def copy(
-    q_in: sd, *, origin: Int3 = (0, 0, 0), domain: Union[Int3, None] = None
-):
+def copy(q_in: sd, *, origin: Int3 = (0, 0, 0), domain: Union[Int3, None] = None):
     """Copy q_in to a field returned.
 
     Args:
