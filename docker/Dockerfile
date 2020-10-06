@@ -12,7 +12,7 @@ COPY setup.py setup.cfg HISTORY.md README.md /fv3core/
 ### Install FV3Util
 ###
 RUN pip install --no-cache-dir -e /usr/src/fv3gfs-util
-
+RUN pip install pytest-xdist
 ###
 ### Install fv3core
 ###
