@@ -49,8 +49,9 @@ def update_vorticity_and_kinetic_energy(
         ke = 0.5 * dt2 * (ua * ke + va * vort)
 
 
-def compute(uc, vc, u, v, ua, va, dt2):
+def compute(uc: sd, vc: sd, u: sd, v: sd, ua: sd, va: sd, dt2: float):
     grid = spec.grid
+    origin = (grid.is_ - 1, grid.js - 1, 0)
 
     # Create storage objects to hold the new vorticity and kinetic energy values
     ke_c = utils.make_storage_from_shape(uc.shape, origin=origin)
