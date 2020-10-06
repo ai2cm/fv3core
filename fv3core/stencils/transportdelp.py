@@ -1,9 +1,10 @@
 import gt4py.gtscript as gtscript
-from gt4py.gtscript import PARALLEL, computation, interval, __INLINED
+from gt4py.gtscript import __INLINED, PARALLEL, computation, interval
 
 import fv3core._config as spec
 import fv3core.utils.gt4py_utils as utils
 from fv3core.utils.corners import fill_4corners_x_func, fill_4corners_y_func
+
 
 sd = utils.sd
 
@@ -20,6 +21,7 @@ def nonhydro_x_fluxes(delp: sd, pt: sd, w: sd, utc: sd):
 
     return fx, fx1, fx2
 
+
 @gtscript.function
 def nonhydro_y_fluxes(delp: sd, pt: sd, w: sd, vtc: sd):
     fy = pt[0, -1, 0] if vtc > 0.0 else pt
@@ -34,7 +36,9 @@ def nonhydro_y_fluxes(delp: sd, pt: sd, w: sd, vtc: sd):
 
 
 @utils.stencil
-def transportdelp(delp: sd, pt: sd, utc: sd, vtc: sd, wc: sd, rarea: sd, delpc: sd, ptc: sd):
+def transportdelp(
+    delp: sd, pt: sd, utc: sd, vtc: sd, wc: sd, rarea: sd, delpc: sd, ptc: sd
+):
     """In the words of the Fortran code: 'Transport delp'
 
     Args:

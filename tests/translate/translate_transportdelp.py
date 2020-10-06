@@ -22,11 +22,14 @@ class TranslateTransportDelp(TranslateFortranData2Py):
             "utc": {},
             "vtc": {},
             "wc": {},
-            "delpc": {}, "ptc": {},
+            "delpc": {},
+            "ptc": {},
         }
         self.out_vars = {"delpc": {}, "ptc": {}, "wc": {}}
 
     def compute(self, storages):
         self.make_storage_data_input_vars(storages)
         self._call(**storages)
-        return self.slice_output(storages, {"delpc": storages["delpc"], "ptc": storages["ptc"]})
+        return self.slice_output(
+            storages, {"delpc": storages["delpc"], "ptc": storages["ptc"]}
+        )

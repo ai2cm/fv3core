@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+
 @gtscript.function
 def fill_4corners_x_func(q: sd):
     from __splitters__ import i_end, i_start, j_end, j_start
@@ -33,6 +34,7 @@ def fill_4corners_x_func(q: sd):
 
     return q_out
 
+
 @gtscript.function
 def fill_4corners_y_func(q: sd):
     from __splitters__ import i_end, i_start, j_end, j_start
@@ -65,6 +67,7 @@ def fill_4corners_y_func(q: sd):
         q_out = q[i_end - 1, j_end + 1]
 
     return q_out
+
 
 def fill_4corners(q, direction, grid):
     if direction == "x":
