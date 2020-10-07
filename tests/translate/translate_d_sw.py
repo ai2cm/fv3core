@@ -1,6 +1,5 @@
-import fv3core.stencils.d_sw as d_sw
 import fv3core.utils.gt4py_utils as utils
-from fv3core.stencils.d_sw import ubke, vbke
+from fv3core.stencils import d_sw
 
 from .translate import TranslateFortranData2Py
 
@@ -68,7 +67,7 @@ class TranslateD_SW(TranslateFortranData2Py):
 
 class TranslateUbKE(TranslateFortranData2Py):
     def _call(self, *args, **kwargs):
-        ubke(
+        d_sw.ubke(
             *args,
             **kwargs,
             cosa=self.grid.cosa,
@@ -93,7 +92,7 @@ class TranslateUbKE(TranslateFortranData2Py):
 
 class TranslateVbKE(TranslateFortranData2Py):
     def _call(self, *args, **kwargs):
-        vbke(
+        d_sw.vbke(
             *args,
             **kwargs,
             cosa=self.grid.cosa,
