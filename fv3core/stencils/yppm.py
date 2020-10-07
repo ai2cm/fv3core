@@ -237,50 +237,20 @@ def xt_dya_edge_1_base(q, dya):
 @gtscript.function
 def xt_dya_edge_0(q, dya, xt_minmax):
     xt = xt_dya_edge_0_base(q, dya)
-    minq = 0.0
-    maxq = 0.0
     if xt_minmax:
-        # minq = min(q[0, -1, 0], q)
-        # minq = min(minq, q[0,1,0])
-        # minq = min(minq, q[0, 2, 0])
-        # maxq = max(q[0, -1, 0], q)
-        # maxq = max(maxq, q[0,1,0])
-        # maxq = max(maxq, q[0, 2, 0])
-        # xt = max(xt, minq)
-        # xt = min(xt, maxq)
-        minq = q[0, -1, 0] if q[0, -1, 0] < q else q
-        minq = minq if minq < q[0, 1, 0] else q[0, 1, 0]
-        minq = minq if minq < q[0, 2, 0] else q[0, 2, 0]
-        maxq = q[0, -1, 0] if q[0, -1, 0] > q else q
-        maxq = maxq if maxq > q[0, 1, 0] else q[0, 1, 0]
-        maxq = maxq if maxq > q[0, 2, 0] else q[0, 2, 0]
-        xt = xt if xt > minq else minq
-        xt = xt if xt < maxq else maxq
+        minq = min(min(min(q[0, -1, 0], q), q[0,1,0]), q[0, 2, 0])
+        maxq = max(max(max(q[0, -1, 0], q), q[0,1,0]), q[0, 2, 0])
+        xt = min(max(xt, minq), maxq)
     return xt
 
 
 @gtscript.function
 def xt_dya_edge_1(q, dya, xt_minmax):
     xt = xt_dya_edge_1_base(q, dya)
-    minq = 0.0
-    maxq = 0.0
     if xt_minmax:
-        # minq = min(q[0, -2, 0], q[0, -1, 0])
-        # minq = min(minq, q)
-        # minq = min(minq, q[0, 1, 0])
-        # maxq = max(q[0, -2, 0], q[0, -1, 0])
-        # maxq = max(maxq, q)
-        # maxq = max(maxq, q[0, 1, 0])
-        # xt = max(xt, minq)
-        # xt = min(xt, maxq)
-        minq = q[0, -2, 0] if q[0, -2, 0] < q[0, -1, 0] else q[0, -1, 0]
-        minq = minq if minq < q else q
-        minq = minq if minq < q[0, 1, 0] else q[0, 1, 0]
-        maxq = q[0, -2, 0] if q[0, -2, 0] > q[0, -1, 0] else q[0, -1, 0]
-        maxq = maxq if maxq > q else q
-        maxq = maxq if maxq > q[0, 1, 0] else q[0, 1, 0]
-        xt = xt if xt > minq else minq
-        xt = xt if xt < maxq else maxq
+        minq = min(min(min(q[0, -2, 0], q[0, -1, 0]), q), q[0, 1, 0])
+        maxq = max(max(max(q[0, -2, 0], q[0, -1, 0]), q), q[0, 1, 0])
+        xt = min(max(xt, minq), maxq)
     return xt
 
 
