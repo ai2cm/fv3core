@@ -192,12 +192,8 @@ def finalflux_ord8plus(q: sd, c: sd, bl: sd, br: sd, flux: sd):
 def dm_jord8plus(q: sd, al: sd, dm: sd):
     with computation(PARALLEL), interval(...):
         xt = 0.25 * (q[0, 1, 0] - q[0, -1, 0])
-        maxqj = max(q, q[0, -1, 0])
-        maxqj = max(maxqj, q[0, 1, 0])
-        minqj = min(q, q[0, -1, 0])
-        minqj = min(minqj, q[0, 1, 0])
-        dqr = maxqj - q
-        dql = q - minqj
+        dqr = max(max(q, q[0, -1, 0]), q[0, 1, 0]) - q
+        dql = q - min(min(q, q[0, -1, 0]), q[0, 1, 0])
         dm = sign(min(min(abs(xt), dqr), dql), xt)
 
 
@@ -215,6 +211,13 @@ def blbr_jord8(q: sd, al: sd, bl: sd, br: sd, dm: sd):
         aldiffj = al[0, 1, 0] - q
         bl = -1.0 * sign(min(abs(xt), abs(aldiff)), xt)
         br = sign(min(abs(xt), abs(aldiffj)), xt)
+
+
+@gtscript.function
+def xt_dya_edge_0_base(q, dya):
+    return 0.5 * (
+        ((2.0 * dya + dya[0, -1, 0]) * q - dya * q[0, -1, 0]) / (dya[0, -1, 0] + dya)
+        + ((2.0 * dya[0, 1, 0] + dya[0, 2, 0]) * q[0, 1, 0] - dya[0, 1, 0] * q[0, 2, 0])
         / (dya[0, 1, 0] + dya[0, 2, 0])
     )
 
