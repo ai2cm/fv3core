@@ -11,6 +11,8 @@ import gt4py.gtscript as gtscript
 import gt4py.ir as gt_ir
 import numpy as np
 
+# Problem: creates circular dependency
+import fv3core._config as spec
 from fv3core.utils.mpi import MPI
 
 
@@ -103,6 +105,9 @@ def stencil(**stencil_kwargs) -> Callable[..., None]:
                     func
                 )
                 stencils[key] = FV3StencilObject(stencil, build_info)
+            kwargs["splitters"] = kwargs.get(
+                "splitters", spec.grid.splitters(origin=kwargs.get("origin"))
+            )
             return stencils[key](*args, **kwargs)
 
         return wrapped
