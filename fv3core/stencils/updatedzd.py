@@ -6,10 +6,10 @@ import fv3core.stencils.delnflux as delnflux
 import fv3core.stencils.fvtp2d as fvtp2d
 import fv3core.utils.global_constants as constants
 import fv3core.utils.gt4py_utils as utils
+from fv3core.decorators import gtstencil
 from fv3core.stencils.basic_operations import copy
 from fv3core.stencils.fxadv import ra_x_func, ra_y_func
 from fv3core.utils.corners import fill_4corners
-from fv3core.decorators import gtstencil
 
 
 sd = utils.sd

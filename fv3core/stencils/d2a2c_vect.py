@@ -5,6 +5,7 @@ import numpy as np
 
 import fv3core._config as spec
 import fv3core.utils.gt4py_utils as utils
+from fv3core.decorators import gtstencil
 from fv3core.stencils.a2b_ord4 import (
     a1,
     a2,
@@ -13,7 +14,6 @@ from fv3core.stencils.a2b_ord4 import (
     lagrange_x_func,
     lagrange_y_func,
 )
-from fv3core.decorators import gtstencil
 
 
 sd = utils.sd

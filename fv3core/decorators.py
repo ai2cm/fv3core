@@ -3,9 +3,9 @@ import functools
 import types
 from typing import Callable, Tuple, Union
 
+import gt4py
 from gt4py import gtscript
 
-import gt4py
 import fv3core._config as spec
 import fv3core.utils.gt4py_utils as utils
 
@@ -14,8 +14,6 @@ ArgSpec = collections.namedtuple(
     "ArgSpec", ["arg_name", "standard_name", "units", "intent"]
 )
 VALID_INTENTS = ["in", "out", "inout", "unknown"]
-
-MODULE_NAME = "fv3core.decorators"
 
 
 def state_inputs(*arg_specs):
@@ -70,9 +68,9 @@ class FV3StencilObject:
 
 def gtstencil(**stencil_kwargs) -> Callable[..., None]:
     if "rebuild" in stencil_kwargs:
-        raise ValueError(module_level_var_errmsg("rebuild", MODULE_NAME))
+        raise ValueError(module_level_var_errmsg("rebuild", "gtstencil"))
     if "backend" in stencil_kwargs:
-        raise ValueError(module_level_var_errmsg("backend", MODULE_NAME))
+        raise ValueError(module_level_var_errmsg("backend", "gtstencil"))
 
     def decorator(func) -> Callable[..., None]:
         stencils = {}

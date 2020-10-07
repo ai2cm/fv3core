@@ -25,8 +25,8 @@ import fv3core.stencils.updatedzc as updatedzc
 import fv3core.stencils.updatedzd as updatedzd
 import fv3core.utils.global_constants as constants
 import fv3core.utils.gt4py_utils as utils
-from fv3core.stencils.basic_operations import copy_stencil
 from fv3core.decorators import gtstencil
+from fv3core.stencils.basic_operations import copy_stencil
 
 
 sd = utils.sd

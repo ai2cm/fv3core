@@ -8,8 +8,8 @@ import fv3core._config as spec
 import fv3core.stencils.moist_cv as moist_cv
 import fv3core.utils.global_constants as constants
 import fv3core.utils.gt4py_utils as utils
-from fv3core.stencils.basic_operations import dim, max_fn, min_fn
 from fv3core.decorators import gtstencil
+from fv3core.stencils.basic_operations import dim, max_fn, min_fn
 
 
 # TODO, this code could be reduced greatly with abstraction, but first gt4py needs to support gtscript function calls of arbitrary depth embedded in conditionals
