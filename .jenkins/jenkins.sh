@@ -79,20 +79,25 @@ fi
 
 # if this is a parallel job and the number of ranks is specified in optarg2, set NUM_RANKS
 # and update the scheduler script if there is one
-#if grep -q "parallel" <<< "${script}"; then
-    if grep -q "ranks" <<< "${optarg2}"; then
+if grep -q "parallel" <<< "${script}"; then
+    #if grep -q "ranks" <<< "${optarg2}"; then
 	export NUM_RANKS=`echo ${optarg2} | grep -o -E '[0-9]+ranks' | grep -o -E '[0-9]+'`
     else
 	export NUM_RANKS=8
     fi
-	echo "Setting NUM_RANKS=${NUM_RANKS}"
+echo "Setting NUM_RANKS=${NUM_RANKS}"
+if grep -q "parallel" <<< "${script}"; then
 	if [ -f ${scheduler_script} ] ; then
 	    sed -i 's|<NTASKS>|<NTASKS>\n#SBATCH \-\-hint=multithread\n#SBATCH --ntasks-per-core=2|g' ${scheduler_script}
 	    sed -i 's|45|30|g' ${scheduler_script}
 	    sed -i 's|cscsci|debug|g' ${scheduler_script}
-	    sed -i 's|<NTASKS>|"'${NUM_RANKS}'"|g' ${scheduler_script}
+	   
 	    sed -i 's|<NTASKSPERNODE>|"24"|g' ${scheduler_script}
 	fi
+fi
+if [ -f ${scheduler_script} ] ; then
+    sed -i 's|<NTASKS>|"'${NUM_RANKS}'"|g' ${scheduler_script}
+fi
     #fi
 #fi
 
