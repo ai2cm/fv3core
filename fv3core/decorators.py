@@ -17,18 +17,18 @@ VALID_INTENTS = ["in", "out", "inout", "unknown"]
 
 
 def state_inputs(*arg_specs):
-    for aspec in arg_specs:
-        if aspec.intent not in VALID_INTENTS:
+    for spec in arg_specs:
+        if spec.intent not in VALID_INTENTS:
             raise ValueError(
-                f"intent for {aspec.arg_name} is {aspec.intent}, must be one of {VALID_INTENTS}"
+                f"intent for {spec.arg_name} is {spec.intent}, must be one of {VALID_INTENTS}"
             )
 
     def decorator(func):
         @functools.wraps(func)
         def wrapped(state, *args, **kwargs):
             namespace_kwargs = {}
-            for aspec in arg_specs:
-                arg_name, standard_name, units, intent = aspec
+            for spec in arg_specs:
+                arg_name, standard_name, units, intent = spec
                 if standard_name not in state:
                     raise ValueError(f"{standard_name} not present in state")
                 elif units != state[standard_name].units:

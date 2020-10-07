@@ -164,7 +164,7 @@ PULL=False make build
   Python package for the DSL language
 
 - https://github.com/VulcanClimateModeling/fv3gfs-wrapper -
-  The wrapper used to drive model runs with both the Fortran and DSL models.
+  The wrapper used to drive the Fortran model.
 
 - https://github.com/MeteoSwiss-APN/dawn -
   DSL language compiler using the GridTools parallel execution model

@@ -16,101 +16,88 @@ import numpy as np
 import xarray as xr
 import yaml
 import mpi4py
+import numpy
+import copy
 import fv3core._config as spec
 
 sys.path.append("/serialbox2/python")  # noqa: E402
 sys.path.append("/fv3core/tests/translate")  # noqa: E402
 import serialbox
 import translate as translate
-import numpy
 
 # May need to run 'ulimit -s unlimited' before running this example
 # If you're running in our prepared docker container, you definitely need to do this
 # sets the stack size to unlimited
 
-# Run using mpirun -n 6 python3 basic_model.py
-# mpirun flags that may be useful:
-#     for docker:  --allow-run-as-root
-#     for CircleCI: --oversubscribe
-#     to silence a certain inconsequential MPI error: --mca btl_vader_single_copy_mechanism none
-
-# All together:
-# mpirun -n 6 --allow-run-as-root --oversubscribe --mca btl_vader_single_copy_mechanism none python3 basic_model.py
-
-# def init_tracers(shape):
-#     arr = np.zeros(shape)
-#     turbulent_kinetic_energy = Quantity.from_data_array(arr)
+# Run using mpirun -n 6 python3 fv3core_test.py
 
 
 def transpose(state, dims, npz, npx, npy):
     return_state = {}
-    for name, value in state.items():
+    for name, quantity in state.items():
         if name == "time":
-            return_state[name] = value
+            return_state[name] = quantity
         else:
-            if len(value.storage.shape) == 2:
-                dat = numpy.broadcast_to(
-                    value.data[:, :, None],
-                    (value.data.shape[0], value.data.shape[1], npz + 1),
+            if len(quantity.storage.shape) == 2:
+                data_3d = numpy.broadcast_to(
+                    quantity.data[:, :, None],
+                    (quantity.data.shape[0], quantity.data.shape[1], npz + 1),
                 )
-                newval = Quantity.from_data_array(
+                quantity_3d = Quantity.from_data_array(
                     xr.DataArray(
-                        dat, attrs=value.attrs, dims=[value.dims[0], value.dims[1], "z"]
+                        data_3d, attrs=quantity.attrs, dims=[quantity.dims[0], quantity.dims[1], "z"]
                     ),
-                    origin=(value.origin[0], value.origin[1], 0),
-                    extent=(value.extent[0], value.extent[1], npz),
+                    origin=(quantity.origin[0], quantity.origin[1], 0),
+                    extent=(quantity.extent[0], quantity.extent[1], npz),
                 )
-                newval.metadata.gt4py_backend = "numpy"
-                # value.dims = (value.dims[0], value.dims[1], "z")
-                # value.origin = (value.origin[0], value.origin[1], 0)
-                # value.extent = (value.extent[0], value.extent[1], npz)
-                return_state[name] = newval.transpose(dims)
-            elif len(value.storage.shape) == 1:
-                dat = numpy.tile(value.data, (npx + 6, npy + 6, 1))
-                newval = Quantity.from_data_array(
+                quantity_3d.metadata.gt4py_backend = "numpy"
+                return_state[name] = quantity_3d.transpose(dims)
+            elif len(quantity.storage.shape) == 1:
+                data_3d = numpy.tile(quantity.data, (npx + 6, npy + 6, 1))
+                quantity_3d = Quantity.from_data_array(
                     xr.DataArray(
-                        dat, attrs=value.attrs, dims=["x", "y", value.dims[0]]
+                        data_3d, attrs=quantity.attrs, dims=["x", "y", quantity.dims[0]]
                     ),
-                    origin=(0, 0, value.origin[0]),
-                    extent=(npx, npy, value.extent[0]),
+                    origin=(0, 0, quantity.origin[0]),
+                    extent=(npx, npy, quantity.extent[0]),
                 )
-                newval.metadata.gt4py_backend = "numpy"
-                return_state[name] = newval.transpose(dims)
+                quantity_3d.metadata.gt4py_backend = "numpy"
+                return_state[name] = quantity_3d.transpose(dims)
             else:
-                return_state[name] = value.transpose(dims)
+                return_state[name] = quantity.transpose(dims)
 
     return return_state
 
 
-def convert_3d_to_2d(state, fieldnames):
+def convert_3d_to_2d(state, field_names):
     return_state = state
-    for field in fieldnames:
-        value = state[field]
+    for field in field_names:
+        quantity = state[field]
         # Assuming we've already transposed from xyz to zyx
-        dat = value.data[
+        data_2d = quantity.data[
             0, :, :
         ]  # take the bottom level since they should all be the same
-        newval = Quantity.from_data_array(
-            xr.DataArray(dat, attrs=value.attrs, dims=[value.dims[1], value.dims[2]]),
-            origin=(value.origin[1], value.origin[2]),
-            extent=(value.extent[1], value.extent[2]),
+        quantity_2d = Quantity.from_data_array(
+            xr.DataArray(data_2d, attrs=quantity.attrs, dims=[quantity.dims[1], quantity.dims[2]]),
+            origin=(quantity.origin[1], quantity.origin[2]),
+            extent=(quantity.extent[1], quantity.extent[2]),
         )
-        return_state[field] = newval
+        return_state[field] = quantity_2d
     return return_state
 
 
-def convert_3d_to_1d(state, fieldnames):
+def convert_3d_to_1d(state, field_names):
     return_state = state
-    for field in fieldnames:
-        value = state[field]
+    for field in field_names:
+        quantity = state[field]
         # Assuming we've already transposed from xyz to zyx
-        dat = value.data[:, 0, 0]  # take the first column since they should be the same
-        newval = Quantity.from_data_array(
-            xr.DataArray(dat, attrs=value.attrs, dims=[value.dims[0]]),
-            origin=[value.origin[0]],
-            extent=[value.extent[0]],
+        data_1d = quantity.data[:, 0, 0]  # take the first column since they should be the same
+        quantity_1d = Quantity.from_data_array(
+            xr.DataArray(data_1d, attrs=quantity.attrs, dims=[quantity.dims[0]]),
+            origin=[quantity.origin[0]],
+            extent=[quantity.extent[0]],
         )
-        return_state[field] = newval
+        return_state[field] = quantity_1d
     return return_state
 
 
@@ -118,8 +105,6 @@ if __name__ == "__main__":
 
     # read in the namelist
     spec.set_namelist("input.nml")
-    # nsplit = spec.namelist.n_split
-    # consv_te = spec.namelist.consv_te
     dt_atmos = spec.namelist.dt_atmos
 
     # get another namelist for the communicator??
@@ -140,8 +125,8 @@ if __name__ == "__main__":
         comm, CubedSpherePartitioner.from_namelist(nml2)
     )
 
-    # Set the names of quantities in State
-    names0 = [
+    # Set the names of quantities in State. This is everything coming from wrapper.initialize
+    initial_names = [
         "specific_humidity",
         "cloud_water_mixing_ratio",
         "rain_mixing_ratio",
@@ -178,50 +163,16 @@ if __name__ == "__main__":
         "time",
     ]
 
-    names = [
-        "specific_humidity",
-        "cloud_water_mixing_ratio",
-        "rain_mixing_ratio",
-        "snow_mixing_ratio",
-        "cloud_ice_mixing_ratio",
-        "graupel_mixing_ratio",
-        "ozone_mixing_ratio",
-        "cloud_fraction",
-        "turbulent_kinetic_energy",
-        "air_temperature",
-        "pressure_thickness_of_atmospheric_layer",
-        "vertical_thickness_of_atmospheric_layer",
-        "logarithm_of_interface_pressure",
-        "x_wind",
-        "y_wind",
-        "vertical_wind",
-        "eastward_wind",
-        "northward_wind",
-        "x_wind_on_c_grid",
-        "y_wind_on_c_grid",
-        "total_condensate_mixing_ratio",
-        "interface_pressure",
-        "surface_geopotential",
-        "interface_pressure_raised_to_power_of_kappa",
-        "layer_mean_pressure_raised_to_power_of_kappa",
-        "surface_pressure",
-        "vertical_pressure_velocity",
-        "atmosphere_hybrid_a_coordinate",
-        "atmosphere_hybrid_b_coordinate",
-        "accumulated_x_mass_flux",
-        "accumulated_y_mass_flux",
-        "accumulated_x_courant_number",
-        "accumulated_y_courant_number",
-        "dissipation_estimate_from_heat_source",
-        "time",
-    ]
+    # this contains all the names needed to run the dycore.
+    all_names = copy.deepcopy(initial_names)
+    all_names.append("turbulent_kinetic_energy")
 
-    field2d = [
+    names_of_2d_variables = [
         "surface_geopotential",
         "surface_pressure",
     ]
 
-    field1d = ["atmosphere_hybrid_a_coordinate", "atmosphere_hybrid_b_coordinate"]
+    names_of_1d_variables = ["atmosphere_hybrid_a_coordinate", "atmosphere_hybrid_b_coordinate"]
 
     # get grid from serialized data
     serializer = serialbox.Serializer(
@@ -280,16 +231,16 @@ if __name__ == "__main__":
     u_tendency.metadata.gt4py_backend = "numpy"
     v_tendency.metadata.gt4py_backend = "numpy"
 
-    nq = 6 #why not
+    n_tracers = 6
 
-    #Step through time
+    # Step through time
     for i in range(wrapper.get_step_count()):
         print("STEP IS ", i)
         if i == 0:
-            state = wrapper.get_state(allocator=allocator, names=names0)
+            state = wrapper.get_state(allocator=allocator, names=initial_names)
             state["turbulent_kinetic_energy"] = turbulent_kinetic_energy
         else:
-            state = wrapper.get_state(allocator=allocator, names=names)
+            state = wrapper.get_state(allocator=allocator, names=all_names)
         state = transpose(
             state,
             [X_DIMS, Y_DIMS, Z_DIMS],
@@ -309,13 +260,9 @@ if __name__ == "__main__":
             wrapper.flags.ks,
         )
 
-        #zero out tendencies
-        # state["eastward_wind_tendency"].data[:] = arr.reshape((arr.shape[2], arr.shape[1], arr.shape[0]))
-        # state["northward_wind_tendency"].data[:] = arr.reshape((arr.shape[2], arr.shape[1], arr.shape[0]))
-
         state["eastward_wind_tendency"] = u_tendency
         state["northward_wind_tendency"] = v_tendency
-        fv3core.fv_subgridz(state, nq, dt_atmos)
+        fv3core.fv_subgridz(state, n_tracers, dt_atmos)
 
         state = transpose(
             state,
@@ -324,12 +271,12 @@ if __name__ == "__main__":
             spec.namelist.npx,
             spec.namelist.npy,
         )
-        state = convert_3d_to_2d(state, field2d)
-        state = convert_3d_to_1d(state, field1d)
+        state = convert_3d_to_2d(state, names_of_2d_variables)
+        state = convert_3d_to_1d(state, names_of_1d_variables)
         wrapper.set_state(state)
         wrapper.step_physics()
         wrapper.save_intermediate_restart_if_enabled()
-    state = wrapper.get_state(allocator=allocator, names=names)
+    state = wrapper.get_state(allocator=allocator, names=all_names)
     
     io.write_state(state, "outstate_{0}.nc".format(rank))
     wrapper.cleanup()
