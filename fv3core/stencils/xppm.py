@@ -4,7 +4,7 @@ from gt4py.gtscript import PARALLEL, computation, interval
 
 import fv3core._config as spec
 import fv3core.utils.gt4py_utils as utils
-from fv3core.stencils.basic_operations import absolute_value, floor_cap, sign
+from fv3core.stencils.basic_operations import floor_cap, sign
 
 from .yppm import (
     c1,
@@ -133,10 +133,7 @@ def dm_iord8plus(q: sd, al: sd, dm: sd):
         minqj = min(minqj, q[1, 0, 0])
         dqr = maxqj - q
         dql = q - minqj
-        absxt = absolute_value(xt)
-        minmaxq = min(absxt, dqr)
-        minmaxq = min(minmaxq, dql)
-        dm = sign(minmaxq, xt)
+        dm = sign(min(min(abs(xt), dqr), dql), xt)
 
 
 @utils.stencil()
@@ -152,13 +149,8 @@ def blbr_iord8(q: sd, al: sd, bl: sd, br: sd, dm: sd):
         xt = 2.0 * dm
         aldiff = al - q
         aldiffj = al[1, 0, 0] - q
-        absxt = absolute_value(xt)
-        abs_aldiff = absolute_value(aldiff)
-        abs_aldiffj = absolute_value(aldiffj)
-        min_aldiff = min(absxt, abs_aldiff)
-        min_aldiffj = min(absxt, abs_aldiffj)
-        bl = -1.0 * sign(min_aldiff, xt)
-        br = sign(min_aldiffj, xt)
+        bl = -1.0 * sign(min(abs(xt), abs(aldiff)), xt)
+        br = sign(min(abs(xt), abs(aldiffj)), xt)
 
 
 @gtscript.function

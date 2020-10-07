@@ -4,7 +4,7 @@ from gt4py.gtscript import PARALLEL, computation, interval
 
 import fv3core._config as spec
 import fv3core.utils.gt4py_utils as utils
-from fv3core.stencils.basic_operations import absolute_value, floor_cap, sign
+from fv3core.stencils.basic_operations import floor_cap, sign
 
 
 input_vars = ["q", "c"]
@@ -98,7 +98,7 @@ def is_smt5_mord5(bl, br):
 
 @gtscript.function
 def is_smt5_most_mords(bl, br, b0):
-    return (3.0 * absolute_value(in_array=b0)) < absolute_value(in_array=(bl - br))
+    return (3.0 * abs(b0)) < abs(bl - br)
 
 
 @gtscript.function
@@ -198,10 +198,7 @@ def dm_jord8plus(q: sd, al: sd, dm: sd):
         minqj = min(minqj, q[0, 1, 0])
         dqr = maxqj - q
         dql = q - minqj
-        absxt = absolute_value(xt)
-        minmaxq = min(absxt, dqr)
-        minmaxq = min(minmaxq, dql)
-        dm = sign(minmaxq, xt)
+        dm = sign(min(min(abs(xt), dqr), dql), xt)
 
 
 @utils.stencil()
@@ -216,20 +213,8 @@ def blbr_jord8(q: sd, al: sd, bl: sd, br: sd, dm: sd):
         xt = 2.0 * dm
         aldiff = al - q
         aldiffj = al[0, 1, 0] - q
-        absxt = absolute_value(xt)
-        abs_aldiff = absolute_value(aldiff)
-        abs_aldiffj = absolute_value(aldiffj)
-        min_aldiff = min(absxt, abs_aldiff)
-        min_aldiffj = min(absxt, abs_aldiffj)
-        bl = -1.0 * sign(min_aldiff, xt)
-        br = sign(min_aldiffj, xt)
-
-
-@gtscript.function
-def xt_dya_edge_0_base(q, dya):
-    return 0.5 * (
-        ((2.0 * dya + dya[0, -1, 0]) * q - dya * q[0, -1, 0]) / (dya[0, -1, 0] + dya)
-        + ((2.0 * dya[0, 1, 0] + dya[0, 2, 0]) * q[0, 1, 0] - dya[0, 1, 0] * q[0, 2, 0])
+        bl = -1.0 * sign(min(abs(xt), abs(aldiff)), xt)
+        br = sign(min(abs(xt), abs(aldiffj)), xt)
         / (dya[0, 1, 0] + dya[0, 2, 0])
     )
 
@@ -350,7 +335,6 @@ def north_edge_jord8plus_2(q: sd, dya: sd, dm: sd, bl: sd, br: sd, xt_minmax: bo
 def pert_ppm_positive_definite_constraint(a0: sd, al: sd, ar: sd, r12: float):
     with computation(PARALLEL), interval(...):
         da1 = 0.0
-        absda1 = 0.0
         a4 = 0.0
         fmin = 0.0
         if a0 <= 0.0:
@@ -359,8 +343,7 @@ def pert_ppm_positive_definite_constraint(a0: sd, al: sd, ar: sd, r12: float):
         else:
             a4 = -3.0 * (ar + al)
             da1 = ar - al
-            absda1 = da1 if da1 > 0 else -da1
-            if absda1 < -a4:
+            if abs(da1) < -a4:
                 fmin = a0 + 0.25 / a4 * da1 ** 2 + a4 * r12
                 if fmin < 0.0:
                     if ar > 0.0 and al > 0.0:
