@@ -23,7 +23,9 @@ FV3_INSTALL_TARGET=fv3core-install
 FV3=fv3core
 FV3_INSTALL_IMAGE=$(GCR_URL)/$(FV3_INSTALL_TARGET):$(FV3_INSTALL_TAG)
 FV3_TAG ?= $(FV3CORE_VERSION)-$(FV3_INSTALL_TAG)
+WRAPPED_TAG ?= $(FV3CORE_VERSION)-wrapped
 FV3_IMAGE ?=$(GCR_URL)/$(FV3):$(FV3_TAG)
+WRAPPED_IMAGE ?=$(GCR_URL)/$(FV3):$(WRAPPED_TAG)
 
 TEST_DATA_CONTAINER=/test_data
 PYTHON_FILES = $(shell git ls-files | grep -e 'py$$' | grep -v -e '__init__.py')
@@ -60,7 +62,7 @@ build_wrapped_environment:
 		-f $(CWD)/docker/Dockerfile.build_environment \
 		-t $(FV3_INSTALL_IMAGE) \
 		--target $(FV3_INSTALL_TARGET) \
-		--build-arg WRAPPER_IMAGE=$(WRAPPER_IMAGE) \
+		--build-arg BASE_IMAGE=$(WRAPPER_IMAGE) \
 		.
 
 build: update_submodules
@@ -83,7 +85,7 @@ build_wrapped: update_submodules
 		--no-cache \
 		--build-arg build_image=$(FV3_INSTALL_IMAGE) \
 		-f $(CWD)/docker/Dockerfile \
-		-t $(FV3_IMAGE) \
+		-t $(WRAPPED_IMAGE) \
 		.
 
 
@@ -156,12 +158,12 @@ dev_tests_mpi_host:
 
 test_base:
 	$(CONTAINER_ENGINE) run $(RUN_FLAGS) $(VOLUMES) $(MOUNTS) \
-	$(FV3_IMAGE) bash -c "pip list && pytest --data_path=$(TEST_DATA_CONTAINER) $(TEST_ARGS) /$(FV3)/tests"
+	$(FV3_IMAGE) pytest --data_path=$(TEST_DATA_CONTAINER) $(TEST_ARGS) /$(FV3)/tests
 
 test_base_parallel:
 	$(CONTAINER_ENGINE) run $(RUN_FLAGS) $(VOLUMES) $(MOUNTS) $(FV3_IMAGE) \
 	$(MPIRUN_CALL) \
-	bash -c "pip list && pytest --data_path=$(TEST_DATA_CONTAINER) $(TEST_ARGS) -m parallel /$(FV3)/tests"
+	pytest --data_path=$(TEST_DATA_CONTAINER) $(TEST_ARGS) -m parallel /$(FV3)/tests
 
 
 run_tests_sequential:

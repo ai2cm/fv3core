@@ -1,8 +1,8 @@
-ARG WRAPPER_IMAGE=ubuntu:19.10
+ARG BASE_IMAGE=ubuntu:19.10
 
 
 ARG MIDBASE=fv3core-install-serialbox
-FROM $WRAPPER_IMAGE as fv3core-install-base
+FROM $BASE_IMAGE as fv3core-install-base
 
 ###
 ### Install some prerequisite system packages

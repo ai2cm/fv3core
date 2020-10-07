@@ -1,6 +1,6 @@
 #!/bin/bash
 
-IMAGE=us.gcr.io/vcm-ml/fv3core-install:integration
+IMAGE=us.gcr.io/vcm-ml/fv3core:0.1.0-wrapped
 
 MOUNTS="-v $(pwd):/fv3core"
 
