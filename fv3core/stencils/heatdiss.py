@@ -10,7 +10,7 @@ sd = utils.sd
 origin = utils.origin
 
 
-@utils.stencil()
+@gtstencil()
 def heat_diss(
     fx2: sd,
     fy2: sd,

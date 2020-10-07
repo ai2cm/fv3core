@@ -19,7 +19,7 @@ SDAY = 86400.0
 RCV = 1.0 / (constants.CP_AIR - constants.RDGAS)
 
 
-@utils.stencil()
+@gtstencil()
 def initialize_u2f(rf: sd, pfull: sd, u2f: sd, rf_cutoff: float):
     with computation(PARALLEL), interval(...):
         if pfull < rf_cutoff:
@@ -28,7 +28,7 @@ def initialize_u2f(rf: sd, pfull: sd, u2f: sd, rf_cutoff: float):
             u2f = 1.0
 
 
-@utils.stencil()
+@gtstencil()
 def rayleigh_pt_vert(
     pt: sd,
     ua: sd,
@@ -56,14 +56,14 @@ def rayleigh_pt_vert(
                 w = u2f * w
 
 
-@utils.stencil()
+@gtstencil()
 def rayleigh_u(u: sd, pfull: sd, u2f: sd, rf_cutoff: float):
     with computation(PARALLEL), interval(...):
         if pfull < rf_cutoff:
             u = 0.5 * (u2f[0, -1, 0] + u2f) * u
 
 
-@utils.stencil()
+@gtstencil()
 def rayleigh_v(v: sd, pfull: sd, u2f: sd, rf_cutoff: float):
     with computation(PARALLEL), interval(...):
         if pfull < rf_cutoff:

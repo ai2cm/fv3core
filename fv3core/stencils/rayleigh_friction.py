@@ -20,7 +20,7 @@ U000 = 4900.0  # scaling velocity
 RCV = ray_super.RCV
 
 
-@utils.stencil()
+@gtstencil()
 def initialize_u2f_friction(ua: sd, va: sd, w: sd, u2f: sd, hydrostatic: bool):
     with computation(PARALLEL), interval(...):
         if hydrostatic:
@@ -29,7 +29,7 @@ def initialize_u2f_friction(ua: sd, va: sd, w: sd, u2f: sd, hydrostatic: bool):
             u2f = ua ** 2 + va ** 2 + w ** 2
 
 
-@utils.stencil()
+@gtstencil()
 def rayleigh_pt_friction(
     pt: sd,
     rf: sd,
@@ -56,19 +56,19 @@ def rayleigh_pt_friction(
             w = w / (1.0 + u2f)
 
 
-@utils.stencil()
+@gtstencil()
 def update_u2f(u2f: sd, rf: sd):
     with computation(PARALLEL), interval(...):
         u2f = rf * (u2f / U000) ** 0.5
 
 
-@utils.stencil()
+@gtstencil()
 def rayleigh_u_friction(u: sd, pfull: sd, u2f: sd, rf_cutoff: float):
     with computation(PARALLEL), interval(...):
         u = u / (1.0 + 0.5 * (u2f[0, -1, 0] + u2f))
 
 
-@utils.stencil()
+@gtstencil()
 def rayleigh_v_friction(v: sd, pfull: sd, u2f: sd, rf_cutoff: float):
     with computation(PARALLEL), interval(...):
         v = v / (1.0 + 0.5 * (u2f[-1, 0, 0] + u2f))

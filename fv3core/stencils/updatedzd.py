@@ -16,13 +16,13 @@ sd = utils.sd
 DZ_MIN = constants.DZ_MIN
 
 
-@utils.stencil()
+@gtstencil()
 def ra_x_stencil(area: sd, xfx_adv: sd, ra_x: sd):
     with computation(PARALLEL), interval(...):
         ra_x = ra_x_func(area, xfx_adv)
 
 
-@utils.stencil()
+@gtstencil()
 def ra_y_stencil(area: sd, yfx_adv: sd, ra_y: sd):
     with computation(PARALLEL), interval(...):
         ra_y = ra_y_func(area, yfx_adv)
@@ -33,7 +33,7 @@ def zh_base(z2, area, fx, fy, ra_x, ra_y):
     return (z2 * area + fx - fx[1, 0, 0] + fy - fy[0, 1, 0]) / (ra_x + ra_y - area)
 
 
-@utils.stencil()
+@gtstencil()
 def zh_damp_stencil(
     area: sd,
     z2: sd,
@@ -51,7 +51,7 @@ def zh_damp_stencil(
         zh[0, 0, 0] = zhbase + (fx2 - fx2[1, 0, 0] + fy2 - fy2[0, 1, 0]) * rarea
 
 
-@utils.stencil()
+@gtstencil()
 def zh_stencil(area: sd, zh: sd, fx: sd, fy: sd, ra_x: sd, ra_y: sd):
     with computation(PARALLEL), interval(...):
         zh = zh_base(zh, area, fx, fy, ra_x, ra_y)
@@ -59,7 +59,7 @@ def zh_stencil(area: sd, zh: sd, fx: sd, fy: sd, ra_x: sd, ra_y: sd):
 
 # NOTE: we have not ported the uniform_grid True option as it is never called that way in this model,
 # we have also ignored limite != 0 for the same reason
-@utils.stencil()
+@gtstencil()
 def edge_profile(q1: sd, q2: sd, qe1: sd, qe2: sd, dp0: sd, gam: sd):
     with computation(FORWARD):
         with interval(0, 1):
@@ -135,7 +135,7 @@ def edge_python(q1, q2, qe1, qe2, dp0, gam, islice, jslice, qe1_2, gam_2):
         )
 
 
-@utils.stencil()
+@gtstencil()
 def out(zs: sd, zh: sd, ws: sd, dt: float):
     with computation(BACKWARD):
         with interval(-1, None):

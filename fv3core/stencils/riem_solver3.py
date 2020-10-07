@@ -15,7 +15,7 @@ from fv3core.decorators import gtstencil
 sd = utils.sd
 
 
-@utils.stencil()
+@gtstencil()
 def precompute(
     cp3: sd,
     dm: sd,
@@ -57,7 +57,7 @@ def precompute(
         dz = zh[0, 0, 1] - zh
 
 
-@utils.stencil()
+@gtstencil()
 def last_call_copy(peln_run: sd, peln: sd, pk3: sd, pk: sd, pem: sd, pe: sd):
     with computation(PARALLEL), interval(...):
         peln = peln_run
@@ -65,7 +65,7 @@ def last_call_copy(peln_run: sd, peln: sd, pk3: sd, pk: sd, pem: sd, pe: sd):
         pe = pem
 
 
-@utils.stencil()
+@gtstencil()
 def finalize(
     zs: sd,
     dz: sd,

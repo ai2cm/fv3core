@@ -10,27 +10,27 @@ sd = utils.sd
 origin = utils.origin
 
 # Flux field computation
-@utils.stencil()
+@gtstencil()
 def compute_flux(flux: sd, grid_spacing: sd, val_in: sd):
     with computation(PARALLEL), interval(...):
         flux[0, 0, 0] = val_in * grid_spacing
 
 
 # Vorticity field update (no corner value updates)
-@utils.stencil()
+@gtstencil()
 def update_vorticity(vorticity: sd, fx: sd, fy: sd):
     with computation(PARALLEL), interval(...):
         vorticity[0, 0, 0] = fx[0, -1, 0] - fx - fy[-1, 0, 0] + fy
 
 
 # Vorticity field update of corner values
-@utils.stencil()
+@gtstencil()
 def update_vorticity_western_corner(vorticity: sd, fy: sd):
     with computation(PARALLEL), interval(...):
         vorticity[0, 0, 0] = vorticity + fy[-1, 0, 0]
 
 
-@utils.stencil()
+@gtstencil()
 def update_vorticity_eastern_corner(vorticity: sd, fy: sd):
     with computation(PARALLEL), interval(...):
         vorticity[0, 0, 0] = vorticity - fy

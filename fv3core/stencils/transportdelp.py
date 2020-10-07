@@ -10,7 +10,7 @@ from fv3core.decorators import gtstencil
 sd = utils.sd
 
 
-@utils.stencil()
+@gtstencil()
 def hydro_x_fluxes(delp: sd, pt: sd, utc: sd, fx: sd, fx1: sd):
     with computation(PARALLEL), interval(...):
         fx1 = delp[-1, 0, 0] if utc > 0.0 else delp
@@ -19,7 +19,7 @@ def hydro_x_fluxes(delp: sd, pt: sd, utc: sd, fx: sd, fx1: sd):
         fx = fx1 * fx
 
 
-@utils.stencil()
+@gtstencil()
 def hydro_y_fluxes(delp: sd, pt: sd, vtc: sd, fy: sd, fy1: sd):
     with computation(PARALLEL), interval(...):
         fy1 = delp[0, -1, 0] if vtc > 0.0 else delp
@@ -28,7 +28,7 @@ def hydro_y_fluxes(delp: sd, pt: sd, vtc: sd, fy: sd, fy1: sd):
         fy = fy1 * fy
 
 
-@utils.stencil()
+@gtstencil()
 def nonhydro_x_fluxes(delp: sd, pt: sd, w: sd, utc: sd, fx: sd, fx1: sd, fx2: sd):
     with computation(PARALLEL), interval(...):
         fx1 = delp[-1, 0, 0] if utc > 0.0 else delp
@@ -39,7 +39,7 @@ def nonhydro_x_fluxes(delp: sd, pt: sd, w: sd, utc: sd, fx: sd, fx1: sd, fx2: sd
         fx2 = fx1 * fx2
 
 
-@utils.stencil()
+@gtstencil()
 def nonhydro_y_fluxes(delp: sd, pt: sd, w: sd, vtc: sd, fy: sd, fy1: sd, fy2: sd):
     with computation(PARALLEL), interval(...):
         fy1 = delp[0, -1, 0] if vtc > 0.0 else delp
@@ -50,7 +50,7 @@ def nonhydro_y_fluxes(delp: sd, pt: sd, w: sd, vtc: sd, fy: sd, fy1: sd, fy2: sd
         fy2 = fy1 * fy2
 
 
-@utils.stencil()
+@gtstencil()
 def transportdelp_hydrostatic(
     delp: sd, pt: sd, fx: sd, fx1: sd, fy: sd, fy1: sd, rarea: sd, delpc: sd, ptc: sd
 ):
@@ -59,7 +59,7 @@ def transportdelp_hydrostatic(
         ptc = (pt * delp + (fx - fx[1, 0, 0] + fy - fy[0, 1, 0]) * rarea) / delpc
 
 
-@utils.stencil()
+@gtstencil()
 def transportdelp_nonhydrostatic(
     delp: sd,
     pt: sd,

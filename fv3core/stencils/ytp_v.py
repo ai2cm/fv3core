@@ -26,7 +26,7 @@ from .yppm import (
 sd = utils.sd
 
 
-@utils.stencil()
+@gtstencil()
 def get_flux_v_stencil(
     q: sd, c: sd, al: sd, rdy: sd, bl: sd, br: sd, flux: sd, mord: int
 ):
@@ -40,7 +40,7 @@ def get_flux_v_stencil(
         flux = final_flux(c, q, fx0, tmp)  # noqa
 
 
-@utils.stencil()
+@gtstencil()
 def get_flux_v_ord8plus(q: sd, c: sd, rdy: sd, bl: sd, br: sd, flux: sd):
     with computation(PARALLEL), interval(...):
         b0 = get_b0(bl, br)
@@ -49,7 +49,7 @@ def get_flux_v_ord8plus(q: sd, c: sd, rdy: sd, bl: sd, br: sd, flux: sd):
         flux = q[0, -1, 0] + fx1 if c > 0.0 else q + fx1
 
 
-@utils.stencil()
+@gtstencil()
 def br_bl_main(q: sd, al: sd, bl: sd, br: sd):
     with computation(PARALLEL), interval(...):
         # TODO: add [0, 0, 0] when gt4py bug is fixed
@@ -57,7 +57,7 @@ def br_bl_main(q: sd, al: sd, bl: sd, br: sd):
         br = get_br(al=al, q=q)  # noqa
 
 
-@utils.stencil()
+@gtstencil()
 def br_bl_corner(br: sd, bl: sd):
     with computation(PARALLEL), interval(...):
         bl = 0

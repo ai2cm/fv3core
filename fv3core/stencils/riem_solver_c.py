@@ -12,7 +12,7 @@ from fv3core.decorators import gtstencil
 sd = utils.sd
 
 
-@utils.stencil()
+@gtstencil()
 def precompute(
     cp3: sd,
     gz: sd,
@@ -44,7 +44,7 @@ def precompute(
         pm = (peg[0, 0, 1] - peg) / log(peg[0, 0, 1] / peg)
 
 
-@utils.stencil()
+@gtstencil()
 def finalize(pe2: sd, pem: sd, hs: sd, dz: sd, pef: sd, gz: sd):
     # TODO: we only want to bottom level of hd, so this could be removed once hd0 is a 2d field
     with computation(FORWARD):

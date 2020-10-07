@@ -10,13 +10,13 @@ from fv3core.decorators import gtstencil
 sd = utils.sd
 
 
-@utils.stencil()
+@gtstencil()
 def vorticity(u: sd, dx: sd, vt: sd):
     with computation(PARALLEL), interval(...):
         vt[0, 0, 0] = u * dx
 
 
-@utils.stencil()
+@gtstencil()
 def volume_mean_relative_vorticity(ut: sd, vt: sd, rarea: sd, wk: sd):
     with computation(PARALLEL), interval(...):
         wk[0, 0, 0] = rarea * (vt - vt[0, 1, 0] - ut + ut[1, 0, 0])

@@ -15,7 +15,7 @@ from fv3core.decorators import gtstencil
 sd = utils.sd
 
 
-@utils.stencil()
+@gtstencil()
 def compute_pkz_tempadjust(
     delp: sd, delz: sd, cappa: sd, heat_source: sd, delt: sd, pt: sd, pkz: sd
 ):

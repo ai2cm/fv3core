@@ -14,13 +14,13 @@ from fv3core.decorators import gtstencil
 sd = utils.sd
 
 
-@utils.stencil()
+@gtstencil()
 def copy_from_below(a: sd, b: sd):
     with computation(PARALLEL), interval(1, None):
         b = a[0, 0, -1]
 
 
-@utils.stencil()
+@gtstencil()
 def init_phis(hs: sd, delz: sd, phis: sd, te_2d: sd):
     with computation(BACKWARD):
         with interval(-1, None):
@@ -31,7 +31,7 @@ def init_phis(hs: sd, delz: sd, phis: sd, te_2d: sd):
             phis = phis[0, 0, 1] - constants.GRAV * delz
 
 
-@utils.stencil()
+@gtstencil()
 def sum_z1(pkz: sd, delp: sd, te0_2d: sd, te_2d: sd, zsum1: sd):
     with computation(FORWARD):
         with interval(0, 1):
@@ -42,13 +42,13 @@ def sum_z1(pkz: sd, delp: sd, te0_2d: sd, te_2d: sd, zsum1: sd):
             zsum1 = zsum1[0, 0, -1] + pkz * delp
 
 
-@utils.stencil()
+@gtstencil()
 def layer_gradient(peln: sd, dpln: sd):
     with computation(PARALLEL), interval(...):
         dpln = peln[0, 0, 1] - peln
 
 
-@utils.stencil()
+@gtstencil()
 def sum_te(te: sd, te0_2d: sd):
     with computation(FORWARD):
         with interval(0, None):

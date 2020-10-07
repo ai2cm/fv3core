@@ -11,7 +11,7 @@ sd = utils.sd
 origin = utils.origin
 
 
-@utils.stencil()
+@gtstencil()
 def update_zonal_velocity(
     vorticity: sd,
     ke: sd,
@@ -34,7 +34,7 @@ def update_zonal_velocity(
         velocity_c = velocity_c + tmp_flux * flux + rdxc * (ke[-1, 0, 0] - ke)
 
 
-@utils.stencil()
+@gtstencil()
 def update_meridional_velocity(
     vorticity: sd,
     ke: sd,

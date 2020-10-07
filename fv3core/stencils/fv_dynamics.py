@@ -24,7 +24,7 @@ from fv3core.decorators import ArgSpec, state_inputs, gtstencil
 sd = utils.sd
 
 
-@utils.stencil()
+@gtstencil()
 def init_ph_columns(ak: sd, bk: sd, pfull: sd, ph1: sd, ph2: sd, p_ref: float):
     with computation(PARALLEL), interval(...):
         ph1 = ak + bk * p_ref
@@ -32,13 +32,13 @@ def init_ph_columns(ak: sd, bk: sd, pfull: sd, ph1: sd, ph2: sd, p_ref: float):
         pfull = (ph2 - ph1) / log(ph2 / ph1)
 
 
-@utils.stencil()
+@gtstencil()
 def pt_adjust(pkz: sd, dp1: sd, q_con: sd, pt: sd):
     with computation(PARALLEL), interval(...):
         pt = pt * (1.0 + dp1) * (1.0 - q_con) / pkz
 
 
-@utils.stencil()
+@gtstencil()
 def set_omega(delp: sd, delz: sd, w: sd, omga: sd):
     with computation(PARALLEL), interval(...):
         omga = delp / delz * w

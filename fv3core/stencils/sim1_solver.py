@@ -13,7 +13,7 @@ from fv3core.decorators import gtstencil
 sd = utils.sd
 
 
-@utils.stencil()
+@gtstencil()
 def sim1_solver(
     w: sd,
     dm: sd,

@@ -21,13 +21,13 @@ def grid():
     return spec.grid
 
 
-@utils.stencil()
+@gtstencil()
 def set_dp(dp1: sd, pe1: sd):
     with computation(PARALLEL), interval(...):
         dp1 = pe1[0, 0, 1] - pe1
 
 
-@utils.stencil()
+@gtstencil()
 def lagrangian_contributions(
     pe1: sd,
     ptop: sd,

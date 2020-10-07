@@ -9,7 +9,7 @@ from fv3core.decorators import gtstencil
 
 sd = utils.sd
 # TODO merge with pe_halo? reuse partials?
-@utils.stencil()
+@gtstencil()
 def edge_pe(pe: sd, delp: sd, pk3: sd, ptop: float, akap: float):
     with computation(FORWARD):
         with interval(0, 1):

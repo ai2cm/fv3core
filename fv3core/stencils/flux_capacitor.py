@@ -9,7 +9,7 @@ from fv3core.decorators import gtstencil
 sd = utils.sd
 
 
-@utils.stencil()
+@gtstencil()
 def flux_capacitor(
     cx: sd, cy: sd, xflux: sd, yflux: sd, crx_adv: sd, cry_adv: sd, fx: sd, fy: sd
 ):

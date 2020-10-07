@@ -53,13 +53,13 @@ def flux_integral(w, delp, gx, gy, rarea):
     return w * delp + flux_component(gx, gy, rarea)
 
 
-@utils.stencil()
+@gtstencil()
 def flux_adjust(w: sd, delp: sd, gx: sd, gy: sd, rarea: sd):
     with computation(PARALLEL), interval(...):
         w = flux_integral(w, delp, gx, gy, rarea)
 
 
-@utils.stencil()
+@gtstencil()
 def not_inlineq_pressure(gx: sd, gy: sd, rarea: sd, fx: sd, fy: sd, pt: sd, delp: sd):
     with computation(PARALLEL), interval(...):
         pt = flux_integral(
@@ -71,38 +71,38 @@ def not_inlineq_pressure(gx: sd, gy: sd, rarea: sd, fx: sd, fy: sd, pt: sd, delp
         pt[0, 0, 0] = pt / delp
 
 
-@utils.stencil()
+@gtstencil()
 def ke_from_bwind(ke: sd, ub: sd, vb: sd):
     with computation(PARALLEL), interval(...):
         ke[0, 0, 0] = 0.5 * (ke + ub * vb)
 
 
-@utils.stencil()
+@gtstencil()
 def ub_from_vort(vort: sd, ub: sd):
     with computation(PARALLEL), interval(...):
         ub[0, 0, 0] = vort - vort[1, 0, 0]
 
 
-@utils.stencil()
+@gtstencil()
 def vb_from_vort(vort: sd, vb: sd):
     with computation(PARALLEL), interval(...):
         vb[0, 0, 0] = vort - vort[0, 1, 0]
 
 
-@utils.stencil()
+@gtstencil()
 def u_from_ke(ke: sd, vt: sd, fy: sd, u: sd):
     with computation(PARALLEL), interval(...):
         u[0, 0, 0] = vt + ke - ke[1, 0, 0] + fy
 
 
-@utils.stencil()
+@gtstencil()
 def v_from_ke(ke: sd, ut: sd, fx: sd, v: sd):
     with computation(PARALLEL), interval(...):
         v[0, 0, 0] = ut + ke - ke[0, 1, 0] - fx
 
 
 # TODO: this is untested and the radius may be incorrect
-@utils.stencil(externals={"radius": constants.RADIUS})
+@gtstencil(externals={"radius": constants.RADIUS})
 def coriolis_force_correction(zh: sd, z_rat: sd):
     from __externals__ import radius
 
@@ -110,7 +110,7 @@ def coriolis_force_correction(zh: sd, z_rat: sd):
         z_rat[0, 0, 0] = 1.0 + (zh + zh[0, 0, 1]) / radius
 
 
-@utils.stencil()
+@gtstencil()
 def zrat_vorticity(wk: sd, f0: sd, z_rat: sd, vort: sd):
     with computation(PARALLEL), interval(...):
         vort[0, 0, 0] = wk + f0 * z_rat
@@ -122,7 +122,7 @@ def add_dw(w, dw, damp_w):
     return w
 
 
-@utils.stencil()
+@gtstencil()
 def adjust_w_and_qcon(w: sd, delp: sd, dw: sd, q_con: sd, damp_w: float):
     with computation(PARALLEL), interval(...):
         w = w / delp
@@ -131,7 +131,7 @@ def adjust_w_and_qcon(w: sd, delp: sd, dw: sd, q_con: sd, damp_w: float):
         q_con = q_con / delp
 
 
-@utils.stencil()
+@gtstencil()
 def heatdamping_setup(ub: sd, vt: sd, fy: sd, u: sd, gy: sd, rdx: sd, sign: float):
     with computation(PARALLEL), interval(...):
         ub[0, 0, 0] = (ub + sign * vt) * rdx
@@ -148,7 +148,7 @@ def heat_damping_term(ub, vb, gx, gy, rsin2, cosa_s, u2, v2, du2, dv2):
     )
 
 
-@utils.stencil()
+@gtstencil()
 def heatdamping(
     ub: sd,
     vb: sd,
