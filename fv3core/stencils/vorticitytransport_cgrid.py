@@ -71,7 +71,6 @@ def compute(uc, vc, vort_c, ke_c, v, u, fxv, fyv, dt2):
         dt2,
         origin=grid.compute_origin(),
         domain=grid.domain_shape_compute_buffer_2d(add=(0, 1, 0)),
-        splitters=grid.splitters,
     )
     update_zonal_velocity(
         vort_c,
@@ -85,5 +84,4 @@ def compute(uc, vc, vort_c, ke_c, v, u, fxv, fyv, dt2):
         origin=grid.compute_origin(),
         domain=grid.domain_shape_compute_buffer_2d(add=(1, 0, 0)),
         # domain=(grid.nic + 1, grid.njc, grid.npz),
-        splitters=grid.splitters,
     )

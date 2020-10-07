@@ -5,8 +5,9 @@ from typing import Callable, Tuple, Union
 
 from gt4py import gtscript
 
+import gt4py
 import fv3core._config as spec
-from fv3core.utils.gt4py_utils import backend, rebuild
+import fv3core.utils.gt4py_utils as utils
 
 
 ArgSpec = collections.namedtuple(
@@ -54,7 +55,7 @@ def module_level_var_errmsg(var: str, func: str):
 class FV3StencilObject:
     """GT4Py stencil object used for fv3core."""
 
-    def __init__(self, stencil_object: gt.StencilObject, build_info: dict):
+    def __init__(self, stencil_object: gt4py.StencilObject, build_info: dict):
         self.stencil_object = stencil_object
         self._build_info = build_info
 
@@ -79,11 +80,11 @@ def gtstencil(**stencil_kwargs) -> Callable[..., None]:
         @functools.wraps(func)
         def wrapped(*args, **kwargs) -> None:
             # This uses the module-level globals backend and rebuild (defined above)
-            key = (backend, rebuild)
+            key = (utils.backend, utils.rebuild)
             if key not in stencils:
                 # Add globals to stencil_kwargs
-                stencil_kwargs["rebuild"] = rebuild
-                stencil_kwargs["backend"] = backend
+                stencil_kwargs["rebuild"] = utils.rebuild
+                stencil_kwargs["backend"] = utils.backend
                 # Generate stencil
                 build_info = {}
                 stencil = gtscript.stencil(build_info=build_info, **stencil_kwargs)(
