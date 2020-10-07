@@ -1,4 +1,11 @@
 #!/usr/bin/env python3
+import gt4py.gtscript as gtscript
+from gt4py.gtscript import PARALLEL, computation, interval, parallel, region
+
+import fv3core.utils.gt4py_utils as utils
+
+
+sd = utils.sd
 
 
 @gtscript.function
@@ -10,27 +17,27 @@ def fill_4corners_x_func(q: sd):
 
     # Southwest
     with parallel(region[i_start - 2, j_start - 1]):
-        q_out = q[i_start - 1, j_start + 1]
+        q_out = q[1, 2, 0]
     with parallel(region[i_start - 1, j_start - 1]):
-        q_out = q[i_start - 1, j_start]
+        q_out = q[0, 1, 0]
 
     # Southeast
     with parallel(region[i_end + 2, j_start - 1]):
-        q_out = q[i_end + 1, j_start + 1]
+        q_out = q[-1, 2, 0]
     with parallel(region[i_end + 1, j_start - 1]):
-        q_out = q[i_end + 1, j_start]
+        q_out = q[0, 1, 0]
 
     # Northwest
     with parallel(region[i_start - 1, j_end + 1]):
-        q_out = q[i_start - 1, j_end]
+        q_out = q[0, -1, 0]
     with parallel(region[i_start - 2, j_end + 1]):
-        q_out = q[i_start - 1, j_end - 1]
+        q_out = q[1, -2, 0]
 
     # Northeast
     with parallel(region[i_end + 1, j_end + 1]):
-        q_out = q[i_end + 1, j_end]
+        q_out = q[0, -1, 0]
     with parallel(region[i_end + 2, j_end + 1]):
-        q_out = q[i_end + 1, j_end - 1]
+        q_out = q[-1, -2, 0]
 
     return q_out
 
@@ -44,27 +51,27 @@ def fill_4corners_y_func(q: sd):
 
     # Southwest
     with parallel(region[i_start - 1, j_start - 1]):
-        q_out = q[i_start, j_start - 1]
+        q_out = q[1, 0, 0]
     with parallel(region[i_start - 1, j_start - 2]):
-        q_out = q[i_start + 1, j_start - 1]
+        q_out = q[2, 1, 0]
 
     # Southeast
     with parallel(region[i_end + 1, j_start - 1]):
-        q_out = q[i_end, j_start - 1]
+        q_out = q[-1, 0, 0]
     with parallel(region[i_end + 1, j_start - 2]):
-        q_out = q[i_end - 1, j_start - 1]
+        q_out = q[-2, 1, 0]
 
     # Northwest
     with parallel(region[i_start - 1, j_end + 1]):
-        q_out = q[i_start, j_end + 1]
+        q_out = q[1, 0, 0]
     with parallel(region[i_start - 1, j_end + 2]):
-        q_out = q[i_start + 1, j_end + 1]
+        q_out = q[2, -1, 0]
 
     # Northeast
     with parallel(region[i_end + 1, j_end + 1]):
-        q_out = q[i_end, j_end + 1]
+        q_out = q[-1, 0, 0]
     with parallel(region[i_end + 1, j_end + 2]):
-        q_out = q[i_end - 1, j_end + 1]
+        q_out = q[-2, 1, 0]
 
     return q_out
 

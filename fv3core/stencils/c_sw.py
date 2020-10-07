@@ -7,9 +7,9 @@ import fv3core.stencils.circulation_cgrid as circulation_cgrid
 import fv3core.stencils.d2a2c_vect as d2a2c
 import fv3core.stencils.divergence_corner as divergence_corner
 import fv3core.stencils.ke_c_sw as ke_c_sw
-import fv3core.stencils.transportdelp as transportdelp
 import fv3core.stencils.vorticitytransport_cgrid as vorticity_transport
 import fv3core.utils.gt4py_utils as utils
+from fv3core.stencils.transportdelp import transportdelp
 
 
 sd = utils.sd
@@ -43,6 +43,8 @@ def compute(delp, pt, u, v, w, uc, vc, ua, va, ut, vt, divgd, omga, dt2):
     origin_halo1 = (grid.is_ - 1, grid.js - 1, 0)
     fx = utils.make_storage_from_shape(delp.shape, origin_halo1)
     fy = utils.make_storage_from_shape(delp.shape, origin_halo1)
+    delpc = utils.make_storage_from_shape(delp.shape, origin=origin_halo1)
+    ptc = utils.make_storage_from_shape(pt.shape, origin=origin_halo1)
     d2a2c.compute(dord4, uc, vc, u, v, ua, va, ut, vt)
     if spec.namelist.nord > 0:
         divergence_corner.compute(u, v, ua, va, divgd)
@@ -65,7 +67,20 @@ def compute(delp, pt, u, v, w, uc, vc, ua, va, ut, vt, divgd, omga, dt2):
         origin=geo_origin,
         domain=(grid.nic + 2, grid.njc + 3, grid.npz),
     )
-    delpc, ptc = transportdelp.compute(delp, pt, w, ut, vt, omga)
+    transportdelp(
+        delp,
+        pt,
+        ut,
+        vt,
+        w,
+        spec.grid.rarea,
+        delpc,
+        ptc,
+        omga,
+        origin=geo_origin,
+        domain=(grid.nic + 2, grid.njc + 2, grid.npz),
+        splitters=grid.splitters,
+    )
     ke, vort = ke_c_sw.compute(uc, vc, u, v, ua, va, dt2)
     circulation_cgrid.compute(uc, vc, vort)
     absolute_vorticity(
