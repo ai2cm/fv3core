@@ -22,7 +22,7 @@ from fv3core.utils.global_constants import (
     ZVIR,
 )
 
-from ..decorators import ArgSpec, state_inputs
+from fv3core.decorators import ArgSpec, state_inputs, gtstencil
 
 
 sd = utils.sd

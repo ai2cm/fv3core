@@ -9,6 +9,7 @@ import fv3core.stencils.basic_operations as basic
 import fv3core.utils.corners as corners
 import fv3core.utils.gt4py_utils as utils
 from fv3core.stencils.basic_operations import copy_stencil
+from fv3core.decorators import gtstencil
 
 
 sd = utils.sd

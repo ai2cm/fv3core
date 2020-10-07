@@ -4,6 +4,7 @@ import gt4py.gtscript as gtscript
 import fv3core._config as spec
 import fv3core.utils.gt4py_utils as utils
 from fv3core.stencils.pe_halo import edge_pe
+from fv3core.decorators import gtstencil
 
 
 sd = utils.sd

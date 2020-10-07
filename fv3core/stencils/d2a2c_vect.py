@@ -13,6 +13,7 @@ from fv3core.stencils.a2b_ord4 import (
     lagrange_x_func,
     lagrange_y_func,
 )
+from fv3core.decorators import gtstencil
 
 
 sd = utils.sd

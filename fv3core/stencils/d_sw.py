@@ -20,6 +20,7 @@ import fv3core.stencils.ytp_v as ytp_v
 import fv3core.utils.corners as corners
 import fv3core.utils.global_constants as constants
 import fv3core.utils.gt4py_utils as utils
+from fv3core.decorators import gtstencil
 
 
 dcon_threshold = 1e-5

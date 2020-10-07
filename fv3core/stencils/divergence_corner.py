@@ -5,6 +5,7 @@ import numpy as np
 import fv3core._config as spec
 import fv3core.stencils.basic_operations as basic
 import fv3core.utils.gt4py_utils as utils
+from fv3core.decorators import gtstencil
 
 
 sd = utils.sd

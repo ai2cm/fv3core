@@ -7,6 +7,7 @@ import fv3core._config as spec
 import fv3core.stencils.a2b_ord4 as a2b_ord4
 import fv3core.utils.gt4py_utils as utils
 from fv3core.utils.corners import fill2_4corners, fill_4corners
+from fv3core.decorators import gtstencil
 
 
 sd = utils.sd

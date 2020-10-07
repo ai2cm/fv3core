@@ -9,6 +9,7 @@ import fv3core.stencils.fvtp2d as fvtp2d
 import fv3core.utils.gt4py_utils as utils
 from fv3core.stencils.basic_operations import copy, copy_stencil
 from fv3core.stencils.updatedzd import ra_x_stencil, ra_y_stencil
+from fv3core.decorators import gtstencil
 
 
 sd = utils.sd
