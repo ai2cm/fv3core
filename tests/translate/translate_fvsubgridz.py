@@ -71,7 +71,7 @@ class TranslateFVSubgridZ(ParallelTranslateBaseSlicing):
             "units": "kg/kg",
         },
         "qice": {
-            "name": "ice_mixing_ratio",
+            "name": "cloud_ice_mixing_ratio",
             "dims": [fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_DIM],
             "units": "kg/kg",
         },
