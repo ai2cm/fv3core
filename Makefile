@@ -56,7 +56,7 @@ build_environment:
 		--target $(FV3_INSTALL_TARGET) \
 		.
 
-build_wrapped_environment: 
+build_wrapped_environment:
 	DOCKER_BUILDKIT=1 docker build \
 		--network host \
 		-f $(CWD)/docker/Dockerfile.build_environment \

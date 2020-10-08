@@ -1,29 +1,33 @@
+import copy
 import sys
+
 import fv3gfs.wrapper as wrapper
-import fv3core
+import mpi4py
+import numpy
+import numpy as np
+import xarray as xr
+import yaml
 from fv3gfs.util import (
+    X_DIMS,
+    Y_DIMS,
+    Z_DIMS,
+    CubedSphereCommunicator,
+    CubedSpherePartitioner,
     Quantity,
     QuantityFactory,
     SubtileGridSizer,
     io,
-    CubedSphereCommunicator,
-    CubedSpherePartitioner,
-    X_DIMS,
-    Y_DIMS,
-    Z_DIMS,
 )
-import numpy as np
-import xarray as xr
-import yaml
-import mpi4py
-import numpy
-import copy
+
+import fv3core
 import fv3core._config as spec
+
 
 sys.path.append("/serialbox2/python")  # noqa: E402
 sys.path.append("/fv3core/tests/translate")  # noqa: E402
 import serialbox
 import translate as translate
+
 
 # May need to run 'ulimit -s unlimited' before running this example
 # If you're running in our prepared docker container, you definitely need to do this
@@ -45,7 +49,9 @@ def transpose(state, dims, npz, npx, npy):
                 )
                 quantity_3d = Quantity.from_data_array(
                     xr.DataArray(
-                        data_3d, attrs=quantity.attrs, dims=[quantity.dims[0], quantity.dims[1], "z"]
+                        data_3d,
+                        attrs=quantity.attrs,
+                        dims=[quantity.dims[0], quantity.dims[1], "z"],
                     ),
                     origin=(quantity.origin[0], quantity.origin[1], 0),
                     extent=(quantity.extent[0], quantity.extent[1], npz),
@@ -78,7 +84,9 @@ def convert_3d_to_2d(state, field_names):
             0, :, :
         ]  # take the bottom level since they should all be the same
         quantity_2d = Quantity.from_data_array(
-            xr.DataArray(data_2d, attrs=quantity.attrs, dims=[quantity.dims[1], quantity.dims[2]]),
+            xr.DataArray(
+                data_2d, attrs=quantity.attrs, dims=[quantity.dims[1], quantity.dims[2]]
+            ),
             origin=(quantity.origin[1], quantity.origin[2]),
             extent=(quantity.extent[1], quantity.extent[2]),
         )
@@ -91,7 +99,9 @@ def convert_3d_to_1d(state, field_names):
     for field in field_names:
         quantity = state[field]
         # Assuming we've already transposed from xyz to zyx
-        data_1d = quantity.data[:, 0, 0]  # take the first column since they should be the same
+        data_1d = quantity.data[
+            :, 0, 0
+        ]  # take the first column since they should be the same
         quantity_1d = Quantity.from_data_array(
             xr.DataArray(data_1d, attrs=quantity.attrs, dims=[quantity.dims[0]]),
             origin=[quantity.origin[0]],
@@ -172,7 +182,10 @@ if __name__ == "__main__":
         "surface_pressure",
     ]
 
-    names_of_1d_variables = ["atmosphere_hybrid_a_coordinate", "atmosphere_hybrid_b_coordinate"]
+    names_of_1d_variables = [
+        "atmosphere_hybrid_a_coordinate",
+        "atmosphere_hybrid_b_coordinate",
+    ]
 
     # get grid from serialized data
     serializer = serialbox.Serializer(
@@ -210,21 +223,25 @@ if __name__ == "__main__":
     )
     u_tendency = Quantity.from_data_array(
         xr.DataArray(
-            arr.reshape((spec.namelist.npx + 6, spec.namelist.npy + 6, spec.namelist.npz + 1)),
+            arr.reshape(
+                (spec.namelist.npx + 6, spec.namelist.npy + 6, spec.namelist.npz + 1)
+            ),
             attrs={"fortran_name": "u_dt", "units": "m/s**2"},
             dims=["x", "y", "z"],
         ),
-        origin=(3,3,0),
-        extent=(spec.namelist.npx -1, spec.namelist.npy - 1, spec.namelist.npz),
+        origin=(3, 3, 0),
+        extent=(spec.namelist.npx - 1, spec.namelist.npy - 1, spec.namelist.npz),
     )
     v_tendency = Quantity.from_data_array(
         xr.DataArray(
-            arr.reshape((spec.namelist.npx + 6, spec.namelist.npy + 6, spec.namelist.npz + 1)),
+            arr.reshape(
+                (spec.namelist.npx + 6, spec.namelist.npy + 6, spec.namelist.npz + 1)
+            ),
             attrs={"fortran_name": "v_dt", "units": "m/s**2"},
             dims=["x", "y", "z"],
         ),
-        origin=(3,3,0),
-        extent=(spec.namelist.npx -1, spec.namelist.npy - 1, spec.namelist.npz),
+        origin=(3, 3, 0),
+        extent=(spec.namelist.npx - 1, spec.namelist.npy - 1, spec.namelist.npz),
     )
 
     turbulent_kinetic_energy.metadata.gt4py_backend = "numpy"
@@ -248,7 +265,7 @@ if __name__ == "__main__":
             spec.namelist.npx,
             spec.namelist.npy,
         )
-        
+
         fv3core.fv_dynamics(
             state,
             cube_comm,
@@ -277,6 +294,6 @@ if __name__ == "__main__":
         wrapper.step_physics()
         wrapper.save_intermediate_restart_if_enabled()
     state = wrapper.get_state(allocator=allocator, names=all_names)
-    
+
     io.write_state(state, "outstate_{0}.nc".format(rank))
     wrapper.cleanup()

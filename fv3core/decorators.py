@@ -1,13 +1,14 @@
 import collections
 import functools
 import types
-import numpy
+
 import gt4py as gt
-import fv3core
 import numpy
-import fv3core._config as spec
-from fv3gfs.util import Quantity
 import xarray as xr
+from fv3gfs.util import Quantity
+
+import fv3core
+import fv3core._config as spec
 
 
 ArgSpec = collections.namedtuple(

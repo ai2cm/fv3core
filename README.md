@@ -193,19 +193,19 @@ There are three main driver files:
 
 ## Running with fv3gfs-wrapper
 
-To use the python dynamical core for model runs, use use fv3gfs-wrapper. After initializing the submodules, go to `external/fv3gfs-wrapper` and run 
+To use the python dynamical core for model runs, use use fv3gfs-wrapper. After initializing the submodules, go to `external/fv3gfs-wrapper` and run
 
 ```shell
 $ make build-docker
 ```
 
-to generate a docker image for the wrapper. Then go back to the main fv3core directory and run 
+to generate a docker image for the wrapper. Then go back to the main fv3core directory and run
 
 ```shell
 $ make build_wrapped
 ```
 
-to build an fv3core docker image based on the wrapper image. The main way to run the model for now is to then execute `dev_docker.sh` to enter the image interactively. Once inside the image run 
+to build an fv3core docker image based on the wrapper image. The main way to run the model for now is to then execute `dev_docker.sh` to enter the image interactively. Once inside the image run
 
 ```shell
 $ python setup.py install

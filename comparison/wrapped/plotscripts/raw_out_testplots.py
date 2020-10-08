@@ -1,7 +1,9 @@
+from argparse import ArgumentParser
+
+import matplotlib.pyplot as plt
 import numpy as np
 from netCDF4 import Dataset
-import matplotlib.pyplot as plt
-from argparse import ArgumentParser
+
 
 usage = "usage: python %(prog)s <output directory> [optional 2nd output directory] [other options]"
 parser = ArgumentParser(usage=usage)
@@ -58,7 +60,9 @@ for filename in datafiles:
     nc_dims = [dim for dim in ncfile.dimensions]  # list of nc dimensions
     nc_vars = [var for var in ncfile.variables]  # list of nc variables
 
-    surface_pressure = ncfile.variables["surface_pressure"][:].data / 100.0  # convert to hPa
+    surface_pressure = (
+        ncfile.variables["surface_pressure"][:].data / 100.0
+    )  # convert to hPa
     temperature = ncfile.variables["air_temperature"][:].data
 
     surface_temperature = temperature[-1, :, :]  # temperature at bottom
@@ -66,19 +70,25 @@ for filename in datafiles:
     if args.reference_dir:
         fname2 = args.reference_dir + f
         ncf2 = Dataset(fname2, "r")
-        surface_pressure2 = ncf2.variables["surface_pressure"][:].data / 100.0  # convert to hPa
+        surface_pressure2 = (
+            ncf2.variables["surface_pressure"][:].data / 100.0
+        )  # convert to hPa
         temperature2 = ncf2.variables["air_temperature"][:].data
         surface_temperature2 = temperature2[-1, :, :]  # field at 850 hPa
 
-        surface_pressure_diff = (surface_pressure - surface_pressure2) / surface_pressure2
-        temperature_diff = (surface_temperature - surface_temperature2) / surface_temperature2
+        surface_pressure_diff = (
+            surface_pressure - surface_pressure2
+        ) / surface_pressure2
+        temperature_diff = (
+            surface_temperature - surface_temperature2
+        ) / surface_temperature2
 
         surface_pressure_plots.append(surface_pressure_diff)
         surface_temperature_plots.append(temperature_diff)
 
         # savin' variables
         for var in nc_vars:
-            if ("time" not in var):
+            if "time" not in var:
                 if var in ncf2.variables.keys():
                     if var not in vardict.keys():
                         vardict[var] = []
@@ -153,7 +163,7 @@ if args.reference_dir:
         vmeans.append(var_tiles.mean())
         variable_lnorm1.append(np.linalg.norm(var_tiles.flatten(), 1))
         variable_lnorm2.append(np.linalg.norm(var_tiles.flatten(), 2))
-        variable_lnorminf.append(np.linalg.norm(var_tiles.flatten(), np.inf))   
+        variable_lnorminf.append(np.linalg.norm(var_tiles.flatten(), np.inf))
         print(var, np.mean(np.abs(var_tiles.flatten())))
 
 ################
@@ -205,10 +215,14 @@ for ii in range(3):
     for jj in range(2):
         k = 2 * ii + jj
         if k == 0:
-            cs = axs1[ii, jj].contourf(np.log10(np.abs(surface_pressure_plots[k])), pressure_levels)
+            cs = axs1[ii, jj].contourf(
+                np.log10(np.abs(surface_pressure_plots[k])), pressure_levels
+            )
             levs = cs.levels
         else:
-            cs = axs1[ii, jj].contourf(np.log10(np.abs(surface_pressure_plots[k])), levs)
+            cs = axs1[ii, jj].contourf(
+                np.log10(np.abs(surface_pressure_plots[k])), levs
+            )
         axs1[ii, jj].annotate(tilestrs[k], (2, 2), textcoords="data", size=9)
 
 fig1.subplots_adjust(bottom=bottom_adjust)
@@ -225,16 +239,19 @@ for ii in range(3):
     for jj in range(2):
         k = 2 * ii + jj
         if k == 0:
-            cs = axs2[ii, jj].contourf(np.log10(np.abs(surface_temperature_plots[k])), temperature_levels)
+            cs = axs2[ii, jj].contourf(
+                np.log10(np.abs(surface_temperature_plots[k])), temperature_levels
+            )
             levs = cs.levels
         else:
-            cs = axs2[ii, jj].contourf(np.log10(np.abs(surface_temperature_plots[k])), levs)
+            cs = axs2[ii, jj].contourf(
+                np.log10(np.abs(surface_temperature_plots[k])), levs
+            )
         axs2[ii, jj].annotate(tilestrs[k], (2, 2), textcoords="data", size=9)
 
 fig2.subplots_adjust(bottom=bottom_adjust)
 cax = fig2.add_axes(colorbar_array)
 cbar = fig2.colorbar(cs, cax=cax, orientation="horizontal")
 
-fig2.suptitle(r"$\mathrm{Log_{10}\ Bottom\ Temperature}$")\
-
+fig2.suptitle(r"$\mathrm{Log_{10}\ Bottom\ Temperature}$")
 plt.savefig("{0}/tile_bot_temperature0_{1}.png".format(plotdir, post))
