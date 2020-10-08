@@ -134,7 +134,7 @@ dev_tests_mpi_host:
 
 test_gt4py: build
 	$(CONTAINER_ENGINE) run $(RUN_FLAGS) $(VOLUMES) $(MOUNTS) \
-	$(FV3_IMAGE) pytest -x /usr/src/gt4py
+	$(FV3_IMAGE) pytest -k "not gtcuda" -x /usr/src/gt4py
 
 test_base:
 	$(CONTAINER_ENGINE) run $(RUN_FLAGS) $(VOLUMES) $(MOUNTS) \
