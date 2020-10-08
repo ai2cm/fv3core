@@ -17,7 +17,7 @@ TEST_DATA_HOST ?=$(CWD)/test_data/$(EXPERIMENT)
 FV3=fv3core
 FV3UTIL_DIR=$(CWD)/external/fv3util
 FV3UTIL_DIR=$(CWD)/external/fv3gfs-util
-FV3_INSTALL_TAG ?= develop
+FV3_INSTALL_TAG ?= testgt4py
 FV3_INSTALL_TARGET=$(FV3)-install
 FV3_INSTALL_IMAGE=$(GCR_URL)/$(FV3_INSTALL_TARGET):$(FV3_INSTALL_TAG)
 FV3_TAG ?= $(FV3CORE_VERSION)-$(FV3_INSTALL_TAG)
@@ -131,6 +131,10 @@ dev_test_mpi: dev_tests_mpi
 
 dev_tests_mpi_host:
 	MOUNTS=$(DEV_MOUNTS) $(MAKE) run_tests_parallel_host
+
+test_gt4py: build
+	$(CONTAINER_ENGINE) run $(RUN_FLAGS) $(VOLUMES) $(MOUNTS) \
+	$(FV3_IMAGE) pytest -x /usr/src/gt4py
 
 test_base:
 	$(CONTAINER_ENGINE) run $(RUN_FLAGS) $(VOLUMES) $(MOUNTS) \
