@@ -238,8 +238,8 @@ def xt_dya_edge_1_base(q, dya):
 def xt_dya_edge_0(q, dya, xt_minmax):
     xt = xt_dya_edge_0_base(q, dya)
     if xt_minmax:
-        minq = min(min(min(q[0, -1, 0], q), q[0,1,0]), q[0, 2, 0])
-        maxq = max(max(max(q[0, -1, 0], q), q[0,1,0]), q[0, 2, 0])
+        minq = min(min(min(q[0, -1, 0], q), q[0, 1, 0]), q[0, 2, 0])
+        maxq = max(max(max(q[0, -1, 0], q), q[0, 1, 0]), q[0, 2, 0])
         xt = min(max(xt, minq), maxq)
     return xt
 

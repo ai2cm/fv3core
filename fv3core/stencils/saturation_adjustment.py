@@ -723,7 +723,10 @@ def satadjust_part1(
         )  # compute_dq0(qv, wqsat, dq2dt, tcp3)  #(qv - wqsat) / (1.0 + tcp3 * dq2dt)
         # TODO might be able to get rid of these temporary allocations when not used?
         if dq0 > 0:  # whole grid - box saturated
-            src = min(spec.namelist.sat_adj0 * dq0, max(spec.namelist.ql_gen - ql, fac_v2l * dq0))
+            src = min(
+                spec.namelist.sat_adj0 * dq0,
+                max(spec.namelist.ql_gen - ql, fac_v2l * dq0),
+            )
         else:
             # TODO -- we'd like to use this abstraction rather than duplicate code, but inside the if conditional complains 'not implemented'
             # factor, src = ql_evaporation(wqsat, qv, ql, dq0,fac_l2v)
@@ -996,13 +999,13 @@ def satadjust_part3_laststep_qa(
             dq = hvar * qpz
             q_plus = qpz + dq
             q_minus = qpz - dq
-            if (spec.namelist.icloud_f == 2): # TODO untested
-               if (qpz > qstar):
-                   qa = 1.
-               elif ((qstar < q_plus) and (q_cond > 1.e-8)):
-                   qa = min(1., ((q_plus - qstar) / dq)**2)
-               else:
-                   qa = 0.
+            if spec.namelist.icloud_f == 2:  # TODO untested
+                if qpz > qstar:
+                    qa = 1.0
+                elif (qstar < q_plus) and (q_cond > 1.0e-8):
+                    qa = min(1.0, ((q_plus - qstar) / dq) ** 2)
+                else:
+                    qa = 0.0
             else:
                 if qstar < q_minus:
                     qa = 1.0
