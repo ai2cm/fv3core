@@ -17,8 +17,8 @@ RUN_FLAGS ?="--rm"
 TEST_DATA_HOST ?=$(CWD)/test_data/$(EXPERIMENT)
 FV3=fv3core
 FV3UTIL_DIR=$(CWD)/external/fv3gfs-util
-FV3_INSTALL_TAG ?= integration
-FV3_INSTALL_TARGET=fv3core-install
+FV3_INSTALL_TAG ?= develop
+FV3_INSTALL_TARGET=$(FV3)-install
 
 FV3=fv3core
 FV3_INSTALL_IMAGE=$(GCR_URL)/$(FV3_INSTALL_TARGET):$(FV3_INSTALL_TAG)
