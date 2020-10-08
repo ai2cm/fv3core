@@ -127,12 +127,8 @@ def finalflux_ord8plus(q: sd, c: sd, bl: sd, br: sd, flux: sd):
 def dm_iord8plus(q: sd, al: sd, dm: sd):
     with computation(PARALLEL), interval(...):
         xt = 0.25 * (q[1, 0, 0] - q[-1, 0, 0])
-        maxqj = max(q, q[-1, 0, 0])
-        maxqj = max(maxqj, q[1, 0, 0])
-        minqj = min(q, q[-1, 0, 0])
-        minqj = min(minqj, q[1, 0, 0])
-        dqr = maxqj - q
-        dql = q - minqj
+        dqr = max(max(q, q[-1, 0, 0]), q[1, 0, 0]) - q
+        dql = q - min(min(q, q[-1, 0, 0]), q[1, 0, 0])
         dm = sign(min(min(abs(xt), dqr), dql), xt)
 
 
@@ -147,10 +143,8 @@ def blbr_iord8(q: sd, al: sd, bl: sd, br: sd, dm: sd):
     with computation(PARALLEL), interval(...):
         # al, dm = al_iord8plus_fn(q, al, dm, r3)
         xt = 2.0 * dm
-        aldiff = al - q
-        aldiffj = al[1, 0, 0] - q
-        bl = -1.0 * sign(min(abs(xt), abs(aldiff)), xt)
-        br = sign(min(abs(xt), abs(aldiffj)), xt)
+        bl = -1.0 * sign(min(abs(xt), abs(al - q)), xt)
+        br = sign(min(abs(xt), abs(al[1, 0, 0] - q)), xt)
 
 
 @gtscript.function
@@ -180,14 +174,9 @@ def xt_dxa_edge_0(q, dxa, xt_minmax):
     minq = 0.0
     maxq = 0.0
     if xt_minmax:
-        minq = min(q[-1, 0, 0], q)
-        minq = min(minq, q[1, 0, 0])
-        minq = min(minq, q[2, 0, 0])
-        maxq = max(q[-1, 0, 0], q)
-        maxq = max(maxq, q[1, 0, 0])
-        maxq = max(maxq, q[2, 0, 0])
-        xt = max(xt, minq)
-        xt = min(xt, maxq)
+        minq = min(min(min(q[-1, 0, 0], q), q[1, 0, 0]), q[2, 0, 0])
+        maxq = max(max(max(q[-1, 0, 0], q), q[1, 0, 0]), q[2, 0, 0])
+        xt = min(max(xt, minq), maxq)
     return xt
 
 
@@ -197,14 +186,9 @@ def xt_dxa_edge_1(q, dxa, xt_minmax):
     minq = 0.0
     maxq = 0.0
     if xt_minmax:
-        minq = min(q[-2, 0, 0], q[-1, 0, 0])
-        minq = min(minq, q)
-        minq = min(minq, q[1, 0, 0])
-        maxq = max(q[-2, 0, 0], q[-1, 0, 0])
-        maxq = max(maxq, q)
-        maxq = max(maxq, q[1, 0, 0])
-        xt = max(xt, minq)
-        xt = min(xt, maxq)
+        minq = min(min(min(q[-2, 0, 0], q[-1, 0, 0]), q), q[1, 0, 0])
+        maxq = max(max(max(q[-2, 0, 0], q[-1, 0, 0]), q), q[1, 0, 0])
+        xt = min(max(xt, minq), maxq)
     return xt
 
 
