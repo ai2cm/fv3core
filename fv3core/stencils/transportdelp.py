@@ -11,18 +11,24 @@ sd = utils.sd
 
 @gtscript.function
 def nonhydro_x_fluxes(delp: sd, pt: sd, w: sd, utc: sd):
-    fx = pt[-1, 0, 0] if utc > 0.0 else pt
     fx1 = delp[-1, 0, 0] if utc > 0.0 else delp
+    fx = pt[-1, 0, 0] if utc > 0.0 else pt
     fx2 = w[-1, 0, 0] if utc > 0.0 else w
-    return fx1 * fx, utc * fx1, fx1 * fx2
+    fx1 = utc * fx1
+    fx = fx1 * fx
+    fx2 = fx1 * fx2
+    return fx, fx1, fx2
 
 
 @gtscript.function
 def nonhydro_y_fluxes(delp: sd, pt: sd, w: sd, vtc: sd):
-    fy = pt[0, -1, 0] if vtc > 0.0 else pt
     fy1 = delp[0, -1, 0] if vtc > 0.0 else delp
+    fy = pt[0, -1, 0] if vtc > 0.0 else pt
     fy2 = w[0, -1, 0] if vtc > 0.0 else w
-    return fy1 * fy, vtc * fy1, fy1 * fy2
+    fy1 = vtc * fy1
+    fy = fy1 * fy
+    fy2 = fy1 * fy2
+    return fy, fy1, fy2
 
 
 @gtstencil()
