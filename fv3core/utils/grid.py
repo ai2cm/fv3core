@@ -87,7 +87,7 @@ class Grid:
             )
         return self._quantity_factory
 
-    def splitters(self, *, origin: Optional[Tuple[int, int, int]] = None):
+    def splitters(self, *, origin = None):
         """Return the splitters relative to origin.
 
         Args:
@@ -95,7 +95,7 @@ class Grid:
 
         """
         if origin is None:
-            origin = (self.is_, self.js, 0)
+            origin = self.compute_origin()
         return {
             "i_start": origin[0] - self.global_is,
             "i_end": self.npx + origin[0] - 2 - self.global_is,

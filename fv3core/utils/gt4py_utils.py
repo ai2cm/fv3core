@@ -12,7 +12,6 @@ import numpy as np
 from gt4py import gtscript
 
 # Problem: creates circular dependency
-import fv3core._config as spec
 from fv3core.utils.mpi import MPI
 
 
