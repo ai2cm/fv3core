@@ -37,14 +37,14 @@ def update_vorticity_and_kinetic_energy(
 
         if __INLINED(spec.namelist.grid_type < 3):
             # additional assumption: not __INLINED(spec.grid.nested)
-            with parallel(region[:, j_start + 1], region[:, j_end + 2]):
+            with parallel(region[:, j_start - 1], region[:, j_end]):
                 vort = vort * sin_sg4 + u[0, 1, 0] * cos_sg4 if va <= 0.0 else vort
-            with parallel(region[:, j_start + 2], region[:, j_end + 3]):
+            with parallel(region[:, j_start], region[:, j_end + 1]):
                 vort = vort * sin_sg2 + u * cos_sg2 if va > 0.0 else vort
 
-            with parallel(region[i_end + 2, :], region[i_start + 1, :]):
+            with parallel(region[i_end, :], region[i_start - 1, :]):
                 ke = ke * sin_sg3 + v[1, 0, 0] * cos_sg3 if ua <= 0.0 else ke
-            with parallel(region[i_end + 3, :], region[i_start + 2, :]):
+            with parallel(region[i_end + 1, :], region[i_start, :]):
                 ke = ke * sin_sg1 + v * cos_sg1 if ua > 0.0 else ke
 
         ke = 0.5 * dt2 * (ua * ke + va * vort)
