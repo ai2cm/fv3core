@@ -103,11 +103,6 @@ def fill_4corners(q, direction, grid):
         raise ValueError("Direction not recognized. Specify either x or y")
 
 
-def fill2_4corners(q1, q2, direction, grid):
-    fill_4corners(q1, direction, grid)
-    fill_4corners(q1, direction, grid)
-
-
 def copy_sw_corner(q, direction, grid, kslice):
     for j in range(grid.js - grid.halo, grid.js):
         for i in range(grid.is_ - grid.halo, grid.is_):
