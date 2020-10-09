@@ -87,7 +87,7 @@ class Grid:
             )
         return self._quantity_factory
 
-    def splitters(self, *, origin = None):
+    def splitters(self, *, origin=None):
         """Return the splitters relative to origin.
 
         Args:
