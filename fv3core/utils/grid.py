@@ -100,7 +100,7 @@ class Grid:
             "i_start": self.is_ - self.global_is + (self.is_ - origin[0]),
             "i_end": self.npx + self.halo - 2 - self.global_is + (self.is_ - origin[0]),
             "j_start": self.js - self.global_js + (self.js - origin[1]),
-            "j_end": self.npy + self.halo- 2 - self.global_js + (self.js - origin[1]),
+            "j_end": self.npy + self.halo - 2 - self.global_js + (self.js - origin[1]),
         }
 
     def make_quantity(
