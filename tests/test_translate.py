@@ -3,7 +3,6 @@
 import contextlib
 import logging
 import os
-import sys
 
 import fv3gfs.util as fv3util
 import numpy as np
