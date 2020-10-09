@@ -5,21 +5,19 @@ from .translate import TranslateFortranData2Py
 
 
 class TranslateTransportDelp(TranslateFortranData2Py):
-    def _call(self, *args, **kwargs):
+    def _call(self, **kwargs):
         orig = (self.grid.is_ - 1, self.grid.js - 1, 0)
         delpc = utils.make_storage_from_shape(kwargs["delp"].shape, origin=orig)
         ptc = utils.make_storage_from_shape(kwargs["pt"].shape, origin=orig)
         wc = utils.make_storage_from_shape(kwargs["w"].shape, origin=orig)
         transportdelp(
-            *args,
             **kwargs,
             rarea=self.grid.rarea,
             delpc=delpc,
             ptc=ptc,
             wc=wc,
-            origin=(self.grid.is_ - 1, self.grid.js - 1, 0),
+            origin=orig,
             domain=self.grid.domain_shape_compute_buffer_2d(add=(2, 2, 0)),
-            splitters=self.grid.splitters,
         )
         return delpc, ptc, wc
 

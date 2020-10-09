@@ -71,7 +71,7 @@ def fill_4corners_y_func(q: sd):
     with parallel(region[i_end + 1, j_end + 1]):
         q_out = q[-1, 0, 0]
     with parallel(region[i_end + 1, j_end + 2]):
-        q_out = q[-2, 1, 0]
+        q_out = q[-2, -1, 0]
 
     return q_out
 
