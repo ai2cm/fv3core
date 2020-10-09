@@ -1,7 +1,7 @@
 import gt4py.gtscript as gtscript
 from gt4py.gtscript import __INLINED, PARALLEL, computation, interval
 
-import fv3core._config as spec
+from fv3core._config import namelist
 import fv3core.utils.gt4py_utils as utils
 from fv3core.utils.corners import fill_4corners_x_func, fill_4corners_y_func
 from fv3core.decorators import gtstencil
@@ -46,14 +46,16 @@ def transportdelp(
     """
 
     with computation(PARALLEL), interval(...):
-        if __INLINED(spec.namelist.grid_type < 3):
+        if __INLINED(namelist.grid_type < 3):
+            # additional assumption (not grid.nested)
             delp = fill_4corners_x_func(delp)
             pt = fill_4corners_x_func(pt)
             w = fill_4corners_x_func(w)
 
         fx, fx1, fx2 = nonhydro_x_fluxes(delp, pt, w, utc)
 
-        if __INLINED(spec.namelist.grid_type < 3):
+        if __INLINED(namelist.grid_type < 3):
+            # additional assumption (not grid.nested)
             delp = fill_4corners_y_func(delp)
             pt = fill_4corners_y_func(pt)
             w = fill_4corners_y_func(w)
