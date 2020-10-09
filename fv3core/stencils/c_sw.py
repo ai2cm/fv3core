@@ -9,8 +9,9 @@ import fv3core.stencils.divergence_corner as divergence_corner
 import fv3core.stencils.ke_c_sw as ke_c_sw
 import fv3core.stencils.vorticitytransport_cgrid as vorticity_transport
 import fv3core.utils.gt4py_utils as utils
-from fv3core.stencils.transportdelp import transportdelp
 from fv3core.decorators import gtstencil
+from fv3core.stencils.transportdelp import transportdelp
+
 
 sd = utils.sd
 

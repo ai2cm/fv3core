@@ -3,6 +3,7 @@ import gt4py.gtscript as gtscript
 from gt4py.gtscript import PARALLEL, computation, interval, parallel, region
 
 import fv3core.utils.gt4py_utils as utils
+from fv3core.decorators import gtstencil
 
 
 sd = utils.sd
@@ -77,85 +78,34 @@ def fill_4corners_y_func(q: sd):
 
 
 def fill_4corners(q, direction, grid):
+    def definition(q: sd):
+        from __externals__ import func
+
+        with computation(PARALLEL), interval(...):
+            q = func(q)
+
+    kwargs = {
+        "origin": grid.compute_origin(add=(-3, -3, 0)),
+        "domain": grid.domain_shape_compute_buffer_2d(add=(6, 6, 0)),
+    }
+
     if direction == "x":
-        for k in range(q.shape[2]):
-            if grid.sw_corner:
-                q[grid.is_ - 2, grid.js - 1, k] = q[grid.is_ - 1, grid.js + 1, k]
-                q[grid.is_ - 1, grid.js - 1, k] = q[grid.is_ - 1, grid.js, k]
-            if grid.se_corner:
-                q[grid.ie + 2, grid.js - 1, k] = q[grid.ie + 1, grid.js + 1, k]
-                q[grid.ie + 1, grid.js - 1, k] = q[grid.ie + 1, grid.js, k]
-            if grid.nw_corner:
-                q[grid.is_ - 1, grid.je + 1, k] = q[grid.is_ - 1, grid.je, k]
-                q[grid.is_ - 2, grid.je + 1, k] = q[grid.is_ - 1, grid.je - 1, k]
-            if grid.ne_corner:
-                q[grid.ie + 1, grid.je + 1, k] = q[grid.ie + 1, grid.je, k]
-                q[grid.ie + 2, grid.je + 1, k] = q[grid.ie + 1, grid.je - 1, k]
+        stencil = gtstencil(
+            definition=definition, externals={"func": fill_4corners_x_func}
+        )
+        stencil(q, **kwargs)
     elif direction == "y":
-        for k in range(q.shape[2]):
-            if grid.sw_corner:
-                q[grid.is_ - 1, grid.js - 1, k] = q[grid.is_, grid.js - 1, k]
-                q[grid.is_ - 1, grid.js - 2, k] = q[grid.is_ + 1, grid.js - 1, k]
-            if grid.se_corner:
-                q[grid.ie + 1, grid.js - 1, k] = q[grid.ie, grid.js - 1, k]
-                q[grid.ie + 1, grid.js - 2, k] = q[grid.ie - 1, grid.js - 1, k]
-            if grid.nw_corner:
-                q[grid.is_ - 1, grid.je + 1, k] = q[grid.is_, grid.je + 1, k]
-                q[grid.is_ - 1, grid.je + 2, k] = q[grid.is_ + 1, grid.je + 1, k]
-            if grid.ne_corner:
-                q[grid.ie + 1, grid.je + 1, k] = q[grid.ie, grid.je + 1, k]
-                q[grid.ie + 1, grid.je + 2, k] = q[grid.ie - 1, grid.je + 1, k]
+        stencil = gtstencil(
+            definition=definition, externals={"func": fill_4corners_y_func}
+        )
+        stencil(q, **kwargs)
     else:
         raise ValueError("Direction not recognized. Specify either x or y")
 
 
 def fill2_4corners(q1, q2, direction, grid):
-    if direction == "x":
-        for k in range(q1.shape[2]):
-            if grid.sw_corner:
-                q1[grid.is_ - 2, grid.js - 1, k] = q1[grid.is_ - 1, grid.js + 1, k]
-                q1[grid.is_ - 1, grid.js - 1, k] = q1[grid.is_ - 1, grid.js, k]
-                q2[grid.is_ - 2, grid.js - 1, k] = q2[grid.is_ - 1, grid.js + 1, k]
-                q2[grid.is_ - 1, grid.js - 1, k] = q2[grid.is_ - 1, grid.js, k]
-            if grid.se_corner:
-                q1[grid.ie + 2, grid.js - 1, k] = q1[grid.ie + 1, grid.js + 1, k]
-                q1[grid.ie + 1, grid.js - 1, k] = q1[grid.ie + 1, grid.js, k]
-                q2[grid.ie + 2, grid.js - 1, k] = q2[grid.ie + 1, grid.js + 1, k]
-                q2[grid.ie + 1, grid.js - 1, k] = q2[grid.ie + 1, grid.js, k]
-            if grid.nw_corner:
-                q1[grid.is_ - 1, grid.je + 1, k] = q1[grid.is_ - 1, grid.je, k]
-                q1[grid.is_ - 2, grid.je + 1, k] = q1[grid.is_ - 1, grid.je - 1, k]
-                q2[grid.is_ - 1, grid.je + 1, k] = q2[grid.is_ - 1, grid.je, k]
-                q2[grid.is_ - 2, grid.je + 1, k] = q2[grid.is_ - 1, grid.je - 1, k]
-            if grid.ne_corner:
-                q1[grid.ie + 1, grid.je + 1, k] = q1[grid.ie + 1, grid.je, k]
-                q1[grid.ie + 2, grid.je + 1, k] = q1[grid.ie + 1, grid.je - 1, k]
-                q2[grid.ie + 1, grid.je + 1, k] = q2[grid.ie + 1, grid.je, k]
-                q2[grid.ie + 2, grid.je + 1, k] = q2[grid.ie + 1, grid.je - 1, k]
-    elif direction == "y":
-        for k in range(q1.shape[2]):
-            if grid.sw_corner:
-                q1[grid.is_ - 1, grid.js - 1, k] = q1[grid.is_, grid.js - 1, k]
-                q1[grid.is_ - 1, grid.js - 2, k] = q1[grid.is_ + 1, grid.js - 1, k]
-                q2[grid.is_ - 1, grid.js - 1, k] = q2[grid.is_, grid.js - 1, k]
-                q2[grid.is_ - 1, grid.js - 2, k] = q2[grid.is_ + 1, grid.js - 1, k]
-            if grid.se_corner:
-                q1[grid.ie + 1, grid.js - 1, k] = q1[grid.ie, grid.js - 1, k]
-                q1[grid.ie + 1, grid.js - 2, k] = q1[grid.ie - 1, grid.js - 1, k]
-                q2[grid.ie + 1, grid.js - 1, k] = q2[grid.ie, grid.js - 1, k]
-                q2[grid.ie + 1, grid.js - 2, k] = q2[grid.ie - 1, grid.js - 1, k]
-            if grid.nw_corner:
-                q1[grid.is_ - 1, grid.je + 1, k] = q1[grid.is_, grid.je + 1, k]
-                q1[grid.is_ - 1, grid.je + 2, k] = q1[grid.is_ + 1, grid.je + 1, k]
-                q2[grid.is_ - 1, grid.je + 1, k] = q2[grid.is_, grid.je + 1, k]
-                q2[grid.is_ - 1, grid.je + 2, k] = q2[grid.is_ + 1, grid.je + 1, k]
-            if grid.ne_corner:
-                q1[grid.ie + 1, grid.je + 1, k] = q1[grid.ie, grid.je + 1, k]
-                q1[grid.ie + 1, grid.je + 2, k] = q1[grid.ie - 1, grid.je + 1, k]
-                q2[grid.ie + 1, grid.je + 1, k] = q2[grid.ie, grid.je + 1, k]
-                q2[grid.ie + 1, grid.je + 2, k] = q2[grid.ie - 1, grid.je + 1, k]
-    else:
-        raise ValueError("Direction not recognized. Specify either x or y")
+    fill_4corners(q1, direction, grid)
+    fill_4corners(q1, direction, grid)
 
 
 def copy_sw_corner(q, direction, grid, kslice):

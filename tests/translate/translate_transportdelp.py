@@ -1,5 +1,5 @@
-from fv3core.stencils.transportdelp import transportdelp
 import fv3core.utils.gt4py_utils as utils
+from fv3core.stencils.transportdelp import transportdelp
 
 from .translate import TranslateFortranData2Py
 
