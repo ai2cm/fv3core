@@ -97,10 +97,10 @@ class Grid:
         if origin is None:
             origin = self.compute_origin()
         return {
-            "i_start": origin[0] - self.global_is,
-            "i_end": self.npx + origin[0] - 2 - self.global_is,
-            "j_start": origin[1] - self.global_js,
-            "j_end": self.npy + origin[1] - 2 - self.global_js,
+            "i_start": self.is_ - self.global_is + (self.is_ - origin[0]),
+            "i_end": self.npx + self.halo - 2 - self.global_is + (self.is_ - origin[0]),
+            "j_start": self.js - self.global_js + (self.js - origin[1]),
+            "j_end": self.npy + self.halo- 2 - self.global_js + (self.js - origin[1]),
         }
 
     def make_quantity(
