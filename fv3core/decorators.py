@@ -66,7 +66,7 @@ class FV3StencilObject:
         return self.stencil_object(*args, **kwargs)
 
 
-def gtstencil(**stencil_kwargs) -> Callable[..., None]:
+def gtstencil(definition=None, **stencil_kwargs) -> Callable[..., None]:
     if "rebuild" in stencil_kwargs:
         raise ValueError(module_level_var_errmsg("rebuild", "gtstencil"))
     if "backend" in stencil_kwargs:
@@ -96,4 +96,7 @@ def gtstencil(**stencil_kwargs) -> Callable[..., None]:
 
         return wrapped
 
-    return decorator
+    if definition is None:
+        return decorator
+    else:
+        return decorator(definition)
