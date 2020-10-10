@@ -23,64 +23,63 @@ def compute_rff_vals(pfull, bdt, rf_cutoff, tau0, ptop):
     return rffvals
 
 @gtscript.function
-def dm_adjusted_wind(wind, dmwind, dm, pfull, rf_cutoff_nudge, kindex, ks):
+def dm_adjusted_wind(dmwind, dm, wind, pfull, rf_cutoff_nudge, kindex, ks):
     if pfull < rf_cutoff_nudge and kindex < ks:
         dmwind = dmwind / dm
         wind = wind + dmwind
-    return wind, dmwind
+    return dmwind, wind
+
+@gtscript.function
+def dm_layer(rf, dp, wind):
+    return (1.0 - rf) * dp * wind
+
+@gtscript.function
+def dm_aggregate(dm, rf, dp, wind):
+    return dm[0, 0, -1] + dm_layer(rf, dp, wind)
+
+@gtscript.function
+def dm_and_wind_layer(dm, wind, rf, dp, pfull):
+    if pfull < spec.namelist.rf_cutoff:
+        dm = dm_layer(rf, dp, wind)
+        wind = rf * wind
+    else:
+        dm = 0.
+    return dm, wind
+
+@gtscript.function
+def dm_and_wind_update(dm, wind, rf, dp, pfull):
+    if pfull < spec.namelist.rf_cutoff:
+        dm = dm_aggregate(dm, rf, dp, wind) 
+        wind = rf * wind
+    else:
+        dm = dm[0, 0, -1]
+    return dm, wind
+  
 
 @utils.stencil()
-def ray_fast_u(u: sd, rf: sd, dp: sd, dmu: sd, pfull: sd):
+def ray_fast_wind(wind: sd, rf: sd, dp: sd, dmdir: sd, dm: sd, pfull: sd, kindex: sd, rf_cutoff_nudge: float, ks: int):
     with computation(FORWARD):
         with interval(0, 1):
-            if pfull < spec.namelist.rf_cutoff:
-                dmu = (1.0 - rf) * dp * u
-                u = rf * u
-            else:
-                dmu = 0.
+            dmdir, wind = dm_and_wind_layer(dmdir, wind, rf, dp, pfull)
         with interval(1, None):
+            # TODO why does this not validate
+            #  dmdir, wind = dm_and_wind_update(dmdir, wind, rf, dp, pfull)
             if pfull < spec.namelist.rf_cutoff:
-                dmu = dmu[0, 0, -1] + (1.0 - rf) * dp * u
-                u = rf * u
+                dmdir = dm_aggregate(dmdir, rf, dp, wind)
+                wind = rf * wind
             else:
-                dmu = dmu[0, 0, -1]
+                dmdir = dmdir[0, 0, -1]
     with computation(BACKWARD), interval(0, -1):
         if pfull < spec.namelist.rf_cutoff:
-            dmu = dmu[0, 0, 1]
-
-@utils.stencil()
-def ray_fast_v(
-        v: sd, rf: sd, dp: sd, dmv: sd, pfull: sd
-):
-    with computation(FORWARD):
-        with interval(0, 1):
-            if pfull < spec.namelist.rf_cutoff:
-                dmv = (1.0 - rf) * dp * v
-                v = rf * v
-            else:
-                dmv = 0.
-        with interval(1, None):
-            if pfull < spec.namelist.rf_cutoff:
-                dmv = dmv[0, 0, -1] + (1.0 - rf) * dp * v
-                v = rf * v
-            else:
-                dmv = dmv[0, 0, -1]
-    with computation(BACKWARD), interval(0, -1):
-        if pfull < spec.namelist.rf_cutoff:
-            dmv = dmv[0, 0, 1]
+            dmdir = dmdir[0, 0, 1]
+    with computation(PARALLEL), interval(...):
+        dmdir, wind = dm_adjusted_wind(dmdir, dm, wind, pfull, rf_cutoff_nudge, kindex, ks)
 
 @utils.stencil()
 def ray_fast_w(w: sd, rf: sd, pfull: sd):
     with computation(PARALLEL), interval(...):
         if pfull < spec.namelist.rf_cutoff:
             w = rf * w
-
-@utils.stencil()
-def ray_fast_horizontal_dm(u: sd, v:sd,  dmwind_u: sd, dmwind_v: sd, dm: sd, pfull: sd, kindex: sd, rf_cutoff_nudge: float, ks: int):
-    with computation(PARALLEL), interval(...):
-        u, dmwind_u = dm_adjusted_wind(u, dmwind_u, dm, pfull, rf_cutoff_nudge, kindex, ks)
-        v, dmwind_v = dm_adjusted_wind(v, dmwind_v, dm, pfull, rf_cutoff_nudge, kindex, ks)
-
 
 @utils.stencil()
 def dm_stencil(dp: sd, dm: sd, pfull: sd, rf: sd, kindex: sd, bdt: float,ptop: float, rf_cutoff_nudge: float, ks: int):
@@ -113,105 +112,31 @@ def compute(u, v, w, dp, pfull, dt, ptop, ks):
     dm = utils.make_storage_from_shape(u.shape, grid.default_origin())
     dmu = utils.make_storage_from_shape(u.shape, grid.default_origin())
     dmv = utils.make_storage_from_shape(u.shape, grid.default_origin())
-
+    # This could be pushed into ray_fast_wind and still work, but then computing dm and rf twice
     dm_stencil(
         dp, dm, pfull, rf, kindex, dt, ptop, rf_cutoff_nudge, ks, origin=grid.compute_origin(), domain=(grid.nic + 1, grid.njc + 1, grid.npz)
     )
-    ray_fast_u(
+    ray_fast_wind(
         u,
         rf,
         dp,
-        dmu,
-        pfull,
+        dmu,dm,
+        pfull, kindex, rf_cutoff_nudge, ks,
         origin=grid.compute_origin(),
         domain=(grid.nic, grid.njc + 1, grid.npz),
     )
-    ray_fast_v(
+    ray_fast_wind(
         v,
         rf,
         dp,
-        dmv,
-        pfull,
+        dmv, dm,
+        pfull, kindex, rf_cutoff_nudge, ks,
         origin=grid.compute_origin(),
         domain=(grid.nic + 1, grid.njc, grid.npz),
     )
-    ray_fast_horizontal_dm(
-        u, v, dmu, dmv, dm, pfull, kindex, rf_cutoff_nudge, ks, origin=grid.compute_origin(), domain=(grid.nic+1, grid.njc + 1, grid.npz)
-    )
-  
+   
     if not spec.namelist.hydrostatic:
         ray_fast_w(
             w, rf, pfull, origin=grid.compute_origin(), domain=(grid.nic, grid.njc, grid.npz),
         )
 
-
-    '''
-# Doing it all in one stencil (does not yet validate, and DynCore does not validate when it is used)
-@utils.stencil()
-def rayfast(u: sd, v: sd, w: sd, dp: sd, pfull: sd, kindex:sd, bdt: float, ptop: float,  ks: int):
-    from __splitters__ import i_start, i_end, j_end, j_start
-    with computation(PARALLEL), interval(...):
-        rf_cutoff_nudge = compute_rf_nudged_cutoff(ptop)
-        if pfull < spec.namelist.rf_cutoff:
-            rf = compute_rff_vals(pfull, bdt, spec.namelist.rf_cutoff, spec.namelist.tau * SDAY, ptop)
-    with computation(FORWARD):
-        with interval(0, 1):
-            if pfull < rf_cutoff_nudge and kindex < ks:
-                dm = dp
-            else:
-                dm = 0.
-        with interval(1, None):
-            if pfull < rf_cutoff_nudge and kindex < ks:
-                dm = dm[0, 0, -1] + dp
-            else:
-                dm = dm[0, 0, -1]
-    with computation(BACKWARD), interval(0, -1):
-        if pfull < rf_cutoff_nudge:
-            dm = dm[0, 0, 1]
-    with computation(FORWARD):
-        with interval(0, 1):
-            with parallel(region[i_start:i_end+1, j_start:j_end+2]):
-                if pfull < spec.namelist.rf_cutoff:
-                    dmu = (1.0 - rf) * dp * u
-                    u = rf * u
-                else:
-                    dmu = 0.
-            with parallel(region[i_start:i_end+2, j_start:j_end+1]):
-                if pfull < spec.namelist.rf_cutoff:
-                    dmv = (1.0 - rf) * dp * v
-                    v = rf * v
-                else:
-                    dmv = 0.
-        with interval(1, None):
-            with parallel(region[i_start:i_end+1, j_start:j_end+2]):
-                if pfull < spec.namelist.rf_cutoff:
-                    dmu = dmu[0, 0, -1] + (1.0 - rf) * dp * u
-                    u = rf * u
-                else:
-                    dmu = dmu[0, 0, -1]
-            with parallel(region[i_start:i_end+2, j_start:j_end+1]):
-                if pfull < spec.namelist.rf_cutoff:
-                    dmv = dmv[0, 0, -1] + (1.0 - rf) * dp * v
-                    v = rf * v
-                else:
-                    dmv = dmv[0, 0, -1]
-    with computation(BACKWARD), interval(0, -1):
-        with parallel(region[i_start:i_end+1, j_start:j_end+2]):
-            if pfull < spec.namelist.rf_cutoff:
-                dmu = dmu[0, 0, 1]
-        with parallel(region[i_start:i_end+2, j_start:j_end+1]):
-            if pfull < spec.namelist.rf_cutoff:
-                dmv = dmv[0, 0, 1]
-    with computation(PARALLEL), interval(...):
-        u, dmu = dm_adjusted_wind(u, dmu, dm, pfull, rf_cutoff_nudge, kindex, ks)
-        v, dmv = dm_adjusted_wind(v, dmv, dm, pfull, rf_cutoff_nudge, kindex, ks)
-        with parallel(region[i_start:i_end+1, j_start:j_end+1]):
-            if pfull < spec.namelist.rf_cutoff:
-                w = rf * w
-
-def compute(u, v, w, dp, pfull, dt, ptop, ks):
-    grid = spec.grid
-    # TODO get rid of this when we can refer to the index in the stencil
-    kindex = utils.make_storage_data(np.squeeze(np.indices((u.shape[2],))), u.shape)
-    rayfast(u, v, w, dp, pfull, kindex, dt, ptop, ks,  origin=grid.compute_origin(), domain=(grid.nic+1, grid.njc+1, grid.npz), splitters=grid.splitters)
-    '''        
