@@ -15,7 +15,6 @@ class TranslateTransportDelp(TranslateFortranData2Py):
             rarea=self.grid.rarea,
             delpc=delpc,
             ptc=ptc,
-            wc=wc,
             origin=orig,
             domain=self.grid.domain_shape_compute_buffer_2d(add=(2, 2, 0)),
         )
@@ -29,13 +28,14 @@ class TranslateTransportDelp(TranslateFortranData2Py):
             "utc": {},
             "vtc": {},
             "w": {},
+            "wc": {},
         }
-        self.out_vars = {"delpc": {}, "ptc": {}}
+        self.out_vars = {"delpc": {}, "ptc": {}, "wc": {}}
 
     def compute(self, inputs):
         self.make_storage_data_input_vars(inputs)
         delpc, ptc, wc = self._call(**inputs)
         return self.slice_output(
             inputs,
-            {"delpc": delpc, "ptc": ptc},
+            {"delpc": delpc, "ptc": ptc, "wc": wc},
         )
