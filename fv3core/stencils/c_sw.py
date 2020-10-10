@@ -80,7 +80,6 @@ def compute(delp, pt, u, v, w, uc, vc, ua, va, ut, vt, divgd, omga, dt2):
         omga,
         origin=geo_origin,
         domain=(grid.nic + 2, grid.njc + 2, grid.npz),
-        splitters=grid.splitters,
     )
     ke, vort = ke_c_sw.compute(uc, vc, u, v, ua, va, dt2)
     circulation_cgrid.compute(uc, vc, vort)
