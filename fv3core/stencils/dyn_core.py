@@ -1,42 +1,45 @@
 #!/usr/bin/env python3
-import fv3core.utils.gt4py_utils as utils
-
-import gt4py.gtscript as gtscript
-import fv3core._config as spec
-from types import SimpleNamespace
-from gt4py.gtscript import computation, interval, PARALLEL
-import fv3core.stencils.d2a2c_vect as d2a2c
+import copy
 import math
-import fv3core.utils.global_constants as constants
+from types import SimpleNamespace
+
+import fv3gfs.util as fv3util
+import gt4py.gtscript as gtscript
+from gt4py.gtscript import PARALLEL, computation, interval
+
+import fv3core._config as spec
 import fv3core.stencils.basic_operations as basic
 import fv3core.stencils.c_sw as c_sw
-import fv3core.stencils.copy_stencil as cp
+import fv3core.stencils.d2a2c_vect as d2a2c
+import fv3core.stencils.d_sw as d_sw
+import fv3core.stencils.del2cubed as del2cubed
+import fv3core.stencils.nh_p_grad as nh_p_grad
+import fv3core.stencils.pe_halo as pe_halo
+import fv3core.stencils.pgradc as pgradc
+import fv3core.stencils.pk3_halo as pk3_halo
+import fv3core.stencils.ray_fast as ray_fast
+import fv3core.stencils.riem_solver3 as riem_solver3
+import fv3core.stencils.riem_solver_c as riem_solver_c
+import fv3core.stencils.temperature_adjust as temperature_adjust
 import fv3core.stencils.updatedzc as updatedzc
 import fv3core.stencils.updatedzd as updatedzd
-import fv3core.stencils.riem_solver_c as riem_solver_c
-import fv3core.stencils.riem_solver3 as riem_solver3
-import fv3core.stencils.pgradc as pgradc
-import fv3core.stencils.d_sw as d_sw
-import fv3core.stencils.pe_halo as pe_halo
-import fv3core.stencils.pk3_halo as pk3_halo
-import fv3core.stencils.nh_p_grad as nh_p_grad
-import fv3core.stencils.del2cubed as del2cubed
-import fv3core.stencils.temperature_adjust as temperature_adjust
-import fv3core.stencils.ray_fast as ray_fast
-import fv3gfs.util as fv3util
-import copy
+import fv3core.utils.global_constants as constants
+import fv3core.utils.gt4py_utils as utils
+from fv3core.decorators import gtstencil
+from fv3core.stencils.basic_operations import copy_stencil
+
 
 sd = utils.sd
 HUGE_R = 1.0e40
 
 # NOTE in Fortran these are columns
-@utils.stencil()
+@gtstencil()
 def dp_ref_compute(ak: sd, bk: sd, dp_ref: sd):
     with computation(PARALLEL), interval(0, -1):
         dp_ref = ak[0, 0, 1] - ak + (bk[0, 0, 1] - bk) * 1.0e5
 
 
-@utils.stencil()
+@gtstencil()
 def set_gz(zs: sd, delz: sd, gz: sd):
     with computation(BACKWARD):
         with interval(-1, None):
@@ -45,7 +48,7 @@ def set_gz(zs: sd, delz: sd, gz: sd):
             gz[0, 0, 0] = gz[0, 0, 1] - delz
 
 
-@utils.stencil()
+@gtstencil()
 def set_pem(delp: sd, pem: sd, ptop: float):
     with computation(FORWARD):
         with interval(0, 1):
@@ -54,7 +57,7 @@ def set_pem(delp: sd, pem: sd, ptop: float):
             pem[0, 0, 0] = pem[0, 0, -1] + delp
 
 
-@utils.stencil()
+@gtstencil()
 def heatadjust_temperature_lowlevel(
     pt: sd, heat_source: sd, delp: sd, pkz: sd, cp_air: float
 ):
@@ -219,14 +222,14 @@ def compute(state, comm):
         if not hydrostatic:
             if it == 0:
                 reqs["gz_quantity"].wait()
-                cp.copy_stencil(
+                copy_stencil(
                     state.gz,
                     state.zh,
                     origin=grid.default_origin(),
                     domain=grid.domain_shape_buffer_k(),
                 )
             else:
-                cp.copy_stencil(
+                copy_stencil(
                     state.gz,
                     state.zh,
                     origin=grid.default_origin(),
@@ -234,7 +237,7 @@ def compute(state, comm):
                 )
         if not hydrostatic:
             state.gz, state.ws3 = updatedzc.compute(
-                state.dp_ref, state.zs, state.ut, state.vt, state.gz, state.ws3, dt2,
+                state.dp_ref, state.zs, state.ut, state.vt, state.gz, state.ws3, dt2
             )
             # TODO this is really a 2d field.
             state.ws3 = utils.make_storage_data_from_2d(

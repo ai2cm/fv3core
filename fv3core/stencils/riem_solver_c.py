@@ -1,15 +1,18 @@
 #!/usr/bin/env python3
-import fv3core.utils.gt4py_utils as utils
-import fv3core._config as spec
-import fv3core.utils.global_constants as constants
 import numpy as np
+
+import fv3core._config as spec
 import fv3core.stencils.sim1_solver as sim1_solver
-import fv3core.stencils.copy_stencil as cp
+import fv3core.utils.global_constants as constants
+import fv3core.utils.gt4py_utils as utils
+from fv3core.decorators import gtstencil
+from fv3core.stencils.basic_operations import copy
+
 
 sd = utils.sd
 
 
-@utils.stencil()
+@gtstencil()
 def precompute(
     cp3: sd,
     gz: sd,
@@ -41,7 +44,7 @@ def precompute(
         pm = (peg[0, 0, 1] - peg) / log(peg[0, 0, 1] / peg)
 
 
-@utils.stencil()
+@gtstencil()
 def finalize(pe2: sd, pem: sd, hs: sd, dz: sd, pef: sd, gz: sd):
     # TODO: we only want to bottom level of hd, so this could be removed once hd0 is a 2d field
     with computation(FORWARD):
@@ -73,9 +76,9 @@ def compute(ms, dt2, akap, cappa, ptop, hs, w3, ptc, q_con, delpc, gz, pef, ws):
     shape = w3.shape
     domain = (spec.grid.nic + 2, grid.njc + 2, km + 2)
     riemorigin = (is1, js1, 0)
-    dm = cp.copy(delpc, (0, 0, 0))
-    cp3 = cp.copy(cappa, (0, 0, 0))
-    w = cp.copy(w3, (0, 0, 0))
+    dm = copy(delpc)
+    cp3 = copy(cappa)
+    w = copy(w3)
 
     pem = utils.make_storage_from_shape(shape, riemorigin)
     peg = utils.make_storage_from_shape(shape, riemorigin)

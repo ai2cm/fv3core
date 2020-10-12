@@ -1,28 +1,32 @@
-import fv3core.utils.gt4py_utils as utils
 import gt4py.gtscript as gtscript
+from gt4py.gtscript import PARALLEL, computation, interval
+
 import fv3core._config as spec
+import fv3core.stencils.yppm as yppm
+import fv3core.utils.gt4py_utils as utils
+from fv3core.decorators import gtstencil
+
 from .yppm import (
     compute_al,
-    fx1_fn,
     final_flux,
+    fx1_fn,
+    get_b0,
     get_bl,
     get_br,
-    get_b0,
     is_smt5_mord5,
     is_smt5_most_mords,
+    s11,
+    s14,
+    s15,
     xt_dya_edge_0_base,
     xt_dya_edge_1_base,
-    s15,
-    s14,
-    s11,
 )
-import fv3core.stencils.yppm as yppm
-from gt4py.gtscript import computation, interval, PARALLEL
+
 
 sd = utils.sd
 
 
-@utils.stencil()
+@gtstencil()
 def get_flux_v_stencil(
     q: sd, c: sd, al: sd, rdy: sd, bl: sd, br: sd, flux: sd, mord: int
 ):
@@ -36,7 +40,7 @@ def get_flux_v_stencil(
         flux = final_flux(c, q, fx0, tmp)  # noqa
 
 
-@utils.stencil()
+@gtstencil()
 def get_flux_v_ord8plus(q: sd, c: sd, rdy: sd, bl: sd, br: sd, flux: sd):
     with computation(PARALLEL), interval(...):
         b0 = get_b0(bl, br)
@@ -45,7 +49,7 @@ def get_flux_v_ord8plus(q: sd, c: sd, rdy: sd, bl: sd, br: sd, flux: sd):
         flux = q[0, -1, 0] + fx1 if c > 0.0 else q + fx1
 
 
-@utils.stencil()
+@gtstencil()
 def br_bl_main(q: sd, al: sd, bl: sd, br: sd):
     with computation(PARALLEL), interval(...):
         # TODO: add [0, 0, 0] when gt4py bug is fixed
@@ -53,7 +57,7 @@ def br_bl_main(q: sd, al: sd, bl: sd, br: sd):
         br = get_br(al=al, q=q)  # noqa
 
 
-@utils.stencil()
+@gtstencil()
 def br_bl_corner(br: sd, bl: sd):
     with computation(PARALLEL), interval(...):
         bl = 0
@@ -66,9 +70,7 @@ def zero_br_bl_corners_south(br, bl):
     if grid.sw_corner:
         br_bl_corner(br, bl, origin=(grid.is_, grid.js - 1, 0), domain=corner_domain)
     if grid.se_corner:
-        br_bl_corner(
-            br, bl, origin=(grid.ie + 1, grid.js - 1, 0), domain=corner_domain,
-        )
+        br_bl_corner(br, bl, origin=(grid.ie + 1, grid.js - 1, 0), domain=corner_domain)
 
 
 def zero_br_bl_corners_north(br, bl):

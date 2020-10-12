@@ -1,9 +1,12 @@
-import fv3core.utils.gt4py_utils as utils
 import gt4py as gt
 import gt4py.gtscript as gtscript
-import fv3core._config as spec
 import numpy as np
+
+import fv3core._config as spec
 import fv3core.stencils.basic_operations as basic
+import fv3core.utils.gt4py_utils as utils
+from fv3core.decorators import gtstencil
+
 
 sd = utils.sd
 origin = utils.origin
@@ -13,19 +16,19 @@ origin = utils.origin
 ##
 
 
-@utils.stencil()
+@gtstencil()
 def matrix_element_subtraction(A: sd, B: sd):
     with computation(PARALLEL), interval(...):
         A = A - B[0, -1, 0]
 
 
-@utils.stencil()
+@gtstencil()
 def compute_diverg(div: sd, rarea_c: sd, v: sd, u: sd):
     with computation(PARALLEL), interval(...):
         div = rarea_c * (v[0, -1, 0] - v + u[-1, 0, 0] - u)
 
 
-@utils.stencil()
+@gtstencil()
 def compute_uf(
     uf: sd, u: sd, va: sd, cos_sg4: sd, cos_sg2: sd, dyc: sd, sin_sg4: sd, sin_sg2: sd
 ):
@@ -38,7 +41,7 @@ def compute_uf(
         )
 
 
-@utils.stencil()
+@gtstencil()
 def compute_vf(
     vf: sd, v: sd, ua: sd, cos_sg3: sd, cos_sg1: sd, dxc: sd, sin_sg3: sd, sin_sg1: sd
 ):
@@ -51,19 +54,19 @@ def compute_vf(
         )
 
 
-@utils.stencil()
+@gtstencil()
 def compute_uf_edge_values(uf: sd, u: sd, dyc: sd, sin_sg4: sd, sin_sg2: sd):
     with computation(PARALLEL), interval(...):
         uf = u * dyc * 0.5 * (sin_sg4[0, -1, 0] + sin_sg2)
 
 
-@utils.stencil()
+@gtstencil()
 def compute_vf_edge_values(vf: sd, v: sd, dxc: sd, sin_sg3: sd, sin_sg1: sd):
     with computation(PARALLEL), interval(...):
         vf = v * dxc * 0.5 * (sin_sg3[-1, 0, 0] + sin_sg1)
 
 
-@utils.stencil()
+@gtstencil()
 def compute_diverg_d(div: sd, vf: sd, uf: sd):
     with computation(PARALLEL), interval(...):
         div = vf[0, -1, 0] - vf + uf[-1, 0, 0] - uf
@@ -179,7 +182,7 @@ def compute(u, v, ua, va, divg_d):
         )
     if grid.se_corner:
         matrix_element_subtraction(
-            divg_d, vf, origin=(grid.ie + 1, grid.js, 0), domain=grid.corner_domain(),
+            divg_d, vf, origin=(grid.ie + 1, grid.js, 0), domain=grid.corner_domain()
         )
     if grid.ne_corner:
         basic.add_term_stencil(
@@ -190,7 +193,7 @@ def compute(u, v, ua, va, divg_d):
         )
     if grid.nw_corner:
         basic.add_term_stencil(
-            vf, divg_d, origin=(grid.is_, grid.je + 1, 0), domain=grid.corner_domain(),
+            vf, divg_d, origin=(grid.is_, grid.je + 1, 0), domain=grid.corner_domain()
         )
 
     basic.adjustmentfactor_stencil(

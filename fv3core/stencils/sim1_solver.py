@@ -1,17 +1,19 @@
 #!/usr/bin/env python3
-import fv3core.utils.gt4py_utils as utils
 import gt4py as gt
 import gt4py.gtscript as gtscript
+import numpy as np
+from gt4py.gtscript import PARALLEL, computation, interval
+
 import fv3core._config as spec
 import fv3core.utils.global_constants as constants
-import numpy as np
-import fv3core.stencils.copy_stencil as cp
-from gt4py.gtscript import computation, interval, PARALLEL
+import fv3core.utils.gt4py_utils as utils
+from fv3core.decorators import gtstencil
+
 
 sd = utils.sd
 
 
-@utils.stencil()
+@gtstencil()
 def sim1_solver(
     w: sd,
     dm: sd,
@@ -35,7 +37,7 @@ def sim1_solver(
         with interval(1, None):
             wsr_top = wsr_top[0, 0, -1]
 
-    with computation(PARALLEL), interval(...):
+    with computation(PARALLEL), interval(0, -1):
         pe = exp(gm * log(-dm / dz * constants.RDGAS * ptr)) - pm
         w1 = w
     with computation(FORWARD):
@@ -50,7 +52,7 @@ def sim1_solver(
     with computation(FORWARD):
         with interval(0, 1):
             bet = bb
-        with interval(1, None):
+        with interval(1, -1):
             bet = bet[0, 0, -1]
 
     ### stencils: w_solver
@@ -92,7 +94,7 @@ def sim1_solver(
             w = (
                 dm * w1 + dt * (pp[0, 0, 1] - pp) - p1 * wsr_top - aa * w[0, 0, -1]
             ) / bet
-    with computation(BACKWARD), interval(0, -1):
+    with computation(BACKWARD), interval(0, -2):
         w = w - gam[0, 0, 1] * w[0, 0, 1]
     with computation(FORWARD):
         with interval(0, 1):

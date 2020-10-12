@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
-import fv3core.utils.gt4py_utils as utils
 import gt4py.gtscript as gtscript
+
 import fv3core._config as spec
+import fv3core.utils.gt4py_utils as utils
+from fv3core.decorators import gtstencil
+
 
 sd = utils.sd
 
 
-@utils.stencil()
+@gtstencil()
 def edge_pe(pe: sd, delp: sd, ptop: float):
     with computation(FORWARD):
         with interval(0, 1):
