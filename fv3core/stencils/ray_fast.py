@@ -55,6 +55,8 @@ def dm_stencil(
     ks: int,
 ):
     with computation(PARALLEL), interval(...):
+        # TODO -- in the fortran model rf is only computed once, repeating
+        # the computation every time ray_fast is run is inefficient
         if pfull < spec.namelist.rf_cutoff:
             rf = compute_rff_vals(
                 pfull, dt, spec.namelist.rf_cutoff, spec.namelist.tau * SDAY, ptop
