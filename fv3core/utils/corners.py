@@ -84,9 +84,13 @@ def fill_4corners(q, direction, grid):
         with computation(PARALLEL), interval(...):
             q = func(q)
 
+    extent = 3
+    origin = (grid.is_ - extent, grid.js - extent, 0)
+    domain = (grid.nic + 2 * extent, grid.njc + 2 * extent, q.shape[2])
+
     kwargs = {
-        "origin": grid.compute_origin(add=(-3, -3, 0)),
-        "domain": grid.domain_shape_compute_buffer_2d(add=(6, 6, 1)),
+        "origin": origin,
+        "domain": domain,
     }
 
     if direction == "x":
