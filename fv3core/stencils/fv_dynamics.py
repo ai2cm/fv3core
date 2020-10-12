@@ -18,7 +18,7 @@ import fv3core.utils.gt4py_utils as utils
 from fv3core.stencils.basic_operations import copy_stencil
 from fv3core.stencils.c2l_ord import compute_cubed_to_latlon
 
-from ..decorators import ArgSpec, state_inputs
+from ..utils.stencil import ArgSpec, state_inputs
 
 
 sd = utils.sd

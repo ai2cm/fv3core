@@ -13,6 +13,9 @@ import numpy as np
 
 from fv3core.utils.mpi import MPI
 
+from . import global_config
+from .stencil import stencil
+
 
 try:
     import cupy as cp
@@ -22,8 +25,6 @@ except ImportError:
 MODULE_NAME = "fv3core.utils.gt4py_utils"
 
 logger = logging.getLogger("fv3ser")
-backend = None  # Options: numpy, gtmc, gtx86, gtcuda, debug, dawn:gtmc
-rebuild = True
 managed_memory = True
 _dtype = np.float_
 sd = gtscript.Field[_dtype]
@@ -54,60 +55,9 @@ if MPI is not None and MPI.COMM_WORLD.Get_size() > 1:
     )
 
 
-class FV3StencilObject:
-    """GT4Py stencil object used for fv3core"""
-
-    def __init__(self, stencil_object: gt.StencilObject, build_info: dict):
-        self.stencil_object = stencil_object
-        self._build_info = build_info
-
-    @property
-    def build_info(self) -> dict:
-        """Return the build_info created when compiling the stencil"""
-        return self._build_info
-
-    def __call__(self, *args, **kwargs):
-        return self.stencil_object(*args, **kwargs)
-
-
 # TODO remove when using quantities throughout model
 def quantity_name(name):
     return name + "_quantity"
-
-
-def module_level_var_errmsg(var: str, func: str):
-    loc = f"fv3core.utils.gt4py_utils.{var}"
-    return f"The {var} flag should be set in {loc} instead of as an argument to {func}"
-
-
-def stencil(**stencil_kwargs) -> Callable[..., None]:
-    if "rebuild" in stencil_kwargs:
-        raise ValueError(module_level_var_errmsg("rebuild", MODULE_NAME))
-    if "backend" in stencil_kwargs:
-        raise ValueError(module_level_var_errmsg("backend", MODULE_NAME))
-
-    def decorator(func) -> Callable[..., None]:
-        stencils = {}
-
-        @functools.wraps(func)
-        def wrapped(*args, **kwargs) -> None:
-            # This uses the module-level globals backend and rebuild (defined above)
-            key = (backend, rebuild)
-            if key not in stencils:
-                # Add globals to stencil_kwargs
-                stencil_kwargs["rebuild"] = rebuild
-                stencil_kwargs["backend"] = backend
-                # Generate stencil
-                build_info = {}
-                stencil = gtscript.stencil(build_info=build_info, **stencil_kwargs)(
-                    func
-                )
-                stencils[key] = FV3StencilObject(stencil, build_info)
-            return stencils[key](*args, **kwargs)
-
-        return wrapped
-
-    return decorator
 
 
 def make_storage_data(
@@ -167,7 +117,7 @@ def make_storage_data(
         ] = asarray(array, type(full_np_arr))
         return gt.storage.from_array(
             data=full_np_arr,
-            backend=backend,
+            backend=global_config.get_backend(),
             default_origin=origin,
             shape=full_shape,
             managed_memory=managed_memory,
@@ -197,10 +147,9 @@ def make_storage_data_from_2d(
         )
         if axis != 2:
             full_np_arr_3d = np.moveaxis(full_np_arr_3d, 2, axis)
-
     return gt.storage.from_array(
         data=full_np_arr_3d,
-        backend=backend,
+        backend=global_config.get_backend(),
         default_origin=origin,
         shape=full_shape,
         managed_memory=managed_memory,
@@ -214,7 +163,7 @@ def make_2d_storage_data(array2d, shape2d, istart=0, jstart=0, origin=origin):
     full_np_arr_2d[istart : istart + isize, jstart : jstart + jsize, 0] = array2d
     return gt.storage.from_array(
         data=full_np_arr_2d,
-        backend=backend,
+        backend=global_config.get_backend(),
         default_origin=origin,
         shape=shape2d,
         managed_memory=managed_memory,
@@ -254,7 +203,7 @@ def make_storage_data_from_1d(
             r = np.repeat(y[:, :, np.newaxis], full_shape[2], axis=2)
     return gt.storage.from_array(
         data=r,
-        backend=backend,
+        backend=global_config.get_backend(),
         default_origin=origin,
         shape=full_shape,
         managed_memory=managed_memory,
@@ -281,7 +230,7 @@ def make_storage_from_shape(
     storage = gt.storage.from_array(
         data=np.empty(shape, dtype=dtype),
         dtype=dtype,
-        backend=backend,
+        backend=global_config.get_backend(),
         default_origin=origin,
         shape=shape,
         managed_memory=managed_memory,
