@@ -9,7 +9,7 @@ sd = utils.sd
 
 
 @gtscript.function
-def fill_4corners_x_func(q: sd):
+def fill_4corners_x(q: sd):
     from __splitters__ import i_end, i_start, j_end, j_start
 
     # copy field
@@ -43,7 +43,7 @@ def fill_4corners_x_func(q: sd):
 
 
 @gtscript.function
-def fill_4corners_y_func(q: sd):
+def fill_4corners_y(q: sd):
     from __splitters__ import i_end, i_start, j_end, j_start
 
     # copy field
@@ -93,14 +93,10 @@ def fill_4corners(q, direction, grid):
     }
 
     if direction == "x":
-        stencil = gtstencil(
-            definition=definition, externals={"func": fill_4corners_x_func}
-        )
+        stencil = gtstencil(definition=definition, externals={"func": fill_4corners_x})
         stencil(q, **kwargs)
     elif direction == "y":
-        stencil = gtstencil(
-            definition=definition, externals={"func": fill_4corners_y_func}
-        )
+        stencil = gtstencil(definition=definition, externals={"func": fill_4corners_y})
         stencil(q, **kwargs)
     else:
         raise ValueError("Direction not recognized. Specify either x or y")
