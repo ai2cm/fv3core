@@ -68,7 +68,7 @@ for filename in datafiles:
     surface_temperature = temperature[-1, :, :]  # temperature at bottom
 
     if args.reference_dir:
-        fname_ref = args.reference_dir + f
+        fname_ref = args.reference_dir + filename
         reference_data = Dataset(fname_ref, "r")
         surface_pressure2 = (
             reference_data.variables["surface_pressure"][:].data / 100.0
