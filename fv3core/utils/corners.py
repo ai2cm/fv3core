@@ -86,7 +86,7 @@ def fill_4corners(q, direction, grid):
 
     extent = 3
     origin = (grid.is_ - extent, grid.js - extent, 0)
-    domain = (grid.nic + 2*extent, grid.njc + 2*extent, q.shape[2])
+    domain = (grid.nic + 2 * extent, grid.njc + 2 * extent, q.shape[2])
 
     kwargs = {
         "origin": origin,
