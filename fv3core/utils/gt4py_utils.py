@@ -4,12 +4,14 @@ import copy
 import functools
 import logging
 import math
-from typing import Callable
+from typing import Callable, Tuple, Union
 
 import gt4py as gt
-import gt4py.gtscript as gtscript
+import gt4py.ir as gt_ir
 import numpy as np
+from gt4py import gtscript
 
+# Problem: creates circular dependency
 from fv3core.utils.mpi import MPI
 
 
@@ -17,8 +19,6 @@ try:
     import cupy as cp
 except ImportError:
     cp = None
-
-MODULE_NAME = "fv3core.utils.gt4py_utils"
 
 logger = logging.getLogger("fv3ser")
 backend = None  # Options: numpy, gtmc, gtx86, gtcuda, debug, dawn:gtmc
@@ -41,45 +41,21 @@ tracer_variables = [
     "qsgs_tke",
     "qcld",
 ]
+
+# Union of valid data types (from gt4py.gtscript)
+DTypes = Union[bool, np.bool, int, np.int32, np.int64, float, np.float32, np.float64]
+
+
 # 1 indexing to 0 and halos: -2, -1, 0 --> 0, 1,2
 if MPI is not None and MPI.COMM_WORLD.Get_size() > 1:
     gt.config.cache_settings["dir_name"] = ".gt_cache_{:0>6d}".format(
         MPI.COMM_WORLD.Get_rank()
     )
+
+
 # TODO remove when using quantities throughout model
 def quantity_name(name):
     return name + "_quantity"
-
-
-def module_level_var_errmsg(var: str, func: str):
-    loc = f"fv3core.utils.gt4py_utils.{var}"
-    return f"The {var} flag should be set in {loc} instead of as an argument to {func}"
-
-
-def stencil(**stencil_kwargs) -> Callable[..., None]:
-    if "rebuild" in stencil_kwargs:
-        raise ValueError(module_level_var_errmsg("rebuild", MODULE_NAME))
-    if "backend" in stencil_kwargs:
-        raise ValueError(module_level_var_errmsg("backend", MODULE_NAME))
-
-    def decorator(func) -> Callable[..., None]:
-        stencils = {}
-
-        @functools.wraps(func)
-        def wrapped(*args, **kwargs) -> None:
-            # This uses the module-level globals backend and rebuild (defined above)
-            key = (backend, rebuild)
-            if key not in stencils:
-                # Add globals to stencil_kwargs
-                stencil_kwargs["rebuild"] = rebuild
-                stencil_kwargs["backend"] = backend
-                # Generate stencil
-                stencils[key] = gtscript.stencil(**stencil_kwargs)(func)
-            return stencils[key](*args, **kwargs)
-
-        return wrapped
-
-    return decorator
 
 
 def make_storage_data(
@@ -233,15 +209,35 @@ def make_storage_data_from_1d(
     )
 
 
-def make_storage_from_shape(shape, origin, dtype=np.float64):
-    return gt.storage.from_array(
-        data=np.zeros(shape),
+def make_storage_from_shape(
+    shape: Tuple[int, int, int],
+    origin: Tuple[int, int, int],
+    dtype: DTypes = np.float64,
+    init: bool = True,
+):
+    """Create a new gt4py storage of a given shape.
+
+    Args:
+        shape: Size of the new storage
+        origin: Default origin for gt4py stencil calls
+        dtype: Data type
+        init: If True, initializes the storage to the default value for the type
+
+    Returns:
+        gtscript.Field[dtype]: New storage
+    """
+    storage = gt.storage.from_array(
+        data=np.empty(shape, dtype=dtype),
         dtype=dtype,
         backend=backend,
         default_origin=origin,
         shape=shape,
         managed_memory=managed_memory,
     )
+    if init:
+        storage[:] = dtype()
+
+    return storage
 
 
 def storage_dict(st_dict, names, shape, origin):

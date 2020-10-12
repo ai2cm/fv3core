@@ -3,9 +3,14 @@ import gt4py.gtscript as gtscript
 from gt4py.gtscript import PARALLEL, computation, interval
 
 import fv3core._config as spec
-import fv3core.stencils.copy_stencil as cp
 import fv3core.utils.gt4py_utils as utils
-from fv3core.stencils.basic_operations import dim, multiply_constant_inout
+from fv3core.decorators import ArgSpec, gtstencil, state_inputs
+from fv3core.stencils.basic_operations import (
+    copy,
+    copy_stencil,
+    dim,
+    multiply_constant_inout,
+)
 from fv3core.utils.global_constants import (
     C_ICE,
     C_LIQ,
@@ -17,8 +22,6 @@ from fv3core.utils.global_constants import (
     RDGAS,
     ZVIR,
 )
-
-from ..decorators import ArgSpec, state_inputs
 
 
 sd = utils.sd
@@ -57,7 +60,7 @@ def tvol(gz, u0, v0, w0):
     return gz + 0.5 * (u0 ** 2 + v0 ** 2 + w0 ** 2)
 
 
-@utils.stencil()
+@gtstencil()
 def init(
     den: sd,
     gz: sd,
@@ -111,7 +114,7 @@ def qcon_func(qcon, q0_liquid, q0_ice, q0_snow, q0_rain, q0_graupel):
     return q0_liquid + q0_ice + q0_snow + q0_rain + q0_graupel
 
 
-@utils.stencil()
+@gtstencil()
 def compute_qcon(
     qcon: sd, q0_liquid: sd, q0_ice: sd, q0_snow: sd, q0_rain: sd, q0_graupel: sd
 ):
@@ -119,7 +122,7 @@ def compute_qcon(
         qcon = qcon_func(qcon, q0_liquid, q0_ice, q0_snow, q0_rain, q0_graupel)
 
 
-@utils.stencil()
+@gtstencil()
 def recompute_qcon(
     ri: sd,
     ri_ref: sd,
@@ -135,7 +138,7 @@ def recompute_qcon(
             qcon = qcon_func(qcon, q0_liquid, q0_ice, q0_snow, q0_rain, q0_graupel)
 
 
-@utils.stencil()
+@gtstencil()
 def m_loop(
     ri: sd,
     ri_ref: sd,
@@ -201,7 +204,7 @@ def m_loop(
         if ri < ri_ref:
             mc = ratio * delp[0, 0, -1] * delp / (delp[0, 0, -1] + delp) * (1. - max_ri_ratio)**2.
 
-@utils.stencil()
+@gtstencil()
 def m_loop_hack_interval_3_4(ri: sd, ri_ref: sd, mc: sd, delp: sd, ratio: float):
     with computation(BACKWARD), interval(2, 3):
         ri_ref = 1.5 * ri_ref
@@ -213,7 +216,7 @@ def m_loop_hack_interval_3_4(ri: sd, ri_ref: sd, mc: sd, delp: sd, ratio: float)
 """
 
 
-@utils.stencil()
+@gtstencil()
 def equivalent_mass_flux(ri: sd, ri_ref: sd, mc: sd, delp: sd, ratio: float):
     with computation(PARALLEL), interval(...):
         max_ri_ratio = ri / ri_ref
@@ -231,7 +234,7 @@ def equivalent_mass_flux(ri: sd, ri_ref: sd, mc: sd, delp: sd, ratio: float):
 
 # 3d version, doesn't work due to this k-1 value needing to be updated before calculating variables in the k - 1 case
 """
-@utils.stencil()
+@gtstencil()
 def KH_instability_adjustment(ri: sd, ri_ref: sd, mc: sd, q0: sd, delp: sd):
     with computation(BACKWARD):
         with interval(-1, None):
@@ -252,7 +255,7 @@ def KH_instability_adjustment(ri: sd, ri_ref: sd, mc: sd, q0: sd, delp: sd):
 """
 
 
-@utils.stencil()
+@gtstencil()
 def KH_instability_adjustment_bottom(
     ri: sd, ri_ref: sd, mc: sd, q0: sd, delp: sd, h0: sd
 ):
@@ -262,7 +265,7 @@ def KH_instability_adjustment_bottom(
             q0 = q0 - h0 / delp
 
 
-@utils.stencil()
+@gtstencil()
 def KH_instability_adjustment_top(ri: sd, ri_ref: sd, mc: sd, q0: sd, delp: sd, h0: sd):
     with computation(BACKWARD), interval(...):
         if ri[0, 0, 1] < ri_ref[0, 0, 1]:
@@ -304,7 +307,7 @@ def KH_instability_adjustment_te(
     )
 
 
-@utils.stencil()
+@gtstencil()
 def KH_instability_adjustment_bottom_te(
     ri: sd, ri_ref: sd, mc: sd, q0: sd, delp: sd, h0: sd, hd: sd
 ):
@@ -314,7 +317,7 @@ def KH_instability_adjustment_bottom_te(
             q0 = q0 - h0 / delp
 
 
-@utils.stencil()
+@gtstencil()
 def double_adjust_cvm(
     cvm: sd,
     cpm: sd,
@@ -346,7 +349,7 @@ def readjust_by_frac(a0, a, fra):
     return a + (a0 - a) * fra
 
 
-@utils.stencil()
+@gtstencil()
 def fraction_adjust(
     t0: sd,
     ta: sd,
@@ -367,13 +370,13 @@ def fraction_adjust(
             w0 = readjust_by_frac(w0, w, fra)
 
 
-@utils.stencil()
+@gtstencil()
 def fraction_adjust_tracer(q0: sd, q: sd, fra: float):
     with computation(PARALLEL), interval(...):
         q0 = readjust_by_frac(q0, q, fra)
 
 
-@utils.stencil()
+@gtstencil()
 def finalize(
     u0: sd,
     v0: sd,
@@ -460,7 +463,7 @@ def compute(state, nq, dt):
         raise Exception("Hydrostatic not supported for fv_subgridz")
     q0 = {}
     for tracername in utils.tracer_variables:
-        q0[tracername] = cp.copy(state.__dict__[tracername], (0, 0, 0))
+        q0[tracername] = copy(state.__dict__[tracername], origin=(0, 0, 0))
     origin = grid.compute_origin()
     shape = state.delp.shape
     u0 = utils.make_storage_from_shape(shape, origin)
@@ -656,7 +659,7 @@ def compute(state, nq, dt):
                 domain=kbot_domain,
             )
     for tracername in utils.tracer_variables:
-        cp.copy_stencil(
+        copy_stencil(
             q0[tracername], state.tracers[tracername], origin=origin, domain=kbot_domain
         )
     finalize(

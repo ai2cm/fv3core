@@ -3,10 +3,9 @@ import numpy as np
 from gt4py.gtscript import BACKWARD, FORWARD, PARALLEL, computation, interval
 
 import fv3core._config as spec
-import fv3core.stencils.copy_stencil as cp
 import fv3core.stencils.profile_limiters as limiters
 import fv3core.utils.gt4py_utils as utils
-from fv3core.stencils.basic_operations import absolute_value
+from fv3core.decorators import gtstencil
 from fv3core.utils.corners import fill2_4corners, fill_4corners
 
 
@@ -49,7 +48,7 @@ def constrain_interior(q, gam, a4):
     )
 
 
-@utils.stencil()
+@gtstencil()
 def set_vals_2(gam: sd, q: sd, delp: sd, a4_1: sd, q_bot: sd, qs: sd):
     with computation(PARALLEL):
         with interval(0, 1):
@@ -90,7 +89,7 @@ def set_vals_2(gam: sd, q: sd, delp: sd, a4_1: sd, q_bot: sd, qs: sd):
         q = q - gam[0, 0, 1] * q[0, 0, 1]
 
 
-@utils.stencil()
+@gtstencil()
 def set_vals_1(gam: sd, q: sd, delp: sd, a4_1: sd, q_bot: sd):
     with computation(PARALLEL):
         with interval(0, 1):
@@ -122,7 +121,7 @@ def set_vals_1(gam: sd, q: sd, delp: sd, a4_1: sd, q_bot: sd):
         q = q - gam * q[0, 0, 1]
 
 
-@utils.stencil()
+@gtstencil()
 def set_avals(q: sd, a4_1: sd, a4_2: sd, a4_3: sd, a4_4: sd, q_bot: sd):
     with computation(PARALLEL):
         with interval(0, -1):
@@ -136,7 +135,7 @@ def set_avals(q: sd, a4_1: sd, a4_2: sd, a4_3: sd, a4_4: sd, q_bot: sd):
             a4_4 = 3.0 * (2.0 * a4_1 - (a4_2 + a4_3))
 
 
-@utils.stencil()
+@gtstencil()
 def Apply_constraints(q: sd, gam: sd, a4_1: sd, a4_2: sd, a4_3: sd, iv: int):
     with computation(PARALLEL):
         with interval(1, None):
@@ -173,7 +172,7 @@ def Apply_constraints(q: sd, gam: sd, a4_1: sd, a4_2: sd, a4_3: sd, iv: int):
             a4_3 = q[0, 0, 1]
 
 
-@utils.stencil()
+@gtstencil()
 def set_extm(extm: sd, a4_1: sd, a4_2: sd, a4_3: sd, gam: sd):
     with computation(PARALLEL):
         with interval(0, 1):
@@ -184,17 +183,17 @@ def set_extm(extm: sd, a4_1: sd, a4_2: sd, a4_3: sd, gam: sd):
             extm = (a4_2 - a4_1) * (a4_3 - a4_1) > 0.0
 
 
-@utils.stencil()
+@gtstencil()
 def set_exts(a4_4: sd, ext5: sd, ext6: sd, a4_1: sd, a4_2: sd, a4_3: sd):
     with computation(PARALLEL), interval(...):
         x0 = 2.0 * a4_1 - (a4_2 + a4_3)
-        x1 = absolute_value(a4_2 - a4_3)
+        x1 = abs(a4_2 - a4_3)
         a4_4 = 3.0 * x0
-        ext5 = absolute_value(x0) > x1
-        ext6 = absolute_value(a4_4) > x1
+        ext5 = abs(x0) > x1
+        ext6 = abs(a4_4) > x1
 
 
-@utils.stencil()
+@gtstencil()
 def set_top_as_iv0(a4_1: sd, a4_2: sd, a4_3: sd, a4_4: sd):
     with computation(PARALLEL):
         with interval(0, 1):
@@ -204,7 +203,7 @@ def set_top_as_iv0(a4_1: sd, a4_2: sd, a4_3: sd, a4_4: sd):
             a4_4 = 3 * (2 * a4_1 - (a4_2 + a4_3))
 
 
-@utils.stencil()
+@gtstencil()
 def set_top_as_iv1(a4_1: sd, a4_2: sd, a4_3: sd, a4_4: sd):
     with computation(PARALLEL):
         with interval(0, 1):
@@ -214,7 +213,7 @@ def set_top_as_iv1(a4_1: sd, a4_2: sd, a4_3: sd, a4_4: sd):
             a4_4 = 3 * (2 * a4_1 - (a4_2 + a4_3))
 
 
-@utils.stencil()
+@gtstencil()
 def set_top_as_iv2(a4_1: sd, a4_2: sd, a4_3: sd, a4_4: sd):
     with computation(PARALLEL):
         with interval(0, 1):
@@ -226,14 +225,14 @@ def set_top_as_iv2(a4_1: sd, a4_2: sd, a4_3: sd, a4_4: sd):
             a4_4 = 3 * (2 * a4_1 - (a4_2 + a4_3))
 
 
-@utils.stencil()
+@gtstencil()
 def set_top_as_else(a4_1: sd, a4_2: sd, a4_3: sd, a4_4: sd):
     with computation(PARALLEL):
         with interval(...):
             a4_4 = 3.0 * (2.0 * a4_1 - (a4_2 + a4_3))
 
 
-@utils.stencil()
+@gtstencil()
 def set_inner_as_kordsmall(
     a4_1: sd, a4_2: sd, a4_3: sd, a4_4: sd, gam: sd, extm: sd, ext5: sd, ext6: sd
 ):
@@ -279,7 +278,7 @@ def set_inner_as_kordsmall(
         a4_4 = 3.0 * (2.0 * a4_1 - (a4_2 + a4_3))
 
 
-@utils.stencil()
+@gtstencil()
 def set_inner_as_kord9(
     a4_1: sd,
     a4_2: sd,
@@ -300,8 +299,6 @@ def set_inner_as_kord9(
         tmp_max = a4_2
         tmp_max0 = a4_1
         diff_23 = 0.0
-        abs_a44 = 0.0
-        abs_diff23 = 0.0
         if extm and extm[0, 0, -1]:
             a4_2 = a4_1
             a4_3 = a4_1
@@ -316,10 +313,8 @@ def set_inner_as_kord9(
             a4_4 = 0.0
         else:
             diff_23 = a4_2 - a4_3
-            abs_diff23 = diff_23 if diff_23 > 0 else -diff_23
             a4_4 = 6.0 * a4_1 - 3.0 * (a4_2 + a4_3)
-            abs_a44 = a4_4 if a4_4 > 0 else -a4_4
-            if abs_a44 > abs_diff23:
+            if abs(a4_4) > abs(diff_23):
                 tmp_min = (
                     a4_1
                     if (a4_1 < pmp_1) and (a4_1 < lac_1)
@@ -357,7 +352,7 @@ def set_inner_as_kord9(
                 a4_2 = a4_2
 
 
-@utils.stencil()
+@gtstencil()
 def set_inner_as_kord10(
     a4_1: sd,
     a4_2: sd,
@@ -434,7 +429,7 @@ def set_inner_as_kord10(
         a4_4 = 3.0 * (2.0 * a4_1 - (a4_2 + a4_3))
 
 
-@utils.stencil()
+@gtstencil()
 def set_bottom_as_iv0(a4_1: sd, a4_2: sd, a4_3: sd, a4_4: sd):
     with computation(PARALLEL):
         with interval(1, None):
@@ -444,7 +439,7 @@ def set_bottom_as_iv0(a4_1: sd, a4_2: sd, a4_3: sd, a4_4: sd):
             a4_4 = 3.0 * (2.0 * a4_1 - (a4_2 + a4_3))
 
 
-@utils.stencil()
+@gtstencil()
 def set_bottom_as_iv1(a4_1: sd, a4_2: sd, a4_3: sd, a4_4: sd):
     with computation(PARALLEL):
         with interval(-1, None):
@@ -454,7 +449,7 @@ def set_bottom_as_iv1(a4_1: sd, a4_2: sd, a4_3: sd, a4_4: sd):
             a4_4 = 3.0 * (2.0 * a4_1 - (a4_2 + a4_3))
 
 
-@utils.stencil()
+@gtstencil()
 def set_bottom_as_else(a4_1: sd, a4_2: sd, a4_3: sd, a4_4: sd):
     with computation(PARALLEL):
         with interval(...):
