@@ -43,13 +43,11 @@ def transportdelp(
         pt: Pressure (input)
         utc: x-velocity on C-grid (input)
         vtc: y-velocity on C-grid (input)
-        w: z-velocity on C-grid (input, output)
+        w: z-velocity on C-grid (input)
         rarea: Inverse areas (input) -- IJ field
-
-    TODO: Remove these when a function
-        delpc: Updated delp
-        ptc: Updated pt
-        wc: Updated w
+        delpc: Updated delp (output)
+        ptc: Updated pt (output)
+        wc: Updated w (output)
     """
 
     with computation(PARALLEL), interval(...):
