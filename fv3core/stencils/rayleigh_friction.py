@@ -99,6 +99,7 @@ def compute(u, v, w, ua, va, pt, delz, phis, bdt, ptop, pfull, comm):
     )
 
     comm.halo_update(u2f, n_points=utils.halo)
+    # TODO 1d variable (though note this is an unteste module)
     rf = utils.make_storage_from_shape(pt.shape, utils.origin())
     rayleigh_pt_friction(
         pt,
