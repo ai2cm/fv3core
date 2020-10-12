@@ -86,7 +86,7 @@ def fill_4corners(q, direction, grid):
 
     kwargs = {
         "origin": grid.compute_origin(add=(-3, -3, 0)),
-        "domain": grid.domain_shape_compute_buffer_2d(add=(6, 6, 0)),
+        "domain": grid.domain_shape_compute_buffer_2d(add=(6, 6, 1)),
     }
 
     if direction == "x":
