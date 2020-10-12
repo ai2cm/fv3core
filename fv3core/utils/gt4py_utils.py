@@ -7,22 +7,20 @@ import math
 from typing import Callable, Tuple, Union
 
 import gt4py as gt
-import gt4py.gtscript as gtscript
 import gt4py.ir as gt_ir
 import numpy as np
+from gt4py import gtscript
 
+# Problem: creates circular dependency
 from fv3core.utils.mpi import MPI
 
 from . import global_config
-from .stencil import stencil
 
 
 try:
     import cupy as cp
 except ImportError:
     cp = None
-
-MODULE_NAME = "fv3core.utils.gt4py_utils"
 
 logger = logging.getLogger("fv3ser")
 managed_memory = True

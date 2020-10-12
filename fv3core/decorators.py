@@ -1,17 +1,20 @@
 import collections
 import functools
 import types
-from typing import Callable
+from typing import Callable, Tuple, Union
 
+import gt4py
 import gt4py as gt
 import numpy
 import xarray as xr
 from fv3gfs.util import Quantity
+from gt4py import gtscript
 
 import fv3core
 import fv3core._config as spec
+import fv3core.utils.gt4py_utils as utils
 
-from . import global_config
+from .utils import global_config
 
 
 ArgSpec = collections.namedtuple(
@@ -54,22 +57,22 @@ def state_inputs(*arg_specs):
 
 
 class FV3StencilObject:
-    """GT4Py stencil object used for fv3core"""
+    """GT4Py stencil object used for fv3core."""
 
-    def __init__(self, stencil_object: gt.StencilObject, build_info: dict):
+    def __init__(self, stencil_object: gt4py.StencilObject, build_info: dict):
         self.stencil_object = stencil_object
         self._build_info = build_info
 
     @property
     def build_info(self) -> dict:
-        """Return the build_info created when compiling the stencil"""
+        """Return the build_info created when compiling the stencil."""
         return self._build_info
 
     def __call__(self, *args, **kwargs):
         return self.stencil_object(*args, **kwargs)
 
 
-def stencil(**stencil_kwargs) -> Callable[..., None]:
+def gtstencil(definition=None, **stencil_kwargs) -> Callable[..., None]:
     if "rebuild" in stencil_kwargs:
         raise ValueError(
             f"The rebuild flag should be set in {__name__} instead of as an argument to stencil"
@@ -92,12 +95,18 @@ def stencil(**stencil_kwargs) -> Callable[..., None]:
                 stencil_kwargs["backend"] = global_config.get_backend()
                 # Generate stencil
                 build_info = {}
-                stencil = gt.gtscript.stencil(build_info=build_info, **stencil_kwargs)(
+                stencil = gtscript.stencil(build_info=build_info, **stencil_kwargs)(
                     func
                 )
                 stencils[key] = FV3StencilObject(stencil, build_info)
+            kwargs["splitters"] = kwargs.get(
+                "splitters", spec.grid.splitters(origin=kwargs.get("origin"))
+            )
             return stencils[key](*args, **kwargs)
 
         return wrapped
 
-    return decorator
+    if definition is None:
+        return decorator
+    else:
+        return decorator(definition)

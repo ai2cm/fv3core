@@ -4,7 +4,8 @@ from gt4py.gtscript import PARALLEL, computation, interval
 
 import fv3core._config as spec
 import fv3core.utils.gt4py_utils as utils
-from fv3core.stencils.basic_operations import floor_cap, max_fn, min_fn, sign
+from fv3core.decorators import gtstencil
+from fv3core.stencils.basic_operations import floor_cap, sign
 
 
 input_vars = ["q", "c"]
@@ -32,19 +33,19 @@ def grid():
     return spec.grid
 
 
-@utils.stencil(externals={"p1": p1, "p2": p2})
+@gtstencil(externals={"p1": p1, "p2": p2})
 def main_al_ord_under8(q: sd, al: sd):
     with computation(PARALLEL), interval(0, None):
         al[0, 0, 0] = p1 * (q[0, -1, 0] + q) + p2 * (q[0, -2, 0] + q[0, 1, 0])
 
 
-@utils.stencil(externals={"c1": c1, "c2": c2, "c3": c3})
+@gtstencil(externals={"c1": c1, "c2": c2, "c3": c3})
 def al_x_under8_edge_0(q: sd, dya: sd, al: sd):
     with computation(PARALLEL), interval(0, None):
         al[0, 0, 0] = c1 * q[0, -2, 0] + c2 * q[0, -1, 0] + c3 * q
 
 
-@utils.stencil(externals={"c1": c1, "c2": c2, "c3": c3})
+@gtstencil(externals={"c1": c1, "c2": c2, "c3": c3})
 def al_x_under8_edge_1(q: sd, dya: sd, al: sd):
     with computation(PARALLEL), interval(0, None):
         al[0, 0, 0] = 0.5 * (
@@ -61,13 +62,13 @@ def al_x_under8_edge_1(q: sd, dya: sd, al: sd):
         )
 
 
-@utils.stencil(externals={"c1": c1, "c2": c2, "c3": c3})
+@gtstencil(externals={"c1": c1, "c2": c2, "c3": c3})
 def al_x_under8_edge_2(q: sd, dya: sd, al: sd):
     with computation(PARALLEL), interval(0, None):
         al[0, 0, 0] = c3 * q[0, -1, 0] + c2 * q[0, 0, 0] + c1 * q[0, 1, 0]
 
 
-@utils.stencil()
+@gtstencil()
 def floor_cap(var: sd, floor_value: float):
     with computation(PARALLEL), interval(0, None):
         var[0, 0, 0] = var if var > floor_value else floor_value
@@ -147,7 +148,7 @@ def get_flux(q, c, al, mord):
     return flux
 
 
-@utils.stencil()
+@gtstencil()
 def get_flux_stencil_ord6(q: sd, c: sd, al: sd, flux: sd, mord: int):
     with computation(PARALLEL), interval(0, None):
         bl, br, b0, tmp = flux_intermediate_ord6(q, al, mord)
@@ -156,7 +157,7 @@ def get_flux_stencil_ord6(q: sd, c: sd, al: sd, flux: sd, mord: int):
 
 
 # TODO: remove when validated
-@utils.stencil()
+@gtstencil()
 def get_flux_stencil(q: sd, c: sd, al: sd, flux: sd, mord: int):
     with computation(PARALLEL), interval(0, None):
         bl, br, b0, tmp = flux_intermediates(q, al, mord)
@@ -180,7 +181,7 @@ def get_flux_stencil(q: sd, c: sd, al: sd, flux: sd, mord: int):
         #    flux = tmp
 
 
-@utils.stencil()
+@gtstencil()
 def finalflux_ord8plus(q: sd, c: sd, bl: sd, br: sd, flux: sd):
     with computation(PARALLEL), interval(...):
         b0 = get_b0(bl, br)
@@ -188,41 +189,29 @@ def finalflux_ord8plus(q: sd, c: sd, bl: sd, br: sd, flux: sd):
         flux = q[0, -1, 0] + fx1 if c > 0.0 else q + fx1
 
 
-@utils.stencil()
+@gtstencil()
 def dm_jord8plus(q: sd, al: sd, dm: sd):
     with computation(PARALLEL), interval(...):
         xt = 0.25 * (q[0, 1, 0] - q[0, -1, 0])
-        maxqj = max_fn(q, q[0, -1, 0])
-        maxqj = max_fn(maxqj, q[0, 1, 0])
-        minqj = min_fn(q, q[0, -1, 0])
-        minqj = min_fn(minqj, q[0, 1, 0])
-        dqr = maxqj - q
-        dql = q - minqj
-        absxt = abs(xt)
-        minmaxq = min_fn(absxt, dqr)
-        minmaxq = min_fn(minmaxq, dql)
-        dm = sign(minmaxq, xt)
+        dqr = max(max(q, q[0, -1, 0]), q[0, 1, 0]) - q
+        dql = q - min(min(q, q[0, -1, 0]), q[0, 1, 0])
+        dm = sign(min(min(abs(xt), dqr), dql), xt)
 
 
-@utils.stencil()
+@gtstencil()
 def al_jord8plus(q: sd, al: sd, dm: sd, r3: float):
     with computation(PARALLEL), interval(...):
         al = 0.5 * (q[0, -1, 0] + q) + r3 * (dm[0, -1, 0] - dm)
 
 
-@utils.stencil()
+@gtstencil()
 def blbr_jord8(q: sd, al: sd, bl: sd, br: sd, dm: sd):
     with computation(PARALLEL), interval(...):
         xt = 2.0 * dm
         aldiff = al - q
         aldiffj = al[0, 1, 0] - q
-        absxt = abs(xt)
-        abs_aldiff = abs(aldiff)
-        abs_aldiffj = abs(aldiffj)
-        min_aldiff = min_fn(absxt, abs_aldiff)
-        min_aldiffj = min_fn(absxt, abs_aldiffj)
-        bl = -1.0 * sign(min_aldiff, xt)
-        br = sign(min_aldiffj, xt)
+        bl = -1.0 * sign(min(abs(xt), abs(aldiff)), xt)
+        br = sign(min(abs(xt), abs(aldiffj)), xt)
 
 
 @gtscript.function
@@ -249,54 +238,24 @@ def xt_dya_edge_1_base(q, dya):
 @gtscript.function
 def xt_dya_edge_0(q, dya, xt_minmax):
     xt = xt_dya_edge_0_base(q, dya)
-    minq = 0.0
-    maxq = 0.0
     if xt_minmax:
-        # minq = min_fn(q[0, -1, 0], q)
-        # minq = min_fn(minq, q[0,1,0])
-        # minq = min_fn(minq, q[0, 2, 0])
-        # maxq = max_fn(q[0, -1, 0], q)
-        # maxq = max_fn(maxq, q[0,1,0])
-        # maxq = max_fn(maxq, q[0, 2, 0])
-        # xt = max_fn(xt, minq)
-        # xt = min_fn(xt, maxq)
-        minq = q[0, -1, 0] if q[0, -1, 0] < q else q
-        minq = minq if minq < q[0, 1, 0] else q[0, 1, 0]
-        minq = minq if minq < q[0, 2, 0] else q[0, 2, 0]
-        maxq = q[0, -1, 0] if q[0, -1, 0] > q else q
-        maxq = maxq if maxq > q[0, 1, 0] else q[0, 1, 0]
-        maxq = maxq if maxq > q[0, 2, 0] else q[0, 2, 0]
-        xt = xt if xt > minq else minq
-        xt = xt if xt < maxq else maxq
+        minq = min(min(min(q[0, -1, 0], q), q[0, 1, 0]), q[0, 2, 0])
+        maxq = max(max(max(q[0, -1, 0], q), q[0, 1, 0]), q[0, 2, 0])
+        xt = min(max(xt, minq), maxq)
     return xt
 
 
 @gtscript.function
 def xt_dya_edge_1(q, dya, xt_minmax):
     xt = xt_dya_edge_1_base(q, dya)
-    minq = 0.0
-    maxq = 0.0
     if xt_minmax:
-        # minq = min_fn(q[0, -2, 0], q[0, -1, 0])
-        # minq = min_fn(minq, q)
-        # minq = min_fn(minq, q[0, 1, 0])
-        # maxq = max_fn(q[0, -2, 0], q[0, -1, 0])
-        # maxq = max_fn(maxq, q)
-        # maxq = max_fn(maxq, q[0, 1, 0])
-        # xt = max_fn(xt, minq)
-        # xt = min_fn(xt, maxq)
-        minq = q[0, -2, 0] if q[0, -2, 0] < q[0, -1, 0] else q[0, -1, 0]
-        minq = minq if minq < q else q
-        minq = minq if minq < q[0, 1, 0] else q[0, 1, 0]
-        maxq = q[0, -2, 0] if q[0, -2, 0] > q[0, -1, 0] else q[0, -1, 0]
-        maxq = maxq if maxq > q else q
-        maxq = maxq if maxq > q[0, 1, 0] else q[0, 1, 0]
-        xt = xt if xt > minq else minq
-        xt = xt if xt < maxq else maxq
+        minq = min(min(min(q[0, -2, 0], q[0, -1, 0]), q), q[0, 1, 0])
+        maxq = max(max(max(q[0, -2, 0], q[0, -1, 0]), q), q[0, 1, 0])
+        xt = min(max(xt, minq), maxq)
     return xt
 
 
-@utils.stencil()
+@gtstencil()
 def south_edge_jord8plus_0(q: sd, dya: sd, dm: sd, bl: sd, br: sd, xt_minmax: bool):
     with computation(PARALLEL), interval(...):
         bl = s14 * dm[0, -1, 0] + s11 * (q[0, -1, 0] - q)
@@ -304,7 +263,7 @@ def south_edge_jord8plus_0(q: sd, dya: sd, dm: sd, bl: sd, br: sd, xt_minmax: bo
         br = xt - q
 
 
-@utils.stencil()
+@gtstencil()
 def south_edge_jord8plus_1(q: sd, dya: sd, dm: sd, bl: sd, br: sd, xt_minmax: bool):
     with computation(PARALLEL), interval(...):
         xt = xt_dya_edge_1(q, dya, xt_minmax)
@@ -313,7 +272,7 @@ def south_edge_jord8plus_1(q: sd, dya: sd, dm: sd, bl: sd, br: sd, xt_minmax: bo
         br = xt - q
 
 
-@utils.stencil()
+@gtstencil()
 def south_edge_jord8plus_2(q: sd, dya: sd, dm: sd, al: sd, bl: sd, br: sd):
     with computation(PARALLEL), interval(...):
         xt = s15 * q[0, -1, 0] + s11 * q - s14 * dm
@@ -321,7 +280,7 @@ def south_edge_jord8plus_2(q: sd, dya: sd, dm: sd, al: sd, bl: sd, br: sd):
         br = al[0, 1, 0] - q
 
 
-@utils.stencil()
+@gtstencil()
 def north_edge_jord8plus_0(q: sd, dya: sd, dm: sd, al: sd, bl: sd, br: sd):
     with computation(PARALLEL), interval(...):
         bl = al - q
@@ -329,7 +288,7 @@ def north_edge_jord8plus_0(q: sd, dya: sd, dm: sd, al: sd, bl: sd, br: sd):
         br = xt - q
 
 
-@utils.stencil()
+@gtstencil()
 def north_edge_jord8plus_1(q: sd, dya: sd, dm: sd, bl: sd, br: sd, xt_minmax: bool):
     with computation(PARALLEL), interval(...):
         xt = s15 * q + s11 * q[0, -1, 0] + s14 * dm[0, -1, 0]
@@ -338,7 +297,7 @@ def north_edge_jord8plus_1(q: sd, dya: sd, dm: sd, bl: sd, br: sd, xt_minmax: bo
         br = xt - q
 
 
-@utils.stencil()
+@gtstencil()
 def north_edge_jord8plus_2(q: sd, dya: sd, dm: sd, bl: sd, br: sd, xt_minmax: bool):
     with computation(PARALLEL), interval(...):
         xt = xt_dya_edge_1(q, dya, xt_minmax)
@@ -346,7 +305,7 @@ def north_edge_jord8plus_2(q: sd, dya: sd, dm: sd, bl: sd, br: sd, xt_minmax: bo
         br = s11 * (q[0, 1, 0] - q) - s14 * dm[0, 1, 0]
 
 
-@utils.stencil()
+@gtstencil()
 def pert_ppm_positive_definite_constraint(a0: sd, al: sd, ar: sd, r12: float):
     with computation(PARALLEL), interval(...):
         da1 = 0.0
@@ -370,7 +329,7 @@ def pert_ppm_positive_definite_constraint(a0: sd, al: sd, ar: sd, r12: float):
                     al = -2.0 * ar
 
 
-@utils.stencil()
+@gtstencil()
 def pert_ppm_standard_constraint(a0: sd, al: sd, ar: sd):
     with computation(PARALLEL), interval(...):
         da1 = 0.0
