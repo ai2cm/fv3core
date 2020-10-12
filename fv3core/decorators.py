@@ -1,12 +1,15 @@
 import collections
 import functools
+import hashlib
+import os
 import types
-from typing import Callable, Tuple, Union
+from typing import BinaryIO, Callable, Tuple, Union
 
 import gt4py
 import gt4py as gt
-import numpy
+import numpy as np
 import xarray as xr
+import yaml
 from fv3gfs.util import Quantity
 from gt4py import gtscript
 
@@ -14,13 +17,36 @@ import fv3core
 import fv3core._config as spec
 import fv3core.utils.gt4py_utils as utils
 
-from .utils import global_config
+from .utils import global_config, mpi
 
 
 ArgSpec = collections.namedtuple(
     "ArgSpec", ["arg_name", "standard_name", "units", "intent"]
 )
 VALID_INTENTS = ["in", "out", "inout", "unknown"]
+
+
+def enable_stencil_report(*, path: str, save_args: bool, save_report: bool):
+    global stencil_report_path
+    global save_stencil_args
+    global save_stencil_report
+    stencil_report_path = path
+    save_stencil_args = save_args
+    save_stencil_report = save_report
+
+
+def disable_stencil_report():
+    global stencil_report_path
+    global save_stencil_args
+    global save_stencil_report
+    stencil_report_path = None
+    save_stencil_args = False
+    save_stencil_report = False
+
+
+stencil_report_path = None
+save_stencil_args = False
+save_stencil_report = False
 
 
 def state_inputs(*arg_specs):
@@ -84,9 +110,11 @@ def gtstencil(definition=None, **stencil_kwargs) -> Callable[..., None]:
 
     def decorator(func) -> Callable[..., None]:
         stencils = {}
+        times_called = 0
 
         @functools.wraps(func)
         def wrapped(*args, **kwargs) -> None:
+            nonlocal times_called
             # This uses the module-level globals backend and rebuild (defined above)
             key = (global_config.get_backend(), global_config.get_rebuild())
             if key not in stencils:
@@ -100,8 +128,11 @@ def gtstencil(definition=None, **stencil_kwargs) -> Callable[..., None]:
                 )
                 stencils[key] = FV3StencilObject(stencil, build_info)
             kwargs["splitters"] = kwargs.get(
-                "splitters", spec.grid.splitters(origin=kwargs.get("origin"))
+                "splitters",
+                spec.grid.splitters(origin=kwargs.get("origin")),
             )
+            _maybe_save_report(func.__name__, times_called, args, kwargs)
+            times_called += 1
             return stencils[key](*args, **kwargs)
 
         return wrapped
@@ -110,3 +141,65 @@ def gtstencil(definition=None, **stencil_kwargs) -> Callable[..., None]:
         return decorator
     else:
         return decorator(definition)
+
+
+def _get_report_basename(name, rank, times_called):
+    return f"{name}-r{rank:03d}-n{times_called:04d}"
+
+
+def _maybe_save_report(name, times_called, args, kwargs):
+    if mpi.MPI is None:
+        rank = 0
+    else:
+        rank = mpi.MPI.COMM_WORLD.Get_rank()
+    report_basename = _get_report_basename(name, rank, times_called)
+    if save_stencil_args:
+        args_filename = os.path.join(stencil_report_path, f"{report_basename}.npz")
+        with open(args_filename, "wb") as f:
+            _save_args(f, args, kwargs)
+    if save_stencil_report:
+        report_filename = os.path.join(stencil_report_path, f"{report_basename}.yml")
+        with open(report_filename, "w") as f:
+            yaml.safe_dump(_get_stencil_report(args, kwargs), f)
+
+
+def _save_args(file: BinaryIO, args, kwargs):
+    args = list(args)
+    kwargs_list = sorted(list(kwargs.items()))
+    for i, arg in enumerate(args):
+        if isinstance(arg, gt.storage.storage.Storage):
+            args[i] = np.asarray(arg)
+    for i, (name, value) in enumerate(kwargs_list):
+        if isinstance(value, gt.storage.storage.Storage):
+            kwargs_list[i] = (name, np.asarray(value))
+    np.savez(file, *args, **dict(kwargs_list))
+
+
+def _get_stencil_report(args, kwargs):
+    return {
+        "args": _get_args_report(args),
+        "kwargs": _get_kwargs_report(kwargs),
+    }
+
+
+def _get_args_report(args):
+    return [_get_arg_report(arg) for arg in args]
+
+
+def _get_kwargs_report(kwargs):
+    return {name: _get_arg_report(value) for (name, value) in kwargs.items()}
+
+
+def _get_arg_report(arg):
+    if isinstance(arg, gt.storage.storage.Storage):
+        arg = np.asarray(arg)
+    if isinstance(arg, np.ndarray):
+        return {
+            "md5": hashlib.md5(arg.tobytes()).hexdigest(),
+            "min": float(arg.min()),
+            "max": float(arg.max()),
+            "mean": float(arg.mean()),
+            "std": float(arg.std()),
+        }
+    else:
+        return str(arg)
