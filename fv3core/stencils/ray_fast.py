@@ -30,8 +30,8 @@ def compute_rff_vals(pfull, dt, rf_cutoff, tau0, ptop):
 
 
 @gtscript.function
-def dm_adjusted_wind(dmwind, dm, wind, pfull, rf_cutoff_nudge, kindex, ks):
-    if pfull < rf_cutoff_nudge and kindex < ks:
+def dm_adjusted_wind(dmwind, dm, wind, pfull, rf_cutoff_nudge, ks):
+    if pfull < rf_cutoff_nudge: # TODO and axes(k) < ks:
         dmwind = dmwind / dm
         wind = wind + dmwind
     return dmwind, wind
@@ -48,7 +48,6 @@ def dm_stencil(
     dm: sd,
     pfull: sd,
     rf: sd,
-    kindex: sd,
     dt: float,
     ptop: float,
     rf_cutoff_nudge: float,
@@ -63,12 +62,12 @@ def dm_stencil(
             )
     with computation(FORWARD):
         with interval(0, 1):
-            if pfull < rf_cutoff_nudge and kindex < ks:
+            if pfull < rf_cutoff_nudge: # TODO and kaxes(k) < ks:
                 dm = dp
             else:
                 dm = 0.0
         with interval(1, None):
-            if pfull < rf_cutoff_nudge and kindex < ks:
+            if pfull < rf_cutoff_nudge: # TODO and kaxes(k) < ks:
                 dm = dm[0, 0, -1] + dp
             else:
                 dm = dm[0, 0, -1]
@@ -84,7 +83,6 @@ def ray_fast_wind(
     dp: sd,
     dm: sd,
     pfull: sd,
-    kindex: sd,
     rf_cutoff_nudge: float,
     ks: int,
 ):
@@ -106,7 +104,7 @@ def ray_fast_wind(
             dmdir = dmdir[0, 0, 1]
     with computation(PARALLEL), interval(...):
         dmdir, wind = dm_adjusted_wind(
-            dmdir, dm, wind, pfull, rf_cutoff_nudge, kindex, ks
+            dmdir, dm, wind, pfull, rf_cutoff_nudge, ks
         )
 
 
@@ -119,19 +117,17 @@ def ray_fast_w(w: sd, rf: sd, pfull: sd):
 
 def compute(u, v, w, dp, pfull, dt, ptop, ks):
     grid = spec.grid
-
-    # TODO get rid of this when we can refer to the index in the stencil
-    kindex = utils.make_storage_data(np.squeeze(np.indices((u.shape[2],))), u.shape)
     # The next 3 variables and dm_stencil could be pushed into ray_fast_wind and still work, but then recomputing it all twice
     rf_cutoff_nudge = spec.namelist.rf_cutoff + min(100.0, 10.0 * ptop)
+    # TODO 1D variable
     dm = utils.make_storage_from_shape(u.shape, grid.default_origin())
+    # TODO 1D variable
     rf = utils.make_storage_from_shape(u.shape, grid.default_origin())
     dm_stencil(
         dp,
         dm,
         pfull,
         rf,
-        kindex,
         dt,
         ptop,
         rf_cutoff_nudge,
@@ -145,7 +141,6 @@ def compute(u, v, w, dp, pfull, dt, ptop, ks):
         dp,
         dm,
         pfull,
-        kindex,
         rf_cutoff_nudge,
         ks,
         origin=grid.compute_origin(),
@@ -157,7 +152,6 @@ def compute(u, v, w, dp, pfull, dt, ptop, ks):
         dp,
         dm,
         pfull,
-        kindex,
         rf_cutoff_nudge,
         ks,
         origin=grid.compute_origin(),
