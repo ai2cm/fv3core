@@ -31,7 +31,7 @@ def compute_rff_vals(pfull, dt, rf_cutoff, tau0, ptop):
 
 @gtscript.function
 def dm_adjusted_wind(dmwind, dm, wind, pfull, rf_cutoff_nudge, ks):
-    if pfull < rf_cutoff_nudge: # TODO and axes(k) < ks:
+    if pfull < rf_cutoff_nudge:  # TODO and axes(k) < ks:
         dmwind = dmwind / dm
         wind = wind + dmwind
     return dmwind, wind
@@ -62,12 +62,12 @@ def dm_stencil(
             )
     with computation(FORWARD):
         with interval(0, 1):
-            if pfull < rf_cutoff_nudge: # TODO and kaxes(k) < ks:
+            if pfull < rf_cutoff_nudge:  # TODO and kaxes(k) < ks:
                 dm = dp
             else:
                 dm = 0.0
         with interval(1, None):
-            if pfull < rf_cutoff_nudge: # TODO and kaxes(k) < ks:
+            if pfull < rf_cutoff_nudge:  # TODO and kaxes(k) < ks:
                 dm = dm[0, 0, -1] + dp
             else:
                 dm = dm[0, 0, -1]
@@ -103,9 +103,7 @@ def ray_fast_wind(
         if pfull < spec.namelist.rf_cutoff:
             dmdir = dmdir[0, 0, 1]
     with computation(PARALLEL), interval(...):
-        dmdir, wind = dm_adjusted_wind(
-            dmdir, dm, wind, pfull, rf_cutoff_nudge, ks
-        )
+        dmdir, wind = dm_adjusted_wind(dmdir, dm, wind, pfull, rf_cutoff_nudge, ks)
 
 
 @gtstencil()
