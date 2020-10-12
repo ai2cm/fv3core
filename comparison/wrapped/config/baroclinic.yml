@@ -1,28 +1,28 @@
 data_table: default
 diag_table: /fv3core/comparison/wrapped/config/diag_table_baroclinic
-experiment_name: default
+field_table: gs://vcm-fv3config/config/field_table/TKE-EDMF/v1.0/field_table
+experiment_name: baroclinicnew
 forcing: gs://vcm-fv3config/data/base_forcing/v1.1/
 orographic_forcing: gs://vcm-fv3config/data/orographic_data/v1.0
-#To use internal test cases point to an empty ICs directory,
-# otherwise the model will try to read files, generate a conflict, and crash
+# To use internal test cases, point to an empty ICs directory
 initial_conditions: ""
 namelist:
   amip_interp_nml:
-    data_set: reynolds_oi
+    data_set: hurrell
     date_out_of_range: climo
+    do_sst_pert: false
     interp_oi_sst: true
-    no_anom_sst: false
-    use_ncep_ice: false
+    no_anom_sst: true
+    sst_pert: 0.0
+    sst_pert_type: random
+    use_daily: false
+    use_ncep_ice: true
     use_ncep_sst: true
   atmos_model_nml:
-    blocksize: 24
+    blocksize: -1
     chksum_debug: false
     dycore_only: true
-    fdiag: 1.
-    fhmax: 1024.0
-    fhmaxhf: -1.0
-    fhout: 0.25
-    fhouthf: 0.0
+    fdiag: 1.0
   cires_ugwp_nml:
     knob_ugwp_azdir:
     - 2
@@ -56,6 +56,12 @@ namelist:
     - 32
     - 32
     launch_level: 55
+  cloud_diagnosis_nml:
+    reiflag: 4
+    reimax: 150.0
+    reimin: 10.0
+    rewmax: 10.0
+    rewmin: 5.0
   coupler_nml:
     atmos_nthreads: 1
     calendar: julian
@@ -67,16 +73,19 @@ namelist:
     - 0
     - 0
     days: 0
-    dt_atmos: 450
-    dt_ocean: 450
+    dt_atmos: 225
+    dt_ocean: 225
     hours: 0
-    memuse_verbose: true
-    minutes: 7
+    memuse_verbose: false
+    minutes: 3
     months: 0
     ncores_per_node: 32
-    seconds: 30
-    use_hyper_thread: true
+    seconds: 45
+    use_hyper_thread: false
   diag_manager_nml:
+    max_axes: 240
+    max_files: 106
+    max_num_axis_sets: 100
     prepend_date: false
   external_ic_nml:
     checker_tr: false
@@ -97,14 +106,14 @@ namelist:
     adjust_dry_mass: false
     beta: 0.0
     consv_am: false
-    consv_te: 1.0
+    consv_te: 0.0
     d2_bg: 0.0
-    d2_bg_k1: 0.16
-    d2_bg_k2: 0.02
+    d2_bg_k1: 0.2
+    d2_bg_k2: 0.1
     d4_bg: 0.15
     d_con: 1.0
     d_ext: 0.0
-    dddmp: 0.2
+    dddmp: 0.5
     delt_max: 0.002
     dnats: 1
     do_sat_adj: true
@@ -112,8 +121,9 @@ namelist:
     dwind_2d: false
     external_ic: false
     fill: true
+    fill_dp: true
     fv_debug: false
-    fv_sg_adj: 900
+    fv_sg_adj: 600
     gfs_phil: false
     hord_dp: 6
     hord_mt: 6
@@ -126,37 +136,37 @@ namelist:
     - 1
     k_split: 1
     ke_bg: 0.0
-    kord_mt: 10
-    kord_tm: -10
-    kord_tr: 10
-    kord_wz: 10
+    kord_mt: 9
+    kord_tm: -9
+    kord_tr: 9
+    kord_wz: 9
     layout:
     - 1
     - 1
     make_nh: true
     mountain: false
     n_split: 1
-    n_sponge: 4
+    n_sponge: 48
     na_init: 1
     ncep_ic: false
     nggps_ic: false
-    no_dycore: false
-    nord: 2
+    nord: 3
     npx: 13
     npy: 13
-    npz: 63
+    npz: 79
     ntiles: 6
     nudge: false
     nudge_qv: true
     nwat: 6
-    p_fac: 0.1
+    p_fac: 0.05
     phys_hydrostatic: false
-    print_freq: 3
+    print_freq: 1
     range_warn: true
     reset_eta: false
-    rf_cutoff: 800.0
-    rf_fast: false
-    tau: 5.0
+    rf_cutoff: 3000.0
+    rf_fast: true
+    tau: 10.0
+    tau_h2o: 0.0
     use_hydro_pressure: false
     vtdm4: 0.06
     warm_start: false
@@ -176,55 +186,62 @@ namelist:
     de_ice: false
     do_qa: true
     do_sedi_heat: false
-    dw_land: 0.16
+    do_sedi_w: true
+    dw_land: 0.15
     dw_ocean: 0.1
     fast_sat_adj: true
     fix_negative: true
-    icloud_f: 1
-    mono_prof: true
-    mp_time: 450.0
+    icloud_f: 0
+    irain_f: 0
+    mono_prof: false
+    mp_time: 225.0
     prog_ccn: false
     qi0_crt: 8.0e-05
     qi_lim: 1.0
     ql_gen: 0.001
-    ql_mlt: 0.001
-    qs0_crt: 0.001
+    ql_mlt: 0.002
+    qs0_crt: 0.003
+    qs_mlt: 1.0e-06
     rad_graupel: true
     rad_rain: true
     rad_snow: true
-    rh_inc: 0.3
+    rh_inc: 0.2
     rh_inr: 0.3
     rh_ins: 0.3
     rthresh: 1.0e-05
-    sedi_transport: false
-    tau_g2v: 900.0
+    sedi_transport: true
+    tau_g2v: 1200.0
     tau_i2s: 1000.0
-    tau_l2v:
-    - 225.0
-    tau_v2l: 150.0
+    tau_l2v: 300.0
+    tau_v2l: 90.0
     use_ccn: true
     use_ppm: false
-    vg_max: 12.0
+    vg_max: 16.0
     vi_max: 1.0
-    vr_max: 12.0
+    vr_max: 16.0
     vs_max: 2.0
     z_slope_ice: true
     z_slope_liq: true
   gfs_physics_nml:
+    c0s_shal: 0.01
+    c1_shal: 0.005
     cal_pre: false
     cdmbgwd:
-    - 3.5
-    - 0.25
+    - 0.0
+    - 0.0
+    - 0.0
+    - 0.0
     cnvcld: false
-    cnvgwd: true
+    cnvgwd: false
     debug: false
     do_ocean: false
+    do_deep: false
     dspheat: true
     fhcyc: 24.0
-    fhlwr: 3600.0
-    fhswr: 3600.0
+    fhlwr: 1800.0
+    fhswr: 1800.0
     fhzero: 0.25
-    hybedmf: true
+    hybedmf: false
     iaer: 111
     ialb: 1
     ico2: 2
@@ -247,16 +264,26 @@ namelist:
     random_clds: false
     redrag: true
     sfc_override: true
+    satmedmf: true
     shal_cnv: true
     swhtr: true
     trans_trac: true
     use_ufo: true
+    xkzm_h: 0.1
+    xkzm_m: 0.01
+    xkzminv: 0.0
   interpolator_nml:
     interp_method: conserve_great_circle
   nam_stochy:
     lat_s: 96
     lon_s: 192
     ntrunc: 94
+  sfc_prop_override_nml:
+    ideal_sst: true
+    sst_max: 305
+    sst_profile: 1
+  test_case_nml:
+    test_case: 13
   namsfc:
     fabsl: 99999
     faisl: 99999
@@ -298,9 +325,3 @@ namelist:
     fvmnl: 99999
     fvmxl: 99999
     ldebug: false
-  sfc_prop_override_nml:
-    ideal_sst: true
-    sst_max: 305
-    sst_profile: 1
-  test_case_nml:
-    test_case: 13

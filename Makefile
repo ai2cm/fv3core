@@ -40,6 +40,7 @@ DEV_MOUNTS = '-v $(CWD)/$(FV3):/$(FV3)/$(FV3) -v $(CWD)/tests:/$(FV3)/tests -v $
 
 clean:
 	find . -name ""
+	$(RM) -rf comparison/wrapped/output/*
 
 update_submodules:
 	if [ ! -f $(FV3UTIL_DIR)/requirements.txt  ]; then \

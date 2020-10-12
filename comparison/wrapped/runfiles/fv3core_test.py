@@ -256,6 +256,7 @@ if __name__ == "__main__":
         if i == 0:
             state = wrapper.get_state(allocator=allocator, names=initial_names)
             state["turbulent_kinetic_energy"] = turbulent_kinetic_energy
+            io.write_state(state, "instate_{0}.nc".format(rank))
         else:
             state = wrapper.get_state(allocator=allocator, names=all_names)
         state = transpose(
@@ -265,7 +266,7 @@ if __name__ == "__main__":
             spec.namelist.npx,
             spec.namelist.npy,
         )
-
+        # io.write_state(state, "instate_{0}.nc".format(rank))
         fv3core.fv_dynamics(
             state,
             cube_comm,
@@ -276,10 +277,10 @@ if __name__ == "__main__":
             wrapper.flags.n_split,
             wrapper.flags.ks,
         )
-
-        state["eastward_wind_tendency"] = u_tendency
-        state["northward_wind_tendency"] = v_tendency
-        fv3core.fv_subgridz(state, n_tracers, dt_atmos)
+        if spec.namelist.fv_sg_adj > 0:
+            state["eastward_wind_tendency"] = u_tendency
+            state["northward_wind_tendency"] = v_tendency
+            fv3core.fv_subgridz(state, n_tracers, dt_atmos)
 
         state = transpose(
             state,

@@ -51,29 +51,29 @@ datafiles = [
 surface_pressure_plots = []
 surface_temperature_plots = []
 
-vardict = {}
+relative_errors = {}
 
 for filename in datafiles:
-    fname = args.model_dir + filename
-    ncfile = Dataset(fname, "r")
-    nc_attrs = ncfile.ncattrs()
-    nc_dims = [dim for dim in ncfile.dimensions]  # list of nc dimensions
-    nc_vars = [var for var in ncfile.variables]  # list of nc variables
+    fname_model = args.model_dir + filename
+    model_data = Dataset(fname_model, "r")
+    nc_attrs = model_data.ncattrs()
+    nc_dims = list(model_data.dimensions)
+    nc_vars = list(model_data.variables)
 
     surface_pressure = (
-        ncfile.variables["surface_pressure"][:].data / 100.0
+        model_data.variables["surface_pressure"][:].data / 100.0
     )  # convert to hPa
-    temperature = ncfile.variables["air_temperature"][:].data
+    temperature = model_data.variables["air_temperature"][:].data
 
     surface_temperature = temperature[-1, :, :]  # temperature at bottom
 
     if args.reference_dir:
-        fname2 = args.reference_dir + f
-        ncf2 = Dataset(fname2, "r")
+        fname_ref = args.reference_dir + f
+        reference_data = Dataset(fname_ref, "r")
         surface_pressure2 = (
-            ncf2.variables["surface_pressure"][:].data / 100.0
+            reference_data.variables["surface_pressure"][:].data / 100.0
         )  # convert to hPa
-        temperature2 = ncf2.variables["air_temperature"][:].data
+        temperature2 = reference_data.variables["air_temperature"][:].data
         surface_temperature2 = temperature2[-1, :, :]  # field at 850 hPa
 
         surface_pressure_diff = (
@@ -89,12 +89,12 @@ for filename in datafiles:
         # savin' variables
         for var in nc_vars:
             if "time" not in var:
-                if var in ncf2.variables.keys():
-                    if var not in vardict.keys():
-                        vardict[var] = []
-                    field1 = ncfile[var][:]
-                    field2 = ncf2[var][:]
-                    vardict[var].append((field1 - field2) / field2)
+                if var in reference_data.variables.keys():
+                    if var not in relative_errors.keys():
+                        relative_errors[var] = []
+                    field1 = model_data[var][:]
+                    field2 = reference_data[var][:]
+                    relative_errors[var].append((field1 - field2) / field2)
 
     else:
         surface_pressure_plots.append(surface_pressure)
@@ -105,65 +105,39 @@ for filename in datafiles:
 # Doin' some stats #
 ####################
 if args.reference_dir:
-    pminmaxes = []
     pmeans = []
-    p_lnorm1 = []
-    p_lnorm2 = []
-    p_lnorminf = []
-
-    tminmaxes = []
     tmeans = []
-    t_lnorm1 = []
-    t_lnorm2 = []
-    t_lnorminf = []
-
-    vminmaxes = []
     vmeans = []
-    variable_lnorm1 = []
-    variable_lnorm2 = []
-    variable_lnorminf = []
 
     p = np.array(surface_pressure_plots)
     tp = np.array(surface_temperature_plots)
     pres_date = np.concatenate(
         (p[0, :, :], p[1, :, :], p[2, :, :], p[3, :, :], p[4, :, :], p[5, :, :]), axis=0
     )
-    pminmaxes.append([pres_date.min(), pres_date.max()])
     pmeans.append(pres_date.mean())
-    p_lnorm1.append(np.linalg.norm(pres_date.flatten(), 1))
-    p_lnorm2.append(np.linalg.norm(pres_date.flatten(), 2))
-    p_lnorminf.append(np.linalg.norm(pres_date.flatten(), np.inf))
 
     surface_temperature_date = np.concatenate(
         (tp[0, :, :], tp[1, :, :], tp[2, :, :], tp[3, :, :], tp[4, :, :], tp[5, :, :]),
         axis=0,
     )
-    tminmaxes.append([surface_temperature_date.min(), surface_temperature_date.max()])
     tmeans.append(surface_temperature_date.mean())
-    t_lnorm1.append(np.linalg.norm(surface_temperature_date.flatten(), 1))
-    t_lnorm2.append(np.linalg.norm(surface_temperature_date.flatten(), 2))
-    t_lnorminf.append(np.linalg.norm(surface_temperature_date.flatten(), np.inf))
 
     print(pmeans)
     print(tmeans)
 
-    for var in vardict.keys():
+    for var in relative_errors.keys():
         var_tiles = np.concatenate(
             (
-                vardict[var][0],
-                vardict[var][1],
-                vardict[var][2],
-                vardict[var][3],
-                vardict[var][4],
-                vardict[var][5],
+                relative_errors[var][0],
+                relative_errors[var][1],
+                relative_errors[var][2],
+                relative_errors[var][3],
+                relative_errors[var][4],
+                relative_errors[var][5],
             ),
             axis=0,
         ).flatten()
-        vminmaxes.append([var_tiles.min(), var_tiles.max()])
         vmeans.append(var_tiles.mean())
-        variable_lnorm1.append(np.linalg.norm(var_tiles.flatten(), 1))
-        variable_lnorm2.append(np.linalg.norm(var_tiles.flatten(), 2))
-        variable_lnorminf.append(np.linalg.norm(var_tiles.flatten(), np.inf))
         print(var, np.mean(np.abs(var_tiles.flatten())))
 
 ################

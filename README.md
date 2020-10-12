@@ -217,7 +217,7 @@ to install fv3core as an importable module. Alternatively, you can specify `deve
 $ write_run_directory path/to/configuration/yaml path/to/rundir
 ```
 
-A few example config files are provided in the `fv3config` repository and `fv3core/comparison/wrapped/config`. After the rundir has been created you can link or copy `fv3core/comparison/wrapped/runfiles/fv3core_test.py` to your rundir and run with mpirun:
+A few example config files are provided in the `fv3config` repository and `fv3core/comparison/wrapped/config`. After the rundir has been created you can link or copy a runfile such as `fv3core/comparison/wrapped/runfiles/fv3core_test.py` to your rundir and run it with mpirun:
 
 ```shell
 $ mpirun -np X python fv3core_test.py
