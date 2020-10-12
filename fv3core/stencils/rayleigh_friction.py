@@ -10,7 +10,9 @@ import fv3core._config as spec
 import fv3core.stencils.c2l_ord as c2l_ord
 import fv3core.utils.global_constants as constants
 import fv3core.utils.gt4py_utils as utils
+from fv3core.decorators import gtstencil
 from fv3core.stencils.rayleigh_super import RCV, compute_rf_vals
+
 
 sd = utils.sd
 SDAY = 86400.0  # seconds per day
