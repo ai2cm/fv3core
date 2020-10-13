@@ -3,7 +3,7 @@ from .parallel_translate import ParallelTranslate
 from .translate import TranslateFortranData2Py, TranslateGrid
 from .translate_a2b_ord4 import TranslateA2B_Ord4
 from .translate_c2l_ord2 import TranslateC2L_Ord2
-from .translate_c_sw import TranslateC_SW
+from .translate_c_sw import TranslateC_SW, TranslateDivergenceCorner
 from .translate_circulation_cgrid import TranslateCirculation_Cgrid
 from .translate_compute_total_energy import TranslateComputeTotalEnergy
 from .translate_copycorners import TranslateCopyCorners
@@ -13,7 +13,6 @@ from .translate_d_sw import TranslateD_SW
 from .translate_del2cubed import TranslateDel2Cubed
 from .translate_del6vtflux import TranslateDel6VtFlux
 from .translate_delnflux import TranslateDelnFlux, TranslateDelnFlux_2
-from .translate_divergencecorner import TranslateDivergenceCorner
 from .translate_divergencedamping import TranslateDivergenceDamping
 from .translate_dyncore import TranslateDynCore
 from .translate_fill4corners import TranslateFill4Corners
