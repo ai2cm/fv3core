@@ -98,7 +98,7 @@ def ray_fast_wind(
         if pfull < rf_cutoff_nudge:  # TODO and axes(k) < ks:
             dmwind = dmdir / dm
             wind = wind + dmwind
-            
+
 
 @gtstencil()
 def ray_fast_w(w: sd, rf: sd, pfull: sd):
