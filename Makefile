@@ -60,7 +60,6 @@ build_environment:
 		.
 
 build_wrapped_environment:
-	BUILD_FROM_INTERMEDIATE=$(BUILD_FROM_INTERMEDIATE) $(MAKE) -C external/fv3gfs-wrapper build-docker
 	DOCKER_BUILDKIT=1 docker build \
 		--network host \
 		-f $(CWD)/docker/Dockerfile.build_environment \

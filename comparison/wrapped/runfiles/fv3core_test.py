@@ -75,13 +75,13 @@ def transpose(state, dims, npz, npx, npy):
     return return_state
 
 
-def convert_3d_to_2d(state, field_names):
+def convert_3d_to_2d(state, field_levels):
     return_state = state
-    for field in field_names:
+    for field in field_levels.keys():
         quantity = state[field]
         # Assuming we've already transposed from xyz to zyx
         data_2d = quantity.data[
-            0, :, :
+            field_levels[field], :, :
         ]  # take the bottom level since they should all be the same
         quantity_2d = Quantity.from_data_array(
             xr.DataArray(
@@ -177,10 +177,10 @@ if __name__ == "__main__":
     all_names = copy.deepcopy(initial_names)
     all_names.append("turbulent_kinetic_energy")
 
-    names_of_2d_variables = [
-        "surface_geopotential",
-        "surface_pressure",
-    ]
+    levels_of_2d_variables = {
+        "surface_geopotential": -1,
+        "surface_pressure": 0,
+    }
 
     names_of_1d_variables = [
         "atmosphere_hybrid_a_coordinate",
@@ -289,7 +289,7 @@ if __name__ == "__main__":
             spec.namelist.npx,
             spec.namelist.npy,
         )
-        state = convert_3d_to_2d(state, names_of_2d_variables)
+        state = convert_3d_to_2d(state, levels_of_2d_variables)
         state = convert_3d_to_1d(state, names_of_1d_variables)
         wrapper.set_state(state)
         wrapper.step_physics()
