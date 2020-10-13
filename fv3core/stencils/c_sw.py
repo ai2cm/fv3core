@@ -3,7 +3,6 @@ import gt4py.gtscript as gtscript
 from gt4py.gtscript import PARALLEL, computation, interval
 
 import fv3core._config as spec
-import fv3core.stencils.circulation_cgrid as circulation_cgrid
 import fv3core.stencils.d2a2c_vect as d2a2c
 import fv3core.stencils.divergence_corner as divergence_corner
 import fv3core.stencils.ke_c_sw as ke_c_sw
@@ -11,6 +10,7 @@ import fv3core.stencils.transportdelp as transportdelp
 import fv3core.stencils.vorticitytransport_cgrid as vorticity_transport
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import gtstencil
+from fv3core.stencils.circulation_cgrid import circulation_cgrid
 
 
 sd = utils.sd
@@ -68,7 +68,15 @@ def compute(delp, pt, u, v, w, uc, vc, ua, va, ut, vt, divgd, omga, dt2):
     )
     delpc, ptc = transportdelp.compute(delp, pt, w, ut, vt, omga)
     ke, vort = ke_c_sw.compute(uc, vc, u, v, ua, va, dt2)
-    circulation_cgrid.compute(uc, vc, vort)
+    circulation_cgrid(
+        uc,
+        vc,
+        grid.dxc,
+        grid.dyc,
+        vort,
+        origin=grid.compute_origin(),
+        domain=grid.domain_shape_compute_buffer_2d(add=(1, 1, 0)),
+    )
     absolute_vorticity(
         vort,
         grid.fC,

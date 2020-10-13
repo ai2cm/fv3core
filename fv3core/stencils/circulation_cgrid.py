@@ -20,7 +20,7 @@ def circulation_cgrid(uc: sd, vc: sd, dxc: sd, dyc: sd, vort_c: sd):
         dyc: grid spacing in y-dir (input)
         vort_c: C-grid vorticity (output)
     """
-    from __splitters__ import i_start, i_end, j_start, j_end
+    from __splitters__ import i_end, i_start, j_end, j_start
 
     with computation(PARALLEL), interval(...):
         fx = dxc * uc
