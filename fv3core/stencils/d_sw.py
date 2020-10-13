@@ -2,7 +2,7 @@
 import logging
 
 import gt4py.gtscript as gtscript
-from gt4py.gtscript import PARALLEL, computation, interval, parallel, region
+from gt4py.gtscript import __INLINED, PARALLEL, computation, interval, parallel, region
 
 import fv3core._config as spec
 import fv3core.stencils.basic_operations as basic
@@ -601,7 +601,6 @@ def d_sw(
         dt5,
         origin=grid().compute_origin(),
         domain=grid().domain_shape_compute_buffer_2d(),
-        splitters=grid().splitters,
     )
 
     ytp_v.compute(vb, u, v, ub)
@@ -625,7 +624,6 @@ def d_sw(
         dt5,
         origin=grid().compute_origin(),
         domain=grid().domain_shape_compute_buffer_2d(),
-        splitters=grid().splitters,
     )
 
     xtp_u.compute(ub, u, v, vb)

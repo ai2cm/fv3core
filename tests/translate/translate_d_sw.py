@@ -74,7 +74,6 @@ class TranslateUbKE(TranslateFortranData2Py):
             rsina=self.grid.rsina,
             origin=self.grid.compute_origin(),
             domain=self.grid.domain_shape_compute_buffer_2d(),
-            splitters=self.grid.splitters,
         )
 
     def __init__(self, grid):
@@ -99,7 +98,6 @@ class TranslateVbKE(TranslateFortranData2Py):
             rsina=self.grid.rsina,
             origin=self.grid.compute_origin(),
             domain=self.grid.domain_shape_compute_buffer_2d(),
-            splitters=self.grid.splitters,
         )
 
     def __init__(self, grid):
