@@ -1,6 +1,6 @@
 import gt4py as gt
-import gt4py.gtscript as gtscript
 import numpy as np
+from gt4py.gtscript import __INLINED, PARALLEL, computation, interval, parallel, region
 
 import fv3core._config as spec
 import fv3core.utils.gt4py_utils as utils
@@ -60,13 +60,13 @@ def compute(uc: sd, vc: sd, vort_c: sd, ke_c: sd, v: sd, u: sd, dt2: float):
     """Update the C-Grid zonal and meridional velocity fields.
 
     Args:
-        uc (input, output): x-velocity on C-grid
-        vc (input, output): y-velocity on C-grid
-        vort_c (input): Vorticity on C-grid
-        ke_c (input): kinetic energy on C-grid
-        v (input): y-velocit on D-grid
-        u (input): x-velocity on D-grid
-        dt2 (input): timestep
+        uc: x-velocity on C-grid (input, output)
+        vc: y-velocity on C-grid (input, output)
+        vort_c: Vorticity on C-grid (input)
+        ke_c: kinetic energy on C-grid (input)
+        v: y-velocit on D-grid (input)
+        u: x-velocity on D-grid (input)
+        dt2: timestep (input)
     """
     grid = spec.grid
     update_meridional_velocity(
@@ -80,7 +80,6 @@ def compute(uc: sd, vc: sd, vort_c: sd, ke_c: sd, v: sd, u: sd, dt2: float):
         dt2,
         origin=grid.compute_origin(),
         domain=grid.domain_shape_compute_buffer_2d(add=(0, 1, 0)),
-        splitters=grid.splitters,
     )
     update_zonal_velocity(
         vort_c,
@@ -93,6 +92,4 @@ def compute(uc: sd, vc: sd, vort_c: sd, ke_c: sd, v: sd, u: sd, dt2: float):
         dt2,
         origin=grid.compute_origin(),
         domain=grid.domain_shape_compute_buffer_2d(add=(1, 0, 0)),
-        # domain=(grid.nic + 1, grid.njc, grid.npz),
-        splitters=grid.splitters,
     )
