@@ -10,7 +10,7 @@ import fv3core.stencils.ke_c_sw as ke_c_sw
 import fv3core.stencils.vorticitytransport_cgrid as vorticity_transport
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import gtstencil
-from fv3core.stencils.transportdelp import transportdelp
+from fv3core.utils.corners import fill_4corners_x, fill_4corners_y
 
 
 sd = utils.sd
@@ -36,6 +36,68 @@ def geoadjust_vt(vt: sd, dx: sd, sin_sg4: sd, sin_sg2: sd, dt2: float):
 def absolute_vorticity(vort: sd, fC: sd, rarea_c: sd):
     with computation(PARALLEL), interval(...):
         vort[0, 0, 0] = fC + rarea_c * vort
+
+
+@gtscript.function
+def nonhydro_x_fluxes(delp: sd, pt: sd, w: sd, utc: sd):
+    fx1 = delp[-1, 0, 0] if utc > 0.0 else delp
+    fx = pt[-1, 0, 0] if utc > 0.0 else pt
+    fx2 = w[-1, 0, 0] if utc > 0.0 else w
+    fx1 = utc * fx1
+    fx = fx1 * fx
+    fx2 = fx1 * fx2
+    return fx, fx1, fx2
+
+
+@gtscript.function
+def nonhydro_y_fluxes(delp: sd, pt: sd, w: sd, vtc: sd):
+    fy1 = delp[0, -1, 0] if vtc > 0.0 else delp
+    fy = pt[0, -1, 0] if vtc > 0.0 else pt
+    fy2 = w[0, -1, 0] if vtc > 0.0 else w
+    fy1 = vtc * fy1
+    fy = fy1 * fy
+    fy2 = fy1 * fy2
+    return fy, fy1, fy2
+
+
+@gtstencil()
+def transportdelp(
+    delp: sd, pt: sd, utc: sd, vtc: sd, w: sd, rarea: sd, delpc: sd, ptc: sd, wc: sd
+):
+    """Transport delp.
+
+    Args:
+        delp: What is transported (input)
+        pt: Pressure (input)
+        utc: x-velocity on C-grid (input)
+        vtc: y-velocity on C-grid (input)
+        w: z-velocity on C-grid (input)
+        rarea: Inverse areas (input) -- IJ field
+        delpc: Updated delp (output)
+        ptc: Updated pt (output)
+        wc: Updated w (output)
+    """
+
+    with computation(PARALLEL), interval(...):
+        if __INLINED(spec.namelist.grid_type < 3):
+            # additional assumption (not grid.nested)
+            delp = fill_4corners_x(delp)
+            pt = fill_4corners_x(pt)
+            w = fill_4corners_x(w)
+
+        fx, fx1, fx2 = nonhydro_x_fluxes(delp, pt, w, utc)
+
+        if __INLINED(spec.namelist.grid_type < 3):
+            # additional assumption (not grid.nested)
+            delp = fill_4corners_y(delp)
+            pt = fill_4corners_y(pt)
+            w = fill_4corners_y(w)
+
+        fy, fy1, fy2 = nonhydro_y_fluxes(delp, pt, w, vtc)
+
+        delpc = delp + (fx1 - fx1[1, 0, 0] + fy1 - fy1[0, 1, 0]) * rarea
+        ptc = (pt * delp + (fx - fx[1, 0, 0] + fy - fy[0, 1, 0]) * rarea) / delpc
+        wc = (w * delp + (fx2 - fx2[1, 0, 0] + fy2 - fy2[0, 1, 0]) * rarea) / delpc
 
 
 def compute(delp, pt, u, v, w, uc, vc, ua, va, ut, vt, divgd, omga, dt2):
@@ -74,7 +136,7 @@ def compute(delp, pt, u, v, w, uc, vc, ua, va, ut, vt, divgd, omga, dt2):
         ut,
         vt,
         w,
-        spec.grid.rarea,
+        grid.rarea,
         delpc,
         ptc,
         omga,

@@ -1,4 +1,5 @@
 import fv3core.stencils.c_sw as c_sw
+import fv3core.utils.gt4py_utils as utils
 
 from .translate import TranslateFortranData2Py
 
@@ -37,3 +38,36 @@ class TranslateC_SW(TranslateFortranData2Py):
         self.make_storage_data_input_vars(inputs)
         delpc, ptc = self.compute_func(**inputs)
         return self.slice_output(inputs, {"delpcd": delpc, "ptcd": ptc})
+
+
+class TranslateTransportDelp(TranslateFortranData2Py):
+    def __init__(self, grid):
+        super().__init__(grid)
+        self.in_vars["data_vars"] = {
+            "delp": {},
+            "pt": {},
+            "utc": {},
+            "vtc": {},
+            "w": {},
+            "wc": {},
+        }
+        self.out_vars = {"delpc": {}, "ptc": {}, "wc": {}}
+
+    def compute(self, inputs):
+        self.make_storage_data_input_vars(inputs)
+        orig = (self.grid.is_ - 1, self.grid.js - 1, 0)
+        delpc = utils.make_storage_from_shape(inputs["delp"].shape, origin=orig)
+        ptc = utils.make_storage_from_shape(inputs["pt"].shape, origin=orig)
+        wc = utils.make_storage_from_shape(inputs["w"].shape, origin=orig)
+        c_sw.transportdelp(
+            **inputs,
+            rarea=self.grid.rarea,
+            delpc=delpc,
+            ptc=ptc,
+            origin=orig,
+            domain=self.grid.domain_shape_compute_buffer_2d(add=(2, 2, 0)),
+        )
+        return self.slice_output(
+            inputs,
+            {"delpc": delpc, "ptc": ptc, "wc": wc},
+        )
