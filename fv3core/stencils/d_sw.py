@@ -410,7 +410,7 @@ def damp_vertical_wind(w, heat_s, diss_e, dt, column_namelist):
     return dw, wk
 
 
-@utils.stencil()
+@gtstencil()
 def ubke(uc: sd, vc: sd, cosa: sd, rsina: sd, ut: sd, ub: sd, dt4: float, dt5: float):
     from __splitters__ import i_end, i_start, j_end, j_start
 
@@ -423,7 +423,7 @@ def ubke(uc: sd, vc: sd, cosa: sd, rsina: sd, ut: sd, ub: sd, dt4: float, dt5: f
                 ub = dt5 * (ut[0, -1, 0] + ut)
 
 
-@utils.stencil()
+@gtstencil()
 def vbke(vc: sd, uc: sd, cosa: sd, rsina: sd, vt: sd, vb: sd, dt4: float, dt5: float):
     from __splitters__ import i_end, i_start, j_end, j_start
 
