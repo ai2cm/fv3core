@@ -3,7 +3,6 @@ import gt4py.gtscript as gtscript
 from gt4py.gtscript import PARALLEL, computation, interval, parallel, region
 
 import fv3core._config as spec
-import fv3core.stencils.circulation_cgrid as circulation_cgrid
 import fv3core.stencils.d2a2c_vect as d2a2c
 import fv3core.stencils.ke_c_sw as ke_c_sw
 import fv3core.stencils.transportdelp as transportdelp
@@ -56,6 +55,26 @@ def divergence_corner(
     rarea_c: sd,
     divgd: sd,
 ):
+    """Calculate divg on d-grid.
+
+    Args:
+        u: x-velocity (input)
+        v: y-velocity (input)
+        ua: x-velocity on a (input)
+        va: y-velocity on a (input)
+        dxc: grid spacing in x-direction (input)
+        dyc: grid spacing in y-direction (input)
+        sin_sg1: grid sin(sg1) (input)
+        sin_sg2: grid sin(sg2) (input)
+        sin_sg3: grid sin(sg3) (input)
+        sin_sg4: grid sin(sg4) (input)
+        cos_sg1: grid cos(sg1) (input)
+        cos_sg2: grid cos(sg2) (input)
+        cos_sg3: grid cos(sg3) (input)
+        cos_sg4: grid cos(sg4) (input)
+        rarea_c: inverse cell areas on c-grid (input)
+        divgd: divergence on d-grid (output)
+    """
     from __splitters__ import i_end, i_start, j_end, j_start
 
     with computation(PARALLEL), interval(...):
@@ -83,6 +102,32 @@ def divergence_corner(
         with parallel(region[i_end + 1, j_end + 1], region[i_start, j_end + 1]):
             divgd += vf
         divgd *= rarea_c
+
+
+@gtstencil()
+def circulation_cgrid(uc: sd, vc: sd, dxc: sd, dyc: sd, vort_c: sd):
+    """Update vort_c.
+
+    Args:
+        uc: x-velocity on C-grid (input)
+        vc: y-velocity on C-grid (input)
+        dxc: grid spacing in x-dir (input)
+        dyc: grid spacing in y-dir (input)
+        vort_c: C-grid vorticity (output)
+    """
+    from __splitters__ import i_end, i_start, j_end, j_start
+
+    with computation(PARALLEL), interval(...):
+        fx = dxc * uc
+        fy = dyc * vc
+
+        vort_c = fx[0, -1, 0] - fx - fy[-1, 0, 0] + fy
+
+        with parallel(region[i_start, j_start], region[i_start, j_end + 1]):
+            vort_c += fy[-1, 0, 0]
+
+        with parallel(region[i_end + 1, j_start], region[i_end + 1, j_end + 1]):
+            vort_c -= fy[0, 0, 0]
 
 
 def compute(delp, pt, u, v, w, uc, vc, ua, va, ut, vt, divgd, omga, dt2):
@@ -134,7 +179,15 @@ def compute(delp, pt, u, v, w, uc, vc, ua, va, ut, vt, divgd, omga, dt2):
     )
     delpc, ptc = transportdelp.compute(delp, pt, w, ut, vt, omga)
     ke, vort = ke_c_sw.compute(uc, vc, u, v, ua, va, dt2)
-    circulation_cgrid.compute(uc, vc, vort)
+    circulation_cgrid(
+        uc,
+        vc,
+        grid.dxc,
+        grid.dyc,
+        vort,
+        origin=grid.compute_origin(),
+        domain=grid.domain_shape_compute_buffer_2d(add=(1, 1, 0)),
+    )
     absolute_vorticity(
         vort,
         grid.fC,
