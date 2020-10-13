@@ -141,9 +141,6 @@ class TranslateFortranData2Py:
     def make_storage_data_input_vars(self, inputs, storage_vars=None):
         if storage_vars is None:
             storage_vars = self.storage_vars()
-        for p in self.in_vars["parameters"]:
-            if type(inputs[p]) in [np.int64, np.int32]:
-                inputs[p] = int(inputs[p])
         for d, info in storage_vars.items():
             serialname = info["serialname"] if "serialname" in info else d
             self.update_info(info, inputs)
@@ -259,7 +256,7 @@ class TranslateGrid:
 
     def make_composite_var_storage(self, varname, data3d, shape):
         for s in range(9):
-            self.data[varname + str(s + 1)] = utils.make_storage_data(
+            self.data[varname + str(s + 1)] = utils.make_storage(
                 np.squeeze(data3d[:, :, s]), shape, origin=(0, 0, 0)
             )
 
@@ -293,9 +290,8 @@ class TranslateGrid:
                         k, istart, jstart, v.shape
                     )
                 )
-                self.data[k] = utils.make_storage_data(
-                    v, shape, origin=(istart, jstart, 0), istart=istart, jstart=jstart
-                )
+                origin = (istart, jstart, 0)
+                self.data[k] = utils.make_storage(v, shape, origin=origin, start=origin)
 
     def python_grid(self):
         pygrid = Grid(self.indices, self.shape_params, self.rank, self.layout)
