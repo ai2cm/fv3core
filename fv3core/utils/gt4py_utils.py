@@ -4,7 +4,7 @@ import copy
 import functools
 import logging
 import math
-from typing import Any, Callable, Tuple, Union
+from typing import Any, Callable, List, Tuple, Union
 
 import gt4py as gt
 import gt4py.ir as gt_ir
@@ -66,16 +66,22 @@ def make_storage(
     mask: Tuple[bool, bool, bool] = None,
     start: Tuple[int, int, int] = (0, 0, 0),
     dummy: Tuple[int, int, int] = None,
-    names: Tuple[str, str, str] = None,
+    names: List[str] = None,
     axis: int = 2,
-):
+) -> gtscript.Field:
     """Create a new gt4py storage of a given shape.
 
     Args:
-        shape: Size of the new storage
+        data_or_shape: Data array or shape of new storage
+        shape: Shape of the new storage
         origin: Default origin for gt4py stencil calls
         dtype: Data type
         init: If True, initializes the storage to the default value for the type
+        mask: Tuple indicating the axes used when initializing the storage
+        start: Starting points for slices in data copies
+        dummy: Dummy axes
+        names: Names for 4D arrays
+        axis: Axis for 2D to 3D arrays
 
     Returns:
         gtscript.Field[dtype]: New storage
@@ -101,26 +107,21 @@ def make_storage(
         if len(data.shape) == 2:
             # axis refers to which axis should be repeated (when making a full 3d data),
             # dummy refers to a singleton axis
+            istart, jstart = start[0:2]
+            isize, jsize = data.shape
             if dummy or axis != 2:
                 d_axis = dummy[0] if dummy else axis
                 shape2d = shape[:d_axis] + shape[d_axis + 1 :]
             else:
                 shape2d = shape[0:2]
-            istart, jstart = start[0:2]
-            isize, jsize = data.shape
-            full_np_arr_2d = np.zeros(shape2d)
-            full_np_arr_2d[istart : istart + isize, jstart : jstart + jsize] = asarray(
-                data, type(full_np_arr_2d)
-            )
+            buffer = zeros(shape2d)
+            buffer[istart : istart + isize, jstart : jstart + jsize] = asarray(data)
             if dummy:
-                full_np_arr_3d = full_np_arr_2d.reshape(shape)
+                data = buffer.reshape(shape)
             else:
-                full_np_arr_3d = np.repeat(
-                    full_np_arr_2d[:, :, np.newaxis], shape[axis], axis=2
-                )
+                data = repeat(buffer[:, :, np.newaxis], shape[axis], axis=2)
                 if axis != 2:
-                    full_np_arr_3d = np.moveaxis(full_np_arr_3d, 2, axis)
-            data = full_np_arr_3d
+                    data = moveaxis(data, 2, axis)
         # make_storage_1d:
         elif len(data.shape) == 1:
             # axis refers to a repeated axis, dummy refers to a singleton axis
@@ -128,32 +129,32 @@ def make_storage(
             if dummy:
                 axis = list(set((0, 1, 2)).difference(dummy))[0]
             tilespec = list(shape)
-            full_1d = np.zeros(shape[axis])
-            full_1d[kstart : kstart + len(data)] = data
+            buffer = zeros(shape[axis])
+            buffer[kstart : kstart + len(data)] = data
             tilespec[axis] = 1
             if dummy:
                 if len(dummy) == len(tilespec) - 1:
-                    r = full_1d.reshape((shape))
+                    data = buffer.reshape((shape))
                 else:
                     # TODO maybe, this is a little silly (repeat the array, then squash the dim), though eventually
                     # we shouldn't need this general capability if we refactor stencils to operate on 3d
-                    full_1d = make_storage(
+                    storage = make_storage(
                         data, shape, start=(0, 0, kstart), origin=origin, axis=axis
                     )
                     dimslice = [slice(None)] * len(tilespec)
                     for dummy_axis in dummy:
                         dimslice[dummy_axis] = slice(0, 1)
-                    r = full_1d[tuple(dimslice)]
+                    storage = storage[tuple(dimslice)]
+                    return storage
             else:
                 if axis == 2:
-                    r = np.tile(full_1d, tuple(tilespec))
+                    data = tile(buffer, tuple(tilespec))
                 elif axis == 1:
-                    x = np.repeat(full_1d[np.newaxis, :], shape[0], axis=0)
-                    r = np.repeat(x[:, :, np.newaxis], shape[2], axis=2)
+                    x = repeat(buffer[np.newaxis, :], shape[0], axis=0)
+                    data = repeat(x[:, :, np.newaxis], shape[2], axis=2)
                 else:
-                    y = np.repeat(full_1d[:, np.newaxis], shape[1], axis=1)
-                    r = np.repeat(y[:, :, np.newaxis], shape[2], axis=2)
-            data = r
+                    y = repeat(buffer[:, np.newaxis], shape[1], axis=1)
+                    data = repeat(y[:, :, np.newaxis], shape[2], axis=2)
         # make_storage_4d:
         elif len(data.shape) == 4:
             if names is None:
@@ -172,15 +173,22 @@ def make_storage(
             return data_dict
         # make_storage_3d:
         else:
-            full_np_arr = np.zeros(shape)
             istart, jstart, kstart = start
             isize, jsize, ksize = data.shape
-            full_np_arr[
+            storage = gt.storage.zeros(
+                backend=backend,
+                default_origin=origin,
+                shape=shape,
+                dtype=dtype,
+                mask=mask,
+                managed_memory=managed_memory,
+            )
+            storage[
                 istart : istart + isize,
                 jstart : jstart + jsize,
                 kstart : kstart + ksize,
-            ] = asarray(data, type(full_np_arr))
-            data = full_np_arr
+            ] = data
+            return storage
 
         storage = gt.storage.from_array(
             data=data,
@@ -362,3 +370,13 @@ def repeat(array, repeats, axis=None):
 
 def index(array, key):
     return asarray(array, type(key))[key]
+
+
+def moveaxis(array, source: int, destination: int):
+    xp = cp if cp and type(array) is cp.ndarray else np
+    return xp.moveaxis(array, source, destination)
+
+
+def tile(array, reps: Union[int, Tuple[int]]):
+    xp = cp if cp and type(array) is cp.ndarray else np
+    return xp.tile(array, reps)
