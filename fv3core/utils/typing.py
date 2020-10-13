@@ -1,23 +1,55 @@
 from typing import Tuple
 
-from gtscript import Field
-
+import gt4py.gtscript as gtscript
 import numpy as np
 
+
+__all__ = [
+    "Int3",
+    "Field",
+    "FloatField",
+    "BoolField",
+    "IntField",
+    "IJK",
+    "IJ",
+    "IK",
+    "JK",
+    "I",
+    "J",
+    "K",
+]
 
 Int3 = Tuple[int, int, int]
 """Common type: tuple of three ints."""
 
-
-class _FieldDescriptor:
-    def __getitem__(self, dtype_and_axes):
-        return gtscript.Field[dtype_and_axes]
+Field = gtscript.Field
+"""A gt4py field"""
 
 
-Field = _FieldDescriptor()
-"""A gtscript field."""
+class _FieldDescriptorMaker:
+    """Shortcut for float fields"""
 
-# Typing shortcuts that should be used instead
-FField = Field[np.float_]
-BField = Field[bool]
-IField = Field[int]
+    def __init__(self, dtype):
+        self.dtype = dtype
+
+    def __getitem__(self, axes):
+        return gtscript.Field[self.dtype, axes]
+
+
+# These could be used, but they seem just as long not using
+FloatField = _FieldDescriptorMaker(float)
+IntField = _FieldDescriptorMaker(int)
+BoolField = _FieldDescriptorMaker(bool)
+
+# Axes
+IJK = gtscript.IJK
+IJ = gtscript.IJ
+IK = gtscript.IK
+JK = gtscript.JK
+I = gtscript.I
+J = gtscript.J
+K = gtscript.K
+
+# Usage example:
+# from fv3core.utils.typing import Field, IJK, IJ
+# def stencil(in_field: Field[float, IJ], out_field: Field[float, IJK]):
