@@ -119,7 +119,7 @@ if __name__ == "__main__":
 
     # get another namelist for the communicator??
     nml2 = yaml.safe_load(
-        open("/fv3core/comparison/wrapped/config/c12_6ranks_standard.yml", "r")
+        open("/fv3core/comparison/wrapped/config/baroclinic.yml", "r")
     )["namelist"]
 
     sizer = SubtileGridSizer.from_namelist(nml2)
@@ -224,7 +224,7 @@ if __name__ == "__main__":
     cloud_fraction = Quantity.from_data_array(
         xr.DataArray(
             arr,
-            attrs={"fortran_name": "qsgs_tke", "units": ""},
+            attrs={"fortran_name": "qcld", "units": ""},
             dims=["z", "y", "x"],
         ),
         origin=origin,
