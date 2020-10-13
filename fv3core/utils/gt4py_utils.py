@@ -14,6 +14,8 @@ from gt4py import gtscript
 # Problem: creates circular dependency
 from fv3core.utils.mpi import MPI
 
+from . import global_config
+
 
 try:
     import cupy as cp
@@ -21,8 +23,6 @@ except ImportError:
     cp = None
 
 logger = logging.getLogger("fv3ser")
-backend = None  # Options: numpy, gtmc, gtx86, gtcuda, debug, dawn:gtmc
-rebuild = True
 managed_memory = True
 _dtype = np.float_
 sd = gtscript.Field[_dtype]
@@ -115,7 +115,7 @@ def make_storage_data(
         ] = asarray(array, type(full_np_arr))
         return gt.storage.from_array(
             data=full_np_arr,
-            backend=backend,
+            backend=global_config.get_backend(),
             default_origin=origin,
             shape=full_shape,
             managed_memory=managed_memory,
@@ -145,10 +145,9 @@ def make_storage_data_from_2d(
         )
         if axis != 2:
             full_np_arr_3d = np.moveaxis(full_np_arr_3d, 2, axis)
-
     return gt.storage.from_array(
         data=full_np_arr_3d,
-        backend=backend,
+        backend=global_config.get_backend(),
         default_origin=origin,
         shape=full_shape,
         managed_memory=managed_memory,
@@ -162,7 +161,7 @@ def make_2d_storage_data(array2d, shape2d, istart=0, jstart=0, origin=origin):
     full_np_arr_2d[istart : istart + isize, jstart : jstart + jsize, 0] = array2d
     return gt.storage.from_array(
         data=full_np_arr_2d,
-        backend=backend,
+        backend=global_config.get_backend(),
         default_origin=origin,
         shape=shape2d,
         managed_memory=managed_memory,
@@ -202,7 +201,7 @@ def make_storage_data_from_1d(
             r = np.repeat(y[:, :, np.newaxis], full_shape[2], axis=2)
     return gt.storage.from_array(
         data=r,
-        backend=backend,
+        backend=global_config.get_backend(),
         default_origin=origin,
         shape=full_shape,
         managed_memory=managed_memory,
@@ -229,7 +228,7 @@ def make_storage_from_shape(
     storage = gt.storage.from_array(
         data=np.empty(shape, dtype=dtype),
         dtype=dtype,
-        backend=backend,
+        backend=global_config.get_backend(),
         default_origin=origin,
         shape=shape,
         managed_memory=managed_memory,
