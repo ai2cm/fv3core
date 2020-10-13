@@ -57,60 +57,6 @@ def quantity_name(name):
     return name + "_quantity"
 
 
-def make_2d_storage_data(array2d, shape2d, istart=0, jstart=0, origin=origin):
-    # might not be i and j, could be i and k, j and k
-    isize, jsize = array2d.shape
-    full_np_arr_2d = np.zeros(shape2d)
-    full_np_arr_2d[istart : istart + isize, jstart : jstart + jsize, 0] = array2d
-    return gt.storage.from_array(
-        data=full_np_arr_2d,
-        backend=backend,
-        default_origin=origin,
-        shape=shape2d,
-        managed_memory=managed_memory,
-    )
-
-
-# axis refers to a repeated axis, dummy refers to a singleton axis
-def make_storage_data_from_1d(
-    array1d, full_shape, kstart=0, origin=origin, axis=2, dummy=None
-):
-    # r = np.zeros(full_shape)
-    tilespec = list(full_shape)
-    full_1d = np.zeros(full_shape[axis])
-    full_1d[kstart : kstart + len(array1d)] = array1d
-    tilespec[axis] = 1
-    if dummy:
-        if len(dummy) == len(tilespec) - 1:
-            r = full_1d.reshape((full_shape))
-        else:
-            # TODO maybe, this is a little silly (repeat the array, then squash the dim), though eventually we shouldn't need this general capability if we refactor stencils to operate on 3d
-            full_1d = make_storage_data_from_1d(
-                array1d, full_shape, kstart=kstart, origin=origin, axis=axis, dummy=None
-            )
-            dimslice = [slice(None)] * len(tilespec)
-            for dummy_axis in dummy:
-                dimslice[dummy_axis] = slice(0, 1)
-            r = full_1d[tuple(dimslice)]
-    else:
-        if axis == 2:
-            r = np.tile(full_1d, tuple(tilespec))
-            # r[:, :, kstart:kstart+len(array1d)] = np.tile(array1d, tuple(tilespec))
-        elif axis == 1:
-            x = np.repeat(full_1d[np.newaxis, :], full_shape[0], axis=0)
-            r = np.repeat(x[:, :, np.newaxis], full_shape[2], axis=2)
-        else:
-            y = np.repeat(full_1d[:, np.newaxis], full_shape[1], axis=1)
-            r = np.repeat(y[:, :, np.newaxis], full_shape[2], axis=2)
-    return gt.storage.from_array(
-        data=r,
-        backend=backend,
-        default_origin=origin,
-        shape=full_shape,
-        managed_memory=managed_memory,
-    )
-
-
 def make_storage(
     data_or_shape: Any,
     shape: Tuple[int, int, int] = None,
@@ -175,18 +121,39 @@ def make_storage(
                 if axis != 2:
                     full_np_arr_3d = np.moveaxis(full_np_arr_3d, 2, axis)
             data = full_np_arr_3d
-        # make_storage_2d:
+        # make_storage_1d:
         elif len(data.shape) == 1:
+            # axis refers to a repeated axis, dummy refers to a singleton axis
             kstart = start[2]
             if dummy:
                 axis = list(set((0, 1, 2)).difference(dummy))[0]
-                return make_storage_data_from_1d(
-                    data, shape, kstart=kstart, origin=origin, axis=axis, dummy=dummy
-                )
+            tilespec = list(shape)
+            full_1d = np.zeros(shape[axis])
+            full_1d[kstart : kstart + len(data)] = data
+            tilespec[axis] = 1
+            if dummy:
+                if len(dummy) == len(tilespec) - 1:
+                    r = full_1d.reshape((shape))
+                else:
+                    # TODO maybe, this is a little silly (repeat the array, then squash the dim), though eventually
+                    # we shouldn't need this general capability if we refactor stencils to operate on 3d
+                    full_1d = make_storage(
+                        data, shape, start=(0, 0, kstart), origin=origin, axis=axis
+                    )
+                    dimslice = [slice(None)] * len(tilespec)
+                    for dummy_axis in dummy:
+                        dimslice[dummy_axis] = slice(0, 1)
+                    r = full_1d[tuple(dimslice)]
             else:
-                return make_storage_data_from_1d(
-                    data, shape, kstart=kstart, origin=origin, axis=axis
-                )
+                if axis == 2:
+                    r = np.tile(full_1d, tuple(tilespec))
+                elif axis == 1:
+                    x = np.repeat(full_1d[np.newaxis, :], shape[0], axis=0)
+                    r = np.repeat(x[:, :, np.newaxis], shape[2], axis=2)
+                else:
+                    y = np.repeat(full_1d[:, np.newaxis], shape[1], axis=1)
+                    r = np.repeat(y[:, :, np.newaxis], shape[2], axis=2)
+            data = r
         # make_storage_4d:
         elif len(data.shape) == 4:
             if names is None:
@@ -208,14 +175,11 @@ def make_storage(
             full_np_arr = np.zeros(shape)
             istart, jstart, kstart = start
             isize, jsize, ksize = data.shape
-            try:
-                full_np_arr[
-                    istart : istart + isize,
-                    jstart : jstart + jsize,
-                    kstart : kstart + ksize,
-                ] = asarray(data, type(full_np_arr))
-            except Exception as ex:
-                print(ex)
+            full_np_arr[
+                istart : istart + isize,
+                jstart : jstart + jsize,
+                kstart : kstart + ksize,
+            ] = asarray(data, type(full_np_arr))
             data = full_np_arr
 
         storage = gt.storage.from_array(
