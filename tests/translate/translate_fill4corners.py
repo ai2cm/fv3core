@@ -1,5 +1,3 @@
-from gt4py import gtscript
-
 from fv3core.utils import corners
 
 from .translate import TranslateFortranData2Py
