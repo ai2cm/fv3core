@@ -24,6 +24,14 @@ ArgSpec = collections.namedtuple(
     "ArgSpec", ["arg_name", "standard_name", "units", "intent"]
 )
 VALID_INTENTS = ["in", "out", "inout", "unknown"]
+_STENCIL_LOGGER = None
+
+
+def get_stencil_logger():
+    global _STENCIL_LOGGER
+    if _STENCIL_LOGGER is None:
+        pass
+    return _STENCIL_LOGGER
 
 
 def enable_stencil_report(*, path: str, save_args: bool, save_report: bool):
@@ -33,6 +41,9 @@ def enable_stencil_report(*, path: str, save_args: bool, save_report: bool):
     stencil_report_path = path
     save_stencil_args = save_args
     save_stencil_report = save_report
+    print(
+        "REPORT SETTINGS", stencil_report_path, save_stencil_args, save_stencil_report
+    )
 
 
 def disable_stencil_report():
@@ -143,8 +154,12 @@ def gtstencil(definition=None, **stencil_kwargs) -> Callable[..., None]:
         return decorator(definition)
 
 
-def _get_report_basename(name, rank, times_called):
+def _get_case_name(name, rank, times_called):
     return f"{name}-r{rank:03d}-n{times_called:04d}"
+
+
+def _get_report_filename(rank):
+    return f"stencil-report-r{rank:03d}.yml"
 
 
 def _maybe_save_report(name, times_called, args, kwargs):
@@ -152,15 +167,21 @@ def _maybe_save_report(name, times_called, args, kwargs):
         rank = 0
     else:
         rank = mpi.MPI.COMM_WORLD.Get_rank()
-    report_basename = _get_report_basename(name, rank, times_called)
+    case_name = _get_case_name(name, rank, times_called)
+    print(
+        "REPORT SETTINGS", stencil_report_path, save_stencil_args, save_stencil_report
+    )
     if save_stencil_args:
-        args_filename = os.path.join(stencil_report_path, f"{report_basename}.npz")
+        args_filename = os.path.join(stencil_report_path, f"{case_name}.npz")
         with open(args_filename, "wb") as f:
             _save_args(f, args, kwargs)
     if save_stencil_report:
-        report_filename = os.path.join(stencil_report_path, f"{report_basename}.yml")
-        with open(report_filename, "w") as f:
+        report_filename = os.path.join(stencil_report_path, _get_report_filename(rank))
+        print(f"saving at {report_filename}")
+        with open(report_filename, "a") as f:
+            f.write(case_name + "\n")
             yaml.safe_dump(_get_stencil_report(args, kwargs), f)
+            f.write("\n")
 
 
 def _save_args(file: BinaryIO, args, kwargs):
