@@ -3,19 +3,19 @@ import gt4py.gtscript as gtscript
 from gt4py.gtscript import PARALLEL, computation, interval
 
 import fv3core._config as spec
-import fv3core.stencils.circulation_cgrid as circulation_cgrid
 import fv3core.stencils.d2a2c_vect as d2a2c
 import fv3core.stencils.divergence_corner as divergence_corner
 import fv3core.stencils.ke_c_sw as ke_c_sw
 import fv3core.stencils.transportdelp as transportdelp
 import fv3core.stencils.vorticitytransport_cgrid as vorticity_transport
 import fv3core.utils.gt4py_utils as utils
+from fv3core.decorators import gtstencil
 
 
 sd = utils.sd
 
 
-@utils.stencil()
+@gtstencil()
 def geoadjust_ut(ut: sd, dy: sd, sin_sg3: sd, sin_sg1: sd, dt2: float):
     with computation(PARALLEL), interval(...):
         ut[0, 0, 0] = (
@@ -23,7 +23,7 @@ def geoadjust_ut(ut: sd, dy: sd, sin_sg3: sd, sin_sg1: sd, dt2: float):
         )
 
 
-@utils.stencil()
+@gtstencil()
 def geoadjust_vt(vt: sd, dx: sd, sin_sg4: sd, sin_sg2: sd, dt2: float):
     with computation(PARALLEL), interval(...):
         vt[0, 0, 0] = (
@@ -31,10 +31,36 @@ def geoadjust_vt(vt: sd, dx: sd, sin_sg4: sd, sin_sg2: sd, dt2: float):
         )
 
 
-@utils.stencil()
+@gtstencil()
 def absolute_vorticity(vort: sd, fC: sd, rarea_c: sd):
     with computation(PARALLEL), interval(...):
         vort[0, 0, 0] = fC + rarea_c * vort
+
+
+@gtstencil()
+def circulation_cgrid(uc: sd, vc: sd, dxc: sd, dyc: sd, vort_c: sd):
+    """Update vort_c.
+
+    Args:
+        uc: x-velocity on C-grid (input)
+        vc: y-velocity on C-grid (input)
+        dxc: grid spacing in x-dir (input)
+        dyc: grid spacing in y-dir (input)
+        vort_c: C-grid vorticity (output)
+    """
+    from __splitters__ import i_end, i_start, j_end, j_start
+
+    with computation(PARALLEL), interval(...):
+        fx = dxc * uc
+        fy = dyc * vc
+
+        vort_c = fx[0, -1, 0] - fx - fy[-1, 0, 0] + fy
+
+        with parallel(region[i_start, j_start], region[i_start, j_end + 1]):
+            vort_c += fy[-1, 0, 0]
+
+        with parallel(region[i_end + 1, j_start], region[i_end + 1, j_end + 1]):
+            vort_c -= fy[0, 0, 0]
 
 
 def compute(delp, pt, u, v, w, uc, vc, ua, va, ut, vt, divgd, omga, dt2):
@@ -67,7 +93,15 @@ def compute(delp, pt, u, v, w, uc, vc, ua, va, ut, vt, divgd, omga, dt2):
     )
     delpc, ptc = transportdelp.compute(delp, pt, w, ut, vt, omga)
     ke, vort = ke_c_sw.compute(uc, vc, u, v, ua, va, dt2)
-    circulation_cgrid.compute(uc, vc, vort)
+    circulation_cgrid(
+        uc,
+        vc,
+        grid.dxc,
+        grid.dyc,
+        vort,
+        origin=grid.compute_origin(),
+        domain=grid.domain_shape_compute_buffer_2d(add=(1, 1, 0)),
+    )
     absolute_vorticity(
         vort,
         grid.fC,

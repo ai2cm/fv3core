@@ -4,13 +4,14 @@ from gt4py.gtscript import __INLINED, PARALLEL, computation, interval, parallel,
 
 import fv3core._config as spec
 import fv3core.utils.gt4py_utils as utils
+from fv3core.decorators import gtstencil
 
 
 sd = utils.sd
 origin = utils.origin
 
 
-@utils.stencil()
+@gtstencil()
 def update_zonal_velocity(
     vorticity: sd,
     ke: sd,
@@ -33,7 +34,7 @@ def update_zonal_velocity(
         velocity_c = velocity_c + tmp_flux * flux + rdxc * (ke[-1, 0, 0] - ke)
 
 
-@utils.stencil()
+@gtstencil()
 def update_meridional_velocity(
     vorticity: sd,
     ke: sd,

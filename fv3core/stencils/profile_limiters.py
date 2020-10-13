@@ -2,9 +2,8 @@ import gt4py.gtscript as gtscript
 from gt4py.gtscript import PARALLEL, computation, interval
 
 import fv3core._config as spec
-import fv3core.stencils.copy_stencil as cp
 import fv3core.utils.gt4py_utils as utils
-from fv3core.utils.corners import fill2_4corners, fill_4corners
+from fv3core.decorators import gtstencil
 
 
 sd = utils.sd
@@ -14,7 +13,7 @@ def grid():
     return spec.grid
 
 
-@utils.stencil()
+@gtstencil()
 def posdef_constraint_iv0(a4_1: sd, a4_2: sd, a4_3: sd, a4_4: sd, r12: float):
     with computation(PARALLEL), interval(...):
         a32 = a4_3 - a4_2
@@ -38,7 +37,7 @@ def posdef_constraint_iv0(a4_1: sd, a4_2: sd, a4_3: sd, a4_4: sd, r12: float):
                         a4_2 = a4_3 - a4_4
 
 
-@utils.stencil()
+@gtstencil()
 def posdef_constraint_iv1(a4_1: sd, a4_2: sd, a4_3: sd, a4_4: sd):
     with computation(PARALLEL), interval(...):
         da1 = a4_3 - a4_2
@@ -57,7 +56,7 @@ def posdef_constraint_iv1(a4_1: sd, a4_2: sd, a4_3: sd, a4_4: sd):
                 a4_2 = a4_3 - a4_4
 
 
-@utils.stencil()
+@gtstencil()
 def ppm_constraint(a4_1: sd, a4_2: sd, a4_3: sd, a4_4: sd, extm: sd):
     with computation(PARALLEL), interval(...):
         da1 = a4_3 - a4_2

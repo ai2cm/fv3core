@@ -4,7 +4,6 @@ import numpy as np
 from gt4py.gtscript import PARALLEL, computation, interval
 
 import fv3core._config as spec
-import fv3core.stencils.copy_stencil as cp
 import fv3core.stencils.moist_cv as moist_cv
 import fv3core.stencils.remapping_part1 as remap_part1
 import fv3core.stencils.remapping_part2 as remap_part2
@@ -56,7 +55,6 @@ def compute(
 
     gz = utils.make_storage_from_shape(pt.shape, grid.compute_origin())
     cvm = utils.make_storage_from_shape(pt.shape, grid.compute_origin())
-    te = utils.make_storage_from_shape(pt.shape, grid.default_origin())
     te_2d = utils.make_storage_from_shape(pt.shape, grid.compute_origin())
     zsum1 = utils.make_storage_from_shape(pt.shape, grid.compute_origin())
     remap_part1.compute(
@@ -75,7 +73,7 @@ def compute(
         pk,
         pe,
         hs,
-        te,
+        dp1,
         ps,
         wsd,
         omga,
@@ -113,7 +111,7 @@ def compute(
         hs,
         te_2d,
         te0_2d,
-        te,
+        dp1,
         cvm,
         zsum1,
         pfull,
