@@ -10,7 +10,6 @@ from gt4py.gtscript import PARALLEL, computation, interval
 import fv3core._config as spec
 import fv3core.stencils.basic_operations as basic
 import fv3core.stencils.c_sw as c_sw
-import fv3core.stencils.copy_stencil as cp
 import fv3core.stencils.d2a2c_vect as d2a2c
 import fv3core.stencils.d_sw as d_sw
 import fv3core.stencils.del2cubed as del2cubed
@@ -26,19 +25,21 @@ import fv3core.stencils.updatedzc as updatedzc
 import fv3core.stencils.updatedzd as updatedzd
 import fv3core.utils.global_constants as constants
 import fv3core.utils.gt4py_utils as utils
+from fv3core.decorators import gtstencil
+from fv3core.stencils.basic_operations import copy_stencil
 
 
 sd = utils.sd
 HUGE_R = 1.0e40
 
 # NOTE in Fortran these are columns
-@utils.stencil()
+@gtstencil()
 def dp_ref_compute(ak: sd, bk: sd, dp_ref: sd):
     with computation(PARALLEL), interval(0, -1):
         dp_ref = ak[0, 0, 1] - ak + (bk[0, 0, 1] - bk) * 1.0e5
 
 
-@utils.stencil()
+@gtstencil()
 def set_gz(zs: sd, delz: sd, gz: sd):
     with computation(BACKWARD):
         with interval(-1, None):
@@ -47,7 +48,7 @@ def set_gz(zs: sd, delz: sd, gz: sd):
             gz[0, 0, 0] = gz[0, 0, 1] - delz
 
 
-@utils.stencil()
+@gtstencil()
 def set_pem(delp: sd, pem: sd, ptop: float):
     with computation(FORWARD):
         with interval(0, 1):
@@ -56,7 +57,7 @@ def set_pem(delp: sd, pem: sd, ptop: float):
             pem[0, 0, 0] = pem[0, 0, -1] + delp
 
 
-@utils.stencil()
+@gtstencil()
 def heatadjust_temperature_lowlevel(
     pt: sd, heat_source: sd, delp: sd, pkz: sd, cp_air: float
 ):
@@ -221,14 +222,14 @@ def compute(state, comm):
         if not hydrostatic:
             if it == 0:
                 reqs["gz_quantity"].wait()
-                cp.copy_stencil(
+                copy_stencil(
                     state.gz,
                     state.zh,
                     origin=grid.default_origin(),
                     domain=grid.domain_shape_buffer_k(),
                 )
             else:
-                cp.copy_stencil(
+                copy_stencil(
                     state.gz,
                     state.zh,
                     origin=grid.default_origin(),
