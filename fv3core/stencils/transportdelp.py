@@ -4,7 +4,7 @@ from gt4py.gtscript import __INLINED, PARALLEL, computation, interval
 import fv3core.utils.gt4py_utils as utils
 from fv3core._config import namelist
 from fv3core.decorators import gtstencil
-from fv3core.utils.corners import fill_4corners_x_func, fill_4corners_y_func
+from fv3core.utils.corners import fill_4corners_x, fill_4corners_y
 
 
 sd = utils.sd
@@ -53,20 +53,128 @@ def transportdelp(
     with computation(PARALLEL), interval(...):
         if __INLINED(namelist.grid_type < 3):
             # additional assumption (not grid.nested)
-            delp = fill_4corners_x_func(delp)
-            pt = fill_4corners_x_func(pt)
-            w = fill_4corners_x_func(w)
+            delp = fill_4corners_x(delp)
+            pt = fill_4corners_x(pt)
+            w = fill_4corners_x(w)
 
         fx, fx1, fx2 = nonhydro_x_fluxes(delp, pt, w, utc)
 
         if __INLINED(namelist.grid_type < 3):
             # additional assumption (not grid.nested)
-            delp = fill_4corners_y_func(delp)
-            pt = fill_4corners_y_func(pt)
-            w = fill_4corners_y_func(w)
+            delp = fill_4corners_y(delp)
+            pt = fill_4corners_y(pt)
+            w = fill_4corners_y(w)
 
         fy, fy1, fy2 = nonhydro_y_fluxes(delp, pt, w, vtc)
 
         delpc = delp + (fx1 - fx1[1, 0, 0] + fy1 - fy1[0, 1, 0]) * rarea
         ptc = (pt * delp + (fx - fx[1, 0, 0] + fy - fy[0, 1, 0]) * rarea) / delpc
         wc = (w * delp + (fx2 - fx2[1, 0, 0] + fy2 - fy2[0, 1, 0]) * rarea) / delpc
+
+
+def compute(delp, pt, w, utc, vtc, wc):
+    grid = spec.grid
+    orig = (grid.is_ - 1, grid.js - 1, 0)
+    hydrostatic = int(spec.namelist.hydrostatic)
+
+    fx = utils.make_storage_from_shape(delp.shape, origin=orig)
+    fx1 = utils.make_storage_from_shape(pt.shape, origin=orig)
+    fy = utils.make_storage_from_shape(delp.shape, origin=orig)
+    fy1 = utils.make_storage_from_shape(w.shape, origin=orig)
+    delpc = utils.make_storage_from_shape(delp.shape, origin=orig)
+    ptc = utils.make_storage_from_shape(pt.shape, origin=orig)
+
+    # TODO: untested currently, don't have serialized data
+    if hydrostatic:
+        if spec.namelist.grid_type < 3 and not grid.nested:
+            fill_4corners(delp, "x", grid)
+            fill_4corners(pt, "x", grid)
+        hydro_x_fluxes(
+            delp,
+            pt,
+            utc,
+            fx,
+            fx1,
+            origin=orig,
+            domain=(grid.nic + 3, grid.njc + 2, grid.npz),
+        )
+        if spec.namelist.grid_type < 3 and not grid.nested:
+            fill_4corners(delp, "y", grid)
+            fill_4corners(pt, "y", grid)
+        hydro_y_fluxes(
+            delp,
+            pt,
+            utc,
+            fy,
+            fy1,
+            origin=orig,
+            domain=(grid.nic + 2, grid.njc + 3, grid.npz),
+        )
+
+        transportdelp_hydrostatic(
+            delp,
+            pt,
+            fx,
+            fx1,
+            fy,
+            fy1,
+            spec.grid.rarea,
+            delpc,
+            ptc,
+            origin=orig,
+            domain=(grid.nic + 2, grid.njc + 2, grid.npz),
+        )
+
+    else:
+        if spec.namelist.grid_type < 3 and not grid.nested:
+            fill_4corners(delp, "x", grid)
+            fill_4corners(pt, "x", grid)
+            fill_4corners(w, "x", grid)
+        fx2 = utils.make_storage_from_shape(w.shape, origin=orig)
+        nonhydro_x_fluxes(
+            delp,
+            pt,
+            w,
+            utc,
+            fx,
+            fx1,
+            fx2,
+            origin=orig,
+            domain=(grid.nic + 3, grid.njc + 2, grid.npz),
+        )
+        if spec.namelist.grid_type < 3 and not grid.nested:
+            fill_4corners(delp, "y", grid)
+            fill_4corners(pt, "y", grid)
+            fill_4corners(w, "y", grid)
+        fy2 = utils.make_storage_from_shape(w.shape, origin=orig)
+        nonhydro_y_fluxes(
+            delp,
+            pt,
+            w,
+            vtc,
+            fy,
+            fy1,
+            fy2,
+            origin=orig,
+            domain=(grid.nic + 2, grid.njc + 3, grid.npz),
+        )
+
+        transportdelp_nonhydrostatic(
+            delp,
+            pt,
+            w,
+            fx,
+            fx1,
+            fx2,
+            fy,
+            fy1,
+            fy2,
+            spec.grid.rarea,
+            delpc,
+            ptc,
+            wc,
+            origin=orig,
+            domain=(grid.nic + 2, grid.njc + 2, grid.npz),
+        )
+
+    return delpc, ptc
