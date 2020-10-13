@@ -40,7 +40,7 @@ def compute(uc, vc, vort_c):
     grid = spec.grid
 
     # Compute the zonal flux values
-    fx = utils.make_storage_from_shape(uc.shape, origin=(grid.is_ - 1, grid.js - 1, 0))
+    fx = utils.make_storage(uc.shape, origin=(grid.is_ - 1, grid.js - 1, 0))
     compute_flux(
         fx,
         uc,
@@ -50,7 +50,7 @@ def compute(uc, vc, vort_c):
     )
 
     # Compute the meridional flux values
-    fy = utils.make_storage_from_shape(vc.shape, origin=(grid.is_ - 1, grid.js - 1, 0))
+    fy = utils.make_storage(vc.shape, origin=(grid.is_ - 1, grid.js - 1, 0))
     compute_flux(
         fy,
         vc,

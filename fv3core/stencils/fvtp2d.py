@@ -69,10 +69,10 @@ def compute_no_sg(
         nk = grid.npz - kstart
     kslice = slice(kstart, kstart + nk)
     compute_origin = (grid.is_, grid.js, kstart)
-    q_i = utils.make_storage_from_shape(q.shape, (grid.isd, grid.js, kstart))
-    q_j = utils.make_storage_from_shape(q.shape, (grid.is_, grid.jsd, kstart))
-    fy2 = utils.make_storage_from_shape(q.shape, compute_origin)
-    fx2 = utils.make_storage_from_shape(q.shape, compute_origin)
+    q_i = utils.make_storage(q.shape, (grid.isd, grid.js, kstart))
+    q_j = utils.make_storage(q.shape, (grid.is_, grid.jsd, kstart))
+    fy2 = utils.make_storage(q.shape, compute_origin)
+    fx2 = utils.make_storage(q.shape, compute_origin)
     if hord == 10:
         ord_in = 8
     else:

@@ -326,9 +326,9 @@ def compute(
     # TODO: remove paired with removal of #d_sw belos
     # column_namelist = column_namelist_options(0)
     column_namelist = get_column_namelist()
-    heat_s = utils.make_storage_from_shape(heat_source.shape, grid().compute_origin())
-    diss_e = utils.make_storage_from_shape(heat_source.shape, grid().compute_origin())
-    z_rat = utils.make_storage_from_shape(heat_source.shape, grid().default_origin())
+    heat_s = utils.make_storage(heat_source.shape, grid().compute_origin())
+    diss_e = utils.make_storage(heat_source.shape, grid().compute_origin())
+    z_rat = utils.make_storage(heat_source.shape, grid().default_origin())
     # TODO if namelist['hydrostatic' and not namelist['use_old_omega'] and last_step
     if spec.namelist.d_ext > 0:
         raise Exception(
@@ -397,10 +397,10 @@ def compute(
 
 
 def damp_vertical_wind(w, heat_s, diss_e, dt, column_namelist):
-    dw = utils.make_storage_from_shape(w.shape, grid().compute_origin())
-    wk = utils.make_storage_from_shape(w.shape, grid().default_origin())
-    fx2 = utils.make_storage_from_shape(w.shape, grid().default_origin())
-    fy2 = utils.make_storage_from_shape(w.shape, grid().default_origin())
+    dw = utils.make_storage(w.shape, grid().compute_origin())
+    wk = utils.make_storage(w.shape, grid().default_origin())
+    fx2 = utils.make_storage(w.shape, grid().default_origin())
+    fy2 = utils.make_storage(w.shape, grid().default_origin())
     if column_namelist["damp_w"] > 1e-5:
         dd8 = column_namelist["ke_bg"] * abs(dt)
         damp4 = (column_namelist["damp_w"] * grid().da_min_c) ** (
@@ -443,16 +443,16 @@ def d_sw(
 
     logger.debug("Parameters that vary with k: {}".format(column_namelist))
     shape = heat_s.shape
-    ub = utils.make_storage_from_shape(shape, grid().compute_origin())
-    vb = utils.make_storage_from_shape(shape, grid().compute_origin())
-    ke = utils.make_storage_from_shape(shape, grid().default_origin())
-    vort = utils.make_storage_from_shape(shape, grid().default_origin())
-    ut = utils.make_storage_from_shape(shape, grid().default_origin())
-    vt = utils.make_storage_from_shape(shape, grid().default_origin())
-    fx = utils.make_storage_from_shape(shape, grid().compute_origin())
-    fy = utils.make_storage_from_shape(shape, grid().compute_origin())
-    gx = utils.make_storage_from_shape(shape, grid().compute_origin())
-    gy = utils.make_storage_from_shape(shape, grid().compute_origin())
+    ub = utils.make_storage(shape, grid().compute_origin())
+    vb = utils.make_storage(shape, grid().compute_origin())
+    ke = utils.make_storage(shape, grid().default_origin())
+    vort = utils.make_storage(shape, grid().default_origin())
+    ut = utils.make_storage(shape, grid().default_origin())
+    vt = utils.make_storage(shape, grid().default_origin())
+    fx = utils.make_storage(shape, grid().compute_origin())
+    fy = utils.make_storage(shape, grid().compute_origin())
+    gx = utils.make_storage(shape, grid().compute_origin())
+    gy = utils.make_storage(shape, grid().compute_origin())
     ra_x, ra_y = fxadv.compute(uc, vc, ut, vt, xfx, yfx, crx, cry, dt)
     fvtp2d.compute_no_sg(
         delp,

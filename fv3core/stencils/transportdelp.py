@@ -86,12 +86,12 @@ def compute(delp, pt, w, utc, vtc, wc):
     orig = (grid.is_ - 1, grid.js - 1, 0)
     hydrostatic = int(spec.namelist.hydrostatic)
 
-    fx = utils.make_storage_from_shape(delp.shape, origin=orig)
-    fx1 = utils.make_storage_from_shape(pt.shape, origin=orig)
-    fy = utils.make_storage_from_shape(delp.shape, origin=orig)
-    fy1 = utils.make_storage_from_shape(w.shape, origin=orig)
-    delpc = utils.make_storage_from_shape(delp.shape, origin=orig)
-    ptc = utils.make_storage_from_shape(pt.shape, origin=orig)
+    fx = utils.make_storage(delp.shape, origin=orig)
+    fx1 = utils.make_storage(pt.shape, origin=orig)
+    fy = utils.make_storage(delp.shape, origin=orig)
+    fy1 = utils.make_storage(w.shape, origin=orig)
+    delpc = utils.make_storage(delp.shape, origin=orig)
+    ptc = utils.make_storage(pt.shape, origin=orig)
 
     # TODO: untested currently, don't have serialized data
     if hydrostatic:
@@ -136,7 +136,7 @@ def compute(delp, pt, w, utc, vtc, wc):
         if spec.namelist.grid_type < 3 and not grid.nested:
             fill2_4corners(delp, pt, "x", grid)
             fill_4corners(w, "x", grid)
-        fx2 = utils.make_storage_from_shape(w.shape, origin=orig)
+        fx2 = utils.make_storage(w.shape, origin=orig)
         nonhydro_x_fluxes(
             delp,
             pt,
@@ -151,7 +151,7 @@ def compute(delp, pt, w, utc, vtc, wc):
         if spec.namelist.grid_type < 3 and not grid.nested:
             fill2_4corners(delp, pt, "y", grid)
             fill_4corners(w, "y", grid)
-        fy2 = utils.make_storage_from_shape(w.shape, origin=orig)
+        fy2 = utils.make_storage(w.shape, origin=orig)
         nonhydro_y_fluxes(
             delp,
             pt,

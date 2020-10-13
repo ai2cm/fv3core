@@ -80,12 +80,12 @@ def compute(ms, dt2, akap, cappa, ptop, hs, w3, ptc, q_con, delpc, gz, pef, ws):
     cp3 = copy(cappa)
     w = copy(w3)
 
-    pem = utils.make_storage_from_shape(shape, riemorigin)
-    peg = utils.make_storage_from_shape(shape, riemorigin)
-    pe = utils.make_storage_from_shape(shape, riemorigin)
-    gm = utils.make_storage_from_shape(shape, riemorigin)
-    dz = utils.make_storage_from_shape(shape, riemorigin)
-    pm = utils.make_storage_from_shape(shape, riemorigin)
+    pem = utils.make_storage(shape, riemorigin)
+    peg = utils.make_storage(shape, riemorigin)
+    pe = utils.make_storage(shape, riemorigin)
+    gm = utils.make_storage(shape, riemorigin)
+    dz = utils.make_storage(shape, riemorigin)
+    pm = utils.make_storage(shape, riemorigin)
     precompute(
         cp3,
         gz,

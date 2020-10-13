@@ -31,7 +31,7 @@ class TranslateYPPM(TranslateFortranData2Py):
     def process_inputs(self, inputs):
         self.ivars(inputs)
         self.make_storage_data_input_vars(inputs)
-        inputs["flux"] = utils.make_storage_from_shape(inputs["q"].shape, yppm.origin)
+        inputs["flux"] = utils.make_storage(inputs["q"].shape, yppm.origin)
 
     def compute(self, inputs):
         self.process_inputs(inputs)

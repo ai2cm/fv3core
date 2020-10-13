@@ -464,24 +464,24 @@ def compute(qs, a4_1, a4_2, a4_3, a4_4, delp, km, i1, i2, iv, kord, jslice, qmin
     orig = (i1, js, 0)
     full_orig = (grid.is_, js, 0)
     dom = (i_extent, j_extent, km)
-    gam = utils.make_storage_from_shape(delp.shape, origin=full_orig)
-    q = utils.make_storage_from_shape(delp.shape, origin=full_orig)
-    q_bot = utils.make_storage_from_shape(delp.shape, origin=full_orig)
+    gam = utils.make_storage(delp.shape, origin=full_orig)
+    q = utils.make_storage(delp.shape, origin=full_orig)
+    q_bot = utils.make_storage(delp.shape, origin=full_orig)
 
-    qs_field = utils.make_storage_from_shape(delp.shape, origin=full_orig)
+    qs_field = utils.make_storage(delp.shape, origin=full_orig)
 
     qs_field[i1 : i2 + 1, js : js + j_extent, -1] = qs[
         i1 : i2 + 1, js : js + j_extent, 0
     ]  # make a qs that can be passed to a stencil
 
-    extm = utils.make_storage_from_shape(delp.shape, origin=full_orig)
-    ext5 = utils.make_storage_from_shape(delp.shape, origin=full_orig)
-    ext6 = utils.make_storage_from_shape(delp.shape, origin=full_orig)
-    pmp_2 = utils.make_storage_from_shape(delp.shape, origin=full_orig)
-    lac_2 = utils.make_storage_from_shape(delp.shape, origin=full_orig)
-    tmp_min3 = utils.make_storage_from_shape(delp.shape, origin=full_orig)
-    tmp_max3 = utils.make_storage_from_shape(delp.shape, origin=full_orig)
-    tmp3 = utils.make_storage_from_shape(delp.shape, origin=full_orig)
+    extm = utils.make_storage(delp.shape, origin=full_orig)
+    ext5 = utils.make_storage(delp.shape, origin=full_orig)
+    ext6 = utils.make_storage(delp.shape, origin=full_orig)
+    pmp_2 = utils.make_storage(delp.shape, origin=full_orig)
+    lac_2 = utils.make_storage(delp.shape, origin=full_orig)
+    tmp_min3 = utils.make_storage(delp.shape, origin=full_orig)
+    tmp_max3 = utils.make_storage(delp.shape, origin=full_orig)
+    tmp3 = utils.make_storage(delp.shape, origin=full_orig)
     if iv == -2:
         set_vals_2(
             gam,

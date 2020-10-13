@@ -149,7 +149,7 @@ def compute(state, comm):
     if not hydrostatic:
         # k1k = akap / (1.0 - akap)
         # TODO -- is really just a column... when different shapes are supported perhaps change this
-        state.dp_ref = utils.make_storage_from_shape(
+        state.dp_ref = utils.make_storage(
             state.ak.shape, grid.default_origin()
         )
         dp_ref_compute(state.ak, state.bk, state.dp_ref)
@@ -301,7 +301,7 @@ def compute(state, comm):
         # if spec.namelist.d_ext > 0:
         #    raise 'Unimplemented namelist option d_ext > 0'
         # else:
-        #    divg2 = utils.make_storage_from_shape(delz.shape, grid.compute_origin())
+        #    divg2 = utils.make_storage(delz.shape, grid.compute_origin())
 
         if not hydrostatic:
             updatedzd.compute(

@@ -14,7 +14,6 @@ from gt4py import gtscript
 # Problem: creates circular dependency
 from fv3core.utils.mpi import MPI
 
-
 try:
     import cupy as cp
 except ImportError:
@@ -209,11 +208,13 @@ def make_storage_data_from_1d(
     )
 
 
-def make_storage_from_shape(
-    shape: Tuple[int, int, int],
-    origin: Tuple[int, int, int],
+def make_storage(
+    shape: Tuple[int, int, int] = None,
+    origin: Tuple[int, int, int] = origin,
     dtype: DTypes = np.float64,
     init: bool = True,
+    mask: Tuple[bool, bool, bool] = None,
+    data: gtscript.Field = None,
 ):
     """Create a new gt4py storage of a given shape.
 
@@ -226,23 +227,36 @@ def make_storage_from_shape(
     Returns:
         gtscript.Field[dtype]: New storage
     """
-    storage = gt.storage.from_array(
-        data=np.empty(shape, dtype=dtype),
-        dtype=dtype,
-        backend=backend,
-        default_origin=origin,
-        shape=shape,
-        managed_memory=managed_memory,
-    )
-    if init:
-        storage[:] = dtype()
+    if data is None:
+        storage = gt.storage.empty(
+            backend=backend,
+            default_origin=origin,
+            shape=shape,
+            dtype=dtype,
+            mask=mask,
+            managed_memory=managed_memory,
+        )
+        if init:
+            storage[:] = dtype()
+    else:
+        if shape is None:
+            shape = data.shape
+        storage = gt.storage.from_array(
+            data=data,
+            backend=backend,
+            default_origin=origin,
+            shape=shape,
+            dtype=dtype,
+            mask=mask,
+            managed_memory=managed_memory,
+        )
 
     return storage
 
 
 def storage_dict(st_dict, names, shape, origin):
     for name in names:
-        st_dict[name] = make_storage_from_shape(shape, origin)
+        st_dict[name] = make_storage(shape, origin)
 
 
 def k_slice_operation(key, value, ki, dictionary):

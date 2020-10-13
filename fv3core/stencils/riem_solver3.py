@@ -133,12 +133,12 @@ def compute(
     dm = copy(delp)
     cp3 = copy(cappa)
     pe_init = copy(pe)
-    pm = utils.make_storage_from_shape(shape, riemorigin)
-    pem = utils.make_storage_from_shape(shape, riemorigin)
-    peln_run = utils.make_storage_from_shape(shape, riemorigin)
-    peg = utils.make_storage_from_shape(shape, riemorigin)
-    pelng = utils.make_storage_from_shape(shape, riemorigin)
-    gm = utils.make_storage_from_shape(shape, riemorigin)
+    pm = utils.make_storage(shape, riemorigin)
+    pem = utils.make_storage(shape, riemorigin)
+    peln_run = utils.make_storage(shape, riemorigin)
+    peg = utils.make_storage(shape, riemorigin)
+    pelng = utils.make_storage(shape, riemorigin)
+    gm = utils.make_storage(shape, riemorigin)
     precompute(
         cp3,
         dm,

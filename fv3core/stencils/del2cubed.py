@@ -103,8 +103,8 @@ def compute(qdel, nmax, cd, km):
     origin = (grid.isd, grid.jsd, 0)
 
     # Construct some necessary temporary storage objects
-    fx = utils.make_storage_from_shape(qdel.shape, origin=origin)
-    fy = utils.make_storage_from_shape(qdel.shape, origin=origin)
+    fx = utils.make_storage(qdel.shape, origin=origin)
+    fy = utils.make_storage(qdel.shape, origin=origin)
 
     # set up the temporal loop
     ntimes = min(3, nmax)

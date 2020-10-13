@@ -19,7 +19,7 @@ DZ_MIN = constants.DZ_MIN
 #        q_out = q_in
 
 # def copy(q_in):
-#    q_out = utils.make_storage_from_shape(q_in.shape, origin)
+#    q_out = utils.make_storage(q_in.shape, origin)
 #    copy_stencil(q_in, q_out)#, origin=(0,0,0), domain=grid.domain_shape_buffer_1cell())
 #    return q_out
 

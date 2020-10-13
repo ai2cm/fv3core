@@ -328,11 +328,11 @@ def compute(qvapor, qliquid, qrain, qsnow, qice, qgraupel, qcld, pt, delp, delz,
     # # fix_water_vapor(delp, qvapor, origin=grid.compute_origin(), domain=grid.domain_shape_compute())
     # fix_water_vapor_nonstencil(grid, qvapor, delp)
     # fix_water_vapor_bottom(grid, qvapor, delp)
-    upper_fix = utils.make_storage_from_shape(qvapor.shape, origin=(0, 0, 0))
-    lower_fix = utils.make_storage_from_shape(qvapor.shape, origin=(0, 0, 0))
+    upper_fix = utils.make_storage(qvapor.shape, origin=(0, 0, 0))
+    lower_fix = utils.make_storage(qvapor.shape, origin=(0, 0, 0))
     bot_dp = delp[:, :, grid.npz - 1]
     full_bot_arr = utils.repeat(bot_dp[:, :, np.newaxis], k_ext + 1, axis=2)
-    dp_bot = utils.make_storage_data(full_bot_arr, full_bot_arr.shape)
+    dp_bot = utils.make_storage(full_bot_arr.shape, data=full_bot_arr)
     fix_water_vapor_down(
         qvapor,
         delp,
