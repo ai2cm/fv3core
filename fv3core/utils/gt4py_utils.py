@@ -1,13 +1,19 @@
 #!/usr/bin/env python3
 
-import numpy as np
-import gt4py as gt
-import gt4py.gtscript as gtscript
 import copy
-import math
-import logging
 import functools
+import logging
+import math
+from typing import Callable, Tuple, Union
+
+import gt4py as gt
+import gt4py.ir as gt_ir
+import numpy as np
+from gt4py import gtscript
+
+# Problem: creates circular dependency
 from fv3core.utils.mpi import MPI
+
 
 try:
     import cupy as cp
@@ -35,32 +41,21 @@ tracer_variables = [
     "qsgs_tke",
     "qcld",
 ]
+
+# Union of valid data types (from gt4py.gtscript)
+DTypes = Union[bool, np.bool, int, np.int32, np.int64, float, np.float32, np.float64]
+
+
 # 1 indexing to 0 and halos: -2, -1, 0 --> 0, 1,2
 if MPI is not None and MPI.COMM_WORLD.Get_size() > 1:
     gt.config.cache_settings["dir_name"] = ".gt_cache_{:0>6d}".format(
         MPI.COMM_WORLD.Get_rank()
     )
+
+
 # TODO remove when using quantities throughout model
 def quantity_name(name):
     return name + "_quantity"
-
-
-def stencil(**stencil_kwargs):
-    def decorator(func):
-        stencils = {}
-
-        @functools.wraps(func)
-        def wrapped(*args, **kwargs):
-            key = (backend, rebuild)
-            if key not in stencils:
-                stencils[key] = gtscript.stencil(
-                    backend=backend, rebuild=rebuild, **stencil_kwargs
-                )(func)
-            return stencils[key](*args, **kwargs)
-
-        return wrapped
-
-    return decorator
 
 
 def make_storage_data(
@@ -214,15 +209,35 @@ def make_storage_data_from_1d(
     )
 
 
-def make_storage_from_shape(shape, origin, dtype=np.float64):
-    return gt.storage.from_array(
-        data=np.zeros(shape),
+def make_storage_from_shape(
+    shape: Tuple[int, int, int],
+    origin: Tuple[int, int, int],
+    dtype: DTypes = np.float64,
+    init: bool = True,
+):
+    """Create a new gt4py storage of a given shape.
+
+    Args:
+        shape: Size of the new storage
+        origin: Default origin for gt4py stencil calls
+        dtype: Data type
+        init: If True, initializes the storage to the default value for the type
+
+    Returns:
+        gtscript.Field[dtype]: New storage
+    """
+    storage = gt.storage.from_array(
+        data=np.empty(shape, dtype=dtype),
         dtype=dtype,
         backend=backend,
         default_origin=origin,
         shape=shape,
         managed_memory=managed_memory,
     )
+    if init:
+        storage[:] = dtype()
+
+    return storage
 
 
 def storage_dict(st_dict, names, shape, origin):

@@ -1,13 +1,16 @@
-import fv3core.utils.gt4py_utils as utils
 import gt4py.gtscript as gtscript
+from gt4py.gtscript import PARALLEL, computation, interval
+
 import fv3core._config as spec
-from gt4py.gtscript import computation, interval, PARALLEL
+import fv3core.utils.gt4py_utils as utils
+from fv3core.decorators import gtstencil
+
 
 sd = utils.sd
 origin = utils.origin
 
 
-@utils.stencil()
+@gtstencil()
 def heat_diss(
     fx2: sd,
     fy2: sd,

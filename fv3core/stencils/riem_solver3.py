@@ -1,18 +1,20 @@
 #!/usr/bin/env python3
-import fv3core.utils.gt4py_utils as utils
-import fv3core._config as spec
-import fv3core.utils.global_constants as constants
-import numpy as np
-import fv3core.stencils.sim1_solver as sim1_solver
-import fv3core.stencils.copy_stencil as cp
-import fv3core.stencils.basic_operations as basic
 import math
-import fv3core.decorators as decorators
+
+import numpy as np
+
+import fv3core._config as spec
+import fv3core.stencils.sim1_solver as sim1_solver
+import fv3core.utils.global_constants as constants
+import fv3core.utils.gt4py_utils as utils
+from fv3core.decorators import gtstencil
+from fv3core.stencils.basic_operations import copy
+
 
 sd = utils.sd
 
 
-@utils.stencil()
+@gtstencil()
 def precompute(
     cp3: sd,
     dm: sd,
@@ -54,7 +56,7 @@ def precompute(
         dz = zh[0, 0, 1] - zh
 
 
-@utils.stencil()
+@gtstencil()
 def last_call_copy(peln_run: sd, peln: sd, pk3: sd, pk: sd, pem: sd, pe: sd):
     with computation(PARALLEL), interval(...):
         peln = peln_run
@@ -62,7 +64,7 @@ def last_call_copy(peln_run: sd, peln: sd, pk3: sd, pk: sd, pem: sd, pe: sd):
         pe = pem
 
 
-@utils.stencil()
+@gtstencil()
 def finalize(
     zs: sd,
     dz: sd,
@@ -74,6 +76,7 @@ def finalize(
     pem: sd,
     pe: sd,
     ppe: sd,
+    pe_init: sd,
     last_call: bool,
 ):
     with computation(PARALLEL), interval(...):
@@ -87,6 +90,8 @@ def finalize(
             peln = peln_run
             pk = pk3
             pe = pem
+        else:
+            pe = pe_init
     with computation(BACKWARD):
         with interval(-1, None):
             zh = zs
@@ -125,8 +130,9 @@ def compute(
     shape = w.shape
     domain = (grid.nic, grid.njc, km + 2)
     riemorigin = (grid.is_, grid.js, 0)
-    dm = cp.copy(delp, (0, 0, 0))
-    cp3 = cp.copy(cappa, (0, 0, 0))
+    dm = copy(delp)
+    cp3 = copy(cappa)
+    pe_init = copy(pe)
     pm = utils.make_storage_from_shape(shape, riemorigin)
     pem = utils.make_storage_from_shape(shape, riemorigin)
     peln_run = utils.make_storage_from_shape(shape, riemorigin)
@@ -183,6 +189,7 @@ def compute(
         pem,
         pe,
         ppe,
+        pe_init,
         last_call,
         origin=riemorigin,
         domain=domain,

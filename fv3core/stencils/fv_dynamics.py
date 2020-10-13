@@ -1,26 +1,29 @@
 #!/usr/bin/env python3
-import fv3core.utils.gt4py_utils as utils
-import gt4py.gtscript as gtscript
-import fv3core._config as spec
-import fv3core.utils.global_constants as constants
-from gt4py.gtscript import computation, interval, PARALLEL
-import fv3core.stencils.moist_cv as moist_cv
-import fv3core.stencils.rayleigh_super as rayleigh_super
-import fv3core.stencils.dyn_core as dyn_core
-import fv3core.stencils.copy_stencil as cp
-import fv3core.stencils.tracer_2d_1l as tracer_2d_1l
-import fv3core.stencils.remapping as lagrangian_to_eulerian
-import fv3core.stencils.del2cubed as del2cubed
-import fv3core.stencils.neg_adj3 as neg_adj3
-from fv3core.stencils.c2l_ord import compute_cubed_to_latlon
-import fv3gfs.util as fv3util
 from types import SimpleNamespace
-from ..decorators import ArgSpec, state_inputs
+
+import fv3gfs.util as fv3util
+import gt4py.gtscript as gtscript
+from gt4py.gtscript import PARALLEL, computation, interval
+
+import fv3core._config as spec
+import fv3core.stencils.del2cubed as del2cubed
+import fv3core.stencils.dyn_core as dyn_core
+import fv3core.stencils.moist_cv as moist_cv
+import fv3core.stencils.neg_adj3 as neg_adj3
+import fv3core.stencils.rayleigh_super as rayleigh_super
+import fv3core.stencils.remapping as lagrangian_to_eulerian
+import fv3core.stencils.tracer_2d_1l as tracer_2d_1l
+import fv3core.utils.global_constants as constants
+import fv3core.utils.gt4py_utils as utils
+from fv3core.decorators import ArgSpec, gtstencil, state_inputs
+from fv3core.stencils.basic_operations import copy_stencil
+from fv3core.stencils.c2l_ord import compute_cubed_to_latlon
+
 
 sd = utils.sd
 
 
-@utils.stencil()
+@gtstencil()
 def init_ph_columns(ak: sd, bk: sd, pfull: sd, ph1: sd, ph2: sd, p_ref: float):
     with computation(PARALLEL), interval(...):
         ph1 = ak + bk * p_ref
@@ -28,13 +31,13 @@ def init_ph_columns(ak: sd, bk: sd, pfull: sd, ph1: sd, ph2: sd, p_ref: float):
         pfull = (ph2 - ph1) / log(ph2 / ph1)
 
 
-@utils.stencil()
+@gtstencil()
 def pt_adjust(pkz: sd, dp1: sd, q_con: sd, pt: sd):
     with computation(PARALLEL), interval(...):
         pt = pt * (1.0 + dp1) * (1.0 - q_con) / pkz
 
 
-@utils.stencil()
+@gtstencil()
 def set_omega(delp: sd, delz: sd, w: sd, omga: sd):
     with computation(PARALLEL), interval(...):
         omga = delp / delz * w
@@ -164,7 +167,7 @@ def compute_preamble(state, comm):
 
 def do_dyn(state, comm):
     grid = spec.grid
-    cp.copy_stencil(
+    copy_stencil(
         state.delp,
         state.dp1,
         origin=grid.default_origin(),

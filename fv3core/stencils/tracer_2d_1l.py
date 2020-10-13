@@ -1,17 +1,21 @@
 #!/usr/bin/env python3
-import fv3core.utils.gt4py_utils as utils
-import gt4py.gtscript as gtscript
-import fv3core._config as spec
-from gt4py.gtscript import computation, interval, PARALLEL
-from fv3core.stencils.updatedzd import ra_x_stencil, ra_y_stencil
-import fv3core.stencils.copy_stencil as cp
-import fv3core.stencils.fvtp2d as fvtp2d
 import math
+
+import gt4py.gtscript as gtscript
+from gt4py.gtscript import PARALLEL, computation, interval
+
+import fv3core._config as spec
+import fv3core.stencils.fvtp2d as fvtp2d
+import fv3core.utils.gt4py_utils as utils
+from fv3core.decorators import gtstencil
+from fv3core.stencils.basic_operations import copy, copy_stencil
+from fv3core.stencils.updatedzd import ra_x_stencil, ra_y_stencil
+
 
 sd = utils.sd
 
 
-@utils.stencil()
+@gtstencil()
 def flux_x(cx: sd, dxa: sd, dy: sd, sin_sg3: sd, sin_sg1: sd, xfx: sd):
     with computation(PARALLEL), interval(...):
         xfx[0, 0, 0] = (
@@ -21,7 +25,7 @@ def flux_x(cx: sd, dxa: sd, dy: sd, sin_sg3: sd, sin_sg1: sd, xfx: sd):
         )
 
 
-@utils.stencil()
+@gtstencil()
 def flux_y(cy: sd, dya: sd, dx: sd, sin_sg4: sd, sin_sg2: sd, yfx: sd):
     with computation(PARALLEL), interval(...):
         yfx[0, 0, 0] = (
@@ -37,7 +41,7 @@ def mult_frac(var, frac):
     return var_tmp * frac
 
 
-@utils.stencil()
+@gtstencil()
 def cmax_split_vars(
     cxd: sd, xfx: sd, mfxd: sd, cyd: sd, yfx: sd, mfyd: sd, frac: float
 ):
@@ -50,24 +54,19 @@ def cmax_split_vars(
         mfyd = mult_frac(mfyd, frac)
 
 
-@utils.stencil()
+@gtstencil()
 def cmax_stencil1(cx: sd, cy: sd, cmax: sd):
     with computation(PARALLEL), interval(...):
-        abscx = cx if cx > 0 else -cx
-        abscy = cy if cy > 0 else cy
-        cmax = abscx if abscx > abscy else abscy
+        cmax = max(abs(cx), abs(cy))
 
 
-@utils.stencil()
+@gtstencil()
 def cmax_stencil2(cx: sd, cy: sd, sin_sg5: sd, cmax: sd):
     with computation(PARALLEL), interval(...):
-        abscx = cx if cx > 0 else -cx
-        abscy = cy if cy > 0 else cy
-        tmpmax = abscx if abscx > abscy else abscy
-        cmax = tmpmax + 1.0 - sin_sg5
+        cmax = max(abs(cx), abs(cy)) + 1.0 - sin_sg5
 
 
-@utils.stencil()
+@gtstencil()
 def dp_fluxadjustment(dp1: sd, mfx: sd, mfy: sd, rarea: sd, dp2: sd):
     with computation(PARALLEL), interval(...):
         dp2 = dp1 + (mfx - mfx[1, 0, 0] + mfy - mfy[0, 1, 0]) * rarea
@@ -78,21 +77,19 @@ def adjustment(q, dp1, fx, fy, rarea, dp2):
     return (q * dp1 + (fx - fx[1, 0, 0] + fy - fy[0, 1, 0]) * rarea) / dp2
 
 
-@utils.stencil()
+@gtstencil()
 def q_adjust(q: sd, dp1: sd, fx: sd, fy: sd, rarea: sd, dp2: sd):
     with computation(PARALLEL), interval(...):
         q = adjustment(q, dp1, fx, fy, rarea, dp2)
 
 
-@utils.stencil()
+@gtstencil()
 def q_other_adjust(q: sd, qset: sd, dp1: sd, fx: sd, fy: sd, rarea: sd, dp2: sd):
     with computation(PARALLEL), interval(...):
         qset = adjustment(q, dp1, fx, fy, rarea, dp2)
 
 
-def compute(
-    comm, tracers, dp1, mfxd, mfyd, cxd, cyd, mdt, nq,
-):
+def compute(comm, tracers, dp1, mfxd, mfyd, cxd, cyd, mdt, nq):
     grid = spec.grid
     shape = mfxd.data.shape
     # start HALO update on q (in dyn_core in fortran -- just has started when this function is called...)
@@ -188,13 +185,13 @@ def compute(
     # TODO revisit: the loops over q and nsplt have two inefficient options duplicating storages/stencil calls,
     # return to this, maybe you have more options now, or maybe the one chosen here is the worse one
 
-    dp1_orig = cp.copy(
+    dp1_orig = copy(
         dp1, origin=grid.default_origin(), domain=grid.domain_shape_standard()
     )
     for qname in utils.tracer_variables[0:nq]:
         q = tracers[qname + "_quantity"]
         # handling the q and it loop switching
-        cp.copy_stencil(
+        copy_stencil(
             dp1_orig,
             dp1,
             origin=grid.default_origin(),
@@ -214,7 +211,7 @@ def compute(
                 if it == 0:
                     # TODO 1d
                     qn2 = grid.quantity_wrap(
-                        cp.copy(
+                        copy(
                             q.storage,
                             origin=grid.default_origin(),
                             domain=grid.domain_shape_standard(),
@@ -286,7 +283,7 @@ def compute(
                 )
 
             if it < nsplt - 1:
-                cp.copy_stencil(
+                copy_stencil(
                     dp2,
                     dp1,
                     origin=grid.compute_origin(),

@@ -1,19 +1,19 @@
 #!/usr/bin/env python3
 
-import sys
 import contextlib
-import numpy as np
-import fv3core._config
-import fv3core.utils.gt4py_utils
-import pytest
-import fv3gfs.util as fv3util
 import logging
 import os
+
+import fv3gfs.util as fv3util
+import numpy as np
+import pytest
+import serialbox as ser
 import xarray as xr
+
+import fv3core._config
+import fv3core.utils.gt4py_utils as gt_utils
 from fv3core.utils.mpi import MPI
 
-sys.path.append("/serialbox2/install/python")  # noqa
-import serialbox as ser
 
 # this only matters for manually-added print statements
 np.set_printoptions(threshold=4096)
@@ -147,7 +147,7 @@ def get_serializer(data_path, rank):
 
 def state_from_savepoint(serializer, savepoint, name_to_std_name):
     properties = fv3util.fortran_info.properties_by_std_name
-    origin = fv3core.utils.gt4py_utils.origin
+    origin = gt_utils.origin
     state = {}
     for name, std_name in name_to_std_name.items():
         array = serializer.read(name, savepoint)
@@ -206,7 +206,10 @@ def test_mock_parallel_savepoint(
                 with _subtest(failing_ranks, subtests, varname=varname, rank=rank):
                     ref_data[varname].append(serializer.read(varname, savepoint_out))
                     assert success(
-                        output[varname], ref_data[varname][-1], testobj.max_error, near0
+                        gt_utils.asarray(output[varname]),
+                        ref_data[varname][-1],
+                        testobj.max_error,
+                        near0,
                     ), sample_wherefail(
                         output[varname],
                         ref_data[varname][-1],
@@ -307,9 +310,7 @@ def save_netcdf(
     data_vars = {}
     for i, varname in enumerate(failing_names):
         dims = [dim_name + f"_{i}" for dim_name in testobj.outputs[varname]["dims"]]
-        attrs = {
-            "units": testobj.outputs[varname]["units"],
-        }
+        attrs = {"units": testobj.outputs[varname]["units"]}
         data_vars[f"{varname}_in"] = xr.DataArray(
             np.stack([in_data[varname] for in_data in inputs_list]),
             dims=("rank",) + tuple(dims),

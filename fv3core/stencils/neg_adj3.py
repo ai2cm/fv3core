@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
-import fv3core.utils.gt4py_utils as utils
 import gt4py.gtscript as gtscript
-import fv3core._config as spec
-from gt4py.gtscript import computation, interval, PARALLEL, FORWARD, BACKWARD
-import fv3core.utils.global_constants as constants
 import numpy as np
+from gt4py.gtscript import BACKWARD, FORWARD, PARALLEL, computation, interval
+
+import fv3core._config as spec
+import fv3core.utils.global_constants as constants
+import fv3core.utils.gt4py_utils as utils
+from fv3core.decorators import gtstencil
+
 
 sd = utils.sd
 ZVIR = constants.RVGAS / constants.RDGAS - 1.0
@@ -118,7 +121,7 @@ def fillq(q, dp, grid):
 """
 # TODO fix this to do fillq with a stencil that validates
 # need sum1, sum2 to be an accumulating floats
-@utils.stencil()
+@gtstencil()
 def fillq(q:sd, dp:sd):
     with computation(FORWARD), interval(...):
         if q > 0:
@@ -137,7 +140,7 @@ def fillq(q:sd, dp:sd):
 """
 
 
-@utils.stencil()
+@gtstencil()
 def fix_neg_water(
     pt: sd,
     dp: sd,
@@ -175,7 +178,7 @@ def fix_neg_water(
         # no GFS_PHYS compiler flag -- additional saturation adjustment calculations!
 
 
-@utils.stencil()
+@gtstencil()
 def fix_neg_cloud(dp: sd, qcld: sd):
     with computation(FORWARD), interval(1, -1):
         if qcld[0, 0, -1] < 0.0:
@@ -249,14 +252,14 @@ def fix_water_vapor_k_loop(i, j, kbot, qv, dp):
 
 
 # Stencil version
-@utils.stencil()
+@gtstencil()
 def fix_water_vapor_down(qv: sd, dp: sd, upper_fix: sd, lower_fix: sd, dp_bot: sd):
     with computation(PARALLEL):
+        with interval(0, 1):
+            qv = qv if qv >= 0 else 0
         with interval(1, 2):
             if qv[0, 0, -1] < 0:
                 qv = qv + qv[0, 0, -1] * dp[0, 0, -1] / dp
-        with interval(0, 1):
-            qv = qv if qv >= 0 else 0
     with computation(FORWARD), interval(1, -1):
         dq = qv[0, 0, -1] * dp[0, 0, -1]
         if lower_fix[0, 0, -1] != 0:
@@ -327,7 +330,7 @@ def compute(qvapor, qliquid, qrain, qsnow, qice, qgraupel, qcld, pt, delp, delz,
     # fix_water_vapor_bottom(grid, qvapor, delp)
     upper_fix = utils.make_storage_from_shape(qvapor.shape, origin=(0, 0, 0))
     lower_fix = utils.make_storage_from_shape(qvapor.shape, origin=(0, 0, 0))
-    bot_dp = delp.data[:, :, grid.npz - 1]
+    bot_dp = delp[:, :, grid.npz - 1]
     full_bot_arr = utils.repeat(bot_dp[:, :, np.newaxis], k_ext + 1, axis=2)
     dp_bot = utils.make_storage_data(full_bot_arr, full_bot_arr.shape)
     fix_water_vapor_down(
@@ -339,7 +342,7 @@ def compute(qvapor, qliquid, qrain, qsnow, qice, qgraupel, qcld, pt, delp, delz,
         origin=grid.compute_origin(),
         domain=grid.domain_shape_compute(),
     )
-    qvapor.data[:, :, grid.npz] = upper_fix.data[:, :, 0]
+    qvapor[:, :, grid.npz] = upper_fix[:, :, 0]
     fix_neg_cloud(
         delp, qcld, origin=grid.compute_origin(), domain=grid.domain_shape_compute()
     )

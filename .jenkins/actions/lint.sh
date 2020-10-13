@@ -1,6 +1,9 @@
 #!/bin/bash
 set -e -x
-pip3 install black==19.10b0 flake8==3.7.8
-export PATH=/home/jenkins/.local/bin:${PATH}
-make lint
+env_name=venv-${BUILD_NUMBER:-0}
+python3 -m venv ${env_name}
+. ${env_name}/bin/activate
+pip install -r requirements.txt
+pre-commit run --all-files
+deactivate
 echo $(date) > aggregate

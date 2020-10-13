@@ -1,22 +1,25 @@
 #!/usr/bin/env python3
-import fv3core.utils.gt4py_utils as utils
-import fv3core.utils.corners as corners
 import gt4py.gtscript as gtscript
-import fv3core.stencils.copy_stencil as cp
+from gt4py.gtscript import PARALLEL, computation, interval
+
 import fv3core._config as spec
-from gt4py.gtscript import computation, interval, PARALLEL
+import fv3core.utils.corners as corners
+import fv3core.utils.gt4py_utils as utils
+from fv3core.decorators import gtstencil
+from fv3core.stencils.basic_operations import copy
+
 
 sd = utils.sd
 
 
-@utils.stencil()
+@gtstencil()
 def fx2_order(q: sd, del6_v: sd, fx2: sd, order: int):
     with computation(PARALLEL), interval(...):
         fx2[0, 0, 0] = del6_v * (q[-1, 0, 0] - q)
         fx2[0, 0, 0] = -1.0 * fx2 if order > 1 else fx2
 
 
-@utils.stencil()
+@gtstencil()
 def fy2_order(q: sd, del6_u: sd, fy2: sd, order: int):
     with computation(PARALLEL), interval(...):
         fy2[0, 0, 0] = del6_u * (q[0, -1, 0] - q)
@@ -24,7 +27,7 @@ def fy2_order(q: sd, del6_u: sd, fy2: sd, order: int):
 
 
 # WARNING: untested
-@utils.stencil()
+@gtstencil()
 def fx2_firstorder_use_sg(q: sd, sin_sg1: sd, sin_sg3: sd, dy: sd, rdxc: sd, fx2: sd):
     with computation(PARALLEL), interval(...):
         fx2[0, 0, 0] = (
@@ -33,7 +36,7 @@ def fx2_firstorder_use_sg(q: sd, sin_sg1: sd, sin_sg3: sd, dy: sd, rdxc: sd, fx2
 
 
 # WARNING: untested
-@utils.stencil()
+@gtstencil()
 def fy2_firstorder_use_sg(q: sd, sin_sg2: sd, sin_sg4: sd, dx: sd, rdyc: sd, fy2: sd):
     with computation(PARALLEL), interval(...):
         fy2[0, 0, 0] = (
@@ -41,45 +44,45 @@ def fy2_firstorder_use_sg(q: sd, sin_sg2: sd, sin_sg4: sd, dx: sd, rdyc: sd, fy2
         )
 
 
-@utils.stencil()
+@gtstencil()
 def d2_highorder(fx2: sd, fy2: sd, rarea: sd, d2: sd):
     with computation(PARALLEL), interval(...):
         d2[0, 0, 0] = (fx2 - fx2[1, 0, 0] + fy2 - fy2[0, 1, 0]) * rarea
 
 
-@utils.stencil()
+@gtstencil()
 def d2_damp(q: sd, d2: sd, damp: float):
     with computation(PARALLEL), interval(...):
         d2[0, 0, 0] = damp * q
 
 
-@utils.stencil()
+@gtstencil()
 def add_diffusive(fx: sd, fx2: sd, fy: sd, fy2: sd):
     with computation(PARALLEL), interval(...):
         fx[0, 0, 0] = fx + fx2
         fy[0, 0, 0] = fy + fy2
 
 
-@utils.stencil()
+@gtstencil()
 def add_diffusive_component(fx: sd, fx2: sd):
     with computation(PARALLEL), interval(...):
         fx[0, 0, 0] = fx + fx2
 
 
-@utils.stencil()
+@gtstencil()
 def diffusive_damp(fx: sd, fx2: sd, fy: sd, fy2: sd, mass: sd, damp: float):
     with computation(PARALLEL), interval(...):
         fx[0, 0, 0] = fx + 0.5 * damp * (mass[-1, 0, 0] + mass) * fx2
         fy[0, 0, 0] = fy + 0.5 * damp * (mass[0, -1, 0] + mass) * fy2
 
 
-@utils.stencil()
+@gtstencil()
 def diffusive_damp_x(fx: sd, fx2: sd, mass: sd, damp: float):
     with computation(PARALLEL), interval(...):
         fx = fx + 0.5 * damp * (mass[-1, 0, 0] + mass) * fx2
 
 
-@utils.stencil()
+@gtstencil()
 def diffusive_damp_y(fy: sd, fy2: sd, mass: sd, damp: float):
     with computation(PARALLEL), interval(...):
         fy[0, 0, 0] = fy + 0.5 * damp * (mass[0, -1, 0] + mass) * fy2
@@ -133,7 +136,7 @@ def compute_no_sg(q, fx2, fy2, nord, damp_c, d2, kstart=0, nk=None, mass=None):
     if mass is None:
         d2_damp(q, d2, damp_c, origin=origin_d2, domain=domain_d2)
     else:
-        d2 = cp.copy(q, origin_d2, domain=domain_d2)
+        d2 = copy(q, origin=origin_d2, domain=domain_d2)
 
     if nord > 0:
         corners.copy_corners(d2, "x", grid, kslice)
@@ -163,7 +166,7 @@ def compute_no_sg(q, fx2, fy2, nord, damp_c, d2, kstart=0, nk=None, mass=None):
             nt_ny = grid.je - grid.js + 3 + 2 * nt
             nt_nx = grid.ie - grid.is_ + 3 + 2 * nt
             d2_highorder(
-                fx2, fy2, grid.rarea, d2, origin=nt_origin, domain=(nt_nx, nt_ny, nk),
+                fx2, fy2, grid.rarea, d2, origin=nt_origin, domain=(nt_nx, nt_ny, nk)
             )
             corners.copy_corners(d2, "x", grid, kslice)
             nt_origin = (grid.is_ - nt, grid.js - nt, kstart)
