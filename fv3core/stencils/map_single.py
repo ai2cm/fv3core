@@ -9,7 +9,6 @@ import fv3core.stencils.remap_profile as remap_profile
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import gtstencil
 from fv3core.stencils.basic_operations import copy
-from fv3core.utils.corners import fill2_4corners, fill_4corners
 
 
 sd = utils.sd
@@ -211,8 +210,8 @@ def lagrangian_contributions_stencil(
         eulerian_bottom_pressure = pe2[:, :, k_eul + 1]
         top_p = utils.repeat(eulerian_top_pressure[:, :, np.newaxis], km + 1, axis=2)
         bot_p = utils.repeat(eulerian_bottom_pressure[:, :, np.newaxis], km + 1, axis=2)
-        ptop = utils.make_storage_data(top_p, q4_1.shape)
-        pbot = utils.make_storage_data(bot_p, q4_1.shape)
+        ptop = utils.make_storage(top_p, q4_1.shape)
+        pbot = utils.make_storage(bot_p, q4_1.shape)
 
         lagrangian_contributions(
             pe1,

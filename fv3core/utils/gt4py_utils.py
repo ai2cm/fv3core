@@ -4,7 +4,7 @@ import copy
 import functools
 import logging
 import math
-from typing import Callable, Tuple, Union
+from typing import Any, Callable, Tuple, Union
 
 import gt4py as gt
 import gt4py.ir as gt_ir
@@ -209,12 +209,17 @@ def make_storage_data_from_1d(
 
 
 def make_storage(
+    data_or_shape: Any,
     shape: Tuple[int, int, int] = None,
     origin: Tuple[int, int, int] = origin,
     dtype: DTypes = np.float64,
     init: bool = True,
     mask: Tuple[bool, bool, bool] = None,
-    data: gtscript.Field = None,
+    start: Tuple[int, int, int] = (0, 0, 0),
+    stop: Tuple[int, int, int] = (0, 0, 0),
+    dummy: Tuple[int, int, int] = None,
+    names: Tuple[str, str, str] = None,
+    axis: int = 1,
 ):
     """Create a new gt4py storage of a given shape.
 
@@ -227,7 +232,8 @@ def make_storage(
     Returns:
         gtscript.Field[dtype]: New storage
     """
-    if data is None:
+    if isinstance(data_or_shape, tuple):
+        shape = data_or_shape
         storage = gt.storage.empty(
             backend=backend,
             default_origin=origin,
@@ -239,17 +245,29 @@ def make_storage(
         if init:
             storage[:] = dtype()
     else:
+        data = data_or_shape
         if shape is None:
             shape = data.shape
-        storage = gt.storage.from_array(
-            data=data,
-            backend=backend,
-            default_origin=origin,
-            shape=shape,
-            dtype=dtype,
-            mask=mask,
-            managed_memory=managed_memory,
-        )
+        if len(data.shape) == 2:
+            storage = make_storage_data_from_2d(
+                data,
+                shape,
+                istart=start[0],
+                jstart=start[1],
+                origin=origin,
+                dummy=dummy,
+                axis=axis,
+            )
+        else:
+            storage = gt.storage.from_array(
+                data=data_or_shape,
+                backend=backend,
+                default_origin=origin,
+                shape=shape,
+                dtype=dtype,
+                mask=mask,
+                managed_memory=managed_memory,
+            )
 
     return storage
 

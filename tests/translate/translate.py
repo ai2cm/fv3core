@@ -77,16 +77,15 @@ class TranslateFortranData2Py:
             for axis in dummy_axes:
                 use_shape[axis] = 1
         use_shape = tuple(use_shape)
-        return utils.make_storage_data(
+        start = (istart, jstart, kstart)
+        return utils.make_storage(
             array,
             use_shape,
-            istart,
-            jstart,
-            kstart,
-            origin=(istart, jstart, kstart),
+            start=start,
+            origin=start,
             dummy=dummy_axes,
             axis=axis,
-            names_4d=names_4d,
+            names=names_4d,
         )
 
     def storage_vars(self):
