@@ -2,7 +2,7 @@ GCR_URL = us.gcr.io/vcm-ml
 REGRESSION_DATA_STORAGE_BUCKET = gs://vcm-fv3gfs-serialized-regression-data
 EXPERIMENT ?=c12_6ranks_standard
 FV3CORE_VERSION=0.1.0
-FORTRAN_SERIALIZED_DATA_VERSION=expbar0-7.1.1
+FORTRAN_SERIALIZED_DATA_VERSION=expbaro-7.1.1
 WRAPPER_IMAGE = us.gcr.io/vcm-ml/fv3gfs-wrapper:gnu9-mpich314-nocuda
 
 SHELL=/bin/bash
