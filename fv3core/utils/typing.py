@@ -4,21 +4,6 @@ import gt4py.gtscript as gtscript
 import numpy as np
 
 
-__all__ = [
-    "Int3",
-    "Field",
-    "FloatField",
-    "BoolField",
-    "IntField",
-    "IJK",
-    "IJ",
-    "IK",
-    "JK",
-    "I",
-    "J",
-    "K",
-]
-
 Int3 = Tuple[int, int, int]
 """Common type: tuple of three ints."""
 
@@ -35,11 +20,6 @@ class _FieldDescriptorMaker:
     def __getitem__(self, axes):
         return gtscript.Field[self.dtype, axes]
 
-
-# These could be used, but they seem just as long not using
-FloatField = _FieldDescriptorMaker(float)
-IntField = _FieldDescriptorMaker(int)
-BoolField = _FieldDescriptorMaker(bool)
 
 # Axes
 IJK = gtscript.IJK
