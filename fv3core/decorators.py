@@ -213,6 +213,9 @@ def _get_arg_report(arg):
     if isinstance(arg, gt.storage.storage.Storage):
         arg = np.asarray(arg)
     if isinstance(arg, np.ndarray):
+        islice = slice(spec.grid.is_, spec.grid.ie + 1)
+        jslice = slice(spec.grid.js, spec.grid.je + 1)
+        arg = arg[islice, jslice, :]
         return {
             "md5": hashlib.md5(arg.tobytes()).hexdigest(),
             "min": float(arg.min()),
