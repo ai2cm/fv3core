@@ -14,6 +14,7 @@ from gt4py import gtscript
 # Problem: creates circular dependency
 from fv3core.utils.mpi import MPI
 
+
 try:
     import cupy as cp
 except ImportError:
