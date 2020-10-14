@@ -4,22 +4,8 @@ import gt4py.gtscript as gtscript
 import numpy as np
 
 
-Int3 = Tuple[int, int, int]
-"""Common type: tuple of three ints."""
-
 Field = gtscript.Field
 """A gt4py field"""
-
-
-class _FieldDescriptorMaker:
-    """Shortcut for float fields"""
-
-    def __init__(self, dtype):
-        self.dtype = dtype
-
-    def __getitem__(self, axes):
-        return gtscript.Field[self.dtype, axes]
-
 
 # Axes
 IJK = gtscript.IJK
@@ -30,6 +16,9 @@ I = gtscript.I
 J = gtscript.J
 K = gtscript.K
 
-# Usage example:
-# from fv3core.utils.typing import Field, IJK, IJ
-# def stencil(in_field: Field[float, IJ], out_field: Field[float, IJK]):
+# Union of valid data types (from gt4py.gtscript)
+DTypes = Union[bool, np.bool, int, np.int32, np.int64, float, np.float32, np.float64]
+
+# Other common types
+Int3 = Tuple[int, int, int]
+"""Common type: tuple of three ints."""

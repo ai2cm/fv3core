@@ -14,6 +14,8 @@ from gt4py import gtscript
 # Problem: creates circular dependency
 from fv3core.utils.mpi import MPI
 
+from ..typing import DTypes
+
 
 try:
     import cupy as cp
@@ -41,9 +43,6 @@ tracer_variables = [
     "qsgs_tke",
     "qcld",
 ]
-
-# Union of valid data types (from gt4py.gtscript)
-DTypes = Union[bool, np.bool, int, np.int32, np.int64, float, np.float32, np.float64]
 
 
 # 1 indexing to 0 and halos: -2, -1, 0 --> 0, 1,2
