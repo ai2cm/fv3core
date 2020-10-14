@@ -50,7 +50,7 @@ FROM fv3core-install-base as fv3core-install-serialbox
 ###
 ### Build and install Serialbox
 ###
-RUN git clone -b v2.6.0 --depth 1 https://github.com/GridTools/serialbox.git /usr/src/serialbox && \
+RUN git clone -b v2.6.1 --depth 1 https://github.com/GridTools/serialbox.git /usr/src/serialbox && \
     cmake -B build -S /usr/src/serialbox -DSERIALBOX_USE_NETCDF=ON -DSERIALBOX_TESTING=ON \
     -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local && \
     cmake --build build/ -j $(nproc) --target install && \

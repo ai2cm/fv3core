@@ -142,7 +142,9 @@ def gtstencil(definition=None, **stencil_kwargs) -> Callable[..., None]:
                 "splitters",
                 spec.grid.splitters(origin=kwargs.get("origin")),
             )
-            _maybe_save_report(func.__name__, times_called, args, kwargs)
+            argnames = []
+            name = func.__module__.split(".")[-1] + "." + func.__name__
+            _maybe_save_report(name, times_called, func.__dict__['_gtscript_']['api_signature'], args, kwargs)
             times_called += 1
             return stencils[key](*args, **kwargs)
 
@@ -154,20 +156,16 @@ def gtstencil(definition=None, **stencil_kwargs) -> Callable[..., None]:
         return decorator(definition)
 
 
-def _get_case_name(name, rank, times_called):
-    return f"{name}-r{rank:03d}-n{times_called:04d}"
+def _get_case_name(name, times_called):
+    return f"stencil-{name}-n{times_called:04d}"
 
 
-def _get_report_filename(rank):
-    return f"stencil-report-r{rank:03d}.yml"
+def _get_report_filename():
+    return f"stencil-report-r{spec.grid.rank:03d}.yml"
 
 
-def _maybe_save_report(name, times_called, args, kwargs):
-    if mpi.MPI is None:
-        rank = 0
-    else:
-        rank = mpi.MPI.COMM_WORLD.Get_rank()
-    case_name = _get_case_name(name, rank, times_called)
+def _maybe_save_report(name, times_called, arg_infos, args, kwargs):
+    case_name = _get_case_name(name, times_called)
     print(
         "REPORT SETTINGS", stencil_report_path, save_stencil_args, save_stencil_report
     )
@@ -176,12 +174,10 @@ def _maybe_save_report(name, times_called, args, kwargs):
         with open(args_filename, "wb") as f:
             _save_args(f, args, kwargs)
     if save_stencil_report:
-        report_filename = os.path.join(stencil_report_path, _get_report_filename(rank))
+        report_filename = os.path.join(stencil_report_path, _get_report_filename())
         print(f"saving at {report_filename}")
         with open(report_filename, "a") as f:
-            f.write(case_name + "\n")
-            yaml.safe_dump(_get_stencil_report(args, kwargs), f)
-            f.write("\n")
+            yaml.safe_dump({case_name: _get_stencil_report(arg_infos, args, kwargs)}, f)
 
 
 def _save_args(file: BinaryIO, args, kwargs):
@@ -196,16 +192,18 @@ def _save_args(file: BinaryIO, args, kwargs):
     np.savez(file, *args, **dict(kwargs_list))
 
 
-def _get_stencil_report(args, kwargs):
+def _get_stencil_report(arg_infos, args, kwargs):
     return {
-        "args": _get_args_report(args),
+        "args": _get_args_report(arg_infos, args),
         "kwargs": _get_kwargs_report(kwargs),
     }
 
 
-def _get_args_report(args):
-    return [_get_arg_report(arg) for arg in args]
-
+def _get_args_report(arg_infos, args):
+    report = {}
+    for argi in range(len(args)):
+        report[arg_infos[argi].name] = _get_arg_report(args[argi])
+    return report
 
 def _get_kwargs_report(kwargs):
     return {name: _get_arg_report(value) for (name, value) in kwargs.items()}
