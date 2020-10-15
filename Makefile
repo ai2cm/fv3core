@@ -3,7 +3,6 @@ REGRESSION_DATA_STORAGE_BUCKET = gs://vcm-fv3gfs-serialized-regression-data
 EXPERIMENT ?=c12_6ranks_standard
 FV3CORE_VERSION=0.1.0
 FORTRAN_SERIALIZED_DATA_VERSION=7.1.1
-WRAPPER_IMAGE = us.gcr.io/vcm-ml/fv3gfs-wrapper:gnu9-mpich314-nocuda
 
 SHELL=/bin/bash
 CWD=$(shell pwd)
@@ -15,19 +14,11 @@ MOUNTS ?=
 CONTAINER_ENGINE ?=docker
 RUN_FLAGS ?="--rm"
 TEST_DATA_HOST ?=$(CWD)/test_data/$(EXPERIMENT)
-FV3=fv3core
 FV3UTIL_DIR=$(CWD)/external/fv3gfs-util
-FV3_INSTALL_TAG ?= develop
-FV3_WRAPPED_TAG ?= wrapped
-FV3_INSTALL_TARGET=$(FV3)-install
 
 FV3=fv3core
-FV3_INSTALL_IMAGE=$(GCR_URL)/$(FV3_INSTALL_TARGET):$(FV3_INSTALL_TAG)
-WRAPPER_INSTALL_IMAGE=$(GCR_URL)/$(FV3_INSTALL_TARGET):$(FV3_WRAPPED_TAG)
-FV3_TAG ?= $(FV3CORE_VERSION)-$(FV3_INSTALL_TAG)
-WRAPPED_TAG ?= $(FV3CORE_VERSION)-wrapped
-FV3_IMAGE ?=$(GCR_URL)/$(FV3):$(FV3_TAG)
-WRAPPED_FV3_IMAGE ?=$(GCR_URL)/$(FV3):$(WRAPPED_TAG)
+FV3_IMAGE ?= $(shell make -C docker image_name)
+FV3_TAG ?= $(shell make -C docker tag_name)
 
 TEST_DATA_CONTAINER=/test_data
 PYTHON_FILES = $(shell git ls-files | grep -e 'py$$' | grep -v -e '__init__.py')
@@ -43,30 +34,21 @@ DEV_MOUNTS = '-v $(CWD)/$(FV3):/$(FV3)/$(FV3) -v $(CWD)/tests:/$(FV3)/tests -v $
 clean:
 	find . -name ""
 	$(RM) -rf comparison/wrapped/output/*
+	$(MAKE) -C external/fv3gfs-wrapper clean
+	$(MAKE) -C external/fv3gfs-fortran clean
 
 update_submodules:
 	if [ ! -f $(FV3UTIL_DIR)/requirements.txt  ]; then \
 		git submodule update --init --recursive; \
 	fi
 
+constraints.txt: requirements.txt requirements_lint.txt
+	pip-compile $^ --output-file constraints.txt
 
 build_environment:
-	DOCKER_BUILDKIT=1 docker build \
-		--network host \
-		--build-arg MIDBASE=$(BASE_INSTALL) \
-		-f $(CWD)/docker/Dockerfile.build_environment \
-		-t $(FV3_INSTALL_IMAGE) \
-		--target $(FV3_INSTALL_TARGET) \
-		.
+	$(MAKE) -C docker build_deps
 
-build_wrapped_environment:
-	DOCKER_BUILDKIT=1 docker build \
-		--network host \
-		-f $(CWD)/docker/Dockerfile.build_environment \
-		-t $(WRAPPER_INSTALL_IMAGE) \
-		--target $(FV3_INSTALL_TARGET) \
-		--build-arg BASE_IMAGE=$(WRAPPER_IMAGE) \
-		.
+build_wrapped_environment: build_environment
 
 build: update_submodules
 	if [ $(PULL) == True ]; then \
@@ -74,60 +56,37 @@ build: update_submodules
 	else \
 		$(MAKE) build_environment; \
 	fi
-	docker build \
-		--network host \
-		--build-arg build_image=$(FV3_INSTALL_IMAGE) \
-		-f $(CWD)/docker/Dockerfile \
-		-t $(FV3_IMAGE) \
-		.
+	$(MAKE) -C docker fv3core_image
 
-build_wrapped: update_submodules
-	$(MAKE) build_wrapped_environment
-	docker build \
-		--network host \
-		--no-cache \
-		--build-arg build_image=$(WRAPPER_INSTALL_IMAGE) \
-		-f $(CWD)/docker/Dockerfile \
-		-t $(WRAPPED_FV3_IMAGE) \
-		.
+build_wrapped: update_submodules build_wrapped_environment
+	$(MAKE) -C docker fv3core_wrapper_image
 
-
-pull_environment_if_needed:
-	if [ -z $(shell docker images -q $(FV3_INSTALL_IMAGE)) ]; then \
-		docker pull $(FV3_INSTALL_IMAGE); \
-	fi
+pull_environment_if_needed: pull_environment
 
 pull_environment:
-	docker pull $(FV3_INSTALL_IMAGE)
+	$(MAKE) -C docker pull_deps
 
 push_environment:
-	docker push $(FV3_INSTALL_IMAGE)
+	$(MAKE) -C docker push_deps
 
-rebuild_environment: build_environment
-	$(MAKE) push_environment
+rebuild_environment: build_environment push_environment
 
 push_core:
-	docker push $(FV3_IMAGE)
+	$(MAKE) -C docker push
 
 pull_core:
-	docker pull $(FV3_IMAGE)
+	$(MAKE) -C docker pull
 
 tar_core:
-	docker save $(FV3_IMAGE) -o $(CORE_TAR)
-	gsutil copy $(CORE_TAR) $(CORE_BUCKET_LOC)
+	$(MAKE) -C docker tar_core
 
 sarus_load_tar:
-	export FOUND_IMAGE=`sarus images | grep $(FV3_TAG)`
-	if [ -z $(FOUND_IMAGE) ] && [ ! -f `pwd`/$(CORE_TAR) ]; then \
-		gsutil copy $(CORE_BUCKET_LOC) . && \
-		sarus load ./$(CORE_TAR) $(FV3_TAG); \
-        fi
+	$(MAKE) -C docker sarus_load_tar
 
 cleanup_remote:
-	gsutil rm $(CORE_BUCKET_LOC)
-	gcloud container images delete -q --force-delete-tags $(FV3_IMAGE)
+	$(MAKE) -C docker cleanup_remote
 
-tests: build
+tests: #build
 	$(MAKE) get_test_data
 	$(MAKE) run_tests_sequential
 
@@ -161,7 +120,7 @@ dev_tests_mpi_host:
 
 test_base:
 	$(CONTAINER_ENGINE) run $(RUN_FLAGS) $(VOLUMES) $(MOUNTS) \
-	$(FV3_IMAGE) pytest --data_path=$(TEST_DATA_CONTAINER) $(TEST_ARGS) /$(FV3)/tests
+		$(FV3_IMAGE) pytest --data_path=$(TEST_DATA_CONTAINER) $(TEST_ARGS) /$(FV3)/tests
 
 test_base_parallel:
 	$(CONTAINER_ENGINE) run $(RUN_FLAGS) $(VOLUMES) $(MOUNTS) $(FV3_IMAGE) \
