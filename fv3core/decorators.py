@@ -4,18 +4,15 @@ import types
 from typing import Callable, Tuple, Union
 
 import gt4py
-from gt4py import gtscript
-
-import fv3core._config as spec
-import fv3core.utils.gt4py_utils as utils
-
 import gt4py as gt
 import numpy
 import xarray as xr
 from fv3gfs.util import Quantity
+from gt4py import gtscript
 
 import fv3core
 import fv3core._config as spec
+import fv3core.utils.gt4py_utils as utils
 
 
 ArgSpec = collections.namedtuple(
