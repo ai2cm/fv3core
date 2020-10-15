@@ -105,7 +105,7 @@ class TranslateDivergenceCorner(TranslateFortranData2Py):
     def compute(self, storages):
         self.make_storage_data_input_vars(storages)
         c_sw.divergence_corner(
-            *storages,
+            **storages,
             self.grid.dxc,
             self.grid.dyc,
             self.grid.sin_sg1,
@@ -148,7 +148,7 @@ class TranslateCirculation_Cgrid(TranslateFortranData2Py):
     def compute(self, storages):
         self.make_storage_data_input_vars(storages)
         c_sw.circulation_cgrid(
-            *storages,
+            **storages,
             self.grid.dxc,
             self.grid.dyc,
             origin=self.grid.compute_origin(),
