@@ -106,17 +106,17 @@ class TranslateDivergenceCorner(TranslateFortranData2Py):
         self.make_storage_data_input_vars(storages)
         c_sw.divergence_corner(
             **storages,
-            self.grid.dxc,
-            self.grid.dyc,
-            self.grid.sin_sg1,
-            self.grid.sin_sg2,
-            self.grid.sin_sg3,
-            self.grid.sin_sg4,
-            self.grid.cos_sg1,
-            self.grid.cos_sg2,
-            self.grid.cos_sg3,
-            self.grid.cos_sg4,
-            self.grid.rarea_c,
+            dxc=self.grid.dxc,
+            dyc=self.grid.dyc,
+            sin_sg1=self.grid.sin_sg1,
+            sin_sg2=self.grid.sin_sg2,
+            sin_sg3=self.grid.sin_sg3,
+            sin_sg4=self.grid.sin_sg4,
+            cos_sg1=self.grid.cos_sg1,
+            cos_sg2=self.grid.cos_sg2,
+            cos_sg3=self.grid.cos_sg3,
+            cos_sg4=self.grid.cos_sg4,
+            rarea=self.grid.rarea_c,
             origin=self.grid.compute_origin(),
             domain=self.grid.domain_shape_compute_buffer_2d(add=(1, 1, 0)),
         )
@@ -149,8 +149,8 @@ class TranslateCirculation_Cgrid(TranslateFortranData2Py):
         self.make_storage_data_input_vars(storages)
         c_sw.circulation_cgrid(
             **storages,
-            self.grid.dxc,
-            self.grid.dyc,
+            dxc=self.grid.dxc,
+            dyc=self.grid.dyc,
             origin=self.grid.compute_origin(),
             domain=self.grid.domain_shape_compute_buffer_2d(add=(1, 1, 0)),
         )
