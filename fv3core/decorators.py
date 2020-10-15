@@ -92,7 +92,6 @@ def gtstencil(definition=None, **stencil_kwargs) -> Callable[..., None]:
             kwargs["splitters"] = kwargs.get(
                 "splitters", spec.grid.splitters(origin=kwargs.get("origin"))
             )
-            kwargs["validate_args"] = False
             return stencils[key](*args, **kwargs)
 
         return wrapped
