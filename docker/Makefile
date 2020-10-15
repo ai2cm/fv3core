@@ -9,8 +9,7 @@ WRAPPER_NAME = fv3core-build-wrapper
 FV3CORE_NAME = fv3core
 FV3CORE_WRAPPER_NAME = fv3core-wrapper
 
-FORTRAN_DOCKERFILE = fortran.Dockerfile
-WRAPPER_DOCKERFILE = wrapper.Dockerfile
+FORTRAN_DOCKERFILE = dependencies.Dockerfile
 FV3CORE_DOCKERFILE = Dockerfile
 
 # fv3core or fv3core-wrapper
