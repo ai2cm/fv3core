@@ -69,7 +69,7 @@ RUN pip install --no-cache-dir -c /constraints.txt "/gt4py${GT4PY_OPTIONALS}" &&
 COPY external/fv3gfs-util/ /external/fv3gfs-util/
 COPY fv3core /fv3core/fv3core
 COPY tests /fv3core/tests
-COPY setup.py setup.cfg HISTORY.md README.md /fv3core/
+COPY setup.py setup.cfg README.md /fv3core/
 COPY docker/entrypoint.sh /entrypoint.sh
 ENV MPI=mpich
 
