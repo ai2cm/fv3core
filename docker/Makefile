@@ -67,14 +67,14 @@ dev_wrapper:
 
 .PHONY: dev fortran_image wrapper_image fv3core_image build build_deps push_deps pull_deps
 
-fortran_image: ## build production container image
+fortran_image:
 	docker build \
 		$(BUILD_ARGS) \
 		-f $(FORTRAN_DOCKERFILE) \
 		-t $(FORTRAN_IMAGE) \
 		../external/fv3gfs-fortran
 
-fv3core_image: fortran_image
+fv3core_image: ## build production container image
 	docker build \
 		$(BUILD_ARGS) \
 		-f $(FV3CORE_DOCKERFILE) \
