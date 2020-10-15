@@ -45,6 +45,8 @@ update_submodules:
 constraints.txt: requirements.txt requirements_lint.txt
 	pip-compile $^ --output-file constraints.txt
 
+# Image build instructions have moved to docker/Makefile but are kept here for backwards-compatibility
+
 build_environment:
 	$(MAKE) -C docker build_deps
 
@@ -85,6 +87,8 @@ sarus_load_tar:
 
 cleanup_remote:
 	$(MAKE) -C docker cleanup_remote
+
+# end of image build targets which have been moved to docker/Makefile
 
 tests: #build
 	$(MAKE) get_test_data
