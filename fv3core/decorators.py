@@ -41,9 +41,6 @@ def enable_stencil_report(*, path: str, save_args: bool, save_report: bool):
     stencil_report_path = path
     save_stencil_args = save_args
     save_stencil_report = save_report
-    print(
-        "REPORT SETTINGS", stencil_report_path, save_stencil_args, save_stencil_report
-    )
 
 
 def disable_stencil_report():
@@ -143,7 +140,7 @@ def gtstencil(definition=None, **stencil_kwargs) -> Callable[..., None]:
                 spec.grid.splitters(origin=kwargs.get("origin")),
             )
             argnames = []
-            name = func.__module__.split(".")[-1] + "." + func.__name__
+            name = f"{func.__module__}.{func.__name__}"
             _maybe_save_report(
                 name,
                 times_called,
@@ -172,16 +169,12 @@ def _get_report_filename():
 
 def _maybe_save_report(name, times_called, arg_infos, args, kwargs):
     case_name = _get_case_name(name, times_called)
-    print(
-        "REPORT SETTINGS", stencil_report_path, save_stencil_args, save_stencil_report
-    )
     if save_stencil_args:
         args_filename = os.path.join(stencil_report_path, f"{case_name}.npz")
         with open(args_filename, "wb") as f:
             _save_args(f, args, kwargs)
     if save_stencil_report:
         report_filename = os.path.join(stencil_report_path, _get_report_filename())
-        print(f"saving at {report_filename}")
         with open(report_filename, "a") as f:
             yaml.safe_dump({case_name: _get_stencil_report(arg_infos, args, kwargs)}, f)
 
