@@ -115,7 +115,7 @@ def divergence_corner(
     cos_sg3: sd,
     cos_sg4: sd,
     rarea_c: sd,
-    divgd: sd,
+    divg_d: sd,
 ):
     """Calculate divg on d-grid.
 
@@ -135,7 +135,7 @@ def divergence_corner(
         cos_sg3: grid cos(sg3) (input)
         cos_sg4: grid cos(sg4) (input)
         rarea_c: inverse cell areas on c-grid (input)
-        divgd: divergence on d-grid (output)
+        divg_d: divergence on d-grid (output)
     """
     from __splitters__ import i_end, i_start, j_end, j_start
 
@@ -158,12 +158,12 @@ def divergence_corner(
         with parallel(region[i_start, :], region[i_end + 1, :]):
             vf = v * dxc * 0.5 * (sin_sg3[-1, 0, 0] + sin_sg1)
 
-        divgd = vf[0, -1, 0] - vf + uf[-1, 0, 0] - uf
+        divg_d = vf[0, -1, 0] - vf + uf[-1, 0, 0] - uf
         with parallel(region[i_start, j_start], region[i_end + 1, j_start]):
-            divgd -= vf[0, -1, 0]
+            divg_d -= vf[0, -1, 0]
         with parallel(region[i_end + 1, j_end + 1], region[i_start, j_end + 1]):
-            divgd += vf
-        divgd *= rarea_c
+            divg_d += vf
+        divg_d *= rarea_c
 
 
 @gtstencil()

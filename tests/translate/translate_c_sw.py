@@ -116,7 +116,7 @@ class TranslateDivergenceCorner(TranslateFortranData2Py):
             cos_sg2=self.grid.cos_sg2,
             cos_sg3=self.grid.cos_sg3,
             cos_sg4=self.grid.cos_sg4,
-            rarea=self.grid.rarea_c,
+            rarea_c=self.grid.rarea_c,
             origin=self.grid.compute_origin(),
             domain=self.grid.domain_shape_compute_buffer_2d(add=(1, 1, 0)),
         )
