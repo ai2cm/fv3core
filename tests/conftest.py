@@ -18,9 +18,6 @@ sys.path.append("/usr/local/python")  # noqa
 import serialbox
 
 
-OUTPUT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "output")
-fv3core.enable_stencil_report(path=OUTPUT_DIR, save_args=False, save_report=True)
-
 GRID_SAVEPOINT_NAME = "Grid-Info"
 
 
