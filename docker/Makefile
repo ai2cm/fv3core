@@ -62,7 +62,7 @@ image_name:
 tag_name:
 	$(TAG_NAME)
 
-dev:
+dev_wrapper:
 	FV3CORE_WRAPPER_IMAGE=$(FV3CORE_WRAPPER_IMAGE) docker-compose run fv3core_wrapper bash
 
 .PHONY: dev fortran_image wrapper_image fv3core_image build build_deps push_deps pull_deps

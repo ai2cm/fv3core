@@ -109,6 +109,8 @@ dev:
 		-v $(CWD):/port_dev \
 		$(FV3_IMAGE)
 
+dev_wrapper:
+	$(MAKE) -C docker dev_wrapper
 
 dev_tests:
 	VOLUMES=$(DEV_MOUNTS) $(MAKE) test_base
@@ -117,7 +119,6 @@ dev_tests_mpi:
 	VOLUMES=$(DEV_MOUNTS) $(MAKE) test_base_parallel
 
 dev_test_mpi: dev_tests_mpi
-
 
 dev_tests_mpi_host:
 	MOUNTS=$(DEV_MOUNTS) $(MAKE) run_tests_parallel_host
@@ -130,7 +131,6 @@ test_base_parallel:
 	$(CONTAINER_ENGINE) run $(RUN_FLAGS) $(VOLUMES) $(MOUNTS) $(FV3_IMAGE) \
 	$(MPIRUN_CALL) \
 	pytest --data_path=$(TEST_DATA_CONTAINER) $(TEST_ARGS) -m parallel /$(FV3)/tests
-
 
 run_tests_sequential:
 	VOLUMES='--mount=type=bind,source=$(TEST_DATA_HOST),destination=$(TEST_DATA_CONTAINER) --mount=type=bind,source=$(CWD)/.jenkins,destination=/.jenkins' \
