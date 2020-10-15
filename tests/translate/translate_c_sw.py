@@ -34,10 +34,10 @@ class TranslateC_SW(TranslateFortranData2Py):
         # TODO - fix edge_interpolate4 in d2a2c_vect to match closer and the variables here should as well
         self.max_error = 2e-10
 
-    def compute(self, inputs):
-        self.make_storage_data_input_vars(inputs)
-        delpc, ptc = self.compute_func(**inputs)
-        return self.slice_output(inputs, {"delpcd": delpc, "ptcd": ptc})
+    def compute(self, storages):
+        self.make_storage_data_input_vars(storages)
+        delpc, ptc = self.compute_func(**storages)
+        return self.slice_output(storages, {"delpcd": delpc, "ptcd": ptc})
 
 
 class TranslateTransportDelp(TranslateFortranData2Py):
@@ -53,23 +53,23 @@ class TranslateTransportDelp(TranslateFortranData2Py):
         }
         self.out_vars = {"delpc": {}, "ptc": {}, "wc": {}}
 
-    def compute(self, inputs):
-        self.make_storage_data_input_vars(inputs)
+    def compute(self, storages):
+        self.make_storage_data_input_vars(storages)
         orig = (self.grid.is_ - 1, self.grid.js - 1, 0)
-        delpc = utils.make_storage_from_shape(inputs["delp"].shape, origin=orig)
-        ptc = utils.make_storage_from_shape(inputs["pt"].shape, origin=orig)
-        wc = utils.make_storage_from_shape(inputs["w"].shape, origin=orig)
+        storages["delpc"] = utils.make_storage_from_shape(
+            storages["delp"].shape, origin=orig
+        )
+        storages["ptc"] = utils.make_storage_from_shape(
+            storages["pt"].shape, origin=orig
+        )
         c_sw.transportdelp(
-            **inputs,
+            **storages,
             rarea=self.grid.rarea,
-            delpc=delpc,
-            ptc=ptc,
             origin=orig,
             domain=self.grid.domain_shape_compute_buffer_2d(add=(2, 2, 0)),
         )
         return self.slice_output(
-            inputs,
-            {"delpc": delpc, "ptc": ptc, "wc": wc},
+            storages,
         )
 
 
@@ -102,13 +102,10 @@ class TranslateDivergenceCorner(TranslateFortranData2Py):
             }
         }
 
-    def compute(self, inputs):
-        self.make_storage_data_input_vars(inputs)
+    def compute(self, storages):
+        self.make_storage_data_input_vars(storages)
         c_sw.divergence_corner(
-            inputs["u"],
-            inputs["v"],
-            inputs["ua"],
-            inputs["va"],
+            *storages,
             self.grid.dxc,
             self.grid.dyc,
             self.grid.sin_sg1,
@@ -120,11 +117,10 @@ class TranslateDivergenceCorner(TranslateFortranData2Py):
             self.grid.cos_sg3,
             self.grid.cos_sg4,
             self.grid.rarea_c,
-            inputs["divg_d"],
             origin=self.grid.compute_origin(),
             domain=self.grid.domain_shape_compute_buffer_2d(add=(1, 1, 0)),
         )
-        return self.slice_output({"divg_d": inputs["divg_d"]})
+        return self.slice_output({"divg_d": storages["divg_d"]})
 
 
 class TranslateCirculation_Cgrid(TranslateFortranData2Py):
@@ -149,15 +145,13 @@ class TranslateCirculation_Cgrid(TranslateFortranData2Py):
             }
         }
 
-    def compute(self, inputs):
-        self.make_storage_data_input_vars(inputs)
+    def compute(self, storages):
+        self.make_storage_data_input_vars(storages)
         c_sw.circulation_cgrid(
-            inputs["uc"],
-            inputs["vc"],
+            *storages,
             self.grid.dxc,
             self.grid.dyc,
-            inputs["vort_c"],
             origin=self.grid.compute_origin(),
             domain=self.grid.domain_shape_compute_buffer_2d(add=(1, 1, 0)),
         )
-        return self.slice_output({"vort_c": inputs["vort_c"]})
+        return self.slice_output({"vort_c": storages["vort_c"]})
