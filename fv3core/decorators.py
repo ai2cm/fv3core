@@ -148,7 +148,6 @@ def gtstencil(definition=None, **stencil_kwargs) -> Callable[..., None]:
                 args,
                 kwargs,
             )
-            times_called += 1
             result = stencils[key](*args, **kwargs)
             _maybe_save_report(
                 f"{name}-after",
@@ -157,6 +156,7 @@ def gtstencil(definition=None, **stencil_kwargs) -> Callable[..., None]:
                 args,
                 kwargs,
             )
+            times_called += 1
             return result
 
         return wrapped
