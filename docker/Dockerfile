@@ -101,5 +101,3 @@ COPY --from=fortran_image /stochastic_physics/ /external/fv3gfs-fortran/stochast
 COPY external/fv3gfs-wrapper /external/fv3gfs-wrapper
 
 RUN /entrypoint.sh
-
-#why isn't fv3gfs-wrapper in fv3core_wrapper?
