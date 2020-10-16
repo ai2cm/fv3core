@@ -107,7 +107,7 @@ dev:
 		--network host \
 		-v $(TEST_DATA_HOST):$(TEST_DATA_CONTAINER) \
 		-v $(CWD):/port_dev \
-		$(FV3_IMAGE)
+		$(FV3_IMAGE) bash
 
 dev_wrapper:
 	$(MAKE) -C docker dev_wrapper
