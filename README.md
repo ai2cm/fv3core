@@ -215,8 +215,8 @@ Steps:
 
 1. Add any new branches to `branches.cfg`
 2. Rebuild the develop branch, either:
-  1. `make_develop gt4py-dev path/to/branches.cfg` (you may have to resolve conflicts...)
-  2. Adding new commits on top of the existing develop branch (e.g. merge or cherry-pick)
+  a. `make_develop gt4py-dev path/to/branches.cfg` (you may have to resolve conflicts...)
+  b. Adding new commits on top of the existing develop branch (e.g. merge or cherry-pick)
 3. Force push to the develop branch: `git push -f upstream develop`
 
 The last step will launch Jenkins tests. If these pass:
