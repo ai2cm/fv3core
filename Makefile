@@ -17,8 +17,8 @@ TEST_DATA_HOST ?=$(CWD)/test_data/$(EXPERIMENT)
 FV3UTIL_DIR=$(CWD)/external/fv3gfs-util
 
 FV3=fv3core
-FV3_IMAGE ?= $(shell make -C docker image_name)
-FV3_TAG ?= $(shell make -C docker tag_name)
+FV3_IMAGE ?= $(shell make -s -C docker image_name)
+FV3_TAG ?= $(shell make -s -C docker tag_name)
 
 TEST_DATA_CONTAINER=/test_data
 PYTHON_FILES = $(shell git ls-files | grep -e 'py$$' | grep -v -e '__init__.py')
