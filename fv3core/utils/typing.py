@@ -41,7 +41,3 @@ def _FieldDescriptorMaker(dtype):
 FloatField = _FieldDescriptor(float_type)
 IntField = _FieldDescriptor(int_type)
 BoolField = _FieldDescriptor(bool_type)
-
-# Other common types
-Int3 = Tuple[int, int, int]
-"""Common type: tuple of three ints."""
