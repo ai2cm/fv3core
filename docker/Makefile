@@ -1,46 +1,5 @@
 # setup (use XXX=<value> make <target> to override)
-
-# update this if you need everything to rebuild for backwards-incompatible changes
-VERSION = v0.1.0
-GCR_URL ?= us.gcr.io/vcm-ml
-CUDA ?= n
-FORTRAN_NAME = fv3core-build-fortran
-WRAPPER_NAME = fv3core-build-wrapper
-FV3CORE_NAME = fv3core
-FV3CORE_WRAPPER_NAME = fv3core-wrapper
-
-FORTRAN_DOCKERFILE = dependencies.Dockerfile
-FV3CORE_DOCKERFILE = Dockerfile
-
-# fv3core or fv3core-wrapper
-FV3CORE_TARGET ?= fv3core
-
-# base images w/ or w/o CUDA
-ifeq ($(CUDA),n)
-	BASE_IMAGE = ubuntu:19.10
-	TAG_NAME = $(VERSION)-gnu9-mpich314-nocuda
-	GT4PY_OPTIONALS = ""
-	ENV_CUDA_PATH = ""
-else
-	BASE_IMAGE = nvidia/cuda:10.2-devel-ubuntu18.04
-	TAG_NAME = $(VERSION)-gnu8-mpich314-cuda102
-	GT4PY_OPTIONALS = "[cuda102]"
-	ENV_CUDA_PATH = /usr/local/cuda/10.2
-endif
-BUILD_ARGS += --network host --build-arg BASE_IMAGE=$(BASE_IMAGE)
-
-# dependency image names, update sha to update version
-GT4PY_IMAGE ?= $(GCR_URL)/gt4py-src:$(TAG_NAME)
-MPI_IMAGE ?= $(GCR_URL)/mpi-build:$(TAG_NAME)
-FMS_IMAGE ?= $(GCR_URL)/fms-build:$(TAG_NAME)
-ESMF_IMAGE ?= $(GCR_URL)/esmf-build:$(TAG_NAME)
-SERIALBOX_IMAGE ?= $(GCR_URL)/serialbox-build:$(TAG_NAME)
-
-# built image names
-FORTRAN_IMAGE = $(GCR_URL)/$(FORTRAN_NAME):$(TAG_NAME)
-WRAPPER_IMAGE = $(GCR_URL)/$(WRAPPER_NAME):$(TAG_NAME)
-FV3CORE_IMAGE ?= $(GCR_URL)/$(FV3CORE_NAME):$(TAG_NAME)
-FV3CORE_WRAPPER_IMAGE ?= $(GCR_URL)/$(FV3CORE_WRAPPER_NAME):$(TAG_NAME)
+include Makefile.image_names
 
 BUILD_ARGS += \
 	--build-arg FMS_IMAGE=$(FMS_IMAGE) \
@@ -58,12 +17,6 @@ CORE_TAR=$(FV3_TAG).tar
 CORE_BUCKET_LOC=gs://vcm-jenkins/$(CORE_TAR)
 
 build: fv3core_image
-
-image_name:
-	@echo $(FV3CORE_IMAGE)
-
-tag_name:
-	@echo $(TAG_NAME)
 
 dev_wrapper:
 	FV3CORE_WRAPPER_IMAGE=$(FV3CORE_WRAPPER_IMAGE) docker-compose run fv3core_wrapper bash
