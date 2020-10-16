@@ -144,7 +144,13 @@ def gtstencil(definition=None, **stencil_kwargs) -> Callable[..., None]:
             )
             argnames = []
             name = func.__module__.split(".")[-1] + "." + func.__name__
-            _maybe_save_report(name, times_called, func.__dict__['_gtscript_']['api_signature'], args, kwargs)
+            _maybe_save_report(
+                name,
+                times_called,
+                func.__dict__["_gtscript_"]["api_signature"],
+                args,
+                kwargs,
+            )
             times_called += 1
             return stencils[key](*args, **kwargs)
 
@@ -204,6 +210,7 @@ def _get_args_report(arg_infos, args):
     for argi in range(len(args)):
         report[arg_infos[argi].name] = _get_arg_report(args[argi])
     return report
+
 
 def _get_kwargs_report(kwargs):
     return {name: _get_arg_report(value) for (name, value) in kwargs.items()}
