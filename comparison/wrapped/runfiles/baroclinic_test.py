@@ -117,16 +117,16 @@ if __name__ == "__main__":
     spec.set_namelist("input.nml")
     dt_atmos = spec.namelist.dt_atmos
 
-    # set backend
-    fv3core.set_backend("numpy")
-
     # get another namelist for the communicator??
     nml2 = yaml.safe_load(
-        open("/fv3core/comparison/wrapped/config/c12_6ranks_standard.yml", "r")
+        open("/fv3core/comparison/wrapped/config/baroclinic.yml", "r")
     )["namelist"]
 
     sizer = SubtileGridSizer.from_namelist(nml2)
-    allocator = QuantityFactory.from_backend(sizer, fv3core.get_backend())
+    allocator = QuantityFactory.from_backend(sizer, "numpy")
+
+    # set backend
+    fv3core.utils.gt4py_utils.backend = "numpy"
 
     # MPI stuff
     comm = mpi4py.MPI.COMM_WORLD
@@ -144,7 +144,6 @@ if __name__ == "__main__":
         "cloud_ice_mixing_ratio",
         "graupel_mixing_ratio",
         "ozone_mixing_ratio",
-        "cloud_fraction",
         "air_temperature",
         "pressure_thickness_of_atmospheric_layer",
         "vertical_thickness_of_atmospheric_layer",
@@ -176,6 +175,7 @@ if __name__ == "__main__":
     # this contains all the names needed to run the dycore.
     all_names = copy.deepcopy(initial_names)
     all_names.append("turbulent_kinetic_energy")
+    all_names.append("cloud_fraction")
 
     levels_of_2d_variables = {
         "surface_geopotential": -1,
@@ -221,6 +221,15 @@ if __name__ == "__main__":
         origin=origin,
         extent=extent,
     )
+    cloud_fraction = Quantity.from_data_array(
+        xr.DataArray(
+            arr,
+            attrs={"fortran_name": "qcld", "units": ""},
+            dims=["z", "y", "x"],
+        ),
+        origin=origin,
+        extent=extent,
+    )
     u_tendency = Quantity.from_data_array(
         xr.DataArray(
             arr.reshape(
@@ -244,9 +253,10 @@ if __name__ == "__main__":
         extent=(spec.namelist.npx - 1, spec.namelist.npy - 1, spec.namelist.npz),
     )
 
-    turbulent_kinetic_energy.metadata.gt4py_backend = fv3core.get_backend()
-    u_tendency.metadata.gt4py_backend = fv3core.get_backend()
-    v_tendency.metadata.gt4py_backend = fv3core.get_backend()
+    turbulent_kinetic_energy.metadata.gt4py_backend = "numpy"
+    cloud_fraction.metadata.gt4py_backend = "numpy"
+    u_tendency.metadata.gt4py_backend = "numpy"
+    v_tendency.metadata.gt4py_backend = "numpy"
 
     n_tracers = 6
 
@@ -256,6 +266,7 @@ if __name__ == "__main__":
         if i == 0:
             state = wrapper.get_state(allocator=allocator, names=initial_names)
             state["turbulent_kinetic_energy"] = turbulent_kinetic_energy
+            state["cloud_fraction"] = cloud_fraction
             io.write_state(state, "instate_{0}.nc".format(rank))
         else:
             state = wrapper.get_state(allocator=allocator, names=all_names)

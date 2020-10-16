@@ -18,14 +18,16 @@ TEST_DATA_HOST ?=$(CWD)/test_data/$(EXPERIMENT)
 FV3=fv3core
 FV3UTIL_DIR=$(CWD)/external/fv3gfs-util
 FV3_INSTALL_TAG ?= develop
+FV3_WRAPPED_TAG ?= wrapped
 FV3_INSTALL_TARGET=$(FV3)-install
 
 FV3=fv3core
 FV3_INSTALL_IMAGE=$(GCR_URL)/$(FV3_INSTALL_TARGET):$(FV3_INSTALL_TAG)
+WRAPPER_INSTALL_IMAGE=$(GCR_URL)/$(FV3_INSTALL_TARGET):$(FV3_WRAPPED_TAG)
 FV3_TAG ?= $(FV3CORE_VERSION)-$(FV3_INSTALL_TAG)
 WRAPPED_TAG ?= $(FV3CORE_VERSION)-wrapped
 FV3_IMAGE ?=$(GCR_URL)/$(FV3):$(FV3_TAG)
-WRAPPED_IMAGE ?=$(GCR_URL)/$(FV3):$(WRAPPED_TAG)
+WRAPPED_FV3_IMAGE ?=$(GCR_URL)/$(FV3):$(WRAPPED_TAG)
 
 TEST_DATA_CONTAINER=/test_data
 PYTHON_FILES = $(shell git ls-files | grep -e 'py$$' | grep -v -e '__init__.py')
@@ -61,7 +63,7 @@ build_wrapped_environment:
 	DOCKER_BUILDKIT=1 docker build \
 		--network host \
 		-f $(CWD)/docker/Dockerfile.build_environment \
-		-t $(FV3_INSTALL_IMAGE) \
+		-t $(WRAPPER_INSTALL_IMAGE) \
 		--target $(FV3_INSTALL_TARGET) \
 		--build-arg BASE_IMAGE=$(WRAPPER_IMAGE) \
 		.
@@ -84,9 +86,9 @@ build_wrapped: update_submodules
 	docker build \
 		--network host \
 		--no-cache \
-		--build-arg build_image=$(FV3_INSTALL_IMAGE) \
+		--build-arg build_image=$(WRAPPER_INSTALL_IMAGE) \
 		-f $(CWD)/docker/Dockerfile \
-		-t $(WRAPPED_IMAGE) \
+		-t $(WRAPPED_FV3_IMAGE) \
 		.
 
 
