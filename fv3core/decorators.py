@@ -140,17 +140,24 @@ def gtstencil(definition=None, **stencil_kwargs) -> Callable[..., None]:
                 "splitters",
                 spec.grid.splitters(origin=kwargs.get("origin")),
             )
-            argnames = []
             name = f"{func.__module__}.{func.__name__}"
             _maybe_save_report(
-                name,
+                f"{name}-before",
                 times_called,
                 func.__dict__["_gtscript_"]["api_signature"],
                 args,
                 kwargs,
             )
             times_called += 1
-            return stencils[key](*args, **kwargs)
+            result = stencils[key](*args, **kwargs)
+            _maybe_save_report(
+                f"{name}-after",
+                times_called,
+                func.__dict__["_gtscript_"]["api_signature"],
+                args,
+                kwargs,
+            )
+            return result
 
         return wrapped
 
