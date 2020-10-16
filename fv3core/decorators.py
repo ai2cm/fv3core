@@ -34,13 +34,17 @@ def get_stencil_logger():
     return _STENCIL_LOGGER
 
 
-def enable_stencil_report(*, path: str, save_args: bool, save_report: bool):
+def enable_stencil_report(
+    *, path: str, save_args: bool, save_report: bool, include_halos: bool = False
+):
     global stencil_report_path
     global save_stencil_args
     global save_stencil_report
+    global report_include_halos
     stencil_report_path = path
     save_stencil_args = save_args
     save_stencil_report = save_report
+    report_include_halos = include_halos
 
 
 def disable_stencil_report():
@@ -55,6 +59,7 @@ def disable_stencil_report():
 stencil_report_path = None
 save_stencil_args = False
 save_stencil_report = False
+report_include_halos = False
 
 
 def state_inputs(*arg_specs):
@@ -213,9 +218,10 @@ def _get_arg_report(arg):
     if isinstance(arg, gt.storage.storage.Storage):
         arg = np.asarray(arg)
     if isinstance(arg, np.ndarray):
-        islice = slice(spec.grid.is_, spec.grid.ie + 1)
-        jslice = slice(spec.grid.js, spec.grid.je + 1)
-        arg = arg[islice, jslice, :]
+        if not report_include_halos:
+            islice = slice(spec.grid.is_, spec.grid.ie + 1)
+            jslice = slice(spec.grid.js, spec.grid.je + 1)
+            arg = arg[islice, jslice, :]
         return {
             "md5": hashlib.md5(arg.tobytes()).hexdigest(),
             "min": float(arg.min()),
