@@ -105,22 +105,22 @@ if [ ! -z "${UPSTREAM_PROJECT}" ] ; then
 fi
 # If using sarus, load the image and set variables for running tests,
 # otherwise build the image
-# if [ ${container_engine} == "sarus" ]; then
-#     module load sarus
-#     export FV3_IMAGE="load/library/${FV3_TAG}"
-#     echo "Using FV3_IMAGE=${FV3_IMAGE}"
-#     make sarus_load_tar
-#     if grep -q "parallel" <<< "${script}"; then
-# 	export CONTAINER_ENGINE="srun sarus"
-# 	export RUN_FLAGS="--mpi"
-# 	export MPIRUN_CALL=""
-#     else
-# 	export CONTAINER_ENGINE="sarus"
-# 	export RUN_FLAGS=""
-#     fi
+if [ ${container_engine} == "sarus" ]; then
+    module load sarus
+    export FV3_IMAGE="load/library/${FV3_TAG}"
+    echo "Using FV3_IMAGE=${FV3_IMAGE}"
+    make sarus_load_tar
+    if grep -q "parallel" <<< "${script}"; then
+	export CONTAINER_ENGINE="srun sarus"
+	export RUN_FLAGS="--mpi"
+	export MPIRUN_CALL=""
+    else
+	export CONTAINER_ENGINE="sarus"
+	export RUN_FLAGS=""
+    fi
 # else
 #     make build
-# fi
+fi
 
 # get the test data version from the Makefile
 export FORTRAN_VERSION=`grep "FORTRAN_SERIALIZED_DATA_VERSION=" Makefile  | cut -d '=' -f 2`
