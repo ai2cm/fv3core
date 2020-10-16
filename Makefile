@@ -12,7 +12,7 @@ NUM_RANKS ?=6
 VOLUMES ?=
 MOUNTS ?=
 CONTAINER_ENGINE ?=docker
-RUN_FLAGS ?="--rm"
+RUN_FLAGS ?=--rm
 TEST_DATA_HOST ?=$(CWD)/test_data/$(EXPERIMENT)
 FV3UTIL_DIR=$(CWD)/external/fv3gfs-util
 
