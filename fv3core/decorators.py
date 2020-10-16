@@ -14,6 +14,8 @@ import fv3core
 import fv3core._config as spec
 import fv3core.utils.gt4py_utils as utils
 
+from .utils import global_config
+
 
 ArgSpec = collections.namedtuple(
     "ArgSpec", ["arg_name", "standard_name", "units", "intent"]
@@ -40,6 +42,10 @@ def state_inputs(*arg_specs):
                     raise ValueError(
                         f"{standard_name} has units {state[standard_name].units} when {units} is required"
                     )
+                elif intent not in VALID_INTENTS:
+                    raise ValueError(
+                        f"expected intent to be one of {VALID_INTENTS}, got {intent}"
+                    )
                 else:
                     namespace_kwargs[arg_name] = state[standard_name].storage
                     namespace_kwargs[arg_name + "_quantity"] = state[standard_name]
@@ -48,11 +54,6 @@ def state_inputs(*arg_specs):
         return wrapped
 
     return decorator
-
-
-def module_level_var_errmsg(var: str, func: str):
-    loc = f"fv3core.utils.gt4py_utils.{var}"
-    return f"The {var} flag should be set in {loc} instead of as an argument to {func}"
 
 
 class FV3StencilObject:
@@ -71,11 +72,19 @@ class FV3StencilObject:
         return self.stencil_object(*args, **kwargs)
 
 
+def _ensure_global_flags_not_specified_in_kwargs(stencil_kwargs):
+    flag_errmsg = (
+        "The {} flag should be set in "
+        + __name__
+        + " instead of as an argument to stencil"
+    )
+    for flag in ("rebuild", "backend"):
+        if flag in stencil_kwargs:
+            raise ValueError(flag_errmsg.format(flag))
+
+
 def gtstencil(definition=None, **stencil_kwargs) -> Callable[..., None]:
-    if "rebuild" in stencil_kwargs:
-        raise ValueError(module_level_var_errmsg("rebuild", "gtstencil"))
-    if "backend" in stencil_kwargs:
-        raise ValueError(module_level_var_errmsg("backend", "gtstencil"))
+    _ensure_global_flags_not_specified_in_kwargs(stencil_kwargs)
 
     def decorator(func) -> Callable[..., None]:
         stencils = {}
@@ -83,11 +92,11 @@ def gtstencil(definition=None, **stencil_kwargs) -> Callable[..., None]:
         @functools.wraps(func)
         def wrapped(*args, **kwargs) -> None:
             # This uses the module-level globals backend and rebuild (defined above)
-            key = (utils.backend, utils.rebuild)
+            key = (global_config.get_backend(), global_config.get_rebuild())
             if key not in stencils:
                 # Add globals to stencil_kwargs
-                stencil_kwargs["rebuild"] = utils.rebuild
-                stencil_kwargs["backend"] = utils.backend
+                stencil_kwargs["rebuild"] = global_config.get_rebuild()
+                stencil_kwargs["backend"] = global_config.get_backend()
                 # Generate stencil
                 build_info = {}
                 stencil = gtscript.stencil(build_info=build_info, **stencil_kwargs)(
