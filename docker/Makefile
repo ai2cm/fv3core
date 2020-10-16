@@ -57,10 +57,10 @@ CORE_BUCKET_LOC=gs://vcm-jenkins/$(CORE_TAR)
 build: fv3core_image
 
 image_name:
-	$(FV3CORE_IMAGE)
+	@echo $(FV3CORE_IMAGE)
 
 tag_name:
-	$(TAG_NAME)
+	@echo $(TAG_NAME)
 
 dev_wrapper:
 	FV3CORE_WRAPPER_IMAGE=$(FV3CORE_WRAPPER_IMAGE) docker-compose run fv3core_wrapper bash
