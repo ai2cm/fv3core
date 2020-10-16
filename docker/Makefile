@@ -1,16 +1,18 @@
 # setup (use XXX=<value> make <target> to override)
 include Makefile.image_names
 
+GT4PY_REFERENCE = git+https://github.com/VulcanClimateModeling/gt4py.git@vf462965
+
 BUILD_ARGS += \
 	--build-arg FMS_IMAGE=$(FMS_IMAGE) \
 	--build-arg ESMF_IMAGE=$(ESMF_IMAGE) \
 	--build-arg MPI_IMAGE=$(MPI_IMAGE) \
-	--build-arg GT4PY_IMAGE=$(GT4PY_IMAGE) \
 	--build-arg SERIALBOX_IMAGE=$(SERIALBOX_IMAGE) \
 	--build-arg FORTRAN_IMAGE=$(FORTRAN_IMAGE) \
 	--build-arg WRAPPER_IMAGE=$(WRAPPER_IMAGE) \
 	--build-arg ENV_GT4PY_OPTIONALS=$(ENV_GT4PY_OPTIONALS) \
-	--build-arg ENV_CUDA_PATH=$(ENV_CUDA_PATH)
+	--build-arg ENV_CUDA_PATH=$(ENV_CUDA_PATH) \
+	--build-arg GT4PY_REFERENCE=$(GT4PY_REFERENCE)
 
 # sarus paths
 CORE_TAR=$(FV3_TAG).tar
@@ -53,14 +55,12 @@ push_deps: ## push container images of dependencies to GCP
 	docker push $(FMS_IMAGE)
 	docker push $(ESMF_IMAGE)
 	docker push $(SERIALBOX_IMAGE)
-	docker push $(GT4PY_IMAGE)
 
 pull_deps: ## pull container images of dependencies from GCP (for faster builds)
 	docker pull $(MPI_IMAGE)
 	docker pull $(FMS_IMAGE)
 	docker pull $(ESMF_IMAGE)
 	docker pull $(SERIALBOX_IMAGE)
-	docker pull $(GT4PY_IMAGE)
 
 push:
 	docker push $(FV3CORE_IMAGE)

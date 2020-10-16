@@ -4,14 +4,13 @@ ARG MPI_IMAGE
 ARG FMS_IMAGE
 ARG ESMF_IMAGE
 ARG SERIALBOX_IMAGE
-ARG GT4PY_IMAGE
+ARG GT4PY_REFERENCE
 
 FROM $MPI_IMAGE as mpi_image
 FROM $FORTRAN_IMAGE as fortran_image
 FROM $ESMF_IMAGE as esmf_image
 FROM $FMS_IMAGE as fms_image
 FROM $SERIALBOX_IMAGE as serialbox_image
-FROM $GT4PY_IMAGE AS gt4py_image
 
 FROM $BASE_IMAGE as fv3core
 
@@ -51,17 +50,16 @@ RUN pip3 install -r /constraints.txt
 
 COPY --from=serialbox_image /usr/local/serialbox /usr/local/serialbox
 COPY --from=serialbox_image /usr/include/boost /usr/include/boost
-COPY --from=gt4py_image /gt4py /gt4py
 
 ###
 ### Build and install GT4Py
 ###
 ENV BOOST_HOME=/usr/include/boost
 ARG CPPFLAGS="-I${BOOST_HOME} -I${BOOST_HOME}/boost"
-ARG ENV_GT4PY_OPTIONALS=""
+ARG GT4PY_REFERENCE
+ARG ENV_GT4PY_OPTIONALS
 ENV GT4PY_OPTIONALS=${ENV_GT4PY_OPTIONALS}
-RUN pip install --no-cache-dir -c /constraints.txt "/gt4py${ENV_GT4PY_OPTIONALS}" && \
-    rm -rf /gt4py && \
+RUN pip install --no-cache-dir -c /constraints.txt "${GT4PY_REFERENCE}${ENV_GT4PY_OPTIONALS}" && \
     python -m gt4py.gt_src_manager install
 
 ###

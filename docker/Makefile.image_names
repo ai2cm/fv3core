@@ -29,7 +29,6 @@ endif
 BUILD_ARGS += --network host --build-arg BASE_IMAGE=$(BASE_IMAGE)
 
 # dependency image names, update sha to update version
-GT4PY_IMAGE ?= $(GCR_URL)/gt4py-src:$(TAG_NAME)
 MPI_IMAGE ?= $(GCR_URL)/mpi-build:$(TAG_NAME)
 FMS_IMAGE ?= $(GCR_URL)/fms-build:$(TAG_NAME)
 ESMF_IMAGE ?= $(GCR_URL)/esmf-build:$(TAG_NAME)

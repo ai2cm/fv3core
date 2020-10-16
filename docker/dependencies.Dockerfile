@@ -129,15 +129,6 @@ RUN git clone -b v2.6.0 --depth 1 https://github.com/GridTools/serialbox.git /us
     -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local/serialbox && \
     cmake --build build/ -j $(nproc) --target install
 
-###
-### Get GT4Py sources
-###
-FROM $BASE_IMAGE AS gt4py-src
-
-RUN apt-get update \
-    && apt-get install -y git && \
-    git clone -b develop https://github.com/VulcanClimateModeling/gt4py.git
-
 ## Build FV3 executable in its own image
 ##---------------------------------------------------------------------------------
 FROM fv3gfs-environment AS fv3gfs-build
