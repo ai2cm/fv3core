@@ -20,10 +20,12 @@ ifeq ($(CUDA),n)
 	BASE_IMAGE = ubuntu:19.10
 	TAG_NAME = $(VERSION)-gnu9-mpich314-nocuda
 	GT4PY_OPTIONALS = ""
+	ENV_CUDA_PATH = ""
 else
 	BASE_IMAGE = nvidia/cuda:10.2-devel-ubuntu18.04
 	TAG_NAME = $(VERSION)-gnu8-mpich314-cuda102
 	GT4PY_OPTIONALS = "[cuda102]"
+	ENV_CUDA_PATH = /usr/local/cuda/10.2
 endif
 BUILD_ARGS += --network host --build-arg BASE_IMAGE=$(BASE_IMAGE)
 
@@ -48,7 +50,8 @@ BUILD_ARGS += \
 	--build-arg SERIALBOX_IMAGE=$(SERIALBOX_IMAGE) \
 	--build-arg FORTRAN_IMAGE=$(FORTRAN_IMAGE) \
 	--build-arg WRAPPER_IMAGE=$(WRAPPER_IMAGE) \
-	--build-arg GT4PY_OPTIONALS=$(GT4PY_OPTIONALS)
+	--build-arg GT4PY_OPTIONALS=$(GT4PY_OPTIONALS) \
+	--build-arg ENV_CUDA_PATH=$(ENV_CUDA_PATH)
 
 # sarus paths
 CORE_TAR=$(FV3_TAG).tar

@@ -110,10 +110,6 @@ RUN apt-get update && apt-get install -y \
     python3-nose \
     python3-sphinx
 
-# RUN wget -q https://github.com/Kitware/CMake/releases/download/v3.18.3/cmake-3.18.3-Linux-x86_64.sh && \
-#     chmod +x ./cmake-3.18.3-Linux-x86_64.sh && \
-#     cmake-3.18.3-Linux-x86_64.sh
-
 RUN wget https://github.com/Kitware/CMake/releases/download/v3.17.3/cmake-3.17.3.tar.gz && \
     tar xzf cmake-3.17.3.tar.gz && \
     cd cmake-3.17.3 && \

@@ -76,6 +76,9 @@ ENV MPI=mpich
 RUN chmod +x /entrypoint.sh && \
     /entrypoint.sh
 
+ARG ENV_CUDA_PATH=""
+ENV CUDA_PATH=${ENV_CUDA_PATH}
+
 ENTRYPOINT [ "/entrypoint.sh" ]
 
 FROM fv3core AS fv3core_wrapper
