@@ -55,6 +55,7 @@ def sample_wherefail(
     failure_stride,
     test_name,
     ignore_near_zero_errors,
+    xy_indices=False,
 ):
     found_indices = np.where(
         np.logical_not(
@@ -63,6 +64,7 @@ def sample_wherefail(
     )
     computed_failures = computed_data[found_indices]
     reference_failures = ref_data[found_indices]
+
     return_strings = []
     bad_indices_count = len(found_indices[0])
     if print_failures:
@@ -75,6 +77,7 @@ def sample_wherefail(
             )
     sample = [f[0] for f in found_indices]
     fullcount = len(ref_data.flatten())
+
     return_strings.append(
         f"Failed count: {bad_indices_count}/{fullcount} "
         f"({round(100.0 * (bad_indices_count / fullcount), 2)}%),\n"
@@ -82,6 +85,21 @@ def sample_wherefail(
         f"reference: {reference_failures[0]}, "
         f"diff: {abs(computed_failures[0] - reference_failures[0])}\n"
     )
+
+    if xy_indices:
+        found_xy_indices = np.where(
+            np.any(
+                np.logical_not(
+                    success_array(computed_data, ref_data, eps, ignore_near_zero_errors)
+                ),
+                axis=2,
+            )
+        )
+
+        return_strings.append(
+            "failed horizontal indices:" + str(list(zip(*found_xy_indices)))
+        )
+
     return "\n".join(return_strings)
 
 
@@ -103,6 +121,7 @@ def test_sequential_savepoint(
     failure_stride,
     subtests,
     caplog,
+    xy_indices=False,
 ):
     caplog.set_level(logging.DEBUG, logger="fv3core")
     if testobj is None:
@@ -131,6 +150,7 @@ def test_sequential_savepoint(
                 failure_stride,
                 test_name,
                 near0,
+                xy_indices,
             )
             passing_names.append(failing_names.pop())
     assert failing_names == [], f"only the following variables passed: {passing_names}"
@@ -178,6 +198,7 @@ def test_mock_parallel_savepoint(
     failure_stride,
     subtests,
     caplog,
+    xy_indices=False,
 ):
     caplog.set_level(logging.DEBUG, logger="fv3core")
     caplog.set_level(logging.DEBUG, logger="fv3util")
@@ -216,6 +237,7 @@ def test_mock_parallel_savepoint(
                         failure_stride,
                         test_name,
                         near0,
+                        xy_indices,
                     )
             assert failing_ranks == []
     failing_names = [item["varname"] for item in failing_names]
@@ -248,6 +270,7 @@ def test_parallel_savepoint(
     failure_stride,
     subtests,
     caplog,
+    xy_indices=False,
 ):
     caplog.set_level(logging.DEBUG, logger="fv3core")
     if testobj is None:
@@ -280,6 +303,7 @@ def test_parallel_savepoint(
                 failure_stride,
                 test_name,
                 near0,
+                xy_indices,
             )
             passing_names.append(failing_names.pop())
     if len(failing_names) > 0:
