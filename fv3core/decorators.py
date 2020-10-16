@@ -24,14 +24,6 @@ ArgSpec = collections.namedtuple(
     "ArgSpec", ["arg_name", "standard_name", "units", "intent"]
 )
 VALID_INTENTS = ["in", "out", "inout", "unknown"]
-_STENCIL_LOGGER = None
-
-
-def get_stencil_logger():
-    global _STENCIL_LOGGER
-    if _STENCIL_LOGGER is None:
-        pass
-    return _STENCIL_LOGGER
 
 
 def enable_stencil_report(
