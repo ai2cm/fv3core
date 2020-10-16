@@ -77,7 +77,7 @@ sarus_load_tar:
 	export FOUND_IMAGE=`sarus images | grep $(TAG_NAME)`
 	if [ -z $(FOUND_IMAGE) ] && [ ! -f `pwd`/$(CORE_TAR) ]; then \
 		gsutil copy $(CORE_BUCKET_LOC) . && \
-		sarus load ./$(CORE_TAR) $(TAG_NAME); \
+		sarus load ./$(CORE_TAR) $(SARUS_FV3CORE_IMAGE); \
         fi
 
 cleanup_remote:
