@@ -317,6 +317,8 @@ def compute(state, comm):
     last_step = False
     k_split = spec.namelist.k_split
     state.mdt = state.bdt / k_split
+    comm.halo_update(state.phis_quantity, n_points=utils.halo)
+    state.phis.data[:, :, -1] = state.phis.data[:, :, -2]
     compute_preamble(state, comm)
     for n_map in range(k_split):
         state.n_map = n_map + 1
