@@ -9,7 +9,7 @@ BUILD_ARGS += \
 	--build-arg SERIALBOX_IMAGE=$(SERIALBOX_IMAGE) \
 	--build-arg FORTRAN_IMAGE=$(FORTRAN_IMAGE) \
 	--build-arg WRAPPER_IMAGE=$(WRAPPER_IMAGE) \
-	--build-arg GT4PY_OPTIONALS=$(GT4PY_OPTIONALS) \
+	--build-arg ENV_GT4PY_OPTIONALS=$(ENV_GT4PY_OPTIONALS) \
 	--build-arg ENV_CUDA_PATH=$(ENV_CUDA_PATH)
 
 # sarus paths

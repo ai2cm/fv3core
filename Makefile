@@ -65,7 +65,7 @@ build: update_submodules
 build_wrapped: update_submodules build_wrapped_environment
 	$(MAKE) -C docker fv3core_wrapper_image
 
-pull_environment_if_needed: pull_environment
+pull_environment_if_needed: pull_environment  # now too complicated to check for 5 images, let docker check if needed instead
 
 pull_environment:
 	$(MAKE) -C docker pull_deps
@@ -103,6 +103,9 @@ tests_mpi: build
 	$(MAKE) run_tests_parallel
 
 test_mpi: tests_mpi
+
+test_gt4py_develop:
+	RUN_FLAGS="$(RUN_FLAGS) --env USE_GT4PY_DEVELOP=y" $(MAKE) test test_mpi
 
 dev:
 	docker run --rm -it \

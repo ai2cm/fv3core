@@ -23,5 +23,9 @@ do
     fi
 done
 pip install -e /fv3core -c /constraints.txt
+if [[ ! -z "$USE_GT4PY_DEVELOP" ]]
+then
+    pip install git+https://github.com/VulcanClimateModeling/gt4py.git@develop$GT4PY_OPTIONALS
+fi
 
 exec "$@"
