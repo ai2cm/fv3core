@@ -57,8 +57,6 @@ for filename in datafiles:
     fname_model = args.model_dir + filename
     model_data = Dataset(fname_model, "r")
     nc_attrs = model_data.ncattrs()
-    nc_dims = list(model_data.dimensions)
-    nc_vars = list(model_data.variables)
 
     surface_pressure = (
         model_data.variables["surface_pressure"][:].data / 100.0
@@ -87,7 +85,7 @@ for filename in datafiles:
         surface_temperature_plots.append(temperature_diff)
 
         # savin' variables
-        for var in nc_vars:
+        for var in list(model_data.variables):
             if "time" not in var:
                 if var in reference_data.variables.keys():
                     if var not in relative_errors.keys():

@@ -16,5 +16,5 @@ def get_rebuild() -> bool:
     return _REBUILD
 
 
-_BACKEND = None  # Options: numpy, gtmc, gtx86, gtcuda, debug, dawn:gtmc
+_BACKEND = None  # Options: numpy, gtx86, gtcuda, debug
 _REBUILD = True

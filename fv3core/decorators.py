@@ -111,15 +111,19 @@ class FV3StencilObject:
         return self.stencil_object(*args, **kwargs)
 
 
+def _ensure_global_flags_not_specified_in_kwargs(stencil_kwargs):
+    flag_errmsg = (
+        "The {} flag should be set in "
+        + __name__
+        + " instead of as an argument to stencil"
+    )
+    for flag in ("rebuild", "backend"):
+        if flag in stencil_kwargs:
+            raise ValueError(flag_errmsg.format(flag))
+
+
 def gtstencil(definition=None, **stencil_kwargs) -> Callable[..., None]:
-    if "rebuild" in stencil_kwargs:
-        raise ValueError(
-            f"The rebuild flag should be set in {__name__} instead of as an argument to stencil"
-        )
-    if "backend" in stencil_kwargs:
-        raise ValueError(
-            f"The backend flag should be set in {__name__} instead of as an argument to stencil"
-        )
+    _ensure_global_flags_not_specified_in_kwargs(stencil_kwargs)
 
     def decorator(func) -> Callable[..., None]:
         stencils = {}
