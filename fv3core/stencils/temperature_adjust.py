@@ -9,6 +9,7 @@ import fv3core._config as spec
 import fv3core.utils.global_constants as constants
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import gtstencil
+from fv3core.stencils.basic_operations import sign
 
 
 sd = utils.sd
@@ -22,8 +23,7 @@ def compute_pkz_tempadjust(
         pkz = exp(cappa / (1.0 - cappa) * log(constants.RDG * delp / delz * pt))
         pkz = (constants.RDG * delp / delz * pt) ** (cappa / (1.0 - cappa))
         dtmp = heat_source / (constants.CV_AIR * delp)
-        factor = 1.0 if dtmp >= 0 else -1.0
-        deltmin = min(delt, abs(dtmp)) * factor
+        deltmin = sign(min(delt, abs(dtmp)), dtmp)
         pt = pt + deltmin / pkz
 
 
