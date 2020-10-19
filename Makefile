@@ -24,7 +24,13 @@ ifeq ($(USE_GT4PY_DEVELOP),y)
 endif
 
 FV3=fv3core
-FV3_IMAGE ?= $(FV3CORE_IMAGE)
+ifeq ($(CONTAINER_ENGINE),sarus)
+	FV3_IMAGE = load/library/$(SARUS_FV3CORE_IMAGE)
+else ifeq ($(CONTAINER_ENGINE),srun)
+	FV3_IMAGE = load/library/$(SARUS_FV3CORE_IMAGE)
+else
+	FV3_IMAGE ?= $(FV3CORE_IMAGE)
+endif
 FV3_TAG ?= $(TAG_NAME)
 
 TEST_DATA_CONTAINER=/test_data
