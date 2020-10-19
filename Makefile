@@ -20,7 +20,7 @@ FV3UTIL_DIR=$(CWD)/external/fv3gfs-util
 
 FV3=fv3core
 ifeq ($(CONTAINER_ENGINE),sarus)
-	FV3_IMAGE = /load/library/$(SARUS_FV3CORE_IMAGE)
+	FV3_IMAGE = load/library/$(SARUS_FV3CORE_IMAGE)
 else
 	FV3_IMAGE ?= $(FV3CORE_IMAGE)
 endif
