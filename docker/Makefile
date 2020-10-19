@@ -1,7 +1,8 @@
 # setup (use XXX=<value> make <target> to override)
 include Makefile.image_names
 
-GT4PY_REFERENCE = git+https://github.com/VulcanClimateModeling/gt4py.git@vf462965
+GT4PY_TAG ?= vf462965
+GT4PY_REFERENCE = git+https://github.com/VulcanClimateModeling/gt4py.git@$(GT4PY_TAG)
 
 BUILD_ARGS += \
 	--build-arg FMS_IMAGE=$(FMS_IMAGE) \
