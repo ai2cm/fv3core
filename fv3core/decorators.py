@@ -17,7 +17,7 @@ import fv3core
 import fv3core._config as spec
 import fv3core.utils.gt4py_utils as utils
 
-from .utils import global_config, mpi
+from .utils import global_config
 
 
 ArgSpec = collections.namedtuple(
