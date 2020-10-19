@@ -66,7 +66,7 @@ def quantity_name(name):
     return name + "_quantity"
 
 
-def make_storage_from_data(
+def make_storage_data(
     data: Field,
     shape: Tuple[int, int, int] = None,
     origin: Tuple[int, int, int] = origin,
@@ -115,7 +115,7 @@ def make_storage_from_data(
             else:
                 # TODO maybe, this is a little silly (repeat the array, then squash the dim), though eventually
                 # we shouldn't need this general capability if we refactor stencils to operate on 3d
-                storage = make_storage_from_data(
+                storage = make_storage_data(
                     data, shape, start=(0, 0, kstart), origin=origin, axis=axis
                 )
                 dimslice = [slice(None)] * len(tilespec)
@@ -230,7 +230,7 @@ def make_storage_dict(
         shape = data.shape
     data_dict: Dict[str, Field] = dict()
     for i in range(data.shape[3]):
-        data_dict[names[i]] = make_storage_from_data(
+        data_dict[names[i]] = make_storage_data(
             squeeze(data[:, :, :, i]),
             shape,
             origin=origin,
@@ -248,7 +248,7 @@ def storage_dict(st_dict, names, shape, origin):
 
 def k_slice_operation(key, value, ki, dictionary):
     if isinstance(value, gt.storage.storage.Storage):
-        dictionary[key] = make_storage_from_data(
+        dictionary[key] = make_storage_data(
             value[:, :, ki], (value.shape[0], value.shape[1], len(ki))
         )
     else:

@@ -332,7 +332,7 @@ def compute(qvapor, qliquid, qrain, qsnow, qice, qgraupel, qcld, pt, delp, delz,
     bot_dp = delp[:, :, grid.npz - 1]
     full_bot_arr = utils.repeat(bot_dp[:, :, np.newaxis], k_ext + 1, axis=2)
     # dp_bot = utils.make_storage_from_shape(full_bot_arr.shape, data=full_bot_arr)
-    dp_bot = utils.make_storage_from_data(full_bot_arr)
+    dp_bot = utils.make_storage_data(full_bot_arr)
     fix_water_vapor_down(
         qvapor,
         delp,

@@ -210,8 +210,8 @@ def lagrangian_contributions_stencil(
         eulerian_bottom_pressure = pe2[:, :, k_eul + 1]
         top_p = utils.repeat(eulerian_top_pressure[:, :, np.newaxis], km + 1, axis=2)
         bot_p = utils.repeat(eulerian_bottom_pressure[:, :, np.newaxis], km + 1, axis=2)
-        ptop = utils.make_storage_from_data(top_p, q4_1.shape)
-        pbot = utils.make_storage_from_data(bot_p, q4_1.shape)
+        ptop = utils.make_storage_data(top_p, q4_1.shape)
+        pbot = utils.make_storage_data(bot_p, q4_1.shape)
 
         lagrangian_contributions(
             pe1,
