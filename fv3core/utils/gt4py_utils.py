@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 import copy
 import functools
 import logging
@@ -11,8 +9,8 @@ import gt4py.ir as gt_ir
 import numpy as np
 from gt4py import gtscript
 
-# Problem: creates circular dependency
 from fv3core.utils.mpi import MPI
+from fv3core.utils.typing import DTypes, float_type, int_type
 
 from . import global_config
 
@@ -24,11 +22,15 @@ except ImportError:
 
 logger = logging.getLogger("fv3ser")
 managed_memory = True
-_dtype = np.float_
-sd = gtscript.Field[_dtype]
-si = gtscript.Field[np.int_]
+
+# [DEPRECATED] field types
+sd = gtscript.Field[float_type]
+si = gtscript.Field[int_type]
+
+# Number of halo lines for each field and default origin
 halo = 3
 origin = (halo, halo, 0)
+
 # TODO get from field_table
 tracer_variables = [
     "qvapor",
@@ -42,8 +44,8 @@ tracer_variables = [
     "qcld",
 ]
 
-# Union of valid data types (from gt4py.gtscript)
-DTypes = Union[bool, np.bool, int, np.int32, np.int64, float, np.float32, np.float64]
+# Logger instance
+logger = logging.getLogger("fv3ser")
 
 
 # 1 indexing to 0 and halos: -2, -1, 0 --> 0, 1,2
@@ -389,7 +391,7 @@ def asarray(array, to_type=np.ndarray, dtype=None, order=None):
             return cp.asarray(array, dtype, order)
 
 
-def zeros(shape, storage_type=np.ndarray, dtype=_dtype, order="F"):
+def zeros(shape, storage_type=np.ndarray, dtype=float_type, order="F"):
     xp = cp if cp and storage_type is cp.ndarray else np
     return xp.zeros(shape)
 
