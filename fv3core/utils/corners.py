@@ -9,69 +9,81 @@ sd = utils.sd
 
 
 @gtscript.function
-def fill_4corners_x(q: sd):
+def fill_4corners_x(
+    q_int: sd,
+    q_corner: sd,
+    sw_mult: float,
+    se_mult: float,
+    nw_mult: float,
+    ne_mult: float,
+):
     from __splitters__ import i_end, i_start, j_end, j_start
 
-    # copy field
-    q_out = q
+    q_out = q_int
 
     # Southwest
     with parallel(region[i_start - 2, j_start - 1]):
-        q_out = q[1, 2, 0]
+        q_out = sw_mult * q_corner[1, 2, 0]
     with parallel(region[i_start - 1, j_start - 1]):
-        q_out = q[0, 1, 0]
+        q_out = sw_mult * q_corner[0, 1, 0]
 
     # Southeast
     with parallel(region[i_end + 2, j_start - 1]):
-        q_out = q[-1, 2, 0]
+        q_out = se_mult * q_corner[-1, 2, 0]
     with parallel(region[i_end + 1, j_start - 1]):
-        q_out = q[0, 1, 0]
+        q_out = se_mult * q_corner[0, 1, 0]
 
     # Northwest
     with parallel(region[i_start - 1, j_end + 1]):
-        q_out = q[0, -1, 0]
+        q_out = nw_mult * q_corner[0, -1, 0]
     with parallel(region[i_start - 2, j_end + 1]):
-        q_out = q[1, -2, 0]
+        q_out = nw_mult * q_corner[1, -2, 0]
 
     # Northeast
     with parallel(region[i_end + 1, j_end + 1]):
-        q_out = q[0, -1, 0]
+        q_out = ne_mult * q_corner[0, -1, 0]
     with parallel(region[i_end + 2, j_end + 1]):
-        q_out = q[-1, -2, 0]
+        q_out = ne_mult * q_corner[-1, -2, 0]
 
     return q_out
 
 
 @gtscript.function
-def fill_4corners_y(q: sd):
+def fill_4corners_y(
+    q_int: sd,
+    q_corner: sd,
+    sw_mult: float,
+    se_mult: float,
+    nw_mult: float,
+    ne_mult: float,
+):
     from __splitters__ import i_end, i_start, j_end, j_start
 
-    # copy field
-    q_out = q
+    q_out = q_int
 
     # Southwest
     with parallel(region[i_start - 1, j_start - 1]):
-        q_out = q[1, 0, 0]
+        q_out = sw_mult * q_corner[1, 0, 0]
     with parallel(region[i_start - 1, j_start - 2]):
-        q_out = q[2, 1, 0]
+        q_out = sw_mult * q_corner[2, 1, 0]
 
     # Southeast
     with parallel(region[i_end + 1, j_start - 1]):
-        q_out = q[-1, 0, 0]
+        q_out = se_mult * q_corner[-1, 0, 0]
     with parallel(region[i_end + 1, j_start - 2]):
-        q_out = q[-2, 1, 0]
+        q_out = se_mult * q_corner[-2, 1, 0]
 
     # Northwest
     with parallel(region[i_start - 1, j_end + 1]):
-        q_out = q[1, 0, 0]
+        q_out = nw_mult * q_corner[1, 0, 0]
     with parallel(region[i_start - 1, j_end + 2]):
-        q_out = q[2, -1, 0]
+        q_out = nw_mult * q_corner[2, -1, 0]
 
     # Northeast
     with parallel(region[i_end + 1, j_end + 1]):
-        q_out = q[-1, 0, 0]
+        q_out = ne_mult * q_corner[-1, 0, 0]
     with parallel(region[i_end + 1, j_end + 2]):
-        q_out = q[-2, -1, 0]
+        q_out = ne_mult * q_corner[-2, -1, 0]
 
     return q_out
 
@@ -81,7 +93,7 @@ def fill_4corners(q, direction, grid):
         from __externals__ import func
 
         with computation(PARALLEL), interval(...):
-            q = func(q)
+            q = func(q, q, 1, 1, 1, 1)
 
     extent = 3
     origin = (grid.is_ - extent, grid.js - extent, 0)

@@ -13,6 +13,7 @@ from fv3core.stencils.a2b_ord4 import (
     lagrange_x_func,
     lagrange_y_func,
 )
+from fv3core.utils.corners import fill_4corners_x
 
 
 sd = utils.sd
@@ -209,62 +210,45 @@ def d2a2c_vect(
             utmp = 0.5 * (u + u[0, 1, 0])
             vtmp = 0.5 * (v + v[1, 0, 0])
 
-        # ua = (utmp - vtmp * cosa_s) * rsin2
-        # # contravariant(utmp, vtmp, cosa_s, rsin2)
-        # va = (vtmp - utmp * cosa_s) * rsin2
-        # # contravariant(vtmp, utmp, cosa_s, rsin2)
 
-        # # SW corner
-        # with parallel(region[i_start - 3, j_start - 1]):
-        #     utmp = -vtmp[2, -1, 0]
-        # with parallel(region[i_start - 2, j_start - 1]):
-        #     utmp = -vtmp[1, 0, 0]
-        # with parallel(region[i_start - 1, j_start - 1]):
-        #     utmp = -vtmp[0, 1, 0]
+@gtstencil()
+def corner_calcs(ua: sd, va: sd, utmp: sd, vtmp: sd):
+    from __splitters__ import i_end, i_start, j_end, j_start
 
-        # with parallel(region[i_start - 2, j_start - 1]):
-        #     ua = -va[1, 2, 0]
-        # with parallel(region[i_start - 1, j_start - 1]):
-        #     ua = -va[0, 1, 0]
+    with computation(PARALLEL), interval(...):
+        # SW corner
+        with parallel(region[i_start - 3, j_start - 1]):
+            utmp = -vtmp[2, 3, 0]
+        with parallel(region[i_start - 2, j_start - 1]):
+            utmp = -vtmp[1, 2, 0]
+        with parallel(region[i_start - 1, j_start - 1]):
+            utmp = -vtmp[0, 1, 0]
 
-        # # SE corner
-        # with parallel(region[i_end + 1, j_start - 1]):
-        #     utmp = vtmp[0, 1, 0]
-        # with parallel(region[i_end + 2, j_start - 1]):
-        #     utmp = vtmp[-1, 2, 0]
-        # with parallel(region[i_end + 3, j_start - 1]):
-        #     utmp = vtmp[-2, 3, 0]
+        # SE corner
+        with parallel(region[i_end + 1, j_start - 1]):
+            utmp = vtmp[0, 1, 0]
+        with parallel(region[i_end + 2, j_start - 1]):
+            utmp = vtmp[-1, 2, 0]
+        with parallel(region[i_end + 3, j_start - 1]):
+            utmp = vtmp[-2, 3, 0]
 
-        # with parallel(region[i_end + 1, j_start - 1]):
-        #     ua = va[0, 1, 0]
-        # with parallel(region[i_end + 2, j_start - 1]):
-        #     ua = va[-1, 2, 0]
+        # NE corner
+        with parallel(region[i_end + 1, j_end + 1]):
+            utmp = -vtmp[0, -1, 0]
+        with parallel(region[i_end + 2, j_end + 1]):
+            utmp = -vtmp[-1, -2, 0]
+        with parallel(region[i_end + 3, j_end + 1]):
+            utmp = -vtmp[-2, -3, 0]
 
-        # # NE corner
-        # with parallel(region[i_end + 1, j_end + 1]):
-        #     utmp = -vtmp[0, -1, 0]
-        # with parallel(region[i_end + 2, j_end + 1]):
-        #     utmp = -vtmp[-1, -2, 0]
-        # with parallel(region[i_end + 3, j_end + 1]):
-        #     utmp = -vtmp[-2, -3, 0]
+        # NW corner
+        with parallel(region[i_start - 3, j_end + 1]):
+            utmp = vtmp[2, -3, 0]
+        with parallel(region[i_start - 2, j_end + 1]):
+            utmp = vtmp[1, -2, 0]
+        with parallel(region[i_start - 1, j_end + 1]):
+            utmp = vtmp[0, -1, 0]
 
-        # with parallel(region[i_end + 1, j_end + 1]):
-        #     ua = -va[0, -1, 0]
-        # with parallel(region[i_end + 2, j_end + 1]):
-        #     ua = -va[-1, -2, 0]
-
-        # # NW corner
-        # with parallel(region[i_start - 3, j_end + 1]):
-        #     utmp = -vtmp[2, -3, 0]
-        # with parallel(region[i_start - 2, j_end + 1]):
-        #     utmp = -vtmp[1, -2, 0]
-        # with parallel(region[i_start - 1, j_end + 1]):
-        #     utmp = -vtmp[0, -1, 0]
-
-        # with parallel(region[i_start - 2, j_end + 1]):
-        #     ua = va[1, -2, 0]
-        # with parallel(region[i_start - 1, j_end + 1]):
-        #     ua = va[0, -1, 0]
+        ua = fill_4corners_x(ua, va, sw_mult=-1, se_mult=1, ne_mult=-1, nw_mult=1)
 
 
 @gtstencil()
@@ -390,30 +374,39 @@ def compute(dord4, uc, vc, u, v, ua, va, utc, vtc):
     # Xdir:
     # TODO, make stencils? need variable offsets
 
-    if grid.sw_corner:
-        for i in range(-2, 1):
-            utmp[i + 2, grid.js - 1, :] = -vtmp[grid.is_ - 1, grid.js - i, :]
-        if spec.namelist.grid_type < 3:
-            ua[i1 - 1, j1, :] = -va[i1, j1 + 2, :]
-            ua[i1, j1, :] = -va[i1, j1 + 1, :]
-    if grid.se_corner:
-        for i in range(0, 3):
-            utmp[nx + i, grid.js - 1, :] = vtmp[nx, i + grid.js, :]
-        if spec.namelist.grid_type < 3:
-            ua[nx, j1, :] = va[nx, j1 + 1, :]
-            ua[nx + 1, j1, :] = va[nx, j1 + 2, :]
-    if grid.ne_corner:
-        for i in range(0, 3):
-            utmp[nx + i, ny, :] = -vtmp[nx, grid.je - i, :]
-        if spec.namelist.grid_type < 3:
-            ua[nx, ny, :] = -va[nx, ny - 1, :]
-            ua[nx + 1, ny, :] = -va[nx, ny - 2, :]
-    if grid.nw_corner:
-        for i in range(-2, 1):
-            utmp[i + 2, ny, :] = vtmp[grid.is_ - 1, grid.je + i, :]
-        if spec.namelist.grid_type < 3:
-            ua[i1 - 1, ny, :] = va[i1, ny - 2, :]
-            ua[i1, ny, :] = va[i1, ny - 1, :]
+    # if grid.sw_corner:
+    #     for i in range(-2, 1):
+    #         utmp[i + 2, grid.js - 1, :] = -vtmp[grid.is_ - 1, grid.js - i, :]
+    # #     if spec.namelist.grid_type < 3:
+    #         ua[i1 - 1, j1, :] = -va[i1, j1 + 2, :]
+    #         ua[i1, j1, :] = -va[i1, j1 + 1, :]
+    # if grid.se_corner:
+    #     for i in range(0, 3):
+    #         utmp[nx + i, grid.js - 1, :] = vtmp[nx, i + grid.js, :]
+    #     if spec.namelist.grid_type < 3:
+    #         ua[nx, j1, :] = va[nx, j1 + 1, :]
+    #         ua[nx + 1, j1, :] = va[nx, j1 + 2, :]
+    # if grid.ne_corner:
+    #     for i in range(0, 3):
+    #         utmp[nx + i, ny, :] = -vtmp[nx, grid.je - i, :]
+    #     if spec.namelist.grid_type < 3:
+    #         ua[nx, ny, :] = -va[nx, ny - 1, :]
+    #         ua[nx + 1, ny, :] = -va[nx, ny - 2, :]
+    # if grid.nw_corner:
+    #     for i in range(-2, 1):
+    #         utmp[i + 2, ny, :] = vtmp[grid.is_ - 1, grid.je + i, :]
+    #     if spec.namelist.grid_type < 3:
+    #         ua[i1 - 1, ny, :] = va[i1, ny - 2, :]
+    #         ua[i1, ny, :] = va[i1, ny - 1, :]
+
+    corner_calcs(
+        ua,
+        va,
+        utmp,
+        vtmp,
+        origin=(grid.is_ - 3, grid.js - 3, 0),
+        domain=(grid.nic + 6, grid.njc + 6, grid.npz),
+    )
 
     ifirst = grid.is_ + 2 if grid.west_edge else grid.is_ - 1
     ilast = grid.ie - 1 if grid.east_edge else grid.ie + 2
