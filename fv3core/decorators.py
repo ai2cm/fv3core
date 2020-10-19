@@ -132,6 +132,13 @@ def gtstencil(definition=None, **stencil_kwargs) -> Callable[..., None]:
                 # Add globals to stencil_kwargs
                 stencil_kwargs["rebuild"] = global_config.get_rebuild()
                 stencil_kwargs["backend"] = global_config.get_backend()
+
+                # Add externals
+                stencil_kwargs["externals"] = {
+                    "namelist": spec.namelist,
+                    "grid": spec.grid,
+                    **stencil_kwargs.get("externals", dict()),
+                }
                 # Generate stencil
                 build_info = {}
                 stencil = gtscript.stencil(build_info=build_info, **stencil_kwargs)(
