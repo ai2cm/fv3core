@@ -32,21 +32,9 @@ def lagrange_y_func_p1(qx):
     return a2 * (qx[0, -1, 0] + qx[0, 2, 0]) + a1 * (qx + qx[0, 1, 0])
 
 
-@gtstencil()
-def lagrange_interpolation_y_p1(qx: sd, qout: sd):
-    with computation(PARALLEL), interval(...):
-        qout = lagrange_y_func_p1(qx)
-
-
 @gtscript.function
 def lagrange_x_func_p1(qy):
     return a2 * (qy[-1, 0, 0] + qy[2, 0, 0]) + a1 * (qy + qy[1, 0, 0])
-
-
-@gtstencil()
-def lagrange_interpolation_x_p1(qy: sd, qout: sd):
-    with computation(PARALLEL), interval(...):
-        qout = lagrange_x_func_p1(qy)
 
 
 @gtscript.function
@@ -176,6 +164,121 @@ def edge_interpolate4_y(va, dxa):
     return 0.5 * (n1 / t1 + n2 / t2)
 
 
+@gtstencil()
+def lagrange_interpolation(u: sd, v: sd, utmp: sd, vtmp: sd):
+    with computation(PARALLEL), interval(...):
+        utmp = a2 * (u[0, -1, 0] + u[0, 2, 0]) + a1 * (u + u[0, 1, 0])
+        vtmp = a2 * (v[-1, 0, 0] + v[2, 0, 0]) + a1 * (v + v[1, 0, 0])
+
+
+@gtstencil(externals={"HALO": 3})
+def d2a2c_vect(
+    dord4: int,
+    uc: sd,
+    vc: sd,
+    u: sd,
+    v: sd,
+    ua: sd,
+    va: sd,
+    utc: sd,
+    vtc: sd,
+    utmp: sd,
+    vtmp: sd,
+    cosa_s: sd,
+    rsin2: sd,
+):
+    from __externals__ import HALO
+    from __splitters__ import i_end, i_start, j_end, j_start
+
+    with computation(PARALLEL), interval(...):
+
+        # TODO assert __INLINED(namelist.grid_type < 3)
+
+        # The order of these blocks matters, so they cannot be merged into a
+        # single block since then the order is not guaranteed
+        with parallel(region[:, j_start - HALO : j_start + HALO]):
+            utmp = 0.5 * (u + u[0, 1, 0])
+            vtmp = 0.5 * (v + v[1, 0, 0])
+        # with parallel(region[:, j_end - HALO : j_end + HALO]):
+        #     utmp = 0.5 * (u + u[0, 1, 0])
+        #     vtmp = 0.5 * (v + v[1, 0, 0])
+        # with parallel(region[i_start - HALO : i_start + HALO, :]):
+        #     utmp = 0.5 * (u + u[0, 1, 0])
+        #     vtmp = 0.5 * (v + v[1, 0, 0])
+        # with parallel(region[i_end - HALO : i_end + HALO, :]):
+        #     utmp = 0.5 * (u + u[0, 1, 0])
+        #     vtmp = 0.5 * (v + v[1, 0, 0])
+
+        # ua = (utmp - vtmp * cosa_s) * rsin2
+        # # contravariant(utmp, vtmp, cosa_s, rsin2)
+        # va = (vtmp - utmp * cosa_s) * rsin2
+        # # contravariant(vtmp, utmp, cosa_s, rsin2)
+
+        # # SW corner
+        # with parallel(region[i_start - 3, j_start - 1]):
+        #     utmp = -vtmp[2, -1, 0]
+        # with parallel(region[i_start - 2, j_start - 1]):
+        #     utmp = -vtmp[1, 0, 0]
+        # with parallel(region[i_start - 1, j_start - 1]):
+        #     utmp = -vtmp[0, 1, 0]
+
+        # with parallel(region[i_start - 2, j_start - 1]):
+        #     ua = -va[1, 2, 0]
+        # with parallel(region[i_start - 1, j_start - 1]):
+        #     ua = -va[0, 1, 0]
+
+        # # SE corner
+        # with parallel(region[i_end + 1, j_start - 1]):
+        #     utmp = vtmp[0, 1, 0]
+        # with parallel(region[i_end + 2, j_start - 1]):
+        #     utmp = vtmp[-1, 2, 0]
+        # with parallel(region[i_end + 3, j_start - 1]):
+        #     utmp = vtmp[-2, 3, 0]
+
+        # with parallel(region[i_end + 1, j_start - 1]):
+        #     ua = va[0, 1, 0]
+        # with parallel(region[i_end + 2, j_start - 1]):
+        #     ua = va[-1, 2, 0]
+
+        # # NE corner
+        # with parallel(region[i_end + 1, j_end + 1]):
+        #     utmp = -vtmp[0, -1, 0]
+        # with parallel(region[i_end + 2, j_end + 1]):
+        #     utmp = -vtmp[-1, -2, 0]
+        # with parallel(region[i_end + 3, j_end + 1]):
+        #     utmp = -vtmp[-2, -3, 0]
+
+        # with parallel(region[i_end + 1, j_end + 1]):
+        #     ua = -va[0, -1, 0]
+        # with parallel(region[i_end + 2, j_end + 1]):
+        #     ua = -va[-1, -2, 0]
+
+        # # NW corner
+        # with parallel(region[i_start - 3, j_end + 1]):
+        #     utmp = -vtmp[2, -3, 0]
+        # with parallel(region[i_start - 2, j_end + 1]):
+        #     utmp = -vtmp[1, -2, 0]
+        # with parallel(region[i_start - 1, j_end + 1]):
+        #     utmp = -vtmp[0, -1, 0]
+
+        # with parallel(region[i_start - 2, j_end + 1]):
+        #     ua = va[1, -2, 0]
+        # with parallel(region[i_start - 1, j_end + 1]):
+        #     ua = va[0, -1, 0]
+
+
+@gtstencil()
+def lagrange_interpolation_y_p1(qx: sd, qout: sd):
+    with computation(PARALLEL), interval(...):
+        qout = lagrange_y_func_p1(qx)
+
+
+@gtstencil()
+def lagrange_interpolation_x_p1(qy: sd, qout: sd):
+    with computation(PARALLEL), interval(...):
+        qout = lagrange_x_func_p1(qy)
+
+
 def compute(dord4, uc, vc, u, v, ua, va, utc, vtc):
     grid = spec.grid
     big_number = 1e30  # 1e8 if 32 bit
@@ -195,29 +298,31 @@ def compute(dord4, uc, vc, u, v, ua, va, utc, vtc):
     je1 = ny - npt if grid.north_edge else grid.je + 1
     is1 = npt + OFFSET if grid.west_edge else grid.isd
     ie1 = nx - npt if grid.east_edge else grid.ied
-    lagrange_interpolation_y_p1(
-        u, utmp, origin=(is1, js1, 0), domain=(ie1 - is1 + 1, je1 - js1 + 1, grid.npz)
-    )
 
     is1 = npt + OFFSET if grid.west_edge else grid.is_ - 1
     ie1 = nx - npt if grid.east_edge else grid.ie + 1
     js1 = npt + OFFSET if grid.south_edge else grid.jsd
     je1 = ny - npt if grid.north_edge else grid.jed
 
-    lagrange_interpolation_x_p1(
-        v, vtmp, origin=(is1, js1, 0), domain=(ie1 - is1 + 1, je1 - js1 + 1, grid.npz)
+    lagrange_interpolation(
+        u,
+        v,
+        utmp,
+        vtmp,
+        origin=(is1, js1, 0),
+        domain=(ie1 - is1 + 1, je1 - js1 + 1, grid.npz),
     )
 
-    # tmp edges
-    if grid.south_edge:
-        avg_box(
-            u,
-            v,
-            utmp,
-            vtmp,
-            origin=(grid.isd, grid.jsd, 0),
-            domain=(grid.nid, npt + OFFSET - grid.jsd, grid.npz),
-        )
+    # # tmp edges
+    # if grid.south_edge:
+    #     avg_box(
+    #         u,
+    #         v,
+    #         utmp,
+    #         vtmp,
+    #         origin=(grid.isd, grid.jsd, 0),
+    #         domain=(grid.nid, npt + OFFSET - grid.jsd, grid.npz),
+    #     )
     if grid.north_edge:
         je2 = ny - npt + 1
         avg_box(
@@ -229,6 +334,23 @@ def compute(dord4, uc, vc, u, v, ua, va, utc, vtc):
             domain=(grid.nid, grid.jed - je2 + 1, grid.npz),
         )
 
+    d2a2c_vect(
+        dord4,
+        uc,
+        vc,
+        u,
+        v,
+        ua,
+        va,
+        utc,
+        vtc,
+        utmp,
+        vtmp,
+        grid.cosa_s,
+        grid.rsin2,
+        origin=(grid.is_ - 3, grid.js - 3, 0),
+        domain=(grid.nic + 6, grid.njc + 6, grid.npz),
+    )
     js2 = npt + OFFSET if grid.south_edge else grid.jsd
     je2 = ny - npt if grid.north_edge else grid.jed
     jdiff = je2 - js2 + 1
