@@ -1,11 +1,12 @@
 import logging
+from typing import Dict, List, Tuple
 
 import numpy as np
 
 import fv3core._config
 import fv3core.utils.gt4py_utils as utils
 from fv3core.utils.grid import Grid
-
+from fv3core.utils.typing import Field
 
 logger = logging.getLogger("fv3ser")
 
@@ -64,29 +65,39 @@ class TranslateFortranData2Py:
 
     def make_storage_data(
         self,
-        array,
-        istart=0,
-        jstart=0,
-        kstart=0,
-        dummy_axes=None,
-        axis=2,
-        names_4d=None,
-    ):
+        array: np.ndarray,
+        istart: int = 0,
+        jstart: int = 0,
+        kstart: int = 0,
+        dummy_axes: Tuple[int, int, int]=None,
+        axis: int = 2,
+        names_4d: List[str] = None,
+    ) -> Dict[str, type(Field)]:
         use_shape = list(self.maxshape)
         if dummy_axes:
             for axis in dummy_axes:
                 use_shape[axis] = 1
         use_shape = tuple(use_shape)
         start = (istart, jstart, kstart)
-        return utils.make_storage(
-            array,
-            use_shape,
-            start=start,
-            origin=start,
-            dummy=dummy_axes,
-            axis=axis,
-            names=names_4d,
-        )
+        if names_4d:
+            return utils.make_storage_dict(
+                array,
+                use_shape,
+                start=start,
+                origin=start,
+                dummy=dummy_axes,
+                axis=axis,
+                names=names_4d,
+            )
+        else:
+            return utils.make_storage(
+                array,
+                use_shape,
+                start=start,
+                origin=start,
+                dummy=dummy_axes,
+                axis=axis,
+            )
 
     def storage_vars(self):
         return self.in_vars["data_vars"]

@@ -1,8 +1,10 @@
+#!/usr/bin/env python3
+
 import copy
 import functools
 import logging
 import math
-from typing import Any, Callable, List, Tuple, Union
+from typing import Any, Callable, Dict, List, Tuple, Union
 
 import gt4py as gt
 import gt4py.ir as gt_ir
@@ -10,7 +12,7 @@ import numpy as np
 from gt4py import gtscript
 
 from fv3core.utils.mpi import MPI
-from fv3core.utils.typing import DTypes, float_type, int_type
+from fv3core.utils.typing import DTypes, Field, float_type, int_type
 
 
 try:
@@ -75,7 +77,7 @@ def make_storage(
     dummy: Tuple[int, int, int] = None,
     names: List[str] = None,
     axis: int = 2,
-) -> gtscript.Field:
+) -> Field:
     """Create a new gt4py storage of a given shape.
 
     Args:
@@ -91,7 +93,7 @@ def make_storage(
         axis: Axis for 2D to 3D arrays
 
     Returns:
-        gtscript.Field[dtype]: New storage
+        Field[dtype]: New storage
     """
     if isinstance(data_or_shape, tuple):
         shape = data_or_shape
@@ -164,20 +166,9 @@ def make_storage(
                     data = repeat(y[:, :, np.newaxis], shape[2], axis=2)
         # make_storage_4d:
         elif len(data.shape) == 4:
-            if names is None:
-                raise Exception("for 4d variable storages, specify a list of names")
-            data_dict = {}
-            size4d = data.shape[3]
-            for i in range(size4d):
-                data_dict[names[i]] = make_storage(
-                    np.squeeze(data[:, :, :, i]),
-                    shape,
-                    origin=origin,
-                    start=start,
-                    dummy=dummy,
-                    axis=axis,
-                )
-            return data_dict
+            raise Exception(
+                "'make_storage' does not support 4D storages, call 'make_storage_dict'"
+            )
         # make_storage_3d:
         else:
             istart, jstart, kstart = start
@@ -208,6 +199,32 @@ def make_storage(
         )
 
     return storage
+
+
+def make_storage_dict(
+    data: Field,
+    shape: Tuple[int, int, int] = None,
+    origin: Tuple[int, int, int] = origin,
+    start: Tuple[int, int, int] = (0, 0, 0),
+    dummy: Tuple[int, int, int] = None,
+    names: List[str] = None,
+    axis: int = 2,
+) -> Dict[str, type(Field)]:
+    if names is None:
+        raise Exception("for 4d variable storages, specify a list of names")
+    if shape is None:
+        shape = data.shape
+    data_dict: Dict[str, Field] = dict()
+    for i in range(data.shape[3]):
+        data_dict[names[i]] = make_storage(
+            squeeze(data[:, :, :, i]),
+            shape,
+            origin=origin,
+            start=start,
+            dummy=dummy,
+            axis=axis,
+        )
+    return data_dict
 
 
 def storage_dict(st_dict, names, shape, origin):
@@ -387,3 +404,8 @@ def moveaxis(array, source: int, destination: int):
 def tile(array, reps: Union[int, Tuple[int]]):
     xp = cp if cp and type(array) is cp.ndarray else np
     return xp.tile(array, reps)
+
+
+def squeeze(array, axis: Union[int, Tuple[int]] = None):
+    xp = cp if cp and type(array) is cp.ndarray else np
+    return xp.squeeze(array, axis)
