@@ -8,6 +8,7 @@ import fv3core.utils.gt4py_utils as utils
 from fv3core.utils.grid import Grid
 from fv3core.utils.typing import Field
 
+
 logger = logging.getLogger("fv3ser")
 
 
@@ -69,7 +70,7 @@ class TranslateFortranData2Py:
         istart: int = 0,
         jstart: int = 0,
         kstart: int = 0,
-        dummy_axes: Tuple[int, int, int]=None,
+        dummy_axes: Tuple[int, int, int] = None,
         axis: int = 2,
         names_4d: List[str] = None,
     ) -> Dict[str, type(Field)]:
