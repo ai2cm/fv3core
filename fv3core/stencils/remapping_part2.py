@@ -97,8 +97,8 @@ def compute(
         ua, pe, origin=grid.compute_origin(), domain=grid.domain_shape_compute()
     )
     dtmp = 0.0
-    phis = utils.make_storage(pt.shape, grid.compute_origin())
-    dpln = utils.make_storage(pt.shape, grid.compute_origin())
+    phis = utils.make_storage_from_shape(pt.shape, grid.compute_origin())
+    dpln = utils.make_storage_from_shape(pt.shape, grid.compute_origin())
     if spec.namelist.do_sat_adj:
         fast_mp_consv = not do_adiabatic_init and consv > constants.CONSV_MIN
         # TODO pfull is a 1d var

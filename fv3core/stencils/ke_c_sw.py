@@ -56,8 +56,8 @@ def compute(uc: sd, vc: sd, u: sd, v: sd, ua: sd, va: sd, dt2: float):
     origin = (grid.is_ - 1, grid.js - 1, 0)
 
     # Create storage objects to hold the new vorticity and kinetic energy values
-    ke_c = utils.make_storage(uc.shape, origin=origin)
-    vort_c = utils.make_storage(vc.shape, origin=origin)
+    ke_c = utils.make_storage_from_shape(uc.shape, origin=origin)
+    vort_c = utils.make_storage_from_shape(vc.shape, origin=origin)
 
     # Set vorticity and kinetic energy values
     update_vorticity_and_kinetic_energy(

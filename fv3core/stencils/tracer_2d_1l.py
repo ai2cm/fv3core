@@ -92,14 +92,14 @@ def compute(comm, tracers, dp1, mfxd, mfyd, cxd, cyd, mdt, nq):
     grid = spec.grid
     shape = mfxd.data.shape
     # start HALO update on q (in dyn_core in fortran -- just has started when this function is called...)
-    xfx = utils.make_storage(shape, origin=grid.compute_x_origin())
-    yfx = utils.make_storage(shape, origin=grid.compute_y_origin())
-    fx = utils.make_storage(shape, origin=grid.compute_origin())
-    fy = utils.make_storage(shape, origin=grid.compute_origin())
-    ra_x = utils.make_storage(shape, origin=grid.compute_x_origin())
-    ra_y = utils.make_storage(shape, origin=grid.compute_y_origin())
-    cmax = utils.make_storage(shape, origin=grid.compute_origin())
-    dp2 = utils.make_storage(shape, origin=grid.compute_origin())
+    xfx = utils.make_storage_from_shape(shape, origin=grid.compute_x_origin())
+    yfx = utils.make_storage_from_shape(shape, origin=grid.compute_y_origin())
+    fx = utils.make_storage_from_shape(shape, origin=grid.compute_origin())
+    fy = utils.make_storage_from_shape(shape, origin=grid.compute_origin())
+    ra_x = utils.make_storage_from_shape(shape, origin=grid.compute_x_origin())
+    ra_y = utils.make_storage_from_shape(shape, origin=grid.compute_y_origin())
+    cmax = utils.make_storage_from_shape(shape, origin=grid.compute_origin())
+    dp2 = utils.make_storage_from_shape(shape, origin=grid.compute_origin())
     flux_x(
         cxd,
         grid.dxa,
@@ -144,7 +144,7 @@ def compute(comm, tracers, dp1, mfxd, mfyd, cxd, cyd, mdt, nq):
     cmax_max_all_ranks = 2.0
     nsplt = math.floor(1.0 + cmax_max_all_ranks)
     # NOTE cmax is not usually a single value, it varies with k, if return to that, make nsplt a column as well and compute frac inside cmax_split_vars
-    # nsplt3d = utils.make_storage(cyd.shape, origin=grid.compute_origin())
+    # nsplt3d = utils.make_storage_from_shape(cyd.shape, origin=grid.compute_origin())
     # nsplt3d[:] = nsplt
     frac = 1.0
     if nsplt > 1.0:

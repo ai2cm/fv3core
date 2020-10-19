@@ -91,7 +91,7 @@ class TranslateFortranData2Py:
                 names=names_4d,
             )
         else:
-            return utils.make_storage(
+            return utils.make_storage_from_data(
                 array,
                 use_shape,
                 start=start,
@@ -271,7 +271,7 @@ class TranslateGrid:
 
     def make_composite_var_storage(self, varname, data3d, shape):
         for s in range(9):
-            self.data[varname + str(s + 1)] = utils.make_storage(
+            self.data[varname + str(s + 1)] = utils.make_storage_from_data(
                 np.squeeze(data3d[:, :, s]), shape, origin=(0, 0, 0)
             )
 
@@ -293,7 +293,7 @@ class TranslateGrid:
                     edge_offset = pygrid.global_jsd
                     width = pygrid.subtile_width_y
                 edgeslice = slice(int(edge_offset), int(edge_offset + width + 1))
-                self.data[k] = utils.make_storage(
+                self.data[k] = utils.make_storage_from_data(
                     self.data[k][edgeslice], shape, start=(0, 0, pygrid.halo), axis=axis
                 )
         for k, v in self.data.items():
@@ -306,7 +306,7 @@ class TranslateGrid:
                     )
                 )
                 origin = (istart, jstart, 0)
-                self.data[k] = utils.make_storage(v, shape, origin=origin, start=origin)
+                self.data[k] = utils.make_storage_from_data(v, shape, origin=origin, start=origin)
 
     def python_grid(self):
         pygrid = Grid(self.indices, self.shape_params, self.rank, self.layout)

@@ -66,22 +66,22 @@ def quantity_name(name):
     return name + "_quantity"
 
 
-def make_storage(
-    data_or_shape: Any,
+def make_storage_from_data(
+    data: Field,
     shape: Tuple[int, int, int] = None,
     origin: Tuple[int, int, int] = origin,
     dtype: DTypes = np.float64,
     init: bool = True,
-    mask: Tuple[bool, bool, bool] = None,
+    mask: Tuple[bool, bool, bool] = [True, True, True],
     start: Tuple[int, int, int] = (0, 0, 0),
     dummy: Tuple[int, int, int] = None,
     names: List[str] = None,
     axis: int = 2,
 ) -> Field:
-    """Create a new gt4py storage of a given shape.
+    """Create a new gt4py storage from the given data.
 
     Args:
-        data_or_shape: Data array or shape of new storage
+        data: Data array for new storage
         shape: Shape of the new storage
         origin: Default origin for gt4py stencil calls
         dtype: Data type
@@ -89,15 +89,74 @@ def make_storage(
         mask: Tuple indicating the axes used when initializing the storage
         start: Starting points for slices in data copies
         dummy: Dummy axes
-        names: Names for 4D arrays
         axis: Axis for 2D to 3D arrays
 
     Returns:
         Field[dtype]: New storage
     """
-    if isinstance(data_or_shape, tuple):
-        shape = data_or_shape
-        storage = gt.storage.empty(
+    storage = None
+    n_dims = len(data.shape)
+    if shape is None:
+        shape = data.shape
+
+    # make_storage_1d:
+    if n_dims == 1:
+        # axis refers to a repeated axis, dummy refers to a singleton axis
+        kstart = start[2]
+        if dummy:
+            axis = list(set((0, 1, 2)).difference(dummy))[0]
+        tilespec = list(shape)
+        buffer = zeros(shape[axis])
+        buffer[kstart : kstart + len(data)] = data
+        tilespec[axis] = 1
+        if dummy:
+            if len(dummy) == len(tilespec) - 1:
+                data = buffer.reshape((shape))
+            else:
+                # TODO maybe, this is a little silly (repeat the array, then squash the dim), though eventually
+                # we shouldn't need this general capability if we refactor stencils to operate on 3d
+                storage = make_storage_from_data(
+                    data, shape, start=(0, 0, kstart), origin=origin, axis=axis
+                )
+                dimslice = [slice(None)] * len(tilespec)
+                for dummy_axis in dummy:
+                    dimslice[dummy_axis] = slice(0, 1)
+                storage = storage[tuple(dimslice)]
+        else:
+            if axis == 2:
+                data = tile(buffer, tuple(tilespec))
+            elif axis == 1:
+                x = repeat(buffer[np.newaxis, :], shape[0], axis=0)
+                data = repeat(x[:, :, np.newaxis], shape[2], axis=2)
+            else:
+                y = repeat(buffer[:, np.newaxis], shape[1], axis=1)
+                data = repeat(y[:, :, np.newaxis], shape[2], axis=2)
+
+    # make_storage_2d:
+    elif n_dims == 2:
+        # axis refers to which axis should be repeated (when making a full 3d data),
+        # dummy refers to a singleton axis
+        istart, jstart = start[0:2]
+        isize, jsize = data.shape
+        if dummy or axis != 2:
+            d_axis = dummy[0] if dummy else axis
+            shape2d = shape[:d_axis] + shape[d_axis + 1 :]
+        else:
+            shape2d = shape[0:2]
+        buffer = zeros(shape2d)
+        buffer[istart : istart + isize, jstart : jstart + jsize] = asarray(data)
+        if dummy:
+            data = buffer.reshape(shape)
+        else:
+            data = repeat(buffer[:, :, np.newaxis], shape[axis], axis=2)
+            if axis != 2:
+                data = moveaxis(data, 2, axis)
+
+    # make_storage_3d:
+    else:
+        istart, jstart, kstart = start
+        isize, jsize, ksize = data.shape
+        storage = gt.storage.zeros(
             backend=backend,
             default_origin=origin,
             shape=shape,
@@ -105,89 +164,13 @@ def make_storage(
             mask=mask,
             managed_memory=managed_memory,
         )
-        if init:
-            storage[:] = dtype()
-    else:
-        data = data_or_shape
-        if shape is None:
-            shape = data.shape
+        storage[
+            istart : istart + isize,
+            jstart : jstart + jsize,
+            kstart : kstart + ksize,
+        ] = data
 
-        # make_storage_2d:
-        if len(data.shape) == 2:
-            # axis refers to which axis should be repeated (when making a full 3d data),
-            # dummy refers to a singleton axis
-            istart, jstart = start[0:2]
-            isize, jsize = data.shape
-            if dummy or axis != 2:
-                d_axis = dummy[0] if dummy else axis
-                shape2d = shape[:d_axis] + shape[d_axis + 1 :]
-            else:
-                shape2d = shape[0:2]
-            buffer = zeros(shape2d)
-            buffer[istart : istart + isize, jstart : jstart + jsize] = asarray(data)
-            if dummy:
-                data = buffer.reshape(shape)
-            else:
-                data = repeat(buffer[:, :, np.newaxis], shape[axis], axis=2)
-                if axis != 2:
-                    data = moveaxis(data, 2, axis)
-        # make_storage_1d:
-        elif len(data.shape) == 1:
-            # axis refers to a repeated axis, dummy refers to a singleton axis
-            kstart = start[2]
-            if dummy:
-                axis = list(set((0, 1, 2)).difference(dummy))[0]
-            tilespec = list(shape)
-            buffer = zeros(shape[axis])
-            buffer[kstart : kstart + len(data)] = data
-            tilespec[axis] = 1
-            if dummy:
-                if len(dummy) == len(tilespec) - 1:
-                    data = buffer.reshape((shape))
-                else:
-                    # TODO maybe, this is a little silly (repeat the array, then squash the dim), though eventually
-                    # we shouldn't need this general capability if we refactor stencils to operate on 3d
-                    storage = make_storage(
-                        data, shape, start=(0, 0, kstart), origin=origin, axis=axis
-                    )
-                    dimslice = [slice(None)] * len(tilespec)
-                    for dummy_axis in dummy:
-                        dimslice[dummy_axis] = slice(0, 1)
-                    storage = storage[tuple(dimslice)]
-                    return storage
-            else:
-                if axis == 2:
-                    data = tile(buffer, tuple(tilespec))
-                elif axis == 1:
-                    x = repeat(buffer[np.newaxis, :], shape[0], axis=0)
-                    data = repeat(x[:, :, np.newaxis], shape[2], axis=2)
-                else:
-                    y = repeat(buffer[:, np.newaxis], shape[1], axis=1)
-                    data = repeat(y[:, :, np.newaxis], shape[2], axis=2)
-        # make_storage_4d:
-        elif len(data.shape) == 4:
-            raise Exception(
-                "'make_storage' does not support 4D storages, call 'make_storage_dict'"
-            )
-        # make_storage_3d:
-        else:
-            istart, jstart, kstart = start
-            isize, jsize, ksize = data.shape
-            storage = gt.storage.zeros(
-                backend=backend,
-                default_origin=origin,
-                shape=shape,
-                dtype=dtype,
-                mask=mask,
-                managed_memory=managed_memory,
-            )
-            storage[
-                istart : istart + isize,
-                jstart : jstart + jsize,
-                kstart : kstart + ksize,
-            ] = data
-            return storage
-
+    if storage is None:
         storage = gt.storage.from_array(
             data=data,
             backend=backend,
@@ -197,7 +180,38 @@ def make_storage(
             mask=mask,
             managed_memory=managed_memory,
         )
+    return storage
 
+
+def make_storage_from_shape(
+    shape: Tuple[int, int, int],
+    origin: Tuple[int, int, int] = origin,
+    dtype: DTypes = np.float64,
+    init: bool = True,
+    mask: Tuple[bool, bool, bool] = [True, True, True],
+) -> Field:
+    """Create a new gt4py storage of a given shape.
+
+    Args:
+        shape: Shape of the new storage
+        origin: Default origin for gt4py stencil calls
+        dtype: Data type
+        init: If True, initializes the storage to the default value for the type
+        mask: Tuple indicating the axes used when initializing the storage
+
+    Returns:
+        Field[dtype]: New storage
+    """
+    storage = gt.storage.empty(
+        backend=backend,
+        default_origin=origin,
+        shape=shape,
+        dtype=dtype,
+        mask=mask,
+        managed_memory=managed_memory,
+    )
+    if init:
+        storage[:] = dtype()
     return storage
 
 
@@ -216,7 +230,7 @@ def make_storage_dict(
         shape = data.shape
     data_dict: Dict[str, Field] = dict()
     for i in range(data.shape[3]):
-        data_dict[names[i]] = make_storage(
+        data_dict[names[i]] = make_storage_from_data(
             squeeze(data[:, :, :, i]),
             shape,
             origin=origin,
@@ -229,12 +243,12 @@ def make_storage_dict(
 
 def storage_dict(st_dict, names, shape, origin):
     for name in names:
-        st_dict[name] = make_storage(shape, origin)
+        st_dict[name] = make_storage_from_shape(shape, origin)
 
 
 def k_slice_operation(key, value, ki, dictionary):
     if isinstance(value, gt.storage.storage.Storage):
-        dictionary[key] = make_storage(
+        dictionary[key] = make_storage_from_data(
             value[:, :, ki], (value.shape[0], value.shape[1], len(ki))
         )
     else:

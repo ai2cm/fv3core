@@ -92,8 +92,8 @@ def compute(c, u, v, flux):
     je3 = grid.je + 1
 
     tmp_origin = (grid.is_, grid.js - 1, 0)
-    bl = utils.make_storage(u.shape, tmp_origin)
-    br = utils.make_storage(u.shape, tmp_origin)
+    bl = utils.make_storage_from_shape(u.shape, tmp_origin)
+    br = utils.make_storage_from_shape(u.shape, tmp_origin)
 
     if jord < 8:
         # this not get the exact right edges
@@ -123,8 +123,8 @@ def compute(c, u, v, flux):
     else:
         js1 = grid.js + 2 if grid.south_edge else grid.js - 1
         je1 = grid.je - 2 if grid.north_edge else grid.je + 1
-        dm = utils.make_storage(v.shape, grid.compute_origin())
-        al = utils.make_storage(v.shape, grid.compute_origin())
+        dm = utils.make_storage_from_shape(v.shape, grid.compute_origin())
+        al = utils.make_storage_from_shape(v.shape, grid.compute_origin())
         di = grid.nic + 1
         ifirst = grid.is_
         kstart = 0

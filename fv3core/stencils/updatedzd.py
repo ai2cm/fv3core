@@ -151,14 +151,14 @@ def compute(ndif, damp_vtd, dp0, zs, zh, crx, cry, xfx, yfx, wsd, dt):
     ndif[-1] = ndif[-2]
     damp_vtd[-1] = damp_vtd[-2]
 
-    crx_adv = utils.make_storage(crx.shape, grid.compute_x_origin())
-    cry_adv = utils.make_storage(cry.shape, grid.compute_y_origin())
-    xfx_adv = utils.make_storage(xfx.shape, grid.compute_x_origin())
-    yfx_adv = utils.make_storage(yfx.shape, grid.compute_y_origin())
-    ra_x = utils.make_storage(crx.shape, grid.compute_x_origin())
-    ra_y = utils.make_storage(cry.shape, grid.compute_y_origin())
+    crx_adv = utils.make_storage_from_shape(crx.shape, grid.compute_x_origin())
+    cry_adv = utils.make_storage_from_shape(cry.shape, grid.compute_y_origin())
+    xfx_adv = utils.make_storage_from_shape(xfx.shape, grid.compute_x_origin())
+    yfx_adv = utils.make_storage_from_shape(yfx.shape, grid.compute_y_origin())
+    ra_x = utils.make_storage_from_shape(crx.shape, grid.compute_x_origin())
+    ra_y = utils.make_storage_from_shape(cry.shape, grid.compute_y_origin())
 
-    gam = utils.make_storage(zs.shape, grid.default_origin())
+    gam = utils.make_storage_from_shape(zs.shape, grid.default_origin())
     edge_profile(
         crx,
         xfx,
@@ -171,7 +171,7 @@ def compute(ndif, damp_vtd, dp0, zs, zh, crx, cry, xfx, yfx, wsd, dt):
     )
     # edge_python(crx, xfx, crx_adv, xfx_adv, dp0, gam, slice(grid.is_, grid.ie + 2), slice(grid.jsd, grid.jed+1),  qe1_2, gam_2)
 
-    gam = utils.make_storage(zs.shape, grid.default_origin())
+    gam = utils.make_storage_from_shape(zs.shape, grid.default_origin())
     edge_profile(
         cry,
         yfx,
@@ -224,11 +224,11 @@ def column_calls(
     compute_origin = (grid.is_, grid.js, kstart)
     compute_domain = (grid.nic, grid.njc, nk)
     if damp > 1e-5:
-        wk = utils.make_storage(zh.shape, default_origin)
-        fx2 = utils.make_storage(zh.shape, default_origin)
-        fy2 = utils.make_storage(zh.shape, default_origin)
-        fx = utils.make_storage(zh.shape, default_origin)
-        fy = utils.make_storage(zh.shape, default_origin)
+        wk = utils.make_storage_from_shape(zh.shape, default_origin)
+        fx2 = utils.make_storage_from_shape(zh.shape, default_origin)
+        fy2 = utils.make_storage_from_shape(zh.shape, default_origin)
+        fx = utils.make_storage_from_shape(zh.shape, default_origin)
+        fy = utils.make_storage_from_shape(zh.shape, default_origin)
         z2 = copy(zh, origin=default_origin)
         fvtp2d.compute_no_sg(
             z2,

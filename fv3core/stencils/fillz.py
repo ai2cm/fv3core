@@ -109,12 +109,12 @@ def compute(dp2, tracers, im, km, nq, jslice):
     js = jslice.start
     j_extent = jslice.stop - jslice.start
     orig = (i1, js, 0)
-    zfix = utils.make_storage(shape, origin=(0, 0, 0))
-    upper_fix = utils.make_storage(shape, origin=(0, 0, 0))
-    lower_fix = utils.make_storage(shape, origin=(0, 0, 0))
-    dm = utils.make_storage(shape, origin=(0, 0, 0))
-    dm_pos = utils.make_storage(shape, origin=(0, 0, 0))
-    fac = utils.make_storage(shape, origin=(0, 0, 0))
+    zfix = utils.make_storage_from_shape(shape, origin=(0, 0, 0))
+    upper_fix = utils.make_storage_from_shape(shape, origin=(0, 0, 0))
+    lower_fix = utils.make_storage_from_shape(shape, origin=(0, 0, 0))
+    dm = utils.make_storage_from_shape(shape, origin=(0, 0, 0))
+    dm_pos = utils.make_storage_from_shape(shape, origin=(0, 0, 0))
+    fac = utils.make_storage_from_shape(shape, origin=(0, 0, 0))
     # TODO: implement dev_gfs_physics ifdef when we implement compiler defs
 
     for q in utils.tracer_variables[0:nq]:

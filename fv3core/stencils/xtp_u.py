@@ -103,8 +103,8 @@ def compute(c, u, v, flux):
     is3 = grid.is_ - 1  # max(5, grid.is_ - 1)
     ie3 = grid.ie + 1  # min(grid.npx - 1, grid.ie+1)
     tmp_origin = (is3, grid.js, 0)
-    bl = utils.make_storage(v.shape, tmp_origin)
-    br = utils.make_storage(v.shape, tmp_origin)
+    bl = utils.make_storage_from_shape(v.shape, tmp_origin)
+    br = utils.make_storage_from_shape(v.shape, tmp_origin)
     if iord < 8:
         al = compute_al(u, grid.dx, iord, is3, ie3 + 1, grid.js, grid.je + 1)
         # get_flux_u_stencil_old(u, c, al, grid.rdx, flux, iord, origin=grid.compute_origin(), domain=(grid.nic + 1, grid.njc + 1, grid.npz))
@@ -134,8 +134,8 @@ def compute(c, u, v, flux):
     else:
         is1 = grid.is_ + 2 if grid.west_edge else grid.is_ - 1
         ie1 = grid.ie - 2 if grid.east_edge else grid.ie + 1
-        dm = utils.make_storage(u.shape, grid.compute_origin())
-        al = utils.make_storage(u.shape, grid.compute_origin())
+        dm = utils.make_storage_from_shape(u.shape, grid.compute_origin())
+        al = utils.make_storage_from_shape(u.shape, grid.compute_origin())
         dj = grid.njc + 1
         jfirst = grid.js
         kstart = 0

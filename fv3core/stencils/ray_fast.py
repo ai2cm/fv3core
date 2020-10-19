@@ -120,9 +120,9 @@ def compute(u, v, w, dp, pfull, dt, ptop, ks):
     # The next 3 variables and dm_stencil could be pushed into ray_fast_wind and still work, but then recomputing it all twice
     rf_cutoff_nudge = namelist.rf_cutoff + min(100.0, 10.0 * ptop)
     # TODO 1D variable
-    dm = utils.make_storage(u.shape, grid.default_origin())
+    dm = utils.make_storage_from_shape(u.shape, grid.default_origin())
     # TODO 1D variable
-    rf = utils.make_storage(u.shape, grid.default_origin())
+    rf = utils.make_storage_from_shape(u.shape, grid.default_origin())
     dm_stencil(
         dp,
         dm,

@@ -31,7 +31,7 @@ def copy(q_in, origin=(0, 0, 0), domain=None):
     Returns:
         gtscript.Field[float]: Copied field
     """
-    q_out = utils.make_storage(q_in.shape, origin, init=True)
+    q_out = utils.make_storage_from_shape(q_in.shape, origin, init=True)
     copy_stencil(q_in, q_out, origin=origin, domain=domain)
     return q_out
 

@@ -136,7 +136,7 @@ def compute(uc_in, vc_in, ut_in, vt_in, xfx_adv, yfx_adv, crx_adv, cry_adv, dt):
         ne_corner(uc_in, vc_in, ut, vt, grid().cosa_u, grid().cosa_v, corner_shape)
     if grid().nw_corner:
         nw_corner(uc_in, vc_in, ut, vt, grid().cosa_u, grid().cosa_v, corner_shape)
-    ra_x = utils.make_storage(uc_in.shape, grid().compute_x_origin())
+    ra_x = utils.make_storage_from_shape(uc_in.shape, grid().compute_x_origin())
     xfx_adv_stencil(
         ut,
         grid().rdxa,
@@ -151,7 +151,7 @@ def compute(uc_in, vc_in, ut_in, vt_in, xfx_adv, yfx_adv, crx_adv, cry_adv, dt):
         origin=grid().compute_x_origin(),
         domain=grid().domain_y_compute_xbuffer(),
     )
-    ra_y = utils.make_storage(vc_in.shape, grid().compute_y_origin())
+    ra_y = utils.make_storage_from_shape(vc_in.shape, grid().compute_y_origin())
     yfx_adv_stencil(
         vt,
         grid().rdya,
@@ -174,7 +174,7 @@ def compute(uc_in, vc_in, ut_in, vt_in, xfx_adv, yfx_adv, crx_adv, cry_adv, dt):
 
 def compute_ut(uc_in, vc_in, cosa_u, rsin_u, ut_in):
     ut_origin = (grid().is_ - 1, grid().jsd, 0)
-    ut = utils.make_storage(ut_in.shape, ut_origin)
+    ut = utils.make_storage_from_shape(ut_in.shape, ut_origin)
     main_ut(
         uc_in,
         vc_in,
@@ -233,7 +233,7 @@ def update_ut_x_edge(uc, cosa_u, vt, ut):
 
 def compute_vt(uc_in, vc_in, cosa_v, rsin_v, sin_sg2, sin_sg4, vt_in):
     vt_origin = (grid().isd, grid().js - 1, 0)
-    vt = utils.make_storage(vt_in.shape, vt_origin)
+    vt = utils.make_storage_from_shape(vt_in.shape, vt_origin)
     main_vt(
         uc_in,
         vc_in,

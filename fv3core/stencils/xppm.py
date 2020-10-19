@@ -247,7 +247,7 @@ def compute_al(q, dxa, iord, is1, ie3, jfirst, jlast, kstart=0, nk=None):
         nk = grid().npz - kstart
     dimensions = q.shape
     local_origin = (origin[0], origin[1], kstart)
-    al = utils.make_storage(dimensions, local_origin)
+    al = utils.make_storage_from_shape(dimensions, local_origin)
     domain_y = (1, dimensions[1], nk)
     if iord < 8:
         main_al(
@@ -287,10 +287,10 @@ def compute_blbr_ord8plus(q, iord, jfirst, jlast, is1, ie1, kstart, nk):
     r3 = 1.0 / 3.0
     grid = spec.grid
     local_origin = (origin[0], origin[1], kstart)
-    bl = utils.make_storage(q.shape, local_origin)
-    br = utils.make_storage(q.shape, local_origin)
-    dm = utils.make_storage(q.shape, local_origin)
-    al = utils.make_storage(q.shape, local_origin)
+    bl = utils.make_storage_from_shape(q.shape, local_origin)
+    br = utils.make_storage_from_shape(q.shape, local_origin)
+    dm = utils.make_storage_from_shape(q.shape, local_origin)
+    al = utils.make_storage_from_shape(q.shape, local_origin)
     dj = jlast - jfirst + 1
     dm_iord8plus(
         q, al, dm, origin=(grid.is_ - 2, jfirst, kstart), domain=(grid.nic + 4, dj, nk)

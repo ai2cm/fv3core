@@ -148,7 +148,7 @@ def compute(state, comm):
     if not hydrostatic:
         # k1k = akap / (1.0 - akap)
         # TODO -- is really just a column... when different shapes are supported perhaps change this
-        state.dp_ref = utils.make_storage(state.ak.shape, grid.default_origin())
+        state.dp_ref = utils.make_storage_from_shape(state.ak.shape, grid.default_origin())
         dp_ref_compute(state.ak, state.bk, state.dp_ref)
         state.zs = state.phis * rgrav
     n_con = get_n_con()
@@ -237,7 +237,7 @@ def compute(state, comm):
                 state.dp_ref, state.zs, state.ut, state.vt, state.gz, state.ws3, dt2
             )
             # TODO this is really a 2d field.
-            state.ws3 = utils.make_storage(state.ws3[:, :, -1], shape, origin=(0, 0, 0))
+            state.ws3 = utils.make_storage_from_data(state.ws3[:, :, -1], shape, origin=(0, 0, 0))
             riem_solver_c.compute(
                 ms,
                 dt2,
@@ -296,7 +296,7 @@ def compute(state, comm):
         # if spec.namelist.d_ext > 0:
         #    raise 'Unimplemented namelist option d_ext > 0'
         # else:
-        #    divg2 = utils.make_storage(delz.shape, grid.compute_origin())
+        #    divg2 = utils.make_storage_from_shape(delz.shape, grid.compute_origin())
 
         if not hydrostatic:
             updatedzd.compute(
@@ -314,7 +314,7 @@ def compute(state, comm):
             )
 
             # TODO this is really a 2d field.
-            state.wsd = utils.make_storage(
+            state.wsd = utils.make_storage_from_data(
                 state.wsd[:, :, -1], shape, origin=grid.compute_origin()
             )
             riem_solver3.compute(
