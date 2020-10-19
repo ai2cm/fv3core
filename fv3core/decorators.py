@@ -41,6 +41,8 @@ def enable_stencil_report(
     global save_stencil_args
     global save_stencil_report
     global report_include_halos
+    if not os.path.exists(path):
+        os.makedirs(path, exist_ok=True)
     stencil_report_path = path
     save_stencil_args = save_args
     save_stencil_report = save_report
