@@ -359,7 +359,9 @@ def compute_qout_y_edges(qin, qout, kstart, nk):
 
 
 def compute_qx(qin, qout, kstart, nk):
-    qx = utils.make_storage_from_shape(qin.shape, origin=(grid().is_, grid().jsd, kstart))
+    qx = utils.make_storage_from_shape(
+        qin.shape, origin=(grid().is_, grid().jsd, kstart)
+    )
     # qx bounds
     # avoid running center-domain computation on tile edges, since they'll be overwritten.
     js = grid().js if grid().south_edge else grid().js - 2
@@ -389,7 +391,9 @@ def compute_qx(qin, qout, kstart, nk):
 
 
 def compute_qy(qin, qout, kstart, nk):
-    qy = utils.make_storage_from_shape(qin.shape, origin=(grid().isd, grid().js, kstart))
+    qy = utils.make_storage_from_shape(
+        qin.shape, origin=(grid().isd, grid().js, kstart)
+    )
     # qy bounds
     # avoid running center-domain computation on tile edges, since they'll be overwritten.
     js = grid().js + 2 if grid().south_edge else grid().js

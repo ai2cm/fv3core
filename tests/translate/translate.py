@@ -306,7 +306,9 @@ class TranslateGrid:
                     )
                 )
                 origin = (istart, jstart, 0)
-                self.data[k] = utils.make_storage_from_data(v, shape, origin=origin, start=origin)
+                self.data[k] = utils.make_storage_from_data(
+                    v, shape, origin=origin, start=origin
+                )
 
     def python_grid(self):
         pygrid = Grid(self.indices, self.shape_params, self.rank, self.layout)
