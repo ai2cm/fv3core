@@ -43,9 +43,11 @@ def transpose(state, dims, npz, npx, npy):
             return_state[name] = quantity
         else:
             if len(quantity.storage.shape) == 2:
-                data_3d = numpy.broadcast_to(
-                    quantity.data[:, :, None],
-                    (quantity.data.shape[0], quantity.data.shape[1], npz + 1),
+                data_3d = numpy.ascontiguousarray(
+                    numpy.broadcast_to(
+                        quantity.data[:, :, None],
+                        (quantity.data.shape[0], quantity.data.shape[1], npz + 1),
+                    )
                 )
                 quantity_3d = Quantity.from_data_array(
                     xr.DataArray(
