@@ -187,27 +187,27 @@ def d2a2c_vect(
     cosa_s: sd,
     rsin2: sd,
 ):
-    from __externals__ import HALO
+    from __externals__ import HALO, namelist
     from __splitters__ import i_end, i_start, j_end, j_start
 
     with computation(PARALLEL), interval(...):
 
-        # TODO assert __INLINED(namelist.grid_type < 3)
+        assert __INLINED(namelist.grid_type < 3)
 
         # The order of these blocks matters, so they cannot be merged into a
         # single block since then the order is not guaranteed
-        with parallel(region[:, j_start - HALO : j_start + HALO]):
+        with parallel(region[:, : j_start + HALO]):
             utmp = 0.5 * (u + u[0, 1, 0])
             vtmp = 0.5 * (v + v[1, 0, 0])
-        # with parallel(region[:, j_end - HALO : j_end + HALO]):
-        #     utmp = 0.5 * (u + u[0, 1, 0])
-        #     vtmp = 0.5 * (v + v[1, 0, 0])
-        # with parallel(region[i_start - HALO : i_start + HALO, :]):
-        #     utmp = 0.5 * (u + u[0, 1, 0])
-        #     vtmp = 0.5 * (v + v[1, 0, 0])
-        # with parallel(region[i_end - HALO : i_end + HALO, :]):
-        #     utmp = 0.5 * (u + u[0, 1, 0])
-        #     vtmp = 0.5 * (v + v[1, 0, 0])
+        with parallel(region[:, j_end - HALO + 1 :]):
+            utmp = 0.5 * (u + u[0, 1, 0])
+            vtmp = 0.5 * (v + v[1, 0, 0])
+        with parallel(region[: i_start + HALO, :]):
+            utmp = 0.5 * (u + u[0, 1, 0])
+            vtmp = 0.5 * (v + v[1, 0, 0])
+        with parallel(region[i_end - HALO + 1 :, :]):
+            utmp = 0.5 * (u + u[0, 1, 0])
+            vtmp = 0.5 * (v + v[1, 0, 0])
 
         # ua = (utmp - vtmp * cosa_s) * rsin2
         # # contravariant(utmp, vtmp, cosa_s, rsin2)
@@ -323,16 +323,38 @@ def compute(dord4, uc, vc, u, v, ua, va, utc, vtc):
     #         origin=(grid.isd, grid.jsd, 0),
     #         domain=(grid.nid, npt + OFFSET - grid.jsd, grid.npz),
     #     )
-    if grid.north_edge:
-        je2 = ny - npt + 1
-        avg_box(
-            u,
-            v,
-            utmp,
-            vtmp,
-            origin=(grid.isd, je2, 0),
-            domain=(grid.nid, grid.jed - je2 + 1, grid.npz),
-        )
+    # if grid.north_edge:
+    #     je2 = ny - npt + 1
+    #     avg_box(
+    #         u,
+    #         v,
+    #         utmp,
+    #         vtmp,
+    #         origin=(grid.isd, je2, 0),
+    #         domain=(grid.nid, grid.jed - je2 + 1, grid.npz),
+    #     )
+
+    js2 = npt + OFFSET if grid.south_edge else grid.jsd
+    je2 = ny - npt if grid.north_edge else grid.jed
+    jdiff = je2 - js2 + 1
+    # if grid.west_edge:
+    #     avg_box(
+    #         u,
+    #         v,
+    #         utmp,
+    #         vtmp,
+    #         origin=(grid.isd, js2, 0),
+    #         domain=(npt + OFFSET - grid.isd, jdiff, grid.npz),
+    #     )
+    # if grid.east_edge:
+    #     avg_box(
+    #         u,
+    #         v,
+    #         utmp,
+    #         vtmp,
+    #         origin=(nx + 1 - npt, js2, 0),
+    #         domain=(grid.ied - nx + npt, jdiff, grid.npz),
+    #     )
 
     d2a2c_vect(
         dord4,
@@ -351,27 +373,6 @@ def compute(dord4, uc, vc, u, v, ua, va, utc, vtc):
         origin=(grid.is_ - 3, grid.js - 3, 0),
         domain=(grid.nic + 6, grid.njc + 6, grid.npz),
     )
-    js2 = npt + OFFSET if grid.south_edge else grid.jsd
-    je2 = ny - npt if grid.north_edge else grid.jed
-    jdiff = je2 - js2 + 1
-    if grid.west_edge:
-        avg_box(
-            u,
-            v,
-            utmp,
-            vtmp,
-            origin=(grid.isd, js2, 0),
-            domain=(npt + OFFSET - grid.isd, jdiff, grid.npz),
-        )
-    if grid.east_edge:
-        avg_box(
-            u,
-            v,
-            utmp,
-            vtmp,
-            origin=(nx + 1 - npt, js2, 0),
-            domain=(grid.ied - nx + npt, jdiff, grid.npz),
-        )
 
     # contra-variant components at cell center
     pad = 2 + 2 * id_
