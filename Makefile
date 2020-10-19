@@ -17,6 +17,11 @@ CONTAINER_ENGINE ?=docker
 RUN_FLAGS ?=--rm
 TEST_DATA_HOST ?=$(CWD)/test_data/$(EXPERIMENT)
 FV3UTIL_DIR=$(CWD)/external/fv3gfs-util
+USE_GT4PY_DEVELOP ?=n
+
+ifeq ($(USE_GT4PY_DEVELOP),y)
+	RUN_FLAGS += --env USE_GT4PY_DEVELOP=y
+endif
 
 FV3=fv3core
 FV3_IMAGE ?= $(FV3CORE_IMAGE)
@@ -105,7 +110,7 @@ tests_mpi: build
 test_mpi: tests_mpi
 
 test_gt4py_develop:
-	RUN_FLAGS="$(RUN_FLAGS) --env USE_GT4PY_DEVELOP=y" $(MAKE) test test_mpi
+	USE_GT4PY_DEVELOP=y $(MAKE) test test_mpi
 
 dev:
 	docker run --rm -it \
