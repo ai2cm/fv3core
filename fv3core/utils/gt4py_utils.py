@@ -7,7 +7,6 @@ import math
 from typing import Any, Callable, Dict, List, Tuple, Union
 
 import gt4py as gt
-import gt4py.ir as gt_ir
 import numpy as np
 from gt4py import gtscript
 
@@ -107,7 +106,7 @@ def make_storage_data(
             axis = list(set((0, 1, 2)).difference(dummy))[0]
         tilespec = list(shape)
         buffer = zeros(shape[axis])
-        buffer[kstart : kstart + len(data)] = data
+        buffer[kstart : kstart + len(data)] = asarray(data, type(buffer))
         tilespec[axis] = 1
         if dummy:
             if len(dummy) == len(tilespec) - 1:
@@ -121,7 +120,7 @@ def make_storage_data(
                 dimslice = [slice(None)] * len(tilespec)
                 for dummy_axis in dummy:
                     dimslice[dummy_axis] = slice(0, 1)
-                storage = storage[tuple(dimslice)]
+                return storage[tuple(dimslice)]
         else:
             if axis == 2:
                 data = tile(buffer, tuple(tilespec))
@@ -144,7 +143,9 @@ def make_storage_data(
         else:
             shape2d = shape[0:2]
         buffer = zeros(shape2d)
-        buffer[istart : istart + isize, jstart : jstart + jsize] = asarray(data)
+        buffer[istart : istart + isize, jstart : jstart + jsize] = asarray(
+            data, type(buffer)
+        )
         if dummy:
             data = buffer.reshape(shape)
         else:
@@ -156,30 +157,23 @@ def make_storage_data(
     else:
         istart, jstart, kstart = start
         isize, jsize, ksize = data.shape
-        storage = gt.storage.zeros(
-            backend=backend,
-            default_origin=origin,
-            shape=shape,
-            dtype=dtype,
-            mask=mask,
-            managed_memory=managed_memory,
-        )
-        storage[
+        buffer = zeros(shape)
+        buffer[
             istart : istart + isize,
             jstart : jstart + jsize,
             kstart : kstart + ksize,
-        ] = data
+        ] = asarray(data, type(buffer))
+        data = buffer
 
-    if storage is None:
-        storage = gt.storage.from_array(
-            data=data,
-            backend=backend,
-            default_origin=origin,
-            shape=shape,
-            dtype=dtype,
-            mask=mask,
-            managed_memory=managed_memory,
-        )
+    storage = gt.storage.from_array(
+        data=data,
+        backend=backend,
+        default_origin=origin,
+        shape=shape,
+        dtype=dtype,
+        mask=mask,
+        managed_memory=managed_memory,
+    )
     return storage
 
 
@@ -391,7 +385,8 @@ def asarray(array, to_type=np.ndarray, dtype=None, order=None):
             return cp.asarray(array, dtype, order)
 
 
-def zeros(shape, storage_type=np.ndarray, dtype=float_type, order="F"):
+def zeros(shape, dtype=float_type):
+    storage_type = cp.ndarray if "cuda" in backend else np.ndarray
     xp = cp if cp and storage_type is cp.ndarray else np
     return xp.zeros(shape)
 
@@ -402,8 +397,10 @@ def sum(array, axis=None, dtype=None, out=None, keepdims=False):
 
 
 def repeat(array, repeats, axis=None):
+    if isinstance(array, gt.storage.storage.Storage):
+        array = array.data
     xp = cp if cp and type(array) is cp.ndarray else np
-    return xp.repeat(array.data, repeats, axis)
+    return xp.repeat(array, repeats, axis)
 
 
 def index(array, key):
