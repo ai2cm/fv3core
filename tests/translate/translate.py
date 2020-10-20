@@ -1,5 +1,5 @@
 import logging
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 
@@ -70,9 +70,9 @@ class TranslateFortranData2Py:
         istart: int = 0,
         jstart: int = 0,
         kstart: int = 0,
-        dummy_axes: Tuple[int, int, int] = None,
+        dummy_axes: Optional[Tuple[int, int, int]] = None,
         axis: int = 2,
-        names_4d: List[str] = None,
+        names_4d: Optional[List[str]] = None,
     ) -> Dict[str, type(Field)]:
         use_shape = list(self.maxshape)
         if dummy_axes:

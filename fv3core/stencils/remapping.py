@@ -54,7 +54,6 @@ def compute(
 
     gz = utils.make_storage_from_shape(pt.shape, grid.compute_origin())
     cvm = utils.make_storage_from_shape(pt.shape, grid.compute_origin())
-    te = utils.make_storage_from_shape(pt.shape, grid.default_origin())
     te_2d = utils.make_storage_from_shape(pt.shape, grid.compute_origin())
     zsum1 = utils.make_storage_from_shape(pt.shape, grid.compute_origin())
     remap_part1.compute(
