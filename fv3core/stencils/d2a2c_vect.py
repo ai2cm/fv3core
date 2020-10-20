@@ -55,9 +55,9 @@ def avg_box(u: sd, v: sd, utmp: sd, vtmp: sd):
         vtmp = avg_y(v)
 
 
-@gtscript.function
-def contravariant(u, v, cosa, rsin):
-    return (u - v * cosa) * rsin
+# @gtscript.function
+# def contravariant(u, v, cosa, rsin):
+#     return (u - v * cosa) * rsin
 
 
 @gtstencil()
@@ -66,11 +66,11 @@ def contravariant_stencil(u: sd, v: sd, cosa: sd, rsin: sd, out: sd):
         out = contravariant(u, v, cosa, rsin)
 
 
-@gtstencil()
-def contravariant_components(utmp: sd, vtmp: sd, cosa_s: sd, rsin2: sd, ua: sd, va: sd):
-    with computation(PARALLEL), interval(...):
-        ua = contravariant(utmp, vtmp, cosa_s, rsin2)
-        va = contravariant(vtmp, utmp, cosa_s, rsin2)
+# @gtstencil()
+# def contravariant_components(utmp: sd, vtmp: sd, cosa_s: sd, rsin2: sd, ua: sd, va: sd):
+#     with computation(PARALLEL), interval(...):
+#         ua = contravariant(utmp, vtmp, cosa_s, rsin2)
+#         va = contravariant(vtmp, utmp, cosa_s, rsin2)
 
 
 @gtstencil()
@@ -210,6 +210,9 @@ def d2a2c_vect(
             utmp = 0.5 * (u + u[0, 1, 0])
             vtmp = 0.5 * (v + v[1, 0, 0])
 
+        ua = (utmp - vtmp * cosa_s) * rsin2
+        va = (vtmp - utmp * cosa_s) * rsin2
+
 
 @gtstencil()
 def corner_calcs(ua: sd, va: sd, utmp: sd, vtmp: sd):
@@ -340,6 +343,22 @@ def compute(dord4, uc, vc, u, v, ua, va, utc, vtc):
     #         domain=(grid.ied - nx + npt, jdiff, grid.npz),
     #     )
 
+    # contra-variant components at cell center
+    pad = 2 + 2 * id_
+    # contravariant_components(
+    #     utmp,
+    #     vtmp,
+    #     grid.cosa_s,
+    #     grid.rsin2,
+    #     ua,
+    #     va,
+    #     origin=(grid.is_ - 1 - id_, grid.js - 1 - id_, 0),
+    #     domain=(grid.nic + pad, grid.njc + pad, grid.npz),
+    # )
+    # Fix the edges
+    # Xdir:
+    # TODO, make stencils? need variable offsets
+
     d2a2c_vect(
         dord4,
         uc,
@@ -357,22 +376,6 @@ def compute(dord4, uc, vc, u, v, ua, va, utc, vtc):
         origin=(grid.is_ - 3, grid.js - 3, 0),
         domain=(grid.nic + 6, grid.njc + 6, grid.npz),
     )
-
-    # contra-variant components at cell center
-    pad = 2 + 2 * id_
-    contravariant_components(
-        utmp,
-        vtmp,
-        grid.cosa_s,
-        grid.rsin2,
-        ua,
-        va,
-        origin=(grid.is_ - 1 - id_, grid.js - 1 - id_, 0),
-        domain=(grid.nic + pad, grid.njc + pad, grid.npz),
-    )
-    # Fix the edges
-    # Xdir:
-    # TODO, make stencils? need variable offsets
 
     # if grid.sw_corner:
     #     for i in range(-2, 1):

@@ -27,24 +27,41 @@ def compare_arr(computed_data, ref_data):
     return compare
 
 
-def success_array(computed_data, ref_data, eps, ignore_near_zero_errors):
+def success_array(
+    computed_data, ref_data, eps, ignore_near_zero_errors, ignore_overcomputes
+):
     success = np.logical_or(
         np.logical_and(np.isnan(computed_data), np.isnan(ref_data)),
         compare_arr(computed_data, ref_data) < eps,
     )
     if ignore_near_zero_errors:
-        small_number = 1e-18
+        SMALL_NUMBER = 1e-18
         success = np.logical_or(
             success,
             np.logical_and(
-                np.abs(computed_data) < small_number, np.abs(ref_data) < small_number
+                np.abs(computed_data) < SMALL_NUMBER, np.abs(ref_data) < SMALL_NUMBER
             ),
         )
+    if ignore_overcomputes:
+        LARGE_NUMBER = 1e25
+        success = np.logical_or(
+            success,
+            np.logical_and(
+                np.abs(computed_data) < LARGE_NUMBER, np.abs(ref_data) > LARGE_NUMBER
+            ),
+        )
+
     return success
 
 
-def success(computed_data, ref_data, eps, ignore_near_zero_errors):
-    return np.all(success_array(computed_data, ref_data, eps, ignore_near_zero_errors))
+def success(
+    computed_data, ref_data, eps, ignore_near_zero_errors, ignore_overcomputes=True
+):
+    return np.all(
+        success_array(
+            computed_data, ref_data, eps, ignore_near_zero_errors, ignore_overcomputes
+        )
+    )
 
 
 def sample_wherefail(
