@@ -173,7 +173,7 @@ def lagrange_interpolation(u: sd, v: sd, utmp: sd, vtmp: sd):
 
 
 @gtstencil(externals={"HALO": 3})
-def d2a2c_vect(
+def d2a2c_stencil1(
     dord4: int,
     u: sd,
     v: sd,
@@ -265,6 +265,24 @@ def d2a2c_stencil2(
         uc = lagrange_x_func(utmp)
         utc = contravariant(uc, v, cosa_u, rsin_u)
 
+
+@gtstencil()
+def d2a2c_stencil_west(
+    utmp: sd,
+    uc: sd,
+    utc: sd,
+    ua: sd,
+    v: sd,
+    cosa_u: sd,
+    rsin_u: sd,
+    dxa: sd,
+    sin_sg1: sd,
+    sin_sg3: sd,
+):
+    from __splitters__ import i_end, i_start, j_end, j_start
+
+    with computation(PARALLEL), interval(...):
+        # West
         with parallel(region[i_start - 1, :]):
             uc = vol_conserv_cubic_interp_func_x(utmp)
 
@@ -285,6 +303,46 @@ def d2a2c_stencil2(
             utc = contravariant(uc, v, cosa_u, rsin_u)
 
         with parallel(region[i_start + 1, :]):
+            utc = contravariant(uc, v, cosa_u, rsin_u)
+
+
+@gtstencil()
+def d2a2c_stencil_east(
+    utmp: sd,
+    uc: sd,
+    utc: sd,
+    ua: sd,
+    v: sd,
+    cosa_u: sd,
+    rsin_u: sd,
+    dxa: sd,
+    sin_sg1: sd,
+    sin_sg3: sd,
+):
+    from __splitters__ import i_end, i_start, j_end, j_start
+
+    with computation(PARALLEL), interval(...):
+        # East
+        with parallel(region[i_end, :]):
+            uc = vol_conserv_cubic_interp_func_x(utmp)
+
+        with parallel(region[i_end + 1, j_start - 1 : j_end + 2]):
+            t1 = dxa[-2, 0, 0] + dxa[-1, 0, 0]
+            t2 = dxa[0, 0, 0] + dxa[1, 0, 0]
+            n1 = (t1 + dxa[-1, 0, 0]) * ua[-1, 0, 0] - dxa[-1, 0, 0] * ua[-2, 0, 0]
+            n2 = (t1 + dxa[0, 0, 0]) * ua[0, 0, 0] - dxa[0, 0, 0] * ua[1, 0, 0]
+            utc = 0.5 * (n1 / t1 + n2 / t2)
+
+        with parallel(region[i_end + 1, :]):
+            uc = utc * sin_sg3[-1, 0, 0] if utc > 0 else utc * sin_sg1
+
+        with parallel(region[i_end + 2, :]):
+            uc = vol_conserv_cubic_interp_func_x_rev(utmp)
+
+        with parallel(region[i_end, :]):
+            utc = contravariant(uc, v, cosa_u, rsin_u)
+
+        with parallel(region[i_end + 2, :]):
             utc = contravariant(uc, v, cosa_u, rsin_u)
 
 
@@ -422,7 +480,7 @@ def compute(dord4, uc, vc, u, v, ua, va, utc, vtc):
     ilast = grid.ie - 1 if grid.east_edge else grid.ie + 2
     idiff = ilast - ifirst + 1
 
-    d2a2c_vect(
+    d2a2c_stencil1(
         dord4,
         u,
         v,
@@ -462,6 +520,36 @@ def compute(dord4, uc, vc, u, v, ua, va, utc, vtc):
         grid.sin_sg3,
         origin=(i1, j1, 0),
         domain=(grid.nic + 2, grid.njc + 2, grid.npz),
+    )
+
+    d2a2c_stencil_west(
+        utmp,
+        uc,
+        utc,
+        ua,
+        v,
+        grid.cosa_u,
+        grid.rsin_u,
+        grid.dxa,
+        grid.sin_sg1,
+        grid.sin_sg3,
+        origin=(grid.is_ - 1, grid.js - 1, 0),
+        domain=(4, grid.njc + 2, grid.npz),
+    )
+
+    d2a2c_stencil_east(
+        utmp,
+        uc,
+        utc,
+        ua,
+        v,
+        grid.cosa_u,
+        grid.rsin_u,
+        grid.dxa,
+        grid.sin_sg1,
+        grid.sin_sg3,
+        origin=(grid.ie - 1, grid.js - 1, 0),
+        domain=(4, grid.njc + 2, grid.npz),
     )
 
     if spec.namelist.grid_type < 3:
@@ -506,42 +594,42 @@ def compute(dord4, uc, vc, u, v, ua, va, utc, vtc):
             # )
 
         if grid.east_edge and not grid.nested:
-            vol_conserv_cubic_interp_x(
-                utmp, uc, origin=(nx - 1, j1, 0), domain=domain_edge_x
-            )
+            # vol_conserv_cubic_interp_x(
+            #     utmp, uc, origin=(nx - 1, j1, 0), domain=domain_edge_x
+            # )
             islice = slice(nx - 2, nx + 2)
-            utc[nx, jslice, :] = edge_interpolate4_x(
-                ua[islice, jslice, :], grid.dxa[islice, jslice, :]
-            )
-            uc_x_edge1(
-                utc,
-                grid.sin_sg3,
-                grid.sin_sg1,
-                uc,
-                origin=(nx, j1, 0),
-                domain=domain_edge_x,
-            )
-            vol_conserv_cubic_interp_x_rev(
-                utmp, uc, origin=(nx + 1, j1, 0), domain=domain_edge_x
-            )
-            contravariant_stencil(
-                uc,
-                v,
-                grid.cosa_u,
-                grid.rsin_u,
-                utc,
-                origin=(grid.ie, j1, 0),
-                domain=domain_edge_x,
-            )
-            contravariant_stencil(
-                uc,
-                v,
-                grid.cosa_u,
-                grid.rsin_u,
-                utc,
-                origin=(nx + 1, j1, 0),
-                domain=domain_edge_x,
-            )
+            # utc[nx, jslice, :] = edge_interpolate4_x(
+            #     ua[islice, jslice, :], grid.dxa[islice, jslice, :]
+            # )
+            # uc_x_edge1(
+            #     utc,
+            #     grid.sin_sg3,
+            #     grid.sin_sg1,
+            #     uc,
+            #     origin=(nx, j1, 0),
+            #     domain=domain_edge_x,
+            # )
+            # vol_conserv_cubic_interp_x_rev(
+            #     utmp, uc, origin=(nx + 1, j1, 0), domain=domain_edge_x
+            # )
+            # contravariant_stencil(
+            #     uc,
+            #     v,
+            #     grid.cosa_u,
+            #     grid.rsin_u,
+            #     utc,
+            #     origin=(grid.ie, j1, 0),
+            #     domain=domain_edge_x,
+            # )
+            # contravariant_stencil(
+            #     uc,
+            #     v,
+            #     grid.cosa_u,
+            #     grid.rsin_u,
+            #     utc,
+            #     origin=(nx + 1, j1, 0),
+            #     domain=domain_edge_x,
+            # )
     # Ydir:
     if grid.sw_corner:
         for j in range(-2, 1):
