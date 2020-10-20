@@ -28,7 +28,7 @@ def compare_arr(computed_data, ref_data):
 
 
 def success_array(
-    computed_data, ref_data, eps, ignore_near_zero_errors, ignore_overcomputes
+    computed_data, ref_data, eps, ignore_near_zero_errors, ignore_overcomputes=True
 ):
     success = np.logical_or(
         np.logical_and(np.isnan(computed_data), np.isnan(ref_data)),

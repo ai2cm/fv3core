@@ -175,8 +175,6 @@ def lagrange_interpolation(u: sd, v: sd, utmp: sd, vtmp: sd):
 @gtstencil(externals={"HALO": 3})
 def d2a2c_vect(
     dord4: int,
-    uc: sd,
-    vc: sd,
     u: sd,
     v: sd,
     ua: sd,
@@ -210,8 +208,8 @@ def d2a2c_vect(
             utmp = 0.5 * (u + u[0, 1, 0])
             vtmp = 0.5 * (v + v[1, 0, 0])
 
-        ua = (utmp - vtmp * cosa_s) * rsin2
-        va = (vtmp - utmp * cosa_s) * rsin2
+        ua = contravariant(utmp, vtmp, cosa_s, rsin2)
+        va = contravariant(vtmp, utmp, cosa_s, rsin2)
 
         # SW corner
         with parallel(region[i_start - 3, j_start - 1]):
@@ -246,6 +244,20 @@ def d2a2c_vect(
             utmp = vtmp[0, -1, 0]
 
         ua = fill_4corners_x(ua, va, sw_mult=-1, se_mult=1, ne_mult=-1, nw_mult=1)
+
+
+@gtstencil()
+def d2a2c_stencil2(
+    utmp: sd,
+    uc: sd,
+    utc: sd,
+    v: sd,
+    cosa_u: sd,
+    rsin_u: sd,
+):
+    with computation(PARALLEL), interval(...):
+        uc = lagrange_x_func(utmp)
+        utc = contravariant(uc, v, cosa_u, rsin_u)
 
 
 @gtstencil()
@@ -353,24 +365,6 @@ def compute(dord4, uc, vc, u, v, ua, va, utc, vtc):
     # Xdir:
     # TODO, make stencils? need variable offsets
 
-    d2a2c_vect(
-        dord4,
-        uc,
-        vc,
-        u,
-        v,
-        ua,
-        va,
-        utc,
-        vtc,
-        utmp,
-        vtmp,
-        grid.cosa_s,
-        grid.rsin2,
-        origin=(grid.is_ - 3, grid.js - 3, 0),
-        domain=(grid.nic + 6, grid.njc + 6, grid.npz),
-    )
-
     # if grid.sw_corner:
     #     for i in range(-2, 1):
     #         utmp[i + 2, grid.js - 1, :] = -vtmp[grid.is_ - 1, grid.js - i, :]
@@ -399,13 +393,41 @@ def compute(dord4, uc, vc, u, v, ua, va, utc, vtc):
     ifirst = grid.is_ + 2 if grid.west_edge else grid.is_ - 1
     ilast = grid.ie - 1 if grid.east_edge else grid.ie + 2
     idiff = ilast - ifirst + 1
-    ut_main(
+
+    d2a2c_vect(
+        dord4,
+        u,
+        v,
+        ua,
+        va,
+        utc,
+        vtc,
+        utmp,
+        vtmp,
+        grid.cosa_s,
+        grid.rsin2,
+        origin=(grid.is_ - 3, grid.js - 3, 0),
+        domain=(grid.nic + 6, grid.njc + 6, grid.npz),
+    )
+
+    # ut_main(
+    #     utmp,
+    #     uc,
+    #     v,
+    #     grid.cosa_u,
+    #     grid.rsin_u,
+    #     utc,
+    #     origin=(ifirst, j1, 0),
+    #     domain=(idiff, grid.njc + 2, grid.npz),
+    # )
+
+    d2a2c_stencil2(
         utmp,
         uc,
+        utc,
         v,
         grid.cosa_u,
         grid.rsin_u,
-        utc,
         origin=(ifirst, j1, 0),
         domain=(idiff, grid.njc + 2, grid.npz),
     )
