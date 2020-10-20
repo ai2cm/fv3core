@@ -251,13 +251,35 @@ def d2a2c_stencil2(
     utmp: sd,
     uc: sd,
     utc: sd,
+    ua: sd,
     v: sd,
     cosa_u: sd,
     rsin_u: sd,
+    dxa: sd,
+    sin_sg1: sd,
+    sin_sg3: sd,
 ):
+    from __splitters__ import i_end, i_start, j_end, j_start
+
     with computation(PARALLEL), interval(...):
         uc = lagrange_x_func(utmp)
         utc = contravariant(uc, v, cosa_u, rsin_u)
+
+        with parallel(region[i_start - 1, :]):
+            uc = vol_conserv_cubic_interp_func_x(utmp)
+
+        with parallel(region[i_start, j_start - 1 : j_end + 2]):
+            t1 = dxa[-2, 0, 0] + dxa[-1, 0, 0]
+            t2 = dxa[0, 0, 0] + dxa[1, 0, 0]
+            n1 = (t1 + dxa[-1, 0, 0]) * ua[-1, 0, 0] - dxa[-1, 0, 0] * ua[-2, 0, 0]
+            n2 = (t1 + dxa[0, 0, 0]) * ua[0, 0, 0] - dxa[0, 0, 0] * ua[1, 0, 0]
+            utc = 0.5 * (n1 / t1 + n2 / t2)
+
+        with parallel(region[i_start, :]):
+            uc = utc * sin_sg3[-1, 0, 0] if utc > 0 else utc * sin_sg1
+
+        with parallel(region[i_start + 1, :]):
+            uc = vol_conserv_cubic_interp_func_x_rev(utmp)
 
 
 @gtstencil()
@@ -425,32 +447,36 @@ def compute(dord4, uc, vc, u, v, ua, va, utc, vtc):
         utmp,
         uc,
         utc,
+        ua,
         v,
         grid.cosa_u,
         grid.rsin_u,
-        origin=(ifirst, j1, 0),
-        domain=(idiff, grid.njc + 2, grid.npz),
+        grid.dxa,
+        grid.sin_sg1,
+        grid.sin_sg3,
+        origin=(i1, j1, 0),
+        domain=(grid.nic + 2, grid.njc + 2, grid.npz),
     )
 
     if spec.namelist.grid_type < 3:
         domain_edge_x = (1, grid.njc + 2, grid.npz)
         jslice = slice(grid.js - 1, grid.je + 2)
         if grid.west_edge and not grid.nested:
-            vol_conserv_cubic_interp_x(
-                utmp, uc, origin=(i1, j1, 0), domain=domain_edge_x
-            )
+            # vol_conserv_cubic_interp_x(
+            #     utmp, uc, origin=(i1, j1, 0), domain=domain_edge_x
+            # )
             islice = slice(grid.is_ - 2, grid.is_ + 2)
-            utc[grid.is_, jslice, :] = edge_interpolate4_x(
-                ua[islice, jslice, :], grid.dxa[islice, jslice, :]
-            )
-            uc_x_edge1(
-                utc,
-                grid.sin_sg3,
-                grid.sin_sg1,
-                uc,
-                origin=(i1 + 1, j1, 0),
-                domain=domain_edge_x,
-            )
+            # utc[grid.is_, jslice, :] = edge_interpolate4_x(
+            #     ua[islice, jslice, :], grid.dxa[islice, jslice, :]
+            # )
+            # uc_x_edge1(
+            #     utc,
+            #     grid.sin_sg3,
+            #     grid.sin_sg1,
+            #     uc,
+            #     origin=(i1 + 1, j1, 0),
+            #     domain=domain_edge_x,
+            # )
             vol_conserv_cubic_interp_x_rev(
                 utmp, uc, origin=(i1 + 2, j1, 0), domain=domain_edge_x
             )
