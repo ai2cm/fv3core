@@ -281,6 +281,12 @@ def d2a2c_stencil2(
         with parallel(region[i_start + 1, :]):
             uc = vol_conserv_cubic_interp_func_x_rev(utmp)
 
+        with parallel(region[i_start - 1, :]):
+            utc = contravariant(uc, v, cosa_u, rsin_u)
+
+        with parallel(region[i_start + 1, :]):
+            utc = contravariant(uc, v, cosa_u, rsin_u)
+
 
 @gtstencil()
 def lagrange_interpolation_y_p1(qx: sd, qout: sd):
@@ -477,27 +483,27 @@ def compute(dord4, uc, vc, u, v, ua, va, utc, vtc):
             #     origin=(i1 + 1, j1, 0),
             #     domain=domain_edge_x,
             # )
-            vol_conserv_cubic_interp_x_rev(
-                utmp, uc, origin=(i1 + 2, j1, 0), domain=domain_edge_x
-            )
-            contravariant_stencil(
-                uc,
-                v,
-                grid.cosa_u,
-                grid.rsin_u,
-                utc,
-                origin=(i1, j1, 0),
-                domain=domain_edge_x,
-            )
-            contravariant_stencil(
-                uc,
-                v,
-                grid.cosa_u,
-                grid.rsin_u,
-                utc,
-                origin=(i1 + 2, j1, 0),
-                domain=domain_edge_x,
-            )
+            # vol_conserv_cubic_interp_x_rev(
+            #     utmp, uc, origin=(i1 + 2, j1, 0), domain=domain_edge_x
+            # )
+            # contravariant_stencil(
+            #     uc,
+            #     v,
+            #     grid.cosa_u,
+            #     grid.rsin_u,
+            #     utc,
+            #     origin=(i1, j1, 0),
+            #     domain=domain_edge_x,
+            # )
+            # contravariant_stencil(
+            #     uc,
+            #     v,
+            #     grid.cosa_u,
+            #     grid.rsin_u,
+            #     utc,
+            #     origin=(i1 + 2, j1, 0),
+            #     domain=domain_edge_x,
+            # )
 
         if grid.east_edge and not grid.nested:
             vol_conserv_cubic_interp_x(
