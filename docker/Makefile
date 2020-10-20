@@ -13,8 +13,8 @@ BUILD_ARGS += \
 	--build-arg ENV_CUDA_PATH=$(ENV_CUDA_PATH)
 
 # sarus paths
-CORE_TAR=$(FV3_TAG).tar
-CORE_BUCKET_LOC=gs://vcm-jenkins/$(CORE_TAR)
+CORE_TAR=$(TAG_NAME).tar
+CORE_BUCKET_LOC=gs://vcm-jenkins/fv3core_$(CORE_TAR)
 
 build: fv3core_image
 
@@ -81,6 +81,5 @@ sarus_load_tar:
         fi
 
 cleanup_remote:
-	$(MAKE) -C docker cleanup_remote
 	gsutil rm $(CORE_BUCKET_LOC)
-	gcloud container images delete -q --force-delete-tags $(FV3_IMAGE)
+	gcloud container images delete -q --force-delete-tags $(FV3CORE_IMAGE)
