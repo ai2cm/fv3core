@@ -1,12 +1,10 @@
-#!/usr/bin/env python3
-
 import copy
-import functools
 import logging
 import math
-from typing import Any, Callable, Dict, List, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 import gt4py as gt
+import gt4py.storage as gt_storage
 import numpy as np
 from gt4py import gtscript
 
@@ -67,14 +65,13 @@ def quantity_name(name):
 
 def make_storage_data(
     data: Field,
-    shape: Tuple[int, int, int] = None,
+    shape: Optional[Tuple[int, int, int]] = None,
+    *,
     origin: Tuple[int, int, int] = origin,
     dtype: DTypes = np.float64,
-    init: bool = True,
-    mask: Tuple[bool, bool, bool] = [True, True, True],
+    mask: Tuple[bool, bool, bool] = (True, True, True),
     start: Tuple[int, int, int] = (0, 0, 0),
-    dummy: Tuple[int, int, int] = None,
-    names: List[str] = None,
+    dummy: Optional[Tuple[int, int, int]] = None,
     axis: int = 2,
 ) -> Field:
     """Create a new gt4py storage from the given data.
@@ -84,7 +81,6 @@ def make_storage_data(
         shape: Shape of the new storage
         origin: Default origin for gt4py stencil calls
         dtype: Data type
-        init: If True, initializes the storage to the default value for the type
         mask: Tuple indicating the axes used when initializing the storage
         start: Starting points for slices in data copies
         dummy: Dummy axes
@@ -92,80 +88,32 @@ def make_storage_data(
 
     Returns:
         Field[dtype]: New storage
+
+    Examples:
+        1) ptop = utils.make_storage_data(top_p, q4_1.shape)
+        2) ws3 = utils.make_storage_data(ws3[:, :, -1], shape, origin=(0, 0, 0))
+        3) data_dict[names[i]] = make_storage_data(
+               data[:, :, :, i],
+               shape,
+               origin=origin,
+               start=start,
+               dummy=dummy,
+               axis=axis,
+           )
     """
     storage = None
     n_dims = len(data.shape)
     if shape is None:
         shape = data.shape
 
-    # make_storage_1d:
     if n_dims == 1:
-        # axis refers to a repeated axis, dummy refers to a singleton axis
-        kstart = start[2]
-        if dummy:
-            axis = list(set((0, 1, 2)).difference(dummy))[0]
-        tilespec = list(shape)
-        buffer = zeros(shape[axis])
-        buffer[kstart : kstart + len(data)] = asarray(data, type(buffer))
-        tilespec[axis] = 1
-        if dummy:
-            if len(dummy) == len(tilespec) - 1:
-                data = buffer.reshape((shape))
-            else:
-                # TODO maybe, this is a little silly (repeat the array, then squash the dim), though eventually
-                # we shouldn't need this general capability if we refactor stencils to operate on 3d
-                storage = make_storage_data(
-                    data, shape, start=(0, 0, kstart), origin=origin, axis=axis
-                )
-                dimslice = [slice(None)] * len(tilespec)
-                for dummy_axis in dummy:
-                    dimslice[dummy_axis] = slice(0, 1)
-                return storage[tuple(dimslice)]
-        else:
-            if axis == 2:
-                data = tile(buffer, tuple(tilespec))
-            elif axis == 1:
-                x = repeat(buffer[np.newaxis, :], shape[0], axis=0)
-                data = repeat(x[:, :, np.newaxis], shape[2], axis=2)
-            else:
-                y = repeat(buffer[:, np.newaxis], shape[1], axis=1)
-                data = repeat(y[:, :, np.newaxis], shape[2], axis=2)
-
-    # make_storage_2d:
+        data = _make_storage_data_1d(data, shape, start, dummy, axis)
     elif n_dims == 2:
-        # axis refers to which axis should be repeated (when making a full 3d data),
-        # dummy refers to a singleton axis
-        istart, jstart = start[0:2]
-        isize, jsize = data.shape
-        if dummy or axis != 2:
-            d_axis = dummy[0] if dummy else axis
-            shape2d = shape[:d_axis] + shape[d_axis + 1 :]
-        else:
-            shape2d = shape[0:2]
-        buffer = zeros(shape2d)
-        buffer[istart : istart + isize, jstart : jstart + jsize] = asarray(
-            data, type(buffer)
-        )
-        if dummy:
-            data = buffer.reshape(shape)
-        else:
-            data = repeat(buffer[:, :, np.newaxis], shape[axis], axis=2)
-            if axis != 2:
-                data = moveaxis(data, 2, axis)
-
-    # make_storage_3d:
+        data = _make_storage_data_2d(data, shape, start, dummy, axis)
     else:
-        istart, jstart, kstart = start
-        isize, jsize, ksize = data.shape
-        buffer = zeros(shape)
-        buffer[
-            istart : istart + isize,
-            jstart : jstart + jsize,
-            kstart : kstart + ksize,
-        ] = asarray(data, type(buffer))
-        data = buffer
+        data = _make_storage_data_3d(data, shape, start)
 
-    storage = gt.storage.from_array(
+    storage = gt_storage.from_array(
         data=data,
         backend=backend,
         default_origin=origin,
@@ -177,12 +125,92 @@ def make_storage_data(
     return storage
 
 
+def _make_storage_data_1d(
+    data: Field,
+    shape: Optional[Tuple[int, int, int]] = None,
+    start: Tuple[int, int, int] = (0, 0, 0),
+    dummy: Optional[Tuple[int, int, int]] = None,
+    axis: int = 2,
+) -> Field:
+    # axis refers to a repeated axis, dummy refers to a singleton axis
+    kstart = start[2]
+    if dummy:
+        axis = list(set((0, 1, 2)).difference(dummy))[0]
+    buffer = zeros(shape[axis])
+    buffer[kstart : kstart + len(data)] = asarray(data, type(buffer))
+    tile_spec = list(shape)
+    tile_spec[axis] = 1
+
+    if dummy:
+        if len(dummy) == len(tile_spec) - 1:
+            data = buffer.reshape((shape))
+    else:
+        if axis == 2:
+            data = tile(buffer, tuple(tile_spec))
+        elif axis == 1:
+            x = repeat(buffer[np.newaxis, :], shape[0], axis=0)
+            data = repeat(x[:, :, np.newaxis], shape[2], axis=2)
+        else:
+            y = repeat(buffer[:, np.newaxis], shape[1], axis=1)
+            data = repeat(y[:, :, np.newaxis], shape[2], axis=2)
+    return data
+
+
+def _make_storage_data_2d(
+    data: Field,
+    shape: Optional[Tuple[int, int, int]] = None,
+    start: Tuple[int, int, int] = (0, 0, 0),
+    dummy: Optional[Tuple[int, int, int]] = None,
+    axis: int = 2,
+) -> Field:
+    # axis refers to which axis should be repeated (when making a full 3d data),
+    # dummy refers to a singleton axis
+    isize, jsize = data.shape
+    istart, jstart = start[0:2]
+    if dummy or axis != 2:
+        d_axis = dummy[0] if dummy else axis
+        shape2d = shape[:d_axis] + shape[d_axis + 1 :]
+    else:
+        shape2d = shape[0:2]
+    buffer = zeros(shape2d)
+    buffer[istart : istart + isize, jstart : jstart + jsize] = asarray(
+        data, type(buffer)
+    )
+    if dummy:
+        data = buffer.reshape(shape)
+    else:
+        data = repeat(buffer[:, :, np.newaxis], shape[axis], axis=2)
+        if axis != 2:
+            data = moveaxis(data, 2, axis)
+    return data
+
+
+def _make_storage_data_3d(
+    data: Field,
+    shape: Optional[Tuple[int, int, int]] = None,
+    start: Tuple[int, int, int] = (0, 0, 0),
+) -> Field:
+    istart, jstart, kstart = start
+    isize, jsize, ksize = data.shape
+    buffer = zeros(shape)
+    try:
+        buffer[
+            istart : istart + isize,
+            jstart : jstart + jsize,
+            kstart : kstart + ksize,
+        ] = asarray(data, type(buffer))
+    except Exception as ex:
+        print(ex)
+    return buffer
+
+
 def make_storage_from_shape(
     shape: Tuple[int, int, int],
     origin: Tuple[int, int, int] = origin,
+    *,
     dtype: DTypes = np.float64,
     init: bool = True,
-    mask: Tuple[bool, bool, bool] = [True, True, True],
+    mask: Tuple[bool, bool, bool] = (True, True, True),
 ) -> Field:
     """Create a new gt4py storage of a given shape.
 
@@ -195,8 +223,15 @@ def make_storage_from_shape(
 
     Returns:
         Field[dtype]: New storage
+
+    Examples:
+        1) utmp = utils.make_storage_from_shape(ua.shape)
+        2) qx = utils.make_storage_from_shape(
+               qin.shape, origin=(grid().is_, grid().jsd, kstart)
+           )
+        3) q_out = utils.make_storage_from_shape(q_in.shape, origin, init=True)
     """
-    storage = gt.storage.empty(
+    storage = gt_storage.empty(
         backend=backend,
         default_origin=origin,
         shape=shape,
@@ -211,15 +246,14 @@ def make_storage_from_shape(
 
 def make_storage_dict(
     data: Field,
-    shape: Tuple[int, int, int] = None,
+    shape: Optional[Tuple[int, int, int]] = None,
     origin: Tuple[int, int, int] = origin,
     start: Tuple[int, int, int] = (0, 0, 0),
-    dummy: Tuple[int, int, int] = None,
-    names: List[str] = None,
+    dummy: Optional[Tuple[int, int, int]] = None,
+    names: Optional[List[str]] = None,
     axis: int = 2,
 ) -> Dict[str, type(Field)]:
-    if names is None:
-        raise Exception("for 4d variable storages, specify a list of names")
+    assert names is not None, "for 4d variable storages, specify a list of names"
     if shape is None:
         shape = data.shape
     data_dict: Dict[str, Field] = dict()
@@ -241,7 +275,7 @@ def storage_dict(st_dict, names, shape, origin):
 
 
 def k_slice_operation(key, value, ki, dictionary):
-    if isinstance(value, gt.storage.storage.Storage):
+    if isinstance(value, gt_storage.storage.Storage):
         dictionary[key] = make_storage_data(
             value[:, :, ki], (value.shape[0], value.shape[1], len(ki))
         )
@@ -368,9 +402,10 @@ def extrap_corner(p0, p1, p2, q1, q2):
 
 
 def asarray(array, to_type=np.ndarray, dtype=None, order=None):
+    if isinstance(array, gt_storage.storage.Storage):
+        array = array.data
     if cp and (
-        isinstance(array, memoryview)
-        or isinstance(array.data, cp.ndarray)
+        isinstance(array.data, cp.ndarray)
         or isinstance(array.data, cp.cuda.memory.MemoryPointer)
     ):
         if to_type is np.ndarray:
@@ -391,13 +426,15 @@ def zeros(shape, dtype=float_type):
     return xp.zeros(shape)
 
 
-def sum(array, axis=None, dtype=None, out=None, keepdims=False):
+def sum(array, axis=None, dtype=float_type, out=None, keepdims=False):
+    if isinstance(array, gt_storage.storage.Storage):
+        array = array.data
     xp = cp if cp and type(array) is cp.ndarray else np
     return xp.sum(array, axis, dtype, out, keepdims)
 
 
 def repeat(array, repeats, axis=None):
-    if isinstance(array, gt.storage.storage.Storage):
+    if isinstance(array, gt_storage.storage.Storage):
         array = array.data
     xp = cp if cp and type(array) is cp.ndarray else np
     return xp.repeat(array, repeats, axis)
@@ -408,15 +445,21 @@ def index(array, key):
 
 
 def moveaxis(array, source: int, destination: int):
+    if isinstance(array, gt_storage.storage.Storage):
+        array = array.data
     xp = cp if cp and type(array) is cp.ndarray else np
     return xp.moveaxis(array, source, destination)
 
 
 def tile(array, reps: Union[int, Tuple[int]]):
+    if isinstance(array, gt_storage.storage.Storage):
+        array = array.data
     xp = cp if cp and type(array) is cp.ndarray else np
     return xp.tile(array, reps)
 
 
 def squeeze(array, axis: Union[int, Tuple[int]] = None):
+    if isinstance(array, gt_storage.storage.Storage):
+        array = array.data
     xp = cp if cp and type(array) is cp.ndarray else np
     return xp.squeeze(array, axis)

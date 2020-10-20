@@ -1,4 +1,3 @@
-import fv3core.utils.gt4py_utils as utils
 from fv3core.utils import corners
 
 from .translate import TranslateFortranData2Py

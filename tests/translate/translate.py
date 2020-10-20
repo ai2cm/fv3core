@@ -292,9 +292,12 @@ class TranslateGrid:
                 else:
                     edge_offset = pygrid.global_jsd
                     width = pygrid.subtile_width_y
-                edgeslice = slice(int(edge_offset), int(edge_offset + width + 1))
+                edge_slice = slice(int(edge_offset), int(edge_offset + width + 1))
                 self.data[k] = utils.make_storage_data(
-                    self.data[k][edgeslice], shape, start=(0, 0, pygrid.halo), axis=axis
+                    self.data[k][edge_slice],
+                    shape,
+                    start=(0, 0, pygrid.halo),
+                    axis=axis,
                 )
         for k, v in self.data.items():
             if type(v) is np.ndarray:
