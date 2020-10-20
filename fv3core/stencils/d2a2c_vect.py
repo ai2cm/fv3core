@@ -55,9 +55,9 @@ def avg_box(u: sd, v: sd, utmp: sd, vtmp: sd):
         vtmp = avg_y(v)
 
 
-# @gtscript.function
-# def contravariant(u, v, cosa, rsin):
-#     return (u - v * cosa) * rsin
+@gtscript.function
+def contravariant(u, v, cosa, rsin):
+    return (u - v * cosa) * rsin
 
 
 @gtstencil()
@@ -213,12 +213,6 @@ def d2a2c_vect(
         ua = (utmp - vtmp * cosa_s) * rsin2
         va = (vtmp - utmp * cosa_s) * rsin2
 
-
-@gtstencil()
-def corner_calcs(ua: sd, va: sd, utmp: sd, vtmp: sd):
-    from __splitters__ import i_end, i_start, j_end, j_start
-
-    with computation(PARALLEL), interval(...):
         # SW corner
         with parallel(region[i_start - 3, j_start - 1]):
             utmp = -vtmp[2, 3, 0]
@@ -401,15 +395,6 @@ def compute(dord4, uc, vc, u, v, ua, va, utc, vtc):
     #     if spec.namelist.grid_type < 3:
     #         ua[i1 - 1, ny, :] = va[i1, ny - 2, :]
     #         ua[i1, ny, :] = va[i1, ny - 1, :]
-
-    corner_calcs(
-        ua,
-        va,
-        utmp,
-        vtmp,
-        origin=(grid.is_ - 3, grid.js - 3, 0),
-        domain=(grid.nic + 6, grid.njc + 6, grid.npz),
-    )
 
     ifirst = grid.is_ + 2 if grid.west_edge else grid.is_ - 1
     ilast = grid.ie - 1 if grid.east_edge else grid.ie + 2
