@@ -71,8 +71,6 @@ def gtstencil(definition=None, **stencil_kwargs) -> Callable[..., None]:
         raise ValueError(module_level_var_errmsg("rebuild", "gtstencil"))
     if "backend" in stencil_kwargs:
         raise ValueError(module_level_var_errmsg("backend", "gtstencil"))
-    if "validate_args" in stencil_kwargs:
-        raise ValueError(module_level_var_errmsg("validate_args", "gtstencil"))
 
     def decorator(func) -> Callable[..., None]:
         stencils = {}
@@ -85,7 +83,6 @@ def gtstencil(definition=None, **stencil_kwargs) -> Callable[..., None]:
                 # Add globals to stencil_kwargs
                 stencil_kwargs["rebuild"] = utils.rebuild
                 stencil_kwargs["backend"] = utils.backend
-                stencil_kwargs["validate_args"] = utils.validate_args
 
                 # Add externals
                 stencil_kwargs["externals"] = {
@@ -102,6 +99,7 @@ def gtstencil(definition=None, **stencil_kwargs) -> Callable[..., None]:
             kwargs["splitters"] = kwargs.get(
                 "splitters", spec.grid.splitters(origin=kwargs.get("origin"))
             )
+            kwargs["validate_args"] = kwargs.get("validate_args", utils.validate_args)
             return stencils[key](*args, **kwargs)
 
         return wrapped
