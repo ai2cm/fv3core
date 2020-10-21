@@ -43,7 +43,7 @@ def success_array(
             ),
         )
     if ignore_overcomputes:
-        LARGE_NUMBER = 1e25
+        LARGE_NUMBER = 1e30
         success = np.logical_or(
             success,
             np.logical_and(
