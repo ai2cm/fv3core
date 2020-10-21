@@ -159,8 +159,6 @@ def d2a2c_stencil2(utmp: sd, v: sd, cosa_u: sd, rsin_u: sd, uc: sd, utc: sd):
 @gtstencil()
 def d2a2c_stencil_west(
     utmp: sd,
-    uc: sd,
-    utc: sd,
     ua: sd,
     v: sd,
     cosa_u: sd,
@@ -168,7 +166,11 @@ def d2a2c_stencil_west(
     dxa: sd,
     sin_sg1: sd,
     sin_sg3: sd,
+    uc: sd,
+    utc: sd,
 ):
+    # in: utmp, ua, v, cosa_u, rsin_u, dxa, sin_sg1, sin_sg3
+    # inout: uc, utc
     from __splitters__ import i_end, i_start, j_end, j_start
 
     with computation(PARALLEL), interval(...):
@@ -199,8 +201,6 @@ def d2a2c_stencil_west(
 @gtstencil()
 def d2a2c_stencil_east(
     utmp: sd,
-    uc: sd,
-    utc: sd,
     ua: sd,
     v: sd,
     cosa_u: sd,
@@ -208,7 +208,11 @@ def d2a2c_stencil_east(
     dxa: sd,
     sin_sg1: sd,
     sin_sg3: sd,
+    uc: sd,
+    utc: sd,
 ):
+    # in: utmp, ua, v, cosa_u, rsin_u, dxa, sin_sg1, sin_sg3
+    # inout: uc, utc
     from __splitters__ import i_end, i_start, j_end, j_start
 
     with computation(PARALLEL), interval(...):
@@ -238,17 +242,14 @@ def d2a2c_stencil_east(
 
 @gtstencil(externals={"HALO": 3})
 def d2a2c_stencil3(
-    u: sd,
-    v: sd,
+    utmp: sd,
     ua: sd,
     va: sd,
-    utc: sd,
-    vtc: sd,
-    utmp: sd,
     vtmp: sd,
-    cosa_s: sd,
-    rsin2: sd,
 ):
+    # in: utmp, ua
+    # input: va
+    # out: vtmp
     from __externals__ import HALO, namelist
     from __splitters__ import i_end, i_start, j_end, j_start
 
@@ -304,7 +305,7 @@ def d2a2c_stencil_south(
     vc: sd,
     vtc: sd,
 ):
-    # in: vtmp, um, cosa_v, rsin_v, dya
+    # in: vtmp, va, u, cosa_v, rsin_v, dya, sin_sg2, sin_sg4
     # inout: vc, vtc
     from __splitters__ import i_end, i_start, j_end, j_start
 
@@ -341,7 +342,7 @@ def d2a2c_stencil_north(
     vc: sd,
     vtc: sd,
 ):
-    # in: vtmp, um, cosa_v, rsin_v, dya
+    # in: vtmp, va, u, cosa_v, rsin_v, dya, sin_sg2, sin_sg4
     # inout: vc, vtc
     from __splitters__ import i_end, i_start, j_end, j_start
 
@@ -455,8 +456,6 @@ def compute(dord4, uc, vc, u, v, ua, va, utc, vtc):
 
     d2a2c_stencil_west(
         utmp,
-        uc,
-        utc,
         ua,
         v,
         grid.cosa_u,
@@ -464,14 +463,14 @@ def compute(dord4, uc, vc, u, v, ua, va, utc, vtc):
         grid.dxa,
         grid.sin_sg1,
         grid.sin_sg3,
+        uc,
+        utc,
         origin=(grid.is_ - 1, grid.js - 1, 0),
         domain=(4, grid.njc + 2, grid.npz),
     )
 
     d2a2c_stencil_east(
         utmp,
-        uc,
-        utc,
         ua,
         v,
         grid.cosa_u,
@@ -479,21 +478,17 @@ def compute(dord4, uc, vc, u, v, ua, va, utc, vtc):
         grid.dxa,
         grid.sin_sg1,
         grid.sin_sg3,
+        uc,
+        utc,
         origin=(grid.ie - 1, grid.js - 1, 0),
         domain=(4, grid.njc + 2, grid.npz),
     )
 
     d2a2c_stencil3(
-        u,
-        v,
+        utmp,
         ua,
         va,
-        utc,
-        vtc,
-        utmp,
         vtmp,
-        grid.cosa_s,
-        grid.rsin2,
         origin=(grid.is_ - 3, grid.js - 3, 0),
         domain=(grid.nic + 6, grid.njc + 6, grid.npz),
     )
