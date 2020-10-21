@@ -98,7 +98,7 @@ cleanup_remote:
 
 # end of image build targets which have been moved to docker/Makefile
 
-tests: #build
+tests: build
 	$(MAKE) get_test_data
 	$(MAKE) run_tests_sequential
 
