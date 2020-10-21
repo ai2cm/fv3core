@@ -61,7 +61,7 @@ ARG CPPFLAGS="-I${BOOST_HOME} -I${BOOST_HOME}/boost"
 ARG GT4PY_OPTIONALS=""
 RUN pip install --no-cache-dir -c /constraints.txt "/gt4py${GT4PY_OPTIONALS}" && \
     rm -rf /gt4py && \
-    python -m gt4py.gt_src_manager install
+    python3 -m gt4py.gt_src_manager install
 
 ###
 ### Copy over necessary source and configuration files

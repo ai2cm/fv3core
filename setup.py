@@ -6,7 +6,7 @@
 from setuptools import find_packages, setup
 
 
-with open("README.md") as readme_file:
+with open("README.md", encoding="utf-8") as readme_file:
     readme = readme_file.read()
 
 requirements = ["f90nml>=1.1.0", "gt4py", "numpy", "fv3gfs-util>=0.4.3"]
