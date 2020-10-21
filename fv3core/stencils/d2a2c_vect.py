@@ -6,7 +6,12 @@ import fv3core._config as spec
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import gtstencil
 from fv3core.stencils.a2b_ord4 import a1, a2, lagrange_x_func, lagrange_y_func
-from fv3core.utils.corners import fill_4corners_x, fill_4corners_y
+from fv3core.utils.corners import (
+    fill2_4corners_x,
+    fill2_4corners_y,
+    fill3_4corners_x,
+    fill3_4corners_y,
+)
 
 
 sd = utils.sd
@@ -109,39 +114,10 @@ def d2a2c_stencil1(
         ua = contravariant(utmp, vtmp, cosa_s, rsin2)
         va = contravariant(vtmp, utmp, cosa_s, rsin2)
 
-        # SW corner
-        with parallel(region[i_start - 3, j_start - 1]):
-            utmp = -vtmp[2, 3, 0]
-        with parallel(region[i_start - 2, j_start - 1]):
-            utmp = -vtmp[1, 2, 0]
-        with parallel(region[i_start - 1, j_start - 1]):
-            utmp = -vtmp[0, 1, 0]
-
-        # SE corner
-        with parallel(region[i_end + 1, j_start - 1]):
-            utmp = vtmp[0, 1, 0]
-        with parallel(region[i_end + 2, j_start - 1]):
-            utmp = vtmp[-1, 2, 0]
-        with parallel(region[i_end + 3, j_start - 1]):
-            utmp = vtmp[-2, 3, 0]
-
-        # NE corner
-        with parallel(region[i_end + 1, j_end + 1]):
-            utmp = -vtmp[0, -1, 0]
-        with parallel(region[i_end + 2, j_end + 1]):
-            utmp = -vtmp[-1, -2, 0]
-        with parallel(region[i_end + 3, j_end + 1]):
-            utmp = -vtmp[-2, -3, 0]
-
-        # NW corner
-        with parallel(region[i_start - 3, j_end + 1]):
-            utmp = vtmp[2, -3, 0]
-        with parallel(region[i_start - 2, j_end + 1]):
-            utmp = vtmp[1, -2, 0]
-        with parallel(region[i_start - 1, j_end + 1]):
-            utmp = vtmp[0, -1, 0]
-
-        ua = fill_4corners_x(ua, va, sw_mult=-1, se_mult=1, ne_mult=-1, nw_mult=1)
+        utmp = fill3_4corners_x(
+            utmp, vtmp, sw_mult=-1, se_mult=1, ne_mult=-1, nw_mult=1
+        )
+        ua = fill2_4corners_x(ua, va, sw_mult=-1, se_mult=1, ne_mult=-1, nw_mult=1)
 
 
 @gtstencil()
@@ -257,39 +233,10 @@ def d2a2c_stencil3(
 
         assert __INLINED(namelist.grid_type < 3)
 
-        # SW corner
-        with parallel(region[i_start - 1, j_start - 3]):
-            vtmp = -utmp[3, 2, 0]
-        with parallel(region[i_start - 1, j_start - 2]):
-            vtmp = -utmp[2, 1, 0]
-        with parallel(region[i_start - 1, j_start - 1]):
-            vtmp = -utmp[1, 0, 0]
-
-        # SE corner
-        with parallel(region[i_end + 1, j_start - 3]):
-            vtmp = utmp[-3, 2, 0]
-        with parallel(region[i_end + 1, j_start - 2]):
-            vtmp = utmp[-2, 1, 0]
-        with parallel(region[i_end + 1, j_start - 1]):
-            vtmp = utmp[-1, 0, 0]
-
-        # NE corner
-        with parallel(region[i_end + 1, j_end + 1]):
-            vtmp = -utmp[-1, 0, 0]
-        with parallel(region[i_end + 1, j_end + 2]):
-            vtmp = -utmp[-2, -1, 0]
-        with parallel(region[i_end + 1, j_end + 3]):
-            vtmp = -utmp[-3, -2, 0]
-
-        # NW corner
-        with parallel(region[i_start - 1, j_end + 1]):
-            vtmp = utmp[1, 0, 0]
-        with parallel(region[i_start - 1, j_end + 2]):
-            vtmp = utmp[2, -1, 0]
-        with parallel(region[i_start - 1, j_end + 3]):
-            vtmp = utmp[3, -2, 0]
-
-        va = fill_4corners_y(va, ua, sw_mult=-1, se_mult=1, ne_mult=-1, nw_mult=1)
+        vtmp = fill3_4corners_y(
+            vtmp, utmp, sw_mult=-1, se_mult=1, ne_mult=-1, nw_mult=1
+        )
+        va = fill2_4corners_y(va, ua, sw_mult=-1, se_mult=1, ne_mult=-1, nw_mult=1)
 
 
 @gtstencil()

@@ -9,7 +9,7 @@ sd = utils.sd
 
 
 @gtscript.function
-def fill_4corners_x(
+def fill2_4corners_x(
     q_int: sd,
     q_corner: sd,
     sw_mult: float,
@@ -49,7 +49,7 @@ def fill_4corners_x(
 
 
 @gtscript.function
-def fill_4corners_y(
+def fill2_4corners_y(
     q_int: sd,
     q_corner: sd,
     sw_mult: float,
@@ -105,13 +105,109 @@ def fill_4corners(q, direction, grid):
     }
 
     if direction == "x":
-        stencil = gtstencil(definition=definition, externals={"func": fill_4corners_x})
+        stencil = gtstencil(definition=definition, externals={"func": fill2_4corners_x})
         stencil(q, **kwargs)
     elif direction == "y":
-        stencil = gtstencil(definition=definition, externals={"func": fill_4corners_y})
+        stencil = gtstencil(definition=definition, externals={"func": fill2_4corners_y})
         stencil(q, **kwargs)
     else:
         raise ValueError("Direction not recognized. Specify either x or y")
+
+
+@gtscript.function
+def fill3_4corners_x(
+    q_int: sd,
+    q_corner: sd,
+    sw_mult: float,
+    se_mult: float,
+    nw_mult: float,
+    ne_mult: float,
+):
+    from __splitters__ import i_end, i_start, j_end, j_start
+
+    q_out = q_int
+
+    # SW corner
+    with parallel(region[i_start - 3, j_start - 1]):
+        q_out = sw_mult * q_corner[2, 3, 0]
+    with parallel(region[i_start - 2, j_start - 1]):
+        q_out = sw_mult * q_corner[1, 2, 0]
+    with parallel(region[i_start - 1, j_start - 1]):
+        q_out = sw_mult * q_corner[0, 1, 0]
+
+    # SE corner
+    with parallel(region[i_end + 1, j_start - 1]):
+        q_out = se_mult * q_corner[0, 1, 0]
+    with parallel(region[i_end + 2, j_start - 1]):
+        q_out = se_mult * q_corner[-1, 2, 0]
+    with parallel(region[i_end + 3, j_start - 1]):
+        q_out = se_mult * q_corner[-2, 3, 0]
+
+    # NE corner
+    with parallel(region[i_end + 1, j_end + 1]):
+        q_out = ne_mult * q_corner[0, -1, 0]
+    with parallel(region[i_end + 2, j_end + 1]):
+        q_out = ne_mult * q_corner[-1, -2, 0]
+    with parallel(region[i_end + 3, j_end + 1]):
+        q_out = ne_mult * q_corner[-2, -3, 0]
+
+    # NW corner
+    with parallel(region[i_start - 3, j_end + 1]):
+        q_out = nw_mult * q_corner[2, -3, 0]
+    with parallel(region[i_start - 2, j_end + 1]):
+        q_out = nw_mult * q_corner[1, -2, 0]
+    with parallel(region[i_start - 1, j_end + 1]):
+        q_out = nw_mult * q_corner[0, -1, 0]
+
+    return q_out
+
+
+@gtscript.function
+def fill3_4corners_y(
+    q_int: sd,
+    q_corner: sd,
+    sw_mult: float,
+    se_mult: float,
+    nw_mult: float,
+    ne_mult: float,
+):
+    from __splitters__ import i_end, i_start, j_end, j_start
+
+    q_out = q_int
+
+    # SW corner
+    with parallel(region[i_start - 1, j_start - 3]):
+        q_out = sw_mult * q_corner[3, 2, 0]
+    with parallel(region[i_start - 1, j_start - 2]):
+        q_out = sw_mult * q_corner[2, 1, 0]
+    with parallel(region[i_start - 1, j_start - 1]):
+        q_out = sw_mult * q_corner[1, 0, 0]
+
+    # SE corner
+    with parallel(region[i_end + 1, j_start - 3]):
+        q_out = se_mult * q_corner[-3, 2, 0]
+    with parallel(region[i_end + 1, j_start - 2]):
+        q_out = se_mult * q_corner[-2, 1, 0]
+    with parallel(region[i_end + 1, j_start - 1]):
+        q_out = se_mult * q_corner[-1, 0, 0]
+
+    # NE corner
+    with parallel(region[i_end + 1, j_end + 1]):
+        q_out = ne_mult * q_corner[-1, 0, 0]
+    with parallel(region[i_end + 1, j_end + 2]):
+        q_out = ne_mult * q_corner[-2, -1, 0]
+    with parallel(region[i_end + 1, j_end + 3]):
+        q_out = ne_mult * q_corner[-3, -2, 0]
+
+    # NW corner
+    with parallel(region[i_start - 1, j_end + 1]):
+        q_out = nw_mult * q_corner[1, 0, 0]
+    with parallel(region[i_start - 1, j_end + 2]):
+        q_out = nw_mult * q_corner[2, -1, 0]
+    with parallel(region[i_start - 1, j_end + 3]):
+        q_out = nw_mult * q_corner[3, -2, 0]
+
+    return q_out
 
 
 def copy_sw_corner(q, direction, grid, kslice):
