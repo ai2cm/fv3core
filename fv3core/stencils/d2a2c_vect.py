@@ -5,14 +5,7 @@ import numpy as np
 import fv3core._config as spec
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import gtstencil
-from fv3core.stencils.a2b_ord4 import (
-    a1,
-    a2,
-    lagrange_interpolation_x,
-    lagrange_interpolation_y,
-    lagrange_x_func,
-    lagrange_y_func,
-)
+from fv3core.stencils.a2b_ord4 import a1, a2, lagrange_x_func, lagrange_y_func
 from fv3core.utils.corners import fill_4corners_x, fill_4corners_y
 
 
@@ -21,10 +14,6 @@ c1 = -2.0 / 14.0
 c2 = 11.0 / 14.0
 c3 = 5.0 / 14.0
 OFFSET = 2
-
-
-def grid():
-    return spec.grid
 
 
 @gtscript.function
@@ -71,17 +60,6 @@ def vol_conserv_cubic_interp_y(vtmp: sd, vc: sd):
 
 
 @gtstencil()
-def vt_edge(vtmp: sd, vc: sd, u: sd, cosa_v: sd, rsin_v: sd, vt: sd, rev: int):
-    with computation(PARALLEL), interval(...):
-        vc = (
-            vol_conserv_cubic_interp_func_y(vtmp)
-            if rev == 0
-            else vol_conserv_cubic_interp_func_y_rev(vtmp)
-        )
-        vt = contravariant(vc, u, cosa_v, rsin_v)
-
-
-@gtstencil()
 def lagrange_interpolation_x(u: sd, utmp: sd):
     with computation(PARALLEL), interval(...):
         utmp = a2 * (u[0, -1, 0] + u[0, 2, 0]) + a1 * (u + u[0, 1, 0])
@@ -104,7 +82,8 @@ def d2a2c_stencil1(
     ua: sd,
     va: sd,
 ):
-    # utmp, vtmp, u, v, ua, va, cosa_s, rsin2,
+    # in: u, v, cosa_s, rsin2
+    # inout: utmp, vtmp, ua, va
     from __externals__ import HALO, namelist
     from __splitters__ import i_end, i_start, j_end, j_start
 
@@ -166,18 +145,10 @@ def d2a2c_stencil1(
 
 
 @gtstencil()
-def d2a2c_stencil2(
-    utmp: sd,
-    uc: sd,
-    utc: sd,
-    ua: sd,
-    v: sd,
-    cosa_u: sd,
-    rsin_u: sd,
-    dxa: sd,
-    sin_sg1: sd,
-    sin_sg3: sd,
-):
+def d2a2c_stencil2(utmp: sd, v: sd, cosa_u: sd, rsin_u: sd, uc: sd, utc: sd):
+    # in: utmp, v, cosa_u, rsin_u
+    # inout: uc
+    # out: utc
     from __splitters__ import i_end, i_start, j_end, j_start
 
     with computation(PARALLEL), interval(...):
@@ -323,8 +294,6 @@ def d2a2c_stencil3(
 @gtstencil()
 def d2a2c_stencil_south(
     vtmp: sd,
-    vc: sd,
-    vtc: sd,
     va: sd,
     u: sd,
     cosa_v: sd,
@@ -332,7 +301,11 @@ def d2a2c_stencil_south(
     dya: sd,
     sin_sg2: sd,
     sin_sg4: sd,
+    vc: sd,
+    vtc: sd,
 ):
+    # in: vtmp, um, cosa_v, rsin_v, dya
+    # inout: vc, vtc
     from __splitters__ import i_end, i_start, j_end, j_start
 
     with computation(PARALLEL), interval(...):
@@ -358,8 +331,6 @@ def d2a2c_stencil_south(
 @gtstencil()
 def d2a2c_stencil_north(
     vtmp: sd,
-    vc: sd,
-    vtc: sd,
     va: sd,
     u: sd,
     cosa_v: sd,
@@ -367,10 +338,15 @@ def d2a2c_stencil_north(
     dya: sd,
     sin_sg2: sd,
     sin_sg4: sd,
+    vc: sd,
+    vtc: sd,
 ):
+    # in: vtmp, um, cosa_v, rsin_v, dya
+    # inout: vc, vtc
     from __splitters__ import i_end, i_start, j_end, j_start
 
     with computation(PARALLEL), interval(...):
+        # NOTE: vtc can be a new temp here
         with parallel(region[:, j_end]):
             vc = vol_conserv_cubic_interp_func_y(vtmp)
             vtc = contravariant(vc, u, cosa_v, rsin_v)
@@ -393,12 +369,15 @@ def d2a2c_stencil_north(
 @gtstencil()
 def d2a2c_stencil4(
     vtmp: sd,
-    vc: sd,
-    vtc: sd,
     u: sd,
     cosa_v: sd,
     rsin_v: sd,
+    vc: sd,
+    vtc: sd,
 ):
+    # in: vtmp, u, cosa_v, rsin_v
+    # inout: vc
+    # out: vtc
     with computation(PARALLEL), interval(...):
         vc = lagrange_y_func(vtmp)
         vtc = contravariant(vc, u, cosa_v, rsin_v)
@@ -465,15 +444,11 @@ def compute(dord4, uc, vc, u, v, ua, va, utc, vtc):
 
     d2a2c_stencil2(
         utmp,
-        uc,
-        utc,
-        ua,
         v,
         grid.cosa_u,
         grid.rsin_u,
-        grid.dxa,
-        grid.sin_sg1,
-        grid.sin_sg3,
+        uc,
+        utc,
         origin=(i1, j1, 0),
         domain=(grid.nic + 2, grid.njc + 2, grid.npz),
     )
@@ -525,8 +500,6 @@ def compute(dord4, uc, vc, u, v, ua, va, utc, vtc):
 
     d2a2c_stencil_south(
         vtmp,
-        vc,
-        vtc,
         va,
         u,
         grid.cosa_v,
@@ -534,14 +507,14 @@ def compute(dord4, uc, vc, u, v, ua, va, utc, vtc):
         grid.dya,
         grid.sin_sg2,
         grid.sin_sg4,
+        vc,
+        vtc,
         origin=(grid.is_ - 1, grid.js - 1, 0),
         domain=(grid.nic + 2, 4, grid.npz),
     )
 
     d2a2c_stencil_north(
         vtmp,
-        vc,
-        vtc,
         va,
         u,
         grid.cosa_v,
@@ -549,6 +522,8 @@ def compute(dord4, uc, vc, u, v, ua, va, utc, vtc):
         grid.dya,
         grid.sin_sg2,
         grid.sin_sg4,
+        vc,
+        vtc,
         origin=(grid.js - 1, grid.ie - 1, 0),
         domain=(grid.nic + 2, 4, grid.npz),
     )
@@ -559,11 +534,11 @@ def compute(dord4, uc, vc, u, v, ua, va, utc, vtc):
 
     d2a2c_stencil4(
         vtmp,
-        vc,
-        vtc,
         u,
         grid.cosa_v,
         grid.rsin_v,
+        vc,
+        vtc,
         origin=(i1, jfirst, 0),
         domain=(grid.nic + 2, jdiff, grid.npz),
     )
