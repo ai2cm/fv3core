@@ -22,7 +22,7 @@ except ImportError:
 backend = None
 
 # Whether to rebuild stencils on every call
-rebuild = True
+rebuild = False
 
 # If True, automatically transfers memory between CPU and GPU (see gt4py.storage)
 managed_memory = True
