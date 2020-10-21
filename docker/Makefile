@@ -1,6 +1,8 @@
 # setup (use XXX=<value> make <target> to override)
 include Makefile.image_names
 
+DOCKER_BUILDKIT=1
+
 BUILD_ARGS += \
 	--build-arg FMS_IMAGE=$(FMS_IMAGE) \
 	--build-arg ESMF_IMAGE=$(ESMF_IMAGE) \
