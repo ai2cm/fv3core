@@ -71,7 +71,6 @@ COPY fv3core /fv3core/fv3core
 COPY tests /fv3core/tests
 COPY setup.py setup.cfg README.md /fv3core/
 COPY docker/entrypoint.sh /entrypoint.sh
-ENV MPI=mpich
 
 RUN chmod +x /entrypoint.sh && \
     /entrypoint.sh
@@ -91,7 +90,8 @@ RUN cd /NCEPlibs && \
     echo "y" | ./make_ncep_libs.sh -s linux -c gnu -d /opt/NCEPlibs -o 1
 
 ENV FMS_DIR=/FMS \
-    ESMF_DIR=/usr/local/esmf
+    ESMF_DIR=/usr/local/esmf \
+    MPI=mpich
 
 ENV ESMF_INC="-I${ESMF_DIR}/include" \
     LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${ESMF_DIR}/lib:${FMS_DIR}/libFMS/.libs/
