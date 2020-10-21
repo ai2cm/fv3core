@@ -82,6 +82,10 @@ build: update_submodules
 		.
 
 build_wrapped: update_submodules
+	if [ $(PULL) == True ]; then \
+		$(MAKE) pull_wrapped_environment_if_needed; \
+	else \
+		$(MAKE) build_environment; \
 	$(MAKE) build_wrapped_environment
 	docker build \
 		--network host \
@@ -95,6 +99,11 @@ build_wrapped: update_submodules
 pull_environment_if_needed:
 	if [ -z $(shell docker images -q $(FV3_INSTALL_IMAGE)) ]; then \
 		docker pull $(FV3_INSTALL_IMAGE); \
+	fi
+
+pull_wrapped_environment_if_needed:
+	if [ -z $(shell docker images -q $(WRAPPER_INSTALL_IMAGE)) ]; then \
+		docker pull $(WRAPPER_INSTALL_IMAGE); \
 	fi
 
 pull_environment:
@@ -161,12 +170,12 @@ dev_tests_mpi_host:
 
 test_base:
 	$(CONTAINER_ENGINE) run $(RUN_FLAGS) $(VOLUMES) $(MOUNTS) \
-	$(FV3_IMAGE) pytest --data_path=$(TEST_DATA_CONTAINER) $(TEST_ARGS) /$(FV3)/tests
+	$(FV3_IMAGE) bash -c "pip list && pytest --data_path=$(TEST_DATA_CONTAINER) $(TEST_ARGS) /$(FV3)/tests"
 
 test_base_parallel:
 	$(CONTAINER_ENGINE) run $(RUN_FLAGS) $(VOLUMES) $(MOUNTS) $(FV3_IMAGE) \
 	$(MPIRUN_CALL) \
-	pytest --data_path=$(TEST_DATA_CONTAINER) $(TEST_ARGS) -m parallel /$(FV3)/tests
+	bash -c "pip list && pytest --data_path=$(TEST_DATA_CONTAINER) $(TEST_ARGS) -m parallel /$(FV3)/tests"
 
 
 run_tests_sequential:
