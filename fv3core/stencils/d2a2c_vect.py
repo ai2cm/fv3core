@@ -27,64 +27,9 @@ def grid():
     return spec.grid
 
 
-# almost the same as a2b_ord4's version
-@gtscript.function
-def lagrange_y_func_p1(qx):
-    return a2 * (qx[0, -1, 0] + qx[0, 2, 0]) + a1 * (qx + qx[0, 1, 0])
-
-
-@gtscript.function
-def lagrange_x_func_p1(qy):
-    return a2 * (qy[-1, 0, 0] + qy[2, 0, 0]) + a1 * (qy + qy[1, 0, 0])
-
-
-@gtscript.function
-def avg_x(u):
-    return 0.5 * (u + u[0, 1, 0])
-
-
-@gtscript.function
-def avg_y(v):
-    return 0.5 * (v + v[1, 0, 0])
-
-
-@gtstencil()
-def avg_box(u: sd, v: sd, utmp: sd, vtmp: sd):
-    with computation(PARALLEL), interval(...):
-        utmp = avg_x(u)
-        vtmp = avg_y(v)
-
-
 @gtscript.function
 def contravariant(u, v, cosa, rsin):
     return (u - v * cosa) * rsin
-
-
-@gtstencil()
-def contravariant_stencil(u: sd, v: sd, cosa: sd, rsin: sd, out: sd):
-    with computation(PARALLEL), interval(...):
-        out = contravariant(u, v, cosa, rsin)
-
-
-# @gtstencil()
-# def contravariant_components(utmp: sd, vtmp: sd, cosa_s: sd, rsin2: sd, ua: sd, va: sd):
-#     with computation(PARALLEL), interval(...):
-#         ua = contravariant(utmp, vtmp, cosa_s, rsin2)
-#         va = contravariant(vtmp, utmp, cosa_s, rsin2)
-
-
-@gtstencil()
-def ut_main(utmp: sd, uc: sd, v: sd, cosa_u: sd, rsin_u: sd, ut: sd):
-    with computation(PARALLEL), interval(...):
-        uc = lagrange_x_func(utmp)
-        ut = contravariant(uc, v, cosa_u, rsin_u)
-
-
-@gtstencil()
-def vt_main(vtmp: sd, vc: sd, u: sd, cosa_v: sd, rsin_v: sd, vt: sd):
-    with computation(PARALLEL), interval(...):
-        vc = lagrange_y_func(vtmp)
-        vt = contravariant(vc, u, cosa_v, rsin_v)
 
 
 @gtscript.function
@@ -134,35 +79,6 @@ def vt_edge(vtmp: sd, vc: sd, u: sd, cosa_v: sd, rsin_v: sd, vt: sd, rev: int):
             else vol_conserv_cubic_interp_func_y_rev(vtmp)
         )
         vt = contravariant(vc, u, cosa_v, rsin_v)
-
-
-@gtstencil()
-def uc_x_edge1(ut: sd, sin_sg3: sd, sin_sg1: sd, uc: sd):
-    with computation(PARALLEL), interval(...):
-        uc = ut * sin_sg3[-1, 0, 0] if ut > 0 else ut * sin_sg1
-
-
-@gtstencil()
-def vc_y_edge1(vt: sd, sin_sg4: sd, sin_sg2: sd, vc: sd):
-    with computation(PARALLEL), interval(...):
-        vc = vt * sin_sg4[0, -1, 0] if vt > 0 else vt * sin_sg2
-
-
-# TODO make this a stencil?
-def edge_interpolate4_x(ua, dxa):
-    t1 = dxa[0, :, :] + dxa[1, :, :]
-    t2 = dxa[2, :, :] + dxa[3, :, :]
-    n1 = (t1 + dxa[1, :, :]) * ua[1, :, :] - dxa[1, :, :] * ua[0, :, :]
-    n2 = (t1 + dxa[2, :, :]) * ua[2, :, :] - dxa[2, :, :] * ua[3, :, :]
-    return 0.5 * (n1 / t1 + n2 / t2)
-
-
-def edge_interpolate4_y(va, dxa):
-    t1 = dxa[:, 0, :] + dxa[:, 1, :]
-    t2 = dxa[:, 2, :] + dxa[:, 3, :]
-    n1 = (t1 + dxa[:, 1, :]) * va[:, 1, :] - dxa[:, 1, :] * va[:, 0, :]
-    n2 = (t1 + dxa[:, 2, :]) * va[:, 2, :] - dxa[:, 2, :] * va[:, 3, :]
-    return 0.5 * (n1 / t1 + n2 / t2)
 
 
 @gtstencil()
@@ -486,18 +402,6 @@ def d2a2c_stencil4(
     with computation(PARALLEL), interval(...):
         vc = lagrange_y_func(vtmp)
         vtc = contravariant(vc, u, cosa_v, rsin_v)
-
-
-@gtstencil()
-def lagrange_interpolation_y_p1(qx: sd, qout: sd):
-    with computation(PARALLEL), interval(...):
-        qout = lagrange_y_func_p1(qx)
-
-
-@gtstencil()
-def lagrange_interpolation_x_p1(qy: sd, qout: sd):
-    with computation(PARALLEL), interval(...):
-        qout = lagrange_x_func_p1(qy)
 
 
 def compute(dord4, uc, vc, u, v, ua, va, utc, vtc):
