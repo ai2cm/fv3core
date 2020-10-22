@@ -129,7 +129,7 @@ def make_storage_data(
 
 def _make_storage_data_1d(
     data: Field,
-    shape: Tuple[int, int, int] = None,
+    shape: Tuple[int, int, int],
     start: Tuple[int, int, int] = (0, 0, 0),
     dummy: Optional[Tuple[int, int, int]] = None,
     axis: int = 2,
@@ -160,7 +160,7 @@ def _make_storage_data_1d(
 
 def _make_storage_data_2d(
     data: Field,
-    shape: Tuple[int, int, int] = None,
+    shape: Tuple[int, int, int],
     start: Tuple[int, int, int] = (0, 0, 0),
     dummy: Optional[Tuple[int, int, int]] = None,
     axis: int = 2,
@@ -189,7 +189,7 @@ def _make_storage_data_2d(
 
 def _make_storage_data_3d(
     data: Field,
-    shape: Tuple[int, int, int] = None,
+    shape: Tuple[int, int, int],
     start: Tuple[int, int, int] = (0, 0, 0),
 ) -> Field:
     istart, jstart, kstart = start
