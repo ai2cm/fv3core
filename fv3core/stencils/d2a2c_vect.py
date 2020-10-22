@@ -47,24 +47,6 @@ def vol_conserv_cubic_interp_func_y_rev(v):
 
 
 @gtstencil()
-def vol_conserv_cubic_interp_x(utmp: sd, uc: sd):
-    with computation(PARALLEL), interval(...):
-        uc = vol_conserv_cubic_interp_func_x(utmp)
-
-
-@gtstencil()
-def vol_conserv_cubic_interp_x_rev(utmp: sd, uc: sd):
-    with computation(PARALLEL), interval(...):
-        uc = vol_conserv_cubic_interp_func_x_rev(utmp)
-
-
-@gtstencil()
-def vol_conserv_cubic_interp_y(vtmp: sd, vc: sd):
-    with computation(PARALLEL), interval(...):
-        vc = vol_conserv_cubic_interp_func_y(vtmp)
-
-
-@gtstencil()
 def lagrange_interpolation_x(u: sd, utmp: sd):
     with computation(PARALLEL), interval(...):
         utmp = a2 * (u[0, -1, 0] + u[0, 2, 0]) + a1 * (u + u[0, 1, 0])
