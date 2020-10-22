@@ -104,7 +104,6 @@ def make_storage_data(
                axis=axis,
            )
     """
-    storage = None
     n_dims = len(data.shape)
     if shape is None:
         shape = data.shape
@@ -196,14 +195,11 @@ def _make_storage_data_3d(
     istart, jstart, kstart = start
     isize, jsize, ksize = data.shape
     buffer = zeros(shape)
-    try:
-        buffer[
-            istart : istart + isize,
-            jstart : jstart + jsize,
-            kstart : kstart + ksize,
-        ] = asarray(data, type(buffer))
-    except Exception as ex:
-        print(ex)
+    buffer[
+        istart : istart + isize,
+        jstart : jstart + jsize,
+        kstart : kstart + ksize,
+    ] = asarray(data, type(buffer))
     return buffer
 
 
