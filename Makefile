@@ -50,7 +50,7 @@ update_submodules:
 		git submodule update --init --recursive; \
 	fi
 
-constraints.txt: requirements.txt requirements_lint.txt
+constraints.txt: requirements.txt requirements_wrapper.txt requirements_lint.txt
 	pip-compile $^ --output-file constraints.txt
 
 # Image build instructions have moved to docker/Makefile but are kept here for backwards-compatibility

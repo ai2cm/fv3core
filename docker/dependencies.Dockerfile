@@ -21,7 +21,7 @@ RUN wget -q http://www.mpich.org/static/downloads/3.1.4/mpich-3.1.4.tar.gz && \
 
 FROM $MPI_IMAGE AS mpi_image
 
-FROM $BASE_IMAGE AS fv3gfs-environment
+FROM $BASE_IMAGE AS fv3core-environment
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     wget \
@@ -40,6 +40,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git && \
     apt-get purge --auto-remove && \
     apt-get clean
+
+FROM fv3core-environment AS fv3gfs-environment
 
 COPY --from=mpi_image /mpich-3.1.4 /mpich-3.1.4
 RUN cd /mpich-3.1.4 && make install && ldconfig

@@ -24,8 +24,8 @@ RUN pip3 install --upgrade pip setuptools wheel && \
     ln -s /bin/python3 /bin/python && \
     ln -s /bin/pip3 /bin/pip
 
-COPY constraints.txt /constraints.txt
-RUN pip3 install -r /constraints.txt
+COPY constraints.txt requirements.txt /
+RUN pip3 install -r /requirements.txt -c /constraints.txt
 
 COPY --from=serialbox_image /usr/local/serialbox /usr/local/serialbox
 COPY --from=serialbox_image /usr/include/boost /usr/include/boost
@@ -84,6 +84,9 @@ COPY --from=fms_image /FMS $FMS_DIR
 COPY --from=esmf_image /usr/local/esmf $ESMF_DIR
 COPY --from=fortran_image /FV3/ /external/fv3gfs-fortran/FV3/
 COPY --from=fortran_image /stochastic_physics/ /external/fv3gfs-fortran/stochastic_physics/
+
+COPY requirements_wrapper.txt /
+RUN pip3 install -r /requirements_wrapper.txt -c /constraints.txt
 
 COPY external/fv3gfs-wrapper /external/fv3gfs-wrapper
 
