@@ -18,6 +18,7 @@ np.set_printoptions(threshold=4096)
 
 OUTDIR = os.path.join(os.path.dirname(os.path.realpath(__file__)), "output")
 GPU_MAX_ERR = 1e-10
+GPU_SMALL_ERR = 1e-14
 
 
 def compare_arr(computed_data, ref_data):
@@ -31,9 +32,10 @@ def success_array(computed_data, ref_data, eps, ignore_near_zero_errors):
     success = np.logical_or(
         np.logical_and(np.isnan(computed_data), np.isnan(ref_data)),
         compare_arr(computed_data, ref_data) < eps,
+        # np.isclose(computed_data, ref_data, rtol=eps * 1e-2, atol=eps * 1e-2),
     )
     if ignore_near_zero_errors:
-        small_number = 1e-18
+        small_number = GPU_SMALL_ERR if "cuda" in gt_utils.backend else 1e-18
         success = np.logical_or(
             success,
             np.logical_and(
