@@ -24,7 +24,7 @@ backend = None
 rebuild = False
 
 # Set to "False" to skip validating gt4py stencil arguments
-validate_args = True
+validate_args = False
 
 # If True, automatically transfers memory between CPU and GPU (see gt4py.storage)
 managed_memory = True
@@ -32,6 +32,11 @@ managed_memory = True
 # [DEPRECATED] field types
 sd = gtscript.Field[float_type]
 si = gtscript.Field[int_type]
+
+# New field types
+FloatField = gtscript.Field[float_type]
+IntField = gtscript.Field[int_type]
+FloatFieldIJ = gtscript.Field[float_type, gtscript.IJ]
 
 # Number of halo lines for each field and default origin
 halo = 3

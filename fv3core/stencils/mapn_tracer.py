@@ -14,7 +14,7 @@ sd = utils.sd
 
 
 def compute(
-    pe1, pe2, dp2, tracers, nq, q_min, i1, i2, kord, j_2d=None, version="transliterated"
+    pe1, pe2, dp2, tracers, nq, q_min, i1, i2, kord, j_2d=None, version="stencil",  # "transliterated"
 ):
     grid = spec.grid
     fill = spec.namelist.fill
@@ -31,14 +31,14 @@ def compute(
         i_extent,
     ) = map_single.setup_data(tracers[utils.tracer_variables[0]], pe1, i1, i2, j_2d)
 
+    tracer_list = [tracers[q] for q in utils.tracer_variables[0:nq]]
     # transliterated fortran 3d or 2d validate, not bit-for bit
-    trc = 0
-    for q in utils.tracer_variables[0:nq]:
-        trc += 1
+    # for q in utils.tracer_variables[0:nq]:
+    for tracer in tracer_list:
         # if j_2d is None:
-        copy_stencil(tracers[q], q4_1, origin=origin, domain=domain)
+        copy_stencil(tracer, q4_1, origin=origin, domain=domain)
         # else:
-        #    q4_1.data[:] = tracers[q].data[:]
+        #    q4_1.data[:] = tracer.data[:]
         q4_2[:] = 0.0
         q4_3[:] = 0.0
         q4_4[:] = 0.0
@@ -46,7 +46,7 @@ def compute(
             qs, q4_1, q4_2, q4_3, q4_4, dp1, grid.npz, i1, i2, 0, kord, jslice, q_min
         )
         map_single.do_lagrangian_contributions(
-            tracers[q],
+            tracer,
             pe1,
             pe2,
             q4_1,

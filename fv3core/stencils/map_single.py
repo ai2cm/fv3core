@@ -11,7 +11,8 @@ from fv3core.decorators import gtstencil
 from fv3core.stencils.basic_operations import copy
 
 
-sd = utils.sd
+FloatField = utils.FloatField
+FloatFieldIJ = utils.FloatFieldIJ
 r3 = 1.0 / 3.0
 r23 = 2.0 / 3.0
 
@@ -21,22 +22,23 @@ def grid():
 
 
 @gtstencil()
-def set_dp(dp1: sd, pe1: sd):
+def set_dp(dp1: FloatField, pe1: FloatField):
     with computation(PARALLEL), interval(...):
         dp1 = pe1[0, 0, 1] - pe1
 
 
 @gtstencil()
 def lagrangian_contributions(
-    pe1: sd,
-    ptop: sd,
-    pbot: sd,
-    q4_1: sd,
-    q4_2: sd,
-    q4_3: sd,
-    q4_4: sd,
-    dp1: sd,
-    q2_adds: sd,
+    pe1: FloatField,
+    # pe2: FloatField,
+    ptop: FloatFieldIJ,
+    pbot: FloatFieldIJ,
+    q4_1: FloatField,
+    q4_2: FloatField,
+    q4_3: FloatField,
+    q4_4: FloatField,
+    dp1: FloatField,
+    q2_adds: FloatField,
     r3: float,
     r23: float,
 ):
@@ -45,6 +47,8 @@ def lagrangian_contributions(
         pr = pe1
         dp = pe1
         esl = pe1
+        # ptop = pe2
+        # pbot = pe2[0, 0, 1]
         if pe1 < pbot and pe1[0, 0, 1] > ptop:
             # We are in the right pressure range to contribute to the Eulerian cell
             if pe1 <= ptop:
@@ -202,19 +206,18 @@ def lagrangian_contributions_stencil(
 ):
     # A stencil with a loop over k2:
     km = spec.grid.npz
-    klevs = np.arange(km)
     orig = spec.grid.default_origin()
     q2_adds = utils.make_storage_from_shape(q4_1.shape, origin=orig)
-    for k_eul in klevs:
-        eulerian_top_pressure = pe2[:, :, k_eul]
-        eulerian_bottom_pressure = pe2[:, :, k_eul + 1]
-        top_p = utils.repeat(eulerian_top_pressure[:, :, np.newaxis], km + 1, axis=2)
-        bot_p = utils.repeat(eulerian_bottom_pressure[:, :, np.newaxis], km + 1, axis=2)
-        ptop = utils.make_storage_data(top_p, q4_1.shape)
-        pbot = utils.make_storage_data(bot_p, q4_1.shape)
+    ptop = utils.make_storage_from_shape(pe2.shape[0:2] + (1,))
+    pbot = utils.make_storage_from_shape(pe2.shape[0:2] + (1,))
+
+    for k_eul in range(km):
+        ptop[:, :, :] = pe2[:, :, k_eul: k_eul + 1]
+        pbot[:, :, :] = pe2[:, :, k_eul + 1: k_eul + 2]
 
         lagrangian_contributions(
             pe1,
+            # pe2,
             ptop,
             pbot,
             q4_1,
