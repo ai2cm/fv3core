@@ -23,22 +23,23 @@ FROM $MPI_IMAGE AS mpi_image
 
 FROM $BASE_IMAGE AS fv3gfs-environment
 
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     wget \
     gcc \
     g++ \
     gfortran \
     make \
-    curl \
-    git \
-    libblas-dev \
-    liblapack-dev \
+    libtool \
+    m4 \
+    libpython3-dev \
+    python3-pip \
+    cmake \
     libnetcdf-dev \
     libnetcdff-dev \
-    perl \
-    rsync \
-    libffi-dev \
-    openssl
+    libssl-dev \
+    git && \
+    apt-get purge --auto-remove && \
+    apt-get clean
 
 COPY --from=mpi_image /mpich-3.1.4 /mpich-3.1.4
 RUN cd /mpich-3.1.4 && make install && ldconfig

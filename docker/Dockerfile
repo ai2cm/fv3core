@@ -5,6 +5,7 @@ ARG FMS_IMAGE
 ARG ESMF_IMAGE
 ARG SERIALBOX_IMAGE
 ARG GT4PY_IMAGE
+ARG ENVIRONMENT_IMAGE
 
 FROM $MPI_IMAGE as mpi_image
 FROM $FORTRAN_IMAGE as fortran_image
@@ -12,32 +13,9 @@ FROM $ESMF_IMAGE as esmf_image
 FROM $FMS_IMAGE as fms_image
 FROM $SERIALBOX_IMAGE as serialbox_image
 FROM $GT4PY_IMAGE AS gt4py_image
+from $ENVIRONMENT_IMAGE AS environment
 
-FROM $BASE_IMAGE as fv3core
-
-RUN apt-get update && apt-get install -y \
-    curl \
-    wget \
-    gcc \
-    g++ \
-    gfortran \
-    git \
-    libblas-dev \
-    liblapack-dev \
-    libnetcdf-dev \
-    libnetcdff-dev \
-    perl \
-    make \
-    rsync \
-    libffi-dev \
-    openssl \
-    bats \
-    python3 \
-    libpython3-dev \
-    python3-dev \
-    python3-setuptools \
-    python3-pip \
-    cython3
+FROM environment as fv3core
 
 COPY --from=mpi_image /mpich-3.1.4 /mpich-3.1.4
 RUN cd /mpich-3.1.4 && make install && ldconfig && rm -rf /mpich-3.1.4
@@ -81,6 +59,12 @@ ENV CUDA_PATH=${ENV_CUDA_PATH}
 ENTRYPOINT [ "/entrypoint.sh" ]
 
 FROM fv3core AS fv3core_wrapper
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libblas-dev \
+    liblapack-dev \
+    libffi-dev \
+    cython3
 
 COPY --from=fortran_image /NCEPlibs /NCEPlibs
 

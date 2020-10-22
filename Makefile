@@ -37,7 +37,7 @@ CORE_TAR=$(FV3_TAG).tar
 CORE_BUCKET_LOC=gs://vcm-jenkins/$(CORE_TAR)
 MPIRUN_CALL ?=mpirun -np $(NUM_RANKS)
 BASE_INSTALL?=$(FV3)-install-serialbox
-DEV_MOUNTS = -v $(CWD)/$(FV3):/$(FV3)/$(FV3) -v $(CWD)/tests:/$(FV3)/tests -v $(FV3UTIL_DIR):/usr/src/fv3gfs-util -v $(TEST_DATA_HOST):$(TEST_DATA_CONTAINER)
+DEV_MOUNTS = '-v $(CWD)/$(FV3):/$(FV3)/$(FV3) -v $(CWD)/tests:/$(FV3)/tests -v $(FV3UTIL_DIR):/usr/src/fv3gfs-util -v $(TEST_DATA_HOST):$(TEST_DATA_CONTAINER)'
 
 clean:
 	find . -name ""
@@ -55,10 +55,11 @@ constraints.txt: requirements.txt requirements_lint.txt
 
 # Image build instructions have moved to docker/Makefile but are kept here for backwards-compatibility
 
-build_environment:
-	$(MAKE) -C docker build_deps
+build_environment: update_submodules
+	$(MAKE) -C docker build_core_deps
 
-build_wrapped_environment: build_environment
+build_wrapped_environment: update_submodules
+	$(MAKE) -C docker build_deps
 
 build: update_submodules
 	if [ $(PULL) == True ]; then \
@@ -71,10 +72,11 @@ build: update_submodules
 build_wrapped: update_submodules build_wrapped_environment
 	$(MAKE) -C docker fv3core_wrapper_image
 
-pull_environment_if_needed: pull_environment
+pull_environment_if_needed:
+	$(MAKE) -C docker pull_core_deps_if_needed
 
 pull_environment:
-	$(MAKE) -C docker pull_deps
+	$(MAKE) -C docker pull_core_deps
 
 push_environment:
 	$(MAKE) -C docker push_deps
