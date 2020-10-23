@@ -24,7 +24,7 @@ If you'd like to run MPI parallel tests (which are needed for parts of the code 
 $ make tests_mpi
 ```
 
-The environment image that the fv3core container uses is prebuilt and lives in the GCR. The above commands will by default pull this image before building the fv3core image and running the tests. 
+The environment image that the fv3core container uses is prebuilt and lives in the GCR. The above commands will by default pull this image before building the fv3core image and running the tests.
 To build the environment from scratch (including GT4py) before running tests, either run
 
 ```
