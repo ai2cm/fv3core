@@ -10,9 +10,6 @@ import fv3core.utils.gt4py_utils as utils
 from fv3core.stencils.basic_operations import copy_stencil
 
 
-sd = utils.sd
-
-
 def compute(
     pe1, pe2, dp2, tracers, nq, q_min, i1, i2, kord, j_2d=None, version="stencil",  # "transliterated"
 ):

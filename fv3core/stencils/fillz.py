@@ -1,4 +1,5 @@
 import math as math
+from typing import List
 
 import gt4py.gtscript as gtscript
 import numpy as np
@@ -10,29 +11,36 @@ import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import gtstencil
 
 
-sd = utils.sd
+FloatField = utils.FloatField
 
 
 def grid():
     return spec.grid
 
 
-@gtstencil()
-def fix_top(q: sd, dp: sd, dm: sd):
-    with computation(PARALLEL), interval(1, 2):
-        if q[0, 0, -1] < 0.0:
-            q = (
-                q + q[0, 0, -1] * dp[0, 0, -1] / dp
-            )  # move enough mass up so that the top layer isn't negative
-    with computation(PARALLEL), interval(0, 1):
-        if q < 0:
-            q = 0
-        dm = q * dp
+@gtstencil(externals={"lists": {"q": len(utils.tracer_variables) - 1}})
+def fix_top(q: FloatField, dp: FloatField, dm: FloatField):
+    with computation(PARALLEL):
+        with interval(0, 1):
+            if q < 0:
+                q = 0
+            dm = q * dp
+        with interval(1, 2):
+            if q[0, 0, -1] < 0.0:
+                q = (
+                    q + q[0, 0, -1] * dp[0, 0, -1] / dp
+                )  # move enough mass up so that the top layer isn't negative
 
 
 @gtstencil()
 def fix_interior(
-    q: sd, dp: sd, zfix: sd, upper_fix: sd, lower_fix: sd, dm: sd, dm_pos: sd
+    q: FloatField,
+    dp: FloatField,
+    zfix: FloatField,
+    upper_fix: FloatField,
+    lower_fix: FloatField,
+    dm: FloatField,
+    dm_pos: FloatField,
 ):
     with computation(FORWARD), interval(1, -1):
         # if a higher layer borrowed from this one, account for that here
@@ -69,7 +77,13 @@ def fix_interior(
 
 @gtstencil()
 def fix_bottom(
-    q: sd, dp: sd, zfix: sd, upper_fix: sd, lower_fix: sd, dm: sd, dm_pos: sd
+    q: FloatField,
+    dp: FloatField,
+    zfix: FloatField,
+    upper_fix: FloatField,
+    lower_fix: FloatField,
+    dm: FloatField,
+    dm_pos: FloatField,
 ):
     with computation(PARALLEL), interval(1, 2):
         if (
@@ -95,7 +109,9 @@ def fix_bottom(
 
 
 @gtstencil()
-def final_check(q: sd, dp: sd, dm: sd, zfix: sd, fac: sd):
+def final_check(
+    q: FloatField, dp: FloatField, dm: FloatField, zfix: FloatField, fac: FloatField
+):
     with computation(PARALLEL), interval(...):
         if zfix > 0:
             if fac > 0:
@@ -107,7 +123,7 @@ def compute(dp2, tracers, im, km, nq, jslice):
     shape = tracers[utils.tracer_variables[0]].shape
     i1 = grid().is_
     js = jslice.start
-    j_extent = jslice.stop - jslice.start
+    jspan = jslice.stop - jslice.start
     orig = (i1, js, 0)
     zfix = utils.make_storage_from_shape(shape, origin=(0, 0, 0))
     upper_fix = utils.make_storage_from_shape(shape, origin=(0, 0, 0))
@@ -117,15 +133,17 @@ def compute(dp2, tracers, im, km, nq, jslice):
     fac = utils.make_storage_from_shape(shape, origin=(0, 0, 0))
     # TODO: implement dev_gfs_physics ifdef when we implement compiler defs
 
-    for q in utils.tracer_variables[0:nq]:
+    tracer_list = [tracers[q] for q in utils.tracer_variables[0:nq]]
+
+    for tracer in tracer_list:
         # reset fields
         zfix[:] = 0.0
         fac[:] = 0.0
         lower_fix[:] = 0.0
         upper_fix[:] = 0.0
-        fix_top(tracers[q], dp2, dm, origin=orig, domain=(im, j_extent, 2))
+        fix_top(tracer, dp2, dm, origin=orig, domain=(im, jspan, 2))
         fix_interior(
-            tracers[q],
+            tracer,
             dp2,
             zfix,
             upper_fix,
@@ -133,10 +151,10 @@ def compute(dp2, tracers, im, km, nq, jslice):
             dm,
             dm_pos,
             origin=(i1, js, 0),
-            domain=(im, j_extent, km),
+            domain=(im, jspan, km),
         )
         fix_bottom(
-            tracers[q],
+            tracer,
             dp2,
             zfix,
             upper_fix,
@@ -144,7 +162,7 @@ def compute(dp2, tracers, im, km, nq, jslice):
             dm,
             dm_pos,
             origin=(i1, js, km - 2),
-            domain=(im, j_extent, 2),
+            domain=(im, jspan, 2),
         )
         fix_cols = utils.sum(zfix[:], axis=2)
         zfix[:] = utils.repeat(fix_cols[:, :, np.newaxis], km + 1, axis=2)
@@ -154,12 +172,12 @@ def compute(dp2, tracers, im, km, nq, jslice):
         adj_factor[sum0 > 0] = sum0[sum0 > 0] / sum1[sum0 > 0]
         fac[:] = utils.repeat(adj_factor[:, :, np.newaxis], km + 1, axis=2)
         final_check(
-            tracers[q],
+            tracer,
             dp2,
             dm,
             zfix,
             fac,
             origin=(i1, js, 1),
-            domain=(im, j_extent, km - 1),
+            domain=(im, jspan, km - 1),
         )
     return [tracers[tracer] for tracer in tracers.keys()]
