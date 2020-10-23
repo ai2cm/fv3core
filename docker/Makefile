@@ -80,7 +80,7 @@ pull_deps: ## pull container images of dependencies from GCP (for faster builds)
 	done
 
 pull_core_deps:
-	DEPS_IMAGES=$(CORE_DEPS_IMAGES) make pull_deps
+	DEPS_IMAGES="$(CORE_DEPS_IMAGES)" make pull_deps
 
 pull_deps_if_needed: ## pull images of any are missing
 	for IMAGE in $(DEPS_IMAGES); \
@@ -91,7 +91,7 @@ pull_deps_if_needed: ## pull images of any are missing
 	done
 
 pull_core_deps_if_needed:
-	DEPS_IMAGES=$(CORE_DEPS_IMAGES) make pull_deps_if_needed
+	DEPS_IMAGES="$(CORE_DEPS_IMAGES)" make pull_deps_if_needed
 
 clean_deps: ## pull container images of dependencies from GCP (for faster builds)
 	docker rmi $(DEPS_IMAGES)
