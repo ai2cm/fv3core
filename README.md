@@ -40,7 +40,7 @@ $ PULL=False make tests
 
 which will execute the target `build_environment` for you before running the tests.
 
-There are 'push_environment' and 'rebuild_environment' options, but these should normally not be done manually. Updating the install image should only be done by jenkins after the tests pass using a new environment.
+There are `push_environment` and `rebuild_environment` targets, but these should normally not be done manually. Updating the install image should only be done by Jenkins after the tests pass using a new environment.
 
 ### Test data options
 
