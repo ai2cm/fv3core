@@ -221,7 +221,7 @@ Steps:
 
 The last step will launch Jenkins tests. If these pass:
 
-1. Create a git tag: `git tag v$(git rev-parse --short HEAD)`
+1. Create a git tag: `git tag v-$(git rev-parse --short HEAD)`
 2. Push the tag: `git push upstream --tags`
 3. Make a PR to [VCM/gt4py](https://github.com/vulcanclimatemodeling/fv3core) that updates the version in `requirements.txt` to the new tag.
 
