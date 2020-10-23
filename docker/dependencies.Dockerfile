@@ -23,25 +23,51 @@ FROM $MPI_IMAGE AS mpi_image
 
 FROM $BASE_IMAGE AS fv3core-environment
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN apt-get update && apt-get install -y \
+    curl \
+    wget \
+    gcc \
+    g++ \
+    gfortran \
+    git \
+    libblas-dev \
+    liblapack-dev \
+    libtool \
+    m4 \
+    libnetcdf-dev \
+    libnetcdff-dev \
+    perl \
+    make \
+    rsync \
+    libffi-dev \
+    openssl \
+    bats \
+    python3 \
+    libpython3-dev \
+    python3-dev \
+    python3-setuptools \
+    python3-pip \
+    cython3
+
+FROM $BASE_IMAGE AS fv3gfs-environment
+
+RUN apt-get update && apt-get install -y \
     wget \
     gcc \
     g++ \
     gfortran \
     make \
-    libtool \
-    m4 \
-    libpython3-dev \
-    python3-pip \
-    cmake \
+    curl \
+    git \
+    libblas-dev \
+    liblapack-dev \
     libnetcdf-dev \
     libnetcdff-dev \
-    libssl-dev \
-    git && \
-    apt-get purge --auto-remove && \
-    apt-get clean
+    perl \
+    rsync \
+    libffi-dev \
+    openssl
 
-FROM fv3core-environment AS fv3gfs-environment
 
 COPY --from=mpi_image /mpich-3.1.4 /mpich-3.1.4
 RUN cd /mpich-3.1.4 && make install && ldconfig

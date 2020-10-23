@@ -60,12 +60,6 @@ ENTRYPOINT [ "/entrypoint.sh" ]
 
 FROM fv3core AS fv3core_wrapper
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libblas-dev \
-    liblapack-dev \
-    libffi-dev \
-    cython3
-
 COPY --from=fortran_image /NCEPlibs /NCEPlibs
 
 # install NCEP libraries

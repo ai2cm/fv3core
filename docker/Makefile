@@ -39,6 +39,11 @@ fortran_image:
 		-t $(FORTRAN_IMAGE) \
 		../external/fv3gfs-fortran
 
+# builds only the fortran stages with no external images
+# useful for debugging dockerfile targets in fortran model compilation
+full_fortran_image:
+	FMS_IMAGE=fv3gfs-fms ESMF_IMAGE=fv3gfs-esmf MPI_IMAGE=fv3gfs-mpi $(MAKE) fortran_image
+
 fv3core_image: ## build production container image
 	docker build \
 		$(BUILD_ARGS) \
