@@ -211,7 +211,7 @@ to build an fv3core docker image based on the wrapper image. The main way to run
 $ python setup.py install
 ```
 
-to install fv3core as an importable module. Alternatively, you can specify `develop` instead of `install` if you want to edit the fv3core code. To install an updated version of Serialbox run 
+to install fv3core as an importable module. Alternatively, you can specify `develop` instead of `install` if you want to edit the fv3core code. To install an updated version of Serialbox run
 
 ```shell
 $ git clone -b v2.6.1 --depth 1 https://github.com/GridTools/serialbox.git /tmp/serialbox

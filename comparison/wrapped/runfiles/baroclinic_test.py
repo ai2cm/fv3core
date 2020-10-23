@@ -68,7 +68,9 @@ def transpose(state, dims, npz, npx, npy):
                 data_3d = numpy.tile(quantity.data, (npx + 6, npy + 6, 1))
                 quantity_3d = Quantity.from_data_array(
                     xr.DataArray(
-                        data_3d, attrs=quantity.attrs, dims=[X_INTERFACE_DIM, Y_INTERFACE_DIM, quantity.dims[0]]
+                        data_3d,
+                        attrs=quantity.attrs,
+                        dims=[X_INTERFACE_DIM, Y_INTERFACE_DIM, quantity.dims[0]],
                     ),
                     origin=(0, 0, quantity.origin[0]),
                     extent=(npx, npy, quantity.extent[0]),
