@@ -81,7 +81,7 @@ namelist:
     months: 0
     ncores_per_node: 32
     seconds: 45
-    use_hyper_thread: false
+    use_hyper_thread: true
   diag_manager_nml:
     max_axes: 240
     max_files: 106
@@ -123,7 +123,7 @@ namelist:
     fill: true
     fill_dp: true
     fv_debug: false
-    fv_sg_adj: 600
+    fv_sg_adj: 0
     gfs_phil: false
     hord_dp: 6
     hord_mt: 6
