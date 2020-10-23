@@ -1,4 +1,5 @@
 import copy
+import os
 import sys
 
 import fv3gfs.wrapper as wrapper
@@ -9,8 +10,11 @@ import xarray as xr
 import yaml
 from fv3gfs.util import (
     X_DIMS,
+    X_INTERFACE_DIM,
     Y_DIMS,
+    Y_INTERFACE_DIM,
     Z_DIMS,
+    Z_INTERFACE_DIM,
     CubedSphereCommunicator,
     CubedSpherePartitioner,
     Quantity,
@@ -23,7 +27,7 @@ import fv3core
 import fv3core._config as spec
 
 
-sys.path.append("/serialbox2/python")  # noqa: E402
+sys.path.append("/serialbox/python")  # noqa: E402
 sys.path.append("/fv3core/tests/translate")  # noqa: E402
 import serialbox
 import translate as translate
@@ -53,10 +57,10 @@ def transpose(state, dims, npz, npx, npy):
                     xr.DataArray(
                         data_3d,
                         attrs=quantity.attrs,
-                        dims=[quantity.dims[0], quantity.dims[1], "z"],
+                        dims=[quantity.dims[0], quantity.dims[1], Z_INTERFACE_DIM],
                     ),
                     origin=(quantity.origin[0], quantity.origin[1], 0),
-                    extent=(quantity.extent[0], quantity.extent[1], npz),
+                    extent=(quantity.extent[0], quantity.extent[1], npz + 1),
                 )
                 quantity_3d.metadata.gt4py_backend = "numpy"
                 return_state[name] = quantity_3d.transpose(dims)
@@ -64,7 +68,7 @@ def transpose(state, dims, npz, npx, npy):
                 data_3d = numpy.tile(quantity.data, (npx + 6, npy + 6, 1))
                 quantity_3d = Quantity.from_data_array(
                     xr.DataArray(
-                        data_3d, attrs=quantity.attrs, dims=["x", "y", quantity.dims[0]]
+                        data_3d, attrs=quantity.attrs, dims=[X_INTERFACE_DIM, Y_INTERFACE_DIM, quantity.dims[0]]
                     ),
                     origin=(0, 0, quantity.origin[0]),
                     extent=(npx, npy, quantity.extent[0]),
@@ -255,12 +259,10 @@ if __name__ == "__main__":
     # Step through time
     for i in range(wrapper.get_step_count()):
         print("STEP IS ", i)
+        state = wrapper.get_state(allocator=allocator, names=initial_names)
+        state["turbulent_kinetic_energy"] = turbulent_kinetic_energy
         if i == 0:
-            state = wrapper.get_state(allocator=allocator, names=initial_names)
-            state["turbulent_kinetic_energy"] = turbulent_kinetic_energy
             io.write_state(state, "instate_{0}.nc".format(rank))
-        else:
-            state = wrapper.get_state(allocator=allocator, names=all_names)
         state = transpose(
             state,
             [X_DIMS, Y_DIMS, Z_DIMS],
@@ -268,7 +270,12 @@ if __name__ == "__main__":
             spec.namelist.npx,
             spec.namelist.npy,
         )
-        # io.write_state(state, "instate_{0}.nc".format(rank))
+
+        OUTPUT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "output")
+        fv3core.enable_stencil_report(
+            path=OUTPUT_DIR, save_args=False, save_report=True
+        )
+
         fv3core.fv_dynamics(
             state,
             cube_comm,
@@ -284,19 +291,28 @@ if __name__ == "__main__":
             state["northward_wind_tendency"] = v_tendency
             fv3core.fv_subgridz(state, n_tracers, dt_atmos)
 
-        state = transpose(
-            state,
+        newstate = {}
+        for name, quantity in state.items():
+            if name not in [
+                "eastward_wind_tendency",
+                "northward_wind_tendency",
+                "turbulent_kinetic_energy",
+            ]:
+                newstate[name] = quantity
+
+        newstate = transpose(
+            newstate,
             [Z_DIMS, Y_DIMS, X_DIMS],
             spec.namelist.npz,
             spec.namelist.npx,
             spec.namelist.npy,
         )
-        state = convert_3d_to_2d(state, levels_of_2d_variables)
-        state = convert_3d_to_1d(state, names_of_1d_variables)
-        wrapper.set_state(state)
+        newstate = convert_3d_to_2d(newstate, levels_of_2d_variables)
+        newstate = convert_3d_to_1d(newstate, names_of_1d_variables)
+        wrapper.set_state(newstate)
         wrapper.step_physics()
         wrapper.save_intermediate_restart_if_enabled()
-    state = wrapper.get_state(allocator=allocator, names=all_names)
+    state = wrapper.get_state(allocator=allocator, names=initial_names)
 
     io.write_state(state, "outstate_{0}.nc".format(rank))
     wrapper.cleanup()
