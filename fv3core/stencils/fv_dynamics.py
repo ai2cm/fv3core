@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 from types import SimpleNamespace
 
 import fv3gfs.util as fv3util
@@ -82,7 +81,7 @@ def compute_preamble(state, comm):
         state.ph2,
         spec.namelist.p_ref,
         origin=grid.compute_origin(),
-        domain=grid.domain_shape_compute(),
+        domain=grid.domain_shape_compute_buffer_2d(),
     )
     if spec.namelist.hydrostatic:
         raise Exception("Hydrostatic is not implemented")
@@ -317,6 +316,7 @@ def compute(state, comm):
     last_step = False
     k_split = spec.namelist.k_split
     state.mdt = state.bdt / k_split
+    comm.halo_update(state.phis_quantity, n_points=utils.halo)
     compute_preamble(state, comm)
     for n_map in range(k_split):
         state.n_map = n_map + 1

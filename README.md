@@ -254,6 +254,17 @@ from the root of the image using:
 $ make -C external/fortran install && make -C external/fv3gfs-wrapper build
 ```
 
+to install fv3core as an importable module. Alternatively, you can specify `develop` instead of `install` if you want to edit the fv3core code. If you need to install an updated version of Serialbox, run
+
+```shell
+$ git clone -b v2.6.1 --depth 1 https://github.com/GridTools/serialbox.git /tmp/serialbox
+$ cd /tmp/serialbox
+$ cmake -B build -S /tmp/serialbox -DSERIALBOX_USE_NETCDF=ON -DSERIALBOX_TESTING=ON -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/serialbox
+$ cmake --build build/ -j $(nproc) --target install
+$ cd -
+$ rm -rf build /tmp/serialbox
+```
+
 To set up a model run, the `write_run_directory` command will create a rundir containing the needed inputs and structure for the model run based on a configuration yaml file:
 
 ```shell
