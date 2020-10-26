@@ -85,7 +85,7 @@ pull_core_deps:
 pull_deps_if_needed: ## pull images of any are missing
 	for IMAGE in $(DEPS_IMAGES); \
 	do \
-		if [ -z $(shell docker images -q $(IMAGE)) ]; then \
+		if [ -z $$(docker images -q $$IMAGE) ]; then \
 			docker pull $$IMAGE; \
 		fi; \
 	done

@@ -74,8 +74,8 @@ build_wrapped: update_submodules
 		$(MAKE) pull_wrapped_environment_if_needed; \
 	else \
 		$(MAKE) build_wrapped_environment; \
-  fi
-  $(MAKE) -C docker fv3core_wrapper_image
+	fi
+	$(MAKE) -C docker fv3core_wrapper_image
 
 pull_environment_if_needed:
 	$(MAKE) -C docker pull_core_deps_if_needed
