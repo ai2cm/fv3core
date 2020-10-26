@@ -1,11 +1,10 @@
 data_table: default
-diag_table: /fv3core/comparison/wrapped/config/diag_table_baroclinic
-field_table: gs://vcm-fv3config/config/field_table/TKE-EDMF/v1.0/field_table
-experiment_name: baroclinicnew
-forcing: gs://vcm-fv3config/data/base_forcing/v1.1/
+diag_table: default
+field_table: gs://vcm-fv3config/config/field_table/baroclinic_test/v1.0/field_table
+experiment_name: c12_6ranks_standard
+forcing: "gs://vcm-fv3config/data/base_forcing/v1.1/"
 orographic_forcing: gs://vcm-fv3config/data/orographic_data/v1.0
-# To use internal test cases, point to an empty ICs directory
-initial_conditions: ""
+initial_conditions: gs://vcm-fv3config/data/initial_conditions/gfs_c12_example/v1.0
 namelist:
   amip_interp_nml:
     data_set: hurrell
@@ -21,8 +20,8 @@ namelist:
   atmos_model_nml:
     blocksize: -1
     chksum_debug: false
-    dycore_only: true
-    fdiag: 1.0
+    dycore_only: false
+    fdiag: 0.25
   cires_ugwp_nml:
     knob_ugwp_azdir:
     - 2
@@ -81,7 +80,7 @@ namelist:
     months: 0
     ncores_per_node: 32
     seconds: 45
-    use_hyper_thread: true
+    use_hyper_thread: false
   diag_manager_nml:
     max_axes: 240
     max_files: 106
@@ -119,11 +118,11 @@ namelist:
     do_sat_adj: true
     do_vort_damp: true
     dwind_2d: false
-    external_ic: false
+    external_ic: true
     fill: true
     fill_dp: true
     fv_debug: false
-    fv_sg_adj: 0
+    fv_sg_adj: 600
     gfs_phil: false
     hord_dp: 6
     hord_mt: 6
@@ -149,7 +148,7 @@ namelist:
     n_sponge: 48
     na_init: 1
     ncep_ic: false
-    nggps_ic: false
+    nggps_ic: true
     nord: 3
     npx: 13
     npy: 13
@@ -234,7 +233,6 @@ namelist:
     cnvcld: false
     cnvgwd: false
     debug: false
-    do_ocean: false
     do_deep: false
     dspheat: true
     fhcyc: 24.0
@@ -263,7 +261,6 @@ namelist:
     prslrd0: 0.0
     random_clds: false
     redrag: true
-    sfc_override: true
     satmedmf: true
     shal_cnv: true
     swhtr: true
@@ -278,12 +275,6 @@ namelist:
     lat_s: 96
     lon_s: 192
     ntrunc: 94
-  sfc_prop_override_nml:
-    ideal_sst: true
-    sst_max: 305
-    sst_profile: 1
-  test_case_nml:
-    test_case: 13
   namsfc:
     fabsl: 99999
     faisl: 99999
