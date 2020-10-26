@@ -80,9 +80,7 @@ pull_environment_if_needed:
 	$(MAKE) -C docker pull_core_deps_if_needed
 
 pull_wrapped_environment_if_needed:
-	if [ -z $(shell docker images -q $(WRAPPER_INSTALL_IMAGE)) ]; then \
-		docker pull $(WRAPPER_INSTALL_IMAGE); \
-	fi
+	$(MAKE) -C docker pull_deps_if_needed
 
 pull_environment:
 	$(MAKE) -C docker pull_core_deps
