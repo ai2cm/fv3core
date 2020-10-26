@@ -26,14 +26,13 @@ else ifeq ($(CONTAINER_ENGINE),srun sarus)
 else
 	FV3_IMAGE ?= $(FV3CORE_IMAGE)
 endif
-FV3_TAG ?= $(TAG_NAME)
 
 TEST_DATA_CONTAINER=/test_data
 PYTHON_FILES = $(shell git ls-files | grep -e 'py$$' | grep -v -e '__init__.py')
 PYTHON_INIT_FILES = $(shell git ls-files | grep '__init__.py')
 TEST_DATA_TARFILE=dat_files.tar.gz
 TEST_DATA_TARPATH=$(TEST_DATA_HOST)/$(TEST_DATA_TARFILE)
-CORE_TAR=$(FV3_TAG).tar
+CORE_TAR=$(SARUS_FV3CORE_IMAGE).tar
 CORE_BUCKET_LOC=gs://vcm-jenkins/$(CORE_TAR)
 MPIRUN_CALL ?=mpirun -np $(NUM_RANKS)
 BASE_INSTALL?=$(FV3)-install-serialbox
