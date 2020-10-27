@@ -19,7 +19,7 @@ at minimum learn what is incorrect) your code using `make lint`
 We manage the list of syntax requirements using `pre-commit <https://pre-commit.com/>`__. This:
    - runs formatting and compliance checks for you
    - required to pass to merge a PR
-This initially was a call to 'black' `Black
+This initially was a call to `Black
 <https://github.com/ambv/black>`__ which reformats your code to a set of accepted
 standards.  Pre-commit now includes other adjustments and checks listed in the
 .pre-commit-config.yaml file.
