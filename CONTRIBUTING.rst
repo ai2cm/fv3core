@@ -80,7 +80,7 @@ File structure/ Conventions
      dimension as gt4py storages for use in stencils
    - The grid object also contains domain and layout information relevant to the current
      rank being operated on.
- - utility functions at fv3core/utils include:
+ - Utility functions at fv3core/utils include:
       - gt4py_utils:
 	 - default gt4py and model settings
 	 - methods for generating gt4py storages
