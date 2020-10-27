@@ -11,7 +11,7 @@ Development guidelines
 ----------------------
 
 Linting
-~~~~~~~~~~
+~~~~~~~
 
 The linter will become more strict over time, but you should always be able to correct (or
 at minimum learn what is incorrect) your code using `make lint`
