@@ -178,6 +178,7 @@ def compute(var1: FloatField, var2:IntField, var3: BoolField,
 param1: float_type, param2: int_type, param3: bool_type):
 """
 Describe what is being computed by this method
+
 Args:
   var1 (inout): description of data field
   var2 (in): description of int field
