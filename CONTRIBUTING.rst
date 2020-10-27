@@ -14,7 +14,7 @@ Linting
 ~~~~~~~
 
 The linter will become more strict over time, but you should always be able to correct (or
-at minimum learn what is incorrect) your code using `make lint`
+at minimum learn what is incorrect) your code using `make lint`.
 
 We manage the list of syntax requirements using `pre-commit <https://pre-commit.com/>`__. This:
    - runs formatting and compliance checks for you
