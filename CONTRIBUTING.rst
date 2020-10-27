@@ -328,23 +328,29 @@ For Translate objects
   - The unit test then uses a modified relative error metric to determine whether the unit
     passes
   - The init method for a Translate class:
-    - the input ( self.in_vars["data_vars"]) and output(self.out_vars) variables are
-      specified in dictionaries, where the keys are the name of the variable used in the
-      model and the values are dictionaries specifying metadata for translation of
-      serialized data to gt4py storages. The metadata that can be specied to override
-      defaults are:
-      - indices to line up data arrays into gt4py storages (which all get created as tha
-        max possible size needed by all operations, for simplicity):
-	 - "istart", "iend", "jstart", "jend", "kstart", "kend"
-	 - These should be set using the 'grid' object available to the Translate object,
-	   using equivalent index names as in the declaration of variables in the Fortran
-	   code, e.g.  real:: cx(bd%is:bd%ie+1,bd%jsd:bd%jed ) should include
-	   self.in_vars["data_vars"]["cx"] = {"istart": self.is_, "iend": self.ie + 1,
-	   "jstart": self.jsd, "jend": self.jed,} There is only a limited set of Fortran
-	   shapes declared, so abstractions defined in the grid can also be used, e.g.
-	   self.out_vars["cx"] = self.grid.x3d_compute_domain_y_dict()
+    * the input (self.in_vars["data_vars"]) and output(self.out_vars) variables are
+    specified in dictionaries, where the keys are the name of the variable used in the
+    model and the values are dictionaries specifying metadata for translation of
+    serialized data to gt4py storages. The metadata that can be specied to override
+    defaults are:
+    * indices to line up data arrays into gt4py storages (which all get created as the
+    max possible size needed by all operations, for simplicity):
+    "istart", "iend", "jstart", "jend", "kstart", "kend"
+    These should be set using the 'grid' object available to the Translate object,
+    using equivalent index names as in the declaration of variables in the Fortran
+    code, e.g. real:: cx(bd%is:bd%ie+1,bd%jsd:bd%jed ) means we should assign
 
-	  - Note that the variables, e.g. grid.is_ and grid.ie specify the 'compute'
+    example::
+      self.in_vars["data_vars"]["cx"] = {"istart": self.is\_, "iend": self.ie + 1,
+                                         "jstart": self.jsd, "jend": self.jed,}
+
+    There is only a limited set of Fortran shapes declared, so abstractions defined in
+    the grid can also be used,
+
+    e.g.::
+      self.out_vars["cx"] = self.grid.x3d_compute_domain_y_dict()
+
+    Note that the variables, e.g. grid.is\_ and grid.ie specify the 'compute'
     domain in the x direction of the current tile, equivalent to bd%is and bd%ie in the
     Fortran model EXCEPT that the Python variables are local to the current MPI rank (a
     subset of the tile face), while the Fortran values are global to the tile face. This
@@ -357,19 +363,19 @@ For Translate objects
     with an empty dictionary is isd:ied, jsd:jed, 0:npz - 1 inclusive, and variables that
     aren't that shape in the Fortran code need to have the 'start' indices specified for
     the in_vars dictionary , and 'start' and 'end' for the out_vars.
-     - "serialname" can be used to specify a name used in the Fortran code declaration if
-       we'd like the model to use a different name
-     - 'kaxis': which dimension is the vertical direction. For most variables this is '2'
-       and does not need to be specified. For Fortran variables that assign the vertical
-       dimension to a different axis, this can be set to ensure we end up with 3d storages
-       that have the vertical dimension where it is expected by GT4py.
-     - 'dummy_axes': If set this will set of the storage to have singleton dimensions in
-       the axes defined. This is to enable testing stencils where the full 3d data has not
-       been collected and we want to run stencil tests on the data for a particular slice.
-     - 'names_4d': If a 4d variable is being serialized, this can be set to specify the
-       names of each 3d field. By default this is the list of tracers.
+    * "serialname" can be used to specify a name used in the Fortran code declaration if
+    we'd like the model to use a different name
+    * 'kaxis': which dimension is the vertical direction. For most variables this is '2'
+    and does not need to be specified. For Fortran variables that assign the vertical
+    dimension to a different axis, this can be set to ensure we end up with 3d storages
+    that have the vertical dimension where it is expected by GT4py.
+    * 'dummy_axes': If set this will set of the storage to have singleton dimensions in
+    the axes defined. This is to enable testing stencils where the full 3d data has not
+    been collected and we want to run stencil tests on the data for a particular slice.
+    * 'names_4d': If a 4d variable is being serialized, this can be set to specify the
+    names of each 3d field. By default this is the list of tracers.
 
-    - input variables that are scalars should be added to self.in_vars["parameters"]
+    -  input variables that are scalars should be added to self.in_vars["parameters"]
     - self.compute_func is the name of the model function that should be run by the
       compute method in the translate class
     - self.max_error overrides the parent classes relative error threshold. This should
