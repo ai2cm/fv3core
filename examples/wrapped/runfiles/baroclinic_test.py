@@ -129,9 +129,9 @@ if __name__ == "__main__":
     fv3core.set_backend("numpy")
 
     # get another namelist for the communicator??
-    nml2 = yaml.safe_load(
-        open("/fv3core/examples/wrapped/config/baroclinic.yml", "r")
-    )["namelist"]
+    nml2 = yaml.safe_load(open("/fv3core/examples/wrapped/config/baroclinic.yml", "r"))[
+        "namelist"
+    ]
 
     sizer = SubtileGridSizer.from_namelist(nml2)
     allocator = QuantityFactory.from_backend(sizer, fv3core.get_backend())
