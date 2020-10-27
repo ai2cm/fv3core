@@ -110,7 +110,7 @@ File Structure / Conventions
    Serialbox from GridTools) from a Fortran run into gt4py storages that can be inputs to
    fv3core unit computations, and compares the results of the ported code to serialized
    data following a unit computation.
- - docker : provides Dockerfiles for building a repeatable environment in which to run the
+ - `docker/` provides Dockerfiles for building a repeatable environment in which to run the
    core
  - external: a folder for submoduled repos that provide essential functionality
  - The build system uses Makefiles following the convention of other repos within
