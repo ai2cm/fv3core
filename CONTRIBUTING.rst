@@ -19,6 +19,7 @@ at minimum learn what is incorrect) your code using `make lint`.
 We manage the list of syntax requirements using `pre-commit <https://pre-commit.com/>`__. This:
    - runs formatting and compliance checks for you
    - is required to pass to merge a PR
+
 This initially was a call to `Black
 <https://github.com/ambv/black>`__ which reformats your code to a set of accepted
 standards.  Pre-commit now includes other adjustments and checks listed in the
@@ -75,11 +76,11 @@ File Structure / Conventions
    FV3core model using Pythong wrapped fortran for code not ported to GT4py at the moment.
  - The namelist and grid are global variables defined in fv3core/_config.py
    - The namelist is 'flattened' so that the grouping name of the option is not required
-     to access the data (we may want to change this)
+   to access the data (we may want to change this).
    - The grid variables are mostly 2d variables that have been replicated in the z
-     dimension as gt4py storages for use in stencils
+   dimension as gt4py storages for use in stencils
    - The grid object also contains domain and layout information relevant to the current
-     rank being operated on.
+   rank being operated on.
  - Utility functions at fv3core/utils include:
       - gt4py_utils:
 	 - default gt4py and model settings
@@ -123,16 +124,16 @@ Model Interface
    using mpi with a minimum of 6 ranks (there are a few other units that also require
    this, e.g. whenever there is a halo update involved in a unit)
    - These are the interface to the rest of the model and currently have different
-     conventions than the rest of the model
+   conventions than the rest of the model
    - A 'state' object (currently a SimpleNamespace) stores pointers to the allocated data
-     fields
+   fields
  - Most functions within dyn_core can be run sequentially per rank
  - Currently a list of ArgSpecs must decorate an interface function, where each ArgSpec
    provides useful information about the argument, e.g.: @state_inputs( ArgSpec("qvapor",
    "specific_humidity", "kg/kg", intent="inout")
-    - The format is (fortran_name, long_name, units, intent)
-    - We currently provide a duplicate of most of the metadata in the specification of the
-      unit test, but that may be removed eventually.
+   - The format is (fortran_name, long_name, units, intent)
+   - We currently provide a duplicate of most of the metadata in the specification of the
+   unit test, but that may be removed eventually.
  - Then the function itself, e.g. fv_dynamics, has arguments of 'state', 'comm' (the
    communicator) and all of the scalar parameters being provided.
 
@@ -159,40 +160,54 @@ the intent (in, out, inout) of the function arguments
 e.g. vorticitytransport_cgrid:
 """Update the C-Grid zonal and meridional velocity fields.
 
-    Args: uc: x-velocity on C-grid (inout) vc: y-velocity on C-grid (inout) vort_c:
-        Vorticity on C-grid (inout) ke_c: kinetic energy on C-grid (inout) v: y-velocit on
-        D-grid (inout) u: x-velocity on D-grid (inout) dt2: timestep (input) """
+    Args: uc: x-velocity on C-grid (inout)
+          vc: y-velocity on C-grid (inout)
+          vort_c: Vorticity on C-grid (inout)
+	  ke_c: kinetic energy on C-grid (inout)
+	  v: y-velocity onD-grid (inout)
+	  u: x-velocity on D-grid (inout)
+	  dt2: timestep (input)
+
+"""
 
 
 Python functions (should mostly be light wrappers calling gt4py stencils, though currently
 exceptions exist where python code does computations on data fields):
-Original convention:
-def compute(var1, var2, var3, param1, param2, param3):
+
+Original convention::
+  def compute(var1, var2, var3, param1, param2, param3):
+
 Order of arguments did not matter
 too much, but generally follows the convention of listing 3d fields first, followed by
 parameters.
 
 New convention: make use of typing.py to specify fields, also typehint any function
-outputs. For example:
-def compute(var1: FloatField, var2:IntField, var3: BoolField,
-param1: float_type, param2: int_type, param3: bool_type):
-"""
-Describe what is being computed by this method
+outputs.
 
-Args:
-  var1 (inout): description of data field
-  var2 (in): description of int field
-  ...
-"""
+For example::
+  def compute(var1: FloatField, var2:IntField, var3: BoolField,
+  param1: float_type, param2: int_type, param3: bool_type)
+
+  """
+  Describe what is being computed by this method
+
+  Args:
+    var1 (inout): description of data field
+    var2 (in): description of int field
+    ...
+
+  """
 
 Or another example using a gt4py_utils method:
 Old convention:
 def make_storage_from_shape(shape, origin, dtype, init=True):
 
-New convention:
-def make_storage_from_shape( shape: Tuple[int, int, int], origin:
-Tuple[int, int, int] = origin, *, dtype: DTypes = np.float64, init: bool = True, mask:
-Tuple[bool, bool, bool] = (True, True, True), ) -> Field:
+New convention::
+
+  def make_storage_from_shape(shape: Tuple[int, int, int], origin:
+  Tuple[int, int, int] = origin, *, dtype: DTypes = np.float64, init: bool = True, mask:
+  Tuple[bool, bool, bool] = (True, True, True), ) -> Field:
+
 - see this method in gt4py_utils.py for its docstring as an example.
 - We will prioritize adding typing to methods called by other modules, not every internal
   method needs this level of specification.
@@ -202,21 +217,26 @@ fv3core/decorators.py that helps set default external arguments such as "backend
 rebuild" and provides the global namelist to the stencils. The type of eaach variable
 going into a stencil requires a type and the first version of the model used a shorthand
 'sd' (storage data) to indicate a gt4py field storage.
-@gtstencil()
-def pt_adjust(pkz:sd, dp1: sd, q_con: sd, pt: sd):
-    with computation(PARALLEL), interval(...): pt = pt *
-        (1.0 + dp1) * (1.0 - q_con) / pkz
+
+Example::
+  @gtstencil()
+  def pt_adjust(pkz:sd, dp1: sd, q_con: sd, pt: sd):
+  with computation(PARALLEL), interval(...):
+  pt = pt * (1.0 + dp1) * (1.0 - q_con) / pkz
 
 When we have compile-time variations of the same stencil with different external
 parameters, a stencil decorator can be defined interactively using the alternative
 syntax. This however is quite a jarring change in convention and thus we try to avoid this
 at the moment (does occur in fxadv), and may have another solution in the future.
-def undecorated_python_method(u, v):
+
+e.g.::
+  def undecorated_python_method(u, v):
     from __externals__ import vi
         with computation(PARALLEL), interval(...):
 	    u = vi * v def compute(u, v):
-decorator =gtscript.stencil( backend=backend, rebuild=rebuild. externals={"vi": vi})
-stencil = decorator(undecorated_python_method) stencil(u, v, origin=origin, domain=domain)
+called with::
+  decorator =gtscript.stencil( backend=backend, rebuild=rebuild. externals={"vi": vi})
+  stencil = decorator(undecorated_python_method) stencil(u, v, origin=origin, domain=domain)
 
 In the new convention replace "sd" with FloatField (or whatever the type is).
 
@@ -233,8 +253,10 @@ __externals__ import namelist inside the stencil
 GTScript functions:
 These use the gtscript decorator and the arguments do not include type
 specifications. They will continue to not have type hinting.
-@gtscript.function
-def get_bl(al, q):
+
+e.g.::
+  @gtscript.function
+  def get_bl(al, q):
 
 
 Assertions
@@ -253,7 +275,7 @@ decorator and/or GDP-3 from GT4py that may allow Quantities to be used in stenci
 
 
 New Styles
-~~~~~
+~~~~~~~~~~
 
 Propose new style ideas to the team (or subset) with examples and description of how data
 flow would be altered if relevant. Once an idea is accepted, open a PR with the idea
@@ -263,7 +285,7 @@ update when the PR is accepted and merged, including guidelines for utsing the n
 convention.
 
 Porting Conventions
-~~~~~
+~~~~~~~~~~~~~~~~~~~
 
 Generation of regression data occurs in the fv3gfs-fortran repo
 (https://github.com/VulcanClimateModeling/fv3gfs-fortran) with serialization statements
@@ -295,12 +317,14 @@ For Translate objects
   - The init function establishes the assumed translation setup for the class, which can
     be dynamically overridden as needed.
   - the parent compute function does:
-    1. makes gt4py storages of the max shape (grid.npx+1, grid.npy+1, grid.npz+1) aligning
-       the data based on the start indices specified. (gt4py requires data fields have the
-       same shape, so in this model we have buffer points so all calculations can be done
-       easily without worrying about shape matching)
-    2. runs the compute function (defined in self.compute_func) on the input data storages
-    3. slices the computed Python fields to be compared to fortran regression data
+
+  1. makes gt4py storages of the max shape (grid.npx+1, grid.npy+1, grid.npz+1) aligning
+     the data based on the start indices specified. (gt4py requires data fields have the
+     same shape, so in this model we have buffer points so all calculations can be done
+     easily without worrying about shape matching)
+  2. runs the compute function (defined in self.compute_func) on the input data storages
+  3. slices the computed Python fields to be compared to fortran regression data
+
   - The unit test then uses a modified relative error metric to determine whether the unit
     passes
   - The init method for a Translate class:
