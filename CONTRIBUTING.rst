@@ -182,7 +182,7 @@ Describe what is being computed by this method
 Args:
   var1 (inout): description of data field
   var2 (in): description of int field
-etc
+  ...
 """
 
 Or another example using a gt4py_utils method:
