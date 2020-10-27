@@ -112,7 +112,7 @@ File Structure / Conventions
    data following a unit computation.
  - `docker/` provides Dockerfiles for building a repeatable environment in which to run the
    core
- - external: a folder for submoduled repos that provide essential functionality
+ - `external/`: a directory for submoduled repos that provide essential functionality
  - The build system uses Makefiles following the convention of other repos within
    VulcanClimateModeling
 
