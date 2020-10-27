@@ -106,7 +106,7 @@ File structure/ Conventions
       - typing.py: Clean names for common types we use in the model. This is new and
         hasn't been adopted throughout the model yet, but will eventually be our
         standard. A shorthand 'sd' has been used in the intial version.
- - The 'tests' currently includes a framework for translating fields serialized (using
+ - `tests/` currently includes a framework for translating fields serialized (using
    Serialbox from GridTools) from a Fortran run into gt4py storages that can be inputs to
    fv3core unit computations, and compares the results of the ported code to serialized
    data following a unit computation.
