@@ -1,6 +1,6 @@
 data_table: default
 diag_table: default
-field_table: gs://vcm-fv3config/config/field_table/baroclinic_test/v1.0/field_table
+field_table: gs://vcm-fv3config/config/field_table/TKE-EDMF/v1.1/field_table
 experiment_name: c12_6ranks_standard
 forcing: "gs://vcm-fv3config/data/base_forcing/v1.1/"
 orographic_forcing: gs://vcm-fv3config/data/orographic_data/v1.0
