@@ -31,11 +31,11 @@
            "units",        "kg/kg"
        "profile_type", "fixed", "surface_value=1.e30" /
  "TRACER", "atmos_mod", "sgs_tke"
-           "longname",    "turbulent_kinetic_energy"
+           "longname",    "turbulent kinetic energy"
            "units",     "m**2/s**2"
        "profile_type", "fixed", "surface_value=100." /
 # non-prognostic cloud amount
  "TRACER", "atmos_mod", "cld_amt"
-           "longname",     "cloud_fraction"
+           "longname",     "cloud fraction"
            "units",        ""
        "profile_type", "fixed", "surface_value=1.e30" /

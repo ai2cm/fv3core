@@ -40,7 +40,7 @@ DEV_MOUNTS = '-v $(CWD)/$(FV3):/$(FV3)/$(FV3) -v $(CWD)/tests:/$(FV3)/tests -v $
 
 clean:
 	find . -name ""
-	$(RM) -rf comparison/wrapped/output/*
+	$(RM) -rf examples/wrapped/output/*
 	$(MAKE) -C external/fv3gfs-wrapper clean
 	$(MAKE) -C external/fv3gfs-fortran clean
 
