@@ -55,8 +55,8 @@ Keep the rule:
 - E265 block comment should start with “# “ and E262 inline comment should start with “# “
 
 
-File structure/ Conventions
-~~~~~~~~~~
+File Structure / Conventions
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
  - The main functionality of the FV3 dynamical core, which has been ported from the
    Fortran version in the fv3gfs-fortran repo, is defined using GT4py stencils and python
