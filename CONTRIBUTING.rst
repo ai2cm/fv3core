@@ -117,7 +117,7 @@ File Structure / Conventions
    VulcanClimateModeling
 
 Model Interface
-~~~~~
+~~~~~~~~~~~~~~~
 
  - Top level functions fv_dynamics and fv_sugridz can currenty only be run in parallel
    using mpi with a minimum of 6 ranks (there are a few other units that also require
