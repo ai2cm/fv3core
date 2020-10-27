@@ -130,7 +130,7 @@ if __name__ == "__main__":
 
     # get another namelist for the communicator??
     nml2 = yaml.safe_load(
-        open("/fv3core/comparison/wrapped/config/c12_6ranks_standard.yml", "r")
+        open("/fv3core/examples/wrapped/config/c12_6ranks_standard.yml", "r")
     )["namelist"]
 
     sizer = SubtileGridSizer.from_namelist(nml2)

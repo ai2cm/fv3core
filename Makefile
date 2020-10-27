@@ -60,6 +60,7 @@ build_environment:
 		.
 
 build_wrapped_environment:
+	$(MAKE) -C external/fv3gfs-wrapper build-docker
 	DOCKER_BUILDKIT=1 docker build \
 		--network host \
 		-f $(CWD)/docker/Dockerfile.build_environment \
@@ -85,8 +86,8 @@ build_wrapped: update_submodules
 	if [ $(PULL) == True ]; then \
 		$(MAKE) pull_wrapped_environment_if_needed; \
 	else \
-		$(MAKE) build_environment; \
-	$(MAKE) build_wrapped_environment
+		$(MAKE) build_wrapped_environment; \
+	fi
 	docker build \
 		--network host \
 		--no-cache \
