@@ -1,8 +1,11 @@
+> DISCLAIMER: Work in progress
+
 # FV3core
 
-FV3core is a Python version, using GT4Py with CPU and GPU backend options, of the FV3 dynamical core (fv3gfs-fortran repo).
+FV3core is a Python version, using GridTools GT4Py with CPU and GPU backend options, of the FV3 dynamical core (fv3gfs-fortran repo).
 The code here includes regression test data of computation units coming from serialized output from the Fortran model generated using the `GridTools/serialbox` framework.
 
+**WARNING** This repo is under active development and relies on code and data that is not publicly available at this point.
 
 ## Getting started
 
@@ -21,16 +24,23 @@ If you'd like to run MPI parallel tests (which are needed for parts of the code 
 $ make tests_mpi
 ```
 
-To rebuild the backend Dawn/GT4Py environment before running tests, either run
+The environment image that the fv3core container uses is prebuilt and lives in the GCR. The above commands will by default pull this image before building the fv3core image and running the tests.
+To build the environment from scratch (including GT4py) before running tests, either run
+
+```
+make build_environment
+```
+
+or
+
 
 ```shell
 $ PULL=False make tests
 ```
 
-```shell
-$ make rebuild_environment
-$ make tests
-```
+which will execute the target `build_environment` for you before running the tests.
+
+There are `push_environment` and `rebuild_environment` targets, but these should normally not be done manually. Updating the install image should only be done by Jenkins after the tests pass using a new environment.
 
 ### Test data options
 
@@ -44,6 +54,20 @@ e.g.
 $EXPERIMENT=c48_6ranks_standard make tests
 ```
 If you choose an experiment with a different number of ranks than 6, also set `NUM_RANKS=<num ranks>`
+
+## Testing interactively outside the container
+
+After `make tests` has been run at least once (or you have data in test_data and the docker image fv3core exists because `make build` has been run), you can iterate on code changes using
+
+```shell
+$ make dev_tests
+```
+or for the parallel tests:
+
+```shell
+$ make dev_tests_mpi
+```
+These will mount your current code into the fv3core container and run it rather than the code that was built when `make build` ran.
 
 ## Running tests  inside a container
 
@@ -69,34 +93,21 @@ $ pytest -v -s --data_path=/test_data/ /port_dev/tests --which_modules=<stencil 
 The 'stencil name' can be determined from the associated Translate class. e.g. TranslateXPPM is a test class that translate data serialized from a run of the fortran model, and 'XPPM' is the name you can use with --which_modules.
 
 
-## Testing interactively outside the container
-
-After `make tests` has been run at least once (or you have data in test_data and the docker image fv3core exists because `make build` has been run), you can iterate on code changes using
-
-```shell
-$ make dev_tests
-```
-or for the parallel tests:
-
-```shell
-$ make dev_tests_mpi
-```
-These will mount your current code into the fv3core container and run it rather than the code that was built when `make build` ran.
 
 
 ### Test options
 
 All of the make endpoints involved running tests can be prefixed with the `TEST_ARGS` environment variable to set test options or pytest CLI args (see below) when running inside the container.
 
-* `--which_modules <modules to run tests for>` - comma separated list of which modules to test (default 'all').
+* `--which_modules <modules to run tests for>` - comma separated list of which modules to test (defaults to running all of them).
 
 * `--print_failures` - if your test fails, it will only report the first datapoint. If you want all the nonmatching regression data to print out (so you can see if there are patterns, e.g. just incorrect for the first 'i' or whatever'), this will print out for every failing test all the non-matching data.
 
-* `--failure_stride` - whhen printing failures, print avery n failures only.
+* `--failure_stride` - when printing failures, print every n failures only.
 
 * `--data_path` - path to where you have the `Generator*.dat` and `*.json` serialization regression data. Defaults to current directory.
 
-* `--backend` - which backend to use for the computation. Defaults to numpy. Other options: gtmc, gtcuda, dawn:gtmc.
+* `--backend` - which backend to use for the computation. Defaults to numpy. Other options: gtmc, gtcuda, gtx86.
 
 Pytest provides a lot of options, which you can see by `pytest --help`. Here are some
 common options for our tests, which you can add to `TEST_ARGS`:
@@ -153,21 +164,20 @@ PULL=False make build
 
 ## Relevant repositories
 
-- https://github.com/VulcanClimateModeling/serialbox2 -
+- https://github.com/GridTools/serialbox -
   Serialbox generates serialized data when the Fortran model runs and has bindings to manage data from Python
 
 - https://github.com/VulcanClimateModeling/fv3gfs-fortran -
   This is the existing Fortran model decorated with serialization statements from which the test data is generated
 
-
 - https://github.com/GridTools/gt4py -
   Python package for the DSL language
 
-- https://github.com/VulcanClimateModeling/fv3gfs-wrapper -
-  The wrapper used to drive the Fortran model.
+- https://github.com/VulcanClimateModeling/fv3gfs-util
+  Python specific model functionality, such as halo updates.
 
-- https://github.com/MeteoSwiss-APN/dawn -
-  DSL language compiler using the GridTools parallel execution model
+- https://github.com/VulcanClimateModeling/fv3gfs-wrapper
+  A Python based wrapper for running the Fortran version of the FV3GFS model.
 
 Some of these are submodules.
 While tests can work without these, it may be necessary for development to have these as well.
@@ -186,7 +196,7 @@ The submodule include:
 
 There are three main driver files:
 
-1. `docker/Dockerfile.build_environment` - builds off of the serialbox environment from fv3gfs-fortran, installs Serialbox, Dawn and GT4Py
+1. `docker/Dockerfile.build_environment` - builds off of the serialbox environment from fv3gfs-fortran, installs Serialbox and GT4Py
 
 2. `docker/Dockerfile` - uses the build environment and copies in the fv3 folder only. This is to make development easier so that when you change a file in fv3, 'make build' does not accidentally or otherwise trigger a 20 minute rebuild of all of those installations, but just updates the code in the fv3core image.
 

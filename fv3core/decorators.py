@@ -157,6 +157,7 @@ def gtstencil(definition=None, **stencil_kwargs) -> Callable[..., None]:
                 args,
                 kwargs,
             )
+            kwargs["validate_args"] = kwargs.get("validate_args", utils.validate_args)
             result = stencils[key](*args, **kwargs)
             _maybe_save_report(
                 f"{name}-after",
