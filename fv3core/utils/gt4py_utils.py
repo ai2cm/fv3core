@@ -417,7 +417,7 @@ def asarray(array, to_type=np.ndarray, dtype=None, order=None):
 
 
 def zeros(shape, dtype=float_type):
-    storage_type = cp.ndarray if "cuda" in backend else np.ndarray
+    storage_type = cp.ndarray if "cuda" in global_config.get_backend() else np.ndarray
     xp = cp if cp and storage_type is cp.ndarray else np
     return xp.zeros(shape)
 
