@@ -5,6 +5,7 @@ REGRESSION_DATA_STORAGE_BUCKET = gs://vcm-fv3gfs-serialized-regression-data
 EXPERIMENT ?=c12_6ranks_standard
 FV3CORE_VERSION=0.1.0
 FORTRAN_SERIALIZED_DATA_VERSION=7.1.1
+WRAPPER_IMAGE = us.gcr.io/vcm-ml/fv3gfs-wrapper:gnu9-mpich314-nocuda
 
 SHELL=/bin/bash
 CWD=$(shell pwd)
@@ -60,6 +61,16 @@ build_environment: update_submodules
 build_wrapped_environment: update_submodules
 	$(MAKE) -C docker build_deps
 
+build_wrapped_environment:
+	$(MAKE) -C external/fv3gfs-wrapper build-docker
+	DOCKER_BUILDKIT=1 docker build \
+		--network host \
+		-f $(CWD)/docker/Dockerfile.build_environment \
+		-t $(WRAPPER_INSTALL_IMAGE) \
+		--target $(FV3_INSTALL_TARGET) \
+		--build-arg BASE_IMAGE=$(WRAPPER_IMAGE) \
+		.
+
 build: update_submodules
 	if [ $(PULL) == True ]; then \
 		$(MAKE) pull_environment_if_needed; \
@@ -81,6 +92,11 @@ pull_environment_if_needed:
 
 pull_wrapped_environment_if_needed:
 	$(MAKE) -C docker pull_deps_if_needed
+
+pull_wrapped_environment_if_needed:
+	if [ -z $(shell docker images -q $(WRAPPER_INSTALL_IMAGE)) ]; then \
+		docker pull $(WRAPPER_INSTALL_IMAGE); \
+	fi
 
 pull_environment:
 	$(MAKE) -C docker pull_core_deps

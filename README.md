@@ -297,6 +297,48 @@ $ make constraints.txt
 
 This file is committed to the repository, and gives more reproducible tests if an old commit of the repository is checked out in the future. The constraints are followed when creating the `fv3core` and `fv3core_wrapper` docker images. To ensure consistency this should ideally be run from inside a docker development environment, but you can also run it on your local system with an appropriate Python 3 environment.
 
+## Running with fv3gfs-wrapper
+
+To use the python dynamical core for model runs, use use fv3gfs-wrapper. After initializing the submodules, go to `external/fv3gfs-wrapper` and run
+
+```shell
+$ make build-docker
+```
+
+to generate a docker image for the wrapper. Then go back to the main fv3core directory and run
+
+```shell
+$ make build_wrapped
+```
+
+to build an fv3core docker image based on the wrapper image. The main way to run the model for now is to then execute `dev_docker.sh` to enter the image interactively. Once inside the image run
+
+```shell
+$ python setup.py install
+```
+
+to install fv3core as an importable module. Alternatively, you can specify `develop` instead of `install` if you want to edit the fv3core code. To install an updated version of Serialbox run
+
+```shell
+$ git clone -b v2.6.1 --depth 1 https://github.com/GridTools/serialbox.git /tmp/serialbox
+$ cd /tmp/serialbox
+$ cmake -B build -S /tmp/serialbox -DSERIALBOX_USE_NETCDF=ON -DSERIALBOX_TESTING=ON -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/serialbox
+$ cmake --build build/ -j $(nproc) --target install
+$ cd -
+$ rm -rf build /tmp/serialbox
+```
+
+To set up a model run, the `write_run_directory` command will create a rundir containing the needed inputs and structure for the model run based on a configuration yaml file:
+
+```shell
+$ write_run_directory path/to/configuration/yaml path/to/rundir
+```
+
+A few example config files are provided in the `fv3config` repository and `fv3core/examples/wrapped/config`. After the rundir has been created you can link or copy a runfile such as `fv3core/examples/wrapped/runfiles/fv3core_test.py` to your rundir and run it with mpirun:
+
+```shell
+$ mpirun -np X python fv3core_test.py
+```
 ## Development
 
 To develop fv3core, you need to install the linting requirements in `requirements_lint.txt`. To install the pinned versions, use:
