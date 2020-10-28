@@ -17,4 +17,4 @@ def get_rebuild() -> bool:
 
 
 _BACKEND = None  # Options: numpy, gtx86, gtcuda, debug
-_REBUILD = True
+_REBUILD = False
