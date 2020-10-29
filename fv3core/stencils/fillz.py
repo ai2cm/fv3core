@@ -48,7 +48,7 @@ def fix_tracer(
             q = q - (lower_fix[0, 0, -1] / dp)
         dq = q * dp
         if q < 0.0:
-            zfix = 1.0
+            zfix += 1.0
             if q[0, 0, -1] > 0.0:
                 # Borrow from the layer above
                 dq = (
@@ -83,7 +83,7 @@ def fix_tracer(
         qly = -q * dp
         dup = qup if qup < qly else qly
         if (q < 0.0) and (q[0, 0, -1] > 0.0):
-            zfix = 1.0
+            zfix += 1.0
             q = q + (dup / dp)
             upper_fix = dup
         dm = q * dp
@@ -101,7 +101,7 @@ def fix_tracer(
 def final_check(
     q: FloatField, dp: FloatField, dm: FloatField, zfix: FloatField, fac: FloatField
 ):
-    with computation(PARALLEL), interval(...):
+    with computation(PARALLEL), interval(1, None):
         if zfix > 0.0 and fac > 0.0:
             q = fac * dm / dp if fac * dm / dp > 0.0 else 0.0
 
@@ -116,7 +116,7 @@ def compute(dp2, tracers, im, km, nq, jslice):
     shape = tracer_list[0].shape
     shape_ij = shape[0:2] + (1,)
 
-    zfix = utils.make_storage_from_shape(shape, origin=(0, 0, 0))
+    zfix = utils.make_storage_from_shape(shape_ij, origin=(0, 0, 0))
     upper_fix = utils.make_storage_from_shape(shape, origin=(0, 0, 0))
     lower_fix = utils.make_storage_from_shape(shape, origin=(0, 0, 0))
     dm = utils.make_storage_from_shape(shape, origin=(0, 0, 0))
@@ -136,8 +136,6 @@ def compute(dp2, tracers, im, km, nq, jslice):
             origin=(i1, js, 0),
             domain=(im, jspan, km),
         )
-        fix_cols = utils.sum(zfix[:], axis=2)
-        zfix[:] = utils.repeat(fix_cols[:, :, np.newaxis], km + 1, axis=2)
         sum0 = utils.sum(dm[:, :, 1:], axis=2)
         sum1 = utils.sum(dm_pos[:, :, 1:], axis=2)
         adj_factor = utils.zeros(sum0.shape)
@@ -149,7 +147,7 @@ def compute(dp2, tracers, im, km, nq, jslice):
             dm,
             zfix,
             fac,
-            origin=(i1, js, 1),
-            domain=(im, jspan, km - 1),
+            origin=(i1, js, 0),
+            domain=(im, jspan, km),
         )
     return tracer_list
