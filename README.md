@@ -299,7 +299,7 @@ This file is committed to the repository, and gives more reproducible tests if a
 
 ## Running with fv3gfs-wrapper
 
-To use the python dynamical core for model runs, use use fv3gfs-wrapper. After initializing the submodules, go to `external/fv3gfs-wrapper` and run
+To use the python dynamical core for model runs, use fv3gfs-wrapper to interface with the Fortran model. After initializing the submodules, go to `external/fv3gfs-wrapper` and run
 
 ```shell
 $ make build-docker
@@ -317,9 +317,17 @@ to build an fv3core docker image based on the wrapper image. The main way to run
 $ python setup.py install
 ```
 
-to install fv3core as an importable module. Alternatively, you can specify `develop` instead of `install` if you want to edit the fv3core code. To install an updated version of Serialbox run
+to install fv3core as an importable module. Alternatively, you can specify `develop` instead of `install` if you want to edit the fv3core code.
+
+### Updating Serialbox
+
+If you need to install an updated version of serialbox, you must first install cmake. To install an updated version of Serialbox run
 
 ```shell
+$ wget https://github.com/Kitware/CMake/releases/download/v3.17.3/cmake-3.17.3.tar.gz && \
+  tar xzf cmake-3.17.3.tar.gz && \
+  cd cmake-3.17.3 && \
+  ./bootstrap && make -j4 && make install
 $ git clone -b v2.6.1 --depth 1 https://github.com/GridTools/serialbox.git /tmp/serialbox
 $ cd /tmp/serialbox
 $ cmake -B build -S /tmp/serialbox -DSERIALBOX_USE_NETCDF=ON -DSERIALBOX_TESTING=ON -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/serialbox
@@ -327,6 +335,8 @@ $ cmake --build build/ -j $(nproc) --target install
 $ cd -
 $ rm -rf build /tmp/serialbox
 ```
+
+### Running a wrapper runfile
 
 To set up a model run, the `write_run_directory` command will create a rundir containing the needed inputs and structure for the model run based on a configuration yaml file:
 
@@ -339,6 +349,7 @@ A few example config files are provided in the `fv3config` repository and `fv3co
 ```shell
 $ mpirun -np X python fv3core_test.py
 ```
+
 ## Development
 
 To develop fv3core, you need to install the linting requirements in `requirements_lint.txt`. To install the pinned versions, use:
