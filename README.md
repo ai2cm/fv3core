@@ -268,7 +268,7 @@ to install fv3core as an importable module. Alternatively, you can specify `deve
 
 ### Updating Serialbox
 
-If you need to install an updated version of Serialbox, you must first install cmake. To install an updated version of Serialbox run
+If you need to install an updated version of Serialbox, you must first install cmake into the development environment. To install an updated version of Serialbox from within the container run
 
 ```shell
 $ wget https://github.com/Kitware/CMake/releases/download/v3.17.3/cmake-3.17.3.tar.gz && \
