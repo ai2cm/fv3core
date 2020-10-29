@@ -103,14 +103,8 @@ def fix_tracer(
     with computation(FORWARD), interval(1, None):
         sum0 += dm
         sum1 += dm_pos
-    with computation(PARALLEL), interval(...):
+    with computation(PARALLEL), interval(1, None):
         fac = sum0 / sum1 if sum0 > 0.0 else 0.0
-
-
-@gtstencil()
-def final_check(
-    q: FloatField, dp: FloatField, dm: FloatField, zfix: FloatField, fac: FloatField
-):
     with computation(PARALLEL), interval(1, None):
         if zfix > 0.0 and fac > 0.0:
             q = fac * dm / dp if fac * dm / dp > 0.0 else 0.0
@@ -120,7 +114,7 @@ def compute(dp2, tracers, im, km, nq, jslice):
     # Same as above, but with multiple tracer fields
     i1 = spec.grid.is_
     js = jslice.start
-    jspan = jslice.stop - jslice.start
+    jext = jslice.stop - jslice.start
 
     tracer_list = [tracers[q] for q in utils.tracer_variables[0:nq]]
     shape = tracer_list[0].shape
@@ -149,15 +143,6 @@ def compute(dp2, tracers, im, km, nq, jslice):
             sum1,
             fac,
             origin=(i1, js, 0),
-            domain=(im, jspan, km),
-        )
-        final_check(
-            tracer,
-            dp2,
-            dm,
-            zfix,
-            fac,
-            origin=(i1, js, 0),
-            domain=(im, jspan, km),
+            domain=(im, jext, km),
         )
     return tracer_list
