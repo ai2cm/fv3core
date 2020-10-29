@@ -24,12 +24,17 @@ def fix_tracer(
     zfix: FloatFieldIJ,
     upper_fix: FloatField,
     lower_fix: FloatField,
+    sum0: FloatFieldIJ,
+    sum1: FloatFieldIJ,
+    fac: FloatFieldIJ,
 ):
     # reset fields
     with computation(PARALLEL), interval(...):
         zfix = 0.0
         lower_fix = 0.0
         upper_fix = 0.0
+        sum0 = 0.0
+        sum1 = 0.0
     # fix_top:
     with computation(PARALLEL):
         with interval(0, 1):
@@ -95,6 +100,11 @@ def fix_tracer(
             q = q - (upper_fix[0, 0, 1] / dp)
             dm = q * dp
             dm_pos = dm if dm > 0.0 else 0.0  # now we gotta update these too
+    with computation(FORWARD), interval(1, None):
+        sum0 += dm
+        sum1 += dm_pos
+    with computation(PARALLEL), interval(...):
+        fac = sum0 / sum1 if sum0 > 0.0 else 0.0
 
 
 @gtstencil()
@@ -121,7 +131,9 @@ def compute(dp2, tracers, im, km, nq, jslice):
     lower_fix = utils.make_storage_from_shape(shape, origin=(0, 0, 0))
     dm = utils.make_storage_from_shape(shape, origin=(0, 0, 0))
     dm_pos = utils.make_storage_from_shape(shape, origin=(0, 0, 0))
-    fac = utils.make_storage_from_shape(shape, origin=(0, 0, 0))
+    fac = utils.make_storage_from_shape(shape_ij, origin=(0, 0, 0))
+    sum0 = utils.make_storage_from_shape(shape_ij, origin=(0, 0, 0))
+    sum1 = utils.make_storage_from_shape(shape_ij, origin=(0, 0, 0))
     # TODO: implement dev_gfs_physics ifdef when we implement compiler defs
 
     for tracer in tracer_list:
@@ -133,14 +145,12 @@ def compute(dp2, tracers, im, km, nq, jslice):
             zfix,
             upper_fix,
             lower_fix,
+            sum0,
+            sum1,
+            fac,
             origin=(i1, js, 0),
             domain=(im, jspan, km),
         )
-        sum0 = utils.sum(dm[:, :, 1:], axis=2)
-        sum1 = utils.sum(dm_pos[:, :, 1:], axis=2)
-        adj_factor = utils.zeros(sum0.shape)
-        adj_factor[sum0 > 0] = sum0[sum0 > 0] / sum1[sum0 > 0]
-        fac[:] = utils.repeat(adj_factor[:, :, np.newaxis], km + 1, axis=2)
         final_check(
             tracer,
             dp2,
