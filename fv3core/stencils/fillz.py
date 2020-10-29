@@ -80,9 +80,8 @@ def fix_tracer(
         dm_pos = dm if dm > 0.0 else 0.0
     # fix_bottom:
     with computation(PARALLEL), interval(-1, None):
-        if (
-            lower_fix[0, 0, -1] != 0.0
-        ):  # the 2nd-to-last layer borrowed from this one, account for that here
+        # the 2nd-to-last layer borrowed from this one, account for that here
+        if lower_fix[0, 0, -1] != 0.0:
             q = q - (lower_fix[0, 0, -1] / dp)
         qup = q[0, 0, -1] * dp[0, 0, -1]
         qly = -q * dp
@@ -94,9 +93,8 @@ def fix_tracer(
         dm = q * dp
         dm_pos = dm if dm > 0.0 else 0.0
     with computation(PARALLEL), interval(-2, -1):
-        if (
-            upper_fix[0, 0, 1] != 0.0
-        ):  # if the bottom layer borrowed from this one, adjust
+        # if the bottom layer borrowed from this one, adjust
+        if upper_fix[0, 0, 1] != 0.0:
             q = q - (upper_fix[0, 0, 1] / dp)
             dm = q * dp
             dm_pos = dm if dm > 0.0 else 0.0  # now we gotta update these too
