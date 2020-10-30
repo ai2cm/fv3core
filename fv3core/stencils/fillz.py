@@ -12,6 +12,7 @@ from fv3core.decorators import gtstencil
 
 FloatField = utils.FloatField
 FloatFieldIJ = utils.FloatFieldIJ
+IntFieldIJ = utils.IntFieldIJ
 
 
 # @gtstencil(externals={"lists": {"q": len(utils.tracer_variables) - 1}})
@@ -21,7 +22,7 @@ def fix_tracer(
     dp: FloatField,
     dm: FloatField,
     dm_pos: FloatField,
-    zfix: FloatFieldIJ,
+    zfix: IntFieldIJ,
     upper_fix: FloatField,
     lower_fix: FloatField,
     sum0: FloatFieldIJ,
@@ -30,7 +31,7 @@ def fix_tracer(
 ):
     # reset fields
     with computation(PARALLEL), interval(...):
-        zfix = 0.0
+        zfix = 0
         lower_fix = 0.0
         upper_fix = 0.0
         sum0 = 0.0
@@ -87,7 +88,7 @@ def fix_tracer(
         qly = -q * dp
         dup = qup if qup < qly else qly
         if (q < 0.0) and (q[0, 0, -1] > 0.0):
-            zfix += 1.0
+            zfix += 1
             q = q + (dup / dp)
             upper_fix = dup
         dm = q * dp
@@ -104,7 +105,7 @@ def fix_tracer(
     with computation(PARALLEL), interval(1, None):
         fac = sum0 / sum1 if sum0 > 0.0 else 0.0
     with computation(PARALLEL), interval(1, None):
-        if zfix > 0.0 and fac > 0.0:
+        if zfix > 0 and fac > 0.0:
             q = fac * dm / dp if fac * dm / dp > 0.0 else 0.0
 
 
@@ -116,16 +117,16 @@ def compute(dp2, tracers, im, km, nq, jslice):
 
     tracer_list = [tracers[q] for q in utils.tracer_variables[0:nq]]
     shape = tracer_list[0].shape
-    shape_ij = shape[0:2] + (1,)
+    shape_ij = shape[0:2]
 
-    zfix = utils.make_storage_from_shape(shape_ij, origin=(0, 0, 0))
-    upper_fix = utils.make_storage_from_shape(shape, origin=(0, 0, 0))
-    lower_fix = utils.make_storage_from_shape(shape, origin=(0, 0, 0))
     dm = utils.make_storage_from_shape(shape, origin=(0, 0, 0))
     dm_pos = utils.make_storage_from_shape(shape, origin=(0, 0, 0))
-    fac = utils.make_storage_from_shape(shape_ij, origin=(0, 0, 0))
-    sum0 = utils.make_storage_from_shape(shape_ij, origin=(0, 0, 0))
-    sum1 = utils.make_storage_from_shape(shape_ij, origin=(0, 0, 0))
+    upper_fix = utils.make_storage_from_shape(shape, origin=(0, 0, 0))
+    lower_fix = utils.make_storage_from_shape(shape, origin=(0, 0, 0))
+    zfix = utils.make_storage_from_shape(shape_ij, dtype=np.int, origin=(0, 0))
+    fac = utils.make_storage_from_shape(shape_ij, origin=(0, 0))
+    sum0 = utils.make_storage_from_shape(shape_ij, origin=(0, 0))
+    sum1 = utils.make_storage_from_shape(shape_ij, origin=(0, 0))
     # TODO: implement dev_gfs_physics ifdef when we implement compiler defs
 
     for tracer in tracer_list:

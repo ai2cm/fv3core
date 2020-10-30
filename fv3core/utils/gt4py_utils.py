@@ -33,8 +33,9 @@ si = gtscript.Field[int_type]
 
 # New field types
 FloatField = gtscript.Field[float_type]
-IntField = gtscript.Field[int_type]
 FloatFieldIJ = gtscript.Field[float_type, gtscript.IJ]
+IntField = gtscript.Field[int_type]
+IntFieldIJ = gtscript.Field[int_type, gtscript.IJ]
 
 # Number of halo lines for each field and default origin
 halo = 3
@@ -233,6 +234,10 @@ def make_storage_from_shape(
            )
         3) q_out = utils.make_storage_from_shape(q_in.shape, origin, init=True)
     """
+    while len(shape) < len(mask):
+        shape += (1,)
+    while len(origin) < len(shape):
+        origin += (0,)
     storage_func = gt_storage.zeros if init else gt_storage.empty
     storage = storage_func(
         backend=global_config.get_backend(),
