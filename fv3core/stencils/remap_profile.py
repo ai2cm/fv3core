@@ -1,3 +1,5 @@
+from typing import Tuple
+
 import gt4py.gtscript as gtscript
 import numpy as np
 from gt4py.gtscript import BACKWARD, FORWARD, PARALLEL, computation, interval
@@ -8,11 +10,7 @@ import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import gtstencil
 
 
-sd = utils.sd
-
-
-def grid():
-    return spec.grid
+FloatField = utils.FloatField
 
 
 @gtscript.function
@@ -48,29 +46,58 @@ def constrain_interior(q, gam, a4):
 
 
 @gtstencil()
-def set_vals_2(gam: sd, q: sd, delp: sd, a4_1: sd, q_bot: sd, qs: sd):
-    with computation(PARALLEL):
-        with interval(0, 1):
-            # set top
+def set_vals(
+    gam: FloatField,
+    q: FloatField,
+    delp: FloatField,
+    a4_1: FloatField,
+    a4_2: FloatField,
+    a4_3: FloatField,
+    a4_4: FloatField,
+    q_bot: FloatField,
+    qs: FloatField,
+    iv: int,
+    kord: int,
+):
+    with computation(PARALLEL), interval(0, 1):
+        # set top
+        if iv == -2:
             # gam = 0.5
             q = 1.5 * a4_1
+        else:
+            # set top
+            grid_ratio = delp[0, 0, 1] / delp
+            bet = grid_ratio * (grid_ratio + 0.5)
+            q = (
+                (grid_ratio + grid_ratio) * (grid_ratio + 1.0) * a4_1 + a4_1[0, 0, 1]
+            ) / bet
+            gam = (1.0 + grid_ratio * (grid_ratio + 1.5)) / bet
     with computation(FORWARD):
         with interval(1, 2):
-            gam = 0.5
-            grid_ratio = delp[0, 0, -1] / delp
-            bet = 2.0 + grid_ratio + grid_ratio - gam
-            q = (3.0 * (a4_1[0, 0, -1] + a4_1) - q[0, 0, -1]) / bet
+            if iv == -2:
+                gam = 0.5
+                grid_ratio = delp[0, 0, -1] / delp
+                bet = 2.0 + grid_ratio + grid_ratio - gam
+                q = (3.0 * (a4_1[0, 0, -1] + a4_1) - q[0, 0, -1]) / bet
+        with interval(1, -1):
+            if iv != -2:
+                # set middle
+                d4 = delp[0, 0, -1] / delp
+                bet = 2.0 + d4 + d4 - gam[0, 0, -1]
+                q = (3.0 * (a4_1[0, 0, -1] + d4 * a4_1) - q[0, 0, -1]) / bet
+                gam = d4 / bet
         with interval(2, -2):
-            # set middle
-            old_grid_ratio = delp[0, 0, -2] / delp[0, 0, -1]
-            old_bet = 2.0 + old_grid_ratio + old_grid_ratio - gam[0, 0, -1]
-            gam = old_grid_ratio / old_bet
-            grid_ratio = delp[0, 0, -1] / delp
-            bet = 2.0 + grid_ratio + grid_ratio - gam
-            q = (3.0 * (a4_1[0, 0, -1] + a4_1) - q[0, 0, -1]) / bet
-            # gam[0, 0, 1] = grid_ratio / bet
-    with computation(FORWARD):
-        with interval(-2, -1):
+            if iv == -2:
+                # set middle
+                old_grid_ratio = delp[0, 0, -2] / delp[0, 0, -1]
+                old_bet = 2.0 + old_grid_ratio + old_grid_ratio - gam[0, 0, -1]
+                gam = old_grid_ratio / old_bet
+                grid_ratio = delp[0, 0, -1] / delp
+                bet = 2.0 + grid_ratio + grid_ratio - gam
+                q = (3.0 * (a4_1[0, 0, -1] + a4_1) - q[0, 0, -1]) / bet
+                # gam[0, 0, 1] = grid_ratio / bet
+    with computation(FORWARD), interval(-2, -1):
+        if iv == -2:
             # set bottom
             old_grid_ratio = delp[0, 0, -2] / delp[0, 0, -1]
             old_bet = 2.0 + old_grid_ratio + old_grid_ratio - gam[0, 0, -1]
@@ -80,34 +107,11 @@ def set_vals_2(gam: sd, q: sd, delp: sd, a4_1: sd, q_bot: sd, qs: sd):
                 3.0 * (a4_1[0, 0, -1] + a4_1) - grid_ratio * qs[0, 0, 1] - q[0, 0, -1]
             ) / (2.0 + grid_ratio + grid_ratio - gam)
             q_bot = qs
-    with computation(PARALLEL):
-        with interval(-1, None):
+    with computation(PARALLEL), interval(-1, None):
+        if iv == -2:
             q_bot = qs
             q = qs
-    with computation(BACKWARD), interval(0, -2):
-        q = q - gam[0, 0, 1] * q[0, 0, 1]
-
-
-@gtstencil()
-def set_vals_1(gam: sd, q: sd, delp: sd, a4_1: sd):
-    with computation(PARALLEL):
-        with interval(0, 1):
-            # set top
-            grid_ratio = delp[0, 0, 1] / delp
-            bet = grid_ratio * (grid_ratio + 0.5)
-            q = (
-                (grid_ratio + grid_ratio) * (grid_ratio + 1.0) * a4_1 + a4_1[0, 0, 1]
-            ) / bet
-            gam = (1.0 + grid_ratio * (grid_ratio + 1.5)) / bet
-    with computation(FORWARD):
-        with interval(1, -1):
-            # set middle
-            d4 = delp[0, 0, -1] / delp
-            bet = 2.0 + d4 + d4 - gam[0, 0, -1]
-            q = (3.0 * (a4_1[0, 0, -1] + d4 * a4_1) - q[0, 0, -1]) / bet
-            gam = d4 / bet
-    with computation(PARALLEL):
-        with interval(-1, None):
+        else:
             # set bottom
             d4 = delp[0, 0, -2] / delp[0, 0, -1]
             a_bot = 1.0 + d4 * (d4 + 1.5)
@@ -117,25 +121,39 @@ def set_vals_1(gam: sd, q: sd, delp: sd, a4_1: sd):
                 - a_bot * q[0, 0, -1]
             ) / (d4 * (d4 + 0.5) - a_bot * gam[0, 0, -1])
     with computation(BACKWARD), interval(0, -1):
-        q = q - gam * q[0, 0, 1]
-
-
-@gtstencil()
-def set_avals(q: sd, a4_1: sd, a4_2: sd, a4_3: sd, a4_4: sd, q_bot: sd):
+        if iv != -2:
+            q = q - gam * q[0, 0, 1]
+    with computation(BACKWARD), interval(0, -2):
+        if iv == -2:
+            q = q - gam[0, 0, 1] * q[0, 0, 1]
+    # set_avals
     with computation(PARALLEL):
         with interval(0, -1):
-            a4_2 = q
-            a4_3 = q[0, 0, 1]
-            a4_4 = 3.0 * (2.0 * a4_1 - (a4_2 + a4_3))
-    with computation(PARALLEL):
+            if kord > 16:
+                a4_2 = q
+                a4_3 = q[0, 0, 1]
+                a4_4 = 3.0 * (2.0 * a4_1 - (a4_2 + a4_3))
         with interval(-1, None):
-            a4_2 = q
-            a4_3 = q_bot
-            a4_4 = 3.0 * (2.0 * a4_1 - (a4_2 + a4_3))
+            if kord > 16:
+                a4_2 = q
+                a4_3 = q_bot
+                a4_4 = 3.0 * (2.0 * a4_1 - (a4_2 + a4_3))
 
 
 @gtstencil()
-def Apply_constraints(q: sd, gam: sd, a4_1: sd, a4_2: sd, a4_3: sd, iv: int):
+def apply_constraints(
+    q: FloatField,
+    gam: FloatField,
+    a4_1: FloatField,
+    a4_2: FloatField,
+    a4_3: FloatField,
+    a4_4: FloatField,
+    ext5: FloatField,
+    ext6: FloatField,
+    extm: FloatField,
+    iv: int,
+    kord: int,
+):
     with computation(PARALLEL):
         with interval(1, None):
             a4_1_0 = a4_1[0, 0, -1]
@@ -164,15 +182,11 @@ def Apply_constraints(q: sd, gam: sd, a4_1: sd, a4_2: sd, a4_3: sd, iv: int):
             # do bottom
             q = q if q < tmp else tmp
             q = q if q > tmp2 else tmp2
-    with computation(PARALLEL):
-        with interval(...):
-            # re-set a4_2 and a4_3
-            a4_2 = q
-            a4_3 = q[0, 0, 1]
-
-
-@gtstencil()
-def set_extm(extm: sd, a4_1: sd, a4_2: sd, a4_3: sd, gam: sd):
+    with computation(PARALLEL), interval(...):
+        # re-set a4_2 and a4_3
+        a4_2 = q
+        a4_3 = q[0, 0, 1]
+    # set_extm
     with computation(PARALLEL):
         with interval(0, 1):
             extm = (a4_2 - a4_1) * (a4_3 - a4_1) > 0.0
@@ -180,20 +194,20 @@ def set_extm(extm: sd, a4_1: sd, a4_2: sd, a4_3: sd, gam: sd):
             extm = gam * gam[0, 0, 1] < 0.0
         with interval(-1, None):
             extm = (a4_2 - a4_1) * (a4_3 - a4_1) > 0.0
-
-
-@gtstencil()
-def set_exts(a4_4: sd, ext5: sd, ext6: sd, a4_1: sd, a4_2: sd, a4_3: sd):
+    # set_exts
     with computation(PARALLEL), interval(...):
-        x0 = 2.0 * a4_1 - (a4_2 + a4_3)
-        x1 = abs(a4_2 - a4_3)
-        a4_4 = 3.0 * x0
-        ext5 = abs(x0) > x1
-        ext6 = abs(a4_4) > x1
+        if kord > 9:
+            x0 = 2.0 * a4_1 - (a4_2 + a4_3)
+            x1 = abs(a4_2 - a4_3)
+            a4_4 = 3.0 * x0
+            ext5 = abs(x0) > x1
+            ext6 = abs(a4_4) > x1
 
 
 @gtstencil()
-def set_top_as_iv0(a4_1: sd, a4_2: sd, a4_3: sd, a4_4: sd):
+def set_top_as_iv0(
+    a4_1: FloatField, a4_2: FloatField, a4_3: FloatField, a4_4: FloatField
+):
     with computation(PARALLEL):
         with interval(0, 1):
             a4_2 = a4_2 if a4_2 > 0.0 else 0.0
@@ -203,7 +217,9 @@ def set_top_as_iv0(a4_1: sd, a4_2: sd, a4_3: sd, a4_4: sd):
 
 
 @gtstencil()
-def set_top_as_iv1(a4_1: sd, a4_2: sd, a4_3: sd, a4_4: sd):
+def set_top_as_iv1(
+    a4_1: FloatField, a4_2: FloatField, a4_3: FloatField, a4_4: FloatField
+):
     with computation(PARALLEL):
         with interval(0, 1):
             a4_2 = 0.0 if a4_2 * a4_1 <= 0.0 else a4_2
@@ -212,7 +228,9 @@ def set_top_as_iv1(a4_1: sd, a4_2: sd, a4_3: sd, a4_4: sd):
 
 
 @gtstencil()
-def set_top_as_iv2(a4_1: sd, a4_2: sd, a4_3: sd, a4_4: sd):
+def set_top_as_iv2(
+    a4_1: FloatField, a4_2: FloatField, a4_3: FloatField, a4_4: FloatField
+):
     with computation(PARALLEL):
         with interval(0, 1):
             a4_2 = a4_1
@@ -224,7 +242,9 @@ def set_top_as_iv2(a4_1: sd, a4_2: sd, a4_3: sd, a4_4: sd):
 
 
 @gtstencil()
-def set_top_as_else(a4_1: sd, a4_2: sd, a4_3: sd, a4_4: sd):
+def set_top_as_else(
+    a4_1: FloatField, a4_2: FloatField, a4_3: FloatField, a4_4: FloatField
+):
     with computation(PARALLEL):
         with interval(...):
             a4_4 = 3.0 * (2.0 * a4_1 - (a4_2 + a4_3))
@@ -232,7 +252,14 @@ def set_top_as_else(a4_1: sd, a4_2: sd, a4_3: sd, a4_4: sd):
 
 @gtstencil()
 def set_inner_as_kordsmall(
-    a4_1: sd, a4_2: sd, a4_3: sd, a4_4: sd, gam: sd, extm: sd, ext5: sd, ext6: sd
+    a4_1: FloatField,
+    a4_2: FloatField,
+    a4_3: FloatField,
+    a4_4: FloatField,
+    gam: FloatField,
+    extm: FloatField,
+    ext5: FloatField,
+    ext6: FloatField,
 ):
     with computation(PARALLEL), interval(...):
         # left edges?
@@ -278,12 +305,12 @@ def set_inner_as_kordsmall(
 
 @gtstencil()
 def set_inner_as_kord9(
-    a4_1: sd,
-    a4_2: sd,
-    a4_3: sd,
-    a4_4: sd,
-    gam: sd,
-    extm: sd,
+    a4_1: FloatField,
+    a4_2: FloatField,
+    a4_3: FloatField,
+    a4_4: FloatField,
+    gam: FloatField,
+    extm: FloatField,
     qmin: float,
 ):
     with computation(PARALLEL), interval(...):
@@ -344,19 +371,19 @@ def set_inner_as_kord9(
 
 @gtstencil()
 def set_inner_as_kord10(
-    a4_1: sd,
-    a4_2: sd,
-    a4_3: sd,
-    a4_4: sd,
-    gam: sd,
-    extm: sd,
-    ext5: sd,
-    ext6: sd,
-    pmp_2: sd,
-    lac_2: sd,
-    tmp_min3: sd,
-    tmp_max3: sd,
-    tmp3: sd,
+    a4_1: FloatField,
+    a4_2: FloatField,
+    a4_3: FloatField,
+    a4_4: FloatField,
+    gam: FloatField,
+    extm: FloatField,
+    ext5: FloatField,
+    ext6: FloatField,
+    pmp_2: FloatField,
+    lac_2: FloatField,
+    tmp_min3: FloatField,
+    tmp_max3: FloatField,
+    tmp3: FloatField,
 ):
     with computation(PARALLEL), interval(...):
         pmp_1 = a4_1 - 2.0 * gam[0, 0, 1]
@@ -405,7 +432,9 @@ def set_inner_as_kord10(
 
 
 @gtstencil()
-def set_bottom_as_iv0(a4_1: sd, a4_2: sd, a4_3: sd, a4_4: sd):
+def set_bottom_as_iv0(
+    a4_1: FloatField, a4_2: FloatField, a4_3: FloatField, a4_4: FloatField
+):
     with computation(PARALLEL):
         with interval(1, None):
             a4_3 = a4_3 if a4_3 > 0.0 else 0.0
@@ -415,7 +444,9 @@ def set_bottom_as_iv0(a4_1: sd, a4_2: sd, a4_3: sd, a4_4: sd):
 
 
 @gtstencil()
-def set_bottom_as_iv1(a4_1: sd, a4_2: sd, a4_3: sd, a4_4: sd):
+def set_bottom_as_iv1(
+    a4_1: FloatField, a4_2: FloatField, a4_3: FloatField, a4_4: FloatField
+):
     with computation(PARALLEL):
         with interval(-1, None):
             a4_3 = 0.0 if a4_3 * a4_1 <= 0.0 else a4_3
@@ -425,13 +456,29 @@ def set_bottom_as_iv1(a4_1: sd, a4_2: sd, a4_3: sd, a4_4: sd):
 
 
 @gtstencil()
-def set_bottom_as_else(a4_1: sd, a4_2: sd, a4_3: sd, a4_4: sd):
+def set_bottom_as_else(
+    a4_1: FloatField, a4_2: FloatField, a4_3: FloatField, a4_4: FloatField
+):
     with computation(PARALLEL):
         with interval(...):
             a4_4 = 3.0 * (2.0 * a4_1 - (a4_2 + a4_3))
 
 
-def compute(qs, a4_1, a4_2, a4_3, a4_4, delp, km, i1, i2, iv, kord, jslice, qmin=0.0):
+def compute(
+    qs: FloatField,
+    a4_1: FloatField,
+    a4_2: FloatField,
+    a4_3: FloatField,
+    a4_4: FloatField,
+    delp: FloatField,
+    km: int,
+    i1: int,
+    i2: int,
+    iv: int,
+    kord: int,
+    jslice: Tuple[int],
+    qmin: float = 0.0,
+):
     i_extent = i2 - i1 + 1
     j_extent = jslice.stop - jslice.start
     js = jslice.start
@@ -443,11 +490,11 @@ def compute(qs, a4_1, a4_2, a4_3, a4_4, delp, km, i1, i2, iv, kord, jslice, qmin
     q = utils.make_storage_from_shape(delp.shape, origin=full_orig)
     q_bot = utils.make_storage_from_shape(delp.shape, origin=full_orig)
 
+    # make a qs that can be passed to a stencil
     qs_field = utils.make_storage_from_shape(delp.shape, origin=full_orig)
-
     qs_field[i1 : i2 + 1, js : js + j_extent, -1] = qs[
         i1 : i2 + 1, js : js + j_extent, 0
-    ]  # make a qs that can be passed to a stencil
+    ]
 
     extm = utils.make_storage_from_shape(delp.shape, origin=full_orig)
     ext5 = utils.make_storage_from_shape(delp.shape, origin=full_orig)
@@ -457,27 +504,39 @@ def compute(qs, a4_1, a4_2, a4_3, a4_4, delp, km, i1, i2, iv, kord, jslice, qmin
     tmp_min3 = utils.make_storage_from_shape(delp.shape, origin=full_orig)
     tmp_max3 = utils.make_storage_from_shape(delp.shape, origin=full_orig)
     tmp3 = utils.make_storage_from_shape(delp.shape, origin=full_orig)
-    if iv == -2:
-        set_vals_2(
-            gam,
-            q,
-            delp,
-            a4_1,
-            q_bot,
-            qs_field,
-            origin=orig,
-            domain=(i_extent, j_extent, km + 1),
-        )
-    else:
-        set_vals_1(gam, q, delp, a4_1, origin=orig, domain=(i_extent, j_extent, km + 1))
 
-    if abs(kord) > 16:
-        set_avals(q, a4_1, a4_2, a4_3, a4_4, q_bot, origin=orig, domain=dom)
-    else:
-        Apply_constraints(q, gam, a4_1, a4_2, a4_3, iv, origin=orig, domain=dom)
-        set_extm(extm, a4_1, a4_2, a4_3, gam, origin=orig, domain=dom)
-        if abs(kord) > 9:
-            set_exts(a4_4, ext5, ext6, a4_1, a4_2, a4_3, origin=orig, domain=dom)
+    set_vals(
+        gam,
+        q,
+        delp,
+        a4_1,
+        a4_2,
+        a4_3,
+        a4_4,
+        q_bot,
+        qs_field,
+        iv=iv,
+        kord=abs(kord),
+        origin=orig,
+        domain=(i_extent, j_extent, km + 1),
+    )
+
+    if abs(kord) <= 16:
+        apply_constraints(
+            q,
+            gam,
+            a4_1,
+            a4_2,
+            a4_3,
+            a4_4,
+            ext5,
+            ext6,
+            extm,
+            iv,
+            kord=abs(kord),
+            origin=orig,
+            domain=dom,
+        )
         if iv == 0:
             set_top_as_iv0(
                 a4_1, a4_2, a4_3, a4_4, origin=orig, domain=(i_extent, j_extent, 2)

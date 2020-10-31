@@ -1,3 +1,5 @@
+from typing import Dict, Optional
+
 import gt4py.gtscript as gtscript
 import numpy as np
 from gt4py.gtscript import PARALLEL, computation, interval
@@ -10,8 +12,21 @@ import fv3core.utils.gt4py_utils as utils
 from fv3core.stencils.basic_operations import copy_stencil
 
 
+FloatField = utils.FloatField
+
+
 def compute(
-    pe1, pe2, dp2, tracers, nq, q_min, i1, i2, kord, j_2d=None, version="stencil",  # "transliterated"
+    pe1: FloatField,
+    pe2: FloatField,
+    dp2: FloatField,
+    tracers: Dict[str, type(FloatField)],
+    nq: int,
+    q_min: float,
+    i1: int,
+    i2: int,
+    kord: int,
+    j_2d: Optional[int] = None,
+    version: str = "transliterated",  # "stencil"
 ):
     grid = spec.grid
     fill = spec.namelist.fill
@@ -28,14 +43,10 @@ def compute(
         i_extent,
     ) = map_single.setup_data(tracers[utils.tracer_variables[0]], pe1, i1, i2, j_2d)
 
-    tracer_list = [tracers[q] for q in utils.tracer_variables[0:nq]]
     # transliterated fortran 3d or 2d validate, not bit-for bit
-    # for q in utils.tracer_variables[0:nq]:
+    tracer_list = [tracers[q] for q in utils.tracer_variables[0:nq]]
     for tracer in tracer_list:
-        # if j_2d is None:
-        copy_stencil(tracer, q4_1, origin=origin, domain=domain)
-        # else:
-        #    q4_1.data[:] = tracer.data[:]
+        q4_1[:] = tracer[:]
         q4_2[:] = 0.0
         q4_3[:] = 0.0
         q4_4[:] = 0.0
