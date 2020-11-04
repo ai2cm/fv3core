@@ -1,11 +1,11 @@
 import copy
 import logging
 import math
+import numpy as np
 from typing import Dict, List, Optional, Tuple, Union
 
 import gt4py as gt
 import gt4py.storage as gt_storage
-import numpy as np
 from gt4py import gtscript
 
 from fv3core.utils.mpi import MPI

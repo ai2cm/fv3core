@@ -5,7 +5,6 @@ import numpy as np
 from gt4py.gtscript import BACKWARD, FORWARD, PARALLEL, computation, interval
 
 import fv3core._config as spec
-import fv3core.stencils.profile_limiters as limiters
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import gtstencil
 
@@ -251,126 +250,7 @@ def set_top_as_else(
 
 
 @gtstencil()
-def set_inner_as_kordsmall(
-    a4_1: FloatField,
-    a4_2: FloatField,
-    a4_3: FloatField,
-    a4_4: FloatField,
-    gam: FloatField,
-    extm: FloatField,
-    ext5: FloatField,
-    ext6: FloatField,
-):
-    with computation(PARALLEL), interval(...):
-        # left edges?
-        pmp_1 = a4_1 - gam[0, 0, 1]
-        lac_1 = pmp_1 + 1.5 * gam[0, 0, 2]
-        tmp_min = (
-            a4_1
-            if (a4_1 < pmp_1) and (a4_1 < lac_1)
-            else pmp_1
-            if pmp_1 < lac_1
-            else lac_1
-        )
-        tmp_max0 = a4_2 if a4_2 > tmp_min else tmp_min
-        tmp_max = (
-            a4_1
-            if (a4_1 > pmp_1) and (a4_1 > lac_1)
-            else pmp_1
-            if pmp_1 > lac_1
-            else lac_1
-        )
-        a4_2 = tmp_max0 if tmp_max0 < tmp_max else tmp_max
-        # right edges?
-        pmp_2 = a4_1 + 2.0 * gam[0, 0, 1]
-        lac_2 = pmp_2 - 1.5 * gam[0, 0, -1]
-        tmp_min = (
-            a4_1
-            if (a4_1 < pmp_2) and (a4_1 < lac_2)
-            else pmp_2
-            if pmp_2 < lac_2
-            else lac_2
-        )
-        tmp_max0 = a4_3 if a4_3 > tmp_min else tmp_min
-        tmp_max = (
-            a4_1
-            if (a4_1 > pmp_2) and (a4_1 > lac_2)
-            else pmp_2
-            if pmp_2 > lac_2
-            else lac_2
-        )
-        a4_3 = tmp_max0 if tmp_max0 < tmp_max else tmp_max
-        a4_4 = 3.0 * (2.0 * a4_1 - (a4_2 + a4_3))
-
-
-@gtstencil()
-def set_inner_as_kord9(
-    a4_1: FloatField,
-    a4_2: FloatField,
-    a4_3: FloatField,
-    a4_4: FloatField,
-    gam: FloatField,
-    extm: FloatField,
-    qmin: float,
-):
-    with computation(PARALLEL), interval(...):
-        pmp_1 = a4_1 - 2.0 * gam[0, 0, 1]
-        lac_1 = pmp_1 + 1.5 * gam[0, 0, 2]
-        pmp_2 = a4_1 + 2.0 * gam
-        lac_2 = pmp_2 - 1.5 * gam[0, 0, -1]
-        tmp_min = a4_1
-        tmp_max = a4_2
-        tmp_max0 = a4_1
-        if (
-            (extm != 0.0 and extm[0, 0, -1] != 0.0)
-            or (extm != 0.0 and extm[0, 0, 1] != 0.0)
-            or (extm > 0.0 and (qmin > 0.0 and a4_1 < qmin))
-        ):
-            a4_2 = a4_1
-            a4_3 = a4_1
-            a4_4 = 0.0
-        else:
-            a4_4 = 6.0 * a4_1 - 3.0 * (a4_2 + a4_3)
-            if abs(a4_4) > abs(a4_2 - a4_3):
-                tmp_min = (
-                    a4_1
-                    if (a4_1 < pmp_1) and (a4_1 < lac_1)
-                    else pmp_1
-                    if pmp_1 < lac_1
-                    else lac_1
-                )
-                tmp_max0 = a4_2 if a4_2 > tmp_min else tmp_min
-                tmp_max = (
-                    a4_1
-                    if (a4_1 > pmp_1) and (a4_1 > lac_1)
-                    else pmp_1
-                    if pmp_1 > lac_1
-                    else lac_1
-                )
-                a4_2 = tmp_max0 if tmp_max0 < tmp_max else tmp_max
-                tmp_min = (
-                    a4_1
-                    if (a4_1 < pmp_2) and (a4_1 < lac_2)
-                    else pmp_2
-                    if pmp_2 < lac_2
-                    else lac_2
-                )
-                tmp_max0 = a4_3 if a4_3 > tmp_min else tmp_min
-                tmp_max = (
-                    a4_1
-                    if (a4_1 > pmp_2) and (a4_1 > lac_2)
-                    else pmp_2
-                    if pmp_2 > lac_2
-                    else lac_2
-                )
-                a4_3 = tmp_max0 if tmp_max0 < tmp_max else tmp_max
-                a4_4 = 6.0 * a4_1 - 3.0 * (a4_2 + a4_3)
-            else:
-                a4_2 = a4_2
-
-
-@gtstencil()
-def set_inner_as_kord10(
+def set_inner_as_kord(
     a4_1: FloatField,
     a4_2: FloatField,
     a4_3: FloatField,
@@ -384,84 +264,243 @@ def set_inner_as_kord10(
     tmp_min3: FloatField,
     tmp_max3: FloatField,
     tmp3: FloatField,
+    qmin: float,
+    kord: int,
 ):
     with computation(PARALLEL), interval(...):
-        pmp_1 = a4_1 - 2.0 * gam[0, 0, 1]
-        lac_1 = pmp_1 + 1.5 * gam[0, 0, 2]
-        pmp_2 = a4_1 + 2.0 * gam
-        lac_2 = pmp_2 - 1.5 * gam[0, 0, -1]
-        tmp_min2 = (
-            a4_1
-            if (a4_1 < pmp_1) and (a4_1 < lac_1)
-            else pmp_1
-            if pmp_1 < lac_1
-            else lac_1
-        )
-        tmp_max2 = (
-            a4_1
-            if (a4_1 > pmp_1) and (a4_1 > lac_1)
-            else pmp_1
-            if pmp_1 > lac_1
-            else lac_1
-        )
-        tmp2 = a4_2 if a4_2 > tmp_min2 else tmp_min2
-        tmp_min3 = a4_1 if a4_1 < pmp_2 else pmp_2
-        tmp_min3 = lac_2 if lac_2 < tmp_min3 else tmp_min3
-        tmp_max3 = a4_1 if a4_1 > pmp_2 else pmp_2
-        tmp_max3 = lac_2 if lac_2 > tmp_max3 else tmp_max3
-        tmp3 = a4_3 if a4_3 > tmp_min3 else tmp_min3
-        if ext5:
-            if ext5[0, 0, -1] or ext5[0, 0, 1]:
+        # set_inner_as_kordsmall
+        if kord < 9:
+            # left edges?
+            pmp_1 = a4_1 - gam[0, 0, 1]
+            lac_1 = pmp_1 + 1.5 * gam[0, 0, 2]
+            tmp_min = (
+                a4_1
+                if (a4_1 < pmp_1) and (a4_1 < lac_1)
+                else pmp_1
+                if pmp_1 < lac_1
+                else lac_1
+            )
+            tmp_max0 = a4_2 if a4_2 > tmp_min else tmp_min
+            tmp_max = (
+                a4_1
+                if (a4_1 > pmp_1) and (a4_1 > lac_1)
+                else pmp_1
+                if pmp_1 > lac_1
+                else lac_1
+            )
+            a4_2 = tmp_max0 if tmp_max0 < tmp_max else tmp_max
+            # right edges?
+            pmp_2 = a4_1 + 2.0 * gam[0, 0, 1]
+            lac_2 = pmp_2 - 1.5 * gam[0, 0, -1]
+            tmp_min = (
+                a4_1
+                if (a4_1 < pmp_2) and (a4_1 < lac_2)
+                else pmp_2
+                if pmp_2 < lac_2
+                else lac_2
+            )
+            tmp_max0 = a4_3 if a4_3 > tmp_min else tmp_min
+            tmp_max = (
+                a4_1
+                if (a4_1 > pmp_2) and (a4_1 > lac_2)
+                else pmp_2
+                if pmp_2 > lac_2
+                else lac_2
+            )
+            a4_3 = tmp_max0 if tmp_max0 < tmp_max else tmp_max
+            a4_4 = 3.0 * (2.0 * a4_1 - (a4_2 + a4_3))
+        # set_inner_as_kord9
+        if kord == 9:
+            pmp_1 = a4_1 - 2.0 * gam[0, 0, 1]
+            lac_1 = pmp_1 + 1.5 * gam[0, 0, 2]
+            pmp_2 = a4_1 + 2.0 * gam
+            lac_2 = pmp_2 - 1.5 * gam[0, 0, -1]
+            tmp_min = a4_1
+            tmp_max = a4_2
+            tmp_max0 = a4_1
+            if (
+                (extm != 0.0 and extm[0, 0, -1] != 0.0)
+                or (extm != 0.0 and extm[0, 0, 1] != 0.0)
+                or (extm > 0.0 and (qmin > 0.0 and a4_1 < qmin))
+            ):
                 a4_2 = a4_1
                 a4_3 = a4_1
-            elif ext6[0, 0, -1] or ext6[0, 0, 1]:
-                a4_2 = tmp2 if tmp2 < tmp_max2 else tmp_max2
-                a4_3 = tmp3 if tmp3 < tmp_max3 else tmp_max3
+                a4_4 = 0.0
+            else:
+                a4_4 = 6.0 * a4_1 - 3.0 * (a4_2 + a4_3)
+                if abs(a4_4) > abs(a4_2 - a4_3):
+                    tmp_min = (
+                        a4_1
+                        if (a4_1 < pmp_1) and (a4_1 < lac_1)
+                        else pmp_1
+                        if pmp_1 < lac_1
+                        else lac_1
+                    )
+                    tmp_max0 = a4_2 if a4_2 > tmp_min else tmp_min
+                    tmp_max = (
+                        a4_1
+                        if (a4_1 > pmp_1) and (a4_1 > lac_1)
+                        else pmp_1
+                        if pmp_1 > lac_1
+                        else lac_1
+                    )
+                    a4_2 = tmp_max0 if tmp_max0 < tmp_max else tmp_max
+                    tmp_min = (
+                        a4_1
+                        if (a4_1 < pmp_2) and (a4_1 < lac_2)
+                        else pmp_2
+                        if pmp_2 < lac_2
+                        else lac_2
+                    )
+                    tmp_max0 = a4_3 if a4_3 > tmp_min else tmp_min
+                    tmp_max = (
+                        a4_1
+                        if (a4_1 > pmp_2) and (a4_1 > lac_2)
+                        else pmp_2
+                        if pmp_2 > lac_2
+                        else lac_2
+                    )
+                    a4_3 = tmp_max0 if tmp_max0 < tmp_max else tmp_max
+                    a4_4 = 6.0 * a4_1 - 3.0 * (a4_2 + a4_3)
+                else:
+                    a4_2 = a4_2
+        # set_inner_as_kord10
+        if kord == 10:
+            pmp_1 = a4_1 - 2.0 * gam[0, 0, 1]
+            lac_1 = pmp_1 + 1.5 * gam[0, 0, 2]
+            pmp_2 = a4_1 + 2.0 * gam
+            lac_2 = pmp_2 - 1.5 * gam[0, 0, -1]
+            tmp_min2 = (
+                a4_1
+                if (a4_1 < pmp_1) and (a4_1 < lac_1)
+                else pmp_1
+                if pmp_1 < lac_1
+                else lac_1
+            )
+            tmp_max2 = (
+                a4_1
+                if (a4_1 > pmp_1) and (a4_1 > lac_1)
+                else pmp_1
+                if pmp_1 > lac_1
+                else lac_1
+            )
+            tmp2 = a4_2 if a4_2 > tmp_min2 else tmp_min2
+            tmp_min3 = a4_1 if a4_1 < pmp_2 else pmp_2
+            tmp_min3 = lac_2 if lac_2 < tmp_min3 else tmp_min3
+            tmp_max3 = a4_1 if a4_1 > pmp_2 else pmp_2
+            tmp_max3 = lac_2 if lac_2 > tmp_max3 else tmp_max3
+            tmp3 = a4_3 if a4_3 > tmp_min3 else tmp_min3
+            if ext5:
+                if ext5[0, 0, -1] or ext5[0, 0, 1]:
+                    a4_2 = a4_1
+                    a4_3 = a4_1
+                elif ext6[0, 0, -1] or ext6[0, 0, 1]:
+                    a4_2 = tmp2 if tmp2 < tmp_max2 else tmp_max2
+                    a4_3 = tmp3 if tmp3 < tmp_max3 else tmp_max3
+                else:
+                    a4_2 = a4_2
+            elif ext6:
+                if ext5[0, 0, -1] or ext5[0, 0, 1]:
+                    a4_2 = tmp2 if tmp2 < tmp_max2 else tmp_max2
+                    a4_3 = tmp3 if tmp3 < tmp_max3 else tmp_max3
+                else:
+                    a4_2 = a4_2
             else:
                 a4_2 = a4_2
-        elif ext6:
-            if ext5[0, 0, -1] or ext5[0, 0, 1]:
-                a4_2 = tmp2 if tmp2 < tmp_max2 else tmp_max2
-                a4_3 = tmp3 if tmp3 < tmp_max3 else tmp_max3
-            else:
-                a4_2 = a4_2
-        else:
-            a4_2 = a4_2
-    with computation(PARALLEL), interval(...):
-        a4_4 = 3.0 * (2.0 * a4_1 - (a4_2 + a4_3))
+            a4_4 = 3.0 * (2.0 * a4_1 - (a4_2 + a4_3))
 
 
 @gtstencil()
 def set_bottom_as_iv0(
     a4_1: FloatField, a4_2: FloatField, a4_3: FloatField, a4_4: FloatField
 ):
-    with computation(PARALLEL):
-        with interval(1, None):
-            a4_3 = a4_3 if a4_3 > 0.0 else 0.0
-    with computation(PARALLEL):
-        with interval(...):
-            a4_4 = 3.0 * (2.0 * a4_1 - (a4_2 + a4_3))
+    with computation(PARALLEL), interval(1, None):
+        a4_3 = a4_3 if a4_3 > 0.0 else 0.0
+    with computation(PARALLEL), interval(...):
+        a4_4 = 3.0 * (2.0 * a4_1 - (a4_2 + a4_3))
 
 
 @gtstencil()
 def set_bottom_as_iv1(
     a4_1: FloatField, a4_2: FloatField, a4_3: FloatField, a4_4: FloatField
 ):
-    with computation(PARALLEL):
-        with interval(-1, None):
-            a4_3 = 0.0 if a4_3 * a4_1 <= 0.0 else a4_3
-    with computation(PARALLEL):
-        with interval(...):
-            a4_4 = 3.0 * (2.0 * a4_1 - (a4_2 + a4_3))
+    with computation(PARALLEL), interval(-1, None):
+        a4_3 = 0.0 if a4_3 * a4_1 <= 0.0 else a4_3
+    with computation(PARALLEL), interval(...):
+        a4_4 = 3.0 * (2.0 * a4_1 - (a4_2 + a4_3))
 
 
 @gtstencil()
 def set_bottom_as_else(
     a4_1: FloatField, a4_2: FloatField, a4_3: FloatField, a4_4: FloatField
 ):
-    with computation(PARALLEL):
-        with interval(...):
-            a4_4 = 3.0 * (2.0 * a4_1 - (a4_2 + a4_3))
+    with computation(PARALLEL), interval(...):
+        a4_4 = 3.0 * (2.0 * a4_1 - (a4_2 + a4_3))
+
+
+@gtstencil()
+def ppm_constraint(
+    a4_1: FloatField,
+    a4_2: FloatField,
+    a4_3: FloatField,
+    a4_4: FloatField,
+    extm: FloatField,
+    iv: int,
+):
+    with computation(PARALLEL), interval(...):
+        # posdef_constraint_iv0
+        if iv == 0:
+            if a4_1 <= 0.0:
+                a4_2 = a4_1
+                a4_3 = a4_1
+                a4_4 = 0.0
+            else:
+                if abs(a4_3 - a4_2) < -a4_4:
+                    if (
+                        a4_1 + 0.25 * (a4_3 - a4_2) ** 2 / a4_4 + a4_4 * (1.0 / 12.0)
+                    ) < 0.0:
+                        if (a4_1 < a4_3) and (a4_1 < a4_2):
+                            a4_3 = a4_1
+                            a4_2 = a4_1
+                            a4_4 = 0.0
+                        elif a4_3 > a4_2:
+                            a4_4 = 3.0 * (a4_2 - a4_1)
+                            a4_3 = a4_2 - a4_4
+                        else:
+                            a4_4 = 3.0 * (a4_3 - a4_1)
+                            a4_2 = a4_3 - a4_4
+        if iv == 1:
+            # posdef_constraint_iv1
+            da1 = a4_3 - a4_2
+            da2 = da1 * da1
+            a6da = a4_4 * da1
+            if ((a4_1 - a4_2) * (a4_1 - a4_3)) >= 0.0:
+                a4_2 = a4_1
+                a4_3 = a4_1
+                a4_4 = 0.0
+            else:
+                if a6da < -1.0 * da2:
+                    a4_4 = 3.0 * (a4_2 - a4_1)
+                    a4_3 = a4_2 - a4_4
+                elif a6da > da2:
+                    a4_4 = 3.0 * (a4_3 - a4_1)
+                    a4_2 = a4_3 - a4_4
+        # ppm_constraint
+        if iv >= 2:
+            da1 = a4_3 - a4_2
+            da2 = da1 * da1
+            a6da = a4_4 * da1
+            if extm == 1:
+                a4_2 = a4_1
+                a4_3 = a4_1
+                a4_4 = 0.0
+            else:
+                if a6da < -da2:
+                    a4_4 = 3.0 * (a4_2 - a4_1)
+                    a4_3 = a4_2 - a4_4
+                elif a6da > da2:
+                    a4_4 = 3.0 * (a4_3 - a4_1)
+                    a4_2 = a4_3 - a4_4
 
 
 def compute(
@@ -541,17 +580,30 @@ def compute(
             set_top_as_iv0(
                 a4_1, a4_2, a4_3, a4_4, origin=orig, domain=(i_extent, j_extent, 2)
             )
-            a4_1, a4_2, a4_3, a4_4 = limiters.compute(
-                a4_1, a4_2, a4_3, a4_4, extm, 1, i1, i_extent, 0, 1, js, j_extent
+            ppm_constraint(
+                a4_1,
+                a4_2,
+                a4_3,
+                a4_4,
+                extm,
+                1,
+                origin=(i1, js, 0),
+                domain=(i_extent, j_extent, 1),
             )
         elif iv == -1:
             set_top_as_iv1(
                 a4_1, a4_2, a4_3, a4_4, origin=orig, domain=(i_extent, j_extent, 2)
             )
-            a4_1, a4_2, a4_3, a4_4 = limiters.compute(
-                a4_1, a4_2, a4_3, a4_4, extm, 1, i1, i_extent, 0, 1, js, j_extent
+            ppm_constraint(
+                a4_1,
+                a4_2,
+                a4_3,
+                a4_4,
+                extm,
+                1,
+                origin=(i1, js, 0),
+                domain=(i_extent, j_extent, 1),
             )
-
         elif iv == 2:
             set_top_as_iv2(
                 a4_1, a4_2, a4_3, a4_4, origin=orig, domain=(i_extent, j_extent, 2)
@@ -560,65 +612,59 @@ def compute(
             set_top_as_else(
                 a4_1, a4_2, a4_3, a4_4, origin=orig, domain=(i_extent, j_extent, 2)
             )
-            a4_1, a4_2, a4_3, a4_4 = limiters.compute(
-                a4_1, a4_2, a4_3, a4_4, extm, 1, i1, i_extent, 0, 1, js, j_extent
+            ppm_constraint(
+                a4_1,
+                a4_2,
+                a4_3,
+                a4_4,
+                extm,
+                1,
+                origin=(i1, js, 0),
+                domain=(i_extent, j_extent, 1),
             )
-        a4_1, a4_2, a4_3, a4_4 = limiters.compute(
-            a4_1, a4_2, a4_3, a4_4, extm, 2, i1, i_extent, 1, 1, js, j_extent
+        ppm_constraint(
+            a4_1,
+            a4_2,
+            a4_3,
+            a4_4,
+            extm,
+            2,
+            origin=(i1, js, 1),
+            domain=(i_extent, j_extent, 1),
         )
-        if abs(kord) < 9:
-            print("WARNING: Only kord=10 and 9 have been tested.")
-            set_inner_as_kordsmall(
-                a4_1,
-                a4_2,
-                a4_3,
-                a4_4,
-                gam,
-                extm,
-                ext5,
-                ext6,
-                origin=(i1, js, 2),
-                domain=(i_extent, j_extent, km - 4),
-            )
-        elif abs(kord) == 9:
-            set_inner_as_kord9(
-                a4_1,
-                a4_2,
-                a4_3,
-                a4_4,
-                gam,
-                extm,
-                qmin,
-                origin=(i1, js, 2),
-                domain=(i_extent, j_extent, km - 4),
-            )
-        elif abs(kord) == 10:
-            set_inner_as_kord10(
-                a4_1,
-                a4_2,
-                a4_3,
-                a4_4,
-                gam,
-                extm,
-                ext5,
-                ext6,
-                pmp_2,
-                lac_2,
-                tmp_min3,
-                tmp_max3,
-                tmp3,
-                origin=(i1, js, 2),
-                domain=(i_extent, j_extent, km - 4),
-            )
-        else:
-            raise Exception("kord {0} not implemented.".format(kord))
+
+        assert kord <= 10, f"kord {kord} not implemented."
+        set_inner_as_kord(
+            a4_1,
+            a4_2,
+            a4_3,
+            a4_4,
+            gam,
+            extm,
+            ext5,
+            ext6,
+            pmp_2,
+            lac_2,
+            tmp_min3,
+            tmp_max3,
+            tmp3,
+            qmin,
+            abs(kord),
+            origin=(i1, js, 2),
+            domain=(i_extent, j_extent, km - 4),
+        )
 
         if iv == 0:
-            a4_1, a4_2, a4_3, a4_4 = limiters.compute(
-                a4_1, a4_2, a4_3, a4_4, extm, 0, i1, i_extent, 2, km - 4, js, j_extent
+            ppm_constraint(
+                a4_1,
+                a4_2,
+                a4_3,
+                a4_4,
+                extm,
+                iv,
+                origin=(i1, js, 2),
+                domain=(i_extent, j_extent, km - 4),
             )
-
-        if iv == 0:
             set_bottom_as_iv0(
                 a4_1,
                 a4_2,
@@ -645,11 +691,25 @@ def compute(
                 origin=(i1, js, km - 2),
                 domain=(i_extent, j_extent, 2),
             )
-        a4_1, a4_2, a4_3, a4_4 = limiters.compute(
-            a4_1, a4_2, a4_3, a4_4, extm, 2, i1, i_extent, km - 2, 1, js, j_extent
+        ppm_constraint(
+            a4_1,
+            a4_2,
+            a4_3,
+            a4_4,
+            extm,
+            2,
+            origin=(i1, js, km - 2),
+            domain=(i_extent, j_extent, 1),
         )
-        a4_1, a4_2, a4_3, a4_4 = limiters.compute(
-            a4_1, a4_2, a4_3, a4_4, extm, 1, i1, i_extent, km - 1, 1, js, j_extent
+        ppm_constraint(
+            a4_1,
+            a4_2,
+            a4_3,
+            a4_4,
+            extm,
+            1,
+            origin=(i1, js, km - 1),
+            domain=(i_extent, j_extent, 1),
         )
 
     return a4_1, a4_2, a4_3, a4_4

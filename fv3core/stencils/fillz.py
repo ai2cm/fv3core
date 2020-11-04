@@ -14,8 +14,7 @@ FloatFieldIJ = utils.FloatFieldIJ
 IntFieldIJ = utils.IntFieldIJ
 
 
-# @gtstencil(externals={"lists": {"q": len(utils.tracer_variables) - 1}})
-@gtstencil()
+@gtstencil()  # externals={"lists": {"q": len(utils.tracer_variables) - 1}})
 def fix_tracer(
     q: FloatField,
     dp: FloatField,
