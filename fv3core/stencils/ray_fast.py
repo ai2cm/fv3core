@@ -115,7 +115,7 @@ def ray_fast_wind(
     with computation(PARALLEL), interval(...):
         with parallel(region[: i_end + 1, : j_end + 1]):
             if not hydrostatic and pfull < namelist.rf_cutoff:
-                w = rf * w
+                w *= rf
 
 
 def compute(u, v, w, dp, pfull, dt, ptop, ks):

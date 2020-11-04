@@ -14,7 +14,7 @@ FloatFieldIJ = utils.FloatFieldIJ
 IntFieldIJ = utils.IntFieldIJ
 
 
-@gtstencil()  # externals={"lists": {"q": len(utils.tracer_variables) - 1}})
+@gtstencil(externals={"lists": {"q": len(utils.tracer_variables) - 1}})
 def fix_tracer(
     q: FloatField,
     dp: FloatField,
@@ -102,7 +102,6 @@ def fix_tracer(
         sum1 += dm_pos
     with computation(PARALLEL), interval(1, None):
         fac = sum0 / sum1 if sum0 > 0.0 else 0.0
-    with computation(PARALLEL), interval(1, None):
         if zfix > 0 and fac > 0.0:
             q = fac * dm / dp if fac * dm / dp > 0.0 else 0.0
 
@@ -127,19 +126,20 @@ def compute(dp2, tracers, im, km, nq, jslice):
     sum1 = utils.make_storage_from_shape(shape_ij, origin=(0, 0))
     # TODO: implement dev_gfs_physics ifdef when we implement compiler defs
 
-    for tracer in tracer_list:
-        fix_tracer(
-            tracer,
-            dp2,
-            dm,
-            dm_pos,
-            zfix,
-            upper_fix,
-            lower_fix,
-            sum0,
-            sum1,
-            fac,
-            origin=(i1, js, 0),
-            domain=(im, jext, km),
-        )
+    # for tracer in tracer_list:
+    fix_tracer(
+        *tracer_list,
+        # tracer_list[n],
+        dp2,
+        dm,
+        dm_pos,
+        zfix,
+        upper_fix,
+        lower_fix,
+        sum0,
+        sum1,
+        fac,
+        origin=(i1, js, 0),
+        domain=(im, jext, km),
+    )
     return tracer_list
