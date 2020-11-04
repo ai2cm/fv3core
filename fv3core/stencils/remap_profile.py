@@ -204,48 +204,37 @@ def apply_constraints(
 
 
 @gtstencil()
-def set_top_as_iv0(
-    a4_1: FloatField, a4_2: FloatField, a4_3: FloatField, a4_4: FloatField
+def set_top(
+    a4_1: FloatField, a4_2: FloatField, a4_3: FloatField, a4_4: FloatField, iv: int
 ):
-    with computation(PARALLEL):
-        with interval(0, 1):
+    # set_top_as_iv0
+    with computation(PARALLEL), interval(0, 1):
+        if iv == 0:
             a4_2 = a4_2 if a4_2 > 0.0 else 0.0
-    with computation(PARALLEL):
-        with interval(...):
+    with computation(PARALLEL), interval(...):
+        if iv == 0:
             a4_4 = 3 * (2 * a4_1 - (a4_2 + a4_3))
-
-
-@gtstencil()
-def set_top_as_iv1(
-    a4_1: FloatField, a4_2: FloatField, a4_3: FloatField, a4_4: FloatField
-):
+    # set_top_as_iv1
     with computation(PARALLEL):
         with interval(0, 1):
-            a4_2 = 0.0 if a4_2 * a4_1 <= 0.0 else a4_2
+            if iv == -1:
+                a4_2 = 0.0 if a4_2 * a4_1 <= 0.0 else a4_2
         with interval(...):
-            a4_4 = 3 * (2 * a4_1 - (a4_2 + a4_3))
-
-
-@gtstencil()
-def set_top_as_iv2(
-    a4_1: FloatField, a4_2: FloatField, a4_3: FloatField, a4_4: FloatField
-):
+            if iv == -1:
+                a4_4 = 3 * (2 * a4_1 - (a4_2 + a4_3))
+    # set_top_as_iv2
     with computation(PARALLEL):
         with interval(0, 1):
-            a4_2 = a4_1
-            a4_3 = a4_1
-            a4_4 = 0.0
-    with computation(PARALLEL):
+            if iv == 2:
+                a4_2 = a4_1
+                a4_3 = a4_1
+                a4_4 = 0.0
         with interval(1, None):
-            a4_4 = 3 * (2 * a4_1 - (a4_2 + a4_3))
-
-
-@gtstencil()
-def set_top_as_else(
-    a4_1: FloatField, a4_2: FloatField, a4_3: FloatField, a4_4: FloatField
-):
-    with computation(PARALLEL):
-        with interval(...):
+            if iv == 2:
+                a4_4 = 3 * (2 * a4_1 - (a4_2 + a4_3))
+    # set_top_as_else
+    with computation(PARALLEL), interval(...):
+        if iv < -1 or iv == 1 or iv > 2:
             a4_4 = 3.0 * (2.0 * a4_1 - (a4_2 + a4_3))
 
 
@@ -411,31 +400,27 @@ def set_inner_as_kord(
 
 
 @gtstencil()
-def set_bottom_as_iv0(
-    a4_1: FloatField, a4_2: FloatField, a4_3: FloatField, a4_4: FloatField
+def set_bottom(
+    a4_1: FloatField, a4_2: FloatField, a4_3: FloatField, a4_4: FloatField, iv: int
 ):
+    # set_bottom_as_iv0
     with computation(PARALLEL), interval(1, None):
-        a4_3 = a4_3 if a4_3 > 0.0 else 0.0
-    with computation(PARALLEL), interval(...):
-        a4_4 = 3.0 * (2.0 * a4_1 - (a4_2 + a4_3))
-
-
-@gtstencil()
-def set_bottom_as_iv1(
-    a4_1: FloatField, a4_2: FloatField, a4_3: FloatField, a4_4: FloatField
-):
+        if iv == 0:
+            a4_3 = a4_3 if a4_3 > 0.0 else 0.0
+    # set_bottom_as_iv1
     with computation(PARALLEL), interval(-1, None):
-        a4_3 = 0.0 if a4_3 * a4_1 <= 0.0 else a4_3
+        if iv == -1:
+            a4_3 = 0.0 if a4_3 * a4_1 <= 0.0 else a4_3
     with computation(PARALLEL), interval(...):
-        a4_4 = 3.0 * (2.0 * a4_1 - (a4_2 + a4_3))
-
-
-@gtstencil()
-def set_bottom_as_else(
-    a4_1: FloatField, a4_2: FloatField, a4_3: FloatField, a4_4: FloatField
-):
-    with computation(PARALLEL), interval(...):
-        a4_4 = 3.0 * (2.0 * a4_1 - (a4_2 + a4_3))
+        # set_bottom_as_iv0
+        if iv == 0:
+            a4_4 = 3.0 * (2.0 * a4_1 - (a4_2 + a4_3))
+        # set_bottom_as_iv1
+        if iv == -1:
+            a4_4 = 3.0 * (2.0 * a4_1 - (a4_2 + a4_3))
+        # set_bottom_as_else
+        if iv > 0 or iv < -1:
+            a4_4 = 3.0 * (2.0 * a4_1 - (a4_2 + a4_3))
 
 
 @gtstencil()
@@ -518,6 +503,8 @@ def compute(
     jslice: Tuple[int],
     qmin: float = 0.0,
 ):
+    assert kord <= 10, f"kord {kord} not implemented."
+
     i_extent = i2 - i1 + 1
     j_extent = jslice.stop - jslice.start
     js = jslice.start
@@ -576,42 +563,10 @@ def compute(
             origin=orig,
             domain=dom,
         )
-        if iv == 0:
-            set_top_as_iv0(
-                a4_1, a4_2, a4_3, a4_4, origin=orig, domain=(i_extent, j_extent, 2)
-            )
-            ppm_constraint(
-                a4_1,
-                a4_2,
-                a4_3,
-                a4_4,
-                extm,
-                1,
-                origin=(i1, js, 0),
-                domain=(i_extent, j_extent, 1),
-            )
-        elif iv == -1:
-            set_top_as_iv1(
-                a4_1, a4_2, a4_3, a4_4, origin=orig, domain=(i_extent, j_extent, 2)
-            )
-            ppm_constraint(
-                a4_1,
-                a4_2,
-                a4_3,
-                a4_4,
-                extm,
-                1,
-                origin=(i1, js, 0),
-                domain=(i_extent, j_extent, 1),
-            )
-        elif iv == 2:
-            set_top_as_iv2(
-                a4_1, a4_2, a4_3, a4_4, origin=orig, domain=(i_extent, j_extent, 2)
-            )
-        else:
-            set_top_as_else(
-                a4_1, a4_2, a4_3, a4_4, origin=orig, domain=(i_extent, j_extent, 2)
-            )
+
+        set_top(a4_1, a4_2, a4_3, a4_4, iv, origin=orig, domain=(i_extent, j_extent, 2))
+
+        if iv != 2:
             ppm_constraint(
                 a4_1,
                 a4_2,
@@ -633,7 +588,6 @@ def compute(
             domain=(i_extent, j_extent, 1),
         )
 
-        assert kord <= 10, f"kord {kord} not implemented."
         set_inner_as_kord(
             a4_1,
             a4_2,
@@ -665,32 +619,17 @@ def compute(
                 origin=(i1, js, 2),
                 domain=(i_extent, j_extent, km - 4),
             )
-            set_bottom_as_iv0(
-                a4_1,
-                a4_2,
-                a4_3,
-                a4_4,
-                origin=(i1, js, km - 2),
-                domain=(i_extent, j_extent, 2),
-            )
-        elif iv == -1:
-            set_bottom_as_iv1(
-                a4_1,
-                a4_2,
-                a4_3,
-                a4_4,
-                origin=(i1, js, km - 2),
-                domain=(i_extent, j_extent, 2),
-            )
-        else:
-            set_bottom_as_else(
-                a4_1,
-                a4_2,
-                a4_3,
-                a4_4,
-                origin=(i1, js, km - 2),
-                domain=(i_extent, j_extent, 2),
-            )
+
+        set_bottom(
+            a4_1,
+            a4_2,
+            a4_3,
+            a4_4,
+            iv,
+            origin=(i1, js, km - 2),
+            domain=(i_extent, j_extent, 2),
+        )
+
         ppm_constraint(
             a4_1,
             a4_2,
