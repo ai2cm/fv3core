@@ -34,9 +34,9 @@ def ray_fast_wind(
     u: FloatField,
     v: FloatField,
     w: FloatField,
-    rf: FloatField,
+    rf: FloatField,  # K,
     dp: FloatField,
-    dm: FloatField,
+    dm: FloatField,  # K,
     pfull: FloatField,
     dt: float,
     ptop: float,
@@ -57,7 +57,9 @@ def ray_fast_wind(
             )
     with computation(FORWARD):
         with interval(0, 1):
-            dm = dp if pfull < rf_cutoff_nudge else 0.0  # TODO and kaxes(k) < ks:
+            # dm = dp if pfull < rf_cutoff_nudge else 0.0  # TODO and kaxes(k) < ks:
+            if pfull < rf_cutoff_nudge:  # TODO and kaxes(k) < ks:
+                dm = dp
         with interval(1, None):
             dm = dm[0, 0, -1]
             if pfull < rf_cutoff_nudge:  # TODO and kaxes(k) < ks:
@@ -68,14 +70,14 @@ def ray_fast_wind(
     # ray_fast_wind(u)
     with computation(FORWARD):
         with interval(0, 1):
-            with parallel(region[:i_end + 1, :]):
+            with parallel(region[: i_end + 1, :]):
                 if pfull < namelist.rf_cutoff:
                     dmdir = dm_layer(rf, dp, u)
                     u *= rf
                 else:
                     dm = 0
         with interval(1, None):
-            with parallel(region[:i_end + 1, :]):
+            with parallel(region[: i_end + 1, :]):
                 dmdir = dmdir[0, 0, -1]
                 if pfull < namelist.rf_cutoff:
                     dmdir += dm_layer(rf, dp, u)
@@ -84,20 +86,20 @@ def ray_fast_wind(
         if pfull < namelist.rf_cutoff:
             dmdir = dmdir[0, 0, 1]
     with computation(PARALLEL), interval(...):
-        with parallel(region[:i_end + 1, :]):
+        with parallel(region[: i_end + 1, :]):
             if pfull < rf_cutoff_nudge:  # TODO and axes(k) < ks:
                 u += dmdir / dm
     # ray_fast_wind(v)
     with computation(FORWARD):
         with interval(0, 1):
-            with parallel(region[:, :j_end + 1]):
+            with parallel(region[:, : j_end + 1]):
                 if pfull < namelist.rf_cutoff:
                     dmdir = dm_layer(rf, dp, v)
                     v *= rf
                 else:
                     dm = 0
         with interval(1, None):
-            with parallel(region[:, :j_end + 1]):
+            with parallel(region[:, : j_end + 1]):
                 dmdir = dmdir[0, 0, -1]
                 if pfull < namelist.rf_cutoff:
                     dmdir += dm_layer(rf, dp, v)
@@ -106,12 +108,12 @@ def ray_fast_wind(
         if pfull < namelist.rf_cutoff:
             dmdir = dmdir[0, 0, 1]
     with computation(PARALLEL), interval(...):
-        with parallel(region[:, :j_end + 1]):
+        with parallel(region[:, : j_end + 1]):
             if pfull < rf_cutoff_nudge:  # TODO and axes(k) < ks:
                 v += dmdir / dm
     # ray_fast_w
     with computation(PARALLEL), interval(...):
-        with parallel(region[:i_end + 1, :j_end + 1]):
+        with parallel(region[: i_end + 1, : j_end + 1]):
             if not hydrostatic and pfull < namelist.rf_cutoff:
                 w = rf * w
 
@@ -122,10 +124,11 @@ def compute(u, v, w, dp, pfull, dt, ptop, ks):
     # The next 3 variables and dm_stencil could be pushed into ray_fast_wind and still work, but then recomputing it all twice
     rf_cutoff_nudge = namelist.rf_cutoff + min(100.0, 10.0 * ptop)
     # TODO 1D variable
-    # shape1d = u.shape[2:]
-    dm = utils.make_storage_from_shape(u.shape, grid.default_origin())
+    shape = (u.shape[0], u.shape[1], u.shape[2] - 1)
+    # shape = (u.shape[2] - 1,)
+    dm = utils.make_storage_from_shape(shape, grid.default_origin())
     # TODO 1D variable
-    rf = utils.make_storage_from_shape(u.shape, grid.default_origin())
+    rf = utils.make_storage_from_shape(shape, grid.default_origin())
 
     ray_fast_wind(
         u,
