@@ -44,6 +44,71 @@ def constrain_interior(q, gam, a4):
     )
 
 
+@gtscript.function
+def ppm_constraint(
+    a4_1: FloatField,
+    a4_2: FloatField,
+    a4_3: FloatField,
+    a4_4: FloatField,
+    extm: FloatField,
+    iv: int,
+):
+    # posdef_constraint_iv0
+    if iv == 0:
+        if a4_1 <= 0.0:
+            a4_2 = a4_1
+            a4_3 = a4_1
+            a4_4 = 0.0
+        else:
+            if abs(a4_3 - a4_2) < -a4_4:
+                if (
+                    a4_1 + 0.25 * (a4_3 - a4_2) ** 2 / a4_4 + a4_4 * (1.0 / 12.0)
+                ) < 0.0:
+                    if (a4_1 < a4_3) and (a4_1 < a4_2):
+                        a4_3 = a4_1
+                        a4_2 = a4_1
+                        a4_4 = 0.0
+                    elif a4_3 > a4_2:
+                        a4_4 = 3.0 * (a4_2 - a4_1)
+                        a4_3 = a4_2 - a4_4
+                    else:
+                        a4_4 = 3.0 * (a4_3 - a4_1)
+                        a4_2 = a4_3 - a4_4
+    if iv == 1:
+        # posdef_constraint_iv1
+        da1 = a4_3 - a4_2
+        da2 = da1 * da1
+        a6da = a4_4 * da1
+        if ((a4_1 - a4_2) * (a4_1 - a4_3)) >= 0.0:
+            a4_2 = a4_1
+            a4_3 = a4_1
+            a4_4 = 0.0
+        else:
+            if a6da < -1.0 * da2:
+                a4_4 = 3.0 * (a4_2 - a4_1)
+                a4_3 = a4_2 - a4_4
+            elif a6da > da2:
+                a4_4 = 3.0 * (a4_3 - a4_1)
+                a4_2 = a4_3 - a4_4
+    # ppm_constraint
+    if iv >= 2:
+        da1 = a4_3 - a4_2
+        da2 = da1 * da1
+        a6da = a4_4 * da1
+        if extm == 1:
+            a4_2 = a4_1
+            a4_3 = a4_1
+            a4_4 = 0.0
+        else:
+            if a6da < -da2:
+                a4_4 = 3.0 * (a4_2 - a4_1)
+                a4_3 = a4_2 - a4_4
+            elif a6da > da2:
+                a4_4 = 3.0 * (a4_3 - a4_1)
+                a4_2 = a4_3 - a4_4
+    return a4_1, a4_2, a4_3, a4_4
+
+
 @gtstencil()
 def set_vals(
     gam: FloatField,
@@ -205,7 +270,12 @@ def apply_constraints(
 
 @gtstencil()
 def set_top(
-    a4_1: FloatField, a4_2: FloatField, a4_3: FloatField, a4_4: FloatField, iv: int
+    a4_1: FloatField,
+    a4_2: FloatField,
+    a4_3: FloatField,
+    a4_4: FloatField,
+    extm: FloatField,
+    iv: int,
 ):
     # set_top_as_iv0
     with computation(PARALLEL), interval(0, 1):
@@ -236,10 +306,15 @@ def set_top(
     with computation(PARALLEL), interval(...):
         if iv < -1 or iv == 1 or iv > 2:
             a4_4 = 3.0 * (2.0 * a4_1 - (a4_2 + a4_3))
+    with computation(PARALLEL), interval(0, -1):
+        if iv != 2:
+            a4_1, a4_2, a4_3, a4_4 = ppm_constraint(a4_1, a4_2, a4_3, a4_4, extm, 1)
+    with computation(PARALLEL), interval(1, None):
+        a4_1, a4_2, a4_3, a4_4 = ppm_constraint(a4_1, a4_2, a4_3, a4_4, extm, 2)
 
 
 @gtstencil()
-def set_inner_as_kord(
+def set_inner(
     a4_1: FloatField,
     a4_2: FloatField,
     a4_3: FloatField,
@@ -255,6 +330,7 @@ def set_inner_as_kord(
     tmp3: FloatField,
     qmin: float,
     kord: int,
+    iv: int,
 ):
     with computation(PARALLEL), interval(...):
         # set_inner_as_kordsmall
@@ -397,11 +473,19 @@ def set_inner_as_kord(
             else:
                 a4_2 = a4_2
             a4_4 = 3.0 * (2.0 * a4_1 - (a4_2 + a4_3))
+        # ppm_constraint
+        if iv == 0:
+            a4_1, a4_2, a4_3, a4_4 = ppm_constraint(a4_1, a4_2, a4_3, a4_4, extm, 0)
 
 
 @gtstencil()
 def set_bottom(
-    a4_1: FloatField, a4_2: FloatField, a4_3: FloatField, a4_4: FloatField, iv: int
+    a4_1: FloatField,
+    a4_2: FloatField,
+    a4_3: FloatField,
+    a4_4: FloatField,
+    extm: FloatField,
+    iv: int,
 ):
     # set_bottom_as_iv0
     with computation(PARALLEL), interval(1, None):
@@ -421,71 +505,10 @@ def set_bottom(
         # set_bottom_as_else
         if iv > 0 or iv < -1:
             a4_4 = 3.0 * (2.0 * a4_1 - (a4_2 + a4_3))
-
-
-@gtstencil()
-def ppm_constraint(
-    a4_1: FloatField,
-    a4_2: FloatField,
-    a4_3: FloatField,
-    a4_4: FloatField,
-    extm: FloatField,
-    iv: int,
-):
-    with computation(PARALLEL), interval(...):
-        # posdef_constraint_iv0
-        if iv == 0:
-            if a4_1 <= 0.0:
-                a4_2 = a4_1
-                a4_3 = a4_1
-                a4_4 = 0.0
-            else:
-                if abs(a4_3 - a4_2) < -a4_4:
-                    if (
-                        a4_1 + 0.25 * (a4_3 - a4_2) ** 2 / a4_4 + a4_4 * (1.0 / 12.0)
-                    ) < 0.0:
-                        if (a4_1 < a4_3) and (a4_1 < a4_2):
-                            a4_3 = a4_1
-                            a4_2 = a4_1
-                            a4_4 = 0.0
-                        elif a4_3 > a4_2:
-                            a4_4 = 3.0 * (a4_2 - a4_1)
-                            a4_3 = a4_2 - a4_4
-                        else:
-                            a4_4 = 3.0 * (a4_3 - a4_1)
-                            a4_2 = a4_3 - a4_4
-        if iv == 1:
-            # posdef_constraint_iv1
-            da1 = a4_3 - a4_2
-            da2 = da1 * da1
-            a6da = a4_4 * da1
-            if ((a4_1 - a4_2) * (a4_1 - a4_3)) >= 0.0:
-                a4_2 = a4_1
-                a4_3 = a4_1
-                a4_4 = 0.0
-            else:
-                if a6da < -1.0 * da2:
-                    a4_4 = 3.0 * (a4_2 - a4_1)
-                    a4_3 = a4_2 - a4_4
-                elif a6da > da2:
-                    a4_4 = 3.0 * (a4_3 - a4_1)
-                    a4_2 = a4_3 - a4_4
-        # ppm_constraint
-        if iv >= 2:
-            da1 = a4_3 - a4_2
-            da2 = da1 * da1
-            a6da = a4_4 * da1
-            if extm == 1:
-                a4_2 = a4_1
-                a4_3 = a4_1
-                a4_4 = 0.0
-            else:
-                if a6da < -da2:
-                    a4_4 = 3.0 * (a4_2 - a4_1)
-                    a4_3 = a4_2 - a4_4
-                elif a6da > da2:
-                    a4_4 = 3.0 * (a4_3 - a4_1)
-                    a4_2 = a4_3 - a4_4
+    with computation(PARALLEL), interval(0, -1):
+        a4_1, a4_2, a4_3, a4_4 = ppm_constraint(a4_1, a4_2, a4_3, a4_4, extm, 2)
+    with computation(PARALLEL), interval(1, None):
+        a4_1, a4_2, a4_3, a4_4 = ppm_constraint(a4_1, a4_2, a4_3, a4_4, extm, 1)
 
 
 def compute(
@@ -564,31 +587,18 @@ def compute(
             domain=dom,
         )
 
-        set_top(a4_1, a4_2, a4_3, a4_4, iv, origin=orig, domain=(i_extent, j_extent, 2))
-
-        if iv != 2:
-            ppm_constraint(
-                a4_1,
-                a4_2,
-                a4_3,
-                a4_4,
-                extm,
-                1,
-                origin=(i1, js, 0),
-                domain=(i_extent, j_extent, 1),
-            )
-        ppm_constraint(
+        set_top(
             a4_1,
             a4_2,
             a4_3,
             a4_4,
             extm,
-            2,
-            origin=(i1, js, 1),
-            domain=(i_extent, j_extent, 1),
+            iv,
+            origin=orig,
+            domain=(i_extent, j_extent, 2),
         )
 
-        set_inner_as_kord(
+        set_inner(
             a4_1,
             a4_2,
             a4_3,
@@ -604,51 +614,20 @@ def compute(
             tmp3,
             qmin,
             abs(kord),
+            iv,
             origin=(i1, js, 2),
             domain=(i_extent, j_extent, km - 4),
         )
-
-        if iv == 0:
-            ppm_constraint(
-                a4_1,
-                a4_2,
-                a4_3,
-                a4_4,
-                extm,
-                iv,
-                origin=(i1, js, 2),
-                domain=(i_extent, j_extent, km - 4),
-            )
 
         set_bottom(
             a4_1,
             a4_2,
             a4_3,
             a4_4,
+            extm,
             iv,
             origin=(i1, js, km - 2),
             domain=(i_extent, j_extent, 2),
-        )
-
-        ppm_constraint(
-            a4_1,
-            a4_2,
-            a4_3,
-            a4_4,
-            extm,
-            2,
-            origin=(i1, js, km - 2),
-            domain=(i_extent, j_extent, 1),
-        )
-        ppm_constraint(
-            a4_1,
-            a4_2,
-            a4_3,
-            a4_4,
-            extm,
-            1,
-            origin=(i1, js, km - 1),
-            domain=(i_extent, j_extent, 1),
         )
 
     return a4_1, a4_2, a4_3, a4_4
