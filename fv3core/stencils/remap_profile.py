@@ -528,31 +528,30 @@ def compute(
 ):
     assert kord <= 10, f"kord {kord} not implemented."
 
-    i_extent = i2 - i1 + 1
-    j_extent = jslice.stop - jslice.start
-    js = jslice.start
-    grid = spec.grid
-    orig = (i1, js, 0)
-    full_orig = (grid.is_, js, 0)
-    dom = (i_extent, j_extent, km)
-    gam = utils.make_storage_from_shape(delp.shape, origin=full_orig)
-    q = utils.make_storage_from_shape(delp.shape, origin=full_orig)
-    q_bot = utils.make_storage_from_shape(delp.shape, origin=full_orig)
+    i_extent: int = i2 - i1 + 1
+    j_extent: int = jslice.stop - jslice.start
+    js: int = jslice.start
+    orig: Tuple[int] = (i1, js, 0)
+    full_orig: Tuple[int] = (spec.grid.is_, js, 0)
+    dom: Tuple[int] = (i_extent, j_extent, km)
+    gam: FloatField = utils.make_storage_from_shape(delp.shape, origin=full_orig)
+    q: FloatField = utils.make_storage_from_shape(delp.shape, origin=full_orig)
+    q_bot: FloatField = utils.make_storage_from_shape(delp.shape, origin=full_orig)
 
     # make a qs that can be passed to a stencil
-    qs_field = utils.make_storage_from_shape(delp.shape, origin=full_orig)
+    qs_field: FloatField = utils.make_storage_from_shape(delp.shape, origin=full_orig)
     qs_field[i1 : i2 + 1, js : js + j_extent, -1] = qs[
         i1 : i2 + 1, js : js + j_extent, 0
     ]
 
-    extm = utils.make_storage_from_shape(delp.shape, origin=full_orig)
-    ext5 = utils.make_storage_from_shape(delp.shape, origin=full_orig)
-    ext6 = utils.make_storage_from_shape(delp.shape, origin=full_orig)
-    pmp_2 = utils.make_storage_from_shape(delp.shape, origin=full_orig)
-    lac_2 = utils.make_storage_from_shape(delp.shape, origin=full_orig)
-    tmp_min3 = utils.make_storage_from_shape(delp.shape, origin=full_orig)
-    tmp_max3 = utils.make_storage_from_shape(delp.shape, origin=full_orig)
-    tmp3 = utils.make_storage_from_shape(delp.shape, origin=full_orig)
+    extm: FloatField = utils.make_storage_from_shape(delp.shape, origin=full_orig)
+    ext5: FloatField = utils.make_storage_from_shape(delp.shape, origin=full_orig)
+    ext6: FloatField = utils.make_storage_from_shape(delp.shape, origin=full_orig)
+    pmp_2: FloatField = utils.make_storage_from_shape(delp.shape, origin=full_orig)
+    lac_2: FloatField = utils.make_storage_from_shape(delp.shape, origin=full_orig)
+    tmp_min3: FloatField = utils.make_storage_from_shape(delp.shape, origin=full_orig)
+    tmp_max3: FloatField = utils.make_storage_from_shape(delp.shape, origin=full_orig)
+    tmp3: FloatField = utils.make_storage_from_shape(delp.shape, origin=full_orig)
 
     set_vals(
         gam,
