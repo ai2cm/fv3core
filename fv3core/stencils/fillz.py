@@ -1,5 +1,4 @@
 import numpy as np
-from typing import List
 
 import gt4py.gtscript as gtscript
 from gt4py.gtscript import FORWARD, PARALLEL, computation, interval
@@ -12,11 +11,12 @@ from fv3core.decorators import gtstencil
 FloatField = utils.FloatField
 FloatFieldIJ = utils.FloatFieldIJ
 IntFieldIJ = utils.IntFieldIJ
+TracerTuple = utils.TracerTuple
 
 
-@gtstencil(externals={"lists": {"q": len(utils.tracer_variables) - 1}})
+@gtstencil()
 def fix_tracer(
-    q: FloatField,
+    q: TracerTuple,
     dp: FloatField,
     dm: FloatField,
     dm_pos: FloatField,

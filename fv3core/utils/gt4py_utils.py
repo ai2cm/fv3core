@@ -56,6 +56,8 @@ tracer_variables = [
     "qcld",
 ]
 
+TracerTuple = (FloatField,) * (len(tracer_variables) - 1)
+
 # Logger instance
 logger = logging.getLogger("fv3ser")
 
