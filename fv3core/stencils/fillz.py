@@ -129,7 +129,6 @@ def compute(dp2, tracers, im, km, nq, jslice):
     # for tracer in tracer_list:
     fix_tracer(
         *tracer_list,
-        # tracer_list[n],
         dp2,
         dm,
         dm_pos,

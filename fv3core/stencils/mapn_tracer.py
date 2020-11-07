@@ -26,7 +26,7 @@ def compute(
     i2: int,
     kord: int,
     j_2d: Optional[int] = None,
-    version: str = "transliterated",  # "stencil"
+    version: str = "stencil",  # "transliterated"
 ):
     grid = spec.grid
     fill = spec.namelist.fill
