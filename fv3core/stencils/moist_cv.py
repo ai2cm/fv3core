@@ -28,7 +28,9 @@ def moist_cvm(qvapor, gz, ql, qs):
 
 
 @gtscript.function
-def moist_cv_nwat6_fn(qvapor, qliquid, qrain, qsnow, qice, qgraupel):
+def moist_cv_nwat6_fn(
+    qvapor: sd, qliquid: sd, qrain: sd, qsnow: sd, qice: sd, qgraupel: sd
+):
     ql = qliquid + qrain
     qs = qice + qsnow + qgraupel
     gz = ql + qs
@@ -120,6 +122,33 @@ def te_always_part(u, v, w, phis, rsin2, cosa_s):
             - (u + u[0, 1, 0]) * (v + v[1, 0, 0]) * cosa_s
         )
     )
+
+
+@gtscript.function
+def moist_pt_func(
+    qvapor: sd,
+    qliquid: sd,
+    qrain: sd,
+    qsnow: sd,
+    qice: sd,
+    qgraupel: sd,
+    q_con: sd,
+    gz: sd,
+    cvm: sd,
+    pt: sd,
+    cappa: sd,
+    delp: sd,
+    delz: sd,
+    r_vir: float,
+    nwat: int,
+):
+    cvm, gz = moist_cv_nwat6_fn(
+        qvapor, qliquid, qrain, qsnow, qice, qgraupel
+    )  # if (nwat == 6) else moist_cv_default_fn(cv_air)
+    q_con = gz
+    cappa = set_cappa(qvapor, cvm, r_vir)
+    pt = pt * exp(cappa / (1.0 - cappa) * log(constants.RDG * delp / delz * pt))
+    return cvm, gz, q_con, cappa, pt
 
 
 @gtstencil()
@@ -228,12 +257,23 @@ def moist_pt(
     nwat: int,
 ):
     with computation(PARALLEL), interval(...):
-        cvm, gz = moist_cv_nwat6_fn(
-            qvapor, qliquid, qrain, qsnow, qice, qgraupel
-        )  # if (nwat == 6) else moist_cv_default_fn(cv_air)
-        q_con[0, 0, 0] = gz
-        cappa = set_cappa(qvapor, cvm, r_vir)
-        pt = pt * exp(cappa / (1.0 - cappa) * log(constants.RDG * delp / delz * pt))
+        cvm, gz, q_con, cappa, pt = moist_pt_func(
+            qvapor,
+            qliquid,
+            qrain,
+            qsnow,
+            qice,
+            qgraupel,
+            q_con,
+            gz,
+            cvm,
+            pt,
+            cappa,
+            delp,
+            delz,
+            r_vir,
+            nwat,
+        )
 
 
 @gtscript.function
