@@ -134,21 +134,26 @@ def gtstencil(definition=None, **stencil_kwargs) -> Callable[..., None]:
                 stencil_kwargs["backend"] = global_config.get_backend()
 
                 # Add externals
+                final_origin = spec.grid.compute_origin(
+                    add=(*stencil_kwargs.get("origin_shift", (0, 0)), 0)
+                )
+                splitters = spec.grid.splitters(origin=final_origin)
                 stencil_kwargs["externals"] = {
                     "namelist": spec.namelist,
                     "grid": spec.grid,
+                    **splitters,
                     **stencil_kwargs.get("externals", dict()),
                 }
+
+                # Filter out "origin_shift"
+                stencil_kwargs.pop("origin_shift", None)
+
                 # Generate stencil
                 build_info = {}
                 stencil = gtscript.stencil(build_info=build_info, **stencil_kwargs)(
                     func
                 )
                 stencils[key] = FV3StencilObject(stencil, build_info)
-            kwargs["splitters"] = kwargs.get(
-                "splitters",
-                spec.grid.splitters(origin=kwargs.get("origin")),
-            )
             name = f"{func.__module__}.{func.__name__}"
             _maybe_save_report(
                 f"{name}-before",
