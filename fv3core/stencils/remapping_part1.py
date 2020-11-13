@@ -107,6 +107,9 @@ def moist_cv_pt_pressure(
             pn2 = peln
     with computation(BACKWARD), interval(0, -1):
         dp2 = pe2[0, 0, 1] - pe2
+    # copy_stencil
+    with computation(PARALLEL), interval(0, -1):
+        delp = dp2
 
 
 # @gtstencil()
@@ -218,7 +221,9 @@ def compute(
     hydrostatic = spec.namelist.hydrostatic
     t_min = 184.0
 
-    if spec.namelist.kord_tm < 0 and hydrostatic:
+    if spec.namelist.kord_tm >= 0:
+        raise Exception("map ppm, untested mode where kord_tm >= 0")
+    if hydrostatic:
         raise Exception("Hydrostatic is not implemented")
 
     # do_omega = hydrostatic and last_step # TODO pull into inputs
@@ -300,9 +305,9 @@ def compute(
     copy_j_adjacent(
         pe2, origin=(grid.is_, grid.je + 1, 1), domain=(grid.nic, 1, grid.npz - 1)
     )
-    copy_stencil(
-        dp2, delp, origin=grid.compute_origin(), domain=grid.domain_shape_compute()
-    )
+    # copy_stencil(
+    #     dp2, delp, origin=grid.compute_origin(), domain=grid.domain_shape_compute()
+    # )
     pn2_and_pk(
         pe2,
         pn2,
@@ -311,47 +316,47 @@ def compute(
         origin=grid.compute_origin(),
         domain=grid.domain_shape_compute(),
     )
-    if spec.namelist.kord_tm < 0:
-        map_single.compute(
-            pt,
-            peln,
-            pn2,
-            gz,
-            1,
-            grid.is_,
-            grid.ie,
-            abs(spec.namelist.kord_tm),
-            qmin=t_min,
-        )
-    else:
-        raise Exception("map ppm, untested mode where kord_tm >= 0")
-        map_single.compute(
-            pt,
-            pe1,
-            pe2,
-            gz,
-            1,
-            grid.is_,
-            grid.ie,
-            abs(spec.namelist.kord_tm),
-            qmin=t_min,
-        )
+    # if spec.namelist.kord_tm < 0:
+    map_single.compute(
+        pt,
+        peln,
+        pn2,
+        gz,
+        1,
+        grid.is_,
+        grid.ie,
+        abs(spec.namelist.kord_tm),
+        qmin=t_min,
+    )
+    # else:
+    #     raise Exception("map ppm, untested mode where kord_tm >= 0")
+        # map_single.compute(
+        #     pt,
+        #     pe1,
+        #     pe2,
+        #     gz,
+        #     1,
+        #     grid.is_,
+        #     grid.ie,
+        #     abs(spec.namelist.kord_tm),
+        #     qmin=t_min,
+        # )
     # TODO if nq > 5:
     mapn_tracer.compute(
         pe1, pe2, dp2, tracers, nq, 0.0, grid.is_, grid.ie, abs(spec.namelist.kord_tr)
     )
     # TODO else if nq > 0:
     # TODO map1_q2, fillz
-    if not hydrostatic:
-        map_single.compute(
-            w, pe1, pe2, wsd, -2, grid.is_, grid.ie, spec.namelist.kord_wz
-        )
-        map_single.compute(
-            delz, pe1, pe2, gz, 1, grid.is_, grid.ie, spec.namelist.kord_wz
-        )
-        undo_delz_adjust(
-            delp, delz, origin=grid.compute_origin(), domain=grid.domain_shape_compute()
-        )
+    # if not hydrostatic:
+    map_single.compute(
+        w, pe1, pe2, wsd, -2, grid.is_, grid.ie, spec.namelist.kord_wz
+    )
+    map_single.compute(
+        delz, pe1, pe2, gz, 1, grid.is_, grid.ie, spec.namelist.kord_wz
+    )
+    undo_delz_adjust(
+        delp, delz, origin=grid.compute_origin(), domain=grid.domain_shape_compute()
+    )
     # if do_omega:  # NOTE untested
     #    pe3 = copy(omga, origin=(grid.is_, grid.js, 1))
 
@@ -364,27 +369,27 @@ def compute(
         origin=grid.compute_origin(),
         domain=(grid.nic, grid.njc, grid.npz + 1),
     )
-    if hydrostatic:
-        # pkz
-        pass
-    else:
-        moist_cv.compute_pkz(
-            tracers["qvapor"],
-            tracers["qliquid"],
-            tracers["qice"],
-            tracers["qrain"],
-            tracers["qsnow"],
-            tracers["qgraupel"],
-            q_con,
-            gz,
-            cvm,
-            pkz,
-            pt,
-            cappa,
-            delp,
-            delz,
-            r_vir,
-        )
+    # if hydrostatic:
+    #     # pkz
+    #     pass
+    # else:
+    moist_cv.compute_pkz(
+        tracers["qvapor"],
+        tracers["qliquid"],
+        tracers["qice"],
+        tracers["qrain"],
+        tracers["qsnow"],
+        tracers["qgraupel"],
+        q_con,
+        gz,
+        cvm,
+        pkz,
+        pt,
+        cappa,
+        delp,
+        delz,
+        r_vir,
+    )
     # if do_omega:
     # dp2 update, if larger than pe0 and smaller than one level up, update omega and  exit
 

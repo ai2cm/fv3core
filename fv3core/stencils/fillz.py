@@ -16,7 +16,6 @@ TracerTuple = utils.TracerTuple
 
 @gtstencil()
 def fix_tracer(
-    q: TracerTuple,
     dp: FloatField,
     dm: FloatField,
     dm_pos: FloatField,
@@ -26,6 +25,7 @@ def fix_tracer(
     sum0: FloatFieldIJ,
     sum1: FloatFieldIJ,
     fac: FloatFieldIJ,
+    q: TracerTuple,
 ):
     # reset fields
     with computation(PARALLEL), interval(...):
@@ -128,7 +128,6 @@ def compute(dp2, tracers, im, km, nq, jslice):
 
     # for tracer in tracer_list:
     fix_tracer(
-        *tracer_list,
         dp2,
         dm,
         dm_pos,
@@ -138,6 +137,7 @@ def compute(dp2, tracers, im, km, nq, jslice):
         sum0,
         sum1,
         fac,
+        *tracer_list,
         origin=(i1, js, 0),
         domain=(im, jext, km),
     )
