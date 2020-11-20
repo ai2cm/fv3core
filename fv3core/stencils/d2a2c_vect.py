@@ -58,7 +58,7 @@ def lagrange_interpolation_y(v: sd, vtmp: sd):
         vtmp = a2 * (v[-1, 0, 0] + v[2, 0, 0]) + a1 * (v + v[1, 0, 0])
 
 
-@gtstencil(externals={"HALO": 3})
+@gtstencil(externals={"HALO": 3}, origin_shift=(-3, -3, 0))
 def d2a2c_stencil1(
     u: sd,
     v: sd,
@@ -71,8 +71,7 @@ def d2a2c_stencil1(
 ):
     # in: u, v, cosa_s, rsin2
     # inout: utmp, vtmp, ua, va
-    from __externals__ import HALO, namelist
-    from __splitters__ import i_end, i_start, j_end, j_start
+    from __externals__ import HALO, i_end, i_start, j_end, j_start, namelist
 
     with computation(PARALLEL), interval(...):
 
@@ -102,19 +101,19 @@ def d2a2c_stencil1(
         ua = fill2_4corners_x(ua, va, sw_mult=-1, se_mult=1, ne_mult=-1, nw_mult=1)
 
 
-@gtstencil()
+@gtstencil(origin_shift=(-1, -1, 0))
 def d2a2c_stencil2(utmp: sd, v: sd, cosa_u: sd, rsin_u: sd, uc: sd, utc: sd):
     # in: utmp, v, cosa_u, rsin_u
     # inout: uc
     # out: utc
-    from __splitters__ import i_end, i_start, j_end, j_start
+    from __externals__ import i_end, i_start, j_end, j_start
 
     with computation(PARALLEL), interval(...):
         uc = lagrange_x_func(utmp)
         utc = contravariant(uc, v, cosa_u, rsin_u)
 
 
-@gtstencil()
+@gtstencil(origin_shift=(-1, -1, 0))
 def d2a2c_stencil_west(
     utmp: sd,
     ua: sd,
@@ -129,7 +128,7 @@ def d2a2c_stencil_west(
 ):
     # in: utmp, ua, v, cosa_u, rsin_u, dxa, sin_sg1, sin_sg3
     # inout: uc, utc
-    from __splitters__ import i_end, i_start, j_end, j_start
+    from __externals__ import i_end, i_start, j_end, j_start
 
     with computation(PARALLEL), interval(...):
         # West
@@ -156,7 +155,7 @@ def d2a2c_stencil_west(
             utc = contravariant(uc, v, cosa_u, rsin_u)
 
 
-@gtstencil()
+@gtstencil(origin_shift=(-1, -1, 0))
 def d2a2c_stencil_east(
     utmp: sd,
     ua: sd,
@@ -171,7 +170,7 @@ def d2a2c_stencil_east(
 ):
     # in: utmp, ua, v, cosa_u, rsin_u, dxa, sin_sg1, sin_sg3
     # inout: uc, utc
-    from __splitters__ import i_end, i_start, j_end, j_start
+    from __externals__ import i_end, i_start, j_end, j_start
 
     with computation(PARALLEL), interval(...):
         # East
@@ -198,7 +197,7 @@ def d2a2c_stencil_east(
             utc = contravariant(uc, v, cosa_u, rsin_u)
 
 
-@gtstencil(externals={"HALO": 3})
+@gtstencil(externals={"HALO": 3}, origin_shift=(-3, -3, 0))
 def d2a2c_stencil3(
     utmp: sd,
     ua: sd,
@@ -208,8 +207,7 @@ def d2a2c_stencil3(
     # in: utmp, ua
     # inout: va
     # out: vtmp
-    from __externals__ import HALO, namelist
-    from __splitters__ import i_end, i_start, j_end, j_start
+    from __externals__ import HALO, i_end, i_start, j_end, j_start, namelist
 
     with computation(PARALLEL), interval(...):
 
@@ -221,7 +219,7 @@ def d2a2c_stencil3(
         va = fill2_4corners_y(va, ua, sw_mult=-1, se_mult=1, ne_mult=-1, nw_mult=1)
 
 
-@gtstencil()
+@gtstencil(origin_shift=(-1, -1, 0))
 def d2a2c_stencil_south(
     vtmp: sd,
     va: sd,
@@ -236,7 +234,7 @@ def d2a2c_stencil_south(
 ):
     # in: vtmp, va, u, cosa_v, rsin_v, dya, sin_sg2, sin_sg4
     # inout: vc, vtc
-    from __splitters__ import i_end, i_start, j_end, j_start
+    from __externals__ import i_end, i_start, j_end, j_start
 
     with computation(PARALLEL), interval(...):
         with parallel(region[:, j_start - 1]):
@@ -258,7 +256,7 @@ def d2a2c_stencil_south(
             vtc = contravariant(vc, u, cosa_v, rsin_v)
 
 
-@gtstencil()
+@gtstencil(origin_shift=(-1, -1, 0))
 def d2a2c_stencil_north(
     vtmp: sd,
     va: sd,
@@ -273,7 +271,7 @@ def d2a2c_stencil_north(
 ):
     # in: vtmp, va, u, cosa_v, rsin_v, dya, sin_sg2, sin_sg4
     # inout: vc, vtc
-    from __splitters__ import i_end, i_start, j_end, j_start
+    from __externals__ import i_end, i_start, j_end, j_start
 
     with computation(PARALLEL), interval(...):
         # NOTE: vtc can be a new temp here
@@ -296,7 +294,7 @@ def d2a2c_stencil_north(
             vtc = contravariant(vc, u, cosa_v, rsin_v)
 
 
-@gtstencil()
+@gtstencil(origin_shift=(-1, 2, 0))
 def d2a2c_stencil4(
     vtmp: sd,
     u: sd,
@@ -313,7 +311,7 @@ def d2a2c_stencil4(
         vtc = contravariant(vc, u, cosa_v, rsin_v)
 
 
-@gtstencil(externals={"HALO": 3})
+@gtstencil(externals={"HALO": 3}, origin_shift=(-1, -1, 0))
 def d2a2c(
     cosa_s: sd,
     cosa_u: sd,
@@ -337,8 +335,7 @@ def d2a2c(
     vtc: sd,
 ):
 
-    from __externals__ import HALO, namelist
-    from __splitters__ import i_end, i_start, j_end, j_start
+    from __externals__ import HALO, i_end, i_start, j_end, j_start, namelist
 
     with computation(PARALLEL), interval(...):
         utmp = a2 * (u[0, -1, 0] + u[0, 2, 0]) + a1 * (u + u[0, 1, 0])
@@ -522,6 +519,7 @@ def compute(dord4, uc, vc, u, v, ua, va, utc, vtc):
         vc,
         vtc,
         origin=(grid.is_ - 1, grid.js - 1, 0),
+        # domain=(grid.nic + 1, grid.njc + 1, grid.npz)
     )
 
     # lagrange_interpolation_x(
@@ -587,8 +585,8 @@ def compute(dord4, uc, vc, u, v, ua, va, utc, vtc):
     #     grid.sin_sg3,
     #     uc,
     #     utc,
-    #     origin=(grid.ie - 1, grid.js - 1, 0),
-    #     domain=(4, grid.njc + 2, grid.npz),
+    #     origin=(grid.is_ - 1, grid.js - 1, 0),
+    #     domain=(grid.nic + 4, grid.njc + 2, grid.npz),
     # )
 
     # d2a2c_stencil3(
@@ -612,7 +610,7 @@ def compute(dord4, uc, vc, u, v, ua, va, utc, vtc):
     #     vc,
     #     vtc,
     #     origin=(grid.is_ - 1, grid.js - 1, 0),
-    #     domain=(grid.nic + 2, 4, grid.npz),
+    #     domain=(grid.nic + 2, grid.njc, grid.npz),
     # )
 
     # d2a2c_stencil_north(
@@ -626,8 +624,8 @@ def compute(dord4, uc, vc, u, v, ua, va, utc, vtc):
     #     grid.sin_sg4,
     #     vc,
     #     vtc,
-    #     origin=(grid.js - 1, grid.ie - 1, 0),
-    #     domain=(grid.nic + 2, 4, grid.npz),
+    #     origin=(grid.js - 1, grid.js - 1, 0),
+    #     domain=(grid.nic + 2, grid.njc + 5, grid.npz),
     # )
 
     # jfirst = grid.js + 2 if grid.south_edge else grid.js - 1

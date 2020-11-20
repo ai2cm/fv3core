@@ -34,15 +34,22 @@ def success_array(computed_data, ref_data, eps, ignore_near_zero_errors):
     success = np.logical_or(
         np.logical_and(np.isnan(computed_data), np.isnan(ref_data)),
         compare_arr(computed_data, ref_data) < eps,
-        # np.isclose(computed_data, ref_data, rtol=eps * 1e-2, atol=eps * 1e-2),
     )
     if ignore_near_zero_errors:
+        SMALL_NUMBER = 1e-18
         success = np.logical_or(
             success,
             np.logical_and(
-                np.abs(computed_data) < _near_zero, np.abs(ref_data) < _near_zero
+                np.abs(computed_data) < SMALL_NUMBER, np.abs(ref_data) < SMALL_NUMBER
             ),
         )
+    LARGE_NUMBER = 1e30
+    success = np.logical_or(
+        success,
+        np.logical_and(
+            np.abs(computed_data) < LARGE_NUMBER, np.abs(ref_data) > LARGE_NUMBER
+        ),
+    )
 
     return success
 
