@@ -35,7 +35,6 @@ def absolute_vorticity(vort: sd, fC: sd, rarea_c: sd):
         vort[0, 0, 0] = fC + rarea_c * vort
 
 
-@gtscript.function
 def nonhydro_x_fluxes(delp: sd, pt: sd, w: sd, utc: sd):
     fx1 = delp[-1, 0, 0] if utc > 0.0 else delp
     fx = pt[-1, 0, 0] if utc > 0.0 else pt
@@ -46,7 +45,6 @@ def nonhydro_x_fluxes(delp: sd, pt: sd, w: sd, utc: sd):
     return fx, fx1, fx2
 
 
-@gtscript.function
 def nonhydro_y_fluxes(delp: sd, pt: sd, w: sd, vtc: sd):
     fy1 = delp[0, -1, 0] if vtc > 0.0 else delp
     fy = pt[0, -1, 0] if vtc > 0.0 else pt
@@ -57,7 +55,7 @@ def nonhydro_y_fluxes(delp: sd, pt: sd, w: sd, vtc: sd):
     return fy, fy1, fy2
 
 
-@gtstencil()
+@gtstencil(origin_shift=(-1, -1))
 def transportdelp(
     delp: sd, pt: sd, utc: sd, vtc: sd, w: sd, rarea: sd, delpc: sd, ptc: sd, wc: sd
 ):
@@ -137,7 +135,7 @@ def divergence_corner(
         rarea_c: inverse cell areas on c-grid (input)
         divg_d: divergence on d-grid (output)
     """
-    from __splitters__ import i_end, i_start, j_end, j_start
+    from __externals__ import i_end, i_start, j_end, j_start
 
     with computation(PARALLEL), interval(...):
         uf = (
@@ -177,7 +175,7 @@ def circulation_cgrid(uc: sd, vc: sd, dxc: sd, dyc: sd, vort_c: sd):
         dyc: grid spacing in y-dir (input)
         vort_c: C-grid vorticity (output)
     """
-    from __splitters__ import i_end, i_start, j_end, j_start
+    from __externals__ import i_end, i_start, j_end, j_start
 
     with computation(PARALLEL), interval(...):
         fx = dxc * uc
@@ -196,8 +194,6 @@ def compute(delp, pt, u, v, w, uc, vc, ua, va, ut, vt, divgd, omga, dt2):
     grid = spec.grid
     dord4 = True
     origin_halo1 = (grid.is_ - 1, grid.js - 1, 0)
-    fx = utils.make_storage_from_shape(delp.shape, origin_halo1)
-    fy = utils.make_storage_from_shape(delp.shape, origin_halo1)
     delpc = utils.make_storage_from_shape(delp.shape, origin=origin_halo1)
     ptc = utils.make_storage_from_shape(pt.shape, origin=origin_halo1)
     d2a2c.compute(dord4, uc, vc, u, v, ua, va, ut, vt)

@@ -8,16 +8,14 @@ from fv3core.decorators import gtstencil
 sd = utils.sd
 
 
-@gtscript.function
-def fill2_4corners_x(
-    q_int: sd,
-    q_corner: sd,
+def fill_4corners_x(
+    qint: sd,
     sw_mult: float,
     se_mult: float,
     nw_mult: float,
     ne_mult: float,
 ):
-    from __splitters__ import i_end, i_start, j_end, j_start
+    from __externals__ import i_end, i_start, j_end, j_start
 
     q_out = q_int
 
@@ -48,16 +46,15 @@ def fill2_4corners_x(
     return q_out
 
 
-@gtscript.function
-def fill2_4corners_y(
-    q_int: sd,
+def fill_4corners_y(
+    qint: sd,
     q_corner: sd,
     sw_mult: float,
     se_mult: float,
     nw_mult: float,
     ne_mult: float,
 ):
-    from __splitters__ import i_end, i_start, j_end, j_start
+    from __externals__ import i_end, i_start, j_end, j_start
 
     q_out = q_int
 
@@ -99,16 +96,15 @@ def fill_4corners(q, direction, grid):
     origin = (grid.is_ - extent, grid.js - extent, 0)
     domain = (grid.nic + 2 * extent, grid.njc + 2 * extent, q.shape[2])
 
-    kwargs = {
-        "origin": origin,
-        "domain": domain,
-    }
+    splitters = grid.splitters(origin=origin)
+
+    kwargs = {"origin": origin, "domain": domain}
 
     if direction == "x":
-        stencil = gtstencil(definition=definition, externals={"func": fill2_4corners_x})
+        stencil = gtstencil(definition=definition, externals={"func": fill_4corners_x})
         stencil(q, **kwargs)
     elif direction == "y":
-        stencil = gtstencil(definition=definition, externals={"func": fill2_4corners_y})
+        stencil = gtstencil(definition=definition, externals={"func": fill_4corners_y})
         stencil(q, **kwargs)
     else:
         raise ValueError("Direction not recognized. Specify either x or y")

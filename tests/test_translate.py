@@ -18,6 +18,9 @@ np.set_printoptions(threshold=4096)
 
 OUTDIR = os.path.join(os.path.dirname(os.path.realpath(__file__)), "output")
 GPU_MAX_ERR = 1e-10
+GPU_NEAR_ZERO = 1e-15
+
+_near_zero = 1e-18
 
 
 def compare_arr(computed_data, ref_data):
@@ -27,41 +30,25 @@ def compare_arr(computed_data, ref_data):
     return compare
 
 
-def success_array(
-    computed_data, ref_data, eps, ignore_near_zero_errors, ignore_overcomputes=True
-):
+def success_array(computed_data, ref_data, eps, ignore_near_zero_errors):
     success = np.logical_or(
         np.logical_and(np.isnan(computed_data), np.isnan(ref_data)),
         compare_arr(computed_data, ref_data) < eps,
+        # np.isclose(computed_data, ref_data, rtol=eps * 1e-2, atol=eps * 1e-2),
     )
     if ignore_near_zero_errors:
-        SMALL_NUMBER = 1e-18
         success = np.logical_or(
             success,
             np.logical_and(
-                np.abs(computed_data) < SMALL_NUMBER, np.abs(ref_data) < SMALL_NUMBER
-            ),
-        )
-    if ignore_overcomputes:
-        LARGE_NUMBER = 1e30
-        success = np.logical_or(
-            success,
-            np.logical_and(
-                np.abs(computed_data) < LARGE_NUMBER, np.abs(ref_data) > LARGE_NUMBER
+                np.abs(computed_data) < _near_zero, np.abs(ref_data) < _near_zero
             ),
         )
 
     return success
 
 
-def success(
-    computed_data, ref_data, eps, ignore_near_zero_errors, ignore_overcomputes=True
-):
-    return np.all(
-        success_array(
-            computed_data, ref_data, eps, ignore_near_zero_errors, ignore_overcomputes
-        )
-    )
+def success(computed_data, ref_data, eps, ignore_near_zero_errors):
+    return np.all(success_array(computed_data, ref_data, eps, ignore_near_zero_errors))
 
 
 def sample_wherefail(
@@ -146,6 +133,7 @@ def test_sequential_savepoint(
     # Reduce error threshold for GPU
     if backend.endswith("cuda") and testobj.max_error < GPU_MAX_ERR:
         testobj.max_error = GPU_MAX_ERR
+        _near_zero = GPU_NEAR_ZERO
     fv3core._config.set_grid(grid)
     input_data = testobj.collect_input_data(serializer, savepoint_in)
     # run python version of functionality
@@ -224,6 +212,7 @@ def test_mock_parallel_savepoint(
     # Reduce error threshold for GPU
     if backend.endswith("cuda") and testobj.max_error < GPU_MAX_ERR:
         testobj.max_error = GPU_MAX_ERR
+        _near_zero = GPU_NEAR_ZERO
     fv3core._config.set_grid(grid)
     inputs_list = []
     for savepoint_in, serializer in zip(savepoint_in_list, serializer_list):
