@@ -1,6 +1,6 @@
 
 # update this if you need everything to rebuild for backwards-incompatible changes
-VERSION ?= v0.2.0
+VERSION = v0.2.0
 GCR_URL ?= us.gcr.io/vcm-ml
 CUDA ?= n
 FORTRAN_NAME = fv3core-build-fortran
@@ -37,8 +37,9 @@ SERIALBOX_IMAGE ?= $(GCR_URL)/serialbox-build:$(TAG_NAME)
 ENVIRONMENT_IMAGE ?= $(GCR_URL)/fv3core-environment:$(TAG_NAME)
 
 # built image names
+FV3_TAG ?=
 FORTRAN_IMAGE = $(GCR_URL)/$(FORTRAN_NAME):$(TAG_NAME)
 WRAPPER_IMAGE = $(GCR_URL)/$(WRAPPER_NAME):$(TAG_NAME)
-FV3CORE_IMAGE ?= $(GCR_URL)/$(FV3CORE_NAME):$(TAG_NAME)
+FV3CORE_IMAGE ?= $(GCR_URL)/$(FV3CORE_NAME):$(TAG_NAME)$(FV3_TAG)
 SARUS_FV3CORE_IMAGE ?= fv3core-$(TAG_NAME)
 FV3CORE_WRAPPER_IMAGE ?= $(GCR_URL)/$(FV3CORE_WRAPPER_NAME):$(TAG_NAME)
