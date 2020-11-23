@@ -9,7 +9,7 @@ from fv3core.decorators import gtstencil
 sd = utils.sd
 
 
-@gtstencil(origin_shift=(-1, -1))
+@gtstencil()
 def update_vorticity_and_kinetic_energy(
     ke: sd,
     vort: sd,

@@ -85,18 +85,18 @@ def fill_4corners(q, direction, grid):
     origin = (grid.is_ - extent, grid.js - extent, 0)
     domain = (grid.nic + 2 * extent, grid.njc + 2 * extent, q.shape[2])
 
-    splitters = grid.splitters(origin=origin)
+    axis_offsets = grid.axis_offsets(origin=origin)
 
     kwargs = {"origin": origin, "domain": domain}
 
     if direction == "x":
         stencil = gtstencil(
-            definition=definition, externals={"func": fill_4corners_x, **splitters}
+            definition=definition, externals={"func": fill_4corners_x, **axis_offsets}
         )
         stencil(q, **kwargs)
     elif direction == "y":
         stencil = gtstencil(
-            definition=definition, externals={"func": fill_4corners_y, **splitters}
+            definition=definition, externals={"func": fill_4corners_y, **axis_offsets}
         )
         stencil(q, **kwargs)
     else:

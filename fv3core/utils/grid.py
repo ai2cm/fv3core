@@ -89,8 +89,8 @@ class Grid:
             )
         return self._quantity_factory
 
-    def splitters(self, *, origin=None):
-        """Return the splitters relative to origin.
+    def axis_offsets(self, *, origin=None):
+        """Return the axis offsets relative to origin.
 
         Args:
             origin: The compute origin

@@ -133,20 +133,17 @@ def gtstencil(definition=None, **stencil_kwargs) -> Callable[..., None]:
                 stencil_kwargs["rebuild"] = global_config.get_rebuild()
                 stencil_kwargs["backend"] = global_config.get_backend()
 
-                # Add externals
-                final_origin = spec.grid.compute_origin(
-                    add=(*stencil_kwargs.get("origin_shift", (0, 0)), 0)
-                )
-                splitters = spec.grid.splitters(origin=final_origin)
+                if "origin" in kwargs:
+                    axis_offsets = spec.grid.axis_offsets(origin=final_origin)
+                else:
+                    axis_offsets = {}
+
                 stencil_kwargs["externals"] = {
                     "namelist": spec.namelist,
                     "grid": spec.grid,
-                    **splitters,
+                    **axis_offsets,
                     **stencil_kwargs.get("externals", dict()),
                 }
-
-                # Filter out "origin_shift"
-                stencil_kwargs.pop("origin_shift", None)
 
                 # Generate stencil
                 build_info = {}
