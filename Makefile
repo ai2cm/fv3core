@@ -5,7 +5,7 @@ REGRESSION_DATA_STORAGE_BUCKET = gs://vcm-fv3gfs-serialized-regression-data
 EXPERIMENT ?=c12_6ranks_standard
 FORTRAN_SERIALIZED_DATA_VERSION=7.1.1
 WRAPPER_IMAGE = us.gcr.io/vcm-ml/fv3gfs-wrapper:gnu9-mpich314-nocuda
-
+DOCKER_BUILDKIT=1
 SHELL=/bin/bash
 CWD=$(shell pwd)
 TEST_ARGS ?=-v -s -rsx
@@ -62,7 +62,7 @@ build_wrapped_environment: update_submodules
 
 build_wrapped_environment:
 	$(MAKE) -C external/fv3gfs-wrapper build-docker
-	DOCKER_BUILDKIT=1 docker build \
+	docker build \
 		--network host \
 		-f $(CWD)/docker/Dockerfile.build_environment \
 		-t $(WRAPPER_INSTALL_IMAGE) \
