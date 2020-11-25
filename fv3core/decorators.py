@@ -133,11 +133,10 @@ def gtstencil(definition=None, **stencil_kwargs) -> Callable[..., None]:
                 stencil_kwargs["rebuild"] = global_config.get_rebuild()
                 stencil_kwargs["backend"] = global_config.get_backend()
 
-                if "origin" in kwargs:
-                    axis_offsets = spec.grid.axis_offsets(origin=final_origin)
-                else:
-                    axis_offsets = {}
+                if not "origin" in kwargs:
+                    raise ValueError("Stencils require origin specification")
 
+                axis_offsets = spec.grid.axis_offsets(origin=kwargs["origin"])
                 stencil_kwargs["externals"] = {
                     "namelist": spec.namelist,
                     "grid": spec.grid,
