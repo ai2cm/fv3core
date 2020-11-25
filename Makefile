@@ -3,7 +3,7 @@ include docker/Makefile.image_names
 GCR_URL = us.gcr.io/vcm-ml
 REGRESSION_DATA_STORAGE_BUCKET = gs://vcm-fv3gfs-serialized-regression-data
 EXPERIMENT ?=c12_6ranks_standard
-FORTRAN_SERIALIZED_DATA_VERSION=7.1.1
+FORTRAN_SERIALIZED_DATA_VERSION=7.2.0-cuda
 WRAPPER_IMAGE = us.gcr.io/vcm-ml/fv3gfs-wrapper:gnu9-mpich314-nocuda
 DOCKER_BUILDKIT=1
 SHELL=/bin/bash
@@ -57,9 +57,6 @@ constraints.txt: requirements.txt requirements_wrapper.txt requirements_lint.txt
 build_environment: update_submodules
 	$(MAKE) -C docker build_core_deps
 
-build_wrapped_environment: update_submodules
-	$(MAKE) -C docker build_deps
-
 build_wrapped_environment:
 	$(MAKE) -C external/fv3gfs-wrapper build-docker
 	docker build \
@@ -89,8 +86,6 @@ build_wrapped: update_submodules
 pull_environment_if_needed:
 	$(MAKE) -C docker pull_core_deps_if_needed
 
-pull_wrapped_environment_if_needed:
-	$(MAKE) -C docker pull_deps_if_needed
 
 pull_wrapped_environment_if_needed:
 	if [ -z $(shell docker images -q $(WRAPPER_INSTALL_IMAGE)) ]; then \
