@@ -20,11 +20,13 @@ ifeq ($(CUDA),n)
 	TAG_NAME = $(VERSION)-gnu9-mpich314-nocuda-develop
 	GT4PY_OPTIONALS = ""
 	ENV_CUDA_PATH = ""
+	DATA_TAG = ""
 else
 	BASE_IMAGE = nvidia/cuda:10.2-devel-ubuntu18.04
 	TAG_NAME = $(VERSION)-gnu8-mpich314-cuda102-develop
 	GT4PY_OPTIONALS = "[cuda102]"
 	ENV_CUDA_PATH = /usr/local/cuda/10.2
+	DATA_TAG = "-cuda"
 endif
 BUILD_ARGS += --network host --build-arg BASE_IMAGE=$(BASE_IMAGE)
 
