@@ -151,7 +151,7 @@ def compute(state, comm):
         state.dp_ref = utils.make_storage_from_shape(
             state.ak.shape, grid.default_origin()
         )
-        dp_ref_compute(state.ak, state.bk, state.dp_ref, origin=grid.compute_origin())
+        dp_ref_compute(state.ak, state.bk, state.dp_ref)
         state.zs = state.phis * rgrav
     n_con = get_n_con()
 

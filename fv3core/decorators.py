@@ -135,7 +135,7 @@ def gtstencil(definition=None, **stencil_kwargs) -> Callable[..., None]:
 
             if not isinstance(first_storage, gt4py.storage.storage.Storage):
                 raise TypeError(
-                    "First stencil argument should be a gt4py.stoage.storage.Storage."
+                    "First stencil argument should be a gt4py.storage.storage.Storage."
                 )
 
             origin: Sequence[int, ...]

@@ -35,6 +35,7 @@ def absolute_vorticity(vort: sd, fC: sd, rarea_c: sd):
         vort[0, 0, 0] = fC + rarea_c * vort
 
 
+@gtscript.function
 def nonhydro_x_fluxes(delp: sd, pt: sd, w: sd, utc: sd):
     fx1 = delp[-1, 0, 0] if utc > 0.0 else delp
     fx = pt[-1, 0, 0] if utc > 0.0 else pt
@@ -45,6 +46,7 @@ def nonhydro_x_fluxes(delp: sd, pt: sd, w: sd, utc: sd):
     return fx, fx1, fx2
 
 
+@gtscript.function
 def nonhydro_y_fluxes(delp: sd, pt: sd, w: sd, vtc: sd):
     fy1 = delp[0, -1, 0] if vtc > 0.0 else delp
     fy = pt[0, -1, 0] if vtc > 0.0 else pt
