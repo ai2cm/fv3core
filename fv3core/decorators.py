@@ -141,7 +141,7 @@ def gtstencil(definition=None, **stencil_kwargs) -> Callable[..., None]:
                 origin = kwargs.get("origin", None)
                 if origin is not None:
                     axis_offsets = spec.grid.axis_offsets(origin=origin)
-                    stencil_kwargs.update(axis_offsets)
+                    stencil_kwargs["externals"].update(axis_offsets)
 
                 # Generate stencil
                 build_info = {}
