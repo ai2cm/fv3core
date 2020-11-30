@@ -51,7 +51,7 @@ update_submodules:
 
 constraints.txt: requirements.txt requirements_wrapper.txt requirements_lint.txt
 	pip-compile $^ --output-file constraints.txt
-
+	sed -i '' '/^git+https/d' constraints.txt
 # Image build instructions have moved to docker/Makefile but are kept here for backwards-compatibility
 
 build_environment: update_submodules

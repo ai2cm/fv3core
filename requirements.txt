@@ -10,8 +10,6 @@ zarr
 cftime
 mpi4py
 pip-tools
-pip
-setuptools
 wheel
 netCDF4
 hypothesis
