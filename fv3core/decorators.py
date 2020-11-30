@@ -1,9 +1,10 @@
 import collections
 import functools
 import hashlib
+import inspect
 import os
 import types
-from typing import BinaryIO, Callable, Tuple, Union
+from typing import BinaryIO, Callable, Sequence, Tuple, Union
 
 import gt4py
 import gt4py as gt
@@ -138,10 +139,34 @@ def gtstencil(definition=None, **stencil_kwargs) -> Callable[..., None]:
                     "grid": spec.grid,
                     **stencil_kwargs.get("externals", dict()),
                 }
-                origin = kwargs.get("origin", None)
-                if origin is not None:
-                    axis_offsets = spec.grid.axis_offsets(origin=origin)
-                    stencil_kwargs["externals"].update(axis_offsets)
+
+                first_name = inspect.signature(func).parameters[0].name
+
+                if len(args) == 0:
+                    first_storage = kwargs[first_name]
+                else:
+                    first_storage = args[0]
+
+                if not isinstance(first_storage, gt4py.Storage):
+                    raise TypeError("First stencil argument should be a gt4py.Storage.")
+
+                origin: Sequence[int, ...]
+                origin_arg = kwargs.get("origin", None)
+                if isinstance(origin_arg, collections.Mapping):
+                    if first_name in origin_arg:
+                        origin = origin_arg[first_name]
+                    else:
+                        origin = first_storage.default_origin
+                elif isinstance(origin_arg, collections.Sequence):
+                    origin = origin_arg
+                elif origin_arg is None:
+                    origin = first_storage.default_origin
+                else:
+                    raise TypeError(
+                        f"Type of the origin argument was {type(origin_arg)}. Expected Sequence or Mapping."
+                    )
+
+                axis_offsets = spec.grid.axis_offsets(origin=origin)
 
                 # Generate stencil
                 build_info = {}
