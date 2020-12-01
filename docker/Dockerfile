@@ -38,7 +38,7 @@ ENV BOOST_HOME=/usr/include/boost
 ARG CPPFLAGS="-I${BOOST_HOME} -I${BOOST_HOME}/boost"
 ARG GT4PY_OPTIONALS=""
 
-RUN if [ ! -z `echo $GT4PY_OPTIONALS | grep cuda` ] ; then pip install cupy-cuda102==7.7.0  && apt-get update && apt-get install -y gcc-8 g++-8 && update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-8 800 --slave /usr/bin/g++ g++ /usr/bin/g++-8 ; else echo Not installing cuda ; fi
+RUN if [ ! -z `echo $GT4PY_OPTIONALS | grep cuda` ] ; then apt-get update && apt-get install -y gcc-8 g++-8 && update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-8 800 --slave /usr/bin/g++ g++ /usr/bin/g++-8 && pip install cupy-cuda102==7.7.0 ; else echo Not installing cuda ; fi
 RUN pip install --use-deprecated=legacy-resolver --no-cache-dir -c /constraints.txt "/gt4py${GT4PY_OPTIONALS}" && \
 
     rm -rf /gt4py && \

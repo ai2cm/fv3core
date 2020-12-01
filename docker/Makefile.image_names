@@ -27,8 +27,8 @@ else
 	TAG_NAME = $(VERSION)-gnu8-mpich314-cuda102-develop
 	GT4PY_OPTIONALS = "[cuda102]"
 	ENV_CUDA_PATH = /usr/local/cuda/
-	DATA_TAG = "-cuda"
-	CUDA_FLAGS = "--gpus all"
+	DATA_TAG = -cuda
+	CUDA_FLAGS = --gpus all
 endif
 BUILD_ARGS += --network host --build-arg BASE_IMAGE=$(BASE_IMAGE)
 
