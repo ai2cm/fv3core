@@ -132,7 +132,6 @@ def gtstencil(definition=None, **stencil_kwargs) -> Callable[..., None]:
                 print(
                     f"Setting origin={spec.grid.compute_origin()} in stencil {func.__name__}",
                     file=sys.stderr,
-                    **kwargs,
                 )
                 origin = spec.grid.compute_origin()
             domain = kwargs.get("domain", None)
@@ -140,7 +139,6 @@ def gtstencil(definition=None, **stencil_kwargs) -> Callable[..., None]:
                 print(
                     f"Setting domain={spec.grid.domain_shape_compute()} in stencil {func.__name__}",
                     file=sys.stderr,
-                    **kwargs,
                 )
                 domain = spec.grid.domain_shape_compute()
 
