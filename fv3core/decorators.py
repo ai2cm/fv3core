@@ -125,38 +125,6 @@ def gtstencil(definition=None, **stencil_kwargs) -> Callable[..., None]:
         stencils = {}
         times_called = 0
 
-        def compute_origin(func, call_args, call_kwargs) -> Sequence[int, ...]:
-            origin_arg = call_kwargs.get("origin", None)
-
-            # Optimize early return
-            if isinstance(origin_arg, collections.Sequence):
-                return origin_arg
-
-            sig = inspect.signature(func)
-            first_name = next(iter(sig.parameters))
-            first_storage = (
-                call_kwargs[first_name] if len(call_args) == 0 else call_args[0]
-            )
-
-            if not isinstance(first_storage, gt4py.storage.Storage):
-                raise TypeError(
-                    "First stencil argument should be a gt4py.storage.Storage."
-                )
-
-            origin: Sequence[int, ...]
-            if isinstance(origin_arg, collections.Mapping):
-                origin = origin_arg.get(first_name, None)
-                if origin is None:
-                    origin = first_storage.default_origin
-            elif origin_arg is None:
-                origin = first_storage.default_origin
-            else:
-                raise TypeError(
-                    f"Type of the origin argument was {type(origin_arg)}. Expected Sequence or Mapping."
-                )
-
-            return origin
-
         def get_compute_domain(kwargs: dict, grid: fv3core.utils.Grid):
             origin = kwargs.get("origin", None)
             if origin is None:
@@ -215,6 +183,7 @@ def gtstencil(definition=None, **stencil_kwargs) -> Callable[..., None]:
                     definition=func, build_info=build_info, **stencil_kwargs
                 )
                 stencils[key] = FV3StencilObject(stencil, build_info)
+
             name = f"{func.__module__}.{func.__name__}"
             _maybe_save_report(
                 f"{name}-before",
