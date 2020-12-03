@@ -16,6 +16,7 @@ from gt4py import gtscript
 
 import fv3core
 import fv3core._config as spec
+import fv3core.utils
 import fv3core.utils.gt4py_utils as utils
 
 from .utils import global_config
@@ -124,29 +125,29 @@ def gtstencil(definition=None, **stencil_kwargs) -> Callable[..., None]:
         stencils = {}
         times_called = 0
 
-        def get_origin(func, call_args, call_kwargs):
+        def compute_origin(func, call_args, call_kwargs) -> Sequence[int, ...]:
+            origin_arg = call_kwargs.get("origin", None)
+
+            # Optimize early return
+            if isinstance(origin_arg, collections.Sequence):
+                return origin_arg
+
             sig = inspect.signature(func)
             first_name = next(iter(sig.parameters))
+            first_storage = (
+                call_kwargs[first_name] if len(call_args) == 0 else call_args[0]
+            )
 
-            if len(call_args) == 0:
-                first_storage = call_kwargs[first_name]
-            else:
-                first_storage = call_args[0]
-
-            if not isinstance(first_storage, gt4py.storage.storage.Storage):
+            if not isinstance(first_storage, gt4py.storage.Storage):
                 raise TypeError(
-                    "First stencil argument should be a gt4py.storage.storage.Storage."
+                    "First stencil argument should be a gt4py.storage.Storage."
                 )
 
             origin: Sequence[int, ...]
-            origin_arg = call_kwargs.get("origin", None)
             if isinstance(origin_arg, collections.Mapping):
-                if first_name in origin_arg:
-                    origin = origin_arg[first_name]
-                else:
+                origin = origin_arg.get(first_name, None)
+                if origin is None:
                     origin = first_storage.default_origin
-            elif isinstance(origin_arg, collections.Sequence):
-                origin = origin_arg
             elif origin_arg is None:
                 origin = first_storage.default_origin
             else:
@@ -156,11 +157,44 @@ def gtstencil(definition=None, **stencil_kwargs) -> Callable[..., None]:
 
             return origin
 
+        def get_compute_domain(kwargs: dict, grid: fv3core.utils.Grid):
+            origin = kwargs.get("origin", None)
+            if origin is None:
+                print(
+                    f"Setting origin={spec.grid.compute_origin()} in stencil {func.__name__}",
+                    file=sys.stderr,
+                    **kwargs,
+                )
+                origin = spec.grid.compute_origin()
+            domain = kwargs.get("domain", None)
+            if domain is None:
+                print(
+                    f"Setting domain={spec.grid.domain_shape_compute()} in stencil {func.__name__}",
+                    file=sys.stderr,
+                    **kwargs,
+                )
+                domain = spec.grid.domain_shape_compute()
+
+            return origin, domain
+
         @functools.wraps(func)
         def wrapped(*args, **kwargs) -> None:
             nonlocal times_called
+
+            # Eventually switch to automatically determining the origin
+            # origin = compute_origin(func, args, kwargs)
+
+            origin, domain = get_compute_domain(kwargs, spec.grid)
+            kwargs["origin"] = origin
+            kwargs["domain"] = domain
+
             # This uses the module-level globals backend and rebuild (defined above)
-            key = (global_config.get_backend(), global_config.get_rebuild())
+            key = (
+                global_config.get_backend(),
+                global_config.get_rebuild(),
+                origin,
+                domain,
+            )
             if key not in stencils:
                 # Add globals to stencil_kwargs
                 stencil_kwargs["rebuild"] = global_config.get_rebuild()
@@ -172,15 +206,13 @@ def gtstencil(definition=None, **stencil_kwargs) -> Callable[..., None]:
                     **stencil_kwargs.get("externals", dict()),
                 }
 
-                axis_offsets = spec.grid.axis_offsets(
-                    origin=get_origin(func, args, kwargs)
-                )
+                axis_offsets = fv3core.utils.axis_offsets(spec.grid, origin, domain)
                 stencil_kwargs["externals"].update(axis_offsets)
 
                 # Generate stencil
                 build_info = {}
-                stencil = gtscript.stencil(build_info=build_info, **stencil_kwargs)(
-                    func
+                stencil = gtscript.stencil(
+                    definition=func, build_info=build_info, **stencil_kwargs
                 )
                 stencils[key] = FV3StencilObject(stencil, build_info)
             name = f"{func.__module__}.{func.__name__}"
