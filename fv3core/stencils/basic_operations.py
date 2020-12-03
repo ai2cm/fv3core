@@ -20,18 +20,18 @@ def copy_stencil(q_in: sd, q_out: sd):
         q_out = q_in
 
 
-def copy(q_in, origin=(0, 0, 0), domain=None):
+def copy(q_in, origin, domain):
     """Copy q_in inside the origin and domain, and zero outside.
 
     Args:
         q_in: input field
-        origin: Origin of the copy and new field
+        origin: Origin of the copy
         domain: Extent to copy
 
     Returns:
-        gtscript.Field[float]: Copied field
+        gtscript.Field[float]: Copied field (origin inherited from q_in)
     """
-    q_out = utils.make_storage_from_shape(q_in.shape, origin, init=True)
+    q_out = utils.make_storage_from_shape(q_in.shape, q_in.default_origin, init=True)
     copy_stencil(q_in, q_out, origin=origin, domain=domain)
     return q_out
 
