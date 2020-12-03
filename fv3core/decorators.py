@@ -3,6 +3,7 @@ import functools
 import hashlib
 import inspect
 import os
+import sys
 import types
 from typing import BinaryIO, Callable, Sequence, Tuple, Union
 
