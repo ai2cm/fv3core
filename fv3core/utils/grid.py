@@ -451,7 +451,7 @@ def axis_offsets(
 
     if grid.east_edge:
         proc_offset = grid.npx + grid.halo - 2 - grid.global_is
-        endpt_offset = (grid.is_ - origin[0]) - domain[0]
+        endpt_offset = (grid.is_ - origin[0]) - domain[0] - 1
         i_end = gtscript.I[-1] + proc_offset + endpt_offset
     else:
         i_end = None
@@ -465,7 +465,7 @@ def axis_offsets(
 
     if grid.north_edge:
         proc_offset = grid.npy + grid.halo - 2 - grid.global_js
-        endpt_offset = (grid.js - origin[1]) - domain[1]
+        endpt_offset = (grid.js - origin[1]) - domain[1] - 1
         j_end = gtscript.J[-1] + proc_offset + endpt_offset
     else:
         j_end = None
