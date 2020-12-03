@@ -2,6 +2,7 @@ from typing import Optional, Tuple
 
 import fv3gfs.util as fv3util
 import numpy as np
+from gt4py import gtscript
 
 import fv3core.utils.gt4py_utils as utils
 
@@ -444,28 +445,28 @@ def axis_offsets(
     if grid.west_edge:
         proc_offset = grid.is_ - grid.global_is
         origin_offset = grid.is_ - origin[0]
-        i_start = I[0] + proc_offset + origin_offset
+        i_start = gtscript.I[0] + proc_offset + origin_offset
     else:
         i_start = None
 
     if grid.east_edge:
         proc_offset = grid.npx + grid.halo - 2 - grid.global_is
         endpt_offset = (grid.is_ - origin[0]) - domain[0]
-        i_end = I[-1] + proc_offset + endpt_offset
+        i_end = gtscript.I[-1] + proc_offset + endpt_offset
     else:
         i_end = None
 
     if grid.south_edge:
         proc_offset = grid.js - grid.global_js
         origin_offset = grid.js - origin[1]
-        j_start = J[0] + proc_offset + origin_offset
+        j_start = gtscript.J[0] + proc_offset + origin_offset
     else:
         J_start = None
 
     if grid.north_edge:
         proc_offset = grid.npy + grid.halo - 2 - grid.global_js
         endpt_offset = (grid.js - origin[1]) - domain[1]
-        j_end = J[-1] + proc_offset + endpt_offset
+        j_end = gtscript.J[-1] + proc_offset + endpt_offset
     else:
         j_end = None
 
