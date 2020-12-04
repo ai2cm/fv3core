@@ -278,7 +278,8 @@ def column_namelist_options(k):
     col["damp_t"] = col["damp_vt"]
     if grid().npz == 1 or spec.namelist.n_sponge < 0:
         pass
-    #     d2_divg = spec.namelist.d2_bg  # commenting because unused, never gets set into col
+    # commenting because unused, never gets set into col
+    #     d2_divg = spec.namelist.d2_bg
     else:
         if k == 0:
             col["d2_divg"] = max_d2_bg0()
@@ -338,7 +339,8 @@ def compute(
             origin=grid().default_origin(),
             domain=grid().domain_shape_standard(),
         )
-    # TODO: this seems a little redundant, revisit the k column split mechanism and/or the argument passing method
+    # TODO: this seems a little redundant, revisit the k column split mechanism
+    # and/or the argument passing method
     in_only_vars = ["z_rat", "dt"]
     xflux = mfx
     yflux = mfy
@@ -374,9 +376,15 @@ def compute(
     for iv in inout_vars:
         outputs[iv] = data[iv]
     d_sw_ksplit(d_sw, data, column_namelist, outputs, grid())
-    # TODO: remove when it has been decided how to handle the parameter arguments that change in the vertical. helpful for debugging
-    # d_sw(delpc, delp, ptc, pt, u, v, w, uc, vc,  ua, va, divgd, mfx, mfy, cx, cy,  crx, cry, xfx, yfx, q_con, z_rat, heat_s, diss_e, dt,column_namelist)
-    # TODO if namelist['hydrostatic' and not namelist['use_old_omega'] and last_step
+    # TODO: remove when it has been decided how to handle the parameter
+    # arguments that change in the vertical. helpful for debugging
+
+    # d_sw(delpc, delp, ptc, pt, u, v, w, uc, vc,  ua, va, divgd, mfx, mfy, cx,
+    # cy,  crx, cry, xfx, yfx, q_con, z_rat, heat_s, diss_e, dt,column_namelist)
+
+    # TODO if namelist['hydrostatic' and not namelist['use_old_omega'] and
+    # last_step
+
     # TODO if namelist['d_ext'] > 0
 
     if spec.namelist.d_con > dcon_threshold or spec.namelist.do_skeb:

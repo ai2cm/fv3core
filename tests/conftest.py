@@ -14,8 +14,8 @@ from fv3core.utils.mpi import MPI
 
 
 # get MPI environment
-sys.path.append("/usr/local/serialbox/python")  # noqa
-import serialbox
+sys.path.append("/usr/local/serialbox/python")  # noqa: E402
+import serialbox  # noqa: E402
 
 
 GRID_SAVEPOINT_NAME = "Grid-Info"

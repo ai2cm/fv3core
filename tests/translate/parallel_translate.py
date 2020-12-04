@@ -112,11 +112,12 @@ class ParallelTranslate:
         return fv3core._config.namelist.layout
 
     def compute_sequential(self, inputs_list, communicator_list):
-        """Compute the outputs while iterating over a set of communicator objects sequentially"""
+        """Compute the outputs while iterating over a set of communicator
+        objects sequentially."""
         raise NotImplementedError()
 
     def compute_parallel(self, inputs, communicator):
-        """Compute the outputs using one communicator operating in parallel"""
+        """Compute the outputs using one communicator operating in parallel."""
         self.compute_sequential(self, [inputs], [communicator])
 
 
@@ -181,7 +182,8 @@ class ParallelTranslate2Py(ParallelTranslate):
 
     def compute_sequential(self, a, b):
         pytest.skip(
-            f"{self.__class__} only has a mpirun implementation, not running in mock-parallel"
+            f"{self.__class__} only has a mpirun implementation, "
+            "not running in mock-parallel"
         )
 
 

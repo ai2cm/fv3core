@@ -1,4 +1,4 @@
-from typing import Optional, Tuple
+from typing import Tuple
 
 import fv3gfs.util as fv3util
 import numpy as np

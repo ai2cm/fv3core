@@ -1,8 +1,4 @@
-import math
-
 import fv3gfs.util as fv3util
-import gt4py.gtscript as gtscript
-import numpy as np
 from gt4py.gtscript import PARALLEL, computation, interval
 
 import fv3core._config as spec
@@ -40,6 +36,8 @@ def rayleigh_pt_friction(
     tau0: float,
     ptop: float,
 ):
+    rk = None  # TODO FIX THIS
+    w = None  # TODO FIX THIS
     with computation(PARALLEL), interval(...):
         if pfull < spec.namelist.rf_cutoff:
             if spec.namelist.hydrostatic:
@@ -52,12 +50,13 @@ def rayleigh_pt_friction(
                 pt = pt + 0.5 * u2f * RCV * (
                     1.0 - 1.0 / (1.0 + rf * (u2f / U000) ** 0.5)
                 )
-            if not hydrostatic:
+            if not spec.namelist.hydrostatic:
                 w = w / (1.0 + u2f)
 
 
 @gtstencil()
 def update_u2f(u2f: sd, rf: sd):
+    pfull = None  # TODO FIX THIS
     with computation(PARALLEL), interval(...):
         if pfull < spec.namelist.rf_cutoff:
             u2f = rf * (u2f / U000) ** 0.5

@@ -1,17 +1,14 @@
 import collections
 import functools
 import hashlib
-import inspect
 import os
 import types
-from typing import BinaryIO, Callable, Optional, Sequence, Tuple, Union
+from typing import Any, BinaryIO, Callable, Dict, Optional, Tuple
 
 import gt4py
 import gt4py as gt
 import numpy as np
-import xarray as xr
 import yaml
-from fv3gfs.util import Quantity
 from gt4py import gtscript
 
 import fv3core
@@ -60,23 +57,25 @@ report_include_halos = False
 
 
 def state_inputs(*arg_specs):
-    for spec in arg_specs:
-        if spec.intent not in VALID_INTENTS:
+    for sp in arg_specs:
+        if sp.intent not in VALID_INTENTS:
             raise ValueError(
-                f"intent for {spec.arg_name} is {spec.intent}, must be one of {VALID_INTENTS}"
+                f"intent for {sp.arg_name} is {sp.intent}, "
+                "must be one of {VALID_INTENTS}"
             )
 
     def decorator(func):
         @functools.wraps(func)
         def wrapped(state, *args, **kwargs):
             namespace_kwargs = {}
-            for spec in arg_specs:
-                arg_name, standard_name, units, intent = spec
+            for sp in arg_specs:
+                arg_name, standard_name, units, intent = sp
                 if standard_name not in state:
                     raise ValueError(f"{standard_name} not present in state")
                 elif units != state[standard_name].units:
                     raise ValueError(
-                        f"{standard_name} has units {state[standard_name].units} when {units} is required"
+                        f"{standard_name} has units "
+                        f"{state[standard_name].units} when {units} is required"
                     )
                 elif intent not in VALID_INTENTS:
                     raise ValueError(
@@ -93,7 +92,10 @@ def state_inputs(*arg_specs):
 
 
 def _ensure_global_flags_not_specified_in_kwargs(stencil_kwargs):
-    flag_errmsg = "The {} flag should be set in fv3core.utils.global_config.py instead of as an argument to stencil"
+    flag_errmsg = (
+        "The {} flag should be set in fv3core.utils.global_config.py "
+        + "instead of as an argument to stencil"
+    )
     for flag in ("rebuild", "backend"):
         if flag in stencil_kwargs:
             raise ValueError(flag_errmsg.format(flag))
@@ -122,11 +124,11 @@ class FV3StencilObject:
         """External dictionary used for stencil generation."""
 
         self.backend_kwargs: Dict[str, Any] = kwargs
-        """Remainder of the arguments are assumed to be gt4py compiler backend options."""
+        """Remainder of the args are assumed to be gt4py compiler backend options."""
 
     @property
     def built(self) -> bool:
-        """Returns True if the stencil is already built (if it has been called at least once)."""
+        """Returns True if the stencil is already built."""
         return self.stencil_object is not None
 
     @property

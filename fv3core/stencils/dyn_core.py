@@ -1,15 +1,9 @@
-import copy
-import math
-from types import SimpleNamespace
-
 import fv3gfs.util as fv3util
-import gt4py.gtscript as gtscript
-from gt4py.gtscript import PARALLEL, computation, interval
+from gt4py.gtscript import BACKWARD, FORWARD, PARALLEL, computation, interval
 
 import fv3core._config as spec
 import fv3core.stencils.basic_operations as basic
 import fv3core.stencils.c_sw as c_sw
-import fv3core.stencils.d2a2c_vect as d2a2c
 import fv3core.stencils.d_sw as d_sw
 import fv3core.stencils.del2cubed as del2cubed
 import fv3core.stencils.nh_p_grad as nh_p_grad
@@ -30,6 +24,7 @@ from fv3core.stencils.basic_operations import copy_stencil
 
 sd = utils.sd
 HUGE_R = 1.0e40
+
 
 # NOTE in Fortran these are columns
 @gtstencil()
@@ -105,7 +100,9 @@ def dyncore_temporaries(shape):
 
 
 def compute(state, comm):
-    # u, v, w, delz, delp, pt, pe, pk, phis, wsd, omga, ua, va, uc, vc, mfxd, mfyd, cxd, cyd, pkz, peln, q_con, ak, bk, diss_estd, cappa, mdt, n_split, akap, ptop, pfull, n_map, comm):
+    # u, v, w, delz, delp, pt, pe, pk, phis, wsd, omga, ua, va, uc, vc, mfxd,
+    # mfyd, cxd, cyd, pkz, peln, q_con, ak, bk, diss_estd, cappa, mdt, n_split,
+    # akap, ptop, pfull, n_map, comm):
     grid = spec.grid
 
     init_step = state.n_map == 1
@@ -147,7 +144,9 @@ def compute(state, comm):
     state.cyd[grid.slice_dict(grid.y3d_compute_domain_x_dict())] = 0.0
     if not hydrostatic:
         # k1k = akap / (1.0 - akap)
-        # TODO -- is really just a column... when different shapes are supported perhaps change this
+
+        # TODO -- is really just a column... when different shapes are supported
+        # perhaps change this
         state.dp_ref = utils.make_storage_from_shape(
             state.ak.shape, grid.default_origin()
         )

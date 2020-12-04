@@ -53,5 +53,6 @@ class TranslateTracer2D1L(ParallelTranslate):
 
     def compute_sequential(self, a, b):
         pytest.skip(
-            f"{self.__class__} only has a mpirun implementation, not running in mock-parallel"
+            f"{self.__class__} only has a mpirun implementation, "
+            "not running in mock-parallel"
         )
