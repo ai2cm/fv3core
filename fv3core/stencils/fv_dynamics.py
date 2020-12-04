@@ -142,8 +142,6 @@ def compute_preamble(state, comm):
                 state.pfull,
                 comm,
             )
-        # else:
-        #     rayleigh_friction.compute()
 
     if spec.namelist.adiabatic and spec.namelist.kord_tm > 0:
         raise Exception(
