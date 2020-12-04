@@ -114,14 +114,11 @@ class FV3StencilObject:
         self.build_info: Optional[Dict[str, Any]] = None
         """Return the build_info created when compiling the stencil."""
 
-        self.compute_domain: Optional[Tuple[Int3, Int3]] = None
-        """The last compute domain (origin, domain) that this was called using."""
-
         self.times_called: int = 0
         """Number of times this stencil has been called."""
 
         self.externals: Dict[str, Any] = kwargs.pop("externals", {})
-        """External dictionary used for stencil generation."""
+        """Externals dictionary used for stencil generation."""
 
         self.backend_kwargs: Dict[str, Any] = kwargs
         """Remainder of the args are assumed to be gt4py compiler backend options."""
@@ -154,16 +151,14 @@ class FV3StencilObject:
             origin: Data index mapped to (0, 0, 0) in the compute domain (required)
             externals: Dictionary of externals for the stencil call
         """
-        axis_offsets = fv3core.utils.axis_offsets(spec.grid, origin, domain)
 
         stencil_kwargs = {
-            "rebuild": global_config.get_rebuild()
-            or self.compute_domain != (origin, domain),
+            "rebuild": global_config.get_rebuild(),
             "backend": global_config.get_backend(),
             "externals": {
                 "namelist": spec.namelist,
                 "grid": spec.grid,
-                **axis_offsets,
+                **fv3core.utils.axis_offsets(spec.grid, origin, domain),
                 **self.externals,
             },
             **self.backend_kwargs,
@@ -178,10 +173,8 @@ class FV3StencilObject:
             self.build_info = new_build_info
             self.stencil_object = stencil_object
 
-        # Set validate_args
-        kwargs["validate_args"] = kwargs.get("validate_args", utils.validate_args)
-
         # Call it
+        kwargs["validate_args"] = kwargs.get("validate_args", utils.validate_args)
         name = f"{self.func.__module__}.{self.func.__name__}"
         _maybe_save_report(
             f"{name}-before",
@@ -205,7 +198,7 @@ def gtstencil(definition=None, **stencil_kwargs) -> Callable[..., None]:
     _ensure_global_flags_not_specified_in_kwargs(stencil_kwargs)
 
     def decorator(func) -> FV3StencilObject:
-        return FV3StencilObject(func)
+        return FV3StencilObject(func, **stencil_kwargs)
 
     if definition is None:
         return decorator
