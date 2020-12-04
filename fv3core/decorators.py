@@ -152,16 +152,14 @@ class FV3StencilObject:
             origin: Data index mapped to (0, 0, 0) in the compute domain (required)
             externals: Dictionary of externals for the stencil call
         """
-        axis_offsets = fv3core.utils.axis_offsets(spec.grid, origin, domain)
 
         stencil_kwargs = {
             "rebuild": global_config.get_rebuild()
-            or self.compute_domain != (origin, domain),
             "backend": global_config.get_backend(),
             "externals": {
                 "namelist": spec.namelist,
                 "grid": spec.grid,
-                **axis_offsets,
+                **fv3core.utils.axis_offsets(spec.grid, origin, domain),
                 **self.externals,
             },
             **self.backend_kwargs,
