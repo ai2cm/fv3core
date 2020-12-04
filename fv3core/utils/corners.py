@@ -1,6 +1,5 @@
 from gt4py.gtscript import PARALLEL, computation, interval, parallel, region
 
-import fv3core.utils
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import gtstencil
 

@@ -1,4 +1,3 @@
-import fv3gfs.util as fv3util
 from gt4py.gtscript import BACKWARD, FORWARD, PARALLEL, computation, interval
 
 import fv3core._config as spec
@@ -18,6 +17,7 @@ import fv3core.stencils.updatedzc as updatedzc
 import fv3core.stencils.updatedzd as updatedzd
 import fv3core.utils.global_constants as constants
 import fv3core.utils.gt4py_utils as utils
+import fv3gfs.util as fv3util
 from fv3core.decorators import gtstencil
 from fv3core.stencils.basic_operations import copy_stencil
 

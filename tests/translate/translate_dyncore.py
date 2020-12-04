@@ -1,6 +1,5 @@
-import fv3gfs.util as fv3util
-
 import fv3core.stencils.dyn_core as dyn_core
+import fv3gfs.util as fv3util
 
 from .parallel_translate import ParallelTranslate2PyState
 

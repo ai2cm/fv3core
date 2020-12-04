@@ -2,10 +2,10 @@ import copy
 from types import SimpleNamespace
 from typing import List
 
-import fv3gfs.util as fv3util
 import pytest
 
 import fv3core
+import fv3gfs.util as fv3util
 from fv3core.utils import gt4py_utils as utils
 
 from .translate import TranslateFortranData2Py, read_serialized_data

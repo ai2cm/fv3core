@@ -3,7 +3,7 @@ import functools
 import hashlib
 import os
 import types
-from typing import Any, BinaryIO, Callable, Dict, Optional, Tuple
+from typing import Any, BinaryIO, Callable, Dict, Optional
 
 import gt4py
 import gt4py as gt

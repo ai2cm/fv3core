@@ -2,12 +2,15 @@ import copy
 import os
 import sys
 
-import fv3gfs.wrapper as wrapper
 import mpi4py
 import numpy
 import numpy as np
 import xarray as xr
 import yaml
+
+import fv3core
+import fv3core._config as spec
+import fv3gfs.wrapper as wrapper
 from fv3gfs.util import (
     X_DIMS,
     X_INTERFACE_DIM,
@@ -22,9 +25,6 @@ from fv3gfs.util import (
     SubtileGridSizer,
     io,
 )
-
-import fv3core
-import fv3core._config as spec
 
 
 sys.path.append("/usr/local/serialbox/python")

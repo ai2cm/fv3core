@@ -2,7 +2,6 @@ import contextlib
 import logging
 import os
 
-import fv3gfs.util as fv3util
 import numpy as np
 import pytest
 import serialbox as ser
@@ -10,6 +9,7 @@ import xarray as xr
 
 import fv3core._config
 import fv3core.utils.gt4py_utils as gt_utils
+import fv3gfs.util as fv3util
 from fv3core.utils.mpi import MPI
 
 
