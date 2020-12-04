@@ -176,10 +176,8 @@ class FV3StencilObject:
             self.build_info = new_build_info
             self.stencil_object = stencil_object
 
-        # Set validate_args
-        kwargs["validate_args"] = kwargs.get("validate_args", utils.validate_args)
-
         # Call it
+        kwargs["validate_args"] = kwargs.get("validate_args", utils.validate_args)
         name = f"{self.func.__module__}.{self.func.__name__}"
         _maybe_save_report(
             f"{name}-before",
