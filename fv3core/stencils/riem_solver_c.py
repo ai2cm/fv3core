@@ -75,9 +75,9 @@ def compute(ms, dt2, akap, cappa, ptop, hs, w3, ptc, q_con, delpc, gz, pef, ws):
     shape = w3.shape
     domain = (spec.grid.nic + 2, grid.njc + 2, km + 2)
     riemorigin = (is1, js1, 0)
-    dm = copy(delpc, origin=grid.default_origin())
-    cp3 = copy(cappa, origin=grid.default_origin())
-    w = copy(w3, origin=grid.default_origin())
+    dm = copy(delpc)
+    cp3 = copy(cappa)
+    w = copy(w3)
 
     pem = utils.make_storage_from_shape(shape, riemorigin)
     peg = utils.make_storage_from_shape(shape, riemorigin)
