@@ -119,7 +119,7 @@ class FV3StencilObject:
         """Number of times this stencil has been called."""
 
         self.externals: Dict[str, Any] = kwargs.pop("externals", {})
-        """External dictionary used for stencil generation."""
+        """Externals dictionary used for stencil generation."""
 
         self.backend_kwargs: Dict[str, Any] = kwargs
         """Remainder of the arguments are assumed to be gt4py compiler backend options."""
@@ -199,7 +199,7 @@ def gtstencil(definition=None, **stencil_kwargs) -> Callable[..., None]:
     _ensure_global_flags_not_specified_in_kwargs(stencil_kwargs)
 
     def decorator(func) -> FV3StencilObject:
-        return FV3StencilObject(func)
+        return FV3StencilObject(func, **stencil_kwargs)
 
     if definition is None:
         return decorator
