@@ -154,7 +154,7 @@ class FV3StencilObject:
         """
 
         stencil_kwargs = {
-            "rebuild": global_config.get_rebuild()
+            "rebuild": global_config.get_rebuild(),
             "backend": global_config.get_backend(),
             "externals": {
                 "namelist": spec.namelist,
