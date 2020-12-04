@@ -3,7 +3,6 @@ import functools
 import hashlib
 import inspect
 import os
-import sys
 import types
 from typing import BinaryIO, Callable, Optional, Sequence, Tuple, Union
 
@@ -105,16 +104,25 @@ class FV3StencilObject:
 
     def __init__(self, func: Callable[..., None], **kwargs):
         self.func: Callable[..., None] = func
+        """The definition function."""
 
         self.stencil_object: Optional[gt4py.StencilObject] = None
+        """The generated stencil object returned from gt4py."""
+
         self.build_info: Optional[Dict[str, Any]] = None
         """Return the build_info created when compiling the stencil."""
 
         self.compute_domain: Optional[Tuple[Int3, Int3]] = None
+        """The last compute domain (origin, domain) that this was called using."""
+
         self.times_called: int = 0
+        """Number of times this stencil has been called."""
 
         self.externals: Dict[str, Any] = kwargs.pop("externals", {})
+        """External dictionary used for stencil generation."""
+
         self.backend_kwargs: Dict[str, Any] = kwargs
+        """Remainder of the arguments are assumed to be gt4py compiler backend options."""
 
     @property
     def built(self) -> bool:
@@ -123,12 +131,12 @@ class FV3StencilObject:
 
     @property
     def def_ir(self) -> Optional[dict]:
-        """Definition IR."""
+        """Current stencil definition IR if built, else None."""
         return self.build_info.def_ir
 
     @property
     def impl_ir(self) -> Optional[dict]:
-        """Implementation IR."""
+        """Current stencil implementation IR if built, else None."""
         return self.build_info.impl_ir
 
     def __call__(self, *args, origin: Int3, domain: Int3, **kwargs):
@@ -144,9 +152,6 @@ class FV3StencilObject:
             origin: Data index mapped to (0, 0, 0) in the compute domain (required)
             externals: Dictionary of externals for the stencil call
         """
-        # Eventually switch to automatically determining the origin
-        # origin = compute_origin(func, args, kwargs)
-
         axis_offsets = fv3core.utils.axis_offsets(spec.grid, origin, domain)
 
         stencil_kwargs = {
@@ -171,6 +176,9 @@ class FV3StencilObject:
             self.build_info = new_build_info
             self.stencil_object = stencil_object
 
+        # Set validate_args
+        kwargs["validate_args"] = kwargs.get("validate_args", utils.validate_args)
+
         # Call it
         name = f"{self.func.__module__}.{self.func.__name__}"
         _maybe_save_report(
@@ -180,7 +188,6 @@ class FV3StencilObject:
             args,
             kwargs,
         )
-        kwargs["validate_args"] = kwargs.get("validate_args", utils.validate_args)
         self.stencil_object(*args, **kwargs, origin=origin, domain=domain)
         _maybe_save_report(
             f"{name}-after",
@@ -195,7 +202,7 @@ class FV3StencilObject:
 def gtstencil(definition=None, **stencil_kwargs) -> Callable[..., None]:
     _ensure_global_flags_not_specified_in_kwargs(stencil_kwargs)
 
-    def decorator(func) -> Callable[..., None]:
+    def decorator(func) -> FV3StencilObject:
         return FV3StencilObject(func)
 
     if definition is None:

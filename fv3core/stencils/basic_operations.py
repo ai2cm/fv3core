@@ -30,7 +30,7 @@ def copy(q_in, origin=None, domain=None):
         domain: Extent to copy (if None, uses the remainder of the field)
 
     Returns:
-        gtscript.Field[float]: Copied field (origin inherited from q_in)
+        gtscript.Field[float]: Copied field (default_origin inherited from q_in)
     """
     if origin is None:
         origin = (0, 0, 0)
