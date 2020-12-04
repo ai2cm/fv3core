@@ -100,8 +100,8 @@ echo "UPSTREAM_PROJECT: ${UPSTREAM_PROJECT}"
 echo "UPSTREAM_BUILD_NUMBER: ${UPSTREAM_BUILD_NUMBER}"
 if [ ! -z "${UPSTREAM_PROJECT}" ] ; then
     # Set in build_for_daint jenkins plan, to mark what fv3core image to pull
-    export FV3_TAG="${UPSTREAM_PROJECT}-${UPSTREAM_BUILD_NUMBER}"
-    echo "Downstream project using FV3_TAG=${FV3_TAG}"
+    export JENKINS_TAG="${UPSTREAM_PROJECT}-${UPSTREAM_BUILD_NUMBER}"
+    echo "Downstream project using JENKINS_TAG=${JENKINS_TAG}"
 fi
 # If using sarus, load the image and set variables for running tests,
 # otherwise build the image
@@ -130,7 +130,7 @@ fi
 export TEST_DATA_DIR="${SCRATCH}/fv3core_fortran_data/${FORTRAN_VERSION}"
 
 G2G="false"
-
+export DOCKER_BUILDKIT=1
 # Run the jenkins command
 run_command "${script} ${optarg} ${optarg2} " Job${action} ${G2G} ${scheduler_script}
 

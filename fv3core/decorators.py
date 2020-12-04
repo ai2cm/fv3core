@@ -1,9 +1,10 @@
 import collections
 import functools
 import hashlib
+import inspect
 import os
 import types
-from typing import BinaryIO, Callable, Tuple, Union
+from typing import BinaryIO, Callable, Optional, Sequence, Tuple, Union
 
 import gt4py
 import gt4py as gt
@@ -15,7 +16,9 @@ from gt4py import gtscript
 
 import fv3core
 import fv3core._config as spec
+import fv3core.utils
 import fv3core.utils.gt4py_utils as utils
+from fv3core.utils.typing import Int3
 
 from .utils import global_config
 
@@ -89,92 +92,111 @@ def state_inputs(*arg_specs):
     return decorator
 
 
-class FV3StencilObject:
-    """GT4Py stencil object used for fv3core."""
-
-    def __init__(self, stencil_object: gt4py.StencilObject, build_info: dict):
-        self.stencil_object = stencil_object
-        self._build_info = build_info
-
-    @property
-    def build_info(self) -> dict:
-        """Return the build_info created when compiling the stencil."""
-        return self._build_info
-
-    def __call__(self, *args, **kwargs):
-        return self.stencil_object(*args, **kwargs)
-
-
 def _ensure_global_flags_not_specified_in_kwargs(stencil_kwargs):
-    flag_errmsg = (
-        "The {} flag should be set in "
-        + __name__
-        + " instead of as an argument to stencil"
-    )
+    flag_errmsg = "The {} flag should be set in fv3core.utils.global_config.py instead of as an argument to stencil"
     for flag in ("rebuild", "backend"):
         if flag in stencil_kwargs:
             raise ValueError(flag_errmsg.format(flag))
 
 
+class FV3StencilObject:
+    """GT4Py stencil object used for fv3core."""
+
+    def __init__(self, func: Callable[..., None], **kwargs):
+        self.func: Callable[..., None] = func
+        """The definition function."""
+
+        self.stencil_object: Optional[gt4py.StencilObject] = None
+        """The generated stencil object returned from gt4py."""
+
+        self.build_info: Optional[Dict[str, Any]] = None
+        """Return the build_info created when compiling the stencil."""
+
+        self.times_called: int = 0
+        """Number of times this stencil has been called."""
+
+        self.externals: Dict[str, Any] = kwargs.pop("externals", {})
+        """Externals dictionary used for stencil generation."""
+
+        self.backend_kwargs: Dict[str, Any] = kwargs
+        """Remainder of the arguments are assumed to be gt4py compiler backend options."""
+
+    @property
+    def built(self) -> bool:
+        """Returns whether the stencil is already built (if it has been called at least once)."""
+        return self.stencil_object is not None
+
+    @property
+    def def_ir(self) -> Optional[dict]:
+        """Current stencil definition IR if built, else None."""
+        return self.build_info.def_ir
+
+    @property
+    def impl_ir(self) -> Optional[dict]:
+        """Current stencil implementation IR if built, else None."""
+        return self.build_info.impl_ir
+
+    def __call__(self, *args, origin: Int3, domain: Int3, **kwargs):
+        """Call the stencil, compiling the stencil if necessary.
+
+        The stencil needs to be recompiled if any of the following changes
+        1. the origin and/or domain
+        2. any external value
+        3. the function signature or code
+
+        Args:
+            domain: Stencil compute domain (required)
+            origin: Data index mapped to (0, 0, 0) in the compute domain (required)
+            externals: Dictionary of externals for the stencil call
+        """
+
+        stencil_kwargs = {
+            "rebuild": global_config.get_rebuild(),
+            "backend": global_config.get_backend(),
+            "externals": {
+                "namelist": spec.namelist,
+                "grid": spec.grid,
+                **fv3core.utils.axis_offsets(spec.grid, origin, domain),
+                **self.externals,
+            },
+            **self.backend_kwargs,
+        }
+
+        # Generate stencil if out of date
+        new_build_info = {}
+        stencil_object = gtscript.stencil(
+            definition=self.func, build_info=new_build_info, **stencil_kwargs
+        )
+        if stencil_object != self.stencil_object:
+            self.build_info = new_build_info
+            self.stencil_object = stencil_object
+
+        # Call it
+        kwargs["validate_args"] = kwargs.get("validate_args", utils.validate_args)
+        name = f"{self.func.__module__}.{self.func.__name__}"
+        _maybe_save_report(
+            f"{name}-before",
+            self.times_called,
+            self.func.__dict__["_gtscript_"]["api_signature"],
+            args,
+            kwargs,
+        )
+        self.stencil_object(*args, **kwargs, origin=origin, domain=domain)
+        _maybe_save_report(
+            f"{name}-after",
+            self.times_called,
+            self.func.__dict__["_gtscript_"]["api_signature"],
+            args,
+            kwargs,
+        )
+        self.times_called += 1
+
+
 def gtstencil(definition=None, **stencil_kwargs) -> Callable[..., None]:
     _ensure_global_flags_not_specified_in_kwargs(stencil_kwargs)
 
-    def decorator(func) -> Callable[..., None]:
-        stencils = {}
-        times_called = 0
-
-        @functools.wraps(func)
-        def wrapped(*args, **kwargs) -> None:
-            nonlocal times_called
-            # This uses the module-level globals backend and rebuild (defined above)
-            key = (global_config.get_backend(), global_config.get_rebuild())
-            if key not in stencils:
-                # Add globals to stencil_kwargs
-                stencil_kwargs["rebuild"] = global_config.get_rebuild()
-                stencil_kwargs["backend"] = global_config.get_backend()
-
-                # Add externals
-                final_origin = spec.grid.compute_origin(
-                    add=(*stencil_kwargs.get("origin_shift", (0, 0)), 0)
-                )
-                splitters = spec.grid.splitters(origin=final_origin)
-                stencil_kwargs["externals"] = {
-                    "namelist": spec.namelist,
-                    "grid": spec.grid,
-                    **splitters,
-                    **stencil_kwargs.get("externals", dict()),
-                }
-
-                # Filter out "origin_shift"
-                stencil_kwargs.pop("origin_shift", None)
-
-                # Generate stencil
-                build_info = {}
-                stencil = gtscript.stencil(build_info=build_info, **stencil_kwargs)(
-                    func
-                )
-                stencils[key] = FV3StencilObject(stencil, build_info)
-            name = f"{func.__module__}.{func.__name__}"
-            _maybe_save_report(
-                f"{name}-before",
-                times_called,
-                func.__dict__["_gtscript_"]["api_signature"],
-                args,
-                kwargs,
-            )
-            kwargs["validate_args"] = kwargs.get("validate_args", utils.validate_args)
-            result = stencils[key](*args, **kwargs)
-            _maybe_save_report(
-                f"{name}-after",
-                times_called,
-                func.__dict__["_gtscript_"]["api_signature"],
-                args,
-                kwargs,
-            )
-            times_called += 1
-            return result
-
-        return wrapped
+    def decorator(func) -> FV3StencilObject:
+        return FV3StencilObject(func, **stencil_kwargs)
 
     if definition is None:
         return decorator
