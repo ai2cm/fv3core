@@ -125,7 +125,7 @@ class FV3StencilObject:
 
     @property
     def built(self) -> bool:
-        """Returns True if the stencil is already built."""
+        """Returns whether the stencil is already built (called 1+ times)."""
         return self.stencil_object is not None
 
     @property
