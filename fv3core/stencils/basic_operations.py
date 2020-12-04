@@ -21,7 +21,7 @@ def copy_stencil(q_in: sd, q_out: sd):
         q_out = q_in
 
 
-def copy(q_in, origin=None, domain=None):
+def copy(q_in, origin=(0, 0, 0), domain=None):
     """Copy q_in inside the origin and domain, and zero outside.
 
     Args:
@@ -32,9 +32,6 @@ def copy(q_in, origin=None, domain=None):
     Returns:
         gtscript.Field[float]: Copied field (default_origin inherited from q_in)
     """
-    if origin is None:
-        origin = (0, 0, 0)
-
     if domain is None:
         domain = tuple(extent - orig for extent, orig in zip(q_in.shape, origin))
 
