@@ -86,7 +86,7 @@ def fill_4corners(q, direction, grid):
     origin = (grid.is_ - extent, grid.js - extent, 0)
     domain = (grid.nic + 2 * extent, grid.njc + 2 * extent, q.shape[2])
 
-    axis_offsets = fv3core.utils.axis_offsets(origin=origin, domain=domain)
+    axis_offsets = fv3core.utils.axis_offsets(grid, origin, domain)
 
     kwargs = {"origin": origin, "domain": domain}
 

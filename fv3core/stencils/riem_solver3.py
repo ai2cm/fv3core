@@ -129,9 +129,9 @@ def compute(
     shape = w.shape
     domain = (grid.nic, grid.njc, km + 2)
     riemorigin = (grid.is_, grid.js, 0)
-    dm = copy(delp)
-    cp3 = copy(cappa)
-    pe_init = copy(pe)
+    dm = copy(delp, origin=grid.default_origin())
+    cp3 = copy(cappa, origin=grid.default_origin())
+    pe_init = copy(pe, origin=grid.default_origin())
     pm = utils.make_storage_from_shape(shape, riemorigin)
     pem = utils.make_storage_from_shape(shape, riemorigin)
     peln_run = utils.make_storage_from_shape(shape, riemorigin)
