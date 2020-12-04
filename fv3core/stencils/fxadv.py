@@ -165,7 +165,7 @@ def compute(uc_in, vc_in, ut_in, vt_in, xfx_adv, yfx_adv, crx_adv, cry_adv, dt):
         domain=grid().domain_x_compute_ybuffer(),
     )
     # TODO: Remove the need for a copied extra ut and vt variables, edit in place
-    # (rexolve issue with data getting zeroed out)
+    # (rexolve issue with data getting zeroed out).
     ut_in[:, :, :] = ut[:, :, :]
     vt_in[:, :, :] = vt[:, :, :]
     return ra_x, ra_y
@@ -608,8 +608,8 @@ def nw_corner(uc, vc, ut, vt, cosa_u, cosa_v, corner_shape):
     )
 
 
-# TODO Probably can delete -- but in case we want to do analysis to show it
-# doesn't matter at all
+# TODO: Probably can delete -- but in case we want to do analysis to show it
+# doesn't matter at all.
 # {
 # def sw_corner(uc, vc, ut, vt, cosa_u, cosa_v, corner_shape):
 #     west_corner_ut_lowest(

@@ -279,7 +279,7 @@ def damping_zero_order(
 ):
     grid = spec.grid
     if not grid.nested:
-        # TODO: ptc and vort are equivalent, but x vs y, consolidate if possible
+        # TODO: ptc and vort are equivalent, but x vs y, consolidate if possible.
         ptc_main(
             u,
             va,

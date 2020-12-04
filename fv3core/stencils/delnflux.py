@@ -108,7 +108,7 @@ def compute_delnflux_no_sg(
         add_diffusive_component(fx, fx2, origin=diffuse_origin, domain=diffuse_domain_x)
         add_diffusive_component(fy, fy2, origin=diffuse_origin, domain=diffuse_domain_y)
     else:
-        # TODO To join these stencils you need to overcompute, making the edges
+        # TODO: To join these stencils you need to overcompute, making the edges
         # 'wrong', but not actually used, separating now for comparison sanity.
 
         # diffusive_damp(fx, fx2, fy, fy2, mass, damp, origin=diffuse_origin,

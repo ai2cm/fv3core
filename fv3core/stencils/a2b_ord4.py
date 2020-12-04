@@ -259,7 +259,7 @@ def ec3_offsets(corner):
     return i3a, i3b, j3a, j3b
 
 
-# TODO: put into stencil?
+# TODO: Put into stencil?
 def extrapolate_corner_qout(qin, qout, i, j, kstart, nk, corner):
     if not getattr(grid(), corner + "_corner"):
         return
@@ -267,7 +267,7 @@ def extrapolate_corner_qout(qin, qout, i, j, kstart, nk, corner):
     bgrid = np.stack((grid().bgrid1[:, :, 0], grid().bgrid2[:, :, 0]), axis=2)
     agrid = np.stack((grid().agrid1[:, :, 0], grid().agrid2[:, :, 0]), axis=2)
     p0 = bgrid[i, j, :]
-    # TODO: - please simplify
+    # TODO: Please simplify
     i1a, i1b, j1a, j1b = ec1_offsets(corner)
     i2a, i2b, j2a, j2b = ec2_offsets(corner)
     i3a, i3b, j3a, j3b = ec3_offsets(corner)

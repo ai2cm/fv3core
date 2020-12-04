@@ -36,7 +36,7 @@ def moist_cv_nwat6_fn(qvapor, qliquid, qrain, qsnow, qice, qgraupel):
     return cvm, gz
 
 
-# TODO : note untested
+# TODO: Note untested
 @gtscript.function
 def moist_cv_nwat5_fn(qvapor, qliquid, qrain, qsnow, qice):
     ql = qliquid + qrain
@@ -46,7 +46,7 @@ def moist_cv_nwat5_fn(qvapor, qliquid, qrain, qsnow, qice):
     return cvm, gz
 
 
-# TODO : note untested
+# TODO: Note untested
 @gtscript.function
 def moist_cv_nwat4_fn(qvapor, qliquid, qrain):
     gz = qliquid + qrain
@@ -58,7 +58,7 @@ def moist_cv_nwat4_fn(qvapor, qliquid, qrain):
     return cvm, gz
 
 
-# TODO : note untested
+# TODO: Note untested
 @gtscript.function
 def moist_cv_nwat3_fn(qvapor, qliquid, qice):
     gz = qliquid + qice
@@ -66,7 +66,7 @@ def moist_cv_nwat3_fn(qvapor, qliquid, qice):
     return cvm, gz
 
 
-# TODO : note untested
+# TODO: Note untested
 @gtscript.function
 def moist_cv_nwat2_fn(qvapor, qliquid):
     qv = qvapor if qvapor > 0 else 0.0
@@ -76,7 +76,7 @@ def moist_cv_nwat2_fn(qvapor, qliquid):
     return cvm, gz
 
 
-# TODO : note untested
+# TODO: Note untested
 @gtscript.function
 def moist_cv_nwat2_gfs_fn(qvapor, qliquid, t1):
     gz = qliquid if qliquid > 0 else 0.0
@@ -88,7 +88,7 @@ def moist_cv_nwat2_gfs_fn(qvapor, qliquid, t1):
     return cvm, gz
 
 
-# TODO : note untested
+# TODO: Note untested
 @gtscript.function
 def moist_cv_default_fn():
     gz = 0

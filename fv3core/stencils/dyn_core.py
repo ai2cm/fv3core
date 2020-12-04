@@ -115,12 +115,12 @@ def compute(state, comm):
     hydrostatic = spec.namelist.hydrostatic
     rgrav = 1.0 / constants.GRAV
     n_split = state.n_split
-    # TODO -- put defaults into code
+    # TODO: Put defaults into code.
     # m_split = 1. + abs(dt_atmos)/real(k_split*n_split*abs(p_split))
     # n_split = nint( real(n0split)/real(k_split*abs(p_split)) * stretch_fac + 0.5 )
     ms = max(1, spec.namelist.m_split / 2.0)
     shape = state.delz.shape
-    # NOTE in Fortran model the halo update starts happens in fv_dynamics, not here
+    # NOTE: In Fortran model the halo update starts happens in fv_dynamics, not here.
     reqs = {}
     for halovar in ["q_con_quantity", "cappa_quantity", "delp_quantity", "pt_quantity"]:
         reqs[halovar] = comm.start_halo_update(
@@ -145,8 +145,8 @@ def compute(state, comm):
     if not hydrostatic:
         # k1k = akap / (1.0 - akap)
 
-        # TODO -- is really just a column... when different shapes are supported
-        # perhaps change this
+        # TODO: Is really just a column... when different shapes are supported
+        # perhaps change this.
         state.dp_ref = utils.make_storage_from_shape(
             state.ak.shape, grid.default_origin()
         )
@@ -237,7 +237,7 @@ def compute(state, comm):
             state.gz, state.ws3 = updatedzc.compute(
                 state.dp_ref, state.zs, state.ut, state.vt, state.gz, state.ws3, dt2
             )
-            # TODO this is really a 2d field.
+            # TODO: This is really a 2d field.
             state.ws3 = utils.make_storage_data(
                 state.ws3[:, :, -1], shape, origin=(0, 0, 0)
             )
@@ -316,7 +316,7 @@ def compute(state, comm):
                 dt,
             )
 
-            # TODO this is really a 2d field.
+            # TODO: This is really a 2d field.
             state.wsd = utils.make_storage_data(
                 state.wsd[:, :, -1], shape, origin=grid.compute_origin()
             )
@@ -390,7 +390,7 @@ def compute(state, comm):
             )
 
         if spec.namelist.rf_fast:
-            # TODO pass through ks, or remove, inconsistent representation vs Fortran
+            # TODO: Pass through ks, or remove, inconsistent representation vs Fortran.
             ray_fast.compute(
                 state.u,
                 state.v,

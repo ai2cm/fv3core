@@ -38,7 +38,7 @@ def set_omega(delp: sd, delz: sd, w: sd, omga: sd):
         omga = delp / delz * w
 
 
-# TODO replace with something from fv3core.onfig probably, using the field_table
+# TODO: Replace with something from fv3core.onfig probably, using the field_table.
 def tracers_dict(state):
     tracers = {}
     for tracername in utils.tracer_variables:
