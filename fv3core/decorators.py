@@ -112,9 +112,6 @@ class FV3StencilObject:
         self.build_info: Optional[Dict[str, Any]] = None
         """Return the build_info created when compiling the stencil."""
 
-        self.compute_domain: Optional[Tuple[Int3, Int3]] = None
-        """The last compute domain (origin, domain) that this was called using."""
-
         self.times_called: int = 0
         """Number of times this stencil has been called."""
 
