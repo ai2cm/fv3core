@@ -110,7 +110,7 @@ class FV3StencilObject:
         self.stencil_object: Optional[gt4py.StencilObject] = None
         """The generated stencil object returned from gt4py."""
 
-        self.build_info: Optional[Dict[str, Any]] = None
+        self._build_info: Optional[Dict[str, Any]] = None
         """Return the build_info created when compiling the stencil."""
 
         self.times_called: int = 0
@@ -128,22 +128,26 @@ class FV3StencilObject:
         return self.stencil_object is not None
 
     @property
+    def build_info(self) -> Dict[str, Any]:
+        """Return build information (IRs and externals)."""
+        return self._build_info if self._build_info is not None else {}
+
+    @property
     def definition(self) -> Optional[gt_ir.StencilDefinition]:
         """Current stencil definition IR if built, else None."""
-        return self.build_info["def_ir"]
+        return self.build_info.get("def_ir", None)
 
     @property
     def implementation(self) -> Optional[gt_ir.StencilImplementation]:
         """Current stencil implementation IR if built, else None."""
-        return self.build_info["impl_ir"]
+        return self.build_info.get("impl_ir", None)
 
     @property
     def externals(self) -> Dict[str, Any]:
         """Return a dictionary of external values used in the stencil generation."""
-        externals_or_none = self.definition.externals if self.built else {}
-        return externals_or_none or {}
+        return self.definition.externals if self.definition else {}
 
-    def __call__(self, *args, origin: Int3, domain: Int3, **kwargs):
+    def __call__(self, *args, origin: Int3, domain: Int3, **kwargs) -> None:
         """Call the stencil, compiling the stencil if necessary.
 
         The stencil needs to be recompiled if any of the following changes
@@ -154,7 +158,6 @@ class FV3StencilObject:
         Args:
             domain: Stencil compute domain (required)
             origin: Data index mapped to (0, 0, 0) in the compute domain (required)
-            externals: Dictionary of externals for the stencil call
         """
 
         axis_offsets = fv3core.utils.axis_offsets(spec.grid, origin, domain)
@@ -185,10 +188,11 @@ class FV3StencilObject:
             stencil_object = gtscript.stencil(
                 definition=self.func, build_info=new_build_info, **stencil_kwargs
             )
-            # If the hash changes, there is updated build_info
+            # Update build_info if the stencil changed
             if hash(self.stencil_object) != hash(stencil_object):
-                self.build_info = new_build_info
-            # The stencil object always changes
+                self._build_info = new_build_info
+            # gtscript.stencil always returns a new class instance even if it
+            # used the cached module.
             self.stencil_object = stencil_object
 
         # Call it
