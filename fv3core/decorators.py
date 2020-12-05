@@ -175,7 +175,7 @@ class FV3StencilObject:
         axis_offsets_in_externals = {
             key: value for key, value in self.externals.items() if key in axis_offsets
         }
-        for key, value in axis_offsets_in_externals:
+        for key, value in axis_offsets_in_externals.items():
             if axis_offsets[key] != value:
                 regenerate_stencil = True
                 break
