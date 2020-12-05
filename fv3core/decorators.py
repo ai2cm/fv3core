@@ -171,7 +171,7 @@ class FV3StencilObject:
             **self.backend_kwargs,
         }
 
-        regenerate_stencil = False
+        regenerate_stencil = not self.built
         axis_offsets_in_externals = {
             key: value for key, value in self.externals.items() if key in axis_offsets
         }
