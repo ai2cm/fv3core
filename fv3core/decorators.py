@@ -157,22 +157,28 @@ class FV3StencilObject:
             externals: Dictionary of externals for the stencil call
         """
 
+        axis_offsets = fv3core.utils.axis_offsets(spec.grid, origin, domain)
+
         stencil_kwargs = {
             "rebuild": global_config.get_rebuild(),
             "backend": global_config.get_backend(),
             "externals": {
                 "namelist": spec.namelist,
                 "grid": spec.grid,
-                **fv3core.utils.axis_offsets(spec.grid, origin, domain),
+                **axis_offsets,
                 **self.passed_externals,
             },
             **self.backend_kwargs,
         }
 
-        regenerate_stencil = any(
-            stencil_kwargs["externals"].get(key, value) != value
-            for key, value in self.externals.items()
-        )
+        regenerate_stencil = False
+        axis_offsets_in_externals = {
+            key: value for key, value in self.externals.items() if key in axis_offsets
+        }
+        for key, value in axis_offsets_in_externals:
+            if axis_offsets[key] != value:
+                regenerate_stencil = True
+                break
 
         if regenerate_stencil or stencil_kwargs["rebuild"]:
             new_build_info = {}
