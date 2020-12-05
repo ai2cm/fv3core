@@ -171,12 +171,14 @@ class FV3StencilObject:
 
         if regenerate_stencil or stencil_kwargs["rebuild"]:
             new_build_info = {}
-            self.stencil_object = gtscript.stencil(
+            stencil_object = gtscript.stencil(
                 definition=self.func, build_info=new_build_info, **stencil_kwargs
             )
             # If the hash changes, there is updated build_info
-            if hash(stencil_object) != hash(self.stencil_object):
+            if hash(self.stencil_object) != hash(stencil_object):
                 self.build_info = new_build_info
+            # The stencil object always changes
+            self.stencil_object = stencil_object
 
         # Call it
         kwargs["validate_args"] = kwargs.get("validate_args", utils.validate_args)
