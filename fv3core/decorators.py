@@ -170,7 +170,8 @@ class FV3StencilObject:
         }
 
         regenerate_stencil = any(
-            stencil_kwargs["externals"][key] != value for key, value in self.externals
+            stencil_kwargs["externals"][key] != value
+            for key, value in self.externals.items()
         )
 
         if regenerate_stencil or stencil_kwargs["rebuild"]:
