@@ -164,7 +164,7 @@ class FV3StencilObject:
 
         regenerate_stencil = False
         if self.built:
-            for key, value in self.def_ir.externals:
+            for key, value in self.def_ir["externals"]:
                 if stencil_kwargs["externals"][key] != value:
                     regenerate_stencil = True
                     break
