@@ -4,7 +4,7 @@ import hashlib
 import inspect
 import os
 import types
-from typing import BinaryIO, Callable, Optional, Sequence, Tuple, Union
+from typing import BinaryIO, Callable, Dict, Optional, Sequence, Tuple, Union
 
 import gt4py
 import gt4py.ir as gt_ir
