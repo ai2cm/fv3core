@@ -116,8 +116,8 @@ class FV3StencilObject:
         self.times_called: int = 0
         """Number of times this stencil has been called."""
 
-        self.externals: Dict[str, Any] = kwargs.pop("externals", {})
-        """Externals dictionary used for stencil generation."""
+        self.passed_externals: Dict[str, Any] = kwargs.pop("externals", {})
+        """Externals passed in the decorator (others are added later)."""
 
         self.backend_kwargs: Dict[str, Any] = kwargs
         """Remainder of the arguments are assumed to be gt4py compiler backend options."""
@@ -164,7 +164,7 @@ class FV3StencilObject:
                 "namelist": spec.namelist,
                 "grid": spec.grid,
                 **fv3core.utils.axis_offsets(spec.grid, origin, domain),
-                **self.externals,
+                **self.passed_externals,
             },
             **self.backend_kwargs,
         }
