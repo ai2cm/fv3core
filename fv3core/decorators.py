@@ -170,7 +170,7 @@ class FV3StencilObject:
         }
 
         regenerate_stencil = any(
-            stencil_kwargs["externals"][key] != value
+            stencil_kwargs["externals"].get(key, value) != value
             for key, value in self.externals.items()
         )
 
