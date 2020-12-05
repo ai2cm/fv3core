@@ -162,14 +162,21 @@ class FV3StencilObject:
             **self.backend_kwargs,
         }
 
-        # Generate stencil if out of date
-        new_build_info = {}
-        stencil_object = gtscript.stencil(
-            definition=self.func, build_info=new_build_info, **stencil_kwargs
-        )
-        if stencil_object != self.stencil_object:
-            self.build_info = new_build_info
-            self.stencil_object = stencil_object
+        regenerate_stencil = False
+        if self.built:
+            for key, value in self.def_ir.externals:
+                if stencil_kwargs["externals"][key] != value:
+                    regenerate_stencil = True
+                    break
+
+        if regenerate_stencil or stencil_kwargs["rebuild"]:
+            new_build_info = {}
+            self.stencil_object = gtscript.stencil(
+                definition=self.func, build_info=new_build_info, **stencil_kwargs
+            )
+            # If the hash changes, there is updated build_info
+            if hash(stencil_object) != hash(self.stencil_object):
+                self.build_info = new_build_info
 
         # Call it
         kwargs["validate_args"] = kwargs.get("validate_args", utils.validate_args)
