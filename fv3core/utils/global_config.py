@@ -26,4 +26,4 @@ def get_rebuild() -> bool:
 
 
 _BACKEND = None  # Options: numpy, gtx86, gtcuda, debug
-_REBUILD = not getenv_bool("FV3_IMMUTABLE_STENCILS", False)
+_REBUILD = not getenv_bool("FV3_IMMUTABLE_STENCILS", "False")
