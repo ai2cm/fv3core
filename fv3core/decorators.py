@@ -7,7 +7,8 @@ import types
 from typing import BinaryIO, Callable, Optional, Sequence, Tuple, Union
 
 import gt4py
-import gt4py as gt
+import gt4py.ir as gt_ir
+import gt4py.storage as gt_storage
 import numpy as np
 import xarray as xr
 import yaml
@@ -127,14 +128,20 @@ class FV3StencilObject:
         return self.stencil_object is not None
 
     @property
-    def def_ir(self) -> Optional[dict]:
+    def definition(self) -> Optional[gt_ir.StencilDefinition]:
         """Current stencil definition IR if built, else None."""
-        return self.build_info.def_ir
+        return self.build_info["def_ir"]
 
     @property
-    def impl_ir(self) -> Optional[dict]:
+    def implementation(self) -> Optional[gt_ir.StencilImplementation]:
         """Current stencil implementation IR if built, else None."""
-        return self.build_info.impl_ir
+        return self.build_info["impl_ir"]
+
+    @property
+    def externals(self) -> Dict[str, Any]:
+        """Return a dictionary of external values used in the stencil generation."""
+        externals_or_none = self.definition.externals if self.built else {}
+        return externals_or_none or {}
 
     def __call__(self, *args, origin: Int3, domain: Int3, **kwargs):
         """Call the stencil, compiling the stencil if necessary.
@@ -162,12 +169,9 @@ class FV3StencilObject:
             **self.backend_kwargs,
         }
 
-        regenerate_stencil = False
-        if self.built:
-            for key, value in self.def_ir["externals"]:
-                if stencil_kwargs["externals"][key] != value:
-                    regenerate_stencil = True
-                    break
+        regenerate_stencil = any(
+            stencil_kwargs["externals"][key] != value for key, value in self.externals
+        )
 
         if regenerate_stencil or stencil_kwargs["rebuild"]:
             new_build_info = {}
@@ -237,10 +241,10 @@ def _save_args(file: BinaryIO, args, kwargs):
     args = list(args)
     kwargs_list = sorted(list(kwargs.items()))
     for i, arg in enumerate(args):
-        if isinstance(arg, gt.storage.storage.Storage):
+        if isinstance(arg, gt_storage.storage.Storage):
             args[i] = np.asarray(arg)
     for i, (name, value) in enumerate(kwargs_list):
-        if isinstance(value, gt.storage.storage.Storage):
+        if isinstance(value, gt_storage.storage.Storage):
             kwargs_list[i] = (name, np.asarray(value))
     np.savez(file, *args, **dict(kwargs_list))
 
@@ -264,7 +268,7 @@ def _get_kwargs_report(kwargs):
 
 
 def _get_arg_report(arg):
-    if isinstance(arg, gt.storage.storage.Storage):
+    if isinstance(arg, gt_storage.storage.Storage):
         arg = np.asarray(arg)
     if isinstance(arg, np.ndarray):
         if not report_include_halos:
