@@ -179,6 +179,7 @@ class FV3StencilObject:
 
     @property
     def build_info(self) -> Dict[str, Any]:
+        """Return the build_info dictionary."""
         return self.get_build_info_for(self.stencil_object)
 
     @build_info.setter
@@ -187,10 +188,12 @@ class FV3StencilObject:
 
     @property
     def def_ir(self) -> gt_ir.StencilDefinition:
+        """Return the definition IR."""
         return self.build_info["def_ir"]
 
     @property
-    def impl_ir(self) -> gt_ir.StencilDefinition:
+    def impl_ir(self) -> gt_ir.StencilImplementation:
+        """Return the implementation IR."""
         return self.build_info["iir"]
 
     def __call__(self, *args, origin: Int3, domain: Int3, **kwargs) -> None:
