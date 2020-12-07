@@ -143,7 +143,7 @@ class FV3StencilObject:
         """The definition function."""
 
         self.stencil_object: Optional[gt4py.StencilObject] = None
-        """The generated stencil object returned from gt4py."""
+        """The current generated stencil object returned from gt4py."""
 
         self.times_called: int = 0
         """Number of times this stencil has been called."""
@@ -186,16 +186,6 @@ class FV3StencilObject:
     def build_info(self, value) -> None:
         return self.set_build_info_for(self.stencil_object, value)
 
-    @property
-    def def_ir(self) -> gt_ir.StencilDefinition:
-        """Return the definition IR."""
-        return self.build_info["def_ir"]
-
-    @property
-    def impl_ir(self) -> gt_ir.StencilImplementation:
-        """Return the implementation IR."""
-        return self.build_info["iir"]
-
     def __call__(self, *args, origin: Int3, domain: Int3, **kwargs) -> None:
         """Call the stencil, compiling the stencil if necessary.
 
@@ -216,7 +206,7 @@ class FV3StencilObject:
         if not regenerate_stencil:
             used_axis_offsets = {
                 k: v
-                for k, v in self.def_ir.externals.items()
+                for k, v in self.build_info["def_ir"].externals.items()
                 if k in axis_offsets.keys()
             }
             # Check if we really do need to regenerate
