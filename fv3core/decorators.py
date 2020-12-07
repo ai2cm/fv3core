@@ -252,6 +252,7 @@ class FV3StencilObject:
 
         # Call it
         exec_info = {}
+        kwargs["exec_info"] = kwargs.get("exec_info", exec_info)
         kwargs["validate_args"] = kwargs.get("validate_args", utils.validate_args)
         name = f"{self.func.__module__}.{self.func.__name__}"
         _maybe_save_report(
@@ -261,9 +262,7 @@ class FV3StencilObject:
             args,
             kwargs,
         )
-        self.stencil_object(
-            *args, **kwargs, origin=origin, domain=domain, exec_info=exec_info
-        )
+        self.stencil_object(*args, **kwargs, origin=origin, domain=domain)
         _maybe_save_report(
             f"{name}-after",
             self.times_called,
@@ -274,6 +273,7 @@ class FV3StencilObject:
         self.times_called += 1
 
         # Update timers
+        exec_info = kwargs["exec_info"]
         self.timers.run += exec_info["run_end_time"] - exec_info["run_start_time"]
         self.timers.call_run += (
             exec_info["call_run_end_time"] - exec_info["call_run_start_time"]
