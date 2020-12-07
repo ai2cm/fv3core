@@ -20,7 +20,7 @@ import fv3core
 import fv3core._config as spec
 import fv3core.utils
 import fv3core.utils.gt4py_utils as utils
-from fv3core.utils.typing import Int3
+from fv3core.utils.typing import Index3D
 
 from .utils import global_config
 
@@ -101,8 +101,8 @@ def _ensure_global_flags_not_specified_in_kwargs(stencil_kwargs):
             raise ValueError(flag_errmsg.format(flag))
 
 
-class AdditionalStencilCache:
-    """A python object cache along with stencils (uses the disk)."""
+class StencilDataCache(collections.abc.Mapping):
+    """A python object cache along with stencils (uses the disk and an in-memory map)."""
 
     def __init__(self, extension: str = "cache.py"):
         self.extension: str = extension
@@ -134,6 +134,12 @@ class AdditionalStencilCache:
         pickle.dump(self.cache[key], open(filename, mode="wb"))
         return self.cache[key]
 
+    def __len__(self) -> int:
+        return len(self.cache)
+
+    def __iter__(self):
+        return self.cache.__iter__()
+
 
 class FV3StencilObject:
     """GT4Py stencil object used for fv3core."""
@@ -151,42 +157,27 @@ class FV3StencilObject:
         self.timers: Dict[str, float] = types.SimpleNamespace(call_run=0.0, run=0.0)
         """Accumulated time spent in this stencil.
 
-        call_run includes stencil call overhead, while run omits that."""
+        call_run includes stencil call overhead, while run omits it."""
 
-        self.passed_externals: Dict[str, Any] = kwargs.pop("externals", {})
+        self._passed_externals: Dict[str, Any] = kwargs.pop("externals", {})
         """Externals passed in the decorator (others are added later)."""
 
         self.backend_kwargs: Dict[str, Any] = kwargs
         """Remainder of the arguments are assumed to be gt4py compiler backend options."""
 
-        self._build_info_cache: AdditionalStencilCache = AdditionalStencilCache(
-            extension="build_info.py"
-        )
-        """Additional cache for build_info."""
+        self._build_info_cache: StencilDataCache = StencilDataCache("build_info.py")
 
     @property
     def built(self) -> bool:
-        """Returns whether the stencil is loaded."""
+        """Indicates whether the stencil is loaded."""
         return self.stencil_object is not None
-
-    def get_build_info_for(self, stencil: gt4py.StencilObject) -> Dict[str, Any]:
-        return self._build_info_cache[stencil]
-
-    def set_build_info_for(
-        self, stencil: gt4py.StencilObject, value: Dict[str, Any]
-    ) -> None:
-        self._build_info_cache[stencil] = value
 
     @property
     def build_info(self) -> Dict[str, Any]:
-        """Return the build_info dictionary."""
-        return self.get_build_info_for(self.stencil_object)
+        """The build_info dictionary."""
+        return self._build_info_cache[self.stencil_object]
 
-    @build_info.setter
-    def build_info(self, value) -> None:
-        return self.set_build_info_for(self.stencil_object, value)
-
-    def __call__(self, *args, origin: Int3, domain: Int3, **kwargs) -> None:
+    def __call__(self, *args, origin: Index3D, domain: Index3D, **kwargs) -> None:
         """Call the stencil, compiling the stencil if necessary.
 
         The stencil needs to be recompiled if any of the following changes
@@ -204,6 +195,7 @@ class FV3StencilObject:
 
         regenerate_stencil = not self.built or global_config.get_rebuild()
         if not regenerate_stencil:
+            axis_offsets_changed = False
             used_axis_offsets = {
                 k: v
                 for k, v in self.build_info["def_ir"].externals.items()
@@ -212,8 +204,10 @@ class FV3StencilObject:
             # Check if we really do need to regenerate
             for key, value in used_axis_offsets.items():
                 if axis_offsets[key] != value:
-                    regenerate_stencil = True
+                    axis_offsets_changed = True
                     break
+
+        regenerate_stencil = regenerate_stencil or axis_offsets_changed
 
         if regenerate_stencil:
             new_build_info = {}
@@ -224,7 +218,7 @@ class FV3StencilObject:
                     "namelist": spec.namelist,
                     "grid": spec.grid,
                     **axis_offsets,
-                    **self.passed_externals,
+                    **self._passed_externals,
                 },
                 "build_info": new_build_info,
                 **self.backend_kwargs,
@@ -235,10 +229,10 @@ class FV3StencilObject:
             self.stencil_object = gtscript.stencil(
                 definition=self.func, **stencil_kwargs
             )
-            used_stencil_cache = len(stencil_kwargs["build_info"].keys()) == 0
-
-            if not used_stencil_cache:
-                self.build_info = stencil_kwargs["build_info"]
+            if self.stencil_object not in self._build_info_cache:
+                self._build_info_cache[self.stencil_object] = stencil_kwargs[
+                    "build_info"
+                ]
 
         # Call it
         exec_info = {}
@@ -306,10 +300,10 @@ def _save_args(file: BinaryIO, args, kwargs):
     args = list(args)
     kwargs_list = sorted(list(kwargs.items()))
     for i, arg in enumerate(args):
-        if isinstance(arg, gt_storage.storage.Storage):
+        if isinstance(arg, gt_storage.Storage):
             args[i] = np.asarray(arg)
     for i, (name, value) in enumerate(kwargs_list):
-        if isinstance(value, gt_storage.storage.Storage):
+        if isinstance(value, gt_storage.Storage):
             kwargs_list[i] = (name, np.asarray(value))
     np.savez(file, *args, **dict(kwargs_list))
 

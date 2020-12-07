@@ -2,9 +2,9 @@ import ast
 import os
 
 
-def getenv_bool(name: str, default: str = "False"):
-    raw = os.getenv(name, default).title()
-    return ast.literal_eval(raw)
+def getenv_bool(name: str, default: str) -> bool:
+    indicator = os.getenv(name, default).title()
+    return indicator == "True"
 
 
 def set_backend(new_backend: str):
@@ -26,4 +26,4 @@ def get_rebuild() -> bool:
 
 
 _BACKEND = None  # Options: numpy, gtx86, gtcuda, debug
-_REBUILD = not getenv_bool("FV3_IMMUTABLE_STENCILS", "False")
+_REBUILD = getenv_bool("FV3_STENCIL_REBUILD_FLAG", "True")

@@ -42,4 +42,4 @@ FloatField = _FieldDescriptor(float_type)
 IntField = _FieldDescriptor(int_type)
 BoolField = _FieldDescriptor(bool_type)
 
-Int3 = Tuple[int, int, int]
+Index3D = Tuple[int, int, int]

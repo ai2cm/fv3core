@@ -125,7 +125,7 @@ common options for our tests, which you can add to `TEST_ARGS`:
 **NOTE:** FV3 is current assumed to be by default in a "development mode", where stencils are checked each time they execute for code changes (which can trigger regeneration). This process is somewhat expensive, so there is an option to put FV3 in a performance mode by telling it that stencils are immutable:
 
 ```shell
-$ export FV3_IMMUTABLE_STENCILS=True
+$ export FV3_STENCIL_REBUILD_FLAG=True
 ```
 
 ## Porting a new stencil
