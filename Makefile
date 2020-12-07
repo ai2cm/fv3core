@@ -3,10 +3,9 @@ include docker/Makefile.image_names
 GCR_URL = us.gcr.io/vcm-ml
 REGRESSION_DATA_STORAGE_BUCKET = gs://vcm-fv3gfs-serialized-regression-data
 EXPERIMENT ?=c12_6ranks_standard
-FV3CORE_VERSION=0.1.0
 FORTRAN_SERIALIZED_DATA_VERSION=7.1.1
 WRAPPER_IMAGE = us.gcr.io/vcm-ml/fv3gfs-wrapper:gnu9-mpich314-nocuda
-
+DOCKER_BUILDKIT=1
 SHELL=/bin/bash
 CWD=$(shell pwd)
 TEST_ARGS ?=-v -s -rsx
@@ -52,18 +51,16 @@ update_submodules:
 
 constraints.txt: requirements.txt requirements_wrapper.txt requirements_lint.txt
 	pip-compile $^ --output-file constraints.txt
-
+	sed -i '' '/^git+https/d' constraints.txt
 # Image build instructions have moved to docker/Makefile but are kept here for backwards-compatibility
 
 build_environment: update_submodules
 	$(MAKE) -C docker build_core_deps
 
-build_wrapped_environment: update_submodules
-	$(MAKE) -C docker build_deps
 
 build_wrapped_environment:
 	$(MAKE) -C external/fv3gfs-wrapper build-docker
-	DOCKER_BUILDKIT=1 docker build \
+	docker build \
 		--network host \
 		-f $(CWD)/docker/Dockerfile.build_environment \
 		-t $(WRAPPER_INSTALL_IMAGE) \
@@ -89,9 +86,6 @@ build_wrapped: update_submodules
 
 pull_environment_if_needed:
 	$(MAKE) -C docker pull_core_deps_if_needed
-
-pull_wrapped_environment_if_needed:
-	$(MAKE) -C docker pull_deps_if_needed
 
 pull_wrapped_environment_if_needed:
 	if [ -z $(shell docker images -q $(WRAPPER_INSTALL_IMAGE)) ]; then \

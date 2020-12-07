@@ -44,8 +44,7 @@ def ray_fast_wind(
     ks: int,
     hydrostatic: bool,
 ):
-    from __externals__ import namelist
-    from __splitters__ import i_end, j_end
+    from __externals__ import i_end, j_end, namelist
 
     # dm_stencil
     with computation(PARALLEL), interval(...):
