@@ -112,18 +112,15 @@ class StencilDataCache(collections.abc.Mapping):
         """In-memory cache of the data pickled to disk."""
 
     def _get_cache_filename(self, stencil: gt4py.StencilObject) -> str:
-        try:
-            pymodule_filename = stencil._file_name
-            return f"{os.path.splitext(pymodule_filename)[0]}_{self.extension}"
-        except AttributeError:
-            raise ValueError("_file_name attribute not included in stencil object")
+        pymodule_filename = stencil._file_name
+        return f"{os.path.splitext(pymodule_filename)[0]}_{self.extension}"
 
     def __getitem__(self, stencil: gt4py.StencilObject):
         key = hash(stencil)
         if key not in self.cache:
             filename = self._get_cache_filename(stencil)
             if not os.path.exists(filename):
-                raise ValueError(f"Cannot open cache file {filename}")
+                raise KeyError(f"Cache file {filename} does not exist")
             self.cache[key] = pickle.load(open(filename, mode="rb"))
         return self.cache[key]
 
@@ -165,7 +162,7 @@ class FV3StencilObject:
         self.backend_kwargs: Dict[str, Any] = kwargs
         """Remainder of the arguments are assumed to be gt4py compiler backend options."""
 
-        self._build_info_cache: StencilDataCache = StencilDataCache("build_info.py")
+        self._axis_offsets_cache: StencilDataCache = StencilDataCache("axis_offsets.p")
 
     @property
     def built(self) -> bool:
@@ -173,9 +170,9 @@ class FV3StencilObject:
         return self.stencil_object is not None
 
     @property
-    def build_info(self) -> Dict[str, Any]:
-        """The build_info dictionary."""
-        return self._build_info_cache[self.stencil_object]
+    def axis_offsets(self) -> Dict[str, Any]:
+        """AxisOffsets used in this stencil."""
+        return self._axis_offsets_cache[self.stencil_object]
 
     def __call__(self, *args, origin: Index3D, domain: Index3D, **kwargs) -> None:
         """Call the stencil, compiling the stencil if necessary.
@@ -195,19 +192,14 @@ class FV3StencilObject:
 
         regenerate_stencil = not self.built or global_config.get_rebuild()
         if not regenerate_stencil:
-            axis_offsets_changed = False
-            used_axis_offsets = {
-                k: v
-                for k, v in self.build_info["def_ir"].externals.items()
-                if k in axis_offsets.keys()
-            }
             # Check if we really do need to regenerate
-            for key, value in used_axis_offsets.items():
+            for key, value in self.axis_offsets.items():
                 if axis_offsets[key] != value:
                     axis_offsets_changed = True
                     break
-
-        regenerate_stencil = regenerate_stencil or axis_offsets_changed
+            else:
+                axis_offsets_changed = False
+            regenerate_stencil = regenerate_stencil or axis_offsets_changed
 
         if regenerate_stencil:
             new_build_info = {}
@@ -229,10 +221,12 @@ class FV3StencilObject:
             self.stencil_object = gtscript.stencil(
                 definition=self.func, **stencil_kwargs
             )
-            if self.stencil_object not in self._build_info_cache:
-                self._build_info_cache[self.stencil_object] = stencil_kwargs[
-                    "build_info"
-                ]
+            if self.stencil_object not in self._axis_offsets_cache:
+                def_ir = stencil_kwargs["build_info"]["def_ir"]
+                axis_offsets = {
+                    k: v for k, v in def_ir.externals.items() if k in axis_offsets
+                }
+                self._axis_offsets_cache[self.stencil_object] = axis_offsets
 
         # Call it
         exec_info = {}
