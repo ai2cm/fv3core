@@ -39,9 +39,6 @@ def lagrangian_contributions(
     dp1: FloatField,
     q2_adds: FloatField,
     # q2_adds: FloatFieldIJ,
-    r3: float,
-    r23: float,
-    k_eul: int,
 ):
     # with computation(FORWARD), interval(...):
     with computation(PARALLEL), interval(...):
@@ -229,9 +226,6 @@ def lagrangian_contributions_stencil(
             q4_4,
             dp1,
             q2_adds,
-            r3,
-            r23,
-            k_eul,
             origin=origin,
             domain=domain,
         )
