@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 import copy
 import math
 from types import SimpleNamespace
@@ -35,7 +34,7 @@ HUGE_R = 1.0e40
 # NOTE in Fortran these are columns
 @gtstencil()
 def dp_ref_compute(ak: sd, bk: sd, dp_ref: sd):
-    with computation(PARALLEL), interval(0, -1):
+    with computation(PARALLEL), interval(...):
         dp_ref = ak[0, 0, 1] - ak + (bk[0, 0, 1] - bk) * 1.0e5
 
 
@@ -152,7 +151,13 @@ def compute(state, comm):
         state.dp_ref = utils.make_storage_from_shape(
             state.ak.shape, grid.default_origin()
         )
-        dp_ref_compute(state.ak, state.bk, state.dp_ref)
+        dp_ref_compute(
+            state.ak,
+            state.bk,
+            state.dp_ref,
+            origin=grid.default_origin(),
+            domain=grid.domain_shape_standard(),
+        )
         state.zs = state.phis * rgrav
     n_con = get_n_con()
 
@@ -240,7 +245,7 @@ def compute(state, comm):
                 state.dp_ref, state.zs, state.ut, state.vt, state.gz, state.ws3, dt2
             )
             # TODO this is really a 2d field.
-            state.ws3 = utils.make_storage_data_from_2d(
+            state.ws3 = utils.make_storage_data(
                 state.ws3[:, :, -1], shape, origin=(0, 0, 0)
             )
             riem_solver_c.compute(
@@ -319,7 +324,7 @@ def compute(state, comm):
             )
 
             # TODO this is really a 2d field.
-            state.wsd = utils.make_storage_data_from_2d(
+            state.wsd = utils.make_storage_data(
                 state.wsd[:, :, -1], shape, origin=grid.compute_origin()
             )
             riem_solver3.compute(

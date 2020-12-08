@@ -10,13 +10,8 @@ from fv3core.utils.corners import fill_4corners
 
 
 sd = utils.sd
-origin = (1, 1, 0)
 DZ_MIN = constants.DZ_MIN
 
-# @gtscript.stencil(backend=utils.backend)
-# def copy_stencil(q_in: sd, q_out: sd):
-#    with computation(PARALLEL), interval(...):
-#        q_out = q_in
 
 # def copy(q_in):
 #    q_out = utils.make_storage_from_shape(q_in.shape, origin)
@@ -199,27 +194,6 @@ def xy_flux(gz_x, gz_y, xfx, yfx):
 #   enddo
 
 
-# call update_dz_c(is, ie, js, je, npz, ng, dt2, dp_ref, zs, gridstruct%area, ut, vt, gz, ws3, &
-#              npx, npy, gridstruct%sw_corner, gridstruct%se_corner, &
-#              gridstruct%ne_corner, gridstruct%nw_corner, bd, gridstruct%grid_type)
-"""
-@gtstencil
-def p_weighted_average_top_stencil(vel:sd, dp0:sd, xfx:sd):
-   with computation(PARALLEL):
-        with interval(0, 1):
-            ratio = dp0 / (dp0 + dp0[0, 0, 1])
-            xfx = vel + (vel - vel[0,0,1]) * ratio
-
-@gtstencil
-def update_dz_c(dp_ref: sd, zs: sd, area: sd, ut: sd, vt: sd,
-                gz: sd, gz_x: sd, gz_y: sd, ws3: sd, *,
-                dt: float):
-
-    #xfx = gt.storage.from_array(data=np.zeros(shape), backend=backend, default_origin=(0,0,0), shape=zs.shape)
-    p_weighted_average_top_stencil(ut, dp_ref, gz)
-"""
-
-
 @gtstencil()
 def update_dz_c(
     dp_ref: sd,
@@ -261,9 +235,12 @@ def update_dz_c(
 def compute(dp_ref, zs, ut, vt, gz_in, ws3, dt2):
     # TODO: once we have a concept for corners, the following 4 lines should be refactored
     grid = spec.grid
+    origin = (1, 1, 0)
     gz = copy(gz_in, origin=origin)
     gz_x = copy(gz, origin=origin)
-    ws = copy(ws3, domain=grid.domain_shape_buffer_1cell())
+    ws = copy(
+        ws3, origin=grid.default_origin(), domain=grid.domain_shape_buffer_1cell()
+    )
     fill_4corners(gz_x, "x", grid)
     gz_y = copy(gz_x, origin=origin)
     fill_4corners(gz_y, "y", grid)
