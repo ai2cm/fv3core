@@ -37,7 +37,6 @@ CORE_BUCKET_LOC=gs://vcm-jenkins/$(CORE_TAR)
 MPIRUN_CALL ?=mpirun -np $(NUM_RANKS)
 BASE_INSTALL?=$(FV3)-install-serialbox
 DEV_MOUNTS = '-v $(CWD)/$(FV3):/$(FV3)/$(FV3) -v $(CWD)/tests:/$(FV3)/tests -v $(FV3UTIL_DIR):/usr/src/fv3gfs-util -v $(TEST_DATA_HOST):$(TEST_DATA_CONTAINER)'
-ENVS = --env FV3_STENCIL_REBUILD_FLAG=False
 
 clean:
 	find . -name ""
@@ -152,11 +151,11 @@ dev_tests_mpi_host:
 	MOUNTS=$(DEV_MOUNTS) $(MAKE) run_tests_parallel_host
 
 test_base:
-	$(CONTAINER_ENGINE) run $(RUN_FLAGS) $(ENVS) $(VOLUMES) $(MOUNTS) \
+	$(CONTAINER_ENGINE) run $(RUN_FLAGS) $(VOLUMES) $(MOUNTS) \
 	$(FV3_IMAGE) bash -c "pip list && pytest --data_path=$(TEST_DATA_CONTAINER) $(TEST_ARGS) /$(FV3)/tests"
 
 test_base_parallel:
-	$(CONTAINER_ENGINE) run $(RUN_FLAGS) $(ENVS) $(VOLUMES) $(MOUNTS) $(FV3_IMAGE) \
+	$(CONTAINER_ENGINE) run $(RUN_FLAGS) $(VOLUMES) $(MOUNTS) $(FV3_IMAGE) \
 	$(MPIRUN_CALL) \
 	bash -c "pip list && pytest --data_path=$(TEST_DATA_CONTAINER) $(TEST_ARGS) -m parallel /$(FV3)/tests"
 
