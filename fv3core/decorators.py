@@ -94,8 +94,8 @@ def state_inputs(*arg_specs):
 
 def _ensure_global_flags_not_specified_in_kwargs(stencil_kwargs):
     flag_errmsg = (
-        "The {} flag should be set in fv3core.utils.global_config.py "
-        + "instead of as an argument to stencil"
+        "The {} flag should be set in fv3core.utils.global_config.py"
+        "instead of as an argument to stencil"
     )
     for flag in ("rebuild", "backend"):
         if flag in stencil_kwargs:
@@ -104,9 +104,9 @@ def _ensure_global_flags_not_specified_in_kwargs(stencil_kwargs):
 
 class StencilDataCache(collections.abc.Mapping):
     """
-    A python object cache along with stencils.
+    A Python object cache along with stencils.
 
-    This uses the disk and an in-memory map together.
+    This uses both the disk and an in-memory map.
     """
 
     def __init__(self, extension: str = "cache.py"):
@@ -157,17 +157,15 @@ class FV3StencilObject:
         """Number of times this stencil has been called."""
 
         self.timers: Dict[str, float] = types.SimpleNamespace(call_run=0.0, run=0.0)
-        """
-        Accumulated time spent in this stencil.
+        """Accumulated time spent in this stencil.
 
-        call_run includes stencil call overhead, while run omits it.
-        """
+        call_run includes stencil call overhead, while run omits it."""
 
         self._passed_externals: Dict[str, Any] = kwargs.pop("externals", {})
         """Externals passed in the decorator (others are added later)."""
 
         self.backend_kwargs: Dict[str, Any] = kwargs
-        """Remainder of the args are assumed to be gt4py compiler backend options."""
+        """Remainder of the arguments assumed to be compiler backend options."""
 
         self._axis_offsets_cache: StencilDataCache = StencilDataCache("axis_offsets.p")
 
@@ -182,8 +180,7 @@ class FV3StencilObject:
         return self._axis_offsets_cache[self.stencil_object]
 
     def __call__(self, *args, origin: Index3D, domain: Index3D, **kwargs) -> None:
-        """
-        Call the stencil, compiling the stencil if necessary.
+        """Call the stencil, compiling the stencil if necessary.
 
         The stencil needs to be recompiled if any of the following changes
         1. the origin and/or domain
