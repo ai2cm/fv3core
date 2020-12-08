@@ -34,9 +34,9 @@ def ray_fast_wind(
     u: FloatField,
     v: FloatField,
     w: FloatField,
-    rf: FloatField,  # K,
+    rf: FloatFieldK,  # K,
     dp: FloatField,
-    dm: FloatField,  # K,
+    dm: FloatFieldK,  # K,
     pfull: FloatField,
     dt: float,
     ptop: float,
@@ -47,7 +47,8 @@ def ray_fast_wind(
     from __externals__ import i_end, j_end, namelist
 
     # dm_stencil
-    with computation(PARALLEL), interval(...):
+    # with computation(PARALLEL), interval(...):
+    with computation(FORWARD), interval(...):
         # TODO -- in the fortran model rf is only computed once, repeating
         # the computation every time ray_fast is run is inefficient
         if pfull < namelist.rf_cutoff:
@@ -123,8 +124,8 @@ def compute(u, v, w, dp, pfull, dt, ptop, ks):
     # The next 3 variables and dm_stencil could be pushed into ray_fast_wind and still work, but then recomputing it all twice
     rf_cutoff_nudge = namelist.rf_cutoff + min(100.0, 10.0 * ptop)
     # TODO 1D variable
-    shape = (u.shape[0], u.shape[1], u.shape[2] - 1)
-    # shape = (u.shape[2] - 1,)
+    # shape = (u.shape[0], u.shape[1], u.shape[2] - 1)
+    shape = (u.shape[2] - 1,)
     dm = utils.make_storage_from_shape(shape, grid.default_origin())
     # TODO 1D variable
     rf = utils.make_storage_from_shape(shape, grid.default_origin())

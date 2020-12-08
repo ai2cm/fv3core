@@ -136,6 +136,7 @@ def test_sequential_savepoint(
     output = testobj.compute(input_data)
     failing_names = []
     passing_names = []
+    print_failures = True
     for varname in testobj.serialnames(testobj.out_vars):
         near0 = testobj.ignore_near_zero_errors.get(varname, False)
         ref_data = serializer.read(varname, savepoint_out)

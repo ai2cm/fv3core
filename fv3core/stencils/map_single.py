@@ -30,6 +30,7 @@ def set_dp(dp1: FloatField, pe1: FloatField):
 @gtstencil()
 def lagrangian_contributions(
     pe1: FloatField,
+    # pe2: FloatField,
     ptop: FloatFieldIJ,
     pbot: FloatFieldIJ,
     q4_1: FloatField,
@@ -218,6 +219,7 @@ def lagrangian_contributions_stencil(
 
         lagrangian_contributions(
             pe1,
+            # pe2,
             ptop,
             pbot,
             q4_1,
