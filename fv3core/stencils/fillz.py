@@ -50,7 +50,6 @@ def fix_tracer(
         # if a higher layer borrowed from this one, account for that here
         if lower_fix[0, 0, -1] != 0.0:
             q = q - (lower_fix[0, 0, -1] / dp)
-        dq = q * dp
         if q < 0.0:
             zfix += 1
             if q[0, 0, -1] > 0.0:
