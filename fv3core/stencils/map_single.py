@@ -13,6 +13,7 @@ from fv3core.stencils.basic_operations import copy
 
 FloatField = utils.FloatField
 FloatFieldIJ = utils.FloatFieldIJ
+
 r3 = 1.0 / 3.0
 r23 = 2.0 / 3.0
 
@@ -38,13 +39,13 @@ def lagrangian_contributions(
     q4_3: FloatField,
     q4_4: FloatField,
     dp1: FloatField,
-    q2_adds: FloatField,
-    # q2_adds: FloatFieldIJ,
+    q2_adds: FloatFieldIJ,
 ):
-    # with computation(FORWARD), interval(...):
     with computation(PARALLEL), interval(...):
-        # ptop = pe2
-        # pbot = pe2[0, 0, 1]
+        q2_adds = 0.0
+    with computation(FORWARD), interval(...):
+        # ptop = pe2[0, 0, k_eul]
+        # pbot = pe2[0, 0, k_eul + 1]
         if pe1 < pbot and pe1[0, 0, 1] > ptop:
             # We are in the right pressure range to contribute to the Eulerian cell
             if pe1 <= ptop:
@@ -53,16 +54,15 @@ def lagrangian_contributions(
                 if pbot <= pe1[0, 0, 1]:
                     # eulerian grid element is contained in the Lagrangian element
                     pr = (pbot - pe1) / dp1
-                    q2_adds = (
-                    # q2_adds += (
+                    # q2_adds = (
+                    q2_adds += (
                         q4_2
                         + 0.5 * (q4_4 + q4_3 - q4_2) * (pr + pl)
                         - q4_4 * r3 * (pr * (pr + pl) + pl ** 2)
                     )
                 else:
                     # Eulerian element encompasses multiple Lagrangian elements and this is just the first one
-                    q2_adds = (
-                    # q2_adds += (
+                    q2_adds += (
                         (pe1[0, 0, 1] - ptop)
                         * (
                             q4_2
@@ -75,21 +75,16 @@ def lagrangian_contributions(
                 # we are in a farther-down level
                 if pbot > pe1[0, 0, 1]:
                     # add the whole level to the Eulerian cell
-                    q2_adds = dp1 * q4_1 / (pbot - ptop)
-                    # q2_adds += dp1 * q4_1 / (pbot - ptop)
+                    q2_adds += dp1 * q4_1 / (pbot - ptop)
                 else:
                     # this is the bottom layer that contributes
                     dp = pbot - pe1
                     esl = dp / dp1
-                    q2_adds = (
-                    # q2_adds += (
+                    q2_adds += (
                         dp
                         * (q4_2 + 0.5 * esl * (q4_3 - q4_2 + q4_4 * (1.0 - r23 * esl)))
                         / (pbot - ptop)
                     )
-        else:
-            q2_adds = 0.0
-            # q2_adds += 0.0
 
 
 def region_mode(j_2d, i1, i_extent, grid):
@@ -208,8 +203,7 @@ def lagrangian_contributions_stencil(
     # A stencil with a loop over k2:
     km = spec.grid.npz
     shape2d = pe2.shape[0:2]
-    q2_adds = utils.make_storage_from_shape(pe2.shape)
-    # q2_adds = utils.make_storage_from_shape(shape2d)
+    q2_adds = utils.make_storage_from_shape(shape2d)
     ptop = utils.make_storage_from_shape(shape2d)
     pbot = utils.make_storage_from_shape(shape2d)
 
@@ -231,11 +225,7 @@ def lagrangian_contributions_stencil(
             origin=origin,
             domain=domain,
         )
-
-        # q1[i1 : i2 + 1, jslice, k_eul] = q2_adds[i1 : i2 + 1, jslice, 0]
-        q1[i1 : i2 + 1, jslice, k_eul] = utils.sum(
-            q2_adds[i1 : i2 + 1, jslice, :], axis=2
-        )
+        q1[i1 : i2 + 1, jslice, k_eul] = q2_adds[i1 : i2 + 1, jslice, 0]
 
 
 def lagrangian_contributions_transliterated(
