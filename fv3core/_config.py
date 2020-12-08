@@ -29,7 +29,7 @@ namelist_defaults = {
     "tau_g2v": 900.0,  # graupel sublimation
     "tau_v2g": 21600.0,  # graupel deposition -- make it a slow process
     "sat_adj0": 0.90,  # adjustment factor (0: no, 1: full) during fast_sat_adj
-    "ql_gen": 1.0e-3,  # max cloud water gen during remapping step if fast_sat_adj = .t.
+    "ql_gen": 1.0e-3,  # max new cloud water during remapping step if fast_sat_adj = .t.
     "ql_mlt": 2.0e-3,  # max value of cloud water allowed from melted cloud ice
     "qs_mlt": 1.0e-6,  # max cloud water due to snow melt
     "ql0_max": 2.0e-3,  # max cloud water value (auto converted to rain)

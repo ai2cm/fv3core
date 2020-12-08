@@ -748,7 +748,7 @@ def satadjust_part1(
         )
         # update latent heat coefficient
         lhl, lhi, lcp2, icp2 = update_latent_heat_coefficient(pt1, cvm, lv00, d0_vap)
-        # TODO Remove duplicate
+        # TODO: Remove duplicate
         diff_ice = dim(TICE, pt1) / 48.0
         dimmin = min(1.0, diff_ice)
         tcp3 = lcp2 + icp2 * dimmin
@@ -813,7 +813,7 @@ def satadjust_part2(
             if dq0 > 0:
                 src = dq0
             else:
-                # TODO We'd like to use this abstraction rather than duplicate
+                # TODO: We'd like to use this abstraction rather than duplicate
                 # code, but inside the if conditional complains 'not
                 # implemented'.
 

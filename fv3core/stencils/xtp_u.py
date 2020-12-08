@@ -249,7 +249,7 @@ def compute(c, u, v, flux):
         )
 
 
-# TODO merge better with equivalent xppm functions, the main difference is there
+# TODO: merge better with equivalent xppm functions, the main difference is there
 # is no minmax on xt here
 
 
