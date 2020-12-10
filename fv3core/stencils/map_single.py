@@ -1,4 +1,4 @@
-import math as math
+from typing import Dict, Optional, Tuple
 
 import gt4py.gtscript as gtscript
 import numpy as np
@@ -9,6 +9,7 @@ import fv3core.stencils.remap_profile as remap_profile
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import gtstencil
 from fv3core.stencils.basic_operations import copy
+from fv3core.utils.grid import Grid
 
 
 FloatField = utils.FloatField
@@ -16,10 +17,6 @@ FloatFieldIJ = utils.FloatFieldIJ
 
 r3 = 1.0 / 3.0
 r23 = 2.0 / 3.0
-
-
-def grid():
-    return spec.grid
 
 
 @gtstencil()
@@ -31,7 +28,6 @@ def set_dp(dp1: FloatField, pe1: FloatField):
 @gtstencil()
 def lagrangian_contributions(
     pe1: FloatField,
-    # pe2: FloatField,
     ptop: FloatFieldIJ,
     pbot: FloatFieldIJ,
     q4_1: FloatField,
@@ -54,14 +50,14 @@ def lagrangian_contributions(
                 if pbot <= pe1[0, 0, 1]:
                     # eulerian grid element is contained in the Lagrangian element
                     pr = (pbot - pe1) / dp1
-                    # q2_adds = (
                     q2_adds += (
                         q4_2
                         + 0.5 * (q4_4 + q4_3 - q4_2) * (pr + pl)
                         - q4_4 * r3 * (pr * (pr + pl) + pl ** 2)
                     )
                 else:
-                    # Eulerian element encompasses multiple Lagrangian elements and this is just the first one
+                    # Eulerian element encompasses multiple Lagrangian elements
+                    # and this is just the first one
                     q2_adds += (
                         (pe1[0, 0, 1] - ptop)
                         * (
@@ -87,7 +83,7 @@ def lagrangian_contributions(
                     )
 
 
-def region_mode(j_2d, i1, i_extent, grid):
+def region_mode(j_2d: Optional[int], i1: int, i_extent: int, grid: Grid):
     if j_2d is None:
         jslice = slice(grid.js, grid.je + 1)
     else:
@@ -98,25 +94,24 @@ def region_mode(j_2d, i1, i_extent, grid):
 
 
 def compute(
-    q1,
-    pe1,
-    pe2,
-    qs,
-    mode,
-    i1,
-    i2,
-    kord,
-    qmin=0.0,
-    j_2d=None,
-    j_interface=False,
-    version="stencil",
+    q1: FloatField,
+    pe1: FloatField,
+    pe2: FloatField,
+    qs: FloatField,
+    mode: int,
+    i1: int,
+    i2: int,
+    kord: int,
+    qmin: float = 0.0,
+    j_2d: Optional[int] = None,
+    j_interface: bool = False,
+    version: str = "stencil",
 ):
-    iv = mode
     dp1, q4_1, q4_2, q4_3, q4_4, origin, domain, jslice, i_extent = setup_data(
         q1, pe1, i1, i2, j_2d, j_interface
     )
     q4_1, q4_2, q4_3, q4_4 = remap_profile.compute(
-        qs, q4_1, q4_2, q4_3, q4_4, dp1, spec.grid.npz, i1, i2, iv, kord, jslice, qmin
+        qs, q4_1, q4_2, q4_3, q4_4, dp1, spec.grid.npz, i1, i2, mode, kord, jslice, qmin
     )
     do_lagrangian_contributions(
         q1,
@@ -139,21 +134,21 @@ def compute(
 
 
 def do_lagrangian_contributions(
-    q1,
-    pe1,
-    pe2,
-    q4_1,
-    q4_2,
-    q4_3,
-    q4_4,
-    dp1,
-    i1,
-    i2,
-    kord,
-    jslice,
-    origin,
-    domain,
-    version,
+    q1: FloatField,
+    pe1: FloatField,
+    pe2: FloatField,
+    q4_1: FloatField,
+    q4_2: FloatField,
+    q4_3: FloatField,
+    q4_4: FloatField,
+    dp1: FloatField,
+    i1: int,
+    i2: int,
+    kord: int,
+    jslice: Tuple[int, int, int],
+    origin: Tuple[int, int, int],
+    domain: Tuple[int, int, int],
+    version: str,
 ):
     if version == "transliterated":
         lagrangian_contributions_transliterated(
@@ -180,7 +175,14 @@ def do_lagrangian_contributions(
         raise Exception(version + " is not an implemented remapping version")
 
 
-def setup_data(q1, pe1, i1, i2, j_2d=None, j_interface=False):
+def setup_data(
+    q1: FloatField,
+    pe1: FloatField,
+    i1: int,
+    i2: int,
+    j_2d: Optional[int] = None,
+    j_interface: bool = False,
+):
     grid = spec.grid
     i_extent = i2 - i1 + 1
     origin, domain, jslice = region_mode(j_2d, i1, i_extent, grid)
@@ -198,7 +200,20 @@ def setup_data(q1, pe1, i1, i2, j_2d=None, j_interface=False):
 
 
 def lagrangian_contributions_stencil(
-    q1, pe1, pe2, q4_1, q4_2, q4_3, q4_4, dp1, i1, i2, kord, jslice, origin, domain
+    q1: FloatField,
+    pe1: FloatField,
+    pe2: FloatField,
+    q4_1: FloatField,
+    q4_2: FloatField,
+    q4_3: FloatField,
+    q4_4: FloatField,
+    dp1: FloatField,
+    i1: int,
+    i2: int,
+    kord: int,
+    jslice: Tuple[int, int, int],
+    origin: Tuple[int, int, int],
+    domain: Tuple[int, int, int],
 ):
     # A stencil with a loop over k2:
     km = spec.grid.npz
@@ -229,7 +244,18 @@ def lagrangian_contributions_stencil(
 
 
 def lagrangian_contributions_transliterated(
-    q1, pe1, pe2, q4_1, q4_2, q4_3, q4_4, dp1, i1, i2, kord, jslice
+    q1: FloatField,
+    pe1: FloatField,
+    pe2: FloatField,
+    q4_1: FloatField,
+    q4_2: FloatField,
+    q4_3: FloatField,
+    q4_4: FloatField,
+    dp1: FloatField,
+    i1: int,
+    i2: int,
+    kord: int,
+    jslice: Tuple[int, int, int],
 ):
     grid = spec.grid
     i_vals = np.arange(i1, i2 + 1)

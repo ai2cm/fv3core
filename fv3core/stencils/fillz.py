@@ -1,6 +1,9 @@
 import numpy as np
+<<<<<<< HEAD
 
 import gt4py.gtscript as gtscript
+=======
+>>>>>>> master
 from gt4py.gtscript import FORWARD, PARALLEL, computation, interval
 
 import fv3core._config as spec
@@ -123,7 +126,7 @@ def compute(dp2, tracers, im, km, nq, jslice):
     fac = utils.make_storage_from_shape(shape_ij, origin=(0, 0))
     sum0 = utils.make_storage_from_shape(shape_ij, origin=(0, 0))
     sum1 = utils.make_storage_from_shape(shape_ij, origin=(0, 0))
-    # TODO: implement dev_gfs_physics ifdef when we implement compiler defs
+    # TODO: Implement dev_gfs_physics ifdef when we implement compiler defs.
 
     # for tracer in tracer_list:
     fix_tracer(

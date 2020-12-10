@@ -1,9 +1,5 @@
 from typing import Dict, Optional
 
-import gt4py.gtscript as gtscript
-import numpy as np
-from gt4py.gtscript import PARALLEL, computation, interval
-
 import fv3core._config as spec
 import fv3core.stencils.fillz as fillz
 import fv3core.stencils.map_single as map_single
@@ -28,7 +24,6 @@ def compute(
     j_2d: Optional[int] = None,
     version: str = "stencil",  # "transliterated"
 ):
-    grid = spec.grid
     fill = spec.namelist.fill
     qs = utils.make_storage_from_shape(pe1.shape, origin=(0, 0, 0))
     (
@@ -51,7 +46,7 @@ def compute(
         q4_3[:] = 0.0
         q4_4[:] = 0.0
         q4_1, q4_2, q4_3, q4_4 = remap_profile.compute(
-            qs, q4_1, q4_2, q4_3, q4_4, dp1, grid.npz, i1, i2, 0, kord, jslice, q_min
+            qs, q4_1, q4_2, q4_3, q4_4, dp1, spec.grid.npz, i1, i2, 0, kord, jslice, q_min
         )
         map_single.do_lagrangian_contributions(
             tracer,
