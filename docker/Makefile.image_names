@@ -2,7 +2,7 @@
 # update this if you need everything to rebuild for backwards-incompatible changes
 VERSION = v0.2.0devcuda
 GCR_URL ?= us.gcr.io/vcm-ml
-CUDA ?= n
+CUDA ?= y
 FORTRAN_NAME = fv3core-build-fortran
 WRAPPER_NAME = fv3core-build-wrapper
 FV3CORE_NAME = fv3core
@@ -21,14 +21,12 @@ ifeq ($(CUDA),n)
 	GT4PY_OPTIONALS = ""
 	ENV_CUDA_PATH = ""
 	DATA_TAG = ""
-	CUDA_FLAGS = ""
 else
 	BASE_IMAGE = nvidia/cuda:10.2-devel-ubuntu18.04
 	TAG_NAME = $(VERSION)-gnu8-mpich314-cuda102-develop
 	GT4PY_OPTIONALS = "[cuda102]"
 	ENV_CUDA_PATH = /usr/local/cuda/
 	DATA_TAG = -cuda
-	CUDA_FLAGS = --gpus all
 endif
 BUILD_ARGS += --network host --build-arg BASE_IMAGE=$(BASE_IMAGE)
 

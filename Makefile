@@ -38,6 +38,11 @@ MPIRUN_CALL ?=mpirun -np $(NUM_RANKS)
 BASE_INSTALL?=$(FV3)-install-serialbox
 DEV_MOUNTS = '-v $(CWD)/$(FV3):/$(FV3)/$(FV3) -v $(CWD)/tests:/$(FV3)/tests -v $(FV3UTIL_DIR):/usr/src/fv3gfs-util -v $(TEST_DATA_HOST):$(TEST_DATA_CONTAINER)'
 
+ifneq (,$(findstring gtcuda,$(TEST_ARGS)))
+    CUDA_FLAGS = --gpus all
+else
+    CUDA_FLAGS = 
+endif
 clean:
 	find . -name ""
 	$(RM) -rf examples/wrapped/output/*

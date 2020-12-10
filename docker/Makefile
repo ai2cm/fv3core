@@ -45,7 +45,7 @@ full_fortran_image:
 	FMS_IMAGE=fv3gfs-fms ESMF_IMAGE=fv3gfs-esmf MPI_IMAGE=fv3gfs-mpi $(MAKE) fortran_image
 
 fv3core_image: ## build production container image
-	docker build \
+	DOCKER_BUILDKIT=1 docker build \
 		$(BUILD_ARGS) \
 		-f $(FV3CORE_DOCKERFILE) \
 		-t $(FV3CORE_IMAGE) \
