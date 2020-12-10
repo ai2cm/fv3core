@@ -1,10 +1,4 @@
 import numpy as np
-<<<<<<< HEAD
-
-import gt4py.gtscript as gtscript
-=======
->>>>>>> master
-from gt4py.gtscript import FORWARD, PARALLEL, computation, interval
 
 import fv3core._config as spec
 import fv3core.utils.gt4py_utils as utils
