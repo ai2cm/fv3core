@@ -1,9 +1,10 @@
-from typing import Optional, Tuple
+from typing import Tuple
 
-import fv3gfs.util as fv3util
 import numpy as np
+from gt4py import gtscript
 
 import fv3core.utils.gt4py_utils as utils
+import fv3gfs.util as fv3util
 
 from . import global_config
 
@@ -88,22 +89,6 @@ class Grid:
                 self.sizer, backend=global_config.get_backend()
             )
         return self._quantity_factory
-
-    def splitters(self, *, origin=None):
-        """Return the splitters relative to origin.
-
-        Args:
-            origin: The compute origin
-
-        """
-        if origin is None:
-            origin = self.compute_origin()
-        return {
-            "i_start": self.is_ - self.global_is + (self.is_ - origin[0]),
-            "i_end": self.npx + self.halo - 2 - self.global_is + (self.is_ - origin[0]),
-            "j_start": self.js - self.global_js + (self.js - origin[1]),
-            "j_end": self.npy + self.halo - 2 - self.global_js + (self.js - origin[1]),
-        }
 
     def make_quantity(
         self,
@@ -449,3 +434,45 @@ class Grid:
         # update instance vars
         for k, v in self.data_fields.items():
             setattr(self, k, self.data_fields[k])
+
+
+def axis_offsets(
+    grid: Grid,
+    origin: Tuple[int, ...],
+    domain: Tuple[int, ...],
+):
+    """Return the axis offsets relative to stencil compute domain."""
+    if grid.west_edge:
+        proc_offset = grid.is_ - grid.global_is
+        origin_offset = grid.is_ - origin[0]
+        i_start = gtscript.I[0] + proc_offset + origin_offset
+    else:
+        i_start = None
+
+    if grid.east_edge:
+        proc_offset = grid.npx + grid.halo - 2 - grid.global_is
+        endpt_offset = (grid.is_ - origin[0]) - domain[0] + 1
+        i_end = gtscript.I[-1] + proc_offset + endpt_offset
+    else:
+        i_end = None
+
+    if grid.south_edge:
+        proc_offset = grid.js - grid.global_js
+        origin_offset = grid.js - origin[1]
+        j_start = gtscript.J[0] + proc_offset + origin_offset
+    else:
+        j_start = None
+
+    if grid.north_edge:
+        proc_offset = grid.npy + grid.halo - 2 - grid.global_js
+        endpt_offset = (grid.js - origin[1]) - domain[1] + 1
+        j_end = gtscript.J[-1] + proc_offset + endpt_offset
+    else:
+        j_end = None
+
+    return {
+        "i_start": i_start,
+        "i_end": i_end,
+        "j_start": j_start,
+        "j_end": j_end,
+    }

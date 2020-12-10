@@ -10,17 +10,17 @@ from fv3core.utils.corners import fill_4corners
 
 
 sd = utils.sd
-origin = (1, 1, 0)
 DZ_MIN = constants.DZ_MIN
 
 
 # def copy(q_in):
 #    q_out = utils.make_storage_from_shape(q_in.shape, origin)
-#    copy_stencil(q_in, q_out)#, origin=(0,0,0), domain=grid.domain_shape_buffer_1cell())
+#    copy_stencil(q_in, q_out)#, origin=(0,0,0),
+# domain=grid.domain_shape_buffer_1cell())
 #    return q_out
 
 
-# call update_dz_c(is, ie, js, je, npz, ng, dt2, dp_ref, zs, gridstruct%area, ut, vt, gz, ws3, &
+# call update_dz_c(is, ie, js, je, npz, ng, dt2, dp_ref, zs, gridstruct%area, ut, vt, gz, ws3, & # noqa: E501
 #              npx, npy, gridstruct%sw_corner, gridstruct%se_corner, &
 #              gridstruct%ne_corner, gridstruct%nw_corner, bd, gridstruct%grid_type)
 
@@ -136,7 +136,7 @@ def p_weighted_average_domain(vel, dp0):
 #         enddo
 #      enddo
 
-#      if (grid_type < 3) call fill_4corners(gz2, 1, bd, npx, npy, sw_corner, se_corner, ne_corner, nw_corner)
+#      if (grid_type < 3) call fill_4corners(gz2, 1, bd, npx, npy, sw_corner, se_corner, ne_corner, nw_corner) # noqa: E501
 
 #      do j=js1, je1
 #         do i=is1, ie2
@@ -149,7 +149,7 @@ def p_weighted_average_domain(vel, dp0):
 #         enddo
 #      enddo
 
-#      if (grid_type < 3) call fill_4corners(gz2, 2, bd, npx, npy, sw_corner, se_corner, ne_corner, nw_corner)
+#      if (grid_type < 3) call fill_4corners(gz2, 2, bd, npx, npy, sw_corner, se_corner, ne_corner, nw_corner) # noqa: E501
 
 #      do j=js1,je2
 #         do i=is1,ie1
@@ -172,8 +172,8 @@ def xy_flux(gz_x, gz_y, xfx, yfx):
 
 #      do j=js1, je1
 #         do i=is1,ie1
-#            gz(i,j,k) = (gz2(i,j)*area(i,j) +  fx(i,j)- fx(i+1,j)+ fy(i,j)- fy(i,j+1)) &
-#                      / (         area(i,j) + xfx(i,j)-xfx(i+1,j)+yfx(i,j)-yfx(i,j+1))
+#            gz(i,j,k) = (gz2(i,j)*area(i,j) +  fx(i,j)- fx(i+1,j)+ fy(i,j)- fy(i,j+1)) & # noqa: E501
+#                      / (         area(i,j) + xfx(i,j)-xfx(i+1,j)+yfx(i,j)-yfx(i,j+1)) # noqa: E501
 #         enddo
 #      enddo
 
@@ -234,11 +234,13 @@ def update_dz_c(
 
 
 def compute(dp_ref, zs, ut, vt, gz_in, ws3, dt2):
-    # TODO: once we have a concept for corners, the following 4 lines should be refactored
     grid = spec.grid
+    origin = (1, 1, 0)
     gz = copy(gz_in, origin=origin)
     gz_x = copy(gz, origin=origin)
-    ws = copy(ws3, domain=grid.domain_shape_buffer_1cell())
+    ws = copy(
+        ws3, origin=grid.default_origin(), domain=grid.domain_shape_buffer_1cell()
+    )
     fill_4corners(gz_x, "x", grid)
     gz_y = copy(gz_x, origin=origin)
     fill_4corners(gz_y, "y", grid)
