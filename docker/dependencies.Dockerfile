@@ -22,8 +22,8 @@ RUN wget -q http://www.mpich.org/static/downloads/3.1.4/mpich-3.1.4.tar.gz && \
 FROM $MPI_IMAGE AS mpi_image
 
 FROM $BASE_IMAGE AS fv3core-environment
-
-RUN apt-get update && apt-get install -y \
+ENV DEBIAN_FRONTEND=noninteractive TZ=US/Pacific
+RUN apt-get update && apt-get install -y  --no-install-recommends \
     curl \
     wget \
     gcc \
@@ -47,7 +47,32 @@ RUN apt-get update && apt-get install -y \
     python3-dev \
     python3-setuptools \
     python3-pip \
-    cython3
+    cython3 \
+    build-essential \
+    libssl-dev \
+    zlib1g-dev \
+    libbz2-dev \
+    libreadline-dev \
+    libsqlite3-dev \
+    llvm \
+    libncurses5-dev \
+    xz-utils \
+    tk-dev \
+    libffi-dev \
+    liblzma-dev
+
+ARG PYVERSION=3.8.2
+RUN curl https://pyenv.run | bash
+ENV PYENV_ROOT /root/.pyenv
+ENV PATH="/root/.pyenv/bin:${PATH}"
+RUN pyenv update && \
+    pyenv install ${PYVERSION} && \
+    echo 'eval "$(pyenv init -)"' >> /root/.bashrc && \
+    eval "$(pyenv init -)" && \
+    pyenv global ${PYVERSION}
+ENV PATH="/root/.pyenv/shims:${PATH}"
+
+
 
 FROM $BASE_IMAGE AS fv3gfs-environment
 
