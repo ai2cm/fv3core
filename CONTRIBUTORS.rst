@@ -10,5 +10,7 @@ Authors
 * Elbert, Oliver. Vulcan Inc.
 * Fuhrer, Oliver. Vulcan Inc.
 * George, Rhea. Vulcan Inc.
+* Harris, Lucas. GFDL.
+* Kung, Chris. NASA.
 * McGibbon, Jeremy. Vulcan Inc.
 * Wicky, Tobias. Vulcan Inc.

@@ -4,7 +4,7 @@ Contributing
 
 FV3core is being actively developed by Vulcan Inc. Please contact us if there is interest
 in making contributions. Credit will be given to contributors by adding their names
-to the ``AUTHORS.rst`` file.
+to the ``CONTRIBUTORS.rst`` file.
 
 
 Development guidelines
@@ -14,7 +14,9 @@ Linting
 ~~~~~~~
 
 The linter will become more strict over time, but you should always be able to correct (or
-at minimum learn what is incorrect) your code using `make lint`.
+at minimum learn what is incorrect) your code using::
+
+  make lint
 
 We manage the list of syntax requirements using `pre-commit <https://pre-commit.com/>`__. This:
    - runs formatting and compliance checks for you
@@ -158,6 +160,7 @@ Specifically, we want to start adding as makes sense:
 - Docstrings on outward facing python functions: describe what methods are doing, describe
 the intent (in, out, inout) of the function arguments
 e.g. vorticitytransport_cgrid:
+
 """Update the C-Grid zonal and meridional velocity fields.
 
     Args: uc: x-velocity on C-grid (inout)
