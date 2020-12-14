@@ -1,6 +1,6 @@
 
 # update this if you need everything to rebuild for backwards-incompatible changes
-VERSION = v0.2.0devcuda
+VERSION = v0.2.0
 GCR_URL ?= us.gcr.io/vcm-ml
 CUDA ?= y
 FORTRAN_NAME = fv3core-build-fortran
