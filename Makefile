@@ -3,7 +3,7 @@ include docker/Makefile.image_names
 GCR_URL = us.gcr.io/vcm-ml
 REGRESSION_DATA_STORAGE_BUCKET = gs://vcm-fv3gfs-serialized-regression-data
 EXPERIMENT ?=c12_6ranks_standard
-FORTRAN_SERIALIZED_DATA_VERSION=7.2.0$(DATA_TAG)
+FORTRAN_SERIALIZED_DATA_VERSION=7.2.2
 WRAPPER_IMAGE = us.gcr.io/vcm-ml/fv3gfs-wrapper:gnu9-mpich314-nocuda
 DOCKER_BUILDKIT=1
 SHELL=/bin/bash
@@ -161,8 +161,7 @@ test_base:
 
 test_base_parallel:
 	$(CONTAINER_ENGINE) run $(RUN_FLAGS) $(VOLUMES) $(MOUNTS) $(CUDA_FLAGS) $(FV3_IMAGE) \
-	$(MPIRUN_CALL) \
-	bash -c "pip list && pytest --data_path=$(TEST_DATA_CONTAINER) $(TEST_ARGS) -m parallel /$(FV3)/tests"
+	bash -c "pip list && $(MPIRUN_CALL) pytest --data_path=$(TEST_DATA_CONTAINER) $(TEST_ARGS) -m parallel /$(FV3)/tests"
 
 run_tests_sequential:
 	VOLUMES='--mount=type=bind,source=$(TEST_DATA_HOST),destination=$(TEST_DATA_CONTAINER) --mount=type=bind,source=$(CWD)/.jenkins,destination=/.jenkins' \

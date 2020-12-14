@@ -4,6 +4,7 @@ include Makefile.image_names
 DOCKER_BUILDKIT=1
 
 BUILD_ARGS += \
+	--network host \
 	--build-arg FMS_IMAGE=$(FMS_IMAGE) \
 	--build-arg ESMF_IMAGE=$(ESMF_IMAGE) \
 	--build-arg MPI_IMAGE=$(MPI_IMAGE) \
