@@ -1,8 +1,5 @@
 from typing import Dict, Optional, Tuple
-
-import gt4py.gtscript as gtscript
 import numpy as np
-from gt4py.gtscript import PARALLEL, computation, interval
 
 import fv3core._config as spec
 import fv3core.stencils.remap_profile as remap_profile
@@ -48,7 +45,7 @@ def lagrangian_contributions(
                 # we are in the first Lagrangian level that conributes
                 pl = (ptop - pe1) / dp1
                 if pbot <= pe1[0, 0, 1]:
-                    # eulerian grid element is contained in the Lagrangian element
+                    # Eulerian grid element is contained in the Lagrangian element
                     pr = (pbot - pe1) / dp1
                     q2_adds += (
                         q4_2
@@ -228,7 +225,6 @@ def lagrangian_contributions_stencil(
 
         lagrangian_contributions(
             pe1,
-            # pe2,
             ptop,
             pbot,
             q4_1,
@@ -320,7 +316,7 @@ def lagrangian_contributions_transliterated(
                             break
 
     """
-    # #Pythonized
+    # Pythonized:
     # kn = grid.npz
     # i_vals = np.arange(i1, i2 + 1)
     # klevs = np.arange(km+1)
@@ -329,7 +325,7 @@ def lagrangian_contributions_transliterated(
     #         top1 = pe2[ii, 0, k2] >= pe1[ii, 0,:]
     #         k1 = klevs[top1][-1]
     #         pl = (pe2[ii, 0, k2] - pe1[ii, 0, k1]) / dp1[ii, 0, k1]
-    #         if pe2[ii, 0, k2+1] <= pe1[ii, 0, k1+1]:
+    #         if pe2[ii, 0, k2 + 1] <= pe1[ii, 0, k1 + 1]:
     #             #The new grid is contained within the old one
     #             pr = (pe2[ii, 0, k2 + 1] - pe1[ii, 0, k1]) / dp1[ii, 0, k1]
     #             q2[ii, j_2d, k2] = (
@@ -349,14 +345,14 @@ def lagrangian_contributions_transliterated(
     #                         * (1.0 + pl)
     #                         - q4_4[ii, 0, k1] * (r3 * (1.0 + pl * (1.0 + pl)))
     #             )
-    #             bottom_2 = pe2[ii, 0, k2+1] > pe1[ii, 0, k1+1:]
-    #             mm = klevs[k1+1:][bottom_2][-1]
-    #             qsum = qsum + np.sum(dp1[ii, 0, k1+1:mm] * q4_1[ii, 0, k1+1:mm])
+    #             bottom_2 = pe2[ii, 0, k2 + 1] > pe1[ii, 0, k1 + 1:]
+    #             mm = klevs[k1 + 1:][bottom_2][-1]
+    #             qsum = qsum + np.sum(dp1[ii, 0, k1 + 1:mm] * q4_1[ii, 0, k1 + 1:mm])
     #             if not bottom_2.all():
     #                 dp = pe2[ii, 0, k2 + 1] - pe1[ii, 0, mm]
     #                 esl = dp / dp1[ii, 0, mm]
     #                 qsum = qsum + dp * (
-    #                     q4_2[ii,0,mm]
+    #                     q4_2[ii, 0, mm]
     #                     + 0.5
     #                     * esl
     #                     * (
@@ -370,7 +366,7 @@ def lagrangian_contributions_transliterated(
     # # transliterated fortran
     # i_vals = np.arange(i1, i2 + 1)
     # kn = grid.npz
-    # elems = np.ones((i_extent,kn))
+    # elems = np.ones((i_extent, kn))
     # for ii in i_vals:
     #     k0 = 0
     #     for k2 in np.arange(kn):  # loop over new, remapped ks]
@@ -390,7 +386,7 @@ def lagrangian_contributions_transliterated(
     #                         - q4_4[ii, 0, k1] * r3 * (pr * (pr + pl) + pl ** 2)
     #                     )
     #                     k0 = k1
-    #                     elems[ii-i1,k2]=0
+    #                     elems[ii - i1, k2] = 0
     #                     break
     #                 else:  # new grid layer extends into more old grid layers
     #                     qsum = (pe1[ii, 0, k1 + 1] - pe2[ii, 0, k2]) * (
@@ -419,7 +415,7 @@ def lagrangian_contributions_transliterated(
     #                             )
     #                             k0 = mm
     #                             flag = 1
-    #                             elems[ii-i1,k2]=0
+    #                             elems[ii - i1, k2] = 0
     #                             break
     #                     #Add everything up and divide by the pressure difference
     #                     q2[ii, j_2d, k2] = qsum / (pe2[ii, 0, k2 + 1] - pe2[ii, 0, k2])
