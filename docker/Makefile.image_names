@@ -45,8 +45,8 @@ BUILD_ARGS += --network host --build-arg BASE_IMAGE=$(BASE_IMAGE)  --build-arg B
 TAG_SRC=$(VERSION)-srcfiles
 GT4PY_IMAGE ?= $(GCR_URL)/gt4py-src:$(TAG_SRC)
 MPI_IMAGE ?= $(GCR_URL)/mpi-build:$(TAG_SRC)
-FMS_IMAGE ?= $(GCR_URL)/fms-build:$(TAG_NAME)
-ESMF_IMAGE ?= $(GCR_URL)/esmf-build:$(TAG_NAME)
+FMS_IMAGE ?= $(GCR_URL)/fms-build:$(TAG_SRC)
+ESMF_IMAGE ?= $(GCR_URL)/esmf-build:$(TAG_SRC)
 SERIALBOX_IMAGE ?= $(GCR_URL)/serialbox-build:$(TAG_SRC)
 ENVIRONMENT_IMAGE ?= $(GCR_URL)/fv3core-environment:$(TAG_NAME)
 

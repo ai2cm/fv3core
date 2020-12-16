@@ -56,6 +56,9 @@ constraints.txt: requirements.txt requirements_wrapper.txt requirements_lint.txt
 build_environment: update_submodules
 	$(MAKE) -C docker build_core_deps
 
+build_cuda_environment: build_environment
+	CUDA=y $(MAKE) -C docker build_core_env
+
 build_wrapped_environment:
 	$(MAKE) -C external/fv3gfs-wrapper build-docker
 	docker build \
