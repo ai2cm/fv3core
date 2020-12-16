@@ -64,8 +64,15 @@ build_core_deps: ## build container images of dependencies
 	docker build -f $(DEPENDENCIES_DOCKERFILE) -t $(MPI_IMAGE) $(BUILD_ARGS) --target fv3gfs-mpi ../external/fv3gfs-fortran
 	docker build -f $(DEPENDENCIES_DOCKERFILE) -t $(ENVIRONMENT_IMAGE) $(BUILD_ARGS) --target fv3core-environment .
 	docker build -f $(DEPENDENCIES_DOCKERFILE) -t $(SERIALBOX_IMAGE) $(BUILD_ARGS) --target fv3gfs-environment-serialbox .
+	$(MAKE) build_gt4py
+
+build_gt4py:
 	docker build -f $(DEPENDENCIES_DOCKERFILE) -t $(GT4PY_IMAGE) $(BUILD_ARGS) --target gt4py-src .
 
+push_gt4py:
+	if [ ! -z $$(docker images -q $(GT4PY_IMAGE)) ]; then \
+		docker push $(GT4PY_IMAGE); \
+	fi	
 push_deps: ## push container images of dependencies to GCP
 	for IMAGE in $(DEPS_IMAGES); \
 	do \
