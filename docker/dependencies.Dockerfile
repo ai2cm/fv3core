@@ -76,6 +76,8 @@ RUN pyenv update && \
     eval "$(pyenv init -)" && \
     pyenv global ${PYVERSION}
 ENV PATH="/root/.pyenv/shims:${PATH}"
+COPY --from=mpi_image /mpich-3.1.4 /mpich-3.1.4
+RUN cd /mpich-3.1.4 && make install && ldconfig && rm -rf /mpich-3.1.4
 
 ##
 ## Setup environment for Serialbox

@@ -1,12 +1,10 @@
 ARG FORTRAN_IMAGE
-ARG MPI_IMAGE
 ARG FMS_IMAGE
 ARG ESMF_IMAGE
 ARG SERIALBOX_IMAGE
 ARG GT4PY_IMAGE
 ARG ENVIRONMENT_IMAGE
 
-FROM $MPI_IMAGE as mpi_image
 FROM $FORTRAN_IMAGE as fortran_image
 FROM $ESMF_IMAGE as esmf_image
 FROM $FMS_IMAGE as fms_image
@@ -15,9 +13,6 @@ FROM $GT4PY_IMAGE AS gt4py_image
 from $ENVIRONMENT_IMAGE AS environment
 
 FROM environment as fv3core
-
-COPY --from=mpi_image /mpich-3.1.4 /mpich-3.1.4
-RUN cd /mpich-3.1.4 && make install && ldconfig && rm -rf /mpich-3.1.4
 
 RUN pip3 install --upgrade pip setuptools wheel && \
     ln -s /bin/python3 /bin/python && \
