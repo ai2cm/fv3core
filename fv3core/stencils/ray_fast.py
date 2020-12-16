@@ -28,9 +28,9 @@ def ray_fast_wind(
     u: FloatField,
     v: FloatField,
     w: FloatField,
-    rf: FloatFieldK,  # K,
+    rf: FloatField,  # K,
     dp: FloatField,
-    dm: FloatFieldK,  # K,
+    dm: FloatField,  # K,
     pfull: FloatField,
     dt: float,
     ptop: float,
@@ -119,8 +119,8 @@ def compute(u, v, w, dp, pfull, dt, ptop, ks):
     # still work, but then recomputing it all twice.
     rf_cutoff_nudge = namelist.rf_cutoff + min(100.0, 10.0 * ptop)
     # TODO 1D variable
-    # shape = (u.shape[0], u.shape[1], u.shape[2] - 1)
-    shape = (u.shape[2] - 1,)
+    shape = (u.shape[0], u.shape[1], u.shape[2] - 1)
+    # shape = (u.shape[2] - 1,)
     dm = utils.make_storage_from_shape(shape, grid.default_origin())
     # TODO 1D variable
     rf = utils.make_storage_from_shape(shape, grid.default_origin())

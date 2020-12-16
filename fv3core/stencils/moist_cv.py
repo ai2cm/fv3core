@@ -292,7 +292,14 @@ def moist_pt(
 
 
 @gtscript.function
-def last_pt(pt, dtmp, pkz, gz, qv, zvir):
+def last_pt(
+    pt: FloatField,
+    dtmp: float,
+    pkz: FloatField,
+    gz: FloatField,
+    qv: FloatField,
+    zvir: float,
+):
     return (pt + dtmp * pkz) / ((1.0 + zvir * qv) * (1.0 - gz))
 
 
@@ -376,24 +383,24 @@ def region_mode(j_2d, grid):
 
 # assumes 3d variables are indexed to j
 def compute_te(
-    qvapor_js,
-    qliquid_js,
-    qice_js,
-    qrain_js,
-    qsnow_js,
-    qgraupel_js,
-    te_2d,
-    gz,
-    cvm,
-    delp,
-    q_con,
-    pt,
-    phis,
-    w,
-    u,
-    v,
-    r_vir,
-    j_2d=None,
+    qvapor_js: FloatField,
+    qliquid_js: FloatField,
+    qice_js: FloatField,
+    qrain_js: FloatField,
+    qsnow_js: FloatField,
+    qgraupel_js: FloatField,
+    te_2d: FloatField,
+    gz: FloatField,
+    cvm: FloatField,
+    delp: FloatField,
+    q_con: FloatField,
+    pt: FloatField,
+    phis: FloatField,
+    w: FloatField,
+    u: FloatField,
+    v: FloatField,
+    r_vir: float,
+    j_2d: int = None,
 ):
     grid = spec.grid
     origin, domain, jslice = region_mode(j_2d, grid)
@@ -428,21 +435,21 @@ def compute_te(
 
 
 def compute_pt(
-    qvapor_js,
-    qliquid_js,
-    qice_js,
-    qrain_js,
-    qsnow_js,
-    qgraupel_js,
-    q_con,
-    gz,
-    cvm,
-    pt,
-    cappa,
-    delp,
-    delz,
-    r_vir,
-    j_2d=None,
+    qvapor_js: FloatField,
+    qliquid_js: FloatField,
+    qice_js: FloatField,
+    qrain_js: FloatField,
+    qsnow_js: FloatField,
+    qgraupel_js: FloatField,
+    q_con: FloatField,
+    gz: FloatField,
+    cvm: FloatField,
+    pt: FloatField,
+    cappa: FloatField,
+    delp: FloatField,
+    delz: FloatField,
+    r_vir: float,
+    j_2d: int = None,
 ):
     grid = spec.grid
     origin, domain, jslice = region_mode(j_2d, grid)
@@ -468,22 +475,22 @@ def compute_pt(
 
 
 def compute_pkz(
-    qvapor_js,
-    qliquid_js,
-    qice_js,
-    qrain_js,
-    qsnow_js,
-    qgraupel_js,
-    q_con,
-    gz,
-    cvm,
-    pkz,
-    pt,
-    cappa,
-    delp,
-    delz,
-    r_vir,
-    j_2d=None,
+    qvapor_js: FloatField,
+    qliquid_js: FloatField,
+    qice_js: FloatField,
+    qrain_js: FloatField,
+    qsnow_js: FloatField,
+    qgraupel_js: FloatField,
+    q_con: FloatField,
+    gz: FloatField,
+    cvm: FloatField,
+    pkz: FloatField,
+    pt: FloatField,
+    cappa: FloatField,
+    delp: FloatField,
+    delz: FloatField,
+    r_vir: float,
+    j_2d: int = None,
 ):
     grid = spec.grid
     origin, domain, jslice = region_mode(j_2d, grid)
@@ -523,24 +530,24 @@ def compute_pkz_stencil_func(
 
 
 def compute_total_energy(
-    u,
-    v,
-    w,
-    delz,
-    pt,
-    delp,
-    qc,
-    pe,
-    peln,
-    hs,
-    zvir,
-    te_2d,
-    qvapor,
-    qliquid,
-    qice,
-    qrain,
-    qsnow,
-    qgraupel,
+    u: FloatField,
+    v: FloatField,
+    w: FloatField,
+    delz: FloatField,
+    pt: FloatField,
+    delp: FloatField,
+    qc: FloatField,
+    pe: FloatField,
+    peln: FloatField,
+    hs: FloatField,
+    zvir: float,
+    te_2d: FloatField,
+    qvapor: FloatField,
+    qliquid: FloatField,
+    qice: FloatField,
+    qrain: FloatField,
+    qsnow: FloatField,
+    qgraupel: FloatField,
 ):
     grid = spec.grid
     if spec.namelist.hydrostatic:
@@ -576,7 +583,17 @@ def compute_total_energy(
 
 
 def compute_last_step(
-    pt, pkz, dtmp, r_vir, qvapor, qliquid, qice, qrain, qsnow, qgraupel, gz
+    pt: FloatField,
+    pkz: FloatField,
+    dtmp: FloatField,
+    r_vir: float,
+    qvapor: FloatField,
+    qliquid: FloatField,
+    qice: FloatField,
+    qrain: FloatField,
+    qsnow: FloatField,
+    qgraupel: FloatField,
+    gz: FloatField,
 ):
     grid = spec.grid
     moist_pt_last_step(
@@ -636,21 +653,21 @@ def fvsetup_stencil(
 
 
 def fv_setup(
-    pt,
-    pkz,
-    delz,
-    delp,
-    cappa,
-    q_con,
-    zvir,
-    qvapor,
-    qliquid,
-    qice,
-    qrain,
-    qsnow,
-    qgraupel,
-    cvm,
-    dp1,
+    pt: FloatField,
+    pkz: FloatField,
+    delz: FloatField,
+    delp: FloatField,
+    cappa: FloatField,
+    q_con: FloatField,
+    zvir: float,
+    qvapor: FloatField,
+    qliquid: FloatField,
+    qice: FloatField,
+    qrain: FloatField,
+    qsnow: FloatField,
+    qgraupel: FloatField,
+    cvm: FloatField,
+    dp1: FloatField,
 ):
     if not spec.namelist.moist_phys:
         raise Exception("fvsetup is only implem ented for moist_phys=true")
