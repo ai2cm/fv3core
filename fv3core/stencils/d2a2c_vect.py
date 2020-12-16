@@ -57,7 +57,7 @@ def lagrange_interpolation_y(v: sd, vtmp: sd):
         vtmp = a2 * (v[-1, 0, 0] + v[2, 0, 0]) + a1 * (v + v[1, 0, 0])
 
 
-@gtstencil(externals={"HALO": 3}, origin_shift=(-3, -3, 0))
+@gtstencil(externals={"HALO": 3})
 def d2a2c_stencil1(
     u: sd,
     v: sd,
@@ -100,7 +100,7 @@ def d2a2c_stencil1(
         ua = fill2_4corners_x(ua, va, sw_mult=-1, se_mult=1, ne_mult=-1, nw_mult=1)
 
 
-@gtstencil(origin_shift=(-1, -1, 0))
+@gtstencil()
 def d2a2c_stencil2(utmp: sd, v: sd, cosa_u: sd, rsin_u: sd, uc: sd, utc: sd):
     # in: utmp, v, cosa_u, rsin_u
     # inout: uc
@@ -110,7 +110,7 @@ def d2a2c_stencil2(utmp: sd, v: sd, cosa_u: sd, rsin_u: sd, uc: sd, utc: sd):
         utc = contravariant(uc, v, cosa_u, rsin_u)
 
 
-@gtstencil(origin_shift=(-1, -1, 0))
+@gtstencil()
 def d2a2c_stencil_west(
     utmp: sd,
     ua: sd,
@@ -152,7 +152,7 @@ def d2a2c_stencil_west(
             utc = contravariant(uc, v, cosa_u, rsin_u)
 
 
-@gtstencil(origin_shift=(-1, -1, 0))
+@gtstencil()
 def d2a2c_stencil_east(
     utmp: sd,
     ua: sd,
@@ -194,7 +194,7 @@ def d2a2c_stencil_east(
             utc = contravariant(uc, v, cosa_u, rsin_u)
 
 
-@gtstencil(externals={"HALO": 3}, origin_shift=(-3, -3, 0))
+@gtstencil(externals={"HALO": 3})
 def d2a2c_stencil3(
     utmp: sd,
     ua: sd,
@@ -216,7 +216,7 @@ def d2a2c_stencil3(
         va = fill2_4corners_y(va, ua, sw_mult=-1, se_mult=1, ne_mult=-1, nw_mult=1)
 
 
-@gtstencil(origin_shift=(-1, -1, 0))
+@gtstencil()
 def d2a2c_stencil_south(
     vtmp: sd,
     va: sd,
@@ -253,7 +253,7 @@ def d2a2c_stencil_south(
             vtc = contravariant(vc, u, cosa_v, rsin_v)
 
 
-@gtstencil(origin_shift=(-1, -1, 0))
+@gtstencil()
 def d2a2c_stencil_north(
     vtmp: sd,
     va: sd,
@@ -291,7 +291,7 @@ def d2a2c_stencil_north(
             vtc = contravariant(vc, u, cosa_v, rsin_v)
 
 
-@gtstencil(origin_shift=(-1, 2, 0))
+@gtstencil()
 def d2a2c_stencil4(
     vtmp: sd,
     u: sd,
@@ -308,7 +308,7 @@ def d2a2c_stencil4(
         vtc = contravariant(vc, u, cosa_v, rsin_v)
 
 
-@gtstencil(externals={"HALO": 3}, origin_shift=(-1, -1, 0))
+@gtstencil(externals={"HALO": 3})
 def d2a2c(
     cosa_s: sd,
     cosa_u: sd,
@@ -515,8 +515,8 @@ def compute(dord4, uc, vc, u, v, ua, va, utc, vtc):
         va,
         vc,
         vtc,
-        origin=(grid.is_ - 1, grid.js - 1, 0),
-        # domain=(grid.nic + 1, grid.njc + 1, grid.npz)
+        origin=(grid.is_, grid.js, 0),
+        domain=(grid.nic + 1, grid.njc + 1, grid.npz),
     )
 
     # lagrange_interpolation_x(
