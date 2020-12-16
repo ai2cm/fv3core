@@ -20,7 +20,7 @@ RUN wget -q http://www.mpich.org/static/downloads/3.1.4/mpich-3.1.4.tar.gz && \
     ./configure --enable-fortran --enable-cxx --prefix=/usr --enable-fast=all,O3 && \
     make -j24
 
-    
+
 FROM busybox as fv3gfs-mpi
 COPY --from=fv3gfs-mpi-install /mpich-3.1.4 /mpich-3.1.4
 
