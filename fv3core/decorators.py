@@ -1,24 +1,22 @@
 import collections
 import functools
 import hashlib
-import inspect
 import os
+import pickle
 import types
-from typing import BinaryIO, Callable, Optional, Sequence, Tuple, Union
+from typing import Any, BinaryIO, Callable, Dict, Optional
 
 import gt4py
-import gt4py as gt
+import gt4py.storage as gt_storage
 import numpy as np
-import xarray as xr
 import yaml
-from fv3gfs.util import Quantity
 from gt4py import gtscript
 
 import fv3core
 import fv3core._config as spec
 import fv3core.utils
 import fv3core.utils.gt4py_utils as utils
-from fv3core.utils.typing import Int3
+from fv3core.utils.typing import Index3D
 
 from .utils import global_config
 
@@ -60,23 +58,25 @@ report_include_halos = False
 
 
 def state_inputs(*arg_specs):
-    for spec in arg_specs:
-        if spec.intent not in VALID_INTENTS:
+    for sp in arg_specs:
+        if sp.intent not in VALID_INTENTS:
             raise ValueError(
-                f"intent for {spec.arg_name} is {spec.intent}, must be one of {VALID_INTENTS}"
+                f"intent for {sp.arg_name} is {sp.intent}, "
+                "must be one of {VALID_INTENTS}"
             )
 
     def decorator(func):
         @functools.wraps(func)
         def wrapped(state, *args, **kwargs):
             namespace_kwargs = {}
-            for spec in arg_specs:
-                arg_name, standard_name, units, intent = spec
+            for sp in arg_specs:
+                arg_name, standard_name, units, intent = sp
                 if standard_name not in state:
                     raise ValueError(f"{standard_name} not present in state")
                 elif units != state[standard_name].units:
                     raise ValueError(
-                        f"{standard_name} has units {state[standard_name].units} when {units} is required"
+                        f"{standard_name} has units "
+                        f"{state[standard_name].units} when {units} is required"
                     )
                 elif intent not in VALID_INTENTS:
                     raise ValueError(
@@ -93,10 +93,59 @@ def state_inputs(*arg_specs):
 
 
 def _ensure_global_flags_not_specified_in_kwargs(stencil_kwargs):
-    flag_errmsg = "The {} flag should be set in fv3core.utils.global_config.py instead of as an argument to stencil"
+    flag_errmsg = (
+        "The {} flag should be set in fv3core.utils.global_config.py"
+        "instead of as an argument to stencil"
+    )
     for flag in ("rebuild", "backend"):
         if flag in stencil_kwargs:
             raise ValueError(flag_errmsg.format(flag))
+
+    @property
+    def built(self) -> bool:
+        """Returns whether the stencil is already built (called at least once)."""
+        return self.stencil_object is not None
+
+
+class StencilDataCache(collections.abc.Mapping):
+    """
+    A Python object cache along with stencils.
+
+    This uses both the disk and an in-memory map.
+    """
+
+    def __init__(self, extension: str = "cache.py"):
+        self.extension: str = extension
+        """Extension used for filenames in cache."""
+
+        self.cache: Dict[str, Any] = {}
+        """In-memory cache of the data pickled to disk."""
+
+    def _get_cache_filename(self, stencil: gt4py.StencilObject) -> str:
+        pymodule_filename = stencil._file_name
+        return f"{os.path.splitext(pymodule_filename)[0]}_{self.extension}"
+
+    def __getitem__(self, stencil: gt4py.StencilObject):
+        key = hash(stencil)
+        if key not in self.cache:
+            filename = self._get_cache_filename(stencil)
+            if not os.path.exists(filename):
+                raise KeyError(f"Cache file {filename} does not exist")
+            self.cache[key] = pickle.load(open(filename, mode="rb"))
+        return self.cache[key]
+
+    def __setitem__(self, stencil: gt4py.StencilObject, value: Any):
+        key = hash(stencil)
+        filename = self._get_cache_filename(stencil)
+        self.cache[key] = value
+        pickle.dump(self.cache[key], open(filename, mode="wb"))
+        return self.cache[key]
+
+    def __len__(self) -> int:
+        return len(self.cache)
+
+    def __iter__(self):
+        return self.cache.__iter__()
 
 
 class FV3StencilObject:
@@ -107,36 +156,35 @@ class FV3StencilObject:
         """The definition function."""
 
         self.stencil_object: Optional[gt4py.StencilObject] = None
-        """The generated stencil object returned from gt4py."""
-
-        self.build_info: Optional[Dict[str, Any]] = None
-        """Return the build_info created when compiling the stencil."""
+        """The current generated stencil object returned from gt4py."""
 
         self.times_called: int = 0
         """Number of times this stencil has been called."""
 
-        self.externals: Dict[str, Any] = kwargs.pop("externals", {})
-        """Externals dictionary used for stencil generation."""
+        self.timers: Dict[str, float] = types.SimpleNamespace(call_run=0.0, run=0.0)
+        """Accumulated time spent in this stencil.
+
+        call_run includes stencil call overhead, while run omits it."""
+
+        self._passed_externals: Dict[str, Any] = kwargs.pop("externals", {})
+        """Externals passed in the decorator (others are added later)."""
 
         self.backend_kwargs: Dict[str, Any] = kwargs
-        """Remainder of the arguments are assumed to be gt4py compiler backend options."""
+        """Remainder of the arguments assumed to be compiler backend options."""
+
+        self._axis_offsets_cache: StencilDataCache = StencilDataCache("axis_offsets.p")
 
     @property
     def built(self) -> bool:
-        """Returns whether the stencil is already built (if it has been called at least once)."""
+        """Indicates whether the stencil is loaded."""
         return self.stencil_object is not None
 
     @property
-    def def_ir(self) -> Optional[dict]:
-        """Current stencil definition IR if built, else None."""
-        return self.build_info.def_ir
+    def axis_offsets(self) -> Dict[str, Any]:
+        """AxisOffsets used in this stencil."""
+        return self._axis_offsets_cache[self.stencil_object]
 
-    @property
-    def impl_ir(self) -> Optional[dict]:
-        """Current stencil implementation IR if built, else None."""
-        return self.build_info.impl_ir
-
-    def __call__(self, *args, origin: Int3, domain: Int3, **kwargs):
+    def __call__(self, *args, origin: Index3D, domain: Index3D, **kwargs) -> None:
         """Call the stencil, compiling the stencil if necessary.
 
         The stencil needs to be recompiled if any of the following changes
@@ -147,31 +195,52 @@ class FV3StencilObject:
         Args:
             domain: Stencil compute domain (required)
             origin: Data index mapped to (0, 0, 0) in the compute domain (required)
-            externals: Dictionary of externals for the stencil call
         """
 
-        stencil_kwargs = {
-            "rebuild": global_config.get_rebuild(),
-            "backend": global_config.get_backend(),
-            "externals": {
-                "namelist": spec.namelist,
-                "grid": spec.grid,
-                **fv3core.utils.axis_offsets(spec.grid, origin, domain),
-                **self.externals,
-            },
-            **self.backend_kwargs,
-        }
+        # Can optimize this by marking stencils that need these
+        axis_offsets = fv3core.utils.axis_offsets(spec.grid, origin, domain)
 
-        # Generate stencil if out of date
-        new_build_info = {}
-        stencil_object = gtscript.stencil(
-            definition=self.func, build_info=new_build_info, **stencil_kwargs
-        )
-        if stencil_object != self.stencil_object:
-            self.build_info = new_build_info
-            self.stencil_object = stencil_object
+        regenerate_stencil = not self.built or global_config.get_rebuild()
+        if not regenerate_stencil:
+            # Check if we really do need to regenerate
+            for key, value in self.axis_offsets.items():
+                if axis_offsets[key] != value:
+                    axis_offsets_changed = True
+                    break
+            else:
+                axis_offsets_changed = False
+            regenerate_stencil = regenerate_stencil or axis_offsets_changed
+
+        if regenerate_stencil:
+            new_build_info = {}
+            stencil_kwargs = {
+                "rebuild": global_config.get_rebuild(),
+                "backend": global_config.get_backend(),
+                "externals": {
+                    "namelist": spec.namelist,
+                    "grid": spec.grid,
+                    **axis_offsets,
+                    **self._passed_externals,
+                },
+                "build_info": new_build_info,
+                **self.backend_kwargs,
+            }
+
+            # gtscript.stencil always returns a new class instance even if it
+            # used the cached module.
+            self.stencil_object = gtscript.stencil(
+                definition=self.func, **stencil_kwargs
+            )
+            if self.stencil_object not in self._axis_offsets_cache:
+                def_ir = stencil_kwargs["build_info"]["def_ir"]
+                axis_offsets = {
+                    k: v for k, v in def_ir.externals.items() if k in axis_offsets
+                }
+                self._axis_offsets_cache[self.stencil_object] = axis_offsets
 
         # Call it
+        exec_info = {}
+        kwargs["exec_info"] = kwargs.get("exec_info", exec_info)
         kwargs["validate_args"] = kwargs.get("validate_args", utils.validate_args)
         name = f"{self.func.__module__}.{self.func.__name__}"
         _maybe_save_report(
@@ -190,6 +259,13 @@ class FV3StencilObject:
             kwargs,
         )
         self.times_called += 1
+
+        # Update timers
+        exec_info = kwargs["exec_info"]
+        self.timers.run += exec_info["run_end_time"] - exec_info["run_start_time"]
+        self.timers.call_run += (
+            exec_info["call_run_end_time"] - exec_info["call_run_start_time"]
+        )
 
 
 def gtstencil(definition=None, **stencil_kwargs) -> Callable[..., None]:
@@ -228,10 +304,10 @@ def _save_args(file: BinaryIO, args, kwargs):
     args = list(args)
     kwargs_list = sorted(list(kwargs.items()))
     for i, arg in enumerate(args):
-        if isinstance(arg, gt.storage.storage.Storage):
+        if isinstance(arg, gt_storage.Storage):
             args[i] = np.asarray(arg)
     for i, (name, value) in enumerate(kwargs_list):
-        if isinstance(value, gt.storage.storage.Storage):
+        if isinstance(value, gt_storage.Storage):
             kwargs_list[i] = (name, np.asarray(value))
     np.savez(file, *args, **dict(kwargs_list))
 
@@ -255,7 +331,7 @@ def _get_kwargs_report(kwargs):
 
 
 def _get_arg_report(arg):
-    if isinstance(arg, gt.storage.storage.Storage):
+    if isinstance(arg, gt_storage.storage.Storage):
         arg = np.asarray(arg)
     if isinstance(arg, np.ndarray):
         if not report_include_halos:

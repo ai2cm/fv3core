@@ -1,6 +1,5 @@
-import gt4py as gt
 import gt4py.gtscript as gtscript
-import numpy as np
+from gt4py.gtscript import __INLINED, PARALLEL, computation, interval, parallel, region
 
 import fv3core._config as spec
 import fv3core.utils.gt4py_utils as utils
@@ -106,8 +105,6 @@ def d2a2c_stencil2(utmp: sd, v: sd, cosa_u: sd, rsin_u: sd, uc: sd, utc: sd):
     # in: utmp, v, cosa_u, rsin_u
     # inout: uc
     # out: utc
-    from __externals__ import i_end, i_start, j_end, j_start
-
     with computation(PARALLEL), interval(...):
         uc = lagrange_x_func(utmp)
         utc = contravariant(uc, v, cosa_u, rsin_u)
@@ -128,7 +125,7 @@ def d2a2c_stencil_west(
 ):
     # in: utmp, ua, v, cosa_u, rsin_u, dxa, sin_sg1, sin_sg3
     # inout: uc, utc
-    from __externals__ import i_end, i_start, j_end, j_start
+    from __externals__ import i_start
 
     with computation(PARALLEL), interval(...):
         # West
@@ -170,7 +167,7 @@ def d2a2c_stencil_east(
 ):
     # in: utmp, ua, v, cosa_u, rsin_u, dxa, sin_sg1, sin_sg3
     # inout: uc, utc
-    from __externals__ import i_end, i_start, j_end, j_start
+    from __externals__ import i_end, j_end, j_start
 
     with computation(PARALLEL), interval(...):
         # East
@@ -207,7 +204,7 @@ def d2a2c_stencil3(
     # in: utmp, ua
     # inout: va
     # out: vtmp
-    from __externals__ import HALO, i_end, i_start, j_end, j_start, namelist
+    from __externals__ import namelist
 
     with computation(PARALLEL), interval(...):
 
@@ -234,7 +231,7 @@ def d2a2c_stencil_south(
 ):
     # in: vtmp, va, u, cosa_v, rsin_v, dya, sin_sg2, sin_sg4
     # inout: vc, vtc
-    from __externals__ import i_end, i_start, j_end, j_start
+    from __externals__ import j_start
 
     with computation(PARALLEL), interval(...):
         with parallel(region[:, j_start - 1]):
@@ -271,7 +268,7 @@ def d2a2c_stencil_north(
 ):
     # in: vtmp, va, u, cosa_v, rsin_v, dya, sin_sg2, sin_sg4
     # inout: vc, vtc
-    from __externals__ import i_end, i_start, j_end, j_start
+    from __externals__ import j_end
 
     with computation(PARALLEL), interval(...):
         # NOTE: vtc can be a new temp here
