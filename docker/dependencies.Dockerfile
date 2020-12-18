@@ -9,13 +9,13 @@ FROM $BASE_IMAGE AS fv3gfs-mpi-install
 
 RUN apt-get update && apt-get install -y \
     wget \
-    gcc-8 \
-    g++-8 \
-    gfortran-8 \
+    gcc \
+    g++ \
+    gfortran \
     make
-RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-8 8 && \
-    update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-8 8 && \
-    update-alternatives --install /usr/bin/gfortran gfortran /usr/bin/gfortran-8 8
+#RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-8 8 && \
+#    update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-8 8 && \
+#    update-alternatives --install /usr/bin/gfortran gfortran /usr/bin/gfortran-8 8
 RUN wget -q http://www.mpich.org/static/downloads/3.1.4/mpich-3.1.4.tar.gz && \
     tar xzf mpich-3.1.4.tar.gz && \
     cd mpich-3.1.4 && \
@@ -33,9 +33,9 @@ ENV DEBIAN_FRONTEND=noninteractive TZ=US/Pacific
 RUN apt-get update && apt-get install -y  --no-install-recommends \
     curl \
     wget \
-    gcc-8 \
-    g++-8 \
-    gfortran-8 \
+    gcc \
+    g++ \
+    gfortran \
     git \
     libblas-dev \
     liblapack-dev \
@@ -67,9 +67,9 @@ RUN apt-get update && apt-get install -y  --no-install-recommends \
     tk-dev \
     libffi-dev \
     liblzma-dev
-RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-8 8 && \
-    update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-8 8 && \
-    update-alternatives --install /usr/bin/gfortran gfortran /usr/bin/gfortran-8 8
+#RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-8 8 && \
+#    update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-8 8 && \
+#    update-alternatives --install /usr/bin/gfortran gfortran /usr/bin/gfortran-8 8
 ARG PYVERSION=3.8.2
 RUN curl https://pyenv.run | bash
 ENV PYENV_ROOT /root/.pyenv
@@ -141,9 +141,9 @@ FROM $BASE_IMAGE_ENV AS fv3gfs-environment
 
 RUN apt-get update && apt-get install -y \
     wget \
-    gcc-8 \
-    g++-8 \
-    gfortran-8 \
+    gcc \
+    g++ \
+    gfortran \
     make \
     curl \
     git \
@@ -155,9 +155,9 @@ RUN apt-get update && apt-get install -y \
     rsync \
     libffi-dev \
     openssl
-RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-8 8 && \
-    update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-8 8 && \
-    update-alternatives --install /usr/bin/gfortran gfortran /usr/bin/gfortran-8 8
+#RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-8 8 && \
+#    update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-8 8 && \
+#    update-alternatives --install /usr/bin/gfortran gfortran /usr/bin/gfortran-8 8
 COPY --from=mpi_image /mpich-3.1.4 /mpich-3.1.4
 RUN cd /mpich-3.1.4 && make install && ldconfig
 

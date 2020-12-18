@@ -29,12 +29,12 @@ endif
 # base environment images w/ or w/o CUDA
 ifeq ($(CUDA),n)
 	BASE_IMAGE_ENV = ubuntu:18.04
-	TAG_NAME = $(VERSION)-gnu8-mpich314-nocuda-develop
+	TAG_NAME = $(VERSION)-gnu7-mpich314-nocuda-develop
 	GT4PY_OPTIONALS = ""
 	ENV_CUDA_PATH = ""
 else
 	BASE_IMAGE_ENV = nvidia/cuda:10.2-devel-ubuntu18.04
-	TAG_NAME = $(VERSION)-gnu8-mpich314-cuda102-develop
+	TAG_NAME = $(VERSION)-gnu7-mpich314-cuda102-develop
 	GT4PY_OPTIONALS = "[cuda102]"
 	ENV_CUDA_PATH = /usr/local/cuda/
 endif
