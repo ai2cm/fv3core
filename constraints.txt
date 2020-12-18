@@ -36,7 +36,6 @@ iniconfig==1.1.1          # via pytest
 jinja2==2.11.2            # via -r requirements_wrapper.txt
 markupsafe==1.1.1         # via jinja2
 monotonic==1.5            # via fasteners
-mpi4py==3.0.3
 multidict==4.7.6          # via aiohttp, yarl
 netcdf4==1.5.4            # via -r requirements.txt
 nodeenv==1.5.0            # via pre-commit
