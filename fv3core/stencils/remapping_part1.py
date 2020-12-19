@@ -10,12 +10,12 @@ from fv3core.stencils.basic_operations import copy, copy_stencil
 from fv3core.stencils.moist_cv import moist_pt_func
 
 
-sd = utils.sd
+FloatField = utils.FloatField
 CONSV_MIN = 0.001
 
 
 @gtstencil()
-def init_pe2(pe: sd, pe2: sd, ptop: float):
+def init_pe2(pe: FloatField, pe2: FloatField, ptop: float):
     with computation(PARALLEL):
         with interval(0, 1):
             pe2 = ptop
@@ -23,52 +23,49 @@ def init_pe2(pe: sd, pe2: sd, ptop: float):
             pe2 = pe
 
 
-# @gtstencil()
-# def delz_adjust(delp: sd, delz: sd):
-#     with computation(PARALLEL), interval(...):
-#         delz = -delz / delp
-
-
 @gtstencil()
-def undo_delz_adjust(delp: sd, delz: sd):
+def undo_delz_adjust(delp: FloatField, delz: FloatField):
     with computation(PARALLEL), interval(...):
         delz = -delz * delp
 
 
 @gtstencil()
+def undo_delz_adjust_and_copy_peln(delp: FloatField, delz: FloatField, peln: FloatField, pe0: FloatField, pn2: FloatField):
+    with computation(PARALLEL), interval(0, -1):
+        delz = -delz * delp
+    with computation(PARALLEL), interval(...):
+        pe0 = peln
+        peln = pn2
+
+
+@gtstencil()
 def moist_cv_pt_pressure(
-    qvapor: sd,
-    qliquid: sd,
-    qrain: sd,
-    qsnow: sd,
-    qice: sd,
-    qgraupel: sd,
-    q_con: sd,
-    gz: sd,
-    cvm: sd,
-    pt: sd,
-    cappa: sd,
-    delp: sd,
-    delz: sd,
-    pe1: sd,
-    pe2: sd,
-    pe: sd,
-    ak: sd,
-    bk: sd,
-    dp2: sd,
-    ps: sd,
-    pn2: sd,
-    peln: sd,
+    qvapor: FloatField,
+    qliquid: FloatField,
+    qrain: FloatField,
+    qsnow: FloatField,
+    qice: FloatField,
+    qgraupel: FloatField,
+    q_con: FloatField,
+    gz: FloatField,
+    cvm: FloatField,
+    pt: FloatField,
+    cappa: FloatField,
+    delp: FloatField,
+    delz: FloatField,
+    pe: FloatField,
+    pe2: FloatField,
+    ak: FloatField,
+    bk: FloatField,
+    dp2: FloatField,
+    ps: FloatField,
+    pn2: FloatField,
+    peln: FloatField,
     r_vir: float,
     hydrostatic: bool,
 ):
-    from __externals__ import namelist
+    from __externals__ import j_end, namelist
 
-    # with computation(PARALLEL):
-    #     with interval(0, 1):
-    #         pe2 = ptop
-    #     with interval(-1, None):
-    #         pe2 = pe
     # moist_cv.moist_pt
     with computation(PARALLEL), interval(0, -1):
         if namelist.kord_tm < 0:
@@ -112,35 +109,25 @@ def moist_cv_pt_pressure(
         delp = dp2
 
 
-# @gtstencil()
-# def pressure_updates(
-#     pe1: sd, pe2: sd, pe: sd, ak: sd, bk: sd, delp: sd, ps: sd, pn2: sd, peln: sd
-# ):
-#     with computation(BACKWARD):
-#         with interval(-1, None):
-#             ps = pe
-#         with interval(0, -1):
-#             ps = ps[0, 0, 1]
-#     with computation(PARALLEL):
-#         with interval(0, 1):
-#             pn2 = peln
-#         with interval(1, -1):
-#             pe2 = ak + bk * ps
-#         with interval(-1, None):
-#             pn2 = peln
-#     with computation(BACKWARD), interval(0, -1):
-#         delp = pe2[0, 0, 1] - pe2
-
-
 @gtstencil()
-def pn2_and_pk(pe2: sd, pn2: sd, pk: sd, akap: float):
+def pn2_and_pk(pe2: FloatField, pn2: FloatField, pk: FloatField, akap: float):
+    from __externals__ import j_end
+
+    # copy_j_adjacent
+    with computation(PARALLEL), interval(1, None):
+        with parallel(region[:, j_end + 1: j_end + 2]):
+            # TODO: Fix silly hack due to pe2 being 2d, so pe[:, je+1, 1:npz] should be
+            # the same as it was for pe[:, je, 1:npz] (unchanged)
+            pe2_0 = pe2[0, -1, 0]
+            pe2 = pe2_0
+    # pn2_and_pk
     with computation(PARALLEL), interval(...):
         pn2 = log(pe2)
         pk = exp(akap * pn2)
 
 
 @gtstencil()
-def pressures_mapu(pe: sd, pe1: sd, ak: sd, bk: sd, pe0: sd, pe3: sd):
+def pressures_mapu(pe: FloatField, pe1: FloatField, ak: FloatField, bk: FloatField, pe0: FloatField, pe3: FloatField):
     with computation(BACKWARD):
         with interval(-1, None):
             pe_bottom = pe
@@ -159,7 +146,7 @@ def pressures_mapu(pe: sd, pe1: sd, ak: sd, bk: sd, pe0: sd, pe3: sd):
 
 
 @gtstencil()
-def pressures_mapv(pe: sd, ak: sd, bk: sd, pe0: sd, pe3: sd):
+def pressures_mapv(pe: FloatField, ak: FloatField, bk: FloatField, pe0: FloatField, pe3: FloatField):
     with computation(BACKWARD):
         with interval(-1, None):
             pe_bottom = pe
@@ -176,14 +163,7 @@ def pressures_mapv(pe: sd, ak: sd, bk: sd, pe0: sd, pe3: sd):
 
 
 @gtstencil()
-def copy_j_adjacent(pe2: sd):
-    with computation(PARALLEL), interval(...):
-        pe2_0 = pe2[0, -1, 0]
-        pe2 = pe2_0
-
-
-@gtstencil()
-def update_ua(pe2: sd, ua: sd):
+def update_ua(pe2: FloatField, ua: FloatField):
     with computation(PARALLEL), interval(0, -1):
         ua = pe2[0, 0, 1]
 
@@ -235,27 +215,9 @@ def compute(
     pe0 = utils.make_storage_from_shape(pe.shape, grid.compute_origin())
     pe3 = utils.make_storage_from_shape(pe.shape, grid.compute_origin())
     pk2 = utils.make_storage_from_shape(pe.shape, grid.compute_origin())
+
     init_pe2(pe, pe2, ptop, origin=grid.compute_origin(), domain=domain_jextra)
-    # if spec.namelist.kord_tm < 0:
-    #     moist_cv.moist_pt(
-    #         tracers["qvapor"],
-    #         tracers["qliquid"],
-    #         tracers["qrain"],
-    #         tracers["qsnow"],
-    #         tracers["qice"],
-    #         tracers["qgraupel"],
-    #         q_con,
-    #         gz,
-    #         cvm,
-    #         pt,
-    #         cappa,
-    #         delp,
-    #         delz,
-    #         r_vir,
-    #         spec.namelist.nwat,
-    #         origin=grid.compute_origin(),
-    #         domain=grid.domain_shape_compute(),
-    #     )
+
     moist_cv_pt_pressure(
         tracers["qvapor"],
         tracers["qliquid"],
@@ -270,9 +232,8 @@ def compute(
         cappa,
         delp,
         delz,
-        pe1,
-        pe2,
         pe,
+        pe2,
         ak,
         bk,
         dp2,
@@ -284,40 +245,16 @@ def compute(
         origin=grid.compute_origin(),
         domain=grid.domain_shape_compute_buffer_k(),
     )
-    # if not hydrostatic:
-    #     delz_adjust(
-    #         delp, delz, origin=grid.compute_origin(), domain=grid.domain_shape_compute()
-    #     )
-    # pressure_updates(
-    #     pe1,
-    #     pe2,
-    #     pe,
-    #     ak,
-    #     bk,
-    #     dp2,
-    #     ps,
-    #     pn2,
-    #     peln,
-    #     origin=grid.compute_origin(),
-    #     domain=grid.domain_shape_compute_buffer_k(),
-    # )
-    # TODO: Fix silly hack due to pe2 being 2d, so pe[:, je+1, 1:npz] should be
-    # the same as it was for pe[:, je, 1:npz] (unchanged)
-    copy_j_adjacent(
-        pe2, origin=(grid.is_, grid.je + 1, 1), domain=(grid.nic, 1, grid.npz - 1)
-    )
-    # copy_stencil(
-    #     dp2, delp, origin=grid.compute_origin(), domain=grid.domain_shape_compute()
-    # )
+
     pn2_and_pk(
         pe2,
         pn2,
         pk,
         akap,
         origin=grid.compute_origin(),
-        domain=grid.domain_shape_compute(),
+        domain=grid.domain_shape_compute_buffer_2d((0, 1, 0)),
     )
-    # if spec.namelist.kord_tm < 0:
+
     map_single.compute(
         pt,
         peln,
@@ -329,51 +266,26 @@ def compute(
         abs(spec.namelist.kord_tm),
         qmin=t_min,
     )
-    # else:
-    #     raise Exception("map ppm, untested mode where kord_tm >= 0")
-        # map_single.compute(
-        #     pt,
-        #     pe1,
-        #     pe2,
-        #     gz,
-        #     1,
-        #     grid.is_,
-        #     grid.ie,
-        #     abs(spec.namelist.kord_tm),
-        #     qmin=t_min,
-        # )
+
     # TODO if nq > 5:
     mapn_tracer.compute(
         pe1, pe2, dp2, tracers, nq, 0.0, grid.is_, grid.ie, abs(spec.namelist.kord_tr)
     )
     # TODO else if nq > 0:
     # TODO map1_q2, fillz
-    # if not hydrostatic:
     map_single.compute(
         w, pe1, pe2, wsd, -2, grid.is_, grid.ie, spec.namelist.kord_wz
     )
     map_single.compute(
         delz, pe1, pe2, gz, 1, grid.is_, grid.ie, spec.namelist.kord_wz
     )
-    undo_delz_adjust(
-        delp, delz, origin=grid.compute_origin(), domain=grid.domain_shape_compute()
+
+    undo_delz_adjust_and_copy_peln(
+        delp, delz, peln, pe0, pn2, origin=grid.compute_origin(), domain=(grid.nic, grid.njc, grid.npz + 1)
     )
     # if do_omega:  # NOTE untested
     #    pe3 = copy(omga, origin=(grid.is_, grid.js, 1))
 
-    pe0 = copy(
-        peln, origin=grid.compute_origin(), domain=(grid.nic, grid.njc, grid.npz + 1)
-    )
-    copy_stencil(
-        pn2,
-        peln,
-        origin=grid.compute_origin(),
-        domain=(grid.nic, grid.njc, grid.npz + 1),
-    )
-    # if hydrostatic:
-    #     # pkz
-    #     pass
-    # else:
     moist_cv.compute_pkz(
         tracers["qvapor"],
         tracers["qliquid"],

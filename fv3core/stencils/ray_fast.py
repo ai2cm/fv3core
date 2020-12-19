@@ -8,7 +8,6 @@ from fv3core.stencils.rayleigh_super import SDAY, compute_rf_vals
 
 
 FloatField = utils.FloatField
-FloatFieldK = utils.FloatFieldK
 
 
 @gtscript.function
