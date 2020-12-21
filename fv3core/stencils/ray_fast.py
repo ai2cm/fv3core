@@ -1,5 +1,13 @@
 import gt4py.gtscript as gtscript
-from gt4py.gtscript import BACKWARD, FORWARD, PARALLEL, computation, interval
+from gt4py.gtscript import (
+    BACKWARD,
+    FORWARD,
+    PARALLEL,
+    computation,
+    interval,
+    parallel,
+    region,
+)
 
 import fv3core._config as spec
 import fv3core.utils.gt4py_utils as utils

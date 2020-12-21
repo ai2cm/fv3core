@@ -1,4 +1,14 @@
-from gt4py.gtscript import BACKWARD, FORWARD, PARALLEL, computation, exp, interval, log
+from gt4py.gtscript import (
+    BACKWARD,
+    FORWARD,
+    PARALLEL,
+    computation,
+    exp,
+    interval,
+    log,
+    parallel,
+    region,
+)
 
 import fv3core._config as spec
 import fv3core.stencils.map_single as map_single
