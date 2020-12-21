@@ -324,6 +324,7 @@ def generate_parallel_stencil_tests(metafunc):
     arg_names = [
         "testobj",
         "test_name",
+        "test_case",
         "serializer",
         "savepoint_in",
         "savepoint_out",
@@ -359,15 +360,17 @@ def _generate_stencil_tests(metafunc, arg_names, savepoint_cases, get_param):
 def get_parallel_param(
     case, testobj, savepoint_in, savepoint_out, call_count, max_call_count
 ):
+    test_case = f"{case.test_name}-rank={case.rank}--call_count={call_count}"
     return pytest.param(
         testobj,
         case.test_name,
+        test_case,
         ReplaceRepr(case.serializer, f"<Serializer for rank {case.rank}>"),
         savepoint_in,
         savepoint_out,
         case.grid,
         case.layout,
-        id=f"{case.test_name}-rank={case.rank}-call_count={call_count}",
+        id=test_case,
     )
 
 

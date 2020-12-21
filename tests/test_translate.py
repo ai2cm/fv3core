@@ -1,4 +1,5 @@
 import contextlib
+import hashlib
 import logging
 import os
 
@@ -48,6 +49,11 @@ def success_array(computed_data, ref_data, eps, ignore_near_zero_errors):
 
 def success(computed_data, ref_data, eps, ignore_near_zero_errors):
     return np.all(success_array(computed_data, ref_data, eps, ignore_near_zero_errors))
+
+
+def platform():
+    in_docker = os.environ.get("IN_DOCKER", False)
+    return "docker" if in_docker else "metal"
 
 
 def sample_wherefail(
@@ -257,14 +263,26 @@ def test_mock_parallel_savepoint(
     assert failing_names == [], f"names tested: {list(testobj.outputs.keys())}"
 
 
+def md5_result_data(result, data_keys):
+    hashes = {}
+    for k in data_keys:
+        hashes[k] = hashlib.sha1(
+            np.ascontiguousarray(gt_utils.asarray(result[k]))
+        ).hexdigest()
+    return hashes
+
+
 @pytest.mark.parallel
 @pytest.mark.skipif(
     MPI is not None and MPI.COMM_WORLD.Get_size() == 1,
     reason="Not running in parallel with mpi",
 )
 def test_parallel_savepoint(
+    data_regression,
+    data_path,
     testobj,
     test_name,
+    test_case,
     grid,
     serializer,
     savepoint_in,
@@ -292,6 +310,13 @@ def test_parallel_savepoint(
     ref_data = {}
     out_vars = set(testobj.outputs.keys())
     out_vars.update(list(testobj._base.out_vars.keys()))
+    if testobj.bitwise_md5_regression:
+        filename = f"python_regressions/{test_case}_{backend}_{platform()}.yml"
+        filename = filename.replace("=", "_")
+        data_regression.check(
+            md5_result_data(output, out_vars),
+            fullpath=os.path.join(data_path, filename),
+        )
     for varname in out_vars:
         ref_data[varname] = []
         ref_data[varname].append(serializer.read(varname, savepoint_out))
