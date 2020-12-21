@@ -18,3 +18,5 @@ if [ $? -ne 0 ] ; then
     make run_tests_parallel TEST_ARGS="${ARGS}"
     exit 1
 fi
+set -e
+exit 0
