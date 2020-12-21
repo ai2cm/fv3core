@@ -31,25 +31,33 @@ def update_velocity(
         # additional assumption: not __INLINED(spec.grid.nested)
 
         # update_meridional_velocity
-        with parallel(region[:i_end + 1, :]):
+        with parallel(region[: i_end + 1, :]):
             tmp_flux = dt2 * (u - vc * cosa_v) / sina_v
-        with parallel(region[:i_end + 1, j_start], region[:i_end + 1, j_end + 1]):
+        with parallel(region[: i_end + 1, j_start], region[: i_end + 1, j_end + 1]):
             tmp_flux = dt2 * u
-        with parallel(region[:i_end + 1, :]):
+        with parallel(region[: i_end + 1, :]):
             flux = vort if tmp_flux > 0.0 else vort[1, 0, 0]
             vc = vc - tmp_flux * flux + rdyc * (ke[0, -1, 0] - ke)
 
         # update_zonal_velocity
-        with parallel(region[:, :j_end + 1]):
+        with parallel(region[:, : j_end + 1]):
             tmp_flux = dt2 * (v - uc * cosa_u) / sina_u
-        with parallel(region[i_start, :j_end + 1], region[i_end + 1, :j_end + 1]):
+        with parallel(region[i_start, : j_end + 1], region[i_end + 1, : j_end + 1]):
             tmp_flux = dt2 * v
-        with parallel(region[:, :j_end + 1]):
+        with parallel(region[:, : j_end + 1]):
             flux = vort if tmp_flux > 0.0 else vort[0, 1, 0]
             uc = uc + tmp_flux * flux + rdxc * (ke[-1, 0, 0] - ke)
 
 
-def compute(uc: FloatField, vc: FloatField, vort_c: FloatField, ke_c: FloatField, v: FloatField, u: FloatField, dt2: float):
+def compute(
+    uc: FloatField,
+    vc: FloatField,
+    vort_c: FloatField,
+    ke_c: FloatField,
+    v: FloatField,
+    u: FloatField,
+    dt2: float,
+):
     """Update the C-Grid zonal and meridional velocity fields.
 
     Args:

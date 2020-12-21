@@ -6,7 +6,7 @@ import fv3core.stencils.mapn_tracer as mapn_tracer
 import fv3core.stencils.moist_cv as moist_cv
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import gtstencil
-from fv3core.stencils.basic_operations import copy, copy_stencil
+from fv3core.stencils.basic_operations import copy
 from fv3core.stencils.moist_cv import moist_pt_func
 
 
@@ -30,7 +30,13 @@ def undo_delz_adjust(delp: FloatField, delz: FloatField):
 
 
 @gtstencil()
-def undo_delz_adjust_and_copy_peln(delp: FloatField, delz: FloatField, peln: FloatField, pe0: FloatField, pn2: FloatField):
+def undo_delz_adjust_and_copy_peln(
+    delp: FloatField,
+    delz: FloatField,
+    peln: FloatField,
+    pe0: FloatField,
+    pn2: FloatField,
+):
     with computation(PARALLEL), interval(0, -1):
         delz = -delz * delp
     with computation(PARALLEL), interval(...):
@@ -64,7 +70,7 @@ def moist_cv_pt_pressure(
     r_vir: float,
     hydrostatic: bool,
 ):
-    from __externals__ import j_end, namelist
+    from __externals__ import namelist
 
     # moist_cv.moist_pt
     with computation(PARALLEL), interval(0, -1):
@@ -115,7 +121,7 @@ def pn2_and_pk(pe2: FloatField, pn2: FloatField, pk: FloatField, akap: float):
 
     # copy_j_adjacent
     with computation(PARALLEL), interval(1, None):
-        with parallel(region[:, j_end + 1: j_end + 2]):
+        with parallel(region[:, j_end + 1 : j_end + 2]):
             # TODO: Fix silly hack due to pe2 being 2d, so pe[:, je+1, 1:npz] should be
             # the same as it was for pe[:, je, 1:npz] (unchanged)
             pe2_0 = pe2[0, -1, 0]
@@ -127,7 +133,14 @@ def pn2_and_pk(pe2: FloatField, pn2: FloatField, pk: FloatField, akap: float):
 
 
 @gtstencil()
-def pressures_mapu(pe: FloatField, pe1: FloatField, ak: FloatField, bk: FloatField, pe0: FloatField, pe3: FloatField):
+def pressures_mapu(
+    pe: FloatField,
+    pe1: FloatField,
+    ak: FloatField,
+    bk: FloatField,
+    pe0: FloatField,
+    pe3: FloatField,
+):
     with computation(BACKWARD):
         with interval(-1, None):
             pe_bottom = pe
@@ -146,7 +159,9 @@ def pressures_mapu(pe: FloatField, pe1: FloatField, ak: FloatField, bk: FloatFie
 
 
 @gtstencil()
-def pressures_mapv(pe: FloatField, ak: FloatField, bk: FloatField, pe0: FloatField, pe3: FloatField):
+def pressures_mapv(
+    pe: FloatField, ak: FloatField, bk: FloatField, pe0: FloatField, pe3: FloatField
+):
     with computation(BACKWARD):
         with interval(-1, None):
             pe_bottom = pe
@@ -273,15 +288,17 @@ def compute(
     )
     # TODO else if nq > 0:
     # TODO map1_q2, fillz
-    map_single.compute(
-        w, pe1, pe2, wsd, -2, grid.is_, grid.ie, spec.namelist.kord_wz
-    )
-    map_single.compute(
-        delz, pe1, pe2, gz, 1, grid.is_, grid.ie, spec.namelist.kord_wz
-    )
+    map_single.compute(w, pe1, pe2, wsd, -2, grid.is_, grid.ie, spec.namelist.kord_wz)
+    map_single.compute(delz, pe1, pe2, gz, 1, grid.is_, grid.ie, spec.namelist.kord_wz)
 
     undo_delz_adjust_and_copy_peln(
-        delp, delz, peln, pe0, pn2, origin=grid.compute_origin(), domain=(grid.nic, grid.njc, grid.npz + 1)
+        delp,
+        delz,
+        peln,
+        pe0,
+        pn2,
+        origin=grid.compute_origin(),
+        domain=(grid.nic, grid.njc, grid.npz + 1),
     )
     # if do_omega:  # NOTE untested
     #    pe3 = copy(omga, origin=(grid.is_, grid.js, 1))

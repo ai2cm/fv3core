@@ -5,7 +5,6 @@ import fv3core.stencils.fillz as fillz
 import fv3core.stencils.map_single as map_single
 import fv3core.stencils.remap_profile as remap_profile
 import fv3core.utils.gt4py_utils as utils
-from fv3core.stencils.basic_operations import copy_stencil
 
 
 FloatField = utils.FloatField
@@ -46,7 +45,19 @@ def compute(
         q4_3[:] = 0.0
         q4_4[:] = 0.0
         q4_1, q4_2, q4_3, q4_4 = remap_profile.compute(
-            qs, q4_1, q4_2, q4_3, q4_4, dp1, spec.grid.npz, i1, i2, 0, kord, jslice, q_min
+            qs,
+            q4_1,
+            q4_2,
+            q4_3,
+            q4_4,
+            dp1,
+            spec.grid.npz,
+            i1,
+            i2,
+            0,
+            kord,
+            jslice,
+            q_min,
         )
         map_single.do_lagrangian_contributions(
             tracer,

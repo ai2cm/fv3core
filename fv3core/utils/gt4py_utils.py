@@ -1,11 +1,11 @@
 import copy
 import logging
 import math
-import numpy as np
 from typing import Dict, List, Optional, Tuple, Union
 
 import gt4py as gt
 import gt4py.storage as gt_storage
+import numpy as np
 from gt4py import gtscript
 
 from fv3core.utils.mpi import MPI
@@ -242,7 +242,7 @@ def make_storage_from_shape(
     if n_dims == 2:
         shape += (1,)
     elif n_dims == 1:
-        shape = (1, 1,) + shape
+        shape = (1, 1,) + shape[-1]
     while len(origin) < len(shape):
         origin += (0,)
 
