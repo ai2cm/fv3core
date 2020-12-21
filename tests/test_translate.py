@@ -267,7 +267,7 @@ def md5_result_data(result, data_keys):
     hashes = {}
     for k in data_keys:
         hashes[k] = hashlib.sha1(
-            np.ascontiguousarray(gt_utils.asarray(result[k]))
+            np.ascontiguousarray(gt_utils.asarray(result[k]+1.0))
         ).hexdigest()
     return hashes
 
@@ -293,9 +293,12 @@ def test_parallel_savepoint(
     failure_stride,
     subtests,
     caplog,
+    python_regression,
     xy_indices=False,
 ):
     caplog.set_level(logging.DEBUG, logger="fv3core")
+    if python_regression and not testobj.bitwise_md5_regression:
+        pytest.xfail(f"python_regression not set for test {test_name}")
     if testobj is None:
         pytest.xfail(f"no translate object available for savepoint {test_name}")
     # Reduce error threshold for GPU
@@ -305,18 +308,19 @@ def test_parallel_savepoint(
     input_data = testobj.collect_input_data(serializer, savepoint_in)
     # run python version of functionality
     output = testobj.compute_parallel(input_data, communicator)
-    failing_names = []
-    passing_names = []
-    ref_data = {}
     out_vars = set(testobj.outputs.keys())
     out_vars.update(list(testobj._base.out_vars.keys()))
-    if testobj.bitwise_md5_regression:
+    if python_regression and testobj.bitwise_md5_regression:
         filename = f"python_regressions/{test_case}_{backend}_{platform()}.yml"
         filename = filename.replace("=", "_")
         data_regression.check(
             md5_result_data(output, out_vars),
             fullpath=os.path.join(data_path, filename),
         )
+        return
+    failing_names = []
+    passing_names = []
+    ref_data = {}
     for varname in out_vars:
         ref_data[varname] = []
         ref_data[varname].append(serializer.read(varname, savepoint_out))
