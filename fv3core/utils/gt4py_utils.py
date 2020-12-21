@@ -242,7 +242,10 @@ def make_storage_from_shape(
     if n_dims == 2:
         shape += (1,)
     elif n_dims == 1:
-        shape = (1, 1,) + shape[-1]
+        shape = (
+            1,
+            1,
+        ) + shape[-1]
     while len(origin) < len(shape):
         origin += (0,)
 
