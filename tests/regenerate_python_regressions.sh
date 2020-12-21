@@ -33,7 +33,8 @@ for experiment in ${EXPERIMENTS} ; do
   EXPERIMENT=${exp_name} make tests_mpi TEST_ARGS="--python_regression --force-regen" || true
   sudo chown -R $USER:$USER ${python_data_dir}
   set -e
-  EXPERIMENT=${exp_name} make push_python_regressions  
+  # TODO: uncomment this if you want to update the official regressions
+  #EXPERIMENT=${exp_name} make push_python_regressions  
   echo "====================================================="
   echo ""
 done
