@@ -464,6 +464,7 @@ def pytest_addoption(parser):
     parser.addoption("--backend", action="store", default="numpy")
     parser.addoption("--python_regression", action="store_true")
 
+
 def pytest_configure(config):
     # register an additional marker
     config.addinivalue_line(
@@ -486,6 +487,7 @@ def print_failures(pytestconfig):
 @pytest.fixture()
 def failure_stride(pytestconfig):
     return int(pytestconfig.getoption("failure_stride"))
+
 
 @pytest.fixture()
 def python_regression(pytestconfig):

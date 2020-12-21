@@ -8,7 +8,7 @@ export EXPERIMENT=${EXPNAME}
 export TEST_DATA_HOST="${TEST_DATA_DIR}/${EXPNAME}/"
 # sync the test data
 make get_test_data
-make run_tests_parallel TEST_ARGS="${ARGS} --which_modules=FVSubgridZ"  
+make run_tests_parallel TEST_ARGS="${ARGS} --which_modules=FVSubgridZ"
 set +e
 make run_tests_parallel TEST_ARGS="${ARGS} --python_regression"
 if [ $? -ne 0 ] ; then

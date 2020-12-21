@@ -2,7 +2,7 @@
 
 cd "`dirname $0`/../"
 
-# generate list of experiments (and abort if none found)                                                          
+# generate list of experiments (and abort if none found)
 set +e
 EXPERIMENTS=`make list_test_data_options 2> /dev/null`
 echo ${EXPERIMENTS}
@@ -13,7 +13,7 @@ if [ -z "${EXPERIMENTS}" ] ; then
 fi
 
 # loop over experiments
-for experiment in ${EXPERIMENTS} ; do  
+for experiment in ${EXPERIMENTS} ; do
   if [[ ! "$experiment" =~ ^gs\:\/\/ ]]; then
       continue
   fi
@@ -22,7 +22,7 @@ for experiment in ${EXPERIMENTS} ; do
       continue
   fi
   export NUM_RANKS=`echo ${exp_name} | grep -o -E '[0-9]+ranks' | grep -o -E '[0-9]+'`
-  
+
   echo "====================================================="
   echo "Generating data for ${exp_name} ..."
   python_data_dir=test_data/${exp_name}/python_regressions
@@ -34,7 +34,7 @@ for experiment in ${EXPERIMENTS} ; do
   sudo chown -R $USER:$USER ${python_data_dir}
   set -e
   # TODO: uncomment this if you want to update the official regressions
-  #EXPERIMENT=${exp_name} make push_python_regressions  
+  #EXPERIMENT=${exp_name} make push_python_regressions
   echo "====================================================="
   echo ""
 done
