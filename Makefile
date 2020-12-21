@@ -172,7 +172,8 @@ sync_test_data:
 	mkdir -p $(TEST_DATA_HOST) && gsutil -m rsync $(REGRESSION_DATA_STORAGE_BUCKET)/$(FORTRAN_SERIALIZED_DATA_VERSION)/$(EXPERIMENT)/ $(TEST_DATA_HOST)
 
 push_python_regressions:
-        gsutil -m cp $(TEST_DATA_HOST)/python_regressions $(REGRESSION_DATA_STORAGE_BUCKET)/$(FORTRAN_SERIALIZED_DATA_\VERSION)/$(EXPERIMENT)/
+	gsutil -m cp -r $(TEST_DATA_HOST)/python_regressions $(REGRESSION_DATA_STORAGE_BUCKET)/$(FORTRAN_SERIALIZED_DATA_VERSION)/$(EXPERIMENT)/python_regressions
+
 get_test_data:
 	if [ ! -f "$(TEST_DATA_HOST)/input.nml" ]; then \
 	$(MAKE) sync_test_data && \

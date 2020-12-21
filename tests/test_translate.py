@@ -263,11 +263,11 @@ def test_mock_parallel_savepoint(
     assert failing_names == [], f"names tested: {list(testobj.outputs.keys())}"
 
 
-def md5_result_data(result, data_keys):
+def hash_result_data(result, data_keys):
     hashes = {}
     for k in data_keys:
         hashes[k] = hashlib.sha1(
-            np.ascontiguousarray(gt_utils.asarray(result[k]+1.0))
+            np.ascontiguousarray(gt_utils.asarray(result[k]))
         ).hexdigest()
     return hashes
 
@@ -297,7 +297,7 @@ def test_parallel_savepoint(
     xy_indices=False,
 ):
     caplog.set_level(logging.DEBUG, logger="fv3core")
-    if python_regression and not testobj.bitwise_md5_regression:
+    if python_regression and not testobj.python_regression:
         pytest.xfail(f"python_regression not set for test {test_name}")
     if testobj is None:
         pytest.xfail(f"no translate object available for savepoint {test_name}")
@@ -310,11 +310,11 @@ def test_parallel_savepoint(
     output = testobj.compute_parallel(input_data, communicator)
     out_vars = set(testobj.outputs.keys())
     out_vars.update(list(testobj._base.out_vars.keys()))
-    if python_regression and testobj.bitwise_md5_regression:
+    if python_regression and testobj.python_regression:
         filename = f"python_regressions/{test_case}_{backend}_{platform()}.yml"
         filename = filename.replace("=", "_")
         data_regression.check(
-            md5_result_data(output, out_vars),
+            hash_result_data(output, out_vars),
             fullpath=os.path.join(data_path, filename),
         )
         return
