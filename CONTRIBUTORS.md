@@ -1,4 +1,4 @@
-# Authors
+# Contributors
 
 List format (alphabetical order):  Surname, Name. Employer/Affiliation
 
