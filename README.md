@@ -122,10 +122,18 @@ common options for our tests, which you can add to `TEST_ARGS`:
 
 * `-m` - will let you run only certain groups of tests. For example, `-m=parallel` will run only parallel stencils, while `-m=sequential` will run only stencils that operate on one rank at a time.
 
+### Development and performance-related options
+
 **NOTE:** FV3 is current assumed to be by default in a "development mode", where stencils are checked each time they execute for code changes (which can trigger regeneration). This process is somewhat expensive, so there is an option to put FV3 in a performance mode by telling it that stencils should not automatically be rebuilt:
 
 ```shell
 $ export FV3_STENCIL_REBUILD_FLAG=False
+```
+
+FV3Core has certain backends that use a C++ compiler. GT4Py, by default, will instruct it to heavily optimize the generated code using and skip adding debug symbols. FV3Core on the other hand, by default will add debug symbols and will not use optimization. This means stencils using C++ backends will be ready to execute faster, but could be less efficient. If the goal is to test FV3Core performance, you will want to set:
+
+```shell
+$ export FV3_CPP_DEBUG_MODE=False
 ```
 
 ## Porting a new stencil

@@ -24,5 +24,15 @@ def get_rebuild() -> bool:
     return _REBUILD
 
 
-_BACKEND = None  # Options: numpy, gtx86, gtcuda, debug
+def set_cpp_debug(flag: bool):
+    global _CPP_DEBUG_MODE
+    _CPP_DEBUG_MODE = flag
+
+
+def get_cpp_debug() -> bool:
+    return _CPP_DEBUG_MODE
+
+
+_BACKEND = None  # Options: numpy, gtx86, gtmc, gtcuda, debug
 _REBUILD = getenv_bool("FV3_STENCIL_REBUILD_FLAG", "True")
+_CPP_DEBUG_MODE = getenv_bool("FV3_CPP_DEBUG_MODE", "True")

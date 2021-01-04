@@ -221,6 +221,9 @@ class FV3StencilObject:
                 **self.backend_kwargs,
             }
 
+            if stencil_kwargs["backend"].startswith("gt"):
+                stencil_kwargs["debug_mode"] = global_config.get_debug()
+
             # gtscript.stencil always returns a new class instance even if it
             # used the cached module.
             self.stencil_object = gtscript.stencil(
