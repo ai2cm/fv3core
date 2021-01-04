@@ -8,10 +8,7 @@ to the `CONTRIBUTORS.rst` file.
 ## Linting
 
 
-The linter may change over time, but you should always be able to correct your code (if you have pip installed requirements_lint.txt locally) using:
-    make lint
-or to correct all files, including those not yet in version control:
-    make lint_all
+The linter may change over time, but you should always be able to correct your code (if you have pip installed requirements_lint.txt locally) using `make lint`, or to correct all files, including those not yet in version control `make lint_all`
 
 We manage the list of syntax requirements using [pre-commit](https://pre-commit.com/). This:
    - runs formatting and compliance checks for you
@@ -114,13 +111,14 @@ New convention:
 
 ### Stencil functions
 
-We currently have a custom decorator @gtstencil defined in
+We currently have a custom decorator `@gtstencil` defined in
 fv3core/decorators.py that helps set default external arguments such as "backend" and
 rebuild" and provides the global namelist to the stencils. The type of each variable
 going into a stencil requires a type and the first version of the model used a shorthand
 'sd' (storage data) to indicate a gt4py field storage.
 
 Example:
+
     @gtstencil()
     def pt_adjust(pkz:sd, dp1: sd, q_con: sd, pt: sd):
         with computation(PARALLEL), interval(...):
@@ -132,11 +130,13 @@ syntax. This however is quite a jarring change in convention and thus we try to 
 at the moment (does occur in fxadv), and may have another solution in the future.
 
 e.g.:
+
     def undecorated_python_method(u, v):
       from __externals__ import vi
           with computation(PARALLEL), interval(...):
 	      u = vi * v def compute(u, v):
 called with:
+
     decorator =gtscript.stencil( backend=backend, rebuild=rebuild. externals={"vi": vi})
     stencil = decorator(undecorated_python_method) stencil(u, v, origin=origin, domain=domain)
 
@@ -144,25 +144,26 @@ In the new convention replace "sd" with FloatField (or whatever the type is).
 
 ### Externals
 If a scalar parameter is in the scope of a module, it can be used inside of a
-stencil (do not need an explicit import), otherwise use "from __externals__ import var"
+stencil (do not need an explicit import), otherwise use `from __externals__ import var`
 inside the stencil definition
 
 ### Namelist
-Initially the namelist was imported from the fv3core/_config. Now the namelist gets imported into the externals of a stencil using the decorator, and a stencil can use the namelist SimpleNamespace if it is imported with from
-__externals__ import namelist inside the stencil.
+Initially the namelist was imported from the fv3core/_config. Now the namelist gets imported into the externals of a stencil using the decorator, and a stencil can use the namelist SimpleNamespace if it is imported with `from
+__externals__ import namelist` inside the stencil.
 
 ### GTScript functions
 These use the gtscript decorator and the arguments do not include type
 specifications. They will continue to not have type hinting.
 
 e.g.:
+
     @gtscript.function
     def get_bl(al, q):
 
 
 ### Assertions
 We can now include assertions of compile time variables inside of gtscript
-functions with the syntax: assert __INLINED(namelist.grid_type < 3)
+functions with the syntax `assert __INLINED(namelist.grid_type < 3)`.
 
 ### State
 Some outer functions include a 'state' object that is a SimpleNamespace of variables and a

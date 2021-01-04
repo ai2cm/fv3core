@@ -128,7 +128,7 @@ common options for our tests, which you can add to `TEST_ARGS`:
 $ export FV3_STENCIL_REBUILD_FLAG=False
 ```
 
-## Porting a new stencil
+## Porting a new stencil (please also review the 'Porting Conventions' section below for more explanation)
 
 1. Find the location in the fv3gfs-fortran repo code where the save-point is to be added, e.g. using
 
@@ -431,8 +431,8 @@ conventions than the rest of the model.
    fields
  - Most functions within dyn_core can be run sequentially per rank
  - Currently a list of ArgSpecs must decorate an interface function, where each ArgSpec
-   provides useful information about the argument, e.g.: @state_inputs( ArgSpec("qvapor",
-   "specific_humidity", "kg/kg", intent="inout")
+   provides useful information about the argument, e.g.: `@state_inputs( ArgSpec("qvapor",
+   "specific_humidity", "kg/kg", intent="inout")`
    - The format is (fortran_name, long_name, units, intent)
    - We currently provide a duplicate of most of the metadata in the specification of the
    unit test, but that may be removed eventually.
@@ -446,8 +446,10 @@ and a build procedure defined in tests/serialized_test_data_generation. The vers
 data this repo currently tests against is defined in FORTRAN_SERIALIZED_DATA_VERSION in
 this repo's docker/Makefile.image_names. Fields serialized are defined in Fortran code with
 serialization comment statements such as:
+
     !$ser savepoint C_SW-In
     !$ser data delpcd=delpc delpd=delp ptcd=ptc
+
 where the name being assigned is the name the fv3core uses to identify the variable in the
 test code. When this name is not equal to the name of the variable, this was usually done
 to avoid conflicts with other parts of the code where the same name is used to reference a
@@ -466,16 +468,17 @@ the name used in the serialization statements in the Fortran code, without the "
 output fields. Then, in cases where the parent compute function is insuffient to handle
 the complexity of either the data translation or the compute function, the appropriate
 methods can be overridden.
+
 For Translate objects
   - The init function establishes the assumed translation setup for the class, which can
     be dynamically overridden as needed.
   - the parent compute function does:
-    1. makes gt4py storages of the max shape (grid.npx+1, grid.npy+1, grid.npz+1) aligning
+    - makes gt4py storages of the max shape (grid.npx+1, grid.npy+1, grid.npz+1) aligning
        the data based on the start indices specified. (gt4py requires data fields have the
        same shape, so in this model we have buffer points so all calculations can be done
        easily without worrying about shape matching)
-    2. runs the compute function (defined in self.compute_func) on the input data storages
-    3. slices the computed Python fields to be compared to fortran regression data
+    - runs the compute function (defined in self.compute_func) on the input data storages
+    - slices the computed Python fields to be compared to fortran regression data
   - The unit test then uses a modified relative error metric to determine whether the unit
     passes
   - The init method for a Translate class:
