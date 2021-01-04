@@ -1,4 +1,6 @@
+import os
 import sys
+from pathlib import Path
 
 import mpi4py
 import yaml
@@ -11,11 +13,16 @@ import fv3gfs.util as util
 
 # sys.path.append("/usr/local/serialbox/python")
 sys.path.append("/home/tobiasw/work/fv3core/tests")
+
 import serialbox  # noqa: E402
 import translate  # noqa: E402
 
 
 if __name__ == "__main__":
+    this_dir = Path(os.path.dirname(os.getcwd()))
+    root_dir = this_dir.parent.parent
+    data_dir = str(root_dir) + "/test_data/c12_6ranks_standard"
+    namelist_path = str(this_dir) + "/config/c12_6ranks_standard.yml"
     # MPI stuff
     comm = mpi4py.MPI.COMM_WORLD
     rank = comm.Get_rank()
@@ -25,13 +32,11 @@ if __name__ == "__main__":
     fv3core.set_rebuild(False)
 
     # namelist setup
-    spec.set_namelist(
-        "/home/tobiasw/work/fv3core/test_data/c12_6ranks_standard/input.nml"
-    )
+    spec.set_namelist(data_dir + "/input.nml")
+
     nml2 = yaml.safe_load(
         open(
-            "/home/tobiasw/work/fv3core/examples/wrapped/"
-            "config/c12_6ranks_standard.yml",
+            namelist_path,
             "r",
         )
     )["namelist"]
@@ -39,7 +44,7 @@ if __name__ == "__main__":
     # set up of helper structures
     serializer = serialbox.Serializer(
         serialbox.OpenModeKind.Read,
-        "/home/tobiasw/work/fv3core/test_data/c12_6ranks_standard",
+        data_dir,
         "Generator_rank" + str(rank),
     )
     cube_comm = util.CubedSphereCommunicator(
@@ -83,7 +88,8 @@ if __name__ == "__main__":
             input_data["ks"],
         )
         if spec.namelist.fv_sg_adj > 0:
-            raise Exception("this is not supported")
+            pass
+            # raise Exception("this is not supported")
             # state["eastward_wind_tendency"] = u_tendency
             # state["northward_wind_tendency"] = v_tendency
             # fv3core.fv_subgridz(state, n_tracers, dt_atmos)
