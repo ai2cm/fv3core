@@ -1,29 +1,25 @@
-============
-Contributing
-============
+# Contributing
 
 FV3core is being actively developed by Vulcan Inc. Please contact us if there is interest
 in making contributions. Credit will be given to contributors by adding their names
 to the ``CONTRIBUTORS.rst`` file.
 
 
-Development guidelines
-----------------------
+## Development guidelines
 
-Linting
-~~~~~~~
+### Linting
+
 
 The linter will become more strict over time, but you should always be able to correct (or
-at minimum learn what is incorrect) your code using::
+at minimum learn what is incorrect) your code using:
 
-  make lint
+    make lint
 
-We manage the list of syntax requirements using `pre-commit <https://pre-commit.com/>`__. This:
+We manage the list of syntax requirements using [pre-commit](https://pre-commit.com/). This:
    - runs formatting and compliance checks for you
    - is required to pass to merge a PR
 
-This initially was a call to `Black
-<https://github.com/ambv/black>`__ which reformats your code to a set of accepted
+This will call [Black](https://github.com/ambv/black) which reformats your code to a set of accepted
 standards.  Pre-commit now includes other adjustments and checks listed in the
 .pre-commit-config.yaml file.
 
