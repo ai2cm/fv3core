@@ -187,15 +187,11 @@ list_test_data_options:
 
 lint:
 	pre-commit run
-	# pre-commit runs black for now. Will also run flake8 eventually.
-	# black --diff --check $(PYTHON_FILES) $(PYTHON_INIT_FILES)
-	# disable flake8 tests for now, re-enable when dycore is "running"
-	#@flake8 $(PYTHON_FILES)
-	# ignore unused import error in __init__.py files
-	#@flake8 --ignore=F401 $(PYTHON_INIT_FILES)
-	# @echo "LINTING SUCCESSFUL"
+
+lint_all:
+	pre-commit run --all-files
 
 .PHONY: update_submodules build_environment build dev dev_tests dev_tests_mpi flake8 lint get_test_data unpack_test_data \
 	 list_test_data_options pull_environment pull_test_data push_environment \
 	rebuild_environment reformat run_tests_sequential run_tests_parallel test_base test_base_parallel \
-	tests update_submodules push_core pull_core tar_core sarus_load_tar cleanup_remote
+	tests update_submodules push_core pull_core tar_core sarus_load_tar cleanup_remote lint_all
