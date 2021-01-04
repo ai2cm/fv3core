@@ -1,8 +1,6 @@
-=======
-Authors
-=======
+# Authors
 
-.. List format (alphabetical order):  Surname, Name. Employer/Affiliation
+List format (alphabetical order):  Surname, Name. Employer/Affiliation
 
 * Cheeseman, Mark. Vulcan Inc.
 * Dahm, Johann. Vulcan Inc.
