@@ -69,7 +69,7 @@ $ make dev_tests_mpi
 ```
 These will mount your current code into the fv3core container and run it rather than the code that was built when `make build` ran.
 
-## Running tests  inside a container
+## Running tests inside a container
 
 If you to prefer to work interactively inside the fv3core container, get the test data and build the docker image:
 ```shell
@@ -122,6 +122,11 @@ common options for our tests, which you can add to `TEST_ARGS`:
 
 * `-m` - will let you run only certain groups of tests. For example, `-m=parallel` will run only parallel stencils, while `-m=sequential` will run only stencils that operate on one rank at a time.
 
+**NOTE:** FV3 is current assumed to be by default in a "development mode", where stencils are checked each time they execute for code changes (which can trigger regeneration). This process is somewhat expensive, so there is an option to put FV3 in a performance mode by telling it that stencils should not automatically be rebuilt:
+
+```shell
+$ export FV3_STENCIL_REBUILD_FLAG=False
+```
 
 ## Porting a new stencil
 
@@ -189,32 +194,163 @@ $ git submodule update --init --recursive
 
 The submodule include:
 
-- `external/fv3util` - git@github.com:VulcanClimateModeling/fv3util.git
+- `external/fv3gfs-util` - git@github.com:VulcanClimateModeling/fv3gfs-util.git
 
-## Dockerfiles
 
-There are three main driver files:
+## Dockerfiles and building
 
-1. `docker/Dockerfile.build_environment` - builds off of the serialbox environment from fv3gfs-fortran, installs Serialbox and GT4Py
+There are two main docker files:
 
-2. `docker/Dockerfile` - uses the build environment and copies in the fv3 folder only. This is to make development easier so that when you change a file in fv3, 'make build' does not accidentally or otherwise trigger a 20 minute rebuild of all of those installations, but just updates the code in the fv3core image.
+1. `docker/dependencies.Dockerfile` - defines dependency images such as for fv3gfs-fortran, serialbox, and GT4py
 
+2. `docker/Dockerfile` - uses the dependencies to define the final fv3core and fv3core-wrapper images.
+
+The dependencies are separated out into their own images to expedite rebuilding the docker image without having to rebuild dependencies, especially on CI.
+
+For the commands below using `make -C docker`, you can alternatively run `make` from within the `docker` directory.
+
+These dependencies can be updated, pushed, and pulled with `make -C docker build_deps`, `make -C docker push_deps`, and `make -C docker pull_deps`. The tag of the dependencies is based on the tag of the current build in the Makefile, which we will expand on below.
+
+Building from scratch requires both a deps and build command, such as `make -C docker pull_deps fv3core_image`.
+
+If any example fails for "pulled dependencies", it means the dependencies have never been built. You can
+build them and push them to GCR with:
+
+```shell
+$ make -C docker build_deps push_deps
+```
+
+### Building examples
+
+fv3core image with pulled dependencies:
+
+```shell
+$ make -C docker pull_deps fv3core_image
+```
+
+CUDA-enabled fv3core image with pulled dependencies:
+```
+$ CUDA=y make -C docker pull_deps fv3core_image
+```
+
+fv3core image with locally-built dependencies:
+```shell
+$ make -C docker build_deps fv3core_image
+```
+
+fv3core-wrapper image with pulled dependencies:
+
+```shell
+$ make -C docker pull_deps fv3core_wrapper_image
+```
+
+CUDA-enabled fv3core-wrapper image with pulled dependencies:
+```
+$ CUDA=y make -C docker pull_deps fv3core_wrapper_image
+```
+
+## Running with fv3gfs-wrapper
+
+To use the python dynamical core for model runs, use the fv3core-wrapper image.
+
+A development environment for fv3gfs-wrapper is set up under the make target:
+
+```shell
+$ make dev_wrapper
+```
+
+This will bind-mount in fv3core and the submodules in `external` such as `external/fv3gfs-fortran`,
+`external/fv3gfs-wrapper`, and `external/fv3gfs-util` and compile your bind-mounted sources upon
+entering. If you change the fortran code while in the development environment, you need to re-compile
+the fortran code and then re-build the wrapper for your changes to be reflected. You can do this
+from the root of the image using:
+
+```shell
+$ make -C external/fortran install && make -C external/fv3gfs-wrapper build
+```
+
+to install fv3core as an importable module. Alternatively, you can specify `develop` instead of `install` if you want to edit the fv3core code.
+
+### Updating Serialbox
+
+If you need to install an updated version of Serialbox, you must first install cmake into the development environment. To install an updated version of Serialbox from within the container run
+
+```shell
+$ wget https://github.com/Kitware/CMake/releases/download/v3.17.3/cmake-3.17.3.tar.gz && \
+  tar xzf cmake-3.17.3.tar.gz && \
+  cd cmake-3.17.3 && \
+  ./bootstrap && make -j4 && make install
+$ git clone -b v2.6.1 --depth 1 https://github.com/GridTools/serialbox.git /tmp/serialbox
+$ cd /tmp/serialbox
+$ cmake -B build -S /tmp/serialbox -DSERIALBOX_USE_NETCDF=ON -DSERIALBOX_TESTING=ON -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/serialbox
+$ cmake --build build/ -j $(nproc) --target install
+$ cd -
+$ rm -rf build /tmp/serialbox
+```
+
+### Running a wrapper runfile
+
+To set up a model run, the `write_run_directory` command will create a rundir containing the needed inputs and structure for the model run based on a configuration yaml file:
+
+```shell
+$ write_run_directory path/to/configuration/yaml path/to/rundir
+```
+
+A few example config files are provided in the `fv3config` repository and `fv3core/examples/wrapped/config`. After the rundir has been created you can link or copy a runfile such as `fv3core/examples/wrapped/runfiles/fv3core_test.py` to your rundir and run it with mpirun:
+
+```shell
+$ mpirun -np X python fv3core_test.py
+```
+
+## Pinned dependencies
+
+Dependencies are pinned using `constraints.txt`. This is auto-generated by pip-compile from the `pip-tools` package, which reads `requirements.txt` and `requirements_lint.txt`, determines the latest versions of all dependencies (including recursive dependencies) compatible those files, and writes pinned versions for all dependencies. This can be updated using:
+
+```shell
+$ make constraints.txt
+```
+
+This file is committed to the repository, and gives more reproducible tests if an old commit of the repository is checked out in the future. The constraints are followed when creating the `fv3core` and `fv3core_wrapper` docker images. To ensure consistency this should ideally be run from inside a docker development environment, but you can also run it on your local system with an appropriate Python 3 environment.
 
 ## Development
 
-Requirements for developing fv3core have pinned versions in `requirements.txt`, and should be installed.
-This adds `pre-commit`, which we use to lint and enforce style on the code.
-After changing files and before pushing, run `pre-commit run` or equivalently `make lint` to ensure changes conform to the style.
-The `pre-commit` command can also be installed as a pre-commit git hook, to ensure tests pass before committing code.
+To develop fv3core, you need to install the linting requirements in `requirements_lint.txt`. To install the pinned versions, use:
 
-```bash
-$ pip install -r requirements.txt
-... installs packages...
+```shell
+$ pip install -r requirements_lint.txt -c constraints.txt
+```
+
+This adds `pre-commit`, which we use to lint and enforce style on the code. The first time you install `pre-commit`, install its git hooks using:
+
+```shell
 $ pre-commit install
 pre-commit installed at .git/hooks/pre-commit
 ```
 
 As a convenience, the `lint` target of the top-level makefile executes `pre-commit run --all-files`.
+
+
+## GT4Py Version
+
+FV3Core does not actually use the [GridTools/gt4py](https://github.com/gridtools/gt4py) main, it instead uses a Vulcan Climate Modeling development branch.
+This is publically available version at [VCM/gt4py](https://github.com/vulcanclimatemodeling/gt4py).
+
+Situation: There is a new stable feature in a gt4py PR, but it is not yet merged into the GridTools/gt4py main branch.
+[branches.cfg](https://github.com/VulcanClimateModeling/gt4py/blob/develop/branches.cfg) lists these features.
+Steps:
+
+1. Add any new branches to `branches.cfg`
+2. Rebuild the develop branch, either:
+  a. `make_develop gt4py-dev path/to/branches.cfg` (you may have to resolve conflicts...)
+  b. Adding new commits on top of the existing develop branch (e.g. merge or cherry-pick)
+3. Force push to the develop branch: `git push -f upstream develop`
+
+The last step will launch Jenkins tests. If these pass:
+
+1. Create a git tag: `git tag v-$(git rev-parse --short HEAD)`
+2. Push the tag: `git push upstream --tags`
+3. Make a PR to [VCM/gt4py](https://github.com/vulcanclimatemodeling/fv3core) that updates the version in `docker/Makefile` to the new tag.
+
 
 ## License
 

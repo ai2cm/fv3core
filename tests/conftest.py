@@ -3,19 +3,19 @@ import os
 import sys
 import warnings
 
-import fv3gfs.util as fv3util
 import pytest
 import translate
 
 import fv3core
 import fv3core._config
 import fv3core.utils.gt4py_utils
+import fv3gfs.util as fv3util
 from fv3core.utils.mpi import MPI
 
 
 # get MPI environment
-sys.path.append("/usr/local/python")  # noqa
-import serialbox
+sys.path.append("/usr/local/serialbox/python")  # noqa: E402
+import serialbox  # noqa: E402
 
 
 GRID_SAVEPOINT_NAME = "Grid-Info"
@@ -36,7 +36,7 @@ class ReplaceRepr:
 @pytest.fixture()
 def backend(pytestconfig):
     backend = pytestconfig.getoption("backend")
-    fv3core.utils.gt4py_utils.backend = backend
+    fv3core.set_backend(backend)
     return backend
 
 
@@ -271,7 +271,7 @@ def parallel_savepoint_cases(metafunc, data_path, mpi_rank):
 
 def pytest_generate_tests(metafunc):
     backend = metafunc.config.getoption("backend")
-    fv3core.utils.gt4py_utils.backend = backend
+    fv3core.set_backend(backend)
     if MPI is not None and MPI.COMM_WORLD.Get_size() > 1:
         if metafunc.function.__name__ == "test_parallel_savepoint":
             generate_parallel_stencil_tests(metafunc)

@@ -5,6 +5,8 @@ import fv3core._config as spec
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import gtstencil
 
+from ..utils import global_config
+
 
 def grid():
     return spec.grid
@@ -77,11 +79,9 @@ def xfx_adv_stencil(
     dt: float,
 ):
     with computation(PARALLEL), interval(...):
-        xfx_adv[0, 0, 0] = dt * ut
-        crx_adv[0, 0, 0] = xfx_adv * rdxa[-1, 0, 0] if xfx_adv > 0 else xfx_adv * rdxa
-        xfx_adv[0, 0, 0] = (
-            dy * xfx_adv * sin_sg3[-1, 0, 0] if xfx_adv > 0 else dy * xfx_adv * sin_sg1
-        )
+        prod = dt * ut
+        crx_adv = prod * rdxa[-1, 0, 0] if prod > 0 else prod * rdxa
+        xfx_adv = dy * prod * sin_sg3[-1, 0, 0] if prod > 0 else dy * prod * sin_sg1
         ra_x = ra_x_func(area, xfx_adv)
 
 
@@ -104,11 +104,9 @@ def yfx_adv_stencil(
     dt: float,
 ):
     with computation(PARALLEL), interval(...):
-        yfx_adv[0, 0, 0] = dt * vt
-        cry_adv[0, 0, 0] = yfx_adv * rdya[0, -1, 0] if yfx_adv > 0 else yfx_adv * rdya
-        yfx_adv[0, 0, 0] = (
-            dx * yfx_adv * sin_sg4[0, -1, 0] if yfx_adv > 0 else dx * yfx_adv * sin_sg2
-        )
+        prod = dt * vt
+        cry_adv = prod * rdya[0, -1, 0] if prod > 0 else prod * rdya
+        yfx_adv = dx * prod * sin_sg4[0, -1, 0] if prod > 0 else dx * prod * sin_sg2
         ra_y = ra_y_func(area, yfx_adv)
 
 
@@ -166,7 +164,8 @@ def compute(uc_in, vc_in, ut_in, vt_in, xfx_adv, yfx_adv, crx_adv, cry_adv, dt):
         origin=grid().compute_y_origin(),
         domain=grid().domain_x_compute_ybuffer(),
     )
-    # TODO remove the need for a copied extra ut and vt variables, edit in place (rexolve issue with data getting zeroed out)
+    # TODO: Remove the need for a copied extra ut and vt variables, edit in place
+    # (rexolve issue with data getting zeroed out).
     ut_in[:, :, :] = ut[:, :, :]
     vt_in[:, :, :] = vt[:, :, :]
     return ra_x, ra_y
@@ -243,8 +242,10 @@ def compute_vt(uc_in, vc_in, cosa_v, rsin_v, sin_sg2, sin_sg4, vt_in):
         origin=vt_origin,
         domain=(grid().nid, grid().njc + 3, grid().npz),
     )  # , origin=(0, 2, 0), domain=(vt.shape[0]-1, main_j_size, vt.shape[2]))
-    # cannot pass vt_in array to stencil without it zeroing out data outside specified domain
-    # So... for now copying in so the 'undefined' answers match
+
+    # Cannot pass vt_in array to stencil without it zeroing out data outside
+    # specified domain. So... for now copying in so the 'undefined' answers
+    # match
     vt[:, : grid().js - 1, :] = vt_in[:, : grid().js - 1, :]
     vt[:, grid().je + 3, :] = vt_in[:, grid().je + 3, :]
     if grid().south_edge:
@@ -360,7 +361,7 @@ def corner_ut(
     uy = uj + index_offset(lower, True, south) * lowerfactor
     if stencil_corner:
         decorator = gtscript.stencil(
-            backend=utils.backend,
+            backend=global_config.get_backend(),
             externals={
                 "vi": vi - ui,
                 "vj": vj - uj,
@@ -369,7 +370,7 @@ def corner_ut(
                 "vx": vx - ui,
                 "vy": vy - uj,
             },
-            rebuild=utils.rebuild,
+            rebuild=global_config.get_rebuild(),
         )
         corner_stencil = decorator(corner_ut_stencil)
         corner_stencil(
@@ -607,101 +608,327 @@ def nw_corner(uc, vc, ut, vt, cosa_u, cosa_v, corner_shape):
     )
 
 
-# TODO Probably can delete -- but in case we want to do analysis to show it doesn't matter at all
-"""
-def sw_corner(uc, vc, ut, vt, cosa_u, cosa_v, corner_shape):
-    west_corner_ut_lowest(uc, vc, ut, vt, cosa_u, cosa_v, origin=(grid().is_ + 1, grid().js - 1, 0), domain=corner_shape)
-    west_corner_ut_adjacent(uc, vc, ut, vt, cosa_u, cosa_v, origin=(grid().is_ + 1, grid().js, 0), domain=corner_shape)
-    south_corner_vt_left(uc, vc, ut, vt, cosa_u, cosa_v, origin=(grid().is_ - 1, grid().js + 1, 0), domain=corner_shape)
-    south_corner_vt_adjacent(uc, vc, ut, vt, cosa_u, cosa_v, origin=(grid().is_, grid().js + 1, 0), domain=corner_shape)
+# TODO: Probably can delete -- but in case we want to do analysis to show it
+# doesn't matter at all.
+# {
+# def sw_corner(uc, vc, ut, vt, cosa_u, cosa_v, corner_shape):
+#     west_corner_ut_lowest(
+#         uc,
+#         vc,
+#         ut,
+#         vt,
+#         cosa_u,
+#         cosa_v,
+#         origin=(grid().is_ + 1, grid().js - 1, 0),
+#         domain=corner_shape,
+#     )
+#     west_corner_ut_adjacent(
+#         uc,
+#         vc,
+#         ut,
+#         vt,
+#         cosa_u,
+#         cosa_v,
+#         origin=(grid().is_ + 1, grid().js, 0),
+#         domain=corner_shape,
+#     )
+#     south_corner_vt_left(
+#         uc,
+#         vc,
+#         ut,
+#         vt,
+#         cosa_u,
+#         cosa_v,
+#         origin=(grid().is_ - 1, grid().js + 1, 0),
+#         domain=corner_shape,
+#     )
+#     south_corner_vt_adjacent(
+#         uc,
+#         vc,
+#         ut,
+#         vt,
+#         cosa_u,
+#         cosa_v,
+#         origin=(grid().is_, grid().js + 1, 0),
+#         domain=corner_shape,
+#     )
 
 
-def se_corner(uc, vc, ut, vt, cosa_u, cosa_v, corner_shape):
-    east_corner_ut_lowest(uc, vc, ut, vt, cosa_u, cosa_v, origin=(grid().ie, grid().js - 1, 0), domain=corner_shape)
-    east_corner_ut_adjacent(uc, vc, ut, vt, cosa_u, cosa_v, origin=(grid().ie, grid().js, 0), domain=corner_shape)
-    south_corner_vt_adjacent(uc, vc, ut, vt, cosa_u, cosa_v, origin=(grid().ie + 1, grid().js + 1, 0), domain=corner_shape)
-    south_corner_vt_left(uc, vc, ut, vt, cosa_u, cosa_v, origin=(grid().ie, grid().js + 1, 0), domain=corner_shape)
-
-def ne_corner(uc, vc, ut, vt, cosa_u, cosa_v, corner_shape):
-    east_corner_ut_adjacent(uc, vc, ut, vt, cosa_u, cosa_v, origin=(grid().ie, grid().je + 1, 0), domain=corner_shape)
-    east_corner_ut_lowest(uc, vc, ut, vt, cosa_u, cosa_v, origin=(grid().ie, grid().je, 0), domain=corner_shape)
-    north_corner_vt_adjacent(uc, vc, ut, vt, cosa_u, cosa_v, origin=(grid().ie + 1, grid().je, 0), domain=corner_shape)
-    north_corner_vt_left(uc, vc, ut, vt, cosa_u, cosa_v, origin=(grid().ie, grid().je, 0), domain=corner_shape)
-
-def nw_corner(uc, vc, ut, vt, cosa_u, cosa_v, corner_shape):
-    west_corner_ut_adjacent(uc, vc, ut, vt, cosa_u, cosa_v, origin=(grid().is_ + 1, grid().je+1, 0), domain=corner_shape)
-    west_corner_ut_lowest(uc, vc, ut, vt, cosa_u, cosa_v, origin=(grid().is_ + 1, grid().je, 0), domain=corner_shape)
-    north_corner_vt_left(uc, vc, ut, vt, cosa_u, cosa_v, origin=(grid().is_ - 1, grid().je, 0), domain=corner_shape)
-    north_corner_vt_adjacent(uc, vc, ut, vt, cosa_u, cosa_v, origin=(grid().is_, grid().je, 0), domain=corner_shape)
-
-
-@gtstencil()
-def west_corner_ut_lowest(uc: sd, vc: sd, ut: sd, vt: sd, cosa_u: sd, cosa_v: sd):
-    with computation(PARALLEL), interval(...):
-        damp_u = 1. / (1.0 - 0.0625 * cosa_u[0, 0, 0] * cosa_v[-1, 0, 0])
-        ut[0, 0, 0] = (uc[0, 0, 0]-0.25 * cosa_u[0, 0, 0] * (vt[-1, 1, 0] + vt[0, 1, 0] + vt[0, 0, 0] + vc[-1, 0, 0] -
-                                                             0.25 * cosa_v[-1, 0, 0] * (ut[-1, 0, 0] + ut[-1, -1, 0] +
-                                                                                        ut[0, -1, 0]))) * damp_u
-
-
-@gtstencil()
-def west_corner_ut_adjacent(uc: sd, vc: sd, ut: sd, vt: sd, cosa_u: sd, cosa_v: sd):
-    with computation(PARALLEL), interval(...):
-        damp = 1. / (1. - 0.0625 * cosa_u[0, 0, 0] * cosa_v[-1, 1, 0])
-        ut[0, 0, 0] = (uc[0, 0, 0] - 0.25 * cosa_u[0, 0, 0] * (vt[-1, 0, 0] + vt[0, 0, 0] + vt[0, 1, 0] + vc[-1, 1, 0] -
-                                                               0.25 * cosa_v[-1, 1, 0] * (ut[-1, 0, 0] + ut[-1, 1, 0] +
-                                                                                          ut[0, 1, 0]))) * damp
-
-
-@gtstencil()
-def south_corner_vt_left(uc: sd, vc: sd, ut: sd, vt: sd, cosa_u: sd, cosa_v: sd):
-    with computation(PARALLEL), interval(...):
-        damp_v = 1. / (1.0 - 0.0625 * cosa_u[0, -1, 0] * cosa_v[0, 0, 0])
-        vt[0, 0, 0] = (vc[0, 0, 0] - 0.25 * cosa_v[0, 0, 0] * (ut[1, -1, 0] + ut[1, 0, 0] + ut[0, 0, 0] + uc[0, -1, 0] -
-                                                               0.25 * cosa_u[0, -1, 0] *
-                                                               (vt[0, -1, 0] + vt[-1, -1, 0] + vt[-1, 0, 0]))) * damp_v
+# def se_corner(uc, vc, ut, vt, cosa_u, cosa_v, corner_shape):
+#     east_corner_ut_lowest(
+#         uc,
+#         vc,
+#         ut,
+#         vt,
+#         cosa_u,
+#         cosa_v,
+#         origin=(grid().ie, grid().js - 1, 0),
+#         domain=corner_shape,
+#     )
+#     east_corner_ut_adjacent(
+#         uc,
+#         vc,
+#         ut,
+#         vt,
+#         cosa_u,
+#         cosa_v,
+#         origin=(grid().ie, grid().js, 0),
+#         domain=corner_shape,
+#     )
+#     south_corner_vt_adjacent(
+#         uc,
+#         vc,
+#         ut,
+#         vt,
+#         cosa_u,
+#         cosa_v,
+#         origin=(grid().ie + 1, grid().js + 1, 0),
+#         domain=corner_shape,
+#     )
+#     south_corner_vt_left(
+#         uc,
+#         vc,
+#         ut,
+#         vt,
+#         cosa_u,
+#         cosa_v,
+#         origin=(grid().ie, grid().js + 1, 0),
+#         domain=corner_shape,
+#     )
 
 
-@gtstencil()
-def south_corner_vt_adjacent(uc: sd, vc: sd, ut: sd, vt: sd, cosa_u: sd, cosa_v: sd):
-    with computation(PARALLEL), interval(...):
-        damp_v = 1. / (1.0 - 0.0625 * cosa_u[1, -1, 0] * cosa_v[0, 0, 0])
-        vt[0, 0, 0] = (vc[0, 0, 0] - 0.25 * cosa_v[0, 0, 0] * (ut[0, -1, 0] + ut[0, 0, 0] + ut[1, 0, 0] + uc[1, -1, 0] -
-                                                               0.25 * cosa_u[1, -1, 0] *
-                                                               (vt[0, -1, 0] + vt[1, -1, 0] + vt[1, 0, 0]))) * damp_v
+# def ne_corner(uc, vc, ut, vt, cosa_u, cosa_v, corner_shape):
+#     east_corner_ut_adjacent(
+#         uc,
+#         vc,
+#         ut,
+#         vt,
+#         cosa_u,
+#         cosa_v,
+#         origin=(grid().ie, grid().je + 1, 0),
+#         domain=corner_shape,
+#     )
+#     east_corner_ut_lowest(
+#         uc,
+#         vc,
+#         ut,
+#         vt,
+#         cosa_u,
+#         cosa_v,
+#         origin=(grid().ie, grid().je, 0),
+#         domain=corner_shape,
+#     )
+#     north_corner_vt_adjacent(
+#         uc,
+#         vc,
+#         ut,
+#         vt,
+#         cosa_u,
+#         cosa_v,
+#         origin=(grid().ie + 1, grid().je, 0),
+#         domain=corner_shape,
+#     )
+#     north_corner_vt_left(
+#         uc,
+#         vc,
+#         ut,
+#         vt,
+#         cosa_u,
+#         cosa_v,
+#         origin=(grid().ie, grid().je, 0),
+#         domain=corner_shape,
+#     )
 
 
-@gtstencil()
-def east_corner_ut_lowest(uc: sd, vc: sd, ut: sd, vt: sd, cosa_u: sd, cosa_v: sd):
-    with computation(PARALLEL), interval(...):
-        damp_u = 1. / (1.0 - 0.0625 * cosa_u[0, 0, 0] * cosa_v[0, 0, 0])
-        ut[0, 0, 0] = (uc[0, 0, 0]-0.25 * cosa_u[0, 0, 0] * (vt[0, 1, 0] + vt[-1, 1, 0] + vt[-1, 0, 0] + vc[0, 0, 0] -
-                                                             0.25 * cosa_v[0, 0, 0] * (ut[1, 0, 0] + ut[1, -1, 0] +
-                                                                                       ut[0, -1, 0]))) * damp_u
+# def nw_corner(uc, vc, ut, vt, cosa_u, cosa_v, corner_shape):
+#     west_corner_ut_adjacent(
+#         uc,
+#         vc,
+#         ut,
+#         vt,
+#         cosa_u,
+#         cosa_v,
+#         origin=(grid().is_ + 1, grid().je + 1, 0),
+#         domain=corner_shape,
+#     )
+#     west_corner_ut_lowest(
+#         uc,
+#         vc,
+#         ut,
+#         vt,
+#         cosa_u,
+#         cosa_v,
+#         origin=(grid().is_ + 1, grid().je, 0),
+#         domain=corner_shape,
+#     )
+#     north_corner_vt_left(
+#         uc,
+#         vc,
+#         ut,
+#         vt,
+#         cosa_u,
+#         cosa_v,
+#         origin=(grid().is_ - 1, grid().je, 0),
+#         domain=corner_shape,
+#     )
+#     north_corner_vt_adjacent(
+#         uc,
+#         vc,
+#         ut,
+#         vt,
+#         cosa_u,
+#         cosa_v,
+#         origin=(grid().is_, grid().je, 0),
+#         domain=corner_shape,
+#     )
 
 
-@gtstencil()
-def east_corner_ut_adjacent(uc: sd, vc: sd, ut: sd, vt: sd, cosa_u: sd, cosa_v: sd):
-    with computation(PARALLEL), interval(...):
-        damp = 1. / (1. - 0.0625 * cosa_u[0, 0, 0] * cosa_v[0, 1, 0])
-        ut[0, 0, 0] = (uc[0, 0, 0] - 0.25 * cosa_u[0, 0, 0] * (vt[0, 0, 0] + vt[-1, 0, 0] + vt[-1, 1, 0] + vc[0, 1, 0] -
-                                                               0.25 * cosa_v[0, 1, 0] * (ut[1, 0, 0] + ut[1, 1, 0] +
-                                                                                         ut[0, 1, 0]))) * damp
+# @gtstencil()
+# def west_corner_ut_lowest(uc: sd, vc: sd, ut: sd, vt: sd, cosa_u: sd, cosa_v: sd):
+#     with computation(PARALLEL), interval(...):
+#         damp_u = 1.0 / (1.0 - 0.0625 * cosa_u[0, 0, 0] * cosa_v[-1, 0, 0])
+#         ut[0, 0, 0] = (
+#             uc[0, 0, 0]
+#             - 0.25
+#             * cosa_u[0, 0, 0]
+#             * (
+#                 vt[-1, 1, 0]
+#                 + vt[0, 1, 0]
+#                 + vt[0, 0, 0]
+#                 + vc[-1, 0, 0]
+#                 - 0.25
+#                 * cosa_v[-1, 0, 0]
+#                 * (ut[-1, 0, 0] + ut[-1, -1, 0] + ut[0, -1, 0])
+#             )
+#         ) * damp_u
 
 
-@gtstencil()
-def north_corner_vt_left(uc: sd, vc: sd, ut: sd, vt: sd, cosa_u: sd, cosa_v: sd):
-    with computation(PARALLEL), interval(...):
-        damp_v = 1. / (1.0 - 0.0625 * cosa_u[0, 0, 0] * cosa_v[0, 0, 0])
-        vt[0, 0, 0] = (vc[0, 0, 0] - 0.25 * cosa_v[0, 0, 0] * (ut[1, 0, 0] + ut[1, -1, 0] + ut[0, -1, 0] + uc[0, 0, 0] -
-                                                               0.25 * cosa_u[0, 0, 0] *
-                                                               (vt[0, 1, 0] + vt[-1, 1, 0] + vt[-1, 0, 0]))) * damp_v
+# @gtstencil()
+# def west_corner_ut_adjacent(uc: sd, vc: sd, ut: sd, vt: sd, cosa_u: sd, cosa_v: sd):
+#     with computation(PARALLEL), interval(...):
+#         damp = 1.0 / (1.0 - 0.0625 * cosa_u[0, 0, 0] * cosa_v[-1, 1, 0])
+#         ut[0, 0, 0] = (
+#             uc[0, 0, 0]
+#             - 0.25
+#             * cosa_u[0, 0, 0]
+#             * (
+#                 vt[-1, 0, 0]
+#                 + vt[0, 0, 0]
+#                 + vt[0, 1, 0]
+#                 + vc[-1, 1, 0]
+#                 - 0.25 * cosa_v[-1, 1, 0]
+#                 * (ut[-1, 0, 0] + ut[-1, 1, 0] + ut[0, 1, 0])
+#             )
+#         ) * damp
 
-@gtstencil()
-def north_corner_vt_adjacent(uc: sd, vc: sd, ut: sd, vt: sd, cosa_u: sd, cosa_v: sd):
-    with computation(PARALLEL), interval(...):
-        damp_v = 1. / (1.0 - 0.0625 * cosa_u[1, 0, 0] * cosa_v[0, 0, 0])
-        vt[0, 0, 0] = (vc[0, 0, 0] - 0.25 * cosa_v[0, 0, 0] * (ut[0, 0, 0] + ut[0, -1, 0] + ut[1, -1, 0] + uc[1, 0, 0] -
-                                                               0.25 * cosa_u[1, 0, 0] *
-                                                               (vt[0, 1, 0] + vt[1, 1, 0] + vt[1, 0, 0]))) * damp_v
-"""
+
+# @gtstencil()
+# def south_corner_vt_left(uc: sd, vc: sd, ut: sd, vt: sd, cosa_u: sd, cosa_v: sd):
+#     with computation(PARALLEL), interval(...):
+#         damp_v = 1.0 / (1.0 - 0.0625 * cosa_u[0, -1, 0] * cosa_v[0, 0, 0])
+#         vt[0, 0, 0] = (
+#             vc[0, 0, 0]
+#             - 0.25
+#             * cosa_v[0, 0, 0]
+#             * (
+#                 ut[1, -1, 0]
+#                 + ut[1, 0, 0]
+#                 + ut[0, 0, 0]
+#                 + uc[0, -1, 0]
+#                 - 0.25
+#                 * cosa_u[0, -1, 0]
+#                 * (vt[0, -1, 0] + vt[-1, -1, 0] + vt[-1, 0, 0])
+#             )
+#         ) * damp_v
+
+
+# @gtstencil()
+# def south_corner_vt_adjacent(uc: sd, vc: sd, ut: sd, vt: sd, cosa_u: sd, cosa_v: sd):
+#     with computation(PARALLEL), interval(...):
+#         damp_v = 1.0 / (1.0 - 0.0625 * cosa_u[1, -1, 0] * cosa_v[0, 0, 0])
+#         vt[0, 0, 0] = (
+#             vc[0, 0, 0]
+#             - 0.25
+#             * cosa_v[0, 0, 0]
+#             * (
+#                 ut[0, -1, 0]
+#                 + ut[0, 0, 0]
+#                 + ut[1, 0, 0]
+#                 + uc[1, -1, 0]
+#                 - 0.25 * cosa_u[1, -1, 0]
+#                 * (vt[0, -1, 0] + vt[1, -1, 0] + vt[1, 0, 0])
+#             )
+#         ) * damp_v
+
+
+# @gtstencil()
+# def east_corner_ut_lowest(uc: sd, vc: sd, ut: sd, vt: sd, cosa_u: sd, cosa_v: sd):
+#     with computation(PARALLEL), interval(...):
+#         damp_u = 1.0 / (1.0 - 0.0625 * cosa_u[0, 0, 0] * cosa_v[0, 0, 0])
+#         ut[0, 0, 0] = (
+#             uc[0, 0, 0]
+#             - 0.25
+#             * cosa_u[0, 0, 0]
+#             * (
+#                 vt[0, 1, 0]
+#                 + vt[-1, 1, 0]
+#                 + vt[-1, 0, 0]
+#                 + vc[0, 0, 0]
+#                 - 0.25 * cosa_v[0, 0, 0] * (ut[1, 0, 0] + ut[1, -1, 0] + ut[0, -1, 0])
+#             )
+#         ) * damp_u
+
+
+# @gtstencil()
+# def east_corner_ut_adjacent(uc: sd, vc: sd, ut: sd, vt: sd, cosa_u: sd, cosa_v: sd):
+#     with computation(PARALLEL), interval(...):
+#         damp = 1.0 / (1.0 - 0.0625 * cosa_u[0, 0, 0] * cosa_v[0, 1, 0])
+#         ut[0, 0, 0] = (
+#             uc[0, 0, 0]
+#             - 0.25
+#             * cosa_u[0, 0, 0]
+#             * (
+#                 vt[0, 0, 0]
+#                 + vt[-1, 0, 0]
+#                 + vt[-1, 1, 0]
+#                 + vc[0, 1, 0]
+#                 - 0.25 * cosa_v[0, 1, 0] * (ut[1, 0, 0] + ut[1, 1, 0] + ut[0, 1, 0])
+#             )
+#         ) * damp
+
+
+# @gtstencil()
+# def north_corner_vt_left(uc: sd, vc: sd, ut: sd, vt: sd, cosa_u: sd, cosa_v: sd):
+#     with computation(PARALLEL), interval(...):
+#         damp_v = 1.0 / (1.0 - 0.0625 * cosa_u[0, 0, 0] * cosa_v[0, 0, 0])
+#         vt[0, 0, 0] = (
+#             vc[0, 0, 0]
+#             - 0.25
+#             * cosa_v[0, 0, 0]
+#             * (
+#                 ut[1, 0, 0]
+#                 + ut[1, -1, 0]
+#                 + ut[0, -1, 0]
+#                 + uc[0, 0, 0]
+#                 - 0.25 * cosa_u[0, 0, 0] * (vt[0, 1, 0] + vt[-1, 1, 0] + vt[-1, 0, 0])
+#             )
+#         ) * damp_v
+
+
+# @gtstencil()
+# def north_corner_vt_adjacent(uc: sd, vc: sd, ut: sd, vt: sd, cosa_u: sd, cosa_v: sd):
+#     with computation(PARALLEL), interval(...):
+#         damp_v = 1.0 / (1.0 - 0.0625 * cosa_u[1, 0, 0] * cosa_v[0, 0, 0])
+#         vt[0, 0, 0] = (
+#             vc[0, 0, 0]
+#             - 0.25
+#             * cosa_v[0, 0, 0]
+#             * (
+#                 ut[0, 0, 0]
+#                 + ut[0, -1, 0]
+#                 + ut[1, -1, 0]
+#                 + uc[1, 0, 0]
+#                 - 0.25 * cosa_u[1, 0, 0] * (vt[0, 1, 0] + vt[1, 1, 0] + vt[1, 0, 0])
+#             )
+#         ) * damp_v
+# }

@@ -1,5 +1,4 @@
-import gt4py.gtscript as gtscript
-from gt4py.gtscript import PARALLEL, computation, interval
+from gt4py.gtscript import __INLINED, PARALLEL, computation, interval, parallel, region
 
 import fv3core._config as spec
 import fv3core.utils.gt4py_utils as utils
@@ -29,8 +28,7 @@ def update_vorticity_and_kinetic_energy(
     cos_sg4: sd,
     dt2: float,
 ):
-    from __externals__ import namelist
-    from __splitters__ import i_end, i_start, j_end, j_start
+    from __externals__ import i_end, i_start, j_end, j_start, namelist
 
     with computation(PARALLEL), interval(...):
         assert __INLINED(namelist.grid_type < 3)

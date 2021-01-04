@@ -2,7 +2,6 @@ import contextlib
 import logging
 import os
 
-import fv3gfs.util as fv3util
 import numpy as np
 import pytest
 import serialbox as ser
@@ -10,6 +9,7 @@ import xarray as xr
 
 import fv3core._config
 import fv3core.utils.gt4py_utils as gt_utils
+import fv3gfs.util as fv3util
 from fv3core.utils.mpi import MPI
 
 
@@ -18,6 +18,9 @@ np.set_printoptions(threshold=4096)
 
 OUTDIR = os.path.join(os.path.dirname(os.path.realpath(__file__)), "output")
 GPU_MAX_ERR = 1e-10
+GPU_NEAR_ZERO = 1e-15
+
+_near_zero = 1e-18
 
 
 def compare_arr(computed_data, ref_data):
@@ -31,13 +34,13 @@ def success_array(computed_data, ref_data, eps, ignore_near_zero_errors):
     success = np.logical_or(
         np.logical_and(np.isnan(computed_data), np.isnan(ref_data)),
         compare_arr(computed_data, ref_data) < eps,
+        # np.isclose(computed_data, ref_data, rtol=eps * 1e-2, atol=eps * 1e-2),
     )
     if ignore_near_zero_errors:
-        small_number = 1e-18
         success = np.logical_or(
             success,
             np.logical_and(
-                np.abs(computed_data) < small_number, np.abs(ref_data) < small_number
+                np.abs(computed_data) < _near_zero, np.abs(ref_data) < _near_zero
             ),
         )
     return success
@@ -129,6 +132,7 @@ def test_sequential_savepoint(
     # Reduce error threshold for GPU
     if backend.endswith("cuda") and testobj.max_error < GPU_MAX_ERR:
         testobj.max_error = GPU_MAX_ERR
+        _near_zero = GPU_NEAR_ZERO
     fv3core._config.set_grid(grid)
     input_data = testobj.collect_input_data(serializer, savepoint_in)
     # run python version of functionality
@@ -154,7 +158,7 @@ def test_sequential_savepoint(
             )
             passing_names.append(failing_names.pop())
     assert failing_names == [], f"only the following variables passed: {passing_names}"
-    assert len(passing_names) > 0, f"No tests passed"
+    assert len(passing_names) > 0, "No tests passed"
 
 
 def get_serializer(data_path, rank):
@@ -207,6 +211,7 @@ def test_mock_parallel_savepoint(
     # Reduce error threshold for GPU
     if backend.endswith("cuda") and testobj.max_error < GPU_MAX_ERR:
         testobj.max_error = GPU_MAX_ERR
+        _near_zero = GPU_NEAR_ZERO
     fv3core._config.set_grid(grid)
     inputs_list = []
     for savepoint_in, serializer in zip(savepoint_in_list, serializer_list):
@@ -315,7 +320,7 @@ def test_parallel_savepoint(
         except Exception as error:
             print(error)
     assert failing_names == [], f"only the following variables passed: {passing_names}"
-    assert len(passing_names) > 0, f"No tests passed"
+    assert len(passing_names) > 0, "No tests passed"
 
 
 @contextlib.contextmanager

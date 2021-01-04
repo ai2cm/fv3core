@@ -1,5 +1,3 @@
-import gt4py as gt
-import numpy as np
 from gt4py.gtscript import __INLINED, PARALLEL, computation, interval, parallel, region
 
 import fv3core._config as spec
@@ -22,8 +20,7 @@ def update_zonal_velocity(
     rdxc: sd,
     dt2: float,
 ):
-    from __externals__ import namelist
-    from __splitters__ import i_end, i_start
+    from __externals__ import i_end, i_start, namelist
 
     with computation(PARALLEL), interval(...):
         assert __INLINED(namelist.grid_type < 3)
@@ -48,8 +45,7 @@ def update_meridional_velocity(
     rdyc: sd,
     dt2: float,
 ):
-    from __externals__ import namelist
-    from __splitters__ import j_end, j_start
+    from __externals__ import j_end, j_start, namelist
 
     with computation(PARALLEL), interval(...):
         assert __INLINED(namelist.grid_type < 3)
@@ -58,6 +54,7 @@ def update_meridional_velocity(
         tmp_flux = dt2 * (velocity - velocity_c * cosa) / sina
         with parallel(region[:, j_start], region[:, j_end + 1]):
             tmp_flux = dt2 * velocity
+
         flux = vorticity[0, 0, 0] if tmp_flux > 0.0 else vorticity[1, 0, 0]
         velocity_c = velocity_c - tmp_flux * flux + rdyc * (ke[0, -1, 0] - ke)
 

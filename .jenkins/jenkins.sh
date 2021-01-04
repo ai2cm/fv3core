@@ -100,15 +100,13 @@ echo "UPSTREAM_PROJECT: ${UPSTREAM_PROJECT}"
 echo "UPSTREAM_BUILD_NUMBER: ${UPSTREAM_BUILD_NUMBER}"
 if [ ! -z "${UPSTREAM_PROJECT}" ] ; then
     # Set in build_for_daint jenkins plan, to mark what fv3core image to pull
-    export FV3_TAG="${UPSTREAM_PROJECT}-${UPSTREAM_BUILD_NUMBER}"
-    echo "Downstream project using FV3_TAG=${FV3_TAG}"
+    export JENKINS_TAG="${UPSTREAM_PROJECT}-${UPSTREAM_BUILD_NUMBER}"
+    echo "Downstream project using JENKINS_TAG=${JENKINS_TAG}"
 fi
 # If using sarus, load the image and set variables for running tests,
 # otherwise build the image
 if [ ${container_engine} == "sarus" ]; then
     module load sarus
-    export FV3_IMAGE="load/library/${FV3_TAG}"
-    echo "Using FV3_IMAGE=${FV3_IMAGE}"
     make sarus_load_tar
     if grep -q "parallel" <<< "${script}"; then
 	export CONTAINER_ENGINE="srun sarus"
@@ -118,8 +116,6 @@ if [ ${container_engine} == "sarus" ]; then
 	export CONTAINER_ENGINE="sarus"
 	export RUN_FLAGS=""
     fi
-else
-    make build
 fi
 
 # get the test data version from the Makefile
@@ -134,7 +130,7 @@ fi
 export TEST_DATA_DIR="${SCRATCH}/fv3core_fortran_data/${FORTRAN_VERSION}"
 
 G2G="false"
-
+export DOCKER_BUILDKIT=1
 # Run the jenkins command
 run_command "${script} ${optarg} ${optarg2} " Job${action} ${G2G} ${scheduler_script}
 
