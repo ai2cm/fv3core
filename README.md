@@ -385,8 +385,8 @@ The grid variables are mostly 2d variables and are 'global' to the model thread 
 grid object also contains domain and layout information relevant to the current
 rank being operated on.
 
-Utility functions at fv3core/utils include:
-  - gt4py_utils:
+Utility functions in `utils/` include:
+  - `gt4py_utils.py`:
     - default gt4py and model settings
     - methods for generating gt4py storages
     - methods for using numpy and cupy arrays in python functions that have not been
@@ -395,7 +395,7 @@ Utility functions at fv3core/utils include:
       and will mostly be removed with future refactors (e.g. k_split_run)
     - some general model math computations (e.g. great_circle_dist), that will
       eventually be put into gt4py with a future refactor
-  - grid:
+  - `grid.py`:
     - A Grid class definition that provides information about the grid layout,
       current tile informationm access to grid variables used globally, and
       convenience methods related to tile indexing, origins and domains commonly used
@@ -404,11 +404,11 @@ Utility functions at fv3core/utils include:
     - Also provides functionality for generating a Quantity object (used to interface
       with the fv3gfs-wrapper, that allows us to run the full model, not just the
       dynamical core)
-  - corners: port of corner calculations, initially direct Python calculations, being
+  - `corners`: port of corner calculations, initially direct Python calculations, being
     replaced with GT4py gtscript functions as the GT4py regions feature is implemented
-  - mpi: a wrapper for importing mpi4py when available
-  - global_constants.py: constants for use throughout the model
-  - typing.py: Clean names for common types we use in the model. This is new and
+  - `mpi.py`: a wrapper for importing mpi4py when available
+  - `global_constants.py`: constants for use throughout the model
+  - `typing.py`: Clean names for common types we use in the model. This is new and
     hasn't been adopted throughout the model yet, but will eventually be our
     standard. A shorthand 'sd' has been used in the intial version.
 
@@ -424,7 +424,7 @@ The `external/` directory is for submoduled repos that provide essential functio
 
 The build system uses Makefiles following the convention of other repos within VulcanClimateModeling.
 
-## Model Iiterface
+## Model Interface
 The top level functions fv_dynamics and fv_sugridz can currenty only be run in parallel
 using mpi with a minimum of 6 ranks (there are a few other units that also require
 this, e.g. whenever there is a halo update involved in a unit)
@@ -445,18 +445,21 @@ conventions than the rest of the model.
 ### Porting conventions
 Generation of regression data occurs in the fv3gfs-fortran repo
 (https://github.com/VulcanClimateModeling/fv3gfs-fortran) with serialization statements
-and a build procedure defined in tests/serialized_test_data_generation. The version of
-data this repo currently tests against is defined in FORTRAN_SERIALIZED_DATA_VERSION in
-this repo's docker/Makefile.image_names. Fields serialized are defined in Fortran code with
+and a build procedure defined in `tests/serialized_test_data_generation`. The version of
+data this repo currently tests against is defined in `FORTRAN_SERIALIZED_DATA_VERSION` in
+this repo's `docker/Makefile.image_names`. Fields serialized are defined in Fortran code with
 serialization comment statements such as:
 
+```
     !$ser savepoint C_SW-In
     !$ser data delpcd=delpc delpd=delp ptcd=ptc
+```
 
 where the name being assigned is the name the fv3core uses to identify the variable in the
 test code. When this name is not equal to the name of the variable, this was usually done
 to avoid conflicts with other parts of the code where the same name is used to reference a
 differently sized field.
+
 The majority of the logic for translating from data serialized from Fortran to something
 that can be used by Python, and the comparison of the results, is encompassed by the main
 Translate class in the tests/translate/translate.py file. Any units not involving a halo
@@ -464,10 +467,12 @@ update can be run using this framework, while those that need to be run in paral
 look to the ParallelTranslate class as the parent class in
 tests/translate/parallel_translate.py. These parent classes provide generally useful
 operations for translating serialized data between Fortran and Python specifications, and
-for applying regression tests.  A new unit test can be defined as a new child class of one
-of these, with a naming convention of Translate<Savepoint Name> where "Savepoint Name" is
-the name used in the serialization statements in the Fortran code, without the "-In" and
-"-Out" part of the name. A translate class can usually be minimally specify the input and
+for applying regression tests.
+
+A new unit test can be defined as a new child class of one
+of these, with a naming convention of `Translate<Savepoint Name>` where `Savepoint Name` is
+the name used in the serialization statements in the Fortran code, without the `-In` and
+`-Out` part of the name. A translate class can usually be minimally specify the input and
 output fields. Then, in cases where the parent compute function is insuffient to handle
 the complexity of either the data translation or the compute function, the appropriate
 methods can be overridden.
@@ -476,7 +481,7 @@ For Translate objects
   - The init function establishes the assumed translation setup for the class, which can
     be dynamically overridden as needed.
   - the parent compute function does:
-    - makes gt4py storages of the max shape (grid.npx+1, grid.npy+1, grid.npz+1) aligning
+    - Makes gt4py storages of the max shape (grid.npx+1, grid.npy+1, grid.npz+1) aligning
        the data based on the start indices specified. (gt4py requires data fields have the
        same shape, so in this model we have buffer points so all calculations can be done
        easily without worrying about shape matching)
@@ -485,21 +490,22 @@ For Translate objects
   - The unit test then uses a modified relative error metric to determine whether the unit
     passes
   - The init method for a Translate class:
-    - the input (self.in_vars["data_vars"]) and output(self.out_vars) variables are
+    - The input (self.in_vars["data_vars"]) and output(self.out_vars) variables are
       specified in dictionaries, where the keys are the name of the variable used in the
       model and the values are dictionaries specifying metadata for translation of
       serialized data to gt4py storages. The metadata that can be specied to override
       defaults are:
-    - indices to line up data arrays into gt4py storages (which all get created as the
+    - Indices to line up data arrays into gt4py storages (which all get created as the
       max possible size needed by all operations, for simplicity):
       "istart", "iend", "jstart", "jend", "kstart", "kend"
       These should be set using the 'grid' object available to the Translate object,
       using equivalent index names as in the declaration of variables in the Fortran
-      code, e.g. real:: cx(bd%is:bd%ie+1,bd%jsd:bd%jed ) means we should assign
-    example:
+      code, e.g. real:: cx(bd%is:bd%ie+1,bd%jsd:bd%jed ) means we should assign.
+      Example:
+```python
       self.in_vars["data_vars"]["cx"] = {"istart": self.is\_, "iend": self.ie + 1,
                                          "jstart": self.jsd, "jend": self.jed,}
-
+```
   - There is only a limited set of Fortran shapes declared, so abstractions defined in
     the grid can also be used,
     e.g.: `self.out_vars["cx"] = self.grid.x3d_compute_domain_y_dict()`
@@ -536,19 +542,19 @@ For Translate objects
     - `self.ignore_near_zero_errors[<varname>] = True`: This is an option to let some fields
       pass with higher relative error if the absolute error is very small
 
-For ParallelTranslate objects:
+For `ParallelTranslate` objects:
   - Inputs and outputs are defined at the class level, and these include metadata such as
     the "name" (e.g. understandable name for the symbol), dimensions, units and
     n_halo(numb er of halo lines)
   - Both `compute_sequential` and `compute_parallel` methods may be defined, where a mock
-    communicator is used in the compute_sequential case
+    communicator is used in the `compute_sequential` case
   - The parent assumes a state object for tracking fields and methods exist for
     translating from inputs to a state object and extracting the output variables from the
     state. It is assumed that Quantity objects are needed in the model method in order to
     do halo updates.
-  - ParallelTranslate2Py is a slight variation of this used for many of the parallel units
+  - `ParallelTranslate2Py` is a slight variation of this used for many of the parallel units
     that do not yet utilize a state object and relies on the specification of the same
     index metadata of the Translate classes
-  - ParallelTranslateBaseSlicing makes use of the state but relies on the Translate object
+  - `ParallelTranslateBaseSlicing` makes use of the state but relies on the Translate object
     of self._base, a Translate class object, to align the data before making quantities, computing and
     comparing.
