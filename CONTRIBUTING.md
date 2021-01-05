@@ -1,7 +1,7 @@
 # Contributing
 
 FV3core is actively developed by Vulcan, so please contact us if there is interest in making contributions in the near-term.
-Contributors names will be added to [AUTHORS.rst](https://github.com/VulcanClimateModeling/fv3core/blob/master/AUTHORS.rst).
+Contributors names will be added to [`CONTRIBUTORS.md`](https://github.com/VulcanClimateModeling/fv3core/blob/master/AUTHORS.rst).
 
 ## Linting
 
