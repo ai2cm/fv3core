@@ -7,7 +7,6 @@ to the `CONTRIBUTORS.rst` file.
 
 ## Linting
 
-
 The linter may change over time, but you should always be able to correct your code (if you have pip installed requirements_lint.txt locally) using `make lint`, or to correct all files, including those not yet in version control `make lint_all`
 
 We manage the list of syntax requirements using [pre-commit](https://pre-commit.com/). This:
