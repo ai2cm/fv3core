@@ -130,7 +130,7 @@ common options for our tests, which you can add to `TEST_ARGS`:
 $ export FV3_STENCIL_REBUILD_FLAG=False
 ```
 
-FV3Core has certain backends that use a C++ compiler. GT4Py, by default, will instruct it to heavily optimize the generated code using and skip adding debug symbols. FV3Core on the other hand, by default will add debug symbols and will not use optimization. This means stencils using C++ backends will be ready to execute faster, but could be less efficient. If the goal is to test FV3Core performance, you will want to set:
+FV3Core has certain backends that use a C++ compiler. GT4Py, by default, will instruct it to heavily optimize the generated code, and will skip adding debug symbols. FV3Core on the other hand, defaults to a development mode, adding debug symbols disabling C++ optimizations. This means stencils using C++ backends will be ready to execute faster, but could be less efficient. If the goal is to test FV3Core performance, you will want to set:
 
 ```shell
 $ export FV3_CPP_DEBUG_MODE=False
