@@ -128,7 +128,7 @@ common options for our tests, which you can add to `TEST_ARGS`:
 $ export FV3_STENCIL_REBUILD_FLAG=False
 ```
 
-## Porting a new stencil (please also review the 'Porting Conventions' section below for more explanation)
+## Porting a new stencil
 
 1. Find the location in the fv3gfs-fortran repo code where the save-point is to be added, e.g. using
 
@@ -152,7 +152,7 @@ By convention, we name these `fv3core/stencils/<lower case stencil name>.py`
 $ make dev_tests TEST_ARGS="-–which_modules=<stencil name(s)>"
 ```
 
-
+**Please also review the [Porting conventions](#porting-conventions) section for additional explanation**
 ## Installation
 
 To build the `us.gcr.io/vcm-ml/fv3core` image with required dependencies for running the Python code, run
@@ -327,10 +327,13 @@ $ pre-commit install
 pre-commit installed at .git/hooks/pre-commit
 ```
 
-As a convenience, the `lint` target of the top-level makefile executes `pre-commit run`. The `lint_all` tarket runs pre-commit run all-files if you want to fix issues in new files instead of finding out through jenkins that they need formatting fixes.
+As a convenience, the `lint` target of the top-level makefile executes `pre-commit run --all-files`.
+Linting, which formats files and checks for some style conventions, is required, as the same checks are the first step in the continuous integration testing that happens when creating a pull request.
+Linting locally saves time and literal energy, since CI tests do not have to be launched so many times!
+
  Please see the 'Development Guidelines' below for more information on the structure of the code to align your new code with the current conventions, as well as the CONTRIBUTING.md document for style guidelines.
 
-## GT4Py Version
+## GT4Py version
 
 FV3Core does not actually use the [GridTools/gt4py](https://github.com/gridtools/gt4py) main, it instead uses a Vulcan Climate Modeling development branch.
 This is publically available version at [VCM/gt4py](https://github.com/vulcanclimatemodeling/gt4py).
@@ -354,9 +357,9 @@ The last step will launch Jenkins tests. If these pass:
 ## License
 FV3Core is provided under the terms of the [GPLv3](https://www.gnu.org/licenses/gpl-3.0.en.html) license.
 
-# Development Guidelines
+# Development guidelines
 
-## File Structure / Conventions
+## File structure / conventions
 The main functionality of the FV3 dynamical core, which has been ported from the
 Fortran version in the fv3gfs-fortran repo, is defined using GT4py stencils and python
 'compute' functions in fv3core/stencils. The core is comprised of units of calculations
@@ -421,7 +424,7 @@ The `external/` directory is for submoduled repos that provide essential functio
 
 The build system uses Makefiles following the convention of other repos within VulcanClimateModeling.
 
-## Model Interface
+## Model Iiterface
 The top level functions fv_dynamics and fv_sugridz can currenty only be run in parallel
 using mpi with a minimum of 6 ranks (there are a few other units that also require
 this, e.g. whenever there is a halo update involved in a unit)
@@ -439,7 +442,7 @@ conventions than the rest of the model.
  - Then the function itself, e.g. fv_dynamics, has arguments of 'state', 'comm' (the
    communicator) and all of the scalar parameters being provided.
 
-### Porting Conventions
+### Porting conventions
 Generation of regression data occurs in the fv3gfs-fortran repo
 (https://github.com/VulcanClimateModeling/fv3gfs-fortran) with serialization statements
 and a build procedure defined in tests/serialized_test_data_generation. The version of
@@ -534,7 +537,7 @@ For Translate objects
       pass with higher relative error if the absolute error is very small
 
 For ParallelTranslate objects:
-  - inputs and outputs are defined at the class level, and these include metadata such as
+  - Inputs and outputs are defined at the class level, and these include metadata such as
     the "name" (e.g. understandable name for the symbol), dimensions, units and
     n_halo(numb er of halo lines)
   - Both `compute_sequential` and `compute_parallel` methods may be defined, where a mock

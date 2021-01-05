@@ -186,12 +186,10 @@ list_test_data_options:
 	gsutil ls $(REGRESSION_DATA_STORAGE_BUCKET)/$(FORTRAN_SERIALIZED_DATA_VERSION)
 
 lint:
-	pre-commit run
-
-lint_all:
 	pre-commit run --all-files
+
 
 .PHONY: update_submodules build_environment build dev dev_tests dev_tests_mpi flake8 lint get_test_data unpack_test_data \
 	 list_test_data_options pull_environment pull_test_data push_environment \
 	rebuild_environment reformat run_tests_sequential run_tests_parallel test_base test_base_parallel \
-	tests update_submodules push_core pull_core tar_core sarus_load_tar cleanup_remote lint_all
+	tests update_submodules push_core pull_core tar_core sarus_load_tar cleanup_remote
