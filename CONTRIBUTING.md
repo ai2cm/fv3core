@@ -85,7 +85,7 @@ outputs.
 For example:
 ```python
 def compute(var1: FloatField, var2:IntField, var3: BoolField,
-            param1: float_type, param2: int_type, param3: bool_type)
+            param1: float_type, param2: int_type, param3: bool_type):
 ```
 
 Another example
@@ -117,7 +117,6 @@ The type of each input of a stencil requires a type and the first version of the
 @gtstencil()
 def pt_adjust(pkz:sd, dp1: sd, q_con: sd, pt: sd):
     with computation(PARALLEL), interval(...):
-        pt = pt * (1.0 + dp1) * (1.0 - q_con) / pkz
 ```
 
 Note that `fv3core.gtstencil` can be manually called on an undecorated stencil, but this is currently in general discouraged except when used internally.
