@@ -1,7 +1,7 @@
 # Contributing
 
 FV3core is actively developed by Vulcan, so please contact us if there is interest in making contributions in the near-term.
-Contributors names will be added to [AUTHORS.rst](https://github.com/VulcanClimateModeling/fv3core/blob/master/AUTHORS.rst).
+Contributors names will be added to [`CONTRIBUTORS.md`](https://github.com/VulcanClimateModeling/fv3core/blob/master/AUTHORS.rst).
 
 ## Linting
 
@@ -40,7 +40,7 @@ We are now actively refactoring, moving code that still does computations in Pyt
 While we do that, clarifying the operation of the model and what the variables are will both help make the model easier to read and reduce errors as we move around long lists of argument variables.
 
 Specifically, we want to start adding the following where appropriate:
-- Type hints on Python functions (see [`utils/typing.py`](https://github.com/VulcanClimateModeling/fv3core/blob/master/utils/typing.py) and below)
+- Type hints on Python functions (see [`utils/typing.py`](https://github.com/VulcanClimateModeling/fv3core/blob/master/fv3core/utils/typing.py) and below)
 - More descriptive types on stencil definitions
 - Docstrings on outward facing Python functions: describe what methods are doing, describe the intent (*in*, *out*, or *inout*) of the function arguments
 
