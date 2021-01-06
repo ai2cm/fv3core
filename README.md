@@ -13,7 +13,7 @@ The code here includes regression test data of computation units coming from ser
 
 Be sure to complete any required post-installation instructions (e.g. [for linux](https://docs.docker.com/engine/install/linux-postinstall/)). Also [authorize Docker to pull from gcr](https://cloud.google.com/container-registry/docs/advanced-authentication). Your user will need to have read access to the `us.gcr.io/vcm-ml` repository.
 
-2. To build the image, download the data, and run the tests, your first step should be:
+2.  You can build the image, download the data, and run the tests using:
 
 ```shell
 $ make tests
@@ -398,12 +398,9 @@ Utility functions in `fv3core/utils/` include:
   - `gt4py_utils.py`:
     - default gt4py and model settings
     - methods for generating gt4py storages
-    - methods for using numpy and cupy arrays in python functions that have not been
-      put into GT4py
-    - methods for handling complex patterns that did not immediately map to gt4py,
-      and will mostly be removed with future refactors (e.g. k_split_run)
-    - some general model math computations (e.g. great_circle_dist), that will
-      eventually be put into gt4py with a future refactor
+    - methods for using numpy and cupy arrays in python functions that have not been put into GT4py
+    - methods for handling complex patterns that did not immediately map to gt4py, and will mostly be removed with future refactors (e.g. k_split_run)
+    - some general model math computations (e.g. great_circle_dist), that will eventually be put into gt4py with a future refactor
   - `grid.py`:
     - A Grid class definition that provides information about the grid layout, current tile informationm access to grid variables used globally, and convenience methods related to tile indexing, origins and domains commonly used
     - A grid is defined for each MPI rank (minimum 6 ranks, 1 for each tile face of the cubed sphere grid represnting the whole Earth)
