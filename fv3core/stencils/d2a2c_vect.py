@@ -45,16 +45,26 @@ def vol_conserv_cubic_interp_func_y_rev(v):
     return c1 * v[0, 1, 0] + c2 * v + c3 * v[0, -1, 0]
 
 
-@gtstencil()
-def lagrange_interpolation_x(u: sd, utmp: sd):
-    with computation(PARALLEL), interval(...):
-        utmp = a2 * (u[0, -1, 0] + u[0, 2, 0]) + a1 * (u + u[0, 1, 0])
+@gtscript.function
+def lagrange_y_func_p1(qx):
+    return a2 * (qx[0, -1, 0] + qx[0, 2, 0]) + a1 * (qx + qx[0, 1, 0])
 
 
 @gtstencil()
-def lagrange_interpolation_y(v: sd, vtmp: sd):
+def lagrange_interpolation_y_p1(qx: sd, qout: sd):
     with computation(PARALLEL), interval(...):
-        vtmp = a2 * (v[-1, 0, 0] + v[2, 0, 0]) + a1 * (v + v[1, 0, 0])
+        qout = lagrange_y_func_p1(qx)
+
+
+@gtscript.function
+def lagrange_x_func_p1(qy):
+    return a2 * (qy[-1, 0, 0] + qy[2, 0, 0]) + a1 * (qy + qy[1, 0, 0])
+
+
+@gtstencil()
+def lagrange_interpolation_x_p1(qy: sd, qout: sd):
+    with computation(PARALLEL), interval(...):
+        qout = lagrange_x_func_p1(qy)
 
 
 @gtstencil(externals={"HALO": 3})
@@ -463,179 +473,186 @@ def d2a2c(
 
 def compute(dord4, uc, vc, u, v, ua, va, utc, vtc):
     grid = spec.grid
-    # big_number = 1e30  # 1e8 if 32 bit
-    # nx = grid.ie + 1  # grid.npx + 2
-    # ny = grid.je + 1  # grid.npy + 2
-    # i1 = grid.is_ - 1
-    # j1 = grid.js - 1
-    # id_ = 1 if dord4 else 0
-    # npt = 4 if spec.namelist.grid_type < 3 and not grid.nested else 0
-    # if npt > grid.nic - 1 or npt > grid.njc - 1:
-    #     npt = 0
-    # utmp = utils.make_storage_from_shape(ua.shape, grid.default_origin())
-    # vtmp = utils.make_storage_from_shape(va.shape, grid.default_origin())
-    # utmp[:] = big_number
-    # vtmp[:] = big_number
-    # js1 = npt + OFFSET if grid.south_edge else grid.js - 1
-    # je1 = ny - npt if grid.north_edge else grid.je + 1
-    # is1 = npt + OFFSET if grid.west_edge else grid.isd
-    # ie1 = nx - npt if grid.east_edge else grid.ied
+    nx = grid.ie + 1  # grid.npx + 2
+    ny = grid.je + 1  # grid.npy + 2
+    id_ = 1 if dord4 else 0
+    npt = 4 if spec.namelist.grid_type < 3 and not grid.nested else 0
+    if npt > grid.nic - 1 or npt > grid.njc - 1:
+        npt = 0
+    utmp = utils.make_storage_from_shape(ua.shape, grid.default_origin())
+    vtmp = utils.make_storage_from_shape(va.shape, grid.default_origin())
+    js1 = npt + OFFSET if grid.south_edge else grid.js - 1
+    je1 = ny - npt if grid.north_edge else grid.je + 1
+    is1 = npt + OFFSET if grid.west_edge else grid.isd
+    ie1 = nx - npt if grid.east_edge else grid.ied
 
-    # is1 = npt + OFFSET if grid.west_edge else grid.is_ - 1
-    # ie1 = nx - npt if grid.east_edge else grid.ie + 1
-    # js1 = npt + OFFSET if grid.south_edge else grid.jsd
-    # je1 = ny - npt if grid.north_edge else grid.jed
-
-    # js2 = npt + OFFSET if grid.south_edge else grid.jsd
-    # je2 = ny - npt if grid.north_edge else grid.jed
-    # jdiff = je2 - js2 + 1
-    # pad = 2 + 2 * id_
-    # ifirst = grid.is_ + 2 if grid.west_edge else grid.is_ - 1
-    # ilast = grid.ie - 1 if grid.east_edge else grid.ie + 2
-    # idiff = ilast - ifirst + 1
-
-    d2a2c(
-        grid.cosa_s,
-        grid.cosa_u,
-        grid.cosa_v,
-        grid.dxa,
-        grid.dya,
-        grid.rsin2,
-        grid.rsin_u,
-        grid.rsin_v,
-        grid.sin_sg1,
-        grid.sin_sg2,
-        grid.sin_sg3,
-        grid.sin_sg4,
-        u,
-        ua,
-        uc,
-        utc,
-        v,
-        va,
-        vc,
-        vtc,
-        origin=(grid.is_, grid.js, 0),
-        domain=(grid.nic + 1, grid.njc + 1, grid.npz),
+    lagrange_interpolation_y_p1(
+        u, utmp, origin=(is1, js1, 0), domain=(ie1 - is1 + 1, je1 - js1 + 1, grid.npz)
     )
+
+    is1 = npt + OFFSET if grid.west_edge else grid.is_ - 1
+    ie1 = nx - npt if grid.east_edge else grid.ie + 1
+    js1 = npt + OFFSET if grid.south_edge else grid.jsd
+    je1 = ny - npt if grid.north_edge else grid.jed
+
+    lagrange_interpolation_x_p1(
+        v, vtmp, origin=(is1, js1, 0), domain=(ie1 - is1 + 1, je1 - js1 + 1, grid.npz)
+    )
+
+    js2 = npt + OFFSET if grid.south_edge else grid.jsd
+    je2 = ny - npt if grid.north_edge else grid.jed
+
+    jdiff = je2 - js2 + 1
+    pad = 2 + 2 * id_
+    ifirst = grid.is_ + 2 if grid.west_edge else grid.is_ - 1
+    ilast = grid.ie - 1 if grid.east_edge else grid.ie + 2
+    idiff = ilast - ifirst + 1
 
     # lagrange_interpolation_x(
     #     u,
     #     utmp,
     #     origin=(grid.is_ - 1, grid.js, 0),
-    #     # domain=(ie1 - is1 + 1, je1 - js1 + 1, grid.npz),
+    #     domain=(min(ie1 - is1 + 5, utmp.shape[0] - (grid.is_ - 1)),
+    #             min(je1 - js1 + 5, utmp.shape[1] - grid.js - 2), grid.npz),
     # )
     # lagrange_interpolation_y(
     #     v,
     #     vtmp,
     #     origin=(grid.is_, grid.js - 1, 0),
-    #     # domain=(ie1 - is1 + 1, je1 - js1 + 1, grid.npz),
+    #     domain=(min(ie1 - is1 + 5, vtmp.shape[0] - grid.is_ - 2),
+    #             min(je1 - js1 + 5, vtmp.shape[1] - (grid.js - 1)), grid.npz),
     # )
 
-    # d2a2c_stencil1(
-    #     u,
-    #     v,
+    d2a2c_stencil1(
+        u,
+        v,
+        grid.cosa_s,
+        grid.rsin2,
+        utmp,
+        vtmp,
+        ua,
+        va,
+        origin=(grid.is_ - 3, grid.js - 3, 0),
+        domain=(grid.nic + 6, grid.njc + 6, grid.npz),
+    )
+
+    d2a2c_stencil2(
+        utmp,
+        v,
+        grid.cosa_u,
+        grid.rsin_u,
+        uc,
+        utc,
+        origin=(grid.is_ - 1, grid.js - 1, 0),
+        domain=(grid.nic + 2, grid.njc + 2, grid.npz),
+    )
+
+    d2a2c_stencil_west(
+        utmp,
+        ua,
+        v,
+        grid.cosa_u,
+        grid.rsin_u,
+        grid.dxa,
+        grid.sin_sg1,
+        grid.sin_sg3,
+        uc,
+        utc,
+        origin=(grid.is_ - 1, grid.js - 1, 0),
+        domain=(4, grid.njc + 2, grid.npz),
+    )
+
+    d2a2c_stencil_east(
+        utmp,
+        ua,
+        v,
+        grid.cosa_u,
+        grid.rsin_u,
+        grid.dxa,
+        grid.sin_sg1,
+        grid.sin_sg3,
+        uc,
+        utc,
+        origin=(grid.ie - 1, grid.js - 1, 0),
+        domain=(4, grid.njc + 2, grid.npz),
+    )
+
+    d2a2c_stencil3(
+        utmp,
+        ua,
+        va,
+        vtmp,
+        origin=(grid.is_ - 3, grid.js - 3, 0),
+        domain=(grid.nic + 6, grid.njc + 6, grid.npz),
+    )
+
+    d2a2c_stencil_south(
+        vtmp,
+        va,
+        u,
+        grid.cosa_v,
+        grid.rsin_v,
+        grid.dya,
+        grid.sin_sg2,
+        grid.sin_sg4,
+        vc,
+        vtc,
+        origin=(grid.is_ - 1, grid.js - 1, 0),
+        domain=(grid.nic + 2, 4, grid.npz),
+    )
+
+    d2a2c_stencil_north(
+        vtmp,
+        va,
+        u,
+        grid.cosa_v,
+        grid.rsin_v,
+        grid.dya,
+        grid.sin_sg2,
+        grid.sin_sg4,
+        vc,
+        vtc,
+        origin=(grid.js - 1, grid.ie - 1, 0),
+        domain=(grid.nic + 2, 4, grid.npz),
+    )
+
+    jfirst = grid.js + 2 if grid.south_edge else grid.js - 1
+    jlast = grid.je - 1 if grid.north_edge else grid.je + 2
+    jdiff = jlast - jfirst + 1
+
+    d2a2c_stencil4(
+        vtmp,
+        u,
+        grid.cosa_v,
+        grid.rsin_v,
+        vc,
+        vtc,
+        origin=(grid.is_ - 1, jfirst, 0),
+        domain=(grid.nic + 2, jdiff, grid.npz),
+    )
+
+    # Single stencil
+    # d2a2c(
     #     grid.cosa_s,
+    #     grid.cosa_u,
+    #     grid.cosa_v,
+    #     grid.dxa,
+    #     grid.dya,
     #     grid.rsin2,
-    #     utmp,
-    #     vtmp,
-    #     ua,
-    #     va,
-    #     origin=(grid.is_ - 3, grid.js - 3, 0),
-    #     domain=(grid.nic + 6, grid.njc + 6, grid.npz),
-    # )
-
-    # d2a2c_stencil2(
-    #     utmp,
-    #     v,
-    #     grid.cosa_u,
     #     grid.rsin_u,
-    #     uc,
-    #     utc,
-    #     origin=(i1, j1, 0),
-    #     domain=(grid.nic + 2, grid.njc + 2, grid.npz),
-    # )
-
-    # d2a2c_stencil_west(
-    #     utmp,
-    #     ua,
-    #     v,
-    #     grid.cosa_u,
-    #     grid.rsin_u,
-    #     grid.dxa,
+    #     grid.rsin_v,
     #     grid.sin_sg1,
+    #     grid.sin_sg2,
     #     grid.sin_sg3,
+    #     grid.sin_sg4,
+    #     u,
+    #     ua,
     #     uc,
     #     utc,
-    #     origin=(grid.is_ - 1, grid.js - 1, 0),
-    #     domain=(4, grid.njc + 2, grid.npz),
-    # )
-
-    # d2a2c_stencil_east(
-    #     utmp,
-    #     ua,
     #     v,
-    #     grid.cosa_u,
-    #     grid.rsin_u,
-    #     grid.dxa,
-    #     grid.sin_sg1,
-    #     grid.sin_sg3,
-    #     uc,
-    #     utc,
-    #     origin=(grid.is_ - 1, grid.js - 1, 0),
-    #     domain=(grid.nic + 4, grid.njc + 2, grid.npz),
-    # )
-
-    # d2a2c_stencil3(
-    #     utmp,
-    #     ua,
     #     va,
-    #     vtmp,
-    #     origin=(grid.is_ - 3, grid.js - 3, 0),
-    #     domain=(grid.nic + 6, grid.njc + 6, grid.npz),
-    # )
-
-    # d2a2c_stencil_south(
-    #     vtmp,
-    #     va,
-    #     u,
-    #     grid.cosa_v,
-    #     grid.rsin_v,
-    #     grid.dya,
-    #     grid.sin_sg2,
-    #     grid.sin_sg4,
     #     vc,
     #     vtc,
-    #     origin=(grid.is_ - 1, grid.js - 1, 0),
-    #     domain=(grid.nic + 2, grid.njc, grid.npz),
-    # )
-
-    # d2a2c_stencil_north(
-    #     vtmp,
-    #     va,
-    #     u,
-    #     grid.cosa_v,
-    #     grid.rsin_v,
-    #     grid.dya,
-    #     grid.sin_sg2,
-    #     grid.sin_sg4,
-    #     vc,
-    #     vtc,
-    #     origin=(grid.js - 1, grid.js - 1, 0),
-    #     domain=(grid.nic + 2, grid.njc + 5, grid.npz),
-    # )
-
-    # jfirst = grid.js + 2 if grid.south_edge else grid.js - 1
-    # jlast = grid.je - 1 if grid.north_edge else grid.je + 2
-    # jdiff = jlast - jfirst + 1
-
-    # d2a2c_stencil4(
-    #     vtmp,
-    #     u,
-    #     grid.cosa_v,
-    #     grid.rsin_v,
-    #     vc,
-    #     vtc,
-    #     origin=(i1, jfirst, 0),
-    #     domain=(grid.nic + 2, jdiff, grid.npz),
+    #     origin=(grid.is_, grid.js, 0),
+    #     domain=(grid.nic + 1, grid.njc + 1, grid.npz),
     # )
