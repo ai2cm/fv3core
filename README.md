@@ -410,16 +410,10 @@ Utility functions in `fv3core/utils/` include:
     - some general model math computations (e.g. great_circle_dist), that will
       eventually be put into gt4py with a future refactor
   - `grid.py`:
-    - A Grid class definition that provides information about the grid layout,
-      current tile informationm access to grid variables used globally, and
-      convenience methods related to tile indexing, origins and domains commonly used
-    - A grid is defined for each MPI rank (minimum 6 ranks, 1 for each tile face of
-      the cubed sphere grid represnting the whole Earth)
-    - Also provides functionality for generating a Quantity object (used to interface
-      with the fv3gfs-wrapper, that allows us to run the full model, not just the
-      dynamical core)
-  - `corners`: port of corner calculations, initially direct Python calculations, being
-    replaced with GT4py gtscript functions as the GT4py regions feature is implemented
+    - A Grid class definition that provides information about the grid layout, current tile informationm access to grid variables used globally, and convenience methods related to tile indexing, origins and domains commonly used
+    - A grid is defined for each MPI rank (minimum 6 ranks, 1 for each tile face of the cubed sphere grid represnting the whole Earth)
+    - Also provides functionality for generating a Quantity object (used to interface with the fv3gfs-wrapper, that allows us to run the full model, not just the dynamical core)
+  - `corners`: port of corner calculations, initially direct Python calculations, being replaced with GT4py gtscript functions as the GT4py regions feature is implemented
   - `mpi.py`: a wrapper for importing mpi4py when available
   - `global_constants.py`: constants for use throughout the model
   - `typing.py`: Clean names for common types we use in the model. This is new and
