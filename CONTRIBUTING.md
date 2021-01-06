@@ -5,18 +5,23 @@ Contributors names will be added to [`CONTRIBUTORS.md`](https://github.com/Vulca
 
 ## Linting
 
-Dependencies for linting are maintained in `requirements_lint.txt`, and can be installed and run with:
+Dependencies for linting are maintained in `requirements_lint.txt`, and can be installed with:
 
 ```shell
-$ pip install -r requirements_lint.txt
-$ make lint # This runs all the checkers
+$ pip install -c constraints.txt -r requirements_lint.txt
+```
+
+Correcting and checking your code complies with all requirements can be run with:
+
+```shell
+$ make lint
 ```
 
 We manage the list of syntax requirements using [pre-commit](https://pre-commit.com/).
 **This runs all checks and is required to pass as one of the continuous integration tests.**
 
-The list of checkes includes `black`, `isort`, and `flake8`, among a few others.
-Black is configured in `pyproject.toml`, and the others use `setup.cfg`.
+The list of checkes includes `black`, `isort`, and `flake8`, among a few others, found in `.pre-commit-config.yaml`.
+[Black](https://github.com/ambv/black) is configured in `pyproject.toml`, and the others use `setup.cfg`.
 
 We mostly use standard Flake8, but ignore the following rules:
 
@@ -40,12 +45,12 @@ We are now actively refactoring, moving code that still does computations in Pyt
 While we do that, clarifying the operation of the model and what the variables are will both help make the model easier to read and reduce errors as we move around long lists of argument variables.
 
 Specifically, we want to start adding the following where appropriate:
-- Type hints on Python functions (see [`utils/typing.py`](https://github.com/VulcanClimateModeling/fv3core/blob/master/fv3core/utils/typing.py) and below)
+- Type hints on Python functions (see [`fv3core/utils/typing.py`](https://github.com/VulcanClimateModeling/fv3core/blob/master/fv3core/utils/typing.py) and below)
 - More descriptive types on stencil definitions
 - Docstrings on outward facing Python functions: describe what methods are doing, describe the intent (*in*, *out*, or *inout*) of the function arguments
 
 ### Docstrings
-These should aid us in refactoring and understanding what a function is doing. If it is not completely understood yet what is happening, what is known can be written along with a `TODOC` to indicate it is incomplete.
+These should aid us in refactoring and understanding what a function is doing. If it is not completely understood yet what is happening, please consult other team members and GFDL as appropriate. If we still cannot tell what is happening, you can write what is known along with a `TODOC` to indicate it is incomplete.
 For example:
 
 ```python
@@ -54,7 +59,7 @@ def stencil(...):
 
     Here is a longer explanation of the assumptions and why this exists.
 
-    TODOC: I do not fully understand why ke_c needs to be updated here.
+    TODOC: Why does ke_c need to be updated here?
 
     Args:
         uc: x-velocity on C-grid (inout)
@@ -104,12 +109,12 @@ Turns into
     ) -> Field:
 ```
 
-- We will prioritize adding typing to methods that are used by other modules.
-  Not every internal method needs this level of specification.
+- We prefer to add typing to methods that are used by other modules.
+  Not every internal method needs this level of specification, in particular module-private routines or routines which are already self-descriptive without type hinting.
 - Internal functions that are likely to be inlined into a larger stencil do not need this if it will just be removed in the near-term.
 
 ### GT4Py stencils
-FV3core defines a custom decorator `fv3core.gtstencil` defined in `decorators.py` that it uses to define stencils.
+FV3core defines a custom decorator `fv3core.gtstencil` defined in `decorators.py` for creating stencils.
 This eventually calls `gt4py.gtscript.stencil`, but sets default external arguments such as `backend`, and `rebuild` and provides the global namelist to the stencils as `namelist`.
 The type of each input of a stencil requires a type and the first version of the model used a shorthand 'sd' (storage data) to indicate a 3D gt4py storage, such as
 
@@ -119,14 +124,30 @@ def pt_adjust(pkz:sd, dp1: sd, q_con: sd, pt: sd):
     with computation(PARALLEL), interval(...):
 ```
 
-Note that `fv3core.gtstencil` can be manually called on an undecorated stencil, but this is currently in general discouraged except when used internally.
+Note that `fv3core.gtstencil` can be manually called on an undecorated stencil, but this is currently in general discouraged.
 
 In the refactoring of the dycore, we are using lower dimensional storages and different item types, so `sd` is insufficient to type these.
-[`utils/typing.py`](https://github.com/VulcanClimateModeling/fv3core/blob/master/fv3core/utils/typing.py) defines various field types.
+[`fv3core/utils/typing.py`](https://github.com/VulcanClimateModeling/fv3core/blob/master/fv3core/utils/typing.py) defines various field types.
 For example, `FloatField[IJ]` for a 2D field of default floating point values.
 
 ### Namelist
-The `fv3core.gtstencil` decorator automatically makes `namelist` available, if `from __externals__ import namelist` is added at the top of the stencil or any stencil function.
+The `fv3core.gtstencil` decorator automatically makes `namelist` available, if `from __externals__ import namelist` is added at the top of the stencil or any stencil function along with other imports.
+
+```python
+@fv3core.gtstencil
+def mystencil(var: FloatField):
+    from gtscript import parallel
+    from __externals__ import namelist, x_start
+```
+
+### GTScript functions
+These use the `@gtscript.function` decorator and the arguments do not include type
+specifications. They will continue to not have type hinting.
+
+e.g.:
+
+    @gtscript.function
+    def get_bl(al, q):
 
 ### Assertions
 We can now include assertions of compile time variables inside of gtscript functions with the syntax: `assert __INLINED(namelist.grid_type < 3)`.
@@ -142,6 +163,6 @@ As we refactor, we may opt to use this convention more (or a similar one to avoi
 
 
 ### New styles
-Propose new style ideas to the team (or subset) with examples and description of how data flow would be altered if relevant. Once an idea is accepted, open a PR with the idea applied to a sample if possible (if not, correct the whole model), and update this doc to reflect the new convention we all should incorporate as we refactor.
+Propose new style ideas in a meeting or github issue to the team (or subset) with examples and description of how data flow would be altered if relevant. Once an idea is accepted, open a PR with the idea applied to a sample if possible (if not, correct the whole model), and update this doc to reflect the new convention we all should incorporate as we refactor.
 Share news of this update when the PR is accepted and merged, including guidelines for using the new convention.
 Implementers and reviewers of new code changes should consider whether the new style should be applied at the same time so we can introduce this change in a piecemeal fashion rather than disrupting every active task.
