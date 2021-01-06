@@ -21,5 +21,3 @@ make tests_mpi TEST_ARGS="--python_regression --force-regen --backend=${BACKEND}
 sudo chown -R $USER:$USER ${python_data_dir}
 set -e
 EXPERIMENT=${exp_name} make push_python_regressions
-
-
