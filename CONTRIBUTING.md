@@ -77,21 +77,18 @@ def stencil(...):
 ### Type hinting Python functions
 These should mostly be lightweight workflow wrappers calling gt4py stencils, though currently exceptions exist where Python code does computations on data fields.
 
-Original convention is:
-```python
+New code should be type hinted making use of `fv3core/utils/typing.py` when typing gt4py fields. You may run into code in fv3core before we added this convention. An older code like:
+\```python
 def compute(var1, var2, var3, param1, param2, param3):
-```
+\```
 
-Order of arguments does not actually matter, but generally follows the convention of listing 3d fields first, followed by parameters, as is required by gt4py stencil functions.
+would become:
 
-New convention: make use of `fv3core/utils/typing.py` to specify fields, also type-hint any function
-outputs.
-
-For example:
-```python
+\```python
 def compute(var1: FloatField, var2:IntField, var3: BoolField,
             param1: float_type, param2: int_type, param3: bool_type):
-```
+\```
+There is no determined convention for order of arguments, but the code generally follows the convention of listing 3d fields first followed by parameters, as is required by gt4py stencil functions.
 
 Another example
 ```python
