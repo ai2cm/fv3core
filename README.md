@@ -87,7 +87,7 @@ There are `push_environment` and `rebuild_environment` targets, but these should
 If you want to run different test data, discover the possible options with
 ```shell
 $ make list_test_data_options
-'''
+```
 This will list the storage buckets in the cloud. Then to run one of them, set EXPERIMENT to the folder name of the data you'd like to use:
 
 e.g.
