@@ -9,17 +9,45 @@ The code here includes regression test data of computation units coming from ser
 
 ## QuickStart
 
-1. Ensure you have docker installed and available for building and running
+1. Ensure you have docker installed and available for building and running and has access to the VCM cloud
+
+You should enable running docker as your user rather than as root with sudo. First, create a docker group if it doesn't exist:
+
+```shell
+$ sudo groupadd docker
+```
+
+Add your user to this group:
+
+```shell
+sudo usermod -aG docker $USER
+```
+
+Logout/restart to ensure these changes take effect.
+
+Finally, authorize docker to pull from GCP:
+
+```shell
+gcloud auth configure-docker
+```
+
 2. To build the image, download the data, and run the tests, your first step should be:
 
 ```shell
 $ make tests
 ```
 
+If you want to develop code, you should also install the linting requirements locally
+
+```shell
+$ pip install -c constraints.txt -r requirements_lint.txt
+```
+
+## Getting started, in more detail
 If you only want the the main fv3core docker image, run
 
 ```shell
-$ make build 
+$ make build
 ```
 
 If you want to download test data run
@@ -35,8 +63,6 @@ MPI parallel tests (that run that way to exercise halo updates in the model) can
 ```shell
 $ make tests_mpi
 ```
-
-## Getting started, in more detail
 
 The environment image that the fv3core container uses is prebuilt and lives in the GCR. The above commands will by default pull this image before building the fv3core image and running the tests.
 To build the environment from scratch (including GT4py) before running tests, either run
@@ -331,7 +357,7 @@ This file is committed to the repository, and gives more reproducible tests if a
 To develop fv3core, you need to install the linting requirements in `requirements_lint.txt`. To install the pinned versions, use:
 
 ```shell
-$ pip install -r requirements_lint.txt -c constraints.txt
+$ pip install -c constraints.txt -r requirements_lint.txt
 ```
 
 This adds `pre-commit`, which we use to lint and enforce style on the code. The first time you install `pre-commit`, install its git hooks using:
