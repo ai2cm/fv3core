@@ -74,7 +74,7 @@ def stencil(...):
 ```
 
 
-### Python functions
+### Type hinting Python functions
 These should mostly be lightweight workflow wrappers calling gt4py stencils, though currently exceptions exist where Python code does computations on data fields.
 
 Original convention is:
