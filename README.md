@@ -26,7 +26,7 @@ $ pip install -c constraints.txt -r requirements_lint.txt
 ```
 
 ## Getting started, in more detail
-If you only want the the main fv3core docker image, run
+If you want to build the main fv3core docker image, run
 
 ```shell
 $ make build
