@@ -7,22 +7,36 @@ The code here includes regression test data of computation units coming from ser
 
 **WARNING** This repo is under active development and relies on code and data that is not publicly available at this point.
 
-## Getting started
+## QuickStart
 
-Use the `tests` target of the Makefile to run the unit tests.
+1. Ensure you have docker installed and available for building and running
+2. To build the image, download the data, and run the tests, your first step should be:
 
 ```shell
 $ make tests
 ```
-This will pull the test data from the Google storage bucket (using the `make get_test_data`) if it does not exist locally yet, build the fv3core docker image, and run all of the sequential tests using that image.
 
-See the [Unit Testing]() section below for options.
+If you only want the the main fv3core docker image, run
 
-If you'd like to run MPI parallel tests (which are needed for parts of the code with halo updates), run
+```shell
+$ make build 
+```
+
+If you want to download test data run
+
+```shell
+$ make get_test_data
+```
+
+And the c12_6ranks_standard data will download into the `test_data` directory
+
+MPI parallel tests (that run that way to exercise halo updates in the model) can also be run with:
 
 ```shell
 $ make tests_mpi
 ```
+
+## Getting started, in more detail
 
 The environment image that the fv3core container uses is prebuilt and lives in the GCR. The above commands will by default pull this image before building the fv3core image and running the tests.
 To build the environment from scratch (including GT4py) before running tests, either run
