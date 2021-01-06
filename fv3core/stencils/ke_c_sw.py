@@ -5,27 +5,27 @@ import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import gtstencil
 
 
-sd = utils.sd
+FloatField = utils.FloatField
 
 
 @gtstencil()
 def update_vorticity_and_kinetic_energy(
-    ke: sd,
-    vort: sd,
-    ua: sd,
-    va: sd,
-    uc: sd,
-    vc: sd,
-    u: sd,
-    v: sd,
-    sin_sg1: sd,
-    cos_sg1: sd,
-    sin_sg2: sd,
-    cos_sg2: sd,
-    sin_sg3: sd,
-    cos_sg3: sd,
-    sin_sg4: sd,
-    cos_sg4: sd,
+    ke: FloatField,
+    vort: FloatField,
+    ua: FloatField,
+    va: FloatField,
+    uc: FloatField,
+    vc: FloatField,
+    u: FloatField,
+    v: FloatField,
+    sin_sg1: FloatField,
+    cos_sg1: FloatField,
+    sin_sg2: FloatField,
+    cos_sg2: FloatField,
+    sin_sg3: FloatField,
+    cos_sg3: FloatField,
+    sin_sg4: FloatField,
+    cos_sg4: FloatField,
     dt2: float,
 ):
     from __externals__ import i_end, i_start, j_end, j_start, namelist
@@ -37,19 +37,31 @@ def update_vorticity_and_kinetic_energy(
         vort = vc if va > 0.0 else vc[0, 1, 0]
 
         with parallel(region[:, j_start - 1], region[:, j_end]):
-            vort = vort * sin_sg4 + u[0, 1, 0] * cos_sg4 if va <= 0.0 else vort
+            if va <= 0.0:
+                vort = vort * sin_sg4 + u[0, 1, 0] * cos_sg4
         with parallel(region[:, j_start], region[:, j_end + 1]):
-            vort = vort * sin_sg2 + u * cos_sg2 if va > 0.0 else vort
+            if va > 0.0:
+                vort = vort * sin_sg2 + u * cos_sg2
 
         with parallel(region[i_end, :], region[i_start - 1, :]):
-            ke = ke * sin_sg3 + v[1, 0, 0] * cos_sg3 if ua <= 0.0 else ke
+            if ua <= 0.0:
+                ke = ke * sin_sg3 + v[1, 0, 0] * cos_sg3
         with parallel(region[i_end + 1, :], region[i_start, :]):
-            ke = ke * sin_sg1 + v * cos_sg1 if ua > 0.0 else ke
+            if ua > 0.0:
+                ke = ke * sin_sg1 + v * cos_sg1
 
         ke = 0.5 * dt2 * (ua * ke + va * vort)
 
 
-def compute(uc: sd, vc: sd, u: sd, v: sd, ua: sd, va: sd, dt2: float):
+def compute(
+    uc: FloatField,
+    vc: FloatField,
+    u: FloatField,
+    v: FloatField,
+    ua: FloatField,
+    va: FloatField,
+    dt2: float,
+):
     grid = spec.grid
     origin = (grid.is_ - 1, grid.js - 1, 0)
 
@@ -76,7 +88,7 @@ def compute(uc: sd, vc: sd, u: sd, v: sd, ua: sd, va: sd, dt2: float):
         grid.sin_sg4,
         grid.cos_sg4,
         dt2,
-        origin=(grid.is_ - 1, grid.js - 1, 0),
+        origin=origin,
         domain=(grid.nic + 2, grid.njc + 2, grid.npz),
     )
     return ke_c, vort_c
