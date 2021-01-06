@@ -384,30 +384,15 @@ FV3Core is provided under the terms of the [GPLv3](https://www.gnu.org/licenses/
 # Development guidelines
 
 ## File structure / conventions
-The main functionality of the FV3 dynamical core, which has been ported from the
-Fortran version in the fv3gfs-fortran repo, is defined using GT4py stencils and python
-'compute' functions in fv3core/stencils. The core is comprised of units of calculations
-defined for regression testing. These were initially generally separated into distinct files in
-fv3core/stencils with corresponding files in tests/translate/translate_<unit>.py
-defining the translation of variables from Fortran to Python. Exceptions exist in cases
-where topical and logical grouping allowed for code reuse. As refactors optimize the
-model, these units may be merged to occupy the same files and even methods/stencils, but
-the units should still be tested separately, unless determined to be redundant.
+The main functionality of the FV3 dynamical core, which has been ported from the Fortran version in the fv3gfs-fortran repo, is defined using GT4py stencils and python 'compute' functions in fv3core/stencils. The core is comprised of units of calculations defined for regression testing. These were initially generally separated into distinct files in fv3core/stencils with corresponding files in tests/translate/translate_<unit>.py defining the translation of variables from Fortran to Python. Exceptions exist in cases where topical and logical grouping allowed for code reuse. As refactors optimize the model, these units may be merged to occupy the same files and even methods/stencils, but the units should still be tested separately, unless determined to be redundant.
 
-The core has most of its calculations happening in GT4py stencils, but there are still
-several instances of operations happening in Python directly, which will need to be
-replaced with GT4py code for optimal performance.
+The core has most of its calculations happening in GT4py stencils, but there are still several instances of operations happening in Python directly, which will need to be replaced with GT4py code for optimal performance.
 
-The 'units' fv_dynamics and fv_subgridz can be called by fv3gfs-wrapper to run the
-FV3core model using Pythong wrapped fortran for code not ported to GT4py at the moment.
+The 'units' fv_dynamics and fv_subgridz can be called by fv3gfs-wrapper to run the FV3core model using Pythong wrapped fortran for code not ported to GT4py at the moment.
 
-The namelist and grid are global variables defined in fv3core/_config.py The namelist is
-'flattened' so that the grouping name of the option is not required to access the data
-(we may want to change this).
+The namelist and grid are global variables defined in fv3core/_config.py The namelist is 'flattened' so that the grouping name of the option is not required to access the data (we may want to change this).
 
-The grid variables are mostly 2d variables and are 'global' to the model thread per mpi rank. The
-grid object also contains domain and layout information relevant to the current
-rank being operated on.
+The grid variables are mostly 2d variables and are 'global' to the model thread per mpi rank. The grid object also contains domain and layout information relevant to the current rank being operated on.
 
 Utility functions in `fv3core/utils/` include:
   - `gt4py_utils.py`:
