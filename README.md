@@ -87,12 +87,14 @@ There are `push_environment` and `rebuild_environment` targets, but these should
 If you want to run different test data, discover the possible options with
 ```shell
 $ make list_test_data_options
-
+'''
 This will list the storage buckets in the cloud. Then to run one of them, set EXPERIMENT to the folder name of the data you'd like to use:
+
 e.g.
 ```shell
 $EXPERIMENT=c48_6ranks_standard make tests
 ```
+
 If you choose an experiment with a different number of ranks than 6, also set `NUM_RANKS=<num ranks>`
 
 ## Testing interactively outside the container
