@@ -20,7 +20,7 @@ $ sudo groupadd docker
 Add your user to this group:
 
 ```shell
-sudo usermod -aG docker $USER
+$ sudo usermod -aG docker $USER
 ```
 
 Logout/restart to ensure these changes take effect.
@@ -28,7 +28,7 @@ Logout/restart to ensure these changes take effect.
 Finally, authorize docker to pull from GCP:
 
 ```shell
-gcloud auth configure-docker
+$ gcloud auth configure-docker
 ```
 
 2. To build the image, download the data, and run the tests, your first step should be:
