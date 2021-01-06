@@ -19,11 +19,11 @@ Be sure to complete any required post-installation instructions (e.g. [for linux
 $ make tests
 ```
 
-If you want to develop code, you should also install the linting requirements locally
+If you want to develop code, you should also install the linting requirements and git hooks locally
 
 ```shell
 $ pip install -c constraints.txt -r requirements_lint.txt
-```
+$ pre-commit install
 
 ## Getting started, in more detail
 If you want to build the main fv3core docker image, run
