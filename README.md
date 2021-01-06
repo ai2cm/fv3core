@@ -11,25 +11,7 @@ The code here includes regression test data of computation units coming from ser
 
 1. Ensure you have docker installed and available for building and running and has access to the VCM cloud
 
-You should enable running docker as your user rather than as root with sudo. First, create a docker group if it doesn't exist:
-
-```shell
-$ sudo groupadd docker
-```
-
-Add your user to this group:
-
-```shell
-$ sudo usermod -aG docker $USER
-```
-
-Logout/restart to ensure these changes take effect.
-
-Finally, authorize docker to pull from GCP:
-
-```shell
-$ gcloud auth configure-docker
-```
+Be sure to complete any required post-installation instructions (e.g. [for linux](https://docs.docker.com/engine/install/linux-postinstall/)). Also [authorize Docker to pull from gcr](https://cloud.google.com/container-registry/docs/advanced-authentication). Your user will need to have read access to the `us.gcr.io/vcm-ml` repository.
 
 2. To build the image, download the data, and run the tests, your first step should be:
 
