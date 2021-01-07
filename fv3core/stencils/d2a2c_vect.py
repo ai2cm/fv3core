@@ -111,7 +111,7 @@ def d2a2c_stencil1(
 
 
 @gtstencil()
-def d2a2c_stencil2(utmp: sd, v: sd, cosa_u: sd, rsin_u: sd, uc: sd, utc: sd):
+def ut_main(utmp: sd, v: sd, cosa_u: sd, rsin_u: sd, uc: sd, utc: sd):
     # in: utmp, v, cosa_u, rsin_u
     # inout: uc
     # out: utc
@@ -177,14 +177,14 @@ def d2a2c_stencil_east(
 ):
     # in: utmp, ua, v, cosa_u, rsin_u, dxa, sin_sg1, sin_sg3
     # inout: uc, utc
-    from __externals__ import i_end, j_end, j_start
+    from __externals__ import i_end
 
     with computation(PARALLEL), interval(...):
         # East
         with parallel(region[i_end, :]):
             uc = vol_conserv_cubic_interp_func_x(utmp)
 
-        with parallel(region[i_end + 1, j_start - 1 : j_end + 2]):
+        with parallel(region[i_end + 1, :]):
             t1 = dxa[-2, 0, 0] + dxa[-1, 0, 0]
             t2 = dxa[0, 0, 0] + dxa[1, 0, 0]
             n1 = (t1 + dxa[-1, 0, 0]) * ua[-1, 0, 0] - dxa[-1, 0, 0] * ua[-2, 0, 0]
@@ -302,7 +302,7 @@ def d2a2c_stencil_north(
 
 
 @gtstencil()
-def d2a2c_stencil4(
+def vt_main(
     vtmp: sd,
     u: sd,
     cosa_v: sd,
@@ -403,7 +403,7 @@ def d2a2c(
         with parallel(region[i_end, :]):
             uc = vol_conserv_cubic_interp_func_x(utmp)
 
-        with parallel(region[i_end + 1, j_start - 1 : j_end + 2]):
+        with parallel(region[i_end + 1, :]):
             t1 = dxa[-2, 0, 0] + dxa[-1, 0, 0]
             t2 = dxa[0, 0, 0] + dxa[1, 0, 0]
             n1 = (t1 + dxa[-1, 0, 0]) * ua[-1, 0, 0] - dxa[-1, 0, 0] * ua[-2, 0, 0]
@@ -508,21 +508,7 @@ def compute(dord4, uc, vc, u, v, ua, va, utc, vtc):
     ilast = grid.ie - 1 if grid.east_edge else grid.ie + 2
     idiff = ilast - ifirst + 1
 
-    # lagrange_interpolation_x(
-    #     u,
-    #     utmp,
-    #     origin=(grid.is_ - 1, grid.js, 0),
-    #     domain=(min(ie1 - is1 + 5, utmp.shape[0] - (grid.is_ - 1)),
-    #             min(je1 - js1 + 5, utmp.shape[1] - grid.js - 2), grid.npz),
-    # )
-    # lagrange_interpolation_y(
-    #     v,
-    #     vtmp,
-    #     origin=(grid.is_, grid.js - 1, 0),
-    #     domain=(min(ie1 - is1 + 5, vtmp.shape[0] - grid.is_ - 2),
-    #             min(je1 - js1 + 5, vtmp.shape[1] - (grid.js - 1)), grid.npz),
-    # )
-
+    # This needs to compute over the whole domain, because it outputs utmp and vtmp
     d2a2c_stencil1(
         u,
         v,
@@ -532,19 +518,22 @@ def compute(dord4, uc, vc, u, v, ua, va, utc, vtc):
         vtmp,
         ua,
         va,
-        origin=(grid.is_ - 3, grid.js - 3, 0),
-        domain=(grid.nic + 6, grid.njc + 6, grid.npz),
+        origin=grid.default_origin(),
+        domain=grid.domain_shape_standard(),
     )
 
-    d2a2c_stencil2(
+    ifirst = grid.is_ + 2 if grid.west_edge else grid.is_ - 1
+    ilast = grid.ie - 1 if grid.east_edge else grid.ie + 2
+    idiff = ilast - ifirst + 1
+    ut_main(
         utmp,
         v,
         grid.cosa_u,
         grid.rsin_u,
         uc,
         utc,
-        origin=(grid.is_ - 1, grid.js - 1, 0),
-        domain=(grid.nic + 2, grid.njc + 2, grid.npz),
+        origin=(ifirst, grid.js - 1, 0),
+        domain=(idiff, grid.njc + 2, grid.npz),
     )
 
     d2a2c_stencil_west(
@@ -582,8 +571,8 @@ def compute(dord4, uc, vc, u, v, ua, va, utc, vtc):
         ua,
         va,
         vtmp,
-        origin=(grid.is_ - 3, grid.js - 3, 0),
-        domain=(grid.nic + 6, grid.njc + 6, grid.npz),
+        origin=grid.default_origin(),
+        domain=grid.domain_shape_standard(),
     )
 
     d2a2c_stencil_south(
@@ -620,7 +609,7 @@ def compute(dord4, uc, vc, u, v, ua, va, utc, vtc):
     jlast = grid.je - 1 if grid.north_edge else grid.je + 2
     jdiff = jlast - jfirst + 1
 
-    d2a2c_stencil4(
+    vt_main(
         vtmp,
         u,
         grid.cosa_v,
@@ -631,7 +620,7 @@ def compute(dord4, uc, vc, u, v, ua, va, utc, vtc):
         domain=(grid.nic + 2, jdiff, grid.npz),
     )
 
-    # Single stencil
+    # # Single stencil
     # d2a2c(
     #     grid.cosa_s,
     #     grid.cosa_u,
@@ -654,5 +643,5 @@ def compute(dord4, uc, vc, u, v, ua, va, utc, vtc):
     #     vc,
     #     vtc,
     #     origin=(grid.is_, grid.js, 0),
-    #     domain=(grid.nic + 1, grid.njc + 1, grid.npz),
+    #     domain=(grid.nic + 2, grid.njc + 2, grid.npz),
     # )

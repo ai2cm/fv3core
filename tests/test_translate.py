@@ -43,13 +43,13 @@ def success_array(computed_data, ref_data, eps, ignore_near_zero_errors):
                 np.abs(computed_data) < SMALL_NUMBER, np.abs(ref_data) < SMALL_NUMBER
             ),
         )
-    LARGE_NUMBER = 1e30
-    success = np.logical_or(
-        success,
-        np.logical_and(
-            np.abs(computed_data) < LARGE_NUMBER, np.abs(ref_data) > LARGE_NUMBER
-        ),
-    )
+    # LARGE_NUMBER = 1e26
+    # success = np.logical_or(
+    #     success,
+    #     np.logical_and(
+    #         np.abs(computed_data) < LARGE_NUMBER, np.abs(ref_data) > LARGE_NUMBER
+    #     ),
+    # )
 
     return success
 
