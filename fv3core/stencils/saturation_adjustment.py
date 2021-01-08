@@ -4,12 +4,11 @@ import gt4py.gtscript as gtscript
 from gt4py.gtscript import FORWARD, PARALLEL, computation, exp, floor, interval, log
 
 import fv3core._config as spec
-import fv3core.stencils.moist_cv as moist_cv
 import fv3core.utils.global_constants as constants
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import gtstencil
 from fv3core.stencils.basic_operations import dim
-
+from fv3core.stencils.moist_cv import compute_pkz_func
 
 # TODO: This code could be reduced greatly with abstraction, but first gt4py
 # needs to support gtscript function calls of arbitrary depth embedded in
@@ -1014,8 +1013,9 @@ def satadjust(
                 qa = 0.0
 
         if not hydrostatic:
+            pkz = compute_pkz_func(dp, delz, pt, cappa)
             #pkz = moist_cv.compute_pkz_func(dp, delz, pt, cappa)
-            pkz = exp(cappa * log(constants.RDG * dp / delz * pt))
+            #pkz = exp(cappa * log(constants.RDG * dp / delz * pt))
 
 
 def compute(
