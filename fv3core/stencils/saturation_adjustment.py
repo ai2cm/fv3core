@@ -634,7 +634,7 @@ def compute_q_tables(index: sd, tablew: sd, table2: sd, table: sd, desw: sd, des
 
 
 @gtstencil()
-def satadjust_part1(
+def satadjust(
     wqsat: sd,
     dq2dt: sd,
     dpln: sd,
@@ -682,7 +682,6 @@ def satadjust_part1(
     fac_smlt: float,
     fac_l2r: float,
     fac_imlt: float,
-    sat_adj0: float,
     d0_vap: float,
     lv00: float,
     fac_v2l: float,
@@ -753,7 +752,7 @@ def satadjust_part1(
         # TODO Might be able to get rid of these temporary allocations when not used?
         if dq0 > 0:  # whole grid - box saturated
             src = min(
-                sat_adj0 * dq0,
+                spec.namelist.sat_adj0 * dq0,
                 max(spec.namelist.ql_gen - ql, fac_v2l * dq0),
             )
         else:
@@ -813,6 +812,7 @@ def satadjust_part1(
             lcp2 = lhl / cvm
             icp2 = lhi / cvm
 
+        # homogeneous freezing of cloud water to cloud ice
         ql, qi, q_liq, q_sol, cvm, pt1 = homogenous_freezing(
             qv, ql, qi, q_liq, q_sol, pt1, cvm, icp2, mc_air, lhi, c_vap
         )
@@ -870,7 +870,7 @@ def satadjust_part1(
         if last_step:
             adj_fac = 1.0
         else:
-            adj_fac = sat_adj0
+            adj_fac = spec.namelist.sat_adj0
 
         qv, qi, q_sol, cvm, pt1 = sublimation(
             pt1,
@@ -1014,7 +1014,7 @@ def satadjust_part1(
                 qa = 0.0
 
         if not hydrostatic:
-            #pkz = moist_cv.compute_pkz_func(delp, delz, pt, cappa)
+            #pkz = moist_cv.compute_pkz_func(dp, delz, pt, cappa)
             pkz = exp(cappa * log(constants.RDG * dp / delz * pt))
 
 
@@ -1094,7 +1094,7 @@ def compute(
 
     do_qa = True
 
-    satadjust_part1(
+    satadjust(
         wqsat,
         dq2dt,
         dpln,
@@ -1142,7 +1142,6 @@ def compute(
         fac_smlt,
         fac_l2r,
         fac_imlt,
-        spec.namelist.sat_adj0,
         d0_vap,
         lv00,
         fac_v2l,
