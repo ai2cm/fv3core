@@ -10,6 +10,7 @@ from fv3core.decorators import gtstencil
 from fv3core.stencils.basic_operations import dim
 from fv3core.stencils.moist_cv import compute_pkz_func
 
+
 # TODO: This code could be reduced greatly with abstraction, but first gt4py
 # needs to support gtscript function calls of arbitrary depth embedded in
 # conditionals.
@@ -865,7 +866,7 @@ def satadjust(
         expsubl = exp(0.875 * log(qi * den))
         lhl, lhi, lcp2, icp2 = update_latent_heat_coefficient(pt1, cvm, lv00, d0_vap)
         tcp2 = lcp2 + icp2
-    
+
         if last_step:
             adj_fac = 1.0
         else:
@@ -951,7 +952,7 @@ def satadjust(
             it, ap1 = ap1_and_index(tin)
             wqs1 = wqs1_fn_w(it, ap1, tin, den)
             iqs1 = wqs1_fn_2(it, ap1, tin, den)
-             # Determine saturated specific humidity
+            # Determine saturated specific humidity
             if tin < T_WFR:
                 # ice phase
                 qstar = iqs1
@@ -1014,8 +1015,8 @@ def satadjust(
 
         if not hydrostatic:
             pkz = compute_pkz_func(dp, delz, pt, cappa)
-            #pkz = moist_cv.compute_pkz_func(dp, delz, pt, cappa)
-            #pkz = exp(cappa * log(constants.RDG * dp / delz * pt))
+            # pkz = moist_cv.compute_pkz_func(dp, delz, pt, cappa)
+            # pkz = exp(cappa * log(constants.RDG * dp / delz * pt))
 
 
 def compute(
