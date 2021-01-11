@@ -291,7 +291,7 @@ def vorticitytransport_cgrid(
         vc: y-velocity on C-grid (input, output)
         vort_c: Vorticity on C-grid (input)
         ke_c: kinetic energy on C-grid (input)
-        v: y-velocit on D-grid (input)
+        v: y-velocity on D-grid (input)
         u: x-velocity on D-grid (input)
         dt2: timestep (input)
     """
