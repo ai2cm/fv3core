@@ -39,8 +39,6 @@ def lagrangian_contributions(
     with computation(PARALLEL), interval(...):
         q2_adds = 0.0
     with computation(FORWARD), interval(...):
-        # ptop = pe2[0, 0, k_eul]
-        # pbot = pe2[0, 0, k_eul + 1]
         if pe1 < pbot and pe1[0, 0, 1] > ptop:
             # We are in the right pressure range to contribute to the Eulerian cell
             if pe1 <= ptop:
