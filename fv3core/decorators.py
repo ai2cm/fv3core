@@ -342,4 +342,3 @@ def _get_arg_report(arg):
         }
     else:
         return str(arg)
-
