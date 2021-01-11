@@ -9,11 +9,11 @@ from fv3core.decorators import gtstencil
 FloatField = utils.FloatField
 FloatFieldIJ = utils.FloatFieldIJ
 IntFieldIJ = utils.IntFieldIJ
-TracerTuple = utils.TracerTuple
 
 
 @gtstencil()
 def fix_tracer(
+    q: FloatField,
     dp: FloatField,
     dm: FloatField,
     dm_pos: FloatField,
@@ -23,7 +23,6 @@ def fix_tracer(
     sum0: FloatFieldIJ,
     sum1: FloatFieldIJ,
     fac: FloatFieldIJ,
-    q: TracerTuple,
 ):
     # reset fields
     with computation(PARALLEL), interval(...):
@@ -123,19 +122,19 @@ def compute(dp2, tracers, im, km, nq, jslice):
     sum1 = utils.make_storage_from_shape(shape_ij, origin=(0, 0))
     # TODO: Implement dev_gfs_physics ifdef when we implement compiler defs.
 
-    # for tracer in tracer_list:
-    fix_tracer(
-        dp2,
-        dm,
-        dm_pos,
-        zfix,
-        upper_fix,
-        lower_fix,
-        sum0,
-        sum1,
-        fac,
-        *tracer_list,
-        origin=(i1, js, 0),
-        domain=(im, jext, km),
-    )
+    for tracer in tracer_list:
+        fix_tracer(
+            tracer,
+            dp2,
+            dm,
+            dm_pos,
+            zfix,
+            upper_fix,
+            lower_fix,
+            sum0,
+            sum1,
+            fac,
+            origin=(i1, js, 0),
+            domain=(im, jext, km),
+        )
     return tracer_list
