@@ -128,7 +128,6 @@ def set_vals(
             # gam = 0.5
             q = 1.5 * a4_1
         else:
-            # set top
             grid_ratio = delp[0, 0, 1] / delp
             bet = grid_ratio * (grid_ratio + 0.5)
             q = (

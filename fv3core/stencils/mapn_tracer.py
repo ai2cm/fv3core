@@ -21,7 +21,7 @@ def compute(
     i2: int,
     kord: int,
     j_2d: Optional[int] = None,
-    version: str = "stencil",  # "transliterated"
+    version: str = "stencil",
 ):
     fill = spec.namelist.fill
     qs = utils.make_storage_from_shape(pe1.shape, origin=(0, 0, 0))

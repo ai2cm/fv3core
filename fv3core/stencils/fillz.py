@@ -96,6 +96,7 @@ def fix_tracer(
     with computation(FORWARD), interval(1, None):
         sum0 += dm
         sum1 += dm_pos
+    # final_check
     with computation(PARALLEL), interval(1, None):
         fac = sum0 / sum1 if sum0 > 0.0 else 0.0
         if zfix > 0 and fac > 0.0:

@@ -240,12 +240,8 @@ def make_storage_from_shape(
     if n_dims == 2:
         shape += (1,)
     elif n_dims == 1:
-        shape = (
-            1,
-            1,
-        ) + shape[-1]
-    while len(origin) < len(shape):
-        origin += (0,)
+        shape = (1, 1, shape[-1])
+    origin += (0,) * (len(shape) - len(origin))
 
     storage_func = gt_storage.zeros if init else gt_storage.empty
     storage = storage_func(
