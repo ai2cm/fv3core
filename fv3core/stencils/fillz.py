@@ -137,5 +137,6 @@ def compute(dp2, tracers, im, km, nq, jslice):
             fac,
             origin=(i1, js, 0),
             domain=(im, jext, km),
+            validate_args=False,
         )
     return tracer_list

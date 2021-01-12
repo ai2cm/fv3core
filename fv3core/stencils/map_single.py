@@ -235,6 +235,7 @@ def lagrangian_contributions_stencil(
             q2_adds,
             origin=origin,
             domain=domain,
+            validate_args=False,
         )
         q1[i1 : i2 + 1, jslice, k_eul] = q2_adds[i1 : i2 + 1, jslice, 0]
 
