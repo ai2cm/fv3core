@@ -191,7 +191,7 @@ list_test_data_options:
 lint:
 	pre-commit run --all-files
 
-container_gt4py_tests:
+gt4py_tests_gpu:
 	CUDA=y make build && \
         docker run $(CUDA_FLAGS) $(FV3_IMAGE) python3 -m pytest -x gt4py
 
