@@ -9,4 +9,4 @@ make gt4py_tests_gpu
 make tests
 make tests_mpi
 # TODO uncomment when verify the above works
-#make -C docker push_gt4py
+make -C docker push_gt4py
