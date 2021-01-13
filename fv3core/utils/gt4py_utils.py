@@ -207,7 +207,7 @@ def make_storage_from_shape(
     *,
     dtype: DTypes = np.float64,
     init: bool = True,
-    mask: Tuple[bool, bool, bool] = (True, True, True),
+    mask: Optional[Tuple[bool, bool, bool]] = None,
 ) -> Field:
     """Create a new gt4py storage of a given shape.
 
@@ -228,12 +228,9 @@ def make_storage_from_shape(
            )
         3) q_out = utils.make_storage_from_shape(q_in.shape, origin, init=True)
     """
-    n_dims = len(shape)
-    if n_dims == 2:
-        shape += (1,)
-    elif n_dims == 1:
-        shape = (1, 1, shape[-1])
-    origin += (0,) * (len(shape) - len(origin))
+    if not mask:
+        n_dims = len(shape)
+        mask = (n_dims * [True]) + ((3 - n_dims) * [False])
 
     storage_func = gt_storage.zeros if init else gt_storage.empty
     storage = storage_func(
