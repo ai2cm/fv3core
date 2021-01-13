@@ -228,7 +228,15 @@ def make_storage_from_shape(
            )
         3) q_out = utils.make_storage_from_shape(q_in.shape, origin, init=True)
     """
-    storage = gt_storage.empty(
+    n_dims = len(shape)
+    if n_dims == 2:
+        shape += (1,)
+    elif n_dims == 1:
+        shape = (1, 1, shape[-1])
+    origin += (0,) * (len(shape) - len(origin))
+
+    storage_func = gt_storage.zeros if init else gt_storage.empty
+    storage = storage_func(
         backend=global_config.get_backend(),
         default_origin=origin,
         shape=shape,
@@ -236,8 +244,6 @@ def make_storage_from_shape(
         mask=mask,
         managed_memory=managed_memory,
     )
-    if init:
-        storage[:] = dtype()
     return storage
 
 
