@@ -79,7 +79,8 @@ def d2a2c_stencil1(
     va: sd,
 ):
     # in: u, v, cosa_s, rsin2
-    # inout: utmp, vtmp, ua, va
+    # inout: utmp, vtmp
+    # out: ua, va
     from __externals__ import HALO, i_end, i_start, j_end, j_start, namelist
 
     with computation(PARALLEL), interval(...):
@@ -121,7 +122,7 @@ def ut_main(utmp: sd, v: sd, cosa_u: sd, rsin_u: sd, uc: sd, utc: sd):
 
 
 @gtstencil()
-def d2a2c_stencil_west(
+def d2a2c_stencil_x(
     utmp: sd,
     ua: sd,
     v: sd,
@@ -135,7 +136,7 @@ def d2a2c_stencil_west(
 ):
     # in: utmp, ua, v, cosa_u, rsin_u, dxa, sin_sg1, sin_sg3
     # inout: uc, utc
-    from __externals__ import i_start
+    from __externals__ import i_end, i_start
 
     with computation(PARALLEL), interval(...):
         # West
@@ -161,25 +162,6 @@ def d2a2c_stencil_west(
         with parallel(region[i_start + 1, :]):
             utc = contravariant(uc, v, cosa_u, rsin_u)
 
-
-@gtstencil()
-def d2a2c_stencil_east(
-    utmp: sd,
-    ua: sd,
-    v: sd,
-    cosa_u: sd,
-    rsin_u: sd,
-    dxa: sd,
-    sin_sg1: sd,
-    sin_sg3: sd,
-    uc: sd,
-    utc: sd,
-):
-    # in: utmp, ua, v, cosa_u, rsin_u, dxa, sin_sg1, sin_sg3
-    # inout: uc, utc
-    from __externals__ import i_end
-
-    with computation(PARALLEL), interval(...):
         # East
         with parallel(region[i_end, :]):
             uc = vol_conserv_cubic_interp_func_x(utmp)
@@ -227,7 +209,7 @@ def d2a2c_stencil3(
 
 
 @gtstencil()
-def d2a2c_stencil_south(
+def d2a2c_stencil_y(
     vtmp: sd,
     va: sd,
     u: sd,
@@ -241,7 +223,7 @@ def d2a2c_stencil_south(
 ):
     # in: vtmp, va, u, cosa_v, rsin_v, dya, sin_sg2, sin_sg4
     # inout: vc, vtc
-    from __externals__ import j_start
+    from __externals__ import j_end, j_start
 
     with computation(PARALLEL), interval(...):
         with parallel(region[:, j_start - 1]):
@@ -262,25 +244,6 @@ def d2a2c_stencil_south(
             vc = vol_conserv_cubic_interp_func_y_rev(vtmp)
             vtc = contravariant(vc, u, cosa_v, rsin_v)
 
-
-@gtstencil()
-def d2a2c_stencil_north(
-    vtmp: sd,
-    va: sd,
-    u: sd,
-    cosa_v: sd,
-    rsin_v: sd,
-    dya: sd,
-    sin_sg2: sd,
-    sin_sg4: sd,
-    vc: sd,
-    vtc: sd,
-):
-    # in: vtmp, va, u, cosa_v, rsin_v, dya, sin_sg2, sin_sg4
-    # inout: vc, vtc
-    from __externals__ import j_end
-
-    with computation(PARALLEL), interval(...):
         # NOTE: vtc can be a new temp here
         with parallel(region[:, j_end]):
             vc = vol_conserv_cubic_interp_func_y(vtmp)
@@ -313,159 +276,6 @@ def vt_main(
     # in: vtmp, u, cosa_v, rsin_v
     # inout: vc
     # out: vtc
-    with computation(PARALLEL), interval(...):
-        vc = lagrange_y_func(vtmp)
-        vtc = contravariant(vc, u, cosa_v, rsin_v)
-
-
-@gtstencil(externals={"HALO": 3})
-def d2a2c(
-    cosa_s: sd,
-    cosa_u: sd,
-    cosa_v: sd,
-    dxa: sd,
-    dya: sd,
-    rsin2: sd,
-    rsin_u: sd,
-    rsin_v: sd,
-    sin_sg1: sd,
-    sin_sg2: sd,
-    sin_sg3: sd,
-    sin_sg4: sd,
-    u: sd,
-    ua: sd,
-    uc: sd,
-    utc: sd,
-    v: sd,
-    va: sd,
-    vc: sd,
-    vtc: sd,
-):
-
-    from __externals__ import HALO, i_end, i_start, j_end, j_start, namelist
-
-    with computation(PARALLEL), interval(...):
-        utmp = a2 * (u[0, -1, 0] + u[0, 2, 0]) + a1 * (u + u[0, 1, 0])
-        vtmp = a2 * (v[-1, 0, 0] + v[2, 0, 0]) + a1 * (v + v[1, 0, 0])
-
-        assert __INLINED(namelist.grid_type < 3)
-
-        # The order of these blocks matters, so they cannot be merged into a
-        # single block since then the order is not guaranteed
-        with parallel(region[:, : j_start + HALO]):
-            utmp = 0.5 * (u + u[0, 1, 0])
-            vtmp = 0.5 * (v + v[1, 0, 0])
-        with parallel(region[:, j_end - HALO + 1 :]):
-            utmp = 0.5 * (u + u[0, 1, 0])
-            vtmp = 0.5 * (v + v[1, 0, 0])
-        with parallel(region[: i_start + HALO, :]):
-            utmp = 0.5 * (u + u[0, 1, 0])
-            vtmp = 0.5 * (v + v[1, 0, 0])
-        with parallel(region[i_end - HALO + 1 :, :]):
-            utmp = 0.5 * (u + u[0, 1, 0])
-            vtmp = 0.5 * (v + v[1, 0, 0])
-
-        ua = contravariant(utmp, vtmp, cosa_s, rsin2)
-        va = contravariant(vtmp, utmp, cosa_s, rsin2)
-
-        utmp = fill3_4corners_x(
-            utmp, vtmp, sw_mult=-1, se_mult=1, ne_mult=-1, nw_mult=1
-        )
-        ua = fill2_4corners_x(ua, va, sw_mult=-1, se_mult=1, ne_mult=-1, nw_mult=1)
-
-        uc = lagrange_x_func(utmp)
-        utc = contravariant(uc, v, cosa_u, rsin_u)
-
-        # West
-        with parallel(region[i_start - 1, :]):
-            uc = vol_conserv_cubic_interp_func_x(utmp)
-
-        with parallel(region[i_start, :]):
-            t1 = dxa[-2, 0, 0] + dxa[-1, 0, 0]
-            t2 = dxa[0, 0, 0] + dxa[1, 0, 0]
-            n1 = (t1 + dxa[-1, 0, 0]) * ua[-1, 0, 0] - dxa[-1, 0, 0] * ua[-2, 0, 0]
-            n2 = (t1 + dxa[0, 0, 0]) * ua[0, 0, 0] - dxa[0, 0, 0] * ua[1, 0, 0]
-            utc = 0.5 * (n1 / t1 + n2 / t2)
-
-        with parallel(region[i_start, :]):
-            uc = utc * sin_sg3[-1, 0, 0] if utc > 0 else utc * sin_sg1
-
-        with parallel(region[i_start + 1, :]):
-            uc = vol_conserv_cubic_interp_func_x_rev(utmp)
-
-        with parallel(region[i_start - 1, :]):
-            utc = contravariant(uc, v, cosa_u, rsin_u)
-
-        with parallel(region[i_start + 1, :]):
-            utc = contravariant(uc, v, cosa_u, rsin_u)
-
-        # East
-        with parallel(region[i_end, :]):
-            uc = vol_conserv_cubic_interp_func_x(utmp)
-
-        with parallel(region[i_end + 1, :]):
-            t1 = dxa[-2, 0, 0] + dxa[-1, 0, 0]
-            t2 = dxa[0, 0, 0] + dxa[1, 0, 0]
-            n1 = (t1 + dxa[-1, 0, 0]) * ua[-1, 0, 0] - dxa[-1, 0, 0] * ua[-2, 0, 0]
-            n2 = (t1 + dxa[0, 0, 0]) * ua[0, 0, 0] - dxa[0, 0, 0] * ua[1, 0, 0]
-            utc = 0.5 * (n1 / t1 + n2 / t2)
-
-        with parallel(region[i_end + 1, :]):
-            uc = utc * sin_sg3[-1, 0, 0] if utc > 0 else utc * sin_sg1
-
-        with parallel(region[i_end + 2, :]):
-            uc = vol_conserv_cubic_interp_func_x_rev(utmp)
-
-        with parallel(region[i_end, :]):
-            utc = contravariant(uc, v, cosa_u, rsin_u)
-
-        with parallel(region[i_end + 2, :]):
-            utc = contravariant(uc, v, cosa_u, rsin_u)
-
-        assert __INLINED(namelist.grid_type < 3)
-
-        vtmp = fill3_4corners_y(
-            vtmp, utmp, sw_mult=-1, se_mult=1, ne_mult=-1, nw_mult=1
-        )
-        va = fill2_4corners_y(va, ua, sw_mult=-1, se_mult=1, ne_mult=-1, nw_mult=1)
-
-        with parallel(region[:, j_start - 1]):
-            vc = vol_conserv_cubic_interp_func_y(vtmp)
-            vtc = contravariant(vc, u, cosa_v, rsin_v)
-
-        with parallel(region[:, j_start]):
-            t1 = dya[0, -2, 0] + dya[0, -1, 0]
-            t2 = dya[0, 0, 0] + dya[0, 1, 0]
-            n1 = (t1 + dya[0, -1, 0]) * va[0, -1, 0] - dya[0, -1, 0] * va[0, -2, 0]
-            n2 = (t1 + dya[0, 0, 0]) * va[0, 0, 0] - dya[0, 0, 0] * va[0, 1, 0]
-            vtc = 0.5 * (n1 / t1 + n2 / t2)
-
-        with parallel(region[:, j_start]):
-            vc = vtc * sin_sg4[0, -1, 0] if vtc > 0 else vtc * sin_sg2
-
-        with parallel(region[:, j_start + 1]):
-            vc = vol_conserv_cubic_interp_func_y_rev(vtmp)
-            vtc = contravariant(vc, u, cosa_v, rsin_v)
-
-        # NOTE: vtc can be a new temp here
-        with parallel(region[:, j_end]):
-            vc = vol_conserv_cubic_interp_func_y(vtmp)
-            vtc = contravariant(vc, u, cosa_v, rsin_v)
-
-        with parallel(region[:, j_end + 1]):
-            t1 = dya[0, -2, 0] + dya[0, -1, 0]
-            t2 = dya[0, 0, 0] + dya[0, 1, 0]
-            n1 = (t1 + dya[0, -1, 0]) * va[0, -1, 0] - dya[0, -1, 0] * va[0, -2, 0]
-            n2 = (t1 + dya[0, 0, 0]) * va[0, 0, 0] - dya[0, 0, 0] * va[0, 1, 0]
-            vtc = 0.5 * (n1 / t1 + n2 / t2)
-
-        with parallel(region[:, j_end + 1]):
-            vc = vtc * sin_sg4[0, -1, 0] if vtc > 0 else vtc * sin_sg2
-
-        with parallel(region[:, j_end + 2]):
-            vc = vol_conserv_cubic_interp_func_y_rev(vtmp)
-            vtc = contravariant(vc, u, cosa_v, rsin_v)
-
     with computation(PARALLEL), interval(...):
         vc = lagrange_y_func(vtmp)
         vtc = contravariant(vc, u, cosa_v, rsin_v)
@@ -509,6 +319,9 @@ def compute(dord4, uc, vc, u, v, ua, va, utc, vtc):
     idiff = ilast - ifirst + 1
 
     # This needs to compute over the whole domain, because it outputs utmp and vtmp
+    # in: u, v, cosa_s, rsin2
+    # inout: utmp, vtmp
+    # out: ua, va
     d2a2c_stencil1(
         u,
         v,
@@ -525,6 +338,9 @@ def compute(dord4, uc, vc, u, v, ua, va, utc, vtc):
     ifirst = grid.is_ + 2 if grid.west_edge else grid.is_ - 1
     ilast = grid.ie - 1 if grid.east_edge else grid.ie + 2
     idiff = ilast - ifirst + 1
+    # in: utmp, v, cosa_u, rsin_u
+    # inout: uc
+    # out: utc
     ut_main(
         utmp,
         v,
@@ -536,7 +352,9 @@ def compute(dord4, uc, vc, u, v, ua, va, utc, vtc):
         domain=(idiff, grid.njc + 2, grid.npz),
     )
 
-    d2a2c_stencil_west(
+    # in: utmp, ua, v, cosa_u, rsin_u, dxa, sin_sg1, sin_sg3
+    # inout: uc, utc
+    d2a2c_stencil_x(
         utmp,
         ua,
         v,
@@ -548,24 +366,12 @@ def compute(dord4, uc, vc, u, v, ua, va, utc, vtc):
         uc,
         utc,
         origin=(grid.is_ - 1, grid.js - 1, 0),
-        domain=(4, grid.njc + 2, grid.npz),
+        domain=(grid.nic + 2, grid.njc + 2, grid.npz),
     )
 
-    d2a2c_stencil_east(
-        utmp,
-        ua,
-        v,
-        grid.cosa_u,
-        grid.rsin_u,
-        grid.dxa,
-        grid.sin_sg1,
-        grid.sin_sg3,
-        uc,
-        utc,
-        origin=(grid.ie - 1, grid.js - 1, 0),
-        domain=(4, grid.njc + 2, grid.npz),
-    )
-
+    # in: utmp, ua
+    # inout: va
+    # out: vtmp
     d2a2c_stencil3(
         utmp,
         ua,
@@ -575,7 +381,9 @@ def compute(dord4, uc, vc, u, v, ua, va, utc, vtc):
         domain=grid.domain_shape_standard(),
     )
 
-    d2a2c_stencil_south(
+    # in: vtmp, va, u, cosa_v, rsin_v, dya, sin_sg2, sin_sg4
+    # inout: vc, vtc
+    d2a2c_stencil_y(
         vtmp,
         va,
         u,
@@ -587,28 +395,16 @@ def compute(dord4, uc, vc, u, v, ua, va, utc, vtc):
         vc,
         vtc,
         origin=(grid.is_ - 1, grid.js - 1, 0),
-        domain=(grid.nic + 2, 4, grid.npz),
-    )
-
-    d2a2c_stencil_north(
-        vtmp,
-        va,
-        u,
-        grid.cosa_v,
-        grid.rsin_v,
-        grid.dya,
-        grid.sin_sg2,
-        grid.sin_sg4,
-        vc,
-        vtc,
-        origin=(grid.js - 1, grid.ie - 1, 0),
-        domain=(grid.nic + 2, 4, grid.npz),
+        domain=(grid.nic + 2, grid.njc + 2, grid.npz),
     )
 
     jfirst = grid.js + 2 if grid.south_edge else grid.js - 1
     jlast = grid.je - 1 if grid.north_edge else grid.je + 2
     jdiff = jlast - jfirst + 1
 
+    # in: vtmp, u, cosa_v, rsin_v
+    # inout: vc
+    # out: vtc
     vt_main(
         vtmp,
         u,
@@ -645,3 +441,156 @@ def compute(dord4, uc, vc, u, v, ua, va, utc, vtc):
     #     origin=(grid.is_, grid.js, 0),
     #     domain=(grid.nic + 2, grid.njc + 2, grid.npz),
     # )
+
+
+# @gtstencil(externals={"HALO": 3})
+# def d2a2c(
+#     cosa_s: sd,
+#     cosa_u: sd,
+#     cosa_v: sd,
+#     dxa: sd,
+#     dya: sd,
+#     rsin2: sd,
+#     rsin_u: sd,
+#     rsin_v: sd,
+#     sin_sg1: sd,
+#     sin_sg2: sd,
+#     sin_sg3: sd,
+#     sin_sg4: sd,
+#     u: sd,
+#     ua: sd,
+#     uc: sd,
+#     utc: sd,
+#     v: sd,
+#     va: sd,
+#     vc: sd,
+#     vtc: sd,
+# ):
+
+#     from __externals__ import HALO, i_end, i_start, j_end, j_start, namelist
+
+#     with computation(PARALLEL), interval(...):
+#         utmp = a2 * (u[0, -1, 0] + u[0, 2, 0]) + a1 * (u + u[0, 1, 0])
+#         vtmp = a2 * (v[-1, 0, 0] + v[2, 0, 0]) + a1 * (v + v[1, 0, 0])
+
+#         assert __INLINED(namelist.grid_type < 3)
+
+#         # The order of these blocks matters, so they cannot be merged into a
+#         # single block since then the order is not guaranteed
+#         with parallel(region[:, : j_start + HALO]):
+#             utmp = 0.5 * (u + u[0, 1, 0])
+#             vtmp = 0.5 * (v + v[1, 0, 0])
+#         with parallel(region[:, j_end - HALO + 1 :]):
+#             utmp = 0.5 * (u + u[0, 1, 0])
+#             vtmp = 0.5 * (v + v[1, 0, 0])
+#         with parallel(region[: i_start + HALO, :]):
+#             utmp = 0.5 * (u + u[0, 1, 0])
+#             vtmp = 0.5 * (v + v[1, 0, 0])
+#         with parallel(region[i_end - HALO + 1 :, :]):
+#             utmp = 0.5 * (u + u[0, 1, 0])
+#             vtmp = 0.5 * (v + v[1, 0, 0])
+
+#         ua = contravariant(utmp, vtmp, cosa_s, rsin2)
+#         va = contravariant(vtmp, utmp, cosa_s, rsin2)
+
+#         utmp = fill3_4corners_x(
+#             utmp, vtmp, sw_mult=-1, se_mult=1, ne_mult=-1, nw_mult=1
+#         )
+#         ua = fill2_4corners_x(ua, va, sw_mult=-1, se_mult=1, ne_mult=-1, nw_mult=1)
+
+#         uc = lagrange_x_func(utmp)
+#         utc = contravariant(uc, v, cosa_u, rsin_u)
+
+#         # West
+#         with parallel(region[i_start - 1, :]):
+#             uc = vol_conserv_cubic_interp_func_x(utmp)
+
+#         with parallel(region[i_start, :]):
+#             t1 = dxa[-2, 0, 0] + dxa[-1, 0, 0]
+#             t2 = dxa[0, 0, 0] + dxa[1, 0, 0]
+#             n1 = (t1 + dxa[-1, 0, 0]) * ua[-1, 0, 0] - dxa[-1, 0, 0] * ua[-2, 0, 0]
+#             n2 = (t1 + dxa[0, 0, 0]) * ua[0, 0, 0] - dxa[0, 0, 0] * ua[1, 0, 0]
+#             utc = 0.5 * (n1 / t1 + n2 / t2)
+
+#         with parallel(region[i_start, :]):
+#             uc = utc * sin_sg3[-1, 0, 0] if utc > 0 else utc * sin_sg1
+
+#         with parallel(region[i_start + 1, :]):
+#             uc = vol_conserv_cubic_interp_func_x_rev(utmp)
+
+#         with parallel(region[i_start - 1, :]):
+#             utc = contravariant(uc, v, cosa_u, rsin_u)
+
+#         with parallel(region[i_start + 1, :]):
+#             utc = contravariant(uc, v, cosa_u, rsin_u)
+
+#         # East
+#         with parallel(region[i_end, :]):
+#             uc = vol_conserv_cubic_interp_func_x(utmp)
+
+#         with parallel(region[i_end + 1, :]):
+#             t1 = dxa[-2, 0, 0] + dxa[-1, 0, 0]
+#             t2 = dxa[0, 0, 0] + dxa[1, 0, 0]
+#             n1 = (t1 + dxa[-1, 0, 0]) * ua[-1, 0, 0] - dxa[-1, 0, 0] * ua[-2, 0, 0]
+#             n2 = (t1 + dxa[0, 0, 0]) * ua[0, 0, 0] - dxa[0, 0, 0] * ua[1, 0, 0]
+#             utc = 0.5 * (n1 / t1 + n2 / t2)
+
+#         with parallel(region[i_end + 1, :]):
+#             uc = utc * sin_sg3[-1, 0, 0] if utc > 0 else utc * sin_sg1
+
+#         with parallel(region[i_end + 2, :]):
+#             uc = vol_conserv_cubic_interp_func_x_rev(utmp)
+
+#         with parallel(region[i_end, :]):
+#             utc = contravariant(uc, v, cosa_u, rsin_u)
+
+#         with parallel(region[i_end + 2, :]):
+#             utc = contravariant(uc, v, cosa_u, rsin_u)
+
+#         assert __INLINED(namelist.grid_type < 3)
+
+#         vtmp = fill3_4corners_y(
+#             vtmp, utmp, sw_mult=-1, se_mult=1, ne_mult=-1, nw_mult=1
+#         )
+#         va = fill2_4corners_y(va, ua, sw_mult=-1, se_mult=1, ne_mult=-1, nw_mult=1)
+
+#         with parallel(region[:, j_start - 1]):
+#             vc = vol_conserv_cubic_interp_func_y(vtmp)
+#             vtc = contravariant(vc, u, cosa_v, rsin_v)
+
+#         with parallel(region[:, j_start]):
+#             t1 = dya[0, -2, 0] + dya[0, -1, 0]
+#             t2 = dya[0, 0, 0] + dya[0, 1, 0]
+#             n1 = (t1 + dya[0, -1, 0]) * va[0, -1, 0] - dya[0, -1, 0] * va[0, -2, 0]
+#             n2 = (t1 + dya[0, 0, 0]) * va[0, 0, 0] - dya[0, 0, 0] * va[0, 1, 0]
+#             vtc = 0.5 * (n1 / t1 + n2 / t2)
+
+#         with parallel(region[:, j_start]):
+#             vc = vtc * sin_sg4[0, -1, 0] if vtc > 0 else vtc * sin_sg2
+
+#         with parallel(region[:, j_start + 1]):
+#             vc = vol_conserv_cubic_interp_func_y_rev(vtmp)
+#             vtc = contravariant(vc, u, cosa_v, rsin_v)
+
+#         # NOTE: vtc can be a new temp here
+#         with parallel(region[:, j_end]):
+#             vc = vol_conserv_cubic_interp_func_y(vtmp)
+#             vtc = contravariant(vc, u, cosa_v, rsin_v)
+
+#         with parallel(region[:, j_end + 1]):
+#             t1 = dya[0, -2, 0] + dya[0, -1, 0]
+#             t2 = dya[0, 0, 0] + dya[0, 1, 0]
+#             n1 = (t1 + dya[0, -1, 0]) * va[0, -1, 0] - dya[0, -1, 0] * va[0, -2, 0]
+#             n2 = (t1 + dya[0, 0, 0]) * va[0, 0, 0] - dya[0, 0, 0] * va[0, 1, 0]
+#             vtc = 0.5 * (n1 / t1 + n2 / t2)
+
+#         with parallel(region[:, j_end + 1]):
+#             vc = vtc * sin_sg4[0, -1, 0] if vtc > 0 else vtc * sin_sg2
+
+#         with parallel(region[:, j_end + 2]):
+#             vc = vol_conserv_cubic_interp_func_y_rev(vtmp)
+#             vtc = contravariant(vc, u, cosa_v, rsin_v)
+
+#     with computation(PARALLEL), interval(...):
+#         vc = lagrange_y_func(vtmp)
+#         vtc = contravariant(vc, u, cosa_v, rsin_v)
