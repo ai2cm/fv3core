@@ -60,7 +60,8 @@ def ord4_transform(
     u: sd, v: sd, a11: sd, a12: sd, a21: sd, a22: sd, dx: sd, dy: sd, ua: sd, va: sd
 ):
     with computation(PARALLEL), interval(...):
-        from __externals__ import i_start, i_end, j_start, j_end
+        from __externals__ import i_end, i_start, j_end, j_start
+
         utmp = C2 * (u[0, -1, 0] + u[0, 2, 0]) + C1 * (u + u[0, 1, 0])
         vtmp = C2 * (v[-1, 0, 0] + v[2, 0, 0]) + C1 * (v + v[1, 0, 0])
 
