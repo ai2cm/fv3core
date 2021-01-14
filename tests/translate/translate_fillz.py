@@ -53,5 +53,5 @@ class TranslateFillz(TranslateFortranData2Py):
         for varname, data in inputs["tracers"].items():
             index = utils.tracer_variables.index(varname)
             tracers[:, :, index] = np.squeeze(data[self.grid.slice_dict(ds)])
-        self.ignore_near_zero_errors = {"q2tracers": True}
-        return {"q2tracers": tracers}
+        out = {"q2tracers": tracers}
+        return out
