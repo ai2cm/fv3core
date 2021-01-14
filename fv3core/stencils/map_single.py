@@ -218,8 +218,8 @@ def lagrangian_contributions_stencil(
     pbot = utils.make_storage_from_shape(shape2d)
 
     for k_eul in range(km):
-        ptop[:, :, 0] = pe2[:, :, k_eul]
-        pbot[:, :, 0] = pe2[:, :, k_eul + 1]
+        ptop[:, :] = pe2[:, :, k_eul]
+        pbot[:, :] = pe2[:, :, k_eul + 1]
 
         lagrangian_contributions(
             pe1,
@@ -233,9 +233,8 @@ def lagrangian_contributions_stencil(
             q2_adds,
             origin=origin,
             domain=domain,
-            validate_args=False,
         )
-        q1[i1 : i2 + 1, jslice, k_eul] = q2_adds[i1 : i2 + 1, jslice, 0]
+        q1[i1 : i2 + 1, jslice, k_eul] = q2_adds[i1 : i2 + 1, jslice]
 
 
 def lagrangian_contributions_transliterated(

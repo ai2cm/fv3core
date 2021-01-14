@@ -6,9 +6,9 @@ from gt4py.gtscript import (
     PARALLEL,
     computation,
     exp,
+    horizontal,
     interval,
     log,
-    parallel,
     region,
 )
 
@@ -133,7 +133,7 @@ def pn2_and_pk(pe2: FloatField, pn2: FloatField, pk: FloatField, akap: float):
 
     # copy_j_adjacent
     with computation(PARALLEL), interval(1, None):
-        with parallel(region[:, j_end + 1 : j_end + 2]):
+        with horizontal(region[:, j_end + 1 : j_end + 2]):
             # TODO: Fix silly hack due to pe2 being 2d, so pe[:, je+1, 1:npz] should be
             # the same as it was for pe[:, je, 1:npz] (unchanged)
             pe2_0 = pe2[0, -1, 0]
