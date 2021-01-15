@@ -2,6 +2,8 @@ import gt4py.gtscript as gtscript
 from gt4py.gtscript import (
     __INLINED,
     PARALLEL,
+    I,
+    J,
     computation,
     horizontal,
     interval,
@@ -93,6 +95,11 @@ def d2a2c_stencil1(
     with computation(PARALLEL), interval(...):
 
         assert __INLINED(namelist.grid_type < 3)
+
+        with horizontal(region[:, J[0] + 1 : J[-1] - 1]):
+            utmp = lagrange_y_func_p1(u)
+        with horizontal(region[I[0] + 1 : I[-1] - 1, :]):
+            vtmp = lagrange_x_func_p1(v)
 
         # The order of these blocks matters, so they cannot be merged into a
         # single block since then the order is not guaranteed
@@ -298,32 +305,6 @@ def compute(dord4, uc, vc, u, v, ua, va, utc, vtc):
         npt = 0
     utmp = utils.make_storage_from_shape(ua.shape, grid.default_origin())
     vtmp = utils.make_storage_from_shape(va.shape, grid.default_origin())
-    js1 = npt + OFFSET if grid.south_edge else grid.js - 1
-    je1 = ny - npt if grid.north_edge else grid.je + 1
-    is1 = npt + OFFSET if grid.west_edge else grid.isd
-    ie1 = nx - npt if grid.east_edge else grid.ied
-
-    lagrange_interpolation_y_p1(
-        u, utmp, origin=(is1, js1, 0), domain=(ie1 - is1 + 1, je1 - js1 + 1, grid.npz)
-    )
-
-    is1 = npt + OFFSET if grid.west_edge else grid.is_ - 1
-    ie1 = nx - npt if grid.east_edge else grid.ie + 1
-    js1 = npt + OFFSET if grid.south_edge else grid.jsd
-    je1 = ny - npt if grid.north_edge else grid.jed
-
-    lagrange_interpolation_x_p1(
-        v, vtmp, origin=(is1, js1, 0), domain=(ie1 - is1 + 1, je1 - js1 + 1, grid.npz)
-    )
-
-    js2 = npt + OFFSET if grid.south_edge else grid.jsd
-    je2 = ny - npt if grid.north_edge else grid.jed
-
-    jdiff = je2 - js2 + 1
-    pad = 2 + 2 * id_
-    ifirst = grid.is_ + 2 if grid.west_edge else grid.is_ - 1
-    ilast = grid.ie - 1 if grid.east_edge else grid.ie + 2
-    idiff = ilast - ifirst + 1
 
     # This needs to compute over the whole domain, because it outputs utmp and vtmp
     # in: u, v, cosa_s, rsin2
