@@ -9,7 +9,7 @@ sd = utils.sd
 
 
 def fill2_4corners_x(
-    q_int: sd,
+    q: sd,
     q_corner: sd,
     sw_mult: float,
     se_mult: float,
@@ -17,38 +17,36 @@ def fill2_4corners_x(
     ne_mult: float,
 ):
     from __externals__ import i_end, i_start, j_end, j_start
-
-    q_out = q_int
 
     # Southwest
     with horizontal(region[i_start - 2, j_start - 1]):
-        q_out = sw_mult * q_corner[1, 2, 0]
+        q = sw_mult * q_corner[1, 2, 0]
     with horizontal(region[i_start - 1, j_start - 1]):
-        q_out = sw_mult * q_corner[0, 1, 0]
+        q = sw_mult * q_corner[0, 1, 0]
 
     # Southeast
     with horizontal(region[i_end + 2, j_start - 1]):
-        q_out = se_mult * q_corner[-1, 2, 0]
+        q = se_mult * q_corner[-1, 2, 0]
     with horizontal(region[i_end + 1, j_start - 1]):
-        q_out = se_mult * q_corner[0, 1, 0]
+        q = se_mult * q_corner[0, 1, 0]
 
     # Northwest
     with horizontal(region[i_start - 1, j_end + 1]):
-        q_out = nw_mult * q_corner[0, -1, 0]
+        q = nw_mult * q_corner[0, -1, 0]
     with horizontal(region[i_start - 2, j_end + 1]):
-        q_out = nw_mult * q_corner[1, -2, 0]
+        q = nw_mult * q_corner[1, -2, 0]
 
     # Northeast
     with horizontal(region[i_end + 1, j_end + 1]):
-        q_out = ne_mult * q_corner[0, -1, 0]
+        q = ne_mult * q_corner[0, -1, 0]
     with horizontal(region[i_end + 2, j_end + 1]):
-        q_out = ne_mult * q_corner[-1, -2, 0]
+        q = ne_mult * q_corner[-1, -2, 0]
 
-    return q_out
+    return q
 
 
 def fill2_4corners_y(
-    q_int: sd,
+    q: sd,
     q_corner: sd,
     sw_mult: float,
     se_mult: float,
@@ -57,33 +55,31 @@ def fill2_4corners_y(
 ):
     from __externals__ import i_end, i_start, j_end, j_start
 
-    q_out = q_int
-
     # Southwest
     with horizontal(region[i_start - 1, j_start - 1]):
-        q_out = sw_mult * q_corner[1, 0, 0]
+        q = sw_mult * q_corner[1, 0, 0]
     with horizontal(region[i_start - 1, j_start - 2]):
-        q_out = sw_mult * q_corner[2, 1, 0]
+        q = sw_mult * q_corner[2, 1, 0]
 
     # Southeast
     with horizontal(region[i_end + 1, j_start - 1]):
-        q_out = se_mult * q_corner[-1, 0, 0]
+        q = se_mult * q_corner[-1, 0, 0]
     with horizontal(region[i_end + 1, j_start - 2]):
-        q_out = se_mult * q_corner[-2, 1, 0]
+        q = se_mult * q_corner[-2, 1, 0]
 
     # Northwest
     with horizontal(region[i_start - 1, j_end + 1]):
-        q_out = nw_mult * q_corner[1, 0, 0]
+        q = nw_mult * q_corner[1, 0, 0]
     with horizontal(region[i_start - 1, j_end + 2]):
-        q_out = nw_mult * q_corner[2, -1, 0]
+        q = nw_mult * q_corner[2, -1, 0]
 
     # Northeast
     with horizontal(region[i_end + 1, j_end + 1]):
-        q_out = ne_mult * q_corner[-1, 0, 0]
+        q = ne_mult * q_corner[-1, 0, 0]
     with horizontal(region[i_end + 1, j_end + 2]):
-        q_out = ne_mult * q_corner[-2, -1, 0]
+        q = ne_mult * q_corner[-2, -1, 0]
 
-    return q_out
+    return q
 
 
 def fill_4corners(q, direction, grid):
@@ -111,7 +107,7 @@ def fill_4corners(q, direction, grid):
 
 @gtscript.function
 def fill3_4corners_x(
-    q_int: sd,
+    q: sd,
     q_corner: sd,
     sw_mult: float,
     se_mult: float,
@@ -120,46 +116,30 @@ def fill3_4corners_x(
 ):
     from __externals__ import i_end, i_start, j_end, j_start
 
-    q_out = q_int
+    q = fill2_4corners_x(q, q_corner, sw_mult, se_mult, nw_mult, ne_mult)
 
     # SW corner
     with horizontal(region[i_start - 3, j_start - 1]):
-        q_out = sw_mult * q_corner[2, 3, 0]
-    with horizontal(region[i_start - 2, j_start - 1]):
-        q_out = sw_mult * q_corner[1, 2, 0]
-    with horizontal(region[i_start - 1, j_start - 1]):
-        q_out = sw_mult * q_corner[0, 1, 0]
+        q = sw_mult * q_corner[2, 3, 0]
 
     # SE corner
-    with horizontal(region[i_end + 1, j_start - 1]):
-        q_out = se_mult * q_corner[0, 1, 0]
-    with horizontal(region[i_end + 2, j_start - 1]):
-        q_out = se_mult * q_corner[-1, 2, 0]
     with horizontal(region[i_end + 3, j_start - 1]):
-        q_out = se_mult * q_corner[-2, 3, 0]
+        q = se_mult * q_corner[-2, 3, 0]
 
     # NE corner
-    with horizontal(region[i_end + 1, j_end + 1]):
-        q_out = ne_mult * q_corner[0, -1, 0]
-    with horizontal(region[i_end + 2, j_end + 1]):
-        q_out = ne_mult * q_corner[-1, -2, 0]
     with horizontal(region[i_end + 3, j_end + 1]):
-        q_out = ne_mult * q_corner[-2, -3, 0]
+        q = ne_mult * q_corner[-2, -3, 0]
 
     # NW corner
     with horizontal(region[i_start - 3, j_end + 1]):
-        q_out = nw_mult * q_corner[2, -3, 0]
-    with horizontal(region[i_start - 2, j_end + 1]):
-        q_out = nw_mult * q_corner[1, -2, 0]
-    with horizontal(region[i_start - 1, j_end + 1]):
-        q_out = nw_mult * q_corner[0, -1, 0]
+        q = nw_mult * q_corner[2, -3, 0]
 
-    return q_out
+    return q
 
 
 @gtscript.function
 def fill3_4corners_y(
-    q_int: sd,
+    q: sd,
     q_corner: sd,
     sw_mult: float,
     se_mult: float,
@@ -168,41 +148,25 @@ def fill3_4corners_y(
 ):
     from __externals__ import i_end, i_start, j_end, j_start
 
-    q_out = q_int
+    q = fill2_4corners_y(q, q_corner, sw_mult, se_mult, nw_mult, ne_mult)
 
     # SW corner
     with horizontal(region[i_start - 1, j_start - 3]):
-        q_out = sw_mult * q_corner[3, 2, 0]
-    with horizontal(region[i_start - 1, j_start - 2]):
-        q_out = sw_mult * q_corner[2, 1, 0]
-    with horizontal(region[i_start - 1, j_start - 1]):
-        q_out = sw_mult * q_corner[1, 0, 0]
+        q = sw_mult * q_corner[3, 2, 0]
 
     # SE corner
     with horizontal(region[i_end + 1, j_start - 3]):
-        q_out = se_mult * q_corner[-3, 2, 0]
-    with horizontal(region[i_end + 1, j_start - 2]):
-        q_out = se_mult * q_corner[-2, 1, 0]
-    with horizontal(region[i_end + 1, j_start - 1]):
-        q_out = se_mult * q_corner[-1, 0, 0]
+        q = se_mult * q_corner[-3, 2, 0]
 
     # NE corner
-    with horizontal(region[i_end + 1, j_end + 1]):
-        q_out = ne_mult * q_corner[-1, 0, 0]
-    with horizontal(region[i_end + 1, j_end + 2]):
-        q_out = ne_mult * q_corner[-2, -1, 0]
     with horizontal(region[i_end + 1, j_end + 3]):
-        q_out = ne_mult * q_corner[-3, -2, 0]
+        q = ne_mult * q_corner[-3, -2, 0]
 
     # NW corner
-    with horizontal(region[i_start - 1, j_end + 1]):
-        q_out = nw_mult * q_corner[1, 0, 0]
-    with horizontal(region[i_start - 1, j_end + 2]):
-        q_out = nw_mult * q_corner[2, -1, 0]
     with horizontal(region[i_start - 1, j_end + 3]):
-        q_out = nw_mult * q_corner[3, -2, 0]
+        q = nw_mult * q_corner[3, -2, 0]
 
-    return q_out
+    return q
 
 
 def copy_sw_corner(q, direction, grid, kslice):
