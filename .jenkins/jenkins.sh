@@ -105,7 +105,7 @@ echo ${OVERRIDES_FILE}
 if test -f "${OVERRIDES_FILE}"; then
     echo "OVERRIDE"
     export MOUNTS=" -v OVERRIDES_FOLDER:/thresholds"
-    export THRESH_ARGS="--threshold_overrides_file=/thresholds/overrides_${EXPERIMENT}.yaml"
+    export THRESH_ARGS="--threshold_overrides_file=/thresholds/overrides_${optarg2}.yaml"
 fi
 module load daint-gpu
 module add "${installdir}/modulefiles/"
