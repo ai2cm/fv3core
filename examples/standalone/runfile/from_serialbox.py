@@ -1,4 +1,5 @@
 import json
+import pathlib
 import sys
 from argparse import ArgumentParser
 from datetime import datetime
@@ -101,9 +102,27 @@ if __name__ == "__main__":
     input_data["comm"] = communicator
     state = driver_object.state_from_inputs(input_data)
 
+    # warm-up timestep
+    fv_dynamics.fv_dynamics(
+        state,
+        communicator,
+        input_data["consv_te"],
+        input_data["do_adiabatic_init"],
+        input_data["bdt"],
+        input_data["ptop"],
+        input_data["n_split"],
+        input_data["ks"],
+    )
+    if spec.namelist.fv_sg_adj > 0:
+        pass
+        # raise Exception("this is not supported")
+        # state["eastward_wind_tendency"] = u_tendency
+        # state["northward_wind_tendency"] = v_tendency
+        # fv3core.fv_subgridz(state, n_tracers, dt_atmos)
+
     t1 = mpi4py.MPI.Wtime()
     # Run the dynamics
-    for i in range(time_step):
+    for i in range(time_step - 1):
         fv_dynamics.fv_dynamics(
             state,
             communicator,
@@ -129,8 +148,9 @@ if __name__ == "__main__":
     init_times = comm.gather(init_times, root=0)
     if comm.Get_rank() == 0:
         now = datetime.now()
-        sha = git.Repo(search_parent_directories=True).head.object.hexsha
-
+        sha = git.Repo(
+            pathlib.Path(__file__).parent.absolute(), search_parent_directories=True
+        ).head.object.hexsha
         dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
         filename = now.strftime("%Y-%m-%d-%H-%M-%S")
         experiment = {}
