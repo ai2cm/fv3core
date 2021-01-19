@@ -5,13 +5,13 @@ import warnings
 
 import pytest
 import translate
+import yaml
 
 import fv3core
 import fv3core._config
 import fv3core.utils.gt4py_utils
 import fv3gfs.util as fv3util
 from fv3core.utils.mpi import MPI
-import yaml
 
 
 # get MPI environment
@@ -52,16 +52,19 @@ def data_path_from_config(config):
     fv3core._config.set_namelist(namelist_filename)
     return data_path
 
+
 @pytest.fixture
 def threshold_overrides(pytestconfig):
     return thresholds_from_file(pytestconfig)
+
 
 def thresholds_from_file(config):
     thresholds_file = config.getoption("threshold_overrides_file")
     if thresholds_file is None:
         return None
     return yaml.safe_load(open(thresholds_file, "r"))
-    
+
+
 @pytest.fixture
 def serializer(data_path, rank):
     return get_serializer(data_path, rank)
@@ -474,6 +477,7 @@ def pytest_addoption(parser):
     parser.addoption("--backend", action="store", default="numpy")
     parser.addoption("--python_regression", action="store_true")
     parser.addoption("--threshold_overrides_file", action="store", default=None)
+
 
 def pytest_configure(config):
     # register an additional marker

@@ -110,6 +110,7 @@ def sample_wherefail(
 
     return "\n".join(return_strings)
 
+
 def process_override(threshold_overrides, testobj, test_name, backend):
     override = threshold_overrides.get(test_name, None)
     if override is not None:
@@ -118,13 +119,14 @@ def process_override(threshold_overrides, testobj, test_name, backend):
         if max_error is not None:
             testobj.max_error = float(max_error[backend])
         if near_zero is not None:
-            _near_zero = float(near_zero[backend]) 
+            _near_zero = float(near_zero[backend])
+
 
 @pytest.mark.sequential
 @pytest.mark.skipif(
     MPI is not None and MPI.COMM_WORLD.Get_size() > 1,
     reason="Running in parallel with mpi",
-)            
+)
 def test_sequential_savepoint(
     testobj,
     test_name,
@@ -310,7 +312,6 @@ def test_parallel_savepoint(
     python_regression,
     threshold_overrides,
     xy_indices=False,
-
 ):
     caplog.set_level(logging.DEBUG, logger="fv3core")
     if python_regression and not testobj.python_regression:
