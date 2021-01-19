@@ -1,6 +1,5 @@
-import os
 import sys
-from pathlib import Path
+from argparse import ArgumentParser
 
 import mpi4py
 import yaml
@@ -11,7 +10,6 @@ import fv3core.stencils.fv_dynamics as fv_dynamics
 import fv3gfs.util as util
 
 
-# sys.path.append("/usr/local/serialbox/python")
 sys.path.append("/home/tobiasw/work/fv3core/tests")
 
 import serialbox  # noqa: E402
@@ -19,10 +17,32 @@ import translate  # noqa: E402
 
 
 if __name__ == "__main__":
-    this_dir = Path(os.path.dirname(os.getcwd()))
-    root_dir = this_dir.parent.parent
-    data_dir = str(root_dir) + "/test_data/c12_6ranks_standard"
-    namelist_path = str(this_dir) + "/config/c12_6ranks_standard.yml"
+    usage = "usage: python %(prog)s <data_dir> <namelist_path> <timesteps>"
+    parser = ArgumentParser(usage=usage)
+
+    parser.add_argument(
+        "data_dir",
+        type=str,
+        action="store",
+        help="directory containing data to run with",
+    )
+    parser.add_argument(
+        "namelist_path",
+        type=str,
+        action="store",
+        help="path to the namelist",
+    )
+    parser.add_argument(
+        "time_step",
+        type=int,
+        action="store",
+        help="number of timesteps to execute",
+    )
+    args = parser.parse_args()
+    data_dir = args.data_dir
+    time_step = args.time_step
+    namelist_path = args.namelist_path
+
     # MPI stuff
     comm = mpi4py.MPI.COMM_WORLD
     rank = comm.Get_rank()
@@ -75,8 +95,7 @@ if __name__ == "__main__":
     state = driver_object.state_from_inputs(input_data)
 
     # Run the dynamics
-    # for i in range(wrapper.get_step_count()):
-    for i in range(1):
+    for i in range(time_step):
         fv_dynamics.fv_dynamics(
             state,
             communicator,
@@ -93,6 +112,3 @@ if __name__ == "__main__":
             # state["eastward_wind_tendency"] = u_tendency
             # state["northward_wind_tendency"] = v_tendency
             # fv3core.fv_subgridz(state, n_tracers, dt_atmos)
-
-    # do we want to write out?
-    # io.write_state(state, "outstate_{0}.nc".format(rank))
