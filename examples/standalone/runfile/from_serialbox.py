@@ -14,13 +14,16 @@ import fv3core.stencils.fv_dynamics as fv_dynamics
 import fv3gfs.util as util
 
 
-sys.path.append("/home/tobiasw/work/fv3core/tests")
+# sys.path.append("/home/tobiasw/work/fv3core/tests")
+sys.path.append("/scratch/snx3000/tobwi/jenkins_test/fv3core/tests")
 
 import serialbox  # noqa: E402
 import translate  # noqa: E402
 
 
 if __name__ == "__main__":
+    t0 = mpi4py.MPI.Wtime()
+
     usage = "usage: python %(prog)s <data_dir> <namelist_path> <timesteps>"
     parser = ArgumentParser(usage=usage)
 
@@ -121,7 +124,9 @@ if __name__ == "__main__":
     # collect times and output simple statistics
     t2 = mpi4py.MPI.Wtime()
     elapsed = t2 - t1
+    init_times = t1 - t0
     alltimes = comm.gather(elapsed, root=0)
+    init_times = comm.gather(init_times, root=0)
     if comm.Get_rank() == 0:
         now = datetime.now()
         sha = git.Repo(search_parent_directories=True).head.object.hexsha
@@ -140,6 +145,10 @@ if __name__ == "__main__":
         experiment["times"] = {}
         experiment["times"]["total"] = {}
         experiment["times"]["init"] = {}
+        experiment["times"]["init"]["minimum"] = min(init_times)
+        experiment["times"]["init"]["maximum"] = max(init_times)
+        experiment["times"]["init"]["median"] = median(init_times)
+        experiment["times"]["init"]["mean"] = mean(init_times)
         experiment["times"]["main"] = {}
         experiment["times"]["cleanup"] = {}
         experiment["times"]["main"]["minimum"] = min(alltimes)
