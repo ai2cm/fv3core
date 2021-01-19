@@ -80,29 +80,34 @@ def ord4_transform(
         va = a21 * utmp + a22 * vtmp
 
 
-def compute_ord4(u, v, ua, va, comm, mode=1):
-    grid = spec.grid
-    if mode > 0:
-        comm.vector_halo_update(u, v, n_points=utils.halo)
-
-    ord4_transform(
-        u.storage,
-        v.storage,
-        grid.a11,
-        grid.a12,
-        grid.a21,
-        grid.a22,
-        grid.dx,
-        grid.dy,
-        ua,
-        va,
-        origin=grid.compute_origin(),
-        domain=grid.domain_shape_compute(),
-    )
-
-
-def compute_cubed_to_latlon(u, v, ua, va, comm, mode=1):
+def compute_cubed_to_latlon(u, v, ua, va, comm, mode=True):
+    """
+    Interpolate D-grid winds to into a-grid winds at latitude-longitude.
+    Args:
+        u: x-wind on D-grid (in)
+        v: y-wind on D-grid (in)
+        ua: x-wind on A-grid (out)
+        va: y-wind on A-grid (out)
+        comm: MPI communicator, in case of a halo update (in)
+        mode: If True, halo update before transforming to lat/lon
+    """
     if spec.namelist.c2l_ord == 2:
         compute_ord2(u, v, ua, va, False)
     else:
-        compute_ord4(u, v, ua, va, comm, mode)
+        grid = spec.grid
+        if mode:
+            comm.vector_halo_update(u, v, n_points=utils.halo)
+        ord4_transform(
+            u.storage,
+            v.storage,
+            grid.a11,
+            grid.a12,
+            grid.a21,
+            grid.a22,
+            grid.dx,
+            grid.dy,
+            ua,
+            va,
+            origin=grid.compute_origin(),
+            domain=grid.domain_shape_compute(),
+        )

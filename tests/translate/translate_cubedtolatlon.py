@@ -21,7 +21,6 @@ class TranslateCubedToLatLon(ParallelTranslate2Py):
         grid = grids[0]
         self._base.compute_func = c2l_ord.compute_cubed_to_latlon
         self._base.in_vars["data_vars"] = {"u": {}, "v": {}, "ua": {}, "va": {}}
-        self._base.in_vars["parameters"] = ["mode"]
         self._base.out_vars = {
             "ua": {},
             "va": {},

@@ -226,7 +226,7 @@ def wrapup(state, comm):
 
     print("CubedToLatLon", grid.rank)
     compute_cubed_to_latlon(
-        state.u_quantity, state.v_quantity, state.ua, state.va, comm, 1
+        state.u_quantity, state.v_quantity, state.ua, state.va, comm, True
     )
 
 
