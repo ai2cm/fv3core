@@ -1,17 +1,3 @@
-Fillz:
-  max_error:
-    gtcuda: 1e-13
-  near_zero:
-    gtcuda: 3e-15
-
-NH_P_Grad:
-  max_error:
-    gtcuda: 2e-9
-
-MapN_Tracer_2d:
-  max_error:
-    gtcuda: 2e-7
-
 CS_Profile_2d:
   max_error:
     gtcuda: 2.5e-9
@@ -23,3 +9,25 @@ CS_Profile_2d-2:
     gtcuda: 3e-8
   near_zero:
     gtcuda: 1.5e-14
+
+Fillz:
+  max_error:
+    gtcuda: 1e-13
+  near_zero:
+    gtcuda: 3e-15
+
+MapN_Tracer_2d:
+  max_error:
+    gtcuda: 2e-7
+
+NH_P_Grad:
+  max_error:
+    gtcuda: 2e-9
+
+Remapping_Part1:
+  max_error:
+    gtcuda: 5e-6
+
+Remapping:
+  max_error:
+    gtcuda: 1e-07
