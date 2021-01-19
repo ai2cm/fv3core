@@ -35,7 +35,6 @@ def success_array(computed_data, ref_data, eps, ignore_near_zero_errors):
     success = np.logical_or(
         np.logical_and(np.isnan(computed_data), np.isnan(ref_data)),
         compare_arr(computed_data, ref_data) < eps,
-        # np.isclose(computed_data, ref_data, rtol=eps * 1e-2, atol=eps * 1e-2),
     )
     if ignore_near_zero_errors:
         success = np.logical_or(
@@ -111,12 +110,21 @@ def sample_wherefail(
 
     return "\n".join(return_strings)
 
+def process_override(threshold_overrides, testobj, test_name, backend):
+    override = threshold_overrides.get(test_name, None)
+    if override is not None:
+        max_error = override.get("max_error", None)
+        near_zero = override.get("near_zero", None)
+        if max_error is not None:
+            testobj.max_error = float(max_error[backend])
+        if near_zero is not None:
+            _near_zero = float(near_zero[backend]) 
 
 @pytest.mark.sequential
 @pytest.mark.skipif(
     MPI is not None and MPI.COMM_WORLD.Get_size() > 1,
     reason="Running in parallel with mpi",
-)
+)            
 def test_sequential_savepoint(
     testobj,
     test_name,
@@ -130,6 +138,7 @@ def test_sequential_savepoint(
     failure_stride,
     subtests,
     caplog,
+    threshold_overrides,
     xy_indices=False,
 ):
     caplog.set_level(logging.DEBUG, logger="fv3core")
@@ -139,6 +148,8 @@ def test_sequential_savepoint(
     if backend.endswith("cuda") and testobj.max_error < GPU_MAX_ERR:
         testobj.max_error = GPU_MAX_ERR
         _near_zero = GPU_NEAR_ZERO
+    if threshold_overrides is not None:
+        process_override(threshold_overrides, testobj, test_name, backend)
     fv3core._config.set_grid(grid)
     input_data = testobj.collect_input_data(serializer, savepoint_in)
     # run python version of functionality
@@ -208,6 +219,7 @@ def test_mock_parallel_savepoint(
     failure_stride,
     subtests,
     caplog,
+    threshold_overrides,
     xy_indices=False,
 ):
     caplog.set_level(logging.DEBUG, logger="fv3core")
@@ -218,6 +230,8 @@ def test_mock_parallel_savepoint(
     if backend.endswith("cuda") and testobj.max_error < GPU_MAX_ERR:
         testobj.max_error = GPU_MAX_ERR
         _near_zero = GPU_NEAR_ZERO
+    if threshold_overrides is not None:
+        process_override(threshold_overrides, testobj, test_name, backend)
     fv3core._config.set_grid(grid)
     inputs_list = []
     for savepoint_in, serializer in zip(savepoint_in_list, serializer_list):
@@ -294,7 +308,9 @@ def test_parallel_savepoint(
     subtests,
     caplog,
     python_regression,
+    threshold_overrides,
     xy_indices=False,
+
 ):
     caplog.set_level(logging.DEBUG, logger="fv3core")
     if python_regression and not testobj.python_regression:
@@ -304,6 +320,8 @@ def test_parallel_savepoint(
     # Reduce error threshold for GPU
     if backend.endswith("cuda") and testobj.max_error < GPU_MAX_ERR:
         testobj.max_error = GPU_MAX_ERR
+    if threshold_overrides is not None:
+        process_override(threshold_overrides, testobj, test_name, backend)
     fv3core._config.set_grid(grid[0])
     input_data = testobj.collect_input_data(serializer, savepoint_in)
     # run python version of functionality

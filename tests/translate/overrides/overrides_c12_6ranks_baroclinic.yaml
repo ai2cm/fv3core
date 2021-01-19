@@ -1,0 +1,3 @@
+C_SW:
+  max_error:
+    numpy: 5e-2
