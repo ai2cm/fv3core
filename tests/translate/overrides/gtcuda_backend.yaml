@@ -30,4 +30,14 @@ Remapping_Part1:
 
 Remapping:
   max_error:
-    gtcuda: 1e-07
+    gtcuda: 1e-7
+
+UpdateDzC:
+  max_error:
+    gtcuda: 5e-10
+  near_zero:
+    gtcuda: 4.5e-15
+
+UpdateDzD:
+  max_error:
+    gtcuda: 5e-10
