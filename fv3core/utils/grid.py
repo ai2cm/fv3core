@@ -3,10 +3,10 @@ from typing import Tuple
 import numpy as np
 from gt4py import gtscript
 
-import fv3core.utils.gt4py_utils as utils
 import fv3gfs.util as fv3util
 
 from . import global_config
+from . import gt4py_utils as utils
 
 
 class Grid:
@@ -447,28 +447,28 @@ def axis_offsets(
         origin_offset = grid.is_ - origin[0]
         i_start = gtscript.I[0] + proc_offset + origin_offset
     else:
-        i_start = None
+        i_start = gtscript.I[0] - np.iinfo(np.int32).max
 
     if grid.east_edge:
         proc_offset = grid.npx + grid.halo - 2 - grid.global_is
         endpt_offset = (grid.is_ - origin[0]) - domain[0] + 1
         i_end = gtscript.I[-1] + proc_offset + endpt_offset
     else:
-        i_end = None
+        i_end = gtscript.I[0] + np.iinfo(np.int32).max
 
     if grid.south_edge:
         proc_offset = grid.js - grid.global_js
         origin_offset = grid.js - origin[1]
         j_start = gtscript.J[0] + proc_offset + origin_offset
     else:
-        j_start = None
+        j_start = gtscript.J[0] - np.iinfo(np.int32).max
 
     if grid.north_edge:
         proc_offset = grid.npy + grid.halo - 2 - grid.global_js
         endpt_offset = (grid.js - origin[1]) - domain[1] + 1
         j_end = gtscript.J[-1] + proc_offset + endpt_offset
     else:
-        j_end = None
+        j_end = gtscript.J[0] + np.iinfo(np.int32).max
 
     return {
         "i_start": i_start,

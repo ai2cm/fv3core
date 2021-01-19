@@ -3,12 +3,11 @@ include docker/Makefile.image_names
 GCR_URL = us.gcr.io/vcm-ml
 REGRESSION_DATA_STORAGE_BUCKET = gs://vcm-fv3gfs-serialized-regression-data
 EXPERIMENT ?=c12_6ranks_standard
-FORTRAN_SERIALIZED_DATA_VERSION=7.1.1
+FORTRAN_SERIALIZED_DATA_VERSION=7.2.3
 WRAPPER_IMAGE = us.gcr.io/vcm-ml/fv3gfs-wrapper:gnu9-mpich314-nocuda
 DOCKER_BUILDKIT=1
 SHELL=/bin/bash
 CWD=$(shell pwd)
-TEST_ARGS ?=-v -s -rsx
 PULL ?=True
 NUM_RANKS ?=6
 VOLUMES ?=
@@ -57,6 +56,8 @@ constraints.txt: requirements.txt requirements_wrapper.txt requirements_lint.txt
 build_environment: update_submodules
 	$(MAKE) -C docker build_core_deps
 
+build_cuda_environment: build_environment
+	CUDA=y $(MAKE) -C docker build_core_env
 
 build_wrapped_environment:
 	$(MAKE) -C external/fv3gfs-wrapper build-docker
@@ -86,6 +87,7 @@ build_wrapped: update_submodules
 
 pull_environment_if_needed:
 	$(MAKE) -C docker pull_core_deps_if_needed
+
 
 pull_wrapped_environment_if_needed:
 	if [ -z $(shell docker images -q $(WRAPPER_INSTALL_IMAGE)) ]; then \
@@ -151,13 +153,12 @@ dev_tests_mpi_host:
 	MOUNTS=$(DEV_MOUNTS) $(MAKE) run_tests_parallel_host
 
 test_base:
-	$(CONTAINER_ENGINE) run $(RUN_FLAGS) $(VOLUMES) $(MOUNTS) \
+	$(CONTAINER_ENGINE) run $(RUN_FLAGS) $(VOLUMES) $(MOUNTS) $(CUDA_FLAGS) \
 	$(FV3_IMAGE) bash -c "pip list && pytest --data_path=$(TEST_DATA_CONTAINER) $(TEST_ARGS) /$(FV3)/tests"
 
 test_base_parallel:
-	$(CONTAINER_ENGINE) run $(RUN_FLAGS) $(VOLUMES) $(MOUNTS) $(FV3_IMAGE) \
-	$(MPIRUN_CALL) \
-	bash -c "pip list && pytest --data_path=$(TEST_DATA_CONTAINER) $(TEST_ARGS) -m parallel /$(FV3)/tests"
+	$(CONTAINER_ENGINE) run $(RUN_FLAGS) $(VOLUMES) $(MOUNTS) $(CUDA_FLAGS) $(FV3_IMAGE) \
+	bash -c "pip list && $(MPIRUN_CALL) pytest --data_path=$(TEST_DATA_CONTAINER) $(TEST_ARGS) -m parallel /$(FV3)/tests"
 
 run_tests_sequential:
 	VOLUMES='--mount=type=bind,source=$(TEST_DATA_HOST),destination=$(TEST_DATA_CONTAINER) --mount=type=bind,source=$(CWD)/.jenkins,destination=/.jenkins' \
@@ -168,7 +169,10 @@ run_tests_parallel:
 	$(MAKE) test_base_parallel
 
 sync_test_data:
-	mkdir -p $(TEST_DATA_HOST) && gsutil -m rsync $(REGRESSION_DATA_STORAGE_BUCKET)/$(FORTRAN_SERIALIZED_DATA_VERSION)/$(EXPERIMENT)/ $(TEST_DATA_HOST)
+	mkdir -p $(TEST_DATA_HOST) && gsutil -m rsync -r $(REGRESSION_DATA_STORAGE_BUCKET)/$(FORTRAN_SERIALIZED_DATA_VERSION)/$(EXPERIMENT)/ $(TEST_DATA_HOST)
+
+push_python_regressions:
+	gsutil -m cp -r $(TEST_DATA_HOST)/python_regressions $(REGRESSION_DATA_STORAGE_BUCKET)/$(FORTRAN_SERIALIZED_DATA_VERSION)/$(EXPERIMENT)/python_regressions
 
 get_test_data:
 	if [ ! -f "$(TEST_DATA_HOST)/input.nml" ]; then \
@@ -185,14 +189,11 @@ list_test_data_options:
 	gsutil ls $(REGRESSION_DATA_STORAGE_BUCKET)/$(FORTRAN_SERIALIZED_DATA_VERSION)
 
 lint:
-	pre-commit run
-	# pre-commit runs black for now. Will also run flake8 eventually.
-	# black --diff --check $(PYTHON_FILES) $(PYTHON_INIT_FILES)
-	# disable flake8 tests for now, re-enable when dycore is "running"
-	#@flake8 $(PYTHON_FILES)
-	# ignore unused import error in __init__.py files
-	#@flake8 --ignore=F401 $(PYTHON_INIT_FILES)
-	# @echo "LINTING SUCCESSFUL"
+	pre-commit run --all-files
+
+gt4py_tests_gpu:
+	CUDA=y make build && \
+        docker run --gpus all $(FV3_IMAGE) python3 -m pytest -x gt4py/
 
 .PHONY: update_submodules build_environment build dev dev_tests dev_tests_mpi flake8 lint get_test_data unpack_test_data \
 	 list_test_data_options pull_environment pull_test_data push_environment \
