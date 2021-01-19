@@ -1,6 +1,10 @@
+import json
 import sys
 from argparse import ArgumentParser
+from datetime import datetime
+from statistics import mean, median
 
+import git
 import mpi4py
 import yaml
 
@@ -94,6 +98,7 @@ if __name__ == "__main__":
     input_data["comm"] = communicator
     state = driver_object.state_from_inputs(input_data)
 
+    t1 = mpi4py.MPI.Wtime()
     # Run the dynamics
     for i in range(time_step):
         fv_dynamics.fv_dynamics(
@@ -112,3 +117,35 @@ if __name__ == "__main__":
             # state["eastward_wind_tendency"] = u_tendency
             # state["northward_wind_tendency"] = v_tendency
             # fv3core.fv_subgridz(state, n_tracers, dt_atmos)
+
+    # collect times and output simple statistics
+    t2 = mpi4py.MPI.Wtime()
+    elapsed = t2 - t1
+    alltimes = comm.gather(elapsed, root=0)
+    if comm.Get_rank() == 0:
+        now = datetime.now()
+        sha = git.Repo(search_parent_directories=True).head.object.hexsha
+
+        dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
+        filename = now.strftime("%Y-%m-%d-%H-%M-%S")
+        experiment = {}
+        experiment["setup"] = {}
+        experiment["setup"]["experiment time"] = dt_string
+        experiment["setup"]["data set"] = "baroclinic"  # nml2
+        experiment["setup"]["timesteps"] = time_step
+        experiment["setup"]["timesteps"] = time_step
+        experiment["setup"]["hash"] = sha
+        experiment["setup"]["version"] = "python"
+
+        experiment["times"] = {}
+        experiment["times"]["total"] = {}
+        experiment["times"]["init"] = {}
+        experiment["times"]["main"] = {}
+        experiment["times"]["cleanup"] = {}
+        experiment["times"]["main"]["minimum"] = min(alltimes)
+        experiment["times"]["main"]["maximum"] = max(alltimes)
+        experiment["times"]["main"]["median"] = median(alltimes)
+        experiment["times"]["main"]["mean"] = mean(alltimes)
+
+        with open(filename + ".json", "w") as outfile:
+            json.dump(experiment, outfile, sort_keys=True, indent=4)
