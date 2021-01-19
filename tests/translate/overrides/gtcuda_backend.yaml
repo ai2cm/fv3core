@@ -3,3 +3,11 @@ Fillz:
     gtcuda: 1e-13
   near_zero:
     gtcuda: 3e-15
+
+NH_P_Grad:
+  max_error:
+    gtcuda: 2e-9
+
+MapN_Tracer_2d:
+  max_error:
+    gtcuda: 2e-7

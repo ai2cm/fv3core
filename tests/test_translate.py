@@ -63,11 +63,14 @@ def sample_wherefail(
     failure_stride,
     test_name,
     ignore_near_zero_errors,
+    near_zero,
     xy_indices=False,
 ):
     found_indices = np.where(
         np.logical_not(
-            success_array(computed_data, ref_data, eps, ignore_near_zero_errors)
+            success_array(
+                computed_data, ref_data, eps, ignore_near_zero_errors, near_zero
+            )
         )
     )
     computed_failures = computed_data[found_indices]
@@ -143,6 +146,7 @@ def test_sequential_savepoint(
     threshold_overrides,
     xy_indices=False,
 ):
+    print_failures = True
     caplog.set_level(logging.DEBUG, logger="fv3core")
     if testobj is None:
         pytest.xfail(f"no translate object available for savepoint {test_name}")
@@ -174,6 +178,7 @@ def test_sequential_savepoint(
                 failure_stride,
                 test_name,
                 near0,
+                testobj.near_zero,
                 xy_indices,
             )
             passing_names.append(failing_names.pop())
@@ -266,6 +271,7 @@ def test_mock_parallel_savepoint(
                         failure_stride,
                         test_name,
                         near0,
+                        testobj.near_zero,
                         xy_indices,
                     )
             assert failing_ranks == []
@@ -363,6 +369,7 @@ def test_parallel_savepoint(
                 failure_stride,
                 test_name,
                 near0,
+                testobj.near_zero,
                 xy_indices,
             )
             passing_names.append(failing_names.pop())
