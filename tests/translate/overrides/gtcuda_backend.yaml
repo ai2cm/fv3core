@@ -1,0 +1,5 @@
+Fillz:
+  max_error:
+    gtcuda: 1e-13
+  near_zero:
+    gtcuda: 3e-15

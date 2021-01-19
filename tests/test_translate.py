@@ -21,8 +21,6 @@ OUTDIR = os.path.join(os.path.dirname(os.path.realpath(__file__)), "output")
 GPU_MAX_ERR = 1e-10
 GPU_NEAR_ZERO = 1e-15
 
-_near_zero = 1e-18
-
 
 def compare_arr(computed_data, ref_data):
     denom = np.abs(ref_data) + np.abs(computed_data)
@@ -31,7 +29,7 @@ def compare_arr(computed_data, ref_data):
     return compare
 
 
-def success_array(computed_data, ref_data, eps, ignore_near_zero_errors):
+def success_array(computed_data, ref_data, eps, ignore_near_zero_errors, near_zero):
     success = np.logical_or(
         np.logical_and(np.isnan(computed_data), np.isnan(ref_data)),
         compare_arr(computed_data, ref_data) < eps,
@@ -40,14 +38,16 @@ def success_array(computed_data, ref_data, eps, ignore_near_zero_errors):
         success = np.logical_or(
             success,
             np.logical_and(
-                np.abs(computed_data) < _near_zero, np.abs(ref_data) < _near_zero
+                np.abs(computed_data) < near_zero, np.abs(ref_data) < near_zero
             ),
         )
     return success
 
 
-def success(computed_data, ref_data, eps, ignore_near_zero_errors):
-    return np.all(success_array(computed_data, ref_data, eps, ignore_near_zero_errors))
+def success(computed_data, ref_data, eps, ignore_near_zero_errors, near_zero=0.0):
+    return np.all(
+        success_array(computed_data, ref_data, eps, ignore_near_zero_errors, near_zero)
+    )
 
 
 def platform():
@@ -119,7 +119,7 @@ def process_override(threshold_overrides, testobj, test_name, backend):
         if max_error is not None:
             testobj.max_error = float(max_error[backend])
         if near_zero is not None:
-            _near_zero = float(near_zero[backend])
+            testobj.near_zero = float(near_zero[backend])
 
 
 @pytest.mark.sequential
@@ -147,9 +147,9 @@ def test_sequential_savepoint(
     if testobj is None:
         pytest.xfail(f"no translate object available for savepoint {test_name}")
     # Reduce error threshold for GPU
-    if backend.endswith("cuda") and testobj.max_error < GPU_MAX_ERR:
-        testobj.max_error = GPU_MAX_ERR
-        _near_zero = GPU_NEAR_ZERO
+    if backend.endswith("cuda"):
+        testobj.max_error = max(testobj.max_error, GPU_MAX_ERR)
+        testobj.near_zero = max(testobj.near_zero, GPU_NEAR_ZERO)
     if threshold_overrides is not None:
         process_override(threshold_overrides, testobj, test_name, backend)
     fv3core._config.set_grid(grid)
@@ -160,11 +160,12 @@ def test_sequential_savepoint(
     passing_names = []
     for varname in testobj.serialnames(testobj.out_vars):
         near0 = testobj.ignore_near_zero_errors.get(varname, False)
+        near0 = testobj.near_zero
         ref_data = serializer.read(varname, savepoint_out)
         with subtests.test(varname=varname):
             failing_names.append(varname)
             assert success(
-                output[varname], ref_data, testobj.max_error, near0
+                output[varname], ref_data, testobj.max_error, near0, testobj.near_zero
             ), sample_wherefail(
                 output[varname],
                 ref_data,
@@ -229,9 +230,9 @@ def test_mock_parallel_savepoint(
     if testobj is None:
         pytest.xfail(f"no translate object available for savepoint {test_name}")
     # Reduce error threshold for GPU
-    if backend.endswith("cuda") and testobj.max_error < GPU_MAX_ERR:
-        testobj.max_error = GPU_MAX_ERR
-        _near_zero = GPU_NEAR_ZERO
+    if backend.endswith("cuda"):
+        testobj.max_error = max(testobj.max_error, GPU_MAX_ERR)
+        testobj.near_zero = max(testobj.near_zero, GPU_NEAR_ZERO)
     if threshold_overrides is not None:
         process_override(threshold_overrides, testobj, test_name, backend)
     fv3core._config.set_grid(grid)
@@ -256,6 +257,7 @@ def test_mock_parallel_savepoint(
                         ref_data[varname][-1],
                         testobj.max_error,
                         near0,
+                        testobj.near_zero,
                     ), sample_wherefail(
                         output[varname],
                         ref_data[varname][-1],
@@ -319,8 +321,9 @@ def test_parallel_savepoint(
     if testobj is None:
         pytest.xfail(f"no translate object available for savepoint {test_name}")
     # Reduce error threshold for GPU
-    if backend.endswith("cuda") and testobj.max_error < GPU_MAX_ERR:
-        testobj.max_error = GPU_MAX_ERR
+    if backend.endswith("cuda"):
+        testobj.max_error = max(testobj.max_error, GPU_MAX_ERR)
+        testobj.near_zero = max(testobj.near_zero, GPU_NEAR_ZERO)
     if threshold_overrides is not None:
         process_override(threshold_overrides, testobj, test_name, backend)
     fv3core._config.set_grid(grid[0])
@@ -347,7 +350,11 @@ def test_parallel_savepoint(
         with subtests.test(varname=varname):
             failing_names.append(varname)
             assert success(
-                output[varname], ref_data[varname][0], testobj.max_error, near0
+                output[varname],
+                ref_data[varname][0],
+                testobj.max_error,
+                near0,
+                testobj.near_zero,
             ), sample_wherefail(
                 output[varname],
                 ref_data[varname][0],
