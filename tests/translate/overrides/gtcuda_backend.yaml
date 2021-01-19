@@ -24,6 +24,10 @@ NH_P_Grad:
   max_error:
     gtcuda: 2e-9
 
+Riem_Solver3:
+  max_error:
+    gtcuda: 5e-6
+
 Remapping_Part1:
   max_error:
     gtcuda: 5e-6

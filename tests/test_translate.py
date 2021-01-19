@@ -146,7 +146,6 @@ def test_sequential_savepoint(
     threshold_overrides,
     xy_indices=False,
 ):
-    print_failures = True
     caplog.set_level(logging.DEBUG, logger="fv3core")
     if testobj is None:
         pytest.xfail(f"no translate object available for savepoint {test_name}")
