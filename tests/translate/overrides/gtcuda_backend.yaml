@@ -11,3 +11,15 @@ NH_P_Grad:
 MapN_Tracer_2d:
   max_error:
     gtcuda: 2e-7
+
+CS_Profile_2d:
+  max_error:
+    gtcuda: 2.5e-9
+  near_zero:
+      gtcuda: 1.5e-14
+
+CS_Profile_2d-2:
+  max_error:
+    gtcuda: 3e-8
+  near_zero:
+    gtcuda: 1.5e-14
