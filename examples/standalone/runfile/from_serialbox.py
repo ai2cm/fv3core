@@ -40,6 +40,7 @@ if __name__ == "__main__":
         action="store",
         help="number of timesteps to execute",
     )
+    backend = "numpy"
     args = parser.parse_args()
     data_dir = args.data_dir
     time_step = args.time_step
@@ -50,7 +51,7 @@ if __name__ == "__main__":
     rank = comm.Get_rank()
 
     # fv3core specific setup
-    fv3core.set_backend("numpy")
+    fv3core.set_backend(backend)
     fv3core.set_rebuild(False)
 
     # namelist setup
@@ -136,10 +137,12 @@ if __name__ == "__main__":
 
     # collect times and output simple statistics
     t2 = mpi4py.MPI.Wtime()
-    elapsed = t2 - t1
-    init_times = t1 - t0
-    alltimes = comm.gather(elapsed, root=0)
-    init_times = comm.gather(init_times, root=0)
+    main_time = t2 - t1
+    init_time = t1 - t0
+    total_time = t2 - t0
+    init_times = comm.gather(init_time, root=0)
+    main_times = comm.gather(main_time, root=0)
+    total_times = comm.gather(total_time, root=0)
     if comm.Get_rank() == 0:
         now = datetime.now()
         sha = git.Repo(
@@ -152,22 +155,25 @@ if __name__ == "__main__":
         experiment["setup"]["experiment time"] = dt_string
         experiment["setup"]["data set"] = "baroclinic"  # nml2
         experiment["setup"]["timesteps"] = time_step
-        experiment["setup"]["timesteps"] = time_step
         experiment["setup"]["hash"] = sha
-        experiment["setup"]["version"] = "python"
+        experiment["setup"]["version"] = "python/" + backend
 
         experiment["times"] = {}
         experiment["times"]["total"] = {}
+        experiment["times"]["total"]["minimum"] = min(total_times)
+        experiment["times"]["total"]["maximum"] = max(total_times)
+        experiment["times"]["total"]["median"] = median(total_times)
+        experiment["times"]["total"]["mean"] = mean(total_times)
         experiment["times"]["init"] = {}
         experiment["times"]["init"]["minimum"] = min(init_times)
         experiment["times"]["init"]["maximum"] = max(init_times)
         experiment["times"]["init"]["median"] = median(init_times)
         experiment["times"]["init"]["mean"] = mean(init_times)
         experiment["times"]["main"] = {}
-        experiment["times"]["main"]["minimum"] = min(alltimes)
-        experiment["times"]["main"]["maximum"] = max(alltimes)
-        experiment["times"]["main"]["median"] = median(alltimes)
-        experiment["times"]["main"]["mean"] = mean(alltimes)
+        experiment["times"]["main"]["minimum"] = min(main_times)
+        experiment["times"]["main"]["maximum"] = max(main_times)
+        experiment["times"]["main"]["median"] = median(main_times)
+        experiment["times"]["main"]["mean"] = mean(main_times)
         experiment["times"]["cleanup"] = {}
 
         with open(filename + ".json", "w") as outfile:
