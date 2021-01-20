@@ -311,8 +311,8 @@ class Grid:
     def domain_shape_buffer_k(self):
         return (self.nid, self.njd, self.npz + 1)
 
-    def domain_shape_compute(self):
-        return (self.nic, self.njc, self.npz)
+    def domain_shape_compute(self, add: Tuple[int, int, int] = (0, 0, 0)):
+        return (self.nic + add[0], self.njc + add[1], self.npz + add[2])
 
     def domain_shape_compute_buffer_2d(self, add: Tuple[int, int, int] = (1, 1, 0)):
         return (self.nic + add[0], self.njc + add[1], self.npz + add[2])
@@ -472,7 +472,11 @@ def axis_offsets(
 
     return {
         "i_start": i_start,
+        "local_is": grid.is_ - origin[0],
         "i_end": i_end,
+        "local_ie": grid.ie - origin[0] - domain[0],
         "j_start": j_start,
+        "local_js": grid.js - origin[1],
         "j_end": j_end,
+        "local_je": grid.je - origin[1] - domain[1],
     }

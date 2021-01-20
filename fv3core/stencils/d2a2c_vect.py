@@ -2,15 +2,12 @@ import gt4py.gtscript as gtscript
 from gt4py.gtscript import (
     __INLINED,
     PARALLEL,
-    I,
-    J,
     computation,
     horizontal,
     interval,
     region,
 )
 
-import fv3core._config as spec
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import gtstencil
 from fv3core.stencils.a2b_ord4 import a1, a2, lagrange_x_func, lagrange_y_func
@@ -77,11 +74,21 @@ def lagrange_interpolation_x_p1(qy: sd, qout: sd):
 
 
 def interp_winds_d_to_a(u, v):
-    from __externals__ import HALO, i_end, i_start, j_end, j_start
+    from __externals__ import (
+        HALO,
+        i_end,
+        i_start,
+        j_end,
+        j_start,
+        local_ie,
+        local_is,
+        local_je,
+        local_js,
+    )
 
-    with horizontal(region[:, J[0] + 1 : J[-1] - 1]):
+    with horizontal(region[:, local_js - 2 : local_je + 2]):
         utmp = lagrange_y_func_p1(u)
-    with horizontal(region[I[0] + 1 : I[-1] - 1, :]):
+    with horizontal(region[local_is - 2 : local_ie + 2, :]):
         vtmp = lagrange_x_func_p1(v)
 
     with horizontal(
@@ -113,7 +120,7 @@ def edge_interpolate4_y(va, dya):
 
 
 @gtstencil(externals={"HALO": 3})
-def d2a2c(
+def d2a2c_vect(
     cosa_s: sd,
     cosa_u: sd,
     cosa_v: sd,
@@ -135,7 +142,17 @@ def d2a2c(
     vc: sd,
     vtc: sd,
 ):
-    from __externals__ import i_end, i_start, j_end, j_start, namelist
+    from __externals__ import (
+        i_end,
+        i_start,
+        j_end,
+        j_start,
+        local_ie,
+        local_is,
+        local_je,
+        local_js,
+        namelist,
+    )
 
     with computation(PARALLEL), interval(...):
 
@@ -143,7 +160,9 @@ def d2a2c(
 
         utmp, vtmp = interp_winds_d_to_a(u, v)
 
-        with horizontal(region[I[0] + 1 : I[-1], J[0] + 1 : J[-1]]):
+        with horizontal(
+            region[local_is - 2 : local_ie + 3, local_js - 2 : local_ie + 3]
+        ):
             ua = contravariant(utmp, vtmp, cosa_s, rsin2)
             va = contravariant(vtmp, utmp, cosa_s, rsin2)
 
@@ -157,42 +176,44 @@ def d2a2c(
     # X
     with computation(PARALLEL), interval(...):
 
-        with horizontal(region[I[0] + 2 : I[-1], J[0] + 2 : J[-1] - 1]):
+        with horizontal(
+            region[local_is - 1 : local_ie + 3, local_js - 1 : local_je + 2]
+        ):
             uc = lagrange_x_func(utmp)
             utc = contravariant(uc, v, cosa_u, rsin_u)
 
         # West
-        with horizontal(region[i_start - 1, J[0] + 2 : J[-1] - 1]):
+        with horizontal(region[i_start - 1, local_js - 1 : local_je + 2]):
             uc = vol_conserv_cubic_interp_func_x(utmp)
 
-        with horizontal(region[i_start, J[0] + 2 : J[-1] - 1]):
+        with horizontal(region[i_start, local_js - 1 : local_je + 2]):
             utc = edge_interpolate4_x(ua, dxa)
             uc = utc * sin_sg3[-1, 0, 0] if utc > 0 else utc * sin_sg1
 
-        with horizontal(region[i_start + 1, J[0] + 2 : J[-1] - 1]):
+        with horizontal(region[i_start + 1, local_js - 1 : local_je + 2]):
             uc = vol_conserv_cubic_interp_func_x_rev(utmp)
 
-        with horizontal(region[i_start - 1, J[0] + 2 : J[-1] - 1]):
+        with horizontal(region[i_start - 1, local_js - 1 : local_je + 2]):
             utc = contravariant(uc, v, cosa_u, rsin_u)
 
-        with horizontal(region[i_start + 1, J[0] + 2 : J[-1] - 1]):
+        with horizontal(region[i_start + 1, local_js - 1 : local_je + 2]):
             utc = contravariant(uc, v, cosa_u, rsin_u)
 
         # East
-        with horizontal(region[i_end, J[0] + 2 : J[-1] - 1]):
+        with horizontal(region[i_end, local_js - 1 : local_je + 2]):
             uc = vol_conserv_cubic_interp_func_x(utmp)
 
-        with horizontal(region[i_end + 1, J[0] + 2 : J[-1] - 1]):
+        with horizontal(region[i_end + 1, local_js - 1 : local_je + 2]):
             utc = edge_interpolate4_x(ua, dxa)
             uc = utc * sin_sg3[-1, 0, 0] if utc > 0 else utc * sin_sg1
 
-        with horizontal(region[i_end + 2, J[0] + 2 : J[-1] - 1]):
+        with horizontal(region[i_end + 2, local_js - 1 : local_je + 2]):
             uc = vol_conserv_cubic_interp_func_x_rev(utmp)
 
-        with horizontal(region[i_end, J[0] + 2 : J[-1] - 1]):
+        with horizontal(region[i_end, local_js - 1 : local_je + 2]):
             utc = contravariant(uc, v, cosa_u, rsin_u)
 
-        with horizontal(region[i_end + 2, J[0] + 2 : J[-1] - 1]):
+        with horizontal(region[i_end + 2, local_js - 1 : local_je + 2]):
             utc = contravariant(uc, v, cosa_u, rsin_u)
 
     # Fill corners for Y
@@ -208,68 +229,33 @@ def d2a2c(
     # Y
     with computation(PARALLEL), interval(...):
 
-        with horizontal(region[I[0] + 2 : I[-1] - 1, J[0] + 2 : J[-1]]):
+        with horizontal(
+            region[local_is - 1 : local_ie + 2, local_js - 1 : local_je + 3]
+        ):
             vc = lagrange_y_func(vtmp)
             vtc = contravariant(vc, u, cosa_v, rsin_v)
 
-        with horizontal(region[I[0] + 2 : I[-1] - 1, j_start - 1]):
+        with horizontal(region[local_is - 1 : local_ie + 2, j_start - 1]):
             vc = vol_conserv_cubic_interp_func_y(vtmp)
             vtc = contravariant(vc, u, cosa_v, rsin_v)
 
-        with horizontal(region[I[0] + 2 : I[-1] - 1, j_start]):
+        with horizontal(region[local_is - 1 : local_ie + 2, j_start]):
             vtc = edge_interpolate4_y(va, dya)
             vc = vtc * sin_sg4[0, -1, 0] if vtc > 0 else vtc * sin_sg2
 
-        with horizontal(region[I[0] + 2 : I[-1] - 1, j_start + 1]):
+        with horizontal(region[local_is - 1 : local_ie + 2, j_start + 1]):
             vc = vol_conserv_cubic_interp_func_y_rev(vtmp)
             vtc = contravariant(vc, u, cosa_v, rsin_v)
 
         # NOTE: vtc can be a new temp here
-        with horizontal(region[I[0] + 2 : I[-1] - 1, j_end]):
+        with horizontal(region[local_is - 1 : local_ie + 2, j_end]):
             vc = vol_conserv_cubic_interp_func_y(vtmp)
             vtc = contravariant(vc, u, cosa_v, rsin_v)
 
-        with horizontal(region[I[0] + 2 : I[-1] - 1, j_end + 1]):
+        with horizontal(region[local_is - 1 : local_ie + 2, j_end + 1]):
             vtc = edge_interpolate4_y(va, dya)
             vc = vtc * sin_sg4[0, -1, 0] if vtc > 0 else vtc * sin_sg2
 
-        with horizontal(region[I[0] + 2 : I[-1] - 1, j_end + 2]):
+        with horizontal(region[local_is - 1 : local_ie + 2, j_end + 2]):
             vc = vol_conserv_cubic_interp_func_y_rev(vtmp)
             vtc = contravariant(vc, u, cosa_v, rsin_v)
-
-
-def compute(dord4, uc, vc, u, v, ua, va, utc, vtc):
-    grid = spec.grid
-    assert dord4 is True
-    # nx = grid.ie + 1  # grid.npx + 2
-    # ny = grid.je + 1  # grid.npy + 2
-    # # dord4 is True
-    # id_ = 1 if dord4 else 0
-    # npt = 4 if spec.namelist.grid_type < 3 and not grid.nested else 0
-    # if npt > grid.nic - 1 or npt > grid.njc - 1:
-    #     npt = 0
-
-    d2a2c(
-        grid.cosa_s,
-        grid.cosa_u,
-        grid.cosa_v,
-        grid.dxa,
-        grid.dya,
-        grid.rsin2,
-        grid.rsin_u,
-        grid.rsin_v,
-        grid.sin_sg1,
-        grid.sin_sg2,
-        grid.sin_sg3,
-        grid.sin_sg4,
-        u,
-        ua,
-        uc,
-        utc,
-        v,
-        va,
-        vc,
-        vtc,
-        origin=grid.default_origin(),
-        domain=grid.domain_shape_standard(),
-    )

@@ -8,9 +8,9 @@ from gt4py.gtscript import (
 )
 
 import fv3core._config as spec
-import fv3core.stencils.d2a2c_vect as d2a2c
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import gtstencil
+from fv3core.stencils.d2a2c_vect import d2a2c_vect
 from fv3core.utils.corners import fill2_4corners_x, fill2_4corners_y
 
 
@@ -332,7 +332,33 @@ def compute(delp, pt, u, v, w, uc, vc, ua, va, ut, vt, divgd, omga, dt2):
     origin_halo1 = (grid.is_ - 1, grid.js - 1, 0)
     delpc = utils.make_storage_from_shape(delp.shape, origin=origin_halo1)
     ptc = utils.make_storage_from_shape(pt.shape, origin=origin_halo1)
-    d2a2c.compute(dord4, uc, vc, u, v, ua, va, ut, vt)
+
+    # This assumes dord4 is True
+    d2a2c_vect(
+        grid.cosa_s,
+        grid.cosa_u,
+        grid.cosa_v,
+        grid.dxa,
+        grid.dya,
+        grid.rsin2,
+        grid.rsin_u,
+        grid.rsin_v,
+        grid.sin_sg1,
+        grid.sin_sg2,
+        grid.sin_sg3,
+        grid.sin_sg4,
+        u,
+        ua,
+        uc,
+        ut,
+        v,
+        va,
+        vc,
+        vt,
+        origin=grid.compute_origin(add=(-2, -2, 0)),
+        domain=grid.domain_shape_compute(add=(4, 4, 0)),
+    )
+
     if spec.namelist.nord > 0:
         divergence_corner(
             u,
