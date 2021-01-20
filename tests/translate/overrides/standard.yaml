@@ -1,4 +1,4 @@
 C_SW:
   max_error:
     numpy:
-      docker: 5e-25
+      docker: 2e-10
