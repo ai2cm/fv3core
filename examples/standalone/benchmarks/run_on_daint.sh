@@ -50,8 +50,8 @@ echo "copying in the venv"
 cp -r /project/s1053/install/venv/vcm_1.0/ .
 git submodule update --init --recursive
 echo "install requirements"
-vcm_1.0/bin/python -m pip install fv3core/external/fv3gfs-util/
-vcm_1.0/bin/python -m pip install fv3core/
+vcm_1.0/bin/python -m pip install external/fv3gfs-util/
+vcm_1.0/bin/python -m pip install .
 vcm_1.0/bin/python -m pip install gitpython
 
 # set up the experiment data
