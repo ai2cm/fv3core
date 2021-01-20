@@ -66,7 +66,7 @@ sed s/\<NTASKSPERNODE\>/$ranks/g submit.daint.slurm -i
 sed s/\<CPUSPERTASK\>/1/g submit.daint.slurm -i
 sed s/#SBATCH\ --output=\<OUTFILE\>//g submit.daint.slurm -i
 sed s/\<G2G\>//g submit.daint.slurm -i
-sed -i "s#<CMD>#export PYTHONPATH=/scratch/snx3000/tobwi/timing/serialbox2_master/gnu/python:\$PYTHONPATH\nsrun vcm_1.0/bin/python fv3core/examples/standalone/runfile/from_serialbox.py test_data/ fv3core/examples/standalone/config/c12_6ranks_standard.yml $timesteps#g" submit.daint.slurm
+sed -i "s#<CMD>#export PYTHONPATH=/project/c14/install/daint/serialbox2_master/gnu/python:\$PYTHONPATH\nsrun vcm_1.0/bin/python fv3core/examples/standalone/runfile/from_serialbox.py test_data/ fv3core/examples/standalone/config/c12_6ranks_standard.yml $timesteps#g" submit.daint.slurm
 cat submit.daint.slurm
 
 # execute on a gpu node
