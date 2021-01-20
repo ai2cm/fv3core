@@ -164,11 +164,11 @@ if __name__ == "__main__":
         experiment["times"]["init"]["median"] = median(init_times)
         experiment["times"]["init"]["mean"] = mean(init_times)
         experiment["times"]["main"] = {}
-        experiment["times"]["cleanup"] = {}
         experiment["times"]["main"]["minimum"] = min(alltimes)
         experiment["times"]["main"]["maximum"] = max(alltimes)
         experiment["times"]["main"]["median"] = median(alltimes)
         experiment["times"]["main"]["mean"] = mean(alltimes)
+        experiment["times"]["cleanup"] = {}
 
         with open(filename + ".json", "w") as outfile:
             json.dump(experiment, outfile, sort_keys=True, indent=4)
