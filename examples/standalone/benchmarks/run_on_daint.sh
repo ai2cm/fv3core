@@ -3,7 +3,9 @@
 ## Arguments:
 # $1: number of timesteps to run
 # $2: number of ranks to execute with (ensure that this is compatible with fv3core)
-# $3: path to the data directory that should be run
+# $3: backend to use in gt4py
+# $4: target directory to store the output in
+# $5: path to the data directory that should be run
 #############################################
 # Example syntax:
 # ./run_on_daint.sh 60 6
@@ -29,14 +31,20 @@ timesteps="$1"
 test -n "$2" || exitError 1002 ${LINENO} "must pass a number of ranks"
 ranks="$2"
 
-target_dir="$3"
+backend="$3"
 if [ -z "$3" ]
+  then
+    backend="numpy"
+fi
+
+target_dir="$4"
+if [ -z "$4" ]
   then
     target_dir="$ROOT_DIR"
 fi
 
-data_path="$4"
-if [ -z "$4" ]
+data_path="$5"
+if [ -z "$5" ]
   then
     data_path="/project/s1053/fv3core_serialized_test_data/7.0.0/c12_6ranks_standard/"
 fi
@@ -68,7 +76,7 @@ sed s/\<NTASKSPERNODE\>/$ranks/g submit.daint.slurm -i
 sed s/\<CPUSPERTASK\>/1/g submit.daint.slurm -i
 sed s/#SBATCH\ --output=\<OUTFILE\>//g submit.daint.slurm -i
 sed s/\<G2G\>//g submit.daint.slurm -i
-sed -i "s#<CMD>#export PYTHONPATH=/project/c14/install/daint/serialbox2_master/gnu/python:\$PYTHONPATH\nsrun vcm_1.0/bin/python examples/standalone/runfile/from_serialbox.py test_data/ examples/standalone/config/c12_6ranks_standard.yml $timesteps#g" submit.daint.slurm
+sed -i "s#<CMD>#export PYTHONPATH=/project/c14/install/daint/serialbox2_master/gnu/python:\$PYTHONPATH\nsrun vcm_1.0/bin/python examples/standalone/runfile/from_serialbox.py test_data/ examples/standalone/config/c12_6ranks_standard.yml $timesteps $backend#g" submit.daint.slurm
 cat submit.daint.slurm
 
 # execute on a gpu node

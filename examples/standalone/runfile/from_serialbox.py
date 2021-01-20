@@ -19,7 +19,7 @@ import fv3gfs.util as util
 if __name__ == "__main__":
     t0 = mpi4py.MPI.Wtime()
 
-    usage = "usage: python %(prog)s <data_dir> <namelist_path> <timesteps>"
+    usage = "usage: python %(prog)s <data_dir> <namelist_path> <timesteps> <backend>"
     parser = ArgumentParser(usage=usage)
 
     parser.add_argument(
@@ -40,8 +40,14 @@ if __name__ == "__main__":
         action="store",
         help="number of timesteps to execute",
     )
-    backend = "numpy"
+    parser.add_argument(
+        "backend",
+        type=str,
+        action="store",
+        help="path to the namelist",
+    )
     args = parser.parse_args()
+    backend = args.backend  # "numpy"
     data_dir = args.data_dir
     time_step = args.time_step
     namelist_path = args.namelist_path
