@@ -1,25 +1,19 @@
 import json
 import pathlib
-import sys
 from argparse import ArgumentParser
 from datetime import datetime
 from statistics import mean, median
 
 import git
 import mpi4py
+import serialbox
 import yaml
 
 import fv3core
 import fv3core._config as spec
 import fv3core.stencils.fv_dynamics as fv_dynamics
+import fv3core.testing
 import fv3gfs.util as util
-
-
-# sys.path.append("/home/tobiasw/work/fv3core/tests")
-sys.path.append("/scratch/snx3000/tobwi/jenkins_test/fv3core/tests")
-
-import serialbox  # noqa: E402
-import translate  # noqa: E402
 
 
 if __name__ == "__main__":
@@ -87,7 +81,7 @@ if __name__ == "__main__":
         grid_data[field] = serializer.read(field, grid_savepoint)
         if len(grid_data[field].flatten()) == 1:
             grid_data[field] = grid_data[field][0]
-    grid = translate.TranslateGrid(grid_data, rank).python_grid()
+    grid = fv3core.testing.TranslateGrid(grid_data, rank).python_grid()
     spec.set_grid(grid)
 
     # set up grid-dependent helper structures
@@ -97,7 +91,7 @@ if __name__ == "__main__":
 
     # create a state from serialized data
     savepoint_in = serializer.get_savepoint("FVDynamics-In")[0]
-    driver_object = translate.TranslateFVDynamics([grid])
+    driver_object = fv3core.testing.TranslateFVDynamics([grid])
     input_data = driver_object.collect_input_data(serializer, savepoint_in)
     input_data["comm"] = communicator
     state = driver_object.state_from_inputs(input_data)
