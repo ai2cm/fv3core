@@ -76,132 +76,126 @@ def lagrange_interpolation_x_p1(qy: sd, qout: sd):
         qout = lagrange_x_func_p1(qy)
 
 
+def interp_winds_d_to_a(u, v):
+    from __externals__ import HALO, i_end, i_start, j_end, j_start
+
+    with horizontal(region[:, J[0] + 1 : J[-1] - 1]):
+        utmp = lagrange_y_func_p1(u)
+    with horizontal(region[I[0] + 1 : I[-1] - 1, :]):
+        vtmp = lagrange_x_func_p1(v)
+
+    with horizontal(
+        region[:, : j_start + HALO],
+        region[:, j_end - HALO + 1 :],
+        region[: i_start + HALO, :],
+        region[i_end - HALO + 1 :, :],
+    ):
+        utmp = 0.5 * (u + u[0, 1, 0])
+        vtmp = 0.5 * (v + v[1, 0, 0])
+
+    return utmp, vtmp
+
+
+def edge_interpolate4_x(ua, dxa):
+    t1 = dxa[-2, 0, 0] + dxa[-1, 0, 0]
+    t2 = dxa[0, 0, 0] + dxa[1, 0, 0]
+    n1 = (t1 + dxa[-1, 0, 0]) * ua[-1, 0, 0] - dxa[-1, 0, 0] * ua[-2, 0, 0]
+    n2 = (t1 + dxa[0, 0, 0]) * ua[0, 0, 0] - dxa[0, 0, 0] * ua[1, 0, 0]
+    return 0.5 * (n1 / t1 + n2 / t2)
+
+
+def edge_interpolate4_y(va, dya):
+    t1 = dya[0, -2, 0] + dya[0, -1, 0]
+    t2 = dya[0, 0, 0] + dya[0, 1, 0]
+    n1 = (t1 + dya[0, -1, 0]) * va[0, -1, 0] - dya[0, -1, 0] * va[0, -2, 0]
+    n2 = (t1 + dya[0, 0, 0]) * va[0, 0, 0] - dya[0, 0, 0] * va[0, 1, 0]
+    return 0.5 * (n1 / t1 + n2 / t2)
+
+
 @gtstencil(externals={"HALO": 3})
-def d2a2c_stencil1(
-    u: sd,
-    v: sd,
+def d2a2c(
     cosa_s: sd,
+    cosa_u: sd,
+    cosa_v: sd,
+    dxa: sd,
+    dya: sd,
     rsin2: sd,
-    utmp: sd,
-    vtmp: sd,
+    rsin_u: sd,
+    rsin_v: sd,
+    sin_sg1: sd,
+    sin_sg2: sd,
+    sin_sg3: sd,
+    sin_sg4: sd,
+    u: sd,
     ua: sd,
+    uc: sd,
+    utc: sd,
+    v: sd,
     va: sd,
+    vc: sd,
+    vtc: sd,
 ):
-    # in: u, v, cosa_s, rsin2
-    # inout: utmp, vtmp
-    # out: ua, va
-    from __externals__ import HALO, i_end, i_start, j_end, j_start, namelist
+    from __externals__ import i_end, i_start, j_end, j_start, namelist
 
     with computation(PARALLEL), interval(...):
 
-        assert __INLINED(namelist.grid_type < 3)
+        #     assert __INLINED(namelist.grid_type < 3)
 
-        with horizontal(region[:, J[0] + 1 : J[-1] - 1]):
-            utmp = lagrange_y_func_p1(u)
-        with horizontal(region[I[0] + 1 : I[-1] - 1, :]):
-            vtmp = lagrange_x_func_p1(v)
-
-        # The order of these blocks matters, so they cannot be merged into a
-        # single block since then the order is not guaranteed
-        with horizontal(
-            region[:, : j_start + HALO],
-            region[:, j_end - HALO + 1 :],
-            region[: i_start + HALO, :],
-            region[i_end - HALO + 1 :, :],
-        ):
-            utmp = 0.5 * (u + u[0, 1, 0])
-            vtmp = 0.5 * (v + v[1, 0, 0])
+        utmp, vtmp = interp_winds_d_to_a(u, v)
 
         with horizontal(region[I[0] + 1 : I[-1], J[0] + 1 : J[-1]]):
             ua = contravariant(utmp, vtmp, cosa_s, rsin2)
             va = contravariant(vtmp, utmp, cosa_s, rsin2)
 
+        # A -> C
+        # Fix the edges
         utmp = fill3_4corners_x(
             utmp, vtmp, sw_mult=-1, se_mult=1, ne_mult=-1, nw_mult=1
         )
         ua = fill2_4corners_x(ua, va, sw_mult=-1, se_mult=1, ne_mult=-1, nw_mult=1)
 
-
-@gtstencil()
-def d2a2c_stencil_x(
-    utmp: sd,
-    ua: sd,
-    v: sd,
-    cosa_u: sd,
-    rsin_u: sd,
-    dxa: sd,
-    sin_sg1: sd,
-    sin_sg3: sd,
-    uc: sd,
-    utc: sd,
-):
-    # in: utmp, ua, v, cosa_u, rsin_u, dxa, sin_sg1, sin_sg3
-    # inout: uc, utc
-    from __externals__ import i_end, i_start
-
+    # X
     with computation(PARALLEL), interval(...):
 
-        with horizontal(region[:, : J[-1]]):
+        with horizontal(region[I[0] + 2 : I[-1], J[0] + 2 : J[-1] - 1]):
             uc = lagrange_x_func(utmp)
             utc = contravariant(uc, v, cosa_u, rsin_u)
 
         # West
-        with horizontal(region[i_start - 1, : J[-1]]):
+        with horizontal(region[i_start - 1, J[0] + 2 : J[-1] - 1]):
             uc = vol_conserv_cubic_interp_func_x(utmp)
 
-        with horizontal(region[i_start, : J[-1]]):
-            t1 = dxa[-2, 0, 0] + dxa[-1, 0, 0]
-            t2 = dxa[0, 0, 0] + dxa[1, 0, 0]
-            n1 = (t1 + dxa[-1, 0, 0]) * ua[-1, 0, 0] - dxa[-1, 0, 0] * ua[-2, 0, 0]
-            n2 = (t1 + dxa[0, 0, 0]) * ua[0, 0, 0] - dxa[0, 0, 0] * ua[1, 0, 0]
-            utc = 0.5 * (n1 / t1 + n2 / t2)
-
+        with horizontal(region[i_start, J[0] + 2 : J[-1] - 1]):
+            utc = edge_interpolate4_x(ua, dxa)
             uc = utc * sin_sg3[-1, 0, 0] if utc > 0 else utc * sin_sg1
 
-        with horizontal(region[i_start + 1, : J[-1]]):
+        with horizontal(region[i_start + 1, J[0] + 2 : J[-1] - 1]):
             uc = vol_conserv_cubic_interp_func_x_rev(utmp)
 
-        with horizontal(region[i_start - 1, : J[-1]]):
+        with horizontal(region[i_start - 1, J[0] + 2 : J[-1] - 1]):
             utc = contravariant(uc, v, cosa_u, rsin_u)
 
-        with horizontal(region[i_start + 1, : J[-1]]):
+        with horizontal(region[i_start + 1, J[0] + 2 : J[-1] - 1]):
             utc = contravariant(uc, v, cosa_u, rsin_u)
 
         # East
-        with horizontal(region[i_end, : J[-1]]):
+        with horizontal(region[i_end, J[0] + 2 : J[-1] - 1]):
             uc = vol_conserv_cubic_interp_func_x(utmp)
 
-        with horizontal(region[i_end + 1, : J[-1]]):
-            t1 = dxa[-2, 0, 0] + dxa[-1, 0, 0]
-            t2 = dxa[0, 0, 0] + dxa[1, 0, 0]
-            n1 = (t1 + dxa[-1, 0, 0]) * ua[-1, 0, 0] - dxa[-1, 0, 0] * ua[-2, 0, 0]
-            n2 = (t1 + dxa[0, 0, 0]) * ua[0, 0, 0] - dxa[0, 0, 0] * ua[1, 0, 0]
-            utc = 0.5 * (n1 / t1 + n2 / t2)
-
+        with horizontal(region[i_end + 1, J[0] + 2 : J[-1] - 1]):
+            utc = edge_interpolate4_x(ua, dxa)
             uc = utc * sin_sg3[-1, 0, 0] if utc > 0 else utc * sin_sg1
 
-        with horizontal(region[i_end + 2, : J[-1]]):
+        with horizontal(region[i_end + 2, J[0] + 2 : J[-1] - 1]):
             uc = vol_conserv_cubic_interp_func_x_rev(utmp)
 
-        with horizontal(region[i_end, : J[-1]]):
+        with horizontal(region[i_end, J[0] + 2 : J[-1] - 1]):
             utc = contravariant(uc, v, cosa_u, rsin_u)
 
-        with horizontal(region[i_end + 2, : J[-1]]):
+        with horizontal(region[i_end + 2, J[0] + 2 : J[-1] - 1]):
             utc = contravariant(uc, v, cosa_u, rsin_u)
 
-
-@gtstencil(externals={"HALO": 3})
-def d2a2c_stencil3(
-    utmp: sd,
-    ua: sd,
-    va: sd,
-    vtmp: sd,
-):
-    # in: utmp, ua
-    # inout: va
-    # out: vtmp
-    from __externals__ import namelist
-
+    # Fill corners for Y
     with computation(PARALLEL), interval(...):
 
         assert __INLINED(namelist.grid_type < 3)
@@ -211,188 +205,71 @@ def d2a2c_stencil3(
         )
         va = fill2_4corners_y(va, ua, sw_mult=-1, se_mult=1, ne_mult=-1, nw_mult=1)
 
-
-@gtstencil()
-def d2a2c_stencil_y(
-    vtmp: sd,
-    va: sd,
-    u: sd,
-    cosa_v: sd,
-    rsin_v: sd,
-    dya: sd,
-    sin_sg2: sd,
-    sin_sg4: sd,
-    vc: sd,
-    vtc: sd,
-):
-    # in: vtmp, va, u, cosa_v, rsin_v, dya, sin_sg2, sin_sg4
-    # inout: vc, vtc
-    from __externals__ import j_end, j_start
-
+    # Y
     with computation(PARALLEL), interval(...):
 
-        with horizontal(region[: I[-1], :]):
+        with horizontal(region[I[0] + 2 : I[-1] - 1, J[0] + 2 : J[-1]]):
             vc = lagrange_y_func(vtmp)
             vtc = contravariant(vc, u, cosa_v, rsin_v)
 
-        with horizontal(region[: I[-1], j_start - 1]):
+        with horizontal(region[I[0] + 2 : I[-1] - 1, j_start - 1]):
             vc = vol_conserv_cubic_interp_func_y(vtmp)
             vtc = contravariant(vc, u, cosa_v, rsin_v)
 
-        with horizontal(region[: I[-1], j_start]):
-            t1 = dya[0, -2, 0] + dya[0, -1, 0]
-            t2 = dya[0, 0, 0] + dya[0, 1, 0]
-            n1 = (t1 + dya[0, -1, 0]) * va[0, -1, 0] - dya[0, -1, 0] * va[0, -2, 0]
-            n2 = (t1 + dya[0, 0, 0]) * va[0, 0, 0] - dya[0, 0, 0] * va[0, 1, 0]
-            vtc = 0.5 * (n1 / t1 + n2 / t2)
-
+        with horizontal(region[I[0] + 2 : I[-1] - 1, j_start]):
+            vtc = edge_interpolate4_y(va, dya)
             vc = vtc * sin_sg4[0, -1, 0] if vtc > 0 else vtc * sin_sg2
 
-        with horizontal(region[: I[-1], j_start + 1]):
+        with horizontal(region[I[0] + 2 : I[-1] - 1, j_start + 1]):
             vc = vol_conserv_cubic_interp_func_y_rev(vtmp)
             vtc = contravariant(vc, u, cosa_v, rsin_v)
 
         # NOTE: vtc can be a new temp here
-        with horizontal(region[: I[-1], j_end]):
+        with horizontal(region[I[0] + 2 : I[-1] - 1, j_end]):
             vc = vol_conserv_cubic_interp_func_y(vtmp)
             vtc = contravariant(vc, u, cosa_v, rsin_v)
 
-        with horizontal(region[: I[-1], j_end + 1]):
-            t1 = dya[0, -2, 0] + dya[0, -1, 0]
-            t2 = dya[0, 0, 0] + dya[0, 1, 0]
-            n1 = (t1 + dya[0, -1, 0]) * va[0, -1, 0] - dya[0, -1, 0] * va[0, -2, 0]
-            n2 = (t1 + dya[0, 0, 0]) * va[0, 0, 0] - dya[0, 0, 0] * va[0, 1, 0]
-            vtc = 0.5 * (n1 / t1 + n2 / t2)
-
+        with horizontal(region[I[0] + 2 : I[-1] - 1, j_end + 1]):
+            vtc = edge_interpolate4_y(va, dya)
             vc = vtc * sin_sg4[0, -1, 0] if vtc > 0 else vtc * sin_sg2
 
-        with horizontal(region[: I[-1], j_end + 2]):
+        with horizontal(region[I[0] + 2 : I[-1] - 1, j_end + 2]):
             vc = vol_conserv_cubic_interp_func_y_rev(vtmp)
             vtc = contravariant(vc, u, cosa_v, rsin_v)
 
 
-# @gtstencil(externals={"HALO":3})
-# def d2a2c(
-#     cosa_s: sd,
-#     cosa_u: sd,
-#     cosa_v: sd,
-#     dxa: sd,
-#     dya: sd,
-#     rsin2: sd,
-#     rsin_u: sd,
-#     rsin_v: sd,
-#     sin_sg1: sd,
-#     sin_sg2: sd,
-#     sin_sg3: sd,
-#     sin_sg4: sd,
-#     u: sd,
-#     ua: sd,
-#     uc: sd,
-#     utc: sd,
-#     v: sd,
-#     va: sd,
-#     vc: sd,
-#     vtc: sd,
-# ):
-#     from __externals__ import HALO, i_end, i_start, j_end, j_start, namelist
-
-
 def compute(dord4, uc, vc, u, v, ua, va, utc, vtc):
     grid = spec.grid
-    nx = grid.ie + 1  # grid.npx + 2
-    ny = grid.je + 1  # grid.npy + 2
-    # dord4 is True
-    id_ = 1 if dord4 else 0
-    npt = 4 if spec.namelist.grid_type < 3 and not grid.nested else 0
-    if npt > grid.nic - 1 or npt > grid.njc - 1:
-        npt = 0
-    utmp = utils.make_storage_from_shape(ua.shape, grid.default_origin())
-    vtmp = utils.make_storage_from_shape(va.shape, grid.default_origin())
+    assert dord4 is True
+    # nx = grid.ie + 1  # grid.npx + 2
+    # ny = grid.je + 1  # grid.npy + 2
+    # # dord4 is True
+    # id_ = 1 if dord4 else 0
+    # npt = 4 if spec.namelist.grid_type < 3 and not grid.nested else 0
+    # if npt > grid.nic - 1 or npt > grid.njc - 1:
+    #     npt = 0
 
-    # This needs to compute over the whole domain, because it outputs utmp and vtmp
-    # in: u, v, cosa_s, rsin2
-    # inout: utmp, vtmp
-    # out: ua, va
-    d2a2c_stencil1(
-        u,
-        v,
+    d2a2c(
         grid.cosa_s,
-        grid.rsin2,
-        utmp,
-        vtmp,
-        ua,
-        va,
-        origin=grid.default_origin(),
-        domain=grid.domain_shape_standard(),
-    )
-
-    # in: utmp, ua, v, cosa_u, rsin_u, dxa, sin_sg1, sin_sg3
-    # inout: uc, utc
-    d2a2c_stencil_x(
-        utmp,
-        ua,
-        v,
         grid.cosa_u,
-        grid.rsin_u,
+        grid.cosa_v,
         grid.dxa,
+        grid.dya,
+        grid.rsin2,
+        grid.rsin_u,
+        grid.rsin_v,
         grid.sin_sg1,
+        grid.sin_sg2,
         grid.sin_sg3,
+        grid.sin_sg4,
+        u,
+        ua,
         uc,
         utc,
-        origin=(grid.is_ - 1, grid.js - 1, 0),
-        domain=(grid.nic + 3, grid.njc + 3, grid.npz),
-    )
-
-    # in: utmp, ua
-    # inout: va
-    # out: vtmp
-    d2a2c_stencil3(
-        utmp,
-        ua,
+        v,
         va,
-        vtmp,
+        vc,
+        vtc,
         origin=grid.default_origin(),
         domain=grid.domain_shape_standard(),
     )
-
-    # in: vtmp, va, u, cosa_v, rsin_v, dya, sin_sg2, sin_sg4
-    # inout: vc, vtc
-    d2a2c_stencil_y(
-        vtmp,
-        va,
-        u,
-        grid.cosa_v,
-        grid.rsin_v,
-        grid.dya,
-        grid.sin_sg2,
-        grid.sin_sg4,
-        vc,
-        vtc,
-        origin=(grid.is_ - 1, grid.js - 1, 0),
-        domain=(grid.nic + 3, grid.njc + 3, grid.npz),
-    )
-
-    # d2a2c(
-    #     grid.cosa_s,
-    #     grid.cosa_u,
-    #     grid.cosa_v,
-    #     grid.dxa,
-    #     grid.dya,
-    #     grid.rsin2,
-    #     grid.rsin_u,
-    #     grid.rsin_v,
-    #     grid.sin_sg1,
-    #     grid.sin_sg2,
-    #     grid.sin_sg3,
-    #     grid.sin_sg4,
-    #     u,
-    #     ua,
-    #     uc,
-    #     utc,
-    #     v,
-    #     va,
-    #     vc,
-    #     vtc,
-    #     origin=(grid.is_, grid.js, 0),
-    #     domain=(grid.nic + 2, grid.njc + 2, grid.npz),
-    # )
