@@ -115,12 +115,18 @@ def sample_wherefail(
 
 
 def process_override(threshold_overrides, testobj, test_name, backend):
+    plat = platform()
+    if plat in threshold_overrides:
+        overrides = threshold_overrides[plat] if plat in threshold_overrides else threshold_overrides
+    else:
+        overrides = threshold_overrides
+
     override = threshold_overrides.get(test_name, None)
     if override is not None:
         max_error = override.get("max_error", None)
         near_zero = override.get("near_zero", None)
         if max_error is not None:
-            testobj.max_error = float(max_error[backend][platform()])
+            testobj.max_error = float(max_error[backend])
         if near_zero is not None:
             testobj.near_zero = float(near_zero[backend])
 
