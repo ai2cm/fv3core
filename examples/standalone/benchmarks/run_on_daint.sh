@@ -29,7 +29,7 @@ sed s/\<NTASKSPERNODE\>/6/g submit.daint.slurm -i
 sed s/\<CPUSPERTASK\>/2/g submit.daint.slurm -i
 sed s/#SBATCH\ --output=\<OUTFILE\>//g submit.daint.slurm -i
 sed s/\<G2G\>//g submit.daint.slurm -i
-sed -i 's#<CMD>#vcm_1.0/bin/python fv3core/examples/standalone/runfile/from_serialbox.py test_data/ fv3core/examples/standalone/config/c12_6ranks_standard.yml 2#g' submit.daint.slurm
+sed -i 's#<CMD>#export PYTHONPATH=/scratch/snx3000/tobwi/timing/serialbox2_master/gnu/python:$PYTHONPATH\nvcm_1.0/bin/python fv3core/examples/standalone/runfile/from_serialbox.py test_data/ fv3core/examples/standalone/config/c12_6ranks_standard.yml 2#g' submit.daint.slurm
 
 sbatch -C gpu submit.daint.slurm
 
