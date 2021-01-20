@@ -8,7 +8,7 @@
 # $5: path to the data directory that should be run
 #############################################
 # Example syntax:
-# ./run_on_daint.sh 60 6
+# ./run_on_daint.sh 60 6 gtx86
 
 exitError()
 {
