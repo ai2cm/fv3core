@@ -99,7 +99,7 @@ if grep -q "parallel" <<< "${script}"; then
 fi
 # set thresholds override file if it exists
 test_type=${optarg2##*_}
-OVERRIDES_FOLDER="${root}/../tests/translate/overrides/"
+OVERRIDES_FOLDER="${envloc}/../tests/translate/overrides/"
 OVERRIDES_FILE="${OVERRIDES_FOLDER}/${test_type}.yaml"
 echo "overrides file:"
 echo ${OVERRIDES_FILE}
