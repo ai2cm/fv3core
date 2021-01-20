@@ -7,3 +7,4 @@ from .parallel_translate import (
     ParallelTranslateBaseSlicing,
 )
 from .translate import TranslateFortranData2Py, TranslateGrid, read_serialized_data
+from .translate_fvdynamics import TranslateFVDynamics

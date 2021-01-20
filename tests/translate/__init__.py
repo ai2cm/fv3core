@@ -1,4 +1,6 @@
 # flake8: noqa: F401
+from fv3core.testing import TranslateFVDynamics
+
 from .translate_a2b_ord4 import TranslateA2B_Ord4
 from .translate_c2l_ord2 import TranslateC2L_Ord2
 from .translate_c_sw import (
@@ -24,7 +26,6 @@ from .translate_fillcorners import TranslateFillCorners
 from .translate_fillcornersvector import TranslateFillCornersVector
 from .translate_fillz import TranslateFillz
 from .translate_fluxcapacitor import TranslateFluxCapacitor
-from .translate_fvdynamics import TranslateFVDynamics
 from .translate_fvsetup import TranslateFVSetup
 from .translate_fvsubgridz import TranslateFVSubgridZ
 from .translate_fvtp2d import TranslateFvTp2d, TranslateFvTp2d_2
