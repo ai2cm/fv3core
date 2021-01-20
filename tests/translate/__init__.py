@@ -1,7 +1,4 @@
 # flake8: noqa: F401
-from . import translate
-from .parallel_translate import ParallelTranslate
-from .translate import TranslateFortranData2Py, TranslateGrid
 from .translate_a2b_ord4 import TranslateA2B_Ord4
 from .translate_c2l_ord2 import TranslateC2L_Ord2
 from .translate_c_sw import (
@@ -78,3 +75,6 @@ from .translate_xppm import TranslateXPPM, TranslateXPPM_2
 from .translate_xtp_u import TranslateXTP_U
 from .translate_yppm import TranslateYPPM, TranslateYPPM_2
 from .translate_ytp_v import TranslateYTP_V
+
+
+# from fv3core.testing import  TranslateGrid, TranslateFortranData2Py
