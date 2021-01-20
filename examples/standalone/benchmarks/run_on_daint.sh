@@ -72,4 +72,6 @@ cat submit.daint.slurm
 # execute on a gpu node
 sbatch -C gpu submit.daint.slurm
 wait
+cd $ROOT_DIR/..
+ls
 cp *.json $target_dir
