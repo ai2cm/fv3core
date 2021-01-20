@@ -19,7 +19,9 @@ exitError()
 SCRIPT=`realpath $0`
 SCRIPTPATH=`dirname $SCRIPT`
 ROOT_DIR="$(dirname "$(dirname "$(dirname "$SCRIPTPATH")")")"
-echo $ROOT_DIR
+echo "scriptpath is $SCRIPTPATH"
+echo "root dir is : $ROOT_DIR"
+
 
 # check sanity of environment
 test -n "$1" || exitError 1001 ${LINENO} "must pass a number of timesteps"
