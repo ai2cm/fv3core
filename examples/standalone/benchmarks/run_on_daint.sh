@@ -43,11 +43,16 @@ fi
 # set up the virtual environment
 cd $ROOT_DIR
 cd ..
+
+pwd
 rm -rf vcm_1.0
+echo "copying in the venv"
 cp -r /project/s1053/install/venv/vcm_1.0/ .
 cd fv3core/
 git submodule update --init --recursive
 cd ..
+echo "install requirements"
+ls
 vcm_1.0/bin/python -m pip install fv3core/external/fv3gfs-util/
 vcm_1.0/bin/python -m pip install fv3core/
 vcm_1.0/bin/python -m pip install gitpython
