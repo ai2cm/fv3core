@@ -52,7 +52,7 @@ if __name__ == "__main__":
     time_step = args.time_step
     namelist_path = args.namelist_path
 
-    # MPI stuff
+    # # MPI stuff
     comm = mpi4py.MPI.COMM_WORLD
     rank = comm.Get_rank()
 
@@ -149,7 +149,12 @@ if __name__ == "__main__":
         experiment = {}
         experiment["setup"] = {}
         experiment["setup"]["experiment time"] = dt_string
-        experiment["setup"]["data set"] = "baroclinic"  # nml2
+        experiment["setup"]["data set"] = yaml.safe_load(
+            open(
+                namelist_path,
+                "r",
+            )
+        )["experiment_name"]
         experiment["setup"]["timesteps"] = time_step
         experiment["setup"]["hash"] = sha
         experiment["setup"]["version"] = "python/" + backend
