@@ -108,14 +108,8 @@ if __name__ == "__main__":
         input_data["n_split"],
         input_data["ks"],
     )
-    if spec.namelist.fv_sg_adj > 0:
-        pass
-        # raise Exception("this is not supported")
-        # state["eastward_wind_tendency"] = u_tendency
-        # state["northward_wind_tendency"] = v_tendency
-        # fv3core.fv_subgridz(state, n_tracers, dt_atmos)
-
     t1 = mpi4py.MPI.Wtime()
+
     # Run the dynamics
     for i in range(time_step - 1):
         fv_dynamics.fv_dynamics(
@@ -128,12 +122,6 @@ if __name__ == "__main__":
             input_data["n_split"],
             input_data["ks"],
         )
-        if spec.namelist.fv_sg_adj > 0:
-            pass
-            # raise Exception("this is not supported")
-            # state["eastward_wind_tendency"] = u_tendency
-            # state["northward_wind_tendency"] = v_tendency
-            # fv3core.fv_subgridz(state, n_tracers, dt_atmos)
 
     # collect times and output simple statistics
     t2 = mpi4py.MPI.Wtime()
@@ -143,6 +131,8 @@ if __name__ == "__main__":
     init_times = comm.gather(init_time, root=0)
     main_times = comm.gather(main_time, root=0)
     total_times = comm.gather(total_time, root=0)
+
+    # write times to file
     if comm.Get_rank() == 0:
         now = datetime.now()
         sha = git.Repo(
