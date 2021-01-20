@@ -70,8 +70,6 @@ sed -i "s#<CMD>#export PYTHONPATH=/project/c14/install/daint/serialbox2_master/g
 cat submit.daint.slurm
 
 # execute on a gpu node
-sbatch -C gpu submit.daint.slurm
+sbatch -W -C gpu submit.daint.slurm
 wait
-cd $ROOT_DIR/..
-ls
 cp *.json $target_dir
