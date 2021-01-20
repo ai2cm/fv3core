@@ -47,7 +47,7 @@ if __name__ == "__main__":
         help="path to the namelist",
     )
     args = parser.parse_args()
-    backend = args.backend  # "numpy"
+    backend = args.backend
     data_dir = args.data_dir
     time_step = args.time_step
     namelist_path = args.namelist_path

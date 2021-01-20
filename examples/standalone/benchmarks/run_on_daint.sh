@@ -66,9 +66,12 @@ vcm_1.0/bin/python -m pip install gitpython
 cp -r $data_path test_data
 tar -xf test_data/dat_files.tar.gz -C test_data
 
+# set the environment
+git clone https://github.com/VulcanClimateModeling/buildenv/
+bash buildenv/machineEnvironment.sh
+source buildenv/env.${host}.sh
 
 # Adapt batch script:
-git clone https://github.com/VulcanClimateModeling/buildenv/
 cp buildenv/submit.daint.slurm .
 sed s/\<NAME\>/standalone/g submit.daint.slurm -i
 sed s/\<NTASKS\>/$ranks/g submit.daint.slurm -i
