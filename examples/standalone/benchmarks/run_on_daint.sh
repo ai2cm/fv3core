@@ -16,26 +16,33 @@ exitError()
     exit $1
 }
 
+SCRIPT=`realpath $0`
+SCRIPTPATH=`dirname $SCRIPT`
+ROOT_DIR="$(dirname "$(dirname "$(dirname "$SCRIPTPATH")")")"
+echo $ROOT_DIR
+
 # check sanity of environment
 test -n "$1" || exitError 1001 ${LINENO} "must pass a number of timesteps"
 timesteps="$1"
 test -n "$2" || exitError 1002 ${LINENO} "must pass a number of ranks"
 ranks="$2"
 
-data_path="$3"
+target_dir="$3"
 if [ -z "$3" ]
+  then
+    target_dir="$ROOT_DIR"
+fi
+
+data_path="$4"
+if [ -z "$4" ]
   then
     data_path="/project/s1053/fv3core_serialized_test_data/7.0.0/c12_6ranks_standard/"
 fi
 
-SCRIPT=`realpath $0`
-SCRIPTPATH=`dirname $SCRIPT`
-ROOT_DIR="$(dirname "$(dirname "$(dirname "$SCRIPTPATH")")")"
-echo $ROOT_DIR
-cd $ROOT_DIR
-cd ..
 
 # set up the virtual environment
+cd $ROOT_DIR
+cd ..
 rm -rf vcm_1.0
 cp -r /project/s1053/install/venv/vcm_1.0/ .
 cd fv3core/
@@ -64,3 +71,5 @@ cat submit.daint.slurm
 
 # execute on a gpu node
 sbatch -C gpu submit.daint.slurm
+
+cp *.json $target_dir
