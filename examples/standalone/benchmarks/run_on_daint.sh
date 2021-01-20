@@ -44,17 +44,12 @@ fi
 
 # set up the virtual environment
 cd $ROOT_DIR
-cd ..
-
-pwd
 rm -rf vcm_1.0
+
 echo "copying in the venv"
 cp -r /project/s1053/install/venv/vcm_1.0/ .
-cd fv3core/
 git submodule update --init --recursive
-cd ..
 echo "install requirements"
-ls
 vcm_1.0/bin/python -m pip install fv3core/external/fv3gfs-util/
 vcm_1.0/bin/python -m pip install fv3core/
 vcm_1.0/bin/python -m pip install gitpython
@@ -73,7 +68,7 @@ sed s/\<NTASKSPERNODE\>/$ranks/g submit.daint.slurm -i
 sed s/\<CPUSPERTASK\>/1/g submit.daint.slurm -i
 sed s/#SBATCH\ --output=\<OUTFILE\>//g submit.daint.slurm -i
 sed s/\<G2G\>//g submit.daint.slurm -i
-sed -i "s#<CMD>#export PYTHONPATH=/project/c14/install/daint/serialbox2_master/gnu/python:\$PYTHONPATH\nsrun vcm_1.0/bin/python fv3core/examples/standalone/runfile/from_serialbox.py test_data/ fv3core/examples/standalone/config/c12_6ranks_standard.yml $timesteps#g" submit.daint.slurm
+sed -i "s#<CMD>#export PYTHONPATH=/project/c14/install/daint/serialbox2_master/gnu/python:\$PYTHONPATH\nsrun vcm_1.0/bin/python examples/standalone/runfile/from_serialbox.py test_data/ fv3core/examples/standalone/config/c12_6ranks_standard.yml $timesteps#g" submit.daint.slurm
 cat submit.daint.slurm
 
 # execute on a gpu node
