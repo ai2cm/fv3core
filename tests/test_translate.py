@@ -117,9 +117,9 @@ def process_override(threshold_overrides, testobj, test_name, backend):
         max_error = override.get("max_error", None)
         near_zero = override.get("near_zero", None)
         if max_error is not None:
-            testobj.max_error = float(max_error[backend])
+            testobj.max_error = float(max_error[backend][platform()])
         if near_zero is not None:
-            _near_zero = float(near_zero[backend])
+            _near_zero = float(near_zero[backend][platform()])
 
 
 @pytest.mark.sequential
