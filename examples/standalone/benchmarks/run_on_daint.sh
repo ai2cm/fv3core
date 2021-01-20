@@ -68,7 +68,7 @@ tar -xf test_data/dat_files.tar.gz -C test_data
 
 # set the environment
 git clone https://github.com/VulcanClimateModeling/buildenv/
-bash buildenv/machineEnvironment.sh
+source buildenv/machineEnvironment.sh
 source buildenv/env.${host}.sh
 
 # Adapt batch script:
