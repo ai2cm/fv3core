@@ -156,12 +156,10 @@ def d2a2c_vect(
 
     with computation(PARALLEL), interval(...):
 
-        #     assert __INLINED(namelist.grid_type < 3)
-
         utmp, vtmp = interp_winds_d_to_a(u, v)
 
         with horizontal(
-            region[local_is - 2 : local_ie + 3, local_js - 2 : local_ie + 3]
+            region[local_is - 2 : local_ie + 3, local_js - 2 : local_je + 3]
         ):
             ua = contravariant(utmp, vtmp, cosa_s, rsin2)
             va = contravariant(vtmp, utmp, cosa_s, rsin2)
@@ -247,7 +245,6 @@ def d2a2c_vect(
             vc = vol_conserv_cubic_interp_func_y_rev(vtmp)
             vtc = contravariant(vc, u, cosa_v, rsin_v)
 
-        # NOTE: vtc can be a new temp here
         with horizontal(region[local_is - 1 : local_ie + 2, j_end]):
             vc = vol_conserv_cubic_interp_func_y(vtmp)
             vtc = contravariant(vc, u, cosa_v, rsin_v)
