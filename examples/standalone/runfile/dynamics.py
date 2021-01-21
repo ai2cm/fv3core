@@ -112,8 +112,8 @@ if __name__ == "__main__":
         input_data["ks"],
     )
     timing.time("init")
-    timing.time("mainloop")
 
+    timing.time("mainloop")
     # Run the dynamics
     for i in range(time_step - 1):
         fv_dynamics.fv_dynamics(
@@ -129,8 +129,8 @@ if __name__ == "__main__":
 
     # collect times and output simple statistics
     timing.time("mainloop")
-    main_time = timing.get_totals("mainloop")["time"]
-    init_time = timing.get_totals("init")["time"]
+    main_time = timing.get_totals("mainloop")["total"]
+    init_time = timing.get_totals("init")["total"]
     total_time = main_time + init_time
 
     # write times to file
