@@ -59,10 +59,7 @@ def nonhydro_y_fluxes(delp: sd, pt: sd, w: sd, vtc: sd):
     return fy, fy1, fy2
 
 
-@gtstencil()
-def transportdelp(
-    delp: sd, pt: sd, utc: sd, vtc: sd, w: sd, rarea: sd, delpc: sd, ptc: sd, wc: sd
-):
+def transportdelp(delp: sd, pt: sd, utc: sd, vtc: sd, w: sd, rarea: sd):
     """Transport delp.
 
     Args:
@@ -79,28 +76,28 @@ def transportdelp(
 
     from __externals__ import namelist
 
-    with computation(PARALLEL), interval(...):
-        assert __INLINED(namelist.grid_type < 3)
-        # additional assumption (not grid.nested)
+    assert __INLINED(namelist.grid_type < 3)
+    # additional assumption (not grid.nested)
 
-        delp = fill2_4corners_x(delp, delp, 1, 1, 1, 1)
-        pt = fill2_4corners_x(pt, pt, 1, 1, 1, 1)
-        w = fill2_4corners_x(w, w, 1, 1, 1, 1)
+    delp = fill2_4corners_x(delp, delp, 1, 1, 1, 1)
+    pt = fill2_4corners_x(pt, pt, 1, 1, 1, 1)
+    w = fill2_4corners_x(w, w, 1, 1, 1, 1)
 
-        fx, fx1, fx2 = nonhydro_x_fluxes(delp, pt, w, utc)
+    fx, fx1, fx2 = nonhydro_x_fluxes(delp, pt, w, utc)
 
-        delp = fill2_4corners_y(delp, delp, 1, 1, 1, 1)
-        pt = fill2_4corners_y(pt, pt, 1, 1, 1, 1)
-        w = fill2_4corners_y(w, w, 1, 1, 1, 1)
+    delp = fill2_4corners_y(delp, delp, 1, 1, 1, 1)
+    pt = fill2_4corners_y(pt, pt, 1, 1, 1, 1)
+    w = fill2_4corners_y(w, w, 1, 1, 1, 1)
 
-        fy, fy1, fy2 = nonhydro_y_fluxes(delp, pt, w, vtc)
+    fy, fy1, fy2 = nonhydro_y_fluxes(delp, pt, w, vtc)
 
-        delpc = delp + (fx1 - fx1[1, 0, 0] + fy1 - fy1[0, 1, 0]) * rarea
-        ptc = (pt * delp + (fx - fx[1, 0, 0] + fy - fy[0, 1, 0]) * rarea) / delpc
-        wc = (w * delp + (fx2 - fx2[1, 0, 0] + fy2 - fy2[0, 1, 0]) * rarea) / delpc
+    delpc = delp + (fx1 - fx1[1, 0, 0] + fy1 - fy1[0, 1, 0]) * rarea
+    ptc = (pt * delp + (fx - fx[1, 0, 0] + fy - fy[0, 1, 0]) * rarea) / delpc
+    wc = (w * delp + (fx2 - fx2[1, 0, 0] + fy2 - fy2[0, 1, 0]) * rarea) / delpc
+
+    return delpc, ptc, wc
 
 
-@gtstencil()
 def divergence_corner(
     u: sd,
     v: sd,
@@ -117,7 +114,6 @@ def divergence_corner(
     cos_sg3: sd,
     cos_sg4: sd,
     rarea_c: sd,
-    divg_d: sd,
 ):
     """Calculate divg on d-grid.
 
@@ -139,9 +135,9 @@ def divergence_corner(
         rarea_c: inverse cell areas on c-grid (input)
         divg_d: divergence on d-grid (output)
     """
-    from __externals__ import i_end, i_start, j_end, j_start
+    from __externals__ import i_end, i_start, j_end, j_start, namelist
 
-    with computation(PARALLEL), interval(...):
+    if __INLINED(namelist.nord > 0):
         uf = (
             (u - 0.25 * (va[0, -1, 0] + va) * (cos_sg4[0, -1, 0] + cos_sg2))
             * dyc
@@ -167,9 +163,10 @@ def divergence_corner(
             divg_d += vf
         divg_d *= rarea_c
 
+    return divg_d
 
-@gtstencil()
-def circulation_cgrid(uc: sd, vc: sd, dxc: sd, dyc: sd, vort_c: sd):
+
+def circulation_cgrid(uc: sd, vc: sd, dxc: sd, dyc: sd):
     """Update vort_c.
 
     Args:
@@ -181,23 +178,21 @@ def circulation_cgrid(uc: sd, vc: sd, dxc: sd, dyc: sd, vort_c: sd):
     """
     from __externals__ import i_end, i_start, j_end, j_start
 
-    with computation(PARALLEL), interval(...):
-        fx = dxc * uc
-        fy = dyc * vc
+    fx = dxc * uc
+    fy = dyc * vc
 
-        vort_c = fx[0, -1, 0] - fx - fy[-1, 0, 0] + fy
+    vort_c = fx[0, -1, 0] - fx - fy[-1, 0, 0] + fy
 
-        with horizontal(region[i_start, j_start], region[i_start, j_end + 1]):
-            vort_c += fy[-1, 0, 0]
+    with horizontal(region[i_start, j_start], region[i_start, j_end + 1]):
+        vort_c += fy[-1, 0, 0]
 
-        with horizontal(region[i_end + 1, j_start], region[i_end + 1, j_end + 1]):
-            vort_c -= fy[0, 0, 0]
+    with horizontal(region[i_end + 1, j_start], region[i_end + 1, j_end + 1]):
+        vort_c -= fy[0, 0, 0]
+
+    return vort_c
 
 
-@gtstencil()
 def update_vorticity_and_kinetic_energy(
-    ke: sd,
-    vort: sd,
     ua: sd,
     va: sd,
     uc: sd,
@@ -216,26 +211,26 @@ def update_vorticity_and_kinetic_energy(
 ):
     from __externals__ import i_end, i_start, j_end, j_start, namelist
 
-    with computation(PARALLEL), interval(...):
-        assert __INLINED(namelist.grid_type < 3)
+    assert __INLINED(namelist.grid_type < 3)
 
-        ke = uc if ua > 0.0 else uc[1, 0, 0]
-        vort = vc if va > 0.0 else vc[0, 1, 0]
+    ke = uc if ua > 0.0 else uc[1, 0, 0]
+    vort = vc if va > 0.0 else vc[0, 1, 0]
 
-        with horizontal(region[:, j_start - 1], region[:, j_end]):
-            vort = vort * sin_sg4 + u[0, 1, 0] * cos_sg4 if va <= 0.0 else vort
-        with horizontal(region[:, j_start], region[:, j_end + 1]):
-            vort = vort * sin_sg2 + u * cos_sg2 if va > 0.0 else vort
+    with horizontal(region[:, j_start - 1], region[:, j_end]):
+        vort = vort * sin_sg4 + u[0, 1, 0] * cos_sg4 if va <= 0.0 else vort
+    with horizontal(region[:, j_start], region[:, j_end + 1]):
+        vort = vort * sin_sg2 + u * cos_sg2 if va > 0.0 else vort
 
-        with horizontal(region[i_end, :], region[i_start - 1, :]):
-            ke = ke * sin_sg3 + v[1, 0, 0] * cos_sg3 if ua <= 0.0 else ke
-        with horizontal(region[i_end + 1, :], region[i_start, :]):
-            ke = ke * sin_sg1 + v * cos_sg1 if ua > 0.0 else ke
+    with horizontal(region[i_end, :], region[i_start - 1, :]):
+        ke = ke * sin_sg3 + v[1, 0, 0] * cos_sg3 if ua <= 0.0 else ke
+    with horizontal(region[i_end + 1, :], region[i_start, :]):
+        ke = ke * sin_sg1 + v * cos_sg1 if ua > 0.0 else ke
 
-        ke = 0.5 * dt2 * (ua * ke + va * vort)
+    ke = 0.5 * dt2 * (ua * ke + va * vort)
+
+    return ke, vort
 
 
-@gtstencil()
 def update_zonal_velocity(
     vorticity: sd,
     ke: sd,
@@ -248,19 +243,19 @@ def update_zonal_velocity(
 ):
     from __externals__ import i_end, i_start, namelist
 
-    with computation(PARALLEL), interval(...):
-        assert __INLINED(namelist.grid_type < 3)
-        # additional assumption: not __INLINED(spec.grid.nested)
+    assert __INLINED(namelist.grid_type < 3)
+    # additional assumption: not __INLINED(spec.grid.nested)
 
-        tmp_flux = dt2 * (velocity - velocity_c * cosa) / sina
-        with horizontal(region[i_start, :], region[i_end + 1, :]):
-            tmp_flux = dt2 * velocity
+    tmp_flux = dt2 * (velocity - velocity_c * cosa) / sina
+    with horizontal(region[i_start, :], region[i_end + 1, :]):
+        tmp_flux = dt2 * velocity
 
-        flux = vorticity[0, 0, 0] if tmp_flux > 0.0 else vorticity[0, 1, 0]
-        velocity_c = velocity_c + tmp_flux * flux + rdxc * (ke[-1, 0, 0] - ke)
+    flux = vorticity[0, 0, 0] if tmp_flux > 0.0 else vorticity[0, 1, 0]
+    velocity_c = velocity_c + tmp_flux * flux + rdxc * (ke[-1, 0, 0] - ke)
+
+    return velocity_c
 
 
-@gtstencil()
 def update_meridional_velocity(
     vorticity: sd,
     ke: sd,
@@ -273,16 +268,17 @@ def update_meridional_velocity(
 ):
     from __externals__ import j_end, j_start, namelist
 
-    with computation(PARALLEL), interval(...):
-        assert __INLINED(namelist.grid_type < 3)
-        # additional assumption: not __INLINED(spec.grid.nested)
+    assert __INLINED(namelist.grid_type < 3)
+    # additional assumption: not __INLINED(spec.grid.nested)
 
-        tmp_flux = dt2 * (velocity - velocity_c * cosa) / sina
-        with horizontal(region[:, j_start], region[:, j_end + 1]):
-            tmp_flux = dt2 * velocity
+    tmp_flux = dt2 * (velocity - velocity_c * cosa) / sina
+    with horizontal(region[:, j_start], region[:, j_end + 1]):
+        tmp_flux = dt2 * velocity
 
-        flux = vorticity[0, 0, 0] if tmp_flux > 0.0 else vorticity[1, 0, 0]
-        velocity_c = velocity_c - tmp_flux * flux + rdyc * (ke[0, -1, 0] - ke)
+    flux = vorticity[0, 0, 0] if tmp_flux > 0.0 else vorticity[1, 0, 0]
+    velocity_c = velocity_c - tmp_flux * flux + rdyc * (ke[0, -1, 0] - ke)
+
+    return velocity_c
 
 
 def vorticitytransport_cgrid(
@@ -326,6 +322,136 @@ def vorticitytransport_cgrid(
     )
 
 
+@gtstencil(externals={"HALO": 3})
+def csw_stencil(
+    delpc: sd,
+    ptc: sd,
+    delp: sd,
+    pt: sd,
+    divgd: sd,
+    cosa_s: sd,
+    cosa_u: sd,
+    cosa_v: sd,
+    sina_u: sd,
+    sina_v: sd,
+    dx: sd,
+    dy: sd,
+    dxa: sd,
+    dya: sd,
+    dxc: sd,
+    dyc: sd,
+    rdxc: sd,
+    rdyc: sd,
+    rsin2: sd,
+    rsin_u: sd,
+    rsin_v: sd,
+    sin_sg1: sd,
+    sin_sg2: sd,
+    sin_sg3: sd,
+    sin_sg4: sd,
+    cos_sg1: sd,
+    cos_sg2: sd,
+    cos_sg3: sd,
+    cos_sg4: sd,
+    rarea: sd,
+    rarea_c: sd,
+    fC: sd,
+    u: sd,
+    ua: sd,
+    uc: sd,
+    ut: sd,
+    v: sd,
+    va: sd,
+    vc: sd,
+    vt: sd,
+    w: sd,
+    dt2: float,
+):
+
+    with computation(PARALLEL), interval(...):
+        uc, vc, ua, va, ut, vt = d2a2c_vect(
+            cosa_s,
+            cosa_u,
+            cosa_v,
+            dxa,
+            dya,
+            rsin2,
+            rsin_u,
+            rsin_v,
+            sin_sg1,
+            sin_sg2,
+            sin_sg3,
+            sin_sg4,
+            u,
+            ua,
+            uc,
+            ut,
+            v,
+            va,
+            vc,
+            vt,
+        )
+
+        divgd = divergence_corner(
+            u,
+            v,
+            ua,
+            va,
+            dxc,
+            dyc,
+            sin_sg1,
+            sin_sg2,
+            sin_sg3,
+            sin_sg4,
+            cos_sg1,
+            cos_sg2,
+            cos_sg3,
+            cos_sg4,
+            rarea_c,
+        )
+
+        ut = dt2 * ut * dy * sin_sg3[-1, 0, 0] if ut > 0 else dt2 * ut * dy * sin_sg1
+
+        vt = dt2 * vt * dx * sin_sg4[0, -1, 0] if vt > 0 else dt2 * vt * dx * sin_sg2
+
+        # omga is returned but unused
+        delpc, ptc, omga = transportdelp(delp, pt, ut, vt, w, rarea)
+
+        ke, vort = update_vorticity_and_kinetic_energy(
+            ua,
+            va,
+            uc,
+            vc,
+            u,
+            v,
+            sin_sg1,
+            cos_sg1,
+            sin_sg2,
+            cos_sg2,
+            sin_sg3,
+            cos_sg3,
+            sin_sg4,
+            cos_sg4,
+            dt2,
+        )
+
+        vort = circulation_cgrid(uc, vc, dxc, dyc)
+
+        vort = fC + rarea_c * vort
+
+        vc = update_meridional_velocity(
+            vort,
+            ke,
+            u,
+            vc,
+            cosa_v,
+            sina_v,
+            rdyc,
+            dt2,
+        )
+        uc = update_zonal_velocity(vort, ke, v, uc, cosa_u, sina_u, rdxc, dt2)
+
+
 def compute(delp, pt, u, v, w, uc, vc, ua, va, ut, vt, divgd, omga, dt2):
     grid = spec.grid
     dord4 = True
@@ -333,13 +459,22 @@ def compute(delp, pt, u, v, w, uc, vc, ua, va, ut, vt, divgd, omga, dt2):
     delpc = utils.make_storage_from_shape(delp.shape, origin=origin_halo1)
     ptc = utils.make_storage_from_shape(pt.shape, origin=origin_halo1)
 
-    # This assumes dord4 is True
-    d2a2c_vect(
+    csw_stencil(
+        delpc,
+        ptc,
         grid.cosa_s,
         grid.cosa_u,
         grid.cosa_v,
+        grid.sina_u,
+        grid.sina_v,
+        grid.dx,
+        grid.dy,
         grid.dxa,
         grid.dya,
+        grid.dxc,
+        grid.dyc,
+        grid.rdxc,
+        grid.rdyc,
         grid.rsin2,
         grid.rsin_u,
         grid.rsin_v,
@@ -347,6 +482,13 @@ def compute(delp, pt, u, v, w, uc, vc, ua, va, ut, vt, divgd, omga, dt2):
         grid.sin_sg2,
         grid.sin_sg3,
         grid.sin_sg4,
+        grid.cos_sg1,
+        grid.cos_sg2,
+        grid.cos_sg3,
+        grid.cos_sg4,
+        grid.rarea,
+        grid.rarea_c,
+        grid.fC,
         u,
         ua,
         uc,
@@ -354,111 +496,10 @@ def compute(delp, pt, u, v, w, uc, vc, ua, va, ut, vt, divgd, omga, dt2):
         v,
         va,
         vc,
-        vt,
-        origin=grid.compute_origin(add=(-2, -2, 0)),
-        domain=grid.domain_shape_compute(add=(4, 4, 0)),
-    )
-
-    if spec.namelist.nord > 0:
-        divergence_corner(
-            u,
-            v,
-            ua,
-            va,
-            grid.dxc,
-            grid.dyc,
-            grid.sin_sg1,
-            grid.sin_sg2,
-            grid.sin_sg3,
-            grid.sin_sg4,
-            grid.cos_sg1,
-            grid.cos_sg2,
-            grid.cos_sg3,
-            grid.cos_sg4,
-            grid.rarea_c,
-            divgd,
-            origin=grid.compute_origin(),
-            domain=grid.domain_shape_compute_buffer_2d(add=(1, 1, 0)),
-        )
-    geo_origin = (grid.is_ - 1, grid.js - 1, 0)
-    geoadjust_ut(
-        ut,
-        grid.dy,
-        grid.sin_sg3,
-        grid.sin_sg1,
-        dt2,
-        origin=geo_origin,
-        domain=(grid.nic + 3, grid.njc + 2, grid.npz),
-    )
-    geoadjust_vt(
-        vt,
-        grid.dx,
-        grid.sin_sg4,
-        grid.sin_sg2,
-        dt2,
-        origin=geo_origin,
-        domain=(grid.nic + 2, grid.njc + 3, grid.npz),
-    )
-    transportdelp(
-        delp,
-        pt,
-        ut,
         vt,
         w,
-        grid.rarea,
-        delpc,
-        ptc,
-        omga,
-        origin=geo_origin,
-        domain=(grid.nic + 2, grid.njc + 2, grid.npz),
-    )
-
-    # ke_c_sw
-    # {
-    # Create storage objects to hold the new vorticity and kinetic energy values
-    ke = utils.make_storage_from_shape(uc.shape)
-    vort = utils.make_storage_from_shape(vc.shape)
-
-    # Set vorticity and kinetic energy values
-    update_vorticity_and_kinetic_energy(
-        ke,
-        vort,
-        ua,
-        va,
-        uc,
-        vc,
-        u,
-        v,
-        grid.sin_sg1,
-        grid.cos_sg1,
-        grid.sin_sg2,
-        grid.cos_sg2,
-        grid.sin_sg3,
-        grid.cos_sg3,
-        grid.sin_sg4,
-        grid.cos_sg4,
         dt2,
-        origin=(grid.is_ - 1, grid.js - 1, 0),
-        domain=(grid.nic + 2, grid.njc + 2, grid.npz),
+        origin=grid.compute_origin(add=(-1, -1, 0)),
+        domain=grid.domain_shape_compute(add=(2, 2, 0)),
     )
-    # }
-
-    # ke, vort = ke_c_sw.compute(uc, vc, u, v, ua, va, dt2)
-    circulation_cgrid(
-        uc,
-        vc,
-        grid.dxc,
-        grid.dyc,
-        vort,
-        origin=grid.compute_origin(),
-        domain=grid.domain_shape_compute_buffer_2d(add=(1, 1, 0)),
-    )
-    absolute_vorticity(
-        vort,
-        grid.fC,
-        grid.rarea_c,
-        origin=grid.compute_origin(),
-        domain=(grid.nic + 1, grid.njc + 1, grid.npz),
-    )
-    vorticitytransport_cgrid(uc, vc, vort, ke, v, u, dt2)
     return delpc, ptc
