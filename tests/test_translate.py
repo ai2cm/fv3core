@@ -127,7 +127,13 @@ def process_override(threshold_overrides, testobj, test_name, backend):
             for spec in override
             if spec["backend"] == backend and spec["platform"] == platform()
         ]
-        if len(matches) > 1:
+        if len(matches) == 1:
+            match = matches[0]
+            if "max_error" in match:
+                testobj.max_error = float(match["max_error"])
+            if "near_zero" in match:
+                testobj.near_zero = float(match["near_zero"])
+        elif len(matches) > 1:
             raise Exception(
                 "misconfigured threshold overrides file, more than 1 specification for "
                 + test_name
@@ -136,11 +142,6 @@ def process_override(threshold_overrides, testobj, test_name, backend):
                 + ", platform="
                 + platform()
             )
-        match = matches[0]
-        if "max_error" in match:
-            testobj.max_error = float(match["max_error"])
-        if "near_zero" in match:
-            testobj.near_zero = float(match["near_zero"])
 
 
 @pytest.mark.sequential
