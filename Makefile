@@ -18,13 +18,13 @@ TEST_DATA_HOST ?=$(CWD)/test_data/$(EXPERIMENT)
 FV3UTIL_DIR=$(CWD)/external/fv3gfs-util
 
 FV3=fv3core
-ifeq ($(CONTAINER_ENGINE),sarus)
-	FV3_IMAGE = load/library/$(SARUS_FV3CORE_IMAGE)
-else ifeq ($(CONTAINER_ENGINE),srun sarus)
-	FV3_IMAGE = load/library/$(SARUS_FV3CORE_IMAGE)
-else
-	FV3_IMAGE ?= $(FV3CORE_IMAGE)
-endif
+#ifeq ($(CONTAINER_ENGINE),sarus)
+#	FV3_IMAGE = load/library/$(SARUS_FV3CORE_IMAGE)
+#else ifeq ($(CONTAINER_ENGINE),srun sarus)
+#	FV3_IMAGE = load/library/$(SARUS_FV3CORE_IMAGE)
+#else
+#	FV3_IMAGE ?= $(FV3CORE_IMAGE)
+#endif
 
 TEST_DATA_CONTAINER=/test_data
 PYTHON_FILES = $(shell git ls-files | grep -e 'py$$' | grep -v -e '__init__.py')
@@ -36,6 +36,8 @@ CORE_BUCKET_LOC=gs://vcm-jenkins/$(CORE_TAR)
 MPIRUN_CALL ?=mpirun -np $(NUM_RANKS)
 BASE_INSTALL?=$(FV3)-install-serialbox
 DEV_MOUNTS = '-v $(CWD)/$(FV3):/$(FV3)/$(FV3) -v $(CWD)/tests:/$(FV3)/tests -v $(FV3UTIL_DIR):/usr/src/fv3gfs-util -v $(TEST_DATA_HOST):$(TEST_DATA_CONTAINER)'
+PYTEST_SEQUENTIAL="pip list && pytest --data_path=$(TEST_DATA_CONTAINER) $(TEST_ARGS) /$(FV3)/tests"
+PYTEST_PARALLEL="pip list && $(MPIRUN_CALL) pytest --data_path=$(TEST_DATA_CONTAINER) $(TEST_ARGS) -m parallel /$(FV3)/tests"
 
 clean:
 	find . -name ""
@@ -152,13 +154,19 @@ dev_test_mpi: dev_tests_mpi
 dev_tests_mpi_host:
 	MOUNTS=$(DEV_MOUNTS) $(MAKE) run_tests_parallel_host
 
+test_venv: get_test_data
+	bash -c $(PYTEST_SEQUENTIAL)
+
+test_venv_parallel: get_test_data
+	bash -c $(PYTST_PARALLEL)
+
 test_base:
 	$(CONTAINER_ENGINE) run $(RUN_FLAGS) $(VOLUMES) $(MOUNTS) $(CUDA_FLAGS) \
-	$(FV3_IMAGE) bash -c "pip list && pytest --data_path=$(TEST_DATA_CONTAINER) $(TEST_ARGS) /$(FV3)/tests"
+	$(FV3_IMAGE) bash -c $(PYTEST_SEQUENTIAL)
 
 test_base_parallel:
 	$(CONTAINER_ENGINE) run $(RUN_FLAGS) $(VOLUMES) $(MOUNTS) $(CUDA_FLAGS) $(FV3_IMAGE) \
-	bash -c "pip list && $(MPIRUN_CALL) pytest --data_path=$(TEST_DATA_CONTAINER) $(TEST_ARGS) -m parallel /$(FV3)/tests"
+	bash -c $(PYTEST_PARALLEL)
 
 run_tests_sequential:
 	VOLUMES='--mount=type=bind,source=$(TEST_DATA_HOST),destination=$(TEST_DATA_CONTAINER) --mount=type=bind,source=$(CWD)/.jenkins,destination=/.jenkins' \

@@ -120,18 +120,18 @@ if [ ! -z "${UPSTREAM_PROJECT}" ] ; then
 fi
 # If using sarus, load the image and set variables for running tests,
 # otherwise build the image
-if [ ${container_engine} == "sarus" ]; then
-    module load sarus
-    make sarus_load_tar
-    if grep -q "parallel" <<< "${script}"; then
-	export CONTAINER_ENGINE="srun sarus"
-	export RUN_FLAGS="--mpi"
-	export MPIRUN_CALL=""
-    else
-	export CONTAINER_ENGINE="sarus"
-	export RUN_FLAGS=""
-    fi
-fi
+#if [ ${container_engine} == "sarus" ]; then
+#    module load sarus
+#    make sarus_load_tar
+#    if grep -q "parallel" <<< "${script}"; then
+#	export CONTAINER_ENGINE="srun sarus"
+#	export RUN_FLAGS="--mpi"
+#	export MPIRUN_CALL=""
+#    else
+#	export CONTAINER_ENGINE="sarus"
+#	export RUN_FLAGS=""
+#    fi
+#fi
 
 if [ ${host} == "daint" ]; then
     daintenv=${SCRATCH}/vcm_env_${BUILD_TAG}
