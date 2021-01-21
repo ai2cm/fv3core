@@ -9,8 +9,7 @@ import fv3core._config as spec
 import fv3core.stencils.fv_dynamics as fv_dynamics
 import fv3core.testing
 import fv3gfs.util as util
-
-from .timers import timer, write_to_json
+from fv3core.testing import timer, write_to_json
 
 
 if __name__ == "__main__":
