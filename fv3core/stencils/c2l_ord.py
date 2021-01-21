@@ -5,6 +5,7 @@ import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import gtstencil
 from fv3core.utils.typing import FloatField
 from fv3gfs.util import CubedSphereCommunicator
+from fv3gfs.util.quantity import Quantity
 
 
 sd = utils.sd
@@ -72,29 +73,30 @@ def ord4_transform(
 
 
 def compute_cubed_to_latlon(
-    u: FloatField,
-    v: FloatField,
+    u: Quantity,
+    v: Quantity,
     ua: FloatField,
     va: FloatField,
-    comm: CubedSphereCommunicator,
-    halo_update_uv: bool = True,
+    cube: CubedSphereCommunicator,
+    do_halo_update: bool,
 ):
     """
-    Interpolate D-grid winds to into a-grid winds at latitude-longitude.
+    Interpolate D-grid to A-grid winds at latitude-longitude.
+
     Args:
         u: x-wind on D-grid (in)
         v: y-wind on D-grid (in)
         ua: x-wind on A-grid (out)
         va: y-wind on A-grid (out)
-        comm: Communicator in case of halo update (in)
-        mode: If True, halo update before transforming to lat/lon
+        cube: Cubed-sphere communicator
+        do_halo_update: If True, performs a halo update on u and v
     """
-    namelist = spec.namelist
     grid = spec.grid
-    if namelist.c2l_ord == 2:
+
+    if spec.namelist.c2l_ord == 2:
         c2l_ord2(
-            u,
-            v,
+            u.storage,
+            v.storage,
             grid.dx,
             grid.dy,
             grid.a11,
@@ -104,15 +106,15 @@ def compute_cubed_to_latlon(
             ua,
             va,
             origin=grid.compute_origin(
-                add=(-1, -1, 0) if halo_update_uv else (0, 0, 0)
+                add=(-1, -1, 0) if do_halo_update else (0, 0, 0)
             ),
             domain=grid.domain_shape_compute(
-                add=(2, 2, 0) if halo_update_uv else (0, 0, 0)
+                add=(2, 2, 0) if do_halo_update else (0, 0, 0)
             ),
         )
     else:
-        if halo_update_uv:
-            comm.vector_halo_update(u, v, n_points=utils.halo)
+        if do_halo_update:
+            cube.vector_halo_update(u, v, n_points=grid.halo)
         ord4_transform(
             u.storage,
             v.storage,
