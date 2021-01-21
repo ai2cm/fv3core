@@ -37,7 +37,7 @@ if __name__ == "__main__":
             plt.plot(
                 [e["setup"]["experiment time"] for e in alldata],
                 [e["times"][data]["mean"] for e in alldata],
-                label="main loop:" + data,
+                label=data,
             )
             plt.fill_between(
                 [e["setup"]["experiment time"] for e in alldata],

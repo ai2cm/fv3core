@@ -65,6 +65,7 @@ vcm_1.0/bin/python -m pip install gitpython
 # set up the experiment data
 cp -r $data_path test_data
 tar -xf test_data/dat_files.tar.gz -C test_data
+cp test_data/*.yml test_data/input.yml
 
 # set the environment
 git clone https://github.com/VulcanClimateModeling/buildenv/
@@ -80,7 +81,7 @@ sed s/\<CPUSPERTASK\>/1/g submit.daint.slurm -i
 sed s/#SBATCH\ --output=\<OUTFILE\>//g submit.daint.slurm -i
 sed s/00:45:00/01:30:00/g submit.daint.slurm -i
 sed s/\<G2G\>//g submit.daint.slurm -i
-sed -i "s#<CMD>#export PYTHONPATH=/project/c14/install/daint/serialbox2_master/gnu/python:\$PYTHONPATH\nsrun vcm_1.0/bin/python examples/standalone/runfile/dynamics.py test_data/ examples/standalone/config/c12_6ranks_standard.yml $timesteps $backend#g" submit.daint.slurm
+sed -i "s#<CMD>#export PYTHONPATH=/project/c14/install/daint/serialbox2_master/gnu/python:\$PYTHONPATH\nsrun vcm_1.0/bin/python examples/standalone/runfile/dynamics.py test_data/ $timesteps $backend#g" submit.daint.slurm
 cat submit.daint.slurm
 
 # execute on a gpu node

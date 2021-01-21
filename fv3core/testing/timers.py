@@ -6,7 +6,6 @@ from typing import List
 
 import git
 import mpi4py
-import yaml
 
 
 class timer(object):
@@ -47,7 +46,7 @@ class timer(object):
 def write_to_json(
     time_step: int,
     backend: str,
-    namelist_path: str,
+    experiment_name: str,
     init_times: List[float],
     total_times: List[float],
     main_times: List[float],
@@ -61,12 +60,7 @@ def write_to_json(
     experiment = {}
     experiment["setup"] = {}
     experiment["setup"]["experiment time"] = dt_string
-    experiment["setup"]["data set"] = yaml.safe_load(
-        open(
-            namelist_path,
-            "r",
-        )
-    )["experiment_name"]
+    experiment["setup"]["data set"] = experiment_name
     experiment["setup"]["timesteps"] = time_step
     experiment["setup"]["hash"] = sha
     experiment["setup"]["version"] = "python/" + backend

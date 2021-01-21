@@ -16,7 +16,7 @@ if __name__ == "__main__":
     timing = timer()
     timing.time("init")
 
-    usage = "usage: python %(prog)s <data_dir> <namelist_path> <timesteps> <backend>"
+    usage = "usage: python %(prog)s <data_dir> <timesteps> <backend>"
     parser = ArgumentParser(usage=usage)
 
     parser.add_argument(
@@ -24,12 +24,6 @@ if __name__ == "__main__":
         type=str,
         action="store",
         help="directory containing data to run with",
-    )
-    parser.add_argument(
-        "namelist_path",
-        type=str,
-        action="store",
-        help="path to the namelist",
     )
     parser.add_argument(
         "time_step",
@@ -47,7 +41,6 @@ if __name__ == "__main__":
     backend = args.backend
     data_dir = args.data_dir
     time_step = args.time_step
-    namelist_path = args.namelist_path
 
     # # MPI stuff
     comm = mpi4py.MPI.COMM_WORLD
@@ -62,10 +55,16 @@ if __name__ == "__main__":
 
     nml2 = yaml.safe_load(
         open(
-            namelist_path,
+            data_dir + "/input.yml",
             "r",
         )
     )["namelist"]
+    experiment_name = yaml.safe_load(
+        open(
+            data_dir + "/input.yml",
+            "r",
+        )
+    )["experiment_name"]
 
     # set up of helper structures
     serializer = serialbox.Serializer(
@@ -139,5 +138,5 @@ if __name__ == "__main__":
     total_times = comm.gather(total_time, root=0)
     if comm.Get_rank() == 0:
         write_to_json(
-            time_step, backend, namelist_path, init_times, total_times, main_times
+            time_step, backend, experiment_name, init_times, total_times, main_times
         )
