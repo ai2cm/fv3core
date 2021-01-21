@@ -169,7 +169,10 @@ run_tests_parallel:
 	$(MAKE) test_base_parallel
 
 sync_test_data:
-	mkdir -p $(TEST_DATA_HOST) && gsutil -m rsync $(REGRESSION_DATA_STORAGE_BUCKET)/$(FORTRAN_SERIALIZED_DATA_VERSION)/$(EXPERIMENT)/ $(TEST_DATA_HOST)
+	mkdir -p $(TEST_DATA_HOST) && gsutil -m rsync -r $(REGRESSION_DATA_STORAGE_BUCKET)/$(FORTRAN_SERIALIZED_DATA_VERSION)/$(EXPERIMENT)/ $(TEST_DATA_HOST)
+
+push_python_regressions:
+	gsutil -m cp -r $(TEST_DATA_HOST)/python_regressions $(REGRESSION_DATA_STORAGE_BUCKET)/$(FORTRAN_SERIALIZED_DATA_VERSION)/$(EXPERIMENT)/python_regressions
 
 get_test_data:
 	if [ ! -f "$(TEST_DATA_HOST)/input.nml" ]; then \
@@ -186,14 +189,11 @@ list_test_data_options:
 	gsutil ls $(REGRESSION_DATA_STORAGE_BUCKET)/$(FORTRAN_SERIALIZED_DATA_VERSION)
 
 lint:
-	pre-commit run
-	# pre-commit runs black for now. Will also run flake8 eventually.
-	# black --diff --check $(PYTHON_FILES) $(PYTHON_INIT_FILES)
-	# disable flake8 tests for now, re-enable when dycore is "running"
-	#@flake8 $(PYTHON_FILES)
-	# ignore unused import error in __init__.py files
-	#@flake8 --ignore=F401 $(PYTHON_INIT_FILES)
-	# @echo "LINTING SUCCESSFUL"
+	pre-commit run --all-files
+
+gt4py_tests_gpu:
+	CUDA=y make build && \
+        docker run --gpus all $(FV3_IMAGE) python3 -m pytest -x gt4py/
 
 .PHONY: update_submodules build_environment build dev dev_tests dev_tests_mpi flake8 lint get_test_data unpack_test_data \
 	 list_test_data_options pull_environment pull_test_data push_environment \

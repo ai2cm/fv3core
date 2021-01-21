@@ -5,6 +5,7 @@ import warnings
 
 import pytest
 import translate
+import yaml
 
 import fv3core
 import fv3core._config
@@ -50,6 +51,18 @@ def data_path_from_config(config):
     namelist_filename = os.path.join(data_path, "input.nml")
     fv3core._config.set_namelist(namelist_filename)
     return data_path
+
+
+@pytest.fixture
+def threshold_overrides(pytestconfig):
+    return thresholds_from_file(pytestconfig)
+
+
+def thresholds_from_file(config):
+    thresholds_file = config.getoption("threshold_overrides_file")
+    if thresholds_file is None:
+        return None
+    return yaml.safe_load(open(thresholds_file, "r"))
 
 
 @pytest.fixture
@@ -324,6 +337,7 @@ def generate_parallel_stencil_tests(metafunc):
     arg_names = [
         "testobj",
         "test_name",
+        "test_case",
         "serializer",
         "savepoint_in",
         "savepoint_out",
@@ -359,15 +373,17 @@ def _generate_stencil_tests(metafunc, arg_names, savepoint_cases, get_param):
 def get_parallel_param(
     case, testobj, savepoint_in, savepoint_out, call_count, max_call_count
 ):
+    test_case = f"{case.test_name}-rank={case.rank}--call_count={call_count}"
     return pytest.param(
         testobj,
         case.test_name,
+        test_case,
         ReplaceRepr(case.serializer, f"<Serializer for rank {case.rank}>"),
         savepoint_in,
         savepoint_out,
         case.grid,
         case.layout,
-        id=f"{case.test_name}-rank={case.rank}-call_count={call_count}",
+        id=test_case,
     )
 
 
@@ -459,6 +475,8 @@ def pytest_addoption(parser):
     parser.addoption("--failure_stride", action="store", default=1)
     parser.addoption("--data_path", action="store", default="./")
     parser.addoption("--backend", action="store", default="numpy")
+    parser.addoption("--python_regression", action="store_true")
+    parser.addoption("--threshold_overrides_file", action="store", default=None)
 
 
 def pytest_configure(config):
@@ -483,3 +501,8 @@ def print_failures(pytestconfig):
 @pytest.fixture()
 def failure_stride(pytestconfig):
     return int(pytestconfig.getoption("failure_stride"))
+
+
+@pytest.fixture()
+def python_regression(pytestconfig):
+    return pytestconfig.getoption("python_regression")

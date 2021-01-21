@@ -1,4 +1,5 @@
 import contextlib
+import hashlib
 import logging
 import os
 
@@ -34,7 +35,6 @@ def success_array(computed_data, ref_data, eps, ignore_near_zero_errors):
     success = np.logical_or(
         np.logical_and(np.isnan(computed_data), np.isnan(ref_data)),
         compare_arr(computed_data, ref_data) < eps,
-        # np.isclose(computed_data, ref_data, rtol=eps * 1e-2, atol=eps * 1e-2),
     )
     if ignore_near_zero_errors:
         success = np.logical_or(
@@ -48,6 +48,11 @@ def success_array(computed_data, ref_data, eps, ignore_near_zero_errors):
 
 def success(computed_data, ref_data, eps, ignore_near_zero_errors):
     return np.all(success_array(computed_data, ref_data, eps, ignore_near_zero_errors))
+
+
+def platform():
+    in_docker = os.environ.get("IN_DOCKER", False)
+    return "docker" if in_docker else "metal"
 
 
 def sample_wherefail(
@@ -106,6 +111,35 @@ def sample_wherefail(
     return "\n".join(return_strings)
 
 
+def process_override(threshold_overrides, testobj, test_name, backend):
+    override = threshold_overrides.get(test_name, None)
+    if override is not None:
+        for spec in override:
+            if "platform" not in spec:
+                spec["platform"] = platform()
+            if "backend" not in spec:
+                spec["backend"] = backend
+        matches = [
+            spec
+            for spec in override
+            if spec["backend"] == backend and spec["platform"] == platform()
+        ]
+        if len(matches) > 1:
+            raise Exception(
+                "misconfigured threshold overrides file, more than 1 specification for "
+                + test_name
+                + " with backend="
+                + backend
+                + ", platform="
+                + platform()
+            )
+        match = matches[0]
+        if "max_error" in match:
+            testobj.max_error = float(match["max_error"])
+        if "near_zero" in match:
+            _near_zero = float(match["near_zero"])
+
+
 @pytest.mark.sequential
 @pytest.mark.skipif(
     MPI is not None and MPI.COMM_WORLD.Get_size() > 1,
@@ -124,6 +158,7 @@ def test_sequential_savepoint(
     failure_stride,
     subtests,
     caplog,
+    threshold_overrides,
     xy_indices=False,
 ):
     caplog.set_level(logging.DEBUG, logger="fv3core")
@@ -133,6 +168,8 @@ def test_sequential_savepoint(
     if backend.endswith("cuda") and testobj.max_error < GPU_MAX_ERR:
         testobj.max_error = GPU_MAX_ERR
         _near_zero = GPU_NEAR_ZERO
+    if threshold_overrides is not None:
+        process_override(threshold_overrides, testobj, test_name, backend)
     fv3core._config.set_grid(grid)
     input_data = testobj.collect_input_data(serializer, savepoint_in)
     # run python version of functionality
@@ -202,6 +239,7 @@ def test_mock_parallel_savepoint(
     failure_stride,
     subtests,
     caplog,
+    threshold_overrides,
     xy_indices=False,
 ):
     caplog.set_level(logging.DEBUG, logger="fv3core")
@@ -212,6 +250,8 @@ def test_mock_parallel_savepoint(
     if backend.endswith("cuda") and testobj.max_error < GPU_MAX_ERR:
         testobj.max_error = GPU_MAX_ERR
         _near_zero = GPU_NEAR_ZERO
+    if threshold_overrides is not None:
+        process_override(threshold_overrides, testobj, test_name, backend)
     fv3core._config.set_grid(grid)
     inputs_list = []
     for savepoint_in, serializer in zip(savepoint_in_list, serializer_list):
@@ -257,14 +297,26 @@ def test_mock_parallel_savepoint(
     assert failing_names == [], f"names tested: {list(testobj.outputs.keys())}"
 
 
+def hash_result_data(result, data_keys):
+    hashes = {}
+    for k in data_keys:
+        hashes[k] = hashlib.sha1(
+            np.ascontiguousarray(gt_utils.asarray(result[k]))
+        ).hexdigest()
+    return hashes
+
+
 @pytest.mark.parallel
 @pytest.mark.skipif(
     MPI is not None and MPI.COMM_WORLD.Get_size() == 1,
     reason="Not running in parallel with mpi",
 )
 def test_parallel_savepoint(
+    data_regression,
+    data_path,
     testobj,
     test_name,
+    test_case,
     grid,
     serializer,
     savepoint_in,
@@ -275,23 +327,37 @@ def test_parallel_savepoint(
     failure_stride,
     subtests,
     caplog,
+    python_regression,
+    threshold_overrides,
     xy_indices=False,
 ):
     caplog.set_level(logging.DEBUG, logger="fv3core")
+    if python_regression and not testobj.python_regression:
+        pytest.xfail(f"python_regression not set for test {test_name}")
     if testobj is None:
         pytest.xfail(f"no translate object available for savepoint {test_name}")
     # Reduce error threshold for GPU
     if backend.endswith("cuda") and testobj.max_error < GPU_MAX_ERR:
         testobj.max_error = GPU_MAX_ERR
+    if threshold_overrides is not None:
+        process_override(threshold_overrides, testobj, test_name, backend)
     fv3core._config.set_grid(grid[0])
     input_data = testobj.collect_input_data(serializer, savepoint_in)
     # run python version of functionality
     output = testobj.compute_parallel(input_data, communicator)
+    out_vars = set(testobj.outputs.keys())
+    out_vars.update(list(testobj._base.out_vars.keys()))
+    if python_regression and testobj.python_regression:
+        filename = f"python_regressions/{test_case}_{backend}_{platform()}.yml"
+        filename = filename.replace("=", "_")
+        data_regression.check(
+            hash_result_data(output, out_vars),
+            fullpath=os.path.join(data_path, filename),
+        )
+        return
     failing_names = []
     passing_names = []
     ref_data = {}
-    out_vars = set(testobj.outputs.keys())
-    out_vars.update(list(testobj._base.out_vars.keys()))
     for varname in out_vars:
         ref_data[varname] = []
         ref_data[varname].append(serializer.read(varname, savepoint_out))
