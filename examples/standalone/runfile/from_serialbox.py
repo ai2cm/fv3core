@@ -1,10 +1,5 @@
-import json
-import pathlib
 from argparse import ArgumentParser
-from datetime import datetime
-from statistics import mean, median
 
-import git
 import mpi4py
 import serialbox
 import yaml
@@ -15,9 +10,12 @@ import fv3core.stencils.fv_dynamics as fv_dynamics
 import fv3core.testing
 import fv3gfs.util as util
 
+from .timers import timer, write_to_json
+
 
 if __name__ == "__main__":
-    t0 = mpi4py.MPI.Wtime()
+    timing = timer()
+    timing.time("init")
 
     usage = "usage: python %(prog)s <data_dir> <namelist_path> <timesteps> <backend>"
     parser = ArgumentParser(usage=usage)
@@ -114,7 +112,8 @@ if __name__ == "__main__":
         input_data["n_split"],
         input_data["ks"],
     )
-    t1 = mpi4py.MPI.Wtime()
+    timing.time("init")
+    timing.time("mainloop")
 
     # Run the dynamics
     for i in range(time_step - 1):
@@ -130,52 +129,16 @@ if __name__ == "__main__":
         )
 
     # collect times and output simple statistics
-    t2 = mpi4py.MPI.Wtime()
-    main_time = t2 - t1
-    init_time = t1 - t0
-    total_time = t2 - t0
+    timing.time("mainloop")
+    main_time = timing.get_totals("mainloop")["time"]
+    init_time = timing.get_totals("init")["time"]
+    total_time = main_time + init_time
+
+    # write times to file
     init_times = comm.gather(init_time, root=0)
     main_times = comm.gather(main_time, root=0)
     total_times = comm.gather(total_time, root=0)
-
-    # write times to file
     if comm.Get_rank() == 0:
-        now = datetime.now()
-        sha = git.Repo(
-            pathlib.Path(__file__).parent.absolute(), search_parent_directories=True
-        ).head.object.hexsha
-        dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
-        filename = now.strftime("%Y-%m-%d-%H-%M-%S")
-        experiment = {}
-        experiment["setup"] = {}
-        experiment["setup"]["experiment time"] = dt_string
-        experiment["setup"]["data set"] = yaml.safe_load(
-            open(
-                namelist_path,
-                "r",
-            )
-        )["experiment_name"]
-        experiment["setup"]["timesteps"] = time_step
-        experiment["setup"]["hash"] = sha
-        experiment["setup"]["version"] = "python/" + backend
-
-        experiment["times"] = {}
-        experiment["times"]["total"] = {}
-        experiment["times"]["total"]["minimum"] = min(total_times)
-        experiment["times"]["total"]["maximum"] = max(total_times)
-        experiment["times"]["total"]["median"] = median(total_times)
-        experiment["times"]["total"]["mean"] = mean(total_times)
-        experiment["times"]["init"] = {}
-        experiment["times"]["init"]["minimum"] = min(init_times)
-        experiment["times"]["init"]["maximum"] = max(init_times)
-        experiment["times"]["init"]["median"] = median(init_times)
-        experiment["times"]["init"]["mean"] = mean(init_times)
-        experiment["times"]["main"] = {}
-        experiment["times"]["main"]["minimum"] = min(main_times)
-        experiment["times"]["main"]["maximum"] = max(main_times)
-        experiment["times"]["main"]["median"] = median(main_times)
-        experiment["times"]["main"]["mean"] = mean(main_times)
-        experiment["times"]["cleanup"] = {}
-
-        with open(filename + ".json", "w") as outfile:
-            json.dump(experiment, outfile, sort_keys=True, indent=4)
+        write_to_json(
+            time_step, backend, namelist_path, init_times, total_times, main_times
+        )
