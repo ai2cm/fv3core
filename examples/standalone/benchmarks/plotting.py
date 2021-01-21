@@ -13,7 +13,7 @@ if __name__ == "__main__":
         "data_dir",
         type=str,
         action="store",
-        help="directory containing data to run with",
+        help="directory containing json files with performance data",
     )
     args = parser.parse_args()
 
