@@ -350,6 +350,9 @@ def test_parallel_savepoint(
         testobj.near_zero = max(testobj.near_zero, GPU_NEAR_ZERO)
     if threshold_overrides is not None:
         process_override(threshold_overrides, testobj, test_name, backend)
+    input_data = testobj.collect_input_data(serializer, savepoint_in)
+    # run python version of functionality
+    output = testobj.compute_parallel(input_data, communicator)
     out_vars = set(testobj.outputs.keys())
     out_vars.update(list(testobj._base.out_vars.keys()))
     if python_regression and testobj.python_regression:
