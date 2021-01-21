@@ -21,7 +21,10 @@ Fillz:
 MapN_Tracer_2d:
   - backend: gtcuda
     max_error: 2e-7
-    near_zero: 2.5e-15
+    near_zero: 1e-17
+  - backend: numpy
+    max_error: 3.5e-11
+    near_zero: 1e-17
 
 NH_P_Grad:
   - backend: gtcuda
@@ -35,6 +38,9 @@ Remapping_Part1:
   - backend: gtcuda
     max_error: 5e-6
     near_zero: 3.5e-15
+  - backend: numpy
+    max_error: 1e-9
+    near_zero: 5e-18
 
 Remapping:
   - backend: gtcuda
