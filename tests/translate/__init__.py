@@ -76,6 +76,3 @@ from .translate_xppm import TranslateXPPM, TranslateXPPM_2
 from .translate_xtp_u import TranslateXTP_U
 from .translate_yppm import TranslateYPPM, TranslateYPPM_2
 from .translate_ytp_v import TranslateYTP_V
-
-
-# from fv3core.testing import  TranslateGrid, TranslateFortranData2Py

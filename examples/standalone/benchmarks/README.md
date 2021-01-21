@@ -16,4 +16,4 @@ Running examples/standalone/runfile/dynamics.py with the following arguments:
 - timestep: number of timesteps
 - backend: chose the backend
 **Example:**
-`examples/standalone/runfile/dynamics.py  test_data/ 60 gtx86`
+`examples/standalone/runfile/dynamics.py test_data/ 60 gtx86`

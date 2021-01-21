@@ -8,9 +8,9 @@ import git
 import mpi4py
 
 
-class timer(object):
+class GlobalTimer(object):
     """
-    class handeling various timers in the driver code
+    Class to accumulate timings for named operations
     """
 
     def __init__(self):
@@ -18,12 +18,14 @@ class timer(object):
         self.times = {}
         self.disabled = {}
 
-    def disable(self, name: str):
+    def toggle(self, name: str):
+        """Enable or disable the timer of a named globally."""
         if name not in self.disabled:
             self.disabled[name] = False
         self.disabled[name] = not self.disabled[name]
 
     def time(self, name: str):
+        """Start or stop a given timer of a named operation."""
         if name not in self.disabled or not self.disabled[name]:
             if name not in self.is_on:
                 self.is_on[name] = False
@@ -40,6 +42,11 @@ class timer(object):
                 self.is_on[name] = True
 
     def get_totals(self, name: str):
+        """
+        Accumulated statistics for the given operation name
+        This includes: is the timer still running, the total elapsed time,
+        the total hit-count of the timer as well as the total time
+        """
         return self.times[name]
 
 
@@ -51,6 +58,10 @@ def write_to_json(
     total_times: List[float],
     main_times: List[float],
 ):
+    """
+    Given input times this function writes a json file with statistics for
+    the elapsed times and the experimental setup
+    """
     now = datetime.now()
     sha = git.Repo(
         pathlib.Path(__file__).parent.absolute(), search_parent_directories=True

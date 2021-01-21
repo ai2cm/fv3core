@@ -9,11 +9,11 @@ import fv3core._config as spec
 import fv3core.stencils.fv_dynamics as fv_dynamics
 import fv3core.testing
 import fv3gfs.util as util
-from fv3core.testing import timer, write_to_json
+from fv3core.testing import GlobalTimer, write_to_json
 
 
 if __name__ == "__main__":
-    timing = timer()
+    timing = GlobalTimer()
     timing.time("init")
 
     usage = "usage: python %(prog)s <data_dir> <timesteps> <backend>"
