@@ -114,12 +114,30 @@ def sample_wherefail(
 def process_override(threshold_overrides, testobj, test_name, backend):
     override = threshold_overrides.get(test_name, None)
     if override is not None:
-        max_error = override.get("max_error", None)
-        near_zero = override.get("near_zero", None)
-        if max_error is not None:
-            testobj.max_error = float(max_error[backend][platform()])
-        if near_zero is not None:
-            _near_zero = float(near_zero[backend][platform()])
+        for spec in override:
+            if "platform" not in spec:
+                spec["platform"] = platform()
+            if "backend" not in spec:
+                spec["backend"] = backend
+        matches = [
+            spec
+            for spec in override
+            if spec["backend"] == backend and spec["platform"] == platform()
+        ]
+        if len(matches) > 1:
+            raise Exception(
+                "misconfigured threshold overrides file, more than 1 specification for "
+                + test_name
+                + " with backend="
+                + backend
+                + ", platform="
+                + platform()
+            )
+        match = matches[0]
+        if "max_error" in match:
+            testobj.max_error = float(match["max_error"])
+        if "near_zero" in match:
+            _near_zero = float(match["near_zero"])
 
 
 @pytest.mark.sequential
