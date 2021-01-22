@@ -39,7 +39,7 @@ Remapping_Part1:
     max_error: 5e-6
     near_zero: 3.5e-15
   - backend: numpy
-    max_error: 1e-9
+    max_error: 5e-9
     near_zero: 5e-18
 
 Remapping:

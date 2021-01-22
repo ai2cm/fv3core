@@ -101,7 +101,9 @@ def sample_wherefail(
         found_xy_indices = np.where(
             np.any(
                 np.logical_not(
-                    success_array(computed_data, ref_data, eps, ignore_near_zero_errors)
+                    success_array(
+                        computed_data, ref_data, eps, ignore_near_zero_errors, near_zero
+                    )
                 ),
                 axis=2,
             )
@@ -181,13 +183,16 @@ def test_sequential_savepoint(
     failing_names = []
     passing_names = []
     for varname in testobj.serialnames(testobj.out_vars):
-        near0 = testobj.ignore_near_zero_errors.get(varname, False)
-        near0 = testobj.near_zero
+        ignore_near_zero = testobj.ignore_near_zero_errors.get(varname, False)
         ref_data = serializer.read(varname, savepoint_out)
         with subtests.test(varname=varname):
             failing_names.append(varname)
             assert success(
-                output[varname], ref_data, testobj.max_error, near0, testobj.near_zero
+                output[varname],
+                ref_data,
+                testobj.max_error,
+                ignore_near_zero,
+                testobj.near_zero,
             ), sample_wherefail(
                 output[varname],
                 ref_data,
@@ -195,7 +200,7 @@ def test_sequential_savepoint(
                 print_failures,
                 failure_stride,
                 test_name,
-                near0,
+                ignore_near_zero,
                 testobj.near_zero,
                 xy_indices,
             )
@@ -267,7 +272,7 @@ def test_mock_parallel_savepoint(
     ref_data = {}
     for varname in testobj.outputs.keys():
         ref_data[varname] = []
-        near0 = testobj.ignore_near_zero_errors.get(varname, False)
+        ignore_near_zero = testobj.ignore_near_zero_errors.get(varname, False)
         with _subtest(failing_names, subtests, varname=varname):
             failing_ranks = []
             for rank, (savepoint_out, serializer, output) in enumerate(
@@ -279,7 +284,7 @@ def test_mock_parallel_savepoint(
                         gt_utils.asarray(output[varname]),
                         ref_data[varname][-1],
                         testobj.max_error,
-                        near0,
+                        ignore_near_zero,
                         testobj.near_zero,
                     ), sample_wherefail(
                         output[varname],
@@ -288,7 +293,7 @@ def test_mock_parallel_savepoint(
                         print_failures,
                         failure_stride,
                         test_name,
-                        near0,
+                        ignore_near_zero,
                         testobj.near_zero,
                         xy_indices,
                     )
@@ -370,14 +375,14 @@ def test_parallel_savepoint(
     for varname in out_vars:
         ref_data[varname] = []
         ref_data[varname].append(serializer.read(varname, savepoint_out))
-        near0 = testobj.ignore_near_zero_errors.get(varname, False)
+        ignore_near_zero = testobj.ignore_near_zero_errors.get(varname, False)
         with subtests.test(varname=varname):
             failing_names.append(varname)
             assert success(
                 output[varname],
                 ref_data[varname][0],
                 testobj.max_error,
-                near0,
+                ignore_near_zero,
                 testobj.near_zero,
             ), sample_wherefail(
                 output[varname],
@@ -386,7 +391,7 @@ def test_parallel_savepoint(
                 print_failures,
                 failure_stride,
                 test_name,
-                near0,
+                ignore_near_zero,
                 testobj.near_zero,
                 xy_indices,
             )
