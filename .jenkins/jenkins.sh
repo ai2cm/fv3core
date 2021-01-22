@@ -138,7 +138,7 @@ fi
 
 if [ ${host} == "daint" ]; then
     daintenv=${SCRATCH}/vcm_env_${BUILD_TAG}
-    ${root}/../install_virtualenv.sh ${daintenv}
+    ${root}/install_virtualenv.sh ${daintenv}
     source ${daintenv}/bin/activate
 fi
 # get the test data version from the Makefile
