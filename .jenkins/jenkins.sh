@@ -138,6 +138,7 @@ if [ ${host} == "daint" ]; then
     ${root}/install_virtualenv.sh ${daintenv}
     source ${daintenv}/bin/activate
     export BASH_PREFIX="srun"
+    export FV3_PATH="${envloc}/../"
     export PYTHONPATH=/project/s1053/install/serialbox2_master/gnu/python:$PYTHONPATH
 fi
 # get the test data version from the Makefile
