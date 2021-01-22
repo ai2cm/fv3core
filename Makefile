@@ -28,7 +28,7 @@ FV3_PATH ?=/$(FV3)
 #	FV3_IMAGE ?= $(FV3CORE_IMAGE)
 #endif
 
-TEST_DATA_RUN_LOC=/test_data
+TEST_DATA_RUN_LOC ?=/test_data
 PYTHON_FILES = $(shell git ls-files | grep -e 'py$$' | grep -v -e '__init__.py')
 PYTHON_INIT_FILES = $(shell git ls-files | grep '__init__.py')
 TEST_DATA_TARFILE=dat_files.tar.gz
