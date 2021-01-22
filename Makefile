@@ -160,7 +160,7 @@ test_venv: get_test_data
 	$(BASH_PREFIX) bash -c $(PYTEST_SEQUENTIAL)
 
 test_venv_parallel: get_test_data
-	$(BASH_PREFIX) bash -c $(PYTST_PARALLEL)
+	$(BASH_PREFIX) bash -c $(PYTEST_PARALLEL)
 
 test_base:
 	$(CONTAINER_ENGINE) run $(RUN_FLAGS) $(VOLUMES) $(MOUNTS) $(CUDA_FLAGS) \
