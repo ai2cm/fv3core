@@ -14,6 +14,7 @@ C1 = 1.125
 C2 = -0.125
 
 
+@utils.mark_untested("This namelist option is not tested")
 @gtstencil()
 def c2l_ord2(
     u: FloatField,
@@ -81,7 +82,7 @@ def compute_cubed_to_latlon(
     do_halo_update: bool,
 ):
     """
-    Interpolate D-grid to A-grid winds at latitude-longitude.
+    Interpolate D-grid to A-grid winds at latitude-longitude coordinates.
 
     Args:
         u: x-wind on D-grid (in)

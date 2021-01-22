@@ -208,7 +208,7 @@ def post_remap(state, comm):
         )
 
 
-def wrapup(state, cube: CubedSphereCommunicator):
+def wrapup(state, comm: CubedSphereCommunicator):
     grid = spec.grid
     print("Neg Adj 3", grid.rank)
     neg_adj3.compute(
@@ -227,7 +227,7 @@ def wrapup(state, cube: CubedSphereCommunicator):
 
     print("CubedToLatLon", grid.rank)
     c2l_ord.compute_cubed_to_latlon(
-        state.u_quantity, state.v_quantity, state.ua, state.va, cube, True
+        state.u_quantity, state.v_quantity, state.ua, state.va, comm, True
     )
 
 
