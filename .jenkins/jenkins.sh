@@ -135,6 +135,18 @@ fi
 #    fi
 #fi
 
+
+# get the test data version from the Makefile                                                                     
+export FORTRAN_VERSION=`grep "FORTRAN_SERIALIZED_DATA_VERSION=" Makefile  | cut -d '=' -f 2`
+
+# Set the SCRATCH directory to the working directory if not set (e.g. for running on gce)                         
+if [ -z ${SCRATCH} ] ; then
+    export SCRATCH=`pwd`
+fi
+
+# Set the host data head directory location
+export TEST_DATA_DIR="${SCRATCH}/fv3core_fortran_data/${FORTRAN_VERSION}"
+
 # Set the host data location                                                                                      
 export TEST_DATA_HOST="${TEST_DATA_DIR}/${experiment}/"
        
@@ -147,16 +159,6 @@ if [ ${host} == "daint" ]; then
     export TEST_DATA_RUN_LOC=${TEST_DATA_HOST}
     export PYTHONPATH=/project/s1053/install/serialbox2_master/gnu/python:$PYTHONPATH
 fi
-# get the test data version from the Makefile
-export FORTRAN_VERSION=`grep "FORTRAN_SERIALIZED_DATA_VERSION=" Makefile  | cut -d '=' -f 2`
-
-# Set the SCRATCH directory to the working directory if not set (e.g. for running on gce)
-if [ -z ${SCRATCH} ] ; then
-    export SCRATCH=`pwd`
-fi
-
-# Set the host data location
-export TEST_DATA_DIR="${SCRATCH}/fv3core_fortran_data/${FORTRAN_VERSION}"
 
 G2G="false"
 export DOCKER_BUILDKIT=1
