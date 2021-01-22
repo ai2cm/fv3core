@@ -77,7 +77,7 @@ def compute_cubed_to_latlon(
     v: Quantity,
     ua: FloatField,
     va: FloatField,
-    cube: CubedSphereCommunicator,
+    comm: CubedSphereCommunicator,
     do_halo_update: bool,
 ):
     """
@@ -88,7 +88,7 @@ def compute_cubed_to_latlon(
         v: y-wind on D-grid (in)
         ua: x-wind on A-grid (out)
         va: y-wind on A-grid (out)
-        cube: Cubed-sphere communicator
+        comm: Cubed-sphere communicator
         do_halo_update: If True, performs a halo update on u and v
     """
     grid = spec.grid
@@ -114,7 +114,7 @@ def compute_cubed_to_latlon(
         )
     else:
         if do_halo_update:
-            cube.vector_halo_update(u, v, n_points=grid.halo)
+            comm.vector_halo_update(u, v, n_points=grid.halo)
         ord4_transform(
             u.storage,
             v.storage,

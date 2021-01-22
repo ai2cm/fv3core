@@ -19,7 +19,7 @@ class TranslateCubedToLatLon(ParallelTranslate2Py):
     def __init__(self, grids):
         super().__init__(grids)
         grid = grids[0]
-        self._base.compute_func = c2l_ord.compute_cubed_to_latlon
+        self._base.compute_func = self.do_compute
         self._base.in_vars["data_vars"] = {"u": {}, "v": {}, "ua": {}, "va": {}}
         self._base.out_vars = {
             "ua": {},
@@ -27,3 +27,6 @@ class TranslateCubedToLatLon(ParallelTranslate2Py):
             "u": grid.y3d_domain_dict(),
             "v": grid.x3d_domain_dict(),
         }
+
+    def do_compute(self, **kwargs):
+        c2l_ord.compute_cubed_to_latlon(**kwargs, do_halo_update=True)
