@@ -132,14 +132,12 @@ fi
 #	export RUN_FLAGS=""
 #    fi
 #fi
-if grep -q "parallel" <<< "${script}"; then                                                                                                                               
-       export BASH_PREFIX="srun"                                                                                                                                  fi 
-fi
-
+       
 if [ ${host} == "daint" ]; then
     daintenv=${SCRATCH}/vcm_env_${BUILD_TAG}
     ${root}/install_virtualenv.sh ${daintenv}
     source ${daintenv}/bin/activate
+    export BASH_PREFIX="srun"
 fi
 # get the test data version from the Makefile
 export FORTRAN_VERSION=`grep "FORTRAN_SERIALIZED_DATA_VERSION=" Makefile  | cut -d '=' -f 2`
