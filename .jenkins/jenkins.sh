@@ -115,13 +115,13 @@ fi
 module load daint-gpu
 module add "${installdir}/modulefiles/"
 module load gcloud
-echo "UPSTREAM_PROJECT: ${UPSTREAM_PROJECT}"
-echo "UPSTREAM_BUILD_NUMBER: ${UPSTREAM_BUILD_NUMBER}"
-if [ ! -z "${UPSTREAM_PROJECT}" ] ; then
-    # Set in build_for_daint jenkins plan, to mark what fv3core image to pull
-    export JENKINS_TAG="${UPSTREAM_PROJECT}-${UPSTREAM_BUILD_NUMBER}"
-    echo "Downstream project using JENKINS_TAG=${JENKINS_TAG}"
-fi
+#echo "UPSTREAM_PROJECT: ${UPSTREAM_PROJECT}"
+#echo "UPSTREAM_BUILD_NUMBER: ${UPSTREAM_BUILD_NUMBER}"
+#if [ ! -z "${UPSTREAM_PROJECT}" ] ; then
+#    # Set in build_for_daint jenkins plan, to mark what fv3core image to pull
+#    export JENKINS_TAG="${UPSTREAM_PROJECT}-${UPSTREAM_BUILD_NUMBER}"
+#    echo "Downstream project using JENKINS_TAG=${JENKINS_TAG}"
+#fi
 # If using sarus, load the image and set variables for running tests,
 # otherwise build the image
 #if [ ${container_engine} == "sarus" ]; then
@@ -152,6 +152,8 @@ export TEST_DATA_DIR="${SCRATCH}/fv3core_fortran_data/${FORTRAN_VERSION}"
 # Set the host data location                                                                                      
 export TEST_DATA_HOST="${TEST_DATA_DIR}/${experiment}/"
 export JENKINS_TAG=${JOB_NAME}-${BUILD_NUMBER}
+echo "JENKINS TAG "
+echo ${JENKINS_TAG}
 if [ ${host} == "daint" ]; then
     export daintenv=${SCRATCH}/vcm_env_${JOB_NAME}-${BUILD_NUMBER}
     if [ -d ${daintev} ]; then
