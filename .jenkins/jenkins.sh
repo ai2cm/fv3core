@@ -138,6 +138,7 @@ if [ ${host} == "daint" ]; then
     ${root}/install_virtualenv.sh ${daintenv}
     source ${daintenv}/bin/activate
     export BASH_PREFIX="srun"
+    export PYTHONPATH=/project/s1053/install/serialbox2_master/gnu/python:$PYTHONPATH
 fi
 # get the test data version from the Makefile
 export FORTRAN_VERSION=`grep "FORTRAN_SERIALIZED_DATA_VERSION=" Makefile  | cut -d '=' -f 2`
