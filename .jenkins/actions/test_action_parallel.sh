@@ -5,4 +5,4 @@ echo `pip list`
 echo `which python`
 echo "FV3_PATH"
 echo ${FV3_PATH}
-make test_venv
+make test_venv_parallel
