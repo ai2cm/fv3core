@@ -151,13 +151,17 @@ export TEST_DATA_DIR="${SCRATCH}/fv3core_fortran_data/${FORTRAN_VERSION}"
 export TEST_DATA_HOST="${TEST_DATA_DIR}/${experiment}/"
        
 if [ ${host} == "daint" ]; then
-    daintenv=${SCRATCH}/vcm_env_${BUILD_TAG}
-    ${root}/install_virtualenv.sh ${daintenv}
-    source ${daintenv}/bin/activate
-    export BASH_PREFIX="srun"
-    export FV3_PATH="${envloc}/../"
-    export TEST_DATA_RUN_LOC=${TEST_DATA_HOST}
-    export PYTHONPATH=/project/s1053/install/serialbox2_master/gnu/python:$PYTHONPATH
+    daintenv=${SCRATCH}/vcm_env_$(JOB_NAME)_${BUILD_NUMBER}
+    if [ -d ${daintev} ]; then
+	echo "Using existing virtualenv ${daintenv}"
+    else
+	${root}/install_virtualenv.sh ${daintenv}
+	source ${daintenv}/bin/activate
+	export BASH_PREFIX="srun"
+	export FV3_PATH="${envloc}/../"
+	export TEST_DATA_RUN_LOC=${TEST_DATA_HOST}
+	export PYTHONPATH=/project/s1053/install/serialbox2_master/gnu/python:$PYTHONPATH
+     fi
 fi
 
 G2G="false"
