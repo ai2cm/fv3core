@@ -10,7 +10,6 @@ from gt4py.gtscript import (
 )
 
 import fv3core._config as spec
-import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import gtstencil
 from fv3core.stencils.rayleigh_super import SDAY, compute_rf_vals
 from fv3core.utils.typing import FloatField
@@ -33,9 +32,7 @@ def ray_fast_wind(
     u: FloatField,
     v: FloatField,
     w: FloatField,
-    rf: FloatField,
     dp: FloatField,
-    dm: FloatField,
     pfull: FloatField,
     dt: float,
     ptop: float,
@@ -118,20 +115,13 @@ def ray_fast_wind(
 def compute(u, v, w, dp, pfull, dt, ptop, ks):
     grid = spec.grid
     namelist = spec.namelist
-    # The next 3 variables and dm_stencil could be pushed into ray_fast_wind and
-    # still work, but then recomputing it all twice.
     rf_cutoff_nudge = namelist.rf_cutoff + min(100.0, 10.0 * ptop)
-    shape = (u.shape[0], u.shape[1], u.shape[2] - 1)
-    dm = utils.make_storage_from_shape(shape, grid.default_origin())
-    rf = utils.make_storage_from_shape(shape, grid.default_origin())
 
     ray_fast_wind(
         u,
         v,
         w,
-        rf,
         dp,
-        dm,
         pfull,
         dt,
         ptop,
