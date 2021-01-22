@@ -132,6 +132,9 @@ fi
 #	export RUN_FLAGS=""
 #    fi
 #fi
+if grep -q "parallel" <<< "${script}"; then                                                                                                                               
+       export BASH_PREFIX="srun"                                                                                                                                  fi 
+fi
 
 if [ ${host} == "daint" ]; then
     daintenv=${SCRATCH}/vcm_env_${BUILD_TAG}

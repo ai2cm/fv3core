@@ -14,6 +14,7 @@ VOLUMES ?=
 MOUNTS ?=
 CONTAINER_ENGINE ?=docker
 RUN_FLAGS ?=--rm
+BASH_PREFIX ?=
 TEST_DATA_HOST ?=$(CWD)/test_data/$(EXPERIMENT)
 FV3UTIL_DIR=$(CWD)/external/fv3gfs-util
 
@@ -158,7 +159,7 @@ test_venv: get_test_data
 	bash -c $(PYTEST_SEQUENTIAL)
 
 test_venv_parallel: get_test_data
-	bash -c $(PYTST_PARALLEL)
+	$(BASH_PREFIX) bash -c $(PYTST_PARALLEL)
 
 test_base:
 	$(CONTAINER_ENGINE) run $(RUN_FLAGS) $(VOLUMES) $(MOUNTS) $(CUDA_FLAGS) \

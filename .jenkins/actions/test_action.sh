@@ -3,3 +3,5 @@ set -e -x
 echo "${JOB_NAME}-${BUILD_NUMBER}"
 echo `pip list`
 echo `which python`
+make test_venv
+make test_venv_parallel
