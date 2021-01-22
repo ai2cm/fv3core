@@ -151,9 +151,9 @@ export TEST_DATA_DIR="${SCRATCH}/fv3core_fortran_data/${FORTRAN_VERSION}"
 
 # Set the host data location                                                                                      
 export TEST_DATA_HOST="${TEST_DATA_DIR}/${experiment}/"
-       
+export JENKINS_TAG=${JOB_NAME}-${BUILD_NUMBER}
 if [ ${host} == "daint" ]; then
-    daintenv=${SCRATCH}/vcm_env_$(JOB_NAME)_${BUILD_NUMBER}
+    export daintenv=${SCRATCH}/vcm_env_${JOB_NAME}-${BUILD_NUMBER}
     if [ -d ${daintev} ]; then
 	echo "Using existing virtualenv ${daintenv}"
     else
@@ -168,13 +168,14 @@ fi
 
 G2G="false"
 export DOCKER_BUILDKIT=1
-# Run the jenkins command
-run_command "${script} ${backend} ${experiment} " Job${action} ${G2G} ${scheduler_script}
-
-# clean up the venv
+if [${experiment} == "setup" ]; then
+    echo "Running the touchstone setup"
+else
+    # Run the jenkins command
+    run_command "${script} ${backend} ${experiment} " Job${action} ${G2G} ${scheduler_script}
+fi
 if [ ${host} == "daint" ]; then
   deactivate
-  rm -rf ${daintenv}
 fi
 
 if [ $? -ne 0 ] ; then
