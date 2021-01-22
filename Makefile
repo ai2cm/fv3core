@@ -19,6 +19,7 @@ TEST_DATA_HOST ?=$(CWD)/test_data/$(EXPERIMENT)
 FV3UTIL_DIR=$(CWD)/external/fv3gfs-util
 
 FV3=fv3core
+FV3_PATH ?=/$(FV3)
 #ifeq ($(CONTAINER_ENGINE),sarus)
 #	FV3_IMAGE = load/library/$(SARUS_FV3CORE_IMAGE)
 #else ifeq ($(CONTAINER_ENGINE),srun sarus)
@@ -37,8 +38,8 @@ CORE_BUCKET_LOC=gs://vcm-jenkins/$(CORE_TAR)
 MPIRUN_CALL ?=mpirun -np $(NUM_RANKS)
 BASE_INSTALL?=$(FV3)-install-serialbox
 DEV_MOUNTS = '-v $(CWD)/$(FV3):/$(FV3)/$(FV3) -v $(CWD)/tests:/$(FV3)/tests -v $(FV3UTIL_DIR):/usr/src/fv3gfs-util -v $(TEST_DATA_HOST):$(TEST_DATA_CONTAINER)'
-PYTEST_SEQUENTIAL="pip list && pytest --data_path=$(TEST_DATA_CONTAINER) $(TEST_ARGS) /$(FV3)/tests"
-PYTEST_PARALLEL="pip list && $(MPIRUN_CALL) pytest --data_path=$(TEST_DATA_CONTAINER) $(TEST_ARGS) -m parallel /$(FV3)/tests"
+PYTEST_SEQUENTIAL="pip list && pytest --data_path=$(TEST_DATA_CONTAINER) $(TEST_ARGS) $(FV3_PATH)/tests"
+PYTEST_PARALLEL="pip list && $(MPIRUN_CALL) pytest --data_path=$(TEST_DATA_CONTAINER) $(TEST_ARGS) -m parallel $(FV3_PATH)/tests"
 
 clean:
 	find . -name ""
