@@ -154,18 +154,18 @@ export TEST_DATA_HOST="${TEST_DATA_DIR}/${experiment}/"
 export JENKINS_TAG=${JOB_NAME}-${BUILD_NUMBER}
 echo "JENKINS TAG "
 echo ${JENKINS_TAG}
+export daintenv=${SCRATCH}/vcm_env_${JENKINS_TAG}
 if [ ${host} == "daint" ]; then
-    export daintenv=${SCRATCH}/vcm_env_${JOB_NAME}-${BUILD_NUMBER}
     if [ -d ${daintev} ]; then
 	echo "Using existing virtualenv ${daintenv}"
     else
 	${root}/install_virtualenv.sh ${daintenv}
-	source ${daintenv}/bin/activate
-	export BASH_PREFIX="srun"
-	export FV3_PATH="${envloc}/../"
-	export TEST_DATA_RUN_LOC=${TEST_DATA_HOST}
-	export PYTHONPATH=/project/s1053/install/serialbox2_master/gnu/python:$PYTHONPATH
-     fi
+    fi
+    source ${daintenv}/bin/activate
+    export BASH_PREFIX="srun"
+    export FV3_PATH="${envloc}/../"
+    export TEST_DATA_RUN_LOC=${TEST_DATA_HOST}
+    export PYTHONPATH=/project/s1053/install/serialbox2_master/gnu/python:$PYTHONPATH
 fi
 
 G2G="false"
