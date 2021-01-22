@@ -40,8 +40,8 @@ test -n "${slave}" || exitError 1005 ${LINENO} "slave is not defined"
 
 # some global variables
 action="$1"
-optarg="$2"
-optarg2="$3"
+backend="$2"
+experiment="$3"
 # check presence of env directory
 pushd `dirname $0` > /dev/null
 envloc=`/bin/pwd`
@@ -77,13 +77,14 @@ if [ -f ${scheduler_script} ] ; then
     scheduler_script=job_${action}.sh
 fi
 
-# if this is a parallel job and the number of ranks is specified in optarg2, set NUM_RANKS
+
+# if this is a parallel job and the number of ranks is specified in the experiment argument, set NUM_RANKS
 # and update the scheduler script if there is one
 if grep -q "parallel" <<< "${script}"; then
-    if grep -q "ranks" <<< "${optarg2}"; then
-	export NUM_RANKS=`echo ${optarg2} | grep -o -E '[0-9]+ranks' | grep -o -E '[0-9]+'`
+    if grep -q "ranks" <<< "${experiment}"; then
+	export NUM_RANKS=`echo ${experiment} | grep -o -E '[0-9]+ranks' | grep -o -E '[0-9]+'`
 	echo "Setting NUM_RANKS=${NUM_RANKS}"
-	if grep -q "cuda" <<< "${optarg}" ; then
+	if grep -q "cuda" <<< "${backend}" ; then
 	    export MPICH_RDMA_ENABLED_CUDA=1
 	else
 	    export MPICH_RDMA_ENABLED_CUDA=0
@@ -97,8 +98,9 @@ if grep -q "parallel" <<< "${script}"; then
 	fi
     fi
 fi
+
 # set thresholds override file if it exists
-test_type=${optarg2##*_}
+test_type=${experiment##*_}
 OVERRIDES_FOLDER="${envloc}/../tests/translate/overrides/"
 OVERRIDES_FILE="${OVERRIDES_FOLDER}/${test_type}.yaml"
 echo "overrides file:"
@@ -132,6 +134,9 @@ fi
 #	export RUN_FLAGS=""
 #    fi
 #fi
+
+# Set the host data location                                                                                      
+export TEST_DATA_HOST="${TEST_DATA_DIR}/${experiment}/"
        
 if [ ${host} == "daint" ]; then
     daintenv=${SCRATCH}/vcm_env_${BUILD_TAG}
@@ -139,6 +144,7 @@ if [ ${host} == "daint" ]; then
     source ${daintenv}/bin/activate
     export BASH_PREFIX="srun"
     export FV3_PATH="${envloc}/../"
+    export TEST_DATA_RUN_LOC=${TEST_DATA_HOST}
     export PYTHONPATH=/project/s1053/install/serialbox2_master/gnu/python:$PYTHONPATH
 fi
 # get the test data version from the Makefile
@@ -155,7 +161,7 @@ export TEST_DATA_DIR="${SCRATCH}/fv3core_fortran_data/${FORTRAN_VERSION}"
 G2G="false"
 export DOCKER_BUILDKIT=1
 # Run the jenkins command
-run_command "${script} ${optarg} ${optarg2} " Job${action} ${G2G} ${scheduler_script}
+run_command "${script} ${backend} ${experiment} " Job${action} ${G2G} ${scheduler_script}
 
 # clean up the venv
 if [ ${host} == "daint" ]; then

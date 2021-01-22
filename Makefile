@@ -28,7 +28,7 @@ FV3_PATH ?=/$(FV3)
 #	FV3_IMAGE ?= $(FV3CORE_IMAGE)
 #endif
 
-TEST_DATA_CONTAINER=/test_data
+TEST_DATA_RUN_LOC=/test_data
 PYTHON_FILES = $(shell git ls-files | grep -e 'py$$' | grep -v -e '__init__.py')
 PYTHON_INIT_FILES = $(shell git ls-files | grep '__init__.py')
 TEST_DATA_TARFILE=dat_files.tar.gz
@@ -37,9 +37,9 @@ CORE_TAR=$(SARUS_FV3CORE_IMAGE).tar
 CORE_BUCKET_LOC=gs://vcm-jenkins/$(CORE_TAR)
 MPIRUN_CALL ?=mpirun -np $(NUM_RANKS)
 BASE_INSTALL?=$(FV3)-install-serialbox
-DEV_MOUNTS = '-v $(CWD)/$(FV3):/$(FV3)/$(FV3) -v $(CWD)/tests:/$(FV3)/tests -v $(FV3UTIL_DIR):/usr/src/fv3gfs-util -v $(TEST_DATA_HOST):$(TEST_DATA_CONTAINER)'
-PYTEST_SEQUENTIAL="pip list && pytest --data_path=$(TEST_DATA_CONTAINER) $(TEST_ARGS) $(FV3_PATH)/tests"
-PYTEST_PARALLEL="pip list && $(MPIRUN_CALL) pytest --data_path=$(TEST_DATA_CONTAINER) $(TEST_ARGS) -m parallel $(FV3_PATH)/tests"
+DEV_MOUNTS = '-v $(CWD)/$(FV3):/$(FV3)/$(FV3) -v $(CWD)/tests:/$(FV3)/tests -v $(FV3UTIL_DIR):/usr/src/fv3gfs-util -v $(TEST_DATA_HOST):$(TEST_DATA_RUN_LOC)'
+PYTEST_SEQUENTIAL="pip list && pytest --data_path=$(TEST_DATA_RUN_LOC) $(TEST_ARGS) $(FV3_PATH)/tests"
+PYTEST_PARALLEL="pip list && $(MPIRUN_CALL) pytest --data_path=$(TEST_DATA_RUN_LOC) $(TEST_ARGS) -m parallel $(FV3_PATH)/tests"
 
 clean:
 	find . -name ""
@@ -138,7 +138,7 @@ test_mpi: tests_mpi
 dev:
 	docker run --rm -it \
 		--network host \
-		-v $(TEST_DATA_HOST):$(TEST_DATA_CONTAINER) \
+		-v $(TEST_DATA_HOST):$(TEST_DATA_RUN_LOC) \
 		-v $(CWD):/port_dev \
 		$(FV3_IMAGE) bash
 
@@ -171,11 +171,11 @@ test_base_parallel:
 	bash -c $(PYTEST_PARALLEL)
 
 run_tests_sequential:
-	VOLUMES='--mount=type=bind,source=$(TEST_DATA_HOST),destination=$(TEST_DATA_CONTAINER) --mount=type=bind,source=$(CWD)/.jenkins,destination=/.jenkins' \
+	VOLUMES='--mount=type=bind,source=$(TEST_DATA_HOST),destination=$(TEST_DATA_RUN_LOC) --mount=type=bind,source=$(CWD)/.jenkins,destination=/.jenkins' \
 	$(MAKE) test_base
 
 run_tests_parallel:
-	VOLUMES='--mount=type=bind,source=$(TEST_DATA_HOST),destination=$(TEST_DATA_CONTAINER) --mount=type=bind,source=$(CWD)/.jenkins,destination=/.jenkins' \
+	VOLUMES='--mount=type=bind,source=$(TEST_DATA_HOST),destination=$(TEST_DATA_RUN_LOC) --mount=type=bind,source=$(CWD)/.jenkins,destination=/.jenkins' \
 	$(MAKE) test_base_parallel
 
 sync_test_data:
