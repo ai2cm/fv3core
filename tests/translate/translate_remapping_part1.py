@@ -1,6 +1,5 @@
 import fv3core.stencils.remapping_part1 as remap_part1
-
-from .translate import TranslateFortranData2Py
+from fv3core.testing import TranslateFortranData2Py
 
 
 class TranslateRemapping_Part1(TranslateFortranData2Py):
@@ -85,4 +84,3 @@ class TranslateRemapping_Part1(TranslateFortranData2Py):
         self.out_vars["wsd"]["kend"] = grid.npz - 1
         self.out_vars["ps"] = {"kstart": grid.npz - 1, "kend": grid.npz - 1}
         self.max_error = 1e-10
-        self.ignore_near_zero_errors = {"q_con": True, "qtracers": True}

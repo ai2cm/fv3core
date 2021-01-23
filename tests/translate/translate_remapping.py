@@ -1,6 +1,5 @@
 import fv3core.stencils.remapping as remapping
-
-from .translate import TranslateFortranData2Py
+from fv3core.testing import TranslateFortranData2Py
 
 
 class TranslateRemapping(TranslateFortranData2Py):
@@ -103,5 +102,4 @@ class TranslateRemapping(TranslateFortranData2Py):
         ]:
             self.out_vars[k] = self.in_vars["data_vars"][k]
         self.out_vars["ps"] = {"kstart": grid.npz, "kend": grid.npz}
-        self.max_error = 1e-8
-        self.ignore_near_zero_errors = {"q_con": True, "tracers": True}
+        self.max_error = 2e-8
