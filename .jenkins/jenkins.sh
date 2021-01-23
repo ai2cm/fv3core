@@ -156,7 +156,7 @@ echo "JENKINS TAG "
 echo ${JENKINS_TAG}
 export daintenv=${SCRATCH}/vcm_env_${JENKINS_TAG}
 if [ ${host} == "daint" ]; then
-    if [ -d ${daintev} ]; then
+    if [ -d ${daintenv} ]; then
 	echo "Using existing virtualenv ${daintenv}"
     else
 	${root}/install_virtualenv.sh ${daintenv}
