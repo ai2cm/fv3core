@@ -152,9 +152,7 @@ export TEST_DATA_DIR="${SCRATCH}/fv3core_fortran_data/${FORTRAN_VERSION}"
 # Set the host data location
 echo "WHY DOES THIS NOT WORK ${JOB_NAME} ${JOB_BASE_NAME}"
 export TEST_DATA_HOST="${TEST_DATA_DIR}/${experiment}/"
-if [ -z ${VIRTUALENV} ]; then
 
-fi
 export JENKINS_TAG=`dirname ${JOB_NAME}`-${BUILD_NUMBER}
 echo "JENKINS TAG ${JENKINS_TAG}"
 if [ ${host} == "daint" ]; then
@@ -164,7 +162,6 @@ if [ ${host} == "daint" ]; then
 	    source ${VIRTUALNV}/bin/activate
 	else
 	    echo "virtualenv is not setup yet"
-	    exit 1
 	fi
     fi
     #export BASH_PREFIX="srun"
