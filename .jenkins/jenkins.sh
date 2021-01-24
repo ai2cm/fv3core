@@ -153,7 +153,7 @@ export TEST_DATA_DIR="${SCRATCH}/fv3core_fortran_data/${FORTRAN_VERSION}"
 echo "WHY DOES THIS NOT WORK ${JOB_NAME} ${JOB_BASE_NAME}"
 export TEST_DATA_HOST="${TEST_DATA_DIR}/${experiment}/"
 
-export JENKINS_TAG=`dirname ${JOB_NAME}`-${BUILD_NUMBER}
+export JENKINS_TAG=${JOB_NAME}-${BUILD_NUMBER}
 echo "JENKINS TAG ${JENKINS_TAG}"
 if [ ${host} == "daint" ]; then
     if [ ! -z ${VIRTUALENV} ]; then
