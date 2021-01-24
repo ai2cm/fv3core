@@ -158,7 +158,7 @@ export JENKINS_TAG=${JOB_NAME}-${BUILD_NUMBER}
 echo "JENKINS TAG ${JENKINS_TAG}"
 if [ -z ${VIRTUALENV} ]; then
     echo "setting VIRTUALENV"
-    export VIRTUALENV=${SCRATCH}/vcm_env_${JENKINS_TAG}
+    export VIRTUALENV=${WORKSPACE}/vcm_env_${JENKINS_TAG}
 fi
 
 if [ ${host} == "daint" ]; then
