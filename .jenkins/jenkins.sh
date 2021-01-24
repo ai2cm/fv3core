@@ -158,12 +158,11 @@ export daintenv=${SCRATCH}/vcm_env_${JENKINS_TAG}
 if [ ${host} == "daint" ]; then
     if [ -d ${daintenv} ]; then
 	echo "Using existing virtualenv ${daintenv}"
+	source ${daintenv}/bin/activate
     else
-	echo "ERROR virtualenv is not setup yet"
-	exit 1
+	echo "virtualenv is not setup yet"
 	#${root}/install_virtualenv.sh ${daintenv}
     fi
-    source ${daintenv}/bin/activate
     #export BASH_PREFIX="srun"
     if grep -q "parallel" <<< "${script}"; then                                                                   
 	export MPIRUN_CALL="srun"
