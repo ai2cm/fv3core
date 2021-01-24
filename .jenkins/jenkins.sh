@@ -55,7 +55,7 @@ test -f ${envloc}/env/machineEnvironment.sh || exitError 1201 ${LINENO} "cannot 
 . ${envloc}/env/machineEnvironment.sh
 
 # get root directory of where jenkins.sh is sitting
-root=`dirname $0`
+export root=`dirname $0`
 
 # load machine dependent environment
 if [ ! -f ${envloc}/env/env.${host}.sh ] ; then
