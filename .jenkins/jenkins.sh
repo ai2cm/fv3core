@@ -156,6 +156,11 @@ export TEST_DATA_HOST="${TEST_DATA_DIR}/${experiment}/"
 
 export JENKINS_TAG=${JOB_NAME}-${BUILD_NUMBER}
 echo "JENKINS TAG ${JENKINS_TAG}"
+if [ -z ${VIRTUALENV} ]; then
+    echo "setting VIRTUALENV"
+    export VIRTUALENV=${SCRATCH}/vcm_env_${JENKINS_TAG}
+fi
+
 if [ ${host} == "daint" ]; then
     if [ ! -z ${VIRTUALENV} ]; then
 	if [ -d ${VIRTUALENV} ]; then
