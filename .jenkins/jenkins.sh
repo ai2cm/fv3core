@@ -74,13 +74,12 @@ scheduler_script="`dirname $0`/env/submit.${host}.${scheduler}"
 # if there is a scheduler script, make a copy for this job
 if [ -f ${scheduler_script} ] ; then
     if [ "${action}" == "setup_virtualenv" ]; then
-	scheduler_script="none"
+	scheduler="none"
     else
 	cp  ${scheduler_script} job_${action}.sh
 	scheduler_script=job_${action}.sh
     fi
 fi
-echo "ACTION ${action}, ${scheduler_script}"
 
 # if this is a parallel job and the number of ranks is specified in the experiment argument, set NUM_RANKS
 # and update the scheduler script if there is one
