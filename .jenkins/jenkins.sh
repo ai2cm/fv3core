@@ -151,7 +151,7 @@ export TEST_DATA_DIR="${SCRATCH}/fv3core_fortran_data/${FORTRAN_VERSION}"
 
 # Set the host data location                                                                                      
 export TEST_DATA_HOST="${TEST_DATA_DIR}/${experiment}/"
-export JENKINS_TAG=${JOB_NAME}-${BUILD_NUMBER}
+export JENKINS_TAG=${JOB_BASE_NAME}-${BUILD_NUMBER}
 echo "JENKINS TAG "
 echo ${JENKINS_TAG}
 export daintenv=${SCRATCH}/vcm_env_${JENKINS_TAG}
@@ -159,10 +159,15 @@ if [ ${host} == "daint" ]; then
     if [ -d ${daintenv} ]; then
 	echo "Using existing virtualenv ${daintenv}"
     else
-	${root}/install_virtualenv.sh ${daintenv}
+	echo "ERROR virtualenv is not setup yet"
+	exit 1
+	#${root}/install_virtualenv.sh ${daintenv}
     fi
     source ${daintenv}/bin/activate
-    export BASH_PREFIX="srun"
+    #export BASH_PREFIX="srun"
+    if grep -q "parallel" <<< "${script}"; then                                                                   
+	export MPIRUN_CALL="srun"
+    fi                        
     export FV3_PATH="${envloc}/../"
     export TEST_DATA_RUN_LOC=${TEST_DATA_HOST}
     export PYTHONPATH=/project/s1053/install/serialbox2_master/gnu/python:$PYTHONPATH
