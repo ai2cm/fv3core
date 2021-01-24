@@ -149,9 +149,10 @@ fi
 # Set the host data head directory location
 export TEST_DATA_DIR="${SCRATCH}/fv3core_fortran_data/${FORTRAN_VERSION}"
 
-# Set the host data location                                                                                      
+# Set the host data location
+echo "WHY DOES THIS NOT WORK ${JOB_NAME} ${JOB_BASE_NAME}"
 export TEST_DATA_HOST="${TEST_DATA_DIR}/${experiment}/"
-export JENKINS_TAG=${JOB_BASE_NAME}-${BUILD_NUMBER}
+export JENKINS_TAG=`dirname ${JOB_NAME}`-${BUILD_NUMBER}
 echo "JENKINS TAG "
 echo ${JENKINS_TAG}
 export daintenv=${SCRATCH}/vcm_env_${JENKINS_TAG}
