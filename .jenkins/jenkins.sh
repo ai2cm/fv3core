@@ -165,7 +165,7 @@ if [ ${host} == "daint" ]; then
     if [ ! -z ${VIRTUALENV} ]; then
 	if [ -d ${VIRTUALENV} ]; then
 	    echo "Using existing virtualenv ${VIRTUALENV}"
-	    source ${VIRTUALNV}/bin/activate
+	    source ${VIRTUALENV}/bin/activate
 	else
 	    echo "virtualenv is not setup yet"
 	fi
