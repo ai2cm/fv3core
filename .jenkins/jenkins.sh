@@ -73,8 +73,12 @@ scheduler_script="`dirname $0`/env/submit.${host}.${scheduler}"
 
 # if there is a scheduler script, make a copy for this job
 if [ -f ${scheduler_script} ] ; then
-    cp  ${scheduler_script} job_${action}.sh
-    scheduler_script=job_${action}.sh
+    if [ ${action} == "setup_virtualenv" ]; then
+	scheduler_script="none"
+    else
+	cp  ${scheduler_script} job_${action}.sh
+	scheduler_script=job_${action}.sh
+    fi
 fi
 
 
@@ -98,9 +102,7 @@ if grep -q "parallel" <<< "${script}"; then
 	fi
     fi
 fi
-if [ -f ${scheduler_script} ] ; then
- sed -i 's|45|60|g' ${scheduler_script}
-fi
+
 # set thresholds override file if it exists
 test_type=${experiment##*_}
 OVERRIDES_FOLDER="${envloc}/../tests/translate/overrides/"
