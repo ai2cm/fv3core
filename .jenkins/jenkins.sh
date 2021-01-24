@@ -175,15 +175,15 @@ fi
 
 G2G="false"
 export DOCKER_BUILDKIT=1
-if [${experiment} == "setup" ]; then
-    echo "Running the touchstone setup"
-else
-    # Run the jenkins command
+#if [ ${experiment} == "setup" ]; then
+#    echo "Running the touchstone setup"
+#else
+#    # Run the jenkins command
     run_command "${script} ${backend} ${experiment} " Job${action} ${G2G} ${scheduler_script}
-fi
-if [ ${host} == "daint" ]; then
-  deactivate
-fi
+#fi
+#if [ ${host} == "daint" ]; then
+#  deactivate
+#fi
 
 if [ $? -ne 0 ] ; then
   exitError 1510 ${LINENO} "problem while executing script ${script}"
