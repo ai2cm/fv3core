@@ -2,7 +2,7 @@
 set -e -x
 
 if [ ${host} == "daint" ]; then
-  rm -rf ${daintenv}
+  rm -rf ${VIRTUALENV}
 else
   make cleanup_remote
 fi

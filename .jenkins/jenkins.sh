@@ -152,17 +152,20 @@ export TEST_DATA_DIR="${SCRATCH}/fv3core_fortran_data/${FORTRAN_VERSION}"
 # Set the host data location
 echo "WHY DOES THIS NOT WORK ${JOB_NAME} ${JOB_BASE_NAME}"
 export TEST_DATA_HOST="${TEST_DATA_DIR}/${experiment}/"
+if [ -z ${VIRTUALENV} ]; then
+
+fi
 export JENKINS_TAG=`dirname ${JOB_NAME}`-${BUILD_NUMBER}
-echo "JENKINS TAG "
-echo ${JENKINS_TAG}
-export daintenv=${SCRATCH}/vcm_env_${JENKINS_TAG}
+echo "JENKINS TAG ${JENKINS_TAG}"
 if [ ${host} == "daint" ]; then
-    if [ -d ${daintenv} ]; then
-	echo "Using existing virtualenv ${daintenv}"
-	source ${daintenv}/bin/activate
-    else
-	echo "virtualenv is not setup yet"
-	#${root}/install_virtualenv.sh ${daintenv}
+    if [ ! -z ${VIRTUALENV} ]; then
+	if [ -d ${VIRTUALENV} ]; then
+	    echo "Using existing virtualenv ${VIRTUALENV}"
+	    source ${VIRTUALNV}/bin/activate
+	else
+	    echo "virtualenv is not setup yet"
+	    exit 1
+	fi
     fi
     #export BASH_PREFIX="srun"
     if grep -q "parallel" <<< "${script}"; then                                                                   
