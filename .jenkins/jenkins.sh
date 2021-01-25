@@ -111,7 +111,12 @@ echo ${OVERRIDES_FILE}
 if test -f "${OVERRIDES_FILE}"; then
     echo "OVERRIDE"
     export MOUNTS=" --mount=type=bind,source=${OVERRIDES_FOLDER},destination=/thresholds"
-    export THRESH_ARGS="--threshold_overrides_file=/thresholds/${test_type}.yaml"
+    if [ ${host} == "daint" ]; then
+	threshold_folder=${OVERRIDES_FOLDER}
+    else
+	threshold_folder="/thresholds"
+    fi
+    export THRESH_ARGS="--threshold_overrides_file=${threshold_folder}/${test_type}.yaml"
 fi
 module load daint-gpu
 module add "${installdir}/modulefiles/"
