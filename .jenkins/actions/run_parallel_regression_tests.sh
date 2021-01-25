@@ -7,8 +7,8 @@ export TEST_ARGS="-v -s -rsx --which_modules=CubedToLatLon --backend=${BACKEND} 
 # sync the test data
 make get_test_data
 
-if [ "${IN_DOCKER}" == "True" ]; then
-    make run_tests_parallel
-else
+if [ ${host} == "daint" ]; then
     make test_venv_parallel
+else
+    make run_tests_parallel
 fi
