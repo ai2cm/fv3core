@@ -64,4 +64,15 @@ if __name__ == "__main__":
         plt.ylabel("Execution time")
         plt.legend()
         plt.title(plottype)
+        plt.figtext(
+            0.5,
+            0.01,
+            "data: "
+            + alldata[0]["setup"]["data set"]
+            + "  timesteps:"
+            + str(alldata[0]["setup"]["timesteps"]),
+            wrap=True,
+            horizontalalignment="center",
+            fontsize=12,
+        )
         plt.savefig("history" + plottype + ".png")
