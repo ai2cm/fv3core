@@ -10,5 +10,5 @@ make get_test_data
 if [ ${host} == "daint" ]; then
     make test_venv_parallel
 else
-    make run_tests_parallel
+    make tests_mpi
 fi

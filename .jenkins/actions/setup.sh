@@ -7,9 +7,4 @@ if [ ${host} == "daint" ]; then
     else
         ${root}/install_virtualenv.sh ${VIRTUALENV}
     fi
-else
-    export DOCKER_BUILDKIT=1
-    make pull_environment
-    make build
-    make push_core
 fi

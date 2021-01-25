@@ -12,5 +12,5 @@ if [ ${host} == "daint" ]; then
      BASH_PREFIX="srun" make test_venv
 else
     export TEST_ARGS="${TEST_ARGS} --junitxml=/.jenkins/${XML_REPORT}"
-    make run_tests_sequential
+    make tests
 fi
