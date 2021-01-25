@@ -5,4 +5,5 @@ echo `pip list`
 echo `which python`
 echo "FV3_PATH"
 echo ${FV3_PATH}
-make test_venv
+ARGS="-v -s -rsx --backend=${BACKEND} --which_modules=XPPM"
+BASH_PREFIX="srun" TEST_ARGS="${ARGS}" make test_venv

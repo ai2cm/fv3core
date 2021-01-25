@@ -5,4 +5,5 @@ echo `pip list`
 echo `which python`
 echo "FV3_PATH"
 echo ${FV3_PATH}
-make test_venv_parallel
+ARGS="-v -s -rsx --backend=${BACKEND} --which_modules=CubedToLatLon"
+TEST_ARGS="${ARGS}" make test_venv_parallel
