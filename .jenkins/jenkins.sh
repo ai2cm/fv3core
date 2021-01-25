@@ -73,7 +73,7 @@ scheduler_script="`dirname $0`/env/submit.${host}.${scheduler}"
 
 # if there is a scheduler script, make a copy for this job
 if [ -f ${scheduler_script} ] ; then
-    if [ "${action}" == "setup_virtualenv" ]; then
+    if [ "${action}" == "setup" ]; then
 	scheduler="none"
     else
 	cp  ${scheduler_script} job_${action}.sh
