@@ -1,5 +1,7 @@
 #!/bin/bash
 set -e -x
+BACKEND=$1
+EXPNAME=$2
 echo "${JOB_NAME}-${BUILD_NUMBER}"
 echo `pip list`
 echo `which python`
