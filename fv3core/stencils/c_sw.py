@@ -18,22 +18,6 @@ sd = utils.sd
 
 
 @gtstencil()
-def geoadjust_ut(ut: sd, dy: sd, sin_sg3: sd, sin_sg1: sd, dt2: float):
-    with computation(PARALLEL), interval(...):
-        ut[0, 0, 0] = (
-            dt2 * ut * dy * sin_sg3[-1, 0, 0] if ut > 0 else dt2 * ut * dy * sin_sg1
-        )
-
-
-@gtstencil()
-def geoadjust_vt(vt: sd, dx: sd, sin_sg4: sd, sin_sg2: sd, dt2: float):
-    with computation(PARALLEL), interval(...):
-        vt[0, 0, 0] = (
-            dt2 * vt * dx * sin_sg4[0, -1, 0] if vt > 0 else dt2 * vt * dx * sin_sg2
-        )
-
-
-@gtstencil()
 def absolute_vorticity(vort: sd, fC: sd, rarea_c: sd):
     with computation(PARALLEL), interval(...):
         vort[0, 0, 0] = fC + rarea_c * vort
@@ -69,6 +53,8 @@ def transportdelp(delp: sd, pt: sd, utc: sd, vtc: sd, w: sd, rarea: sd):
         vtc: y-velocity on C-grid (input)
         w: z-velocity on C-grid (input)
         rarea: Inverse areas (input) -- IJ field
+
+    Returns:
         delpc: Updated delp (output)
         ptc: Updated pt (output)
         wc: Updated w (output)
@@ -133,6 +119,8 @@ def divergence_corner(
         cos_sg3: grid cos(sg3) (input)
         cos_sg4: grid cos(sg4) (input)
         rarea_c: inverse cell areas on c-grid (input)
+
+    Returns:
         divg_d: divergence on d-grid (output)
     """
     from __externals__ import i_end, i_start, j_end, j_start, namelist
@@ -163,6 +151,9 @@ def divergence_corner(
             divg_d += vf
         divg_d *= rarea_c
 
+    else:
+        divg_d = 0.0
+
     return divg_d
 
 
@@ -174,6 +165,8 @@ def circulation_cgrid(uc: sd, vc: sd, dxc: sd, dyc: sd):
         vc: y-velocity on C-grid (input)
         dxc: grid spacing in x-dir (input)
         dyc: grid spacing in y-dir (input)
+
+    Returns:
         vort_c: C-grid vorticity (output)
     """
     from __externals__ import i_end, i_start, j_end, j_start
@@ -295,31 +288,32 @@ def vorticitytransport_cgrid(
         u: x-velocity on D-grid (input)
         dt2: timestep (input)
     """
-    grid = spec.grid
-    update_meridional_velocity(
-        vort_c,
-        ke_c,
-        u,
-        vc,
-        grid.cosa_v,
-        grid.sina_v,
-        grid.rdyc,
-        dt2,
-        origin=grid.compute_origin(),
-        domain=grid.domain_shape_compute_buffer_2d(add=(0, 1, 0)),
-    )
-    update_zonal_velocity(
-        vort_c,
-        ke_c,
-        v,
-        uc,
-        grid.cosa_u,
-        grid.sina_u,
-        grid.rdxc,
-        dt2,
-        origin=grid.compute_origin(),
-        domain=grid.domain_shape_compute_buffer_2d(add=(1, 0, 0)),
-    )
+    pass
+    # grid = spec.grid
+    # update_meridional_velocity(
+    #     vort_c,
+    #     ke_c,
+    #     u,
+    #     vc,
+    #     grid.cosa_v,
+    #     grid.sina_v,
+    #     grid.rdyc,
+    #     dt2,
+    #     origin=grid.compute_origin(),
+    #     domain=grid.domain_shape_compute_buffer_2d(add=(0, 1, 0)),
+    # )
+    # update_zonal_velocity(
+    #     vort_c,
+    #     ke_c,
+    #     v,
+    #     uc,
+    #     grid.cosa_u,
+    #     grid.sina_u,
+    #     grid.rdxc,
+    #     dt2,
+    #     origin=grid.compute_origin(),
+    #     domain=grid.domain_shape_compute_buffer_2d(add=(1, 0, 0)),
+    # )
 
 
 @gtstencil(externals={"HALO": 3})
@@ -365,6 +359,7 @@ def csw_stencil(
     vc: sd,
     vt: sd,
     w: sd,
+    omga: sd,
     dt2: float,
 ):
 
@@ -414,7 +409,6 @@ def csw_stencil(
 
         vt = dt2 * vt * dx * sin_sg4[0, -1, 0] if vt > 0 else dt2 * vt * dx * sin_sg2
 
-        # omga is returned but unused
         delpc, ptc, omga = transportdelp(delp, pt, ut, vt, w, rarea)
 
         ke, vort = update_vorticity_and_kinetic_energy(
@@ -462,6 +456,9 @@ def compute(delp, pt, u, v, w, uc, vc, ua, va, ut, vt, divgd, omga, dt2):
     csw_stencil(
         delpc,
         ptc,
+        delp,
+        pt,
+        divgd,
         grid.cosa_s,
         grid.cosa_u,
         grid.cosa_v,
@@ -498,8 +495,10 @@ def compute(delp, pt, u, v, w, uc, vc, ua, va, ut, vt, divgd, omga, dt2):
         vc,
         vt,
         w,
+        omga,
         dt2,
-        origin=grid.compute_origin(add=(-1, -1, 0)),
-        domain=grid.domain_shape_compute(add=(2, 2, 0)),
+        origin=grid.compute_origin(add=(0, 0, 0)),
+        domain=grid.domain_shape_compute(add=(1, 1, 0)),
     )
+
     return delpc, ptc
