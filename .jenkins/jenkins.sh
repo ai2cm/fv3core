@@ -162,13 +162,11 @@ if [ -z ${VIRTUALENV} ]; then
 fi
 
 if [ ${host} == "daint" ]; then
-    if [ ! -z ${VIRTUALENV} ]; then
-	if [ -d ${VIRTUALENV} ]; then
-	    echo "Using existing virtualenv ${VIRTUALENV}"
-	    source ${VIRTUALENV}/bin/activate
-	else
-	    echo "virtualenv is not setup yet"
-	fi
+    if [ -d ${VIRTUALENV} ]; then
+	echo "Using existing virtualenv ${VIRTUALENV}"
+	source ${VIRTUALENV}/bin/activate
+    else
+	echo "virtualenv is not setup yet"
     fi
     #export BASH_PREFIX="srun"
     if grep -q "parallel" <<< "${script}"; then                                                                   
