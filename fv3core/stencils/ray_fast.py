@@ -40,7 +40,7 @@ def ray_fast_wind(
     ks: int,
     hydrostatic: bool,
 ):
-    from __externals__ import i_end, j_end, namelist
+    from __externals__ import local_ie, local_je, namelist
 
     # dm_stencil
     with computation(PARALLEL), interval(...):
@@ -64,14 +64,14 @@ def ray_fast_wind(
     # ray_fast_wind(u)
     with computation(FORWARD):
         with interval(0, 1):
-            with horizontal(region[: i_end + 1, :]):
+            with horizontal(region[: local_ie + 1, :]):
                 if pfull < namelist.rf_cutoff:
                     dmdir = dm_layer(rf, dp, u)
                     u *= rf
                 else:
                     dm = 0
         with interval(1, None):
-            with horizontal(region[: i_end + 1, :]):
+            with horizontal(region[: local_ie + 1, :]):
                 dmdir = dmdir[0, 0, -1]
                 if pfull < namelist.rf_cutoff:
                     dmdir += dm_layer(rf, dp, u)
@@ -80,20 +80,20 @@ def ray_fast_wind(
         if pfull < namelist.rf_cutoff:
             dmdir = dmdir[0, 0, 1]
     with computation(PARALLEL), interval(...):
-        with horizontal(region[: i_end + 1, :]):
+        with horizontal(region[: local_ie + 1, :]):
             if pfull < rf_cutoff_nudge:  # TODO and axes(k) < ks:
                 u += dmdir / dm
     # ray_fast_wind(v)
     with computation(FORWARD):
         with interval(0, 1):
-            with horizontal(region[:, : j_end + 1]):
+            with horizontal(region[:, : local_je + 1]):
                 if pfull < namelist.rf_cutoff:
                     dmdir = dm_layer(rf, dp, v)
                     v *= rf
                 else:
                     dm = 0
         with interval(1, None):
-            with horizontal(region[:, : j_end + 1]):
+            with horizontal(region[:, : local_je + 1]):
                 dmdir = dmdir[0, 0, -1]
                 if pfull < namelist.rf_cutoff:
                     dmdir += dm_layer(rf, dp, v)
@@ -102,12 +102,12 @@ def ray_fast_wind(
         if pfull < namelist.rf_cutoff:
             dmdir = dmdir[0, 0, 1]
     with computation(PARALLEL), interval(...):
-        with horizontal(region[:, : j_end + 1]):
+        with horizontal(region[:, : local_je + 1]):
             if pfull < rf_cutoff_nudge:  # TODO and axes(k) < ks:
                 v += dmdir / dm
     # ray_fast_w
     with computation(PARALLEL), interval(...):
-        with horizontal(region[: i_end + 1, : j_end + 1]):
+        with horizontal(region[: local_ie + 1, : local_je + 1]):
             if not hydrostatic and pfull < namelist.rf_cutoff:
                 w *= rf
 
