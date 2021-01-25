@@ -512,7 +512,7 @@ def compute(delp, pt, u, v, w, uc, vc, ua, va, ut, vt, divgd, omga, dt2):
         omga,
         dt2,
         origin=grid.compute_origin(add=(-1, -1, 0)),
-        domain=grid.domain_shape_compute(add=(3, 3, 0)),
+        domain=grid.domain_shape_compute(add=(2, 2, 0)),
     )
 
     return delpc, ptc
