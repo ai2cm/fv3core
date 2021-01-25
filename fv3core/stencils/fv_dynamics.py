@@ -13,7 +13,7 @@ import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import ArgSpec, gtstencil, state_inputs
 from fv3core.stencils.basic_operations import copy_stencil
 from fv3core.stencils.c2l_ord import compute_cubed_to_latlon
-
+from fv3gfs.util import Timer
 
 sd = utils.sd
 
@@ -159,7 +159,7 @@ def compute_preamble(state, comm):
         )
 
 
-def do_dyn(state, comm):
+def do_dyn(state, comm, timer=None):
     grid = spec.grid
     copy_stencil(
         state.delp,
@@ -168,10 +168,19 @@ def do_dyn(state, comm):
         domain=grid.domain_shape_standard(),
     )
     print("DynCore", grid.rank)
+    if timer is not None:
+        #start dyn timer
+        timer.start("Dynamics")
     dyn_core.compute(state, comm)
+    if timer is not None:
+        #pause dyn timer
+        timer.stop("Dynamics")
     if not spec.namelist.inline_q and state.nq != 0:
         if spec.namelist.z_tracer:
             print("Tracer2D1L", grid.rank)
+            if timer is not none:
+                #start tracer timer
+                timer.start("Tracer advection")
             tracer_2d_1l.compute(
                 comm,
                 state.tracers,
@@ -183,6 +192,9 @@ def do_dyn(state, comm):
                 state.mdt,
                 state.nq,
             )
+            if timer:
+                #pause tracer timer
+                timer.stop("Tracer advection")
         else:
             raise Exception("tracer_2d no =t implemented, turn on z_tracer")
 
@@ -289,7 +301,7 @@ def set_constants(state):
         "diss_estd", "dissipation_estimate_from_heat_source", "unknown", intent="inout"
     ),
 )
-def fv_dynamics(state, comm, consv_te, do_adiabatic_init, timestep, ptop, n_split, ks):
+def fv_dynamics(state, comm, consv_te, do_adiabatic_init, timestep, ptop, n_split, ks, timer=None):
     state.__dict__.update(
         {
             "consv_te": consv_te,
@@ -300,10 +312,10 @@ def fv_dynamics(state, comm, consv_te, do_adiabatic_init, timestep, ptop, n_spli
             "ks": ks,
         }
     )
-    compute(state, comm)
+    compute(state, comm, timer)
 
 
-def compute(state, comm):
+def compute(state, comm, timer=None):
     grid = spec.grid
     state.__dict__.update(fvdyn_temporaries(state.u.shape))
     set_constants(state)
@@ -317,12 +329,15 @@ def compute(state, comm):
         state.n_map = n_map + 1
         if n_map == k_split - 1:
             last_step = True
-        do_dyn(state, comm)
+        do_dyn(state, comm, timer)
         if grid.npz > 4:
             kord_tracer = [spec.namelist.kord_tr] * state.nq
             kord_tracer[6] = 9
             # do_omega = spec.namelist.hydrostatic and last_step
             print("Remapping", grid.rank)
+            if timer is not None:
+                #start remap timer
+                timer.start("Remapping")
             lagrangian_to_eulerian.compute(
                 state.tracers,
                 state.pt,
@@ -359,6 +374,9 @@ def compute(state, comm):
                 state.do_adiabatic_init,
                 state.nq,
             )
+            if timer is not None:
+                #stop remapping timer
+                timer.stop("Remapping")
             if last_step:
                 post_remap(state, comm)
     wrapup(state, comm)
