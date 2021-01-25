@@ -16,6 +16,3 @@ Additionally, if this PR contains code authored by new contributors:
 
 - [ ] The names of all the new contributors have been added to an updated
 version of the CONTRIBUTORS file included in the PR
- 
-
-
