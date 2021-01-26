@@ -1,4 +1,4 @@
-examples/standalone/benchmarks/plotting.pyimport json
+import json
 import os
 from argparse import ArgumentParser
 from datetime import datetime
