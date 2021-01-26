@@ -123,7 +123,7 @@ if test -f "${OVERRIDES_FILE}"; then
 fi
 export PROF_FOLDER="${envloc}/../prof"
 `mkdir -p ${PROF_FOLDER}`
-export MOUNTS=" --mount=type=bind,source=${PROF_FOLDER},destination=/prof"
+export MOUNTS="#{MOUNTS} --mount=type=bind,source=${PROF_FOLDER},destination=/prof"
 module load daint-gpu
 module add "${installdir}/modulefiles/"
 module load gcloud
