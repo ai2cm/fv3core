@@ -113,7 +113,7 @@ echo ${OVERRIDES_FILE}
 if test -f "${OVERRIDES_FILE}"; then
     echo "OVERRIDE"
     export MOUNTS=" --mount=type=bind,source=${OVERRIDES_FOLDER},destination=/thresholds"
-    if [ ${host} == "daint" ]; then
+    if [ ${python_env} == "virtualenv" ]; then
 	threshold_folder=${OVERRIDES_FOLDER}
     else
 	threshold_folder="/thresholds"
@@ -146,7 +146,7 @@ if [ -z ${VIRTUALENV} ]; then
     export VIRTUALENV=${WORKSPACE}/vcm_env_${JENKINS_TAG}
 fi
 
-if [ ${host} == "daint" ]; then
+if [ ${python_env} == "virtualenv" ]; then
     if [ -d ${VIRTUALENV} ]; then
 	echo "Using existing virtualenv ${VIRTUALENV}"
 	source ${VIRTUALENV}/bin/activate

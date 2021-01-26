@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e -x
 
-if [ ${host} == "daint" ]; then
+if [ ${python_env} == "virtualenv" ]; then
     if [ -d ${VIRTUALENV} ]; then
         echo "Using existing virtualenv ${VIRTUALENV}"
     else

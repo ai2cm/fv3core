@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e -x
 
-if [ ${host} == "daint" ]; then
+if [ ${python_env} == "virtualenv" ]; then
   rm -rf ${VIRTUALENV}
 else
   make cleanup_remote

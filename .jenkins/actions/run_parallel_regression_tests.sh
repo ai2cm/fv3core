@@ -7,8 +7,8 @@ export TEST_ARGS="-v -s -rsx --backend=${BACKEND} ${THRESH_ARGS}"
 # sync the test data
 make get_test_data
 
-if [ ${host} == "daint" ]; then
-    make test_venv_parallel
+if [ ${python_env} == "virtualenv" ]; then
+    make tests_venv_mpi
 else
     make tests_mpi
 fi

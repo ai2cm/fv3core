@@ -149,10 +149,10 @@ dev_test_mpi: dev_tests_mpi
 dev_tests_mpi_host:
 	MOUNTS=$(DEV_MOUNTS) $(MAKE) run_tests_parallel_host
 
-test_venv: get_test_data
+tests_venv:
 	$(BASH_PREFIX) bash -c $(PYTEST_SEQUENTIAL)
 
-test_venv_parallel: get_test_data
+tests_venv_mpi:
 	$(BASH_PREFIX) bash -c $(PYTEST_PARALLEL)
 
 test_base:
