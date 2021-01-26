@@ -63,6 +63,8 @@ def thresholds_from_file(config):
     thresholds_file = config.getoption("threshold_overrides_file")
     if thresholds_file is None:
         return None
+    if not os.path.exists(thresholds_file):
+        return None
     return yaml.safe_load(open(thresholds_file, "r"))
 
 
