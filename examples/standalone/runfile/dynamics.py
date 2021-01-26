@@ -138,6 +138,10 @@ if __name__ == "__main__":
     total_times = comm.gather(total_time, root=0)
     if comm.Get_rank() == 0:
         write_to_json(
-            time_step, backend, experiment_name, init_times, total_times, main_loop_times
+            time_step,
+            backend,
+            experiment_name,
+            init_times,
+            total_times,
+            main_loop_times,
         )
-
