@@ -177,10 +177,6 @@ class TranslateFVSubgridZ(ParallelTranslateBaseSlicing):
         return outputs
 
     def compute_sequential(self, inputs_list, communicator_list):
-        outputs_list = []
-        for inputs, communicator, grid_rank in zip(
-            inputs_list, communicator_list, spec.grid
-        ):
-            spec.set_grid(grid_rank)
-            outputs_list.append(self.compute_parallel(inputs, communicator))
-        return outputs_list
+        pytest.skip(
+            f"{self.__class__} not running in mock-parallel"
+        )
