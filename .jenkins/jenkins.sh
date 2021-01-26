@@ -120,6 +120,8 @@ if test -f "${OVERRIDES_FILE}"; then
     fi
     export THRESH_ARGS="--threshold_overrides_file=${threshold_folder}/${test_type}.yaml"
 fi
+export PROF_FOLDER="${envloc}/prof"
+export MOUNTS=" --mount=type=bind,source=${PROF_FOLDER},destination=/prof"
 module load daint-gpu
 module add "${installdir}/modulefiles/"
 module load gcloud
