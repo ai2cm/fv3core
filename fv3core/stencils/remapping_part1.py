@@ -129,11 +129,11 @@ def moist_cv_pt_pressure(
 
 @gtstencil()
 def pn2_and_pk(pe2: FloatField, pn2: FloatField, pk: FloatField, akap: float):
-    from __externals__ import j_end
+    from __externals__ import local_je
 
     # copy_j_adjacent
     with computation(PARALLEL), interval(1, None):
-        with horizontal(region[:, j_end + 1 : j_end + 2]):
+        with horizontal(region[:, local_je + 1 : local_je + 2]):
             # TODO: Fix silly hack due to pe2 being 2d, so pe[:, je+1, 1:npz] should be
             # the same as it was for pe[:, je, 1:npz] (unchanged)
             pe2_0 = pe2[0, -1, 0]
