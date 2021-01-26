@@ -164,11 +164,11 @@ test_base_parallel:
 	bash -c $(PYTEST_PARALLEL)
 
 run_tests_sequential:
-	VOLUMES='--mount=type=bind,source=$(TEST_DATA_HOST),destination=$(TEST_DATA_RUN_LOC) --mount=type=bind,source=$(CWD)/.jenkins,destination=/.jenkins' \
+	VOLUMES='-v $(TEST_DATA_HOST):$(TEST_DATA_RUN_LOC) -v $(CWD)/.jenkins:/.jenkins' \
 	$(MAKE) test_base
 
 run_tests_parallel:
-	VOLUMES='--mount=type=bind,source=$(TEST_DATA_HOST),destination=$(TEST_DATA_RUN_LOC) --mount=type=bind,source=$(CWD)/.jenkins,destination=/.jenkins' \
+	VOLUMES='-v $(TEST_DATA_HOST):$(TEST_DATA_RUN_LOC) -v $(CWD)/.jenkins:/.jenkins' \
 	$(MAKE) test_base_parallel
 
 sync_test_data:

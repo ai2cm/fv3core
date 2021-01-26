@@ -113,7 +113,7 @@ echo "overrides file:"
 echo ${OVERRIDES_FILE}
 if test -f "${OVERRIDES_FILE}"; then
     echo "OVERRIDE"
-    export MOUNTS=" --mount=type=bind,source=${OVERRIDES_FOLDER},destination=/thresholds"
+    export MOUNTS=" -v ${OVERRIDES_FOLDER}:/thresholds"
     if [ ${python_env} == "virtualenv" ]; then
 	threshold_folder=${OVERRIDES_FOLDER}
     else
@@ -123,7 +123,7 @@ if test -f "${OVERRIDES_FILE}"; then
 fi
 export PROF_FOLDER="${envloc}/../prof"
 `mkdir -p ${PROF_FOLDER}`
-export MOUNTS="#{MOUNTS} --mount=type=bind,source=${PROF_FOLDER},destination=/prof"
+export MOUNTS="${MOUNTS} -v ${PROF_FOLDER}:/prof"
 module load daint-gpu
 module add "${installdir}/modulefiles/"
 module load gcloud
