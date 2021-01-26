@@ -102,7 +102,6 @@ def moist_cv_pt_pressure(
                 delp,
                 delz,
                 r_vir,
-                namelist.nwat,
             )
         # delz_adjust
         if not hydrostatic:
@@ -136,8 +135,7 @@ def pn2_and_pk(pe2: FloatField, pn2: FloatField, pk: FloatField, akap: float):
         with horizontal(region[:, local_je + 1 : local_je + 2]):
             # TODO: Fix silly hack due to pe2 being 2d, so pe[:, je+1, 1:npz] should be
             # the same as it was for pe[:, je, 1:npz] (unchanged)
-            pe2_0 = pe2[0, -1, 0]
-            pe2 = pe2_0
+            pe2 = pe2[0, -1, 0]
     # pn2_and_pk
     with computation(PARALLEL), interval(...):
         pn2 = log(pe2)

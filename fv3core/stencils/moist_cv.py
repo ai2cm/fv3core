@@ -148,7 +148,6 @@ def moist_pt_func(
     delp: FloatField,
     delz: FloatField,
     r_vir: float,
-    nwat: int,
 ):
     cvm, gz = moist_cv_nwat6_fn(
         qvapor, qliquid, qrain, qsnow, qice, qgraupel
@@ -180,7 +179,6 @@ def moist_te_2d(
     rsin2: FloatField,
     cosa_s: FloatField,
     r_vir: float,
-    nwat: int,
 ):
     with computation(FORWARD):
         with interval(0, 1):
@@ -225,7 +223,6 @@ def moist_te_total_energy(
     cosa_s: FloatField,
     delz: FloatField,
     r_vir: float,
-    nwat: int,
     moist_phys: bool,
 ):
     with computation(BACKWARD):
@@ -266,7 +263,6 @@ def moist_pt(
     delp: FloatField,
     delz: FloatField,
     r_vir: float,
-    nwat: int,
 ):
     with computation(PARALLEL), interval(...):
         cvm, gz, q_con, cappa, pt = moist_pt_func(
@@ -284,7 +280,6 @@ def moist_pt(
             delp,
             delz,
             r_vir,
-            nwat,
         )
 
 
@@ -313,7 +308,6 @@ def moist_pt_last_step(
     pkz: FloatField,
     dtmp: float,
     zvir: float,
-    nwat: int,
 ):
     with computation(PARALLEL), interval(...):
         # if nwat == 2:
@@ -351,7 +345,6 @@ def moist_pkz(
     delp: FloatField,
     delz: FloatField,
     r_vir: float,
-    nwat: int,
 ):
     with computation(PARALLEL), interval(...):
         cvm, gz = moist_cv_nwat6_fn(
@@ -399,12 +392,11 @@ def compute_te(
     r_vir: float,
     j_2d: int = None,
 ):
+    # TODO -- to do this cleanly, we probably need if blocks working inside stencils
+    if spec.namelist.nwat != 6:
+        raise Exception("We still need to implement other nwats for moist_cv")
     grid = spec.grid
     origin, domain, jslice = region_mode(j_2d, grid)
-    nwat = spec.namelist.nwat
-    # TODO -- to do this cleanly, we probably need if blocks working inside stencils
-    if nwat != 6:
-        raise Exception("We still need to implement other nwats for moist_cv")
     moist_te_2d(
         qvapor_js,
         qliquid_js,
@@ -425,7 +417,6 @@ def compute_te(
         grid.rsin2,
         grid.cosa_s,
         r_vir,
-        spec.namelist.nwat,
         origin=origin,
         domain=domain,
     )
@@ -465,7 +456,6 @@ def compute_pt(
         delp,
         delz,
         r_vir,
-        spec.namelist.nwat,
         origin=origin,
         domain=domain,
     )
@@ -508,7 +498,6 @@ def compute_pkz(
         delp,
         delz,
         r_vir,
-        spec.namelist.nwat,
         origin=origin,
         domain=domain,
     )
@@ -605,7 +594,6 @@ def compute_last_step(
         pkz,
         dtmp,
         r_vir,
-        spec.namelist.nwat,
         origin=(grid.is_, grid.js, 0),
         domain=(grid.nic, grid.njc, grid.npz + 1),
     )
