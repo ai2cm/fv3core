@@ -20,13 +20,6 @@ FV3UTIL_DIR=$(CWD)/external/fv3gfs-util
 
 FV3=fv3core
 FV3_PATH ?=/$(FV3)
-#ifeq ($(CONTAINER_ENGINE),sarus)
-#	FV3_IMAGE = load/library/$(SARUS_FV3CORE_IMAGE)
-#else ifeq ($(CONTAINER_ENGINE),srun sarus)
-#	FV3_IMAGE = load/library/$(SARUS_FV3CORE_IMAGE)
-#else
-FV3_IMAGE ?= $(FV3CORE_IMAGE)
-#endif
 
 TEST_DATA_RUN_LOC ?=/test_data
 PYTHON_FILES = $(shell git ls-files | grep -e 'py$$' | grep -v -e '__init__.py')
@@ -140,7 +133,7 @@ dev:
 		--network host \
 		-v $(TEST_DATA_HOST):$(TEST_DATA_RUN_LOC) \
 		-v $(CWD):/port_dev \
-		$(FV3_IMAGE) bash
+		$(FV3CORE_IMAGE) bash
 
 dev_wrapper:
 	$(MAKE) -C docker dev_wrapper
@@ -164,10 +157,10 @@ test_venv_parallel: get_test_data
 
 test_base:
 	$(CONTAINER_ENGINE) run $(RUN_FLAGS) $(VOLUMES) $(MOUNTS) $(CUDA_FLAGS) \
-	$(FV3_IMAGE) bash -c $(PYTEST_SEQUENTIAL)
+	$(FV3CORE_IMAGE) bash -c $(PYTEST_SEQUENTIAL)
 
 test_base_parallel:
-	$(CONTAINER_ENGINE) run $(RUN_FLAGS) $(VOLUMES) $(MOUNTS) $(CUDA_FLAGS) $(FV3_IMAGE) \
+	$(CONTAINER_ENGINE) run $(RUN_FLAGS) $(VOLUMES) $(MOUNTS) $(CUDA_FLAGS) $(FV3CORE_IMAGE) \
 	bash -c $(PYTEST_PARALLEL)
 
 run_tests_sequential:
@@ -203,7 +196,7 @@ lint:
 
 gt4py_tests_gpu:
 	CUDA=y make build && \
-        docker run --gpus all $(FV3_IMAGE) python3 -m pytest -x gt4py/
+        docker run --gpus all $(FV3CORE_IMAGE) python3 -m pytest -x gt4py/
 
 .PHONY: update_submodules build_environment build dev dev_tests dev_tests_mpi flake8 lint get_test_data unpack_test_data \
 	 list_test_data_options pull_environment pull_test_data push_environment \

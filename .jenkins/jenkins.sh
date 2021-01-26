@@ -121,28 +121,6 @@ fi
 module load daint-gpu
 module add "${installdir}/modulefiles/"
 module load gcloud
-#echo "UPSTREAM_PROJECT: ${UPSTREAM_PROJECT}"
-#echo "UPSTREAM_BUILD_NUMBER: ${UPSTREAM_BUILD_NUMBER}"
-#if [ ! -z "${UPSTREAM_PROJECT}" ] ; then
-#    # Set in build_for_daint jenkins plan, to mark what fv3core image to pull
-#    export JENKINS_TAG="${UPSTREAM_PROJECT}-${UPSTREAM_BUILD_NUMBER}"
-#    echo "Downstream project using JENKINS_TAG=${JENKINS_TAG}"
-#fi
-# If using sarus, load the image and set variables for running tests,
-# otherwise build the image
-#if [ ${container_engine} == "sarus" ]; then
-#    module load sarus
-#    make sarus_load_tar
-#    if grep -q "parallel" <<< "${script}"; then
-#	export CONTAINER_ENGINE="srun sarus"
-#	export RUN_FLAGS="--mpi"
-#	export MPIRUN_CALL=""
-#    else
-#	export CONTAINER_ENGINE="sarus"
-#	export RUN_FLAGS=""
-#    fi
-#fi
-
 
 # get the test data version from the Makefile                                                                     
 export FORTRAN_VERSION=`grep "FORTRAN_SERIALIZED_DATA_VERSION=" Makefile  | cut -d '=' -f 2`
@@ -173,7 +151,6 @@ if [ ${host} == "daint" ]; then
     else
 	echo "virtualenv is not setup yet"
     fi
-    #export BASH_PREFIX="srun"
     if grep -q "parallel" <<< "${script}"; then                                                                   
 	export MPIRUN_CALL="srun"
     fi                        
@@ -184,15 +161,8 @@ fi
 
 G2G="false"
 export DOCKER_BUILDKIT=1
-#if [ ${experiment} == "setup" ]; then
-#    echo "Running the touchstone setup"
-#else
-#    # Run the jenkins command
-    run_command "${script} ${backend} ${experiment} " Job${action} ${G2G} ${scheduler_script}
-#fi
-#if [ ${host} == "daint" ]; then
-#  deactivate
-#fi
+
+run_command "${script} ${backend} ${experiment} " Job${action} ${G2G} ${scheduler_script}
 
 if [ $? -ne 0 ] ; then
   exitError 1510 ${LINENO} "problem while executing script ${script}"
