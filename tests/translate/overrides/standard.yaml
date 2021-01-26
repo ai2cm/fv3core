@@ -41,7 +41,7 @@ Riem_Solver3:
 Remapping_Part1:
   - backend: gtcuda
     max_error: 5e-6
-    near_zero: 3.5e-15
+    near_zero: 8.5e-15
     ignore_near_zero_errors:
       - q_con
       - qtracers
