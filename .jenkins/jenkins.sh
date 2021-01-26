@@ -124,10 +124,10 @@ module load daint-gpu
 module add "${installdir}/modulefiles/"
 module load gcloud
 
-# get the test data version from the Makefile                                                                     
+# get the test data version from the Makefile
 export FORTRAN_VERSION=`grep "FORTRAN_SERIALIZED_DATA_VERSION=" Makefile  | cut -d '=' -f 2`
 
-# Set the SCRATCH directory to the working directory if not set (e.g. for running on gce)                         
+# Set the SCRATCH directory to the working directory if not set (e.g. for running on gce)
 if [ -z ${SCRATCH} ] ; then
     export SCRATCH=`pwd`
 fi
@@ -153,9 +153,9 @@ if [ ${host} == "daint" ]; then
     else
 	echo "virtualenv is not setup yet"
     fi
-    if grep -q "parallel" <<< "${script}"; then                                                                   
+    if grep -q "parallel" <<< "${script}"; then
 	export MPIRUN_CALL="srun"
-    fi                        
+    fi
     export FV3_PATH="${envloc}/../"
     export TEST_DATA_RUN_LOC=${TEST_DATA_HOST}
     export PYTHONPATH=/project/s1053/install/serialbox2_master/gnu/python:$PYTHONPATH

@@ -1,4 +1,5 @@
-import fv3core._config as spec
+import pytest
+
 import fv3core.stencils.fv_subgridz as fv_subgridz
 import fv3core.utils.gt4py_utils as utils
 import fv3gfs.util as fv3util
@@ -176,6 +177,4 @@ class TranslateFVSubgridZ(ParallelTranslateBaseSlicing):
         return outputs
 
     def compute_sequential(self, inputs_list, communicator_list):
-        pytest.skip(
-            f"{self.__class__} not running in mock-parallel"
-        )
+        pytest.skip(f"{self.__class__} not running in mock-parallel")
