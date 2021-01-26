@@ -101,7 +101,7 @@ if grep -q "parallel" <<< "${script}"; then
 	fi
     fi
 fi
-
+sed -i 's|45|60|g' ${scheduler_script}
 # set thresholds override file if it exists
 test_type=${experiment##*_}
 OVERRIDES_FOLDER="${envloc}/../tests/translate/overrides/"
