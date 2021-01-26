@@ -165,6 +165,10 @@ class TranslateFortranData2Py:
             istart, jstart, kstart = self.collect_start_indices(
                 inputs[serialname].shape, info
             )
+            if "mask" in info:
+                mask = info["mask"]
+            else:
+                mask = (True, True, True)
 
             logger.debug(
                 "Making storage for {} with istart = {}, jstart = {}".format(
@@ -185,6 +189,7 @@ class TranslateFortranData2Py:
                 dummy_axes=dummy_axes,
                 axis=axis,
                 names_4d=names_4d,
+                mask=mask,
             )
             if d != serialname:
                 del inputs[serialname]
