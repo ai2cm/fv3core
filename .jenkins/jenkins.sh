@@ -53,7 +53,8 @@ shopt -s expand_aliases
 # setup module environment and default queue
 test -f ${envloc}/env/machineEnvironment.sh || exitError 1201 ${LINENO} "cannot find machineEnvironment.sh script"
 . ${envloc}/env/machineEnvironment.sh
-
+export python_env=${python_env}
+echo "PYTHON env ${python_env}"
 # get root directory of where jenkins.sh is sitting
 export root=`dirname $0`
 
