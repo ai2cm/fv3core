@@ -14,4 +14,3 @@ if [ "$experiment" = "c12_6ranks_standard" ]; then
 fi
 
 $ROOT_DIR/examples/standalone/benchmarks/run_on_daint.sh 60 6 $backend /project/s1053/performance/fv3core_monitor/$backend/ $data_path
-

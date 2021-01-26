@@ -88,4 +88,3 @@ sed -i "s#<CMD>#export PYTHONPATH=/project/s1053/install/serialbox2_master/gnu/p
 sbatch -W -C gpu submit.daint.slurm
 wait
 cp *.json $target_dir
-
