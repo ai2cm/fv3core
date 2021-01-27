@@ -9,7 +9,8 @@ export TEST_ARGS="-v -s -rsx --backend=${BACKEND} ${THRESH_ARGS} --which_modules
 make get_test_data
 if [ ${python_env} == "virtualenv" ]; then
      export TEST_ARGS="${TEST_ARGS} --junitxml=${root}/${XML_REPORT}"
-     BASH_PREFIX="srun" make tests_venv
+     #BASH_PREFIX="srun"
+     make tests_venv
 else
     export TEST_ARGS="${TEST_ARGS} --junitxml=/.jenkins/${XML_REPORT}"
     make tests
