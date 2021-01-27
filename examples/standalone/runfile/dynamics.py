@@ -177,8 +177,8 @@ if __name__ == "__main__":
     # main_times = comm.gather(main_time, root=0)
     # total_times = comm.gather(total_time, root=0)
     print("Gathering Times")
-    if comm.Get_rank() == 0:
-        print_and_write_global_timings(timer, experiment_name, time_step, backend, comm)
+    # if comm.Get_rank() == 0:
+    print_and_write_global_timings(timer, experiment_name, time_step, backend, comm)
         # write_to_json(
         #     time_step, backend, experiment_name, init_times, total_times, main_times
         # )
