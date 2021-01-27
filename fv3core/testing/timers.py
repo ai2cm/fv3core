@@ -8,9 +8,15 @@ import git
 import mpi4py
 
 
+<<<<<<< HEAD
 class timer(object):
     """
     class handeling various timers in the driver code
+=======
+class GlobalTimer(object):
+    """
+    Class to accumulate timings for named operations
+>>>>>>> master
     """
 
     def __init__(self):
@@ -18,12 +24,21 @@ class timer(object):
         self.times = {}
         self.disabled = {}
 
+<<<<<<< HEAD
     def disable(self, name: str):
+=======
+    def toggle(self, name: str):
+        """Enable or disable the timer of a named globally."""
+>>>>>>> master
         if name not in self.disabled:
             self.disabled[name] = False
         self.disabled[name] = not self.disabled[name]
 
     def time(self, name: str):
+<<<<<<< HEAD
+=======
+        """Start or stop a given timer of a named operation."""
+>>>>>>> master
         if name not in self.disabled or not self.disabled[name]:
             if name not in self.is_on:
                 self.is_on[name] = False
@@ -40,6 +55,14 @@ class timer(object):
                 self.is_on[name] = True
 
     def get_totals(self, name: str):
+<<<<<<< HEAD
+=======
+        """
+        Accumulated statistics for the given operation name
+        This includes: is the timer still running, the total elapsed time,
+        the total hit-count of the timer as well as the total time
+        """
+>>>>>>> master
         return self.times[name]
 
 
@@ -49,8 +72,17 @@ def write_to_json(
     experiment_name: str,
     init_times: List[float],
     total_times: List[float],
+<<<<<<< HEAD
     main_times: List[float],
 ):
+=======
+    main_loop_times: List[float],
+):
+    """
+    Given input times this function writes a json file with statistics for
+    the elapsed times and the experimental setup
+    """
+>>>>>>> master
     now = datetime.now()
     sha = git.Repo(
         pathlib.Path(__file__).parent.absolute(), search_parent_directories=True
@@ -76,11 +108,19 @@ def write_to_json(
     experiment["times"]["init"]["maximum"] = max(init_times)
     experiment["times"]["init"]["median"] = median(init_times)
     experiment["times"]["init"]["mean"] = mean(init_times)
+<<<<<<< HEAD
     experiment["times"]["main"] = {}
     experiment["times"]["main"]["minimum"] = min(main_times)
     experiment["times"]["main"]["maximum"] = max(main_times)
     experiment["times"]["main"]["median"] = median(main_times)
     experiment["times"]["main"]["mean"] = mean(main_times)
+=======
+    experiment["times"]["main_loop"] = {}
+    experiment["times"]["main_loop"]["minimum"] = min(main_loop_times)
+    experiment["times"]["main_loop"]["maximum"] = max(main_loop_times)
+    experiment["times"]["main_loop"]["median"] = median(main_loop_times)
+    experiment["times"]["main_loop"]["mean"] = mean(main_loop_times)
+>>>>>>> master
     experiment["times"]["cleanup"] = {}
 
     with open(filename + ".json", "w") as outfile:
