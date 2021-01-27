@@ -178,7 +178,7 @@ def do_dyn(state, comm, timer=None):
     if not spec.namelist.inline_q and state.nq != 0:
         if spec.namelist.z_tracer:
             print("Tracer2D1L", grid.rank)
-            if timer is not none:
+            if timer is not None:
                 #start tracer timer
                 timer.start("Tracer advection")
             tracer_2d_1l.compute(
