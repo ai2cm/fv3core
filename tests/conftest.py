@@ -5,11 +5,13 @@ import warnings
 
 import pytest
 import translate
+import yaml
 
 import fv3core
 import fv3core._config
 import fv3core.utils.gt4py_utils
 import fv3gfs.util as fv3util
+from fv3core.testing import ParallelTranslate, TranslateGrid
 from fv3core.utils.mpi import MPI
 
 
@@ -53,6 +55,18 @@ def data_path_from_config(config):
 
 
 @pytest.fixture
+def threshold_overrides(pytestconfig):
+    return thresholds_from_file(pytestconfig)
+
+
+def thresholds_from_file(config):
+    thresholds_file = config.getoption("threshold_overrides_file")
+    if thresholds_file is None:
+        return None
+    return yaml.safe_load(open(thresholds_file, "r"))
+
+
+@pytest.fixture
 def serializer(data_path, rank):
     return get_serializer(data_path, rank)
 
@@ -76,7 +90,7 @@ def make_grid(grid_savepoint, serializer, rank):
     grid_fields = serializer.fields_at_savepoint(grid_savepoint)
     for field in grid_fields:
         grid_data[field] = read_serialized_data(serializer, grid_savepoint, field)
-    return translate.translate.TranslateGrid(grid_data, rank).python_grid()
+    return TranslateGrid(grid_data, rank).python_grid()
 
 
 def read_serialized_data(serializer, savepoint, variable):
@@ -110,7 +124,7 @@ def is_parallel_test(test_name):
     if test_class is None:
         return False
     else:
-        return issubclass(test_class, translate.ParallelTranslate)
+        return issubclass(test_class, ParallelTranslate)
 
 
 def get_test_class_instance(test_name, grid):
@@ -463,6 +477,7 @@ def pytest_addoption(parser):
     parser.addoption("--data_path", action="store", default="./")
     parser.addoption("--backend", action="store", default="numpy")
     parser.addoption("--python_regression", action="store_true")
+    parser.addoption("--threshold_overrides_file", action="store", default=None)
 
 
 def pytest_configure(config):

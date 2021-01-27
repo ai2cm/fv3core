@@ -79,10 +79,7 @@ def lagrangian_contributions(
 
 
 def region_mode(j_2d: Optional[int], i1: int, i_extent: int, grid: Grid):
-    if j_2d is None:
-        jslice = slice(grid.js, grid.je + 1)
-    else:
-        jslice = slice(j_2d, j_2d + 1)
+    jslice = slice(j_2d, j_2d + 1) if j_2d else slice(grid.js, grid.je + 1)
     origin = (i1, jslice.start, 0)
     domain = (i_extent, jslice.stop - jslice.start, grid.npz)
     return origin, domain, jslice
@@ -167,7 +164,7 @@ def do_lagrangian_contributions(
             domain,
         )
     else:
-        raise Exception(version + " is not an implemented remapping version")
+        raise NotImplementedError(version + " is not an implemented remapping version")
 
 
 def setup_data(
