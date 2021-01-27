@@ -147,7 +147,8 @@ fi
 echo "JENKINS TAG ${JENKINS_TAG}"
 if [ -z ${VIRTUALENV} ]; then
     echo "setting VIRTUALENV"
-    export VIRTUALENV=${WORKSPACE}/vcm_env_${JENKINS_TAG}
+    #export VIRTUALENV=${WORKSPACE}/vcm_env_${JENKINS_TAG}
+    export VIRTUALENV="/project/s1053/install/venv/vcm_env_${JENKINS_TAG}"
 fi
 
 if [ ${python_env} == "virtualenv" ]; then
