@@ -1,4 +1,3 @@
-
 import copy
 from types import SimpleNamespace
 from typing import List
@@ -200,4 +199,3 @@ class ParallelTranslate2PyState(ParallelTranslate2Py):
         state = {"state": statevars, "comm": communicator}
         self._base.compute_func(**state)
         return self._base.slice_output(vars(state["state"]))
-

@@ -320,4 +320,3 @@ class TranslateGrid:
         self.make_grid_storage(pygrid)
         pygrid.add_data(self.data)
         return pygrid
-

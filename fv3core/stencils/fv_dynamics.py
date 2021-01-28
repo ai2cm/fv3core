@@ -170,17 +170,17 @@ def do_dyn(state, comm, timer=None):
     )
     print("DynCore", grid.rank)
     if timer is not None:
-        #start dyn timer
+        # start dyn timer
         timer.start("Dynamics")
     dyn_core.compute(state, comm)
     if timer is not None:
-        #pause dyn timer
+        # pause dyn timer
         timer.stop("Dynamics")
     if not spec.namelist.inline_q and state.nq != 0:
         if spec.namelist.z_tracer:
             print("Tracer2D1L", grid.rank)
             if timer is not None:
-                #start tracer timer
+                # start tracer timer
                 timer.start("Tracer advection")
             tracer_2d_1l.compute(
                 comm,
@@ -194,7 +194,7 @@ def do_dyn(state, comm, timer=None):
                 state.nq,
             )
             if timer:
-                #pause tracer timer
+                # pause tracer timer
                 timer.stop("Tracer advection")
         else:
             raise Exception("tracer_2d no =t implemented, turn on z_tracer")
@@ -302,7 +302,9 @@ def set_constants(state):
         "diss_estd", "dissipation_estimate_from_heat_source", "unknown", intent="inout"
     ),
 )
-def fv_dynamics(state, comm, consv_te, do_adiabatic_init, timestep, ptop, n_split, ks, timer=None):
+def fv_dynamics(
+    state, comm, consv_te, do_adiabatic_init, timestep, ptop, n_split, ks, timer=None
+):
     state.__dict__.update(
         {
             "consv_te": consv_te,
@@ -337,7 +339,7 @@ def compute(state, comm, timer=None):
             # do_omega = spec.namelist.hydrostatic and last_step
             print("Remapping", grid.rank)
             if timer is not None:
-                #start remap timer
+                # start remap timer
                 timer.start("Remapping")
             lagrangian_to_eulerian.compute(
                 state.tracers,
@@ -376,7 +378,7 @@ def compute(state, comm, timer=None):
                 state.nq,
             )
             if timer is not None:
-                #stop remapping timer
+                # stop remapping timer
                 timer.stop("Remapping")
             if last_step:
                 post_remap(state, comm)

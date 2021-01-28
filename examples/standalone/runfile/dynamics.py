@@ -1,25 +1,25 @@
-from argparse import ArgumentParser
-
-from mpi4py import MPI
-import serialbox
-import yaml
-import git
-from datetime import datetime
-import numpy as np
 import json
 import pathlib
-from statistics import mean, median
-from typing import List
+from argparse import ArgumentParser
+from datetime import datetime
+
+import git
+import numpy as np
+import serialbox
+import yaml
+from mpi4py import MPI
 
 import fv3core
 import fv3core._config as spec
 import fv3core.stencils.fv_dynamics as fv_dynamics
 import fv3core.testing
 import fv3gfs.util as util
-from fv3core.testing import write_to_json
 from fv3gfs.util import Timer
 
-def print_and_write_global_timings(timer, experiment_name, time_step, backend, comm, root=0):
+
+def print_and_write_global_timings(
+    timer, experiment_name, time_step, backend, comm, root=0
+):
     is_root = comm.Get_rank() == root
     recvbuf = np.array(0.0)
     experiment = {}
@@ -40,7 +40,11 @@ def print_and_write_global_timings(timer, experiment_name, time_step, backend, c
         if is_root:
             print(name)
             experiment["times"][name] = {}
-        for label, op in [("minimum", MPI.MIN), ("maximum", MPI.MAX), ("mean", MPI.SUM)]:
+        for label, op in [
+            ("minimum", MPI.MIN),
+            ("maximum", MPI.MAX),
+            ("mean", MPI.SUM),
+        ]:
             comm.Reduce(np.array(value), recvbuf, op=op)
             if is_root:
                 print(comm.Get_size())
@@ -49,9 +53,10 @@ def print_and_write_global_timings(timer, experiment_name, time_step, backend, c
                 print(f"    {label}: {recvbuf}")
                 experiment["times"][name][label] = float(recvbuf)
 
-    if is_root:       
+    if is_root:
         with open(filename + ".json", "w") as outfile:
             json.dump(experiment, outfile, sort_keys=True, indent=4)
+
 
 if __name__ == "__main__":
     timer = Timer()
@@ -165,7 +170,7 @@ if __name__ == "__main__":
                 input_data["ptop"],
                 input_data["n_split"],
                 input_data["ks"],
-                timer
+                timer,
             )
 
     timer.stop("total")
