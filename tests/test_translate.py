@@ -21,8 +21,6 @@ OUTDIR = os.path.join(os.path.dirname(os.path.realpath(__file__)), "output")
 GPU_MAX_ERR = 1e-10
 GPU_NEAR_ZERO = 1e-15
 
-_near_zero = 1e-18
-
 
 def compare_arr(computed_data, ref_data):
     denom = np.abs(ref_data) + np.abs(computed_data)
@@ -31,17 +29,16 @@ def compare_arr(computed_data, ref_data):
     return compare
 
 
-def success_array(computed_data, ref_data, eps, ignore_near_zero_errors):
+def success_array(computed_data, ref_data, eps, ignore_near_zero_errors, near_zero):
     success = np.logical_or(
         np.logical_and(np.isnan(computed_data), np.isnan(ref_data)),
         compare_arr(computed_data, ref_data) < eps,
     )
     if ignore_near_zero_errors:
-        SMALL_NUMBER = 1e-18
         success = np.logical_or(
             success,
             np.logical_and(
-                np.abs(computed_data) < SMALL_NUMBER, np.abs(ref_data) < SMALL_NUMBER
+                np.abs(computed_data) < near_zero, np.abs(ref_data) < near_zero
             ),
         )
     # LARGE_NUMBER = 1e26
@@ -55,8 +52,10 @@ def success_array(computed_data, ref_data, eps, ignore_near_zero_errors):
     return success
 
 
-def success(computed_data, ref_data, eps, ignore_near_zero_errors):
-    return np.all(success_array(computed_data, ref_data, eps, ignore_near_zero_errors))
+def success(computed_data, ref_data, eps, ignore_near_zero_errors, near_zero=0.0):
+    return np.all(
+        success_array(computed_data, ref_data, eps, ignore_near_zero_errors, near_zero)
+    )
 
 
 def platform():
@@ -72,11 +71,14 @@ def sample_wherefail(
     failure_stride,
     test_name,
     ignore_near_zero_errors,
+    near_zero,
     xy_indices=False,
 ):
     found_indices = np.where(
         np.logical_not(
-            success_array(computed_data, ref_data, eps, ignore_near_zero_errors)
+            success_array(
+                computed_data, ref_data, eps, ignore_near_zero_errors, near_zero
+            )
         )
     )
     computed_failures = computed_data[found_indices]
@@ -107,7 +109,9 @@ def sample_wherefail(
         found_xy_indices = np.where(
             np.any(
                 np.logical_not(
-                    success_array(computed_data, ref_data, eps, ignore_near_zero_errors)
+                    success_array(
+                        computed_data, ref_data, eps, ignore_near_zero_errors, near_zero
+                    )
                 ),
                 axis=2,
             )
@@ -118,6 +122,40 @@ def sample_wherefail(
         )
 
     return "\n".join(return_strings)
+
+
+def process_override(threshold_overrides, testobj, test_name, backend):
+    override = threshold_overrides.get(test_name, None)
+    if override is not None:
+        for spec in override:
+            if "platform" not in spec:
+                spec["platform"] = platform()
+            if "backend" not in spec:
+                spec["backend"] = backend
+        matches = [
+            spec
+            for spec in override
+            if spec["backend"] == backend and spec["platform"] == platform()
+        ]
+        if len(matches) == 1:
+            match = matches[0]
+            if "max_error" in match:
+                testobj.max_error = float(match["max_error"])
+            if "near_zero" in match:
+                testobj.near_zero = float(match["near_zero"])
+            if "ignore_near_zero_errors" in match:
+                testobj.ignore_near_zero_errors = {
+                    field: True for field in match["ignore_near_zero_errors"]
+                }
+        elif len(matches) > 1:
+            raise Exception(
+                "misconfigured threshold overrides file, more than 1 specification for "
+                + test_name
+                + " with backend="
+                + backend
+                + ", platform="
+                + platform()
+            )
 
 
 @pytest.mark.sequential
@@ -138,15 +176,18 @@ def test_sequential_savepoint(
     failure_stride,
     subtests,
     caplog,
+    threshold_overrides,
     xy_indices=False,
 ):
     caplog.set_level(logging.DEBUG, logger="fv3core")
     if testobj is None:
         pytest.xfail(f"no translate object available for savepoint {test_name}")
     # Reduce error threshold for GPU
-    if backend.endswith("cuda") and testobj.max_error < GPU_MAX_ERR:
-        testobj.max_error = GPU_MAX_ERR
-        _near_zero = GPU_NEAR_ZERO
+    if backend.endswith("cuda"):
+        testobj.max_error = max(testobj.max_error, GPU_MAX_ERR)
+        testobj.near_zero = max(testobj.near_zero, GPU_NEAR_ZERO)
+    if threshold_overrides is not None:
+        process_override(threshold_overrides, testobj, test_name, backend)
     fv3core._config.set_grid(grid)
     input_data = testobj.collect_input_data(serializer, savepoint_in)
     # run python version of functionality
@@ -154,12 +195,16 @@ def test_sequential_savepoint(
     failing_names = []
     passing_names = []
     for varname in testobj.serialnames(testobj.out_vars):
-        near0 = testobj.ignore_near_zero_errors.get(varname, False)
+        ignore_near_zero = testobj.ignore_near_zero_errors.get(varname, False)
         ref_data = serializer.read(varname, savepoint_out)
         with subtests.test(varname=varname):
             failing_names.append(varname)
             assert success(
-                output[varname], ref_data, testobj.max_error, near0
+                output[varname],
+                ref_data,
+                testobj.max_error,
+                ignore_near_zero,
+                testobj.near_zero,
             ), sample_wherefail(
                 output[varname],
                 ref_data,
@@ -167,7 +212,8 @@ def test_sequential_savepoint(
                 print_failures,
                 failure_stride,
                 test_name,
-                near0,
+                ignore_near_zero,
+                testobj.near_zero,
                 xy_indices,
             )
             passing_names.append(failing_names.pop())
@@ -216,6 +262,7 @@ def test_mock_parallel_savepoint(
     failure_stride,
     subtests,
     caplog,
+    threshold_overrides,
     xy_indices=False,
 ):
     caplog.set_level(logging.DEBUG, logger="fv3core")
@@ -223,9 +270,11 @@ def test_mock_parallel_savepoint(
     if testobj is None:
         pytest.xfail(f"no translate object available for savepoint {test_name}")
     # Reduce error threshold for GPU
-    if backend.endswith("cuda") and testobj.max_error < GPU_MAX_ERR:
-        testobj.max_error = GPU_MAX_ERR
-        _near_zero = GPU_NEAR_ZERO
+    if backend.endswith("cuda"):
+        testobj.max_error = max(testobj.max_error, GPU_MAX_ERR)
+        testobj.near_zero = max(testobj.near_zero, GPU_NEAR_ZERO)
+    if threshold_overrides is not None:
+        process_override(threshold_overrides, testobj, test_name, backend)
     fv3core._config.set_grid(grid)
     inputs_list = []
     for savepoint_in, serializer in zip(savepoint_in_list, serializer_list):
@@ -235,7 +284,7 @@ def test_mock_parallel_savepoint(
     ref_data = {}
     for varname in testobj.outputs.keys():
         ref_data[varname] = []
-        near0 = testobj.ignore_near_zero_errors.get(varname, False)
+        ignore_near_zero = testobj.ignore_near_zero_errors.get(varname, False)
         with _subtest(failing_names, subtests, varname=varname):
             failing_ranks = []
             for rank, (savepoint_out, serializer, output) in enumerate(
@@ -247,7 +296,8 @@ def test_mock_parallel_savepoint(
                         gt_utils.asarray(output[varname]),
                         ref_data[varname][-1],
                         testobj.max_error,
-                        near0,
+                        ignore_near_zero,
+                        testobj.near_zero,
                     ), sample_wherefail(
                         output[varname],
                         ref_data[varname][-1],
@@ -255,7 +305,8 @@ def test_mock_parallel_savepoint(
                         print_failures,
                         failure_stride,
                         test_name,
-                        near0,
+                        ignore_near_zero,
+                        testobj.near_zero,
                         xy_indices,
                     )
             assert failing_ranks == []
@@ -302,6 +353,7 @@ def test_parallel_savepoint(
     subtests,
     caplog,
     python_regression,
+    threshold_overrides,
     xy_indices=False,
 ):
     caplog.set_level(logging.DEBUG, logger="fv3core")
@@ -310,8 +362,11 @@ def test_parallel_savepoint(
     if testobj is None:
         pytest.xfail(f"no translate object available for savepoint {test_name}")
     # Reduce error threshold for GPU
-    if backend.endswith("cuda") and testobj.max_error < GPU_MAX_ERR:
-        testobj.max_error = GPU_MAX_ERR
+    if backend.endswith("cuda"):
+        testobj.max_error = max(testobj.max_error, GPU_MAX_ERR)
+        testobj.near_zero = max(testobj.near_zero, GPU_NEAR_ZERO)
+    if threshold_overrides is not None:
+        process_override(threshold_overrides, testobj, test_name, backend)
     fv3core._config.set_grid(grid[0])
     input_data = testobj.collect_input_data(serializer, savepoint_in)
     # run python version of functionality
@@ -332,11 +387,15 @@ def test_parallel_savepoint(
     for varname in out_vars:
         ref_data[varname] = []
         ref_data[varname].append(serializer.read(varname, savepoint_out))
-        near0 = testobj.ignore_near_zero_errors.get(varname, False)
+        ignore_near_zero = testobj.ignore_near_zero_errors.get(varname, False)
         with subtests.test(varname=varname):
             failing_names.append(varname)
             assert success(
-                output[varname], ref_data[varname][0], testobj.max_error, near0
+                output[varname],
+                ref_data[varname][0],
+                testobj.max_error,
+                ignore_near_zero,
+                testobj.near_zero,
             ), sample_wherefail(
                 output[varname],
                 ref_data[varname][0],
@@ -344,7 +403,8 @@ def test_parallel_savepoint(
                 print_failures,
                 failure_stride,
                 test_name,
-                near0,
+                ignore_near_zero,
+                testobj.near_zero,
                 xy_indices,
             )
             passing_names.append(failing_names.pop())

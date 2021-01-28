@@ -91,13 +91,25 @@ if grep -q "parallel" <<< "${script}"; then
 	if [ -f ${scheduler_script} ] ; then
 	    sed -i 's|<NTASKS>|<NTASKS>\n#SBATCH \-\-hint=multithread\n#SBATCH --ntasks-per-core=2|g' ${scheduler_script}
 	    sed -i 's|45|30|g' ${scheduler_script}
-	    sed -i 's|cscsci|debug|g' ${scheduler_script}
+	    if [ "$NUM_RANKS" -gt "6" ];then
+            sed -i 's|cscsci|debug|g' ${scheduler_script}
+        fi
 	    sed -i 's|<NTASKS>|"'${NUM_RANKS}'"|g' ${scheduler_script}
 	    sed -i 's|<NTASKSPERNODE>|"24"|g' ${scheduler_script}
 	fi
     fi
 fi
-
+# set thresholds override file if it exists
+test_type=${optarg2##*_}
+OVERRIDES_FOLDER="${envloc}/../tests/translate/overrides/"
+OVERRIDES_FILE="${OVERRIDES_FOLDER}/${test_type}.yaml"
+echo "overrides file:"
+echo ${OVERRIDES_FILE}
+if test -f "${OVERRIDES_FILE}"; then
+    echo "OVERRIDE"
+    export MOUNTS=" --mount=type=bind,source=${OVERRIDES_FOLDER},destination=/thresholds"
+    export THRESH_ARGS="--threshold_overrides_file=/thresholds/${test_type}.yaml"
+fi
 module load daint-gpu
 module add "${installdir}/modulefiles/"
 module load gcloud

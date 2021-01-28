@@ -1,6 +1,5 @@
-from fv3core.stencils.d2a2c_vect import d2a2c_vect
-
-from .translate import TranslateFortranData2Py
+import fv3core.stencils.d2a2c_vect as d2a2c_vect
+from fv3core.testing import TranslateFortranData2Py
 
 
 class TranslateD2A2C_Vect(TranslateFortranData2Py):
