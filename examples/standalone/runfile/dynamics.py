@@ -16,6 +16,32 @@ import fv3core.testing
 import fv3gfs.util as util
 
 
+def parse_args():
+    usage = "usage: python %(prog)s <data_dir> <timesteps> <backend>"
+    parser = ArgumentParser(usage=usage)
+
+    parser.add_argument(
+        "data_dir",
+        type=str,
+        action="store",
+        help="directory containing data to run with",
+    )
+    parser.add_argument(
+        "time_step",
+        type=int,
+        action="store",
+        help="number of timesteps to execute",
+    )
+    parser.add_argument(
+        "backend",
+        type=str,
+        action="store",
+        help="path to the namelist",
+    )
+
+    return parser.parse_args()
+
+
 def print_and_write_global_timings(
     timer, experiment_name, time_step, backend, comm, root=0
 ):
@@ -60,53 +86,22 @@ if __name__ == "__main__":
     timer = util.Timer()
     timer.start("total")
     with timer.clock("initialization"):
-
-        usage = "usage: python %(prog)s <data_dir> <timesteps> <backend>"
-        parser = ArgumentParser(usage=usage)
-
-        parser.add_argument(
-            "data_dir",
-            type=str,
-            action="store",
-            help="directory containing data to run with",
-        )
-        parser.add_argument(
-            "time_step",
-            type=int,
-            action="store",
-            help="number of timesteps to execute",
-        )
-        parser.add_argument(
-            "backend",
-            type=str,
-            action="store",
-            help="path to the namelist",
-        )
-        args = parser.parse_args()
-        backend = args.backend
-        data_dir = args.data_dir
-        time_step = args.time_step
+        args = parse_args()
 
         # # MPI stuff
         comm = MPI.COMM_WORLD
         rank = comm.Get_rank()
 
         # fv3core specific setup
-        fv3core.set_backend(backend)
+        fv3core.set_backend(args.backend)
         fv3core.set_rebuild(False)
 
         # namelist setup
-        spec.set_namelist(data_dir + "/input.nml")
+        spec.set_namelist(args.data_dir + "/input.nml")
 
-        nml = yaml.safe_load(
-            open(
-                data_dir + "/input.yml",
-                "r",
-            )
-        )["namelist"]
         experiment_name = yaml.safe_load(
             open(
-                data_dir + "/input.yml",
+                args.data_dir + "/input.yml",
                 "r",
             )
         )["experiment_name"]
@@ -114,11 +109,12 @@ if __name__ == "__main__":
         # set up of helper structures
         serializer = serialbox.Serializer(
             serialbox.OpenModeKind.Read,
-            data_dir,
+            args.data_dir,
             "Generator_rank" + str(rank),
         )
         cube_comm = util.CubedSphereCommunicator(
-            comm, util.CubedSpherePartitioner.from_namelist(nml)
+            comm,
+            util.CubedSpherePartitioner(util.TilePartitioner(spec.namelist.layout)),
         )
 
         # get grid from serialized data
@@ -158,7 +154,7 @@ if __name__ == "__main__":
 
     with timer.clock("mainloop"):
         # Run the dynamics
-        for i in range(time_step - 1):
+        for i in range(args.time_step - 1):
             fv_dynamics.fv_dynamics(
                 state,
                 communicator,
@@ -174,4 +170,6 @@ if __name__ == "__main__":
     timer.stop("total")
     # collect times and output simple statistics
     print("Gathering Times")
-    print_and_write_global_timings(timer, experiment_name, time_step, backend, comm)
+    print_and_write_global_timings(
+        timer, experiment_name, args.time_step, args.backend, comm
+    )
