@@ -6,23 +6,21 @@ import fv3core.utils.global_constants as constants
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import gtstencil
 from fv3core.stencils.basic_operations import copy
-
-
-sd = utils.sd
+from fv3core.utils.typing import FloatField, FloatFieldIJ
 
 
 @gtstencil()
 def precompute(
-    cp3: sd,
-    gz: sd,
-    dm: sd,
-    q_con: sd,
-    pem: sd,
-    peg: sd,
-    dz: sd,
-    gm: sd,
-    pef: sd,
-    pm: sd,
+    cp3: FloatField,
+    gz: FloatField,
+    dm: FloatField,
+    q_con: FloatField,
+    pem: FloatField,
+    peg: FloatField,
+    dz: FloatField,
+    gm: FloatField,
+    pef: FloatField,
+    pm: FloatField,
     ptop: float,
 ):
     with computation(FORWARD):
@@ -44,7 +42,14 @@ def precompute(
 
 
 @gtstencil()
-def finalize(pe2: sd, pem: sd, hs: sd, dz: sd, pef: sd, gz: sd):
+def finalize(
+    pe2: FloatField,
+    pem: FloatField,
+    hs: FloatFieldIJ,
+    dz: FloatField,
+    pef: FloatField,
+    gz: FloatField,
+):
     # TODO: We only want to bottom level of hd, so this could be removed once
     # hd0 is a 2d field.
     with computation(FORWARD):
