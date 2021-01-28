@@ -13,7 +13,7 @@ import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import ArgSpec, gtstencil, state_inputs
 from fv3core.stencils import c2l_ord
 from fv3core.stencils.basic_operations import copy_stencil
-from fv3gfs.util import CubedSphereCommunicator, timing
+from fv3gfs.util import CubedSphereCommunicator, NullTimer
 
 
 sd = utils.sd
@@ -160,7 +160,7 @@ def compute_preamble(state, comm):
         )
 
 
-def do_dyn(state, comm, timer=timing.NullTimer):
+def do_dyn(state, comm, timer=NullTimer):
     grid = spec.grid
     copy_stencil(
         state.delp,
@@ -303,7 +303,7 @@ def fv_dynamics(
     ptop,
     n_split,
     ks,
-    timer=timing.NullTimer,
+    timer=NullTimer,
 ):
     state.__dict__.update(
         {
@@ -318,7 +318,7 @@ def fv_dynamics(
     compute(state, comm, timer)
 
 
-def compute(state, comm, timer=timing.NullTimer):
+def compute(state, comm, timer=NullTimer):
     grid = spec.grid
     state.__dict__.update(fvdyn_temporaries(state.u.shape))
     set_constants(state)
