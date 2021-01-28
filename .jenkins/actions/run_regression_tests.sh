@@ -3,7 +3,7 @@ set -e -x
 BACKEND=$1
 EXPNAME=$2
 XML_REPORT="sequential_test_results.xml"
-export TEST_ARGS="-v -s -rsx --backend=${BACKEND} ${THRESH_ARGS} --which_modules=XPPM"
+export TEST_ARGS="-v -s -rsx --backend=${BACKEND} ${THRESH_ARGS}"
 
 # sync the test data
 make get_test_data
@@ -14,4 +14,4 @@ else
     export TEST_ARGS="${TEST_ARGS} --junitxml=/.jenkins/${XML_REPORT}"
     make tests
 fi
-#gsutil cp -r ${PROF_FOLDER} gs://fv3core-test-profiles-a/onerank/${python_env}
+
