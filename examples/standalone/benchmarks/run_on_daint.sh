@@ -57,7 +57,6 @@ git submodule update --init --recursive
 echo "install requirements"
 vcm_1.0/bin/python -m pip install external/fv3gfs-util/
 vcm_1.0/bin/python -m pip install .
-vcm_1.0/bin/python -m pip install gitpython
 
 # set up the experiment data
 cp -r $data_path test_data
