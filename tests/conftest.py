@@ -189,6 +189,7 @@ def sequential_savepoint_cases(metafunc, data_path):
     layout = fv3core._config.namelist.layout
     total_ranks = 6 * layout[0] * layout[1]
     savepoint_names = get_sequential_savepoint_names(metafunc, data_path)
+    total_ranks=1
     for rank in range(total_ranks):
         serializer = get_serializer(data_path, rank)
         grid_savepoint = serializer.get_savepoint(GRID_SAVEPOINT_NAME)[0]
