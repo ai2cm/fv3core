@@ -47,7 +47,6 @@ def print_and_write_global_timings(
         ]:
             comm.Reduce(np.array(value), recvbuf, op=op)
             if is_root:
-                print(comm.Get_size())
                 if label == "mean":
                     recvbuf /= comm.Get_size()
                 print(f"    {label}: {recvbuf}")
