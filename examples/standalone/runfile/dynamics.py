@@ -153,7 +153,7 @@ if __name__ == "__main__":
             input_data["ks"],
         )
 
-    with timer.clock("main"):
+    with timer.clock("mainloop"):
         # Run the dynamics
         for i in range(time_step - 1):
             fv_dynamics.fv_dynamics(
