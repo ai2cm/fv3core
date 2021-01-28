@@ -42,18 +42,13 @@ def parse_args():
     return parser.parse_args()
 
 
-def print_and_write_global_timings(
-    timer, experiment_name, time_step, backend, comm, root=0
-):
-    is_root = comm.Get_rank() == root
-    recvbuf = np.array(0.0)
+def set_experiment_info(experiment_name, time_step, backend):
     experiment = {}
-    now = datetime.now()
     sha = git.Repo(
         pathlib.Path(__file__).parent.absolute(), search_parent_directories=True
     ).head.object.hexsha
+    now = datetime.now()
     dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
-    filename = now.strftime("%Y-%m-%d-%H-%M-%S")
     experiment["setup"] = {}
     experiment["setup"]["timestamp"] = dt_string
     experiment["setup"]["dataset"] = experiment_name
@@ -61,6 +56,12 @@ def print_and_write_global_timings(
     experiment["setup"]["hash"] = sha
     experiment["setup"]["version"] = "python/" + backend
     experiment["times"] = {}
+    return experiment
+
+
+def gather_timing_statistics(timer, experiment, comm, root=0):
+    is_root = comm.Get_rank() == root
+    recvbuf = np.array(0.0)
     for name, value in timer.times.items():
         if is_root:
             print(name)
@@ -77,6 +78,11 @@ def print_and_write_global_timings(
                 print(f"    {label}: {recvbuf}")
                 experiment["times"][name][label] = float(recvbuf)
 
+
+def write_global_timings(experiment, comm, root=0):
+    is_root = comm.Get_rank() == root
+    now = datetime.now()
+    filename = now.strftime("%Y-%m-%d-%H-%M-%S")
     if is_root:
         with open(filename + ".json", "w") as outfile:
             json.dump(experiment, outfile, sort_keys=True, indent=4)
@@ -170,6 +176,6 @@ if __name__ == "__main__":
     timer.stop("total")
     # collect times and output simple statistics
     print("Gathering Times")
-    print_and_write_global_timings(
-        timer, experiment_name, args.time_step, args.backend, comm
-    )
+    experiment = set_experiment_info(experiment_name, args.time_step, args.backend)
+    gather_timing_statistics(timer, experiment, comm)
+    write_global_timings(experiment_name, comm)
