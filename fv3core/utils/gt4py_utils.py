@@ -83,10 +83,11 @@ def make_storage_data(
     *,
     origin: Tuple[int, int, int] = origin,
     dtype: DTypes = np.float64,
-    mask: Tuple[bool, bool, bool] = (True, True, True),
+    mask: Optional[Tuple[bool, bool, bool]] = None,
     start: Tuple[int, int, int] = (0, 0, 0),
     dummy: Optional[Tuple[int, int, int]] = None,
     axis: int = 2,
+    max_dim: int = 3,
 ) -> Field:
     """Create a new gt4py storage from the given data.
 
@@ -119,9 +120,17 @@ def make_storage_data(
     if shape is None:
         shape = data.shape
 
+    if not mask:
+        if n_dims == 1:
+            mask = tuple(i == axis for i in range(max_dim))
+        else:
+            mask = (n_dims * (True,)) + ((max_dim - n_dims) * (False,))
+
     if n_dims == 1:
+        shape = (shape[axis],)
         data = _make_storage_data_1d(data, shape, start, dummy, axis)
     elif n_dims == 2:
+        shape = shape[0:2]
         data = _make_storage_data_2d(data, shape, start, dummy, axis)
     else:
         data = _make_storage_data_3d(data, shape, start)
@@ -149,24 +158,25 @@ def _make_storage_data_1d(
     kstart = start[2]
     if dummy:
         axis = list(set((0, 1, 2)).difference(dummy))[0]
-    buffer = zeros(shape[axis])
+    buffer = zeros(shape[0])
     buffer[kstart : kstart + len(data)] = asarray(data, type(buffer))
-    tile_spec = list(shape)
-    tile_spec[axis] = 1
+    return buffer
+    # tile_spec = list(shape)
+    # tile_spec[axis] = 1
 
-    if dummy:
-        if len(dummy) == len(tile_spec) - 1:
-            data = buffer.reshape((shape))
-    else:
-        if axis == 2:
-            data = tile(buffer, tuple(tile_spec))
-        elif axis == 1:
-            x = repeat(buffer[np.newaxis, :], shape[0], axis=0)
-            data = repeat(x[:, :, np.newaxis], shape[2], axis=2)
-        else:
-            y = repeat(buffer[:, np.newaxis], shape[1], axis=1)
-            data = repeat(y[:, :, np.newaxis], shape[2], axis=2)
-    return data
+    # if dummy:
+    #     if len(dummy) == len(tile_spec) - 1:
+    #         data = buffer.reshape((shape))
+    # else:
+    #     if axis == 2:
+    #         data = tile(buffer, tuple(tile_spec))
+    #     elif axis == 1:
+    #         x = repeat(buffer[np.newaxis, :], shape[0], axis=0)
+    #         data = repeat(x[:, :, np.newaxis], shape[2], axis=2)
+    #     else:
+    #         y = repeat(buffer[:, np.newaxis], shape[1], axis=1)
+    #         data = repeat(y[:, :, np.newaxis], shape[2], axis=2)
+    # return data
 
 
 def _make_storage_data_2d(
@@ -189,13 +199,14 @@ def _make_storage_data_2d(
     buffer[istart : istart + isize, jstart : jstart + jsize] = asarray(
         data, type(buffer)
     )
-    if dummy:
-        data = buffer.reshape(shape)
-    else:
-        data = repeat(buffer[:, :, np.newaxis], shape[axis], axis=2)
-        if axis != 2:
-            data = moveaxis(data, 2, axis)
-    return data
+    return buffer
+    # if dummy:
+    #     data = buffer.reshape(shape)
+    # else:
+    #     data = repeat(buffer[:, :, np.newaxis], shape[axis], axis=2)
+    #     if axis != 2:
+    #         data = moveaxis(data, 2, axis)
+    # return data
 
 
 def _make_storage_data_3d(
