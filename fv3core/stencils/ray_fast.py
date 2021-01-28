@@ -36,12 +36,13 @@ def ray_fast_wind(
     pfull: FloatField,
     dt: float,
     ptop: float,
-    rf_cutoff_nudge: float,
     ks: int,
     hydrostatic: bool,
 ):
     from __externals__ import local_ie, local_je, namelist
 
+    with computation(PARALLEL), interval(...):
+        rf_cutoff_nudge = namelist.rf_cutoff + min(100.0, 10.0 * ptop)
     # dm_stencil
     with computation(PARALLEL), interval(...):
         # TODO -- in the fortran model rf is only computed once, repeating
@@ -115,7 +116,6 @@ def ray_fast_wind(
 def compute(u, v, w, dp, pfull, dt, ptop, ks):
     grid = spec.grid
     namelist = spec.namelist
-    rf_cutoff_nudge = namelist.rf_cutoff + min(100.0, 10.0 * ptop)
 
     ray_fast_wind(
         u,
@@ -125,7 +125,6 @@ def compute(u, v, w, dp, pfull, dt, ptop, ks):
         pfull,
         dt,
         ptop,
-        rf_cutoff_nudge,
         ks,
         hydrostatic=namelist.hydrostatic,
         origin=grid.compute_origin(),
