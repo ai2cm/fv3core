@@ -138,7 +138,7 @@ fi
 
 # Set the host data head directory location
 export TEST_DATA_DIR="${SCRATCH}/fv3core_fortran_data/${FORTRAN_VERSION}"
-
+export FV3_STENCIL_REBUILD_FLAG=False
 # Set the host data location
 export TEST_DATA_HOST="${TEST_DATA_DIR}/${experiment}/"
 if [ -z ${JENKINS_TAG} ]; then

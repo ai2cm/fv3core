@@ -14,4 +14,4 @@ else
     export TEST_ARGS="${TEST_ARGS} --junitxml=/.jenkins/${XML_REPORT}"
     make tests
 fi
-gsutil cp -r ${PROF_FOLDER} gs://fv3core-test-profiles-a/onerank/${python_env}
+#gsutil cp -r ${PROF_FOLDER} gs://fv3core-test-profiles-a/onerank/${python_env}
