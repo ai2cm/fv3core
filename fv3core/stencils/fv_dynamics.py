@@ -170,18 +170,15 @@ def do_dyn(state, comm, timer=None):
     )
     print("DynCore", grid.rank)
     if timer is not None:
-        # start dyn timer
-        timer.start("Dynamics")
+        timer.start("DynCore")
     dyn_core.compute(state, comm)
     if timer is not None:
-        # pause dyn timer
-        timer.stop("Dynamics")
+        timer.stop("DynCore")
     if not spec.namelist.inline_q and state.nq != 0:
         if spec.namelist.z_tracer:
             print("Tracer2D1L", grid.rank)
             if timer is not None:
-                # start tracer timer
-                timer.start("Tracer advection")
+                timer.start("TracerAdvection")
             tracer_2d_1l.compute(
                 comm,
                 state.tracers,
@@ -194,8 +191,7 @@ def do_dyn(state, comm, timer=None):
                 state.nq,
             )
             if timer:
-                # pause tracer timer
-                timer.stop("Tracer advection")
+                timer.stop("TracerAdvection")
         else:
             raise Exception("tracer_2d no =t implemented, turn on z_tracer")
 
@@ -339,7 +335,6 @@ def compute(state, comm, timer=None):
             # do_omega = spec.namelist.hydrostatic and last_step
             print("Remapping", grid.rank)
             if timer is not None:
-                # start remap timer
                 timer.start("Remapping")
             lagrangian_to_eulerian.compute(
                 state.tracers,
@@ -378,7 +373,6 @@ def compute(state, comm, timer=None):
                 state.nq,
             )
             if timer is not None:
-                # stop remapping timer
                 timer.stop("Remapping")
             if last_step:
                 post_remap(state, comm)

@@ -14,7 +14,6 @@ import fv3core._config as spec
 import fv3core.stencils.fv_dynamics as fv_dynamics
 import fv3core.testing
 import fv3gfs.util as util
-from fv3gfs.util import Timer
 
 
 def print_and_write_global_timings(
@@ -30,8 +29,8 @@ def print_and_write_global_timings(
     dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
     filename = now.strftime("%Y-%m-%d-%H-%M-%S")
     experiment["setup"] = {}
-    experiment["setup"]["experiment time"] = dt_string
-    experiment["setup"]["data set"] = experiment_name
+    experiment["setup"]["timestamp"] = dt_string
+    experiment["setup"]["dataset"] = experiment_name
     experiment["setup"]["timesteps"] = time_step
     experiment["setup"]["hash"] = sha
     experiment["setup"]["version"] = "python/" + backend
@@ -58,9 +57,9 @@ def print_and_write_global_timings(
 
 
 if __name__ == "__main__":
-    timer = Timer()
+    timer = util.Timer()
     timer.start("total")
-    with timer.clock("init"):
+    with timer.clock("initialization"):
 
         usage = "usage: python %(prog)s <data_dir> <timesteps> <backend>"
         parser = ArgumentParser(usage=usage)
@@ -99,7 +98,7 @@ if __name__ == "__main__":
         # namelist setup
         spec.set_namelist(data_dir + "/input.nml")
 
-        nml2 = yaml.safe_load(
+        nml = yaml.safe_load(
             open(
                 data_dir + "/input.yml",
                 "r",
@@ -119,7 +118,7 @@ if __name__ == "__main__":
             "Generator_rank" + str(rank),
         )
         cube_comm = util.CubedSphereCommunicator(
-            comm, util.CubedSpherePartitioner.from_namelist(nml2)
+            comm, util.CubedSpherePartitioner.from_namelist(nml)
         )
 
         # get grid from serialized data
