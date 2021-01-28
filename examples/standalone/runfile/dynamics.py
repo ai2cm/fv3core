@@ -16,7 +16,7 @@ import fv3core._config as spec
 import fv3core.stencils.fv_dynamics as fv_dynamics
 import fv3core.testing
 import fv3gfs.util as util
-from fv3core.testing import write_to_json #, timer
+from fv3core.testing import write_to_json
 from fv3gfs.util import Timer
 
 def print_and_write_global_timings(timer, experiment_name, time_step, backend, comm, root=0):
@@ -36,7 +36,6 @@ def print_and_write_global_timings(timer, experiment_name, time_step, backend, c
     experiment["setup"]["hash"] = sha
     experiment["setup"]["version"] = "python/" + backend
     experiment["times"] = {}
-    print("Calculating Statistics")
     for name, value in timer.times.items():
         if is_root:
             print(name)
@@ -44,10 +43,11 @@ def print_and_write_global_timings(timer, experiment_name, time_step, backend, c
         for label, op in [("minimum", MPI.MIN), ("maximum", MPI.MAX), ("mean", MPI.SUM)]:
             comm.Reduce(np.array(value), recvbuf, op=op)
             if is_root:
-                if op == "mean":
+                print(comm.Get_size())
+                if label == "mean":
                     recvbuf /= comm.Get_size()
                 print(f"    {label}: {recvbuf}")
-                experiment["times"][name][label] = recvbuf
+                experiment["times"][name][label] = float(recvbuf)
 
     if is_root:       
         with open(filename + ".json", "w") as outfile:
@@ -55,6 +55,7 @@ def print_and_write_global_timings(timer, experiment_name, time_step, backend, c
 
 if __name__ == "__main__":
     timer = Timer()
+    timer.start("total")
     with timer.clock("init"):
 
         usage = "usage: python %(prog)s <data_dir> <timesteps> <backend>"
@@ -152,7 +153,7 @@ if __name__ == "__main__":
             input_data["ks"],
         )
 
-    with timer.clock("mainloop"):
+    with timer.clock("main"):
         # Run the dynamics
         for i in range(time_step - 1):
             fv_dynamics.fv_dynamics(
@@ -167,18 +168,7 @@ if __name__ == "__main__":
                 timer
             )
 
+    timer.stop("total")
     # collect times and output simple statistics
-    # main_time = timer.get_totals("mainloop")["total"]
-    # init_time = timer.get_totals("init")["total"]
-    # total_time = main_time + init_time
-
-    # write times to file
-    # init_times = comm.gather(init_time, root=0)
-    # main_times = comm.gather(main_time, root=0)
-    # total_times = comm.gather(total_time, root=0)
     print("Gathering Times")
-    # if comm.Get_rank() == 0:
     print_and_write_global_timings(timer, experiment_name, time_step, backend, comm)
-        # write_to_json(
-        #     time_step, backend, experiment_name, init_times, total_times, main_times
-        # )
