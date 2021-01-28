@@ -113,24 +113,24 @@ def finalize(
 
 
 def compute(
-    last_call,
-    dt,
-    akap,
-    cappa,
-    ptop,
-    zs,
-    w,
-    delz,
-    q_con,
-    delp,
-    pt,
-    zh,
-    pe,
-    ppe,
-    pk3,
-    pk,
-    peln,
-    wsd,
+    last_call: bool,
+    dt: float,
+    akap: float,
+    cappa: FloatField,
+    ptop: float,
+    zs: FloatFieldIJ,
+    w: FloatField,
+    delz: FloatField,
+    q_con: FloatField,
+    delp: FloatField,
+    pt: FloatField,
+    zh: FloatField,
+    pe: FloatField,
+    ppe: FloatField,
+    pk3: FloatField,
+    pk: FloatField,
+    peln: FloatField,
+    wsd: FloatFieldIJ,
 ):
     grid = spec.grid
     rgrav = 1.0 / constants.GRAV
@@ -152,6 +152,7 @@ def compute(
     peg = utils.make_storage_from_shape(shape, riemorigin)
     pelng = utils.make_storage_from_shape(shape, riemorigin)
     gm = utils.make_storage_from_shape(shape, riemorigin)
+
     precompute(
         cp3,
         dm,
@@ -173,6 +174,7 @@ def compute(
         origin=riemorigin,
         domain=domain,
     )
+
     sim1_solver.solve(
         grid.is_,
         grid.ie,

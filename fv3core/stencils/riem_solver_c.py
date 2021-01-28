@@ -68,7 +68,21 @@ def finalize(
 
 
 # TODO: this is totally inefficient, can we use stencils?
-def compute(ms, dt2, akap, cappa, ptop, hs, w3, ptc, q_con, delpc, gz, pef, ws):
+def compute(
+    ms: int,
+    dt2: float,
+    akap: float,
+    cappa: FloatField,
+    ptop: float,
+    hs: FloatFieldIJ,
+    w3: FloatField,
+    ptc: FloatField,
+    q_con: FloatField,
+    delpc: FloatField,
+    gz: FloatField,
+    pef: FloatField,
+    ws: FloatFieldIJ,
+):
     grid = spec.grid
     is1 = grid.is_ - 1
     ie1 = grid.ie + 1
@@ -91,6 +105,7 @@ def compute(ms, dt2, akap, cappa, ptop, hs, w3, ptc, q_con, delpc, gz, pef, ws):
     gm = utils.make_storage_from_shape(shape, riemorigin)
     dz = utils.make_storage_from_shape(shape, riemorigin)
     pm = utils.make_storage_from_shape(shape, riemorigin)
+
     precompute(
         cp3,
         gz,
