@@ -135,14 +135,6 @@ def adjust_w_and_qcon(w: sd, delp: sd, dw: sd, q_con: sd, damp_w: float):
         q_con = q_con / delp
 
 
-@gtstencil()
-def heatdamping_setup(ub: sd, vt: sd, fy: sd, u: sd, gy: sd, rdx: sd, sign: float):
-    with computation(PARALLEL), interval(...):
-        ub[0, 0, 0] = (ub + sign * vt) * rdx
-        fy[0, 0, 0] = u * rdx
-        gy[0, 0, 0] = fy * ub
-
-
 @gtscript.function
 def heat_damping_term(ub, vb, gx, gy, rsin2, cosa_s, u2, v2, du2, dv2):
     return rsin2 * (
@@ -153,9 +145,13 @@ def heat_damping_term(ub, vb, gx, gy, rsin2, cosa_s, u2, v2, du2, dv2):
 
 
 @gtstencil()
-def heatdamping(
+def heat_damping(
     ub: sd,
     vb: sd,
+    ut: sd,
+    vt: sd,
+    u: sd,
+    v: sd,
     delp: sd,
     fx: sd,
     fy: sd,
@@ -163,12 +159,20 @@ def heatdamping(
     gy: sd,
     rsin2: sd,
     cosa_s: sd,
+    rdx: sd,
+    rdy: sd,
     heat_source: sd,
     diss_est: sd,
     damp: float,
     do_skeb: int,
 ):
     with computation(PARALLEL), interval(...):
+        ub[0, 0, 0] = (ub + vt) * rdx
+        fy[0, 0, 0] = u * rdx
+        gy[0, 0, 0] = fy * ub
+        vb[0, 0, 0] = (vb - ut) * rdy
+        fx[0, 0, 0] = v * rdy
+        gx[0, 0, 0] = fx * vb
         u2 = fy + fy[0, 1, 0]
         du2 = ub + ub[0, 1, 0]
         v2 = fx + fx[1, 0, 0]
@@ -186,31 +190,13 @@ def initialize_heat_source(heat_source, diss_est):
 def heat_from_damping(
     ub, vb, ut, vt, u, v, delp, fx, fy, gx, gy, heat_source, diss_est, damp
 ):
-    heatdamping_setup(
+    heat_damping(
         ub,
-        vt,
-        fy,
-        u,
-        gy,
-        grid().rdx,
-        1.0,
-        origin=grid().compute_origin(),
-        domain=grid().domain_shape_compute_y(),
-    )
-    heatdamping_setup(
         vb,
         ut,
-        fx,
+        vt,
+        u,
         v,
-        gx,
-        grid().rdy,
-        -1.0,
-        origin=grid().compute_origin(),
-        domain=grid().domain_shape_compute_x(),
-    )
-    heatdamping(
-        ub,
-        vb,
         delp,
         fx,
         fy,
@@ -218,6 +204,8 @@ def heat_from_damping(
         gy,
         grid().rsin2,
         grid().cosa_s,
+        grid().rdx,
+        grid().rdy,
         heat_source,
         diss_est,
         damp,
