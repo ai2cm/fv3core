@@ -160,7 +160,7 @@ def heat_damping(
     rdy: FloatField,
     heat_source: FloatField,
     diss_est: FloatField,
-    damp: float,
+    kinetic_energy_fraction_to_damp: float,
     do_skeb: int,
 ):
     """
@@ -181,7 +181,10 @@ def heat_damping(
         heat_source (out): heat source from vorticity damping
             implied by energy conservation
         diss_est (out)
-        damp (in)
+        kinetic_energy_fraction_to_damp (in): according to its comment in fv_arrays, the
+            fraction of kinetic energy to explicitly damp and convert into heat.
+            TODO: confirm this description is accurate, why is it multiplied
+            by 0.25 below?
         do_skeb (in)
     """
     with computation(PARALLEL), interval(...):
@@ -196,7 +199,9 @@ def heat_damping(
         v2 = fx + fx[1, 0, 0]
         dv2 = vbt + vbt[1, 0, 0]
         dampterm = heat_damping_term(ubt, vbt, gx, gy, rsin2, cosa_s, u2, v2, du2, dv2)
-        heat_source[0, 0, 0] = delp * (heat_source - damp * dampterm)
+        heat_source[0, 0, 0] = delp * (
+            heat_source - 0.25 * kinetic_energy_fraction_to_damp * dampterm
+        )
         diss_est[0, 0, 0] = diss_est - dampterm if do_skeb == 1 else diss_est
 
 
@@ -205,7 +210,20 @@ def initialize_heat_source(heat_source, diss_est):
     diss_est[grid().compute_interface()] = 0
 
 
-def heat_from_damping(ub, vb, ut, vt, u, v, delp, fx, fy, heat_source, diss_est, damp):
+def heat_from_damping(
+    ub,
+    vb,
+    ut,
+    vt,
+    u,
+    v,
+    delp,
+    fx,
+    fy,
+    heat_source,
+    diss_est,
+    kinetic_energy_fraction_to_damp,
+):
     heat_damping(
         ub,
         vb,
@@ -220,7 +238,7 @@ def heat_from_damping(ub, vb, ut, vt, u, v, delp, fx, fy, heat_source, diss_est,
         grid().rdy,
         heat_source,
         diss_est,
-        damp,
+        kinetic_energy_fraction_to_damp,
         int(spec.namelist.do_skeb),
         origin=grid().compute_origin(),
         domain=grid().domain_shape_compute(),
@@ -683,7 +701,9 @@ def d_sw(
         column_namelist["nord"],
     )
 
-    if column_namelist["d_con"] > dcon_threshold:
+    kinetic_energy_fraction_to_damp = column_namelist["d_con"]
+
+    if kinetic_energy_fraction_to_damp > dcon_threshold:
         ub_from_vort(
             vort,
             ub,
@@ -744,9 +764,21 @@ def d_sw(
         )
         delnflux.compute_no_sg(wk, ut, vt, column_namelist["nord_v"], damp4, vort)
 
-    if column_namelist["d_con"] > dcon_threshold or spec.namelist.do_skeb:
-        damp = 0.25 * column_namelist["d_con"]
-        heat_from_damping(ub, vb, ut, vt, u, v, delp, fx, fy, heat_s, diss_e, damp)
+    if kinetic_energy_fraction_to_damp > dcon_threshold or spec.namelist.do_skeb:
+        heat_from_damping(
+            ub,
+            vb,
+            ut,
+            vt,
+            u,
+            v,
+            delp,
+            fx,
+            fy,
+            heat_s,
+            diss_e,
+            kinetic_energy_fraction_to_damp,
+        )
     if column_namelist["damp_vt"] > 1e-5:
         basic.add_term_stencil(
             vt,
