@@ -53,12 +53,6 @@ def get_flux_v_stencil(
 #         flux = q[0, -1, 0] + fx1 if c > 0.0 else q + fx1
 
 
-@gtstencil()
-def br_bl(q: sd, al: sd, bl: sd, br: sd):
-    with computation(PARALLEL), interval(...):
-        br, bl = get_br_bl(q, al)
-
-
 @gtscript.function
 def get_br_bl(q: sd, al: sd):
     from __externals__ import i_end, i_start, j_end, j_start
