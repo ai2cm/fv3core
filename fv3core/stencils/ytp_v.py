@@ -5,26 +5,43 @@ import fv3core._config as spec
 import fv3core.stencils.yppm as yppm
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import gtstencil
+from fv3core.utils.typing import FloatField
 
 
 sd = utils.sd
 
 
 @gtstencil()
-def get_flux_v_stencil(q: sd, c: sd, al: sd, rdy: sd, flux: sd, mord: int):
+def get_flux_v_stencil(
+    v: FloatField,
+    courant: FloatField,
+    al: FloatField,
+    rdy: FloatField,
+    flux: FloatField,
+    momentum_advection_scheme: int,
+):
+    """
+    v (in): y-direction wind
+    courant (in): Courant number in flux-form
+    al (in): ???
+    rdy (in): radius of Earth multiplied by x-direction gridcell width
+    flux (out): ???
+    momentum_advection_scheme: choice of advection scheme for horizontal momentum,
+        see Appendix A of the FV3 Technical Document for options
+    """
     with computation(PARALLEL), interval(...):
-        b_right, b_left = get_br_bl(q, al)
+        b_right, b_left = get_br_bl(v, al)
         b0 = yppm.get_b0(bl=b_left, br=b_right)
         smt5 = (
             yppm.is_smt5_mord5(b_left, b_right)
-            if mord == 5
+            if momentum_advection_scheme == 5
             else yppm.is_smt5_most_mords(b_left, b_right, b0)
         )
         tmp = smt5[0, -1, 0] + smt5 * (smt5[0, -1, 0] == 0)
-        cfl = c * rdy[0, -1, 0] if c > 0 else c * rdy
+        cfl = courant * rdy[0, -1, 0] if courant > 0 else courant * rdy
         fx0 = yppm.fx1_fn(cfl, b_right, b0, b_left)
         # TODO: add [0, 0, 0] when gt4py bug is fixed
-        flux = yppm.final_flux(c, q, fx0, tmp)  # noqa
+        flux = yppm.final_flux(courant, v, fx0, tmp)  # noqa
 
 
 @gtstencil()
@@ -46,9 +63,8 @@ def br_bl(q: sd, al: sd, bl: sd, br: sd):
 def get_br_bl(q: sd, al: sd):
     from __externals__ import i_end, i_start, j_end, j_start
 
-    # TODO: add [0, 0, 0] when gt4py bug is fixed
-    bl = yppm.get_bl(al=al, q=q)  # noqa
-    br = yppm.get_br(al=al, q=q)  # noqa
+    bl = yppm.get_bl(al, q)
+    br = yppm.get_br(al, q)
     with horizontal(
         region[i_start, j_start - 1 : j_start + 1],
         region[i_end + 1, j_start - 1 : j_start + 1],
@@ -58,31 +74,6 @@ def get_br_bl(q: sd, al: sd):
         br = 0.0
         bl = 0.0
     return br, bl
-
-
-@gtstencil()
-def br_bl_corner(br: sd, bl: sd):
-    with computation(PARALLEL), interval(...):
-        bl = 0
-        br = 0
-
-
-def zero_br_bl_corners_south(br, bl):
-    grid = spec.grid
-    corner_domain = (1, 2, grid.npz)
-    if grid.sw_corner:
-        br_bl_corner(br, bl, origin=(grid.is_, grid.js - 1, 0), domain=corner_domain)
-    if grid.se_corner:
-        br_bl_corner(br, bl, origin=(grid.ie + 1, grid.js - 1, 0), domain=corner_domain)
-
-
-def zero_br_bl_corners_north(br, bl):
-    grid = spec.grid
-    corner_domain = (1, 2, grid.npz)
-    if grid.nw_corner:
-        br_bl_corner(br, bl, origin=(grid.is_, grid.je, 0), domain=corner_domain)
-    if grid.ne_corner:
-        br_bl_corner(br, bl, origin=(grid.ie + 1, grid.je, 0), domain=corner_domain)
 
 
 def compute(c, u, v, flux):
@@ -120,16 +111,12 @@ def compute(c, u, v, flux):
     if jord not in [5, 6, 7, 8]:
         raise ValueError("Currently ytp_v is only supported for hord_mt == 5,6,7,8")
     ppm_with_lin_2004_constraint = jord == 8
-    js3 = grid.js - 1
-    je3 = grid.je + 1
-
-    tmp_origin = (grid.is_, grid.js - 1, 0)
-    bl = utils.make_storage_from_shape(u.shape, tmp_origin)
-    br = utils.make_storage_from_shape(u.shape, tmp_origin)
 
     if not ppm_with_lin_2004_constraint:
         # this not get the exact right edges
-        al = yppm.compute_al(v, grid.dy, jord, grid.is_, grid.ie + 1, js3, je3 + 1)
+        al = yppm.compute_al(
+            v, grid.dy, jord, grid.is_, grid.ie + 1, grid.js - 1, grid.je + 2
+        )
         get_flux_v_stencil(
             v,
             c,
