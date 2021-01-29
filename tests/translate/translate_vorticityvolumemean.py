@@ -8,8 +8,6 @@ class TranslateVorticityVolumeMean(TranslateFortranData2Py):
         self.in_vars["data_vars"] = {"u": {}, "v": {}, "wk": {}}
         self.out_vars = {
             "wk": {},
-            # "ut": grid.x3d_domain_dict(),
-            # "vt": grid.y3d_domain_dict(),
         }
 
     def compute(self, inputs):
