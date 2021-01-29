@@ -146,7 +146,7 @@ def heat_damping_term(ub, vb, gx, gy, rsin2, cosa_s, u2, v2, du2, dv2):
 
 
 @gtstencil()
-def heat_damping(
+def heat_source_from_vorticity_damping(
     ub: FloatField,
     vb: FloatField,
     ut: FloatField,
@@ -228,7 +228,7 @@ def heat_from_damping(
     diss_est,
     kinetic_energy_fraction_to_damp,
 ):
-    heat_damping(
+    heat_source_from_vorticity_damping(
         ub,
         vb,
         ut,
