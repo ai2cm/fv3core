@@ -343,6 +343,26 @@ def pert_ppm_standard_constraint(a0: sd, al: sd, ar: sd):
             ar = 0.0
 
 
+@gtscript.function
+def pert_ppm_standard_constraint_fcn(a0: sd, al: sd, ar: sd):
+    da1 = 0.0
+    da2 = 0.0
+    a6da = 0.0
+    if al * ar < 0.0:
+        da1 = al - ar
+        da2 = da1 ** 2
+        a6da = 3.0 * (al + ar) * da1
+        if a6da < -da2:
+            ar = -2.0 * al
+        elif a6da > da2:
+            al = -2.0 * ar
+    else:
+        # effect of dm=0 included here
+        al = 0.0
+        ar = 0.0
+    return al, ar
+
+
 def compute_al(q, dyvar, jord, ifirst, ilast, js1, je3, kstart=0, nk=None):
     if nk is None:
         nk = grid().npz - kstart
