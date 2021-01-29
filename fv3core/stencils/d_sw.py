@@ -18,13 +18,14 @@ import fv3core.stencils.flux_capacitor as fluxcap
 import fv3core.stencils.fvtp2d as fvtp2d
 import fv3core.stencils.fxadv as fxadv
 import fv3core.stencils.heatdiss as heatdiss
-import fv3core.stencils.vorticity_volumemean as vort_mean
 import fv3core.stencils.xtp_u as xtp_u
 import fv3core.stencils.ytp_v as ytp_v
 import fv3core.utils.corners as corners
 import fv3core.utils.global_constants as constants
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import gtstencil
+
+from ..utils.typing import IJK, FloatField
 
 
 dcon_threshold = 1e-5
@@ -61,6 +62,32 @@ def flux_integral(w, delp, gx, gy, rarea):
 def flux_adjust(w: sd, delp: sd, gx: sd, gy: sd, rarea: sd):
     with computation(PARALLEL), interval(...):
         w = flux_integral(w, delp, gx, gy, rarea)
+
+
+@gtstencil()
+def vorticity_from_winds(
+    u: FloatField[IJK],
+    v: FloatField[IJK],
+    dx: FloatField[IJK],
+    dy: FloatField[IJK],
+    rarea: FloatField[IJK],
+    vorticity: FloatField[IJK],
+):
+    """
+    Compute the area mean relative vorticity from the D-grid winds.
+
+    Args:
+        u (in): x-direction wind on D grid
+        v (in): y-direction wind on D grid
+        dx (in): gridcell width in x-direction
+        dy (in): gridcell width in y-direction
+        rarea (in): inverse of area
+        vorticity (out): area mean relative vorticity
+    """
+    with computation(PARALLEL), interval(...):
+        vt = u * dx
+        ut = v * dy
+        vorticity[0, 0, 0] = rarea * (vt - vt[0, 1, 0] - ut + ut[1, 0, 0])
 
 
 @gtstencil()
@@ -652,7 +679,13 @@ def d_sw(
     if not grid().nested:
         corners.fix_corner_ke(ke, u, v, ut, vt, dt, grid())
 
-    vort_mean.compute(u, v, ut, vt, wk)
+    vorticity_from_winds(
+        u,
+        v,
+        wk,
+        origin=spec.grid.compute_origin(),
+        domain=spec.grid.domain_shape_compute(add=(1, 1, 0)),
+    )
 
     # TODO if spec.namelist.d_f3d and ROT3 unimplemeneted
     adjust_w_and_qcon(
