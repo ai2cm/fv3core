@@ -25,6 +25,7 @@ import fv3core.utils.corners as corners
 import fv3core.utils.global_constants as constants
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import gtstencil
+from fv3core.utils.typing import FloatField
 
 
 dcon_threshold = 1e-5
@@ -146,33 +147,50 @@ def heat_damping_term(ub, vb, gx, gy, rsin2, cosa_s, u2, v2, du2, dv2):
 
 @gtstencil()
 def heat_damping(
-    ub: sd,
-    vb: sd,
-    ut: sd,
-    vt: sd,
-    u: sd,
-    v: sd,
-    delp: sd,
-    fx: sd,
-    fy: sd,
-    gx: sd,
-    gy: sd,
-    rsin2: sd,
-    cosa_s: sd,
-    rdx: sd,
-    rdy: sd,
-    heat_source: sd,
-    diss_est: sd,
+    ub: FloatField,
+    vb: FloatField,
+    ut: FloatField,
+    vt: FloatField,
+    u: FloatField,
+    v: FloatField,
+    delp: FloatField,
+    rsin2: FloatField,
+    cosa_s: FloatField,
+    rdx: FloatField,
+    rdy: FloatField,
+    heat_source: FloatField,
+    diss_est: FloatField,
     damp: float,
     do_skeb: int,
 ):
+    """
+    Calculates heat source from vorticity damping implied by energy conservation.
+
+    Args:
+        ub (inout)
+        vb (inout)
+        ut (in)
+        vt (in)
+        u (in)
+        v (in)
+        delp (in)
+        rsin2 (in)
+        cosa_s (in)
+        rdx (in)
+        rdy (in)
+        heat_source (out): heat source from vorticity damping
+            implied by energy conservation
+        diss_est (out)
+        damp (in)
+        do_skeb (in)
+    """
     with computation(PARALLEL), interval(...):
         ub[0, 0, 0] = (ub + vt) * rdx
-        fy[0, 0, 0] = u * rdx
-        gy[0, 0, 0] = fy * ub
+        fy = u * rdx
+        gy = fy * ub
         vb[0, 0, 0] = (vb - ut) * rdy
-        fx[0, 0, 0] = v * rdy
-        gx[0, 0, 0] = fx * vb
+        fx = v * rdy
+        gx = fx * vb
         u2 = fy + fy[0, 1, 0]
         du2 = ub + ub[0, 1, 0]
         v2 = fx + fx[1, 0, 0]
@@ -187,9 +205,7 @@ def initialize_heat_source(heat_source, diss_est):
     diss_est[grid().compute_interface()] = 0
 
 
-def heat_from_damping(
-    ub, vb, ut, vt, u, v, delp, fx, fy, gx, gy, heat_source, diss_est, damp
-):
+def heat_from_damping(ub, vb, ut, vt, u, v, delp, fx, fy, heat_source, diss_est, damp):
     heat_damping(
         ub,
         vb,
@@ -198,10 +214,6 @@ def heat_from_damping(
         u,
         v,
         delp,
-        fx,
-        fy,
-        gx,
-        gy,
         grid().rsin2,
         grid().cosa_s,
         grid().rdx,
@@ -734,9 +746,7 @@ def d_sw(
 
     if column_namelist["d_con"] > dcon_threshold or spec.namelist.do_skeb:
         damp = 0.25 * column_namelist["d_con"]
-        heat_from_damping(
-            ub, vb, ut, vt, u, v, delp, fx, fy, gx, gy, heat_s, diss_e, damp
-        )
+        heat_from_damping(ub, vb, ut, vt, u, v, delp, fx, fy, heat_s, diss_e, damp)
     if column_namelist["damp_vt"] > 1e-5:
         basic.add_term_stencil(
             vt,
