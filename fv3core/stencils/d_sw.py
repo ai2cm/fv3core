@@ -65,7 +65,7 @@ def flux_adjust(w: sd, delp: sd, gx: sd, gy: sd, rarea: sd):
 
 
 @gtstencil()
-def vorticity_from_winds(
+def horizontal_relative_vorticity_from_winds(
     u: FloatField,
     v: FloatField,
     dx: FloatField,
@@ -82,15 +82,11 @@ def vorticity_from_winds(
         dx (in): gridcell width in x-direction
         dy (in): gridcell width in y-direction
         rarea (in): inverse of area
-        vorticity (out): area mean relative vorticity
+        vorticity (out): area mean horizontal relative vorticity
     """
-    from __externals__ import local_ie, local_je
-
     with computation(PARALLEL), interval(...):
-        with horizontal(region[:, : local_je + 1]):
-            vt = u * dx
-        with horizontal(region[: local_ie + 1, :]):
-            ut = v * dy
+        vt = u * dx
+        ut = v * dy
         vorticity[0, 0, 0] = rarea * (vt - vt[0, 1, 0] - ut + ut[1, 0, 0])
 
 
@@ -683,14 +679,14 @@ def d_sw(
     if not grid().nested:
         corners.fix_corner_ke(ke, u, v, ut, vt, dt, grid())
 
-    vorticity_from_winds(
+    horizontal_relative_vorticity_from_winds(
         u,
         v,
         spec.grid.dx,
         spec.grid.dy,
         spec.grid.rarea,
         wk,
-        origin=spec.grid.default_origin(),
+        origin=(0, 0, 0),
         domain=spec.grid.domain_shape_standard(),
     )
 
