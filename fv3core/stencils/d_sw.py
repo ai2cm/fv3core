@@ -74,7 +74,7 @@ def horizontal_relative_vorticity_from_winds(
     vorticity: FloatField,
 ):
     """
-    Compute the area mean relative vorticity from the D-grid winds.
+    Compute the area mean relative vorticity in the z-direction from the D-grid winds.
 
     Args:
         u (in): x-direction wind on D grid
