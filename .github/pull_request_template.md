@@ -9,7 +9,7 @@ Provide a list of relevant code changes and the side effects they have on other 
 ## Requirements changes:
 Provide a list of any changes made to requirements or linting, e.g. changes to files requirements*.txt, constraints.txt, setup.py, pyproject.toml, pre-commit-config.yaml as well as a reason if not included in the Purpose section (e.g. incompatibility, updates, etc)
 
-##Infrastructure changes:
+## Infrastructure changes:
 Provide a list of changes that impact the infrastructure around running the code -- that is, changes to Makefiles, docker files, git submodules, or .jenkins (testing infrastructure changes). If Jenkins plans are also being manually changed, indicate that as well.
 
 Before submitting this PR, please make sure:
