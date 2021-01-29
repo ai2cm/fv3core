@@ -12,6 +12,7 @@ Provide a list of any changes made to requirements or linting, e.g. changes to f
 ## Infrastructure changes:
 Provide a list of changes that impact the infrastructure around running the code -- that is, changes to Makefiles, docker files, git submodules, or .jenkins (testing infrastructure changes). If Jenkins plans are also being manually changed, indicate that as well.
 
+## Checklist
 Before submitting this PR, please make sure:
 
 - [ ] You have followed the coding standards guidelines established at [Code Review Checklist](https://paper.dropbox.com/doc/Code-Review-Checklist--BD7zigBMAhMZAPkeNENeuU2UAg-IlsYffZgTwyKEylty7NhY).
