@@ -12,12 +12,10 @@ import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import gtstencil
 from fv3core.stencils.d2a2c_vect import d2a2c_vect
 from fv3core.utils.corners import fill2_4corners_x, fill2_4corners_y
+from fv3core.utils.typing import FloatField
 
 
-sd = utils.sd
-
-
-def nonhydro_x_fluxes(delp: sd, pt: sd, w: sd, utc: sd):
+def nonhydro_x_fluxes(delp: FloatField, pt: FloatField, w: FloatField, utc: FloatField):
     fx1 = delp[-1, 0, 0] if utc > 0.0 else delp
     fx = pt[-1, 0, 0] if utc > 0.0 else pt
     fx2 = w[-1, 0, 0] if utc > 0.0 else w
@@ -27,7 +25,7 @@ def nonhydro_x_fluxes(delp: sd, pt: sd, w: sd, utc: sd):
     return fx, fx1, fx2
 
 
-def nonhydro_y_fluxes(delp: sd, pt: sd, w: sd, vtc: sd):
+def nonhydro_y_fluxes(delp: FloatField, pt: FloatField, w: FloatField, vtc: FloatField):
     fy1 = delp[0, -1, 0] if vtc > 0.0 else delp
     fy = pt[0, -1, 0] if vtc > 0.0 else pt
     fy2 = w[0, -1, 0] if vtc > 0.0 else w
@@ -37,21 +35,28 @@ def nonhydro_y_fluxes(delp: sd, pt: sd, w: sd, vtc: sd):
     return fy, fy1, fy2
 
 
-def transportdelp(delp: sd, pt: sd, utc: sd, vtc: sd, w: sd, rarea: sd):
+def transportdelp(
+    delp: FloatField,
+    pt: FloatField,
+    utc: FloatField,
+    vtc: FloatField,
+    w: FloatField,
+    rarea: FloatField,
+):
     """Transport delp.
 
     Args:
-        delp: What is transported (input)
-        pt: Pressure (input)
-        utc: x-velocity on C-grid (input)
-        vtc: y-velocity on C-grid (input)
-        w: z-velocity on C-grid (input)
-        rarea: Inverse areas (input) -- IJ field
+        delp: What is transported
+        pt: Pressure
+        utc: x-velocity on C-grid
+        vtc: y-velocity on C-grid
+        w: z-velocity on C-grid
+        rarea: Inverse areas -- IJ field
 
     Returns:
-        delpc: Updated delp (output)
-        ptc: Updated pt (output)
-        wc: Updated w (output)
+        delpc: Updated delp
+        ptc: Updated pt
+        wc: Updated w
     """
 
     from __externals__ import namelist
@@ -75,25 +80,25 @@ def transportdelp(delp: sd, pt: sd, utc: sd, vtc: sd, w: sd, rarea: sd):
     ptc = (pt * delp + (fx - fx[1, 0, 0] + fy - fy[0, 1, 0]) * rarea) / delpc
     wc = (w * delp + (fx2 - fx2[1, 0, 0] + fy2 - fy2[0, 1, 0]) * rarea) / delpc
 
-    return delpc, ptc, wc, delp, pt, w
+    return delpc, ptc, wc
 
 
 def divergence_corner(
-    u: sd,
-    v: sd,
-    ua: sd,
-    va: sd,
-    dxc: sd,
-    dyc: sd,
-    sin_sg1: sd,
-    sin_sg2: sd,
-    sin_sg3: sd,
-    sin_sg4: sd,
-    cos_sg1: sd,
-    cos_sg2: sd,
-    cos_sg3: sd,
-    cos_sg4: sd,
-    rarea_c: sd,
+    u: FloatField,
+    v: FloatField,
+    ua: FloatField,
+    va: FloatField,
+    dxc: FloatField,
+    dyc: FloatField,
+    sin_sg1: FloatField,
+    sin_sg2: FloatField,
+    sin_sg3: FloatField,
+    sin_sg4: FloatField,
+    cos_sg1: FloatField,
+    cos_sg2: FloatField,
+    cos_sg3: FloatField,
+    cos_sg4: FloatField,
+    rarea_c: FloatField,
 ):
     """Calculate divg on d-grid.
 
@@ -151,7 +156,7 @@ def divergence_corner(
     return divg_d
 
 
-def circulation_cgrid(uc: sd, vc: sd, dxc: sd, dyc: sd):
+def circulation_cgrid(uc: FloatField, vc: FloatField, dxc: FloatField, dyc: FloatField):
     """Update vort_c.
 
     Args:
@@ -180,20 +185,20 @@ def circulation_cgrid(uc: sd, vc: sd, dxc: sd, dyc: sd):
 
 
 def update_vorticity_and_kinetic_energy(
-    ua: sd,
-    va: sd,
-    uc: sd,
-    vc: sd,
-    u: sd,
-    v: sd,
-    sin_sg1: sd,
-    cos_sg1: sd,
-    sin_sg2: sd,
-    cos_sg2: sd,
-    sin_sg3: sd,
-    cos_sg3: sd,
-    sin_sg4: sd,
-    cos_sg4: sd,
+    ua: FloatField,
+    va: FloatField,
+    uc: FloatField,
+    vc: FloatField,
+    u: FloatField,
+    v: FloatField,
+    sin_sg1: FloatField,
+    cos_sg1: FloatField,
+    sin_sg2: FloatField,
+    cos_sg2: FloatField,
+    sin_sg3: FloatField,
+    cos_sg3: FloatField,
+    sin_sg4: FloatField,
+    cos_sg4: FloatField,
     dt2: float,
 ):
     from __externals__ import i_end, i_start, j_end, j_start, namelist
@@ -219,18 +224,18 @@ def update_vorticity_and_kinetic_energy(
 
 
 def vorticitytransport(
-    vort: sd,
-    ke: sd,
-    u: sd,
-    v: sd,
-    uc: sd,
-    vc: sd,
-    cosa_u: sd,
-    sina_u: sd,
-    cosa_v: sd,
-    sina_v: sd,
-    rdxc: sd,
-    rdyc: sd,
+    vort: FloatField,
+    ke: FloatField,
+    u: FloatField,
+    v: FloatField,
+    uc: FloatField,
+    vc: FloatField,
+    cosa_u: FloatField,
+    sina_u: FloatField,
+    cosa_v: FloatField,
+    sina_v: FloatField,
+    rdxc: FloatField,
+    rdyc: FloatField,
     dt2: float,
 ):
     from __externals__ import (
@@ -267,107 +272,50 @@ def vorticitytransport(
     return uc, vc
 
 
-def vorticitytransport_cgrid(
-    uc: sd, vc: sd, vort_c: sd, ke_c: sd, v: sd, u: sd, dt2: float
-):
-    """Update the C-Grid zonal and meridional velocity fields.
-
-    Args:
-        uc: x-velocity on C-grid (input, output)
-        vc: y-velocity on C-grid (input, output)
-        vort_c: Vorticity on C-grid (input)
-        ke_c: kinetic energy on C-grid (input)
-        v: y-velocity on D-grid (input)
-        u: x-velocity on D-grid (input)
-        dt2: timestep (input)
-    """
-
-    grid = spec.grid
-
-    def stencil(
-        vort: sd,
-        ke: sd,
-        u: sd,
-        v: sd,
-        uc: sd,
-        vc: sd,
-        cosa_u: sd,
-        sina_u: sd,
-        cosa_v: sd,
-        sina_v: sd,
-        rdxc: sd,
-        rdyc: sd,
-        dt2: float,
-    ):
-        with computation(PARALLEL), interval(...):
-            uc, vc = vorticitytransport(
-                vort, ke, u, v, uc, vc, cosa_u, sina_u, cosa_v, sina_v, rdxc, rdyc, dt2
-            )
-
-    stencil = gtstencil(definition=stencil)
-    stencil(
-        vort_c,
-        ke_c,
-        u,
-        v,
-        uc,
-        vc,
-        grid.cosa_u,
-        grid.sina_u,
-        grid.cosa_v,
-        grid.sina_v,
-        grid.rdxc,
-        grid.rdyc,
-        dt2,
-        origin=grid.compute_origin(),
-        domain=grid.domain_shape_compute_buffer_2d(add=(1, 1, 0)),
-    )
-
-
 @gtstencil(externals={"HALO": 3})
 def csw_stencil(
-    delpc: sd,
-    ptc: sd,
-    delp: sd,
-    pt: sd,
-    divgd: sd,
-    cosa_s: sd,
-    cosa_u: sd,
-    cosa_v: sd,
-    sina_u: sd,
-    sina_v: sd,
-    dx: sd,
-    dy: sd,
-    dxa: sd,
-    dya: sd,
-    dxc: sd,
-    dyc: sd,
-    rdxc: sd,
-    rdyc: sd,
-    rsin2: sd,
-    rsin_u: sd,
-    rsin_v: sd,
-    sin_sg1: sd,
-    sin_sg2: sd,
-    sin_sg3: sd,
-    sin_sg4: sd,
-    cos_sg1: sd,
-    cos_sg2: sd,
-    cos_sg3: sd,
-    cos_sg4: sd,
-    rarea: sd,
-    rarea_c: sd,
-    fC: sd,
-    u: sd,
-    ua: sd,
-    uc: sd,
-    ut: sd,
-    v: sd,
-    va: sd,
-    vc: sd,
-    vt: sd,
-    w: sd,
-    omga: sd,
+    delpc: FloatField,
+    ptc: FloatField,
+    delp: FloatField,
+    pt: FloatField,
+    divgd: FloatField,
+    cosa_s: FloatField,
+    cosa_u: FloatField,
+    cosa_v: FloatField,
+    sina_u: FloatField,
+    sina_v: FloatField,
+    dx: FloatField,
+    dy: FloatField,
+    dxa: FloatField,
+    dya: FloatField,
+    dxc: FloatField,
+    dyc: FloatField,
+    rdxc: FloatField,
+    rdyc: FloatField,
+    rsin2: FloatField,
+    rsin_u: FloatField,
+    rsin_v: FloatField,
+    sin_sg1: FloatField,
+    sin_sg2: FloatField,
+    sin_sg3: FloatField,
+    sin_sg4: FloatField,
+    cos_sg1: FloatField,
+    cos_sg2: FloatField,
+    cos_sg3: FloatField,
+    cos_sg4: FloatField,
+    rarea: FloatField,
+    rarea_c: FloatField,
+    fC: FloatField,
+    u: FloatField,
+    ua: FloatField,
+    uc: FloatField,
+    ut: FloatField,
+    v: FloatField,
+    va: FloatField,
+    vc: FloatField,
+    vt: FloatField,
+    w: FloatField,
+    omga: FloatField,
     dt2: float,
 ):
     from __externals__ import local_ie, local_is, local_je, local_js
@@ -414,7 +362,7 @@ def csw_stencil(
             rarea_c,
         )
 
-        # Extra
+        # Extra -- for validation
         # {
         with horizontal(region[local_is : local_ie + 2, local_js : local_je + 2]):
             divgd = divgd_t
@@ -423,9 +371,9 @@ def csw_stencil(
         ut = dt2 * ut * dy * sin_sg3[-1, 0, 0] if ut > 0 else dt2 * ut * dy * sin_sg1
         vt = dt2 * vt * dx * sin_sg4[0, -1, 0] if vt > 0 else dt2 * vt * dx * sin_sg2
 
-        delpc_t, ptc_t, omga_t, delp, pt, w = transportdelp(delp, pt, ut, vt, w, rarea)
+        delpc_t, ptc_t, omga_t = transportdelp(delp, pt, ut, vt, w, rarea)
 
-        # Extra
+        # Extra -- for validation
         # {
         with horizontal(
             region[local_is - 1 : local_ie + 2, local_js - 1 : local_je + 2]
