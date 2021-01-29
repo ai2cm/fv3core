@@ -314,9 +314,6 @@ class Grid:
     def domain_shape_compute(self, add: Tuple[int, int, int] = (0, 0, 0)):
         return (self.nic + add[0], self.njc + add[1], self.npz + add[2])
 
-    def domain_shape_compute_buffer_2d(self, add: Tuple[int, int, int] = (1, 1, 0)):
-        return (self.nic + add[0], self.njc + add[1], self.npz + add[2])
-
     def domain_shape_compute_buffer_k(self):
         return (self.nic, self.njc, self.npz + 1)
 
@@ -421,7 +418,7 @@ class Grid:
             self.domain_shape_compute()[0:2],
             self.domain_shape_compute_x()[0:2],
             self.domain_shape_compute_y()[0:2],
-            self.domain_shape_compute_buffer_2d()[0:2],
+            self.domain_shape_compute(add=(1, 1, 0))[0:2],
         ]:
             return self.is_, self.js
         elif shape[0:2] == (self.nic + 2, self.njc + 2):

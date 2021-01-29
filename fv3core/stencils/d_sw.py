@@ -24,8 +24,7 @@ import fv3core.utils.corners as corners
 import fv3core.utils.global_constants as constants
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import gtstencil
-
-from ..utils.typing import FloatField
+from fv3core.utils.typing import FloatField
 
 
 dcon_threshold = 1e-5
@@ -68,6 +67,8 @@ def flux_adjust(w: sd, delp: sd, gx: sd, gy: sd, rarea: sd):
 def horizontal_relative_vorticity_from_winds(
     u: FloatField,
     v: FloatField,
+    ut: FloatField,
+    vt: FloatField,
     dx: FloatField,
     dy: FloatField,
     rarea: FloatField,
@@ -79,6 +80,8 @@ def horizontal_relative_vorticity_from_winds(
     Args:
         u (in): x-direction wind on D grid
         v (in): y-direction wind on D grid
+        ut (out): u * dx
+        vt (out): v * dy
         dx (in): gridcell width in x-direction
         dy (in): gridcell width in y-direction
         rarea (in): inverse of area
@@ -640,7 +643,7 @@ def d_sw(
         dt4,
         dt5,
         origin=grid().compute_origin(),
-        domain=grid().domain_shape_compute_buffer_2d(),
+        domain=grid().domain_shape_compute(add=(1, 1, 0)),
     )
 
     ytp_v.compute(vb, u, v, ub)
@@ -650,7 +653,7 @@ def d_sw(
         ub,
         ke,
         origin=grid().compute_origin(),
-        domain=grid().domain_shape_compute_buffer_2d(),
+        domain=grid().domain_shape_compute(add=(1, 1, 0)),
     )
 
     ubke(
@@ -663,7 +666,7 @@ def d_sw(
         dt4,
         dt5,
         origin=grid().compute_origin(),
-        domain=grid().domain_shape_compute_buffer_2d(),
+        domain=grid().domain_shape_compute(add=(1, 1, 0)),
     )
 
     xtp_u.compute(ub, u, v, vb)
@@ -673,7 +676,7 @@ def d_sw(
         ub,
         vb,
         origin=grid().compute_origin(),
-        domain=grid().domain_shape_compute_buffer_2d(),
+        domain=grid().domain_shape_compute(add=(1, 1, 0)),
     )
 
     if not grid().nested:
@@ -682,6 +685,8 @@ def d_sw(
     horizontal_relative_vorticity_from_winds(
         u,
         v,
+        ut,
+        vt,
         spec.grid.dx,
         spec.grid.dy,
         spec.grid.rarea,
