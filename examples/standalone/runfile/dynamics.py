@@ -94,15 +94,12 @@ if __name__ == "__main__":
     with timer.clock("initialization"):
         args = parse_args()
 
-        # # MPI stuff
         comm = MPI.COMM_WORLD
         rank = comm.Get_rank()
 
-        # fv3core specific setup
         fv3core.set_backend(args.backend)
         fv3core.set_rebuild(False)
 
-        # namelist setup
         spec.set_namelist(args.data_dir + "/input.nml")
 
         experiment_name = yaml.safe_load(
@@ -159,7 +156,6 @@ if __name__ == "__main__":
         )
 
     with timer.clock("mainloop"):
-        # Run the dynamics
         for i in range(args.time_step - 1):
             fv_dynamics.fv_dynamics(
                 state,
