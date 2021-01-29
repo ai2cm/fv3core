@@ -25,7 +25,7 @@ import fv3core.utils.global_constants as constants
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import gtstencil
 
-from ..utils.typing import IJK, FloatField
+from ..utils.typing import FloatField
 
 
 dcon_threshold = 1e-5
@@ -66,12 +66,12 @@ def flux_adjust(w: sd, delp: sd, gx: sd, gy: sd, rarea: sd):
 
 @gtstencil()
 def vorticity_from_winds(
-    u: FloatField[IJK],
-    v: FloatField[IJK],
-    dx: FloatField[IJK],
-    dy: FloatField[IJK],
-    rarea: FloatField[IJK],
-    vorticity: FloatField[IJK],
+    u: FloatField,
+    v: FloatField,
+    dx: FloatField,
+    dy: FloatField,
+    rarea: FloatField,
+    vorticity: FloatField,
 ):
     """
     Compute the area mean relative vorticity from the D-grid winds.
@@ -84,9 +84,13 @@ def vorticity_from_winds(
         rarea (in): inverse of area
         vorticity (out): area mean relative vorticity
     """
+    from __externals__ import local_ie, local_je
+
     with computation(PARALLEL), interval(...):
-        vt = u * dx
-        ut = v * dy
+        with horizontal(region[:, : local_je + 1]):
+            vt = u * dx
+        with horizontal(region[: local_ie + 1, :]):
+            ut = v * dy
         vorticity[0, 0, 0] = rarea * (vt - vt[0, 1, 0] - ut + ut[1, 0, 0])
 
 
@@ -682,9 +686,12 @@ def d_sw(
     vorticity_from_winds(
         u,
         v,
+        spec.grid.dx,
+        spec.grid.dy,
+        spec.grid.rarea,
         wk,
-        origin=spec.grid.compute_origin(),
-        domain=spec.grid.domain_shape_compute(add=(1, 1, 0)),
+        origin=spec.grid.default_origin(),
+        domain=spec.grid.domain_shape_standard(),
     )
 
     # TODO if spec.namelist.d_f3d and ROT3 unimplemeneted

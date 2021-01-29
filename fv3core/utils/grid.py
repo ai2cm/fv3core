@@ -305,8 +305,8 @@ class Grid:
         }
         return {**self.default_domain_dict(), **horizontal_dict}
 
-    def domain_shape_standard(self):
-        return (self.nid, self.njd, self.npz)
+    def domain_shape_standard(self, add: Tuple[int, int, int] = (0, 0, 0)):
+        return (self.nid + add[0], self.njd + add[1], self.npz + add[2])
 
     def domain_shape_buffer_k(self):
         return (self.nid, self.njd, self.npz + 1)
