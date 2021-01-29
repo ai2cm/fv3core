@@ -1,18 +1,24 @@
-## Description
 
-Describe the content of the PR and links to related issues, bugs of features.
+## Purpose
 
-## Requirements
+Describe the purpose of this PR and the motivation if relevant to understanding. Include links to related issues, bugs or features. Include the sections below that apply.
+
+## Code changes:
+Provide a list of relevant code changes and the side effects they have on other code.
+
+## Requirements changes:
+Provide a list of any changes made to requirements or linting, e.g. changes to files requirements*.txt, constraints.txt, setup.py, pyproject.toml, pre-commit-config.yaml as well as a reason if not included in the Purpose section (e.g. incompatibility, updates, etc)
+
+##Infrastructure changes:
+Provide a list of changes that impact the infrastructure around running the code -- that is, changes to Makefiles, docker files, git submodules, or .jenkins (testing infrastructure changes). If Jenkins plans are also being manually changed, indicate that as well.
 
 Before submitting this PR, please make sure:
 
 - [ ] You have followed the coding standards guidelines established at [Code Review Checklist](https://paper.dropbox.com/doc/Code-Review-Checklist--BD7zigBMAhMZAPkeNENeuU2UAg-IlsYffZgTwyKEylty7NhY).
-- [ ] The code builds cleanly without new errors or warnings
-- [ ] The code passes all the existing tests
-- [ ] All relevant documentation has been updated or added
-
+- [ ] Docstrings and type hints are added to new and updated routines, as appropriate
+- [ ] All relevant documentation has been updated or added (e.g. README, CONTRIBUTING docs)
+- [ ] Unit tests are added or updated for non-stencil code changes
 
 Additionally, if this PR contains code authored by new contributors:
 
-- [ ] The names of all the new contributors have been added to an updated
-version of the CONTRIBUTORS file included in the PR
+- [ ] The names of all the new contributors have been added to CONTRIBUTORS.md
