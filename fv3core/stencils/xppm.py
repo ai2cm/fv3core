@@ -384,6 +384,7 @@ def compute_blbr_ord8plus(q, iord, jfirst, jlast, is1, ie1, kstart, nk):
 
     if spec.namelist.grid_type < 3 and not (grid.nested or spec.namelist.regional):
         y_edge_domain = (1, dj, nk)
+        do_xt_minmax = True
         if grid.west_edge:
             west_edge_iord8plus_0(
                 q,
@@ -391,7 +392,7 @@ def compute_blbr_ord8plus(q, iord, jfirst, jlast, is1, ie1, kstart, nk):
                 dm,
                 bl,
                 br,
-                True,
+                do_xt_minmax,
                 origin=(grid.is_ - 1, jfirst, kstart),
                 domain=y_edge_domain,
             )
@@ -401,7 +402,7 @@ def compute_blbr_ord8plus(q, iord, jfirst, jlast, is1, ie1, kstart, nk):
                 dm,
                 bl,
                 br,
-                True,
+                do_xt_minmax,
                 origin=(grid.is_, jfirst, kstart),
                 domain=y_edge_domain,
             )
@@ -433,7 +434,7 @@ def compute_blbr_ord8plus(q, iord, jfirst, jlast, is1, ie1, kstart, nk):
                 dm,
                 bl,
                 br,
-                True,
+                do_xt_minmax,
                 origin=(grid.ie, jfirst, kstart),
                 domain=y_edge_domain,
             )
@@ -443,7 +444,7 @@ def compute_blbr_ord8plus(q, iord, jfirst, jlast, is1, ie1, kstart, nk):
                 dm,
                 bl,
                 br,
-                True,
+                do_xt_minmax,
                 origin=(grid.ie + 1, jfirst, kstart),
                 domain=y_edge_domain,
             )
@@ -523,7 +524,7 @@ def get_flux_fcn(q: FloatField, c: FloatField, al: FloatField):
 
 
 def compute_blbr_ord8plus_fcn(q: FloatField, dxa: FloatField):
-    from __externals__ import i_end, i_start, iord, namelist
+    from __externals__ import do_xt_minmax, i_end, i_start, iord, namelist
 
     dm = dm_iord8plus_fcn(q)
     al = al_iord8plus_fcn(q, dm)
@@ -538,11 +539,11 @@ def compute_blbr_ord8plus_fcn(q: FloatField, dxa: FloatField):
     # {
     with horizontal(region[i_start - 1, :]):
         bl = s14 * dm[-1, 0, 0] + s11 * (q[-1, 0, 0] - q)
-        xt = xt_dxa_edge_0(q, dxa, True)
+        xt = xt_dxa_edge_0(q, dxa, do_xt_minmax)
         br = xt - q
 
     with horizontal(region[i_start, :]):
-        xt = xt_dxa_edge_1(q, dxa, True)
+        xt = xt_dxa_edge_1(q, dxa, do_xt_minmax)
         bl = xt - q
         xt = s15 * q + s11 * q[1, 0, 0] - s14 * dm[1, 0, 0]
         br = xt - q
@@ -560,11 +561,11 @@ def compute_blbr_ord8plus_fcn(q: FloatField, dxa: FloatField):
     with horizontal(region[i_end, :]):
         xt = s15 * q + s11 * q[-1, 0, 0] + s14 * dm[-1, 0, 0]
         bl = xt - q
-        xt = xt_dxa_edge_0(q, dxa, True)
+        xt = xt_dxa_edge_0(q, dxa, do_xt_minmax)
         br = xt - q
 
     with horizontal(region[i_end + 1, :]):
-        xt = xt_dxa_edge_1(q, dxa, True)
+        xt = xt_dxa_edge_1(q, dxa, do_xt_minmax)
         bl = xt - q
         br = s11 * (q[1, 0, 0] - q) - s14 * dm[1, 0, 0]
     # }
@@ -632,6 +633,7 @@ def compute_flux(
             "c1": c1,
             "c2": c2,
             "c3": c3,
+            "do_xt_minmax": True,
         },
     )
     nj = jlast - jfirst + 1
