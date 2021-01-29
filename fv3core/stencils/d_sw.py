@@ -159,9 +159,9 @@ def heat_damping(
     rdx: FloatField,
     rdy: FloatField,
     heat_source: FloatField,
-    diss_est: FloatField,
+    dissipation_estimate: FloatField,
     kinetic_energy_fraction_to_damp: float,
-    do_skeb: int,
+    calculate_dissipation_estimate: int,
 ):
     """
     Calculates heat source from vorticity damping implied by energy conservation.
@@ -176,16 +176,18 @@ def heat_damping(
         delp (in)
         rsin2 (in)
         cosa_s (in)
-        rdx (in)
-        rdy (in)
+        rdx (in): radius of Earth multiplied by x-direction gridcell width
+        rdy (in): radius of Earth multiplied by y-direction gridcell width
         heat_source (out): heat source from vorticity damping
             implied by energy conservation
-        diss_est (out)
-        kinetic_energy_fraction_to_damp (in): according to its comment in fv_arrays, the
-            fraction of kinetic energy to explicitly damp and convert into heat.
+        diss_est (out): dissipation estimate, only calculated if
+            calculate_dissipation_estimate is 1
+        kinetic_energy_fraction_to_damp (in): according to its comment in fv_arrays,
+            the fraction of kinetic energy to explicitly damp and convert into heat.
             TODO: confirm this description is accurate, why is it multiplied
             by 0.25 below?
-        do_skeb (in)
+        calculate_dissipation_estimate (in): If 1, calculate dissipation estimate.
+            Equivalent in Fortran model is do_skeb
     """
     with computation(PARALLEL), interval(...):
         ubt = (ub + vt) * rdx
@@ -202,7 +204,9 @@ def heat_damping(
         heat_source[0, 0, 0] = delp * (
             heat_source - 0.25 * kinetic_energy_fraction_to_damp * dampterm
         )
-        diss_est[0, 0, 0] = diss_est - dampterm if do_skeb == 1 else diss_est
+        dissipation_estimate[0, 0, 0] = (
+            -dampterm if calculate_dissipation_estimate == 1 else dissipation_estimate
+        )
 
 
 def initialize_heat_source(heat_source, diss_est):
