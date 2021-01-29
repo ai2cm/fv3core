@@ -152,15 +152,18 @@ def compute(c, u, v, flux):
         #     v, al, dm, r3, origin=(ifirst, js1, kstart),
         #     domain=(di, je1 - js1 + 2, nk)
         # )
-        # yppm.blbr_jord8(
-        #     v,
-        #     al,
-        #     bl,
-        #     br,
-        #     dm,
-        #     origin=(ifirst, js1, kstart),
-        #     domain=(di, je1 - js1 + 2, nk),
-        # )
+        # if jord == 8:
+        #     yppm.blbr_jord8(
+        #         v,
+        #         al,
+        #         bl,
+        #         br,
+        #         dm,
+        #         origin=(ifirst, js1, kstart),
+        #         domain=(di, je1 - js1 + 2, nk),
+        #     )
+        # else:
+        #     raise Exception("Unimplemented jord=" + str(jord))
 
         # if spec.namelist.grid_type < 3 and not (
         #     grid.nested or spec.namelist.regional
