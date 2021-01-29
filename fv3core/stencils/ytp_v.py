@@ -44,13 +44,13 @@ def get_flux_v_stencil(
         flux = yppm.final_flux(courant, v, fx0, tmp)  # noqa
 
 
-@gtstencil()
-def get_flux_v_ord8plus(q: sd, c: sd, rdy: sd, bl: sd, br: sd, flux: sd):
-    with computation(PARALLEL), interval(...):
-        b0 = yppm.get_b0(bl, br)
-        cfl = c * rdy[0, -1, 0] if c > 0 else c * rdy
-        fx1 = yppm.fx1_fn(cfl, br, b0, bl)
-        flux = q[0, -1, 0] + fx1 if c > 0.0 else q + fx1
+# @gtstencil()
+# def get_flux_v_ord8plus(q: sd, c: sd, rdy: sd, bl: sd, br: sd, flux: sd):
+#     with computation(PARALLEL), interval(...):
+#         b0 = yppm.get_b0(bl, br)
+#         cfl = c * rdy[0, -1, 0] if c > 0 else c * rdy
+#         fx1 = yppm.fx1_fn(cfl, br, b0, bl)
+#         flux = q[0, -1, 0] + fx1 if c > 0.0 else q + fx1
 
 
 @gtstencil()
