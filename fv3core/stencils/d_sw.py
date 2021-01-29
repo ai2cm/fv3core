@@ -167,8 +167,8 @@ def heat_damping(
     Calculates heat source from vorticity damping implied by energy conservation.
 
     Args:
-        ub (inout)
-        vb (inout)
+        ub (in)
+        vb (in)
         ut (in)
         vt (in)
         u (in)
@@ -185,17 +185,17 @@ def heat_damping(
         do_skeb (in)
     """
     with computation(PARALLEL), interval(...):
-        ub[0, 0, 0] = (ub + vt) * rdx
+        ubt = (ub + vt) * rdx
         fy = u * rdx
-        gy = fy * ub
-        vb[0, 0, 0] = (vb - ut) * rdy
+        gy = fy * ubt
+        vbt = (vb - ut) * rdy
         fx = v * rdy
-        gx = fx * vb
+        gx = fx * vbt
         u2 = fy + fy[0, 1, 0]
-        du2 = ub + ub[0, 1, 0]
+        du2 = ubt + ubt[0, 1, 0]
         v2 = fx + fx[1, 0, 0]
-        dv2 = vb + vb[1, 0, 0]
-        dampterm = heat_damping_term(ub, vb, gx, gy, rsin2, cosa_s, u2, v2, du2, dv2)
+        dv2 = vbt + vbt[1, 0, 0]
+        dampterm = heat_damping_term(ubt, vbt, gx, gy, rsin2, cosa_s, u2, v2, du2, dv2)
         heat_source[0, 0, 0] = delp * (heat_source - damp * dampterm)
         diss_est[0, 0, 0] = diss_est - dampterm if do_skeb == 1 else diss_est
 
