@@ -541,36 +541,40 @@ def compute_blbr_ord8plus_fcn(q: FloatField, dxa: FloatField):
         bl = s14 * dm[-1, 0, 0] + s11 * (q[-1, 0, 0] - q)
         xt = xt_dxa_edge_0(q, dxa, do_xt_minmax)
         br = xt - q
+        bl, br = pert_ppm_standard_constraint_fcn(q, bl, br)
 
     with horizontal(region[i_start, :]):
         xt = xt_dxa_edge_1(q, dxa, do_xt_minmax)
         bl = xt - q
         xt = s15 * q + s11 * q[1, 0, 0] - s14 * dm[1, 0, 0]
         br = xt - q
+        bl, br = pert_ppm_standard_constraint_fcn(q, bl, br)
 
     with horizontal(region[i_start + 1, :]):
         xt = s15 * q[-1, 0, 0] + s11 * q - s14 * dm
         bl = xt - q
         br = al[1, 0, 0] - q
+        bl, br = pert_ppm_standard_constraint_fcn(q, bl, br)
 
     with horizontal(region[i_end - 1, :]):
         bl = al - q
         xt = s15 * q[1, 0, 0] + s11 * q + s14 * dm
         br = xt - q
+        bl, br = pert_ppm_standard_constraint_fcn(q, bl, br)
 
     with horizontal(region[i_end, :]):
         xt = s15 * q + s11 * q[-1, 0, 0] + s14 * dm[-1, 0, 0]
         bl = xt - q
         xt = xt_dxa_edge_0(q, dxa, do_xt_minmax)
         br = xt - q
+        bl, br = pert_ppm_standard_constraint_fcn(q, bl, br)
 
     with horizontal(region[i_end + 1, :]):
         xt = xt_dxa_edge_1(q, dxa, do_xt_minmax)
         bl = xt - q
         br = s11 * (q[1, 0, 0] - q) - s14 * dm[1, 0, 0]
+        bl, br = pert_ppm_standard_constraint_fcn(q, bl, br)
     # }
-
-    bl, br = pert_ppm_standard_constraint_fcn(q, bl, br)
 
     return bl, br
 
