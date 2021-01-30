@@ -1,6 +1,6 @@
 from typing import Optional
 
-import gt4py.gtscript as gtscript
+from gt4py import gtscript
 from gt4py.gtscript import (
     __INLINED,
     PARALLEL,
@@ -305,52 +305,43 @@ def north_edge_jord8plus_2(q: sd, dya: sd, dm: sd, bl: sd, br: sd, xt_minmax: bo
         br = s11 * (q[0, 1, 0] - q) - s14 * dm[0, 1, 0]
 
 
-@gtstencil()
-def pert_ppm_positive_definite_constraint(a0: sd, al: sd, ar: sd, r12: float):
-    with computation(PARALLEL), interval(...):
-        da1 = 0.0
-        a4 = 0.0
-        fmin = 0.0
-        if a0 <= 0.0:
-            al = 0.0
-            ar = 0.0
-        else:
-            a4 = -3.0 * (ar + al)
-            da1 = ar - al
-            if abs(da1) < -a4:
-                fmin = a0 + 0.25 / a4 * da1 ** 2 + a4 * r12
-                if fmin < 0.0:
-                    if ar > 0.0 and al > 0.0:
-                        ar = 0.0
-                        al = 0.0
-                    elif da1 > 0.0:
-                        ar = -2.0 * al
-                else:
-                    al = -2.0 * ar
-
-
-@gtstencil()
-def pert_ppm_standard_constraint(a0: sd, al: sd, ar: sd):
-    with computation(PARALLEL), interval(...):
-        da1 = 0.0
-        da2 = 0.0
-        a6da = 0.0
-        if al * ar < 0.0:
-            da1 = al - ar
-            da2 = da1 ** 2
-            a6da = 3.0 * (al + ar) * da1
-            if a6da < -da2:
-                ar = -2.0 * al
-            elif a6da > da2:
+@gtscript.function
+def pert_ppm_positive_definite_constraint_fcn(
+    a0: FloatField, al: FloatField, ar: FloatField
+):
+    da1 = 0.0
+    a4 = 0.0
+    fmin = 0.0
+    if a0 <= 0.0:
+        al = 0.0
+        ar = 0.0
+    else:
+        a4 = -3.0 * (ar + al)
+        da1 = ar - al
+        if abs(da1) < -a4:
+            fmin = a0 + 0.25 / a4 * da1 ** 2 + a4 * (1.0 / 12.0)
+            if fmin < 0.0:
+                if ar > 0.0 and al > 0.0:
+                    ar = 0.0
+                    al = 0.0
+                elif da1 > 0.0:
+                    ar = -2.0 * al
+            else:
                 al = -2.0 * ar
-        else:
-            # effect of dm=0 included here
-            al = 0.0
-            ar = 0.0
+
+    return al, ar
+
+
+@gtstencil()
+def pert_ppm_positive_definite_constraint(
+    a0: FloatField, al: FloatField, ar: FloatField
+):
+    with computation(PARALLEL), interval(...):
+        al, ar = pert_ppm_positive_definite_constraint_fcn(a0, al, ar)
 
 
 @gtscript.function
-def pert_ppm_standard_constraint_fcn(a0: sd, al: sd, ar: sd):
+def pert_ppm_standard_constraint_fcn(a0: FloatField, al: FloatField, ar: FloatField):
     da1 = 0.0
     da2 = 0.0
     a6da = 0.0
@@ -367,6 +358,12 @@ def pert_ppm_standard_constraint_fcn(a0: sd, al: sd, ar: sd):
         al = 0.0
         ar = 0.0
     return al, ar
+
+
+@gtstencil()
+def pert_ppm_standard_constraint(a0: FloatField, al: FloatField, ar: FloatField):
+    with computation(PARALLEL), interval(...):
+        al, ar = pert_ppm_standard_constraint_fcn(a0, al, ar)
 
 
 def compute_al(q, dyvar, jord, ifirst, ilast, js1, je3, kstart=0, nk=None):
