@@ -1,10 +1,20 @@
+from typing import Optional
+
 import gt4py.gtscript as gtscript
-from gt4py.gtscript import PARALLEL, computation, interval
+from gt4py.gtscript import (
+    __INLINED,
+    PARALLEL,
+    computation,
+    horizontal,
+    interval,
+    region,
+)
 
 import fv3core._config as spec
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import gtstencil
 from fv3core.stencils.basic_operations import floor_cap, sign
+from fv3core.utils.typing import FloatField
 
 
 input_vars = ["q", "c"]
@@ -150,62 +160,58 @@ def get_flux(q, c, al, mord):
 #         flux = final_flux(c, q, fx1, tmp)  # noqa
 
 
-# TODO: remove when validated
-@gtstencil()
-def get_flux_stencil(q: sd, c: sd, al: sd, flux: sd, mord: int):
-    with computation(PARALLEL), interval(0, None):
-        bl, br, b0, tmp = flux_intermediates(q, al, mord)
-        fx1 = fx1_fn(c, br, b0, bl)
-        # TODO: add [0, 0, 0] when gt4py bug is fixed
-        flux = final_flux(c, q, fx1, tmp)  # noqa
-        # flux = get_flux(q, c, al, mord)
-        # ...Ended up adding 1 to y direction of  storage shape with the
-        # addition of  fx1[0,0,0] * tmp[0,0,0], e.g. the smt5 conditional.
-        # otherwise the flux[:,je+1,:] ended up being 0.0.
-        # This might need to be revisited
-        # if (c > 0.0):
-        #    fx1 = (1.0 - c) * (br[0, -1, 0] - c * b0[0, -1, 0])
-        #    tmp = q[0, 2, 0]
-        # else:
-        #    fx1 = (1.0 + c) * (bl[0, 1, 0] + c * b0[0, 1, 0])
-        #    tmp = q
-        # if (smt5 or smt5[0, -1, 0]):
-        #    flux = tmp + fx1
-        # else:
-        #    flux = tmp
+def get_flux_fcn(q: FloatField, c: FloatField, al: FloatField):
+    from __externals__ import mord
+
+    bl, br, b0, tmp = flux_intermediates(q, al, mord)
+    fx1 = fx1_fn(c, br, b0, bl)
+    return final_flux(c, q, fx1, tmp)  # noqa
 
 
-@gtstencil()
-def finalflux_ord8plus(q: sd, c: sd, bl: sd, br: sd, flux: sd):
-    with computation(PARALLEL), interval(...):
-        b0 = get_b0(bl, br)
-        fx1 = fx1_fn(c, br, b0, bl)
-        flux = q[0, -1, 0] + fx1 if c > 0.0 else q + fx1
+def finalflux_ord8plus_fcn(
+    q: FloatField, c: FloatField, bl: FloatField, br: FloatField
+):
+    b0 = get_b0(bl, br)
+    fx1 = fx1_fn(c, br, b0, bl)
+    return q[0, -1, 0] + fx1 if c > 0.0 else q + fx1
+
+
+def dm_jord8plus_fcn(q: FloatField):
+    xt = 0.25 * (q[0, 1, 0] - q[0, -1, 0])
+    dqr = max(max(q, q[0, -1, 0]), q[0, 1, 0]) - q
+    dql = q - min(min(q, q[0, -1, 0]), q[0, 1, 0])
+    return sign(min(min(abs(xt), dqr), dql), xt)
 
 
 @gtstencil()
 def dm_jord8plus(q: sd, al: sd, dm: sd):
     with computation(PARALLEL), interval(...):
-        xt = 0.25 * (q[0, 1, 0] - q[0, -1, 0])
-        dqr = max(max(q, q[0, -1, 0]), q[0, 1, 0]) - q
-        dql = q - min(min(q, q[0, -1, 0]), q[0, 1, 0])
-        dm = sign(min(min(abs(xt), dqr), dql), xt)
+        dm = dm_jord8plus_fcn(q)
+
+
+def al_jord8plus_fcn(q: FloatField, dm: FloatField):
+    return 0.5 * (q[0, -1, 0] + q) + 1.0 / 3.0 * (dm[0, -1, 0] - dm)
 
 
 @gtstencil()
-def al_jord8plus(q: sd, al: sd, dm: sd, r3: float):
+def al_jord8plus(q: sd, al: sd, dm: sd):
     with computation(PARALLEL), interval(...):
-        al = 0.5 * (q[0, -1, 0] + q) + r3 * (dm[0, -1, 0] - dm)
+        al = al_jord8plus_fcn(q, dm)
+
+
+def blbr_jord8_fcn(q: sd, al: sd, dm: sd):
+    xt = 2.0 * dm
+    aldiff = al - q
+    aldiffj = al[0, 1, 0] - q
+    bl = -1.0 * sign(min(abs(xt), abs(aldiff)), xt)
+    br = sign(min(abs(xt), abs(aldiffj)), xt)
+    return bl, br
 
 
 @gtstencil()
 def blbr_jord8(q: sd, al: sd, bl: sd, br: sd, dm: sd):
     with computation(PARALLEL), interval(...):
-        xt = 2.0 * dm
-        aldiff = al - q
-        aldiffj = al[0, 1, 0] - q
-        bl = -1.0 * sign(min(abs(xt), abs(aldiff)), xt)
-        br = sign(min(abs(xt), abs(aldiffj)), xt)
+        bl, br = blbr_jord8_fcn(q, al, dm)
 
 
 @gtscript.function
@@ -525,30 +531,97 @@ def compute_blbr_ord8plus(q, jord, dya, ifirst, ilast, js1, je1, kstart, nk):
         return bl, br
 
 
-def compute_flux(q, c, flux, jord, ifirst, ilast, kstart=0, nk=None):
-    grid = spec.grid
-    if nk is None:
-        nk = grid.npz - kstart
-    js1 = grid.js + 2 if grid.south_edge else grid.js - 1
-    je3 = grid.je - 1 if grid.north_edge else grid.je + 2
-    je1 = grid.je - 2 if grid.north_edge else grid.je + 1
-    mord = abs(jord)
-    if mord not in [5, 6, 7, 8]:
-        raise Exception(
-            "We have only implemented yppm for hord=5, 6, 7, and 8, not " + str(jord)
+def compute_al_fcn(q: FloatField, dya: FloatField):
+    from __externals__ import j_end, j_start, jord
+
+    assert __INLINED(jord < 8), "Not implemented"
+    # {
+    al = p1 * (q[0, -1, 0] + q) + p2 * (q[0, -2, 0] + q[0, 1, 0])
+
+    if __INLINED(jord < 0):
+        assert __INLINED(False), "Not tested"
+        al = max(al, 0.0)
+
+    with horizontal(region[:, j_start - 1], region[:, j_end]):
+        al = c1 * q[0, -2, 0] + c2 * q[0, -1, 0] + c3 * q
+
+    with horizontal(region[:, j_start], region[:, j_end + 1]):
+        al = 0.5 * (
+            (
+                (2.0 * dya[0, -1, 0] + dya[0, -2, 0]) * q[0, -1, 0]
+                - dya[0, -1, 0] * q[0, -2, 0]
+            )
+            / (dya[0, -2, 0] + dya[0, -1, 0])
+            + (
+                (2.0 * dya[0, 0, 0] + dya[0, 1, 0]) * q[0, 0, 0]
+                - dya[0, 0, 0] * q[0, 1, 0]
+            )
+            / (dya[0, 0, 0] + dya[0, 1, 0])
         )
-    flux_origin = (ifirst, grid.js, kstart)
-    flux_domain = (ilast - ifirst + 1, grid.njc + 1, nk)
-    if mord < 8:
-        al = compute_al(q, grid.dya, jord, ifirst, ilast, js1, je3, kstart, nk)
-        get_flux_stencil(
-            q, c, al, flux, mord=mord, origin=flux_origin, domain=flux_domain
-        )
-    else:
-        bl, br = compute_blbr_ord8plus(
-            q, jord, grid.dya, ifirst, ilast, js1, je1, kstart, nk
-        )
-        finalflux_ord8plus(q, c, bl, br, flux, origin=flux_origin, domain=flux_domain)
+
+    with horizontal(region[:, j_start + 1], region[:, j_end + 2]):
+        al = c3 * q[0, -1, 0] + c2 * q[0, 0, 0] + c1 * q[0, 1, 0]
+
+    # }
+
+    return al
+
+
+def compute_blbr_ord8plus_fcn(q: FloatField, dya: FloatField):
+    from __externals__ import do_xt_minmax, j_end, j_start, jord, namelist
+
+    dm = dm_jord8plus_fcn(q)
+    al = al_jord8plus_fcn(q, dm)
+
+    assert __INLINED(jord == 8), "Unimplemented jord"
+    # {
+    bl, br = blbr_jord8_fcn(q, al, dm)
+    # }
+
+    assert __INLINED(
+        namelist.grid_type < 3
+    ), "Remainder of function assumes (grid_type < 3)."
+    # {
+    with horizontal(region[:, j_start - 1]):
+        bl = s14 * dm[0, -1, 0] + s11 * (q[0, -1, 0] - q)
+        xt = xt_dya_edge_0(q, dya, do_xt_minmax)
+        br = xt - q
+        bl, br = pert_ppm_standard_constraint_fcn(q, bl, br)
+
+    with horizontal(region[:, j_start]):
+        xt = xt_dya_edge_1(q, dya, do_xt_minmax)
+        bl = xt - q
+        xt = s15 * q + s11 * q[0, 1, 0] - s14 * dm[0, 1, 0]
+        br = xt - q
+        bl, br = pert_ppm_standard_constraint_fcn(q, bl, br)
+
+    with horizontal(region[:, j_start + 1]):
+        xt = s15 * q[0, -1, 0] + s11 * q - s14 * dm
+        bl = xt - q
+        br = al[0, 1, 0] - q
+        bl, br = pert_ppm_standard_constraint_fcn(q, bl, br)
+
+    with horizontal(region[:, j_end - 1]):
+        bl = al - q
+        xt = s15 * q[0, 1, 0] + s11 * q + s14 * dm
+        br = xt - q
+        bl, br = pert_ppm_standard_constraint_fcn(q, bl, br)
+
+    with horizontal(region[:, j_end]):
+        xt = s15 * q + s11 * q[0, -1, 0] + s14 * dm[0, -1, 0]
+        bl = xt - q
+        xt = xt_dya_edge_0(q, dya, do_xt_minmax)
+        br = xt - q
+        bl, br = pert_ppm_standard_constraint_fcn(q, bl, br)
+
+    with horizontal(region[:, j_end + 1]):
+        xt = xt_dya_edge_1(q, dya, do_xt_minmax)
+        bl = xt - q
+        br = s11 * (q[0, 1, 0] - q) - s14 * dm[0, 1, 0]
+        bl, br = pert_ppm_standard_constraint_fcn(q, bl, br)
+    # }
+
+    return bl, br
 
 
 # Optimized PPM in perturbation form:
@@ -563,3 +636,69 @@ def pert_ppm(a0, al, ar, iv, istart, jstart, kstart, ni, nj, nk):
             a0, al, ar, origin=(istart, jstart, kstart), domain=(ni, nj, nk)
         )
     return al, ar
+
+
+def _compute_flux_stencil(
+    q: FloatField, c: FloatField, dya: FloatField, yflux: FloatField
+):
+    from __externals__ import mord
+
+    with computation(PARALLEL), interval(...):
+        if __INLINED(mord < 8):
+            al = compute_al_fcn(q, dya)
+            yflux = get_flux_fcn(q, c, al)
+        else:
+            bl, br = compute_blbr_ord8plus_fcn(q, dya)
+            yflux = finalflux_ord8plus_fcn(q, c, bl, br)
+
+
+def compute_flux(
+    q: FloatField,
+    c: FloatField,
+    flux: FloatField,
+    jord: int,
+    ifirst: int,
+    ilast: int,
+    kstart: int = 0,
+    nk: Optional[int] = None,
+):
+    """
+    Compute y-flux using the PPM method.
+
+    Args:
+        q (in): Transported scalar
+        c (in): Courant number
+        flux (out): Flux
+        jord: Method selector
+        ifirst: Starting index of the I-dir compute domain
+        ilast: Final index of the I-dir compute domain
+        kstart: First index of the K-dir compute domain
+        nk: Number of indices in the K-dir compute domain
+    """
+    grid = spec.grid
+    if nk is None:
+        nk = grid.npz - kstart
+    mord = abs(jord)
+    if mord not in [5, 6, 7, 8]:
+        raise NotImplementedError(
+            f"Unimplemented hord value, {jord}. "
+            "Currently only support hord={5, 6, 7, 8}"
+        )
+
+    stencil = gtstencil(
+        definition=_compute_flux_stencil,
+        externals={
+            "jord": jord,
+            "mord": mord,
+            "do_xt_minmax": True,
+        },
+    )
+    ni = ilast - ifirst + 1
+    stencil(
+        q,
+        c,
+        grid.dya,
+        flux,
+        origin=(ifirst, grid.js, kstart),
+        domain=(ni, grid.njc + 1, nk),
+    )

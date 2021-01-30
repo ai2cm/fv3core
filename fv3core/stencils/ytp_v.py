@@ -133,7 +133,7 @@ def compute(c, u, v, flux):
             domain=(di, grid.njc + 4, nk),
         )
         yppm.al_jord8plus(
-            v, al, dm, r3, origin=(ifirst, js1, kstart), domain=(di, je1 - js1 + 2, nk)
+            v, al, dm, origin=(ifirst, js1, kstart), domain=(di, je1 - js1 + 2, nk)
         )
         if jord == 8:
             yppm.blbr_jord8(

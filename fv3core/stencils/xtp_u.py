@@ -152,7 +152,7 @@ def compute(c, u, v, flux):
             domain=(grid.nic + 4, dj, nk),
         )
         xppm.al_iord8plus(
-            u, al, dm, r3, origin=(is1, jfirst, kstart), domain=(ie1 - is1 + 2, dj, nk)
+            u, al, dm, origin=(is1, jfirst, kstart), domain=(ie1 - is1 + 2, dj, nk)
         )
         if iord == 8:
             xppm.blbr_iord8(

@@ -105,34 +105,6 @@ def final_flux(c, q, fx1, tmp):
     return q[-1, 0, 0] + fx1 * tmp if c > 0.0 else q + fx1 * tmp
 
 
-@gtstencil()
-def get_flux(
-    q: FloatField, c: FloatField, al: FloatField, flux: FloatField, *, mord: int
-):
-    with computation(PARALLEL), interval(0, None):
-        bl, br, b0, tmp = flux_intermediates(q, al, mord)
-        fx1 = fx1_fn(c, br, b0, bl)
-        # TODO: add [0, 0, 0] when gt4py bug gets fixed
-        flux = final_flux(c, q, fx1, tmp)  # noqa
-        # bl = get_bl(al=al, q=q)
-        # br = get_br(al=al, q=q)
-        # b0 = get_b0(bl=bl, br=br)
-        # smt5 = is_smt5_mord5(bl, br) if mord == 5 else is_smt5_most_mords(bl, br, b0)
-        # tmp = smt5[-1, 0, 0] + smt5 * (smt5[-1, 0, 0] == 0)
-        # fx1 = fx1_c_positive(c, br, b0) if c > 0.0 else fx1_c_negative(c, bl, b0)
-        # flux = q[-1, 0, 0] + fx1 * tmp if c > 0.0 else q + fx1 * tmp
-
-
-@gtstencil()
-def finalflux_ord8plus(
-    q: FloatField, c: FloatField, bl: FloatField, br: FloatField, flux: FloatField
-):
-    with computation(PARALLEL), interval(...):
-        b0 = get_b0(bl, br)
-        fx1 = fx1_fn(c, br, b0, bl)
-        flux = q[-1, 0, 0] + fx1 if c > 0.0 else q + fx1
-
-
 def dm_iord8plus_fcn(q: FloatField):
     xt = 0.25 * (q[1, 0, 0] - q[-1, 0, 0])
     dqr = max(max(q, q[-1, 0, 0]), q[1, 0, 0]) - q
@@ -151,7 +123,7 @@ def al_iord8plus_fcn(q: FloatField, dm: FloatField):
 
 
 @gtstencil()
-def al_iord8plus(q: FloatField, al: FloatField, dm: FloatField, r3: float):
+def al_iord8plus(q: FloatField, al: FloatField, dm: FloatField):
     with computation(PARALLEL), interval(...):
         al = al_iord8plus_fcn(q, dm)
 
@@ -453,7 +425,7 @@ def compute_blbr_ord8plus(q, iord, jfirst, jlast, is1, ie1, kstart, nk):
 
 
 def compute_al_fcn(q: FloatField, dxa: FloatField):
-    from __externals__ import c1, c2, c3, i_end, i_start, iord, p1, p2
+    from __externals__ import i_end, i_start, iord
 
     assert __INLINED(iord < 8), "The code in this function requires iord < 8"
 
@@ -463,9 +435,9 @@ def compute_al_fcn(q: FloatField, dxa: FloatField):
         assert __INLINED(False), "Not tested"
         al = max(al, 0.0)
 
-    with horizontal(region[i_start - 1, :]):
+    with horizontal(region[i_start - 1, :], region[i_end, :]):
         al = c1 * q[-2, 0, 0] + c2 * q[-1, 0, 0] + c3 * q
-    with horizontal(region[i_start, :]):
+    with horizontal(region[i_start, :], region[i_end + 1, :]):
         al = 0.5 * (
             (
                 (2.0 * dxa[-1, 0, 0] + dxa[-2, 0, 0]) * q[-1, 0, 0]
@@ -478,25 +450,7 @@ def compute_al_fcn(q: FloatField, dxa: FloatField):
             )
             / (dxa[0, 0, 0] + dxa[1, 0, 0])
         )
-    with horizontal(region[i_start + 1, :]):
-        al = c3 * q[-1, 0, 0] + c2 * q[0, 0, 0] + c1 * q[1, 0, 0]
-
-    with horizontal(region[i_end, :]):
-        al = c1 * q[-2, 0, 0] + c2 * q[-1, 0, 0] + c3 * q
-    with horizontal(region[i_end + 1, :]):
-        al = 0.5 * (
-            (
-                (2.0 * dxa[-1, 0, 0] + dxa[-2, 0, 0]) * q[-1, 0, 0]
-                - dxa[-1, 0, 0] * q[-2, 0, 0]
-            )
-            / (dxa[-2, 0, 0] + dxa[-1, 0, 0])
-            + (
-                (2.0 * dxa[0, 0, 0] + dxa[1, 0, 0]) * q[0, 0, 0]
-                - dxa[0, 0, 0] * q[1, 0, 0]
-            )
-            / (dxa[0, 0, 0] + dxa[1, 0, 0])
-        )
-    with horizontal(region[i_end + 2, :]):
+    with horizontal(region[i_start + 1, :], region[i_end + 2, :]):
         al = c3 * q[-1, 0, 0] + c2 * q[0, 0, 0] + c1 * q[1, 0, 0]
 
     return al
@@ -529,13 +483,14 @@ def compute_blbr_ord8plus_fcn(q: FloatField, dxa: FloatField):
     dm = dm_iord8plus_fcn(q)
     al = al_iord8plus_fcn(q, dm)
 
-    assert __INLINED(iord == 8), "Not yet implemented"
+    assert __INLINED(iord == 8), "Unimplemented iord"
     # {
     bl, br = blbr_iord8_fcn(q, al, dm)
     # }
 
-    # TODO: Use do_xt_minmax when gt4py BuiltinLiteral bug is fixed.
-    assert __INLINED(namelist.grid_type < 3), "Remainder of function assumes this."
+    assert __INLINED(
+        namelist.grid_type < 3
+    ), "Remainder of function assumes (grid_type < 3)."
     # {
     with horizontal(region[i_start - 1, :]):
         bl = s14 * dm[-1, 0, 0] + s11 * (q[-1, 0, 0] - q)
@@ -632,11 +587,6 @@ def compute_flux(
         externals={
             "iord": iord,
             "mord": abs(iord),
-            "p1": p1,
-            "p2": p2,
-            "c1": c1,
-            "c2": c2,
-            "c3": c3,
             "do_xt_minmax": True,
         },
     )
