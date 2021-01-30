@@ -2,16 +2,19 @@ import gt4py.gtscript as gtscript
 from gt4py.gtscript import PARALLEL, computation, interval
 
 import fv3core._config as spec
-import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import gtstencil
-
-
-sd = utils.sd
-origin = utils.origin
+from fv3core.utils.typing import FloatField, FloatFieldIJ
 
 
 @gtscript.function
-def p_grad_c_u(uc_in, wk, pkc, gz, rdxc, dt2):
+def p_grad_c_u(
+    uc_in: FloatField,
+    wk: FloatField,
+    pkc: FloatField,
+    gz: FloatField,
+    rdxc: FloatFieldIJ,
+    dt2: float,
+):
     return uc_in + dt2 * rdxc / (wk[-1, 0, 0] + wk) * (
         (gz[-1, 0, 1] - gz) * (pkc[0, 0, 1] - pkc[-1, 0, 0])
         + (gz[-1, 0, 0] - gz[0, 0, 1]) * (pkc[-1, 0, 1] - pkc)
@@ -19,18 +22,33 @@ def p_grad_c_u(uc_in, wk, pkc, gz, rdxc, dt2):
 
 
 @gtscript.function
-def get_wk(pkc, delpc, hydrostatic):
+def get_wk(pkc: FloatField, delpc: FloatField, hydrostatic: int):
     return pkc[0, 0, 1] - pkc if hydrostatic else delpc
 
 
 @gtscript.function
-def p_grad_c_u_wk(uc_in, delpc, pkc, gz, rdxc, hydrostatic, dt2):
+def p_grad_c_u_wk(
+    uc_in: FloatField,
+    delpc: FloatField,
+    pkc: FloatField,
+    gz: FloatField,
+    rdxc: FloatFieldIJ,
+    hydrostatic: int,
+    dt2: float,
+):
     wk = get_wk(pkc, delpc, hydrostatic)
     return p_grad_c_u(uc_in, wk, pkc, gz, rdxc, dt2)
 
 
 @gtscript.function
-def p_grad_c_v(vc_in, wk, pkc, gz, rdyc, dt2):
+def p_grad_c_v(
+    vc_in: FloatField,
+    wk: FloatField,
+    pkc: FloatField,
+    gz: FloatField,
+    rdyc: FloatFieldIJ,
+    dt2: float,
+):
     return vc_in + dt2 * rdyc / (wk[0, -1, 0] + wk) * (
         (gz[0, -1, 1] - gz) * (pkc[0, 0, 1] - pkc[0, -1, 0])
         + (gz[0, -1, 0] - gz[0, 0, 1]) * (pkc[0, -1, 1] - pkc)
@@ -38,13 +56,31 @@ def p_grad_c_v(vc_in, wk, pkc, gz, rdyc, dt2):
 
 
 @gtscript.function
-def p_grad_c_v_wk(vc_in, delpc, pkc, gz, rdyc, hydrostatic, dt2):
+def p_grad_c_v_wk(
+    vc_in: FloatField,
+    delpc: FloatField,
+    pkc: FloatField,
+    gz: FloatField,
+    rdyc: FloatFieldIJ,
+    hydrostatic: int,
+    dt2: float,
+):
     wk = get_wk(pkc, delpc, hydrostatic)
     return p_grad_c_v(vc_in, wk, pkc, gz, rdyc, dt2)
 
 
 @gtscript.function
-def p_grad_c_fn(uc_in, vc_in, delpc, pkc, gz, rdxc, rdyc, hydrostatic, dt2):
+def p_grad_c_fn(
+    uc_in: FloatField,
+    vc_in: FloatField,
+    delpc: FloatField,
+    pkc: FloatField,
+    gz: FloatField,
+    rdxc: FloatFieldIJ,
+    rdyc: FloatFieldIJ,
+    hydrostatic: int,
+    dt2: float,
+):
     wk = get_wk(pkc, delpc, hydrostatic)
     uc_in = p_grad_c_u(uc_in, wk, pkc, gz, rdxc, dt2)
     vc_in = p_grad_c_v(vc_in, wk, pkc, gz, rdyc, dt2)
@@ -53,13 +89,13 @@ def p_grad_c_fn(uc_in, vc_in, delpc, pkc, gz, rdxc, rdyc, hydrostatic, dt2):
 
 @gtstencil()
 def p_grad_c(
-    uc_in: sd,
-    vc_in: sd,
-    delpc: sd,
-    pkc: sd,
-    gz: sd,
-    rdxc: sd,
-    rdyc: sd,
+    uc_in: FloatField,
+    vc_in: FloatField,
+    delpc: FloatField,
+    pkc: FloatField,
+    gz: FloatField,
+    rdxc: FloatField,
+    rdyc: FloatField,
     hydrostatic: int,
     dt2: float,
 ):
@@ -79,7 +115,14 @@ def p_grad_c(
 
 @gtstencil()
 def p_grad_c_ustencil(
-    uc_in: sd, delpc: sd, pkc: sd, gz: sd, rdxc: sd, *, hydrostatic: int, dt2: float
+    uc_in: FloatField,
+    delpc: FloatField,
+    pkc: FloatField,
+    gz: FloatField,
+    rdxc: FloatFieldIJ,
+    *,
+    hydrostatic: int,
+    dt2: float,
 ):
     with computation(PARALLEL), interval(0, -1):
         uc_in = p_grad_c_u_wk(
@@ -89,7 +132,13 @@ def p_grad_c_ustencil(
 
 @gtstencil()
 def p_grad_c_vstencil(
-    vc_in: sd, delpc: sd, pkc: sd, gz: sd, rdyc: sd, hydrostatic: int, dt2: float
+    vc_in: FloatField,
+    delpc: FloatField,
+    pkc: FloatField,
+    gz: FloatField,
+    rdyc: FloatFieldIJ,
+    hydrostatic: int,
+    dt2: float,
 ):
     with computation(PARALLEL), interval(0, -1):
         vc_in = p_grad_c_v_wk(

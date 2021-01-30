@@ -127,10 +127,8 @@ def make_storage_data(
             mask = (n_dims * (True,)) + ((max_dim - n_dims) * (False,))
 
     if n_dims == 1:
-        shape = (shape[axis],)
         data = _make_storage_data_1d(data, shape, start, dummy, axis)
     elif n_dims == 2:
-        shape = shape[0:2]
         data = _make_storage_data_2d(data, shape, start, dummy, axis)
     else:
         data = _make_storage_data_3d(data, shape, start)
@@ -158,7 +156,7 @@ def _make_storage_data_1d(
     kstart = start[2]
     if dummy:
         axis = list(set((0, 1, 2)).difference(dummy))[0]
-    buffer = zeros(shape[0])
+    buffer = zeros(shape[axis])
     buffer[kstart : kstart + len(data)] = asarray(data, type(buffer))
     return buffer
     # tile_spec = list(shape)
