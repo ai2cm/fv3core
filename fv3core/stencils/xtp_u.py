@@ -138,12 +138,16 @@ def compute(c: FloatField, u: FloatField, v: FloatField, flux: FloatField):
     """
     grid = spec.grid
     iord = spec.namelist.hord_mt
+    if iord not in (5, 6, 7, 8):
+        raise NotImplementedError(
+            "Currently xtp_v is only supported for hord_mt == 5,6,7,8"
+        )
 
     stencil = gtstencil(
         definition=_compute_stencil,
         externals={
             "iord": iord,
-            "mord": iord,  # Note: no abs
+            "mord": iord,  # Note: no abs here
             "xt_minmax": False,
         },
     )

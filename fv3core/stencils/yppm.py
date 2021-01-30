@@ -13,7 +13,7 @@ from gt4py.gtscript import (
 import fv3core._config as spec
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import gtstencil
-from fv3core.stencils.basic_operations import floor_cap, sign
+from fv3core.stencils.basic_operations import sign
 from fv3core.utils.typing import FloatField
 
 
@@ -41,59 +41,6 @@ origin = (0, 2, 0)
 
 def grid():
     return spec.grid
-
-
-@gtstencil(externals={"p1": p1, "p2": p2})
-def main_al_ord_under8(q: FloatField, al: FloatField):
-    with computation(PARALLEL), interval(0, None):
-        al[0, 0, 0] = p1 * (q[0, -1, 0] + q) + p2 * (q[0, -2, 0] + q[0, 1, 0])
-
-
-@gtstencil(externals={"c1": c1, "c2": c2, "c3": c3})
-def al_x_under8_edge_0(q: FloatField, dya: FloatField, al: FloatField):
-    with computation(PARALLEL), interval(0, None):
-        al[0, 0, 0] = c1 * q[0, -2, 0] + c2 * q[0, -1, 0] + c3 * q
-
-
-@gtstencil(externals={"c1": c1, "c2": c2, "c3": c3})
-def al_x_under8_edge_1(q: FloatField, dya: FloatField, al: FloatField):
-    with computation(PARALLEL), interval(0, None):
-        al[0, 0, 0] = 0.5 * (
-            (
-                (2.0 * dya[0, -1, 0] + dya[0, -2, 0]) * q[0, -1, 0]
-                - dya[0, -1, 0] * q[0, -2, 0]
-            )
-            / (dya[0, -2, 0] + dya[0, -1, 0])
-            + (
-                (2.0 * dya[0, 0, 0] + dya[0, 1, 0]) * q[0, 0, 0]
-                - dya[0, 0, 0] * q[0, 1, 0]
-            )
-            / (dya[0, 0, 0] + dya[0, 1, 0])
-        )
-
-
-@gtstencil(externals={"c1": c1, "c2": c2, "c3": c3})
-def al_x_under8_edge_2(q: FloatField, dya: FloatField, al: FloatField):
-    with computation(PARALLEL), interval(0, None):
-        al[0, 0, 0] = c3 * q[0, -1, 0] + c2 * q[0, 0, 0] + c1 * q[0, 1, 0]
-
-
-@gtscript.function
-def get_bl(al, q):
-    bl = al - q
-    return bl
-
-
-@gtscript.function
-def get_br(al, q):
-    br = al[0, 1, 0] - q
-    return br
-
-
-@gtscript.function
-def get_b0(bl, br):
-    b0 = bl + br
-    return b0
 
 
 @gtscript.function
@@ -153,44 +100,24 @@ def finalflux_ord8plus(q: FloatField, c: FloatField, bl: FloatField, br: FloatFi
     return q[0, -1, 0] + fx1 if c > 0.0 else q + fx1
 
 
-def dm_jord8plus_fcn(q: FloatField):
+def dm_jord8plus(q: FloatField):
     xt = 0.25 * (q[0, 1, 0] - q[0, -1, 0])
     dqr = max(max(q, q[0, -1, 0]), q[0, 1, 0]) - q
     dql = q - min(min(q, q[0, -1, 0]), q[0, 1, 0])
     return sign(min(min(abs(xt), dqr), dql), xt)
 
 
-@gtstencil()
-def dm_jord8plus(q: FloatField, al: FloatField, dm: FloatField):
-    with computation(PARALLEL), interval(...):
-        dm = dm_jord8plus_fcn(q)
-
-
-def al_jord8plus_fcn(q: FloatField, dm: FloatField):
+def al_jord8plus(q: FloatField, dm: FloatField):
     return 0.5 * (q[0, -1, 0] + q) + 1.0 / 3.0 * (dm[0, -1, 0] - dm)
 
 
-@gtstencil()
-def al_jord8plus(q: FloatField, al: FloatField, dm: FloatField):
-    with computation(PARALLEL), interval(...):
-        al = al_jord8plus_fcn(q, dm)
-
-
-def blbr_jord8_fcn(q: FloatField, al: FloatField, dm: FloatField):
+def blbr_jord8(q: FloatField, al: FloatField, dm: FloatField):
     xt = 2.0 * dm
     aldiff = al - q
     aldiffj = al[0, 1, 0] - q
     bl = -1.0 * sign(min(abs(xt), abs(aldiff)), xt)
     br = sign(min(abs(xt), abs(aldiffj)), xt)
     return bl, br
-
-
-@gtstencil()
-def blbr_jord8(
-    q: FloatField, al: FloatField, bl: FloatField, br: FloatField, dm: FloatField
-):
-    with computation(PARALLEL), interval(...):
-        bl, br = blbr_jord8_fcn(q, al, dm)
 
 
 def xt_dya_edge_0_base(q, dya):
@@ -339,71 +266,7 @@ def pert_ppm_standard_constraint(a0: FloatField, al: FloatField, ar: FloatField)
         al, ar = pert_ppm_standard_constraint_fcn(a0, al, ar)
 
 
-def compute_al(q, dyvar, jord, ifirst, ilast, js1, je3, kstart=0, nk=None):
-    if nk is None:
-        nk = grid().npz - kstart
-    dimensions = q.shape
-    local_origin = (origin[0], origin[1], kstart)
-    al = utils.make_storage_from_shape(dimensions, local_origin)
-    if jord < 8:
-        main_al_ord_under8(
-            q,
-            al,
-            origin=(ifirst, js1, kstart),
-            domain=(ilast - ifirst + 1, je3 - js1 + 1, nk),
-        )
-        x_edge_domain = (dimensions[0], 1, nk)
-        if not grid().nested and spec.namelist.grid_type < 3:
-            # South Edge
-            if grid().south_edge:
-                al_x_under8_edge_0(
-                    q,
-                    dyvar,
-                    al,
-                    origin=(0, grid().js - 1, kstart),
-                    domain=x_edge_domain,
-                )
-                al_x_under8_edge_1(
-                    q, dyvar, al, origin=(0, grid().js, kstart), domain=x_edge_domain
-                )
-                al_x_under8_edge_2(
-                    q,
-                    dyvar,
-                    al,
-                    origin=(0, grid().js + 1, kstart),
-                    domain=x_edge_domain,
-                )
-            # North Edge
-            if grid().north_edge:
-                al_x_under8_edge_0(
-                    q, dyvar, al, origin=(0, grid().je, kstart), domain=x_edge_domain
-                )
-                al_x_under8_edge_1(
-                    q,
-                    dyvar,
-                    al,
-                    origin=(0, grid().je + 1, kstart),
-                    domain=x_edge_domain,
-                )
-                al_x_under8_edge_2(
-                    q,
-                    dyvar,
-                    al,
-                    origin=(0, grid().je + 2, kstart),
-                    domain=x_edge_domain,
-                )
-        if jord < 0:
-            floor_cap(
-                al,
-                0.0,
-                origin=(ifirst, grid().js - 1, kstart),
-                domain=(ilast - ifirst + 1, grid().njc + 3, nk),
-            )
-
-    return al
-
-
-def compute_al_fcn(q: FloatField, dya: FloatField):
+def compute_al(q: FloatField, dya: FloatField):
     from __externals__ import j_end, j_start, jord
 
     assert __INLINED(jord < 8), "Not implemented"
@@ -442,17 +305,18 @@ def compute_al_fcn(q: FloatField, dya: FloatField):
 def compute_blbr_ord8plus(q: FloatField, dya: FloatField):
     from __externals__ import j_end, j_start, jord, namelist
 
-    dm = dm_jord8plus_fcn(q)
-    al = al_jord8plus_fcn(q, dm)
+    bl = 0.0
+    br = 0.0
 
-    assert __INLINED(jord == 8), "Unimplemented jord"
+    dm = dm_jord8plus(q)
+    al = al_jord8plus(q, dm)
+
+    assert __INLINED(jord == 8)
     # {
-    bl, br = blbr_jord8_fcn(q, al, dm)
+    bl, br = blbr_jord8(q, al, dm)
     # }
 
-    assert __INLINED(
-        namelist.grid_type < 3
-    ), "Remainder of function assumes (grid_type < 3)."
+    assert __INLINED(namelist.grid_type < 3)
     # {
     with horizontal(region[:, j_start - 1]):
         bl, br = south_edge_jord8plus_0(q, dya, dm)
@@ -503,7 +367,7 @@ def _compute_flux_stencil(
 
     with computation(PARALLEL), interval(...):
         if __INLINED(mord < 8):
-            al = compute_al_fcn(q, dya)
+            al = compute_al(q, dya)
             yflux = get_flux(q, c, al)
         else:
             bl, br = compute_blbr_ord8plus(q, dya)
