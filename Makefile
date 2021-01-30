@@ -175,7 +175,8 @@ push_python_regressions:
 	gsutil -m cp -r $(TEST_DATA_HOST)/python_regressions $(REGRESSION_DATA_STORAGE_BUCKET)/$(FORTRAN_SERIALIZED_DATA_VERSION)/$(EXPERIMENT)/python_regressions
 
 get_test_data:
-	if [ ! -f "$(TEST_DATA_HOST)/input.nml" ]; then \
+	if [ ! -f "$(TEST_DATA_HOST)/input.nml" ] || [ "$$(gsutil cat $(REGRESSION_DATA_STORAGE_BUCKET)/$(FORTRAN_SERIALIZED_DATA_VERSION)/${EXPERIMENT}/md5sums.txt)" != "$$(cat $(TEST_DATA_HOST)/md5sums.txt)"  ]; then \
+	rm -rf $(TEST_DATA_HOST) && \
 	$(MAKE) sync_test_data && \
 	$(MAKE) unpack_test_data ;\
 	fi
