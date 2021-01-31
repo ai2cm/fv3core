@@ -23,7 +23,7 @@ sd = utils.sd
 c1 = -2.0 / 14.0
 c2 = 11.0 / 14.0
 c3 = 5.0 / 14.0
-OFFSET = 2
+BIG_NUMBER = 1.0e30
 
 
 @gtscript.function
@@ -85,8 +85,8 @@ def interp_winds_d_to_a(u, v):
         local_je,
         local_js,
     )
-    utmp = 1.0e30
-    vtmp = 1.0e30
+    utmp = BIG_NUMBER
+    vtmp = BIG_NUMBER
     with horizontal(region[:, local_js - 1 : local_je + 2]):
         utmp = lagrange_y_func_p1(u)
     with horizontal(region[local_is - 1 : local_ie + 2, :]):
