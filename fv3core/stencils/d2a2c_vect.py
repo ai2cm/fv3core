@@ -118,7 +118,6 @@ def edge_interpolate4_y(va, dya):
     n2 = (t1 + dya[0, 0, 0]) * va[0, 0, 0] - dya[0, 0, 0] * va[0, 1, 0]
     return 0.5 * (n1 / t1 + n2 / t2)
 
-@gtstencil(externals={"HALO": 3})
 def d2a2c_vect(
     cosa_s: sd,
     cosa_u: sd,
@@ -152,93 +151,92 @@ def d2a2c_vect(
         local_js,
         namelist,
     )
-    with computation(PARALLEL), interval(...):
-        utmp, vtmp = interp_winds_d_to_a(u, v)
+    utmp, vtmp = interp_winds_d_to_a(u, v)
 
-        with horizontal(region[local_is - 2 : local_ie + 3, local_js - 2 : local_je + 3]):
-            ua = contravariant(utmp, vtmp, cosa_s, rsin2)
-            va = contravariant(vtmp, utmp, cosa_s, rsin2)
+    with horizontal(region[local_is - 2 : local_ie + 3, local_js - 2 : local_je + 3]):
+        ua = contravariant(utmp, vtmp, cosa_s, rsin2)
+        va = contravariant(vtmp, utmp, cosa_s, rsin2)
 
-        # A -> C
-        # Fix the edges
-        utmp = fill3_4corners_x(utmp, vtmp, sw_mult=-1, se_mult=1, ne_mult=-1, nw_mult=1)
-        ua = fill2_4corners_x(ua, va, sw_mult=-1, se_mult=1, ne_mult=-1, nw_mult=1)
+    # A -> C
+    # Fix the edges
+    utmp = fill3_4corners_x(utmp, vtmp, sw_mult=-1, se_mult=1, ne_mult=-1, nw_mult=1)
+    ua = fill2_4corners_x(ua, va, sw_mult=-1, se_mult=1, ne_mult=-1, nw_mult=1)
+    
+    # X
 
-        # X
+    with horizontal(region[local_is - 1 : local_ie + 3, local_js - 1 : local_je + 2]):
+        uc = lagrange_x_func(utmp)
+        utc = contravariant(uc, v, cosa_u, rsin_u)
+        
+    # West
+    with horizontal(region[i_start - 1, local_js - 1 : local_je + 2]):
+        uc = vol_conserv_cubic_interp_func_x(utmp)
 
-        with horizontal(region[local_is - 1 : local_ie + 3, local_js - 1 : local_je + 2]):
-            uc = lagrange_x_func(utmp)
-            utc = contravariant(uc, v, cosa_u, rsin_u)
+    with horizontal(region[i_start, local_js - 1 : local_je + 2]):
+        utc = edge_interpolate4_x(ua, dxa)
+        uc = utc * sin_sg3[-1, 0, 0] if utc > 0 else utc * sin_sg1
 
-        # West
-        with horizontal(region[i_start - 1, local_js - 1 : local_je + 2]):
-            uc = vol_conserv_cubic_interp_func_x(utmp)
+    with horizontal(region[i_start + 1, local_js - 1 : local_je + 2]):
+        uc = vol_conserv_cubic_interp_func_x_rev(utmp)
 
-        with horizontal(region[i_start, local_js - 1 : local_je + 2]):
-            utc = edge_interpolate4_x(ua, dxa)
-            uc = utc * sin_sg3[-1, 0, 0] if utc > 0 else utc * sin_sg1
+    with horizontal(region[i_start - 1, local_js - 1 : local_je + 2]):
+        utc = contravariant(uc, v, cosa_u, rsin_u)
 
-        with horizontal(region[i_start + 1, local_js - 1 : local_je + 2]):
-            uc = vol_conserv_cubic_interp_func_x_rev(utmp)
+    with horizontal(region[i_start + 1, local_js - 1 : local_je + 2]):
+        utc = contravariant(uc, v, cosa_u, rsin_u)
 
-        with horizontal(region[i_start - 1, local_js - 1 : local_je + 2]):
-            utc = contravariant(uc, v, cosa_u, rsin_u)
+    # East
+    with horizontal(region[i_end, local_js - 1 : local_je + 2]):
+        uc = vol_conserv_cubic_interp_func_x(utmp)
+        
+    with horizontal(region[i_end + 1, local_js - 1 : local_je + 2]):
+        utc = edge_interpolate4_x(ua, dxa)
+        uc = utc * sin_sg3[-1, 0, 0] if utc > 0 else utc * sin_sg1
 
-        with horizontal(region[i_start + 1, local_js - 1 : local_je + 2]):
-            utc = contravariant(uc, v, cosa_u, rsin_u)
+    with horizontal(region[i_end + 2, local_js - 1 : local_je + 2]):
+        uc = vol_conserv_cubic_interp_func_x_rev(utmp)
 
-        # East
-        with horizontal(region[i_end, local_js - 1 : local_je + 2]):
-            uc = vol_conserv_cubic_interp_func_x(utmp)
+    with horizontal(region[i_end, local_js - 1 : local_je + 2]):
+        utc = contravariant(uc, v, cosa_u, rsin_u)
 
-        with horizontal(region[i_end + 1, local_js - 1 : local_je + 2]):
-            utc = edge_interpolate4_x(ua, dxa)
-            uc = utc * sin_sg3[-1, 0, 0] if utc > 0 else utc * sin_sg1
+    with horizontal(region[i_end + 2, local_js - 1 : local_je + 2]):
+        utc = contravariant(uc, v, cosa_u, rsin_u)
 
-        with horizontal(region[i_end + 2, local_js - 1 : local_je + 2]):
-            uc = vol_conserv_cubic_interp_func_x_rev(utmp)
+    # Fill corners for Y
 
-        with horizontal(region[i_end, local_js - 1 : local_je + 2]):
-            utc = contravariant(uc, v, cosa_u, rsin_u)
+    assert __INLINED(namelist.grid_type < 3)
 
-        with horizontal(region[i_end + 2, local_js - 1 : local_je + 2]):
-            utc = contravariant(uc, v, cosa_u, rsin_u)
+    vtmp = fill3_4corners_y(vtmp, utmp, sw_mult=-1, se_mult=1, ne_mult=-1, nw_mult=1)
+    va = fill2_4corners_y(va, ua, sw_mult=-1, se_mult=1, ne_mult=-1, nw_mult=1)
 
-        # Fill corners for Y
+    # Y
 
-        assert __INLINED(namelist.grid_type < 3)
+    with horizontal(region[local_is - 1 : local_ie + 2, local_js - 1 : local_je + 3]):
+        vc = lagrange_y_func(vtmp)
+        vtc = contravariant(vc, u, cosa_v, rsin_v)
 
-        vtmp = fill3_4corners_y(vtmp, utmp, sw_mult=-1, se_mult=1, ne_mult=-1, nw_mult=1)
-        va = fill2_4corners_y(va, ua, sw_mult=-1, se_mult=1, ne_mult=-1, nw_mult=1)
+    with horizontal(region[local_is - 1 : local_ie + 2, j_start - 1]):
+        vc = vol_conserv_cubic_interp_func_y(vtmp)
+        vtc = contravariant(vc, u, cosa_v, rsin_v)
 
-        # Y
+    with horizontal(region[local_is - 1 : local_ie + 2, j_start]):
+        vtc = edge_interpolate4_y(va, dya)
+        vc = vtc * sin_sg4[0, -1, 0] if vtc > 0 else vtc * sin_sg2
 
-        with horizontal(region[local_is - 1 : local_ie + 2, local_js - 1 : local_je + 3]):
-            vc = lagrange_y_func(vtmp)
-            vtc = contravariant(vc, u, cosa_v, rsin_v)
+    with horizontal(region[local_is - 1 : local_ie + 2, j_start + 1]):
+        vc = vol_conserv_cubic_interp_func_y_rev(vtmp)
+        vtc = contravariant(vc, u, cosa_v, rsin_v)
 
-        with horizontal(region[local_is - 1 : local_ie + 2, j_start - 1]):
-            vc = vol_conserv_cubic_interp_func_y(vtmp)
-            vtc = contravariant(vc, u, cosa_v, rsin_v)
+    with horizontal(region[local_is - 1 : local_ie + 2, j_end]):
+        vc = vol_conserv_cubic_interp_func_y(vtmp)
+        vtc = contravariant(vc, u, cosa_v, rsin_v)
 
-        with horizontal(region[local_is - 1 : local_ie + 2, j_start]):
-            vtc = edge_interpolate4_y(va, dya)
-            vc = vtc * sin_sg4[0, -1, 0] if vtc > 0 else vtc * sin_sg2
+    with horizontal(region[local_is - 1 : local_ie + 2, j_end + 1]):
+        vtc = edge_interpolate4_y(va, dya)
+        vc = vtc * sin_sg4[0, -1, 0] if vtc > 0 else vtc * sin_sg2
 
-        with horizontal(region[local_is - 1 : local_ie + 2, j_start + 1]):
-            vc = vol_conserv_cubic_interp_func_y_rev(vtmp)
-            vtc = contravariant(vc, u, cosa_v, rsin_v)
+    with horizontal(region[local_is - 1 : local_ie + 2, j_end + 2]):
+        vc = vol_conserv_cubic_interp_func_y_rev(vtmp)
+        vtc = contravariant(vc, u, cosa_v, rsin_v)
 
-        with horizontal(region[local_is - 1 : local_ie + 2, j_end]):
-            vc = vol_conserv_cubic_interp_func_y(vtmp)
-            vtc = contravariant(vc, u, cosa_v, rsin_v)
-
-        with horizontal(region[local_is - 1 : local_ie + 2, j_end + 1]):
-            vtc = edge_interpolate4_y(va, dya)
-            vc = vtc * sin_sg4[0, -1, 0] if vtc > 0 else vtc * sin_sg2
-
-        with horizontal(region[local_is - 1 : local_ie + 2, j_end + 2]):
-            vc = vol_conserv_cubic_interp_func_y_rev(vtmp)
-            vtc = contravariant(vc, u, cosa_v, rsin_v)
-
-#return uc, vc, ua, va, utc, vtc
+    return uc, vc, ua, va, utc, vtc
