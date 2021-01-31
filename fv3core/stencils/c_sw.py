@@ -62,7 +62,7 @@ def nonhydro_y_fluxes(delp: sd, pt: sd, w: sd, vtc: sd):
     return fy, fy1, fy2
 
 
-@gtstencil()
+@gtstencil(externals={"num_fill": 2})
 def transportdelp(
     delp: sd, pt: sd, utc: sd, vtc: sd, w: sd, rarea: sd, delpc: sd, ptc: sd, wc: sd
 ):
