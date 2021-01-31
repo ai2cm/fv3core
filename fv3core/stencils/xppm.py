@@ -1,5 +1,6 @@
 from typing import Optional
 
+from gt4py import gtscript
 from gt4py.gtscript import (
     __INLINED,
     PARALLEL,
@@ -16,16 +17,45 @@ from fv3core.stencils.basic_operations import sign
 from fv3core.utils.typing import FloatField
 
 
-def fx1_c_positive(c, br, b0):
-    return (1.0 - c) * (br[-1, 0, 0] - c * b0[-1, 0, 0])
-
-
-def fx1_fn(c, br, b0, bl):
-    return fx1_c_positive(c, br, b0) if c > 0.0 else yppm.fx1_c_negative(c, bl, b0)
-
-
+@gtscript.function
 def final_flux(c, q, fx1, tmp):
     return q[-1, 0, 0] + fx1 * tmp if c > 0.0 else q + fx1 * tmp
+
+
+@gtscript.function
+def fx1_fn(c, br, b0, bl):
+    if c > 0.0:
+        ret = (1.0 - c) * (br[-1, 0, 0] - c * b0[-1, 0, 0])
+    else:
+        ret = (1.0 + c) * (bl + c * b0)
+    return ret
+
+
+def get_flux(q: FloatField, c: FloatField, al: FloatField):
+    from __externals__ import mord
+
+    bl = al[0, 0, 0] - q[0, 0, 0]
+    br = al[1, 0, 0] - q[0, 0, 0]
+    b0 = bl + br
+
+    if __INLINED(mord == 5):
+        smt5 = bl * br < 0
+    else:
+        smt5 = (3.0 * abs(b0)) < abs(bl - br)
+
+    if smt5[-1, 0, 0]:
+        tmp = smt5[-1, 0, 0]
+    else:
+        tmp = smt5[-1, 0, 0] + smt5[0, 0, 0]
+
+    fx1 = fx1_fn(c, br, b0, bl)
+    return final_flux(c, q, fx1, tmp)  # noqa
+
+
+def get_flux_ord8plus(q: FloatField, c: FloatField, bl: FloatField, br: FloatField):
+    b0 = bl + br
+    fx1 = fx1_fn(c, br, b0, bl)
+    return final_flux(c, q, fx1, 1.0)
 
 
 def dm_iord8plus(q: FloatField):
@@ -192,27 +222,6 @@ def compute_al(q: FloatField, dxa: FloatField):
     return al
 
 
-def get_flux(q: FloatField, c: FloatField, al: FloatField):
-    from __externals__ import mord
-
-    bl = al[0, 0, 0] - q[0, 0, 0]
-    br = al[1, 0, 0] - q[0, 0, 0]
-    b0 = bl + br
-
-    if __INLINED(mord == 5):
-        smt5 = yppm.is_smt5_mord5(bl, br)
-    else:
-        smt5 = yppm.is_smt5_most_mords(bl, br, b0)
-
-    if smt5[-1, 0, 0]:
-        tmp = smt5[-1, 0, 0]
-    else:
-        tmp = smt5[-1, 0, 0] + smt5
-
-    fx1 = fx1_fn(c, br, b0, bl)
-    return final_flux(c, q, fx1, tmp)  # noqa
-
-
 def compute_blbr_ord8plus(q: FloatField, dxa: FloatField):
     from __externals__ import i_end, i_start, iord, namelist
 
@@ -252,13 +261,6 @@ def compute_blbr_ord8plus(q: FloatField, dxa: FloatField):
     # }
 
     return bl, br
-
-
-def get_flux_ord8plus(q: FloatField, c: FloatField, bl: FloatField, br: FloatField):
-    b0 = bl + br
-    fx1 = fx1_fn(c, br, b0, bl)
-
-    return q[-1, 0, 0] + fx1 if c > 0.0 else q[0, 0, 0] + fx1
 
 
 def _compute_flux_stencil(

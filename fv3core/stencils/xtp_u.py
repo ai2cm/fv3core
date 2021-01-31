@@ -30,14 +30,14 @@ def get_flux_u(
     b0 = bl + br
 
     if __INLINED(mord == 5):
-        smt5 = yppm.is_smt5_mord5(bl, br)
+        smt5 = bl * br < 0
     else:
-        smt5 = yppm.is_smt5_most_mords(bl, br, b0)
+        smt5 = (3.0 * abs(b0)) < abs(bl - br)
 
-    if smt5[-1, 0, 0] == 0:
-        tmp = smt5[-1, 0, 0] + smt5[0, 0, 0]
-    else:
+    if smt5[-1, 0, 0]:
         tmp = smt5[-1, 0, 0]
+    else:
+        tmp = smt5[-1, 0, 0] + smt5[0, 0, 0]
 
     cfl = c * rdx[-1, 0, 0] if c > 0 else c * rdx
     fx0 = xppm.fx1_fn(cfl, br, b0, bl)

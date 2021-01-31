@@ -11,7 +11,6 @@ from gt4py.gtscript import (
 )
 
 import fv3core._config as spec
-import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import gtstencil
 from fv3core.stencils.basic_operations import sign
 from fv3core.utils.typing import FloatField
@@ -35,33 +34,6 @@ s11 = 11.0 / 14.0
 s14 = 4.0 / 7.0
 s15 = 3.0 / 14.0
 
-sd = utils.sd
-origin = (0, 2, 0)
-
-
-def grid():
-    return spec.grid
-
-
-@gtscript.function
-def is_smt5_mord5(bl, br):
-    return bl * br < 0
-
-
-@gtscript.function
-def is_smt5_most_mords(bl, br, b0):
-    return (3.0 * abs(b0)) < abs(bl - br)
-
-
-@gtscript.function
-def fx1_c_positive(c, br, b0):
-    return (1.0 - c) * (br[0, -1, 0] - c * b0[0, -1, 0])
-
-
-@gtscript.function
-def fx1_c_negative(c, bl, b0):
-    return (1.0 + c) * (bl + c * b0)
-
 
 @gtscript.function
 def final_flux(c, q, fx1, tmp):
@@ -70,7 +42,11 @@ def final_flux(c, q, fx1, tmp):
 
 @gtscript.function
 def fx1_fn(c, br, b0, bl):
-    return fx1_c_positive(c, br, b0) if c > 0.0 else fx1_c_negative(c, bl, b0)
+    if c > 0.0:
+        ret = (1.0 - c) * (br[0, -1, 0] - c * b0[0, -1, 0])
+    else:
+        ret = (1.0 + c) * (bl + c * b0)
+    return ret
 
 
 def get_flux(q: FloatField, c: FloatField, al: FloatField):
@@ -81,23 +57,23 @@ def get_flux(q: FloatField, c: FloatField, al: FloatField):
     b0 = bl + br
 
     if mord == 5:
-        smt5 = is_smt5_mord5(bl, br)
+        smt5 = bl * br < 0
     else:
-        smt5 = is_smt5_most_mords(bl, br, b0)
+        smt5 = (3.0 * abs(b0)) < abs(bl - br)
 
-    if smt5[0, -1, 0] == 0:
-        tmp = smt5[0, -1, 0] + smt5
-    else:
+    if smt5[0, -1, 0]:
         tmp = smt5[0, -1, 0]
+    else:
+        tmp = smt5[0, -1, 0] + smt5[0, 0, 0]
 
     fx1 = fx1_fn(c, br, b0, bl)
-    return q[0, -1, 0] + fx1 * tmp if c > 0.0 else q + fx1 * tmp
+    return final_flux(c, q, fx1, tmp)
 
 
-def finalflux_ord8plus(q: FloatField, c: FloatField, bl: FloatField, br: FloatField):
+def get_flux_ord8plus(q: FloatField, c: FloatField, bl: FloatField, br: FloatField):
     b0 = bl + br
     fx1 = fx1_fn(c, br, b0, bl)
-    return q[0, -1, 0] + fx1 if c > 0.0 else q + fx1
+    return final_flux(c, q, fx1, 1.0)
 
 
 def dm_jord8plus(q: FloatField):
@@ -371,7 +347,7 @@ def _compute_flux_stencil(
             yflux = get_flux(q, c, al)
         else:
             bl, br = compute_blbr_ord8plus(q, dya)
-            yflux = finalflux_ord8plus(q, c, bl, br)
+            yflux = get_flux_ord8plus(q, c, bl, br)
 
 
 def compute_flux(
