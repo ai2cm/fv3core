@@ -1,38 +1,33 @@
+from gt4py.gtscript import PARALLEL, computation, interval
+
 import fv3core.stencils.d2a2c_vect as d2a2c_vect
+from fv3core.decorators import gtstencil
 from fv3core.testing import TranslateFortranData2Py
 from fv3core.utils.typing import FloatField
-import gt4py.gtscript as gtscript
-from gt4py.gtscript import (
-    __INLINED,
-    PARALLEL,
-    computation,
-    horizontal,
-    interval,
-    region,
-)
-from fv3core.decorators import gtstencil
+
+
 @gtstencil(externals={"HALO": 3})
 def test_d2a2c_vect(
-        cosa_s: FloatField,
-        cosa_u: FloatField,
-        cosa_v: FloatField,
-        dxa: FloatField,
-        dya: FloatField,
-        rsin2: FloatField,
-        rsin_u: FloatField,
-        rsin_v: FloatField,
-        sin_sg1: FloatField,
-        sin_sg2: FloatField,
-        sin_sg3: FloatField,
-        sin_sg4: FloatField,
-        u: FloatField,
-        ua: FloatField,
-        uc: FloatField,
-        utc: FloatField,
-        v: FloatField,
-        va: FloatField,
-        vc: FloatField,
-        vtc: FloatField,
+    cosa_s: FloatField,
+    cosa_u: FloatField,
+    cosa_v: FloatField,
+    dxa: FloatField,
+    dya: FloatField,
+    rsin2: FloatField,
+    rsin_u: FloatField,
+    rsin_v: FloatField,
+    sin_sg1: FloatField,
+    sin_sg2: FloatField,
+    sin_sg3: FloatField,
+    sin_sg4: FloatField,
+    u: FloatField,
+    ua: FloatField,
+    uc: FloatField,
+    utc: FloatField,
+    v: FloatField,
+    va: FloatField,
+    vc: FloatField,
+    vtc: FloatField,
 ):
     with computation(PARALLEL), interval(...):
         uc, vc, ua, va, utc, vtc = d2a2c_vect.d2a2c_vect(
@@ -57,7 +52,8 @@ def test_d2a2c_vect(
             vc,
             vtc,
         )
-            
+
+
 class TranslateD2A2C_Vect(TranslateFortranData2Py):
     def __init__(self, grid):
         super().__init__(grid)
@@ -73,18 +69,18 @@ class TranslateD2A2C_Vect(TranslateFortranData2Py):
         }
         self.in_vars["parameters"] = ["dord4"]
         self.out_vars = {
-            "uc": grid.x3d_domain_dict(),
-            "vc": grid.y3d_domain_dict(),
+            # "uc": grid.x3d_domain_dict(),
+            # "vc": grid.y3d_domain_dict(),
             "ua": {},
             "va": {},
-            "utc": {},
-            "vtc": {},
+            # "utc": {},
+            # "vtc": {},
         }
         # TODO: This seems to be needed primarily for the edge_interpolate_4
         # methods, can we rejigger the order of operations to make it match to
         # more precision?
         self.max_error = 2e-10
-    
+
     def compute(self, inputs):
         self.make_storage_data_input_vars(inputs)
         assert bool(inputs["dord4"]) is True
