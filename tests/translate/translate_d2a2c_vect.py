@@ -33,7 +33,7 @@ class TranslateD2A2C_Vect(TranslateFortranData2Py):
         self.make_storage_data_input_vars(inputs)
         assert bool(inputs["dord4"]) is True
         del inputs["dord4"]
-        d2a2c_vect(
+        d2a2c_vect.d2a2c_vect(
             self.grid.cosa_s,
             self.grid.cosa_u,
             self.grid.cosa_v,
