@@ -1,3 +1,4 @@
+from gt4py import gtscript
 from gt4py.gtscript import (
     __INLINED,
     PARALLEL,
@@ -13,6 +14,7 @@ from fv3core.stencils import xppm, yppm
 from fv3core.utils.typing import FloatField
 
 
+@gtscript.function
 def get_flux_u_ord8plus(
     q: FloatField, c: FloatField, rdx: FloatField, bl: FloatField, br: FloatField
 ):

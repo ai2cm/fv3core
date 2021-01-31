@@ -76,6 +76,7 @@ def get_flux_ord8plus(q: FloatField, c: FloatField, bl: FloatField, br: FloatFie
     return final_flux(c, q, fx1, 1.0)
 
 
+@gtscript.function
 def dm_jord8plus(q: FloatField):
     xt = 0.25 * (q[0, 1, 0] - q[0, -1, 0])
     dqr = max(max(q, q[0, -1, 0]), q[0, 1, 0]) - q
@@ -83,10 +84,12 @@ def dm_jord8plus(q: FloatField):
     return sign(min(min(abs(xt), dqr), dql), xt)
 
 
+@gtscript.function
 def al_jord8plus(q: FloatField, dm: FloatField):
     return 0.5 * (q[0, -1, 0] + q) + 1.0 / 3.0 * (dm[0, -1, 0] - dm)
 
 
+@gtscript.function
 def blbr_jord8(q: FloatField, al: FloatField, dm: FloatField):
     xt = 2.0 * dm
     aldiff = al - q
@@ -96,6 +99,7 @@ def blbr_jord8(q: FloatField, al: FloatField, dm: FloatField):
     return bl, br
 
 
+@gtscript.function
 def xt_dya_edge_0_base(q, dya):
     return 0.5 * (
         ((2.0 * dya + dya[0, -1, 0]) * q - dya * q[0, -1, 0]) / (dya[0, -1, 0] + dya)
@@ -104,6 +108,7 @@ def xt_dya_edge_0_base(q, dya):
     )
 
 
+@gtscript.function
 def xt_dya_edge_1_base(q, dya):
     return 0.5 * (
         (

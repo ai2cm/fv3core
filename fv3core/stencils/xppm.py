@@ -52,12 +52,14 @@ def get_flux(q: FloatField, c: FloatField, al: FloatField):
     return final_flux(c, q, fx1, tmp)  # noqa
 
 
+@gtscript.function
 def get_flux_ord8plus(q: FloatField, c: FloatField, bl: FloatField, br: FloatField):
     b0 = bl + br
     fx1 = fx1_fn(c, br, b0, bl)
     return final_flux(c, q, fx1, 1.0)
 
 
+@gtscript.function
 def dm_iord8plus(q: FloatField):
     xt = 0.25 * (q[1, 0, 0] - q[-1, 0, 0])
     dqr = max(max(q, q[-1, 0, 0]), q[1, 0, 0]) - q
@@ -65,10 +67,12 @@ def dm_iord8plus(q: FloatField):
     return sign(min(min(abs(xt), dqr), dql), xt)
 
 
+@gtscript.function
 def al_iord8plus(q: FloatField, dm: FloatField):
     return 0.5 * (q[-1, 0, 0] + q) + 1.0 / 3.0 * (dm[-1, 0, 0] - dm)
 
 
+@gtscript.function
 def blbr_iord8(q: FloatField, al: FloatField, dm: FloatField):
     # al, dm = al_iord8plus_fn(q, al, dm, r3)
     xt = 2.0 * dm
@@ -77,6 +81,7 @@ def blbr_iord8(q: FloatField, al: FloatField, dm: FloatField):
     return bl, br
 
 
+@gtscript.function
 def xt_dxa_edge_0_base(q, dxa):
     return 0.5 * (
         ((2.0 * dxa + dxa[-1, 0, 0]) * q - dxa * q[-1, 0, 0]) / (dxa[-1, 0, 0] + dxa)
@@ -85,6 +90,7 @@ def xt_dxa_edge_0_base(q, dxa):
     )
 
 
+@gtscript.function
 def xt_dxa_edge_1_base(q, dxa):
     return 0.5 * (
         (
