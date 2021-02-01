@@ -36,6 +36,7 @@ CORE_BUCKET_LOC=gs://vcm-jenkins/$(CORE_TAR)
 MPIRUN_CALL ?=mpirun -np $(NUM_RANKS)
 BASE_INSTALL?=$(FV3)-install-serialbox
 DEV_MOUNTS = '-v $(CWD)/$(FV3):/$(FV3)/$(FV3) -v $(CWD)/tests:/$(FV3)/tests -v $(FV3UTIL_DIR):/usr/src/fv3gfs-util -v $(TEST_DATA_HOST):$(TEST_DATA_CONTAINER)'
+DATA_BUCKET= $(REGRESSION_DATA_STORAGE_BUCKET)/$(FORTRAN_SERIALIZED_DATA_VERSION)/$(EXPERIMENT)/
 
 clean:
 	find . -name ""
@@ -169,13 +170,14 @@ run_tests_parallel:
 	$(MAKE) test_base_parallel
 
 sync_test_data:
-	mkdir -p $(TEST_DATA_HOST) && gsutil -m rsync -r $(REGRESSION_DATA_STORAGE_BUCKET)/$(FORTRAN_SERIALIZED_DATA_VERSION)/$(EXPERIMENT)/ $(TEST_DATA_HOST)
+	mkdir -p $(TEST_DATA_HOST) && gsutil -m rsync -r $(DATA_BUCKET) $(TEST_DATA_HOST)
 
 push_python_regressions:
-	gsutil -m cp -r $(TEST_DATA_HOST)/python_regressions $(REGRESSION_DATA_STORAGE_BUCKET)/$(FORTRAN_SERIALIZED_DATA_VERSION)/$(EXPERIMENT)/python_regressions
+	gsutil -m cp -r $(TEST_DATA_HOST)/python_regressions $(DATA_BUCKET)python_regressions
 
 get_test_data:
-	if [ ! -f "$(TEST_DATA_HOST)/input.nml" ] || [ "$$(gsutil cat $(REGRESSION_DATA_STORAGE_BUCKET)/$(FORTRAN_SERIALIZED_DATA_VERSION)/${EXPERIMENT}/md5sums.txt)" != "$$(cat $(TEST_DATA_HOST)/md5sums.txt)"  ]; then \
+	if [ ! -f "$(TEST_DATA_HOST)/input.nml" ] || \
+	[ "$$(gsutil cat $(DATA_BUCKET)md5sums.txt)" != "$$(cat $(TEST_DATA_HOST)/md5sums.txt)"  ]; then \
 	rm -rf $(TEST_DATA_HOST) && \
 	$(MAKE) sync_test_data && \
 	$(MAKE) unpack_test_data ;\
