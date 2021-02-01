@@ -277,7 +277,7 @@ def compute(
         pk,
         akap,
         origin=grid.compute_origin(),
-        domain=grid.domain_shape_compute_buffer_2d((0, 1, 0)),
+        domain=grid.domain_shape_compute(add=(0, 1, 0)),
     )
 
     map_single.compute(
