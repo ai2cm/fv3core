@@ -27,7 +27,6 @@ PYTHON_INIT_FILES = $(shell git ls-files | grep '__init__.py')
 TEST_DATA_TARFILE=dat_files.tar.gz
 TEST_DATA_TARPATH=$(TEST_DATA_HOST)/$(TEST_DATA_TARFILE)
 CORE_TAR=$(SARUS_FV3CORE_IMAGE).tar
-CORE_BUCKET_LOC=gs://vcm-jenkins/$(CORE_TAR)
 MPIRUN_CALL ?=mpirun -np $(NUM_RANKS)
 BASE_INSTALL?=$(FV3)-install-serialbox
 DEV_MOUNTS = '-v $(CWD)/$(FV3):/$(FV3)/$(FV3) -v $(CWD)/tests:/$(FV3)/tests -v $(FV3UTIL_DIR):/usr/src/fv3gfs-util -v $(TEST_DATA_HOST):$(TEST_DATA_RUN_LOC)'
