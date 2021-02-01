@@ -24,11 +24,6 @@ MapN_Tracer_2d:
     near_zero: 1e-17
     ignore_near_zero_errors:
       - qtracers
-  - backend: numpy
-    max_error: 3.5e-11
-    near_zero: 7e-17
-    ignore_near_zero_errors:
-      - qtracers
 
 NH_P_Grad:
   - backend: gtcuda
@@ -45,20 +40,10 @@ Remapping_Part1:
     ignore_near_zero_errors:
       - q_con
       - qtracers
-  - backend: numpy
-    max_error: 5e-9
-    near_zero: 5e-18
-    ignore_near_zero_errors:
-      - q_con
-      - qtracers
 
 Remapping:
   - backend: gtcuda
     near_zero: 5e-6
-    ignore_near_zero_errors:
-      - q_con
-      - tracers
-  - backend: numpy
     ignore_near_zero_errors:
       - q_con
       - tracers

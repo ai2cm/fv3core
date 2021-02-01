@@ -35,8 +35,7 @@ def lagrangian_contributions(
     q2_adds: FloatFieldIJ,
 ):
     with computation(PARALLEL), interval(...):
-        q2_adds = 0.0
-    with computation(FORWARD), interval(...):
+        q2_tmp = 0.0
         if pe1 < pbot and pe1[0, 0, 1] > ptop:
             # We are in the right pressure range to contribute to the Eulerian cell
             if pe1 <= ptop:
@@ -45,7 +44,7 @@ def lagrangian_contributions(
                 if pbot <= pe1[0, 0, 1]:
                     # Eulerian grid element is contained in the Lagrangian element
                     pr = (pbot - pe1) / dp1
-                    q2_adds += (
+                    q2_tmp = (
                         q4_2
                         + 0.5 * (q4_4 + q4_3 - q4_2) * (pr + pl)
                         - q4_4 * r3 * (pr * (pr + pl) + pl ** 2)
@@ -53,7 +52,7 @@ def lagrangian_contributions(
                 else:
                     # Eulerian element encompasses multiple Lagrangian elements
                     # and this is just the first one
-                    q2_adds += (
+                    q2_tmp = (
                         (pe1[0, 0, 1] - ptop)
                         * (
                             q4_2
@@ -66,16 +65,18 @@ def lagrangian_contributions(
                 # we are in a farther-down level
                 if pbot > pe1[0, 0, 1]:
                     # add the whole level to the Eulerian cell
-                    q2_adds += dp1 * q4_1 / (pbot - ptop)
+                    q2_tmp = dp1 * q4_1 / (pbot - ptop)
                 else:
                     # this is the bottom layer that contributes
                     dp = pbot - pe1
                     esl = dp / dp1
-                    q2_adds += (
+                    q2_tmp = (
                         dp
                         * (q4_2 + 0.5 * esl * (q4_3 - q4_2 + q4_4 * (1.0 - r23 * esl)))
                         / (pbot - ptop)
                     )
+    with computation(FORWARD), interval(...):
+        q2_adds += q2_tmp
 
 
 def region_mode(j_2d: Optional[int], i1: int, i_extent: int, grid: Grid):
@@ -217,6 +218,7 @@ def lagrangian_contributions_stencil(
     for k_eul in range(km):
         ptop[:, :] = pe2[:, :, k_eul]
         pbot[:, :] = pe2[:, :, k_eul + 1]
+        q2_adds[:] = 0.0
 
         lagrangian_contributions(
             pe1,
