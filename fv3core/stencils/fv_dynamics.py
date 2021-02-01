@@ -160,7 +160,7 @@ def compute_preamble(state, comm):
         )
 
 
-def do_dyn(state, comm, timer=NullTimer):
+def do_dyn(state, comm, timer=NullTimer()):
     grid = spec.grid
     copy_stencil(
         state.delp,
@@ -303,7 +303,7 @@ def fv_dynamics(
     ptop,
     n_split,
     ks,
-    timer=NullTimer,
+    timer=NullTimer(),
 ):
     state.__dict__.update(
         {
@@ -318,7 +318,7 @@ def fv_dynamics(
     compute(state, comm, timer)
 
 
-def compute(state, comm, timer=NullTimer):
+def compute(state, comm, timer=NullTimer()):
     grid = spec.grid
     state.__dict__.update(fvdyn_temporaries(state.u.shape))
     set_constants(state)
