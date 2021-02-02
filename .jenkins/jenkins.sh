@@ -56,7 +56,7 @@ test -f ${envloc}/env/machineEnvironment.sh || exitError 1201 ${LINENO} "cannot 
 export python_env=${python_env}
 echo "PYTHON env ${python_env}"
 # get root directory of where jenkins.sh is sitting
-export root=`dirname $0`
+export jenkins_dir=`dirname $0`
 
 # load machine dependent environment
 if [ ! -f ${envloc}/env/env.${host}.sh ] ; then
@@ -65,7 +65,7 @@ fi
 . ${envloc}/env/env.${host}.sh
 
 # check if action script exists
-script="${root}/actions/${action}.sh"
+script="${jenkins_dir}/actions/${action}.sh"
 test -f "${script}" || exitError 1301 ${LINENO} "cannot find script ${script}"
 
 # load scheduler tools
