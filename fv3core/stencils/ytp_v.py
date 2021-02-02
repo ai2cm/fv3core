@@ -23,8 +23,8 @@ def _get_flux(
         v: y-dir wind
         courant: Courant number in flux form
         rdy: 1.0 / dy
-        bl: ?
-        br: ?
+        bl: ???
+        br: ???
 
     Returns:
         Kinetic energy flux
