@@ -97,8 +97,11 @@ def fill_corners_cells_x(q: FloatField):
 
     if __INLINED(num_fill == 2):
         q = fill_corners_2cells_mult_x(q, q, 1, 1, 1, 1)
-    if __INLINED(num_fill == 3):
+    elif __INLINED(num_fill == 3):
         q = fill_corners_3cells_mult_x(q, q, 1, 1, 1, 1)
+    else:
+        assert __INLINED(False), "invalid input"
+
     return q
 
 
@@ -187,8 +190,11 @@ def fill_corners_cells_y(q: FloatField):
 
     if __INLINED(num_fill == 2):
         q = fill_corners_2cells_mult_y(q, q, 1, 1, 1, 1)
-    if __INLINED(num_fill == 3):
+    elif __INLINED(num_fill == 3):
         q = fill_corners_3cells_mult_y(q, q, 1, 1, 1, 1)
+    else:
+        assert __INLINED(False), "invalid input"
+
     return q
 
 
