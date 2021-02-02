@@ -141,6 +141,7 @@ export TEST_DATA_DIR="${SCRATCH}/fv3core_fortran_data/${FORTRAN_VERSION}"
 export FV3_STENCIL_REBUILD_FLAG=False
 # Set the host data location
 export TEST_DATA_HOST="${TEST_DATA_DIR}/${experiment}/"
+export EXPERIMENT=${experiment}
 if [ -z ${JENKINS_TAG} ]; then
     export JENKINS_TAG=${JOB_NAME}-${BUILD_NUMBER}
 fi

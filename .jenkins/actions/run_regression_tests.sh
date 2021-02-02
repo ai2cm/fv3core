@@ -14,4 +14,3 @@ else
     export TEST_ARGS="${TEST_ARGS} --junitxml=/.jenkins/${XML_REPORT}"
     make tests
 fi
-
