@@ -144,8 +144,8 @@ if __name__ == "__main__":
         input_data["comm"] = communicator
         state = driver_object.state_from_inputs(input_data)
 
-        # warm-up timestep. 
-        # We're intentionally not passing the timer here to exclude 
+        # warm-up timestep.
+        # We're intentionally not passing the timer here to exclude
         # warmup/compilation from the internal timers
         fv_dynamics.fv_dynamics(
             state,
