@@ -30,8 +30,8 @@ CORE_TAR=$(SARUS_FV3CORE_IMAGE).tar
 MPIRUN_CALL ?=mpirun -np $(NUM_RANKS)
 BASE_INSTALL?=$(FV3)-install-serialbox
 DEV_MOUNTS = '-v $(CWD)/$(FV3):/$(FV3)/$(FV3) -v $(CWD)/tests:/$(FV3)/tests -v $(FV3UTIL_DIR):/usr/src/fv3gfs-util -v $(TEST_DATA_HOST):$(TEST_DATA_RUN_LOC)'
-PYTEST_SEQUENTIAL="pip list && pytest --profile --data_path=$(TEST_DATA_RUN_LOC) $(TEST_ARGS) $(FV3_PATH)/tests"
-PYTEST_PARALLEL="pip list && $(MPIRUN_CALL) pytest --data_path=$(TEST_DATA_RUN_LOC) $(TEST_ARGS) -m parallel $(FV3_PATH)/tests"
+PYTEST_SEQUENTIAL=pytest --profile --data_path=$(TEST_DATA_RUN_LOC) $(TEST_ARGS) $(FV3_PATH)/tests
+PYTEST_PARALLEL="$(MPIRUN_CALL) pytest --data_path=$(TEST_DATA_RUN_LOC) $(TEST_ARGS) -m parallel $(FV3_PATH)/tests"
 
 clean:
 	find . -name ""
@@ -149,18 +149,18 @@ dev_tests_mpi_host:
 	MOUNTS=$(DEV_MOUNTS) $(MAKE) run_tests_parallel_host
 
 tests_venv:
-	$(BASH_PREFIX) bash -c $(PYTEST_SEQUENTIAL)
+	pip list && $(BASH_PREFIX) bash -c "$(PYTEST_SEQUENTIAL)"
 
 tests_venv_mpi:
-	$(BASH_PREFIX) bash -c $(PYTEST_PARALLEL)
+	pip list && $(BASH_PREFIX) bash -c "$(PYTEST_PARALLEL)"
 
 test_base:
 	$(CONTAINER_ENGINE) run $(RUN_FLAGS) $(VOLUMES) $(MOUNTS) $(CUDA_FLAGS) \
-	$(FV3CORE_IMAGE) bash -c $(PYTEST_SEQUENTIAL)
+	$(FV3CORE_IMAGE) bash -c "pip list && $(PYTEST_SEQUENTIAL)"
 
 test_base_parallel:
 	$(CONTAINER_ENGINE) run $(RUN_FLAGS) $(VOLUMES) $(MOUNTS) $(CUDA_FLAGS) $(FV3CORE_IMAGE) \
-	bash -c $(PYTEST_PARALLEL)
+	bash -c "pip list && $(PYTEST_PARALLEL)"
 
 run_tests_sequential:
 	VOLUMES='-v $(TEST_DATA_HOST):$(TEST_DATA_RUN_LOC) -v $(CWD)/.jenkins:/.jenkins' \
