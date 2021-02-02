@@ -135,8 +135,8 @@ def compute(c: FloatField, u: FloatField, v: FloatField, flux: FloatField):
 
     Args:
         c (in): Courant number in flux form
-        u (in): x-dir wind on D-grid
-        v (in): y-dir wind on D-grid
+        u (in): x-dir wind on Arakawa D-grid
+        v (in): y-dir wind on Arakawa D-grid
         flux (out): Flux of kinetic energy
     """
     grid = spec.grid
