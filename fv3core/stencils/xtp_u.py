@@ -153,7 +153,7 @@ def compute(c: FloatField, u: FloatField, v: FloatField, flux: FloatField):
         definition=_compute_stencil,
         externals={
             "iord": iord,
-            "mord": iord,  # Note: no abs here
+            "mord": iord,
             "xt_minmax": False,
         },
     )
