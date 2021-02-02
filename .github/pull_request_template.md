@@ -4,7 +4,8 @@
 Describe the purpose of this PR and the motivation if relevant to understanding. Include links to related issues, bugs or features. Include the sections below that apply.
 
 ## Code changes:
-Provide a list of relevant code changes and the side effects they have on other code.
+
+- Provide a list of relevant code changes and the side effects they have on other code.
 
 ## Requirements changes:
 Provide a list of any changes made to requirements or linting, e.g. changes to files requirements*.txt, constraints.txt, setup.py, pyproject.toml, pre-commit-config.yaml as well as a reason if not included in the Purpose section (e.g. incompatibility, updates, etc)
