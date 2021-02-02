@@ -1,4 +1,3 @@
-from gt4py import gtscript
 from gt4py.gtscript import (
     __INLINED,
     PARALLEL,
@@ -14,40 +13,51 @@ from fv3core.stencils import xppm, yppm
 from fv3core.utils.typing import FloatField
 
 
-@gtscript.function
-def get_flux_u_ord8plus(
-    q: FloatField, c: FloatField, rdx: FloatField, bl: FloatField, br: FloatField
+def _get_flux(
+    u: FloatField, courant: FloatField, rdx: FloatField, bl: FloatField, br: FloatField
 ):
+    """
+    Compute the x-dir flux of kinetic energy(?).
+
+    Inputs:
+        u: u-dir wind
+        courant: Courant number in flux form
+        rdx: 1.0 / dx
+        bl: ?
+        br: ?
+
+    Returns:
+        Kinetic energy flux
+    """
+    # Could try merging this with xppm version.
+
+    from __externals__ import iord, mord
+
     b0 = bl + br
-    cfl = c * rdx[-1, 0, 0] if c > 0 else c * rdx
-    fx1 = xppm.fx1_fn(cfl, br, b0, bl)
-    return q[-1, 0, 0] + fx1 if c > 0.0 else q + fx1
-
-
-def get_flux_u(
-    q: FloatField, c: FloatField, rdx: FloatField, bl: FloatField, br: FloatField
-):
-    from __externals__ import mord
-
-    b0 = bl + br
-
-    if __INLINED(mord == 5):
-        smt5 = bl * br < 0
-    else:
-        smt5 = (3.0 * abs(b0)) < abs(bl - br)
-
-    if smt5[-1, 0, 0]:
-        tmp = smt5[-1, 0, 0]
-    else:
-        tmp = smt5[-1, 0, 0] + smt5[0, 0, 0]
-
-    cfl = c * rdx[-1, 0, 0] if c > 0 else c * rdx
+    cfl = courant * rdx[-1, 0, 0] if courant > 0 else courant * rdx
     fx0 = xppm.fx1_fn(cfl, br, b0, bl)
-    return xppm.final_flux(c, q, fx0, tmp)
+
+    if __INLINED(iord < 8):
+        if __INLINED(mord == 5):
+            smt5 = bl * br < 0
+        else:
+            smt5 = (3.0 * abs(b0)) < abs(bl - br)
+
+        if smt5[-1, 0, 0]:
+            tmp = smt5[-1, 0, 0]
+        else:
+            tmp = smt5[-1, 0, 0] + smt5[0, 0, 0]
+
+        flux = xppm.final_flux(courant, u, fx0, tmp)
+
+    else:
+        flux = xppm.final_flux(courant, u, fx0, 1.0)
+
+    return flux
 
 
 def _compute_stencil(
-    c: FloatField,
+    courant: FloatField,
     u: FloatField,
     flux: FloatField,
     dx: FloatField,
@@ -74,8 +84,6 @@ def _compute_stencil(
                 bl = 0.0
                 br = 0.0
 
-            flux = get_flux_u(u, c, rdx, bl, br)
-
         else:
             dm = xppm.dm_iord8plus(u)
             al = xppm.al_iord8plus(u, dm)
@@ -89,11 +97,9 @@ def _compute_stencil(
             # {
             with horizontal(region[i_start - 1, :]):
                 bl, br = xppm.west_edge_iord8plus_0(u, dxa, dm)
-                # bl, br = yppm.pert_ppm_standard_constraint_fcn(u, bl, br)
 
             with horizontal(region[i_start, :]):
                 bl, br = xppm.west_edge_iord8plus_1(u, dxa, dm)
-                # bl, br = yppm.pert_ppm_standard_constraint_fcn(u, bl, br)
 
             with horizontal(region[i_start + 1, :]):
                 bl, br = xppm.west_edge_iord8plus_2(u, dm, al)
@@ -105,11 +111,9 @@ def _compute_stencil(
 
             with horizontal(region[i_end, :]):
                 bl, br = xppm.east_edge_iord8plus_1(u, dxa, dm)
-                # bl, br = yppm.pert_ppm_standard_constraint_fcn(u, bl, br)
 
             with horizontal(region[i_end + 1, :]):
                 bl, br = xppm.east_edge_iord8plus_2(u, dxa, dm)
-                # bl, br = yppm.pert_ppm_standard_constraint_fcn(u, bl, br)
 
             # Zero corners
             with horizontal(
@@ -122,18 +126,18 @@ def _compute_stencil(
                 br = 0.0
             # }
 
-            flux = get_flux_u_ord8plus(u, c, rdx, bl, br)
+        flux = _get_flux(u, courant, rdx, bl, br)
 
 
 def compute(c: FloatField, u: FloatField, v: FloatField, flux: FloatField):
     """
-    Compute flux of kinetic energy in x-dir using the PPM method.
+    Compute flux of kinetic energy in x-dir.
 
     Notes:
         v is passed in here, but is unused in the stencil.
 
     Args:
-        c (in): Courant number
+        c (in): Courant number in flux form
         u (in): x-dir wind on D-grid
         v (in): y-dir wind on D-grid
         flux (out): Flux of kinetic energy

@@ -36,20 +36,20 @@ s15 = 3.0 / 14.0
 
 
 @gtscript.function
-def final_flux(c, q, fx1, tmp):
-    return q[0, -1, 0] + fx1 * tmp if c > 0.0 else q + fx1 * tmp
+def final_flux(courant, q, fx1, tmp):
+    return q[0, -1, 0] + fx1 * tmp if courant > 0.0 else q + fx1 * tmp
 
 
 @gtscript.function
-def fx1_fn(c, br, b0, bl):
-    if c > 0.0:
-        ret = (1.0 - c) * (br[0, -1, 0] - c * b0[0, -1, 0])
+def fx1_fn(courant, br, b0, bl):
+    if courant > 0.0:
+        ret = (1.0 - courant) * (br[0, -1, 0] - courant * b0[0, -1, 0])
     else:
-        ret = (1.0 + c) * (bl + c * b0)
+        ret = (1.0 + courant) * (bl + courant * b0)
     return ret
 
 
-def get_flux(q: FloatField, c: FloatField, al: FloatField):
+def get_flux(q: FloatField, courant: FloatField, al: FloatField):
     from __externals__ import mord
 
     bl = al[0, 0, 0] - q[0, 0, 0]
@@ -66,14 +66,16 @@ def get_flux(q: FloatField, c: FloatField, al: FloatField):
     else:
         tmp = smt5[0, -1, 0] + smt5[0, 0, 0]
 
-    fx1 = fx1_fn(c, br, b0, bl)
-    return final_flux(c, q, fx1, tmp)
+    fx1 = fx1_fn(courant, br, b0, bl)
+    return final_flux(courant, q, fx1, tmp)
 
 
-def get_flux_ord8plus(q: FloatField, c: FloatField, bl: FloatField, br: FloatField):
+def get_flux_ord8plus(
+    q: FloatField, courant: FloatField, bl: FloatField, br: FloatField
+):
     b0 = bl + br
-    fx1 = fx1_fn(c, br, b0, bl)
-    return final_flux(c, q, fx1, 1.0)
+    fx1 = fx1_fn(courant, br, b0, bl)
+    return final_flux(courant, q, fx1, 1.0)
 
 
 @gtscript.function
@@ -248,6 +250,16 @@ def pert_ppm_standard_constraint(a0: FloatField, al: FloatField, ar: FloatField)
 
 
 def compute_al(q: FloatField, dya: FloatField):
+    """
+    Interpolate q at interface.
+
+    Inputs:
+        q: Tracer
+        dya: dy on A-grid (?)
+
+    Returns:
+        Interpolated quantity
+    """
     from __externals__ import j_end, j_start, jord
 
     assert __INLINED(jord < 8), "Not implemented"
@@ -342,17 +354,17 @@ def pert_ppm(a0, al, ar, iv, istart, jstart, kstart, ni, nj, nk):
 
 
 def _compute_flux_stencil(
-    q: FloatField, c: FloatField, dya: FloatField, yflux: FloatField
+    q: FloatField, courant: FloatField, dya: FloatField, yflux: FloatField
 ):
     from __externals__ import mord
 
     with computation(PARALLEL), interval(...):
         if __INLINED(mord < 8):
             al = compute_al(q, dya)
-            yflux = get_flux(q, c, al)
+            yflux = get_flux(q, courant, al)
         else:
             bl, br = compute_blbr_ord8plus(q, dya)
-            yflux = get_flux_ord8plus(q, c, bl, br)
+            yflux = get_flux_ord8plus(q, courant, bl, br)
 
 
 def compute_flux(

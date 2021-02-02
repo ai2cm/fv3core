@@ -1,4 +1,3 @@
-from gt4py import gtscript
 from gt4py.gtscript import (
     __INLINED,
     PARALLEL,
@@ -14,40 +13,48 @@ from fv3core.stencils import yppm
 from fv3core.utils.typing import FloatField
 
 
-@gtscript.function
-def get_flux_v_ord8plus(
-    q: FloatField, c: FloatField, rdy: FloatField, bl: FloatField, br: FloatField
+def _get_flux(
+    v: FloatField, courant: FloatField, rdy: FloatField, bl: FloatField, br: FloatField
 ):
+    """
+    Compute the y-dir flux of kinetic energy(?).
+
+    Inputs:
+        v: y-dir wind
+        courant: Courant number in flux form
+        rdy: 1.0 / dy
+        bl: ?
+        br: ?
+
+    Returns:
+        Kinetic energy flux
+    """
+    from __externals__ import jord, mord
+
     b0 = bl + br
-    cfl = c * rdy[0, -1, 0] if c > 0 else c * rdy
-    fx1 = yppm.fx1_fn(cfl, br, b0, bl)
-    return q[0, -1, 0] + fx1 if c > 0.0 else q + fx1
-
-
-def get_flux_v(
-    q: FloatField, c: FloatField, rdy: FloatField, bl: FloatField, br: FloatField
-):
-    from __externals__ import mord
-
-    b0 = bl + br
-
-    if __INLINED(mord == 5):
-        smt5 = bl * br < 0
-    else:
-        smt5 = (3.0 * abs(b0)) < abs(bl - br)
-
-    if smt5[0, -1, 0]:
-        tmp = smt5[0, -1, 0]
-    else:
-        tmp = smt5[0, -1, 0] + smt5[0, 0, 0]
-
-    cfl = c * rdy[0, -1, 0] if c > 0 else c * rdy
+    cfl = courant * rdy[0, -1, 0] if courant > 0 else courant * rdy
     fx0 = yppm.fx1_fn(cfl, br, b0, bl)
-    return yppm.final_flux(c, q, fx0, tmp)
+
+    if __INLINED(jord < 8):
+        if __INLINED(mord == 5):
+            smt5 = bl * br < 0
+        else:
+            smt5 = (3.0 * abs(b0)) < abs(bl - br)
+
+        if smt5[0, -1, 0]:
+            tmp = smt5[0, -1, 0]
+        else:
+            tmp = smt5[0, -1, 0] + smt5[0, 0, 0]
+
+        flux = yppm.final_flux(courant, v, fx0, tmp)
+    else:
+        flux = yppm.final_flux(courant, v, fx0, 1.0)
+
+    return flux
 
 
 def _compute_stencil(
-    c: FloatField,
+    courant: FloatField,
     v: FloatField,
     flux: FloatField,
     dy: FloatField,
@@ -74,8 +81,6 @@ def _compute_stencil(
                 bl = 0.0
                 br = 0.0
 
-            flux = get_flux_v(v, c, rdy, bl, br)
-
         else:
             dm = yppm.dm_jord8plus(v)
             al = yppm.al_jord8plus(v, dm)
@@ -89,11 +94,9 @@ def _compute_stencil(
             # {
             with horizontal(region[:, j_start - 1]):
                 bl, br = yppm.south_edge_jord8plus_0(v, dy, dm)
-                # bl, br = yppm.pert_ppm_standard_constraint_fcn(u, bl, br)
 
             with horizontal(region[:, j_start]):
                 bl, br = yppm.south_edge_jord8plus_1(v, dy, dm)
-                # bl, br = yppm.pert_ppm_standard_constraint_fcn(u, bl, br)
 
             with horizontal(region[:, j_start + 1]):
                 bl, br = yppm.south_edge_jord8plus_2(v, dm, al)
@@ -105,11 +108,9 @@ def _compute_stencil(
 
             with horizontal(region[:, j_end]):
                 bl, br = yppm.north_edge_jord8plus_1(v, dy, dm)
-                # bl, br = yppm.pert_ppm_standard_constraint_fcn(u, bl, br)
 
             with horizontal(region[:, j_end + 1]):
                 bl, br = yppm.north_edge_jord8plus_2(v, dy, dm)
-                # bl, br = yppm.pert_ppm_standard_constraint_fcn(u, bl, br)
 
             # Zero corners
             with horizontal(
@@ -122,18 +123,18 @@ def _compute_stencil(
                 br = 0.0
             # }
 
-            flux = get_flux_v_ord8plus(v, c, rdy, bl, br)
+        flux = _get_flux(v, courant, rdy, bl, br)
 
 
 def compute(c: FloatField, u: FloatField, v: FloatField, flux: FloatField):
     """
-    Compute flux of kinetic energy in x-dir using the PPM method.
+    Compute flux of kinetic energy in y-dir.
 
     Notes:
         u is passed in here, but is unused in the stencil.
 
     Args:
-        c (in): Courant number
+        c (in): Courant number in flux form
         u (in): x-dir wind on D-grid
         v (in): y-dir wind on D-grid
         flux (out): Flux of kinetic energy
