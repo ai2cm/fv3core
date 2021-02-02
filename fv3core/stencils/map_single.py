@@ -187,7 +187,7 @@ def setup_data(q1, pe1, i1, i2, j_2d=None, j_interface=False):
         domain = (domain[0], jslice.stop - jslice.start, domain[2])
 
     dp1 = utils.make_storage_from_shape(q1.shape, origin=origin)
-    q4_1 = copy(q1, origin=(0, 0, 0), domain=grid.domain_shape_standard())
+    q4_1 = copy(q1, origin=(0, 0, 0), domain=grid.domain_shape_full())
     q4_2 = utils.make_storage_from_shape(q4_1.shape, origin=(grid.is_, 0, 0))
     q4_3 = utils.make_storage_from_shape(q4_1.shape, origin=(grid.is_, 0, 0))
     q4_4 = utils.make_storage_from_shape(q4_1.shape, origin=(grid.is_, 0, 0))
@@ -201,7 +201,7 @@ def lagrangian_contributions_stencil(
     # A stencil with a loop over k2:
     km = spec.grid.npz
     klevs = np.arange(km)
-    orig = spec.grid.default_origin()
+    orig = spec.grid.full_origin()
     q2_adds = utils.make_storage_from_shape(q4_1.shape, origin=orig)
     for k_eul in klevs:
         eulerian_top_pressure = pe2[:, :, k_eul]

@@ -25,21 +25,21 @@ def compute(u, v, ut, vt, wk):
         u,
         spec.grid.dx,
         vt,
-        origin=spec.grid.default_origin(),
-        domain=spec.grid.domain_shape_y(),
+        origin=spec.grid.full_origin(),
+        domain=spec.grid.domain_shape_full(add=(0, 1, 0)),
     )
     vorticity(
         v,
         spec.grid.dy,
         ut,
-        origin=spec.grid.default_origin(),
-        domain=spec.grid.domain_shape_x(),
+        origin=spec.grid.full_origin(),
+        domain=spec.grid.domain_shape_full(add=(1, 0, 0)),
     )
     volume_mean_relative_vorticity(
         ut,
         vt,
         spec.grid.rarea,
         wk,
-        origin=spec.grid.default_origin(),
-        domain=spec.grid.domain_shape_standard(),
+        origin=spec.grid.full_origin(),
+        domain=spec.grid.domain_shape_full(),
     )

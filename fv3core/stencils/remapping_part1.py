@@ -187,7 +187,7 @@ def compute(
         pn2,
         peln,
         origin=grid.compute_origin(),
-        domain=grid.domain_shape_compute_buffer_k(),
+        domain=grid.domain_shape_compute(add=(0, 0, 1)),
     )
     # TODO: Fix silly hack due to pe2 being 2d, so pe[:, je+1, 1:npz] should be
     # the same as it was for pe[:, je, 1:npz] (unchanged)
