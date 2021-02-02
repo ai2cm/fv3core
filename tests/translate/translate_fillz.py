@@ -2,8 +2,7 @@ import numpy as np
 
 import fv3core.stencils.fillz as Fillz
 import fv3core.utils.gt4py_utils as utils
-
-from .translate import TranslateFortranData2Py
+from fv3core.testing import TranslateFortranData2Py
 
 
 class TranslateFillz(TranslateFortranData2Py):
@@ -25,6 +24,7 @@ class TranslateFillz(TranslateFortranData2Py):
             }
         }
         self.max_error = 1e-13
+        self.ignore_near_zero_errors = {"q2tracers": True}
 
     def make_storage_data_input_vars(self, inputs, storage_vars=None):
         if storage_vars is None:

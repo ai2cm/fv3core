@@ -1,7 +1,8 @@
 import copy
 import logging
 import math
-from typing import Dict, List, Optional, Tuple, Union
+from functools import wraps
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import gt4py as gt
 import gt4py.storage as gt_storage
@@ -62,6 +63,18 @@ if MPI is not None and MPI.COMM_WORLD.Get_size() > 1:
 # TODO remove when using quantities throughout model
 def quantity_name(name):
     return name + "_quantity"
+
+
+def mark_untested(msg="This is not tested"):
+    def inner(func) -> Callable[..., Any]:
+        @wraps(func)
+        def wrapper(*args, **kwargs) -> Any:
+            print(f"{func.__name__}: {msg}")
+            func(*args, **kwargs)
+
+        return wrapper
+
+    return inner
 
 
 def make_storage_data(
@@ -231,9 +244,9 @@ def make_storage_from_shape(
     if not mask:
         n_dims = len(shape)
         if n_dims == 1:
-            mask = [False, False, True]  # Assume 1D is a k-field
+            mask = (False, False, True)  # Assume 1D is a k-field
         else:
-            mask = (n_dims * [True]) + ((3 - n_dims) * [False])
+            mask = (n_dims * (True,)) + ((3 - n_dims) * (False,))
 
     storage_func = gt_storage.zeros if init else gt_storage.empty
     storage = storage_func(

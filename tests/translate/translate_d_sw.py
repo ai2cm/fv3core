@@ -1,6 +1,5 @@
 from fv3core.stencils import d_sw
-
-from .translate import TranslateFortranData2Py
+from fv3core.testing import TranslateFortranData2Py
 
 
 class TranslateD_SW(TranslateFortranData2Py):
@@ -72,7 +71,7 @@ class TranslateUbKE(TranslateFortranData2Py):
             cosa=self.grid.cosa,
             rsina=self.grid.rsina,
             origin=self.grid.compute_origin(),
-            domain=self.grid.domain_shape_compute_buffer_2d(),
+            domain=self.grid.domain_shape_compute(add=(1, 1, 0)),
         )
 
     def __init__(self, grid):
@@ -96,7 +95,7 @@ class TranslateVbKE(TranslateFortranData2Py):
             cosa=self.grid.cosa,
             rsina=self.grid.rsina,
             origin=self.grid.compute_origin(),
-            domain=self.grid.domain_shape_compute_buffer_2d(),
+            domain=self.grid.domain_shape_compute(add=(1, 1, 0)),
         )
 
     def __init__(self, grid):
