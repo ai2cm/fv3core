@@ -1,7 +1,9 @@
 
 ## Purpose
 
-Describe the purpose of this PR and the motivation if relevant to understanding. Include links to related issues, bugs or features. Include the sections below that apply.
+Describe the purpose of this PR and the motivation if relevant to understanding. Include links to related issues, bugs or features.
+
+Remove the sections below which do not apply.
 
 ## Code changes:
 
