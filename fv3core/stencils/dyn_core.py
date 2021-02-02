@@ -151,9 +151,7 @@ def compute(state, comm):
         state.dp_ref = utils.make_storage_from_shape(
             state.ak.shape, grid.default_origin()
         )
-        state.zs = utils.make_storage_from_shape(
-            state.ak.shape, grid.default_origin()
-        )
+        state.zs = utils.make_storage_from_shape(state.ak.shape, grid.default_origin())
         dp_ref_compute(
             state.ak,
             state.bk,
