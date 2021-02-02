@@ -569,8 +569,8 @@ def compute(
             copy_stencil(
                 qout,
                 qin,
-                origin=(grid().is_, grid().js, kstart),
-                domain=(grid().ie - grid().is_ + 2, grid().je - grid().js + 2, nk),
+                origin=(grid.is_, grid.js, kstart),
+                domain=(grid.ie - grid.is_ + 2, grid.je - grid.js + 2, nk),
             )
     else:
         raise Exception("grid_type >= 3 is not implemented")
