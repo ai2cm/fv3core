@@ -1,3 +1,5 @@
+from typing import Optional
+
 import gt4py.gtscript as gtscript
 import numpy as np
 from gt4py.gtscript import PARALLEL, computation, interval
@@ -6,6 +8,7 @@ import fv3core._config as spec
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import gtstencil
 from fv3core.stencils.basic_operations import copy_stencil
+from fv3core.utils.typing import FloatField, FloatFieldIJ
 
 
 # comact 4-pt cubic interpolation
@@ -484,10 +487,77 @@ def compute_qout(qxx, qyy, qout, kstart, nk):
     )
 
 
-def compute(qin, qout, kstart=0, nk=None, replace=False):
+#  real function great_circle_dist( q1, q2, radius )
+#       real(kind=R_GRID), intent(IN)           :: q1(2), q2(2)
+#       real(kind=R_GRID), intent(IN), optional :: radius
+
+#       real (f_p):: p1(2), p2(2)
+#       real (f_p):: beta
+#       integer n
+
+#       do n=1,2
+#          p1(n) = q1(n)
+#          p2(n) = q2(n)
+#       enddo
+
+#       beta = asin( sqrt( sin((p1(2)-p2(2))/2.)**2 + cos(p1(2))*cos(p2(2))*   &
+#                          sin((p1(1)-p2(1))/2.)**2 ) ) * 2.
+
+#       if ( present(radius) ) then
+#            great_circle_dist = radius * beta
+#       else
+#            great_circle_dist = beta   ! Returns the angle
+#       endif
+
+#   end function great_circle_dist
+
+#   real function extrap_corner ( p0, p1, p2, q1, q2 )
+#     real, intent(in ), dimension(2):: p0, p1, p2
+#     real, intent(in ):: q1, q2
+#     real:: x1, x2
+
+#     x1 = great_circle_dist( real(p1,kind=R_GRID), real(p0,kind=R_GRID) )
+#     x2 = great_circle_dist( real(p2,kind=R_GRID), real(p0,kind=R_GRID) )
+
+#     extrap_corner = q1 + x1/(x2-x1) * (q1-q2)
+
+#   end function extrap_corner
+
+
+def great_circle_dist(q1, q2, radius):
+    pass
+
+
+def extrap_corner(p0, p1, p2, q1, q2):
+    pass
+
+
+def extrapolate_corners_stencil(
+    qin: FloatField,
+    qout: FloatField,
+    agrid1: FloatFieldIJ,
+    agrid2: FloatFieldIJ,
+    bgrid1: FloatFieldIJ,
+    bgrid2: FloatFieldIJ,
+):
+    with computation(PARALLEL), interval(...):
+        pass
+
+
+def compute(
+    qin: FloatField,
+    qout: FloatField,
+    kstart: int = 0,
+    nk: Optional[int] = None,
+    replace: bool = False,
+):
+    grid = spec.grid
     if nk is None:
-        nk = grid().npz - kstart
-    extrapolate_corners(qin, qout, kstart, nk)
+        nk = grid.npz - kstart
+    # extrapolate_corners(qin, qout, kstart, nk)
+    extrapolate_corners_stencil(
+        qin, qout, origin=(grid.isd, grid.jsd, kstart), domain=(grid.nid, grid.njd, nk)
+    )
     if spec.namelist.grid_type < 3:
         compute_qout_edges(qin, qout, kstart, nk)
         qx = compute_qx(qin, qout, kstart, nk)
