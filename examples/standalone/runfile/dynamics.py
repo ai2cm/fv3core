@@ -48,7 +48,7 @@ def set_experiment_info(experiment_name, time_step, backend):
         sha = git.Repo(
             pathlib.Path(__file__).parent.absolute(), search_parent_directories=True
         ).head.object.hexsha
-    except InvalidGitRepositoryError:
+    except git.InvalidGitRepositoryError:
         sha = "6ac5225202279ae3ff2e5bebb224b817"
     now = datetime.now()
     dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
@@ -84,7 +84,6 @@ def gather_timing_statistics(timer, experiment, comm, root=0):
 
 def write_global_timings(experiment, filename, comm, root=0):
     is_root = comm.Get_rank() == root
-    now = datetime.now()
     if is_root:
         with open(filename + ".json", "w") as outfile:
             json.dump(experiment, outfile, sort_keys=True, indent=4)
@@ -178,5 +177,6 @@ if __name__ == "__main__":
     print("Gathering Times")
     experiment = set_experiment_info(experiment_name, args.time_step, args.backend)
     gather_timing_statistics(timer, experiment, comm)
+    now = datetime.now()
     filename = now.strftime("%Y-%m-%d-%H-%M-%S")
     write_global_timings(experiment, filename, comm)
