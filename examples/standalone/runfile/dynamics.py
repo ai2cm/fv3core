@@ -44,9 +44,12 @@ def parse_args():
 
 def set_experiment_info(experiment_name, time_step, backend):
     experiment = {}
-    sha = git.Repo(
-        pathlib.Path(__file__).parent.absolute(), search_parent_directories=True
-    ).head.object.hexsha
+    try:
+        sha = git.Repo(
+            pathlib.Path(__file__).parent.absolute(), search_parent_directories=True
+        ).head.object.hexsha
+    except InvalidGitRepositoryError:
+        sha = "6ac5225202279ae3ff2e5bebb224b817"
     now = datetime.now()
     dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
     experiment["setup"] = {}
@@ -79,10 +82,9 @@ def gather_timing_statistics(timer, experiment, comm, root=0):
                 experiment["times"][name][label] = float(recvbuf)
 
 
-def write_global_timings(experiment, comm, root=0):
+def write_global_timings(experiment, filename, comm, root=0):
     is_root = comm.Get_rank() == root
     now = datetime.now()
-    filename = now.strftime("%Y-%m-%d-%H-%M-%S")
     if is_root:
         with open(filename + ".json", "w") as outfile:
             json.dump(experiment, outfile, sort_keys=True, indent=4)
@@ -143,7 +145,9 @@ if __name__ == "__main__":
         input_data["comm"] = communicator
         state = driver_object.state_from_inputs(input_data)
 
-        # warm-up timestep
+        # warm-up timestep. 
+        # We're intentionally not passing the timer here to exclude 
+        # warmup/compilation from the internal timers
         fv_dynamics.fv_dynamics(
             state,
             communicator,
@@ -174,4 +178,5 @@ if __name__ == "__main__":
     print("Gathering Times")
     experiment = set_experiment_info(experiment_name, args.time_step, args.backend)
     gather_timing_statistics(timer, experiment, comm)
-    write_global_timings(experiment_name, comm)
+    filename = now.strftime("%Y-%m-%d-%H-%M-%S")
+    write_global_timings(experiment, filename, comm)

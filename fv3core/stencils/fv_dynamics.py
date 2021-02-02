@@ -169,25 +169,23 @@ def do_dyn(state, comm, timer=NullTimer()):
         domain=grid.domain_shape_standard(),
     )
     print("DynCore", grid.rank)
-    timer.start("DynCore")
-    dyn_core.compute(state, comm)
-    timer.stop("DynCore")
+    with timer.clock("DynCore"):
+        dyn_core.compute(state, comm)
     if not spec.namelist.inline_q and state.nq != 0:
         if spec.namelist.z_tracer:
             print("Tracer2D1L", grid.rank)
-            timer.start("TracerAdvection")
-            tracer_2d_1l.compute(
-                comm,
-                state.tracers,
-                state.dp1,
-                state.mfxd,
-                state.mfyd,
-                state.cxd,
-                state.cyd,
-                state.mdt,
-                state.nq,
-            )
-            timer.stop("TracerAdvection")
+            with timer.clock("TracerAdvection"):
+                tracer_2d_1l.compute(
+                    comm,
+                    state.tracers,
+                    state.dp1,
+                    state.mfxd,
+                    state.mfyd,
+                    state.cxd,
+                    state.cyd,
+                    state.mdt,
+                    state.nq,
+                )
         else:
             raise Exception("tracer_2d no =t implemented, turn on z_tracer")
 
@@ -338,44 +336,43 @@ def compute(state, comm, timer=NullTimer()):
             kord_tracer[6] = 9
             # do_omega = spec.namelist.hydrostatic and last_step
             print("Remapping", grid.rank)
-            timer.start("Remapping")
-            lagrangian_to_eulerian.compute(
-                state.tracers,
-                state.pt,
-                state.delp,
-                state.delz,
-                state.peln,
-                state.u,
-                state.v,
-                state.w,
-                state.ua,
-                state.va,
-                state.cappa,
-                state.q_con,
-                state.pkz,
-                state.pk,
-                state.pe,
-                state.phis,
-                state.te0_2d,
-                state.ps,
-                state.wsd,
-                state.omga,
-                state.ak,
-                state.bk,
-                state.pfull,
-                state.dp1,
-                state.ptop,
-                state.akap,
-                state.zvir,
-                last_step,
-                state.consv_te,
-                state.mdt,
-                state.bdt,
-                kord_tracer,
-                state.do_adiabatic_init,
-                state.nq,
-            )
-            timer.stop("Remapping")
+            with timer.clock("Remapping"):
+                lagrangian_to_eulerian.compute(
+                    state.tracers,
+                    state.pt,
+                    state.delp,
+                    state.delz,
+                    state.peln,
+                    state.u,
+                    state.v,
+                    state.w,
+                    state.ua,
+                    state.va,
+                    state.cappa,
+                    state.q_con,
+                    state.pkz,
+                    state.pk,
+                    state.pe,
+                    state.phis,
+                    state.te0_2d,
+                    state.ps,
+                    state.wsd,
+                    state.omga,
+                    state.ak,
+                    state.bk,
+                    state.pfull,
+                    state.dp1,
+                    state.ptop,
+                    state.akap,
+                    state.zvir,
+                    last_step,
+                    state.consv_te,
+                    state.mdt,
+                    state.bdt,
+                    kord_tracer,
+                    state.do_adiabatic_init,
+                    state.nq,
+                )
             if last_step:
                 post_remap(state, comm)
     wrapup(state, comm)
