@@ -34,7 +34,7 @@ Riem_Solver3:
     max_error: 5e-6
   - platform: metal
     backend: numpy
-    max_error: 1e-12 # 48_6ranks
+    max_error: 1e-11 # 48_6ranks
 Remapping_Part1:
   - backend: gtcuda
     max_error: 5e-6
