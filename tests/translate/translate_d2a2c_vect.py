@@ -1,12 +1,12 @@
 from gt4py.gtscript import PARALLEL, computation, interval
 
+import fv3core._config as spec
 import fv3core.stencils.d2a2c_vect as d2a2c_vect
 from fv3core.decorators import gtstencil
 from fv3core.testing import TranslateFortranData2Py
 from fv3core.utils.typing import FloatField
 
 
-@gtstencil(externals={"HALO": 3})
 def test_d2a2c_vect(
     cosa_s: FloatField,
     cosa_u: FloatField,
@@ -82,10 +82,21 @@ class TranslateD2A2C_Vect(TranslateFortranData2Py):
         self.max_error = 2e-10
 
     def compute(self, inputs):
+        if spec.namelist.npx != spec.namelist.npy:
+            raise NotImplementedError("D2A2C assumes a square grid")
+        if spec.namelist.npx <= 13 and spec.namelist.layout[0] > 1:
+            D2A2C_AVG_OFFSET = -1
+        else:
+            D2A2C_AVG_OFFSET = 3
+
+        stencil = gtstencil(
+            definition=test_d2a2c_vect,
+            externals={"D2A2C_AVG_OFFSET": D2A2C_AVG_OFFSET},
+        )
         self.make_storage_data_input_vars(inputs)
         assert bool(inputs["dord4"]) is True
         del inputs["dord4"]
-        test_d2a2c_vect(
+        stencil(
             self.grid.cosa_s,
             self.grid.cosa_u,
             self.grid.cosa_v,

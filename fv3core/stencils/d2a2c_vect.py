@@ -74,8 +74,17 @@ def lagrange_interpolation_x_p1(qy: sd, qout: sd):
 
 
 def interp_winds_d_to_a(u, v):
+    """
+    Interpolate winds from the d-grid to a-grid.
+
+    This uses a Lagrange interpolation on the interior and averaging on the
+    boundaries. D2A2C_AVG_OFFSET is an external that describes how far the
+    averaging should go before switching to Lagrangian interpolation. For
+    sufficiently small grids, this should be set to -1, otherwise 3. Note that
+    this makes the stencil code in d2a2c grid-dependent!
+    """
     from __externals__ import (
-        HALO,
+        D2A2C_AVG_OFFSET,
         i_end,
         i_start,
         j_end,
@@ -88,15 +97,18 @@ def interp_winds_d_to_a(u, v):
 
     utmp = BIG_NUMBER
     vtmp = BIG_NUMBER
+
     with horizontal(region[:, local_js - 1 : local_je + 2]):
         utmp = lagrange_y_func_p1(u)
     with horizontal(region[local_is - 1 : local_ie + 2, :]):
         vtmp = lagrange_x_func_p1(v)
+
+    # WARNING: This introduces grid-size dependence into the stencil code.
     with horizontal(
-        region[:, : j_start + HALO],
-        region[:, j_end - HALO + 1 :],
-        region[: i_start + HALO, :],
-        region[i_end - HALO + 1 :, :],
+        region[:, : j_start + D2A2C_AVG_OFFSET],
+        region[:, j_end - D2A2C_AVG_OFFSET + 1 :],
+        region[: i_start + D2A2C_AVG_OFFSET, :],
+        region[i_end - D2A2C_AVG_OFFSET + 1 :, :],
     ):
         utmp = 0.5 * (u + u[0, 1, 0])
         vtmp = 0.5 * (v + v[1, 0, 0])

@@ -272,7 +272,6 @@ def vorticitytransport(
     return uc, vc
 
 
-@gtstencil(externals={"HALO": 3})
 def csw_stencil(
     delpc: FloatField,
     ptc: FloatField,
@@ -415,7 +414,19 @@ def compute(delp, pt, u, v, w, uc, vc, ua, va, ut, vt, divgd, omga, dt2):
     delpc = utils.make_storage_from_shape(delp.shape, origin=origin_halo1)
     ptc = utils.make_storage_from_shape(pt.shape, origin=origin_halo1)
 
-    csw_stencil(
+    if spec.namelist.npx != spec.namelist.npy:
+        raise NotImplementedError("D2A2C assumes a square grid")
+    if spec.namelist.npx <= 13 and spec.namelist.layout[0] > 1:
+        D2A2C_AVG_OFFSET = -1
+    else:
+        D2A2C_AVG_OFFSET = 3
+
+    stencil = gtstencil(
+        definition=csw_stencil,
+        externals={"D2A2C_AVG_OFFSET": D2A2C_AVG_OFFSET},
+    )
+
+    stencil(
         delpc,
         ptc,
         delp,
