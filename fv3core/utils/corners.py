@@ -1,11 +1,4 @@
-from gt4py.gtscript import (
-    __INLINED,
-    PARALLEL,
-    computation,
-    horizontal,
-    interval,
-    region,
-)
+from gt4py.gtscript import PARALLEL, computation, horizontal, interval, region
 
 import fv3core._config as spec
 from fv3core.decorators import gtstencil
@@ -52,6 +45,15 @@ def fill_corners_2cells_mult_x(
     return q
 
 
+def fill_corners_2cells_x(
+    q: FloatField,
+):
+    """
+    Fills cell quantity q in x-dir.
+    """
+    return fill_corners_2cells_mult_x(q, q, 1.0, 1.0, 1.0, 1.0)
+
+
 def fill_corners_3cells_mult_x(
     q: FloatField,
     q_corner: FloatField,
@@ -82,25 +84,6 @@ def fill_corners_3cells_mult_x(
     # Northeast
     with horizontal(region[i_end + 3, j_end + 1]):
         q = ne_mult * q_corner[-2, -3, 0]
-
-    return q
-
-
-def fill_corners_cells_x(q: FloatField):
-    """
-    Fills corners of cell quantity q in x-dir.
-
-    Notes:
-        num_fill `int`: number of cells to fill (required external)
-    """
-    from __externals__ import num_fill
-
-    if __INLINED(num_fill == 2):
-        q = fill_corners_2cells_mult_x(q, q, 1, 1, 1, 1)
-    elif __INLINED(num_fill == 3):
-        q = fill_corners_3cells_mult_x(q, q, 1, 1, 1, 1)
-    else:
-        assert __INLINED(False), "invalid input"
 
     return q
 
@@ -145,6 +128,15 @@ def fill_corners_2cells_mult_y(
     return q
 
 
+def fill_corners_2cells_y(
+    q: FloatField,
+):
+    """
+    Fills cell quantity q in y-dir.
+    """
+    return fill_corners_2cells_mult_y(q, q, 1.0, 1.0, 1.0, 1.0)
+
+
 def fill_corners_3cells_mult_y(
     q: FloatField,
     q_corner: FloatField,
@@ -179,25 +171,6 @@ def fill_corners_3cells_mult_y(
     return q
 
 
-def fill_corners_cells_y(q: FloatField):
-    """
-    Fills corners of cell quantity q in y-dir.
-
-    Notes:
-        num_fill `int`: number of cells to fill (required external)
-    """
-    from __externals__ import num_fill
-
-    if __INLINED(num_fill == 2):
-        q = fill_corners_2cells_mult_y(q, q, 1, 1, 1, 1)
-    elif __INLINED(num_fill == 3):
-        q = fill_corners_3cells_mult_y(q, q, 1, 1, 1, 1)
-    else:
-        assert __INLINED(False), "invalid input"
-
-    return q
-
-
 def fill_corners_cells(q: FloatField, direction: str, num_fill: int = 2):
     """
     Fill corners of q from Python.
@@ -212,20 +185,26 @@ def fill_corners_cells(q: FloatField, direction: str, num_fill: int = 2):
         from __externals__ import func
 
         with computation(PARALLEL), interval(...):
-            q = func(q)
+            q = func(q, q, 1.0, 1.0, 1.0, 1.0)
 
     if num_fill not in (2, 3):
         raise ValueError("Only supports 2 <= num_fill <= 3")
 
     if direction == "x":
+        func = (
+            fill_corners_2cells_mult_x if num_fill == 2 else fill_corners_3cells_mult_x
+        )
         stencil = gtstencil(
             definition=definition,
-            externals={"func": fill_corners_cells_x, "num_fill": num_fill},
+            externals={"func": func},
         )
     elif direction == "y":
+        func = (
+            fill_corners_2cells_mult_y if num_fill == 2 else fill_corners_3cells_mult_y
+        )
         stencil = gtstencil(
             definition=definition,
-            externals={"func": fill_corners_cells_y, "num_fill": num_fill},
+            externals={"func": func},
         )
     else:
         raise ValueError("Direction not recognized. Specify either x or y")

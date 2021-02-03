@@ -62,7 +62,7 @@ def nonhydro_y_fluxes(delp: sd, pt: sd, w: sd, vtc: sd):
     return fy, fy1, fy2
 
 
-@gtstencil(externals={"num_fill": 2})
+@gtstencil()
 def transportdelp(
     delp: sd, pt: sd, utc: sd, vtc: sd, w: sd, rarea: sd, delpc: sd, ptc: sd, wc: sd
 ):
@@ -86,15 +86,15 @@ def transportdelp(
         assert __INLINED(namelist.grid_type < 3)
         # additional assumption (not grid.nested)
 
-        delp = corners.fill_corners_cells_x(delp)
-        pt = corners.fill_corners_cells_x(pt)
-        w = corners.fill_corners_cells_x(w)
+        delp = corners.fill_corners_2cells_mult_x(delp, delp, 1, 1, 1, 1)
+        pt = corners.fill_corners_2cells_mult_x(pt, pt, 1, 1, 1, 1)
+        w = corners.fill_corners_2cells_mult_x(w, w, 1, 1, 1, 1)
 
         fx, fx1, fx2 = nonhydro_x_fluxes(delp, pt, w, utc)
 
-        delp = corners.fill_corners_cells_y(delp)
-        pt = corners.fill_corners_cells_y(pt)
-        w = corners.fill_corners_cells_y(w)
+        delp = corners.fill_corners_2cells_mult_y(delp, delp, 1, 1, 1, 1)
+        pt = corners.fill_corners_2cells_mult_y(pt, pt, 1, 1, 1, 1)
+        w = corners.fill_corners_2cells_mult_y(w, w, 1, 1, 1, 1)
 
         fy, fy1, fy2 = nonhydro_y_fluxes(delp, pt, w, vtc)
 
