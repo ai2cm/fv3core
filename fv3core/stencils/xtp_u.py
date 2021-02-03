@@ -20,14 +20,14 @@ def _get_flux(
     Compute the x-dir flux of kinetic energy(?).
 
     Inputs:
-        u: u-dir wind
+        u: x-dir wind
         courant: Courant number in flux form
         rdx: 1.0 / dx
         bl: ?
         br: ?
 
     Returns:
-        Kinetic energy flux
+        flux: Kinetic energy flux
     """
     # Could try merging this with xppm version.
 
