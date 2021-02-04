@@ -86,15 +86,15 @@ def transportdelp(
         assert __INLINED(namelist.grid_type < 3)
         # additional assumption (not grid.nested)
 
-        delp = corners.fill_corners_2cells_mult_x(delp, delp, 1, 1, 1, 1)
-        pt = corners.fill_corners_2cells_mult_x(pt, pt, 1, 1, 1, 1)
-        w = corners.fill_corners_2cells_mult_x(w, w, 1, 1, 1, 1)
+        delp = corners.fill_corners_2cells_x(delp)
+        pt = corners.fill_corners_2cells_x(pt)
+        w = corners.fill_corners_2cells_x(w)
 
         fx, fx1, fx2 = nonhydro_x_fluxes(delp, pt, w, utc)
 
-        delp = corners.fill_corners_2cells_mult_y(delp, delp, 1, 1, 1, 1)
-        pt = corners.fill_corners_2cells_mult_y(pt, pt, 1, 1, 1, 1)
-        w = corners.fill_corners_2cells_mult_y(w, w, 1, 1, 1, 1)
+        delp = corners.fill_corners_2cells_y(delp)
+        pt = corners.fill_corners_2cells_y(pt)
+        w = corners.fill_corners_2cells_y(w)
 
         fy, fy1, fy2 = nonhydro_y_fluxes(delp, pt, w, vtc)
 

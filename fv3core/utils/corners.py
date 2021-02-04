@@ -1,3 +1,4 @@
+from gt4py import gtscript
 from gt4py.gtscript import PARALLEL, computation, horizontal, interval, region
 
 import fv3core._config as spec
@@ -5,6 +6,7 @@ from fv3core.decorators import gtstencil
 from fv3core.utils.typing import FloatField
 
 
+@gtscript.function
 def fill_corners_2cells_mult_x(
     q: FloatField,
     q_corner: FloatField,
@@ -45,15 +47,15 @@ def fill_corners_2cells_mult_x(
     return q
 
 
-def fill_corners_2cells_x(
-    q: FloatField,
-):
+@gtscript.function
+def fill_corners_2cells_x(q: FloatField):
     """
     Fills cell quantity q in x-dir.
     """
     return fill_corners_2cells_mult_x(q, q, 1.0, 1.0, 1.0, 1.0)
 
 
+@gtscript.function
 def fill_corners_3cells_mult_x(
     q: FloatField,
     q_corner: FloatField,
@@ -88,6 +90,7 @@ def fill_corners_3cells_mult_x(
     return q
 
 
+@gtscript.function
 def fill_corners_2cells_mult_y(
     q: FloatField,
     q_corner: FloatField,
@@ -128,15 +131,15 @@ def fill_corners_2cells_mult_y(
     return q
 
 
-def fill_corners_2cells_y(
-    q: FloatField,
-):
+@gtscript.function
+def fill_corners_2cells_y(q: FloatField):
     """
     Fills cell quantity q in y-dir.
     """
     return fill_corners_2cells_mult_y(q, q, 1.0, 1.0, 1.0, 1.0)
 
 
+@gtscript.function
 def fill_corners_3cells_mult_y(
     q: FloatField,
     q_corner: FloatField,
