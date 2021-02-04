@@ -38,6 +38,7 @@ def flux_y(cy: sd, dya: sd, dx: sd, sin_sg4: sd, sin_sg2: sd, yfx: sd):
 def cmax_multiply_by_frac(
     cxd: sd, xfx: sd, mfxd: sd, cyd: sd, yfx: sd, mfyd: sd, frac: float
 ):
+    """multiply all other inputs in-place by frac."""
     with computation(PARALLEL), interval(...):
         cxd = cxd * frac
         xfx = xfx * frac
