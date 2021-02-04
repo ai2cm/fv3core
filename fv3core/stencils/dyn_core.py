@@ -163,7 +163,7 @@ def compute(state, comm):
             state.zs,
             rgrav,
             origin=grid.full_origin(),
-            domain=grid.domain_shape_full(),
+            domain=grid.domain_shape_full(add=(0, 0, 1)),
         )
     n_con = get_n_con()
 
