@@ -306,9 +306,11 @@ class Grid:
         return {**self.default_domain_dict(), **horizontal_dict}
 
     def domain_shape_full(self, *, add: Tuple[int, int, int] = (0, 0, 0)):
+        """Domain shape for the full array including halo points."""
         return (self.nid + add[0], self.njd + add[1], self.npz + add[2])
 
     def domain_shape_compute(self, *, add: Tuple[int, int, int] = (0, 0, 0)):
+        """Compute domain shape excluding halo points."""
         return (self.nic + add[0], self.njc + add[1], self.npz + add[2])
 
     def copy_right_edge(self, var, i_index, j_index):
@@ -359,9 +361,11 @@ class Grid:
         )
 
     def compute_origin(self, add: Tuple[int, int, int] = (0, 0, 0)):
+        """Start of the compute domain (e.g. (halo, halo, 0))"""
         return (self.is_ + add[0], self.js + add[1], add[2])
 
     def full_origin(self):
+        """Start of the full array including halo points (e.g. (0, 0, 0))"""
         return (self.isd, self.jsd, 0)
 
     def default_origin(self):
