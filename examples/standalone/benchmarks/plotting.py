@@ -43,18 +43,18 @@ if __name__ == "__main__":
                     plt.plot(
                         [
                             datetime.strptime(
-                                e["setup"]["timestamp"], "%d/%m/%Y %H:%M:%S"
+                                elememt["setup"]["timestamp"], "%d/%m/%Y %H:%M:%S"
                             )
-                            for e in specific
+                            for elememt in specific
                         ],
                         [
-                            e["times"][line]["mean"]
+                            elememt["times"][line]["mean"]
                             / (
-                                (e["setup"]["timesteps"] - 1)
+                                (elememt["setup"]["timesteps"] - 1)
                                 if plottype == "mainLoop"
                                 else 1
                             )
-                            for e in specific
+                            for elememt in specific
                         ],
                         "--o",
                         label=line + " " + backend,
@@ -62,27 +62,27 @@ if __name__ == "__main__":
                     plt.fill_between(
                         [
                             datetime.strptime(
-                                e["setup"]["timestamp"], "%d/%m/%Y %H:%M:%S"
+                                elememt["setup"]["timestamp"], "%d/%m/%Y %H:%M:%S"
                             )
-                            for e in specific
+                            for elememt in specific
                         ],
                         [
-                            e["times"][line]["maximum"]
+                            elememt["times"][line]["maximum"]
                             / (
-                                (e["setup"]["timesteps"] - 1)
+                                (elememt["setup"]["timesteps"] - 1)
                                 if plottype == "mainLoop"
                                 else 1
                             )
-                            for e in specific
+                            for elememt in specific
                         ],
                         [
-                            e["times"][line]["minimum"]
+                            elememt["times"][line]["minimum"]
                             / (
-                                (e["setup"]["timesteps"] - 1)
+                                (elememt["setup"]["timesteps"] - 1)
                                 if plottype == "mainLoop"
                                 else 1
                             )
-                            for e in specific
+                            for elememt in specific
                         ],
                         alpha=0.3,
                     )
