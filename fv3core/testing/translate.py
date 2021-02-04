@@ -79,6 +79,8 @@ class TranslateFortranData2Py:
         if dummy_axes:
             for axis in dummy_axes:
                 use_shape[axis] = 1
+        elif len(array.shape) < 3 and axis == len(array.shape) - 1:
+            use_shape[1] = 1
         use_shape = tuple(use_shape)
         start = (istart, jstart, kstart)
         if names_4d:

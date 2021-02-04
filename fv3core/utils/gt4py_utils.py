@@ -122,7 +122,11 @@ def make_storage_data(
 
     if not mask:
         if n_dims == 1:
-            mask = tuple(i == axis for i in range(max_dim))
+            mask = [i == axis for i in range(max_dim)]
+            mask[axis + 1] = shape[axis + 1] == 1
+            mask = tuple(mask)
+        elif dummy or axis != 2:
+            mask = (True, True, True)
         else:
             mask = (n_dims * (True,)) + ((max_dim - n_dims) * (False,))
 
@@ -158,6 +162,9 @@ def _make_storage_data_1d(
         axis = list(set((0, 1, 2)).difference(dummy))[0]
     buffer = zeros(shape[axis])
     buffer[kstart : kstart + len(data)] = asarray(data, type(buffer))
+    # Convert I-field to IJ-field
+    if axis == 0 and shape[1] == 1:
+        buffer = buffer.reshape(shape[0:2])
     return buffer
     # tile_spec = list(shape)
     # tile_spec[axis] = 1
@@ -186,17 +193,23 @@ def _make_storage_data_2d(
 ) -> Field:
     # axis refers to which axis should be repeated (when making a full 3d data),
     # dummy refers to a singleton axis
-    isize, jsize = data.shape
-    istart, jstart = start[0:2]
-    if dummy or axis != 2:
+    do_reshape = dummy or axis != 2
+    if do_reshape:
         d_axis = dummy[0] if dummy else axis
         shape2d = shape[:d_axis] + shape[d_axis + 1 :]
+        start2d = start[:d_axis] + start[d_axis + 1 :]
     else:
         shape2d = shape[0:2]
+        start2d = start[0:2]
+
+    start1, start2 = start[0:2]
+    size1, size2 = data.shape
     buffer = zeros(shape2d)
-    buffer[istart : istart + isize, jstart : jstart + jsize] = asarray(
+    buffer[start1 : start1 + size1, start2 : start2 + size2] = asarray(
         data, type(buffer)
     )
+    if do_reshape:
+        buffer = buffer.reshape(shape)
     return buffer
     # if dummy:
     #     data = buffer.reshape(shape)
