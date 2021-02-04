@@ -79,10 +79,11 @@ echo "    Slurm output dir: $ROOT_DIR"
 cp buildenv/submit.daint.slurm .
 sed s/\<NAME\>/standalone/g submit.daint.slurm -i
 sed s/\<NTASKS\>/$ranks/g submit.daint.slurm -i
-sed s/\<NTASKSPERNODE\>/$ranks/g submit.daint.slurm -i
-sed s/\<CPUSPERTASK\>/1/g submit.daint.slurm -i
-sed s/#SBATCH\ --output=\<OUTFILE\>//g submit.daint.slurm -i
+sed s/\<NTASKSPERNODE\>/1/g submit.daint.slurm -i
+sed s/\<CPUSPERTASK\>/12/g submit.daint.slurm -i
+sed s/--output=\<OUTFILE\>/--hint=nomultithread/g submit.daint.slurm -i
 sed s/00:45:00/03:30:00/g submit.daint.slurm -i
+sed s/cscsci/normal/g submit.daint.slurm -i
 sed s/\<G2G\>//g submit.daint.slurm -i
 sed -i "s#<CMD>#export PYTHONPATH=/project/s1053/install/serialbox2_master/gnu/python:\$PYTHONPATH\nsrun vcm_1.0/bin/python examples/standalone/runfile/dynamics.py test_data/ $timesteps $backend#g" submit.daint.slurm
 

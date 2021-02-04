@@ -30,14 +30,16 @@ if __name__ == "__main__":
         key=lambda k: datetime.strptime(k["setup"]["timestamp"], "%d/%m/%Y %H:%M:%S")
     )
     for plottype in ["mainLoop", "initializationTotal"]:
-        keyval = (
-            ["main_loop"] if plottype == "mainLoop" else ["initialization", "total"]
+        data = (
+            ["mainloop", "DynCore", "Remapping", "TracerAdvection"]
+            if plottype == "mainLoop"
+            else ["initialization", "total"]
         )
         plt.figure()
         for backend in ["python/gtx86", "python/numpy", "fortran", "python/gtcuda"]:
             specific = [x for x in alldata if x["setup"]["version"] == backend]
             if specific:
-                for key in keyval:
+                for line in data:
                     plt.plot(
                         [
                             datetime.strptime(
@@ -45,8 +47,17 @@ if __name__ == "__main__":
                             )
                             for e in specific
                         ],
-                        [e["times"][key]["mean"] for e in specific],
-                        label=key + " " + backend,
+                        [
+                            e["times"][line]["mean"]
+                            / (
+                                (e["setup"]["timesteps"] - 1)
+                                if plottype == "mainLoop"
+                                else 1
+                            )
+                            for e in specific
+                        ],
+                        "--o",
+                        label=line + " " + backend,
                     )
                     plt.fill_between(
                         [
@@ -55,15 +66,44 @@ if __name__ == "__main__":
                             )
                             for e in specific
                         ],
-                        [e["times"][key]["maximum"] for e in specific],
-                        [e["times"][key]["minimum"] for e in specific],
-                        alpha=0.5,
+                        [
+                            e["times"][line]["maximum"]
+                            / (
+                                (e["setup"]["timesteps"] - 1)
+                                if plottype == "mainLoop"
+                                else 1
+                            )
+                            for e in specific
+                        ],
+                        [
+                            e["times"][line]["minimum"]
+                            / (
+                                (e["setup"]["timesteps"] - 1)
+                                if plottype == "mainLoop"
+                                else 1
+                            )
+                            for e in specific
+                        ],
+                        alpha=0.3,
                     )
 
+        ax = plt.axes()
+        ax.set_facecolor("silver")
         plt.gcf().autofmt_xdate()
-        plt.ylabel("Execution time")
-        plt.legend()
-        plt.title(plottype)
+        plt.ylabel(
+            "Execution time per timestep"
+            if plottype == "mainLoop"
+            else "Execution time"
+        )
+        plt.legend(
+            loc="upper center",
+            bbox_to_anchor=(0.5, 1.05),
+            ncol=2,
+            fancybox=True,
+            shadow=True,
+            fontsize=8,
+        )
+        plt.title(plottype, pad=20)
         plt.figtext(
             0.5,
             0.01,
@@ -75,4 +115,5 @@ if __name__ == "__main__":
             horizontalalignment="center",
             fontsize=12,
         )
+        plt.grid(color="white", alpha=0.4)
         plt.savefig("history" + plottype + ".png")
