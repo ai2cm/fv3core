@@ -14,8 +14,8 @@ from .translate_c_sw import (
 from .translate_compute_total_energy import TranslateComputeTotalEnergy
 from .translate_corners import (
     TranslateCopyCorners,
-    TranslateFillCorners2D,
-    TranslateFillCornersCells,
+    TranslateFill4Corners,
+    TranslateFillCorners,
     TranslateFillCornersVector,
 )
 from .translate_cubedtolatlon import TranslateCubedToLatLon

@@ -5,7 +5,7 @@ from fv3core.testing import TranslateFortranData2Py
 from fv3core.utils import corners
 
 
-class TranslateFillCornersCells(TranslateFortranData2Py):
+class TranslateFill4Corners(TranslateFortranData2Py):
     def __init__(self, grid):
         super().__init__(grid)
         self.in_vars["data_vars"] = {"q4c": {}}
@@ -18,7 +18,7 @@ class TranslateFillCornersCells(TranslateFortranData2Py):
         return self.slice_output(inputs, {"q4c": inputs["q4c"]})
 
 
-class TranslateFillCorners2D(TranslateFortranData2Py):
+class TranslateFillCorners(TranslateFortranData2Py):
     def __init__(self, grid):
         super().__init__(grid)
         self.in_vars["data_vars"] = {"divg_d": {}, "nord_col": {}}
