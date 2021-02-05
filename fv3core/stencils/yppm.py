@@ -49,6 +49,7 @@ def fx1_fn(courant, br, b0, bl):
     return ret
 
 
+@gtscript.function
 def get_flux(q: FloatField, courant: FloatField, al: FloatField):
     from __externals__ import mord
 
@@ -70,6 +71,7 @@ def get_flux(q: FloatField, courant: FloatField, al: FloatField):
     return final_flux(courant, q, fx1, tmp)
 
 
+@gtscript.function
 def get_flux_ord8plus(
     q: FloatField, courant: FloatField, bl: FloatField, br: FloatField
 ):
@@ -122,6 +124,7 @@ def xt_dya_edge_1_base(q, dya):
     )
 
 
+@gtscript.function
 def xt_dya_edge_0(q, dya):
     from __externals__ import xt_minmax
 
@@ -133,6 +136,7 @@ def xt_dya_edge_0(q, dya):
     return xt
 
 
+@gtscript.function
 def xt_dya_edge_1(q, dya):
     from __externals__ import xt_minmax
 
@@ -144,6 +148,7 @@ def xt_dya_edge_1(q, dya):
     return xt
 
 
+@gtscript.function
 def south_edge_jord8plus_0(q: FloatField, dya: FloatField, dm: FloatField):
     bl = s14 * dm[0, -1, 0] + s11 * (q[0, -1, 0] - q)
     xt = xt_dya_edge_0(q, dya)
@@ -151,6 +156,7 @@ def south_edge_jord8plus_0(q: FloatField, dya: FloatField, dm: FloatField):
     return bl, br
 
 
+@gtscript.function
 def south_edge_jord8plus_1(q: FloatField, dya: FloatField, dm: FloatField):
     xt = xt_dya_edge_1(q, dya)
     bl = xt - q
@@ -159,6 +165,7 @@ def south_edge_jord8plus_1(q: FloatField, dya: FloatField, dm: FloatField):
     return bl, br
 
 
+@gtscript.function
 def south_edge_jord8plus_2(q: FloatField, dm: FloatField, al: FloatField):
     xt = s15 * q[0, -1, 0] + s11 * q - s14 * dm
     bl = xt - q
@@ -166,6 +173,7 @@ def south_edge_jord8plus_2(q: FloatField, dm: FloatField, al: FloatField):
     return bl, br
 
 
+@gtscript.function
 def north_edge_jord8plus_0(q: FloatField, dm: FloatField, al: FloatField):
     bl = al - q
     xt = s15 * q[0, 1, 0] + s11 * q + s14 * dm
@@ -173,6 +181,7 @@ def north_edge_jord8plus_0(q: FloatField, dm: FloatField, al: FloatField):
     return bl, br
 
 
+@gtscript.function
 def north_edge_jord8plus_1(q: FloatField, dya: FloatField, dm: FloatField):
     xt = s15 * q + s11 * q[0, -1, 0] + s14 * dm[0, -1, 0]
     bl = xt - q
@@ -181,6 +190,7 @@ def north_edge_jord8plus_1(q: FloatField, dya: FloatField, dm: FloatField):
     return bl, br
 
 
+@gtscript.function
 def north_edge_jord8plus_2(q: FloatField, dya: FloatField, dm: FloatField):
     xt = xt_dya_edge_1(q, dya)
     bl = xt - q
@@ -249,6 +259,7 @@ def pert_ppm_standard_constraint(a0: FloatField, al: FloatField, ar: FloatField)
         al, ar = pert_ppm_standard_constraint_fcn(a0, al, ar)
 
 
+@gtscript.function
 def compute_al(q: FloatField, dya: FloatField):
     """
     Interpolate q at interface.
@@ -295,6 +306,7 @@ def compute_al(q: FloatField, dya: FloatField):
     return al
 
 
+@gtscript.function
 def compute_blbr_ord8plus(q: FloatField, dya: FloatField):
     from __externals__ import j_end, j_start, jord, namelist
 

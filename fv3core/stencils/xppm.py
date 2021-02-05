@@ -31,6 +31,7 @@ def fx1_fn(courant, br, b0, bl):
     return ret
 
 
+@gtscript.function
 def get_flux(q: FloatField, courant: FloatField, al: FloatField):
     from __externals__ import mord
 
@@ -104,6 +105,7 @@ def xt_dxa_edge_1_base(q, dxa):
     )
 
 
+@gtscript.function
 def xt_dxa_edge_0(q, dxa):
     from __externals__ import xt_minmax
 
@@ -117,6 +119,7 @@ def xt_dxa_edge_0(q, dxa):
     return xt
 
 
+@gtscript.function
 def xt_dxa_edge_1(q, dxa):
     from __externals__ import xt_minmax
 
@@ -130,6 +133,7 @@ def xt_dxa_edge_1(q, dxa):
     return xt
 
 
+@gtscript.function
 def west_edge_iord8plus_0(
     q: FloatField,
     dxa: FloatField,
@@ -141,6 +145,7 @@ def west_edge_iord8plus_0(
     return bl, br
 
 
+@gtscript.function
 def west_edge_iord8plus_1(
     q: FloatField,
     dxa: FloatField,
@@ -153,6 +158,7 @@ def west_edge_iord8plus_1(
     return bl, br
 
 
+@gtscript.function
 def west_edge_iord8plus_2(
     q: FloatField,
     dm: FloatField,
@@ -164,6 +170,7 @@ def west_edge_iord8plus_2(
     return bl, br
 
 
+@gtscript.function
 def east_edge_iord8plus_0(
     q: FloatField,
     dm: FloatField,
@@ -175,6 +182,7 @@ def east_edge_iord8plus_0(
     return bl, br
 
 
+@gtscript.function
 def east_edge_iord8plus_1(
     q: FloatField,
     dxa: FloatField,
@@ -187,6 +195,7 @@ def east_edge_iord8plus_1(
     return bl, br
 
 
+@gtscript.function
 def east_edge_iord8plus_2(
     q: FloatField,
     dxa: FloatField,
@@ -198,6 +207,7 @@ def east_edge_iord8plus_2(
     return bl, br
 
 
+@gtscript.function
 def compute_al(q: FloatField, dxa: FloatField):
     """
     Interpolate q at interface.
@@ -240,6 +250,7 @@ def compute_al(q: FloatField, dxa: FloatField):
     return al
 
 
+@gtscript.function
 def compute_blbr_ord8plus(q: FloatField, dxa: FloatField):
     from __externals__ import i_end, i_start, iord, namelist
 
