@@ -24,7 +24,7 @@ if __name__ == "__main__":
     # setup what to plot
     fontsize = 10
     markersize = 4
-    plot_variance = False
+    plot_variance = True
     plots = {
         "per_timestep": {
             "timers": ["mainloop", "DynCore", "Remapping", "TracerAdvection"],
@@ -124,7 +124,7 @@ if __name__ == "__main__":
                                 for elememt in specific
                             ],
                             color=backend_config["color"],
-                            alpha=0.3,
+                            alpha=0.2,
                         )
 
         ax = plt.gca()
