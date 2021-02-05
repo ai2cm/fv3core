@@ -18,6 +18,12 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
+    # setup what to plot
+    plots = {}
+    plots["mainLoop"] = ["mainloop", "DynCore", "Remapping", "TracerAdvection"]
+    plots["initializationTotal"] = ["initialization", "total"]
+    backends = ["python/gtx86", "python/numpy", "fortran", "python/gtcuda"]
+
     # collect and sort the data
     alldata = []
     for subdir, dirs, files in os.walk(args.data_dir):
@@ -29,17 +35,13 @@ if __name__ == "__main__":
     alldata.sort(
         key=lambda k: datetime.strptime(k["setup"]["timestamp"], "%d/%m/%Y %H:%M:%S")
     )
-    for plottype in ["mainLoop", "initializationTotal"]:
-        data = (
-            ["mainloop", "DynCore", "Remapping", "TracerAdvection"]
-            if plottype == "mainLoop"
-            else ["initialization", "total"]
-        )
+
+    for plottype, timers in plots.items():
         plt.figure()
-        for backend in ["python/gtx86", "python/numpy", "fortran", "python/gtcuda"]:
+        for backend in backends:
             specific = [x for x in alldata if x["setup"]["version"] == backend]
             if specific:
-                for line in data:
+                for time in timers:
                     plt.plot(
                         [
                             datetime.strptime(
@@ -48,7 +50,7 @@ if __name__ == "__main__":
                             for elememt in specific
                         ],
                         [
-                            elememt["times"][line]["mean"]
+                            elememt["times"][time]["mean"]
                             / (
                                 (elememt["setup"]["timesteps"] - 1)
                                 if plottype == "mainLoop"
@@ -57,7 +59,7 @@ if __name__ == "__main__":
                             for elememt in specific
                         ],
                         "--o",
-                        label=line + " " + backend,
+                        label=time + " " + backend,
                     )
                     plt.fill_between(
                         [
@@ -67,7 +69,7 @@ if __name__ == "__main__":
                             for elememt in specific
                         ],
                         [
-                            elememt["times"][line]["maximum"]
+                            elememt["times"][time]["maximum"]
                             / (
                                 (elememt["setup"]["timesteps"] - 1)
                                 if plottype == "mainLoop"
@@ -76,7 +78,7 @@ if __name__ == "__main__":
                             for elememt in specific
                         ],
                         [
-                            elememt["times"][line]["minimum"]
+                            elememt["times"][time]["minimum"]
                             / (
                                 (elememt["setup"]["timesteps"] - 1)
                                 if plottype == "mainLoop"

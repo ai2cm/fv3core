@@ -67,10 +67,12 @@ cp test_data/*.yml test_data/input.yml
 git clone https://github.com/VulcanClimateModeling/buildenv/
 source buildenv/machineEnvironment.sh
 source buildenv/env.${host}.sh
+nthreads=12
 
 echo "Configuration overview:"
 echo "    Timesteps:        $timesteps"
 echo "    Ranks:            $ranks"
+echo "    Threads per rank: $nthreads"
 echo "    Input data dir:   $data_path"
 echo "    Output dir:       $target_dir"
 echo "    Slurm output dir: $ROOT_DIR"
@@ -80,7 +82,7 @@ cp buildenv/submit.daint.slurm .
 sed s/\<NAME\>/standalone/g submit.daint.slurm -i
 sed s/\<NTASKS\>/$ranks/g submit.daint.slurm -i
 sed s/\<NTASKSPERNODE\>/1/g submit.daint.slurm -i
-sed s/\<CPUSPERTASK\>/12/g submit.daint.slurm -i
+sed s/\<CPUSPERTASK\>/nthreads/g submit.daint.slurm -i
 sed s/--output=\<OUTFILE\>/--hint=nomultithread/g submit.daint.slurm -i
 sed s/00:45:00/03:30:00/g submit.daint.slurm -i
 sed s/cscsci/normal/g submit.daint.slurm -i
