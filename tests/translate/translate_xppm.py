@@ -33,7 +33,7 @@ class TranslateXPPM(TranslateFortranData2Py):
 
     def compute(self, inputs):
         self.process_inputs(inputs)
-        inputs["xflux"] = utils.make_storage_from_shape(inputs["q"].shape, origin=(2, 0, 0))
+        inputs["xflux"] = utils.make_storage_from_shape(inputs["q"].shape)
         self.compute_func(**inputs)
         return self.slice_output(inputs)
 
