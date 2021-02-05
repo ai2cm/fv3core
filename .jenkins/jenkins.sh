@@ -144,7 +144,7 @@ export TEST_DATA_HOST="${TEST_DATA_DIR}/${experiment}/"
 export EXPERIMENT=${experiment}
 if [ -z ${JENKINS_TAG} ]; then
     if [ ${#JOB_NAME} > 122 ]; then
-	NAME=`/bin/echo ${JOB_NAME} | md5sum | cut -f1 -d" "`
+	NAME=`echo ${JOB_NAME} | md5sum | cut -f1 -d" "`
     else
 	NAME=${JOB_NAME}
     fi
