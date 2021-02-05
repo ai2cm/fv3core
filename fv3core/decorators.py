@@ -101,11 +101,6 @@ def _ensure_global_flags_not_specified_in_kwargs(stencil_kwargs):
         if flag in stencil_kwargs:
             raise ValueError(flag_errmsg.format(flag))
 
-    @property
-    def built(self) -> bool:
-        """Returns whether the stencil is already built (called at least once)."""
-        return self.stencil_object is not None
-
 
 class StencilDataCache(collections.abc.Mapping):
     """
