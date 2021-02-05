@@ -143,7 +143,7 @@ export FV3_STENCIL_REBUILD_FLAG=False
 export TEST_DATA_HOST="${TEST_DATA_DIR}/${experiment}/"
 export EXPERIMENT=${experiment}
 if [ -z ${JENKINS_TAG} ]; then
-    if [ ${#JOB_NAME} > 122 ]; then
+    if [ ${#JOB_NAME} -gt 122 ]; then
 	NAME=`echo ${JOB_NAME} | md5sum | cut -f1 -d" "`
     else
 	NAME=${JOB_NAME}
@@ -151,6 +151,7 @@ if [ -z ${JENKINS_TAG} ]; then
     export JENKINS_TAG=${NAME//[,=\/]/-}-${BUILD_NUMBER}
 fi
 echo "JENKINS TAG ${JENKINS_TAG}"
+
 if [ -z ${VIRTUALENV} ]; then
     echo "setting VIRTUALENV"
     export VIRTUALENV=${WORKSPACE}/vcm_env_${JENKINS_TAG}
