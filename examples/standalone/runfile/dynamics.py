@@ -48,7 +48,7 @@ def set_experiment_info(experiment_name, time_step, backend):
         sha = git.Repo(
             pathlib.Path(__file__).parent.absolute(), search_parent_directories=True
         ).head.object.hexsha
-    except git.InvalidGitRepositoryError:
+    except:
         sha = "hash not found"
     now = datetime.now()
     dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
