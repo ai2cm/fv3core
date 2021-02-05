@@ -36,12 +36,6 @@ def init_pe2(pe: FloatField, pe2: FloatField, ptop: float):
 
 
 @gtstencil()
-def undo_delz_adjust(delp: FloatField, delz: FloatField):
-    with computation(PARALLEL), interval(...):
-        delz = -delz * delp
-
-
-@gtstencil()
 def undo_delz_adjust_and_copy_peln(
     delp: FloatField,
     delz: FloatField,
@@ -102,7 +96,6 @@ def moist_cv_pt_pressure(
                 delp,
                 delz,
                 r_vir,
-                namelist.nwat,
             )
         # delz_adjust
         if not hydrostatic:
@@ -129,15 +122,14 @@ def moist_cv_pt_pressure(
 
 @gtstencil()
 def pn2_and_pk(pe2: FloatField, pn2: FloatField, pk: FloatField, akap: float):
-    from __externals__ import j_end
+    from __externals__ import local_je
 
     # copy_j_adjacent
     with computation(PARALLEL), interval(1, None):
-        with horizontal(region[:, j_end + 1 : j_end + 2]):
+        with horizontal(region[:, local_je + 1 : local_je + 2]):
             # TODO: Fix silly hack due to pe2 being 2d, so pe[:, je+1, 1:npz] should be
             # the same as it was for pe[:, je, 1:npz] (unchanged)
-            pe2_0 = pe2[0, -1, 0]
-            pe2 = pe2_0
+            pe2 = pe2[0, -1, 0]
     # pn2_and_pk
     with computation(PARALLEL), interval(...):
         pn2 = log(pe2)
@@ -279,7 +271,7 @@ def compute(
         pk,
         akap,
         origin=grid.compute_origin(),
-        domain=grid.domain_shape_compute_buffer_2d((0, 1, 0)),
+        domain=grid.domain_shape_compute(add=(0, 1, 0)),
     )
 
     map_single.compute(

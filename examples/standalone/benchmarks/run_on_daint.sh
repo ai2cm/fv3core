@@ -51,8 +51,10 @@ fi
 cd $ROOT_DIR
 rm -rf vcm_1.0
 
+echo "copying in the venv..."
 cp -r /project/s1053/install/venv/vcm_1.0/ .
 git submodule update --init --recursive
+echo "install requirements..."
 vcm_1.0/bin/python -m pip install external/fv3gfs-util/
 vcm_1.0/bin/python -m pip install .
 
@@ -65,23 +67,26 @@ cp test_data/*.yml test_data/input.yml
 git clone https://github.com/VulcanClimateModeling/buildenv/
 source buildenv/machineEnvironment.sh
 source buildenv/env.${host}.sh
+nthreads=12
 
 echo "Configuration overview:"
 echo "    Timesteps:        $timesteps"
 echo "    Ranks:            $ranks"
+echo "    Threads per rank: $nthreads"
 echo "    Input data dir:   $data_path"
 echo "    Output dir:       $target_dir"
 echo "    Slurm output dir: $ROOT_DIR"
 
 # Adapt batch script:
 cp buildenv/submit.daint.slurm .
-sed s/\<NAME\>/standalone/g submit.daint.slurm -i
-sed s/\<NTASKS\>/$ranks/g submit.daint.slurm -i
-sed s/\<NTASKSPERNODE\>/$ranks/g submit.daint.slurm -i
-sed s/\<CPUSPERTASK\>/1/g submit.daint.slurm -i
-sed s/#SBATCH\ --output=\<OUTFILE\>//g submit.daint.slurm -i
-sed s/00:45:00/03:30:00/g submit.daint.slurm -i
-sed s/\<G2G\>//g submit.daint.slurm -i
+sed -i s/\<NAME\>/standalone/g submit.daint.slurm
+sed -i s/\<NTASKS\>/$ranks/g submit.daint.slurm
+sed -i s/\<NTASKSPERNODE\>/1/g submit.daint.slurm
+sed -i s/\<CPUSPERTASK\>/$nthreads/g submit.daint.slurm
+sed -i s/--output=\<OUTFILE\>/--hint=nomultithread/g submit.daint.slurm
+sed -i s/00:45:00/03:30:00/g submit.daint.slurm
+sed -i s/cscsci/normal/g submit.daint.slurm
+sed -i s/\<G2G\>//g submit.daint.slurm
 sed -i "s#<CMD>#export PYTHONPATH=/project/s1053/install/serialbox2_master/gnu/python:\$PYTHONPATH\nsrun vcm_1.0/bin/python examples/standalone/runfile/dynamics.py test_data/ $timesteps $backend#g" submit.daint.slurm
 
 # execute on a gpu node
