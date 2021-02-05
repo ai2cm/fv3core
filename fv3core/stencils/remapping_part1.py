@@ -36,12 +36,6 @@ def init_pe2(pe: FloatField, pe2: FloatField, ptop: float):
 
 
 @gtstencil()
-def undo_delz_adjust(delp: FloatField, delz: FloatField):
-    with computation(PARALLEL), interval(...):
-        delz = -delz * delp
-
-
-@gtstencil()
 def undo_delz_adjust_and_copy_peln(
     delp: FloatField,
     delz: FloatField,
