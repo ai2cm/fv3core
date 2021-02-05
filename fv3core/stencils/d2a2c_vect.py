@@ -1,4 +1,4 @@
-import gt4py.gtscript as gtscript
+from gt4py import gtscript
 from gt4py.gtscript import (
     __INLINED,
     PARALLEL,
@@ -11,12 +11,7 @@ from gt4py.gtscript import (
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import gtstencil
 from fv3core.stencils.a2b_ord4 import a1, a2, lagrange_x_func, lagrange_y_func
-from fv3core.utils.corners import (
-    fill2_4corners_x,
-    fill2_4corners_y,
-    fill3_4corners_x,
-    fill3_4corners_y,
-)
+from fv3core.utils import corners
 
 
 sd = utils.sd
@@ -73,6 +68,7 @@ def lagrange_interpolation_x_p1(qy: sd, qout: sd):
         qout = lagrange_x_func_p1(qy)
 
 
+@gtscript.function
 def interp_winds_d_to_a(u, v):
     """
     Interpolate winds from the d-grid to a-grid.
@@ -116,6 +112,7 @@ def interp_winds_d_to_a(u, v):
     return utmp, vtmp
 
 
+@gtscript.function
 def edge_interpolate4_x(ua, dxa):
     t1 = dxa[-2, 0, 0] + dxa[-1, 0, 0]
     t2 = dxa[0, 0, 0] + dxa[1, 0, 0]
@@ -124,6 +121,7 @@ def edge_interpolate4_x(ua, dxa):
     return 0.5 * (n1 / t1 + n2 / t2)
 
 
+@gtscript.function
 def edge_interpolate4_y(va, dya):
     t1 = dya[0, -2, 0] + dya[0, -1, 0]
     t2 = dya[0, 0, 0] + dya[0, 1, 0]
@@ -132,6 +130,7 @@ def edge_interpolate4_y(va, dya):
     return 0.5 * (n1 / t1 + n2 / t2)
 
 
+@gtscript.function
 def d2a2c_vect(
     cosa_s: sd,
     cosa_u: sd,
@@ -174,8 +173,12 @@ def d2a2c_vect(
 
     # A -> C
     # Fix the edges
-    utmp = fill3_4corners_x(utmp, vtmp, sw_mult=-1, se_mult=1, ne_mult=-1, nw_mult=1)
-    ua = fill2_4corners_x(ua, va, sw_mult=-1, se_mult=1, ne_mult=-1, nw_mult=1)
+    utmp = corners.fill_corners_3cells_mult_x(
+        utmp, vtmp, sw_mult=-1, se_mult=1, ne_mult=-1, nw_mult=1
+    )
+    ua = corners.fill_corners_2cells_mult_x(
+        ua, va, sw_mult=-1, se_mult=1, ne_mult=-1, nw_mult=1
+    )
 
     # X
 
@@ -221,8 +224,12 @@ def d2a2c_vect(
 
     assert __INLINED(namelist.grid_type < 3)
 
-    vtmp = fill3_4corners_y(vtmp, utmp, sw_mult=-1, se_mult=1, ne_mult=-1, nw_mult=1)
-    va = fill2_4corners_y(va, ua, sw_mult=-1, se_mult=1, ne_mult=-1, nw_mult=1)
+    vtmp = corners.fill_corners_3cells_mult_y(
+        vtmp, utmp, sw_mult=-1, se_mult=1, ne_mult=-1, nw_mult=1
+    )
+    va = corners.fill_corners_2cells_mult_y(
+        va, ua, sw_mult=-1, se_mult=1, ne_mult=-1, nw_mult=1
+    )
 
     # Y
 

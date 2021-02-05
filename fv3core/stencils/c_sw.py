@@ -1,3 +1,4 @@
+from gt4py import gtscript
 from gt4py.gtscript import (
     __INLINED,
     PARALLEL,
@@ -11,10 +12,11 @@ import fv3core._config as spec
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import gtstencil
 from fv3core.stencils.d2a2c_vect import d2a2c_vect
-from fv3core.utils.corners import fill2_4corners_x, fill2_4corners_y
+from fv3core.utils import corners
 from fv3core.utils.typing import FloatField
 
 
+@gtscript.function
 def nonhydro_x_fluxes(delp: FloatField, pt: FloatField, w: FloatField, utc: FloatField):
     fx1 = delp[-1, 0, 0] if utc > 0.0 else delp
     fx = pt[-1, 0, 0] if utc > 0.0 else pt
@@ -25,6 +27,7 @@ def nonhydro_x_fluxes(delp: FloatField, pt: FloatField, w: FloatField, utc: Floa
     return fx, fx1, fx2
 
 
+@gtscript.function
 def nonhydro_y_fluxes(delp: FloatField, pt: FloatField, w: FloatField, vtc: FloatField):
     fy1 = delp[0, -1, 0] if vtc > 0.0 else delp
     fy = pt[0, -1, 0] if vtc > 0.0 else pt
@@ -35,6 +38,7 @@ def nonhydro_y_fluxes(delp: FloatField, pt: FloatField, w: FloatField, vtc: Floa
     return fy, fy1, fy2
 
 
+@gtscript.function
 def transportdelp(
     delp: FloatField,
     pt: FloatField,
@@ -64,15 +68,15 @@ def transportdelp(
     assert __INLINED(namelist.grid_type < 3)
     # additional assumption (not grid.nested)
 
-    delp = fill2_4corners_x(delp, delp, 1, 1, 1, 1)
-    pt = fill2_4corners_x(pt, pt, 1, 1, 1, 1)
-    w = fill2_4corners_x(w, w, 1, 1, 1, 1)
+    delp = corners.fill_corners_2cells_x(delp)
+    pt = corners.fill_corners_2cells_x(pt)
+    w = corners.fill_corners_2cells_x(w)
 
     fx, fx1, fx2 = nonhydro_x_fluxes(delp, pt, w, utc)
 
-    delp = fill2_4corners_y(delp, delp, 1, 1, 1, 1)
-    pt = fill2_4corners_y(pt, pt, 1, 1, 1, 1)
-    w = fill2_4corners_y(w, w, 1, 1, 1, 1)
+    delp = corners.fill_corners_2cells_y(delp)
+    pt = corners.fill_corners_2cells_y(pt)
+    w = corners.fill_corners_2cells_y(w)
 
     fy, fy1, fy2 = nonhydro_y_fluxes(delp, pt, w, vtc)
 
@@ -83,6 +87,7 @@ def transportdelp(
     return delpc, ptc, wc
 
 
+@gtscript.function
 def divergence_corner(
     u: FloatField,
     v: FloatField,
@@ -156,6 +161,7 @@ def divergence_corner(
     return divg_d
 
 
+@gtscript.function
 def circulation_cgrid(uc: FloatField, vc: FloatField, dxc: FloatField, dyc: FloatField):
     """Update vort_c.
 
@@ -184,6 +190,7 @@ def circulation_cgrid(uc: FloatField, vc: FloatField, dxc: FloatField, dyc: Floa
     return vort_c
 
 
+@gtscript.function
 def update_vorticity_and_kinetic_energy(
     ua: FloatField,
     va: FloatField,
@@ -223,6 +230,7 @@ def update_vorticity_and_kinetic_energy(
     return ke, vort
 
 
+@gtscript.function
 def vorticitytransport(
     vort: FloatField,
     ke: FloatField,
