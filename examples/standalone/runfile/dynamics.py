@@ -1,5 +1,4 @@
 import json
-import pathlib
 from argparse import ArgumentParser
 from datetime import datetime
 

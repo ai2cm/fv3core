@@ -81,7 +81,7 @@ if git rev-parse --git-dir > /dev/null 2>&1; then
   githash =`git rev-parse HEAD`
 else
   githash="notarepo"
-fi  
+fi
 
 # Adapt batch script:
 cp buildenv/submit.daint.slurm .
