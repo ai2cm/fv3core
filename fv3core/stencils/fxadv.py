@@ -1,5 +1,5 @@
 import gt4py.gtscript as gtscript
-from gt4py.gtscript import PARALLEL, computation, interval
+from gt4py.gtscript import PARALLEL, computation, horizontal, interval, region
 
 import fv3core._config as spec
 import fv3core.utils.gt4py_utils as utils
@@ -15,14 +15,22 @@ def grid():
 sd = utils.sd
 stencil_corner = True
 
-
 @gtstencil()
 def main_ut(uc: sd, vc: sd, cosa_u: sd, rsin_u: sd, ut: sd):
+    from __externals__ import local_is, local_ie, j_start, j_end
+    with computation(PARALLEL), interval(...):
+        utmp = ut
     with computation(PARALLEL), interval(...):
         ut[0, 0, 0] = (
             uc - 0.25 * cosa_u * (vc[-1, 0, 0] + vc + vc[-1, 1, 0] + vc[0, 1, 0])
         ) * rsin_u
-
+    with computation(PARALLEL), interval(...):
+        with horizontal(region[:local_is - 1, :], region[local_ie+3:, :]):
+           ut = utmp
+    with computation(PARALLEL), interval(...):
+        with horizontal(region[:, j_start - 1:j_start + 1], region[:, j_end:j_end+2]):
+           ut = utmp
+    
 
 @gtstencil()
 def ut_y_edge(uc: sd, sin_sg1: sd, sin_sg3: sd, ut: sd, *, dt: float):
@@ -110,8 +118,18 @@ def yfx_adv_stencil(
         ra_y = ra_y_func(area, yfx_adv)
 
 
-def compute(uc_in, vc_in, ut_in, vt_in, xfx_adv, yfx_adv, crx_adv, cry_adv, dt):
-    ut = compute_ut(uc_in, vc_in, grid().cosa_u, grid().rsin_u, ut_in)
+def compute(uc_in, vc_in, ut, vt_in, xfx_adv, yfx_adv, crx_adv, cry_adv, dt):
+
+    main_ut(
+        uc_in,
+        vc_in,
+        grid().cosa_u,
+        grid().rsin_u,
+        ut,
+        origin=(grid().is_ - 1, grid().jsd, 0),
+        domain=(grid().nic + 3, grid().njd, grid().npz),
+    )
+
     vt = compute_vt(
         uc_in,
         vc_in,
@@ -166,34 +184,8 @@ def compute(uc_in, vc_in, ut_in, vt_in, xfx_adv, yfx_adv, crx_adv, cry_adv, dt):
     )
     # TODO: Remove the need for a copied extra ut and vt variables, edit in place
     # (rexolve issue with data getting zeroed out).
-    ut_in[:, :, :] = ut[:, :, :]
     vt_in[:, :, :] = vt[:, :, :]
     return ra_x, ra_y
-
-
-def compute_ut(uc_in, vc_in, cosa_u, rsin_u, ut_in):
-    ut_origin = (grid().is_ - 1, grid().jsd, 0)
-    ut = utils.make_storage_from_shape(ut_in.shape, ut_origin)
-    main_ut(
-        uc_in,
-        vc_in,
-        cosa_u,
-        rsin_u,
-        ut,
-        origin=ut_origin,
-        domain=(grid().nic + 3, grid().njd, grid().npz),
-    )
-    ut[: grid().is_ - 1, :, :] = ut_in[: grid().is_ - 1, :, :]
-    ut[grid().ie + 3 :, :, :] = ut_in[grid().ie + 3 :, :, :]
-    # fill in for j /=2 and j/=3
-    if grid().south_edge:
-        ut[:, grid().js - 1 : grid().js + 1, :] = ut_in[
-            :, grid().js - 1 : grid().js + 1, :
-        ]
-    # fill in for j/=npy-1 and j /= npy
-    if grid().north_edge:
-        ut[:, grid().je : grid().je + 2, :] = ut_in[:, grid().je : grid().je + 2, :]
-    return ut
 
 
 def update_ut_y_edge(uc, sin_sg1, sin_sg3, ut, dt):

@@ -6,7 +6,6 @@ class TranslateFxAdv(TranslateFortranData2Py):
     def __init__(self, grid):
         super().__init__(grid)
         utinfo = grid.x3d_domain_dict()
-        utinfo["serialname"] = "ut"
         vtinfo = grid.y3d_domain_dict()
         vtinfo["serialname"] = "vt"
         # TODO: Do we want this to be bit reproducible? We think this error is
@@ -16,7 +15,7 @@ class TranslateFxAdv(TranslateFortranData2Py):
         self.in_vars["data_vars"] = {
             "uc_in": {"serialname": "uc"},
             "vc_in": {"serialname": "vc"},
-            "ut_in": utinfo,
+            "ut": utinfo,
             "vt_in": vtinfo,
             "xfx_adv": grid.x3d_compute_domain_y_dict(),
             "crx_adv": grid.x3d_compute_domain_y_dict(),
@@ -28,6 +27,7 @@ class TranslateFxAdv(TranslateFortranData2Py):
             "ra_x": {"istart": grid.is_, "iend": grid.ie},
             "ra_y": {"jstart": grid.js, "jend": grid.je},
         }
+
         for invar, info in self.in_vars["data_vars"].items():
             if "c_in" not in invar:
                 self.out_vars[invar] = info
