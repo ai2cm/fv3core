@@ -16,17 +16,20 @@ sd = utils.sd
 stencil_corner = True
 
 @gtstencil()
-def main_ut(uc: sd, vc: sd, cosa_u: sd, rsin_u: sd, ut: sd):
-    from __externals__ import j_start, j_end
+def main_ut(uc: sd, vc: sd, cosa_u: sd, rsin_u: sd, sin_sg1: sd, sin_sg3: sd, ut: sd, dt: float):
+    from __externals__ import i_start, i_end, j_start, j_end
     with computation(PARALLEL), interval(...):
         utmp = ut
     with computation(PARALLEL), interval(...):
-        ut[0, 0, 0] = (
+        ut = (
             uc - 0.25 * cosa_u * (vc[-1, 0, 0] + vc + vc[-1, 1, 0] + vc[0, 1, 0])
         ) * rsin_u
     with computation(PARALLEL), interval(...):
         with horizontal(region[:, j_start - 1:j_start + 1], region[:, j_end:j_end+2]):
-           ut = utmp
+            ut = utmp
+        with horizontal(region[i_start, :], region[i_end + 1,:]):
+            ut = (uc / sin_sg3[-1, 0, 0]) if (uc * dt > 0) else (uc / sin_sg1)
+
     
 
 @gtstencil()
@@ -127,8 +130,8 @@ def compute(uc_in, vc_in, ut, vt, xfx_adv, yfx_adv, crx_adv, cry_adv, dt):
         uc_in,
         vc_in,
         grid().cosa_u,
-        grid().rsin_u,
-        ut,
+        grid().rsin_u, grid().sin_sg1, grid().sin_sg3,
+        ut, dt,
         origin=(grid().is_ - 1, grid().jsd, 0),
         domain=(grid().nic + 3, grid().njd, grid().npz),
     )
@@ -141,7 +144,7 @@ def compute(uc_in, vc_in, ut, vt, xfx_adv, yfx_adv, crx_adv, cry_adv, dt):
         origin=(grid().isd, grid().js - 1, 0),
         domain=(grid().nid, grid().njc + 3, grid().npz),
     ) 
-    update_ut_y_edge(uc_in, grid().sin_sg1, grid().sin_sg3, ut, dt)
+    #update_ut_y_edge(uc_in, grid().sin_sg1, grid().sin_sg3, ut, dt)
     update_vt_y_edge(vc_in, grid().cosa_v, ut, vt)
     update_vt_x_edge(vc_in, grid().sin_sg2, grid().sin_sg4, vt, dt)
     update_ut_x_edge(uc_in, grid().cosa_u, vt, ut)
@@ -190,16 +193,16 @@ def compute(uc_in, vc_in, ut, vt, xfx_adv, yfx_adv, crx_adv, cry_adv, dt):
 
 def update_ut_y_edge(uc, sin_sg1, sin_sg3, ut, dt):
     edge_shape = (1, ut.shape[1], ut.shape[2])
-    if grid().west_edge:
-        ut_y_edge(
-            uc,
-            sin_sg1,
-            sin_sg3,
-            ut,
-            dt=dt,
-            origin=(grid().is_, 0, 0),
-            domain=edge_shape,
-        )
+    #if grid().west_edge:
+    #    ut_y_edge(
+    #        uc,
+    #        sin_sg1,
+    #        sin_sg3,
+    #        ut,
+    #        dt=dt,
+    #        origin=(grid().is_, 0, 0),
+    #        domain=edge_shape,
+    #    )
     if grid().east_edge:
         ut_y_edge(
             uc,
@@ -220,29 +223,6 @@ def update_ut_x_edge(uc, cosa_u, vt, ut):
         ut_x_edge(uc, cosa_u, vt, ut, origin=(i1, grid().js - 1, 0), domain=edge_shape)
     if grid().north_edge:
         ut_x_edge(uc, cosa_u, vt, ut, origin=(i1, grid().je, 0), domain=edge_shape)
-
-
-def compute_vt(uc_in, vc_in, cosa_v, rsin_v, sin_sg2, sin_sg4, vt_in):
-    main_vt(
-        uc_in,
-        vc_in,
-        cosa_v,
-        rsin_v,
-        vt_in,
-        origin=(grid().isd, grid().js - 1, 0),
-        domain=(grid().nid, grid().njc + 3, grid().npz),
-    )  # , origin=(0, 2, 0), domain=(vt.shape[0]-1, main_j_size, vt.shape[2]))
-
-    # Cannot pass vt_in array to stencil without it zeroing out data outside
-    # specified domain. So... for now copying in so the 'undefined' answers
-    # match
-    #vt[:, : grid().js - 1, :] = vt_in[:, : grid().js - 1, :]
-    #vt[:, grid().je + 3, :] = vt_in[:, grid().je + 3, :]
-    #if grid().south_edge:
-    #    vt[:, grid().js, :] = vt_in[:, grid().js, :]
-    #if grid().north_edge:
-    #    vt[:, grid().je + 1, :] = vt_in[:, grid().je + 1, :]
-    return vt_in
 
 
 def update_vt_y_edge(vc, cosa_v, ut, vt):
