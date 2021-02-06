@@ -92,6 +92,7 @@ def compute_cubed_to_latlon(
         comm: Cubed-sphere communicator
         do_halo_update: If True, performs a halo update on u and v
     """
+    do_halo_update = do_halo_update and utils.is_parallel()
     grid = spec.grid
 
     if spec.namelist.c2l_ord == 2:

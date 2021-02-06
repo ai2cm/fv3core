@@ -23,7 +23,7 @@ except ImportError:
 logger = logging.getLogger("fv3ser")
 
 # Set to "False" to skip validating gt4py stencil arguments
-validate_args = True
+validate_args = False
 
 # If True, automatically transfers memory between CPU and GPU (see gt4py.storage)
 managed_memory = True
@@ -53,8 +53,12 @@ tracer_variables = [
 logger = logging.getLogger("fv3ser")
 
 
+def is_parallel():
+    return MPI is not None and MPI.COMM_WORLD.Get_size() > 1
+
+
 # 1 indexing to 0 and halos: -2, -1, 0 --> 0, 1,2
-if MPI is not None and MPI.COMM_WORLD.Get_size() > 1:
+if is_parallel():
     gt.config.cache_settings["dir_name"] = ".gt_cache_{:0>6d}".format(
         MPI.COMM_WORLD.Get_rank()
     )

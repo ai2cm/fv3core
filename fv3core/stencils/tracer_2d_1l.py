@@ -162,9 +162,10 @@ def compute(comm, tracers, dp1, mfxd, mfyd, cxd, cyd, mdt, nq):
         )
 
     # complete HALO update on q
-    for qname in utils.tracer_variables[0:nq]:
-        q = tracers[qname + "_quantity"]
-        comm.halo_update(q, n_points=utils.halo)
+    if utils.is_parallel():
+        for qname in utils.tracer_variables[0:nq]:
+            q = tracers[qname + "_quantity"]
+            comm.halo_update(q, n_points=utils.halo)
 
     ra_x_stencil(
         grid.area,
@@ -289,4 +290,5 @@ def compute(comm, tracers, dp1, mfxd, mfyd, cxd, cyd, mdt, nq):
                     origin=grid.compute_origin(),
                     domain=grid.domain_shape_compute(),
                 )
-                comm.halo_update(qn2, n_points=utils.halo)
+                if utils.is_parallel():
+                    comm.halo_update(qn2, n_points=utils.halo)
