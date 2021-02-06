@@ -17,16 +17,13 @@ stencil_corner = True
 
 @gtstencil()
 def main_ut(uc: sd, vc: sd, cosa_u: sd, rsin_u: sd, ut: sd):
-    from __externals__ import local_is, local_ie, j_start, j_end
+    from __externals__ import j_start, j_end
     with computation(PARALLEL), interval(...):
         utmp = ut
     with computation(PARALLEL), interval(...):
         ut[0, 0, 0] = (
             uc - 0.25 * cosa_u * (vc[-1, 0, 0] + vc + vc[-1, 1, 0] + vc[0, 1, 0])
         ) * rsin_u
-    with computation(PARALLEL), interval(...):
-        with horizontal(region[:local_is - 1, :], region[local_ie+3:, :]):
-           ut = utmp
     with computation(PARALLEL), interval(...):
         with horizontal(region[:, j_start - 1:j_start + 1], region[:, j_end:j_end+2]):
            ut = utmp
@@ -48,10 +45,16 @@ def ut_x_edge(uc: sd, cosa_u: sd, vt: sd, ut: sd):
 
 @gtstencil()
 def main_vt(uc: sd, vc: sd, cosa_v: sd, rsin_v: sd, vt: sd):
+    from __externals__ import j_start, j_end
+    with computation(PARALLEL), interval(...):
+        vt_in = vt
     with computation(PARALLEL), interval(...):
         vt[0, 0, 0] = (
             vc - 0.25 * cosa_v * (uc[0, -1, 0] + uc[1, -1, 0] + uc + uc[1, 0, 0])
         ) * rsin_v
+    with computation(PARALLEL), interval(...):
+        with horizontal(region[:, j_start], region[:, j_end + 1]):
+           vt = vt_in
 
 
 @gtstencil()
@@ -118,7 +121,7 @@ def yfx_adv_stencil(
         ra_y = ra_y_func(area, yfx_adv)
 
 
-def compute(uc_in, vc_in, ut, vt_in, xfx_adv, yfx_adv, crx_adv, cry_adv, dt):
+def compute(uc_in, vc_in, ut, vt, xfx_adv, yfx_adv, crx_adv, cry_adv, dt):
 
     main_ut(
         uc_in,
@@ -129,16 +132,15 @@ def compute(uc_in, vc_in, ut, vt_in, xfx_adv, yfx_adv, crx_adv, cry_adv, dt):
         origin=(grid().is_ - 1, grid().jsd, 0),
         domain=(grid().nic + 3, grid().njd, grid().npz),
     )
-
-    vt = compute_vt(
+    main_vt(
         uc_in,
         vc_in,
         grid().cosa_v,
         grid().rsin_v,
-        grid().sin_sg2,
-        grid().sin_sg4,
-        vt_in,
-    )
+        vt,
+        origin=(grid().isd, grid().js - 1, 0),
+        domain=(grid().nid, grid().njc + 3, grid().npz),
+    ) 
     update_ut_y_edge(uc_in, grid().sin_sg1, grid().sin_sg3, ut, dt)
     update_vt_y_edge(vc_in, grid().cosa_v, ut, vt)
     update_vt_x_edge(vc_in, grid().sin_sg2, grid().sin_sg4, vt, dt)
@@ -182,9 +184,7 @@ def compute(uc_in, vc_in, ut, vt_in, xfx_adv, yfx_adv, crx_adv, cry_adv, dt):
         origin=grid().compute_y_origin(),
         domain=grid().domain_x_compute_ybuffer(),
     )
-    # TODO: Remove the need for a copied extra ut and vt variables, edit in place
-    # (rexolve issue with data getting zeroed out).
-    vt_in[:, :, :] = vt[:, :, :]
+   
     return ra_x, ra_y
 
 
@@ -223,28 +223,26 @@ def update_ut_x_edge(uc, cosa_u, vt, ut):
 
 
 def compute_vt(uc_in, vc_in, cosa_v, rsin_v, sin_sg2, sin_sg4, vt_in):
-    vt_origin = (grid().isd, grid().js - 1, 0)
-    vt = utils.make_storage_from_shape(vt_in.shape, vt_origin)
     main_vt(
         uc_in,
         vc_in,
         cosa_v,
         rsin_v,
-        vt,
-        origin=vt_origin,
+        vt_in,
+        origin=(grid().isd, grid().js - 1, 0),
         domain=(grid().nid, grid().njc + 3, grid().npz),
     )  # , origin=(0, 2, 0), domain=(vt.shape[0]-1, main_j_size, vt.shape[2]))
 
     # Cannot pass vt_in array to stencil without it zeroing out data outside
     # specified domain. So... for now copying in so the 'undefined' answers
     # match
-    vt[:, : grid().js - 1, :] = vt_in[:, : grid().js - 1, :]
-    vt[:, grid().je + 3, :] = vt_in[:, grid().je + 3, :]
-    if grid().south_edge:
-        vt[:, grid().js, :] = vt_in[:, grid().js, :]
-    if grid().north_edge:
-        vt[:, grid().je + 1, :] = vt_in[:, grid().je + 1, :]
-    return vt
+    #vt[:, : grid().js - 1, :] = vt_in[:, : grid().js - 1, :]
+    #vt[:, grid().je + 3, :] = vt_in[:, grid().je + 3, :]
+    #if grid().south_edge:
+    #    vt[:, grid().js, :] = vt_in[:, grid().js, :]
+    #if grid().north_edge:
+    #    vt[:, grid().je + 1, :] = vt_in[:, grid().je + 1, :]
+    return vt_in
 
 
 def update_vt_y_edge(vc, cosa_v, ut, vt):

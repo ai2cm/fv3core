@@ -7,7 +7,6 @@ class TranslateFxAdv(TranslateFortranData2Py):
         super().__init__(grid)
         utinfo = grid.x3d_domain_dict()
         vtinfo = grid.y3d_domain_dict()
-        vtinfo["serialname"] = "vt"
         # TODO: Do we want this to be bit reproducible? We think this error is
         # spawning from generalizing the u and v corner calculations, ut it's
         # possible we are missing something
@@ -16,7 +15,7 @@ class TranslateFxAdv(TranslateFortranData2Py):
             "uc_in": {"serialname": "uc"},
             "vc_in": {"serialname": "vc"},
             "ut": utinfo,
-            "vt_in": vtinfo,
+            "vt": vtinfo,
             "xfx_adv": grid.x3d_compute_domain_y_dict(),
             "crx_adv": grid.x3d_compute_domain_y_dict(),
             "yfx_adv": grid.y3d_compute_domain_x_dict(),
