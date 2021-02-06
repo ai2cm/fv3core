@@ -27,25 +27,25 @@ if __name__ == "__main__":
     plot_variance = True
     plots = {
         "per_timestep": {
-            "timers": ["mainloop", "DynCore", "Remapping", "TracerAdvection"],
             "title": "Performance history of components",
+            "timers": [
+                {"name": "mainloop", "linestyle": "-o"},
+                {"name": "DynCore", "linestyle": "--o"},
+                {"name": "Remapping", "linestyle": "-.o"},
+                {"name": "TracerAdvection", "linestyle": ":o"},
+            ],
             "x_axis_label": "Date of benchmark",
             "y_axis_label": "Execution time per timestep [s]",
         },
         "absolute_time": {
-            "timers": ["total", "initialization"],
             "title": "Performance history of absolute runtime",
+            "timers": [
+                {"name": "total", "linestyle": "-o"},
+                {"name": "initialization", "linestyle": "--o"},
+            ],
             "x_axis_label": "Date of benchmark",
             "y_axis_label": "Execution time [s]",
         },
-    }
-    linestyles = {
-        "mainloop": "-o",
-        "DynCore": "--o",
-        "Remapping": "-.o",
-        "TracerAdvection": ":o",
-        "total": "-o",
-        "initialization": "--o",
     }
     backends = {
         "python/gtcuda": {"short_name": "gtcuda", "color": "#d62728"},
@@ -84,7 +84,7 @@ if __name__ == "__main__":
                             for elememt in specific
                         ],
                         [
-                            elememt["times"][timer]["mean"]
+                            elememt["times"][timer["name"]]["mean"]
                             / (
                                 (elememt["setup"]["timesteps"] - 1)
                                 if plottype == "per_timestep"
@@ -92,9 +92,9 @@ if __name__ == "__main__":
                             )
                             for elememt in specific
                         ],
-                        linestyles[timer],
+                        timer["linestyle"],
                         markersize=markersize,
-                        label=backend_config["short_name"] + " " + timer,
+                        label=backend_config["short_name"] + " " + timer["name"],
                         color=backend_config["color"],
                     )
                     if plot_variance:
@@ -106,7 +106,7 @@ if __name__ == "__main__":
                                 for elememt in specific
                             ],
                             [
-                                elememt["times"][timer]["maximum"]
+                                elememt["times"][timer["name"]]["maximum"]
                                 / (
                                     (elememt["setup"]["timesteps"] - 1)
                                     if plottype == "per_timestep"
@@ -115,7 +115,7 @@ if __name__ == "__main__":
                                 for elememt in specific
                             ],
                             [
-                                elememt["times"][timer]["minimum"]
+                                elememt["times"][timer["name"]]["minimum"]
                                 / (
                                     (elememt["setup"]["timesteps"] - 1)
                                     if plottype == "per_timestep"
