@@ -9,20 +9,20 @@ import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import gtstencil
 from fv3core.stencils.basic_operations import copy
 from fv3core.stencils.fxadv import ra_x_func, ra_y_func
+from fv3core.utils.typing import FloatField
 
 
-sd = utils.sd
 DZ_MIN = constants.DZ_MIN
 
 
 @gtstencil()
-def ra_x_stencil(area: sd, xfx_adv: sd, ra_x: sd):
+def ra_x_stencil(area: FloatField, xfx_adv: FloatField, ra_x: FloatField):
     with computation(PARALLEL), interval(...):
         ra_x = ra_x_func(area, xfx_adv)
 
 
 @gtstencil()
-def ra_y_stencil(area: sd, yfx_adv: sd, ra_y: sd):
+def ra_y_stencil(area: FloatField, yfx_adv: FloatField, ra_y: FloatField):
     with computation(PARALLEL), interval(...):
         ra_y = ra_y_func(area, yfx_adv)
 
@@ -34,16 +34,16 @@ def zh_base(z2, area, fx, fy, ra_x, ra_y):
 
 @gtstencil()
 def zh_damp_stencil(
-    area: sd,
-    z2: sd,
-    fx: sd,
-    fy: sd,
-    ra_x: sd,
-    ra_y: sd,
-    fx2: sd,
-    fy2: sd,
-    rarea: sd,
-    zh: sd,
+    area: FloatField,
+    z2: FloatField,
+    fx: FloatField,
+    fy: FloatField,
+    ra_x: FloatField,
+    ra_y: FloatField,
+    fx2: FloatField,
+    fy2: FloatField,
+    rarea: FloatField,
+    zh: FloatField,
 ):
     with computation(PARALLEL), interval(...):
         zhbase = zh_base(z2, area, fx, fy, ra_x, ra_y)
@@ -51,7 +51,14 @@ def zh_damp_stencil(
 
 
 @gtstencil()
-def zh_stencil(area: sd, zh: sd, fx: sd, fy: sd, ra_x: sd, ra_y: sd):
+def zh_stencil(
+    area: FloatField,
+    zh: FloatField,
+    fx: FloatField,
+    fy: FloatField,
+    ra_x: FloatField,
+    ra_y: FloatField,
+):
     with computation(PARALLEL), interval(...):
         zh = zh_base(zh, area, fx, fy, ra_x, ra_y)
 
@@ -59,7 +66,14 @@ def zh_stencil(area: sd, zh: sd, fx: sd, fy: sd, ra_x: sd, ra_y: sd):
 # NOTE: We have not ported the uniform_grid True option as it is never called
 # that way in this model. We have also ignored limite != 0 for the same reason.
 @gtstencil()
-def edge_profile(q1: sd, q2: sd, qe1: sd, qe2: sd, dp0: sd, gam: sd):
+def edge_profile(
+    q1: FloatField,
+    q2: FloatField,
+    qe1: FloatField,
+    qe2: FloatField,
+    dp0: FloatField,
+    gam: FloatField,
+):
     with computation(FORWARD):
         with interval(0, 1):
             g0 = dp0[0, 0, 1] / dp0[0, 0, 0]
@@ -135,7 +149,7 @@ def edge_python(q1, q2, qe1, qe2, dp0, gam, islice, jslice, qe1_2, gam_2):
 
 
 @gtstencil()
-def out(zs: sd, zh: sd, ws: sd, dt: float):
+def out(zs: FloatField, zh: FloatField, ws: FloatField, dt: float):
     with computation(BACKWARD):
         with interval(-1, None):
             ws[0, 0, 0] = (zs - zh) * 1.0 / dt
@@ -144,20 +158,28 @@ def out(zs: sd, zh: sd, ws: sd, dt: float):
             zh[0, 0, 0] = zh if zh > other else other
 
 
-def compute(ndif, damp_vtd, dp0, zs, zh, crx, cry, xfx, yfx, wsd, dt):
+def compute(
+    ndif: FloatField,
+    damp_vtd: FloatField,
+    dp0: FloatField,
+    zs: FloatField,
+    zh: FloatField,
+    crx: FloatField,
+    cry: FloatField,
+    xfx: FloatField,
+    yfx: FloatField,
+    wsd: FloatField,
+    dt: float,
+):
     grid = spec.grid
-
-    ndif[-1] = ndif[-2]
-    damp_vtd[-1] = damp_vtd[-2]
-
     crx_adv = utils.make_storage_from_shape(crx.shape, grid.compute_x_origin())
     cry_adv = utils.make_storage_from_shape(cry.shape, grid.compute_y_origin())
     xfx_adv = utils.make_storage_from_shape(xfx.shape, grid.compute_x_origin())
     yfx_adv = utils.make_storage_from_shape(yfx.shape, grid.compute_y_origin())
     ra_x = utils.make_storage_from_shape(crx.shape, grid.compute_x_origin())
     ra_y = utils.make_storage_from_shape(cry.shape, grid.compute_y_origin())
-
     gam = utils.make_storage_from_shape(zs.shape, grid.default_origin())
+
     edge_profile(
         crx,
         xfx,
@@ -168,10 +190,7 @@ def compute(ndif, damp_vtd, dp0, zs, zh, crx, cry, xfx, yfx, wsd, dt):
         origin=(grid.is_, grid.jsd, 0),
         domain=(grid.nic + 1, grid.njd, grid.npz + 1),
     )
-    # edge_python(crx, xfx, crx_adv, xfx_adv, dp0, gam, slice(grid.is_, grid.ie
-    # + 2), slice(grid.jsd, grid.jed+1),  qe1_2, gam_2)
 
-    gam = utils.make_storage_from_shape(zs.shape, grid.default_origin())
     edge_profile(
         cry,
         yfx,
@@ -197,15 +216,27 @@ def compute(ndif, damp_vtd, dp0, zs, zh, crx, cry, xfx, yfx, wsd, dt):
         origin=grid.compute_y_origin(),
         domain=(grid.nid, grid.njc, grid.npz + 1),
     )
-    # TODO, when consoldiating k plitting, change this too
-    data = {}
-    for varname in ["zh", "crx_adv", "cry_adv", "xfx_adv", "yfx_adv", "ra_x", "ra_y"]:
-        data[varname] = locals()[varname]
 
+    ndif[-1] = ndif[-2]
+    damp_vtd[-1] = damp_vtd[-2]
     col = {"ndif": ndif, "damp": damp_vtd}
-
     kstarts = utils.get_kstarts(col, grid.npz + 1)
-    utils.k_split_run(column_calls, data, kstarts, col)
+
+    for ki, nk in kstarts:
+        column_calls(
+            zh,
+            crx_adv,
+            cry_adv,
+            xfx_adv,
+            yfx_adv,
+            ra_x,
+            ra_y,
+            ndif[ki],
+            damp_vtd[ki],
+            ki,
+            nk,
+        )
+
     out(
         zs,
         zh,
@@ -217,73 +248,83 @@ def compute(ndif, damp_vtd, dp0, zs, zh, crx, cry, xfx, yfx, wsd, dt):
 
 
 def column_calls(
-    zh, crx_adv, cry_adv, xfx_adv, yfx_adv, ra_x, ra_y, ndif, damp, kstart, nk
+    zh: FloatField,
+    crx_adv: FloatField,
+    cry_adv: FloatField,
+    xfx_adv: FloatField,
+    yfx_adv: FloatField,
+    ra_x: FloatField,
+    ra_y: FloatField,
+    ndif: float,
+    damp: float,
+    kstart: int,
+    nk: int,
 ):
+    if damp <= 1e-5:
+        raise Exception("untested")
+        # fvtp2d.compute_no_sg(
+        #     zh,
+        #     crx_adv,
+        #     cry_adv,
+        #     spec.namelist.hord_tm,
+        #     xfx_adv,
+        #     yfx_adv,
+        #     ra_x,
+        #     ra_y,
+        #     fx,
+        #     fy,
+        #     kstart=kstart,
+        #     nk=nk,
+        # )
+        # zh_stencil(
+        #     grid.area,
+        #     zh,
+        #     fx,
+        #     fy,
+        #     ra_x,
+        #     ra_y,
+        #     origin=compute_origin,
+        #     domain=compute_domain,
+        # )
+    # else:
     grid = spec.grid
     default_origin = (grid.isd, grid.jsd, kstart)
     compute_origin = (grid.is_, grid.js, kstart)
     compute_domain = (grid.nic, grid.njc, nk)
-    if damp > 1e-5:
-        wk = utils.make_storage_from_shape(zh.shape, default_origin)
-        fx2 = utils.make_storage_from_shape(zh.shape, default_origin)
-        fy2 = utils.make_storage_from_shape(zh.shape, default_origin)
-        fx = utils.make_storage_from_shape(zh.shape, default_origin)
-        fy = utils.make_storage_from_shape(zh.shape, default_origin)
-        z2 = copy(zh, origin=default_origin, domain=(grid.nid, grid.njd, nk))
-        fvtp2d.compute_no_sg(
-            z2,
-            crx_adv,
-            cry_adv,
-            spec.namelist.hord_tm,
-            xfx_adv,
-            yfx_adv,
-            ra_x,
-            ra_y,
-            fx,
-            fy,
-            kstart=kstart,
-            nk=nk,
-        )
-        delnflux.compute_no_sg(z2, fx2, fy2, ndif, damp, wk, kstart=kstart, nk=nk)
-        zh_damp_stencil(
-            grid.area,
-            z2,
-            fx,
-            fy,
-            ra_x,
-            ra_y,
-            fx2,
-            fy2,
-            grid.rarea,
-            zh,
-            origin=compute_origin,
-            domain=compute_domain,
-        )
-    else:
-        raise Exception("untested")
-        fvtp2d.compute_no_sg(
-            zh,
-            crx_adv,
-            cry_adv,
-            spec.namelist.hord_tm,
-            xfx_adv,
-            yfx_adv,
-            ra_x,
-            ra_y,
-            fx,
-            fy,
-            kstart=kstart,
-            nk=nk,
-        )
-        zh_stencil(
-            grid.area,
-            zh,
-            fx,
-            fy,
-            ra_x,
-            ra_y,
-            origin=compute_origin,
-            domain=compute_domain,
-        )
 
-    return [zh]
+    wk = utils.make_storage_from_shape(zh.shape, default_origin)
+    fx2 = utils.make_storage_from_shape(zh.shape, default_origin)
+    fy2 = utils.make_storage_from_shape(zh.shape, default_origin)
+    fx = utils.make_storage_from_shape(zh.shape, default_origin)
+    fy = utils.make_storage_from_shape(zh.shape, default_origin)
+    z2 = copy(zh, origin=default_origin, domain=(grid.nid, grid.njd, nk))
+    fvtp2d.compute_no_sg(
+        z2,
+        crx_adv,
+        cry_adv,
+        spec.namelist.hord_tm,
+        xfx_adv,
+        yfx_adv,
+        ra_x,
+        ra_y,
+        fx,
+        fy,
+        kstart=kstart,
+        nk=nk,
+    )
+    delnflux.compute_no_sg(z2, fx2, fy2, ndif, damp, wk, kstart=kstart, nk=nk)
+    zh_damp_stencil(
+        grid.area,
+        z2,
+        fx,
+        fy,
+        ra_x,
+        ra_y,
+        fx2,
+        fy2,
+        grid.rarea,
+        zh,
+        origin=compute_origin,
+        domain=compute_domain,
+    )
+    # return [zh]
