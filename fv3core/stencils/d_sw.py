@@ -1,3 +1,4 @@
+import copy
 import logging
 
 import gt4py.gtscript as gtscript
@@ -42,9 +43,22 @@ def k_indices():
 
 
 def d_sw_ksplit(func, data, splitvars_values, outputs, grid, allz=False):
-    utils.k_split_run_dataslice(
-        func, data, k_indices(), splitvars_values, outputs, grid, allz
-    )
+    num_k = grid.npz
+    grid_data = copy.deepcopy(grid.data_fields)
+    for ki in k_indices():
+        splitvars = {}
+        for name, value_array in splitvars_values.items():
+            splitvars[name] = value_array[ki[0]]
+
+        grid.npz = len(ki)
+        grid.slice_data_k(ki)
+        new_data = utils.k_slice(data, ki)
+        new_data.update(splitvars)
+
+        results = func(**new_data)
+        utils.collect_results(new_data, results, outputs, ki, allz)
+        grid.add_data(grid_data)
+    grid.npz = num_k
 
 
 @gtscript.function
@@ -378,18 +392,17 @@ def compute(
     diss_est,
     dt,
 ):
-
+    # TODO: If namelist['hydrostatic' and not namelist['use_old_omega'] and last_step.
+    if spec.namelist.d_ext > 0:
+        raise Exception(
+            "untested d_ext > 0. need to call a2b_ord2, not yet implemented"
+        )
     # TODO: Remove paired with removal of #d_sw belos
     # column_namelist = column_namelist_options(0)
     column_namelist = get_column_namelist()
     heat_s = utils.make_storage_from_shape(heat_source.shape, grid().compute_origin())
     diss_e = utils.make_storage_from_shape(heat_source.shape, grid().compute_origin())
     z_rat = utils.make_storage_from_shape(heat_source.shape, grid().default_origin())
-    # TODO: If namelist['hydrostatic' and not namelist['use_old_omega'] and last_step.
-    if spec.namelist.d_ext > 0:
-        raise Exception(
-            "untested d_ext > 0. need to call a2b_ord2, not yet implemented"
-        )
     if spec.namelist.do_f3d and not spec.namelist.hydrostatic:
         coriolis_force_correction(
             zh,
@@ -529,7 +542,7 @@ def d_sw(
     column_namelist,
 ):
 
-    logger.debug("Parameters that vary with k: {}".format(column_namelist))
+    # logger.debug("Parameters that vary with k: {}".format(column_namelist))
     shape = heat_s.shape
     ub = utils.make_storage_from_shape(shape, grid().compute_origin())
     vb = utils.make_storage_from_shape(shape, grid().compute_origin())
