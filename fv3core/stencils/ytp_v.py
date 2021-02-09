@@ -128,16 +128,12 @@ def _compute_stencil(
         flux = _get_flux(v, courant, rdy, bl, br)
 
 
-def compute(c: FloatField, u: FloatField, v: FloatField, flux: FloatField):
+def compute(c: FloatField, v: FloatField, flux: FloatField):
     """
     Compute flux of kinetic energy in y-dir.
 
-    Notes:
-        u is passed in here, but is unused in the stencil.
-
     Args:
         c (in): Courant number in flux form
-        u (in): x-dir wind on Arakawa D-grid
         v (in): y-dir wind on Arakawa D-grid
         flux (out): Flux of kinetic energy
     """
