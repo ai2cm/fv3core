@@ -178,6 +178,8 @@ def fill_corners_cells(q: FloatField, direction: str, num_fill: int = 2):
     """
     Fill corners of q from Python.
 
+    Corresponds to fill4corners in Fortran.
+
     Args:
         q (inout): Cell field
         direction: Direction to fill. Either "x" or "y".
