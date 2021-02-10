@@ -42,7 +42,7 @@ def constrain_interior(q, gam, a4):
 
 
 @gtscript.function
-def ppm_constraint(
+def remap_constraint(
     a4_1: FloatField,
     a4_2: FloatField,
     a4_3: FloatField,
@@ -87,7 +87,7 @@ def ppm_constraint(
             elif a6da > da2:
                 a4_4 = 3.0 * (a4_3 - a4_1)
                 a4_2 = a4_3 - a4_4
-    # ppm_constraint
+    # remap_constraint
     if iv >= 2:
         da1 = a4_3 - a4_2
         da2 = da1 * da1
@@ -274,12 +274,13 @@ def set_top(
     iv: int,
 ):
     # set_top_as_iv0
-    with computation(PARALLEL), interval(0, 1):
-        if iv == 0:
-            a4_2 = a4_2 if a4_2 > 0.0 else 0.0
-    with computation(PARALLEL), interval(...):
-        if iv == 0:
-            a4_4 = 3 * (2 * a4_1 - (a4_2 + a4_3))
+    with computation(PARALLEL):
+        with interval(0, 1):
+            if iv == 0:
+                a4_2 = a4_2 if a4_2 > 0.0 else 0.0
+        with interval(...):
+            if iv == 0:
+                a4_4 = 3 * (2 * a4_1 - (a4_2 + a4_3))
     # set_top_as_iv1
     with computation(PARALLEL):
         with interval(0, 1):
@@ -299,14 +300,15 @@ def set_top(
             if iv == 2:
                 a4_4 = 3 * (2 * a4_1 - (a4_2 + a4_3))
     # set_top_as_else
-    with computation(PARALLEL), interval(...):
-        if iv < -1 or iv == 1 or iv > 2:
-            a4_4 = 3.0 * (2.0 * a4_1 - (a4_2 + a4_3))
-    with computation(PARALLEL), interval(0, -1):
-        if iv != 2:
-            a4_1, a4_2, a4_3, a4_4 = ppm_constraint(a4_1, a4_2, a4_3, a4_4, extm, 1)
-    with computation(PARALLEL), interval(1, None):
-        a4_1, a4_2, a4_3, a4_4 = ppm_constraint(a4_1, a4_2, a4_3, a4_4, extm, 2)
+    with computation(PARALLEL):
+        with interval(...):
+            if iv < -1 or iv == 1 or iv > 2:
+                a4_4 = 3.0 * (2.0 * a4_1 - (a4_2 + a4_3))
+        with interval(0, -1):
+            if iv != 2:
+                a4_1, a4_2, a4_3, a4_4 = remap_constraint(a4_1, a4_2, a4_3, a4_4, extm, 1)
+        with interval(1, None):
+            a4_1, a4_2, a4_3, a4_4 = remap_constraint(a4_1, a4_2, a4_3, a4_4, extm, 2)
 
 
 @gtstencil()
@@ -469,9 +471,9 @@ def set_inner(
             else:
                 a4_2 = a4_2
             a4_4 = 3.0 * (2.0 * a4_1 - (a4_2 + a4_3))
-        # ppm_constraint
+        # remap_constraint
         if iv == 0:
-            a4_1, a4_2, a4_3, a4_4 = ppm_constraint(a4_1, a4_2, a4_3, a4_4, extm, 0)
+            a4_1, a4_2, a4_3, a4_4 = remap_constraint(a4_1, a4_2, a4_3, a4_4, extm, 0)
 
 
 @gtstencil()
@@ -502,9 +504,9 @@ def set_bottom(
         if iv > 0 or iv < -1:
             a4_4 = 3.0 * (2.0 * a4_1 - (a4_2 + a4_3))
     with computation(PARALLEL), interval(0, -1):
-        a4_1, a4_2, a4_3, a4_4 = ppm_constraint(a4_1, a4_2, a4_3, a4_4, extm, 2)
+        a4_1, a4_2, a4_3, a4_4 = remap_constraint(a4_1, a4_2, a4_3, a4_4, extm, 2)
     with computation(PARALLEL), interval(1, None):
-        a4_1, a4_2, a4_3, a4_4 = ppm_constraint(a4_1, a4_2, a4_3, a4_4, extm, 1)
+        a4_1, a4_2, a4_3, a4_4 = remap_constraint(a4_1, a4_2, a4_3, a4_4, extm, 1)
 
 
 def compute(
