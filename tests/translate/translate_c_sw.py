@@ -309,8 +309,8 @@ class TranslateKE_C_SW(TranslateFortranData2Py):
             sin_sg4=self.grid.sin_sg4,
             cos_sg4=self.grid.cos_sg4,
             **inputs,
-            origin=(self.grid.is_ - 1, self.grid.js - 1, 0),
-            domain=(self.grid.nic + 2, self.grid.njc + 2, self.grid.npz),
+            origin=self.grid.compute_origin(add=(-1, -1, 0)),
+            domain=self.grid.domain_shape_compute(add=(2, 2, 0)),
         )
         return self.slice_output(inputs)
 
