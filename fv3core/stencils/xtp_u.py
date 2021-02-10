@@ -25,37 +25,25 @@ def _get_flux(
         u: x-dir wind
         courant: Courant number in flux form
         rdx: 1.0 / dx
-        bl: ?
-        br: ?
+        bl: ???
+        br: ???
 
     Returns:
         flux: Kinetic energy flux
     """
     # Could try merging this with xppm version.
 
-    from __externals__ import iord, mord
+    from __externals__ import iord
 
     b0 = bl + br
     cfl = courant * rdx[-1, 0, 0] if courant > 0 else courant * rdx
     fx0 = xppm.fx1_fn(cfl, br, b0, bl)
 
     if __INLINED(iord < 8):
-        if __INLINED(mord == 5):
-            smt5 = bl * br < 0
-        else:
-            smt5 = (3.0 * abs(b0)) < abs(bl - br)
-
-        if smt5[-1, 0, 0]:
-            tmp = smt5[-1, 0, 0]
-        else:
-            tmp = smt5[-1, 0, 0] + smt5[0, 0, 0]
-
-        flux = xppm.final_flux(courant, u, fx0, tmp)
-
+        tmp = xppm.get_tmp(bl, b0, br)
     else:
-        flux = xppm.final_flux(courant, u, fx0, 1.0)
-
-    return flux
+        tmp = 1.0
+    return xppm.final_flux(courant, u, fx0, tmp)
 
 
 def _compute_stencil(

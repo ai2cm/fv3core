@@ -31,28 +31,18 @@ def _get_flux(
     Returns:
         Kinetic energy flux
     """
-    from __externals__ import jord, mord
+    from __externals__ import jord
 
     b0 = bl + br
     cfl = courant * rdy[0, -1, 0] if courant > 0 else courant * rdy
     fx0 = yppm.fx1_fn(cfl, br, b0, bl)
 
     if __INLINED(jord < 8):
-        if __INLINED(mord == 5):
-            smt5 = bl * br < 0
-        else:
-            smt5 = (3.0 * abs(b0)) < abs(bl - br)
-
-        if smt5[0, -1, 0]:
-            tmp = smt5[0, -1, 0]
-        else:
-            tmp = smt5[0, -1, 0] + smt5[0, 0, 0]
-
-        flux = yppm.final_flux(courant, v, fx0, tmp)
+        tmp = yppm.get_tmp(bl, b0, br)
     else:
-        flux = yppm.final_flux(courant, v, fx0, 1.0)
+        tmp = 1.0
 
-    return flux
+    return yppm.final_flux(courant, v, fx0, tmp)
 
 
 def _compute_stencil(

@@ -32,23 +32,29 @@ def fx1_fn(courant, br, b0, bl):
 
 
 @gtscript.function
-def get_flux(q: FloatField, courant: FloatField, al: FloatField):
+def get_tmp(bl, b0, br):
     from __externals__ import mord
-
-    bl = al[0, 0, 0] - q[0, 0, 0]
-    br = al[1, 0, 0] - q[0, 0, 0]
-    b0 = bl + br
 
     if __INLINED(mord == 5):
         smt5 = bl * br < 0
     else:
         smt5 = (3.0 * abs(b0)) < abs(bl - br)
 
-    if smt5[-1, 0, 0]:
-        tmp = smt5[-1, 0, 0]
+    if smt5[-1, 0, 0] or smt5[0, 0, 0]:
+        tmp = 1.0
     else:
-        tmp = smt5[-1, 0, 0] + smt5[0, 0, 0]
+        tmp = 0.0
 
+    return tmp
+
+
+@gtscript.function
+def get_flux(q: FloatField, courant: FloatField, al: FloatField):
+    bl = al[0, 0, 0] - q[0, 0, 0]
+    br = al[1, 0, 0] - q[0, 0, 0]
+    b0 = bl + br
+
+    tmp = get_tmp(bl, b0, br)
     fx1 = fx1_fn(courant, br, b0, bl)
     return final_flux(courant, q, fx1, tmp)  # noqa
 
@@ -213,7 +219,7 @@ def compute_al(q: FloatField, dxa: FloatField):
     Interpolate q at interface.
 
     Inputs:
-        q: Tracer
+        q: Transported scalar
         dxa: dx on A-grid (?)
 
     Returns:
