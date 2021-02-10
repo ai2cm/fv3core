@@ -91,14 +91,6 @@ def fill_corners_3cells_mult_x(
 
 
 @gtscript.function
-def fill_corners_3cells_x(q: FloatField):
-    """
-    Fills cell quantity q in x-dir.
-    """
-    return fill_corners_3cells_mult_x(q, q, 1.0, 1.0, 1.0, 1.0)
-
-
-@gtscript.function
 def fill_corners_2cells_mult_y(
     q: FloatField,
     q_corner: FloatField,
@@ -182,17 +174,11 @@ def fill_corners_3cells_mult_y(
     return q
 
 
-@gtscript.function
-def fill_corners_3cells_y(q: FloatField):
-    """
-    Fills cell quantity q in y-dir.
-    """
-    return fill_corners_3cells_mult_y(q, q, 1.0, 1.0, 1.0, 1.0)
-
-
 def fill_corners_cells(q: FloatField, direction: str, num_fill: int = 2):
     """
     Fill corners of q from Python.
+
+    Corresponds to fill4corners in Fortran.
 
     Args:
         q (inout): Cell field
