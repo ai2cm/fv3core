@@ -210,16 +210,15 @@ def lagrangian_contributions_stencil(
 ):
     # A stencil with a loop over k2:
     km = spec.grid.npz
-    klevs = np.arange(km)
-    orig = spec.grid.full_origin()
-    q2_adds = utils.make_storage_from_shape(q4_1.shape, origin=orig)
-    for k_eul in klevs:
-        eulerian_top_pressure = pe2[:, :, k_eul]
-        eulerian_bottom_pressure = pe2[:, :, k_eul + 1]
-        top_p = utils.repeat(eulerian_top_pressure[:, :, np.newaxis], km + 1, axis=2)
-        bot_p = utils.repeat(eulerian_bottom_pressure[:, :, np.newaxis], km + 1, axis=2)
-        ptop = utils.make_storage_data(top_p, q4_1.shape)
-        pbot = utils.make_storage_data(bot_p, q4_1.shape)
+    shape2d = pe2.shape[0:2]
+    q2_adds = utils.make_storage_from_shape(shape2d)
+    ptop = utils.make_storage_from_shape(shape2d)
+    pbot = utils.make_storage_from_shape(shape2d)
+
+    for k_eul in range(km):
+        ptop[:, :] = pe2[:, :, k_eul]
+        pbot[:, :] = pe2[:, :, k_eul + 1]
+        q2_adds[:] = 0.0
 
         lagrangian_contributions(
             pe1,
