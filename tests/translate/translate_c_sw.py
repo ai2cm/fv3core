@@ -372,6 +372,6 @@ class TranslateVorticityTransport_Cgrid(TranslateFortranData2Py):
             rdxc=self.grid.rdxc,
             rdyc=self.grid.rdyc,
             origin=self.grid.compute_origin(),
-            domain=self.grid.domain_shape_compute_buffer_2d(add=(1, 1, 0)),
+            domain=self.grid.domain_shape_compute(add=(1, 1, 0)),
         )
         return self.slice_output(inputs)
