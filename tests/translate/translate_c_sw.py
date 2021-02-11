@@ -11,7 +11,7 @@ from fv3core.stencils.c_sw import (
     vorticitytransport,
 )
 from fv3core.testing import TranslateFortranData2Py
-from fv3core.utils.typing import FloatField
+from fv3core.utils.typing import FloatField, FloatFieldIJ
 
 
 class TranslateC_SW(TranslateFortranData2Py):
@@ -105,14 +105,14 @@ def divergence_corner_stencil(
     va: FloatField,
     dxc: FloatField,
     dyc: FloatField,
-    sin_sg1: FloatField,
-    sin_sg2: FloatField,
-    sin_sg3: FloatField,
-    sin_sg4: FloatField,
-    cos_sg1: FloatField,
-    cos_sg2: FloatField,
-    cos_sg3: FloatField,
-    cos_sg4: FloatField,
+    sin_sg1: FloatFieldIJ,
+    sin_sg2: FloatFieldIJ,
+    sin_sg3: FloatFieldIJ,
+    sin_sg4: FloatFieldIJ,
+    cos_sg1: FloatFieldIJ,
+    cos_sg2: FloatFieldIJ,
+    cos_sg3: FloatFieldIJ,
+    cos_sg4: FloatFieldIJ,
     rarea_c: FloatField,
     divg_d: FloatField,
 ):
@@ -236,14 +236,14 @@ def update_vorticity_and_kinetic_energy_stencil(
     vc: FloatField,
     u: FloatField,
     v: FloatField,
-    sin_sg1: FloatField,
-    cos_sg1: FloatField,
-    sin_sg2: FloatField,
-    cos_sg2: FloatField,
-    sin_sg3: FloatField,
-    cos_sg3: FloatField,
-    sin_sg4: FloatField,
-    cos_sg4: FloatField,
+    sin_sg1: FloatFieldIJ,
+    cos_sg1: FloatFieldIJ,
+    sin_sg2: FloatFieldIJ,
+    cos_sg2: FloatFieldIJ,
+    sin_sg3: FloatFieldIJ,
+    cos_sg3: FloatFieldIJ,
+    sin_sg4: FloatFieldIJ,
+    cos_sg4: FloatFieldIJ,
     dt2: float,
     ke_c: FloatField,
     vort_c: FloatField,
