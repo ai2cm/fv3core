@@ -27,6 +27,7 @@ class TranslateFortranData2Py:
         self.origin = origin
         self.in_vars = {"data_vars": {}, "parameters": []}
         self.out_vars = {}
+        self.write_vars = []
         self.grid = grid
         self.maxshape = grid.domain_shape_full(add=(1, 1, 1))
         self.ordered_input_vars = None
@@ -74,6 +75,7 @@ class TranslateFortranData2Py:
         dummy_axes: Optional[Tuple[int, int, int]] = None,
         axis: int = 2,
         names_4d: Optional[List[str]] = None,
+        read_only: bool = False,
     ) -> Dict[str, type(Field)]:
         use_shape = list(self.maxshape)
         if dummy_axes:
@@ -92,6 +94,7 @@ class TranslateFortranData2Py:
                 dummy=dummy_axes,
                 axis=axis,
                 names=names_4d,
+                read_only=read_only,
             )
         else:
             return utils.make_storage_data(
@@ -101,6 +104,7 @@ class TranslateFortranData2Py:
                 origin=start,
                 dummy=dummy_axes,
                 axis=axis,
+                read_only=read_only,
             )
 
     def storage_vars(self):
@@ -187,6 +191,7 @@ class TranslateFortranData2Py:
                 dummy_axes=dummy_axes,
                 axis=axis,
                 names_4d=names_4d,
+                read_only=d not in self.write_vars,
             )
             if d != serialname:
                 del inputs[serialname]
@@ -222,7 +227,7 @@ class TranslateFortranData2Py:
                     )
                 out[serialname] = var4d
             else:
-                data_result.synchronize()
+                # data_result.synchronize()
                 out[serialname] = np.squeeze(
                     np.asarray(data_result)[self.grid.slice_dict(ds)]
                 )
@@ -301,6 +306,7 @@ class TranslateGrid:
                     shape,
                     start=(0, 0, pygrid.halo),
                     axis=axis,
+                    read_only=True,
                 )
         for k, v in self.data.items():
             if type(v) is np.ndarray:
@@ -314,7 +320,7 @@ class TranslateGrid:
                 )
                 origin = (istart, jstart, 0)
                 self.data[k] = utils.make_storage_data(
-                    v, shape, origin=origin, start=origin
+                    v, shape, origin=origin, start=origin, read_only=True
                 )
 
     def python_grid(self):

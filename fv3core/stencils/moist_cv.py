@@ -4,7 +4,7 @@ from gt4py.gtscript import BACKWARD, FORWARD, PARALLEL, computation, exp, interv
 import fv3core._config as spec
 import fv3core.utils.global_constants as constants
 from fv3core.decorators import gtstencil
-from fv3core.utils.typing import FloatField, FloatFieldIJ
+from fv3core.utils.typing import FloatField
 
 
 @gtscript.function
@@ -256,8 +256,8 @@ def moist_pt(
     qice: FloatField,
     qgraupel: FloatField,
     q_con: FloatField,
-    gz: FloatFieldIJ,
-    cvm: FloatFieldIJ,
+    gz: FloatField,
+    cvm: FloatField,
     pt: FloatField,
     cappa: FloatField,
     delp: FloatField,
