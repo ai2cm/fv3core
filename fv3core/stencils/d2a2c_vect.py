@@ -4,7 +4,7 @@ from gt4py.gtscript import PARALLEL, computation, interval
 import fv3core._config as spec
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import gtstencil
-from fv3core.stencils.a2b_ord4 import a1, a2, lagrange_x_func, lagrange_y_func
+from fv3core.stencils.a2b_ord4 import a1, a2, lagrange_x, lagrange_y
 
 
 sd = utils.sd
@@ -79,14 +79,14 @@ def contravariant_components(utmp: sd, vtmp: sd, cosa_s: sd, rsin2: sd, ua: sd, 
 @gtstencil()
 def ut_main(utmp: sd, uc: sd, v: sd, cosa_u: sd, rsin_u: sd, ut: sd):
     with computation(PARALLEL), interval(...):
-        uc = lagrange_x_func(utmp)
+        uc = lagrange_x(utmp)
         ut = contravariant(uc, v, cosa_u, rsin_u)
 
 
 @gtstencil()
 def vt_main(vtmp: sd, vc: sd, u: sd, cosa_v: sd, rsin_v: sd, vt: sd):
     with computation(PARALLEL), interval(...):
-        vc = lagrange_y_func(vtmp)
+        vc = lagrange_y(vtmp)
         vt = contravariant(vc, u, cosa_v, rsin_v)
 
 
