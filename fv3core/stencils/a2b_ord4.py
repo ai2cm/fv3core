@@ -22,7 +22,7 @@ from fv3core.utils import global_config
 from fv3core.utils.typing import Float, FloatField, FloatFieldIJ
 
 
-# comact 4-pt cubic interpolation
+# compact 4-pt cubic interpolation
 c1 = 2.0 / 3.0
 c2 = -1.0 / 6.0
 d1 = 0.375
@@ -74,11 +74,6 @@ def cubic_interpolation_west(qy: FloatField, qout: FloatField, qyy: FloatField):
 @gtscript.function
 def cubic_interpolation_east(qy: FloatField, qout: FloatField, qyy: FloatField):
     return c1 * (qy[-1, 0, 0] + qy) + c2 * (qout[1, 0, 0] + qyy[-1, 0, 0])
-
-
-@gtscript.function
-def qout_avg(qxx: FloatField, qyy: FloatField):
-    return 0.5 * (qxx + qyy)
 
 
 @gtscript.function
@@ -212,9 +207,6 @@ def _a2b_ord4_stencil(
     edge_e: FloatFieldIJ,
     edge_w: FloatFieldIJ,
 ):
-    """
-    Fill corners for a2b_ord4. ???
-    """
     from __externals__ import REPLACE, i_end, i_start, j_end, j_start, namelist
 
     with computation(PARALLEL), interval(...):
@@ -357,23 +349,22 @@ def _a2b_ord4_stencil(
             region[i_start - 1 : i_start + 1, :], region[i_end : i_end + 2, :]
         ):
             q2 = (qin[-1, 0, 0] * dxa + qin * dxa[-1, 0]) / (dxa[-1, 0] + dxa)
-        with horizontal(region[i_start, :]):
+        with horizontal(region[i_start, j_start + 1 : j_end + 1]):
             qout = qout_x_edge(qin, dxa, edge_w, q2)
-        with horizontal(region[i_end + 1, :]):
+        with horizontal(region[i_end + 1, j_start + 1 : j_end + 1]):
             qout = qout_x_edge(qin, dxa, edge_e, q2)
 
         with horizontal(
             region[:, j_start - 1 : j_start + 1], region[:, j_end : j_end + 2]
         ):
             q1 = (qin[0, -1, 0] * dya + qin * dya[0, -1]) / (dya[0, -1] + dya)
-        with horizontal(region[:, j_start]):
+        with horizontal(region[i_start + 1 : i_end + 1, j_start]):
             qout = qout_y_edge(qin, dya, edge_s, q1)
-        with horizontal(region[:, j_end + 1]):
+        with horizontal(region[i_start + 1 : i_end + 1, j_end + 1]):
             qout = qout_y_edge(qin, dya, edge_n, q1)
 
         # compute_qx
         qx = ppm_volume_mean_x(qin)
-
         with horizontal(region[i_start, :]):
             qx = qx_edge_west(qin, dxa)
         with horizontal(region[i_start + 1, :]):
@@ -386,7 +377,6 @@ def _a2b_ord4_stencil(
 
         # compute_qy
         qy = ppm_volume_mean_y(qin)
-
         with horizontal(region[:, j_start]):
             qy = qy_edge_south(qin, dya)
         with horizontal(region[:, j_start + 1]):
@@ -411,11 +401,8 @@ def _a2b_ord4_stencil(
         with horizontal(region[i_end, :]):
             qyy = cubic_interpolation_east(qy, qout, qyy)
 
-        # js = grid().js + 1 if grid().south_edge else grid().js
-        # je = grid().je if grid().north_edge else grid().je + 1
-        # is_ = grid().is_ + 1 if grid().west_edge else grid().is_
-        # ie = grid().ie if grid().east_edge else grid().ie + 1
-        qout = qout_avg(qxx, qyy)
+        with horizontal(region[i_start + 1 : i_end + 1, j_start + 1 : j_end + 1]):
+            qout = 0.5 * (qxx + qyy)
         # }
 
         if __INLINED(REPLACE):
@@ -470,6 +457,6 @@ def compute(
         edge_s,
         edge_e,
         edge_w,
-        origin=spec.grid.compute_origin(),
-        domain=spec.grid.domain_shape_compute(),
+        origin=spec.grid.compute_origin(add=(0, 0, kstart)),
+        domain=spec.grid.domain_shape_compute(add=(0, 0, -kstart)),
     )
