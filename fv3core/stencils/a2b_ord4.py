@@ -682,7 +682,7 @@ def extrapolate_corners_stencil(
             qout = (ec1 + ec2 + ec3) * (1.0 / 3.0)
 
 
-def _make_grid_storage_2d(grid_array, index=0):
+def _make_grid_storage_2d(grid_array: gt4py.storage.Storage, index: int = 0):
     grid = spec.grid
     return gt4py.storage.from_array(
         grid_array[:, :, index],
@@ -704,10 +704,10 @@ def compute(
     grid = spec.grid
     if nk is None:
         nk = grid.npz - kstart
-    agrid1 = _make_grid_storage_2d(grid.agrid1, index=0)
-    agrid2 = _make_grid_storage_2d(grid.agrid2, index=0)
-    bgrid1 = _make_grid_storage_2d(grid.bgrid1, index=0)
-    bgrid2 = _make_grid_storage_2d(grid.bgrid2, index=0)
+    agrid1 = _make_grid_storage_2d(grid.agrid1)
+    agrid2 = _make_grid_storage_2d(grid.agrid2)
+    bgrid1 = _make_grid_storage_2d(grid.bgrid1)
+    bgrid2 = _make_grid_storage_2d(grid.bgrid2)
     extrapolate_corners_stencil(
         qin,
         qout,
