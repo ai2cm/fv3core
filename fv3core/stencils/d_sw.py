@@ -402,13 +402,13 @@ def compute(
     column_namelist = get_column_namelist()
     heat_s = utils.make_storage_from_shape(heat_source.shape, grid().compute_origin())
     diss_e = utils.make_storage_from_shape(heat_source.shape, grid().compute_origin())
-    z_rat = utils.make_storage_from_shape(heat_source.shape, grid().default_origin())
+    z_rat = utils.make_storage_from_shape(heat_source.shape, grid().full_origin())
     if spec.namelist.do_f3d and not spec.namelist.hydrostatic:
         coriolis_force_correction(
             zh,
             z_rat,
-            origin=grid().default_origin(),
-            domain=grid().domain_shape_standard(),
+            origin=grid().full_origin(),
+            domain=grid().domain_shape_full(),
         )
     # TODO: This seems a little redundant, revisit the k column split mechanism
     # and/or the argument passing method
@@ -473,9 +473,9 @@ def compute(
 
 def damp_vertical_wind(w, heat_s, diss_e, dt, column_namelist):
     dw = utils.make_storage_from_shape(w.shape, grid().compute_origin())
-    wk = utils.make_storage_from_shape(w.shape, grid().default_origin())
-    fx2 = utils.make_storage_from_shape(w.shape, grid().default_origin())
-    fy2 = utils.make_storage_from_shape(w.shape, grid().default_origin())
+    wk = utils.make_storage_from_shape(w.shape, grid().full_origin())
+    fx2 = utils.make_storage_from_shape(w.shape, grid().full_origin())
+    fy2 = utils.make_storage_from_shape(w.shape, grid().full_origin())
     if column_namelist["damp_w"] > 1e-5:
         dd8 = column_namelist["ke_bg"] * abs(dt)
         damp4 = (column_namelist["damp_w"] * grid().da_min_c) ** (
@@ -546,10 +546,10 @@ def d_sw(
     shape = heat_s.shape
     ub = utils.make_storage_from_shape(shape, grid().compute_origin())
     vb = utils.make_storage_from_shape(shape, grid().compute_origin())
-    ke = utils.make_storage_from_shape(shape, grid().default_origin())
-    vort = utils.make_storage_from_shape(shape, grid().default_origin())
-    ut = utils.make_storage_from_shape(shape, grid().default_origin())
-    vt = utils.make_storage_from_shape(shape, grid().default_origin())
+    ke = utils.make_storage_from_shape(shape, grid().full_origin())
+    vort = utils.make_storage_from_shape(shape, grid().full_origin())
+    ut = utils.make_storage_from_shape(shape, grid().full_origin())
+    vt = utils.make_storage_from_shape(shape, grid().full_origin())
     fx = utils.make_storage_from_shape(shape, grid().compute_origin())
     fy = utils.make_storage_from_shape(shape, grid().compute_origin())
     gx = utils.make_storage_from_shape(shape, grid().compute_origin())
@@ -726,7 +726,7 @@ def d_sw(
         spec.grid.rarea,
         wk,
         origin=(0, 0, 0),
-        domain=spec.grid.domain_shape_standard(),
+        domain=spec.grid.domain_shape_full(),
     )
 
     # TODO if spec.namelist.d_f3d and ROT3 unimplemeneted
@@ -765,13 +765,13 @@ def d_sw(
             vort,
             ub,
             origin=grid().compute_origin(),
-            domain=grid().domain_shape_compute_y(),
+            domain=grid().domain_shape_compute(add=(0, 1, 0)),
         )
         vb_from_vort(
             vort,
             vb,
             origin=grid().compute_origin(),
-            domain=grid().domain_shape_compute_x(),
+            domain=grid().domain_shape_compute(add=(1, 0, 0)),
         )
 
     # Vorticity transport
@@ -781,16 +781,16 @@ def d_sw(
             grid().f0,
             z_rat,
             vort,
-            orgin=grid().default_origin(),
-            domain=grid().domain_shape_standard(),
+            orgin=grid().full_origin(),
+            domain=grid().domain_shape_full(),
         )
     else:
         basic.addition_stencil(
             wk,
             grid().f0,
             vort,
-            origin=grid().default_origin(),
-            domain=grid().domain_shape_standard(),
+            origin=grid().full_origin(),
+            domain=grid().domain_shape_full(),
         )
 
     fvtp2d.compute_no_sg(
@@ -803,7 +803,7 @@ def d_sw(
         fy,
         u,
         origin=grid().compute_origin(),
-        domain=grid().domain_shape_compute_y(),
+        domain=grid().domain_shape_compute(add=(0, 1, 0)),
     )
 
     v_from_ke(
@@ -812,7 +812,7 @@ def d_sw(
         fx,
         v,
         origin=grid().compute_origin(),
-        domain=grid().domain_shape_compute_x(),
+        domain=grid().domain_shape_compute(add=(1, 0, 0)),
     )
 
     if column_namelist["damp_vt"] > dcon_threshold:
@@ -841,11 +841,11 @@ def d_sw(
             vt,
             u,
             origin=grid().compute_origin(),
-            domain=grid().domain_shape_compute_y(),
+            domain=grid().domain_shape_compute(add=(0, 1, 0)),
         )
         basic.subtract_term_stencil(
             ut,
             v,
             origin=grid().compute_origin(),
-            domain=grid().domain_shape_compute_x(),
+            domain=grid().domain_shape_compute(add=(1, 0, 0)),
         )

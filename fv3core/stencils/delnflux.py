@@ -1,24 +1,23 @@
+from typing import Optional
+
 from gt4py.gtscript import PARALLEL, computation, interval
 
 import fv3core._config as spec
 import fv3core.utils.corners as corners
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import gtstencil
-from fv3core.stencils.basic_operations import copy
-
-
-sd = utils.sd
+from fv3core.utils.typing import FloatField
 
 
 @gtstencil()
-def fx2_order(q: sd, del6_v: sd, fx2: sd, order: int):
+def fx2_order(q: FloatField, del6_v: FloatField, fx2: FloatField, order: int):
     with computation(PARALLEL), interval(...):
         fx2[0, 0, 0] = del6_v * (q[-1, 0, 0] - q)
         fx2[0, 0, 0] = -1.0 * fx2 if order > 1 else fx2
 
 
 @gtstencil()
-def fy2_order(q: sd, del6_u: sd, fy2: sd, order: int):
+def fy2_order(q: FloatField, del6_u: FloatField, fy2: FloatField, order: int):
     with computation(PARALLEL), interval(...):
         fy2[0, 0, 0] = del6_u * (q[0, -1, 0] - q)
         fy2[0, 0, 0] = fy2 * -1 if order > 1 else fy2
@@ -26,7 +25,14 @@ def fy2_order(q: sd, del6_u: sd, fy2: sd, order: int):
 
 # WARNING: untested
 @gtstencil()
-def fx2_firstorder_use_sg(q: sd, sin_sg1: sd, sin_sg3: sd, dy: sd, rdxc: sd, fx2: sd):
+def fx2_firstorder_use_sg(
+    q: FloatField,
+    sin_sg1: FloatField,
+    sin_sg3: FloatField,
+    dy: FloatField,
+    rdxc: FloatField,
+    fx2: FloatField,
+):
     with computation(PARALLEL), interval(...):
         fx2[0, 0, 0] = (
             0.5 * (sin_sg3[-1, 0, 0] + sin_sg1) * dy * (q[-1, 0, 0] - q) * rdxc
@@ -35,7 +41,14 @@ def fx2_firstorder_use_sg(q: sd, sin_sg1: sd, sin_sg3: sd, dy: sd, rdxc: sd, fx2
 
 # WARNING: untested
 @gtstencil()
-def fy2_firstorder_use_sg(q: sd, sin_sg2: sd, sin_sg4: sd, dx: sd, rdyc: sd, fy2: sd):
+def fy2_firstorder_use_sg(
+    q: FloatField,
+    sin_sg2: FloatField,
+    sin_sg4: FloatField,
+    dx: FloatField,
+    rdyc: FloatField,
+    fy2: FloatField,
+):
     with computation(PARALLEL), interval(...):
         fy2[0, 0, 0] = (
             0.5 * (sin_sg4[0, -1, 0] + sin_sg2) * dx * (q[0, -1, 0] - q) * rdyc
@@ -43,63 +56,79 @@ def fy2_firstorder_use_sg(q: sd, sin_sg2: sd, sin_sg4: sd, dx: sd, rdyc: sd, fy2
 
 
 @gtstencil()
-def d2_highorder(fx2: sd, fy2: sd, rarea: sd, d2: sd):
+def d2_highorder(fx2: FloatField, fy2: FloatField, rarea: FloatField, d2: FloatField):
     with computation(PARALLEL), interval(...):
         d2[0, 0, 0] = (fx2 - fx2[1, 0, 0] + fy2 - fy2[0, 1, 0]) * rarea
 
 
 @gtstencil()
-def d2_damp(q: sd, d2: sd, damp: float):
+def d2_damp(q: FloatField, d2: FloatField, damp: float):
     with computation(PARALLEL), interval(...):
         d2[0, 0, 0] = damp * q
 
 
 @gtstencil()
-def add_diffusive(fx: sd, fx2: sd, fy: sd, fy2: sd):
+def add_diffusive(fx: FloatField, fx2: FloatField, fy: FloatField, fy2: FloatField):
     with computation(PARALLEL), interval(...):
         fx[0, 0, 0] = fx + fx2
         fy[0, 0, 0] = fy + fy2
 
 
 @gtstencil()
-def add_diffusive_component(fx: sd, fx2: sd):
+def add_diffusive_component(fx: FloatField, fx2: FloatField):
     with computation(PARALLEL), interval(...):
         fx[0, 0, 0] = fx + fx2
 
 
 @gtstencil()
-def diffusive_damp(fx: sd, fx2: sd, fy: sd, fy2: sd, mass: sd, damp: float):
+def diffusive_damp(
+    fx: FloatField,
+    fx2: FloatField,
+    fy: FloatField,
+    fy2: FloatField,
+    mass: FloatField,
+    damp: float,
+):
     with computation(PARALLEL), interval(...):
         fx[0, 0, 0] = fx + 0.5 * damp * (mass[-1, 0, 0] + mass) * fx2
         fy[0, 0, 0] = fy + 0.5 * damp * (mass[0, -1, 0] + mass) * fy2
 
 
 @gtstencil()
-def diffusive_damp_x(fx: sd, fx2: sd, mass: sd, damp: float):
+def diffusive_damp_x(fx: FloatField, fx2: FloatField, mass: FloatField, damp: float):
     with computation(PARALLEL), interval(...):
         fx = fx + 0.5 * damp * (mass[-1, 0, 0] + mass) * fx2
 
 
 @gtstencil()
-def diffusive_damp_y(fy: sd, fy2: sd, mass: sd, damp: float):
+def diffusive_damp_y(fy: FloatField, fy2: FloatField, mass: FloatField, damp: float):
     with computation(PARALLEL), interval(...):
         fy[0, 0, 0] = fy + 0.5 * damp * (mass[0, -1, 0] + mass) * fy2
 
 
 def compute_delnflux_no_sg(
-    q, fx, fy, nord, damp_c, kstart=0, nk=None, d2=None, mass=None
+    q: FloatField,
+    fx: FloatField,
+    fy: FloatField,
+    nord: float,
+    damp_c: float,
+    kstart: int = 0,
+    nk: Optional[int] = None,
+    d2: FloatField = None,
+    mass: FloatField = None,
 ):
+    if damp_c <= 1e-4:
+        return fx, fy
     grid = spec.grid
     if nk is None:
         nk = grid.npz - kstart
-    default_origin = (grid.isd, grid.jsd, kstart)
+    full_origin = (grid.isd, grid.jsd, kstart)
     if d2 is None:
-        d2 = utils.make_storage_from_shape(q.shape, default_origin)
-    if damp_c <= 1e-4:
-        return fx, fy
+        d2 = utils.make_storage_from_shape(q.shape, full_origin)
+    nord: int = int(nord)
     damp = (damp_c * grid.da_min) ** (nord + 1)
-    fx2 = utils.make_storage_from_shape(q.shape, default_origin)
-    fy2 = utils.make_storage_from_shape(q.shape, default_origin)
+    fx2 = utils.make_storage_from_shape(q.shape, full_origin)
+    fy2 = utils.make_storage_from_shape(q.shape, full_origin)
     compute_no_sg(q, fx2, fy2, nord, damp, d2, kstart, nk, mass)
     diffuse_origin = (grid.is_, grid.js, kstart)
     diffuse_domain_x = (grid.nic + 1, grid.njc, nk)
@@ -122,9 +151,19 @@ def compute_delnflux_no_sg(
     return fx, fy
 
 
-def compute_no_sg(q, fx2, fy2, nord, damp_c, d2, kstart=0, nk=None, mass=None):
+def compute_no_sg(
+    q: FloatField,
+    fx2: FloatField,
+    fy2: FloatField,
+    nord: float,
+    damp_c: float,
+    d2: FloatField,
+    kstart: int = 0,
+    nk: Optional[int] = None,
+    mass: FloatField = None,
+):
     grid = spec.grid
-    nord = int(nord)
+    nord: int = int(nord)
     i1 = grid.is_ - 1 - nord
     i2 = grid.ie + 1 + nord
     j1 = grid.js - 1 - nord
@@ -134,21 +173,17 @@ def compute_no_sg(q, fx2, fy2, nord, damp_c, d2, kstart=0, nk=None, mass=None):
     kslice = slice(kstart, kstart + nk)
     origin_d2 = (i1, j1, kstart)
     domain_d2 = (i2 - i1 + 1, j2 - j1 + 1, nk)
-    if mass is None:
-        d2_damp(q, d2, damp_c, origin=origin_d2, domain=domain_d2)
-    else:
-        d2 = copy(q, origin=origin_d2, domain=domain_d2)
 
-    if nord > 0:
-        corners.copy_corners(d2, "x", grid, kslice)
     f1_ny = grid.je - grid.js + 1 + 2 * nord
     f1_nx = grid.ie - grid.is_ + 2 + 2 * nord
     fx_origin = (grid.is_ - nord, grid.js - nord, kstart)
+    fx_domain = (f1_nx, f1_ny, nk)
+    fy_domain = (f1_nx - 1, f1_ny + 1, nk)
 
-    fx2_order(
-        d2, grid.del6_v, fx2, order=1, origin=fx_origin, domain=(f1_nx, f1_ny, nk)
-    )
-
+    d2_damp(q, d2, damp_c if mass is None else 1.0, origin=origin_d2, domain=domain_d2)
+    if nord > 0:
+        corners.copy_corners(d2, "x", grid, kslice)
+    fx2_order(d2, grid.del6_v, fx2, order=1, origin=fx_origin, domain=fx_domain)
     if nord > 0:
         corners.copy_corners(d2, "y", grid, kslice)
     fy2_order(
@@ -157,7 +192,7 @@ def compute_no_sg(q, fx2, fy2, nord, damp_c, d2, kstart=0, nk=None, mass=None):
         fy2,
         order=1,
         origin=fx_origin,
-        domain=(f1_nx - 1, f1_ny + 1, nk),
+        domain=fy_domain,
     )
 
     if nord > 0:
