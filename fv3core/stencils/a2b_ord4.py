@@ -465,28 +465,6 @@ def extrapolate_corners_stencil(
 
     with computation(PARALLEL), interval(...):
         with horizontal(region[i_start, j_start]):
-            # SW
-            # # ec1_offsets - True
-            # i1a = 0
-            # i1b = 1
-            # # ec1_offsets - True
-            # j1a = 0
-            # j1b = 1
-
-            # # ec2_offsets - True
-            # i2a = -1
-            # i2b = -2
-            # # ec2_offsets - False
-            # j2a = 0
-            # j2b = 1
-
-            # # ec3_offsets - True
-            # i3a = 0
-            # i3b = 1
-            # # ec3_offsets - False
-            # j3a = -1
-            # j3b = -2
-
             ec1 = extrap_corner(
                 bgrid1[0, 0],
                 bgrid2[0, 0],
@@ -520,27 +498,6 @@ def extrapolate_corners_stencil(
             qout = (ec1 + ec2 + ec3) * (1.0 / 3.0)
 
         with horizontal(region[i_end + 1, j_start]):
-            # SE
-            # # ec1_offsets - False
-            # i1a = -1
-            # i1b = -2
-            # # ec1_offsets - True
-            # j1a = 0
-            # j1b = 1
-
-            # # ec2_offsets - True
-            # i2a = -1
-            # i2b = -2
-            # # ec2_offsets - True
-            # j2a = -1
-            # j2b = -2
-
-            # # ec3_offsets - True
-            # i3a = 0
-            # i3b = 1
-            # # ec3_offsets - True
-            # j3a = 0
-            # j3b = 1
             ec1 = extrap_corner(
                 bgrid1[0, 0],
                 bgrid2[0, 0],
@@ -574,27 +531,6 @@ def extrapolate_corners_stencil(
             qout = (ec1 + ec2 + ec3) * (1.0 / 3.0)
 
         with horizontal(region[i_end + 1, j_end + 1]):
-            # NE
-            # # ec1_offsets - False
-            # i1a = -1
-            # i1b = -2
-            # # ec1_offsets - False
-            # j1a = -1
-            # j1b = -2
-
-            # # ec2_offsets - False
-            # i2a = 0
-            # i2b = 1
-            # # ec2_offsets - True
-            # j2a = -1
-            # j2b = -2
-
-            # # ec3_offsets - False
-            # i3a = -1
-            # i3b = -2
-            # # ec3_offsets - True
-            # j3a = 0
-            # j3b = 1
             ec1 = extrap_corner(
                 bgrid1[0, 0],
                 bgrid2[0, 0],
@@ -628,27 +564,6 @@ def extrapolate_corners_stencil(
             qout = (ec1 + ec2 + ec3) * (1.0 / 3.0)
 
         with horizontal(region[i_start, j_end + 1]):
-            # NW
-            # # ec1_offsets - True
-            # i1a = 0
-            # i1b = 1
-            # # ec1_offsets - False
-            # j1a = -1
-            # j1b = -2
-
-            # # ec2_offsets - True
-            # i2a = -1
-            # i2b = -2
-            # # ec2_offsets - True
-            # j2a = -1
-            # j2b = -2
-
-            # # ec3_offsets - True
-            # i3a = 0
-            # i3b = 1
-            # # ec3_offsets - True
-            # j3a = 0
-            # j3b = 1
             ec1 = extrap_corner(
                 bgrid1[0, 0],
                 bgrid2[0, 0],
