@@ -280,6 +280,21 @@ def fix_water_vapor_down(qvapor: sd, dp: sd, upper_fix: sd, lower_fix: sd, dp_bo
 
 
 def compute(qvapor, qliquid, qrain, qsnow, qice, qgraupel, qcld, pt, delp, delz, peln):
+    """
+    Adjust tracer mixing ratios to fix negative values
+    Args:
+        qvapor: Water vapor mixing ration (inout)
+        qliquid: Liquid water mixing ration (inout)
+        qrain: Rain mixing ration (inout)
+        qsnow: Snow mixing ration (inout)
+        qice: Ice mixing ration (inout)
+        qgraupel: Graupel mixing ration (inout)
+        qcld: Cloud mixing ration (inout)
+        pt: Air temperature (in)
+        delp: Pressur thickness of atmosphere layers (in)
+        delz: Vertical thickness of atmosphere layers (in)
+        peln: Logarithm of interface pressure (in)
+    """
     grid = spec.grid
     i_ext = grid.domain_shape_compute()[0]
     j_ext = grid.domain_shape_compute()[1]
@@ -292,7 +307,6 @@ def compute(qvapor, qliquid, qrain, qsnow, qice, qgraupel, qcld, pt, delp, delz,
     lower_fix = utils.make_storage_from_shape(qvapor.shape, origin=(0, 0, 0))
     bot_dp = delp[:, :, grid.npz - 1]
     full_bot_arr = utils.repeat(bot_dp[:, :, np.newaxis], k_ext + 1, axis=2)
-    # TODO: Is there a better way to do this than make_storage_data now?
     dp_bot = utils.make_storage_data(full_bot_arr)
     if spec.namelist.check_negative:
         raise Exception("Unimplemented namelist value check_negative=True")
