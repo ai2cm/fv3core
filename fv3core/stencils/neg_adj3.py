@@ -1,5 +1,4 @@
 import gt4py.gtscript as gtscript
-import numpy as np
 from gt4py.gtscript import BACKWARD, FORWARD, PARALLEL, computation, interval
 
 import fv3core._config as spec
@@ -231,7 +230,7 @@ def fix_water_vapor_k_loop(i, j, kbot, qvapor, dp):
 
 # Stencil version
 @gtstencil()
-def fix_water_vapor_down(qvapor: sd, dp: sd, upper_fix: sd, lower_fix: sd, dp_bot: sd):
+def fix_water_vapor_down(qvapor: sd, dp: sd, upper_fix: sd, lower_fix: sd):
     with computation(PARALLEL):
         with interval(0, 1):
             qvapor = qvapor if qvapor >= 0 else 0
@@ -261,6 +260,7 @@ def fix_water_vapor_down(qvapor: sd, dp: sd, upper_fix: sd, lower_fix: sd, dp_bo
         upper_fix = qvapor
         # If we didn't have to worry about float valitation and negative column
         # mass we could set qvapor[k_bot] to 0 here...
+        dp_bot = dp[0, 0, 0]
     with computation(BACKWARD), interval(0, -1):
         dq = qvapor * dp
         if (upper_fix[0, 0, 1] < 0) and (qvapor > 0):
@@ -305,9 +305,6 @@ def compute(qvapor, qliquid, qrain, qsnow, qice, qgraupel, qcld, pt, delp, delz,
     sum2 = utils.make_storage_from_shape(shape_ij, origin=(0, 0))
     upper_fix = utils.make_storage_from_shape(qvapor.shape, origin=(0, 0, 0))
     lower_fix = utils.make_storage_from_shape(qvapor.shape, origin=(0, 0, 0))
-    bot_dp = delp[:, :, grid.npz - 1]
-    full_bot_arr = utils.repeat(bot_dp[:, :, np.newaxis], k_ext + 1, axis=2)
-    dp_bot = utils.make_storage_data(full_bot_arr)
     if spec.namelist.check_negative:
         raise Exception("Unimplemented namelist value check_negative=True")
     if spec.namelist.hydrostatic:
@@ -353,7 +350,6 @@ def compute(qvapor, qliquid, qrain, qsnow, qice, qgraupel, qcld, pt, delp, delz,
         delp,
         upper_fix,
         lower_fix,
-        dp_bot,
         origin=grid.compute_origin(),
         domain=grid.domain_shape_compute(),
     )
