@@ -8,7 +8,6 @@ from fv3core.decorators import gtstencil
 from fv3core.utils.typing import FloatField, FloatFieldIJ
 
 
-sd = utils.sd
 ZVIR = constants.RVGAS / constants.RDGAS - 1.0
 
 
@@ -117,15 +116,15 @@ def fillq(q: FloatField, dp: FloatField, sum1: FloatFieldIJ, sum2: FloatFieldIJ)
 
 @gtstencil()
 def fix_neg_water(
-    pt: sd,
-    dp: sd,
-    delz: sd,
-    qvapor: sd,
-    qliquid: sd,
-    qrain: sd,
-    qsnow: sd,
-    qice: sd,
-    qgraupel: sd,
+    pt: FloatField,
+    dp: FloatField,
+    delz: FloatField,
+    qvapor: FloatField,
+    qliquid: FloatField,
+    qrain: FloatField,
+    qsnow: FloatField,
+    qice: FloatField,
+    qgraupel: FloatField,
     lv00: float,
     d0_vap: float,
 ):
@@ -152,7 +151,7 @@ def fix_neg_water(
 
 
 @gtstencil()
-def fix_neg_cloud(dp: sd, qcld: sd):
+def fix_neg_cloud(dp: FloatField, qcld: FloatField):
     with computation(FORWARD), interval(1, -1):
         if qcld[0, 0, -1] < 0.0:
             qcld = qcld + qcld[0, 0, -1] * dp[0, 0, -1] / dp
@@ -230,7 +229,9 @@ def fix_water_vapor_k_loop(i, j, kbot, qvapor, dp):
 
 # Stencil version
 @gtstencil()
-def fix_water_vapor_down(qvapor: sd, dp: sd, upper_fix: sd, lower_fix: sd):
+def fix_water_vapor_down(
+    qvapor: FloatField, dp: FloatField, upper_fix: FloatField, lower_fix: FloatField
+):
     with computation(PARALLEL):
         with interval(0, 1):
             qvapor = qvapor if qvapor >= 0 else 0
