@@ -60,6 +60,7 @@ def q_table_oneline(delta_heat_capacity, latent_heat_coefficient, tem):
         / constants.RVGAS
     )
 
+
 @gtscript.function
 def table_vapor_oneline(tem):
     return q_table_oneline(DC_VAP, LV0, tem)
@@ -210,6 +211,7 @@ def melt_cloud_ice(
 def minmax_tmp_h20(qa, qb):
     tmpmax = max(qb, 0.0)
     return min(-qa, tmpmax)
+
 
 @gtscript.function
 def fix_negative_snow(qs, qg):
