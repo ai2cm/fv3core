@@ -25,6 +25,8 @@ class TranslateFxAdv(TranslateFortranData2Py):
             "ut": utinfo,
             "vt": vtinfo,
         }
+        for var in ["xfx_adv", "crx_adv", "yfx_adv", "cry_adv"]:
+            self.out_vars[var] = self.in_vars["data_vars"][var]
 
     def compute(self, inputs):
         self.make_storage_data_input_vars(inputs)

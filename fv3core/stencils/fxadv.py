@@ -7,8 +7,6 @@ from fv3core.utils.typing import FloatField
 
 @gtstencil()
 def fxadv_stencil(
-    uc: FloatField,
-    vc: FloatField,
     cosa_u: FloatField,
     cosa_v: FloatField,
     rsin_u: FloatField,
@@ -22,6 +20,8 @@ def fxadv_stencil(
     area: FloatField,
     dy: FloatField,
     dx: FloatField,
+    uc: FloatField,
+    vc: FloatField,
     crx_adv: FloatField,
     cry_adv: FloatField,
     xfx_adv: FloatField,
@@ -32,6 +32,37 @@ def fxadv_stencil(
     ra_y: FloatField,
     dt: float,
 ):
+    """
+    Updates fluxes in prior to advection
+    Inputs:
+        uc: x-velocity on the C-grid
+        vc: y-velocity on the C-grid
+        crx_adv: (inout)
+        cry_adv: (inout)
+        xfx_adv: (inout)
+        yfx_adv: (inout)
+        ut: (inout)
+        vt: (inout)
+        ra_x: (inout)
+        ra_y: (inout)
+        dt: timestep in seconds
+    Grid variables inputs:
+        cosa_u:
+        cosa_v:
+        rsin_u:
+        rsin_v:
+        sin_sg1:
+        sin_sg2:
+        sin_sg3:
+        sin_sg4:
+        rdxa:
+        rdya:
+        area:
+        dy:
+        dx:
+    Returns:
+       Updates to xfx_adv, yfx_adv, crx_adv, cry_adv, ut, vt, ra_x, ra_y
+    """
     from __externals__ import local_ie, local_is, local_je, local_js
 
     with computation(PARALLEL), interval(...):
@@ -170,8 +201,18 @@ def vt_x_edge(vc, sin_sg2, sin_sg4, vt, dt):
 def ut_corners(uc, vc, cosa_u, cosa_v, ut, vt):
     from __externals__ import i_end, i_start, j_end, j_start
 
-    # sw_corner
-    # west_corner_ut_lowest(origin=(grid().is_ + 1, grid().js - 1, 0),
+    """
+    The following code (and vt_corners) solves a 2x2 system to
+    get the interior parallel-to-edge uc,vc values near the corners
+    (ex: for the sw corner ut(2,1) and vt(1,2) are solved for simultaneously).
+    It then computes the halo uc, vc values so as to be consistent with the
+    computations on the facing panel.
+    The system solved is:
+       ut(2,1) = uc(2,1) - avg(vt)*cosa_u(2,1)
+       vt(1,2) = vc(1,2) - avg(ut)*cosa_v(1,2)
+       in which avg(vt) includes vt(1,2) and avg(ut) includes ut(2,1)
+
+    """
     with horizontal(region[i_start + 1, j_start - 1], region[i_start + 1, j_end]):
         damp = 1.0 / (1.0 - 0.0625 * cosa_u[0, 0, 0] * cosa_v[-1, 0, 0])
         ut = (
@@ -188,7 +229,6 @@ def ut_corners(uc, vc, cosa_u, cosa_v, ut, vt):
                 * (ut[-1, 0, 0] + ut[-1, -1, 0] + ut[0, -1, 0])
             )
         ) * damp
-    #  west_corner_ut_adjacent(origin=(grid().is_ + 1, grid().js, 0),
     with horizontal(region[i_start + 1, j_start], region[i_start + 1, j_end + 1]):
         damp = 1.0 / (1.0 - 0.0625 * cosa_u[0, 0, 0] * cosa_v[-1, 1, 0])
         ut = (
@@ -203,8 +243,6 @@ def ut_corners(uc, vc, cosa_u, cosa_v, ut, vt):
                 - 0.25 * cosa_v[-1, 1, 0] * (ut[-1, 0, 0] + ut[-1, 1, 0] + ut[0, 1, 0])
             )
         ) * damp
-        # se_corner
-    # east_corner_ut_lowest(origin=(grid().ie, grid().js - 1, 0))
     with horizontal(region[i_end, j_start - 1], region[i_end, j_end]):
         damp_u = 1.0 / (1.0 - 0.0625 * cosa_u[0, 0, 0] * cosa_v[0, 0, 0])
         ut = (
@@ -219,7 +257,6 @@ def ut_corners(uc, vc, cosa_u, cosa_v, ut, vt):
                 - 0.25 * cosa_v[0, 0, 0] * (ut[1, 0, 0] + ut[1, -1, 0] + ut[0, -1, 0])
             )
         ) * damp_u
-    # east_corner_ut_adjacent(origin=(grid().ie, grid().js, 0))
     with horizontal(region[i_end, j_start], region[i_end, j_end + 1]):
         damp = 1.0 / (1.0 - 0.0625 * cosa_u[0, 0, 0] * cosa_v[0, 1, 0])
         ut = (

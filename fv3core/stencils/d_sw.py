@@ -493,8 +493,6 @@ def d_sw(
     ra_x = utils.make_storage_from_shape(shape, grid().compute_origin())
     ra_y = utils.make_storage_from_shape(shape, grid().compute_origin())
     fxadv.fxadv_stencil(
-        uc,
-        vc,
         grid().cosa_u,
         grid().cosa_v,
         grid().rsin_u,
@@ -508,6 +506,8 @@ def d_sw(
         grid().area,
         grid().dy,
         grid().dx,
+        uc,
+        vc,
         crx,
         cry,
         xfx,
