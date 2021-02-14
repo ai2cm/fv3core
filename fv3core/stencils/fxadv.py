@@ -64,40 +64,23 @@ def main_ut(uc: sd, vc: sd, cosa_u: sd, cosa_v: sd, rsin_u: sd, rsin_v: sd, sin_
                        region[i_end : i_end + 2, j_end:j_end + 2], \
         ):
             vt[0, 0, 0] = vtmp
-    # update_vt_x_edge
-    '''
-        edge_shape = (vt.shape[0], 1, vt.shape[2])
-        if grid().south_edge:
-            vt_x_edge,
-                origin=(0, grid().js, 0),
-                domain=edge_shape,
-            )
-        if grid().north_edge:
-            vt_x_edge,
-                origin=(0, grid().je + 1, 0),
-                domain=edge_shape,
-            )
-    #''
-    with computation(PARALLEL), interval(0, -1):
+        # update_vt_x_edge
         with horizontal(region[:, j_start], region[:, j_end + 1]):
             vt[0, 0, 0] = (vc / sin_sg4[0, -1, 0]) if (vc * dt > 0) else (vc / sin_sg2)    
-    # update_ut_x_edge
-    #''
-    i1 = grid().is_ + 2 if grid().west_edge else grid().is_
-    i2 = grid().ie - 1 if grid().east_edge else grid().ie + 1
-    edge_shape = (i2 - i1 + 1, 2, ut.shape[2])
-    if grid().south_edge:
-        ut_x_edge(uc, cosa_u, vt, ut, origin=(i1, grid().js - 1, 0), domain=edge_shape)
-    if grid().north_edge:
-        ut_x_edge(uc, cosa_u, vt, ut, origin=(i1, grid().je, 0), domain=edge_shape)
-
-    #''
-    with computation(PARALLEL), interval(0, -1):
-        with horizontal(region[i_start + 2: i_end, j_start - 1: j_start + 1], region[i_start + 2: i_end, j_end:j_end + 2]):
+        # update_ut_x_edge
+        # TODO: parallel to what done for the vt_y_edge section
+        utmp=ut
+        with horizontal(region[local_is:local_ie + 2, j_start - 1: j_start + 1], \
+                        region[local_is:local_ie + 2, j_end : j_end + 2]):
             ut[0, 0, 0] = uc - 0.25 * cosa_u * (
                 vt[-1, 0, 0] + vt[0, 0, 0] + vt[-1, 1, 0] + vt[0, 1, 0]
             )
-    '''
+        with horizontal(region[i_start:i_start+2, j_start - 1: j_start + 1],\
+                       region[i_start:i_start + 2, j_end : j_end + 2], \
+                       region[i_end:i_end+2, j_start - 1: j_start + 1],\
+                       region[i_end:i_end + 2, j_end : j_end + 2], \
+        ):
+            ut[0, 0, 0] = utmp
 @gtstencil()
 def ut_y_edge(uc: sd, sin_sg1: sd, sin_sg3: sd, ut: sd, *, dt: float):
     with computation(PARALLEL), interval(0, -1):
@@ -214,8 +197,8 @@ def compute(uc_in, vc_in, ut, vt, xfx_adv, yfx_adv, crx_adv, cry_adv, dt):
     # ) 
     # update_ut_y_edge(uc_in, grid().sin_sg1, grid().sin_sg3, ut, dt)
     # update_vt_y_edge(vc_in, grid().cosa_v, ut, vt)
-    update_vt_x_edge(vc_in, grid().sin_sg2, grid().sin_sg4, vt, dt)
-    update_ut_x_edge(uc_in, grid().cosa_u, vt, ut)
+    #update_vt_x_edge(vc_in, grid().sin_sg2, grid().sin_sg4, vt, dt)
+    #update_ut_x_edge(uc_in, grid().cosa_u, vt, ut)
     corner_shape = (1, 1, uc_in.shape[2])
     if grid().sw_corner:
         sw_corner(uc_in, vc_in, ut, vt, grid().cosa_u, grid().cosa_v, corner_shape)
