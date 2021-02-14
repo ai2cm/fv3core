@@ -52,7 +52,7 @@ class TranslateFxAdv(TranslateFortranData2Py):
             dy=grid.dy,
             dx=grid.dx,
             **inputs,
-            origin=grid.default_origin(),
-            domain=grid.domain_shape_standard(),
+            origin=grid.full_origin(),
+            domain=grid.domain_shape_full(),
         )
         return self.slice_output(inputs)

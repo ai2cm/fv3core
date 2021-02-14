@@ -4,6 +4,7 @@ pytest-dependency
 pytest
 pytest-cov
 pytest-subtests
+pytest-profiling
 xarray
 numpy
 zarr
@@ -18,3 +19,4 @@ scipy
 git+https://github.com/VulcanClimateModeling/fv3config.git@a0799928824a4f10617cf4615e8837c81ccb1f2d
 pytest-regressions
 gitpython
+clang-format
