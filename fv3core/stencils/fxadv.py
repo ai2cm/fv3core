@@ -16,7 +16,7 @@ sd = utils.sd
 stencil_corner = True
 
 @gtstencil()
-def main_ut(uc: sd, vc: sd, cosa_u: sd, cosa_v: sd, rsin_u: sd, rsin_v: sd, sin_sg1: sd, sin_sg2: sd, sin_sg3: sd, sin_sg4: sd, ut: sd, vt: sd, dt: float):
+def fxadv_stencil(uc: sd, vc: sd, cosa_u: sd, cosa_v: sd, rsin_u: sd, rsin_v: sd, sin_sg1: sd, sin_sg2: sd, sin_sg3: sd, sin_sg4: sd, rdxa:sd, rdya:sd, area:sd, dy:sd, dx:sd, crx_adv:sd, cry_adv:sd, xfx_adv: sd, yfx_adv: sd, ut: sd, vt: sd, ra_x: sd, ra_y: sd, dt: float):
     from __externals__ import i_start, i_end, j_start, j_end, local_is, local_ie, local_js, local_je
     with computation(PARALLEL), interval(...):
         utmp = ut
@@ -83,12 +83,12 @@ def main_ut(uc: sd, vc: sd, cosa_u: sd, cosa_v: sd, rsin_u: sd, rsin_v: sd, sin_
             ut[0, 0, 0] = utmp
         # sw_corner
         # west_corner_ut_lowest(origin=(grid().is_ + 1, grid().js - 1, 0),
-        with horizontal(region[i_start + 1, j_start - 1]):
+        with horizontal(region[i_start + 1, j_start - 1], region[i_start + 1, j_end]):
             damp = 1.0 / (1.0 - 0.0625 * cosa_u[0, 0, 0] * cosa_v[-1, 0, 0])
             ut[0, 0, 0] = ( uc[0, 0, 0] - 0.25 * cosa_u[0, 0, 0] * ( vt[-1, 1, 0]                                               + vt[0, 1, 0] + vt[0, 0, 0] + vc[-1, 0, 0] 
                - 0.25 * cosa_v[-1, 0, 0] * (ut[-1, 0, 0] + ut[-1, -1, 0] + ut[0, -1, 0])                                  )) * damp
         #  west_corner_ut_adjacent(origin=(grid().is_ + 1, grid().js, 0),
-        with horizontal(region[i_start + 1, j_start]):
+        with horizontal(region[i_start + 1, j_start], region[i_start+1, j_end + 1]):
             damp = 1.0 / (1.0 - 0.0625 * cosa_u[0, 0, 0] * cosa_v[-1, 1, 0])
             ut[0, 0, 0] = (uc[0, 0, 0] - 0.25 * cosa_u[0, 0, 0] * (vt[-1, 0, 0] + vt[0, 0, 0] + vt[0, 1, 0] + vc[-1, 1, 0] - 0.25 * cosa_v[-1, 1, 0] * (ut[-1, 0, 0] + ut[-1, 1, 0] + ut[0, 1, 0]))) * damp
         #south_corner_vt_left( origin=(grid().is_ - 1, grid().js + 1, 0)
@@ -165,7 +165,7 @@ def main_ut(uc: sd, vc: sd, cosa_u: sd, cosa_v: sd, rsin_u: sd, rsin_v: sd, sin_
         # east_corner_ut_lowest(origin=(grid().ie, grid().je, 0), )
         # added in se-corner section
         # north_corner_vt_adjacent( origin=(grid().ie + 1, grid().je, 0),  )
-        with horizontal(region[i_end + 1, j_end]):
+        with horizontal(region[i_end + 1, j_end], region[i_start, j_end]):
             damp = 1.0 / (1.0 - 0.0625 * cosa_u[1, 0, 0] * cosa_v[0, 0, 0])             
             vt[0, 0, 0] = (                                                                                     
                 vc[0, 0, 0]                                                                           
@@ -180,7 +180,7 @@ def main_ut(uc: sd, vc: sd, cosa_u: sd, cosa_v: sd, rsin_u: sd, rsin_v: sd, sin_
                 )   
             ) * damp
         # north_corner_vt_left(origin=(grid().ie, grid().je, 0))
-        with horizontal(region[i_end, j_end]):
+        with horizontal(region[i_end, j_end], region[i_start - 1, j_end]):
             damp_v = 1.0 / (1.0 - 0.0625 * cosa_u[0, 0, 0] * cosa_v[0, 0, 0])                                   
             vt[0, 0, 0] = (    
              vc[0, 0, 0]                                                                                        
@@ -194,7 +194,60 @@ def main_ut(uc: sd, vc: sd, cosa_u: sd, cosa_v: sd, rsin_u: sd, rsin_v: sd, sin_
                  - 0.25 * cosa_u[0, 0, 0] * (vt[0, 1, 0] + vt[-1, 1, 0] + vt[-1, 0, 0])                         
              )                                                                                                  
          ) * damp_v                                                                                             
-
+        # nw_corner
+        # west_corner_ut_adjacent(origin=(grid().is_ + 1, grid().je + 1, 0))
+        # added above in sw_corner
+        # west_corner_ut_lowest(origin=(grid().is_ + 1, grid().je, 0),
+        # added above in sw_corner
+        # north_corner_vt_left(origin=(grid().is_ - 1, grid().je, 0),)
+        # added above in ne_corner
+        # north_corner_vt_adjacent(origin=(grid().is_, grid().je, 0))
+        # added above in ne_corner
+    # ra_x
+    with computation(PARALLEL), interval(...):
+        with horizontal(region[local_is:local_ie + 2,:]):
+            prod = dt * ut
+            crx_adv = prod * rdxa[-1, 0, 0] if prod > 0 else prod * rdxa
+            xfx_adv = dy * prod * sin_sg3[-1, 0, 0] if prod > 0 else dy * prod * sin_sg1
+    with computation(PARALLEL), interval(...):
+        with horizontal(region[local_is:local_ie + 2,:]):
+            ra_x = ra_x_func(area, xfx_adv)
+    # ra_y
+    with computation(PARALLEL), interval(...):
+       with horizontal(region[:, local_js:local_je + 2]):
+           prod = dt * vt
+           cry_adv = prod * rdya[0, -1, 0] if prod > 0 else prod * rdya
+           yfx_adv = dx * prod * sin_sg4[0, -1, 0] if prod > 0 else dx * prod * sin_sg2
+    with computation(PARALLEL), interval(...):
+        with horizontal(region[:, local_js:local_je + 2]):
+            ra_y = ra_y_func(area, yfx_adv)
+    '''
+    ra_x = xfx_adv_function(
+        ut,
+        rdxa,
+        area,
+        dy,
+        sin_sg1,
+        sin_sg3,
+        crx_adv,
+        xfx_adv,
+        ra_x,
+        dt
+    )
+    
+    ra_y = yfx_adv_function(
+        vt,
+        rdya,
+        area,
+        dx,
+        sin_sg2,
+        sin_sg4,
+        cry_adv,
+        yfx_adv,
+        ra_y,
+        dt,
+    )
+    '''
 @gtstencil()
 def ut_y_edge(uc: sd, sin_sg1: sd, sin_sg3: sd, ut: sd, *, dt: float):
     with computation(PARALLEL), interval(0, -1):
@@ -242,59 +295,73 @@ def ra_x_func(area, xfx_adv):
     return area + xfx_adv - xfx_adv[1, 0, 0]
 
 
-@gtstencil()
-def xfx_adv_stencil(
-    ut: sd,
-    rdxa: sd,
-    area: sd,
-    dy: sd,
-    sin_sg1: sd,
-    sin_sg3: sd,
-    crx_adv: sd,
-    xfx_adv: sd,
-    ra_x: sd,
-    dt: float,
+@gtscript.function
+def xfx_adv_function(
+    ut,
+    rdxa,
+    area,
+    dy,
+    sin_sg1,
+    sin_sg3,
+    crx_adv,
+    xfx_adv,
+    ra_x,
+    dt,
 ):
+    from __externals__ import local_is, local_ie
     with computation(PARALLEL), interval(...):
-        prod = dt * ut
-        crx_adv = prod * rdxa[-1, 0, 0] if prod > 0 else prod * rdxa
-        xfx_adv = dy * prod * sin_sg3[-1, 0, 0] if prod > 0 else dy * prod * sin_sg1
-        ra_x = ra_x_func(area, xfx_adv)
+        with horizontal(region[local_is:local_ie + 2,:]):
+            prod = dt * ut
+            crx_adv = prod * rdxa[-1, 0, 0] if prod > 0 else prod * rdxa
+            xfx_adv = dy * prod * sin_sg3[-1, 0, 0] if prod > 0 else dy * prod * sin_sg1
+    with computation(PARALLEL), interval(...):
+        with horizontal(region[local_is:local_ie + 2,:]):
+            ra_x = ra_x_func(area, xfx_adv)
 
+    return ra_x
 
 @gtscript.function
 def ra_y_func(area, yfx_adv):
     return area + yfx_adv - yfx_adv[0, 1, 0]
 
 
-@gtstencil()
-def yfx_adv_stencil(
-    vt: sd,
-    rdya: sd,
-    area: sd,
-    dx: sd,
-    sin_sg2: sd,
-    sin_sg4: sd,
-    cry_adv: sd,
-    yfx_adv: sd,
-    ra_y: sd,
-    dt: float,
+@gtscript.function
+def yfx_adv_function(
+    vt,
+    rdya,
+    area,
+    dx,
+    sin_sg2,
+    sin_sg4,
+    cry_adv,
+    yfx_adv,
+    ra_y,
+    dt,
 ):
+    from __externals__ import local_js, local_je
     with computation(PARALLEL), interval(...):
-        prod = dt * vt
-        cry_adv = prod * rdya[0, -1, 0] if prod > 0 else prod * rdya
-        yfx_adv = dx * prod * sin_sg4[0, -1, 0] if prod > 0 else dx * prod * sin_sg2
-        ra_y = ra_y_func(area, yfx_adv)
-
+        with horizontal(region[:, local_js:local_je + 2]):
+            prod = dt * vt
+            cry_adv = prod * rdya[0, -1, 0] if prod > 0 else prod * rdya
+            yfx_adv = dx * prod * sin_sg4[0, -1, 0] if prod > 0 else dx * prod * sin_sg2
+    with computation(PARALLEL), interval(...):
+        with horizontal(region[:, local_js:local_je + 2]):
+            ra_y = ra_y_func(area, yfx_adv)
+    return ra_y
 
 def compute(uc_in, vc_in, ut, vt, xfx_adv, yfx_adv, crx_adv, cry_adv, dt):
-
-    main_ut(
+    ra_x = utils.make_storage_from_shape(uc_in.shape, grid().compute_x_origin())
+    ra_y = utils.make_storage_from_shape(vc_in.shape, grid().compute_y_origin())
+    fxadv_stencil(
         uc_in,
         vc_in,
         grid().cosa_u,grid().cosa_v,
         grid().rsin_u, grid().rsin_v,grid().sin_sg1, grid().sin_sg2, grid().sin_sg3, grid().sin_sg4,
-        ut, vt, dt,
+        grid().rdxa, grid().rdya, grid().area,
+        grid().dy, grid().dx,
+        crx_adv, cry_adv, 
+        xfx_adv, yfx_adv,               
+        ut, vt, ra_x, ra_y, dt,
         origin = grid().default_origin(),
         domain = grid().domain_shape_standard()
         #origin=(grid().is_ - 1, grid().jsd, 0),
@@ -313,16 +380,16 @@ def compute(uc_in, vc_in, ut, vt, xfx_adv, yfx_adv, crx_adv, cry_adv, dt):
     # update_vt_y_edge(vc_in, grid().cosa_v, ut, vt)
     #update_vt_x_edge(vc_in, grid().sin_sg2, grid().sin_sg4, vt, dt)
     #update_ut_x_edge(uc_in, grid().cosa_u, vt, ut)
-    corner_shape = (1, 1, uc_in.shape[2])
+    #corner_shape = (1, 1, uc_in.shape[2])
     #if grid().sw_corner:
     #    sw_corner(uc_in, vc_in, ut, vt, grid().cosa_u, grid().cosa_v, corner_shape)
     #if grid().se_corner:
     #    se_corner(uc_in, vc_in, ut, vt, grid().cosa_u, grid().cosa_v, corner_shape)
     #if grid().ne_corner:
     #    ne_corner(uc_in, vc_in, ut, vt, grid().cosa_u, grid().cosa_v, corner_shape)
-    if grid().nw_corner:
-        nw_corner(uc_in, vc_in, ut, vt, grid().cosa_u, grid().cosa_v, corner_shape)
-    ra_x = utils.make_storage_from_shape(uc_in.shape, grid().compute_x_origin())
+    #if grid().nw_corner:
+    #    nw_corner(uc_in, vc_in, ut, vt, grid().cosa_u, grid().cosa_v, corner_shape)
+    '''
     xfx_adv_stencil(
         ut,
         grid().rdxa,
@@ -334,10 +401,11 @@ def compute(uc_in, vc_in, ut, vt, xfx_adv, yfx_adv, crx_adv, cry_adv, dt):
         xfx_adv,
         ra_x,
         dt,
-        origin=grid().compute_x_origin(),
-        domain=grid().domain_y_compute_xbuffer(),
+        origin = grid().default_origin(),
+        domain = grid().domain_shape_standard()
+        #origin=grid().compute_x_origin(), # (is_, jsd, 0)
+        #domain=grid().domain_y_compute_xbuffer(),# (nic + 1, njd, npz)
     )
-    ra_y = utils.make_storage_from_shape(vc_in.shape, grid().compute_y_origin())
     yfx_adv_stencil(
         vt,
         grid().rdya,
@@ -349,10 +417,12 @@ def compute(uc_in, vc_in, ut, vt, xfx_adv, yfx_adv, crx_adv, cry_adv, dt):
         yfx_adv,
         ra_y,
         dt,
-        origin=grid().compute_y_origin(),
-        domain=grid().domain_x_compute_ybuffer(),
+        origin = grid().default_origin(),
+        domain = grid().domain_shape_standard()
+        #origin=grid().compute_y_origin(),
+        #domain=grid().domain_x_compute_ybuffer(),
     )
-   
+    '''
     return ra_x, ra_y
 
 def update_ut_y_edge(uc, sin_sg1, sin_sg3, ut, dt):
