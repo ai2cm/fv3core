@@ -81,6 +81,50 @@ def main_ut(uc: sd, vc: sd, cosa_u: sd, cosa_v: sd, rsin_u: sd, rsin_v: sd, sin_
                        region[i_end:i_end + 2, j_end : j_end + 2], \
         ):
             ut[0, 0, 0] = utmp
+        # sw_corner
+        # west_corner_ut_lowest(origin=(grid().is_ + 1, grid().js - 1, 0),
+        with horizontal(region[i_start + 1, j_start - 1]):
+            damp_u = 1.0 / (1.0 - 0.0625 * cosa_u[0, 0, 0] * cosa_v[-1, 0, 0])
+            ut[0, 0, 0] = ( uc[0, 0, 0] - 0.25 * cosa_u[0, 0, 0] * ( vt[-1, 1, 0]                                               + vt[0, 1, 0] + vt[0, 0, 0] + vc[-1, 0, 0] 
+               - 0.25 * cosa_v[-1, 0, 0] * (ut[-1, 0, 0] + ut[-1, -1, 0] + ut[0, -1, 0])                                  )) * damp_u
+        #  west_corner_ut_adjacent(origin=(grid().is_ + 1, grid().js, 0),
+        with horizontal(region[i_start + 1, j_start]):
+            damp = 1.0 / (1.0 - 0.0625 * cosa_u[0, 0, 0] * cosa_v[-1, 1, 0])
+            ut[0, 0, 0] = (uc[0, 0, 0] - 0.25 * cosa_u[0, 0, 0] * (vt[-1, 0, 0] + vt[0, 0, 0] + vt[0, 1, 0] + vc[-1, 1, 0] - 0.25 * cosa_v[-1, 1, 0] * (ut[-1, 0, 0] + ut[-1, 1, 0] + ut[0, 1, 0]))) * damp
+        #south_corner_vt_left( origin=(grid().is_ - 1, grid().js + 1, 0)
+        with horizontal(region[i_start - 1, j_start + 1]):
+            damp_v = 1.0 / (1.0 - 0.0625 * cosa_u[0, -1, 0] * cosa_v[0, 0, 0])             
+            vt[0, 0, 0] = (                                                                                     
+                vc[0, 0, 0]                                                                                     
+                - 0.25                                                                                          
+                * cosa_v[0, 0, 0]                                                                               
+                * (                                                                                             
+                    ut[1, -1, 0]                                                        
+                    + ut[1, 0, 0]
+                    + ut[0, 0, 0]                                                                              
+                    + uc[0, -1, 0]                                                                              
+                    - 0.25                                                                             
+                    * cosa_u[0, -1, 0]
+                    * (vt[0, -1, 0] + vt[-1, -1, 0] + vt[-1, 0, 0])
+                ) 
+            ) * damp_v
+        #south_corner_vt_adjacent(origin=(grid().is_, grid().js + 1, 0),
+        with horizontal(region[i_start, j_start + 1]):
+             damp_v = 1.0 / (1.0 - 0.0625 * cosa_u[1, -1, 0] * cosa_v[0, 0, 0])
+             vt[0, 0, 0] = (       
+                 vc[0, 0, 0]
+                 - 0.25                                                                                   
+                 * cosa_v[0, 0, 0]
+                 * (                                                                             
+                     ut[0, -1, 0]
+                     + ut[0, 0, 0]                                                                              
+                     + ut[1, 0, 0]                                                                             
+                     + uc[1, -1, 0]                                                                             
+                     - 0.25 * cosa_u[1, -1, 0]
+                     * (vt[0, -1, 0] + vt[1, -1, 0] + vt[1, 0, 0])                                              
+                 )
+             ) * damp_v
+
 @gtstencil()
 def ut_y_edge(uc: sd, sin_sg1: sd, sin_sg3: sd, ut: sd, *, dt: float):
     with computation(PARALLEL), interval(0, -1):
@@ -200,8 +244,8 @@ def compute(uc_in, vc_in, ut, vt, xfx_adv, yfx_adv, crx_adv, cry_adv, dt):
     #update_vt_x_edge(vc_in, grid().sin_sg2, grid().sin_sg4, vt, dt)
     #update_ut_x_edge(uc_in, grid().cosa_u, vt, ut)
     corner_shape = (1, 1, uc_in.shape[2])
-    if grid().sw_corner:
-        sw_corner(uc_in, vc_in, ut, vt, grid().cosa_u, grid().cosa_v, corner_shape)
+    #if grid().sw_corner:
+    #    sw_corner(uc_in, vc_in, ut, vt, grid().cosa_u, grid().cosa_v, corner_shape)
     if grid().se_corner:
         se_corner(uc_in, vc_in, ut, vt, grid().cosa_u, grid().cosa_v, corner_shape)
     if grid().ne_corner:
