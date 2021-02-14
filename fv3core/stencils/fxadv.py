@@ -126,7 +126,7 @@ def main_ut(uc: sd, vc: sd, cosa_u: sd, cosa_v: sd, rsin_u: sd, rsin_v: sd, sin_
              ) * damp
         # se_corner
         # east_corner_ut_lowest(origin=(grid().ie, grid().js - 1, 0))
-        with horizontal(region[i_end, j_start - 1]):
+        with horizontal(region[i_end, j_start - 1], region[i_end, j_end]):
             damp_u = 1.0 / (1.0 - 0.0625 * cosa_u[0, 0, 0] * cosa_v[0, 0, 0])             
             ut[0, 0, 0] = (                                                                                     
                 uc[0, 0, 0]                                                                                     
@@ -141,7 +141,7 @@ def main_ut(uc: sd, vc: sd, cosa_u: sd, cosa_v: sd, rsin_u: sd, rsin_v: sd, sin_
                 )                                                                  
             ) * damp_u                            
         # east_corner_ut_adjacent(origin=(grid().ie, grid().js, 0))
-        with horizontal(region[i_end, j_start]):
+        with horizontal(region[i_end, j_start], region[i_end, j_end+1]):
             damp = 1.0 / (1.0 - 0.0625 * cosa_u[0, 0, 0] * cosa_v[0, 1, 0])
             ut[0, 0, 0] = (
              uc[0, 0, 0]                                                                                        
@@ -159,6 +159,42 @@ def main_ut(uc: sd, vc: sd, cosa_u: sd, cosa_v: sd, rsin_u: sd, rsin_v: sd, sin_
         # added in sw_corner section
         # south_corner_vt_left(origin=(grid().ie, grid().js + 1, 0),)
         # added in sw_corner section
+        # ne_corner
+        # east_corner_ut_adjacent(origin=(grid().ie, grid().je + 1, 0),)
+        # added in se_corner section
+        # east_corner_ut_lowest(origin=(grid().ie, grid().je, 0), )
+        # added in se-corner section
+        # north_corner_vt_adjacent( origin=(grid().ie + 1, grid().je, 0),  )
+        with horizontal(region[i_end + 1, j_end]):
+            damp = 1.0 / (1.0 - 0.0625 * cosa_u[1, 0, 0] * cosa_v[0, 0, 0])             
+            vt[0, 0, 0] = (                                                                                     
+                vc[0, 0, 0]                                                                           
+                - 0.25                                                                              
+                * cosa_v[0, 0, 0]                 
+                * (                                                                    
+                    ut[0, 0, 0]                           
+                    + ut[0, -1, 0]
+                    + ut[1, -1, 0]                                                                              
+                + uc[1, 0, 0]                                                                                  
+                    - 0.25 * cosa_u[1, 0, 0] * (vt[0, 1, 0] + vt[1, 1, 0] + vt[1, 0, 0])
+                )   
+            ) * damp
+        # north_corner_vt_left(origin=(grid().ie, grid().je, 0))
+        with horizontal(region[i_end, j_end]):
+            damp_v = 1.0 / (1.0 - 0.0625 * cosa_u[0, 0, 0] * cosa_v[0, 0, 0])                                   
+            vt[0, 0, 0] = (    
+             vc[0, 0, 0]                                                                                        
+             - 0.25                                                                                             
+             * cosa_v[0, 0, 0]                                                                                  
+             * (                                                                                                
+                 ut[1, 0, 0]                                                                                    
+                 + ut[1, -1, 0]                                                                                 
+                 + ut[0, -1, 0]                                                                                 
+                 + uc[0, 0, 0]                                                                                  
+                 - 0.25 * cosa_u[0, 0, 0] * (vt[0, 1, 0] + vt[-1, 1, 0] + vt[-1, 0, 0])                         
+             )                                                                                                  
+         ) * damp_v                                                                                             
+
 @gtstencil()
 def ut_y_edge(uc: sd, sin_sg1: sd, sin_sg3: sd, ut: sd, *, dt: float):
     with computation(PARALLEL), interval(0, -1):
@@ -282,8 +318,8 @@ def compute(uc_in, vc_in, ut, vt, xfx_adv, yfx_adv, crx_adv, cry_adv, dt):
     #    sw_corner(uc_in, vc_in, ut, vt, grid().cosa_u, grid().cosa_v, corner_shape)
     #if grid().se_corner:
     #    se_corner(uc_in, vc_in, ut, vt, grid().cosa_u, grid().cosa_v, corner_shape)
-    if grid().ne_corner:
-        ne_corner(uc_in, vc_in, ut, vt, grid().cosa_u, grid().cosa_v, corner_shape)
+    #if grid().ne_corner:
+    #    ne_corner(uc_in, vc_in, ut, vt, grid().cosa_u, grid().cosa_v, corner_shape)
     if grid().nw_corner:
         nw_corner(uc_in, vc_in, ut, vt, grid().cosa_u, grid().cosa_v, corner_shape)
     ra_x = utils.make_storage_from_shape(uc_in.shape, grid().compute_x_origin())
