@@ -256,20 +256,6 @@ def copy_nw_corner(q, direction, grid, kslice):
                 q[i, j, kslice] = q[j + 2 - grid.ie, grid.je + 1 - i + 2, kslice]
 
 
-@gtstencil()
-def copy_corners_stencil(q: FloatField, direction: int):
-    from __externals__ import grid
-
-    with computation(PARALLEL), interval(2, None):
-        if grid.sw_corner:
-            copy_sw_corner(q, direction, grid, kslice)
-        if grid.se_corner:
-            copy_se_corner(q, direction, grid, kslice)
-        if grid.ne_corner:
-            copy_ne_corner(q, direction, grid, kslice)
-        if grid.nw_corner:
-            copy_nw_corner(q, direction, grid, kslice)
-
 # can't actually be a stencil because offsets are variable
 def copy_corners(q, direction, grid, kslice=slice(0, None)):
     if grid.sw_corner:
