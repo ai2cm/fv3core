@@ -77,10 +77,9 @@ def table_ice_oneline(tem):
 def qs_table_fn(i):
     tem_l = tem_lower(i)
     tem_u = tem_upper(i - 1400)
+    table = 0.0
     if i < 1600:
         table = table_ice_oneline(tem_l)
-    if i >= 1600:
-        table = 0.0
     if i >= 1600 and i < (1400 + 1221):
         table = table_vapor_oneline(tem_u)
     if i >= 1400 and i < 1600:
@@ -102,12 +101,6 @@ def qs_table2_fn(i):
     else:
         # compute es over water between 0 deg c and 102 deg c.
         table2 = table_vapor_oneline(tem0)
-    # TODO is there way to express the code below with something closer to this?:
-    # if i == 1599:
-    #    table2 = 0.25 * (table2(i-1) + 2.0 * qs_table_fn(i) + qs_table2_fn(i+1))
-    # if i == 1600:
-    #    table2 = 0.25 * (table2(i-1) + 2.0 * qs_table_fn(i) + qs_table2_fn(i+1))
-    # table = 0.0
     if i == 1599:
         # table(i)
         table = table_ice_oneline(tem0)
@@ -411,9 +404,15 @@ def update_latent_heat_coefficient_i(pt1, cvm):
 
 
 @gtscript.function
-def update_latent_heat_coefficient(pt1, cvm, lv00, d0_vap):
+def update_latent_heat_coefficient_l(pt1, cvm, lv00, d0_vap):
     lhl = lv00 + d0_vap * pt1
     lcp2 = lhl / cvm
+    return lhl, lcp2
+
+
+@gtscript.function
+def update_latent_heat_coefficient(pt1, cvm, lv00, d0_vap):
+    lhl, lcp2 = update_latent_heat_coefficient_l(pt1, cvm, lv00, d0_vap)
     lhi, icp2 = update_latent_heat_coefficient_i(pt1, cvm)
     return lhl, lhi, lcp2, icp2
 
@@ -450,12 +449,6 @@ def wqsat_correct(src, pt1, lhl, qv, ql, q_liq, q_sol, mc_air, c_vap):
     cvm = compute_cvm(mc_air, qv, c_vap, q_liq, q_sol)
     pt1 = add_src_pt1(pt1, src, lhl, cvm)  # pt1 + src * lhl / cvm
     return qv, ql, q_liq, cvm, pt1
-
-
-@gtstencil()
-def ap1_stencil(ta: FloatField, ap1: FloatField):
-    with computation(PARALLEL), interval(...):
-        ap1 = ap1_for_wqs2(ta)
 
 
 @gtscript.function
@@ -541,14 +534,6 @@ def wqs1_fn_2(it, ap1, ta, den):
     table2 = qs_table2_fn(it)
     des2 = des2_table(it)
     return wqsat_wsq1(table2, des2, ap1, it, ta, den)
-
-
-@gtstencil()
-def wqs2_stencil_w(
-    ta: FloatField, den: FloatField, wqsat: FloatField, dqdt: FloatField
-):
-    with computation(PARALLEL), interval(...):
-        wqsat, dqdt = wqs2_fn_w(ta, den)
 
 
 @gtstencil()
