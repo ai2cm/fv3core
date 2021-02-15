@@ -33,7 +33,7 @@ def fxadv_stencil(
     dt: float,
 ):
     """
-    Updates fluxes and
+    Updates flux operators and courant numbers for fvtp2d
     Inputs:
         uc: x-velocity on the C-grid
         vc: y-velocity on the C-grid
@@ -47,7 +47,7 @@ def fxadv_stencil(
         ra_y: Area increased in the y direction due to flux divergence (inout)
         dt: timestep in seconds
     Grid variables inputs:
-        cosa_u, cosa_v, rsin_u, rsin_v, sin_sg1,sin_sg2, sin_sg3, sin_sg4:
+        cosa_u, cosa_v, rsin_u, rsin_v, sin_sg1,sin_sg2, sin_sg3, sin_sg4,
         rdxa, rdya, area, dy, dx
     Returns:
        Updates to xfx_adv, yfx_adv, crx_adv, cry_adv, ut, vt, ra_x, ra_y
@@ -68,15 +68,13 @@ def fxadv_stencil(
             prod = dt * ut
             crx_adv = prod * rdxa[-1, 0, 0] if prod > 0 else prod * rdxa
             xfx_adv = dy * prod * sin_sg3[-1, 0, 0] if prod > 0 else dy * prod * sin_sg1
-    with computation(PARALLEL), interval(...):
-        with horizontal(region[local_is : local_ie + 2, :]):
-            ra_x = ra_x_func(area, xfx_adv)
-    with computation(PARALLEL), interval(...):
         with horizontal(region[:, local_js : local_je + 2]):
             prod = dt * vt
             cry_adv = prod * rdya[0, -1, 0] if prod > 0 else prod * rdya
             yfx_adv = dx * prod * sin_sg4[0, -1, 0] if prod > 0 else dx * prod * sin_sg2
     with computation(PARALLEL), interval(...):
+        with horizontal(region[local_is : local_ie + 2, :]):
+            ra_x = ra_x_func(area, xfx_adv)
         with horizontal(region[:, local_js : local_je + 2]):
             ra_y = ra_y_func(area, yfx_adv)
 
@@ -184,7 +182,6 @@ def vt_x_edge(vc, sin_sg2, sin_sg4, vt, dt):
 
 @gtscript.function
 def ut_corners(uc, vc, cosa_u, cosa_v, ut, vt):
-    from __externals__ import i_end, i_start, j_end, j_start
 
     """
     The following code (and vt_corners) solves a 2x2 system to
@@ -198,6 +195,8 @@ def ut_corners(uc, vc, cosa_u, cosa_v, ut, vt):
        in which avg(vt) includes vt(1,2) and avg(ut) includes ut(2,1)
 
     """
+    from __externals__ import i_end, i_start, j_end, j_start
+
     with horizontal(region[i_start + 1, j_start - 1], region[i_start + 1, j_end]):
         damp = 1.0 / (1.0 - 0.0625 * cosa_u * cosa_v[-1, 0, 0])
         ut = (
@@ -335,347 +334,344 @@ def ra_y_func(area, yfx_adv):
 
 
 # -------------------- DEPRECATED CORNERS-----------------
-"""
 # Using 1 function with different sets of externals
 # Unlikely to use as different externals in single stencil version
 # but if gt4py adds feature to assign index offsets with runtime integers,
 # this might be useful.
 # Note, it changes the order of operatons slightly and yields 1e-15 errors
-@gtscript.function
-def corner_ut_function(uc: FloatField, vc: FloatField, ut: FloatField,
-             vt: FloatField, cosa_u: FloatField, cosa_v: FloatField):
-    from __externals__ import ux, uy, vi, vj, vx, vy
-    with computation(PARALLEL), interval(...):
-        ut = (
-            (
-                uc
-                - 0.25
-                * cosa_u
-                * (
-                    vt[vi, vy, 0]
-                    + vt[vx, vy, 0]
-                    + vt[vx, vj, 0]
-                    + vc[vi, vj, 0]
-                    - 0.25
-                    * cosa_v[vi, vj, 0]
-                    * (ut[ux, 0, 0] + ut[ux, uy, 0] + ut[0, uy, 0])
-                )
-            )
-            * 1.0
-            / (1.0 - 0.0625 * cosa_u * cosa_v[vi, vj, 0])
-        )
-
-
-def corner_ut_stencil(uc: FloatField, vc: FloatField, ut: FloatField, \
-    vt: FloatField, cosa_u: FloatField, cosa_v: FloatField):
-    from __externals__ import ux, uy, vi, vj, vx, vy
-
-    with computation(PARALLEL), interval(...):
-        ut = (
-            (
-                uc
-                - 0.25
-                * cosa_u
-                * (
-                    vt[vi, vy, 0]
-                    + vt[vx, vy, 0]
-                    + vt[vx, vj, 0]
-                    + vc[vi, vj, 0]
-                    - 0.25
-                    * cosa_v[vi, vj, 0]
-                    * (ut[ux, 0, 0] + ut[ux, uy, 0] + ut[0, uy, 0])
-                )
-            )
-            * 1.0
-            / (1.0 - 0.0625 * cosa_u * cosa_v[vi, vj, 0])
-        )
-
-
-# for the non-stencil version of filling corners
-def get_damp(cosa_u, cosa_v, ui, uj, vi, vj):
-    return 1.0 / (1.0 - 0.0625 * cosa_u[ui, uj, :] * cosa_v[vi, vj, :])
-
-
-def index_offset(lower, u, south=True):
-    if lower == u:
-        offset = 1
-    else:
-        offset = -1
-    if south:
-        offset *= -1
-    return offset
-
-
-def corner_ut(
-    uc,
-    vc,
-    ut,
-    vt,
-    cosa_u,
-    cosa_v,
-    ui,
-    uj,
-    vi,
-    vj,
-    west,
-    lower,
-    south=True,
-    vswitch=False,
-):
-    if vswitch:
-        lowerfactor = 1 if lower else -1
-    else:
-        lowerfactor = 1
-    vx = vi + index_offset(west, False, south) * lowerfactor
-    ux = ui + index_offset(west, True, south) * lowerfactor
-    vy = vj + index_offset(lower, False, south) * lowerfactor
-    uy = uj + index_offset(lower, True, south) * lowerfactor
-    if stencil_corner:
-        decorator = gtscript.stencil(
-            backend=global_config.get_backend(),
-            externals={
-                "vi": vi - ui,
-                "vj": vj - uj,
-                "ux": ux - ui,
-                "uy": uy - uj,
-                "vx": vx - ui,
-                "vy": vy - uj,
-            },
-            rebuild=global_config.get_rebuild(),
-        )
-        corner_stencil = decorator(corner_ut_stencil)
-        corner_stencil(
-            uc,
-            vc,
-            ut,
-            vt,
-            cosa_u,
-            cosa_v,
-            origin=(ui, uj, 0),
-            domain=(1, 1, grid.npz),
-        )
-    else:
-        damp = get_damp(cosa_u, cosa_v, ui, uj, vi, vj)
-        ut[ui, uj, :] = (
-            uc[ui, uj, :]
-            - 0.25
-            * cosa_u[ui, uj, :]
-            * (
-                vt[vi, vy, :]
-                + vt[vx, vy, :]
-                + vt[vx, vj, :]
-                + vc[vi, vj, :]
-                - 0.25
-                * cosa_v[vi, vj, :]
-                * (ut[ux, uj, :] + ut[ux, uy, :] + ut[ui, uy, :])
-            )
-        ) * damp
-
-
-def sw_corner(uc, vc, ut, vt, cosa_u, cosa_v, corner_shape):
-    t = grid.is_ + 1
-    n = grid.is_
-    z = grid.is_ - 1
-    corner_ut(uc, vc, ut, vt, cosa_u, cosa_v, t, z, n, z, west=True, lower=True)
-    corner_ut(
-        vc, uc, vt, ut, cosa_v, cosa_u, z, t, z, n, west=True, lower=True, vswitch=True
-    )
-    corner_ut(uc, vc, ut, vt, cosa_u, cosa_v, t, n, n, t, west=True, lower=False)
-    corner_ut(
-        vc, uc, vt, ut, cosa_v, cosa_u, n, t, t, n, west=True, lower=False, vswitch=True
-    )
-
-
-def se_corner(uc, vc, ut, vt, cosa_u, cosa_v, corner_shape):
-    t = grid.js + 1
-    n = grid.js
-    z = grid.js - 1
-    corner_ut(
-        uc,
-        vc,
-        ut,
-        vt,
-        cosa_u,
-        cosa_v,
-        grid.ie,
-        z,
-        grid.ie,
-        z,
-        west=False,
-        lower=True,
-    )
-    corner_ut(
-        vc,
-        uc,
-        vt,
-        ut,
-        cosa_v,
-        cosa_u,
-        grid.ie + 1,
-        t,
-        grid.ie + 2,
-        n,
-        west=False,
-        lower=True,
-        vswitch=True,
-    )
-    corner_ut(
-        uc,
-        vc,
-        ut,
-        vt,
-        cosa_u,
-        cosa_v,
-        grid.ie,
-        n,
-        grid.ie,
-        t,
-        west=False,
-        lower=False,
-    )
-    corner_ut(
-        vc,
-        uc,
-        vt,
-        ut,
-        cosa_v,
-        cosa_u,
-        grid.ie,
-        t,
-        grid.ie,
-        n,
-        west=False,
-        lower=False,
-        vswitch=True,
-    )
-
-
-def ne_corner(uc, vc, ut, vt, cosa_u, cosa_v, corner_shape):
-    corner_ut(
-        uc,
-        vc,
-        ut,
-        vt,
-        cosa_u,
-        cosa_v,
-        grid.ie,
-        grid.je + 1,
-        grid.ie,
-        grid.je + 2,
-        west=False,
-        lower=False,
-    )
-    corner_ut(
-        vc,
-        uc,
-        vt,
-        ut,
-        cosa_v,
-        cosa_u,
-        grid.ie + 1,
-        grid.je,
-        grid.ie + 2,
-        grid.je,
-        west=False,
-        lower=False,
-        south=False,
-        vswitch=True,
-    )
-    corner_ut(
-        uc,
-        vc,
-        ut,
-        vt,
-        cosa_u,
-        cosa_v,
-        grid.ie,
-        grid.je,
-        grid.ie,
-        grid.je,
-        west=False,
-        lower=True,
-    )
-    corner_ut(
-        vc,
-        uc,
-        vt,
-        ut,
-        cosa_v,
-        cosa_u,
-        grid.ie,
-        grid.je,
-        grid.ie,
-        grid.je,
-        west=False,
-        lower=True,
-        south=False,
-        vswitch=True,
-    )
-
-
-def nw_corner(uc, vc, ut, vt, cosa_u, cosa_v, corner_shape):
-    t = grid.js + 1
-    n = grid.js
-    z = grid.js - 1
-    corner_ut(
-        uc,
-        vc,
-        ut,
-        vt,
-        cosa_u,
-        cosa_v,
-        t,
-        grid.je + 1,
-        n,
-        grid.je + 2,
-        west=True,
-        lower=False,
-    )
-    corner_ut(
-        vc,
-        uc,
-        vt,
-        ut,
-        cosa_v,
-        cosa_u,
-        z,
-        grid.je,
-        z,
-        grid.je,
-        west=True,
-        lower=False,
-        south=False,
-        vswitch=True,
-    )
-    corner_ut(
-        uc,
-        vc,
-        ut,
-        vt,
-        cosa_u,
-        cosa_v,
-        t,
-        grid.je,
-        n,
-        grid.je,
-        west=True,
-        lower=True,
-    )
-    corner_ut(
-        vc,
-        uc,
-        vt,
-        ut,
-        cosa_v,
-        cosa_u,
-        n,
-        grid.je,
-        t,
-        grid.je,
-        west=True,
-        lower=True,
-        south=False,
-        vswitch=True,
-    )
-
-"""
+# @gtscript.function
+# def corner_ut_function(uc: FloatField, vc: FloatField, ut: FloatField,
+#              vt: FloatField, cosa_u: FloatField, cosa_v: FloatField):
+#     from __externals__ import ux, uy, vi, vj, vx, vy
+#     with computation(PARALLEL), interval(...):
+#         ut = (
+#             (
+#                 uc
+#                 - 0.25
+#                 * cosa_u
+#                 * (
+#                      vt[vi, vy, 0]
+#                     + vt[vx, vy, 0]
+#                     + vt[vx, vj, 0]
+#                     + vc[vi, vj, 0]
+#                     - 0.25
+#                     * cosa_v[vi, vj, 0]
+#                     * (ut[ux, 0, 0] + ut[ux, uy, 0] + ut[0, uy, 0])
+#                 )
+#             )
+#             * 1.0
+#             / (1.0 - 0.0625 * cosa_u * cosa_v[vi, vj, 0])
+#         )
+#
+#
+# def corner_ut_stencil(uc: FloatField, vc: FloatField, ut: FloatField, \
+#     vt: FloatField, cosa_u: FloatField, cosa_v: FloatField):
+#     from __externals__ import ux, uy, vi, vj, vx, vy
+#
+#     with computation(PARALLEL), interval(...):
+#         ut = (
+#             (
+#                 uc
+#                 - 0.25
+#                 * cosa_u
+#                 * (
+#                     vt[vi, vy, 0]
+#                     + vt[vx, vy, 0]
+#                     + vt[vx, vj, 0]
+#                     + vc[vi, vj, 0]
+#                     - 0.25
+#                     * cosa_v[vi, vj, 0]
+#                     * (ut[ux, 0, 0] + ut[ux, uy, 0] + ut[0, uy, 0])
+#                 )
+#             )
+#             * 1.0
+#             / (1.0 - 0.0625 * cosa_u * cosa_v[vi, vj, 0])
+#         )
+#
+#
+# # for the non-stencil version of filling corners
+# def get_damp(cosa_u, cosa_v, ui, uj, vi, vj):
+#     return 1.0 / (1.0 - 0.0625 * cosa_u[ui, uj, :] * cosa_v[vi, vj, :])
+#
+#
+# def index_offset(lower, u, south=True):
+#     if lower == u:
+#         offset = 1
+#     else:
+#         offset = -1
+#     if south:
+#         offset *= -1
+#     return offset
+#
+#
+# def corner_ut(
+#     uc,
+#     vc,
+#     ut,
+#     vt,
+#     cosa_u,
+#     cosa_v,
+#     ui,
+#     uj,
+#     vi,
+#     vj,
+#     west,
+#     lower,
+#     south=True,
+#     vswitch=False,
+# ):
+#     if vswitch:
+#         lowerfactor = 1 if lower else -1
+#     else:
+#         lowerfactor = 1
+#     vx = vi + index_offset(west, False, south) * lowerfactor
+#     ux = ui + index_offset(west, True, south) * lowerfactor
+#     vy = vj + index_offset(lower, False, south) * lowerfactor
+#     uy = uj + index_offset(lower, True, south) * lowerfactor
+#     if stencil_corner:
+#         decorator = gtscript.stencil(
+#             backend=global_config.get_backend(),
+#             externals={
+#                 "vi": vi - ui,
+#                 "vj": vj - uj,
+#                 "ux": ux - ui,
+#                 "uy": uy - uj,
+#                 "vx": vx - ui,
+#                 "vy": vy - uj,
+#             },
+#             rebuild=global_config.get_rebuild(),
+#         )
+#         corner_stencil = decorator(corner_ut_stencil)
+#         corner_stencil(
+#             uc,
+#             vc,
+#             ut,
+#             vt,
+#             cosa_u,
+#             cosa_v,
+#             origin=(ui, uj, 0),
+#             domain=(1, 1, grid.npz),
+#         )
+#     else:
+#         damp = get_damp(cosa_u, cosa_v, ui, uj, vi, vj)
+#         ut[ui, uj, :] = (
+#             uc[ui, uj, :]
+#             - 0.25
+#             * cosa_u[ui, uj, :]
+#             * (
+#                 vt[vi, vy, :]
+#                 + vt[vx, vy, :]
+#                 + vt[vx, vj, :]
+#                 + vc[vi, vj, :]
+#                 - 0.25
+#                 * cosa_v[vi, vj, :]
+#                 * (ut[ux, uj, :] + ut[ux, uy, :] + ut[ui, uy, :])
+#             )
+#         ) * damp
+#
+#
+# def sw_corner(uc, vc, ut, vt, cosa_u, cosa_v, corner_shape):
+#     t = grid.is_ + 1
+#     n = grid.is_
+#     z = grid.is_ - 1
+#     corner_ut(uc, vc, ut, vt, cosa_u, cosa_v, t, z, n, z, west=True, lower=True)
+#     corner_ut(
+#       vc, uc, vt, ut, cosa_v, cosa_u, z, t, z, n, west=True, lower=True, vswitch=True
+#     )
+#     corner_ut(uc, vc, ut, vt, cosa_u, cosa_v, t, n, n, t, west=True, lower=False)
+#     corner_ut(
+#       vc, uc, vt, ut, cosa_v, cosa_u, n, t, t, n, west=True, lower=False, vswitch=True
+#     )
+#
+#
+# def se_corner(uc, vc, ut, vt, cosa_u, cosa_v, corner_shape):
+#     t = grid.js + 1
+#     n = grid.js
+#     z = grid.js - 1
+#     corner_ut(
+#         uc,
+#         vc,
+#         ut,
+#         vt,
+#         cosa_u,
+#         cosa_v,
+#         grid.ie,
+#         z,
+#         grid.ie,
+#         z,
+#         west=False,
+#         lower=True,
+#     )
+#     corner_ut(
+#         vc,
+#         uc,
+#         vt,
+#         ut,
+#         cosa_v,
+#         cosa_u,
+#         grid.ie + 1,
+#         t,
+#         grid.ie + 2,
+#         n,
+#         west=False,
+#         lower=True,
+#         vswitch=True,
+#     )
+#     corner_ut(
+#         uc,
+#         vc,
+#         ut,
+#         vt,
+#         cosa_u,
+#         cosa_v,
+#         grid.ie,
+#         n,
+#         grid.ie,
+#         t,
+#         west=False,
+#         lower=False,
+#     )
+#     corner_ut(
+#         vc,
+#         uc,
+#         vt,
+#         ut,
+#         cosa_v,
+#         cosa_u,
+#         grid.ie,
+#         t,
+#         grid.ie,
+#         n,
+#         west=False,
+#         lower=False,
+#         vswitch=True,
+#     )
+#
+#
+# def ne_corner(uc, vc, ut, vt, cosa_u, cosa_v, corner_shape):
+#     corner_ut(
+#         uc,
+#         vc,
+#         ut,
+#         vt,
+#         cosa_u,
+#         cosa_v,
+#         grid.ie,
+#         grid.je + 1,
+#         grid.ie,
+#         grid.je + 2,
+#         west=False,
+#         lower=False,
+#     )
+#     corner_ut(
+#         vc,
+#         uc,
+#         vt,
+#         ut,
+#         cosa_v,
+#         cosa_u,
+#         grid.ie + 1,
+#         grid.je,
+#         grid.ie + 2,
+#         grid.je,
+#         west=False,
+#         lower=False,
+#         south=False,
+#         vswitch=True,
+#     )
+#     corner_ut(
+#         uc,
+#         vc,
+#         ut,
+#         vt,
+#         cosa_u,
+#         cosa_v,
+#         grid.ie,
+#         grid.je,
+#         grid.ie,
+#         grid.je,
+#         west=False,
+#         lower=True,
+#     )
+#     corner_ut(
+#         vc,
+#         uc,
+#         vt,
+#         ut,
+#         cosa_v,
+#         cosa_u,
+#         grid.ie,
+#         grid.je,
+#         grid.ie,
+#         grid.je,
+#         west=False,
+#         lower=True,
+#         south=False,
+#         vswitch=True,
+#     )
+#
+#
+# def nw_corner(uc, vc, ut, vt, cosa_u, cosa_v, corner_shape):
+#     t = grid.js + 1
+#     n = grid.js
+#     z = grid.js - 1
+#     corner_ut(
+#         uc,
+#         vc,
+#         ut,
+#         vt,
+#         cosa_u,
+#         cosa_v,
+#         t,
+#         grid.je + 1,
+#         n,
+#         grid.je + 2,
+#         west=True,
+#         lower=False,
+#     )
+#     corner_ut(
+#         vc,
+#         uc,
+#         vt,
+#         ut,
+#         cosa_v,
+#         cosa_u,
+#         z,
+#         grid.je,
+#         z,
+#         grid.je,
+#         west=True,
+#         lower=False,
+#         south=False,
+#         vswitch=True,
+#     )
+#     corner_ut(
+#         uc,
+#         vc,
+#         ut,
+#         vt,
+#         cosa_u,
+#         cosa_v,
+#         t,
+#         grid.je,
+#         n,
+#         grid.je,
+#         west=True,
+#         lower=True,
+#     )
+#     corner_ut(
+#         vc,
+#         uc,
+#         vt,
+#         ut,
+#         cosa_v,
+#         cosa_u,
+#         n,
+#         grid.je,
+#         t,
+#         grid.je,
+#         west=True,
+#         lower=True,
+#         south=False,
+#         vswitch=True,
+#     )
