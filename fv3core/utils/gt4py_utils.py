@@ -23,7 +23,7 @@ except ImportError:
 logger = logging.getLogger("fv3ser")
 
 # Set to "False" to skip validating gt4py stencil arguments
-validate_args = False
+validate_args = True
 
 # If True, automatically transfers memory between CPU and GPU (see gt4py.storage)
 managed_memory = True
@@ -324,7 +324,7 @@ def k_subset_run(func, data, splitvars, ki, outputs, grid_data, grid, allz=False
 def collect_results(data, results, outputs, ki, allz=False):
     outnames = list(outputs.keys())
     endz = None if allz else -1
-    # logger.debug("Computing results for k indices: {}".format(ki[:-1]))
+    logger.debug("Computing results for k indices: {}".format(ki[:-1]))
     for k in outnames:
         if k in data:
             # passing fields with single item in 3rd dimension leads to errors
@@ -372,9 +372,9 @@ def k_split_run(func, data, k_indices, splitvars_values):
         data.update(splitvars)
         data["kstart"] = ki
         data["nk"] = nk
-        # logger.debug(
-        #     "Running kstart: {}, num k:{}, variables:{}".format(ki, nk, splitvars)
-        # )
+        logger.debug(
+            "Running kstart: {}, num k:{}, variables:{}".format(ki, nk, splitvars)
+        )
         func(**data)
 
 
