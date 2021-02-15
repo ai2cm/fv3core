@@ -33,33 +33,22 @@ def fxadv_stencil(
     dt: float,
 ):
     """
-    Updates fluxes in prior to advection
+    Updates fluxes and
     Inputs:
         uc: x-velocity on the C-grid
         vc: y-velocity on the C-grid
-        crx_adv: (inout)
-        cry_adv: (inout)
-        xfx_adv: (inout)
-        yfx_adv: (inout)
-        ut: (inout)
-        vt: (inout)
-        ra_x: (inout)
-        ra_y: (inout)
+        crx_adv: Courant number, x direction(inout)
+        cry_adv: Courant number, y direction(inout)
+        xfx_adv: Finite volume flux form operator in x direction (inout)
+        yfx_adv: Finite volume flux form operator in y direction (inout)
+        ut: temporary x-velocity transformed from C-grid to D-grid equivalent(?) (inout)
+        vt: temporary y-velocity transformed from C-grid to D-grid equivalent(?) (inout)
+        ra_x: Area increased in the x direction due to flux divergence (inout)
+        ra_y: Area increased in the y direction due to flux divergence (inout)
         dt: timestep in seconds
     Grid variables inputs:
-        cosa_u:
-        cosa_v:
-        rsin_u:
-        rsin_v:
-        sin_sg1:
-        sin_sg2:
-        sin_sg3:
-        sin_sg4:
-        rdxa:
-        rdya:
-        area:
-        dy:
-        dx:
+        cosa_u, cosa_v, rsin_u, rsin_v, sin_sg1,sin_sg2, sin_sg3, sin_sg4:
+        rdxa, rdya, area, dy, dx
     Returns:
        Updates to xfx_adv, yfx_adv, crx_adv, cry_adv, ut, vt, ra_x, ra_y
     """
@@ -139,9 +128,7 @@ def ut_x_edge(uc, cosa_u, vt, ut):
         region[local_is : local_ie + 2, j_start - 1 : j_start + 1],
         region[local_is : local_ie + 2, j_end : j_end + 2],
     ):
-        ut = uc - 0.25 * cosa_u * (
-            vt[-1, 0, 0] + vt[0, 0, 0] + vt[-1, 1, 0] + vt[0, 1, 0]
-        )
+        ut = uc - 0.25 * cosa_u * (vt[-1, 0, 0] + vt + vt[-1, 1, 0] + vt[0, 1, 0])
     with horizontal(
         region[i_start : i_start + 2, j_start - 1 : j_start + 1],
         region[i_start : i_start + 2, j_end : j_end + 2],
@@ -159,8 +146,8 @@ def vt_y_edge(vc, cosa_v, ut, vt):
     # This works for 6 ranks, but not 54:
     # with horizontal(region[i_start - 1: i_start + 1, j_start + 2:j_end], \
     #                region[i_end : i_end + 2, j_start+2:j_end]):
-    #    vt[0, 0, 0] = vc - 0.25 * cosa_v * (
-    #        ut[0, -1, 0] + ut[1, -1, 0] + ut[0, 0, 0] + ut[1, 0, 0]
+    #    vt = vc - 0.25 * cosa_v * (
+    #        ut[0, -1, 0] + ut[1, -1, 0] + ut + ut[1, 0, 0]
     #    )
     # original bounds with stencil calls
     # j1 = grid().js + 2 if grid().south_edge else grid().js
@@ -175,9 +162,7 @@ def vt_y_edge(vc, cosa_v, ut, vt):
         region[i_start - 1 : i_start + 1, local_js : local_je + 2],
         region[i_end : i_end + 2, local_js : local_je + 2],
     ):
-        vt = vc - 0.25 * cosa_v * (
-            ut[0, -1, 0] + ut[1, -1, 0] + ut[0, 0, 0] + ut[1, 0, 0]
-        )
+        vt = vc - 0.25 * cosa_v * (ut[0, -1, 0] + ut[1, -1, 0] + ut + ut[1, 0, 0])
     with horizontal(
         region[i_start - 1 : i_start + 1, j_start : j_start + 2],
         region[i_end : i_end + 2, j_start : j_start + 2],
@@ -214,15 +199,15 @@ def ut_corners(uc, vc, cosa_u, cosa_v, ut, vt):
 
     """
     with horizontal(region[i_start + 1, j_start - 1], region[i_start + 1, j_end]):
-        damp = 1.0 / (1.0 - 0.0625 * cosa_u[0, 0, 0] * cosa_v[-1, 0, 0])
+        damp = 1.0 / (1.0 - 0.0625 * cosa_u * cosa_v[-1, 0, 0])
         ut = (
-            uc[0, 0, 0]
+            uc
             - 0.25
-            * cosa_u[0, 0, 0]
+            * cosa_u
             * (
                 vt[-1, 1, 0]
                 + vt[0, 1, 0]
-                + vt[0, 0, 0]
+                + vt
                 + vc[-1, 0, 0]
                 - 0.25
                 * cosa_v[-1, 0, 0]
@@ -230,41 +215,41 @@ def ut_corners(uc, vc, cosa_u, cosa_v, ut, vt):
             )
         ) * damp
     with horizontal(region[i_start + 1, j_start], region[i_start + 1, j_end + 1]):
-        damp = 1.0 / (1.0 - 0.0625 * cosa_u[0, 0, 0] * cosa_v[-1, 1, 0])
+        damp = 1.0 / (1.0 - 0.0625 * cosa_u * cosa_v[-1, 1, 0])
         ut = (
-            uc[0, 0, 0]
+            uc
             - 0.25
-            * cosa_u[0, 0, 0]
+            * cosa_u
             * (
                 vt[-1, 0, 0]
-                + vt[0, 0, 0]
+                + vt
                 + vt[0, 1, 0]
                 + vc[-1, 1, 0]
                 - 0.25 * cosa_v[-1, 1, 0] * (ut[-1, 0, 0] + ut[-1, 1, 0] + ut[0, 1, 0])
             )
         ) * damp
     with horizontal(region[i_end, j_start - 1], region[i_end, j_end]):
-        damp_u = 1.0 / (1.0 - 0.0625 * cosa_u[0, 0, 0] * cosa_v[0, 0, 0])
+        damp_u = 1.0 / (1.0 - 0.0625 * cosa_u * cosa_v)
         ut = (
-            uc[0, 0, 0]
+            uc
             - 0.25
-            * cosa_u[0, 0, 0]
+            * cosa_u
             * (
                 vt[0, 1, 0]
                 + vt[-1, 1, 0]
                 + vt[-1, 0, 0]
-                + vc[0, 0, 0]
-                - 0.25 * cosa_v[0, 0, 0] * (ut[1, 0, 0] + ut[1, -1, 0] + ut[0, -1, 0])
+                + vc
+                - 0.25 * cosa_v * (ut[1, 0, 0] + ut[1, -1, 0] + ut[0, -1, 0])
             )
         ) * damp_u
     with horizontal(region[i_end, j_start], region[i_end, j_end + 1]):
-        damp = 1.0 / (1.0 - 0.0625 * cosa_u[0, 0, 0] * cosa_v[0, 1, 0])
+        damp = 1.0 / (1.0 - 0.0625 * cosa_u * cosa_v[0, 1, 0])
         ut = (
-            uc[0, 0, 0]
+            uc
             - 0.25
-            * cosa_u[0, 0, 0]
+            * cosa_u
             * (
-                vt[0, 0, 0]
+                vt
                 + vt[-1, 0, 0]
                 + vt[-1, 1, 0]
                 + vc[0, 1, 0]
@@ -279,15 +264,15 @@ def vt_corners(uc, vc, cosa_u, cosa_v, ut, vt):
     from __externals__ import i_end, i_start, j_end, j_start
 
     with horizontal(region[i_start - 1, j_start + 1], region[i_end, j_start + 1]):
-        damp = 1.0 / (1.0 - 0.0625 * cosa_u[0, -1, 0] * cosa_v[0, 0, 0])
+        damp = 1.0 / (1.0 - 0.0625 * cosa_u[0, -1, 0] * cosa_v)
         vt = (
-            vc[0, 0, 0]
+            vc
             - 0.25
-            * cosa_v[0, 0, 0]
+            * cosa_v
             * (
                 ut[1, -1, 0]
                 + ut[1, 0, 0]
-                + ut[0, 0, 0]
+                + ut
                 + uc[0, -1, 0]
                 - 0.25
                 * cosa_u[0, -1, 0]
@@ -295,27 +280,27 @@ def vt_corners(uc, vc, cosa_u, cosa_v, ut, vt):
             )
         ) * damp
     with horizontal(region[i_start, j_start + 1], region[i_end + 1, j_start + 1]):
-        damp = 1.0 / (1.0 - 0.0625 * cosa_u[1, -1, 0] * cosa_v[0, 0, 0])
+        damp = 1.0 / (1.0 - 0.0625 * cosa_u[1, -1, 0] * cosa_v)
         vt = (
-            vc[0, 0, 0]
+            vc
             - 0.25
-            * cosa_v[0, 0, 0]
+            * cosa_v
             * (
                 ut[0, -1, 0]
-                + ut[0, 0, 0]
+                + ut
                 + ut[1, 0, 0]
                 + uc[1, -1, 0]
                 - 0.25 * cosa_u[1, -1, 0] * (vt[0, -1, 0] + vt[1, -1, 0] + vt[1, 0, 0])
             )
         ) * damp
     with horizontal(region[i_end + 1, j_end], region[i_start, j_end]):
-        damp = 1.0 / (1.0 - 0.0625 * cosa_u[1, 0, 0] * cosa_v[0, 0, 0])
+        damp = 1.0 / (1.0 - 0.0625 * cosa_u[1, 0, 0] * cosa_v)
         vt = (
-            vc[0, 0, 0]
+            vc
             - 0.25
-            * cosa_v[0, 0, 0]
+            * cosa_v
             * (
-                ut[0, 0, 0]
+                ut
                 + ut[0, -1, 0]
                 + ut[1, -1, 0]
                 + uc[1, 0, 0]
@@ -323,17 +308,17 @@ def vt_corners(uc, vc, cosa_u, cosa_v, ut, vt):
             )
         ) * damp
     with horizontal(region[i_end, j_end], region[i_start - 1, j_end]):
-        damp_v = 1.0 / (1.0 - 0.0625 * cosa_u[0, 0, 0] * cosa_v[0, 0, 0])
+        damp_v = 1.0 / (1.0 - 0.0625 * cosa_u * cosa_v)
         vt = (
-            vc[0, 0, 0]
+            vc
             - 0.25
-            * cosa_v[0, 0, 0]
+            * cosa_v
             * (
                 ut[1, 0, 0]
                 + ut[1, -1, 0]
                 + ut[0, -1, 0]
-                + uc[0, 0, 0]
-                - 0.25 * cosa_u[0, 0, 0] * (vt[0, 1, 0] + vt[-1, 1, 0] + vt[-1, 0, 0])
+                + uc
+                - 0.25 * cosa_u * (vt[0, 1, 0] + vt[-1, 1, 0] + vt[-1, 0, 0])
             )
         ) * damp_v
     return vt
@@ -361,11 +346,11 @@ def corner_ut_function(uc: FloatField, vc: FloatField, ut: FloatField,
              vt: FloatField, cosa_u: FloatField, cosa_v: FloatField):
     from __externals__ import ux, uy, vi, vj, vx, vy
     with computation(PARALLEL), interval(...):
-        ut[0, 0, 0] = (
+        ut = (
             (
-                uc[0, 0, 0]
+                uc
                 - 0.25
-                * cosa_u[0, 0, 0]
+                * cosa_u
                 * (
                     vt[vi, vy, 0]
                     + vt[vx, vy, 0]
@@ -377,7 +362,7 @@ def corner_ut_function(uc: FloatField, vc: FloatField, ut: FloatField,
                 )
             )
             * 1.0
-            / (1.0 - 0.0625 * cosa_u[0, 0, 0] * cosa_v[vi, vj, 0])
+            / (1.0 - 0.0625 * cosa_u * cosa_v[vi, vj, 0])
         )
 
 
@@ -386,11 +371,11 @@ def corner_ut_stencil(uc: FloatField, vc: FloatField, ut: FloatField, \
     from __externals__ import ux, uy, vi, vj, vx, vy
 
     with computation(PARALLEL), interval(...):
-        ut[0, 0, 0] = (
+        ut = (
             (
-                uc[0, 0, 0]
+                uc
                 - 0.25
-                * cosa_u[0, 0, 0]
+                * cosa_u
                 * (
                     vt[vi, vy, 0]
                     + vt[vx, vy, 0]
@@ -402,7 +387,7 @@ def corner_ut_stencil(uc: FloatField, vc: FloatField, ut: FloatField, \
                 )
             )
             * 1.0
-            / (1.0 - 0.0625 * cosa_u[0, 0, 0] * cosa_v[vi, vj, 0])
+            / (1.0 - 0.0625 * cosa_u * cosa_v[vi, vj, 0])
         )
 
 
