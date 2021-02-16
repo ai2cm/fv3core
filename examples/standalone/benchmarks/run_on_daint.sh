@@ -9,7 +9,7 @@
 #############################################
 # Example syntax:
 # ./run_on_daint.sh 60 6 gtx86
-
+set -e
 exitError()
 {
     echo "ERROR $1: $3" 1>&2

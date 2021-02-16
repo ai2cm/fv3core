@@ -224,6 +224,15 @@ class FV3StencilObject:
 
             # gtscript.stencil always returns a new class instance even if it
             # used the cached module.
+
+            # Claim this stencil for our rank...
+            func_id = self.func.__module__ + "." + self.func.__qualname__
+            rank = utils.get_rank()
+            root = 0
+
+            if rank > root:
+                utils.recv(rank - 1, int.from_bytes(func_id.encode(), "little"))
+
             self.stencil_object = gtscript.stencil(
                 definition=self.func, **stencil_kwargs
             )
@@ -233,7 +242,7 @@ class FV3StencilObject:
                     k: v for k, v in def_ir.externals.items() if k in axis_offsets
                 }
                 self._axis_offsets_cache[self.stencil_object] = axis_offsets
-
+            utils.send(rank + 1, int.from_bytes(func_id.encode(), "little"))
         # Call it
         exec_info = {}
         kwargs["exec_info"] = kwargs.get("exec_info", exec_info)

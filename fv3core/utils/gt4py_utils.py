@@ -53,6 +53,27 @@ tracer_variables = [
 logger = logging.getLogger("fv3ser")
 
 
+def get_size():
+    return MPI.COMM_WORLD.Get_size() if MPI else 0
+
+
+def get_rank():
+    return MPI.COMM_WORLD.Get_rank() if get_size() > 1 else -1
+
+
+def bcast(data):
+    return MPI.COMM_WORLD.bcast(data, root=0)
+
+
+def send(dest: int, tag: int = 0):
+    MPI.COMM_WORLD.send(1, dest=dest, tag=tag)
+
+
+def recv(source: int, tag: int = 0) -> Any:
+    buff = bytearray(1 << 10)
+    return MPI.COMM_WORLD.recv(buff, source=source, tag=tag)
+
+
 # 1 indexing to 0 and halos: -2, -1, 0 --> 0, 1,2
 if MPI is not None and MPI.COMM_WORLD.Get_size() > 1:
     gt.config.cache_settings["dir_name"] = ".gt_cache_{:0>6d}".format(
