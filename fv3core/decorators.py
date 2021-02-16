@@ -231,7 +231,7 @@ class FV3StencilObject:
             root = 0
 
             if rank > root:
-                utils.recv(rank - 1, int.from_bytes(func_id.encode(), "little"))
+                utils.recv(rank - 1)  # int.from_bytes(func_id.encode(), "little"))
 
             self.stencil_object = gtscript.stencil(
                 definition=self.func, **stencil_kwargs
@@ -242,7 +242,13 @@ class FV3StencilObject:
                     k: v for k, v in def_ir.externals.items() if k in axis_offsets
                 }
                 self._axis_offsets_cache[self.stencil_object] = axis_offsets
-            utils.send(rank + 1, int.from_bytes(func_id.encode(), "little"))
+            if rank == root:
+                utils.send(rank + 1)
+                utils.recv(utils.get_size() - 1)
+            elif rank == utils.get_size() - 1:
+                utils.send(0)
+            else:
+                utils.send(rank + 1)  # , int.from_bytes(func_id.encode(), "little"))
         # Call it
         exec_info = {}
         kwargs["exec_info"] = kwargs.get("exec_info", exec_info)
