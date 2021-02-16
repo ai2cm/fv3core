@@ -286,11 +286,16 @@ def fxadv_stencil(
     ra_y: FloatField,
     dt: float,
 ):
-    """
-    Updates flux operators and courant numbers for fvtp2d
-    Inputs:
-        uc: x-velocity on the C-grid
-        vc: y-velocity on the C-grid
+    """Updates flux operators and courant numbers for fvtp2d
+
+    To kick off D_SW after the C-grid winds have been advanced half a timestep,
+    and and compute finite volume transport on the D-grid (e.g.Putman and Lin 2007),
+    this module prepares terms such as parts of equations 7 and 13 in Putnam and Lin,
+    2007, that get consumed by fvtp2d and ppm methods.
+
+    Args:
+        uc: x-velocity on the C-grid (in)
+        vc: y-velocity on the C-grid (in)
         crx_adv: Courant number, x direction(inout)
         cry_adv: Courant number, y direction(inout)
         xfx_adv: Finite volume flux form operator in x direction (inout)
@@ -303,8 +308,6 @@ def fxadv_stencil(
     Grid variable inputs:
         cosa_u, cosa_v, rsin_u, rsin_v, sin_sg1,sin_sg2, sin_sg3, sin_sg4,
         rdxa, rdya, area, dy, dx
-    Returns:
-       Updates to xfx_adv, yfx_adv, crx_adv, cry_adv, ut, vt, ra_x, ra_y
     """
     from __externals__ import local_ie, local_is, local_je, local_js
 
