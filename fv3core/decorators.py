@@ -189,23 +189,17 @@ class FV3StencilObject:
         )
 
     def _check_axis_offsets(self, axis_offsets: Dict[str, Any]) -> bool:
-        axis_offsets_changed = False
         for key, value in self.axis_offsets.items():
             if axis_offsets[key] != value:
-                axis_offsets_changed = True
-                break
-        return axis_offsets_changed
+                return True
+        return False
 
-    def _check_passed_externals(
-        self,
-    ) -> bool:  # , passed_externals: Dict[str, Any]) -> bool:
-        passed_externals_changed = False
+    def _check_passed_externals(self) -> bool:
         passed_externals = self.passed_externals
         for key, value in self._passed_externals.items():
             if passed_externals[key] != value:
-                passed_externals_changed = True
-                break
-        return passed_externals_changed
+                return True
+        return False
 
     def __call__(self, *args, origin: Index3D, domain: Index3D, **kwargs) -> None:
         """Call the stencil, compiling the stencil if necessary.
@@ -255,13 +249,16 @@ class FV3StencilObject:
             self.stencil_object = gtscript.stencil(
                 definition=self.func, **stencil_kwargs
             )
-            key = self.stencil_object
-            if key not in self._data_cache and "def_ir" in stencil_kwargs["build_info"]:
+            stencil = self.stencil_object
+            if (
+                stencil not in self._data_cache
+                and "def_ir" in stencil_kwargs["build_info"]
+            ):
                 def_ir = stencil_kwargs["build_info"]["def_ir"]
                 axis_offsets = {
                     k: v for k, v in def_ir.externals.items() if k in axis_offsets
                 }
-                self._data_cache[key] = dict(
+                self._data_cache[stencil] = dict(
                     axis_offsets=axis_offsets, passed_externals=self._passed_externals
                 )
 
