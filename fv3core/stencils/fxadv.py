@@ -5,80 +5,6 @@ from fv3core.decorators import gtstencil
 from fv3core.utils.typing import FloatField
 
 
-@gtstencil()
-def fxadv_stencil(
-    cosa_u: FloatField,
-    cosa_v: FloatField,
-    rsin_u: FloatField,
-    rsin_v: FloatField,
-    sin_sg1: FloatField,
-    sin_sg2: FloatField,
-    sin_sg3: FloatField,
-    sin_sg4: FloatField,
-    rdxa: FloatField,
-    rdya: FloatField,
-    area: FloatField,
-    dy: FloatField,
-    dx: FloatField,
-    uc: FloatField,
-    vc: FloatField,
-    crx_adv: FloatField,
-    cry_adv: FloatField,
-    xfx_adv: FloatField,
-    yfx_adv: FloatField,
-    ut: FloatField,
-    vt: FloatField,
-    ra_x: FloatField,
-    ra_y: FloatField,
-    dt: float,
-):
-    """
-    Updates flux operators and courant numbers for fvtp2d
-    Inputs:
-        uc: x-velocity on the C-grid
-        vc: y-velocity on the C-grid
-        crx_adv: Courant number, x direction(inout)
-        cry_adv: Courant number, y direction(inout)
-        xfx_adv: Finite volume flux form operator in x direction (inout)
-        yfx_adv: Finite volume flux form operator in y direction (inout)
-        ut: temporary x-velocity transformed from C-grid to D-grid equivalent(?) (inout)
-        vt: temporary y-velocity transformed from C-grid to D-grid equivalent(?) (inout)
-        ra_x: Area increased in the x direction due to flux divergence (inout)
-        ra_y: Area increased in the y direction due to flux divergence (inout)
-        dt: timestep in seconds
-    Grid variables inputs:
-        cosa_u, cosa_v, rsin_u, rsin_v, sin_sg1,sin_sg2, sin_sg3, sin_sg4,
-        rdxa, rdya, area, dy, dx
-    Returns:
-       Updates to xfx_adv, yfx_adv, crx_adv, cry_adv, ut, vt, ra_x, ra_y
-    """
-    from __externals__ import local_ie, local_is, local_je, local_js
-
-    with computation(PARALLEL), interval(...):
-        ut = main_ut(uc, vc, cosa_u, rsin_u, ut)
-        ut = ut_y_edge(uc, sin_sg1, sin_sg3, ut, dt)
-        vt = main_vt(uc, vc, cosa_v, rsin_v, vt)
-        vt = vt_y_edge(vc, cosa_v, ut, vt)
-        vt = vt_x_edge(vc, sin_sg2, sin_sg4, vt, dt)
-        ut = ut_x_edge(uc, cosa_u, vt, ut)
-        ut = ut_corners(uc, vc, cosa_u, cosa_v, ut, vt)
-        vt = vt_corners(uc, vc, cosa_u, cosa_v, ut, vt)
-    with computation(PARALLEL), interval(...):
-        with horizontal(region[local_is : local_ie + 2, :]):
-            prod = dt * ut
-            crx_adv = prod * rdxa[-1, 0, 0] if prod > 0 else prod * rdxa
-            xfx_adv = dy * prod * sin_sg3[-1, 0, 0] if prod > 0 else dy * prod * sin_sg1
-        with horizontal(region[:, local_js : local_je + 2]):
-            prod = dt * vt
-            cry_adv = prod * rdya[0, -1, 0] if prod > 0 else prod * rdya
-            yfx_adv = dx * prod * sin_sg4[0, -1, 0] if prod > 0 else dx * prod * sin_sg2
-    with computation(PARALLEL), interval(...):
-        with horizontal(region[local_is : local_ie + 2, :]):
-            ra_x = ra_x_func(area, xfx_adv)
-        with horizontal(region[:, local_js : local_je + 2]):
-            ra_y = ra_y_func(area, yfx_adv)
-
-
 @gtscript.function
 def main_ut(uc, vc, cosa_u, rsin_u, ut):
     from __externals__ import j_end, j_start, local_ie, local_is
@@ -331,6 +257,80 @@ def ra_x_func(area, xfx_adv):
 @gtscript.function
 def ra_y_func(area, yfx_adv):
     return area + yfx_adv - yfx_adv[0, 1, 0]
+
+
+@gtstencil()
+def fxadv_stencil(
+    cosa_u: FloatField,
+    cosa_v: FloatField,
+    rsin_u: FloatField,
+    rsin_v: FloatField,
+    sin_sg1: FloatField,
+    sin_sg2: FloatField,
+    sin_sg3: FloatField,
+    sin_sg4: FloatField,
+    rdxa: FloatField,
+    rdya: FloatField,
+    area: FloatField,
+    dy: FloatField,
+    dx: FloatField,
+    uc: FloatField,
+    vc: FloatField,
+    crx_adv: FloatField,
+    cry_adv: FloatField,
+    xfx_adv: FloatField,
+    yfx_adv: FloatField,
+    ut: FloatField,
+    vt: FloatField,
+    ra_x: FloatField,
+    ra_y: FloatField,
+    dt: float,
+):
+    """
+    Updates flux operators and courant numbers for fvtp2d
+    Inputs:
+        uc: x-velocity on the C-grid
+        vc: y-velocity on the C-grid
+        crx_adv: Courant number, x direction(inout)
+        cry_adv: Courant number, y direction(inout)
+        xfx_adv: Finite volume flux form operator in x direction (inout)
+        yfx_adv: Finite volume flux form operator in y direction (inout)
+        ut: temporary x-velocity transformed from C-grid to D-grid equivalent(?) (inout)
+        vt: temporary y-velocity transformed from C-grid to D-grid equivalent(?) (inout)
+        ra_x: Area increased in the x direction due to flux divergence (inout)
+        ra_y: Area increased in the y direction due to flux divergence (inout)
+        dt: timestep in seconds
+    Grid variable inputs:
+        cosa_u, cosa_v, rsin_u, rsin_v, sin_sg1,sin_sg2, sin_sg3, sin_sg4,
+        rdxa, rdya, area, dy, dx
+    Returns:
+       Updates to xfx_adv, yfx_adv, crx_adv, cry_adv, ut, vt, ra_x, ra_y
+    """
+    from __externals__ import local_ie, local_is, local_je, local_js
+
+    with computation(PARALLEL), interval(...):
+        ut = main_ut(uc, vc, cosa_u, rsin_u, ut)
+        ut = ut_y_edge(uc, sin_sg1, sin_sg3, ut, dt)
+        vt = main_vt(uc, vc, cosa_v, rsin_v, vt)
+        vt = vt_y_edge(vc, cosa_v, ut, vt)
+        vt = vt_x_edge(vc, sin_sg2, sin_sg4, vt, dt)
+        ut = ut_x_edge(uc, cosa_u, vt, ut)
+        ut = ut_corners(uc, vc, cosa_u, cosa_v, ut, vt)
+        vt = vt_corners(uc, vc, cosa_u, cosa_v, ut, vt)
+    with computation(PARALLEL), interval(...):
+        with horizontal(region[local_is : local_ie + 2, :]):
+            prod = dt * ut
+            crx_adv = prod * rdxa[-1, 0, 0] if prod > 0 else prod * rdxa
+            xfx_adv = dy * prod * sin_sg3[-1, 0, 0] if prod > 0 else dy * prod * sin_sg1
+        with horizontal(region[:, local_js : local_je + 2]):
+            prod = dt * vt
+            cry_adv = prod * rdya[0, -1, 0] if prod > 0 else prod * rdya
+            yfx_adv = dx * prod * sin_sg4[0, -1, 0] if prod > 0 else dx * prod * sin_sg2
+    with computation(PARALLEL), interval(...):
+        with horizontal(region[local_is : local_ie + 2, :]):
+            ra_x = ra_x_func(area, xfx_adv)
+        with horizontal(region[:, local_js : local_je + 2]):
+            ra_y = ra_y_func(area, yfx_adv)
 
 
 # -------------------- DEPRECATED CORNERS-----------------
