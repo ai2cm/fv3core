@@ -231,9 +231,8 @@ def compute(
     ndif[-1] = ndif[-2]
     damp_vtd[-1] = damp_vtd[-2]
     col = {"ndif": ndif, "damp": damp_vtd}
-    kstarts = utils.get_kstarts(col, grid.npz + 1)
 
-    for ki, nk in kstarts:
+    for ki, nk in utils.get_kstarts(col, grid.npz + 1):
         column_calls(
             zh,
             crx_adv,
