@@ -209,9 +209,7 @@ def ut_corners(uc, vc, cosa_u, cosa_v, ut, vt):
                 + vt[0, 1, 0]
                 + vt
                 + vc[-1, 0, 0]
-                - 0.25
-                * cosa_v[-1, 0]
-                * (ut[-1, 0, 0] + ut[-1, -1, 0] + ut[0, -1, 0])
+                - 0.25 * cosa_v[-1, 0] * (ut[-1, 0, 0] + ut[-1, -1, 0] + ut[0, -1, 0])
             )
         ) * damp
     with horizontal(region[i_start + 1, j_start], region[i_start + 1, j_end + 1]):
@@ -274,9 +272,7 @@ def vt_corners(uc, vc, cosa_u, cosa_v, ut, vt):
                 + ut[1, 0, 0]
                 + ut
                 + uc[0, -1, 0]
-                - 0.25
-                * cosa_u[0, -1]
-                * (vt[0, -1, 0] + vt[-1, -1, 0] + vt[-1, 0, 0])
+                - 0.25 * cosa_u[0, -1] * (vt[0, -1, 0] + vt[-1, -1, 0] + vt[-1, 0, 0])
             )
         ) * damp
     with horizontal(region[i_start, j_start + 1], region[i_end + 1, j_start + 1]):

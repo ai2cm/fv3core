@@ -8,13 +8,12 @@ from gt4py.gtscript import (
     region,
 )
 
-import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import gtstencil
 from fv3core.stencils.a2b_ord4 import a1, a2, lagrange_x_func, lagrange_y_func
 from fv3core.utils import corners
+from fv3core.utils.typing import FloatField, FloatFieldIJ
 
 
-sd = utils.sd
 c1 = -2.0 / 14.0
 c2 = 11.0 / 14.0
 c3 = 5.0 / 14.0
@@ -52,7 +51,7 @@ def lagrange_y_func_p1(qx):
 
 
 @gtstencil()
-def lagrange_interpolation_y_p1(qx: sd, qout: sd):
+def lagrange_interpolation_y_p1(qx: FloatField, qout: FloatField):
     with computation(PARALLEL), interval(...):
         qout = lagrange_y_func_p1(qx)
 
@@ -63,7 +62,7 @@ def lagrange_x_func_p1(qy):
 
 
 @gtstencil()
-def lagrange_interpolation_x_p1(qy: sd, qout: sd):
+def lagrange_interpolation_x_p1(qy: FloatField, qout: FloatField):
     with computation(PARALLEL), interval(...):
         qout = lagrange_x_func_p1(qy)
 
@@ -113,45 +112,45 @@ def interp_winds_d_to_a(u, v):
 
 
 @gtscript.function
-def edge_interpolate4_x(ua, dxa):
-    t1 = dxa[-2, 0, 0] + dxa[-1, 0, 0]
-    t2 = dxa[0, 0, 0] + dxa[1, 0, 0]
-    n1 = (t1 + dxa[-1, 0, 0]) * ua[-1, 0, 0] - dxa[-1, 0, 0] * ua[-2, 0, 0]
-    n2 = (t1 + dxa[0, 0, 0]) * ua[0, 0, 0] - dxa[0, 0, 0] * ua[1, 0, 0]
+def edge_interpolate4_x(ua: FloatField, dxa: FloatFieldIJ):
+    t1 = dxa[-2, 0] + dxa[-1, 0]
+    t2 = dxa[0, 0] + dxa[1, 0]
+    n1 = (t1 + dxa[-1, 0]) * ua[-1, 0, 0] - dxa[-1, 0] * ua[-2, 0, 0]
+    n2 = (t1 + dxa[0, 0]) * ua[0, 0, 0] - dxa[0, 0] * ua[1, 0, 0]
     return 0.5 * (n1 / t1 + n2 / t2)
 
 
 @gtscript.function
-def edge_interpolate4_y(va, dya):
-    t1 = dya[0, -2, 0] + dya[0, -1, 0]
-    t2 = dya[0, 0, 0] + dya[0, 1, 0]
-    n1 = (t1 + dya[0, -1, 0]) * va[0, -1, 0] - dya[0, -1, 0] * va[0, -2, 0]
-    n2 = (t1 + dya[0, 0, 0]) * va[0, 0, 0] - dya[0, 0, 0] * va[0, 1, 0]
+def edge_interpolate4_y(va: FloatField, dya: FloatFieldIJ):
+    t1 = dya[0, -2] + dya[0, -1]
+    t2 = dya[0, 0] + dya[0, 1]
+    n1 = (t1 + dya[0, -1]) * va[0, -1, 0] - dya[0, -1] * va[0, -2, 0]
+    n2 = (t1 + dya[0, 0]) * va[0, 0, 0] - dya[0, 0] * va[0, 1, 0]
     return 0.5 * (n1 / t1 + n2 / t2)
 
 
 @gtscript.function
 def d2a2c_vect(
-    cosa_s: sd,
-    cosa_u: sd,
-    cosa_v: sd,
-    dxa: sd,
-    dya: sd,
-    rsin2: sd,
-    rsin_u: sd,
-    rsin_v: sd,
-    sin_sg1: sd,
-    sin_sg2: sd,
-    sin_sg3: sd,
-    sin_sg4: sd,
-    u: sd,
-    ua: sd,
-    uc: sd,
-    utc: sd,
-    v: sd,
-    va: sd,
-    vc: sd,
-    vtc: sd,
+    cosa_s: FloatFieldIJ,
+    cosa_u: FloatFieldIJ,
+    cosa_v: FloatFieldIJ,
+    dxa: FloatField,
+    dya: FloatField,
+    rsin2: FloatFieldIJ,
+    rsin_u: FloatFieldIJ,
+    rsin_v: FloatFieldIJ,
+    sin_sg1: FloatFieldIJ,
+    sin_sg2: FloatFieldIJ,
+    sin_sg3: FloatFieldIJ,
+    sin_sg4: FloatFieldIJ,
+    u: FloatField,
+    ua: FloatField,
+    uc: FloatField,
+    utc: FloatField,
+    v: FloatField,
+    va: FloatField,
+    vc: FloatField,
+    vtc: FloatField,
 ):
     from __externals__ import (
         i_end,
@@ -192,7 +191,7 @@ def d2a2c_vect(
 
     with horizontal(region[i_start, local_js - 1 : local_je + 2]):
         utc = edge_interpolate4_x(ua, dxa)
-        uc = utc * sin_sg3[-1, 0, 0] if utc > 0 else utc * sin_sg1
+        uc = utc * sin_sg3[-1, 0] if utc > 0 else utc * sin_sg1
 
     with horizontal(region[i_start + 1, local_js - 1 : local_je + 2]):
         uc = vol_conserv_cubic_interp_func_x_rev(utmp)
@@ -209,7 +208,7 @@ def d2a2c_vect(
 
     with horizontal(region[i_end + 1, local_js - 1 : local_je + 2]):
         utc = edge_interpolate4_x(ua, dxa)
-        uc = utc * sin_sg3[-1, 0, 0] if utc > 0 else utc * sin_sg1
+        uc = utc * sin_sg3[-1, 0] if utc > 0 else utc * sin_sg1
 
     with horizontal(region[i_end + 2, local_js - 1 : local_je + 2]):
         uc = vol_conserv_cubic_interp_func_x_rev(utmp)
@@ -243,7 +242,7 @@ def d2a2c_vect(
 
     with horizontal(region[local_is - 1 : local_ie + 2, j_start]):
         vtc = edge_interpolate4_y(va, dya)
-        vc = vtc * sin_sg4[0, -1, 0] if vtc > 0 else vtc * sin_sg2
+        vc = vtc * sin_sg4[0, -1] if vtc > 0 else vtc * sin_sg2
 
     with horizontal(region[local_is - 1 : local_ie + 2, j_start + 1]):
         vc = vol_conserv_cubic_interp_func_y_rev(vtmp)
@@ -255,7 +254,7 @@ def d2a2c_vect(
 
     with horizontal(region[local_is - 1 : local_ie + 2, j_end + 1]):
         vtc = edge_interpolate4_y(va, dya)
-        vc = vtc * sin_sg4[0, -1, 0] if vtc > 0 else vtc * sin_sg2
+        vc = vtc * sin_sg4[0, -1] if vtc > 0 else vtc * sin_sg2
 
     with horizontal(region[local_is - 1 : local_ie + 2, j_end + 2]):
         vc = vol_conserv_cubic_interp_func_y_rev(vtmp)

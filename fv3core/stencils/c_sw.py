@@ -13,7 +13,7 @@ import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import gtstencil
 from fv3core.stencils.d2a2c_vect import d2a2c_vect
 from fv3core.utils import corners
-from fv3core.utils.typing import FloatField
+from fv3core.utils.typing import FloatField, FloatFieldIJ
 
 
 @gtscript.function
@@ -93,16 +93,16 @@ def divergence_corner(
     v: FloatField,
     ua: FloatField,
     va: FloatField,
-    dxc: FloatField,
-    dyc: FloatField,
-    sin_sg1: FloatField,
-    sin_sg2: FloatField,
-    sin_sg3: FloatField,
-    sin_sg4: FloatField,
-    cos_sg1: FloatField,
-    cos_sg2: FloatField,
-    cos_sg3: FloatField,
-    cos_sg4: FloatField,
+    dxc: FloatFieldIJ,
+    dyc: FloatFieldIJ,
+    sin_sg1: FloatFieldIJ,
+    sin_sg2: FloatFieldIJ,
+    sin_sg3: FloatFieldIJ,
+    sin_sg4: FloatFieldIJ,
+    cos_sg1: FloatFieldIJ,
+    cos_sg2: FloatFieldIJ,
+    cos_sg3: FloatFieldIJ,
+    cos_sg4: FloatFieldIJ,
     rarea_c: FloatField,
 ):
     """Calculate divg on d-grid.
@@ -131,22 +131,22 @@ def divergence_corner(
 
     if __INLINED(namelist.nord > 0):
         uf = (
-            (u - 0.25 * (va[0, -1, 0] + va) * (cos_sg4[0, -1, 0] + cos_sg2))
+            (u - 0.25 * (va[0, -1, 0] + va) * (cos_sg4[0, -1] + cos_sg2))
             * dyc
             * 0.5
-            * (sin_sg4[0, -1, 0] + sin_sg2)
+            * (sin_sg4[0, -1] + sin_sg2)
         )
         with horizontal(region[:, j_start], region[:, j_end + 1]):
-            uf = u * dyc * 0.5 * (sin_sg4[0, -1, 0] + sin_sg2)
+            uf = u * dyc * 0.5 * (sin_sg4[0, -1] + sin_sg2)
 
         vf = (
-            (v - 0.25 * (ua[-1, 0, 0] + ua) * (cos_sg3[-1, 0, 0] + cos_sg1))
+            (v - 0.25 * (ua[-1, 0, 0] + ua) * (cos_sg3[-1, 0] + cos_sg1))
             * dxc
             * 0.5
-            * (sin_sg3[-1, 0, 0] + sin_sg1)
+            * (sin_sg3[-1, 0] + sin_sg1)
         )
         with horizontal(region[i_start, :], region[i_end + 1, :]):
-            vf = v * dxc * 0.5 * (sin_sg3[-1, 0, 0] + sin_sg1)
+            vf = v * dxc * 0.5 * (sin_sg3[-1, 0] + sin_sg1)
 
         divg_d = vf[0, -1, 0] - vf + uf[-1, 0, 0] - uf
         with horizontal(region[i_start, j_start], region[i_end + 1, j_start]):
@@ -286,33 +286,33 @@ def csw_stencil(
     delp: FloatField,
     pt: FloatField,
     divgd: FloatField,
-    cosa_s: FloatField,
-    cosa_u: FloatField,
-    cosa_v: FloatField,
-    sina_u: FloatField,
-    sina_v: FloatField,
-    dx: FloatField,
-    dy: FloatField,
-    dxa: FloatField,
-    dya: FloatField,
-    dxc: FloatField,
-    dyc: FloatField,
-    rdxc: FloatField,
-    rdyc: FloatField,
-    rsin2: FloatField,
-    rsin_u: FloatField,
-    rsin_v: FloatField,
-    sin_sg1: FloatField,
-    sin_sg2: FloatField,
-    sin_sg3: FloatField,
-    sin_sg4: FloatField,
-    cos_sg1: FloatField,
-    cos_sg2: FloatField,
-    cos_sg3: FloatField,
-    cos_sg4: FloatField,
-    rarea: FloatField,
-    rarea_c: FloatField,
-    fC: FloatField,
+    cosa_s: FloatFieldIJ,
+    cosa_u: FloatFieldIJ,
+    cosa_v: FloatFieldIJ,
+    sina_u: FloatFieldIJ,
+    sina_v: FloatFieldIJ,
+    dx: FloatFieldIJ,
+    dy: FloatFieldIJ,
+    dxa: FloatFieldIJ,
+    dya: FloatFieldIJ,
+    dxc: FloatFieldIJ,
+    dyc: FloatFieldIJ,
+    rdxc: FloatFieldIJ,
+    rdyc: FloatFieldIJ,
+    rsin2: FloatFieldIJ,
+    rsin_u: FloatFieldIJ,
+    rsin_v: FloatFieldIJ,
+    sin_sg1: FloatFieldIJ,
+    sin_sg2: FloatFieldIJ,
+    sin_sg3: FloatFieldIJ,
+    sin_sg4: FloatFieldIJ,
+    cos_sg1: FloatFieldIJ,
+    cos_sg2: FloatFieldIJ,
+    cos_sg3: FloatFieldIJ,
+    cos_sg4: FloatFieldIJ,
+    rarea: FloatFieldIJ,
+    rarea_c: FloatFieldIJ,
+    fC: FloatFieldIJ,
     u: FloatField,
     ua: FloatField,
     uc: FloatField,
@@ -375,8 +375,8 @@ def csw_stencil(
             divgd = divgd_t
         # }
 
-        ut = dt2 * ut * dy * sin_sg3[-1, 0, 0] if ut > 0 else dt2 * ut * dy * sin_sg1
-        vt = dt2 * vt * dx * sin_sg4[0, -1, 0] if vt > 0 else dt2 * vt * dx * sin_sg2
+        ut = dt2 * ut * dy * sin_sg3[-1, 0] if ut > 0 else dt2 * ut * dy * sin_sg1
+        vt = dt2 * vt * dx * sin_sg4[0, -1] if vt > 0 else dt2 * vt * dx * sin_sg2
 
         delpc_t, ptc_t, omga_t = transportdelp(delp, pt, ut, vt, w, rarea)
 
