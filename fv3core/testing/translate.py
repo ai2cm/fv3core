@@ -94,7 +94,6 @@ class TranslateFortranData2Py:
                 dummy=dummy_axes,
                 axis=axis,
                 names=names_4d,
-                read_only=read_only,
             )
         else:
             return utils.make_storage_data(
@@ -227,10 +226,8 @@ class TranslateFortranData2Py:
                     )
                 out[serialname] = var4d
             else:
-                # data_result.synchronize()
-                out[serialname] = np.squeeze(
-                    np.asarray(data_result)[self.grid.slice_dict(ds)]
-                )
+                slice_tuple = self.grid.slice_dict(ds, len(data_result.shape))
+                out[serialname] = np.squeeze(np.asarray(data_result)[slice_tuple])
             if "kaxis" in info:
                 out[serialname] = np.moveaxis(out[serialname], 2, info["kaxis"])
         return out

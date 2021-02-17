@@ -202,11 +202,12 @@ class Grid:
             return None
         return num + 1
 
-    def slice_dict(self, d):
-        return (
-            slice(d["istart"], self.add_one(d["iend"])),
-            slice(d["jstart"], self.add_one(d["jend"])),
-            slice(d["kstart"], self.add_one(d["kend"])),
+    def slice_dict(self, d, ndim: int = 3, iters: str = "ijk"):
+        return tuple(
+            [
+                slice(d[f"{iters[i]}start"], self.add_one(d[f"{iters[i]}end"]))
+                for i in range(ndim)
+            ]
         )
 
     def default_domain_dict(self):

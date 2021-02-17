@@ -9,7 +9,7 @@ import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import gtstencil
 from fv3core.stencils.basic_operations import dim
 from fv3core.stencils.moist_cv import compute_pkz_func
-from fv3core.utils.typing import FloatField
+from fv3core.utils.typing import FloatField, FloatFieldIJ
 
 
 # TODO: This code could be reduced greatly with abstraction, but first gt4py
@@ -557,7 +557,7 @@ def compute_q_tables(
 def satadjust(
     wqsat: FloatField,
     dq2dt: FloatField,
-    dpln: FloatField,
+    dpln: FloatFieldIJ,
     den: FloatField,
     pt1: FloatField,
     cvm: FloatField,
@@ -580,9 +580,9 @@ def satadjust(
     q_cond: FloatField,
     q_con: FloatField,
     qa: FloatField,
-    area: FloatField,
+    area: FloatFieldIJ,
     qpz: FloatField,
-    hs: FloatField,
+    hs: FloatFieldIJ,
     pkz: FloatField,
     lhl: FloatField,
     lhi: FloatField,
@@ -612,11 +612,12 @@ def satadjust(
     rad_graupel: bool,
     tintqs: bool,
 ):
-    with computation(FORWARD), interval(1, None):
-        if hydrostatic:
-            delz = delz[0, 0, -1]
+    with computation(FORWARD):
+        with interval(1, None):
+            dpln = peln[0, 0, 1] - peln
+            if hydrostatic:
+                delz = delz[0, 0, -1]
     with computation(PARALLEL), interval(...):
-        dpln = peln[0, 0, 1] - peln
         q_liq = ql + qr
         q_sol = qi + qs + qg
         qpz = q_liq + q_sol
@@ -906,30 +907,30 @@ def satadjust(
 
 
 def compute(
-    dpln,
-    te,
-    qvapor,
-    qliquid,
-    qice,
-    qrain,
-    qsnow,
-    qgraupel,
-    qcld,
-    hs,
-    peln,
-    delp,
-    delz,
-    q_con,
-    pt,
-    pkz,
-    cappa,
-    r_vir,
-    mdt,
-    fast_mp_consv,
-    last_step,
-    akap,
-    kmp,
-):
+    dpln: FloatFieldIJ,
+    te: FloatField,
+    qvapor: FloatField,
+    qliquid: FloatField,
+    qice: FloatField,
+    qrain: FloatField,
+    qsnow: FloatField,
+    qgraupel: FloatField,
+    qcld: FloatField,
+    hs: FloatFieldIJ,
+    peln: FloatField,
+    delp: FloatField,
+    delz: FloatField,
+    q_con: FloatField,
+    pt: FloatField,
+    pkz: FloatField,
+    cappa: FloatField,
+    r_vir: float,
+    mdt: float,
+    fast_mp_consv: bool,
+    last_step: bool,
+    akap: float,
+    kmp: int,
+) -> None:
     grid = spec.grid
     origin = (grid.is_, grid.js, kmp)
     domain = (grid.nic, grid.njc, (grid.npz - kmp))
