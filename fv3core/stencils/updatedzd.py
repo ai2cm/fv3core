@@ -9,20 +9,20 @@ import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import gtstencil
 from fv3core.stencils.basic_operations import copy
 from fv3core.stencils.fxadv import ra_x_func, ra_y_func
-from fv3core.utils.typing import FloatField
+from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
 
 
 DZ_MIN = constants.DZ_MIN
 
 
 @gtstencil()
-def ra_x_stencil(area: FloatField, xfx_adv: FloatField, ra_x: FloatField):
+def ra_x_stencil(area: FloatFieldIJ, xfx_adv: FloatField, ra_x: FloatField):
     with computation(PARALLEL), interval(...):
         ra_x = ra_x_func(area, xfx_adv)
 
 
 @gtstencil()
-def ra_y_stencil(area: FloatField, yfx_adv: FloatField, ra_y: FloatField):
+def ra_y_stencil(area: FloatFieldIJ, yfx_adv: FloatField, ra_y: FloatField):
     with computation(PARALLEL), interval(...):
         ra_y = ra_y_func(area, yfx_adv)
 
@@ -34,7 +34,7 @@ def zh_base(z2, area, fx, fy, ra_x, ra_y):
 
 @gtstencil()
 def zh_damp_stencil(
-    area: FloatField,
+    area: FloatFieldIJ,
     z2: FloatField,
     fx: FloatField,
     fy: FloatField,
@@ -71,27 +71,27 @@ def edge_profile(
     q2: FloatField,
     qe1: FloatField,
     qe2: FloatField,
-    dp0: FloatField,
-    gam: FloatField,
+    dp0: FloatFieldK,
+    gam: FloatFieldIJ,
 ):
     with computation(FORWARD):
         with interval(0, 1):
-            g0 = dp0[0, 0, 1] / dp0[0, 0, 0]
+            g0 = dp0[1] / dp0
             xt1 = 2.0 * g0 * (g0 + 1.0)
             bet = g0 * (g0 + 0.5)
             qe1 = (xt1 * q1 + q1[0, 0, 1]) / bet
             qe2 = (xt1 * q2 + q2[0, 0, 1]) / bet
             gam = (1.0 + g0 * (g0 + 1.5)) / bet
         with interval(1, -1):
-            gk = dp0[0, 0, -1] / dp0
-            bet = 2.0 + 2.0 * gk - gam[0, 0, -1]
+            gk = dp0[-1] / dp0
+            bet = 2.0 + 2.0 * gk - gam
             qe1 = (3.0 * (q1[0, 0, -1] + gk * q1) - qe1[0, 0, -1]) / bet
             qe2 = (3.0 * (q2[0, 0, -1] + gk * q2) - qe2[0, 0, -1]) / bet
             gam = gk / bet
         with interval(-1, None):
             a_bot = 1.0 + gk[0, 0, -1] * (gk[0, 0, -1] + 1.5)
             xt1 = 2.0 * gk[0, 0, -1] * (gk[0, 0, -1] + 1.0)
-            xt2 = gk[0, 0, -1] * (gk[0, 0, -1] + 0.5) - a_bot * gam[0, 0, -1]
+            xt2 = gk[0, 0, -1] * (gk[0, 0, -1] + 0.5) - a_bot * gam
             qe1 = (xt1 * q1[0, 0, -1] + q1[0, 0, -2] - a_bot * qe1[0, 0, -1]) / xt2
             qe2 = (xt1 * q2[0, 0, -1] + q2[0, 0, -2] - a_bot * qe2[0, 0, -1]) / xt2
     with computation(BACKWARD), interval(0, -1):

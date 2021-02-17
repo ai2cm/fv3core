@@ -102,7 +102,7 @@ def vt_x_edge(vc, sin_sg2, sin_sg4, vt, dt):
     from __externals__ import j_end, j_start
 
     with horizontal(region[:, j_start], region[:, j_end + 1]):
-        vt = (vc / sin_sg4[0, -1, 0]) if (vc * dt > 0) else (vc / sin_sg2)
+        vt = (vc / sin_sg4[0, -1]) if (vc * dt > 0) else (vc / sin_sg2)
     return vt
 
 
@@ -134,9 +134,7 @@ def ut_corners(uc, vc, cosa_u, cosa_v, ut, vt):
                 + vt[0, 1, 0]
                 + vt
                 + vc[-1, 0, 0]
-                - 0.25
-                * cosa_v[-1, 0]
-                * (ut[-1, 0, 0] + ut[-1, -1, 0] + ut[0, -1, 0])
+                - 0.25 * cosa_v[-1, 0] * (ut[-1, 0, 0] + ut[-1, -1, 0] + ut[0, -1, 0])
             )
         ) * damp
     with horizontal(region[i_start + 1, j_start], region[i_start + 1, j_end + 1]):
@@ -199,9 +197,7 @@ def vt_corners(uc, vc, cosa_u, cosa_v, ut, vt):
                 + ut[1, 0, 0]
                 + ut
                 + uc[0, -1, 0]
-                - 0.25
-                * cosa_u[0, -1]
-                * (vt[0, -1, 0] + vt[-1, -1, 0] + vt[-1, 0, 0])
+                - 0.25 * cosa_u[0, -1] * (vt[0, -1, 0] + vt[-1, -1, 0] + vt[-1, 0, 0])
             )
         ) * damp
     with horizontal(region[i_start, j_start + 1], region[i_end + 1, j_start + 1]):
@@ -219,7 +215,7 @@ def vt_corners(uc, vc, cosa_u, cosa_v, ut, vt):
             )
         ) * damp
     with horizontal(region[i_end + 1, j_end], region[i_start, j_end]):
-        damp = 1.0 / (1.0 - 0.0625 * cosa_u[1, 0, 0] * cosa_v)
+        damp = 1.0 / (1.0 - 0.0625 * cosa_u[1, 0] * cosa_v)
         vt = (
             vc
             - 0.25
@@ -323,12 +319,12 @@ def fxadv_stencil(
     with computation(PARALLEL), interval(...):
         with horizontal(region[local_is : local_ie + 2, :]):
             prod = dt * ut
-            crx_adv = prod * rdxa[-1, 0, 0] if prod > 0 else prod * rdxa
-            xfx_adv = dy * prod * sin_sg3[-1, 0, 0] if prod > 0 else dy * prod * sin_sg1
+            crx_adv = prod * rdxa[-1, 0] if prod > 0 else prod * rdxa
+            xfx_adv = dy * prod * sin_sg3[-1, 0] if prod > 0 else dy * prod * sin_sg1
         with horizontal(region[:, local_js : local_je + 2]):
             prod = dt * vt
-            cry_adv = prod * rdya[0, -1, 0] if prod > 0 else prod * rdya
-            yfx_adv = dx * prod * sin_sg4[0, -1, 0] if prod > 0 else dx * prod * sin_sg2
+            cry_adv = prod * rdya[0, -1] if prod > 0 else prod * rdya
+            yfx_adv = dx * prod * sin_sg4[0, -1] if prod > 0 else dx * prod * sin_sg2
     with computation(PARALLEL), interval(...):
         with horizontal(region[local_is : local_ie + 2, :]):
             ra_x = ra_x_func(area, xfx_adv)
