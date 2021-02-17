@@ -323,12 +323,12 @@ def vorticitytransport_stencil(
     v: FloatField,
     uc: FloatField,
     vc: FloatField,
-    cosa_u: FloatField,
-    sina_u: FloatField,
-    cosa_v: FloatField,
-    sina_v: FloatField,
-    rdxc: FloatField,
-    rdyc: FloatField,
+    cosa_u: FloatFieldIJ,
+    sina_u: FloatFieldIJ,
+    cosa_v: FloatFieldIJ,
+    sina_v: FloatFieldIJ,
+    rdxc: FloatFieldIJ,
+    rdyc: FloatFieldIJ,
     dt2: float,
 ):
     with computation(PARALLEL), interval(...):
