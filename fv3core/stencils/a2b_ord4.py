@@ -18,6 +18,7 @@ from gt4py.gtscript import (
 import fv3core._config as spec
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import gtstencil
+from fv3core.stencils.basic_operations import copy_stencil
 from fv3core.utils import global_config
 from fv3core.utils.typing import Float, FloatField, FloatFieldIJ
 
@@ -193,7 +194,8 @@ def extrap_corner(
     return qa + x1 / (x2 - x1) * (qa - qb)
 
 
-def _a2b_ord4_stencil(
+@gtstencil()
+def a2b_ord4_stencil(
     qin: FloatField,
     qout: FloatField,
     agrid1: FloatFieldIJ,
@@ -207,7 +209,7 @@ def _a2b_ord4_stencil(
     edge_e: FloatFieldIJ,
     edge_w: FloatFieldIJ,
 ):
-    from __externals__ import REPLACE, i_end, i_start, j_end, j_start, namelist
+    from __externals__ import i_end, i_start, j_end, j_start, namelist
 
     with computation(PARALLEL), interval(...):
         with horizontal(region[i_start, j_start]):
@@ -405,9 +407,6 @@ def _a2b_ord4_stencil(
             qout = 0.5 * (qxx + qyy)
         # }
 
-        if __INLINED(REPLACE):
-            qin = qout
-
 
 def _make_grid_storage_2d(grid_array: gt4py.storage.Storage, index: int = 0):
     grid = spec.grid
@@ -442,9 +441,7 @@ def compute(
     edge_e = _make_grid_storage_2d(grid.edge_e)
     edge_w = _make_grid_storage_2d(grid.edge_w)
 
-    stencil = gtstencil(definition=_a2b_ord4_stencil, externals={"REPLACE": replace})
-
-    stencil(
+    a2b_ord4_stencil(
         qin,
         qout,
         agrid1,
@@ -457,6 +454,14 @@ def compute(
         edge_s,
         edge_e,
         edge_w,
-        origin=spec.grid.compute_origin(add=(0, 0, kstart)),
-        domain=spec.grid.domain_shape_compute(add=(0, 0, -kstart)),
+        origin=(grid.is_, grid.js, kstart),
+        domain=(grid.ie - grid.is_ + 1, grid.je - grid.js + 1, nk),
     )
+
+    if replace:
+        copy_stencil(
+            qout,
+            qin,
+            origin=(grid.is_, grid.js, kstart),
+            domain=(grid.ie - grid.is_ + 2, grid.je - grid.js + 2, nk),
+        )
