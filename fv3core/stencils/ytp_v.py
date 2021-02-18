@@ -11,12 +11,16 @@ from gt4py.gtscript import (
 import fv3core._config as spec
 from fv3core.decorators import gtstencil
 from fv3core.stencils import yppm
-from fv3core.utils.typing import FloatField
+from fv3core.utils.typing import FloatField, FloatFieldIJ
 
 
 @gtscript.function
 def _get_flux(
-    v: FloatField, courant: FloatField, rdy: FloatField, bl: FloatField, br: FloatField
+    v: FloatField,
+    courant: FloatField,
+    rdy: FloatFieldIJ,
+    bl: FloatField,
+    br: FloatField,
 ):
     """
     Compute the y-dir flux of kinetic energy(?).
@@ -34,7 +38,7 @@ def _get_flux(
     from __externals__ import jord
 
     b0 = bl + br
-    cfl = courant * rdy[0, -1, 0] if courant > 0 else courant * rdy
+    cfl = courant * rdy[0, -1] if courant > 0 else courant * rdy
     fx0 = yppm.fx1_fn(cfl, br, b0, bl)
 
     if __INLINED(jord < 8):
@@ -49,9 +53,9 @@ def _compute_stencil(
     courant: FloatField,
     v: FloatField,
     flux: FloatField,
-    dy: FloatField,
+    dy: FloatFieldIJ,
     dya: FloatField,
-    rdy: FloatField,
+    rdy: FloatFieldIJ,
 ):
     from __externals__ import i_end, i_start, j_end, j_start, jord, namelist
 

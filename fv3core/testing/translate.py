@@ -171,11 +171,6 @@ class TranslateFortranData2Py:
                 inputs[serialname].shape, info
             )
 
-            logger.debug(
-                "Making storage for {} with istart = {}, jstart = {}".format(
-                    d, istart, jstart
-                )
-            )
             names_4d = None
             if len(inputs[serialname].shape) == 4:
                 names_4d = info.get("names_4d", utils.tracer_variables)
