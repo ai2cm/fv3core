@@ -46,12 +46,12 @@ def update_dz_c_stencil(
     ws: FloatField,
     dt2: float,
 ):
-    """Update the Lagrangian model heights from the C-grid wind flux
+    """Update the model heights from the C-grid wind flux
 
     After the model runs c_sw and advances the c-grid variables half a timestep,
-    the grid deforms with the flow. This module updates the model heights based
-    on the flux, and the rate of change of the lowest model height compared to the
-     fixed surface height.
+    the grid deforms with the flow in the Lagrangian coordinate system. This
+    module updates the model heights based on the flux, and the rate of change of
+    the lowest model height compared to the fixed surface height.
 
     Args:
          dp_ref: vertical delta in column reference pressure(in)
