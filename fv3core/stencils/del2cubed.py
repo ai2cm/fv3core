@@ -7,9 +7,6 @@ from fv3core.decorators import gtstencil
 from fv3core.utils.typing import FloatField, FloatFieldIJ
 
 
-# origin = utils.origin
-
-
 #
 # Flux value stencils
 # ---------------------

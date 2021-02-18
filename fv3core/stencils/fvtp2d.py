@@ -1,3 +1,5 @@
+from typing import Optional
+
 from gt4py.gtscript import PARALLEL, computation, interval
 
 import fv3core._config as spec
@@ -7,28 +9,39 @@ import fv3core.stencils.yppm as yppm
 import fv3core.utils.corners as corners
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import gtstencil
-
-
-origin = (0, 0, 0)
-sd = utils.sd
+from fv3core.utils.typing import FloatField, FloatFieldIJ
 
 
 @gtstencil()
-def q_i_stencil(q: sd, area: sd, yfx: sd, fy2: sd, ra_y: sd, q_i: sd):
+def q_i_stencil(
+    q: FloatField,
+    area: FloatFieldIJ,
+    yfx: FloatField,
+    fy2: FloatField,
+    ra_y: FloatField,
+    q_i: FloatField,
+):
     with computation(PARALLEL), interval(...):
         fyy = yfx * fy2
         q_i[0, 0, 0] = (q * area + fyy - fyy[0, 1, 0]) / ra_y
 
 
 @gtstencil()
-def q_j_stencil(q: sd, area: sd, xfx: sd, fx2: sd, ra_x: sd, q_j: sd):
+def q_j_stencil(
+    q: FloatField,
+    area: FloatFieldIJ,
+    xfx: FloatField,
+    fx2: FloatField,
+    ra_x: FloatField,
+    q_j: FloatField,
+):
     with computation(PARALLEL), interval(...):
         fx1 = xfx * fx2
         q_j[0, 0, 0] = (q * area + fx1 - fx1[1, 0, 0]) / ra_x
 
 
 @gtstencil()
-def transport_flux(f: sd, f2: sd, mf: sd):
+def transport_flux(f: FloatField, f2: FloatField, mf: FloatField):
     with computation(PARALLEL), interval(...):
         f = 0.5 * (f + f2) * mf
 
@@ -44,23 +57,23 @@ def compute(data, nord_column):
 
 
 def compute_no_sg(
-    q,
-    crx,
-    cry,
-    hord,
-    xfx,
-    yfx,
-    ra_x,
-    ra_y,
-    fx,
-    fy,
-    kstart=0,
-    nk=None,
-    nord=None,
-    damp_c=None,
-    mass=None,
-    mfx=None,
-    mfy=None,
+    q: FloatField,
+    crx: FloatField,
+    cry: FloatField,
+    hord: int,
+    xfx: FloatField,
+    yfx: FloatField,
+    ra_x: FloatField,
+    ra_y: FloatField,
+    fx: FloatField,
+    fy: FloatField,
+    kstart: int = 0,
+    nk: Optional[int] = None,
+    nord: Optional[float] = None,
+    damp_c: Optional[float] = None,
+    mass: FloatField = None,
+    mfx: FloatField = None,
+    mfy: FloatField = None,
 ):
     grid = spec.grid
     if nk is None:

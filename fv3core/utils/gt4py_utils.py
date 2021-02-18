@@ -313,9 +313,18 @@ def storage_dict(st_dict, names, shape, origin):
 
 def k_slice_operation(key, value, ki, dictionary):
     if isinstance(value, gt_storage.storage.Storage):
-        dictionary[key] = make_storage_data(
-            value[:, :, ki], (value.shape[0], value.shape[1], len(ki))
-        )
+        shape = value.shape
+        if len(shape) == 1:  # K-field
+            shape = (1, 1, len(ki))
+            dictionary[key] = make_storage_data(value[ki], shape, read_only=True)
+        elif len(shape) == 2:  # IK-field
+            dictionary[key] = make_storage_data(
+                value[:, ki], (shape[0], 1, len(ki)), read_only=True
+            )
+        else:  # IJK-field
+            dictionary[key] = make_storage_data(
+                value[:, :, ki], (shape[0], shape[1], len(ki)), read_only=True
+            )
     else:
         dictionary[key] = value
 
