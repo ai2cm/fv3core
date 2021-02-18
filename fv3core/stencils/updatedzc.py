@@ -92,19 +92,3 @@ def update_dz_c_stencil(
         with horizontal(region[:local_is - 1, :], region[:,:local_js - 1], region[local_ie + 2:,:], region[:,local_je+2]):
             gzt = gz
         gz = gzt
-
-def compute(dp_ref, zs, ut, vt, gz, ws, dt2):
-    grid = spec.grid
-    origin = (1, 1, 0)
-    update_dz_c_stencil(
-        grid.area,
-        dp_ref,
-        zs,
-        ut,
-        vt,
-        gz,
-        ws,
-        dt2,
-        origin=origin,
-        domain=(grid.nic + 3, grid.njc + 3, grid.npz + 1),
-    )

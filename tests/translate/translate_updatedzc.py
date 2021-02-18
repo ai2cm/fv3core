@@ -5,7 +5,6 @@ from fv3core.testing import TranslateFortranData2Py
 class TranslateUpdateDzC(TranslateFortranData2Py):
     def __init__(self, grid):
         super().__init__(grid)
-        self.compute_func=updatedzc.compute
         self.in_vars["data_vars"] = {
             "dp_ref": {"serialname": "dp0"},
             "zs": {},
@@ -19,7 +18,7 @@ class TranslateUpdateDzC(TranslateFortranData2Py):
             "gz": grid.default_buffer_k_dict(),
             "ws": {"kstart": -1, "kend": None},
         }
-    '''
+
     def compute(self, inputs):
         self.make_storage_data_input_vars(inputs)
         updatedzc.update_dz_c_stencil(
@@ -29,7 +28,7 @@ class TranslateUpdateDzC(TranslateFortranData2Py):
             domain = self.grid.domain_shape_compute(add=(3, 3, 1))
         )
         return self.slice_output(inputs)
-    '''
+
 
 
     
