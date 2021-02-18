@@ -13,7 +13,7 @@ from gt4py.gtscript import (
 import fv3core._config as spec
 from fv3core.decorators import gtstencil
 from fv3core.stencils.basic_operations import sign
-from fv3core.utils.typing import FloatField
+from fv3core.utils.typing import FloatField, FloatFieldIJ
 
 
 input_vars = ["q", "c"]
@@ -36,12 +36,12 @@ s15 = 3.0 / 14.0
 
 
 @gtscript.function
-def final_flux(courant, q, fx1, tmp):
+def final_flux(courant: FloatField, q: FloatField, fx1: FloatField, tmp: FloatField):
     return q[0, -1, 0] + fx1 * tmp if courant > 0.0 else q + fx1 * tmp
 
 
 @gtscript.function
-def fx1_fn(courant, br, b0, bl):
+def fx1_fn(courant: FloatField, br: FloatField, b0: FloatField, bl: FloatField):
     if courant > 0.0:
         ret = (1.0 - courant) * (br[0, -1, 0] - courant * b0[0, -1, 0])
     else:
@@ -50,7 +50,7 @@ def fx1_fn(courant, br, b0, bl):
 
 
 @gtscript.function
-def get_tmp(bl, b0, br):
+def get_tmp(bl: FloatField, b0: FloatField, br: FloatField):
     from __externals__ import mord
 
     if mord == 5:
@@ -110,28 +110,25 @@ def blbr_jord8(q: FloatField, al: FloatField, dm: FloatField):
 
 
 @gtscript.function
-def xt_dya_edge_0_base(q, dya):
+def xt_dya_edge_0_base(q: FloatField, dya: FloatFieldIJ):
     return 0.5 * (
-        ((2.0 * dya + dya[0, -1, 0]) * q - dya * q[0, -1, 0]) / (dya[0, -1, 0] + dya)
-        + ((2.0 * dya[0, 1, 0] + dya[0, 2, 0]) * q[0, 1, 0] - dya[0, 1, 0] * q[0, 2, 0])
-        / (dya[0, 1, 0] + dya[0, 2, 0])
+        ((2.0 * dya + dya[0, -1]) * q - dya * q[0, -1, 0]) / (dya[0, -1] + dya)
+        + ((2.0 * dya[0, 1] + dya[0, 2]) * q[0, 1, 0] - dya[0, 1] * q[0, 2, 0])
+        / (dya[0, 1] + dya[0, 2])
     )
 
 
 @gtscript.function
-def xt_dya_edge_1_base(q, dya):
+def xt_dya_edge_1_base(q: FloatField, dya: FloatFieldIJ):
     return 0.5 * (
-        (
-            (2.0 * dya[0, -1, 0] + dya[0, -2, 0]) * q[0, -1, 0]
-            - dya[0, -1, 0] * q[0, -2, 0]
-        )
-        / (dya[0, -2, 0] + dya[0, -1, 0])
-        + ((2.0 * dya + dya[0, 1, 0]) * q - dya * q[0, 1, 0]) / (dya + dya[0, 1, 0])
+        ((2.0 * dya[0, -1] + dya[0, -2]) * q[0, -1, 0] - dya[0, -1] * q[0, -2, 0])
+        / (dya[0, -2] + dya[0, -1])
+        + ((2.0 * dya + dya[0, 1]) * q - dya * q[0, 1, 0]) / (dya + dya[0, 1])
     )
 
 
 @gtscript.function
-def xt_dya_edge_0(q, dya):
+def xt_dya_edge_0(q: FloatField, dya: FloatFieldIJ):
     from __externals__ import xt_minmax
 
     xt = xt_dya_edge_0_base(q, dya)
@@ -143,7 +140,7 @@ def xt_dya_edge_0(q, dya):
 
 
 @gtscript.function
-def xt_dya_edge_1(q, dya):
+def xt_dya_edge_1(q: FloatField, dya: FloatFieldIJ):
     from __externals__ import xt_minmax
 
     xt = xt_dya_edge_1_base(q, dya)
@@ -155,7 +152,7 @@ def xt_dya_edge_1(q, dya):
 
 
 @gtscript.function
-def south_edge_jord8plus_0(q: FloatField, dya: FloatField, dm: FloatField):
+def south_edge_jord8plus_0(q: FloatField, dya: FloatFieldIJ, dm: FloatField):
     bl = s14 * dm[0, -1, 0] + s11 * (q[0, -1, 0] - q)
     xt = xt_dya_edge_0(q, dya)
     br = xt - q
@@ -163,7 +160,7 @@ def south_edge_jord8plus_0(q: FloatField, dya: FloatField, dm: FloatField):
 
 
 @gtscript.function
-def south_edge_jord8plus_1(q: FloatField, dya: FloatField, dm: FloatField):
+def south_edge_jord8plus_1(q: FloatField, dya: FloatFieldIJ, dm: FloatField):
     xt = xt_dya_edge_1(q, dya)
     bl = xt - q
     xt = s15 * q + s11 * q[0, 1, 0] - s14 * dm[0, 1, 0]
@@ -188,7 +185,7 @@ def north_edge_jord8plus_0(q: FloatField, dm: FloatField, al: FloatField):
 
 
 @gtscript.function
-def north_edge_jord8plus_1(q: FloatField, dya: FloatField, dm: FloatField):
+def north_edge_jord8plus_1(q: FloatField, dya: FloatFieldIJ, dm: FloatField):
     xt = s15 * q + s11 * q[0, -1, 0] + s14 * dm[0, -1, 0]
     bl = xt - q
     xt = xt_dya_edge_0(q, dya)
@@ -197,7 +194,7 @@ def north_edge_jord8plus_1(q: FloatField, dya: FloatField, dm: FloatField):
 
 
 @gtscript.function
-def north_edge_jord8plus_2(q: FloatField, dya: FloatField, dm: FloatField):
+def north_edge_jord8plus_2(q: FloatField, dya: FloatFieldIJ, dm: FloatField):
     xt = xt_dya_edge_1(q, dya)
     bl = xt - q
     br = s11 * (q[0, 1, 0] - q) - s14 * dm[0, 1, 0]
@@ -292,16 +289,10 @@ def compute_al(q: FloatField, dya: FloatField):
 
     with horizontal(region[:, j_start], region[:, j_end + 1]):
         al = 0.5 * (
-            (
-                (2.0 * dya[0, -1, 0] + dya[0, -2, 0]) * q[0, -1, 0]
-                - dya[0, -1, 0] * q[0, -2, 0]
-            )
-            / (dya[0, -2, 0] + dya[0, -1, 0])
-            + (
-                (2.0 * dya[0, 0, 0] + dya[0, 1, 0]) * q[0, 0, 0]
-                - dya[0, 0, 0] * q[0, 1, 0]
-            )
-            / (dya[0, 0, 0] + dya[0, 1, 0])
+            ((2.0 * dya[0, -1] + dya[0, -2]) * q[0, -1, 0] - dya[0, -1] * q[0, -2, 0])
+            / (dya[0, -2] + dya[0, -1])
+            + ((2.0 * dya + dya[0, 1]) * q[0, 0, 0] - dya * q[0, 1, 0])
+            / (dya + dya[0, 1])
         )
 
     with horizontal(region[:, j_start + 1], region[:, j_end + 2]):
@@ -372,7 +363,7 @@ def pert_ppm(a0, al, ar, iv, istart, jstart, kstart, ni, nj, nk):
 
 
 def _compute_flux_stencil(
-    q: FloatField, courant: FloatField, dya: FloatField, yflux: FloatField
+    q: FloatField, courant: FloatField, dya: FloatFieldIJ, yflux: FloatField
 ):
     from __externals__ import mord
 

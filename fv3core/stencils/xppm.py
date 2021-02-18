@@ -14,16 +14,16 @@ import fv3core._config as spec
 from fv3core.decorators import gtstencil
 from fv3core.stencils import yppm
 from fv3core.stencils.basic_operations import sign
-from fv3core.utils.typing import FloatField
+from fv3core.utils.typing import FloatField, FloatFieldIJ
 
 
 @gtscript.function
-def final_flux(courant, q, fx1, tmp):
+def final_flux(courant: FloatField, q: FloatField, fx1: FloatField, tmp: FloatField):
     return q[-1, 0, 0] + fx1 * tmp if courant > 0.0 else q + fx1 * tmp
 
 
 @gtscript.function
-def fx1_fn(courant, br, b0, bl):
+def fx1_fn(courant: FloatField, br: FloatField, b0: FloatField, bl: FloatField):
     if courant > 0.0:
         ret = (1.0 - courant) * (br[-1, 0, 0] - courant * b0[-1, 0, 0])
     else:
@@ -32,7 +32,7 @@ def fx1_fn(courant, br, b0, bl):
 
 
 @gtscript.function
-def get_tmp(bl, b0, br):
+def get_tmp(bl: FloatField, b0: FloatField, br: FloatField):
     from __externals__ import mord
 
     if __INLINED(mord == 5):
@@ -91,28 +91,25 @@ def blbr_iord8(q: FloatField, al: FloatField, dm: FloatField):
 
 
 @gtscript.function
-def xt_dxa_edge_0_base(q, dxa):
+def xt_dxa_edge_0_base(q: FloatField, dxa: FloatFieldIJ):
     return 0.5 * (
-        ((2.0 * dxa + dxa[-1, 0, 0]) * q - dxa * q[-1, 0, 0]) / (dxa[-1, 0, 0] + dxa)
-        + ((2.0 * dxa[1, 0, 0] + dxa[2, 0, 0]) * q[1, 0, 0] - dxa[1, 0, 0] * q[2, 0, 0])
-        / (dxa[1, 0, 0] + dxa[2, 0, 0])
+        ((2.0 * dxa + dxa[-1, 0]) * q - dxa * q[-1, 0, 0]) / (dxa[-1, 0] + dxa)
+        + ((2.0 * dxa[1, 0] + dxa[2, 0]) * q[1, 0, 0] - dxa[1, 0] * q[2, 0, 0])
+        / (dxa[1, 0] + dxa[2, 0])
     )
 
 
 @gtscript.function
-def xt_dxa_edge_1_base(q, dxa):
+def xt_dxa_edge_1_base(q: FloatField, dxa: FloatFieldIJ):
     return 0.5 * (
-        (
-            (2.0 * dxa[-1, 0, 0] + dxa[-2, 0, 0]) * q[-1, 0, 0]
-            - dxa[-1, 0, 0] * q[-2, 0, 0]
-        )
-        / (dxa[-2, 0, 0] + dxa[-1, 0, 0])
-        + ((2.0 * dxa + dxa[1, 0, 0]) * q - dxa * q[1, 0, 0]) / (dxa + dxa[1, 0, 0])
+        ((2.0 * dxa[-1, 0] + dxa[-2, 0]) * q[-1, 0, 0] - dxa[-1, 0, 0] * q[-2, 0, 0])
+        / (dxa[-2, 0] + dxa[-1, 0])
+        + ((2.0 * dxa + dxa[1, 0]) * q - dxa * q[1, 0, 0]) / (dxa + dxa[1, 0])
     )
 
 
 @gtscript.function
-def xt_dxa_edge_0(q, dxa):
+def xt_dxa_edge_0(q: FloatField, dxa: FloatFieldIJ):
     from __externals__ import xt_minmax
 
     xt = xt_dxa_edge_0_base(q, dxa)
@@ -126,7 +123,7 @@ def xt_dxa_edge_0(q, dxa):
 
 
 @gtscript.function
-def xt_dxa_edge_1(q, dxa):
+def xt_dxa_edge_1(q: FloatField, dxa: FloatFieldIJ):
     from __externals__ import xt_minmax
 
     xt = xt_dxa_edge_1_base(q, dxa)
@@ -239,16 +236,10 @@ def compute_al(q: FloatField, dxa: FloatField):
         al = yppm.c1 * q[-2, 0, 0] + yppm.c2 * q[-1, 0, 0] + yppm.c3 * q
     with horizontal(region[i_start, :], region[i_end + 1, :]):
         al = 0.5 * (
-            (
-                (2.0 * dxa[-1, 0, 0] + dxa[-2, 0, 0]) * q[-1, 0, 0]
-                - dxa[-1, 0, 0] * q[-2, 0, 0]
-            )
-            / (dxa[-2, 0, 0] + dxa[-1, 0, 0])
-            + (
-                (2.0 * dxa[0, 0, 0] + dxa[1, 0, 0]) * q[0, 0, 0]
-                - dxa[0, 0, 0] * q[1, 0, 0]
-            )
-            / (dxa[0, 0, 0] + dxa[1, 0, 0])
+            ((2.0 * dxa[-1, 0] + dxa[-2, 0]) * q[-1, 0, 0] - dxa[-1, 0] * q[-2, 0, 0])
+            / (dxa[-2, 0] + dxa[-1, 0])
+            + ((2.0 * dxa + dxa[1, 0]) * q[0, 0, 0] - dxa * q[1, 0, 0])
+            / (dxa + dxa[1, 0])
         )
     with horizontal(region[i_start + 1, :], region[i_end + 2, :]):
         al = yppm.c3 * q[-1, 0, 0] + yppm.c2 * q[0, 0, 0] + yppm.c1 * q[1, 0, 0]
@@ -299,7 +290,7 @@ def compute_blbr_ord8plus(q: FloatField, dxa: FloatField):
 
 
 def _compute_flux_stencil(
-    q: FloatField, courant: FloatField, dxa: FloatField, xflux: FloatField
+    q: FloatField, courant: FloatField, dxa: FloatFieldIJ, xflux: FloatField
 ):
     from __externals__ import mord
 
