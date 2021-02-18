@@ -103,8 +103,8 @@ def divergence_corner_stencil(
     v: FloatField,
     ua: FloatField,
     va: FloatField,
-    dxc: FloatField,
-    dyc: FloatField,
+    dxc: FloatFieldIJ,
+    dyc: FloatFieldIJ,
     sin_sg1: FloatFieldIJ,
     sin_sg2: FloatFieldIJ,
     sin_sg3: FloatFieldIJ,
@@ -113,7 +113,7 @@ def divergence_corner_stencil(
     cos_sg2: FloatFieldIJ,
     cos_sg3: FloatFieldIJ,
     cos_sg4: FloatFieldIJ,
-    rarea_c: FloatField,
+    rarea_c: FloatFieldIJ,
     divg_d: FloatField,
 ):
     with computation(PARALLEL), interval(...):
