@@ -188,7 +188,11 @@ class TranslateDivergenceCorner(TranslateFortranData2Py):
 
 @gtstencil()
 def circulation_cgrid_stencil(
-    uc: FloatField, vc: FloatField, dxc: FloatField, dyc: FloatField, vort_c: FloatField
+    uc: FloatField,
+    vc: FloatField,
+    dxc: FloatFieldIJ,
+    dyc: FloatFieldIJ,
+    vort_c: FloatField,
 ):
     with computation(PARALLEL), interval(...):
         vort_c = circulation_cgrid(uc, vc, dxc, dyc)

@@ -1,25 +1,27 @@
+from typing import Any, Dict
+
 from gt4py.gtscript import PARALLEL, computation, interval
 
 import fv3core._config as spec
 import fv3core.stencils.d2a2c_vect as d2a2c_vect
 from fv3core.decorators import gtstencil
 from fv3core.testing import TranslateFortranData2Py
-from fv3core.utils.typing import FloatField
+from fv3core.utils.typing import FloatField, FloatFieldIJ
 
 
 def test_d2a2c_vect(
-    cosa_s: FloatField,
-    cosa_u: FloatField,
-    cosa_v: FloatField,
-    dxa: FloatField,
-    dya: FloatField,
-    rsin2: FloatField,
-    rsin_u: FloatField,
-    rsin_v: FloatField,
-    sin_sg1: FloatField,
-    sin_sg2: FloatField,
-    sin_sg3: FloatField,
-    sin_sg4: FloatField,
+    cosa_s: FloatFieldIJ,
+    cosa_u: FloatFieldIJ,
+    cosa_v: FloatFieldIJ,
+    dxa: FloatFieldIJ,
+    dya: FloatFieldIJ,
+    rsin2: FloatFieldIJ,
+    rsin_u: FloatFieldIJ,
+    rsin_v: FloatFieldIJ,
+    sin_sg1: FloatFieldIJ,
+    sin_sg2: FloatFieldIJ,
+    sin_sg3: FloatFieldIJ,
+    sin_sg4: FloatFieldIJ,
     u: FloatField,
     ua: FloatField,
     uc: FloatField,
@@ -81,7 +83,7 @@ class TranslateD2A2C_Vect(TranslateFortranData2Py):
         # more precision?
         self.max_error = 2e-10
 
-    def compute(self, inputs):
+    def compute(self, inputs: Dict[str, Any]):
         if spec.namelist.npx != spec.namelist.npy:
             raise NotImplementedError("D2A2C assumes a square grid")
         if spec.namelist.npx <= 13 and spec.namelist.layout[0] > 1:
