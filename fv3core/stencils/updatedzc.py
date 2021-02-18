@@ -1,22 +1,12 @@
 import gt4py.gtscript as gtscript
-from gt4py.gtscript import (
-    BACKWARD,
-    PARALLEL,
-    computation,
-    horizontal,
-    interval,
-    region,
-)
+from gt4py.gtscript import BACKWARD, PARALLEL, computation, horizontal, interval, region
 
-import fv3core._config as spec
 import fv3core.utils.global_constants as constants
-import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import gtstencil
-from fv3core.stencils.basic_operations import copy
 from fv3core.utils import corners
+from fv3core.utils.typing import FloatField
 
 
-sd = utils.sd
 DZ_MIN = constants.DZ_MIN
 
 
@@ -47,21 +37,35 @@ def xy_flux(gz_x, gz_y, xfx, yfx):
 
 @gtstencil()
 def update_dz_c_stencil(
-    area: sd,
-    dp_ref: sd,
-    zs: sd,
-    ut: sd,
-    vt: sd,
-    gz: sd,
-    ws: sd,
+    area: FloatField,
+    dp_ref: FloatField,
+    zs: FloatField,
+    ut: FloatField,
+    vt: FloatField,
+    gz: FloatField,
+    ws: FloatField,
     dt2: float,
 ):
-    from __externals__ import local_is, local_ie, local_js, local_je
-    with computation(PARALLEL), interval(...):
-        gz_x = gz
-        gz_x = corners.fill_corners_2cells_mult_x(gz_x, gz_x, 1.0, 1.0, 1.0, 1.0)
-        gz_y = gz_x
-        gz_y = corners.fill_corners_2cells_mult_y(gz_y, gz_y, 1.0, 1.0, 1.0, 1.0)
+    """Update the Lagrangian model heights from the C-grid wind flux
+
+    After the model runs c_sw and advances the c-grid variables half a timestep,
+    the grid deforms with the flow. This module updates the model heights based
+    on the flux, and the rate of change of the lowest model height compared to the
+     fixed surface height.
+
+    Args:
+         dp_ref: vertical delta in column reference pressure(in)
+         zs: surface height (m) (in)
+         ut: x-velocity on the C-grid, contravariantof the D-grid winds(in)
+         vt: y-velocity on the C-grid, contravariantof the D-grid winds(in)
+         gz: height of the model grid cells (m) (inout)
+         ws: change in the height of the lowest model layer this C-grid timestep(inout)
+         dt2: half a model timestep (for C-grid update) in seconds (in)
+    Grid variable inputs:
+         area
+    """
+    from __externals__ import local_ie, local_is, local_je, local_js
+
     with computation(PARALLEL):
         with interval(0, 1):
             xfx = p_weighted_average_top(ut, dp_ref)
@@ -73,16 +77,26 @@ def update_dz_c_stencil(
             xfx = p_weighted_average_bottom(ut, dp_ref)
             yfx = p_weighted_average_bottom(vt, dp_ref)
     with computation(PARALLEL), interval(...):
+        gz_x = gz
+        gz_x = corners.fill_corners_2cells_mult_x(gz_x, gz_x, 1.0, 1.0, 1.0, 1.0)
+        gz_y = gz_x
+        gz_y = corners.fill_corners_2cells_mult_y(gz_y, gz_y, 1.0, 1.0, 1.0, 1.0)
         fx, fy = xy_flux(gz_x, gz_y, xfx, yfx)
-        with horizontal(region[local_is - 1:local_ie+2, local_js - 1:local_je+2]):
+        with horizontal(
+            region[local_is - 1 : local_ie + 2, local_js - 1 : local_je + 2]
+        ):
             gz = (gz_y * area + fx - fx[1, 0, 0] + fy - fy[0, 1, 0]) / (
                 area + xfx - xfx[1, 0, 0] + yfx - yfx[0, 1, 0]
             )
     with computation(PARALLEL), interval(-1, None):
         rdt = 1.0 / dt2
-        with horizontal(region[local_is - 1:local_ie+2, local_js - 1:local_je+2]):
+        with horizontal(
+            region[local_is - 1 : local_ie + 2, local_js - 1 : local_je + 2]
+        ):
             ws = (zs - gz) * rdt
     with computation(BACKWARD), interval(0, -1):
-        with horizontal(region[local_is - 1:local_ie+2, local_js - 1:local_je+2]):
+        with horizontal(
+            region[local_is - 1 : local_ie + 2, local_js - 1 : local_je + 2]
+        ):
             gz_kp1 = gz[0, 0, 1] + DZ_MIN
             gz = gz if gz > gz_kp1 else gz_kp1

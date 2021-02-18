@@ -11,7 +11,7 @@ class TranslateUpdateDzC(TranslateFortranData2Py):
             "ut": {"serialname": "utc"},
             "vt": {"serialname": "vtc"},
             "gz": {},
-            "ws": {}
+            "ws": {},
         }
         self.in_vars["parameters"] = ["dt2"]
         self.out_vars = {
@@ -25,11 +25,6 @@ class TranslateUpdateDzC(TranslateFortranData2Py):
             area=self.grid.area,
             **inputs,
             origin=self.grid.compute_origin(add=(-2, -2, 0)),
-            domain = self.grid.domain_shape_compute(add=(3, 3, 1))
+            domain=self.grid.domain_shape_compute(add=(3, 3, 1)),
         )
         return self.slice_output(inputs)
-
-
-
-    
-    

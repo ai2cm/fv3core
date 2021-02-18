@@ -247,8 +247,17 @@ def compute(state, comm):
                     domain=grid.domain_shape_full(add=(0, 0, 1)),
                 )
         if not hydrostatic:
-            state.gz, state.ws3 = updatedzc.compute(
-                state.dp_ref, state.zs, state.ut, state.vt, state.gz, state.ws3, dt2
+            updatedzc.update_dz_c_stencil(
+                grid.area,
+                state.dp_ref,
+                state.zs,
+                state.ut,
+                state.vt,
+                state.gz,
+                state.ws3,
+                dt2,
+                origin=grid.compute_origin(add=(-2, -2, 0)),
+                domain=grid.domain_shape_compute(add=(3, 3, 1)),
             )
             # TODO: This is really a 2d field.
             state.ws3 = utils.make_storage_data(
