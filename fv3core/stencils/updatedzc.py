@@ -58,7 +58,6 @@ def update_dz_c_stencil(
 ):
     from __externals__ import local_is, local_ie, local_js, local_je
     with computation(PARALLEL), interval(...):
-        gzt = gz
         gz_x = gz
         gz_x = corners.fill_corners_2cells_mult_x(gz_x, gz_x, 1.0, 1.0, 1.0, 1.0)
         gz_y = gz_x
@@ -75,20 +74,15 @@ def update_dz_c_stencil(
             yfx = p_weighted_average_bottom(vt, dp_ref)
     with computation(PARALLEL), interval(...):
         fx, fy = xy_flux(gz_x, gz_y, xfx, yfx)
-        gzt = (gz_y * area + fx - fx[1, 0, 0] + fy - fy[0, 1, 0]) / (
-            area + xfx - xfx[1, 0, 0] + yfx - yfx[0, 1, 0]
-        )
+        with horizontal(region[local_is - 1:local_ie+2, local_js - 1:local_je+2]):
+            gz = (gz_y * area + fx - fx[1, 0, 0] + fy - fy[0, 1, 0]) / (
+                area + xfx - xfx[1, 0, 0] + yfx - yfx[0, 1, 0]
+            )
     with computation(PARALLEL), interval(-1, None):
-        ws3 = ws
         rdt = 1.0 / dt2
-        ws3 = (zs - gzt) * rdt
-        with horizontal(region[:local_is - 1, :], region[:,:local_js - 1], region[local_ie + 2:,:], region[:,local_je+2]):
-            ws3 = ws
-        ws = ws3
+        with horizontal(region[local_is - 1:local_ie+2, local_js - 1:local_je+2]):
+            ws = (zs - gz) * rdt
     with computation(BACKWARD), interval(0, -1):
-        gz_kp1 = gzt[0, 0, 1] + DZ_MIN
-        gzt = gzt if gzt > gz_kp1 else gz_kp1
-    with computation(PARALLEL), interval(...):
-        with horizontal(region[:local_is - 1, :], region[:,:local_js - 1], region[local_ie + 2:,:], region[:,local_je+2]):
-            gzt = gz
-        gz = gzt
+        with horizontal(region[local_is - 1:local_ie+2, local_js - 1:local_je+2]):
+            gz_kp1 = gz[0, 0, 1] + DZ_MIN
+            gz = gz if gz > gz_kp1 else gz_kp1
