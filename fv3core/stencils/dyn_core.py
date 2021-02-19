@@ -91,12 +91,19 @@ def p_grad_c_stencil(
     gz: FloatField,
     dt2: float,
 ):
-    """
-    Args:
+    """Update C-grid winds from the pressure gradient force
+
+    When this is run the C-grid winds have almost been completely
+    updated by computing the momentum equation terms, but the pressure
+    gradient force term has not yet been applied. This stencil completes
+    the equation and Arakawa C-grid winds have been advected half a timestep
+    upon completing this stencil..
+
+     Args:
          uc: x-velocity on the C-grid (inout)
          vc: y-velocity on the C-grid (inout)
          delpc: vertical delta in pressure (in)
-         pkc:  full pressure if non-hydrostatic,
+         pkc:  pressure if non-hydrostatic,
                (edge pressure)**(moist kappa) if hydrostatic(in)
          gz:  height of the model grid cells (m)(in)
          dt2: half a model timestep (for C-grid update) in seconds (in)
