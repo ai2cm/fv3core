@@ -175,7 +175,7 @@ def qy_edge_north2(qin: FloatField, dya: FloatFieldIJ, qy: FloatField):
 def great_circle_dist_noradius(p1a: Float, p1b: Float, p2a: Float, p2b: Float):
     tb = sin((p1b - p2b) / 2.0) ** 2
     ta = sin((p1a - p2a) / 2.0) ** 2
-    return asin(sqrt(tb + ta * cos(p1b) * cos(p2b))) * 2.0
+    return asin(sqrt(tb + cos(p1b) * cos(p2b) * ta)) * 2.0
 
 
 @gtscript.function
@@ -455,7 +455,7 @@ def compute(
         edge_e,
         edge_w,
         origin=(grid.is_, grid.js, kstart),
-        domain=(grid.ie - grid.is_ + 1, grid.je - grid.js + 1, nk),
+        domain=(grid.nic + 1, grid.njc + 1, nk),
     )
 
     if replace:
@@ -463,5 +463,5 @@ def compute(
             qout,
             qin,
             origin=(grid.is_, grid.js, kstart),
-            domain=(grid.ie - grid.is_ + 2, grid.je - grid.js + 2, nk),
+            domain=(grid.nic + 1, grid.njc + 1, nk),
         )
