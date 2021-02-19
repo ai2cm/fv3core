@@ -724,7 +724,9 @@ def d_sw(
     )
 
     if not grid().nested:
-        corners.fix_corner_ke(ke, u, v, ut, vt, dt, grid())
+        corners.fix_corner_ke(
+            ke, u, v, ut, vt, dt, origin=(0, 0, 0), domain=spec.grid.domain_shape_full()
+        )
 
     horizontal_relative_vorticity_from_winds(
         u,

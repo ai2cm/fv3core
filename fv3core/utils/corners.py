@@ -384,26 +384,51 @@ def fill_corners_dgrid(x, y, grid, vector):
                 fill_ne_corner_vector_dgrid(x, y, i, j, grid, mysign)
 
 
-def corner_ke(ke, u, v, ut, vt, i, j, dt, io1, jo1, io2, vsign):
+@gtscript.function
+def corner_ke(
+    ke: FloatField,
+    u: FloatField,
+    v: FloatField,
+    ut: FloatField,
+    vt: FloatField,
+    dt: float,
+    io1: int,
+    jo1: int,
+    io2: int,
+    vsign: float,
+):
     dt6 = dt / 6.0
-    ke[i, j, :] = dt6 * (
-        (ut[i, j, :] + ut[i, j - 1, :]) * ((io1 + 1) * u[i, j, :] - (io1 * u[i - 1, j, :]))
-        + (vt[i, j, :] + vt[i - 1, j, :]) * ((jo1 + 1) * v[i, j, :] - (jo1 * v[i, j - 1, :]))
-        + (((jo1 + 1) * ut[i, j, :] - (jo1 * ut[i, j - 1, :])) + vsign * ((io1 + 1) * vt[i, j, :] - (io1 * vt[i -1, j, :])))
-        * ((io2 + 1) * u[i, j, :] - (io2 * u[i-1, j, :]))
+
+    ke = dt6 * (
+        (ut[0, 0, 0] + ut[0, -1, 0]) * ((io1 + 1) * u[0, 0, 0] - (io1 * u[-1, 0, 0]))
+        + (vt[0, 0, 0] + vt[-1, 0, 0]) * ((jo1 + 1) * v[0, 0, 0] - (jo1 * v[0, -1, 0]))
+        + (
+            ((jo1 + 1) * ut[0, 0, 0] - (jo1 * ut[0, -1, 0]))
+            + vsign * ((io1 + 1) * vt[0, 0, 0] - (io1 * vt[-1, 0, 0]))
+        )
+        * ((io2 + 1) * u[0, 0, 0] - (io2 * u[-1, 0, 0]))
     )
 
+    return ke
 
-def fix_corner_ke(ke, u, v, ut, vt, dt, grid):
-    if grid.sw_corner:
-        #offsets = {"io1": 0, "jo1": 0, "io2": -1}
-        corner_ke(ke, u, v, ut, vt, grid.is_, grid.js, dt, 0, 0, -1, 1)
-    if grid.se_corner:
-        #offsets = {"io1": -1, "jo1": 0, "io2": 0}
-        corner_ke(ke, u, v, ut, vt, grid.ie + 1, grid.js, dt, -1, 0, 0, -1)
-    if grid.ne_corner:
-        #offsets = {"io1": -1, "jo1": -1, "io2": 0}
-        corner_ke(ke, u, v, ut, vt, grid.ie + 1, grid.je + 1, dt, -1, -1, 0, 1)
-    if grid.nw_corner:
-        #offsets = {"io1": 0, "jo1": -1, "io2": -1}
-        corner_ke(ke, u, v, ut, vt, grid.is_, grid.je + 1, dt, 0, -1, -1, -1)
+
+@gtstencil
+def fix_corner_ke(
+    ke: FloatField,
+    u: FloatField,
+    v: FloatField,
+    ut: FloatField,
+    vt: FloatField,
+    dt: float,
+):
+    from __externals__ import i_end, i_start, j_end, j_start
+
+    with computation(PARALLEL), interval(...):
+        with horizontal(region[i_start, j_start]):
+            ke = corner_ke(ke, u, v, ut, vt, dt, 0, 0, -1, 1)
+        with horizontal(region[i_end + 1, j_start]):
+            ke = corner_ke(ke, u, v, ut, vt, dt, -1, 0, 0, -1)
+        with horizontal(region[i_end + 1, j_end + 1]):
+            ke = corner_ke(ke, u, v, ut, vt, dt, -1, -1, 0, 1)
+        with horizontal(region[i_start, j_end + 1]):
+            ke = corner_ke(ke, u, v, ut, vt, dt, 0, -1, -1, -1)
