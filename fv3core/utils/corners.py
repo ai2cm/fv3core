@@ -384,26 +384,26 @@ def fill_corners_dgrid(x, y, grid, vector):
                 fill_ne_corner_vector_dgrid(x, y, i, j, grid, mysign)
 
 
-def corner_ke(ke, u, v, ut, vt, i, j, dt, offsets, vsign):
+def corner_ke(ke, u, v, ut, vt, i, j, dt, io1, jo1, io2, vsign):
     dt6 = dt / 6.0
     ke[i, j, :] = dt6 * (
-        (ut[i, j, :] + ut[i, j - 1, :]) * u[i + offsets["io1"], j, :]
-        + (vt[i, j, :] + vt[i - 1, j, :]) * v[i, j + offsets["jo1"], :]
-        + (ut[i, j + offsets["jo1"], :] + vsign * vt[i + offsets["io1"], j, :])
-        * u[i + offsets["io2"], j, :]
+        (ut[i, j, :] + ut[i, j - 1, :]) * ((io1 + 1) * u[i, j, :] - (io1 * u[i - 1, j, :]))
+        + (vt[i, j, :] + vt[i - 1, j, :]) * ((jo1 + 1) * v[i, j, :] - (jo1 * v[i, j - 1, :]))
+        + (((jo1 + 1) * ut[i, j, :] - (jo1 * ut[i, j - 1, :])) + vsign * ((io1 + 1) * vt[i, j, :] - (io1 * vt[i -1, j, :])))
+        * ((io2 + 1) * u[i, j, :] - (io2 * u[i-1, j, :]))
     )
 
 
 def fix_corner_ke(ke, u, v, ut, vt, dt, grid):
     if grid.sw_corner:
-        offsets = {"io1": 0, "jo1": 0, "io2": -1}
-        corner_ke(ke, u, v, ut, vt, grid.is_, grid.js, dt, offsets, 1)
+        #offsets = {"io1": 0, "jo1": 0, "io2": -1}
+        corner_ke(ke, u, v, ut, vt, grid.is_, grid.js, dt, 0, 0, -1, 1)
     if grid.se_corner:
-        offsets = {"io1": -1, "jo1": 0, "io2": 0}
-        corner_ke(ke, u, v, ut, vt, grid.ie + 1, grid.js, dt, offsets, -1)
+        #offsets = {"io1": -1, "jo1": 0, "io2": 0}
+        corner_ke(ke, u, v, ut, vt, grid.ie + 1, grid.js, dt, -1, 0, 0, -1)
     if grid.ne_corner:
-        offsets = {"io1": -1, "jo1": -1, "io2": 0}
-        corner_ke(ke, u, v, ut, vt, grid.ie + 1, grid.je + 1, dt, offsets, 1)
+        #offsets = {"io1": -1, "jo1": -1, "io2": 0}
+        corner_ke(ke, u, v, ut, vt, grid.ie + 1, grid.je + 1, dt, -1, -1, 0, 1)
     if grid.nw_corner:
-        offsets = {"io1": 0, "jo1": -1, "io2": -1}
-        corner_ke(ke, u, v, ut, vt, grid.is_, grid.je + 1, dt, offsets, -1)
+        #offsets = {"io1": 0, "jo1": -1, "io2": -1}
+        corner_ke(ke, u, v, ut, vt, grid.is_, grid.je + 1, dt, 0, -1, -1, -1)

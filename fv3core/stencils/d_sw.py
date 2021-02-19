@@ -238,11 +238,6 @@ def heat_source_from_vorticity_damping(
         )
 
 
-def initialize_heat_source(heat_source, diss_est):
-    heat_source[grid().compute_interface()] = 0
-    diss_est[grid().compute_interface()] = 0
-
-
 def heat_from_damping(
     ub,
     vb,
@@ -587,7 +582,6 @@ def d_sw(
     )
 
     fluxcap.compute(cx, cy, xflux, yflux, crx, cry, fx, fy)
-    initialize_heat_source(heat_s, diss_e)
 
     if not spec.namelist.hydrostatic:
         dw, wk = damp_vertical_wind(w, heat_s, diss_e, dt, column_namelist)
