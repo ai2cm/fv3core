@@ -1,11 +1,10 @@
-import fv3core.stencils.pgradc as pgradc
+import fv3core.stencils.dyn_core as dyn_core
 from fv3core.testing import TranslateFortranData2Py
 
 
 class TranslatePGradC(TranslateFortranData2Py):
     def __init__(self, grid):
         super().__init__(grid)
-        self.compute_func = pgradc.compute
         self.in_vars["data_vars"] = {
             "uc": {},
             "vc": {},
@@ -15,3 +14,13 @@ class TranslatePGradC(TranslateFortranData2Py):
         }
         self.in_vars["parameters"] = ["dt2"]
         self.out_vars = {"uc": grid.x3d_domain_dict(), "vc": grid.y3d_domain_dict()}
+
+    def compute_from_storage(self, inputs):
+        dyn_core.p_grad_c_stencil(
+            rdxc=self.grid.rdxc,
+            rdyc=self.grid.rdyc,
+            **inputs,
+            origin=self.grid.compute_origin(),
+            domain=self.grid.domain_shape_compute(add=(1, 1, 0)),
+        )
+        return inputs
