@@ -40,6 +40,8 @@ def _FieldDescriptorMaker(dtype):
 
 FloatField = Field[float_type]
 FloatFieldIJ = Field[float_type, gtscript.IJ]
+FloatFieldI = Field[float_type, gtscript.I]
+FloatFieldJ = Field[float_type, gtscript.J]
 FloatFieldK = Field[float_type, gtscript.K]
 
 IntField = Field[int_type]
