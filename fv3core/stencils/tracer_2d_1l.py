@@ -8,7 +8,7 @@ import fv3core.stencils.fvtp2d as fvtp2d
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import gtstencil
 from fv3core.stencils.basic_operations import copy, copy_stencil
-from fv3core.stencils.updatedzd import ra_x_stencil, ra_y_stencil
+from fv3core.stencils.updatedzd import ra_stencil
 
 
 sd = utils.sd
@@ -174,19 +174,14 @@ def compute(comm, tracers, dp1, mfxd, mfyd, cxd, cyd, mdt, nq):
         q = tracers[qname + "_quantity"]
         comm.halo_update(q, n_points=utils.halo)
 
-    ra_x_stencil(
+    ra_stencil(
         grid.area,
-        xfx,
+        xfx_adv,
+        yfx_adv,
         ra_x,
-        origin=grid.compute_origin(add=(0, -grid.halo, 0)),
-        domain=grid.domain_shape_compute(add=(0, 2 * grid.halo, 0)),
-    )
-    ra_y_stencil(
-        grid.area,
-        yfx,
         ra_y,
-        origin=grid.compute_origin(add=(-grid.halo, 0, 0)),
-        domain=grid.domain_shape_compute(add=(2 * grid.halo, 0, 0)),
+        origin=grid.compute_origin(add=(-grid.halo, -grid.halo, 0)),
+        domain=grid.domain_shape_compute(add=(2 * grid.halo, 2 * grid.halo, 0)),
     )
 
     # TODO: Revisit: the loops over q and nsplt have two inefficient options

@@ -17,6 +17,7 @@ DZ_MIN = constants.DZ_MIN
 
 @gtstencil()
 def ra_x_stencil(area: FloatField, xfx_adv: FloatField, ra_x: FloatField):
+    """Updates 'ra' fields."""
     with computation(PARALLEL), interval(...):
         ra_x = ra_x_func(area, xfx_adv)
 
@@ -25,6 +26,24 @@ def ra_x_stencil(area: FloatField, xfx_adv: FloatField, ra_x: FloatField):
 def ra_y_stencil(area: FloatField, yfx_adv: FloatField, ra_y: FloatField):
     with computation(PARALLEL), interval(...):
         ra_y = ra_y_func(area, yfx_adv)
+
+
+@gtstencil()
+def ra_stencil(
+    area: FloatField,
+    xfx_adv: FloatField,
+    yfx_adv: FloatField,
+    ra_x: FloatField,
+    ra_y: FloatField,
+):
+    """Updates 'ra' fields."""
+    from __externals__ import local_ie, local_is, local_je, local_js
+
+    with computation(PARALLEL), interval(...):
+        with horizontal(region[local_is : local_ie + 2, :]):
+            ra_x = ra_x_func(area, xfx_adv)
+        with horizontal(region[:, local_js : local_je + 2]):
+            ra_y = ra_y_func(area, yfx_adv)
 
 
 @gtscript.function
@@ -63,10 +82,48 @@ def zh_stencil(
         zh = zh_base(zh, area, fx, fy, ra_x, ra_y)
 
 
+@gtscript.function
+def edge_profile_top(q1, q2, dp0, qe1, qe2, gam):
+    g0 = dp0[0, 0, 1] / dp0[0, 0, 0]
+    xt1 = 2.0 * g0 * (g0 + 1.0)
+    bet = g0 * (g0 + 0.5)
+    qe1 = (xt1 * q1 + q1[0, 0, 1]) / bet
+    qe2 = (xt1 * q2 + q2[0, 0, 1]) / bet
+    gam = (1.0 + g0 * (g0 + 1.5)) / bet
+    return qe1, qe2, gam
+
+
+@gtscript.function
+def edge_profile_interior(q1, q2, dp0, qe1, qe2, gam):
+    gk = dp0[0, 0, -1] / dp0
+    bet = 2.0 + 2.0 * gk - gam[0, 0, -1]
+    qe1 = (3.0 * (q1[0, 0, -1] + gk * q1) - qe1[0, 0, -1]) / bet
+    qe2 = (3.0 * (q2[0, 0, -1] + gk * q2) - qe2[0, 0, -1]) / bet
+    gam = gk / bet
+    return gk, qe1, qe2, gam
+
+
+@gtscript.function
+def edge_profile_bottom(gk, q1, q2, qe1, qe2, gam):
+    a_bot = 1.0 + gk[0, 0, -1] * (gk[0, 0, -1] + 1.5)
+    xt1 = 2.0 * gk[0, 0, -1] * (gk[0, 0, -1] + 1.0)
+    xt2 = gk[0, 0, -1] * (gk[0, 0, -1] + 0.5) - a_bot * gam[0, 0, -1]
+    qe1 = (xt1 * q1[0, 0, -1] + q1[0, 0, -2] - a_bot * qe1[0, 0, -1]) / xt2
+    qe2 = (xt1 * q2[0, 0, -1] + q2[0, 0, -2] - a_bot * qe2[0, 0, -1]) / xt2
+    return qe1, qe2
+
+
+@gtscript.function
+def edge_profile_reverse(qe1, qe2, gam):
+    qe1 -= gam * qe1[0, 0, 1]
+    qe2 -= gam * qe2[0, 0, 1]
+    return qe1, qe2
+
+
 # NOTE: We have not ported the uniform_grid True option as it is never called
 # that way in this model. We have also ignored limite != 0 for the same reason.
 @gtstencil()
-def edge_profile(
+def edge_profile_stencil(
     q1: FloatField,
     q2: FloatField,
     qe1: FloatField,
@@ -76,27 +133,23 @@ def edge_profile(
 ):
     with computation(FORWARD):
         with interval(0, 1):
-            g0 = dp0[0, 0, 1] / dp0[0, 0, 0]
-            xt1 = 2.0 * g0 * (g0 + 1.0)
-            bet = g0 * (g0 + 0.5)
-            qe1 = (xt1 * q1 + q1[0, 0, 1]) / bet
-            qe2 = (xt1 * q2 + q2[0, 0, 1]) / bet
-            gam = (1.0 + g0 * (g0 + 1.5)) / bet
+            qe1, qe2, gam = edge_profile_top(q1, q2, dp0, qe1, qe2, gam)
         with interval(1, -1):
+            # gk, qe1, qe2, gam = edge_profile_interior(q1, q2, dp0, qe1, qe2, gam)
             gk = dp0[0, 0, -1] / dp0
             bet = 2.0 + 2.0 * gk - gam[0, 0, -1]
             qe1 = (3.0 * (q1[0, 0, -1] + gk * q1) - qe1[0, 0, -1]) / bet
             qe2 = (3.0 * (q2[0, 0, -1] + gk * q2) - qe2[0, 0, -1]) / bet
             gam = gk / bet
         with interval(-1, None):
+            # qe1, qe2 = edge_profile_bottom(gk, q1, q2, qe1, qe2, gam)
             a_bot = 1.0 + gk[0, 0, -1] * (gk[0, 0, -1] + 1.5)
             xt1 = 2.0 * gk[0, 0, -1] * (gk[0, 0, -1] + 1.0)
             xt2 = gk[0, 0, -1] * (gk[0, 0, -1] + 0.5) - a_bot * gam[0, 0, -1]
             qe1 = (xt1 * q1[0, 0, -1] + q1[0, 0, -2] - a_bot * qe1[0, 0, -1]) / xt2
             qe2 = (xt1 * q2[0, 0, -1] + q2[0, 0, -2] - a_bot * qe2[0, 0, -1]) / xt2
     with computation(BACKWARD), interval(0, -1):
-        qe1 = qe1 - gam * qe1[0, 0, 1]
-        qe2 = qe2 - gam * qe2[0, 0, 1]
+        qe1, qe2 = edge_profile_reverse(qe1, qe2, gam)
 
 
 def edge_python(q1, q2, qe1, qe2, dp0, gam, islice, jslice, qe1_2, gam_2):
@@ -172,27 +225,29 @@ def compute(
     dt: float,
 ):
     grid = spec.grid
+    halo = grid.halo
+
     crx_adv = utils.make_storage_from_shape(
-        crx.shape, grid.compute_origin(add=(0, -grid.halo, 0))
+        crx.shape, grid.compute_origin(add=(0, -halo, 0))
     )
     cry_adv = utils.make_storage_from_shape(
-        cry.shape, grid.compute_origin(add=(-grid.halo, 0, 0))
+        cry.shape, grid.compute_origin(add=(-halo, 0, 0))
     )
     xfx_adv = utils.make_storage_from_shape(
-        xfx.shape, grid.compute_origin(add=(0, -grid.halo, 0))
+        xfx.shape, grid.compute_origin(add=(0, -halo, 0))
     )
     yfx_adv = utils.make_storage_from_shape(
-        yfx.shape, grid.compute_origin(add=(-grid.halo, 0, 0))
+        yfx.shape, grid.compute_origin(add=(-halo, 0, 0))
     )
     ra_x = utils.make_storage_from_shape(
-        crx.shape, grid.compute_origin(add=(0, -grid.halo, 0))
+        crx.shape, grid.compute_origin(add=(0, -halo, 0))
     )
     ra_y = utils.make_storage_from_shape(
-        cry.shape, grid.compute_origin(add=(-grid.halo, 0, 0))
+        cry.shape, grid.compute_origin(add=(-halo, 0, 0))
     )
     gam = utils.make_storage_from_shape(zs.shape, grid.full_origin())
 
-    edge_profile(
+    edge_profile_stencil(
         crx,
         xfx,
         crx_adv,
@@ -202,7 +257,7 @@ def compute(
         origin=(grid.is_, grid.jsd, 0),
         domain=(grid.nic + 1, grid.njd, grid.npz + 1),
     )
-    edge_profile(
+    edge_profile_stencil(
         cry,
         yfx,
         cry_adv,
@@ -213,19 +268,14 @@ def compute(
         domain=(grid.nid, grid.njc + 1, grid.npz + 1),
     )
 
-    ra_x_stencil(
+    ra_stencil(
         grid.area,
         xfx_adv,
-        ra_x,
-        origin=grid.compute_origin(add=(0, -grid.halo, 0)),
-        domain=(grid.nic, grid.njd, grid.npz + 1),
-    )
-    ra_y_stencil(
-        grid.area,
         yfx_adv,
+        ra_x,
         ra_y,
-        origin=grid.compute_origin(add=(-grid.halo, 0, 0)),
-        domain=(grid.nid, grid.njc, grid.npz + 1),
+        origin=grid.compute_origin(add=(-halo, -halo, 0)),
+        domain=grid.domain_shape_compute(add=(2 * halo, 2 * halo, 1)),
     )
 
     ndif[-1] = ndif[-2]
