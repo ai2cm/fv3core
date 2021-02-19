@@ -94,6 +94,42 @@ def horizontal_relative_vorticity_from_winds(
 
 
 @gtstencil()
+def fix_corners_ke_and_horizontal_relative_vorticity_from_winds(
+    ke: FloatField,
+    u: FloatField,
+    v: FloatField,
+    ut: FloatField,
+    vt: FloatField,
+    dx: FloatField,
+    dy: FloatField,
+    rarea: FloatField,
+    vorticity: FloatField,
+    dt: float,
+    nested: bool,
+):
+    from __externals__ import i_end, i_start, j_end, j_start
+
+    with computation(PARALLEL), interval(...):
+
+        with horizontal(region[i_start, j_start]):
+            if not nested:
+                ke = corners.corner_ke(ke, u, v, ut, vt, dt, 0, 0, -1, 1)
+        with horizontal(region[i_end + 1, j_start]):
+            if not nested:
+                ke = corners.corner_ke(ke, u, v, ut, vt, dt, -1, 0, 0, -1)
+        with horizontal(region[i_end + 1, j_end + 1]):
+            if not nested:
+                ke = corners.corner_ke(ke, u, v, ut, vt, dt, -1, -1, 0, 1)
+        with horizontal(region[i_start, j_end + 1]):
+            if not nested:
+                ke = corners.corner_ke(ke, u, v, ut, vt, dt, 0, -1, -1, -1)
+
+        vt = u * dx
+        ut = v * dy
+        vorticity[0, 0, 0] = rarea * (vt - vt[0, 1, 0] - ut + ut[1, 0, 0])
+
+
+@gtstencil()
 def not_inlineq_pressure(gx: sd, gy: sd, rarea: sd, fx: sd, fy: sd, pt: sd, delp: sd):
     with computation(PARALLEL), interval(...):
         pt = flux_integral(
@@ -723,12 +759,8 @@ def d_sw(
         domain=grid().domain_shape_compute(add=(1, 1, 0)),
     )
 
-    if not grid().nested:
-        corners.fix_corner_ke(
-            ke, u, v, ut, vt, dt, origin=(0, 0, 0), domain=spec.grid.domain_shape_full()
-        )
-
-    horizontal_relative_vorticity_from_winds(
+    fix_corners_ke_and_horizontal_relative_vorticity_from_winds(
+        ke,
         u,
         v,
         ut,
@@ -737,6 +769,8 @@ def d_sw(
         spec.grid.dy,
         spec.grid.rarea,
         wk,
+        dt,
+        grid().nested,
         origin=(0, 0, 0),
         domain=spec.grid.domain_shape_full(),
     )

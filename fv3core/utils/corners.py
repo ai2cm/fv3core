@@ -410,25 +410,3 @@ def corner_ke(
     )
 
     return ke
-
-
-@gtstencil
-def fix_corner_ke(
-    ke: FloatField,
-    u: FloatField,
-    v: FloatField,
-    ut: FloatField,
-    vt: FloatField,
-    dt: float,
-):
-    from __externals__ import i_end, i_start, j_end, j_start
-
-    with computation(PARALLEL), interval(...):
-        with horizontal(region[i_start, j_start]):
-            ke = corner_ke(ke, u, v, ut, vt, dt, 0, 0, -1, 1)
-        with horizontal(region[i_end + 1, j_start]):
-            ke = corner_ke(ke, u, v, ut, vt, dt, -1, 0, 0, -1)
-        with horizontal(region[i_end + 1, j_end + 1]):
-            ke = corner_ke(ke, u, v, ut, vt, dt, -1, -1, 0, 1)
-        with horizontal(region[i_start, j_end + 1]):
-            ke = corner_ke(ke, u, v, ut, vt, dt, 0, -1, -1, -1)
