@@ -19,12 +19,11 @@ class TranslateUpdateDzC(TranslateFortranData2Py):
             "ws": {"kstart": -1, "kend": None},
         }
 
-    def compute(self, inputs):
-        self.make_storage_data_input_vars(inputs)
+    def compute_from_storage(self, inputs):
         updatedzc.update_dz_c_stencil(
             area=self.grid.area,
             **inputs,
             origin=self.grid.compute_origin(add=(-2, -2, 0)),
             domain=self.grid.domain_shape_compute(add=(3, 3, 1)),
         )
-        return self.slice_output(inputs)
+        return inputs
