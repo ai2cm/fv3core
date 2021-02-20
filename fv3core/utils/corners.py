@@ -307,28 +307,30 @@ def copy_corners_y(q):
     return q
 
 
+@gtstencil
+def copy_corners_x_stencil(q: FloatField):
+    with computation(PARALLEL), interval(...):
+        q = copy_corners_x(q)
+
+
+@gtstencil
+def copy_corners_y_stencil(q: FloatField):
+    with computation(PARALLEL), interval(...):
+        q = copy_corners_y(q)
+
+
 # TODO: may want to put this in the test code if no longer used
 # directly in the model
 def copy_corners(q, direction, grid, kslice=slice(0, None)):
     kstart, nk = utils.krange_from_slice(kslice, grid)
-
-    def definition(q: FloatField):
-        from __externals__ import func
-
-        with computation(PARALLEL), interval(...):
-            q = func(q)
-
     if direction == "x":
-        func = copy_corners_x
+        copy_corners_x_stencil(
+            q, origin=(grid.isd, grid.jsd, kstart), domain=(grid.nid, grid.njd, nk)
+        )
     if direction == "y":
-        func = copy_corners_y
-    copy_corners_stencil = gtstencil(
-        definition=definition,
-        externals={"func": func},
-    )
-    copy_corners_stencil(
-        q, origin=(grid.isd, grid.jsd, kstart), domain=(grid.nid, grid.njd, nk)
-    )
+        copy_corners_y_stencil(
+            q, origin=(grid.isd, grid.jsd, kstart), domain=(grid.nid, grid.njd, nk)
+        )
 
 
 # TODO these can definitely be consolidated/made simpler
