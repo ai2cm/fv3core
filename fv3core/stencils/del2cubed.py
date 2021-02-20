@@ -1,9 +1,20 @@
-from gt4py.gtscript import PARALLEL, computation, interval
+import gt4py
+import gt4py.gtscript as gtscript
+from gt4py.gtscript import (
+    __INLINED,
+    PARALLEL,
+    computation,
+    horizontal,
+    interval,
+    region,
+)
 
 import fv3core._config as spec
 import fv3core.utils.corners as corners
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import gtstencil
+from fv3core.utils import global_config
+from fv3core.utils.typing import FloatField, FloatFieldIJ
 
 
 sd = utils.sd
@@ -11,119 +22,116 @@ origin = utils.origin
 
 
 #
-# Flux value stencils
-# ---------------------
-@gtstencil()
-def compute_zonal_flux(flux: sd, A_in: sd, del_term: sd):
-    with computation(PARALLEL), interval(...):
-        flux = del_term * (A_in[-1, 0, 0] - A_in)
+# Flux value
+# ----------
+@gtscript.function
+def compute_zonal_flux(A_in: sd, del_term: sd):
+    return del_term * (A_in[-1, 0, 0] - A_in)
 
 
-@gtstencil()
-def compute_meridional_flux(flux: sd, A_in: sd, del_term: sd):
-    with computation(PARALLEL), interval(...):
-        flux = del_term * (A_in[0, -1, 0] - A_in)
+@gtscript.function
+def compute_meridional_flux(A_in: sd, del_term: sd):
+    return del_term * (A_in[0, -1, 0] - A_in)
 
 
 #
-# Q update stencil
-# ------------------
-@gtstencil()
+# Q update
+# --------
+@gtscript.function
 def update_q(q: sd, rarea: sd, fx: sd, fy: sd, cd: float):
-    with computation(PARALLEL), interval(...):
-        q = q + cd * rarea * (fx - fx[1, 0, 0] + fy - fy[0, 1, 0])
+    return q + cd * rarea * (fx - fx[1, 0, 0] + fy - fy[0, 1, 0])
 
 
-@gtstencil()
-def copy_row(A: sd):
-    with computation(PARALLEL), interval(...):
-        A0 = A
-        A = A0[1, 0, 0]
+@gtscript.function
+def corner_fill(q):
+    from __externals__ import i_end, i_start, j_end, j_start
 
+    with horizontal(region[i_start, j_start]):
+        q = (q[0, 0, 0] + q[-1, 0, 0] + q[0, -1, 0]) / 3.0
+    with horizontal(region[i_start - 1, j_start]):
+        q = q[1, 0, 0]
+    with horizontal(region[i_start, j_start - 1]):
+        q = q[0, 1, 0]
 
-@gtstencil()
-def copy_column(A: sd):
-    with computation(PARALLEL), interval(...):
-        A0 = A
-        A = A0[0, 1, 0]
+    with horizontal(region[i_end, j_start]):
+        q = (q[0, 0, 0] + q[1, 0, 0] + q[0, -1, 0]) / 3.0
+    with horizontal(region[i_end + 1, j_start]):
+        q = q[-1, 0, 0]
+    with horizontal(region[i_end, j_start - 1]):
+        q = q[0, 1, 0]
 
+    with horizontal(region[i_end, j_end]):
+        q = (q[0, 0, 0] + q[1, 0, 0] + q[0, 1, 0]) / 3.0
+    with horizontal(region[i_end + 1, j_end]):
+        q = q[-1, 0, 0]
+    with horizontal(region[i_end, j_end + 1]):
+        q = q[0, -1, 0]
 
-#
-# corner_fill
-#
-# Subroutine that copies/fills in the appropriate corner values for qdel
-# ------------------------------------------------------------------------
-def corner_fill(grid, q):
-    r3 = 1.0 / 3.0
-    if grid.sw_corner:
-        q[grid.is_, grid.js, :] = (
-            q[grid.is_, grid.js, :]
-            + q[grid.is_ - 1, grid.js, :]
-            + q[grid.is_, grid.js - 1, :]
-        ) * r3
-        q[grid.is_ - 1, grid.js, :] = q[grid.is_, grid.js, :]
-        q[grid.is_, grid.js - 1, :] = q[grid.is_, grid.js, :]
-    if grid.se_corner:
-        q[grid.ie, grid.js, :] = (
-            q[grid.ie, grid.js, :]
-            + q[grid.ie + 1, grid.js, :]
-            + q[grid.ie, grid.js - 1, :]
-        ) * r3
-        q[grid.ie + 1, grid.js, :] = q[grid.ie, grid.js, :]
-        copy_column(q, origin=(grid.ie, grid.js - 1, 0), domain=(1, 1, grid.npz))
-
-    if grid.ne_corner:
-        q[grid.ie, grid.je, :] = (
-            q[grid.ie, grid.je, :]
-            + q[grid.ie + 1, grid.je, :]
-            + q[grid.ie, grid.je + 1, :]
-        ) * r3
-        q[grid.ie + 1, grid.je, :] = q[grid.ie, grid.je, :]
-        q[grid.ie, grid.je + 1, :] = q[grid.ie, grid.je, :]
-
-    if grid.nw_corner:
-        q[grid.is_, grid.je, :] = (
-            q[grid.is_, grid.je, :]
-            + q[grid.is_ - 1, grid.je, :]
-            + q[grid.is_, grid.je + 1, :]
-        ) * r3
-        copy_row(q, origin=(grid.is_ - 1, grid.je, 0), domain=(1, 1, grid.npz))
-        q[grid.is_, grid.je + 1, :] = q[grid.is_, grid.je, :]
+    with horizontal(region[i_start, j_end]):
+        q = (q[0, 0, 0] + q[-1, 0, 0] + q[0, 1, 0]) / 3.0
+    with horizontal(region[i_start - 1, j_end]):
+        q = q[1, 0, 0]
+    with horizontal(region[i_start, j_end + 1]):
+        q = q[0, -1, 0]
 
     return q
 
 
-def compute(qdel, nmax, cd, km):
+def _del2cubed_loop(
+    qdel: FloatField,
+    cd: FloatField,
+    del6_u: FloatFieldIJ,
+    del6_v: FloatFieldIJ,
+    rarea: FloatFieldIJ,
+):
+    from __externals__ import nt
+
+    with computation(PARALLEL), interval(...):
+        qdel = corner_fill(qdel)
+
+        if __INLINED(nt > 0):
+            corners.copy_corners_x(qdel)
+        fx = compute_zonal_flux(qdel, del6_v)
+
+        if __INLINED(nt > 0):
+            corners.copy_corners_y(qdel)
+        fy = compute_meridional_flux(qdel, del6_u)
+
+        qdel = update_q(qdel, rarea, fx, fy, cd)
+
+
+def _make_grid_storage_2d(grid_array: gt4py.storage.Storage, index: int = 0):
     grid = spec.grid
-    origin = (grid.isd, grid.jsd, 0)
+    return gt4py.storage.from_array(
+        grid_array[:, :, index],
+        backend=global_config.get_backend(),
+        default_origin=grid.compute_origin()[:-1],
+        shape=grid_array[:, :, index].shape,
+        dtype=grid_array.dtype,
+        mask=(True, True, False),
+    )
 
-    # Construct some necessary temporary storage objects
-    fx = utils.make_storage_from_shape(qdel.shape, origin=origin)
-    fy = utils.make_storage_from_shape(qdel.shape, origin=origin)
 
-    # set up the temporal loop
+def compute(qdel: FloatField, nmax: int, cd: FloatField, km: int):
+    grid = spec.grid
+
+    del6_u = _make_grid_storage_2d(grid.del6_u)
+    del6_v = _make_grid_storage_2d(grid.del6_v)
+    rarea = _make_grid_storage_2d(grid.rarea)
+
     ntimes = min(3, nmax)
     for n in range(1, ntimes + 1):
         nt = ntimes - n
         origin = (grid.is_ - nt, grid.js - nt, 0)
 
-        # Fill in appropriate corner values
-        qdel = corner_fill(grid, qdel)
+        stencil = gtstencil(definition=_del2cubed_loop, externals={"nt": nt})
 
-        if nt > 0:
-            corners.copy_corners(qdel, "x", grid)
-        nx = grid.njc + 2 * nt + 1  # (grid.ie+nt+1) - (grid.is_-nt) + 1
-        ny = grid.njc + 2 * nt  # (grid.je+nt) - (grid.js-nt) + 1
-        compute_zonal_flux(fx, qdel, grid.del6_v, origin=origin, domain=(nx, ny, km))
-
-        if nt > 0:
-            corners.copy_corners(qdel, "y", grid)
-        nx = grid.nic + 2 * nt  # (grid.ie+nt) - (grid.is_-nt) + 1
-        ny = grid.njc + 2 * nt + 1  # (grid.je+nt+1) - (grid.js-nt) + 1
-        compute_meridional_flux(
-            fy, qdel, grid.del6_u, origin=origin, domain=(nx, ny, km)
+        stencil(
+            qdel,
+            cd,
+            del6_u,
+            del6_v,
+            rarea,
+            origin=origin,
+            domain=(grid.nic + 2 * nt, grid.nij + 2 * nt, km),
         )
-
-        # Update q values
-        ny = grid.njc + 2 * nt  # (grid.je+nt) - (grid.js-nt) + 1
-        update_q(qdel, grid.rarea, fx, fy, cd, origin=origin, domain=(nx, ny, km))
