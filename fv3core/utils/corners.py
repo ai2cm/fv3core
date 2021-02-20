@@ -224,14 +224,12 @@ def copy_sw_corner_x(q):
     from __externals__ import i_start, j_start
     with horizontal(region[i_start - 3, j_start - 3]):
         q = q[0, 5, 0]
-    
     with horizontal(region[i_start - 2, j_start - 3]):
         q = q[-1, 4, 0]
     with horizontal(region[i_start - 1, j_start - 3]):
         q = q[-2, 3, 0]
     with horizontal(region[i_start - 3, j_start - 2]):
         q = q[1, 4, 0]
-    
     with horizontal(region[i_start - 2, j_start - 2]):
         q = q[0, 3, 0]
     with horizontal(region[i_start - 1, j_start - 2]):
@@ -298,7 +296,7 @@ def copy_se_corner_x(q):
     with horizontal(region[i_end + 3, j_start - 1]):
         q = q[-2, 3, 0]
     return q
-#  q[i, j, kslice] = q[grid.je + j - 2, grid.ie + 1 - i + 2, kslice]
+
 @gtscript.function
 def copy_se_corner_y(q):
     from __externals__ import i_end, j_start
@@ -322,24 +320,113 @@ def copy_se_corner_y(q):
         q = q[-3, -2, 0]
     return q
 
-def copy_se_corner(q, direction, grid, kslice):
-    for j in range(grid.js - grid.halo, grid.js):
-        for i in range(grid.ie + 1, grid.ie + grid.halo + 1):
-            if direction == "x":
-                q[i, j, kslice] = q[grid.je + 1 - j + 2, i - grid.ie + 2, kslice]
-            if direction == "y":
-                q[i, j, kslice] = q[grid.je + j - 2, grid.ie + 1 - i + 2, kslice]
+#def copy_se_corner(q, direction, grid, kslice):
+#    for j in range(grid.js - grid.halo, grid.js):
+#        for i in range(grid.ie + 1, grid.ie + grid.halo + 1):
+#            if direction == "x":
+#                q[i, j, kslice] = q[grid.je + 1 - j + 2, i - grid.ie + 2, kslice]
+#            if direction == "y":
+#                q[i, j, kslice] = q[grid.je + j - 2, grid.ie + 1 - i + 2, kslice]
+#  q[i, j, kslice] = q[j, 2 * (grid.ie + 1) - 1 - i, kslice]
+@gtscript.function
+def copy_ne_corner_x(q):
+    from __externals__ import i_end, j_end
+    with horizontal(region[i_end + 1, j_end +  1]):
+        q = q[0, -1, 0]
+    with horizontal(region[i_end + 2, j_end +  1]):
+        q = q[-1, -2, 0]
+    with horizontal(region[i_end + 3, j_end +  1]):
+        q = q[-2, -3, 0]
+    with horizontal(region[i_end + 1, j_end +  2]):
+        q = q[1, -2, 0]
+    with horizontal(region[i_end + 2, j_end +  2]):
+        q = q[0, -3, 0]
+    with horizontal(region[i_end + 3, j_end +  2]):
+        q = q[-1, -4, 0]
+    with horizontal(region[i_end + 1, j_end +  3]):
+        q = q[2, -3, 0]
+    with horizontal(region[i_end + 2, j_end +  3]):
+        q = q[1, -4, 0]
+    with horizontal(region[i_end + 3, j_end +  3]):
+        q = q[0, -5, 0]
+    return q
+# q[i, j, kslice] = q[2 * (grid.je + 1) - 1 - j, i, kslice]
+@gtscript.function
+def copy_ne_corner_y(q):
+    from __externals__ import i_end, j_end
+    with horizontal(region[i_end + 1, j_end +  1]):
+        q = q[-1, 0, 0]
+    with horizontal(region[i_end + 2, j_end +  1]):
+        q = q[-2, 1, 0]
+    with horizontal(region[i_end + 3, j_end +  1]):
+        q = q[-3, 2, 0]
+    with horizontal(region[i_end + 1, j_end +  2]):
+        q = q[-2, -1, 0]
+    with horizontal(region[i_end + 2 , j_end +  2]):
+        q = q[-3, 0, 0]
+    with horizontal(region[i_end + 3, j_end +  2]):
+        q = q[-4, 1, 0]
+    with horizontal(region[i_end + 1, j_end +  3]):
+        q = q[-3, -2, 0]
+    with horizontal(region[i_end + 2, j_end +  3]):
+        q = q[-4, -1, 0]
+    with horizontal(region[i_end + 3, j_end +  3]):
+        q = q[-5, 0, 0]
+    return q
 
+#def copy_ne_corner(q, direction, grid, kslice):
+#    for j in range(grid.je + 1, grid.je + grid.halo + 1):
+#        for i in range(grid.ie + 1, grid.ie + grid.halo + 1):
+#            if direction == "x":
+#                q[i, j, kslice] = q[j, 2 * (grid.ie + 1) - 1 - i, kslice]
+#            if direction == "y":
+#                q[i, j, kslice] = q[2 * (grid.je + 1) - 1 - j, i, kslice]
+#  q[i, j, kslice] = q[grid.je + 1 - j + 2, i - 2 + grid.ie, kslice]
+@gtscript.function
+def copy_nw_corner_x(q):
+    from __externals__ import i_start, j_end
+    with horizontal(region[i_start - 3, j_end + 1]):
+        q = q[2, -3, 0]
+    with horizontal(region[i_start - 2, j_end + 1]):
+        q = q[1, -2, 0]
+    with horizontal(region[i_start - 1, j_end + 1]):
+        q = q[0, -1, 0]
+    with horizontal(region[i_start - 3, j_end + 2]):
+        q = q[1, -4, 0]
+    with horizontal(region[i_start - 2, j_end + 2]):
+        q = q[0, -3, 0]
+    with horizontal(region[i_start - 1, j_end + 2]):
+        q = q[-1, -2, 0]
+    with horizontal(region[i_start - 3, j_end + 3]):
+        q = q[0, -5, 0]
+    with horizontal(region[i_start - 2, j_end + 3]):
+        q = q[-1, -4, 0]
+    with horizontal(region[i_start - 1, j_end + 3]):
+        q = q[-2, -3, 0]
+    return q
 
-def copy_ne_corner(q, direction, grid, kslice):
-    for j in range(grid.je + 1, grid.je + grid.halo + 1):
-        for i in range(grid.ie + 1, grid.ie + grid.halo + 1):
-            if direction == "x":
-                q[i, j, kslice] = q[j, 2 * (grid.ie + 1) - 1 - i, kslice]
-            if direction == "y":
-                q[i, j, kslice] = q[2 * (grid.je + 1) - 1 - j, i, kslice]
-
-
+@gtscript.function
+def copy_nw_corner_y(q):
+    from __externals__ import i_start, j_end
+    with horizontal(region[i_start - 3, j_end + 1]):
+        q = q[3, 2, 0]
+    with horizontal(region[i_start - 2, j_end + 1]):
+        q = q[2, 1, 0]
+    with horizontal(region[i_start - 1, j_end + 1]):
+        q = q[1, 0, 0]
+    with horizontal(region[i_start - 3, j_end + 2]):
+        q = q[4, 1, 0]
+    with horizontal(region[i_start - 2, j_end + 2]):
+        q = q[3, 0, 0]
+    with horizontal(region[i_start - 1, j_end + 2]):
+        q = q[2, -1, 0]
+    with horizontal(region[i_start - 3, j_end + 3]):
+        q = q[5, 0, 0]
+    with horizontal(region[i_start - 2, j_end + 3]):
+        q = q[4, -1, 0]
+    with horizontal(region[i_start - 1, j_end + 3]):
+        q = q[3, -2, 0]
+    return q
 def copy_nw_corner(q, direction, grid, kslice):
     for j in range(grid.je + 1, grid.je + grid.halo + 1):
         for i in range(grid.is_ - grid.halo, grid.is_):
@@ -353,16 +440,6 @@ def copy_nw_corner(q, direction, grid, kslice):
 def copy_corners(q, direction, grid, kslice=slice(0, None)):
     kstart,nk = utils.krange_from_slice(kslice, grid)
     ncorner= grid.halo * 2
-    print(direction)
-    for i in range(grid.nid):
-        for j in range(grid.njd):
-            for k in range(grid.npz):
-                val= q[i, j, k]
-                ref = 423.9660000000893
-                if abs(val - ref) < 1e-12:
-                    print('!!!!!!!!!!!!!!!!!!!', i, j, k)
-                if abs (val  - 423.96599999984926) < 1e-12:
-                    print("???????????????", i, j,k)
     def definition(q: FloatField):
         from __externals__ import func
         with computation(PARALLEL), interval(...):
@@ -385,14 +462,33 @@ def copy_corners(q, direction, grid, kslice=slice(0, None)):
         externals={"func": func},
     )
     se_stencil(q, origin=(grid.isd, grid.jsd, kstart), domain=(grid.nid, grid.njd, nk))
+    if direction == "x":
+        func = (copy_ne_corner_x )
+    if direction == "y":
+        func = (copy_ne_corner_y )
+    ne_stencil = gtstencil(
+        definition=definition,
+        externals={"func": func},
+    )
+    ne_stencil(q, origin=(grid.isd, grid.jsd, kstart), domain=(grid.nid, grid.njd, nk))
+    if direction == "x":
+        func = (copy_nw_corner_x )
+    if direction == "y":
+        func = (copy_nw_corner_y )
+    nw_stencil = gtstencil(
+        definition=definition,
+        externals={"func": func},
+    )
+    nw_stencil(q, origin=(grid.isd, grid.jsd, kstart), domain=(grid.nid, grid.njd, nk))
+
     #if grid.sw_corner:
     #    copy_sw_corner(q, direction, grid, kslice)
     #if grid.se_corner:
     #    copy_se_corner(q, direction, grid, kslice)
-    if grid.ne_corner:
-        copy_ne_corner(q, direction, grid, kslice)
-    if grid.nw_corner:
-        copy_nw_corner(q, direction, grid, kslice)
+    #if grid.ne_corner:
+    #    copy_ne_corner(q, direction, grid, kslice)
+    #if grid.nw_corner:
+    #    copy_nw_corner(q, direction, grid, kslice)
 
 
 # TODO these can definitely be consolidated/made simpler
