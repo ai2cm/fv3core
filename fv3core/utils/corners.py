@@ -4,7 +4,7 @@ from gt4py.gtscript import PARALLEL, computation, horizontal, interval, region
 import fv3core._config as spec
 from fv3core.decorators import gtstencil
 from fv3core.utils.typing import FloatField
-
+import fv3core.utils.gt4py_utils as utils
 
 @gtscript.function
 def fill_corners_2cells_mult_x(
@@ -218,8 +218,56 @@ def fill_corners_cells(q: FloatField, direction: str, num_fill: int = 2):
     origin = (spec.grid.is_ - extent, spec.grid.js - extent, 0)
     domain = (spec.grid.nic + 2 * extent, spec.grid.njc + 2 * extent, q.shape[2])
     stencil(q, origin=origin, domain=domain)
+#   q[i, j, kslice] = q[j, grid.is_ - i + 2, kslice]
+@gtscript.function
+def copy_sw_corner_x(q):
+    from __externals__ import i_start, j_start
+    with horizontal(region[i_start - 3, j_start - 3]):
+        q = q[0, 5, 0]
+    
+    with horizontal(region[i_start - 2, j_start - 3]):
+        q = q[-1, 4, 0]
+    with horizontal(region[i_start - 1, j_start - 3]):
+        q = q[-2, 3, 0]
+    with horizontal(region[i_start - 3, j_start - 2]):
+        q = q[1, 4, 0]
+    
+    with horizontal(region[i_start - 2, j_start - 2]):
+        q = q[0, 3, 0]
+    with horizontal(region[i_start - 1, j_start - 2]):
+        q = q[-1, 2, 0]
+    with horizontal(region[i_start - 3, j_start - 1]):
+        q = q[2, 3, 0]
+    with horizontal(region[i_start - 2, j_start - 1]):
+        q = q[1, 2, 0]
+    with horizontal(region[i_start - 1, j_start - 1]):
+        q = q[0, 1, 0]
+    return q
 
-
+@gtscript.function
+def copy_sw_corner_y(q):
+    from __externals__ import i_start, j_start
+    with horizontal(region[i_start - 3, j_start - 3]):
+        q = q[5, 0, 0]
+    with horizontal(region[i_start - 2, j_start - 3]):
+        q = q[4, 1, 0]
+    with horizontal(region[i_start - 1, j_start - 3]):
+        q = q[3, 2, 0]
+    with horizontal(region[i_start - 3, j_start - 2]):
+        q = q[4, -1, 0]
+    with horizontal(region[i_start - 2, j_start - 2]):
+        q = q[3, 0, 0]
+    with horizontal(region[i_start - 1, j_start - 2]):
+        q = q[2, 1, 0]
+    with horizontal(region[i_start - 3, j_start - 1]):
+        q = q[3, -2, 0]
+    with horizontal(region[i_start - 2, j_start - 1]):
+        q = q[2, -1, 0]
+    with horizontal(region[i_start - 1, j_start - 1]):
+        q = q[1, 0, 0]
+    
+    return q
+    
 def copy_sw_corner(q, direction, grid, kslice):
     for j in range(grid.js - grid.halo, grid.js):
         for i in range(grid.is_ - grid.halo, grid.is_):
@@ -258,8 +306,34 @@ def copy_nw_corner(q, direction, grid, kslice):
 
 # can't actually be a stencil because offsets are variable
 def copy_corners(q, direction, grid, kslice=slice(0, None)):
-    if grid.sw_corner:
-        copy_sw_corner(q, direction, grid, kslice)
+    kstart,nk = utils.krange_from_slice(kslice, grid)
+    ncorner= grid.halo * 2
+    print(direction)
+    for i in range(grid.nid):
+        for j in range(grid.njd):
+            for k in range(grid.npz):
+                val= q[i, j, k]
+                ref = 5179.6579999999999
+                if abs(val - ref) < 1e-12:
+                    print('!!!!!!!!!!!!!!!!!!!', i, j, k)
+                if abs (val  - 5179.6580000000089) < 1e-12:
+                    print("???????????????", i, j,k)
+    def definition(q: FloatField):
+        from __externals__ import func
+        with computation(PARALLEL), interval(...):
+            q = func(q)
+    if direction == "x":
+        func = (copy_sw_corner_x )
+    if direction == "y":
+        func = (copy_sw_corner_y ) 
+    sw_stencil = gtstencil(
+        definition=definition,
+        externals={"func": func},
+    )
+    sw_stencil(q, origin=(grid.isd, grid.jsd, kstart), domain=(grid.nid, grid.njd, nk))
+   
+    #if grid.sw_corner:
+    #    copy_sw_corner(q, direction, grid, kslice)
     if grid.se_corner:
         copy_se_corner(q, direction, grid, kslice)
     if grid.ne_corner:
