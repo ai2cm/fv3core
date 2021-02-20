@@ -318,7 +318,6 @@ def copy_corners(q, direction, grid, kslice=slice(0, None)):
         with computation(PARALLEL), interval(...):
             q = func(q)
 
-    print(direction)
     if direction == "x":
         func = copy_corners_x
     if direction == "y":
