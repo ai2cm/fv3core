@@ -218,7 +218,7 @@ def fill_corners_cells(q: FloatField, direction: str, num_fill: int = 2):
     origin = (spec.grid.is_ - extent, spec.grid.js - extent, 0)
     domain = (spec.grid.nic + 2 * extent, spec.grid.njc + 2 * extent, q.shape[2])
     stencil(q, origin=origin, domain=domain)
-#   q[i, j, kslice] = q[j, grid.is_ - i + 2, kslice]
+
 @gtscript.function
 def copy_sw_corner_x(q):
     from __externals__ import i_start, j_start
@@ -268,14 +268,59 @@ def copy_sw_corner_y(q):
     
     return q
     
-def copy_sw_corner(q, direction, grid, kslice):
-    for j in range(grid.js - grid.halo, grid.js):
-        for i in range(grid.is_ - grid.halo, grid.is_):
-            if direction == "x":
-                q[i, j, kslice] = q[j, grid.is_ - i + 2, kslice]
-            if direction == "y":
-                q[i, j, kslice] = q[grid.js - j + 2, i, kslice]
+#def copy_sw_corner(q, direction, grid, kslice):
+#    for j in range(grid.js - grid.halo, grid.js):
+#        for i in range(grid.is_ - grid.halo, grid.is_):
+#            if direction == "x":
+#                q[i, j, kslice] = q[j, grid.is_ - i + 2, kslice]
+#            if direction == "y":
+#                q[i, j, kslice] = q[grid.js - j + 2, i, kslice]
 
+@gtscript.function
+def copy_se_corner_x(q):
+    from __externals__ import i_end, j_start
+    with horizontal(region[i_end + 1, j_start - 3]):
+        q = q[2, 3, 0]
+    with horizontal(region[i_end + 2, j_start - 3]):
+        q = q[1, 4, 0]
+    with horizontal(region[i_end + 3, j_start - 3]):
+        q = q[0, 5, 0]
+    with horizontal(region[i_end + 1, j_start - 2]):
+        q = q[1, 2, 0]
+    with horizontal(region[i_end + 2, j_start - 2]):
+        q = q[0, 3, 0]
+    with horizontal(region[i_end + 3, j_start - 2]):
+        q = q[-1, 4, 0]
+    with horizontal(region[i_end + 1, j_start - 1]):
+        q = q[0, 1, 0]
+    with horizontal(region[i_end + 2, j_start - 1]):
+        q = q[-1, 2, 0]
+    with horizontal(region[i_end + 3, j_start - 1]):
+        q = q[-2, 3, 0]
+    return q
+#  q[i, j, kslice] = q[grid.je + j - 2, grid.ie + 1 - i + 2, kslice]
+@gtscript.function
+def copy_se_corner_y(q):
+    from __externals__ import i_end, j_start
+    with horizontal(region[i_end + 1, j_start - 3]):
+        q = q[-3, 2, 0]
+    with horizontal(region[i_end + 2, j_start - 3]):
+        q = q[-4, 1, 0]
+    with horizontal(region[i_end + 3, j_start - 3]):
+        q = q[-5, 0, 0]
+    with horizontal(region[i_end + 1, j_start - 2]):
+        q = q[-2, 1, 0]
+    with horizontal(region[i_end + 2 , j_start - 2]):
+        q = q[-3, 0, 0]
+    with horizontal(region[i_end + 3, j_start - 2]):
+        q = q[-4, -1, 0]
+    with horizontal(region[i_end + 1, j_start - 1]):
+        q = q[-1, 0, 0]
+    with horizontal(region[i_end + 2, j_start - 1]):
+        q = q[-2, -1, 0]
+    with horizontal(region[i_end + 3, j_start - 1]):
+        q = q[-3, -2, 0]
+    return q
 
 def copy_se_corner(q, direction, grid, kslice):
     for j in range(grid.js - grid.halo, grid.js):
@@ -313,10 +358,10 @@ def copy_corners(q, direction, grid, kslice=slice(0, None)):
         for j in range(grid.njd):
             for k in range(grid.npz):
                 val= q[i, j, k]
-                ref = 5179.6579999999999
+                ref = 423.9660000000893
                 if abs(val - ref) < 1e-12:
                     print('!!!!!!!!!!!!!!!!!!!', i, j, k)
-                if abs (val  - 5179.6580000000089) < 1e-12:
+                if abs (val  - 423.96599999984926) < 1e-12:
                     print("???????????????", i, j,k)
     def definition(q: FloatField):
         from __externals__ import func
@@ -331,11 +376,19 @@ def copy_corners(q, direction, grid, kslice=slice(0, None)):
         externals={"func": func},
     )
     sw_stencil(q, origin=(grid.isd, grid.jsd, kstart), domain=(grid.nid, grid.njd, nk))
-   
+    if direction == "x":
+        func = (copy_se_corner_x )
+    if direction == "y":
+        func = (copy_se_corner_y )
+    se_stencil = gtstencil(
+        definition=definition,
+        externals={"func": func},
+    )
+    se_stencil(q, origin=(grid.isd, grid.jsd, kstart), domain=(grid.nid, grid.njd, nk))
     #if grid.sw_corner:
     #    copy_sw_corner(q, direction, grid, kslice)
-    if grid.se_corner:
-        copy_se_corner(q, direction, grid, kslice)
+    #if grid.se_corner:
+    #    copy_se_corner(q, direction, grid, kslice)
     if grid.ne_corner:
         copy_ne_corner(q, direction, grid, kslice)
     if grid.nw_corner:
