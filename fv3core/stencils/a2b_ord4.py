@@ -16,7 +16,6 @@ from gt4py.gtscript import (
 )
 
 import fv3core._config as spec
-import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import gtstencil
 from fv3core.utils import global_config
 from fv3core.utils.typing import Float, FloatField, FloatFieldIJ
@@ -33,7 +32,6 @@ b2 = -1.0 / 12.0
 # 4-pt Lagrange interpolation
 a1 = 9.0 / 16.0
 a2 = -1.0 / 16.0
-sd = utils.sd
 
 
 @gtscript.function
@@ -77,24 +75,12 @@ def cubic_interpolation_east(qy: FloatField, qout: FloatField, qyy: FloatField):
 
 
 @gtscript.function
-def qout_x_edge(
-    qin: FloatField, dxa: FloatFieldIJ, edge_w: FloatFieldIJ, q2: FloatField
-):
-    """
-    Note:
-        q2 could be 2D, but it is a temporary currently which are all 3D.
-    """
+def qout_x_edge(edge_w: FloatFieldIJ, q2: FloatField):
     return edge_w * q2[0, -1, 0] + (1.0 - edge_w) * q2
 
 
 @gtscript.function
-def qout_y_edge(
-    qin: FloatField, dya: FloatFieldIJ, edge_s: FloatFieldIJ, q1: FloatField
-):
-    """
-    Note:
-        q2 could be 2D, but it is a temporary currently which are all 3D.
-    """
+def qout_y_edge(edge_s: FloatFieldIJ, q1: FloatField):
     return edge_s * q1[-1, 0, 0] + (1.0 - edge_s) * q1
 
 
@@ -350,18 +336,18 @@ def _a2b_ord4_stencil(
         ):
             q2 = (qin[-1, 0, 0] * dxa + qin * dxa[-1, 0]) / (dxa[-1, 0] + dxa)
         with horizontal(region[i_start, j_start + 1 : j_end + 1]):
-            qout = qout_x_edge(qin, dxa, edge_w, q2)
+            qout = qout_x_edge(edge_w, q2)
         with horizontal(region[i_end + 1, j_start + 1 : j_end + 1]):
-            qout = qout_x_edge(qin, dxa, edge_e, q2)
+            qout = qout_x_edge(edge_e, q2)
 
         with horizontal(
             region[:, j_start - 1 : j_start + 1], region[:, j_end : j_end + 2]
         ):
             q1 = (qin[0, -1, 0] * dya + qin * dya[0, -1]) / (dya[0, -1] + dya)
         with horizontal(region[i_start + 1 : i_end + 1, j_start]):
-            qout = qout_y_edge(qin, dya, edge_s, q1)
+            qout = qout_y_edge(edge_s, q1)
         with horizontal(region[i_start + 1 : i_end + 1, j_end + 1]):
-            qout = qout_y_edge(qin, dya, edge_n, q1)
+            qout = qout_y_edge(edge_n, q1)
 
         # compute_qx
         qx = ppm_volume_mean_x(qin)
@@ -428,6 +414,16 @@ def compute(
     nk: Optional[int] = None,
     replace: bool = False,
 ):
+    """
+    Transfers qin from A-grid to B-grid.
+
+    Args:
+        qin: Input on A-grid (in)
+        qout: Output on B-grid (out)
+        kstart: Starting level
+        nk: Number of levels
+        replace: If True, sets `qout = qin` as the last step
+    """
     grid = spec.grid
     if nk is None:
         nk = grid.npz - kstart
@@ -460,11 +456,3 @@ def compute(
         origin=(grid.is_, grid.js, kstart),
         domain=(grid.nic + 1, grid.njc + 1, nk),
     )
-
-    # if replace:
-    #     copy_stencil(
-    #         qout,
-    #         qin,
-    #         origin=(grid.is_, grid.js, kstart),
-    #         domain=(grid.nic + 1, grid.njc + 1, nk),
-    #     )
