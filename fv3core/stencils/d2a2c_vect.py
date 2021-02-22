@@ -5,6 +5,7 @@ import fv3core._config as spec
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import gtstencil
 from fv3core.stencils.a2b_ord4 import a1, a2, lagrange_x_func, lagrange_y_func
+from fv3core.utils import corners
 
 
 sd = utils.sd
@@ -21,7 +22,7 @@ def grid():
 # almost the same as a2b_ord4's version
 @gtscript.function
 def lagrange_y_func_p1(qx):
-    return a2b_ord4.a2 * (qx[0, -1, 0] + qx[0, 2, 0]) + a2b_ord4.a1 * (qx + qx[0, 1, 0])
+    return a2 * (qx[0, -1, 0] + qx[0, 2, 0]) + a1 * (qx + qx[0, 1, 0])
 
 
 @gtstencil()
@@ -32,7 +33,7 @@ def lagrange_interpolation_y_p1(qx: sd, qout: sd):
 
 @gtscript.function
 def lagrange_x_func_p1(qy):
-    return a2b_ord4.a2 * (qy[-1, 0, 0] + qy[2, 0, 0]) + a2b_ord4.a1 * (qy + qy[1, 0, 0])
+    return a2 * (qy[-1, 0, 0] + qy[2, 0, 0]) + a1 * (qy + qy[1, 0, 0])
 
 
 @gtstencil()
