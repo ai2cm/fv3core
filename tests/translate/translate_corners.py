@@ -1,8 +1,23 @@
 import numpy as np
+from gt4py.gtscript import PARALLEL, computation, interval
 
 import fv3core.utils.gt4py_utils as utils
+from fv3core.decorators import gtstencil
 from fv3core.testing import TranslateFortranData2Py
 from fv3core.utils import corners
+from fv3core.utils.typing import FloatField
+
+
+@gtstencil
+def fill_4corners_x_2cells(q: FloatField):
+    with computation(PARALLEL), interval(...):
+        q = corners.fill_corners_2cells_mult_x(q, q, 1.0, 1.0, 1.0, 1.0)
+
+
+@gtstencil
+def fill_4corners_y_2cells(q: FloatField):
+    with computation(PARALLEL), interval(...):
+        q = corners.fill_corners_2cells_mult_y(q, q, 1.0, 1.0, 1.0, 1.0)
 
 
 class TranslateFill4Corners(TranslateFortranData2Py):
@@ -12,10 +27,22 @@ class TranslateFill4Corners(TranslateFortranData2Py):
         self.in_vars["parameters"] = ["dir"]
         self.out_vars = {"q4c": {}}
 
-    def compute(self, inputs):
-        self.make_storage_data_input_vars(inputs)
-        corners.fill_corners_cells(inputs["q4c"], "x" if inputs["dir"] == 1 else "y")
-        return self.slice_output(inputs, {"q4c": inputs["q4c"]})
+    def compute_from_storage(self, inputs):
+        if inputs["dir"] == 1:
+            fill_4corners_x_2cells(
+                inputs["q4c"],
+                origin=self.grid.full_origin(),
+                domain=self.grid.domain_shape_full(),
+            )
+        elif inputs["dir"] == 2:
+            fill_4corners_y_2cells(
+                inputs["q4c"],
+                origin=self.grid.full_origin(),
+                domain=self.grid.domain_shape_full(),
+            )
+        else:
+            raise ValueError("Direction not recognized. Specify either x or y")
+        return inputs
 
 
 class TranslateFillCorners(TranslateFortranData2Py):
