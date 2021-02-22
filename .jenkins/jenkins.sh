@@ -105,25 +105,6 @@ if grep -q "parallel" <<< "${script}"; then
     fi
 fi
 
-# set thresholds override file if it exists
-test_type=${experiment##*_}
-OVERRIDES_FOLDER="${envloc}/../tests/translate/overrides/"
-OVERRIDES_FILE="${OVERRIDES_FOLDER}/${test_type}.yaml"
-echo "overrides file:"
-echo ${OVERRIDES_FILE}
-if test -f "${OVERRIDES_FILE}"; then
-    echo "OVERRIDE"
-    export MOUNTS=" -v ${OVERRIDES_FOLDER}:/thresholds"
-    if [ ${python_env} == "virtualenv" ]; then
-	threshold_folder=${OVERRIDES_FOLDER}
-    else
-	threshold_folder="/thresholds"
-    fi
-    export THRESH_ARGS="--threshold_overrides_file=${threshold_folder}/${test_type}.yaml"
-fi
-export PROF_FOLDER="${envloc}/../prof"
-`mkdir -p ${PROF_FOLDER}`
-export MOUNTS="${MOUNTS} -v ${PROF_FOLDER}:/prof"
 module load daint-gpu
 module add "${installdir}/modulefiles/"
 module load gcloud
@@ -137,7 +118,7 @@ if [ -z ${SCRATCH} ] ; then
 fi
 
 # Set the host data head directory location
-export TEST_DATA_DIR="${SCRATCH}/fv3core_fortran_data/${FORTRAN_VERSION}"
+export TEST_DATA_DIR="${SCRATCH}/jenkins/scratch/fv3core_fortran_data/${FORTRAN_VERSION}"
 export FV3_STENCIL_REBUILD_FLAG=False
 # Set the host data location
 export TEST_DATA_HOST="${TEST_DATA_DIR}/${experiment}/"
