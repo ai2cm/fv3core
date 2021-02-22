@@ -14,7 +14,7 @@ import fv3core.utils.corners as corners
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import gtstencil
 from fv3core.utils import global_config
-from fv3core.utils.typing import FloatField, FloatFieldIJ
+from fv3core.utils.typing import Float, FloatField, FloatFieldIJ
 
 
 sd = utils.sd
@@ -45,6 +45,8 @@ def update_q(q: sd, rarea: sd, fx: sd, fy: sd, cd: float):
 @gtscript.function
 def corner_fill(q):
     from __externals__ import i_end, i_start, j_end, j_start
+
+    # Fills the same scalar value into three locations in q for each corner
 
     with horizontal(region[i_start, j_start]):
         q = (q[0, 0, 0] + q[-1, 0, 0] + q[0, -1, 0]) / 3.0
@@ -112,7 +114,7 @@ def _make_grid_storage_2d(grid_array: gt4py.storage.Storage, index: int = 0):
     )
 
 
-def compute(qdel: FloatField, nmax: int, cd: FloatField, km: int):
+def compute(qdel: FloatField, nmax: int, cd: Float, km: int):
     grid = spec.grid
 
     del6_u = _make_grid_storage_2d(grid.del6_u)
@@ -133,5 +135,5 @@ def compute(qdel: FloatField, nmax: int, cd: FloatField, km: int):
             del6_v,
             rarea,
             origin=origin,
-            domain=(grid.nic + 2 * nt, grid.nij + 2 * nt, km),
+            domain=(grid.nic + 2 * nt, grid.njc + 2 * nt, km),
         )
