@@ -176,8 +176,8 @@ def compute(comm, tracers, dp1, mfxd, mfyd, cxd, cyd, mdt, nq):
 
     ra_stencil(
         grid.area,
-        xfx_adv,
-        yfx_adv,
+        xfx,
+        yfx,
         ra_x,
         ra_y,
         origin=grid.compute_origin(add=(-grid.halo, -grid.halo, 0)),
