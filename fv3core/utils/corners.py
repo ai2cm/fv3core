@@ -174,52 +174,6 @@ def fill_corners_3cells_mult_y(
     return q
 
 
-def fill_corners_cells(q: FloatField, direction: str, num_fill: int = 2):
-    """
-    Fill corners of q from Python.
-
-    Corresponds to fill4corners in Fortran.
-
-    Args:
-        q (inout): Cell field
-        direction: Direction to fill. Either "x" or "y".
-        num_fill: Number of indices to fill
-    """
-
-    def definition(q: FloatField):
-        from __externals__ import func
-
-        with computation(PARALLEL), interval(...):
-            q = func(q, q, 1.0, 1.0, 1.0, 1.0)
-
-    if num_fill not in (2, 3):
-        raise ValueError("Only supports 2 <= num_fill <= 3")
-
-    if direction == "x":
-        func = (
-            fill_corners_2cells_mult_x if num_fill == 2 else fill_corners_3cells_mult_x
-        )
-        stencil = gtstencil(
-            definition=definition,
-            externals={"func": func},
-        )
-    elif direction == "y":
-        func = (
-            fill_corners_2cells_mult_y if num_fill == 2 else fill_corners_3cells_mult_y
-        )
-        stencil = gtstencil(
-            definition=definition,
-            externals={"func": func},
-        )
-    else:
-        raise ValueError("Direction not recognized. Specify either x or y")
-
-    extent = 3
-    origin = (spec.grid.is_ - extent, spec.grid.js - extent, 0)
-    domain = (spec.grid.nic + 2 * extent, spec.grid.njc + 2 * extent, q.shape[2])
-    stencil(q, origin=origin, domain=domain)
-
-
 def copy_sw_corner(q, direction, grid, kslice):
     for j in range(grid.js - grid.halo, grid.js):
         for i in range(grid.is_ - grid.halo, grid.is_):
