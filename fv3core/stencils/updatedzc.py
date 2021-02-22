@@ -82,6 +82,7 @@ def update_dz_c_stencil(
         gz_y = gz_x
         gz_y = corners.fill_corners_2cells_mult_y(gz_y, gz_y, 1.0, 1.0, 1.0, 1.0)
         fx, fy = xy_flux(gz_x, gz_y, xfx, yfx)
+        # TODO: region for local validation only
         with horizontal(
             region[local_is - 1 : local_ie + 2, local_js - 1 : local_je + 2]
         ):
@@ -90,11 +91,13 @@ def update_dz_c_stencil(
             )
     with computation(PARALLEL), interval(-1, None):
         rdt = 1.0 / dt2
+        # TODO: region for local validation only
         with horizontal(
             region[local_is - 1 : local_ie + 2, local_js - 1 : local_je + 2]
         ):
             ws = (zs - gz) * rdt
     with computation(BACKWARD), interval(0, -1):
+        # TODO region for local validation only
         with horizontal(
             region[local_is - 1 : local_ie + 2, local_js - 1 : local_je + 2]
         ):
