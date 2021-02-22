@@ -8,7 +8,7 @@ class TranslateRiem_Solver3(TranslateFortranData2Py):
         self.compute_func = riem_solver3.compute
         self.in_vars["data_vars"] = {
             "cappa": {},
-            "zs": {},
+            "z_surface": {"serialname": "zs"},
             "w": {},
             "delz": {},
             "q_con": {},

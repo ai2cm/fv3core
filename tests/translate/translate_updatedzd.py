@@ -10,7 +10,7 @@ class TranslateUpdateDzD(TranslateFortranData2Py):
             "ndif": {},  # column var
             "damp_vtd": {},  # column var
             "dp0": {},  # column var
-            "zs": {},
+            "z_surface": {"serialname": "zs"},
             "zh": {"kend": grid.npz + 1},
             "crx": grid.x3d_compute_domain_y_dict(),
             "cry": grid.y3d_compute_domain_x_dict(),

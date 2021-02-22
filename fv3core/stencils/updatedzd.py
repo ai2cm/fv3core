@@ -135,16 +135,16 @@ def edge_python(q1, q2, qe1, qe2, dp0, gam, islice, jslice, qe1_2, gam_2):
 
 
 @gtstencil()
-def out(zs: sd, zh: sd, ws: sd, dt: float):
+def out(z_surface: sd, zh: sd, ws: sd, dt: float):
     with computation(BACKWARD):
         with interval(-1, None):
-            ws[0, 0, 0] = (zs - zh) * 1.0 / dt
+            ws[0, 0, 0] = (z_surface - zh) * 1.0 / dt
         with interval(0, -1):
             other = zh[0, 0, 1] + DZ_MIN
             zh[0, 0, 0] = zh if zh > other else other
 
 
-def compute(ndif, damp_vtd, dp0, zs, zh, crx, cry, xfx, yfx, wsd, dt):
+def compute(ndif, damp_vtd, dp0, z_surface, zh, crx, cry, xfx, yfx, wsd, dt):
     grid = spec.grid
 
     ndif[-1] = ndif[-2]
@@ -169,7 +169,7 @@ def compute(ndif, damp_vtd, dp0, zs, zh, crx, cry, xfx, yfx, wsd, dt):
         cry.shape, grid.compute_origin(add=(-grid.halo, 0, 0))
     )
 
-    gam = utils.make_storage_from_shape(zs.shape, grid.full_origin())
+    gam = utils.make_storage_from_shape(z_surface.shape, grid.full_origin())
     edge_profile(
         crx,
         xfx,
@@ -183,7 +183,7 @@ def compute(ndif, damp_vtd, dp0, zs, zh, crx, cry, xfx, yfx, wsd, dt):
     # edge_python(crx, xfx, crx_adv, xfx_adv, dp0, gam, slice(grid.is_, grid.ie
     # + 2), slice(grid.jsd, grid.jed+1),  qe1_2, gam_2)
 
-    gam = utils.make_storage_from_shape(zs.shape, grid.full_origin())
+    gam = utils.make_storage_from_shape(z_surface.shape, grid.full_origin())
     edge_profile(
         cry,
         yfx,
@@ -219,7 +219,7 @@ def compute(ndif, damp_vtd, dp0, zs, zh, crx, cry, xfx, yfx, wsd, dt):
     kstarts = utils.get_kstarts(col, grid.npz + 1)
     utils.k_split_run(column_calls, data, kstarts, col)
     out(
-        zs,
+        z_surface,
         zh,
         wsd,
         dt,
