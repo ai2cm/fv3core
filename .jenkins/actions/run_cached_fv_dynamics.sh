@@ -8,4 +8,3 @@ export TEST_ARGS="-v -s -rsx --backend=${BACKEND} --which_modules=FVDynamics"
 make get_test_data
 
 make tests_venv_mpi
-
