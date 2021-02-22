@@ -25,12 +25,12 @@ origin = utils.origin
 # Flux value
 # ----------
 @gtscript.function
-def compute_zonal_flux(A_in: sd, del_term: sd):
+def compute_zonal_flux(A_in, del_term):
     return del_term * (A_in[-1, 0, 0] - A_in)
 
 
 @gtscript.function
-def compute_meridional_flux(A_in: sd, del_term: sd):
+def compute_meridional_flux(A_in, del_term):
     return del_term * (A_in[0, -1, 0] - A_in)
 
 
@@ -38,8 +38,8 @@ def compute_meridional_flux(A_in: sd, del_term: sd):
 # Q update
 # --------
 @gtscript.function
-def update_q(q: sd, rarea: sd, fx: sd, fy: sd, cd: float):
-    return q + cd * rarea * (fx - fx[1, 0, 0] + fy - fy[0, 1, 0])
+def update_q(q, rarea, fx, fy, cd):
+    return q + cd * rarea * (fx[0, 0, 0] - fx[1, 0, 0] + fy[0, 0, 0] - fy[0, 1, 0])
 
 
 @gtscript.function
@@ -81,10 +81,10 @@ def corner_fill(q):
 
 def _del2cubed_loop(
     qdel: FloatField,
-    cd: FloatField,
     del6_u: FloatFieldIJ,
     del6_v: FloatFieldIJ,
     rarea: FloatFieldIJ,
+    cd: Float,
 ):
     from __externals__ import nt
 
@@ -115,6 +115,17 @@ def _make_grid_storage_2d(grid_array: gt4py.storage.Storage, index: int = 0):
 
 
 def compute(qdel: FloatField, nmax: int, cd: Float, km: int):
+    """
+    Compute nested Laplacians
+
+    Args:
+        qdel: Quantity to compute Laplacian (inout)
+        nmax: Number of times to apply the Laplacian operator
+        cd: Courant number on D-grid???
+        km: Number of vertical levels
+    Grid variable inputs:
+        del6_u, del6_v, rarea
+    """
     grid = spec.grid
 
     del6_u = _make_grid_storage_2d(grid.del6_u)
@@ -124,16 +135,14 @@ def compute(qdel: FloatField, nmax: int, cd: Float, km: int):
     ntimes = min(3, nmax)
     for n in range(1, ntimes + 1):
         nt = ntimes - n
-        origin = (grid.is_ - nt, grid.js - nt, 0)
-
         stencil = gtstencil(definition=_del2cubed_loop, externals={"nt": nt})
 
         stencil(
             qdel,
-            cd,
             del6_u,
             del6_v,
             rarea,
-            origin=origin,
+            cd,
+            origin=(grid.is_ - nt, grid.js - nt, 0),
             domain=(grid.nic + 2 * nt, grid.njc + 2 * nt, km),
         )
