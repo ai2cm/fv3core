@@ -1,19 +1,17 @@
 import inspect
 import logging
-import math
 from functools import wraps
 from typing import Any, Callable, Dict, Hashable, List, Optional, Tuple, Union
-
+from gt4py import gtscript
 import gt4py as gt
 import gt4py.storage as gt_storage
 import numpy as np
-from gt4py import gtscript
 
 import fv3core._config as spec
 import fv3core.utils.global_config as global_config
 from fv3core.utils.mpi import MPI
-from fv3core.utils.typing import DTypes, Field, Float, Int
 
+from fv3core.utils.typing import DTypes, Field, Float, Int
 
 try:
     import cupy as cp
@@ -26,9 +24,9 @@ logger = logging.getLogger("fv3ser")
 managed_memory = True
 
 # [DEPRECATED] field types
+
 sd = gtscript.Field[Float]
 si = gtscript.Field[Int]
-
 # Number of halo lines for each field and default origin
 halo = 3
 origin = (halo, halo, 0)
@@ -466,31 +464,6 @@ def krange_from_slice(kslice, grid):
     kend = kslice.stop
     nk = grid.npz - kstart if kend is None else kend - kstart
     return kstart, nk
-
-
-def great_circle_dist(p1, p2, radius=None):
-    beta = (
-        math.asin(
-            math.sqrt(
-                math.sin((p1[1] - p2[1]) / 2.0) ** 2
-                + math.cos(p1[1])
-                * math.cos(p2[1])
-                * math.sin((p1[0] - p2[0]) / 2.0) ** 2
-            )
-        )
-        * 2.0
-    )
-    if radius is not None:
-        great_circle_dist = radius * beta
-    else:
-        great_circle_dist = beta
-    return great_circle_dist
-
-
-def extrap_corner(p0, p1, p2, q1, q2):
-    x1 = great_circle_dist(p1, p0)
-    x2 = great_circle_dist(p2, p0)
-    return q1 + x1 / (x2 - x1) * (q1 - q2)
 
 
 def asarray(array, to_type=np.ndarray, dtype=None, order=None):
