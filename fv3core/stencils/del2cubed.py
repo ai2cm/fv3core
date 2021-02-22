@@ -90,11 +90,11 @@ def _del2cubed_loop(
         qdel = corner_fill(qdel)
 
         if __INLINED(nt > 0):
-            corners.copy_corners_x(qdel)
+            qdel = corners.copy_corners_x(qdel)
         fx = compute_zonal_flux(qdel, del6_v)
 
         if __INLINED(nt > 0):
-            corners.copy_corners_y(qdel)
+            qdel = corners.copy_corners_y(qdel)
         fy = compute_meridional_flux(qdel, del6_u)
 
         qdel = update_q(qdel, rarea, fx, fy, cd)
