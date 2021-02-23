@@ -94,6 +94,26 @@ def horizontal_relative_vorticity_from_winds(
         vorticity[0, 0, 0] = rarea * (vt - vt[0, 1, 0] - ut + ut[1, 0, 0])
 
 
+@gtscript.function
+def add_dw(w, dw, damp_w):
+    w = w + dw if damp_w > 1e-5 else w
+    return w
+
+
+@gtscript.function
+def ke_from_bwind(ke, ub, vb):
+    return 0.5 * (ke + ub * vb)
+
+
+@gtscript.function
+def adjust_w_and_qcon(w, delp, dw, damp_w, q_con):
+    w = w / delp
+    w = add_dw(w, dw, damp_w)
+    q_con = q_con / delp
+
+    return w, q_con
+
+
 @gtstencil()
 def ke_horizontal_vorticity_w_qcon_adjust(
     ke: FloatField,
@@ -127,10 +147,7 @@ def ke_horizontal_vorticity_w_qcon_adjust(
     )
 
     with computation(PARALLEL), interval(...):
-        # CK: This verifies, but the horizontal bounds were found by guessing...
-        # ke_from_bwind()
-        with horizontal(region[local_is : local_ie + 2, local_js : local_je + 2]):
-            ke[0, 0, 0] = 0.5 * (ke + ub * vb)
+        ke = ke_from_bwind(ke, ub, vb)
 
         with horizontal(region[i_start, j_start]):
             if not nested:
@@ -149,13 +166,8 @@ def ke_horizontal_vorticity_w_qcon_adjust(
         ut = v * dy
         vorticity[0, 0, 0] = rarea * (vt - vt[0, 1, 0] - ut + ut[1, 0, 0])
 
-        # CK: This verifies, but the horizontal bounds were found by guessing...
-        # adjust_w_and_qcon()
         with horizontal(region[local_is : local_ie + 1, local_js : local_je + 1]):
-            w = w / delp
-            w = add_dw(w, dw, damp_w)
-            # USE_COND
-            q_con = q_con / delp
+            w, q_con = adjust_w_and_qcon(w, delp, dw, damp_w, q_con)
 
 
 @gtstencil()
@@ -178,34 +190,50 @@ def not_inlineq_pressure(
         pt[0, 0, 0] = pt / delp
 
 
-@gtstencil()
-def ke_from_bwind(ke: FloatField, ub: FloatField, vb: FloatField):
-    with computation(PARALLEL), interval(...):
-        ke[0, 0, 0] = 0.5 * (ke + ub * vb)
+@gtscript.function
+def ub_from_vort(vort, ub):
+    return vort - vort[1, 0, 0]
+
+
+@gtscript.function
+def vb_from_vort(vort, vb):
+    return vort - vort[0, 1, 0]
 
 
 @gtstencil()
-def ub_from_vort(vort: FloatField, ub: FloatField):
+def ub_and_vb_from_vort(vort: FloatField, ub: FloatField, vb: FloatField):
     with computation(PARALLEL), interval(...):
-        ub[0, 0, 0] = vort - vort[1, 0, 0]
+        ub = ub_from_vort(vort, ub)
+        vb = vb_from_vort(vort, vb)
+
+
+@gtscript.function
+def u_from_ke(ke, vt, fy):
+    return vt + ke - ke[1, 0, 0] + fy
+
+
+@gtscript.function
+def v_from_ke(ke, ut, fx):
+    return ut + ke - ke[0, 1, 0] - fx
 
 
 @gtstencil()
-def vb_from_vort(vort: FloatField, vb: FloatField):
+def u_and_v_from_ke(
+    ke: FloatField,
+    ut: FloatField,
+    vt: FloatField,
+    fx: FloatField,
+    fy: FloatField,
+    u: FloatField,
+    v: FloatField,
+):
+    from __externals__ import local_ie, local_is, local_je, local_js
+
     with computation(PARALLEL), interval(...):
-        vb[0, 0, 0] = vort - vort[0, 1, 0]
-
-
-@gtstencil()
-def u_from_ke(ke: FloatField, vt: FloatField, fy: FloatField, u: FloatField):
-    with computation(PARALLEL), interval(...):
-        u[0, 0, 0] = vt + ke - ke[1, 0, 0] + fy
-
-
-@gtstencil()
-def v_from_ke(ke: FloatField, ut: FloatField, fx: FloatField, v: FloatField):
-    with computation(PARALLEL), interval(...):
-        v[0, 0, 0] = ut + ke - ke[0, 1, 0] - fx
+        with horizontal(region[local_is : local_ie + 1, local_js : local_je + 2]):
+            u = u_from_ke(ke, vt, fy)
+        with horizontal(region[local_is : local_ie + 2, local_js : local_je + 1]):
+            v = v_from_ke(ke, ut, fx)
 
 
 # TODO: This is untested and the radius may be incorrect
@@ -217,27 +245,25 @@ def coriolis_force_correction(zh: FloatField, z_rat: FloatField):
         z_rat[0, 0, 0] = 1.0 + (zh + zh[0, 0, 1]) / radius
 
 
-@gtstencil()
-def zrat_vorticity(wk: FloatField, f0: FloatField, z_rat: FloatField, vort: FloatField):
-    with computation(PARALLEL), interval(...):
-        vort[0, 0, 0] = wk + f0 * z_rat
-
-
 @gtscript.function
-def add_dw(w, dw, damp_w):
-    w = w + dw if damp_w > 1e-5 else w
-    return w
+def zrat_vorticity(wk: FloatField, f0: FloatField, z_rat: FloatField):
+    return wk + f0 * z_rat
 
 
 @gtstencil()
-def adjust_w_and_qcon(
-    w: FloatField, delp: FloatField, dw: FloatField, q_con: FloatField, damp_w: float
+def zrat_vort_or_addition(
+    wk: FloatField,
+    f0: FloatField,
+    z_rat: FloatField,
+    vort: FloatField,
+    do_f3d: bool,
+    hydrostatic: bool,
 ):
     with computation(PARALLEL), interval(...):
-        w = w / delp
-        w = add_dw(w, dw, damp_w)
-        # USE_COND
-        q_con = q_con / delp
+        if do_f3d and not hydrostatic:
+            vort = zrat_vorticity(wk, f0, z_rat)
+        else:
+            vort = wk[0, 0, 0] + f0[0, 0, 0]
 
 
 @gtscript.function
@@ -249,8 +275,47 @@ def heat_damping_term(ub, vb, gx, gy, rsin2, cosa_s, u2, v2, du2, dv2):
     )
 
 
+@gtscript.function
+def heat_source_from_vorticity_damping_fxn(
+    ub,
+    vb,
+    ut,
+    vt,
+    u,
+    v,
+    delp,
+    rsin2,
+    cosa_s,
+    rdx,
+    rdy,
+    heat_source,
+    dissipation_estimate,
+    kinetic_energy_fraction_to_damp,
+    calculate_dissipation_estimate,
+):
+    ubt = (ub + vt) * rdx
+    fy = u * rdx
+    gy = fy * ubt
+    vbt = (vb - ut) * rdy
+    fx = v * rdy
+    gx = fx * vbt
+    u2 = fy + fy[0, 1, 0]
+    du2 = ubt + ubt[0, 1, 0]
+    v2 = fx + fx[1, 0, 0]
+    dv2 = vbt + vbt[1, 0, 0]
+    dampterm = heat_damping_term(ubt, vbt, gx, gy, rsin2, cosa_s, u2, v2, du2, dv2)
+    heat_source = delp * (
+        heat_source - 0.25 * kinetic_energy_fraction_to_damp * dampterm
+    )
+    dissipation_estimate = (
+        -dampterm if calculate_dissipation_estimate == 1 else dissipation_estimate
+    )
+
+    return heat_source, dissipation_estimate
+
+
 @gtstencil()
-def heat_source_from_vorticity_damping(
+def heat_from_damping_and_add_sub(
     ub: FloatField,
     vb: FloatField,
     ut: FloatField,
@@ -265,87 +330,41 @@ def heat_source_from_vorticity_damping(
     heat_source: FloatField,
     dissipation_estimate: FloatField,
     kinetic_energy_fraction_to_damp: float,
+    dcon_threshold: float,
     calculate_dissipation_estimate: int,
+    do_skeb: bool,
+    damp_vt: float,
 ):
-    """
-    Calculates heat source from vorticity damping implied by energy conservation.
+    from __externals__ import local_ie, local_is, local_je, local_js
 
-    Args:
-        ub (in)
-        vb (in)
-        ut (in)
-        vt (in)
-        u (in)
-        v (in)
-        delp (in)
-        rsin2 (in)
-        cosa_s (in)
-        rdx (in): radius of Earth multiplied by x-direction gridcell width
-        rdy (in): radius of Earth multiplied by y-direction gridcell width
-        heat_source (out): heat source from vorticity damping
-            implied by energy conservation
-        diss_est (out): dissipation estimate, only calculated if
-            calculate_dissipation_estimate is 1
-        kinetic_energy_fraction_to_damp (in): according to its comment in fv_arrays,
-            the fraction of kinetic energy to explicitly damp and convert into heat.
-            TODO: confirm this description is accurate, why is it multiplied
-            by 0.25 below?
-        calculate_dissipation_estimate (in): If 1, calculate dissipation estimate.
-            Equivalent in Fortran model is do_skeb
-    """
     with computation(PARALLEL), interval(...):
-        ubt = (ub + vt) * rdx
-        fy = u * rdx
-        gy = fy * ubt
-        vbt = (vb - ut) * rdy
-        fx = v * rdy
-        gx = fx * vbt
-        u2 = fy + fy[0, 1, 0]
-        du2 = ubt + ubt[0, 1, 0]
-        v2 = fx + fx[1, 0, 0]
-        dv2 = vbt + vbt[1, 0, 0]
-        dampterm = heat_damping_term(ubt, vbt, gx, gy, rsin2, cosa_s, u2, v2, du2, dv2)
-        heat_source[0, 0, 0] = delp * (
-            heat_source - 0.25 * kinetic_energy_fraction_to_damp * dampterm
-        )
-        dissipation_estimate[0, 0, 0] = (
-            -dampterm if calculate_dissipation_estimate == 1 else dissipation_estimate
-        )
+        if kinetic_energy_fraction_to_damp > dcon_threshold or do_skeb:
+            heat_source, dissipation_estimate = heat_source_from_vorticity_damping_fxn(
+                ub,
+                vb,
+                ut,
+                vt,
+                u,
+                v,
+                delp,
+                rsin2,
+                cosa_s,
+                rdx,
+                rdy,
+                heat_source,
+                dissipation_estimate,
+                kinetic_energy_fraction_to_damp,
+                calculate_dissipation_estimate,
+            )
 
-
-def heat_from_damping(
-    ub,
-    vb,
-    ut,
-    vt,
-    u,
-    v,
-    delp,
-    fx,
-    fy,
-    heat_source,
-    diss_est,
-    kinetic_energy_fraction_to_damp,
-):
-    heat_source_from_vorticity_damping(
-        ub,
-        vb,
-        ut,
-        vt,
-        u,
-        v,
-        delp,
-        grid().rsin2,
-        grid().cosa_s,
-        grid().rdx,
-        grid().rdy,
-        heat_source,
-        diss_est,
-        kinetic_energy_fraction_to_damp,
-        int(spec.namelist.do_skeb),
-        origin=grid().compute_origin(),
-        domain=grid().domain_shape_compute(),
-    )
+        with horizontal(region[local_is : local_ie + 1, local_js : local_je + 2]):
+            if damp_vt > 1e-5:
+                # basic.add_term_stencil()
+                u = u + vt
+        with horizontal(region[local_is : local_ie + 2, local_js : local_je + 1]):
+            if damp_vt > 1e-5:
+                # basic.subtract_term_stencil()
+                v = v - ut
 
 
 def set_low_kvals(col):
@@ -852,58 +871,40 @@ def d_sw(
     kinetic_energy_fraction_to_damp = column_namelist["d_con"]
 
     if kinetic_energy_fraction_to_damp > dcon_threshold:
-        ub_from_vort(
+        ub_and_vb_from_vort(
             vort,
             ub,
-            origin=grid().compute_origin(),
-            domain=grid().domain_shape_compute(add=(0, 1, 0)),
-        )
-        vb_from_vort(
-            vort,
             vb,
             origin=grid().compute_origin(),
-            domain=grid().domain_shape_compute(add=(1, 0, 0)),
+            domain=grid().domain_shape_compute(add=(1, 1, 0)),
         )
 
     # Vorticity transport
-    if spec.namelist.do_f3d and not spec.namelist.hydrostatic:
-        zrat_vorticity(
-            wk,
-            grid().f0,
-            z_rat,
-            vort,
-            orgin=grid().full_origin(),
-            domain=grid().domain_shape_full(),
-        )
-    else:
-        basic.addition_stencil(
-            wk,
-            grid().f0,
-            vort,
-            origin=grid().full_origin(),
-            domain=grid().domain_shape_full(),
-        )
+    zrat_vort_or_addition(
+        wk,
+        grid().f0,
+        z_rat,
+        vort,
+        spec.namelist.do_f3d,
+        spec.namelist.hydrostatic,
+        origin=grid().full_origin(),
+        domain=grid().domain_shape_full(),
+    )
 
     fvtp2d.compute_no_sg(
         vort, crx, cry, spec.namelist.hord_vt, xfx, yfx, ra_x, ra_y, fx, fy
     )
 
-    u_from_ke(
-        ke,
-        vt,
-        fy,
-        u,
-        origin=grid().compute_origin(),
-        domain=grid().domain_shape_compute(add=(0, 1, 0)),
-    )
-
-    v_from_ke(
+    u_and_v_from_ke(
         ke,
         ut,
+        vt,
         fx,
+        fy,
+        u,
         v,
         origin=grid().compute_origin(),
-        domain=grid().domain_shape_compute(add=(1, 0, 0)),
+        domain=grid().domain_shape_compute(add=(1, 1, 0)),
     )
 
     if column_namelist["damp_vt"] > dcon_threshold:
@@ -912,31 +913,29 @@ def d_sw(
         )
         delnflux.compute_no_sg(wk, ut, vt, column_namelist["nord_v"], damp4, vort)
 
-    if kinetic_energy_fraction_to_damp > dcon_threshold or spec.namelist.do_skeb:
-        heat_from_damping(
-            ub,
-            vb,
-            ut,
-            vt,
-            u,
-            v,
-            delp,
-            fx,
-            fy,
-            heat_s,
-            diss_e,
-            kinetic_energy_fraction_to_damp,
-        )
-    if column_namelist["damp_vt"] > 1e-5:
-        basic.add_term_stencil(
-            vt,
-            u,
-            origin=grid().compute_origin(),
-            domain=grid().domain_shape_compute(add=(0, 1, 0)),
-        )
-        basic.subtract_term_stencil(
-            ut,
-            v,
-            origin=grid().compute_origin(),
-            domain=grid().domain_shape_compute(add=(1, 0, 0)),
-        )
+    heat_from_damping_and_add_sub(
+        ub,
+        vb,
+        ut,
+        vt,
+        u,
+        v,
+        delp,
+        grid().rsin2,
+        grid().cosa_s,
+        grid().rdx,
+        grid().rdy,
+        heat_s,
+        diss_e,
+        float(
+            kinetic_energy_fraction_to_damp
+        ),  # GT4Py seems to only see this as an 'int64' regardless of
+        # the type declaration used in the stencil definition.
+        # Casting it as a float fixes the problem
+        dcon_threshold,
+        int(spec.namelist.do_skeb),
+        spec.namelist.do_skeb,
+        column_namelist["damp_vt"],
+        origin=grid().compute_origin(),
+        domain=grid().domain_shape_compute(add=(1, 1, 0)),
+    )
