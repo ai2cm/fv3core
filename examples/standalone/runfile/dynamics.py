@@ -46,9 +46,8 @@ def parse_args():
         help="git hash to store",
     )
     parser.add_argument(
-        "halo_exchange",
-        type=bool,
-        action="store",
+        "--disable_halo_exchange",
+        action="store_true",
         help="enable or disable the halo exchange",
     )
 
@@ -109,7 +108,7 @@ if __name__ == "__main__":
         fv3core.set_backend(args.backend)
         fv3core.set_rebuild(False)
 
-        gt4py_utils._do_halo_exchange = args.halo_exchange
+        gt4py_utils._do_halo_exchange = not args.disable_halo_exchange
 
         spec.set_namelist(args.data_dir + "/input.nml")
 
