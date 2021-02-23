@@ -112,20 +112,20 @@ def interp_winds_d_to_a(u, v):
 
 
 @gtscript.function
-def edge_interpolate4_x(ua: FloatField, dxa: FloatFieldIJ):
+def edge_interpolate4_x(ua, dxa):
     t1 = dxa[-2, 0] + dxa[-1, 0]
-    t2 = dxa[0, 0] + dxa[1, 0]
+    t2 = dxa + dxa[1, 0]
     n1 = (t1 + dxa[-1, 0]) * ua[-1, 0, 0] - dxa[-1, 0] * ua[-2, 0, 0]
-    n2 = (t1 + dxa[0, 0]) * ua[0, 0, 0] - dxa[0, 0] * ua[1, 0, 0]
+    n2 = (t1 + dxa) * ua[0, 0, 0] - dxa * ua[1, 0, 0]
     return 0.5 * (n1 / t1 + n2 / t2)
 
 
 @gtscript.function
-def edge_interpolate4_y(va: FloatField, dya: FloatFieldIJ):
+def edge_interpolate4_y(va, dya):
     t1 = dya[0, -2] + dya[0, -1]
-    t2 = dya[0, 0] + dya[0, 1]
+    t2 = dya + dya[0, 1]
     n1 = (t1 + dya[0, -1]) * va[0, -1, 0] - dya[0, -1] * va[0, -2, 0]
-    n2 = (t1 + dya[0, 0]) * va[0, 0, 0] - dya[0, 0] * va[0, 1, 0]
+    n2 = (t1 + dya) * va[0, 0, 0] - dya * va[0, 1, 0]
     return 0.5 * (n1 / t1 + n2 / t2)
 
 
@@ -134,8 +134,8 @@ def d2a2c_vect(
     cosa_s: FloatFieldIJ,
     cosa_u: FloatFieldIJ,
     cosa_v: FloatFieldIJ,
-    dxa: FloatField,
-    dya: FloatField,
+    dxa: FloatFieldIJ,
+    dya: FloatFieldIJ,
     rsin2: FloatFieldIJ,
     rsin_u: FloatFieldIJ,
     rsin_v: FloatFieldIJ,

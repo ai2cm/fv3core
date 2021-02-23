@@ -278,11 +278,12 @@ class FV3StencilObject:
             kwargs,
         )
 
-        field_names = list(self.stencil_object.field_info.keys())
         origin_dict = {}
+        field_names = list(self.stencil_object.field_info.keys())
         for i in range(len(field_names)):
-            field_shape = args[i].shape
-            origin_dict[field_names[i]] = tuple(
+            field_name = field_names[i]
+            field_shape = args[i].shape if i < len(args) else kwargs[field_name].shape
+            origin_dict[field_name] = tuple(
                 [min(field_shape[j] - 1, origin[j]) for j in range(len(field_shape))]
             )
 
