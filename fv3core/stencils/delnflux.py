@@ -1,6 +1,5 @@
 from typing import Optional
 
-import gt4py.gtscript as gtscript
 from gt4py.gtscript import PARALLEL, computation, horizontal, interval, region
 
 import fv3core._config as spec
@@ -69,31 +68,17 @@ def d2_damp(q: FloatField, d2: FloatField, damp: float):
         d2[0, 0, 0] = damp * q
 
 
-@gtscript.function
-def add_diffusive(fx: FloatField, fx2: FloatField, fy: FloatField, fy2: FloatField):
-    from __externals__ import i_end, j_end
-
-    fx[0, 0, 0] = fx + fx2
-    fy[0, 0, 0] = fy + fy2
-    with horizontal(region[i_end + 1, :]):
-        fx[0, 0, 0] = fx + fx2
-    with horizontal(region[:, j_end + 1]):
-        fy[0, 0, 0] = fy + fy2
-    return fx, fy
-
-
 @gtstencil()
 def add_diffusive_component(
     fx: FloatField, fx2: FloatField, fy: FloatField, fy2: FloatField
 ):
+    from __externals__ import local_ie, local_je
+
     with computation(PARALLEL), interval(...):
-        fx, fy = add_diffusive(fx, fx2, fy, fy2)
-
-
-# @gtstencil()
-# def add_diffusive_component(f: FloatField, f2: FloatField):
-#     with computation(PARALLEL), interval(...):
-#         f[0, 0, 0] = f + f2
+        with horizontal(region[:, : local_je + 1]):
+            fx[0, 0, 0] = fx + fx2
+        with horizontal(region[: local_ie + 1, :]):
+            fy[0, 0, 0] = fy + fy2
 
 
 @gtstencil()
@@ -105,14 +90,12 @@ def diffusive_damp(
     mass: FloatField,
     damp: float,
 ):
-    from __externals__ import i_end, j_end
+    from __externals__ import local_ie, local_je
 
     with computation(PARALLEL), interval(...):
-        fx[0, 0, 0] = fx + 0.5 * damp * (mass[-1, 0, 0] + mass) * fx2
-        fy[0, 0, 0] = fy + 0.5 * damp * (mass[0, -1, 0] + mass) * fy2
-        with horizontal(region[i_end + 1, :]):
+        with horizontal(region[:, : local_je + 1]):
             fx[0, 0, 0] = fx + 0.5 * damp * (mass[-1, 0, 0] + mass) * fx2
-        with horizontal(region[:, j_end + 1]):
+        with horizontal(region[: local_ie + 1, :]):
             fy[0, 0, 0] = fy + 0.5 * damp * (mass[0, -1, 0] + mass) * fy2
 
 
@@ -151,27 +134,17 @@ def compute_delnflux_no_sg(
     fx2 = utils.make_storage_from_shape(q.shape, default_origin)
     fy2 = utils.make_storage_from_shape(q.shape, default_origin)
     diffuse_origin = (grid.is_, grid.js, kstart)
-    diffuse_domain_x = (grid.nic + 1, grid.njc, nk)
-    diffuse_domain_y = (grid.nic, grid.njc + 1, nk)
-    origin = (grid.is_, grid.js, kstart)
-    domain = (grid.nic, grid.njc, nk)
     extended_domain = (grid.nic + 1, grid.njc + 1, nk)
 
     compute_no_sg(q, fx2, fy2, nord, damp, d2, kstart, nk, mass)
 
     if mass is None:
-        add_diffusive_component(fx, fx2, fy, fy2, origin=origin, domain=domain)
-        # add_diffusive_component(
-        # fx, fx2, origin=diffuse_origin, domain=diffuse_domain_x)
-        # add_diffusive_component(
-        # fy, fy2, origin=diffuse_origin, domain=diffuse_domain_y)
-    else:
-        # diffusive_damp(fx, fx2, fy, fy2, mass, damp, origin=origin, domain=domain)
-        diffusive_damp_x(
-            fx, fx2, mass, damp, origin=diffuse_origin, domain=diffuse_domain_x
+        add_diffusive_component(
+            fx, fx2, fy, fy2, origin=diffuse_origin, domain=extended_domain
         )
-        diffusive_damp_y(
-            fy, fy2, mass, damp, origin=diffuse_origin, domain=diffuse_domain_y
+    else:
+        diffusive_damp(
+            fx, fx2, fy, fy2, mass, damp, origin=diffuse_origin, domain=extended_domain
         )
     return fx, fy
 
