@@ -39,7 +39,7 @@ def xy_flux(gz_x, gz_y, xfx, yfx):
 def update_dz_c_stencil(
     area: FloatField,
     dp_ref: FloatField,
-    z_surface: FloatField,
+    gz_surface: FloatField,
     ut: FloatField,
     vt: FloatField,
     gz: FloatField,
@@ -55,13 +55,13 @@ def update_dz_c_stencil(
 
     Args:
          dp_ref: vertical delta in column reference pressure(in)
-         z_surface: surface height (m) (in)
+         gz_surface: surface geopotential height (m) (in)
          ut: x-velocity on the C-grid, contravariantof the D-grid winds(in)
          vt: y-velocity on the C-grid, contravariantof the D-grid winds(in)
-         gz: height of the model grid cells (m) (inout)
-         ws: difference in height between lowest model layer and the surface per C-grid
-             timestep(inout)
-         dt2: half a model timestep (for C-grid update) in seconds (in)
+         gz: geopotential height of the model grid cells (m) (inout)
+         ws: rate of change in the surface geopotential height from the C-grid
+             wind (inout)
+         dt2: timestep of the C-grid update in seconds (in)
     Grid variable inputs:
          area
     """
@@ -96,7 +96,7 @@ def update_dz_c_stencil(
         with horizontal(
             region[local_is - 1 : local_ie + 2, local_js - 1 : local_je + 2]
         ):
-            ws = (z_surface - gz) * rdt
+            ws = (gz_surface - gz) * rdt
     with computation(BACKWARD), interval(0, -1):
         # TODO region for local validation only
         with horizontal(
