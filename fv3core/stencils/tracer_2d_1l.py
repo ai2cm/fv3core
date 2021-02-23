@@ -6,6 +6,7 @@ from gt4py.gtscript import PARALLEL, computation, interval
 import fv3core._config as spec
 import fv3core.stencils.fvtp2d as fvtp2d
 import fv3core.utils.gt4py_utils as utils
+import fv3core.utils.global_config as global_config
 from fv3core.decorators import gtstencil
 from fv3core.stencils.basic_operations import copy, copy_stencil
 from fv3core.stencils.updatedzd import ra_x_stencil, ra_y_stencil
@@ -162,7 +163,7 @@ def compute(comm, tracers, dp1, mfxd, mfyd, cxd, cyd, mdt, nq):
         )
 
     # complete HALO update on q
-    if utils.do_halo_exchange():
+    if global_config.get_do_halo_exchange():
         for qname in utils.tracer_variables[0:nq]:
             q = tracers[qname + "_quantity"]
             comm.halo_update(q, n_points=utils.halo)
@@ -290,5 +291,5 @@ def compute(comm, tracers, dp1, mfxd, mfyd, cxd, cyd, mdt, nq):
                     origin=grid.compute_origin(),
                     domain=grid.domain_shape_compute(),
                 )
-                if utils.do_halo_exchange():
+                if global_config.get_do_halo_exchange():
                     comm.halo_update(qn2, n_points=utils.halo)

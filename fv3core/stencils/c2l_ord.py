@@ -6,6 +6,7 @@ from fv3core.decorators import gtstencil
 from fv3core.utils.typing import FloatField
 from fv3gfs.util import CubedSphereCommunicator
 from fv3gfs.util.quantity import Quantity
+import fv3core.utils.global_config as global_config
 
 
 sd = utils.sd
@@ -92,7 +93,7 @@ def compute_cubed_to_latlon(
         comm: Cubed-sphere communicator
         do_halo_update: If True, performs a halo update on u and v
     """
-    do_halo_update = do_halo_update and utils.do_halo_exchange()
+    do_halo_update = do_halo_update and global_config.get_do_halo_exchange()
     grid = spec.grid
 
     if spec.namelist.c2l_ord == 2:

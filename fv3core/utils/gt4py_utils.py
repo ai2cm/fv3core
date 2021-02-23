@@ -53,12 +53,6 @@ tracer_variables = [
 logger = logging.getLogger("fv3ser")
 
 
-_do_halo_exchange = MPI is not None and MPI.COMM_WORLD.Get_size() > 1
-
-def do_halo_exchange():
-    return _do_halo_exchange
-
-
 # 1 indexing to 0 and halos: -2, -1, 0 --> 0, 1,2
 if MPI is not None and MPI.COMM_WORLD.Get_size() > 1:
     gt.config.cache_settings["dir_name"] = ".gt_cache_{:0>6d}".format(
