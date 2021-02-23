@@ -204,7 +204,7 @@ def post_remap(state, comm):
         )
     if spec.namelist.nf_omega > 0:
         print("Del2Cubed", grid.rank)
-        if utils.is_parallel():
+        if utils.do_halo_exchange():
             comm.halo_update(state.omga_quantity, n_points=utils.halo)
         del2cubed.compute(
             state.omga, spec.namelist.nf_omega, 0.18 * grid.da_min, grid.npz
@@ -325,7 +325,7 @@ def compute(state, comm, timer=NullTimer()):
     last_step = False
     k_split = spec.namelist.k_split
     state.mdt = state.bdt / k_split
-    if utils.is_parallel():
+    if utils.do_halo_exchange():
         comm.halo_update(state.phis_quantity, n_points=utils.halo)
     compute_preamble(state, comm)
     for n_map in range(k_split):

@@ -53,12 +53,12 @@ tracer_variables = [
 logger = logging.getLogger("fv3ser")
 
 
-def is_parallel():
+def do_halo_exchange():
     return MPI is not None and MPI.COMM_WORLD.Get_size() > 1
 
 
 # 1 indexing to 0 and halos: -2, -1, 0 --> 0, 1,2
-if is_parallel():
+if MPI is not None and MPI.COMM_WORLD.Get_size() > 1:
     gt.config.cache_settings["dir_name"] = ".gt_cache_{:0>6d}".format(
         MPI.COMM_WORLD.Get_rank()
     )

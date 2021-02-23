@@ -162,7 +162,7 @@ def compute(comm, tracers, dp1, mfxd, mfyd, cxd, cyd, mdt, nq):
         )
 
     # complete HALO update on q
-    if utils.is_parallel():
+    if utils.do_halo_exchange():
         for qname in utils.tracer_variables[0:nq]:
             q = tracers[qname + "_quantity"]
             comm.halo_update(q, n_points=utils.halo)
@@ -290,5 +290,5 @@ def compute(comm, tracers, dp1, mfxd, mfyd, cxd, cyd, mdt, nq):
                     origin=grid.compute_origin(),
                     domain=grid.domain_shape_compute(),
                 )
-                if utils.is_parallel():
+                if utils.do_halo_exchange():
                     comm.halo_update(qn2, n_points=utils.halo)
