@@ -39,14 +39,15 @@ class TranslateCS_Profile_2d(TranslateFortranData2Py):
             )
 
             shapes = np.squeeze(inputs[serialname]).shape
+            axis = 2
+            dummy_axes = None
             if len(shapes) == 2:
                 # suppress j
                 dummy_axes = [1]
             elif len(shapes) == 1:
                 # suppress j and k
-                dummy_axes = [1, 2]
-            else:
-                dummy_axes = None
+                # dummy_axes = [1, 2]
+                axis = 0
 
             inputs[d] = self.make_storage_data(
                 np.squeeze(inputs[serialname]),
@@ -54,6 +55,8 @@ class TranslateCS_Profile_2d(TranslateFortranData2Py):
                 jstart=jstart,
                 kstart=kstart,
                 dummy_axes=dummy_axes,
+                axis=axis,
+                read_only=d not in self.write_vars,
             )
             if d != serialname:
                 del inputs[serialname]

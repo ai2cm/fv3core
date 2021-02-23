@@ -512,7 +512,7 @@ def set_bottom(
 
 
 def compute(
-    qs: FloatField,
+    qs: FloatFieldI,
     a4_1: FloatField,
     a4_2: FloatField,
     a4_3: FloatField,
