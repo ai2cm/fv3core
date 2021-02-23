@@ -14,6 +14,7 @@ import fv3gfs.util as fv3util
 from fv3core.testing import ParallelTranslate, TranslateGrid
 from fv3core.utils.gt4py_utils import get_size
 from fv3core.utils.mpi import MPI
+from fv3core.utils import mpi
 
 
 # get MPI environment
@@ -287,7 +288,7 @@ def parallel_savepoint_cases(metafunc, data_path, mpi_rank):
 def pytest_generate_tests(metafunc):
     backend = metafunc.config.getoption("backend")
     fv3core.set_backend(backend)
-    if get_size() > 1:
+    if mpi.is_parallel_context():
         if metafunc.function.__name__ == "test_parallel_savepoint":
             generate_parallel_stencil_tests(metafunc)
     else:

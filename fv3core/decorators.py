@@ -17,6 +17,7 @@ import fv3core._config as spec
 import fv3core.utils
 import fv3core.utils.gt4py_utils as utils
 from fv3core.utils.typing import Index3D
+from fv3core.utils import mpi
 
 from .utils import global_config
 
@@ -248,11 +249,11 @@ class FV3StencilObject:
             }
 
             # we ensure sequential compilation to reduce memory pressure
-            if utils.get_size() > 1:
-                rank = utils.get_rank()
+            if mpi.is_parallel_context():
+                rank = mpi.get_rank()
                 root = 0
                 if rank > root:
-                    utils.recv(rank - 1)
+                    mpi.recv(rank - 1)
 
             # gtscript.stencil always returns a new class instance even
             # if it used the cached module.
@@ -272,14 +273,14 @@ class FV3StencilObject:
                     axis_offsets=axis_offsets, passed_externals=self._passed_externals
                 )
 
-            if utils.get_size() > 1:
+            if mpi.is_parallel_context():
                 if rank == root:
-                    utils.send(rank + 1)
-                    utils.recv(utils.get_size() - 1)
-                elif rank == utils.get_size() - 1:
-                    utils.send(0)
+                    mpi.send(rank + 1)
+                    mpi.recv(mpi.get_size() - 1)
+                elif rank == mpi.get_size() - 1:
+                    mpi.send(0)
                 else:
-                    utils.send(rank + 1)
+                    mpi.send(rank + 1)
         # Call it
         exec_info = {}
         kwargs["exec_info"] = kwargs.get("exec_info", exec_info)
