@@ -134,8 +134,8 @@ def compute_delnflux_no_sg(
     fy: FloatField,
     nord: int,
     damp_c: float,
-    kstart: Optional[int],
-    nk: Optional[int],
+    kstart: Optional[int] = None,
+    nk: Optional[int] = None,
     d2: Optional["FloatField"] = None,
     mass: Optional["FloatField"] = None,
 ):
@@ -154,7 +154,7 @@ def compute_delnflux_no_sg(
     diffuse_domain_x = (grid.nic + 1, grid.njc, nk)
     diffuse_domain_y = (grid.nic, grid.njc + 1, nk)
     origin = (grid.is_, grid.js, kstart)
-    domain = (grid.nic, grid.njc, nk)
+    domain = (grid.nic + 1, grid.njc + 1, nk)
     extended_domain = (grid.nic + 1, grid.njc + 1, nk)
 
     compute_no_sg(q, fx2, fy2, nord, damp, d2, kstart, nk, mass)
@@ -166,21 +166,28 @@ def compute_delnflux_no_sg(
         # add_diffusive_component(
         # fy, fy2, origin=diffuse_origin, domain=diffuse_domain_y)
     else:
-        diffusive_damp(fx, fx2, fy, fy2, mass, damp, origin=origin, domain=domain)
-        # diffusive_damp_x(
-        #     fx, fx2, mass, damp, origin=diffuse_origin, domain=diffuse_domain_x
-        # )
-        # diffusive_damp_y(
-        #     fy, fy2, mass, damp, origin=diffuse_origin, domain=diffuse_domain_y
-        # )
+        # diffusive_damp(fx, fx2, fy, fy2, mass, damp, origin=origin, domain=domain)
+        diffusive_damp_x(
+            fx, fx2, mass, damp, origin=diffuse_origin, domain=diffuse_domain_x
+        )
+        diffusive_damp_y(
+            fy, fy2, mass, damp, origin=diffuse_origin, domain=diffuse_domain_y
+        )
     return fx, fy
 
 
-def compute_no_sg(q, fx2, fy2, nord: int, damp_c, d2, kstart=0, nk=None, mass=None):
+def compute_no_sg(
+    q: FloatField,
+    fx2: FloatField,
+    fy2: FloatField,
+    nord: int,
+    damp_c,
+    d2,
+    kstart=0,
+    nk=None,
+    mass=None,
+):
     grid = spec.grid
-    nord = int(nord)
-    if nord <= 0:
-        raise NotImplementedError(f"Only supports nord > 0: nord={nord}")
     i1 = grid.is_ - 1 - nord
     i2 = grid.ie + 1 + nord
     j1 = grid.js - 1 - nord
@@ -219,12 +226,17 @@ def compute_no_sg(q, fx2, fy2, nord: int, damp_c, d2, kstart=0, nk=None, mass=No
     if nord > 0:
         for n in range(nord):
             nt = nord - 1 - n
-            nt_origin = (grid.is_ - nt - 1, grid.js - nt - 1, kstart)
+            nt_origin_extended = (grid.is_ - nt - 1, grid.js - nt - 1, kstart)
             nt_ny = grid.je - grid.js + 3 + 2 * nt
             nt_nx = grid.ie - grid.is_ + 3 + 2 * nt
             nt_origin = (grid.is_ - nt, grid.js - nt, kstart)
             d2_highorder(
-                fx2, fy2, grid.rarea, d2, origin=nt_origin, domain=(nt_nx, nt_ny, nk)
+                fx2,
+                fy2,
+                grid.rarea,
+                d2,
+                origin=nt_origin_extended,
+                domain=(nt_nx, nt_ny, nk),
             )
 
             corners.copy_corners(d2, "x", grid, kslice)
