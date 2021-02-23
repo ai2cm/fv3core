@@ -134,7 +134,7 @@ def compute_delnflux_no_sg(
     fy: FloatField,
     nord: int,
     damp_c: float,
-    kstart: Optional[int] = None,
+    kstart: Optional[int] = 0,
     nk: Optional[int] = None,
     d2: Optional["FloatField"] = None,
     mass: Optional["FloatField"] = None,
@@ -154,7 +154,7 @@ def compute_delnflux_no_sg(
     diffuse_domain_x = (grid.nic + 1, grid.njc, nk)
     diffuse_domain_y = (grid.nic, grid.njc + 1, nk)
     origin = (grid.is_, grid.js, kstart)
-    domain = (grid.nic + 1, grid.njc + 1, nk)
+    domain = (grid.nic, grid.njc, nk)
     extended_domain = (grid.nic + 1, grid.njc + 1, nk)
 
     compute_no_sg(q, fx2, fy2, nord, damp, d2, kstart, nk, mass)
@@ -181,11 +181,11 @@ def compute_no_sg(
     fx2: FloatField,
     fy2: FloatField,
     nord: int,
-    damp_c,
-    d2,
-    kstart=0,
-    nk=None,
-    mass=None,
+    damp_c: float,
+    d2: FloatField,
+    kstart: Optional[int] = 0,
+    nk: Optional[int] = None,
+    mass: Optional["FloatField"] = None,
 ):
     grid = spec.grid
     i1 = grid.is_ - 1 - nord
