@@ -95,6 +95,28 @@ def horizontal_relative_vorticity_from_winds(
 
 
 @gtscript.function
+def horizontal_relative_vorticity_from_winds_f(u, v, ut, vt, dx, dy, rarea, vorticity):
+    """
+    Compute the area mean relative vorticity in the z-direction from the D-grid winds.
+
+    Args:
+        u (in): x-direction wind on D grid
+        v (in): y-direction wind on D grid
+        ut (out): u * dx
+        vt (out): v * dy
+        dx (in): gridcell width in x-direction
+        dy (in): gridcell width in y-direction
+        rarea (in): inverse of area
+        vorticity (out): area mean horizontal relative vorticity
+    """
+    vt = u * dx
+    ut = v * dy
+    vorticity = rarea * (vt - vt[0, 1, 0] - ut + ut[1, 0, 0])
+
+    return vt, ut, vorticity
+
+
+@gtscript.function
 def add_dw(w, dw, damp_w):
     w = w + dw if damp_w > 1e-5 else w
     return w
@@ -107,11 +129,31 @@ def ke_from_bwind(ke, ub, vb):
 
 @gtscript.function
 def adjust_w_and_qcon(w, delp, dw, damp_w, q_con):
-    w = w / delp
-    w = add_dw(w, dw, damp_w)
-    q_con = q_con / delp
+    from __externals__ import local_ie, local_is, local_je, local_js
+
+    with horizontal(region[local_is : local_ie + 1, local_js : local_je + 1]):
+        w = w / delp
+        w = add_dw(w, dw, damp_w)
+        q_con = q_con / delp
 
     return w, q_con
+
+
+@gtscript.function
+def all_corners_ke(ke, u, v, ut, vt, dt):
+    from __externals__ import i_end, i_start, j_end, j_start
+
+    # Assumption: not __INLINED(spec.grid.nested)
+    with horizontal(region[i_start, j_start]):
+        ke = corners.corner_ke(ke, u, v, ut, vt, dt, 0, 0, -1, 1)
+    with horizontal(region[i_end + 1, j_start]):
+        ke = corners.corner_ke(ke, u, v, ut, vt, dt, -1, 0, 0, -1)
+    with horizontal(region[i_end + 1, j_end + 1]):
+        ke = corners.corner_ke(ke, u, v, ut, vt, dt, -1, -1, 0, 1)
+    with horizontal(region[i_start, j_end + 1]):
+        ke = corners.corner_ke(ke, u, v, ut, vt, dt, 0, -1, -1, -1)
+
+    return ke
 
 
 @gtstencil()
@@ -132,8 +174,35 @@ def ke_horizontal_vorticity_w_qcon_adjust(
     dw: FloatField,
     q_con: FloatField,
     dt: float,
-    nested: bool,
     damp_w: float,
+):
+
+    with computation(PARALLEL), interval(...):
+        ke = ke_from_bwind(ke, ub, vb)
+        ke = all_corners_ke(ke, u, v, ut, vt, dt)
+        vt, ut, vorticity = horizontal_relative_vorticity_from_winds_f(
+            u, v, ut, vt, dx, dy, rarea, vorticity
+        )
+        w, q_con = adjust_w_and_qcon(w, delp, dw, damp_w, q_con)
+
+
+@gtstencil()
+def not_inlineq_pressure_and_vbke(
+    gx: FloatField,
+    gy: FloatField,
+    rarea: FloatField,
+    fx: FloatField,
+    fy: FloatField,
+    pt: FloatField,
+    delp: FloatField,
+    vc: FloatField,
+    uc: FloatField,
+    cosa: FloatField,
+    rsina: FloatField,
+    vt: FloatField,
+    vb: FloatField,
+    dt4: float,
+    dt5: float,
 ):
     from __externals__ import (
         i_end,
@@ -147,47 +216,22 @@ def ke_horizontal_vorticity_w_qcon_adjust(
     )
 
     with computation(PARALLEL), interval(...):
-        ke = ke_from_bwind(ke, ub, vb)
+        if __INLINED(spec.namelist.inline_q == 0):
+            with horizontal(region[local_is : local_ie + 1, local_js : local_je + 1]):
+                pt = flux_integral(
+                    pt, delp, gx, gy, rarea
+                )  # TODO: Put [0, 0, 0] on left when gt4py bug is fixed
+                delp = delp + flux_component(
+                    fx, fy, rarea
+                )  # TODO: Put [0, 0, 0] on left when gt4py bug is fixed
+                pt[0, 0, 0] = pt / delp
 
-        with horizontal(region[i_start, j_start]):
-            if not nested:
-                ke = corners.corner_ke(ke, u, v, ut, vt, dt, 0, 0, -1, 1)
-        with horizontal(region[i_end + 1, j_start]):
-            if not nested:
-                ke = corners.corner_ke(ke, u, v, ut, vt, dt, -1, 0, 0, -1)
-        with horizontal(region[i_end + 1, j_end + 1]):
-            if not nested:
-                ke = corners.corner_ke(ke, u, v, ut, vt, dt, -1, -1, 0, 1)
-        with horizontal(region[i_start, j_end + 1]):
-            if not nested:
-                ke = corners.corner_ke(ke, u, v, ut, vt, dt, 0, -1, -1, -1)
-
-        vt = u * dx
-        ut = v * dy
-        vorticity[0, 0, 0] = rarea * (vt - vt[0, 1, 0] - ut + ut[1, 0, 0])
-
-        with horizontal(region[local_is : local_ie + 1, local_js : local_je + 1]):
-            w, q_con = adjust_w_and_qcon(w, delp, dw, damp_w, q_con)
-
-
-@gtstencil()
-def not_inlineq_pressure(
-    gx: FloatField,
-    gy: FloatField,
-    rarea: FloatField,
-    fx: FloatField,
-    fy: FloatField,
-    pt: FloatField,
-    delp: FloatField,
-):
-    with computation(PARALLEL), interval(...):
-        pt = flux_integral(
-            pt, delp, gx, gy, rarea
-        )  # TODO: Put [0, 0, 0] on left when gt4py bug is fixed
-        delp = delp + flux_component(
-            fx, fy, rarea
-        )  # TODO: Put [0, 0, 0] on left when gt4py bug is fixed
-        pt[0, 0, 0] = pt / delp
+        vb = dt5 * (vc[-1, 0, 0] + vc - (uc[0, -1, 0] + uc) * cosa) * rsina
+        if __INLINED(spec.namelist.grid_type < 3):
+            with horizontal(region[i_start, :], region[i_end + 1, :]):
+                vb = dt4 * (-vt[-2, 0, 0] + 3.0 * (vt[-1, 0, 0] + vt) - vt[1, 0, 0])
+            with horizontal(region[:, j_start], region[:, j_end + 1]):
+                vb = dt5 * (vt[-1, 0, 0] + vt)
 
 
 @gtscript.function
@@ -249,6 +293,8 @@ def u_and_v_from_ke(
     from __externals__ import local_ie, local_is, local_je, local_js
 
     with computation(PARALLEL), interval(...):
+        # TODO: may be able to remove local regions once this stencil and
+        # heat_from_damping are in the same stencil
         with horizontal(region[local_is : local_ie + 1, local_js : local_je + 2]):
             u = u_from_ke(ke, vt, fy)
         with horizontal(region[local_is : local_ie + 2, local_js : local_je + 1]):
@@ -296,6 +342,31 @@ def heat_source_from_vorticity_damping_fxn(
     kinetic_energy_fraction_to_damp,
     calculate_dissipation_estimate,
 ):
+
+    """
+    Args:
+        ub (in)
+        vb (in)
+        ut (in)
+        vt (in)
+        u (in)
+        v (in)
+        delp (in)
+        rsin2 (in)
+        cosa_s (in)
+        rdx (in): radius of Earth multiplied by x-direction gridcell width
+        rdy (in): radius of Earth multiplied by y-direction gridcell width
+        heat_source (out): heat source from vorticity damping
+            implied by energy conservation
+        dissipation_estimate (out): dissipation estimate, only calculated if
+            calculate_dissipation_estimate is 1
+        kinetic_energy_fraction_to_damp (in): according to its comment in fv_arrays,
+            the fraction of kinetic energy to explicitly damp and convert into heat.
+            TODO: confirm this description is accurate, why is it multiplied
+            by 0.25 below?
+        calculate_dissipation_estimate (in): If 1, calculate dissipation estimate.
+            Equivalent in Fortran model is do_skeb
+    """
     ubt = (ub + vt) * rdx
     fy = u * rdx
     gy = fy * ubt
@@ -776,23 +847,17 @@ def d_sw(
 
     if spec.namelist.inline_q:
         raise Exception("inline_q not yet implemented")
-    else:
-        not_inlineq_pressure(
-            gx,
-            gy,
-            grid().rarea,
-            fx,
-            fy,
-            pt,
-            delp,
-            origin=grid().compute_origin(),
-            domain=grid().domain_shape_compute(),
-        )
 
     dt5 = 0.5 * dt
     dt4 = 0.25 * dt
-
-    vbke(
+    not_inlineq_pressure_and_vbke(
+        gx,
+        gy,
+        grid().rarea,
+        fx,
+        fy,
+        pt,
+        delp,
         vc,
         uc,
         grid().cosa,
@@ -847,7 +912,6 @@ def d_sw(
         dw,
         q_con,
         dt,
-        grid().nested,
         column_namelist["damp_w"],
         origin=(0, 0, 0),
         domain=spec.grid.domain_shape_full(),
