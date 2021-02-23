@@ -81,7 +81,8 @@ def bcast(data) -> None:
 
 
 def send(dest: int, tag: int = 0) -> None:
-    """A wrapper for a dummy send in the MPI COMM_WORLD communicator used for blocking other threads from advancing.
+    """A wrapper for a dummy send in the MPI COMM_WORLD communicator
+    used for blocking other threads from advancing.
 
     Args:
         dest: The destination rank
@@ -91,7 +92,8 @@ def send(dest: int, tag: int = 0) -> None:
 
 
 def recv(source: int, tag: int = 0) -> Any:
-    """A wrapper for a dummy receive in the MPI COMM_WORLD communicator used for blocking other threads from advancing.
+    """A wrapper for a dummy receive in the MPI COMM_WORLD communicator used for
+    blocking other threads from advancing.
 
     Args:
         source: The source rank

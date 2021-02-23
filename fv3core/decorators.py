@@ -254,7 +254,8 @@ class FV3StencilObject:
                 if rank > root:
                     utils.recv(rank - 1)
 
-            # gtscript.stencil always returns a new class instance even if it used the cached module.
+            # gtscript.stencil always returns a new class instance even
+            # if it used the cached module.
             self.stencil_object = gtscript.stencil(
                 definition=self.func, **stencil_kwargs
             )
