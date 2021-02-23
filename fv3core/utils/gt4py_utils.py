@@ -164,9 +164,6 @@ def _make_storage_data_1d(
     if read_only:
         kstart = start[2]
         buffer[kstart : kstart + len(data)] = asarray(data, type(buffer))
-        # Convert I-field to IJ-field
-        if axis == 0 and shape[1] == 1:
-            buffer = buffer.reshape(shape[0:2])
     else:
         tile_spec = list(shape)
         tile_spec[axis] = 1

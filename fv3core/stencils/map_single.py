@@ -233,7 +233,7 @@ def lagrangian_contributions_stencil(
             origin=origin,
             domain=domain,
         )
-        q1[i1 : i2 + 1, jslice, k_eul] = q2_adds[i1 : i2 + 1, jslice]
+        q1[i1 : i2 + 1, jslice, k_eul] = q2_adds[i1 : i2 + 1, :]
 
 
 def lagrangian_contributions_transliterated(

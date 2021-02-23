@@ -6,7 +6,7 @@ from gt4py.gtscript import BACKWARD, FORWARD, PARALLEL, computation, interval
 import fv3core._config as spec
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import gtstencil
-from fv3core.utils.typing import FloatField
+from fv3core.utils.typing import FloatField, FloatFieldI
 
 
 @gtscript.function
@@ -116,7 +116,7 @@ def set_vals(
     a4_3: FloatField,
     a4_4: FloatField,
     q_bot: FloatField,
-    qs: FloatField,
+    qs: FloatFieldI,
     iv: int,
     kord: int,
 ):
@@ -163,9 +163,9 @@ def set_vals(
             old_bet = 2.0 + old_grid_ratio + old_grid_ratio - gam[0, 0, -1]
             gam = old_grid_ratio / old_bet
             grid_ratio = delp[0, 0, -1] / delp
-            q = (
-                3.0 * (a4_1[0, 0, -1] + a4_1) - grid_ratio * qs[0, 0, 1] - q[0, 0, -1]
-            ) / (2.0 + grid_ratio + grid_ratio - gam)
+            q = (3.0 * (a4_1[0, 0, -1] + a4_1) - grid_ratio * qs[0] - q[0, 0, -1]) / (
+                2.0 + grid_ratio + grid_ratio - gam
+            )
             q_bot = qs
     with computation(PARALLEL), interval(-1, None):
         if iv == -2:
@@ -538,12 +538,6 @@ def compute(
     q: FloatField = utils.make_storage_from_shape(delp.shape, origin=full_orig)
     q_bot: FloatField = utils.make_storage_from_shape(delp.shape, origin=full_orig)
 
-    # make a qs that can be passed to a stencil
-    qs_field: FloatField = utils.make_storage_from_shape(delp.shape, origin=full_orig)
-    qs_field[i1 : i2 + 1, js : js + j_extent, -1] = qs[
-        i1 : i2 + 1, js : js + j_extent, 0
-    ]
-
     extm: FloatField = utils.make_storage_from_shape(delp.shape, origin=full_orig)
     ext5: FloatField = utils.make_storage_from_shape(delp.shape, origin=full_orig)
     ext6: FloatField = utils.make_storage_from_shape(delp.shape, origin=full_orig)
@@ -562,7 +556,7 @@ def compute(
         a4_3,
         a4_4,
         q_bot,
-        qs_field,
+        qs,
         iv=iv,
         kord=abs(kord),
         origin=orig,

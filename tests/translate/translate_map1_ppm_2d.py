@@ -1,6 +1,6 @@
 import numpy as np
 
-import fv3core.stencils.map_single as Map_Single
+import fv3core.stencils.map_single as map_single
 from fv3core.testing import TranslateFortranData2Py, TranslateGrid
 
 
@@ -26,7 +26,7 @@ class TranslateSingleJ(TranslateFortranData2Py):
 class TranslateMap1_PPM_2d(TranslateFortranData2Py):
     def __init__(self, grid):
         super().__init__(grid)
-        self.compute_func = Map_Single.compute
+        self.compute_func = map_single.compute
         self.in_vars["data_vars"] = {
             "q1": {"serialname": "var_in"},
             "pe1": {"istart": 3, "iend": grid.ie - 2, "axis": 1},
