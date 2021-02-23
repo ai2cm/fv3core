@@ -201,10 +201,29 @@ def vb_from_vort(vort, vb):
 
 
 @gtstencil()
-def ub_and_vb_from_vort(vort: FloatField, ub: FloatField, vb: FloatField):
+def ub_vb_zrat_vort(
+    vort: FloatField,
+    ub: FloatField,
+    vb: FloatField,
+    wk: FloatField,
+    f0: FloatField,
+    z_rat: FloatField,
+    kinetic_energy_franction_to_damp: float,
+    dcon_threshold: float,
+    do_f3d: bool,
+    hydrostatic: bool,
+):
+    from __externals__ import local_ie, local_is, local_je, local_js
+
     with computation(PARALLEL), interval(...):
-        ub = ub_from_vort(vort, ub)
-        vb = vb_from_vort(vort, vb)
+        with horizontal(region[local_is : local_ie + 2, local_js : local_je + 2]):
+            if kinetic_energy_franction_to_damp > dcon_threshold:
+                ub = ub_from_vort(vort, ub)
+                vb = vb_from_vort(vort, vb)
+        if do_f3d and not hydrostatic:
+            vort = zrat_vorticity(wk, f0, z_rat)
+        else:
+            vort = wk[0, 0, 0] + f0[0, 0, 0]
 
 
 @gtscript.function
@@ -248,22 +267,6 @@ def coriolis_force_correction(zh: FloatField, z_rat: FloatField):
 @gtscript.function
 def zrat_vorticity(wk: FloatField, f0: FloatField, z_rat: FloatField):
     return wk + f0 * z_rat
-
-
-@gtstencil()
-def zrat_vort_or_addition(
-    wk: FloatField,
-    f0: FloatField,
-    z_rat: FloatField,
-    vort: FloatField,
-    do_f3d: bool,
-    hydrostatic: bool,
-):
-    with computation(PARALLEL), interval(...):
-        if do_f3d and not hydrostatic:
-            vort = zrat_vorticity(wk, f0, z_rat)
-        else:
-            vort = wk[0, 0, 0] + f0[0, 0, 0]
 
 
 @gtscript.function
@@ -868,23 +871,19 @@ def d_sw(
         column_namelist["nord"],
     )
 
+    # The type for kinetic_energy_fraction_to_damp changes between
+    # int and float.  Casting it to float in the stencil keeps it as a consistent type
     kinetic_energy_fraction_to_damp = column_namelist["d_con"]
 
-    if kinetic_energy_fraction_to_damp > dcon_threshold:
-        ub_and_vb_from_vort(
-            vort,
-            ub,
-            vb,
-            origin=grid().compute_origin(),
-            domain=grid().domain_shape_compute(add=(1, 1, 0)),
-        )
-
-    # Vorticity transport
-    zrat_vort_or_addition(
+    ub_vb_zrat_vort(
+        vort,
+        ub,
+        vb,
         wk,
         grid().f0,
         z_rat,
-        vort,
+        float(kinetic_energy_fraction_to_damp),
+        dcon_threshold,
         spec.namelist.do_f3d,
         spec.namelist.hydrostatic,
         origin=grid().full_origin(),
@@ -927,11 +926,7 @@ def d_sw(
         grid().rdy,
         heat_s,
         diss_e,
-        float(
-            kinetic_energy_fraction_to_damp
-        ),  # GT4Py seems to only see this as an 'int64' regardless of
-        # the type declaration used in the stencil definition.
-        # Casting it as a float fixes the problem
+        float(kinetic_energy_fraction_to_damp),
         dcon_threshold,
         int(spec.namelist.do_skeb),
         spec.namelist.do_skeb,
