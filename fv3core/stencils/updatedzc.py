@@ -73,7 +73,7 @@ def update_dz_c_stencil(
     with computation(PARALLEL), interval(...):
         gz_tmp = corners.fill_corners_2cells_mult_x(gz, gz, 1.0, 1.0, 1.0, 1.0)
         fx = u_average * (gz_tmp[-1, 0, 0] if u_average > 0.0 else gz_tmp)
-        gz_tmp = corners.fill_corners_2cells_mult_y(gz, gz, 1.0, 1.0, 1.0, 1.0)
+        gz_tmp = corners.fill_corners_2cells_mult_y(gz_tmp, gz_tmp, 1.0, 1.0, 1.0, 1.0)
         fy = v_average * (gz_tmp[0, -1, 0] if v_average > 0.0 else gz_tmp)
         # TODO: region for local validation only
         with horizontal(
