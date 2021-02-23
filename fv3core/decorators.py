@@ -247,7 +247,7 @@ class FV3StencilObject:
                 **self.backend_kwargs,
             }
 
-            # Claim this stencil for our rank...
+            # we ensure sequential compilation to reduce memory pressure
             if utils.get_size() > 1:
                 rank = utils.get_rank()
                 root = 0
