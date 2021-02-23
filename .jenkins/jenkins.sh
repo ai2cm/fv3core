@@ -114,7 +114,7 @@ if grep -q "fv_dynamics" <<< "${script}"; then
     sed -i 's|<NTASKS>|6\n#SBATCH \-\-hint=nomultithread|g' ${scheduler_script}
     sed -i 's|00:45:00|03:30:00|g' ${scheduler_script}
     sed -i 's|<NTASKSPERNODE>|6|g' ${scheduler_script}
-    sed -i 's/\<CPUSPERTASK\>/1/g' ${scheduler_script}
+    sed -i 's/<CPUSPERTASK>/1/g' ${scheduler_script}
     export MPIRUN_CALL="srun"
 fi
 
@@ -194,7 +194,7 @@ if grep -q "fv_dynamics" <<< "${script}"; then
     sed -i 's|<NTASKS>|6\n#SBATCH \-\-hint=nomultithread|g' ${run_timing_script}
     sed -i 's|00:45:00|00:30:00|g' ${run_timing_script}
     sed -i 's|<NTASKSPERNODE>|1|g' ${run_timing_script}
-    sed -i 's/\<CPUSPERTASK\>/1/g' ${run_timing_script}
+    sed -i 's/<CPUSPERTASK>/1/g' ${run_timing_script}
     sed -i 's|cscsci|debug|g' ${run_timing_script}
     run_command "${script} ${backend} ${experiment} " Job2${action} ${G2G} ${run_timing_script}
     if [ $? -ne 0 ] ; then
