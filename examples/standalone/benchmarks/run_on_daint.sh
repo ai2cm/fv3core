@@ -94,8 +94,8 @@ echo "submitting script to do compilation"
 # Adapt batch script to compile the code:
 sed -i s/\<NAME\>/standalone/g compile.daint.slurm
 sed -i s/\<NTASKS\>/$ranks/g compile.daint.slurm
-sed -i s/\<NTASKSPERNODE\>/$ranks/g compile.daint.slurm
-sed -i s/\<CPUSPERTASK\>/1/g compile.daint.slurm
+sed -i s/\<NTASKSPERNODE\>/1/g compile.daint.slurm
+sed -i s/\<CPUSPERTASK\>/$nthreads/g compile.daint.slurm
 sed -i s/--output=\<OUTFILE\>/--hint=nomultithread/g compile.daint.slurm
 sed -i s/00:45:00/03:30:00/g compile.daint.slurm
 sed -i s/\<G2G\>/export\ CRAY_CUDA_MPS=1/g compile.daint.slurm
