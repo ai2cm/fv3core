@@ -9,7 +9,7 @@ from gt4py.gtscript import (
 )
 
 from fv3core.decorators import gtstencil
-from fv3core.stencils.a2b_ord4 import a1, a2, lagrange_x_func, lagrange_y_func
+from fv3core.stencils import a2b_ord4
 from fv3core.utils import corners
 from fv3core.utils.typing import FloatField, FloatFieldIJ
 
@@ -47,7 +47,7 @@ def vol_conserv_cubic_interp_func_y_rev(v):
 
 @gtscript.function
 def lagrange_y_func_p1(qx):
-    return a2 * (qx[0, -1, 0] + qx[0, 2, 0]) + a1 * (qx + qx[0, 1, 0])
+    return a2b_ord4.a2 * (qx[0, -1, 0] + qx[0, 2, 0]) + a2b_ord4.a1 * (qx + qx[0, 1, 0])
 
 
 @gtstencil()
@@ -58,7 +58,7 @@ def lagrange_interpolation_y_p1(qx: FloatField, qout: FloatField):
 
 @gtscript.function
 def lagrange_x_func_p1(qy):
-    return a2 * (qy[-1, 0, 0] + qy[2, 0, 0]) + a1 * (qy + qy[1, 0, 0])
+    return a2b_ord4.a2 * (qy[-1, 0, 0] + qy[2, 0, 0]) + a2b_ord4.a1 * (qy + qy[1, 0, 0])
 
 
 @gtstencil()
@@ -182,7 +182,7 @@ def d2a2c_vect(
     # X
 
     with horizontal(region[local_is - 1 : local_ie + 3, local_js - 1 : local_je + 2]):
-        uc = lagrange_x_func(utmp)
+        uc = a2b_ord4.lagrange_x(utmp)
         utc = contravariant(uc, v, cosa_u, rsin_u)
 
     # West
@@ -233,7 +233,7 @@ def d2a2c_vect(
     # Y
 
     with horizontal(region[local_is - 1 : local_ie + 2, local_js - 1 : local_je + 3]):
-        vc = lagrange_y_func(vtmp)
+        vc = a2b_ord4.lagrange_y(vtmp)
         vtc = contravariant(vc, u, cosa_v, rsin_v)
 
     with horizontal(region[local_is - 1 : local_ie + 2, j_start - 1]):

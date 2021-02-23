@@ -277,7 +277,16 @@ class FV3StencilObject:
             args,
             kwargs,
         )
-        self.stencil_object(*args, **kwargs, origin=origin, domain=domain)
+
+        field_names = list(self.stencil_object.field_info.keys())
+        origin_dict = {}
+        for i in range(len(field_names)):
+            field_shape = args[i].shape
+            origin_dict[field_names[i]] = tuple(
+                [min(field_shape[j] - 1, origin[j]) for j in range(len(field_shape))]
+            )
+
+        self.stencil_object(*args, **kwargs, origin=origin_dict, domain=domain)
         _maybe_save_report(
             f"{name}-after",
             self.times_called,
