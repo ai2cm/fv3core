@@ -250,8 +250,8 @@ class FV3StencilObject:
 
             # we ensure sequential compilation to reduce memory pressure
             if mpi.is_parallel_context() and (
-                global_config.get_backend() is "gtx86"
-                or global_config.get_backend() is "gtcuda"
+                global_config.get_backend() == "gtx86"
+                or global_config.get_backend() == "gtcuda"
             ):
                 rank = mpi.get_rank()
                 root = 0
@@ -277,8 +277,8 @@ class FV3StencilObject:
                 )
 
             if mpi.is_parallel_context() and (
-                global_config.get_backend() is "gtx86"
-                or global_config.get_backend() is "gtcuda"
+                global_config.get_backend() == "gtx86"
+                or global_config.get_backend() == "gtcuda"
             ):
                 if rank == root:
                     mpi.send(rank + 1)
