@@ -9,7 +9,7 @@
 #############################################
 # Example syntax:
 # ./run_on_daint.sh 60 6 gtx86
-
+set -e
 exitError()
 {
     echo "ERROR $1: $3" 1>&2
@@ -122,5 +122,5 @@ sed -i "s#<CMD>#export PYTHONPATH=/project/s1053/install/serialbox2_master/gnu/p
 # execute on a gpu node
 sbatch -W -C gpu run.daint.slurm
 wait
-cp *.json $target_dir
+rsync *.json $target_dir
 echo "performance run sucessful"

@@ -105,6 +105,22 @@ if grep -q "parallel" <<< "${script}"; then
     fi
 fi
 
+if grep -q "fv_dynamics" <<< "${script}"; then
+	if grep -q "cuda" <<< "${backend}" ; then
+	    export MPICH_RDMA_ENABLED_CUDA=1
+	    # This enables single node compilation
+	    # but will NOT work for c128
+	    export CRAY_CUDA_MPS=1
+	else
+	    export MPICH_RDMA_ENABLED_CUDA=0
+	fi
+    sed -i 's|<NTASKS>|6\n#SBATCH \-\-hint=nomultithread|g' ${scheduler_script}
+    sed -i 's|00:45:00|03:30:00|g' ${scheduler_script}
+    sed -i 's|<NTASKSPERNODE>|6|g' ${scheduler_script}
+    sed -i 's/<CPUSPERTASK>/1/g' ${scheduler_script}
+    export MPIRUN_CALL="srun"
+fi
+
 module load daint-gpu
 module add "${installdir}/modulefiles/"
 module load gcloud
@@ -118,7 +134,7 @@ if [ -z ${SCRATCH} ] ; then
 fi
 
 # Set the host data head directory location
-export TEST_DATA_DIR="${SCRATCH}/jenkins/scratch/fv3core_fortran_data/${FORTRAN_VERSION}"
+export TEST_DATA_DIR="${SCRATCH}/fv3core_fortran_data/${FORTRAN_VERSION}"
 export FV3_STENCIL_REBUILD_FLAG=False
 # Set the host data location
 export TEST_DATA_HOST="${TEST_DATA_DIR}/${experiment}/"
@@ -158,9 +174,39 @@ export DOCKER_BUILDKIT=1
 
 run_command "${script} ${backend} ${experiment} " Job${action} ${G2G} ${scheduler_script}
 
+
+# load scheduler tools
+. ${envloc}/env/schedulerTools.sh
+run_timing_script="`dirname $0`/env/submit.${host}.${scheduler}"
+
 if [ $? -ne 0 ] ; then
   exitError 1510 ${LINENO} "problem while executing script ${script}"
 fi
+echo "### ACTION ${action} SUCCESSFUL"
+
+
+# second run, this time with timing
+if grep -q "fv_dynamics" <<< "${script}"; then
+    cp  ${run_timing_script} job_${action}_2.sh
+    run_timing_script=job_${action}_2.sh
+    export CRAY_CUDA_MPS=0
+	if grep -q "cuda" <<< "${backend}" ; then
+	    export MPICH_RDMA_ENABLED_CUDA=1
+	else
+	    export MPICH_RDMA_ENABLED_CUDA=0
+	fi
+    sed -i 's|<NTASKS>|6\n#SBATCH \-\-hint=nomultithread|g' ${run_timing_script}
+    sed -i 's|00:45:00|00:30:00|g' ${run_timing_script}
+    sed -i 's|<NTASKSPERNODE>|1|g' ${run_timing_script}
+    sed -i 's/<CPUSPERTASK>/1/g' ${run_timing_script}
+    sed -i 's|cscsci|debug|g' ${run_timing_script}
+    run_command "${script} ${backend} ${experiment} " Job2${action} ${G2G} ${run_timing_script}
+    if [ $? -ne 0 ] ; then
+    exitError 1511 ${LINENO} "problem while executing script ${script}"
+    fi
+fi
+
+
 echo "### ACTION ${action} SUCCESSFUL"
 
 # end timer and report time taken
