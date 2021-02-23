@@ -19,6 +19,7 @@ class TranslateDelnFlux(TranslateFortranData2Py):
 
     # If use_sg is defined -- 'dx', 'dy', 'rdxc', 'rdyc', 'sin_sg needed
     def compute(self, inputs):
+        inputs["nord_column"] = [int(x) for x in inputs["nord_column"]]
         if "mass" not in inputs:
             inputs["mass"] = None
         return self.column_split_compute(
