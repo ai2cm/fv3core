@@ -8,13 +8,13 @@ import fv3core.stencils.neg_adj3 as neg_adj3
 import fv3core.stencils.rayleigh_super as rayleigh_super
 import fv3core.stencils.remapping as lagrangian_to_eulerian
 import fv3core.stencils.tracer_2d_1l as tracer_2d_1l
+import fv3core.utils.global_config as global_config
 import fv3core.utils.global_constants as constants
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import ArgSpec, gtstencil, state_inputs
 from fv3core.stencils import c2l_ord
 from fv3core.stencils.basic_operations import copy_stencil
 from fv3gfs.util import CubedSphereCommunicator, NullTimer
-import fv3core.utils.global_config as global_config
 
 
 sd = utils.sd

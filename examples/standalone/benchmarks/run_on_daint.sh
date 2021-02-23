@@ -90,7 +90,7 @@ fi
 
 
 split_path=(${data_path//\// })
-experiment=${split_path[-1]} 
+experiment=${split_path[-1]}
 
 # if [ ! -d $(pwd)/.gt_cache_000000 ]; then
 #     cp -r /scratch/snx3000/olifu/jenkins/scratch/store_gt_caches/$experiment/$backend/.gt_cache_0000* .

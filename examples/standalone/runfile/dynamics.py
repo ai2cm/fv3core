@@ -11,9 +11,8 @@ import fv3core
 import fv3core._config as spec
 import fv3core.stencils.fv_dynamics as fv_dynamics
 import fv3core.testing
-import fv3gfs.util as util
 import fv3core.utils.global_config as global_config
-from fv3core.utils import gt4py_utils
+import fv3gfs.util as util
 
 
 def parse_args():

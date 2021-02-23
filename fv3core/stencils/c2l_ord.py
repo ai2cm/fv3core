@@ -1,12 +1,12 @@
 from gt4py.gtscript import PARALLEL, computation, horizontal, interval, region
 
 import fv3core._config as spec
+import fv3core.utils.global_config as global_config
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import gtstencil
 from fv3core.utils.typing import FloatField
 from fv3gfs.util import CubedSphereCommunicator
 from fv3gfs.util.quantity import Quantity
-import fv3core.utils.global_config as global_config
 
 
 sd = utils.sd
