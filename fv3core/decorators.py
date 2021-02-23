@@ -248,7 +248,6 @@ class FV3StencilObject:
             }
 
             # Claim this stencil for our rank...
-            func_id = self.func.__module__ + "." + self.func.__qualname__
             if utils.get_size() > 1:
                 rank = utils.get_rank()
                 root = 0
