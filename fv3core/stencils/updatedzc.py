@@ -47,10 +47,10 @@ def update_dz_c_stencil(
     the lowest model height compared to the fixed surface height.
 
     Args:
-         dp_ref: vertical delta in column reference pressure(in)
+         dp_ref: vertical difference in column reference pressure (in)
          gz_surface: surface geopotential height (m) (in)
-         ut: x-velocity on the C-grid, contravariantof the D-grid winds(in)
-         vt: y-velocity on the C-grid, contravariantof the D-grid winds(in)
+         ut: x-velocity on the C-grid, contravariant of the D-grid winds (in)
+         vt: y-velocity on the C-grid, contravariant of the D-grid winds (in)
          gz: geopotential height of the model grid cells (m) (inout)
          ws: rate of change in the surface geopotential height from the C-grid
              wind (inout)
