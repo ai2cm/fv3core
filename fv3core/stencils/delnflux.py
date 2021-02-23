@@ -136,8 +136,8 @@ def compute_delnflux_no_sg(
     damp_c: float,
     kstart: Optional[int],
     nk: Optional[int],
-    d2: Optional[FloatField],
-    mass: Optional[FloatField],
+    d2: Optional["FloatField"] = None,
+    mass: Optional["FloatField"] = None,
 ):
     grid = spec.grid
     if nk is None:
