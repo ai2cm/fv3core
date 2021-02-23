@@ -74,7 +74,7 @@ def last_call_copy(peln_run: sd, peln: sd, pk3: sd, pk: sd, pem: sd, pe: sd):
 
 @gtstencil()
 def finalize(
-    z_surface: sd,
+    gz_surface: sd,
     dz: sd,
     zh: sd,
     peln_run: sd,
@@ -102,7 +102,7 @@ def finalize(
             pe = pe_init
     with computation(BACKWARD):
         with interval(-1, None):
-            zh = z_surface
+            zh = gz_surface
         with interval(0, -1):
             zh = zh[0, 0, 1] - dz
 
@@ -113,7 +113,7 @@ def compute(
     akap,
     cappa,
     ptop,
-    z_surface,
+    gz_surface,
     w,
     delz,
     q_con,
@@ -187,7 +187,7 @@ def compute(
     )
 
     finalize(
-        z_surface,
+        gz_surface,
         delz,
         zh,
         peln_run,

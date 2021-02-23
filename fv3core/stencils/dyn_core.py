@@ -28,18 +28,18 @@ HUGE_R = 1.0e40
 
 # NOTE in Fortran these are columns
 @gtstencil()
-def dp_ref_compute(ak: sd, bk: sd, phis: sd, dp_ref: sd, z_surface: sd, rgrav: float):
+def dp_ref_compute(ak: sd, bk: sd, phis: sd, dp_ref: sd, gz_surface: sd, rgrav: float):
     with computation(PARALLEL), interval(0, -1):
         dp_ref = ak[0, 0, 1] - ak + (bk[0, 0, 1] - bk) * 1.0e5
     with computation(PARALLEL), interval(...):
-        z_surface = phis * rgrav
+        gz_surface = phis * rgrav
 
 
 @gtstencil()
-def set_gz(z_surface: sd, delz: sd, gz: sd):
+def set_gz(gz_surface: sd, delz: sd, gz: sd):
     with computation(BACKWARD):
         with interval(-1, None):
-            gz[0, 0, 0] = z_surface
+            gz[0, 0, 0] = gz_surface
         with interval(0, -1):
             gz[0, 0, 0] = gz[0, 0, 1] - delz
 
@@ -154,7 +154,7 @@ def compute(state, comm):
         # TODO: Is really just a column... when different shapes are supported
         # perhaps change this.
         state.dp_ref = utils.make_storage_from_shape(state.ak.shape, grid.full_origin())
-        state.z_surface = utils.make_storage_from_shape(
+        state.gz_surface = utils.make_storage_from_shape(
             state.ak.shape, grid.full_origin()
         )
         dp_ref_compute(
@@ -162,7 +162,7 @@ def compute(state, comm):
             state.bk,
             state.phis,
             state.dp_ref,
-            state.z_surface,
+            state.gz_surface,
             rgrav,
             origin=grid.full_origin(),
             domain=grid.domain_shape_full(add=(0, 0, 1)),
@@ -179,7 +179,7 @@ def compute(state, comm):
             )
             if it == 0:
                 set_gz(
-                    state.z_surface,
+                    state.gz_surface,
                     state.delz,
                     state.gz,
                     origin=grid.compute_origin(),
@@ -252,7 +252,7 @@ def compute(state, comm):
             updatedzc.update_dz_c_stencil(
                 grid.area,
                 state.dp_ref,
-                state.z_surface,
+                state.gz_surface,
                 state.ut,
                 state.vt,
                 state.gz,
@@ -330,7 +330,7 @@ def compute(state, comm):
                 state.nord_v,
                 state.damp_vt,
                 state.dp_ref,
-                state.z_surface,
+                state.gz_surface,
                 state.zh,
                 state.crx,
                 state.cry,
@@ -350,7 +350,7 @@ def compute(state, comm):
                 akap,
                 state.cappa,
                 state.ptop,
-                state.z_surface,
+                state.gz_surface,
                 state.w,
                 state.delz,
                 state.q_con,

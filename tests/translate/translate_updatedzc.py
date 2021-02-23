@@ -7,7 +7,7 @@ class TranslateUpdateDzC(TranslateFortranData2Py):
         super().__init__(grid)
         self.in_vars["data_vars"] = {
             "dp_ref": {"serialname": "dp0"},
-            "z_surface": {"serialname": "zs"},
+            "gz_surface": {"serialname": "zs"},
             "ut": {"serialname": "utc"},
             "vt": {"serialname": "vtc"},
             "gz": {},
