@@ -1,6 +1,5 @@
 from typing import Optional
 
-import gt4py
 import gt4py.gtscript as gtscript
 from gt4py.gtscript import (
     __INLINED,
@@ -17,8 +16,13 @@ from gt4py.gtscript import (
 
 import fv3core._config as spec
 from fv3core.decorators import gtstencil
-from fv3core.utils import global_config
-from fv3core.utils.typing import Float, FloatField, FloatFieldIJ
+from fv3core.utils.typing import (
+    Float,
+    FloatField,
+    FloatFieldI,
+    FloatFieldIJ,
+    FloatFieldJ,
+)
 
 
 # compact 4-pt cubic interpolation
@@ -188,10 +192,10 @@ def _a2b_ord4_stencil(
     bgrid2: FloatFieldIJ,
     dxa: FloatFieldIJ,
     dya: FloatFieldIJ,
-    edge_n: FloatFieldIJ,
-    edge_s: FloatFieldIJ,
-    edge_e: FloatFieldIJ,
-    edge_w: FloatFieldIJ,
+    edge_n: FloatFieldI,
+    edge_s: FloatFieldI,
+    edge_e: FloatFieldJ,
+    edge_w: FloatFieldJ,
 ):
     from __externals__ import REPLACE, i_end, i_start, j_end, j_start, namelist
 
@@ -395,21 +399,6 @@ def _a2b_ord4_stencil(
             qin = qout
 
 
-def _make_grid_storage_2d(grid_array: gt4py.storage.Storage):
-    n_dims = len(grid_array.shape)
-    mask = tuple([i < n_dims for i in range(3)])
-    origin = spec.grid.compute_origin()[0:n_dims]
-
-    return gt4py.storage.from_array(
-        grid_array,
-        backend=global_config.get_backend(),
-        default_origin=origin,
-        shape=grid_array.shape,
-        dtype=grid_array.dtype,
-        mask=mask,
-    )
-
-
 def compute(
     qin: FloatField,
     qout: FloatField,
@@ -430,32 +419,22 @@ def compute(
     grid = spec.grid
     if nk is None:
         nk = grid.npz - kstart
-    agrid1 = _make_grid_storage_2d(grid.agrid1)
-    agrid2 = _make_grid_storage_2d(grid.agrid2)
-    bgrid1 = _make_grid_storage_2d(grid.bgrid1)
-    bgrid2 = _make_grid_storage_2d(grid.bgrid2)
-    dxa = _make_grid_storage_2d(grid.dxa)
-    dya = _make_grid_storage_2d(grid.dya)
-    edge_n = _make_grid_storage_2d(grid.edge_n)
-    edge_s = _make_grid_storage_2d(grid.edge_s)
-    edge_e = _make_grid_storage_2d(grid.edge_e)
-    edge_w = _make_grid_storage_2d(grid.edge_w)
 
     stencil = gtstencil(definition=_a2b_ord4_stencil, externals={"REPLACE": replace})
 
     stencil(
         qin,
         qout,
-        agrid1,
-        agrid2,
-        bgrid1,
-        bgrid2,
-        dxa,
-        dya,
-        edge_n,
-        edge_s,
-        edge_e,
-        edge_w,
+        grid.agrid1,
+        grid.agrid2,
+        grid.bgrid1,
+        grid.bgrid2,
+        grid.dxa,
+        grid.dya,
+        grid.edge_n,
+        grid.edge_s,
+        grid.edge_e,
+        grid.edge_w,
         origin=(grid.is_, grid.js, kstart),
         domain=(grid.nic + 1, grid.njc + 1, nk),
     )
