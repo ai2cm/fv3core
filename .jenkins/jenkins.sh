@@ -189,6 +189,7 @@ echo "### ACTION ${action} SUCCESSFUL"
 if grep -q "fv_dynamics" <<< "${script}"; then
     cp  ${run_timing_script} job_${action}_2.sh
     run_timing_script=job_${action}_2.sh
+    export CRAY_CUDA_MPS=0
 	if grep -q "cuda" <<< "${backend}" ; then
 	    export MPICH_RDMA_ENABLED_CUDA=1
 	else
