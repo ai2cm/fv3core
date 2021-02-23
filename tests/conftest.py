@@ -12,9 +12,9 @@ import fv3core._config
 import fv3core.utils.gt4py_utils
 import fv3gfs.util as fv3util
 from fv3core.testing import ParallelTranslate, TranslateGrid
+from fv3core.utils import mpi
 from fv3core.utils.gt4py_utils import get_size
 from fv3core.utils.mpi import MPI
-from fv3core.utils import mpi
 
 
 # get MPI environment

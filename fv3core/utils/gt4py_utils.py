@@ -9,8 +9,8 @@ import gt4py.storage as gt_storage
 import numpy as np
 from gt4py import gtscript
 
-from fv3core.utils.mpi import MPI
 from fv3core.utils import mpi
+from fv3core.utils.mpi import MPI
 from fv3core.utils.typing import DTypes, Field, float_type, int_type
 
 from . import global_config
