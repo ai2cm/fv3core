@@ -2,7 +2,6 @@ from gt4py import gtscript
 from gt4py.gtscript import PARALLEL, computation, horizontal, interval, region
 
 import fv3core._config as spec
-import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import gtstencil
 from fv3core.utils.typing import FloatField
 
@@ -317,20 +316,6 @@ def copy_corners_x_stencil(q: FloatField):
 def copy_corners_y_stencil(q: FloatField):
     with computation(PARALLEL), interval(...):
         q = copy_corners_y(q)
-
-
-# TODO: may want to put this in the test code if no longer used
-# directly in the model
-def copy_corners(q, direction, grid, kslice=slice(0, None)):
-    kstart, nk = utils.krange_from_slice(kslice, grid)
-    if direction == "x":
-        copy_corners_x_stencil(
-            q, origin=(grid.isd, grid.jsd, kstart), domain=(grid.nid, grid.njd, nk)
-        )
-    if direction == "y":
-        copy_corners_y_stencil(
-            q, origin=(grid.isd, grid.jsd, kstart), domain=(grid.nid, grid.njd, nk)
-        )
 
 
 # TODO these can definitely be consolidated/made simpler
