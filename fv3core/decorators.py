@@ -204,7 +204,9 @@ class FV3StencilObject:
                 return True
         return False
 
-    def _get_field_origins(self, origin: Tuple[int], *args, **kwargs) -> Dict[str, Tuple[int]]:
+    def _get_field_origins(
+        self, origin: Tuple[int], *args, **kwargs
+    ) -> Dict[str, Tuple[int]]:
         origin_dict = {}
         field_names = list(self.stencil_object.field_info.keys())
         for i in range(len(field_names)):

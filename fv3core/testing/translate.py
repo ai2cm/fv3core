@@ -76,12 +76,13 @@ class TranslateFortranData2Py:
         axis: int = 2,
         names_4d: Optional[List[str]] = None,
         read_only: bool = False,
-    ) -> Dict[str, type(Field)]:
+        full_shape: bool = False,
+    ) -> Dict[str, "Field"]:
         use_shape = list(self.maxshape)
         if dummy_axes:
             for axis in dummy_axes:
                 use_shape[axis] = 1
-        elif len(array.shape) < 3 and axis == len(array.shape) - 1:
+        elif not full_shape and len(array.shape) < 3 and axis == len(array.shape) - 1:
             use_shape[1] = 1
         use_shape = tuple(use_shape)
         start = (istart, jstart, kstart)
@@ -186,6 +187,7 @@ class TranslateFortranData2Py:
                 axis=axis,
                 names_4d=names_4d,
                 read_only=d not in self.write_vars,
+                full_shape="full_shape" in storage_vars[d],
             )
             if d != serialname:
                 del inputs[serialname]

@@ -284,7 +284,7 @@ def make_storage_dict(
     dummy: Optional[Tuple[int, int, int]] = None,
     names: Optional[List[str]] = None,
     axis: int = 2,
-) -> Dict[str, type(Field)]:
+) -> Dict[str, "Field"]:
     assert names is not None, "for 4d variable storages, specify a list of names"
     if shape is None:
         shape = data.shape

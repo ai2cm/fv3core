@@ -163,7 +163,7 @@ def set_vals(
             old_bet = 2.0 + old_grid_ratio + old_grid_ratio - gam[0, 0, -1]
             gam = old_grid_ratio / old_bet
             grid_ratio = delp[0, 0, -1] / delp
-            q = (3.0 * (a4_1[0, 0, -1] + a4_1) - grid_ratio * qs[0] - q[0, 0, -1]) / (
+            q = (3.0 * (a4_1[0, 0, -1] + a4_1) - grid_ratio * qs - q[0, 0, -1]) / (
                 2.0 + grid_ratio + grid_ratio - gam
             )
             q_bot = qs
@@ -327,7 +327,6 @@ def set_inner(
     lac_2: FloatField,
     tmp_min3: FloatField,
     tmp_max3: FloatField,
-    tmp3: FloatField,
     qmin: float,
     kord: int,
     iv: int,
@@ -545,7 +544,6 @@ def compute(
     lac_2: FloatField = utils.make_storage_from_shape(delp.shape, origin=full_orig)
     tmp_min3: FloatField = utils.make_storage_from_shape(delp.shape, origin=full_orig)
     tmp_max3: FloatField = utils.make_storage_from_shape(delp.shape, origin=full_orig)
-    tmp3: FloatField = utils.make_storage_from_shape(delp.shape, origin=full_orig)
 
     set_vals(
         gam,
@@ -604,7 +602,6 @@ def compute(
             lac_2,
             tmp_min3,
             tmp_max3,
-            tmp3,
             qmin,
             abs(kord),
             iv,
