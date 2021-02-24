@@ -70,7 +70,7 @@ def corner_fill(grid, q):
             + q[grid.ie, grid.js - 1, :]
         ) * r3
         q[grid.ie + 1, grid.js, :] = q[grid.ie, grid.js, :]
-        copy_column(q, origin=(grid.ie, grid.js - 1, 0), domain=grid.corner_domain())
+        copy_column(q, origin=(grid.ie, grid.js - 1, 0), domain=(1, 1, grid.npz))
 
     if grid.ne_corner:
         q[grid.ie, grid.je, :] = (
@@ -87,7 +87,7 @@ def corner_fill(grid, q):
             + q[grid.is_ - 1, grid.je, :]
             + q[grid.is_, grid.je + 1, :]
         ) * r3
-        copy_row(q, origin=(grid.is_ - 1, grid.je, 0), domain=grid.corner_domain())
+        copy_row(q, origin=(grid.is_ - 1, grid.je, 0), domain=(1, 1, grid.npz))
         q[grid.is_, grid.je + 1, :] = q[grid.is_, grid.je, :]
 
     return q
@@ -111,13 +111,17 @@ def compute(qdel, nmax, cd, km):
         qdel = corner_fill(grid, qdel)
 
         if nt > 0:
-            corners.copy_corners(qdel, "x", grid)
+            corners.copy_corners_x_stencil(
+                qdel, origin=(grid.isd, grid.jsd, 0), domain=(grid.nid, grid.njd, km)
+            )
         nx = grid.njc + 2 * nt + 1  # (grid.ie+nt+1) - (grid.is_-nt) + 1
         ny = grid.njc + 2 * nt  # (grid.je+nt) - (grid.js-nt) + 1
         compute_zonal_flux(fx, qdel, grid.del6_v, origin=origin, domain=(nx, ny, km))
 
         if nt > 0:
-            corners.copy_corners(qdel, "y", grid)
+            corners.copy_corners_y_stencil(
+                qdel, origin=(grid.isd, grid.jsd, 0), domain=(grid.nid, grid.njd, km)
+            )
         nx = grid.nic + 2 * nt  # (grid.ie+nt) - (grid.is_-nt) + 1
         ny = grid.njc + 2 * nt + 1  # (grid.je+nt+1) - (grid.js-nt) + 1
         compute_meridional_flux(

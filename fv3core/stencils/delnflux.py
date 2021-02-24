@@ -125,14 +125,14 @@ def compute_delnflux_no_sg(
     grid = spec.grid
     if nk is None:
         nk = grid.npz - kstart
-    default_origin = (grid.isd, grid.jsd, kstart)
+    full_origin = (grid.isd, grid.jsd, kstart)
     if d2 is None:
-        d2 = utils.make_storage_from_shape(q.shape, default_origin)
+        d2 = utils.make_storage_from_shape(q.shape, full_origin)
     if damp_c <= 1e-4:
         return fx, fy
     damp = (damp_c * grid.da_min) ** (nord + 1)
-    fx2 = utils.make_storage_from_shape(q.shape, default_origin)
-    fy2 = utils.make_storage_from_shape(q.shape, default_origin)
+    fx2 = utils.make_storage_from_shape(q.shape, full_origin)
+    fy2 = utils.make_storage_from_shape(q.shape, full_origin)
     diffuse_origin = (grid.is_, grid.js, kstart)
     extended_domain = (grid.nic + 1, grid.njc + 1, nk)
 
@@ -179,14 +179,18 @@ def compute_no_sg(
         d2 = copy(q, origin=origin_d2, domain=domain_d2)
 
     if nord > 0:
-        corners.copy_corners(d2, "x", grid, kslice)
+        corners.copy_corners_x_stencil(
+            d2, origin=(grid.isd, grid.jsd, kstart), domain=(grid.nid, grid.njd, nk)
+        )
 
     fx2_order(
         d2, grid.del6_v, fx2, order=1, origin=fx_origin, domain=(f1_nx, f1_ny, nk)
     )
 
     if nord > 0:
-        corners.copy_corners(d2, "y", grid, kslice)
+        corners.copy_corners_y_stencil(
+            d2, origin=(grid.isd, grid.jsd, kstart), domain=(grid.nid, grid.njd, nk)
+        )
     fy2_order(
         d2,
         grid.del6_u,
@@ -211,9 +215,9 @@ def compute_no_sg(
                 origin=nt_origin_extended,
                 domain=(nt_nx, nt_ny, nk),
             )
-
-            corners.copy_corners(d2, "x", grid, kslice)
-
+            corners.copy_corners_x_stencil(
+                d2, origin=(grid.isd, grid.jsd, kstart), domain=(grid.nid, grid.njd, nk)
+            )
             fx2_order(
                 d2,
                 grid.del6_v,
@@ -222,8 +226,9 @@ def compute_no_sg(
                 origin=nt_origin,
                 domain=(nt_nx - 1, nt_ny - 2, nk),
             )
-
-            corners.copy_corners(d2, "y", grid, kslice)
+            corners.copy_corners_y_stencil(
+                d2, origin=(grid.isd, grid.jsd, kstart), domain=(grid.nid, grid.njd, nk)
+            )
 
             fy2_order(
                 d2,
