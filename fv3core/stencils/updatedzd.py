@@ -98,22 +98,51 @@ def zh_stencil(
 
 @gtscript.function
 def edge_profile_top(
-    q1: FloatField, q2: FloatField, dp0: FloatFieldK, qe1: FloatField, qe2: FloatField
+    dp0: FloatFieldK,
+    q1x: FloatField,
+    q2x: FloatField,
+    qe1x: FloatField,
+    qe2x: FloatField,
+    q1y: FloatField,
+    q2y: FloatField,
+    qe1y: FloatField,
+    qe2y: FloatField,
 ):
+    from __externals__ import local_ie, local_is, local_je, local_js
+
     g0 = dp0[1] / dp0
     xt1 = 2.0 * g0 * (g0 + 1.0)
     bet = g0 * (g0 + 0.5)
-    qe1 = (xt1 * q1 + q1[0, 0, 1]) / bet
-    qe2 = (xt1 * q2 + q2[0, 0, 1]) / bet
     gam = (1.0 + g0 * (g0 + 1.5)) / bet
-    return qe1, qe2, gam
+
+    with horizontal(region[local_is : local_ie + 2, :]):
+        qe1x = (xt1 * q1x + q1x[0, 0, 1]) / bet
+        qe2x = (xt1 * q2x + q2x[0, 0, 1]) / bet
+    with horizontal(region[:, local_js : local_je + 2]):
+        qe1y = (xt1 * q1y + q1y[0, 0, 1]) / bet
+        qe2y = (xt1 * q2y + q2y[0, 0, 1]) / bet
+
+    return qe1x, qe2x, qe1y, qe2y, gam
 
 
 @gtscript.function
-def edge_profile_reverse(qe1: FloatField, qe2: FloatField, gam: FloatField):
-    qe1 -= gam * qe1[0, 0, 1]
-    qe2 -= gam * qe2[0, 0, 1]
-    return qe1, qe2
+def edge_profile_reverse(
+    qe1x: FloatField,
+    qe2x: FloatField,
+    qe1y: FloatField,
+    qe2y: FloatField,
+    gam: FloatField,
+):
+    from __externals__ import local_ie, local_is, local_je, local_js
+
+    with horizontal(region[local_is : local_ie + 2, :]):
+        qe1x -= gam * qe1x[0, 0, 1]
+        qe2x -= gam * qe2x[0, 0, 1]
+    with horizontal(region[:, local_js : local_je + 2]):
+        qe1y -= gam * qe1y[0, 0, 1]
+        qe2y -= gam * qe2y[0, 0, 1]
+
+    return qe1x, qe2x, qe1y, qe2y
 
 
 # NOTE: We have not ported the uniform_grid True option as it is never called
@@ -138,10 +167,9 @@ def ra_and_edge_profile_stencil(
     # edge_profile_stencil
     with computation(FORWARD):
         with interval(0, 1):
-            with horizontal(region[local_is : local_ie + 2, :]):
-                qe1x, qe2x, gam = edge_profile_top(q1x, q2x, dp0, qe1x, qe2x)
-            with horizontal(region[:, local_js : local_je + 2]):
-                qe1y, qe2y, gam = edge_profile_top(q1y, q2y, dp0, qe1y, qe2y)
+            qe1x, qe2x, qe1y, qe2y, gam = edge_profile_top(
+                dp0, q1x, q2x, qe1x, qe2x, q1y, q2y, qe1y, qe2y
+            )
         with interval(1, -1):
             gk = dp0[-1] / dp0
             bet = 2.0 + 2.0 * gk - gam[0, 0, -1]
@@ -170,12 +198,8 @@ def ra_and_edge_profile_stencil(
                 qe2y = (
                     xt1 * q2y[0, 0, -1] + q2y[0, 0, -2] - a_bot * qe2y[0, 0, -1]
                 ) / xt2
-
     with computation(BACKWARD), interval(0, -1):
-        with horizontal(region[local_is : local_ie + 2, :]):
-            qe1x, qe2x = edge_profile_reverse(qe1x, qe2x, gam)
-        with horizontal(region[:, local_js : local_je + 2]):
-            qe1y, qe2y = edge_profile_reverse(qe1y, qe2y, gam)
+        qe1x, qe2x, qe1y, qe2y = edge_profile_reverse(qe1x, qe2x, qe1y, qe2y, gam)
     # ra_stencil
     with computation(PARALLEL), interval(...):
         ra_x, ra_y = ra_func(area, qe2x, qe2y, ra_x, ra_y)
@@ -184,19 +208,15 @@ def ra_and_edge_profile_stencil(
 # def edge_python(q1, q2, qe1, qe2, dp0, gam, islice, jslice, qe1_2, gam_2):
 #     grid = spec.grid
 #     dcol = dp0[:]
-
 #     km = grid.npz - 1
 #     g0 = dcol[1] / dcol[0]
 #     xt1 = 2.0 * g0 * (g0 + 1.0)
 #     bet = g0 * (g0 + 0.5)
-
 #     qe1[islice, jslice, 0] = (xt1 * q1[islice, jslice, 0] +
 #                                     q1[islice, jslice, 1]) / bet
-
 #     qe2[islice, jslice, 0] = (xt1 * q2[islice, jslice, 0] +
 #                                     q2[islice, jslice, 1]) / bet
 #     gam[islice, jslice, 0] = (1.0 + g0 * (g0 + 1.5)) / bet
-
 #     for k in range(1, km + 1):
 #         gk = dcol[k - 1] / dcol[k]
 #         bet = 2.0 + 2.0 * gk - gam[islice, jslice, k - 1]
@@ -209,7 +229,6 @@ def ra_and_edge_profile_stencil(
 #             - qe2[islice, jslice, k - 1]
 #         ) / bet
 #         gam[islice, jslice, k] = gk / bet
-
 #     a_bot = 1.0 + gk * (gk + 1.5)
 #     xt1 = 2.0 * gk * (gk + 1.0)
 #     xt2 = gk * (gk + 0.5) - a_bot * gam[islice, jslice, km]
