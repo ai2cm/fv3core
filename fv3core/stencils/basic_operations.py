@@ -62,7 +62,7 @@ def divide_stencil(in1: FloatField, in2: FloatField, out: FloatField):
 
 
 @gtstencil()
-def addition_stencil(in1: FloatField, in2: FloatField, out: FloatField):
+def addition_stencil(in1: FloatField, in2: FloatFieldIJ, out: FloatField):
     with computation(PARALLEL), interval(...):
         out[0, 0, 0] = in1 + in2
 

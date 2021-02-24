@@ -310,12 +310,14 @@ def k_slice_operation(key, value, ki, dictionary):
     if isinstance(value, gt_storage.storage.Storage):
         shape = value.shape
         if len(shape) == 1:  # K-field
-            shape = (1, 1, len(ki))
-            dictionary[key] = make_storage_data(value[ki], shape, read_only=True)
+            if dictionary[key].mask[2]:
+                shape = (1, 1, len(ki))
+                dictionary[key] = make_storage_data(value[ki], shape, read_only=True)
         elif len(shape) == 2:  # IK-field
-            dictionary[key] = make_storage_data(
-                value[:, ki], (shape[0], 1, len(ki)), read_only=True
-            )
+            if not dictionary[key].mask[1]:
+                dictionary[key] = make_storage_data(
+                    value[:, ki], (shape[0], 1, len(ki)), read_only=True
+                )
         else:  # IJK-field
             dictionary[key] = make_storage_data(
                 value[:, :, ki], (shape[0], shape[1], len(ki)), read_only=True

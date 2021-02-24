@@ -54,7 +54,7 @@ def _compute_stencil(
     v: FloatField,
     flux: FloatField,
     dy: FloatFieldIJ,
-    dya: FloatField,
+    dya: FloatFieldIJ,
     rdy: FloatFieldIJ,
 ):
     from __externals__ import i_end, i_start, j_end, j_start, jord, namelist

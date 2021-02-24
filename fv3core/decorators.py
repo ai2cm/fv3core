@@ -209,9 +209,12 @@ class FV3StencilObject:
     ) -> Dict[str, Tuple[int]]:
         origin_dict = {}
         field_names = list(self.stencil_object.field_info.keys())
+        field_axes = []
         for i in range(len(field_names)):
             field_name = field_names[i]
-            field_axes = self.stencil_object.field_info[field_name].axes
+            # TODO: assert self.stencil_object.field_info[field_name] is not None
+            if self.stencil_object.field_info[field_name]:
+                field_axes = self.stencil_object.field_info[field_name].axes
             field_shape = args[i].shape if i < len(args) else kwargs[field_name].shape
             if field_axes == ["K"]:
                 field_origin = [min(field_shape[0] - 1, origin[2])]
