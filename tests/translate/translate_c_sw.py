@@ -59,7 +59,7 @@ def transportdelp_stencil(
     utc: FloatField,
     vtc: FloatField,
     w: FloatField,
-    rarea: FloatField,
+    rarea: FloatFieldIJ,
     delpc: FloatField,
     ptc: FloatField,
     wc: FloatField,
