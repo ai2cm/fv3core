@@ -309,12 +309,13 @@ def storage_dict(st_dict, names, shape, origin):
 def k_slice_operation(key, value, ki, dictionary):
     if isinstance(value, gt_storage.storage.Storage):
         shape = value.shape
+        mask = dictionary[key].mask if key in dictionary else (True, True, True)
         if len(shape) == 1:  # K-field
-            if dictionary[key].mask[2]:
+            if mask[2]:
                 shape = (1, 1, len(ki))
                 dictionary[key] = make_storage_data(value[ki], shape, read_only=True)
         elif len(shape) == 2:  # IK-field
-            if not dictionary[key].mask[1]:
+            if not mask[1]:
                 dictionary[key] = make_storage_data(
                     value[:, ki], (shape[0], 1, len(ki)), read_only=True
                 )
