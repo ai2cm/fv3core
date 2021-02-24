@@ -18,5 +18,6 @@ if [ "$experiment" = "c128_6ranks_baroclinic" ]; then
     data_path="${TESTDATA_PATH}7.2.3/c128_6ranks_baroclinic"
 fi
 
-$ROOT_DIR/examples/standalone/benchmarks/run_on_daint.sh 2 6 $backend /project/s1053/performance/fv3core_monitor/$backend/ $data_path
-rm -rf .gt_cache_0000*
+$ROOT_DIR/examples/standalone/benchmarks/run_on_daint.sh 1 6 $backend . $data_path
+mkdir -p /scratch/snx3000/olifu/jenkins/scratch/store_gt_caches/$experiment/$backend
+mv .gt_cache_00000* /scratch/snx3000/olifu/jenkins/scratch/store_gt_caches/$experiment/$backend/

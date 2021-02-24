@@ -695,36 +695,7 @@ def d_sw(
     fy = utils.make_storage_from_shape(shape, grid().compute_origin())
     gx = utils.make_storage_from_shape(shape, grid().compute_origin())
     gy = utils.make_storage_from_shape(shape, grid().compute_origin())
-    ra_x = utils.make_storage_from_shape(shape, grid().compute_origin())
-    ra_y = utils.make_storage_from_shape(shape, grid().compute_origin())
-    fxadv.fxadv_stencil(
-        grid().cosa_u,
-        grid().cosa_v,
-        grid().rsin_u,
-        grid().rsin_v,
-        grid().sin_sg1,
-        grid().sin_sg2,
-        grid().sin_sg3,
-        grid().sin_sg4,
-        grid().rdxa,
-        grid().rdya,
-        grid().area,
-        grid().dy,
-        grid().dx,
-        uc,
-        vc,
-        crx,
-        cry,
-        xfx,
-        yfx,
-        ut,
-        vt,
-        ra_x,
-        ra_y,
-        dt,
-        origin=grid().full_origin(),
-        domain=grid().domain_shape_full(),
-    )
+    ra_x, ra_y = fxadv.compute(uc, vc, ut, vt, xfx, yfx, crx, cry, dt)
     fvtp2d.compute_no_sg(
         delp,
         crx,
@@ -843,7 +814,7 @@ def d_sw(
         domain=grid().domain_shape_compute(add=(1, 1, 0)),
     )
 
-    ytp_v.compute(vb, v, ub)
+    ytp_v.compute(vb, u, v, ub)
 
     ubke(
         vb,
@@ -860,7 +831,7 @@ def d_sw(
         domain=grid().domain_shape_compute(add=(1, 1, 0)),
     )
 
-    xtp_u.compute(ub, u, vb)
+    xtp_u.compute(ub, u, v, vb)
 
     ke_horizontal_vorticity_w_qcon_adjust(
         ke,
