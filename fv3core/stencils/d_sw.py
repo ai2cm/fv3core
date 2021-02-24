@@ -64,38 +64,8 @@ def flux_adjust(
         w = flux_integral(w, delp, gx, gy, rarea)
 
 
-@gtstencil()
-def horizontal_relative_vorticity_from_winds(
-    u: FloatField,
-    v: FloatField,
-    ut: FloatField,
-    vt: FloatField,
-    dx: FloatField,
-    dy: FloatField,
-    rarea: FloatField,
-    vorticity: FloatField,
-):
-    """
-    Compute the area mean relative vorticity in the z-direction from the D-grid winds.
-
-    Args:
-        u (in): x-direction wind on D grid
-        v (in): y-direction wind on D grid
-        ut (out): u * dx
-        vt (out): v * dy
-        dx (in): gridcell width in x-direction
-        dy (in): gridcell width in y-direction
-        rarea (in): inverse of area
-        vorticity (out): area mean horizontal relative vorticity
-    """
-    with computation(PARALLEL), interval(...):
-        vt = u * dx
-        ut = v * dy
-        vorticity[0, 0, 0] = rarea * (vt - vt[0, 1, 0] - ut + ut[1, 0, 0])
-
-
 @gtscript.function
-def horizontal_relative_vorticity_from_winds_f(u, v, ut, vt, dx, dy, rarea, vorticity):
+def horizontal_relative_vorticity_from_winds(u, v, ut, vt, dx, dy, rarea, vorticity):
     """
     Compute the area mean relative vorticity in the z-direction from the D-grid winds.
 
@@ -180,7 +150,7 @@ def ke_horizontal_vorticity_w_qcon_adjust(
     with computation(PARALLEL), interval(...):
         ke = ke_from_bwind(ke, ub, vb)
         ke = all_corners_ke(ke, u, v, ut, vt, dt)
-        vt, ut, vorticity = horizontal_relative_vorticity_from_winds_f(
+        vt, ut, vorticity = horizontal_relative_vorticity_from_winds(
             u, v, ut, vt, dx, dy, rarea, vorticity
         )
         w, q_con = adjust_w_and_qcon(w, delp, dw, damp_w, q_con)
@@ -216,6 +186,7 @@ def not_inlineq_pressure_and_vbke(
     )
 
     with computation(PARALLEL), interval(...):
+        # TODO: only needed for d_sw validation
         if __INLINED(spec.namelist.inline_q == 0):
             with horizontal(region[local_is : local_ie + 1, local_js : local_je + 1]):
                 pt = flux_integral(
@@ -433,11 +404,9 @@ def heat_from_damping_and_add_sub(
 
         with horizontal(region[local_is : local_ie + 1, local_js : local_je + 2]):
             if damp_vt > 1e-5:
-                # basic.add_term_stencil()
                 u = u + vt
         with horizontal(region[local_is : local_ie + 2, local_js : local_je + 1]):
             if damp_vt > 1e-5:
-                # basic.subtract_term_stencil()
                 v = v - ut
 
 
@@ -639,6 +608,8 @@ def damp_vertical_wind(w, heat_s, diss_e, dt, column_namelist):
 
 @gtstencil()
 def ubke(
+    vb: FloatField,
+    ke: FloatField,
     uc: FloatField,
     vc: FloatField,
     cosa: FloatField,
@@ -651,6 +622,8 @@ def ubke(
     from __externals__ import i_end, i_start, j_end, j_start
 
     with computation(PARALLEL), interval(...):
+        ke = vb * ub
+
         ub = dt5 * (uc[0, -1, 0] + uc - (vc[-1, 0, 0] + vc) * cosa) * rsina
         if __INLINED(spec.namelist.grid_type < 3):
             with horizontal(region[:, j_start], region[:, j_end + 1]):
@@ -872,15 +845,9 @@ def d_sw(
 
     ytp_v.compute(vb, v, ub)
 
-    basic.multiply_stencil(
-        vb,
-        ub,
-        ke,
-        origin=grid().compute_origin(),
-        domain=grid().domain_shape_compute(add=(1, 1, 0)),
-    )
-
     ubke(
+        vb,
+        ke,
         uc,
         vc,
         grid().cosa,
