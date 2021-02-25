@@ -156,6 +156,19 @@ def ke_horizontal_vorticity_w_qcon_adjust(
         w, q_con = adjust_w_and_qcon(w, delp, dw, damp_w, q_con)
 
 
+@gtscript.function
+def vbke(vc, uc, cosa, rsina, vt, vb, dt4, dt5):
+    from __externals__ import i_end, i_start, j_end, j_start
+
+    vb = dt5 * (vc[-1, 0, 0] + vc - (uc[0, -1, 0] + uc) * cosa) * rsina
+    with horizontal(region[i_start, :], region[i_end + 1, :]):
+        vb = dt4 * (-vt[-2, 0, 0] + 3.0 * (vt[-1, 0, 0] + vt) - vt[1, 0, 0])
+    with horizontal(region[:, j_start], region[:, j_end + 1]):
+        vb = dt5 * (vt[-1, 0, 0] + vt)
+
+    return vb
+
+
 @gtstencil()
 def not_inlineq_pressure_and_vbke(
     gx: FloatField,
@@ -174,16 +187,7 @@ def not_inlineq_pressure_and_vbke(
     dt4: float,
     dt5: float,
 ):
-    from __externals__ import (
-        i_end,
-        i_start,
-        j_end,
-        j_start,
-        local_ie,
-        local_is,
-        local_je,
-        local_js,
-    )
+    from __externals__ import local_ie, local_is, local_je, local_js
 
     with computation(PARALLEL), interval(...):
         # TODO: only needed for d_sw validation
@@ -196,13 +200,8 @@ def not_inlineq_pressure_and_vbke(
                     fx, fy, rarea
                 )  # TODO: Put [0, 0, 0] on left when gt4py bug is fixed
                 pt[0, 0, 0] = pt / delp
-
-        vb = dt5 * (vc[-1, 0, 0] + vc - (uc[0, -1, 0] + uc) * cosa) * rsina
-        if __INLINED(spec.namelist.grid_type < 3):
-            with horizontal(region[i_start, :], region[i_end + 1, :]):
-                vb = dt4 * (-vt[-2, 0, 0] + 3.0 * (vt[-1, 0, 0] + vt) - vt[1, 0, 0])
-            with horizontal(region[:, j_start], region[:, j_end + 1]):
-                vb = dt5 * (vt[-1, 0, 0] + vt)
+        assert __INLINED(spec.namelist.grid_type < 3)
+        vb = vbke(vc, uc, cosa, rsina, vt, vb, dt4, dt5)
 
 
 @gtscript.function
@@ -606,8 +605,22 @@ def damp_vertical_wind(w, heat_s, diss_e, dt, column_namelist):
     return dw, wk
 
 
+@gtscript.function
+def ubke(uc, vc, cosa, rsina, ut, ub, dt4, dt5):
+    from __externals__ import i_end, i_start, j_end, j_start
+
+    ub = dt5 * (uc[0, -1, 0] + uc - (vc[-1, 0, 0] + vc) * cosa) * rsina
+    # if __INLINED(spec.namelist.grid_type < 3):
+    with horizontal(region[:, j_start], region[:, j_end + 1]):
+        ub = dt4 * (-ut[0, -2, 0] + 3.0 * (ut[0, -1, 0] + ut) - ut[0, 1, 0])
+    with horizontal(region[i_start, :], region[i_end + 1, :]):
+        ub = dt5 * (ut[0, -1, 0] + ut)
+
+    return ub
+
+
 @gtstencil()
-def ubke(
+def mult_ubke(
     vb: FloatField,
     ke: FloatField,
     uc: FloatField,
@@ -619,39 +632,10 @@ def ubke(
     dt4: float,
     dt5: float,
 ):
-    from __externals__ import i_end, i_start, j_end, j_start
-
     with computation(PARALLEL), interval(...):
         ke = vb * ub
-
-        ub = dt5 * (uc[0, -1, 0] + uc - (vc[-1, 0, 0] + vc) * cosa) * rsina
-        if __INLINED(spec.namelist.grid_type < 3):
-            with horizontal(region[:, j_start], region[:, j_end + 1]):
-                ub = dt4 * (-ut[0, -2, 0] + 3.0 * (ut[0, -1, 0] + ut) - ut[0, 1, 0])
-            with horizontal(region[i_start, :], region[i_end + 1, :]):
-                ub = dt5 * (ut[0, -1, 0] + ut)
-
-
-@gtstencil()
-def vbke(
-    vc: FloatField,
-    uc: FloatField,
-    cosa: FloatField,
-    rsina: FloatField,
-    vt: FloatField,
-    vb: FloatField,
-    dt4: float,
-    dt5: float,
-):
-    from __externals__ import i_end, i_start, j_end, j_start
-
-    with computation(PARALLEL), interval(...):
-        vb = dt5 * (vc[-1, 0, 0] + vc - (uc[0, -1, 0] + uc) * cosa) * rsina
-        if __INLINED(spec.namelist.grid_type < 3):
-            with horizontal(region[i_start, :], region[i_end + 1, :]):
-                vb = dt4 * (-vt[-2, 0, 0] + 3.0 * (vt[-1, 0, 0] + vt) - vt[1, 0, 0])
-            with horizontal(region[:, j_start], region[:, j_end + 1]):
-                vb = dt5 * (vt[-1, 0, 0] + vt)
+        assert __INLINED(spec.namelist.grid_type < 3)
+        ub = ubke(uc, vc, cosa, rsina, ut, ub, dt4, dt5)
 
 
 def d_sw(
@@ -816,7 +800,7 @@ def d_sw(
 
     ytp_v.compute(vb, u, v, ub)
 
-    ubke(
+    mult_ubke(
         vb,
         ke,
         uc,
