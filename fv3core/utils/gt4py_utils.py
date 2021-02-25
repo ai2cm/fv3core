@@ -161,10 +161,11 @@ def _make_storage_data_1d(
     buffer = zeros(shape[axis])
     if dummy:
         axis = list(set((0, 1, 2)).difference(dummy))[0]
-    if read_only:
-        kstart = start[2]
-        buffer[kstart : kstart + len(data)] = asarray(data, type(buffer))
-    else:
+
+    kstart = start[2]
+    buffer[kstart : kstart + len(data)] = asarray(data, type(buffer))
+
+    if not read_only:
         tile_spec = list(shape)
         tile_spec[axis] = 1
         if axis == 2:
@@ -175,6 +176,7 @@ def _make_storage_data_1d(
         else:
             y = repeat(buffer[:, np.newaxis], shape[1], axis=1)
             buffer = repeat(y[:, :, np.newaxis], shape[2], axis=2)
+
     return buffer
 
 
@@ -204,14 +206,8 @@ def _make_storage_data_2d(
     )
     if do_reshape:
         buffer = buffer.reshape(shape)
+
     return buffer
-    # if dummy:
-    #     data = buffer.reshape(shape)
-    # else:
-    #     data = repeat(buffer[:, :, np.newaxis], shape[axis], axis=2)
-    #     if axis != 2:
-    #         data = moveaxis(data, 2, axis)
-    # return data
 
 
 def _make_storage_data_3d(
