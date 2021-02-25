@@ -464,7 +464,6 @@ def fill_corners_dgrid_fn(x: FloatField, y: FloatField, mysign: float):
     with horizontal(region[i_start - 3, j_start - 3]):
         y = mysign * x[5, 0, 0]
     # ne corner
-    
     with horizontal(region[i_end +  1, j_end +  2]):
         x = mysign * y[1, -2, 0]
     with horizontal(region[i_end +  2, j_end +  1]):
@@ -501,6 +500,43 @@ def fill_corners_dgrid_fn(x: FloatField, y: FloatField, mysign: float):
         x = mysign * y[1, -6, 0]
     with horizontal(region[i_end +  4, j_end +  3]):
         y = mysign * x[-6, 1, 0]
+    # nw corner
+    with horizontal(region[i_start - 1, j_end +  2]):
+        x = y[0, -2, 0]
+    with horizontal(region[i_start - 1, j_end +  1]):
+        y = x[1, 1, 0]
+    with horizontal(region[i_start - 1, j_end +  3]):
+        x = y[-1, -3, 0]
+    with horizontal(region[i_start - 1, j_end +  2]):
+        y = x[2, 0, 0]
+    with horizontal(region[i_start - 1, j_end +  4]):
+        x = y[-2, -4, 0]
+    with horizontal(region[i_start - 1, j_end +  3]):
+        y = x[3, -1, 0]
+    with horizontal(region[i_start - 2, j_end +  2]):
+        x = y[1, -3, 0]
+    with horizontal(region[i_start - 2, j_end +  1]):
+        y = x[2, 2, 0]
+    with horizontal(region[i_start - 2, j_end +  3]):
+        x = y[0, -4, 0]
+    with horizontal(region[i_start - 2, j_end +  2]):
+        y = x[3, 1, 0]
+    with horizontal(region[i_start - 2, j_end +  4]):
+        x = y[-1, -5, 0]
+    with horizontal(region[i_start - 2, j_end +  3]):
+        y = x[4, 0, 0]
+    with horizontal(region[i_start - 3, j_end +  2]):
+        x = y[2, -4, 0]
+    with horizontal(region[i_start - 3, j_end +  1]):
+        y = x[3, 3, 0]
+    with horizontal(region[i_start - 3, j_end +  3]):
+        x = y[1, -5, 0]
+    with horizontal(region[i_start - 3, j_end +  2]):
+        y = x[4, 2, 0]
+    with horizontal(region[i_start - 3, j_end +  4]):
+        x = y[0, -6, 0]
+    with horizontal(region[i_start - 3, j_end +  3]):
+        y = x[5, 1, 0]
     
     return x, y
 
@@ -534,8 +570,8 @@ def fill_corners_dgrid(x, y, grid, vector):
         for j in range(1, 1 + grid.halo):
             #if grid.sw_corner:
             #    fill_sw_corner_vector_dgrid(x, y, i, j, grid, mysign)
-            if grid.nw_corner:
-                fill_nw_corner_vector_dgrid(x, y, i, j, grid)
+            #if grid.nw_corner:
+            #    fill_nw_corner_vector_dgrid(x, y, i, j, grid)
             if grid.se_corner:
                 fill_se_corner_vector_dgrid(x, y, i, j, grid)
             #if grid.ne_corner:
