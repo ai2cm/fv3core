@@ -64,7 +64,7 @@ class TranslateRemapping_Part1(TranslateFortranData2Py):
         }
         self.in_vars["parameters"] = ["ptop", "akap", "r_vir", "nq"]
         self.out_vars = {}
-        self.write_vars = ["gz", "cvm"]
+        self.write_vars = ["gz", "cvm", "wsd"]
         for k in [
             "pe",
             "pkz",

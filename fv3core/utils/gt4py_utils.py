@@ -86,7 +86,7 @@ def make_storage_data(
     dummy: Optional[Tuple[int, int, int]] = None,
     axis: int = 2,
     max_dim: int = 3,
-    read_only: bool = False,
+    read_only: bool = True,
 ) -> Field:
     """Create a new gt4py storage from the given data.
 
@@ -120,20 +120,20 @@ def make_storage_data(
         shape = data.shape
 
     if not mask:
-        if n_dims == 1:
-            if read_only:
-                mask = tuple([i == axis for i in range(max_dim)])
-            else:
-                mask = (True, True, True)
-        elif dummy or axis != 2:
+        if not read_only:
             mask = (True, True, True)
         else:
-            mask = (n_dims * (True,)) + ((max_dim - n_dims) * (False,))
+            if n_dims == 1:
+                mask = tuple([i == axis for i in range(max_dim)])
+            elif dummy or axis != 2:
+                mask = (True, True, True)
+            else:
+                mask = (n_dims * (True,)) + ((max_dim - n_dims) * (False,))
 
     if n_dims == 1:
         data = _make_storage_data_1d(data, shape, start, dummy, axis, read_only)
     elif n_dims == 2:
-        data = _make_storage_data_2d(data, shape, start, dummy, axis)
+        data = _make_storage_data_2d(data, shape, start, dummy, axis, read_only)
     else:
         data = _make_storage_data_3d(data, shape, start)
 
@@ -155,7 +155,7 @@ def _make_storage_data_1d(
     start: Tuple[int, int, int] = (0, 0, 0),
     dummy: Optional[Tuple[int, int, int]] = None,
     axis: int = 2,
-    read_only: bool = False,
+    read_only: bool = True,
 ) -> Field:
     # axis refers to a repeated axis, dummy refers to a singleton axis
     buffer = zeros(shape[axis])
@@ -186,6 +186,7 @@ def _make_storage_data_2d(
     start: Tuple[int, int, int] = (0, 0, 0),
     dummy: Optional[Tuple[int, int, int]] = None,
     axis: int = 2,
+    read_only: bool = True,
 ) -> Field:
     # axis refers to which axis should be repeated (when making a full 3d data),
     # dummy refers to a singleton axis
@@ -204,7 +205,12 @@ def _make_storage_data_2d(
     buffer[start1 : start1 + size1, start2 : start2 + size2] = asarray(
         data, type(buffer)
     )
-    if do_reshape:
+
+    if not read_only:
+        buffer = repeat(buffer[:, :, np.newaxis], shape[axis], axis=2)
+        if axis != 2:
+            buffer = moveaxis(buffer, 2, axis)
+    elif do_reshape:
         buffer = buffer.reshape(shape)
 
     return buffer

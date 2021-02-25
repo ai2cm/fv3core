@@ -22,8 +22,9 @@ class TranslateQSInit(TranslateFortranData2Py):
 
     def compute(self, inputs):
         self.make_storage_data_input_vars(inputs)
+        index = np.arange(satadjust.QS_LENGTH)
         inputs["index"] = utils.make_storage_data(
-            np.arange(satadjust.QS_LENGTH), self.maxshape, origin=(0, 0, 0)
+            index, self.maxshape, origin=(0, 0, 0), read_only=False
         )
         kwargs = {"origin": (0, 0, 0), "domain": self.maxshape}
         self.compute_func(**inputs, **kwargs)

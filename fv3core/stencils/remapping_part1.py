@@ -91,11 +91,9 @@ def moist_cv_pt_pressure(
         if not hydrostatic:
             delz = -delz / delp
     # pressure_updates
-    with computation(BACKWARD):
+    with computation(FORWARD):
         with interval(-1, None):
             ps = pe
-        # with interval(0, -1):
-        #     ps = ps[0, 0, 1]
     with computation(PARALLEL):
         with interval(0, 1):
             pn2 = peln
@@ -193,7 +191,7 @@ def compute(
     hs: FloatFieldIJ,
     te: FloatField,
     ps: FloatFieldIJ,
-    wsd: FloatFieldIJ,
+    wsd: FloatField,
     omga: FloatField,
     ak: FloatFieldK,
     bk: FloatFieldK,
@@ -291,8 +289,7 @@ def compute(
     # TODO else if nq > 0:
     # TODO map1_q2, fillz
     kord_wz = spec.namelist.kord_wz
-    wsd_3d = utils.make_storage_data(wsd[:, 0], pt.shape)
-    map_single.compute(w, pe1, pe2, wsd_3d, -2, grid.is_, grid.ie, kord_wz)
+    map_single.compute(w, pe1, pe2, wsd, -2, grid.is_, grid.ie, kord_wz)
     map_single.compute(delz, pe1, pe2, gz, 1, grid.is_, grid.ie, kord_wz)
 
     undo_delz_adjust_and_copy_peln(
