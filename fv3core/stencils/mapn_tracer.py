@@ -21,9 +21,7 @@ def compute(
     j_2d: Optional[int] = None,
     version: str = "stencil",
 ):
-    qs = utils.make_storage_from_shape(
-        (pe1.shape[0],), origin=(0,), mask=(True, False, False)
-    )
+    qs = utils.make_storage_from_shape(pe1.shape, origin=(0, 0, 0))
     (
         dp1,
         q4_1,

@@ -116,7 +116,7 @@ def set_vals(
     a4_3: FloatField,
     a4_4: FloatField,
     q_bot: FloatField,
-    qs: FloatFieldI,
+    qs: FloatField,
     iv: int,
     kord: int,
 ):

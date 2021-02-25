@@ -24,6 +24,7 @@ class TranslateCS_Profile_2d(TranslateFortranData2Py):
             "a4_4": {"serialname": "q4_4", "istart": 0, "iend": grid.ie - 2},
         }
         self.ignore_near_zero_errors = {"q4_4": True}
+        self.write_vars = ["qs"]
 
     def make_storage_data_input_vars(self, inputs, storage_vars=None):
         if storage_vars is None:
@@ -93,3 +94,4 @@ class TranslateCS_Profile_2d_2(TranslateCS_Profile_2d):
             "a4_4": {"serialname": "q4_4_2", "istart": 0, "iend": grid.ie - 3},
         }
         self.ignore_near_zero_errors = {"q4_4_2": True}
+        self.write_vars = ["qs"]
