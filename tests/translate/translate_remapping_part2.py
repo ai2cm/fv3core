@@ -23,8 +23,13 @@ class TranslateRemapping_Part2(TranslateFortranData2Py):
             "delp": {},
             "cappa": {},
             "q_con": {},
-            "gz": {"serialname": "gz1d", "kstart": grid.is_, "axis": 0},
-            "cvm": {"kstart": grid.is_, "axis": 0},
+            "gz": {
+                "serialname": "gz1d",
+                "kstart": grid.is_,
+                "axis": 0,
+                "full_shape": True,
+            },
+            "cvm": {"kstart": grid.is_, "axis": 0, "full_shape": True},
             "pkz": grid.compute_dict(),
             "pk": {
                 "istart": grid.is_,
@@ -112,3 +117,4 @@ class TranslateRemapping_Part2(TranslateFortranData2Py):
         ]:
             self.out_vars[k] = self.in_vars["data_vars"][k]
         self.max_error = 2e-14
+        self.write_vars = ["gz", "cvm"]
