@@ -207,6 +207,174 @@ def higher_order_compute(
             fy2 = fy2_func(d2, del6_u, order)
 
 
+@gtstencil
+def higher_order_compute_unroll3(
+    fx2: FloatField,
+    fy2: FloatField,
+    rarea: FloatField,
+    d2: FloatField,
+    del6_u: FloatField,
+    del6_v: FloatField,
+):
+    from __externals__ import local_ie, local_is, local_je, local_js
+
+    with computation(PARALLEL), interval(...):
+
+        d2 = corners.copy_corners_x(d2)
+        with horizontal(
+            region[
+                (local_is - 3) : (local_ie + 3 + 2), (local_js - 3) : (local_je + 3 + 1)
+            ]
+        ):
+            fx2 = fx2_func(d2, del6_v, 1)
+        d2 = corners.copy_corners_y(d2)
+        with horizontal(
+            region[
+                (local_is - 3) : (local_ie + 3 + 1), (local_js - 3) : (local_je + 3 + 2)
+            ]
+        ):
+            fy2 = fy2_func(d2, del6_u, 1)
+
+        with horizontal(
+            region[
+                (local_is - 2 - 1) : (local_ie + 2 + 2),
+                (local_js - 2 - 1) : (local_je + 2 + 2),
+            ]
+        ):
+            d2 = d2_high_order(fx2, fy2, rarea)
+        d2 = corners.copy_corners_x(d2)
+        with horizontal(
+            region[
+                (local_is - 2) : (local_ie + 2 + 2), (local_js - 2) : (local_je + 2 + 1)
+            ]
+        ):
+            fx2 = fx2_func(d2, del6_v, 2)
+        d2 = corners.copy_corners_y(d2)
+        with horizontal(
+            region[
+                (local_is - 2) : (local_ie + 2 + 1), (local_js - 2) : (local_je + 2 + 2)
+            ]
+        ):
+            fy2 = fy2_func(d2, del6_u, 2)
+
+        with horizontal(
+            region[
+                (local_is - 1 - 1) : (local_ie + 1 + 2),
+                (local_js - 1 - 1) : (local_je + 1 + 2),
+            ]
+        ):
+            d2 = d2_high_order(fx2, fy2, rarea)
+        d2 = corners.copy_corners_x(d2)
+        with horizontal(
+            region[
+                (local_is - 1) : (local_ie + 1 + 2), (local_js - 1) : (local_je + 1 + 1)
+            ]
+        ):
+            fx2 = fx2_func(d2, del6_v, 3)
+        d2 = corners.copy_corners_y(d2)
+        with horizontal(
+            region[
+                (local_is - 1) : (local_ie + 1 + 1), (local_js - 1) : (local_je + 1 + 2)
+            ]
+        ):
+            fy2 = fy2_func(d2, del6_u, 3)
+
+        with horizontal(
+            region[
+                (local_is - 0 - 1) : (local_ie + 0 + 2),
+                (local_js - 0 - 1) : (local_je + 0 + 2),
+            ]
+        ):
+            d2 = d2_high_order(fx2, fy2, rarea)
+        d2 = corners.copy_corners_x(d2)
+        with horizontal(
+            region[
+                (local_is - 0) : (local_ie + 0 + 2), (local_js - 0) : (local_je + 0 + 1)
+            ]
+        ):
+            fx2 = fx2_func(d2, del6_v, 4)
+        d2 = corners.copy_corners_y(d2)
+        with horizontal(
+            region[
+                (local_is - 0) : (local_ie + 0 + 1), (local_js - 0) : (local_je + 0 + 2)
+            ]
+        ):
+            fy2 = fy2_func(d2, del6_u, 4)
+
+
+@gtstencil
+def higher_order_compute_unroll2(
+    fx2: FloatField,
+    fy2: FloatField,
+    rarea: FloatField,
+    d2: FloatField,
+    del6_u: FloatField,
+    del6_v: FloatField,
+):
+    from __externals__ import local_ie, local_is, local_je, local_js
+
+    with computation(PARALLEL), interval(...):
+
+        d2 = corners.copy_corners_x(d2)
+        with horizontal(
+            region[
+                (local_is - 2) : (local_ie + 2 + 2), (local_js - 2) : (local_je + 2 + 1)
+            ]
+        ):
+            fx2 = fx2_func(d2, del6_v, 1)
+        d2 = corners.copy_corners_y(d2)
+        with horizontal(
+            region[
+                (local_is - 2) : (local_ie + 2 + 1), (local_js - 2) : (local_je + 2 + 2)
+            ]
+        ):
+            fy2 = fy2_func(d2, del6_u, 1)
+
+        with horizontal(
+            region[
+                (local_is - 1 - 1) : (local_ie + 1 + 2),
+                (local_js - 1 - 1) : (local_je + 1 + 2),
+            ]
+        ):
+            d2 = d2_high_order(fx2, fy2, rarea)
+        d2 = corners.copy_corners_x(d2)
+        with horizontal(
+            region[
+                (local_is - 1) : (local_ie + 1 + 2), (local_js - 1) : (local_je + 1 + 1)
+            ]
+        ):
+            fx2 = fx2_func(d2, del6_v, 2)
+        d2 = corners.copy_corners_y(d2)
+        with horizontal(
+            region[
+                (local_is - 1) : (local_ie + 1 + 1), (local_js - 1) : (local_je + 1 + 2)
+            ]
+        ):
+            fy2 = fy2_func(d2, del6_u, 2)
+
+        with horizontal(
+            region[
+                (local_is - 0 - 1) : (local_ie + 0 + 2),
+                (local_js - 0 - 1) : (local_je + 0 + 2),
+            ]
+        ):
+            d2 = d2_high_order(fx2, fy2, rarea)
+        d2 = corners.copy_corners_x(d2)
+        with horizontal(
+            region[
+                (local_is - 0) : (local_ie + 0 + 2), (local_js - 0) : (local_je + 0 + 1)
+            ]
+        ):
+            fx2 = fx2_func(d2, del6_v, 3)
+        d2 = corners.copy_corners_y(d2)
+        with horizontal(
+            region[
+                (local_is - 0) : (local_ie + 0 + 1), (local_js - 0) : (local_je + 0 + 2)
+            ]
+        ):
+            fy2 = fy2_func(d2, del6_u, 3)
+
+
 def compute_delnflux_no_sg(
     q: FloatField,
     fx: FloatField,
@@ -232,7 +400,9 @@ def compute_delnflux_no_sg(
     diffuse_origin = (grid.is_, grid.js, kstart)
     extended_domain = (grid.nic + 1, grid.njc + 1, nk)
 
-    compute_no_sg(q, fx2, fy2, nord, damp, d2, kstart, nk, mass)
+    # compute_no_sg_merge_loop(q, fx2, fy2, nord, damp, d2, kstart, nk, mass)
+    # compute_no_sg_multi_loop(q, fx2, fy2, nord, damp, d2, kstart, nk, mass)
+    compute_no_sg_unroll(q, fx2, fy2, nord, damp, d2, kstart, nk, mass)
 
     if mass is None:
         add_diffusive_component(
@@ -245,7 +415,7 @@ def compute_delnflux_no_sg(
     return fx, fy
 
 
-def compute_no_sg(
+def compute_no_sg_merge_loop(
     q: FloatField,
     fx2: FloatField,
     fy2: FloatField,
@@ -299,3 +469,144 @@ def compute_no_sg(
                 origin=(grid.isd, grid.jsd, kstart),
                 domain=(grid.nid, grid.njd, nk),
             )
+
+
+def compute_no_sg_multi_loop(
+    q: FloatField,
+    fx2: FloatField,
+    fy2: FloatField,
+    nord: int,
+    damp_c: float,
+    d2: FloatField,
+    kstart: Optional[int] = 0,
+    nk: Optional[int] = None,
+    mass: Optional["FloatField"] = None,
+):
+    grid = spec.grid
+    i1 = grid.is_ - 1 - nord
+    i2 = grid.ie + 1 + nord
+    j1 = grid.js - 1 - nord
+    j2 = grid.je + 1 + nord
+    if nk is None:
+        nk = grid.npz - kstart
+    origin_d2 = (i1, j1, kstart)
+    domain_d2 = (i2 - i1 + 1, j2 - j1 + 1, nk)
+    fxy_stencil = gtstencil(definition=fxy_order, externals={"nord": nord})
+    if mass is None:
+        d2_damp(q, d2, damp_c, origin=origin_d2, domain=domain_d2)
+    else:
+        d2 = copy(q, origin=origin_d2, domain=domain_d2)
+
+    fxy_stencil(
+        d2,
+        grid.del6_u,
+        grid.del6_v,
+        fx2,
+        fy2,
+        order=1,
+        origin=(grid.isd, grid.jsd, kstart),
+        domain=(grid.nid, grid.njd, nk),
+    )
+
+    if nord > 0:
+        for n in range(nord):
+            nt = nord - 1 - n
+            nt_origin_extended = (grid.is_ - nt - 1, grid.js - nt - 1, kstart)
+            nt_ny = grid.je - grid.js + 3 + 2 * nt
+            nt_nx = grid.ie - grid.is_ + 3 + 2 * nt
+            nt_origin = (grid.is_ - nt, grid.js - nt, kstart)
+            d2_highorder(
+                fx2,
+                fy2,
+                grid.rarea,
+                d2,
+                origin=nt_origin_extended,
+                domain=(nt_nx, nt_ny, nk),
+            )
+            corners.copy_corners_x_stencil(
+                d2, origin=(grid.isd, grid.jsd, kstart), domain=(grid.nid, grid.njd, nk)
+            )
+            fx2_order(
+                d2,
+                grid.del6_v,
+                fx2,
+                order=2 + n,
+                origin=nt_origin,
+                domain=(nt_nx - 1, nt_ny - 2, nk),
+            )
+            corners.copy_corners_y_stencil(
+                d2, origin=(grid.isd, grid.jsd, kstart), domain=(grid.nid, grid.njd, nk)
+            )
+
+            fy2_order(
+                d2,
+                grid.del6_u,
+                fy2,
+                order=2 + n,
+                origin=nt_origin,
+                domain=(nt_nx - 2, nt_ny - 1, nk),
+            )
+
+
+def compute_no_sg_unroll(
+    q: FloatField,
+    fx2: FloatField,
+    fy2: FloatField,
+    nord: int,
+    damp_c: float,
+    d2: FloatField,
+    kstart: Optional[int] = 0,
+    nk: Optional[int] = None,
+    mass: Optional["FloatField"] = None,
+):
+    grid = spec.grid
+    i1 = grid.is_ - 1 - nord
+    i2 = grid.ie + 1 + nord
+    j1 = grid.js - 1 - nord
+    j2 = grid.je + 1 + nord
+    if nk is None:
+        nk = grid.npz - kstart
+    origin_d2 = (i1, j1, kstart)
+    domain_d2 = (i2 - i1 + 1, j2 - j1 + 1, nk)
+    if mass is None:
+        d2_damp(q, d2, damp_c, origin=origin_d2, domain=domain_d2)
+    else:
+        d2 = copy(q, origin=origin_d2, domain=domain_d2)
+
+    if nord > 0:
+        if nord == 3:  # 2, 1, 0
+            higher_order_compute_unroll3(
+                fx2,
+                fy2,
+                grid.rarea,
+                d2,
+                grid.del6_u,
+                grid.del6_v,
+                origin=(grid.isd, grid.jsd, kstart),
+                domain=(grid.nid, grid.njd, nk),
+            )
+        elif nord == 2:  # 1, 0
+            higher_order_compute_unroll2(
+                fx2,
+                fy2,
+                grid.rarea,
+                d2,
+                grid.del6_u,
+                grid.del6_v,
+                origin=(grid.isd, grid.jsd, kstart),
+                domain=(grid.nid, grid.njd, nk),
+            )
+        else:
+            raise NotImplementedError("nord is currently limited to 3, 2, or 0")
+    else:
+        fxy_stencil = gtstencil(definition=fxy_order, externals={"nord": nord})
+        fxy_stencil(
+            d2,
+            grid.del6_u,
+            grid.del6_v,
+            fx2,
+            fy2,
+            order=1,
+            origin=(grid.isd, grid.jsd, kstart),
+            domain=(grid.nid, grid.njd, nk),
+        )
