@@ -1,7 +1,7 @@
 from gt4py.gtscript import PARALLEL, computation, horizontal, interval, region
 
-import fv3core
 import fv3core._config as spec
+import fv3core.utils.global_config as global_config
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import gtstencil
 from fv3core.utils.typing import FloatField
@@ -93,9 +93,9 @@ def compute_cubed_to_latlon(
         comm: Cubed-sphere communicator
         do_halo_update: If True, performs a halo update on u and v
     """
-    do_halo_update = do_halo_update and fv3core.get_do_halo_exchange()
+    do_halo_update = do_halo_update and global_config.get_do_halo_exchange()
     grid = spec.grid
-    print("DO HALO IN CUBE, rank", grid.rank, fv3core.get_do_halo_exchange())
+
     if spec.namelist.c2l_ord == 2:
         c2l_ord2(
             u.storage,
