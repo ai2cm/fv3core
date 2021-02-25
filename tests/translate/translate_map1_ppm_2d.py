@@ -36,6 +36,7 @@ class TranslateMap1_PPM_2d(TranslateFortranData2Py):
         self.in_vars["parameters"] = ["j_2d", "i1", "i2", "mode", "kord"]
         self.out_vars = {"var_inout": {}}
         self.max_error = 5e-13
+        self.write_vars = ["qs"]
 
     def compute(self, inputs):
         self.make_storage_data_input_vars(inputs)
