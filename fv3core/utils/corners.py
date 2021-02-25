@@ -423,10 +423,90 @@ def fill_corners_2d(q, grid, gridtype, direction="x"):
                 if grid.ne_corner:
                     fill_ne_corner_2d_agrid(q, i, j, direction, grid)
 
+@gtscript.function
+def fill_corners_dgrid_fn(x: FloatField, y: FloatField, mysign: float):
+    from __externals__ import i_start, i_end, j_start, j_end
+    # sw corner
+    with horizontal(region[i_start - 1, j_start - 1]):
+        x = mysign * y[0, 1, 0]
+    with horizontal(region[i_start - 1, j_start - 1]):
+        y = mysign * x[1, 0, 0]
+    with horizontal(region[i_start - 1, j_start - 2]):
+        x = mysign * y[-1, 2, 0]
+    with horizontal(region[i_start - 1, j_start - 2]):
+        y = mysign * x[2, 1, 0]
+    with horizontal(region[i_start - 1, j_start - 3]):
+        x = mysign * y[-2, 3, 0]
+    with horizontal(region[i_start - 1, j_start - 3]):
+        y = mysign * x[3, 2, 0]
+    with horizontal(region[i_start - 2, j_start - 1]):
+        x = mysign * y[1, 2, 0]
+    with horizontal(region[i_start - 2, j_start - 1]):
+        y = mysign * x[2, -1, 0]
+    with horizontal(region[i_start - 2, j_start - 2]):
+        x = mysign * y[0, 3, 0]
+    with horizontal(region[i_start - 2, j_start - 2]):
+        y = mysign * x[3, 0, 0]
+    with horizontal(region[i_start - 2, j_start - 3]):
+        x = mysign * y[-1, 4, 0]
+    with horizontal(region[i_start - 2, j_start - 3]):
+        y = mysign * x[4, 1, 0]
+    with horizontal(region[i_start - 3, j_start - 1]):
+        x = mysign * y[2, 3, 0]
+    with horizontal(region[i_start - 3, j_start - 1]):
+        y = mysign * x[3, -2, 0]
+    with horizontal(region[i_start - 3, j_start - 2]):
+        x = mysign * y[1, 4, 0]
+    with horizontal(region[i_start - 3, j_start - 2]):
+        y = mysign * x[4, -1, 0]
+    with horizontal(region[i_start - 3, j_start - 3]):
+        x = mysign * y[0, 5, 0]
+    with horizontal(region[i_start - 3, j_start - 3]):
+        y = mysign * x[5, 0, 0]
+    # ne corner
+    
+    with horizontal(region[i_end +  1, j_end +  2]):
+        x = mysign * y[1, -2, 0]
+    with horizontal(region[i_end +  2, j_end +  1]):
+        y = mysign * x[-2, 1, 0]
+    with horizontal(region[i_end +  1, j_end +  3]):
+        x = mysign * y[2, -3, 0]
+    with horizontal(region[i_end +  2, j_end +  2]):
+        y = mysign * x[-3, 0, 0]
+    with horizontal(region[i_end +  1, j_end +  4]):
+        x = mysign * y[3, -4, 0]
+    with horizontal(region[i_end +  2, j_end +  3]):
+        y = mysign * x[-4, -1, 0]
+    with horizontal(region[i_end +  2, j_end +  2]):
+        x = mysign * y[0, -3, 0]
+    with horizontal(region[i_end +  3, j_end +  1]):
+        y = mysign * x[-3, 2, 0]
+    with horizontal(region[i_end +  2, j_end +  3]):
+        x = mysign * y[1, -4, 0]
+    with horizontal(region[i_end +  3, j_end +  2]):
+        y = mysign * x[-4, 1, 0]
+    with horizontal(region[i_end +  2, j_end +  4]):
+        x = mysign * y[2, -5, 0]
+    with horizontal(region[i_end +  3, j_end +  3]):
+        y = mysign * x[-5, 0, 0]
+    with horizontal(region[i_end +  3, j_end +  2]):
+        x = mysign * y[-1, -4, 0]
+    with horizontal(region[i_end +  4, j_end +  1]):
+        y = mysign * x[-4, 3, 0]
+    with horizontal(region[i_end +  3, j_end +  3]):
+        x = mysign * y[0, -5, 0]
+    with horizontal(region[i_end +  4, j_end +  2]):
+        y = mysign * x[-5, 2, 0]
+    with horizontal(region[i_end +  3, j_end +  4]):
+        x = mysign * y[1, -6, 0]
+    with horizontal(region[i_end +  4, j_end +  3]):
+        y = mysign * x[-6, 1, 0]
+    
+    return x, y
 
-def fill_sw_corner_vector_dgrid(x, y, i, j, grid, mysign):
-    x[grid.is_ - i, grid.js - j, :] = mysign * y[grid.is_ - j, i + 2, :]
-    y[grid.is_ - i, grid.js - j, :] = mysign * x[j + 2, grid.js - i, :]
+#def fill_sw_corner_vector_dgrid(x, y, i, j, grid, mysign):
+#    x[grid.is_ - i, grid.js - j, :] = mysign * y[grid.is_ - j, i + 2, :]
+#    y[grid.is_ - i, grid.js - j, :] = mysign * x[j + 2, grid.js - i, :]
 
 
 def fill_nw_corner_vector_dgrid(x, y, i, j, grid):
@@ -448,18 +528,23 @@ def fill_corners_dgrid(x, y, grid, vector):
     mysign = 1.0
     if vector:
         mysign = -1.0
+    fill_corners_dgrid_stencil(x, y, mysign, origin=grid.full_origin(), domain=grid.domain_shape_full(add=(1, 1, 0)))
+    print('grid', grid.ie)
     for i in range(1, 1 + grid.halo):
         for j in range(1, 1 + grid.halo):
-            if grid.sw_corner:
-                fill_sw_corner_vector_dgrid(x, y, i, j, grid, mysign)
+            #if grid.sw_corner:
+            #    fill_sw_corner_vector_dgrid(x, y, i, j, grid, mysign)
             if grid.nw_corner:
                 fill_nw_corner_vector_dgrid(x, y, i, j, grid)
             if grid.se_corner:
                 fill_se_corner_vector_dgrid(x, y, i, j, grid)
-            if grid.ne_corner:
-                fill_ne_corner_vector_dgrid(x, y, i, j, grid, mysign)
+            #if grid.ne_corner:
+            #    fill_ne_corner_vector_dgrid(x, y, i, j, grid, mysign)
 
-
+@gtstencil
+def fill_corners_dgrid_stencil(u: FloatField, v: FloatField, mysign: float):
+    with computation(PARALLEL), interval(...):
+        u, v, = fill_corners_dgrid_fn(u, v, mysign)
 def corner_ke(ke, u, v, ut, vt, i, j, dt, offsets, vsign):
     dt6 = dt / 6.0
     ke[i, j, :] = dt6 * (
