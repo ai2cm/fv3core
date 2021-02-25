@@ -1,5 +1,13 @@
 import gt4py.gtscript as gtscript
-from gt4py.gtscript import BACKWARD, FORWARD, PARALLEL, computation, interval
+from gt4py.gtscript import (
+    BACKWARD,
+    FORWARD,
+    PARALLEL,
+    computation,
+    horizontal,
+    interval,
+    region,
+)
 
 import fv3core._config as spec
 import fv3core.stencils.delnflux as delnflux
@@ -17,14 +25,31 @@ DZ_MIN = constants.DZ_MIN
 
 @gtstencil()
 def ra_x_stencil(area: sd, xfx_adv: sd, ra_x: sd):
+    from __externals__ import local_ie, local_is, local_je, local_js
+
     with computation(PARALLEL), interval(...):
-        ra_x = ra_x_func(area, xfx_adv)
+        with horizontal(region[local_is : local_ie + 1, local_js - 3 : local_je + 4]):
+            ra_x = ra_x_func(area, xfx_adv)
 
 
 @gtstencil()
 def ra_y_stencil(area: sd, yfx_adv: sd, ra_y: sd):
+    from __externals__ import local_ie, local_is, local_je, local_js
+
     with computation(PARALLEL), interval(...):
-        ra_y = ra_y_func(area, yfx_adv)
+        with horizontal(region[local_is - 3 : local_ie + 4, local_js : local_je + 1]):
+            ra_y = ra_y_func(area, yfx_adv)
+
+
+@gtstencil()
+def ra_stencil_update(area: sd, xfx_adv: sd, ra_x: sd, yfx_adv: sd, ra_y: sd):
+    from __externals__ import local_ie, local_is, local_je, local_js
+
+    with computation(PARALLEL), interval(...):
+        with horizontal(region[local_is : local_ie + 1, local_js - 3 : local_je + 4]):
+            ra_x = ra_x_func(area, xfx_adv)
+        with horizontal(region[local_is - 3 : local_ie + 4, local_js : local_je + 1]):
+            ra_y = ra_y_func(area, yfx_adv)
 
 
 @gtscript.function
