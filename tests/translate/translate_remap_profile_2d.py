@@ -1,13 +1,13 @@
 import numpy as np
 
-import fv3core.stencils.remap_profile as Profile
+import fv3core.stencils.remap_profile as profile
 from fv3core.testing import TranslateFortranData2Py
 
 
 class TranslateCS_Profile_2d(TranslateFortranData2Py):
     def __init__(self, grid):
         super().__init__(grid)
-        self.compute_func = Profile.compute
+        self.compute_func = profile.compute
         self.in_vars["data_vars"] = {
             "qs": {"serialname": "qs_column"},
             "a4_1": {"serialname": "q4_1"},
@@ -38,25 +38,12 @@ class TranslateCS_Profile_2d(TranslateFortranData2Py):
             istart, jstart, kstart = self.collect_start_indices(
                 inputs[serialname].shape, info
             )
-
-            shapes = np.squeeze(inputs[serialname]).shape
-            axis = 2
-            dummy_axes = None
-            if len(shapes) == 2:
-                # suppress j
-                dummy_axes = [1]
-            elif len(shapes) == 1:
-                # suppress j and k
-                # dummy_axes = [1, 2]
-                axis = 0
-
             inputs[d] = self.make_storage_data(
                 np.squeeze(inputs[serialname]),
                 istart=istart,
                 jstart=jstart,
                 kstart=kstart,
-                dummy_axes=dummy_axes,
-                axis=axis,
+                axis=len(inputs[serialname].shape) - 1,
                 read_only=d not in self.write_vars,
             )
             if d != serialname:
@@ -77,7 +64,7 @@ class TranslateCS_Profile_2d(TranslateFortranData2Py):
 class TranslateCS_Profile_2d_2(TranslateCS_Profile_2d):
     def __init__(self, grid):
         super().__init__(grid)
-        self.compute_func = Profile.compute
+        self.compute_func = profile.compute
         self.in_vars["data_vars"] = {
             "qs": {"serialname": "qs_column_2"},
             "a4_1": {"serialname": "q4_1_2"},
@@ -94,4 +81,3 @@ class TranslateCS_Profile_2d_2(TranslateCS_Profile_2d):
             "a4_4": {"serialname": "q4_4_2", "istart": 0, "iend": grid.ie - 3},
         }
         self.ignore_near_zero_errors = {"q4_4_2": True}
-        self.write_vars = ["qs"]
