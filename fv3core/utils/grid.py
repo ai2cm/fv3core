@@ -318,12 +318,20 @@ class Grid:
         return np.copy(var[i_index:, :, :]), np.copy(var[:, j_index:, :])
 
     def insert_left_edge(self, var, edge_data_i, i_index, edge_data_j, j_index):
-        var[:i_index, :, :] = edge_data_i
-        var[:, :j_index, :] = edge_data_j
+        if len(var.shape) < 3:
+            var[:i_index, :] = edge_data_i
+            var[:, :j_index] = edge_data_j
+        else:
+            var[:i_index, :, :] = edge_data_i
+            var[:, :j_index, :] = edge_data_j
 
     def insert_right_edge(self, var, edge_data_i, i_index, edge_data_j, j_index):
-        var[i_index:, :, :] = edge_data_i
-        var[:, j_index:, :] = edge_data_j
+        if len(var.shape) < 3:
+            var[i_index:, :] = edge_data_i
+            var[:, j_index:] = edge_data_j
+        else:
+            var[i_index:, :, :] = edge_data_i
+            var[:, j_index:, :] = edge_data_j
 
     def uvar_edge_halo(self, var):
         return self.copy_right_edge(var, self.ie + 2, self.je + 1)
@@ -344,22 +352,40 @@ class Grid:
         self.insert_right_edge(vvar, v_edge_i, self.ie + 1, v_edge_j, self.je + 2)
 
     def overwrite_edges(self, var, edgevar, left_i_index, left_j_index):
-        self.insert_left_edge(
-            var,
-            edgevar[:left_i_index, :, :],
-            left_i_index,
-            edgevar[:, :left_j_index, :],
-            left_j_index,
-        )
-        right_i_index = self.ie + left_i_index
-        right_j_index = self.ie + left_j_index
-        self.insert_right_edge(
-            var,
-            edgevar[right_i_index:, :, :],
-            right_i_index,
-            edgevar[:, right_j_index:, :],
-            right_j_index,
-        )
+        if len(var.shape) < 3:
+            self.insert_left_edge(
+                var,
+                edgevar[:left_i_index, :],
+                left_i_index,
+                edgevar[:, :left_j_index],
+                left_j_index,
+            )
+            right_i_index = self.ie + left_i_index
+            right_j_index = self.ie + left_j_index
+            self.insert_right_edge(
+                var,
+                edgevar[right_i_index:, :],
+                right_i_index,
+                edgevar[:, right_j_index:],
+                right_j_index,
+            )
+        else:
+            self.insert_left_edge(
+                var,
+                edgevar[:left_i_index, :, :],
+                left_i_index,
+                edgevar[:, :left_j_index, :],
+                left_j_index,
+            )
+            right_i_index = self.ie + left_i_index
+            right_j_index = self.ie + left_j_index
+            self.insert_right_edge(
+                var,
+                edgevar[right_i_index:, :, :],
+                right_i_index,
+                edgevar[:, right_j_index:, :],
+                right_j_index,
+            )
 
     def compute_origin(self, add: Tuple[int, int, int] = (0, 0, 0)):
         """Start of the compute domain (e.g. (halo, halo, 0))"""

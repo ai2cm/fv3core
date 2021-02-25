@@ -1,5 +1,5 @@
 import gt4py.gtscript as gtscript
-from gt4py.gtscript import PARALLEL, computation, interval
+from gt4py.gtscript import FORWARD, PARALLEL, computation, interval
 
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import gtstencil
@@ -18,6 +18,18 @@ def copy_stencil(q_in: FloatField, q_out: FloatField):
         q_out = q_in
 
 
+@gtstencil()
+def copy_stencil_2d(q_in: FloatFieldIJ, q_out: FloatFieldIJ):
+    """Copy q_in to q_out.
+
+    Args:
+        q_in: input field
+        q_out: output field
+    """
+    with computation(FORWARD), interval(0, 1):
+        q_out = q_in
+
+
 def copy(q_in, origin=(0, 0, 0), domain=None):
     """Copy q_in inside the origin and domain, and zero outside.
 
@@ -33,7 +45,11 @@ def copy(q_in, origin=(0, 0, 0), domain=None):
         domain = tuple(extent - orig for extent, orig in zip(q_in.shape, origin))
 
     q_out = utils.make_storage_from_shape(q_in.shape, q_in.default_origin, init=True)
-    copy_stencil(q_in, q_out, origin=origin, domain=domain)
+    if len(q_in.shape) < 3:
+        domain_2d = (domain[0], domain[1], 1)
+        copy_stencil_2d(q_in, q_out, origin=origin[0:2], domain=domain_2d)
+    else:
+        copy_stencil(q_in, q_out, origin=origin, domain=domain)
     return q_out
 
 
