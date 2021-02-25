@@ -45,4 +45,5 @@ def get_do_halo_exchange() -> bool:
 _BACKEND = None  # Options: numpy, gtx86, gtcuda, debug
 _REBUILD = getenv_bool("FV3_STENCIL_REBUILD_FLAG", "True")
 _FORMAT_SOURCE = getenv_bool("FV3_STENCIL_FORMAT_SOURCE", "False")
-_DO_HALO_EXCHANGE = getenv_bool("FV3_DO_HALO_EXCHANGE", "True")
+_DO_HALO_EXCHANGE = True
+print("IN THE CONFIG FILE", _DO_HALO_EXCHANGE)
