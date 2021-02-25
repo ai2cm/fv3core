@@ -6,7 +6,7 @@ from gt4py.gtscript import BACKWARD, FORWARD, PARALLEL, computation, interval
 import fv3core._config as spec
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import gtstencil
-from fv3core.utils.typing import FloatField, FloatFieldI
+from fv3core.utils.typing import FloatField
 
 
 @gtscript.function
@@ -163,9 +163,9 @@ def set_vals(
             old_bet = 2.0 + old_grid_ratio + old_grid_ratio - gam[0, 0, -1]
             gam = old_grid_ratio / old_bet
             grid_ratio = delp[0, 0, -1] / delp
-            q = (3.0 * (a4_1[0, 0, -1] + a4_1) - grid_ratio * qs - q[0, 0, -1]) / (
-                2.0 + grid_ratio + grid_ratio - gam
-            )
+            q = (
+                3.0 * (a4_1[0, 0, -1] + a4_1) - grid_ratio * qs[0, 0, 1] - q[0, 0, -1]
+            ) / (2.0 + grid_ratio + grid_ratio - gam)
             q_bot = qs
     with computation(PARALLEL), interval(-1, None):
         if iv == -2:
@@ -507,7 +507,7 @@ def set_bottom(
 
 
 def compute(
-    qs: FloatFieldI,
+    qs: FloatField,
     a4_1: FloatField,
     a4_2: FloatField,
     a4_3: FloatField,
