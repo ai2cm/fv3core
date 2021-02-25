@@ -1,4 +1,5 @@
 import json
+import os
 from argparse import ArgumentParser
 from datetime import datetime
 
@@ -108,8 +109,9 @@ if __name__ == "__main__":
         fv3core.set_backend(args.backend)
         fv3core.set_rebuild(False)
         gt4py_utils.validate_args = False
+        if args.disable_halo_exchange:
+            os.environ["FV3_DO_HALO_EXCHANGE"] = "False"
         fv3core.set_do_halo_exchange(not args.disable_halo_exchange)
-
         spec.set_namelist(args.data_dir + "/input.nml")
 
         experiment_name = yaml.safe_load(
