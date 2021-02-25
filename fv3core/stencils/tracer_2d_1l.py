@@ -1,7 +1,7 @@
 import math
 
 import gt4py.gtscript as gtscript
-from gt4py.gtscript import PARALLEL, computation, interval
+from gt4py.gtscript import PARALLEL, computation, horizontal, interval, region
 
 import fv3core._config as spec
 import fv3core.stencils.fvtp2d as fvtp2d
@@ -13,38 +13,50 @@ from fv3core.stencils.updatedzd import ra_stencil_update
 from fv3core.utils.typing import FloatField
 
 
-@gtstencil()
-def flux_x(
-    cx: FloatField,
-    dxa: FloatField,
-    dy: FloatField,
-    sin_sg3: FloatField,
-    sin_sg1: FloatField,
-    xfx: FloatField,
-):
-    with computation(PARALLEL), interval(...):
-        xfx[0, 0, 0] = (
+@gtscript.function
+def flux_x(cx, dxa, dy, sin_sg3, sin_sg1, xfx):
+    from __externals__ import local_ie, local_is, local_je, local_js
+
+    with horizontal(region[local_is : local_ie + 2, local_js - 3 : local_je + 4]):
+        xfx = (
             cx * dxa[-1, 0, 0] * dy * sin_sg3[-1, 0, 0]
             if cx > 0
             else cx * dxa * dy * sin_sg1
         )
+    return xfx
 
 
-@gtstencil()
-def flux_y(
-    cy: FloatField,
-    dya: FloatField,
-    dx: FloatField,
-    sin_sg4: FloatField,
-    sin_sg2: FloatField,
-    yfx: FloatField,
-):
-    with computation(PARALLEL), interval(...):
-        yfx[0, 0, 0] = (
+@gtscript.function
+def flux_y(cy, dya, dx, sin_sg4, sin_sg2, yfx):
+    from __externals__ import local_ie, local_is, local_je, local_js
+
+    with horizontal(region[local_is - 3 : local_ie + 4, local_js : local_je + 2]):
+        yfx = (
             cy * dya[0, -1, 0] * dx * sin_sg4[0, -1, 0]
             if cy > 0
             else cy * dya * dx * sin_sg2
         )
+    return yfx
+
+
+@gtstencil()
+def flux_compute(
+    cx: FloatField,
+    cy: FloatField,
+    dxa: FloatField,
+    dya: FloatField,
+    dx: FloatField,
+    dy: FloatField,
+    sin_sg1: FloatField,
+    sin_sg2: FloatField,
+    sin_sg3: FloatField,
+    sin_sg4: FloatField,
+    xfx: FloatField,
+    yfx: FloatField,
+):
+    with computation(PARALLEL), interval(...):
+        xfx = flux_x(cx, dxa, dy, sin_sg3, sin_sg1, xfx)
+        yfx = flux_y(cy, dya, dx, sin_sg4, sin_sg2, yfx)
 
 
 @gtstencil()
@@ -151,25 +163,22 @@ def compute(comm, tracers, dp1, mfxd, mfyd, cxd, cyd, mdt, nq):
     )
     cmax = utils.make_storage_from_shape(shape, origin=grid.compute_origin())
     dp2 = utils.make_storage_from_shape(shape, origin=grid.compute_origin())
-    flux_x(
+
+    flux_compute(
         cxd,
-        grid.dxa,
-        grid.dy,
-        grid.sin_sg3,
-        grid.sin_sg1,
-        xfx,
-        origin=grid.compute_origin(add=(0, -grid.halo, 0)),
-        domain=grid.domain_shape_compute(add=(1, 2 * grid.halo, 0)),
-    )
-    flux_y(
         cyd,
+        grid.dxa,
         grid.dya,
         grid.dx,
-        grid.sin_sg4,
+        grid.dy,
+        grid.sin_sg1,
         grid.sin_sg2,
+        grid.sin_sg3,
+        grid.sin_sg4,
+        xfx,
         yfx,
-        origin=grid.compute_origin(add=(-grid.halo, 0, 0)),
-        domain=grid.domain_shape_compute(add=(2 * grid.halo, 1, 0)),
+        origin=grid.compute_origin(add=(-grid.halo, -grid.halo, 0)),
+        domain=grid.domain_shape_compute(add=(2 * grid.halo, 2 * grid.halo, 0)),
     )
     # {
     # # TODO for if we end up using the Allreduce and compute cmax globally
@@ -221,21 +230,6 @@ def compute(comm, tracers, dp1, mfxd, mfyd, cxd, cyd, mdt, nq):
         for qname in utils.tracer_variables[0:nq]:
             q = tracers[qname + "_quantity"]
             comm.halo_update(q, n_points=utils.halo)
-
-    # ra_x_stencil(
-    #     grid.area,
-    #     xfx,
-    #     ra_x,
-    #     origin=grid.compute_origin(add=(0, -grid.halo, 0)),
-    #     domain=grid.domain_shape_compute(add=(0, 2 * grid.halo, 0)),
-    # )
-    # ra_y_stencil(
-    #     grid.area,
-    #     yfx,
-    #     ra_y,
-    #     origin=grid.compute_origin(add=(-grid.halo, 0, 0)),
-    #     domain=grid.domain_shape_compute(add=(2 * grid.halo, 0, 0)),
-    # )
 
     ra_stencil_update(
         grid.area,
