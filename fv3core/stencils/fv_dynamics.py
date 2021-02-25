@@ -1,5 +1,6 @@
 from gt4py.gtscript import PARALLEL, computation, interval, log
 
+import fv3core
 import fv3core._config as spec
 import fv3core.stencils.del2cubed as del2cubed
 import fv3core.stencils.dyn_core as dyn_core
@@ -8,7 +9,6 @@ import fv3core.stencils.neg_adj3 as neg_adj3
 import fv3core.stencils.rayleigh_super as rayleigh_super
 import fv3core.stencils.remapping as lagrangian_to_eulerian
 import fv3core.stencils.tracer_2d_1l as tracer_2d_1l
-import fv3core.utils.global_config as global_config
 import fv3core.utils.global_constants as constants
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import ArgSpec, gtstencil, state_inputs
@@ -205,7 +205,7 @@ def post_remap(state, comm):
         )
     if spec.namelist.nf_omega > 0:
         print("Del2Cubed", grid.rank)
-        if global_config.get_do_halo_exchange():
+        if fv3core.get_do_halo_exchange():
             comm.halo_update(state.omga_quantity, n_points=utils.halo)
         del2cubed.compute(
             state.omga, spec.namelist.nf_omega, 0.18 * grid.da_min, grid.npz
@@ -326,7 +326,7 @@ def compute(state, comm, timer=NullTimer()):
     last_step = False
     k_split = spec.namelist.k_split
     state.mdt = state.bdt / k_split
-    if global_config.get_do_halo_exchange():
+    if fv3core.get_do_halo_exchange():
         comm.halo_update(state.phis_quantity, n_points=utils.halo)
     compute_preamble(state, comm)
     for n_map in range(k_split):
