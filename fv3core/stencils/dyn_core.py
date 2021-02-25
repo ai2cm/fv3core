@@ -196,7 +196,6 @@ def compute(state, comm):
                         state.gz_quantity, n_points=utils.halo
                     )
         if it == 0:
-            print("IT=0 DO HALO EXCHANGE RANK", grid.rank, fv3core.get_do_halo_exchange())
             if fv3core.get_do_halo_exchange:
                 reqs["delp_quantity"].wait()
                 reqs["pt_quantity"].wait()
