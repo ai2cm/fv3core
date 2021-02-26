@@ -142,7 +142,7 @@ def vorticity_calc(wk, vort, delpc, dt, nord, kstart, nk):
                 raise Exception("Not implemented, smag_corner")
 
 def part1(divg_u: sd, divg_v: sd, divg_d: sd, uc: sd, vc: sd):
-    from __externals__ import nt, tnt, local_is, local_ie, local_js, local_je
+    from __externals__ import nt, local_is, local_ie, local_js, local_je, i_start, i_end, j_start, j_end
     with computation(PARALLEL), interval(...):
         if __INLINED(nt > 0):
             divg_d = corners.fill_corners_2d_bgrid_x(divg_d)
@@ -153,7 +153,15 @@ def part1(divg_u: sd, divg_v: sd, divg_d: sd, uc: sd, vc: sd):
         with horizontal(region[local_is - nt:local_ie + nt + 2 , local_js - nt - 1:local_je + nt + 2  ]):
             uc = (divg_d[0, 1, 0] - divg_d) * divg_v
         if __INLINED(nt > 0):
-            vc, uc = corners.fill_corners_dgrid_fn(vc, uc, -1.0) 
+            vc, uc = corners.fill_corners_dgrid_fn(vc, uc, -1.0)
+        with horizontal(region[local_is - nt:local_ie + nt + 2 , local_js - nt:local_je + nt + 2  ]):
+            divg_d = uc[0, -1, 0] - uc + vc[-1, 0, 0] - vc
+        # corner_south_remove_extra_term
+        with horizontal(region[i_start, j_start], region[i_end + 1, j_start]):
+            divg_d = divg_d - uc[0, -1, 0]
+        # corner_north_remove_extra_term
+        with horizontal(region[i_start, j_end + 1], region[i_end + 1, j_end + 1]):
+            divg_d= divg_d + uc
 def compute(
     u,
     v,
@@ -198,66 +206,13 @@ def compute(
             njnt = grid.njc + 2 * nt + 1
             js = grid.js - nt
             is_ = grid.is_ - nt
-            fillc = (
-                (n != nord)
-                and spec.namelist.grid_type < 3
-                and not grid.nested
-                and (
-                    grid.sw_corner or grid.se_corner or grid.ne_corner or grid.nw_corner
-                )
-            )
-            #if fillc:
-            #    corners.fill_corners_2d(divg_d, grid, "B", "x")
-            #vc_from_divg(
-            #    divg_d,
-            #    grid.divg_u,
-            #    vc,
-            #    origin=(is_ - 1, js, kstart),
-            #    domain=(nint + 1, njnt, nk),
-            #)
-            part1_stencil = gtstencil(definition=part1, externals={'nt': nt, 'tnt': 2* nt})
+            
+            part1_stencil = gtstencil(definition=part1, externals={'nt': nt})
             part1_stencil(grid.divg_u, grid.divg_v, divg_d, uc, vc, origin=(grid.isd, grid.jsd, kstart), domain=(grid.nid + 1, grid.njd + 1, nk))
-            #if fillc:
-            #    corners.fill_corners_2d(divg_d, grid, "B", "y")
-            #uc_from_divg(
-            #    divg_d,
-            #    grid.divg_v,
-            #    uc,
-            #    origin=(is_, js - 1, kstart),
-            #    domain=(nint, njnt + 1, nk),
-            #)
-            #if fillc:
-            #    corners.fill_corners_dgrid(vc, uc, grid, True)
-
-            redo_divg_d(
-                uc, vc, divg_d, origin=(is_, js, kstart), domain=(nint, njnt, nk)
-            )
+           
+        
             corner_domain = (1, 1, nk)
-            if grid.sw_corner:
-                corner_south_remove_extra_term(
-                    uc, divg_d, origin=(grid.is_, grid.js, kstart), domain=corner_domain
-                )
-            if grid.se_corner:
-                corner_south_remove_extra_term(
-                    uc,
-                    divg_d,
-                    origin=(grid.ie + 1, grid.js, kstart),
-                    domain=corner_domain,
-                )
-            if grid.ne_corner:
-                corner_north_remove_extra_term(
-                    uc,
-                    divg_d,
-                    origin=(grid.ie + 1, grid.je + 1, kstart),
-                    domain=corner_domain,
-                )
-            if grid.nw_corner:
-                corner_north_remove_extra_term(
-                    uc,
-                    divg_d,
-                    origin=(grid.is_, grid.je + 1, kstart),
-                    domain=corner_domain,
-                )
+            
             if not grid.stretched_grid:
                 basic.adjustmentfactor_stencil(
                     grid.rarea_c,
