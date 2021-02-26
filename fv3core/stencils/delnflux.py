@@ -386,6 +386,19 @@ def compute_delnflux_no_sg(
     d2: Optional["FloatField"] = None,
     mass: Optional["FloatField"] = None,
 ):
+    """
+    I dunno, it does something
+    Args:
+        q: A field? (in)
+        fx: x-flux (inout)
+        fy: y-flux (inout)
+        nord: Order of divergence damping (in)
+        damp_c: damping coefficient (in)
+        kstart: k-level to begin computing on (in)
+        nk: Number of k-levels to compute on (in)
+        d2: A damped copy of the q field (in)
+        mass: a field to further damp diffusion in q? (in)
+    """
     grid = spec.grid
     if nk is None:
         nk = grid.npz - kstart
@@ -401,8 +414,8 @@ def compute_delnflux_no_sg(
     extended_domain = (grid.nic + 1, grid.njc + 1, nk)
 
     # compute_no_sg_merge_loop(q, fx2, fy2, nord, damp, d2, kstart, nk, mass)
-    # compute_no_sg_multi_loop(q, fx2, fy2, nord, damp, d2, kstart, nk, mass)
-    compute_no_sg_unroll(q, fx2, fy2, nord, damp, d2, kstart, nk, mass)
+    compute_no_sg_multi_loop(q, fx2, fy2, nord, damp, d2, kstart, nk, mass)
+    # compute_no_sg_unroll(q, fx2, fy2, nord, damp, d2, kstart, nk, mass)
 
     if mass is None:
         add_diffusive_component(
