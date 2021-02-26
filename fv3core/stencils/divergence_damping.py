@@ -101,11 +101,10 @@ def damping_nord_highorder_stencil(
         ke = ke + vort
 
 
-@gtstencil()
+@gtstencil
 def vc_from_divg(divg_d: sd, divg_u: sd, vc: sd):
     with computation(PARALLEL), interval(...):
-        vc[0, 0, 0] = (divg_d[1, 0, 0] - divg_d) * divg_u
-
+        vc = (divg_d[1, 0, 0] - divg_d) * divg_u
 
 @gtstencil()
 def uc_from_divg(divg_d: sd, divg_v: sd, uc: sd):
@@ -142,7 +141,19 @@ def vorticity_calc(wk, vort, delpc, dt, nord, kstart, nk):
             else:
                 raise Exception("Not implemented, smag_corner")
 
-
+def part1(divg_u: sd, divg_v: sd, divg_d: sd, uc: sd, vc: sd):
+    from __externals__ import nt, tnt, local_is, local_ie, local_js, local_je
+    with computation(PARALLEL), interval(...):
+        if __INLINED(nt > 0):
+            divg_d = corners.fill_corners_2d_bgrid_x(divg_d)
+        with horizontal(region[local_is - nt - 1:local_ie + nt + 2 , local_js - nt:local_je + nt + 2  ]):
+            vc = (divg_d[1, 0, 0] - divg_d) * divg_u
+        if __INLINED(nt > 0):
+            divg_d = corners.fill_corners_2d_bgrid_y(divg_d)
+        with horizontal(region[local_is - nt:local_ie + nt + 2 , local_js - nt - 1:local_je + nt + 2  ]):
+            uc = (divg_d[0, 1, 0] - divg_d) * divg_v
+        if __INLINED(nt > 0):
+            vc, uc = corners.fill_corners_dgrid_fn(vc, uc, -1.0) 
 def compute(
     u,
     v,
@@ -195,26 +206,28 @@ def compute(
                     grid.sw_corner or grid.se_corner or grid.ne_corner or grid.nw_corner
                 )
             )
-            if fillc:
-                corners.fill_corners_2d(divg_d, grid, "B", "x")
-            vc_from_divg(
-                divg_d,
-                grid.divg_u,
-                vc,
-                origin=(is_ - 1, js, kstart),
-                domain=(nint + 1, njnt, nk),
-            )
-            if fillc:
-                corners.fill_corners_2d(divg_d, grid, "B", "y")
-            uc_from_divg(
-                divg_d,
-                grid.divg_v,
-                uc,
-                origin=(is_, js - 1, kstart),
-                domain=(nint, njnt + 1, nk),
-            )
-            if fillc:
-                corners.fill_corners_dgrid(vc, uc, grid, True)
+            #if fillc:
+            #    corners.fill_corners_2d(divg_d, grid, "B", "x")
+            #vc_from_divg(
+            #    divg_d,
+            #    grid.divg_u,
+            #    vc,
+            #    origin=(is_ - 1, js, kstart),
+            #    domain=(nint + 1, njnt, nk),
+            #)
+            part1_stencil = gtstencil(definition=part1, externals={'nt': nt, 'tnt': 2* nt})
+            part1_stencil(grid.divg_u, grid.divg_v, divg_d, uc, vc, origin=(grid.isd, grid.jsd, kstart), domain=(grid.nid + 1, grid.njd + 1, nk))
+            #if fillc:
+            #    corners.fill_corners_2d(divg_d, grid, "B", "y")
+            #uc_from_divg(
+            #    divg_d,
+            #    grid.divg_v,
+            #    uc,
+            #    origin=(is_, js - 1, kstart),
+            #    domain=(nint, njnt + 1, nk),
+            #)
+            #if fillc:
+            #    corners.fill_corners_dgrid(vc, uc, grid, True)
 
             redo_divg_d(
                 uc, vc, divg_d, origin=(is_, js, kstart), domain=(nint, njnt, nk)

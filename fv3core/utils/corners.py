@@ -554,7 +554,6 @@ def fill_corners_dgrid_fn(x: FloatField, y: FloatField, mysign: float):
         x = y[0, 2, 0]
     with horizontal(region[i_end + 3, j_start - 1]):
         y = x[-3, -1, 0]
-    
     with horizontal(region[i_end + 2, j_start - 2]):
         x = y[1, 3, 0]
     with horizontal(region[i_end + 3, j_start - 2]):
