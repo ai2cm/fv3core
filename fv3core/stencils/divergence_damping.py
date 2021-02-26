@@ -141,27 +141,39 @@ def vorticity_calc(wk, vort, delpc, dt, nord, kstart, nk):
             else:
                 raise Exception("Not implemented, smag_corner")
 
-def part1(divg_u: sd, divg_v: sd, divg_d: sd, uc: sd, vc: sd):
+#def part1(rarea_c: sd, divg_u: sd, divg_v: sd, divg_d: sd, uc: sd, vc: sd):
+#    from __externals__ import nt, local_is, local_ie, local_js, local_je, i_start, i_end, j_start, j_end
+#    with computation(PARALLEL), interval(...):
+@gtscript.function
+def nord_loop(rarea_c: sd, divg_u: sd, divg_v: sd, divg_d: sd, uc: sd, vc: sd):
+    from __externals__ import nt, local_is, local_ie, local_js, local_je, i_start, i_end, j_start, j_end
+    if __INLINED(nt > 0):
+        divg_d = corners.fill_corners_2d_bgrid_x(divg_d)
+    with horizontal(region[local_is - nt - 1:local_ie + nt + 2 , local_js - nt:local_je + nt + 2  ]):
+        vc = (divg_d[1, 0, 0] - divg_d) * divg_u
+    if __INLINED(nt > 0):
+        divg_d = corners.fill_corners_2d_bgrid_y(divg_d)
+    with horizontal(region[local_is - nt:local_ie + nt + 2 , local_js - nt - 1:local_je + nt + 2  ]):
+        uc = (divg_d[0, 1, 0] - divg_d) * divg_v
+    if __INLINED(nt > 0):
+        vc, uc = corners.fill_corners_dgrid_fn(vc, uc, -1.0)
+    with horizontal(region[local_is - nt:local_ie + nt + 2 , local_js - nt:local_je + nt + 2  ]):
+        divg_d = uc[0, -1, 0] - uc + vc[-1, 0, 0] - vc
+    # corner_south_remove_extra_term
+    with horizontal(region[i_start, j_start], region[i_end + 1, j_start]):
+        divg_d = divg_d - uc[0, -1, 0]
+    # corner_north_remove_extra_term
+    with horizontal(region[i_start, j_end + 1], region[i_end + 1, j_end + 1]):
+        divg_d= divg_d + uc
+    # ASSUMED not grid.stretched_grid
+    with horizontal(region[local_is - nt:local_ie + nt + 2 , local_js - nt:local_je + nt + 2] ):
+        divg_d = divg_d * rarea_c
+    return divg_d, uc, vc
+
+def part1(rarea_c: sd, divg_u: sd, divg_v: sd, divg_d: sd, uc: sd, vc: sd):
     from __externals__ import nt, local_is, local_ie, local_js, local_je, i_start, i_end, j_start, j_end
     with computation(PARALLEL), interval(...):
-        if __INLINED(nt > 0):
-            divg_d = corners.fill_corners_2d_bgrid_x(divg_d)
-        with horizontal(region[local_is - nt - 1:local_ie + nt + 2 , local_js - nt:local_je + nt + 2  ]):
-            vc = (divg_d[1, 0, 0] - divg_d) * divg_u
-        if __INLINED(nt > 0):
-            divg_d = corners.fill_corners_2d_bgrid_y(divg_d)
-        with horizontal(region[local_is - nt:local_ie + nt + 2 , local_js - nt - 1:local_je + nt + 2  ]):
-            uc = (divg_d[0, 1, 0] - divg_d) * divg_v
-        if __INLINED(nt > 0):
-            vc, uc = corners.fill_corners_dgrid_fn(vc, uc, -1.0)
-        with horizontal(region[local_is - nt:local_ie + nt + 2 , local_js - nt:local_je + nt + 2  ]):
-            divg_d = uc[0, -1, 0] - uc + vc[-1, 0, 0] - vc
-        # corner_south_remove_extra_term
-        with horizontal(region[i_start, j_start], region[i_end + 1, j_start]):
-            divg_d = divg_d - uc[0, -1, 0]
-        # corner_north_remove_extra_term
-        with horizontal(region[i_start, j_end + 1], region[i_end + 1, j_end + 1]):
-            divg_d= divg_d + uc
+        divg_d, uc, vc = nord_loop(rarea_c, divg_u, divg_v, divg_d, uc, vc)
 def compute(
     u,
     v,
@@ -208,18 +220,8 @@ def compute(
             is_ = grid.is_ - nt
             
             part1_stencil = gtstencil(definition=part1, externals={'nt': nt})
-            part1_stencil(grid.divg_u, grid.divg_v, divg_d, uc, vc, origin=(grid.isd, grid.jsd, kstart), domain=(grid.nid + 1, grid.njd + 1, nk))
-           
-        
-            corner_domain = (1, 1, nk)
+            part1_stencil(grid.rarea_c, grid.divg_u, grid.divg_v, divg_d, uc, vc, origin=(grid.isd, grid.jsd, kstart), domain=(grid.nid + 1, grid.njd + 1, nk))
             
-            if not grid.stretched_grid:
-                basic.adjustmentfactor_stencil(
-                    grid.rarea_c,
-                    divg_d,
-                    origin=(is_, js, kstart),
-                    domain=(nint, njnt, nk),
-                )
 
         vorticity_calc(wk, vort, delpc, dt, nord, kstart, nk)
         if grid.stretched_grid:
