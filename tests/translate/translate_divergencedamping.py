@@ -1,6 +1,8 @@
+import numpy as np
+
 import fv3core.stencils.divergence_damping as dd
 from fv3core.testing import TranslateFortranData2Py
-import numpy as np
+
 
 class TranslateDivergenceDamping(TranslateFortranData2Py):
     def __init__(self, grid):
@@ -31,5 +33,5 @@ class TranslateDivergenceDamping(TranslateFortranData2Py):
         self.max_error = 3.0e-11
 
     def compute(self, inputs):
-        inputs['nord_col'] = np.asarray([int(x) for x in inputs['nord_col'][0, 0, :]])
+        inputs["nord_col"] = np.asarray([int(x) for x in inputs["nord_col"][0, 0, :]])
         return self.column_split_compute(inputs, {"nord": "nord_col", "d2_bg": "d2_bg"})

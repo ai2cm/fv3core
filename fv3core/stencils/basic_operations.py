@@ -38,9 +38,11 @@ def copy(q_in, origin=(0, 0, 0), domain=None):
     copy_stencil(q_in, q_out, origin=origin, domain=domain)
     return q_out
 
+
 @gtscript.function
 def adjustmentfactor(adjustment: sd, q_out: sd):
     return q_out * adjustment
+
 
 @gtstencil()
 def adjustmentfactor_stencil(adjustment: sd, q_out: sd):
