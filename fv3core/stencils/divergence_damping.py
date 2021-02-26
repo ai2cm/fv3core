@@ -14,8 +14,8 @@ sd = utils.sd
 
 
 @gtstencil()
-def ptc_main(u: sd, v: sd, ua: sd, va: sd, uc: sd, vc: sd, cosa_u: sd, cosa_v: sd, sina_u: sd, sina_v: sd, dxc: sd, dyc: sd, sin_sg1: sd, sin_sg2:sd, sin_sg3: sd, sin_sg4: sd, ptc: sd, vort: sd, delpc: sd):
-    from __externals__ import i_start, i_end, j_start, j_end, local_is, local_ie, local_js, local_je
+def ptc_main(u: sd, v: sd, ua: sd, va: sd, uc: sd, vc: sd, cosa_u: sd, cosa_v: sd, sina_u: sd, sina_v: sd, dxc: sd, dyc: sd, sin_sg1: sd, sin_sg2:sd, sin_sg3: sd, sin_sg4: sd, rarea_c: sd, ptc: sd, vort: sd, delpc: sd, ke: sd, da_min_c: float, d2_bg: float, dt: float):
+    from __externals__ import namelist, i_start, i_end, j_start, j_end, local_is, local_ie, local_js, local_je
     with computation(PARALLEL), interval(...):
         ptc = (u - 0.5 * (va[0, -1, 0] + va) * cosa_v) * dyc * sina_v
         with horizontal(region[:, j_start], region[:, j_end + 1]):
@@ -33,6 +33,13 @@ def ptc_main(u: sd, v: sd, ua: sd, va: sd, uc: sd, vc: sd, cosa_u: sd, cosa_v: s
             delpc = remove_extra_term_south_corner(vort, delpc)
         with horizontal(region[i_start, j_end + 1], region[i_end + 1, j_end + 1]):
             delpc= remove_extra_term_north_corner(vort, delpc)
+        with horizontal(region[local_is: local_ie + 2, local_js: local_je + 2]):
+            delpc = rarea_c * delpc
+            delpcdt = delpc * dt
+            absdelpcdt = delpcdt if delpcdt >= 0 else -delpcdt
+            damp = damp_tmp(absdelpcdt, da_min_c, d2_bg, namelist.dddmp)
+            vort = damp * delpc
+            ke = ke + vort
 
 @gtscript.function
 def remove_extra_term_south_corner(extra: sd, field: sd):
@@ -285,39 +292,20 @@ def damping_zero_order(
         ua, va, uc, vc,
         grid.cosa_u, grid.cosa_v,
         grid.sina_u, grid.sina_v,
-        grid.dxc, grid.dyc, grid.sin_sg1, grid.sin_sg2,grid.sin_sg3, grid.sin_sg4,
-        ptc,vort, delpc,
+        grid.dxc, grid.dyc, grid.sin_sg1, grid.sin_sg2,grid.sin_sg3, grid.sin_sg4,grid.rarea_c, 
+        ptc,vort, delpc, ke, grid.da_min_c, d2_bg, dt,
         origin=(grid.is_ - 1, grid.js - 1, kstart),
         domain=(grid.nic + 2, grid.njc + 2, nk),
     )
-    #delpc_main(vort, ptc, delpc, origin=compute_origin, domain=compute_domain)
-    #corner_domain = (1, 1, nk)
-    #if grid.sw_corner:
-    #    corner_south_remove_extra_term(
-    #        vort, delpc, origin=(grid.is_, grid.js, kstart), domain=corner_domain
-    #    )
-    #if grid.se_corner:
-    #    corner_south_remove_extra_term(
-    #        vort, delpc, origin=(grid.ie + 1, grid.js, kstart), domain=corner_domain
-    #    )
-    #if grid.ne_corner:
-    #    corner_north_remove_extra_term(
-    #        vort, delpc, origin=(grid.ie + 1, grid.je + 1, kstart), domain=corner_domain
-    #    )
-    #if grid.nw_corner:
-    #    corner_north_remove_extra_term(
-    #        vort, delpc, origin=(grid.is_, grid.je + 1, kstart), domain=corner_domain
-    #    )
-
-    damping_nord0_stencil(
-        grid.rarea_c,
-        delpc,
-        vort,
-        ke,
-        grid.da_min_c,
-        d2_bg,
-        spec.namelist.dddmp,
-        dt,
-        origin=compute_origin,
-        domain=compute_domain,
-    )
+    #damping_nord0_stencil(
+    #    grid.rarea_c,
+    #    delpc,
+    #    vort,
+    #    ke,
+    #    grid.da_min_c,
+    #    d2_bg,
+    #    spec.namelist.dddmp,
+    #    dt,
+    #    origin=compute_origin,
+    #    domain=compute_domain,
+    #)
