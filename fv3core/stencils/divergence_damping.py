@@ -14,32 +14,29 @@ sd = utils.sd
 
 
 @gtstencil()
-def ptc_main(u: sd, v: sd, ua: sd, va: sd, uc: sd, vc: sd, cosa_u: sd, cosa_v: sd, sina_u: sd, sina_v: sd, dxc: sd, dyc: sd, sin_sg1: sd, sin_sg2:sd, sin_sg3: sd, sin_sg4: sd, rarea_c: sd, ptc: sd, vort: sd, delpc: sd, ke: sd, da_min_c: float, d2_bg: float, dt: float):
-    from __externals__ import namelist, i_start, i_end, j_start, j_end, local_is, local_ie, local_js, local_je
+def damping_nord0(u: sd, v: sd, ua: sd, va: sd, uc: sd, vc: sd, cosa_u: sd, cosa_v: sd, sina_u: sd, sina_v: sd, dxc: sd, dyc: sd, sin_sg1: sd, sin_sg2:sd, sin_sg3: sd, sin_sg4: sd, rarea_c: sd, ptc: sd, vort: sd, delpc: sd, ke: sd, da_min_c: float, d2_bg: float, dt: float):
+    from __externals__ import namelist, i_start, i_end, j_start, j_end
     with computation(PARALLEL), interval(...):
         ptc = (u - 0.5 * (va[0, -1, 0] + va) * cosa_v) * dyc * sina_v
         with horizontal(region[:, j_start], region[:, j_end + 1]):
             ptc = u * dyc * sin_sg4[0, -1, 0] if vc > 0 else u * dyc * sin_sg2
         vort_copy = vort
-        with horizontal(region[local_is:local_ie + 2, :]):
-            vort = (v - 0.5 * (ua[-1, 0, 0] + ua) * cosa_u) * dxc * sina_u
+        vort = (v - 0.5 * (ua[-1, 0, 0] + ua) * cosa_u) * dxc * sina_u
         with horizontal(region[i_start,:], region[i_end + 1,:]):
             vort = vort_copy
         with horizontal(region[i_start, :], region[i_end + 1, :]):
             vort = v * dxc * sin_sg3[-1, 0, 0] if uc > 0 else v * dxc * sin_sg1
-        with horizontal(region[local_is: local_ie + 2, local_js: local_je + 2]):
-            delpc = vort[0, -1, 0] - vort + ptc[-1, 0, 0] - ptc
+        delpc = vort[0, -1, 0] - vort + ptc[-1, 0, 0] - ptc
         with horizontal(region[i_start, j_start], region[i_end + 1, j_start]):
             delpc = remove_extra_term_south_corner(vort, delpc)
         with horizontal(region[i_start, j_end + 1], region[i_end + 1, j_end + 1]):
             delpc= remove_extra_term_north_corner(vort, delpc)
-        with horizontal(region[local_is: local_ie + 2, local_js: local_je + 2]):
-            delpc = rarea_c * delpc
-            delpcdt = delpc * dt
-            absdelpcdt = delpcdt if delpcdt >= 0 else -delpcdt
-            damp = damp_tmp(absdelpcdt, da_min_c, d2_bg, namelist.dddmp)
-            vort = damp * delpc
-            ke = ke + vort
+        delpc = rarea_c * delpc
+        delpcdt = delpc * dt
+        absdelpcdt = delpcdt if delpcdt >= 0 else -delpcdt
+        damp = damp_tmp(absdelpcdt, da_min_c, d2_bg, namelist.dddmp)
+        vort = damp * delpc
+        ke = ke + vort
 
 @gtscript.function
 def remove_extra_term_south_corner(extra: sd, field: sd):
@@ -66,26 +63,6 @@ def damp_tmp(q, da_min_c, d2_bg, dddmp):
     maxd2 = d2_bg if d2_bg > mintmp else mintmp
     damp = da_min_c * maxd2
     return damp
-
-
-@gtstencil()
-def damping_nord0_stencil(
-    rarea_c: sd,
-    delpc: sd,
-    vort: sd,
-    ke: sd,
-    da_min_c: float,
-    d2_bg: float,
-    dddmp: float,
-    dt: float,
-):
-    with computation(PARALLEL), interval(...):
-        delpc[0, 0, 0] = rarea_c * delpc
-        delpcdt = delpc * dt
-        absdelpcdt = delpcdt if delpcdt >= 0 else -delpcdt
-        damp = damp_tmp(absdelpcdt, da_min_c, d2_bg, dddmp)
-        vort[0, 0, 0] = damp * delpc
-        ke[0, 0, 0] = ke + vort
 
 
 @gtstencil()
@@ -287,15 +264,15 @@ def damping_zero_order(
     if grid.nested:
         raise Exception("nested not implemented")
 
-    ptc_main(
+    damping_nord0(
         u, v,
         ua, va, uc, vc,
         grid.cosa_u, grid.cosa_v,
         grid.sina_u, grid.sina_v,
         grid.dxc, grid.dyc, grid.sin_sg1, grid.sin_sg2,grid.sin_sg3, grid.sin_sg4,grid.rarea_c, 
         ptc,vort, delpc, ke, grid.da_min_c, d2_bg, dt,
-        origin=(grid.is_ - 1, grid.js - 1, kstart),
-        domain=(grid.nic + 2, grid.njc + 2, nk),
+        origin=compute_origin,#(grid.is_ - 1, grid.js - 1, kstart),
+        domain=compute_domain#(grid.nic + 2, grid.njc + 2, nk),
     )
     #damping_nord0_stencil(
     #    grid.rarea_c,
