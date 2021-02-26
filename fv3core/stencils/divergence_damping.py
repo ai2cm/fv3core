@@ -8,13 +8,12 @@ import fv3core.utils.corners as corners
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import gtstencil
 from fv3core.stencils.basic_operations import copy_stencil
+from fv3core.utils.typing import FloatField
 
-
-sd = utils.sd
 
 
 @gtstencil()
-def damping_nord0(u: sd, v: sd, ua: sd, va: sd, uc: sd, vc: sd, cosa_u: sd, cosa_v: sd, sina_u: sd, sina_v: sd, dxc: sd, dyc: sd, sin_sg1: sd, sin_sg2:sd, sin_sg3: sd, sin_sg4: sd, rarea_c: sd, ptc: sd, vort: sd, delpc: sd, ke: sd, da_min_c: float, d2_bg: float, dt: float):
+def damping_nord0(u: FloatField, v: FloatField, ua: FloatField, va: FloatField, uc: FloatField, vc: FloatField, cosa_u: FloatField, cosa_v: FloatField, sina_u: FloatField, sina_v: FloatField, dxc: FloatField, dyc: FloatField, sin_sg1: FloatField, sin_sg2:FloatField, sin_sg3: FloatField, sin_sg4: FloatField, rarea_c: FloatField, ptc: FloatField, vort: FloatField, delpc: FloatField, ke: FloatField, da_min_c: float, d2_bg: float, dt: float):
     from __externals__ import namelist, i_start, i_end, j_start, j_end
     with computation(PARALLEL), interval(...):
         ptc = (u - 0.5 * (va[0, -1, 0] + va) * cosa_v) * dyc * sina_v
@@ -39,7 +38,7 @@ def damping_nord0(u: sd, v: sd, ua: sd, va: sd, uc: sd, vc: sd, cosa_u: sd, cosa
         ke = ke + vort
 
 @gtscript.function
-def remove_extra_term_south_corner(extra: sd, field: sd):
+def remove_extra_term_south_corner(extra: FloatField, field: FloatField):
     # from __externals__ import i_start, i_end,  j_start
     # TODO: why does this not work?
     # with horizontal(region[i_start, j_start], region[i_end + 1, j_start]):
@@ -48,7 +47,7 @@ def remove_extra_term_south_corner(extra: sd, field: sd):
     return field - extra[0, -1, 0]
 
 @gtscript.function
-def remove_extra_term_north_corner(extra: sd, field: sd):
+def remove_extra_term_north_corner(extra: FloatField, field: FloatField):
     # TODO: why does this not work?
     # from __externals__ import i_start, i_end, j_end
     # with horizontal(region[i_start, j_end + 1], region[i_end + 1, j_end + 1]):
@@ -67,10 +66,10 @@ def damp_tmp(q, da_min_c, d2_bg, dddmp):
 
 @gtstencil()
 def damping_nord_highorder_stencil(
-    vort: sd,
-    ke: sd,
-    delpc: sd,
-    divg_d: sd,
+    vort: FloatField,
+    ke: FloatField,
+    delpc: FloatField,
+    divg_d: FloatField,
     da_min_c: float,
     d2_bg: float,
     dddmp: float,
@@ -83,21 +82,21 @@ def damping_nord_highorder_stencil(
 
 
 @gtscript.function
-def vc_from_divg(divg_d: sd, divg_u: sd):
+def vc_from_divg(divg_d: FloatField, divg_u: FloatField):
     return (divg_d[1, 0, 0] - divg_d) * divg_u
 
 @gtscript.function
-def uc_from_divg(divg_d: sd, divg_v: sd):
+def uc_from_divg(divg_d: FloatField, divg_v: FloatField):
     return (divg_d[0, 1, 0] - divg_d) * divg_v
 
 
 @gtscript.function
-def redo_divg_d(uc: sd, vc: sd):
+def redo_divg_d(uc: FloatField, vc: FloatField):
     return uc[0, -1, 0] - uc + vc[-1, 0, 0] - vc
 
 
 @gtstencil()
-def smagorinksy_diffusion_approx(delpc: sd, vort: sd, absdt: float):
+def smagorinksy_diffusion_approx(delpc: FloatField, vort: FloatField, absdt: float):
     with computation(PARALLEL), interval(...):
         vort = absdt * (delpc ** 2.0 + vort ** 2.0) ** 0.5
 
@@ -120,7 +119,7 @@ def vorticity_calc(wk, vort, delpc, dt, nord, kstart, nk):
                 raise Exception("Not implemented, smag_corner")
 
 @gtscript.function
-def damping_nt2(rarea_c: sd, divg_u: sd, divg_v: sd, divg_d: sd, uc: sd, vc: sd):
+def damping_nt2(rarea_c: FloatField, divg_u: FloatField, divg_v: FloatField, divg_d: FloatField, uc: FloatField, vc: FloatField):
     from __externals__ import local_is, local_ie, local_js, local_je, i_start, i_end, j_start, j_end
     divg_d = corners.fill_corners_bgrid_x(divg_d, divg_d)
     with horizontal(region[local_is - 3:local_ie + 4 , local_js - 2:local_je + 4  ]):
@@ -141,7 +140,7 @@ def damping_nt2(rarea_c: sd, divg_u: sd, divg_v: sd, divg_d: sd, uc: sd, vc: sd)
     return divg_d, uc, vc
 
 @gtscript.function
-def damping_nt1(rarea_c: sd, divg_u: sd, divg_v: sd, divg_d: sd, uc: sd, vc: sd):
+def damping_nt1(rarea_c: FloatField, divg_u: FloatField, divg_v: FloatField, divg_d: FloatField, uc: FloatField, vc: FloatField):
     from __externals__ import local_is, local_ie, local_js, local_je, i_start, i_end, j_start, j_end
     divg_d = corners.fill_corners_bgrid_x(divg_d, divg_d)
     with horizontal(region[local_is - 2:local_ie + 3 , local_js - 1:local_je + 3  ]):
@@ -162,7 +161,7 @@ def damping_nt1(rarea_c: sd, divg_u: sd, divg_v: sd, divg_d: sd, uc: sd, vc: sd)
     return divg_d, uc, vc
 
 @gtscript.function
-def damping_nt0(rarea_c: sd, divg_u: sd, divg_v: sd, divg_d: sd, uc: sd, vc: sd):
+def damping_nt0(rarea_c: FloatField, divg_u: FloatField, divg_v: FloatField, divg_d: FloatField, uc: FloatField, vc: FloatField):
     from __externals__ import local_is, local_ie, local_js, local_je, i_start, i_end, j_start, j_end
     
     with horizontal(region[local_is - 1:local_ie + 2 , local_js:local_je + 2  ]):
@@ -183,7 +182,7 @@ def damping_nt0(rarea_c: sd, divg_u: sd, divg_v: sd, divg_d: sd, uc: sd, vc: sd)
     return divg_d, uc, vc
 
 @gtstencil(externals={})
-def damping_nonzero_nord(rarea_c: sd, divg_u: sd, divg_v: sd, divg_d: sd, uc: sd, vc: sd, delpc: sd):
+def damping_nonzero_nord(rarea_c: FloatField, divg_u: FloatField, divg_v: FloatField, divg_d: FloatField, uc: FloatField, vc: FloatField, delpc: FloatField):
     from __externals__ import local_is, local_ie, local_js, local_je
     with computation(PARALLEL), interval(...):
         # TODO: needed for validation of DivergenceDamping, D_SW, but not DynCore
@@ -195,16 +194,17 @@ def damping_nonzero_nord(rarea_c: sd, divg_u: sd, divg_v: sd, divg_d: sd, uc: sd
         divg_d, uc, vc = damping_nt2(rarea_c, divg_u, divg_v, divg_d, uc, vc)
         divg_d, uc, vc = damping_nt1(rarea_c, divg_u, divg_v, divg_d, uc, vc)
         divg_d, uc, vc = damping_nt0(rarea_c, divg_u, divg_v, divg_d, uc, vc)
+    
 def compute(
     u,
     v,
     va,
+    ua,
+    uc,
+    vc,    
     ptc,
     vort,
-    ua,
     divg_d,
-    vc,
-    uc,
     delpc,
     ke,
     wk,
@@ -214,18 +214,32 @@ def compute(
     kstart=0,
     nk=None,
 ):
+    '''Applies divergence damping to the momentum equations
+    
+    The divergence damping term of the momentum equation is computed and
+    the vorticity, kinetic energy, divergence and C-grid winds are updated 
+    accordingly. 
+    Assumes this is not a nested grid.
+
+    Args:
+         u: x-velocity on the D-grid (in)
+         v: y-velocity on the D-grid (in)
+         ua: x-velocity on the A-grid (in)
+         va: y-velocity on the A-grid (in)
+         uc: x-velocity on the C-grid (inout)
+         vc: y-velocity on the C-grid (inout)
+         ptc: temperature (k) on the C-grid (inout)
+         vort: vorticity (inout)
+         ke: kinetic energy (inout)
+         wk: volume-mean relative vorticity(in)
+         d2_bg: coefficient for background second-order divergence damping. (in)
+         dt: dynamics timestep (seconds) (in)
+         nord: order of the damping scheme (in)
+    '''
     grid = spec.grid
     if nk is None:
         nk = grid.npz - kstart
-   
-    nord = int(nord)
-    print(nord, kstart, nk)
     if nord == 0:
-        
-        compute_origin = (grid.is_, grid.js, kstart)
-        compute_domain = (grid.nic + 1, grid.njc + 1, nk)
-        if grid.nested:
-            raise Exception("nested not implemented")
         damping_nord0(
             u, v,
             ua, va, uc, vc,
@@ -233,8 +247,8 @@ def compute(
             grid.sina_u, grid.sina_v,
             grid.dxc, grid.dyc, grid.sin_sg1, grid.sin_sg2,grid.sin_sg3, grid.sin_sg4,grid.rarea_c,
             ptc,vort, delpc, ke, grid.da_min_c, d2_bg, dt,
-            origin=compute_origin,
-            domain=compute_domain
+            origin=(grid.is_, grid.js, kstart),
+            domain=(grid.nic + 1, grid.njc + 1, nk)
         )
     else:
         
@@ -259,6 +273,4 @@ def compute(
             origin=(grid.is_, grid.js, kstart),
             domain=(grid.nic + 1, grid.njc + 1, nk),
         )
-
-    return vort, ke, delpc
 
