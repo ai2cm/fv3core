@@ -122,10 +122,10 @@ def vorticity_calc(wk, vort, delpc, dt, nord, kstart, nk):
 @gtscript.function
 def damping_nt2(rarea_c: sd, divg_u: sd, divg_v: sd, divg_d: sd, uc: sd, vc: sd):
     from __externals__ import local_is, local_ie, local_js, local_je, i_start, i_end, j_start, j_end
-    divg_d = corners.fill_corners_2d_bgrid_x(divg_d)
+    divg_d = corners.fill_corners_bgrid_x(divg_d, divg_d)
     with horizontal(region[local_is - 3:local_ie + 4 , local_js - 2:local_je + 4  ]):
         vc = vc_from_divg(divg_d, divg_u)
-    divg_d = corners.fill_corners_2d_bgrid_y(divg_d)
+    divg_d = corners.fill_corners_bgrid_y(divg_d, divg_d)
     with horizontal(region[local_is - 2:local_ie + 4 , local_js - 3:local_je + 4  ]):
         uc = uc_from_divg(divg_d, divg_v) 
     vc, uc = corners.fill_corners_dgrid_fn(vc, uc, -1.0)
@@ -143,10 +143,10 @@ def damping_nt2(rarea_c: sd, divg_u: sd, divg_v: sd, divg_d: sd, uc: sd, vc: sd)
 @gtscript.function
 def damping_nt1(rarea_c: sd, divg_u: sd, divg_v: sd, divg_d: sd, uc: sd, vc: sd):
     from __externals__ import local_is, local_ie, local_js, local_je, i_start, i_end, j_start, j_end
-    divg_d = corners.fill_corners_2d_bgrid_x(divg_d)
+    divg_d = corners.fill_corners_bgrid_x(divg_d, divg_d)
     with horizontal(region[local_is - 2:local_ie + 3 , local_js - 1:local_je + 3  ]):
         vc = vc_from_divg(divg_d, divg_u)
-    divg_d = corners.fill_corners_2d_bgrid_y(divg_d)
+    divg_d = corners.fill_corners_bgrid_y(divg_d, divg_d)
     with horizontal(region[local_is - 1:local_ie + 3 , local_js - 2:local_je + 3  ]):
         uc = uc_from_divg(divg_d, divg_v)
     vc, uc = corners.fill_corners_dgrid_fn(vc, uc, -1.0)

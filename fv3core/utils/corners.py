@@ -269,7 +269,7 @@ def copy_corners(q, direction, grid, kslice=slice(0, None)):
 
 
 @gtscript.function
-def fill_corners_2d_bgrid_x(q: FloatField, q_corner: FloatField):
+def fill_corners_bgrid_x(q: FloatField, q_corner: FloatField):
     from __externals__ import i_end, i_start, j_end, j_start
 
     # sw and se corner
@@ -314,7 +314,7 @@ def fill_corners_2d_bgrid_x(q: FloatField, q_corner: FloatField):
 
 
 @gtscript.function
-def fill_corners_2d_bgrid_y(q: FloatField, q_corner: FloatField):
+def fill_corners_bgrid_y(q: FloatField, q_corner: FloatField):
     from __externals__ import i_end, i_start, j_end, j_start
 
     # sw and nw corners

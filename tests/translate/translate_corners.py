@@ -22,13 +22,13 @@ class TranslateFill4Corners(TranslateFortranData2Py):
         return self.slice_output(inputs, {"q4c": inputs["q4c"]})
 
 @gtstencil
-def fill_corners_2d_bgrid_x_stencil(q: FloatField):
+def fill_corners_bgrid_x_stencil(q: FloatField):
     with computation(PARALLEL), interval(3, None):
-        q = corners.fill_corners_2d_bgrid_x(q, q)
+        q = corners.fill_corners_bgrid_x(q, q)
 @gtstencil
-def fill_corners_2d_bgrid_y_stencil(q: FloatField):
+def fill_corners_bgrid_y_stencil(q: FloatField):
     with computation(PARALLEL), interval(3, None):
-        q = corners.fill_corners_2d_bgrid_y(q, q)
+        q = corners.fill_corners_bgrid_y(q, q)
 
 class TranslateFillCorners(TranslateFortranData2Py):
     def __init__(self, grid):
@@ -39,10 +39,10 @@ class TranslateFillCorners(TranslateFortranData2Py):
 
     def compute_from_storage(self, inputs):
         if  inputs["dir"] == 1:
-            fill_corners_2d_bgrid_x_stencil(
+            fill_corners_bgrid_x_stencil(
                 inputs["divg_d"], origin=self.grid.full_origin(), domain=self.grid.domain_shape_full(add=(1, 1, 0)))
         elif  inputs["dir"] == 2:
-             fill_corners_2d_bgrid_y_stencil(
+             fill_corners_bgrid_y_stencil(
                 inputs["divg_d"], origin=self.grid.full_origin(), domain=self.grid.domain_shape_full(add=(1, 1, 0)
             ))
         else:
