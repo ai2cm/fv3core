@@ -166,13 +166,13 @@ def damping_nt2(
         local_js,
     )
 
-    divg_d = corners.fill_corners_bgrid_x(divg_d, divg_d)
+    divg_d = corners.fill_corners_bgrid_x(divg_d)
     with horizontal(region[local_is - 3 : local_ie + 4, local_js - 2 : local_je + 4]):
         vc = vc_from_divg(divg_d, divg_u)
-    divg_d = corners.fill_corners_bgrid_y(divg_d, divg_d)
+    divg_d = corners.fill_corners_bgrid_y(divg_d)
     with horizontal(region[local_is - 2 : local_ie + 4, local_js - 3 : local_je + 4]):
         uc = uc_from_divg(divg_d, divg_v)
-    vc, uc = corners.fill_corners_dgrid_fn(vc, uc, -1.0)
+    vc, uc = corners.fill_corners_dgrid(vc, uc, -1.0)
     with horizontal(region[local_is - 2 : local_ie + 4, local_js - 2 : local_je + 4]):
         divg_d = redo_divg_d(uc, vc)
     with horizontal(region[i_start, j_start], region[i_end + 1, j_start]):
@@ -205,13 +205,13 @@ def damping_nt1(
         local_js,
     )
 
-    divg_d = corners.fill_corners_bgrid_x(divg_d, divg_d)
+    divg_d = corners.fill_corners_bgrid_x(divg_d)
     with horizontal(region[local_is - 2 : local_ie + 3, local_js - 1 : local_je + 3]):
         vc = vc_from_divg(divg_d, divg_u)
-    divg_d = corners.fill_corners_bgrid_y(divg_d, divg_d)
+    divg_d = corners.fill_corners_bgrid_y(divg_d)
     with horizontal(region[local_is - 1 : local_ie + 3, local_js - 2 : local_je + 3]):
         uc = uc_from_divg(divg_d, divg_v)
-    vc, uc = corners.fill_corners_dgrid_fn(vc, uc, -1.0)
+    vc, uc = corners.fill_corners_dgrid(vc, uc, -1.0)
     with horizontal(region[local_is - 1 : local_ie + 3, local_js - 1 : local_je + 3]):
         divg_d = redo_divg_d(uc, vc)
     with horizontal(region[i_start, j_start], region[i_end + 1, j_start]):

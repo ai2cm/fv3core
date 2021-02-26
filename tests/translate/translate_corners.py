@@ -22,13 +22,13 @@ class TranslateFill4Corners(TranslateFortranData2Py):
 @gtstencil
 def fill_corners_bgrid_x_stencil(q: FloatField):
     with computation(PARALLEL), interval(3, None):
-        q = corners.fill_corners_bgrid_x(q, q)
+        q = corners.fill_corners_bgrid_x(q)
 
 
 @gtstencil
 def fill_corners_bgrid_y_stencil(q: FloatField):
     with computation(PARALLEL), interval(3, None):
-        q = corners.fill_corners_bgrid_y(q, q)
+        q = corners.fill_corners_bgrid_y(q)
 
 
 class TranslateFillCorners(TranslateFortranData2Py):
@@ -80,7 +80,7 @@ def fill_corners_dgrid_stencil(u: FloatField, v: FloatField, mysign: float):
         (
             u,
             v,
-        ) = corners.fill_corners_dgrid_fn(u, v, mysign)
+        ) = corners.fill_corners_dgrid(u, v, mysign)
 
 
 class TranslateFillCornersVector(TranslateFortranData2Py):

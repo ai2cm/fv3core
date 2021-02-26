@@ -269,92 +269,92 @@ def copy_corners(q, direction, grid, kslice=slice(0, None)):
 
 
 @gtscript.function
-def fill_corners_bgrid_x(q: FloatField, q_corner: FloatField):
+def fill_corners_bgrid_x(q: FloatField):
     from __externals__ import i_end, i_start, j_end, j_start
 
     # sw and se corner
     with horizontal(region[i_start - 1, j_start - 1], region[i_end + 2, j_start - 1]):
-        q = q_corner[0, 2, 0]
+        q = q[0, 2, 0]
     with horizontal(region[i_start - 1, j_start - 2], region[i_end + 3, j_start - 1]):
-        q = q_corner[-1, 3, 0]
+        q = q[-1, 3, 0]
     with horizontal(region[i_start - 1, j_start - 3], region[i_end + 4, j_start - 1]):
-        q = q_corner[-2, 4, 0]
+        q = q[-2, 4, 0]
     with horizontal(region[i_start - 2, j_start - 1], region[i_end + 2, j_start - 2]):
-        q = q_corner[1, 3, 0]
+        q = q[1, 3, 0]
     with horizontal(region[i_start - 2, j_start - 2], region[i_end + 3, j_start - 2]):
-        q = q_corner[0, 4, 0]
+        q = q[0, 4, 0]
     with horizontal(region[i_start - 2, j_start - 3], region[i_end + 4, j_start - 2]):
-        q = q_corner[-1, 5, 0]
+        q = q[-1, 5, 0]
     with horizontal(region[i_start - 3, j_start - 1], region[i_end + 2, j_start - 3]):
-        q = q_corner[2, 4, 0]
+        q = q[2, 4, 0]
     with horizontal(region[i_start - 3, j_start - 2], region[i_end + 3, j_start - 3]):
-        q = q_corner[1, 5, 0]
+        q = q[1, 5, 0]
     with horizontal(region[i_start - 3, j_start - 3], region[i_end + 4, j_start - 3]):
-        q = q_corner[0, 6, 0]
+        q = q[0, 6, 0]
     # nw and ne corner
     with horizontal(region[i_start - 1, j_end + 2], region[i_end + 2, j_end + 2]):
-        q = q_corner[0, -2, 0]
+        q = q[0, -2, 0]
     with horizontal(region[i_start - 1, j_end + 3], region[i_end + 3, j_end + 2]):
-        q = q_corner[-1, -3, 0]
+        q = q[-1, -3, 0]
     with horizontal(region[i_start - 1, j_end + 4], region[i_end + 4, j_end + 2]):
-        q = q_corner[-2, -4, 0]
+        q = q[-2, -4, 0]
     with horizontal(region[i_start - 2, j_end + 2], region[i_end + 2, j_end + 3]):
-        q = q_corner[1, -3, 0]
+        q = q[1, -3, 0]
     with horizontal(region[i_start - 2, j_end + 3], region[i_end + 3, j_end + 3]):
-        q = q_corner[0, -4, 0]
+        q = q[0, -4, 0]
     with horizontal(region[i_start - 2, j_end + 4], region[i_end + 4, j_end + 3]):
-        q = q_corner[-1, -5, 0]
+        q = q[-1, -5, 0]
     with horizontal(region[i_start - 3, j_end + 2], region[i_end + 2, j_end + 4]):
-        q = q_corner[2, -4, 0]
+        q = q[2, -4, 0]
     with horizontal(region[i_start - 3, j_end + 3], region[i_end + 3, j_end + 4]):
-        q = q_corner[1, -5, 0]
+        q = q[1, -5, 0]
     with horizontal(region[i_start - 3, j_end + 4], region[i_end + 4, j_end + 4]):
-        q = q_corner[0, -6, 0]
+        q = q[0, -6, 0]
     return q
 
 
 @gtscript.function
-def fill_corners_bgrid_y(q: FloatField, q_corner: FloatField):
+def fill_corners_bgrid_y(q: FloatField):
     from __externals__ import i_end, i_start, j_end, j_start
 
     # sw and nw corners
     with horizontal(region[i_start - 1, j_start - 1], region[i_start - 1, j_end + 2]):
-        q = q_corner[2, 0, 0]
+        q = q[2, 0, 0]
     with horizontal(region[i_start - 1, j_start - 2], region[i_start - 2, j_end + 2]):
-        q = q_corner[3, 1, 0]
+        q = q[3, 1, 0]
     with horizontal(region[i_start - 1, j_start - 3], region[i_start - 3, j_end + 2]):
-        q = q_corner[4, 2, 0]
+        q = q[4, 2, 0]
     with horizontal(region[i_start - 2, j_start - 1], region[i_start - 1, j_end + 3]):
-        q = q_corner[3, -1, 0]
+        q = q[3, -1, 0]
     with horizontal(region[i_start - 2, j_start - 2], region[i_start - 2, j_end + 3]):
-        q = q_corner[4, 0, 0]
+        q = q[4, 0, 0]
     with horizontal(region[i_start - 2, j_start - 3], region[i_start - 3, j_end + 3]):
-        q = q_corner[5, 1, 0]
+        q = q[5, 1, 0]
     with horizontal(region[i_start - 3, j_start - 1], region[i_start - 1, j_end + 4]):
-        q = q_corner[4, -2, 0]
+        q = q[4, -2, 0]
     with horizontal(region[i_start - 3, j_start - 2], region[i_start - 2, j_end + 4]):
-        q = q_corner[5, -1, 0]
+        q = q[5, -1, 0]
     with horizontal(region[i_start - 3, j_start - 3], region[i_start - 3, j_end + 4]):
-        q = q_corner[6, 0, 0]
+        q = q[6, 0, 0]
     # se and ne corners
     with horizontal(region[i_end + 2, j_start - 1], region[i_end + 2, j_end + 2]):
-        q = q_corner[-2, 0, 0]
+        q = q[-2, 0, 0]
     with horizontal(region[i_end + 2, j_start - 2], region[i_end + 3, j_end + 2]):
-        q = q_corner[-3, 1, 0]
+        q = q[-3, 1, 0]
     with horizontal(region[i_end + 2, j_start - 3], region[i_end + 4, j_end + 2]):
-        q = q_corner[-4, 2, 0]
+        q = q[-4, 2, 0]
     with horizontal(region[i_end + 3, j_start - 1], region[i_end + 2, j_end + 3]):
-        q = q_corner[-3, -1, 0]
+        q = q[-3, -1, 0]
     with horizontal(region[i_end + 3, j_start - 2], region[i_end + 3, j_end + 3]):
-        q = q_corner[-4, 0, 0]
+        q = q[-4, 0, 0]
     with horizontal(region[i_end + 3, j_start - 3], region[i_end + 4, j_end + 3]):
-        q = q_corner[-5, 1, 0]
+        q = q[-5, 1, 0]
     with horizontal(region[i_end + 4, j_start - 1], region[i_end + 2, j_end + 4]):
-        q = q_corner[-4, -2, 0]
+        q = q[-4, -2, 0]
     with horizontal(region[i_end + 4, j_start - 2], region[i_end + 3, j_end + 4]):
-        q = q_corner[-5, -1, 0]
+        q = q[-5, -1, 0]
     with horizontal(region[i_end + 4, j_start - 3], region[i_end + 4, j_end + 4]):
-        q = q_corner[-6, 0, 0]
+        q = q[-6, 0, 0]
 
     return q
 
@@ -403,7 +403,7 @@ def fill_corners_2d_agrid(q, grid, gridtype, direction="x"):
 
 
 @gtscript.function
-def fill_corners_dgrid_fn(x: FloatField, y: FloatField, mysign: float):
+def fill_corners_dgrid(x: FloatField, y: FloatField, mysign: float):
     from __externals__ import i_end, i_start, j_end, j_start
 
     # sw corner
@@ -555,15 +555,6 @@ def fill_corners_dgrid_fn(x: FloatField, y: FloatField, mysign: float):
     with horizontal(region[i_end + 4, j_start - 3]):
         y = x[-6, 0, 0]
     return x, y
-
-
-@gtstencil
-def fill_corners_dgrid_stencil(u: FloatField, v: FloatField, mysign: float):
-    with computation(PARALLEL), interval(...):
-        (
-            u,
-            v,
-        ) = fill_corners_dgrid_fn(u, v, mysign)
 
 
 def corner_ke(ke, u, v, ut, vt, i, j, dt, offsets, vsign):
