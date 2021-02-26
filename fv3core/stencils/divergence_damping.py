@@ -42,17 +42,23 @@ def delpc_main(vort: sd, ptc: sd, delpc: sd):
     with computation(PARALLEL), interval(...):
         delpc[0, 0, 0] = vort[0, -1, 0] - vort + ptc[-1, 0, 0] - ptc
 
+@gtscript.function
+def remove_extra_term_south_corner(extra: sd, field: sd):
+    return field - extra[0, -1, 0]
 
 @gtstencil()
 def corner_south_remove_extra_term(vort: sd, delpc: sd):
     with computation(PARALLEL), interval(...):
-        delpc[0, 0, 0] = delpc - vort[0, -1, 0]
+        delpc = remove_extra_term_south_corner(vort, delpc)
 
+@gtscript.function
+def remove_extra_term_north_corner(extra: sd, field: sd):
+    return field + extra
 
 @gtstencil()
 def corner_north_remove_extra_term(vort: sd, delpc: sd):
     with computation(PARALLEL), interval(...):
-        delpc[0, 0, 0] = delpc + vort
+        delpc = remove_extra_term_north_corner(vort, delpc)
 
 
 @gtscript.function
@@ -101,21 +107,18 @@ def damping_nord_highorder_stencil(
         ke = ke + vort
 
 
-@gtstencil
-def vc_from_divg(divg_d: sd, divg_u: sd, vc: sd):
-    with computation(PARALLEL), interval(...):
-        vc = (divg_d[1, 0, 0] - divg_d) * divg_u
+@gtscript.function
+def vc_from_divg(divg_d: sd, divg_u: sd):
+    return (divg_d[1, 0, 0] - divg_d) * divg_u
 
-@gtstencil()
-def uc_from_divg(divg_d: sd, divg_v: sd, uc: sd):
-    with computation(PARALLEL), interval(...):
-        uc[0, 0, 0] = (divg_d[0, 1, 0] - divg_d) * divg_v
+@gtscript.function
+def uc_from_divg(divg_d: sd, divg_v: sd):
+    return (divg_d[0, 1, 0] - divg_d) * divg_v
 
 
-@gtstencil()
-def redo_divg_d(uc: sd, vc: sd, divg_d: sd):
-    with computation(PARALLEL), interval(...):
-        divg_d[0, 0, 0] = uc[0, -1, 0] - uc + vc[-1, 0, 0] - vc
+@gtscript.function
+def redo_divg_d(uc: sd, vc: sd):
+    return uc[0, -1, 0] - uc + vc[-1, 0, 0] - vc
 
 
 @gtstencil()
@@ -141,33 +144,28 @@ def vorticity_calc(wk, vort, delpc, dt, nord, kstart, nk):
             else:
                 raise Exception("Not implemented, smag_corner")
 
-#def part1(rarea_c: sd, divg_u: sd, divg_v: sd, divg_d: sd, uc: sd, vc: sd):
-#    from __externals__ import nt, local_is, local_ie, local_js, local_je, i_start, i_end, j_start, j_end
-#    with computation(PARALLEL), interval(...):
 @gtscript.function
-def nord_loop(rarea_c: sd, divg_u: sd, divg_v: sd, divg_d: sd, uc: sd, vc: sd):
-    from __externals__ import nt, local_is, local_ie, local_js, local_je, i_start, i_end, j_start, j_end
+def damping_nt2(rarea_c: sd, divg_u: sd, divg_v: sd, divg_d: sd, uc: sd, vc: sd):
+    from __externals__ import local_is, local_ie, local_js, local_je, i_start, i_end, j_start, j_end
     if __INLINED(nt > 0):
         divg_d = corners.fill_corners_2d_bgrid_x(divg_d)
     with horizontal(region[local_is - nt - 1:local_ie + nt + 2 , local_js - nt:local_je + nt + 2  ]):
-        vc = (divg_d[1, 0, 0] - divg_d) * divg_u
+        vc = vc_from_divg(divg_d, divg_u)
     if __INLINED(nt > 0):
         divg_d = corners.fill_corners_2d_bgrid_y(divg_d)
     with horizontal(region[local_is - nt:local_ie + nt + 2 , local_js - nt - 1:local_je + nt + 2  ]):
-        uc = (divg_d[0, 1, 0] - divg_d) * divg_v
+        uc = uc_from_divg(divg_d, divg_v) 
     if __INLINED(nt > 0):
         vc, uc = corners.fill_corners_dgrid_fn(vc, uc, -1.0)
     with horizontal(region[local_is - nt:local_ie + nt + 2 , local_js - nt:local_je + nt + 2  ]):
-        divg_d = uc[0, -1, 0] - uc + vc[-1, 0, 0] - vc
-    # corner_south_remove_extra_term
+        divg_d = redo_divg_d(uc, vc) 
     with horizontal(region[i_start, j_start], region[i_end + 1, j_start]):
-        divg_d = divg_d - uc[0, -1, 0]
-    # corner_north_remove_extra_term
+        divg_d = remove_extra_term_south_corner(uc, divg_d)
     with horizontal(region[i_start, j_end + 1], region[i_end + 1, j_end + 1]):
-        divg_d= divg_d + uc
+        divg_d= remove_extra_term_north_corner(uc, divg_d)
     # ASSUMED not grid.stretched_grid
     with horizontal(region[local_is - nt:local_ie + nt + 2 , local_js - nt:local_je + nt + 2] ):
-        divg_d = divg_d * rarea_c
+        divg_d = basic.adjustmentfactor(rarea_c, divg_d)
     return divg_d, uc, vc
 
 def part1(rarea_c: sd, divg_u: sd, divg_v: sd, divg_d: sd, uc: sd, vc: sd):
@@ -214,6 +212,7 @@ def compute(
         )
         for n in range(1, nord + 1):
             nt = nord - n
+            print(nt, kstart, nk)
             nint = grid.nic + 2 * nt + 1
             njnt = grid.njc + 2 * nt + 1
             js = grid.js - nt
