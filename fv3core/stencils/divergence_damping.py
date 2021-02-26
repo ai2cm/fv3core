@@ -147,31 +147,76 @@ def vorticity_calc(wk, vort, delpc, dt, nord, kstart, nk):
 @gtscript.function
 def damping_nt2(rarea_c: sd, divg_u: sd, divg_v: sd, divg_d: sd, uc: sd, vc: sd):
     from __externals__ import local_is, local_ie, local_js, local_je, i_start, i_end, j_start, j_end
-    if __INLINED(nt > 0):
-        divg_d = corners.fill_corners_2d_bgrid_x(divg_d)
-    with horizontal(region[local_is - nt - 1:local_ie + nt + 2 , local_js - nt:local_je + nt + 2  ]):
+    divg_d = corners.fill_corners_2d_bgrid_x(divg_d)
+    with horizontal(region[local_is - 2 - 1:local_ie + 2 + 2 , local_js - 2:local_je + 2 + 2  ]):
         vc = vc_from_divg(divg_d, divg_u)
-    if __INLINED(nt > 0):
-        divg_d = corners.fill_corners_2d_bgrid_y(divg_d)
-    with horizontal(region[local_is - nt:local_ie + nt + 2 , local_js - nt - 1:local_je + nt + 2  ]):
+    
+    divg_d = corners.fill_corners_2d_bgrid_y(divg_d)
+    with horizontal(region[local_is - 2:local_ie + 2 + 2 , local_js - 2 - 1:local_je + 2 + 2  ]):
         uc = uc_from_divg(divg_d, divg_v) 
-    if __INLINED(nt > 0):
-        vc, uc = corners.fill_corners_dgrid_fn(vc, uc, -1.0)
-    with horizontal(region[local_is - nt:local_ie + nt + 2 , local_js - nt:local_je + nt + 2  ]):
+    vc, uc = corners.fill_corners_dgrid_fn(vc, uc, -1.0)
+    with horizontal(region[local_is - 2:local_ie + 2 + 2 , local_js - 2:local_je + 2 + 2  ]):
         divg_d = redo_divg_d(uc, vc) 
     with horizontal(region[i_start, j_start], region[i_end + 1, j_start]):
         divg_d = remove_extra_term_south_corner(uc, divg_d)
     with horizontal(region[i_start, j_end + 1], region[i_end + 1, j_end + 1]):
         divg_d= remove_extra_term_north_corner(uc, divg_d)
     # ASSUMED not grid.stretched_grid
-    with horizontal(region[local_is - nt:local_ie + nt + 2 , local_js - nt:local_je + nt + 2] ):
+    with horizontal(region[local_is - 2:local_ie + 2 + 2 , local_js - 2:local_je + 2 + 2] ):
         divg_d = basic.adjustmentfactor(rarea_c, divg_d)
     return divg_d, uc, vc
 
-def part1(rarea_c: sd, divg_u: sd, divg_v: sd, divg_d: sd, uc: sd, vc: sd):
-    from __externals__ import nt, local_is, local_ie, local_js, local_je, i_start, i_end, j_start, j_end
+@gtscript.function
+def damping_nt1(rarea_c: sd, divg_u: sd, divg_v: sd, divg_d: sd, uc: sd, vc: sd):
+    from __externals__ import local_is, local_ie, local_js, local_je, i_start, i_end, j_start, j_end
+    divg_d = corners.fill_corners_2d_bgrid_x(divg_d)
+    with horizontal(region[local_is - 1 - 1:local_ie + 1 + 2 , local_js - 1:local_je + 1 + 2  ]):
+        vc = vc_from_divg(divg_d, divg_u)
+    divg_d = corners.fill_corners_2d_bgrid_y(divg_d)
+    with horizontal(region[local_is - 1:local_ie + 1 + 2 , local_js - 1 - 1:local_je + 1 + 2  ]):
+        uc = uc_from_divg(divg_d, divg_v)
+    vc, uc = corners.fill_corners_dgrid_fn(vc, uc, -1.0)
+    with horizontal(region[local_is - 1:local_ie + 1 + 2 , local_js - 1:local_je + 1 + 2  ]):
+        divg_d = redo_divg_d(uc, vc)
+    with horizontal(region[i_start, j_start], region[i_end + 1, j_start]):
+        divg_d = remove_extra_term_south_corner(uc, divg_d)
+    with horizontal(region[i_start, j_end + 1], region[i_end + 1, j_end + 1]):
+        divg_d= remove_extra_term_north_corner(uc, divg_d)
+    # ASSUMED not grid.stretched_grid                                              
+    with horizontal(region[local_is - 1:local_ie + 1 + 2 , local_js - 1:local_je + 1 + 2] ):
+        divg_d = basic.adjustmentfactor(rarea_c, divg_d)
+    return divg_d, uc, vc
+
+@gtscript.function
+def damping_nt0(rarea_c: sd, divg_u: sd, divg_v: sd, divg_d: sd, uc: sd, vc: sd):
+    from __externals__ import local_is, local_ie, local_js, local_je, i_start, i_end, j_start, j_end
+    
+    with horizontal(region[local_is - 0 - 1:local_ie + 0 + 2 , local_js - 0:local_je + 0 + 2  ]):
+        vc = vc_from_divg(divg_d, divg_u)
+    
+    with horizontal(region[local_is - 0:local_ie + 0 + 2 , local_js - 0 - 1:local_je + 0 + 2  ]):
+        uc = uc_from_divg(divg_d, divg_v)
+    
+    with horizontal(region[local_is - 0:local_ie + 0 + 2 , local_js - 0:local_je + 0 + 2  ]):
+        divg_d = redo_divg_d(uc, vc)
+    with horizontal(region[i_start, j_start], region[i_end + 1, j_start]):
+        divg_d = remove_extra_term_south_corner(uc, divg_d)
+    with horizontal(region[i_start, j_end + 1], region[i_end + 1, j_end + 1]):
+        divg_d= remove_extra_term_north_corner(uc, divg_d)
+    # ASSUMED not grid.stretched_grid 
+    with horizontal(region[local_is - 0:local_ie + 0 + 2 , local_js - 0:local_je + 0 + 2] ):
+        divg_d = basic.adjustmentfactor(rarea_c, divg_d)
+    return divg_d, uc, vc
+
+@gtstencil
+def damping_nonzero_nord(rarea_c: sd, divg_u: sd, divg_v: sd, divg_d: sd, uc: sd, vc: sd):
     with computation(PARALLEL), interval(...):
-        divg_d, uc, vc = nord_loop(rarea_c, divg_u, divg_v, divg_d, uc, vc)
+        # TODO, can we call the same function 3 times and let gt4py do the extent analysis?
+        # currently does not work because corner calculations need entire array,
+        # and vc/uc need offsets
+        divg_d, uc, vc = damping_nt2(rarea_c, divg_u, divg_v, divg_d, uc, vc)
+        divg_d, uc, vc = damping_nt1(rarea_c, divg_u, divg_v, divg_d, uc, vc)
+        divg_d, uc, vc = damping_nt0(rarea_c, divg_u, divg_v, divg_d, uc, vc)
 def compute(
     u,
     v,
@@ -210,16 +255,8 @@ def compute(
             origin=(grid.is_, grid.js, kstart),
             domain=(grid.nic + 1, grid.njc + 1, nk),
         )
-        for n in range(1, nord + 1):
-            nt = nord - n
-            print(nt, kstart, nk)
-            nint = grid.nic + 2 * nt + 1
-            njnt = grid.njc + 2 * nt + 1
-            js = grid.js - nt
-            is_ = grid.is_ - nt
-            
-            part1_stencil = gtstencil(definition=part1, externals={'nt': nt})
-            part1_stencil(grid.rarea_c, grid.divg_u, grid.divg_v, divg_d, uc, vc, origin=(grid.isd, grid.jsd, kstart), domain=(grid.nid + 1, grid.njd + 1, nk))
+        
+        damping_nonzero_nord(grid.rarea_c, grid.divg_u, grid.divg_v, divg_d, uc, vc, origin=(grid.isd, grid.jsd, kstart), domain=(grid.nid + 1, grid.njd + 1, nk))
             
 
         vorticity_calc(wk, vort, delpc, dt, nord, kstart, nk)
