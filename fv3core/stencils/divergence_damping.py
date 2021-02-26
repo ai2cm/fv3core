@@ -217,14 +217,24 @@ def compute(
     grid = spec.grid
     if nk is None:
         nk = grid.npz - kstart
-    # Avoid running center-domain computation on tile edges, since they'll be
-    # overwritten.
-    is2 = grid.is_ + 1 if grid.west_edge else grid.is_
-    ie1 = grid.ie if grid.east_edge else grid.ie + 1
+   
     nord = int(nord)
+    print(nord, kstart, nk)
     if nord == 0:
-        damping_zero_order(
-            u, v, va, ptc, vort, ua, vc, uc, delpc, ke, d2_bg, dt, is2, ie1, kstart, nk
+        
+        compute_origin = (grid.is_, grid.js, kstart)
+        compute_domain = (grid.nic + 1, grid.njc + 1, nk)
+        if grid.nested:
+            raise Exception("nested not implemented")
+        damping_nord0(
+            u, v,
+            ua, va, uc, vc,
+            grid.cosa_u, grid.cosa_v,
+            grid.sina_u, grid.sina_v,
+            grid.dxc, grid.dyc, grid.sin_sg1, grid.sin_sg2,grid.sin_sg3, grid.sin_sg4,grid.rarea_c,
+            ptc,vort, delpc, ke, grid.da_min_c, d2_bg, dt,
+            origin=compute_origin,
+            domain=compute_domain
         )
     else:
         
@@ -252,37 +262,3 @@ def compute(
 
     return vort, ke, delpc
 
-
-def damping_zero_order(
-    u, v, va, ptc, vort, ua, vc, uc, delpc, ke, d2_bg, dt, is2, ie1, kstart, nk
-):
-    grid = spec.grid
-    compute_origin = (grid.is_, grid.js, kstart)
-    compute_domain = (grid.nic + 1, grid.njc + 1, nk)
-    is2 = grid.is_ + 1 if grid.west_edge else grid.is_
-    ie1 = grid.ie if grid.east_edge else grid.ie + 1
-    if grid.nested:
-        raise Exception("nested not implemented")
-
-    damping_nord0(
-        u, v,
-        ua, va, uc, vc,
-        grid.cosa_u, grid.cosa_v,
-        grid.sina_u, grid.sina_v,
-        grid.dxc, grid.dyc, grid.sin_sg1, grid.sin_sg2,grid.sin_sg3, grid.sin_sg4,grid.rarea_c, 
-        ptc,vort, delpc, ke, grid.da_min_c, d2_bg, dt,
-        origin=compute_origin,#(grid.is_ - 1, grid.js - 1, kstart),
-        domain=compute_domain#(grid.nic + 2, grid.njc + 2, nk),
-    )
-    #damping_nord0_stencil(
-    #    grid.rarea_c,
-    #    delpc,
-    #    vort,
-    #    ke,
-    #    grid.da_min_c,
-    #    d2_bg,
-    #    spec.namelist.dddmp,
-    #    dt,
-    #    origin=compute_origin,
-    #    domain=compute_domain,
-    #)
