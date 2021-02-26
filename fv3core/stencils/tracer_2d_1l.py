@@ -177,8 +177,8 @@ def compute(comm, tracers, dp1, mfxd, mfyd, cxd, cyd, mdt, nq):
         grid.sin_sg4,
         xfx,
         yfx,
-        origin=grid.compute_origin(add=(-grid.halo, -grid.halo, 0)),
-        domain=grid.domain_shape_compute(add=(2 * grid.halo, 2 * grid.halo, 0)),
+        origin=grid.full_origin(),
+        domain=grid.domain_shape_full(),
     )
     # {
     # # TODO for if we end up using the Allreduce and compute cmax globally
@@ -237,8 +237,8 @@ def compute(comm, tracers, dp1, mfxd, mfyd, cxd, cyd, mdt, nq):
         ra_x,
         yfx,
         ra_y,
-        origin=grid.compute_origin(add=(-grid.halo, -grid.halo, 0)),
-        domain=grid.domain_shape_compute(add=(2 * grid.halo, 2 * grid.halo, 0)),
+        origin=grid.full_origin(),
+        domain=grid.domain_shape_full(),
     )
 
     # TODO: Revisit: the loops over q and nsplt have two inefficient options
