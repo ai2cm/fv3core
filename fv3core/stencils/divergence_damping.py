@@ -14,23 +14,29 @@ sd = utils.sd
 
 
 @gtstencil()
-def ptc_main(u: sd, va: sd, vc: sd, cosa_v: sd, sina_v: sd, dyc: sd, sin_sg4: sd, sin_sg2: sd, ptc: sd):
-    from __externals__ import i_start, i_end, j_start, j_end
+def ptc_main(u: sd, v: sd, ua: sd, va: sd, uc: sd, vc: sd, cosa_u: sd, cosa_v: sd, sina_u: sd, sina_v: sd, dxc: sd, dyc: sd, sin_sg1: sd, sin_sg2:sd, sin_sg3: sd, sin_sg4: sd, ptc: sd, vort: sd):
+    from __externals__ import i_start, i_end, j_start, j_end, local_is, local_ie, local_js, local_je
     with computation(PARALLEL), interval(...):
-        ptc[0, 0, 0] = (u - 0.5 * (va[0, -1, 0] + va) * cosa_v) * dyc * sina_v
+        ptc = (u - 0.5 * (va[0, -1, 0] + va) * cosa_v) * dyc * sina_v
         with horizontal(region[:, j_start], region[:, j_end + 1]):
-            ptc[0, 0, 0] = u * dyc * sin_sg4[0, -1, 0] if vc > 0 else u * dyc * sin_sg2
-            
-@gtstencil()
-def ptc_y_edge(u: sd, vc: sd, dyc: sd, sin_sg4: sd, sin_sg2: sd, ptc: sd):
-    with computation(PARALLEL), interval(...):
-        ptc[0, 0, 0] = u * dyc * sin_sg4[0, -1, 0] if vc > 0 else u * dyc * sin_sg2
+            ptc = u * dyc * sin_sg4[0, -1, 0] if vc > 0 else u * dyc * sin_sg2
+        vort_copy = vort
+        with horizontal(region[local_is:local_ie + 2, :]):
+            vort = (v - 0.5 * (ua[-1, 0, 0] + ua) * cosa_u) * dxc * sina_u
+        with horizontal(region[i_start,:], region[i_end + 1,:]):
+            vort = vort_copy
+        with horizontal(region[i_start, :], region[i_end + 1, :]):
+            vort = v * dxc * sin_sg3[-1, 0, 0] if uc > 0 else v * dxc * sin_sg1
+#@gtstencil()
+#def ptc_y_edge(u: sd, vc: sd, dyc: sd, sin_sg4: sd, sin_sg2: sd, ptc: sd):
+#    with computation(PARALLEL), interval(...):
+#        ptc[0, 0, 0] = u * dyc * sin_sg4[0, -1, 0] if vc > 0 else u * dyc * sin_sg2
 
 
-@gtstencil()
-def vorticity_main(v: sd, ua: sd, cosa_u: sd, sina_u: sd, dxc: sd, vort: sd):
-    with computation(PARALLEL), interval(...):
-        vort[0, 0, 0] = (v - 0.5 * (ua[-1, 0, 0] + ua) * cosa_u) * dxc * sina_u
+#@gtstencil()
+#def vorticity_main(v: sd, ua: sd, cosa_u: sd, sina_u: sd, dxc: sd, vort: sd):
+#    with computation(PARALLEL), interval(...):
+#        vort[0, 0, 0] = (v - 0.5 * (ua[-1, 0, 0] + ua) * cosa_u) * dxc * sina_u
 
 
 @gtstencil()
@@ -286,17 +292,19 @@ def damping_zero_order(
     grid = spec.grid
     compute_origin = (grid.is_, grid.js, kstart)
     compute_domain = (grid.nic + 1, grid.njc + 1, nk)
+    is2 = grid.is_ + 1 if grid.west_edge else grid.is_
+    ie1 = grid.ie if grid.east_edge else grid.ie + 1
     if not grid.nested:
         # TODO: ptc and vort are equivalent, but x vs y, consolidate if possible.
         ptc_main(
-            u,
-            va, vc,
-            grid.cosa_v,
-            grid.sina_v,
-            grid.dyc, grid.sin_sg4, grid.sin_sg2,
-            ptc,
-            origin=(grid.is_ - 1, grid.js, kstart),
-            domain=(grid.nic + 2, grid.njc + 1, nk),
+            u, v,
+            ua, va, uc, vc,
+            grid.cosa_u, grid.cosa_v,
+            grid.sina_u, grid.sina_v,
+            grid.dxc, grid.dyc, grid.sin_sg1, grid.sin_sg2,grid.sin_sg3, grid.sin_sg4,
+            ptc,vort,
+            origin=(grid.is_ - 1, grid.js - 1, kstart),
+            domain=(grid.nic + 2, grid.njc + 2, nk),
         )
         #y_edge_domain = (grid.nic + 2, 1, nk)
         #if grid.south_edge:
@@ -322,39 +330,39 @@ def damping_zero_order(
         #        domain=y_edge_domain,
         #    )
 
-        vorticity_main(
-            v,
-            ua,
-            grid.cosa_u,
-            grid.sina_u,
-            grid.dxc,
-            vort,
-            origin=(is2, grid.js - 1, kstart),
-            domain=(ie1 - is2 + 1, grid.njc + 2, nk),
-        )
-        x_edge_domain = (1, grid.njc + 2, nk)
-        if grid.west_edge:
-            vorticity_x_edge(
-                v,
-                uc,
-                grid.dxc,
-                grid.sin_sg3,
-                grid.sin_sg1,
-                vort,
-                origin=(grid.is_, grid.js - 1, kstart),
-                domain=x_edge_domain,
-            )
-        if grid.east_edge:
-            vorticity_x_edge(
-                v,
-                uc,
-                grid.dxc,
-                grid.sin_sg3,
-                grid.sin_sg1,
-                vort,
-                origin=(grid.ie + 1, grid.js - 1, kstart),
-                domain=x_edge_domain,
-            )
+        #vorticity_main(
+        #    v,
+        #    ua,
+        #    grid.cosa_u,
+        #    grid.sina_u,
+        #    grid.dxc,
+        #    vort,
+        #    origin=(is2, grid.js - 1, kstart),
+        #    domain=(ie1 - is2 + 1, grid.njc + 2, nk),
+        #)
+        #x_edge_domain = (1, grid.njc + 2, nk)
+        #if grid.west_edge:
+        #    vorticity_x_edge(
+        #        v,
+        #        uc,
+        #        grid.dxc,
+        #        grid.sin_sg3,
+        #        grid.sin_sg1,
+        #        vort,
+        #        origin=(grid.is_, grid.js - 1, kstart),
+        #        domain=x_edge_domain,
+        #    )
+        #if grid.east_edge:
+        #    vorticity_x_edge(
+        #        v,
+        #        uc,
+        #        grid.dxc,
+        #        grid.sin_sg3,
+        #        grid.sin_sg1,
+        #        vort,
+        #        origin=(grid.ie + 1, grid.js - 1, kstart),
+        #        domain=x_edge_domain,
+        #    )
     else:
         raise Exception("nested not implemented")
     #compute_origin = (grid.is_, grid.js, kstart)
