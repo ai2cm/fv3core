@@ -255,6 +255,14 @@ def compute(comm, tracers, dp1, mfxd, mfyd, cxd, cyd, mdt, nq):
             origin=grid.full_origin(),
             domain=grid.domain_shape_full(),
         )
+        qn2 = grid.quantity_wrap(
+            copy(
+                q.storage,
+                origin=grid.full_origin(),
+                domain=grid.domain_shape_full(),
+            ),
+            units="kg/m^2",
+        )
         for it in range(int(nsplt)):
             dp_fluxadjustment(
                 dp1,
@@ -266,16 +274,16 @@ def compute(comm, tracers, dp1, mfxd, mfyd, cxd, cyd, mdt, nq):
                 domain=grid.domain_shape_compute(),
             )
             if nsplt != 1:
-                if it == 0:
-                    # TODO 1d
-                    qn2 = grid.quantity_wrap(
-                        copy(
-                            q.storage,
-                            origin=grid.full_origin(),
-                            domain=grid.domain_shape_full(),
-                        ),
-                        units="kg/m^2",
-                    )
+                # if it == 0:
+                # TODO 1d
+                # qn2 = grid.quantity_wrap(
+                #     copy(
+                #         q.storage,
+                #         origin=grid.full_origin(),
+                #         domain=grid.domain_shape_full(),
+                #     ),
+                #     units="kg/m^2",
+                # )
 
                 fvtp2d.compute_no_sg(
                     qn2.storage,
