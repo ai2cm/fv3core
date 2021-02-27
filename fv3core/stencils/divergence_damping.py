@@ -199,7 +199,7 @@ def divergence_at_nord(
     return divg_d, uc, vc
 
 
-@gtstencil(externals={})
+@gtstencil()
 def damping_nonzero_nord(
     rarea_c: FloatField,
     divg_u: FloatField,
@@ -209,12 +209,9 @@ def damping_nonzero_nord(
     vc: FloatField,
     delpc: FloatField,
 ):
-    from __externals__ import local_ie, local_is, local_je, local_js
 
     with computation(PARALLEL), interval(...):
-        # TODO: needed for validation of DivergenceDamping, D_SW, but not DynCore
-        with horizontal(region[local_is : local_ie + 2, local_js : local_je + 2]):
-            delpc = divg_d
+        delpc = divg_d
         # TODO, can we call the same function 3 times, let gt4py do the extent analysis?
         # currently does not work because corner calculations need entire array,
         # and vc/uc need offsets
