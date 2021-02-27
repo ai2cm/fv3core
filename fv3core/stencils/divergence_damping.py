@@ -173,15 +173,15 @@ def damping_nt2(
     with horizontal(region[local_is - 2 : local_ie + 4, local_js - 3 : local_je + 4]):
         uc = uc_from_divg(divg_d, divg_v)
     vc, uc = corners.fill_corners_dgrid(vc, uc, -1.0)
-    with horizontal(region[local_is - 2 : local_ie + 4, local_js - 2 : local_je + 4]):
-        divg_d = redo_divg_d(uc, vc)
+    # with horizontal(region[local_is - 2 : local_ie + 4, local_js - 2 : local_je + 4]):
+    divg_d = redo_divg_d(uc, vc)
     with horizontal(region[i_start, j_start], region[i_end + 1, j_start]):
         divg_d = remove_extra_term_south_corner(uc, divg_d)
     with horizontal(region[i_start, j_end + 1], region[i_end + 1, j_end + 1]):
         divg_d = remove_extra_term_north_corner(uc, divg_d)
     # ASSUMED not grid.stretched_grid
-    with horizontal(region[local_is - 2 : local_ie + 4, local_js - 2 : local_je + 4]):
-        divg_d = basic.adjustmentfactor(rarea_c, divg_d)
+    # with horizontal(region[local_is - 2 : local_ie + 4, local_js - 2 : local_je + 4]):
+    divg_d = basic.adjustmentfactor(rarea_c, divg_d)
     return divg_d, uc, vc
 
 
@@ -212,15 +212,15 @@ def damping_nt1(
     with horizontal(region[local_is - 1 : local_ie + 3, local_js - 2 : local_je + 3]):
         uc = uc_from_divg(divg_d, divg_v)
     vc, uc = corners.fill_corners_dgrid(vc, uc, -1.0)
-    with horizontal(region[local_is - 1 : local_ie + 3, local_js - 1 : local_je + 3]):
-        divg_d = redo_divg_d(uc, vc)
+    # with horizontal(region[local_is - 1 : local_ie + 3, local_js - 1 : local_je + 3]):
+    divg_d = redo_divg_d(uc, vc)
     with horizontal(region[i_start, j_start], region[i_end + 1, j_start]):
         divg_d = remove_extra_term_south_corner(uc, divg_d)
     with horizontal(region[i_start, j_end + 1], region[i_end + 1, j_end + 1]):
         divg_d = remove_extra_term_north_corner(uc, divg_d)
     # ASSUMED not grid.stretched_grid
-    with horizontal(region[local_is - 1 : local_ie + 3, local_js - 1 : local_je + 3]):
-        divg_d = basic.adjustmentfactor(rarea_c, divg_d)
+    # with horizontal(region[local_is - 1 : local_ie + 3, local_js - 1 : local_je + 3]):
+    divg_d = basic.adjustmentfactor(rarea_c, divg_d)
     return divg_d, uc, vc
 
 
@@ -233,32 +233,21 @@ def damping_nt0(
     uc: FloatField,
     vc: FloatField,
 ):
-    from __externals__ import (
-        i_end,
-        i_start,
-        j_end,
-        j_start,
-        local_ie,
-        local_is,
-        local_je,
-        local_js,
-    )
+    from __externals__ import i_end, i_start, j_end, j_start
 
-    with horizontal(region[local_is - 1 : local_ie + 2, local_js : local_je + 2]):
-        vc = vc_from_divg(divg_d, divg_u)
-
-    with horizontal(region[local_is : local_ie + 2, local_js - 1 : local_je + 2]):
-        uc = uc_from_divg(divg_d, divg_v)
-
-    with horizontal(region[local_is : local_ie + 2, local_js : local_je + 2]):
-        divg_d = redo_divg_d(uc, vc)
+    # with horizontal(region[local_is - 1 : local_ie + 2, local_js : local_je + 2]):
+    vc = vc_from_divg(divg_d, divg_u)
+    # with horizontal(region[local_is : local_ie + 2, local_js - 1 : local_je + 2]):
+    uc = uc_from_divg(divg_d, divg_v)
+    # with horizontal(region[local_is : local_ie + 2, local_js : local_je + 2]):
+    divg_d = redo_divg_d(uc, vc)
     with horizontal(region[i_start, j_start], region[i_end + 1, j_start]):
         divg_d = remove_extra_term_south_corner(uc, divg_d)
     with horizontal(region[i_start, j_end + 1], region[i_end + 1, j_end + 1]):
         divg_d = remove_extra_term_north_corner(uc, divg_d)
     # ASSUMED not grid.stretched_grid
-    with horizontal(region[local_is : local_ie + 2, local_js : local_je + 2]):
-        divg_d = basic.adjustmentfactor(rarea_c, divg_d)
+    # with horizontal(region[local_is : local_ie + 2, local_js : local_je + 2]):
+    divg_d = basic.adjustmentfactor(rarea_c, divg_d)
     return divg_d, uc, vc
 
 
@@ -307,8 +296,9 @@ def compute(
 ):
     """Applies divergence damping to the momentum equations
 
-    The divergence damping term of the momentum equation is computed and
-    the vorticity, kinetic energy, divergence and C-grid winds are updated
+    The divergence damping term of the momentum equation is computed using
+    the double laplacian of the horizontal divergence oon a Lagrangian surface.
+    The vorticity, kinetic energy, divergence and C-grid winds are updated
     accordingly.
     Assumes this is not a nested grid.
 
@@ -319,7 +309,7 @@ def compute(
          va: y-velocity on the A-grid (in)
          uc: x-velocity on the C-grid (inout)
          vc: y-velocity on the C-grid (inout)
-         ptc: temperature (k) on the C-grid (inout)
+         ptc: potential temperature (k) on the C-grid (inout)
          vort: vorticity (inout)
          ke: kinetic energy (inout)
          wk: volume-mean relative vorticity(in)
@@ -369,8 +359,12 @@ def compute(
             uc,
             vc,
             delpc,
-            origin=(grid.isd, grid.jsd, kstart),
-            domain=(grid.nid + 1, grid.njd + 1, nk),
+            origin=(grid.is_, grid.js, kstart),  # (grid.isd, grid.jsd, kstart),
+            domain=(
+                grid.nic + 1,
+                grid.njc + 1,
+                nk,
+            ),  # (grid.nid + 1, grid.njd + 1, nk),
         )
 
         vorticity_calc(wk, vort, delpc, dt, nord, kstart, nk)
