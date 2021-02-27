@@ -415,15 +415,31 @@ def csw_stencil(
         )
 
 
-def compute(delp, pt, u, v, w, uc, vc, ua, va, ut, vt, divgd, omga, dt2):
+def compute(
+    delp: FloatField,
+    pt: FloatField,
+    u: FloatField,
+    v: FloatField,
+    w: FloatField,
+    uc: FloatField,
+    vc: FloatField,
+    ua: FloatField,
+    va: FloatField,
+    ut: FloatField,
+    vt: FloatField,
+    divgd: FloatField,
+    omga: FloatField,
+    dt2: float,
+):
+    if spec.namelist.npx != spec.namelist.npy:
+        raise NotImplementedError("D2A2C assumes a square grid")
+
     grid = spec.grid
     dord4 = True
     origin_halo1 = (grid.is_ - 1, grid.js - 1, 0)
     delpc = utils.make_storage_from_shape(delp.shape, origin=origin_halo1)
     ptc = utils.make_storage_from_shape(pt.shape, origin=origin_halo1)
 
-    if spec.namelist.npx != spec.namelist.npy:
-        raise NotImplementedError("D2A2C assumes a square grid")
     if spec.namelist.npx <= 13 and spec.namelist.layout[0] > 1:
         D2A2C_AVG_OFFSET = -1
     else:

@@ -78,8 +78,8 @@ def mark_untested(msg="This is not tested"):
 def make_storage_data(
     data: Field,
     shape: Optional[Tuple[int, int, int]] = None,
-    *,
     origin: Tuple[int, int, int] = origin,
+    *,
     dtype: DTypes = np.float64,
     mask: Optional[Tuple[bool, bool, bool]] = None,
     start: Tuple[int, int, int] = (0, 0, 0),
@@ -158,6 +158,7 @@ def _make_storage_data_1d(
     read_only: bool = True,
 ) -> Field:
     # axis refers to a repeated axis, dummy refers to a singleton axis
+    axis = min(axis, len(shape) - 1)
     buffer = zeros(shape[axis])
     if dummy:
         axis = list(set((0, 1, 2)).difference(dummy))[0]

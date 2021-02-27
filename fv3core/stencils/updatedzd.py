@@ -266,7 +266,7 @@ def out(zs: FloatFieldIJ, zh: FloatField, ws: FloatFieldIJ, dt: float):
 def compute(
     ndif: FloatField,
     damp_vtd: FloatField,
-    dp0: FloatField,
+    dp0: FloatFieldK,
     zs: FloatFieldIJ,
     zh: FloatField,
     crx: FloatField,

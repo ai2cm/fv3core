@@ -3,7 +3,7 @@ from gt4py.gtscript import PARALLEL, computation, horizontal, interval, region
 import fv3core._config as spec
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import gtstencil
-from fv3core.utils.typing import FloatField
+from fv3core.utils.typing import FloatField, FloatFieldIJ
 from fv3gfs.util import CubedSphereCommunicator
 from fv3gfs.util.quantity import Quantity
 
@@ -19,12 +19,12 @@ C2 = -0.125
 def c2l_ord2(
     u: FloatField,
     v: FloatField,
-    dx: FloatField,
-    dy: FloatField,
-    a11: FloatField,
-    a12: FloatField,
-    a21: FloatField,
-    a22: FloatField,
+    dx: FloatFieldIJ,
+    dy: FloatFieldIJ,
+    a11: FloatFieldIJ,
+    a12: FloatFieldIJ,
+    a21: FloatFieldIJ,
+    a22: FloatFieldIJ,
     ua: FloatField,
     va: FloatField,
 ):
@@ -32,8 +32,8 @@ def c2l_ord2(
         wu = u * dx
         wv = v * dy
         # Co-variant vorticity-conserving interpolation
-        u1 = 2.0 * (wu + wu[0, 1, 0]) / (dx + dx[0, 1, 0])
-        v1 = 2.0 * (wv + wv[1, 0, 0]) / (dy + dy[1, 0, 0])
+        u1 = 2.0 * (wu + wu[0, 1, 0]) / (dx + dx[0, 1])
+        v1 = 2.0 * (wv + wv[1, 0, 0]) / (dy + dy[1, 0])
         # Cubed (cell center co-variant winds) to lat-lon
         ua = a11 * u1 + a12 * v1
         va = a21 * u1 + a22 * v1
@@ -43,12 +43,12 @@ def c2l_ord2(
 def ord4_transform(
     u: FloatField,
     v: FloatField,
-    a11: FloatField,
-    a12: FloatField,
-    a21: FloatField,
-    a22: FloatField,
-    dx: FloatField,
-    dy: FloatField,
+    a11: FloatFieldIJ,
+    a12: FloatFieldIJ,
+    a21: FloatFieldIJ,
+    a22: FloatFieldIJ,
+    dx: FloatFieldIJ,
+    dy: FloatFieldIJ,
     ua: FloatField,
     va: FloatField,
 ):
@@ -60,13 +60,13 @@ def ord4_transform(
 
         # south/north edge
         with horizontal(region[:, j_start], region[:, j_end]):
-            vtmp = 2.0 * ((v * dy) + (v[1, 0, 0] * dy[1, 0, 0])) / (dy + dy[1, 0, 0])
-            utmp = 2.0 * (u * dx + u[0, 1, 0] * dx[0, 1, 0]) / (dx + dx[0, 1, 0])
+            vtmp = 2.0 * ((v * dy) + (v[1, 0, 0] * dy[1, 0])) / (dy + dy[1, 0])
+            utmp = 2.0 * (u * dx + u[0, 1, 0] * dx[0, 1]) / (dx + dx[0, 1])
 
         # west/east edge
         with horizontal(region[i_start, :], region[i_end, :]):
-            utmp = 2.0 * ((u * dx) + (u[0, 1, 0] * dx[0, 1, 0])) / (dx + dx[0, 1, 0])
-            vtmp = 2.0 * ((v * dy) + (v[1, 0, 0] * dy[1, 0, 0])) / (dy + dy[1, 0, 0])
+            utmp = 2.0 * ((u * dx) + (u[0, 1, 0] * dx[0, 1])) / (dx + dx[0, 1])
+            vtmp = 2.0 * ((v * dy) + (v[1, 0, 0] * dy[1, 0])) / (dy + dy[1, 0])
 
         # Transform local a-grid winds into latitude-longitude coordinates
         ua = a11 * utmp + a12 * vtmp

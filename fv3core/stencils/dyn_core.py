@@ -20,23 +20,30 @@ import fv3core.utils.gt4py_utils as utils
 import fv3gfs.util as fv3util
 from fv3core.decorators import gtstencil
 from fv3core.stencils.basic_operations import copy_stencil
+from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
 
 
-sd = utils.sd
 HUGE_R = 1.0e40
 
 
 # NOTE in Fortran these are columns
 @gtstencil()
-def dp_ref_compute(ak: sd, bk: sd, phis: sd, dp_ref: sd, zs: sd, rgrav: float):
+def dp_ref_compute(
+    ak: FloatFieldK,
+    bk: FloatFieldK,
+    phis: FloatFieldIJ,
+    dp_ref: FloatField,
+    zs: FloatField,
+    rgrav: float,
+):
     with computation(PARALLEL), interval(0, -1):
-        dp_ref = ak[0, 0, 1] - ak + (bk[0, 0, 1] - bk) * 1.0e5
+        dp_ref = ak[1] - ak + (bk[1] - bk) * 1.0e5
     with computation(PARALLEL), interval(...):
         zs = phis * rgrav
 
 
 @gtstencil()
-def set_gz(zs: sd, delz: sd, gz: sd):
+def set_gz(zs: FloatFieldIJ, delz: FloatField, gz: FloatField):
     with computation(BACKWARD):
         with interval(-1, None):
             gz[0, 0, 0] = zs
@@ -45,7 +52,7 @@ def set_gz(zs: sd, delz: sd, gz: sd):
 
 
 @gtstencil()
-def set_pem(delp: sd, pem: sd, ptop: float):
+def set_pem(delp: FloatField, pem: FloatField, ptop: float):
     with computation(FORWARD):
         with interval(0, 1):
             pem[0, 0, 0] = ptop
@@ -55,7 +62,11 @@ def set_pem(delp: sd, pem: sd, ptop: float):
 
 @gtstencil()
 def heatadjust_temperature_lowlevel(
-    pt: sd, heat_source: sd, delp: sd, pkz: sd, cp_air: float
+    pt: FloatField,
+    heat_source: FloatField,
+    delp: FloatField,
+    pkz: FloatField,
+    cp_air: float,
 ):
     with computation(PARALLEL), interval(...):
         pt[0, 0, 0] = pt + heat_source / (cp_air * delp * pkz)
@@ -148,13 +159,13 @@ def compute(state, comm):
     state.mfyd[grid.slice_dict(grid.y3d_compute_dict())] = 0.0
     state.cxd[grid.slice_dict(grid.x3d_compute_domain_y_dict())] = 0.0
     state.cyd[grid.slice_dict(grid.y3d_compute_domain_x_dict())] = 0.0
+
     if not hydrostatic:
         # k1k = akap / (1.0 - akap)
 
-        # TODO: Is really just a column... when different shapes are supported
-        # perhaps change this.
-        state.dp_ref = utils.make_storage_from_shape(state.ak.shape, grid.full_origin())
-        state.zs = utils.make_storage_from_shape(state.ak.shape, grid.full_origin())
+        # To write in parallel region, these need to be 3D first
+        state.dp_ref = utils.make_storage_from_shape(shape, grid.full_origin())
+        state.zs = utils.make_storage_from_shape(shape, grid.full_origin())
         dp_ref_compute(
             state.ak,
             state.bk,
@@ -165,6 +176,9 @@ def compute(state, comm):
             origin=grid.full_origin(),
             domain=grid.domain_shape_full(add=(0, 0, 1)),
         )
+        # After writing, make 'dp_ref' a K-field and 'zs' an IJ-field
+        state.dp_ref = utils.make_storage_data(state.dp_ref[0, 0, :], (shape[2],), (0,))
+        state.zs = utils.make_storage_data(state.zs[:, :, 0], shape[0:2], (0, 0))
     n_con = get_n_con()
 
     for it in range(n_split):
@@ -247,12 +261,9 @@ def compute(state, comm):
                     domain=grid.domain_shape_full(add=(0, 0, 1)),
                 )
         if not hydrostatic:
+            state.ws3 = utils.make_storage_data(state.ws3[:, :, -1], shape[0:2], (0, 0))
             state.gz, state.ws3 = updatedzc.compute(
                 state.dp_ref, state.zs, state.ut, state.vt, state.gz, state.ws3, dt2
-            )
-            # TODO: This is really a 2d field.
-            state.ws3 = utils.make_storage_data(
-                state.ws3[:, :, -1], shape, origin=(0, 0, 0)
             )
             riem_solver_c.compute(
                 ms,
@@ -329,10 +340,6 @@ def compute(state, comm):
                 dt,
             )
 
-            # TODO: This is really a 2d field.
-            state.wsd = utils.make_storage_data(
-                state.wsd[:, :, -1], shape, origin=grid.compute_origin()
-            )
             riem_solver3.compute(
                 remap_step,
                 dt,
