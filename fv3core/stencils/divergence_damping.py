@@ -215,7 +215,7 @@ def damping_nonzero_nord(
         # TODO, can we call the same function 3 times, let gt4py do the extent analysis?
         # currently does not work because corner calculations need entire array,
         # and vc/uc need offsets
-        # ALSO TODO: once there is an idea of 'repetition', we need to loop
+        # Another TODO: once there is an idea of 'repetition', we need to loop
         # namelist.nord times, not always 3 times, that is just what we have
         # it set to. nord = 0, 1, or 2 are possible options
         divg_d, uc, vc = divergence_subsequent(rarea_c, divg_u, divg_v, divg_d, uc, vc)
