@@ -147,7 +147,23 @@ def vorticity_calc(wk, vort, delpc, dt, nord, kstart, nk):
 
 
 @gtscript.function
-def damping_nt2(
+def update_divg_d(
+    rarea_c: FloatField, divg_d: FloatField, uc: FloatField, vc: FloatField
+):
+    from __externals__ import i_end, i_start, j_end, j_start
+
+    divg_d = redo_divg_d(uc, vc)
+    with horizontal(region[i_start, j_start], region[i_end + 1, j_start]):
+        divg_d = remove_extra_term_south_corner(uc, divg_d)
+    with horizontal(region[i_start, j_end + 1], region[i_end + 1, j_end + 1]):
+        divg_d = remove_extra_term_north_corner(uc, divg_d)
+    # ASSUMED not grid.stretched_grid
+    divg_d = basic.adjustmentfactor(rarea_c, divg_d)
+    return divg_d
+
+
+@gtscript.function
+def divergence_subsequent(
     rarea_c: FloatField,
     divg_u: FloatField,
     divg_v: FloatField,
@@ -155,16 +171,7 @@ def damping_nt2(
     uc: FloatField,
     vc: FloatField,
 ):
-    from __externals__ import (
-        i_end,
-        i_start,
-        j_end,
-        j_start,
-        local_ie,
-        local_is,
-        local_je,
-        local_js,
-    )
+    from __externals__ import local_ie, local_is, local_je, local_js
 
     divg_d = corners.fill_corners_bgrid_x(divg_d)
     with horizontal(region[local_is - 3 : local_ie + 4, local_js - 2 : local_je + 4]):
@@ -173,20 +180,12 @@ def damping_nt2(
     with horizontal(region[local_is - 2 : local_ie + 4, local_js - 3 : local_je + 4]):
         uc = uc_from_divg(divg_d, divg_v)
     vc, uc = corners.fill_corners_dgrid(vc, uc, -1.0)
-    # with horizontal(region[local_is - 2 : local_ie + 4, local_js - 2 : local_je + 4]):
-    divg_d = redo_divg_d(uc, vc)
-    with horizontal(region[i_start, j_start], region[i_end + 1, j_start]):
-        divg_d = remove_extra_term_south_corner(uc, divg_d)
-    with horizontal(region[i_start, j_end + 1], region[i_end + 1, j_end + 1]):
-        divg_d = remove_extra_term_north_corner(uc, divg_d)
-    # ASSUMED not grid.stretched_grid
-    # with horizontal(region[local_is - 2 : local_ie + 4, local_js - 2 : local_je + 4]):
-    divg_d = basic.adjustmentfactor(rarea_c, divg_d)
+    divg_d = update_divg_d(rarea_c, divg_d, uc, vc)
     return divg_d, uc, vc
 
 
 @gtscript.function
-def damping_nt1(
+def divergence_at_nord(
     rarea_c: FloatField,
     divg_u: FloatField,
     divg_v: FloatField,
@@ -194,60 +193,9 @@ def damping_nt1(
     uc: FloatField,
     vc: FloatField,
 ):
-    from __externals__ import (
-        i_end,
-        i_start,
-        j_end,
-        j_start,
-        local_ie,
-        local_is,
-        local_je,
-        local_js,
-    )
-
-    divg_d = corners.fill_corners_bgrid_x(divg_d)
-    with horizontal(region[local_is - 2 : local_ie + 3, local_js - 1 : local_je + 3]):
-        vc = vc_from_divg(divg_d, divg_u)
-    divg_d = corners.fill_corners_bgrid_y(divg_d)
-    with horizontal(region[local_is - 1 : local_ie + 3, local_js - 2 : local_je + 3]):
-        uc = uc_from_divg(divg_d, divg_v)
-    vc, uc = corners.fill_corners_dgrid(vc, uc, -1.0)
-    # with horizontal(region[local_is - 1 : local_ie + 3, local_js - 1 : local_je + 3]):
-    divg_d = redo_divg_d(uc, vc)
-    with horizontal(region[i_start, j_start], region[i_end + 1, j_start]):
-        divg_d = remove_extra_term_south_corner(uc, divg_d)
-    with horizontal(region[i_start, j_end + 1], region[i_end + 1, j_end + 1]):
-        divg_d = remove_extra_term_north_corner(uc, divg_d)
-    # ASSUMED not grid.stretched_grid
-    # with horizontal(region[local_is - 1 : local_ie + 3, local_js - 1 : local_je + 3]):
-    divg_d = basic.adjustmentfactor(rarea_c, divg_d)
-    return divg_d, uc, vc
-
-
-@gtscript.function
-def damping_nt0(
-    rarea_c: FloatField,
-    divg_u: FloatField,
-    divg_v: FloatField,
-    divg_d: FloatField,
-    uc: FloatField,
-    vc: FloatField,
-):
-    from __externals__ import i_end, i_start, j_end, j_start
-
-    # with horizontal(region[local_is - 1 : local_ie + 2, local_js : local_je + 2]):
     vc = vc_from_divg(divg_d, divg_u)
-    # with horizontal(region[local_is : local_ie + 2, local_js - 1 : local_je + 2]):
     uc = uc_from_divg(divg_d, divg_v)
-    # with horizontal(region[local_is : local_ie + 2, local_js : local_je + 2]):
-    divg_d = redo_divg_d(uc, vc)
-    with horizontal(region[i_start, j_start], region[i_end + 1, j_start]):
-        divg_d = remove_extra_term_south_corner(uc, divg_d)
-    with horizontal(region[i_start, j_end + 1], region[i_end + 1, j_end + 1]):
-        divg_d = remove_extra_term_north_corner(uc, divg_d)
-    # ASSUMED not grid.stretched_grid
-    # with horizontal(region[local_is : local_ie + 2, local_js : local_je + 2]):
-    divg_d = basic.adjustmentfactor(rarea_c, divg_d)
+    divg_d = update_divg_d(rarea_c, divg_d, uc, vc)
     return divg_d, uc, vc
 
 
@@ -270,9 +218,12 @@ def damping_nonzero_nord(
         # TODO, can we call the same function 3 times, let gt4py do the extent analysis?
         # currently does not work because corner calculations need entire array,
         # and vc/uc need offsets
-        divg_d, uc, vc = damping_nt2(rarea_c, divg_u, divg_v, divg_d, uc, vc)
-        divg_d, uc, vc = damping_nt1(rarea_c, divg_u, divg_v, divg_d, uc, vc)
-        divg_d, uc, vc = damping_nt0(rarea_c, divg_u, divg_v, divg_d, uc, vc)
+        # ALSO TODO: once there is an idea of 'repetition', we need to loop
+        # namelist.nord times, not always 3 times, that is just what we have
+        # it set to. nord = 0, 1, or 2 are possible options
+        divg_d, uc, vc = divergence_subsequent(rarea_c, divg_u, divg_v, divg_d, uc, vc)
+        divg_d, uc, vc = divergence_subsequent(rarea_c, divg_u, divg_v, divg_d, uc, vc)
+        divg_d, uc, vc = divergence_at_nord(rarea_c, divg_u, divg_v, divg_d, uc, vc)
 
 
 def compute(
