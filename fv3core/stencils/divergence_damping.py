@@ -178,12 +178,30 @@ def divergence_subsequent(
         vc = vc_from_divg(divg_d, divg_u)
     divg_d = corners.fill_corners_bgrid_y(divg_d)
     with horizontal(region[local_is - 2 : local_ie + 4, local_js - 3 : local_je + 4]):
-        uc = uc_from_divg(divg_d, divg_v)
+        uc = (divg_d[0, 1, 0] - divg_d) * divg_v #uc_from_divg(divg_d, divg_v)
     vc, uc = corners.fill_corners_dgrid(vc, uc, -1.0)
     divg_d = update_divg_d(rarea_c, divg_d, uc, vc)
     return divg_d, uc, vc
 
-
+@gtscript.function
+def divergence_subsequent1(
+    rarea_c: FloatField,
+    divg_u: FloatField,
+    divg_v: FloatField,
+    divg_d: FloatField,
+    uc: FloatField,
+    vc: FloatField,
+):
+    from __externals__ import local_ie, local_is, local_je, local_js
+    divg_d = corners.fill_corners_bgrid_x(divg_d)
+    with horizontal(region[local_is - 2 : local_ie + 3, local_js - 1 : local_je + 3]):
+        vc = vc_from_divg(divg_d, divg_u)
+    divg_d = corners.fill_corners_bgrid_y(divg_d)
+    with horizontal(region[local_is - 1 : local_ie + 3, local_js - 2 : local_je + 3]):
+        uc = (divg_d[0, 1, 0] - divg_d) * divg_v #uc_from_divg(divg_d, divg_v)                                     
+    vc, uc = corners.fill_corners_dgrid(vc, uc, -1.0)
+    divg_d = update_divg_d(rarea_c, divg_d, uc, vc)
+    return divg_d, uc, vc
 @gtscript.function
 def divergence_at_nord(
     rarea_c: FloatField,
@@ -193,8 +211,11 @@ def divergence_at_nord(
     uc: FloatField,
     vc: FloatField,
 ):
-    vc = vc_from_divg(divg_d, divg_u)
-    uc = uc_from_divg(divg_d, divg_v)
+    from __externals__ import local_ie, local_is, local_je, local_js
+    with horizontal(region[local_is - 1 : local_ie + 2, local_js : local_je + 2]):
+        vc = vc_from_divg(divg_d, divg_u)
+    with horizontal(region[local_is : local_ie + 2, local_js - 1 : local_je + 2]):
+        uc = uc_from_divg(divg_d, divg_v)
     divg_d = update_divg_d(rarea_c, divg_d, uc, vc)
     return divg_d, uc, vc
 
@@ -219,15 +240,15 @@ def damping_nonzero_nord(
         # namelist.nord times, not always 3 times, that is just what we have
         # it set to. nord = 0, 1, or 2 are possible options
         divg_d, uc, vc = divergence_subsequent(rarea_c, divg_u, divg_v, divg_d, uc, vc)
-        divg_d, uc, vc = divergence_subsequent(rarea_c, divg_u, divg_v, divg_d, uc, vc)
+        divg_d, uc, vc = divergence_subsequent1(rarea_c, divg_u, divg_v, divg_d, uc, vc)
         divg_d, uc, vc = divergence_at_nord(rarea_c, divg_u, divg_v, divg_d, uc, vc)
 
 
 def compute(
     u,
     v,
-    va,
     ua,
+    va,
     uc,
     vc,
     ptc,
