@@ -9,7 +9,7 @@
 #############################################
 # Example syntax:
 # ./run_on_daint.sh 60 6 gtx86
-
+set -e
 exitError()
 {
     echo "ERROR $1: $3" 1>&2
@@ -90,22 +90,33 @@ fi
 
 
 
+split_path=(${data_path//\// })
+experiment=${split_path[-1]}
+sample_cache=.gt_cache_000000
+if [ ! -d $(pwd)/${sample_cache} ]; then
+    premade_caches=/scratch/snx3000/olifu/jenkins/scratch/store_gt_caches/$experiment/$backend
+    if [ -d ${premade_caches}/${sample_cache} ]; then
+	cp -r ${premade_caches}/.gt_cache_0000* .
+	find . -name m_\*.py -exec sed -i "s|\/scratch\/snx3000\/olifu\/jenkins_submit\/workspace\/fv3core-cache-setup\/backend\/$backend\/experiment\/$experiment\/slave\/daint_submit|$(pwd)|g" {} +
+    fi
+fi
+
 echo "submitting script to do compilation"
 # Adapt batch script to compile the code:
 sed -i s/\<NAME\>/standalone/g compile.daint.slurm
 sed -i s/\<NTASKS\>/$ranks/g compile.daint.slurm
-sed -i s/\<NTASKSPERNODE\>/$ranks/g compile.daint.slurm
-sed -i s/\<CPUSPERTASK\>/1/g compile.daint.slurm
+sed -i s/\<NTASKSPERNODE\>/1/g compile.daint.slurm
+sed -i s/\<CPUSPERTASK\>/$nthreads/g compile.daint.slurm
 sed -i s/--output=\<OUTFILE\>/--hint=nomultithread/g compile.daint.slurm
 sed -i s/00:45:00/03:30:00/g compile.daint.slurm
+sed -i s/cscsci/normal/g compile.daint.slurm
 sed -i s/\<G2G\>/export\ CRAY_CUDA_MPS=1/g compile.daint.slurm
-sed -i "s#<CMD>#export PYTHONPATH=/project/s1053/install/serialbox2_master/gnu/python:\$PYTHONPATH\nsrun python examples/standalone/runfile/dynamics.py test_data/ 1 $backend $githash#g" compile.daint.slurm
+sed -i "s#<CMD>#export PYTHONPATH=/project/s1053/install/serialbox2_master/gnu/python:\$PYTHONPATH\nsrun python examples/standalone/runfile/dynamics.py test_data/ 1 $backend $githash --disable_halo_exchange#g" compile.daint.slurm
 
 # execute on a gpu node
 sbatch -W -C gpu compile.daint.slurm
 wait
 echo "compilation step finished"
-rm *.json
 
 echo "submitting script to do performance run"
 # Adapt batch script to run the code:
@@ -122,5 +133,8 @@ sed -i "s#<CMD>#export PYTHONPATH=/project/s1053/install/serialbox2_master/gnu/p
 # execute on a gpu node
 sbatch -W -C gpu run.daint.slurm
 wait
-cp *.json $target_dir
+rsync *.json $target_dir
+
+echo "clean up workspace"
+rm -rf test_data
 echo "performance run sucessful"
