@@ -413,8 +413,6 @@ def compute_delnflux_no_sg(
     diffuse_origin = (grid.is_, grid.js, kstart)
     extended_domain = (grid.nic + 1, grid.njc + 1, nk)
 
-    # compute_no_sg_multi_loop(q, fx2, fy2, nord, damp, d2, kstart, nk, mass)
-    # compute_no_sg_merge_loop(q, fx2, fy2, nord, damp, d2, kstart, nk, mass)
     compute_no_sg_unroll(q, fx2, fy2, nord, damp, d2, kstart, nk, mass)
 
     if mass is None:
