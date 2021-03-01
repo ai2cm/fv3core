@@ -66,6 +66,7 @@ pip list
 # set up the experiment data
 cp -r $data_path test_data
 tar -xf test_data/dat_files.tar.gz -C test_data
+rm -rf test_data/dat_files.tar.gz
 cp test_data/*.yml test_data/input.yml
 
 # set the environment
