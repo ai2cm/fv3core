@@ -19,74 +19,74 @@ from fv3core.utils.typing import FloatField
 
 
 @gtstencil()
-def fx2_order(q: FloatField, del6_v: FloatField, fx2: FloatField, order: int):
+def fx_calc_stencil(q: FloatField, del6_v: FloatField, fx: FloatField, order: int):
     with computation(PARALLEL), interval(...):
-        fx2[0, 0, 0] = del6_v * (q[-1, 0, 0] - q)
-        fx2[0, 0, 0] = -1.0 * fx2 if order > 1 else fx2
+        fx[0, 0, 0] = del6_v * (q[-1, 0, 0] - q)
+        fx[0, 0, 0] = -1.0 * fx if order > 1 else fx
 
 
 @gtstencil()
-def fy2_order(q: FloatField, del6_u: FloatField, fy2: FloatField, order: int):
+def fy_calc_stencil(q: FloatField, del6_u: FloatField, fy: FloatField, order: int):
     with computation(PARALLEL), interval(...):
-        fy2[0, 0, 0] = del6_u * (q[0, -1, 0] - q)
-        fy2[0, 0, 0] = fy2 * -1 if order > 1 else fy2
+        fy[0, 0, 0] = del6_u * (q[0, -1, 0] - q)
+        fy[0, 0, 0] = fy * -1 if order > 1 else fy
 
 
 @gtscript.function
-def fx2_func(q: FloatField, del6_v: FloatField, order: int):
-    fx2 = del6_v * (q[-1, 0, 0] - q)
-    fx2 = -1.0 * fx2 if order > 1 else fx2
-    return fx2
+def fx_calculation(q: FloatField, del6_v: FloatField, order: int):
+    fx = del6_v * (q[-1, 0, 0] - q)
+    fx = -1.0 * fx if order > 1 else fx
+    return fx
 
 
 @gtscript.function
-def fy2_func(q: FloatField, del6_u: FloatField, order: int):
-    fy2 = del6_u * (q[0, -1, 0] - q)
-    fy2 = fy2 * -1 if order > 1 else fy2
-    return fy2
+def fy_calculation(q: FloatField, del6_u: FloatField, order: int):
+    fy = del6_u * (q[0, -1, 0] - q)
+    fy = fy * -1 if order > 1 else fy
+    return fy
 
 
 # WARNING: untested
 @gtstencil()
-def fx2_firstorder_use_sg(
+def fx_firstorder_use_sg(
     q: FloatField,
     sin_sg1: FloatField,
     sin_sg3: FloatField,
     dy: FloatField,
     rdxc: FloatField,
-    fx2: FloatField,
+    fx: FloatField,
 ):
     with computation(PARALLEL), interval(...):
-        fx2[0, 0, 0] = (
+        fx[0, 0, 0] = (
             0.5 * (sin_sg3[-1, 0, 0] + sin_sg1) * dy * (q[-1, 0, 0] - q) * rdxc
         )
 
 
 # WARNING: untested
 @gtstencil()
-def fy2_firstorder_use_sg(
+def fy_firstorder_use_sg(
     q: FloatField,
     sin_sg2: FloatField,
     sin_sg4: FloatField,
     dx: FloatField,
     rdyc: FloatField,
-    fy2: FloatField,
+    fy: FloatField,
 ):
     with computation(PARALLEL), interval(...):
-        fy2[0, 0, 0] = (
+        fy[0, 0, 0] = (
             0.5 * (sin_sg4[0, -1, 0] + sin_sg2) * dx * (q[0, -1, 0] - q) * rdyc
         )
 
 
 @gtstencil()
-def d2_highorder(fx2: FloatField, fy2: FloatField, rarea: FloatField, d2: FloatField):
+def d2_highorder(fx: FloatField, fy: FloatField, rarea: FloatField, d2: FloatField):
     with computation(PARALLEL), interval(...):
-        d2[0, 0, 0] = (fx2 - fx2[1, 0, 0] + fy2 - fy2[0, 1, 0]) * rarea
+        d2[0, 0, 0] = (fx - fx[1, 0, 0] + fy - fy[0, 1, 0]) * rarea
 
 
 @gtscript.function
-def d2_high_order(fx2: FloatField, fy2: FloatField, rarea: FloatField):
-    d2 = (fx2 - fx2[1, 0, 0] + fy2 - fy2[0, 1, 0]) * rarea
+def d2_high_order(fx: FloatField, fy: FloatField, rarea: FloatField):
+    d2 = (fx - fx[1, 0, 0] + fy - fy[0, 1, 0]) * rarea
     return d2
 
 
@@ -143,8 +143,8 @@ def fxy_order(
     q: FloatField,
     del6_u: FloatField,
     del6_v: FloatField,
-    fx2: FloatField,
-    fy2: FloatField,
+    fx: FloatField,
+    fy: FloatField,
     order: int,
 ):
     from __externals__ import local_ie, local_is, local_je, local_js, nord
@@ -158,7 +158,7 @@ def fxy_order(
                 (local_js - nord) : (local_je + nord + 1),
             ]
         ):
-            fx2 = fx2_func(q, del6_v, order)
+            fx = fx_calculation(q, del6_v, order)
         if __INLINED(nord > 0):
             q = corners.copy_corners_y(q)
         with horizontal(
@@ -167,12 +167,12 @@ def fxy_order(
                 (local_js - nord) : (local_je + nord + 2),
             ]
         ):
-            fy2 = fy2_func(q, del6_u, order)
+            fy = fy_calculation(q, del6_u, order)
 
 
 def higher_order_compute(
-    fx2: FloatField,
-    fy2: FloatField,
+    fx: FloatField,
+    fy: FloatField,
     rarea: FloatField,
     d2: FloatField,
     del6_u: FloatField,
@@ -188,7 +188,7 @@ def higher_order_compute(
                 (local_js - nt - 1) : (local_je + nt + 2),
             ]
         ):
-            d2 = d2_high_order(fx2, fy2, rarea)
+            d2 = d2_high_order(fx, fy, rarea)
         d2 = corners.copy_corners_x(d2)
         with horizontal(
             region[
@@ -196,7 +196,7 @@ def higher_order_compute(
                 (local_js - nt) : (local_je + nt + 1),
             ]
         ):
-            fx2 = fx2_func(d2, del6_v, order)
+            fx = fx_calculation(d2, del6_v, order)
         d2 = corners.copy_corners_y(d2)
         with horizontal(
             region[
@@ -204,13 +204,13 @@ def higher_order_compute(
                 (local_js - nt) : (local_je + nt + 2),
             ]
         ):
-            fy2 = fy2_func(d2, del6_u, order)
+            fy = fy_calculation(d2, del6_u, order)
 
 
 @gtstencil
 def higher_order_compute_unroll3(
-    fx2: FloatField,
-    fy2: FloatField,
+    fx: FloatField,
+    fy: FloatField,
     rarea: FloatField,
     d2: FloatField,
     del6_u: FloatField,
@@ -226,14 +226,14 @@ def higher_order_compute_unroll3(
                 (local_is - 3) : (local_ie + 3 + 2), (local_js - 3) : (local_je + 3 + 1)
             ]
         ):
-            fx2 = fx2_func(d2, del6_v, 1)
+            fx = fx_calculation(d2, del6_v, 1)
         d2 = corners.copy_corners_y(d2)
         with horizontal(
             region[
                 (local_is - 3) : (local_ie + 3 + 1), (local_js - 3) : (local_je + 3 + 2)
             ]
         ):
-            fy2 = fy2_func(d2, del6_u, 1)
+            fy = fy_calculation(d2, del6_u, 1)
 
         with horizontal(
             region[
@@ -241,21 +241,21 @@ def higher_order_compute_unroll3(
                 (local_js - 2 - 1) : (local_je + 2 + 2),
             ]
         ):
-            d2 = d2_high_order(fx2, fy2, rarea)
+            d2 = d2_high_order(fx, fy, rarea)
         d2 = corners.copy_corners_x(d2)
         with horizontal(
             region[
                 (local_is - 2) : (local_ie + 2 + 2), (local_js - 2) : (local_je + 2 + 1)
             ]
         ):
-            fx2 = fx2_func(d2, del6_v, 2)
+            fx = fx_calculation(d2, del6_v, 2)
         d2 = corners.copy_corners_y(d2)
         with horizontal(
             region[
                 (local_is - 2) : (local_ie + 2 + 1), (local_js - 2) : (local_je + 2 + 2)
             ]
         ):
-            fy2 = fy2_func(d2, del6_u, 2)
+            fy = fy_calculation(d2, del6_u, 2)
 
         with horizontal(
             region[
@@ -263,21 +263,21 @@ def higher_order_compute_unroll3(
                 (local_js - 1 - 1) : (local_je + 1 + 2),
             ]
         ):
-            d2 = d2_high_order(fx2, fy2, rarea)
+            d2 = d2_high_order(fx, fy, rarea)
         d2 = corners.copy_corners_x(d2)
         with horizontal(
             region[
                 (local_is - 1) : (local_ie + 1 + 2), (local_js - 1) : (local_je + 1 + 1)
             ]
         ):
-            fx2 = fx2_func(d2, del6_v, 3)
+            fx = fx_calculation(d2, del6_v, 3)
         d2 = corners.copy_corners_y(d2)
         with horizontal(
             region[
                 (local_is - 1) : (local_ie + 1 + 1), (local_js - 1) : (local_je + 1 + 2)
             ]
         ):
-            fy2 = fy2_func(d2, del6_u, 3)
+            fy = fy_calculation(d2, del6_u, 3)
 
         with horizontal(
             region[
@@ -285,27 +285,27 @@ def higher_order_compute_unroll3(
                 (local_js - 0 - 1) : (local_je + 0 + 2),
             ]
         ):
-            d2 = d2_high_order(fx2, fy2, rarea)
+            d2 = d2_high_order(fx, fy, rarea)
         d2 = corners.copy_corners_x(d2)
         with horizontal(
             region[
                 (local_is - 0) : (local_ie + 0 + 2), (local_js - 0) : (local_je + 0 + 1)
             ]
         ):
-            fx2 = fx2_func(d2, del6_v, 4)
+            fx = fx_calculation(d2, del6_v, 4)
         d2 = corners.copy_corners_y(d2)
         with horizontal(
             region[
                 (local_is - 0) : (local_ie + 0 + 1), (local_js - 0) : (local_je + 0 + 2)
             ]
         ):
-            fy2 = fy2_func(d2, del6_u, 4)
+            fy = fy_calculation(d2, del6_u, 4)
 
 
 @gtstencil
 def higher_order_compute_unroll2(
-    fx2: FloatField,
-    fy2: FloatField,
+    fx: FloatField,
+    fy: FloatField,
     rarea: FloatField,
     d2: FloatField,
     del6_u: FloatField,
@@ -321,14 +321,14 @@ def higher_order_compute_unroll2(
                 (local_is - 2) : (local_ie + 2 + 2), (local_js - 2) : (local_je + 2 + 1)
             ]
         ):
-            fx2 = fx2_func(d2, del6_v, 1)
+            fx = fx_calculation(d2, del6_v, 1)
         d2 = corners.copy_corners_y(d2)
         with horizontal(
             region[
                 (local_is - 2) : (local_ie + 2 + 1), (local_js - 2) : (local_je + 2 + 2)
             ]
         ):
-            fy2 = fy2_func(d2, del6_u, 1)
+            fy = fy_calculation(d2, del6_u, 1)
 
         with horizontal(
             region[
@@ -336,21 +336,21 @@ def higher_order_compute_unroll2(
                 (local_js - 1 - 1) : (local_je + 1 + 2),
             ]
         ):
-            d2 = d2_high_order(fx2, fy2, rarea)
+            d2 = d2_high_order(fx, fy, rarea)
         d2 = corners.copy_corners_x(d2)
         with horizontal(
             region[
                 (local_is - 1) : (local_ie + 1 + 2), (local_js - 1) : (local_je + 1 + 1)
             ]
         ):
-            fx2 = fx2_func(d2, del6_v, 2)
+            fx = fx_calculation(d2, del6_v, 2)
         d2 = corners.copy_corners_y(d2)
         with horizontal(
             region[
                 (local_is - 1) : (local_ie + 1 + 1), (local_js - 1) : (local_je + 1 + 2)
             ]
         ):
-            fy2 = fy2_func(d2, del6_u, 2)
+            fy = fy_calculation(d2, del6_u, 2)
 
         with horizontal(
             region[
@@ -358,21 +358,21 @@ def higher_order_compute_unroll2(
                 (local_js - 0 - 1) : (local_je + 0 + 2),
             ]
         ):
-            d2 = d2_high_order(fx2, fy2, rarea)
+            d2 = d2_high_order(fx, fy, rarea)
         d2 = corners.copy_corners_x(d2)
         with horizontal(
             region[
                 (local_is - 0) : (local_ie + 0 + 2), (local_js - 0) : (local_je + 0 + 1)
             ]
         ):
-            fx2 = fx2_func(d2, del6_v, 3)
+            fx = fx_calculation(d2, del6_v, 3)
         d2 = corners.copy_corners_y(d2)
         with horizontal(
             region[
                 (local_is - 0) : (local_ie + 0 + 1), (local_js - 0) : (local_je + 0 + 2)
             ]
         ):
-            fy2 = fy2_func(d2, del6_u, 3)
+            fy = fy_calculation(d2, del6_u, 3)
 
 
 def compute_delnflux_no_sg(
@@ -387,17 +387,17 @@ def compute_delnflux_no_sg(
     mass: Optional["FloatField"] = None,
 ):
     """
-    I dunno, it does something
+    Del-n damping for fluxes, where n = 2 * nord + 2
     Args:
-        q: A field? (in)
-        fx: x-flux (inout)
-        fy: y-flux (inout)
+        q: Tracer field (in)
+        fx: x-flux on A-grid (inout)
+        fy: y-flux on A-grid (inout)
         nord: Order of divergence damping (in)
         damp_c: damping coefficient (in)
         kstart: k-level to begin computing on (in)
         nk: Number of k-levels to compute on (in)
         d2: A damped copy of the q field (in)
-        mass: a field to further damp diffusion in q? (in)
+        mass: Mass to weight the diffusive flux by (in)
     """
     grid = spec.grid
     if nk is None:
@@ -413,9 +413,9 @@ def compute_delnflux_no_sg(
     diffuse_origin = (grid.is_, grid.js, kstart)
     extended_domain = (grid.nic + 1, grid.njc + 1, nk)
 
+    # compute_no_sg_multi_loop(q, fx2, fy2, nord, damp, d2, kstart, nk, mass)
     # compute_no_sg_merge_loop(q, fx2, fy2, nord, damp, d2, kstart, nk, mass)
-    compute_no_sg_multi_loop(q, fx2, fy2, nord, damp, d2, kstart, nk, mass)
-    # compute_no_sg_unroll(q, fx2, fy2, nord, damp, d2, kstart, nk, mass)
+    compute_no_sg_unroll(q, fx2, fy2, nord, damp, d2, kstart, nk, mass)
 
     if mass is None:
         add_diffusive_component(
@@ -428,66 +428,10 @@ def compute_delnflux_no_sg(
     return fx, fy
 
 
-def compute_no_sg_merge_loop(
-    q: FloatField,
-    fx2: FloatField,
-    fy2: FloatField,
-    nord: int,
-    damp_c: float,
-    d2: FloatField,
-    kstart: Optional[int] = 0,
-    nk: Optional[int] = None,
-    mass: Optional["FloatField"] = None,
-):
-    grid = spec.grid
-    i1 = grid.is_ - 1 - nord
-    i2 = grid.ie + 1 + nord
-    j1 = grid.js - 1 - nord
-    j2 = grid.je + 1 + nord
-    if nk is None:
-        nk = grid.npz - kstart
-    origin_d2 = (i1, j1, kstart)
-    domain_d2 = (i2 - i1 + 1, j2 - j1 + 1, nk)
-    fxy_stencil = gtstencil(definition=fxy_order, externals={"nord": nord})
-    if mass is None:
-        d2_damp(q, d2, damp_c, origin=origin_d2, domain=domain_d2)
-    else:
-        d2 = copy(q, origin=origin_d2, domain=domain_d2)
-
-    fxy_stencil(
-        d2,
-        grid.del6_u,
-        grid.del6_v,
-        fx2,
-        fy2,
-        order=1,
-        origin=(grid.isd, grid.jsd, kstart),
-        domain=(grid.nid, grid.njd, nk),
-    )
-
-    if nord > 0:
-        for n in range(nord):
-            nt = nord - 1 - n
-            looped_stencil = gtstencil(
-                definition=higher_order_compute, externals={"nt": nt}
-            )
-            looped_stencil(
-                fx2,
-                fy2,
-                grid.rarea,
-                d2,
-                grid.del6_u,
-                grid.del6_v,
-                order=2 + n,
-                origin=(grid.isd, grid.jsd, kstart),
-                domain=(grid.nid, grid.njd, nk),
-            )
-
-
 def compute_no_sg_multi_loop(
     q: FloatField,
-    fx2: FloatField,
-    fy2: FloatField,
+    fx: FloatField,
+    fy: FloatField,
     nord: int,
     damp_c: float,
     d2: FloatField,
@@ -495,6 +439,20 @@ def compute_no_sg_multi_loop(
     nk: Optional[int] = None,
     mass: Optional["FloatField"] = None,
 ):
+    """
+    Calculate deln-fluxes in a loop over nord, with multiple stencil calls in the loop.
+    We'll apply diffusion later.
+    Args:
+        q: Tracer field (in)
+        fx: x-flux on A-grid (inout)
+        fy: y-flux on A-grid (inout)
+        nord: Order of divergence damping (in)
+        damp_c: damping coefficient (in)
+        d2: A damped copy of the q field (in)
+        kstart: k-level to begin computing on (in)
+        nk: Number of k-levels to compute on (in)
+        mass: Mass to weight the diffusive flux by (in)
+    """
     grid = spec.grid
     i1 = grid.is_ - 1 - nord
     i2 = grid.ie + 1 + nord
@@ -514,8 +472,8 @@ def compute_no_sg_multi_loop(
         d2,
         grid.del6_u,
         grid.del6_v,
-        fx2,
-        fy2,
+        fx,
+        fy,
         order=1,
         origin=(grid.isd, grid.jsd, kstart),
         domain=(grid.nid, grid.njd, nk),
@@ -529,8 +487,8 @@ def compute_no_sg_multi_loop(
             nt_nx = grid.ie - grid.is_ + 3 + 2 * nt
             nt_origin = (grid.is_ - nt, grid.js - nt, kstart)
             d2_highorder(
-                fx2,
-                fy2,
+                fx,
+                fy,
                 grid.rarea,
                 d2,
                 origin=nt_origin_extended,
@@ -539,10 +497,10 @@ def compute_no_sg_multi_loop(
             corners.copy_corners_x_stencil(
                 d2, origin=(grid.isd, grid.jsd, kstart), domain=(grid.nid, grid.njd, nk)
             )
-            fx2_order(
+            fx_calc_stencil(
                 d2,
                 grid.del6_v,
-                fx2,
+                fx,
                 order=2 + n,
                 origin=nt_origin,
                 domain=(nt_nx - 1, nt_ny - 2, nk),
@@ -551,20 +509,20 @@ def compute_no_sg_multi_loop(
                 d2, origin=(grid.isd, grid.jsd, kstart), domain=(grid.nid, grid.njd, nk)
             )
 
-            fy2_order(
+            fy_calc_stencil(
                 d2,
                 grid.del6_u,
-                fy2,
+                fy,
                 order=2 + n,
                 origin=nt_origin,
                 domain=(nt_nx - 2, nt_ny - 1, nk),
             )
 
 
-def compute_no_sg_unroll(
+def compute_no_sg_merge_loop(
     q: FloatField,
-    fx2: FloatField,
-    fy2: FloatField,
+    fx: FloatField,
+    fy: FloatField,
     nord: int,
     damp_c: float,
     d2: FloatField,
@@ -572,6 +530,90 @@ def compute_no_sg_unroll(
     nk: Optional[int] = None,
     mass: Optional["FloatField"] = None,
 ):
+    """
+    Calculate deln-fluxes in a loop over nord, with one stencil defined in the loop.
+    We'll apply diffusion later.
+    Args:
+        q: Tracer field (in)
+        fx: x-flux on A-grid (inout)
+        fy: y-flux on A-grid (inout)
+        nord: Order of divergence damping (in)
+        damp_c: damping coefficient (in)
+        d2: A damped copy of the q field (in)
+        kstart: k-level to begin computing on (in)
+        nk: Number of k-levels to compute on (in)
+        mass: Mass to weight the diffusive flux by (in)
+    """
+    grid = spec.grid
+    i1 = grid.is_ - 1 - nord
+    i2 = grid.ie + 1 + nord
+    j1 = grid.js - 1 - nord
+    j2 = grid.je + 1 + nord
+    if nk is None:
+        nk = grid.npz - kstart
+    origin_d2 = (i1, j1, kstart)
+    domain_d2 = (i2 - i1 + 1, j2 - j1 + 1, nk)
+    fxy_stencil = gtstencil(definition=fxy_order, externals={"nord": nord})
+    if mass is None:
+        d2_damp(q, d2, damp_c, origin=origin_d2, domain=domain_d2)
+    else:
+        d2 = copy(q, origin=origin_d2, domain=domain_d2)
+
+    fxy_stencil(
+        d2,
+        grid.del6_u,
+        grid.del6_v,
+        fx,
+        fy,
+        order=1,
+        origin=(grid.isd, grid.jsd, kstart),
+        domain=(grid.nid, grid.njd, nk),
+    )
+
+    if nord > 0:
+        for n in range(nord):
+            nt = nord - 1 - n
+            looped_stencil = gtstencil(
+                definition=higher_order_compute, externals={"nt": nt}
+            )
+            looped_stencil(
+                fx,
+                fy,
+                grid.rarea,
+                d2,
+                grid.del6_u,
+                grid.del6_v,
+                order=2 + n,
+                origin=(grid.isd, grid.jsd, kstart),
+                domain=(grid.nid, grid.njd, nk),
+            )
+
+
+def compute_no_sg_unroll(
+    q: FloatField,
+    fx: FloatField,
+    fy: FloatField,
+    nord: int,
+    damp_c: float,
+    d2: FloatField,
+    kstart: Optional[int] = 0,
+    nk: Optional[int] = None,
+    mass: Optional["FloatField"] = None,
+):
+    """
+    Calculate deln-fluxes by unrolling the loop over nord.
+    We'll apply diffusion later.
+    Args:
+        q: Tracer field (in)
+        fx: x-flux on A-grid (inout)
+        fy: y-flux on A-grid (inout)
+        nord: Order of divergence damping (in)
+        damp_c: damping coefficient (in)
+        d2: A damped copy of the q field (in)
+        kstart: k-level to begin computing on (in)
+        nk: Number of k-levels to compute on (in)
+        mass: Mass to weight the diffusive flux by (in)
+    """
     grid = spec.grid
     i1 = grid.is_ - 1 - nord
     i2 = grid.ie + 1 + nord
@@ -589,8 +631,8 @@ def compute_no_sg_unroll(
     if nord > 0:
         if nord == 3:  # 2, 1, 0
             higher_order_compute_unroll3(
-                fx2,
-                fy2,
+                fx,
+                fy,
                 grid.rarea,
                 d2,
                 grid.del6_u,
@@ -600,8 +642,8 @@ def compute_no_sg_unroll(
             )
         elif nord == 2:  # 1, 0
             higher_order_compute_unroll2(
-                fx2,
-                fy2,
+                fx,
+                fy,
                 grid.rarea,
                 d2,
                 grid.del6_u,
@@ -617,8 +659,8 @@ def compute_no_sg_unroll(
             d2,
             grid.del6_u,
             grid.del6_v,
-            fx2,
-            fy2,
+            fx,
+            fy,
             order=1,
             origin=(grid.isd, grid.jsd, kstart),
             domain=(grid.nid, grid.njd, nk),
