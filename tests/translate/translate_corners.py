@@ -57,7 +57,7 @@ class TranslateCopyCorners(TranslateFortranData2Py):
         self.in_vars["parameters"] = ["dir"]
         self.out_vars = {"q": {}}
 
-    def compute(self, inputs):
+    def compute_from_storage(self, inputs):
         if inputs["dir"] == 1:
             corners.copy_corners_x_stencil(
                 inputs["q"],
