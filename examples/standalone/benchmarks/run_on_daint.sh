@@ -43,7 +43,7 @@ fi
 data_path="$5"
 if [ -z "$5" ]
   then
-    data_path="/project/s1053/fv3core_serialized_test_data/7.2.5/c12_6ranks_baroclinic/"
+    data_path="/project/s1053/fv3core_serialized_test_data/7.2.5/c12_6ranks_standard/"
 fi
 
 
