@@ -223,6 +223,7 @@ class TranslateFortranData2Py:
                     )
                 out[serialname] = var4d
             else:
+                data_result.synchronize()
                 slice_tuple = self.grid.slice_dict(ds, len(data_result.shape))
                 out[serialname] = np.squeeze(np.asarray(data_result)[slice_tuple])
             if "kaxis" in info:

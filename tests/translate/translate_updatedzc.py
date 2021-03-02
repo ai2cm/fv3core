@@ -19,6 +19,7 @@ class TranslateUpdateDzC(TranslateFortranData2Py):
             "gz": grid.default_buffer_k_dict(),
             "ws": {"kstart": -1, "kend": None},
         }
+        self.write_vars = ["ws3"]
 
     def compute(self, inputs):
         self.make_storage_data_input_vars(inputs)

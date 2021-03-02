@@ -108,6 +108,8 @@ class TranslateDynCore(ParallelTranslate2PyState):
         del self._base.out_vars["ak"]
         del self._base.out_vars["bk"]
 
+        self._base.write_vars = ["wsd"]
+
         # TODO: Fix edge_interpolate4 in d2a2c_vect to match closer and the
         # variables here should as well.
         self.max_error = 2e-6

@@ -19,4 +19,5 @@ class TranslateRiem_Solver_C(TranslateFortranData2Py):
         }
         self.in_vars["parameters"] = ["dt2", "akap", "ptop", "ms"]
         self.out_vars = {"pef": {"kend": grid.npz}, "gz": {"kend": grid.npz}}
+        self.write_vars = ["ws"]
         self.max_error = 5e-14

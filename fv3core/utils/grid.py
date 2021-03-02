@@ -202,7 +202,8 @@ class Grid:
             return None
         return num + 1
 
-    def slice_dict(self, d, ndim: int = 3, iters: str = "ijk"):
+    def slice_dict(self, d, ndim: int = 3):
+        iters: str = "ijk" if ndim > 1 else "k"
         return tuple(
             [
                 slice(d[f"{iters[i]}start"], self.add_one(d[f"{iters[i]}end"]))

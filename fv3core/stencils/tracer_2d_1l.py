@@ -1,4 +1,5 @@
 import math
+from typing import Dict
 
 import gt4py.gtscript as gtscript
 from gt4py.gtscript import PARALLEL, computation, interval
@@ -9,34 +10,49 @@ import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import gtstencil
 from fv3core.stencils.basic_operations import copy, copy_stencil
 from fv3core.stencils.updatedzd import ra_stencil
-
-
-sd = utils.sd
+from fv3core.utils.typing import FloatField, FloatFieldIJ
+from fv3gfs.util import Communicator
 
 
 @gtstencil()
-def flux_x(cx: sd, dxa: sd, dy: sd, sin_sg3: sd, sin_sg1: sd, xfx: sd):
+def flux_x(
+    cx: FloatField,
+    dxa: FloatFieldIJ,
+    dy: FloatFieldIJ,
+    sin_sg3: FloatFieldIJ,
+    sin_sg1: FloatFieldIJ,
+    xfx: FloatField,
+):
     with computation(PARALLEL), interval(...):
-        xfx[0, 0, 0] = (
-            cx * dxa[-1, 0, 0] * dy * sin_sg3[-1, 0, 0]
-            if cx > 0
-            else cx * dxa * dy * sin_sg1
+        xfx = (
+            cx * dxa[-1, 0] * dy * sin_sg3[-1, 0] if cx > 0 else cx * dxa * dy * sin_sg1
         )
 
 
 @gtstencil()
-def flux_y(cy: sd, dya: sd, dx: sd, sin_sg4: sd, sin_sg2: sd, yfx: sd):
+def flux_y(
+    cy: FloatField,
+    dya: FloatFieldIJ,
+    dx: FloatFieldIJ,
+    sin_sg4: FloatFieldIJ,
+    sin_sg2: FloatFieldIJ,
+    yfx: FloatField,
+):
     with computation(PARALLEL), interval(...):
-        yfx[0, 0, 0] = (
-            cy * dya[0, -1, 0] * dx * sin_sg4[0, -1, 0]
-            if cy > 0
-            else cy * dya * dx * sin_sg2
+        yfx = (
+            cy * dya[0, -1] * dx * sin_sg4[0, -1] if cy > 0 else cy * dya * dx * sin_sg2
         )
 
 
 @gtstencil()
 def cmax_multiply_by_frac(
-    cxd: sd, xfx: sd, mfxd: sd, cyd: sd, yfx: sd, mfyd: sd, frac: float
+    cxd: FloatField,
+    xfx: FloatField,
+    mfxd: FloatField,
+    cyd: FloatField,
+    yfx: FloatField,
+    mfyd: FloatField,
+    frac: float,
 ):
     """multiply all other inputs in-place by frac."""
     with computation(PARALLEL), interval(...):
@@ -49,41 +65,81 @@ def cmax_multiply_by_frac(
 
 
 @gtstencil()
-def cmax_stencil1(cx: sd, cy: sd, cmax: sd):
+def cmax_stencil1(cx: FloatField, cy: FloatField, cmax: FloatField):
     with computation(PARALLEL), interval(...):
         cmax = max(abs(cx), abs(cy))
 
 
 @gtstencil()
-def cmax_stencil2(cx: sd, cy: sd, sin_sg5: sd, cmax: sd):
+def cmax_stencil2(
+    cx: FloatField, cy: FloatField, sin_sg5: FloatFieldIJ, cmax: FloatField
+):
     with computation(PARALLEL), interval(...):
         cmax = max(abs(cx), abs(cy)) + 1.0 - sin_sg5
 
 
 @gtstencil()
-def dp_fluxadjustment(dp1: sd, mfx: sd, mfy: sd, rarea: sd, dp2: sd):
+def dp_fluxadjustment(
+    dp1: FloatField,
+    mfx: FloatField,
+    mfy: FloatField,
+    rarea: FloatFieldIJ,
+    dp2: FloatField,
+):
     with computation(PARALLEL), interval(...):
         dp2 = dp1 + (mfx - mfx[1, 0, 0] + mfy - mfy[0, 1, 0]) * rarea
 
 
 @gtscript.function
-def adjustment(q, dp1, fx, fy, rarea, dp2):
+def adjustment(
+    q: FloatField,
+    dp1: FloatField,
+    fx: FloatField,
+    fy: FloatField,
+    rarea: FloatFieldIJ,
+    dp2: FloatField,
+):
     return (q * dp1 + (fx - fx[1, 0, 0] + fy - fy[0, 1, 0]) * rarea) / dp2
 
 
 @gtstencil()
-def q_adjust(q: sd, dp1: sd, fx: sd, fy: sd, rarea: sd, dp2: sd):
+def q_adjust(
+    q: FloatField,
+    dp1: FloatField,
+    fx: FloatField,
+    fy: FloatField,
+    rarea: FloatFieldIJ,
+    dp2: FloatField,
+):
     with computation(PARALLEL), interval(...):
         q = adjustment(q, dp1, fx, fy, rarea, dp2)
 
 
 @gtstencil()
-def q_other_adjust(q: sd, qset: sd, dp1: sd, fx: sd, fy: sd, rarea: sd, dp2: sd):
+def q_other_adjust(
+    q: FloatField,
+    qset: FloatField,
+    dp1: FloatField,
+    fx: FloatField,
+    fy: FloatField,
+    rarea: FloatFieldIJ,
+    dp2: FloatField,
+):
     with computation(PARALLEL), interval(...):
         qset = adjustment(q, dp1, fx, fy, rarea, dp2)
 
 
-def compute(comm, tracers, dp1, mfxd, mfyd, cxd, cyd, mdt, nq):
+def compute(
+    comm: "Communicator",
+    tracers: Dict[str, "FloatField"],
+    dp1: FloatField,
+    mfxd: FloatField,
+    mfyd: FloatField,
+    cxd: FloatField,
+    cyd: FloatField,
+    mdt: float,
+    nq: int,
+):
     grid = spec.grid
     shape = mfxd.data.shape
     # start HALO update on q (in dyn_core in fortran -- just has started when

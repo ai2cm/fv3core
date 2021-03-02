@@ -254,10 +254,10 @@ def ra_and_edge_profile_stencil(
 
 
 @gtstencil()
-def out(zs: FloatFieldIJ, zh: FloatField, ws: FloatFieldIJ, dt: float):
+def out(zs: FloatFieldIJ, zh: FloatField, ws: FloatField, dt: float):
     with computation(BACKWARD):
         with interval(-1, None):
-            ws[0, 0] = (zs - zh) * 1.0 / dt
+            ws[0, 0, 0] = (zs - zh) * 1.0 / dt
         with interval(0, -1):
             other = zh[0, 0, 1] + DZ_MIN
             zh[0, 0, 0] = zh if zh > other else other

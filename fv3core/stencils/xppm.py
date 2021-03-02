@@ -102,7 +102,7 @@ def xt_dxa_edge_0_base(q: FloatField, dxa: FloatFieldIJ):
 @gtscript.function
 def xt_dxa_edge_1_base(q: FloatField, dxa: FloatFieldIJ):
     return 0.5 * (
-        ((2.0 * dxa[-1, 0] + dxa[-2, 0]) * q[-1, 0, 0] - dxa[-1, 0, 0] * q[-2, 0, 0])
+        ((2.0 * dxa[-1, 0] + dxa[-2, 0]) * q[-1, 0, 0] - dxa[-1, 0] * q[-2, 0, 0])
         / (dxa[-2, 0] + dxa[-1, 0])
         + ((2.0 * dxa + dxa[1, 0]) * q - dxa * q[1, 0, 0]) / (dxa + dxa[1, 0])
     )
@@ -211,7 +211,7 @@ def east_edge_iord8plus_2(
 
 
 @gtscript.function
-def compute_al(q: FloatField, dxa: FloatField):
+def compute_al(q: FloatField, dxa: FloatFieldIJ):
     """
     Interpolate q at interface.
 
@@ -248,7 +248,7 @@ def compute_al(q: FloatField, dxa: FloatField):
 
 
 @gtscript.function
-def compute_blbr_ord8plus(q: FloatField, dxa: FloatField):
+def compute_blbr_ord8plus(q: FloatField, dxa: FloatFieldIJ):
     from __externals__ import i_end, i_start, iord, namelist
 
     dm = dm_iord8plus(q)

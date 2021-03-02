@@ -255,13 +255,12 @@ def compute(state, comm):
                 )
             else:
                 copy_stencil(
-                    state.gz,
                     state.zh,
+                    state.gz,
                     origin=grid.full_origin(),
                     domain=grid.domain_shape_full(add=(0, 0, 1)),
                 )
         if not hydrostatic:
-            state.ws3 = utils.make_storage_data(state.ws3[:, :, -1], shape[0:2], (0, 0))
             state.gz, state.ws3 = updatedzc.compute(
                 state.dp_ref, state.zs, state.ut, state.vt, state.gz, state.ws3, dt2
             )
