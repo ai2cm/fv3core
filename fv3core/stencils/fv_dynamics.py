@@ -346,7 +346,7 @@ def compute(state, comm, timer=NullTimer()):
     compute_preamble(state, comm)
     for n_map in range(k_split):
         state.n_map = n_map + 1
-        last_step = (n_map == k_split - 1)
+        last_step = n_map == k_split - 1
         do_dyn(state, comm, timer)
         if grid.npz > 4:
             kord_tracer = [spec.namelist.kord_tr] * state.nq
