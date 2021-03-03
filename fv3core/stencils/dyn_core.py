@@ -91,9 +91,15 @@ def dyncore_temporaries(shape):
     tmps = {}
     utils.storage_dict(
         tmps,
-        ["ut", "vt", "gz", "zh", "pem", "ws3", "pkc", "pk3", "heat_source", "divgd"],
+        ["ut", "vt", "gz", "zh", "pem", "pkc", "pk3", "heat_source", "divgd"],
         shape,
         grid.full_origin(),
+    )
+    utils.storage_dict(
+        tmps,
+        ["ws3"],
+        shape[0:2],
+        grid.full_origin()[0:2],
     )
     utils.storage_dict(
         tmps, ["crx", "xfx"], shape, grid.compute_origin(add=(0, -grid.halo, 0))

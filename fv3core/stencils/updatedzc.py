@@ -204,7 +204,7 @@ def update_dz_c(
     gz: FloatField,
     gz_x: FloatField,
     gz_y: FloatField,
-    ws3: FloatField,
+    ws3: FloatFieldIJ,
     *,
     dt: float,
 ):
@@ -238,7 +238,7 @@ def compute(
     ut: FloatField,
     vt: FloatField,
     gz_in: FloatField,
-    ws3: FloatField,
+    ws3: FloatFieldIJ,
     dt2: float,
 ):
     grid = spec.grid

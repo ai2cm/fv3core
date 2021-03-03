@@ -254,7 +254,7 @@ def ra_and_edge_profile_stencil(
 
 
 @gtstencil()
-def out(zs: FloatFieldIJ, zh: FloatField, ws: FloatField, dt: float):
+def out(zs: FloatFieldIJ, zh: FloatField, ws: FloatFieldIJ, dt: float):
     with computation(BACKWARD):
         with interval(-1, None):
             ws[0, 0, 0] = (zs - zh) * 1.0 / dt
@@ -273,7 +273,7 @@ def compute(
     cry: FloatField,
     xfx: FloatField,
     yfx: FloatField,
-    wsd: FloatField,
+    wsd: FloatFieldIJ,
     dt: float,
 ):
     grid = spec.grid

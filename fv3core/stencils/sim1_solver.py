@@ -3,7 +3,7 @@ from gt4py.gtscript import BACKWARD, FORWARD, PARALLEL, computation, exp, interv
 import fv3core._config as spec
 import fv3core.utils.global_constants as constants
 from fv3core.decorators import gtstencil
-from fv3core.utils.typing import FloatField
+from fv3core.utils.typing import FloatField, FloatFieldIJ
 
 
 @gtstencil()
@@ -16,7 +16,7 @@ def sim1_solver(
     pm: FloatField,
     pe: FloatField,
     pem: FloatField,
-    wsr: FloatField,
+    wsr: FloatFieldIJ,
     cp3: FloatField,
     dt: float,
     t1g: float,
@@ -109,7 +109,23 @@ def sim1_solver(
 
 
 # TODO: implement MOIST_CAPPA=false
-def solve(is_, ie, js, je, dt, gm, cp3, pe, dm, pm, pem, w, dz, ptr, wsr):
+def solve(
+    is_: int,
+    ie: int,
+    js: int,
+    je: int,
+    dt: float,
+    gm: FloatField,
+    cp3: FloatField,
+    pe: FloatField,
+    dm: FloatField,
+    pm: FloatField,
+    pem: FloatField,
+    w: FloatField,
+    dz: FloatField,
+    ptr: FloatField,
+    wsr: FloatFieldIJ,
+):
     grid = spec.grid
     nic = ie - is_ + 1
     njc = je - js + 1

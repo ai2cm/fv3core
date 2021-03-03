@@ -58,9 +58,9 @@ def fvdyn_temporaries(shape):
     origin = grid.full_origin()
     tmps = {}
     halo_vars = ["cappa"]
-    storage_vars = ["te_2d", "dp1", "pfull", "cvm", "wsd"]
+    storage_vars = ["te_2d", "dp1", "pfull", "cvm", "wsd_3d"]
     column_vars = ["gz"]
-    plane_vars = ["te_2d", "te0_2d"]
+    plane_vars = ["te_2d", "te0_2d", "wsd"]
     utils.storage_dict(
         tmps,
         halo_vars + storage_vars,
@@ -353,6 +353,8 @@ def compute(state, comm, timer=NullTimer()):
             kord_tracer[6] = 9
             # do_omega = spec.namelist.hydrostatic and last_step
             print("Remapping", grid.rank)
+            # TODO: Determine a better way to do this, polymorphic fields perhaps?
+            state.ws3_3d = utils.make_storage_data(state.ws3, state.wsd_3d.shape, state.wsd_3d.default_origin)
             with timer.clock("Remapping"):
                 lagrangian_to_eulerian.compute(
                     state.tracers,
@@ -373,7 +375,7 @@ def compute(state, comm, timer=NullTimer()):
                     state.phis,
                     state.te0_2d,
                     state.ps,
-                    state.wsd,
+                    state.wsd_3d,
                     state.omga,
                     state.ak,
                     state.bk,
@@ -392,4 +394,5 @@ def compute(state, comm, timer=NullTimer()):
                 )
             if last_step:
                 post_remap(state, comm)
+            state.ws3[:, :] = state.wsd_3d[:, :, -1]
     wrapup(state, comm)

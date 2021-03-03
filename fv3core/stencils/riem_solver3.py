@@ -130,7 +130,7 @@ def compute(
     pk3: FloatField,
     pk: FloatField,
     peln: FloatField,
-    wsd: FloatField,
+    wsd: FloatFieldIJ,
 ):
     grid = spec.grid
     rgrav = 1.0 / constants.GRAV
