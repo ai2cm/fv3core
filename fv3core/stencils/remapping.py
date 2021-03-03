@@ -44,11 +44,8 @@ def compute(
     nq: int,
 ):
     compute_origin: Tuple[int, int, int] = spec.grid.compute_origin()
-
     gz: FloatField = utils.make_storage_from_shape(pt.shape, compute_origin)
     cvm: FloatField = utils.make_storage_from_shape(pt.shape, compute_origin)
-    te_2d: FloatFieldIJ = utils.make_storage_from_shape(pt.shape[0:2], compute_origin)
-    zsum1: FloatFieldIJ = utils.make_storage_from_shape(pt.shape[0:2], compute_origin)
 
     remap_part1.compute(
         tracers,
@@ -102,11 +99,9 @@ def compute(
         pk,
         pe,
         hs,
-        te_2d,
         te0_2d,
         dp1,
         cvm,
-        zsum1,
         pfull,
         ptop,
         akap,

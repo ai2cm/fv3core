@@ -17,7 +17,7 @@ def copy_from_below(a: FloatField, b: FloatField):
 
 
 @gtstencil()
-def init_phis(hs: FloatField, delz: FloatField, phis: FloatField, te_2d: FloatField):
+def init_phis(hs: FloatField, delz: FloatField, phis: FloatField, te_2d: FloatFieldIJ):
     with computation(BACKWARD):
         with interval(-1, None):
             te_2d = 0.0
@@ -32,8 +32,8 @@ def sum_z1(
     pkz: FloatField,
     delp: FloatField,
     te0_2d: FloatField,
-    te_2d: FloatField,
-    zsum1: FloatField,
+    te_2d: FloatFieldIJ,
+    zsum1: FloatFieldIJ,
 ):
     with computation(FORWARD):
         with interval(0, 1):
@@ -74,11 +74,9 @@ def compute(
     pk: FloatField,
     pe: FloatField,
     hs: FloatFieldIJ,
-    te_2d: FloatFieldIJ,
     te0_2d: FloatFieldIJ,
     te: FloatField,
     cvm: FloatField,
-    zsum1: FloatFieldIJ,
     pfull: FloatFieldK,
     ptop: float,
     akap: float,
@@ -95,6 +93,8 @@ def compute(
     )
     dtmp = 0.0
     phis = utils.make_storage_from_shape(pt.shape, grid.compute_origin())
+    te_2d = utils.make_storage_from_shape(pt.shape[0:2], grid.compute_origin())
+    zsum1 = utils.make_storage_from_shape(pt.shape[0:2], grid.compute_origin())
     if spec.namelist.do_sat_adj:
         fast_mp_consv = not do_adiabatic_init and consv > constants.CONSV_MIN
         # TODO pfull is a 1d var

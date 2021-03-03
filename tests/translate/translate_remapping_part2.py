@@ -56,14 +56,6 @@ class TranslateRemapping_Part2(TranslateFortranData2Py):
             },
             "hs": {},
             "pfull": {},
-            "te_2d": {
-                "istart": grid.is_,
-                "iend": grid.ie,
-                "jstart": grid.js,
-                "jend": grid.je,
-                "kstart": grid.npz - 1,
-                "kend": grid.npz - 1,
-            },
             "te0_2d": {
                 "istart": grid.is_,
                 "iend": grid.ie,
@@ -73,14 +65,6 @@ class TranslateRemapping_Part2(TranslateFortranData2Py):
                 "kend": grid.npz - 1,
             },
             "te": {},
-            "zsum1": {
-                "istart": grid.is_,
-                "jstart": grid.js,
-                "iend": grid.ie,
-                "jend": grid.je,
-                "kstart": grid.npz - 1,
-                "kend": grid.npz - 1,
-            },
         }
         self.in_vars["parameters"] = [
             "ptop",
@@ -111,9 +95,7 @@ class TranslateRemapping_Part2(TranslateFortranData2Py):
             "delz",
             "q_con",
             "te",
-            "te_2d",
             "te0_2d",
-            "zsum1",
         ]:
             self.out_vars[k] = self.in_vars["data_vars"][k]
         self.max_error = 2e-14
