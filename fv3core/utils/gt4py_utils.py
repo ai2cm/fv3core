@@ -485,3 +485,19 @@ def squeeze(array, axis: Union[int, Tuple[int]] = None):
         array = array.data
     xp = cp if cp and type(array) is cp.ndarray else np
     return xp.squeeze(array, axis)
+
+
+def reshape(array, new_shape: Tuple[int]):
+    if array.shape != new_shape:
+        old_dims = len(array.shape)
+        new_dims = len(new_shape)
+        if old_dims < new_dims:
+            # Upcast using repeat...
+            if old_dims == 2:  # IJ -> IJK
+                return repeat(array[:, :, np.newaxis], new_shape[2], axis=2)
+            else:  # K -> IJK
+                arr_2d = repeat(array[:, np.newaxis], new_shape[1], axis=1)
+                return repeat(arr_2d[:, :, np.newaxis], new_shape[2], axis=2)
+        else:
+            return array.reshape(new_shape)
+    return array

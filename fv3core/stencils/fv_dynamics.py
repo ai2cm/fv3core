@@ -354,9 +354,7 @@ def compute(state, comm, timer=NullTimer()):
             # do_omega = spec.namelist.hydrostatic and last_step
             print("Remapping", grid.rank)
             # TODO: Determine a better way to do this, polymorphic fields perhaps?
-            state.ws3_3d = utils.make_storage_data(
-                state.ws3, state.wsd_3d.shape, state.wsd_3d.default_origin
-            )
+            state.wsd_3d[:] = utils.reshape(state.wsd, state.wsd_3d.shape)
             with timer.clock("Remapping"):
                 lagrangian_to_eulerian.compute(
                     state.tracers,
@@ -396,5 +394,5 @@ def compute(state, comm, timer=NullTimer()):
                 )
             if last_step:
                 post_remap(state, comm)
-            state.ws3[:, :] = state.wsd_3d[:, :, -1]
+            state.wsd[:] = state.wsd_3d[:, :, 0]
     wrapup(state, comm)
