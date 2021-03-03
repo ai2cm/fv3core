@@ -18,18 +18,14 @@ from fv3core.stencils.basic_operations import copy
 from fv3core.utils.typing import FloatField
 
 
-@gtstencil()
 def fx_calc_stencil(q: FloatField, del6_v: FloatField, fx: FloatField, order: int):
     with computation(PARALLEL), interval(...):
-        fx[0, 0, 0] = del6_v * (q[-1, 0, 0] - q)
-        fx[0, 0, 0] = -1.0 * fx if order > 1 else fx
+        fx = fx_calculation(q, del6_v, order)
 
 
-@gtstencil()
 def fy_calc_stencil(q: FloatField, del6_u: FloatField, fy: FloatField, order: int):
     with computation(PARALLEL), interval(...):
-        fy[0, 0, 0] = del6_u * (q[0, -1, 0] - q)
-        fy[0, 0, 0] = fy * -1 if order > 1 else fy
+        fy = fy_calculation(q, del6_u, order)
 
 
 @gtscript.function
@@ -79,13 +75,15 @@ def fy_firstorder_use_sg(
 
 
 @gtstencil()
-def d2_highorder(fx: FloatField, fy: FloatField, rarea: FloatField, d2: FloatField):
+def d2_highorder_stencil(
+    fx: FloatField, fy: FloatField, rarea: FloatField, d2: FloatField
+):
     with computation(PARALLEL), interval(...):
         d2[0, 0, 0] = (fx - fx[1, 0, 0] + fy - fy[0, 1, 0]) * rarea
 
 
 @gtscript.function
-def d2_high_order(fx: FloatField, fy: FloatField, rarea: FloatField):
+def d2_highorder(fx: FloatField, fy: FloatField, rarea: FloatField):
     d2 = (fx - fx[1, 0, 0] + fy - fy[0, 1, 0]) * rarea
     return d2
 
@@ -100,13 +98,9 @@ def d2_damp(q: FloatField, d2: FloatField, damp: float):
 def add_diffusive_component(
     fx: FloatField, fx2: FloatField, fy: FloatField, fy2: FloatField
 ):
-    from __externals__ import local_ie, local_je
-
     with computation(PARALLEL), interval(...):
-        with horizontal(region[:, : local_je + 1]):
-            fx[0, 0, 0] = fx + fx2
-        with horizontal(region[: local_ie + 1, :]):
-            fy[0, 0, 0] = fy + fy2
+        fx[0, 0, 0] = fx + fx2
+        fy[0, 0, 0] = fy + fy2
 
 
 @gtstencil()
@@ -118,24 +112,8 @@ def diffusive_damp(
     mass: FloatField,
     damp: float,
 ):
-    from __externals__ import local_ie, local_je
-
     with computation(PARALLEL), interval(...):
-        with horizontal(region[:, : local_je + 1]):
-            fx[0, 0, 0] = fx + 0.5 * damp * (mass[-1, 0, 0] + mass) * fx2
-        with horizontal(region[: local_ie + 1, :]):
-            fy[0, 0, 0] = fy + 0.5 * damp * (mass[0, -1, 0] + mass) * fy2
-
-
-@gtstencil()
-def diffusive_damp_x(fx: FloatField, fx2: FloatField, mass: FloatField, damp: float):
-    with computation(PARALLEL), interval(...):
-        fx = fx + 0.5 * damp * (mass[-1, 0, 0] + mass) * fx2
-
-
-@gtstencil()
-def diffusive_damp_y(fy: FloatField, fy2: FloatField, mass: FloatField, damp: float):
-    with computation(PARALLEL), interval(...):
+        fx[0, 0, 0] = fx + 0.5 * damp * (mass[-1, 0, 0] + mass) * fx2
         fy[0, 0, 0] = fy + 0.5 * damp * (mass[0, -1, 0] + mass) * fy2
 
 
@@ -170,7 +148,7 @@ def fxy_order(
             fy = fy_calculation(q, del6_u, order)
 
 
-def higher_order_compute(
+def fused_higher_order_compute(
     fx: FloatField,
     fy: FloatField,
     rarea: FloatField,
@@ -188,7 +166,7 @@ def higher_order_compute(
                 (local_js - nt - 1) : (local_je + nt + 2),
             ]
         ):
-            d2 = d2_high_order(fx, fy, rarea)
+            d2 = d2_highorder(fx, fy, rarea)
         d2 = corners.copy_corners_x(d2)
         with horizontal(
             region[
@@ -207,6 +185,102 @@ def higher_order_compute(
             fy = fy_calculation(d2, del6_u, order)
 
 
+@gtscript.function
+def nt2_flux_calculation(
+    fx: FloatField,
+    fy: FloatField,
+    rarea: FloatField,
+    d2: FloatField,
+    del6_u: FloatField,
+    del6_v: FloatField,
+    order: int,
+):
+    from __externals__ import local_ie, local_is, local_je, local_js
+
+    with horizontal(
+        region[
+            (local_is - 2 - 1) : (local_ie + 2 + 2),
+            (local_js - 2 - 1) : (local_je + 2 + 2),
+        ]
+    ):
+        d2 = d2_highorder(fx, fy, rarea)
+    d2 = corners.copy_corners_x(d2)
+    with horizontal(
+        region[(local_is - 2) : (local_ie + 2 + 2), (local_js - 2) : (local_je + 2 + 1)]
+    ):
+        fx = fx_calculation(d2, del6_v, order)
+    d2 = corners.copy_corners_y(d2)
+    with horizontal(
+        region[(local_is - 2) : (local_ie + 2 + 1), (local_js - 2) : (local_je + 2 + 2)]
+    ):
+        fy = fy_calculation(d2, del6_u, order)
+    return d2, fx, fy
+
+
+@gtscript.function
+def nt1_flux_calculation(
+    fx: FloatField,
+    fy: FloatField,
+    rarea: FloatField,
+    d2: FloatField,
+    del6_u: FloatField,
+    del6_v: FloatField,
+    order: int,
+):
+    from __externals__ import local_ie, local_is, local_je, local_js
+
+    with horizontal(
+        region[
+            (local_is - 1 - 1) : (local_ie + 1 + 2),
+            (local_js - 1 - 1) : (local_je + 1 + 2),
+        ]
+    ):
+        d2 = d2_highorder(fx, fy, rarea)
+    d2 = corners.copy_corners_x(d2)
+    with horizontal(
+        region[(local_is - 1) : (local_ie + 1 + 2), (local_js - 1) : (local_je + 1 + 1)]
+    ):
+        fx = fx_calculation(d2, del6_v, order)
+    d2 = corners.copy_corners_y(d2)
+    with horizontal(
+        region[(local_is - 1) : (local_ie + 1 + 1), (local_js - 1) : (local_je + 1 + 2)]
+    ):
+        fy = fy_calculation(d2, del6_u, order)
+    return d2, fx, fy
+
+
+@gtscript.function
+def nt0_flux_calculation(
+    fx: FloatField,
+    fy: FloatField,
+    rarea: FloatField,
+    d2: FloatField,
+    del6_u: FloatField,
+    del6_v: FloatField,
+    order: int,
+):
+    from __externals__ import local_ie, local_is, local_je, local_js
+
+    with horizontal(
+        region[
+            (local_is - 0 - 1) : (local_ie + 0 + 2),
+            (local_js - 0 - 1) : (local_je + 0 + 2),
+        ]
+    ):
+        d2 = d2_highorder(fx, fy, rarea)
+    d2 = corners.copy_corners_x(d2)
+    with horizontal(
+        region[(local_is - 0) : (local_ie + 0 + 2), (local_js - 0) : (local_je + 0 + 1)]
+    ):
+        fx = fx_calculation(d2, del6_v, order)
+    d2 = corners.copy_corners_y(d2)
+    with horizontal(
+        region[(local_is - 0) : (local_ie + 0 + 1), (local_js - 0) : (local_je + 0 + 2)]
+    ):
+        fy = fy_calculation(d2, del6_u, order)
+    return d2, fx, fy
+
+
 @gtstencil
 def higher_order_compute_unroll3(
     fx: FloatField,
@@ -220,6 +294,8 @@ def higher_order_compute_unroll3(
 
     with computation(PARALLEL), interval(...):
 
+        # The region extent depends on nord for the initial flux calculations
+        # So we can't abstract this without making nord an external again
         d2 = corners.copy_corners_x(d2)
         with horizontal(
             region[
@@ -235,71 +311,11 @@ def higher_order_compute_unroll3(
         ):
             fy = fy_calculation(d2, del6_u, 1)
 
-        with horizontal(
-            region[
-                (local_is - 2 - 1) : (local_ie + 2 + 2),
-                (local_js - 2 - 1) : (local_je + 2 + 2),
-            ]
-        ):
-            d2 = d2_high_order(fx, fy, rarea)
-        d2 = corners.copy_corners_x(d2)
-        with horizontal(
-            region[
-                (local_is - 2) : (local_ie + 2 + 2), (local_js - 2) : (local_je + 2 + 1)
-            ]
-        ):
-            fx = fx_calculation(d2, del6_v, 2)
-        d2 = corners.copy_corners_y(d2)
-        with horizontal(
-            region[
-                (local_is - 2) : (local_ie + 2 + 1), (local_js - 2) : (local_je + 2 + 2)
-            ]
-        ):
-            fy = fy_calculation(d2, del6_u, 2)
+        d2, fx, fy = nt2_flux_calculation(fx, fy, rarea, d2, del6_u, del6_v, 2)
 
-        with horizontal(
-            region[
-                (local_is - 1 - 1) : (local_ie + 1 + 2),
-                (local_js - 1 - 1) : (local_je + 1 + 2),
-            ]
-        ):
-            d2 = d2_high_order(fx, fy, rarea)
-        d2 = corners.copy_corners_x(d2)
-        with horizontal(
-            region[
-                (local_is - 1) : (local_ie + 1 + 2), (local_js - 1) : (local_je + 1 + 1)
-            ]
-        ):
-            fx = fx_calculation(d2, del6_v, 3)
-        d2 = corners.copy_corners_y(d2)
-        with horizontal(
-            region[
-                (local_is - 1) : (local_ie + 1 + 1), (local_js - 1) : (local_je + 1 + 2)
-            ]
-        ):
-            fy = fy_calculation(d2, del6_u, 3)
+        d2, fx, fy = nt1_flux_calculation(fx, fy, rarea, d2, del6_u, del6_v, 3)
 
-        with horizontal(
-            region[
-                (local_is - 0 - 1) : (local_ie + 0 + 2),
-                (local_js - 0 - 1) : (local_je + 0 + 2),
-            ]
-        ):
-            d2 = d2_high_order(fx, fy, rarea)
-        d2 = corners.copy_corners_x(d2)
-        with horizontal(
-            region[
-                (local_is - 0) : (local_ie + 0 + 2), (local_js - 0) : (local_je + 0 + 1)
-            ]
-        ):
-            fx = fx_calculation(d2, del6_v, 4)
-        d2 = corners.copy_corners_y(d2)
-        with horizontal(
-            region[
-                (local_is - 0) : (local_ie + 0 + 1), (local_js - 0) : (local_je + 0 + 2)
-            ]
-        ):
-            fy = fy_calculation(d2, del6_u, 4)
+        d2, fx, fy = nt0_flux_calculation(fx, fy, rarea, d2, del6_u, del6_v, 4)
 
 
 @gtstencil
@@ -315,6 +331,8 @@ def higher_order_compute_unroll2(
 
     with computation(PARALLEL), interval(...):
 
+        # As above, the region extent depends on nord for the initial flux calculations
+        # So we can't abstract this without making nord an external...
         d2 = corners.copy_corners_x(d2)
         with horizontal(
             region[
@@ -330,49 +348,9 @@ def higher_order_compute_unroll2(
         ):
             fy = fy_calculation(d2, del6_u, 1)
 
-        with horizontal(
-            region[
-                (local_is - 1 - 1) : (local_ie + 1 + 2),
-                (local_js - 1 - 1) : (local_je + 1 + 2),
-            ]
-        ):
-            d2 = d2_high_order(fx, fy, rarea)
-        d2 = corners.copy_corners_x(d2)
-        with horizontal(
-            region[
-                (local_is - 1) : (local_ie + 1 + 2), (local_js - 1) : (local_je + 1 + 1)
-            ]
-        ):
-            fx = fx_calculation(d2, del6_v, 2)
-        d2 = corners.copy_corners_y(d2)
-        with horizontal(
-            region[
-                (local_is - 1) : (local_ie + 1 + 1), (local_js - 1) : (local_je + 1 + 2)
-            ]
-        ):
-            fy = fy_calculation(d2, del6_u, 2)
+        d2, fx, fy = nt1_flux_calculation(fx, fy, rarea, d2, del6_u, del6_v, 2)
 
-        with horizontal(
-            region[
-                (local_is - 0 - 1) : (local_ie + 0 + 2),
-                (local_js - 0 - 1) : (local_je + 0 + 2),
-            ]
-        ):
-            d2 = d2_high_order(fx, fy, rarea)
-        d2 = corners.copy_corners_x(d2)
-        with horizontal(
-            region[
-                (local_is - 0) : (local_ie + 0 + 2), (local_js - 0) : (local_je + 0 + 1)
-            ]
-        ):
-            fx = fx_calculation(d2, del6_v, 3)
-        d2 = corners.copy_corners_y(d2)
-        with horizontal(
-            region[
-                (local_is - 0) : (local_ie + 0 + 1), (local_js - 0) : (local_je + 0 + 2)
-            ]
-        ):
-            fy = fy_calculation(d2, del6_u, 3)
+        d2, fx, fy = nt0_flux_calculation(fx, fy, rarea, d2, del6_u, del6_v, 3)
 
 
 def compute_delnflux_no_sg(
@@ -484,7 +462,7 @@ def compute_no_sg_multi_loop(
             nt_ny = grid.je - grid.js + 3 + 2 * nt
             nt_nx = grid.ie - grid.is_ + 3 + 2 * nt
             nt_origin = (grid.is_ - nt, grid.js - nt, kstart)
-            d2_highorder(
+            d2_highorder_stencil(
                 fx,
                 fy,
                 grid.rarea,
@@ -572,7 +550,7 @@ def compute_no_sg_merge_loop(
         for n in range(nord):
             nt = nord - 1 - n
             looped_stencil = gtstencil(
-                definition=higher_order_compute, externals={"nt": nt}
+                definition=fused_higher_order_compute, externals={"nt": nt}
             )
             looped_stencil(
                 fx,

@@ -469,7 +469,7 @@ def damp_vertical_wind(w, heat_s, diss_e, dt, column_namelist):
             column_namelist["nord_w"] + 1
         )
 
-        delnflux.compute_no_sg(w, fx2, fy2, column_namelist["nord_w"], damp4, wk)
+        delnflux.compute_no_sg_unroll(w, fx2, fy2, column_namelist["nord_w"], damp4, wk)
         heatdiss.compute(fx2, fy2, w, dd8, dw, heat_s, diss_e)
     return dw, wk
 
@@ -835,7 +835,9 @@ def d_sw(
         damp4 = (column_namelist["damp_vt"] * grid().da_min_c) ** (
             column_namelist["nord_v"] + 1
         )
-        delnflux.compute_no_sg(wk, ut, vt, column_namelist["nord_v"], damp4, vort)
+        delnflux.compute_no_sg_unroll(
+            wk, ut, vt, column_namelist["nord_v"], damp4, vort
+        )
 
     if kinetic_energy_fraction_to_damp > dcon_threshold or spec.namelist.do_skeb:
         heat_from_damping(
