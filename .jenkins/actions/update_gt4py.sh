@@ -5,5 +5,3 @@ set -x
 export CUDA=y
 make pull_environment
 make gt4py_tests_gpu
-make tests
-make tests_mpi
