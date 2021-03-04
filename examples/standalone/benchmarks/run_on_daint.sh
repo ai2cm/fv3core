@@ -53,6 +53,7 @@ rm -rf vcm_1.0
 
 echo "creating the venv"
 git submodule update --init --recursive
+export GT4PY_TAG=`grep "GT4PY_TAG=" docker/Makefile.image_names  | cut -d '=' -f 2`
 cd external/daint_venv
 ./install.sh test_ve
 source test_ve/bin/activate
