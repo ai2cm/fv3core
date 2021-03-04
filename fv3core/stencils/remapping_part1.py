@@ -8,6 +8,7 @@ import fv3core.stencils.mapn_tracer as mapn_tracer
 import fv3core.stencils.moist_cv as moist_cv
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import gtstencil
+from fv3core.graph import gtgraph
 from fv3core.stencils.basic_operations import copy, copy_stencil
 from fv3core.stencils.moist_cv import moist_pt_func
 from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
@@ -173,8 +174,9 @@ def update_ua(pe2: FloatField, ua: FloatField):
         ua = pe2[0, 0, 1]
 
 
+@gtgraph
 def compute(
-    tracers: Dict[str, Any],
+    tracers: Dict[str, "FloatField"],
     pt: FloatField,
     delp: FloatField,
     delz: FloatField,
