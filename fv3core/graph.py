@@ -1,14 +1,22 @@
 import ast
 import inspect
-import networkx as nx
 import types
-from typing import Any, Callable, Dict
+from typing import Any, Callable, Dict, Tuple
+
+import matplotlib.pyplot as plt
+import networkx as nx
 
 
-def gtgraph(definition=None, **stencil_kwargs) -> Callable[..., None]:
+_graphs: Dict[str, Tuple[Any, Dict[str, Any]]] = {}
+
+
+def gtgraph(definition=None, **stencil_kwargs) -> Tuple[Any, Dict[str, Any]]:
     def decorator(definition) -> Callable[..., None]:
+        def_name = f"{definition.__module__}.{definition.__name__}"
         graph, meta_data = GraphMaker.apply(definition)
-        return graph
+        _graphs[def_name] = (graph, meta_data)
+
+        return _graphs[def_name]
 
     if definition is None:
         return decorator
@@ -41,6 +49,20 @@ class GraphMaker(ast.NodeVisitor):
     def _add_node(self, node_name: str, node_meta: Any) -> None:
         self.graph.add_node(node_name)
         self.meta_data[node_name] = dict(node=node_meta)
+
+    def draw(self, filename: str):
+        options = {
+            "node_color": "white",
+            "edgecolors": "black",
+            "linewidths": 1,
+        }
+        nx.draw_networkx(self.graph, **options)
+
+        ax = plt.gca()
+        ax.margins(0.20)
+        plt.axis("off")
+        plt.show()
+        plt.savefig(f"{filename}.png")
 
     def visit(self, node, **kwargs):
         """Visit a node."""

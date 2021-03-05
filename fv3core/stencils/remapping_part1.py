@@ -1,4 +1,4 @@
-from typing import Any, Dict
+from typing import Dict
 
 from gt4py.gtscript import BACKWARD, FORWARD, PARALLEL, computation, exp, interval, log
 
