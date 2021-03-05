@@ -12,18 +12,18 @@ def edge_pe(pe: FloatField, delp: FloatField, ptop: float):
     with computation(FORWARD):
         with interval(0, 1):
             with horizontal(
-                region[i_start - 1 : i_start, j_start : j_end + 1],
-                region[i_end + 1 : i_end + 2, j_start : j_end + 1],
-                region[i_start - 1 : i_end + 1, j_start - 1 : j_start],
-                region[i_start - 1 : i_end + 1, j_end + 1 : j_end + 2],
+                region[i_start - 1, j_start : j_end + 1],
+                region[i_end + 1, j_start : j_end + 1],
+                region[i_start - 1 : i_end + 2, j_start - 1],
+                region[i_start - 1 : i_end + 2, j_end + 1],
             ):
                 pe[0, 0, 0] = ptop
         with interval(1, None):
             with horizontal(
-                region[i_start - 1 : i_start, j_start : j_end + 1],
-                region[i_end + 1 : i_end + 2, j_start : j_end + 1],
-                region[i_start - 1 : i_end + 1, j_start - 1 : j_start],
-                region[i_start - 1 : i_end + 1, j_end + 1 : j_end + 2],
+                region[i_start - 1, j_start : j_end + 1],
+                region[i_end + 1, j_start : j_end + 1],
+                region[i_start - 1 : i_end + 2, j_start - 1],
+                region[i_start - 1 : i_end + 2, j_end + 1],
             ):
                 pe[0, 0, 0] = pe[0, 0, -1] + delp[0, 0, -1]
 
