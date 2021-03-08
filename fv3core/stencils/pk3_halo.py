@@ -12,23 +12,23 @@ from fv3core.utils.typing import FloatField, FloatFieldIJ
 def edge_pe_update(
     pe: FloatFieldIJ, delp: FloatField, pk3: FloatField, ptop: float, akap: float
 ):
-    from __externals__ import i_end, i_start, j_end, j_start
+    from __externals__ import local_ie, local_is, local_je, local_js
 
     with computation(FORWARD):
         with interval(0, 1):
             with horizontal(
-                region[i_start - 2 : i_start, j_start : j_end + 1],
-                region[i_end + 1 : i_end + 3, j_start : j_end + 1],
-                region[i_start - 2 : i_end + 3, j_start - 2 : j_start],
-                region[i_start - 2 : i_end + 3, j_end + 1 : j_end + 3],
+                region[local_is - 2 : local_is, local_js : local_je + 1],
+                region[local_ie + 1 : local_ie + 3, local_js : local_je + 1],
+                region[local_is - 2 : local_ie + 3, local_js - 2 : local_js],
+                region[local_is - 2 : local_ie + 3, local_je + 1 : local_je + 3],
             ):
                 pe = ptop
         with interval(1, None):
             with horizontal(
-                region[i_start - 2 : i_start, j_start : j_end + 1],
-                region[i_end + 1 : i_end + 3, j_start : j_end + 1],
-                region[i_start - 2 : i_end + 3, j_start - 2 : j_start],
-                region[i_start - 2 : i_end + 3, j_end + 1 : j_end + 3],
+                region[local_is - 2 : local_is, local_js : local_je + 1],
+                region[local_ie + 1 : local_ie + 3, local_js : local_je + 1],
+                region[local_is - 2 : local_ie + 3, local_js - 2 : local_js],
+                region[local_is - 2 : local_ie + 3, local_je + 1 : local_je + 3],
             ):
                 pe = pe + delp[0, 0, -1]
                 pk3 = pe ** akap
