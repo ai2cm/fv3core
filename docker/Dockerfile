@@ -28,11 +28,8 @@ COPY --from=serialbox_image /usr/include/boost /usr/include/boost
 ENV BOOST_HOME=/usr/include/boost
 ARG CPPFLAGS="-I${BOOST_HOME} -I${BOOST_HOME}/boost"
 ARG GT4PY_OPTIONALS=""
-ARG GT4PY_VERSION
-RUN apt-get update \
-    && apt-get install -y git && \
-    git clone https://github.com/VulcanClimateModeling/gt4py.git && \
-    cd gt4py && git checkout ${GT4PY_VERSION}
+ARG GT4PY_DIR
+COPY ${GT4PY_DIR} /gt4py
 
 RUN if [ ! -z `echo $GT4PY_OPTIONALS | grep cuda` ] ; then pip install cupy-cuda102==7.7.0 ; else echo Not installing cuda ; fi
 RUN pip install --no-cache-dir -c /constraints.txt "/gt4py${GT4PY_OPTIONALS}" && \
