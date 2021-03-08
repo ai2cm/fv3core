@@ -7,23 +7,23 @@ from fv3core.utils.typing import FloatField
 
 @gtstencil()
 def edge_pe(pe: FloatField, delp: FloatField, ptop: float):
-    from __externals__ import i_end, i_start, j_end, j_start
+    from __externals__ import local_ie, local_is, local_je, local_js
 
     with computation(FORWARD):
         with interval(0, 1):
             with horizontal(
-                region[i_start - 1, j_start : j_end + 1],
-                region[i_end + 1, j_start : j_end + 1],
-                region[i_start - 1 : i_end + 2, j_start - 1],
-                region[i_start - 1 : i_end + 2, j_end + 1],
+                region[local_is - 1, local_js : local_je + 1],
+                region[local_ie + 1, local_js : local_je + 1],
+                region[local_is - 1 : local_ie + 2, local_js - 1],
+                region[local_is - 1 : local_ie + 2, local_je + 1],
             ):
                 pe[0, 0, 0] = ptop
         with interval(1, None):
             with horizontal(
-                region[i_start - 1, j_start : j_end + 1],
-                region[i_end + 1, j_start : j_end + 1],
-                region[i_start - 1 : i_end + 2, j_start - 1],
-                region[i_start - 1 : i_end + 2, j_end + 1],
+                region[local_is - 1, local_js : local_je + 1],
+                region[local_ie + 1, local_js : local_je + 1],
+                region[local_is - 1 : local_ie + 2, local_js - 1],
+                region[local_is - 1 : local_ie + 2, local_je + 1],
             ):
                 pe[0, 0, 0] = pe[0, 0, -1] + delp[0, 0, -1]
 
