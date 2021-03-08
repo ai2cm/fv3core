@@ -18,5 +18,6 @@ if [ "$experiment" = "c128_6ranks_baroclinic" ]; then
     data_path="${TESTDATA_PATH}/c128_6ranks_baroclinic"
 fi
 
-$ROOT_DIR/examples/standalone/benchmarks/run_on_daint.sh 2 6 $backend /project/s1053/performance/fv3core_monitor/$backend/ $data_path "-m cProfile -o /project/s1053/performance/profiles/fv3core_${experiment}_${backend}.prof"
+$ROOT_DIR/examples/standalone/benchmarks/run_on_daint.sh 2 6 $backend /project/s1053/performance/fv3core_monitor/$backend/ $data_path "-m cProfile -o $ROOT_DIR/fv3core_${experiment}_${backend}.prof"
+mv $ROOT_DIR/fv3core_${experiment}_${backend}.prof /project/s1053/performance/fv3core_monitor/$backend/
 rm -rf .gt_cache_0000*
