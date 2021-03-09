@@ -13,7 +13,7 @@ data_path=${TESTDATA_PATH}/${FORTRAN_SERIALIZED_DATA_VERSION}/${experiment}
 
 $ROOT_DIR/examples/standalone/benchmarks/run_on_daint.sh 2 6 $backend /project/s1053/performance/fv3core_monitor/$backend/ $data_path "" "--profile"
 
-cp $ROOT_DIR/fv3core_${experiment}_${backend}.prof /project/s1053/performance/fv3core_monitor/$backend/
+cp $ROOT_DIR/fv3core_${experiment}_${backend}*.prof /project/s1053/performance/fv3core_monitor/$backend/
 
 rm -rf .gt_cache_0000*
 
