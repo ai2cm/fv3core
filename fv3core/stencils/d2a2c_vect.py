@@ -64,7 +64,7 @@ def contravariant(v1, v2, cosa, rsin2):
         v2: covariant component of the wind for the other direction,
             i.e. y if v1 is in x, x if v1 is in y
         cosa: cosine of the angle between the local x-direction and y-direction.
-        rsin2: 1 / sin(alpha), where alpha is the angle between the local
+        rsin2: 1 / (sin(alpha))^2, where alpha is the angle between the local
             x-direction and y-direction
 
     Returns:
@@ -93,10 +93,10 @@ def contravariant(v1, v2, cosa, rsin2):
     # u_contra = u_cov - v_cov * cos(alpha) + u_contra * cos2(alpha) (follows)
     # u_contra * (1 - cos2(alpha)) = u_cov - v_cov * cos(alpha)
     # u_contra = u_cov/(1 - cos2(alpha)) - v_cov * cos(alpha)/(1 - cos2(alpha))
-    # matches if rsin = 1 /(1 + cos2(alpha)), cosa*rsin = cos(alpha)/(1 + cos2(alpha))
-    # rsin = 1 / sin2(alpha)
+    # matches because rsin = 1 /(1 + cos2(alpha)),
+    #                 cosa*rsin = cos(alpha)/(1 + cos2(alpha))
 
-    # so this means:
+    # recall that:
     # rsin2 is 1/(sin(alpha))^2
     # cosa is cos(alpha)
 
@@ -112,7 +112,7 @@ def contravariant_stencil(u: sd, v: sd, cosa: sd, rsin: sd, out: sd):
 @gtstencil()
 def contravariant_components(utmp: sd, vtmp: sd, cosa_s: sd, rsin2: sd, ua: sd, va: sd):
     with computation(PARALLEL), interval(...):
-        ua = contravariant(utmp, vtmp, cosa_s, rsin2)  # (utmp - vtmp * cosa_s) * rsin2
+        ua = contravariant(utmp, vtmp, cosa_s, rsin2)
         va = contravariant(vtmp, utmp, cosa_s, rsin2)
 
 
