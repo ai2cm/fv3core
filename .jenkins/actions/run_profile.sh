@@ -3,7 +3,7 @@ set -e -x
 SCRIPT=`realpath $0`
 SCRIPTPATH=`dirname $SCRIPT`
 ROOT_DIR="$(dirname "$(dirname "$SCRIPTPATH")")"
-TESTDATA_PATH="/scratch/snx3000/olifu/jenkins/scratch/fv3core_fortran_data"
+TESTDATA_PATH="/project/s1053/fv3core_serialized_test_data"
 FORTRAN_SERIALIZED_DATA_VERSION=7.2.5
 
 test -n "${experiment}" || exitError 1001 ${LINENO} "experiment is not defined"
