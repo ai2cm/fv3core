@@ -28,6 +28,7 @@ stats = pstats.Stats("$ROOT_DIR/fv3core_${experiment}_${backend}_0.prof")
 stats.strip_dirs()
 stats.sort_stats('cumulative')
 stats.print_stats(100)
+print('=================================================================')
 stats.sort_stats('calls')
 stats.print_stats(100)
 EOF
