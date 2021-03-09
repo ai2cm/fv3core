@@ -41,7 +41,7 @@ def ra_func(
 
 
 @gtstencil()
-def ra_stencil(
+def ra_stencil_update(
     area: FloatFieldIJ,
     xfx_adv: FloatField,
     yfx_adv: FloatField,
@@ -126,6 +126,62 @@ def edge_profile_top(
 
 
 @gtscript.function
+def edge_profile_interior(
+    dp0: FloatFieldK,
+    gam: FloatField,
+    q1x: FloatField,
+    q2x: FloatField,
+    qe1x: FloatField,
+    qe2x: FloatField,
+    q1y: FloatField,
+    q2y: FloatField,
+    qe1y: FloatField,
+    qe2y: FloatField,
+):
+    from __externals__ import local_ie, local_is, local_je, local_js
+
+    gk = dp0[-1] / dp0
+    bet = 2.0 + 2.0 * gk - gam[0, 0, -1]
+    gam = gk / bet
+    with horizontal(region[local_is : local_ie + 2, :]):
+        qe1x = (3.0 * (q1x[0, 0, -1] + gk * q1x) - qe1x[0, 0, -1]) / bet
+        qe2x = (3.0 * (q2x[0, 0, -1] + gk * q2x) - qe2x[0, 0, -1]) / bet
+    with horizontal(region[:, local_js : local_je + 2]):
+        qe1y = (3.0 * (q1y[0, 0, -1] + gk * q1y) - qe1y[0, 0, -1]) / bet
+        qe2y = (3.0 * (q2y[0, 0, -1] + gk * q2y) - qe2y[0, 0, -1]) / bet
+
+    return qe1x, qe2x, qe1y, qe2y, gam, gk
+
+
+@gtscript.function
+def edge_profile_bottom(
+    q1x: FloatField,
+    q2x: FloatField,
+    qe1x: FloatField,
+    qe2x: FloatField,
+    q1y: FloatField,
+    q2y: FloatField,
+    qe1y: FloatField,
+    qe2y: FloatField,
+    gam: FloatField,
+    gk: FloatField,
+):
+    from __externals__ import local_ie, local_is, local_je, local_js
+
+    a_bot = 1.0 + gk[0, 0, -1] * (gk[0, 0, -1] + 1.5)
+    xt1 = 2.0 * gk[0, 0, -1] * (gk[0, 0, -1] + 1.0)
+    xt2 = gk[0, 0, -1] * (gk[0, 0, -1] + 0.5) - a_bot * gam[0, 0, -1]
+    with horizontal(region[local_is : local_ie + 2, :]):
+        qe1x = (xt1 * q1x[0, 0, -1] + q1x[0, 0, -2] - a_bot * qe1x[0, 0, -1]) / xt2
+        qe2x = (xt1 * q2x[0, 0, -1] + q2x[0, 0, -2] - a_bot * qe2x[0, 0, -1]) / xt2
+    with horizontal(region[:, local_js : local_je + 2]):
+        qe1y = (xt1 * q1y[0, 0, -1] + q1y[0, 0, -2] - a_bot * qe1y[0, 0, -1]) / xt2
+        qe2y = (xt1 * q2y[0, 0, -1] + q2y[0, 0, -2] - a_bot * qe2y[0, 0, -1]) / xt2
+
+    return qe1x, qe2x, qe1y, qe2y
+
+
+@gtscript.function
 def edge_profile_reverse(
     qe1x: FloatField,
     qe2x: FloatField,
@@ -148,8 +204,7 @@ def edge_profile_reverse(
 # NOTE: We have not ported the uniform_grid True option as it is never called
 # that way in this model. We have also ignored limite != 0 for the same reason.
 @gtstencil()
-def ra_and_edge_profile_stencil(
-    area: FloatFieldIJ,
+def edge_profile_stencil(
     q1x: FloatField,
     q2x: FloatField,
     qe1x: FloatField,
@@ -159,50 +214,24 @@ def ra_and_edge_profile_stencil(
     qe1y: FloatField,
     qe2y: FloatField,
     dp0: FloatFieldK,
-    ra_x: FloatField,
-    ra_y: FloatField,
 ):
     from __externals__ import local_ie, local_is, local_je, local_js
 
-    # edge_profile_stencil
     with computation(FORWARD):
         with interval(0, 1):
             qe1x, qe2x, qe1y, qe2y, gam = edge_profile_top(
                 dp0, q1x, q2x, qe1x, qe2x, q1y, q2y, qe1y, qe2y
             )
         with interval(1, -1):
-            gk = dp0[-1] / dp0
-            bet = 2.0 + 2.0 * gk - gam[0, 0, -1]
-            gam = gk / bet
-            with horizontal(region[local_is : local_ie + 2, :]):
-                qe1x = (3.0 * (q1x[0, 0, -1] + gk * q1x) - qe1x[0, 0, -1]) / bet
-                qe2x = (3.0 * (q2x[0, 0, -1] + gk * q2x) - qe2x[0, 0, -1]) / bet
-            with horizontal(region[:, local_js : local_je + 2]):
-                qe1y = (3.0 * (q1y[0, 0, -1] + gk * q1y) - qe1y[0, 0, -1]) / bet
-                qe2y = (3.0 * (q2y[0, 0, -1] + gk * q2y) - qe2y[0, 0, -1]) / bet
+            qe1x, qe2x, qe1y, qe2y, gam, gk = edge_profile_interior(
+                dp0, gam, q1x, q2x, qe1x, qe2x, q1y, q2y, qe1y, qe2y
+            )
         with interval(-1, None):
-            a_bot = 1.0 + gk[0, 0, -1] * (gk[0, 0, -1] + 1.5)
-            xt1 = 2.0 * gk[0, 0, -1] * (gk[0, 0, -1] + 1.0)
-            xt2 = gk[0, 0, -1] * (gk[0, 0, -1] + 0.5) - a_bot * gam[0, 0, -1]
-            with horizontal(region[local_is : local_ie + 2, :]):
-                qe1x = (
-                    xt1 * q1x[0, 0, -1] + q1x[0, 0, -2] - a_bot * qe1x[0, 0, -1]
-                ) / xt2
-                qe2x = (
-                    xt1 * q2x[0, 0, -1] + q2x[0, 0, -2] - a_bot * qe2x[0, 0, -1]
-                ) / xt2
-            with horizontal(region[:, local_js : local_je + 2]):
-                qe1y = (
-                    xt1 * q1y[0, 0, -1] + q1y[0, 0, -2] - a_bot * qe1y[0, 0, -1]
-                ) / xt2
-                qe2y = (
-                    xt1 * q2y[0, 0, -1] + q2y[0, 0, -2] - a_bot * qe2y[0, 0, -1]
-                ) / xt2
+            qe1x, qe2x, qe1y, qe2y = edge_profile_bottom(
+                q1x, q2x, qe1x, qe2x, q1y, q2y, qe1y, qe2y, gam, gk
+            )
     with computation(BACKWARD), interval(0, -1):
         qe1x, qe2x, qe1y, qe2y = edge_profile_reverse(qe1x, qe2x, qe1y, qe2y, gam)
-    # ra_stencil
-    with computation(PARALLEL), interval(...):
-        ra_x, ra_y = ra_func(area, qe2x, qe2y, ra_x, ra_y)
 
 
 # def edge_python(q1, q2, qe1, qe2, dp0, gam, islice, jslice, qe1_2, gam_2):
@@ -273,7 +302,7 @@ def compute(
     cry: FloatField,
     xfx: FloatField,
     yfx: FloatField,
-    wsd: FloatFieldIJ,
+    wsd: FloatField,
     dt: float,
 ):
     grid = spec.grid
@@ -298,8 +327,7 @@ def compute(
         cry.shape, grid.compute_origin(add=(-halo, 0, 0))
     )
 
-    ra_and_edge_profile_stencil(
-        grid.area,
+    edge_profile_stencil(
         crx,
         xfx,
         crx_adv,
@@ -309,7 +337,14 @@ def compute(
         cry_adv,
         yfx_adv,
         dp0,
+        origin=grid.compute_origin(add=(-halo, -halo, 0)),
+        domain=grid.domain_shape_compute(add=(2 * halo, 2 * halo, 1)),
+    )
+    ra_stencil_update(
+        grid.area,
+        xfx_adv,
         ra_x,
+        yfx_adv,
         ra_y,
         origin=grid.compute_origin(add=(-halo, -halo, 0)),
         domain=grid.domain_shape_compute(add=(2 * halo, 2 * halo, 1)),
@@ -317,8 +352,8 @@ def compute(
 
     ndif[-1] = ndif[-2]
     damp_vtd[-1] = damp_vtd[-2]
-
     kstarts = utils.get_kstarts({"ndif": ndif, "damp": damp_vtd}, grid.npz + 1)
+
     for ki, nk in kstarts:
         column_calls(
             zh,
@@ -340,7 +375,7 @@ def compute(
         wsd,
         dt,
         origin=grid.compute_origin(),
-        domain=(grid.nic, grid.njc, grid.npz + 1),
+        domain=grid.domain_shape_compute(add=(0, 0, 1)),
     )
 
 
@@ -359,11 +394,9 @@ def column_calls(
 ):
     if damp <= 1e-5:
         raise Exception("damp <= 1e-5 in column_cols is untested")
+
     grid = spec.grid
     full_origin = (grid.isd, grid.jsd, kstart)
-    compute_origin = (grid.is_, grid.js, kstart)
-    compute_domain = (grid.nic, grid.njc, nk)
-
     wk = utils.make_storage_from_shape(zh.shape, full_origin)
     fx2 = utils.make_storage_from_shape(zh.shape, full_origin)
     fy2 = utils.make_storage_from_shape(zh.shape, full_origin)
@@ -397,6 +430,6 @@ def column_calls(
         fy2,
         grid.rarea,
         zh,
-        origin=compute_origin,
-        domain=compute_domain,
+        origin=grid.compute_origin(add=(0, 0, kstart)),
+        domain=(grid.nic, grid.njc, nk),
     )
