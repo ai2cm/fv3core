@@ -148,8 +148,7 @@ def edge_profile_reverse(
 # NOTE: We have not ported the uniform_grid True option as it is never called
 # that way in this model. We have also ignored limite != 0 for the same reason.
 @gtstencil()
-def ra_and_edge_profile_stencil(
-    area: FloatField,
+def edge_profile_stencil(
     q1x: FloatField,
     q2x: FloatField,
     qe1x: FloatField,
@@ -159,12 +158,9 @@ def ra_and_edge_profile_stencil(
     qe1y: FloatField,
     qe2y: FloatField,
     dp0: FloatField,
-    ra_x: FloatField,
-    ra_y: FloatField,
 ):
     from __externals__ import local_ie, local_is, local_je, local_js
 
-    # edge_profile_stencil
     with computation(FORWARD):
         with interval(0, 1):
             qe1x, qe2x, qe1y, qe2y, gam = edge_profile_top(
@@ -200,9 +196,6 @@ def ra_and_edge_profile_stencil(
                 ) / xt2
     with computation(BACKWARD), interval(0, -1):
         qe1x, qe2x, qe1y, qe2y = edge_profile_reverse(qe1x, qe2x, qe1y, qe2y, gam)
-    # ra_stencil
-    with computation(PARALLEL), interval(...):
-        ra_x, ra_y = ra_func(area, qe2x, qe2y, ra_x, ra_y)
 
 
 # def edge_python(q1, q2, qe1, qe2, dp0, gam, islice, jslice, qe1_2, gam_2):
@@ -298,8 +291,7 @@ def compute(
         cry.shape, grid.compute_origin(add=(-halo, 0, 0))
     )
 
-    ra_and_edge_profile_stencil(
-        grid.area,
+    edge_profile_stencil(
         crx,
         xfx,
         crx_adv,
@@ -309,6 +301,13 @@ def compute(
         cry_adv,
         yfx_adv,
         dp0,
+        origin=grid.compute_origin(add=(-halo, -halo, 0)),
+        domain=grid.domain_shape_compute(add=(2 * halo, 2 * halo, 1)),
+    )
+    ra_stencil_update(
+        grid.area,
+        xfx_adv,
+        yfx_adv,
         ra_x,
         ra_y,
         origin=grid.compute_origin(add=(-halo, -halo, 0)),
@@ -317,8 +316,8 @@ def compute(
 
     ndif[-1] = ndif[-2]
     damp_vtd[-1] = damp_vtd[-2]
-
     kstarts = utils.get_kstarts({"ndif": ndif, "damp": damp_vtd}, grid.npz + 1)
+
     for ki, nk in kstarts:
         column_calls(
             zh,
@@ -340,7 +339,7 @@ def compute(
         wsd,
         dt,
         origin=grid.compute_origin(),
-        domain=(grid.nic, grid.njc, grid.npz + 1),
+        domain=grid.domain_shape_compute(add=(0, 0, 1)),
     )
 
 
@@ -395,6 +394,6 @@ def column_calls(
         fy2,
         grid.rarea,
         zh,
-        origin=(grid.is_, grid.js, kstart),
+        origin=grid.compute_origin(add=(0, 0, kstart)),
         domain=(grid.nic, grid.njc, nk),
     )
