@@ -38,3 +38,5 @@ echo "<html><body><pre>" > html/index.html
 cat profile.txt >> html/index.html
 echo "</pre></body></html>" >> html/index.html
 
+# so long!
+exit 0
