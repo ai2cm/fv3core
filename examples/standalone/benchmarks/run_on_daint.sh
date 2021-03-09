@@ -48,26 +48,27 @@ py_args="$6"
 
 run_args="$7"
 
-# set up the virtual environment
-cd $ROOT_DIR
-rm -rf vcm_1.0
-
-echo "creating the venv"
+# get dependencies
 git submodule update --init --recursive
-cd external/daint_venv
-./install.sh test_ve
-source test_ve/bin/activate
-echo "install requirements..."
-cd $ROOT_DIR
-pip install external/fv3gfs-util/
-pip install .
 
+# set up the virtual environment
+echo "creating the venv"
+if [ -d ./venv ] ; then rm -rf venv ; fi
+cd $ROOT_DIR/external/daint_venv/
+if [ -d ./gt4py ] ; then rm -rf gt4py ; fi
+./install.sh $ROOT_DIR/venv
+cd $ROOT_DIR
+source ./venv/bin/activate
+echo "install requirements..."
+pip install ./external/fv3gfs-util/
+pip install .
 pip list
 
 # set the environment
+if [ -d ./buildenv ] ; then rm -rf buildenv ; fi
 git clone https://github.com/VulcanClimateModeling/buildenv/
-cp buildenv/submit.daint.slurm compile.daint.slurm
-cp buildenv/submit.daint.slurm run.daint.slurm
+cp ./buildenv/submit.daint.slurm compile.daint.slurm
+cp ./buildenv/submit.daint.slurm run.daint.slurm
 
 nthreads=12
 if git rev-parse --git-dir > /dev/null 2>&1 ; then
@@ -124,7 +125,7 @@ sed -i s/\<NTASKS\>/$ranks/g run.daint.slurm
 sed -i s/\<NTASKSPERNODE\>/1/g run.daint.slurm
 sed -i s/\<CPUSPERTASK\>/$nthreads/g run.daint.slurm
 sed -i s/--output=\<OUTFILE\>/--hint=nomultithread/g run.daint.slurm
-sed -i s/00:45:00/00:30:00/g run.daint.slurm
+sed -i s/00:45:00/00:45:00/g run.daint.slurm
 sed -i s/cscsci/normal/g run.daint.slurm
 sed -i s/\<G2G\>//g run.daint.slurm
 sed -i "s#<CMD>#export PYTHONPATH=/project/s1053/install/serialbox2_master/gnu/python:\$PYTHONPATH\nsrun python $py_args examples/standalone/runfile/dynamics.py $data_path $timesteps $backend $githash $run_args#g" run.daint.slurm
@@ -132,6 +133,8 @@ sed -i "s#<CMD>#export PYTHONPATH=/project/s1053/install/serialbox2_master/gnu/p
 # execute on a gpu node
 sbatch -W -C gpu run.daint.slurm
 wait
-rsync *.json $target_dir
+if [ -n "$target_dir" ] ; then
+    rsync *.json $target_dir
+fi
 
 echo "performance run sucessful"

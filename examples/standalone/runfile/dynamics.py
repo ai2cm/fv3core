@@ -180,7 +180,7 @@ if __name__ == "__main__":
             input_data["ks"],
         )
 
-    if profiler:
+    if profiler is not None:
         profiler.enable()
 
     with timer.clock("mainloop"):
@@ -197,14 +197,14 @@ if __name__ == "__main__":
                 timer,
             )
 
-    if profiler:
+    if profiler is not None:
         profiler.disable()
 
     timer.stop("total")
 
     # output profiling data
     comm.Barrier()
-    if profiler:
+    if profiler is not None:
         profiler.dump_stats(f"fv3core_{experiment_name}_{args.backend}_{rank}.prof")
 
     # collect times and output simple statistics
