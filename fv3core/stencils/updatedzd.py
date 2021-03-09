@@ -27,8 +27,8 @@ DZ_MIN = constants.DZ_MIN
 def ra_func(
     area: FloatField,
     xfx_adv: FloatField,
-    yfx_adv: FloatField,
     ra_x: FloatField,
+    yfx_adv: FloatField,
     ra_y: FloatField,
 ):
     from __externals__ import local_ie, local_is, local_je, local_js
@@ -50,7 +50,7 @@ def ra_stencil_update(
 ):
     """Updates 'ra' fields."""
     with computation(PARALLEL), interval(...):
-        ra_x, ra_y = ra_func(area, xfx_adv, yfx_adv, ra_x, ra_y)
+        ra_x, ra_y = ra_func(area, xfx_adv, ra_x, yfx_adv, ra_y)
 
 
 @gtscript.function
