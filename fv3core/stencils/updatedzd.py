@@ -41,7 +41,7 @@ def ra_func(
 
 
 @gtstencil()
-def ra_stencil(
+def ra_stencil_update(
     area: FloatField,
     xfx_adv: FloatField,
     yfx_adv: FloatField,
