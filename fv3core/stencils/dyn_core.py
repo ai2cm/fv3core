@@ -213,12 +213,6 @@ def compute(state, comm):
             if global_config.get_do_halo_exchange():
                 reqs["delp_quantity"].wait()
                 reqs["pt_quantity"].wait()
-            beta_d = 0
-        else:
-            beta_d = spec.namelist.beta
-        last_step = False
-        if it == n_split - 1 and end_step:
-            last_step = True
 
         if it == n_split - 1 and end_step:
             if spec.namelist.use_old_omega:  # apparently True
