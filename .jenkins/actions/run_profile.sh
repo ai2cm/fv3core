@@ -15,8 +15,11 @@ $ROOT_DIR/examples/standalone/benchmarks/run_on_daint.sh 2 6 $backend /project/s
 
 cp $ROOT_DIR/fv3core_${experiment}_${backend}.prof /project/s1053/performance/fv3core_monitor/$backend/
 
-source externals/daint_venv/test_ve/bin/activate
-cat > $ROOT_DIR/stats.py <<EOF
+rm -rf .gt_cache_0000*
+
+# generate simple profile listing
+source $ROOT_DIR/external/daint_venv/test_ve/bin/activate
+cat > $ROOT_DIR/profile.py <<EOF
 #!/usr/bin/env python3
 
 import pstats
@@ -26,7 +29,12 @@ stats.strip_dirs()
 stats.sort_stats('cumulative')
 stats.print_stats()
 EOF
-chmod 755 $ROOT_DIR/stats.py
-$ROOT_DIR/stats.py > stats.txt
+chmod 755 $ROOT_DIR/profile.py
+$ROOT_DIR/profile.py > profile.txt
 
-rm -rf .gt_cache_0000*
+# convert to html
+mkdir -p html
+echo "<html><body><pre>" > html/index.html
+cat profile.txt >> html/index.html
+echo "</pre></body></html>" >> html/index.html
+
