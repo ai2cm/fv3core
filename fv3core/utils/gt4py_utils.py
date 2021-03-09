@@ -219,7 +219,7 @@ def make_storage_from_shape_uncached(
     origin: Tuple[int, int, int] = origin,
     *,
     dtype: DTypes = np.float64,
-    init: bool = True,
+    init: bool = False,
     mask: Optional[Tuple[bool, bool, bool]] = None,
 ) -> Field:
     """Create a new gt4py storage of a given shape.
@@ -228,7 +228,7 @@ def make_storage_from_shape_uncached(
         shape: Shape of the new storage
         origin: Default origin for gt4py stencil calls
         dtype: Data type
-        init: If True, initializes the storage to the default value for the type
+        init: If True, initializes the storage to zero
         mask: Tuple indicating the axes used when initializing the storage
 
     Returns:
@@ -276,7 +276,7 @@ def make_storage_from_shape(
     if key not in storage_shape_outputs:
         storage_shape_outputs[key] = make_storage_from_shape_uncached(*args, **kwargs)
     return_value = storage_shape_outputs[key]
-    if kwargs.get("init", True):
+    if kwargs.get("init", False):
         return_value[:] = 0.0
     return return_value
 
@@ -308,7 +308,7 @@ def make_storage_dict(
 
 def storage_dict(st_dict, names, shape, origin):
     for name in names:
-        st_dict[name] = make_storage_from_shape_uncached(shape, origin)
+        st_dict[name] = make_storage_from_shape_uncached(shape, origin, init=True)
 
 
 def k_slice_operation(key, value, ki, dictionary):
