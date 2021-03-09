@@ -268,8 +268,18 @@ def make_storage_from_shape(
     *args,
     **kwargs,
 ) -> Field:
+    # The caching used here is dangerous, in that e.g. if you call this in a
+    # loop with the same arguments you will get the same storage.
+    # This was implemented this way for fast results with minimal code
+    # changes.
+    # We should shift to an explicit caching or array re-use system down
+    # the line.
     callers = tuple(
-        inspect.getframeinfo(stack_item[0]) for stack_item in inspect.stack()
+        # only need to look at the calling scope and its calling scope
+        # because we don't have any utility functions that call utility
+        # functions that call this function (only nested 1 deep)
+        inspect.getframeinfo(stack_item[0])
+        for stack_item in inspect.stack()[1:3]
     )
     caller_signature = tuple((caller.filename, caller.lineno) for caller in callers)
     key = (args, caller_signature, tuple(sorted(list(kwargs.items()))))
