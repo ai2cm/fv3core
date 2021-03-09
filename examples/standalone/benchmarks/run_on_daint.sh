@@ -25,6 +25,7 @@ ROOT_DIR="$(dirname "$(dirname "$(dirname "$SCRIPTPATH")")")"
 # check sanity of environment
 test -n "$1" || exitError 1001 ${LINENO} "must pass a number of timesteps"
 timesteps="$1"
+
 test -n "$2" || exitError 1002 ${LINENO} "must pass a number of ranks"
 ranks="$2"
 
@@ -44,9 +45,8 @@ if [ -z "$5" ] ; then
 fi
 
 py_args="$6"
-if [ -z "$6" ] ; then
-    py_args=""
-fi
+
+run_args="$7"
 
 # set up the virtual environment
 cd $ROOT_DIR
@@ -70,22 +70,25 @@ cp buildenv/submit.daint.slurm compile.daint.slurm
 cp buildenv/submit.daint.slurm run.daint.slurm
 
 nthreads=12
-echo "Configuration overview:"
-echo "    Timesteps:        $timesteps"
-echo "    Ranks:            $ranks"
-echo "    Threads per rank: $nthreads"
-echo "    Input data dir:   $data_path"
-echo "    Output dir:       $target_dir"
-echo "    Slurm output dir: $ROOT_DIR"
-
 if git rev-parse --git-dir > /dev/null 2>&1 ; then
   githash=`git rev-parse HEAD`
 else
   githash="notarepo"
 fi
 
+echo "Configuration overview:"
+echo "    Timesteps:        $timesteps"
+echo "    Ranks:            $ranks"
+echo "    Backend:          $backend"
+echo "    Output dir:       $target_dir"
+echo "    Input data dir:   $data_path"
+echo "    Threads per rank: $nthreads"
+echo "    GIT hash:         $githash"
+echo "    Slurm output dir: $ROOT_DIR"
+echo "    Python arguments: $py_args"
+echo "    Run arguments:    $run_args"
 
-
+echo "copying premade GT4Py caches"
 split_path=(${data_path//\// })
 experiment=${split_path[-1]}
 sample_cache=.gt_cache_000000
@@ -124,7 +127,7 @@ sed -i s/--output=\<OUTFILE\>/--hint=nomultithread/g run.daint.slurm
 sed -i s/00:45:00/00:30:00/g run.daint.slurm
 sed -i s/cscsci/normal/g run.daint.slurm
 sed -i s/\<G2G\>//g run.daint.slurm
-sed -i "s#<CMD>#export PYTHONPATH=/project/s1053/install/serialbox2_master/gnu/python:\$PYTHONPATH\nsrun python $py_args examples/standalone/runfile/dynamics.py $data_path $timesteps $backend $githash#g" run.daint.slurm
+sed -i "s#<CMD>#export PYTHONPATH=/project/s1053/install/serialbox2_master/gnu/python:\$PYTHONPATH\nsrun python $py_args examples/standalone/runfile/dynamics.py $data_path $timesteps $backend $githash $run_args#g" run.daint.slurm
 
 # execute on a gpu node
 sbatch -W -C gpu run.daint.slurm
