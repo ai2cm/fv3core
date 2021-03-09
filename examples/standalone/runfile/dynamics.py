@@ -114,6 +114,7 @@ if __name__ == "__main__":
         profiler = None
         if args.profile:
             import cProfile
+
             profiler = cProfile.Profile()
             profiler.disable()
 
