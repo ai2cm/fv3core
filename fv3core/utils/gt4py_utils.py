@@ -1,4 +1,5 @@
 import copy
+import inspect
 import logging
 import math
 from functools import wraps
@@ -213,7 +214,7 @@ def _make_storage_data_3d(
     return buffer
 
 
-def make_storage_from_shape(
+def make_storage_from_shape_uncached(
     shape: Tuple[int, int, int],
     origin: Tuple[int, int, int] = origin,
     *,
@@ -259,6 +260,27 @@ def make_storage_from_shape(
     return storage
 
 
+storage_shape_outputs = {}
+
+
+@wraps(make_storage_from_shape_uncached)
+def make_storage_from_shape(
+    *args,
+    **kwargs,
+) -> Field:
+    callers = tuple(
+        inspect.getframeinfo(stack_item[0]) for stack_item in inspect.stack()
+    )
+    caller_signature = tuple((caller.filename, caller.lineno) for caller in callers)
+    key = (args, caller_signature, tuple(sorted(list(kwargs.items()))))
+    if key not in storage_shape_outputs:
+        storage_shape_outputs[key] = make_storage_from_shape_uncached(*args, **kwargs)
+    return_value = storage_shape_outputs[key]
+    if kwargs.get("init", True):
+        return_value[:] = 0.0
+    return return_value
+
+
 def make_storage_dict(
     data: Field,
     shape: Optional[Tuple[int, int, int]] = None,
@@ -286,7 +308,7 @@ def make_storage_dict(
 
 def storage_dict(st_dict, names, shape, origin):
     for name in names:
-        st_dict[name] = make_storage_from_shape(shape, origin)
+        st_dict[name] = make_storage_from_shape_uncached(shape, origin)
 
 
 def k_slice_operation(key, value, ki, dictionary):
