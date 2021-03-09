@@ -14,14 +14,7 @@ from fv3core.utils.typing import FloatField
 
 
 @gtscript.function
-def flux_x(
-    cx: FloatField,
-    dxa: FloatField,
-    dy: FloatField,
-    sin_sg3: FloatField,
-    sin_sg1: FloatField,
-    xfx: FloatField,
-):
+def flux_x(cx, dxa, dy, sin_sg3, sin_sg1, xfx):
     from __externals__ import local_ie, local_is, local_je, local_js
 
     with horizontal(region[local_is : local_ie + 2, local_js - 3 : local_je + 4]):
@@ -34,14 +27,7 @@ def flux_x(
 
 
 @gtscript.function
-def flux_y(
-    cy: FloatField,
-    dya: FloatField,
-    dx: FloatField,
-    sin_sg4: FloatField,
-    sin_sg2: FloatField,
-    yfx: FloatField,
-):
+def flux_y(cy, dya, dx, sin_sg4, sin_sg2, yfx):
     from __externals__ import local_ie, local_is, local_je, local_js
 
     with horizontal(region[local_is - 3 : local_ie + 4, local_js : local_je + 2]):
@@ -248,8 +234,8 @@ def compute(comm, tracers, dp1, mfxd, mfyd, cxd, cyd, mdt, nq):
     ra_stencil_update(
         grid.area,
         xfx,
-        yfx,
         ra_x,
+        yfx,
         ra_y,
         origin=grid.full_origin(),
         domain=grid.domain_shape_full(),

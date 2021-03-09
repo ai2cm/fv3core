@@ -44,8 +44,8 @@ def ra_func(
 def ra_stencil_update(
     area: FloatField,
     xfx_adv: FloatField,
-    yfx_adv: FloatField,
     ra_x: FloatField,
+    yfx_adv: FloatField,
     ra_y: FloatField,
 ):
     """Updates 'ra' fields."""
@@ -307,8 +307,8 @@ def compute(
     ra_stencil_update(
         grid.area,
         xfx_adv,
-        yfx_adv,
         ra_x,
+        yfx_adv,
         ra_y,
         origin=grid.compute_origin(add=(-halo, -halo, 0)),
         domain=grid.domain_shape_compute(add=(2 * halo, 2 * halo, 1)),
