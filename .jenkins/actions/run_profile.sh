@@ -29,10 +29,10 @@ import pstats
 stats = pstats.Stats("$ROOT_DIR/fv3core_${experiment}_${backend}_0.prof")
 stats.strip_dirs()
 stats.sort_stats('cumulative')
-stats.print_stats(100)
+stats.print_stats(200)
 print('=================================================================')
 stats.sort_stats('calls')
-stats.print_stats(100)
+stats.print_stats(200)
 EOF
 chmod 755 $ROOT_DIR/profile.py
 $ROOT_DIR/profile.py > profile.txt
