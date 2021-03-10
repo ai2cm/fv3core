@@ -11,12 +11,12 @@ class TranslateUpdateDzC(TranslateFortranData2Py):
             "ut": {"serialname": "utc"},
             "vt": {"serialname": "vtc"},
             "gz": {},
-            "ws": {},
+            "surface_delta_gz": {"serialname": "ws"},
         }
         self.in_vars["parameters"] = ["dt2"]
         self.out_vars = {
             "gz": grid.default_buffer_k_dict(),
-            "ws": {"kstart": -1, "kend": None},
+            "surface_delta_gz": {"serialname": "ws", "kstart": -1, "kend": None},
         }
 
     def compute_from_storage(self, inputs):
