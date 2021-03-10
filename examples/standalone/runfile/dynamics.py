@@ -203,7 +203,6 @@ if __name__ == "__main__":
     timer.stop("total")
 
     # output profiling data
-    comm.Barrier()
     if profiler is not None:
         profiler.dump_stats(f"fv3core_{experiment_name}_{args.backend}_{rank}.prof")
 
