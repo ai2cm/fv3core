@@ -69,7 +69,7 @@
             "x_axis_label": "Date of benchmark",
             "y_axis_label": "Execution time per timestep [s]"
         },
-        "per_timestep_only_fortran": {
+        "only_fortran": {
             "backends": [
                 "fortran"
             ],
