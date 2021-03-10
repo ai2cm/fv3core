@@ -36,15 +36,17 @@ def update_dz_c_stencil(
     ut: FloatField,
     vt: FloatField,
     gz: FloatField,
-    ws: FloatField,
+    surface_delta_gz: FloatField,
     dt2: float,
 ):
     """Update the model heights from the C-grid wind flux
 
     After the model runs c_sw and advances the c-grid variables half a timestep,
     the grid deforms with the flow in the Lagrangian coordinate system. This
-    module updates the model heights based on the flux, and the rate of change of
-    the lowest model height compared to the fixed surface height.
+    module updates the model heights based ontime averaged air mass fluxes. The
+    update is based on finite volulme Lagrangin control-flow discretization,
+    where Lagrangian surfaces are considered bounding material of the control
+    volumes (Lin 2004).
 
     Args:
          dp_ref: vertical difference in column reference pressure (in)
@@ -52,8 +54,9 @@ def update_dz_c_stencil(
          ut: x-velocity on the C-grid, contravariant of the D-grid winds (in)
          vt: y-velocity on the C-grid, contravariant of the D-grid winds (in)
          gz: geopotential height of the model grid cells (m) (inout)
-         ws: rate of change in the surface geopotential height from the C-grid
-             wind (inout)
+         surface_delta_gz: rate of change in the surface geopotential height
+             from the C-grid wind. A geopotential vertical velocity estimate
+             at the surface.  (inout)
          dt2: timestep of the C-grid update in seconds (in)
     Grid variable inputs:
          area
@@ -88,7 +91,7 @@ def update_dz_c_stencil(
         with horizontal(
             region[local_is - 1 : local_ie + 2, local_js - 1 : local_je + 2]
         ):
-            ws = (gz_surface - gz) * rdt
+            surface_delta_gz = (gz_surface - gz) * rdt
     with computation(BACKWARD), interval(0, -1):
         # TODO region for local validation only
         with horizontal(

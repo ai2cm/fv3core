@@ -80,7 +80,7 @@ def dyncore_temporaries(shape):
     tmps = {}
     utils.storage_dict(
         tmps,
-        ["ut", "vt", "gz", "zh", "pem", "ws3", "pkc", "pk3", "heat_source", "divgd"],
+        ["ut", "vt", "gz", "zh", "pem", "surface_delta_gz", "pkc", "pk3", "heat_source", "divgd"],
         shape,
         grid.full_origin(),
     )
@@ -256,14 +256,14 @@ def compute(state, comm):
                 state.ut,
                 state.vt,
                 state.gz,
-                state.ws3,
+                state.surface_delta_gz,
                 dt2,
                 origin=grid.compute_origin(add=(-2, -2, 0)),
                 domain=grid.domain_shape_compute(add=(3, 3, 1)),
             )
             # TODO: This is really a 2d field.
-            state.ws3 = utils.make_storage_data(
-                state.ws3[:, :, -1], shape, origin=(0, 0, 0)
+            state.surface_delta_gz = utils.make_storage_data(
+                state.surface_delta_gz[:, :, -1], shape, origin=(0, 0, 0)
             )
             riem_solver_c.compute(
                 ms,
@@ -278,7 +278,7 @@ def compute(state, comm):
                 state.delpc,
                 state.gz,
                 state.pkc,
-                state.ws3,
+                state.surface_delta_gz,
             )
 
         pgradc.compute(state.uc, state.vc, state.delpc, state.pkc, state.gz, dt2)
