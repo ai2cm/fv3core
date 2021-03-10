@@ -142,12 +142,11 @@ export FV3_STENCIL_REBUILD_FLAG=False
 export TEST_DATA_HOST="${TEST_DATA_DIR}/${experiment}/"
 export EXPERIMENT=${experiment}
 if [ -z ${JENKINS_TAG} ]; then
-    if [ ${#JOB_NAME} -gt 85 ]; then
-	NAME=`echo ${JOB_NAME} | md5sum | cut -f1 -d" "`
-    else
-	NAME=${JOB_NAME}
-    fi
-    export JENKINS_TAG=${NAME//[,=\/]/-}-${BUILD_NUMBER}
+    export JENKINS_TAG=${JOB_NAME//[,=\/]/-}-${BUILD_NUMBER}
+fi
+if [ ${#JENKINS_TAG} -gt 85 ]; then
+	NAME=`echo ${JENKINS_TAG} | md5sum | cut -f1 -d" "`
+	export JENKINS_TAG=${NAME//[,=\/]/-}-${BUILD_NUMBER}
 fi
 echo "JENKINS TAG ${JENKINS_TAG}"
 
