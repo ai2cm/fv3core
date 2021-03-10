@@ -51,6 +51,10 @@ run_args="$7"
 # get dependencies
 git submodule update --init --recursive
 
+# set GT4PY version
+cd $ROOT_DIR
+export GT4PY_VERSION=`grep "GT4PY_VERSION=" docker/Makefile.image_names  | cut -d '=' -f 2`
+
 # set up the virtual environment
 echo "creating the venv"
 if [ -d ./venv ] ; then rm -rf venv ; fi
@@ -59,6 +63,8 @@ if [ -d ./gt4py ] ; then rm -rf gt4py ; fi
 ./install.sh $ROOT_DIR/venv
 cd $ROOT_DIR
 source ./venv/bin/activate
+
+# install the local packages
 echo "install requirements..."
 pip install ./external/fv3gfs-util/
 pip install .
