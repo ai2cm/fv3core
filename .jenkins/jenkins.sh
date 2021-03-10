@@ -127,14 +127,16 @@ module load gcloud
 
 # get the test data version from the Makefile
 export FORTRAN_VERSION=`grep "FORTRAN_SERIALIZED_DATA_VERSION=" Makefile  | cut -d '=' -f 2`
-
+if [ -z "${GT4PY_VERSION}" ]; then
+    export GT4PY_VERSION=`grep "GT4PY_VERSION ?=" docker/Makefile.image_names  | cut -d '=' -f 2`
+fi
 # Set the SCRATCH directory to the working directory if not set (e.g. for running on gce)
 if [ -z ${SCRATCH} ] ; then
     export SCRATCH=`pwd`
 fi
 
 # Set the host data head directory location
-export TEST_DATA_DIR="${SCRATCH}/fv3core_fortran_data/${FORTRAN_VERSION}"
+export TEST_DATA_DIR="${SCRATCH}/jenkins/scratch/fv3core_fortran_data/${FORTRAN_VERSION}"
 export FV3_STENCIL_REBUILD_FLAG=False
 # Set the host data location
 export TEST_DATA_HOST="${TEST_DATA_DIR}/${experiment}/"
