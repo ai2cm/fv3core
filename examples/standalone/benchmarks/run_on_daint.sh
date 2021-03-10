@@ -49,7 +49,8 @@ py_args="$6"
 run_args="$7"
 
 # get dependencies
-git submodule update --init --recursive
+cd $ROOT_DIR
+git submodule update --init external/fv3gfs-util external/daint_venv
 
 # set GT4PY version
 cd $ROOT_DIR
