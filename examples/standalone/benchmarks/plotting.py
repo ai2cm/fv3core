@@ -50,7 +50,7 @@ if __name__ == "__main__":
     backends = {
         "python/gtcuda": {"short_name": "gtcuda", "color": "#d62728"},
         "python/gtx86": {"short_name": "gtx86", "color": "#2ca02c"},
-        "python/numpy": {"short_name": "numpy", "color": "#1f77b4"},
+        #        "python/numpy": {"short_name": "numpy", "color": "#1f77b4"},
         "fortran": {"short_name": "f90", "color": "#7f7f7f"},
     }
     filter = "c128"
@@ -149,19 +149,7 @@ if __name__ == "__main__":
             handlelength=5,
         )
         plt.title(plot_config["title"], pad=20)
-        plt.figtext(
-            0.5,
-            0.01,
-            "data: "
-            + alldata[0]["setup"]["dataset"]
-            + "   timesteps:"
-            + str(alldata[0]["setup"]["timesteps"]),
-            wrap=True,
-            horizontalalignment="center",
-            fontsize=fontsize,
-        )
         ax.set_facecolor("white")
-        ax.set_yscale("log")
         plt.grid(color="silver", alpha=0.4)
         plt.gcf().set_size_inches(8, 6)
         plt.savefig("history_" + plottype + ".png", dpi=100)
