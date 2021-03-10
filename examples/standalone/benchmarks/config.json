@@ -22,7 +22,6 @@
         "absolute_time": {
             "backends": [
                 "fortran",
-                "python/numpy",
                 "python/gtcuda",
                 "python/gtx86"
             ],
