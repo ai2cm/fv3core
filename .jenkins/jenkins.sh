@@ -175,16 +175,14 @@ export DOCKER_BUILDKIT=1
 
 run_command "${script} ${backend} ${experiment} " Job${action} ${G2G} ${scheduler_script}
 
-
-# load scheduler tools
-. ${envloc}/env/schedulerTools.sh
-run_timing_script="`dirname $0`/env/submit.${host}.${scheduler}"
-
 if [ $? -ne 0 ] ; then
   exitError 1510 ${LINENO} "problem while executing script ${script}"
 fi
 echo "### ACTION ${action} SUCCESSFUL"
 
+# load scheduler tools
+. ${envloc}/env/schedulerTools.sh
+run_timing_script="`dirname $0`/env/submit.${host}.${scheduler}"
 
 # second run, this time with timing
 if grep -q "fv_dynamics" <<< "${script}"; then
