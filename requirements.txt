@@ -19,8 +19,9 @@ git+https://github.com/VulcanClimateModeling/fv3config.git@a0799928824a4f10617cf
 pytest-regressions
 gitpython
 
-# GT4Py tests
+# GT4Py Tests
 clang-format
 factory-boy
 pytest-factoryboy
 pytest-cache
+pytest-cov
