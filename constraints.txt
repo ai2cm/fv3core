@@ -70,8 +70,6 @@ fsspec==0.8.4
     #   -r requirements_wrapper.txt
     #   fv3config
     #   gcsfs
-git+https://github.com/VulcanClimateModeling/fv3config.git@a0799928824a4f10617cf4615e8837c81ccb1f2d
-    # via -r requirements.txt
 gcsfs==0.7.1
     # via
     #   -r requirements_wrapper.txt
@@ -106,8 +104,6 @@ markupsafe==1.1.1
     # via jinja2
 monotonic==1.5
     # via fasteners
-git+https://github.com/mpi4py/mpi4py.git@aac3d8f2a56f3d74a75ad32ac0554d63e7ef90ab
-    # via -r requirements.txt
 multidict==4.7.6
     # via
     #   aiohttp
