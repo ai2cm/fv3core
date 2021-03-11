@@ -222,7 +222,7 @@ def make_storage_from_shape_uncached(
     init: bool = False,
     mask: Optional[Tuple[bool, bool, bool]] = None,
 ) -> Field:
-    """Create a new gt4py storage of a given shape.
+    """Create a new gt4py storage of a given shape. Do not memoize outputs.
 
     Args:
         shape: Shape of the new storage
@@ -268,6 +268,40 @@ def make_storage_from_shape(
     *args,
     **kwargs,
 ) -> Field:
+    """Create a new gt4py storage of a given shape. Outputs are memoized.
+
+    The key used for memoization is the arguments used combined with the
+    calling scope file and line number, as well as the file and line number
+    which called in to that scope. This handles cases where a utility
+    function (such as `copy`) calls our `make_storage_from_shape`, since
+    `copy` will be called from different places each time. This does *not*
+    handle any more deeply nested duplicate calls, such as if another
+    utility function were to call `copy`, and does not handle allocations
+    which take place within for loops, such as tracer allocations. In
+    those cases, memoization will provide the same storage to two
+    conceptually different objects, causing a bug.
+
+    For this reason, and because of the significant overhead cost of
+    `inspect`, we should move away from this implementation in the
+    longer term.
+
+    Args:
+        shape: Shape of the new storage
+        origin: Default origin for gt4py stencil calls
+        dtype: Data type
+        init: If True, initializes the storage to zero
+        mask: Tuple indicating the axes used when initializing the storage
+
+    Returns:
+        Field[dtype]: New storage
+
+    Examples:
+        1) utmp = utils.make_storage_from_shape(ua.shape)
+        2) qx = utils.make_storage_from_shape(
+               qin.shape, origin=(grid().is_, grid().jsd, kstart)
+           )
+        3) q_out = utils.make_storage_from_shape(q_in.shape, origin, init=True)
+    """
     # The caching used here is dangerous, in that e.g. if you call this in a
     # loop with the same arguments you will get the same storage.
     # This was implemented this way for fast results with minimal code
