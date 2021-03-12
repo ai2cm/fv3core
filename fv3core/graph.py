@@ -13,7 +13,7 @@ _graphs: Dict[str, Tuple[Any, Dict[str, Any]]] = {}
 def gtgraph(definition=None, **stencil_kwargs) -> Tuple[Any, Dict[str, Any]]:
     def decorator(definition) -> Callable[..., None]:
         def_name = f"{definition.__module__}.{definition.__name__}"
-        graph, meta_data = GraphMaker.apply(definition)
+        graph, meta_data = StencilGraphMaker.apply(definition)
         _graphs[def_name] = (graph, meta_data)
 
         return _graphs[def_name]
@@ -24,7 +24,7 @@ def gtgraph(definition=None, **stencil_kwargs) -> Tuple[Any, Dict[str, Any]]:
         return decorator(definition)
 
 
-class GraphMaker(ast.NodeVisitor):
+class StencilGraphMaker(ast.NodeVisitor):
     @classmethod
     def apply(cls, definition):
         maker = cls(definition)
