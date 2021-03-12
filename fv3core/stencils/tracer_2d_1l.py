@@ -228,7 +228,7 @@ def compute(comm, tracers, dp1, mfxd, mfyd, cxd, cyd, mdt, nq):
     # complete HALO update on q
     if global_config.get_do_halo_exchange():
         for qname in utils.tracer_variables[0:nq]:
-            q = tracers[qname + "_quantity"]
+            q = tracers.__dict__[qname + "_quantity"]
             comm.halo_update(q, n_points=utils.halo)
 
     ra_stencil_update(
@@ -247,7 +247,7 @@ def compute(comm, tracers, dp1, mfxd, mfyd, cxd, cyd, mdt, nq):
 
     dp1_orig = copy(dp1, origin=grid.full_origin(), domain=grid.domain_shape_full())
     for qname in utils.tracer_variables[0:nq]:
-        q = tracers[qname + "_quantity"]
+        q = tracers.__dict__[qname + "_quantity"]
         # handling the q and it loop switching
         copy_stencil(
             dp1_orig,

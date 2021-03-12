@@ -1,4 +1,5 @@
 from gt4py.gtscript import PARALLEL, computation, interval, log
+from typing import Mapping, Iterable
 
 import fv3core._config as spec
 import fv3core.stencils.del2cubed as del2cubed
@@ -11,10 +12,10 @@ import fv3core.stencils.tracer_2d_1l as tracer_2d_1l
 import fv3core.utils.global_config as global_config
 import fv3core.utils.global_constants as constants
 import fv3core.utils.gt4py_utils as utils
-from fv3core.decorators import ArgSpec, gtstencil, state_inputs
+from fv3core.decorators import ArgSpec, gtstencil, state_inputs, get_namespace
 from fv3core.stencils import c2l_ord
 from fv3core.stencils.basic_operations import copy_stencil
-from fv3gfs.util import CubedSphereCommunicator, NullTimer
+import fv3gfs.util
 
 
 sd = utils.sd
@@ -38,17 +39,6 @@ def pt_adjust(pkz: sd, dp1: sd, q_con: sd, pt: sd):
 def set_omega(delp: sd, delz: sd, w: sd, omga: sd):
     with computation(PARALLEL), interval(...):
         omga = delp / delz * w
-
-
-# TODO: Replace with something from fv3core.onfig probably, using the field_table.
-def tracers_dict(state):
-    tracers = {}
-    for tracername in utils.tracer_variables:
-        tracers[tracername] = state.__getattribute__(tracername)
-        quantity_name = utils.quantity_name(tracername)
-        if quantity_name in state.__dict__:
-            tracers[quantity_name] = state.__getattribute__(quantity_name)
-    state.tracers = tracers
 
 
 def fvdyn_temporaries(shape):
@@ -91,7 +81,7 @@ def compute_preamble(state, comm):
         state.delp,
         state.cappa,
         state.q_con,
-        state.zvir,
+        constants.ZVIR,
         state.qvapor,
         state.qliquid,
         state.qice,
@@ -117,7 +107,7 @@ def compute_preamble(state, comm):
             state.pe,
             state.peln,
             state.phis,
-            state.zvir,
+            constants.ZVIR,
             state.te_2d,
             state.qvapor,
             state.qliquid,
@@ -161,7 +151,7 @@ def compute_preamble(state, comm):
         )
 
 
-def do_dyn(state, comm, timer=NullTimer()):
+def do_dyn(state, comm, timer=fv3gfs.util.NullTimer()):
     grid = spec.grid
     copy_stencil(
         state.delp,
@@ -172,23 +162,23 @@ def do_dyn(state, comm, timer=NullTimer()):
     print("DynCore", grid.rank)
     with timer.clock("DynCore"):
         dyn_core.compute(state, comm)
-    if not spec.namelist.inline_q and state.nq != 0:
+    if not spec.namelist.inline_q and constants.NQ != 0:
         if spec.namelist.z_tracer:
             print("Tracer2D1L", grid.rank)
             with timer.clock("TracerAdvection"):
                 tracer_2d_1l.compute(
                     comm,
-                    state.tracers,
+                    state,
                     state.dp1,
                     state.mfxd,
                     state.mfyd,
                     state.cxd,
                     state.cyd,
-                    state.mdt,
-                    state.nq,
+                    state.bdt / state.k_split,
+                    constants.NQ,
                 )
         else:
-            raise Exception("tracer_2d no =t implemented, turn on z_tracer")
+            raise Exception("tracer_2d not implemented, turn on z_tracer")
 
 
 def post_remap(state, comm):
@@ -212,7 +202,7 @@ def post_remap(state, comm):
         )
 
 
-def wrapup(state, comm: CubedSphereCommunicator):
+def wrapup(state, comm: fv3gfs.util.CubedSphereCommunicator):
     grid = spec.grid
     print("Neg Adj 3", grid.rank)
     neg_adj3.compute(
@@ -235,65 +225,165 @@ def wrapup(state, comm: CubedSphereCommunicator):
     )
 
 
-def set_constants(state):
-    agrav = 1.0 / constants.GRAV
-    state.rdg = -constants.RDGAS / agrav
-    state.akap = constants.KAPPA
-    state.dt2 = 0.5 * state.bdt
+class TracerConfig:
 
-    # nq is actually given by ncnst - pnats, where those are given in atmosphere.F90 by:
-    # ncnst = Atm(mytile)%ncnst
-    # pnats = Atm(mytile)%flagstruct%pnats
-    # here we hard-coded it because 8 is the only supported value, refactor this later!
-    state.nq = 8  # state.nq_tot - spec.namelist.dnats
-    state.zvir = constants.ZVIR
+    def __init__(self):
+        pass
 
 
-@state_inputs(
-    ArgSpec("qvapor", "specific_humidity", "kg/kg", intent="inout"),
-    ArgSpec("qliquid", "cloud_water_mixing_ratio", "kg/kg", intent="inout"),
-    ArgSpec("qrain", "rain_mixing_ratio", "kg/kg", intent="inout"),
-    ArgSpec("qsnow", "snow_mixing_ratio", "kg/kg", intent="inout"),
-    ArgSpec("qice", "cloud_ice_mixing_ratio", "kg/kg", intent="inout"),
-    ArgSpec("qgraupel", "graupel_mixing_ratio", "kg/kg", intent="inout"),
-    ArgSpec("qo3mr", "ozone_mixing_ratio", "kg/kg", intent="inout"),
-    ArgSpec("qsgs_tke", "turbulent_kinetic_energy", "m**2/s**2", intent="inout"),
-    ArgSpec("qcld", "cloud_fraction", "", intent="inout"),
-    ArgSpec("pt", "air_temperature", "degK", intent="inout"),
-    ArgSpec("delp", "pressure_thickness_of_atmospheric_layer", "Pa", intent="inout"),
-    ArgSpec("delz", "vertical_thickness_of_atmospheric_layer", "m", intent="inout"),
-    ArgSpec("peln", "logarithm_of_interface_pressure", "ln(Pa)", intent="inout"),
-    ArgSpec("u", "x_wind", "m/s", intent="inout"),
-    ArgSpec("v", "y_wind", "m/s", intent="inout"),
-    ArgSpec("w", "vertical_wind", "m/s", intent="inout"),
-    ArgSpec("ua", "eastward_wind", "m/s", intent="inout"),
-    ArgSpec("va", "northward_wind", "m/s", intent="inout"),
-    ArgSpec("uc", "x_wind_on_c_grid", "m/s", intent="inout"),
-    ArgSpec("vc", "y_wind_on_c_grid", "m/s", intent="inout"),
-    ArgSpec("q_con", "total_condensate_mixing_ratio", "kg/kg", intent="inout"),
-    ArgSpec("pe", "interface_pressure", "Pa", intent="inout"),
-    ArgSpec("phis", "surface_geopotential", "m^2 s^-2", intent="in"),
-    ArgSpec(
-        "pk", "interface_pressure_raised_to_power_of_kappa", "unknown", intent="inout"
-    ),
-    ArgSpec(
-        "pkz",
-        "layer_mean_pressure_raised_to_power_of_kappa",
-        "unknown",
-        intent="inout",
-    ),
-    ArgSpec("ps", "surface_pressure", "Pa", intent="inout"),
-    ArgSpec("omga", "vertical_pressure_velocity", "Pa/s", intent="inout"),
-    ArgSpec("ak", "atmosphere_hybrid_a_coordinate", "Pa", intent="in"),
-    ArgSpec("bk", "atmosphere_hybrid_b_coordinate", "", intent="in"),
-    ArgSpec("mfxd", "accumulated_x_mass_flux", "unknown", intent="inout"),
-    ArgSpec("mfyd", "accumulated_y_mass_flux", "unknown", intent="inout"),
-    ArgSpec("cxd", "accumulated_x_courant_number", "", intent="inout"),
-    ArgSpec("cyd", "accumulated_y_courant_number", "", intent="inout"),
-    ArgSpec(
-        "diss_estd", "dissipation_estimate_from_heat_source", "unknown", intent="inout"
-    ),
-)
+class Tracers:
+
+    def __init__(self, config: TracerConfig, state: Mapping[str, fv3gfs.util.Quantity]):
+        pass
+
+    @property
+    def water_species(self) -> Iterable[fv3gfs.util.Quantity]:
+        pass
+
+    @property
+    def all(self) -> Iterable[fv3gfs.util.Quantity]:
+        pass
+
+
+class FV3:
+
+    arg_specs = (
+        ArgSpec("qvapor", "specific_humidity", "kg/kg", intent="inout"),
+        ArgSpec("qliquid", "cloud_water_mixing_ratio", "kg/kg", intent="inout"),
+        ArgSpec("qrain", "rain_mixing_ratio", "kg/kg", intent="inout"),
+        ArgSpec("qsnow", "snow_mixing_ratio", "kg/kg", intent="inout"),
+        ArgSpec("qice", "cloud_ice_mixing_ratio", "kg/kg", intent="inout"),
+        ArgSpec("qgraupel", "graupel_mixing_ratio", "kg/kg", intent="inout"),
+        ArgSpec("qo3mr", "ozone_mixing_ratio", "kg/kg", intent="inout"),
+        ArgSpec("qsgs_tke", "turbulent_kinetic_energy", "m**2/s**2", intent="inout"),
+        ArgSpec("qcld", "cloud_fraction", "", intent="inout"),
+        ArgSpec("pt", "air_temperature", "degK", intent="inout"),
+        ArgSpec("delp", "pressure_thickness_of_atmospheric_layer", "Pa", intent="inout"),
+        ArgSpec("delz", "vertical_thickness_of_atmospheric_layer", "m", intent="inout"),
+        ArgSpec("peln", "logarithm_of_interface_pressure", "ln(Pa)", intent="inout"),
+        ArgSpec("u", "x_wind", "m/s", intent="inout"),
+        ArgSpec("v", "y_wind", "m/s", intent="inout"),
+        ArgSpec("w", "vertical_wind", "m/s", intent="inout"),
+        ArgSpec("ua", "eastward_wind", "m/s", intent="inout"),
+        ArgSpec("va", "northward_wind", "m/s", intent="inout"),
+        ArgSpec("uc", "x_wind_on_c_grid", "m/s", intent="inout"),
+        ArgSpec("vc", "y_wind_on_c_grid", "m/s", intent="inout"),
+        ArgSpec("q_con", "total_condensate_mixing_ratio", "kg/kg", intent="inout"),
+        ArgSpec("pe", "interface_pressure", "Pa", intent="inout"),
+        ArgSpec("phis", "surface_geopotential", "m^2 s^-2", intent="in"),
+        ArgSpec(
+            "pk", "interface_pressure_raised_to_power_of_kappa", "unknown", intent="inout"
+        ),
+        ArgSpec(
+            "pkz",
+            "layer_mean_pressure_raised_to_power_of_kappa",
+            "unknown",
+            intent="inout",
+        ),
+        ArgSpec("ps", "surface_pressure", "Pa", intent="inout"),
+        ArgSpec("omga", "vertical_pressure_velocity", "Pa/s", intent="inout"),
+        ArgSpec("ak", "atmosphere_hybrid_a_coordinate", "Pa", intent="in"),
+        ArgSpec("bk", "atmosphere_hybrid_b_coordinate", "", intent="in"),
+        ArgSpec("mfxd", "accumulated_x_mass_flux", "unknown", intent="inout"),
+        ArgSpec("mfyd", "accumulated_y_mass_flux", "unknown", intent="inout"),
+        ArgSpec("cxd", "accumulated_x_courant_number", "", intent="inout"),
+        ArgSpec("cyd", "accumulated_y_courant_number", "", intent="inout"),
+        ArgSpec(
+            "diss_estd", "dissipation_estimate_from_heat_source", "unknown", intent="inout"
+        ),
+    )
+
+    def __init__(self, comm: fv3gfs.util.CubedSphereCommunicator, namelist):
+        self.comm = comm
+        self.namelist = namelist
+
+    def step_dynamics(self,
+        state: Mapping[str, fv3gfs.util.Quantity], 
+        consv_te,
+        do_adiabatic_init,
+        timestep,
+        ptop,
+        n_split,
+        ks,
+        timer=fv3gfs.util.NullTimer(),
+    ):
+        state = get_namespace(FV3.arg_specs, state)
+        state.__dict__.update(
+            {
+                "consv_te": consv_te,
+                "bdt": timestep,
+                "do_adiabatic_init": do_adiabatic_init,
+                "ptop": ptop,
+                "n_split": n_split,
+                "k_split": spec.namelist.k_split,
+                "ks": ks,
+            }
+        )
+        self.compute(state, self.comm, timer)
+
+    def compute(self, state, comm: fv3gfs.util.CubedSphereCommunicator, timer: fv3gfs.util.NullTimer):
+        grid = spec.grid
+        state.__dict__.update(fvdyn_temporaries(state.u.shape))
+        last_step = False
+        if global_config.get_do_halo_exchange():
+            comm.halo_update(state.phis_quantity, n_points=utils.halo)
+        compute_preamble(state, comm)
+        for n_map in range(state.k_split):
+            state.n_map = n_map + 1
+            if n_map == state.k_split - 1:
+                last_step = True
+            do_dyn(state, comm, timer)
+            if grid.npz > 4:
+                # nq is actually given by ncnst - pnats, where those are given in atmosphere.F90 by:
+                # ncnst = Atm(mytile)%ncnst
+                # pnats = Atm(mytile)%flagstruct%pnats
+                # here we hard-coded it because 8 is the only supported value, refactor this later!
+                kord_tracer = [spec.namelist.kord_tr] * constants.NQ
+                kord_tracer[6] = 9
+                # do_omega = spec.namelist.hydrostatic and last_step
+                print("Remapping", grid.rank)
+                with timer.clock("Remapping"):
+                    lagrangian_to_eulerian.compute(
+                        state.__dict__,
+                        state.pt,
+                        state.delp,
+                        state.delz,
+                        state.peln,
+                        state.u,
+                        state.v,
+                        state.w,
+                        state.ua,
+                        state.va,
+                        state.cappa,
+                        state.q_con,
+                        state.pkz,
+                        state.pk,
+                        state.pe,
+                        state.phis,
+                        state.te0_2d,
+                        state.ps,
+                        state.wsd,
+                        state.omga,
+                        state.ak,
+                        state.bk,
+                        state.pfull,
+                        state.dp1,
+                        state.ptop,
+                        constants.KAPPA,
+                        constants.ZVIR,
+                        last_step,
+                        state.consv_te,
+                        state.bdt / state.k_split,
+                        state.bdt,
+                        kord_tracer,
+                        state.do_adiabatic_init,
+                        constants.NQ,
+                    )
+                if last_step:
+                    post_remap(state, comm)
+        wrapup(state, comm)
+
+
 def fv_dynamics(
     state,
     comm,
@@ -303,79 +393,16 @@ def fv_dynamics(
     ptop,
     n_split,
     ks,
-    timer=NullTimer(),
+    timer=fv3gfs.util.NullTimer(),
 ):
-    state.__dict__.update(
-        {
-            "consv_te": consv_te,
-            "bdt": timestep,
-            "do_adiabatic_init": do_adiabatic_init,
-            "ptop": ptop,
-            "n_split": n_split,
-            "ks": ks,
-        }
+    fv3 = FV3(comm, spec.namelist)
+    fv3.step_dynamics(
+        state,
+        consv_te,
+        do_adiabatic_init,
+        timestep,
+        ptop,
+        n_split,
+        ks,
+        timer,
     )
-    compute(state, comm, timer)
-
-
-def compute(state, comm, timer=NullTimer()):
-    grid = spec.grid
-    state.__dict__.update(fvdyn_temporaries(state.u.shape))
-    set_constants(state)
-    tracers_dict(state)
-    last_step = False
-    k_split = spec.namelist.k_split
-    state.mdt = state.bdt / k_split
-    if global_config.get_do_halo_exchange():
-        comm.halo_update(state.phis_quantity, n_points=utils.halo)
-    compute_preamble(state, comm)
-    for n_map in range(k_split):
-        state.n_map = n_map + 1
-        if n_map == k_split - 1:
-            last_step = True
-        do_dyn(state, comm, timer)
-        if grid.npz > 4:
-            kord_tracer = [spec.namelist.kord_tr] * state.nq
-            kord_tracer[6] = 9
-            # do_omega = spec.namelist.hydrostatic and last_step
-            print("Remapping", grid.rank)
-            with timer.clock("Remapping"):
-                lagrangian_to_eulerian.compute(
-                    state.tracers,
-                    state.pt,
-                    state.delp,
-                    state.delz,
-                    state.peln,
-                    state.u,
-                    state.v,
-                    state.w,
-                    state.ua,
-                    state.va,
-                    state.cappa,
-                    state.q_con,
-                    state.pkz,
-                    state.pk,
-                    state.pe,
-                    state.phis,
-                    state.te0_2d,
-                    state.ps,
-                    state.wsd,
-                    state.omga,
-                    state.ak,
-                    state.bk,
-                    state.pfull,
-                    state.dp1,
-                    state.ptop,
-                    state.akap,
-                    state.zvir,
-                    last_step,
-                    state.consv_te,
-                    state.mdt,
-                    state.bdt,
-                    kord_tracer,
-                    state.do_adiabatic_init,
-                    state.nq,
-                )
-            if last_step:
-                post_remap(state, comm)
-    wrapup(state, comm)

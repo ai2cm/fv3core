@@ -35,3 +35,9 @@ ql0_max = 2.0e-3  # max cloud water value (auto converted to rain)
 t_sub = 184.0  # min temp for sublimation of cloud ice
 DC_ICE = C_LIQ - C_ICE
 LI0 = HLF - DC_ICE * TICE
+
+# nq is actually given by ncnst - pnats, where those are given in atmosphere.F90 by:
+# ncnst = Atm(mytile)%ncnst
+# pnats = Atm(mytile)%flagstruct%pnats
+# here we hard-coded it because 8 is the only supported value, refactor this later!
+NQ = 8  # state.nq_tot - spec.namelist.dnats
