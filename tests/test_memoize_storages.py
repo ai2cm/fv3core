@@ -6,14 +6,6 @@ from fv3core.utils.gt4py_utils import (
 )
 
 
-# shape: Tuple[int, int, int],
-# origin: Tuple[int, int, int] = origin,
-# *,
-# dtype: DTypes = np.float64,
-# init: bool = False,
-# mask: Optional[Tuple[bool, bool, bool]] = None,
-
-
 @pytest.fixture
 def shape():
     return (3, 4, 5)
