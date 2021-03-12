@@ -13,7 +13,6 @@ import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import gtstencil
 from fv3core.stencils.a2b_ord4 import a1, a2, lagrange_x_func, lagrange_y_func
 from fv3core.utils import corners
-from fv3core.utils.grid import Grid
 from fv3core.utils.typing import FloatField
 
 
@@ -275,16 +274,14 @@ def _d2a2c_vect(
     # return uc, vc, ua, va, utc, vtc
 
 
-stencils = {
-    "c12_version": gtstencil(
-        definition=_d2a2c_vect, externals={"D2A2C_AVG_OFFSET": -1}
-    ),
-    "default": gtstencil(definition=_d2a2c_vect, externals={"D2A2C_AVG_OFFSET": 3}),
-}
+_c12_stencil = gtstencil(definition=_d2a2c_vect, externals={"D2A2C_AVG_OFFSET": -1})
+
+_default_stencil = (
+    gtstencil(definition=_d2a2c_vect, externals={"D2A2C_AVG_OFFSET": 3}),
+)
 
 
 def compute(
-    grid: Grid,
     u: FloatField,
     ua: FloatField,
     uc: FloatField,
@@ -294,6 +291,23 @@ def compute(
     vc: FloatField,
     vtc: FloatField,
 ):
+    """
+    D2A2C. R2D2. <Insert Other Star War Reference>.
+
+    Args:
+        u: ???
+        ua: ???
+        uc: ???
+        utc: ???
+        v: ???
+        va: ???
+        vc: ???
+        vtc: ???
+
+    Grid variables referenced:
+        cosa_s, cosa_u, cosa_v, dxa, dya, rsin2, rsin_u, rsin_v,
+        sin_sg1, sin_sg2, sin_sg3, sin_sg4.
+    """
     grid = spec.grid
     namelist = spec.namelist
     grid_args = {
@@ -321,9 +335,13 @@ def compute(
         "vtc": vtc,
     }
 
-    key = "c12_version" if namelist.npx <= 13 and namelist.layout[0] > 1 else "default"
+    stencil = (
+        _c12_stencil
+        if namelist.npx <= 13 and namelist.layout[0] > 1
+        else _default_stencil
+    )
 
-    stencils[key](
+    stencil(
         **grid_args,
         **state_args,
         origin=grid.compute_origin(add=(-2, -2, 0)),

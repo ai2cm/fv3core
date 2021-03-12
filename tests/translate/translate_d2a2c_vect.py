@@ -36,6 +36,6 @@ class TranslateD2A2C_Vect(TranslateFortranData2Py):
         assert bool(inputs["dord4"]) is True
         del inputs["dord4"]
 
-        d2a2c_vect.compute(self.grid, **inputs)
+        d2a2c_vect.compute(**inputs)
 
         return self.slice_output(inputs)
