@@ -1,5 +1,6 @@
+from typing import Iterable, Mapping
+
 from gt4py.gtscript import PARALLEL, computation, interval, log
-from typing import Mapping, Iterable
 
 import fv3core._config as spec
 import fv3core.stencils.del2cubed as del2cubed
@@ -12,10 +13,10 @@ import fv3core.stencils.tracer_2d_1l as tracer_2d_1l
 import fv3core.utils.global_config as global_config
 import fv3core.utils.global_constants as constants
 import fv3core.utils.gt4py_utils as utils
-from fv3core.decorators import ArgSpec, gtstencil, state_inputs, get_namespace
+import fv3gfs.util
+from fv3core.decorators import ArgSpec, get_namespace, gtstencil, state_inputs
 from fv3core.stencils import c2l_ord
 from fv3core.stencils.basic_operations import copy_stencil
-import fv3gfs.util
 
 
 sd = utils.sd
@@ -226,13 +227,11 @@ def wrapup(state, comm: fv3gfs.util.CubedSphereCommunicator):
 
 
 class TracerConfig:
-
     def __init__(self):
         pass
 
 
 class Tracers:
-
     def __init__(self, config: TracerConfig, state: Mapping[str, fv3gfs.util.Quantity]):
         pass
 
@@ -258,7 +257,9 @@ class FV3:
         ArgSpec("qsgs_tke", "turbulent_kinetic_energy", "m**2/s**2", intent="inout"),
         ArgSpec("qcld", "cloud_fraction", "", intent="inout"),
         ArgSpec("pt", "air_temperature", "degK", intent="inout"),
-        ArgSpec("delp", "pressure_thickness_of_atmospheric_layer", "Pa", intent="inout"),
+        ArgSpec(
+            "delp", "pressure_thickness_of_atmospheric_layer", "Pa", intent="inout"
+        ),
         ArgSpec("delz", "vertical_thickness_of_atmospheric_layer", "m", intent="inout"),
         ArgSpec("peln", "logarithm_of_interface_pressure", "ln(Pa)", intent="inout"),
         ArgSpec("u", "x_wind", "m/s", intent="inout"),
@@ -272,7 +273,10 @@ class FV3:
         ArgSpec("pe", "interface_pressure", "Pa", intent="inout"),
         ArgSpec("phis", "surface_geopotential", "m^2 s^-2", intent="in"),
         ArgSpec(
-            "pk", "interface_pressure_raised_to_power_of_kappa", "unknown", intent="inout"
+            "pk",
+            "interface_pressure_raised_to_power_of_kappa",
+            "unknown",
+            intent="inout",
         ),
         ArgSpec(
             "pkz",
@@ -289,7 +293,10 @@ class FV3:
         ArgSpec("cxd", "accumulated_x_courant_number", "", intent="inout"),
         ArgSpec("cyd", "accumulated_y_courant_number", "", intent="inout"),
         ArgSpec(
-            "diss_estd", "dissipation_estimate_from_heat_source", "unknown", intent="inout"
+            "diss_estd",
+            "dissipation_estimate_from_heat_source",
+            "unknown",
+            intent="inout",
         ),
     )
 
@@ -297,8 +304,9 @@ class FV3:
         self.comm = comm
         self.namelist = namelist
 
-    def step_dynamics(self,
-        state: Mapping[str, fv3gfs.util.Quantity], 
+    def step_dynamics(
+        self,
+        state: Mapping[str, fv3gfs.util.Quantity],
         consv_te,
         do_adiabatic_init,
         timestep,
@@ -321,7 +329,12 @@ class FV3:
         )
         self.compute(state, self.comm, timer)
 
-    def compute(self, state, comm: fv3gfs.util.CubedSphereCommunicator, timer: fv3gfs.util.NullTimer):
+    def compute(
+        self,
+        state,
+        comm: fv3gfs.util.CubedSphereCommunicator,
+        timer: fv3gfs.util.NullTimer,
+    ):
         grid = spec.grid
         state.__dict__.update(fvdyn_temporaries(state.u.shape))
         last_step = False

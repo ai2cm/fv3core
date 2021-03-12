@@ -74,6 +74,7 @@ def state_inputs(*arg_specs):
 
     return decorator
 
+
 def get_namespace(arg_specs, state):
     namespace_kwargs = {}
     for sp in arg_specs:
