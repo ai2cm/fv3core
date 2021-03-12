@@ -23,7 +23,7 @@ exitError()
 
 SCRIPT=`realpath $0`
 SCRIPTPATH=`dirname $SCRIPT`
-ROOT_DIR="$(dirname "$(dirname "$(dirname "$(dirname "$SCRIPTPATH")")")")"
+ROOT_DIR="$(dirname "$(dirname "$(dirname "$SCRIPTPATH")")")"
 NTHREADS=12
 
 # check sanity of environment
@@ -123,7 +123,7 @@ sed -i s/--output=\<OUTFILE\>/--hint=nomultithread/g run.daint.slurm
 sed -i s/00:45:00/00:40:00/g run.daint.slurm
 sed -i s/cscsci/normal/g run.daint.slurm
 sed -i s/\<G2G\>//g run.daint.slurm
-sed -i "s#<CMD>#export PYTHONPATH=/project/s1053/install/serialbox2_master/gnu/python:\$PYTHONPATH\nsrun python $py_args examples/runfile/dynamics.py $data_path $timesteps $backend $githash $run_args#g" run.daint.slurm
+sed -i "s#<CMD>#export PYTHONPATH=/project/s1053/install/serialbox2_master/gnu/python:\$PYTHONPATH\nsrun python $py_args examples/standalone/runfile/dynamics.py $data_path $timesteps $backend $githash $run_args#g" run.daint.slurm
 
 # execute on a gpu node
 sbatch -W -C gpu run.daint.slurm
