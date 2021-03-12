@@ -1,5 +1,5 @@
 from gt4py import gtscript
-from gt4py.gtscript import PARALLEL, computation, horizontal, interval, region
+from gt4py.gtscript import FORWARD, PARALLEL, computation, horizontal, interval, region
 
 import fv3core._config as spec
 from fv3core.decorators import gtstencil
@@ -310,13 +310,13 @@ def copy_corners_y(q):
 
 @gtstencil
 def copy_corners_x_stencil(q: FloatField):
-    with computation(PARALLEL), interval(...):
+    with computation(FORWARD), interval(...):
         q = copy_corners_x(q)
 
 
 @gtstencil
 def copy_corners_y_stencil(q: FloatField):
-    with computation(PARALLEL), interval(...):
+    with computation(FORWARD), interval(...):
         q = copy_corners_y(q)
 
 
