@@ -118,11 +118,19 @@ sed -i s/--output=\<OUTFILE\>/--hint=nomultithread/g compile.daint.slurm
 sed -i s/00:45:00/03:30:00/g compile.daint.slurm
 sed -i s/cscsci/normal/g compile.daint.slurm
 sed -i s/\<G2G\>/export\ CRAY_CUDA_MPS=1/g compile.daint.slurm
-sed -i "s#<CMD>#export PYTHONPATH=/project/s1053/install/serialbox2_master/gnu/python:\$PYTHONPATH\nsrun python examples/standalone/runfile/dynamics.py $data_path 1 $backend $githash --disable_halo_exchange#g" compile.daint.slurm
+sed -i "s#<CMD>#export PYTHONPATH=/project/s1053/install/serialbox2_master/gnu/python:\$PYTHONPATH\nsrun python examples/standalone/runfile/dynamics.py $data_path 1 $backend $githash --disable_halo_exchange#g" compile.daint.slur
 
 # execute on a gpu node
 sbatch -W -C gpu compile.daint.slurm
 wait
+
+if [ $? -ne 0 ] ; then
+    rm -rf .gt_cache_0000*
+    pip list
+    deactivate
+    rm -rf venv
+    exitError 1003 ${LINENO} "problem while compiling"
+fi
 echo "compilation step finished"
 
 echo "submitting script to do performance run"
@@ -140,6 +148,13 @@ sed -i "s#<CMD>#export PYTHONPATH=/project/s1053/install/serialbox2_master/gnu/p
 # execute on a gpu node
 sbatch -W -C gpu run.daint.slurm
 wait
+if [ $? -ne 0 ] ; then
+    rm -rf .gt_cache_0000*
+    pip list
+    deactivate
+    rm -rf venv
+    exitError 1004 ${LINENO} "problem while running for performance numbers"
+fi
 if [ -n "$target_dir" ] ; then
     rsync *.json $target_dir
 fi
