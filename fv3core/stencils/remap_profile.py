@@ -537,12 +537,6 @@ def compute(
     q: FloatField = utils.make_storage_from_shape(delp.shape, origin=full_orig)
     q_bot: FloatField = utils.make_storage_from_shape(delp.shape, origin=full_orig)
 
-    # make a qs that can be passed to a stencil
-    # qs_field: FloatField = utils.make_storage_from_shape(delp.shape, origin=full_orig)
-    # qs_field[i1 : i2 + 1, js : js + j_extent, -1] = qs[
-    #     i1 : i2 + 1, js : js + j_extent, 0
-    # ]
-
     extm: FloatField = utils.make_storage_from_shape(delp.shape, origin=full_orig)
     ext5: FloatField = utils.make_storage_from_shape(delp.shape, origin=full_orig)
     ext6: FloatField = utils.make_storage_from_shape(delp.shape, origin=full_orig)

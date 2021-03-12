@@ -65,6 +65,10 @@ class TranslateCS_Profile_2d(TranslateFortranData2Py):
         inputs["jslice"] = slice(0, 1)
         if "qs" not in inputs:
             inputs["qs"] = utils.make_storage_from_shape(self.maxshape)
+        else:
+            qs_field = utils.make_storage_from_shape(inputs["delp"].shape, origin=(0, 0, 0))
+            qs_field[inputs["i1"] : inputs["i2"] + 1, inputs["jslice"], -1] = inputs["qs"][inputs["i1"] : inputs["i2"] + 1, inputs["jslice"], 0]
+            inputs["qs"] = qs_field
         q4_1, q4_2, q4_3, q4_4 = self.compute_func(**inputs)
         return self.slice_output(
             inputs, {"q4_1": q4_1, "q4_2": q4_2, "q4_3": q4_3, "q4_4": q4_4}
@@ -76,7 +80,7 @@ class TranslateCS_Profile_2d_2(TranslateCS_Profile_2d):
         super().__init__(grid)
         self.compute_func = Profile.compute
         self.in_vars["data_vars"] = {
-            "qs": {"serialname": "qs_column_2", "kstart": 0, "kend": 0},
+            "qs": {"serialname": "qs_column_2", "kstart": 0, "kend": 79},
             "a4_1": {"serialname": "q4_1_2"},
             "a4_2": {"serialname": "q4_2_2"},
             "a4_3": {"serialname": "q4_3_2"},
@@ -91,3 +95,55 @@ class TranslateCS_Profile_2d_2(TranslateCS_Profile_2d):
             "a4_4": {"serialname": "q4_4_2", "istart": 0, "iend": grid.ie - 3},
         }
         self.ignore_near_zero_errors = {"q4_4_2": True}
+
+    # def make_storage_data_input_vars(self, inputs, storage_vars=None):
+    #     if storage_vars is None:
+    #         storage_vars = self.storage_vars()
+    #     for p in self.in_vars["parameters"]:
+    #         if type(inputs[p]) in [np.int64, np.int32]:
+    #             inputs[p] = int(inputs[p])
+    #     for d, info in storage_vars.items():
+    #         serialname = info["serialname"] if "serialname" in info else d
+    #         self.update_info(info, inputs)
+    #         istart, jstart, kstart = self.collect_start_indices(
+    #             inputs[serialname].shape, info
+    #         )
+
+    #         shapes = np.squeeze(inputs[serialname]).shape
+    #         if len(shapes) == 2:
+    #             # suppress j
+    #             dummy_axes = [1]
+    #         elif len(shapes) == 1:
+    #             # suppress j and k
+    #             dummy_axes = [1, 2]
+    #         else:
+    #             dummy_axes = None
+
+    #         if serialname == "qs_column_2":
+    #             dummy_axes = [1,2]
+
+    #         inputs[d] = self.make_storage_data(
+    #             np.squeeze(inputs[serialname]),
+    #             istart=istart,
+    #             jstart=jstart,
+    #             kstart=kstart,
+    #             dummy_axes=dummy_axes,
+    #         )
+    #         if d != serialname:
+    #             del inputs[serialname]
+    
+    # def compute(self, inputs):
+    #     self.make_storage_data_input_vars(inputs)
+    #     inputs["i1"] = self.grid.global_to_local_x(inputs["i1"] - 1)
+    #     inputs["i2"] = self.grid.global_to_local_x(inputs["i2"] - 1)
+    #     inputs["jslice"] = slice(0, 1)
+    #     if "qs" not in inputs:
+    #         inputs["qs"] = utils.make_storage_from_shape(self.maxshape)
+    #     inputs["qs"] = utils.make_storage_data(inputs["qs"][:,:,0], (self.maxshape[0],self.maxshape[1], 1))
+    #     qs_field: FloatField = utils.make_storage_from_shape(delp.shape, origin=full_orig)
+    #     qs_field[i1 : i2 + 1, js : js + j_extent, -1] = qs[i1 : i2 + 1, js : js + j_extent, 0]
+    #     inputs["qs"] = qs_field
+    #     q4_1, q4_2, q4_3, q4_4 = self.compute_func(**inputs)
+    #     return self.slice_output(
+    #         inputs, {"q4_1": q4_1, "q4_2": q4_2, "q4_3": q4_3, "q4_4": q4_4}
+    #     )

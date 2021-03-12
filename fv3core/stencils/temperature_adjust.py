@@ -15,27 +15,25 @@ sd = utils.sd
 def compute_pkz_tempadjust(
     delp: sd, delz: sd, cappa: sd, heat_source: sd, pt: sd, pkz: sd, delt_time_factor: float
 ):
-    with computation(PARALLEL), interval(0, 1):
-        delt = delt_time_factor * 0.1
-    with computation(PARALLEL), interval(1, 2):
-        delt = delt_time_factor * 0.5
-    with computation(PARALLEL), interval(2, None):
-        delt = delt_time_factor
-    with computation(PARALLEL), interval(...):
-        pkz = exp(cappa / (1.0 - cappa) * log(constants.RDG * delp / delz * pt))
-        pkz = (constants.RDG * delp / delz * pt) ** (cappa / (1.0 - cappa))
-        dtmp = heat_source / (constants.CV_AIR * delp)
-        deltmin = sign(min(delt, abs(dtmp)), dtmp)
-        pt = pt + deltmin / pkz
+    with computation(PARALLEL):
+        with interval(...):
+            pkz = exp(cappa / (1.0 - cappa) * log(constants.RDG * delp / delz * pt))
+            pkz = (constants.RDG * delp / delz * pt) ** (cappa / (1.0 - cappa))
+            dtmp = heat_source / (constants.CV_AIR * delp)
+        with interval(0, 1):
+            deltmin = sign(min(delt_time_factor * 0.1, abs(dtmp)), dtmp)
+            pt = pt + deltmin / pkz
+        with interval(1, 2):
+            deltmin = sign(min(delt_time_factor * 0.5, abs(dtmp)), dtmp)
+            pt = pt + deltmin / pkz
+        with interval(2, None):
+            deltmin = sign(min(delt_time_factor, abs(dtmp)), dtmp)
+            pt = pt + deltmin / pkz
 
 
 # TODO use stencils. limited by functions exp, log and variable that depends on k
 def compute(pt, pkz, heat_source, delz, delp, cappa, n_con, bdt):
     grid = spec.grid
-    # delt_column = np.ones(delz.shape[2]) * abs(bdt * spec.namelist.delt_max)
-    # delt_column[0] *= 0.1
-    # delt_column[1] *= 0.5
-    # delt = utils.make_storage_data(delt_column, delz.shape, origin=grid.full_origin())
     delt_time_factor = abs(bdt * spec.namelist.delt_max)
     compute_pkz_tempadjust(
         delp,
