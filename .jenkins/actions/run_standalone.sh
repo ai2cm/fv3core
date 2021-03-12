@@ -32,6 +32,7 @@ ARTIFACT_PATH="/project/s1053/performance/fv3core_monitor/${backend}"
 CACHE_PATH="/scratch/snx3000/olifu/jenkins/scratch/store_gt_caches"
 FORTRAN_SERIALIZED_DATA_VERSION=7.2.5
 TIMESTEPS=2
+RANKS=6
 
 # check sanity of environment
 test -n "${experiment}" || exitError 1001 ${LINENO} "experiment is not defined"
@@ -53,7 +54,7 @@ run_script=${ROOT_DIR}/examples/standalone/benchmarks/run_on_daint.sh
 if [ "${DO_PROFILE}" != "true" ] ; then
 
     # run performance benchmark
-    ${run_script} ${TIMESTEPS} ${TIMESTEPS} ${backend} ${data_path} "" ""
+    ${run_script} ${TIMESTEPS} ${RANKS} ${backend} ${data_path} "" ""
 
     # save timings if this is not just building cache
     if [ "${BUILD_CACHE}" != "true" ] ; then
@@ -63,7 +64,7 @@ if [ "${DO_PROFILE}" != "true" ] ; then
 else
 
     # run benchmark with profiling using cProfile
-    ${run_script} ${TIMESTEPS} ${TIMESTEPS} ${backend} ${data_path} "" "--profile"
+    ${run_script} ${TIMESTEPS} ${RANKS} ${backend} ${data_path} "" "--profile"
     cp $ROOT_DIR/*.prof ${ARTIFACT_PATH}/
 
     # generate simple profile listing

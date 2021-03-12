@@ -219,3 +219,6 @@ if __name__ == "__main__":
         now = datetime.now()
         filename = now.strftime("%Y-%m-%d-%H-%M-%S")
         write_global_timings(experiment, filename, comm)
+
+    if comm.Get_rank() == 0:
+        print("SUCCESS")

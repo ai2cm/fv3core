@@ -12,7 +12,9 @@
 # $5: (optional) arguments to pass to python invocation
 # $6: (optional) arguments to pass to dynamics.py invocation
 
+# stop on all errors
 set -e
+
 exitError()
 {
     echo "ERROR $1: $3" 1>&2
@@ -21,6 +23,7 @@ exitError()
     exit $1
 }
 
+# configuration
 SCRIPT=`realpath $0`
 SCRIPTPATH=`dirname $SCRIPT`
 ROOT_DIR="$(dirname "$(dirname "$(dirname "$SCRIPTPATH")")")"
@@ -111,7 +114,13 @@ sed -i "s#<CMD>#export PYTHONPATH=/project/s1053/install/serialbox2_master/gnu/p
 # execute on a gpu node
 sbatch -W -C gpu compile.daint.slurm
 wait
-echo "compilation step finished"
+if grep -q SUCCESS slurm-*.out; then
+    echo "compilation step finished"
+else
+    echo "ERROR: compilation step failed"
+    exit 1
+fi
+mv -f slurm-*.out compile.daint.out
 
 echo "submitting script to do performance run"
 # Adapt batch script to run the code:
@@ -128,5 +137,10 @@ sed -i "s#<CMD>#export PYTHONPATH=/project/s1053/install/serialbox2_master/gnu/p
 # execute on a gpu node
 sbatch -W -C gpu run.daint.slurm
 wait
-
-echo "performance run sucessful"
+if grep -q SUCCESS slurm-*.out; then
+    echo "performance run sucessful"
+else
+    echo "ERROR: performance run not sucessful"
+    exit 1
+fi
+mv -f slurm-*.out compile.daint.out
