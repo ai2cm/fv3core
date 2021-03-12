@@ -20,4 +20,3 @@ A `timing.json` file containing statistics over the ranks for execution time. Th
 ### Example
 
 `examples/standalone/benchmarks/run_on_daint.sh 60 6 gtx86`
-
