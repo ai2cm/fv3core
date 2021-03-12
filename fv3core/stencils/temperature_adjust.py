@@ -13,8 +13,14 @@ sd = utils.sd
 
 @gtstencil()
 def compute_pkz_tempadjust(
-    delp: sd, delz: sd, cappa: sd, heat_source: sd, delt: sd, pt: sd, pkz: sd
+    delp: sd, delz: sd, cappa: sd, heat_source: sd, pt: sd, pkz: sd, delt_time_factor: float
 ):
+    with computation(PARALLEL), interval(0, 1):
+        delt = delt_time_factor * 0.1
+    with computation(PARALLEL), interval(1, 2):
+        delt = delt_time_factor * 0.5
+    with computation(PARALLEL), interval(2, None):
+        delt = delt_time_factor
     with computation(PARALLEL), interval(...):
         pkz = exp(cappa / (1.0 - cappa) * log(constants.RDG * delp / delz * pt))
         pkz = (constants.RDG * delp / delz * pt) ** (cappa / (1.0 - cappa))
@@ -26,18 +32,19 @@ def compute_pkz_tempadjust(
 # TODO use stencils. limited by functions exp, log and variable that depends on k
 def compute(pt, pkz, heat_source, delz, delp, cappa, n_con, bdt):
     grid = spec.grid
-    delt_column = np.ones(delz.shape[2]) * abs(bdt * spec.namelist.delt_max)
-    delt_column[0] *= 0.1
-    delt_column[1] *= 0.5
-    delt = utils.make_storage_data(delt_column, delz.shape, origin=grid.full_origin())
+    # delt_column = np.ones(delz.shape[2]) * abs(bdt * spec.namelist.delt_max)
+    # delt_column[0] *= 0.1
+    # delt_column[1] *= 0.5
+    # delt = utils.make_storage_data(delt_column, delz.shape, origin=grid.full_origin())
+    delt_time_factor = abs(bdt * spec.namelist.delt_max)
     compute_pkz_tempadjust(
         delp,
         delz,
         cappa,
         heat_source,
-        delt,
         pt,
         pkz,
+        delt_time_factor,
         origin=grid.compute_origin(),
         domain=(grid.nic, grid.njc, n_con),
     )

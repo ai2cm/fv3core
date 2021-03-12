@@ -34,6 +34,8 @@ def lagrangian_contributions(
     dp1: FloatField,
     q2_adds: FloatFieldIJ,
 ):
+    with computation(FORWARD), interval(0, 1):
+        q2_adds=0
     with computation(PARALLEL), interval(...):
         q2_tmp = 0.0
         if pe1 < pbot and pe1[0, 0, 1] > ptop:
@@ -216,9 +218,9 @@ def lagrangian_contributions_stencil(
     pbot = utils.make_storage_from_shape(shape2d)
 
     for k_eul in range(km):
+        #TODO: Pull these assignments into stencils when it is possible
         ptop[:, :] = pe2[:, :, k_eul]
         pbot[:, :] = pe2[:, :, k_eul + 1]
-        q2_adds[:] = 0.0
 
         lagrangian_contributions(
             pe1,
