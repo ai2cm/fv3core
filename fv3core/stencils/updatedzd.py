@@ -208,7 +208,6 @@ def out(gz_surface: FloatField, zh: FloatField, ws: FloatField, dt: float):
             zh[0, 0, 0] = zh if zh > other else other
 
 
-
 def compute(
     ndif: FloatField,
     damp_vtd: FloatField,
@@ -243,7 +242,6 @@ def compute(
     ra_y = utils.make_storage_from_shape(
         cry.shape, grid.compute_origin(add=(-halo, 0, 0))
     )
-
 
     edge_profile_stencil(
         crx,
