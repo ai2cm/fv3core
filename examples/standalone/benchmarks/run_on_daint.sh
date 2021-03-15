@@ -27,7 +27,7 @@ function cleanupFailedJob {
     while [[ $status == *"COMPLETING"* ]]; do
         if [ $timeout -lt 120 ]; then
 	    status=`sacct --jobs ${jobid} -p -n -b -D `
-            sleep 30
+	    sleep 30
 	    timeout=$timeout + 30
         else
             exitError 1004 ${LINENO} "problem waiting for job ${jobid} to complete"
