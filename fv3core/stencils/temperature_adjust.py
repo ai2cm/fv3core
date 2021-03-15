@@ -5,19 +5,17 @@ import fv3core.utils.global_constants as constants
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import gtstencil
 from fv3core.stencils.basic_operations import sign
-
-
-sd = utils.sd
+from fv3core.utils.typing import FloatField
 
 
 @gtstencil()
 def compute_pkz_tempadjust(
-    delp: sd,
-    delz: sd,
-    cappa: sd,
-    heat_source: sd,
-    pt: sd,
-    pkz: sd,
+    delp: FloatField,
+    delz: FloatField,
+    cappa: FloatField,
+    heat_source: FloatField,
+    pt: FloatField,
+    pkz: FloatField,
     delt_time_factor: float,
 ):
     with computation(PARALLEL):
@@ -38,6 +36,21 @@ def compute_pkz_tempadjust(
 
 # TODO use stencils. limited by functions exp, log and variable that depends on k
 def compute(pt, pkz, heat_source, delz, delp, cappa, n_con, bdt):
+    """
+    Adjust air temperature from heating due to vorticity damping. 
+        Heating is limited by deltmax times the length of a timestep, with the 
+        highest levels limited further.
+    Args:
+        pt: Air temperature (inout)
+        pkz: Layer mean pressure raised to the power of Kappa (in)
+        heat_source: heat source from vorticity damping implied by 
+            energy conservation (in)
+        delz: Vertical thickness of atmosphere layers (in)
+        delp: Pressur thickness of atmosphere layers (in)
+        cappa: Power to raise pressure to (in)
+        n_con: Number of vertical levels to adjust temperature on (in)
+        bdt: Length of a timestep to adjust temperature over (in)
+    """
     grid = spec.grid
     delt_time_factor = abs(bdt * spec.namelist.delt_max)
     compute_pkz_tempadjust(

@@ -76,7 +76,7 @@ def lagrangian_contributions(
                         / (pbot - ptop)
                     )
     with computation(FORWARD), interval(0, 1):
-        q2_adds = 0
+        q2_adds = 0.0
     with computation(FORWARD), interval(...):
         q2_adds += q2_tmp
 
