@@ -22,82 +22,63 @@ fi
 if [ "$1" == "build_cache" ] ; then
     BUILD_CACHE="true"
 fi
+# only save timings if this is neither a cache build nor a profiling run
+if [ "${BUILD_CACHE}" != "true" -a "${DO_PROFILE}" != "true" ] ; then
+    SAVE_TIMINGS="true"
+fi
 
 # configuration
 SCRIPT=`realpath $0`
 SCRIPTPATH=`dirname $SCRIPT`
 ROOT_DIR="$(dirname "$(dirname "$SCRIPTPATH")")"
-TESTDATA_PATH="/project/s1053/fv3core_serialized_test_data"
-ARTIFACT_PATH="/project/s1053/performance/fv3core_monitor/${backend}"
-CACHE_PATH="/scratch/snx3000/olifu/jenkins/scratch/store_gt_caches"
 FORTRAN_SERIALIZED_DATA_VERSION=7.2.5
 TIMESTEPS=2
 RANKS=6
+BENCHMARK_DIR=${ROOT_DIR}/examples/standalone/benchmarks
+DATA_DIR="/project/s1053/fv3core_serialized_test_data/${FORTRAN_SERIALIZED_DATA_VERSION}/${experiment}"
+ARTIFACT_DIR="/project/s1053/performance/fv3core_monitor/${backend}"
+CACHE_DIR="/scratch/snx3000/olifu/jenkins/scratch/store_gt_caches/${experiment}/${backend}"
 
 # check sanity of environment
 test -n "${experiment}" || exitError 1001 ${LINENO} "experiment is not defined"
 test -n "${backend}" || exitError 1002 ${LINENO} "backend is not defined"
-if [ ! -d "${TESTDATA_PATH}" ] ; then
-    exitError 1003 ${LINENO} "test data directory ${TESTDATA_PATH} does not exist"
+if [ ! -d "${DATA_DIR}" ] ; then
+    exitError 1003 ${LINENO} "test data directory ${DATA_DIR} does not exist"
 fi
-if [ ! -d "${ARTIFACT_PATH}" ] ; then
-    exitError 1004 ${LINENO} "Artifact directory ${ARTIFACT_PATH} does not exist"
+if [ ! -d "${ARTIFACT_DIR}" ] ; then
+    exitError 1004 ${LINENO} "Artifact directory ${ARTIFACT_DIR} does not exist"
 fi
-if [ ! -d "${CACHE_PATH}" ] ; then
-    exitError 1005 ${LINENO} "Cache directory ${CACHE_PATH} does not exist"
+if [ ! -d "${BENCHMARK_DIR}" ] ; then
+    exitError 1005 ${LINENO} "Benchmark directory ${BENCHMARK_DIR} does not exist"
 fi
-CACHE_PATH="${CACHE_PATH}/${experiment}/${backend}"
 
-# run benchmark for with profiling
-data_path=${TESTDATA_PATH}/${FORTRAN_SERIALIZED_DATA_VERSION}/${experiment}
-run_script=${ROOT_DIR}/examples/standalone/benchmarks/run_on_daint.sh
+# run standalone
 if [ "${DO_PROFILE}" != "true" ] ; then
-
-    # run performance benchmark
-    ${run_script} ${TIMESTEPS} ${RANKS} ${backend} ${data_path} "" ""
-
-    # save timings if this is not just building cache
-    if [ "${BUILD_CACHE}" != "true" ] ; then
-        cp $ROOT_DIR/*.json ${ARTIFACT_PATH}/
-    fi
-
-else
-
-    # run benchmark with profiling using cProfile
-    ${run_script} ${TIMESTEPS} ${RANKS} ${backend} ${data_path} "" "--profile"
-    cp $ROOT_DIR/*.prof ${ARTIFACT_PATH}/
-
-    # generate simple profile listing
-    source $ROOT_DIR/venv/bin/activate
-    cat > $ROOT_DIR/profile.py <<EOF
-#!/usr/bin/env python3
-import pstats
-stats = pstats.Stats("$ROOT_DIR/fv3core_${experiment}_${backend}_0.prof")
-stats.strip_dirs()
-stats.sort_stats('cumulative')
-stats.print_stats(200)
-print('=================================================================')
-stats.sort_stats('calls')
-stats.print_stats(200)
-EOF
-    chmod 755 $ROOT_DIR/profile.py
-    $ROOT_DIR/profile.py > profile.txt
-
-    # convert to html
-    mkdir -p html
-    echo "<html><body><pre>" > html/index.html
-    cat profile.txt >> html/index.html
-    echo "</pre></body></html>" >> html/index.html
-
+    profile="--profile"
 fi
+cmd="${run_script} ${TIMESTEPS} ${RANKS} ${backend} ${DATA_DIR} '' '${profile}'"
+echo "Run command: ${cmd}"
+${cmd}
 
-# save and remove GT4Py cache directories
+# store cache artifacts (and remove caches afterwards)
 if [ "${BUILD_CACHE}" == "true" ] ; then
-    mkdir -p ${CACHE_PATH}
-    rm -rf ${CACHE_PATH}/.gt_cache*
-    mv .gt_cache* ${CACHE_PATH}/
+    mkdir -p ${CACHE_DIR}
+    rm -rf ${CACHE_DIR}/.gt_cache*
+    mv .gt_cache* ${CACHE_DIR}/
 fi
 rm -rf .gt_cache*
 
-# remove venv (we can use vcm_1.0 for manual stuff)
+# store timing artifacts
+if [ "${SAVE_TIMINGS}" ] ; then
+    cp $ROOT_DIR/*.json ${ARTIFACT_DIR}/
+fi
+
+# run analysis and store profiling artifacts
+if [ "${DO_PROFILE}" != "true" ] ; then
+    ${BENCHMARK_DIR}/process_profiling.sh
+    cp $ROOT_DIR/*.prof ${ARTIFACT_DIR}/
+fi
+
+# remove venv (too many files!)
 rm -rf $ROOT_DIR/venv
+

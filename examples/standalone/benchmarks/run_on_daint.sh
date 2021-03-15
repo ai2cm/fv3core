@@ -25,8 +25,8 @@ exitError()
 
 # configuration
 SCRIPT=`realpath $0`
-SCRIPTPATH=`dirname $SCRIPT`
-ROOT_DIR="$(dirname "$(dirname "$(dirname "$SCRIPTPATH")")")"
+SCRIPT_DIR=`dirname $SCRIPT`
+ROOT_DIR="$(dirname "$(dirname "$(dirname "$SCRIPT_DIR")")")"
 NTHREADS=12
 
 # check sanity of environment
