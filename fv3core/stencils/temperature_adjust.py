@@ -37,13 +37,13 @@ def compute_pkz_tempadjust(
 # TODO use stencils. limited by functions exp, log and variable that depends on k
 def compute(pt, pkz, heat_source, delz, delp, cappa, n_con, bdt):
     """
-    Adjust air temperature from heating due to vorticity damping. 
-        Heating is limited by deltmax times the length of a timestep, with the 
+    Adjust air temperature from heating due to vorticity damping.
+        Heating is limited by deltmax times the length of a timestep, with the
         highest levels limited further.
     Args:
         pt: Air temperature (inout)
         pkz: Layer mean pressure raised to the power of Kappa (in)
-        heat_source: heat source from vorticity damping implied by 
+        heat_source: heat source from vorticity damping implied by
             energy conservation (in)
         delz: Vertical thickness of atmosphere layers (in)
         delp: Pressur thickness of atmosphere layers (in)
