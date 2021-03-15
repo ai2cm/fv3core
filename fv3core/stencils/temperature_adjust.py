@@ -1,4 +1,3 @@
-import numpy as np
 from gt4py.gtscript import PARALLEL, computation, exp, interval, log
 
 import fv3core._config as spec

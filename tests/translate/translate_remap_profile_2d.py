@@ -80,7 +80,7 @@ class TranslateCS_Profile_2d_2(TranslateCS_Profile_2d):
         super().__init__(grid)
         self.compute_func = Profile.compute
         self.in_vars["data_vars"] = {
-            "qs": {"serialname": "qs_column_2", "kstart": 0, "kend": 79},
+            "qs": {"serialname": "qs_column_2", "kstart": 0, "kend": grid.npz},
             "a4_1": {"serialname": "q4_1_2"},
             "a4_2": {"serialname": "q4_2_2"},
             "a4_3": {"serialname": "q4_3_2"},
@@ -95,4 +95,3 @@ class TranslateCS_Profile_2d_2(TranslateCS_Profile_2d):
             "a4_4": {"serialname": "q4_4_2", "istart": 0, "iend": grid.ie - 3},
         }
         self.ignore_near_zero_errors = {"q4_4_2": True}
-        
