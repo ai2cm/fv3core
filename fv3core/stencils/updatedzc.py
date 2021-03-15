@@ -94,8 +94,8 @@ def update_dz_c_stencil(
             surface_delta_gz = (gz_surface - gz) * rdt
     with computation(BACKWARD), interval(0, -1):
         # TODO region for local validation only
+        gz_min = gz[0, 0, 1] + DZ_MIN
         with horizontal(
             region[local_is - 1 : local_ie + 2, local_js - 1 : local_je + 2]
         ):
-            gz_min = gz[0, 0, 1] + DZ_MIN
             gz = gz if gz > gz_min else gz_min
