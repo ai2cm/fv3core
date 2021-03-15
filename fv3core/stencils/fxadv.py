@@ -321,12 +321,12 @@ def fxadv_stencil(
         ut = ut_corners(uc, vc, cosa_u, cosa_v, ut, vt)
         vt = vt_corners(uc, vc, cosa_u, cosa_v, ut, vt)
     with computation(PARALLEL), interval(...):
+        prod = dt * ut
         with horizontal(region[local_is : local_ie + 2, :]):
-            prod = dt * ut
             crx_adv = prod * rdxa[-1, 0, 0] if prod > 0 else prod * rdxa
             xfx_adv = dy * prod * sin_sg3[-1, 0, 0] if prod > 0 else dy * prod * sin_sg1
+        prod = dt * vt
         with horizontal(region[:, local_js : local_je + 2]):
-            prod = dt * vt
             cry_adv = prod * rdya[0, -1, 0] if prod > 0 else prod * rdya
             yfx_adv = dx * prod * sin_sg4[0, -1, 0] if prod > 0 else dx * prod * sin_sg2
     with computation(PARALLEL), interval(...):
