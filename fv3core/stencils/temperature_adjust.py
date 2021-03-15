@@ -2,7 +2,6 @@ from gt4py.gtscript import PARALLEL, computation, exp, interval, log
 
 import fv3core._config as spec
 import fv3core.utils.global_constants as constants
-import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import gtstencil
 from fv3core.stencils.basic_operations import sign
 from fv3core.utils.typing import FloatField
