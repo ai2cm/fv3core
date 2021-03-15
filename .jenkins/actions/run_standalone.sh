@@ -4,7 +4,7 @@
 # 3/11/2021, Tobias Wicky, Vulcan Inc
 
 # stop on all errors and echo commands
-set -e -x
+set -e
 
 # utility function for error handling
 exitError()
@@ -16,14 +16,17 @@ exitError()
 }
 
 # check arguments
+DO_PROFILE="false"
+SAVE_CACHE="false"
+SAVE_TIMINGS="false"
 if [ "$1" == "profile" ] ; then
     DO_PROFILE="true"
 fi
 if [ "$1" == "build_cache" ] ; then
-    BUILD_CACHE="true"
+    SAVE_CACHE="true"
 fi
 # only save timings if this is neither a cache build nor a profiling run
-if [ "${BUILD_CACHE}" != "true" -a "${DO_PROFILE}" != "true" ] ; then
+if [ "${SAVE_CACHE}" != "true" -a "${DO_PROFILE}" != "true" ] ; then
     SAVE_TIMINGS="true"
 fi
 
@@ -52,33 +55,57 @@ if [ ! -d "${BENCHMARK_DIR}" ] ; then
     exitError 1005 ${LINENO} "Benchmark directory ${BENCHMARK_DIR} does not exist"
 fi
 
+# echo config
+echo "=== $0 configuration ==========================="
+echo "Script:               ${SCRIPT}"
+echo "Do profiling:         ${DO_PROFILE}"
+echo "Save GT4Py caches:    ${SAVE_CACHE}"
+echo "Save timings:         ${SAVE_TIMINGS}"
+echo "Root directory:       ${ROOT_DIR}"
+echo "Experiment:           ${experiment}"
+echo "Backend:              ${backend}"
+echo "Fortran data version: ${FORTRAN_SERIALIZED_DATA_VERSION}"
+echo "Timesteps:            ${TIMESTEPS}"
+echo "Ranks:                ${RANKS}"
+echo "Benchmark directory:  ${BENCHMARK_DIR}"
+echo "Data directory:       ${DATA_DIR}"
+echo "Artifact directory:   ${ARTIFACT_DIR}"
+echo "Cache directory:      ${CACHE_DIR}"
+
 # run standalone
-if [ "${DO_PROFILE}" != "true" ] ; then
+echo "=== Running standalone ========================="
+if [ "${DO_PROFILE}" == "true" ] ; then
     profile="--profile"
 fi
-cmd="${run_script} ${TIMESTEPS} ${RANKS} ${backend} ${DATA_DIR} '' '${profile}'"
+cmd="${BENCHMARK_DIR}/run_on_daint.sh ${TIMESTEPS} ${RANKS} ${backend} ${DATA_DIR} '' '${profile}'"
 echo "Run command: ${cmd}"
 ${cmd}
 
+echo "=== Post-processing ============================"
+
+# store timing artifacts
+if [ "${SAVE_TIMINGS}" == "true" ] ; then
+    echo "Copying timing information to ${ARTIFACT_DIR}"
+    cp $ROOT_DIR/*.json ${ARTIFACT_DIR}/
+fi
+
 # store cache artifacts (and remove caches afterwards)
-if [ "${BUILD_CACHE}" == "true" ] ; then
+if [ "${SAVE_CACHE}" == "true" ] ; then
+    echo "Copying GT4Py cache directories to ${CACHE_DIR}"
     mkdir -p ${CACHE_DIR}
     rm -rf ${CACHE_DIR}/.gt_cache*
     mv .gt_cache* ${CACHE_DIR}/
 fi
 rm -rf .gt_cache*
 
-# store timing artifacts
-if [ "${SAVE_TIMINGS}" ] ; then
-    cp $ROOT_DIR/*.json ${ARTIFACT_DIR}/
-fi
-
 # run analysis and store profiling artifacts
-if [ "${DO_PROFILE}" != "true" ] ; then
+if [ "${DO_PROFILE}" == "true" ] ; then
     ${BENCHMARK_DIR}/process_profiling.sh
+    echo "Copying profiling information to ${ARTIFACT_DIR}"
     cp $ROOT_DIR/*.prof ${ARTIFACT_DIR}/
 fi
 
 # remove venv (too many files!)
 rm -rf $ROOT_DIR/venv
 
+echo "=== Done ======================================="
