@@ -66,8 +66,12 @@ class TranslateCS_Profile_2d(TranslateFortranData2Py):
         if "qs" not in inputs:
             inputs["qs"] = utils.make_storage_from_shape(self.maxshape)
         else:
-            qs_field = utils.make_storage_from_shape(inputs["delp"].shape, origin=(0, 0, 0))
-            qs_field[inputs["i1"] : inputs["i2"] + 1, inputs["jslice"], -1] = inputs["qs"][inputs["i1"] : inputs["i2"] + 1, inputs["jslice"], 0]
+            qs_field = utils.make_storage_from_shape(
+                inputs["delp"].shape, origin=(0, 0, 0)
+            )
+            qs_field[inputs["i1"] : inputs["i2"] + 1, inputs["jslice"], -1] = inputs[
+                "qs"
+            ][inputs["i1"] : inputs["i2"] + 1, inputs["jslice"], 0]
             inputs["qs"] = qs_field
         q4_1, q4_2, q4_3, q4_4 = self.compute_func(**inputs)
         return self.slice_output(

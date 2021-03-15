@@ -12,7 +12,13 @@ sd = utils.sd
 
 @gtstencil()
 def compute_pkz_tempadjust(
-    delp: sd, delz: sd, cappa: sd, heat_source: sd, pt: sd, pkz: sd, delt_time_factor: float
+    delp: sd,
+    delz: sd,
+    cappa: sd,
+    heat_source: sd,
+    pt: sd,
+    pkz: sd,
+    delt_time_factor: float,
 ):
     with computation(PARALLEL):
         with interval(...):
