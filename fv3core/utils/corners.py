@@ -2,7 +2,6 @@ from gt4py import gtscript
 from gt4py.gtscript import PARALLEL, computation, horizontal, interval, region
 
 import fv3core._config as spec
-import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import gtstencil
 from fv3core.utils.typing import FloatField
 
@@ -221,92 +220,133 @@ def fill_corners_cells(q: FloatField, direction: str, num_fill: int = 2):
     stencil(q, origin=origin, domain=domain)
 
 
-@gtscript.function
-def copy_corners_x(q):
+# @gtscript.function
+# def copy_corners_x(q):
+@gtstencil
+def copy_corners_x_stencil(q: FloatField):
     from __externals__ import i_end, i_start, j_end, j_start
 
-    with horizontal(region[i_start - 3, j_start - 3], region[i_end + 3, j_start - 3]):
-        q = q[0, 5, 0]
-    with horizontal(region[i_start - 2, j_start - 3], region[i_end + 3, j_start - 2]):
-        q = q[-1, 4, 0]
-    with horizontal(region[i_start - 1, j_start - 3], region[i_end + 3, j_start - 1]):
-        q = q[-2, 3, 0]
-    with horizontal(region[i_start - 3, j_start - 2], region[i_end + 2, j_start - 3]):
-        q = q[1, 4, 0]
-    with horizontal(region[i_start - 2, j_start - 2], region[i_end + 2, j_start - 2]):
-        q = q[0, 3, 0]
-    with horizontal(region[i_start - 1, j_start - 2], region[i_end + 2, j_start - 1]):
-        q = q[-1, 2, 0]
-    with horizontal(region[i_start - 3, j_start - 1], region[i_end + 1, j_start - 3]):
-        q = q[2, 3, 0]
-    with horizontal(region[i_start - 2, j_start - 1], region[i_end + 1, j_start - 2]):
-        q = q[1, 2, 0]
-    with horizontal(region[i_start - 1, j_start - 1], region[i_end + 1, j_start - 1]):
-        q = q[0, 1, 0]
-    with horizontal(region[i_start - 3, j_end + 1], region[i_end + 1, j_end + 3]):
-        q = q[2, -3, 0]
-    with horizontal(region[i_start - 2, j_end + 1], region[i_end + 1, j_end + 2]):
-        q = q[1, -2, 0]
-    with horizontal(region[i_start - 1, j_end + 1], region[i_end + 1, j_end + 1]):
-        q = q[0, -1, 0]
-    with horizontal(region[i_start - 3, j_end + 2], region[i_end + 2, j_end + 3]):
-        q = q[1, -4, 0]
-    with horizontal(region[i_start - 2, j_end + 2], region[i_end + 2, j_end + 2]):
-        q = q[0, -3, 0]
-    with horizontal(region[i_start - 1, j_end + 2], region[i_end + 2, j_end + 1]):
-        q = q[-1, -2, 0]
-    with horizontal(region[i_start - 3, j_end + 3], region[i_end + 3, j_end + 3]):
-        q = q[0, -5, 0]
-    with horizontal(region[i_start - 2, j_end + 3], region[i_end + 3, j_end + 2]):
-        q = q[-1, -4, 0]
-    with horizontal(region[i_start - 1, j_end + 3], region[i_end + 3, j_end + 1]):
-        q = q[-2, -3, 0]
-    return q
+    with computation(PARALLEL), interval(...):
+        with horizontal(
+            region[i_start - 3, j_start - 3], region[i_end + 3, j_start - 3]
+        ):
+            q = q[0, 5, 0]
+        with horizontal(
+            region[i_start - 2, j_start - 3], region[i_end + 3, j_start - 2]
+        ):
+            q = q[-1, 4, 0]
+        with horizontal(
+            region[i_start - 1, j_start - 3], region[i_end + 3, j_start - 1]
+        ):
+            q = q[-2, 3, 0]
+        with horizontal(
+            region[i_start - 3, j_start - 2], region[i_end + 2, j_start - 3]
+        ):
+            q = q[1, 4, 0]
+        with horizontal(
+            region[i_start - 2, j_start - 2], region[i_end + 2, j_start - 2]
+        ):
+            q = q[0, 3, 0]
+        with horizontal(
+            region[i_start - 1, j_start - 2], region[i_end + 2, j_start - 1]
+        ):
+            q = q[-1, 2, 0]
+        with horizontal(
+            region[i_start - 3, j_start - 1], region[i_end + 1, j_start - 3]
+        ):
+            q = q[2, 3, 0]
+        with horizontal(
+            region[i_start - 2, j_start - 1], region[i_end + 1, j_start - 2]
+        ):
+            q = q[1, 2, 0]
+        with horizontal(
+            region[i_start - 1, j_start - 1], region[i_end + 1, j_start - 1]
+        ):
+            q = q[0, 1, 0]
+        with horizontal(region[i_start - 3, j_end + 1], region[i_end + 1, j_end + 3]):
+            q = q[2, -3, 0]
+        with horizontal(region[i_start - 2, j_end + 1], region[i_end + 1, j_end + 2]):
+            q = q[1, -2, 0]
+        with horizontal(region[i_start - 1, j_end + 1], region[i_end + 1, j_end + 1]):
+            q = q[0, -1, 0]
+        with horizontal(region[i_start - 3, j_end + 2], region[i_end + 2, j_end + 3]):
+            q = q[1, -4, 0]
+        with horizontal(region[i_start - 2, j_end + 2], region[i_end + 2, j_end + 2]):
+            q = q[0, -3, 0]
+        with horizontal(region[i_start - 1, j_end + 2], region[i_end + 2, j_end + 1]):
+            q = q[-1, -2, 0]
+        with horizontal(region[i_start - 3, j_end + 3], region[i_end + 3, j_end + 3]):
+            q = q[0, -5, 0]
+        with horizontal(region[i_start - 2, j_end + 3], region[i_end + 3, j_end + 2]):
+            q = q[-1, -4, 0]
+        with horizontal(region[i_start - 1, j_end + 3], region[i_end + 3, j_end + 1]):
+            q = q[-2, -3, 0]
 
 
-@gtscript.function
-def copy_corners_y(q):
+# @gtscript.function
+# def copy_corners_y(q):
+@gtstencil
+def copy_corners_y_stencil(q: FloatField):
     from __externals__ import i_end, i_start, j_end, j_start
 
-    with horizontal(region[i_start - 3, j_start - 3], region[i_start - 3, j_end + 3]):
-        q = q[5, 0, 0]
-    with horizontal(region[i_start - 2, j_start - 3], region[i_start - 3, j_end + 2]):
-        q = q[4, 1, 0]
-    with horizontal(region[i_start - 1, j_start - 3], region[i_start - 3, j_end + 1]):
-        q = q[3, 2, 0]
-    with horizontal(region[i_start - 3, j_start - 2], region[i_start - 2, j_end + 3]):
-        q = q[4, -1, 0]
-    with horizontal(region[i_start - 2, j_start - 2], region[i_start - 2, j_end + 2]):
-        q = q[3, 0, 0]
-    with horizontal(region[i_start - 1, j_start - 2], region[i_start - 2, j_end + 1]):
-        q = q[2, 1, 0]
-    with horizontal(region[i_start - 3, j_start - 1], region[i_start - 1, j_end + 3]):
-        q = q[3, -2, 0]
-    with horizontal(region[i_start - 2, j_start - 1], region[i_start - 1, j_end + 2]):
-        q = q[2, -1, 0]
-    with horizontal(region[i_start - 1, j_start - 1], region[i_start - 1, j_end + 1]):
-        q = q[1, 0, 0]
-    with horizontal(region[i_end + 1, j_start - 3], region[i_end + 3, j_end + 1]):
-        q = q[-3, 2, 0]
-    with horizontal(region[i_end + 2, j_start - 3], region[i_end + 3, j_end + 2]):
-        q = q[-4, 1, 0]
-    with horizontal(region[i_end + 3, j_start - 3], region[i_end + 3, j_end + 3]):
-        q = q[-5, 0, 0]
-    with horizontal(region[i_end + 1, j_start - 2], region[i_end + 2, j_end + 1]):
-        q = q[-2, 1, 0]
-    with horizontal(region[i_end + 2, j_start - 2], region[i_end + 2, j_end + 2]):
-        q = q[-3, 0, 0]
-    with horizontal(region[i_end + 3, j_start - 2], region[i_end + 2, j_end + 3]):
-        q = q[-4, -1, 0]
-    with horizontal(region[i_end + 1, j_start - 1], region[i_end + 1, j_end + 1]):
-        q = q[-1, 0, 0]
-    with horizontal(region[i_end + 2, j_start - 1], region[i_end + 1, j_end + 2]):
-        q = q[-2, -1, 0]
-    with horizontal(region[i_end + 3, j_start - 1], region[i_end + 1, j_end + 3]):
-        q = q[-3, -2, 0]
-    return q
+    with computation(PARALLEL), interval(...):
+        with horizontal(
+            region[i_start - 3, j_start - 3], region[i_start - 3, j_end + 3]
+        ):
+            q = q[5, 0, 0]
+        with horizontal(
+            region[i_start - 2, j_start - 3], region[i_start - 3, j_end + 2]
+        ):
+            q = q[4, 1, 0]
+        with horizontal(
+            region[i_start - 1, j_start - 3], region[i_start - 3, j_end + 1]
+        ):
+            q = q[3, 2, 0]
+        with horizontal(
+            region[i_start - 3, j_start - 2], region[i_start - 2, j_end + 3]
+        ):
+            q = q[4, -1, 0]
+        with horizontal(
+            region[i_start - 2, j_start - 2], region[i_start - 2, j_end + 2]
+        ):
+            q = q[3, 0, 0]
+        with horizontal(
+            region[i_start - 1, j_start - 2], region[i_start - 2, j_end + 1]
+        ):
+            q = q[2, 1, 0]
+        with horizontal(
+            region[i_start - 3, j_start - 1], region[i_start - 1, j_end + 3]
+        ):
+            q = q[3, -2, 0]
+        with horizontal(
+            region[i_start - 2, j_start - 1], region[i_start - 1, j_end + 2]
+        ):
+            q = q[2, -1, 0]
+        with horizontal(
+            region[i_start - 1, j_start - 1], region[i_start - 1, j_end + 1]
+        ):
+            q = q[1, 0, 0]
+        with horizontal(region[i_end + 1, j_start - 3], region[i_end + 3, j_end + 1]):
+            q = q[-3, 2, 0]
+        with horizontal(region[i_end + 2, j_start - 3], region[i_end + 3, j_end + 2]):
+            q = q[-4, 1, 0]
+        with horizontal(region[i_end + 3, j_start - 3], region[i_end + 3, j_end + 3]):
+            q = q[-5, 0, 0]
+        with horizontal(region[i_end + 1, j_start - 2], region[i_end + 2, j_end + 1]):
+            q = q[-2, 1, 0]
+        with horizontal(region[i_end + 2, j_start - 2], region[i_end + 2, j_end + 2]):
+            q = q[-3, 0, 0]
+        with horizontal(region[i_end + 3, j_start - 2], region[i_end + 2, j_end + 3]):
+            q = q[-4, -1, 0]
+        with horizontal(region[i_end + 1, j_start - 1], region[i_end + 1, j_end + 1]):
+            q = q[-1, 0, 0]
+        with horizontal(region[i_end + 2, j_start - 1], region[i_end + 1, j_end + 2]):
+            q = q[-2, -1, 0]
+        with horizontal(region[i_end + 3, j_start - 1], region[i_end + 1, j_end + 3]):
+            q = q[-3, -2, 0]
 
 
+"""
 @gtstencil
 def copy_corners_x_stencil(q: FloatField):
     with computation(PARALLEL), interval(...):
@@ -317,21 +357,7 @@ def copy_corners_x_stencil(q: FloatField):
 def copy_corners_y_stencil(q: FloatField):
     with computation(PARALLEL), interval(...):
         q = copy_corners_y(q)
-
-
-# TODO: may want to put this in the test code if no longer used
-# directly in the model
-def copy_corners(q, direction, grid, kslice=slice(0, None)):
-    kstart, nk = utils.krange_from_slice(kslice, grid)
-    if direction == "x":
-        copy_corners_x_stencil(
-            q, origin=(grid.isd, grid.jsd, kstart), domain=(grid.nid, grid.njd, nk)
-        )
-    if direction == "y":
-        copy_corners_y_stencil(
-            q, origin=(grid.isd, grid.jsd, kstart), domain=(grid.nid, grid.njd, nk)
-        )
-
+"""
 
 # TODO these can definitely be consolidated/made simpler
 def fill_sw_corner_2d_bgrid(q, i, j, direction, grid):
