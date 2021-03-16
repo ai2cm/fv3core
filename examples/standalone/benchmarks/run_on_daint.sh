@@ -32,6 +32,7 @@ function exitError()
 
 function cleanupFailedJob {
     res=$1
+    jobout=$2
     jobid=`echo "${res}" | sed  's/^Submitted batch job //g'`
     test -n "${jobid}" || exitError 7207 ${LINENO} "problem determining job ID of SLURM job"
     echo "jobid:" ${jobid}
@@ -47,7 +48,7 @@ function cleanupFailedJob {
     done
     if [[ ! $status == *"COMPLETED"* ]]; then
         echo ${status}
-        echo `cat slurm*`
+        echo `cat ${jobout}`
         rm -rf .gt_cache_0000*
         pip list
         deactivate
@@ -128,60 +129,56 @@ fi
 
 echo "submitting script to do compilation"
 # Adapt batch script to compile the code:
-sed -i s/\<NAME\>/standalone/g compile.daint.slurm
-sed -i s/\<NTASKS\>/$ranks/g compile.daint.slurm
-sed -i s/\<NTASKSPERNODE\>/1/g compile.daint.slurm
-sed -i s/\<CPUSPERTASK\>/$NTHREADS/g compile.daint.slurm
-sed -i s/--output=\<OUTFILE\>/--hint=nomultithread/g compile.daint.slurm
-sed -i s/00:45:00/03:30:00/g compile.daint.slurm
-sed -i s/cscsci/normal/g compile.daint.slurm
-sed -i s/\<G2G\>/export\ CRAY_CUDA_MPS=1/g compile.daint.slurm
+sed -i "s/<NAME>/standalone/g" compile.daint.slurm
+sed -i "s/<NTASKS>/$ranks/g" compile.daint.slurm
+sed -i "s/<NTASKSPERNODE>/1/g" compile.daint.slurm
+sed -i "s/<CPUSPERTASK>/$NTHREADS/g" compile.daint.slurm
+sed -i "s/<OUTFILE>/compile.daint.out\n--hint=nomultithread/g" compile.daint.slurm
+sed -i "s/00:45:00/03:30:00/g" compile.daint.slurm
+sed -i "s/cscsci/normal/g" compile.daint.slurm
+sed -i "s/<G2G>/export CRAY_CUDA_MPS=1/g" compile.daint.slurm
 sed -i "s#<CMD>#export PYTHONOPTIMIZE=TRUE\nexport PYTHONPATH=/project/s1053/install/serialbox2_master/gnu/python:\$PYTHONPATH\nsrun python examples/standalone/runfile/dynamics.py $data_path 1 $backend $githash --disable_halo_exchange#g" compile.daint.slurm
 # execute on a gpu node
-rm -f slurm-*.out
 set +e
 res=$(sbatch -W -C gpu compile.daint.slurm 2>&1)
 status1=$?
-grep -q SUCCESS slurm-*.out
+grep -q SUCCESS compile.daint.out
 status2=$?
 set -e
 wait
 echo "DONE WAITING ${status1} ${status2}"
 if [ $status1 -ne 0 -o $status2 -ne 0 ] ; then
-    cleanupFailedJob "${res}"
+    cleanupFailedJob "${res}" compile.daint.out
     echo "ERROR: compilation step failed"
     exit 1
 else
     echo "compilation step finished"
 fi
-mv -f slurm-*.out compile.daint.out
 
 echo "submitting script to do performance run"
 # Adapt batch script to run the code:
-sed -i s/\<NAME\>/standalone/g run.daint.slurm
-sed -i s/\<NTASKS\>/$ranks/g run.daint.slurm
-sed -i s/\<NTASKSPERNODE\>/1/g run.daint.slurm
-sed -i s/\<CPUSPERTASK\>/$NTHREADS/g run.daint.slurm
-sed -i s/--output=\<OUTFILE\>/--hint=nomultithread/g run.daint.slurm
-sed -i s/00:45:00/00:40:00/g run.daint.slurm
-sed -i s/cscsci/normal/g run.daint.slurm
-sed -i s/\<G2G\>//g run.daint.slurm
+sed -i "s/<NAME>/standalone/g" run.daint.slurm
+sed -i "s/<NTASKS>/$ranks/g" run.daint.slurm
+sed -i "s/<NTASKSPERNODE>/1/g" run.daint.slurm
+sed -i "s/<CPUSPERTASK>/$NTHREADS/g" run.daint.slurm
+sed -i "s/<OUTFILE>/run.daint.out\n--hint=nomultithread/g" run.daint.slurm
+sed -i "s/00:45:00/00:40:00/g" run.daint.slurm
+sed -i "s/cscsci/normal/g" run.daint.slurm
+sed -i "s/<G2G>//g" run.daint.slurm
 sed -i "s#<CMD>#export PYTHONOPTIMIZE=TRUE\nexport PYTHONPATH=/project/s1053/install/serialbox2_master/gnu/python:\$PYTHONPATH\nsrun python $py_args examples/standalone/runfile/dynamics.py $data_path $timesteps $backend $githash $run_args#g" run.daint.slurm
 # execute on a gpu node
-rm -f slurm-*.out
 set +e
 res=$(sbatch -W -C gpu run.daint.slurm 2>&1)
 status1=$?
-grep -q SUCCESS slurm-*.out
+grep -q SUCCESS run.daint.out
 status2=$?
 set -e
 wait
 echo "DONE WAITING ${status1} ${status2}"
 if [ $status1 -ne 0 -o $status2 -ne 0 ] ; then
-    cleanupFailedJob "${res}"
+    cleanupFailedJob "${res}" run.daint.out
     echo "ERROR: performance run not sucessful"
     exit 1
 else
     echo "performance run sucessful"
 fi
-mv -f slurm-*.out run.daint.out

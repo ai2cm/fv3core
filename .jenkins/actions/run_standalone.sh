@@ -3,6 +3,12 @@
 # Jenkins action to run a benchmark of dynamics.py on Piz Daint
 # 3/11/2021, Tobias Wicky, Vulcan Inc
 
+# Syntax:
+# .jenkins/action/run_standlone.sh <option>
+
+## Arguments:
+# $1: <option> which can be either empty, "profile" or "build_cache"
+
 # stop on all errors and echo commands
 set -e
 
