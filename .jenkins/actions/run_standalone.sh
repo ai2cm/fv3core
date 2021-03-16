@@ -94,12 +94,13 @@ if [ "${SAVE_CACHE}" == "true" ] ; then
     echo "Copying GT4Py cache directories to ${CACHE_DIR}"
     mkdir -p ${CACHE_DIR}
     rm -rf ${CACHE_DIR}/.gt_cache*
-    mv .gt_cache* ${CACHE_DIR}/
+    cp -rp .gt_cache* ${CACHE_DIR}/
 fi
 rm -rf .gt_cache*
 
 # run analysis and store profiling artifacts
 if [ "${DO_PROFILE}" == "true" ] ; then
+    echo "Analyzing profiling results"
     ${BENCHMARK_DIR}/process_profiling.sh
     echo "Copying profiling information to ${ARTIFACT_DIR}"
     cp $ROOT_DIR/*.prof ${ARTIFACT_DIR}/

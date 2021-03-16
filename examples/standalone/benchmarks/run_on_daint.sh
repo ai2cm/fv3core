@@ -112,6 +112,7 @@ sed -i s/\<G2G\>/export\ CRAY_CUDA_MPS=1/g compile.daint.slurm
 sed -i "s#<CMD>#export PYTHONPATH=/project/s1053/install/serialbox2_master/gnu/python:\$PYTHONPATH\nsrun python examples/standalone/runfile/dynamics.py $data_path 1 $backend $githash --disable_halo_exchange#g" compile.daint.slurm
 
 # execute on a gpu node
+rm -f slurm-*.out
 sbatch -W -C gpu compile.daint.slurm
 wait
 if grep -q SUCCESS slurm-*.out; then
