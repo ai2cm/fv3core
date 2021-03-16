@@ -3,7 +3,7 @@ import inspect
 import logging
 import math
 from functools import wraps
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, Hashable, List, Optional, Tuple, Union
 
 import gt4py as gt
 import gt4py.storage as gt_storage
@@ -263,10 +263,14 @@ def make_storage_from_shape_uncached(
 storage_shape_outputs = {}
 
 
-@wraps(make_storage_from_shape_uncached)
 def make_storage_from_shape(
-    *args,
-    **kwargs,
+    shape: Tuple[int, int, int],
+    origin: Tuple[int, int, int] = origin,
+    *,
+    dtype: DTypes = np.float64,
+    init: bool = False,
+    mask: Optional[Tuple[bool, bool, bool]] = None,
+    cache_key: Optional[Hashable] = None,
 ) -> Field:
     """Create a new gt4py storage of a given shape. Outputs are memoized.
 
@@ -308,19 +312,22 @@ def make_storage_from_shape(
     # changes.
     # We should shift to an explicit caching or array re-use system down
     # the line.
-    callers = tuple(
-        # only need to look at the calling scope and its calling scope
-        # because we don't have any utility functions that call utility
-        # functions that call this function (only nested 1 deep)
-        inspect.getframeinfo(stack_item[0])
-        for stack_item in inspect.stack()[1:3]
-    )
-    caller_signature = tuple((caller.filename, caller.lineno) for caller in callers)
-    key = (args, caller_signature, tuple(sorted(list(kwargs.items()))))
-    if key not in storage_shape_outputs:
-        storage_shape_outputs[key] = make_storage_from_shape_uncached(*args, **kwargs)
-    return_value = storage_shape_outputs[key]
-    if kwargs.get("init", False):
+    if cache_key is None:
+        callers = tuple(
+            # only need to look at the calling scope and its calling scope
+            # because we don't have any utility functions that call utility
+            # functions that call this function (only nested 1 deep)
+            inspect.getframeinfo(stack_item[0])
+            for stack_item in inspect.stack()[1:3]
+        )
+        cache_key = tuple((caller.filename, caller.lineno) for caller in callers)
+    full_key = (shape, origin, cache_key, dtype, init, mask)
+    if full_key not in storage_shape_outputs:
+        storage_shape_outputs[full_key] = make_storage_from_shape_uncached(
+            shape, origin, dtype=dtype, init=init, mask=mask
+        )
+    return_value = storage_shape_outputs[full_key]
+    if init:
         return_value[:] = 0.0
     return return_value
 
