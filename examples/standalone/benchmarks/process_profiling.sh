@@ -3,14 +3,14 @@
 SCRIPT=`realpath $0`
 SCRIPT_DIR=`dirname $SCRIPT`
 ROOT_DIR="$(dirname "$(dirname "$(dirname "$SCRIPT_DIR")")")"
+VENV=/project/s1053/install/venv/vcm_1.0
 
 # activate Python environment
-venv="$ROOT_DIR/venv"
-if [ ! -f "${venv}/bin/activate" ] ; then
-  echo "ERROR: problem with ${venv} could not find ${venv}/bin/activate"
+if [ ! -f "${VENV}/bin/activate" ] ; then
+  echo "ERROR: problem with ${VENV} could not find ${VENV}/bin/activate"
   exit 1
 fi
-source ${venv}/bin/activate
+source ${VENV}/bin/activate
 
 # generate simple profile listing
 cat > ./profile.py <<EOF
