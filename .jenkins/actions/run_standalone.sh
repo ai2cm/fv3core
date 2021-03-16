@@ -34,11 +34,11 @@ fi
 SCRIPT=`realpath $0`
 SCRIPTPATH=`dirname $SCRIPT`
 ROOT_DIR="$(dirname "$(dirname "$SCRIPTPATH")")"
-FORTRAN_SERIALIZED_DATA_VERSION=7.2.5
+DATA_VERSION=`grep 'FORTRAN_SERIALIZED_DATA_VERSION *=' ${ROOT_DIR}/Makefile | cut -d '=' -f 2`
 TIMESTEPS=2
 RANKS=6
 BENCHMARK_DIR=${ROOT_DIR}/examples/standalone/benchmarks
-DATA_DIR="/project/s1053/fv3core_serialized_test_data/${FORTRAN_SERIALIZED_DATA_VERSION}/${experiment}"
+DATA_DIR="/project/s1053/fv3core_serialized_test_data/${DATA_VERSION}/${experiment}"
 ARTIFACT_DIR="/project/s1053/performance/fv3core_monitor/${backend}"
 CACHE_DIR="/scratch/snx3000/olifu/jenkins/scratch/store_gt_caches/${experiment}/${backend}"
 
@@ -64,7 +64,7 @@ echo "Save timings:         ${SAVE_TIMINGS}"
 echo "Root directory:       ${ROOT_DIR}"
 echo "Experiment:           ${experiment}"
 echo "Backend:              ${backend}"
-echo "Fortran data version: ${FORTRAN_SERIALIZED_DATA_VERSION}"
+echo "Data version:         ${DATA_VERSION}"
 echo "Timesteps:            ${TIMESTEPS}"
 echo "Ranks:                ${RANKS}"
 echo "Benchmark directory:  ${BENCHMARK_DIR}"
@@ -77,9 +77,9 @@ echo "=== Running standalone ========================="
 if [ "${DO_PROFILE}" == "true" ] ; then
     profile="--profile"
 fi
-cmd="${BENCHMARK_DIR}/run_on_daint.sh ${TIMESTEPS} ${RANKS} ${backend} ${DATA_DIR} '' '${profile}'"
-echo "Run command: ${cmd}"
-${cmd}
+cmd="${BENCHMARK_DIR}/run_on_daint.sh ${TIMESTEPS} ${RANKS} ${backend} ${DATA_DIR}"
+echo "Run command: ${cmd} \"\" \"${profile}\""
+${cmd} "" "${profile}"
 
 echo "=== Post-processing ============================"
 

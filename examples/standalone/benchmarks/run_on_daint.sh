@@ -113,13 +113,18 @@ sed -i "s#<CMD>#export PYTHONPATH=/project/s1053/install/serialbox2_master/gnu/p
 
 # execute on a gpu node
 rm -f slurm-*.out
+set +e
 sbatch -W -C gpu compile.daint.slurm
+status1=$?
+grep -q SUCCESS slurm-*.out
+status2=$?
+set -e
 wait
-if grep -q SUCCESS slurm-*.out; then
-    echo "compilation step finished"
-else
+if [ $status1 -ne 0 -o $status2 -ne 0 ] ; then
     echo "ERROR: compilation step failed"
     exit 1
+else
+    echo "compilation step finished"
 fi
 mv -f slurm-*.out compile.daint.out
 
@@ -136,12 +141,18 @@ sed -i s/\<G2G\>//g run.daint.slurm
 sed -i "s#<CMD>#export PYTHONPATH=/project/s1053/install/serialbox2_master/gnu/python:\$PYTHONPATH\nsrun python $py_args examples/standalone/runfile/dynamics.py $data_path $timesteps $backend $githash $run_args#g" run.daint.slurm
 
 # execute on a gpu node
+rm -f slurm-*.out
+set +e
 sbatch -W -C gpu run.daint.slurm
+status1=$?
+grep -q SUCCESS slurm-*.out
+status2=$?
+set -e
 wait
-if grep -q SUCCESS slurm-*.out; then
-    echo "performance run sucessful"
-else
+if [ $status1 -ne 0 -o $status2 -ne 0 ] ; then
     echo "ERROR: performance run not sucessful"
     exit 1
+else
+    echo "performance run sucessful"
 fi
-mv -f slurm-*.out compile.daint.out
+mv -f slurm-*.out run.daint.out
