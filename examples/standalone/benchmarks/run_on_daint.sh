@@ -15,7 +15,14 @@
 # stop on all errors
 set -e
 
-exitError()
+# configuration
+SCRIPT=`realpath $0`
+SCRIPT_DIR=`dirname $SCRIPT`
+ROOT_DIR="$(dirname "$(dirname "$(dirname "$SCRIPT_DIR")")")"
+NTHREADS=12
+
+# utility functions
+function exitError()
 {
     echo "ERROR $1: $3" 1>&2
     echo "ERROR     LOCATION=$0" 1>&2
@@ -23,11 +30,31 @@ exitError()
     exit $1
 }
 
-# configuration
-SCRIPT=`realpath $0`
-SCRIPT_DIR=`dirname $SCRIPT`
-ROOT_DIR="$(dirname "$(dirname "$(dirname "$SCRIPT_DIR")")")"
-NTHREADS=12
+function cleanupFailedJob {
+    res=$1
+    jobid=`echo "${res}" | sed  's/^Submitted batch job //g'`
+    test -n "${jobid}" || exitError 7207 ${LINENO} "problem determining job ID of SLURM job"
+    echo "jobid:" ${jobid}
+    status=`sacct --jobs ${jobid} -X -p -n -b -D `
+    while [[ $status == *"COMPLETING"* ]]; do
+        if [ $timeout -lt 120 ]; then
+	    status=`sacct --jobs ${jobid} -p -n -b -D `
+	    sleep 30
+	    timeout=$timeout + 30
+        else
+            exitError 1004 ${LINENO} "problem waiting for job ${jobid} to complete"
+        fi
+    done
+    if [[ ! $status == *"COMPLETED"* ]]; then
+        echo ${status}
+        echo `cat slurm*`
+        rm -rf .gt_cache_0000*
+        pip list
+        deactivate
+        rm -rf venv
+        exitError 1003 ${LINENO} "problem in slurm job"
+    fi
+}
 
 # check sanity of environment
 test -n "$1" || exitError 1001 ${LINENO} "must pass a number of timesteps"
@@ -94,8 +121,8 @@ sample_cache=.gt_cache_000000
 if [ ! -d $(pwd)/${sample_cache} ] ; then
     premade_caches=/scratch/snx3000/olifu/jenkins/scratch/store_gt_caches/$experiment/$backend
     if [ -d ${premade_caches}/${sample_cache} ] ; then
-	cp -r ${premade_caches}/.gt_cache_0000* .
-	find . -name m_\*.py -exec sed -i "s|\/scratch\/snx3000\/olifu\/jenkins_submit\/workspace\/fv3core-cache-setup\/backend\/$backend\/experiment\/$experiment\/slave\/daint_submit|$(pwd)|g" {} +
+        cp -r ${premade_caches}/.gt_cache_0000* .
+        find . -name m_\*.py -exec sed -i "s|\/scratch\/snx3000\/olifu\/jenkins_submit\/workspace\/fv3core-cache-setup\/backend\/$backend\/experiment\/$experiment\/slave\/daint_submit|$(pwd)|g" {} +
     fi
 fi
 
@@ -109,18 +136,19 @@ sed -i s/--output=\<OUTFILE\>/--hint=nomultithread/g compile.daint.slurm
 sed -i s/00:45:00/03:30:00/g compile.daint.slurm
 sed -i s/cscsci/normal/g compile.daint.slurm
 sed -i s/\<G2G\>/export\ CRAY_CUDA_MPS=1/g compile.daint.slurm
-sed -i "s#<CMD>#export PYTHONPATH=/project/s1053/install/serialbox2_master/gnu/python:\$PYTHONPATH\nsrun python examples/standalone/runfile/dynamics.py $data_path 1 $backend $githash --disable_halo_exchange#g" compile.daint.slurm
-
+sed -i "s#<CMD>#export PYTHONOPTIMIZE=TRUE\nexport PYTHONPATH=/project/s1053/install/serialbox2_master/gnu/python:\$PYTHONPATH\nsrun python examples/standalone/runfile/dynamics.py $data_path 1 $backend $githash --disable_halo_exchange#g" compile.daint.slurm
 # execute on a gpu node
 rm -f slurm-*.out
 set +e
-sbatch -W -C gpu compile.daint.slurm
+res=$(sbatch -W -C gpu compile.daint.slurm 2>&1)
 status1=$?
 grep -q SUCCESS slurm-*.out
 status2=$?
 set -e
 wait
+echo "DONE WAITING ${status1} ${status2}"
 if [ $status1 -ne 0 -o $status2 -ne 0 ] ; then
+    cleanupFailedJob "${res}"
     echo "ERROR: compilation step failed"
     exit 1
 else
@@ -138,18 +166,19 @@ sed -i s/--output=\<OUTFILE\>/--hint=nomultithread/g run.daint.slurm
 sed -i s/00:45:00/00:40:00/g run.daint.slurm
 sed -i s/cscsci/normal/g run.daint.slurm
 sed -i s/\<G2G\>//g run.daint.slurm
-sed -i "s#<CMD>#export PYTHONPATH=/project/s1053/install/serialbox2_master/gnu/python:\$PYTHONPATH\nsrun python $py_args examples/standalone/runfile/dynamics.py $data_path $timesteps $backend $githash $run_args#g" run.daint.slurm
-
+sed -i "s#<CMD>#export PYTHONOPTIMIZE=TRUE\nexport PYTHONPATH=/project/s1053/install/serialbox2_master/gnu/python:\$PYTHONPATH\nsrun python $py_args examples/standalone/runfile/dynamics.py $data_path $timesteps $backend $githash $run_args#g" run.daint.slurm
 # execute on a gpu node
 rm -f slurm-*.out
 set +e
-sbatch -W -C gpu run.daint.slurm
+res=$(sbatch -W -C gpu run.daint.slurm 2>&1)
 status1=$?
 grep -q SUCCESS slurm-*.out
 status2=$?
 set -e
 wait
+echo "DONE WAITING ${status1} ${status2}"
 if [ $status1 -ne 0 -o $status2 -ne 0 ] ; then
+    cleanupFailedJob "${res}"
     echo "ERROR: performance run not sucessful"
     exit 1
 else
