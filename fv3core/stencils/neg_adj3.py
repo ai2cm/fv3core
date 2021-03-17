@@ -103,11 +103,11 @@ def fix_neg_values(
     qsnow: FloatField,
     qice: FloatField,
     qgraupel: FloatField,
-    sum1 : FloatFieldIJ,
-    sum2 : FloatFieldIJ,
-    upper_fix : FloatField,
-    lower_fix : FloatField,
-    qcld : FloatField,
+    sum1: FloatFieldIJ,
+    sum2: FloatFieldIJ,
+    upper_fix: FloatField,
+    lower_fix: FloatField,
+    qcld: FloatField,
     lv00: float,
     d0_vap: float,
 ):
@@ -316,9 +316,6 @@ def compute(qvapor, qliquid, qrain, qsnow, qice, qgraupel, qcld, pt, delp, delz,
         peln: Logarithm of interface pressure (in)
     """
     grid = spec.grid
-    i_ext = grid.domain_shape_compute()[0]
-    j_ext = grid.domain_shape_compute()[1]
-    k_ext = grid.domain_shape_compute()[2]
 
     shape_ij = qgraupel.shape[0:2]
     sum1 = utils.make_storage_from_shape(shape_ij, origin=(0, 0))
@@ -333,7 +330,7 @@ def compute(qvapor, qliquid, qrain, qsnow, qice, qgraupel, qcld, pt, delp, delz,
     else:
         d0_vap = constants.CV_VAP - constants.C_LIQ
     lv00 = constants.HLV - d0_vap * constants.TICE
-    
+
     fix_neg_values(
         pt,
         delp,
