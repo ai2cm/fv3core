@@ -1,12 +1,11 @@
 import fv3core.stencils.fvtp2d as fvtp2d
 import fv3core.utils.gt4py_utils as utils
 from fv3core.testing import TranslateFortranData2Py
-
+import fv3core._config as spec
 
 class TranslateFvTp2d(TranslateFortranData2Py):
     def __init__(self, grid):
         super().__init__(grid)
-        self.compute_func = fvtp2d.compute_no_sg
         self.in_vars["data_vars"] = {
             "q": {},
             "mass": {},
@@ -40,6 +39,10 @@ class TranslateFvTp2d(TranslateFortranData2Py):
         for optional_arg in ["mass", "mfx", "mfy"]:
             if optional_arg not in inputs:
                 inputs[optional_arg] = None
+        fvtp2d_obj = fvtp2d.FvTp2d(spec.namelist, int(inputs["hord"]))
+        del inputs["hord"]
+        self.compute_func = fvtp2d_obj.__call__
+        self.in_vars["parameters"] = []
         return self.column_split_compute(
             inputs, {"nord": "nord_column", "damp_c": "damp_c"}
         )
