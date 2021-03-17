@@ -43,10 +43,11 @@ class FvTp2d:
         self.fy2 = utils.make_storage_from_shape(shape, origin)
         self.ord_ou = hord
         self.ord_in = 8 if hord == 10 else hord
-        decorator = gtscript.stencil( backend=global_config.get_backend(), rebuild=global_config.get_rebuild())
-        self.q_i_stencil = decorator(q_i_stencil)
-        self.q_j_stencil = decorator(q_j_stencil)
-        self.transport_flux_stencil = decorator(transport_flux)
+        stencil_kwargs = {'backend':global_config.get_backend(), 'rebuild': global_config.get_rebuild()}
+        stencil_wrapper = gtscript.stencil(**stencil_kwargs)
+        self.q_i_stencil = stencil_wrapper(q_i_stencil)
+        self.q_j_stencil = stencil_wrapper(q_j_stencil)
+        self.transport_flux_stencil = stencil_wrapper(transport_flux)
         #self.xppm_ordin = XPPM(namelist, iord=self.ord_in)
         #self.xppm_ordin = XPPM(namelist, iord=self.ord_ou)
         #self.yppm = YPPM()
