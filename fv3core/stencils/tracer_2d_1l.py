@@ -240,7 +240,7 @@ def compute(comm, tracers, dp1, mfxd, mfyd, cxd, cyd, mdt, nq):
         origin=grid.full_origin(),
         domain=grid.domain_shape_full(),
     )
-
+    fvtp2d_obj=fvtp2d.FvTp2d(spec.namelist, spec.namelist.hord_tr)
     # TODO: Revisit: the loops over q and nsplt have two inefficient options
     # duplicating storages/stencil calls, return to this, maybe you have more
     # options now, or maybe the one chosen here is the worse one.
@@ -274,11 +274,10 @@ def compute(comm, tracers, dp1, mfxd, mfyd, cxd, cyd, mdt, nq):
                 domain=grid.domain_shape_compute(),
             )
             if nsplt != 1:
-                fvtp2d.compute_no_sg(
+                fvtp2d_obj.__call__(
                     qn2.storage,
                     cxd,
                     cyd,
-                    spec.namelist.hord_tr,
                     xfx,
                     yfx,
                     ra_x,
@@ -303,11 +302,10 @@ def compute(comm, tracers, dp1, mfxd, mfyd, cxd, cyd, mdt, nq):
                     domain=grid.domain_shape_compute(),
                 )
             else:
-                fvtp2d.compute_no_sg(
+                fvtp2d_obj.__call__(
                     q.storage,
                     cxd,
                     cyd,
-                    spec.namelist.hord_tr,
                     xfx,
                     yfx,
                     ra_x,
