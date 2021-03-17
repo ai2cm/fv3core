@@ -93,29 +93,7 @@ def fix_negative_liq(qvapor, qice, qsnow, qgraupel, qrain, qliquid, pt, lcpk, ic
 
 
 @gtstencil()
-def fillq(q: FloatField, dp: FloatField, sum1: FloatFieldIJ, sum2: FloatFieldIJ):
-    with computation(FORWARD), interval(...):
-        # reset accumulating fields
-        sum1 = 0.0
-        sum2 = 0.0
-    with computation(FORWARD), interval(...):
-        if q > 0:
-            sum1 = sum1 + q * dp
-    with computation(BACKWARD), interval(...):
-        if q < 0.0 and sum1 >= 0:
-            dq = sum1 if sum1 < -q * dp else -q * dp
-            sum1 = sum1 - dq
-            sum2 = sum2 + dq
-            q = q + dq / dp
-    with computation(BACKWARD), interval(...):
-        if q > 0.0 and sum1 >= 1e-12 and sum2 > 0:
-            dq = sum2 if sum2 < q * dp else q * dp
-            sum2 = sum2 - dq
-            q = q - dq / dp
-
-
-@gtstencil()
-def fix_neg_water(
+def fix_neg_values(
     pt: FloatField,
     dp: FloatField,
     delz: FloatField,
@@ -125,6 +103,11 @@ def fix_neg_water(
     qsnow: FloatField,
     qice: FloatField,
     qgraupel: FloatField,
+    sum1 : FloatFieldIJ,
+    sum2 : FloatFieldIJ,
+    upper_fix : FloatField,
+    lower_fix : FloatField,
+    qcld : FloatField,
     lv00: float,
     d0_vap: float,
 ):
@@ -149,9 +132,98 @@ def fix_neg_water(
         # Fast moist physics: Saturation adjustment
         # no GFS_PHYS compiler flag -- additional saturation adjustment calculations!
 
+    # fillq : qgraupel
+    with computation(FORWARD), interval(...):
+        # reset accumulating fields
+        sum1 = 0.0
+        sum2 = 0.0
+    with computation(FORWARD), interval(...):
+        if qgraupel > 0:
+            sum1 = sum1 + qgraupel * dp
+    with computation(BACKWARD), interval(...):
+        if qgraupel < 0.0 and sum1 >= 0:
+            dq = sum1 if sum1 < -qgraupel * dp else -qgraupel * dp
+            sum1 = sum1 - dq
+            sum2 = sum2 + dq
+            qgraupel = qgraupel + dq / dp
+    with computation(BACKWARD), interval(...):
+        if qgraupel > 0.0 and sum1 >= 1e-12 and sum2 > 0:
+            dq = sum2 if sum2 < qgraupel * dp else qgraupel * dp
+            sum2 = sum2 - dq
+            qgraupel = qgraupel - dq / dp
 
-@gtstencil()
-def fix_neg_cloud(dp: FloatField, qcld: FloatField):
+    # fillq  : qrain
+    with computation(FORWARD), interval(...):
+        # reset accumulating fields
+        sum1 = 0.0
+        sum2 = 0.0
+    with computation(FORWARD), interval(...):
+        if qrain > 0:
+            sum1 = sum1 + qrain * dp
+    with computation(BACKWARD), interval(...):
+        if qrain < 0.0 and sum1 >= 0:
+            dq = sum1 if sum1 < -qrain * dp else -qrain * dp
+            sum1 = sum1 - dq
+            sum2 = sum2 + dq
+            qrain = qrain + dq / dp
+    with computation(BACKWARD), interval(...):
+        if qrain > 0.0 and sum1 >= 1e-12 and sum2 > 0:
+            dq = sum2 if sum2 < qrain * dp else qrain * dp
+            sum2 = sum2 - dq
+            qrain = qrain - dq / dp
+
+    # fix_water_vapor_down
+    with computation(PARALLEL):
+        with interval(...):
+            upper_fix = 0.0
+            lower_fix = 0.0
+        with interval(0, 1):
+            qvapor = qvapor if qvapor >= 0 else 0
+        with interval(1, 2):
+            if qvapor[0, 0, -1] < 0:
+                qvapor = qvapor + qvapor[0, 0, -1] * dp[0, 0, -1] / dp
+    with computation(FORWARD), interval(1, -1):
+        dq = qvapor[0, 0, -1] * dp[0, 0, -1]
+        if lower_fix[0, 0, -1] != 0:
+            qvapor = qvapor + lower_fix[0, 0, -1] / dp
+        if (qvapor < 0) and (qvapor[0, 0, -1] > 0):
+            dq = dq if dq < -qvapor * dp else -qvapor * dp
+            upper_fix = dq
+            qvapor = qvapor + dq / dp
+        if qvapor < 0:
+            lower_fix = qvapor * dp
+            qvapor = 0
+    with computation(PARALLEL), interval(0, -2):
+        if upper_fix[0, 0, 1] != 0:
+            qvapor = qvapor - upper_fix[0, 0, 1] / dp
+    with computation(PARALLEL), interval(-1, None):
+        if lower_fix[0, 0, -1] > 0:
+            qvapor = qvapor + lower_fix / dp
+        # Here we're re-using upper_fix to represent the current version of
+        # qvapor[k_bot] fixed from above. We could also re-use lower_fix instead of
+        # dp_bot, but that's probably over-optimized for now
+        upper_fix = qvapor
+        # If we didn't have to worry about float valitation and negative column
+        # mass we could set qvapor[k_bot] to 0 here...
+        dp_bot = dp[0, 0, 0]
+    with computation(BACKWARD), interval(0, -1):
+        dq = qvapor * dp
+        if (upper_fix[0, 0, 1] < 0) and (qvapor > 0):
+            dq = (
+                dq
+                if dq < -upper_fix[0, 0, 1] * dp_bot
+                else -upper_fix[0, 0, 1] * dp_bot
+            )
+            qvapor = qvapor - dq / dp
+            upper_fix = upper_fix[0, 0, 1] + dq / dp_bot
+        else:
+            upper_fix = upper_fix[0, 0, 1]
+    with computation(FORWARD), interval(1, None):
+        upper_fix = upper_fix[0, 0, -1]
+    with computation(PARALLEL), interval(-1, None):
+        qvapor[0, 0, 0] = upper_fix[0, 0, 0]
+
+    # fix_neg_cloud
     with computation(FORWARD), interval(1, -1):
         if qcld[0, 0, -1] < 0.0:
             qcld = qcld + qcld[0, 0, -1] * dp[0, 0, -1] / dp
@@ -227,62 +299,6 @@ def fix_water_vapor_k_loop(i, j, kbot, qvapor, dp):
             qvapor[i, j, kbot] = qvapor[i, j, kbot] + dq / dp[i, j, kbot]
 
 
-# Stencil version
-@gtstencil()
-def fix_water_vapor_down(
-    qvapor: FloatField, dp: FloatField, upper_fix: FloatField, lower_fix: FloatField
-):
-    with computation(PARALLEL):
-        with interval(...):
-            upper_fix = 0.0
-            lower_fix = 0.0
-        with interval(0, 1):
-            qvapor = qvapor if qvapor >= 0 else 0
-        with interval(1, 2):
-            if qvapor[0, 0, -1] < 0:
-                qvapor = qvapor + qvapor[0, 0, -1] * dp[0, 0, -1] / dp
-    with computation(FORWARD), interval(1, -1):
-        dq = qvapor[0, 0, -1] * dp[0, 0, -1]
-        if lower_fix[0, 0, -1] != 0:
-            qvapor = qvapor + lower_fix[0, 0, -1] / dp
-        if (qvapor < 0) and (qvapor[0, 0, -1] > 0):
-            dq = dq if dq < -qvapor * dp else -qvapor * dp
-            upper_fix = dq
-            qvapor = qvapor + dq / dp
-        if qvapor < 0:
-            lower_fix = qvapor * dp
-            qvapor = 0
-    with computation(PARALLEL), interval(0, -2):
-        if upper_fix[0, 0, 1] != 0:
-            qvapor = qvapor - upper_fix[0, 0, 1] / dp
-    with computation(PARALLEL), interval(-1, None):
-        if lower_fix[0, 0, -1] > 0:
-            qvapor = qvapor + lower_fix / dp
-        # Here we're re-using upper_fix to represent the current version of
-        # qvapor[k_bot] fixed from above. We could also re-use lower_fix instead of
-        # dp_bot, but that's probably over-optimized for now
-        upper_fix = qvapor
-        # If we didn't have to worry about float valitation and negative column
-        # mass we could set qvapor[k_bot] to 0 here...
-        dp_bot = dp[0, 0, 0]
-    with computation(BACKWARD), interval(0, -1):
-        dq = qvapor * dp
-        if (upper_fix[0, 0, 1] < 0) and (qvapor > 0):
-            dq = (
-                dq
-                if dq < -upper_fix[0, 0, 1] * dp_bot
-                else -upper_fix[0, 0, 1] * dp_bot
-            )
-            qvapor = qvapor - dq / dp
-            upper_fix = upper_fix[0, 0, 1] + dq / dp_bot
-        else:
-            upper_fix = upper_fix[0, 0, 1]
-    with computation(FORWARD), interval(1, None):
-        upper_fix = upper_fix[0, 0, -1]
-    with computation(PARALLEL), interval(-1, None):
-        qvapor[0, 0, 0] = upper_fix[0, 0, 0]
-
-
 def compute(qvapor, qliquid, qrain, qsnow, qice, qgraupel, qcld, pt, delp, delz, peln):
     """
     Adjust tracer mixing ratios to fix negative values
@@ -317,7 +333,8 @@ def compute(qvapor, qliquid, qrain, qsnow, qice, qgraupel, qcld, pt, delp, delz,
     else:
         d0_vap = constants.CV_VAP - constants.C_LIQ
     lv00 = constants.HLV - d0_vap * constants.TICE
-    fix_neg_water(
+    
+    fix_neg_values(
         pt,
         delp,
         delz,
@@ -327,37 +344,13 @@ def compute(qvapor, qliquid, qrain, qsnow, qice, qgraupel, qcld, pt, delp, delz,
         qsnow,
         qice,
         qgraupel,
+        sum1,
+        sum2,
+        upper_fix,
+        lower_fix,
+        qcld,
         lv00,
         d0_vap,
         origin=grid.compute_origin(),
         domain=grid.domain_shape_compute(),
-    )
-    fillq(
-        qgraupel,
-        delp,
-        sum1,
-        sum2,
-        origin=grid.compute_origin(),
-        domain=grid.domain_shape_compute(),
-    )
-    fillq(
-        qrain,
-        delp,
-        sum1,
-        sum2,
-        origin=grid.compute_origin(),
-        domain=grid.domain_shape_compute(),
-    )
-
-    fix_water_vapor_down(
-        qvapor,
-        delp,
-        upper_fix,
-        lower_fix,
-        origin=grid.compute_origin(),
-        domain=grid.domain_shape_compute(),
-    )
-
-    fix_neg_cloud(
-        delp, qcld, origin=grid.compute_origin(), domain=grid.domain_shape_compute()
     )
