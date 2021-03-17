@@ -111,6 +111,7 @@ def fix_neg_values(
     lv00: float,
     d0_vap: float,
 ):
+    #fix_neg_water
     with computation(PARALLEL), interval(...):
         q_liq = 0.0 if 0.0 > qliquid + qrain else qliquid + qrain
         q_sol = 0.0 if 0.0 > qice + qsnow else qice + qsnow
@@ -152,7 +153,7 @@ def fix_neg_values(
             sum2 = sum2 - dq
             qgraupel = qgraupel - dq / dp
 
-    # fillq  : qrain
+    # fillq : qrain
     with computation(FORWARD), interval(...):
         # reset accumulating fields
         sum1 = 0.0
@@ -179,9 +180,6 @@ def fix_neg_values(
             lower_fix = 0.0
         with interval(0, 1):
             qvapor = qvapor if qvapor >= 0 else 0
-        with interval(1, 2):
-            if qvapor[0, 0, -1] < 0:
-                qvapor = qvapor + qvapor[0, 0, -1] * dp[0, 0, -1] / dp
     with computation(FORWARD), interval(1, -1):
         dq = qvapor[0, 0, -1] * dp[0, 0, -1]
         if lower_fix[0, 0, -1] != 0:
