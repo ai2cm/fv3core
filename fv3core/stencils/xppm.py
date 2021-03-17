@@ -15,6 +15,7 @@ from fv3core.decorators import gtstencil
 from fv3core.stencils import yppm
 from fv3core.stencils.basic_operations import sign
 from fv3core.utils.typing import FloatField
+import fv3core.utils.global_config as global_config
 
 
 @gtscript.function
@@ -311,48 +312,53 @@ def _compute_flux_stencil(
             bl, br = compute_blbr_ord8plus(q, dxa)
             xflux = get_flux_ord8plus(q, courant, bl, br)
 
+class XPPM:
+    def __init__(self, namelist, iord):
+        shape = spec.grid.domain_shape_full(add=(1, 1, 1))
+        origin = spec.grid.compute_origin()
+        self.compute_flux_stencil = gtscript.stencil(
+            definition=_compute_flux_stencil,
+            externals={
+                "iord": iord,
+                "mord": abs(iord),
+                "xt_minmax": True,
+            },
+            backend=global_config.get_backend(), 
+            rebuild=global_config.get_rebuild()
+        )
 
-def compute_flux(
-    q: FloatField,
-    c: FloatField,
-    xflux: FloatField,
-    iord: int,
-    jfirst: int,
-    jlast: int,
-    kstart: int = 0,
-    nk: Optional[int] = None,
-):
-    """
-    Compute x-flux using the PPM method.
+    def __call__(self,
+        q: FloatField,
+        c: FloatField,
+        xflux: FloatField,
+        jfirst: int,
+        jlast: int,
+        kstart: int = 0,
+        nk: Optional[int] = None,
+    ):
+        """
+        Compute x-flux using the PPM method.
 
-    Args:
-        q (in): Transported scalar
-        c (in): Courant number
-        xflux (out): Flux
-        iord: Method selector
-        jfirst: Starting index of the J-dir compute domain
-        jlast: Final index of the J-dir compute domain
-        kstart: First index of the K-dir compute domain
-        nk: Number of indices in the K-dir compute domain
-    """
-    # Tests: xppm, fvtp2d, tracer2d1l
-    grid = spec.grid
-    if nk is None:
-        nk = spec.grid.npz - kstart
-    stencil = gtstencil(
-        definition=_compute_flux_stencil,
-        externals={
-            "iord": iord,
-            "mord": abs(iord),
-            "xt_minmax": True,
-        },
-    )
-    nj = jlast - jfirst + 1
-    stencil(
-        q,
-        c,
-        grid.dxa,
-        xflux,
-        origin=(grid.is_, jfirst, kstart),
-        domain=(grid.nic + 1, nj, nk),
-    )
+        Args:
+            q (in): Transported scalar
+            c (in): Courant number
+            xflux (out): Flux
+            iord: Method selector
+            jfirst: Starting index of the J-dir compute domain
+            jlast: Final index of the J-dir compute domain
+            kstart: First index of the K-dir compute domain
+            nk: Number of indices in the K-dir compute domain
+        """
+        # Tests: xppm, fvtp2d, tracer2d1l
+        grid = spec.grid
+        if nk is None:
+            nk = spec.grid.npz - kstart
+        nj = jlast - jfirst + 1
+        self.compute_flux_stencil(
+            q,
+            c,
+            grid.dxa,
+            xflux,
+            origin=(grid.is_, jfirst, kstart),
+            domain=(grid.nic + 1, nj, nk),
+        )
