@@ -133,7 +133,7 @@ sed -i "s/<NAME>/standalone/g" compile.daint.slurm
 sed -i "s/<NTASKS>/$ranks/g" compile.daint.slurm
 sed -i "s/<NTASKSPERNODE>/1/g" compile.daint.slurm
 sed -i "s/<CPUSPERTASK>/$NTHREADS/g" compile.daint.slurm
-sed -i "s/<OUTFILE>/compile.daint.out\n--hint=nomultithread/g" compile.daint.slurm
+sed -i "s/<OUTFILE>/compile.daint.out\n#SBATCH --hint=nomultithread/g" compile.daint.slurm
 sed -i "s/00:45:00/03:30:00/g" compile.daint.slurm
 sed -i "s/cscsci/normal/g" compile.daint.slurm
 sed -i "s/<G2G>/export CRAY_CUDA_MPS=1/g" compile.daint.slurm
@@ -161,7 +161,7 @@ sed -i "s/<NAME>/standalone/g" run.daint.slurm
 sed -i "s/<NTASKS>/$ranks/g" run.daint.slurm
 sed -i "s/<NTASKSPERNODE>/1/g" run.daint.slurm
 sed -i "s/<CPUSPERTASK>/$NTHREADS/g" run.daint.slurm
-sed -i "s/<OUTFILE>/run.daint.out\n--hint=nomultithread/g" run.daint.slurm
+sed -i "s/<OUTFILE>/run.daint.out\n#SBATCH --hint=nomultithread/g" run.daint.slurm
 sed -i "s/00:45:00/00:40:00/g" run.daint.slurm
 sed -i "s/cscsci/normal/g" run.daint.slurm
 sed -i "s/<G2G>//g" run.daint.slurm
