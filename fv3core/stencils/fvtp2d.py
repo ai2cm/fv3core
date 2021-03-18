@@ -65,10 +65,10 @@ class FvTp2d:
         self.stenci_q_i = stencil_wrapper(q_i_stencil)
         self.stencil_q_j = stencil_wrapper(q_j_stencil)
         self.stencil_transport_flux = stencil_wrapper(transport_flux)
-        # self.xppm_ordin = XPPM(namelist, iord=ord_in)
-        # self.xppm_ordin = XPPM(namelist, iord=ord_ou)
-        # self.yppm_ordin = YPPM(namelist, iord=ord_in)
-        # self.yppm_ordin = YPPM(namelist, iord=ord_ou)
+        # self.xppm_ord_ou = XPPM(namelist, iord=ord_in)
+        # self.xppm_ord_in = XPPM(namelist, iord=ord_ou)
+        # self.yppm_ord_in = YPPM(namelist, iord=ord_in)
+        # self.yppm_ord_ou = YPPM(namelist, iord=ord_ou)
 
     def __call__(
         self,
