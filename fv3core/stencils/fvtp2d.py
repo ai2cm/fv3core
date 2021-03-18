@@ -51,10 +51,10 @@ class FvTp2d:
     def __init__(self, namelist, hord, cache_key=""):
         shape = spec.grid.domain_shape_full(add=(1, 1, 1))
         origin = spec.grid.compute_origin()
-        self.q_i = utils.make_storage_from_shape(shape, origin)
-        self.q_j = utils.make_storage_from_shape(shape, origin)
-        self.fx2 = utils.make_storage_from_shape(shape, origin)
-        self.fy2 = utils.make_storage_from_shape(shape, origin)
+        self.tmp_q_i = utils.make_storage_from_shape(shape, origin)
+        self.tmp_q_j = utils.make_storage_from_shape(shape, origin)
+        self.tmp_fx2 = utils.make_storage_from_shape(shape, origin)
+        self.tmp_fy2 = utils.make_storage_from_shape(shape, origin)
         self.ord_ou = hord
         self.ord_in = 8 if hord == 10 else hord
         stencil_kwargs = {
@@ -62,14 +62,13 @@ class FvTp2d:
             "rebuild": global_config.get_rebuild(),
         }
         stencil_wrapper = gtscript.stencil(**stencil_kwargs)
-        self.q_i_stencil = stencil_wrapper(q_i_stencil)
-        self.q_j_stencil = stencil_wrapper(q_j_stencil)
-        self.transport_flux_stencil = stencil_wrapper(transport_flux)
-        # self.xppm_ordin = XPPM(namelist, iord=self.ord_in)
-        # self.xppm_ordin = XPPM(namelist, iord=self.ord_ou)
-        # self.yppm = YPPM()
-
-        # hord_tm, hord_tr, hord_dp, hord_vt
+        self.stenci_q_i = stencil_wrapper(q_i_stencil)
+        self.stencil_q_j = stencil_wrapper(q_j_stencil)
+        self.stencil_transport_flux = stencil_wrapper(transport_flux)
+        # self.xppm_ordin = XPPM(namelist, iord=ord_in)
+        # self.xppm_ordin = XPPM(namelist, iord=ord_ou)
+        # self.yppm_ordin = YPPM(namelist, iord=ord_in)
+        # self.yppm_ordin = YPPM(namelist, iord=ord_ou)
 
     def __call__(
         self,
@@ -100,57 +99,57 @@ class FvTp2d:
             q, origin=(grid.isd, grid.jsd, kstart), domain=(grid.nid, grid.njd, nk)
         )
         yppm.compute_flux(
-            q, cry, self.fy2, self.ord_in, grid.isd, grid.ied, kstart=kstart, nk=nk
+            q, cry, self.tmp_fy2, self.ord_in, grid.isd, grid.ied, kstart=kstart, nk=nk
         )
-        self.q_i_stencil(
+        self.stencil_q_i(
             q,
             grid.area,
             yfx,
-            self.fy2,
+            self.tmp_fy2,
             ra_y,
-            self.q_i,
+            self.tmp_q_i,
             origin=(grid.isd, grid.js, kstart),
             domain=(grid.nid, grid.njc + 1, nk),
         )
 
         xppm.compute_flux(
-            self.q_i, crx, fx, self.ord_ou, grid.js, grid.je, kstart=kstart, nk=nk
+            self.tmp_q_i, crx, fx, self.ord_ou, grid.js, grid.je, kstart=kstart, nk=nk
         )
-        # self.xppm_ord_ou.__call(self.q_i, crx, fx, grid.js,
+        # self.xppm_ord_ou.__call(self.tmp_q_i, crx, fx, grid.js,
         # grid.je, kstart=kstart, nk=nk)
         corners.copy_corners_x_stencil(
             q, origin=(grid.isd, grid.jsd, kstart), domain=(grid.nid, grid.njd, nk)
         )
         xppm.compute_flux(
-            q, crx, self.fx2, self.ord_in, grid.jsd, grid.jed, kstart=kstart, nk=nk
+            q, crx, self.tmp_fx2, self.ord_in, grid.jsd, grid.jed, kstart=kstart, nk=nk
         )
-        # self.xppm_ord_in.__call(self.q_i, crx, fx, grid.js, grid.je, kstart=kstart,
-        # nk=nk)
-        self.q_j_stencil(
+        # self.xppm_ord_in.__call(self.tmp_q_i, crx, fx, grid.js,
+        # grid.je, kstart=kstart,nk=nk)
+        self.stencil_q_j(
             q,
             grid.area,
             xfx,
-            self.fx2,
+            self.tmp_fx2,
             ra_x,
-            self.q_j,
+            self.tmp_q_j,
             origin=(grid.is_, grid.jsd, kstart),
             domain=(grid.nic + 1, grid.njd, nk),
         )
         yppm.compute_flux(
-            self.q_j, cry, fy, self.ord_ou, grid.is_, grid.ie, kstart=kstart, nk=nk
+            self.tmp_q_j, cry, fy, self.ord_ou, grid.is_, grid.ie, kstart=kstart, nk=nk
         )
 
         if mfx is not None and mfy is not None:
-            self.transport_flux_stencil(
+            self.stencil_transport_flux(
                 fx,
-                self.fx2,
+                self.tmp_fx2,
                 mfx,
                 origin=compute_origin,
                 domain=(grid.nic + 1, grid.njc, nk),
             )
-            self.transport_flux_stencil(
+            self.stencil_transport_flux(
                 fy,
-                self.fy2,
+                self.tmp_fy2,
                 mfy,
                 origin=compute_origin,
                 domain=(grid.nic, grid.njc + 1, nk),
@@ -161,16 +160,16 @@ class FvTp2d:
                 )
         else:
 
-            self.transport_flux_stencil(
+            self.stencil_transport_flux(
                 fx,
-                self.fx2,
+                self.tmp_fx2,
                 xfx,
                 origin=compute_origin,
                 domain=(grid.nic + 1, grid.njc, nk),
             )
-            self.transport_flux_stencil(
+            self.stencil_transport_flux(
                 fy,
-                self.fy2,
+                self.tmp_fy2,
                 yfx,
                 origin=compute_origin,
                 domain=(grid.nic, grid.njc + 1, nk),
