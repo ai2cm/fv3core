@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 
 
 if __name__ == "__main__":
-    usage = "usage: python %(prog)s <data_dir>"
+    usage = "python %(prog)s <data_dir> <config.json>"
     parser = ArgumentParser(usage=usage)
     parser.add_argument(
         "data_dir",
@@ -46,7 +46,11 @@ if __name__ == "__main__":
                 with open(fullpath) as f:
                     data = json.load(f)
                     if filters in data["setup"]["dataset"]:
-                        alldata.append(data)
+                        tdelta = datetime.now() - datetime.strptime(
+                            data["setup"]["timestamp"], "%d/%m/%Y %H:%M:%S"
+                        )
+                        if tdelta.days < 7:
+                            alldata.append(data)
     alldata.sort(
         key=lambda k: datetime.strptime(k["setup"]["timestamp"], "%d/%m/%Y %H:%M:%S")
     )
