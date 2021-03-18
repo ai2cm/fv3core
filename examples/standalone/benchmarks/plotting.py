@@ -76,18 +76,18 @@ if __name__ == "__main__":
                     plt.plot(
                         [
                             datetime.strptime(
-                                elememt["setup"]["timestamp"], "%d/%m/%Y %H:%M:%S"
+                                element["setup"]["timestamp"], "%d/%m/%Y %H:%M:%S"
                             )
-                            for elememt in specific
+                            for element in specific
                         ],
                         [
-                            elememt["times"][timer["name"]]["mean"]
+                            element["times"][timer["name"]]["mean"]
                             / (
-                                (elememt["setup"]["timesteps"] - 1)
+                                (element["setup"]["timesteps"] - 1)
                                 if plot_config["type"] == "per_timestep"
                                 else 1
                             )
-                            for elememt in specific
+                            for element in specific
                         ],
                         timer["linestyle"],
                         markersize=markersize,
@@ -98,27 +98,27 @@ if __name__ == "__main__":
                         plt.fill_between(
                             [
                                 datetime.strptime(
-                                    elememt["setup"]["timestamp"], "%d/%m/%Y %H:%M:%S"
+                                    element["setup"]["timestamp"], "%d/%m/%Y %H:%M:%S"
                                 )
-                                for elememt in specific
+                                for element in specific
                             ],
                             [
-                                elememt["times"][timer["name"]]["maximum"]
+                                element["times"][timer["name"]]["maximum"]
                                 / (
-                                    (elememt["setup"]["timesteps"] - 1)
+                                    (element["setup"]["timesteps"] - 1)
                                     if plot_config["type"] == "per_timestep"
                                     else 1
                                 )
-                                for elememt in specific
+                                for element in specific
                             ],
                             [
-                                elememt["times"][timer["name"]]["minimum"]
+                                element["times"][timer["name"]]["minimum"]
                                 / (
-                                    (elememt["setup"]["timesteps"] - 1)
+                                    (element["setup"]["timesteps"] - 1)
                                     if plot_config["type"] == "per_timestep"
                                     else 1
                                 )
-                                for elememt in specific
+                                for element in specific
                             ],
                             color=backend_config["color"],
                             alpha=0.2,
