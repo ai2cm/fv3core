@@ -92,6 +92,42 @@ def fix_negative_liq(qvapor, qice, qsnow, qgraupel, qrain, qliquid, pt, lcpk, ic
     return qvapor, qice, qsnow, qgraupel, qrain, qliquid, pt
 
 
+@gtscript.function
+def fix_neg_water(
+    pt,
+    dp,
+    delz,
+    qvapor,
+    qliquid,
+    qrain,
+    qsnow,
+    qice,
+    qgraupel,
+    lv00,
+    d0_vap,
+):
+    q_liq = 0.0 if 0.0 > qliquid + qrain else qliquid + qrain
+    q_sol = 0.0 if 0.0 > qice + qsnow else qice + qsnow
+    cpm = (
+        (1.0 - (qvapor + q_liq + q_sol)) * constants.CV_AIR
+        + qvapor * constants.CV_VAP
+        + q_liq * constants.C_LIQ
+        + q_sol * constants.C_ICE
+    )
+    lcpk = (lv00 + d0_vap * pt) / cpm
+    icpk = (constants.LI0 + constants.DC_ICE * pt) / cpm
+    dq = 0.0
+    qvapor, qice, qsnow, qgraupel, qrain, qliquid, pt = fix_negative_ice(
+        qvapor, qice, qsnow, qgraupel, qrain, qliquid, pt, lcpk, icpk, dq
+    )
+    qvapor, qice, qsnow, qgraupel, qrain, qliquid, pt = fix_negative_liq(
+        qvapor, qice, qsnow, qgraupel, qrain, qliquid, pt, lcpk, icpk, dq
+    )
+    # Fast moist physics: Saturation adjustment
+    # no GFS_PHYS compiler flag -- additional saturation adjustment calculations!
+    return qvapor, qice, qsnow, qgraupel, qrain, qliquid, pt
+
+
 @gtstencil()
 def fix_neg_values(
     pt: FloatField,
@@ -111,27 +147,10 @@ def fix_neg_values(
     lv00: float,
     d0_vap: float,
 ):
-    # fix_neg_water
     with computation(PARALLEL), interval(...):
-        q_liq = 0.0 if 0.0 > qliquid + qrain else qliquid + qrain
-        q_sol = 0.0 if 0.0 > qice + qsnow else qice + qsnow
-        cpm = (
-            (1.0 - (qvapor + q_liq + q_sol)) * constants.CV_AIR
-            + qvapor * constants.CV_VAP
-            + q_liq * constants.C_LIQ
-            + q_sol * constants.C_ICE
+        qvapor, qice, qsnow, qgraupel, qrain, qliquid, pt = fix_neg_water(
+            pt, dp, delz, qvapor, qliquid, qrain, qsnow, qice, qgraupel, lv00, d0_vap
         )
-        lcpk = (lv00 + d0_vap * pt) / cpm
-        icpk = (constants.LI0 + constants.DC_ICE * pt) / cpm
-        dq = 0.0
-        qvapor, qice, qsnow, qgraupel, qrain, qliquid, pt = fix_negative_ice(
-            qvapor, qice, qsnow, qgraupel, qrain, qliquid, pt, lcpk, icpk, dq
-        )
-        qvapor, qice, qsnow, qgraupel, qrain, qliquid, pt = fix_negative_liq(
-            qvapor, qice, qsnow, qgraupel, qrain, qliquid, pt, lcpk, icpk, dq
-        )
-        # Fast moist physics: Saturation adjustment
-        # no GFS_PHYS compiler flag -- additional saturation adjustment calculations!
 
     # fillq : qgraupel
     with computation(FORWARD), interval(...):
