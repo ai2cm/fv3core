@@ -157,28 +157,61 @@ def ke_from_bwind(ke, ub, vb):
     return 0.5 * (ke + ub * vb)
 
 
-@gtstencil()
-def ub_from_vort(vort: FloatField, ub: FloatField):
-    with computation(PARALLEL), interval(...):
-        ub[0, 0, 0] = vort - vort[1, 0, 0]
+@gtscript.function
+def ub_from_vort(vort, ub):
+    ub = vort - vort[1, 0, 0]
+    return ub
 
 
-@gtstencil()
+@gtscript.function
 def vb_from_vort(vort: FloatField, vb: FloatField):
-    with computation(PARALLEL), interval(...):
-        vb[0, 0, 0] = vort - vort[0, 1, 0]
+    vb = vort - vort[0, 1, 0]
+    return vb
 
 
 @gtstencil()
-def u_from_ke(ke: FloatField, vt: FloatField, fy: FloatField, u: FloatField):
+def ub_vb_from_vort(
+    vort: FloatField,
+    ub: FloatField,
+    vb: FloatField,
+):
+    from __externals__ import local_ie, local_is, local_je, local_js
+
     with computation(PARALLEL), interval(...):
-        u[0, 0, 0] = vt + ke - ke[1, 0, 0] + fy
+        with horizontal(region[local_is : local_ie + 2, local_js : local_je + 2]):
+            ub = ub_from_vort(vort, ub)
+            vb = vb_from_vort(vort, vb)
+
+
+@gtscript.function
+def u_from_ke(ke, vt, fy):
+    return vt + ke - ke[1, 0, 0] + fy
+
+
+@gtscript.function
+def v_from_ke(ke, ut, fx):
+    return ut + ke - ke[0, 1, 0] - fx
 
 
 @gtstencil()
-def v_from_ke(ke: FloatField, ut: FloatField, fx: FloatField, v: FloatField):
+def u_and_v_from_ke(
+    ke: FloatField,
+    ut: FloatField,
+    vt: FloatField,
+    fx: FloatField,
+    fy: FloatField,
+    u: FloatField,
+    v: FloatField,
+):
+    from __externals__ import local_ie, local_is, local_je, local_js
+
     with computation(PARALLEL), interval(...):
-        v[0, 0, 0] = ut + ke - ke[0, 1, 0] - fx
+        # TODO: may be able to remove local regions once this stencil and
+        # heat_from_damping are in the same stencil
+        with horizontal(region[local_is : local_ie + 1, local_js : local_je + 2]):
+            u = u_from_ke(ke, vt, fy)
+        with horizontal(region[local_is : local_ie + 2, local_js : local_je + 1]):
+            v = v_from_ke(ke, ut, fx)
 
 
 # TODO: This is untested and the radius may be incorrect
@@ -191,9 +224,19 @@ def coriolis_force_correction(zh: FloatField, z_rat: FloatField):
 
 
 @gtstencil()
-def zrat_vorticity(wk: FloatField, f0: FloatField, z_rat: FloatField, vort: FloatField):
+def zrat_vorticity(
+    wk: FloatField,
+    f0: FloatField,
+    z_rat: FloatField,
+    vort: FloatField,
+    do_f3d: bool,
+    hydrostatic: bool,
+):
     with computation(PARALLEL), interval(...):
-        vort[0, 0, 0] = wk + f0 * z_rat
+        if do_f3d and not hydrostatic:
+            vort[0, 0, 0] = wk + f0 * z_rat
+        else:
+            vort = wk[0, 0, 0] + f0[0, 0, 0]
 
 
 @gtscript.function
@@ -862,63 +905,42 @@ def d_sw(
         )
 
         if column_namelist[kstart]["d_con"] > dcon_threshold:
-            ub_from_vort(
+            ub_vb_from_vort(
                 vort,
                 ub,
-                # origin=grid().compute_origin(),
-                # domain=grid().domain_shape_compute(add=(0, 1, 0)),
-                origin=(grid().is_, grid().js, kstart),
-                domain=(grid().nic, grid().njc + 1, nk),
-            )
-            vb_from_vort(
-                vort,
                 vb,
                 origin=(grid().is_, grid().js, kstart),
-                domain=(grid().nic + 1, grid().njc, nk),
-                # origin=grid().compute_origin(),
-                # domain=grid().domain_shape_compute(add=(1, 0, 0)),
+                domain=(grid().nic + 1, grid().njc + 1, nk),
             )
 
     # Vorticity transport
-    if spec.namelist.do_f3d and not spec.namelist.hydrostatic:
-        zrat_vorticity(
-            wk,
-            grid().f0,
-            z_rat,
-            vort,
-            orgin=grid().full_origin(),
-            domain=grid().domain_shape_full(),
-        )
-    else:
-        basic.addition_stencil(
-            wk,
-            grid().f0,
-            vort,
-            origin=grid().full_origin(),
-            domain=grid().domain_shape_full(),
-        )
+    zrat_vorticity(
+        wk,
+        grid().f0,
+        z_rat,
+        vort,
+        spec.namelist.do_f3d,
+        spec.namelist.hydrostatic,
+        origin=grid().full_origin(),
+        domain=grid().domain_shape_full(),
+    )
 
     fvtp2d.compute_no_sg(
         vort, crx, cry, spec.namelist.hord_vt, xfx, yfx, ra_x, ra_y, fx, fy
     )
 
-    u_from_ke(
-        ke,
-        vt,
-        fy,
-        u,
-        origin=grid().compute_origin(),
-        domain=grid().domain_shape_compute(add=(0, 1, 0)),
-    )
-
-    v_from_ke(
+    u_and_v_from_ke(
         ke,
         ut,
+        vt,
         fx,
+        fy,
+        u,
         v,
         origin=grid().compute_origin(),
-        domain=grid().domain_shape_compute(add=(1, 0, 0)),
+        domain=grid().domain_shape_compute(add=(1, 1, 0)),
     )
+
     for kstart, nk in k_bounds():
         if column_namelist[kstart]["damp_vt"] > dcon_threshold:
             damp4 = (column_namelist[kstart]["damp_vt"] * grid().da_min_c) ** (
