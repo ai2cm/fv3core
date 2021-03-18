@@ -570,7 +570,7 @@ def d_sw(
     )
     ra_x, ra_y = fxadv.compute(uc, vc, ut, vt, xfx, yfx, crx, cry, dt)
     for kstart, nk in k_bounds():
-        fvtp2d_dp.__call__(
+        fvtp2d_dp(
             delp,
             crx,
             cry,
@@ -594,7 +594,7 @@ def d_sw(
             dw, wk = damp_vertical_wind(
                 w, heat_s, diss_e, dt, column_namelist, kstart, nk
             )
-            fvtp2d_vt.__call__(
+            fvtp2d_vt(
                 w,
                 crx,
                 cry,
@@ -623,7 +623,7 @@ def d_sw(
         )
     # USE_COND
     for kstart, nk in k_bounds():
-        fvtp2d_dp.__call__(
+        fvtp2d_dp(
             q_con,
             crx,
             cry,
@@ -654,7 +654,7 @@ def d_sw(
 
     # END USE_COND
     for kstart, nk in k_bounds():
-        fvtp2d_tm.__call__(
+        fvtp2d_tm(
             pt,
             crx,
             cry,
@@ -822,7 +822,7 @@ def d_sw(
             domain=grid().domain_shape_full(),
         )
 
-    fvtp2d_vt.__call__(vort, crx, cry, xfx, yfx, ra_x, ra_y, fx, fy)
+    fvtp2d_vt(vort, crx, cry, xfx, yfx, ra_x, ra_y, fx, fy)
 
     u_from_ke(
         ke,

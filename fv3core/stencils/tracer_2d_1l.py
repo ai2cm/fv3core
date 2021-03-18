@@ -276,7 +276,7 @@ def compute(comm, tracers, dp1, mfxd, mfyd, cxd, cyd, mdt, nq):
                 domain=grid.domain_shape_compute(),
             )
             if nsplt != 1:
-                fvtp2d_obj.__call__(
+                fvtp2d_obj(
                     qn2.storage,
                     cxd,
                     cyd,
@@ -304,7 +304,7 @@ def compute(comm, tracers, dp1, mfxd, mfyd, cxd, cyd, mdt, nq):
                     domain=grid.domain_shape_compute(),
                 )
             else:
-                fvtp2d_obj.__call__(
+                fvtp2d_obj(
                     q.storage,
                     cxd,
                     cyd,

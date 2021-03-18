@@ -44,7 +44,7 @@ class TranslateFvTp2d(TranslateFortranData2Py):
             spec.namelist, int(inputs["hord"]), cache_key="regression-test"
         )
         del inputs["hord"]
-        self.compute_func = fvtp2d_obj.__call__
+        self.compute_func = fvtp2d_obj
         self.in_vars["parameters"] = []
         return self.column_split_compute(
             inputs, {"nord": "nord_column", "damp_c": "damp_c"}
