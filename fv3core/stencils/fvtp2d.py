@@ -30,11 +30,12 @@ def transport_flux(f: sd, f2: sd, mf: sd):
     with computation(PARALLEL), interval(...):
         f = 0.5 * (f + f2) * mf
 
+@utils.cache_stencil_class
 class FvTp2d:
     """
     ONLY USE_SG=False compiler flag implementes
     """
-    def __init__(self, namelist, hord):
+    def __init__(self, namelist, hord, cache_key=""):
         shape = spec.grid.domain_shape_full(add=(1, 1, 1))
         origin = spec.grid.compute_origin()
         self.q_i = utils.make_storage_from_shape(shape, origin)

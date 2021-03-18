@@ -39,7 +39,7 @@ class TranslateFvTp2d(TranslateFortranData2Py):
         for optional_arg in ["mass", "mfx", "mfy"]:
             if optional_arg not in inputs:
                 inputs[optional_arg] = None
-        fvtp2d_obj = fvtp2d.FvTp2d(spec.namelist, int(inputs["hord"]))
+        fvtp2d_obj = fvtp2d.FvTp2d(spec.namelist, int(inputs["hord"]), cache_key='regression-test')
         del inputs["hord"]
         self.compute_func = fvtp2d_obj.__call__
         self.in_vars["parameters"] = []

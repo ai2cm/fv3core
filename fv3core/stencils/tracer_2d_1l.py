@@ -240,7 +240,7 @@ def compute(comm, tracers, dp1, mfxd, mfyd, cxd, cyd, mdt, nq):
         origin=grid.full_origin(),
         domain=grid.domain_shape_full(),
     )
-    fvtp2d_obj=fvtp2d.FvTp2d(spec.namelist, spec.namelist.hord_tr)
+    fvtp2d_obj=fvtp2d.FvTp2d(spec.namelist, spec.namelist.hord_tr, cache_key='tracer2d1l')
     # TODO: Revisit: the loops over q and nsplt have two inefficient options
     # duplicating storages/stencil calls, return to this, maybe you have more
     # options now, or maybe the one chosen here is the worse one.
