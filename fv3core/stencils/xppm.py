@@ -15,6 +15,7 @@ from fv3core.decorators import gtstencil
 from fv3core.stencils import yppm
 from fv3core.stencils.basic_operations import sign
 from fv3core.utils.typing import FloatField
+from fv3core.utils.grid import axis_offsets
 import fv3core.utils.global_config as global_config
 
 
@@ -314,14 +315,21 @@ def _compute_flux_stencil(
 
 class XPPM:
     def __init__(self, namelist, iord):
-        shape = spec.grid.domain_shape_full(add=(1, 1, 1))
-        origin = spec.grid.compute_origin()
+        grid = spec.grid
+        shape = grid.domain_shape_full(add=(1, 1, 1))
+        origin = grid.compute_origin()
+        # ax_offsets = axis_offsets(spec.grid, origin, domain)
         self.compute_flux_stencil = gtscript.stencil(
             definition=_compute_flux_stencil,
             externals={
+                "namelist": spec.namelist,
+                "grid": grid,
                 "iord": iord,
                 "mord": abs(iord),
                 "xt_minmax": True,
+                "i_start": grid.is_,
+                "i_end": grid.nic + grid.is_
+                # **ax_offsets,
             },
             backend=global_config.get_backend(), 
             rebuild=global_config.get_rebuild()
