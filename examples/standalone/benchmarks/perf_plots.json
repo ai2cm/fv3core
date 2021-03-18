@@ -9,7 +9,7 @@
     "plots": {
         "absolute_time": {
             "backends": [ "fortran", "python/gtcuda", "python/gtx86" ],
-	    "only_recent": false,
+            "only_recent": false,
             "timers": [
                 { "linestyle": "-o", "name": "total" },
                 { "linestyle": "--o", "name": "initialization" }
@@ -21,7 +21,7 @@
         },
         "per_timestep": {
             "backends": [ "python/gtcuda", "python/gtx86", "fortran" ],
-	    "only_recent": false,
+            "only_recent": false,
             "timers": [
                 { "linestyle": "-o", "name": "mainloop" },
                 { "linestyle": "--o", "name": "DynCore" },
@@ -35,7 +35,7 @@
         },
         "per_timestep_recent": {
             "backends": [ "python/gtcuda", "python/gtx86", "fortran" ],
-	    "only_recent": true,
+            "only_recent": true,
             "timers": [
                 { "linestyle": "-o", "name": "mainloop" },
                 { "linestyle": "--o", "name": "DynCore" },
@@ -49,7 +49,7 @@
         },
         "only_fortran": {
             "backends": [ "fortran" ],
-	    "only_recent": false,
+            "only_recent": false,
             "timers": [
                 { "linestyle": "-o", "name": "mainloop" },
                 { "linestyle": "--o", "name": "DynCore" },
