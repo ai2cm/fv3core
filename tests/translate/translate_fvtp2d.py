@@ -40,11 +40,10 @@ class TranslateFvTp2d(TranslateFortranData2Py):
         for optional_arg in ["mass", "mfx", "mfy"]:
             if optional_arg not in inputs:
                 inputs[optional_arg] = None
-        fvtp2d_obj = utils.cached_stencil_class(fvtp2d.FvTp2d)(
+        self.compute_func = utils.cached_stencil_class(fvtp2d.FvTp2d)(
             spec.namelist, int(inputs["hord"]), cache_key="regression-test"
         )
         del inputs["hord"]
-        self.compute_func = fvtp2d_obj
         self.in_vars["parameters"] = []
         return self.column_split_compute(
             inputs, {"nord": "nord_column", "damp_c": "damp_c"}
