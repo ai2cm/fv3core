@@ -46,11 +46,7 @@ if __name__ == "__main__":
                 with open(fullpath) as f:
                     data = json.load(f)
                     if filters in data["setup"]["dataset"]:
-                        tdelta = datetime.now() - datetime.strptime(
-                            data["setup"]["timestamp"], "%d/%m/%Y %H:%M:%S"
-                        )
-                        if tdelta.days < 7:
-                            alldata.append(data)
+                        alldata.append(data)
     alldata.sort(
         key=lambda k: datetime.strptime(k["setup"]["timestamp"], "%d/%m/%Y %H:%M:%S")
     )
@@ -61,6 +57,15 @@ if __name__ == "__main__":
         for backend in plot_config["backends"]:
             backend_config = backends[backend]
             specific = [x for x in alldata if x["setup"]["version"] == backend]
+            if plot_config["only_recent"]:
+                select = []
+                for datum in specific:
+                    tdelta = datetime.now() - datetime.strptime(
+                        datum["setup"]["timestamp"], "%d/%m/%Y %H:%M:%S"
+                    )
+                    if tdelta.days < 7:
+                        select.append(datum)
+                specific = select
             if specific:
                 for timer in plot_config["timers"]:
                     label = None
