@@ -27,7 +27,6 @@ from fv3core.utils.typing import FloatField
 
 
 dcon_threshold = 1e-5
-sd = utils.sd
 
 logger = logging.getLogger("fv3ser")
 
@@ -51,7 +50,9 @@ def flux_integral(w, delp, gx, gy, rarea):
 
 
 @gtstencil()
-def flux_adjust(w: sd, delp: sd, gx: sd, gy: sd, rarea: sd):
+def flux_adjust(
+    w: FloatField, delp: FloatField, gx: FloatField, gy: FloatField, rarea: FloatField
+):
     with computation(PARALLEL), interval(...):
         w = flux_integral(w, delp, gx, gy, rarea)
 
@@ -87,7 +88,15 @@ def horizontal_relative_vorticity_from_winds(
 
 
 @gtstencil()
-def not_inlineq_pressure(gx: sd, gy: sd, rarea: sd, fx: sd, fy: sd, pt: sd, delp: sd):
+def not_inlineq_pressure(
+    gx: FloatField,
+    gy: FloatField,
+    rarea: FloatField,
+    fx: FloatField,
+    fy: FloatField,
+    pt: FloatField,
+    delp: FloatField,
+):
     with computation(PARALLEL), interval(...):
         pt = flux_integral(
             pt, delp, gx, gy, rarea
@@ -99,38 +108,38 @@ def not_inlineq_pressure(gx: sd, gy: sd, rarea: sd, fx: sd, fy: sd, pt: sd, delp
 
 
 @gtstencil()
-def ke_from_bwind(ke: sd, ub: sd, vb: sd):
+def ke_from_bwind(ke: FloatField, ub: FloatField, vb: FloatField):
     with computation(PARALLEL), interval(...):
         ke[0, 0, 0] = 0.5 * (ke + ub * vb)
 
 
 @gtstencil()
-def ub_from_vort(vort: sd, ub: sd):
+def ub_from_vort(vort: FloatField, ub: FloatField):
     with computation(PARALLEL), interval(...):
         ub[0, 0, 0] = vort - vort[1, 0, 0]
 
 
 @gtstencil()
-def vb_from_vort(vort: sd, vb: sd):
+def vb_from_vort(vort: FloatField, vb: FloatField):
     with computation(PARALLEL), interval(...):
         vb[0, 0, 0] = vort - vort[0, 1, 0]
 
 
 @gtstencil()
-def u_from_ke(ke: sd, vt: sd, fy: sd, u: sd):
+def u_from_ke(ke: FloatField, vt: FloatField, fy: FloatField, u: FloatField):
     with computation(PARALLEL), interval(...):
         u[0, 0, 0] = vt + ke - ke[1, 0, 0] + fy
 
 
 @gtstencil()
-def v_from_ke(ke: sd, ut: sd, fx: sd, v: sd):
+def v_from_ke(ke: FloatField, ut: FloatField, fx: FloatField, v: FloatField):
     with computation(PARALLEL), interval(...):
         v[0, 0, 0] = ut + ke - ke[0, 1, 0] - fx
 
 
 # TODO: This is untested and the radius may be incorrect
 @gtstencil(externals={"radius": constants.RADIUS})
-def coriolis_force_correction(zh: sd, z_rat: sd):
+def coriolis_force_correction(zh: FloatField, z_rat: FloatField):
     from __externals__ import radius
 
     with computation(PARALLEL), interval(...):
@@ -138,7 +147,7 @@ def coriolis_force_correction(zh: sd, z_rat: sd):
 
 
 @gtstencil()
-def zrat_vorticity(wk: sd, f0: sd, z_rat: sd, vort: sd):
+def zrat_vorticity(wk: FloatField, f0: FloatField, z_rat: FloatField, vort: FloatField):
     with computation(PARALLEL), interval(...):
         vort[0, 0, 0] = wk + f0 * z_rat
 
@@ -150,7 +159,9 @@ def add_dw(w, dw, damp_w):
 
 
 @gtstencil()
-def adjust_w_and_qcon(w: sd, delp: sd, dw: sd, q_con: sd, damp_w: float):
+def adjust_w_and_qcon(
+    w: FloatField, delp: FloatField, dw: FloatField, q_con: FloatField, damp_w: float
+):
     with computation(PARALLEL), interval(...):
         w = w / delp
         w = add_dw(w, dw, damp_w)
@@ -493,7 +504,16 @@ def damp_vertical_wind(w, heat_s, diss_e, dt, column_namelist, kstart, nk):
 
 
 @gtstencil()
-def ubke(uc: sd, vc: sd, cosa: sd, rsina: sd, ut: sd, ub: sd, dt4: float, dt5: float):
+def ubke(
+    uc: FloatField,
+    vc: FloatField,
+    cosa: FloatField,
+    rsina: FloatField,
+    ut: FloatField,
+    ub: FloatField,
+    dt4: float,
+    dt5: float,
+):
     from __externals__ import i_end, i_start, j_end, j_start
 
     with computation(PARALLEL), interval(...):
@@ -506,7 +526,16 @@ def ubke(uc: sd, vc: sd, cosa: sd, rsina: sd, ut: sd, ub: sd, dt4: float, dt5: f
 
 
 @gtstencil()
-def vbke(vc: sd, uc: sd, cosa: sd, rsina: sd, vt: sd, vb: sd, dt4: float, dt5: float):
+def vbke(
+    vc: FloatField,
+    uc: FloatField,
+    cosa: FloatField,
+    rsina: FloatField,
+    vt: FloatField,
+    vb: FloatField,
+    dt4: float,
+    dt5: float,
+):
     from __externals__ import i_end, i_start, j_end, j_start
 
     with computation(PARALLEL), interval(...):
