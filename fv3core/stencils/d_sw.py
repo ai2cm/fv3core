@@ -108,6 +108,41 @@ def not_inlineq_pressure(
 
 
 @gtstencil()
+def not_inlineq_pressure_and_vbke(
+    gx: FloatField,
+    gy: FloatField,
+    rarea: FloatField,
+    fx: FloatField,
+    fy: FloatField,
+    pt: FloatField,
+    delp: FloatField,
+    vc: FloatField,
+    uc: FloatField,
+    cosa: FloatField,
+    rsina: FloatField,
+    vt: FloatField,
+    vb: FloatField,
+    dt4: float,
+    dt5: float,
+):
+    from __externals__ import local_ie, local_is, local_je, local_js
+
+    with computation(PARALLEL), interval(...):
+        # TODO: only needed for d_sw validation
+        if __INLINED(spec.namelist.inline_q == 0):
+            with horizontal(region[local_is : local_ie + 1, local_js : local_je + 1]):
+                pt = flux_integral(
+                    pt, delp, gx, gy, rarea
+                )  # TODO: Put [0, 0, 0] on left when gt4py bug is fixed
+                delp = delp + flux_component(
+                    fx, fy, rarea
+                )  # TODO: Put [0, 0, 0] on left when gt4py bug is fixed
+                pt[0, 0, 0] = pt / delp
+        assert __INLINED(spec.namelist.grid_type < 3)
+        vb = vbke(vc, uc, cosa, rsina, vt, vb, dt4, dt5)
+
+
+@gtstencil()
 def ke_from_bwind(ke: FloatField, ub: FloatField, vb: FloatField):
     with computation(PARALLEL), interval(...):
         ke[0, 0, 0] = 0.5 * (ke + ub * vb)
@@ -525,26 +560,18 @@ def ubke(
                 ub = dt5 * (ut[0, -1, 0] + ut)
 
 
-@gtstencil()
-def vbke(
-    vc: FloatField,
-    uc: FloatField,
-    cosa: FloatField,
-    rsina: FloatField,
-    vt: FloatField,
-    vb: FloatField,
-    dt4: float,
-    dt5: float,
-):
+@gtscript.function
+def vbke(vc, uc, cosa, rsina, vt, vb, dt4, dt5):
     from __externals__ import i_end, i_start, j_end, j_start
 
-    with computation(PARALLEL), interval(...):
-        vb = dt5 * (vc[-1, 0, 0] + vc - (uc[0, -1, 0] + uc) * cosa) * rsina
-        if __INLINED(spec.namelist.grid_type < 3):
-            with horizontal(region[i_start, :], region[i_end + 1, :]):
-                vb = dt4 * (-vt[-2, 0, 0] + 3.0 * (vt[-1, 0, 0] + vt) - vt[1, 0, 0])
-            with horizontal(region[:, j_start], region[:, j_end + 1]):
-                vb = dt5 * (vt[-1, 0, 0] + vt)
+    vb = dt5 * (vc[-1, 0, 0] + vc - (uc[0, -1, 0] + uc) * cosa) * rsina
+    # ASSUME : if __INLINED(spec.namelist.grid_type < 3):
+    with horizontal(region[i_start, :], region[i_end + 1, :]):
+        vb = dt4 * (-vt[-2, 0, 0] + 3.0 * (vt[-1, 0, 0] + vt) - vt[1, 0, 0])
+    with horizontal(region[:, j_start], region[:, j_end + 1]):
+        vb = dt5 * (vt[-1, 0, 0] + vt)
+
+    return vb
 
 
 def d_sw(
@@ -699,23 +726,18 @@ def d_sw(
 
     if spec.namelist.inline_q:
         raise Exception("inline_q not yet implemented")
-    else:
-        not_inlineq_pressure(
-            gx,
-            gy,
-            grid().rarea,
-            fx,
-            fy,
-            pt,
-            delp,
-            origin=grid().compute_origin(),
-            domain=grid().domain_shape_compute(),
-        )
 
     dt5 = 0.5 * dt
     dt4 = 0.25 * dt
 
-    vbke(
+    not_inlineq_pressure_and_vbke(
+        gx,
+        gy,
+        grid().rarea,
+        fx,
+        fy,
+        pt,
+        delp,
         vc,
         uc,
         grid().cosa,
