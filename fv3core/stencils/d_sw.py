@@ -763,14 +763,6 @@ def d_sw(
 
     ytp_v.compute(vb, u, v, ub)
 
-    basic.multiply_stencil(
-        vb,
-        ub,
-        ke,
-        origin=grid().compute_origin(),
-        domain=grid().domain_shape_compute(add=(1, 1, 0)),
-    )
-
     mult_ubke(
         vb,
         ke,
