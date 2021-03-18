@@ -261,6 +261,7 @@ def make_storage_from_shape_uncached(
 
 storage_shape_outputs = {}
 
+
 @wraps(make_storage_from_shape_uncached)
 def make_storage_from_shape(
     *args,
@@ -322,16 +323,19 @@ def make_storage_from_shape(
         return_value[:] = 0.0
     return return_value
 
+
 compiled_stencil_classes = {}
+
+
 def cache_stencil_class(class_init):
     def memoized(*args, **kwargs):
         key = str(id(class_init)) + str(kwargs["cache_key"])
-        print('FOUND KEY', key)
         if key not in compiled_stencil_classes:
-            print('CACHE MISS', key)
             compiled_stencil_classes[key] = class_init(*args, **kwargs)
         return compiled_stencil_classes[key]
+
     return memoized
+
 
 def make_storage_dict(
     data: Field,
