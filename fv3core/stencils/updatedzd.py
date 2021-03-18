@@ -319,7 +319,7 @@ def column_calls(
     fx = utils.make_storage_from_shape(zh.shape, full_origin)
     fy = utils.make_storage_from_shape(zh.shape, full_origin)
     z2 = copy(zh, origin=full_origin, domain=(grid.nid, grid.njd, nk))
-    fvtp2d_obj = fvtp2d.FvTp2d(
+    fvtp2d_obj = utils.cached_stencil_class(fvtp2d.FvTp2d)(
         spec.namelist, spec.namelist.hord_tm, cache_key="updatedzd"
     )
     fvtp2d_obj(

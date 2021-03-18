@@ -40,7 +40,7 @@ class TranslateFvTp2d(TranslateFortranData2Py):
         for optional_arg in ["mass", "mfx", "mfy"]:
             if optional_arg not in inputs:
                 inputs[optional_arg] = None
-        fvtp2d_obj = fvtp2d.FvTp2d(
+        fvtp2d_obj = utils.cached_stencil_class(fvtp2d.FvTp2d)(
             spec.namelist, int(inputs["hord"]), cache_key="regression-test"
         )
         del inputs["hord"]

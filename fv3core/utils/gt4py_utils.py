@@ -327,9 +327,9 @@ def make_storage_from_shape(
 compiled_stencil_classes = {}
 
 
-def cache_stencil_class(class_init):
+def cached_stencil_class(class_init):
     def memoized(*args, **kwargs):
-        key = str(id(class_init)) + str(kwargs["cache_key"])
+        key = str(id(class_init)) + str(kwargs.pop("cache_key"))
         if key not in compiled_stencil_classes:
             compiled_stencil_classes[key] = class_init(*args, **kwargs)
         return compiled_stencil_classes[key]

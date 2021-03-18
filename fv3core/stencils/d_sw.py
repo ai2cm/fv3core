@@ -559,9 +559,15 @@ def d_sw(
     fy = utils.make_storage_from_shape(shape, grid().compute_origin())
     gx = utils.make_storage_from_shape(shape, grid().compute_origin())
     gy = utils.make_storage_from_shape(shape, grid().compute_origin())
-    fvtp2d_dp = fvtp2d.FvTp2d(spec.namelist, spec.namelist.hord_tm, cache_key="d_sw-dp")
-    fvtp2d_vt = fvtp2d.FvTp2d(spec.namelist, spec.namelist.hord_tm, cache_key="d_sw-vt")
-    fvtp2d_tm = fvtp2d.FvTp2d(spec.namelist, spec.namelist.hord_tm, cache_key="d_sw-tm")
+    fvtp2d_dp = utils.cached_stencil_class(fvtp2d.FvTp2d)(
+        spec.namelist, spec.namelist.hord_dp, cache_key="d_sw-dp"
+    )
+    fvtp2d_vt = utils.cached_stencil_class(fvtp2d.FvTp2d)(
+        spec.namelist, spec.namelist.hord_vt, cache_key="d_sw-vt"
+    )
+    fvtp2d_tm = utils.cached_stencil_class(fvtp2d.FvTp2d)(
+        spec.namelist, spec.namelist.hord_tm, cache_key="d_sw-tm"
+    )
     ra_x, ra_y = fxadv.compute(uc, vc, ut, vt, xfx, yfx, crx, cry, dt)
     for kstart, nk in k_bounds():
         fvtp2d_dp.__call__(
