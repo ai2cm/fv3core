@@ -57,17 +57,8 @@ def flux_adjust(
         w = flux_integral(w, delp, gx, gy, rarea)
 
 
-@gtstencil()
-def horizontal_relative_vorticity_from_winds(
-    u: FloatField,
-    v: FloatField,
-    ut: FloatField,
-    vt: FloatField,
-    dx: FloatField,
-    dy: FloatField,
-    rarea: FloatField,
-    vorticity: FloatField,
-):
+@gtscript.function
+def horizontal_relative_vorticity_from_winds(u, v, ut, vt, dx, dy, rarea, vorticity):
     """
     Compute the area mean relative vorticity in the z-direction from the D-grid winds.
 
@@ -81,10 +72,29 @@ def horizontal_relative_vorticity_from_winds(
         rarea (in): inverse of area
         vorticity (out): area mean horizontal relative vorticity
     """
-    with computation(PARALLEL), interval(...):
-        vt = u * dx
-        ut = v * dy
-        vorticity[0, 0, 0] = rarea * (vt - vt[0, 1, 0] - ut + ut[1, 0, 0])
+
+    vt = u * dx
+    ut = v * dy
+    vorticity = rarea * (vt - vt[0, 1, 0] - ut + ut[1, 0, 0])
+
+    return vt, ut, vorticity
+
+
+@gtscript.function
+def all_corners_ke(ke, u, v, ut, vt, dt):
+    from __externals__ import i_end, i_start, j_end, j_start
+
+    # Assumption: not __INLINED(spec.grid.nested)
+    with horizontal(region[i_start, j_start]):
+        ke = corners.corner_ke(ke, u, v, ut, vt, dt, 0, 0, -1, 1)
+    with horizontal(region[i_end + 1, j_start]):
+        ke = corners.corner_ke(ke, u, v, ut, vt, dt, -1, 0, 0, -1)
+    with horizontal(region[i_end + 1, j_end + 1]):
+        ke = corners.corner_ke(ke, u, v, ut, vt, dt, -1, -1, 0, 1)
+    with horizontal(region[i_start, j_end + 1]):
+        ke = corners.corner_ke(ke, u, v, ut, vt, dt, 0, -1, -1, -1)
+
+    return ke
 
 
 @gtstencil()
@@ -142,10 +152,9 @@ def not_inlineq_pressure_and_vbke(
         vb = vbke(vc, uc, cosa, rsina, vt, vb, dt4, dt5)
 
 
-@gtstencil()
-def ke_from_bwind(ke: FloatField, ub: FloatField, vb: FloatField):
-    with computation(PARALLEL), interval(...):
-        ke[0, 0, 0] = 0.5 * (ke + ub * vb)
+@gtscript.function
+def ke_from_bwind(ke, ub, vb):
+    return 0.5 * (ke + ub * vb)
 
 
 @gtstencil()
@@ -291,6 +300,29 @@ def heat_source_from_vorticity_damping(
         )
         dissipation_estimate[0, 0, 0] = (
             -dampterm if calculate_dissipation_estimate == 1 else dissipation_estimate
+        )
+
+
+@gtstencil()
+def ke_horizontal_vorticity(
+    ke: FloatField,
+    u: FloatField,
+    v: FloatField,
+    ub: FloatField,
+    vb: FloatField,
+    ut: FloatField,
+    vt: FloatField,
+    dx: FloatField,
+    dy: FloatField,
+    rarea: FloatField,
+    vorticity: FloatField,
+    dt: float,
+):
+    with computation(PARALLEL), interval(...):
+        ke = ke_from_bwind(ke, ub, vb)
+        ke = all_corners_ke(ke, u, v, ut, vt, dt)
+        vt, ut, vorticity = horizontal_relative_vorticity_from_winds(
+            u, v, ut, vt, dx, dy, rarea, vorticity
         )
 
 
@@ -780,26 +812,19 @@ def d_sw(
 
     xtp_u.compute(ub, u, v, vb)
 
-    ke_from_bwind(
+    ke_horizontal_vorticity(
         ke,
-        ub,
-        vb,
-        origin=grid().compute_origin(),
-        domain=grid().domain_shape_compute(add=(1, 1, 0)),
-    )
-
-    if not grid().nested:
-        corners.fix_corner_ke(ke, u, v, ut, vt, dt, grid())
-
-    horizontal_relative_vorticity_from_winds(
         u,
         v,
+        ub,
+        vb,
         ut,
         vt,
         spec.grid.dx,
         spec.grid.dy,
         spec.grid.rarea,
         wk,
+        dt,
         origin=(0, 0, 0),
         domain=spec.grid.domain_shape_full(),
     )
