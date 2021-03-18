@@ -67,8 +67,8 @@ class FvTp2d:
         # TODO: when XPPM and YPPM are classes, use this
         # self.xppm_ord_ou = XPPM(namelist, iord=ord_in)
         # self.xppm_ord_in = XPPM(namelist, iord=ord_ou)
-        # self.yppm_ord_in = YPPM(namelist, iord=ord_in)
-        # self.yppm_ord_ou = YPPM(namelist, iord=ord_ou)
+        # self.yppm_ord_in = YPPM(namelist, jord=ord_in)
+        # self.yppm_ord_ou = YPPM(namelist, jord=ord_ou)
 
     def __call__(
         self,
