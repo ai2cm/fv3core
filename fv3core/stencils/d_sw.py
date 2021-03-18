@@ -538,8 +538,24 @@ def damp_vertical_wind(w, heat_s, diss_e, dt, column_namelist, kstart, nk):
     return dw, wk
 
 
+@gtscript.function
+def ubke(uc, vc, cosa, rsina, ut, ub, dt4, dt5):
+    from __externals__ import i_end, i_start, j_end, j_start
+
+    ub = dt5 * (uc[0, -1, 0] + uc - (vc[-1, 0, 0] + vc) * cosa) * rsina
+    # if __INLINED(spec.namelist.grid_type < 3):
+    with horizontal(region[:, j_start], region[:, j_end + 1]):
+        ub = dt4 * (-ut[0, -2, 0] + 3.0 * (ut[0, -1, 0] + ut) - ut[0, 1, 0])
+    with horizontal(region[i_start, :], region[i_end + 1, :]):
+        ub = dt5 * (ut[0, -1, 0] + ut)
+
+    return ub
+
+
 @gtstencil()
-def ubke(
+def mult_ubke(
+    vb: FloatField,
+    ke: FloatField,
     uc: FloatField,
     vc: FloatField,
     cosa: FloatField,
@@ -549,15 +565,10 @@ def ubke(
     dt4: float,
     dt5: float,
 ):
-    from __externals__ import i_end, i_start, j_end, j_start
-
     with computation(PARALLEL), interval(...):
-        ub = dt5 * (uc[0, -1, 0] + uc - (vc[-1, 0, 0] + vc) * cosa) * rsina
-        if __INLINED(spec.namelist.grid_type < 3):
-            with horizontal(region[:, j_start], region[:, j_end + 1]):
-                ub = dt4 * (-ut[0, -2, 0] + 3.0 * (ut[0, -1, 0] + ut) - ut[0, 1, 0])
-            with horizontal(region[i_start, :], region[i_end + 1, :]):
-                ub = dt5 * (ut[0, -1, 0] + ut)
+        ke = vb * ub
+        assert __INLINED(spec.namelist.grid_type < 3)
+        ub = ubke(uc, vc, cosa, rsina, ut, ub, dt4, dt5)
 
 
 @gtscript.function
@@ -760,7 +771,9 @@ def d_sw(
         domain=grid().domain_shape_compute(add=(1, 1, 0)),
     )
 
-    ubke(
+    mult_ubke(
+        vb,
+        ke,
         uc,
         vc,
         grid().cosa,
