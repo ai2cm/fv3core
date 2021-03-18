@@ -62,7 +62,7 @@ class FvTp2d:
             "rebuild": global_config.get_rebuild(),
         }
         stencil_wrapper = gtscript.stencil(**stencil_kwargs)
-        self.stenci_q_i = stencil_wrapper(q_i_stencil)
+        self.stencil_q_i = stencil_wrapper(q_i_stencil)
         self.stencil_q_j = stencil_wrapper(q_j_stencil)
         self.stencil_transport_flux = stencil_wrapper(transport_flux)
         # self.xppm_ord_ou = XPPM(namelist, iord=ord_in)
