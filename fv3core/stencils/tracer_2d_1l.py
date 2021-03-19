@@ -174,7 +174,7 @@ class Tracer2D1L:
         self.stencil_flux_compute = stencil_wrapper(flux_compute)
         self.stencil_ra_update = stencil_wrapper(ra_stencil_update.func)
         self.stencil_cmax_multiply_by_frac = stencil_wrapper(cmax_multiply_by_frac)
-        self.stencil_copy = stencil_wrapper(copy_stencil.func)
+        self.stencil_copy_field = stencil_wrapper(copy_stencil.func)
         self.stencil_loop_temporaries_copy = stencil_wrapper(loop_temporaries_copy)
         self.stencil_dp_fluxadjustment = stencil_wrapper(dp_fluxadjustment)
         self.stencil_q_adjustments = stencil_wrapper(q_adjustments)
@@ -264,7 +264,7 @@ class Tracer2D1L:
         # duplicating storages/stencil calls, return to this, maybe you have more
         # options now, or maybe the one chosen here is the worse one.
 
-        self.stencil_copy(
+        self.stencil_copy_field(
             dp1,
             self._tmp_dp1_orig,
             origin=grid.full_origin(),
@@ -344,7 +344,7 @@ class Tracer2D1L:
                     )
 
                 if it < nsplt - 1:
-                    self.stencil_copy(
+                    self.stencil_copy_field(
                         self._tmp_dp2,
                         dp1,
                         origin=grid.compute_origin(),
