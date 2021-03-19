@@ -44,7 +44,7 @@ def transport_flux(f: FloatField, f2: FloatField, mf: FloatField):
 
 class FvTp2d:
     """
-    ONLY USE_SG=False compiler flag implementes
+    ONLY USE_SG=False compiler flag implements
     """
 
     def __init__(self, namelist, hord):
