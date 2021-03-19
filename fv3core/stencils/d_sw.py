@@ -178,8 +178,9 @@ def ub_vb_from_vort(
     from __externals__ import local_ie, local_is, local_je, local_js
 
     with computation(PARALLEL), interval(...):
-        with horizontal(region[local_is : local_ie + 2, local_js : local_je + 2]):
+        with horizontal(region[local_is : local_ie + 1, local_js : local_je + 2]):
             ub = ub_from_vort(vort, ub)
+        with horizontal(region[local_is : local_ie + 2, local_js : local_je + 1]):
             vb = vb_from_vort(vort, vb)
 
 
