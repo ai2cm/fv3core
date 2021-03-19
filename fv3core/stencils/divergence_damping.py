@@ -199,7 +199,7 @@ def compute(
                 corners.fill_corners_bgrid_x(
                     divg_d,
                     origin=(grid.isd, grid.jsd, kstart),
-                    domain=(grid.nid, grid.njd, nk),
+                    domain=(grid.nid + 1, grid.njd + 1, nk),
                 )
             vc_from_divg(
                 divg_d,
@@ -212,7 +212,7 @@ def compute(
                 corners.fill_corners_bgrid_y(
                     divg_d,
                     origin=(grid.isd, grid.jsd, kstart),
-                    domain=(grid.nid, grid.njd, nk),
+                    domain=(grid.nid + 1, grid.njd + 1, nk),
                 )
             uc_from_divg(
                 divg_d,
@@ -227,7 +227,7 @@ def compute(
                     uc,
                     -1.0,
                     origin=(grid.isd, grid.jsd, kstart),
-                    domain=(grid.nid, grid.njd, nk),
+                    domain=(grid.nid + 1, grid.njd + 1, nk),
                 )
 
             redo_divg_d(
