@@ -32,9 +32,11 @@ dev_wrapper:
 .PHONY: dev fortran_image wrapper_image fv3core_image build build_deps push_deps pull_deps get_gt4py
 
 get_gt4py:
-	if [ ! -f ${GT4PY_DIR}/pyproject.toml ]; then \
-	  git clone https://github.com/VulcanClimateModeling/gt4py.git ${GT4PY_DIR} && \
-	  cd ${GT4PY_DIR} && git checkout ${GT4PY_VERSION};\
+	if [ ! -f ${GT4PY_DIR}/pyproject.toml ]  || \
+	[ "$(shell cd ${GT4PY_DIR} && git describe --tags )" != "${GT4PY_VERSION}"  ]; then \
+                rm -rf ${GT4PY_DIR} && \
+	  	git clone https://github.com/VulcanClimateModeling/gt4py.git ${GT4PY_DIR} && \
+	  	cd ${GT4PY_DIR} && git checkout ${GT4PY_VERSION};\
 	fi
 
 fortran_image:
