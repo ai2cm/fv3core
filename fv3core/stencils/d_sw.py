@@ -179,9 +179,11 @@ def ub_vb_from_vort(
 
     with computation(PARALLEL), interval(...):
         with horizontal(region[local_is : local_ie + 1, local_js : local_je + 2]):
-            ub = ub_from_vort(vort, ub)
+            # ub = ub_from_vort(vort, ub)
+            ub = vort - vort[1, 0, 0]
         with horizontal(region[local_is : local_ie + 2, local_js : local_je + 1]):
-            vb = vb_from_vort(vort, vb)
+            # vb = vb_from_vort(vort, vb)
+            vb = vort - vort[0, 1, 0]
 
 
 @gtscript.function
