@@ -157,18 +157,6 @@ def ke_from_bwind(ke, ub, vb):
     return 0.5 * (ke + ub * vb)
 
 
-@gtscript.function
-def ub_from_vort(vort, ub):
-    ub = vort - vort[1, 0, 0]
-    return ub
-
-
-@gtscript.function
-def vb_from_vort(vort: FloatField, vb: FloatField):
-    vb = vort - vort[0, 1, 0]
-    return vb
-
-
 @gtstencil()
 def ub_vb_from_vort(
     vort: FloatField,
@@ -178,11 +166,12 @@ def ub_vb_from_vort(
     from __externals__ import local_ie, local_is, local_je, local_js
 
     with computation(PARALLEL), interval(...):
+        # Creating a gtscript function for the ub/vb computation
+        # results in an "NotImplementedError" error for Jenkins
+        # Inlining the ub/vb computation in this stencil resolves the Jenkins error
         with horizontal(region[local_is : local_ie + 1, local_js : local_je + 2]):
-            # ub = ub_from_vort(vort, ub)
             ub = vort - vort[1, 0, 0]
         with horizontal(region[local_is : local_ie + 2, local_js : local_je + 1]):
-            # vb = vb_from_vort(vort, vb)
             vb = vort - vort[0, 1, 0]
 
 
