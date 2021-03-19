@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 
 
 if __name__ == "__main__":
-    usage = "usage: python %(prog)s <data_dir>"
+    usage = "python %(prog)s <data_dir> <config.json>"
     parser = ArgumentParser(usage=usage)
     parser.add_argument(
         "data_dir",
@@ -19,41 +19,23 @@ if __name__ == "__main__":
         help="directory containing potential subdirectories with "
         "the json files with performance data",
     )
+    parser.add_argument(
+        "config_file",
+        type=str,
+        action="store",
+        help="JSON file containing plot configuration",
+    )
     args = parser.parse_args()
 
     # setup what to plot
     fontsize = 10
     markersize = 4
     plot_variance = True
-    plots = {
-        "per_timestep": {
-            "title": "Performance history of components",
-            "timers": [
-                {"name": "mainloop", "linestyle": "-o"},
-                {"name": "DynCore", "linestyle": "--o"},
-                {"name": "Remapping", "linestyle": "-.o"},
-                {"name": "TracerAdvection", "linestyle": ":o"},
-            ],
-            "x_axis_label": "Date of benchmark",
-            "y_axis_label": "Execution time per timestep [s]",
-        },
-        "absolute_time": {
-            "title": "Performance history of absolute runtime",
-            "timers": [
-                {"name": "total", "linestyle": "-o"},
-                {"name": "initialization", "linestyle": "--o"},
-            ],
-            "x_axis_label": "Date of benchmark",
-            "y_axis_label": "Execution time [s]",
-        },
-    }
-    backends = {
-        "python/gtcuda": {"short_name": "gtcuda", "color": "#d62728"},
-        "python/gtx86": {"short_name": "gtx86", "color": "#2ca02c"},
-        "python/numpy": {"short_name": "numpy", "color": "#1f77b4"},
-        "fortran": {"short_name": "f90", "color": "#7f7f7f"},
-    }
-    filter = "c128"
+    with open(args.config_file, "r") as json_file:
+        config = json.load(json_file)
+    filters = config["filters"]
+    backends = config["backends"]
+    plots = config["plots"]
 
     # collect and sort the data
     alldata = []
@@ -63,65 +45,80 @@ if __name__ == "__main__":
             if fullpath.endswith(".json"):
                 with open(fullpath) as f:
                     data = json.load(f)
-                    if filter in data["setup"]["dataset"]:
+                    if filters in data["setup"]["dataset"]:
                         alldata.append(data)
     alldata.sort(
         key=lambda k: datetime.strptime(k["setup"]["timestamp"], "%d/%m/%Y %H:%M:%S")
     )
 
-    for plottype, plot_config in plots.items():
+    for plot_name, plot_config in plots.items():
         matplotlib.rcParams.update({"font.size": fontsize})
         plt.figure()
-        for backend, backend_config in backends.items():
+        for backend in plot_config["backends"]:
+            backend_config = backends[backend]
             specific = [x for x in alldata if x["setup"]["version"] == backend]
+            if plot_config["only_recent"]:
+                select = []
+                for datum in specific:
+                    tdelta = datetime.now() - datetime.strptime(
+                        datum["setup"]["timestamp"], "%d/%m/%Y %H:%M:%S"
+                    )
+                    if tdelta.days < 7:
+                        select.append(datum)
+                specific = select
             if specific:
                 for timer in plot_config["timers"]:
+                    label = None
+                    if "mainloop" in timer["name"] or "total" in timer["name"]:
+                        label = backend_config["short_name"]
+                    elif "gtcuda" in backend_config["short_name"]:
+                        label = backend_config["short_name"] + " " + timer["name"]
                     plt.plot(
                         [
                             datetime.strptime(
-                                elememt["setup"]["timestamp"], "%d/%m/%Y %H:%M:%S"
+                                element["setup"]["timestamp"], "%d/%m/%Y %H:%M:%S"
                             )
-                            for elememt in specific
+                            for element in specific
                         ],
                         [
-                            elememt["times"][timer["name"]]["mean"]
+                            element["times"][timer["name"]]["mean"]
                             / (
-                                (elememt["setup"]["timesteps"] - 1)
-                                if plottype == "per_timestep"
+                                (element["setup"]["timesteps"] - 1)
+                                if plot_config["type"] == "per_timestep"
                                 else 1
                             )
-                            for elememt in specific
+                            for element in specific
                         ],
                         timer["linestyle"],
                         markersize=markersize,
-                        label=backend_config["short_name"] + " " + timer["name"],
+                        label=label,
                         color=backend_config["color"],
                     )
                     if plot_variance:
                         plt.fill_between(
                             [
                                 datetime.strptime(
-                                    elememt["setup"]["timestamp"], "%d/%m/%Y %H:%M:%S"
+                                    element["setup"]["timestamp"], "%d/%m/%Y %H:%M:%S"
                                 )
-                                for elememt in specific
+                                for element in specific
                             ],
                             [
-                                elememt["times"][timer["name"]]["maximum"]
+                                element["times"][timer["name"]]["maximum"]
                                 / (
-                                    (elememt["setup"]["timesteps"] - 1)
-                                    if plottype == "per_timestep"
+                                    (element["setup"]["timesteps"] - 1)
+                                    if plot_config["type"] == "per_timestep"
                                     else 1
                                 )
-                                for elememt in specific
+                                for element in specific
                             ],
                             [
-                                elememt["times"][timer["name"]]["minimum"]
+                                element["times"][timer["name"]]["minimum"]
                                 / (
-                                    (elememt["setup"]["timesteps"] - 1)
-                                    if plottype == "per_timestep"
+                                    (element["setup"]["timesteps"] - 1)
+                                    if plot_config["type"] == "per_timestep"
                                     else 1
                                 )
-                                for elememt in specific
+                                for element in specific
                             ],
                             color=backend_config["color"],
                             alpha=0.2,
@@ -144,18 +141,7 @@ if __name__ == "__main__":
             handlelength=5,
         )
         plt.title(plot_config["title"], pad=20)
-        plt.figtext(
-            0.5,
-            0.01,
-            "data: "
-            + alldata[0]["setup"]["dataset"]
-            + "   timesteps:"
-            + str(alldata[0]["setup"]["timesteps"]),
-            wrap=True,
-            horizontalalignment="center",
-            fontsize=fontsize,
-        )
         ax.set_facecolor("white")
         plt.grid(color="silver", alpha=0.4)
         plt.gcf().set_size_inches(8, 6)
-        plt.savefig("history_" + plottype + ".png", dpi=100)
+        plt.savefig("history_" + plot_name + ".png", dpi=100)

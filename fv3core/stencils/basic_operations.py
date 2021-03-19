@@ -30,13 +30,15 @@ def copy_stencil_2d(q_in: FloatFieldIJ, q_out: FloatFieldIJ):
         q_out = q_in
 
 
-def copy(q_in, origin=(0, 0, 0), domain=None):
+def copy(q_in, origin=(0, 0, 0), domain=None, use_cache=True):
     """Copy q_in inside the origin and domain, and zero outside.
 
     Args:
         q_in: input field
         origin: Origin of the copy (if None, uses the start of the field)
         domain: Extent to copy (if None, uses the remainder of the field)
+        use_cache: if True, cache returned values based on input arguments
+            and the call stack.
 
     Returns:
         gtscript.Field[float]: Copied field (default_origin inherited from q_in)
@@ -44,12 +46,21 @@ def copy(q_in, origin=(0, 0, 0), domain=None):
     if domain is None:
         domain = tuple(extent - orig for extent, orig in zip(q_in.shape, origin))
 
-    q_out = utils.make_storage_from_shape(q_in.shape, q_in.default_origin, init=True)
+    copy_fxn = copy_stencil
     if len(q_in.shape) < 3:
-        domain_2d = (domain[0], domain[1], 1)
-        copy_stencil_2d(q_in, q_out, origin=origin[0:2], domain=domain_2d)
+        domain = (domain[0], domain[1], 1)
+        origin = origin[0:2]
+        copy_fxn = copy_stencil_2d
+    if use_cache:
+        q_out = utils.make_storage_from_shape(
+            q_in.shape, q_in.default_origin, init=True
+        )
     else:
-        copy_stencil(q_in, q_out, origin=origin, domain=domain)
+        q_out = utils.make_storage_from_shape_uncached(
+            q_in.shape, q_in.default_origin, init=True
+        )
+    copy_fxn(q_in, q_out, origin=origin, domain=domain)
+
     return q_out
 
 

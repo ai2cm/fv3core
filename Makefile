@@ -3,7 +3,7 @@ include docker/Makefile.image_names
 GCR_URL = us.gcr.io/vcm-ml
 REGRESSION_DATA_STORAGE_BUCKET = gs://vcm-fv3gfs-serialized-regression-data
 EXPERIMENT ?=c12_6ranks_standard
-FORTRAN_SERIALIZED_DATA_VERSION=7.2.3
+FORTRAN_SERIALIZED_DATA_VERSION=7.2.5
 WRAPPER_IMAGE = us.gcr.io/vcm-ml/fv3gfs-wrapper:gnu9-mpich314-nocuda
 DOCKER_BUILDKIT=1
 SHELL=/bin/bash
@@ -46,7 +46,7 @@ clean:
 
 update_submodules:
 	if [ ! -f $(FV3UTIL_DIR)/requirements.txt  ]; then \
-		git submodule update --init --recursive; \
+		git submodule update --init external/fv3gfs-util external/daint_venv; \
 	fi
 
 constraints.txt: requirements.txt requirements_wrapper.txt requirements_lint.txt
@@ -202,7 +202,7 @@ lint:
 
 gt4py_tests_gpu:
 	CUDA=y make build && \
-        docker run --gpus all $(FV3CORE_IMAGE) python3 -m pytest -k "not gtc" -x gt4py/
+        docker run --gpus all $(FV3CORE_IMAGE) python3 -m pytest -k "gtcuda or (not gtc)" -x gt4py/tests
 
 .PHONY: update_submodules build_environment build dev dev_tests dev_tests_mpi flake8 lint get_test_data unpack_test_data \
 	 list_test_data_options pull_environment pull_test_data push_environment \

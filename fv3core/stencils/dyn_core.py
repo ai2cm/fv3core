@@ -1,4 +1,13 @@
-from gt4py.gtscript import BACKWARD, FORWARD, PARALLEL, computation, interval
+from gt4py.gtscript import (
+    __INLINED,
+    BACKWARD,
+    FORWARD,
+    PARALLEL,
+    computation,
+    horizontal,
+    interval,
+    region,
+)
 
 import fv3core._config as spec
 import fv3core.stencils.basic_operations as basic
@@ -7,7 +16,6 @@ import fv3core.stencils.d_sw as d_sw
 import fv3core.stencils.del2cubed as del2cubed
 import fv3core.stencils.nh_p_grad as nh_p_grad
 import fv3core.stencils.pe_halo as pe_halo
-import fv3core.stencils.pgradc as pgradc
 import fv3core.stencils.pk3_halo as pk3_halo
 import fv3core.stencils.ray_fast as ray_fast
 import fv3core.stencils.riem_solver3 as riem_solver3
@@ -15,6 +23,7 @@ import fv3core.stencils.riem_solver_c as riem_solver_c
 import fv3core.stencils.temperature_adjust as temperature_adjust
 import fv3core.stencils.updatedzc as updatedzc
 import fv3core.stencils.updatedzd as updatedzd
+import fv3core.utils.global_config as global_config
 import fv3core.utils.global_constants as constants
 import fv3core.utils.gt4py_utils as utils
 import fv3gfs.util as fv3util
@@ -70,6 +79,57 @@ def heatadjust_temperature_lowlevel(
 ):
     with computation(PARALLEL), interval(...):
         pt[0, 0, 0] = pt + heat_source / (cp_air * delp * pkz)
+
+
+@gtstencil()
+def p_grad_c_stencil(
+    rdxc: FloatField,
+    rdyc: FloatField,
+    uc: FloatField,
+    vc: FloatField,
+    delpc: FloatField,
+    pkc: FloatField,
+    gz: FloatField,
+    dt2: float,
+):
+    """Update C-grid winds from the pressure gradient force
+
+    When this is run the C-grid winds have almost been completely
+    updated by computing the momentum equation terms, but the pressure
+    gradient force term has not yet been applied. This stencil completes
+    the equation and Arakawa C-grid winds have been advected half a timestep
+    upon completing this stencil..
+
+     Args:
+         uc: x-velocity on the C-grid (inout)
+         vc: y-velocity on the C-grid (inout)
+         delpc: vertical delta in pressure (in)
+         pkc:  pressure if non-hydrostatic,
+               (edge pressure)**(moist kappa) if hydrostatic(in)
+         gz:  height of the model grid cells (m)(in)
+         dt2: half a model timestep (for C-grid update) in seconds (in)
+    Grid variable inputs:
+        rdxc, rdyc
+    """
+    from __externals__ import local_ie, local_is, local_je, local_js, namelist
+
+    with computation(PARALLEL), interval(...):
+        if __INLINED(namelist.hydrostatic):
+            wk = pkc[0, 0, 1] - pkc
+        else:
+            wk = delpc
+        # TODO for PGradC validation only, not necessary for DynCore
+        with horizontal(region[local_is : local_ie + 2, local_js : local_je + 1]):
+            uc = uc + dt2 * rdxc / (wk[-1, 0, 0] + wk) * (
+                (gz[-1, 0, 1] - gz) * (pkc[0, 0, 1] - pkc[-1, 0, 0])
+                + (gz[-1, 0, 0] - gz[0, 0, 1]) * (pkc[-1, 0, 1] - pkc)
+            )
+        # TODO for PGradC validation only, not necessary for DynCore
+        with horizontal(region[local_is : local_ie + 1, local_js : local_je + 2]):
+            vc = vc + dt2 * rdyc / (wk[0, -1, 0] + wk) * (
+                (gz[0, -1, 1] - gz) * (pkc[0, 0, 1] - pkc[0, -1, 0])
+                + (gz[0, -1, 0] - gz[0, 0, 1]) * (pkc[0, -1, 1] - pkc)
+            )
 
 
 def get_n_con():
@@ -145,15 +205,21 @@ def compute(state, comm):
     shape = state.delz.shape
     # NOTE: In Fortran model the halo update starts happens in fv_dynamics, not here.
     reqs = {}
-    for halovar in ["q_con_quantity", "cappa_quantity", "delp_quantity", "pt_quantity"]:
-        reqs[halovar] = comm.start_halo_update(
-            state.__getattribute__(halovar), n_points=utils.halo
+    if global_config.get_do_halo_exchange():
+        for halovar in [
+            "q_con_quantity",
+            "cappa_quantity",
+            "delp_quantity",
+            "pt_quantity",
+        ]:
+            reqs[halovar] = comm.start_halo_update(
+                state.__getattribute__(halovar), n_points=utils.halo
+            )
+        reqs_vector = comm.start_vector_halo_update(
+            state.u_quantity, state.v_quantity, n_points=utils.halo
         )
-    reqs_vector = comm.start_vector_halo_update(
-        state.u_quantity, state.v_quantity, n_points=utils.halo
-    )
-    reqs["q_con_quantity"].wait()
-    reqs["cappa_quantity"].wait()
+        reqs["q_con_quantity"].wait()
+        reqs["cappa_quantity"].wait()
 
     state.__dict__.update(dyncore_temporaries(shape))
     if init_step:
@@ -192,9 +258,10 @@ def compute(state, comm):
         if spec.namelist.breed_vortex_inline or (it == n_split - 1):
             remap_step = True
         if not hydrostatic:
-            reqs["w_quantity"] = comm.start_halo_update(
-                state.w_quantity, n_points=utils.halo
-            )
+            if global_config.get_do_halo_exchange():
+                reqs["w_quantity"] = comm.start_halo_update(
+                    state.w_quantity, n_points=utils.halo
+                )
             if it == 0:
                 set_gz(
                     state.zs,
@@ -203,12 +270,14 @@ def compute(state, comm):
                     origin=grid.compute_origin(),
                     domain=(grid.nic, grid.njc, grid.npz + 1),
                 )
-                reqs["gz_quantity"] = comm.start_halo_update(
-                    state.gz_quantity, n_points=utils.halo
-                )
+                if global_config.get_do_halo_exchange():
+                    reqs["gz_quantity"] = comm.start_halo_update(
+                        state.gz_quantity, n_points=utils.halo
+                    )
         if it == 0:
-            reqs["delp_quantity"].wait()
-            reqs["pt_quantity"].wait()
+            if global_config.get_do_halo_exchange():
+                reqs["delp_quantity"].wait()
+                reqs["pt_quantity"].wait()
             beta_d = 0
         else:
             beta_d = spec.namelist.beta
@@ -225,9 +294,10 @@ def compute(state, comm):
                     origin=(grid.is_ - 1, grid.js - 1, 0),
                     domain=(grid.nic + 2, grid.njc + 2, grid.npz),
                 )
-        reqs_vector.wait()
-        if not hydrostatic:
-            reqs["w_quantity"].wait()
+        if global_config.get_do_halo_exchange():
+            reqs_vector.wait()
+            if not hydrostatic:
+                reqs["w_quantity"].wait()
 
         state.delpc, state.ptc = c_sw.compute(
             state.delp,
@@ -246,13 +316,14 @@ def compute(state, comm):
             dt2,
         )
 
-        if spec.namelist.nord > 0:
+        if spec.namelist.nord > 0 and global_config.get_do_halo_exchange():
             reqs["divgd_quantity"] = comm.start_halo_update(
                 state.divgd_quantity, n_points=utils.halo
             )
         if not hydrostatic:
             if it == 0:
-                reqs["gz_quantity"].wait()
+                if global_config.get_do_halo_exchange():
+                    reqs["gz_quantity"].wait()
                 copy_stencil(
                     state.gz,
                     state.zh,
@@ -286,13 +357,25 @@ def compute(state, comm):
                 state.ws3,
             )
 
-        pgradc.compute(state.uc, state.vc, state.delpc, state.pkc, state.gz, dt2)
-        reqc_vector = comm.start_vector_halo_update(
-            state.uc_quantity, state.vc_quantity, n_points=utils.halo
+        p_grad_c_stencil(
+            grid.rdxc,
+            grid.rdyc,
+            state.uc,
+            state.vc,
+            state.delpc,
+            state.pkc,
+            state.gz,
+            dt2,
+            origin=grid.compute_origin(),
+            domain=grid.domain_shape_compute(add=(1, 1, 0)),
         )
-        if spec.namelist.nord > 0:
-            reqs["divgd_quantity"].wait()
-        reqc_vector.wait()
+        if global_config.get_do_halo_exchange():
+            reqc_vector = comm.start_vector_halo_update(
+                state.uc_quantity, state.vc_quantity, n_points=utils.halo
+            )
+            if spec.namelist.nord > 0:
+                reqs["divgd_quantity"].wait()
+            reqc_vector.wait()
         state.nord_v, state.damp_vt = d_sw.compute(
             state.vt,
             state.delp,
@@ -321,8 +404,9 @@ def compute(state, comm):
             dt,
         )
 
-        for halovar in ["delp_quantity", "pt_quantity", "q_con_quantity"]:
-            comm.halo_update(state.__getattribute__(halovar), n_points=utils.halo)
+        if global_config.get_do_halo_exchange():
+            for halovar in ["delp_quantity", "pt_quantity", "q_con_quantity"]:
+                comm.halo_update(state.__getattribute__(halovar), n_points=utils.halo)
 
         # Not used unless we implement other betas and alternatives to nh_p_grad
         # if spec.namelist.d_ext > 0:
@@ -366,17 +450,18 @@ def compute(state, comm):
                 state.wsd,
             )
 
-            reqs["zh_quantity"] = comm.start_halo_update(
-                state.zh_quantity, n_points=utils.halo
-            )
-            if grid.npx == grid.npy:
-                reqs["pkc_quantity"] = comm.start_halo_update(
-                    state.pkc_quantity, n_points=2
+            if global_config.get_do_halo_exchange():
+                reqs["zh_quantity"] = comm.start_halo_update(
+                    state.zh_quantity, n_points=utils.halo
                 )
-            else:
-                reqs["pkc_quantity"] = comm.start_halo_update(
-                    state.pkc_quantity, n_points=utils.halo
-                )
+                if grid.npx == grid.npy:
+                    reqs["pkc_quantity"] = comm.start_halo_update(
+                        state.pkc_quantity, n_points=2
+                    )
+                else:
+                    reqs["pkc_quantity"] = comm.start_halo_update(
+                        state.pkc_quantity, n_points=utils.halo
+                    )
             if remap_step:
                 pe_halo.compute(state.pe, state.delp, state.ptop)
             if spec.namelist.use_logp:
@@ -384,10 +469,10 @@ def compute(state, comm):
             else:
                 pk3_halo.compute(state.pk3, state.delp, state.ptop, akap)
         if not hydrostatic:
-            reqs["zh_quantity"].wait()
-            if grid.npx != grid.npy:
-                reqs["pkc_quantity"].wait()
-        if not hydrostatic:
+            if global_config.get_do_halo_exchange():
+                reqs["zh_quantity"].wait()
+                if grid.npx != grid.npy:
+                    reqs["pkc_quantity"].wait()
             basic.multiply_constant(
                 state.zh,
                 state.gz,
@@ -395,13 +480,12 @@ def compute(state, comm):
                 origin=(grid.is_ - 2, grid.js - 2, 0),
                 domain=(grid.nic + 4, grid.njc + 4, grid.npz + 1),
             )
-            if grid.npx == grid.npy:
+            if grid.npx == grid.npy and global_config.get_do_halo_exchange():
                 reqs["pkc_quantity"].wait()
             if spec.namelist.beta != 0:
                 raise Exception(
                     "Unimplemented namelist option -- we only support beta=0"
                 )
-        if not hydrostatic:
             nh_p_grad.compute(
                 state.u,
                 state.v,
@@ -427,18 +511,22 @@ def compute(state, comm):
                 state.ks,
             )
 
-        if it != n_split - 1:
-            reqs_vector = comm.start_vector_halo_update(
-                state.u_quantity, state.v_quantity, n_points=utils.halo
-            )
-        else:
-            if spec.namelist.grid_type < 4:
-                comm.synchronize_vector_interfaces(state.u_quantity, state.v_quantity)
+        if global_config.get_do_halo_exchange():
+            if it != n_split - 1:
+                reqs_vector = comm.start_vector_halo_update(
+                    state.u_quantity, state.v_quantity, n_points=utils.halo
+                )
+            else:
+                if spec.namelist.grid_type < 4:
+                    comm.synchronize_vector_interfaces(
+                        state.u_quantity, state.v_quantity
+                    )
 
     if n_con != 0 and spec.namelist.d_con > 1.0e-5:
         nf_ke = min(3, spec.namelist.nord + 1)
 
-        comm.halo_update(state.heat_source_quantity, n_points=utils.halo)
+        if global_config.get_do_halo_exchange():
+            comm.halo_update(state.heat_source_quantity, n_points=utils.halo)
         cd = constants.CNST_0P20 * grid.da_min
         del2cubed.compute(state.heat_source, nf_ke, cd, grid.npz)
         if not hydrostatic:

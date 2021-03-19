@@ -23,6 +23,13 @@ def set_dp(dp1: FloatField, pe1: FloatField):
 
 
 @gtstencil()
+def set_eulerian_pressures(pe: FloatField, ptop: FloatFieldIJ, pbot: FloatFieldIJ):
+    with computation(FORWARD), interval(0, 1):
+        ptop = pe[0, 0, 0]
+        pbot = pe[0, 0, 1]
+
+
+@gtstencil()
 def lagrangian_contributions(
     pe1: FloatField,
     ptop: FloatFieldIJ,
@@ -75,6 +82,8 @@ def lagrangian_contributions(
                         * (q4_2 + 0.5 * esl * (q4_3 - q4_2 + q4_4 * (1.0 - r23 * esl)))
                         / (pbot - ptop)
                     )
+    with computation(FORWARD), interval(0, 1):
+        q2_adds = 0.0
     with computation(FORWARD), interval(...):
         q2_adds += q2_tmp
 
@@ -219,9 +228,16 @@ def lagrangian_contributions_stencil(
     jslice2d = slice(min(jslice.start, jsize - 1), min(jslice.stop, jsize))
 
     for k_eul in range(km):
-        ptop[:, :] = pe2[:, :, k_eul]
-        pbot[:, :] = pe2[:, :, k_eul + 1]
-        q2_adds[:] = 0.0
+
+        # TODO (olivere): This is hacky
+        # merge with subsequent stencil when possible
+        set_eulerian_pressures(
+            pe2,
+            ptop,
+            pbot,
+            origin=(origin[0], origin[1], k_eul),
+            domain=(domain[0], domain[1], 1),
+        )
 
         lagrangian_contributions(
             pe1,

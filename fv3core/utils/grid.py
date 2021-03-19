@@ -3,9 +3,9 @@ from typing import Tuple
 import numpy as np
 from gt4py import gtscript
 
+import fv3core.utils.global_config as global_config
 import fv3gfs.util as fv3util
 
-from . import global_config
 from . import gt4py_utils as utils
 
 
@@ -417,12 +417,6 @@ class Grid:
             return self.is_ - 1, self.js - 1
         else:
             return 0, 0
-
-    def slice_data_k(self, ki):
-        utils.k_slice_inplace(self.data_fields, ki)
-        # update instance vars
-        for k, v in self.data_fields.items():
-            setattr(self, k, self.data_fields[k])
 
 
 def axis_offsets(

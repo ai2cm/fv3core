@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import json
 from argparse import ArgumentParser
 from datetime import datetime
@@ -11,11 +13,15 @@ import fv3core
 import fv3core._config as spec
 import fv3core.stencils.fv_dynamics as fv_dynamics
 import fv3core.testing
+import fv3core.utils.global_config as global_config
 import fv3gfs.util as util
+from fv3core.utils import gt4py_utils
 
 
 def parse_args():
-    usage = "usage: python %(prog)s <data_dir> <timesteps> <backend> <hash>"
+    usage = (
+        "usage: python %(prog)s <data_dir> <timesteps> <backend> <hash> <halo_exchange>"
+    )
     parser = ArgumentParser(usage=usage)
 
     parser.add_argument(
@@ -41,6 +47,16 @@ def parse_args():
         type=str,
         action="store",
         help="git hash to store",
+    )
+    parser.add_argument(
+        "--disable_halo_exchange",
+        action="store_true",
+        help="enable or disable the halo exchange",
+    )
+    parser.add_argument(
+        "--profile",
+        action="store_true",
+        help="enable performance profiling using cProfile",
     )
 
     return parser.parse_args()
@@ -97,8 +113,17 @@ if __name__ == "__main__":
         comm = MPI.COMM_WORLD
         rank = comm.Get_rank()
 
+        profiler = None
+        if args.profile:
+            import cProfile
+
+            profiler = cProfile.Profile()
+            profiler.disable()
+
         fv3core.set_backend(args.backend)
         fv3core.set_rebuild(False)
+        gt4py_utils.validate_args = False
+        global_config.set_do_halo_exchange(not args.disable_halo_exchange)
 
         spec.set_namelist(args.data_dir + "/input.nml")
 
@@ -157,6 +182,9 @@ if __name__ == "__main__":
             input_data["ks"],
         )
 
+    if profiler is not None:
+        profiler.enable()
+
     with timer.clock("mainloop"):
         for i in range(args.time_step - 1):
             fv_dynamics.fv_dynamics(
@@ -171,13 +199,26 @@ if __name__ == "__main__":
                 timer,
             )
 
+    if profiler is not None:
+        profiler.disable()
+
     timer.stop("total")
+
+    # output profiling data
+    if profiler is not None:
+        profiler.dump_stats(f"fv3core_{experiment_name}_{args.backend}_{rank}.prof")
+
     # collect times and output simple statistics
-    print("Gathering Times")
-    experiment = set_experiment_info(
-        experiment_name, args.time_step, args.backend, args.hash
-    )
-    gather_timing_statistics(timer, experiment, comm)
-    now = datetime.now()
-    filename = now.strftime("%Y-%m-%d-%H-%M-%S")
-    write_global_timings(experiment, filename, comm)
+    comm.Barrier()
+    if not args.disable_halo_exchange:
+        print("Gathering Times")
+        experiment = set_experiment_info(
+            experiment_name, args.time_step, args.backend, args.hash
+        )
+        gather_timing_statistics(timer, experiment, comm)
+        now = datetime.now()
+        filename = now.strftime("%Y-%m-%d-%H-%M-%S")
+        write_global_timings(experiment, filename, comm)
+
+    if comm.Get_rank() == 0:
+        print("SUCCESS")

@@ -1,16 +1,17 @@
-import copy
+import inspect
 import logging
+import math
 from functools import wraps
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import gt4py as gt
 import gt4py.storage as gt_storage
 import numpy as np
+from gt4py import gtscript
 
+import fv3core.utils.global_config as global_config
 from fv3core.utils.mpi import MPI
-from fv3core.utils.typing import DTypes, Field, Float, FloatField, IntField
-
-from . import global_config
+from fv3core.utils.typing import DTypes, Field, Float, Int
 
 
 try:
@@ -27,8 +28,8 @@ validate_args = True
 managed_memory = True
 
 # [DEPRECATED] field types
-sd = FloatField
-si = IntField
+sd = gtscript.Field[Float]
+si = gtscript.Field[Int]
 
 # Number of halo lines for each field and default origin
 halo = 3
@@ -233,21 +234,21 @@ def _make_storage_data_3d(
     return buffer
 
 
-def make_storage_from_shape(
+def make_storage_from_shape_uncached(
     shape: Tuple[int, int, int],
     origin: Tuple[int, int, int] = origin,
     *,
     dtype: DTypes = np.float64,
-    init: bool = True,
+    init: bool = False,
     mask: Optional[Tuple[bool, bool, bool]] = None,
 ) -> Field:
-    """Create a new gt4py storage of a given shape.
+    """Create a new gt4py storage of a given shape. Do not memoize outputs.
 
     Args:
         shape: Shape of the new storage
         origin: Default origin for gt4py stencil calls
         dtype: Data type
-        init: If True, initializes the storage to the default value for the type
+        init: If True, initializes the storage to zero
         mask: Tuple indicating the axes used when initializing the storage
 
     Returns:
@@ -279,6 +280,71 @@ def make_storage_from_shape(
     return storage
 
 
+storage_shape_outputs = {}
+
+
+@wraps(make_storage_from_shape_uncached)
+def make_storage_from_shape(
+    *args,
+    **kwargs,
+) -> Field:
+    """Create a new gt4py storage of a given shape. Outputs are memoized.
+
+    The key used for memoization is the arguments used combined with the
+    calling scope file and line number, as well as the file and line number
+    which called in to that scope. This handles cases where a utility
+    function (such as `copy`) calls our `make_storage_from_shape`, since
+    `copy` will be called from different places each time. This does *not*
+    handle any more deeply nested duplicate calls, such as if another
+    utility function were to call `copy`, and does not handle allocations
+    which take place within for loops, such as tracer allocations. In
+    those cases, memoization will provide the same storage to two
+    conceptually different objects, causing a bug.
+
+    For this reason, and because of the significant overhead cost of
+    `inspect`, we should move away from this implementation in the
+    longer term.
+
+    Args:
+        shape: Shape of the new storage
+        origin: Default origin for gt4py stencil calls
+        dtype: Data type
+        init: If True, initializes the storage to zero
+        mask: Tuple indicating the axes used when initializing the storage
+
+    Returns:
+        Field[dtype]: New storage
+
+    Examples:
+        1) utmp = utils.make_storage_from_shape(ua.shape)
+        2) qx = utils.make_storage_from_shape(
+               qin.shape, origin=(grid().is_, grid().jsd, kstart)
+           )
+        3) q_out = utils.make_storage_from_shape(q_in.shape, origin, init=True)
+    """
+    # The caching used here is dangerous, in that e.g. if you call this in a
+    # loop with the same arguments you will get the same storage.
+    # This was implemented this way for fast results with minimal code
+    # changes.
+    # We should shift to an explicit caching or array re-use system down
+    # the line.
+    callers = tuple(
+        # only need to look at the calling scope and its calling scope
+        # because we don't have any utility functions that call utility
+        # functions that call this function (only nested 1 deep)
+        inspect.getframeinfo(stack_item[0])
+        for stack_item in inspect.stack()[1:3]
+    )
+    caller_signature = tuple((caller.filename, caller.lineno) for caller in callers)
+    key = (args, caller_signature, tuple(sorted(list(kwargs.items()))))
+    if key not in storage_shape_outputs:
+        storage_shape_outputs[key] = make_storage_from_shape_uncached(*args, **kwargs)
+    return_value = storage_shape_outputs[key]
+    if kwargs.get("init", False):
+        return_value[:] = 0.0
+    return return_value
+
+
 def make_storage_dict(
     data: Field,
     shape: Optional[Tuple[int, int, int]] = None,
@@ -304,78 +370,30 @@ def make_storage_dict(
     return data_dict
 
 
+# def k_slice_operation(key, value, ki, dictionary):
+#     if isinstance(value, gt_storage.storage.Storage):
+#         shape = value.shape
+#         mask = dictionary[key].mask if key in dictionary else (True, True, True)
+#         if len(shape) == 1:  # K-field
+#             if mask[2]:
+#                 shape = (1, 1, len(ki))
+#                 dictionary[key] = make_storage_data(value[ki], shape, read_only=True)
+#         elif len(shape) == 2:  # IK-field
+#             if not mask[1]:
+#                 dictionary[key] = make_storage_data(
+#                     value[:, ki], (shape[0], 1, len(ki)), read_only=True
+#                 )
+#         else:  # IJK-field
+#             dictionary[key] = make_storage_data(
+#                 value[:, :, ki], (shape[0], shape[1], len(ki)), read_only=True
+#             )
+#     else:
+#         dictionary[key] = value
+
+
 def storage_dict(st_dict, names, shape, origin):
     for name in names:
-        st_dict[name] = make_storage_from_shape(shape, origin)
-
-
-def k_slice_operation(key, value, ki, dictionary):
-    if isinstance(value, gt_storage.storage.Storage):
-        shape = value.shape
-        mask = dictionary[key].mask if key in dictionary else (True, True, True)
-        if len(shape) == 1:  # K-field
-            if mask[2]:
-                shape = (1, 1, len(ki))
-                dictionary[key] = make_storage_data(value[ki], shape, read_only=True)
-        elif len(shape) == 2:  # IK-field
-            if not mask[1]:
-                dictionary[key] = make_storage_data(
-                    value[:, ki], (shape[0], 1, len(ki)), read_only=True
-                )
-        else:  # IJK-field
-            dictionary[key] = make_storage_data(
-                value[:, :, ki], (shape[0], shape[1], len(ki)), read_only=True
-            )
-    else:
-        dictionary[key] = value
-
-
-def k_slice_inplace(data_dict, ki):
-    for k, v in data_dict.items():
-        k_slice_operation(k, v, ki, data_dict)
-
-
-def k_slice(data_dict, ki):
-    new_dict = {}
-    for k, v in data_dict.items():
-        k_slice_operation(k, v, ki, new_dict)
-    return new_dict
-
-
-def k_subset_run(func, data, splitvars, ki, outputs, grid_data, grid, allz=False):
-    grid.npz = len(ki)
-    grid.slice_data_k(ki)
-    d = k_slice(data, ki)
-    d.update(splitvars)
-    results = func(**d)
-    collect_results(d, results, outputs, ki, allz)
-    grid.add_data(grid_data)
-
-
-def collect_results(data, results, outputs, ki, allz=False):
-    outnames = list(outputs.keys())
-    endz = None if allz else -1
-    logger.debug("Computing results for k indices: {}".format(ki[:-1]))
-    for k in outnames:
-        if k in data:
-            # passing fields with single item in 3rd dimension leads to errors
-            outputs[k][:, :, ki[:endz]] = data[k][:, :, :endz]
-    if results is not None:
-        for ri in range(len(results)):
-            outputs[outnames[ri]][:, :, ki[:endz]] = results[ri][:, :, :endz]
-
-
-def k_split_run_dataslice(
-    func, data, k_indices_array, splitvars_values, outputs, grid, allz=False
-):
-    num_k = grid.npz
-    grid_data = copy.deepcopy(grid.data_fields)
-    for ki in k_indices_array:
-        splitvars = {}
-        for name, value_array in splitvars_values.items():
-            splitvars[name] = value_array[ki[0]]
-        k_subset_run(func, data, splitvars, ki, outputs, grid_data, grid, allz)
-    grid.npz = num_k
+        st_dict[name] = make_storage_from_shape_uncached(shape, origin, init=True)
 
 
 def get_kstarts(column_info, npz):
@@ -421,6 +439,31 @@ def krange_from_slice(kslice, grid):
     kend = kslice.stop
     nk = grid.npz - kstart if kend is None else kend - kstart
     return kstart, nk
+
+
+def great_circle_dist(p1, p2, radius=None):
+    beta = (
+        math.asin(
+            math.sqrt(
+                math.sin((p1[1] - p2[1]) / 2.0) ** 2
+                + math.cos(p1[1])
+                * math.cos(p2[1])
+                * math.sin((p1[0] - p2[0]) / 2.0) ** 2
+            )
+        )
+        * 2.0
+    )
+    if radius is not None:
+        great_circle_dist = radius * beta
+    else:
+        great_circle_dist = beta
+    return great_circle_dist
+
+
+def extrap_corner(p0, p1, p2, q1, q2):
+    x1 = great_circle_dist(p1, p0)
+    x2 = great_circle_dist(p2, p0)
+    return q1 + x1 / (x2 - x1) * (q1 - q2)
 
 
 def asarray(array, to_type=np.ndarray, dtype=None, order=None):

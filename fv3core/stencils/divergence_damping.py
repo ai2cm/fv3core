@@ -223,7 +223,11 @@ def compute(
                 )
             )
             if fillc:
-                corners.fill_corners_2d(divg_d, grid, "B", "x")
+                corners.fill_corners_bgrid_x(
+                    divg_d,
+                    origin=(grid.isd, grid.jsd, kstart),
+                    domain=(grid.nid + 1, grid.njd + 1, nk),
+                )
             vc_from_divg(
                 divg_d,
                 grid.divg_u,
@@ -232,7 +236,11 @@ def compute(
                 domain=(nint + 1, njnt, nk),
             )
             if fillc:
-                corners.fill_corners_2d(divg_d, grid, "B", "y")
+                corners.fill_corners_bgrid_y(
+                    divg_d,
+                    origin=(grid.isd, grid.jsd, kstart),
+                    domain=(grid.nid + 1, grid.njd + 1, nk),
+                )
             uc_from_divg(
                 divg_d,
                 grid.divg_v,
@@ -241,7 +249,13 @@ def compute(
                 domain=(nint, njnt + 1, nk),
             )
             if fillc:
-                corners.fill_corners_dgrid(vc, uc, grid, True)
+                corners.fill_corners_dgrid(
+                    vc,
+                    uc,
+                    -1.0,
+                    origin=(grid.isd, grid.jsd, kstart),
+                    domain=(grid.nid + 1, grid.njd + 1, nk),
+                )
 
             redo_divg_d(
                 uc, vc, divg_d, origin=(is_, js, kstart), domain=(nint, njnt, nk)
