@@ -467,7 +467,7 @@ def damp_vertical_wind(w, heat_s, diss_e, dt, column_namelist, kstart, nk):
         damp4 = (column_namelist[kstart]["damp_w"] * grid().da_min_c) ** (
             column_namelist[kstart]["nord_w"] + 1
         )
-        delnflux.compute_no_sg(
+        delnflux.compute_no_sg_unroll(
             w,
             fx2,
             fy2,
@@ -843,7 +843,7 @@ def d_sw(
             damp4 = (column_namelist[kstart]["damp_vt"] * grid().da_min_c) ** (
                 column_namelist[kstart]["nord_v"] + 1
             )
-            delnflux.compute_no_sg(
+            delnflux.compute_no_sg_unroll(
                 wk,
                 ut,
                 vt,

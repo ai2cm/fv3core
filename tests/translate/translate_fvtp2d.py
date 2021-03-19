@@ -31,6 +31,7 @@ class TranslateFvTp2d(TranslateFortranData2Py):
 
     # use_sg -- 'dx', 'dy', 'rdxc', 'rdyc', 'sin_sg needed
     def compute(self, inputs):
+        inputs["nord_column"] = inputs["nord_column"].astype(int)
         inputs["fx"] = utils.make_storage_from_shape(
             self.maxshape, self.grid.full_origin()
         )
