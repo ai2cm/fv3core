@@ -168,6 +168,7 @@ class Tracer2D1L:
         self.stencil_dp_fluxadjustment = stencil_wrapper(dp_fluxadjustment)
         self.stencil_q_adjustments = stencil_wrapper(q_adjustments)
         self.stencil_q_adjust = stencil_wrapper(q_adjust)
+        self.fvtp2d_obj = fvtp2d.FvTp2d(spec.namelist, spec.namelist.hord_tr)
         # If use AllReduce, will need something like this:
         # self._tmp_cmax = utils.make_storage_from_shape(shape, origin)
         # self._tmp_nsplt3d = utils.make_storage_from_shape(shape, origin)
@@ -253,10 +254,6 @@ class Tracer2D1L:
             origin=grid.full_origin(),
             domain=grid.domain_shape_full(),
         )
-
-        fvtp2d_obj = utils.cached_stencil_class(fvtp2d.FvTp2d)(
-            spec.namelist, spec.namelist.hord_tr, cache_key="tracer2d1l"
-        )
         # TODO: Revisit: the loops over q and nsplt have two inefficient options
         # duplicating storages/stencil calls, return to this, maybe you have more
         # options now, or maybe the one chosen here is the worse one.
@@ -297,7 +294,7 @@ class Tracer2D1L:
                     domain=grid.domain_shape_compute(),
                 )
                 if nsplt != 1:
-                    fvtp2d_obj(
+                    self.fvtp2d_obj(
                         qn2.storage,
                         cxd,
                         cyd,
@@ -325,7 +322,7 @@ class Tracer2D1L:
                         domain=grid.domain_shape_compute(),
                     )
                 else:
-                    fvtp2d_obj(
+                    self.fvtp2d_obj(
                         q.storage,
                         cxd,
                         cyd,
