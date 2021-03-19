@@ -163,9 +163,12 @@ def divergence_corner(
         with horizontal(region[i_start, :], region[i_end + 1, :]):
             vf = v * dxc * 0.5 * (sin_sg3[-1, 0, 0] + sin_sg1)
 
-        divg_d = vf[0, -1, 0] - vf + uf[-1, 0, 0] - uf
+        # TODO: Automate this in the toolchain...
+        vf_tmp = vf[0, -1, 0]
+
+        divg_d = vf_tmp - vf + uf[-1, 0, 0] - uf
         with horizontal(region[i_start, j_start], region[i_end + 1, j_start]):
-            divg_d -= vf[0, -1, 0]
+            divg_d -= vf_tmp
         with horizontal(region[i_end + 1, j_end + 1], region[i_start, j_end + 1]):
             divg_d += vf
         divg_d *= rarea_c
