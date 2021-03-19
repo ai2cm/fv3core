@@ -83,8 +83,8 @@ def heatadjust_temperature_lowlevel(
 
 @gtstencil()
 def p_grad_c_stencil(
-    rdxc: FloatField,
-    rdyc: FloatField,
+    rdxc: FloatFieldIJ,
+    rdyc: FloatFieldIJ,
     uc: FloatField,
     vc: FloatField,
     delpc: FloatField,

@@ -25,7 +25,7 @@ class TranslateFillCorners(TranslateFortranData2Py):
         self.out_vars = {"divg_d": {"iend": grid.ied + 1, "jend": grid.jed + 1}}
 
     def compute_from_storage(self, inputs):
-        nord_column = inputs["nord_col"].data[0, 0, :]
+        nord_column = inputs["nord_col"][0]
         for nord in np.unique(nord_column):
             if nord != 0:
                 ki = [i for i in range(self.grid.npz) if nord_column[i] == nord]

@@ -5,9 +5,9 @@ import fv3core._config as spec
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import gtstencil
 from fv3core.stencils.a2b_ord4 import a1, a2, lagrange_x_func, lagrange_y_func
+from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
 
 
-sd = utils.sd
 c1 = -2.0 / 14.0
 c2 = 11.0 / 14.0
 c3 = 5.0 / 14.0
@@ -25,7 +25,7 @@ def lagrange_y_func_p1(qx):
 
 
 @gtstencil()
-def lagrange_interpolation_y_p1(qx: sd, qout: sd):
+def lagrange_interpolation_y_p1(qx: FloatField, qout: FloatField):
     with computation(PARALLEL), interval(...):
         qout = lagrange_y_func_p1(qx)
 
@@ -36,7 +36,7 @@ def lagrange_x_func_p1(qy):
 
 
 @gtstencil()
-def lagrange_interpolation_x_p1(qy: sd, qout: sd):
+def lagrange_interpolation_x_p1(qy: FloatField, qout: FloatField):
     with computation(PARALLEL), interval(...):
         qout = lagrange_x_func_p1(qy)
 
@@ -52,7 +52,7 @@ def avg_y(v):
 
 
 @gtstencil()
-def avg_box(u: sd, v: sd, utmp: sd, vtmp: sd):
+def avg_box(u: FloatField, v: FloatField, utmp: FloatField, vtmp: FloatField):
     with computation(PARALLEL), interval(...):
         utmp = avg_x(u)
         vtmp = avg_y(v)
@@ -64,27 +64,27 @@ def contravariant(u, v, cosa, rsin):
 
 
 @gtstencil()
-def contravariant_stencil(u: sd, v: sd, cosa: sd, rsin: sd, out: sd):
+def contravariant_stencil(u: FloatField, v: FloatField, cosa: FloatFieldIJ, rsin: FloatFieldIJ, out: FloatField):
     with computation(PARALLEL), interval(...):
         out = contravariant(u, v, cosa, rsin)
 
 
 @gtstencil()
-def contravariant_components(utmp: sd, vtmp: sd, cosa_s: sd, rsin2: sd, ua: sd, va: sd):
+def contravariant_components(utmp: FloatField, vtmp: FloatField, cosa_s: FloatFieldIJ, rsin2: FloatFieldIJ, ua: FloatField, va: FloatField):
     with computation(PARALLEL), interval(...):
         ua = contravariant(utmp, vtmp, cosa_s, rsin2)
         va = contravariant(vtmp, utmp, cosa_s, rsin2)
 
 
 @gtstencil()
-def ut_main(utmp: sd, uc: sd, v: sd, cosa_u: sd, rsin_u: sd, ut: sd):
+def ut_main(utmp: FloatField, uc: FloatField, v: FloatField, cosa_u: FloatFieldIJ, rsin_u: FloatFieldIJ, ut: FloatField):
     with computation(PARALLEL), interval(...):
         uc = lagrange_x_func(utmp)
         ut = contravariant(uc, v, cosa_u, rsin_u)
 
 
 @gtstencil()
-def vt_main(vtmp: sd, vc: sd, u: sd, cosa_v: sd, rsin_v: sd, vt: sd):
+def vt_main(vtmp: FloatField, vc: FloatField, u: FloatField, cosa_v: FloatFieldIJ, rsin_v: FloatFieldIJ, vt: FloatField):
     with computation(PARALLEL), interval(...):
         vc = lagrange_y_func(vtmp)
         vt = contravariant(vc, u, cosa_v, rsin_v)
@@ -111,25 +111,25 @@ def vol_conserv_cubic_interp_func_y_rev(v):
 
 
 @gtstencil()
-def vol_conserv_cubic_interp_x(utmp: sd, uc: sd):
+def vol_conserv_cubic_interp_x(utmp: FloatField, uc: FloatField):
     with computation(PARALLEL), interval(...):
         uc = vol_conserv_cubic_interp_func_x(utmp)
 
 
 @gtstencil()
-def vol_conserv_cubic_interp_x_rev(utmp: sd, uc: sd):
+def vol_conserv_cubic_interp_x_rev(utmp: FloatField, uc: FloatField):
     with computation(PARALLEL), interval(...):
         uc = vol_conserv_cubic_interp_func_x_rev(utmp)
 
 
 @gtstencil()
-def vol_conserv_cubic_interp_y(vtmp: sd, vc: sd):
+def vol_conserv_cubic_interp_y(vtmp: FloatField, vc: FloatField):
     with computation(PARALLEL), interval(...):
         vc = vol_conserv_cubic_interp_func_y(vtmp)
 
 
 @gtstencil()
-def vt_edge(vtmp: sd, vc: sd, u: sd, cosa_v: sd, rsin_v: sd, vt: sd, rev: int):
+def vt_edge(vtmp: FloatField, vc: FloatField, u: FloatField, cosa_v: FloatFieldIJ, rsin_v: FloatFieldIJ, vt: FloatField, rev: int):
     with computation(PARALLEL), interval(...):
         vc = (
             vol_conserv_cubic_interp_func_y(vtmp)
@@ -140,31 +140,31 @@ def vt_edge(vtmp: sd, vc: sd, u: sd, cosa_v: sd, rsin_v: sd, vt: sd, rev: int):
 
 
 @gtstencil()
-def uc_x_edge1(ut: sd, sin_sg3: sd, sin_sg1: sd, uc: sd):
+def uc_x_edge1(ut: FloatField, sin_sg3: FloatFieldIJ, sin_sg1: FloatFieldIJ, uc: FloatField):
     with computation(PARALLEL), interval(...):
-        uc = ut * sin_sg3[-1, 0, 0] if ut > 0 else ut * sin_sg1
+        uc = ut * sin_sg3[-1, 0] if ut > 0 else ut * sin_sg1
 
 
 @gtstencil()
-def vc_y_edge1(vt: sd, sin_sg4: sd, sin_sg2: sd, vc: sd):
+def vc_y_edge1(vt: FloatField, sin_sg4: FloatFieldIJ, sin_sg2: FloatFieldIJ, vc: FloatField):
     with computation(PARALLEL), interval(...):
-        vc = vt * sin_sg4[0, -1, 0] if vt > 0 else vt * sin_sg2
+        vc = vt * sin_sg4[0, -1] if vt > 0 else vt * sin_sg2
 
 
 # TODO: Make this a stencil?
 def edge_interpolate4_x(ua, dxa):
-    t1 = dxa[0, :, :] + dxa[1, :, :]
-    t2 = dxa[2, :, :] + dxa[3, :, :]
-    n1 = (t1 + dxa[1, :, :]) * ua[1, :, :] - dxa[1, :, :] * ua[0, :, :]
-    n2 = (t1 + dxa[2, :, :]) * ua[2, :, :] - dxa[2, :, :] * ua[3, :, :]
+    t1 = dxa[0, :] + dxa[1, :]
+    t2 = dxa[2, :] + dxa[3, :]
+    n1 = (t1 + dxa[1, :]) * ua[1, :] - dxa[1, :] * ua[0, :]
+    n2 = (t1 + dxa[2, :]) * ua[2, :] - dxa[2, :] * ua[3, :]
     return 0.5 * (n1 / t1 + n2 / t2)
 
 
 def edge_interpolate4_y(va, dxa):
-    t1 = dxa[:, 0, :] + dxa[:, 1, :]
-    t2 = dxa[:, 2, :] + dxa[:, 3, :]
-    n1 = (t1 + dxa[:, 1, :]) * va[:, 1, :] - dxa[:, 1, :] * va[:, 0, :]
-    n2 = (t1 + dxa[:, 2, :]) * va[:, 2, :] - dxa[:, 2, :] * va[:, 3, :]
+    t1 = dxa[:, 0] + dxa[:, 1]
+    t2 = dxa[:, 2] + dxa[:, 3]
+    n1 = (t1 + dxa[:, 1]) * va[:, 1] - dxa[:, 1] * va[:, 0]
+    n2 = (t1 + dxa[:, 2]) * va[:, 2] - dxa[:, 2] * va[:, 3]
     return 0.5 * (n1 / t1 + n2 / t2)
 
 
@@ -303,8 +303,8 @@ def compute(dord4, uc, vc, u, v, ua, va, utc, vtc):
             utmp, uc, origin=(i1, j1, 0), domain=domain_edge_x
         )
         islice = slice(grid.is_ - 2, grid.is_ + 2)
-        utc[grid.is_, jslice, :] = edge_interpolate4_x(
-            ua[islice, jslice, :], grid.dxa[islice, jslice, :]
+        utc[grid.is_, jslice, -1] = edge_interpolate4_x(
+            ua[islice, jslice, -1], grid.dxa[islice, jslice]
         )
         uc_x_edge1(
             utc,
@@ -341,8 +341,8 @@ def compute(dord4, uc, vc, u, v, ua, va, utc, vtc):
             utmp, uc, origin=(nx - 1, j1, 0), domain=domain_edge_x
         )
         islice = slice(nx - 2, nx + 2)
-        utc[nx, jslice, :] = edge_interpolate4_x(
-            ua[islice, jslice, :], grid.dxa[islice, jslice, :]
+        utc[nx, jslice, -1] = edge_interpolate4_x(
+            ua[islice, jslice, -1], grid.dxa[islice, jslice]
         )
         uc_x_edge1(
             utc,
@@ -410,8 +410,8 @@ def compute(dord4, uc, vc, u, v, ua, va, utc, vtc):
             domain=domain_edge_y,
         )
         jslice = slice(grid.js - 2, grid.js + 2)
-        vtc[islice, grid.js, :] = edge_interpolate4_y(
-            va[islice, jslice, :], grid.dya[islice, jslice, :]
+        vtc[islice, grid.js, -1] = edge_interpolate4_y(
+            va[islice, jslice, -1], grid.dya[islice, jslice]
         )
         vc_y_edge1(
             vtc,
@@ -445,8 +445,8 @@ def compute(dord4, uc, vc, u, v, ua, va, utc, vtc):
             domain=domain_edge_y,
         )
         jslice = slice(ny - 2, ny + 2)
-        vtc[islice, ny, :] = edge_interpolate4_y(
-            va[islice, jslice, :], grid.dya[islice, jslice, :]
+        vtc[islice, ny, -1] = edge_interpolate4_y(
+            va[islice, jslice, -1], grid.dya[islice, jslice]
         )
         vc_y_edge1(
             vtc,

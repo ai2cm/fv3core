@@ -181,7 +181,7 @@ def heat_diss(
     fx2: FloatField,
     fy2: FloatField,
     w: FloatField,
-    rarea: FloatField,
+    rarea: FloatFieldIJ,
     heat_source: FloatField,
     diss_est: FloatField,
     dw: FloatField,

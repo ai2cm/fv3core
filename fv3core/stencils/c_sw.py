@@ -16,6 +16,28 @@ from fv3core.utils import corners
 from fv3core.utils.typing import FloatField, FloatFieldIJ
 
 
+@gtstencil()
+def geoadjust_ut(ut: FloatField, dy: FloatFieldIJ, sin_sg3: FloatFieldIJ, sin_sg1: FloatFieldIJ, dt2: float):
+    with computation(PARALLEL), interval(...):
+        ut[0, 0, 0] = (
+            dt2 * ut * dy * sin_sg3[-1, 0] if ut > 0 else dt2 * ut * dy * sin_sg1
+        )
+
+
+@gtstencil()
+def geoadjust_vt(vt: FloatField, dx: FloatFieldIJ, sin_sg4: FloatFieldIJ, sin_sg2: FloatFieldIJ, dt2: float):
+    with computation(PARALLEL), interval(...):
+        vt[0, 0, 0] = (
+            dt2 * vt * dx * sin_sg4[0, -1] if vt > 0 else dt2 * vt * dx * sin_sg2
+        )
+
+
+@gtstencil()
+def absolute_vorticity(vort: FloatField, fC: FloatFieldIJ, rarea_c: FloatFieldIJ):
+    with computation(PARALLEL), interval(...):
+        vort[0, 0, 0] = fC + rarea_c * vort
+
+
 @gtscript.function
 def nonhydro_x_fluxes(delp: FloatField, pt: FloatField, w: FloatField, utc: FloatField):
     fx1 = delp[-1, 0, 0] if utc > 0.0 else delp
@@ -40,7 +62,7 @@ def nonhydro_y_fluxes(delp: FloatField, pt: FloatField, w: FloatField, vtc: Floa
 
 @gtstencil()
 def transportdelp(
-    delp: FloatField, pt: FloatField, utc: FloatField, vtc: FloatField, w: FloatField, rarea: FloatField, delpc: FloatField, ptc: FloatField, wc: FloatField
+    delp: FloatField, pt: FloatField, utc: FloatField, vtc: FloatField, w: FloatField, rarea: FloatFieldIJ, delpc: FloatField, ptc: FloatField, wc: FloatField
 ):
     """Transport delp.
 
@@ -95,10 +117,10 @@ def divergence_corner(
     cos_sg2: FloatFieldIJ,
     cos_sg3: FloatFieldIJ,
     cos_sg4: FloatFieldIJ,
-    rarea_c: FloatField,
+    rarea_c: FloatFieldIJ,
+    divg_d: FloatField,
 ):
     """Calculate divg on d-grid.
-
     Args:
         u: x-velocity (input)
         v: y-velocity (input)
@@ -147,7 +169,7 @@ def divergence_corner(
 
 
 @gtstencil()
-def circulation_cgrid(uc: FloatField, vc: FloatField, dxc: FloatField, dyc: FloatField, vort_c: FloatField):
+def circulation_cgrid(uc: FloatField, vc: FloatField, dxc: FloatFieldIJ, dyc: FloatFieldIJ, vort_c: FloatField):
     """Update vort_c.
 
     Args:
@@ -182,14 +204,14 @@ def update_vorticity_and_kinetic_energy(
     vc: FloatField,
     u: FloatField,
     v: FloatField,
-    sin_sg1: FloatField,
-    cos_sg1: FloatField,
-    sin_sg2: FloatField,
-    cos_sg2: FloatField,
-    sin_sg3: FloatField,
-    cos_sg3: FloatField,
-    sin_sg4: FloatField,
-    cos_sg4: FloatField,
+    sin_sg1: FloatFieldIJ,
+    cos_sg1: FloatFieldIJ,
+    sin_sg2: FloatFieldIJ,
+    cos_sg2: FloatFieldIJ,
+    sin_sg3: FloatFieldIJ,
+    cos_sg3: FloatFieldIJ,
+    sin_sg4: FloatFieldIJ,
+    cos_sg4: FloatFieldIJ,
     dt2: float,
 ):
     from __externals__ import i_end, i_start, j_end, j_start, namelist
@@ -219,9 +241,9 @@ def update_zonal_velocity(
     ke: FloatField,
     velocity: FloatField,
     velocity_c: FloatField,
-    cosa: FloatField,
-    sina: FloatField,
-    rdxc: FloatField,
+    cosa: FloatFieldIJ,
+    sina: FloatFieldIJ,
+    rdxc: FloatFieldIJ,
     dt2: float,
 ):
     from __externals__ import i_end, i_start, namelist
@@ -244,9 +266,9 @@ def update_meridional_velocity(
     ke: FloatField,
     velocity: FloatField,
     velocity_c: FloatField,
-    cosa: FloatField,
-    sina: FloatField,
-    rdyc: FloatField,
+    cosa: FloatFieldIJ,
+    sina: FloatFieldIJ,
+    rdyc: FloatFieldIJ,
     dt2: float,
 ):
     from __externals__ import j_end, j_start, namelist
@@ -304,25 +326,7 @@ def vorticitytransport_cgrid(
     )
 
 
-def compute(
-    delp: FloatField,
-    pt: FloatField,
-    u: FloatField,
-    v: FloatField,
-    w: FloatField,
-    uc: FloatField,
-    vc: FloatField,
-    ua: FloatField,
-    va: FloatField,
-    ut: FloatField,
-    vt: FloatField,
-    divgd: FloatField,
-    omga: FloatField,
-    dt2: float,
-):
-    if spec.namelist.npx != spec.namelist.npy:
-        raise NotImplementedError("D2A2C assumes a square grid")
-
+def compute(delp, pt, u, v, w, uc, vc, ua, va, ut, vt, divgd, omga, dt2):
     grid = spec.grid
     dord4 = True
     origin_halo1 = (grid.is_ - 1, grid.js - 1, 0)

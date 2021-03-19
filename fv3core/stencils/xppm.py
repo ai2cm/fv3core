@@ -5,7 +5,7 @@ import fv3core._config as spec
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import gtstencil
 from fv3core.stencils.basic_operations import floor_cap, sign
-from fv3core.utils.typing import FloatField
+from fv3core.utils.typing import FloatField, FloatFieldIJ
 
 from .yppm import (
     c1,
@@ -45,19 +45,19 @@ def al_y_edge_0(q: FloatField, dxa: FloatField, al: FloatField):
 
 
 @gtstencil(externals={"c1": c1, "c2": c2, "c3": c3})
-def al_y_edge_1(q: FloatField, dxa: FloatField, al: FloatField):
+def al_y_edge_1(q: FloatField, dxa: FloatFieldIJ, al: FloatField):
     with computation(PARALLEL), interval(0, None):
         al[0, 0, 0] = 0.5 * (
             (
-                (2.0 * dxa[-1, 0, 0] + dxa[-2, 0, 0]) * q[-1, 0, 0]
-                - dxa[-1, 0, 0] * q[-2, 0, 0]
+                (2.0 * dxa[-1, 0] + dxa[-2, 0]) * q[-1, 0, 0]
+                - dxa[-1, 0] * q[-2, 0, 0]
             )
-            / (dxa[-2, 0, 0] + dxa[-1, 0, 0])
+            / (dxa[-2, 0] + dxa[-1, 0])
             + (
-                (2.0 * dxa[0, 0, 0] + dxa[1, 0, 0]) * q[0, 0, 0]
-                - dxa[0, 0, 0] * q[1, 0, 0]
+                (2.0 * dxa[0, 0] + dxa[1, 0]) * q[0, 0, 0]
+                - dxa[0, 0] * q[1, 0, 0]
             )
-            / (dxa[0, 0, 0] + dxa[1, 0, 0])
+            / (dxa[0, 0] + dxa[1, 0])
         )
 
 
