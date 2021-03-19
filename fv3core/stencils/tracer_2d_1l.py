@@ -159,7 +159,10 @@ class Tracer2D1L:
         self._tmp_fy = utils.make_storage_from_shape(shape, origin)
         self._tmp_dp2 = utils.make_storage_from_shape(shape, origin)
         self._tmp_dp1_orig = utils.make_storage_from_shape(shape, origin)
-        self._tmp_qn2 = utils.make_storage_from_shape(shape, origin)
+        self._tmp_qn2 = spec.grid.quantity_wrap(
+            utils.make_storage_from_shape(shape, origin),
+            units="kg/m^2",
+        )
         stencil_kwargs = {
             "backend": global_config.get_backend(),
             "rebuild": global_config.get_rebuild(),
@@ -273,13 +276,9 @@ class Tracer2D1L:
                 self._tmp_dp1_orig,
                 q.storage,
                 dp1,
-                self._tmp_qn2,
+                self._tmp_qn2.storage,
                 origin=grid.full_origin(),
                 domain=grid.domain_shape_full(),
-            )
-            qn2 = grid.quantity_wrap(
-                self._tmp_qn2,
-                units="kg/m^2",
             )
             for it in range(int(nsplt)):
                 self.stencil_dp_fluxadjustment(
@@ -293,7 +292,7 @@ class Tracer2D1L:
                 )
                 if nsplt != 1:
                     self.fvtp2d_obj(
-                        qn2.storage,
+                        self._tmp_qn2.storage,
                         cxd,
                         cyd,
                         self._tmp_xfx,
@@ -307,7 +306,7 @@ class Tracer2D1L:
                     )
 
                     self.stencil_q_adjustments(
-                        qn2.storage,
+                        self._tmp_qn2.storage,
                         q.storage,
                         dp1,
                         self._tmp_fx,
@@ -352,4 +351,4 @@ class Tracer2D1L:
                         domain=grid.domain_shape_compute(),
                     )
                     if global_config.get_do_halo_exchange():
-                        comm.halo_update(qn2, n_points=utils.halo)
+                        comm.halo_update(self._tmp_qn2, n_points=utils.halo)
