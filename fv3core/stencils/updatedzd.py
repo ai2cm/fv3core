@@ -292,8 +292,6 @@ def compute(
     for kstart, nk in d_sw.k_bounds():
         if damp_vtd[kstart] <= 1e-5:
             raise Exception("damp <= 1e-5 in column_cols is untested")
-        if nk > 1:
-            nk += 1
         delnflux.compute_no_sg(
             z2, fx2, fy2, int(ndif[kstart]), damp_vtd[kstart], wk, kstart=kstart, nk=nk
         )

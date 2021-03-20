@@ -99,7 +99,7 @@ def compute_no_sg(
         ord_in = hord
     ord_ou = hord
     corners.copy_corners_y_stencil(
-        q, origin=grid.full_origin(), domain=grid.domain_shape_full()
+        q, origin=grid.full_origin(), domain=grid.domain_shape_full(add=(0, 0, 1))
     )
     yppm.compute_flux(q, cry, fy2, ord_in, grid.isd, grid.ied)
     q_i_stencil(
@@ -110,12 +110,12 @@ def compute_no_sg(
         ra_y,
         q_i,
         origin=(grid.isd, grid.js, 0),
-        domain=(grid.nid, grid.njc + 1, grid.npz),
+        domain=(grid.nid, grid.njc + 1, grid.npz + 1),
     )
 
     xppm.compute_flux(q_i, crx, fx, ord_ou, grid.js, grid.je)
     corners.copy_corners_x_stencil(
-        q, origin=grid.full_origin(), domain=grid.domain_shape_full()
+        q, origin=grid.full_origin(), domain=grid.domain_shape_full(add=(0, 0, 1))
     )
     xppm.compute_flux(q, crx, fx2, ord_in, grid.jsd, grid.jed)
     q_j_stencil(
@@ -126,7 +126,7 @@ def compute_no_sg(
         ra_x,
         q_j,
         origin=(grid.is_, grid.jsd, 0),
-        domain=(grid.nic + 1, grid.njd, grid.npz),
+        domain=(grid.nic + 1, grid.njd, grid.npz + 1),
     )
     yppm.compute_flux(q_j, cry, fy, ord_ou, grid.is_, grid.ie)
 
@@ -139,7 +139,7 @@ def compute_no_sg(
             mfx,
             mfy,
             origin=grid.compute_origin(),
-            domain=grid.domain_shape_compute(add=(1, 1, 0)),
+            domain=grid.domain_shape_compute(add=(1, 1, 1)),
         )
 
         if (mass is not None) and (nord is not None) and (damp_c is not None):
@@ -156,7 +156,7 @@ def compute_no_sg(
             xfx,
             yfx,
             origin=grid.compute_origin(),
-            domain=grid.domain_shape_compute(add=(1, 1, 0)),
+            domain=grid.domain_shape_compute(add=(1, 1, 1)),
         )
 
         if (nord is not None) and (damp_c is not None):

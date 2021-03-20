@@ -35,7 +35,7 @@ def grid():
 
 
 def k_bounds():
-    return [[0, 1], [1, 1], [2, 1], [3, grid().npz - 3]]
+    return [[0, 1], [1, 1], [2, 1], [3, grid().npz - 2]]
 
 
 @gtscript.function

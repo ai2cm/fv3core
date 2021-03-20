@@ -245,13 +245,13 @@ def compute_al(q, dxa, iord, is1, ie3, jfirst, jlast):
     dimensions = q.shape
     local_origin = (origin[0], origin[1], 0)
     al = utils.make_storage_from_shape(dimensions, local_origin)
-    domain_y = (1, dimensions[1], grid().npz)
+    domain_y = (1, dimensions[1], grid().npz + 1)
     if iord < 8:
         main_al(
             q,
             al,
             origin=(is1, jfirst, 0),
-            domain=(ie3 - is1 + 1, jlast - jfirst + 1, grid().npz),
+            domain=(ie3 - is1 + 1, jlast - jfirst + 1, grid().npz + 1),
         )
         if not grid().nested and spec.namelist.grid_type < 3:
             if grid().west_edge:
@@ -267,7 +267,7 @@ def compute_al(q, dxa, iord, is1, ie3, jfirst, jlast):
                 al,
                 0.0,
                 origin=(grid().is_ - 1, jfirst, 0),
-                domain=(grid().nic + 3, jlast - jfirst + 1, grid().npz),
+                domain=(grid().nic + 3, jlast - jfirst + 1, grid().npz + 1),
             )
     return al
 
@@ -282,10 +282,14 @@ def compute_blbr_ord8plus(q, iord, jfirst, jlast, is1, ie1):
     al = utils.make_storage_from_shape(q.shape, local_origin)
     dj = jlast - jfirst + 1
     dm_iord8plus(
-        q, al, dm, origin=(grid.is_ - 2, jfirst, 0), domain=(grid.nic + 4, dj, grid.npz)
+        q,
+        al,
+        dm,
+        origin=(grid.is_ - 2, jfirst, 0),
+        domain=(grid.nic + 4, dj, grid.npz + 1),
     )
     al_iord8plus(
-        q, al, dm, r3, origin=(is1, jfirst, 0), domain=(ie1 - is1 + 2, dj, grid.npz)
+        q, al, dm, r3, origin=(is1, jfirst, 0), domain=(ie1 - is1 + 2, dj, grid.npz + 1)
     )
     if iord == 8:
         blbr_iord8(
@@ -295,13 +299,13 @@ def compute_blbr_ord8plus(q, iord, jfirst, jlast, is1, ie1):
             br,
             dm,
             origin=(is1, jfirst, 0),
-            domain=(ie1 - is1 + 1, dj, grid.npz),
+            domain=(ie1 - is1 + 1, dj, grid.npz + 1),
         )
     else:
         raise Exception("Unimplemented iord=" + str(iord))
 
     if spec.namelist.grid_type < 3 and not (grid.nested or spec.namelist.regional):
-        y_edge_domain = (1, dj, grid.npz)
+        y_edge_domain = (1, dj, grid.npz + 1)
         do_xt_minmax = True
         if grid.west_edge:
             west_edge_iord8plus_0(
@@ -382,7 +386,7 @@ def compute_flux(q, c, xflux, iord, jfirst, jlast):
     ie3 = grid.ie - 1 if grid.east_edge else grid.ie + 2
     ie1 = grid.ie - 2 if grid.east_edge else grid.ie + 1
     flux_origin = (grid.is_, jfirst, 0)
-    flux_domain = (grid.nic + 1, jlast - jfirst + 1, grid.npz)
+    flux_domain = (grid.nic + 1, jlast - jfirst + 1, grid.npz + 1)
     if mord < 8:
         al = compute_al(q, grid.dxa, iord, is1, ie3, jfirst, jlast)
         get_flux(q, c, al, xflux, mord=mord, origin=flux_origin, domain=flux_domain)
