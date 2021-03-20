@@ -233,16 +233,11 @@ def coriolis_force_correction(zh: FloatField, z_rat: FloatField):
 
 
 @gtstencil()
-def zrat_vorticity(
-    wk: FloatField,
-    f0: FloatField,
-    z_rat: FloatField,
-    vort: FloatField,
-    do_f3d: bool,
-    hydrostatic: bool,
-):
+def zrat_vorticity(wk: FloatField, f0: FloatField, z_rat: FloatField, vort: FloatField):
+    from __externals__ import namelist
+
     with computation(PARALLEL), interval(...):
-        if do_f3d and not hydrostatic:
+        if __INLINED(namelist.do_f3d and not namelist.hydrostatic):
             vort[0, 0, 0] = wk + f0 * z_rat
         else:
             vort = wk[0, 0, 0] + f0[0, 0, 0]
@@ -874,8 +869,6 @@ def d_sw(
         grid().f0,
         z_rat,
         vort,
-        spec.namelist.do_f3d,
-        spec.namelist.hydrostatic,
         origin=grid().full_origin(),
         domain=grid().domain_shape_full(),
     )
