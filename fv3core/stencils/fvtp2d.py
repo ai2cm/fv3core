@@ -1,6 +1,7 @@
 from typing import Optional
 
-from gt4py.gtscript import PARALLEL, computation, interval
+import gt4py.gtscript as gtscript
+from gt4py.gtscript import PARALLEL, computation, horizontal, interval, region
 
 import fv3core._config as spec
 import fv3core.stencils.delnflux as delnflux
@@ -40,10 +41,25 @@ def q_j_stencil(
         q_j[0, 0, 0] = (q * area + fx1 - fx1[1, 0, 0]) / ra_x
 
 
+@gtscript.function
+def transport_flux(f, f2, mf):
+    return 0.5 * (f + f2) * mf
+
+
 @gtstencil()
-def transport_flux(f: FloatField, f2: FloatField, mf: FloatField):
+def transport_flux_xy(
+    fx: FloatField,
+    fx2: FloatField,
+    fy: FloatField,
+    fy2: FloatField,
+    mfx: FloatField,
+    mfy: FloatField,
+):
     with computation(PARALLEL), interval(...):
-        f = 0.5 * (f + f2) * mf
+        with horizontal(region[:, :-1]):
+            fx = transport_flux(fx, fx2, mfx)
+        with horizontal(region[:-1, :]):
+            fy = transport_flux(fy, fy2, mfy)
 
 
 def compute(data, nord_column):
@@ -122,23 +138,32 @@ def compute_no_sg(
     yppm.compute_flux(q_j, cry, fy, ord_ou, grid.is_, grid.ie, kstart=kstart, nk=nk)
 
     if mfx is not None and mfy is not None:
-        transport_flux(
-            fx, fx2, mfx, origin=compute_origin, domain=(grid.nic + 1, grid.njc, nk)
+        transport_flux_xy(
+            fx,
+            fx2,
+            fy,
+            fy2,
+            mfx,
+            mfy,
+            origin=compute_origin,
+            domain=(grid.nic + 1, grid.njc + 1, nk),
         )
-        transport_flux(
-            fy, fy2, mfy, origin=compute_origin, domain=(grid.nic, grid.njc + 1, nk)
-        )
+
         if (mass is not None) and (nord is not None) and (damp_c is not None):
             delnflux.compute_delnflux_no_sg(
                 q, fx, fy, nord, damp_c, kstart, nk, mass=mass
             )
     else:
+        transport_flux_xy(
+            fx,
+            fx2,
+            fy,
+            fy2,
+            xfx,
+            yfx,
+            origin=compute_origin,
+            domain=(grid.nic + 1, grid.njc + 1, nk),
+        )
 
-        transport_flux(
-            fx, fx2, xfx, origin=compute_origin, domain=(grid.nic + 1, grid.njc, nk)
-        )
-        transport_flux(
-            fy, fy2, yfx, origin=compute_origin, domain=(grid.nic, grid.njc + 1, nk)
-        )
         if (nord is not None) and (damp_c is not None):
             delnflux.compute_delnflux_no_sg(q, fx, fy, nord, damp_c, kstart, nk)
