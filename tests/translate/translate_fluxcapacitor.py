@@ -18,6 +18,11 @@ class TranslateFluxCapacitor(TranslateFortranData2Py):
         self.out_vars = {}
         for outvar in ["cx", "cy", "xflux", "yflux"]:
             self.out_vars[outvar] = self.in_vars["data_vars"][outvar]
+
     def compute_from_storage(self, inputs):
-        d_sw.flux_capacitor(**inputs, origin=self.grid.full_origin(), domain=self.grid.domain_shape_full())
+        d_sw.flux_capacitor(
+            **inputs,
+            origin=self.grid.full_origin(),
+            domain=self.grid.domain_shape_full(),
+        )
         return inputs

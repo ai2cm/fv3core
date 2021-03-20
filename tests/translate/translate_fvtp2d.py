@@ -1,7 +1,9 @@
+import numpy as np
+
 import fv3core.stencils.fvtp2d as fvtp2d
 import fv3core.utils.gt4py_utils as utils
 from fv3core.testing import TranslateFortranData2Py
-import numpy as np
+
 
 class TranslateFvTp2d(TranslateFortranData2Py):
     def __init__(self, grid):
@@ -40,11 +42,9 @@ class TranslateFvTp2d(TranslateFortranData2Py):
         for optional_arg in ["mass", "mfx", "mfy"]:
             if optional_arg not in inputs:
                 inputs[optional_arg] = None
-        inputs["nord"] = np.squeeze(inputs["nord"].data[0,0,:])
-        inputs["damp_c"] = np.squeeze(inputs["damp_c"].data[0,0,:])
-        self.compute_func(
-            **inputs
-        )
+        inputs["nord"] = np.squeeze(inputs["nord"].data[0, 0, :])
+        inputs["damp_c"] = np.squeeze(inputs["damp_c"].data[0, 0, :])
+        self.compute_func(**inputs)
         return inputs
 
 

@@ -521,8 +521,7 @@ def compute_flux(q, c, flux, jord, ifirst, ilast):
             q, c, al, flux, mord=mord, origin=flux_origin, domain=flux_domain
         )
     else:
-        bl, br = compute_blbr_ord8plus(
-            q, jord, grid.dya, ifirst, ilast, js1, je1)
+        bl, br = compute_blbr_ord8plus(q, jord, grid.dya, ifirst, ilast, js1, je1)
         finalflux_ord8plus(q, c, bl, br, flux, origin=flux_origin, domain=flux_domain)
 
 

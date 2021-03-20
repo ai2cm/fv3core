@@ -2,11 +2,11 @@ import gt4py.gtscript as gtscript
 from gt4py.gtscript import PARALLEL, computation, horizontal, interval, region
 
 import fv3core._config as spec
+import fv3core.stencils.d_sw as d_sw
 import fv3core.stencils.delnflux as delnflux
 import fv3core.stencils.xppm as xppm
 import fv3core.stencils.yppm as yppm
 import fv3core.utils.corners as corners
-import fv3core.stencils.d_sw as d_sw
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import gtstencil
 from fv3core.utils.typing import FloatField
@@ -156,9 +156,11 @@ def compute_no_sg(
             xfx,
             yfx,
             origin=grid.compute_origin(),
-            domain=grid.domain_shape_compute(add=(1, 1, 0))
+            domain=grid.domain_shape_compute(add=(1, 1, 0)),
         )
 
         if (nord is not None) and (damp_c is not None):
             for kstart, nk in d_sw.k_bounds():
-                delnflux.compute_delnflux_no_sg(q, fx, fy, nord[kstart], damp_c[kstart], kstart, nk)
+                delnflux.compute_delnflux_no_sg(
+                    q, fx, fy, nord[kstart], damp_c[kstart], kstart, nk
+                )

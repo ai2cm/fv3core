@@ -55,15 +55,24 @@ def flux_adjust(
     with computation(PARALLEL), interval(...):
         w = flux_integral(w, delp, gx, gy, rarea)
 
+
 @gtstencil()
 def flux_capacitor(
-    cx: FloatField, cy: FloatField, xflux: FloatField, yflux: FloatField, crx_adv: FloatField, cry_adv: FloatField, fx: FloatField, fy: FloatField
+    cx: FloatField,
+    cy: FloatField,
+    xflux: FloatField,
+    yflux: FloatField,
+    crx_adv: FloatField,
+    cry_adv: FloatField,
+    fx: FloatField,
+    fy: FloatField,
 ):
     with computation(PARALLEL), interval(0, None):
         cx = cx + crx_adv
         cy = cy + cry_adv
         xflux = xflux + fx
         yflux = yflux + fy
+
 
 @gtscript.function
 def horizontal_relative_vorticity_from_winds(u, v, ut, vt, dx, dy, rarea, vorticity):
@@ -445,7 +454,7 @@ def get_column_namelist():
     num_k = len(k_bounds())
     for name in direct_namelist:
         col[name] = [getattr(spec.namelist, name)] * num_k
-    
+
     col["d2_divg"] = [min(0.2, spec.namelist.d2_bg)] * num_k
     col["nord_v"] = [min(2, col["nord"][i]) for i in range(num_k)]
     col["nord_w"] = [val for val in col["nord_v"]]
@@ -703,8 +712,18 @@ def d_sw(
         damp_c=column_namelist["damp_vt"],
     )
 
-    flux_capacitor(cx, cy, xflux, yflux, crx, cry, fx, fy,   origin=spec.grid.full_origin(),
-        domain=spec.grid.domain_shape_full())
+    flux_capacitor(
+        cx,
+        cy,
+        xflux,
+        yflux,
+        crx,
+        cry,
+        fx,
+        fy,
+        origin=spec.grid.full_origin(),
+        domain=spec.grid.domain_shape_full(),
+    )
 
     if not spec.namelist.hydrostatic:
         for kstart, nk in k_bounds():
