@@ -67,7 +67,7 @@ def zh_base(
 
 
 @gtstencil()
-def zh_damp_stencil(
+def zh_damp_and_output(
     area: FloatField,
     z2: FloatField,
     fx: FloatField,
@@ -78,10 +78,19 @@ def zh_damp_stencil(
     fy2: FloatField,
     rarea: FloatField,
     zh: FloatField,
+    zs: FloatField,
+    ws: FloatField,
+    dt: float,
 ):
     with computation(PARALLEL), interval(...):
         zhbase = zh_base(z2, area, fx, fy, ra_x, ra_y)
         zh[0, 0, 0] = zhbase + (fx2 - fx2[1, 0, 0] + fy2 - fy2[0, 1, 0]) * rarea
+    with computation(BACKWARD):
+        with interval(-1, None):
+            ws[0, 0, 0] = (zs - zh) * 1.0 / dt
+        with interval(0, -1):
+            other = zh[0, 0, 1] + DZ_MIN
+            zh[0, 0, 0] = zh if zh > other else other
 
 
 @gtstencil()
@@ -199,16 +208,6 @@ def edge_profile_stencil(
         qe1x, qe2x, qe1y, qe2y = edge_profile_reverse(qe1x, qe2x, qe1y, qe2y, gam)
 
 
-@gtstencil()
-def out(zs: FloatField, zh: FloatField, ws: FloatField, dt: float):
-    with computation(BACKWARD):
-        with interval(-1, None):
-            ws[0, 0, 0] = (zs - zh) * 1.0 / dt
-        with interval(0, -1):
-            other = zh[0, 0, 1] + DZ_MIN
-            zh[0, 0, 0] = zh if zh > other else other
-
-
 def compute(
     ndif: FloatField,
     damp_vtd: FloatField,
@@ -295,7 +294,7 @@ def compute(
         delnflux.compute_no_sg(
             z2, fx2, fy2, int(ndif[kstart]), damp_vtd[kstart], wk, kstart=kstart, nk=nk
         )
-    zh_damp_stencil(
+    zh_damp_and_output(
         grid.area,
         z2,
         fx,
@@ -306,13 +305,7 @@ def compute(
         fy2,
         grid.rarea,
         zh,
-        origin=grid.compute_origin(),
-        domain=grid.domain_shape_compute(),
-    )
-
-    out(
         zs,
-        zh,
         wsd,
         dt,
         origin=grid.compute_origin(),
