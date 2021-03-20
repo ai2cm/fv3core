@@ -334,7 +334,7 @@ def compute_blbr_ord8plus(q, iord, jfirst, jlast, is1, ie1):
                 origin=(grid.is_ + 1, jfirst, 0),
                 domain=y_edge_domain,
             )
-            pert_ppm(q, bl, br, 1, grid.is_ - 1, jfirst, 0, 3, dj, grid.npz)
+            pert_ppm(q, bl, br, 1, grid.is_ - 1, jfirst, 3, dj)
         if grid.east_edge:
             east_edge_iord8plus_0(
                 q,
@@ -366,7 +366,7 @@ def compute_blbr_ord8plus(q, iord, jfirst, jlast, is1, ie1):
                 origin=(grid.ie + 1, jfirst, 0),
                 domain=y_edge_domain,
             )
-            pert_ppm(q, bl, br, 1, grid.ie - 1, jfirst, 0, 3, dj, grid.npz)
+            pert_ppm(q, bl, br, 1, grid.ie - 1, jfirst, 3, dj)
         return bl, br
 
 

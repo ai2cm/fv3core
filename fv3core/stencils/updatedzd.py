@@ -10,6 +10,7 @@ from gt4py.gtscript import (
 )
 
 import fv3core._config as spec
+import fv3core.stencils.d_sw as d_sw
 import fv3core.stencils.delnflux as delnflux
 import fv3core.stencils.fvtp2d as fvtp2d
 import fv3core.utils.global_constants as constants
@@ -266,59 +267,15 @@ def compute(
         domain=grid.domain_shape_full(add=(0, 0, 1)),
     )
 
-    ndif[-1] = ndif[-2]
-    damp_vtd[-1] = damp_vtd[-2]
-    kstarts = utils.get_kstarts({"ndif": ndif, "damp": damp_vtd}, grid.npz + 1)
-
-    for ki, nk in kstarts:
-        column_calls(
-            zh,
-            crx_adv,
-            cry_adv,
-            xfx_adv,
-            yfx_adv,
-            ra_x,
-            ra_y,
-            ndif[ki],
-            damp_vtd[ki],
-            ki,
-            nk,
-        )
-
-    out(
-        zs,
-        zh,
-        wsd,
-        dt,
-        origin=grid.compute_origin(),
-        domain=grid.domain_shape_compute(add=(0, 0, 1)),
-    )
-
-
-def column_calls(
-    zh: FloatField,
-    crx_adv: FloatField,
-    cry_adv: FloatField,
-    xfx_adv: FloatField,
-    yfx_adv: FloatField,
-    ra_x: FloatField,
-    ra_y: FloatField,
-    ndif: float,
-    damp: float,
-    kstart: int,
-    nk: int,
-):
-    if damp <= 1e-5:
-        raise Exception("damp <= 1e-5 in column_cols is untested")
-
     grid = spec.grid
-    full_origin = (grid.isd, grid.jsd, kstart)
-    wk = utils.make_storage_from_shape(zh.shape, full_origin)
-    fx2 = utils.make_storage_from_shape(zh.shape, full_origin)
-    fy2 = utils.make_storage_from_shape(zh.shape, full_origin)
-    fx = utils.make_storage_from_shape(zh.shape, full_origin)
-    fy = utils.make_storage_from_shape(zh.shape, full_origin)
-    z2 = copy(zh, origin=full_origin, domain=(grid.nid, grid.njd, nk))
+    wk = utils.make_storage_from_shape(zh.shape, grid.full_origin())
+    fx2 = utils.make_storage_from_shape(zh.shape, grid.full_origin())
+    fy2 = utils.make_storage_from_shape(zh.shape, grid.full_origin())
+    fx = utils.make_storage_from_shape(zh.shape, grid.full_origin())
+    fy = utils.make_storage_from_shape(zh.shape, grid.full_origin())
+    z2 = copy(
+        zh, origin=grid.full_origin(), domain=grid.domain_shape_full(add=(0, 0, 1))
+    )
 
     fvtp2d.compute_no_sg(
         z2,
@@ -331,10 +288,15 @@ def column_calls(
         ra_y,
         fx,
         fy,
-        kstart=kstart,
-        nk=nk,
     )
-    delnflux.compute_no_sg(z2, fx2, fy2, int(ndif), damp, wk, kstart=kstart, nk=nk)
+    for kstart, nk in d_sw.k_bounds():
+        if damp_vtd[kstart] <= 1e-5:
+            raise Exception("damp <= 1e-5 in column_cols is untested")
+        if nk > 1:
+            nk += 1
+        delnflux.compute_no_sg(
+            z2, fx2, fy2, int(ndif[kstart]), damp_vtd[kstart], wk, kstart=kstart, nk=nk
+        )
     zh_damp_stencil(
         grid.area,
         z2,
@@ -346,6 +308,15 @@ def column_calls(
         fy2,
         grid.rarea,
         zh,
-        origin=grid.compute_origin(add=(0, 0, kstart)),
-        domain=(grid.nic, grid.njc, nk),
+        origin=grid.compute_origin(),
+        domain=grid.domain_shape_compute(),
+    )
+
+    out(
+        zs,
+        zh,
+        wsd,
+        dt,
+        origin=grid.compute_origin(),
+        domain=grid.domain_shape_compute(add=(0, 0, 1)),
     )

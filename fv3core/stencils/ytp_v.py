@@ -122,18 +122,16 @@ def compute(c, u, v, flux):
         al = utils.make_storage_from_shape(v.shape, grid.compute_origin())
         di = grid.nic + 1
         ifirst = grid.is_
-        kstart = 0
-        nk = grid.npz
         r3 = 1.0 / 3.0
         yppm.dm_jord8plus(
             v,
             al,
             dm,
-            origin=(ifirst, grid.js - 2, kstart),
-            domain=(di, grid.njc + 4, nk),
+            origin=(ifirst, grid.js - 2, 0),
+            domain=(di, grid.njc + 4, grid.npz),
         )
         yppm.al_jord8plus(
-            v, al, dm, r3, origin=(ifirst, js1, kstart), domain=(di, je1 - js1 + 2, nk)
+            v, al, dm, r3, origin=(ifirst, js1, 0), domain=(di, je1 - js1 + 2, grid.npz)
         )
         if jord == 8:
             yppm.blbr_jord8(
@@ -142,14 +140,14 @@ def compute(c, u, v, flux):
                 bl,
                 br,
                 dm,
-                origin=(ifirst, js1, kstart),
-                domain=(di, je1 - js1 + 2, nk),
+                origin=(ifirst, js1, 0),
+                domain=(di, je1 - js1 + 2, grid.npz),
             )
         else:
             raise Exception("Unimplemented jord=" + str(jord))
 
         if spec.namelist.grid_type < 3 and not (grid.nested or spec.namelist.regional):
-            x_edge_domain = (di, 1, nk)
+            x_edge_domain = (di, 1, grid.npz)
             do_xt_minmax = False
             if grid.south_edge:
                 yppm.south_edge_jord8plus_0(
@@ -159,7 +157,7 @@ def compute(c, u, v, flux):
                     bl,
                     br,
                     False,
-                    origin=(ifirst, grid.js - 1, kstart),
+                    origin=(ifirst, grid.js - 1, 0),
                     domain=x_edge_domain,
                 )
                 yppm.south_edge_jord8plus_1(
@@ -169,7 +167,7 @@ def compute(c, u, v, flux):
                     bl,
                     br,
                     False,
-                    origin=(ifirst, grid.js, kstart),
+                    origin=(ifirst, grid.js, 0),
                     domain=x_edge_domain,
                 )
                 yppm.south_edge_jord8plus_2(
@@ -179,11 +177,11 @@ def compute(c, u, v, flux):
                     al,
                     bl,
                     br,
-                    origin=(ifirst, grid.js + 1, kstart),
+                    origin=(ifirst, grid.js + 1, 0),
                     domain=x_edge_domain,
                 )
                 zero_br_bl_corners_south(br, bl)
-                yppm.pert_ppm(v, bl, br, -1, ifirst, grid.js + 1, kstart, di, 1, nk)
+                yppm.pert_ppm(v, bl, br, -1, ifirst, grid.js + 1, di, 1)
 
             if grid.north_edge:
                 yppm.north_edge_jord8plus_0(
@@ -193,7 +191,7 @@ def compute(c, u, v, flux):
                     al,
                     bl,
                     br,
-                    origin=(ifirst, grid.je - 1, kstart),
+                    origin=(ifirst, grid.je - 1, 0),
                     domain=x_edge_domain,
                 )
                 yppm.north_edge_jord8plus_1(
@@ -203,7 +201,7 @@ def compute(c, u, v, flux):
                     bl,
                     br,
                     False,
-                    origin=(ifirst, grid.je, kstart),
+                    origin=(ifirst, grid.je, 0),
                     domain=x_edge_domain,
                 )
                 yppm.north_edge_jord8plus_2(
@@ -213,11 +211,11 @@ def compute(c, u, v, flux):
                     bl,
                     br,
                     False,
-                    origin=(ifirst, grid.je + 1, kstart),
+                    origin=(ifirst, grid.je + 1, 0),
                     domain=x_edge_domain,
                 )
                 zero_br_bl_corners_north(br, bl)
-                yppm.pert_ppm(v, bl, br, -1, ifirst, grid.je - 1, kstart, di, 1, nk)
+                yppm.pert_ppm(v, bl, br, -1, ifirst, grid.je - 1, di, 1)
         get_flux_v_ord8plus(
             v,
             c,
@@ -225,6 +223,6 @@ def compute(c, u, v, flux):
             bl,
             br,
             flux,
-            origin=(grid.is_, grid.js, kstart),
-            domain=(grid.nic + 1, grid.njc + 1, nk),
+            origin=(grid.is_, grid.js, 0),
+            domain=(grid.nic + 1, grid.njc + 1, grid.npz),
         )
