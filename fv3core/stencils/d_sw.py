@@ -307,7 +307,6 @@ def heat_source_from_vorticity_damping(
     heat_source: FloatField,
     dissipation_estimate: FloatField,
     kinetic_energy_fraction_to_damp: float,
-    calculate_dissipation_estimate: int,
 ):
     """
     Calculates heat source from vorticity damping implied by energy conservation.
@@ -326,15 +325,15 @@ def heat_source_from_vorticity_damping(
         rdy (in): radius of Earth multiplied by y-direction gridcell width
         heat_source (out): heat source from vorticity damping
             implied by energy conservation
-        diss_est (out): dissipation estimate, only calculated if
+        dissipation_estimate (out): dissipation estimate, only calculated if
             calculate_dissipation_estimate is 1
         kinetic_energy_fraction_to_damp (in): according to its comment in fv_arrays,
             the fraction of kinetic energy to explicitly damp and convert into heat.
             TODO: confirm this description is accurate, why is it multiplied
             by 0.25 below?
-        calculate_dissipation_estimate (in): If 1, calculate dissipation estimate.
-            Equivalent in Fortran model is do_skeb
     """
+    from __externals__ import namelist
+
     with computation(PARALLEL), interval(...):
         ubt = (ub + vt) * rdx
         fy = u * rdx
@@ -350,9 +349,8 @@ def heat_source_from_vorticity_damping(
         heat_source[0, 0, 0] = delp * (
             heat_source - 0.25 * kinetic_energy_fraction_to_damp * dampterm
         )
-        dissipation_estimate[0, 0, 0] = (
-            -dampterm if calculate_dissipation_estimate == 1 else dissipation_estimate
-        )
+        if __INLINED(namelist.do_skeb == 1):
+            dissipation_estimate[0, 0, 0] = -dampterm
 
 
 @gtstencil()
@@ -376,43 +374,6 @@ def ke_horizontal_vorticity(
         vt, ut, vorticity = horizontal_relative_vorticity_from_winds(
             u, v, ut, vt, dx, dy, rarea, vorticity
         )
-
-
-def heat_from_damping(
-    ub,
-    vb,
-    ut,
-    vt,
-    u,
-    v,
-    delp,
-    fx,
-    fy,
-    heat_source,
-    diss_est,
-    kinetic_energy_fraction_to_damp,
-    kstart,
-    nk,
-):
-    heat_source_from_vorticity_damping(
-        ub,
-        vb,
-        ut,
-        vt,
-        u,
-        v,
-        delp,
-        grid().rsin2,
-        grid().cosa_s,
-        grid().rdx,
-        grid().rdy,
-        heat_source,
-        diss_est,
-        kinetic_energy_fraction_to_damp,
-        int(spec.namelist.do_skeb),
-        origin=(grid().is_, grid().js, kstart),
-        domain=(grid().nic, grid().njc, nk),
-    )
 
 
 def set_low_kvals(col, k):
@@ -955,7 +916,7 @@ def d_sw(
                 column_namelist["d_con"][kstart] > dcon_threshold
                 or spec.namelist.do_skeb
             ):
-                heat_from_damping(
+                heat_source_from_vorticity_damping(
                     ub,
                     vb,
                     ut,
@@ -963,14 +924,17 @@ def d_sw(
                     u,
                     v,
                     delp,
-                    fx,
-                    fy,
+                    grid().rsin2,
+                    grid().cosa_s,
+                    grid().rdx,
+                    grid().rdy,
                     heat_s,
                     diss_e,
                     column_namelist["d_con"][kstart],
-                    kstart,
-                    nk,
+                    origin=(grid().is_, grid().js, kstart),
+                    domain=(grid().nic, grid().njc, nk),
                 )
+
         if column_namelist["damp_vt"][kstart] > 1e-5:
             basic.add_term_stencil(
                 vt,
