@@ -241,61 +241,59 @@ def east_edge_iord8plus_2(q: sd, dxa: sd, dm: sd, bl: sd, br: sd, xt_minmax: boo
         br = s11 * (q[1, 0, 0] - q) - s14 * dm[1, 0, 0]
 
 
-def compute_al(q, dxa, iord, is1, ie3, jfirst, jlast, kstart=0, nk=None):
-    if nk is None:
-        nk = grid().npz - kstart
+def compute_al(q, dxa, iord, is1, ie3, jfirst, jlast):
     dimensions = q.shape
-    local_origin = (origin[0], origin[1], kstart)
+    local_origin = (origin[0], origin[1], 0)
     al = utils.make_storage_from_shape(dimensions, local_origin)
-    domain_y = (1, dimensions[1], nk)
+    domain_y = (1, dimensions[1], grid().npz)
     if iord < 8:
         main_al(
             q,
             al,
-            origin=(is1, jfirst, kstart),
-            domain=(ie3 - is1 + 1, jlast - jfirst + 1, nk),
+            origin=(is1, jfirst, 0),
+            domain=(ie3 - is1 + 1, jlast - jfirst + 1, grid().npz),
         )
         if not grid().nested and spec.namelist.grid_type < 3:
             if grid().west_edge:
                 al_y_edge_0(
-                    q, dxa, al, origin=(grid().is_ - 1, 0, kstart), domain=domain_y
+                    q, dxa, al, origin=(grid().is_ - 1, 0, 0), domain=domain_y
                 )
-                al_y_edge_1(q, dxa, al, origin=(grid().is_, 0, kstart), domain=domain_y)
+                al_y_edge_1(q, dxa, al, origin=(grid().is_, 0, 0), domain=domain_y)
                 al_y_edge_2(
-                    q, dxa, al, origin=(grid().is_ + 1, 0, kstart), domain=domain_y
+                    q, dxa, al, origin=(grid().is_ + 1, 0, 0), domain=domain_y
                 )
             if grid().east_edge:
-                al_y_edge_0(q, dxa, al, origin=(grid().ie, 0, kstart), domain=domain_y)
+                al_y_edge_0(q, dxa, al, origin=(grid().ie, 0, 0), domain=domain_y)
                 al_y_edge_1(
-                    q, dxa, al, origin=(grid().ie + 1, 0, kstart), domain=domain_y
+                    q, dxa, al, origin=(grid().ie + 1, 0, 0), domain=domain_y
                 )
                 al_y_edge_2(
-                    q, dxa, al, origin=(grid().ie + 2, 0, kstart), domain=domain_y
+                    q, dxa, al, origin=(grid().ie + 2, 0, 0), domain=domain_y
                 )
         if iord < 0:
             floor_cap(
                 al,
                 0.0,
-                origin=(grid().is_ - 1, jfirst, kstart),
-                domain=(grid().nic + 3, jlast - jfirst + 1, nk),
+                origin=(grid().is_ - 1, jfirst, 0),
+                domain=(grid().nic + 3, jlast - jfirst + 1, grid().npz),
             )
     return al
 
 
-def compute_blbr_ord8plus(q, iord, jfirst, jlast, is1, ie1, kstart, nk):
+def compute_blbr_ord8plus(q, iord, jfirst, jlast, is1, ie1):
     r3 = 1.0 / 3.0
     grid = spec.grid
-    local_origin = (origin[0], origin[1], kstart)
+    local_origin = (origin[0], origin[1], 0)
     bl = utils.make_storage_from_shape(q.shape, local_origin)
     br = utils.make_storage_from_shape(q.shape, local_origin)
     dm = utils.make_storage_from_shape(q.shape, local_origin)
     al = utils.make_storage_from_shape(q.shape, local_origin)
     dj = jlast - jfirst + 1
     dm_iord8plus(
-        q, al, dm, origin=(grid.is_ - 2, jfirst, kstart), domain=(grid.nic + 4, dj, nk)
+        q, al, dm, origin=(grid.is_ - 2, jfirst, 0), domain=(grid.nic + 4, dj, grid.npz)
     )
     al_iord8plus(
-        q, al, dm, r3, origin=(is1, jfirst, kstart), domain=(ie1 - is1 + 2, dj, nk)
+        q, al, dm, r3, origin=(is1, jfirst, 0), domain=(ie1 - is1 + 2, dj, grid.npz)
     )
     if iord == 8:
         blbr_iord8(
@@ -304,14 +302,14 @@ def compute_blbr_ord8plus(q, iord, jfirst, jlast, is1, ie1, kstart, nk):
             bl,
             br,
             dm,
-            origin=(is1, jfirst, kstart),
-            domain=(ie1 - is1 + 1, dj, nk),
+            origin=(is1, jfirst, 0),
+            domain=(ie1 - is1 + 1, dj, grid.npz),
         )
     else:
         raise Exception("Unimplemented iord=" + str(iord))
 
     if spec.namelist.grid_type < 3 and not (grid.nested or spec.namelist.regional):
-        y_edge_domain = (1, dj, nk)
+        y_edge_domain = (1, dj, grid.npz)
         do_xt_minmax = True
         if grid.west_edge:
             west_edge_iord8plus_0(
@@ -321,7 +319,7 @@ def compute_blbr_ord8plus(q, iord, jfirst, jlast, is1, ie1, kstart, nk):
                 bl,
                 br,
                 do_xt_minmax,
-                origin=(grid.is_ - 1, jfirst, kstart),
+                origin=(grid.is_ - 1, jfirst, 0),
                 domain=y_edge_domain,
             )
             west_edge_iord8plus_1(
@@ -331,7 +329,7 @@ def compute_blbr_ord8plus(q, iord, jfirst, jlast, is1, ie1, kstart, nk):
                 bl,
                 br,
                 do_xt_minmax,
-                origin=(grid.is_, jfirst, kstart),
+                origin=(grid.is_, jfirst, 0),
                 domain=y_edge_domain,
             )
             west_edge_iord8plus_2(
@@ -341,10 +339,10 @@ def compute_blbr_ord8plus(q, iord, jfirst, jlast, is1, ie1, kstart, nk):
                 al,
                 bl,
                 br,
-                origin=(grid.is_ + 1, jfirst, kstart),
+                origin=(grid.is_ + 1, jfirst, 0),
                 domain=y_edge_domain,
             )
-            pert_ppm(q, bl, br, 1, grid.is_ - 1, jfirst, kstart, 3, dj, nk)
+            pert_ppm(q, bl, br, 1, grid.is_ - 1, jfirst, 0, 3, dj, grid.npz)
         if grid.east_edge:
             east_edge_iord8plus_0(
                 q,
@@ -353,7 +351,7 @@ def compute_blbr_ord8plus(q, iord, jfirst, jlast, is1, ie1, kstart, nk):
                 al,
                 bl,
                 br,
-                origin=(grid.ie - 1, jfirst, kstart),
+                origin=(grid.ie - 1, jfirst, 0),
                 domain=y_edge_domain,
             )
             east_edge_iord8plus_1(
@@ -363,7 +361,7 @@ def compute_blbr_ord8plus(q, iord, jfirst, jlast, is1, ie1, kstart, nk):
                 bl,
                 br,
                 do_xt_minmax,
-                origin=(grid.ie, jfirst, kstart),
+                origin=(grid.ie, jfirst, 0),
                 domain=y_edge_domain,
             )
             east_edge_iord8plus_2(
@@ -373,17 +371,15 @@ def compute_blbr_ord8plus(q, iord, jfirst, jlast, is1, ie1, kstart, nk):
                 bl,
                 br,
                 do_xt_minmax,
-                origin=(grid.ie + 1, jfirst, kstart),
+                origin=(grid.ie + 1, jfirst, 0),
                 domain=y_edge_domain,
             )
-            pert_ppm(q, bl, br, 1, grid.ie - 1, jfirst, kstart, 3, dj, nk)
+            pert_ppm(q, bl, br, 1, grid.ie - 1, jfirst, 0, 3, dj, grid.npz)
         return bl, br
 
 
-def compute_flux(q, c, xflux, iord, jfirst, jlast, kstart=0, nk=None):
+def compute_flux(q, c, xflux, iord, jfirst, jlast):
     grid = spec.grid
-    if nk is None:
-        nk = grid.npz - kstart
     mord = abs(iord)
     if mord not in [5, 6, 7, 8]:
         raise Exception(
@@ -393,11 +389,11 @@ def compute_flux(q, c, xflux, iord, jfirst, jlast, kstart=0, nk=None):
     is1 = grid.is_ + 2 if grid.west_edge else grid.is_ - 1
     ie3 = grid.ie - 1 if grid.east_edge else grid.ie + 2
     ie1 = grid.ie - 2 if grid.east_edge else grid.ie + 1
-    flux_origin = (grid.is_, jfirst, kstart)
-    flux_domain = (grid.nic + 1, jlast - jfirst + 1, nk)
+    flux_origin = (grid.is_, jfirst, 0)
+    flux_domain = (grid.nic + 1, jlast - jfirst + 1, grid.npz)
     if mord < 8:
-        al = compute_al(q, grid.dxa, iord, is1, ie3, jfirst, jlast, kstart, nk)
+        al = compute_al(q, grid.dxa, iord, is1, ie3, jfirst, jlast)
         get_flux(q, c, al, xflux, mord=mord, origin=flux_origin, domain=flux_domain)
     else:
-        bl, br = compute_blbr_ord8plus(q, iord, jfirst, jlast, is1, ie1, kstart, nk)
+        bl, br = compute_blbr_ord8plus(q, iord, jfirst, jlast, is1, ie1)
         finalflux_ord8plus(q, c, bl, br, xflux, origin=flux_origin, domain=flux_domain)

@@ -14,7 +14,6 @@ import fv3core._config as spec
 import fv3core.stencils.basic_operations as basic
 import fv3core.stencils.delnflux as delnflux
 import fv3core.stencils.divergence_damping as divdamp
-import fv3core.stencils.flux_capacitor as fluxcap
 import fv3core.stencils.fvtp2d as fvtp2d
 import fv3core.stencils.fxadv as fxadv
 import fv3core.stencils.xtp_u as xtp_u
@@ -56,6 +55,15 @@ def flux_adjust(
     with computation(PARALLEL), interval(...):
         w = flux_integral(w, delp, gx, gy, rarea)
 
+@gtstencil()
+def flux_capacitor(
+    cx: FloatField, cy: FloatField, xflux: FloatField, yflux: FloatField, crx_adv: FloatField, cry_adv: FloatField, fx: FloatField, fy: FloatField
+):
+    with computation(PARALLEL), interval(0, None):
+        cx = cx + crx_adv
+        cy = cy + cry_adv
+        xflux = xflux + fx
+        yflux = yflux + fy
 
 @gtscript.function
 def horizontal_relative_vorticity_from_winds(u, v, ut, vt, dx, dy, rarea, vorticity):
@@ -361,11 +369,6 @@ def ke_horizontal_vorticity(
         )
 
 
-def initialize_heat_source(heat_source, diss_est):
-    heat_source[grid().compute_interface()] = 0
-    diss_est[grid().compute_interface()] = 0
-
-
 def heat_from_damping(
     ub,
     vb,
@@ -403,21 +406,21 @@ def heat_from_damping(
     )
 
 
-def set_low_kvals(col):
+def set_low_kvals(col, k):
     for name in ["nord", "nord_w", "d_con"]:
-        col[name] = 0
-    col["damp_w"] = col["d2_divg"]
+        col[name][k] = 0
+    col["damp_w"][k] = col["d2_divg"][k]
 
 
-def vort_damp_option(col):
+def vort_damp_option(col, k):
     if spec.namelist.do_vort_damp:
-        col["nord_v"] = 0
-        col["damp_vt"] = 0.5 * col["d2_divg"]
+        col["nord_v"][k] = 0
+        col["damp_vt"][k] = 0.5 * col["d2_divg"][k]
 
 
-def lowest_kvals(col):
-    set_low_kvals(col)
-    vort_damp_option(col)
+def lowest_kvals(col, k):
+    set_low_kvals(col, k)
+    vort_damp_option(col, k)
 
 
 def max_d2_bg0():
@@ -428,51 +431,42 @@ def max_d2_bg1():
     return max(spec.namelist.d2_bg, spec.namelist.d2_bg_k2)
 
 
-def get_column_namelist():
-    ks = [k[0] for k in k_bounds()]
-    col = {}
-    for ki in ks:
-        col[ki] = column_namelist_options(ki)
-    return col
-
-
-def get_single_column(key):
-    col = []
-    for k in range(0, grid().npz):
-        col.append(column_namelist_options(k)[key])
+def get_single_column(column_namelist, key):
+    col = [column_namelist[key][-1]] * grid().npz
+    for k in range(3):
+        col[k] = column_namelist[key][k]
     col.append(0.0)
     return col
 
 
-def column_namelist_options(k):
+def get_column_namelist():
     direct_namelist = ["ke_bg", "d_con", "nord"]
     col = {}
+    num_k = len(k_bounds())
     for name in direct_namelist:
-        col[name] = getattr(spec.namelist, name)
-    col["d2_divg"] = min(0.2, spec.namelist.d2_bg)
-    col["nord_v"] = min(2, col["nord"])
-    col["nord_w"] = col["nord_v"]
-    col["nord_t"] = col["nord_v"]
+        col[name] = [getattr(spec.namelist, name)] * num_k
+    
+    col["d2_divg"] = [min(0.2, spec.namelist.d2_bg)] * num_k
+    col["nord_v"] = [min(2, col["nord"][i]) for i in range(num_k)]
+    col["nord_w"] = [val for val in col["nord_v"]]
+    col["nord_t"] = [val for val in col["nord_v"]]
     if spec.namelist.do_vort_damp:
-        col["damp_vt"] = spec.namelist.vtdm4
+        col["damp_vt"] = [spec.namelist.vtdm4] * num_k
     else:
-        col["damp_vt"] = 0
-    col["damp_w"] = col["damp_vt"]
-    col["damp_t"] = col["damp_vt"]
+        col["damp_vt"] = [0] * num_k
+    col["damp_w"] = [val for val in col["damp_vt"]]
+    col["damp_t"] = [val for val in col["damp_vt"]]
     if grid().npz == 1 or spec.namelist.n_sponge < 0:
-        pass
-    # commenting because unused, never gets set into col
-    #     d2_divg = spec.namelist.d2_bg
+        col["d2_divg"][0] = spec.namelist.d2_bg
     else:
-        if k == 0:
-            col["d2_divg"] = max_d2_bg0()
-            lowest_kvals(col)
-        if k == 1 and spec.namelist.d2_bg_k2 > 0.01:
-            col["d2_divg"] = max_d2_bg1()
-            lowest_kvals(col)
-        if k == 2 and spec.namelist.d2_bg_k2 > 0.05:
-            col["d2_divg"] = max(spec.namelist.d2_bg, 0.2 * spec.namelist.d2_bg_k2)
-            set_low_kvals(col)
+        col["d2_divg"][0] = max_d2_bg0()
+        lowest_kvals(col, 0)
+        if spec.namelist.d2_bg_k2 > 0.01:
+            col["d2_divg"][1] = max_d2_bg1()
+            lowest_kvals(col, 1)
+        if spec.namelist.d2_bg_k2 > 0.05:
+            col["d2_divg"][2] = max(spec.namelist.d2_bg, 0.2 * spec.namelist.d2_bg_k2)
+            set_low_kvals(col, 2)
     return col
 
 
@@ -565,8 +559,8 @@ def compute(
             origin=grid().compute_origin(),
             domain=grid().domain_shape_compute(),
         )
-    nord_v = get_single_column("nord_v")
-    damp_vt = get_single_column("damp_vt")
+    nord_v = get_single_column(column_namelist, "nord_v")
+    damp_vt = get_single_column(column_namelist, "damp_vt")
     return nord_v, damp_vt
 
 
@@ -575,16 +569,16 @@ def damp_vertical_wind(w, heat_s, diss_e, dt, column_namelist, kstart, nk):
     wk = utils.make_storage_from_shape(w.shape, grid().full_origin())
     fx2 = utils.make_storage_from_shape(w.shape, grid().full_origin())
     fy2 = utils.make_storage_from_shape(w.shape, grid().full_origin())
-    if column_namelist[kstart]["damp_w"] > 1e-5:
-        dd8 = column_namelist[kstart]["ke_bg"] * abs(dt)
-        damp4 = (column_namelist[kstart]["damp_w"] * grid().da_min_c) ** (
-            column_namelist[kstart]["nord_w"] + 1
+    if column_namelist["damp_w"][kstart] > 1e-5:
+        dd8 = column_namelist["ke_bg"][kstart] * abs(dt)
+        damp4 = (column_namelist["damp_w"][kstart] * grid().da_min_c) ** (
+            column_namelist["nord_w"][kstart] + 1
         )
         delnflux.compute_no_sg(
             w,
             fx2,
             fy2,
-            column_namelist[kstart]["nord_w"],
+            column_namelist["nord_w"][kstart],
             damp4,
             wk,
             kstart=kstart,
@@ -694,50 +688,45 @@ def d_sw(
     gx = utils.make_storage_from_shape(shape, grid().compute_origin())
     gy = utils.make_storage_from_shape(shape, grid().compute_origin())
     ra_x, ra_y = fxadv.compute(uc, vc, ut, vt, xfx, yfx, crx, cry, dt)
-    for kstart, nk in k_bounds():
-        fvtp2d.compute_no_sg(
-            delp,
-            crx,
-            cry,
-            spec.namelist.hord_dp,
-            xfx,
-            yfx,
-            ra_x,
-            ra_y,
-            fx,
-            fy,
-            kstart=kstart,
-            nk=nk,
-            nord=column_namelist[kstart]["nord_v"],
-            damp_c=column_namelist[kstart]["damp_vt"],
-        )
+    fvtp2d.compute_no_sg(
+        delp,
+        crx,
+        cry,
+        spec.namelist.hord_dp,
+        xfx,
+        yfx,
+        ra_x,
+        ra_y,
+        fx,
+        fy,
+        nord=column_namelist["nord_v"],
+        damp_c=column_namelist["damp_vt"],
+    )
 
-    fluxcap.compute(cx, cy, xflux, yflux, crx, cry, fx, fy)
-    initialize_heat_source(heat_s, diss_e)
+    flux_capacitor(cx, cy, xflux, yflux, crx, cry, fx, fy,   origin=spec.grid.full_origin(),
+        domain=spec.grid.domain_shape_full())
 
     if not spec.namelist.hydrostatic:
         for kstart, nk in k_bounds():
             dw, wk = damp_vertical_wind(
                 w, heat_s, diss_e, dt, column_namelist, kstart, nk
             )
-            fvtp2d.compute_no_sg(
-                w,
-                crx,
-                cry,
-                spec.namelist.hord_vt,
-                xfx,
-                yfx,
-                ra_x,
-                ra_y,
-                gx,
-                gy,
-                kstart=kstart,
-                nk=nk,
-                nord=column_namelist[kstart]["nord_v"],
-                damp_c=column_namelist[kstart]["damp_vt"],
-                mfx=fx,
-                mfy=fy,
-            )
+        fvtp2d.compute_no_sg(
+            w,
+            crx,
+            cry,
+            spec.namelist.hord_vt,
+            xfx,
+            yfx,
+            ra_x,
+            ra_y,
+            gx,
+            gy,
+            nord=column_namelist["nord_v"],
+            damp_c=column_namelist["damp_vt"],
+            mfx=fx,
+            mfy=fy,
+        )
 
         flux_adjust(
             w,
@@ -749,26 +738,23 @@ def d_sw(
             domain=grid().domain_shape_compute(),
         )
     # USE_COND
-    for kstart, nk in k_bounds():
-        fvtp2d.compute_no_sg(
-            q_con,
-            crx,
-            cry,
-            spec.namelist.hord_dp,
-            xfx,
-            yfx,
-            ra_x,
-            ra_y,
-            gx,
-            gy,
-            kstart=kstart,
-            nk=nk,
-            nord=column_namelist[kstart]["nord_t"],
-            damp_c=column_namelist[kstart]["damp_t"],
-            mass=delp,
-            mfx=fx,
-            mfy=fy,
-        )
+    fvtp2d.compute_no_sg(
+        q_con,
+        crx,
+        cry,
+        spec.namelist.hord_dp,
+        xfx,
+        yfx,
+        ra_x,
+        ra_y,
+        gx,
+        gy,
+        nord=column_namelist["nord_t"],
+        damp_c=column_namelist["damp_t"],
+        mass=delp,
+        mfx=fx,
+        mfy=fy,
+    )
 
     flux_adjust(
         q_con,
@@ -781,26 +767,23 @@ def d_sw(
     )
 
     # END USE_COND
-    for kstart, nk in k_bounds():
-        fvtp2d.compute_no_sg(
-            pt,
-            crx,
-            cry,
-            spec.namelist.hord_tm,
-            xfx,
-            yfx,
-            ra_x,
-            ra_y,
-            gx,
-            gy,
-            kstart=kstart,
-            nk=nk,
-            nord=column_namelist[kstart]["nord_v"],
-            damp_c=column_namelist[kstart]["damp_vt"],
-            mass=delp,
-            mfx=fx,
-            mfy=fy,
-        )
+    fvtp2d.compute_no_sg(
+        pt,
+        crx,
+        cry,
+        spec.namelist.hord_tm,
+        xfx,
+        yfx,
+        ra_x,
+        ra_y,
+        gx,
+        gy,
+        nord=column_namelist["nord_v"],
+        damp_c=column_namelist["damp_vt"],
+        mass=delp,
+        mfx=fx,
+        mfy=fy,
+    )
 
     if spec.namelist.inline_q:
         raise Exception("inline_q not yet implemented")
@@ -871,7 +854,7 @@ def d_sw(
             delp,
             dw,
             q_con,
-            column_namelist[kstart]["damp_w"],
+            column_namelist["damp_w"][kstart],
             origin=(grid().is_, grid().js, kstart),
             domain=(grid().nic, grid().njc, nk),
         )
@@ -889,14 +872,14 @@ def d_sw(
             delpc,
             ke,
             wk,
-            column_namelist[kstart]["d2_divg"],
+            column_namelist["d2_divg"][kstart],
             dt,
-            column_namelist[kstart]["nord"],
+            column_namelist["nord"][kstart],
             kstart=kstart,
             nk=nk,
         )
 
-        if column_namelist[kstart]["d_con"] > dcon_threshold:
+        if column_namelist["d_con"][kstart] > dcon_threshold:
             ub_vb_from_vort(
                 vort,
                 ub,
@@ -934,15 +917,15 @@ def d_sw(
     )
 
     for kstart, nk in k_bounds():
-        if column_namelist[kstart]["damp_vt"] > dcon_threshold:
-            damp4 = (column_namelist[kstart]["damp_vt"] * grid().da_min_c) ** (
-                column_namelist[kstart]["nord_v"] + 1
+        if column_namelist["damp_vt"][kstart] > dcon_threshold:
+            damp4 = (column_namelist["damp_vt"][kstart] * grid().da_min_c) ** (
+                column_namelist["nord_v"][kstart] + 1
             )
             delnflux.compute_no_sg(
                 wk,
                 ut,
                 vt,
-                column_namelist[kstart]["nord_v"],
+                column_namelist["nord_v"][kstart],
                 damp4,
                 vort,
                 kstart=kstart,
@@ -950,7 +933,7 @@ def d_sw(
             )
 
             if (
-                column_namelist[kstart]["d_con"] > dcon_threshold
+                column_namelist["d_con"][kstart] > dcon_threshold
                 or spec.namelist.do_skeb
             ):
                 heat_from_damping(
@@ -965,24 +948,20 @@ def d_sw(
                     fy,
                     heat_s,
                     diss_e,
-                    column_namelist[kstart]["d_con"],
+                    column_namelist["d_con"][kstart],
                     kstart,
                     nk,
                 )
-        if column_namelist[kstart]["damp_vt"] > 1e-5:
+        if column_namelist["damp_vt"][kstart] > 1e-5:
             basic.add_term_stencil(
                 vt,
                 u,
                 origin=(grid().is_, grid().js, kstart),
                 domain=(grid().nic, grid().njc + 1, nk),
-                # origin=grid().compute_origin(),
-                # domain=grid().domain_shape_compute(add=(0, 1, 0)),
             )
             basic.subtract_term_stencil(
                 ut,
                 v,
                 origin=(grid().is_, grid().js, kstart),
                 domain=(grid().nic + 1, grid().njc, nk),
-                # origin=grid().compute_origin(),
-                # domain=grid().domain_shape_compute(add=(1, 0, 0)),
             )

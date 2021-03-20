@@ -343,20 +343,18 @@ def pert_ppm_standard_constraint(a0: sd, al: sd, ar: sd):
             ar = 0.0
 
 
-def compute_al(q, dyvar, jord, ifirst, ilast, js1, je3, kstart=0, nk=None):
-    if nk is None:
-        nk = grid().npz - kstart
+def compute_al(q, dyvar, jord, ifirst, ilast, js1, je3):
     dimensions = q.shape
-    local_origin = (origin[0], origin[1], kstart)
+    local_origin = (origin[0], origin[1], 0)
     al = utils.make_storage_from_shape(dimensions, local_origin)
     if jord < 8:
         main_al_ord_under8(
             q,
             al,
-            origin=(ifirst, js1, kstart),
-            domain=(ilast - ifirst + 1, je3 - js1 + 1, nk),
+            origin=(ifirst, js1, 0),
+            domain=(ilast - ifirst + 1, je3 - js1 + 1, grid().npz),
         )
-        x_edge_domain = (dimensions[0], 1, nk)
+        x_edge_domain = (dimensions[0], 1, grid().npz)
         if not grid().nested and spec.namelist.grid_type < 3:
             # South Edge
             if grid().south_edge:
@@ -364,63 +362,63 @@ def compute_al(q, dyvar, jord, ifirst, ilast, js1, je3, kstart=0, nk=None):
                     q,
                     dyvar,
                     al,
-                    origin=(0, grid().js - 1, kstart),
+                    origin=(0, grid().js - 1, 0),
                     domain=x_edge_domain,
                 )
                 al_x_under8_edge_1(
-                    q, dyvar, al, origin=(0, grid().js, kstart), domain=x_edge_domain
+                    q, dyvar, al, origin=(0, grid().js, 0), domain=x_edge_domain
                 )
                 al_x_under8_edge_2(
                     q,
                     dyvar,
                     al,
-                    origin=(0, grid().js + 1, kstart),
+                    origin=(0, grid().js + 1, 0),
                     domain=x_edge_domain,
                 )
             # North Edge
             if grid().north_edge:
                 al_x_under8_edge_0(
-                    q, dyvar, al, origin=(0, grid().je, kstart), domain=x_edge_domain
+                    q, dyvar, al, origin=(0, grid().je, 0), domain=x_edge_domain
                 )
                 al_x_under8_edge_1(
                     q,
                     dyvar,
                     al,
-                    origin=(0, grid().je + 1, kstart),
+                    origin=(0, grid().je + 1, 0),
                     domain=x_edge_domain,
                 )
                 al_x_under8_edge_2(
                     q,
                     dyvar,
                     al,
-                    origin=(0, grid().je + 2, kstart),
+                    origin=(0, grid().je + 2, 0),
                     domain=x_edge_domain,
                 )
         if jord < 0:
             floor_cap(
                 al,
                 0.0,
-                origin=(ifirst, grid().js - 1, kstart),
-                domain=(ilast - ifirst + 1, grid().njc + 3, nk),
+                origin=(ifirst, grid().js - 1, 0),
+                domain=(ilast - ifirst + 1, grid().njc + 3, grid().npz),
             )
 
     return al
 
 
-def compute_blbr_ord8plus(q, jord, dya, ifirst, ilast, js1, je1, kstart, nk):
+def compute_blbr_ord8plus(q, jord, dya, ifirst, ilast, js1, je1):
     r3 = 1.0 / 3.0
     grid = spec.grid
-    local_origin = (origin[0], origin[1], kstart)
+    local_origin = (origin[0], origin[1], 0)
     bl = utils.make_storage_from_shape(q.shape, local_origin)
     br = utils.make_storage_from_shape(q.shape, local_origin)
     dm = utils.make_storage_from_shape(q.shape, local_origin)
     al = utils.make_storage_from_shape(q.shape, local_origin)
     di = ilast - ifirst + 1
     dm_jord8plus(
-        q, al, dm, origin=(ifirst, grid.js - 2, kstart), domain=(di, grid.njc + 4, nk)
+        q, al, dm, origin=(ifirst, grid.js - 2, 0), domain=(di, grid.njc + 4, grid.npz)
     )
     al_jord8plus(
-        q, al, dm, r3, origin=(ifirst, js1, kstart), domain=(di, je1 - js1 + 2, nk)
+        q, al, dm, r3, origin=(ifirst, js1, 0), domain=(di, je1 - js1 + 2, grid.npz)
     )
     if jord == 8:
         blbr_jord8(
@@ -429,14 +427,14 @@ def compute_blbr_ord8plus(q, jord, dya, ifirst, ilast, js1, je1, kstart, nk):
             bl,
             br,
             dm,
-            origin=(ifirst, js1, kstart),
-            domain=(di, je1 - js1 + 1, nk),
+            origin=(ifirst, js1, 0),
+            domain=(di, je1 - js1 + 1, grid.npz),
         )
     else:
         raise Exception("Unimplemented jord=" + str(jord))
 
     if spec.namelist.grid_type < 3 and not (grid.nested or spec.namelist.regional):
-        x_edge_domain = (di, 1, nk)
+        x_edge_domain = (di, 1, grid.npz)
         do_xt_minmax = True
         if grid.south_edge:
             south_edge_jord8plus_0(
@@ -446,7 +444,7 @@ def compute_blbr_ord8plus(q, jord, dya, ifirst, ilast, js1, je1, kstart, nk):
                 bl,
                 br,
                 do_xt_minmax,
-                origin=(ifirst, grid.js - 1, kstart),
+                origin=(ifirst, grid.js - 1, 0),
                 domain=x_edge_domain,
             )
             south_edge_jord8plus_1(
@@ -456,7 +454,7 @@ def compute_blbr_ord8plus(q, jord, dya, ifirst, ilast, js1, je1, kstart, nk):
                 bl,
                 br,
                 do_xt_minmax,
-                origin=(ifirst, grid.js, kstart),
+                origin=(ifirst, grid.js, 0),
                 domain=x_edge_domain,
             )
             south_edge_jord8plus_2(
@@ -466,10 +464,10 @@ def compute_blbr_ord8plus(q, jord, dya, ifirst, ilast, js1, je1, kstart, nk):
                 al,
                 bl,
                 br,
-                origin=(ifirst, grid.js + 1, kstart),
+                origin=(ifirst, grid.js + 1, 0),
                 domain=x_edge_domain,
             )
-            pert_ppm(q, bl, br, 1, ifirst, grid.js - 1, kstart, di, 3, nk)
+            pert_ppm(q, bl, br, 1, ifirst, grid.js - 1, di, 3)
         if grid.north_edge:
             north_edge_jord8plus_0(
                 q,
@@ -478,7 +476,7 @@ def compute_blbr_ord8plus(q, jord, dya, ifirst, ilast, js1, je1, kstart, nk):
                 al,
                 bl,
                 br,
-                origin=(ifirst, grid.je - 1, kstart),
+                origin=(ifirst, grid.je - 1, 0),
                 domain=x_edge_domain,
             )
             north_edge_jord8plus_1(
@@ -488,7 +486,7 @@ def compute_blbr_ord8plus(q, jord, dya, ifirst, ilast, js1, je1, kstart, nk):
                 bl,
                 br,
                 do_xt_minmax,
-                origin=(ifirst, grid.je, kstart),
+                origin=(ifirst, grid.je, 0),
                 domain=x_edge_domain,
             )
             north_edge_jord8plus_2(
@@ -498,17 +496,15 @@ def compute_blbr_ord8plus(q, jord, dya, ifirst, ilast, js1, je1, kstart, nk):
                 bl,
                 br,
                 do_xt_minmax,
-                origin=(ifirst, grid.je + 1, kstart),
+                origin=(ifirst, grid.je + 1, 0),
                 domain=x_edge_domain,
             )
-            pert_ppm(q, bl, br, 1, ifirst, grid.je - 1, kstart, di, 3, nk)
+            pert_ppm(q, bl, br, 1, ifirst, grid.je - 1, di, 3)
         return bl, br
 
 
-def compute_flux(q, c, flux, jord, ifirst, ilast, kstart=0, nk=None):
+def compute_flux(q, c, flux, jord, ifirst, ilast):
     grid = spec.grid
-    if nk is None:
-        nk = grid.npz - kstart
     js1 = grid.js + 2 if grid.south_edge else grid.js - 1
     je3 = grid.je - 1 if grid.north_edge else grid.je + 2
     je1 = grid.je - 2 if grid.north_edge else grid.je + 1
@@ -517,29 +513,28 @@ def compute_flux(q, c, flux, jord, ifirst, ilast, kstart=0, nk=None):
         raise Exception(
             "We have only implemented yppm for hord=5, 6, 7, and 8, not " + str(jord)
         )
-    flux_origin = (ifirst, grid.js, kstart)
-    flux_domain = (ilast - ifirst + 1, grid.njc + 1, nk)
+    flux_origin = (ifirst, grid.js, 0)
+    flux_domain = (ilast - ifirst + 1, grid.njc + 1, grid.npz)
     if mord < 8:
-        al = compute_al(q, grid.dya, jord, ifirst, ilast, js1, je3, kstart, nk)
+        al = compute_al(q, grid.dya, jord, ifirst, ilast, js1, je3)
         get_flux_stencil(
             q, c, al, flux, mord=mord, origin=flux_origin, domain=flux_domain
         )
     else:
         bl, br = compute_blbr_ord8plus(
-            q, jord, grid.dya, ifirst, ilast, js1, je1, kstart, nk
-        )
+            q, jord, grid.dya, ifirst, ilast, js1, je1)
         finalflux_ord8plus(q, c, bl, br, flux, origin=flux_origin, domain=flux_domain)
 
 
 # Optimized PPM in perturbation form:
-def pert_ppm(a0, al, ar, iv, istart, jstart, kstart, ni, nj, nk):
+def pert_ppm(a0, al, ar, iv, istart, jstart, ni, nj):
     r12 = 1.0 / 12.0
     if iv == 0:
         pert_ppm_positive_definite_constraint(
-            a0, al, ar, r12, origin=(istart, jstart, kstart), domain=(ni, nj, nk)
+            a0, al, ar, r12, origin=(istart, jstart, 0), domain=(ni, nj, grid().npz)
         )
     else:
         pert_ppm_standard_constraint(
-            a0, al, ar, origin=(istart, jstart, kstart), domain=(ni, nj, nk)
+            a0, al, ar, origin=(istart, jstart, 0), domain=(ni, nj, grid().npz)
         )
     return al, ar

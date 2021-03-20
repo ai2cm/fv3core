@@ -6,6 +6,7 @@ import fv3core.stencils.delnflux as delnflux
 import fv3core.stencils.xppm as xppm
 import fv3core.stencils.yppm as yppm
 import fv3core.utils.corners as corners
+import fv3core.stencils.d_sw as d_sw
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import gtstencil
 from fv3core.utils.typing import FloatField
@@ -81,8 +82,6 @@ def compute_no_sg(
     ra_y,
     fx,
     fy,
-    kstart=0,
-    nk=None,
     nord=None,
     damp_c=None,
     mass=None,
@@ -90,23 +89,19 @@ def compute_no_sg(
     mfy=None,
 ):
     grid = spec.grid
-    if nk is None:
-        nk = grid.npz - kstart
-    kslice = slice(kstart, kstart + nk)
-    compute_origin = (grid.is_, grid.js, kstart)
-    q_i = utils.make_storage_from_shape(q.shape, (grid.isd, grid.js, kstart))
-    q_j = utils.make_storage_from_shape(q.shape, (grid.is_, grid.jsd, kstart))
-    fy2 = utils.make_storage_from_shape(q.shape, compute_origin)
-    fx2 = utils.make_storage_from_shape(q.shape, compute_origin)
+    q_i = utils.make_storage_from_shape(q.shape, (grid.isd, grid.js, 0))
+    q_j = utils.make_storage_from_shape(q.shape, (grid.is_, grid.jsd, 0))
+    fy2 = utils.make_storage_from_shape(q.shape, grid.compute_origin())
+    fx2 = utils.make_storage_from_shape(q.shape, grid.compute_origin())
     if hord == 10:
         ord_in = 8
     else:
         ord_in = hord
     ord_ou = hord
     corners.copy_corners_y_stencil(
-        q, origin=(grid.isd, grid.jsd, kstart), domain=(grid.nid, grid.njd, nk)
+        q, origin=grid.full_origin(), domain=grid.domain_shape_full()
     )
-    yppm.compute_flux(q, cry, fy2, ord_in, grid.isd, grid.ied, kstart=kstart, nk=nk)
+    yppm.compute_flux(q, cry, fy2, ord_in, grid.isd, grid.ied)
     q_i_stencil(
         q,
         grid.area,
@@ -114,15 +109,15 @@ def compute_no_sg(
         fy2,
         ra_y,
         q_i,
-        origin=(grid.isd, grid.js, kstart),
-        domain=(grid.nid, grid.njc + 1, nk),
+        origin=(grid.isd, grid.js, 0),
+        domain=(grid.nid, grid.njc + 1, grid.npz),
     )
 
-    xppm.compute_flux(q_i, crx, fx, ord_ou, grid.js, grid.je, kstart=kstart, nk=nk)
+    xppm.compute_flux(q_i, crx, fx, ord_ou, grid.js, grid.je)
     corners.copy_corners_x_stencil(
-        q, origin=(grid.isd, grid.jsd, kstart), domain=(grid.nid, grid.njd, nk)
+        q, origin=grid.full_origin(), domain=grid.domain_shape_full()
     )
-    xppm.compute_flux(q, crx, fx2, ord_in, grid.jsd, grid.jed, kstart=kstart, nk=nk)
+    xppm.compute_flux(q, crx, fx2, ord_in, grid.jsd, grid.jed)
     q_j_stencil(
         q,
         grid.area,
@@ -130,10 +125,10 @@ def compute_no_sg(
         fx2,
         ra_x,
         q_j,
-        origin=(grid.is_, grid.jsd, kstart),
-        domain=(grid.nic + 1, grid.njd, nk),
+        origin=(grid.is_, grid.jsd, 0),
+        domain=(grid.nic + 1, grid.njd, grid.npz),
     )
-    yppm.compute_flux(q_j, cry, fy, ord_ou, grid.is_, grid.ie, kstart=kstart, nk=nk)
+    yppm.compute_flux(q_j, cry, fy, ord_ou, grid.is_, grid.ie)
 
     if mfx is not None and mfy is not None:
         transport_flux_xy(
@@ -143,14 +138,15 @@ def compute_no_sg(
             fy2,
             mfx,
             mfy,
-            origin=compute_origin,
-            domain=(grid.nic + 1, grid.njc + 1, nk),
+            origin=grid.compute_origin(),
+            domain=grid.domain_shape_compute(add=(1, 1, 0)),
         )
 
         if (mass is not None) and (nord is not None) and (damp_c is not None):
-            delnflux.compute_delnflux_no_sg(
-                q, fx, fy, nord, damp_c, kstart, nk, mass=mass
-            )
+            for kstart, nk in d_sw.k_bounds():
+                delnflux.compute_delnflux_no_sg(
+                    q, fx, fy, nord[kstart], damp_c[kstart], kstart, nk, mass=mass
+                )
     else:
         transport_flux_xy(
             fx,
@@ -159,9 +155,10 @@ def compute_no_sg(
             fy2,
             xfx,
             yfx,
-            origin=compute_origin,
-            domain=(grid.nic + 1, grid.njc + 1, nk),
+            origin=grid.compute_origin(),
+            domain=grid.domain_shape_compute(add=(1, 1, 0))
         )
 
         if (nord is not None) and (damp_c is not None):
-            delnflux.compute_delnflux_no_sg(q, fx, fy, nord, damp_c, kstart, nk)
+            for kstart, nk in d_sw.k_bounds():
+                delnflux.compute_delnflux_no_sg(q, fx, fy, nord[kstart], damp_c[kstart], kstart, nk)
