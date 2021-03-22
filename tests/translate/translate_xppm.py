@@ -32,11 +32,9 @@ class TranslateXPPM(TranslateFortranData2Py):
 
     def compute(self, inputs):
         self.process_inputs(inputs)
-        inputs["xflux"] = utils.make_storage_from_shape(inputs["q"].shape)
-        xppm_obj = xppm.XPPM(spec.namelist, int(inputs["iord"]))
+        inputs["xflux"] = utils.make_storage_from_shape(inputs["q"].shape)        
+        self.compute_func = xppm.XPPM(spec.namelist, int(inputs["iord"]))
         del inputs["iord"]
-        self.compute_func = xppm_obj.__call__
-        
         self.compute_func(**inputs)
         return self.slice_output(inputs)
 

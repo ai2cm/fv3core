@@ -1,12 +1,11 @@
 import fv3core.utils.gt4py_utils as utils
 from fv3core.stencils import yppm
 from fv3core.testing import TranslateFortranData2Py, TranslateGrid
-
+import fv3core._config as spec
 
 class TranslateYPPM(TranslateFortranData2Py):
     def __init__(self, grid):
         super().__init__(grid)
-        self.compute_func = yppm.compute_flux
         self.in_vars["data_vars"] = {
             "q": {"istart": "ifirst"},
             "c": {"jstart": grid.js},
@@ -34,6 +33,8 @@ class TranslateYPPM(TranslateFortranData2Py):
 
     def compute(self, inputs):
         self.process_inputs(inputs)
+        self.compute_func = yppm.YPPM(spec.namelist, int(inputs["jord"]))
+        del inputs["jord"]
         self.compute_func(**inputs)
         return self.slice_output(inputs)
 

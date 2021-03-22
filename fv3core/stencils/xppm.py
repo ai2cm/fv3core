@@ -260,7 +260,7 @@ def compute_al(q: FloatField, dxa: FloatField):
 
 @gtscript.function
 def compute_blbr_ord8plus(q: FloatField, dxa: FloatField):
-    from __externals__ import i_end, i_start, iord, namelist
+    from __externals__ import i_end, i_start, iord
 
     dm = dm_iord8plus(q)
     al = al_iord8plus(q, dm)
@@ -270,7 +270,6 @@ def compute_blbr_ord8plus(q: FloatField, dxa: FloatField):
     bl, br = blbr_iord8(q, al, dm)
     # }
 
-    assert __INLINED(namelist.grid_type < 3)
     # {
     with horizontal(region[i_start - 1, :]):
         bl, br = west_edge_iord8plus_0(q, dxa, dm)
@@ -316,23 +315,25 @@ def _compute_flux_stencil(
 class XPPM:
     def __init__(self, namelist, iord):
         grid = spec.grid
-        shape = grid.domain_shape_full(add=(1, 1, 1))
         origin = grid.compute_origin()
-        # ax_offsets = axis_offsets(spec.grid, origin, domain)
+        domain = grid.domain_shape_compute(add=(1,1,1))
+        ax_offsets = axis_offsets(spec.grid, origin, domain)
+        assert (namelist.grid_type < 3)
+        self.npz = grid.npz
+        self.is_ = grid.is_
+        self.ie = grid.ie
+        self.nic = grid.nic
+        self.dxa = grid.dxa
         self.compute_flux_stencil = gtscript.stencil(
             definition=_compute_flux_stencil,
             externals={
-                "namelist": spec.namelist,
-                "grid": grid,
                 "iord": iord,
                 "mord": abs(iord),
                 "xt_minmax": True,
-                "i_start": grid.is_,
-                "i_end": grid.nic + grid.is_
-                # **ax_offsets,
+                **ax_offsets
             },
             backend=global_config.get_backend(), 
-            rebuild=global_config.get_rebuild()
+            rebuild=global_config.get_rebuild(),
         )
 
     def __call__(self,
@@ -351,22 +352,20 @@ class XPPM:
             q (in): Transported scalar
             c (in): Courant number
             xflux (out): Flux
-            iord: Method selector
             jfirst: Starting index of the J-dir compute domain
             jlast: Final index of the J-dir compute domain
             kstart: First index of the K-dir compute domain
             nk: Number of indices in the K-dir compute domain
         """
-        # Tests: xppm, fvtp2d, tracer2d1l
-        grid = spec.grid
+        
         if nk is None:
-            nk = spec.grid.npz - kstart
+            nk = self.npz - kstart
         nj = jlast - jfirst + 1
         self.compute_flux_stencil(
             q,
             c,
-            grid.dxa,
+            self.dxa,
             xflux,
-            origin=(grid.is_, jfirst, kstart),
-            domain=(grid.nic + 1, nj, nk),
+            origin=(self.is_, jfirst, kstart),
+            domain=(self.nic + 1, nj, nk),
         )
