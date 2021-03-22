@@ -20,7 +20,14 @@ from .yppm import (
 
 @gtstencil()
 def get_flux_v_stencil(
-    q: FloatField, c: FloatField, al: FloatField, rdy: FloatFieldIJ, bl: FloatField, br: FloatField, flux: FloatField, mord: int
+    q: FloatField,
+    c: FloatField,
+    al: FloatField,
+    rdy: FloatFieldIJ,
+    bl: FloatField,
+    br: FloatField,
+    flux: FloatField,
+    mord: int,
 ):
     with computation(PARALLEL), interval(...):
         b0 = get_b0(bl=bl, br=br)
@@ -33,7 +40,14 @@ def get_flux_v_stencil(
 
 
 @gtstencil()
-def get_flux_v_ord8plus(q: FloatField, c: FloatField, rdy: FloatFieldIJ, bl: FloatField, br: FloatField, flux: FloatField):
+def get_flux_v_ord8plus(
+    q: FloatField,
+    c: FloatField,
+    rdy: FloatFieldIJ,
+    bl: FloatField,
+    br: FloatField,
+    flux: FloatField,
+):
     with computation(PARALLEL), interval(...):
         b0 = get_b0(bl, br)
         cfl = c * rdy[0, -1] if c > 0 else c * rdy

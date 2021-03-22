@@ -17,7 +17,13 @@ from fv3core.utils.typing import FloatField, FloatFieldIJ
 
 
 @gtstencil()
-def geoadjust_ut(ut: FloatField, dy: FloatFieldIJ, sin_sg3: FloatFieldIJ, sin_sg1: FloatFieldIJ, dt2: float):
+def geoadjust_ut(
+    ut: FloatField,
+    dy: FloatFieldIJ,
+    sin_sg3: FloatFieldIJ,
+    sin_sg1: FloatFieldIJ,
+    dt2: float,
+):
     with computation(PARALLEL), interval(...):
         ut[0, 0, 0] = (
             dt2 * ut * dy * sin_sg3[-1, 0] if ut > 0 else dt2 * ut * dy * sin_sg1
@@ -25,7 +31,13 @@ def geoadjust_ut(ut: FloatField, dy: FloatFieldIJ, sin_sg3: FloatFieldIJ, sin_sg
 
 
 @gtstencil()
-def geoadjust_vt(vt: FloatField, dx: FloatFieldIJ, sin_sg4: FloatFieldIJ, sin_sg2: FloatFieldIJ, dt2: float):
+def geoadjust_vt(
+    vt: FloatField,
+    dx: FloatFieldIJ,
+    sin_sg4: FloatFieldIJ,
+    sin_sg2: FloatFieldIJ,
+    dt2: float,
+):
     with computation(PARALLEL), interval(...):
         vt[0, 0, 0] = (
             dt2 * vt * dx * sin_sg4[0, -1] if vt > 0 else dt2 * vt * dx * sin_sg2
@@ -62,7 +74,15 @@ def nonhydro_y_fluxes(delp: FloatField, pt: FloatField, w: FloatField, vtc: Floa
 
 @gtstencil()
 def transportdelp(
-    delp: FloatField, pt: FloatField, utc: FloatField, vtc: FloatField, w: FloatField, rarea: FloatFieldIJ, delpc: FloatField, ptc: FloatField, wc: FloatField
+    delp: FloatField,
+    pt: FloatField,
+    utc: FloatField,
+    vtc: FloatField,
+    w: FloatField,
+    rarea: FloatFieldIJ,
+    delpc: FloatField,
+    ptc: FloatField,
+    wc: FloatField,
 ):
     """Transport delp.
 
@@ -169,7 +189,13 @@ def divergence_corner(
 
 
 @gtstencil()
-def circulation_cgrid(uc: FloatField, vc: FloatField, dxc: FloatFieldIJ, dyc: FloatFieldIJ, vort_c: FloatField):
+def circulation_cgrid(
+    uc: FloatField,
+    vc: FloatField,
+    dxc: FloatFieldIJ,
+    dyc: FloatFieldIJ,
+    vort_c: FloatField,
+):
     """Update vort_c.
 
     Args:
@@ -286,7 +312,13 @@ def update_meridional_velocity(
 
 
 def vorticitytransport_cgrid(
-    uc: FloatField, vc: FloatField, vort_c: FloatField, ke_c: FloatField, v: FloatField, u: FloatField, dt2: float
+    uc: FloatField,
+    vc: FloatField,
+    vort_c: FloatField,
+    ke_c: FloatField,
+    v: FloatField,
+    u: FloatField,
+    dt2: float,
 ):
     """Update the C-Grid zonal and meridional velocity fields.
 

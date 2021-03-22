@@ -25,7 +25,14 @@ from .xppm import (
 
 
 @gtstencil()
-def get_flux_u_stencil_old(q: FloatField, c: FloatField, al: FloatField, rdx: FloatFieldIJ, flux: FloatField, mord: int):
+def get_flux_u_stencil_old(
+    q: FloatField,
+    c: FloatField,
+    al: FloatField,
+    rdx: FloatFieldIJ,
+    flux: FloatField,
+    mord: int,
+):
     with computation(PARALLEL), interval(...):
         bl, br, b0, tmp = flux_intermediates(q, al, mord)
         cfl = c * rdx[-1, 0] if c > 0 else c * rdx
@@ -36,7 +43,14 @@ def get_flux_u_stencil_old(q: FloatField, c: FloatField, al: FloatField, rdx: Fl
 
 @gtstencil()
 def get_flux_u_stencil(
-    q: FloatField, c: FloatField, al: FloatField, rdx: FloatFieldIJ, bl: FloatField, br: FloatField, flux: FloatField, mord: int
+    q: FloatField,
+    c: FloatField,
+    al: FloatField,
+    rdx: FloatFieldIJ,
+    bl: FloatField,
+    br: FloatField,
+    flux: FloatField,
+    mord: int,
 ):
     with computation(PARALLEL), interval(...):
         b0 = get_b0(bl=bl, br=br)
@@ -49,7 +63,14 @@ def get_flux_u_stencil(
 
 
 @gtstencil()
-def get_flux_u_ord8plus(q: FloatField, c: FloatField, rdx: FloatFieldIJ, bl: FloatField, br: FloatField, flux: FloatField):
+def get_flux_u_ord8plus(
+    q: FloatField,
+    c: FloatField,
+    rdx: FloatFieldIJ,
+    bl: FloatField,
+    br: FloatField,
+    flux: FloatField,
+):
     with computation(PARALLEL), interval(...):
         b0 = get_b0(bl, br)
         cfl = c * rdx[-1, 0] if c > 0 else c * rdx
@@ -252,7 +273,9 @@ def compute(c, u, v, flux):
 
 
 @gtstencil()
-def west_edge_iord8plus_0(q: FloatField, dxa: FloatField, dm: FloatField, bl: FloatField, br: FloatField):
+def west_edge_iord8plus_0(
+    q: FloatField, dxa: FloatField, dm: FloatField, bl: FloatField, br: FloatField
+):
     with computation(PARALLEL), interval(...):
         bl = s14 * dm[-1, 0, 0] + s11 * (q[-1, 0, 0] - q)
         xt = xt_dxa_edge_0_base(q, dxa)
@@ -260,7 +283,9 @@ def west_edge_iord8plus_0(q: FloatField, dxa: FloatField, dm: FloatField, bl: Fl
 
 
 @gtstencil()
-def west_edge_iord8plus_1(q: FloatField, dxa: FloatField, dm: FloatField, bl: FloatField, br: FloatField):
+def west_edge_iord8plus_1(
+    q: FloatField, dxa: FloatField, dm: FloatField, bl: FloatField, br: FloatField
+):
     with computation(PARALLEL), interval(...):
         xt = xt_dxa_edge_1_base(q, dxa)
         bl = xt - q
@@ -269,7 +294,9 @@ def west_edge_iord8plus_1(q: FloatField, dxa: FloatField, dm: FloatField, bl: Fl
 
 
 @gtstencil()
-def east_edge_iord8plus_1(q: FloatField, dxa: FloatField, dm: FloatField, bl: FloatField, br: FloatField):
+def east_edge_iord8plus_1(
+    q: FloatField, dxa: FloatField, dm: FloatField, bl: FloatField, br: FloatField
+):
     with computation(PARALLEL), interval(...):
         xt = s15 * q + s11 * q[-1, 0, 0] + s14 * dm[-1, 0, 0]
         bl = xt - q
@@ -278,7 +305,9 @@ def east_edge_iord8plus_1(q: FloatField, dxa: FloatField, dm: FloatField, bl: Fl
 
 
 @gtstencil()
-def east_edge_iord8plus_2(q: FloatField, dxa: FloatField, dm: FloatField, bl: FloatField, br: FloatField):
+def east_edge_iord8plus_2(
+    q: FloatField, dxa: FloatField, dm: FloatField, bl: FloatField, br: FloatField
+):
     with computation(PARALLEL), interval(...):
         xt = xt_dxa_edge_1_base(q, dxa)
         bl = xt - q

@@ -1,5 +1,3 @@
-from typing import Optional
-
 import gt4py.gtscript as gtscript
 import numpy as np
 from gt4py.gtscript import PARALLEL, computation, interval
@@ -7,13 +5,8 @@ from gt4py.gtscript import PARALLEL, computation, interval
 import fv3core._config as spec
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import gtstencil
-from fv3core.utils.typing import (
-    Float,
-    FloatField,
-    FloatFieldIJ,
-    FloatFieldJ,
-)
 from fv3core.stencils.basic_operations import copy_stencil
+from fv3core.utils.typing import FloatField, FloatFieldI, FloatFieldIJ, FloatFieldJ
 
 
 # comact 4-pt cubic interpolation
@@ -117,16 +110,20 @@ def vort_adjust(qxx: FloatField, qyy: FloatField, qout: FloatField):
 #    with computation(PARALLEL), interval(...):
 #        qout = edge_w * q2[0, -1, 0] + (1.0 - edge_w) * q2
 @gtstencil()
-def qout_x_edge(qin: FloatField, dxa: FloatFieldIJ, edge_w: FloatFieldJ, qout: FloatField):
+def qout_x_edge(
+    qin: FloatField, dxa: FloatFieldIJ, edge_w: FloatFieldJ, qout: FloatField
+):
     with computation(PARALLEL), interval(...):
         q2 = (qin[-1, 0, 0] * dxa + qin * dxa[-1, 0]) / (dxa[-1, 0] + dxa)
         qout[0, 0, 0] = edge_w * q2[0, -1, 0] + (1.0 - edge_w) * q2
 
 
 @gtstencil()
-def qout_y_edge(qin: FloatField, dya: FloatField, edge_s: FloatField, qout: FloatField):
+def qout_y_edge(
+    qin: FloatField, dya: FloatFieldIJ, edge_s: FloatFieldI, qout: FloatField
+):
     with computation(PARALLEL), interval(...):
-        q1 = (qin[0, -1, 0] * dya + qin * dya[0, -1, 0]) / (dya[0, -1, 0] + dya)
+        q1 = (qin[0, -1, 0] * dya + qin * dya[0, -1]) / (dya[0, -1] + dya)
         qout[0, 0, 0] = edge_s * q1[-1, 0, 0] + (1.0 - edge_s) * q1
 
 
@@ -167,7 +164,7 @@ def qx_edge_east(qin: FloatField, dxa: FloatFieldIJ, qx: FloatField):
 
 
 @gtstencil()
-def qx_edge_east2(qin: FloatField, dxa: FloatField, qx: FloatField):
+def qx_edge_east2(qin: FloatField, dxa: FloatFieldIJ, qx: FloatField):
     with computation(PARALLEL), interval(...):
         g_in = dxa[-1, 0] / dxa
         qx0 = qx
@@ -177,10 +174,10 @@ def qx_edge_east2(qin: FloatField, dxa: FloatField, qx: FloatField):
 
 
 @gtstencil()
-def qy_edge_south(qin: FloatField, dya: FloatField, qy: FloatField):
+def qy_edge_south(qin: FloatField, dya: FloatFieldIJ, qy: FloatField):
     with computation(PARALLEL), interval(...):
-        g_in = dya[0, 1, 0] / dya
-        g_ou = dya[0, -2, 0] / dya[0, -1, 0]
+        g_in = dya[0, 1] / dya
+        g_ou = dya[0, -2] / dya[0, -1]
         qy[0, 0, 0] = 0.5 * (
             ((2.0 + g_in) * qin - qin[0, 1, 0]) / (1.0 + g_in)
             + ((2.0 + g_ou) * qin[0, -1, 0] - qin[0, -2, 0]) / (1.0 + g_ou)
@@ -188,9 +185,9 @@ def qy_edge_south(qin: FloatField, dya: FloatField, qy: FloatField):
 
 
 @gtstencil()
-def qy_edge_south2(qin: FloatField, dya: FloatField, qy: FloatField):
+def qy_edge_south2(qin: FloatField, dya: FloatFieldIJ, qy: FloatField):
     with computation(PARALLEL), interval(...):
-        g_in = dya / dya[0, -1, 0]
+        g_in = dya / dya[0, -1]
         qy0 = qy
         qy = (
             3.0 * (g_in * qin[0, -1, 0] + qin) - (g_in * qy0[0, -1, 0] + qy0[0, 1, 0])
@@ -198,10 +195,10 @@ def qy_edge_south2(qin: FloatField, dya: FloatField, qy: FloatField):
 
 
 @gtstencil()
-def qy_edge_north(qin: FloatField, dya: FloatField, qy: FloatField):
+def qy_edge_north(qin: FloatField, dya: FloatFieldIJ, qy: FloatField):
     with computation(PARALLEL), interval(...):
-        g_in = dya[0, -2, 0] / dya[0, -1, 0]
-        g_ou = dya[0, 1, 0] / dya
+        g_in = dya[0, -2] / dya[0, -1]
+        g_ou = dya[0, 1] / dya
         qy[0, 0, 0] = 0.5 * (
             ((2.0 + g_in) * qin[0, -1, 0] - qin[0, -2, 0]) / (1.0 + g_in)
             + ((2.0 + g_ou) * qin - qin[0, 1, 0]) / (1.0 + g_ou)
@@ -209,9 +206,9 @@ def qy_edge_north(qin: FloatField, dya: FloatField, qy: FloatField):
 
 
 @gtstencil()
-def qy_edge_north2(qin: FloatField, dya: FloatField, qy: FloatField):
+def qy_edge_north2(qin: FloatField, dya: FloatFieldIJ, qy: FloatField):
     with computation(PARALLEL), interval(...):
-        g_in = dya[0, -1, 0] / dya
+        g_in = dya[0, -1] / dya
         qy0 = qy
         qy = (
             3.0 * (qin[0, -1, 0] + g_in * qin) - (g_in * qy0[0, 1, 0] + qy0[0, -1, 0])
@@ -339,6 +336,7 @@ def compute_qout_x_edges(qin, qout, kstart, nk):
             qout,
             origin=(grid().ie + 1, js2, kstart),
             domain=(1, dj2, nk),
+            validate_args=False,
         )
 
 

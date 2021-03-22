@@ -48,15 +48,9 @@ def al_x_under8_edge_0(q: FloatField, al: FloatField):
 def al_x_under8_edge_1(q: FloatField, dya: FloatFieldIJ, al: FloatField):
     with computation(PARALLEL), interval(0, None):
         al[0, 0, 0] = 0.5 * (
-            (
-                (2.0 * dya[0, -1] + dya[0, -2]) * q[0, -1, 0]
-                - dya[0, -1] * q[0, -2, 0]
-            )
+            ((2.0 * dya[0, -1] + dya[0, -2]) * q[0, -1, 0] - dya[0, -1] * q[0, -2, 0])
             / (dya[0, -2] + dya[0, -1])
-            + (
-                (2.0 * dya[0, 0] + dya[0, 1]) * q[0, 0, 0]
-                - dya[0, 0] * q[0, 1, 0]
-            )
+            + ((2.0 * dya[0, 0] + dya[0, 1]) * q[0, 0, 0] - dya[0, 0] * q[0, 1, 0])
             / (dya[0, 0] + dya[0, 1])
         )
 
@@ -152,7 +146,9 @@ def get_flux(q, c, al, mord):
 
 # TODO: remove when validated
 @gtstencil()
-def get_flux_stencil(q: FloatField, c: FloatField, al: FloatField, flux: FloatField, mord: int):
+def get_flux_stencil(
+    q: FloatField, c: FloatField, al: FloatField, flux: FloatField, mord: int
+):
     with computation(PARALLEL), interval(0, None):
         bl, br, b0, tmp = flux_intermediates(q, al, mord)
         fx1 = fx1_fn(c, br, b0, bl)
@@ -176,7 +172,9 @@ def get_flux_stencil(q: FloatField, c: FloatField, al: FloatField, flux: FloatFi
 
 
 @gtstencil()
-def finalflux_ord8plus(q: FloatField, c: FloatField, bl: FloatField, br: FloatField, flux: FloatField):
+def finalflux_ord8plus(
+    q: FloatField, c: FloatField, bl: FloatField, br: FloatField, flux: FloatField
+):
     with computation(PARALLEL), interval(...):
         b0 = get_b0(bl, br)
         fx1 = fx1_fn(c, br, b0, bl)
@@ -199,7 +197,9 @@ def al_jord8plus(q: FloatField, al: FloatField, dm: FloatField, r3: float):
 
 
 @gtstencil()
-def blbr_jord8(q: FloatField, al: FloatField, bl: FloatField, br: FloatField, dm: FloatField):
+def blbr_jord8(
+    q: FloatField, al: FloatField, bl: FloatField, br: FloatField, dm: FloatField
+):
     with computation(PARALLEL), interval(...):
         xt = 2.0 * dm
         aldiff = al - q
@@ -247,7 +247,14 @@ def xt_dya_edge_1(q, dya, xt_minmax):
 
 
 @gtstencil()
-def south_edge_jord8plus_0(q: FloatField, dya: FloatFieldIJ, dm: FloatField, bl: FloatField, br: FloatField, xt_minmax: bool):
+def south_edge_jord8plus_0(
+    q: FloatField,
+    dya: FloatFieldIJ,
+    dm: FloatField,
+    bl: FloatField,
+    br: FloatField,
+    xt_minmax: bool,
+):
     with computation(PARALLEL), interval(...):
         bl = s14 * dm[0, -1, 0] + s11 * (q[0, -1, 0] - q)
         xt = xt_dya_edge_0(q, dya, xt_minmax)
@@ -255,7 +262,14 @@ def south_edge_jord8plus_0(q: FloatField, dya: FloatFieldIJ, dm: FloatField, bl:
 
 
 @gtstencil()
-def south_edge_jord8plus_1(q: FloatField, dya: FloatFieldIJ, dm: FloatField, bl: FloatField, br: FloatField, xt_minmax: bool):
+def south_edge_jord8plus_1(
+    q: FloatField,
+    dya: FloatFieldIJ,
+    dm: FloatField,
+    bl: FloatField,
+    br: FloatField,
+    xt_minmax: bool,
+):
     with computation(PARALLEL), interval(...):
         xt = xt_dya_edge_1(q, dya, xt_minmax)
         bl = xt - q
@@ -264,7 +278,9 @@ def south_edge_jord8plus_1(q: FloatField, dya: FloatFieldIJ, dm: FloatField, bl:
 
 
 @gtstencil()
-def south_edge_jord8plus_2(q: FloatField, dm: FloatField, al: FloatField, bl: FloatField, br: FloatField):
+def south_edge_jord8plus_2(
+    q: FloatField, dm: FloatField, al: FloatField, bl: FloatField, br: FloatField
+):
     with computation(PARALLEL), interval(...):
         xt = s15 * q[0, -1, 0] + s11 * q - s14 * dm
         bl = xt - q
@@ -272,7 +288,9 @@ def south_edge_jord8plus_2(q: FloatField, dm: FloatField, al: FloatField, bl: Fl
 
 
 @gtstencil()
-def north_edge_jord8plus_0(q: FloatField, dm: FloatField, al: FloatField, bl: FloatField, br: FloatField):
+def north_edge_jord8plus_0(
+    q: FloatField, dm: FloatField, al: FloatField, bl: FloatField, br: FloatField
+):
     with computation(PARALLEL), interval(...):
         bl = al - q
         xt = s15 * q[0, 1, 0] + s11 * q + s14 * dm
@@ -280,7 +298,14 @@ def north_edge_jord8plus_0(q: FloatField, dm: FloatField, al: FloatField, bl: Fl
 
 
 @gtstencil()
-def north_edge_jord8plus_1(q: FloatField, dya: FloatFieldIJ, dm: FloatField, bl: FloatField, br: FloatField, xt_minmax: bool):
+def north_edge_jord8plus_1(
+    q: FloatField,
+    dya: FloatFieldIJ,
+    dm: FloatField,
+    bl: FloatField,
+    br: FloatField,
+    xt_minmax: bool,
+):
     with computation(PARALLEL), interval(...):
         xt = s15 * q + s11 * q[0, -1, 0] + s14 * dm[0, -1, 0]
         bl = xt - q
@@ -289,7 +314,14 @@ def north_edge_jord8plus_1(q: FloatField, dya: FloatFieldIJ, dm: FloatField, bl:
 
 
 @gtstencil()
-def north_edge_jord8plus_2(q: FloatField, dya: FloatFieldIJ, dm: FloatField, bl: FloatField, br: FloatField, xt_minmax: bool):
+def north_edge_jord8plus_2(
+    q: FloatField,
+    dya: FloatFieldIJ,
+    dm: FloatField,
+    bl: FloatField,
+    br: FloatField,
+    xt_minmax: bool,
+):
     with computation(PARALLEL), interval(...):
         xt = xt_dya_edge_1(q, dya, xt_minmax)
         bl = xt - q
@@ -297,7 +329,9 @@ def north_edge_jord8plus_2(q: FloatField, dya: FloatFieldIJ, dm: FloatField, bl:
 
 
 @gtstencil()
-def pert_ppm_positive_definite_constraint(a0: FloatField, al: FloatField, ar: FloatField, r12: float):
+def pert_ppm_positive_definite_constraint(
+    a0: FloatField, al: FloatField, ar: FloatField, r12: float
+):
     with computation(PARALLEL), interval(...):
         da1 = 0.0
         a4 = 0.0
@@ -401,7 +435,9 @@ def compute_al(q, dyvar, jord, ifirst, ilast, js1, je3, kstart=0, nk=None):
     return al
 
 
-def compute_blbr_ord8plus(q, jord, dya: FloatFieldIJ, ifirst, ilast, js1, je1, kstart, nk):
+def compute_blbr_ord8plus(
+    q, jord, dya: FloatFieldIJ, ifirst, ilast, js1, je1, kstart, nk
+):
     r3 = 1.0 / 3.0
     grid = spec.grid
     local_origin = (origin[0], origin[1], kstart)

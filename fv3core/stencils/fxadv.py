@@ -16,7 +16,13 @@ stencil_corner = True
 
 
 @gtstencil()
-def main_ut(uc: FloatField, vc: FloatField, cosa_u: FloatFieldIJ, rsin_u: FloatFieldIJ, ut: FloatField):
+def main_ut(
+    uc: FloatField,
+    vc: FloatField,
+    cosa_u: FloatFieldIJ,
+    rsin_u: FloatFieldIJ,
+    ut: FloatField,
+):
     with computation(PARALLEL), interval(...):
         ut[0, 0, 0] = (
             uc - 0.25 * cosa_u * (vc[-1, 0, 0] + vc + vc[-1, 1, 0] + vc[0, 1, 0])
@@ -24,7 +30,14 @@ def main_ut(uc: FloatField, vc: FloatField, cosa_u: FloatFieldIJ, rsin_u: FloatF
 
 
 @gtstencil()
-def ut_y_edge(uc: FloatField, sin_sg1: FloatFieldIJ, sin_sg3: FloatFieldIJ, ut: FloatField, *, dt: float):
+def ut_y_edge(
+    uc: FloatField,
+    sin_sg1: FloatFieldIJ,
+    sin_sg3: FloatFieldIJ,
+    ut: FloatField,
+    *,
+    dt: float,
+):
     with computation(PARALLEL), interval(0, -1):
         ut[0, 0, 0] = (uc / sin_sg3[-1, 0]) if (uc * dt > 0) else (uc / sin_sg1)
 
@@ -38,7 +51,13 @@ def ut_x_edge(uc: FloatField, cosa_u: FloatFieldIJ, vt: FloatField, ut: FloatFie
 
 
 @gtstencil()
-def main_vt(uc: FloatField, vc: FloatField, cosa_v: FloatFieldIJ, rsin_v: FloatFieldIJ, vt: FloatField):
+def main_vt(
+    uc: FloatField,
+    vc: FloatField,
+    cosa_v: FloatFieldIJ,
+    rsin_v: FloatFieldIJ,
+    vt: FloatField,
+):
     with computation(PARALLEL), interval(...):
         vt[0, 0, 0] = (
             vc - 0.25 * cosa_v * (uc[0, -1, 0] + uc[1, -1, 0] + uc + uc[1, 0, 0])
@@ -54,7 +73,14 @@ def vt_y_edge(vc: FloatField, cosa_v: FloatFieldIJ, ut: FloatField, vt: FloatFie
 
 
 @gtstencil()
-def vt_x_edge(vc: FloatField, sin_sg2: FloatFieldIJ, sin_sg4: FloatFieldIJ, vt: FloatField, *, dt: float):
+def vt_x_edge(
+    vc: FloatField,
+    sin_sg2: FloatFieldIJ,
+    sin_sg4: FloatFieldIJ,
+    vt: FloatField,
+    *,
+    dt: float,
+):
     with computation(PARALLEL), interval(0, -1):
         vt[0, 0, 0] = (vc / sin_sg4[0, -1]) if (vc * dt > 0) else (vc / sin_sg2)
 
@@ -299,7 +325,14 @@ def update_vt_x_edge(vc, sin_sg2, sin_sg4, vt, dt):
 # -------------------- CORNERS-----------------
 
 
-def corner_ut_stencil(uc: FloatField, vc: FloatField, ut: FloatField, vt: FloatField, cosa_u: FloatFieldIJ, cosa_v: FloatFieldIJ):
+def corner_ut_stencil(
+    uc: FloatField,
+    vc: FloatField,
+    ut: FloatField,
+    vt: FloatField,
+    cosa_u: FloatFieldIJ,
+    cosa_v: FloatFieldIJ,
+):
     from __externals__ import ux, uy, vi, vj, vx, vy
 
     with computation(PARALLEL), interval(...):

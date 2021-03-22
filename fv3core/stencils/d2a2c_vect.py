@@ -5,7 +5,7 @@ import fv3core._config as spec
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import gtstencil
 from fv3core.stencils.a2b_ord4 import a1, a2, lagrange_x_func, lagrange_y_func
-from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
+from fv3core.utils.typing import FloatField, FloatFieldIJ
 
 
 c1 = -2.0 / 14.0
@@ -64,27 +64,54 @@ def contravariant(u, v, cosa, rsin):
 
 
 @gtstencil()
-def contravariant_stencil(u: FloatField, v: FloatField, cosa: FloatFieldIJ, rsin: FloatFieldIJ, out: FloatField):
+def contravariant_stencil(
+    u: FloatField,
+    v: FloatField,
+    cosa: FloatFieldIJ,
+    rsin: FloatFieldIJ,
+    out: FloatField,
+):
     with computation(PARALLEL), interval(...):
         out = contravariant(u, v, cosa, rsin)
 
 
 @gtstencil()
-def contravariant_components(utmp: FloatField, vtmp: FloatField, cosa_s: FloatFieldIJ, rsin2: FloatFieldIJ, ua: FloatField, va: FloatField):
+def contravariant_components(
+    utmp: FloatField,
+    vtmp: FloatField,
+    cosa_s: FloatFieldIJ,
+    rsin2: FloatFieldIJ,
+    ua: FloatField,
+    va: FloatField,
+):
     with computation(PARALLEL), interval(...):
         ua = contravariant(utmp, vtmp, cosa_s, rsin2)
         va = contravariant(vtmp, utmp, cosa_s, rsin2)
 
 
 @gtstencil()
-def ut_main(utmp: FloatField, uc: FloatField, v: FloatField, cosa_u: FloatFieldIJ, rsin_u: FloatFieldIJ, ut: FloatField):
+def ut_main(
+    utmp: FloatField,
+    uc: FloatField,
+    v: FloatField,
+    cosa_u: FloatFieldIJ,
+    rsin_u: FloatFieldIJ,
+    ut: FloatField,
+):
     with computation(PARALLEL), interval(...):
         uc = lagrange_x_func(utmp)
         ut = contravariant(uc, v, cosa_u, rsin_u)
 
 
 @gtstencil()
-def vt_main(vtmp: FloatField, vc: FloatField, u: FloatField, cosa_v: FloatFieldIJ, rsin_v: FloatFieldIJ, vt: FloatField):
+def vt_main(
+    vtmp: FloatField,
+    vc: FloatField,
+    u: FloatField,
+    cosa_v: FloatFieldIJ,
+    rsin_v: FloatFieldIJ,
+    vt: FloatField,
+):
     with computation(PARALLEL), interval(...):
         vc = lagrange_y_func(vtmp)
         vt = contravariant(vc, u, cosa_v, rsin_v)
@@ -129,7 +156,15 @@ def vol_conserv_cubic_interp_y(vtmp: FloatField, vc: FloatField):
 
 
 @gtstencil()
-def vt_edge(vtmp: FloatField, vc: FloatField, u: FloatField, cosa_v: FloatFieldIJ, rsin_v: FloatFieldIJ, vt: FloatField, rev: int):
+def vt_edge(
+    vtmp: FloatField,
+    vc: FloatField,
+    u: FloatField,
+    cosa_v: FloatFieldIJ,
+    rsin_v: FloatFieldIJ,
+    vt: FloatField,
+    rev: int,
+):
     with computation(PARALLEL), interval(...):
         vc = (
             vol_conserv_cubic_interp_func_y(vtmp)
@@ -140,13 +175,17 @@ def vt_edge(vtmp: FloatField, vc: FloatField, u: FloatField, cosa_v: FloatFieldI
 
 
 @gtstencil()
-def uc_x_edge1(ut: FloatField, sin_sg3: FloatFieldIJ, sin_sg1: FloatFieldIJ, uc: FloatField):
+def uc_x_edge1(
+    ut: FloatField, sin_sg3: FloatFieldIJ, sin_sg1: FloatFieldIJ, uc: FloatField
+):
     with computation(PARALLEL), interval(...):
         uc = ut * sin_sg3[-1, 0] if ut > 0 else ut * sin_sg1
 
 
 @gtstencil()
-def vc_y_edge1(vt: FloatField, sin_sg4: FloatFieldIJ, sin_sg2: FloatFieldIJ, vc: FloatField):
+def vc_y_edge1(
+    vt: FloatField, sin_sg4: FloatFieldIJ, sin_sg2: FloatFieldIJ, vc: FloatField
+):
     with computation(PARALLEL), interval(...):
         vc = vt * sin_sg4[0, -1] if vt > 0 else vt * sin_sg2
 
@@ -299,9 +338,7 @@ def compute(dord4, uc, vc, u, v, ua, va, utc, vtc):
     domain_edge_x = (1, grid.njc + 2, grid.npz)
     jslice = slice(grid.js - 1, grid.je + 2)
     if grid.west_edge and not grid.nested:
-        vol_conserv_cubic_interp_x(
-            utmp, uc, origin=(i1, j1, 0), domain=domain_edge_x
-        )
+        vol_conserv_cubic_interp_x(utmp, uc, origin=(i1, j1, 0), domain=domain_edge_x)
         islice = slice(grid.is_ - 2, grid.is_ + 2)
         utc[grid.is_, jslice, -1] = edge_interpolate4_x(
             ua[islice, jslice, -1], grid.dxa[islice, jslice]
