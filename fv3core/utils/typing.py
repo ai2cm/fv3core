@@ -39,9 +39,8 @@ def _FieldDescriptorMaker(dtype):
 
 
 FloatField = Field[Float]
-FloatFieldIJ = Field[Float, gtscript.IJ]
 FloatFieldI = Field[Float, gtscript.I]
-FloatFieldJ = Field[Float, gtscript.J]
+FloatFieldIJ = Field[Float, gtscript.IJ]
 FloatFieldK = Field[Float, gtscript.K]
 IntField = Field[Int]
 IntFieldIJ = Field[Int, gtscript.IJ]

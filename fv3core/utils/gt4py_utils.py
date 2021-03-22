@@ -125,7 +125,12 @@ def make_storage_data(
             mask = (True, True, True)
         else:
             if n_dims == 1:
-                mask = tuple([i == axis for i in range(max_dim)])
+                if axis == 1:
+                    # Convert J-fields to IJ-fields
+                    mask = (True, True, False)
+                    shape = (1, shape[axis])
+                else:
+                    mask = tuple([i == axis for i in range(max_dim)])
             elif dummy or axis != 2:
                 mask = (True, True, True)
             else:
@@ -178,6 +183,8 @@ def _make_storage_data_1d(
         else:
             y = repeat(buffer[:, np.newaxis], shape[1], axis=1)
             buffer = repeat(y[:, :, np.newaxis], shape[2], axis=2)
+    elif axis == 1:
+        buffer = buffer.reshape((1, buffer.shape[0]))
 
     return buffer
 
@@ -544,3 +551,26 @@ def reshape(array, new_shape: Tuple[int]):
         else:
             return array.reshape(new_shape)
     return array
+
+
+def unique(
+    array,
+    return_index: bool = False,
+    return_inverse: bool = False,
+    return_counts: bool = False,
+    axis: Union[int, Tuple[int]] = None,
+):
+    if isinstance(array, gt_storage.storage.Storage):
+        array = array.data
+    xp = cp if cp and type(array) is cp.ndarray else np
+    return xp.unique(array, return_index, return_inverse, return_counts, axis)
+
+
+def stack(tup, axis: int = 0, out=None):
+    array_tup = []
+    for array in tup:
+        if isinstance(array, gt_storage.storage.Storage):
+            array = array.data
+        array_tup.append(array)
+    xp = cp if cp and type(array_tup[0]) is cp.ndarray else np
+    return xp.stack(array_tup, axis, out)

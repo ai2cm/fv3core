@@ -216,7 +216,7 @@ def coriolis_force_correction(zh: FloatField, z_rat: FloatField):
 @gtstencil()
 def zrat_vorticity(
     wk: FloatField,
-    f0: FloatField,
+    f0: FloatFieldIJ,
     z_rat: FloatField,
     vort: FloatField,
     do_f3d: bool,
@@ -226,7 +226,7 @@ def zrat_vorticity(
         if do_f3d and not hydrostatic:
             vort[0, 0, 0] = wk + f0 * z_rat
         else:
-            vort = wk[0, 0, 0] + f0[0, 0, 0]
+            vort = wk[0, 0, 0] + f0[0, 0]
 
 
 @gtscript.function
@@ -281,10 +281,10 @@ def heat_source_from_vorticity_damping(
     u: FloatField,
     v: FloatField,
     delp: FloatField,
-    rsin2: FloatField,
-    cosa_s: FloatField,
-    rdx: FloatField,
-    rdy: FloatField,
+    rsin2: FloatFieldIJ,
+    cosa_s: FloatFieldIJ,
+    rdx: FloatFieldIJ,
+    rdy: FloatFieldIJ,
     heat_source: FloatField,
     dissipation_estimate: FloatField,
     kinetic_energy_fraction_to_damp: float,

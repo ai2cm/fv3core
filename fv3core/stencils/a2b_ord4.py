@@ -1,12 +1,11 @@
 import gt4py.gtscript as gtscript
-import numpy as np
 from gt4py.gtscript import PARALLEL, computation, interval
 
 import fv3core._config as spec
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import gtstencil
 from fv3core.stencils.basic_operations import copy_stencil
-from fv3core.utils.typing import FloatField, FloatFieldI, FloatFieldIJ, FloatFieldJ
+from fv3core.utils.typing import FloatField, FloatFieldI, FloatFieldIJ
 
 
 # comact 4-pt cubic interpolation
@@ -111,7 +110,7 @@ def vort_adjust(qxx: FloatField, qyy: FloatField, qout: FloatField):
 #        qout = edge_w * q2[0, -1, 0] + (1.0 - edge_w) * q2
 @gtstencil()
 def qout_x_edge(
-    qin: FloatField, dxa: FloatFieldIJ, edge_w: FloatFieldJ, qout: FloatField
+    qin: FloatField, dxa: FloatFieldIJ, edge_w: FloatFieldIJ, qout: FloatField
 ):
     with computation(PARALLEL), interval(...):
         q2 = (qin[-1, 0, 0] * dxa + qin * dxa[-1, 0]) / (dxa[-1, 0] + dxa)
@@ -268,8 +267,8 @@ def extrapolate_corner_qout(qin, qout, i, j, kstart, nk, corner):
     if not getattr(grid(), corner + "_corner"):
         return
     kslice = slice(kstart, kstart + nk)
-    bgrid = np.stack((grid().bgrid1[:, :], grid().bgrid2[:, :]), axis=2)
-    agrid = np.stack((grid().agrid1[:, :], grid().agrid2[:, :]), axis=2)
+    bgrid = utils.stack((grid().bgrid1[:, :], grid().bgrid2[:, :]), axis=2)
+    agrid = utils.stack((grid().agrid1[:, :], grid().agrid2[:, :]), axis=2)
     p0 = bgrid[i, j, :]
     # TODO: Please simplify
     i1a, i1b, j1a, j1b = ec1_offsets(corner)
@@ -336,7 +335,6 @@ def compute_qout_x_edges(qin, qout, kstart, nk):
             qout,
             origin=(grid().ie + 1, js2, kstart),
             domain=(1, dj2, nk),
-            validate_args=False,
         )
 
 
