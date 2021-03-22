@@ -14,7 +14,7 @@ import fv3core.utils.global_config as global_config
 import fv3core.utils.global_constants as constants
 import fv3core.utils.gt4py_utils as utils
 import fv3gfs.util
-from fv3core.decorators import ArgSpec, get_namespace, gtstencil, state_inputs
+from fv3core.decorators import ArgSpec, get_namespace, gtstencil
 from fv3core.stencils import c2l_ord
 from fv3core.stencils.basic_operations import copy_stencil
 
@@ -40,24 +40,6 @@ def pt_adjust(pkz: sd, dp1: sd, q_con: sd, pt: sd):
 def set_omega(delp: sd, delz: sd, w: sd, omga: sd):
     with computation(PARALLEL), interval(...):
         omga = delp / delz * w
-
-
-def fvdyn_temporaries(shape):
-    grid = spec.grid
-    tmps = {}
-    halo_vars = ["cappa"]
-    storage_vars = ["te_2d", "dp1", "ph1", "ph2", "dp1", "wsd"]
-    column_vars = ["pfull", "gz", "cvm"]
-    plane_vars = ["te_2d", "te0_2d"]
-    utils.storage_dict(
-        tmps,
-        halo_vars + storage_vars + column_vars + plane_vars,
-        shape,
-        grid.full_origin(),
-    )
-    for q in halo_vars:
-        grid.quantity_dict_update(tmps, q)
-    return tmps
 
 
 def compute_preamble(state, comm):
@@ -244,6 +226,24 @@ class Tracers:
         pass
 
 
+def fvdyn_temporaries(shape):
+    grid = spec.grid
+    tmps = {}
+    halo_vars = ["cappa"]
+    storage_vars = ["te_2d", "dp1", "ph1", "ph2", "dp1", "wsd"]
+    column_vars = ["pfull", "gz", "cvm"]
+    plane_vars = ["te_2d", "te0_2d"]
+    utils.storage_dict(
+        tmps,
+        halo_vars + storage_vars + column_vars + plane_vars,
+        shape,
+        grid.full_origin(),
+    )
+    for q in halo_vars:
+        grid.quantity_dict_update(tmps, q)
+    return tmps
+
+
 class FV3:
 
     arg_specs = (
@@ -303,6 +303,15 @@ class FV3:
     def __init__(self, comm: fv3gfs.util.CubedSphereCommunicator, namelist):
         self.comm = comm
         self.namelist = namelist
+        n_halo = 3
+        self._temporaries = fvdyn_temporaries(
+            # npx and npy are number of interfaces, npz is number of centers
+            (
+                namelist["npx"] - 1 + 2 * n_halo,
+                namelist["npy"] - 1 + 2 * n_halo,
+                namelist["npz"],
+            )
+        )
 
     def step_dynamics(
         self,
@@ -315,7 +324,7 @@ class FV3:
         ks,
         timer=fv3gfs.util.NullTimer(),
     ):
-        state = get_namespace(FV3.arg_specs, state)
+        state = get_namespace(self.arg_specs, state)
         state.__dict__.update(
             {
                 "consv_te": consv_te,
@@ -336,7 +345,7 @@ class FV3:
         timer: fv3gfs.util.NullTimer,
     ):
         grid = spec.grid
-        state.__dict__.update(fvdyn_temporaries(state.u.shape))
+        state.__dict__.update(self._temporaries())
         last_step = False
         if global_config.get_do_halo_exchange():
             comm.halo_update(state.phis_quantity, n_points=utils.halo)
@@ -347,10 +356,12 @@ class FV3:
                 last_step = True
             do_dyn(state, comm, timer)
             if grid.npz > 4:
-                # nq is actually given by ncnst - pnats, where those are given in atmosphere.F90 by:
+                # nq is actually given by ncnst - pnats,
+                # where those are given in atmosphere.F90 by:
                 # ncnst = Atm(mytile)%ncnst
                 # pnats = Atm(mytile)%flagstruct%pnats
-                # here we hard-coded it because 8 is the only supported value, refactor this later!
+                # here we hard-coded it because 8 is the only supported value,
+                # refactor this later!
                 kord_tracer = [spec.namelist.kord_tr] * constants.NQ
                 kord_tracer[6] = 9
                 # do_omega = spec.namelist.hydrostatic and last_step
