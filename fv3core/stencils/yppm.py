@@ -137,7 +137,13 @@ def get_flux(q, c, al, mord):
 
 # This is unused, and flux_intermediate_ord6 is undefined.
 # @gtstencil()
-# def get_flux_stencil_ord6(q: FloatField, c: FloatField, al: FloatField, flux: FloatField, mord: int):
+# def get_flux_stencil_ord6(
+#     q: FloatField,
+#     c: FloatField,
+#     al: FloatField,
+#     flux: FloatField,
+#     mord: int,
+# ):
 #     with computation(PARALLEL), interval(0, None):
 #         bl, br, b0, tmp = flux_intermediate_ord6(q, al, mord)
 #         fx1 = fx1_fn(c, br, b0, bl)

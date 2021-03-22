@@ -137,7 +137,11 @@ def al_iord8plus(q: FloatField, al: FloatField, dm: FloatField, r3: float):
 
 @gtstencil()
 def blbr_iord8(
-    q: FloatField, al: FloatField, bl: FloatField, br: FloatField, dm: FloatField
+    q: FloatField,
+    al: FloatField,
+    bl: FloatField,
+    br: FloatField,
+    dm: FloatField,
 ):
     with computation(PARALLEL), interval(...):
         # al, dm = al_iord8plus_fn(q, al, dm, r3)
