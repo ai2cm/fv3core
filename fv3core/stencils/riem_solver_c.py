@@ -38,7 +38,15 @@ def precompute(
 
 
 @gtstencil()
-def finalize(pe2: FloatField, pem: FloatField, hs: FloatFieldIJ, dz: FloatField, pef: FloatField, gz: FloatField, ptop: float):
+def finalize(
+    pe2: FloatField,
+    pem: FloatField,
+    hs: FloatFieldIJ,
+    dz: FloatField,
+    pef: FloatField,
+    gz: FloatField,
+    ptop: float,
+):
     # TODO: We only want to bottom level of hd, so this could be removed once
     # hd0 is a 2d field.
     with computation(FORWARD):

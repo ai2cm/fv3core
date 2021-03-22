@@ -1,4 +1,4 @@
-from typing import Dict, List, Tuple
+from typing import Dict, List
 
 import fv3core._config as spec
 import fv3core.stencils.remapping_part1 as remap_part1
