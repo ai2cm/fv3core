@@ -340,9 +340,10 @@ def compute(dord4, uc, vc, u, v, ua, va, utc, vtc):
     if grid.west_edge and not grid.nested:
         vol_conserv_cubic_interp_x(utmp, uc, origin=(i1, j1, 0), domain=domain_edge_x)
         islice = slice(grid.is_ - 2, grid.is_ + 2)
-        utc[grid.is_, jslice, -1] = edge_interpolate4_x(
-            ua[islice, jslice, -1], grid.dxa[islice, jslice]
-        )
+        for k in range(grid.npz):
+            utc[grid.is_, jslice, k] = edge_interpolate4_x(
+                ua[islice, jslice, k], grid.dxa[islice, jslice]
+            )
         uc_x_edge1(
             utc,
             grid.sin_sg3,
@@ -378,9 +379,10 @@ def compute(dord4, uc, vc, u, v, ua, va, utc, vtc):
             utmp, uc, origin=(nx - 1, j1, 0), domain=domain_edge_x
         )
         islice = slice(nx - 2, nx + 2)
-        utc[nx, jslice, -1] = edge_interpolate4_x(
-            ua[islice, jslice, -1], grid.dxa[islice, jslice]
-        )
+        for k in range(grid.npz):
+            utc[nx, jslice, k] = edge_interpolate4_x(
+                ua[islice, jslice, k], grid.dxa[islice, jslice]
+            )
         uc_x_edge1(
             utc,
             grid.sin_sg3,
@@ -447,9 +449,10 @@ def compute(dord4, uc, vc, u, v, ua, va, utc, vtc):
             domain=domain_edge_y,
         )
         jslice = slice(grid.js - 2, grid.js + 2)
-        vtc[islice, grid.js, -1] = edge_interpolate4_y(
-            va[islice, jslice, -1], grid.dya[islice, jslice]
-        )
+        for k in range(grid.npz):
+            vtc[islice, grid.js, k] = edge_interpolate4_y(
+                va[islice, jslice, k], grid.dya[islice, jslice]
+            )
         vc_y_edge1(
             vtc,
             grid.sin_sg4,
@@ -482,9 +485,10 @@ def compute(dord4, uc, vc, u, v, ua, va, utc, vtc):
             domain=domain_edge_y,
         )
         jslice = slice(ny - 2, ny + 2)
-        vtc[islice, ny, -1] = edge_interpolate4_y(
-            va[islice, jslice, -1], grid.dya[islice, jslice]
-        )
+        for k in range(grid.npz):
+            vtc[islice, ny, k] = edge_interpolate4_y(
+                va[islice, jslice, k], grid.dya[islice, jslice]
+            )
         vc_y_edge1(
             vtc,
             grid.sin_sg4,
