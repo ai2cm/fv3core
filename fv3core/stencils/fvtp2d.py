@@ -48,8 +48,9 @@ class FvTp2d:
     """
 
     def __init__(self, namelist, hord):
-        shape = spec.grid.domain_shape_full(add=(1, 1, 1))
-        origin = spec.grid.compute_origin()
+        self.grid = spec.grid
+        shape = self.grid.domain_shape_full(add=(1, 1, 1))
+        origin = self.grid.compute_origin()
         self._tmp_q_i = utils.make_storage_from_shape(shape, origin)
         self._tmp_q_j = utils.make_storage_from_shape(shape, origin)
         self._tmp_fx2 = utils.make_storage_from_shape(shape, origin)
@@ -89,7 +90,7 @@ class FvTp2d:
         mfx=None,
         mfy=None,
     ):
-        grid = spec.grid
+        grid = self.grid
         if nk is None:
             nk = grid.npz - kstart
         kslice = slice(kstart, kstart + nk)

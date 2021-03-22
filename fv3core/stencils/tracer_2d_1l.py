@@ -149,8 +149,9 @@ def q_adjustments(
 
 class Tracer2D1L:
     def __init__(self, namelist):
-        shape = spec.grid.domain_shape_full(add=(1, 1, 1))
-        origin = spec.grid.compute_origin()
+        self.grid = spec.grid
+        shape = self.grid.domain_shape_full(add=(1, 1, 1))
+        origin = self.grid.compute_origin()
         self._tmp_xfx = utils.make_storage_from_shape(shape, origin)
         self._tmp_yfx = utils.make_storage_from_shape(shape, origin)
         self._tmp_ra_x = utils.make_storage_from_shape(shape, origin)
@@ -159,7 +160,7 @@ class Tracer2D1L:
         self._tmp_fy = utils.make_storage_from_shape(shape, origin)
         self._tmp_dp2 = utils.make_storage_from_shape(shape, origin)
         self._tmp_dp1_orig = utils.make_storage_from_shape(shape, origin)
-        self._tmp_qn2 = spec.grid.quantity_wrap(
+        self._tmp_qn2 = self.grid.quantity_wrap(
             utils.make_storage_from_shape(shape, origin),
             units="kg/m^2",
         )
@@ -167,7 +168,7 @@ class Tracer2D1L:
             "backend": global_config.get_backend(),
             "rebuild": global_config.get_rebuild(),
             "externals": fv3core.utils.axis_offsets(
-                spec.grid, spec.grid.full_origin(), spec.grid.domain_shape_full()
+                self.grid, self.grid.full_origin(), self.grid.domain_shape_full()
             ),
         }
         stencil_wrapper = gtscript.stencil(**stencil_kwargs)
@@ -186,7 +187,7 @@ class Tracer2D1L:
         # self.stencil_max_2 = stencil_wrapper(cmax_stencil2)
 
     def __call__(self, comm, tracers, dp1, mfxd, mfyd, cxd, cyd, mdt, nq):
-        grid = spec.grid
+        grid = self.grid
         # start HALO update on q (in dyn_core in fortran -- just has started when
         # this function is called...)
         self.stencil_flux_compute(
@@ -203,7 +204,7 @@ class Tracer2D1L:
             self._tmp_xfx,
             self._tmp_yfx,
             origin=grid.full_origin(),
-            domain=grid.domain_shape_full(),
+            domain=grid.domain_shape_full(add=(1, 1, 0)),
         )
 
         # # TODO for if we end up using the Allreduce and compute cmax globally
