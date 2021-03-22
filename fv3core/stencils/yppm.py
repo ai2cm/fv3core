@@ -11,11 +11,11 @@ from gt4py.gtscript import (
 )
 
 import fv3core._config as spec
+import fv3core.utils.global_config as global_config
 from fv3core.decorators import gtstencil
 from fv3core.stencils.basic_operations import sign
-from fv3core.utils.typing import FloatField
 from fv3core.utils.grid import axis_offsets
-import fv3core.utils.global_config as global_config
+from fv3core.utils.typing import FloatField
 
 
 input_vars = ["q", "c"]
@@ -385,13 +385,14 @@ def _compute_flux_stencil(
             bl, br = compute_blbr_ord8plus(q, dya)
             yflux = get_flux_ord8plus(q, courant, bl, br)
 
+
 class YPPM:
     def __init__(self, namelist, jord):
         grid = spec.grid
         origin = grid.compute_origin()
-        domain = grid.domain_shape_compute(add=(1,1,1))
+        domain = grid.domain_shape_compute(add=(1, 1, 1))
         ax_offsets = axis_offsets(spec.grid, origin, domain)
-        assert (namelist.grid_type < 3)
+        assert namelist.grid_type < 3
         if abs(jord) not in [5, 6, 7, 8]:
             raise NotImplementedError(
                 f"Unimplemented hord value, {jord}. "
@@ -407,13 +408,14 @@ class YPPM:
                 "jord": jord,
                 "mord": abs(jord),
                 "xt_minmax": True,
-                **ax_offsets
+                **ax_offsets,
             },
-            backend=global_config.get_backend(), 
-            rebuild=global_config.get_rebuild()
+            backend=global_config.get_backend(),
+            rebuild=global_config.get_rebuild(),
         )
 
-    def __call__(self,
+    def __call__(
+        self,
         q: FloatField,
         c: FloatField,
         flux: FloatField,
@@ -436,7 +438,7 @@ class YPPM:
         """
         if nk is None:
             nk = self.npz - kstart
-            
+
         ni = ilast - ifirst + 1
         self.compute_flux_stencil(
             q,

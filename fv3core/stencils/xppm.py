@@ -11,12 +11,11 @@ from gt4py.gtscript import (
 )
 
 import fv3core._config as spec
-from fv3core.decorators import gtstencil
+import fv3core.utils.global_config as global_config
 from fv3core.stencils import yppm
 from fv3core.stencils.basic_operations import sign
-from fv3core.utils.typing import FloatField
 from fv3core.utils.grid import axis_offsets
-import fv3core.utils.global_config as global_config
+from fv3core.utils.typing import FloatField
 
 
 @gtscript.function
@@ -312,13 +311,14 @@ def _compute_flux_stencil(
             bl, br = compute_blbr_ord8plus(q, dxa)
             xflux = get_flux_ord8plus(q, courant, bl, br)
 
+
 class XPPM:
     def __init__(self, namelist, iord):
         grid = spec.grid
         origin = grid.compute_origin()
-        domain = grid.domain_shape_compute(add=(1,1,1))
+        domain = grid.domain_shape_compute(add=(1, 1, 1))
         ax_offsets = axis_offsets(spec.grid, origin, domain)
-        assert (namelist.grid_type < 3)
+        assert namelist.grid_type < 3
         self.npz = grid.npz
         self.is_ = grid.is_
         self.ie = grid.ie
@@ -330,13 +330,14 @@ class XPPM:
                 "iord": iord,
                 "mord": abs(iord),
                 "xt_minmax": True,
-                **ax_offsets
+                **ax_offsets,
             },
-            backend=global_config.get_backend(), 
+            backend=global_config.get_backend(),
             rebuild=global_config.get_rebuild(),
         )
 
-    def __call__(self,
+    def __call__(
+        self,
         q: FloatField,
         c: FloatField,
         xflux: FloatField,
@@ -357,7 +358,7 @@ class XPPM:
             kstart: First index of the K-dir compute domain
             nk: Number of indices in the K-dir compute domain
         """
-        
+
         if nk is None:
             nk = self.npz - kstart
         nj = jlast - jfirst + 1

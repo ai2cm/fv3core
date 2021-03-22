@@ -1,7 +1,8 @@
+import fv3core._config as spec
 import fv3core.utils.gt4py_utils as utils
 from fv3core.stencils import yppm
 from fv3core.testing import TranslateFortranData2Py, TranslateGrid
-import fv3core._config as spec
+
 
 class TranslateYPPM(TranslateFortranData2Py):
     def __init__(self, grid):
