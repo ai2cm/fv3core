@@ -43,9 +43,13 @@ def compute(
     do_adiabatic_init: bool,
     nq: int,
 ):
-    compute_origin: Tuple[int, int, int] = spec.grid.compute_origin()
-    gz: FloatField = utils.make_storage_from_shape(pt.shape, compute_origin)
-    cvm: FloatField = utils.make_storage_from_shape(pt.shape, compute_origin)
+    """
+    Remap the deformed Lagrangian surfaces onto the reference, or "Eulerian",
+    coordinate levels.
+    """
+    grid = spec.grid
+    gz: FloatField = utils.make_storage_from_shape(pt.shape, grid.compute_origin())
+    cvm: FloatField = utils.make_storage_from_shape(pt.shape, grid.compute_origin())
 
     remap_part1.compute(
         tracers,

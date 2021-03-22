@@ -16,10 +16,8 @@ def precompute(
     dm: FloatField,
     q_con: FloatField,
     pem: FloatField,
-    peg: FloatField,
-    dz: FloatField,
+    dz: FloatField,  # is actually delta of gz
     gm: FloatField,
-    pef: FloatField,
     pm: FloatField,
     ptop: float,
 ):
@@ -27,11 +25,9 @@ def precompute(
         with interval(0, 1):
             pem = ptop
             peg = ptop
-            pef = ptop
         with interval(1, None):
             pem = pem[0, 0, -1] + dm[0, 0, -1]
             peg = peg[0, 0, -1] + dm[0, 0, -1] * (1.0 - q_con[0, 0, -1])
-            pef = ptop
     with computation(PARALLEL), interval(0, -1):
         dz = gz[0, 0, 1] - gz
     with computation(PARALLEL), interval(...):
@@ -42,14 +38,7 @@ def precompute(
 
 
 @gtstencil()
-def finalize(
-    pe2: FloatField,
-    pem: FloatField,
-    hs: FloatFieldIJ,
-    dz: FloatField,
-    pef: FloatField,
-    gz: FloatField,
-):
+def finalize(pe2: FloatField, pem: FloatField, hs: FloatFieldIJ, dz: FloatField, pef: FloatField, gz: FloatField, ptop: float):
     # TODO: We only want to bottom level of hd, so this could be removed once
     # hd0 is a 2d field.
     with computation(FORWARD):
@@ -58,8 +47,11 @@ def finalize(
         with interval(1, None):
             hs_0 = hs_0[0, 0, -1]
 
-    with computation(PARALLEL), interval(1, None):
-        pef = pe2 + pem
+    with computation(PARALLEL):
+        with interval(0, 1):
+            pef = ptop
+        with interval(1, None):
+            pef = pe2 + pem
     with computation(BACKWARD):
         with interval(-1, None):
             gz = hs_0
@@ -89,9 +81,6 @@ def compute(
     js1 = grid.js - 1
     je1 = grid.je + 1
     km = spec.grid.npz - 1
-    islice = slice(is1, ie1 + 1)
-    kslice = slice(0, km + 1)
-    kslice_shift = slice(1, km + 2)
     shape = w3.shape
     domain = (spec.grid.nic + 2, grid.njc + 2, km + 2)
     riemorigin = (is1, js1, 0)
@@ -100,26 +89,23 @@ def compute(
     w = copy(w3)
 
     pem = utils.make_storage_from_shape(shape, riemorigin)
-    peg = utils.make_storage_from_shape(shape, riemorigin)
     pe = utils.make_storage_from_shape(shape, riemorigin)
     gm = utils.make_storage_from_shape(shape, riemorigin)
     dz = utils.make_storage_from_shape(shape, riemorigin)
     pm = utils.make_storage_from_shape(shape, riemorigin)
-
+    # it looks like this code sets pef = ptop, and does not otherwise use pef here
     precompute(
         cp3,
         gz,
         dm,
         q_con,
         pem,
-        peg,
         dz,
         gm,
-        pef,
         pm,
         ptop,
         origin=riemorigin,
         domain=domain,
     )
     sim1_solver.solve(is1, ie1, js1, je1, dt2, gm, cp3, pe, dm, pm, pem, w, dz, ptc, ws)
-    finalize(pe, pem, hs, dz, pef, gz, origin=riemorigin, domain=domain)
+    finalize(pe, pem, hs, dz, pef, gz, ptop, origin=riemorigin, domain=domain)
