@@ -344,11 +344,14 @@ def make_storage_from_shape(
     )
     caller_signature = tuple((caller.filename, caller.lineno) for caller in callers)
     key = (args, caller_signature, tuple(sorted(list(kwargs.items()))))
-    if key not in storage_shape_outputs:
-        storage_shape_outputs[key] = make_storage_from_shape_uncached(*args, **kwargs)
-    return_value = storage_shape_outputs[key]
-    if kwargs.get("init", False):
-        return_value[:] = 0.0
+    if key in storage_shape_outputs:
+        return_value = storage_shape_outputs[key]
+        if kwargs.get("init", False):
+            return_value[:] = 0.0
+    else:
+        return_value = make_storage_from_shape_uncached(*args, **kwargs)
+        storage_shape_outputs[key] = return_value
+
     return return_value
 
 

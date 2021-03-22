@@ -594,11 +594,9 @@ def satadjust(
     rad_graupel: bool,
     tintqs: bool,
 ):
-    with computation(FORWARD):
-        with interval(1, None):
-            dpln = peln[0, 0, 1] - peln
-            if hydrostatic:
-                delz = delz[0, 0, -1]
+    with computation(FORWARD), interval(1, None):
+        if hydrostatic:
+            delz = delz[0, 0, -1]
     with computation(PARALLEL), interval(...):
         q_liq = ql + qr
         q_sol = qi + qs + qg
