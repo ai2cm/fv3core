@@ -153,21 +153,18 @@ def blbr_iord8(
 @gtscript.function
 def xt_dxa_edge_0_base(q, dxa):
     return 0.5 * (
-        ((2.0 * dxa + dxa[-1, 0, 0]) * q - dxa * q[-1, 0, 0]) / (dxa[-1, 0, 0] + dxa)
-        + ((2.0 * dxa[1, 0, 0] + dxa[2, 0, 0]) * q[1, 0, 0] - dxa[1, 0, 0] * q[2, 0, 0])
-        / (dxa[1, 0, 0] + dxa[2, 0, 0])
+        ((2.0 * dxa + dxa[-1, 0]) * q - dxa * q[-1, 0, 0]) / (dxa[-1, 0] + dxa)
+        + ((2.0 * dxa[1, 0] + dxa[2, 0]) * q[1, 0, 0] - dxa[1, 0] * q[2, 0, 0])
+        / (dxa[1, 0] + dxa[2, 0])
     )
 
 
 @gtscript.function
 def xt_dxa_edge_1_base(q, dxa):
     return 0.5 * (
-        (
-            (2.0 * dxa[-1, 0, 0] + dxa[-2, 0, 0]) * q[-1, 0, 0]
-            - dxa[-1, 0, 0] * q[-2, 0, 0]
-        )
-        / (dxa[-2, 0, 0] + dxa[-1, 0, 0])
-        + ((2.0 * dxa + dxa[1, 0, 0]) * q - dxa * q[1, 0, 0]) / (dxa + dxa[1, 0, 0])
+        ((2.0 * dxa[-1, 0] + dxa[-2, 0]) * q[-1, 0, 0] - dxa[-1, 0] * q[-2, 0, 0])
+        / (dxa[-2, 0] + dxa[-1, 0])
+        + ((2.0 * dxa + dxa[1, 0]) * q - dxa * q[1, 0, 0]) / (dxa + dxa[1, 0])
     )
 
 
@@ -198,7 +195,7 @@ def xt_dxa_edge_1(q, dxa, xt_minmax):
 @gtstencil()
 def west_edge_iord8plus_0(
     q: FloatField,
-    dxa: FloatField,
+    dxa: FloatFieldIJ,
     dm: FloatField,
     bl: FloatField,
     br: FloatField,
@@ -213,7 +210,7 @@ def west_edge_iord8plus_0(
 @gtstencil()
 def west_edge_iord8plus_1(
     q: FloatField,
-    dxa: FloatField,
+    dxa: FloatFieldIJ,
     dm: FloatField,
     bl: FloatField,
     br: FloatField,
@@ -229,7 +226,7 @@ def west_edge_iord8plus_1(
 @gtstencil()
 def west_edge_iord8plus_2(
     q: FloatField,
-    dxa: FloatField,
+    dxa: FloatFieldIJ,
     dm: FloatField,
     al: FloatField,
     bl: FloatField,
@@ -244,7 +241,7 @@ def west_edge_iord8plus_2(
 @gtstencil()
 def east_edge_iord8plus_0(
     q: FloatField,
-    dxa: FloatField,
+    dxa: FloatFieldIJ,
     dm: FloatField,
     al: FloatField,
     bl: FloatField,
@@ -259,7 +256,7 @@ def east_edge_iord8plus_0(
 @gtstencil()
 def east_edge_iord8plus_1(
     q: FloatField,
-    dxa: FloatField,
+    dxa: FloatFieldIJ,
     dm: FloatField,
     bl: FloatField,
     br: FloatField,
@@ -275,7 +272,7 @@ def east_edge_iord8plus_1(
 @gtstencil()
 def east_edge_iord8plus_2(
     q: FloatField,
-    dxa: FloatField,
+    dxa: FloatFieldIJ,
     dm: FloatField,
     bl: FloatField,
     br: FloatField,
