@@ -237,15 +237,9 @@ def compute_al(q: FloatField, dxa: FloatFieldIJ):
         al = yppm.c1 * q[-2, 0, 0] + yppm.c2 * q[-1, 0, 0] + yppm.c3 * q
     with horizontal(region[i_start, :], region[i_end + 1, :]):
         al = 0.5 * (
-            (
-                (2.0 * dxa[-1, 0] + dxa[-2, 0]) * q[-1, 0, 0]
-                - dxa[-1, 0] * q[-2, 0, 0]
-            )
+            ((2.0 * dxa[-1, 0] + dxa[-2, 0]) * q[-1, 0, 0] - dxa[-1, 0] * q[-2, 0, 0])
             / (dxa[-2, 0] + dxa[-1, 0])
-            + (
-                (2.0 * dxa[0, 0] + dxa[1, 0]) * q[0, 0, 0]
-                - dxa[0, 0] * q[1, 0, 0]
-            )
+            + ((2.0 * dxa[0, 0] + dxa[1, 0]) * q[0, 0, 0] - dxa[0, 0] * q[1, 0, 0])
             / (dxa[0, 0] + dxa[1, 0])
         )
     with horizontal(region[i_start + 1, :], region[i_end + 2, :]):

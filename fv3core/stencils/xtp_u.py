@@ -16,7 +16,11 @@ from fv3core.utils.typing import FloatField, FloatFieldIJ
 
 @gtscript.function
 def _get_flux(
-    u: FloatField, courant: FloatField, rdx: FloatFieldIJ, bl: FloatField, br: FloatField
+    u: FloatField,
+    courant: FloatField,
+    rdx: FloatFieldIJ,
+    bl: FloatField,
+    br: FloatField,
 ):
     """
     Compute the x-dir flux of kinetic energy(?).

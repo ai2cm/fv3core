@@ -13,7 +13,7 @@ from gt4py.gtscript import (
 import fv3core._config as spec
 import fv3core.utils.global_config as global_config
 from fv3core.decorators import gtstencil
-from fv3core.stencils.basic_operations import sign, floor_cap
+from fv3core.stencils.basic_operations import sign
 from fv3core.utils.grid import axis_offsets
 from fv3core.utils.typing import FloatField, FloatFieldIJ
 
@@ -35,6 +35,7 @@ p2 = -1.0 / 12.0
 s11 = 11.0 / 14.0
 s14 = 4.0 / 7.0
 s15 = 3.0 / 14.0
+
 
 @gtscript.function
 def final_flux(courant, q, fx1, tmp):
@@ -290,15 +291,9 @@ def compute_al(q: FloatField, dya: FloatFieldIJ):
 
     with horizontal(region[:, j_start], region[:, j_end + 1]):
         al = 0.5 * (
-            (
-                (2.0 * dya[0, -1] + dya[0, -2]) * q[0, -1, 0]
-                - dya[0, -1] * q[0, -2, 0]
-            )
+            ((2.0 * dya[0, -1] + dya[0, -2]) * q[0, -1, 0] - dya[0, -1] * q[0, -2, 0])
             / (dya[0, -2] + dya[0, -1])
-            + (
-                (2.0 * dya[0, 0] + dya[0, 1]) * q[0, 0, 0]
-                - dya[0, 0] * q[0, 1, 0]
-            )
+            + ((2.0 * dya[0, 0] + dya[0, 1]) * q[0, 0, 0] - dya[0, 0] * q[0, 1, 0])
             / (dya[0, 0] + dya[0, 1])
         )
 
