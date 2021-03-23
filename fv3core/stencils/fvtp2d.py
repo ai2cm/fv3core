@@ -70,7 +70,6 @@ class FvTp2d:
         self.yppm_object_in = yppm.YPPM(self.grid, spec.namelist, ord_in)
         self.xppm_object_ou = xppm.XPPM(self.grid, spec.namelist, ord_ou)
         self.yppm_object_ou = yppm.YPPM(self.grid, spec.namelist, ord_ou)
-        print("eeks", gt.config.cache_settings["dir_name"])
 
     def __call__(
         self,
@@ -92,7 +91,6 @@ class FvTp2d:
         mfy=None,
     ):
         grid = self.grid
-        print("gaaa", gt.config.cache_settings["dir_name"])
         if nk is None:
             nk = grid.npz - kstart
         kslice = slice(kstart, kstart + nk)
