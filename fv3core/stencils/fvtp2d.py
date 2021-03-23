@@ -1,6 +1,5 @@
-import gt4py as gt
 import gt4py.gtscript as gtscript
-from gt4py.gtscript import PARALLEL, computation, interval
+from gt4py.gtscript import PARALLEL, computation, horizontal, interval, region
 
 import fv3core._config as spec
 import fv3core.stencils.delnflux as delnflux
@@ -9,12 +8,12 @@ import fv3core.stencils.yppm as yppm
 import fv3core.utils.corners as corners
 import fv3core.utils.global_config as global_config
 import fv3core.utils.gt4py_utils as utils
-from fv3core.utils.typing import FloatField
+from fv3core.utils.typing import FloatField, FloatFieldIJ
 
 
 def q_i_stencil(
     q: FloatField,
-    area: FloatField,
+    area: FloatFieldIJ,
     yfx: FloatField,
     fy2: FloatField,
     ra_y: FloatField,
@@ -27,7 +26,7 @@ def q_i_stencil(
 
 def q_j_stencil(
     q: FloatField,
-    area: FloatField,
+    area: FloatFieldIJ,
     xfx: FloatField,
     fx2: FloatField,
     ra_x: FloatField,
@@ -38,9 +37,24 @@ def q_j_stencil(
         q_j[0, 0, 0] = (q * area + fx1 - fx1[1, 0, 0]) / ra_x
 
 
-def transport_flux(f: FloatField, f2: FloatField, mf: FloatField):
+@gtscript.function
+def transport_flux(f, f2, mf):
+    return 0.5 * (f + f2) * mf
+
+
+def transport_flux_xy(
+    fx: FloatField,
+    fx2: FloatField,
+    fy: FloatField,
+    fy2: FloatField,
+    mfx: FloatField,
+    mfy: FloatField,
+):
     with computation(PARALLEL), interval(...):
-        f = 0.5 * (f + f2) * mf
+        with horizontal(region[:, :-1]):
+            fx = transport_flux(fx, fx2, mfx)
+        with horizontal(region[:-1, :]):
+            fy = transport_flux(fy, fy2, mfy)
 
 
 class FvTp2d:
@@ -65,11 +79,11 @@ class FvTp2d:
         stencil_wrapper = gtscript.stencil(**stencil_kwargs)
         self.stencil_q_i = stencil_wrapper(q_i_stencil)
         self.stencil_q_j = stencil_wrapper(q_j_stencil)
-        self.stencil_transport_flux = stencil_wrapper(transport_flux)
-        self.xppm_object_in = xppm.XPPM(self.grid, spec.namelist, ord_in)
-        self.yppm_object_in = yppm.YPPM(self.grid, spec.namelist, ord_in)
-        self.xppm_object_ou = xppm.XPPM(self.grid, spec.namelist, ord_ou)
-        self.yppm_object_ou = yppm.YPPM(self.grid, spec.namelist, ord_ou)
+        self.stencil_transport_flux = stencil_wrapper(transport_flux_xy)
+        self.xppm_object_in = xppm.XPPM(spec.namelist, ord_in)
+        self.yppm_object_in = yppm.YPPM(spec.namelist, ord_in)
+        self.xppm_object_ou = xppm.XPPM(spec.namelist, ord_ou)
+        self.yppm_object_ou = yppm.YPPM(spec.namelist, ord_ou)
 
     def __call__(
         self,
@@ -138,16 +152,12 @@ class FvTp2d:
             self.stencil_transport_flux(
                 fx,
                 self._tmp_fx2,
-                mfx,
-                origin=compute_origin,
-                domain=(grid.nic + 1, grid.njc, nk),
-            )
-            self.stencil_transport_flux(
                 fy,
                 self._tmp_fy2,
+                mfx,
                 mfy,
                 origin=compute_origin,
-                domain=(grid.nic, grid.njc + 1, nk),
+                domain=(grid.nic + 1, grid.njc + 1, nk),
             )
             if (mass is not None) and (nord is not None) and (damp_c is not None):
                 delnflux.compute_delnflux_no_sg(
@@ -158,16 +168,12 @@ class FvTp2d:
             self.stencil_transport_flux(
                 fx,
                 self._tmp_fx2,
-                xfx,
-                origin=compute_origin,
-                domain=(grid.nic + 1, grid.njc, nk),
-            )
-            self.stencil_transport_flux(
                 fy,
                 self._tmp_fy2,
+                xfx,
                 yfx,
                 origin=compute_origin,
-                domain=(grid.nic, grid.njc + 1, nk),
+                domain=(grid.nic + 1, grid.njc + 1, nk),
             )
             if (nord is not None) and (damp_c is not None):
                 delnflux.compute_delnflux_no_sg(q, fx, fy, nord, damp_c, kstart, nk)
