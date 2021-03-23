@@ -704,7 +704,7 @@ def d_sw(
         domain=grid().domain_shape_compute(add=(1, 1, 0)),
     )
 
-    ytp_v.compute(vb, u, v, ub)
+    ytp_v.compute(vb, v, ub)
 
     basic.multiply_stencil(
         vb,
@@ -727,7 +727,7 @@ def d_sw(
         domain=grid().domain_shape_compute(add=(1, 1, 0)),
     )
 
-    xtp_u.compute(ub, u, v, vb)
+    xtp_u.compute(ub, u, vb)
 
     ke_from_bwind(
         ke,
