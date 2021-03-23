@@ -1,6 +1,6 @@
 import numpy as np
 
-import fv3core.stencils.remap_profile as Profile
+import fv3core.stencils.remap_profile as profile
 import fv3core.utils.gt4py_utils as utils
 from fv3core.testing import TranslateFortranData2Py
 
@@ -8,7 +8,7 @@ from fv3core.testing import TranslateFortranData2Py
 class TranslateCS_Profile_2d(TranslateFortranData2Py):
     def __init__(self, grid):
         super().__init__(grid)
-        self.compute_func = Profile.compute
+        self.compute_func = profile.compute
         self.in_vars["data_vars"] = {
             "a4_1": {"serialname": "q4_1"},
             "a4_2": {"serialname": "q4_2"},
@@ -24,6 +24,7 @@ class TranslateCS_Profile_2d(TranslateFortranData2Py):
             "a4_4": {"serialname": "q4_4", "istart": 0, "iend": grid.ie - 2},
         }
         self.ignore_near_zero_errors = {"q4_4": True}
+        self.write_vars = ["qs"]
 
     def make_storage_data_input_vars(self, inputs, storage_vars=None):
         if storage_vars is None:
@@ -37,23 +38,13 @@ class TranslateCS_Profile_2d(TranslateFortranData2Py):
             istart, jstart, kstart = self.collect_start_indices(
                 inputs[serialname].shape, info
             )
-
-            shapes = np.squeeze(inputs[serialname]).shape
-            if len(shapes) == 2:
-                # suppress j
-                dummy_axes = [1]
-            elif len(shapes) == 1:
-                # suppress j and k
-                dummy_axes = [1, 2]
-            else:
-                dummy_axes = None
-
             inputs[d] = self.make_storage_data(
                 np.squeeze(inputs[serialname]),
                 istart=istart,
                 jstart=jstart,
                 kstart=kstart,
-                dummy_axes=dummy_axes,
+                axis=len(inputs[serialname].shape) - 1,
+                read_only=d not in self.write_vars,
             )
             if d != serialname:
                 del inputs[serialname]
@@ -65,6 +56,14 @@ class TranslateCS_Profile_2d(TranslateFortranData2Py):
         inputs["jslice"] = slice(0, 1)
         if "qs" not in inputs:
             inputs["qs"] = utils.make_storage_from_shape(self.maxshape)
+        else:
+            qs_field = utils.make_storage_from_shape(
+                inputs["delp"].shape, origin=(0, 0, 0)
+            )
+            qs_field[inputs["i1"] : inputs["i2"] + 1, inputs["jslice"], -1] = inputs[
+                "qs"
+            ][inputs["i1"] : inputs["i2"] + 1, inputs["jslice"], 0]
+            inputs["qs"] = qs_field
         q4_1, q4_2, q4_3, q4_4 = self.compute_func(**inputs)
         return self.slice_output(
             inputs, {"q4_1": q4_1, "q4_2": q4_2, "q4_3": q4_3, "q4_4": q4_4}
@@ -74,9 +73,9 @@ class TranslateCS_Profile_2d(TranslateFortranData2Py):
 class TranslateCS_Profile_2d_2(TranslateCS_Profile_2d):
     def __init__(self, grid):
         super().__init__(grid)
-        self.compute_func = Profile.compute
+        self.compute_func = profile.compute
         self.in_vars["data_vars"] = {
-            "qs": {"serialname": "qs_column_2"},
+            "qs": {"serialname": "qs_column_2", "kstart": 0, "kend": grid.npz},
             "a4_1": {"serialname": "q4_1_2"},
             "a4_2": {"serialname": "q4_2_2"},
             "a4_3": {"serialname": "q4_3_2"},
