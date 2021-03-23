@@ -9,10 +9,11 @@ import gt4py.storage as gt_storage
 import numpy as np
 from gt4py import gtscript
 
+import fv3core._config as spec
 import fv3core.utils.global_config as global_config
 from fv3core.utils.mpi import MPI
 from fv3core.utils.typing import DTypes, Field, float_type, int_type
-import fv3core._config as spec
+
 
 try:
     import cupy as cp

@@ -1,6 +1,7 @@
+import gt4py as gt
 import gt4py.gtscript as gtscript
 from gt4py.gtscript import PARALLEL, computation, interval
-import gt4py as gt
+
 import fv3core._config as spec
 import fv3core.stencils.delnflux as delnflux
 import fv3core.stencils.xppm as xppm
@@ -42,7 +43,6 @@ def transport_flux(f: FloatField, f2: FloatField, mf: FloatField):
         f = 0.5 * (f + f2) * mf
 
 
-
 class FvTp2d:
     """
     ONLY USE_SG=False compiler flag implements
@@ -70,7 +70,8 @@ class FvTp2d:
         self.yppm_object_in = yppm.YPPM(self.grid, spec.namelist, ord_in)
         self.xppm_object_ou = xppm.XPPM(self.grid, spec.namelist, ord_ou)
         self.yppm_object_ou = yppm.YPPM(self.grid, spec.namelist, ord_ou)
-        print('eeks', gt.config.cache_settings["dir_name"])
+        print("eeks", gt.config.cache_settings["dir_name"])
+
     def __call__(
         self,
         q,
@@ -91,16 +92,17 @@ class FvTp2d:
         mfy=None,
     ):
         grid = self.grid
-        print('gaaa', gt.config.cache_settings["dir_name"])
+        print("gaaa", gt.config.cache_settings["dir_name"])
         if nk is None:
             nk = grid.npz - kstart
         kslice = slice(kstart, kstart + nk)
         compute_origin = (grid.is_, grid.js, kstart)
         corners.copy_corners_y_stencil(
             q, origin=(grid.isd, grid.jsd, kstart), domain=(grid.nid, grid.njd, nk)
-
         )
-        self.yppm_object_in(q, cry, self._tmp_fy2, grid.isd, grid.ied, kstart=kstart, nk=nk)
+        self.yppm_object_in(
+            q, cry, self._tmp_fy2, grid.isd, grid.ied, kstart=kstart, nk=nk
+        )
         self.stencil_q_i(
             q,
             grid.area,
@@ -111,12 +113,16 @@ class FvTp2d:
             origin=(grid.isd, grid.js, kstart),
             domain=(grid.nid, grid.njc + 1, nk),
         )
-        self.xppm_object_ou(self._tmp_q_i, crx, fx, grid.js, grid.je, kstart=kstart, nk=nk)
-       
+        self.xppm_object_ou(
+            self._tmp_q_i, crx, fx, grid.js, grid.je, kstart=kstart, nk=nk
+        )
+
         corners.copy_corners_x_stencil(
             q, origin=(grid.isd, grid.jsd, kstart), domain=(grid.nid, grid.njd, nk)
         )
-        self.xppm_object_in(q, crx, self._tmp_fx2, grid.jsd, grid.jed, kstart=kstart, nk=nk)
+        self.xppm_object_in(
+            q, crx, self._tmp_fx2, grid.jsd, grid.jed, kstart=kstart, nk=nk
+        )
         self.stencil_q_j(
             q,
             grid.area,
@@ -127,7 +133,9 @@ class FvTp2d:
             origin=(grid.is_, grid.jsd, kstart),
             domain=(grid.nic + 1, grid.njd, nk),
         )
-        self.yppm_object_ou(self._tmp_q_j, cry, fy, grid.is_, grid.ie, kstart=kstart, nk=nk)
+        self.yppm_object_ou(
+            self._tmp_q_j, cry, fy, grid.is_, grid.ie, kstart=kstart, nk=nk
+        )
         if mfx is not None and mfy is not None:
             self.stencil_transport_flux(
                 fx,
@@ -148,7 +156,7 @@ class FvTp2d:
                     q, fx, fy, nord, damp_c, kstart, nk, mass=mass
                 )
         else:
-        
+
             self.stencil_transport_flux(
                 fx,
                 self._tmp_fx2,
