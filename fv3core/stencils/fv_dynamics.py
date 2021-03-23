@@ -153,7 +153,8 @@ def do_dyn(state, comm, timer=fv3gfs.util.NullTimer()):
         if spec.namelist.z_tracer:
             print("Tracer2D1L", grid.rank)
             with timer.clock("TracerAdvection"):
-                tracer_2d_1l.compute(
+                tracer_2d_obj = tracer_2d_1l.Tracer2D1L(spec.namelist)
+                tracer_2d_obj(
                     comm,
                     state,
                     state.dp1,

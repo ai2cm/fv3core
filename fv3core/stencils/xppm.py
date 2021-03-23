@@ -11,8 +11,8 @@ from gt4py.gtscript import (
 )
 
 import fv3core._config as spec
+import fv3core.stencils.yppm as yppm
 import fv3core.utils.global_config as global_config
-from fv3core.stencils import yppm
 from fv3core.stencils.basic_operations import sign
 from fv3core.utils.grid import axis_offsets
 from fv3core.utils.typing import FloatField, FloatFieldIJ
@@ -40,7 +40,6 @@ def get_tmp(bl, b0, br):
         smt5 = bl * br < 0
     else:
         smt5 = (3.0 * abs(b0)) < abs(bl - br)
-
     if smt5[-1, 0, 0] or smt5[0, 0, 0]:
         tmp = 1.0
     else:
@@ -256,11 +255,9 @@ def compute_blbr_ord8plus(q: FloatField, dxa: FloatFieldIJ):
     al = al_iord8plus(q, dm)
 
     assert __INLINED(iord == 8), "Unimplemented iord"
-    # {
-    bl, br = blbr_iord8(q, al, dm)
-    # }
 
-    # {
+    bl, br = blbr_iord8(q, al, dm)
+
     with horizontal(region[i_start - 1, :]):
         bl, br = west_edge_iord8plus_0(q, dxa, dm)
         bl, br = yppm.pert_ppm_standard_constraint_fcn(q, bl, br)
@@ -284,7 +281,6 @@ def compute_blbr_ord8plus(q: FloatField, dxa: FloatFieldIJ):
     with horizontal(region[i_end + 1, :]):
         bl, br = east_edge_iord8plus_2(q, dxa, dm)
         bl, br = yppm.pert_ppm_standard_constraint_fcn(q, bl, br)
-    # }
 
     return bl, br
 

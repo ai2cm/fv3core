@@ -279,7 +279,7 @@ def compute_al(q: FloatField, dya: FloatFieldIJ):
     from __externals__ import j_end, j_start, jord
 
     assert __INLINED(jord < 8), "Not implemented"
-    # {
+
     al = p1 * (q[0, -1, 0] + q) + p2 * (q[0, -2, 0] + q[0, 1, 0])
 
     if __INLINED(jord < 0):
@@ -299,8 +299,6 @@ def compute_al(q: FloatField, dya: FloatFieldIJ):
 
     with horizontal(region[:, j_start + 1], region[:, j_end + 2]):
         al = c3 * q[0, -1, 0] + c2 * q[0, 0, 0] + c1 * q[0, 1, 0]
-
-    # }
 
     return al
 
