@@ -15,7 +15,7 @@ import fv3core.utils.global_config as global_config
 from fv3core.stencils import yppm
 from fv3core.stencils.basic_operations import sign
 from fv3core.utils.grid import axis_offsets
-from fv3core.utils.typing import FloatField
+from fv3core.utils.typing import FloatField, FloatFieldIJ
 
 
 @gtscript.function
@@ -94,21 +94,18 @@ def blbr_iord8(q: FloatField, al: FloatField, dm: FloatField):
 @gtscript.function
 def xt_dxa_edge_0_base(q, dxa):
     return 0.5 * (
-        ((2.0 * dxa + dxa[-1, 0, 0]) * q - dxa * q[-1, 0, 0]) / (dxa[-1, 0, 0] + dxa)
-        + ((2.0 * dxa[1, 0, 0] + dxa[2, 0, 0]) * q[1, 0, 0] - dxa[1, 0, 0] * q[2, 0, 0])
-        / (dxa[1, 0, 0] + dxa[2, 0, 0])
+        ((2.0 * dxa + dxa[-1, 0]) * q - dxa * q[-1, 0, 0]) / (dxa[-1, 0] + dxa)
+        + ((2.0 * dxa[1, 0] + dxa[2, 0]) * q[1, 0, 0] - dxa[1, 0] * q[2, 0, 0])
+        / (dxa[1, 0] + dxa[2, 0])
     )
 
 
 @gtscript.function
 def xt_dxa_edge_1_base(q, dxa):
     return 0.5 * (
-        (
-            (2.0 * dxa[-1, 0, 0] + dxa[-2, 0, 0]) * q[-1, 0, 0]
-            - dxa[-1, 0, 0] * q[-2, 0, 0]
-        )
-        / (dxa[-2, 0, 0] + dxa[-1, 0, 0])
-        + ((2.0 * dxa + dxa[1, 0, 0]) * q - dxa * q[1, 0, 0]) / (dxa + dxa[1, 0, 0])
+        ((2.0 * dxa[-1, 0] + dxa[-2, 0]) * q[-1, 0, 0] - dxa[-1, 0] * q[-2, 0, 0])
+        / (dxa[-2, 0] + dxa[-1, 0])
+        + ((2.0 * dxa + dxa[1, 0]) * q - dxa * q[1, 0, 0]) / (dxa + dxa[1, 0])
     )
 
 
@@ -143,7 +140,7 @@ def xt_dxa_edge_1(q, dxa):
 @gtscript.function
 def west_edge_iord8plus_0(
     q: FloatField,
-    dxa: FloatField,
+    dxa: FloatFieldIJ,
     dm: FloatField,
 ):
     bl = yppm.s14 * dm[-1, 0, 0] + yppm.s11 * (q[-1, 0, 0] - q)
@@ -155,7 +152,7 @@ def west_edge_iord8plus_0(
 @gtscript.function
 def west_edge_iord8plus_1(
     q: FloatField,
-    dxa: FloatField,
+    dxa: FloatFieldIJ,
     dm: FloatField,
 ):
     xt = xt_dxa_edge_1(q, dxa)
@@ -192,7 +189,7 @@ def east_edge_iord8plus_0(
 @gtscript.function
 def east_edge_iord8plus_1(
     q: FloatField,
-    dxa: FloatField,
+    dxa: FloatFieldIJ,
     dm: FloatField,
 ):
     xt = yppm.s15 * q + yppm.s11 * q[-1, 0, 0] + yppm.s14 * dm[-1, 0, 0]
@@ -205,7 +202,7 @@ def east_edge_iord8plus_1(
 @gtscript.function
 def east_edge_iord8plus_2(
     q: FloatField,
-    dxa: FloatField,
+    dxa: FloatFieldIJ,
     dm: FloatField,
 ):
     xt = xt_dxa_edge_1(q, dxa)
@@ -215,7 +212,7 @@ def east_edge_iord8plus_2(
 
 
 @gtscript.function
-def compute_al(q: FloatField, dxa: FloatField):
+def compute_al(q: FloatField, dxa: FloatFieldIJ):
     """
     Interpolate q at interface.
 
@@ -241,15 +238,15 @@ def compute_al(q: FloatField, dxa: FloatField):
     with horizontal(region[i_start, :], region[i_end + 1, :]):
         al = 0.5 * (
             (
-                (2.0 * dxa[-1, 0, 0] + dxa[-2, 0, 0]) * q[-1, 0, 0]
-                - dxa[-1, 0, 0] * q[-2, 0, 0]
+                (2.0 * dxa[-1, 0] + dxa[-2, 0]) * q[-1, 0, 0]
+                - dxa[-1, 0] * q[-2, 0, 0]
             )
-            / (dxa[-2, 0, 0] + dxa[-1, 0, 0])
+            / (dxa[-2, 0] + dxa[-1, 0])
             + (
-                (2.0 * dxa[0, 0, 0] + dxa[1, 0, 0]) * q[0, 0, 0]
-                - dxa[0, 0, 0] * q[1, 0, 0]
+                (2.0 * dxa[0, 0] + dxa[1, 0]) * q[0, 0, 0]
+                - dxa[0, 0] * q[1, 0, 0]
             )
-            / (dxa[0, 0, 0] + dxa[1, 0, 0])
+            / (dxa[0, 0] + dxa[1, 0])
         )
     with horizontal(region[i_start + 1, :], region[i_end + 2, :]):
         al = yppm.c3 * q[-1, 0, 0] + yppm.c2 * q[0, 0, 0] + yppm.c1 * q[1, 0, 0]
@@ -258,7 +255,7 @@ def compute_al(q: FloatField, dxa: FloatField):
 
 
 @gtscript.function
-def compute_blbr_ord8plus(q: FloatField, dxa: FloatField):
+def compute_blbr_ord8plus(q: FloatField, dxa: FloatFieldIJ):
     from __externals__ import i_end, i_start, iord
 
     dm = dm_iord8plus(q)
@@ -299,7 +296,7 @@ def compute_blbr_ord8plus(q: FloatField, dxa: FloatField):
 
 
 def _compute_flux_stencil(
-    q: FloatField, courant: FloatField, dxa: FloatField, xflux: FloatField
+    q: FloatField, courant: FloatField, dxa: FloatFieldIJ, xflux: FloatField
 ):
     from __externals__ import mord
 
