@@ -29,7 +29,7 @@ import fv3core.utils.gt4py_utils as utils
 import fv3gfs.util as fv3util
 from fv3core.decorators import gtstencil
 from fv3core.stencils.basic_operations import copy_stencil
-from fv3core.utils.typing import FloatField
+from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
 
 
 HUGE_R = 1.0e40
@@ -38,21 +38,21 @@ HUGE_R = 1.0e40
 # NOTE in Fortran these are columns
 @gtstencil()
 def dp_ref_compute(
-    ak: FloatField,
-    bk: FloatField,
-    phis: FloatField,
+    ak: FloatFieldK,
+    bk: FloatFieldK,
+    phis: FloatFieldIJ,
     dp_ref: FloatField,
     zs: FloatField,
     rgrav: float,
 ):
     with computation(PARALLEL), interval(0, -1):
-        dp_ref = ak[0, 0, 1] - ak + (bk[0, 0, 1] - bk) * 1.0e5
+        dp_ref = ak[1] - ak + (bk[1] - bk) * 1.0e5
     with computation(PARALLEL), interval(...):
         zs = phis * rgrav
 
 
 @gtstencil()
-def set_gz(zs: FloatField, delz: FloatField, gz: FloatField):
+def set_gz(zs: FloatFieldIJ, delz: FloatField, gz: FloatField):
     with computation(BACKWARD):
         with interval(-1, None):
             gz[0, 0, 0] = zs
@@ -83,8 +83,8 @@ def heatadjust_temperature_lowlevel(
 
 @gtstencil()
 def p_grad_c_stencil(
-    rdxc: FloatField,
-    rdyc: FloatField,
+    rdxc: FloatFieldIJ,
+    rdyc: FloatFieldIJ,
     uc: FloatField,
     vc: FloatField,
     delpc: FloatField,
@@ -151,9 +151,15 @@ def dyncore_temporaries(shape):
     tmps = {}
     utils.storage_dict(
         tmps,
-        ["ut", "vt", "gz", "zh", "pem", "ws3", "pkc", "pk3", "heat_source", "divgd"],
+        ["ut", "vt", "gz", "zh", "pem", "pkc", "pk3", "heat_source", "divgd"],
         shape,
         grid.full_origin(),
+    )
+    utils.storage_dict(
+        tmps,
+        ["ws3"],
+        shape[0:2],
+        grid.full_origin()[0:2],
     )
     utils.storage_dict(
         tmps, ["crx", "xfx"], shape, grid.compute_origin(add=(0, -grid.halo, 0))
@@ -225,13 +231,13 @@ def compute(state, comm):
     state.mfyd[grid.slice_dict(grid.y3d_compute_dict())] = 0.0
     state.cxd[grid.slice_dict(grid.x3d_compute_domain_y_dict())] = 0.0
     state.cyd[grid.slice_dict(grid.y3d_compute_domain_x_dict())] = 0.0
+
     if not hydrostatic:
         # k1k = akap / (1.0 - akap)
 
-        # TODO: Is really just a column... when different shapes are supported
-        # perhaps change this.
-        state.dp_ref = utils.make_storage_from_shape(state.ak.shape, grid.full_origin())
-        state.zs = utils.make_storage_from_shape(state.ak.shape, grid.full_origin())
+        # To write in parallel region, these need to be 3D first
+        state.dp_ref = utils.make_storage_from_shape(shape, grid.full_origin())
+        state.zs = utils.make_storage_from_shape(shape, grid.full_origin())
         dp_ref_compute(
             state.ak,
             state.bk,
@@ -242,9 +248,26 @@ def compute(state, comm):
             origin=grid.full_origin(),
             domain=grid.domain_shape_full(add=(0, 0, 1)),
         )
+        # After writing, make 'dp_ref' a K-field and 'zs' an IJ-field
+        state.dp_ref = utils.make_storage_data(state.dp_ref[0, 0, :], (shape[2],), (0,))
+        state.zs = utils.make_storage_data(state.zs[:, :, 0], shape[0:2], (0, 0))
     n_con = get_n_con()
 
+    # "acoustic" loop
+    # called this because its timestep is usually limited by horizontal sound-wave
+    # processes. Note this is often not the limiting factor near the poles, where
+    # the speed of the polar night jets can exceed two-thirds of the speed of sound.
     for it in range(n_split):
+        # the Lagrangian dynamics have two parts. First we advance the C-grid winds
+        # by half a time step (c_sw). Then the C-grid winds are used to define advective
+        # fluxes to advance the D-grid prognostic fields a full time step
+        # (the rest of the routines).
+        #
+        # Along-surface flux terms (mass, heat, vertical momentum, vorticity,
+        # kinetic energy gradient terms) are evaluated forward-in-time.
+        #
+        # The pressure gradient force and elastic terms are then evaluated
+        # backwards-in-time, to improve stability.
         remap_step = False
         if spec.namelist.breed_vortex_inline or (it == n_split - 1):
             remap_step = True
@@ -269,12 +292,6 @@ def compute(state, comm):
             if global_config.get_do_halo_exchange():
                 reqs["delp_quantity"].wait()
                 reqs["pt_quantity"].wait()
-            beta_d = 0
-        else:
-            beta_d = spec.namelist.beta
-        last_step = False
-        if it == n_split - 1 and end_step:
-            last_step = True
 
         if it == n_split - 1 and end_step:
             if spec.namelist.use_old_omega:  # apparently True
@@ -290,6 +307,7 @@ def compute(state, comm):
             if not hydrostatic:
                 reqs["w_quantity"].wait()
 
+        # compute the c-grid winds at t + 1/2 timestep
         state.delpc, state.ptc = c_sw.compute(
             state.delp,
             state.pt,
@@ -332,10 +350,6 @@ def compute(state, comm):
             state.gz, state.ws3 = updatedzc.compute(
                 state.dp_ref, state.zs, state.ut, state.vt, state.gz, state.ws3, dt2
             )
-            # TODO: This is really a 2d field.
-            state.ws3 = utils.make_storage_data(
-                state.ws3[:, :, -1], shape, origin=(0, 0, 0)
-            )
             riem_solver_c.compute(
                 ms,
                 dt2,
@@ -371,6 +385,8 @@ def compute(state, comm):
             if spec.namelist.nord > 0:
                 reqs["divgd_quantity"].wait()
             reqc_vector.wait()
+        # use the computed c-grid winds to evolve the d-grid winds forward
+        # by 1 timestep
         state.nord_v, state.damp_vt = d_sw.compute(
             state.vt,
             state.delp,
@@ -398,6 +414,8 @@ def compute(state, comm):
             state.diss_estd,
             dt,
         )
+        # note that uc and vc are not needed at all past this point.
+        # they will be re-computed from scratch on the next acoustic timestep.
 
         if global_config.get_do_halo_exchange():
             for halovar in ["delp_quantity", "pt_quantity", "q_con_quantity"]:
@@ -424,10 +442,6 @@ def compute(state, comm):
                 dt,
             )
 
-            # TODO: This is really a 2d field.
-            state.wsd = utils.make_storage_data(
-                state.wsd[:, :, -1], shape, origin=grid.compute_origin()
-            )
             riem_solver3.compute(
                 remap_step,
                 dt,

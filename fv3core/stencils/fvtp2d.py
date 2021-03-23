@@ -1,3 +1,5 @@
+from typing import Optional
+
 import gt4py.gtscript as gtscript
 from gt4py.gtscript import PARALLEL, computation, horizontal, interval, region
 
@@ -8,13 +10,13 @@ import fv3core.stencils.yppm as yppm
 import fv3core.utils.corners as corners
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import gtstencil
-from fv3core.utils.typing import FloatField
+from fv3core.utils.typing import FloatField, FloatFieldIJ
 
 
 @gtstencil()
 def q_i_stencil(
     q: FloatField,
-    area: FloatField,
+    area: FloatFieldIJ,
     yfx: FloatField,
     fy2: FloatField,
     ra_y: FloatField,
@@ -28,7 +30,7 @@ def q_i_stencil(
 @gtstencil()
 def q_j_stencil(
     q: FloatField,
-    area: FloatField,
+    area: FloatFieldIJ,
     xfx: FloatField,
     fx2: FloatField,
     ra_x: FloatField,
@@ -71,23 +73,23 @@ def compute(data, nord_column):
 
 
 def compute_no_sg(
-    q,
-    crx,
-    cry,
-    hord,
-    xfx,
-    yfx,
-    ra_x,
-    ra_y,
-    fx,
-    fy,
-    kstart=0,
-    nk=None,
-    nord=None,
-    damp_c=None,
-    mass=None,
-    mfx=None,
-    mfy=None,
+    q: FloatField,
+    crx: FloatField,
+    cry: FloatField,
+    hord: int,
+    xfx: FloatField,
+    yfx: FloatField,
+    ra_x: FloatField,
+    ra_y: FloatField,
+    fx: FloatField,
+    fy: FloatField,
+    kstart: int = 0,
+    nk: Optional[int] = None,
+    nord: Optional[float] = None,
+    damp_c: Optional[float] = None,
+    mass: FloatField = None,
+    mfx: FloatField = None,
+    mfy: FloatField = None,
 ):
     grid = spec.grid
     if nk is None:
@@ -103,10 +105,16 @@ def compute_no_sg(
     else:
         ord_in = hord
     ord_ou = hord
+
+    xppm_object_in = xppm.XPPM(spec.namelist, ord_in)
+    yppm_object_in = yppm.YPPM(spec.namelist, ord_in)
+    xppm_object_ou = xppm.XPPM(spec.namelist, ord_ou)
+    yppm_object_ou = yppm.YPPM(spec.namelist, ord_ou)
+
     corners.copy_corners_y_stencil(
         q, origin=(grid.isd, grid.jsd, kstart), domain=(grid.nid, grid.njd, nk)
     )
-    yppm.compute_flux(q, cry, fy2, ord_in, grid.isd, grid.ied, kstart=kstart, nk=nk)
+    yppm_object_in(q, cry, fy2, grid.isd, grid.ied, kstart=kstart, nk=nk)
     q_i_stencil(
         q,
         grid.area,
@@ -118,11 +126,11 @@ def compute_no_sg(
         domain=(grid.nid, grid.njc + 1, nk),
     )
 
-    xppm.compute_flux(q_i, crx, fx, ord_ou, grid.js, grid.je, kstart=kstart, nk=nk)
+    xppm_object_ou(q_i, crx, fx, grid.js, grid.je, kstart=kstart, nk=nk)
     corners.copy_corners_x_stencil(
         q, origin=(grid.isd, grid.jsd, kstart), domain=(grid.nid, grid.njd, nk)
     )
-    xppm.compute_flux(q, crx, fx2, ord_in, grid.jsd, grid.jed, kstart=kstart, nk=nk)
+    xppm_object_in(q, crx, fx2, grid.jsd, grid.jed, kstart=kstart, nk=nk)
     q_j_stencil(
         q,
         grid.area,
@@ -133,7 +141,7 @@ def compute_no_sg(
         origin=(grid.is_, grid.jsd, kstart),
         domain=(grid.nic + 1, grid.njd, nk),
     )
-    yppm.compute_flux(q_j, cry, fy, ord_ou, grid.is_, grid.ie, kstart=kstart, nk=nk)
+    yppm_object_ou(q_j, cry, fy, grid.is_, grid.ie, kstart=kstart, nk=nk)
 
     if mfx is not None and mfy is not None:
         transport_flux_xy(
