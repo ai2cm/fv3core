@@ -1,4 +1,4 @@
-from typing import Iterable, Mapping
+from typing import Mapping
 
 from gt4py.gtscript import PARALLEL, computation, interval, log
 
@@ -9,7 +9,7 @@ import fv3core.stencils.moist_cv as moist_cv
 import fv3core.stencils.neg_adj3 as neg_adj3
 import fv3core.stencils.rayleigh_super as rayleigh_super
 import fv3core.stencils.remapping as lagrangian_to_eulerian
-import fv3core.stencils.tracer_2d_1l as tracer_2d_1l
+import fv3core.stencils.tracer_2d_1l
 import fv3core.utils.global_config as global_config
 import fv3core.utils.global_constants as constants
 import fv3core.utils.gt4py_utils as utils
@@ -138,37 +138,6 @@ def compute_preamble(state, comm):
         )
 
 
-def do_dyn(state, comm, timer=fv3gfs.util.NullTimer()):
-    grid = spec.grid
-    copy_stencil(
-        state.delp,
-        state.dp1,
-        origin=grid.full_origin(),
-        domain=grid.domain_shape_full(),
-    )
-    print("DynCore", grid.rank)
-    with timer.clock("DynCore"):
-        dyn_core.compute(state, comm)
-    if not spec.namelist.inline_q and constants.NQ != 0:
-        if spec.namelist.z_tracer:
-            print("Tracer2D1L", grid.rank)
-            with timer.clock("TracerAdvection"):
-                tracer_2d_obj = tracer_2d_1l.Tracer2D1L(spec.namelist)
-                tracer_2d_obj(
-                    comm,
-                    state,
-                    state.dp1,
-                    state.mfxd,
-                    state.mfyd,
-                    state.cxd,
-                    state.cyd,
-                    state.bdt / state.k_split,
-                    constants.NQ,
-                )
-        else:
-            raise Exception("tracer_2d not implemented, turn on z_tracer")
-
-
 def post_remap(state, comm):
     grid = spec.grid
     if not spec.namelist.hydrostatic:
@@ -211,24 +180,6 @@ def wrapup(state, comm: fv3gfs.util.CubedSphereCommunicator):
     c2l_ord.compute_cubed_to_latlon(
         state.u_quantity, state.v_quantity, state.ua, state.va, comm, True
     )
-
-
-class TracerConfig:
-    def __init__(self):
-        pass
-
-
-class Tracers:
-    def __init__(self, config: TracerConfig, state: Mapping[str, fv3gfs.util.Quantity]):
-        pass
-
-    @property
-    def water_species(self) -> Iterable[fv3gfs.util.Quantity]:
-        pass
-
-    @property
-    def all(self) -> Iterable[fv3gfs.util.Quantity]:
-        pass
 
 
 def fvdyn_temporaries(shape):
@@ -322,12 +273,14 @@ class FV3:
         self.comm = comm
         self.namelist = namelist
         n_halo = 3
+        self.tracer_2d_1l = fv3core.stencils.tracer_2d_1l.Tracer2D1L(namelist)
+        # npx and npy are number of interfaces, npz is number of centers
+        # and shapes should be the full data shape
         self._temporaries = fvdyn_temporaries(
-            # npx and npy are number of interfaces, npz is number of centers
             (
-                namelist["npx"] - 1 + 2 * n_halo,
-                namelist["npy"] - 1 + 2 * n_halo,
-                namelist["npz"],
+                namelist.npx + 2 * n_halo,
+                namelist.npy + 2 * n_halo,
+                namelist.npz + 1,
             )
         )
 
@@ -347,6 +300,7 @@ class FV3:
             {
                 "consv_te": consv_te,
                 "bdt": timestep,
+                "mdt": timestep / spec.namelist.k_split,
                 "do_adiabatic_init": do_adiabatic_init,
                 "ptop": ptop,
                 "n_split": n_split,
@@ -354,16 +308,16 @@ class FV3:
                 "ks": ks,
             }
         )
-        self.compute(state, self.comm, timer)
+        self._compute(state, self.comm, timer)
 
-    def compute(
+    def _compute(
         self,
         state,
         comm: fv3gfs.util.CubedSphereCommunicator,
         timer: fv3gfs.util.NullTimer,
     ):
         grid = spec.grid
-        state.__dict__.update(self._temporaries())
+        state.__dict__.update(self._temporaries)
         last_step = False
         if global_config.get_do_halo_exchange():
             comm.halo_update(state.phis_quantity, n_points=utils.halo)
@@ -372,7 +326,7 @@ class FV3:
             state.n_map = n_map + 1
             if n_map == state.k_split - 1:
                 last_step = True
-            do_dyn(state, comm, timer)
+            self._do_dyn(state, comm, timer)
             if grid.npz > 4:
                 # nq is actually given by ncnst - pnats,
                 # where those are given in atmosphere.F90 by:
@@ -384,6 +338,8 @@ class FV3:
                 kord_tracer[6] = 9
                 # do_omega = spec.namelist.hydrostatic and last_step
                 # TODO: Determine a better way to do this, polymorphic fields perhaps?
+                # issue is that set_val in map_single expects a 3D field for the
+                # "surface" array
                 state.wsd_3d[:] = utils.reshape(state.wsd, state.wsd_3d.shape)
                 print("Remapping", grid.rank)
                 with timer.clock("Remapping"):
@@ -406,7 +362,7 @@ class FV3:
                         state.phis,
                         state.te0_2d,
                         state.ps,
-                        state.wsd,
+                        state.wsd_3d,
                         state.omga,
                         state.ak,
                         state.bk,
@@ -427,6 +383,35 @@ class FV3:
                     post_remap(state, comm)
                 state.wsd[:] = state.wsd_3d[:, :, 0]
         wrapup(state, comm)
+
+    def _do_dyn(self, state, comm, timer=fv3gfs.util.NullTimer()):
+        grid = spec.grid
+        copy_stencil(
+            state.delp,
+            state.dp1,
+            origin=grid.full_origin(),
+            domain=grid.domain_shape_full(),
+        )
+        print("DynCore", grid.rank)
+        with timer.clock("DynCore"):
+            dyn_core.compute(state, comm)
+        if not spec.namelist.inline_q and constants.NQ != 0:
+            if spec.namelist.z_tracer:
+                print("Tracer2D1L", grid.rank)
+                with timer.clock("TracerAdvection"):
+                    self.tracer_2d_1l(
+                        comm,
+                        state.__dict__,
+                        state.dp1,
+                        state.mfxd,
+                        state.mfyd,
+                        state.cxd,
+                        state.cyd,
+                        state.bdt / state.k_split,
+                        constants.NQ,
+                    )
+            else:
+                raise Exception("tracer_2d not implemented, turn on z_tracer")
 
 
 def fv_dynamics(

@@ -193,11 +193,11 @@ def compute(state, comm):
     akap = constants.KAPPA
     # peln1 = math.log(ptop)
     # ptk = ptop**akap
-    dt = state.bdt / state.k_split / state.n_split
+    dt = state.mdt / spec.namelist.n_split
     dt2 = 0.5 * dt
     hydrostatic = spec.namelist.hydrostatic
     rgrav = 1.0 / constants.GRAV
-    n_split = state.n_split
+    n_split = spec.namelist.n_split
     # TODO: Put defaults into code.
     # m_split = 1. + abs(dt_atmos)/real(k_split*n_split*abs(p_split))
     # n_split = nint( real(n0split)/real(k_split*abs(p_split)) * stretch_fac + 0.5 )

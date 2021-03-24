@@ -176,7 +176,7 @@ class Tracer2D1L:
         self.stencil_dp_fluxadjustment = stencil_wrapper(dp_fluxadjustment)
         self.stencil_q_adjustments = stencil_wrapper(q_adjustments)
         self.stencil_q_adjust = stencil_wrapper(q_adjust)
-        self.fvtp2d_obj = fvtp2d.FvTp2d(spec.namelist, spec.namelist.hord_tr)
+        self.fvtp2d = fvtp2d.FvTp2d(spec.namelist, spec.namelist.hord_tr)
         # If use AllReduce, will need something like this:
         # self._tmp_cmax = utils.make_storage_from_shape(shape, origin)
         # self.stencil_cmax_1 = stencil_wrapper(cmax_stencil1)
@@ -288,7 +288,7 @@ class Tracer2D1L:
                     domain=grid.domain_shape_compute(),
                 )
                 if nsplt != 1:
-                    self.fvtp2d_obj(
+                    self.fvtp2d(
                         self._tmp_qn2.storage,
                         cxd,
                         cyd,
@@ -316,7 +316,7 @@ class Tracer2D1L:
                         domain=grid.domain_shape_compute(),
                     )
                 else:
-                    self.fvtp2d_obj(
+                    self.fvtp2d(
                         q.storage,
                         cxd,
                         cyd,
