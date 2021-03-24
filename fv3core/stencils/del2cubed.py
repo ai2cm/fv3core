@@ -108,25 +108,32 @@ def compute(qdel: FloatField, nmax: int, cd: float, km: int):
 
         # Fill in appropriate corner values
         qdel = corner_fill(grid, qdel)
+        utils.device_sync()
 
         if nt > 0:
             corners.copy_corners_x_stencil(
                 qdel, origin=(grid.isd, grid.jsd, 0), domain=(grid.nid, grid.njd, km)
             )
+            utils.device_sync()
+
         nx = grid.njc + 2 * nt + 1  # (grid.ie+nt+1) - (grid.is_-nt) + 1
         ny = grid.njc + 2 * nt  # (grid.je+nt) - (grid.js-nt) + 1
         compute_zonal_flux(fx, qdel, grid.del6_v, origin=origin, domain=(nx, ny, km))
+        utils.device_sync()
 
         if nt > 0:
             corners.copy_corners_y_stencil(
                 qdel, origin=(grid.isd, grid.jsd, 0), domain=(grid.nid, grid.njd, km)
             )
+            utils.device_sync()
         nx = grid.nic + 2 * nt  # (grid.ie+nt) - (grid.is_-nt) + 1
         ny = grid.njc + 2 * nt + 1  # (grid.je+nt+1) - (grid.js-nt) + 1
         compute_meridional_flux(
             fy, qdel, grid.del6_u, origin=origin, domain=(nx, ny, km)
         )
+        utils.device_sync()
 
         # Update q values
         ny = grid.njc + 2 * nt  # (grid.je+nt) - (grid.js-nt) + 1
         update_q(qdel, grid.rarea, fx, fy, cd, origin=origin, domain=(nx, ny, km))
+        utils.device_sync()
