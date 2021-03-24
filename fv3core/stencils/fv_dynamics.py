@@ -425,7 +425,7 @@ def fv_dynamics(
     ks,
     timer=fv3gfs.util.NullTimer(),
 ):
-    fv3 = FV3(comm, spec.namelist)
+    fv3 = utils.cached_stencil_class(FV3)(comm, spec.namelist)
     fv3.step_dynamics(
         state,
         consv_te,
