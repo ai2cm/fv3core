@@ -273,7 +273,7 @@ class FV3:
         self.comm = comm
         self.namelist = namelist
         n_halo = 3
-        self.tracer_2d_1l = fv3core.stencils.tracer_2d_1l.Tracer2D1L(namelist)
+        self.tracer_2d_1l = fv3core.stencils.tracer_2d_1l.Tracer2D1L(comm, namelist)
         # npx and npy are number of interfaces, npz is number of centers
         # and shapes should be the full data shape
         self._temporaries = fvdyn_temporaries(
@@ -288,13 +288,27 @@ class FV3:
         self,
         state: Mapping[str, fv3gfs.util.Quantity],
         consv_te,
-        do_adiabatic_init,
-        timestep,
+        do_adiabatic_init: bool,
+        timestep: float,
         ptop,
-        n_split,
+        n_split: int,
         ks,
-        timer=fv3gfs.util.NullTimer(),
+        timer: fv3gfs.util.Timer = fv3gfs.util.NullTimer(),
     ):
+        """
+        Step the model state forward by one timestep.
+
+        Args:
+            state: model prognostic state and inputs
+            consv_te: ???
+            do_adiabatic_init: if True, do adiabatic dynamics. Used
+                for model initialization.
+            timestep: time to progress forward in seconds
+            ptop: pressure at top of atmosphere
+            n_split: number of acoustic timesteps per remapping timestep
+            ks: ???
+            timer: if given, use for timing model execution
+        """
         state = get_namespace(self.arg_specs, state)
         state.__dict__.update(
             {
@@ -313,20 +327,19 @@ class FV3:
     def _compute(
         self,
         state,
-        comm: fv3gfs.util.CubedSphereCommunicator,
         timer: fv3gfs.util.NullTimer,
     ):
         grid = spec.grid
         state.__dict__.update(self._temporaries)
         last_step = False
         if global_config.get_do_halo_exchange():
-            comm.halo_update(state.phis_quantity, n_points=utils.halo)
-        compute_preamble(state, comm)
+            self.comm.halo_update(state.phis_quantity, n_points=utils.halo)
+        compute_preamble(state, self.comm)
         for n_map in range(state.k_split):
             state.n_map = n_map + 1
             if n_map == state.k_split - 1:
                 last_step = True
-            self._do_dyn(state, comm, timer)
+            self._do_dyn(state, self.comm, timer)
             if grid.npz > 4:
                 # nq is actually given by ncnst - pnats,
                 # where those are given in atmosphere.F90 by:
@@ -380,11 +393,11 @@ class FV3:
                         constants.NQ,
                     )
                 if last_step:
-                    post_remap(state, comm)
+                    post_remap(state, self.comm)
                 state.wsd[:] = state.wsd_3d[:, :, 0]
-        wrapup(state, comm)
+        wrapup(state, self.comm)
 
-    def _do_dyn(self, state, comm, timer=fv3gfs.util.NullTimer()):
+    def _do_dyn(self, state, timer=fv3gfs.util.NullTimer()):
         grid = spec.grid
         copy_stencil(
             state.delp,
@@ -394,13 +407,12 @@ class FV3:
         )
         print("DynCore", grid.rank)
         with timer.clock("DynCore"):
-            dyn_core.compute(state, comm)
+            dyn_core.compute(state, self.comm)
         if not spec.namelist.inline_q and constants.NQ != 0:
             if spec.namelist.z_tracer:
                 print("Tracer2D1L", grid.rank)
                 with timer.clock("TracerAdvection"):
                     self.tracer_2d_1l(
-                        comm,
                         state.__dict__,
                         state.dp1,
                         state.mfxd,
