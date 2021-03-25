@@ -24,7 +24,6 @@ ifneq (,$(findstring gtcuda,$(TEST_ARGS)))
     CUDA = y
 else
     CUDA_FLAGS =
-
 endif
 
 
