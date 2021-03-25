@@ -45,7 +45,6 @@ def _get_flux(
         tmp = yppm.get_tmp(bl, b0, br)
     else:
         tmp = 1.0
-
     return yppm.final_flux(courant, v, fx0, tmp)
 
 

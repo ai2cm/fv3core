@@ -84,7 +84,6 @@ def al_iord8plus(q: FloatField, dm: FloatField):
 
 @gtscript.function
 def blbr_iord8(q: FloatField, al: FloatField, dm: FloatField):
-    # al, dm = al_iord8plus_fn(q, al, dm, r3)
     xt = 2.0 * dm
     bl = -1.0 * sign(min(abs(xt), abs(al - q)), xt)
     br = sign(min(abs(xt), abs(al[1, 0, 0] - q)), xt)
@@ -256,11 +255,8 @@ def compute_blbr_ord8plus(q: FloatField, dxa: FloatFieldIJ):
     al = al_iord8plus(q, dm)
 
     assert __INLINED(iord == 8), "Unimplemented iord"
-    # {
     bl, br = blbr_iord8(q, al, dm)
-    # }
 
-    # {
     with horizontal(region[i_start - 1, :]):
         bl, br = west_edge_iord8plus_0(q, dxa, dm)
         bl, br = yppm.pert_ppm_standard_constraint_fcn(q, bl, br)
@@ -284,7 +280,6 @@ def compute_blbr_ord8plus(q: FloatField, dxa: FloatFieldIJ):
     with horizontal(region[i_end + 1, :]):
         bl, br = east_edge_iord8plus_2(q, dxa, dm)
         bl, br = yppm.pert_ppm_standard_constraint_fcn(q, bl, br)
-    # }
 
     return bl, br
 

@@ -279,7 +279,6 @@ def compute_al(q: FloatField, dya: FloatFieldIJ):
     from __externals__ import j_end, j_start, jord
 
     assert __INLINED(jord < 8), "Not implemented"
-    # {
     al = p1 * (q[0, -1, 0] + q) + p2 * (q[0, -2, 0] + q[0, 1, 0])
 
     if __INLINED(jord < 0):
@@ -300,8 +299,6 @@ def compute_al(q: FloatField, dya: FloatFieldIJ):
     with horizontal(region[:, j_start + 1], region[:, j_end + 2]):
         al = c3 * q[0, -1, 0] + c2 * q[0, 0, 0] + c1 * q[0, 1, 0]
 
-    # }
-
     return al
 
 
@@ -316,11 +313,8 @@ def compute_blbr_ord8plus(q: FloatField, dya: FloatFieldIJ):
     al = al_jord8plus(q, dm)
 
     assert __INLINED(jord == 8)
-    # {
     bl, br = blbr_jord8(q, al, dm)
-    # }
 
-    # {
     with horizontal(region[:, j_start - 1]):
         bl, br = south_edge_jord8plus_0(q, dya, dm)
         bl, br = pert_ppm_standard_constraint_fcn(q, bl, br)
@@ -344,7 +338,6 @@ def compute_blbr_ord8plus(q: FloatField, dya: FloatFieldIJ):
     with horizontal(region[:, j_end + 1]):
         bl, br = north_edge_jord8plus_2(q, dya, dm)
         bl, br = pert_ppm_standard_constraint_fcn(q, bl, br)
-    # }
 
     return bl, br
 
