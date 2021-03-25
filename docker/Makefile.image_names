@@ -23,7 +23,7 @@ ifneq (,$(findstring gtcuda,$(TEST_ARGS)))
     CUDA_FLAGS = --gpus all
     CUDA = y
 else
-    CUDA_FLAGS = GT4PY_VERSION
+    CUDA_FLAGS =
 
 endif
 
