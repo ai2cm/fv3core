@@ -116,7 +116,7 @@ class FvTp2d:
             ra_y,
             self._tmp_q_i,
             origin=grid.full_origin(add=(0, 3, 0)),
-            domain=grid.domain_shape_full(add=(0, -2, 1)),
+            domain=grid.domain_shape_full(add=(0, -3, 1)),
         )
         self.xppm_object_ou(self._tmp_q_i, crx, fx, grid.js, grid.je)
 
@@ -132,7 +132,7 @@ class FvTp2d:
             ra_x,
             self._tmp_q_j,
             origin=grid.full_origin(add=(3, 0, 0)),
-            domain=grid.domain_shape_full(add=(-2, 0, 1)),
+            domain=grid.domain_shape_full(add=(-3, 0, 1)),
         )
         self.yppm_object_ou(self._tmp_q_j, cry, fy, grid.is_, grid.ie)
         if mfx is not None and mfy is not None:

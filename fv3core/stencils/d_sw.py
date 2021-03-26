@@ -33,6 +33,10 @@ def grid():
 
 
 def k_bounds():
+    # UpdatedzD needs to go one k level higher than D_SW, to the buffer point that
+    # usually isn't used. To reuse the same 'column_namelist' and remove the
+    # specification of 'kstart' and 'nk in many methods, we just make all of the
+    # column namelist calculations go to the top of the array
     return [[0, 1], [1, 1], [2, 1], [3, grid().npz - 2]]
 
 
@@ -340,6 +344,8 @@ def heat_source_from_vorticity_damping(
         heat_source = delp * (
             heat_source - 0.25 * kinetic_energy_fraction_to_damp * dampterm
         )
+        # do_skeb could be renamed to calculate_dissipation_estimate
+        # when d_sw is converted into a D_SW object
         if __INLINED(namelist.do_skeb == 1):
             dissipation_estimate = -dampterm
 
@@ -373,15 +379,15 @@ def set_low_kvals(col, k):
     col["damp_w"][k] = col["d2_divg"][k]
 
 
-def vort_damp_option(col, k):
+def vorticity_damping_option(column, k):
     if spec.namelist.do_vort_damp:
-        col["nord_v"][k] = 0
-        col["damp_vt"][k] = 0.5 * col["d2_divg"][k]
+        column["nord_v"][k] = 0
+        column["damp_vt"][k] = 0.5 * column["d2_divg"][k]
 
 
-def lowest_kvals(col, k):
-    set_low_kvals(col, k)
-    vort_damp_option(col, k)
+def lowest_kvals(column, k):
+    set_low_kvals(column, k)
+    vorticity_damping_option(column, k)
 
 
 def max_d2_bg0():
