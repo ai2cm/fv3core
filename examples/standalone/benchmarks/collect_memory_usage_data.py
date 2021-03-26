@@ -8,7 +8,7 @@ from datetime import datetime
 
 
 def parse_args():
-    usage = "usage: python %(prog)s <data_dir> <hash> "
+    usage = "python %(prog)s <data_dir> <hash> "
     parser = ArgumentParser(usage=usage)
     parser.add_argument(
         "data_dir",
