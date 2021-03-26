@@ -8,10 +8,10 @@ from datetime import datetime
 
 
 def parse_args():
-    usage = "python %(prog)s <data_dir> <hash> "
+    usage = "python %(prog)s <run_dir> <hash> "
     parser = ArgumentParser(usage=usage)
     parser.add_argument(
-        "data_dir",
+        "run_dir",
         type=str,
         action="store",
         help="directory containing run.daint.out file(s) from which data is collected",
@@ -43,7 +43,7 @@ def gather_memory_usage_from_file(filename):
         "data_set": "",
         "backend": "",
     }
-    with open(fullpath) as datafile:
+    with open(filename) as datafile:
         all_lines = datafile.readlines()
         for index, line in enumerate(all_lines):
             if "fv3core_serialized_test_data" in line:
@@ -85,7 +85,7 @@ def write_to_file(collected_data, git_hash):
 
 if __name__ == "__main__":
     args = parse_args()
-    file_path = os.path.join(data_dir, "run.daint.out")
+    file_path = os.path.join(args.run_dir, "run.daint.out")
     if not os.path.isfile(file_path):
         raise ValueError(f"Could not find file {file_path}")
     collected_data = gather_memory_usage_from_file(file_path)

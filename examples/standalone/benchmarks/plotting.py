@@ -45,16 +45,14 @@ if __name__ == "__main__":
         for file in files:
             fullpath = os.path.join(subdir, file)
             if fullpath.endswith(".json"):
-                if "memory_usage" in fullpath:
-                    with open(fullpath) as f:
-                        data = json.load(f)
-                        if filters in data["setup"]["dataset"]:
+                with open(fullpath) as f:
+                    data = json.load(f)
+                    if filters in data["setup"]["dataset"]:
+                        if "memory_usage" in fullpath:
                             full_memory_data.append(data)
-                else:
-                    with open(fullpath) as f:
-                        data = json.load(f)
-                        if filters in data["setup"]["dataset"]:
+                        else:
                             full_timing_data.append(data)
+
     full_timing_data.sort(
         key=lambda k: datetime.strptime(k["setup"]["timestamp"], "%d/%m/%Y %H:%M:%S")
     )
