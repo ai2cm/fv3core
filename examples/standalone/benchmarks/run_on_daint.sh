@@ -174,7 +174,7 @@ grep -q SUCCESS run.daint.out
 status2=$?
 set -e
 wait
-python examples/standalone/benchmarks/collect_memory_usage_data.py . $githash 
+python examples/standalone/benchmarks/collect_memory_usage_data.py . $githash
 echo "DONE WAITING ${status1} ${status2}"
 if [ $status1 -ne 0 -o $status2 -ne 0 ] ; then
     cleanupFailedJob "${res}" run.daint.out

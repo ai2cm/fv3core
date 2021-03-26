@@ -1,8 +1,8 @@
-import statistics
-from datetime import datetime
-from argparse import ArgumentParser
 import json
 import os
+import statistics
+from argparse import ArgumentParser
+from datetime import datetime
 
 
 def parse_args():
@@ -24,7 +24,8 @@ def parse_args():
 
 
 def gather_meta_data_from_line(output_line):
-    """parses the output line that ran the dynamics to extract the dataset and the backend"""
+    """parses the output line that ran the dynamics to extract the
+    dataset and the backend"""
     experiment_call = output_line.split("/")
     for index, path in enumerate(experiment_call):
         if "fv3core_serialized_test_data" in path:
@@ -61,7 +62,8 @@ def gather_memory_usage_from_file(filename):
 
 
 def write_to_file(collected_data, git_hash):
-    """writes statistics and metadata to a json file that is parsable by the plotting tool"""
+    """writes statistics and metadata to a json
+    file that is parsable by the plotting tool"""
     now = datetime.now()
     memory_footprint = {
         "minimum": min(collected_data["data"]),
