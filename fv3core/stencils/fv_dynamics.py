@@ -213,7 +213,10 @@ def fvdyn_temporaries(shape):
     return tmps
 
 
-class FV3:
+class DynamicalCore:
+    """
+    Corresponds to fv_dynamics in original Fortran sources.
+    """
 
     arg_specs = (
         ArgSpec("qvapor", "specific_humidity", "kg/kg", intent="inout"),
@@ -271,18 +274,17 @@ class FV3:
 
     def __init__(self, comm: fv3gfs.util.CubedSphereCommunicator, namelist):
         self.comm = comm
+        self.grid = spec.grid
         self.namelist = namelist
-        n_halo = 3
-        self.tracer_2d_1l = fv3core.stencils.tracer_2d_1l.Tracer2D1L(comm, namelist)
+        self.do_halo_exchange = global_config.get_do_halo_exchange()
+        self.tracer_advection = fv3core.stencils.tracer_2d_1l.Tracer2D1L(comm, namelist)
         # npx and npy are number of interfaces, npz is number of centers
         # and shapes should be the full data shape
         self._temporaries = fvdyn_temporaries(
-            (
-                namelist.npx + 2 * n_halo,
-                namelist.npy + 2 * n_halo,
-                namelist.npz + 1,
-            )
+            self.grid.domain_shape_full(add=(1, 1, 1))
         )
+        if not (not self.namelist.inline_q and constants.NQ != 0):
+            raise NotImplementedError("tracer_2d not implemented, turn on z_tracer")
 
     def step_dynamics(
         self,
@@ -329,32 +331,31 @@ class FV3:
         state,
         timer: fv3gfs.util.NullTimer,
     ):
-        grid = spec.grid
         state.__dict__.update(self._temporaries)
         last_step = False
-        if global_config.get_do_halo_exchange():
+        if self.do_halo_exchange:
             self.comm.halo_update(state.phis_quantity, n_points=utils.halo)
         compute_preamble(state, self.comm)
         for n_map in range(state.k_split):
             state.n_map = n_map + 1
             if n_map == state.k_split - 1:
                 last_step = True
-            self._do_dyn(state, timer)
-            if grid.npz > 4:
+            self._dyn(state, timer)
+            if self.grid.npz > 4:
                 # nq is actually given by ncnst - pnats,
                 # where those are given in atmosphere.F90 by:
                 # ncnst = Atm(mytile)%ncnst
                 # pnats = Atm(mytile)%flagstruct%pnats
                 # here we hard-coded it because 8 is the only supported value,
                 # refactor this later!
-                kord_tracer = [spec.namelist.kord_tr] * constants.NQ
+                kord_tracer = [self.namelist.kord_tr] * constants.NQ
                 kord_tracer[6] = 9
-                # do_omega = spec.namelist.hydrostatic and last_step
+                # do_omega = self.namelist.hydrostatic and last_step
                 # TODO: Determine a better way to do this, polymorphic fields perhaps?
                 # issue is that set_val in map_single expects a 3D field for the
                 # "surface" array
                 state.wsd_3d[:] = utils.reshape(state.wsd, state.wsd_3d.shape)
-                print("Remapping", grid.rank)
+                print("Remapping", self.grid.rank)
                 with timer.clock("Remapping"):
                     lagrangian_to_eulerian.compute(
                         state.__dict__,
@@ -397,34 +398,30 @@ class FV3:
                 state.wsd[:] = state.wsd_3d[:, :, 0]
         wrapup(state, self.comm)
 
-    def _do_dyn(self, state, timer=fv3gfs.util.NullTimer()):
-        grid = spec.grid
+    def _dyn(self, state, timer=fv3gfs.util.NullTimer()):
         copy_stencil(
             state.delp,
             state.dp1,
-            origin=grid.full_origin(),
-            domain=grid.domain_shape_full(),
+            origin=self.grid.full_origin(),
+            domain=self.grid.domain_shape_full(),
         )
-        print("DynCore", grid.rank)
+        print("DynCore", self.grid.rank)
         with timer.clock("DynCore"):
             dyn_core.compute(state, self.comm)
-        if not spec.namelist.inline_q and constants.NQ != 0:
-            if spec.namelist.z_tracer:
-                print("Tracer2D1L", grid.rank)
-                with timer.clock("TracerAdvection"):
-                    self.tracer_2d_1l(
-                        self.comm,
-                        state.tracers,
-                        state.dp1,
-                        state.mfxd,
-                        state.mfyd,
-                        state.cxd,
-                        state.cyd,
-                        state.mdt,
-                        constants.NQ,
-                    )
-            else:
-                raise Exception("tracer_2d not implemented, turn on z_tracer")
+        if self.namelist.z_tracer:
+            print("Tracer2D1L", self.grid.rank)
+            with timer.clock("TracerAdvection"):
+                self.tracer_advection(
+                    self.comm,
+                    state.__dict__,
+                    state.dp1,
+                    state.mfxd,
+                    state.mfyd,
+                    state.cxd,
+                    state.cyd,
+                    state.mdt,
+                    constants.NQ,
+                )
 
 
 def fv_dynamics(
@@ -438,8 +435,8 @@ def fv_dynamics(
     ks,
     timer=fv3gfs.util.NullTimer(),
 ):
-    fv3 = utils.cached_stencil_class(FV3)(comm, spec.namelist)
-    fv3.step_dynamics(
+    dycore = utils.cached_stencil_class(DynamicalCore)(comm, spec.namelist)
+    dycore.step_dynamics(
         state,
         consv_te,
         do_adiabatic_init,
