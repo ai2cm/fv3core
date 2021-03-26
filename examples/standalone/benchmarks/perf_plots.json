@@ -136,9 +136,9 @@
                 "python/gtcuda"
             ],
             "only_recent": true,
-            "title": "Memory usage per cpu for total run",
+            "title": "Memory usage per GPU for total run",
             "x_axis_label": "Date of benchmark",
-            "y_axis_label": "Memory useage [%]"
+            "y_axis_label": "Memory usage [%]"
         }
     }
 }
