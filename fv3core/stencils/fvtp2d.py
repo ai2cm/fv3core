@@ -1,3 +1,5 @@
+from typing import Optional
+
 import gt4py.gtscript as gtscript
 from gt4py.gtscript import PARALLEL, computation, horizontal, interval, region
 
@@ -9,13 +11,13 @@ import fv3core.stencils.yppm as yppm
 import fv3core.utils.corners as corners
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import gtstencil
-from fv3core.utils.typing import FloatField
+from fv3core.utils.typing import FloatField, FloatFieldIJ
 
 
 @gtstencil()
 def q_i_stencil(
     q: FloatField,
-    area: FloatField,
+    area: FloatFieldIJ,
     yfx: FloatField,
     fy2: FloatField,
     ra_y: FloatField,
@@ -29,7 +31,7 @@ def q_i_stencil(
 @gtstencil()
 def q_j_stencil(
     q: FloatField,
-    area: FloatField,
+    area: FloatFieldIJ,
     xfx: FloatField,
     fx2: FloatField,
     ra_x: FloatField,
@@ -72,21 +74,23 @@ def compute(data, nord_column):
 
 
 def compute_no_sg(
-    q,
-    crx,
-    cry,
-    hord,
-    xfx,
-    yfx,
-    ra_x,
-    ra_y,
-    fx,
-    fy,
-    nord=None,
-    damp_c=None,
-    mass=None,
-    mfx=None,
-    mfy=None,
+    q: FloatField,
+    crx: FloatField,
+    cry: FloatField,
+    hord: int,
+    xfx: FloatField,
+    yfx: FloatField,
+    ra_x: FloatField,
+    ra_y: FloatField,
+    fx: FloatField,
+    fy: FloatField,
+    kstart: int = 0,
+    nk: Optional[int] = None,
+    nord: Optional[float] = None,
+    damp_c: Optional[float] = None,
+    mass: FloatField = None,
+    mfx: FloatField = None,
+    mfy: FloatField = None,
 ):
     grid = spec.grid
     q_i = utils.make_storage_from_shape(q.shape, (grid.isd, grid.js, 0))

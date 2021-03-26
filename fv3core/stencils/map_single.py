@@ -30,6 +30,12 @@ def set_eulerian_pressures(pe: FloatField, ptop: FloatFieldIJ, pbot: FloatFieldI
 
 
 @gtstencil()
+def set_remapped_quantity(q: FloatField, set_values: FloatFieldIJ):
+    with computation(FORWARD), interval(0, 1):
+        q = set_values[0, 0]
+
+
+@gtstencil()
 def lagrangian_contributions(
     pe1: FloatField,
     ptop: FloatFieldIJ,
@@ -224,6 +230,9 @@ def lagrangian_contributions_stencil(
     ptop = utils.make_storage_from_shape(shape2d)
     pbot = utils.make_storage_from_shape(shape2d)
 
+    jsize = shape2d[1]
+    jslice2d = slice(min(jslice.start, jsize - 1), min(jslice.stop, jsize))
+
     for k_eul in range(km):
 
         # TODO (olivere): This is hacky
@@ -249,7 +258,13 @@ def lagrangian_contributions_stencil(
             origin=origin,
             domain=domain,
         )
-        q1[i1 : i2 + 1, jslice, k_eul] = q2_adds[i1 : i2 + 1, jslice]
+
+        set_remapped_quantity(
+            q1,
+            q2_adds,
+            origin=(origin[0], origin[1], k_eul),
+            domain=(domain[0], domain[1], 1),
+        )
 
 
 def lagrangian_contributions_transliterated(

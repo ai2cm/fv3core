@@ -18,7 +18,7 @@ import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import gtstencil
 from fv3core.stencils.basic_operations import copy
 from fv3core.stencils.fxadv import ra_x_func, ra_y_func
-from fv3core.utils.typing import FloatField
+from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
 
 
 DZ_MIN = constants.DZ_MIN
@@ -26,10 +26,10 @@ DZ_MIN = constants.DZ_MIN
 
 @gtscript.function
 def ra_func(
-    area: FloatField,
+    area: FloatFieldIJ,
     xfx_adv: FloatField,
-    ra_x: FloatField,
     yfx_adv: FloatField,
+    ra_x: FloatField,
     ra_y: FloatField,
 ):
     from __externals__ import local_ie, local_is, local_je, local_js
@@ -43,7 +43,7 @@ def ra_func(
 
 @gtstencil()
 def ra_stencil_update(
-    area: FloatField,
+    area: FloatFieldIJ,
     xfx_adv: FloatField,
     ra_x: FloatField,
     yfx_adv: FloatField,
@@ -51,13 +51,13 @@ def ra_stencil_update(
 ):
     """Updates 'ra' fields."""
     with computation(PARALLEL), interval(...):
-        ra_x, ra_y = ra_func(area, xfx_adv, ra_x, yfx_adv, ra_y)
+        ra_x, ra_y = ra_func(area, xfx_adv, yfx_adv, ra_x, ra_y)
 
 
 @gtscript.function
 def zh_base(
     z2: FloatField,
-    area: FloatField,
+    area: FloatFieldIJ,
     fx: FloatField,
     fy: FloatField,
     ra_x: FloatField,
@@ -68,7 +68,7 @@ def zh_base(
 
 @gtstencil()
 def zh_damp_and_output(
-    area: FloatField,
+    area: FloatFieldIJ,
     z2: FloatField,
     fx: FloatField,
     fy: FloatField,
@@ -76,10 +76,10 @@ def zh_damp_and_output(
     ra_y: FloatField,
     fx2: FloatField,
     fy2: FloatField,
-    rarea: FloatField,
+    rarea: FloatFieldIJ,
     zh: FloatField,
-    zs: FloatField,
-    ws: FloatField,
+    zs: FloatFieldIJ,
+    ws: FloatFieldIJ,
     dt: float,
 ):
     with computation(PARALLEL), interval(...):
@@ -95,7 +95,7 @@ def zh_damp_and_output(
 
 @gtstencil()
 def zh_stencil(
-    area: FloatField,
+    area: FloatFieldIJ,
     zh: FloatField,
     fx: FloatField,
     fy: FloatField,
@@ -108,7 +108,7 @@ def zh_stencil(
 
 @gtscript.function
 def edge_profile_top(
-    dp0: FloatField,
+    dp0: FloatFieldK,
     q1x: FloatField,
     q2x: FloatField,
     qe1x: FloatField,
@@ -120,7 +120,7 @@ def edge_profile_top(
 ):
     from __externals__ import local_ie, local_is, local_je, local_js
 
-    g0 = dp0[0, 0, 1] / dp0[0, 0, 0]
+    g0 = dp0[1] / dp0
     xt1 = 2.0 * g0 * (g0 + 1.0)
     bet = g0 * (g0 + 0.5)
     gam = (1.0 + g0 * (g0 + 1.5)) / bet
@@ -167,7 +167,7 @@ def edge_profile_stencil(
     q2y: FloatField,
     qe1y: FloatField,
     qe2y: FloatField,
-    dp0: FloatField,
+    dp0: FloatFieldK,
 ):
     from __externals__ import local_ie, local_is, local_je, local_js
 
@@ -177,7 +177,7 @@ def edge_profile_stencil(
                 dp0, q1x, q2x, qe1x, qe2x, q1y, q2y, qe1y, qe2y
             )
         with interval(1, -1):
-            gk = dp0[0, 0, -1] / dp0
+            gk = dp0[-1] / dp0
             bet = 2.0 + 2.0 * gk - gam[0, 0, -1]
             gam = gk / bet
             with horizontal(region[local_is : local_ie + 2, :]):
@@ -211,14 +211,14 @@ def edge_profile_stencil(
 def compute(
     ndif: FloatField,
     damp_vtd: FloatField,
-    dp0: FloatField,
-    zs: FloatField,
+    dp0: FloatFieldK,
+    zs: FloatFieldIJ,
     zh: FloatField,
     crx: FloatField,
     cry: FloatField,
     xfx: FloatField,
     yfx: FloatField,
-    wsd: FloatField,
+    wsd: FloatFieldIJ,
     dt: float,
 ):
     grid = spec.grid
