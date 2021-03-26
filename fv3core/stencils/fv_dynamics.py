@@ -322,7 +322,7 @@ class FV3:
                 "ks": ks,
             }
         )
-        self._compute(state, self.comm, timer)
+        self._compute(state, timer)
 
     def _compute(
         self,
@@ -339,7 +339,7 @@ class FV3:
             state.n_map = n_map + 1
             if n_map == state.k_split - 1:
                 last_step = True
-            self._do_dyn(state, self.comm, timer)
+            self._do_dyn(state, timer)
             if grid.npz > 4:
                 # nq is actually given by ncnst - pnats,
                 # where those are given in atmosphere.F90 by:
@@ -408,11 +408,11 @@ class FV3:
         print("DynCore", grid.rank)
         with timer.clock("DynCore"):
             dyn_core.compute(state, self.comm)
-        if not spec.namelist.inline_q and state.nq != 0:
+        if not spec.namelist.inline_q and constants.NQ != 0:
             if spec.namelist.z_tracer:
                 print("Tracer2D1L", grid.rank)
                 with timer.clock("TracerAdvection"):
-                    self.tracer_2d_obj(
+                    self.tracer_2d_1l(
                         self.comm,
                         state.tracers,
                         state.dp1,
@@ -421,7 +421,7 @@ class FV3:
                         state.cxd,
                         state.cyd,
                         state.mdt,
-                        state.nq,
+                        constants.NQ,
                     )
             else:
                 raise Exception("tracer_2d not implemented, turn on z_tracer")
