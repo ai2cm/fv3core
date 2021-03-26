@@ -69,6 +69,19 @@ def flux_capacitor(
     fx: FloatField,
     fy: FloatField,
 ):
+    """Accumulates the flux capacitor and courant number variables
+    Saves the mass fluxes to the "flux capacitor" variables for tracer transport
+    Also updates the accumulated courant numbers
+    Args:
+        cx: accumulated courant number in the x direction (inout)
+        cy: accumulated courant number in the y direction (inout)
+        xflux: flux capacitor in the x direction, accumlated mass flux (inout)
+        yflux: flux capacitor in the y direction, accumlated mass flux (inout)
+        crx_adv: local courant numver, dt*ut/dx  (in)
+        cry_adv: local courant number dt*vt/dy (in)
+        fx: 1-D x-direction flux (in)
+        fy: 1-D y-direction flux (in)
+    """
     with computation(PARALLEL), interval(...):
         cx = cx + crx_adv
         cy = cy + cry_adv
@@ -373,12 +386,17 @@ def ke_horizontal_vorticity(
         )
 
 
+# Set the unique parameters for the smallest
+# k-values, e.g. k = 0, 1, 2 when generating
+# the column namelist
 def set_low_kvals(col, k):
     for name in ["nord", "nord_w", "d_con"]:
         col[name][k] = 0
     col["damp_w"][k] = col["d2_divg"][k]
 
 
+# For the column namelist at a spcific k-level
+# set the vorticity parameters if do_vort_damp is true
 def vorticity_damping_option(column, k):
     if spec.namelist.do_vort_damp:
         column["nord_v"][k] = 0
@@ -398,15 +416,19 @@ def max_d2_bg1():
     return max(spec.namelist.d2_bg, spec.namelist.d2_bg_k2)
 
 
-def get_single_column(column_namelist, key):
-    col = [column_namelist[key][-1]] * grid().npz
-    for k in range(3):
-        col[k] = column_namelist[key][k]
-    col.append(0.0)
-    return col
-
-
 def get_column_namelist():
+    """
+    Generate a dictionary of columns that specify how parameters (such as nord, damp)
+    used in several functions called by D_SW vary over the k-dimension.
+    In a near-future PR, the need for this will disspaear as we refactor
+    individual modules to apply this parameter variation explicitly in the
+    stencils themselves. If it doesn't, we should compute itonly in the init phase.
+    The unique set of all column parameters is specified by k_bounds. For each k range
+    as specified by (kstart,nk) this sets what several different parameters are.
+    It previously was a dictionary with the k value as the key, the value being another
+    dictionary of values, but this did not work when we removed the k loop from some
+    modules and instead wanted to push the whole column ingestion down a level.
+    """
     direct_namelist = ["ke_bg", "d_con", "nord"]
     col = {}
     num_k = len(k_bounds())
@@ -526,9 +548,6 @@ def compute(
             origin=grid().compute_origin(),
             domain=grid().domain_shape_compute(),
         )
-    nord_v = get_single_column(column_namelist, "nord_v")
-    damp_vt = get_single_column(column_namelist, "damp_vt")
-    return nord_v, damp_vt
 
 
 def damp_vertical_wind(w, heat_s, diss_e, dt, column_namelist, kstart, nk):
