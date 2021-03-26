@@ -83,7 +83,6 @@ def al_iord8plus(q: FloatField, dm: FloatField):
 
 @gtscript.function
 def blbr_iord8(q: FloatField, al: FloatField, dm: FloatField):
-    # al, dm = al_iord8plus_fn(q, al, dm, r3)
     xt = 2.0 * dm
     bl = -1.0 * sign(min(abs(xt), abs(al - q)), xt)
     br = sign(min(abs(xt), abs(al[1, 0, 0] - q)), xt)
