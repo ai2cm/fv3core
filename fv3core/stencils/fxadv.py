@@ -2,7 +2,7 @@ import gt4py.gtscript as gtscript
 from gt4py.gtscript import PARALLEL, computation, horizontal, interval, region
 
 from fv3core.decorators import gtstencil
-from fv3core.utils.typing import FloatField
+from fv3core.utils.typing import FloatField, FloatFieldIJ
 
 
 @gtscript.function
@@ -38,7 +38,7 @@ def ut_y_edge(uc, sin_sg1, sin_sg3, ut, dt):
     from __externals__ import i_end, i_start
 
     with horizontal(region[i_start, :], region[i_end + 1, :]):
-        ut = (uc / sin_sg3[-1, 0, 0]) if (uc * dt > 0) else (uc / sin_sg1)
+        ut = (uc / sin_sg3[-1, 0]) if (uc * dt > 0) else (uc / sin_sg1)
     return ut
 
 
@@ -102,7 +102,7 @@ def vt_x_edge(vc, sin_sg2, sin_sg4, vt, dt):
     from __externals__ import j_end, j_start
 
     with horizontal(region[:, j_start], region[:, j_end + 1]):
-        vt = (vc / sin_sg4[0, -1, 0]) if (vc * dt > 0) else (vc / sin_sg2)
+        vt = (vc / sin_sg4[0, -1]) if (vc * dt > 0) else (vc / sin_sg2)
     return vt
 
 
@@ -124,7 +124,7 @@ def ut_corners(uc, vc, cosa_u, cosa_v, ut, vt):
     from __externals__ import i_end, i_start, j_end, j_start
 
     with horizontal(region[i_start + 1, j_start - 1], region[i_start + 1, j_end]):
-        damp = 1.0 / (1.0 - 0.0625 * cosa_u * cosa_v[-1, 0, 0])
+        damp = 1.0 / (1.0 - 0.0625 * cosa_u * cosa_v[-1, 0])
         ut = (
             uc
             - 0.25
@@ -134,13 +134,11 @@ def ut_corners(uc, vc, cosa_u, cosa_v, ut, vt):
                 + vt[0, 1, 0]
                 + vt
                 + vc[-1, 0, 0]
-                - 0.25
-                * cosa_v[-1, 0, 0]
-                * (ut[-1, 0, 0] + ut[-1, -1, 0] + ut[0, -1, 0])
+                - 0.25 * cosa_v[-1, 0] * (ut[-1, 0, 0] + ut[-1, -1, 0] + ut[0, -1, 0])
             )
         ) * damp
     with horizontal(region[i_start + 1, j_start], region[i_start + 1, j_end + 1]):
-        damp = 1.0 / (1.0 - 0.0625 * cosa_u * cosa_v[-1, 1, 0])
+        damp = 1.0 / (1.0 - 0.0625 * cosa_u * cosa_v[-1, 1])
         ut = (
             uc
             - 0.25
@@ -150,7 +148,7 @@ def ut_corners(uc, vc, cosa_u, cosa_v, ut, vt):
                 + vt
                 + vt[0, 1, 0]
                 + vc[-1, 1, 0]
-                - 0.25 * cosa_v[-1, 1, 0] * (ut[-1, 0, 0] + ut[-1, 1, 0] + ut[0, 1, 0])
+                - 0.25 * cosa_v[-1, 1] * (ut[-1, 0, 0] + ut[-1, 1, 0] + ut[0, 1, 0])
             )
         ) * damp
     with horizontal(region[i_end, j_start - 1], region[i_end, j_end]):
@@ -168,7 +166,7 @@ def ut_corners(uc, vc, cosa_u, cosa_v, ut, vt):
             )
         ) * damp_u
     with horizontal(region[i_end, j_start], region[i_end, j_end + 1]):
-        damp = 1.0 / (1.0 - 0.0625 * cosa_u * cosa_v[0, 1, 0])
+        damp = 1.0 / (1.0 - 0.0625 * cosa_u * cosa_v[0, 1])
         ut = (
             uc
             - 0.25
@@ -178,7 +176,7 @@ def ut_corners(uc, vc, cosa_u, cosa_v, ut, vt):
                 + vt[-1, 0, 0]
                 + vt[-1, 1, 0]
                 + vc[0, 1, 0]
-                - 0.25 * cosa_v[0, 1, 0] * (ut[1, 0, 0] + ut[1, 1, 0] + ut[0, 1, 0])
+                - 0.25 * cosa_v[0, 1] * (ut[1, 0, 0] + ut[1, 1, 0] + ut[0, 1, 0])
             )
         ) * damp
     return ut
@@ -189,7 +187,7 @@ def vt_corners(uc, vc, cosa_u, cosa_v, ut, vt):
     from __externals__ import i_end, i_start, j_end, j_start
 
     with horizontal(region[i_start - 1, j_start + 1], region[i_end, j_start + 1]):
-        damp = 1.0 / (1.0 - 0.0625 * cosa_u[0, -1, 0] * cosa_v)
+        damp = 1.0 / (1.0 - 0.0625 * cosa_u[0, -1] * cosa_v)
         vt = (
             vc
             - 0.25
@@ -199,13 +197,11 @@ def vt_corners(uc, vc, cosa_u, cosa_v, ut, vt):
                 + ut[1, 0, 0]
                 + ut
                 + uc[0, -1, 0]
-                - 0.25
-                * cosa_u[0, -1, 0]
-                * (vt[0, -1, 0] + vt[-1, -1, 0] + vt[-1, 0, 0])
+                - 0.25 * cosa_u[0, -1] * (vt[0, -1, 0] + vt[-1, -1, 0] + vt[-1, 0, 0])
             )
         ) * damp
     with horizontal(region[i_start, j_start + 1], region[i_end + 1, j_start + 1]):
-        damp = 1.0 / (1.0 - 0.0625 * cosa_u[1, -1, 0] * cosa_v)
+        damp = 1.0 / (1.0 - 0.0625 * cosa_u[1, -1] * cosa_v)
         vt = (
             vc
             - 0.25
@@ -215,11 +211,11 @@ def vt_corners(uc, vc, cosa_u, cosa_v, ut, vt):
                 + ut
                 + ut[1, 0, 0]
                 + uc[1, -1, 0]
-                - 0.25 * cosa_u[1, -1, 0] * (vt[0, -1, 0] + vt[1, -1, 0] + vt[1, 0, 0])
+                - 0.25 * cosa_u[1, -1] * (vt[0, -1, 0] + vt[1, -1, 0] + vt[1, 0, 0])
             )
         ) * damp
     with horizontal(region[i_end + 1, j_end], region[i_start, j_end]):
-        damp = 1.0 / (1.0 - 0.0625 * cosa_u[1, 0, 0] * cosa_v)
+        damp = 1.0 / (1.0 - 0.0625 * cosa_u[1, 0] * cosa_v)
         vt = (
             vc
             - 0.25
@@ -229,7 +225,7 @@ def vt_corners(uc, vc, cosa_u, cosa_v, ut, vt):
                 + ut[0, -1, 0]
                 + ut[1, -1, 0]
                 + uc[1, 0, 0]
-                - 0.25 * cosa_u[1, 0, 0] * (vt[0, 1, 0] + vt[1, 1, 0] + vt[1, 0, 0])
+                - 0.25 * cosa_u[1, 0] * (vt[0, 1, 0] + vt[1, 1, 0] + vt[1, 0, 0])
             )
         ) * damp
     with horizontal(region[i_end, j_end], region[i_start - 1, j_end]):
@@ -261,19 +257,19 @@ def ra_y_func(area, yfx_adv):
 
 @gtstencil()
 def fxadv_stencil(
-    cosa_u: FloatField,
-    cosa_v: FloatField,
-    rsin_u: FloatField,
-    rsin_v: FloatField,
-    sin_sg1: FloatField,
-    sin_sg2: FloatField,
-    sin_sg3: FloatField,
-    sin_sg4: FloatField,
-    rdxa: FloatField,
-    rdya: FloatField,
-    area: FloatField,
-    dy: FloatField,
-    dx: FloatField,
+    cosa_u: FloatFieldIJ,
+    cosa_v: FloatFieldIJ,
+    rsin_u: FloatFieldIJ,
+    rsin_v: FloatFieldIJ,
+    sin_sg1: FloatFieldIJ,
+    sin_sg2: FloatFieldIJ,
+    sin_sg3: FloatFieldIJ,
+    sin_sg4: FloatFieldIJ,
+    rdxa: FloatFieldIJ,
+    rdya: FloatFieldIJ,
+    area: FloatFieldIJ,
+    dy: FloatFieldIJ,
+    dx: FloatFieldIJ,
     uc: FloatField,
     vc: FloatField,
     crx_adv: FloatField,
@@ -323,12 +319,12 @@ def fxadv_stencil(
     with computation(PARALLEL), interval(...):
         prod = dt * ut
         with horizontal(region[local_is : local_ie + 2, :]):
-            crx_adv = prod * rdxa[-1, 0, 0] if prod > 0 else prod * rdxa
-            xfx_adv = dy * prod * sin_sg3[-1, 0, 0] if prod > 0 else dy * prod * sin_sg1
+            crx_adv = prod * rdxa[-1, 0] if prod > 0 else prod * rdxa
+            xfx_adv = dy * prod * sin_sg3[-1, 0] if prod > 0 else dy * prod * sin_sg1
         prod = dt * vt
         with horizontal(region[:, local_js : local_je + 2]):
-            cry_adv = prod * rdya[0, -1, 0] if prod > 0 else prod * rdya
-            yfx_adv = dx * prod * sin_sg4[0, -1, 0] if prod > 0 else dx * prod * sin_sg2
+            cry_adv = prod * rdya[0, -1] if prod > 0 else prod * rdya
+            yfx_adv = dx * prod * sin_sg4[0, -1] if prod > 0 else dx * prod * sin_sg2
     with computation(PARALLEL), interval(...):
         with horizontal(region[local_is : local_ie + 2, :]):
             ra_x = ra_x_func(area, xfx_adv)
