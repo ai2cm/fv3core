@@ -75,7 +75,7 @@ git submodule update --init external/fv3gfs-util external/daint_venv
 
 # set GT4PY version
 cd $ROOT_DIR
-export GT4PY_VERSION=`grep "GT4PY_VERSION=" docker/Makefile.image_names | cut -d '=' -f 2`
+export GT4PY_VERSION=`grep -m 1 "GT4PY_VERSION" docker/Makefile.image_names | tr -d ' ' | cut -d '=' -f 2`
 
 # set up the virtual environment
 echo "creating the venv"
@@ -182,3 +182,4 @@ if [ $status1 -ne 0 -o $status2 -ne 0 ] ; then
 else
     echo "performance run sucessful"
 fi
+python examples/standalone/benchmarks/collect_memory_usage_data.py . $githash

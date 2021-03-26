@@ -408,19 +408,20 @@ class FV3:
         print("DynCore", grid.rank)
         with timer.clock("DynCore"):
             dyn_core.compute(state, self.comm)
-        if not spec.namelist.inline_q and constants.NQ != 0:
+        if not spec.namelist.inline_q and state.nq != 0:
             if spec.namelist.z_tracer:
                 print("Tracer2D1L", grid.rank)
                 with timer.clock("TracerAdvection"):
-                    self.tracer_2d_1l(
-                        state.__dict__,
+                    self.tracer_2d_obj(
+                        self.comm,
+                        state.tracers,
                         state.dp1,
                         state.mfxd,
                         state.mfyd,
                         state.cxd,
                         state.cyd,
-                        state.bdt / state.k_split,
-                        constants.NQ,
+                        state.mdt,
+                        state.nq,
                     )
             else:
                 raise Exception("tracer_2d not implemented, turn on z_tracer")
