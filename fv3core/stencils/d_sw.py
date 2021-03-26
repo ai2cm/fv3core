@@ -65,7 +65,7 @@ def flux_capacitor(
     fx: FloatField,
     fy: FloatField,
 ):
-    with computation(PARALLEL), interval(0, None):
+    with computation(PARALLEL), interval(...):
         cx = cx + crx_adv
         cy = cy + cry_adv
         xflux = xflux + fx
@@ -123,13 +123,9 @@ def not_inlineq_pressure(
     delp: FloatField,
 ):
     with computation(PARALLEL), interval(...):
-        pt = flux_integral(
-            pt, delp, gx, gy, rarea
-        )  # TODO: Put [0, 0, 0] on left when gt4py bug is fixed
-        delp = delp + flux_component(
-            fx, fy, rarea
-        )  # TODO: Put [0, 0, 0] on left when gt4py bug is fixed
-        pt[0, 0, 0] = pt / delp
+        pt = flux_integral(pt, delp, gx, gy, rarea)
+        delp = delp + flux_component(fx, fy, rarea)
+        pt = pt / delp
 
 
 @gtstencil()
@@ -156,13 +152,9 @@ def not_inlineq_pressure_and_vbke(
         # TODO: only needed for d_sw validation
         if __INLINED(spec.namelist.inline_q == 0):
             with horizontal(region[local_is : local_ie + 1, local_js : local_je + 1]):
-                pt = flux_integral(
-                    pt, delp, gx, gy, rarea
-                )  # TODO: Put [0, 0, 0] on left when gt4py bug is fixed
-                delp = delp + flux_component(
-                    fx, fy, rarea
-                )  # TODO: Put [0, 0, 0] on left when gt4py bug is fixed
-                pt[0, 0, 0] = pt / delp
+                pt = flux_integral(pt, delp, gx, gy, rarea)
+                delp = delp + flux_component(fx, fy, rarea)
+                pt = pt / delp
         assert __INLINED(spec.namelist.grid_type < 3)
         vb = vbke(vc, uc, cosa, rsina, vt, vb, dt4, dt5)
 
@@ -227,7 +219,7 @@ def coriolis_force_correction(zh: FloatField, z_rat: FloatField):
     from __externals__ import radius
 
     with computation(PARALLEL), interval(...):
-        z_rat[0, 0, 0] = 1.0 + (zh + zh[0, 0, 1]) / radius
+        z_rat = 1.0 + (zh + zh[0, 0, 1]) / radius
 
 
 @gtstencil()
@@ -242,7 +234,7 @@ def zrat_vorticity(
 
     with computation(PARALLEL), interval(...):
         if __INLINED(namelist.do_f3d and not namelist.hydrostatic):
-            vort[0, 0, 0] = wk + f0 * z_rat
+            vort = wk + f0 * z_rat
         else:
             vort = wk[0, 0, 0] + f0[0, 0]
 
@@ -285,9 +277,9 @@ def heat_diss(
     dd8: float,
 ):
     with computation(PARALLEL), interval(...):
-        dw[0, 0, 0] = (fx2 - fx2[1, 0, 0] + fy2 - fy2[0, 1, 0]) * rarea
-        heat_source[0, 0, 0] = dd8 - dw * (w + 0.5 * dw)
-        diss_est[0, 0, 0] = heat_source
+        dw = (fx2 - fx2[1, 0, 0] + fy2 - fy2[0, 1, 0]) * rarea
+        heat_source = dd8 - dw * (w + 0.5 * dw)
+        diss_est = heat_source
 
 
 @gtstencil()
@@ -345,11 +337,11 @@ def heat_source_from_vorticity_damping(
         v2 = fx + fx[1, 0, 0]
         dv2 = vbt + vbt[1, 0, 0]
         dampterm = heat_damping_term(ubt, vbt, gx, gy, rsin2, cosa_s, u2, v2, du2, dv2)
-        heat_source[0, 0, 0] = delp * (
+        heat_source = delp * (
             heat_source - 0.25 * kinetic_energy_fraction_to_damp * dampterm
         )
         if __INLINED(namelist.do_skeb == 1):
-            dissipation_estimate[0, 0, 0] = -dampterm
+            dissipation_estimate = -dampterm
 
 
 @gtstencil()

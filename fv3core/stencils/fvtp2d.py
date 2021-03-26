@@ -22,7 +22,7 @@ def q_i_stencil(
 ):
     with computation(PARALLEL), interval(...):
         fyy = yfx * fy2
-        q_i[0, 0, 0] = (q * area + fyy - fyy[0, 1, 0]) / ra_y
+        q_i = (q * area + fyy - fyy[0, 1, 0]) / ra_y
 
 
 def q_j_stencil(
@@ -35,7 +35,7 @@ def q_j_stencil(
 ):
     with computation(PARALLEL), interval(...):
         fx1 = xfx * fx2
-        q_j[0, 0, 0] = (q * area + fx1 - fx1[1, 0, 0]) / ra_x
+        q_j = (q * area + fx1 - fx1[1, 0, 0]) / ra_x
 
 
 @gtscript.function
@@ -115,8 +115,8 @@ class FvTp2d:
             self._tmp_fy2,
             ra_y,
             self._tmp_q_i,
-            origin=(grid.isd, grid.js, 0),
-            domain=(grid.nid, grid.njc + 1, grid.npz + 1),
+            origin=grid.full_origin(add=(0, 3, 0)),
+            domain=grid.domain_shape_full(add=(0, -2, 1)),
         )
         self.xppm_object_ou(self._tmp_q_i, crx, fx, grid.js, grid.je)
 
@@ -131,8 +131,8 @@ class FvTp2d:
             self._tmp_fx2,
             ra_x,
             self._tmp_q_j,
-            origin=(grid.is_, grid.jsd, 0),
-            domain=(grid.nic + 1, grid.njd, grid.npz + 1),
+            origin=grid.full_origin(add=(3, 0, 0)),
+            domain=grid.domain_shape_full(add=(-2, 0, 1)),
         )
         self.yppm_object_ou(self._tmp_q_j, cry, fy, grid.is_, grid.ie)
         if mfx is not None and mfy is not None:

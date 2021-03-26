@@ -67,7 +67,7 @@ def zh_base(
 
 
 @gtstencil()
-def zh_damp_and_output(
+def zh_damp(
     area: FloatFieldIJ,
     z2: FloatField,
     fx: FloatField,
@@ -84,13 +84,13 @@ def zh_damp_and_output(
 ):
     with computation(PARALLEL), interval(...):
         zhbase = zh_base(z2, area, fx, fy, ra_x, ra_y)
-        zh[0, 0, 0] = zhbase + (fx2 - fx2[1, 0, 0] + fy2 - fy2[0, 1, 0]) * rarea
+        zh = zhbase + (fx2 - fx2[1, 0, 0] + fy2 - fy2[0, 1, 0]) * rarea
     with computation(BACKWARD):
         with interval(-1, None):
-            ws[0, 0, 0] = (zs - zh) * 1.0 / dt
+            ws = (zs - zh) * 1.0 / dt
         with interval(0, -1):
             other = zh[0, 0, 1] + DZ_MIN
-            zh[0, 0, 0] = zh if zh > other else other
+            zh = zh if zh > other else other
 
 
 @gtstencil()
@@ -297,7 +297,7 @@ def compute(
         delnflux.compute_no_sg(
             z2, fx2, fy2, int(ndif[kstart]), damp_vtd[kstart], wk, kstart=kstart, nk=nk
         )
-    zh_damp_and_output(
+    zh_damp(
         grid.area,
         z2,
         fx,
