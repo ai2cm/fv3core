@@ -24,6 +24,7 @@ def parse_args():
 
 
 def gather_meta_data_from_line(output_line):
+    """parses the output line that ran the dynamics to extract the dataset and the backend"""
     experiment_call = output_line.split("/")
     for index, path in enumerate(experiment_call):
         if "fv3core_serialized_test_data" in path:
@@ -33,6 +34,7 @@ def gather_meta_data_from_line(output_line):
 
 
 def gather_memory_usage_from_file(filename):
+    """parses the output and collects data on gpu memory usage"""
     collected_data = {
         "data": [],
         "data_set": "",
@@ -59,6 +61,7 @@ def gather_memory_usage_from_file(filename):
 
 
 def write_to_file(collected_data, git_hash):
+    """writes statistics and metadata to a json file that is parsable by the plotting tool"""
     now = datetime.now()
     memory_footprint = {
         "minimum": min(collected_data["data"]),
