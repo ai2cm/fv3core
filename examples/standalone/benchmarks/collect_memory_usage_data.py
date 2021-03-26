@@ -85,9 +85,8 @@ def write_to_file(collected_data, git_hash):
 
 if __name__ == "__main__":
     args = parse_args()
-    for subdir, dirs, files in os.walk(args.data_dir):
-        for file in files:
-            fullpath = os.path.join(subdir, file)
-            if "run.daint.out" in fullpath:
-                collected_data = gather_memory_usage_from_file(fullpath)
-                write_to_file(collected_data, args.hash)
+    file_path = os.path.join(data_dir, "run.daint.out")
+    if not os.path.isfile(file_path):
+        raise ValueError(f"Could not find file {file_path}")
+    collected_data = gather_memory_usage_from_file(file_path)
+    write_to_file(collected_data, args.hash)
