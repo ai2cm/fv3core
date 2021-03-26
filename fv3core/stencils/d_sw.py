@@ -828,8 +828,8 @@ def d_sw(
         origin=grid().compute_origin(),
         domain=grid().domain_shape_compute(add=(1, 1, 0)),
     )
-
-    ytp_v.compute(vb, v, ub)
+    ytp_v_obj = ytp_v.YTP_V(spec.namelist)
+    ytp_v_obj(vb, v, ub)
 
     mult_ubke(
         vb,
@@ -845,8 +845,8 @@ def d_sw(
         origin=grid().compute_origin(),
         domain=grid().domain_shape_compute(add=(1, 1, 0)),
     )
-
-    xtp_u.compute(ub, u, vb)
+    xtp_u_obj = xtp_u.XTP_U(spec.namelist)
+    xtp_u_obj(ub, u, vb)
 
     ke_horizontal_vorticity(
         ke,
