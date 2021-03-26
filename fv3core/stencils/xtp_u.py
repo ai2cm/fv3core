@@ -153,7 +153,7 @@ class XTP_U:
         Args:
             c (in): Courant number in flux form
             u (in): x-dir wind on D-grid
-           flux (out): Flux of kinetic energy
+            flux (out): Flux of kinetic energy
         """
         self.stencil(
             c,
