@@ -420,11 +420,12 @@ def get_column_namelist():
     """
     Generate a dictionary of columns that specify how parameters (such as nord, damp)
     used in several functions called by D_SW vary over the k-dimension.
-    In a near-future PR, the need for this will disspaear as we refactor
+
+    In a near-future PR, the need for this will disappear as we refactor
     individual modules to apply this parameter variation explicitly in the
-    stencils themselves. If it doesn't, we should compute itonly in the init phase.
+    stencils themselves. If it doesn't, we should compute it only in the init phase.
     The unique set of all column parameters is specified by k_bounds. For each k range
-    as specified by (kstart,nk) this sets what several different parameters are.
+    as specified by (kstart, nk) this sets what several different parameters are.
     It previously was a dictionary with the k value as the key, the value being another
     dictionary of values, but this did not work when we removed the k loop from some
     modules and instead wanted to push the whole column ingestion down a level.
