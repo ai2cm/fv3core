@@ -218,6 +218,12 @@ class DynamicalCore:
     Corresponds to fv_dynamics in original Fortran sources.
     """
 
+    # nq is actually given by ncnst - pnats, where those are given in atmosphere.F90 by:
+    # ncnst = Atm(mytile)%ncnst
+    # pnats = Atm(mytile)%flagstruct%pnats
+    # here we hard-coded it because 8 is the only supported value, refactor this later!
+    NQ = 8  # state.nq_tot - spec.namelist.dnats
+
     arg_specs = (
         ArgSpec("qvapor", "specific_humidity", "kg/kg", intent="inout"),
         ArgSpec("qliquid", "cloud_water_mixing_ratio", "kg/kg", intent="inout"),
@@ -283,7 +289,7 @@ class DynamicalCore:
         self._temporaries = fvdyn_temporaries(
             self.grid.domain_shape_full(add=(1, 1, 1))
         )
-        if not (not self.namelist.inline_q and constants.NQ != 0):
+        if not (not self.namelist.inline_q and DynamicalCore.NQ != 0):
             raise NotImplementedError("tracer_2d not implemented, turn on z_tracer")
 
     def step_dynamics(
@@ -348,7 +354,7 @@ class DynamicalCore:
                 # pnats = Atm(mytile)%flagstruct%pnats
                 # here we hard-coded it because 8 is the only supported value,
                 # refactor this later!
-                kord_tracer = [self.namelist.kord_tr] * constants.NQ
+                kord_tracer = [self.namelist.kord_tr] * DynamicalCore.NQ
                 kord_tracer[6] = 9
                 # do_omega = self.namelist.hydrostatic and last_step
                 # TODO: Determine a better way to do this, polymorphic fields perhaps?
@@ -391,7 +397,7 @@ class DynamicalCore:
                         state.bdt,
                         kord_tracer,
                         state.do_adiabatic_init,
-                        constants.NQ,
+                        DynamicalCore.NQ,
                     )
                 if last_step:
                     post_remap(state, self.comm)
@@ -420,7 +426,7 @@ class DynamicalCore:
                     state.cxd,
                     state.cyd,
                     state.mdt,
-                    constants.NQ,
+                    DynamicalCore.NQ,
                 )
 
 
