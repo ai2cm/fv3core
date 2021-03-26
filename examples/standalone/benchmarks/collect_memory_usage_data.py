@@ -59,7 +59,7 @@ def gather_memory_usage_from_file(filename):
                     if len(splits) > 1 and splits[1].isnumeric():
                         collected_data["data"].append(float(splits[1]))
                     else:
-                        return collected_data
+                        break
                 return collected_data
 
 
