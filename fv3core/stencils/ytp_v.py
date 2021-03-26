@@ -127,10 +127,13 @@ class YTP_V:
             raise NotImplementedError(
                 "Currently xtp_v is only supported for hord_mt == 5,6,7,8"
             )
-        self.grid = spec.grid
-        self.origin = self.grid.compute_origin()
-        self.domain = self.grid.domain_shape_compute(add=(1, 1, 0))
-        ax_offsets = axis_offsets(self.grid, self.origin, self.domain)
+        grid = spec.grid
+        self.origin = grid.compute_origin()
+        self.domain = grid.domain_shape_compute(add=(1, 1, 0))
+        self.dy = grid.dy
+        self.dya = grid.dya
+        self.rdy = grid.rdy
+        ax_offsets = axis_offsets(grid, self.origin, self.domain)
         assert namelist.grid_type < 3
         self.stencil = gtscript.stencil(
             definition=_compute_stencil,
@@ -158,9 +161,9 @@ class YTP_V:
             c,
             v,
             flux,
-            self.grid.dy,
-            self.grid.dya,
-            self.grid.rdy,
+            self.dy,
+            self.dya,
+            self.rdy,
             origin=self.origin,
             domain=self.domain,
         )
