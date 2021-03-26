@@ -333,8 +333,6 @@ class XPPM:
             xflux (out): Flux
             jfirst: Starting index of the J-dir compute domain
             jlast: Final index of the J-dir compute domain
-            kstart: First index of the K-dir compute domain
-            nk: Number of indices in the K-dir compute domain
         """
 
         nj = jlast - jfirst + 1
