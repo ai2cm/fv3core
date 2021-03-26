@@ -9,8 +9,8 @@ from gt4py.gtscript import (
 )
 
 import fv3core._config as spec
-import fv3core.stencils.yppm as yppm
 from fv3core.decorators import gtstencil
+from fv3core.stencils import yppm
 from fv3core.utils.typing import FloatField, FloatFieldIJ
 
 
@@ -59,7 +59,6 @@ def _compute_stencil(
     from __externals__ import i_end, i_start, j_end, j_start, jord, namelist
 
     with computation(PARALLEL), interval(...):
-
         if __INLINED(jord < 8):
             al = yppm.compute_al(v, dy)
 
@@ -132,7 +131,6 @@ def compute(c: FloatField, v: FloatField, flux: FloatField):
     """
     grid = spec.grid
     jord = spec.namelist.hord_mt
-
     if jord not in (5, 6, 7, 8):
         raise NotImplementedError(
             "Currently ytp_v is only supported for hord_mt == 5,6,7,8"

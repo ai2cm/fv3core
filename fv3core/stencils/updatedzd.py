@@ -267,6 +267,7 @@ def compute(
     )
 
     grid = spec.grid
+
     wk = utils.make_storage_from_shape(zh.shape, grid.full_origin())
     fx2 = utils.make_storage_from_shape(zh.shape, grid.full_origin())
     fy2 = utils.make_storage_from_shape(zh.shape, grid.full_origin())
@@ -276,11 +277,13 @@ def compute(
         zh, origin=grid.full_origin(), domain=grid.domain_shape_full(add=(0, 0, 1))
     )
 
-    fvtp2d.compute_no_sg(
+    fvtp2d_obj = utils.cached_stencil_class(fvtp2d.FvTp2d)(
+        spec.namelist, spec.namelist.hord_tm, cache_key="updatedzd"
+    )
+    fvtp2d_obj(
         z2,
         crx_adv,
         cry_adv,
-        spec.namelist.hord_tm,
         xfx_adv,
         yfx_adv,
         ra_x,

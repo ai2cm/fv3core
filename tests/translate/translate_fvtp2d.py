@@ -1,5 +1,4 @@
-import numpy as np
-
+import fv3core._config as spec
 import fv3core.stencils.fvtp2d as fvtp2d
 import fv3core.utils.gt4py_utils as utils
 from fv3core.testing import TranslateFortranData2Py
@@ -8,7 +7,6 @@ from fv3core.testing import TranslateFortranData2Py
 class TranslateFvTp2d(TranslateFortranData2Py):
     def __init__(self, grid):
         super().__init__(grid)
-        self.compute_func = fvtp2d.compute_no_sg
         self.in_vars["data_vars"] = {
             "q": {},
             "mass": {},
@@ -42,8 +40,11 @@ class TranslateFvTp2d(TranslateFortranData2Py):
         for optional_arg in ["mass", "mfx", "mfy"]:
             if optional_arg not in inputs:
                 inputs[optional_arg] = None
-        #inputs["nord"] = np.squeeze(inputs["nord"].data[0, 0, :])
-        #inputs["damp_c"] = np.squeeze(inputs["damp_c"].data[0, 0, :])
+
+        self.compute_func = utils.cached_stencil_class(fvtp2d.FvTp2d)(
+            spec.namelist, int(inputs["hord"]), cache_key="regression-test"
+        )
+        del inputs["hord"]
         self.compute_func(**inputs)
         return inputs
 
