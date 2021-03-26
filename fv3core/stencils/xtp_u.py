@@ -129,14 +129,11 @@ class XTP_U:
             raise NotImplementedError(
                 "Currently xtp_v is only supported for hord_mt == 5,6,7,8"
             )
-        grid = spec.grid
-        self.origin = grid.compute_origin()
-        self.domain = grid.domain_shape_compute(add=(1, 1, 0))
-        ax_offsets = axis_offsets(spec.grid, self.origin, self.domain)
+        self.grid = spec.grid
+        self.origin = self.grid.compute_origin()
+        self.domain = self.grid.domain_shape_compute(add=(1, 1, 0))
+        ax_offsets = axis_offsets(self.grid, self.origin, self.domain)
         assert namelist.grid_type < 3
-        self.dxa = grid.dxa
-        self.dx = grid.dx
-        self.rdx = grid.rdx
         self.stencil = gtscript.stencil(
             definition=_compute_stencil,
             externals={
@@ -162,9 +159,9 @@ class XTP_U:
             c,
             u,
             flux,
-            self.dx,
-            self.dxa,
-            self.rdx,
+            self.grid.dx,
+            self.grid.dxa,
+            self.grid.rdx,
             origin=self.origin,
             domain=self.domain,
         )
