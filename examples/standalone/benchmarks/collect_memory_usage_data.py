@@ -52,7 +52,7 @@ def gather_memory_usage_from_file(filename):
                     collected_data["backend"],
                 ) = gather_meta_data_from_line(line)
             elif "GPU utilization data" in line:
-                # skip the three header lines
+                # skip the four header lines
                 data_lines = all_lines[index + 4 :]
                 for line in data_lines:
                     splits = line.split()
@@ -60,27 +60,29 @@ def gather_memory_usage_from_file(filename):
                         collected_data["data"].append(float(splits[1]))
                     else:
                         break
-                return collected_data
+                break
+        return collected_data
 
 
 def write_to_file(collected_data, git_hash):
     """writes statistics and metadata to a json
     file that is parsable by the plotting tool"""
-    now = datetime.now()
-    memory_footprint = {
-        "minimum": min(collected_data["data"]),
-        "maximum": max(collected_data["data"]),
-        "mean": statistics.mean(collected_data["data"]),
-        "setup": {
-            "hash": git_hash,
-            "timestamp": now.strftime("%d/%m/%Y %H:%M:%S"),
-            "version": collected_data["backend"],
-            "dataset": collected_data["data_set"],
-        },
-    }
-    timestamp = now.strftime("%Y-%m-%d-%H-%M-%S")
-    with open(timestamp + "_memory_usage.json", "w") as output:
-        json.dump(memory_footprint, output, sort_keys=True, indent=4)
+    if len(collected_data["data"]) > 0:
+        now = datetime.now()
+        memory_footprint = {
+            "minimum": min(collected_data["data"]),
+            "maximum": max(collected_data["data"]),
+            "mean": statistics.mean(collected_data["data"]),
+            "setup": {
+                "hash": git_hash,
+                "timestamp": now.strftime("%d/%m/%Y %H:%M:%S"),
+                "version": collected_data["backend"],
+                "dataset": collected_data["data_set"],
+            },
+        }
+        timestamp = now.strftime("%Y-%m-%d-%H-%M-%S")
+        with open(timestamp + "_memory_usage.json", "w") as output:
+            json.dump(memory_footprint, output, sort_keys=True, indent=4)
 
 
 if __name__ == "__main__":
