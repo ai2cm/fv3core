@@ -18,13 +18,14 @@
             "short_name": "numpy"
         }
     },
-    "plots": {
+    "timing_plots": {
         "absolute_time": {
             "backends": [
                 "fortran",
                 "python/gtcuda",
                 "python/gtx86"
             ],
+            "only_recent": false,
             "timers": [
                 {
                     "linestyle": "-o",
@@ -46,6 +47,37 @@
                 "python/gtx86",
                 "fortran"
             ],
+            "only_recent": false,
+            "timers": [
+                {
+                    "linestyle": "-o",
+                    "name": "mainloop"
+                },
+                {
+                    "linestyle": "--o",
+                    "name": "DynCore"
+                },
+                {
+                    "linestyle": "-.o",
+                    "name": "Remapping"
+                },
+                {
+                    "linestyle": ":o",
+                    "name": "TracerAdvection"
+                }
+            ],
+            "title": "Performance history of components of mainloop",
+            "type": "per_timestep",
+            "x_axis_label": "Date of benchmark",
+            "y_axis_label": "Execution time per timestep [s]"
+        },
+        "per_timestep_recent": {
+            "backends": [
+                "python/gtcuda",
+                "python/gtx86",
+                "fortran"
+            ],
+            "only_recent": true,
             "timers": [
                 {
                     "linestyle": "-o",
@@ -73,6 +105,7 @@
             "backends": [
                 "fortran"
             ],
+            "only_recent": false,
             "timers": [
                 {
                     "linestyle": "-o",
@@ -95,6 +128,17 @@
             "type": "per_timestep",
             "x_axis_label": "Date of benchmark",
             "y_axis_label": "Execution time per timestep [s]"
+        }
+    },
+    "memory_plots": {
+        "memory_footprint": {
+            "backends": [
+                "python/gtcuda"
+            ],
+            "only_recent": true,
+            "title": "Memory usage per GPU for total run",
+            "x_axis_label": "Date of benchmark",
+            "y_axis_label": "Memory usage [%]"
         }
     }
 }
