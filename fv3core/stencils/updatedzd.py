@@ -23,7 +23,7 @@ from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
 
 DZ_MIN = constants.DZ_MIN
 
-
+# TODO merge with fxadv
 @gtscript.function
 def ra_func(
     area: FloatFieldIJ,
@@ -49,7 +49,15 @@ def ra_stencil_update(
     yfx_adv: FloatField,
     ra_y: FloatField,
 ):
-    """Updates 'ra' fields."""
+    """Updates 'ra' fields.
+    Args:
+       xfx_adv: Finite volume flux form operator in x direction (in)
+       yfx_adv: Finite volume flux form operator in y direction (in)
+       ra_x: Area increased in the x direction due to flux divergence (inout)
+       ra_y: Area increased in the y direction due to flux divergence (inout)
+    Grid input vars:
+      area
+    """
     with computation(PARALLEL), interval(...):
         ra_x, ra_y = ra_func(area, xfx_adv, yfx_adv, ra_x, ra_y)
 
@@ -82,6 +90,23 @@ def zh_damp(
     ws: FloatFieldIJ,
     dt: float,
 ):
+    """Update geopotential height due to area average flux divergence
+    Args:
+       z2: zh that has been advected forward in time (in)
+       fx: Flux in the x direction that transported z2 (in)
+       fy: Flux in the y direction that transported z2(in)
+       ra_x: Area increased in the x direction due to flux divergence (in)
+       ra_y: Area increased in the y direction due to flux divergence (in)
+       fx2: diffusive flux in the x-direction (in)
+       fy2: diffusive flux in the y-direction (in)
+       zh: geopotential height (out)
+       zs: surface geopotential height (in)
+       ws: vertical velocity of the lowest level (to keep it at the surface) (out)
+       dt: acoustic timestep (seconds) (in)
+    Grid variable inputs:
+       area
+      rarea
+    """
     with computation(PARALLEL), interval(...):
         zhbase = zh_base(z2, area, fx, fy, ra_x, ra_y)
         zh = zhbase + (fx2 - fx2[1, 0, 0] + fy2 - fy2[0, 1, 0]) * rarea
