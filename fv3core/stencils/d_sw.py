@@ -713,7 +713,6 @@ def d_sw(
         grid().sin_sg4,
         grid().rdxa,
         grid().rdya,
-        grid().area,
         grid().dy,
         grid().dx,
         uc,
@@ -724,13 +723,19 @@ def d_sw(
         yfx,
         ut,
         vt,
-        ra_x,
-        ra_y,
         dt,
         origin=grid().full_origin(),
         domain=grid().domain_shape_full(),
     )
-
+    fxadv.flux_divergence_area(
+        grid().area,
+        xfx,
+        yfx,
+        ra_x,
+        ra_y,
+        origin=grid().full_origin(),
+        domain=grid().domain_shape_full(),
+    )
     for kstart, nk in k_bounds():
         fvtp2d_dp(
             delp,

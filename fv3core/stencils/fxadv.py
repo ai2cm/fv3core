@@ -267,7 +267,6 @@ def fxadv_stencil(
     sin_sg4: FloatFieldIJ,
     rdxa: FloatFieldIJ,
     rdya: FloatFieldIJ,
-    area: FloatFieldIJ,
     dy: FloatFieldIJ,
     dx: FloatFieldIJ,
     uc: FloatField,
@@ -278,8 +277,6 @@ def fxadv_stencil(
     yfx_adv: FloatField,
     ut: FloatField,
     vt: FloatField,
-    ra_x: FloatField,
-    ra_y: FloatField,
     dt: float,
 ):
     """Updates flux operators and courant numbers for fvtp2d
@@ -298,12 +295,10 @@ def fxadv_stencil(
         yfx_adv: Finite volume flux form operator in y direction (inout)
         ut: temporary x-velocity transformed from C-grid to D-grid equivalent(?) (inout)
         vt: temporary y-velocity transformed from C-grid to D-grid equivalent(?) (inout)
-        ra_x: Area increased in the x direction due to flux divergence (inout)
-        ra_y: Area increased in the y direction due to flux divergence (inout)
         dt: timestep in seconds
     Grid variable inputs:
         cosa_u, cosa_v, rsin_u, rsin_v, sin_sg1,sin_sg2, sin_sg3, sin_sg4,
-        rdxa, rdya, area, dy, dx
+        rdxa, rdya, dy, dx
     """
     from __externals__ import local_ie, local_is, local_je, local_js
 
@@ -325,6 +320,27 @@ def fxadv_stencil(
         with horizontal(region[:, local_js : local_je + 2]):
             cry_adv = prod * rdya[0, -1] if prod > 0 else prod * rdya
             yfx_adv = dx * prod * sin_sg4[0, -1] if prod > 0 else dx * prod * sin_sg2
+
+
+@gtstencil()
+def flux_divergence_area(
+    area: FloatFieldIJ,
+    xfx_adv: FloatField,
+    yfx_adv: FloatField,
+    ra_x: FloatField,
+    ra_y: FloatField,
+):
+    """Compute the area with flux divergence applied
+     Args:
+       xfx_adv: Finite volume flux form operator in x direction (in)
+       yfx_adv: Finite volume flux form operator in y direction (in)
+       ra_x: Area increased in the x direction due to flux divergence (inout)
+       ra_y: Area increased in the y direction due to flux divergence (inout)
+    Grid variable inputs:
+       area
+    """
+    from __externals__ import local_ie, local_is, local_je, local_js
+
     with computation(PARALLEL), interval(...):
         with horizontal(region[local_is : local_ie + 2, :]):
             ra_x = ra_x_func(area, xfx_adv)

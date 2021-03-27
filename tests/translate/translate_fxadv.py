@@ -28,15 +28,8 @@ class TranslateFxAdv(TranslateFortranData2Py):
         for var in ["xfx_adv", "crx_adv", "yfx_adv", "cry_adv"]:
             self.out_vars[var] = self.in_vars["data_vars"][var]
 
-    def compute(self, inputs):
-        self.make_storage_data_input_vars(inputs)
+    def compute_from_storage(self, inputs):
         grid = self.grid
-        inputs["ra_x"] = utils.make_storage_from_shape(
-            inputs["uc"].shape, grid.compute_origin()
-        )
-        inputs["ra_y"] = utils.make_storage_from_shape(
-            inputs["vc"].shape, grid.compute_origin()
-        )
         fxadv.fxadv_stencil(
             cosa_u=grid.cosa_u,
             cosa_v=grid.cosa_v,
@@ -48,11 +41,25 @@ class TranslateFxAdv(TranslateFortranData2Py):
             sin_sg4=grid.sin_sg4,
             rdxa=grid.rdxa,
             rdya=grid.rdya,
-            area=grid.area,
             dy=grid.dy,
             dx=grid.dx,
             **inputs,
             origin=grid.full_origin(),
             domain=grid.domain_shape_full(),
         )
-        return self.slice_output(inputs)
+        inputs["ra_x"] = utils.make_storage_from_shape(
+            inputs["uc"].shape, grid.compute_origin()
+        )
+        inputs["ra_y"] = utils.make_storage_from_shape(
+            inputs["vc"].shape, grid.compute_origin()
+        )
+        fxadv.flux_divergence_area(
+            area=grid.area,
+            xfx_adv=inputs["xfx_adv"],
+            yfx_adv=inputs["yfx_adv"],
+            ra_x=inputs["ra_x"],
+            ra_y=inputs["ra_y"],
+            origin=grid.full_origin(),
+            domain=grid.domain_shape_full(),
+        )
+        return inputs
