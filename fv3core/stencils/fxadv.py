@@ -3,7 +3,7 @@ from gt4py.gtscript import PARALLEL, computation, horizontal, interval, region
 
 from fv3core.decorators import gtstencil
 from fv3core.utils.typing import FloatField, FloatFieldIJ
-
+import fv3core._config as spec
 
 @gtscript.function
 def main_ut(uc, vc, cosa_u, rsin_u, ut):
@@ -265,16 +265,8 @@ def fxadv_stencil(
     sin_sg2: FloatFieldIJ,
     sin_sg3: FloatFieldIJ,
     sin_sg4: FloatFieldIJ,
-    rdxa: FloatFieldIJ,
-    rdya: FloatFieldIJ,
-    dy: FloatFieldIJ,
-    dx: FloatFieldIJ,
     uc: FloatField,
     vc: FloatField,
-    crx_adv: FloatField,
-    cry_adv: FloatField,
-    xfx_adv: FloatField,
-    yfx_adv: FloatField,
     ut: FloatField,
     vt: FloatField,
     dt: float,
@@ -297,8 +289,7 @@ def fxadv_stencil(
         vt: temporary y-velocity transformed from C-grid to D-grid equivalent(?) (inout)
         dt: timestep in seconds
     Grid variable inputs:
-        cosa_u, cosa_v, rsin_u, rsin_v, sin_sg1,sin_sg2, sin_sg3, sin_sg4,
-        rdxa, rdya, dy, dx
+        cosa_u, cosa_v, rsin_u, rsin_v, sin_sg1,sin_sg2, sin_sg3, sin_sg4
     """
     from __externals__ import local_ie, local_is, local_je, local_js
 
@@ -312,29 +303,8 @@ def fxadv_stencil(
         #ut = ut_corners(uc, vc, cosa_u, cosa_v, ut, vt)
         #vt = vt_corners(uc, vc, cosa_u, cosa_v, ut, vt)
 @gtstencil()
-def fxadv_x_edges(
-    #uc: FloatField, cosa_u: FloatField, vt: FloatField, ut: FloatField
-    cosa_u: FloatFieldIJ,
-    cosa_v: FloatFieldIJ,
-    rsin_u: FloatFieldIJ,
-    rsin_v: FloatFieldIJ,
-    sin_sg1: FloatFieldIJ,
-    sin_sg2: FloatFieldIJ,
-    sin_sg3: FloatFieldIJ,
-    sin_sg4: FloatFieldIJ,
-    rdxa: FloatFieldIJ,
-    rdya: FloatFieldIJ,
-    dy: FloatFieldIJ,
-    dx: FloatFieldIJ,
-    uc: FloatField,
-    vc: FloatField,
-    crx_adv: FloatField,
-    cry_adv: FloatField,
-    xfx_adv: FloatField,
-    yfx_adv: FloatField,
-    ut: FloatField,
-    vt: FloatField,
-    dt: float,
+def ut_x_edge_stencil(
+    uc: FloatField, cosa_u: FloatFieldIJ, vt: FloatField, ut: FloatField
 ):
     from __externals__ import local_ie, local_is, local_je, local_js, i_start, i_end, j_start, j_end
     with computation(PARALLEL), interval(...):
@@ -353,11 +323,7 @@ def fxadv_x_edges(
         ):
             ut = utmp
 @gtstencil()
-def fxadv_stencil_prod(
-    cosa_u: FloatFieldIJ,
-    cosa_v: FloatFieldIJ,
-    rsin_u: FloatFieldIJ,
-    rsin_v: FloatFieldIJ,
+def fxadv_fluxes_stencil(
     sin_sg1: FloatFieldIJ,
     sin_sg2: FloatFieldIJ,
     sin_sg3: FloatFieldIJ,
@@ -366,8 +332,6 @@ def fxadv_stencil_prod(
     rdya: FloatFieldIJ,
     dy: FloatFieldIJ,
     dx: FloatFieldIJ,
-    uc: FloatField,
-    vc: FloatField,
     crx_adv: FloatField,
     cry_adv: FloatField,
     xfx_adv: FloatField,
@@ -414,6 +378,74 @@ def flux_divergence_area(
         with horizontal(region[:, local_js : local_je + 2]):
             ra_y = ra_y_func(area, yfx_adv)
 
+def compute(cosa_u: FloatFieldIJ,
+            cosa_v: FloatFieldIJ,
+            rsin_u: FloatFieldIJ,
+            rsin_v: FloatFieldIJ,
+            sin_sg1: FloatFieldIJ,
+            sin_sg2: FloatFieldIJ,
+            sin_sg3: FloatFieldIJ,
+            sin_sg4: FloatFieldIJ,
+            rdxa: FloatFieldIJ,
+            rdya: FloatFieldIJ,
+            dy: FloatFieldIJ,
+            dx: FloatFieldIJ,
+            uc: FloatField,
+            vc: FloatField,
+            crx_adv: FloatField,
+            cry_adv: FloatField,
+            xfx_adv: FloatField,
+            yfx_adv: FloatField,
+            ut: FloatField,
+            vt: FloatField,
+            ra_x: FloatField,
+            ra_y: FloatField,
+            dt: float):
+    grid = spec.grid
+    fxadv_stencil(
+        grid.cosa_u,
+        grid.cosa_v,
+        grid.rsin_u,
+        grid.rsin_v,
+        grid.sin_sg1,
+        grid.sin_sg2,
+        grid.sin_sg3,
+        grid.sin_sg4,
+        uc, vc, ut, vt, dt,        
+        origin=grid.full_origin(),
+        domain=grid.domain_shape_full(),
+    )
+    ut_x_edge_stencil(uc, cosa_u, vt, ut, origin=grid.full_origin(),domain=grid.domain_shape_full())
+    ut_corners(grid.cosa_u, grid.cosa_v,uc, vc, ut, vt, origin=(1, 1, 0),domain=grid.domain_shape_full(add=(-1, -1, 0)) )
+    vt_corners(grid.cosa_u, grid.cosa_v,uc, vc, ut, vt, origin=(1, 1, 0),domain=grid.domain_shape_full(add=(-1, -1, 0)))
+    fxadv_fluxes_stencil(
+        grid.sin_sg1,
+        grid.sin_sg2,
+        grid.sin_sg3,
+        grid.sin_sg4,
+        grid.rdxa,
+        grid.rdya,
+        grid.dy,
+        grid.dx,
+        crx_adv,
+        cry_adv,
+        xfx_adv,
+        yfx_adv,
+        ut,
+        vt,
+        dt,
+        origin=grid.full_origin(),
+        domain=grid.domain_shape_full(),
+    )
+    flux_divergence_area(
+        grid.area,
+        xfx_adv,
+        yfx_adv,
+        ra_x,
+        ra_y,
+        origin=grid.full_origin(),
+        domain=grid.domain_shape_full(),
+    )
 
 # -------------------- DEPRECATED CORNERS-----------------
 # Using 1 function with different sets of externals
