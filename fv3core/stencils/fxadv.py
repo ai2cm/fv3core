@@ -108,7 +108,7 @@ def vt_x_edge(vc, sin_sg2, sin_sg4, vt, dt):
 
 
 @gtstencil
-def ut_vt_corners(
+def ut_corners(
     cosa_u: FloatFieldIJ,
     cosa_v: FloatFieldIJ,
     uc: FloatField,
@@ -132,7 +132,6 @@ def ut_vt_corners(
     from __externals__ import i_end, i_start, j_end, j_start
 
     with computation(PARALLEL), interval(...):
-        # ut_corners
         damp = 1.0 / (1.0 - 0.0625 * cosa_u * cosa_v[-1, 0])
         with horizontal(region[i_start + 1, j_start - 1], region[i_start + 1, j_end]):
             ut = (
@@ -192,7 +191,20 @@ def ut_vt_corners(
                     - 0.25 * cosa_v[0, 1] * (ut[1, 0, 0] + ut[1, 1, 0] + ut[0, 1, 0])
                 )
             ) * damp
-        # vt_corners
+
+
+@gtstencil
+def vt_corners(
+    cosa_u: FloatFieldIJ,
+    cosa_v: FloatFieldIJ,
+    uc: FloatField,
+    vc: FloatField,
+    ut: FloatField,
+    vt: FloatField,
+):
+    from __externals__ import i_end, i_start, j_end, j_start
+
+    with computation(PARALLEL), interval(...):
         damp = 1.0 / (1.0 - 0.0625 * cosa_u[0, -1] * cosa_v)
         with horizontal(region[i_start - 1, j_start + 1], region[i_end, j_start + 1]):
             vt = (
@@ -418,7 +430,17 @@ def compute(uc, vc, crx_adv, cry_adv, xfx_adv, yfx_adv, ut, vt, ra_x, ra_y, dt):
         origin=grid.full_origin(),
         domain=grid.domain_shape_full(),
     )
-    ut_vt_corners(
+    ut_corners(
+        grid.cosa_u,
+        grid.cosa_v,
+        uc,
+        vc,
+        ut,
+        vt,
+        origin=(1, 1, 0),
+        domain=grid.domain_shape_full(add=(-1, -1, 0)),
+    )
+    vt_corners(
         grid.cosa_u,
         grid.cosa_v,
         uc,
