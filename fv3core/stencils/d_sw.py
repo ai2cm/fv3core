@@ -702,40 +702,7 @@ def d_sw(
         spec.namelist, spec.namelist.hord_tm, cache_key="d_sw-tm"
     )
 
-    fxadv.fxadv_stencil(
-        grid().cosa_u,
-        grid().cosa_v,
-        grid().rsin_u,
-        grid().rsin_v,
-        grid().sin_sg1,
-        grid().sin_sg2,
-        grid().sin_sg3,
-        grid().sin_sg4,
-        grid().rdxa,
-        grid().rdya,
-        grid().dy,
-        grid().dx,
-        uc,
-        vc,
-        crx,
-        cry,
-        xfx,
-        yfx,
-        ut,
-        vt,
-        dt,
-        origin=grid().full_origin(),
-        domain=grid().domain_shape_full(),
-    )
-    fxadv.flux_divergence_area(
-        grid().area,
-        xfx,
-        yfx,
-        ra_x,
-        ra_y,
-        origin=grid().full_origin(),
-        domain=grid().domain_shape_full(),
-    )
+    fxadv.compute(uc, vc, crx, cry, xfx, yfx, ut, vt, ra_x, ra_y, dt)
     for kstart, nk in k_bounds():
         fvtp2d_dp(
             delp,

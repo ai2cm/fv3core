@@ -36,19 +36,5 @@ class TranslateFxAdv(TranslateFortranData2Py):
         inputs["ra_y"] = utils.make_storage_from_shape(
             inputs["vc"].shape, grid.compute_origin()
         )
-        fxadv.compute(
-            cosa_u=grid.cosa_u,
-            cosa_v=grid.cosa_v,
-            rsin_u=grid.rsin_u,
-            rsin_v=grid.rsin_v,
-            sin_sg1=grid.sin_sg1,
-            sin_sg2=grid.sin_sg2,
-            sin_sg3=grid.sin_sg3,
-            sin_sg4=grid.sin_sg4,
-            rdxa=grid.rdxa,
-            rdya=grid.rdya,
-            dy=grid.dy,
-            dx=grid.dx,
-            **inputs
-        )
+        fxadv.compute(**inputs)
         return inputs
