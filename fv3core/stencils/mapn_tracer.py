@@ -55,11 +55,6 @@ def compute(
     # transliterated fortran 3d or 2d validate, not bit-for bit
     tracer_list = [tracers[q] for q in utils.tracer_variables[0:nq]]
     for tracer in tracer_list:
-        # q4_1[:] = tracer[:]
-        # q4_2[:] = 0.0
-        # q4_3[:] = 0.0
-        q4_4[:] = 0.0
-
         set_components(
             tracer,
             q4_1,
