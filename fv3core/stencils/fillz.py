@@ -1,3 +1,5 @@
+from typing import Any, Dict, Tuple
+
 import numpy as np
 from gt4py.gtscript import FORWARD, PARALLEL, computation, interval
 
@@ -99,7 +101,14 @@ def fix_tracer(
             q = fac * dm / dp if fac * dm / dp > 0.0 else 0.0
 
 
-def compute(dp2, tracers, im, km, nq, jslice):
+def compute(
+    dp2: FloatField,
+    tracers: Dict[str, Any],
+    im: int,
+    km: int,
+    nq: int,
+    jslice: Tuple[int],
+):
     # Same as above, but with multiple tracer fields
     i1 = spec.grid.is_
     js = jslice.start
@@ -109,15 +118,27 @@ def compute(dp2, tracers, im, km, nq, jslice):
     shape = tracer_list[0].shape
     shape_ij = shape[0:2]
 
-    dm = utils.make_storage_from_shape(shape, origin=(0, 0, 0))
-    dm_pos = utils.make_storage_from_shape(shape, origin=(0, 0, 0))
+    dm = utils.make_storage_from_shape(shape, origin=(0, 0, 0), cache_key="fillz_dm")
+    dm_pos = utils.make_storage_from_shape(
+        shape, origin=(0, 0, 0), cache_key="fillz_dm_pos"
+    )
     # setting initial value of upper_fix to zero is only needed
     # for validation. The values in the compute domain are set to zero in the stencil.
-    upper_fix = utils.make_storage_from_shape(shape, origin=(0, 0, 0), init=True)
-    lower_fix = utils.make_storage_from_shape(shape, origin=(0, 0, 0), init=True)
-    zfix = utils.make_storage_from_shape(shape_ij, dtype=np.int, origin=(0, 0))
-    sum0 = utils.make_storage_from_shape(shape_ij, origin=(0, 0))
-    sum1 = utils.make_storage_from_shape(shape_ij, origin=(0, 0))
+    upper_fix = utils.make_storage_from_shape(
+        shape, origin=(0, 0, 0), init=True, cache_key="fillz_upper_Fix"
+    )
+    lower_fix = utils.make_storage_from_shape(
+        shape, origin=(0, 0, 0), init=True, cache_key="fillz_lower_fix"
+    )
+    zfix = utils.make_storage_from_shape(
+        shape_ij, dtype=np.int, origin=(0, 0), cache_key="fillz_zfix"
+    )
+    sum0 = utils.make_storage_from_shape(
+        shape_ij, origin=(0, 0), cache_key="fillz_sum0"
+    )
+    sum1 = utils.make_storage_from_shape(
+        shape_ij, origin=(0, 0), cache_key="fillz_sum1"
+    )
     # TODO: Implement dev_gfs_physics ifdef when we implement compiler defs.
 
     for tracer in tracer_list:

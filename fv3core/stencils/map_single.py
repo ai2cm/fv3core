@@ -23,6 +23,19 @@ def set_dp(dp1: FloatField, pe1: FloatField):
 
 
 @gtstencil()
+def set_eulerian_pressures(pe: FloatField, ptop: FloatFieldIJ, pbot: FloatFieldIJ):
+    with computation(FORWARD), interval(0, 1):
+        ptop = pe[0, 0, 0]
+        pbot = pe[0, 0, 1]
+
+
+@gtstencil()
+def set_remapped_quantity(q: FloatField, set_values: FloatFieldIJ):
+    with computation(FORWARD), interval(0, 1):
+        q = set_values[0, 0]
+
+
+@gtstencil()
 def lagrangian_contributions(
     pe1: FloatField,
     ptop: FloatFieldIJ,
@@ -75,6 +88,8 @@ def lagrangian_contributions(
                         * (q4_2 + 0.5 * esl * (q4_3 - q4_2 + q4_4 * (1.0 - r23 * esl)))
                         / (pbot - ptop)
                     )
+    with computation(FORWARD), interval(0, 1):
+        q2_adds = 0.0
     with computation(FORWARD), interval(...):
         q2_adds += q2_tmp
 
@@ -183,11 +198,19 @@ def setup_data(
         jslice = slice(jslice.start, jslice.stop + 1)
         domain = (domain[0], jslice.stop - jslice.start, domain[2])
 
-    dp1 = utils.make_storage_from_shape(q1.shape, origin=origin)
+    dp1 = utils.make_storage_from_shape(
+        q1.shape, origin=origin, cache_key="map_single_dp1"
+    )
     q4_1 = copy(q1, origin=(0, 0, 0), domain=grid.domain_shape_full())
-    q4_2 = utils.make_storage_from_shape(q4_1.shape, origin=(grid.is_, 0, 0))
-    q4_3 = utils.make_storage_from_shape(q4_1.shape, origin=(grid.is_, 0, 0))
-    q4_4 = utils.make_storage_from_shape(q4_1.shape, origin=(grid.is_, 0, 0))
+    q4_2 = utils.make_storage_from_shape(
+        q4_1.shape, origin=(grid.is_, 0, 0), cache_key="map_single_q4_2"
+    )
+    q4_3 = utils.make_storage_from_shape(
+        q4_1.shape, origin=(grid.is_, 0, 0), cache_key="map_single_q4_3"
+    )
+    q4_4 = utils.make_storage_from_shape(
+        q4_1.shape, origin=(grid.is_, 0, 0), cache_key="map_single_q4_4"
+    )
     set_dp(dp1, pe1, origin=origin, domain=domain)
     return dp1, q4_1, q4_2, q4_3, q4_4, origin, domain, jslice, i_extent
 
@@ -211,14 +234,24 @@ def lagrangian_contributions_stencil(
     # A stencil with a loop over k2:
     km = spec.grid.npz
     shape2d = pe2.shape[0:2]
-    q2_adds = utils.make_storage_from_shape(shape2d)
-    ptop = utils.make_storage_from_shape(shape2d)
-    pbot = utils.make_storage_from_shape(shape2d)
+    q2_adds = utils.make_storage_from_shape(shape2d, cache_key="map_single_q2_adds")
+    ptop = utils.make_storage_from_shape(shape2d, cache_key="map_single_ptop")
+    pbot = utils.make_storage_from_shape(shape2d, cache_key="map_single_pbot")
+
+    jsize = shape2d[1]
+    jslice2d = slice(min(jslice.start, jsize - 1), min(jslice.stop, jsize))
 
     for k_eul in range(km):
-        ptop[:, :] = pe2[:, :, k_eul]
-        pbot[:, :] = pe2[:, :, k_eul + 1]
-        q2_adds[:] = 0.0
+
+        # TODO (olivere): This is hacky
+        # merge with subsequent stencil when possible
+        set_eulerian_pressures(
+            pe2,
+            ptop,
+            pbot,
+            origin=(origin[0], origin[1], k_eul),
+            domain=(domain[0], domain[1], 1),
+        )
 
         lagrangian_contributions(
             pe1,
@@ -233,7 +266,13 @@ def lagrangian_contributions_stencil(
             origin=origin,
             domain=domain,
         )
-        q1[i1 : i2 + 1, jslice, k_eul] = q2_adds[i1 : i2 + 1, jslice]
+
+        set_remapped_quantity(
+            q1,
+            q2_adds,
+            origin=(origin[0], origin[1], k_eul),
+            domain=(domain[0], domain[1], 1),
+        )
 
 
 def lagrangian_contributions_transliterated(
