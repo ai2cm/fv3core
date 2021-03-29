@@ -302,6 +302,7 @@ class XPiecewiseParabolic:
     """
     Fortran name is xppm
     """
+
     def __init__(self, namelist, iord):
         grid = spec.grid
         origin = grid.compute_origin()
