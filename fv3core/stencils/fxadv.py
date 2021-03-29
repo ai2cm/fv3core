@@ -6,6 +6,9 @@ from fv3core.decorators import gtstencil
 from fv3core.utils.typing import FloatField, FloatFieldIJ
 
 
+# TODO: the mix of local and global regions is strange here
+# it's a workaround to specify DON'T do this calculation if on the tile edge
+# check that the fortran is correct
 @gtstencil
 def main_ut(
     uc: FloatField,
@@ -28,6 +31,9 @@ def main_ut(
             ut = utmp
 
 
+# TODO: the mix of local and global regions is strange here
+# it's a workaround to specify DON'T do this calculation if on the tile edge
+# check that the fortran is correct
 @gtstencil
 def main_vt(
     uc: FloatField,
