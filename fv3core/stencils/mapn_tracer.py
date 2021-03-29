@@ -1,17 +1,19 @@
 from typing import Dict, Optional
 
+from gt4py.gtscript import PARALLEL, computation, interval
+
 import fv3core._config as spec
 import fv3core.stencils.fillz as fillz
 import fv3core.stencils.map_single as map_single
 import fv3core.stencils.remap_profile as remap_profile
-from fv3core.decorators import gtstencil
-from gt4py.gtscript import PARALLEL, computation, interval
 import fv3core.utils.gt4py_utils as utils
+from fv3core.decorators import gtstencil
 from fv3core.utils.typing import FloatField
+
 
 @gtstencil
 def set_components(
-    tracer: FloatField, 
+    tracer: FloatField,
     a4_1: FloatField,
     a4_2: FloatField,
     a4_3: FloatField,
@@ -22,6 +24,7 @@ def set_components(
         a4_2 = 0.0
         a4_3 = 0.0
         a4_4 = 0.0
+
 
 def compute(
     pe1: FloatField,
@@ -60,11 +63,11 @@ def compute(
         set_components(
             tracer,
             q4_1,
-            q4_2, 
-            q4_3, 
-            q4_4, 
-            origin=(spec.grid.is_, spec.grid.js, 0), 
-            domain=(spec.grid.npx, spec.grid.npy, spec.grid.npz)
+            q4_2,
+            q4_3,
+            q4_4,
+            origin=(spec.grid.is_, spec.grid.js, 0),
+            domain=(spec.grid.npx, spec.grid.npy, spec.grid.npz),
         )
 
         q4_1, q4_2, q4_3, q4_4 = remap_profile.compute(
