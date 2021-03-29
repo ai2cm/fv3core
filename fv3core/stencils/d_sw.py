@@ -15,7 +15,7 @@ import fv3core.stencils.basic_operations as basic
 import fv3core.stencils.delnflux as delnflux
 import fv3core.stencils.divergence_damping as divdamp
 import fv3core.stencils.flux_capacitor as fluxcap
-import fv3core.stencils.fvtp2d as fvtp2d
+from fv3core.stencils.fvtp2d import FiniteVolumeTransport
 import fv3core.stencils.fxadv as fxadv
 import fv3core.stencils.xtp_u as xtp_u
 import fv3core.stencils.ytp_v as ytp_v
@@ -689,13 +689,13 @@ def d_sw(
     fy = utils.make_storage_from_shape(shape, grid().compute_origin())
     gx = utils.make_storage_from_shape(shape, grid().compute_origin())
     gy = utils.make_storage_from_shape(shape, grid().compute_origin())
-    fvtp2d_dp = utils.cached_stencil_class(fvtp2d.FvTp2d)(
+    fvtp2d_dp = utils.cached_stencil_class(FiniteVolumeTransport)(
         spec.namelist, spec.namelist.hord_dp, cache_key="d_sw-dp"
     )
-    fvtp2d_vt = utils.cached_stencil_class(fvtp2d.FvTp2d)(
+    fvtp2d_vt = utils.cached_stencil_class(FiniteVolumeTransport)(
         spec.namelist, spec.namelist.hord_vt, cache_key="d_sw-vt"
     )
-    fvtp2d_tm = utils.cached_stencil_class(fvtp2d.FvTp2d)(
+    fvtp2d_tm = utils.cached_stencil_class(FiniteVolumeTransport)(
         spec.namelist, spec.namelist.hord_tm, cache_key="d_sw-tm"
     )
     ra_x, ra_y = fxadv.compute(uc, vc, ut, vt, xfx, yfx, crx, cry, dt)

@@ -11,7 +11,7 @@ from gt4py.gtscript import (
 
 import fv3core._config as spec
 import fv3core.stencils.delnflux as delnflux
-import fv3core.stencils.fvtp2d as fvtp2d
+from fv3core.stencils.fvtp2d import FiniteVolumeTransport
 import fv3core.utils.global_constants as constants
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import gtstencil
@@ -319,10 +319,10 @@ def column_calls(
     fx = utils.make_storage_from_shape(zh.shape, full_origin)
     fy = utils.make_storage_from_shape(zh.shape, full_origin)
     z2 = copy(zh, origin=full_origin, domain=(grid.nid, grid.njd, nk))
-    fvtp2d_obj = utils.cached_stencil_class(fvtp2d.FvTp2d)(
+    fvtp2d = utils.cached_stencil_class(FiniteVolumeTransport)(
         spec.namelist, spec.namelist.hord_tm, cache_key="updatedzd"
     )
-    fvtp2d_obj(
+    fvtp2d(
         z2,
         crx_adv,
         cry_adv,

@@ -57,8 +57,9 @@ def transport_flux_xy(
             fy = transport_flux(fy, fy2, mfy)
 
 
-class FvTp2d:
+class FiniteVolumeTransport:
     """
+    Equivalent of Fortran FV3 subroutine fv_tp_2d, done in 3 dimensions.
     ONLY USE_SG=False compiler flag implements
     """
 
