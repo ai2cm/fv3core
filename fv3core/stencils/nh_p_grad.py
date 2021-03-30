@@ -90,6 +90,7 @@ class NonHydrostaticPressureGradient:
     """
     Fortran name is nh_p_grad
     """
+<<<<<<< HEAD
 
     def __init__(self):
         grid = spec.grid
@@ -199,3 +200,58 @@ class NonHydrostaticPressureGradient:
             domain=self.v_domain,
         )
         return u, v, pp, gz, pk3, delp
+=======
+    grid = spec.grid
+    orig = (grid.is_, grid.js, 0)
+    # peln1 = log(ptop)
+    ptk = ptop ** akap
+    top_value = ptk  # = peln1 if spec.namelist.use_logp else ptk
+
+    wk1 = utils.make_storage_from_shape(
+        pp.shape, origin=orig, cache_key="nh_p_grad_wk1"
+    )
+    wk = utils.make_storage_from_shape(pk3.shape, origin=orig, cache_key="nh_p_grad_wk")
+
+    set_k0(pp, pk3, top_value, origin=orig, domain=(grid.nic + 1, grid.njc + 1, 1))
+
+    a2b_ord4.compute(pp, wk1, kstart=1, nk=grid.npz, replace=True)
+    a2b_ord4.compute(pk3, wk1, kstart=1, nk=grid.npz, replace=True)
+
+    a2b_ord4.compute(gz, wk1, kstart=0, nk=grid.npz + 1, replace=True)
+    a2b_ord4.compute(delp, wk1)
+
+    CalcWk(pk3, wk, origin=orig, domain=(grid.nic + 1, grid.njc + 1, grid.npz))
+
+    du = utils.make_storage_from_shape(u.shape, origin=orig, cache_key="nh_p_grad_du")
+
+    CalcU(
+        u,
+        du,
+        wk,
+        wk1,
+        gz,
+        pk3,
+        pp,
+        grid.rdx,
+        dt,
+        origin=orig,
+        domain=(grid.nic, grid.njc + 1, grid.npz),
+    )
+
+    dv = utils.make_storage_from_shape(v.shape, origin=orig, cache_key="nh_p_grad_dv")
+
+    CalcV(
+        v,
+        dv,
+        wk,
+        wk1,
+        gz,
+        pk3,
+        pp,
+        grid.rdy,
+        dt,
+        origin=orig,
+        domain=(grid.nic + 1, grid.njc, grid.npz),
+    )
+    return u, v, pp, gz, pk3, delp
+>>>>>>> master
