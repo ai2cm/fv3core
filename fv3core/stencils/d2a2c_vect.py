@@ -9,7 +9,6 @@ from gt4py.gtscript import (
 )
 
 import fv3core._config as spec
-import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import gtstencil
 from fv3core.stencils.a2b_ord4 import a1, a2, lagrange_x_func, lagrange_y_func
 from fv3core.utils import corners
@@ -20,6 +19,7 @@ c1 = -2.0 / 14.0
 c2 = 11.0 / 14.0
 c3 = 5.0 / 14.0
 BIG_NUMBER = 1.0e30
+
 
 @gtscript.function
 def contravariant(v1, v2, cosa, rsin2):
@@ -74,6 +74,7 @@ def contravariant(v1, v2, cosa, rsin2):
     # cosa is cos(alpha)
 
     return (v1 - v2 * cosa) * rsin2
+
 
 @gtscript.function
 def vol_conserv_cubic_interp_func_x(u):
