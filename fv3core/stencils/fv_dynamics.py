@@ -45,20 +45,19 @@ def set_omega(delp: FloatField, delz: FloatField, w: FloatField, omga: FloatFiel
         omga = delp / delz * w
 
 
-def compute_preamble(state, comm):
-    grid = spec.grid
+def compute_preamble(state, comm, grid, namelist):
     init_ph_columns(
         state.ak,
         state.bk,
         state.pfull,
-        spec.namelist.p_ref,
+        namelist.p_ref,
         origin=(0, 0, 0),
         domain=(1, 1, grid.domain_shape_compute()[2]),
     )
 
     state.pfull = utils.make_storage_data(state.pfull[0, 0, :], state.ak.shape, (0,))
 
-    if spec.namelist.hydrostatic:
+    if namelist.hydrostatic:
         raise Exception("Hydrostatic is not implemented")
     print("FV Setup", grid.rank)
     moist_cv.fv_setup(
@@ -104,7 +103,7 @@ def compute_preamble(state, comm):
             state.qgraupel,
         )
 
-    if (not spec.namelist.rf_fast) and spec.namelist.tau != 0:
+    if (not namelist.rf_fast) and namelist.tau != 0:
         if grid.grid_type < 4:
             print("Rayleigh Super", grid.rank)
             rayleigh_super.compute(
@@ -122,7 +121,7 @@ def compute_preamble(state, comm):
                 comm,
             )
 
-    if spec.namelist.adiabatic and spec.namelist.kord_tm > 0:
+    if namelist.adiabatic and namelist.kord_tm > 0:
         raise Exception(
             "unimplemented namelist options adiabatic with positive kord_tm"
         )
@@ -138,9 +137,9 @@ def compute_preamble(state, comm):
         )
 
 
-def post_remap(state, comm):
-    grid = spec.grid
-    if not spec.namelist.hydrostatic:
+def post_remap(state, comm, grid, namelist):
+    grid = grid
+    if not namelist.hydrostatic:
         print("Omega", grid.rank)
         set_omega(
             state.delp,
@@ -150,17 +149,14 @@ def post_remap(state, comm):
             origin=grid.compute_origin(),
             domain=grid.domain_shape_compute(),
         )
-    if spec.namelist.nf_omega > 0:
+    if namelist.nf_omega > 0:
         print("Del2Cubed", grid.rank)
         if global_config.get_do_halo_exchange():
             comm.halo_update(state.omga_quantity, n_points=utils.halo)
-        del2cubed.compute(
-            state.omga, spec.namelist.nf_omega, 0.18 * grid.da_min, grid.npz
-        )
+        del2cubed.compute(state.omga, namelist.nf_omega, 0.18 * grid.da_min, grid.npz)
 
 
-def wrapup(state, comm: fv3gfs.util.CubedSphereCommunicator):
-    grid = spec.grid
+def wrapup(state, comm: fv3gfs.util.CubedSphereCommunicator, grid):
     print("Neg Adj 3", grid.rank)
     neg_adj3.compute(
         state.qvapor,
@@ -182,8 +178,7 @@ def wrapup(state, comm: fv3gfs.util.CubedSphereCommunicator):
     )
 
 
-def fvdyn_temporaries(shape):
-    grid = spec.grid
+def fvdyn_temporaries(shape, grid):
     origin = grid.full_origin()
     tmps = {}
     halo_vars = ["cappa"]
@@ -287,7 +282,7 @@ class DynamicalCore:
         # npx and npy are number of interfaces, npz is number of centers
         # and shapes should be the full data shape
         self._temporaries = fvdyn_temporaries(
-            self.grid.domain_shape_full(add=(1, 1, 1))
+            self.grid.domain_shape_full(add=(1, 1, 1)), self.grid
         )
         if not (not self.namelist.inline_q and DynamicalCore.NQ != 0):
             raise NotImplementedError("tracer_2d not implemented, turn on z_tracer")
@@ -322,11 +317,11 @@ class DynamicalCore:
             {
                 "consv_te": consv_te,
                 "bdt": timestep,
-                "mdt": timestep / spec.namelist.k_split,
+                "mdt": timestep / self.namelist.k_split,
                 "do_adiabatic_init": do_adiabatic_init,
                 "ptop": ptop,
                 "n_split": n_split,
-                "k_split": spec.namelist.k_split,
+                "k_split": self.namelist.k_split,
                 "ks": ks,
             }
         )
@@ -341,7 +336,7 @@ class DynamicalCore:
         last_step = False
         if self.do_halo_exchange:
             self.comm.halo_update(state.phis_quantity, n_points=utils.halo)
-        compute_preamble(state, self.comm)
+        compute_preamble(state, self.comm, self.grid, self.namelist)
         for n_map in range(state.k_split):
             state.n_map = n_map + 1
             if n_map == state.k_split - 1:
@@ -400,9 +395,9 @@ class DynamicalCore:
                         DynamicalCore.NQ,
                     )
                 if last_step:
-                    post_remap(state, self.comm)
+                    post_remap(state, self.comm, self.grid, self.namelist)
                 state.wsd[:] = state.wsd_3d[:, :, 0]
-        wrapup(state, self.comm)
+        wrapup(state, self.comm, self.grid)
 
     def _dyn(self, state, timer=fv3gfs.util.NullTimer()):
         copy_stencil(
@@ -418,7 +413,6 @@ class DynamicalCore:
             print("Tracer2D1L", self.grid.rank)
             with timer.clock("TracerAdvection"):
                 self.tracer_advection(
-                    self.comm,
                     state.__dict__,
                     state.dp1,
                     state.mfxd,
