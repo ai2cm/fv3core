@@ -290,12 +290,12 @@ class DynamicalCore:
     def step_dynamics(
         self,
         state: Mapping[str, fv3gfs.util.Quantity],
-        consv_te,
+        conserve_total_energy: bool,
         do_adiabatic_init: bool,
         timestep: float,
         ptop,
         n_split: int,
-        ks,
+        ks: int,
         timer: fv3gfs.util.Timer = fv3gfs.util.NullTimer(),
     ):
         """
@@ -303,19 +303,20 @@ class DynamicalCore:
 
         Args:
             state: model prognostic state and inputs
-            consv_te: ???
+            conserve_total_energy: if True, conserve total energy
             do_adiabatic_init: if True, do adiabatic dynamics. Used
                 for model initialization.
             timestep: time to progress forward in seconds
             ptop: pressure at top of atmosphere
             n_split: number of acoustic timesteps per remapping timestep
-            ks: ???
+            ks: the lowest index (highest layer) for which rayleigh friction
+                and other rayleigh computations are done
             timer: if given, use for timing model execution
         """
         state = get_namespace(self.arg_specs, state)
         state.__dict__.update(
             {
-                "consv_te": consv_te,
+                "consv_te": conserve_total_energy,
                 "bdt": timestep,
                 "mdt": timestep / self.namelist.k_split,
                 "do_adiabatic_init": do_adiabatic_init,
