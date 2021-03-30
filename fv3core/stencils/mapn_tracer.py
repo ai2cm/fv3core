@@ -39,6 +39,12 @@ def compute(
     j_2d: Optional[int] = None,
     version: str = "stencil",
 ):
+    domain_compute = (
+        spec.grid.ie - spec.grid.is_ + 1,
+        spec.grid.je - spec.grid.js + 1,
+        spec.grid.npz + 1,
+    )
+
     qs = utils.make_storage_from_shape(pe1.shape, origin=(0, 0, 0))
     (
         dp1,
@@ -62,7 +68,7 @@ def compute(
             q4_3,
             q4_4,
             origin=(spec.grid.is_, spec.grid.js, 0),
-            domain=(spec.grid.npx, spec.grid.npy, spec.grid.npz),
+            domain=domain_compute,
         )
 
         q4_1, q4_2, q4_3, q4_4 = remap_profile.compute(
