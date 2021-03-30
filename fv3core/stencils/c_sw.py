@@ -363,8 +363,12 @@ def compute(delp, pt, u, v, w, uc, vc, ua, va, ut, vt, divgd, omga, dt2):
     grid = spec.grid
     dord4 = True
     origin_halo1 = (grid.is_ - 1, grid.js - 1, 0)
-    delpc = utils.make_storage_from_shape(delp.shape, origin=origin_halo1, init=True)
-    ptc = utils.make_storage_from_shape(pt.shape, origin=origin_halo1, init=True)
+    delpc = utils.make_storage_from_shape(
+        delp.shape, origin=origin_halo1, init=True, cache_key="c_sw_delpc"
+    )
+    ptc = utils.make_storage_from_shape(
+        pt.shape, origin=origin_halo1, init=True, cache_key="c_sw_ptc"
+    )
     d2a2c.compute(dord4, uc, vc, u, v, ua, va, ut, vt)
     if spec.namelist.nord > 0:
         divergence_corner(
@@ -423,8 +427,8 @@ def compute(delp, pt, u, v, w, uc, vc, ua, va, ut, vt, divgd, omga, dt2):
     # ke_c_sw
     # {
     # Create storage objects to hold the new vorticity and kinetic energy values
-    ke = utils.make_storage_from_shape(uc.shape)
-    vort = utils.make_storage_from_shape(vc.shape)
+    ke = utils.make_storage_from_shape(uc.shape, cache_key="c_sw_ke")
+    vort = utils.make_storage_from_shape(vc.shape, cache_key="c_sw_vort")
 
     # Set vorticity and kinetic energy values
     update_vorticity_and_kinetic_energy(
