@@ -5,7 +5,7 @@ from fv3core.testing import TranslateFortranData2Py
 class TranslateNH_P_Grad(TranslateFortranData2Py):
     def __init__(self, grid):
         super().__init__(grid)
-        self.compute_func = NH_P_Grad.compute
+        self.compute_func = NH_P_Grad.NonHydrostaticPressureGradient()
         self.in_vars["data_vars"] = {
             "u": {},
             "v": {},

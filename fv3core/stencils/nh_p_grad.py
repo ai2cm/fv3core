@@ -85,90 +85,37 @@ def CalcV(
             )
         ) * rdy
 
-
-def compute(u, v, pp, gz, pk3, delp, dt, ptop, akap):
+class NonHydrostaticPressureGradient:
     """
-    u=u v=v pp=pkc gz=gz pk3=pk3 delp=delp dt=dt
+    Fortran name is nh_p_grad
     """
-    grid = spec.grid
-    orig = (grid.is_, grid.js, 0)
-    # peln1 = log(ptop)
-    ptk = ptop ** akap
-    top_value = ptk  # = peln1 if spec.namelist.use_logp else ptk
-
-    wk1 = utils.make_storage_from_shape(pp.shape, origin=orig)
-    wk = utils.make_storage_from_shape(pk3.shape, origin=orig)
-
-    set_k0(pp, pk3, top_value, origin=orig, domain=(grid.nic + 1, grid.njc + 1, 1))
-
-    a2b_ord4.compute(pp, wk1, kstart=1, nk=grid.npz, replace=True)
-    a2b_ord4.compute(pk3, wk1, kstart=1, nk=grid.npz, replace=True)
-
-    a2b_ord4.compute(gz, wk1, kstart=0, nk=grid.npz + 1, replace=True)
-    a2b_ord4.compute(delp, wk1)
-
-    CalcWk(pk3, wk, origin=orig, domain=(grid.nic + 1, grid.njc + 1, grid.npz))
-
-    du = utils.make_storage_from_shape(u.shape, origin=orig)
-
-    CalcU(
-        u,
-        du,
-        wk,
-        wk1,
-        gz,
-        pk3,
-        pp,
-        grid.rdx,
-        dt,
-        origin=orig,
-        domain=(grid.nic, grid.njc + 1, grid.npz),
-    )
-
-    dv = utils.make_storage_from_shape(v.shape, origin=orig)
-
-    CalcV(
-        v,
-        dv,
-        wk,
-        wk1,
-        gz,
-        pk3,
-        pp,
-        grid.rdy,
-        dt,
-        origin=orig,
-        domain=(grid.nic + 1, grid.njc, grid.npz),
-    )
-    return u, v, pp, gz, pk3, delp
-
-class NhPGrad:
     def __init__(self):
         grid = spec.grid
         self.orig = (grid.is_, grid.js, 0)
         self.domain_full_k = (grid.nic + 1, grid.njc + 1, grid.npz)
-        self.domain_k1 = (grid.nic + 1, grid.njc + 1, grid.npz)
+        self.domain_k1 = (grid.nic + 1, grid.njc + 1, 1)
         self.u_domain = (grid.nic, grid.njc + 1, grid.npz)
         self.v_domain = (grid.nic + 1, grid.njc, grid.npz)
-        self._tmp_wk = utils.make_storage_from_shape(
-            grid.domain_shape_full(add=(0, 0, 0)), 
-            origin = self.orig
-        ) # pk3.shape
-        self._tmp_wk1 = utils.make_storage_from_shape(
-            grid.domain_shape_full(add=(0, 0, 0)), 
-            origin = self.orig
-        ) # pp.shape
-        self.du = utils.make_storage_from_shape(
-            grid.domain_shape_full(add=(0, 1, 0)), 
-            origin = self.orig
-        )
-        self.dv = utils.make_storage_from_shape(
-            grid.domain_shape_full(add=(1, 0, 0)), 
-            origin = self.orig
-        )
         self.nk = grid.npz
         self.rdx = grid.rdx
         self.rdy = grid.rdy
+
+        self._tmp_wk = utils.make_storage_from_shape(
+            grid.domain_shape_full(add=(0, 0, 1)), 
+            origin = self.orig
+        ) # pk3.shape
+        self._tmp_wk1 = utils.make_storage_from_shape(
+            grid.domain_shape_full(add=(0, 0, 1)), 
+            origin = self.orig
+        ) # pp.shape
+        self._tmp_du = utils.make_storage_from_shape(
+            grid.domain_shape_full(add=(0, 1, 0)), 
+            origin = self.orig
+        )
+        self._tmp_dv = utils.make_storage_from_shape(
+            grid.domain_shape_full(add=(1, 0, 0)), 
+            origin = self.orig
+        )
 
         self._set_k0_stencil = stencil(
             definition=set_k0,
@@ -224,7 +171,7 @@ class NhPGrad:
 
         self._calc_u_stencil(
             u,
-            self.du,
+            self._tmp_du,
             self._tmp_wk,
             self._tmp_wk1,
             gz,
@@ -238,7 +185,7 @@ class NhPGrad:
 
         self._calc_v_stencil(
             v,
-            self.dv,
+            self._tmp_dv,
             self._tmp_wk,
             self._tmp_wk1,
             gz,
