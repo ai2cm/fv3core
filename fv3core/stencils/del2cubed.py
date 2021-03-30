@@ -4,48 +4,47 @@ import fv3core._config as spec
 import fv3core.utils.corners as corners
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import gtstencil
-
-
-sd = utils.sd
-origin = utils.origin
+from fv3core.utils.typing import FloatField, FloatFieldIJ
 
 
 #
 # Flux value stencils
 # ---------------------
 @gtstencil()
-def compute_zonal_flux(flux: sd, A_in: sd, del_term: sd):
+def compute_zonal_flux(flux: FloatField, a_in: FloatField, del_term: FloatFieldIJ):
     with computation(PARALLEL), interval(...):
-        flux = del_term * (A_in[-1, 0, 0] - A_in)
+        flux = del_term * (a_in[-1, 0, 0] - a_in)
 
 
 @gtstencil()
-def compute_meridional_flux(flux: sd, A_in: sd, del_term: sd):
+def compute_meridional_flux(flux: FloatField, a_in: FloatField, del_term: FloatFieldIJ):
     with computation(PARALLEL), interval(...):
-        flux = del_term * (A_in[0, -1, 0] - A_in)
+        flux = del_term * (a_in[0, -1, 0] - a_in)
 
 
 #
 # Q update stencil
 # ------------------
 @gtstencil()
-def update_q(q: sd, rarea: sd, fx: sd, fy: sd, cd: float):
+def update_q(
+    q: FloatField, rarea: FloatFieldIJ, fx: FloatField, fy: FloatField, cd: float
+):
     with computation(PARALLEL), interval(...):
         q = q + cd * rarea * (fx - fx[1, 0, 0] + fy - fy[0, 1, 0])
 
 
 @gtstencil()
-def copy_row(A: sd):
+def copy_row(a: FloatField):
     with computation(PARALLEL), interval(...):
-        A0 = A
-        A = A0[1, 0, 0]
+        a0 = a
+        a = a0[1, 0, 0]
 
 
 @gtstencil()
-def copy_column(A: sd):
+def copy_column(a: FloatField):
     with computation(PARALLEL), interval(...):
-        A0 = A
-        A = A0[0, 1, 0]
+        a0 = a
+        a = a0[0, 1, 0]
 
 
 #
@@ -93,7 +92,7 @@ def corner_fill(grid, q):
     return q
 
 
-def compute(qdel, nmax, cd, km):
+def compute(qdel: FloatField, nmax: int, cd: float, km: int):
     grid = spec.grid
     origin = (grid.isd, grid.jsd, 0)
 
@@ -111,13 +110,17 @@ def compute(qdel, nmax, cd, km):
         qdel = corner_fill(grid, qdel)
 
         if nt > 0:
-            corners.copy_corners(qdel, "x", grid)
+            corners.copy_corners_x_stencil(
+                qdel, origin=(grid.isd, grid.jsd, 0), domain=(grid.nid, grid.njd, km)
+            )
         nx = grid.njc + 2 * nt + 1  # (grid.ie+nt+1) - (grid.is_-nt) + 1
         ny = grid.njc + 2 * nt  # (grid.je+nt) - (grid.js-nt) + 1
         compute_zonal_flux(fx, qdel, grid.del6_v, origin=origin, domain=(nx, ny, km))
 
         if nt > 0:
-            corners.copy_corners(qdel, "y", grid)
+            corners.copy_corners_y_stencil(
+                qdel, origin=(grid.isd, grid.jsd, 0), domain=(grid.nid, grid.njd, km)
+            )
         nx = grid.nic + 2 * nt  # (grid.ie+nt) - (grid.is_-nt) + 1
         ny = grid.njc + 2 * nt + 1  # (grid.je+nt+1) - (grid.js-nt) + 1
         compute_meridional_flux(

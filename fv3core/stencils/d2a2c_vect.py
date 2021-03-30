@@ -13,20 +13,67 @@ import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import gtstencil
 from fv3core.stencils.a2b_ord4 import a1, a2, lagrange_x_func, lagrange_y_func
 from fv3core.utils import corners
-from fv3core.utils.typing import FloatField
+from fv3core.utils.typing import FloatField, FloatFieldIJ
 
 
-sd = utils.sd
 c1 = -2.0 / 14.0
 c2 = 11.0 / 14.0
 c3 = 5.0 / 14.0
 BIG_NUMBER = 1.0e30
 
-
 @gtscript.function
-def contravariant(u, v, cosa, rsin):
-    return (u - v * cosa) * rsin
+def contravariant(v1, v2, cosa, rsin2):
+    """
+    Retrieve the contravariant component of the wind from its covariant
+    component and the covariant component in the "other" (x/y) direction.
 
+    For an orthogonal grid, cosa would be 0 and rsin2 would be 1, meaning
+    the contravariant component is equal to the covariant component.
+    However, the gnomonic cubed sphere grid is not orthogonal.
+
+    Args:
+        v1: covariant component of the wind for which we want to get the
+            contravariant component
+        v2: covariant component of the wind for the other direction,
+            i.e. y if v1 is in x, x if v1 is in y
+        cosa: cosine of the angle between the local x-direction and y-direction.
+        rsin2: 1 / (sin(alpha))^2, where alpha is the angle between the local
+            x-direction and y-direction
+
+    Returns:
+        v1_contravariant: contravariant component of v1
+    """
+    # From technical docs on FV3 cubed sphere grid:
+    # The gnomonic cubed sphere grid is not orthogonal, meaning
+    # the u and v vectors have some overlapping component. We can decompose
+    # the total wind U in two ways, as a linear combination of the
+    # coordinate vectors ("contravariant"):
+    #    U = u_contravariant * u_dir + v_contravariant * v_dir
+    # or as the projection of the vector onto the coordinate
+    #    u_covariant = U dot u_dir
+    #    v_covariant = U dot v_dir
+    # The names come from the fact that the covariant vectors vary
+    # (under a change in coordinate system) the same way the coordinate values do,
+    # while the contravariant vectors vary in the "opposite" way.
+    #
+    # equations from FV3 technical documentation
+    # u_cov = u_contra + v_contra * cos(alpha)  (eq 3.4)
+    # v_cov = u_contra * cos(alpha) + v_contra  (eq 3.5)
+    #
+    # u_contra = u_cov - v_contra * cos(alpha)  (1, from 3.4)
+    # v_contra = v_cov - u_contra * cos(alpha)  (2, from 3.5)
+    # u_contra = u_cov - (v_cov - u_contra * cos(alpha)) * cos(alpha)  (from 1 & 2)
+    # u_contra = u_cov - v_cov * cos(alpha) + u_contra * cos2(alpha) (follows)
+    # u_contra * (1 - cos2(alpha)) = u_cov - v_cov * cos(alpha)
+    # u_contra = u_cov/(1 - cos2(alpha)) - v_cov * cos(alpha)/(1 - cos2(alpha))
+    # matches because rsin = 1 /(1 + cos2(alpha)),
+    #                 cosa*rsin = cos(alpha)/(1 + cos2(alpha))
+
+    # recall that:
+    # rsin2 is 1/(sin(alpha))^2
+    # cosa is cos(alpha)
+
+    return (v1 - v2 * cosa) * rsin2
 
 @gtscript.function
 def vol_conserv_cubic_interp_func_x(u):
@@ -54,7 +101,7 @@ def lagrange_y_func_p1(qx):
 
 
 @gtstencil()
-def lagrange_interpolation_y_p1(qx: sd, qout: sd):
+def lagrange_interpolation_y_p1(qx: FloatField, qout: FloatField):
     with computation(PARALLEL), interval(...):
         qout = lagrange_y_func_p1(qx)
 
@@ -65,7 +112,7 @@ def lagrange_x_func_p1(qy):
 
 
 @gtstencil()
-def lagrange_interpolation_x_p1(qy: sd, qout: sd):
+def lagrange_interpolation_x_p1(qy: FloatField, qout: FloatField):
     with computation(PARALLEL), interval(...):
         qout = lagrange_x_func_p1(qy)
 
@@ -116,35 +163,35 @@ def interp_winds_d_to_a(u, v):
 
 @gtscript.function
 def edge_interpolate4_x(ua, dxa):
-    t1 = dxa[-2, 0, 0] + dxa[-1, 0, 0]
-    t2 = dxa[0, 0, 0] + dxa[1, 0, 0]
-    n1 = (t1 + dxa[-1, 0, 0]) * ua[-1, 0, 0] - dxa[-1, 0, 0] * ua[-2, 0, 0]
-    n2 = (t1 + dxa[0, 0, 0]) * ua[0, 0, 0] - dxa[0, 0, 0] * ua[1, 0, 0]
+    t1 = dxa[-2, 0] + dxa[-1, 0]
+    t2 = dxa[0, 0] + dxa[1, 0]
+    n1 = (t1 + dxa[-1, 0]) * ua[-1, 0, 0] - dxa[-1, 0] * ua[-2, 0, 0]
+    n2 = (t1 + dxa[0, 0]) * ua[0, 0, 0] - dxa[0, 0] * ua[1, 0, 0]
     return 0.5 * (n1 / t1 + n2 / t2)
 
 
 @gtscript.function
 def edge_interpolate4_y(va, dya):
-    t1 = dya[0, -2, 0] + dya[0, -1, 0]
-    t2 = dya[0, 0, 0] + dya[0, 1, 0]
-    n1 = (t1 + dya[0, -1, 0]) * va[0, -1, 0] - dya[0, -1, 0] * va[0, -2, 0]
-    n2 = (t1 + dya[0, 0, 0]) * va[0, 0, 0] - dya[0, 0, 0] * va[0, 1, 0]
+    t1 = dya[0, -2] + dya[0, -1]
+    t2 = dya[0, 0] + dya[0, 1]
+    n1 = (t1 + dya[0, -1]) * va[0, -1, 0] - dya[0, -1] * va[0, -2, 0]
+    n2 = (t1 + dya[0, 0]) * va[0, 0, 0] - dya[0, 0] * va[0, 1, 0]
     return 0.5 * (n1 / t1 + n2 / t2)
 
 
 def _d2a2c_vect(
-    cosa_s: FloatField,
-    cosa_u: FloatField,
-    cosa_v: FloatField,
-    dxa: FloatField,
-    dya: FloatField,
-    rsin2: FloatField,
-    rsin_u: FloatField,
-    rsin_v: FloatField,
-    sin_sg1: FloatField,
-    sin_sg2: FloatField,
-    sin_sg3: FloatField,
-    sin_sg4: FloatField,
+    cosa_s: FloatFieldIJ,
+    cosa_u: FloatFieldIJ,
+    cosa_v: FloatFieldIJ,
+    dxa: FloatFieldIJ,
+    dya: FloatFieldIJ,
+    rsin2: FloatFieldIJ,
+    rsin_u: FloatFieldIJ,
+    rsin_v: FloatFieldIJ,
+    sin_sg1: FloatFieldIJ,
+    sin_sg2: FloatFieldIJ,
+    sin_sg3: FloatFieldIJ,
+    sin_sg4: FloatFieldIJ,
     u: FloatField,
     ua: FloatField,
     uc: FloatField,
@@ -199,7 +246,7 @@ def _d2a2c_vect(
 
         with horizontal(region[i_start, local_js - 1 : local_je + 2]):
             utc = edge_interpolate4_x(ua, dxa)
-            uc = utc * sin_sg3[-1, 0, 0] if utc > 0 else utc * sin_sg1
+            uc = utc * sin_sg3[-1, 0] if utc > 0 else utc * sin_sg1
 
         with horizontal(region[i_start + 1, local_js - 1 : local_je + 2]):
             uc = vol_conserv_cubic_interp_func_x_rev(utmp)
@@ -216,7 +263,7 @@ def _d2a2c_vect(
 
         with horizontal(region[i_end + 1, local_js - 1 : local_je + 2]):
             utc = edge_interpolate4_x(ua, dxa)
-            uc = utc * sin_sg3[-1, 0, 0] if utc > 0 else utc * sin_sg1
+            uc = utc * sin_sg3[-1, 0] if utc > 0 else utc * sin_sg1
 
         with horizontal(region[i_end + 2, local_js - 1 : local_je + 2]):
             uc = vol_conserv_cubic_interp_func_x_rev(utmp)
@@ -252,7 +299,7 @@ def _d2a2c_vect(
 
         with horizontal(region[local_is - 1 : local_ie + 2, j_start]):
             vtc = edge_interpolate4_y(va, dya)
-            vc = vtc * sin_sg4[0, -1, 0] if vtc > 0 else vtc * sin_sg2
+            vc = vtc * sin_sg4[0, -1] if vtc > 0 else vtc * sin_sg2
 
         with horizontal(region[local_is - 1 : local_ie + 2, j_start + 1]):
             vc = vol_conserv_cubic_interp_func_y_rev(vtmp)
@@ -264,7 +311,7 @@ def _d2a2c_vect(
 
         with horizontal(region[local_is - 1 : local_ie + 2, j_end + 1]):
             vtc = edge_interpolate4_y(va, dya)
-            vc = vtc * sin_sg4[0, -1, 0] if vtc > 0 else vtc * sin_sg2
+            vc = vtc * sin_sg4[0, -1] if vtc > 0 else vtc * sin_sg2
 
         with horizontal(region[local_is - 1 : local_ie + 2, j_end + 2]):
             vc = vol_conserv_cubic_interp_func_y_rev(vtmp)
@@ -276,9 +323,7 @@ def _d2a2c_vect(
 
 _c12_stencil = gtstencil(definition=_d2a2c_vect, externals={"D2A2C_AVG_OFFSET": -1})
 
-_default_stencil = (
-    gtstencil(definition=_d2a2c_vect, externals={"D2A2C_AVG_OFFSET": 3}),
-)
+_default_stencil = gtstencil(definition=_d2a2c_vect, externals={"D2A2C_AVG_OFFSET": 3})
 
 
 def compute(

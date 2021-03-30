@@ -1,5 +1,9 @@
+from gt4py.gtscript import PARALLEL, computation, interval
+
+from fv3core.decorators import gtstencil
 from fv3core.stencils import d_sw
 from fv3core.testing import TranslateFortranData2Py
+from fv3core.utils.typing import FloatField, FloatFieldIJ
 
 
 class TranslateD_SW(TranslateFortranData2Py):
@@ -64,8 +68,22 @@ class TranslateD_SW(TranslateFortranData2Py):
 
 
 class TranslateUbKE(TranslateFortranData2Py):
+    @gtstencil
+    def ubke(
+        uc: FloatField,
+        vc: FloatField,
+        cosa: FloatFieldIJ,
+        rsina: FloatFieldIJ,
+        ut: FloatField,
+        ub: FloatField,
+        dt4: float,
+        dt5: float,
+    ):
+        with computation(PARALLEL), interval(...):
+            ub = d_sw.ubke(uc, vc, cosa, rsina, ut, ub, dt4, dt5)
+
     def _call(self, *args, **kwargs):
-        d_sw.ubke(
+        self.ubke(
             *args,
             **kwargs,
             cosa=self.grid.cosa,
@@ -88,8 +106,22 @@ class TranslateUbKE(TranslateFortranData2Py):
 
 
 class TranslateVbKE(TranslateFortranData2Py):
+    @gtstencil
+    def vbke(
+        vc: FloatField,
+        uc: FloatField,
+        cosa: FloatFieldIJ,
+        rsina: FloatFieldIJ,
+        vt: FloatField,
+        vb: FloatField,
+        dt4: float,
+        dt5: float,
+    ):
+        with computation(PARALLEL), interval(...):
+            vb = d_sw.vbke(vc, uc, cosa, rsina, vt, vb, dt4, dt5)
+
     def _call(self, *args, **kwargs):
-        d_sw.vbke(
+        self.vbke(
             *args,
             **kwargs,
             cosa=self.grid.cosa,
@@ -109,3 +141,29 @@ class TranslateVbKE(TranslateFortranData2Py):
         }
         self.in_vars["parameters"] = ["dt5", "dt4"]
         self.out_vars = {"vb": grid.compute_dict_buffer_2d()}
+
+
+class TranslateFluxCapacitor(TranslateFortranData2Py):
+    def __init__(self, grid):
+        super().__init__(grid)
+        self.in_vars["data_vars"] = {
+            "cx": grid.x3d_compute_domain_y_dict(),
+            "cy": grid.y3d_compute_domain_x_dict(),
+            "xflux": grid.x3d_compute_dict(),
+            "yflux": grid.y3d_compute_dict(),
+            "crx_adv": grid.x3d_compute_domain_y_dict(),
+            "cry_adv": grid.y3d_compute_domain_x_dict(),
+            "fx": grid.x3d_compute_dict(),
+            "fy": grid.y3d_compute_dict(),
+        }
+        self.out_vars = {}
+        for outvar in ["cx", "cy", "xflux", "yflux"]:
+            self.out_vars[outvar] = self.in_vars["data_vars"][outvar]
+
+    def compute_from_storage(self, inputs):
+        d_sw.flux_capacitor(
+            **inputs,
+            origin=self.grid.full_origin(),
+            domain=self.grid.domain_shape_full(),
+        )
+        return inputs
