@@ -2,8 +2,8 @@ from gt4py.gtscript import PARALLEL, computation, interval, stencil
 
 import fv3core._config as spec
 import fv3core.stencils.a2b_ord4 as a2b_ord4
-import fv3core.utils.gt4py_utils as utils
 import fv3core.utils.global_config as global_config
+import fv3core.utils.gt4py_utils as utils
 from fv3core.utils.typing import FloatField, FloatFieldIJ
 
 
@@ -85,10 +85,12 @@ def CalcV(
             )
         ) * rdy
 
+
 class NonHydrostaticPressureGradient:
     """
     Fortran name is nh_p_grad
     """
+
     def __init__(self):
         grid = spec.grid
         self.orig = (grid.is_, grid.js, 0)
@@ -101,20 +103,16 @@ class NonHydrostaticPressureGradient:
         self.rdy = grid.rdy
 
         self._tmp_wk = utils.make_storage_from_shape(
-            grid.domain_shape_full(add=(0, 0, 1)), 
-            origin = self.orig
-        ) # pk3.shape
+            grid.domain_shape_full(add=(0, 0, 1)), origin=self.orig
+        )  # pk3.shape
         self._tmp_wk1 = utils.make_storage_from_shape(
-            grid.domain_shape_full(add=(0, 0, 1)), 
-            origin = self.orig
-        ) # pp.shape
+            grid.domain_shape_full(add=(0, 0, 1)), origin=self.orig
+        )  # pp.shape
         self._tmp_du = utils.make_storage_from_shape(
-            grid.domain_shape_full(add=(0, 1, 0)), 
-            origin = self.orig
+            grid.domain_shape_full(add=(0, 1, 0)), origin=self.orig
         )
         self._tmp_dv = utils.make_storage_from_shape(
-            grid.domain_shape_full(add=(1, 0, 0)), 
-            origin = self.orig
+            grid.domain_shape_full(add=(1, 0, 0)), origin=self.orig
         )
 
         self._set_k0_stencil = stencil(
@@ -143,15 +141,15 @@ class NonHydrostaticPressureGradient:
 
     def __call__(
         self,
-        u: FloatField, 
-        v: FloatField, 
-        pp: FloatField, 
-        gz: FloatField, 
-        pk3:FloatField, 
-        delp: FloatField, 
-        dt: float, 
-        ptop: float, 
-        akap: float
+        u: FloatField,
+        v: FloatField,
+        pp: FloatField,
+        gz: FloatField,
+        pk3: FloatField,
+        delp: FloatField,
+        dt: float,
+        ptop: float,
+        akap: float,
     ):
         """
         u=u v=v pp=pkc gz=gz pk3=pk3 delp=delp dt=dt
@@ -159,7 +157,9 @@ class NonHydrostaticPressureGradient:
         ptk = ptop ** akap
         top_value = ptk  # = peln1 if spec.namelist.use_logp else ptk
 
-        self._set_k0_stencil(pp, pk3, top_value, origin=self.orig, domain=self.domain_k1)
+        self._set_k0_stencil(
+            pp, pk3, top_value, origin=self.orig, domain=self.domain_k1
+        )
 
         a2b_ord4.compute(pp, self._tmp_wk1, kstart=1, nk=self.nk, replace=True)
         a2b_ord4.compute(pk3, self._tmp_wk1, kstart=1, nk=self.nk, replace=True)
@@ -167,7 +167,9 @@ class NonHydrostaticPressureGradient:
         a2b_ord4.compute(gz, self._tmp_wk1, kstart=0, nk=self.nk + 1, replace=True)
         a2b_ord4.compute(delp, self._tmp_wk1)
 
-        self._calc_wk_stencil(pk3, self._tmp_wk, origin=self.orig, domain=self.domain_full_k)
+        self._calc_wk_stencil(
+            pk3, self._tmp_wk, origin=self.orig, domain=self.domain_full_k
+        )
 
         self._calc_u_stencil(
             u,
