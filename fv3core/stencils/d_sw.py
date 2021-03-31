@@ -329,8 +329,8 @@ def heat_source_from_vorticity_damping(
         vb (in)
         ut (in)
         vt (in)
-        u (inout)
-        v (inout)
+        u (in)
+        v (in)
         delp (in)
         rsin2 (in)
         cosa_s (in)
@@ -372,7 +372,7 @@ def heat_source_from_vorticity_damping(
         # when d_sw is converted into a D_SW object
         if __INLINED(namelist.do_skeb == 1):
             dissipation_estimate = -dampterm
-
+    with computation(PARALLEL), interval(...):
         if damp_vt > 1e-5:
             with horizontal(region[local_is : local_ie + 1, local_js : local_je + 2]):
                 u = u + vt
