@@ -45,7 +45,6 @@ def set_omega(delp: FloatField, delz: FloatField, w: FloatField, omga: FloatFiel
         omga = delp / delz * w
 
 
-
 def compute_preamble(state, comm, grid, namelist):
     init_ph_columns(
         state.ak,
@@ -137,6 +136,7 @@ def compute_preamble(state, comm, grid, namelist):
             domain=grid.domain_shape_compute(),
         )
 
+
 def post_remap(state, comm, grid, namelist):
     grid = grid
     if not namelist.hydrostatic:
@@ -154,6 +154,7 @@ def post_remap(state, comm, grid, namelist):
         if global_config.get_do_halo_exchange():
             comm.halo_update(state.omga_quantity, n_points=utils.halo)
         del2cubed.compute(state.omga, namelist.nf_omega, 0.18 * grid.da_min, grid.npz)
+
 
 def wrapup(state, comm: fv3gfs.util.CubedSphereCommunicator, grid):
     print("Neg Adj 3", grid.rank)
