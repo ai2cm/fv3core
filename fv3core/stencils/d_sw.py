@@ -186,17 +186,19 @@ def ub_vb_from_vort(
     vort: FloatField,
     ub: FloatField,
     vb: FloatField,
+    dcon: FloatFieldK,
 ):
     from __externals__ import local_ie, local_is, local_je, local_js
 
     with computation(PARALLEL), interval(...):
-        # Creating a gtscript function for the ub/vb computation
-        # results in an "NotImplementedError" error for Jenkins
-        # Inlining the ub/vb computation in this stencil resolves the Jenkins error
-        with horizontal(region[local_is : local_ie + 1, local_js : local_je + 2]):
-            ub = vort - vort[1, 0, 0]
-        with horizontal(region[local_is : local_ie + 2, local_js : local_je + 1]):
-            vb = vort - vort[0, 1, 0]
+        if dcon[0] > dcon_threshold:
+            # Creating a gtscript function for the ub/vb computation
+            # results in an "NotImplementedError" error for Jenkins
+            # Inlining the ub/vb computation in this stencil resolves the Jenkins error
+            with horizontal(region[local_is : local_ie + 1, local_js : local_je + 2]):
+                ub = vort - vort[1, 0, 0]
+            with horizontal(region[local_is : local_ie + 2, local_js : local_je + 1]):
+                vb = vort - vort[0, 1, 0]
 
 
 @gtscript.function
@@ -258,7 +260,11 @@ def zrat_vorticity(
 
 @gtstencil()
 def adjust_w_and_qcon(
-    w: FloatField, delp: FloatField, dw: FloatField, q_con: FloatField, damp_w: FloatFieldK
+    w: FloatField,
+    delp: FloatField,
+    dw: FloatField,
+    q_con: FloatField,
+    damp_w: FloatFieldK,
 ):
     with computation(PARALLEL), interval(...):
         w = w / delp
@@ -312,18 +318,19 @@ def heat_source_from_vorticity_damping(
     rdy: FloatFieldIJ,
     heat_source: FloatField,
     dissipation_estimate: FloatField,
-    kinetic_energy_fraction_to_damp: float,
+    kinetic_energy_fraction_to_damp: FloatFieldK,
+    damp_vt: FloatFieldK,
 ):
     """
     Calculates heat source from vorticity damping implied by energy conservation.
-
+    Updates u and v
     Args:
         ub (in)
         vb (in)
         ut (in)
         vt (in)
-        u (in)
-        v (in)
+        u (inout)
+        v (inout)
         delp (in)
         rsin2 (in)
         cosa_s (in)
@@ -338,27 +345,39 @@ def heat_source_from_vorticity_damping(
             TODO: confirm this description is accurate, why is it multiplied
             by 0.25 below?
     """
-    from __externals__ import namelist
+    from __externals__ import local_ie, local_is, local_je, local_js, namelist
 
     with computation(PARALLEL), interval(...):
-        ubt = (ub + vt) * rdx
-        fy = u * rdx
-        gy = fy * ubt
-        vbt = (vb - ut) * rdy
-        fx = v * rdy
-        gx = fx * vbt
-        u2 = fy + fy[0, 1, 0]
-        du2 = ubt + ubt[0, 1, 0]
-        v2 = fx + fx[1, 0, 0]
-        dv2 = vbt + vbt[1, 0, 0]
-        dampterm = heat_damping_term(ubt, vbt, gx, gy, rsin2, cosa_s, u2, v2, du2, dv2)
-        heat_source = delp * (
-            heat_source - 0.25 * kinetic_energy_fraction_to_damp * dampterm
-        )
+        if (
+            kinetic_energy_fraction_to_damp[0] > dcon_threshold
+        ) or namelist.do_skeb == 1:
+            ubt = (ub + vt) * rdx
+            fy = u * rdx
+            gy = fy * ubt
+            vbt = (vb - ut) * rdy
+            fx = v * rdy
+            gx = fx * vbt
+            u2 = fy + fy[0, 1, 0]
+            du2 = ubt + ubt[0, 1, 0]
+            v2 = fx + fx[1, 0, 0]
+            dv2 = vbt + vbt[1, 0, 0]
+            dampterm = heat_damping_term(
+                ubt, vbt, gx, gy, rsin2, cosa_s, u2, v2, du2, dv2
+            )
+            heat_source = delp * (
+                heat_source - 0.25 * kinetic_energy_fraction_to_damp[0] * dampterm
+            )
+
         # do_skeb could be renamed to calculate_dissipation_estimate
         # when d_sw is converted into a D_SW object
         if __INLINED(namelist.do_skeb == 1):
             dissipation_estimate = -dampterm
+
+        if damp_vt > 1e-5:
+            with horizontal(region[local_is : local_ie + 1, local_js : local_je + 2]):
+                u = u + vt
+            with horizontal(region[local_is : local_ie + 2, local_js : local_je + 1]):
+                v = v - ut
 
 
 @gtstencil()
@@ -429,11 +448,21 @@ def get_column_namelist():
     modules and instead wanted to push the whole column ingestion down a level.
     """
     direct_namelist = ["ke_bg", "d_con", "nord"]
-    all_names = direct_namelist + ['nord_v', 'nord_w', 'nord_t', 'damp_vt', 'damp_w', 'damp_t', 'd2_divg']
+    all_names = direct_namelist + [
+        "nord_v",
+        "nord_w",
+        "nord_t",
+        "damp_vt",
+        "damp_w",
+        "damp_t",
+        "d2_divg",
+    ]
     col = {}
     num_k = len(k_bounds())
     for name in all_names:
-        col[name] = utils.make_storage_from_shape((spec.grid.npz+1,), (0,), cache_key='nam-'+name)
+        col[name] = utils.make_storage_from_shape(
+            (spec.grid.npz + 1,), (0,), cache_key="nam-" + name
+        )
     for name in direct_namelist:
         col[name][:] = getattr(spec.namelist, name)
 
@@ -750,9 +779,7 @@ def d_sw(
     )
 
     if not spec.namelist.hydrostatic:
-        dw, wk = damp_vertical_wind(
-            w, heat_s, diss_e, dt, column_namelist
-        )
+        dw, wk = damp_vertical_wind(w, heat_s, diss_e, dt, column_namelist)
 
         fvtp2d_vt(
             w,
@@ -919,14 +946,14 @@ def d_sw(
             nk=nk,
         )
 
-        if column_namelist["d_con"][kstart] > dcon_threshold:
-            ub_vb_from_vort(
-                vort,
-                ub,
-                vb,
-                origin=(grid().is_, grid().js, kstart),
-                domain=(grid().nic + 1, grid().njc + 1, nk),
-            )
+    ub_vb_from_vort(
+        vort,
+        ub,
+        vb,
+        column_namelist["d_con"],
+        origin=grid().compute_origin(),
+        domain=grid().domain_shape_compute(add=(1, 1, 0)),
+    )
 
     # Vorticity transport
     zrat_vorticity(
@@ -968,39 +995,22 @@ def d_sw(
                 nk=nk,
             )
 
-            if (
-                column_namelist["d_con"][kstart] > dcon_threshold
-                or spec.namelist.do_skeb
-            ):
-                heat_source_from_vorticity_damping(
-                    ub,
-                    vb,
-                    ut,
-                    vt,
-                    u,
-                    v,
-                    delp,
-                    grid().rsin2,
-                    grid().cosa_s,
-                    grid().rdx,
-                    grid().rdy,
-                    heat_s,
-                    diss_e,
-                    column_namelist["d_con"][kstart],
-                    origin=(grid().is_, grid().js, kstart),
-                    domain=(grid().nic, grid().njc, nk),
-                )
-
-        if column_namelist["damp_vt"][kstart] > 1e-5:
-            basic.add_term_stencil(
-                vt,
-                u,
-                origin=(grid().is_, grid().js, kstart),
-                domain=(grid().nic, grid().njc + 1, nk),
-            )
-            basic.subtract_term_stencil(
-                ut,
-                v,
-                origin=(grid().is_, grid().js, kstart),
-                domain=(grid().nic + 1, grid().njc, nk),
-            )
+    heat_source_from_vorticity_damping(
+        ub,
+        vb,
+        ut,
+        vt,
+        u,
+        v,
+        delp,
+        grid().rsin2,
+        grid().cosa_s,
+        grid().rdx,
+        grid().rdy,
+        heat_s,
+        diss_e,
+        column_namelist["d_con"],
+        column_namelist["damp_vt"],
+        origin=grid().compute_origin(),
+        domain=grid().domain_shape_compute(add=(1, 1, 0)),
+    )

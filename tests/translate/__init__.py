@@ -23,9 +23,9 @@ from .translate_d2a2c_vect import TranslateD2A2C_Vect
 from .translate_d_sw import (
     TranslateD_SW,
     TranslateFluxCapacitor,
+    TranslateHeatDiss,
     TranslateUbKE,
     TranslateVbKE,
-    TranslateHeatDiss
 )
 from .translate_del2cubed import TranslateDel2Cubed
 from .translate_del6vtflux import TranslateDel6VtFlux

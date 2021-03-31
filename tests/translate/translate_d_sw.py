@@ -1,10 +1,11 @@
 from gt4py.gtscript import PARALLEL, computation, interval
 
+import fv3core._config as spec
 from fv3core.decorators import gtstencil
 from fv3core.stencils import d_sw
 from fv3core.testing import TranslateFortranData2Py
 from fv3core.utils.typing import FloatField, FloatFieldIJ
-import fv3core._config as spec
+
 
 class TranslateD_SW(TranslateFortranData2Py):
     def __init__(self, grid):
@@ -168,6 +169,7 @@ class TranslateFluxCapacitor(TranslateFortranData2Py):
         )
         return inputs
 
+
 class TranslateHeatDiss(TranslateFortranData2Py):
     def __init__(self, grid):
         super().__init__(grid)
@@ -184,12 +186,15 @@ class TranslateHeatDiss(TranslateFortranData2Py):
             "diss_est": grid.compute_dict(),
             "dw": grid.compute_dict(),
         }
+
     def compute_from_storage(self, inputs):
         column_namelist = d_sw.get_column_namelist()
-        # TODO add these to the serialized data or remove the test                                                 
+        # TODO add these to the serialized data or remove the test
         inputs["damp_w"] = column_namelist["damp_w"]
         inputs["ke_bg"] = column_namelist["ke_bg"]
-        inputs["dt"] =spec.namelist.dt_atmos / spec.namelist.k_split  / spec.namelist.n_split
+        inputs["dt"] = (
+            spec.namelist.dt_atmos / spec.namelist.k_split / spec.namelist.n_split
+        )
         inputs["rarea"] = self.grid.rarea
         inputs["origin"] = self.grid.compute_origin()
         inputs["domain"] = self.grid.domain_shape_compute()
