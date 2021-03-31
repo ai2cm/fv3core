@@ -406,6 +406,9 @@ class YPiecewiseParabolic:
             backend=global_config.get_backend(),
             rebuild=global_config.get_rebuild(),
         )
+        self.stencil_runtime_args = {
+            "validate_args": global_config.get_validate_args(),
+        }
 
     def __call__(
         self, q: FloatField, c: FloatField, flux: FloatField, ifirst: int, ilast: int
@@ -427,6 +430,7 @@ class YPiecewiseParabolic:
             c,
             self._dya,
             flux,
-            origin=(ifirst, self._js, 0),
-            domain=(ni, self._njc + 1, self._npz + 1),
+            origin=(ifirst, self.js, 0),
+            domain=(ni, self.njc + 1, self.npz + 1),
+            **self.stencil_runtime_args,
         )
