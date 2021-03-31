@@ -13,12 +13,12 @@ def set_k0(pp: FloatField, pk3: FloatField, top_value: float):
         pk3[0, 0, 0] = top_value
 
 
-def CalcWk(pk: FloatField, wk: FloatField):
+def calc_wk(pk: FloatField, wk: FloatField):
     with computation(PARALLEL), interval(...):
         wk = pk[0, 0, 1] - pk[0, 0, 0]
 
 
-def CalcU(
+def calc_u(
     u: FloatField,
     du: FloatField,
     wk: FloatField,
@@ -52,7 +52,7 @@ def CalcU(
         ) * rdx
 
 
-def CalcV(
+def calc_v(
     v: FloatField,
     dv: FloatField,
     wk: FloatField,
@@ -93,11 +93,11 @@ class NonHydrostaticPressureGradient:
 
     def __init__(self):
         grid = spec.grid
-        self.orig = (grid.is_, grid.js, 0)
-        self.domain_full_k = (grid.nic + 1, grid.njc + 1, grid.npz)
+        self.orig = grid.compute_origin()
+        self.domain_full_k = grid.domain_shape_compute(add=(1, 1, 0))
         self.domain_k1 = (grid.nic + 1, grid.njc + 1, 1)
-        self.u_domain = (grid.nic, grid.njc + 1, grid.npz)
-        self.v_domain = (grid.nic + 1, grid.njc, grid.npz)
+        self.u_domain = grid.domain_shape_compute(add=(0, 1, 0))
+        self.v_domain = grid.domain_shape_compute(add=(1, 0, 0))
         self.nk = grid.npz
         self.rdx = grid.rdx
         self.rdy = grid.rdy
@@ -122,19 +122,19 @@ class NonHydrostaticPressureGradient:
         )
 
         self._calc_wk_stencil = stencil(
-            definition=CalcWk,
+            definition=calc_wk,
             backend=global_config.get_backend(),
             rebuild=global_config.get_rebuild(),
         )
 
         self._calc_u_stencil = stencil(
-            definition=CalcU,
+            definition=calc_u,
             backend=global_config.get_backend(),
             rebuild=global_config.get_rebuild(),
         )
 
         self._calc_v_stencil = stencil(
-            definition=CalcV,
+            definition=calc_v,
             backend=global_config.get_backend(),
             rebuild=global_config.get_rebuild(),
         )
