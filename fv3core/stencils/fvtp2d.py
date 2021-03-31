@@ -78,6 +78,8 @@ class FiniteVolumeTransport:
         stencil_kwargs = {
             "backend": global_config.get_backend(),
             "rebuild": global_config.get_rebuild(),
+        }
+        self.stencil_runtime_args = {
             "validate_args": global_config.get_validate_args(),
         }
         stencil_wrapper = gtscript.stencil(**stencil_kwargs)
@@ -121,6 +123,7 @@ class FiniteVolumeTransport:
             self._tmp_q_i,
             origin=grid.full_origin(add=(0, 3, 0)),
             domain=grid.domain_shape_full(add=(0, -3, 1)),
+            **self.stencil_runtime_args,
         )
         self.xppm_outer(self._tmp_q_i, crx, fx, grid.js, grid.je)
         corners.copy_corners_x_stencil(
@@ -136,6 +139,7 @@ class FiniteVolumeTransport:
             self._tmp_q_j,
             origin=grid.full_origin(add=(3, 0, 0)),
             domain=grid.domain_shape_full(add=(-3, 0, 1)),
+            **self.stencil_runtime_args,
         )
         self.yppm_outer(self._tmp_q_j, cry, fy, grid.is_, grid.ie)
         if mfx is not None and mfy is not None:
@@ -148,6 +152,7 @@ class FiniteVolumeTransport:
                 mfy,
                 origin=grid.compute_origin(),
                 domain=grid.domain_shape_compute(add=(1, 1, 1)),
+                **self.stencil_runtime_args,
             )
             if (mass is not None) and (nord is not None) and (damp_c is not None):
                 for kstart, nk in d_sw.k_bounds():
@@ -164,6 +169,7 @@ class FiniteVolumeTransport:
                 yfx,
                 origin=grid.compute_origin(),
                 domain=grid.domain_shape_compute(add=(1, 1, 1)),
+                **self.stencil_runtime_args,
             )
             if (nord is not None) and (damp_c is not None):
                 for kstart, nk in d_sw.k_bounds():
