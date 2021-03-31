@@ -173,6 +173,7 @@ class Tracer2D1L:
         stencil_kwargs = {
             "backend": global_config.get_backend(),
             "rebuild": global_config.get_rebuild(),
+            "validate_args": global_config.get_validate_args(),
             "externals": local_axis_offsets,
         }
         stencil_wrapper = gtscript.stencil(**stencil_kwargs)

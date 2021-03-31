@@ -78,6 +78,7 @@ class FiniteVolumeTransport:
         stencil_kwargs = {
             "backend": global_config.get_backend(),
             "rebuild": global_config.get_rebuild(),
+            "validate_args": global_config.get_validate_args(),
         }
         stencil_wrapper = gtscript.stencil(**stencil_kwargs)
         self.stencil_q_i = stencil_wrapper(q_i_stencil)

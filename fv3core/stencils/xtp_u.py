@@ -147,6 +147,7 @@ class XTP_U:
             },
             backend=global_config.get_backend(),
             rebuild=global_config.get_rebuild(),
+            validate_args=global_config.get_validate_args(),
         )
 
     def __call__(self, c: FloatField, u: FloatField, flux: FloatField):
