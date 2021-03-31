@@ -81,10 +81,10 @@ class FvTp2d:
         self.stencil_q_i = stencil_wrapper(q_i_stencil)
         self.stencil_q_j = stencil_wrapper(q_j_stencil)
         self.stencil_transport_flux = stencil_wrapper(transport_flux_xy)
-        self.xppm_in = xppm.XPPM(spec.namelist, ord_in)
-        self.yppm_in = yppm.YPPM(spec.namelist, ord_in)
-        self.xppm_out = xppm.XPPM(spec.namelist, ord_out)
-        self.yppm_out = yppm.YPPM(spec.namelist, ord_out)
+        self.xppm_in = xppm.XPiecewiseParabolic(spec.namelist, ord_in)
+        self.yppm_in = yppm.YPiecewiseParabolic(spec.namelist, ord_in)
+        self.xppm_out = xppm.XPiecewiseParabolic(spec.namelist, ord_out)
+        self.yppm_out = yppm.YPiecewiseParabolic(spec.namelist, ord_out)
 
     def __call__(
         self,

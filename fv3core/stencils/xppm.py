@@ -344,6 +344,6 @@ class XPiecewiseParabolic:
             c,
             self._dxa,
             xflux,
-            origin=(self.is_, jfirst, 0),
-            domain=(self.nic + 1, nj, self.npz + 1),
+            origin=(self._is_, jfirst, 0),
+            domain=(self._nic + 1, nj, self._npz + 1),
         )
