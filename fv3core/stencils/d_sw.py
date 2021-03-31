@@ -319,7 +319,6 @@ def heat_source_from_vorticity_damping(
     heat_source: FloatField,
     dissipation_estimate: FloatField,
     kinetic_energy_fraction_to_damp: FloatFieldK,
-    damp_vt: FloatFieldK,
 ):
     """
     Calculates heat source from vorticity damping implied by energy conservation.
@@ -345,7 +344,7 @@ def heat_source_from_vorticity_damping(
             TODO: confirm this description is accurate, why is it multiplied
             by 0.25 below?
     """
-    from __externals__ import local_ie, local_is, local_je, local_js, namelist
+    from __externals__ import namelist
 
     with computation(PARALLEL), interval(...):
         if (
@@ -372,12 +371,20 @@ def heat_source_from_vorticity_damping(
         # when d_sw is converted into a D_SW object
         if __INLINED(namelist.do_skeb == 1):
             dissipation_estimate = -dampterm
+
+
+@gtstencil
+def update_u(u: FloatField, vt: FloatField, damp_vt: FloatFieldK):
     with computation(PARALLEL), interval(...):
         if damp_vt > 1e-5:
-            with horizontal(region[local_is : local_ie + 1, local_js : local_je + 2]):
-                u = u + vt
-            with horizontal(region[local_is : local_ie + 2, local_js : local_je + 1]):
-                v = v - ut
+            u = u + vt
+
+
+@gtstencil
+def update_v(v: FloatField, ut: FloatField, damp_vt: FloatFieldK):
+    with computation(PARALLEL), interval(...):
+        if damp_vt > 1e-5:
+            v = v - ut
 
 
 @gtstencil()
@@ -1010,7 +1017,20 @@ def d_sw(
         heat_s,
         diss_e,
         column_namelist["d_con"],
-        column_namelist["damp_vt"],
         origin=grid().compute_origin(),
         domain=grid().domain_shape_compute(add=(1, 1, 0)),
+    )
+    update_u(
+        u,
+        vt,
+        column_namelist["damp_vt"],
+        origin=grid().compute_origin(),
+        domain=grid().domain_shape_compute(add=(0, 1, 0)),
+    )
+    update_v(
+        v,
+        ut,
+        column_namelist["damp_vt"],
+        origin=grid().compute_origin(),
+        domain=grid().domain_shape_compute(add=(1, 0, 0)),
     )
