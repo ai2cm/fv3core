@@ -25,6 +25,7 @@ from .translate_d_sw import (
     TranslateFluxCapacitor,
     TranslateUbKE,
     TranslateVbKE,
+    TranslateHeatDiss
 )
 from .translate_del2cubed import TranslateDel2Cubed
 from .translate_del6vtflux import TranslateDel6VtFlux
@@ -43,7 +44,6 @@ from .translate_haloupdate import (
     TranslateMPPBoundaryAdjust,
     TranslateMPPUpdateDomains,
 )
-from .translate_heatdiss import TranslateHeatDiss
 from .translate_last_step import TranslateLastStep
 from .translate_map1_ppm_2d import (
     TranslateMap1_PPM_2d,
