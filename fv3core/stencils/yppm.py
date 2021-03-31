@@ -430,7 +430,7 @@ class YPiecewiseParabolic:
             c,
             self._dya,
             flux,
-            origin=(ifirst, self.js, 0),
-            domain=(ni, self.njc + 1, self.npz + 1),
+            origin=(ifirst, self._js, 0),
+            domain=(ni, self._njc + 1, self._npz + 1),
             **self.stencil_runtime_args,
         )
