@@ -155,15 +155,15 @@ class NonHydrostaticPressureGradient:
         Updates the U and V winds due to pressure gradients,
         accounting for both the hydrostatic and nonhydrostatic contributions.
         Args:
-            u: U wind
-            v: V wind
-            pp: Pressure
-            gz:  height of the model grid cells
-            pk3:
-            delp: vertical delta in pressure
-            dt: model atmospheric timestep (s)
-            ptop: pressure at top of atmosphere
-            akap: Kappa
+            u: U wind (inout)
+            v: V wind (inout)
+            pp: Pressure (in)
+            gz:  height of the model grid cells (in)
+            pk3: (in)
+            delp: vertical delta in pressure (in)
+            dt: model atmospheric timestep (in)
+            ptop: pressure at top of atmosphere (in)
+            akap: Kappa (in)
         Fortran names:
         u=u v=v pp=pkc gz=gz pk3=pk3 delp=delp dt=dt
         """
@@ -211,4 +211,4 @@ class NonHydrostaticPressureGradient:
             origin=self.orig,
             domain=self.v_domain,
         )
-        return u, v, pp, gz, pk3, delp
+        # return u, v, pp, gz, pk3, delp
