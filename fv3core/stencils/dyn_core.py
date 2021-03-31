@@ -236,8 +236,12 @@ def compute(state, comm):
         # k1k = akap / (1.0 - akap)
 
         # To write in parallel region, these need to be 3D first
-        state.dp_ref = utils.make_storage_from_shape(shape, grid.full_origin())
-        state.zs = utils.make_storage_from_shape(shape, grid.full_origin())
+        state.dp_ref = utils.make_storage_from_shape(
+            shape, grid.full_origin(), cache_key="dyn_core_dp_ref"
+        )
+        state.zs = utils.make_storage_from_shape(
+            shape, grid.full_origin(), cache_key="dyn_core_zs"
+        )
         dp_ref_compute(
             state.ak,
             state.bk,
@@ -387,7 +391,7 @@ def compute(state, comm):
             reqc_vector.wait()
         # use the computed c-grid winds to evolve the d-grid winds forward
         # by 1 timestep
-        state.nord_v, state.damp_vt = d_sw.compute(
+        d_sw.compute(
             state.vt,
             state.delp,
             state.ptc,
@@ -429,8 +433,6 @@ def compute(state, comm):
 
         if not hydrostatic:
             updatedzd.compute(
-                state.nord_v,
-                state.damp_vt,
                 state.dp_ref,
                 state.zs,
                 state.zh,
