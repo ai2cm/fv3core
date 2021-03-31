@@ -326,6 +326,8 @@ class FV3StencilObject:
 
 def gtstencil(definition=None, **stencil_kwargs) -> Callable[..., None]:
     _ensure_global_flags_not_specified_in_kwargs(stencil_kwargs)
+    if "device_sync" not in stencil_kwargs:
+        stencil_kwargs["device_sync"] = False
 
     def decorator(func) -> FV3StencilObject:
         return FV3StencilObject(func, **stencil_kwargs)
