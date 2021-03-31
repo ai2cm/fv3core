@@ -4,11 +4,11 @@ from gt4py.gtscript import PARALLEL, computation, horizontal, interval, region
 import fv3core._config as spec
 import fv3core.stencils.d_sw as d_sw
 import fv3core.stencils.delnflux as delnflux
-import fv3core.stencils.xppm as xppm
-import fv3core.stencils.yppm as yppm
 import fv3core.utils.corners as corners
 import fv3core.utils.global_config as global_config
 import fv3core.utils.gt4py_utils as utils
+from fv3core.stencils.xppm import XPPM
+from fv3core.stencils.yppm import YPPM
 from fv3core.utils.typing import FloatField, FloatFieldIJ
 
 
@@ -86,10 +86,10 @@ class FiniteVolumeTransport:
         self.stencil_q_i = stencil_wrapper(q_i_stencil)
         self.stencil_q_j = stencil_wrapper(q_j_stencil)
         self.stencil_transport_flux = stencil_wrapper(transport_flux_xy)
-        self.xppm_inner = xppm.XPPM(spec.namelist, ord_inner)
-        self.yppm_inner = yppm.YPPM(spec.namelist, ord_inner)
-        self.xppm_outer = xppm.XPPM(spec.namelist, ord_outer)
-        self.yppm_outer = yppm.YPPM(spec.namelist, ord_outer)
+        self.xppm_inner = XPPM(spec.namelist, ord_inner)
+        self.yppm_inner = YPPM(spec.namelist, ord_inner)
+        self.xppm_outer = XPPM(spec.namelist, ord_outer)
+        self.yppm_outer = YPPM(spec.namelist, ord_outer)
 
     def __call__(
         self,
