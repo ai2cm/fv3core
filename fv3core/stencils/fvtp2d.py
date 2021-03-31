@@ -109,6 +109,7 @@ class FiniteVolumeTransport:
         corners.copy_corners_y_stencil(
             q, origin=grid.full_origin(), domain=grid.domain_shape_full(add=(0, 0, 1))
         )
+
         self.yppm_inner(q, cry, self._tmp_fy2, grid.isd, grid.ied)
         self.stencil_q_i(
             q,
@@ -121,10 +122,9 @@ class FiniteVolumeTransport:
             domain=grid.domain_shape_full(add=(0, -3, 1)),
         )
         self.xppm_outer(self._tmp_q_i, crx, fx, grid.js, grid.je)
-
         corners.copy_corners_x_stencil(
             q, origin=grid.full_origin(), domain=grid.domain_shape_full(add=(0, 0, 1))
-        )
+        )        
         self.xppm_inner(q, crx, self._tmp_fx2, grid.jsd, grid.jed)
         self.stencil_q_j(
             q,
@@ -154,7 +154,6 @@ class FiniteVolumeTransport:
                         q, fx, fy, nord[kstart], damp_c[kstart], kstart, nk, mass=mass
                     )
         else:
-
             self.stencil_transport_flux(
                 fx,
                 self._tmp_fx2,

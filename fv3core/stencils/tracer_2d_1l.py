@@ -176,6 +176,7 @@ class Tracer2D1L:
             "externals": local_axis_offsets,
         }
         stencil_wrapper = gtscript.stencil(**stencil_kwargs)
+
         self._flux_compute = stencil_wrapper(flux_compute)
         self._ra_update = stencil_wrapper(ra_stencil_update.func)
         self._cmax_multiply_by_frac = stencil_wrapper(cmax_multiply_by_frac)
