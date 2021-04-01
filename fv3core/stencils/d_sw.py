@@ -319,6 +319,7 @@ def heat_source_from_vorticity_damping(
     heat_source: FloatField,
     dissipation_estimate: FloatField,
     kinetic_energy_fraction_to_damp: FloatFieldK,
+    damp_vt: FloatFieldK,
 ):
     """
     Calculates heat source from vorticity damping implied by energy conservation.
@@ -343,19 +344,21 @@ def heat_source_from_vorticity_damping(
             the fraction of kinetic energy to explicitly damp and convert into heat.
             TODO: confirm this description is accurate, why is it multiplied
             by 0.25 below?
+        damp_vt: column scalar for damping vorticity
     """
-    from __externals__ import namelist
+    from __externals__ import local_ie, local_is, local_je, local_js, namelist
 
     with computation(PARALLEL), interval(...):
-        if (
-            kinetic_energy_fraction_to_damp[0] > dcon_threshold
-        ) or namelist.do_skeb == 1:
+        if (kinetic_energy_fraction_to_damp[0] > dcon_threshold) or namelist.do_skeb:
+            heat_s = heat_source
             ubt = (ub + vt) * rdx
             fy = u * rdx
             gy = fy * ubt
             vbt = (vb - ut) * rdy
             fx = v * rdy
             gx = fx * vbt
+    with computation(PARALLEL), interval(...):
+        if (kinetic_energy_fraction_to_damp[0] > dcon_threshold) or namelist.do_skeb:
             u2 = fy + fy[0, 1, 0]
             du2 = ubt + ubt[0, 1, 0]
             v2 = fx + fx[1, 0, 0]
@@ -364,27 +367,19 @@ def heat_source_from_vorticity_damping(
                 ubt, vbt, gx, gy, rsin2, cosa_s, u2, v2, du2, dv2
             )
             heat_source = delp * (
-                heat_source - 0.25 * kinetic_energy_fraction_to_damp[0] * dampterm
+                heat_s - 0.25 * kinetic_energy_fraction_to_damp[0] * dampterm
             )
 
         # do_skeb could be renamed to calculate_dissipation_estimate
         # when d_sw is converted into a D_SW object
         if __INLINED(namelist.do_skeb == 1):
             dissipation_estimate = -dampterm
-
-
-@gtstencil
-def update_u(u: FloatField, vt: FloatField, damp_vt: FloatFieldK):
     with computation(PARALLEL), interval(...):
         if damp_vt > 1e-5:
-            u = u + vt
-
-
-@gtstencil
-def update_v(v: FloatField, ut: FloatField, damp_vt: FloatFieldK):
-    with computation(PARALLEL), interval(...):
-        if damp_vt > 1e-5:
-            v = v - ut
+            with horizontal(region[local_is : local_ie + 1, local_js : local_je + 2]):
+                u = u + vt
+            with horizontal(region[local_is : local_ie + 2, local_js : local_je + 1]):
+                v = v - ut
 
 
 @gtstencil()
@@ -787,7 +782,6 @@ def d_sw(
 
     if not spec.namelist.hydrostatic:
         dw, wk = damp_vertical_wind(w, heat_s, diss_e, dt, column_namelist)
-
         fvtp2d_vt(
             w,
             crx,
@@ -1017,20 +1011,7 @@ def d_sw(
         heat_s,
         diss_e,
         column_namelist["d_con"],
+        column_namelist["damp_vt"],
         origin=grid().compute_origin(),
         domain=grid().domain_shape_compute(add=(1, 1, 0)),
-    )
-    update_u(
-        u,
-        vt,
-        column_namelist["damp_vt"],
-        origin=grid().compute_origin(),
-        domain=grid().domain_shape_compute(add=(0, 1, 0)),
-    )
-    update_v(
-        v,
-        ut,
-        column_namelist["damp_vt"],
-        origin=grid().compute_origin(),
-        domain=grid().domain_shape_compute(add=(1, 0, 0)),
     )
