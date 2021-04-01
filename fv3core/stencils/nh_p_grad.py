@@ -176,7 +176,7 @@ class NonHydrostaticPressureGradient:
             top_value,
             origin=self.orig,
             domain=self.domain_k1,
-            **self.stencil_runtime_args
+            **self.stencil_runtime_args,
         )
 
         a2b_ord4.compute(pp, self._tmp_wk1, kstart=1, nk=self.nk, replace=True)
@@ -190,7 +190,7 @@ class NonHydrostaticPressureGradient:
             self._tmp_wk,
             origin=self.orig,
             domain=self.domain_full_k,
-            **self.stencil_runtime_args
+            **self.stencil_runtime_args,
         )
 
         self._calc_u_stencil(
@@ -204,7 +204,7 @@ class NonHydrostaticPressureGradient:
             dt,
             origin=self.orig,
             domain=self.u_domain,
-            **self.stencil_runtime_args
+            **self.stencil_runtime_args,
         )
 
         self._calc_v_stencil(
@@ -218,5 +218,5 @@ class NonHydrostaticPressureGradient:
             dt,
             origin=self.orig,
             domain=self.v_domain,
-            **self.stencil_runtime_args
+            **self.stencil_runtime_args,
         )
