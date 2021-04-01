@@ -115,6 +115,10 @@ class NonHydrostaticPressureGradient:
             grid.domain_shape_full(add=(1, 0, 0)), origin=self.orig
         )
 
+        self.stencil_runtime_args = {
+            "validate_args": global_config.get_validate_args(),
+        }
+
         self._set_k0_stencil = stencil(
             definition=set_k0,
             backend=global_config.get_backend(),
@@ -171,7 +175,12 @@ class NonHydrostaticPressureGradient:
         top_value = ptk  # = peln1 if spec.namelist.use_logp else ptk
 
         self._set_k0_stencil(
-            pp, pk3, top_value, origin=self.orig, domain=self.domain_k1
+            pp,
+            pk3,
+            top_value,
+            origin=self.orig,
+            domain=self.domain_k1,
+            **self.stencil_runtime_args
         )
 
         a2b_ord4.compute(pp, self._tmp_wk1, kstart=1, nk=self.nk, replace=True)
@@ -181,7 +190,11 @@ class NonHydrostaticPressureGradient:
         a2b_ord4.compute(delp, self._tmp_wk1)
 
         self._calc_wk_stencil(
-            pk3, self._tmp_wk, origin=self.orig, domain=self.domain_full_k
+            pk3,
+            self._tmp_wk,
+            origin=self.orig,
+            domain=self.domain_full_k,
+            **self.stencil_runtime_args
         )
 
         self._calc_u_stencil(
@@ -196,6 +209,7 @@ class NonHydrostaticPressureGradient:
             dt,
             origin=self.orig,
             domain=self.u_domain,
+            **self.stencil_runtime_args
         )
 
         self._calc_v_stencil(
@@ -210,5 +224,6 @@ class NonHydrostaticPressureGradient:
             dt,
             origin=self.orig,
             domain=self.v_domain,
+            **self.stencil_runtime_args
         )
         # return u, v, pp, gz, pk3, delp
