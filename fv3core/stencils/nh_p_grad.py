@@ -1,9 +1,10 @@
-from gt4py.gtscript import PARALLEL, computation, interval, stencil
+from gt4py.gtscript import PARALLEL, computation, interval
 
 import fv3core._config as spec
 import fv3core.stencils.a2b_ord4 as a2b_ord4
 import fv3core.utils.global_config as global_config
 import fv3core.utils.gt4py_utils as utils
+from fv3core.utils.gt4py_utils import stencil
 from fv3core.utils.typing import FloatField, FloatFieldIJ
 
 
@@ -115,16 +116,31 @@ class NonHydrostaticPressureGradient:
             grid.domain_shape_full(add=(1, 0, 0)), origin=self.orig
         )
 
-        stencil_kwargs = dict(
+        self._set_k0_stencil = stencil(
+            definition=set_k0,
             backend=global_config.get_backend(),
             rebuild=global_config.get_rebuild(),
         )
-        global_config.set_device_sync(stencil_kwargs)
 
-        self._set_k0_stencil = stencil(definition=set_k0, **stencil_kwargs)
-        self._calc_wk_stencil = stencil(definition=calc_wk, **stencil_kwargs)
-        self._calc_u_stencil = stencil(definition=calc_u, **stencil_kwargs)
-        self._calc_v_stencil = stencil(definition=calc_v, **stencil_kwargs)
+        self._calc_wk_stencil = stencil(
+            definition=calc_wk,
+            backend=global_config.get_backend(),
+            rebuild=global_config.get_rebuild(),
+        )
+
+        self._calc_u_stencil = stencil(
+            definition=calc_u,
+            backend=global_config.get_backend(),
+            rebuild=global_config.get_rebuild(),
+        )
+
+        self._calc_v_stencil = stencil(
+            definition=calc_v,
+            backend=global_config.get_backend(),
+            rebuild=global_config.get_rebuild(),
+        )
+
+        self._validate_args = global_config.get_validate_args()
 
     def __call__(
         self,
@@ -158,7 +174,12 @@ class NonHydrostaticPressureGradient:
         top_value = ptk  # = peln1 if spec.namelist.use_logp else ptk
 
         self._set_k0_stencil(
-            pp, pk3, top_value, origin=self.orig, domain=self.domain_k1
+            pp,
+            pk3,
+            top_value,
+            origin=self.orig,
+            domain=self.domain_k1,
+            validate_args=self._validate_args,
         )
 
         a2b_ord4.compute(pp, self._tmp_wk1, kstart=1, nk=self.nk, replace=True)
@@ -168,7 +189,11 @@ class NonHydrostaticPressureGradient:
         a2b_ord4.compute(delp, self._tmp_wk1)
 
         self._calc_wk_stencil(
-            pk3, self._tmp_wk, origin=self.orig, domain=self.domain_full_k
+            pk3,
+            self._tmp_wk,
+            origin=self.orig,
+            domain=self.domain_full_k,
+            validate_args=self._validate_args,
         )
 
         self._calc_u_stencil(
@@ -183,6 +208,7 @@ class NonHydrostaticPressureGradient:
             dt,
             origin=self.orig,
             domain=self.u_domain,
+            validate_args=self._validate_args,
         )
 
         self._calc_v_stencil(
@@ -197,5 +223,6 @@ class NonHydrostaticPressureGradient:
             dt,
             origin=self.orig,
             domain=self.v_domain,
+            validate_args=self._validate_args,
         )
         # return u, v, pp, gz, pk3, delp

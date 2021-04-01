@@ -599,3 +599,19 @@ def stack(tup, axis: int = 0, out=None):
 def device_sync() -> None:
     if cp:
         cp.cuda.Device(0).synchronize()
+
+
+def set_device_sync(stencil_kwargs: Dict[str, Any], flag: bool = False):
+    if "cuda" in stencil_kwargs["backend"] and "device_sync" not in stencil_kwargs:
+        stencil_kwargs["device_sync"] = flag
+
+
+def stencil(backend: str, definition: Callable = None, **kwargs) -> Any:
+    stencil_kwargs = dict(
+        backend=backend,
+        rebuild=kwargs.get("rebuild", False),
+        format_source=global_config.get_format_source(),
+    )
+    set_device_sync(stencil_kwargs)
+
+    return gtscript.stencil(definition=definition, **stencil_kwargs)
