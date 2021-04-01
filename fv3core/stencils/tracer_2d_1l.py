@@ -171,13 +171,8 @@ class Tracer2D1L:
         for axis_offset_name, axis_offset_value in ax_offsets.items():
             if "local" in axis_offset_name:
                 local_axis_offsets[axis_offset_name] = axis_offset_value
-        stencil_kwargs = {
-            "backend": global_config.get_backend(),
-            "rebuild": global_config.get_rebuild(),
-            "externals": local_axis_offsets,
-        }
         self.stencil_runtime_args = {"validate_args": global_config.get_validate_args()}
-        stencil_wrapper = stencil(**stencil_kwargs)
+        stencil_wrapper = stencil(externals=local_axis_offsets)
 
         self._flux_compute = stencil_wrapper(flux_compute)
         self._ra_update = stencil_wrapper(ra_stencil_update.func)

@@ -98,10 +98,10 @@ def compute(qdel: FloatField, nmax: int, cd: float, km: int):
 
     # Construct some necessary temporary storage objects
     fx = utils.make_storage_from_shape(
-        qdel.shape, origin=origin, cache_key="del2cubed_fx"
+        qdel.shape, origin=origin, cache_key="del2cubed_fx", init=True
     )
     fy = utils.make_storage_from_shape(
-        qdel.shape, origin=origin, cache_key="del2cubed_fy"
+        qdel.shape, origin=origin, cache_key="del2cubed_fy", init=True
     )
 
     # set up the temporal loop
@@ -112,7 +112,6 @@ def compute(qdel: FloatField, nmax: int, cd: float, km: int):
 
         # Fill in appropriate corner values
         qdel = corner_fill(grid, qdel)
-        utils.device_sync()
 
         if nt > 0:
             corners.copy_corners_x_stencil(
@@ -123,7 +122,6 @@ def compute(qdel: FloatField, nmax: int, cd: float, km: int):
         nx = grid.njc + 2 * nt + 1  # (grid.ie+nt+1) - (grid.is_-nt) + 1
         ny = grid.njc + 2 * nt  # (grid.je+nt) - (grid.js-nt) + 1
         compute_zonal_flux(fx, qdel, grid.del6_v, origin=origin, domain=(nx, ny, km))
-        utils.device_sync()
 
         if nt > 0:
             corners.copy_corners_y_stencil(
@@ -135,7 +133,6 @@ def compute(qdel: FloatField, nmax: int, cd: float, km: int):
         compute_meridional_flux(
             fy, qdel, grid.del6_u, origin=origin, domain=(nx, ny, km)
         )
-        utils.device_sync()
 
         # Update q values
         ny = grid.njc + 2 * nt  # (grid.je+nt) - (grid.js-nt) + 1

@@ -112,31 +112,10 @@ class NonHydrostaticPressureGradient:
             "validate_args": global_config.get_validate_args(),
         }
 
-        self._set_k0_stencil = stencil(
-            definition=set_k0,
-            backend=global_config.get_backend(),
-            rebuild=global_config.get_rebuild(),
-        )
-
-        self._calc_wk_stencil = stencil(
-            definition=calc_wk,
-            backend=global_config.get_backend(),
-            rebuild=global_config.get_rebuild(),
-        )
-
-        self._calc_u_stencil = stencil(
-            definition=calc_u,
-            backend=global_config.get_backend(),
-            rebuild=global_config.get_rebuild(),
-        )
-
-        self._calc_v_stencil = stencil(
-            definition=calc_v,
-            backend=global_config.get_backend(),
-            rebuild=global_config.get_rebuild(),
-        )
-
-        self.stencil_runtime_args = {"validate_args": global_config.get_validate_args()}
+        self._set_k0_stencil = stencil(set_k0)
+        self._calc_wk_stencil = stencil(calc_wk)
+        self._calc_u_stencil = stencil(calc_u)
+        self._calc_v_stencil = stencil(calc_v)
 
     def __call__(
         self,
@@ -168,10 +147,6 @@ class NonHydrostaticPressureGradient:
         """
         ptk = ptop ** akap
         top_value = ptk  # = peln1 if spec.namelist.use_logp else ptk
-
-        print(pp.shape)
-        print(pk3.shape)
-        print("!!!!!!!!!!!!")
 
         self._set_k0_stencil(
             pp,

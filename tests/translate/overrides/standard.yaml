@@ -15,6 +15,10 @@ CS_Profile_2d-2:
     max_error: 3e-8
     near_zero: 1.5e-14
 
+D_SW:
+  - backend: gtcuda
+    max_error: 1e-9
+
 Del2Cubed:
   - backend: gtcuda
     max_error: 3e-10

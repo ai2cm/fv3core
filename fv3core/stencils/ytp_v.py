@@ -143,8 +143,6 @@ class YTP_V:
                 "xt_minmax": False,
                 **ax_offsets,
             },
-            backend=global_config.get_backend(),
-            rebuild=global_config.get_rebuild(),
         )
         self.stencil_runtime_args = {
             "validate_args": global_config.get_validate_args(),

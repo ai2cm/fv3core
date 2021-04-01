@@ -718,6 +718,7 @@ def d_sw(
     )
 
     fxadv.compute(uc, vc, crx, cry, xfx, yfx, ut, vt, ra_x, ra_y, dt)
+    utils.device_sync()
 
     fvtp2d_dp(
         delp,
@@ -794,6 +795,7 @@ def d_sw(
         mfx=fx,
         mfy=fy,
     )
+    utils.device_sync()
 
     flux_adjust(
         q_con,
@@ -885,6 +887,7 @@ def d_sw(
         origin=(0, 0, 0),
         domain=spec.grid.domain_shape_full(),
     )
+    utils.device_sync()
 
     # TODO if spec.namelist.d_f3d and ROT3 unimplemeneted
     for kstart, nk in k_bounds():
@@ -897,6 +900,7 @@ def d_sw(
             origin=(grid().is_, grid().js, kstart),
             domain=(grid().nic, grid().njc, nk),
         )
+        utils.device_sync()
 
         divdamp.compute(
             u,
@@ -966,6 +970,7 @@ def d_sw(
                 kstart=kstart,
                 nk=nk,
             )
+            utils.device_sync()
 
             if (
                 column_namelist["d_con"][kstart] > dcon_threshold

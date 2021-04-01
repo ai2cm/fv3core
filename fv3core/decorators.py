@@ -338,13 +338,17 @@ def gtstencil(definition=None, **stencil_kwargs) -> Callable[..., None]:
 
 
 def stencil(
-    backend: str,
     definition: Optional[Callable] = None,
+    backend: Optional[str] = None,
     *,
     externals: Optional[Dict[str, Any]] = None,
-    rebuild: bool = False,
+    rebuild: Optional[bool] = None,
     **kwargs,
 ) -> Callable[..., None]:
+    if backend is None:
+        backend = global_config.get_backend()
+    if rebuild is None:
+        rebuild = global_config.get_rebuild()
     if "format_source" not in kwargs:
         kwargs["format_source"] = global_config.get_format_source()
     gt4py_utils.set_device_sync(backend, kwargs)

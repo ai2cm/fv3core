@@ -76,17 +76,12 @@ class FiniteVolumeTransport:
         self._tmp_fy2 = utils.make_storage_from_shape(shape, origin)
         ord_outer = hord
         ord_inner = 8 if hord == 10 else hord
-        stencil_kwargs = {
-            "backend": global_config.get_backend(),
-            "rebuild": global_config.get_rebuild(),
-        }
         self.stencil_runtime_args = {
             "validate_args": global_config.get_validate_args(),
         }
-        stencil_wrapper = stencil(**stencil_kwargs)
-        self.stencil_q_i = stencil_wrapper(q_i_stencil)
-        self.stencil_q_j = stencil_wrapper(q_j_stencil)
-        self.stencil_transport_flux = stencil_wrapper(transport_flux_xy)
+        self.stencil_q_i = stencil(q_i_stencil)
+        self.stencil_q_j = stencil(q_j_stencil)
+        self.stencil_transport_flux = stencil(transport_flux_xy)
         self.x_piecewise_parabolic_inner = XPiecewiseParabolic(spec.namelist, ord_inner)
         self.y_piecewise_parabolic_inner = YPiecewiseParabolic(spec.namelist, ord_inner)
         self.x_piecewise_parabolic_outer = XPiecewiseParabolic(spec.namelist, ord_outer)
