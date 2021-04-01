@@ -270,11 +270,7 @@ class FV3StencilObject:
                 "build_info": new_build_info,
                 **self.backend_kwargs,
             }
-            if (
-                "cuda" in stencil_kwargs["backend"]
-                and "device_sync" not in stencil_kwargs
-            ):
-                stencil_kwargs["device_sync"] = False
+            global_config.set_device_sync(stencil_kwargs)
 
             # gtscript.stencil always returns a new class instance even if it
             # used the cached module.

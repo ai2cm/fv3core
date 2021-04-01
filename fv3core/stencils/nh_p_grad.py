@@ -115,29 +115,16 @@ class NonHydrostaticPressureGradient:
             grid.domain_shape_full(add=(1, 0, 0)), origin=self.orig
         )
 
-        self._set_k0_stencil = stencil(
-            definition=set_k0,
+        stencil_kwargs = dict(
             backend=global_config.get_backend(),
             rebuild=global_config.get_rebuild(),
         )
+        global_config.set_device_sync(stencil_kwargs)
 
-        self._calc_wk_stencil = stencil(
-            definition=calc_wk,
-            backend=global_config.get_backend(),
-            rebuild=global_config.get_rebuild(),
-        )
-
-        self._calc_u_stencil = stencil(
-            definition=calc_u,
-            backend=global_config.get_backend(),
-            rebuild=global_config.get_rebuild(),
-        )
-
-        self._calc_v_stencil = stencil(
-            definition=calc_v,
-            backend=global_config.get_backend(),
-            rebuild=global_config.get_rebuild(),
-        )
+        self._set_k0_stencil = stencil(definition=set_k0, **stencil_kwargs)
+        self._calc_wk_stencil = stencil(definition=calc_wk, **stencil_kwargs)
+        self._calc_u_stencil = stencil(definition=calc_u, **stencil_kwargs)
+        self._calc_v_stencil = stencil(definition=calc_v, **stencil_kwargs)
 
     def __call__(
         self,
