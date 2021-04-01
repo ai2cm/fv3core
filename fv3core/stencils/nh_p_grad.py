@@ -21,7 +21,6 @@ def calc_wk(pk: FloatField, wk: FloatField):
 
 def calc_u(
     u: FloatField,
-    du: FloatField,
     wk: FloatField,
     wk1: FloatField,
     gz: FloatField,
@@ -55,7 +54,6 @@ def calc_u(
 
 def calc_v(
     v: FloatField,
-    dv: FloatField,
     wk: FloatField,
     wk1: FloatField,
     gz: FloatField,
@@ -66,7 +64,7 @@ def calc_v(
 ):
     with computation(PARALLEL), interval(...):
         # hydrostatic contribution
-        dv[0, 0, 0] = (
+        dv = (
             dt
             / (wk[0, 0, 0] + wk[0, 1, 0])
             * (
@@ -109,12 +107,10 @@ class NonHydrostaticPressureGradient:
         self._tmp_wk1 = utils.make_storage_from_shape(
             grid.domain_shape_full(add=(0, 0, 1)), origin=self.orig
         )  # pp.shape
-        self._tmp_du = utils.make_storage_from_shape(
-            grid.domain_shape_full(add=(0, 1, 0)), origin=self.orig
-        )
-        self._tmp_dv = utils.make_storage_from_shape(
-            grid.domain_shape_full(add=(1, 0, 0)), origin=self.orig
-        )
+
+        self.stencil_runtime_args = {
+            "validate_args": global_config.get_validate_args(),
+        }
 
         self._set_k0_stencil = stencil(
             definition=set_k0,
@@ -173,6 +169,10 @@ class NonHydrostaticPressureGradient:
         ptk = ptop ** akap
         top_value = ptk  # = peln1 if spec.namelist.use_logp else ptk
 
+        print(pp.shape)
+        print(pk3.shape)
+        print("!!!!!!!!!!!!")
+
         self._set_k0_stencil(
             pp,
             pk3,
@@ -198,7 +198,6 @@ class NonHydrostaticPressureGradient:
 
         self._calc_u_stencil(
             u,
-            self._tmp_du,
             self._tmp_wk,
             self._tmp_wk1,
             gz,
@@ -213,7 +212,6 @@ class NonHydrostaticPressureGradient:
 
         self._calc_v_stencil(
             v,
-            self._tmp_dv,
             self._tmp_wk,
             self._tmp_wk1,
             gz,
@@ -225,4 +223,3 @@ class NonHydrostaticPressureGradient:
             domain=self.v_domain,
             **self.stencil_runtime_args,
         )
-        # return u, v, pp, gz, pk3, delp
