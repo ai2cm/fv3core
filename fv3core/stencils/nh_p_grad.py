@@ -166,10 +166,6 @@ class NonHydrostaticPressureGradient:
         ptk = ptop ** akap
         top_value = ptk  # = peln1 if spec.namelist.use_logp else ptk
 
-        print(pp.shape)
-        print(pk3.shape)
-        print("!!!!!!!!!!!!")
-
         self._set_k0_stencil(
             pp,
             pk3,
