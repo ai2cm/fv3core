@@ -60,6 +60,9 @@ fi
 if [ ! -d "${BENCHMARK_DIR}" ] ; then
     exitError 1005 ${LINENO} "Benchmark directory ${BENCHMARK_DIR} does not exist"
 fi
+if [ "${SAVE_CACHE}" == "true" ] ; then
+    TIMESTEPS=2
+fi
 
 # echo config
 echo "=== $0 configuration ==========================="
