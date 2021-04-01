@@ -337,6 +337,17 @@ def gtstencil(definition=None, **stencil_kwargs) -> Callable[..., None]:
         return decorator(definition)
 
 
+def stencil(backend: str, definition: Callable = None, **kwargs) -> Callable[..., None]:
+    stencil_kwargs = dict(
+        backend=backend,
+        rebuild=kwargs.get("rebuild", False),
+        format_source=global_config.get_format_source(),
+    )
+    gt4py_utils.set_device_sync(stencil_kwargs)
+
+    return gtscript.stencil(definition=definition, **stencil_kwargs)
+
+
 def _get_case_name(name, times_called):
     return f"stencil-{name}-n{times_called:04d}"
 

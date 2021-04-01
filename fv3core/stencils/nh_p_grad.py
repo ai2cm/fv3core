@@ -4,7 +4,7 @@ import fv3core._config as spec
 import fv3core.stencils.a2b_ord4 as a2b_ord4
 import fv3core.utils.global_config as global_config
 import fv3core.utils.gt4py_utils as utils
-from fv3core.utils.gt4py_utils import stencil
+from fv3core.decorators import stencil
 from fv3core.utils.typing import FloatField, FloatFieldIJ
 
 
