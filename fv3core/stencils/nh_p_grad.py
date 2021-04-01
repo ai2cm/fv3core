@@ -140,7 +140,7 @@ class NonHydrostaticPressureGradient:
             rebuild=global_config.get_rebuild(),
         )
 
-        self._validate_args = global_config.get_validate_args()
+        self.stencil_runtime_args = {"validate_args": global_config.get_validate_args()}
 
     def __call__(
         self,
@@ -179,7 +179,7 @@ class NonHydrostaticPressureGradient:
             top_value,
             origin=self.orig,
             domain=self.domain_k1,
-            validate_args=self._validate_args,
+            **self.stencil_runtime_args,
         )
 
         a2b_ord4.compute(pp, self._tmp_wk1, kstart=1, nk=self.nk, replace=True)
@@ -193,7 +193,7 @@ class NonHydrostaticPressureGradient:
             self._tmp_wk,
             origin=self.orig,
             domain=self.domain_full_k,
-            validate_args=self._validate_args,
+            **self.stencil_runtime_args,
         )
 
         self._calc_u_stencil(
@@ -208,7 +208,7 @@ class NonHydrostaticPressureGradient:
             dt,
             origin=self.orig,
             domain=self.u_domain,
-            validate_args=self._validate_args,
+            **self.stencil_runtime_args,
         )
 
         self._calc_v_stencil(
@@ -223,6 +223,6 @@ class NonHydrostaticPressureGradient:
             dt,
             origin=self.orig,
             domain=self.v_domain,
-            validate_args=self._validate_args,
+            **self.stencil_runtime_args,
         )
         # return u, v, pp, gz, pk3, delp

@@ -271,7 +271,7 @@ class FV3StencilObject:
                 "build_info": new_build_info,
                 **self.backend_kwargs,
             }
-            gt4py_utils.set_device_sync(stencil_kwargs)
+            gt4py_utils.set_device_sync(stencil_kwargs["backend"], stencil_kwargs)
 
             # gtscript.stencil always returns a new class instance even if it
             # used the cached module.
@@ -337,15 +337,21 @@ def gtstencil(definition=None, **stencil_kwargs) -> Callable[..., None]:
         return decorator(definition)
 
 
-def stencil(backend: str, definition: Callable = None, **kwargs) -> Callable[..., None]:
-    stencil_kwargs = dict(
-        backend=backend,
-        rebuild=kwargs.get("rebuild", False),
-        format_source=global_config.get_format_source(),
-    )
-    gt4py_utils.set_device_sync(stencil_kwargs)
+def stencil(
+    backend: str,
+    definition: Optional[Callable] = None,
+    *,
+    externals: Optional[Dict[str, Any]] = None,
+    rebuild: bool = False,
+    **kwargs,
+) -> Callable[..., None]:
+    if "format_source" not in kwargs:
+        kwargs["format_source"] = global_config.get_format_source()
+    gt4py_utils.set_device_sync(backend, kwargs)
 
-    return gtscript.stencil(definition=definition, **stencil_kwargs)
+    return gtscript.stencil(
+        backend, definition, externals=externals, rebuild=rebuild, **kwargs
+    )
 
 
 def _get_case_name(name, times_called):

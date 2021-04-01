@@ -7,6 +7,7 @@ import fv3core.stencils.delnflux as delnflux
 import fv3core.utils.corners as corners
 import fv3core.utils.global_config as global_config
 import fv3core.utils.gt4py_utils as utils
+from fv3core.decorators import stencil
 from fv3core.stencils.xppm import XPiecewiseParabolic
 from fv3core.stencils.yppm import YPiecewiseParabolic
 from fv3core.utils.typing import FloatField, FloatFieldIJ
@@ -82,7 +83,7 @@ class FiniteVolumeTransport:
         self.stencil_runtime_args = {
             "validate_args": global_config.get_validate_args(),
         }
-        stencil_wrapper = gtscript.stencil(**stencil_kwargs)
+        stencil_wrapper = stencil(**stencil_kwargs)
         self.stencil_q_i = stencil_wrapper(q_i_stencil)
         self.stencil_q_j = stencil_wrapper(q_j_stencil)
         self.stencil_transport_flux = stencil_wrapper(transport_flux_xy)

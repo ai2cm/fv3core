@@ -8,6 +8,7 @@ import fv3core.utils
 import fv3core.utils.global_config as global_config
 import fv3core.utils.gt4py_utils as utils
 import fv3gfs.util
+from fv3core.decorators import stencil
 from fv3core.stencils.basic_operations import copy_stencil
 from fv3core.stencils.fvtp2d import FiniteVolumeTransport
 from fv3core.stencils.updatedzd import ra_stencil_update
@@ -176,7 +177,7 @@ class Tracer2D1L:
             "externals": local_axis_offsets,
         }
         self.stencil_runtime_args = {"validate_args": global_config.get_validate_args()}
-        stencil_wrapper = gtscript.stencil(**stencil_kwargs)
+        stencil_wrapper = stencil(**stencil_kwargs)
 
         self._flux_compute = stencil_wrapper(flux_compute)
         self._ra_update = stencil_wrapper(ra_stencil_update.func)
