@@ -15,7 +15,7 @@ import fv3core.stencils.delnflux as delnflux
 import fv3core.utils.global_constants as constants
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import gtstencil
-from fv3core.stencils.basic_operations import copy
+from fv3core.stencils import basic_operations
 from fv3core.stencils.fvtp2d import FiniteVolumeTransport
 from fv3core.stencils.fxadv import ra_x_func, ra_y_func
 from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
@@ -233,6 +233,146 @@ def edge_profile_stencil(
         qe1x, qe2x, qe1y, qe2y = edge_profile_reverse(qe1x, qe2x, qe1y, qe2y, gam)
 
 
+class UpdateDeltaZOnDGrid:
+    """
+    Fortran name is updatedzd.
+    """
+
+    def __init__(self, grid, column_namelist, k_bounds):
+        self.grid = spec.grid
+        self._column_namelist = column_namelist
+        if any(
+            column_namelist["damp_vt"][kstart] <= 1e-5
+            for kstart in range(len(k_bounds))
+        ):
+            raise NotImplementedError("damp <= 1e-5 in column_cols is untested")
+        self._k_bounds = k_bounds  # d_sw.k_bounds()
+        largest_possible_shape = self.grid.domain_shape_full(add=(1, 1, 1))
+        self._crx_adv = utils.make_storage_from_shape(
+            largest_possible_shape, grid.compute_origin(add=(0, -self.grid.halo, 0))
+        )
+        self._cry_adv = utils.make_storage_from_shape(
+            largest_possible_shape, grid.compute_origin(add=(-self.grid.halo, 0, 0))
+        )
+        self._xfx_adv = utils.make_storage_from_shape(
+            largest_possible_shape, grid.compute_origin(add=(0, -self.grid.halo, 0))
+        )
+        self._yfx_adv = utils.make_storage_from_shape(
+            largest_possible_shape, grid.compute_origin(add=(-self.grid.halo, 0, 0))
+        )
+        self._ra_x = utils.make_storage_from_shape(
+            largest_possible_shape,
+            grid.compute_origin(add=(0, -self.grid.halo, 0)),
+        )
+        self._ra_y = utils.make_storage_from_shape(
+            largest_possible_shape,
+            grid.compute_origin(add=(-self.grid.halo, 0, 0)),
+            cache_key="updatedzd_ra_y",
+        )
+        self._wk = utils.make_storage_from_shape(
+            largest_possible_shape, grid.full_origin()
+        )
+        self._fx2 = utils.make_storage_from_shape(
+            largest_possible_shape, grid.full_origin()
+        )
+        self._fy2 = utils.make_storage_from_shape(
+            largest_possible_shape, grid.full_origin()
+        )
+        self._fx = utils.make_storage_from_shape(
+            largest_possible_shape, grid.full_origin()
+        )
+        self._fy = utils.make_storage_from_shape(
+            largest_possible_shape, grid.full_origin()
+        )
+        self._z2 = utils.make_storage_from_shape(
+            largest_possible_shape, grid.full_origin()
+        )
+
+        self.finite_volume_transport = FiniteVolumeTransport(
+            spec.namelist, spec.namelist.hord_tm
+        )
+
+    def __call__(
+        self,
+        dp0: FloatFieldK,
+        zs: FloatFieldIJ,
+        zh: FloatField,
+        crx: FloatField,
+        cry: FloatField,
+        xfx: FloatField,
+        yfx: FloatField,
+        wsd: FloatFieldIJ,
+        dt: float,
+    ):
+        edge_profile_stencil(
+            crx,
+            xfx,
+            self._crx_adv,
+            self._xfx_adv,
+            cry,
+            yfx,
+            self._cry_adv,
+            self._yfx_adv,
+            dp0,
+            origin=self.grid.full_origin(),
+            domain=self.grid.domain_shape_full(add=(0, 0, 1)),
+        )
+        ra_stencil_update(
+            self.grid.area,
+            self._xfx_adv,
+            self._ra_x,
+            self._yfx_adv,
+            self._ra_y,
+            origin=self.grid.full_origin(),
+            domain=self.grid.domain_shape_full(add=(0, 0, 1)),
+        )
+        basic_operations.copy_stencil(
+            zh,
+            self._z2,
+            origin=self.grid.full_origin(),
+            domain=self.grid.domain_shape_full(add=(0, 0, 1)),
+        )
+        self.finite_volume_transport(
+            self._z2,
+            self._crx_adv,
+            self._cry_adv,
+            self._xfx_adv,
+            self._yfx_adv,
+            self._ra_x,
+            self._ra_y,
+            self._fx,
+            self._fy,
+        )
+        for kstart, nk in self._k_bounds:
+            delnflux.compute_no_sg(
+                self._z2,
+                self._fx2,
+                self._fy2,
+                int(self._column_namelist["nord_v"][kstart]),
+                self._column_namelist["damp_vt"][kstart],
+                self._wk,
+                kstart=kstart,
+                nk=nk,
+            )
+        zh_damp(
+            self.grid.area,
+            self._z2,
+            self._fx,
+            self._fy,
+            self._ra_x,
+            self._ra_y,
+            self._fx2,
+            self._fy2,
+            self.grid.rarea,
+            zh,
+            zs,
+            wsd,
+            dt,
+            origin=self.grid.compute_origin(),
+            domain=self.grid.domain_shape_compute(add=(0, 0, 1)),
+        )
+
+
 def compute(
     dp0: FloatFieldK,
     zs: FloatFieldIJ,
@@ -244,120 +384,7 @@ def compute(
     wsd: FloatFieldIJ,
     dt: float,
 ):
-    grid = spec.grid
-    halo = grid.halo
-
-    crx_adv = utils.make_storage_from_shape(
-        crx.shape, grid.compute_origin(add=(0, -halo, 0)), cache_key="updatedzd_crx_adv"
+    updatedzd = utils.cached_stencil_class(UpdateDeltaZOnDGrid)(
+        spec.grid, d_sw.get_column_namelist(), d_sw.k_bounds()
     )
-    cry_adv = utils.make_storage_from_shape(
-        cry.shape, grid.compute_origin(add=(-halo, 0, 0)), cache_key="updatedzd_cry_adv"
-    )
-    xfx_adv = utils.make_storage_from_shape(
-        xfx.shape, grid.compute_origin(add=(0, -halo, 0)), cache_key="updatedzd_xfx_adv"
-    )
-    yfx_adv = utils.make_storage_from_shape(
-        yfx.shape, grid.compute_origin(add=(-halo, 0, 0)), cache_key="updatedzd_yfx_adv"
-    )
-    ra_x = utils.make_storage_from_shape(
-        crx.shape,
-        grid.compute_origin(add=(0, -halo, 0)),
-        cache_key="updatedzd_ra_x",
-    )
-    ra_y = utils.make_storage_from_shape(
-        cry.shape,
-        grid.compute_origin(add=(-halo, 0, 0)),
-        cache_key="updatedzd_ra_y",
-    )
-
-    edge_profile_stencil(
-        crx,
-        xfx,
-        crx_adv,
-        xfx_adv,
-        cry,
-        yfx,
-        cry_adv,
-        yfx_adv,
-        dp0,
-        origin=grid.full_origin(),
-        domain=grid.domain_shape_full(add=(0, 0, 1)),
-    )
-    ra_stencil_update(
-        grid.area,
-        xfx_adv,
-        ra_x,
-        yfx_adv,
-        ra_y,
-        origin=grid.full_origin(),
-        domain=grid.domain_shape_full(add=(0, 0, 1)),
-    )
-
-    grid = spec.grid
-
-    wk = utils.make_storage_from_shape(
-        zh.shape, grid.full_origin(), cache_key="updatedzd_wk"
-    )
-    fx2 = utils.make_storage_from_shape(
-        zh.shape, grid.full_origin(), cache_key="updatedzd_fx2"
-    )
-    fy2 = utils.make_storage_from_shape(
-        zh.shape, grid.full_origin(), cache_key="updatedzd_fy2"
-    )
-    fx = utils.make_storage_from_shape(
-        zh.shape, grid.full_origin(), cache_key="updatedzd_fx"
-    )
-    fy = utils.make_storage_from_shape(
-        zh.shape, grid.full_origin(), cache_key="updatedzd_fy"
-    )
-    z2 = copy(
-        zh, origin=grid.full_origin(), domain=grid.domain_shape_full(add=(0, 0, 1))
-    )
-
-    fvtp2d = utils.cached_stencil_class(FiniteVolumeTransport)(
-        spec.namelist, spec.namelist.hord_tm, cache_key="updatedzd"
-    )
-    fvtp2d(
-        z2,
-        crx_adv,
-        cry_adv,
-        xfx_adv,
-        yfx_adv,
-        ra_x,
-        ra_y,
-        fx,
-        fy,
-    )
-    # TODO, do not recreate this, and have it part of aninitialization step
-    # or remove entirely when refactored away
-    column_namelist = d_sw.get_column_namelist()
-    for kstart, nk in d_sw.k_bounds():
-        if column_namelist["damp_vt"][kstart] <= 1e-5:
-            raise Exception("damp <= 1e-5 in column_cols is untested")
-        delnflux.compute_no_sg(
-            z2,
-            fx2,
-            fy2,
-            int(column_namelist["nord_v"][kstart]),
-            column_namelist["damp_vt"][kstart],
-            wk,
-            kstart=kstart,
-            nk=nk,
-        )
-    zh_damp(
-        grid.area,
-        z2,
-        fx,
-        fy,
-        ra_x,
-        ra_y,
-        fx2,
-        fy2,
-        grid.rarea,
-        zh,
-        zs,
-        wsd,
-        dt,
-        origin=grid.compute_origin(),
-        domain=grid.domain_shape_compute(add=(0, 0, 1)),
-    )
+    updatedzd(dp0, zs, zh, crx, cry, xfx, yfx, wsd, dt)
