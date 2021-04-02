@@ -112,10 +112,10 @@ class NonHydrostaticPressureGradient:
             "validate_args": global_config.get_validate_args(),
         }
 
-        self._set_k0_stencil = stencil(set_k0)
-        self._calc_wk_stencil = stencil(calc_wk)
-        self._calc_u_stencil = stencil(calc_u)
-        self._calc_v_stencil = stencil(calc_v)
+        self._set_k0_stencil = stencil(definition=set_k0)
+        self._calc_wk_stencil = stencil(definition=calc_wk)
+        self._calc_u_stencil = stencil(definition=calc_u)
+        self._calc_v_stencil = stencil(definition=calc_v)
 
     def __call__(
         self,
