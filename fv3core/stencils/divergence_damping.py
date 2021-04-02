@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Tuple
 
 import gt4py.gtscript as gtscript
 from gt4py.gtscript import PARALLEL, computation, interval
@@ -188,7 +188,7 @@ def compute(
     nord: float,
     kstart: int = 0,
     nk: Optional[int] = None,
-) -> None:
+) -> Tuple[FloatField, FloatField, FloatField]:
     grid = spec.grid
     if nk is None:
         nk = grid.npz - kstart

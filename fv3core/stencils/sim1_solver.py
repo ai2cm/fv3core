@@ -60,9 +60,9 @@ def sim1_solver(
         gam = g_rat[0, 0, -1] / bet[0, 0, -1]
         bet = bb - gam
     with computation(FORWARD), interval(2, None):
-        pp = (dd[0, 0, -1] - pp[0, 0, -1]) / bet[0, 0, -1]
+        pp = (dd[0, 0, -1] - pp[0, 0, -1]) / bet[0, 0, -1]  # type: ignore[index]
     with computation(BACKWARD), interval(1, -1):
-        pp = pp - gam * pp[0, 0, 1]
+        pp = pp - gam * pp[0, 0, 1]  # type: ignore[index]
         # w solver
         aa = t1g * 0.5 * (gm[0, 0, -1] + gm) / (dz[0, 0, -1] + dz) * (pem + pp)
     # }
@@ -76,17 +76,24 @@ def sim1_solver(
     # {
     with computation(FORWARD):
         with interval(0, 1):
-            w = (dm * w1 + dt * pp[0, 0, 1]) / bet
+            w = (dm * w1 + dt * pp[0, 0, 1]) / bet  # type: ignore[index]
         with interval(1, -2):
             gam = aa / bet[0, 0, -1]
             bet = dm - (aa + aa[0, 0, 1] + aa * gam)
-            w = (dm * w1 + dt * (pp[0, 0, 1] - pp) - aa * w[0, 0, -1]) / bet
+            w = (
+                dm * w1
+                + dt * (pp[0, 0, 1] - pp)  # type: ignore[index]
+                - aa * w[0, 0, -1]
+            ) / bet
         with interval(-2, -1):
-            p1 = t1g * gm / dz * (pem[0, 0, 1] + pp[0, 0, 1])
+            p1 = t1g * gm / dz * (pem[0, 0, 1] + pp[0, 0, 1])  # type: ignore[index]
             gam = aa / bet[0, 0, -1]
             bet = dm - (aa + p1 + aa * gam)
             w = (
-                dm * w1 + dt * (pp[0, 0, 1] - pp) - p1 * wsr_top - aa * w[0, 0, -1]
+                dm * w1
+                + dt * (pp[0, 0, 1] - pp)  # type: ignore[index]
+                - p1 * wsr_top
+                - aa * w[0, 0, -1]
             ) / bet
     with computation(BACKWARD), interval(0, -2):
         w = w - gam[0, 0, 1] * w[0, 0, 1]

@@ -323,16 +323,31 @@ class FV3StencilObject:
         )
 
 
-def gtstencil(definition=None, **stencil_kwargs) -> Callable[..., None]:
+def gtstencil(**stencil_kwargs) -> Callable[[Any], FV3StencilObject]:
     _ensure_global_flags_not_specified_in_kwargs(stencil_kwargs)
 
-    def decorator(func) -> FV3StencilObject:
+    def decorator(func):
         return FV3StencilObject(func, **stencil_kwargs)
 
-    if definition is None:
-        return decorator
-    else:
-        return decorator(definition)
+    return decorator
+
+
+# def compile_stencil(definition, **stencil_kwargs) -> FV3StencilObject:
+#     _ensure_global_flags_not_specified_in_kwargs(stencil_kwargs)
+#     return FV3StencilObject(definition, **stencil_kwargs)
+
+# def gtstencil(
+#     definition=None, **stencil_kwargs
+# ) -> Union[FV3StencilObject, Callable[[Any], FV3StencilObject]]:
+#     _ensure_global_flags_not_specified_in_kwargs(stencil_kwargs)
+
+#     def decorator(func) -> FV3StencilObject:
+#         return FV3StencilObject(func, **stencil_kwargs)
+
+#     if definition is None:
+#         return decorator
+#     else:
+#         return decorator(definition)
 
 
 def _get_case_name(name, times_called):
