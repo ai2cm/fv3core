@@ -292,21 +292,17 @@ def heat_diss(
     diss_est: FloatField,
     dw: FloatField,
     damp_w: FloatFieldK,
-    ke_bg: FloatFieldK, d_con: FloatFieldK,
+    ke_bg: FloatFieldK,
     dt: float,
 ):
-    from __externals__ import namelist
     with computation(PARALLEL), interval(...):
         if damp_w > 1e-5:
             dd8 = ke_bg * abs(dt)
             dw = (fx2 - fx2[1, 0, 0] + fy2 - fy2[0, 1, 0]) * rarea
             heat_source = dd8 - dw * (w + 0.5 * dw)
-            if namelist.d_con > dcon_threshold or namelist.do_skeb:
-                diss_e = diss_est
-                #heat_s = heat_source
-                #heat_source = heat_s + dd8 - dw * (w + 0.5 * dw)
-                diss_est = diss_e + heat_source
-          
+            diss_est = heat_source
+
+
 @gtstencil()
 def heat_source_from_vorticity_damping(
     ub: FloatField,
@@ -370,7 +366,6 @@ def heat_source_from_vorticity_damping(
             dampterm = heat_damping_term(
                 ubt, vbt, gx, gy, rsin2, cosa_s, u2, v2, du2, dv2
             )
-            #if (namelist.d_con > dcon_threshold) or namelist.do_skeb:
             heat_source = delp * (
                 heat_s - 0.25 * kinetic_energy_fraction_to_damp[0] * dampterm
             )
@@ -378,8 +373,7 @@ def heat_source_from_vorticity_damping(
         # do_skeb could be renamed to calculate_dissipation_estimate
         # when d_sw is converted into a D_SW object
         if __INLINED(namelist.do_skeb == 1):
-            diss_e = dissipation_estimate
-            dissipation_estimate = diss_e - dampterm
+            dissipation_estimate = -dampterm
     with computation(PARALLEL), interval(...):
         if damp_vt > 1e-5:
             with horizontal(region[local_is : local_ie + 1, local_js : local_je + 2]):
@@ -533,7 +527,7 @@ def compute(
         heat_source.shape, grid().compute_origin(), cache_key="d_sw_heat_s"
     )
     diss_e = utils.make_storage_from_shape(
-        heat_source.shape, grid().compute_origin(), cache_key="d_sw_diss_e", init=True,
+        heat_source.shape, grid().compute_origin(), cache_key="d_sw_diss_e"
     )
     z_rat = utils.make_storage_from_shape(
         heat_source.shape, grid().full_origin(), cache_key="d_sw_z_rat"
@@ -575,7 +569,7 @@ def compute(
         q_con,
         z_rat,
         heat_s,
-        diss_est,
+        diss_e,
         dt,
         column_namelist,
     )
@@ -632,7 +626,7 @@ def damp_vertical_wind(w, heat_s, diss_e, dt, column_namelist):
         diss_e,
         dw,
         column_namelist["damp_w"],
-        column_namelist["ke_bg"],column_namelist['d_con'],
+        column_namelist["ke_bg"],
         dt,
         origin=grid().compute_origin(),
         domain=grid().domain_shape_compute(),
