@@ -349,14 +349,14 @@ def heat_source_from_vorticity_damping(
     from __externals__ import local_ie, local_is, local_je, local_js, namelist
 
     with computation(PARALLEL), interval(...):
-        if (kinetic_energy_fraction_to_damp[0] > dcon_threshold) or namelist.do_skeb:
-            heat_s = heat_source
-            ubt = (ub + vt) * rdx
-            fy = u * rdx
-            gy = fy * ubt
-            vbt = (vb - ut) * rdy
-            fx = v * rdy
-            gx = fx * vbt
+        # if (kinetic_energy_fraction_to_damp[0] > dcon_threshold) or namelist.do_skeb:
+        heat_s = heat_source
+        ubt = (ub + vt) * rdx
+        fy = u * rdx
+        gy = fy * ubt
+        vbt = (vb - ut) * rdy
+        fx = v * rdy
+        gx = fx * vbt
     with computation(PARALLEL), interval(...):
         if (kinetic_energy_fraction_to_damp[0] > dcon_threshold) or namelist.do_skeb:
             u2 = fy + fy[0, 1, 0]
