@@ -251,6 +251,7 @@ class Tracer2D1L:
             )
 
         if self.do_halo_exchange:
+            utils.device_sync()
             for qname in utils.tracer_variables[0:nq]:
                 q = tracers[qname + "_quantity"]
                 self.comm.halo_update(q, n_points=utils.halo)
@@ -287,6 +288,7 @@ class Tracer2D1L:
                 domain=self.grid.domain_shape_full(),
                 **self.stencil_runtime_args,
             )
+            utils.device_sync()
             for it in range(int(nsplt)):
                 self._dp_fluxadjustment(
                     dp1,
@@ -312,7 +314,6 @@ class Tracer2D1L:
                         mfx=mfxd,
                         mfy=mfyd,
                     )
-
                     self._q_adjustments(
                         self._tmp_qn2.storage,
                         q.storage,
@@ -327,6 +328,7 @@ class Tracer2D1L:
                         domain=self.grid.domain_shape_compute(),
                         **self.stencil_runtime_args,
                     )
+                    utils.device_sync()
                 else:
                     self.fvtp2d(
                         q.storage,
@@ -352,6 +354,7 @@ class Tracer2D1L:
                         domain=self.grid.domain_shape_compute(),
                         **self.stencil_runtime_args,
                     )
+                    utils.device_sync()
 
                 if it < nsplt - 1:
                     self._copy_field(
@@ -362,4 +365,5 @@ class Tracer2D1L:
                         **self.stencil_runtime_args,
                     )
                     if self.do_halo_exchange:
+                        utils.device_sync()
                         self.comm.halo_update(self._tmp_qn2, n_points=utils.halo)
