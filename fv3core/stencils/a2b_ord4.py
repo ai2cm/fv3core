@@ -23,7 +23,7 @@ from fv3core.decorators import gtstencil
 from fv3core.stencils.basic_operations import copy_stencil
 from fv3core.utils.typing import FloatField, FloatFieldI, FloatFieldIJ
 from fv3core.utils import global_config
-
+import fv3core.utils.gt4py_utils as utils
 
 
 # compact 4-pt cubic interpolation
@@ -327,7 +327,7 @@ def extrap_corner(
     x1 = great_circle_dist_noradius(p1a, p1b, p0a, p0b)
     x2 = great_circle_dist_noradius(p2a, p2b, p0a, p0b)
     return qa + x1 / (x2 - x1) * (qa - qb)
-
+    
 
 '''
 @gtstencil()
@@ -629,9 +629,11 @@ def _a2b_ord4_stencil(
     edge_e: FloatFieldIJ,
     edge_w: FloatFieldIJ,
 ):
-    from __externals__ import REPLACE, i_end, i_start, j_end, j_start, namelist
+    from __externals__ import REPLACE, i_end, i_start, j_end, j_start
 
     with computation(PARALLEL), interval(...):
+        # TODO remove the fake_out when the HorizontalIf bug is fixed
+        fake_out=0
         with horizontal(region[i_start, j_start]):
             ec1 = extrap_corner(
                 bgrid1[0, 0],
@@ -643,6 +645,7 @@ def _a2b_ord4_stencil(
                 qin[0, 0, 0],
                 qin[1, 1, 0],
             )
+       
             ec2 = extrap_corner(
                 bgrid1[0, 0],
                 bgrid2[0, 0],
@@ -764,34 +767,47 @@ def _a2b_ord4_stencil(
             )
             qout = (ec1 + ec2 + ec3) * (1.0 / 3.0)
 
-        assert __INLINED(namelist.grid_type < 3)
+        #assert __INLINED(namelist.grid_type < 3)
+
         # {
 
+        #with computation(PARALLEL), interval(...):
+        # TODO remove q2 = 0 when that doesn't trigger HorizontalIf bug
+        q2 = 0.0
         with horizontal(
             region[i_start - 1 : i_start + 1, :], region[i_end : i_end + 2, :]
         ):
             q2 = (qin[-1, 0, 0] * dxa + qin * dxa[-1, 0]) / (dxa[-1, 0] + dxa)
+
+        #with computation(PARALLEL), interval(...):
         with horizontal(region[i_start, j_start + 1 : j_end + 1]):
             qout = qout_x_edge(edge_w, q2)
+
         with horizontal(region[i_end + 1, j_start + 1 : j_end + 1]):
             qout = qout_x_edge(edge_e, q2)
 
+        # TODO remove q1 = 0 when that doesn't trigger HorizontalIf bug
+        q1 = 0.0
         with horizontal(
             region[:, j_start - 1 : j_start + 1], region[:, j_end : j_end + 2]
         ):
             q1 = (qin[0, -1, 0] * dya + qin * dya[0, -1]) / (dya[0, -1] + dya)
+
+        #with computation(PARALLEL), interval(...):
         with horizontal(region[i_start + 1 : i_end + 1, j_start]):
             qout = qout_y_edge(edge_s, q1)
         with horizontal(region[i_start + 1 : i_end + 1, j_end + 1]):
             qout = qout_y_edge(edge_n, q1)
 
         # compute_qx
+        #with computation(PARALLEL), interval(...):
+        #qx=b2 * (qin[-2, 0, 0] + qin[1, 0, 0]) + b1 * (qin[-1, 0, 0] + qin)
         qx = ppm_volume_mean_x(qin)
+
         with horizontal(region[i_start, :]):
             qx = qx_edge_west(qin, dxa)
         with horizontal(region[i_start + 1, :]):
             qx = qx_edge_west2(qin, dxa, qx)
-
         with horizontal(region[i_end + 1, :]):
             qx = qx_edge_east(qin, dxa)
         with horizontal(region[i_end, :]):
@@ -808,7 +824,7 @@ def _a2b_ord4_stencil(
             qy = qy_edge_north(qin, dya)
         with horizontal(region[:, j_end]):
             qy = qy_edge_north2(qin, dya, qy)
-
+        #with computation(PARALLEL), interval(...):
         # compute_qxx
         qxx = lagrange_y(qx)
         with horizontal(region[:, j_start + 1]):
@@ -829,10 +845,13 @@ def _a2b_ord4_stencil(
 
         if __INLINED(REPLACE):
             qin = qout
+'''
+'''
 
-
-def _make_grid_storage_2d(grid_array: gt4py.storage.Storage, index: int = 0):
+def _make_grid_storage_2d(grid_array: gt4py.storage.Storage, shape3d):#index: int = 0):
     grid = spec.grid
+    return utils.make_storage_data(grid_array, shape3d[0:2], (0, 0))
+'''
     return gt4py.storage.from_array(
         grid_array.data[:, None],
         backend=global_config.get_backend(),
@@ -841,7 +860,7 @@ def _make_grid_storage_2d(grid_array: gt4py.storage.Storage, index: int = 0):
         dtype=grid_array.dtype,
         mask=(True, True, False),
     )
-
+'''
 
 def compute(
     qin: FloatField,
@@ -869,11 +888,12 @@ def compute(
     #bgrid2 = _make_grid_storage_2d(grid.bgrid2)
     #dxa = _make_grid_storage_2d(grid.dxa)
     #dya = _make_grid_storage_2d(grid.dya)
-    #edge_n = _make_grid_storage_2d(grid.edge_n)
-    #edge_s = _make_grid_storage_2d(grid.edge_s)
-    #edge_e = _make_grid_storage_2d(grid.edge_e)
-    #edge_w = _make_grid_storage_2d(grid.edge_w)
-
+    shape = qin.shape
+    #edge_n = _make_grid_storage_2d(grid.edge_n, shape)
+    #edge_s = _make_grid_storage_2d(grid.edge_s, shape)
+    edge_e = _make_grid_storage_2d(grid.edge_e, shape)
+    edge_w = _make_grid_storage_2d(grid.edge_w, shape)
+    #edge_w = utils.make_storage_data(grid.edge_w, qin.shape[0:2], (0, 0))
     stencil = gtstencil(definition=_a2b_ord4_stencil, externals={"REPLACE": replace})
 
     stencil(
@@ -887,8 +907,8 @@ def compute(
         grid.dya,
         grid.edge_n,
         grid.edge_s,
-        grid.edge_e,
-        grid.edge_w,
+        edge_e,
+        edge_w,
         origin=(grid.is_, grid.js, kstart),
         domain=(grid.nic + 1, grid.njc + 1, nk),
     )
