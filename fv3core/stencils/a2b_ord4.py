@@ -850,7 +850,9 @@ def _a2b_ord4_stencil(
 
 def _make_grid_storage_2d(grid_array: gt4py.storage.Storage, shape3d):#index: int = 0):
     grid = spec.grid
-    return utils.make_storage_data(grid_array, shape3d[0:2], (0, 0))
+    dup = utils.repeat(grid_array, shape3d[1], axis=0)
+    print(dup.shape, grid_array.shape)
+    return utils.make_storage_data(dup, shape3d[0:2], (0, 0))
 '''
     return gt4py.storage.from_array(
         grid_array.data[:, None],
@@ -894,6 +896,7 @@ def compute(
     edge_e = _make_grid_storage_2d(grid.edge_e, shape)
     edge_w = _make_grid_storage_2d(grid.edge_w, shape)
     #edge_w = utils.make_storage_data(grid.edge_w, qin.shape[0:2], (0, 0))
+    print(grid.edge_w.shape, edge_w.shape, edge_w)
     stencil = gtstencil(definition=_a2b_ord4_stencil, externals={"REPLACE": replace})
 
     stencil(
