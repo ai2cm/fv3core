@@ -460,7 +460,6 @@ def get_column_namelist():
         "d2_divg",
     ]
     col = {}
-    num_k = len(k_bounds())
     for name in all_names:
         col[name] = utils.make_storage_from_shape(
             (spec.grid.npz + 1,), (0,), cache_key="nam-" + name
