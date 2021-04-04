@@ -1,5 +1,3 @@
-from typing import Dict, List
-
 import gt4py.gtscript as gtscript
 from gt4py.gtscript import (
     __INLINED,
@@ -11,7 +9,6 @@ from gt4py.gtscript import (
 )
 
 import fv3core._config as spec
-import fv3core.stencils.basic_operations as basic
 import fv3core.stencils.delnflux as delnflux
 import fv3core.stencils.divergence_damping as divdamp
 import fv3core.stencils.fxadv as fxadv
@@ -235,7 +232,7 @@ def u_and_v_from_ke(
 # TODO: This is untested and the radius may be incorrect
 @gtscript.function
 def coriolis_force_correction(zh, radius):
-    return  1.0 + (zh + zh[0, 0, 1]) / radius
+    return 1.0 + (zh + zh[0, 0, 1]) / radius
 
 
 @gtstencil(externals={"radius": constants.RADIUS})
@@ -352,7 +349,7 @@ def heat_source_from_vorticity_damping(
     with computation(PARALLEL), interval(...):
         # if (kinetic_energy_fraction_to_damp[0] > dcon_threshold) or namelist.do_skeb:
         heat_s = heat_source
-        diss_e =  dissipation_estimate
+        diss_e = dissipation_estimate
         ubt = (ub + vt) * rdx
         fy = u * rdx
         gy = fy * ubt
@@ -496,96 +493,7 @@ def get_column_namelist():
     return col
 
 
-def compute(
-    delpc,
-    delp,
-    ptc,
-    pt,
-    u,
-    v,
-    w,
-    uc,
-    vc,
-    ua,
-    va,
-    divgd,
-    mfx,
-    mfy,
-    cx,
-    cy,
-    crx,
-    cry,
-    xfx,
-    yfx,
-    q_con,
-    zh,
-    heat_source,
-    diss_est,
-    dt,
-):
-
-    # TODO: Remove paired with removal of #d_sw belos
-    # column_namelist = column_namelist_options(0)
-    column_namelist = get_column_namelist()
-    heat_s = utils.make_storage_from_shape(
-        heat_source.shape, grid().compute_origin(), cache_key="d_sw_heat_s"
-    )
-
-    #z_rat = utils.make_storage_from_shape(
-    #    heat_source.shape, grid().full_origin(), cache_key="d_sw_z_rat"
-    #)
-    # TODO: If namelist['hydrostatic' and not namelist['use_old_omega'] and last_step.
-    if spec.namelist.d_ext > 0:
-        raise Exception(
-            "untested d_ext > 0. need to call a2b_ord2, not yet implemented"
-        )
-
-    d_sw(
-        delpc,
-        delp,
-        ptc,
-        pt,
-        u,
-        v,
-        w,
-        uc,
-        vc,
-        ua,
-        va,
-        divgd,
-        mfx,
-        mfy,
-        cx,
-        cy,
-        crx,
-        cry,
-        xfx,
-        yfx,
-        q_con,
-        zh,
-        heat_s,
-        heat_source,
-        diss_est,
-        dt,
-        column_namelist,
-    )
-
-    # TODO: If namelist['hydrostatic' and not namelist['use_old_omega'] and last_step.
-
-    # TODO: If namelist['d_ext'] > 0
-    '''
-    if spec.namelist.d_con > dcon_threshold or spec.namelist.do_skeb:
-        basic.add_term_two_vars(
-            heat_s,
-            heat_source,
-            diss_e,
-            diss_est,
-            origin=grid().compute_origin(),
-            domain=grid().domain_shape_compute(),
-        )
-    '''
-
-def damp_vertical_wind(w, heat_s, diss_e, dt, column_namelist):
+def damp_vertical_wind(w, heat_s, diss_est, dt, column_namelist):
     dw = utils.make_storage_from_shape(
         w.shape, grid().compute_origin(), cache_key="d_sw_dw"
     )
@@ -619,7 +527,7 @@ def damp_vertical_wind(w, heat_s, diss_e, dt, column_namelist):
         w,
         grid().rarea,
         heat_s,
-        diss_e,
+        diss_est,
         dw,
         column_namelist["damp_w"],
         column_namelist["ke_bg"],
@@ -677,36 +585,43 @@ def vbke(vc, uc, cosa, rsina, vt, vb, dt4, dt5):
     return vb
 
 
-def d_sw(
-    delpc: FloatField,
-    delp: FloatField,
-    ptc: FloatField,
-    pt: FloatField,
-    u: FloatField,
-    v: FloatField,
-    w: FloatField,
-    uc: FloatField,
-    vc: FloatField,
-    ua: FloatField,
-    va: FloatField,
-    divgd: FloatField,
-    xflux: FloatField,
-    yflux: FloatField,
-    cx: FloatField,
-    cy: FloatField,
-    crx: FloatField,
-    cry: FloatField,
-    xfx: FloatField,
-    yfx: FloatField,
-    q_con: FloatField,
-    zh: FloatField,
-    heat_s: FloatField,
-    heat_source_total: FloatField,
-    diss_e: FloatField,
-    dt: float,
-    column_namelist: Dict[str, List],
+def compute(
+    delpc,
+    delp,
+    ptc,
+    pt,
+    u,
+    v,
+    w,
+    uc,
+    vc,
+    ua,
+    va,
+    divgd,
+    mfx,
+    mfy,
+    cx,
+    cy,
+    crx,
+    cry,
+    xfx,
+    yfx,
+    q_con,
+    zh,
+    heat_source,
+    diss_est,
+    dt,
 ):
-    shape = heat_s.shape
+    column_namelist = get_column_namelist()
+
+    if spec.namelist.d_ext > 0:
+        raise Exception(
+            "untested d_ext > 0. need to call a2b_ord2, not yet implemented"
+        )
+    shape = heat_source.shape
+    heat_s = utils.make_storage_from_shape(
+        shape, grid().compute_origin(), cache_key="d_sw_heat_s"
+    )
     ub = utils.make_storage_from_shape(
         shape, grid().compute_origin(), cache_key="d_sw_ub"
     )
@@ -767,8 +682,8 @@ def d_sw(
     flux_capacitor(
         cx,
         cy,
-        xflux,
-        yflux,
+        mfx,
+        mfy,
         crx,
         cry,
         fx,
@@ -778,7 +693,7 @@ def d_sw(
     )
 
     if not spec.namelist.hydrostatic:
-        dw, wk = damp_vertical_wind(w, heat_s, diss_e, dt, column_namelist)
+        dw, wk = damp_vertical_wind(w, heat_s, diss_est, dt, column_namelist)
         fvtp2d_vt(
             w,
             crx,
@@ -1006,8 +921,8 @@ def d_sw(
         grid().rdx,
         grid().rdy,
         heat_s,
-        heat_source_total,
-        diss_e,
+        heat_source,
+        diss_est,
         column_namelist["d_con"],
         column_namelist["damp_vt"],
         origin=grid().compute_origin(),
