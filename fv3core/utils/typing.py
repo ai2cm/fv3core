@@ -42,7 +42,6 @@ FloatField = Field[Float]
 FloatFieldI = Field[Float, gtscript.I]
 FloatFieldIJ = Field[Float, gtscript.IJ]
 FloatFieldK = Field[Float, gtscript.K]
-
 IntField = Field[Int]
 IntFieldIJ = Field[Int, gtscript.IJ]
 BoolField = _FieldDescriptor(Bool)
