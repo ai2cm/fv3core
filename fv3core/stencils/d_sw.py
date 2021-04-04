@@ -233,26 +233,24 @@ def u_and_v_from_ke(
 
 
 # TODO: This is untested and the radius may be incorrect
+@gtscript.function
+def coriolis_force_correction(zh, radius):
+    return  1.0 + (zh + zh[0, 0, 1]) / radius
+
+
 @gtstencil(externals={"radius": constants.RADIUS})
-def coriolis_force_correction(zh: FloatField, z_rat: FloatField):
-    from __externals__ import radius
-
-    with computation(PARALLEL), interval(...):
-        z_rat = 1.0 + (zh + zh[0, 0, 1]) / radius
-
-
-@gtstencil()
-def zrat_vorticity(
+def compute_vorticity(
     wk: FloatField,
     f0: FloatFieldIJ,
-    z_rat: FloatField,
+    zh: FloatField,
     vort: FloatField,
 ):
 
-    from __externals__ import namelist
+    from __externals__ import namelist, radius
 
     with computation(PARALLEL), interval(...):
         if __INLINED(namelist.do_f3d and not namelist.hydrostatic):
+            z_rat = coriolis_force_correction(zh, radius)
             vort = wk + f0 * z_rat
         else:
             vort = wk[0, 0, 0] + f0[0, 0]
@@ -296,11 +294,12 @@ def heat_diss(
     dt: float,
 ):
     with computation(PARALLEL), interval(...):
+        diss_e = diss_est
         if damp_w > 1e-5:
             dd8 = ke_bg * abs(dt)
             dw = (fx2 - fx2[1, 0, 0] + fy2 - fy2[0, 1, 0]) * rarea
             heat_source = dd8 - dw * (w + 0.5 * dw)
-            diss_est = heat_source
+            diss_est = diss_e + heat_source
 
 
 @gtstencil()
@@ -317,6 +316,7 @@ def heat_source_from_vorticity_damping(
     rdx: FloatFieldIJ,
     rdy: FloatFieldIJ,
     heat_source: FloatField,
+    heat_source_total: FloatField,
     dissipation_estimate: FloatField,
     kinetic_energy_fraction_to_damp: FloatFieldK,
     damp_vt: FloatFieldK,
@@ -338,6 +338,7 @@ def heat_source_from_vorticity_damping(
         rdy (in): radius of Earth multiplied by y-direction gridcell width
         heat_source (out): heat source from vorticity damping
             implied by energy conservation
+        heat_source_total: (out) accumulated heat source
         dissipation_estimate (out): dissipation estimate, only calculated if
             calculate_dissipation_estimate is 1
         kinetic_energy_fraction_to_damp (in): according to its comment in fv_arrays,
@@ -351,6 +352,7 @@ def heat_source_from_vorticity_damping(
     with computation(PARALLEL), interval(...):
         # if (kinetic_energy_fraction_to_damp[0] > dcon_threshold) or namelist.do_skeb:
         heat_s = heat_source
+        diss_e =  dissipation_estimate
         ubt = (ub + vt) * rdx
         fy = u * rdx
         gy = fy * ubt
@@ -369,11 +371,14 @@ def heat_source_from_vorticity_damping(
             heat_source = delp * (
                 heat_s - 0.25 * kinetic_energy_fraction_to_damp[0] * dampterm
             )
-
-        # do_skeb could be renamed to calculate_dissipation_estimate
-        # when d_sw is converted into a D_SW object
-        if __INLINED(namelist.do_skeb == 1):
-            dissipation_estimate = -dampterm
+    with computation(PARALLEL), interval(...):
+        if __INLINED((namelist.d_con > dcon_threshold) or namelist.do_skeb):
+            with horizontal(region[local_is : local_ie + 1, local_js : local_je + 1]):
+                heat_source_total = heat_source_total + heat_source
+                # do_skeb could be renamed to calculate_dissipation_estimate
+                # when d_sw is converted into a D_SW object
+                if __INLINED(namelist.do_skeb == 1):
+                    dissipation_estimate = diss_e - dampterm
     with computation(PARALLEL), interval(...):
         if damp_vt > 1e-5:
             with horizontal(region[local_is : local_ie + 1, local_js : local_je + 2]):
@@ -525,23 +530,14 @@ def compute(
     heat_s = utils.make_storage_from_shape(
         heat_source.shape, grid().compute_origin(), cache_key="d_sw_heat_s"
     )
-    diss_e = utils.make_storage_from_shape(
-        heat_source.shape, grid().compute_origin(), cache_key="d_sw_diss_e"
-    )
-    z_rat = utils.make_storage_from_shape(
-        heat_source.shape, grid().full_origin(), cache_key="d_sw_z_rat"
-    )
+
+    #z_rat = utils.make_storage_from_shape(
+    #    heat_source.shape, grid().full_origin(), cache_key="d_sw_z_rat"
+    #)
     # TODO: If namelist['hydrostatic' and not namelist['use_old_omega'] and last_step.
     if spec.namelist.d_ext > 0:
         raise Exception(
             "untested d_ext > 0. need to call a2b_ord2, not yet implemented"
-        )
-    if spec.namelist.do_f3d and not spec.namelist.hydrostatic:
-        coriolis_force_correction(
-            zh,
-            z_rat,
-            origin=grid().full_origin(),
-            domain=grid().domain_shape_full(),
         )
 
     d_sw(
@@ -566,9 +562,10 @@ def compute(
         xfx,
         yfx,
         q_con,
-        z_rat,
+        zh,
         heat_s,
-        diss_e,
+        heat_source,
+        diss_est,
         dt,
         column_namelist,
     )
@@ -576,7 +573,7 @@ def compute(
     # TODO: If namelist['hydrostatic' and not namelist['use_old_omega'] and last_step.
 
     # TODO: If namelist['d_ext'] > 0
-
+    '''
     if spec.namelist.d_con > dcon_threshold or spec.namelist.do_skeb:
         basic.add_term_two_vars(
             heat_s,
@@ -586,7 +583,7 @@ def compute(
             origin=grid().compute_origin(),
             domain=grid().domain_shape_compute(),
         )
-
+    '''
 
 def damp_vertical_wind(w, heat_s, diss_e, dt, column_namelist):
     dw = utils.make_storage_from_shape(
@@ -702,8 +699,9 @@ def d_sw(
     xfx: FloatField,
     yfx: FloatField,
     q_con: FloatField,
-    z_rat: FloatField,
+    zh: FloatField,
     heat_s: FloatField,
+    heat_source_total: FloatField,
     diss_e: FloatField,
     dt: float,
     column_namelist: Dict[str, List],
@@ -956,10 +954,10 @@ def d_sw(
     )
 
     # Vorticity transport
-    zrat_vorticity(
+    compute_vorticity(
         wk,
         grid().f0,
-        z_rat,
+        zh,
         vort,
         origin=grid().full_origin(),
         domain=grid().domain_shape_full(),
@@ -1008,6 +1006,7 @@ def d_sw(
         grid().rdx,
         grid().rdy,
         heat_s,
+        heat_source_total,
         diss_e,
         column_namelist["d_con"],
         column_namelist["damp_vt"],
