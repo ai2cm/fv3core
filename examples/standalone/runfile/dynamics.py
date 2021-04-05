@@ -219,3 +219,13 @@ if __name__ == "__main__":
 
     if comm.Get_rank() == 0:
         print("SUCCESS")
+
+    from fv3core.decorators import all_stencils
+
+    for stencil in all_stencils:
+        print(
+            stencil.definition_func.__name__,
+            stencil.ncalls,
+            stencil.call_time,
+            stencil.stencil_time,
+        )

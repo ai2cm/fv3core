@@ -24,6 +24,8 @@ ArgSpec = collections.namedtuple(
 )
 VALID_INTENTS = ["in", "out", "inout", "unknown"]
 
+all_stencils = []
+
 
 def enable_stencil_report(
     *, path: str, save_args: bool, save_report: bool, include_halos: bool = False
@@ -173,6 +175,9 @@ class OldFV3StencilObject:
         """Data cache to store axis offsets and passed externals."""
 
         self._exec_info = {"__aggregate_data": True} if collect_data else {}
+
+        global all_stencils
+        all_stencils.append(self)
 
     @property
     def built(self) -> bool:
@@ -347,13 +352,16 @@ class FV3StencilObject:
         collect_data=False,
         **stencil_kwargs,
     ):
-        self._stencil_object = self.gtscript.stencil(
+        self._stencil_object = gtscript.stencil(
             definition=definition_func,
             backend=global_config.get_backend(),
             rebuild=global_config.get_rebuild(),
             **stencil_kwargs,
         )
         self._exec_info = {"__aggregate_data": True} if collect_data else {}
+
+        global all_stencils
+        all_stencils.append(self)
 
     def __call__(self, *args, **kwargs):
         self._stencil_object(
