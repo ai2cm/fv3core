@@ -276,12 +276,12 @@ def compute_al(q: FloatField, dya: FloatFieldIJ):
     """
     from __externals__ import j_end, j_start, jord
 
-    assert __INLINED(jord < 8), "Not implemented"
+    external_assert(jord < 8)
 
     al = p1 * (q[0, -1, 0] + q) + p2 * (q[0, -2, 0] + q[0, 1, 0])
 
     if __INLINED(jord < 0):
-        assert __INLINED(False), "Not tested"
+        external_assert(False)
         al = max(al, 0.0)
 
     with horizontal(region[:, j_start - 1], region[:, j_end]):
@@ -311,7 +311,7 @@ def compute_blbr_ord8plus(q: FloatField, dya: FloatFieldIJ):
     dm = dm_jord8plus(q)
     al = al_jord8plus(q, dm)
 
-    assert __INLINED(jord == 8)
+    external_assert(jord == 8)
 
     bl, br = blbr_jord8(q, al, dm)
 
