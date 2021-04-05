@@ -4,6 +4,10 @@ import fv3core.stencils.remap_profile as profile
 import fv3core.utils.gt4py_utils as utils
 from fv3core.testing import TranslateFortranData2Py
 
+def pad_data_in_j(ik_data, nj):
+    full_data = np.tile(ik_data, [nj,1,1]).transpose(1,0,2)
+    np.testing.assert_array_equal(full_data[:,0,:], ik_data, err_msg="Padded field is wrong")
+    return full_data
 
 class TranslateCS_Profile_2d(TranslateFortranData2Py):
     def __init__(self, grid):
@@ -18,13 +22,14 @@ class TranslateCS_Profile_2d(TranslateFortranData2Py):
         }
         self.in_vars["parameters"] = ["km", "i1", "i2", "iv", "kord"]
         self.out_vars = {
-            "a4_1": {"serialname": "q4_1", "istart": 0, "iend": grid.ie - 2},
-            "a4_2": {"serialname": "q4_2", "istart": 0, "iend": grid.ie - 2},
-            "a4_3": {"serialname": "q4_3", "istart": 0, "iend": grid.ie - 2},
-            "a4_4": {"serialname": "q4_4", "istart": 0, "iend": grid.ie - 2},
+            "a4_1": {"serialname": "q4_1", "istart": 0, "iend": grid.ie - 2, "jstart": grid.js, "jend": grid.js},
+            "a4_2": {"serialname": "q4_2", "istart": 0, "iend": grid.ie - 2, "jstart": grid.js, "jend": grid.js},
+            "a4_3": {"serialname": "q4_3", "istart": 0, "iend": grid.ie - 2, "jstart": grid.js, "jend": grid.js},
+            "a4_4": {"serialname": "q4_4", "istart": 0, "iend": grid.ie - 2, "jstart": grid.js, "jend": grid.js},
         }
         self.ignore_near_zero_errors = {"q4_4": True}
         self.write_vars = ["qs"]
+        self.nj = grid.npy
 
     def make_storage_data_input_vars(self, inputs, storage_vars=None):
         if storage_vars is None:
@@ -38,6 +43,8 @@ class TranslateCS_Profile_2d(TranslateFortranData2Py):
             istart, jstart, kstart = self.collect_start_indices(
                 inputs[serialname].shape, info
             )
+            if len(np.squeeze(inputs[serialname]).shape) == 2:
+                inputs[serialname] = pad_data_in_j(inputs[serialname], self.nj)
             inputs[d] = self.make_storage_data(
                 np.squeeze(inputs[serialname]),
                 istart=istart,
