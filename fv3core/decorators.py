@@ -343,17 +343,24 @@ class OldFV3StencilObject:
 class FV3StencilObject:
     def __init__(
         self,
-        stencil_object: gt4py.StencilObject,
+        definition_func,
         collect_data=False,
-        validate_args=True,
+        **stencil_kwargs,
     ):
-        self._stencil_object = stencil_object
+        self._stencil_object = self.gtscript.stencil(
+            definition=definition_func,
+            backend=global_config.get_backend(),
+            rebuild=global_config.get_rebuild(),
+            **stencil_kwargs,
+        )
         self._exec_info = {"__aggregate_data": True} if collect_data else {}
-        self._stencil_kwargs = {"validate_args": validate_args}
 
     def __call__(self, *args, **kwargs):
         self._stencil_object(
-            *args, **kwargs, **self._stencil_kwargs, exec_info=self._exec_info
+            *args,
+            **kwargs,
+            exec_info=self._exec_info,
+            validate_args=global_config.get_validate_args(),
         )
 
     @property
@@ -394,9 +401,7 @@ def gtstencil(definition=None, **stencil_kwargs) -> Callable[..., None]:
 
 def stencil(definition=None, **stencil_kwargs) -> Callable[..., None]:
     def decorator(func) -> FV3StencilObject:
-        return FV3StencilObject(
-            func, **stencil_kwargs, collect_data=True, validate_args=False
-        )
+        return FV3StencilObject(func, **stencil_kwargs, collect_data=True)
 
     if definition is None:
         return decorator
