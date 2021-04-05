@@ -30,8 +30,6 @@ repos:
         fv3core/stencils/map_single.py |
         fv3core/stencils/remap_profile.py |
         fv3core/stencils/fv_subgridz.py |
-        fv3core/stencils/.py |
-        fv3core/stencils/.py |
         fv3core/testing/parallel_translate.py
         )$
 
