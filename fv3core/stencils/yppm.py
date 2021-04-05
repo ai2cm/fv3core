@@ -10,7 +10,7 @@ from gt4py.gtscript import (
 
 import fv3core._config as spec
 import fv3core.utils.global_config as global_config
-from fv3core.decorators import gtstencil, stencil
+from fv3core.decorators import gtstencil, stencil_wrapper
 from fv3core.stencils.basic_operations import sign
 from fv3core.utils.grid import axis_offsets
 from fv3core.utils.typing import FloatField, FloatFieldIJ
@@ -395,7 +395,7 @@ class YPiecewiseParabolic:
         self._js = grid.js
         self._njc = grid.njc
         self._dya = grid.dya
-        self._compute_flux_stencil = stencil(
+        self._compute_flux_stencil = stencil_wrapper(
             definition=compute_y_flux,
             externals={
                 "jord": jord,

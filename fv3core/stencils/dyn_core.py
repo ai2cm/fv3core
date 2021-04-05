@@ -208,6 +208,7 @@ def compute(state, comm):
     # NOTE: In Fortran model the halo update starts happens in fv_dynamics, not here.
     reqs = {}
     if global_config.get_do_halo_exchange():
+        utils.device_sync()
         for halovar in [
             "q_con_quantity",
             "cappa_quantity",
@@ -279,6 +280,7 @@ def compute(state, comm):
             remap_step = True
         if not hydrostatic:
             if global_config.get_do_halo_exchange():
+                utils.device_sync()
                 reqs["w_quantity"] = comm.start_halo_update(
                     state.w_quantity, n_points=utils.halo
                 )
@@ -291,6 +293,7 @@ def compute(state, comm):
                     domain=(grid.nic, grid.njc, grid.npz + 1),
                 )
                 if global_config.get_do_halo_exchange():
+                    utils.device_sync()
                     reqs["gz_quantity"] = comm.start_halo_update(
                         state.gz_quantity, n_points=utils.halo
                     )
@@ -332,6 +335,7 @@ def compute(state, comm):
         )
 
         if spec.namelist.nord > 0 and global_config.get_do_halo_exchange():
+            utils.device_sync()
             reqs["divgd_quantity"] = comm.start_halo_update(
                 state.divgd_quantity, n_points=utils.halo
             )
@@ -385,6 +389,7 @@ def compute(state, comm):
             domain=grid.domain_shape_compute(add=(1, 1, 0)),
         )
         if global_config.get_do_halo_exchange():
+            utils.device_sync()
             reqc_vector = comm.start_vector_halo_update(
                 state.uc_quantity, state.vc_quantity, n_points=utils.halo
             )
@@ -424,6 +429,7 @@ def compute(state, comm):
         # they will be re-computed from scratch on the next acoustic timestep.
 
         if global_config.get_do_halo_exchange():
+            utils.device_sync()
             for halovar in ["delp_quantity", "pt_quantity", "q_con_quantity"]:
                 comm.halo_update(state.__getattribute__(halovar), n_points=utils.halo)
 
@@ -468,6 +474,7 @@ def compute(state, comm):
             )
 
             if global_config.get_do_halo_exchange():
+                utils.device_sync()
                 reqs["zh_quantity"] = comm.start_halo_update(
                     state.zh_quantity, n_points=utils.halo
                 )
@@ -529,6 +536,7 @@ def compute(state, comm):
             )
 
         if global_config.get_do_halo_exchange():
+            utils.device_sync()
             if it != n_split - 1:
                 reqs_vector = comm.start_vector_halo_update(
                     state.u_quantity, state.v_quantity, n_points=utils.halo
@@ -543,6 +551,7 @@ def compute(state, comm):
         nf_ke = min(3, spec.namelist.nord + 1)
 
         if global_config.get_do_halo_exchange():
+            utils.device_sync()
             comm.halo_update(state.heat_source_quantity, n_points=utils.halo)
         cd = constants.CNST_0P20 * grid.da_min
         del2cubed.compute(state.heat_source, nf_ke, cd, grid.npz)

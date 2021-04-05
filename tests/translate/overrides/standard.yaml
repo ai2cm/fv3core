@@ -25,7 +25,7 @@ Del2Cubed:
 
 DivergenceCorner:
   - backend: gtcuda
-    max_error: 3e-9
+    max_error: 2.5e-9
 
 Fillz:
   - backend: gtcuda

@@ -337,7 +337,7 @@ def gtstencil(definition=None, **stencil_kwargs) -> Callable[..., None]:
         return decorator(definition)
 
 
-def stencil(
+def stencil_wrapper(
     definition: Optional[Callable] = None,
     backend: Optional[str] = None,
     *,

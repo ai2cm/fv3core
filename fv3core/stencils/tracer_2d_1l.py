@@ -8,7 +8,7 @@ import fv3core.utils
 import fv3core.utils.global_config as global_config
 import fv3core.utils.gt4py_utils as utils
 import fv3gfs.util
-from fv3core.decorators import stencil
+from fv3core.decorators import stencil_wrapper
 from fv3core.stencils.basic_operations import copy_stencil
 from fv3core.stencils.fvtp2d import FiniteVolumeTransport
 from fv3core.stencils.updatedzd import ra_stencil_update
@@ -172,16 +172,16 @@ class Tracer2D1L:
             if "local" in axis_offset_name:
                 local_axis_offsets[axis_offset_name] = axis_offset_value
         self.stencil_runtime_args = {"validate_args": global_config.get_validate_args()}
-        stencil_wrapper = stencil(externals=local_axis_offsets)
+        wrapper_func = stencil_wrapper(externals=local_axis_offsets)
 
-        self._flux_compute = stencil_wrapper(flux_compute)
-        self._ra_update = stencil_wrapper(ra_stencil_update.func)
-        self._cmax_multiply_by_frac = stencil_wrapper(cmax_multiply_by_frac)
-        self._copy_field = stencil_wrapper(copy_stencil.func)
-        self._loop_temporaries_copy = stencil_wrapper(loop_temporaries_copy)
-        self._dp_fluxadjustment = stencil_wrapper(dp_fluxadjustment)
-        self._q_adjustments = stencil_wrapper(q_adjustments)
-        self._q_adjust = stencil_wrapper(q_adjust)
+        self._flux_compute = wrapper_func(flux_compute)
+        self._ra_update = wrapper_func(ra_stencil_update.func)
+        self._cmax_multiply_by_frac = wrapper_func(cmax_multiply_by_frac)
+        self._copy_field = wrapper_func(copy_stencil.func)
+        self._loop_temporaries_copy = wrapper_func(loop_temporaries_copy)
+        self._dp_fluxadjustment = wrapper_func(dp_fluxadjustment)
+        self._q_adjustments = wrapper_func(q_adjustments)
+        self._q_adjust = wrapper_func(q_adjust)
         self.fvtp2d = FiniteVolumeTransport(namelist, namelist.hord_tr)
         # If use AllReduce, will need something like this:
         # self._tmp_cmax = utils.make_storage_from_shape(shape, origin)

@@ -4,7 +4,7 @@ import fv3core._config as spec
 import fv3core.stencils.a2b_ord4 as a2b_ord4
 import fv3core.utils.global_config as global_config
 import fv3core.utils.gt4py_utils as utils
-from fv3core.decorators import stencil
+from fv3core.decorators import stencil_wrapper
 from fv3core.utils.typing import FloatField, FloatFieldIJ
 
 
@@ -112,10 +112,10 @@ class NonHydrostaticPressureGradient:
             "validate_args": global_config.get_validate_args(),
         }
 
-        self._set_k0_stencil = stencil(definition=set_k0)
-        self._calc_wk_stencil = stencil(definition=calc_wk)
-        self._calc_u_stencil = stencil(definition=calc_u)
-        self._calc_v_stencil = stencil(definition=calc_v)
+        self._set_k0_stencil = stencil_wrapper(set_k0)
+        self._calc_wk_stencil = stencil_wrapper(calc_wk)
+        self._calc_u_stencil = stencil_wrapper(calc_u)
+        self._calc_v_stencil = stencil_wrapper(calc_v)
 
     def __call__(
         self,
