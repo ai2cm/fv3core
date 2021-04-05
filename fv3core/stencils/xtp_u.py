@@ -10,6 +10,7 @@ from gt4py.gtscript import (
 
 import fv3core._config as spec
 import fv3core.utils.global_config as global_config
+from fv3core.decorators import stencil as fv3_stencil
 from fv3core.stencils import xppm, yppm
 from fv3core.utils.grid import axis_offsets
 from fv3core.utils.typing import FloatField, FloatFieldIJ
@@ -137,7 +138,7 @@ class XTP_U:
         self.rdx = grid.rdx
         ax_offsets = axis_offsets(grid, self.origin, self.domain)
         assert namelist.grid_type < 3
-        self.stencil = gtscript.stencil(
+        self.stencil = fv3_stencil(
             definition=_compute_stencil,
             externals={
                 "iord": iord,
@@ -148,7 +149,6 @@ class XTP_U:
             backend=global_config.get_backend(),
             rebuild=global_config.get_rebuild(),
         )
-        self.stencil_runtime_args = {"validate_args": global_config.get_validate_args()}
 
     def __call__(self, c: FloatField, u: FloatField, flux: FloatField):
         """
@@ -168,5 +168,4 @@ class XTP_U:
             self.rdx,
             origin=self.origin,
             domain=self.domain,
-            **self.stencil_runtime_args,
         )

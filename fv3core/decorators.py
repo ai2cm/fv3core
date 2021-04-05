@@ -148,18 +148,15 @@ class StencilDataCache(collections.abc.Mapping):
         return self.cache.__iter__()
 
 
-class FV3StencilObject:
+class OldFV3StencilObject:
     """GT4Py stencil object used for fv3core."""
 
-    def __init__(self, func: Callable[..., None], **kwargs):
+    def __init__(self, func: Callable[..., None], collect_data=False, **kwargs):
         self.func: Callable[..., None] = func
         """The definition function."""
 
         self.stencil_object: Optional[gt4py.StencilObject] = None
         """The current generated stencil object returned from gt4py."""
-
-        self.times_called: int = 0
-        """Number of times this stencil has been called."""
 
         self.timers: Dict[str, float] = types.SimpleNamespace(call_run=0.0, run=0.0)
         """Accumulated time spent in this stencil.
@@ -174,6 +171,8 @@ class FV3StencilObject:
 
         self._data_cache: StencilDataCache = StencilDataCache("data_cache.p")
         """Data cache to store axis offsets and passed externals."""
+
+        self._exec_info = {"__aggregate_data": True} if collect_data else {}
 
     @property
     def built(self) -> bool:
@@ -290,8 +289,7 @@ class FV3StencilObject:
                 )
 
         # Call it
-        exec_info = {}
-        kwargs["exec_info"] = kwargs.get("exec_info", exec_info)
+        kwargs["exec_info"] = self._exec_info
         kwargs["validate_args"] = global_config.get_validate_args()
         name = f"{self.func.__module__}.{self.func.__name__}"
 
@@ -313,21 +311,92 @@ class FV3StencilObject:
             args,
             kwargs,
         )
-        self.times_called += 1
 
-        # Update timers
-        exec_info = kwargs["exec_info"]
-        self.timers.run += exec_info["run_end_time"] - exec_info["run_start_time"]
-        self.timers.call_run += (
-            exec_info["call_run_end_time"] - exec_info["call_run_start_time"]
+        # Update old timers
+        self.timers.run = self.exec_info["total_run_time"]
+        self.timers.call_run = self.exec_info["total_call_time"]
+
+    @property
+    def exec_info(self) -> Dict[str, Any]:
+        return self._exec_info
+
+    @property
+    def ncalls(self) -> int:
+        return self.exec_info["ncalls"]
+
+    @property
+    def call_time(self) -> int:
+        return self.exec_info["total_call_time"]
+
+    @property
+    def times_called(self) -> int:
+        return self.exec_info["ncalls"]
+
+    @property
+    def stencil_time(self) -> int:
+        key = (
+            "total_cpp_time" if "total_cpp_time" in self.exec_info else "total_run_time"
         )
+        return self.exec_info[key]
+
+
+class FV3StencilObject:
+    def __init__(
+        self,
+        stencil_object: gt4py.StencilObject,
+        collect_data=False,
+        validate_args=True,
+    ):
+        self._stencil_object = stencil_object
+        self._exec_info = {"__aggregate_data": True} if collect_data else {}
+        self._stencil_kwargs = {"validate_args": validate_args}
+
+    def __call__(self, *args, **kwargs):
+        self._stencil_object(
+            *args, **kwargs, **self._stencil_kwargs, exec_info=self._exec_info
+        )
+
+    @property
+    def stencil_object(self) -> gt4py.StencilObject:
+        return self._stencil_object
+
+    @property
+    def exec_info(self) -> Dict[str, Any]:
+        return self._exec_info
+
+    @property
+    def ncalls(self) -> int:
+        return self.exec_info["ncalls"]
+
+    @property
+    def call_time(self) -> int:
+        return self.exec_info["total_call_time"]
+
+    @property
+    def stencil_time(self) -> int:
+        key = (
+            "total_cpp_time" if "total_cpp_time" in self.exec_info else "total_run_time"
+        )
+        return self.exec_info[key]
 
 
 def gtstencil(definition=None, **stencil_kwargs) -> Callable[..., None]:
     _ensure_global_flags_not_specified_in_kwargs(stencil_kwargs)
 
+    def decorator(func) -> OldFV3StencilObject:
+        return OldFV3StencilObject(func, **stencil_kwargs, collect_data=True)
+
+    if definition is None:
+        return decorator
+    else:
+        return decorator(definition)
+
+
+def stencil(definition=None, **stencil_kwargs) -> Callable[..., None]:
     def decorator(func) -> FV3StencilObject:
-        return FV3StencilObject(func, **stencil_kwargs)
+        return FV3StencilObject(
+            func, **stencil_kwargs, collect_data=True, validate_args=False
+        )
 
     if definition is None:
         return decorator
