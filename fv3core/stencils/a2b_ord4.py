@@ -357,16 +357,12 @@ def _se_corner(
 def _a2b_ord4_stencil(
     qin: FloatField,
     qout: FloatField,
-    agrid1: FloatFieldIJ,
-    agrid2: FloatFieldIJ,
-    bgrid1: FloatFieldIJ,
-    bgrid2: FloatFieldIJ,
     dxa: FloatFieldIJ,
     dya: FloatFieldIJ,
     edge_n: FloatFieldI,
     edge_s: FloatFieldI,
     edge_e: FloatFieldIJ,
-    edge_w: FloatFieldIJ,
+    edge_w: FloatFieldIJ, q1: FloatField, q2: FloatField, qx: FloatField, qy: FloatField, qxx: FloatField, qyy: FloatField, g_in: FloatField, g_ou: FloatField
 ):
     from __externals__ import REPLACE, i_end, i_start, j_end, j_start, namelist
 
@@ -374,67 +370,111 @@ def _a2b_ord4_stencil(
         assert __INLINED(namelist.grid_type < 3)
 
         # {
-        # TODO remove q2 = 0 when that doesn't trigger HorizontalIf bug
-        q2 = 0.0
         with horizontal(
             region[i_start - 1 : i_start + 1, :], region[i_end : i_end + 2, :]
         ):
             q2 = (qin[-1, 0, 0] * dxa + qin * dxa[-1, 0]) / (dxa[-1, 0] + dxa)
 
-        with horizontal(region[i_start, j_start + 1 : j_end + 1]):
-            qout = qout_x_edge(edge_w, q2)
 
-        with horizontal(region[i_end + 1, j_start + 1 : j_end + 1]):
-            qout = qout_x_edge(edge_e, q2)
-
-        # TODO remove q1 = 0 when that doesn't trigger HorizontalIf bug
-        q1 = 0.0
         with horizontal(
             region[:, j_start - 1 : j_start + 1], region[:, j_end : j_end + 2]
         ):
             q1 = (qin[0, -1, 0] * dya + qin * dya[0, -1]) / (dya[0, -1] + dya)
 
+        with horizontal(region[i_start, j_start + 1 : j_end + 1]):
+            #qout = qout_x_edge(edge_w, q2)                                                                        
+            qout = edge_w * q2[0, -1, 0] + (1.0 - edge_w) * q2
+        with horizontal(region[i_end + 1, j_start + 1 : j_end + 1]):
+            #qout = qout_x_edge(edge_e, q2)                                                                        
+            qout = edge_e * q2[0, -1, 0] + (1.0 - edge_e) * q2
         with horizontal(region[i_start + 1 : i_end + 1, j_start]):
-            qout = qout_y_edge(edge_s, q1)
+            #qout = qout_y_edge(edge_s, q1)
+            qout = edge_s * q1[-1, 0, 0] + (1.0 - edge_s) * q1
         with horizontal(region[i_start + 1 : i_end + 1, j_end + 1]):
-            qout = qout_y_edge(edge_n, q1)
+            #qout = qout_y_edge(edge_n, q1)
+            qout = edge_n * q1[-1, 0, 0] + (1.0 - edge_n) * q1
 
         # compute_qx
         qx = ppm_volume_mean_x(qin)
-
+        #g_in = 0.0
+        #g_ou = 0.0
         with horizontal(region[i_start, :]):
-            qx = qx_edge_west(qin, dxa)
+            #qx = qx_edge_west(qin, dxa)
+            g_in = dxa[1, 0] / dxa
+            g_ou = dxa[-2, 0] / dxa[-1, 0]
+            qx = 0.5 * (
+                ((2.0 + g_in) * qin - qin[1, 0, 0]) / (1.0 + g_in)
+                + ((2.0 + g_ou) * qin[-1, 0, 0] - qin[-2, 0, 0]) / (1.0 + g_ou)
+            )
         with horizontal(region[i_start + 1, :]):
-            qx = qx_edge_west2(qin, dxa, qx)
+            #qx = qx_edge_west2(qin, dxa, qx)
+            g_in = dxa / dxa[-1, 0]
+            qx = (
+                3.0 * (g_in * qin[-1, 0, 0] + qin) - (g_in * qx[-1, 0, 0] + qx[1, 0, 0])
+            ) / (2.0 + 2.0 * g_in)
         with horizontal(region[i_end + 1, :]):
-            qx = qx_edge_east(qin, dxa)
+            #qx = qx_edge_east(qin, dxa)
+            g_in = dxa[-2, 0] / dxa[-1, 0]
+            g_ou = dxa[1, 0] / dxa
+            qx = 0.5 * (
+                ((2.0 + g_in) * qin[-1, 0, 0] - qin[-2, 0, 0]) / (1.0 + g_in)
+                + ((2.0 + g_ou) * qin - qin[1, 0, 0]) / (1.0 + g_ou)
+            )
         with horizontal(region[i_end, :]):
-            qx = qx_edge_east2(qin, dxa, qx)
-
+            #qx = qx_edge_east2(qin, dxa, qx)
+            g_in = dxa[-1, 0] / dxa
+            qx = (
+                3.0 * (qin[-1, 0, 0] + g_in * qin) - (g_in * qx[1, 0, 0] + qx[-1, 0, 0])
+            ) / (2.0 + 2.0 * g_in)
         # compute_qy
         qy = ppm_volume_mean_y(qin)
         with horizontal(region[:, j_start]):
-            qy = qy_edge_south(qin, dya)
+            #qy = qy_edge_south(qin, dya)
+            g_in = dya[0, 1] / dya
+            g_ou = dya[0, -2] / dya[0, -1]
+            qy = 0.5 * (
+                ((2.0 + g_in) * qin - qin[0, 1, 0]) / (1.0 + g_in)
+                + ((2.0 + g_ou) * qin[0, -1, 0] - qin[0, -2, 0]) / (1.0 + g_ou)
+            )
+
         with horizontal(region[:, j_start + 1]):
-            qy = qy_edge_south2(qin, dya, qy)
+            #qy = qy_edge_south2(qin, dya, qy)
+            g_in = dya / dya[0, -1]
+            qy = (
+                3.0 * (g_in * qin[0, -1, 0] + qin) - (g_in * qy[0, -1, 0] + qy[0, 1, 0])
+            ) / (2.0 + 2.0 * g_in)
 
         with horizontal(region[:, j_end + 1]):
-            qy = qy_edge_north(qin, dya)
+            #qy = qy_edge_north(qin, dya)
+            g_in = dya[0, -2] / dya[0, -1]
+            g_ou = dya[0, 1] / dya
+            qy =  0.5 * (
+                ((2.0 + g_in) * qin[0, -1, 0] - qin[0, -2, 0]) / (1.0 + g_in)
+                + ((2.0 + g_ou) * qin - qin[0, 1, 0]) / (1.0 + g_ou)
+            )
+
         with horizontal(region[:, j_end]):
-            qy = qy_edge_north2(qin, dya, qy)
+            #qy = qy_edge_north2(qin, dya, qy)
+            g_in = dya[0, -1] / dya
+            qy = (
+                3.0 * (qin[0, -1, 0] + g_in * qin) - (g_in * qy[0, 1, 0] + qy[0, -1, 0])
+            ) / (2.0 + 2.0 * g_in)
         # compute_qxx
         qxx = lagrange_y(qx)
         with horizontal(region[:, j_start + 1]):
-            qxx = cubic_interpolation_south(qx, qout, qxx)
+            #qxx = cubic_interpolation_south(qx, qout, qxx)
+            qxx = c1 * (qx[0, -1, 0] + qx) + c2 * (qout[0, -1, 0] + qxx[0, 1, 0])
         with horizontal(region[:, j_end]):
-            qxx = cubic_interpolation_north(qx, qout, qxx)
-
+            #qxx = cubic_interpolation_north(qx, qout, qxx)
+            qxx =  c1 * (qx[0, -1, 0] + qx) + c2 * (qout[0, 1, 0] + qxx[0, -1, 0])
         # compute_qyy
         qyy = lagrange_x(qy)
         with horizontal(region[i_start + 1, :]):
-            qyy = cubic_interpolation_west(qy, qout, qyy)
+            #qyy = cubic_interpolation_west(qy, qout, qyy)
+            qyy = c1 * (qy[-1, 0, 0] + qy) + c2 * (qout[-1, 0, 0] + qyy[1, 0, 0])
         with horizontal(region[i_end, :]):
-            qyy = cubic_interpolation_east(qy, qout, qyy)
+            #qyy = cubic_interpolation_east(qy, qout, qyy)
+            qyy = c1 * (qy[-1, 0, 0] + qy) + c2 * (qout[1, 0, 0] + qyy[-1, 0, 0])
 
         with horizontal(region[i_start + 1 : i_end + 1, j_start + 1 : j_end + 1]):
             qout = 0.5 * (qxx + qyy)
@@ -476,6 +516,14 @@ def compute(
     shape = qin.shape
     edge_e = _j_storage_repeat_over_i(grid.edge_e, shape)
     edge_w = _j_storage_repeat_over_i(grid.edge_w, shape)
+    q1 = utils.make_storage_from_shape(shape, grid.full_origin(), cache_key="q1_a2b")
+    q2 = utils.make_storage_from_shape(shape, grid.full_origin(), cache_key="2y_a2b")
+    qx = utils.make_storage_from_shape(shape, grid.full_origin(), cache_key="qx_a2b")
+    qy = utils.make_storage_from_shape(shape, grid.full_origin(), cache_key="qy_a2b")
+    qxx = utils.make_storage_from_shape(shape, grid.full_origin(), cache_key="qxx_a2b")
+    qyy = utils.make_storage_from_shape(shape, grid.full_origin(), cache_key="qyy_a2b")
+    g_in = utils.make_storage_from_shape(shape, grid.full_origin(), cache_key="gin_a2b")
+    g_ou = utils.make_storage_from_shape(shape, grid.full_origin(), cache_key="gou_a2b")
     corner_domain = (1, 1, nk)
     _sw_corner(
         qin,
@@ -522,16 +570,12 @@ def compute(
     stencil(
         qin,
         qout,
-        grid.agrid1,
-        grid.agrid2,
-        grid.bgrid1,
-        grid.bgrid2,
         grid.dxa,
         grid.dya,
         grid.edge_n,
         grid.edge_s,
         edge_e,
-        edge_w,
+        edge_w,q1, q2, qx, qy, qxx, qyy, g_in, g_ou,
         origin=(grid.is_, grid.js, kstart),
         domain=(grid.nic + 1, grid.njc + 1, nk),
     )
