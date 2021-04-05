@@ -1,4 +1,4 @@
-from typing import Optional, Tuple
+from typing import Optional
 
 import gt4py.gtscript as gtscript
 from gt4py.gtscript import PARALLEL, computation, interval
@@ -188,7 +188,7 @@ def compute(
     nord: float,
     kstart: int = 0,
     nk: Optional[int] = None,
-) -> Tuple[FloatField, FloatField, FloatField]:
+) -> None:
     grid = spec.grid
     if nk is None:
         nk = grid.npz - kstart
@@ -311,8 +311,6 @@ def compute(
             origin=(grid.is_, grid.js, kstart),
             domain=(grid.nic + 1, grid.njc + 1, nk),
         )
-
-    return vort, ke, delpc
 
 
 def damping_zero_order(

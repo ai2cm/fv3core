@@ -1,4 +1,4 @@
-from typing import Dict, Optional
+from typing import Any, Dict, Optional
 
 from gt4py.gtscript import PARALLEL, computation, interval
 
@@ -30,7 +30,7 @@ def compute(
     pe1: FloatField,
     pe2: FloatField,
     dp2: FloatField,
-    tracers: Dict[str, FloatField],
+    tracers: Dict[str, Any],  # Dict[str, FloatField] but that causes error on import
     nq: int,
     q_min: float,
     i1: int,
