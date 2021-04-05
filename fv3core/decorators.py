@@ -344,6 +344,10 @@ class OldFV3StencilObject:
         )
         return self.exec_info[key]
 
+    @property
+    def definition_func(self) -> Callable[..., None]:
+        return self.func
+
 
 class FV3StencilObject:
     def __init__(
@@ -352,6 +356,7 @@ class FV3StencilObject:
         collect_data=False,
         **stencil_kwargs,
     ):
+        self._definition_func = definition_func
         self._stencil_object = gtscript.stencil(
             definition=definition_func,
             backend=global_config.get_backend(),
@@ -393,6 +398,10 @@ class FV3StencilObject:
             "total_cpp_time" if "total_cpp_time" in self.exec_info else "total_run_time"
         )
         return self.exec_info[key]
+
+    @property
+    def definition_func(self) -> Callable[..., None]:
+        return self._definition_func
 
 
 def gtstencil(definition=None, **stencil_kwargs) -> Callable[..., None]:
