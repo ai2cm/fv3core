@@ -1,4 +1,4 @@
-from typing import Optional, Tuple
+from typing import Tuple
 
 import numpy as np
 from gt4py.gtscript import FORWARD, PARALLEL, computation, interval
@@ -94,7 +94,7 @@ def lagrangian_contributions(
         q2_adds += q2_tmp
 
 
-def region_mode(i1: int, i_extent: int, j1: int, j_extent:int, grid: Grid):
+def region_mode(i1: int, i_extent: int, j1: int, j_extent: int, grid: Grid):
     origin = (i1, j1, 0)
     domain = (i_extent, j_extent, grid.npz)
     return origin, domain

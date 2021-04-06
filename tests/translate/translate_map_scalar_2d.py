@@ -1,8 +1,7 @@
 import fv3core._config as spec
-import numpy as np
 import fv3core.stencils.map_single as Map_Single
-import fv3core.utils.gt4py_utils as utils
 from fv3core.testing import TranslateFortranData2Py, TranslateGrid
+
 
 class TranslateMapScalar_2d(TranslateFortranData2Py):
     def __init__(self, grid):
@@ -26,7 +25,7 @@ class TranslateMapScalar_2d(TranslateFortranData2Py):
             "qs": {"serialname": "gz1d", "kstart": 0, "axis": 0},
         }
         self.in_vars["parameters"] = ["j_2d", "mode"]
-        self.out_vars = {"pt": {}} # "jstart": grid.js, "jend": grid.js
+        self.out_vars = {"pt": {}}  # "jstart": grid.js, "jend": grid.js
         self.is_ = grid.is_
         self.ie = grid.ie
         self.write_vars = ["qs"]

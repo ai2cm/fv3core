@@ -1,8 +1,7 @@
 import fv3core._config as spec
-import numpy as np
-import fv3core.utils.gt4py_utils as utils
 import fv3core.stencils.mapn_tracer as MapN_Tracer
 from fv3core.testing import TranslateFortranData2Py, TranslateGrid
+
 
 class TranslateMapN_Tracer_2d(TranslateFortranData2Py):
     def __init__(self, grid):

@@ -1,4 +1,4 @@
-from typing import Dict, Optional
+from typing import Dict
 
 from gt4py.gtscript import PARALLEL, computation, interval
 
@@ -58,7 +58,7 @@ def compute(
         origin,
         domain,
         i_extent,
-        j_extent
+        j_extent,
     ) = map_single.setup_data(tracers[utils.tracer_variables[0]], pe1, i1, i2, j1, j2)
 
     # transliterated fortran 3d or 2d validate, not bit-for bit
