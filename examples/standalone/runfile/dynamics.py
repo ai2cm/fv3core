@@ -11,11 +11,9 @@ from mpi4py import MPI
 
 import fv3core
 import fv3core._config as spec
-import fv3core.stencils.fv_dynamics as fv_dynamics
 import fv3core.testing
 import fv3core.utils.global_config as global_config
 import fv3gfs.util as util
-from fv3core.utils import gt4py_utils
 
 
 def parse_args():
@@ -122,7 +120,7 @@ if __name__ == "__main__":
 
         fv3core.set_backend(args.backend)
         fv3core.set_rebuild(False)
-        gt4py_utils.validate_args = False
+        fv3core.set_validate_args(False)
         global_config.set_do_halo_exchange(not args.disable_halo_exchange)
 
         spec.set_namelist(args.data_dir + "/input.nml")
@@ -167,13 +165,13 @@ if __name__ == "__main__":
         input_data = driver_object.collect_input_data(serializer, savepoint_in)
         input_data["comm"] = communicator
         state = driver_object.state_from_inputs(input_data)
+        dycore = fv3core.DynamicalCore(communicator, spec.namelist)
 
         # warm-up timestep.
         # We're intentionally not passing the timer here to exclude
         # warmup/compilation from the internal timers
-        fv_dynamics.fv_dynamics(
+        dycore.step_dynamics(
             state,
-            communicator,
             input_data["consv_te"],
             input_data["do_adiabatic_init"],
             input_data["bdt"],
@@ -187,9 +185,8 @@ if __name__ == "__main__":
 
     with timer.clock("mainloop"):
         for i in range(args.time_step - 1):
-            fv_dynamics.fv_dynamics(
+            dycore.step_dynamics(
                 state,
-                communicator,
                 input_data["consv_te"],
                 input_data["do_adiabatic_init"],
                 input_data["bdt"],

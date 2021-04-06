@@ -4,7 +4,7 @@ import hashlib
 import os
 import pickle
 import types
-from typing import Any, BinaryIO, Callable, Dict, Optional
+from typing import Any, BinaryIO, Callable, Dict, Optional, Tuple
 
 import gt4py
 import gt4py.storage as gt_storage
@@ -16,7 +16,6 @@ import fv3core
 import fv3core._config as spec
 import fv3core.utils
 import fv3core.utils.global_config as global_config
-import fv3core.utils.gt4py_utils as utils
 from fv3core.utils.typing import Index3D
 
 
@@ -67,28 +66,33 @@ def state_inputs(*arg_specs):
     def decorator(func):
         @functools.wraps(func)
         def wrapped(state, *args, **kwargs):
-            namespace_kwargs = {}
-            for sp in arg_specs:
-                arg_name, standard_name, units, intent = sp
-                if standard_name not in state:
-                    raise ValueError(f"{standard_name} not present in state")
-                elif units != state[standard_name].units:
-                    raise ValueError(
-                        f"{standard_name} has units "
-                        f"{state[standard_name].units} when {units} is required"
-                    )
-                elif intent not in VALID_INTENTS:
-                    raise ValueError(
-                        f"expected intent to be one of {VALID_INTENTS}, got {intent}"
-                    )
-                else:
-                    namespace_kwargs[arg_name] = state[standard_name].storage
-                    namespace_kwargs[arg_name + "_quantity"] = state[standard_name]
-            func(types.SimpleNamespace(**namespace_kwargs), *args, **kwargs)
+            namespace = get_namespace(arg_specs, state)
+            func(namespace, *args, **kwargs)
 
         return wrapped
 
     return decorator
+
+
+def get_namespace(arg_specs, state):
+    namespace_kwargs = {}
+    for sp in arg_specs:
+        arg_name, standard_name, units, intent = sp
+        if standard_name not in state:
+            raise ValueError(f"{standard_name} not present in state")
+        elif units != state[standard_name].units:
+            raise ValueError(
+                f"{standard_name} has units "
+                f"{state[standard_name].units} when {units} is required"
+            )
+        elif intent not in VALID_INTENTS:
+            raise ValueError(
+                f"expected intent to be one of {VALID_INTENTS}, got {intent}"
+            )
+        else:
+            namespace_kwargs[arg_name] = state[standard_name].storage
+            namespace_kwargs[arg_name + "_quantity"] = state[standard_name]
+    return types.SimpleNamespace(**namespace_kwargs)
 
 
 def _ensure_global_flags_not_specified_in_kwargs(stencil_kwargs):
@@ -203,6 +207,27 @@ class FV3StencilObject:
                 return True
         return False
 
+    def _get_field_origins(
+        self, origin: Tuple[int], *args, **kwargs
+    ) -> Dict[str, Tuple[int]]:
+        origin_dict = {}
+        field_names = list(self.stencil_object.field_info.keys())
+        field_axes = []
+        for i in range(len(field_names)):
+            field_name = field_names[i]
+            # TODO: assert self.stencil_object.field_info[field_name] is not None
+            if self.stencil_object.field_info[field_name]:
+                field_axes = self.stencil_object.field_info[field_name].axes
+            field_shape = args[i].shape if i < len(args) else kwargs[field_name].shape
+            if field_axes == ["K"]:
+                field_origin = [min(field_shape[0] - 1, origin[2])]
+            else:
+                field_origin = [
+                    min(field_shape[j] - 1, origin[j]) for j in range(len(field_shape))
+                ]
+            origin_dict[field_name] = tuple(field_origin)
+        return origin_dict
+
     def __call__(self, *args, origin: Index3D, domain: Index3D, **kwargs) -> None:
         """Call the stencil, compiling the stencil if necessary.
 
@@ -267,8 +292,9 @@ class FV3StencilObject:
         # Call it
         exec_info = {}
         kwargs["exec_info"] = kwargs.get("exec_info", exec_info)
-        kwargs["validate_args"] = kwargs.get("validate_args", utils.validate_args)
+        kwargs["validate_args"] = global_config.get_validate_args()
         name = f"{self.func.__module__}.{self.func.__name__}"
+
         _maybe_save_report(
             f"{name}-before",
             self.times_called,
@@ -276,7 +302,10 @@ class FV3StencilObject:
             args,
             kwargs,
         )
-        self.stencil_object(*args, **kwargs, origin=origin, domain=domain)
+
+        origin_dict = self._get_field_origins(origin, *args, **kwargs)
+        self.stencil_object(*args, **kwargs, origin=origin_dict, domain=domain)
+
         _maybe_save_report(
             f"{name}-after",
             self.times_called,

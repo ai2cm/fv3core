@@ -202,11 +202,13 @@ class Grid:
             return None
         return num + 1
 
-    def slice_dict(self, d):
-        return (
-            slice(d["istart"], self.add_one(d["iend"])),
-            slice(d["jstart"], self.add_one(d["jend"])),
-            slice(d["kstart"], self.add_one(d["kend"])),
+    def slice_dict(self, d, ndim: int = 3):
+        iters: str = "ijk" if ndim > 1 else "k"
+        return tuple(
+            [
+                slice(d[f"{iters[i]}start"], self.add_one(d[f"{iters[i]}end"]))
+                for i in range(ndim)
+            ]
         )
 
     def default_domain_dict(self):
@@ -317,9 +319,9 @@ class Grid:
         """Start of the compute domain (e.g. (halo, halo, 0))"""
         return (self.is_ + add[0], self.js + add[1], add[2])
 
-    def full_origin(self):
+    def full_origin(self, add: Tuple[int, int, int] = (0, 0, 0)):
         """Start of the full array including halo points (e.g. (0, 0, 0))"""
-        return (self.isd, self.jsd, 0)
+        return (self.isd + add[0], self.jsd + add[1], add[2])
 
     def default_origin(self):
         # This only exists as a reminder because devs might

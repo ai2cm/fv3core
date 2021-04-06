@@ -1,12 +1,12 @@
-import fv3core.stencils.yppm as yppm
+import fv3core._config as spec
 import fv3core.utils.gt4py_utils as utils
+from fv3core.stencils import yppm
 from fv3core.testing import TranslateFortranData2Py, TranslateGrid
 
 
 class TranslateYPPM(TranslateFortranData2Py):
     def __init__(self, grid):
         super().__init__(grid)
-        self.compute_func = yppm.compute_flux
         self.in_vars["data_vars"] = {
             "q": {"istart": "ifirst"},
             "c": {"jstart": grid.js},
@@ -30,10 +30,12 @@ class TranslateYPPM(TranslateFortranData2Py):
     def process_inputs(self, inputs):
         self.ivars(inputs)
         self.make_storage_data_input_vars(inputs)
-        inputs["flux"] = utils.make_storage_from_shape(inputs["q"].shape, yppm.origin)
+        inputs["flux"] = utils.make_storage_from_shape(inputs["q"].shape)
 
     def compute(self, inputs):
         self.process_inputs(inputs)
+        self.compute_func = yppm.YPiecewiseParabolic(spec.namelist, int(inputs["jord"]))
+        del inputs["jord"]
         self.compute_func(**inputs)
         return self.slice_output(inputs)
 

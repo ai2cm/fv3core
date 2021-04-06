@@ -1,8 +1,9 @@
 import pytest
 
-import fv3core.stencils.tracer_2d_1l as tracer_2d_1l
+import fv3core._config as spec
 import fv3core.utils.gt4py_utils as utils
 import fv3gfs.util as fv3util
+from fv3core.stencils.tracer_2d_1l import Tracer2D1L
 from fv3core.testing import ParallelTranslate
 
 
@@ -16,7 +17,6 @@ class TranslateTracer2D1L(ParallelTranslate):
 
     def __init__(self, grids):
         super().__init__(grids)
-        self._base.compute_func = tracer_2d_1l.compute
         grid = grids[0]
         self._base.in_vars["data_vars"] = {
             "tracers": {},
@@ -34,7 +34,6 @@ class TranslateTracer2D1L(ParallelTranslate):
         return input_data
 
     def compute_parallel(self, inputs, communicator):
-        inputs["comm"] = communicator
 
         self._base.make_storage_data_input_vars(inputs)
         properties = self.inputs["tracers"]
@@ -45,6 +44,9 @@ class TranslateTracer2D1L(ParallelTranslate):
                 dims=properties["dims"],
                 units=properties["units"],
             )
+        self._base.compute_func = utils.cached_stencil_class(Tracer2D1L)(
+            communicator, spec.namelist, cache_key="regression-test"
+        )
         self._base.compute_func(**inputs)
         for name in utils.tracer_variables:
             del inputs["tracers"][name + "_quantity"]

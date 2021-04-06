@@ -1,22 +1,6 @@
-import numpy as np
-from gt4py.gtscript import PARALLEL, computation, interval
-
-from fv3core.decorators import gtstencil
+import fv3core.utils.gt4py_utils as utils
 from fv3core.testing import TranslateFortranData2Py
 from fv3core.utils import corners
-from fv3core.utils.typing import FloatField
-
-
-@gtstencil
-def fill_4corners_x_2cells(q: FloatField):
-    with computation(PARALLEL), interval(...):
-        q = corners.fill_corners_2cells_mult_x(q, q, 1.0, 1.0, 1.0, 1.0)
-
-
-@gtstencil
-def fill_4corners_y_2cells(q: FloatField):
-    with computation(PARALLEL), interval(...):
-        q = corners.fill_corners_2cells_mult_y(q, q, 1.0, 1.0, 1.0, 1.0)
 
 
 class TranslateFill4Corners(TranslateFortranData2Py):
@@ -26,22 +10,10 @@ class TranslateFill4Corners(TranslateFortranData2Py):
         self.in_vars["parameters"] = ["dir"]
         self.out_vars = {"q4c": {}}
 
-    def compute_from_storage(self, inputs):
-        if inputs["dir"] == 1:
-            fill_4corners_x_2cells(
-                inputs["q4c"],
-                origin=self.grid.full_origin(),
-                domain=self.grid.domain_shape_full(),
-            )
-        elif inputs["dir"] == 2:
-            fill_4corners_y_2cells(
-                inputs["q4c"],
-                origin=self.grid.full_origin(),
-                domain=self.grid.domain_shape_full(),
-            )
-        else:
-            raise ValueError("Direction not recognized. Specify either x or y")
-        return inputs
+    def compute(self, inputs):
+        self.make_storage_data_input_vars(inputs)
+        corners.fill_corners_cells(inputs["q4c"], "x" if inputs["dir"] == 1 else "y")
+        return self.slice_output(inputs, {"q4c": inputs["q4c"]})
 
 
 class TranslateFillCorners(TranslateFortranData2Py):
@@ -51,27 +23,26 @@ class TranslateFillCorners(TranslateFortranData2Py):
         self.in_vars["parameters"] = ["dir"]
         self.out_vars = {"divg_d": {"iend": grid.ied + 1, "jend": grid.jed + 1}}
 
-    def compute(self, inputs):
-        if inputs["dir"] == 1:
-            direction = "x"
-        elif inputs["dir"] == 2:
-            direction = "y"
-        else:
-            raise ValueError("Invalid input")
-        nord_column = inputs["nord_col"][0, 0, :]
-        self.make_storage_data_input_vars(inputs)
-        for nord in np.unique(nord_column):
+    def compute_from_storage(self, inputs):
+        nord_column = inputs["nord_col"][:]
+        for nord in utils.unique(nord_column):
             if nord != 0:
                 ki = [i for i in range(self.grid.npz) if nord_column[i] == nord]
-                corners.fill_corners_2d(
-                    inputs["divg_d"],
-                    self.grid,
-                    "B",
-                    direction,
-                    kstart=ki[0],
-                    nk=len(ki),
-                )
-        return self.slice_output(inputs)
+                if inputs["dir"] == 1:
+                    corners.fill_corners_bgrid_x(
+                        inputs["divg_d"],
+                        origin=(self.grid.isd, self.grid.jsd, ki[0]),
+                        domain=(self.grid.nid + 1, self.grid.njd + 1, len(ki)),
+                    )
+                elif inputs["dir"] == 2:
+                    corners.fill_corners_bgrid_y(
+                        inputs["divg_d"],
+                        origin=(self.grid.isd, self.grid.jsd, ki[0]),
+                        domain=(self.grid.nid + 1, self.grid.njd + 1, len(ki)),
+                    )
+                else:
+                    raise ValueError("Invalid input")
+        return inputs
 
 
 class TranslateCopyCorners(TranslateFortranData2Py):
@@ -106,18 +77,16 @@ class TranslateFillCornersVector(TranslateFortranData2Py):
         self.out_vars = {"vc": grid.y3d_domain_dict(), "uc": grid.x3d_domain_dict()}
 
     def compute(self, inputs):
-        nord_column = inputs["nord_col"][0, 0, :]
-        vector = True
+        nord_column = inputs["nord_col"][:]
         self.make_storage_data_input_vars(inputs)
-        for nord in np.unique(nord_column):
+        for nord in utils.unique(nord_column):
             if nord != 0:
-                ki = [i for i in range(self.grid.npz) if nord_column[i] == nord]
+                ki = [k for k in range(self.grid.npz) if nord_column[0, 0, k] == nord]
                 corners.fill_corners_dgrid(
                     inputs["vc"],
                     inputs["uc"],
-                    self.grid,
-                    vector,
-                    kstart=ki[0],
-                    nk=len(ki),
+                    -1.0,
+                    origin=(self.grid.isd, self.grid.jsd, ki[0]),
+                    domain=(self.grid.nid + 1, self.grid.njd + 1, len(ki)),
                 )
         return self.slice_output(inputs)

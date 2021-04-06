@@ -7,8 +7,6 @@ class TranslateUpdateDzD(TranslateFortranData2Py):
         super().__init__(grid)
         self.compute_func = updatedzd.compute
         self.in_vars["data_vars"] = {
-            "ndif": {},  # column var
-            "damp_vtd": {},  # column var
             "dp0": {},  # column var
             "gz_surface": {"serialname": "zs"},
             "zh": {"kend": grid.npz + 1},
@@ -29,7 +27,5 @@ class TranslateUpdateDzD(TranslateFortranData2Py):
 
     def compute(self, inputs):
         self.make_storage_data_input_vars(inputs)
-        inputs["ndif"] = inputs["ndif"][0, 0, :]
-        inputs["damp_vtd"] = inputs["damp_vtd"][0, 0, :]
         self.compute_func(**inputs)
         return self.slice_output(inputs)

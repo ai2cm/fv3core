@@ -360,49 +360,131 @@ def copy_corners_y_stencil(q: FloatField):
         q = copy_corners_y(q)
 """
 
-# TODO these can definitely be consolidated/made simpler
-def fill_sw_corner_2d_bgrid(q, i, j, direction, grid, kstart=0, nk=None):
-    kslice, nk = utils.kslice_from_inputs(kstart, nk, grid)
-    if direction == "x":
-        q[grid.is_ - i, grid.js - j, kslice] = q[grid.is_ - j, grid.js + i, kslice]
-    if direction == "y":
-        q[grid.is_ - j, grid.js - i, kslice] = q[grid.is_ + i, grid.js - j, kslice]
+
+@gtstencil()
+def fill_corners_bgrid_x(q: FloatField):
+    from __externals__ import i_end, i_start, j_end, j_start
+
+    with computation(PARALLEL), interval(...):
+        # sw and se corner
+        with horizontal(
+            region[i_start - 1, j_start - 1], region[i_end + 2, j_start - 1]
+        ):
+            q = q[0, 2, 0]
+        with horizontal(
+            region[i_start - 1, j_start - 2], region[i_end + 3, j_start - 1]
+        ):
+            q = q[-1, 3, 0]
+        with horizontal(
+            region[i_start - 1, j_start - 3], region[i_end + 4, j_start - 1]
+        ):
+            q = q[-2, 4, 0]
+        with horizontal(
+            region[i_start - 2, j_start - 1], region[i_end + 2, j_start - 2]
+        ):
+            q = q[1, 3, 0]
+        with horizontal(
+            region[i_start - 2, j_start - 2], region[i_end + 3, j_start - 2]
+        ):
+            q = q[0, 4, 0]
+        with horizontal(
+            region[i_start - 2, j_start - 3], region[i_end + 4, j_start - 2]
+        ):
+            q = q[-1, 5, 0]
+        with horizontal(
+            region[i_start - 3, j_start - 1], region[i_end + 2, j_start - 3]
+        ):
+            q = q[2, 4, 0]
+        with horizontal(
+            region[i_start - 3, j_start - 2], region[i_end + 3, j_start - 3]
+        ):
+            q = q[1, 5, 0]
+        with horizontal(
+            region[i_start - 3, j_start - 3], region[i_end + 4, j_start - 3]
+        ):
+            q = q[0, 6, 0]
+        # nw and ne corner
+        with horizontal(region[i_start - 1, j_end + 2], region[i_end + 2, j_end + 2]):
+            q = q[0, -2, 0]
+        with horizontal(region[i_start - 1, j_end + 3], region[i_end + 3, j_end + 2]):
+            q = q[-1, -3, 0]
+        with horizontal(region[i_start - 1, j_end + 4], region[i_end + 4, j_end + 2]):
+            q = q[-2, -4, 0]
+        with horizontal(region[i_start - 2, j_end + 2], region[i_end + 2, j_end + 3]):
+            q = q[1, -3, 0]
+        with horizontal(region[i_start - 2, j_end + 3], region[i_end + 3, j_end + 3]):
+            q = q[0, -4, 0]
+        with horizontal(region[i_start - 2, j_end + 4], region[i_end + 4, j_end + 3]):
+            q = q[-1, -5, 0]
+        with horizontal(region[i_start - 3, j_end + 2], region[i_end + 2, j_end + 4]):
+            q = q[2, -4, 0]
+        with horizontal(region[i_start - 3, j_end + 3], region[i_end + 3, j_end + 4]):
+            q = q[1, -5, 0]
+        with horizontal(region[i_start - 3, j_end + 4], region[i_end + 4, j_end + 4]):
+            q = q[0, -6, 0]
 
 
-def fill_nw_corner_2d_bgrid(q, i, j, direction, grid, kstart=0, nk=None):
-    kslice, nk = utils.kslice_from_inputs(kstart, nk, grid)
-    if direction == "x":
-        q[grid.is_ - i, grid.je + 1 + j, kslice] = q[
-            grid.is_ - j, grid.je + 1 - i, kslice
-        ]
-    if direction == "y":
-        q[grid.is_ - j, grid.je + 1 + i, kslice] = q[
-            grid.is_ + i, grid.je + 1 + j, kslice
-        ]
+@gtstencil()
+def fill_corners_bgrid_y(q: FloatField):
+    from __externals__ import i_end, i_start, j_end, j_start
 
-
-def fill_se_corner_2d_bgrid(q, i, j, direction, grid, kstart=0, nk=None):
-    kslice, nk = utils.kslice_from_inputs(kstart, nk, grid)
-    if direction == "x":
-        q[grid.ie + 1 + i, grid.js - j, kslice] = q[
-            grid.ie + 1 + j, grid.js + i, kslice
-        ]
-    if direction == "y":
-        q[grid.ie + 1 + j, grid.js - i, kslice] = q[
-            grid.ie + 1 - i, grid.js - j, kslice
-        ]
-
-
-def fill_ne_corner_2d_bgrid(q, i, j, direction, grid, kstart=0, nk=None):
-    kslice, nk = utils.kslice_from_inputs(kstart, nk, grid)
-    if direction == "x":
-        q[grid.ie + 1 + i, grid.je + 1 + j, kslice] = q[
-            grid.ie + 1 + j, grid.je + 1 - i, kslice
-        ]
-    if direction == "y":
-        q[grid.ie + 1 + j, grid.je + 1 + i, kslice] = q[
-            grid.ie + 1 - i, grid.je + 1 + j, kslice
-        ]
+    with computation(PARALLEL), interval(...):
+        # sw and nw corners
+        with horizontal(
+            region[i_start - 1, j_start - 1], region[i_start - 1, j_end + 2]
+        ):
+            q = q[2, 0, 0]
+        with horizontal(
+            region[i_start - 1, j_start - 2], region[i_start - 2, j_end + 2]
+        ):
+            q = q[3, 1, 0]
+        with horizontal(
+            region[i_start - 1, j_start - 3], region[i_start - 3, j_end + 2]
+        ):
+            q = q[4, 2, 0]
+        with horizontal(
+            region[i_start - 2, j_start - 1], region[i_start - 1, j_end + 3]
+        ):
+            q = q[3, -1, 0]
+        with horizontal(
+            region[i_start - 2, j_start - 2], region[i_start - 2, j_end + 3]
+        ):
+            q = q[4, 0, 0]
+        with horizontal(
+            region[i_start - 2, j_start - 3], region[i_start - 3, j_end + 3]
+        ):
+            q = q[5, 1, 0]
+        with horizontal(
+            region[i_start - 3, j_start - 1], region[i_start - 1, j_end + 4]
+        ):
+            q = q[4, -2, 0]
+        with horizontal(
+            region[i_start - 3, j_start - 2], region[i_start - 2, j_end + 4]
+        ):
+            q = q[5, -1, 0]
+        with horizontal(
+            region[i_start - 3, j_start - 3], region[i_start - 3, j_end + 4]
+        ):
+            q = q[6, 0, 0]
+        # se and ne corners
+        with horizontal(region[i_end + 2, j_start - 1], region[i_end + 2, j_end + 2]):
+            q = q[-2, 0, 0]
+        with horizontal(region[i_end + 2, j_start - 2], region[i_end + 3, j_end + 2]):
+            q = q[-3, 1, 0]
+        with horizontal(region[i_end + 2, j_start - 3], region[i_end + 4, j_end + 2]):
+            q = q[-4, 2, 0]
+        with horizontal(region[i_end + 3, j_start - 1], region[i_end + 2, j_end + 3]):
+            q = q[-3, -1, 0]
+        with horizontal(region[i_end + 3, j_start - 2], region[i_end + 3, j_end + 3]):
+            q = q[-4, 0, 0]
+        with horizontal(region[i_end + 3, j_start - 3], region[i_end + 4, j_end + 3]):
+            q = q[-5, 1, 0]
+        with horizontal(region[i_end + 4, j_start - 1], region[i_end + 2, j_end + 4]):
+            q = q[-4, -2, 0]
+        with horizontal(region[i_end + 4, j_start - 2], region[i_end + 3, j_end + 4]):
+            q = q[-5, -1, 0]
+        with horizontal(region[i_end + 4, j_start - 3], region[i_end + 4, j_end + 4]):
+            q = q[-6, 0, 0]
 
 
 def fill_sw_corner_2d_agrid(q, i, j, direction, grid, kstart=0, nk=None):
@@ -437,113 +519,197 @@ def fill_ne_corner_2d_agrid(q, i, j, direction, grid, mysign=1.0, kstart=0, nk=N
         q[grid.ie + j, grid.je + i, kslice] = q[grid.ie - i + 1, grid.je + j, kslice]
 
 
-def fill_corners_2d(q, grid, gridtype, direction="x", kstart=0, nk=None):
-    for i in range(1, 1 + grid.halo):
-        for j in range(1, 1 + grid.halo):
-            if gridtype == "B":
-                if grid.sw_corner:
-                    fill_sw_corner_2d_bgrid(
-                        q, i, j, direction, grid, kstart=kstart, nk=nk
-                    )
-                if grid.nw_corner:
-                    fill_nw_corner_2d_bgrid(
-                        q, i, j, direction, grid, kstart=kstart, nk=nk
-                    )
-                if grid.se_corner:
-                    fill_se_corner_2d_bgrid(
-                        q, i, j, direction, grid, kstart=kstart, nk=nk
-                    )
-                if grid.ne_corner:
-                    fill_ne_corner_2d_bgrid(
-                        q, i, j, direction, grid, kstart=kstart, nk=nk
-                    )
-            if gridtype == "A":
-                if grid.sw_corner:
-                    fill_sw_corner_2d_agrid(
-                        q, i, j, direction, grid, kstart=kstart, nk=nk
-                    )
-                if grid.nw_corner:
-                    fill_nw_corner_2d_agrid(
-                        q, i, j, direction, grid, kstart=kstart, nk=nk
-                    )
-                if grid.se_corner:
-                    fill_se_corner_2d_agrid(
-                        q, i, j, direction, grid, kstart=kstart, nk=nk
-                    )
-                if grid.ne_corner:
-                    fill_ne_corner_2d_agrid(
-                        q, i, j, direction, grid, kstart=kstart, nk=nk
-                    )
-
-
-def fill_sw_corner_vector_dgrid(x, y, i, j, grid, mysign, kstart=0, nk=None):
-    kslice, nk = utils.kslice_from_inputs(kstart, nk, grid)
-    x[grid.is_ - i, grid.js - j, kslice] = mysign * y[grid.is_ - j, i + 2, kslice]
-    y[grid.is_ - i, grid.js - j, kslice] = mysign * x[j + 2, grid.js - i, kslice]
-
-
-def fill_nw_corner_vector_dgrid(x, y, i, j, grid, kstart=0, nk=None):
-    kslice, nk = utils.kslice_from_inputs(kstart, nk, grid)
-    x[grid.is_ - i, grid.je + 1 + j, kslice] = y[grid.is_ - j, grid.je + 1 - i, kslice]
-    y[grid.is_ - i, grid.je + j, kslice] = x[j + 2, grid.je + 1 + i, kslice]
-
-
-def fill_se_corner_vector_dgrid(x, y, i, j, grid, kstart=0, nk=None):
-    kslice, nk = utils.kslice_from_inputs(kstart, nk, grid)
-    x[grid.ie + i, grid.js - j, kslice] = y[grid.ie + 1 + j, i + 2, kslice]
-    y[grid.ie + 1 + i, grid.js - j, kslice] = x[grid.ie - j + 1, grid.js - i, kslice]
-
-
-def fill_ne_corner_vector_dgrid(x, y, i, j, grid, mysign, kstart=0, nk=None):
-    kslice, nk = utils.kslice_from_inputs(kstart, nk, grid)
-    x[grid.ie + i, grid.je + 1 + j, kslice] = (
-        mysign * y[grid.ie + 1 + j, grid.je - i + 1, kslice]
-    )
-    y[grid.ie + 1 + i, grid.je + j, kslice] = (
-        mysign * x[grid.ie - j + 1, grid.je + 1 + i, kslice]
-    )
-
-
-def fill_corners_dgrid(x, y, grid, vector, kstart=0, nk=None):
-    mysign = 1.0
-    if vector:
-        mysign = -1.0
+def fill_corners_2d_agrid(q, grid, gridtype, direction="x"):
     for i in range(1, 1 + grid.halo):
         for j in range(1, 1 + grid.halo):
             if grid.sw_corner:
-                fill_sw_corner_vector_dgrid(
-                    x, y, i, j, grid, mysign, kstart=kstart, nk=nk
-                )
+                fill_sw_corner_2d_agrid(q, i, j, direction, grid)
             if grid.nw_corner:
-                fill_nw_corner_vector_dgrid(x, y, i, j, grid, kstart=kstart, nk=nk)
+                fill_nw_corner_2d_agrid(q, i, j, direction, grid)
             if grid.se_corner:
-                fill_se_corner_vector_dgrid(x, y, i, j, grid, kstart=kstart, nk=nk)
+                fill_se_corner_2d_agrid(q, i, j, direction, grid)
             if grid.ne_corner:
-                fill_ne_corner_vector_dgrid(
-                    x, y, i, j, grid, mysign, kstart=kstart, nk=nk
-                )
+                fill_ne_corner_2d_agrid(q, i, j, direction, grid)
 
 
-def corner_ke(ke, u, v, ut, vt, i, j, dt, offsets, vsign):
+@gtstencil()
+def fill_corners_dgrid(x: FloatField, y: FloatField, mysign: float):
+    from __externals__ import i_end, i_start, j_end, j_start
+
+    with computation(PARALLEL), interval(...):
+        # sw corner
+        with horizontal(region[i_start - 1, j_start - 1]):
+            x = mysign * y[0, 1, 0]
+        with horizontal(region[i_start - 1, j_start - 1]):
+            y = mysign * x[1, 0, 0]
+        with horizontal(region[i_start - 1, j_start - 2]):
+            x = mysign * y[-1, 2, 0]
+        with horizontal(region[i_start - 1, j_start - 2]):
+            y = mysign * x[2, 1, 0]
+        with horizontal(region[i_start - 1, j_start - 3]):
+            x = mysign * y[-2, 3, 0]
+        with horizontal(region[i_start - 1, j_start - 3]):
+            y = mysign * x[3, 2, 0]
+        with horizontal(region[i_start - 2, j_start - 1]):
+            x = mysign * y[1, 2, 0]
+        with horizontal(region[i_start - 2, j_start - 1]):
+            y = mysign * x[2, -1, 0]
+        with horizontal(region[i_start - 2, j_start - 2]):
+            x = mysign * y[0, 3, 0]
+        with horizontal(region[i_start - 2, j_start - 2]):
+            y = mysign * x[3, 0, 0]
+        with horizontal(region[i_start - 2, j_start - 3]):
+            x = mysign * y[-1, 4, 0]
+        with horizontal(region[i_start - 2, j_start - 3]):
+            y = mysign * x[4, 1, 0]
+        with horizontal(region[i_start - 3, j_start - 1]):
+            x = mysign * y[2, 3, 0]
+        with horizontal(region[i_start - 3, j_start - 1]):
+            y = mysign * x[3, -2, 0]
+        with horizontal(region[i_start - 3, j_start - 2]):
+            x = mysign * y[1, 4, 0]
+        with horizontal(region[i_start - 3, j_start - 2]):
+            y = mysign * x[4, -1, 0]
+        with horizontal(region[i_start - 3, j_start - 3]):
+            x = mysign * y[0, 5, 0]
+        with horizontal(region[i_start - 3, j_start - 3]):
+            y = mysign * x[5, 0, 0]
+        # ne corner
+        with horizontal(region[i_end + 1, j_end + 2]):
+            x = mysign * y[1, -2, 0]
+        with horizontal(region[i_end + 2, j_end + 1]):
+            y = mysign * x[-2, 1, 0]
+        with horizontal(region[i_end + 1, j_end + 3]):
+            x = mysign * y[2, -3, 0]
+        with horizontal(region[i_end + 2, j_end + 2]):
+            y = mysign * x[-3, 0, 0]
+        with horizontal(region[i_end + 1, j_end + 4]):
+            x = mysign * y[3, -4, 0]
+        with horizontal(region[i_end + 2, j_end + 3]):
+            y = mysign * x[-4, -1, 0]
+        with horizontal(region[i_end + 2, j_end + 2]):
+            x = mysign * y[0, -3, 0]
+        with horizontal(region[i_end + 3, j_end + 1]):
+            y = mysign * x[-3, 2, 0]
+        with horizontal(region[i_end + 2, j_end + 3]):
+            x = mysign * y[1, -4, 0]
+        with horizontal(region[i_end + 3, j_end + 2]):
+            y = mysign * x[-4, 1, 0]
+        with horizontal(region[i_end + 2, j_end + 4]):
+            x = mysign * y[2, -5, 0]
+        with horizontal(region[i_end + 3, j_end + 3]):
+            y = mysign * x[-5, 0, 0]
+        with horizontal(region[i_end + 3, j_end + 2]):
+            x = mysign * y[-1, -4, 0]
+        with horizontal(region[i_end + 4, j_end + 1]):
+            y = mysign * x[-4, 3, 0]
+        with horizontal(region[i_end + 3, j_end + 3]):
+            x = mysign * y[0, -5, 0]
+        with horizontal(region[i_end + 4, j_end + 2]):
+            y = mysign * x[-5, 2, 0]
+        with horizontal(region[i_end + 3, j_end + 4]):
+            x = mysign * y[1, -6, 0]
+        with horizontal(region[i_end + 4, j_end + 3]):
+            y = mysign * x[-6, 1, 0]
+        # nw corner
+        with horizontal(region[i_start - 1, j_end + 2]):
+            x = y[0, -2, 0]
+        with horizontal(region[i_start - 1, j_end + 1]):
+            y = x[1, 1, 0]
+        with horizontal(region[i_start - 1, j_end + 3]):
+            x = y[-1, -3, 0]
+        with horizontal(region[i_start - 1, j_end + 2]):
+            y = x[2, 0, 0]
+        with horizontal(region[i_start - 1, j_end + 4]):
+            x = y[-2, -4, 0]
+        with horizontal(region[i_start - 1, j_end + 3]):
+            y = x[3, -1, 0]
+        with horizontal(region[i_start - 2, j_end + 2]):
+            x = y[1, -3, 0]
+        with horizontal(region[i_start - 2, j_end + 1]):
+            y = x[2, 2, 0]
+        with horizontal(region[i_start - 2, j_end + 3]):
+            x = y[0, -4, 0]
+        with horizontal(region[i_start - 2, j_end + 2]):
+            y = x[3, 1, 0]
+        with horizontal(region[i_start - 2, j_end + 4]):
+            x = y[-1, -5, 0]
+        with horizontal(region[i_start - 2, j_end + 3]):
+            y = x[4, 0, 0]
+        with horizontal(region[i_start - 3, j_end + 2]):
+            x = y[2, -4, 0]
+        with horizontal(region[i_start - 3, j_end + 1]):
+            y = x[3, 3, 0]
+        with horizontal(region[i_start - 3, j_end + 3]):
+            x = y[1, -5, 0]
+        with horizontal(region[i_start - 3, j_end + 2]):
+            y = x[4, 2, 0]
+        with horizontal(region[i_start - 3, j_end + 4]):
+            x = y[0, -6, 0]
+        with horizontal(region[i_start - 3, j_end + 3]):
+            y = x[5, 1, 0]
+        # se corner
+        with horizontal(region[i_end + 1, j_start - 1]):
+            x = y[1, 1, 0]
+        with horizontal(region[i_end + 2, j_start - 1]):
+            y = x[-2, 0, 0]
+        with horizontal(region[i_end + 1, j_start - 2]):
+            x = y[2, 2, 0]
+        with horizontal(region[i_end + 2, j_start - 2]):
+            y = x[-3, 1, 0]
+        with horizontal(region[i_end + 1, j_start - 3]):
+            x = y[3, 3, 0]
+        with horizontal(region[i_end + 2, j_start - 3]):
+            y = x[-4, 2, 0]
+        with horizontal(region[i_end + 2, j_start - 1]):
+            x = y[0, 2, 0]
+        with horizontal(region[i_end + 3, j_start - 1]):
+            y = x[-3, -1, 0]
+        with horizontal(region[i_end + 2, j_start - 2]):
+            x = y[1, 3, 0]
+        with horizontal(region[i_end + 3, j_start - 2]):
+            y = x[-4, 0, 0]
+        with horizontal(region[i_end + 2, j_start - 3]):
+            x = y[2, 4, 0]
+        with horizontal(region[i_end + 3, j_start - 3]):
+            y = x[-5, 1, 0]
+        with horizontal(region[i_end + 3, j_start - 1]):
+            x = y[-1, 3, 0]
+        with horizontal(region[i_end + 4, j_start - 1]):
+            y = x[-4, -2, 0]
+        with horizontal(region[i_end + 3, j_start - 2]):
+            x = y[0, 4, 0]
+        with horizontal(region[i_end + 4, j_start - 2]):
+            y = x[-5, -1, 0]
+        with horizontal(region[i_end + 3, j_start - 3]):
+            x = y[1, 5, 0]
+        with horizontal(region[i_end + 4, j_start - 3]):
+            y = x[-6, 0, 0]
+
+
+@gtscript.function
+def corner_ke(
+    ke,
+    u,
+    v,
+    ut,
+    vt,
+    dt,
+    io1,
+    jo1,
+    io2,
+    vsign,
+):
     dt6 = dt / 6.0
-    ke[i, j, :] = dt6 * (
-        (ut[i, j, :] + ut[i, j - 1, :]) * u[i + offsets["io1"], j, :]
-        + (vt[i, j, :] + vt[i - 1, j, :]) * v[i, j + offsets["jo1"], :]
-        + (ut[i, j + offsets["jo1"], :] + vsign * vt[i + offsets["io1"], j, :])
-        * u[i + offsets["io2"], j, :]
+
+    ke = dt6 * (
+        (ut[0, 0, 0] + ut[0, -1, 0]) * ((io1 + 1) * u[0, 0, 0] - (io1 * u[-1, 0, 0]))
+        + (vt[0, 0, 0] + vt[-1, 0, 0]) * ((jo1 + 1) * v[0, 0, 0] - (jo1 * v[0, -1, 0]))
+        + (
+            ((jo1 + 1) * ut[0, 0, 0] - (jo1 * ut[0, -1, 0]))
+            + vsign * ((io1 + 1) * vt[0, 0, 0] - (io1 * vt[-1, 0, 0]))
+        )
+        * ((io2 + 1) * u[0, 0, 0] - (io2 * u[-1, 0, 0]))
     )
 
-
-def fix_corner_ke(ke, u, v, ut, vt, dt, grid):
-    if grid.sw_corner:
-        offsets = {"io1": 0, "jo1": 0, "io2": -1}
-        corner_ke(ke, u, v, ut, vt, grid.is_, grid.js, dt, offsets, 1)
-    if grid.se_corner:
-        offsets = {"io1": -1, "jo1": 0, "io2": 0}
-        corner_ke(ke, u, v, ut, vt, grid.ie + 1, grid.js, dt, offsets, -1)
-    if grid.ne_corner:
-        offsets = {"io1": -1, "jo1": -1, "io2": 0}
-        corner_ke(ke, u, v, ut, vt, grid.ie + 1, grid.je + 1, dt, offsets, 1)
-    if grid.nw_corner:
-        offsets = {"io1": 0, "jo1": -1, "io2": -1}
-        corner_ke(ke, u, v, ut, vt, grid.is_, grid.je + 1, dt, offsets, -1)
+    return ke

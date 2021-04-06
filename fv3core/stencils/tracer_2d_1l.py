@@ -4,13 +4,14 @@ import gt4py.gtscript as gtscript
 from gt4py.gtscript import PARALLEL, computation, horizontal, interval, region
 
 import fv3core._config as spec
-import fv3core.stencils.fvtp2d as fvtp2d
+import fv3core.utils
 import fv3core.utils.global_config as global_config
 import fv3core.utils.gt4py_utils as utils
-from fv3core.decorators import gtstencil
-from fv3core.stencils.basic_operations import copy, copy_stencil
+import fv3gfs.util
+from fv3core.stencils.basic_operations import copy_stencil
+from fv3core.stencils.fvtp2d import FiniteVolumeTransport
 from fv3core.stencils.updatedzd import ra_stencil_update
-from fv3core.utils.typing import FloatField
+from fv3core.utils.typing import FloatField, FloatFieldIJ
 
 
 @gtscript.function
@@ -19,9 +20,7 @@ def flux_x(cx, dxa, dy, sin_sg3, sin_sg1, xfx):
 
     with horizontal(region[local_is : local_ie + 2, local_js - 3 : local_je + 4]):
         xfx = (
-            cx * dxa[-1, 0, 0] * dy * sin_sg3[-1, 0, 0]
-            if cx > 0
-            else cx * dxa * dy * sin_sg1
+            cx * dxa[-1, 0] * dy * sin_sg3[-1, 0] if cx > 0 else cx * dxa * dy * sin_sg1
         )
     return xfx
 
@@ -32,25 +31,22 @@ def flux_y(cy, dya, dx, sin_sg4, sin_sg2, yfx):
 
     with horizontal(region[local_is - 3 : local_ie + 4, local_js : local_je + 2]):
         yfx = (
-            cy * dya[0, -1, 0] * dx * sin_sg4[0, -1, 0]
-            if cy > 0
-            else cy * dya * dx * sin_sg2
+            cy * dya[0, -1] * dx * sin_sg4[0, -1] if cy > 0 else cy * dya * dx * sin_sg2
         )
     return yfx
 
 
-@gtstencil()
 def flux_compute(
     cx: FloatField,
     cy: FloatField,
-    dxa: FloatField,
-    dya: FloatField,
-    dx: FloatField,
-    dy: FloatField,
-    sin_sg1: FloatField,
-    sin_sg2: FloatField,
-    sin_sg3: FloatField,
-    sin_sg4: FloatField,
+    dxa: FloatFieldIJ,
+    dya: FloatFieldIJ,
+    dx: FloatFieldIJ,
+    dy: FloatFieldIJ,
+    sin_sg1: FloatFieldIJ,
+    sin_sg2: FloatFieldIJ,
+    sin_sg3: FloatFieldIJ,
+    sin_sg4: FloatFieldIJ,
     xfx: FloatField,
     yfx: FloatField,
 ):
@@ -59,7 +55,6 @@ def flux_compute(
         yfx = flux_y(cy, dya, dx, sin_sg4, sin_sg2, yfx)
 
 
-@gtstencil()
 def cmax_multiply_by_frac(
     cxd: FloatField,
     xfx: FloatField,
@@ -67,10 +62,11 @@ def cmax_multiply_by_frac(
     cyd: FloatField,
     yfx: FloatField,
     mfyd: FloatField,
-    frac: float,
+    nsplt: int,
 ):
     """multiply all other inputs in-place by frac."""
     with computation(PARALLEL), interval(...):
+        frac = 1.0 / nsplt
         cxd = cxd * frac
         xfx = xfx * frac
         mfxd = mfxd * frac
@@ -79,13 +75,11 @@ def cmax_multiply_by_frac(
         mfyd = mfyd * frac
 
 
-@gtstencil()
 def cmax_stencil1(cx: FloatField, cy: FloatField, cmax: FloatField):
     with computation(PARALLEL), interval(...):
         cmax = max(abs(cx), abs(cy))
 
 
-@gtstencil()
 def cmax_stencil2(
     cx: FloatField, cy: FloatField, sin_sg5: FloatField, cmax: FloatField
 ):
@@ -93,16 +87,26 @@ def cmax_stencil2(
         cmax = max(abs(cx), abs(cy)) + 1.0 - sin_sg5
 
 
-@gtstencil()
 def dp_fluxadjustment(
     dp1: FloatField,
     mfx: FloatField,
     mfy: FloatField,
-    rarea: FloatField,
+    rarea: FloatFieldIJ,
     dp2: FloatField,
 ):
     with computation(PARALLEL), interval(...):
         dp2 = dp1 + (mfx - mfx[1, 0, 0] + mfy - mfy[0, 1, 0]) * rarea
+
+
+def loop_temporaries_copy(
+    tmp_dp1_orig: FloatField,
+    q: FloatField,
+    dp1: FloatField,
+    tmp_qn2: FloatField,
+):
+    with computation(PARALLEL), interval(...):
+        dp1 = tmp_dp1_orig
+        tmp_qn2 = q
 
 
 @gtscript.function
@@ -110,27 +114,25 @@ def adjustment(q, dp1, fx, fy, rarea, dp2):
     return (q * dp1 + (fx - fx[1, 0, 0] + fy - fy[0, 1, 0]) * rarea) / dp2
 
 
-@gtstencil()
 def q_adjust(
     q: FloatField,
     dp1: FloatField,
     fx: FloatField,
     fy: FloatField,
-    rarea: FloatField,
+    rarea: FloatFieldIJ,
     dp2: FloatField,
 ):
     with computation(PARALLEL), interval(...):
         q = adjustment(q, dp1, fx, fy, rarea, dp2)
 
 
-@gtstencil()
 def q_adjustments(
     q: FloatField,
     qset: FloatField,
     dp1: FloatField,
     fx: FloatField,
     fy: FloatField,
-    rarea: FloatField,
+    rarea: FloatFieldIJ,
     dp2: FloatField,
     it: int,
     nsplt: int,
@@ -142,198 +144,226 @@ def q_adjustments(
             qset = adjustment(q, dp1, fx, fy, rarea, dp2)
 
 
-def compute(comm, tracers, dp1, mfxd, mfyd, cxd, cyd, mdt, nq):
-    grid = spec.grid
-    shape = mfxd.data.shape
-    # start HALO update on q (in dyn_core in fortran -- just has started when
-    # this function is called...)
-    xfx = utils.make_storage_from_shape(
-        shape, origin=grid.compute_origin(add=(0, -grid.halo, 0))
-    )
-    yfx = utils.make_storage_from_shape(
-        shape, origin=grid.compute_origin(add=(-grid.halo, 0, 0))
-    )
-    fx = utils.make_storage_from_shape(shape, origin=grid.compute_origin())
-    fy = utils.make_storage_from_shape(shape, origin=grid.compute_origin())
-    ra_x = utils.make_storage_from_shape(
-        shape, origin=grid.compute_origin(add=(0, -grid.halo, 0))
-    )
-    ra_y = utils.make_storage_from_shape(
-        shape, origin=grid.compute_origin(add=(-grid.halo, 0, 0))
-    )
-    cmax = utils.make_storage_from_shape(shape, origin=grid.compute_origin())
-    dp2 = utils.make_storage_from_shape(shape, origin=grid.compute_origin())
-
-    flux_compute(
-        cxd,
-        cyd,
-        grid.dxa,
-        grid.dya,
-        grid.dx,
-        grid.dy,
-        grid.sin_sg1,
-        grid.sin_sg2,
-        grid.sin_sg3,
-        grid.sin_sg4,
-        xfx,
-        yfx,
-        origin=grid.full_origin(),
-        domain=grid.domain_shape_full(),
-    )
-    # {
-    # # TODO for if we end up using the Allreduce and compute cmax globally
-    # (or locally). For now, hardcoded.
-    # split = int(grid.npz / 6)
-    # cmax_stencil1(
-    #     cxd, cyd, cmax, origin=grid.compute_origin(),
-    #     domain=(grid.nic, grid.njc, split)
-    # )
-    # cmax_stencil2(
-    #     cxd,
-    #     cyd,
-    #     grid.sin_sg5,
-    #     cmax,
-    #     origin=(grid.is_, grid.js, split),
-    #     domain=(grid.nic, grid.njc, grid.npz - split + 1),
-    # )
-    # cmax_flat = np.amax(cmax, axis=(0, 1))
-    # # cmax_flat is a gt4py storage still, but of dimension [npz+1]...
-
-    # cmax_max_all_ranks = cmax_flat.data
-    # # TODO mpi allreduce.... can we not?
-    # # comm.Allreduce(cmax_flat, cmax_max_all_ranks, op=MPI.MAX)
-    # }
-    cmax_max_all_ranks = 2.0
-    nsplt = math.floor(1.0 + cmax_max_all_ranks)
-    # NOTE: cmax is not usually a single value, it varies with k, if return to
-    # that, make nsplt a column as well and compute frac inside cmax_split_vars.
-
-    # nsplt3d = utils.make_storage_from_shape(cyd.shape, origin=grid.compute_origin())
-    # nsplt3d[:] = nsplt
-    frac = 1.0
-    if nsplt > 1.0:
-        frac = 1.0 / nsplt
-        cmax_multiply_by_frac(
-            cxd,
-            xfx,
-            mfxd,
-            cyd,
-            yfx,
-            mfyd,
-            frac,
-            origin=grid.full_origin(),
-            domain=grid.domain_shape_full(add=(1, 1, 0)),
-        )
-
-    # complete HALO update on q
-    if global_config.get_do_halo_exchange():
-        for qname in utils.tracer_variables[0:nq]:
-            q = tracers[qname + "_quantity"]
-            comm.halo_update(q, n_points=utils.halo)
-
-    ra_stencil_update(
-        grid.area,
-        xfx,
-        ra_x,
-        yfx,
-        ra_y,
-        origin=grid.full_origin(),
-        domain=grid.domain_shape_full(),
-    )
-
-    # TODO: Revisit: the loops over q and nsplt have two inefficient options
-    # duplicating storages/stencil calls, return to this, maybe you have more
-    # options now, or maybe the one chosen here is the worse one.
-
-    dp1_orig = copy(dp1, origin=grid.full_origin(), domain=grid.domain_shape_full())
-    for qname in utils.tracer_variables[0:nq]:
-        q = tracers[qname + "_quantity"]
-        # handling the q and it loop switching
-        copy_stencil(
-            dp1_orig,
-            dp1,
-            origin=grid.full_origin(),
-            domain=grid.domain_shape_full(),
-        )
-        qn2 = grid.quantity_wrap(
-            copy(
-                q.storage,
-                origin=grid.full_origin(),
-                domain=grid.domain_shape_full(),
-            ),
+class Tracer2D1L:
+    def __init__(self, comm: fv3gfs.util.CubedSphereCommunicator, namelist):
+        self.comm = comm
+        self.grid = spec.grid
+        self.do_halo_exchange = global_config.get_do_halo_exchange()
+        shape = self.grid.domain_shape_full(add=(1, 1, 1))
+        origin = self.grid.compute_origin()
+        self._tmp_xfx = utils.make_storage_from_shape(shape, origin)
+        self._tmp_yfx = utils.make_storage_from_shape(shape, origin)
+        self._tmp_ra_x = utils.make_storage_from_shape(shape, origin)
+        self._tmp_ra_y = utils.make_storage_from_shape(shape, origin)
+        self._tmp_fx = utils.make_storage_from_shape(shape, origin)
+        self._tmp_fy = utils.make_storage_from_shape(shape, origin)
+        self._tmp_dp2 = utils.make_storage_from_shape(shape, origin)
+        self._tmp_dp1_orig = utils.make_storage_from_shape(shape, origin)
+        self._tmp_qn2 = self.grid.quantity_wrap(
+            utils.make_storage_from_shape(shape, origin),
             units="kg/m^2",
         )
-        for it in range(int(nsplt)):
-            dp_fluxadjustment(
-                dp1,
+        ax_offsets = fv3core.utils.axis_offsets(
+            self.grid, self.grid.full_origin(), self.grid.domain_shape_full()
+        )
+        local_axis_offsets = {}
+        for axis_offset_name, axis_offset_value in ax_offsets.items():
+            if "local" in axis_offset_name:
+                local_axis_offsets[axis_offset_name] = axis_offset_value
+        stencil_kwargs = {
+            "backend": global_config.get_backend(),
+            "rebuild": global_config.get_rebuild(),
+            "externals": local_axis_offsets,
+        }
+        self.stencil_runtime_args = {"validate_args": global_config.get_validate_args()}
+        stencil_wrapper = gtscript.stencil(**stencil_kwargs)
+
+        self._flux_compute = stencil_wrapper(flux_compute)
+        self._ra_update = stencil_wrapper(ra_stencil_update.func)
+        self._cmax_multiply_by_frac = stencil_wrapper(cmax_multiply_by_frac)
+        self._copy_field = stencil_wrapper(copy_stencil.func)
+        self._loop_temporaries_copy = stencil_wrapper(loop_temporaries_copy)
+        self._dp_fluxadjustment = stencil_wrapper(dp_fluxadjustment)
+        self._q_adjustments = stencil_wrapper(q_adjustments)
+        self._q_adjust = stencil_wrapper(q_adjust)
+        self.fvtp2d = FiniteVolumeTransport(namelist, namelist.hord_tr)
+        # If use AllReduce, will need something like this:
+        # self._tmp_cmax = utils.make_storage_from_shape(shape, origin)
+        # self._cmax_1 = stencil_wrapper(cmax_stencil1)
+        # self._cmax_2 = stencil_wrapper(cmax_stencil2)
+
+    def __call__(self, tracers, dp1, mfxd, mfyd, cxd, cyd, mdt, nq):
+        # start HALO update on q (in dyn_core in fortran -- just has started when
+        # this function is called...)
+        self._flux_compute(
+            cxd,
+            cyd,
+            self.grid.dxa,
+            self.grid.dya,
+            self.grid.dx,
+            self.grid.dy,
+            self.grid.sin_sg1,
+            self.grid.sin_sg2,
+            self.grid.sin_sg3,
+            self.grid.sin_sg4,
+            self._tmp_xfx,
+            self._tmp_yfx,
+            origin=self.grid.full_origin(),
+            domain=self.grid.domain_shape_full(add=(1, 1, 0)),
+            **self.stencil_runtime_args,
+        )
+
+        # # TODO for if we end up using the Allreduce and compute cmax globally
+        # (or locally). For now, hardcoded.
+        # split = int(self.grid.npz / 6)
+        # self._cmax_1(
+        #     cxd, cyd, self._tmp_cmax, origin=self.grid.compute_origin(),
+        #     domain=(self.grid.nic, self.grid.njc, split)
+        # )
+        # self._cmax_2(
+        #     cxd,
+        #     cyd,
+        #     self.grid.sin_sg5,
+        #     self._tmp_cmax,
+        #     origin=(self.grid.is_, self.grid.js, split),
+        #     domain=(self.grid.nic, self.grid.njc, self.grid.npz - split + 1),
+        # )
+        # cmax_flat = np.amax(self._tmp_cmax, axis=(0, 1))
+        # # cmax_flat is a gt4py storage still, but of dimension [npz+1]...
+
+        # cmax_max_all_ranks = cmax_flat.data
+        # # TODO mpi allreduce...
+        # # comm.Allreduce(cmax_flat, cmax_max_all_ranks, op=MPI.MAX)
+
+        cmax_max_all_ranks = 2.0
+        nsplt = math.floor(1.0 + cmax_max_all_ranks)
+        # NOTE: cmax is not usually a single value, it varies with k, if return to
+        # that, make nsplt a column as well
+
+        if nsplt > 1.0:
+            self._cmax_multiply_by_frac(
+                cxd,
+                self._tmp_xfx,
                 mfxd,
+                cyd,
+                self._tmp_yfx,
                 mfyd,
-                grid.rarea,
-                dp2,
-                origin=grid.compute_origin(),
-                domain=grid.domain_shape_compute(),
+                nsplt,
+                origin=self.grid.full_origin(),
+                domain=self.grid.domain_shape_full(add=(1, 1, 0)),
+                **self.stencil_runtime_args,
             )
-            if nsplt != 1:
-                fvtp2d.compute_no_sg(
-                    qn2.storage,
-                    cxd,
-                    cyd,
-                    spec.namelist.hord_tr,
-                    xfx,
-                    yfx,
-                    ra_x,
-                    ra_y,
-                    fx,
-                    fy,
-                    mfx=mfxd,
-                    mfy=mfyd,
-                )
 
-                q_adjustments(
-                    qn2.storage,
-                    q.storage,
-                    dp1,
-                    fx,
-                    fy,
-                    grid.rarea,
-                    dp2,
-                    it,
-                    nsplt,
-                    origin=grid.compute_origin(),
-                    domain=grid.domain_shape_compute(),
-                )
-            else:
-                fvtp2d.compute_no_sg(
-                    q.storage,
-                    cxd,
-                    cyd,
-                    spec.namelist.hord_tr,
-                    xfx,
-                    yfx,
-                    ra_x,
-                    ra_y,
-                    fx,
-                    fy,
-                    mfx=mfxd,
-                    mfy=mfyd,
-                )
-                q_adjust(
-                    q.storage,
-                    dp1,
-                    fx,
-                    fy,
-                    grid.rarea,
-                    dp2,
-                    origin=grid.compute_origin(),
-                    domain=grid.domain_shape_compute(),
-                )
+        if self.do_halo_exchange:
+            for qname in utils.tracer_variables[0:nq]:
+                q = tracers[qname + "_quantity"]
+                self.comm.halo_update(q, n_points=utils.halo)
 
-            if it < nsplt - 1:
-                copy_stencil(
-                    dp2,
+        self._ra_update(
+            self.grid.area,
+            self._tmp_xfx,
+            self._tmp_ra_x,
+            self._tmp_yfx,
+            self._tmp_ra_y,
+            origin=self.grid.full_origin(),
+            domain=self.grid.domain_shape_full(),
+            **self.stencil_runtime_args,
+        )
+        # TODO: Revisit: the loops over q and nsplt have two inefficient options
+        # duplicating storages/stencil calls, return to this, maybe you have more
+        # options now, or maybe the one chosen here is the worse one.
+
+        self._copy_field(
+            dp1,
+            self._tmp_dp1_orig,
+            origin=self.grid.full_origin(),
+            domain=self.grid.domain_shape_full(),
+            **self.stencil_runtime_args,
+        )
+        for qname in utils.tracer_variables[0:nq]:
+            q = tracers[qname + "_quantity"]
+            self._loop_temporaries_copy(
+                self._tmp_dp1_orig,
+                q.storage,
+                dp1,
+                self._tmp_qn2.storage,
+                origin=self.grid.full_origin(),
+                domain=self.grid.domain_shape_full(),
+                **self.stencil_runtime_args,
+            )
+            for it in range(int(nsplt)):
+                self._dp_fluxadjustment(
                     dp1,
-                    origin=grid.compute_origin(),
-                    domain=grid.domain_shape_compute(),
+                    mfxd,
+                    mfyd,
+                    self.grid.rarea,
+                    self._tmp_dp2,
+                    origin=self.grid.compute_origin(),
+                    domain=self.grid.domain_shape_compute(),
+                    **self.stencil_runtime_args,
                 )
-                if global_config.get_do_halo_exchange():
-                    comm.halo_update(qn2, n_points=utils.halo)
+                if nsplt != 1:
+                    self.fvtp2d(
+                        self._tmp_qn2.storage,
+                        cxd,
+                        cyd,
+                        self._tmp_xfx,
+                        self._tmp_yfx,
+                        self._tmp_ra_x,
+                        self._tmp_ra_y,
+                        self._tmp_fx,
+                        self._tmp_fy,
+                        mfx=mfxd,
+                        mfy=mfyd,
+                    )
+
+                    self._q_adjustments(
+                        self._tmp_qn2.storage,
+                        q.storage,
+                        dp1,
+                        self._tmp_fx,
+                        self._tmp_fy,
+                        self.grid.rarea,
+                        self._tmp_dp2,
+                        it,
+                        nsplt,
+                        origin=self.grid.compute_origin(),
+                        domain=self.grid.domain_shape_compute(),
+                        **self.stencil_runtime_args,
+                    )
+                else:
+                    self.fvtp2d(
+                        q.storage,
+                        cxd,
+                        cyd,
+                        self._tmp_xfx,
+                        self._tmp_yfx,
+                        self._tmp_ra_x,
+                        self._tmp_ra_y,
+                        self._tmp_fx,
+                        self._tmp_fy,
+                        mfx=mfxd,
+                        mfy=mfyd,
+                    )
+                    self._q_adjust(
+                        q.storage,
+                        dp1,
+                        self._tmp_fx,
+                        self._tmp_fy,
+                        self.grid.rarea,
+                        self._tmp_dp2,
+                        origin=self.grid.compute_origin(),
+                        domain=self.grid.domain_shape_compute(),
+                        **self.stencil_runtime_args,
+                    )
+
+                if it < nsplt - 1:
+                    self._copy_field(
+                        self._tmp_dp2,
+                        dp1,
+                        origin=self.grid.compute_origin(),
+                        domain=self.grid.domain_shape_compute(),
+                        **self.stencil_runtime_args,
+                    )
+                    if self.do_halo_exchange:
+                        self.comm.halo_update(self._tmp_qn2, n_points=utils.halo)

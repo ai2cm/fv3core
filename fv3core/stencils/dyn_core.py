@@ -29,7 +29,7 @@ import fv3core.utils.gt4py_utils as utils
 import fv3gfs.util as fv3util
 from fv3core.decorators import gtstencil
 from fv3core.stencils.basic_operations import copy_stencil
-from fv3core.utils.typing import FloatField
+from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
 
 
 HUGE_R = 1.0e40
@@ -38,15 +38,15 @@ HUGE_R = 1.0e40
 # NOTE in Fortran these are columns
 @gtstencil()
 def dp_ref_compute(
-    ak: FloatField,
-    bk: FloatField,
-    phis: FloatField,
+    ak: FloatFieldK,
+    bk: FloatFieldK,
+    phis: FloatFieldIJ,
     dp_ref: FloatField,
     gz_surface: FloatField,
     rgrav: float,
 ):
     with computation(PARALLEL), interval(0, -1):
-        dp_ref = ak[0, 0, 1] - ak + (bk[0, 0, 1] - bk) * 1.0e5
+        dp_ref = ak[1] - ak + (bk[1] - bk) * 1.0e5
     with computation(PARALLEL), interval(...):
         gz_surface = phis * rgrav
 
@@ -83,8 +83,8 @@ def heatadjust_temperature_lowlevel(
 
 @gtstencil()
 def p_grad_c_stencil(
-    rdxc: FloatField,
-    rdyc: FloatField,
+    rdxc: FloatFieldIJ,
+    rdyc: FloatFieldIJ,
     uc: FloatField,
     vc: FloatField,
     delpc: FloatField,
@@ -157,7 +157,6 @@ def dyncore_temporaries(shape):
             "gz",
             "zh",
             "pem",
-            "surface_delta_gz",
             "pkc",
             "pk3",
             "heat_source",
@@ -165,6 +164,12 @@ def dyncore_temporaries(shape):
         ],
         shape,
         grid.full_origin(),
+    )
+    utils.storage_dict(
+        tmps,
+        ["surface_delta_gz"],
+        shape[0:2],
+        grid.full_origin()[0:2],
     )
     utils.storage_dict(
         tmps, ["crx", "xfx"], shape, grid.compute_origin(add=(0, -grid.halo, 0))
@@ -192,17 +197,19 @@ def compute(state, comm):
     # mfyd, cxd, cyd, pkz, peln, q_con, ak, bk, diss_estd, cappa, mdt, n_split,
     # akap, ptop, pfull, n_map, comm):
     grid = spec.grid
-
+    nonhydrostatic_pressure = utils.cached_stencil_class(
+        nh_p_grad.NonHydrostaticPressureGradient
+    )(cache_key="dyn_core_nhpgrad")
     init_step = state.n_map == 1
     end_step = state.n_map == spec.namelist.k_split
-    akap = state.akap
+    akap = constants.KAPPA
     # peln1 = math.log(ptop)
     # ptk = ptop**akap
-    dt = state.mdt / state.n_split
+    dt = state.mdt / spec.namelist.n_split
     dt2 = 0.5 * dt
     hydrostatic = spec.namelist.hydrostatic
     rgrav = 1.0 / constants.GRAV
-    n_split = state.n_split
+    n_split = spec.namelist.n_split
     # TODO: Put defaults into code.
     # m_split = 1. + abs(dt_atmos)/real(k_split*n_split*abs(p_split))
     # n_split = nint( real(n0split)/real(k_split*abs(p_split)) * stretch_fac + 0.5 )
@@ -236,14 +243,16 @@ def compute(state, comm):
     state.mfyd[grid.slice_dict(grid.y3d_compute_dict())] = 0.0
     state.cxd[grid.slice_dict(grid.x3d_compute_domain_y_dict())] = 0.0
     state.cyd[grid.slice_dict(grid.y3d_compute_domain_x_dict())] = 0.0
+
     if not hydrostatic:
         # k1k = akap / (1.0 - akap)
 
-        # TODO: Is really just a column... when different shapes are supported
-        # perhaps change this.
-        state.dp_ref = utils.make_storage_from_shape(state.ak.shape, grid.full_origin())
+        # To write in parallel region, these need to be 3D first
+        state.dp_ref = utils.make_storage_from_shape(
+            shape, grid.full_origin(), cache_key="dyn_core_dp_ref"
+        )
         state.gz_surface = utils.make_storage_from_shape(
-            state.ak.shape, grid.full_origin()
+            shape, grid.full_origin(), cache_key="dyn_core_zs"
         )
         dp_ref_compute(
             state.ak,
@@ -255,9 +264,28 @@ def compute(state, comm):
             origin=grid.full_origin(),
             domain=grid.domain_shape_full(add=(0, 0, 1)),
         )
+        # After writing, make 'dp_ref' a K-field and 'gz_surface' an IJ-field
+        state.dp_ref = utils.make_storage_data(state.dp_ref[0, 0, :], (shape[2],), (0,))
+        state.gz_surface = utils.make_storage_data(
+            state.gz_surface[:, :, 0], shape[0:2], (0, 0)
+        )
     n_con = get_n_con()
 
+    # "acoustic" loop
+    # called this because its timestep is usually limited by horizontal sound-wave
+    # processes. Note this is often not the limiting factor near the poles, where
+    # the speed of the polar night jets can exceed two-thirds of the speed of sound.
     for it in range(n_split):
+        # the Lagrangian dynamics have two parts. First we advance the C-grid winds
+        # by half a time step (c_sw). Then the C-grid winds are used to define advective
+        # fluxes to advance the D-grid prognostic fields a full time step
+        # (the rest of the routines).
+        #
+        # Along-surface flux terms (mass, heat, vertical momentum, vorticity,
+        # kinetic energy gradient terms) are evaluated forward-in-time.
+        #
+        # The pressure gradient force and elastic terms are then evaluated
+        # backwards-in-time, to improve stability.
         remap_step = False
         if spec.namelist.breed_vortex_inline or (it == n_split - 1):
             remap_step = True
@@ -282,12 +310,6 @@ def compute(state, comm):
             if global_config.get_do_halo_exchange():
                 reqs["delp_quantity"].wait()
                 reqs["pt_quantity"].wait()
-            beta_d = 0
-        else:
-            beta_d = spec.namelist.beta
-        last_step = False
-        if it == n_split - 1 and end_step:
-            last_step = True
 
         if it == n_split - 1 and end_step:
             if spec.namelist.use_old_omega:  # apparently True
@@ -303,6 +325,7 @@ def compute(state, comm):
             if not hydrostatic:
                 reqs["w_quantity"].wait()
 
+        # compute the c-grid winds at t + 1/2 timestep
         state.delpc, state.ptc = c_sw.compute(
             state.delp,
             state.pt,
@@ -354,10 +377,6 @@ def compute(state, comm):
                 origin=grid.compute_origin(add=(-1, -1, 0)),
                 domain=grid.domain_shape_compute(add=(2, 2, 1)),
             )
-            # TODO: This is really a 2d field.
-            state.surface_delta_gz = utils.make_storage_data(
-                state.surface_delta_gz[:, :, -1], shape, origin=(0, 0, 0)
-            )
             riem_solver_c.compute(
                 ms,
                 dt2,
@@ -393,7 +412,9 @@ def compute(state, comm):
             if spec.namelist.nord > 0:
                 reqs["divgd_quantity"].wait()
             reqc_vector.wait()
-        state.nord_v, state.damp_vt = d_sw.compute(
+        # use the computed c-grid winds to evolve the d-grid winds forward
+        # by 1 timestep
+        d_sw.compute(
             state.vt,
             state.delp,
             state.ptc,
@@ -420,6 +441,8 @@ def compute(state, comm):
             state.diss_estd,
             dt,
         )
+        # note that uc and vc are not needed at all past this point.
+        # they will be re-computed from scratch on the next acoustic timestep.
 
         if global_config.get_do_halo_exchange():
             for halovar in ["delp_quantity", "pt_quantity", "q_con_quantity"]:
@@ -433,8 +456,6 @@ def compute(state, comm):
 
         if not hydrostatic:
             updatedzd.compute(
-                state.nord_v,
-                state.damp_vt,
                 state.dp_ref,
                 state.gz_surface,
                 state.zh,
@@ -446,10 +467,6 @@ def compute(state, comm):
                 dt,
             )
 
-            # TODO: This is really a 2d field.
-            state.wsd = utils.make_storage_data(
-                state.wsd[:, :, -1], shape, origin=grid.compute_origin()
-            )
             riem_solver3.compute(
                 remap_step,
                 dt,
@@ -507,7 +524,7 @@ def compute(state, comm):
                 raise Exception(
                     "Unimplemented namelist option -- we only support beta=0"
                 )
-            nh_p_grad.compute(
+            nonhydrostatic_pressure(
                 state.u,
                 state.v,
                 state.pkc,
