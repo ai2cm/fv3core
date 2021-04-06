@@ -23,7 +23,7 @@ class TranslateUpdateDzC(TranslateFortranData2Py):
         updatedzc.update_dz_c_stencil(
             area=self.grid.area,
             **inputs,
-            origin=self.grid.compute_origin(add=(-2, -2, 0)),
-            domain=self.grid.domain_shape_compute(add=(3, 3, 1)),
+            origin=self.grid.compute_origin(add=(-1, -1, 0)),
+            domain=self.grid.domain_shape_compute(add=(2, 2, 1)),
         )
         return inputs

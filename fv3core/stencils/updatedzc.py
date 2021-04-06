@@ -1,5 +1,5 @@
 import gt4py.gtscript as gtscript
-from gt4py.gtscript import BACKWARD, PARALLEL, computation, horizontal, interval, region
+from gt4py.gtscript import BACKWARD, PARALLEL, computation, interval
 
 import fv3core.utils.global_constants as constants
 from fv3core.decorators import gtstencil
@@ -61,7 +61,6 @@ def update_dz_c_stencil(
     Grid variable inputs:
          area
     """
-    from __externals__ import local_ie, local_is, local_je, local_js
 
     with computation(PARALLEL):
         with interval(0, 1):
@@ -78,24 +77,12 @@ def update_dz_c_stencil(
         fx = u_average * (gz_tmp[-1, 0, 0] if u_average > 0.0 else gz_tmp)
         gz_tmp = corners.fill_corners_2cells_mult_y(gz_tmp, gz_tmp, 1.0, 1.0, 1.0, 1.0)
         fy = v_average * (gz_tmp[0, -1, 0] if v_average > 0.0 else gz_tmp)
-        # TODO: region for local validation only
-        with horizontal(
-            region[local_is - 1 : local_ie + 2, local_js - 1 : local_je + 2]
-        ):
-            gz = (gz_tmp * area + fx - fx[1, 0, 0] + fy - fy[0, 1, 0]) / (
-                area + u_average - u_average[1, 0, 0] + v_average - v_average[0, 1, 0]
-            )
+        gz = (gz_tmp * area + fx - fx[1, 0, 0] + fy - fy[0, 1, 0]) / (
+            area + u_average - u_average[1, 0, 0] + v_average - v_average[0, 1, 0]
+        )
     with computation(PARALLEL), interval(-1, None):
         rdt = 1.0 / dt2
-        # TODO: region for local validation only
-        with horizontal(
-            region[local_is - 1 : local_ie + 2, local_js - 1 : local_je + 2]
-        ):
-            surface_delta_gz = (gz_surface - gz) * rdt
+        surface_delta_gz = (gz_surface - gz) * rdt
     with computation(BACKWARD), interval(0, -1):
-        # TODO region for local validation only
         gz_min = gz[0, 0, 1] + DZ_MIN
-        with horizontal(
-            region[local_is - 1 : local_ie + 2, local_js - 1 : local_je + 2]
-        ):
-            gz = gz if gz > gz_min else gz_min
+        gz = gz if gz > gz_min else gz_min

@@ -351,8 +351,8 @@ def compute(state, comm):
                 state.gz,
                 state.surface_delta_gz,
                 dt2,
-                origin=grid.compute_origin(add=(-2, -2, 0)),
-                domain=grid.domain_shape_compute(add=(3, 3, 1)),
+                origin=grid.compute_origin(add=(-1, -1, 0)),
+                domain=grid.domain_shape_compute(add=(2, 2, 1)),
             )
             # TODO: This is really a 2d field.
             state.surface_delta_gz = utils.make_storage_data(
