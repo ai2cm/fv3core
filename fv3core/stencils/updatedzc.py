@@ -87,7 +87,8 @@ def update_dz_c_stencil(
     with computation(BACKWARD):
         with interval(-1, None):
             rdt = 1.0 / dt2
-            surface_delta_gz = (gz_surface - gz) * rdt
+            zs = gz_surface
+            surface_delta_gz = (zs - gz) * rdt
         with interval(0, -1):
             gz_min = gz[0, 0, 1] + DZ_MIN
             gz = gz if gz > gz_min else gz_min
