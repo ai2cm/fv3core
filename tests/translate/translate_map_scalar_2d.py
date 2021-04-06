@@ -63,12 +63,10 @@ class TranslateMapScalar_2d(TranslateFortranData2Py):
                 inputs[serialname].shape, info
             )
             
-            print(serialname, inputs[serialname].shape)
             if len(np.squeeze(inputs[serialname]).shape) == 2:
                 inputs[serialname] = pad_data_in_j(inputs[serialname], self.nj)
             if serialname == "gz1d":
                 inputs[serialname] = pad_1d_data(inputs[serialname], self.nj, self.nk+1)
-            print(serialname, inputs[serialname].shape)
 
 
 
@@ -95,13 +93,12 @@ class TranslateMapScalar_2d(TranslateFortranData2Py):
 
     def compute(self, inputs):
         self.make_storage_data_input_vars(inputs)
-        # inputs["j_2d"] = self.grid.global_to_local_y(
-        #     inputs["j_2d"] + TranslateGrid.fpy_model_index_offset
-        # )
-        del inputs["j_2d"]
+        inputs["j_2d"] = self.grid.global_to_local_y(
+            inputs["j_2d"] + TranslateGrid.fpy_model_index_offset
+        )
         inputs["i1"] = self.is_
         inputs["i2"] = self.ie
         inputs["kord"] = abs(spec.namelist.kord_tm)
         inputs["qmin"] = 184.0
         var_inout = self.compute_func(**inputs)
-        return self.slice_output(inputs, {"pt": var_inout[:,0,:]})
+        return self.slice_output(inputs, {"pt": var_inout})
