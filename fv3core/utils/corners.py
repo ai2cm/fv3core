@@ -200,17 +200,15 @@ def fill_corners_cells(q: FloatField, direction: str, num_fill: int = 2):
         func = (
             fill_corners_2cells_mult_x if num_fill == 2 else fill_corners_3cells_mult_x
         )
-        stencil = gtstencil()(
-            definition=definition,
-            externals={"func": func},
+        stencil = gtstencil(externals={"func": func})(
+            definition,
         )
     elif direction == "y":
         func = (
             fill_corners_2cells_mult_y if num_fill == 2 else fill_corners_3cells_mult_y
         )
-        stencil = gtstencil()(
-            definition=definition,
-            externals={"func": func},
+        stencil = gtstencil(externals={"func": func})(
+            definition,
         )
     else:
         raise ValueError("Direction not recognized. Specify either x or y")
