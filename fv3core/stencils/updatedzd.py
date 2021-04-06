@@ -311,7 +311,10 @@ def compute(
         zh.shape, grid.full_origin(), cache_key="updatedzd_fy"
     )
     z2 = copy(
-        zh, origin=grid.full_origin(), domain=grid.domain_shape_full(add=(0, 0, 1)), cache_key="updatedzd_z2"
+        zh,
+        origin=grid.full_origin(),
+        domain=grid.domain_shape_full(add=(0, 0, 1)),
+        cache_key="updatedzd_z2",
     )
 
     fvtp2d = utils.cached_stencil_class(FiniteVolumeTransport)(

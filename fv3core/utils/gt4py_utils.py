@@ -338,14 +338,10 @@ def make_storage_from_shape(
     # We should shift to an explicit caching or array re-use system down
     # the line.
     if cache_key is None:
-        callers = tuple(
-            # only need to look at the calling scope and its calling scope
-            # because we don't have any utility functions that call utility
-            # functions that call this function (only nested 1 deep)
-            inspect.getframeinfo(stack_item[0])
-            for stack_item in inspect.stack()[1:3]
+        return make_storage_from_shape_uncached(
+            shape, origin, dtype=dtype, init=init, mask=mask
         )
-        cache_key = tuple((caller.filename, caller.lineno) for caller in callers)
+
     full_key = (shape, origin, cache_key, dtype, init, mask)
     if full_key not in storage_shape_outputs:
         storage_shape_outputs[full_key] = make_storage_from_shape_uncached(

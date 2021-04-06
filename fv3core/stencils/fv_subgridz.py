@@ -472,37 +472,23 @@ def compute(state, nq, dt):
         raise Exception("Hydrostatic not supported for fv_subgridz")
     q0 = {}
     for tracername in utils.tracer_variables:
-        q0[tracername] = copy(state.__dict__[tracername], cache_key=tracername+"-subgridz")
+        q0[tracername] = copy(
+            state.__dict__[tracername], cache_key=tracername + "-subgridz"
+        )
     origin = grid.compute_origin()
     shape = state.delp.shape
 
-    u0 = utils.make_storage_from_shape(
-        shape, origin,  cache_key="fv_subgridz_u0"
-    )
-    v0 = utils.make_storage_from_shape(
-        shape, origin,  cache_key="fv_subgridz_v0"
-    )
-    w0 = utils.make_storage_from_shape(
-        shape, origin,  cache_key="fv_subgridz_w0"
-    )
-    gzh = utils.make_storage_from_shape(
-        shape, origin,  cache_key="fv_subgridz_gzh"
-    )
-    gz = utils.make_storage_from_shape(
-        shape, origin,  cache_key="fv_subgridz_gz"
-    )
-    t0 = utils.make_storage_from_shape(
-        shape, origin,  cache_key="fv_subgridz_t0"
-    )
-    pm = utils.make_storage_from_shape(
-        shape, origin,  cache_key="fv_subgridz_pm"
-    )
+    u0 = utils.make_storage_from_shape(shape, origin, cache_key="fv_subgridz_u0")
+    v0 = utils.make_storage_from_shape(shape, origin, cache_key="fv_subgridz_v0")
+    w0 = utils.make_storage_from_shape(shape, origin, cache_key="fv_subgridz_w0")
+    gzh = utils.make_storage_from_shape(shape, origin, cache_key="fv_subgridz_gzh")
+    gz = utils.make_storage_from_shape(shape, origin, cache_key="fv_subgridz_gz")
+    t0 = utils.make_storage_from_shape(shape, origin, cache_key="fv_subgridz_t0")
+    pm = utils.make_storage_from_shape(shape, origin, cache_key="fv_subgridz_pm")
     hd = utils.make_storage_from_shape(shape, origin, cache_key="fv_subgridz_hd")
     te = utils.make_storage_from_shape(shape, origin, cache_key="fv_subgridz_te")
     den = utils.make_storage_from_shape(shape, origin, cache_key="fv_subgridz_den")
-    qcon = utils.make_storage_from_shape(
-        shape, origin,  cache_key="fv_subgridz_qcon"
-    )
+    qcon = utils.make_storage_from_shape(shape, origin, cache_key="fv_subgridz_qcon")
     cvm = utils.make_storage_from_shape(shape, origin, cache_key="fv_subgridz_cvm")
     cpm = utils.make_storage_from_shape(shape, origin, cache_key="fv_subgridz_cpm")
 
