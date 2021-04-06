@@ -4,11 +4,6 @@ import fv3core.stencils.remap_profile as profile
 import fv3core.utils.gt4py_utils as utils
 from fv3core.testing import TranslateFortranData2Py
 
-def pad_data_in_j(ik_data, nj):
-    full_data = np.tile(ik_data, [nj,1,1]).transpose(1,0,2)
-    np.testing.assert_array_equal(full_data[:,0,:], ik_data, err_msg="Padded field is wrong")
-    return full_data
-
 class TranslateCS_Profile_2d(TranslateFortranData2Py):
     def __init__(self, grid):
         super().__init__(grid)
@@ -29,7 +24,7 @@ class TranslateCS_Profile_2d(TranslateFortranData2Py):
         }
         self.ignore_near_zero_errors = {"q4_4": True}
         self.write_vars = ["qs"]
-        self.nj = grid.npy
+        self.js = grid.js
 
     def make_storage_data_input_vars(self, inputs, storage_vars=None):
         if storage_vars is None:
@@ -58,8 +53,8 @@ class TranslateCS_Profile_2d(TranslateFortranData2Py):
         self.make_storage_data_input_vars(inputs)
         inputs["i1"] = self.grid.global_to_local_x(inputs["i1"] - 1)
         inputs["i2"] = self.grid.global_to_local_x(inputs["i2"] - 1)
-        inputs["j1"] = self.grid.js
-        inputs["j2"] = self.grid.js
+        inputs["j1"] = self.js
+        inputs["j2"] = self.js
         if "qs" not in inputs:
             inputs["qs"] = utils.make_storage_from_shape(self.maxshape)
         else:
@@ -96,3 +91,4 @@ class TranslateCS_Profile_2d_2(TranslateCS_Profile_2d):
             "a4_4": {"serialname": "q4_4_2", "istart": 0, "iend": grid.ie - 3},
         }
         self.ignore_near_zero_errors = {"q4_4_2": True}
+        self.js = grid.js
