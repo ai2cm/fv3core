@@ -19,7 +19,7 @@ import fv3core._config as spec
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import gtstencil
 from fv3core.utils.typing import FloatField, FloatFieldI, FloatFieldIJ
-
+import fv3core.utils.global_config as global_config
 
 # compact 4-pt cubic interpolation
 c1 = 2.0 / 3.0
@@ -158,23 +158,23 @@ def qy_edge_north2(qin: FloatField, dya: FloatFieldIJ, qy: FloatField):
 
 @gtscript.function
 def great_circle_dist_noradius(
-    p1a: FloatField, p1b: FloatField, p2a: FloatField, p2b: FloatField
+    p1a, p1b, p2a, p2b
 ):
-    tb = sin((p1b - p2b) / 2.0) ** 2
-    ta = sin((p1a - p2a) / 2.0) ** 2
+    tb = sin((p1b - p2b) / 2.0) ** 2.0
+    ta = sin((p1a - p2a) / 2.0) ** 2.0
     return asin(sqrt(tb + cos(p1b) * cos(p2b) * ta)) * 2.0
 
 
 @gtscript.function
 def extrap_corner(
-    p0a: FloatField,
-    p0b: FloatField,
-    p1a: FloatField,
-    p1b: FloatField,
-    p2a: FloatField,
-    p2b: FloatField,
-    qa: FloatField,
-    qb: FloatField,
+    p0a,
+    p0b,
+    p1a,
+    p1b,
+    p2a,
+    p2b,
+    qa,
+    qb,
 ):
     x1 = great_circle_dist_noradius(p1a, p1b, p0a, p0b)
     x2 = great_circle_dist_noradius(p2a, p2b, p0a, p0b)
@@ -190,7 +190,8 @@ def _sw_corner(
     bgrid1: FloatFieldIJ,
     bgrid2: FloatFieldIJ,
 ):
-    with computation(PARALLEL), interval(...):
+
+    with computation(FORWARD), interval(...):
         ec1 = extrap_corner(
             bgrid1[0, 0],
             bgrid2[0, 0],
@@ -201,7 +202,6 @@ def _sw_corner(
             qin[0, 0, 0],
             qin[1, 1, 0],
         )
-
         ec2 = extrap_corner(
             bgrid1[0, 0],
             bgrid2[0, 0],
@@ -222,6 +222,7 @@ def _sw_corner(
             qin[0, -1, 0],
             qin[1, -2, 0],
         )
+        
         qout = (ec1 + ec2 + ec3) * (1.0 / 3.0)
 
 
@@ -362,7 +363,7 @@ def _a2b_ord4_stencil(
     edge_n: FloatFieldI,
     edge_s: FloatFieldI,
     edge_e: FloatFieldIJ,
-    edge_w: FloatFieldIJ, q1: FloatField, q2: FloatField, qx: FloatField, qy: FloatField, qxx: FloatField, qyy: FloatField, g_in: FloatField, g_ou: FloatField
+    edge_w: FloatFieldIJ, q1: FloatField, q2: FloatField, qx: FloatField, qy: FloatField, qxx: FloatField, qyy: FloatField
 ):
     from __externals__ import REPLACE, i_end, i_start, j_end, j_start, namelist
 
@@ -396,8 +397,8 @@ def _a2b_ord4_stencil(
 
         # compute_qx
         qx = ppm_volume_mean_x(qin)
-        #g_in = 0.0
-        #g_ou = 0.0
+        g_in = 0.0
+        g_ou = 0.0
         with horizontal(region[i_start, :]):
             #qx = qx_edge_west(qin, dxa)
             g_in = dxa[1, 0] / dxa
@@ -482,8 +483,6 @@ def _a2b_ord4_stencil(
 
         if __INLINED(REPLACE):
             qin = qout
-
-
 # TODO
 # within regions, the edge_w and edge_w variables that are singleton in the
 # I dimension error, workaround is repeating the data, but the longterm
@@ -522,8 +521,6 @@ def compute(
     qy = utils.make_storage_from_shape(shape, grid.full_origin(), cache_key="qy_a2b")
     qxx = utils.make_storage_from_shape(shape, grid.full_origin(), cache_key="qxx_a2b")
     qyy = utils.make_storage_from_shape(shape, grid.full_origin(), cache_key="qyy_a2b")
-    g_in = utils.make_storage_from_shape(shape, grid.full_origin(), cache_key="gin_a2b")
-    g_ou = utils.make_storage_from_shape(shape, grid.full_origin(), cache_key="gou_a2b")
     corner_domain = (1, 1, nk)
     _sw_corner(
         qin,
@@ -535,6 +532,7 @@ def compute(
         origin=(grid.is_, grid.js, kstart),
         domain=corner_domain,
     )
+    
     _nw_corner(
         qin,
         qout,
@@ -565,7 +563,6 @@ def compute(
         origin=(grid.is_, grid.je + 1, kstart),
         domain=corner_domain,
     )
-
     stencil = gtstencil(definition=_a2b_ord4_stencil, externals={"REPLACE": replace})
     stencil(
         qin,
@@ -575,7 +572,9 @@ def compute(
         grid.edge_n,
         grid.edge_s,
         edge_e,
-        edge_w,q1, q2, qx, qy, qxx, qyy, g_in, g_ou,
+        edge_w,q1, q2, qx, qy, qxx, qyy,
         origin=(grid.is_, grid.js, kstart),
         domain=(grid.nic + 1, grid.njc + 1, nk),
     )
+
+
