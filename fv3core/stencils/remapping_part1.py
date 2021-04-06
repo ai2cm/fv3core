@@ -8,7 +8,6 @@ import fv3core.stencils.mapn_tracer as mapn_tracer
 import fv3core.stencils.moist_cv as moist_cv
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import gtstencil
-from fv3core.stencils.basic_operations import copy_stencil
 from fv3core.stencils.moist_cv import moist_pt_func
 from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
 
@@ -118,7 +117,14 @@ def copy_j_adjacent(pe2: FloatField):
 
 
 @gtstencil()
-def pn2_and_pk(dp2: FloatField, delp: FloatField, pe2: FloatField, pn2: FloatField, pk: FloatField, akap: float):
+def pn2_and_pk(
+    dp2: FloatField,
+    delp: FloatField,
+    pe2: FloatField,
+    pn2: FloatField,
+    pk: FloatField,
+    akap: float,
+):
     with computation(PARALLEL), interval(...):
         delp = dp2
         pn2 = log(pe2)
@@ -217,10 +223,11 @@ def compute(
 
     # do_omega = hydrostatic and last_step # TODO pull into inputs
     domain_jextra = (grid.nic, grid.njc + 1, grid.npz + 1)
-    
+
     pe1 = utils.make_storage_from_shape(
-        pe.shape, grid.compute_origin(), cache_key="remapping_part1_pe1")
-    
+        pe.shape, grid.compute_origin(), cache_key="remapping_part1_pe1"
+    )
+
     pe2 = utils.make_storage_from_shape(
         pe.shape, grid.compute_origin(), cache_key="remapping_part1_pe2"
     )

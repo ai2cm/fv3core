@@ -310,11 +310,12 @@ def compute(
     fy = utils.make_storage_from_shape(
         zh.shape, grid.full_origin(), cache_key="updatedzd_fy"
     )
-    z2 =utils.make_storage_from_shape(
+    z2 = utils.make_storage_from_shape(
         zh.shape, grid.full_origin(), cache_key="updatedzd_z2"
     )
     copy_stencil(
-        zh, z2,
+        zh,
+        z2,
         origin=grid.full_origin(),
         domain=grid.domain_shape_full(add=(0, 0, 1)),
     )

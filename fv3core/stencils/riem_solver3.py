@@ -44,9 +44,9 @@ def precompute(
     akap: float,
 ):
     with computation(PARALLEL), interval(...):
-         dm = delp
-         cp3 = cappa
-         pe_init = pe
+        dm = delp
+        cp3 = cappa
+        pe_init = pe
     with computation(FORWARD):
         with interval(0, 1):
             pem = ptop
@@ -67,7 +67,8 @@ def precompute(
     with computation(PARALLEL), interval(0, -1):
         pm = (peg[0, 0, 1] - peg) / (pelng[0, 0, 1] - pelng)
         dz = zh[0, 0, 1] - zh
-         
+
+
 @gtstencil()
 def last_call_copy(
     peln_run: FloatField,
@@ -147,9 +148,11 @@ def compute(
     domain = (grid.nic, grid.njc, km + 2)
     riemorigin = (grid.is_, grid.js, 0)
 
-    dm =  utils.make_storage_from_shape(shape, riemorigin, cache_key="riem3_dm")
-    cp3 =  utils.make_storage_from_shape(shape, riemorigin, cache_key="riem3_cp3")
-    pe_init =  utils.make_storage_from_shape(shape, riemorigin, cache_key="riem3_pe_init")
+    dm = utils.make_storage_from_shape(shape, riemorigin, cache_key="riem3_dm")
+    cp3 = utils.make_storage_from_shape(shape, riemorigin, cache_key="riem3_cp3")
+    pe_init = utils.make_storage_from_shape(
+        shape, riemorigin, cache_key="riem3_pe_init"
+    )
     pm = utils.make_storage_from_shape(shape, riemorigin, cache_key="riem_solver3_pm")
     pem = utils.make_storage_from_shape(shape, riemorigin, cache_key="riem_solver3_pem")
     peln_run = utils.make_storage_from_shape(

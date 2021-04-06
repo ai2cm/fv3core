@@ -99,9 +99,9 @@ def compute(
     shape = w3.shape
     domain = (spec.grid.nic + 2, grid.njc + 2, km + 2)
     riemorigin = (is1, js1, 0)
-    dm = utils.make_storage_from_shape(shape, riemorigin,cache_key="riemc_dm")
-    cp3 = utils.make_storage_from_shape(shape, riemorigin,cache_key="riemc_cp3")
-    w = utils.make_storage_from_shape(shape, riemorigin,cache_key="riemc_w")
+    dm = utils.make_storage_from_shape(shape, riemorigin, cache_key="riemc_dm")
+    cp3 = utils.make_storage_from_shape(shape, riemorigin, cache_key="riemc_cp3")
+    w = utils.make_storage_from_shape(shape, riemorigin, cache_key="riemc_w")
     pem = utils.make_storage_from_shape(
         shape, riemorigin, cache_key="riem_solver_c_pem"
     )
@@ -111,7 +111,10 @@ def compute(
     pm = utils.make_storage_from_shape(shape, riemorigin, cache_key="riem_solver_c_pm")
     # it looks like this code sets pef = ptop, and does not otherwise use pef here
     precompute(
-        delpc, cappa, w3,w,
+        delpc,
+        cappa,
+        w3,
+        w,
         cp3,
         gz,
         dm,
