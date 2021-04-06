@@ -117,7 +117,7 @@ def copy_j_adjacent(pe2: FloatField):
 
 
 @gtstencil()
-def pn2_and_pk(
+def pn2_pk_delp(
     dp2: FloatField,
     delp: FloatField,
     pe2: FloatField,
@@ -279,7 +279,7 @@ def compute(
     copy_j_adjacent(
         pe2, origin=(grid.is_, grid.je + 1, 1), domain=(grid.nic, 1, grid.npz - 1)
     )
-    pn2_and_pk(
+    pn2_pk_delp(
         dp2,
         delp,
         pe2,
