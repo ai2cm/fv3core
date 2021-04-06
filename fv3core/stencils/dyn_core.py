@@ -52,7 +52,7 @@ def dp_ref_compute(
 
 
 @gtstencil()
-def set_gz(gz_surface: FloatField, delz: FloatField, gz: FloatField):
+def set_gz(gz_surface: FloatFieldIJ, delz: FloatField, gz: FloatField):
     with computation(BACKWARD):
         with interval(-1, None):
             gz[0, 0, 0] = gz_surface
