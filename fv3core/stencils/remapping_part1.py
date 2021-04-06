@@ -214,7 +214,7 @@ def compute(
 
     # do_omega = hydrostatic and last_step # TODO pull into inputs
     domain_jextra = (grid.nic, grid.njc + 1, grid.npz + 1)
-    pe1 = copy(pe, origin=grid.compute_origin(), domain=domain_jextra)
+    pe1 = copy(pe, origin=grid.compute_origin(), domain=domain_jextra, cache_key="remapping_part1_pe1")
     pe2 = utils.make_storage_from_shape(
         pe.shape, grid.compute_origin(), cache_key="remapping_part1_pe2"
     )

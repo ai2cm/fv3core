@@ -57,10 +57,10 @@ class TranslateTransportDelp(TranslateFortranData2Py):
         self.make_storage_data_input_vars(inputs)
         orig = (self.grid.is_ - 1, self.grid.js - 1, 0)
         inputs["delpc"] = utils.make_storage_from_shape(
-            inputs["delp"].shape, origin=orig, init=True
+            inputs["delp"].shape, origin=orig, 
         )
         inputs["ptc"] = utils.make_storage_from_shape(
-            inputs["pt"].shape, origin=orig, init=True
+            inputs["pt"].shape, origin=orig,
         )
         c_sw.transportdelp(
             **inputs,

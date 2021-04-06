@@ -201,7 +201,7 @@ def setup_data(
     dp1 = utils.make_storage_from_shape(
         q1.shape, origin=origin, cache_key="map_single_dp1"
     )
-    q4_1 = copy(q1, origin=(0, 0, 0), domain=grid.domain_shape_full())
+    q4_1 = copy(q1, origin=(0, 0, 0), domain=grid.domain_shape_full(), cache_key="map_single_q1")
     q4_2 = utils.make_storage_from_shape(
         q4_1.shape, origin=(grid.is_, 0, 0), cache_key="map_single_q4_2"
     )

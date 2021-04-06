@@ -158,7 +158,7 @@ def compute_no_sg(q, fx2, fy2, nord, damp_c, d2, kstart=0, nk=None, mass=None):
     if mass is None:
         d2_damp(q, d2, damp_c, origin=origin_d2, domain=domain_d2)
     else:
-        d2 = copy(q, origin=origin_d2, domain=domain_d2)
+        d2 = copy(q, origin=origin_d2, domain=domain_d2, cache_key="delnflux_d2_nosg")
 
     if nord > 0:
         corners.copy_corners_x_stencil(

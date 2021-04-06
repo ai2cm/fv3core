@@ -92,9 +92,9 @@ def compute(
     shape = w3.shape
     domain = (spec.grid.nic + 2, grid.njc + 2, km + 2)
     riemorigin = (is1, js1, 0)
-    dm = copy(delpc)
-    cp3 = copy(cappa)
-    w = copy(w3)
+    dm = copy(delpc, cache_key="riemc_dm")
+    cp3 = copy(cappa, cache_key="riemc_cp3")
+    w = copy(w3, cache_key="riemc_w")
 
     pem = utils.make_storage_from_shape(
         shape, riemorigin, cache_key="riem_solver_c_pem"

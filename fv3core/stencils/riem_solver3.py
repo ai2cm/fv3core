@@ -143,9 +143,9 @@ def compute(
     shape = w.shape
     domain = (grid.nic, grid.njc, km + 2)
     riemorigin = (grid.is_, grid.js, 0)
-    dm = copy(delp)
-    cp3 = copy(cappa)
-    pe_init = copy(pe)
+    dm = copy(delp, cache_key="riem3_dm")
+    cp3 = copy(cappa, cache_key="riem3_cp3")
+    pe_init = copy(pe, cache_key="riem3_pe_init")
     pm = utils.make_storage_from_shape(shape, riemorigin, cache_key="riem_solver3_pm")
     pem = utils.make_storage_from_shape(shape, riemorigin, cache_key="riem_solver3_pem")
     peln_run = utils.make_storage_from_shape(
