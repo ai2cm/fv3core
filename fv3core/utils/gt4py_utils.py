@@ -17,7 +17,9 @@ from fv3core.utils.typing import DTypes, Field, Float, Int
 
 try:
     import cupy as cp
-except ImportError:
+
+    capability = cp.cuda.Device(0).compute_capability
+except (ImportError, RuntimeError):
     cp = None
 
 logger = logging.getLogger("fv3ser")
