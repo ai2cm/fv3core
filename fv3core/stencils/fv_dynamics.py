@@ -152,6 +152,7 @@ def post_remap(state, comm, grid, namelist):
     if namelist.nf_omega > 0:
         print("Del2Cubed", grid.rank)
         if global_config.get_do_halo_exchange():
+            utils.device_sync()
             comm.halo_update(state.omga_quantity, n_points=utils.halo)
         del2cubed.compute(state.omga, namelist.nf_omega, 0.18 * grid.da_min, grid.npz)
 
@@ -338,6 +339,7 @@ class DynamicalCore:
         state.__dict__.update(self._temporaries)
         last_step = False
         if self.do_halo_exchange:
+            utils.device_sync()
             self.comm.halo_update(state.phis_quantity, n_points=utils.halo)
         compute_preamble(state, self.comm, self.grid, self.namelist)
         for n_map in range(state.k_split):
