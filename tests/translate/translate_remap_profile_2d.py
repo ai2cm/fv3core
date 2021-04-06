@@ -25,7 +25,6 @@ class TranslateCS_Profile_2d(TranslateFortranData2Py):
         }
         self.ignore_near_zero_errors = {"q4_4": True}
         self.write_vars = ["qs"]
-        self.js = grid.js
 
     def make_storage_data_input_vars(self, inputs, storage_vars=None):
         if storage_vars is None:
@@ -54,8 +53,8 @@ class TranslateCS_Profile_2d(TranslateFortranData2Py):
         self.make_storage_data_input_vars(inputs)
         inputs["i1"] = self.grid.global_to_local_x(inputs["i1"] - 1)
         inputs["i2"] = self.grid.global_to_local_x(inputs["i2"] - 1)
-        inputs["j1"] = 0  # self.js
-        inputs["j2"] = 0  # self.js
+        inputs["j1"] = 0
+        inputs["j2"] = 0
         if "qs" not in inputs:
             inputs["qs"] = utils.make_storage_from_shape(self.maxshape)
         else:
@@ -94,4 +93,3 @@ class TranslateCS_Profile_2d_2(TranslateCS_Profile_2d):
             "a4_4": {"serialname": "q4_4_2", "istart": 0, "iend": grid.ie - 3},
         }
         self.ignore_near_zero_errors = {"q4_4_2": True}
-        self.js = grid.js

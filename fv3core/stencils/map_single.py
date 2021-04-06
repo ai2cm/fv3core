@@ -8,7 +8,6 @@ import fv3core.stencils.remap_profile as remap_profile
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import gtstencil
 from fv3core.stencils.basic_operations import copy
-from fv3core.utils.grid import Grid
 from fv3core.utils.typing import FloatField, FloatFieldIJ
 
 
@@ -92,12 +91,6 @@ def lagrangian_contributions(
         q2_adds = 0.0
     with computation(FORWARD), interval(...):
         q2_adds += q2_tmp
-
-
-def region_mode(i1: int, i_extent: int, j1: int, j_extent: int, grid: Grid):
-    origin = (i1, j1, 0)
-    domain = (i_extent, j_extent, grid.npz)
-    return origin, domain
 
 
 def compute(
@@ -185,36 +178,25 @@ def do_lagrangian_contributions(
         raise NotImplementedError(version + " is not an implemented remapping version")
 
 
-def setup_data(
-    q1: FloatField,
-    pe1: FloatField,
-    i1: int,
-    i2: int,
-    j1: int,
-    j2: int
-    # j_2d: Optional[int] = None,
-    # j_interface: bool = False,
-):
+def setup_data(q1: FloatField, pe1: FloatField, i1: int, i2: int, j1: int, j2: int):
     grid = spec.grid
     i_extent = i2 - i1 + 1
     j_extent = j2 - j1 + 1
-    origin, domain = region_mode(i1, i_extent, j1, j_extent, grid)
-    # if j_interface:
-    #     jslice = slice(jslice.start, jslice.stop + 1)
-    #     domain = (domain[0], jslice.stop - jslice.start, domain[2])
+    origin = (i1, j1, 0)
+    domain = (i_extent, j_extent, grid.npz)
 
     dp1 = utils.make_storage_from_shape(
         q1.shape, origin=origin, cache_key="map_single_dp1"
     )
     q4_1 = copy(q1, origin=(0, 0, 0), domain=grid.domain_shape_full())
     q4_2 = utils.make_storage_from_shape(
-        q4_1.shape, origin=(grid.is_, grid.js, 0), cache_key="map_single_q4_2"
+        q4_1.shape, origin=grid.compute_origin(), cache_key="map_single_q4_2"
     )
     q4_3 = utils.make_storage_from_shape(
-        q4_1.shape, origin=(grid.is_, grid.js, 0), cache_key="map_single_q4_3"
+        q4_1.shape, origin=grid.compute_origin(), cache_key="map_single_q4_3"
     )
     q4_4 = utils.make_storage_from_shape(
-        q4_1.shape, origin=(grid.is_, grid.js, 0), cache_key="map_single_q4_4"
+        q4_1.shape, origin=grid.compute_origin(), cache_key="map_single_q4_4"
     )
     set_dp(dp1, pe1, origin=origin, domain=domain)
     return dp1, q4_1, q4_2, q4_3, q4_4, origin, domain, i_extent, j_extent
