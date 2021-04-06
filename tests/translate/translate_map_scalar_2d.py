@@ -68,8 +68,6 @@ class TranslateMapScalar_2d(TranslateFortranData2Py):
             if serialname == "gz1d":
                 inputs[serialname] = pad_1d_data(inputs[serialname], self.nj, self.nk+1)
 
-
-
             names_4d = None
             if len(inputs[serialname].shape) == 4:
                 names_4d = info.get("names_4d", utils.tracer_variables)
