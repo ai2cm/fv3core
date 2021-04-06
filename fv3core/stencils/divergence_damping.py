@@ -158,8 +158,8 @@ def vorticity_calc(wk, vort, delpc, dt, nord, kstart, nk):
             vort[:, :, kstart : kstart + nk] = 0
         else:
             if spec.namelist.grid_type < 3:
-                a2b =  utils.cached_stencil_class(AGrid2BGridFourthOrder)(spec.namelist, cache_key="a2b")
-                a2b(wk, vort, kstart, nk, False)
+                a2b =  utils.cached_stencil_class(AGrid2BGridFourthOrder)(spec.namelist, replace=False,cache_key="a2b")
+                a2b(wk, vort, kstart, nk)
                 smagorinksy_diffusion_approx(
                     delpc,
                     vort,
