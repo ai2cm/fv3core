@@ -518,7 +518,6 @@ def compute(
     i2: int,
     iv: int,
     kord: int,
-    jslice: Tuple[int],
     qmin: float = 0.0,
 ):
     assert kord <= 10, f"kord {kord} not implemented."

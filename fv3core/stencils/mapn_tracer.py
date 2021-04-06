@@ -85,7 +85,6 @@ def compute(
             i2,
             0,
             kord,
-            jslice,
             q_min,
         )
         map_single.do_lagrangian_contributions(

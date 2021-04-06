@@ -60,7 +60,6 @@ class TranslateCS_Profile_2d(TranslateFortranData2Py):
         self.make_storage_data_input_vars(inputs)
         inputs["i1"] = self.grid.global_to_local_x(inputs["i1"] - 1)
         inputs["i2"] = self.grid.global_to_local_x(inputs["i2"] - 1)
-        inputs["jslice"] = slice(0, 1)
         if "qs" not in inputs:
             inputs["qs"] = utils.make_storage_from_shape(self.maxshape)
         else:

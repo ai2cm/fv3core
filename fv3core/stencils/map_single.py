@@ -118,8 +118,11 @@ def compute(
     dp1, q4_1, q4_2, q4_3, q4_4, origin, domain, jslice, i_extent = setup_data(
         q1, pe1, i1, i2, j_2d, j_interface
     )
+    print(dp1.shape)
+    print(q4_1.shape)
+    print(qs.shape)
     q4_1, q4_2, q4_3, q4_4 = remap_profile.compute(
-        qs, q4_1, q4_2, q4_3, q4_4, dp1, spec.grid.npz, i1, i2, mode, kord, jslice, qmin
+        qs, q4_1, q4_2, q4_3, q4_4, dp1, spec.grid.npz, i1, i2, mode, kord, qmin
     )
     do_lagrangian_contributions(
         q1,
