@@ -1,3 +1,5 @@
+import typing
+
 from gt4py.gtscript import BACKWARD, FORWARD, PARALLEL, computation, interval, log
 
 import fv3core._config as spec
@@ -10,6 +12,7 @@ from fv3core.utils.typing import FloatField, FloatFieldIJ
 
 
 @gtstencil()
+@typing.no_type_check
 def precompute(
     cp3: FloatField,
     gz: FloatField,
@@ -26,17 +29,15 @@ def precompute(
             pem = ptop
             peg = ptop
         with interval(1, None):
-            pem = pem[0, 0, -1] + dm[0, 0, -1]  # type: ignore[index]
-            peg = peg[0, 0, -1] + dm[0, 0, -1] * (  # type: ignore[index]
-                1.0 - q_con[0, 0, -1]
-            )
+            pem = pem[0, 0, -1] + dm[0, 0, -1]
+            peg = peg[0, 0, -1] + dm[0, 0, -1] * (1.0 - q_con[0, 0, -1])
     with computation(PARALLEL), interval(0, -1):
         dz = gz[0, 0, 1] - gz
     with computation(PARALLEL), interval(...):
         gm = 1.0 / (1.0 - cp3)
         dm = dm / constants.GRAV
     with computation(PARALLEL), interval(0, -1):
-        pm = (peg[0, 0, 1] - peg) / log(peg[0, 0, 1] / peg)  # type: ignore[index]
+        pm = (peg[0, 0, 1] - peg) / log(peg[0, 0, 1] / peg)
 
 
 @gtstencil()
