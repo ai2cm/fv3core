@@ -19,7 +19,7 @@ import fv3core._config as spec
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import gtstencil
 from fv3core.utils.typing import FloatField, FloatFieldI, FloatFieldIJ
-import fv3core.utils.global_config as global_config
+
 
 # compact 4-pt cubic interpolation
 c1 = 2.0 / 3.0
@@ -157,9 +157,7 @@ def qy_edge_north2(qin: FloatField, dya: FloatFieldIJ, qy: FloatField):
 
 
 @gtscript.function
-def great_circle_dist_noradius(
-    p1a, p1b, p2a, p2b
-):
+def great_circle_dist_noradius(p1a, p1b, p2a, p2b):
     tb = sin((p1b - p2b) / 2.0) ** 2.0
     ta = sin((p1a - p2a) / 2.0) ** 2.0
     return asin(sqrt(tb + cos(p1b) * cos(p2b) * ta)) * 2.0
@@ -191,7 +189,7 @@ def _sw_corner(
     bgrid2: FloatFieldIJ,
 ):
 
-    with computation(FORWARD), interval(...):
+    with computation(PARALLEL), interval(...):
         ec1 = extrap_corner(
             bgrid1[0, 0],
             bgrid2[0, 0],
@@ -222,7 +220,7 @@ def _sw_corner(
             qin[0, -1, 0],
             qin[1, -2, 0],
         )
-        
+
         qout = (ec1 + ec2 + ec3) * (1.0 / 3.0)
 
 
@@ -363,7 +361,13 @@ def _a2b_ord4_stencil(
     edge_n: FloatFieldI,
     edge_s: FloatFieldI,
     edge_e: FloatFieldIJ,
-    edge_w: FloatFieldIJ, q1: FloatField, q2: FloatField, qx: FloatField, qy: FloatField, qxx: FloatField, qyy: FloatField
+    edge_w: FloatFieldIJ,
+    q1: FloatField,
+    q2: FloatField,
+    qx: FloatField,
+    qy: FloatField,
+    qxx: FloatField,
+    qyy: FloatField,
 ):
     from __externals__ import REPLACE, i_end, i_start, j_end, j_start, namelist
 
@@ -376,23 +380,22 @@ def _a2b_ord4_stencil(
         ):
             q2 = (qin[-1, 0, 0] * dxa + qin * dxa[-1, 0]) / (dxa[-1, 0] + dxa)
 
-
         with horizontal(
             region[:, j_start - 1 : j_start + 1], region[:, j_end : j_end + 2]
         ):
             q1 = (qin[0, -1, 0] * dya + qin * dya[0, -1]) / (dya[0, -1] + dya)
 
         with horizontal(region[i_start, j_start + 1 : j_end + 1]):
-            #qout = qout_x_edge(edge_w, q2)                                                                        
+            # qout = qout_x_edge(edge_w, q2)
             qout = edge_w * q2[0, -1, 0] + (1.0 - edge_w) * q2
         with horizontal(region[i_end + 1, j_start + 1 : j_end + 1]):
-            #qout = qout_x_edge(edge_e, q2)                                                                        
+            # qout = qout_x_edge(edge_e, q2)
             qout = edge_e * q2[0, -1, 0] + (1.0 - edge_e) * q2
         with horizontal(region[i_start + 1 : i_end + 1, j_start]):
-            #qout = qout_y_edge(edge_s, q1)
+            # qout = qout_y_edge(edge_s, q1)
             qout = edge_s * q1[-1, 0, 0] + (1.0 - edge_s) * q1
         with horizontal(region[i_start + 1 : i_end + 1, j_end + 1]):
-            #qout = qout_y_edge(edge_n, q1)
+            # qout = qout_y_edge(edge_n, q1)
             qout = edge_n * q1[-1, 0, 0] + (1.0 - edge_n) * q1
 
         # compute_qx
@@ -400,7 +403,7 @@ def _a2b_ord4_stencil(
         g_in = 0.0
         g_ou = 0.0
         with horizontal(region[i_start, :]):
-            #qx = qx_edge_west(qin, dxa)
+            # qx = qx_edge_west(qin, dxa)
             g_in = dxa[1, 0] / dxa
             g_ou = dxa[-2, 0] / dxa[-1, 0]
             qx = 0.5 * (
@@ -408,13 +411,13 @@ def _a2b_ord4_stencil(
                 + ((2.0 + g_ou) * qin[-1, 0, 0] - qin[-2, 0, 0]) / (1.0 + g_ou)
             )
         with horizontal(region[i_start + 1, :]):
-            #qx = qx_edge_west2(qin, dxa, qx)
+            # qx = qx_edge_west2(qin, dxa, qx)
             g_in = dxa / dxa[-1, 0]
             qx = (
                 3.0 * (g_in * qin[-1, 0, 0] + qin) - (g_in * qx[-1, 0, 0] + qx[1, 0, 0])
             ) / (2.0 + 2.0 * g_in)
         with horizontal(region[i_end + 1, :]):
-            #qx = qx_edge_east(qin, dxa)
+            # qx = qx_edge_east(qin, dxa)
             g_in = dxa[-2, 0] / dxa[-1, 0]
             g_ou = dxa[1, 0] / dxa
             qx = 0.5 * (
@@ -422,7 +425,7 @@ def _a2b_ord4_stencil(
                 + ((2.0 + g_ou) * qin - qin[1, 0, 0]) / (1.0 + g_ou)
             )
         with horizontal(region[i_end, :]):
-            #qx = qx_edge_east2(qin, dxa, qx)
+            # qx = qx_edge_east2(qin, dxa, qx)
             g_in = dxa[-1, 0] / dxa
             qx = (
                 3.0 * (qin[-1, 0, 0] + g_in * qin) - (g_in * qx[1, 0, 0] + qx[-1, 0, 0])
@@ -430,7 +433,7 @@ def _a2b_ord4_stencil(
         # compute_qy
         qy = ppm_volume_mean_y(qin)
         with horizontal(region[:, j_start]):
-            #qy = qy_edge_south(qin, dya)
+            # qy = qy_edge_south(qin, dya)
             g_in = dya[0, 1] / dya
             g_ou = dya[0, -2] / dya[0, -1]
             qy = 0.5 * (
@@ -439,23 +442,23 @@ def _a2b_ord4_stencil(
             )
 
         with horizontal(region[:, j_start + 1]):
-            #qy = qy_edge_south2(qin, dya, qy)
+            # qy = qy_edge_south2(qin, dya, qy)
             g_in = dya / dya[0, -1]
             qy = (
                 3.0 * (g_in * qin[0, -1, 0] + qin) - (g_in * qy[0, -1, 0] + qy[0, 1, 0])
             ) / (2.0 + 2.0 * g_in)
 
         with horizontal(region[:, j_end + 1]):
-            #qy = qy_edge_north(qin, dya)
+            # qy = qy_edge_north(qin, dya)
             g_in = dya[0, -2] / dya[0, -1]
             g_ou = dya[0, 1] / dya
-            qy =  0.5 * (
+            qy = 0.5 * (
                 ((2.0 + g_in) * qin[0, -1, 0] - qin[0, -2, 0]) / (1.0 + g_in)
                 + ((2.0 + g_ou) * qin - qin[0, 1, 0]) / (1.0 + g_ou)
             )
 
         with horizontal(region[:, j_end]):
-            #qy = qy_edge_north2(qin, dya, qy)
+            # qy = qy_edge_north2(qin, dya, qy)
             g_in = dya[0, -1] / dya
             qy = (
                 3.0 * (qin[0, -1, 0] + g_in * qin) - (g_in * qy[0, 1, 0] + qy[0, -1, 0])
@@ -463,18 +466,18 @@ def _a2b_ord4_stencil(
         # compute_qxx
         qxx = lagrange_y(qx)
         with horizontal(region[:, j_start + 1]):
-            #qxx = cubic_interpolation_south(qx, qout, qxx)
+            # qxx = cubic_interpolation_south(qx, qout, qxx)
             qxx = c1 * (qx[0, -1, 0] + qx) + c2 * (qout[0, -1, 0] + qxx[0, 1, 0])
         with horizontal(region[:, j_end]):
-            #qxx = cubic_interpolation_north(qx, qout, qxx)
-            qxx =  c1 * (qx[0, -1, 0] + qx) + c2 * (qout[0, 1, 0] + qxx[0, -1, 0])
+            # qxx = cubic_interpolation_north(qx, qout, qxx)
+            qxx = c1 * (qx[0, -1, 0] + qx) + c2 * (qout[0, 1, 0] + qxx[0, -1, 0])
         # compute_qyy
         qyy = lagrange_x(qy)
         with horizontal(region[i_start + 1, :]):
-            #qyy = cubic_interpolation_west(qy, qout, qyy)
+            # qyy = cubic_interpolation_west(qy, qout, qyy)
             qyy = c1 * (qy[-1, 0, 0] + qy) + c2 * (qout[-1, 0, 0] + qyy[1, 0, 0])
         with horizontal(region[i_end, :]):
-            #qyy = cubic_interpolation_east(qy, qout, qyy)
+            # qyy = cubic_interpolation_east(qy, qout, qyy)
             qyy = c1 * (qy[-1, 0, 0] + qy) + c2 * (qout[1, 0, 0] + qyy[-1, 0, 0])
 
         with horizontal(region[i_start + 1 : i_end + 1, j_start + 1 : j_end + 1]):
@@ -483,6 +486,8 @@ def _a2b_ord4_stencil(
 
         if __INLINED(REPLACE):
             qin = qout
+
+
 # TODO
 # within regions, the edge_w and edge_w variables that are singleton in the
 # I dimension error, workaround is repeating the data, but the longterm
@@ -532,7 +537,7 @@ def compute(
         origin=(grid.is_, grid.js, kstart),
         domain=corner_domain,
     )
-    
+
     _nw_corner(
         qin,
         qout,
@@ -572,9 +577,13 @@ def compute(
         grid.edge_n,
         grid.edge_s,
         edge_e,
-        edge_w,q1, q2, qx, qy, qxx, qyy,
+        edge_w,
+        q1,
+        q2,
+        qx,
+        qy,
+        qxx,
+        qyy,
         origin=(grid.is_, grid.js, kstart),
         domain=(grid.nic + 1, grid.njc + 1, nk),
     )
-
-
