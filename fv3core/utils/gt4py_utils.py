@@ -17,9 +17,7 @@ from fv3core.utils.typing import DTypes, Field, Float, Int
 
 try:
     import cupy as cp
-
-    capability = cp.cuda.Device(0).compute_capability
-except (ImportError, RuntimeError):
+except ImportError:
     cp = None
 
 logger = logging.getLogger("fv3ser")
@@ -599,7 +597,7 @@ def stack(tup, axis: int = 0, out=None):
 
 
 def device_sync() -> None:
-    if cp:
+    if cp and "cuda" in global_config.get_backend():
         cp.cuda.Device(0).synchronize()
 
 
