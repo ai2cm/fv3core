@@ -516,6 +516,8 @@ def compute(
     km: int,
     i1: int,
     i2: int,
+    j1: int,
+    j2: int,
     iv: int,
     kord: int,
     qmin: float = 0.0,
@@ -524,9 +526,9 @@ def compute(
     grid = spec.grid
     km = grid.npz
     i_extent: int = i2 - i1 + 1
-    j_extent: int = grid.je - grid.js + 1
+    j_extent: int = j2 - j1 + 1
 
-    orig: Tuple[int] = (i1, grid.js, 0)
+    orig: Tuple[int] = (i1, j1, 0)
     full_orig: Tuple[int] = grid.compute_origin()
     dom: Tuple[int] = (i_extent, j_extent, km)
     dom_extend: Tuple[int] = (i_extent, j_extent, km + 1)
@@ -606,7 +608,7 @@ def compute(
             qmin,
             abs(kord),
             iv,
-            origin=(i1, grid.js, 2),
+            origin=(i1, j1, 2),
             domain=(i_extent, j_extent, km - 4),
         )
 
@@ -617,7 +619,7 @@ def compute(
             a4_4,
             extm,
             iv,
-            origin=(i1, grid.js, km - 2),
+            origin=(i1, j1, km - 2),
             domain=(i_extent, j_extent, 2),
         )
 

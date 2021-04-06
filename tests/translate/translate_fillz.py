@@ -46,6 +46,8 @@ class TranslateFillz(TranslateFortranData2Py):
     def compute(self, inputs):
         self.make_storage_data_input_vars(inputs)
         inputs["jslice"] = slice(0, 1)
+        del inputs["jslice"]
+        inputs["jm"] = 1
         self.compute_func(**inputs)
         ds = self.grid.default_domain_dict()
         ds.update(self.out_vars["q2tracers"])

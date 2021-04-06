@@ -22,10 +22,10 @@ class TranslateCS_Profile_2d(TranslateFortranData2Py):
         }
         self.in_vars["parameters"] = ["km", "i1", "i2", "iv", "kord"]
         self.out_vars = {
-            "a4_1": {"serialname": "q4_1", "istart": 0, "iend": grid.ie - 2, "jstart": grid.js, "jend": grid.js},
-            "a4_2": {"serialname": "q4_2", "istart": 0, "iend": grid.ie - 2, "jstart": grid.js, "jend": grid.js},
-            "a4_3": {"serialname": "q4_3", "istart": 0, "iend": grid.ie - 2, "jstart": grid.js, "jend": grid.js},
-            "a4_4": {"serialname": "q4_4", "istart": 0, "iend": grid.ie - 2, "jstart": grid.js, "jend": grid.js},
+            "a4_1": {"serialname": "q4_1", "istart": 0, "iend": grid.ie - 2},
+            "a4_2": {"serialname": "q4_2", "istart": 0, "iend": grid.ie - 2},
+            "a4_3": {"serialname": "q4_3", "istart": 0, "iend": grid.ie - 2},
+            "a4_4": {"serialname": "q4_4", "istart": 0, "iend": grid.ie - 2},
         }
         self.ignore_near_zero_errors = {"q4_4": True}
         self.write_vars = ["qs"]
@@ -43,8 +43,6 @@ class TranslateCS_Profile_2d(TranslateFortranData2Py):
             istart, jstart, kstart = self.collect_start_indices(
                 inputs[serialname].shape, info
             )
-            if len(np.squeeze(inputs[serialname]).shape) == 2:
-                inputs[serialname] = pad_data_in_j(inputs[serialname], self.nj)
             inputs[d] = self.make_storage_data(
                 np.squeeze(inputs[serialname]),
                 istart=istart,
@@ -60,15 +58,17 @@ class TranslateCS_Profile_2d(TranslateFortranData2Py):
         self.make_storage_data_input_vars(inputs)
         inputs["i1"] = self.grid.global_to_local_x(inputs["i1"] - 1)
         inputs["i2"] = self.grid.global_to_local_x(inputs["i2"] - 1)
+        inputs["j1"] = self.grid.js
+        inputs["j2"] = self.grid.js
         if "qs" not in inputs:
             inputs["qs"] = utils.make_storage_from_shape(self.maxshape)
         else:
             qs_field = utils.make_storage_from_shape(
                 inputs["delp"].shape, origin=(0, 0, 0)
             )
-            qs_field[inputs["i1"] : inputs["i2"] + 1, inputs["jslice"], -1] = inputs[
+            qs_field[inputs["i1"] : inputs["i2"] + 1, inputs["j1"] : inputs["j2"] + 1, -1] = inputs[
                 "qs"
-            ][inputs["i1"] : inputs["i2"] + 1, inputs["jslice"], 0]
+            ][inputs["i1"] : inputs["i2"] + 1, inputs["j1"] : inputs["j2"] + 1, 0]
             inputs["qs"] = qs_field
         q4_1, q4_2, q4_3, q4_4 = self.compute_func(**inputs)
         return self.slice_output(
