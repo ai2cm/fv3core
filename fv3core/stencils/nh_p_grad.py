@@ -1,9 +1,9 @@
 from gt4py.gtscript import PARALLEL, computation, interval, stencil
 
 import fv3core._config as spec
-from fv3core.stencils.a2b_ord4 import AGrid2BGridFourthOrder
 import fv3core.utils.global_config as global_config
 import fv3core.utils.gt4py_utils as utils
+from fv3core.stencils.a2b_ord4 import AGrid2BGridFourthOrder
 from fv3core.utils.typing import FloatField, FloatFieldIJ
 
 
@@ -173,9 +173,15 @@ class NonHydrostaticPressureGradient:
         self._set_k0_stencil(
             pp, pk3, top_value, origin=self.orig, domain=self.domain_k1
         )
-        a2b = utils.cached_stencil_class(AGrid2BGridFourthOrder)(spec.namelist, replace=True,cache_key="\
-        nh_p_grad_a2b")
-        a2b_noreplace = utils.cached_stencil_class(AGrid2BGridFourthOrder)(spec.namelist, replace=False,cache_key="nh_p_grad_a2b_noreplace")
+        a2b = utils.cached_stencil_class(AGrid2BGridFourthOrder)(
+            spec.namelist,
+            replace=True,
+            cache_key="\
+        nh_p_grad_a2b",
+        )
+        a2b_noreplace = utils.cached_stencil_class(AGrid2BGridFourthOrder)(
+            spec.namelist, replace=False, cache_key="nh_p_grad_a2b_noreplace"
+        )
         a2b(pp, self._tmp_wk1, kstart=1, nk=self.nk)
         a2b(pk3, self._tmp_wk1, kstart=1, nk=self.nk)
         a2b(gz, self._tmp_wk1, kstart=0, nk=self.nk + 1)

@@ -14,11 +14,13 @@ from gt4py.gtscript import (
     sin,
     sqrt,
 )
-from fv3core.utils.grid import axis_offsets
+
 import fv3core._config as spec
-import fv3core.utils.gt4py_utils as utils
-from fv3core.utils.typing import FloatField, FloatFieldI, FloatFieldIJ
 import fv3core.utils.global_config as global_config
+import fv3core.utils.gt4py_utils as utils
+from fv3core.utils.grid import axis_offsets
+from fv3core.utils.typing import FloatField, FloatFieldI, FloatFieldIJ
+
 
 # compact 4-pt cubic interpolation
 c1 = 2.0 / 3.0
@@ -362,7 +364,7 @@ def _a2b_ord4_stencil(
     qx: FloatField,
     qy: FloatField,
     qxx: FloatField,
-    qyy: FloatField, 
+    qyy: FloatField,
 ):
     from __externals__ import REPLACE, i_end, i_start, j_end, j_start
 
@@ -480,23 +482,26 @@ def _a2b_ord4_stencil(
         if __INLINED(REPLACE):
             qin = qout
 
-# TODO                                                                                                        
-# within regions, the edge_w and edge_w variables that are singleton in the                                    
-# I dimension error, workaround is repeating the data, but the longterm                                        
-# fix should happen in regions                                                                                 
-def _j_storage_repeat_over_i(grid_array: gt4py.storage.Storage, shape: Tuple[int, int] ):
+
+# TODO
+# within regions, the edge_w and edge_w variables that are singleton in the
+# I dimension error, workaround is repeating the data, but the longterm
+# fix should happen in regions
+def _j_storage_repeat_over_i(grid_array: gt4py.storage.Storage, shape: Tuple[int, int]):
     dup = utils.repeat(grid_array, shape[1], axis=0)
     return utils.make_storage_data(dup, shape, (0, 0))
+
 
 class AGrid2BGridFourthOrder:
     """
     Fortran name is a2b_ord4, test module is A2B_Ord4
     """
+
     def __init__(self, namelist, replace):
         assert namelist.grid_type < 3
         self.grid = spec.grid
         shape = self.grid.domain_shape_full(add=(1, 1, 1))
-        full_origin= self.grid.full_origin()
+        full_origin = self.grid.full_origin()
         self.edge_e = _j_storage_repeat_over_i(self.grid.edge_e, shape[0:2])
         self.edge_w = _j_storage_repeat_over_i(self.grid.edge_w, shape[0:2])
         self._tmp_q1 = utils.make_storage_from_shape(shape, full_origin)
@@ -506,99 +511,105 @@ class AGrid2BGridFourthOrder:
         self._tmp_qxx = utils.make_storage_from_shape(shape, full_origin)
         self._tmp_qyy = utils.make_storage_from_shape(shape, full_origin)
         ax_offsets = axis_offsets(
-            self.grid, self.grid.compute_origin(), self.grid.domain_shape_compute(add=(1, 1, 0))
+            self.grid,
+            self.grid.compute_origin(),
+            self.grid.domain_shape_compute(add=(1, 1, 0)),
         )
         stencil_kwargs = {
             "backend": global_config.get_backend(),
             "rebuild": global_config.get_rebuild(),
-            "externals": {"REPLACE": replace, **ax_offsets}
+            "externals": {"REPLACE": replace, **ax_offsets},
         }
         self.stencil_runtime_args = {"validate_args": global_config.get_validate_args()}
         stencil_wrapper = gtscript.stencil(**stencil_kwargs)
-        self._stencil=stencil_wrapper(_a2b_ord4_stencil)
+        self._stencil = stencil_wrapper(_a2b_ord4_stencil)
         self._sw_corner = stencil_wrapper(_sw_corner)
         self._se_corner = stencil_wrapper(_se_corner)
         self._nw_corner = stencil_wrapper(_nw_corner)
         self._ne_corner = stencil_wrapper(_ne_corner)
+
     def __call__(
-                self,
-                qin: FloatField,
-                qout: FloatField,
-                kstart: int = 0,
-                nk: Optional[int] = None,
-        ):
-            """
-            Transfers qin from A-grid to B-grid.
+        self,
+        qin: FloatField,
+        qout: FloatField,
+        kstart: int = 0,
+        nk: Optional[int] = None,
+    ):
+        """
+        Transfers qin from A-grid to B-grid.
 
-            Args:
-            qin: Input on A-grid (in)
-            qout: Output on B-grid (out)
-            kstart: Starting level
-            nk: Number of levels
-            """
-            grid = self.grid
-            if nk is None:
-                nk = grid.npz - kstart
-            corner_domain = (1, 1, nk)
-            self._sw_corner(
-                qin,
-                qout,
-                grid.agrid1,
-                grid.agrid2,
-                grid.bgrid1,
-                grid.bgrid2,
-                origin=(grid.is_, grid.js, kstart),
-                domain=corner_domain,
-                **self.stencil_runtime_args
-            )
+        Args:
+        qin: Input on A-grid (in)
+        qout: Output on B-grid (out)
+        kstart: Starting level
+        nk: Number of levels
+        """
+        grid = self.grid
+        if nk is None:
+            nk = grid.npz - kstart
+        corner_domain = (1, 1, nk)
+        self._sw_corner(
+            qin,
+            qout,
+            grid.agrid1,
+            grid.agrid2,
+            grid.bgrid1,
+            grid.bgrid2,
+            origin=(grid.is_, grid.js, kstart),
+            domain=corner_domain,
+            **self.stencil_runtime_args,
+        )
 
-            self._nw_corner(
-                qin,
-                qout,
-                grid.agrid1,
-                grid.agrid2,
-                grid.bgrid1,
-                grid.bgrid2,
-                origin=(grid.ie + 1, grid.js, kstart),
-                domain=corner_domain,**self.stencil_runtime_args
-            )
-            self._ne_corner(
-                qin,
-                qout,
-                grid.agrid1,
-                grid.agrid2,
-                grid.bgrid1,
-                grid.bgrid2,
-                origin=(grid.ie + 1, grid.je + 1, kstart),
-                domain=corner_domain,**self.stencil_runtime_args
-            )
-            self._se_corner(
-                qin,
-                qout,
-                grid.agrid1,
-                grid.agrid2,
-                grid.bgrid1,
-                grid.bgrid2,
-                origin=(grid.is_, grid.je + 1, kstart),
-                domain=corner_domain,**self.stencil_runtime_args
-            )
+        self._nw_corner(
+            qin,
+            qout,
+            grid.agrid1,
+            grid.agrid2,
+            grid.bgrid1,
+            grid.bgrid2,
+            origin=(grid.ie + 1, grid.js, kstart),
+            domain=corner_domain,
+            **self.stencil_runtime_args,
+        )
+        self._ne_corner(
+            qin,
+            qout,
+            grid.agrid1,
+            grid.agrid2,
+            grid.bgrid1,
+            grid.bgrid2,
+            origin=(grid.ie + 1, grid.je + 1, kstart),
+            domain=corner_domain,
+            **self.stencil_runtime_args,
+        )
+        self._se_corner(
+            qin,
+            qout,
+            grid.agrid1,
+            grid.agrid2,
+            grid.bgrid1,
+            grid.bgrid2,
+            origin=(grid.is_, grid.je + 1, kstart),
+            domain=corner_domain,
+            **self.stencil_runtime_args,
+        )
 
-            self._stencil(
-                qin,
-                qout,
-                grid.dxa,
-                grid.dya,
-                grid.edge_n,
-                grid.edge_s,
-                self.edge_e,
-                self.edge_w,
-                self._tmp_q1,
-                self._tmp_q2,
-                self._tmp_qx,
-                self._tmp_qy,
-                self._tmp_qxx,
-                self._tmp_qyy,
-                origin=(grid.is_, grid.js, kstart),
-                domain=(grid.nic + 1, grid.njc + 1, nk),**self.stencil_runtime_args
-            )
-            
+        self._stencil(
+            qin,
+            qout,
+            grid.dxa,
+            grid.dya,
+            grid.edge_n,
+            grid.edge_s,
+            self.edge_e,
+            self.edge_w,
+            self._tmp_q1,
+            self._tmp_q2,
+            self._tmp_qx,
+            self._tmp_qy,
+            self._tmp_qxx,
+            self._tmp_qyy,
+            origin=(grid.is_, grid.js, kstart),
+            domain=(grid.nic + 1, grid.njc + 1, nk),
+            **self.stencil_runtime_args,
+        )
