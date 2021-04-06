@@ -15,7 +15,7 @@ class TranslateRiem_Solver_C(TranslateFortranData2Py):
             "delpc": {},
             "gz": {},
             "pef": {},
-            "ws": {},
+            "surface_delta_gz": {"serialname": "ws"},
         }
         self.in_vars["parameters"] = ["dt2", "akap", "ptop", "ms"]
         self.out_vars = {"pef": {"kend": grid.npz}, "gz": {"kend": grid.npz}}

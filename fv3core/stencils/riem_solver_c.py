@@ -81,7 +81,7 @@ def compute(
     delpc: FloatField,
     gz: FloatField,
     pef: FloatField,
-    surface_delta_gz: FloatField,
+    surface_delta_gz: FloatFieldIJ,
 ):
     grid = spec.grid
     is1 = grid.is_ - 1
