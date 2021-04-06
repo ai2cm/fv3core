@@ -322,16 +322,15 @@ def make_storage_from_shape(
     # We should shift to an explicit caching or array re-use system down
     # the line.
     if cache_key is None:
-        return_value = make_storage_from_shape_uncached(
+        return make_storage_from_shape_uncached(
             shape, origin, dtype=dtype, init=init, mask=mask
         )
-    else:
-        full_key = (shape, origin, cache_key, dtype, init, mask)
-        if full_key not in storage_shape_outputs:
-            storage_shape_outputs[full_key] = make_storage_from_shape_uncached(
-                shape, origin, dtype=dtype, init=init, mask=mask
-            )
-        return_value = storage_shape_outputs[full_key]
+    full_key = (shape, origin, cache_key, dtype, init, mask)
+    if full_key not in storage_shape_outputs:
+        storage_shape_outputs[full_key] = make_storage_from_shape_uncached(
+            shape, origin, dtype=dtype, init=init, mask=mask
+        )
+    return_value = storage_shape_outputs[full_key]
     if init:
         return_value[:] = 0.0
     return return_value
