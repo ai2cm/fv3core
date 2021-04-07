@@ -356,6 +356,7 @@ class FixedOriginStencil:
         self.stencil_object(
             *args,
             **kwargs,
+            validate_args=global_config.get_validate_args(),
             normalized_origin=self.normalized_origin,
             domain=self.domain,
         )

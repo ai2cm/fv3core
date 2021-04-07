@@ -80,9 +80,6 @@ class FiniteVolumeTransport:
             "backend": global_config.get_backend(),
             "rebuild": global_config.get_rebuild(),
         }
-        self.stencil_runtime_args = {
-            "validate_args": global_config.get_validate_args(),
-        }
         self.stencil_q_i = FixedOriginStencil(
             q_i_stencil,
             origin=self.grid.full_origin(add=(0, 3, 0)),
@@ -133,7 +130,6 @@ class FiniteVolumeTransport:
             self._tmp_fy2,
             ra_y,
             self._tmp_q_i,
-            **self.stencil_runtime_args,
         )
         self.x_piecewise_parabolic_outer(self._tmp_q_i, crx, fx, grid.js, grid.je)
         corners.copy_corners_x_stencil(
@@ -147,7 +143,6 @@ class FiniteVolumeTransport:
             self._tmp_fx2,
             ra_x,
             self._tmp_q_j,
-            **self.stencil_runtime_args,
         )
         self.y_piecewise_parabolic_outer(self._tmp_q_j, cry, fy, grid.is_, grid.ie)
         if mfx is not None and mfy is not None:
@@ -158,7 +153,6 @@ class FiniteVolumeTransport:
                 self._tmp_fy2,
                 mfx,
                 mfy,
-                **self.stencil_runtime_args,
             )
             if (mass is not None) and (nord is not None) and (damp_c is not None):
                 for kstart, nk in d_sw.k_bounds():
@@ -173,7 +167,6 @@ class FiniteVolumeTransport:
                 self._tmp_fy2,
                 xfx,
                 yfx,
-                **self.stencil_runtime_args,
             )
             if (nord is not None) and (damp_c is not None):
                 for kstart, nk in d_sw.k_bounds():
