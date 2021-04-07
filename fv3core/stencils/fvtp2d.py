@@ -10,6 +10,7 @@ import fv3core.utils.gt4py_utils as utils
 from fv3core.stencils.xppm import XPiecewiseParabolic
 from fv3core.stencils.yppm import YPiecewiseParabolic
 from fv3core.utils.typing import FloatField, FloatFieldIJ
+from fv3core.decorators import FixedOriginStencil
 
 
 def q_i_stencil(
@@ -83,7 +84,11 @@ class FiniteVolumeTransport:
             "validate_args": global_config.get_validate_args(),
         }
         stencil_wrapper = gtscript.stencil(**stencil_kwargs)
-        self.stencil_q_i = stencil_wrapper(q_i_stencil)
+        self.stencil_q_i = FixedOriginStencil(
+            q_i_stencil,
+            origin=grid.full_origin(add=(0, 3, 0)),
+            domain=grid.domain_shape_full(add=(0, -3, 1)),
+        )
         self.stencil_q_j = stencil_wrapper(q_j_stencil)
         self.stencil_transport_flux = stencil_wrapper(transport_flux_xy)
         self.x_piecewise_parabolic_inner = XPiecewiseParabolic(spec.namelist, ord_inner)
@@ -121,8 +126,6 @@ class FiniteVolumeTransport:
             self._tmp_fy2,
             ra_y,
             self._tmp_q_i,
-            origin=grid.full_origin(add=(0, 3, 0)),
-            domain=grid.domain_shape_full(add=(0, -3, 1)),
             **self.stencil_runtime_args,
         )
         self.x_piecewise_parabolic_outer(self._tmp_q_i, crx, fx, grid.js, grid.je)

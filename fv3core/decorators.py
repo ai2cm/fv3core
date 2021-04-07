@@ -335,6 +335,31 @@ def gtstencil(definition=None, **stencil_kwargs) -> Callable[..., None]:
         return decorator(definition)
 
 
+class FixedOriginStencil:
+    """Wrapped GT4Py stencil object explicitly genrating and using the normalized origins."""
+
+    def __init__(self, func, origin, domain, **kwargs):
+        self.normalized_origin = gtscript.gt_definitions.normalize_origin_mapping(
+            origin
+        )
+        self.domain = domain
+        self.func = func
+        self.stencil_object = gtscript.stencil(
+            backend=global_config.get_backend(),
+            rebuild=global_config.get_rebuild(),
+            definition=self.func,
+            **kwargs,
+        )
+
+    def __call__(self, *args, **kwargs) -> None:
+        self.stencil_object(
+            *args,
+            **kwargs,
+            normalized_origin=self.normalized_origin,
+            domain=self.domain,
+        )
+
+
 def _get_case_name(name, times_called):
     return f"stencil-{name}-n{times_called:04d}"
 
