@@ -304,6 +304,18 @@ class UpdateDeltaZOnDGrid:
         wsd: FloatFieldIJ,
         dt: float,
     ):
+        """
+        Args:
+            dp0: ???
+            zs: ???
+            zh: ???
+            crx: Courant number in x-direction (??? what units)
+            cry: Courant number in y-direction (??? what units)
+            xfx: ???
+            yfx: ???
+            wsd: ???
+            dt: ???
+        """
         edge_profile_stencil(
             crx,
             xfx,
