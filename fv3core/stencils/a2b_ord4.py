@@ -353,6 +353,14 @@ def _nw_corner(
         qout = (ec1 + ec2 + ec3) * (1.0 / 3.0)
     return qout
 
+@gtscript.function
+def _a2b_corners(qin, qout, agrid1, agrid2, bgrid1, bgrid2):
+    qout = _sw_corner(qin, qout, agrid1, agrid2, bgrid1, bgrid2)
+    qout = _se_corner(qin, qout, agrid1, agrid2, bgrid1, bgrid2)
+    qout = _ne_corner(qin, qout, agrid1, agrid2, bgrid1, bgrid2)
+    qout = _nw_corner(qin, qout, agrid1, agrid2, bgrid1, bgrid2)
+    return qout
+
 def _a2b_ord4_stencil(
     qin: FloatField,
     qout: FloatField,
@@ -369,22 +377,20 @@ def _a2b_ord4_stencil(
 ):
     from __externals__ import REPLACE, i_end, i_start, j_end, j_start
     with computation(PARALLEL), interval(...):
-        tmp = 0.0
-        qout = _sw_corner(qin, qout, agrid1, agrid2, bgrid1, bgrid2)
-        qout = _se_corner(qin, qout, agrid1, agrid2, bgrid1, bgrid2)
-        qout = _ne_corner(qin, qout, agrid1, agrid2, bgrid1, bgrid2)
-        qout = _nw_corner(qin, qout, agrid1, agrid2, bgrid1, bgrid2)
-    with computation(PARALLEL), interval(...):
+        # TODO remove this when it no longer causes a crash to do so
+        tmp = 0.0 
+        qout = _a2b_corners(qin, qout, agrid1, agrid2, bgrid1, bgrid2)
+
+        # NOTE splitting the below code into more functions resulted in a
+        # max recursion depth being hit.
         with horizontal(
-            region[i_start - 1 : i_start + 1, :], region[i_end : i_end + 2, :]
+                region[i_start - 1 : i_start + 1, :], region[i_end : i_end + 2, :]
         ):
             q2 = (qin[-1, 0, 0] * dxa + qin * dxa[-1, 0]) / (dxa[-1, 0] + dxa)
-
         with horizontal(
-            region[:, j_start - 1 : j_start + 1], region[:, j_end : j_end + 2]
+                region[:, j_start - 1 : j_start + 1], region[:, j_end : j_end + 2]
         ):
             q1 = (qin[0, -1, 0] * dya + qin * dya[0, -1]) / (dya[0, -1] + dya)
-
         with horizontal(region[i_start, j_start + 1 : j_end + 1]):
             qout = qout_x_edge(edge_w, q2)
         with horizontal(region[i_end + 1, j_start + 1 : j_end + 1]):
@@ -393,7 +399,6 @@ def _a2b_ord4_stencil(
             qout = qout_y_edge(edge_s, q1)
         with horizontal(region[i_start + 1 : i_end + 1, j_end + 1]):
             qout = qout_y_edge(edge_n, q1)
-
 
         qx = ppm_volume_mean_x(qin)
         with horizontal(region[i_start, :]):
@@ -404,8 +409,6 @@ def _a2b_ord4_stencil(
             qx = qx_edge_east(qin, dxa)
         with horizontal(region[i_end, :]):
             qx = qx_edge_east2(qin, dxa, qx)
-        
-
         qy = ppm_volume_mean_y(qin)
         with horizontal(region[:, j_start]):
             qy = qy_edge_south(qin, dya)
@@ -427,6 +430,7 @@ def _a2b_ord4_stencil(
             qyy = cubic_interpolation_west(qy, qout, qyy)
         with horizontal(region[i_end, :]):
             qyy = cubic_interpolation_east(qy, qout, qyy)
+
         with horizontal(region[i_start + 1 : i_end + 1, j_start + 1 : j_end + 1]):
             qout = 0.5 * (qxx + qyy)
 
