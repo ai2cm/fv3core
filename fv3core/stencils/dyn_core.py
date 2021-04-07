@@ -223,6 +223,7 @@ def compute(state, comm):
         )
         reqs["q_con_quantity"].wait()
         reqs["cappa_quantity"].wait()
+        utils.device_sync()
 
     state.__dict__.update(dyncore_temporaries(shape))
     if init_step:
@@ -255,6 +256,7 @@ def compute(state, comm):
             origin=grid.full_origin(),
             domain=grid.domain_shape_full(add=(0, 0, 1)),
         )
+        utils.device_sync()
         # After writing, make 'dp_ref' a K-field and 'zs' an IJ-field
         state.dp_ref = utils.make_storage_data(state.dp_ref[0, 0, :], (shape[2],), (0,))
         state.zs = utils.make_storage_data(state.zs[:, :, 0], shape[0:2], (0, 0))
@@ -301,6 +303,7 @@ def compute(state, comm):
             if global_config.get_do_halo_exchange():
                 reqs["delp_quantity"].wait()
                 reqs["pt_quantity"].wait()
+                utils.device_sync()
 
         if it == n_split - 1 and end_step:
             if spec.namelist.use_old_omega:  # apparently True
@@ -315,6 +318,7 @@ def compute(state, comm):
             reqs_vector.wait()
             if not hydrostatic:
                 reqs["w_quantity"].wait()
+            utils.device_sync()
 
         # compute the c-grid winds at t + 1/2 timestep
         state.delpc, state.ptc = c_sw.compute(
@@ -343,6 +347,7 @@ def compute(state, comm):
             if it == 0:
                 if global_config.get_do_halo_exchange():
                     reqs["gz_quantity"].wait()
+                    utils.device_sync()
                 copy_stencil(
                     state.gz,
                     state.zh,
@@ -356,6 +361,7 @@ def compute(state, comm):
                     origin=grid.full_origin(),
                     domain=grid.domain_shape_full(add=(0, 0, 1)),
                 )
+            utils.device_sync()
         if not hydrostatic:
             state.gz, state.ws3 = updatedzc.compute(
                 state.dp_ref, state.zs, state.ut, state.vt, state.gz, state.ws3, dt2
@@ -396,6 +402,7 @@ def compute(state, comm):
             if spec.namelist.nord > 0:
                 reqs["divgd_quantity"].wait()
             reqc_vector.wait()
+            utils.device_sync()
         # use the computed c-grid winds to evolve the d-grid winds forward
         # by 1 timestep
         d_sw.compute(
@@ -492,11 +499,13 @@ def compute(state, comm):
                 raise Exception("unimplemented namelist option use_logp=True")
             else:
                 pk3_halo.compute(state.pk3, state.delp, state.ptop, akap)
+
         if not hydrostatic:
             if global_config.get_do_halo_exchange():
                 reqs["zh_quantity"].wait()
                 if grid.npx != grid.npy:
                     reqs["pkc_quantity"].wait()
+                utils.device_sync()
             basic.multiply_constant(
                 state.zh,
                 state.gz,
@@ -506,6 +515,7 @@ def compute(state, comm):
             )
             if grid.npx == grid.npy and global_config.get_do_halo_exchange():
                 reqs["pkc_quantity"].wait()
+                utils.device_sync()
             if spec.namelist.beta != 0:
                 raise Exception(
                     "Unimplemented namelist option -- we only support beta=0"

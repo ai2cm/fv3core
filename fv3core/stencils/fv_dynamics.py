@@ -103,23 +103,23 @@ def compute_preamble(state, comm, grid, namelist):
             state.qgraupel,
         )
 
-    if (not namelist.rf_fast) and namelist.tau != 0:
-        if grid.grid_type < 4:
-            print("Rayleigh Super", grid.rank)
-            rayleigh_super.compute(
-                state.u,
-                state.v,
-                state.w,
-                state.ua,
-                state.va,
-                state.pt,
-                state.delz,
-                state.phis,
-                state.bdt,
-                state.ptop,
-                state.pfull,
-                comm,
-            )
+    if (not namelist.rf_fast) and namelist.tau != 0 and grid.grid_type < 4:
+        print("Rayleigh Super", grid.rank)
+        rayleigh_super.compute(
+            state.u,
+            state.v,
+            state.w,
+            state.ua,
+            state.va,
+            state.pt,
+            state.delz,
+            state.phis,
+            state.bdt,
+            state.ptop,
+            state.pfull,
+            comm,
+        )
+        utils.device_sync()
 
     if namelist.adiabatic and namelist.kord_tm > 0:
         raise Exception(
@@ -172,6 +172,7 @@ def wrapup(state, comm: fv3gfs.util.CubedSphereCommunicator, grid):
         state.delz,
         state.peln,
     )
+    utils.device_sync()
 
     print("CubedToLatLon", grid.rank)
     c2l_ord.compute_cubed_to_latlon(
@@ -342,11 +343,13 @@ class DynamicalCore:
             utils.device_sync()
             self.comm.halo_update(state.phis_quantity, n_points=utils.halo)
         compute_preamble(state, self.comm, self.grid, self.namelist)
+
         for n_map in range(state.k_split):
             state.n_map = n_map + 1
             if n_map == state.k_split - 1:
                 last_step = True
             self._dyn(state, timer)
+
             if self.grid.npz > 4:
                 # nq is actually given by ncnst - pnats,
                 # where those are given in atmosphere.F90 by:
@@ -361,6 +364,7 @@ class DynamicalCore:
                 # issue is that set_val in map_single expects a 3D field for the
                 # "surface" array
                 state.wsd_3d[:] = utils.reshape(state.wsd, state.wsd_3d.shape)
+
                 print("Remapping", self.grid.rank)
                 with timer.clock("Remapping"):
                     lagrangian_to_eulerian.compute(
@@ -427,6 +431,7 @@ class DynamicalCore:
                     state.mdt,
                     DynamicalCore.NQ,
                 )
+        utils.device_sync()
 
 
 def fv_dynamics(
