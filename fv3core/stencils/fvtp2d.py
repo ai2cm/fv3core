@@ -86,8 +86,8 @@ class FiniteVolumeTransport:
         stencil_wrapper = gtscript.stencil(**stencil_kwargs)
         self.stencil_q_i = FixedOriginStencil(
             q_i_stencil,
-            origin=grid.full_origin(add=(0, 3, 0)),
-            domain=grid.domain_shape_full(add=(0, -3, 1)),
+            origin=self.grid.full_origin(add=(0, 3, 0)),
+            domain=self.grid.domain_shape_full(add=(0, -3, 1)),
         )
         self.stencil_q_j = stencil_wrapper(q_j_stencil)
         self.stencil_transport_flux = stencil_wrapper(transport_flux_xy)
