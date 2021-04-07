@@ -158,8 +158,6 @@ class FiniteVolumeTransport:
                 self._tmp_fy2,
                 mfx,
                 mfy,
-                origin=grid.compute_origin(),
-                domain=grid.domain_shape_compute(add=(1, 1, 1)),
                 **self.stencil_runtime_args,
             )
             if (mass is not None) and (nord is not None) and (damp_c is not None):
@@ -175,8 +173,6 @@ class FiniteVolumeTransport:
                 self._tmp_fy2,
                 xfx,
                 yfx,
-                origin=grid.compute_origin(),
-                domain=grid.domain_shape_compute(add=(1, 1, 1)),
                 **self.stencil_runtime_args,
             )
             if (nord is not None) and (damp_c is not None):
