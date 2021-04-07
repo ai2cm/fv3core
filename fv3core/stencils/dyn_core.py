@@ -363,7 +363,7 @@ def compute(state, comm):
                 )
             utils.device_sync()
         if not hydrostatic:
-            state.gz, state.ws3 = updatedzc.compute(
+            updatedzc.compute(
                 state.dp_ref, state.zs, state.ut, state.vt, state.gz, state.ws3, dt2
             )
             riem_solver_c.compute(
