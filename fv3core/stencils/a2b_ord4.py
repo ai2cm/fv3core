@@ -179,6 +179,7 @@ def extrap_corner(
     x2 = great_circle_dist_noradius(p2a, p2b, p0a, p0b)
     return qa + x1 / (x2 - x1) * (qa - qb)
 
+
 @gtscript.function
 def _sw_corner(
     qin: FloatField,
@@ -189,6 +190,7 @@ def _sw_corner(
     bgrid2: FloatFieldIJ,
 ):
     from __externals__ import i_start, j_start
+
     with horizontal(region[i_start, j_start]):
         ec1 = extrap_corner(
             bgrid1[0, 0],
@@ -223,6 +225,8 @@ def _sw_corner(
 
         qout = (ec1 + ec2 + ec3) * (1.0 / 3.0)
     return qout
+
+
 @gtscript.function
 def _se_corner(
     qin: FloatField,
@@ -233,6 +237,7 @@ def _se_corner(
     bgrid2: FloatFieldIJ,
 ):
     from __externals__ import i_end, j_start
+
     with horizontal(region[i_end + 1, j_start]):
         ec1 = extrap_corner(
             bgrid1[0, 0],
@@ -266,6 +271,8 @@ def _se_corner(
         )
         qout = (ec1 + ec2 + ec3) * (1.0 / 3.0)
     return qout
+
+
 @gtscript.function
 def _ne_corner(
     qin: FloatField,
@@ -276,7 +283,8 @@ def _ne_corner(
     bgrid2: FloatFieldIJ,
 ):
     from __externals__ import i_end, j_end
-    with horizontal(region[i_end + 1, j_end+1]):
+
+    with horizontal(region[i_end + 1, j_end + 1]):
         ec1 = extrap_corner(
             bgrid1[0, 0],
             bgrid2[0, 0],
@@ -309,6 +317,8 @@ def _ne_corner(
         )
         qout = (ec1 + ec2 + ec3) * (1.0 / 3.0)
     return qout
+
+
 @gtscript.function
 def _nw_corner(
     qin: FloatField,
@@ -319,7 +329,8 @@ def _nw_corner(
     bgrid2: FloatFieldIJ,
 ):
     from __externals__ import i_start, j_end
-    with horizontal(region[i_start, j_end+1]):
+
+    with horizontal(region[i_start, j_end + 1]):
         ec1 = extrap_corner(
             bgrid1[0, 0],
             bgrid2[0, 0],
@@ -353,6 +364,7 @@ def _nw_corner(
         qout = (ec1 + ec2 + ec3) * (1.0 / 3.0)
     return qout
 
+
 @gtscript.function
 def _a2b_corners(qin, qout, agrid1, agrid2, bgrid1, bgrid2):
     qout = _sw_corner(qin, qout, agrid1, agrid2, bgrid1, bgrid2)
@@ -360,6 +372,7 @@ def _a2b_corners(qin, qout, agrid1, agrid2, bgrid1, bgrid2):
     qout = _ne_corner(qin, qout, agrid1, agrid2, bgrid1, bgrid2)
     qout = _nw_corner(qin, qout, agrid1, agrid2, bgrid1, bgrid2)
     return qout
+
 
 def _a2b_ord4_stencil(
     qin: FloatField,
@@ -376,19 +389,20 @@ def _a2b_ord4_stencil(
     edge_w: FloatFieldIJ,
 ):
     from __externals__ import REPLACE, i_end, i_start, j_end, j_start
+
     with computation(PARALLEL), interval(...):
         # TODO remove this when it no longer causes a crash to do so
-        tmp = 0.0 
+        tmp = 0.0
         qout = _a2b_corners(qin, qout, agrid1, agrid2, bgrid1, bgrid2)
 
         # NOTE splitting the below code into more functions resulted in a
         # max recursion depth being hit.
         with horizontal(
-                region[i_start - 1 : i_start + 1, :], region[i_end : i_end + 2, :]
+            region[i_start - 1 : i_start + 1, :], region[i_end : i_end + 2, :]
         ):
             q2 = (qin[-1, 0, 0] * dxa + qin * dxa[-1, 0]) / (dxa[-1, 0] + dxa)
         with horizontal(
-                region[:, j_start - 1 : j_start + 1], region[:, j_end : j_end + 2]
+            region[:, j_start - 1 : j_start + 1], region[:, j_end : j_end + 2]
         ):
             q1 = (qin[0, -1, 0] * dya + qin * dya[0, -1]) / (dya[0, -1] + dya)
         with horizontal(region[i_start, j_start + 1 : j_end + 1]):
@@ -418,7 +432,7 @@ def _a2b_ord4_stencil(
             qy = qy_edge_north(qin, dya)
         with horizontal(region[:, j_end]):
             qy = qy_edge_north2(qin, dya, qy)
-           
+
         qxx = lagrange_y(qx)
         with horizontal(region[:, j_start + 1]):
             qxx = cubic_interpolation_south(qx, qout, qxx)
@@ -472,7 +486,7 @@ class AGrid2BGridFourthOrder:
         self.stencil_runtime_args = {"validate_args": global_config.get_validate_args()}
         stencil_wrapper = gtscript.stencil(**stencil_kwargs)
         self._stencil = stencil_wrapper(_a2b_ord4_stencil)
- 
+
     def __call__(
         self,
         qin: FloatField,
@@ -495,7 +509,10 @@ class AGrid2BGridFourthOrder:
         self._stencil(
             qin,
             qout,
-            grid.agrid1, grid.agrid2, grid.bgrid1, grid.bgrid2,
+            grid.agrid1,
+            grid.agrid2,
+            grid.bgrid1,
+            grid.bgrid2,
             grid.dxa,
             grid.dya,
             grid.edge_n,
