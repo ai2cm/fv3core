@@ -597,49 +597,48 @@ def compute_qout(qxx, qyy, qout, kstart, nk):
 
 
 def compute(qin, qout, kstart=0, nk=None, replace=False):
-    grid = spec.grid
     if nk is None:
-        nk = grid.npz - kstart
+        nk = grid().npz - kstart
     corner_domain = (1, 1, nk)
     _sw_corner(
         qin,
         qout,
-        grid.agrid1,
-        grid.agrid2,
-        grid.bgrid1,
-        grid.bgrid2,
-        origin=(grid.is_, grid.js, kstart),
+        grid().agrid1,
+        grid().agrid2,
+        grid().bgrid1,
+        grid().bgrid2,
+        origin=(grid().is_, grid().js, kstart),
         domain=corner_domain,
     )
 
     _nw_corner(
         qin,
         qout,
-        grid.agrid1,
-        grid.agrid2,
-        grid.bgrid1,
-        grid.bgrid2,
-        origin=(grid.ie + 1, grid.js, kstart),
+        grid().agrid1,
+        grid().agrid2,
+        grid().bgrid1,
+        grid().bgrid2,
+        origin=(grid().ie + 1, grid().js, kstart),
         domain=corner_domain,
     )
     _ne_corner(
         qin,
         qout,
-        grid.agrid1,
-        grid.agrid2,
-        grid.bgrid1,
-        grid.bgrid2,
-        origin=(grid.ie + 1, grid.je + 1, kstart),
+        grid().agrid1,
+        grid().agrid2,
+        grid().bgrid1,
+        grid().bgrid2,
+        origin=(grid().ie + 1, grid().je + 1, kstart),
         domain=corner_domain,
     )
     _se_corner(
         qin,
         qout,
-        grid.agrid1,
-        grid.agrid2,
-        grid.bgrid1,
-        grid.bgrid2,
-        origin=(grid.is_, grid.je + 1, kstart),
+        grid().agrid1,
+        grid().agrid2,
+        grid().bgrid1,
+        grid().bgrid2,
+        origin=(grid().is_, grid().je + 1, kstart),
         domain=corner_domain,
     )
     if spec.namelist.grid_type < 3:
