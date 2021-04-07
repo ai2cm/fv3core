@@ -1,3 +1,4 @@
+import functools
 from typing import Tuple
 
 import numpy as np
@@ -7,7 +8,6 @@ import fv3core.utils.global_config as global_config
 import fv3gfs.util as fv3util
 
 from . import gt4py_utils as utils
-import functools
 
 
 class Grid:

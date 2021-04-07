@@ -336,7 +336,8 @@ def gtstencil(definition=None, **stencil_kwargs) -> Callable[..., None]:
 
 
 class FixedOriginStencil:
-    """Wrapped GT4Py stencil object explicitly genrating and using the normalized origins."""
+    """Wrapped GT4Py stencil object explicitly genrating
+    and using the normalized origins."""
 
     def __init__(self, func, origin, domain, **kwargs):
         self.normalized_origin = gtscript.gt_definitions.normalize_origin_mapping(

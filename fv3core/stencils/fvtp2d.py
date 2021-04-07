@@ -7,10 +7,10 @@ import fv3core.stencils.delnflux as delnflux
 import fv3core.utils.corners as corners
 import fv3core.utils.global_config as global_config
 import fv3core.utils.gt4py_utils as utils
+from fv3core.decorators import FixedOriginStencil
 from fv3core.stencils.xppm import XPiecewiseParabolic
 from fv3core.stencils.yppm import YPiecewiseParabolic
 from fv3core.utils.typing import FloatField, FloatFieldIJ
-from fv3core.decorators import FixedOriginStencil
 
 
 def q_i_stencil(
@@ -83,14 +83,21 @@ class FiniteVolumeTransport:
         self.stencil_runtime_args = {
             "validate_args": global_config.get_validate_args(),
         }
-        stencil_wrapper = gtscript.stencil(**stencil_kwargs)
         self.stencil_q_i = FixedOriginStencil(
             q_i_stencil,
             origin=self.grid.full_origin(add=(0, 3, 0)),
             domain=self.grid.domain_shape_full(add=(0, -3, 1)),
         )
-        self.stencil_q_j = stencil_wrapper(q_j_stencil)
-        self.stencil_transport_flux = stencil_wrapper(transport_flux_xy)
+        self.stencil_q_j = FixedOriginStencil(
+            q_j_stencil,
+            origin=self.grid.full_origin(add=(3, 0, 0)),
+            domain=self.grid.domain_shape_full(add=(-3, 0, 1)),
+        )
+        self.stencil_transport_flux = FixedOriginStencil(
+            transport_flux_xy,
+            origin=self.grid.compute_origin(),
+            domain=self.grid.domain_shape_compute(add=(1, 1, 1)),
+        )
         self.x_piecewise_parabolic_inner = XPiecewiseParabolic(spec.namelist, ord_inner)
         self.y_piecewise_parabolic_inner = YPiecewiseParabolic(spec.namelist, ord_inner)
         self.x_piecewise_parabolic_outer = XPiecewiseParabolic(spec.namelist, ord_outer)
