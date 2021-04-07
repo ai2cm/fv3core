@@ -359,12 +359,6 @@ def _a2b_ord4_stencil(
     edge_s: FloatFieldI,
     edge_e: FloatFieldIJ,
     edge_w: FloatFieldIJ,
-    q1: FloatField,
-    q2: FloatField,
-    qx: FloatField,
-    qy: FloatField,
-    qxx: FloatField,
-    qyy: FloatField,
 ):
     from __externals__ import REPLACE, i_end, i_start, j_end, j_start
 
@@ -504,12 +498,6 @@ class AGrid2BGridFourthOrder:
         full_origin = self.grid.full_origin()
         self.edge_e = _j_storage_repeat_over_i(self.grid.edge_e, shape[0:2])
         self.edge_w = _j_storage_repeat_over_i(self.grid.edge_w, shape[0:2])
-        self._tmp_q1 = utils.make_storage_from_shape(shape, full_origin)
-        self._tmp_q2 = utils.make_storage_from_shape(shape, full_origin)
-        self._tmp_qx = utils.make_storage_from_shape(shape, full_origin)
-        self._tmp_qy = utils.make_storage_from_shape(shape, full_origin)
-        self._tmp_qxx = utils.make_storage_from_shape(shape, full_origin)
-        self._tmp_qyy = utils.make_storage_from_shape(shape, full_origin)
         ax_offsets = axis_offsets(
             self.grid,
             self.grid.compute_origin(),
@@ -603,12 +591,6 @@ class AGrid2BGridFourthOrder:
             grid.edge_s,
             self.edge_e,
             self.edge_w,
-            self._tmp_q1,
-            self._tmp_q2,
-            self._tmp_qx,
-            self._tmp_qy,
-            self._tmp_qxx,
-            self._tmp_qyy,
             origin=(grid.is_, grid.js, kstart),
             domain=(grid.nic + 1, grid.njc + 1, nk),
             **self.stencil_runtime_args,
