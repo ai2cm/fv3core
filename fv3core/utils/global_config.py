@@ -9,6 +9,8 @@ def getenv_bool(name: str, default: str) -> bool:
 def set_backend(new_backend: str):
     global _BACKEND
     _BACKEND = new_backend
+    if "cuda" in new_backend:
+        os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
 
 
 def get_backend() -> str:

@@ -172,7 +172,6 @@ def wrapup(state, comm: fv3gfs.util.CubedSphereCommunicator, grid):
         state.delz,
         state.peln,
     )
-    utils.device_sync()
 
     print("CubedToLatLon", grid.rank)
     c2l_ord.compute_cubed_to_latlon(
@@ -431,7 +430,6 @@ class DynamicalCore:
                     state.mdt,
                     DynamicalCore.NQ,
                 )
-        utils.device_sync()
 
 
 def fv_dynamics(
