@@ -147,8 +147,6 @@ class FiniteVolumeTransport:
             self._tmp_fx2,
             ra_x,
             self._tmp_q_j,
-            origin=grid.full_origin(add=(3, 0, 0)),
-            domain=grid.domain_shape_full(add=(-3, 0, 1)),
             **self.stencil_runtime_args,
         )
         self.y_piecewise_parabolic_outer(self._tmp_q_j, cry, fy, grid.is_, grid.ie)
