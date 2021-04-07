@@ -350,7 +350,28 @@ def _se_corner(
         qout = (ec1 + ec2 + ec3) * (1.0 / 3.0)
 
 
-def _a2b_ord4_stencil(
+def _q1_q2(
+    qin: FloatField,
+    dxa: FloatFieldIJ,
+    dya: FloatFieldIJ,
+    q1: FloatField,
+    q2: FloatField,
+):
+    from __externals__ import i_end, i_start, j_end, j_start
+
+    with computation(PARALLEL), interval(...):
+        with horizontal(
+            region[i_start - 1 : i_start + 1, :], region[i_end : i_end + 2, :]
+        ):
+            q2 = (qin[-1, 0, 0] * dxa + qin * dxa[-1, 0]) / (dxa[-1, 0] + dxa)
+
+        with horizontal(
+            region[:, j_start - 1 : j_start + 1], region[:, j_end : j_end + 2]
+        ):
+            q1 = (qin[0, -1, 0] * dya + qin * dya[0, -1]) / (dya[0, -1] + dya)
+
+
+def _q_first_derivative(
     qin: FloatField,
     qout: FloatField,
     dxa: FloatFieldIJ,
@@ -363,23 +384,12 @@ def _a2b_ord4_stencil(
     q2: FloatField,
     qx: FloatField,
     qy: FloatField,
-    qxx: FloatField,
-    qyy: FloatField,
+    g_in: FloatField,
+    g_ou: FloatField,
 ):
-    from __externals__ import REPLACE, i_end, i_start, j_end, j_start
+    from __externals__ import i_end, i_start, j_end, j_start
 
     with computation(PARALLEL), interval(...):
-        # {
-        with horizontal(
-            region[i_start - 1 : i_start + 1, :], region[i_end : i_end + 2, :]
-        ):
-            q2 = (qin[-1, 0, 0] * dxa + qin * dxa[-1, 0]) / (dxa[-1, 0] + dxa)
-
-        with horizontal(
-            region[:, j_start - 1 : j_start + 1], region[:, j_end : j_end + 2]
-        ):
-            q1 = (qin[0, -1, 0] * dya + qin * dya[0, -1]) / (dya[0, -1] + dya)
-
         with horizontal(region[i_start, j_start + 1 : j_end + 1]):
             # qout = qout_x_edge(edge_w, q2)
             qout = edge_w * q2[0, -1, 0] + (1.0 - edge_w) * q2
@@ -395,8 +405,6 @@ def _a2b_ord4_stencil(
 
         # compute_qx
         qx = ppm_volume_mean_x(qin)
-        g_in = 0.0
-        g_ou = 0.0
         with horizontal(region[i_start, :]):
             # qx = qx_edge_west(qin, dxa)
             g_in = dxa[1, 0] / dxa
@@ -458,6 +466,18 @@ def _a2b_ord4_stencil(
             qy = (
                 3.0 * (qin[0, -1, 0] + g_in * qin) - (g_in * qy[0, 1, 0] + qy[0, -1, 0])
             ) / (2.0 + 2.0 * g_in)
+
+
+def _q_second_derivative(
+    qout: FloatField,
+    qx: FloatField,
+    qy: FloatField,
+    qxx: FloatField,
+    qyy: FloatField,
+):
+    from __externals__ import i_end, i_start, j_end, j_start
+
+    with computation(PARALLEL), interval(...):
         # compute_qxx
         qxx = lagrange_y(qx)
         with horizontal(region[:, j_start + 1]):
@@ -475,9 +495,18 @@ def _a2b_ord4_stencil(
             # qyy = cubic_interpolation_east(qy, qout, qyy)
             qyy = c1 * (qy[-1, 0, 0] + qy) + c2 * (qout[1, 0, 0] + qyy[-1, 0, 0])
 
+
+def _final_qout(
+    qin: FloatField,
+    qout: FloatField,
+    qxx: FloatField,
+    qyy: FloatField,
+):
+    from __externals__ import REPLACE, i_end, i_start, j_end, j_start
+
+    with computation(PARALLEL), interval(...):
         with horizontal(region[i_start + 1 : i_end + 1, j_start + 1 : j_end + 1]):
             qout = 0.5 * (qxx + qyy)
-        # }
 
         if __INLINED(REPLACE):
             qin = qout
@@ -510,6 +539,8 @@ class AGrid2BGridFourthOrder:
         self._tmp_qy = utils.make_storage_from_shape(shape, full_origin)
         self._tmp_qxx = utils.make_storage_from_shape(shape, full_origin)
         self._tmp_qyy = utils.make_storage_from_shape(shape, full_origin)
+        self._tmp_gin = utils.make_storage_from_shape(shape, full_origin)
+        self._tmp_gou = utils.make_storage_from_shape(shape, full_origin)
         ax_offsets = axis_offsets(
             self.grid,
             self.grid.compute_origin(),
@@ -522,7 +553,10 @@ class AGrid2BGridFourthOrder:
         }
         self.stencil_runtime_args = {"validate_args": global_config.get_validate_args()}
         stencil_wrapper = gtscript.stencil(**stencil_kwargs)
-        self._stencil = stencil_wrapper(_a2b_ord4_stencil)
+        self._q1_q2 = stencil_wrapper(_q1_q2)
+        self._q_first_derivative = stencil_wrapper(_q_first_derivative)
+        self._q_second_derivative = stencil_wrapper(_q_second_derivative)
+        self._final_qout = stencil_wrapper(_final_qout)
         self._sw_corner = stencil_wrapper(_sw_corner)
         self._se_corner = stencil_wrapper(_se_corner)
         self._nw_corner = stencil_wrapper(_nw_corner)
@@ -593,8 +627,19 @@ class AGrid2BGridFourthOrder:
             domain=corner_domain,
             **self.stencil_runtime_args,
         )
-
-        self._stencil(
+        origin = (grid.is_, grid.js, kstart)
+        domain = (grid.nic + 1, grid.njc + 1, nk)
+        self._q1_q2(
+            qin,
+            grid.dxa,
+            grid.dya,
+            self._tmp_q1,
+            self._tmp_q2,
+            origin=origin,
+            domain=domain,
+            **self.stencil_runtime_args,
+        )
+        self._q_first_derivative(
             qin,
             qout,
             grid.dxa,
@@ -607,9 +652,28 @@ class AGrid2BGridFourthOrder:
             self._tmp_q2,
             self._tmp_qx,
             self._tmp_qy,
+            self._tmp_gin,
+            self._tmp_gou,
+            origin=origin,
+            domain=domain,
+            **self.stencil_runtime_args,
+        )
+        self._q_second_derivative(
+            qout,
+            self._tmp_qx,
+            self._tmp_qy,
             self._tmp_qxx,
             self._tmp_qyy,
-            origin=(grid.is_, grid.js, kstart),
-            domain=(grid.nic + 1, grid.njc + 1, nk),
+            origin=origin,
+            domain=domain,
+            **self.stencil_runtime_args,
+        )
+        self._final_qout(
+            qin,
+            qout,
+            self._tmp_qxx,
+            self._tmp_qyy,
+            origin=origin,
+            domain=domain,
             **self.stencil_runtime_args,
         )
