@@ -99,11 +99,15 @@ def compute(
     gz_in = copy(gz, origin=origin, cache_key="updatedzc_gz")
     gz_x = copy(gz, origin=origin, cache_key="updatedzc_gz_x")
 
-    #corners.fill_corners_cells(gz_x, "x")
-    corners.fill_corners_2cells_x_stencil(gz_x, origin=grid.full_origin(), domain=grid.domain_shape_full(add=(0, 0, 1)))
+    # corners.fill_corners_cells(gz_x, "x")
+    corners.fill_corners_2cells_x_stencil(
+        gz_x, origin=grid.full_origin(), domain=grid.domain_shape_full(add=(0, 0, 1))
+    )
     gz_y = copy(gz_x, origin=origin, cache_key="updatedzc_gz_y")
-    #corners.fill_corners_cells(gz_y, "y")
-    corners.fill_corners_2cells_y_stencil(gz_y, origin=grid.full_origin(), domain=grid.domain_shape_full(add=(0, 0, 1)))
+    # corners.fill_corners_cells(gz_y, "y")
+    corners.fill_corners_2cells_y_stencil(
+        gz_y, origin=grid.full_origin(), domain=grid.domain_shape_full(add=(0, 0, 1))
+    )
     update_dz_c(
         dp_ref,
         zs,
