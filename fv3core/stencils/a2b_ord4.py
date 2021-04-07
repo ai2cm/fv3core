@@ -26,7 +26,7 @@ def grid():
 
 
 @gtscript.function
-def great_circle_dist_noradius(p1a, p1b, p2a, p2b):
+def great_circle_dist(p1a, p1b, p2a, p2b):
     tb = sin((p1b - p2b) / 2.0) ** 2.0
     ta = sin((p1a - p2a) / 2.0) ** 2.0
     return asin(sqrt(tb + cos(p1b) * cos(p2b) * ta)) * 2.0
@@ -43,8 +43,8 @@ def extrap_corner(
     qa,
     qb,
 ):
-    x1 = great_circle_dist_noradius(p1a, p1b, p0a, p0b)
-    x2 = great_circle_dist_noradius(p2a, p2b, p0a, p0b)
+    x1 = great_circle_dist(p1a, p1b, p0a, p0b)
+    x2 = great_circle_dist(p2a, p2b, p0a, p0b)
     return qa + x1 / (x2 - x1) * (qa - qb)
 
 
