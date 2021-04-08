@@ -1,5 +1,5 @@
 import gt4py.gtscript as gtscript
-from gt4py.gtscript import PARALLEL, computation, interval, horizontal, region
+from gt4py.gtscript import PARALLEL, computation, horizontal, interval, region
 
 import fv3core._config as spec
 import fv3core.utils.gt4py_utils as utils
@@ -62,17 +62,14 @@ def east_west_edges(
     rsin_u: FloatFieldIJ,
     dxa: FloatFieldIJ,
 ):
-    from __externals__ import (
-        i_end,
-        i_start,
-        local_je,
-        local_js,
-    )
+    from __externals__ import i_end, i_start, local_je, local_js
+
     with computation(PARALLEL), interval(...):
         # West
         with horizontal(region[i_start - 1, local_js - 1 : local_je + 2]):
             uc = vol_conserv_cubic_interp_func_x(utmp)
 
+        faketmp = 0  # noqa
         with horizontal(region[i_start, local_js - 1 : local_je + 2]):
             utc = edge_interpolate4_x(ua, dxa)
             uc = utc * sin_sg3[-1, 0] if utc > 0 else utc * sin_sg1
@@ -102,6 +99,55 @@ def east_west_edges(
 
         with horizontal(region[i_end + 2, local_js - 1 : local_je + 2]):
             utc = contravariant(uc, v, cosa_u, rsin_u)
+
+
+@gtstencil()
+def north_south_edges(
+    v: FloatField,
+    va: FloatField,
+    vc: FloatField,
+    vtc: FloatField,
+    vtmp: FloatField,
+    u: FloatField,
+    sin_sg2: FloatFieldIJ,
+    sin_sg4: FloatFieldIJ,
+    cosa_v: FloatFieldIJ,
+    rsin_v: FloatFieldIJ,
+    dya: FloatFieldIJ,
+):
+    from __externals__ import j_end, j_start, local_ie, local_is, local_je, local_js
+
+    with computation(PARALLEL), interval(...):
+        faketmp = 0  # noqa
+        with horizontal(
+            region[local_is - 1 : local_ie + 2, local_js - 1 : local_je + 3]
+        ):
+            vc = lagrange_y_func(vtmp)
+            vtc = contravariant(vc, u, cosa_v, rsin_v)
+
+        with horizontal(region[local_is - 1 : local_ie + 2, j_start - 1]):
+            vc = vol_conserv_cubic_interp_func_y(vtmp)
+            vtc = contravariant(vc, u, cosa_v, rsin_v)
+
+        with horizontal(region[local_is - 1 : local_ie + 2, j_start]):
+            vtc = edge_interpolate4_y(va, dya)
+            vc = vtc * sin_sg4[0, -1] if vtc > 0 else vtc * sin_sg2
+
+        with horizontal(region[local_is - 1 : local_ie + 2, j_start + 1]):
+            vc = vol_conserv_cubic_interp_func_y_rev(vtmp)
+            vtc = contravariant(vc, u, cosa_v, rsin_v)
+
+        with horizontal(region[local_is - 1 : local_ie + 2, j_end]):
+            vc = vol_conserv_cubic_interp_func_y(vtmp)
+            vtc = contravariant(vc, u, cosa_v, rsin_v)
+
+        with horizontal(region[local_is - 1 : local_ie + 2, j_end + 1]):
+            vtc = edge_interpolate4_y(va, dya)
+            vc = vtc * sin_sg4[0, -1] if vtc > 0 else vtc * sin_sg2
+
+        with horizontal(region[local_is - 1 : local_ie + 2, j_end + 2]):
+            vc = vol_conserv_cubic_interp_func_y_rev(vtmp)
+            vtc = contravariant(vc, u, cosa_v, rsin_v)
 
 
 # almost the same as a2b_ord4's version
@@ -316,14 +362,6 @@ def vc_y_edge1(
         vc = vt * sin_sg4[0, -1] if vt > 0 else vt * sin_sg2
 
 
-# # TODO: Make this a stencil?
-# def edge_interpolate4_x(ua, dxa):
-#     t1 = dxa[0, :] + dxa[1, :]
-#     t2 = dxa[2, :] + dxa[3, :]
-#     n1 = (t1 + dxa[1, :]) * ua[1, :] - dxa[1, :] * ua[0, :]
-#     n2 = (t1 + dxa[2, :]) * ua[2, :] - dxa[2, :] * ua[3, :]
-#     return 0.5 * (n1 / t1 + n2 / t2)
-
 @gtscript.function
 def edge_interpolate4_x(ua, dxa):
     t1 = dxa[-2, 0] + dxa[-1, 0]
@@ -332,12 +370,6 @@ def edge_interpolate4_x(ua, dxa):
     n2 = (t1 + dxa[0, 0]) * ua[0, 0, 0] - dxa[0, 0] * ua[1, 0, 0]
     return 0.5 * (n1 / t1 + n2 / t2)
 
-# def edge_interpolate4_y(va, dxa):
-#     t1 = dxa[:, 0] + dxa[:, 1]
-#     t2 = dxa[:, 2] + dxa[:, 3]
-#     n1 = (t1 + dxa[:, 1]) * va[:, 1] - dxa[:, 1] * va[:, 0]
-#     n2 = (t1 + dxa[:, 2]) * va[:, 2] - dxa[:, 2] * va[:, 3]
-#     return 0.5 * (n1 / t1 + n2 / t2)
 
 @gtscript.function
 def edge_interpolate4_y(va, dya):
@@ -346,7 +378,7 @@ def edge_interpolate4_y(va, dya):
     n1 = (t1 + dya[0, -1]) * va[0, -1, 0] - dya[0, -1] * va[0, -2, 0]
     n2 = (t1 + dya[0, 0]) * va[0, 0, 0] - dya[0, 0] * va[0, 1, 0]
     return 0.5 * (n1 / t1 + n2 / t2)
-    
+
 
 def compute(dord4, uc, vc, u, v, ua, va, utc, vtc):
     if spec.namelist.grid_type >= 3:
@@ -378,6 +410,14 @@ def compute(dord4, uc, vc, u, v, ua, va, utc, vtc):
     ie2 = nx - npt if grid.east_edge else grid.ie + 1
     js2 = npt + OFFSET if grid.south_edge else grid.jsd
     je2 = ny - npt if grid.north_edge else grid.jed
+
+    ifirst = grid.is_ + 2 if grid.west_edge else grid.is_ - 1
+    ilast = grid.ie - 1 if grid.east_edge else grid.ie + 2
+    idiff = ilast - ifirst + 1
+
+    jfirst = grid.js + 2 if grid.south_edge else grid.js - 1
+    jlast = grid.je - 1 if grid.north_edge else grid.je + 2
+    jdiff = jlast - jfirst + 1
 
     set_tmps(
         utmp,
@@ -460,9 +500,6 @@ def compute(dord4, uc, vc, u, v, ua, va, utc, vtc):
         domain=grid.domain_shape_compute(add=(6, 6, 0)),
     )
 
-    ifirst = grid.is_ + 2 if grid.west_edge else grid.is_ - 1
-    ilast = grid.ie - 1 if grid.east_edge else grid.ie + 2
-    idiff = ilast - ifirst + 1
     ut_main(
         utmp,
         uc,
@@ -490,84 +527,6 @@ def compute(dord4, uc, vc, u, v, ua, va, utc, vtc):
         domain=grid.domain_shape_compute(add=(6, 6, 0)),
     )
 
-    # domain_edge_x = (1, grid.njc + 2, grid.npz)
-    # jslice = slice(grid.js - 1, grid.je + 2)
-    # if grid.west_edge and not grid.nested:
-    #     vol_conserv_cubic_interp_x(utmp, uc, origin=(i1, j1, 0), domain=domain_edge_x)
-    #     islice = slice(grid.is_ - 2, grid.is_ + 2)
-    #     for k in range(grid.npz):
-    #         utc[grid.is_, jslice, k] = edge_interpolate4_x(
-    #             ua[islice, jslice, k], grid.dxa[islice, jslice]
-    #         )
-    #     uc_x_edge1(
-    #         utc,
-    #         grid.sin_sg3,
-    #         grid.sin_sg1,
-    #         uc,
-    #         origin=(i1 + 1, j1, 0),
-    #         domain=domain_edge_x,
-    #     )
-    #     vol_conserv_cubic_interp_x_rev(
-    #         utmp, uc, origin=(i1 + 2, j1, 0), domain=domain_edge_x
-    #     )
-    #     contravariant_stencil(
-    #         uc,
-    #         v,
-    #         grid.cosa_u,
-    #         grid.rsin_u,
-    #         utc,
-    #         origin=(i1, j1, 0),
-    #         domain=domain_edge_x,
-    #     )
-    #     contravariant_stencil(
-    #         uc,
-    #         v,
-    #         grid.cosa_u,
-    #         grid.rsin_u,
-    #         utc,
-    #         origin=(i1 + 2, j1, 0),
-    #         domain=domain_edge_x,
-    #     )
-
-    # if grid.east_edge and not grid.nested:
-    #     vol_conserv_cubic_interp_x(
-    #         utmp, uc, origin=(nx - 1, j1, 0), domain=domain_edge_x
-    #     )
-    #     islice = slice(nx - 2, nx + 2)
-    #     for k in range(grid.npz):
-    #         utc[nx, jslice, k] = edge_interpolate4_x(
-    #             ua[islice, jslice, k], grid.dxa[islice, jslice]
-    #         )
-    #     uc_x_edge1(
-    #         utc,
-    #         grid.sin_sg3,
-    #         grid.sin_sg1,
-    #         uc,
-    #         origin=(nx, j1, 0),
-    #         domain=domain_edge_x,
-    #     )
-    #     vol_conserv_cubic_interp_x_rev(
-    #         utmp, uc, origin=(nx + 1, j1, 0), domain=domain_edge_x
-    #     )
-    #     contravariant_stencil(
-    #         uc,
-    #         v,
-    #         grid.cosa_u,
-    #         grid.rsin_u,
-    #         utc,
-    #         origin=(grid.ie, j1, 0),
-    #         domain=domain_edge_x,
-    #     )
-    #     contravariant_stencil(
-    #         uc,
-    #         v,
-    #         grid.cosa_u,
-    #         grid.rsin_u,
-    #         utc,
-    #         origin=(nx + 1, j1, 0),
-    #         domain=domain_edge_x,
-    #     )
-
     # Ydir:
     fill_corners_y(
         utmp,
@@ -578,83 +537,21 @@ def compute(dord4, uc, vc, u, v, ua, va, utc, vtc):
         domain=grid.domain_shape_compute(add=(6, 6, 0)),
     )
 
-    domain_edge_y = (grid.nic + 2, 1, grid.npz)
-    islice = slice(grid.is_ - 1, grid.ie + 2)
-    if grid.south_edge:
-        vt_edge(
-            vtmp,
-            vc,
-            u,
-            grid.cosa_v,
-            grid.rsin_v,
-            vtc,
-            0,
-            origin=(i1, j1, 0),
-            domain=domain_edge_y,
-        )
-        jslice = slice(grid.js - 2, grid.js + 2)
-        for k in range(grid.npz):
-            vtc[islice, grid.js, k] = edge_interpolate4_y(
-                va[islice, jslice, k], grid.dya[islice, jslice]
-            )
-        vc_y_edge1(
-            vtc,
-            grid.sin_sg4,
-            grid.sin_sg2,
-            vc,
-            origin=(i1, grid.js, 0),
-            domain=domain_edge_y,
-        )
-        vt_edge(
-            vtmp,
-            vc,
-            u,
-            grid.cosa_v,
-            grid.rsin_v,
-            vtc,
-            1,
-            origin=(i1, grid.js + 1, 0),
-            domain=domain_edge_y,
-        )
-    if grid.north_edge:
-        vt_edge(
-            vtmp,
-            vc,
-            u,
-            grid.cosa_v,
-            grid.rsin_v,
-            vtc,
-            0,
-            origin=(i1, ny - 1, 0),
-            domain=domain_edge_y,
-        )
-        jslice = slice(ny - 2, ny + 2)
-        for k in range(grid.npz):
-            vtc[islice, ny, k] = edge_interpolate4_y(
-                va[islice, jslice, k], grid.dya[islice, jslice]
-            )
-        vc_y_edge1(
-            vtc,
-            grid.sin_sg4,
-            grid.sin_sg2,
-            vc,
-            origin=(grid.is_ - 1, ny, 0),
-            domain=domain_edge_y,
-        )
-        vt_edge(
-            vtmp,
-            vc,
-            u,
-            grid.cosa_v,
-            grid.rsin_v,
-            vtc,
-            1,
-            origin=(i1, ny + 1, 0),
-            domain=domain_edge_y,
-        )
-    jfirst = grid.js + 2 if grid.south_edge else grid.js - 1
-    jlast = grid.je - 1 if grid.north_edge else grid.je + 2
-    jdiff = jlast - jfirst + 1
+    north_south_edges(
+        v,
+        va,
+        vc,
+        vtc,
+        vtmp,
+        u,
+        grid.sin_sg2,
+        grid.sin_sg4,
+        grid.cosa_v,
+        grid.rsin_v,
+        grid.dya,
+        origin=grid.compute_origin(add=(-3, -3, 0)),
+        domain=grid.domain_shape_compute(add=(6, 6, 0)),
+    )
 
     vt_main(
         vtmp,
