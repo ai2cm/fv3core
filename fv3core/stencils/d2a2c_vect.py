@@ -419,6 +419,10 @@ def compute(dord4, uc, vc, u, v, ua, va, utc, vtc):
     jlast = grid.je - 1 if grid.north_edge else grid.je + 2
     jdiff = jlast - jfirst + 1
 
+    js3 = npt + OFFSET if grid.south_edge else grid.jsd
+    je3 = ny - npt if grid.north_edge else grid.jed
+    jdiff3 = je3 - js3 + 1
+
     set_tmps(
         utmp,
         vtmp,
@@ -456,17 +460,14 @@ def compute(dord4, uc, vc, u, v, ua, va, utc, vtc):
             domain=(grid.nid, grid.jed - je2 + 1, grid.npz),
         )
 
-    js2 = npt + OFFSET if grid.south_edge else grid.jsd
-    je2 = ny - npt if grid.north_edge else grid.jed
-    jdiff = je2 - js2 + 1
     if grid.west_edge:
         avg_box(
             u,
             v,
             utmp,
             vtmp,
-            origin=(grid.isd, js2, 0),
-            domain=(npt + OFFSET - grid.isd, jdiff, grid.npz),
+            origin=(grid.isd, js3, 0),
+            domain=(npt + OFFSET - grid.isd, jdiff3, grid.npz),
         )
     if grid.east_edge:
         avg_box(
@@ -474,8 +475,8 @@ def compute(dord4, uc, vc, u, v, ua, va, utc, vtc):
             v,
             utmp,
             vtmp,
-            origin=(nx + 1 - npt, js2, 0),
-            domain=(grid.ied - nx + npt, jdiff, grid.npz),
+            origin=(nx + 1 - npt, js3, 0),
+            domain=(grid.ied - nx + npt, jdiff3, grid.npz),
         )
 
     # contra-variant components at cell center
