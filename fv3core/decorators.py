@@ -357,20 +357,13 @@ class FixedOriginStencil:
         )
 
     def __call__(self, *args, **kwargs) -> None:
-        if self.normalized_domain:
-            self.stencil_object(
-                *args,
-                **kwargs,
-                normalized_domain=self.normalized_domain,
-                normalized_origin=self.normalized_origin,
-            )
-        else:
-            self.stencil_object(
-                *args,
-                **kwargs,
-                domain=None,
-                normalized_origin=self.normalized_origin,
-            )
+        self.stencil_object(
+            *args,
+            **kwargs,
+            domain=self.domain,
+            normalized_domain=self.normalized_domain,
+            normalized_origin=self.normalized_origin,
+        )
 
 
 def _get_case_name(name, times_called):
