@@ -59,6 +59,7 @@ def compute_preamble(state, comm, grid, namelist):
 
     if namelist.hydrostatic:
         raise Exception("Hydrostatic is not implemented")
+    print("FV Setup", grid.rank)
     moist_cv.fv_setup(
         state.pt,
         state.pkz,
@@ -80,6 +81,7 @@ def compute_preamble(state, comm, grid, namelist):
     if state.consv_te > 0 and not state.do_adiabatic_init:
         # NOTE: Not run in default configuration (turned off consv_te so we don't
         # need a global allreduce).
+        print("Compute Total Energy", grid.rank)
         moist_cv.compute_total_energy(
             state.u,
             state.v,
@@ -103,6 +105,7 @@ def compute_preamble(state, comm, grid, namelist):
 
     if (not namelist.rf_fast) and namelist.tau != 0:
         if grid.grid_type < 4:
+            print("Rayleigh Super", grid.rank)
             rayleigh_super.compute(
                 state.u,
                 state.v,
@@ -123,6 +126,7 @@ def compute_preamble(state, comm, grid, namelist):
             "unimplemented namelist options adiabatic with positive kord_tm"
         )
     else:
+        print("Adjust pt", grid.rank)
         pt_adjust(
             state.pkz,
             state.dp1,
@@ -136,6 +140,7 @@ def compute_preamble(state, comm, grid, namelist):
 def post_remap(state, comm, grid, namelist):
     grid = grid
     if not namelist.hydrostatic:
+        print("Omega", grid.rank)
         set_omega(
             state.delp,
             state.delz,
@@ -145,12 +150,14 @@ def post_remap(state, comm, grid, namelist):
             domain=grid.domain_shape_compute(),
         )
     if namelist.nf_omega > 0:
+        print("Del2Cubed", grid.rank)
         if global_config.get_do_halo_exchange():
             comm.halo_update(state.omga_quantity, n_points=utils.halo)
         del2cubed.compute(state.omga, namelist.nf_omega, 0.18 * grid.da_min, grid.npz)
 
 
 def wrapup(state, comm: fv3gfs.util.CubedSphereCommunicator, grid):
+    print("Neg Adj 3", grid.rank)
     neg_adj3.compute(
         state.qvapor,
         state.qliquid,
@@ -165,6 +172,7 @@ def wrapup(state, comm: fv3gfs.util.CubedSphereCommunicator, grid):
         state.peln,
     )
 
+    print("CubedToLatLon", grid.rank)
     c2l_ord.compute_cubed_to_latlon(
         state.u_quantity, state.v_quantity, state.ua, state.va, comm, True
     )
@@ -351,6 +359,7 @@ class DynamicalCore:
                 # issue is that set_val in map_single expects a 3D field for the
                 # "surface" array
                 state.wsd_3d[:] = utils.reshape(state.wsd, state.wsd_3d.shape)
+                print("Remapping", self.grid.rank)
                 with timer.clock("Remapping"):
                     lagrangian_to_eulerian.compute(
                         state.__dict__,
@@ -400,9 +409,11 @@ class DynamicalCore:
             origin=self.grid.full_origin(),
             domain=self.grid.domain_shape_full(),
         )
+        print("DynCore", self.grid.rank)
         with timer.clock("DynCore"):
             dyn_core.compute(state, self.comm)
         if self.namelist.z_tracer:
+            print("Tracer2D1L", self.grid.rank)
             with timer.clock("TracerAdvection"):
                 self.tracer_advection(
                     state.__dict__,
