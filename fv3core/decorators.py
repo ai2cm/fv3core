@@ -357,10 +357,11 @@ class FixedOriginStencil:
         )
 
     def __call__(self, *args, **kwargs) -> None:
+        assert "origin" not in kwargs
+        assert "domain" not in kwargs
         self.stencil_object(
             *args,
             **kwargs,
-            domain=self.domain,
             normalized_domain=self.normalized_domain,
             normalized_origin=self.normalized_origin,
         )
