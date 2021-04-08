@@ -550,8 +550,9 @@ def stack(tup, axis: int = 0, out=None):
 
 
 def device_sync() -> None:
-    if cp and "cuda" in global_config.get_backend():
-        cp.cuda.Device(0).synchronize()
+    # if cp and "cuda" in global_config.get_backend():
+    #     cp.cuda.Device(0).synchronize()
+    return
 
 
 def set_device_sync(backend: str, stencil_kwargs: Dict[str, Any], flag: bool = False):
