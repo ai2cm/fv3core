@@ -5,6 +5,7 @@ import fv3core._config as spec
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import gtstencil
 from fv3core.stencils.a2b_ord4 import a1, a2, lagrange_x_func, lagrange_y_func
+from fv3core.utils import corners
 from fv3core.utils.typing import FloatField, FloatFieldIJ
 
 
@@ -16,6 +17,35 @@ OFFSET = 2
 
 def grid():
     return spec.grid
+
+
+@gtstencil()
+def set_tmps(utmp: FloatField, vtmp: FloatField, big_number: float):
+    with computation(PARALLEL), interval(...):
+        utmp = big_number
+        vtmp = big_number
+
+
+@gtstencil()
+def fill_corners_x(utmp: FloatField, vtmp: FloatField, ua: FloatField, va: FloatField):
+    with computation(PARALLEL), interval(...):
+        utmp = corners.fill_corners_3cells_mult_x(
+            utmp, vtmp, sw_mult=-1, se_mult=1, ne_mult=-1, nw_mult=1
+        )
+        ua = corners.fill_corners_2cells_mult_x(
+            ua, va, sw_mult=-1, se_mult=1, ne_mult=-1, nw_mult=1
+        )
+
+
+@gtstencil()
+def fill_corners_y(utmp: FloatField, vtmp: FloatField, ua: FloatField, va: FloatField):
+    with computation(PARALLEL), interval(...):
+        vtmp = corners.fill_corners_3cells_mult_y(
+            vtmp, utmp, sw_mult=-1, se_mult=1, ne_mult=-1, nw_mult=1
+        )
+        va = corners.fill_corners_2cells_mult_y(
+            va, ua, sw_mult=-1, se_mult=1, ne_mult=-1, nw_mult=1
+        )
 
 
 # almost the same as a2b_ord4's version
@@ -257,6 +287,7 @@ def compute(dord4, uc, vc, u, v, ua, va, utc, vtc):
     i1 = grid.is_ - 1
     j1 = grid.js - 1
     id_ = 1 if dord4 else 0
+    pad = 2 + 2 * id_
     npt = 4 if not grid.nested else 0
     if npt > grid.nic - 1 or npt > grid.njc - 1:
         npt = 0
@@ -266,23 +297,31 @@ def compute(dord4, uc, vc, u, v, ua, va, utc, vtc):
     vtmp = utils.make_storage_from_shape(
         va.shape, grid.full_origin(), cache_key="d2a2c_vect_vtmp"
     )
-    utmp[:] = big_number
-    vtmp[:] = big_number
+
     js1 = npt + OFFSET if grid.south_edge else grid.js - 1
     je1 = ny - npt if grid.north_edge else grid.je + 1
     is1 = npt + OFFSET if grid.west_edge else grid.isd
     ie1 = nx - npt if grid.east_edge else grid.ied
+
+    is2 = npt + OFFSET if grid.west_edge else grid.is_ - 1
+    ie2 = nx - npt if grid.east_edge else grid.ie + 1
+    js2 = npt + OFFSET if grid.south_edge else grid.jsd
+    je2 = ny - npt if grid.north_edge else grid.jed
+
+    set_tmps(
+        utmp,
+        vtmp,
+        big_number,
+        origin=grid.full_origin(),
+        domain=grid.domain_shape_full(),
+    )
+
     lagrange_interpolation_y_p1(
         u, utmp, origin=(is1, js1, 0), domain=(ie1 - is1 + 1, je1 - js1 + 1, grid.npz)
     )
 
-    is1 = npt + OFFSET if grid.west_edge else grid.is_ - 1
-    ie1 = nx - npt if grid.east_edge else grid.ie + 1
-    js1 = npt + OFFSET if grid.south_edge else grid.jsd
-    je1 = ny - npt if grid.north_edge else grid.jed
-
     lagrange_interpolation_x_p1(
-        v, vtmp, origin=(is1, js1, 0), domain=(ie1 - is1 + 1, je1 - js1 + 1, grid.npz)
+        v, vtmp, origin=(is2, js2, 0), domain=(ie2 - is2 + 1, je2 - js2 + 1, grid.npz)
     )
 
     # tmp edges
@@ -329,7 +368,6 @@ def compute(dord4, uc, vc, u, v, ua, va, utc, vtc):
         )
 
     # contra-variant components at cell center
-    pad = 2 + 2 * id_
     contravariant_components(
         utmp,
         vtmp,
@@ -344,26 +382,35 @@ def compute(dord4, uc, vc, u, v, ua, va, utc, vtc):
     # Xdir:
     # TODO: Make stencils? Need variable offsets.
 
-    if grid.sw_corner:
-        for i in range(-2, 1):
-            utmp[i + 2, grid.js - 1, :] = -vtmp[grid.is_ - 1, grid.js - i, :]
-        ua[i1 - 1, j1, :] = -va[i1, j1 + 2, :]
-        ua[i1, j1, :] = -va[i1, j1 + 1, :]
-    if grid.se_corner:
-        for i in range(0, 3):
-            utmp[nx + i, grid.js - 1, :] = vtmp[nx, i + grid.js, :]
-        ua[nx, j1, :] = va[nx, j1 + 1, :]
-        ua[nx + 1, j1, :] = va[nx, j1 + 2, :]
-    if grid.ne_corner:
-        for i in range(0, 3):
-            utmp[nx + i, ny, :] = -vtmp[nx, grid.je - i, :]
-        ua[nx, ny, :] = -va[nx, ny - 1, :]
-        ua[nx + 1, ny, :] = -va[nx, ny - 2, :]
-    if grid.nw_corner:
-        for i in range(-2, 1):
-            utmp[i + 2, ny, :] = vtmp[grid.is_ - 1, grid.je + i, :]
-        ua[i1 - 1, ny, :] = va[i1, ny - 2, :]
-        ua[i1, ny, :] = va[i1, ny - 1, :]
+    fill_corners_x(
+        utmp,
+        vtmp,
+        ua,
+        va,
+        origin=grid.compute_origin(add=(-3, -3, 0)),
+        domain=grid.domain_shape_compute(add=(6, 6, 0)),
+    )
+
+    # if grid.sw_corner:
+    #     for i in range(-2, 1):
+    #         utmp[i + 2, grid.js - 1, :] = -vtmp[grid.is_ - 1, grid.js - i, :]
+    #     ua[i1 - 1, j1, :] = -va[i1, j1 + 2, :]
+    #     ua[i1, j1, :] = -va[i1, j1 + 1, :]
+    # if grid.se_corner:
+    #     for i in range(0, 3):
+    #         utmp[nx + i, grid.js - 1, :] = vtmp[nx, i + grid.js, :]
+    #     ua[nx, j1, :] = va[nx, j1 + 1, :]
+    #     ua[nx + 1, j1, :] = va[nx, j1 + 2, :]
+    # if grid.ne_corner:
+    #     for i in range(0, 3):
+    #         utmp[nx + i, ny, :] = -vtmp[nx, grid.je - i, :]
+    #     ua[nx, ny, :] = -va[nx, ny - 1, :]
+    #     ua[nx + 1, ny, :] = -va[nx, ny - 2, :]
+    # if grid.nw_corner:
+    #     for i in range(-2, 1):
+    #         utmp[i + 2, ny, :] = vtmp[grid.is_ - 1, grid.je + i, :]
+    #     ua[i1 - 1, ny, :] = va[i1, ny - 2, :]
+    #     ua[i1, ny, :] = va[i1, ny - 1, :]
 
     ifirst = grid.is_ + 2 if grid.west_edge else grid.is_ - 1
     ilast = grid.ie - 1 if grid.east_edge else grid.ie + 2
@@ -457,26 +504,36 @@ def compute(dord4, uc, vc, u, v, ua, va, utc, vtc):
             domain=domain_edge_x,
         )
     # Ydir:
-    if grid.sw_corner:
-        for j in range(-2, 1):
-            vtmp[grid.is_ - 1, j + 2, :] = -utmp[grid.is_ - j, grid.js - 1, :]
-        va[i1, j1 - 1, :] = -ua[i1 + 2, j1, :]
-        va[i1, j1, :] = -ua[i1 + 1, j1, :]
-    if grid.nw_corner:
-        for j in range(0, 3):
-            vtmp[grid.is_ - 1, ny + j, :] = utmp[j + grid.is_, ny, :]
-        va[i1, ny, :] = ua[i1 + 1, ny, :]
-        va[i1, ny + 1, :] = ua[i1 + 2, ny, :]
-    if grid.se_corner:
-        for j in range(-2, 1):
-            vtmp[nx, j + 2, :] = utmp[grid.ie + j, grid.js - 1, :]
-        va[nx, j1, :] = ua[nx - 1, j1, :]
-        va[nx, j1 - 1, :] = ua[nx - 2, j1, :]
-    if grid.ne_corner:
-        for j in range(0, 3):
-            vtmp[nx, ny + j, :] = -utmp[grid.ie - j, ny, :]
-        va[nx, ny, :] = -ua[nx - 1, ny, :]
-        va[nx, ny + 1, :] = -ua[nx - 2, ny, :]
+
+    fill_corners_y(
+        utmp,
+        vtmp,
+        ua,
+        va,
+        origin=grid.compute_origin(add=(-3, -3, 0)),
+        domain=grid.domain_shape_compute(add=(6, 6, 0)),
+    )
+
+    # if grid.sw_corner:
+    #     for j in range(-2, 1):
+    #         vtmp[grid.is_ - 1, j + 2, :] = -utmp[grid.is_ - j, grid.js - 1, :]
+    #     va[i1, j1 - 1, :] = -ua[i1 + 2, j1, :]
+    #     va[i1, j1, :] = -ua[i1 + 1, j1, :]
+    # if grid.nw_corner:
+    #     for j in range(0, 3):
+    #         vtmp[grid.is_ - 1, ny + j, :] = utmp[j + grid.is_, ny, :]
+    #     va[i1, ny, :] = ua[i1 + 1, ny, :]
+    #     va[i1, ny + 1, :] = ua[i1 + 2, ny, :]
+    # if grid.se_corner:
+    #     for j in range(-2, 1):
+    #         vtmp[nx, j + 2, :] = utmp[grid.ie + j, grid.js - 1, :]
+    #     va[nx, j1, :] = ua[nx - 1, j1, :]
+    #     va[nx, j1 - 1, :] = ua[nx - 2, j1, :]
+    # if grid.ne_corner:
+    #     for j in range(0, 3):
+    #         vtmp[nx, ny + j, :] = -utmp[grid.ie - j, ny, :]
+    #     va[nx, ny, :] = -ua[nx - 1, ny, :]
+    #     va[nx, ny + 1, :] = -ua[nx - 2, ny, :]
 
     domain_edge_y = (grid.nic + 2, 1, grid.npz)
     islice = slice(grid.is_ - 1, grid.ie + 2)
