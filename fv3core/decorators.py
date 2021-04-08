@@ -16,7 +16,6 @@ import fv3core
 import fv3core._config as spec
 import fv3core.utils
 import fv3core.utils.global_config as global_config
-import fv3core.utils.gt4py_utils as utils
 from fv3core.utils.typing import Index3D
 
 
@@ -67,28 +66,33 @@ def state_inputs(*arg_specs):
     def decorator(func):
         @functools.wraps(func)
         def wrapped(state, *args, **kwargs):
-            namespace_kwargs = {}
-            for sp in arg_specs:
-                arg_name, standard_name, units, intent = sp
-                if standard_name not in state:
-                    raise ValueError(f"{standard_name} not present in state")
-                elif units != state[standard_name].units:
-                    raise ValueError(
-                        f"{standard_name} has units "
-                        f"{state[standard_name].units} when {units} is required"
-                    )
-                elif intent not in VALID_INTENTS:
-                    raise ValueError(
-                        f"expected intent to be one of {VALID_INTENTS}, got {intent}"
-                    )
-                else:
-                    namespace_kwargs[arg_name] = state[standard_name].storage
-                    namespace_kwargs[arg_name + "_quantity"] = state[standard_name]
-            func(types.SimpleNamespace(**namespace_kwargs), *args, **kwargs)
+            namespace = get_namespace(arg_specs, state)
+            func(namespace, *args, **kwargs)
 
         return wrapped
 
     return decorator
+
+
+def get_namespace(arg_specs, state):
+    namespace_kwargs = {}
+    for sp in arg_specs:
+        arg_name, standard_name, units, intent = sp
+        if standard_name not in state:
+            raise ValueError(f"{standard_name} not present in state")
+        elif units != state[standard_name].units:
+            raise ValueError(
+                f"{standard_name} has units "
+                f"{state[standard_name].units} when {units} is required"
+            )
+        elif intent not in VALID_INTENTS:
+            raise ValueError(
+                f"expected intent to be one of {VALID_INTENTS}, got {intent}"
+            )
+        else:
+            namespace_kwargs[arg_name] = state[standard_name].storage
+            namespace_kwargs[arg_name + "_quantity"] = state[standard_name]
+    return types.SimpleNamespace(**namespace_kwargs)
 
 
 def _ensure_global_flags_not_specified_in_kwargs(stencil_kwargs):
@@ -288,7 +292,7 @@ class FV3StencilObject:
         # Call it
         exec_info = {}
         kwargs["exec_info"] = kwargs.get("exec_info", exec_info)
-        kwargs["validate_args"] = kwargs.get("validate_args", utils.validate_args)
+        kwargs["validate_args"] = global_config.get_validate_args()
         name = f"{self.func.__module__}.{self.func.__name__}"
 
         _maybe_save_report(
@@ -319,16 +323,40 @@ class FV3StencilObject:
         )
 
 
-def gtstencil(definition=None, **stencil_kwargs) -> Callable[..., None]:
+def gtstencil(**stencil_kwargs) -> Callable[[Any], FV3StencilObject]:
     _ensure_global_flags_not_specified_in_kwargs(stencil_kwargs)
 
-    def decorator(func) -> FV3StencilObject:
+    def decorator(func):
         return FV3StencilObject(func, **stencil_kwargs)
 
-    if definition is None:
-        return decorator
-    else:
-        return decorator(definition)
+    return decorator
+
+
+class FixedOriginStencil:
+    """Wrapped GT4Py stencil object explicitly genrating
+    and using the normalized origins."""
+
+    def __init__(self, func, origin, domain, **kwargs):
+        self.normalized_origin = gtscript.gt_definitions.normalize_origin_mapping(
+            origin
+        )
+        self.domain = domain
+        self.func = func
+        self.stencil_object = gtscript.stencil(
+            backend=global_config.get_backend(),
+            rebuild=global_config.get_rebuild(),
+            definition=self.func,
+            **kwargs,
+        )
+
+    def __call__(self, *args, **kwargs) -> None:
+        self.stencil_object(
+            *args,
+            **kwargs,
+            validate_args=global_config.get_validate_args(),
+            normalized_origin=self.normalized_origin,
+            domain=self.domain,
+        )
 
 
 def _get_case_name(name, times_called):

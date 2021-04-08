@@ -516,26 +516,41 @@ def compute(
     km: int,
     i1: int,
     i2: int,
+    j1: int,
+    j2: int,
     iv: int,
     kord: int,
-    jslice: Tuple[int],
     qmin: float = 0.0,
 ):
     assert kord <= 10, f"kord {kord} not implemented."
-
+    grid = spec.grid
+    km = grid.npz
     i_extent: int = i2 - i1 + 1
-    j_extent: int = jslice.stop - jslice.start
-    js: int = jslice.start
-    orig: Tuple[int] = (i1, js, 0)
-    full_orig: Tuple[int] = (spec.grid.is_, js, 0)
-    dom: Tuple[int] = (i_extent, j_extent, km)
+    j_extent: int = j2 - j1 + 1
 
-    gam: FloatField = utils.make_storage_from_shape(delp.shape, origin=full_orig)
-    q: FloatField = utils.make_storage_from_shape(delp.shape, origin=full_orig)
-    q_bot: FloatField = utils.make_storage_from_shape(delp.shape, origin=full_orig)
-    extm: FloatField = utils.make_storage_from_shape(delp.shape, origin=full_orig)
-    ext5: FloatField = utils.make_storage_from_shape(delp.shape, origin=full_orig)
-    ext6: FloatField = utils.make_storage_from_shape(delp.shape, origin=full_orig)
+    orig: Tuple[int] = (i1, j1, 0)
+    full_orig: Tuple[int] = grid.compute_origin()
+    dom: Tuple[int] = (i_extent, j_extent, km)
+    dom_extend: Tuple[int] = (i_extent, j_extent, km + 1)
+
+    gam: FloatField = utils.make_storage_from_shape(
+        delp.shape, origin=full_orig, cache_key="remap_profile_gam"
+    )
+    q: FloatField = utils.make_storage_from_shape(
+        delp.shape, origin=full_orig, cache_key="remap_profile_q"
+    )
+    q_bot: FloatField = utils.make_storage_from_shape(
+        delp.shape, origin=full_orig, cache_key="remap_profile_q_bot"
+    )
+    extm: FloatField = utils.make_storage_from_shape(
+        delp.shape, origin=full_orig, cache_key="remap_profile_extm"
+    )
+    ext5: FloatField = utils.make_storage_from_shape(
+        delp.shape, origin=full_orig, cache_key="remap_profile_ext5"
+    )
+    ext6: FloatField = utils.make_storage_from_shape(
+        delp.shape, origin=full_orig, cache_key="remap_profile_ext6"
+    )
 
     set_vals(
         gam,
@@ -550,7 +565,7 @@ def compute(
         iv=iv,
         kord=abs(kord),
         origin=orig,
-        domain=(i_extent, j_extent, km + 1),
+        domain=dom_extend,
     )
 
     if abs(kord) <= 16:
@@ -593,7 +608,7 @@ def compute(
             qmin,
             abs(kord),
             iv,
-            origin=(i1, js, 2),
+            origin=(i1, j1, 2),
             domain=(i_extent, j_extent, km - 4),
         )
 
@@ -604,7 +619,7 @@ def compute(
             a4_4,
             extm,
             iv,
-            origin=(i1, js, km - 2),
+            origin=(i1, j1, km - 2),
             domain=(i_extent, j_extent, 2),
         )
 

@@ -1,17 +1,11 @@
 from gt4py import gtscript
-from gt4py.gtscript import (
-    __INLINED,
-    PARALLEL,
-    computation,
-    horizontal,
-    interval,
-    region,
-)
+from gt4py.gtscript import PARALLEL, computation, horizontal, interval, region
 
 import fv3core._config as spec
 from fv3core.decorators import gtstencil
 from fv3core.stencils.a2b_ord4 import a1, a2, lagrange_x_func, lagrange_y_func
-from fv3core.utils import corners
+from fv3core.utils import corners, global_config
+from fv3core.utils.grid import axis_offsets
 from fv3core.utils.typing import FloatField, FloatFieldIJ
 
 
@@ -211,7 +205,6 @@ def _d2a2c_vect(
         local_is,
         local_je,
         local_js,
-        namelist,
     )
 
     with computation(PARALLEL), interval(...):
@@ -277,8 +270,6 @@ def _d2a2c_vect(
 
         # Fill corners for Y
 
-        assert __INLINED(namelist.grid_type < 3)
-
         vtmp = corners.fill_corners_3cells_mult_y(
             vtmp, utmp, sw_mult=-1, se_mult=1, ne_mult=-1, nw_mult=1
         )
@@ -322,11 +313,6 @@ def _d2a2c_vect(
     # return uc, vc, ua, va, utc, vtc
 
 
-_c12_stencil = gtstencil(definition=_d2a2c_vect, externals={"D2A2C_AVG_OFFSET": -1})
-
-_default_stencil = gtstencil(definition=_d2a2c_vect, externals={"D2A2C_AVG_OFFSET": 3})
-
-
 def compute(
     u: FloatField,
     ua: FloatField,
@@ -356,6 +342,9 @@ def compute(
     """
     grid = spec.grid
     namelist = spec.namelist
+    assert namelist.grid_type < 3
+    origin = grid.compute_origin(add=(-2, -2, 0))
+    domain = grid.domain_shape_compute(add=(4, 4, 0))
     grid_args = {
         "cosa_s": grid.cosa_s,
         "cosa_u": grid.cosa_u,
@@ -381,15 +370,30 @@ def compute(
         "vtc": vtc,
     }
 
-    stencil = (
-        _c12_stencil
-        if namelist.npx <= 13 and namelist.layout[0] > 1
-        else _default_stencil
+    ax_offsets = axis_offsets(spec.grid, origin, domain)
+
+    _c12_stencil = gtscript.stencil(
+        definition=_d2a2c_vect,
+        externals={"D2A2C_AVG_OFFSET": -1, **ax_offsets},
+        backend=global_config.get_backend(),
+        rebuild=global_config.get_rebuild(),
     )
+
+    _default_stencil = gtscript.stencil(
+        definition=_d2a2c_vect,
+        externals={"D2A2C_AVG_OFFSET": 3, **ax_offsets},
+        backend=global_config.get_backend(),
+        rebuild=global_config.get_rebuild(),
+    )
+
+    if namelist.npx <= 13 and namelist.layout[0] > 1:
+        stencil = _c12_stencil
+    else:
+        stencil = _default_stencil
 
     stencil(
         **grid_args,
         **state_args,
-        origin=grid.compute_origin(add=(-2, -2, 0)),
-        domain=grid.domain_shape_compute(add=(4, 4, 0)),
+        origin=origin,
+        domain=domain,
     )

@@ -3,6 +3,7 @@ from gt4py.gtscript import (
     __INLINED,
     PARALLEL,
     computation,
+    external_assert,
     horizontal,
     interval,
     region,
@@ -222,12 +223,12 @@ def compute_al(q: FloatField, dxa: FloatFieldIJ):
     """
     from __externals__ import i_end, i_start, iord
 
-    assert __INLINED(iord < 8), "The code in this function requires iord < 8"
+    external_assert(iord < 8)
 
     al = yppm.p1 * (q[-1, 0, 0] + q) + yppm.p2 * (q[-2, 0, 0] + q[1, 0, 0])
 
     if __INLINED(iord < 0):
-        assert __INLINED(False), "Not tested"
+        external_assert(False)
         al = max(al, 0.0)
 
     with horizontal(region[i_start - 1, :], region[i_end, :]):
@@ -252,7 +253,7 @@ def compute_blbr_ord8plus(q: FloatField, dxa: FloatFieldIJ):
     dm = dm_iord8plus(q)
     al = al_iord8plus(q, dm)
 
-    assert __INLINED(iord == 8), "Unimplemented iord"
+    external_assert(iord == 8)
 
     bl, br = blbr_iord8(q, al, dm)
 
@@ -283,7 +284,7 @@ def compute_blbr_ord8plus(q: FloatField, dxa: FloatFieldIJ):
     return bl, br
 
 
-def _compute_flux_stencil(
+def compute_x_flux(
     q: FloatField, courant: FloatField, dxa: FloatFieldIJ, xflux: FloatField
 ):
     from __externals__ import mord
@@ -297,20 +298,23 @@ def _compute_flux_stencil(
             xflux = get_flux_ord8plus(q, courant, bl, br)
 
 
-class XPPM:
+class XPiecewiseParabolic:
+    """
+    Fortran name is xppm
+    """
+
     def __init__(self, namelist, iord):
         grid = spec.grid
         origin = grid.compute_origin()
         domain = grid.domain_shape_compute(add=(1, 1, 1))
         ax_offsets = axis_offsets(spec.grid, origin, domain)
         assert namelist.grid_type < 3
-        self.npz = grid.npz
-        self.is_ = grid.is_
-        self.ie = grid.ie
-        self.nic = grid.nic
-        self.dxa = grid.dxa
-        self.compute_flux_stencil = gtscript.stencil(
-            definition=_compute_flux_stencil,
+        self._npz = grid.npz
+        self._is_ = grid.is_
+        self._nic = grid.nic
+        self._dxa = grid.dxa
+        self._compute_flux_stencil = gtscript.stencil(
+            definition=compute_x_flux,
             externals={
                 "iord": iord,
                 "mord": abs(iord),
@@ -320,6 +324,7 @@ class XPPM:
             backend=global_config.get_backend(),
             rebuild=global_config.get_rebuild(),
         )
+        self.stencil_runtime_args = {"validate_args": global_config.get_validate_args()}
 
     def __call__(
         self, q: FloatField, c: FloatField, xflux: FloatField, jfirst: int, jlast: int
@@ -336,11 +341,12 @@ class XPPM:
         """
 
         nj = jlast - jfirst + 1
-        self.compute_flux_stencil(
+        self._compute_flux_stencil(
             q,
             c,
-            self.dxa,
+            self._dxa,
             xflux,
-            origin=(self.is_, jfirst, 0),
-            domain=(self.nic + 1, nj, self.npz + 1),
+            origin=(self._is_, jfirst, 0),
+            domain=(self._nic + 1, nj, self._npz + 1),
+            **self.stencil_runtime_args,
         )

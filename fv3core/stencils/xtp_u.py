@@ -3,6 +3,7 @@ from gt4py.gtscript import (
     __INLINED,
     PARALLEL,
     computation,
+    external_assert,
     horizontal,
     interval,
     region,
@@ -41,7 +42,7 @@ def _get_flux(
     from __externals__ import iord
 
     b0 = bl + br
-    cfl = courant * rdx[-1, 0] if courant > 0 else courant * rdx[0, 0]
+    cfl = courant * rdx[-1, 0] if courant > 0 else courant * rdx
     fx0 = xppm.fx1_fn(cfl, br, b0, bl)
 
     if __INLINED(iord < 8):
@@ -83,7 +84,7 @@ def _compute_stencil(
             dm = xppm.dm_iord8plus(u)
             al = xppm.al_iord8plus(u, dm)
 
-            assert __INLINED(iord == 8)
+            external_assert(iord == 8)
             # {
             bl, br = xppm.blbr_iord8(u, al, dm)
             # }
@@ -148,6 +149,7 @@ class XTP_U:
             backend=global_config.get_backend(),
             rebuild=global_config.get_rebuild(),
         )
+        self.stencil_runtime_args = {"validate_args": global_config.get_validate_args()}
 
     def __call__(self, c: FloatField, u: FloatField, flux: FloatField):
         """
@@ -167,4 +169,5 @@ class XTP_U:
             self.rdx,
             origin=self.origin,
             domain=self.domain,
+            **self.stencil_runtime_args,
         )
