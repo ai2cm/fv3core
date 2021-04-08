@@ -556,7 +556,7 @@ def device_sync() -> None:
         cp.cuda.Device(0).synchronize()
 
 
-def set_device_sync(stencil_kwargs: Dict[str, Any], flag: bool = False):
+def set_device_sync(stencil_kwargs: Dict[str, Any], flag: bool = False) -> None:
     backend = global_config.get_backend()
     if "cuda" in backend and "device_sync" not in stencil_kwargs:
         stencil_kwargs["device_sync"] = flag

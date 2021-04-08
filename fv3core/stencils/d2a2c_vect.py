@@ -490,7 +490,7 @@ def compute(dord4, uc, vc, u, v, ua, va, utc, vtc):
         origin=(grid.is_ - 1 - id_, grid.js - 1 - id_, 0),
         domain=(grid.nic + pad, grid.njc + pad, grid.npz),
     )
-    utils.device_sync()
+
     # Fix the edges
     # Xdir:
     fill_corners_x(

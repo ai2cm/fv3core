@@ -720,7 +720,6 @@ def compute(
             origin=grid().compute_origin(),
             domain=grid().domain_shape_compute(),
         )
-    utils.device_sync()
 
     # USE_COND
     fvtp2d_dp(

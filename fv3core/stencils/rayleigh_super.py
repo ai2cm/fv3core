@@ -112,6 +112,7 @@ def compute(u, v, w, ua, va, pt, delz, phis, bdt, ptop, pfull, comm):
 
     utils.device_sync()
     comm.halo_update(u2f, n_points=utils.halo)
+    utils.device_sync()
 
     rayleigh_pt_vert(
         pt,

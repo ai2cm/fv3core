@@ -121,8 +121,6 @@ class FiniteVolumeTransport:
         corners.copy_corners_y_stencil(
             q, origin=grid.full_origin(), domain=grid.domain_shape_full(add=(0, 0, 1))
         )
-        utils.device_sync()
-
         self.y_piecewise_parabolic_inner(q, cry, self._tmp_fy2, grid.isd, grid.ied)
         self.stencil_q_i(
             q,
@@ -136,7 +134,6 @@ class FiniteVolumeTransport:
         corners.copy_corners_x_stencil(
             q, origin=grid.full_origin(), domain=grid.domain_shape_full(add=(0, 0, 1))
         )
-        utils.device_sync()
         self.x_piecewise_parabolic_inner(q, crx, self._tmp_fx2, grid.jsd, grid.jed)
         self.stencil_q_j(
             q,
@@ -156,7 +153,6 @@ class FiniteVolumeTransport:
                 mfx,
                 mfy,
             )
-            utils.device_sync()
             if (mass is not None) and (nord is not None) and (damp_c is not None):
                 for kstart, nk in d_sw.k_bounds():
                     delnflux.compute_delnflux_no_sg(
@@ -171,7 +167,6 @@ class FiniteVolumeTransport:
                 xfx,
                 yfx,
             )
-            utils.device_sync()
             if (nord is not None) and (damp_c is not None):
                 for kstart, nk in d_sw.k_bounds():
                     delnflux.compute_delnflux_no_sg(

@@ -54,6 +54,7 @@ def copy_column(a: FloatField):
 # ------------------------------------------------------------------------
 def corner_fill(grid, q):
     r3 = 1.0 / 3.0
+    utils.device_sync()
     if grid.sw_corner:
         q[grid.is_, grid.js, :] = (
             q[grid.is_, grid.js, :]
@@ -117,7 +118,6 @@ def compute(qdel: FloatField, nmax: int, cd: float, km: int):
             corners.copy_corners_x_stencil(
                 qdel, origin=(grid.isd, grid.jsd, 0), domain=(grid.nid, grid.njd, km)
             )
-            utils.device_sync()
 
         nx = grid.njc + 2 * nt + 1  # (grid.ie+nt+1) - (grid.is_-nt) + 1
         ny = grid.njc + 2 * nt  # (grid.je+nt) - (grid.js-nt) + 1
@@ -127,7 +127,7 @@ def compute(qdel: FloatField, nmax: int, cd: float, km: int):
             corners.copy_corners_y_stencil(
                 qdel, origin=(grid.isd, grid.jsd, 0), domain=(grid.nid, grid.njd, km)
             )
-            utils.device_sync()
+
         nx = grid.nic + 2 * nt  # (grid.ie+nt) - (grid.is_-nt) + 1
         ny = grid.njc + 2 * nt + 1  # (grid.je+nt+1) - (grid.js-nt) + 1
         compute_meridional_flux(
@@ -137,4 +137,3 @@ def compute(qdel: FloatField, nmax: int, cd: float, km: int):
         # Update q values
         ny = grid.njc + 2 * nt  # (grid.je+nt) - (grid.js-nt) + 1
         update_q(qdel, grid.rarea, fx, fy, cd, origin=origin, domain=(nx, ny, km))
-        utils.device_sync()
