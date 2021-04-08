@@ -271,7 +271,7 @@ class FV3StencilObject:
                 "build_info": new_build_info,
                 **self.backend_kwargs,
             }
-            gt4py_utils.set_device_sync(stencil_kwargs["backend"], stencil_kwargs)
+            gt4py_utils.set_device_sync(stencil_kwargs)
 
             # gtscript.stencil always returns a new class instance even if it
             # used the cached module.
@@ -325,37 +325,60 @@ class FV3StencilObject:
         )
 
 
-def gtstencil(definition=None, **stencil_kwargs) -> Callable[..., None]:
+def gtstencil(**stencil_kwargs) -> Callable[[Any], FV3StencilObject]:
     _ensure_global_flags_not_specified_in_kwargs(stencil_kwargs)
 
-    def decorator(func) -> FV3StencilObject:
+    def decorator(func):
         return FV3StencilObject(func, **stencil_kwargs)
 
-    if definition is None:
-        return decorator
-    else:
-        return decorator(definition)
+    return decorator
 
 
-def stencil_wrapper(
-    definition: Optional[Callable] = None,
-    backend: Optional[str] = None,
-    *,
-    externals: Optional[Dict[str, Any]] = None,
-    rebuild: Optional[bool] = None,
-    **kwargs,
-) -> Callable[..., None]:
-    if backend is None:
-        backend = global_config.get_backend()
-    if rebuild is None:
-        rebuild = global_config.get_rebuild()
-    if "format_source" not in kwargs:
-        kwargs["format_source"] = global_config.get_format_source()
-    gt4py_utils.set_device_sync(backend, kwargs)
+class StencilWrapper:
+    """Wrapped GT4Py stencil object explicitly generating
+    and using the normalized origins."""
 
-    return gtscript.stencil(
-        backend, definition, externals=externals, rebuild=rebuild, **kwargs
-    )
+    def __init__(self, func: Callable, **kwargs):
+        self.func = func
+
+        if "format_source" not in kwargs:
+            kwargs["format_source"] = global_config.get_format_source()
+        gt4py_utils.set_device_sync(kwargs)
+
+        self.stencil_object = gtscript.stencil(
+            backend=global_config.get_backend(),
+            rebuild=global_config.get_rebuild(),
+            definition=self.func,
+            **kwargs,
+        )
+
+    def __call__(self, *args, **kwargs) -> None:
+        self.stencil_object(
+            *args,
+            **kwargs,
+            validate_args=global_config.get_validate_args(),
+        )
+
+
+class FixedOriginStencil(StencilWrapper):
+    """Wrapped GT4Py stencil object explicitly generating
+    and using the normalized origins."""
+
+    def __init__(self, func: Callable, origin: Index3D, domain: Index3D, **kwargs):
+        super().__init__(func, **kwargs)
+        self.normalized_origin = gtscript.gt_definitions.normalize_origin_mapping(
+            origin
+        )
+        self.domain = domain
+
+    def __call__(self, *args, **kwargs) -> None:
+        self.stencil_object(
+            *args,
+            **kwargs,
+            validate_args=global_config.get_validate_args(),
+            normalized_origin=self.normalized_origin,
+            domain=self.domain,
+        )
 
 
 def _get_case_name(name, times_called):

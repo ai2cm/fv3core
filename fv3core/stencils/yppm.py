@@ -3,14 +3,14 @@ from gt4py.gtscript import (
     __INLINED,
     PARALLEL,
     computation,
+    external_assert,
     horizontal,
     interval,
     region,
 )
 
 import fv3core._config as spec
-import fv3core.utils.global_config as global_config
-from fv3core.decorators import gtstencil, stencil_wrapper
+from fv3core.decorators import StencilWrapper, gtstencil
 from fv3core.stencils.basic_operations import sign
 from fv3core.utils.grid import axis_offsets
 from fv3core.utils.typing import FloatField, FloatFieldIJ
@@ -276,12 +276,12 @@ def compute_al(q: FloatField, dya: FloatFieldIJ):
     """
     from __externals__ import j_end, j_start, jord
 
-    assert __INLINED(jord < 8), "Not implemented"
+    external_assert(jord < 8)
 
     al = p1 * (q[0, -1, 0] + q) + p2 * (q[0, -2, 0] + q[0, 1, 0])
 
     if __INLINED(jord < 0):
-        assert __INLINED(False), "Not tested"
+        external_assert(False)
         al = max(al, 0.0)
 
     with horizontal(region[:, j_start - 1], region[:, j_end]):
@@ -311,7 +311,7 @@ def compute_blbr_ord8plus(q: FloatField, dya: FloatFieldIJ):
     dm = dm_jord8plus(q)
     al = al_jord8plus(q, dm)
 
-    assert __INLINED(jord == 8)
+    external_assert(jord == 8)
 
     bl, br = blbr_jord8(q, al, dm)
 
@@ -395,8 +395,8 @@ class YPiecewiseParabolic:
         self._js = grid.js
         self._njc = grid.njc
         self._dya = grid.dya
-        self._compute_flux_stencil = stencil_wrapper(
-            definition=compute_y_flux,
+        self._compute_flux_stencil = StencilWrapper(
+            func=compute_y_flux,
             externals={
                 "jord": jord,
                 "mord": abs(jord),
@@ -404,9 +404,6 @@ class YPiecewiseParabolic:
                 **ax_offsets,
             },
         )
-        self.stencil_runtime_args = {
-            "validate_args": global_config.get_validate_args(),
-        }
 
     def __call__(
         self, q: FloatField, c: FloatField, flux: FloatField, ifirst: int, ilast: int
@@ -430,5 +427,4 @@ class YPiecewiseParabolic:
             flux,
             origin=(ifirst, self._js, 0),
             domain=(ni, self._njc + 1, self._npz + 1),
-            **self.stencil_runtime_args,
         )

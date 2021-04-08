@@ -8,7 +8,7 @@ import fv3core.utils
 import fv3core.utils.global_config as global_config
 import fv3core.utils.gt4py_utils as utils
 import fv3gfs.util
-from fv3core.decorators import stencil_wrapper
+from fv3core.decorators import FixedOriginStencil, StencilWrapper
 from fv3core.stencils.basic_operations import copy_stencil
 from fv3core.stencils.fvtp2d import FiniteVolumeTransport
 from fv3core.stencils.updatedzd import ra_stencil_update
@@ -171,22 +171,46 @@ class Tracer2D1L:
         for axis_offset_name, axis_offset_value in ax_offsets.items():
             if "local" in axis_offset_name:
                 local_axis_offsets[axis_offset_name] = axis_offset_value
-        self.stencil_runtime_args = {"validate_args": global_config.get_validate_args()}
-        wrapper_func = stencil_wrapper(externals=local_axis_offsets)
 
-        self._flux_compute = wrapper_func(flux_compute)
-        self._ra_update = wrapper_func(ra_stencil_update.func)
-        self._cmax_multiply_by_frac = wrapper_func(cmax_multiply_by_frac)
-        self._copy_field = wrapper_func(copy_stencil.func)
-        self._loop_temporaries_copy = wrapper_func(loop_temporaries_copy)
-        self._dp_fluxadjustment = wrapper_func(dp_fluxadjustment)
-        self._q_adjustments = wrapper_func(q_adjustments)
-        self._q_adjust = wrapper_func(q_adjust)
+        self._flux_compute = FixedOriginStencil(
+            flux_compute,
+            self.grid.full_origin(),
+            self.grid.domain_shape_full(add=(1, 1, 0)),
+            externals=local_axis_offsets,
+        )
+        self._ra_update = FixedOriginStencil(
+            ra_stencil_update.func,
+            self.grid.full_origin(),
+            self.grid.domain_shape_full(),
+            externals=local_axis_offsets,
+        )
+        self._cmax_multiply_by_frac = FixedOriginStencil(
+            cmax_multiply_by_frac,
+            self.grid.full_origin(),
+            self.grid.domain_shape_full(add=(1, 1, 0)),
+        )
+        self._copy_field = StencilWrapper(copy_stencil.func)
+        self._loop_temporaries_copy = FixedOriginStencil(
+            loop_temporaries_copy,
+            self.grid.full_origin(),
+            self.grid.domain_shape_full(),
+        )
+        self._dp_fluxadjustment = FixedOriginStencil(
+            dp_fluxadjustment,
+            self.grid.compute_origin(),
+            self.grid.domain_shape_compute(),
+        )
+        self._q_adjustments = FixedOriginStencil(
+            q_adjustments, self.grid.compute_origin(), self.grid.domain_shape_compute()
+        )
+        self._q_adjust = FixedOriginStencil(
+            q_adjust, self.grid.compute_origin(), self.grid.domain_shape_compute()
+        )
         self.fvtp2d = FiniteVolumeTransport(namelist, namelist.hord_tr)
         # If use AllReduce, will need something like this:
         # self._tmp_cmax = utils.make_storage_from_shape(shape, origin)
-        # self._cmax_1 = stencil_wrapper(cmax_stencil1)
-        # self._cmax_2 = stencil_wrapper(cmax_stencil2)
+        # self._cmax_1 = StencilWrapper(cmax_stencil1)
+        # self._cmax_2 = StencilWrapper(cmax_stencil2)
 
     def __call__(self, tracers, dp1, mfxd, mfyd, cxd, cyd, mdt, nq):
         # start HALO update on q (in dyn_core in fortran -- just has started when
@@ -204,9 +228,6 @@ class Tracer2D1L:
             self.grid.sin_sg4,
             self._tmp_xfx,
             self._tmp_yfx,
-            origin=self.grid.full_origin(),
-            domain=self.grid.domain_shape_full(add=(1, 1, 0)),
-            **self.stencil_runtime_args,
         )
 
         # # TODO for if we end up using the Allreduce and compute cmax globally
@@ -245,9 +266,6 @@ class Tracer2D1L:
                 self._tmp_yfx,
                 mfyd,
                 nsplt,
-                origin=self.grid.full_origin(),
-                domain=self.grid.domain_shape_full(add=(1, 1, 0)),
-                **self.stencil_runtime_args,
             )
 
         if self.do_halo_exchange:
@@ -262,9 +280,6 @@ class Tracer2D1L:
             self._tmp_ra_x,
             self._tmp_yfx,
             self._tmp_ra_y,
-            origin=self.grid.full_origin(),
-            domain=self.grid.domain_shape_full(),
-            **self.stencil_runtime_args,
         )
         # TODO: Revisit: the loops over q and nsplt have two inefficient options
         # duplicating storages/stencil calls, return to this, maybe you have more
@@ -275,7 +290,6 @@ class Tracer2D1L:
             self._tmp_dp1_orig,
             origin=self.grid.full_origin(),
             domain=self.grid.domain_shape_full(),
-            **self.stencil_runtime_args,
         )
         for qname in utils.tracer_variables[0:nq]:
             q = tracers[qname + "_quantity"]
@@ -284,9 +298,6 @@ class Tracer2D1L:
                 q.storage,
                 dp1,
                 self._tmp_qn2.storage,
-                origin=self.grid.full_origin(),
-                domain=self.grid.domain_shape_full(),
-                **self.stencil_runtime_args,
             )
             utils.device_sync()
             for it in range(int(nsplt)):
@@ -296,9 +307,6 @@ class Tracer2D1L:
                     mfyd,
                     self.grid.rarea,
                     self._tmp_dp2,
-                    origin=self.grid.compute_origin(),
-                    domain=self.grid.domain_shape_compute(),
-                    **self.stencil_runtime_args,
                 )
                 if nsplt != 1:
                     self.fvtp2d(
@@ -324,9 +332,6 @@ class Tracer2D1L:
                         self._tmp_dp2,
                         it,
                         nsplt,
-                        origin=self.grid.compute_origin(),
-                        domain=self.grid.domain_shape_compute(),
-                        **self.stencil_runtime_args,
                     )
                     utils.device_sync()
                 else:
@@ -350,9 +355,6 @@ class Tracer2D1L:
                         self._tmp_fy,
                         self.grid.rarea,
                         self._tmp_dp2,
-                        origin=self.grid.compute_origin(),
-                        domain=self.grid.domain_shape_compute(),
-                        **self.stencil_runtime_args,
                     )
                     utils.device_sync()
 
@@ -362,7 +364,6 @@ class Tracer2D1L:
                         dp1,
                         origin=self.grid.compute_origin(),
                         domain=self.grid.domain_shape_compute(),
-                        **self.stencil_runtime_args,
                     )
                     if self.do_halo_exchange:
                         utils.device_sync()

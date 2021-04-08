@@ -74,7 +74,7 @@ def mark_untested(msg="This is not tested"):
 
 def make_storage_data(
     data: Field,
-    shape: Optional[Tuple[int, int, int]] = None,
+    shape: Optional[Tuple[int, ...]] = None,
     origin: Tuple[int, int, int] = origin,
     *,
     dtype: DTypes = np.float64,
@@ -89,10 +89,12 @@ def make_storage_data(
 
     Args:
         data: Data array for new storage
-        shape: Shape of the new storage
+        shape: Shape of the new storage. Number of indices should be equal
+            to number of unmasked axes
         origin: Default origin for gt4py stencil calls
         dtype: Data type
-        mask: Tuple indicating the axes used when initializing the storage
+        mask: Tuple indicating the axes used when initializing the storage.
+            True indicates a masked axis, False is a used axis.
         start: Starting points for slices in data copies
         dummy: Dummy axes
         axis: Axis for 2D to 3D arrays
@@ -287,8 +289,8 @@ storage_shape_outputs = {}
 
 
 def make_storage_from_shape(
-    shape: Tuple[int, int, int],
-    origin: Tuple[int, int, int] = origin,
+    shape: Tuple[int, ...],
+    origin: Tuple[int, ...] = origin,
     *,
     dtype: DTypes = np.float64,
     init: bool = False,
@@ -550,11 +552,11 @@ def stack(tup, axis: int = 0, out=None):
 
 
 def device_sync() -> None:
-    # if cp and "cuda" in global_config.get_backend():
-    #     cp.cuda.Device(0).synchronize()
-    return
+    if cp and "cuda" in global_config.get_backend():
+        cp.cuda.Device(0).synchronize()
 
 
-def set_device_sync(backend: str, stencil_kwargs: Dict[str, Any], flag: bool = False):
+def set_device_sync(stencil_kwargs: Dict[str, Any], flag: bool = False):
+    backend = global_config.get_backend()
     if "cuda" in backend and "device_sync" not in stencil_kwargs:
         stencil_kwargs["device_sync"] = flag
