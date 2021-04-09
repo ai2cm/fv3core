@@ -126,7 +126,7 @@ class NonHydrostaticPressureGradient:
         )
 
         self._calc_v_stencil = FixedOriginStencil(
-            definition=calc_v,
+            calc_v,
             origin=self.orig,
             domain=self.v_domain,
         )
