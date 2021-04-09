@@ -36,7 +36,19 @@ from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
 
 HUGE_R = 1.0e40
 
-
+def initialize_data(mfxd: FloatField, mfyd: FloatField, cxd: FloatField, cyd: FloatField, gz: FloatField, pk3: FloatField,diss_estd: FloatField,  init_step: bool):
+    with computation(PARALLEL), interval(...):
+        from __externals__ import hydrostatic
+        mfxd = 0.0
+        mfyd = 0.0
+        cxd = 0.0
+        cyd = 0.0
+        if init_step:
+            gz = HUGE_R
+            with horizontal(region[3: -3, 3:-3]):
+                diss_estd = 0.0
+            if __INLINED(not hydrostatic):
+                pk3 = HUGE_R
 # NOTE in Fortran these are columns
 def dp_ref_compute(
     ak: FloatFieldK,
@@ -207,6 +219,7 @@ class AcousticDynamics:
             origin=self.grid.compute_origin(add=(-1, -1, 0)),
             domain=self.grid.domain_shape_compute(add=(2, 2, 0)),
         )
+
         pgradc_origin = self.grid.compute_origin()
         pgradc_domain = self.grid.domain_shape_compute(add=(1, 1, 0))
         ax_offsets = axis_offsets(self.grid, pgradc_origin, pgradc_domain)
@@ -216,7 +229,7 @@ class AcousticDynamics:
             "externals": {"hydrostatic": self.namelist.hydrostatic, **ax_offsets},
         }
         self._p_grad_c = FixedOriginStencil(p_grad_c_stencil, **pgradc_kwargs)
-
+        self._initialize_data = FixedOriginStencil(initialize_data, origin=self.grid.full_origin(), domain=self.grid.domain_shape_full(), externals={"hydrostatic":self.namelist.hydrostatic})
     def __call__(self, state):
         # u, v, w, delz, delp, pt, pe, pk, phis, wsd, omga, ua, va, uc, vc, mfxd,
         # mfyd, cxd, cyd, pkz, peln, q_con, ak, bk, diss_estd, cappa, mdt, n_split,
@@ -254,16 +267,8 @@ class AcousticDynamics:
             reqs["cappa_quantity"].wait()
 
         state.__dict__.update(self._temporaries)
-        if init_step:
-            state.gz[:-1, :-1, :] = HUGE_R
-            state.diss_estd[grid.slice_dict(grid.compute_dict())] = 0.0
-            if not hydrostatic:
-                state.pk3[:-1, :-1, :] = HUGE_R
-        state.mfxd[grid.slice_dict(grid.x3d_compute_dict())] = 0.0
-        state.mfyd[grid.slice_dict(grid.y3d_compute_dict())] = 0.0
-        state.cxd[grid.slice_dict(grid.x3d_compute_domain_y_dict())] = 0.0
-        state.cyd[grid.slice_dict(grid.y3d_compute_domain_x_dict())] = 0.0
 
+        self._initialize_data(state.mfxd, state.mfyd, state.cxd, state.cyd, state.gz, state.pk3, state.diss_estd, init_step)
         if not hydrostatic:
             # k1k = akap / (1.0 - akap)
             self._dp_ref_compute(
