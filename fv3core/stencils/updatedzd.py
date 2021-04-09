@@ -12,9 +12,10 @@ from gt4py.gtscript import (
 import fv3core._config as spec
 import fv3core.stencils.d_sw as d_sw
 import fv3core.stencils.delnflux as delnflux
+import fv3core.utils
 import fv3core.utils.global_constants as constants
 import fv3core.utils.gt4py_utils as utils
-from fv3core.decorators import gtstencil
+from fv3core.decorators import FixedOriginStencil
 from fv3core.stencils import basic_operations
 from fv3core.stencils.fvtp2d import FiniteVolumeTransport
 from fv3core.stencils.fxadv import ra_x_func, ra_y_func
@@ -41,8 +42,7 @@ def ra_func(
     return ra_x, ra_y
 
 
-@gtstencil()
-def ra_stencil_update(
+def ra_update(
     area: FloatFieldIJ,
     xfx_adv: FloatField,
     ra_x: FloatField,
@@ -56,7 +56,7 @@ def ra_stencil_update(
        ra_x: Area increased in the x direction due to flux divergence (inout)
        ra_y: Area increased in the y direction due to flux divergence (inout)
     Grid input vars:
-      area
+       area
     """
     with computation(PARALLEL), interval(...):
         ra_x, ra_y = ra_func(area, xfx_adv, yfx_adv, ra_x, ra_y)
@@ -74,7 +74,6 @@ def zh_base(
     return (z2 * area + fx - fx[1, 0, 0] + fy - fy[0, 1, 0]) / (ra_x + ra_y - area)
 
 
-@gtstencil()
 def zh_damp(
     area: FloatFieldIJ,
     z2: FloatField,
@@ -116,19 +115,6 @@ def zh_damp(
         with interval(0, -1):
             other = zh[0, 0, 1] + DZ_MIN
             zh = zh if zh > other else other
-
-
-@gtstencil()
-def zh_stencil(
-    area: FloatFieldIJ,
-    zh: FloatField,
-    fx: FloatField,
-    fy: FloatField,
-    ra_x: FloatField,
-    ra_y: FloatField,
-):
-    with computation(PARALLEL), interval(...):
-        zh = zh_base(zh, area, fx, fy, ra_x, ra_y)
 
 
 @gtscript.function
@@ -182,8 +168,7 @@ def edge_profile_reverse(
 
 # NOTE: We have not ported the uniform_grid True option as it is never called
 # that way in this model. We have also ignored limite != 0 for the same reason.
-@gtstencil()
-def edge_profile_stencil(
+def edge_profile(
     q1x: FloatField,
     q2x: FloatField,
     qe1x: FloatField,
@@ -291,6 +276,26 @@ class UpdateDeltaZOnDGrid:
         self.finite_volume_transport = FiniteVolumeTransport(
             spec.namelist, spec.namelist.hord_tm
         )
+        ax_offsets = fv3core.utils.axis_offsets(
+            self.grid, self.grid.full_origin(), self.grid.domain_shape_full()
+        )
+        self._ra_update = FixedOriginStencil(
+            ra_update,
+            origin=self.grid.full_origin(),
+            domain=self.grid.domain_shape_full(add=(0, 0, 1)),
+            externals=ax_offsets,
+        )
+        self._edge_profile = FixedOriginStencil(
+            edge_profile,
+            origin=self.grid.full_origin(),
+            domain=self.grid.domain_shape_full(add=(0, 0, 1)),
+            externals=ax_offsets,
+        )
+        self._zh_damp = FixedOriginStencil(
+            zh_damp,
+            origin=self.grid.compute_origin(),
+            domain=self.grid.domain_shape_compute(add=(0, 0, 1)),
+        )
 
     def __call__(
         self,
@@ -316,7 +321,7 @@ class UpdateDeltaZOnDGrid:
             wsd: ???
             dt: ???
         """
-        edge_profile_stencil(
+        self._edge_profile(
             crx,
             xfx,
             self._crx_adv,
@@ -326,17 +331,13 @@ class UpdateDeltaZOnDGrid:
             self._cry_adv,
             self._yfx_adv,
             dp0,
-            origin=self.grid.full_origin(),
-            domain=self.grid.domain_shape_full(add=(0, 0, 1)),
         )
-        ra_stencil_update(
+        self._ra_update(
             self.grid.area,
             self._xfx_adv,
             self._ra_x,
             self._yfx_adv,
             self._ra_y,
-            origin=self.grid.full_origin(),
-            domain=self.grid.domain_shape_full(add=(0, 0, 1)),
         )
         basic_operations.copy_stencil(
             zh,
@@ -366,7 +367,7 @@ class UpdateDeltaZOnDGrid:
                 kstart=kstart,
                 nk=nk,
             )
-        zh_damp(
+        self._zh_damp(
             self.grid.area,
             self._z2,
             self._fx,
