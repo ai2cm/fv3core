@@ -648,10 +648,10 @@ def compute(
         shape, grid().compute_origin(), cache_key="d_sw_gy"
     )
 
-    ra_x = utils.make_storage_from_shape(
+    area_with_x_flux = utils.make_storage_from_shape(
         shape, grid().compute_origin(), cache_key="d_sw_ra_x"
     )
-    ra_y = utils.make_storage_from_shape(
+    area_with_y_flux = utils.make_storage_from_shape(
         shape, grid().compute_origin(), cache_key="d_sw_ra_y"
     )
     fvtp2d_dp = utils.cached_stencil_class(FiniteVolumeTransport)(
@@ -664,7 +664,9 @@ def compute(
         spec.namelist, spec.namelist.hord_tm, cache_key="d_sw-tm"
     )
 
-    fxadv.compute(uc, vc, crx, cry, xfx, yfx, ut, vt, ra_x, ra_y, dt)
+    fxadv.compute(
+        uc, vc, crx, cry, xfx, yfx, ut, vt, area_with_x_flux, area_with_y_flux, dt
+    )
 
     fvtp2d_dp(
         delp,
@@ -672,8 +674,8 @@ def compute(
         cry,
         xfx,
         yfx,
-        ra_x,
-        ra_y,
+        area_with_x_flux,
+        area_with_y_flux,
         fx,
         fy,
         nord=column_namelist["nord_v"],
@@ -701,8 +703,8 @@ def compute(
             cry,
             xfx,
             yfx,
-            ra_x,
-            ra_y,
+            area_with_x_flux,
+            area_with_y_flux,
             gx,
             gy,
             nord=column_namelist["nord_v"],
@@ -727,8 +729,8 @@ def compute(
         cry,
         xfx,
         yfx,
-        ra_x,
-        ra_y,
+        area_with_x_flux,
+        area_with_y_flux,
         gx,
         gy,
         nord=column_namelist["nord_t"],
@@ -756,8 +758,8 @@ def compute(
         cry,
         xfx,
         yfx,
-        ra_x,
-        ra_y,
+        area_with_x_flux,
+        area_with_y_flux,
         gx,
         gy,
         nord=column_namelist["nord_v"],
@@ -879,7 +881,7 @@ def compute(
         domain=grid().domain_shape_full(),
     )
 
-    fvtp2d_vt(vort, crx, cry, xfx, yfx, ra_x, ra_y, fx, fy)
+    fvtp2d_vt(vort, crx, cry, xfx, yfx, area_with_x_flux, area_with_y_flux, fx, fy)
 
     u_and_v_from_ke(
         ke,

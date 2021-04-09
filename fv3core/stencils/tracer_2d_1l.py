@@ -4,12 +4,12 @@ import gt4py.gtscript as gtscript
 from gt4py.gtscript import PARALLEL, computation, horizontal, interval, region
 
 import fv3core._config as spec
+import fv3core.stencils.fxadv
 import fv3core.utils
 import fv3core.utils.global_config as global_config
 import fv3core.utils.gt4py_utils as utils
 import fv3gfs.util
 from fv3core.decorators import FixedOriginStencil
-from fv3core.stencils import updatedzd
 from fv3core.stencils.basic_operations import copy_stencil
 from fv3core.stencils.fvtp2d import FiniteVolumeTransport
 from fv3core.utils.typing import FloatField, FloatFieldIJ
@@ -154,8 +154,8 @@ class Tracer2D1L:
         origin = self.grid.compute_origin()
         self._tmp_xfx = utils.make_storage_from_shape(shape, origin)
         self._tmp_yfx = utils.make_storage_from_shape(shape, origin)
-        self._tmp_ra_x = utils.make_storage_from_shape(shape, origin)
-        self._tmp_ra_y = utils.make_storage_from_shape(shape, origin)
+        self._tmp_area_with_x_flux = utils.make_storage_from_shape(shape, origin)
+        self._tmp_area_with_y_flux = utils.make_storage_from_shape(shape, origin)
         self._tmp_fx = utils.make_storage_from_shape(shape, origin)
         self._tmp_fy = utils.make_storage_from_shape(shape, origin)
         self._tmp_dp2 = utils.make_storage_from_shape(shape, origin)
@@ -186,7 +186,7 @@ class Tracer2D1L:
             externals=local_axis_offsets,
         )
         self._ra_update = FixedOriginStencil(
-            updatedzd.ra_update,
+            fv3core.stencils.fxadv.area_flux_update,
             origin=self.grid.full_origin(),
             domain=self.grid.domain_shape_full(),
             externals=local_axis_offsets,
@@ -292,9 +292,9 @@ class Tracer2D1L:
         self._ra_update(
             self.grid.area,
             self._tmp_xfx,
-            self._tmp_ra_x,
+            self._tmp_area_with_x_flux,
             self._tmp_yfx,
-            self._tmp_ra_y,
+            self._tmp_area_with_y_flux,
         )
         # TODO: Revisit: the loops over q and nsplt have two inefficient options
         # duplicating storages/stencil calls, return to this, maybe you have more
@@ -330,8 +330,8 @@ class Tracer2D1L:
                         cyd,
                         self._tmp_xfx,
                         self._tmp_yfx,
-                        self._tmp_ra_x,
-                        self._tmp_ra_y,
+                        self._tmp_area_with_x_flux,
+                        self._tmp_area_with_y_flux,
                         self._tmp_fx,
                         self._tmp_fy,
                         mfx=mfxd,
@@ -356,8 +356,8 @@ class Tracer2D1L:
                         cyd,
                         self._tmp_xfx,
                         self._tmp_yfx,
-                        self._tmp_ra_x,
-                        self._tmp_ra_y,
+                        self._tmp_area_with_x_flux,
+                        self._tmp_area_with_y_flux,
                         self._tmp_fx,
                         self._tmp_fy,
                         mfx=mfxd,

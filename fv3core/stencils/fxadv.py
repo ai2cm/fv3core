@@ -297,16 +297,6 @@ def vt_corners(
             ) * damp
 
 
-@gtscript.function
-def ra_x_func(area, xfx_adv):
-    return area + xfx_adv - xfx_adv[1, 0, 0]
-
-
-@gtscript.function
-def ra_y_func(area, yfx_adv):
-    return area + yfx_adv - yfx_adv[0, 1, 0]
-
-
 """
 @gtstencil()
 def fxadv_stencil(
@@ -387,33 +377,62 @@ def fxadv_fluxes_stencil(
             yfx_adv = dx * prod * sin_sg4[0, -1] if prod > 0 else dx * prod * sin_sg2
 
 
-@gtstencil()
-def flux_divergence_area(
-    area: FloatFieldIJ,
-    xfx_adv: FloatField,
-    yfx_adv: FloatField,
-    ra_x: FloatField,
-    ra_y: FloatField,
-):
-    """Compute the area with flux divergence applied
-     Args:
-       xfx_adv: Finite volume flux form operator in x direction (in)
-       yfx_adv: Finite volume flux form operator in y direction (in)
-       ra_x: Area increased in the x direction due to flux divergence (inout)
-       ra_y: Area increased in the y direction due to flux divergence (inout)
-    Grid variable inputs:
-       area
+@gtscript.function
+def apply_x_flux_divergence(q: FloatField, q_x_flux: FloatField) -> FloatField:
     """
-    from __externals__ import local_ie, local_is, local_je, local_js
+    Update a scalar q according to its flux in the x direction.
+    """
+    return q + q_x_flux - q_x_flux[1, 0, 0]
 
+
+@gtscript.function
+def apply_y_flux_divergence(q: FloatField, q_y_flux: FloatField) -> FloatField:
+    """
+    Update a scalar q according to its flux in the x direction.
+    """
+    return q + q_y_flux - q_y_flux[0, 1, 0]
+
+
+def area_flux_update(
+    area: FloatFieldIJ,
+    xfx_interface: FloatField,
+    area_with_x_flux: FloatField,
+    yfx_interface: FloatField,
+    area_with_y_flux: FloatField,
+):
+    """
+    Compute area with x and y-direction fluxes applied.
+
+    Args:
+        area: Gridcell area
+        xfx_interface: Area fluxed in x-direction in one timestep, defined on vertical
+            interfaces (in)
+        area_with_x_flux: Area updated with x-direction flux divergence (inout)
+        yfx_interface: Area fluxed in y-direction in one timestep, defined on vertical
+            interfaces (in)
+        area_with_y_flux: Area updated with y-direction flux divergence (inout)
+    """
     with computation(PARALLEL), interval(...):
-        with horizontal(region[local_is : local_ie + 2, :]):
-            ra_x = ra_x_func(area, xfx_adv)
-        with horizontal(region[:, local_js : local_je + 2]):
-            ra_y = ra_y_func(area, yfx_adv)
+        area_with_x_flux = apply_x_flux_divergence(area, xfx_interface)
+        area_with_y_flux = apply_y_flux_divergence(area, yfx_interface)
 
 
-def compute(uc, vc, crx_adv, cry_adv, xfx_adv, yfx_adv, ut, vt, ra_x, ra_y, dt):
+flux_divergence_area = gtstencil()(area_flux_update)
+
+
+def compute(
+    uc,
+    vc,
+    crx_adv,
+    cry_adv,
+    xfx_adv,
+    yfx_adv,
+    ut,
+    vt,
+    area_with_x_flux,
+    area_with_y_flux,
+    dt,
+):
     grid = spec.grid
     main_ut(
         uc,
@@ -509,9 +528,9 @@ def compute(uc, vc, crx_adv, cry_adv, xfx_adv, yfx_adv, ut, vt, ra_x, ra_y, dt):
     flux_divergence_area(
         grid.area,
         xfx_adv,
+        area_with_x_flux,
         yfx_adv,
-        ra_x,
-        ra_y,
+        area_with_y_flux,
         origin=grid.full_origin(),
         domain=grid.domain_shape_full(),
     )

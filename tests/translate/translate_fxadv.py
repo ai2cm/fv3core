@@ -30,11 +30,13 @@ class TranslateFxAdv(TranslateFortranData2Py):
 
     def compute_from_storage(self, inputs):
         grid = self.grid
-        inputs["ra_x"] = utils.make_storage_from_shape(
+        inputs["area_with_x_flux"] = utils.make_storage_from_shape(
             inputs["uc"].shape, grid.compute_origin()
         )
-        inputs["ra_y"] = utils.make_storage_from_shape(
+        inputs["area_with_y_flux"] = utils.make_storage_from_shape(
             inputs["vc"].shape, grid.compute_origin()
         )
         fxadv.compute(**inputs)
+        inputs["ra_x"] = inputs.pop("area_with_x_flux")
+        inputs["ra_y"] = inputs.pop("area_with_y_flux")
         return inputs

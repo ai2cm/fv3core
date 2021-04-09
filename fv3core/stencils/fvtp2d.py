@@ -18,12 +18,12 @@ def q_i_stencil(
     area: FloatFieldIJ,
     yfx: FloatField,
     fy2: FloatField,
-    ra_y: FloatField,
+    area_with_y_flux: FloatField,
     q_i: FloatField,
 ):
     with computation(PARALLEL), interval(...):
         fyy = yfx * fy2
-        q_i = (q * area + fyy - fyy[0, 1, 0]) / ra_y
+        q_i = (q * area + fyy - fyy[0, 1, 0]) / area_with_y_flux
 
 
 def q_j_stencil(
@@ -31,12 +31,13 @@ def q_j_stencil(
     area: FloatFieldIJ,
     xfx: FloatField,
     fx2: FloatField,
-    ra_x: FloatField,
+    area_with_x_flux: FloatField,
     q_j: FloatField,
 ):
     with computation(PARALLEL), interval(...):
         fx1 = xfx * fx2
-        q_j = (q * area + fx1 - fx1[1, 0, 0]) / ra_x
+        # area_with_x_flux = fxadv.apply_x_flux_divergence(area, xfx)
+        q_j = (q * area + fx1 - fx1[1, 0, 0]) / area_with_x_flux
 
 
 @gtscript.function
@@ -107,8 +108,8 @@ class FiniteVolumeTransport:
         cry,
         xfx,
         yfx,
-        ra_x,
-        ra_y,
+        area_with_x_flux,
+        area_with_y_flux,
         fx,
         fy,
         nord=None,
@@ -128,7 +129,7 @@ class FiniteVolumeTransport:
             grid.area,
             yfx,
             self._tmp_fy2,
-            ra_y,
+            area_with_y_flux,
             self._tmp_q_i,
         )
         self.x_piecewise_parabolic_outer(self._tmp_q_i, crx, fx, grid.js, grid.je)
@@ -141,7 +142,7 @@ class FiniteVolumeTransport:
             grid.area,
             xfx,
             self._tmp_fx2,
-            ra_x,
+            area_with_x_flux,
             self._tmp_q_j,
         )
         self.y_piecewise_parabolic_outer(self._tmp_q_j, cry, fy, grid.is_, grid.ie)
