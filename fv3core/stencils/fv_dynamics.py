@@ -4,7 +4,6 @@ from gt4py.gtscript import PARALLEL, computation, interval, log
 
 import fv3core._config as spec
 import fv3core.stencils.del2cubed as del2cubed
-from fv3core.stencils.dyn_core import AcousticDynamics
 import fv3core.stencils.moist_cv as moist_cv
 import fv3core.stencils.neg_adj3 as neg_adj3
 import fv3core.stencils.rayleigh_super as rayleigh_super
@@ -16,6 +15,7 @@ import fv3gfs.util
 from fv3core.decorators import ArgSpec, get_namespace, gtstencil
 from fv3core.stencils import c2l_ord
 from fv3core.stencils.basic_operations import copy_stencil
+from fv3core.stencils.dyn_core import AcousticDynamics
 from fv3core.stencils.tracer_2d_1l import Tracer2D1L
 from fv3core.utils.typing import FloatField, FloatFieldK
 
