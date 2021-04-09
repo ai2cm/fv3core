@@ -176,13 +176,13 @@ class ParallelTranslate2Py(ParallelTranslate):
 
 
 class ParallelTranslate2PyState(ParallelTranslate2Py):
-    def compute_parallel(self, inputs, communicator):
+    def compute_parallel(self, inputs):
         self._base.make_storage_data_input_vars(inputs)
         for name, properties in self.inputs.items():
             self.grid.quantity_dict_update(
                 inputs, name, dims=properties["dims"], units=properties["units"]
             )
         statevars = SimpleNamespace(**inputs)
-        state = {"state": statevars, "comm": communicator}
+        state = {"state": statevars}
         self._base.compute_func(**state)
         return self._base.slice_output(vars(state["state"]))
