@@ -1,7 +1,11 @@
+from gt4py import gtscript
+
 import fv3core._config as spec
 import fv3core.stencils.dyn_core as dyn_core
+import fv3core.utils.global_config as global_config
 import fv3gfs.util as fv3util
 from fv3core.testing import ParallelTranslate2PyState, TranslateFortranData2Py
+from fv3core.utils.grid import axis_offsets
 
 
 class TranslateDynCore(ParallelTranslate2PyState):
@@ -132,11 +136,22 @@ class TranslatePGradC(TranslateFortranData2Py):
         self.out_vars = {"uc": grid.x3d_domain_dict(), "vc": grid.y3d_domain_dict()}
 
     def compute_from_storage(self, inputs):
-        dyn_core.p_grad_c_stencil(
+        origin = self.grid.compute_origin()
+        domain = self.grid.domain_shape_compute(add=(1, 1, 0))
+        ax_offsets = axis_offsets(self.grid, origin, domain)
+        pgradc = gtscript.stencil(
+            externals={
+                "hydrostatic": spec.namelist.hydrostatic,
+                **ax_offsets,
+            },
+            backend=global_config.get_backend(),
+            rebuild=global_config.get_rebuild(),
+        )(dyn_core.p_grad_c_stencil)
+        pgradc(
             rdxc=self.grid.rdxc,
             rdyc=self.grid.rdyc,
             **inputs,
-            origin=self.grid.compute_origin(),
-            domain=self.grid.domain_shape_compute(add=(1, 1, 0)),
+            origin=origin,
+            domain=domain,
         )
         return inputs
