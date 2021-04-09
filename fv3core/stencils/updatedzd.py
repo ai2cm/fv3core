@@ -179,6 +179,20 @@ def edge_profile(
     qe2y: FloatField,
     dp0: FloatFieldK,
 ):
+    """
+    Args:
+        q1x: ???
+        q2x: ???
+        qe1x: ???
+        qe2x: ???
+        q1y: ???
+        q2y: ???
+        qe1y: ???
+        qe2y: ???
+        dp0 (in): Reference pressure for layer interfaces, assuming a globally uniform
+            reference surface pressure. Used as an approximation of pressure,
+            for efficiency.
+    """
     from __externals__ import local_ie, local_is, local_je, local_js
 
     with computation(FORWARD):
@@ -381,8 +395,6 @@ class UpdateDeltaZOnDGrid:
             zs,
             wsd,
             dt,
-            origin=self.grid.compute_origin(),
-            domain=self.grid.domain_shape_compute(add=(0, 0, 1)),
         )
 
 
