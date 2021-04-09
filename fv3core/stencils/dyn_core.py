@@ -26,12 +26,14 @@ import fv3core.stencils.updatedzd as updatedzd
 import fv3core.utils.global_config as global_config
 import fv3core.utils.global_constants as constants
 import fv3core.utils.gt4py_utils as utils
-import fv3gfs.util as fv3util
-from fv3core.stencils.basic_operations import copy_stencil
-from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
-from fv3core.decorators import FixedOriginStencil
 import fv3gfs.util
+import fv3gfs.util as fv3util
+from fv3core.decorators import FixedOriginStencil
+from fv3core.stencils.basic_operations import copy_stencil
 from fv3core.utils.grid import axis_offsets
+from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
+
+
 HUGE_R = 1.0e40
 
 
@@ -95,7 +97,7 @@ def p_grad_c_stencil(
     Grid variable inputs:
         rdxc, rdyc
     """
-    from __externals__ import local_ie, local_is, local_je, local_js, hydrostatic
+    from __externals__ import hydrostatic, local_ie, local_is, local_je, local_js
 
     with computation(PARALLEL), interval(...):
         if __INLINED(hydrostatic):
@@ -139,7 +141,7 @@ def dyncore_temporaries(shape, namelist, grid):
         grid.full_origin(),
     )
     if not namelist.hydrostatic:
-        # To write in parallel region, these need to be 3D first 
+        # To write in parallel region, these need to be 3D first
         utils.storage_dict(
             tmps,
             ["dp_ref", "zs"],
@@ -173,11 +175,13 @@ def dyncore_temporaries(shape, namelist, grid):
 
     return tmps
 
+
 class AcousticDynamics:
     """
     Fortran name is dyn_core
     Peforms the Lagrangian acoustic dynamics described by Lin 2004
     """
+
     def __init__(self, comm: fv3gfs.util.CubedSphereCommunicator, namelist):
         self.comm = comm
         self.namelist = namelist
@@ -185,16 +189,34 @@ class AcousticDynamics:
         self.do_halo_exchange = global_config.get_do_halo_exchange()
         self.n_con = get_n_con(namelist, self.grid)
         self.nonhydrostatic_pressure = nh_p_grad.NonHydrostaticPressureGradient()
-        self._temporaries = dyncore_temporaries(self.grid.domain_shape_full(add=(1, 1, 1)), self.namelist, self.grid)
-        self._dp_ref_compute = FixedOriginStencil(dp_ref_compute, origin=self.grid.full_origin(),domain=self.grid.domain_shape_full(add=(0, 0, 1)))
-        self._set_gz = FixedOriginStencil(set_gz, origin=self.grid.compute_origin(), domain=self.grid.domain_shape_compute(add=(0, 0, 1)))
-        self._set_pem = FixedOriginStencil(set_pem, origin=self.grid.compute_origin(add=(-1, -1, 0)), domain=self.grid.domain_shape_compute(add=(2, 2, 0)))
+        self._temporaries = dyncore_temporaries(
+            self.grid.domain_shape_full(add=(1, 1, 1)), self.namelist, self.grid
+        )
+        self._dp_ref_compute = FixedOriginStencil(
+            dp_ref_compute,
+            origin=self.grid.full_origin(),
+            domain=self.grid.domain_shape_full(add=(0, 0, 1)),
+        )
+        self._set_gz = FixedOriginStencil(
+            set_gz,
+            origin=self.grid.compute_origin(),
+            domain=self.grid.domain_shape_compute(add=(0, 0, 1)),
+        )
+        self._set_pem = FixedOriginStencil(
+            set_pem,
+            origin=self.grid.compute_origin(add=(-1, -1, 0)),
+            domain=self.grid.domain_shape_compute(add=(2, 2, 0)),
+        )
         pgradc_origin = self.grid.compute_origin()
-        pgradc_domain= self.grid.domain_shape_compute(add=(1, 1, 0))
+        pgradc_domain = self.grid.domain_shape_compute(add=(1, 1, 0))
         ax_offsets = axis_offsets(self.grid, pgradc_origin, pgradc_domain)
-        pgradc_kwargs = {"origin":  pgradc_origin, "domain": pgradc_domain, "externals":{"hydrostatic": self.namelist.hydrostatic, **ax_offsets}}
-        self._p_grad_c = FixedOriginStencil(p_grad_c_stencil,  **pgradc_kwargs)
-                            
+        pgradc_kwargs = {
+            "origin": pgradc_origin,
+            "domain": pgradc_domain,
+            "externals": {"hydrostatic": self.namelist.hydrostatic, **ax_offsets},
+        }
+        self._p_grad_c = FixedOriginStencil(p_grad_c_stencil, **pgradc_kwargs)
+
     def __call__(self, state):
         # u, v, w, delz, delp, pt, pe, pk, phis, wsd, omga, ua, va, uc, vc, mfxd,
         # mfyd, cxd, cyd, pkz, peln, q_con, ak, bk, diss_estd, cappa, mdt, n_split,
@@ -213,7 +235,7 @@ class AcousticDynamics:
         # n_split = nint( real(n0split)/real(k_split*abs(p_split)) * stretch_fac + 0.5 )
         ms = max(1, self.namelist.m_split / 2.0)
         shape = state.delz.shape
-        # NOTE: In Fortran model the halo update starts happens in fv_dynamics, not here.
+        # NOTE: In Fortran model the halo update starts happens in fv_dynamics, not here
         reqs = {}
         if self.do_halo_exchange:
             for halovar in [
@@ -253,7 +275,9 @@ class AcousticDynamics:
                 rgrav,
             )
             # After writing, make 'dp_ref' a K-field and 'zs' an IJ-field
-            state.dp_ref = utils.make_storage_data(state.dp_ref[0, 0, :], (shape[2],), (0,))
+            state.dp_ref = utils.make_storage_data(
+                state.dp_ref[0, 0, :], (shape[2],), (0,)
+            )
             state.zs = utils.make_storage_data(state.zs[:, :, 0], shape[0:2], (0, 0))
 
         # "acoustic" loop
@@ -262,8 +286,8 @@ class AcousticDynamics:
         # the speed of the polar night jets can exceed two-thirds of the speed of sound.
         for it in range(n_split):
             # the Lagrangian dynamics have two parts. First we advance the C-grid winds
-            # by half a time step (c_sw). Then the C-grid winds are used to define advective
-            # fluxes to advance the D-grid prognostic fields a full time step
+            # by half a time step (c_sw). Then the C-grid winds are used to define
+            # advective fluxes to advance the D-grid prognostic fields a full time step
             # (the rest of the routines).
             #
             # Along-surface flux terms (mass, heat, vertical momentum, vorticity,
@@ -416,13 +440,16 @@ class AcousticDynamics:
 
             if self.do_halo_exchange:
                 for halovar in ["delp_quantity", "pt_quantity", "q_con_quantity"]:
-                    self.comm.halo_update(state.__getattribute__(halovar), n_points=utils.halo)
+                    self.comm.halo_update(
+                        state.__getattribute__(halovar), n_points=utils.halo
+                    )
 
             # Not used unless we implement other betas and alternatives to nh_p_grad
             # if self.namelist.d_ext > 0:
             #    raise 'Unimplemented namelist option d_ext > 0'
             # else:
-            #    divg2 = utils.make_storage_from_shape(delz.shape, grid.compute_origin())
+            #    divg2 = utils.make_storage_from_shape(delz.shape,
+            #   grid.compute_origin())
 
             if not hydrostatic:
                 updatedzd.compute(
@@ -507,7 +534,8 @@ class AcousticDynamics:
                 )
 
             if self.namelist.rf_fast:
-                # TODO: Pass through ks, or remove, inconsistent representation vs Fortran.
+                # TODO: Pass through ks, or remove, inconsistent representation vs
+                # Fortran.
                 ray_fast.compute(
                     state.u,
                     state.v,

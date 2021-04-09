@@ -1,7 +1,8 @@
-from fv3core.stencils.dyn_core import AcousticDynamics
+import fv3core._config as spec
+import fv3core.stencils.dyn_core as dyn_core
 import fv3gfs.util as fv3util
 from fv3core.testing import ParallelTranslate2PyState, TranslateFortranData2Py
-import fv3core._config as spec
+
 
 class TranslateDynCore(ParallelTranslate2PyState):
     inputs = {
@@ -113,9 +114,10 @@ class TranslateDynCore(ParallelTranslate2PyState):
         self.max_error = 2e-6
 
     def compute_parallel(self, inputs, communicator):
-        self._base.compute_func = AcousticDynamics(communicator, spec.namelist) 
+        self._base.compute_func = dyn_core.AcousticDynamics(communicator, spec.namelist)
         return super().compute_parallel(inputs)
-   
+
+
 class TranslatePGradC(TranslateFortranData2Py):
     def __init__(self, grid):
         super().__init__(grid)
