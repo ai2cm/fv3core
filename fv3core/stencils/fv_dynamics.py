@@ -4,7 +4,7 @@ from gt4py.gtscript import PARALLEL, computation, interval, log
 
 import fv3core._config as spec
 import fv3core.stencils.del2cubed as del2cubed
-import fv3core.stencils.dyn_core as dyn_core
+from fv3core.stencils.dyn_core import AcousticDynamics
 import fv3core.stencils.moist_cv as moist_cv
 import fv3core.stencils.neg_adj3 as neg_adj3
 import fv3core.stencils.rayleigh_super as rayleigh_super
@@ -280,6 +280,7 @@ class DynamicalCore:
         self.do_halo_exchange = global_config.get_do_halo_exchange()
 
         self.tracer_advection = Tracer2D1L(comm, namelist)
+        self.acoustic_dynamics = AcousticDynamics(comm, namelist)
         # npx and npy are number of interfaces, npz is number of centers
         # and shapes should be the full data shape
 
@@ -411,7 +412,7 @@ class DynamicalCore:
         )
         print("DynCore", self.grid.rank)
         with timer.clock("DynCore"):
-            dyn_core.compute(state, self.comm)
+            self.acoustic_dynamics(state)
         if self.namelist.z_tracer:
             print("Tracer2D1L", self.grid.rank)
             with timer.clock("TracerAdvection"):

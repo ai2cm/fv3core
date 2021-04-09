@@ -230,6 +230,7 @@ class AcousticDynamics:
         }
         self._p_grad_c = FixedOriginStencil(p_grad_c_stencil, **pgradc_kwargs)
         self._initialize_data = FixedOriginStencil(initialize_data, origin=self.grid.full_origin(), domain=self.grid.domain_shape_full(), externals={"hydrostatic":self.namelist.hydrostatic})
+        
     def __call__(self, state):
         # u, v, w, delz, delp, pt, pe, pk, phis, wsd, omga, ua, va, uc, vc, mfxd,
         # mfyd, cxd, cyd, pkz, peln, q_con, ak, bk, diss_estd, cappa, mdt, n_split,
