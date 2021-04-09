@@ -1,4 +1,4 @@
-from typing import Dict, Optional
+from typing import Any, Dict
 
 from gt4py.gtscript import PARALLEL, computation, interval
 
@@ -11,7 +11,7 @@ from fv3core.decorators import gtstencil
 from fv3core.utils.typing import FloatField
 
 
-@gtstencil
+@gtstencil()
 def set_components(
     tracer: FloatField,
     a4_1: FloatField,
@@ -30,13 +30,14 @@ def compute(
     pe1: FloatField,
     pe2: FloatField,
     dp2: FloatField,
-    tracers: Dict[str, type(FloatField)],
+    tracers: Dict[str, Any],  # Dict[str, FloatField] but that causes error on import
     nq: int,
     q_min: float,
     i1: int,
     i2: int,
+    j1: int,
+    j2: int,
     kord: int,
-    j_2d: Optional[int] = None,
     version: str = "stencil",
 ):
     domain_compute = (
@@ -56,9 +57,9 @@ def compute(
         q4_4,
         origin,
         domain,
-        jslice,
         i_extent,
-    ) = map_single.setup_data(tracers[utils.tracer_variables[0]], pe1, i1, i2, j_2d)
+        j_extent,
+    ) = map_single.setup_data(tracers[utils.tracer_variables[0]], pe1, i1, i2, j1, j2)
 
     # transliterated fortran 3d or 2d validate, not bit-for bit
     tracer_list = [tracers[q] for q in utils.tracer_variables[0:nq]]
@@ -83,9 +84,10 @@ def compute(
             spec.grid.npz,
             i1,
             i2,
+            j1,
+            j2,
             0,
             kord,
-            jslice,
             q_min,
         )
         map_single.do_lagrangian_contributions(
@@ -99,11 +101,12 @@ def compute(
             dp1,
             i1,
             i2,
+            j1,
+            j2,
             kord,
-            jslice,
             origin,
             domain,
             version,
         )
     if spec.namelist.fill:
-        fillz.compute(dp2, tracers, i_extent, spec.grid.npz, nq, jslice)
+        fillz.compute(dp2, tracers, i_extent, j_extent, spec.grid.npz, nq)
