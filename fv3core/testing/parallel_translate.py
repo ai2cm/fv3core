@@ -176,7 +176,7 @@ class ParallelTranslate2Py(ParallelTranslate):
 
 
 class ParallelTranslate2PyState(ParallelTranslate2Py):
-    def compute_parallel(self, inputs):
+    def compute_parallel(self, inputs, communicator):
         self._base.make_storage_data_input_vars(inputs)
         for name, properties in self.inputs.items():
             self.grid.quantity_dict_update(

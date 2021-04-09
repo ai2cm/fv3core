@@ -119,7 +119,7 @@ class TranslateDynCore(ParallelTranslate2PyState):
 
     def compute_parallel(self, inputs, communicator):
         self._base.compute_func = dyn_core.AcousticDynamics(communicator, spec.namelist)
-        return super().compute_parallel(inputs)
+        return super().compute_parallel(inputs, communicator)
 
 
 class TranslatePGradC(TranslateFortranData2Py):
