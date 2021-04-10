@@ -4,8 +4,6 @@ from gt4py.gtscript import BACKWARD, FORWARD, PARALLEL, computation, interval
 import fv3core._config as spec
 import fv3core.stencils.d_sw as d_sw
 import fv3core.stencils.delnflux as delnflux
-import fv3core.stencils.fxadv
-import fv3core.utils
 import fv3core.utils.global_constants as constants
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import FixedOriginStencil
@@ -194,9 +192,6 @@ class UpdateDeltaZOnDGrid:
 
         self.finite_volume_transport = FiniteVolumeTransport(
             spec.namelist, spec.namelist.hord_tm
-        )
-        ax_offsets = fv3core.utils.axis_offsets(
-            self.grid, self.grid.full_origin(), self.grid.domain_shape_full()
         )
         self._cubic_spline_interpolation_constants = FixedOriginStencil(
             cubic_spline_interpolation_constants,
