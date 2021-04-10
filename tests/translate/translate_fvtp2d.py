@@ -16,8 +16,6 @@ class TranslateFvTp2d(TranslateFortranData2Py):
             "cry": {"jstart": grid.js},
             "xfx": {"istart": grid.is_},
             "yfx": {"jstart": grid.js},
-            "ra_x": {"istart": grid.is_},
-            "ra_y": {"jstart": grid.js},
             "mfx": grid.x3d_compute_dict(),
             "mfy": grid.y3d_compute_dict(),
         }
@@ -44,8 +42,6 @@ class TranslateFvTp2d(TranslateFortranData2Py):
             spec.namelist, int(inputs["hord"]), cache_key="regression-test"
         )
         del inputs["hord"]
-        inputs["area_with_x_flux"] = inputs.pop("ra_x")
-        inputs["area_with_y_flux"] = inputs.pop("ra_y")
         self.compute_func(**inputs)
         return inputs
 

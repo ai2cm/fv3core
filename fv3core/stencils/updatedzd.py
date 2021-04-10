@@ -2,12 +2,10 @@ import gt4py.gtscript as gtscript
 from gt4py.gtscript import BACKWARD, FORWARD, PARALLEL, computation, interval
 
 import fv3core._config as spec
-import fv3core.stencils.d_sw as d_sw
-import fv3core.stencils.delnflux as delnflux
 import fv3core.utils.global_constants as constants
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import FixedOriginStencil
-from fv3core.stencils import basic_operations
+from fv3core.stencils import basic_operations, d_sw, delnflux, fxadv
 from fv3core.stencils.fvtp2d import FiniteVolumeTransport
 from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
 
@@ -24,14 +22,11 @@ def zh_base(
     xfx_interface: FloatField,
     yfx_interface: FloatField,
 ):
-    area_after_flux = (
-        area
-        + xfx_interface
-        - xfx_interface[1, 0, 0]
-        + yfx_interface
-        - yfx_interface[0, 1, 0]
+    area_after_x_flux = fxadv.apply_x_flux_divergence(area, xfx_interface)
+    area_after_y_flux = fxadv.apply_y_flux_divergence(area, yfx_interface)
+    return (z2 * area + fx - fx[1, 0, 0] + fy - fy[0, 1, 0]) / (
+        area_after_x_flux + area_after_y_flux - area
     )
-    return (z2 * area + fx - fx[1, 0, 0] + fy - fy[0, 1, 0]) / area_after_flux
 
 
 def zh_damp(
@@ -228,8 +223,8 @@ class UpdateDeltaZOnDGrid:
             zh: ???
             crx: Courant number in x-direction
             cry: Courant number in y-direction
-            xfx: Mass flux in x-direction
-            yfx: Mass flux in y-direction
+            xfx: Area flux in x-direction
+            yfx: Area flux in y-direction
             wsd: ???
             dt: ???
         """
