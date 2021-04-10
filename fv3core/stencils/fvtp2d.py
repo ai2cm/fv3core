@@ -2,12 +2,11 @@ import gt4py.gtscript as gtscript
 from gt4py.gtscript import PARALLEL, computation, horizontal, interval, region
 
 import fv3core._config as spec
-import fv3core.stencils.d_sw as d_sw
-import fv3core.stencils.delnflux as delnflux
 import fv3core.utils.corners as corners
 import fv3core.utils.global_config as global_config
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import FixedOriginStencil
+from fv3core.stencils import d_sw, delnflux, fxadv
 from fv3core.stencils.xppm import XPiecewiseParabolic
 from fv3core.stencils.yppm import YPiecewiseParabolic
 from fv3core.utils.typing import FloatField, FloatFieldIJ
@@ -18,11 +17,11 @@ def q_i_stencil(
     area: FloatFieldIJ,
     yfx: FloatField,
     fy2: FloatField,
-    area_with_y_flux: FloatField,
     q_i: FloatField,
 ):
     with computation(PARALLEL), interval(...):
         fyy = yfx * fy2
+        area_with_y_flux = fxadv.apply_y_flux_divergence(area, yfx)
         q_i = (q * area + fyy - fyy[0, 1, 0]) / area_with_y_flux
 
 
@@ -31,12 +30,11 @@ def q_j_stencil(
     area: FloatFieldIJ,
     xfx: FloatField,
     fx2: FloatField,
-    area_with_x_flux: FloatField,
     q_j: FloatField,
 ):
     with computation(PARALLEL), interval(...):
         fx1 = xfx * fx2
-        # area_with_x_flux = fxadv.apply_x_flux_divergence(area, xfx)
+        area_with_x_flux = fxadv.apply_x_flux_divergence(area, xfx)
         q_j = (q * area + fx1 - fx1[1, 0, 0]) / area_with_x_flux
 
 
@@ -108,8 +106,6 @@ class FiniteVolumeTransport:
         cry,
         xfx,
         yfx,
-        area_with_x_flux,
-        area_with_y_flux,
         fx,
         fy,
         nord=None,
@@ -118,6 +114,23 @@ class FiniteVolumeTransport:
         mfx=None,
         mfy=None,
     ):
+        """
+        Perform horizontal finite volume transport.
+
+        Args:
+            q: scalar to be transported (in)
+            crx: Courant number in x-direction
+            cry: Courant number in y-direction
+            xfx: flux of scalar in y-direction (out)
+            yfx: ???
+            fx: ???
+            fy: ???
+            nord: ???
+            damp_c: ???
+            mass: ???
+            mfx: ???
+            mfy: ???
+        """
         grid = self.grid
         corners.copy_corners_y_stencil(
             q, origin=grid.full_origin(), domain=grid.domain_shape_full(add=(0, 0, 1))
@@ -129,7 +142,6 @@ class FiniteVolumeTransport:
             grid.area,
             yfx,
             self._tmp_fy2,
-            area_with_y_flux,
             self._tmp_q_i,
         )
         self.x_piecewise_parabolic_outer(self._tmp_q_i, crx, fx, grid.js, grid.je)
@@ -142,7 +154,6 @@ class FiniteVolumeTransport:
             grid.area,
             xfx,
             self._tmp_fx2,
-            area_with_x_flux,
             self._tmp_q_j,
         )
         self.y_piecewise_parabolic_outer(self._tmp_q_j, cry, fy, grid.is_, grid.ie)

@@ -417,9 +417,6 @@ def area_flux_update(
         area_with_y_flux = apply_y_flux_divergence(area, yfx_interface)
 
 
-flux_divergence_area = gtstencil()(area_flux_update)
-
-
 def compute(
     uc,
     vc,
@@ -429,8 +426,6 @@ def compute(
     yfx_adv,
     ut,
     vt,
-    area_with_x_flux,
-    area_with_y_flux,
     dt,
 ):
     grid = spec.grid
@@ -522,15 +517,6 @@ def compute(
         ut,
         vt,
         dt,
-        origin=grid.full_origin(),
-        domain=grid.domain_shape_full(),
-    )
-    flux_divergence_area(
-        grid.area,
-        xfx_adv,
-        area_with_x_flux,
-        yfx_adv,
-        area_with_y_flux,
         origin=grid.full_origin(),
         domain=grid.domain_shape_full(),
     )

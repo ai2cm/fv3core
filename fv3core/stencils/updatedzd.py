@@ -23,12 +23,17 @@ def zh_base(
     area: FloatFieldIJ,
     fx: FloatField,
     fy: FloatField,
-    area_with_x_flux: FloatField,
-    area_with_y_flux: FloatField,
+    xfx_interface: FloatField,
+    yfx_interface: FloatField,
 ):
-    return (z2 * area + fx - fx[1, 0, 0] + fy - fy[0, 1, 0]) / (
-        area_with_x_flux + area_with_y_flux - area
+    area_after_flux = (
+        area
+        + xfx_interface
+        - xfx_interface[1, 0, 0]
+        + yfx_interface
+        - yfx_interface[0, 1, 0]
     )
+    return (z2 * area + fx - fx[1, 0, 0] + fy - fy[0, 1, 0]) / area_after_flux
 
 
 def zh_damp(
@@ -36,8 +41,8 @@ def zh_damp(
     z2: FloatField,
     fx: FloatField,
     fy: FloatField,
-    area_with_x_flux: FloatField,
-    area_with_y_flux: FloatField,
+    xfx_interface: FloatField,
+    yfx_interface: FloatField,
     fx2: FloatField,
     fy2: FloatField,
     rarea: FloatFieldIJ,
@@ -50,9 +55,9 @@ def zh_damp(
     Args:
         z2: zh that has been advected forward in time (in)
         fx: Flux in the x direction that transported z2 (in)
-        fy: Flux in the y direction that transported z2(in)
-        area_with_x_flux: Area updated with x-direction flux divergence (in)
-        area_with_y_flux: Area updated with y-direction flux divergence (in)
+        fy: Flux in the y direction that transported z2 (in)
+        xfx_interface: Area flux per timestep in x-direction (in)
+        yfx_interface: Area flux per timestep in y-direction (in)
         fx2: diffusive flux in the x-direction (in)
         fy2: diffusive flux in the y-direction (in)
         zh: geopotential height (out)
@@ -64,7 +69,7 @@ def zh_damp(
         rarea
     """
     with computation(PARALLEL), interval(...):
-        zhbase = zh_base(z2, area, fx, fy, area_with_x_flux, area_with_y_flux)
+        zhbase = zh_base(z2, area, fx, fy, xfx_interface, yfx_interface)
         zh = zhbase + (fx2 - fx2[1, 0, 0] + fy2 - fy2[0, 1, 0]) * rarea
     with computation(BACKWARD):
         with interval(-1, None):
@@ -159,14 +164,6 @@ class UpdateDeltaZOnDGrid:
         self._yfx_interface = utils.make_storage_from_shape(
             largest_possible_shape, grid.compute_origin(add=(-self.grid.halo, 0, 0))
         )
-        self._area_with_x_flux = utils.make_storage_from_shape(
-            largest_possible_shape,
-            grid.compute_origin(add=(0, -self.grid.halo, 0)),
-        )
-        self._area_with_y_flux = utils.make_storage_from_shape(
-            largest_possible_shape,
-            grid.compute_origin(add=(-self.grid.halo, 0, 0)),
-        )
         self._wk = utils.make_storage_from_shape(
             largest_possible_shape, grid.full_origin()
         )
@@ -182,7 +179,7 @@ class UpdateDeltaZOnDGrid:
         self._fy = utils.make_storage_from_shape(
             largest_possible_shape, grid.full_origin()
         )
-        self._z2 = utils.make_storage_from_shape(
+        self._zh_intermediate = utils.make_storage_from_shape(
             largest_possible_shape, grid.full_origin()
         )
         self._gk = utils.make_storage_from_shape(
@@ -200,12 +197,6 @@ class UpdateDeltaZOnDGrid:
         )
         ax_offsets = fv3core.utils.axis_offsets(
             self.grid, self.grid.full_origin(), self.grid.domain_shape_full()
-        )
-        self._area_flux_update = FixedOriginStencil(
-            fv3core.stencils.fxadv.area_flux_update,
-            origin=self.grid.full_origin(),
-            domain=self.grid.domain_shape_full(add=(0, 0, 1)),
-            externals=ax_offsets,
         )
         self._cubic_spline_interpolation_constants = FixedOriginStencil(
             cubic_spline_interpolation_constants,
@@ -262,33 +253,24 @@ class UpdateDeltaZOnDGrid:
         self._interpolate_to_layer_interface(
             yfx, self._yfx_interface, self._gk, self._beta, self._gamma
         )
-        self._area_flux_update(
-            self.grid.area,
-            self._xfx_interface,
-            self._area_with_x_flux,
-            self._yfx_interface,
-            self._area_with_y_flux,
-        )
         basic_operations.copy_stencil(
             zh,
-            self._z2,
+            self._zh_intermediate,
             origin=self.grid.full_origin(),
             domain=self.grid.domain_shape_full(add=(0, 0, 1)),
         )
         self.finite_volume_transport(
-            self._z2,
+            self._zh_intermediate,
             self._crx_interface,
             self._cry_interface,
             self._xfx_interface,
             self._yfx_interface,
-            self._area_with_x_flux,
-            self._area_with_y_flux,
             self._fx,
             self._fy,
         )
         for kstart, nk in self._k_bounds:
             delnflux.compute_no_sg(
-                self._z2,
+                self._zh_intermediate,
                 self._fx2,
                 self._fy2,
                 int(self._column_namelist["nord_v"][kstart]),
@@ -299,11 +281,11 @@ class UpdateDeltaZOnDGrid:
             )
         self._zh_damp(
             self.grid.area,
-            self._z2,
+            self._zh_intermediate,
             self._fx,
             self._fy,
-            self._area_with_x_flux,
-            self._area_with_y_flux,
+            self._xfx_interface,
+            self._yfx_interface,
             self._fx2,
             self._fy2,
             self.grid.rarea,

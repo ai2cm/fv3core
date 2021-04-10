@@ -154,8 +154,6 @@ class Tracer2D1L:
         origin = self.grid.compute_origin()
         self._tmp_xfx = utils.make_storage_from_shape(shape, origin)
         self._tmp_yfx = utils.make_storage_from_shape(shape, origin)
-        self._tmp_area_with_x_flux = utils.make_storage_from_shape(shape, origin)
-        self._tmp_area_with_y_flux = utils.make_storage_from_shape(shape, origin)
         self._tmp_fx = utils.make_storage_from_shape(shape, origin)
         self._tmp_fy = utils.make_storage_from_shape(shape, origin)
         self._tmp_dp2 = utils.make_storage_from_shape(shape, origin)
@@ -289,13 +287,6 @@ class Tracer2D1L:
                 q = tracers[qname + "_quantity"]
                 self.comm.halo_update(q, n_points=utils.halo)
 
-        self._ra_update(
-            self.grid.area,
-            self._tmp_xfx,
-            self._tmp_area_with_x_flux,
-            self._tmp_yfx,
-            self._tmp_area_with_y_flux,
-        )
         # TODO: Revisit: the loops over q and nsplt have two inefficient options
         # duplicating storages/stencil calls, return to this, maybe you have more
         # options now, or maybe the one chosen here is the worse one.
@@ -330,8 +321,6 @@ class Tracer2D1L:
                         cyd,
                         self._tmp_xfx,
                         self._tmp_yfx,
-                        self._tmp_area_with_x_flux,
-                        self._tmp_area_with_y_flux,
                         self._tmp_fx,
                         self._tmp_fy,
                         mfx=mfxd,
@@ -356,8 +345,6 @@ class Tracer2D1L:
                         cyd,
                         self._tmp_xfx,
                         self._tmp_yfx,
-                        self._tmp_area_with_x_flux,
-                        self._tmp_area_with_y_flux,
                         self._tmp_fx,
                         self._tmp_fy,
                         mfx=mfxd,
