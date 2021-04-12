@@ -36,7 +36,7 @@ class TranslateMap1_PPM_2d(TranslateFortranData2Py):
             "q1": {"serialname": "var_in"},
             "pe1": {"istart": 3, "iend": grid.ie - 2, "axis": 1},
             "pe2": {"istart": 3, "iend": grid.ie - 2, "axis": 1},
-            "qs": {"serialname": "ws_1d", "kstart": 0, "axis": 0},
+            "qs": {"serialname": "ws_1d", "kstart": grid.is_, "axis": 0},
         }
         self.in_vars["parameters"] = ["j_2d", "i1", "i2", "mode", "kord"]
         self.out_vars = {"var_inout": {}}

@@ -41,7 +41,7 @@ def compute(
     version: str = "stencil",
 ):
     remapping_calculation = utils.cached_stencil_class(RemapProfile)(
-        kord, 0, cache_key=f"map_profile_{kord}_{0}"
+        kord, 0, cache_key=f"map_profile_{kord}_0"
     )
 
     domain_compute = (
