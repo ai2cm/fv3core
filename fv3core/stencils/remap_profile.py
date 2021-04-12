@@ -597,10 +597,6 @@ class RemapProfile:
         j2: int,
         qmin: float = 0.0,
     ):
-
-        print(j1, j2)
-        print(qs.shape, a4_1.shape, delp.shape)
-        print("!!!!!!!!!!")
         i_extent: int = i2 - i1 + 1
         j_extent: int = j2 - j1 + 1
         orig: Tuple[int] = (i1, j1, 0)

@@ -5,8 +5,8 @@ from fv3core.testing import TranslateFortranData2Py, TranslateGrid
 import fv3core.utils.gt4py_utils as utils
 
 def pad_field_in_j(field, nj):
-    outfield = np.tile(field, [nj, 1, 1]).transpose(1, 0, 2)
-    np.testing.assert_array_equal(outfield[:,0,:], field)
+    outfield = np.tile(field[:,0,:], [nj, 1, 1]).transpose(1, 0, 2)
+    np.testing.assert_array_equal(outfield[:,0,:], field[:,0,:])
     return outfield
 
 class TranslateSingleJ(TranslateFortranData2Py):
@@ -36,7 +36,7 @@ class TranslateMap1_PPM_2d(TranslateFortranData2Py):
             "q1": {"serialname": "var_in"},
             "pe1": {"istart": 3, "iend": grid.ie - 2, "axis": 1},
             "pe2": {"istart": 3, "iend": grid.ie - 2, "axis": 1},
-            "qs": {"serialname": "ws_1d", "kstart": grid.is_, "axis": 0},
+            "qs": {"serialname": "ws_1d", "kstart": 0, "axis": 0},
         }
         self.in_vars["parameters"] = ["j_2d", "i1", "i2", "mode", "kord"]
         self.out_vars = {"var_inout": {}}
@@ -45,14 +45,12 @@ class TranslateMap1_PPM_2d(TranslateFortranData2Py):
         self.nj = grid.npy
 
     def compute(self, inputs):
-        if "qs" in inputs:
-            qs_3d = pad_field_in_j(inputs["qs"], self.nj)
-            print("!!!!!!!!!")
-            print(qs_3d.shape)
-            print("   ")
-            # new_qs = self.make_storage_data(qs_3d)
-            inputs["qs"] = qs_3d
+        print(self.nj)
+        print("test_code")
         self.make_storage_data_input_vars(inputs)
+        if "qs" in inputs:
+            qs_3d = pad_field_in_j(inputs["qs"].data, self.nj)
+            inputs["qs"] = self.make_storage_data(qs_3d)
         inputs["i1"] = self.grid.global_to_local_x(
             inputs["i1"] + TranslateGrid.fpy_model_index_offset
         )
