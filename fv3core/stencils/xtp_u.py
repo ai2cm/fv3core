@@ -133,6 +133,8 @@ class XTP_U:
         assert namelist.grid_type < 3
 
         grid = spec.grid
+        self.origin = grid.compute_origin()
+        self.domain = grid.domain_shape_compute(add=(1, 1, 0))
         self.dx = grid.dx
         self.dxa = grid.dxa
         self.rdx = grid.rdx
