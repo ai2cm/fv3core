@@ -4,9 +4,6 @@ from fv3core.testing import TranslateFortranData2Py
 
 
 class TranslateUpdateDzD(TranslateFortranData2Py):
-    max_error = 1e-12
-    near_zero = 1e-18
-
     def __init__(self, grid):
         super().__init__(grid)
         self.in_vars["data_vars"] = {

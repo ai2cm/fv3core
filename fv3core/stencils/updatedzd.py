@@ -5,7 +5,7 @@ import fv3core._config as spec
 import fv3core.utils.global_constants as constants
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import FixedOriginStencil
-from fv3core.stencils import basic_operations, d_sw, delnflux, fxadv
+from fv3core.stencils import basic_operations, d_sw, delnflux
 from fv3core.stencils.fvtp2d import FiniteVolumeTransport
 from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
 
@@ -28,9 +28,11 @@ def apply_height_flux(
     A positive flux of area corresponds to convergence, which expands
     the layer thickness.
     """
-    area_after_x_flux = fxadv.apply_x_flux_divergence(area, x_area_flux)
-    area_after_y_flux = fxadv.apply_y_flux_divergence(area, y_area_flux)
-    area_after_flux = area_after_x_flux + area_after_y_flux - area
+    area_after_flux = (
+        (area + x_area_flux - x_area_flux[1, 0, 0])
+        + (area + y_area_flux - y_area_flux[0, 1, 0])
+        - area
+    )
     # final height is the original volume plus the fluxed volumes,
     # divided by the final area
     return (
@@ -39,7 +41,7 @@ def apply_height_flux(
         - x_height_flux[1, 0, 0]
         + y_height_flux
         - y_height_flux[0, 1, 0]
-    ) / (area_after_flux)
+    ) / area_after_flux
 
 
 def apply_geopotential_height_fluxes(
@@ -91,7 +93,7 @@ def apply_geopotential_height_fluxes(
         )
     with computation(BACKWARD):
         with interval(-1, None):
-            ws = (zs - final_gz) * 1.0 / dt
+            ws = (zs - final_gz) / dt
         with interval(0, -1):
             # ensure layer thickness exceeds minimum
             other = final_gz[0, 0, 1] + DZ_MIN
@@ -304,7 +306,6 @@ class UpdateDeltaZOnDGrid:
             self._yfx_interface,
             self._fx2,
             self._fy2,
-            self.grid.rarea,
             zh,
             zs,
             wsd,
