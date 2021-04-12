@@ -107,9 +107,28 @@ class NonHydrostaticPressureGradient:
             grid.domain_shape_full(add=(0, 0, 1)), origin=self.orig
         )  # pp.shape
 
-        self._set_k0_stencil = FixedOriginStencil(set_k0, self.orig, self.domain_k1)
+        self._set_k0_stencil = FixedOriginStencil(
+            set_k0,
+            origin=self.orig,
+            domain=self.domain_k1,
+        )
+
         self._calc_wk_stencil = FixedOriginStencil(
-            calc_wk, self.orig, self.domain_full_k
+            calc_wk,
+            origin=self.orig,
+            domain=self.domain_full_k,
+        )
+
+        self._calc_u_stencil = FixedOriginStencil(
+            calc_u,
+            origin=self.orig,
+            domain=self.u_domain,
+        )
+
+        self._calc_v_stencil = FixedOriginStencil(
+            calc_v,
+            origin=self.orig,
+            domain=self.v_domain,
         )
         self._calc_u_stencil = FixedOriginStencil(calc_u, self.orig, self.u_domain)
         self._calc_v_stencil = FixedOriginStencil(calc_v, self.orig, self.v_domain)
@@ -145,7 +164,11 @@ class NonHydrostaticPressureGradient:
         ptk = ptop ** akap
         top_value = ptk  # = peln1 if spec.namelist.use_logp else ptk
 
-        self._set_k0_stencil(pp, pk3, top_value)
+        self._set_k0_stencil(
+            pp,
+            pk3,
+            top_value,
+        )
 
         a2b_ord4.compute(pp, self._tmp_wk1, kstart=1, nk=self.nk, replace=True)
         a2b_ord4.compute(pk3, self._tmp_wk1, kstart=1, nk=self.nk, replace=True)

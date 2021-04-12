@@ -130,16 +130,16 @@ class YTP_V:
         assert namelist.grid_type < 3
 
         grid = spec.grid
+        origin = grid.compute_origin()
+        domain = grid.domain_shape_compute(add=(1, 1, 0))
         self.dy = grid.dy
         self.dya = grid.dya
         self.rdy = grid.rdy
-
-        origin = grid.compute_origin()
-        domain = grid.domain_shape_compute(add=(1, 1, 0))
         ax_offsets = axis_offsets(grid, origin, domain)
+        assert namelist.grid_type < 3
 
         self.stencil = FixedOriginStencil(
-            func=_compute_stencil,
+            _compute_stencil,
             externals={
                 "jord": jord,
                 "mord": jord,

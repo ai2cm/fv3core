@@ -136,21 +136,18 @@ class XTP_U:
         self.dx = grid.dx
         self.dxa = grid.dxa
         self.rdx = grid.rdx
-
-        origin = grid.compute_origin()
-        domain = grid.domain_shape_compute(add=(1, 1, 0))
-        ax_offsets = axis_offsets(grid, origin, domain)
-
+        ax_offsets = axis_offsets(grid, self.origin, self.domain)
+        assert namelist.grid_type < 3
         self.stencil = FixedOriginStencil(
-            func=_compute_stencil,
+            _compute_stencil,
             externals={
                 "iord": iord,
                 "mord": iord,
                 "xt_minmax": False,
                 **ax_offsets,
             },
-            origin=origin,
-            domain=domain,
+            origin=self.origin,
+            domain=self.domain,
         )
 
     def __call__(self, c: FloatField, u: FloatField, flux: FloatField):
@@ -162,4 +159,11 @@ class XTP_U:
             u (in): x-dir wind on D-grid
             flux (out): Flux of kinetic energy
         """
-        self.stencil(c, u, flux, self.dx, self.dxa, self.rdx)
+        self.stencil(
+            c,
+            u,
+            flux,
+            self.dx,
+            self.dxa,
+            self.rdx,
+        )

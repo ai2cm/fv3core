@@ -174,37 +174,46 @@ class Tracer2D1L:
 
         self._flux_compute = FixedOriginStencil(
             flux_compute,
-            self.grid.full_origin(),
-            self.grid.domain_shape_full(add=(1, 1, 0)),
+            origin=self.grid.full_origin(),
+            domain=self.grid.domain_shape_full(add=(1, 1, 0)),
             externals=local_axis_offsets,
         )
         self._ra_update = FixedOriginStencil(
             ra_stencil_update.func,
-            self.grid.full_origin(),
-            self.grid.domain_shape_full(),
+            origin=self.grid.full_origin(),
+            domain=self.grid.domain_shape_full(),
             externals=local_axis_offsets,
         )
         self._cmax_multiply_by_frac = FixedOriginStencil(
             cmax_multiply_by_frac,
-            self.grid.full_origin(),
-            self.grid.domain_shape_full(add=(1, 1, 0)),
+            origin=self.grid.full_origin(),
+            domain=self.grid.domain_shape_full(add=(1, 1, 0)),
+            externals=local_axis_offsets,
         )
         self._copy_field = StencilWrapper(copy_stencil.func)
         self._loop_temporaries_copy = FixedOriginStencil(
             loop_temporaries_copy,
-            self.grid.full_origin(),
-            self.grid.domain_shape_full(),
+            origin=self.grid.full_origin(),
+            domain=self.grid.domain_shape_full(),
+            externals=local_axis_offsets,
         )
         self._dp_fluxadjustment = FixedOriginStencil(
             dp_fluxadjustment,
-            self.grid.compute_origin(),
-            self.grid.domain_shape_compute(),
+            origin=self.grid.compute_origin(),
+            domain=self.grid.domain_shape_compute(),
+            externals=local_axis_offsets,
         )
         self._q_adjustments = FixedOriginStencil(
-            q_adjustments, self.grid.compute_origin(), self.grid.domain_shape_compute()
+            q_adjustments,
+            origin=self.grid.compute_origin(),
+            domain=self.grid.domain_shape_compute(),
+            externals=local_axis_offsets,
         )
         self._q_adjust = FixedOriginStencil(
-            q_adjust, self.grid.compute_origin(), self.grid.domain_shape_compute()
+            q_adjust,
+            origin=self.grid.compute_origin(),
+            domain=self.grid.domain_shape_compute(),
+            externals=local_axis_offsets,
         )
         self.fvtp2d = FiniteVolumeTransport(namelist, namelist.hord_tr)
         # If use AllReduce, will need something like this:
