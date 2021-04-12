@@ -53,7 +53,6 @@ class TranslateMap1_PPM_2d(TranslateFortranData2Py):
         inputs["j1"] = inputs["j_2d"]
         inputs["j2"] = inputs["j_2d"]
         del inputs["j_2d"]
-        print("qs", inputs["qs"].shape)
         var_inout = self.compute_func(**inputs)
         return self.slice_output(inputs, {"var_inout": var_inout})
 

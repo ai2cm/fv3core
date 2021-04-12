@@ -137,6 +137,8 @@ def p_grad_c_stencil(
 
 
 def get_nk_heat_dissipation(namelist, grid):
+    # determines whether to convert dissipated kinetic energy into heat in the full
+    # column, not at all, or in 1 or 2 of the top of atmosphere sponge layers
     if namelist.convert_ke or namelist.vtdm4 > 1.0e-4:
         nk_heat_dissipation = grid.npz
     else:
@@ -159,7 +161,8 @@ def dyncore_temporaries(shape, namelist, grid):
         grid.full_origin(),
     )
     if not namelist.hydrostatic:
-        # To write in parallel region, these need to be 3D first
+        # To write lower dimensional storages, these need to be 3D
+        # then converted to lower dimensional
         utils.storage_dict(
             tmps,
             ["dp_ref", "zs"],
@@ -203,13 +206,15 @@ class AcousticDynamics:
     def __init__(self, comm: fv3gfs.util.CubedSphereCommunicator, namelist):
         self.comm = comm
         self.namelist = namelist
-        assert self.namelist.d_ext == 0
-        assert self.namelist.beta == 0
-        assert not self.namelist.use_logp
+        assert self.namelist.d_ext == 0, "d_ext != 0 is not implemented"
+        assert self.namelist.beta == 0, "beta != 0 is not implemented"
+        assert not self.namelist.use_logp, "use_logp=True is not implemented"
         self.grid = spec.grid
         self.do_halo_exchange = global_config.get_do_halo_exchange()
         self._nk_heat_dissipation = get_nk_heat_dissipation(namelist, self.grid)
-        self.nonhydrostatic_pressure = nh_p_grad.NonHydrostaticPressureGradient()
+        self.nonhydrostatic_pressure_gradient = (
+            nh_p_grad.NonHydrostaticPressureGradient()
+        )
         self._temporaries = dyncore_temporaries(
             self.grid.domain_shape_full(add=(1, 1, 1)), self.namelist, self.grid
         )
@@ -345,7 +350,7 @@ class AcousticDynamics:
                     reqs["pt_quantity"].wait()
 
             if it == n_split - 1 and end_step:
-                if self.namelist.use_old_omega:  # apparently True
+                if self.namelist.use_old_omega:
                     self._set_pem(
                         state.delp,
                         state.pem,
@@ -543,7 +548,7 @@ class AcousticDynamics:
                 if self.grid.npx == self.grid.npy and self.do_halo_exchange:
                     reqs["pkc_quantity"].wait()
 
-                self.nonhydrostatic_pressure(
+                self.nonhydrostatic_pressure_gradient(
                     state.u,
                     state.v,
                     state.pkc,
