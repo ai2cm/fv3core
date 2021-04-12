@@ -15,7 +15,7 @@ wheel
 netCDF4
 hypothesis
 scipy
-git+https://github.com/VulcanClimateModeling/fv3config.git@a0799928824a4f10617cf4615e8837c81ccb1f2d
+git+https://github.com/VulcanClimateModeling/fv3config.git@3310c167f96fa1718751ff703a72ac24e54cd5b1
 pytest-regressions
 gitpython
 
