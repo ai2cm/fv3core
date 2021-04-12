@@ -14,46 +14,60 @@ DZ_MIN = constants.DZ_MIN
 
 
 @gtscript.function
-def zh_base(
-    z2: FloatField,
+def apply_height_flux(
+    height: FloatField,
     area: FloatFieldIJ,
-    fx: FloatField,
-    fy: FloatField,
-    xfx_interface: FloatField,
-    yfx_interface: FloatField,
+    x_height_flux: FloatField,
+    y_height_flux: FloatField,
+    x_area_flux: FloatField,
+    y_area_flux: FloatField,
 ):
-    area_after_x_flux = fxadv.apply_x_flux_divergence(area, xfx_interface)
-    area_after_y_flux = fxadv.apply_y_flux_divergence(area, yfx_interface)
-    return (z2 * area + fx - fx[1, 0, 0] + fy - fy[0, 1, 0]) / (
-        area_after_x_flux + area_after_y_flux - area
-    )
+    """
+    Apply the computed fluxes of height and gridcell area to the height profile.
+
+    A positive flux of area corresponds to convergence, which expands
+    the layer thickness.
+    """
+    area_after_x_flux = fxadv.apply_x_flux_divergence(area, x_area_flux)
+    area_after_y_flux = fxadv.apply_y_flux_divergence(area, y_area_flux)
+    area_after_flux = area_after_x_flux + area_after_y_flux - area
+    # final height is the original volume plus the fluxed volumes,
+    # divided by the final area
+    return (
+        height * area
+        + x_height_flux
+        - x_height_flux[1, 0, 0]
+        + y_height_flux
+        - y_height_flux[0, 1, 0]
+    ) / (area_after_flux)
 
 
-def zh_damp(
+def apply_geopotential_height_fluxes(
     area: FloatFieldIJ,
-    z2: FloatField,
+    initial_gz: FloatField,
     fx: FloatField,
     fy: FloatField,
     xfx_interface: FloatField,
     yfx_interface: FloatField,
-    fx2: FloatField,
-    fy2: FloatField,
-    rarea: FloatFieldIJ,
-    zh: FloatField,
+    zh_x_diffusive_flux: FloatField,
+    zh_y_diffusive_flux: FloatField,
+    final_gz: FloatField,
     zs: FloatFieldIJ,
     ws: FloatFieldIJ,
     dt: float,
 ):
-    """Update geopotential height due to area average flux divergence
+    """
+    Apply all computed fluxes to layer thickness profile.
+
     Args:
-        z2: zh that has been advected forward in time (in)
-        fx: Flux in the x direction that transported z2 (in)
-        fy: Flux in the y direction that transported z2 (in)
-        xfx_interface: Area flux per timestep in x-direction (in)
-        yfx_interface: Area flux per timestep in y-direction (in)
-        fx2: diffusive flux in the x-direction (in)
-        fy2: diffusive flux in the y-direction (in)
-        zh: geopotential height (out)
+        initial_gz: geopotential height profile on which to apply fluxes (in)
+        fx: geopotential height flux in x-direction (in)
+        fy: geopotential height flux in y-direction (in)
+        xfx_interface: area flux per timestep in x-direction (in)
+        yfx_interface: area flux per timestep in y-direction (in)
+        fx2: diffusive flux of geopotential height in x-direction (in)
+        fy2: diffusive flux of geopotential height in y-direction (in)
+        final_gz: geopotential height (out)
         zs: surface geopotential height (in)
         ws: vertical velocity of the lowest level (to keep it at the surface) (out)
         dt: acoustic timestep (seconds) (in)
@@ -62,14 +76,26 @@ def zh_damp(
         rarea
     """
     with computation(PARALLEL), interval(...):
-        zhbase = zh_base(z2, area, fx, fy, xfx_interface, yfx_interface)
-        zh = zhbase + (fx2 - fx2[1, 0, 0] + fy2 - fy2[0, 1, 0]) * rarea
+        gz_tmp = apply_height_flux(
+            initial_gz, area, fx, fy, xfx_interface, yfx_interface
+        )
+        final_gz = (
+            gz_tmp
+            + (
+                zh_x_diffusive_flux
+                - zh_x_diffusive_flux[1, 0, 0]
+                + zh_y_diffusive_flux
+                - zh_y_diffusive_flux[0, 1, 0]
+            )
+            / area
+        )
     with computation(BACKWARD):
         with interval(-1, None):
-            ws = (zs - zh) * 1.0 / dt
+            ws = (zs - final_gz) * 1.0 / dt
         with interval(0, -1):
-            other = zh[0, 0, 1] + DZ_MIN
-            zh = zh if zh > other else other
+            # ensure layer thickness exceeds minimum
+            other = final_gz[0, 0, 1] + DZ_MIN
+            final_gz = final_gz if final_gz > other else other
 
 
 def cubic_spline_interpolation_constants(
@@ -172,7 +198,7 @@ class UpdateDeltaZOnDGrid:
         self._fy = utils.make_storage_from_shape(
             largest_possible_shape, grid.full_origin()
         )
-        self._zh_intermediate = utils.make_storage_from_shape(
+        self._zh_tmp = utils.make_storage_from_shape(
             largest_possible_shape, grid.full_origin()
         )
         self._gk = utils.make_storage_from_shape(
@@ -198,8 +224,8 @@ class UpdateDeltaZOnDGrid:
             origin=self.grid.full_origin(),
             domain=self.grid.domain_shape_full(add=(0, 0, 1)),
         )
-        self._zh_damp = FixedOriginStencil(
-            zh_damp,
+        self._apply_geopotential_height_fluxes = FixedOriginStencil(
+            apply_geopotential_height_fluxes,
             origin=self.grid.compute_origin(),
             domain=self.grid.domain_shape_compute(add=(0, 0, 1)),
         )
@@ -219,13 +245,13 @@ class UpdateDeltaZOnDGrid:
         """
         Args:
             dp0: ???
-            zs: ???
-            zh: ???
+            zs: geopotential height of surface
+            zh: geopotential height defined on layer interfaces
             crx: Courant number in x-direction
             cry: Courant number in y-direction
             xfx: Area flux in x-direction
             yfx: Area flux in y-direction
-            wsd: ???
+            wsd: lowest layer vertical velocity required to keep layer at surface
             dt: ???
         """
         self._cubic_spline_interpolation_constants(
@@ -245,12 +271,12 @@ class UpdateDeltaZOnDGrid:
         )
         basic_operations.copy_stencil(
             zh,
-            self._zh_intermediate,
+            self._zh_tmp,
             origin=self.grid.full_origin(),
             domain=self.grid.domain_shape_full(add=(0, 0, 1)),
-        )
+        )  # this temporary can be replaced with zh if we have selective validation
         self.finite_volume_transport(
-            self._zh_intermediate,
+            self._zh_tmp,
             self._crx_interface,
             self._cry_interface,
             self._xfx_interface,
@@ -260,7 +286,7 @@ class UpdateDeltaZOnDGrid:
         )
         for kstart, nk in self._k_bounds:
             delnflux.compute_no_sg(
-                self._zh_intermediate,
+                self._zh_tmp,
                 self._fx2,
                 self._fy2,
                 int(self._column_namelist["nord_v"][kstart]),
@@ -269,9 +295,9 @@ class UpdateDeltaZOnDGrid:
                 kstart=kstart,
                 nk=nk,
             )
-        self._zh_damp(
+        self._apply_geopotential_height_fluxes(
             self.grid.area,
-            self._zh_intermediate,
+            zh,
             self._fx,
             self._fy,
             self._xfx_interface,

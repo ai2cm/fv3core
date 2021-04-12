@@ -121,16 +121,18 @@ class FiniteVolumeTransport:
             q: scalar to be transported (in)
             crx: Courant number in x-direction
             cry: Courant number in y-direction
-            xfx: flux of scalar in y-direction (out)
-            yfx: ???
-            fx: ???
-            fy: ???
+            xfx: ??? (in)
+            yfx: ??? (in)
+            fx: ??? (out)
+            fy: ??? (out)
             nord: ???
             damp_c: ???
             mass: ???
             mfx: ???
             mfy: ???
         """
+        # How does this do the transport, since it doesn't update q?
+        # what are these flux variables, which ones are q flux?
         grid = self.grid
         corners.copy_corners_y_stencil(
             q, origin=grid.full_origin(), domain=grid.domain_shape_full(add=(0, 0, 1))
