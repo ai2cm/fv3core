@@ -2,12 +2,13 @@ import numpy as np
 
 import fv3core.stencils.map_single as map_single
 from fv3core.testing import TranslateFortranData2Py, TranslateGrid
-import fv3core.utils.gt4py_utils as utils
+
 
 def pad_field_in_j(field, nj):
-    outfield = np.tile(field[:,0,:], [nj, 1, 1]).transpose(1, 0, 2)
-    np.testing.assert_array_equal(outfield[:,0,:], field[:,0,:])
+    outfield = np.tile(field[:, 0, :], [nj, 1, 1]).transpose(1, 0, 2)
+    np.testing.assert_array_equal(outfield[:, 0, :], field[:, 0, :])
     return outfield
+
 
 class TranslateSingleJ(TranslateFortranData2Py):
     def make_storage_data_input_vars(self, inputs, storage_vars=None):

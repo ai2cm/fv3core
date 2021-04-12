@@ -1,12 +1,11 @@
 from typing import Tuple
 
 import gt4py.gtscript as gtscript
-from gt4py.gtscript import BACKWARD, FORWARD, PARALLEL, computation, interval, __INLINED
+from gt4py.gtscript import __INLINED, BACKWARD, FORWARD, PARALLEL, computation, interval
 
 import fv3core._config as spec
-import fv3core.utils.gt4py_utils as utils
 import fv3core.utils.global_config as global_config
-from fv3core.decorators import gtstencil
+import fv3core.utils.gt4py_utils as utils
 from fv3core.utils.typing import FloatField
 
 
@@ -118,7 +117,7 @@ def set_vals(
     q_bot: FloatField,
     qs: FloatField,
 ):
-    from __externals__ import kord, iv
+    from __externals__ import iv, kord
 
     with computation(PARALLEL), interval(0, 1):
         # set top
@@ -211,7 +210,7 @@ def apply_constraints(
     ext6: FloatField,
     extm: FloatField,
 ):
-    from __externals__ import kord, iv
+    from __externals__ import iv, kord
 
     with computation(PARALLEL):
         with interval(1, None):
@@ -324,7 +323,7 @@ def set_inner(
     ext6: FloatField,
     qmin: float,
 ):
-    from __externals__ import kord, iv
+    from __externals__ import iv, kord
 
     with computation(PARALLEL), interval(...):
         # set_inner_as_kordsmall
@@ -504,10 +503,12 @@ def set_bottom(
     with computation(PARALLEL), interval(1, None):
         a4_1, a4_2, a4_3, a4_4 = remap_constraint(a4_1, a4_2, a4_3, a4_4, extm, 1)
 
+
 class RemapProfile:
     """
     This corresponds to the cs_profile routine in FV3
     """
+
     def __init__(self, kord, iv):
         assert kord <= 10, f"kord {kord} not implemented."
         grid = spec.grid
@@ -516,72 +517,58 @@ class RemapProfile:
         self._kord = kord
 
         self._gam: FloatField = utils.make_storage_from_shape(
-            grid.domain_shape_full(add=(0,0,1)), origin=self._full_orig
+            grid.domain_shape_full(add=(0, 0, 1)), origin=self._full_orig
         )
         self._q: FloatField = utils.make_storage_from_shape(
-            grid.domain_shape_full(add=(0,0,1)), origin=self._full_orig
+            grid.domain_shape_full(add=(0, 0, 1)), origin=self._full_orig
         )
         self._q_bot: FloatField = utils.make_storage_from_shape(
-            grid.domain_shape_full(add=(0,0,1)), origin=self._full_orig
+            grid.domain_shape_full(add=(0, 0, 1)), origin=self._full_orig
         )
         self._extm: FloatField = utils.make_storage_from_shape(
-            grid.domain_shape_full(add=(0,0,1)), origin=self._full_orig
+            grid.domain_shape_full(add=(0, 0, 1)), origin=self._full_orig
         )
         self._ext5: FloatField = utils.make_storage_from_shape(
-            grid.domain_shape_full(add=(0,0,1)), origin=self._full_orig
+            grid.domain_shape_full(add=(0, 0, 1)), origin=self._full_orig
         )
         self._ext6: FloatField = utils.make_storage_from_shape(
-            grid.domain_shape_full(add=(0,0,1)), origin=self._full_orig
+            grid.domain_shape_full(add=(0, 0, 1)), origin=self._full_orig
         )
 
         self._set_values_stencil = gtscript.stencil(
-            definition= set_vals,
-            externals={
-                "iv": iv,
-                "kord": abs(kord)
-            },
+            definition=set_vals,
+            externals={"iv": iv, "kord": abs(kord)},
             backend=global_config.get_backend(),
             rebuild=global_config.get_rebuild(),
         )
 
         self._apply_constraints_stencil = gtscript.stencil(
-            definition= apply_constraints,
-            externals={
-                "iv": iv,
-                "kord": abs(kord)
-            },
+            definition=apply_constraints,
+            externals={"iv": iv, "kord": abs(kord)},
             backend=global_config.get_backend(),
             rebuild=global_config.get_rebuild(),
         )
 
         self._set_top_stencil = gtscript.stencil(
-            definition= set_top,
-            externals={
-                "iv": iv
-            },
+            definition=set_top,
+            externals={"iv": iv},
             backend=global_config.get_backend(),
             rebuild=global_config.get_rebuild(),
         )
 
         self._set_set_inner_stencil = gtscript.stencil(
-            definition= set_inner,
-            externals={
-                "iv": iv,
-                "kord": abs(kord)
-            },
+            definition=set_inner,
+            externals={"iv": iv, "kord": abs(kord)},
             backend=global_config.get_backend(),
             rebuild=global_config.get_rebuild(),
         )
 
         self._set_bottom_stencil = gtscript.stencil(
-            definition= set_bottom,
-            externals={
-                "iv": iv
-            },
+            definition=set_bottom,
+            externals={"iv": iv},
             backend=global_config.get_backend(),
             rebuild=global_config.get_rebuild(),
         )
-
 
     def __call__(
         self,
@@ -598,8 +585,8 @@ class RemapProfile:
         qmin: float = 0.0,
     ):
         """
-        Calculates the interpolation coefficients for a cubic-spline which models the 
-        distribution of the remapped field within each deformed grid cell. 
+        Calculates the interpolation coefficients for a cubic-spline which models the
+        distribution of the remapped field within each deformed grid cell.
         The constraints on the spline are set by kord and iv.
         Arguments:
             qs: The field to be remapped
