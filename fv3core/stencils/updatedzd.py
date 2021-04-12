@@ -221,6 +221,7 @@ class UpdateDeltaZOnDGrid:
             origin=self.grid.full_origin(),
             domain=self.grid.domain_shape_full(add=(0, 0, 1)),
         )
+        self._cubic_spline_constants_initialized = False
         self._interpolate_to_layer_interface = FixedOriginStencil(
             cubic_spline_interpolation_from_layer_center_to_interfaces,
             origin=self.grid.full_origin(),
@@ -256,9 +257,12 @@ class UpdateDeltaZOnDGrid:
             wsd: lowest layer vertical velocity required to keep layer at surface
             dt: ???
         """
-        self._cubic_spline_interpolation_constants(
-            dp0, self._gk, self._beta, self._gamma
-        )
+        # TODO: move this logic to init, adding dp0 as an initialization argument
+        if not self._cubic_spline_constants_initialized:
+            self._cubic_spline_interpolation_constants(
+                dp0, self._gk, self._beta, self._gamma
+            )
+            self._cubic_spline_constants_initialized = True
         self._interpolate_to_layer_interface(
             crx, self._crx_interface, self._gk, self._beta, self._gamma
         )

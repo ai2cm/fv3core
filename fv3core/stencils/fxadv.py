@@ -393,30 +393,6 @@ def apply_y_flux_divergence(q: FloatField, q_y_flux: FloatField) -> FloatField:
     return q + q_y_flux - q_y_flux[0, 1, 0]
 
 
-def area_flux_update(
-    area: FloatFieldIJ,
-    xfx_interface: FloatField,
-    area_with_x_flux: FloatField,
-    yfx_interface: FloatField,
-    area_with_y_flux: FloatField,
-):
-    """
-    Compute area with x and y-direction fluxes applied.
-
-    Args:
-        area: Gridcell area
-        xfx_interface: Area fluxed in x-direction in one timestep, defined on vertical
-            interfaces (in)
-        area_with_x_flux: Area updated with x-direction flux divergence (inout)
-        yfx_interface: Area fluxed in y-direction in one timestep, defined on vertical
-            interfaces (in)
-        area_with_y_flux: Area updated with y-direction flux divergence (inout)
-    """
-    with computation(PARALLEL), interval(...):
-        area_with_x_flux = apply_x_flux_divergence(area, xfx_interface)
-        area_with_y_flux = apply_y_flux_divergence(area, yfx_interface)
-
-
 def compute(
     uc,
     vc,

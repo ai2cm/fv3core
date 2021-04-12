@@ -183,12 +183,6 @@ class Tracer2D1L:
             domain=self.grid.domain_shape_full(add=(1, 1, 0)),
             externals=local_axis_offsets,
         )
-        self._ra_update = FixedOriginStencil(
-            fv3core.stencils.fxadv.area_flux_update,
-            origin=self.grid.full_origin(),
-            domain=self.grid.domain_shape_full(),
-            externals=local_axis_offsets,
-        )
         self._cmax_multiply_by_frac = FixedOriginStencil(
             cmax_multiply_by_frac,
             origin=self.grid.full_origin(),
