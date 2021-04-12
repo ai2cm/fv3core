@@ -115,7 +115,6 @@ echo "    GIT hash:         $githash"
 echo "    Python arguments: $py_args"
 echo "    Run arguments:    $run_args"
 
-echo "copying premade GT4Py caches"
 split_path=(${data_path//\// })
 experiment=${split_path[-1]}
 sample_cache=.gt_cache_000000
@@ -130,6 +129,7 @@ if [ ! -d $(pwd)/${sample_cache} ] ; then
              version=""
 	 fi
 	 if [ "$version" == "$GT4PY_VERSION" ]; then
+	     echo "copying premade GT4Py caches"
              cp -r ${premade_caches}/.gt_cache_0000* .
              find . -name m_\*.py -exec sed -i "s|\/scratch\/snx3000\/olifu\/jenkins_submit\/workspace\/fv3core-cache-setup\/backend\/$backend\/experiment\/$experiment\/slave\/daint_submit|$(pwd)|g" {} +
 	 fi
