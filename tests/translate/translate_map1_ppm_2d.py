@@ -46,8 +46,6 @@ class TranslateMap1_PPM_2d(TranslateFortranData2Py):
         self.nj = grid.npy
 
     def compute(self, inputs):
-        print(self.nj)
-        print("test_code")
         self.make_storage_data_input_vars(inputs)
         if "qs" in inputs:
             qs_3d = pad_field_in_j(inputs["qs"].data, self.nj)
