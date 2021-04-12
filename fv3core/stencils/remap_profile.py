@@ -597,6 +597,23 @@ class RemapProfile:
         j2: int,
         qmin: float = 0.0,
     ):
+        """
+        Calculates the interpolation coefficients for a cubic-spline which models the 
+        distribution of the remapped field within each deformed grid cell. 
+        The constraints on the spline are set by kord and iv.
+        Arguments:
+            qs: The field to be remapped
+            a4_1: The first interpolation coefficient
+            a4_2: The second interpolation coefficient
+            a4_3: The third interpolation coefficient
+            a4_4: The fourth interpolation coefficient
+            delp: The pressure difference between grid levels
+            i1: The first i-element to compute on
+            i2: The last i-element to compute on
+            j1: The first j-element to compute on
+            j2: The last j-element to compute on
+            qmin: The minimum value the field can take in a cell
+        """
         i_extent: int = i2 - i1 + 1
         j_extent: int = j2 - j1 + 1
         orig: Tuple[int] = (i1, j1, 0)
