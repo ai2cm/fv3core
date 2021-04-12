@@ -63,26 +63,22 @@ def apply_geopotential_height_fluxes(
 
     Args:
         initial_gz: geopotential height profile on which to apply fluxes (in)
-        fx: geopotential height flux in x-direction (in)
-        fy: geopotential height flux in y-direction (in)
+        fx: geopotential volume flux in x-direction (in)
+        fy: geopotential volume flux in y-direction (in)
         xfx_interface: area flux per timestep in x-direction (in)
         yfx_interface: area flux per timestep in y-direction (in)
-        fx2: diffusive flux of geopotential height in x-direction (in)
-        fy2: diffusive flux of geopotential height in y-direction (in)
+        fx2: diffusive flux of geopotential volume in x-direction (in)
+        fy2: diffusive flux of geopotential volume in y-direction (in)
         final_gz: geopotential height (out)
         zs: surface geopotential height (in)
         ws: vertical velocity of the lowest level (to keep it at the surface) (out)
         dt: acoustic timestep (seconds) (in)
     Grid variable inputs:
         area
-        rarea
     """
     with computation(PARALLEL), interval(...):
-        gz_tmp = apply_height_flux(
-            initial_gz, area, fx, fy, xfx_interface, yfx_interface
-        )
         final_gz = (
-            gz_tmp
+            apply_height_flux(initial_gz, area, fx, fy, xfx_interface, yfx_interface)
             + (
                 zh_x_diffusive_flux
                 - zh_x_diffusive_flux[1, 0, 0]
@@ -91,6 +87,7 @@ def apply_geopotential_height_fluxes(
             )
             / area
         )
+
     with computation(BACKWARD):
         with interval(-1, None):
             ws = (zs - final_gz) / dt
@@ -107,7 +104,14 @@ def cubic_spline_interpolation_constants(
     gamma: FloatField,
 ):
     """
-    Computes constants used in cubic spline interpolation.
+    Computes constants used in cubic spline interpolation
+    from cell center to interface levels.
+
+    Args:
+        dp0: target pressure on interface levels (in)
+        gk: interpolation constant (out)
+        beta: interpolation constant (out)
+        gamma: interpolation constant (out)
     """
     with computation(FORWARD):
         with interval(0, 1):
@@ -247,7 +251,8 @@ class UpdateDeltaZOnDGrid:
     ):
         """
         Args:
-            dp0: ???
+            dp0: air pressure on interface levels, reference pressure
+                can be used as an approximation
             zs: geopotential height of surface
             zh: geopotential height defined on layer interfaces
             crx: Courant number in x-direction
