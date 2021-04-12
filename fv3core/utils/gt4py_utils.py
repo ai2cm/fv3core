@@ -1,8 +1,6 @@
-import inspect
 import logging
-import math
 from functools import wraps
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, Hashable, List, Optional, Tuple, Union
 
 import gt4py as gt
 import gt4py.storage as gt_storage
@@ -21,9 +19,6 @@ except ImportError:
     cp = None
 
 logger = logging.getLogger("fv3ser")
-
-# Set to "False" to skip validating gt4py stencil arguments
-validate_args = True
 
 # If True, automatically transfers memory between CPU and GPU (see gt4py.storage)
 managed_memory = True
@@ -79,7 +74,7 @@ def mark_untested(msg="This is not tested"):
 
 def make_storage_data(
     data: Field,
-    shape: Optional[Tuple[int, int, int]] = None,
+    shape: Optional[Tuple[int, ...]] = None,
     origin: Tuple[int, int, int] = origin,
     *,
     dtype: DTypes = np.float64,
@@ -94,10 +89,12 @@ def make_storage_data(
 
     Args:
         data: Data array for new storage
-        shape: Shape of the new storage
+        shape: Shape of the new storage. Number of indices should be equal
+            to number of unmasked axes
         origin: Default origin for gt4py stencil calls
         dtype: Data type
-        mask: Tuple indicating the axes used when initializing the storage
+        mask: Tuple indicating the axes used when initializing the storage.
+            True indicates a masked axis, False is a used axis.
         start: Starting points for slices in data copies
         dummy: Dummy axes
         axis: Axis for 2D to 3D arrays
@@ -291,35 +288,24 @@ def make_storage_from_shape_uncached(
 storage_shape_outputs = {}
 
 
-@wraps(make_storage_from_shape_uncached)
 def make_storage_from_shape(
-    *args,
-    **kwargs,
+    shape: Tuple[int, ...],
+    origin: Tuple[int, ...] = origin,
+    *,
+    dtype: DTypes = np.float64,
+    init: bool = False,
+    mask: Optional[Tuple[bool, bool, bool]] = None,
+    cache_key: Optional[Hashable] = None,
 ) -> Field:
-    """Create a new gt4py storage of a given shape. Outputs are memoized.
-
-    The key used for memoization is the arguments used combined with the
-    calling scope file and line number, as well as the file and line number
-    which called in to that scope. This handles cases where a utility
-    function (such as `copy`) calls our `make_storage_from_shape`, since
-    `copy` will be called from different places each time. This does *not*
-    handle any more deeply nested duplicate calls, such as if another
-    utility function were to call `copy`, and does not handle allocations
-    which take place within for loops, such as tracer allocations. In
-    those cases, memoization will provide the same storage to two
-    conceptually different objects, causing a bug.
-
-    For this reason, and because of the significant overhead cost of
-    `inspect`, we should move away from this implementation in the
-    longer term.
-
+    """Create a new gt4py storage of a given shape. Outputs are memoized
+       using a provided cache_key
     Args:
         shape: Shape of the new storage
         origin: Default origin for gt4py stencil calls
         dtype: Data type
         init: If True, initializes the storage to zero
         mask: Tuple indicating the axes used when initializing the storage
-
+        cache_key: string for memoizing the storage
     Returns:
         Field[dtype]: New storage
 
@@ -336,23 +322,18 @@ def make_storage_from_shape(
     # changes.
     # We should shift to an explicit caching or array re-use system down
     # the line.
-    callers = tuple(
-        # only need to look at the calling scope and its calling scope
-        # because we don't have any utility functions that call utility
-        # functions that call this function (only nested 1 deep)
-        inspect.getframeinfo(stack_item[0])
-        for stack_item in inspect.stack()[1:3]
-    )
-    caller_signature = tuple((caller.filename, caller.lineno) for caller in callers)
-    key = (args, caller_signature, tuple(sorted(list(kwargs.items()))))
-    if key in storage_shape_outputs:
-        return_value = storage_shape_outputs[key]
-        if kwargs.get("init", False):
-            return_value[:] = 0.0
-    else:
-        return_value = make_storage_from_shape_uncached(*args, **kwargs)
-        storage_shape_outputs[key] = return_value
-
+    if cache_key is None:
+        return make_storage_from_shape_uncached(
+            shape, origin, dtype=dtype, init=init, mask=mask
+        )
+    full_key = (shape, origin, cache_key, dtype, init, mask)
+    if full_key not in storage_shape_outputs:
+        storage_shape_outputs[full_key] = make_storage_from_shape_uncached(
+            shape, origin, dtype=dtype, init=init, mask=mask
+        )
+    return_value = storage_shape_outputs[full_key]
+    if init:
+        return_value[:] = 0.0
     return return_value
 
 
@@ -361,7 +342,9 @@ compiled_stencil_classes = {}
 
 def cached_stencil_class(class_init):
     def memoized(*args, **kwargs):
-        key = str(id(class_init)) + str(kwargs.pop("cache_key") + str(spec.grid.rank))
+        key = str(id(class_init)) + str(
+            kwargs.pop("cache_key", "") + str(spec.grid.rank)
+        )
         if key not in compiled_stencil_classes:
             compiled_stencil_classes[key] = class_init(*args, **kwargs)
         return compiled_stencil_classes[key]
@@ -463,31 +446,6 @@ def krange_from_slice(kslice, grid):
     kend = kslice.stop
     nk = grid.npz - kstart if kend is None else kend - kstart
     return kstart, nk
-
-
-def great_circle_dist(p1, p2, radius=None):
-    beta = (
-        math.asin(
-            math.sqrt(
-                math.sin((p1[1] - p2[1]) / 2.0) ** 2
-                + math.cos(p1[1])
-                * math.cos(p2[1])
-                * math.sin((p1[0] - p2[0]) / 2.0) ** 2
-            )
-        )
-        * 2.0
-    )
-    if radius is not None:
-        great_circle_dist = radius * beta
-    else:
-        great_circle_dist = beta
-    return great_circle_dist
-
-
-def extrap_corner(p0, p1, p2, q1, q2):
-    x1 = great_circle_dist(p1, p0)
-    x2 = great_circle_dist(p2, p0)
-    return q1 + x1 / (x2 - x1) * (q1 - q2)
 
 
 def asarray(array, to_type=np.ndarray, dtype=None, order=None):

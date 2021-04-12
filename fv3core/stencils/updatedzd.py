@@ -12,11 +12,11 @@ from gt4py.gtscript import (
 import fv3core._config as spec
 import fv3core.stencils.d_sw as d_sw
 import fv3core.stencils.delnflux as delnflux
-import fv3core.stencils.fvtp2d as fvtp2d
 import fv3core.utils.global_constants as constants
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import gtstencil
-from fv3core.stencils.basic_operations import copy
+from fv3core.stencils.basic_operations import copy_stencil
+from fv3core.stencils.fvtp2d import FiniteVolumeTransport
 from fv3core.stencils.fxadv import ra_x_func, ra_y_func
 from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
 
@@ -248,22 +248,26 @@ def compute(
     halo = grid.halo
 
     crx_adv = utils.make_storage_from_shape(
-        crx.shape, grid.compute_origin(add=(0, -halo, 0))
+        crx.shape, grid.compute_origin(add=(0, -halo, 0)), cache_key="updatedzd_crx_adv"
     )
     cry_adv = utils.make_storage_from_shape(
-        cry.shape, grid.compute_origin(add=(-halo, 0, 0))
+        cry.shape, grid.compute_origin(add=(-halo, 0, 0)), cache_key="updatedzd_cry_adv"
     )
     xfx_adv = utils.make_storage_from_shape(
-        xfx.shape, grid.compute_origin(add=(0, -halo, 0))
+        xfx.shape, grid.compute_origin(add=(0, -halo, 0)), cache_key="updatedzd_xfx_adv"
     )
     yfx_adv = utils.make_storage_from_shape(
-        yfx.shape, grid.compute_origin(add=(-halo, 0, 0))
+        yfx.shape, grid.compute_origin(add=(-halo, 0, 0)), cache_key="updatedzd_yfx_adv"
     )
     ra_x = utils.make_storage_from_shape(
-        crx.shape, grid.compute_origin(add=(0, -halo, 0))
+        crx.shape,
+        grid.compute_origin(add=(0, -halo, 0)),
+        cache_key="updatedzd_ra_x",
     )
     ra_y = utils.make_storage_from_shape(
-        cry.shape, grid.compute_origin(add=(-halo, 0, 0))
+        cry.shape,
+        grid.compute_origin(add=(-halo, 0, 0)),
+        cache_key="updatedzd_ra_y",
     )
 
     edge_profile_stencil(
@@ -291,19 +295,35 @@ def compute(
 
     grid = spec.grid
 
-    wk = utils.make_storage_from_shape(zh.shape, grid.full_origin())
-    fx2 = utils.make_storage_from_shape(zh.shape, grid.full_origin())
-    fy2 = utils.make_storage_from_shape(zh.shape, grid.full_origin())
-    fx = utils.make_storage_from_shape(zh.shape, grid.full_origin())
-    fy = utils.make_storage_from_shape(zh.shape, grid.full_origin())
-    z2 = copy(
-        zh, origin=grid.full_origin(), domain=grid.domain_shape_full(add=(0, 0, 1))
+    wk = utils.make_storage_from_shape(
+        zh.shape, grid.full_origin(), cache_key="updatedzd_wk"
+    )
+    fx2 = utils.make_storage_from_shape(
+        zh.shape, grid.full_origin(), cache_key="updatedzd_fx2"
+    )
+    fy2 = utils.make_storage_from_shape(
+        zh.shape, grid.full_origin(), cache_key="updatedzd_fy2"
+    )
+    fx = utils.make_storage_from_shape(
+        zh.shape, grid.full_origin(), cache_key="updatedzd_fx"
+    )
+    fy = utils.make_storage_from_shape(
+        zh.shape, grid.full_origin(), cache_key="updatedzd_fy"
+    )
+    z2 = utils.make_storage_from_shape(
+        zh.shape, grid.full_origin(), cache_key="updatedzd_z2"
+    )
+    copy_stencil(
+        zh,
+        z2,
+        origin=grid.full_origin(),
+        domain=grid.domain_shape_full(add=(0, 0, 1)),
     )
 
-    fvtp2d_obj = utils.cached_stencil_class(fvtp2d.FvTp2d)(
+    fvtp2d = utils.cached_stencil_class(FiniteVolumeTransport)(
         spec.namelist, spec.namelist.hord_tm, cache_key="updatedzd"
     )
-    fvtp2d_obj(
+    fvtp2d(
         z2,
         crx_adv,
         cry_adv,

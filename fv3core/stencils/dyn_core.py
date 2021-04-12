@@ -187,17 +187,19 @@ def compute(state, comm):
     # mfyd, cxd, cyd, pkz, peln, q_con, ak, bk, diss_estd, cappa, mdt, n_split,
     # akap, ptop, pfull, n_map, comm):
     grid = spec.grid
-
+    nonhydrostatic_pressure = utils.cached_stencil_class(
+        nh_p_grad.NonHydrostaticPressureGradient
+    )(cache_key="dyn_core_nhpgrad")
     init_step = state.n_map == 1
     end_step = state.n_map == spec.namelist.k_split
-    akap = state.akap
+    akap = constants.KAPPA
     # peln1 = math.log(ptop)
     # ptk = ptop**akap
-    dt = state.mdt / state.n_split
+    dt = state.mdt / spec.namelist.n_split
     dt2 = 0.5 * dt
     hydrostatic = spec.namelist.hydrostatic
     rgrav = 1.0 / constants.GRAV
-    n_split = state.n_split
+    n_split = spec.namelist.n_split
     # TODO: Put defaults into code.
     # m_split = 1. + abs(dt_atmos)/real(k_split*n_split*abs(p_split))
     # n_split = nint( real(n0split)/real(k_split*abs(p_split)) * stretch_fac + 0.5 )
@@ -236,8 +238,12 @@ def compute(state, comm):
         # k1k = akap / (1.0 - akap)
 
         # To write in parallel region, these need to be 3D first
-        state.dp_ref = utils.make_storage_from_shape(shape, grid.full_origin())
-        state.zs = utils.make_storage_from_shape(shape, grid.full_origin())
+        state.dp_ref = utils.make_storage_from_shape(
+            shape, grid.full_origin(), cache_key="dyn_core_dp_ref"
+        )
+        state.zs = utils.make_storage_from_shape(
+            shape, grid.full_origin(), cache_key="dyn_core_zs"
+        )
         dp_ref_compute(
             state.ak,
             state.bk,
@@ -347,7 +353,7 @@ def compute(state, comm):
                     domain=grid.domain_shape_full(add=(0, 0, 1)),
                 )
         if not hydrostatic:
-            state.gz, state.ws3 = updatedzc.compute(
+            updatedzc.compute(
                 state.dp_ref, state.zs, state.ut, state.vt, state.gz, state.ws3, dt2
             )
             riem_solver_c.compute(
@@ -497,7 +503,7 @@ def compute(state, comm):
                 raise Exception(
                     "Unimplemented namelist option -- we only support beta=0"
                 )
-            nh_p_grad.compute(
+            nonhydrostatic_pressure(
                 state.u,
                 state.v,
                 state.pkc,

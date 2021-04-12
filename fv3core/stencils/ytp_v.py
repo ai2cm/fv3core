@@ -3,13 +3,14 @@ from gt4py.gtscript import (
     __INLINED,
     PARALLEL,
     computation,
+    external_assert,
     horizontal,
     interval,
     region,
 )
 
 import fv3core._config as spec
-import fv3core.utils.global_config as global_config
+from fv3core.decorators import FixedOriginStencil
 from fv3core.stencils import yppm
 from fv3core.utils.grid import axis_offsets
 from fv3core.utils.typing import FloatField, FloatFieldIJ
@@ -80,7 +81,7 @@ def _compute_stencil(
             dm = yppm.dm_jord8plus(v)
             al = yppm.al_jord8plus(v, dm)
 
-            assert __INLINED(jord == 8)
+            external_assert(jord == 8)
             # {
             bl, br = yppm.blbr_jord8(v, al, dm)
             # }
@@ -127,23 +128,24 @@ class YTP_V:
                 "Currently xtp_v is only supported for hord_mt == 5,6,7,8"
             )
         grid = spec.grid
-        self.origin = grid.compute_origin()
-        self.domain = grid.domain_shape_compute(add=(1, 1, 0))
+        origin = grid.compute_origin()
+        domain = grid.domain_shape_compute(add=(1, 1, 0))
         self.dy = grid.dy
         self.dya = grid.dya
         self.rdy = grid.rdy
-        ax_offsets = axis_offsets(grid, self.origin, self.domain)
+        ax_offsets = axis_offsets(grid, origin, domain)
         assert namelist.grid_type < 3
-        self.stencil = gtscript.stencil(
-            definition=_compute_stencil,
+
+        self.stencil = FixedOriginStencil(
+            _compute_stencil,
             externals={
                 "jord": jord,
                 "mord": jord,
                 "xt_minmax": False,
                 **ax_offsets,
             },
-            backend=global_config.get_backend(),
-            rebuild=global_config.get_rebuild(),
+            origin=origin,
+            domain=domain,
         )
 
     def __call__(self, c: FloatField, v: FloatField, flux: FloatField):
@@ -156,13 +158,4 @@ class YTP_V:
         flux (out): Flux of kinetic energy
         """
 
-        self.stencil(
-            c,
-            v,
-            flux,
-            self.dy,
-            self.dya,
-            self.rdy,
-            origin=self.origin,
-            domain=self.domain,
-        )
+        self.stencil(c, v, flux, self.dy, self.dya, self.rdy)

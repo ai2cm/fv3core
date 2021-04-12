@@ -4,7 +4,7 @@ import fv3core._config as spec
 import fv3core.utils.corners as corners
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import gtstencil
-from fv3core.stencils.basic_operations import copy
+from fv3core.stencils.basic_operations import copy_stencil
 from fv3core.utils.typing import FloatField, FloatFieldIJ
 
 
@@ -113,12 +113,14 @@ def compute_delnflux_no_sg(
         nk = grid.npz - kstart
     full_origin = (grid.isd, grid.jsd, kstart)
     if d2 is None:
-        d2 = utils.make_storage_from_shape(q.shape, full_origin)
+        d2 = utils.make_storage_from_shape(
+            q.shape, full_origin, cache_key="delnflux_d2"
+        )
     if damp_c <= 1e-4:
         return fx, fy
     damp = (damp_c * grid.da_min) ** (nord + 1)
-    fx2 = utils.make_storage_from_shape(q.shape, full_origin)
-    fy2 = utils.make_storage_from_shape(q.shape, full_origin)
+    fx2 = utils.make_storage_from_shape(q.shape, full_origin, cache_key="delnflux_fx2")
+    fy2 = utils.make_storage_from_shape(q.shape, full_origin, cache_key="delnflux_fy2")
     compute_no_sg(q, fx2, fy2, nord, damp, d2, kstart, nk, mass)
     diffuse_origin = (grid.is_, grid.js, kstart)
     diffuse_domain_x = (grid.nic + 1, grid.njc, nk)
@@ -156,7 +158,7 @@ def compute_no_sg(q, fx2, fy2, nord, damp_c, d2, kstart=0, nk=None, mass=None):
     if mass is None:
         d2_damp(q, d2, damp_c, origin=origin_d2, domain=domain_d2)
     else:
-        d2 = copy(q, origin=origin_d2, domain=domain_d2)
+        copy_stencil(q, d2, origin=origin_d2, domain=domain_d2)
 
     if nord > 0:
         corners.copy_corners_x_stencil(
