@@ -115,7 +115,7 @@ class FiniteVolumeTransport:
         mfy=None,
     ):
         """
-        Perform horizontal finite volume transport.
+        Calculate fluxes for horizontal finite volume transport.
 
         Args:
             q: scalar to be transported (in)
