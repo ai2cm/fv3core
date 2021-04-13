@@ -146,6 +146,7 @@ def compute_preamble(state, comm, grid, namelist):
         )
         utils.device_sync()
 
+
 def post_remap(state, comm, grid, namelist):
     grid = grid
     if not namelist.hydrostatic:
