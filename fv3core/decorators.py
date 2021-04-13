@@ -332,7 +332,52 @@ def gtstencil(**stencil_kwargs) -> Callable[[Any], FV3StencilObject]:
     return decorator
 
 
-class FixedOriginStencil:
+class StencilWrapper:
+    """Wrapped GT4Py stencil object."""
+
+    def __init__(self, func: Callable, **kwargs):
+        self.func = func
+
+        if "format_source" not in kwargs:
+            kwargs["format_source"] = global_config.get_format_source()
+
+        self.stencil_object = gtscript.stencil(
+            backend=global_config.get_backend(),
+            rebuild=global_config.get_rebuild(),
+            definition=self.func,
+            **kwargs,
+        )
+
+    def __call__(self, *args, **kwargs) -> None:
+        kwargs["origin"] = self._get_field_origins(*args, **kwargs)
+
+        self.stencil_object(
+            *args,
+            **kwargs,
+            validate_args=global_config.get_validate_args(),
+        )
+
+    def _get_field_origins(self, *args, **kwargs) -> Dict[str, Tuple[int]]:
+        origin = kwargs["origin"]
+        origin_dict = {}
+        field_names = list(self.stencil_object.field_info.keys())
+        field_axes = []
+        for i in range(len(field_names)):
+            field_name = field_names[i]
+            if self.stencil_object.field_info[field_name]:
+                field_axes = self.stencil_object.field_info[field_name].axes
+            field_shape = args[i].shape if i < len(args) else kwargs[field_name].shape
+            if field_axes == ["K"]:
+                field_origin = [min(field_shape[0] - 1, origin[2])]
+            else:
+                field_origin = [
+                    min(field_shape[j] - 1, origin[j]) for j in range(len(field_shape))
+                ]
+            origin_dict[field_name] = tuple(field_origin)
+        return origin_dict
+
+
+class FixedOriginStencil(StencilWrapper):
     """Wrapped GT4Py stencil object explicitly genrating
     and using the normalized origins."""
 
