@@ -279,9 +279,10 @@ class Tracer2D1L:
 
         if self.do_halo_exchange:
             utils.device_sync()
+            reqs = {}
             for qname in utils.tracer_variables[0:nq]:
                 q = tracers[qname + "_quantity"]
-                self.comm.halo_update(q, n_points=utils.halo)
+                reqs[qname] = self.comm.start_halo_update(q, n_points=utils.halo)
 
         self._ra_update(
             self.grid.area,
@@ -301,6 +302,7 @@ class Tracer2D1L:
             domain=self.grid.domain_shape_full(),
         )
         for qname in utils.tracer_variables[0:nq]:
+            reqs[qname].wait()
             q = tracers[qname + "_quantity"]
             self._loop_temporaries_copy(
                 self._tmp_dp1_orig,
