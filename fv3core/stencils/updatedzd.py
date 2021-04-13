@@ -205,9 +205,6 @@ class UpdateDeltaZOnDGrid:
         self._fy = utils.make_storage_from_shape(
             largest_possible_shape, grid.full_origin()
         )
-        self._zh_tmp = utils.make_storage_from_shape(
-            largest_possible_shape, grid.full_origin()
-        )
         self._gk = utils.make_storage_from_shape(
             largest_possible_shape, grid.full_origin()
         )
