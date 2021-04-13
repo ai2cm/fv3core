@@ -54,7 +54,6 @@ def compute_preamble(state, comm, grid, namelist):
         origin=(0, 0, 0),
         domain=(1, 1, grid.domain_shape_compute()[2]),
     )
-    utils.device_sync()
 
     state.pfull = utils.make_storage_data(state.pfull[0, 0, :], state.ak.shape, (0,))
 
@@ -144,7 +143,6 @@ def compute_preamble(state, comm, grid, namelist):
             origin=grid.compute_origin(),
             domain=grid.domain_shape_compute(),
         )
-        utils.device_sync()
 
 
 def post_remap(state, comm, grid, namelist):
@@ -360,7 +358,9 @@ class DynamicalCore:
         if self.do_halo_exchange:
             utils.device_sync()
             self.comm.halo_update(state.phis_quantity, n_points=utils.halo)
+        global_config.set_device_sync(True)
         compute_preamble(state, self.comm, self.grid, self.namelist)
+        global_config.set_device_sync(False)
 
         for n_map in range(state.k_split):
             state.n_map = n_map + 1
