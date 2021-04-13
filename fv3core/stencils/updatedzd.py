@@ -15,7 +15,7 @@ DZ_MIN = constants.DZ_MIN
 
 @gtscript.function
 def apply_height_flux(
-    height: FloatField,
+    geopotential_height: FloatField,
     area: FloatFieldIJ,
     x_height_flux: FloatField,
     y_height_flux: FloatField,
@@ -27,6 +27,16 @@ def apply_height_flux(
 
     A positive flux of area corresponds to convergence, which expands
     the layer thickness.
+
+    Args:
+        geopotential_height: initial geopotential height
+        area: gridcell area in m^2
+        x_height_flux: area-weighted flux of geopotential height in x-direction,
+            in units of g * m^3
+        y_height_flux: area-weighted flux of geopotential height in y-direction,
+            in units of g * m^3
+        x_area_flux: flux of area in x-direction, in units of m^2
+        y_area_flux: flux of area in y-direction, in units of m^2
     """
     area_after_flux = (
         (area + x_area_flux - x_area_flux[1, 0, 0])
@@ -36,7 +46,7 @@ def apply_height_flux(
     # final height is the original volume plus the fluxed volumes,
     # divided by the final area
     return (
-        height * area
+        geopotential_height * area
         + x_height_flux
         - x_height_flux[1, 0, 0]
         + y_height_flux
@@ -51,24 +61,31 @@ def apply_geopotential_height_fluxes(
     fy: FloatField,
     xfx_interface: FloatField,
     yfx_interface: FloatField,
-    zh_x_diffusive_flux: FloatField,
-    zh_y_diffusive_flux: FloatField,
+    gz_x_diffusive_flux: FloatField,
+    gz_y_diffusive_flux: FloatField,
     final_gz: FloatField,
     zs: FloatFieldIJ,
     ws: FloatFieldIJ,
     dt: float,
 ):
     """
-    Apply all computed fluxes to layer thickness profile.
+    Apply all computed fluxes to profile of geopotential height.
+
+    All vertically-resolved arguments are defined on the same grid
+    (normally interface levels).
 
     Args:
         initial_gz: geopotential height profile on which to apply fluxes (in)
-        fx: geopotential volume flux in x-direction (in)
-        fy: geopotential volume flux in y-direction (in)
-        xfx_interface: area flux per timestep in x-direction (in)
-        yfx_interface: area flux per timestep in y-direction (in)
-        fx2: diffusive flux of geopotential volume in x-direction (in)
-        fy2: diffusive flux of geopotential volume in y-direction (in)
+        fx: area-weighted flux of geopotential height in x-direction,
+            in units of g * m^3
+        fy: area-weighted flux of geopotential height in y-direction,
+            in units of g * m^3
+        xfx_interface: flux of area in x-direction, in units of m^2 (in)
+        yfx_interface: flux of area in y-direction, in units of m^2 (in)
+        gz_x_diffusive_flux: diffusive flux of area-weighted geopotential height
+            in x-direction (in)
+        gz_y_diffusive_flux: diffusive flux of area-weighted geopotential height
+            in y-direction (in)
         final_gz: geopotential height (out)
         zs: surface geopotential height (in)
         ws: vertical velocity of the lowest level (to keep it at the surface) (out)
@@ -80,10 +97,10 @@ def apply_geopotential_height_fluxes(
         final_gz = (
             apply_height_flux(initial_gz, area, fx, fy, xfx_interface, yfx_interface)
             + (
-                zh_x_diffusive_flux
-                - zh_x_diffusive_flux[1, 0, 0]
-                + zh_y_diffusive_flux
-                - zh_y_diffusive_flux[0, 1, 0]
+                gz_x_diffusive_flux
+                - gz_x_diffusive_flux[1, 0, 0]
+                + gz_y_diffusive_flux
+                - gz_y_diffusive_flux[0, 1, 0]
             )
             / area
         )
@@ -109,9 +126,9 @@ def cubic_spline_interpolation_constants(
 
     Args:
         dp0: target pressure on interface levels (in)
-        gk: interpolation constant (out)
-        beta: interpolation constant (out)
-        gamma: interpolation constant (out)
+        gk: interpolation constant on mid levels (out)
+        beta: interpolation constant on mid levels (out)
+        gamma: interpolation constant on mid levels (out)
     """
     with computation(FORWARD):
         with interval(0, 1):
