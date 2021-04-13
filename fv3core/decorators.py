@@ -335,7 +335,7 @@ class FixedOriginStencil:
     and using the normalized origins."""
 
     def __init__(
-        self, func, origin: Tuple[int, int int], domain: Tuple[int, int, int], **kwargs
+        self, func, origin: Tuple[int, int, int], domain: Tuple[int, int, int], **kwargs
     ):
         self.normalized_origin = (
             gtscript.gt_definitions.normalize_origin_mapping(origin)
