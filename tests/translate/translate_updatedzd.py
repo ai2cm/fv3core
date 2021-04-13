@@ -24,11 +24,19 @@ class TranslateUpdateDzD(TranslateFortranData2Py):
             self.out_vars[v] = self.in_vars["data_vars"][v]
         self.out_vars["wsd"]["kstart"] = grid.npz
         self.out_vars["wsd"]["kend"] = None
+        self.updatedzd = fv3core.stencils.updatedzd.UpdateDeltaZOnDGrid(
+            self.grid, d_sw.get_column_namelist(), d_sw.k_bounds()
+        )
 
     def compute(self, inputs):
         self.make_storage_data_input_vars(inputs)
-        updatedzd = fv3core.stencils.updatedzd.UpdateDeltaZOnDGrid(
-            self.grid, d_sw.get_column_namelist(), d_sw.k_bounds()
-        )
-        updatedzd(**inputs)
-        return self.slice_output(inputs)
+        self.updatedzd(**inputs)
+        self.out_vars["zh"].update(self.updatedzd._zh_validator.translate_dict)
+        outputs = self.slice_output(inputs)
+        outputs["zh"] = self.subset_output("zh", outputs["zh"])
+        return outputs
+
+    def subset_output(self, varname, output):
+        if varname == "zh":
+            output = output[self.updatedzd._zh_validator.validation_slice]
+        return output

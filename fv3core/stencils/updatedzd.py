@@ -5,8 +5,9 @@ import fv3core._config as spec
 import fv3core.utils.global_constants as constants
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import FixedOriginStencil
-from fv3core.stencils import basic_operations, d_sw, delnflux
+from fv3core.stencils import d_sw, delnflux
 from fv3core.stencils.fvtp2d import FiniteVolumeTransport
+from fv3core.utils import validation
 from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
 
 
@@ -236,6 +237,10 @@ class UpdateDeltaZOnDGrid:
             origin=self.grid.compute_origin(),
             domain=self.grid.domain_shape_compute(add=(0, 0, 1)),
         )
+        self._zh_validator = validation.SelectiveValidation(
+            origin=self.grid.compute_origin(),
+            domain=self.grid.domain_shape_compute(add=(0, 0, 1)),
+        )
 
     def __call__(
         self,
@@ -280,14 +285,8 @@ class UpdateDeltaZOnDGrid:
         self._interpolate_to_layer_interface(
             yfx, self._yfx_interface, self._gk, self._beta, self._gamma
         )
-        basic_operations.copy_stencil(
-            zh,
-            self._zh_tmp,
-            origin=self.grid.full_origin(),
-            domain=self.grid.domain_shape_full(add=(0, 0, 1)),
-        )  # this temporary can be replaced with zh if we have selective validation
         self.finite_volume_transport(
-            self._zh_tmp,
+            zh,
             self._crx_interface,
             self._cry_interface,
             self._xfx_interface,
@@ -297,7 +296,7 @@ class UpdateDeltaZOnDGrid:
         )
         for kstart, nk in self._k_bounds:
             delnflux.compute_no_sg(
-                self._zh_tmp,
+                zh,
                 self._fx2,
                 self._fy2,
                 int(self._column_namelist["nord_v"][kstart]),
@@ -320,6 +319,7 @@ class UpdateDeltaZOnDGrid:
             wsd,
             dt,
         )
+        self._zh_validator.set_nans_if_test_mode(zh)
 
 
 def compute(
