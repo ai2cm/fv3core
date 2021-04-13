@@ -348,7 +348,7 @@ def test_parallel_savepoint(
     caplog,
     python_regression,
     threshold_overrides,
-    xy_indices=True,
+    xy_indices=False,
 ):
     caplog.set_level(logging.DEBUG, logger="fv3core")
     if python_regression and not testobj.python_regression:

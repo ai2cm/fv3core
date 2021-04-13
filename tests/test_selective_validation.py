@@ -13,6 +13,7 @@ from fv3core.utils.validation import SelectiveValidation
     ],
 )
 def test_setting_nans(shape, origin, domain):
+    original_mode = SelectiveValidation.TEST_MODE
     try:
         array = np.zeros(shape)
         selector = SelectiveValidation(origin, domain)
@@ -23,4 +24,4 @@ def test_setting_nans(shape, origin, domain):
             np.sum(np.isnan(array[selector.validation_slice])) == 0
         ), "validation_slice does not match the values set to nan"
     finally:
-        SelectiveValidation.TEST_MODE = False
+        SelectiveValidation.TEST_MODE = original_mode
