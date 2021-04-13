@@ -130,8 +130,6 @@ class NonHydrostaticPressureGradient:
             origin=self.orig,
             domain=self.v_domain,
         )
-        self._calc_u_stencil = FrozenStencil(calc_u, self.orig, self.u_domain)
-        self._calc_v_stencil = FrozenStencil(calc_v, self.orig, self.v_domain)
 
     def __call__(
         self,
