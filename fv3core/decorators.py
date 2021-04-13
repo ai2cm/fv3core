@@ -360,24 +360,33 @@ class StencilWrapper:
         )
 
 
-class FixedOriginStencil(StencilWrapper):
-    """Wrapped GT4Py stencil object explicitly generating
+class FrozenStencil(StencilWrapper):
+    """Wrapped GT4Py stencil object explicitly genrating
     and using the normalized origins."""
 
-    def __init__(self, func: Callable, origin: Index3D, domain: Index3D, **kwargs):
+    def __init__(self, func, origin, domain, **kwargs):
         super().__init__(func, **kwargs)
-        self.normalized_origin = gtscript.gt_definitions.normalize_origin_mapping(
-            origin
+        self.normalized_origin = (
+            gtscript.gt_definitions.normalize_origin_mapping(origin)
+            if origin is not None
+            else {}
+        )
+        self.normalized_domain = (
+            gtscript.gt_definitions.normalize_domain(domain)
+            if domain is not None
+            else None
         )
         self.domain = domain
 
     def __call__(self, *args, **kwargs) -> None:
+        assert "origin" not in kwargs
+        assert "domain" not in kwargs
         self.stencil_object(
             *args,
             **kwargs,
             validate_args=global_config.get_validate_args(),
+            normalized_domain=self.normalized_domain,
             normalized_origin=self.normalized_origin,
-            domain=self.domain,
         )
 
 
