@@ -333,8 +333,7 @@ def gtstencil(**stencil_kwargs) -> Callable[[Any], FV3StencilObject]:
 
 
 class StencilWrapper:
-    """Wrapped GT4Py stencil object explicitly generating
-    and using the normalized origins."""
+    """Wrapped GT4Py stencil object."""
 
     def __init__(self, func: Callable, **kwargs):
         self.func = func
@@ -359,7 +358,7 @@ class StencilWrapper:
 
 
 class FrozenStencil(StencilWrapper):
-    """Wrapped GT4Py stencil object explicitly genrating
+    """Wrapped GT4Py stencil object explicitly generating
     and using the normalized origins."""
 
     def __init__(self, func, origin, domain, **kwargs):
@@ -378,15 +377,15 @@ class FrozenStencil(StencilWrapper):
 
     def __call__(self, *args, **kwargs) -> None:
         if "origin" in kwargs:
-            raise ValueError("cannot pass origin to FrozenStencil at call time")
+            raise ValueError("Cannot pass origin to FrozenStencil at call time")
         if "domain" in kwargs:
-            raise ValueError("cannot pass domain to FrozenStencil at call time")
+            raise ValueError("Cannot pass domain to FrozenStencil at call time")
         self.stencil_object(
             *args,
             **kwargs,
-            validate_args=global_config.get_validate_args(),
             normalized_domain=self.normalized_domain,
             normalized_origin=self.normalized_origin,
+            validate_args=global_config.get_validate_args(),
         )
 
 
