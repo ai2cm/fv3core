@@ -271,7 +271,7 @@ class FV3StencilObject:
                 "build_info": new_build_info,
                 **self.backend_kwargs,
             }
-            gt4py_utils.set_device_sync(stencil_kwargs)
+            gt4py_utils.apply_device_sync(stencil_kwargs)
 
             # gtscript.stencil always returns a new class instance even if it
             # used the cached module.
@@ -343,7 +343,7 @@ class StencilWrapper:
 
         if "format_source" not in kwargs:
             kwargs["format_source"] = global_config.get_format_source()
-        gt4py_utils.set_device_sync(kwargs)
+        gt4py_utils.apply_device_sync(kwargs)
 
         self.stencil_object = gtscript.stencil(
             backend=global_config.get_backend(),

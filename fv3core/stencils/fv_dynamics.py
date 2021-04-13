@@ -358,12 +358,13 @@ class DynamicalCore:
         if self.do_halo_exchange:
             utils.device_sync()
             self.comm.halo_update(state.phis_quantity, n_points=utils.halo)
+        global_config.set_device_sync(True)
         compute_preamble(state, self.comm, self.grid, self.namelist)
+        global_config.set_device_sync(False)
 
         for n_map in range(state.k_split):
             state.n_map = n_map + 1
-            if n_map == state.k_split - 1:
-                last_step = True
+            last_step = n_map == state.k_split - 1
             self._dyn(state, timer)
 
             if self.grid.npz > 4:
