@@ -334,11 +334,16 @@ class FixedOriginStencil:
     """Wrapped GT4Py stencil object explicitly genrating
     and using the normalized origins."""
 
-    def __init__(
-        self, func, origin: Tuple[int, int, int], domain: Tuple[int, int, int], **kwargs
-    ):
-        self.normalized_origin = gtscript.gt_definitions.normalize_origin_mapping(
-            origin
+    def __init__(self, func, origin, domain, **kwargs):
+        self.normalized_origin = (
+            gtscript.gt_definitions.normalize_origin_mapping(origin)
+            if origin is not None
+            else {}
+        )
+        self.normalized_domain = (
+            gtscript.gt_definitions.normalize_domain(domain)
+            if domain is not None
+            else None
         )
         self.domain = domain
         self.func = func
@@ -358,8 +363,8 @@ class FixedOriginStencil:
             *args,
             **kwargs,
             validate_args=global_config.get_validate_args(),
+            normalized_domain=self.normalized_domain,
             normalized_origin=self.normalized_origin,
-            domain=self.domain,
         )
 
 
