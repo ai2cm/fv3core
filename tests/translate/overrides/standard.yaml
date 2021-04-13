@@ -2,8 +2,6 @@ C_SW:
   - backend: numpy
     platform: docker
     max_error: 2e-10
-  - backend: gtcuda
-    max_error: 2.5e-9
 
 CS_Profile_2d:
   - backend: gtcuda
@@ -14,18 +12,6 @@ CS_Profile_2d-2:
   - backend: gtcuda
     max_error: 3e-8
     near_zero: 1.5e-14
-
-D_SW:
-  - backend: gtcuda
-    max_error: 1e-9
-
-Del2Cubed:
-  - backend: gtcuda
-    max_error: 3e-10
-
-DivergenceCorner:
-  - backend: gtcuda
-    max_error: 2.5e-9
 
 Fillz:
   - backend: gtcuda
@@ -68,14 +54,6 @@ Remapping:
     ignore_near_zero_errors:
       - q_con
       - tracers
-
-SatAdjust3d:
-  - backend: gtcuda
-    max_error: 2e-10
-
-Tracer2D1L:
-  - backend: gtcuda
-    max_error: 5e-10
 
 UpdateDzC:
   - backend: gtcuda
