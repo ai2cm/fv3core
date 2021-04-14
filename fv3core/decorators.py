@@ -149,7 +149,98 @@ class StencilDataCache(collections.abc.Mapping):
         return self.cache.__iter__()
 
 
-class FV3StencilObject:
+class StencilWrapper:
+    """Wrapped GT4Py stencil object."""
+
+    def __init__(
+        self,
+        func: Callable[..., None],
+        origin: Optional[Index3D] = None,
+        domain: Optional[Index3D] = None,
+        **kwargs,
+    ):
+        self.func = func
+        self.origin = origin
+        self.domain = domain
+
+        if "format_source" not in kwargs:
+            kwargs["format_source"] = global_config.get_format_source()
+
+        self.stencil_object = gtscript.stencil(
+            definition=self.func,
+            backend=global_config.get_backend(),
+            rebuild=global_config.get_rebuild(),
+            **kwargs,
+        )
+
+    def __call__(self, *args, **kwargs) -> None:
+        if self.origin:
+            if "origin" in kwargs:
+                raise ValueError("Cannot override origin provided at init time")
+            kwargs["origin"] = self.origin
+        kwargs["origin"] = self._get_field_origins(*args, **kwargs)
+
+        if self.domain:
+            if "domain" in kwargs:
+                raise ValueError("Cannot override domain provided at init time")
+            kwargs["domain"] = self.domain
+        elif "domain" not in kwargs:
+            raise ValueError("No domain provided at call time")
+
+        if global_config.get_validate_args():
+            self.stencil_object(*args, **kwargs, validate_args=True)
+        else:
+            kwargs = self._process_kwargs(*args, **kwargs)
+            self.stencil_object.run(**kwargs, exec_info=None)
+
+    def _process_kwargs(self, *args, **kwargs):
+        """Process keyword args so they can be passed directly to stencil_object.run."""
+
+        for keyword in ("origin", "domain"):
+            kwargs[f"_{keyword}_"] = kwargs[keyword]
+            del kwargs[keyword]
+
+        arg_names = self.field_names + self.parameter_names
+        for i in range(len(args)):
+            kwargs[arg_names[i]] = args[i]
+
+        return kwargs
+
+    def _get_field_origins(self, *args, **kwargs) -> Dict[str, Tuple[int, ...]]:
+        """Computes the origin for each field in the stencil call."""
+
+        origin = kwargs["origin"]
+        origin_dict = {"_all_": origin}
+        field_names = self.field_names
+        for i in range(len(field_names)):
+            field_name = field_names[i]
+            field_axes = (
+                self.stencil_object.field_info[field_name].axes
+                if self.stencil_object.field_info[field_name]
+                else []
+            )
+            field_shape = args[i].shape if i < len(args) else kwargs[field_name].shape
+            if field_axes == ["K"]:
+                field_origin = [min(field_shape[0] - 1, origin[2])]
+            else:
+                field_origin = [
+                    min(field_shape[j] - 1, origin[j]) for j in range(len(field_shape))
+                ]
+            origin_dict[field_name] = tuple(field_origin)
+        return origin_dict
+
+    @property
+    def field_names(self) -> List[str]:
+        """Returns the list of stencil field names."""
+        return list(self.stencil_object.field_info.keys())
+
+    @property
+    def parameter_names(self) -> List[str]:
+        """Returns the list of stencil parameter names."""
+        return list(self.stencil_object.parameter_info.keys())
+
+
+class FV3StencilObject(StencilWrapper):
     """GT4Py stencil object used for fv3core."""
 
     def __init__(self, func: Callable[..., None], **kwargs):
@@ -208,41 +299,20 @@ class FV3StencilObject:
                 return True
         return False
 
-    def _get_field_origins(
-        self, origin: Tuple[int, int, int], *args, **kwargs
-    ) -> Dict[str, Tuple[int, ...]]:
-        origin_dict = {}
-        field_names: List[str] = list(self.stencil_object.field_info.keys())
-        field_axes = []
-        for i in range(len(field_names)):
-            field_name = field_names[i]
-            # TODO: assert self.stencil_object.field_info[field_name] is not None
-            if self.stencil_object.field_info[field_name]:
-                field_axes = self.stencil_object.field_info[field_name].axes
-            field_shape: Tuple[int, ...] = (
-                args[i].shape if i < len(args) else kwargs[field_name].shape
-            )
-            if field_axes == ["K"]:
-                field_origin: List[int] = [min(field_shape[0] - 1, origin[2])]
-            else:
-                field_origin = [
-                    min(field_shape[j] - 1, origin[j]) for j in range(len(field_shape))
-                ]
-            origin_dict[field_name] = tuple(field_origin)
-        return origin_dict
-
-    def __call__(self, *args, origin: Index3D, domain: Index3D, **kwargs) -> None:
+    def __call__(self, *args, **kwargs) -> None:
         """Call the stencil, compiling the stencil if necessary.
 
         The stencil needs to be recompiled if any of the following changes
         1. the origin and/or domain
         2. any external value
         3. the function signature or code
-
-        Args:
-            domain: Stencil compute domain (required)
-            origin: Data index mapped to (0, 0, 0) in the compute domain (required)
         """
+        if "domain" not in kwargs:
+            raise ValueError("No domain provided at call time")
+        domain = kwargs.pop("domain")
+        if "origin" not in kwargs:
+            raise ValueError("No origin provided at call time")
+        origin = kwargs.pop("origin")
 
         # Can optimize this by marking stencils that need these
         axis_offsets = fv3core.utils.axis_offsets(spec.grid, origin, domain)
@@ -290,7 +360,6 @@ class FV3StencilObject:
 
         # Call it
         kwargs["exec_info"] = kwargs.get("exec_info", {})
-        kwargs["validate_args"] = global_config.get_validate_args()
         name = f"{self.func.__module__}.{self.func.__name__}"
 
         _maybe_save_report(
@@ -301,8 +370,22 @@ class FV3StencilObject:
             kwargs,
         )
 
-        origin_dict = self._get_field_origins(origin, *args, **kwargs)
-        self.stencil_object(*args, **kwargs, origin=origin_dict, domain=domain)
+        origins = self._get_field_origins(*args, **kwargs, origin=origin)
+        if global_config.get_validate_args():
+            kwargs["validate_args"] = True
+            self.stencil_object(*args, **kwargs, origin=origins, domain=domain)
+
+            # Update timers
+            exec_info = kwargs["exec_info"]
+            self.timers.run += exec_info["run_end_time"] - exec_info["run_start_time"]
+            self.timers.call_run += (
+                exec_info["call_run_end_time"] - exec_info["call_run_start_time"]
+            )
+        else:
+            kwargs = self._process_kwargs(
+                *args, **kwargs, origin=origins, domain=domain
+            )
+            self.stencil_object.run(**kwargs)
 
         _maybe_save_report(
             f"{name}-after",
@@ -313,13 +396,6 @@ class FV3StencilObject:
         )
         self.times_called += 1
 
-        # Update timers
-        exec_info = kwargs["exec_info"]
-        self.timers.run += exec_info["run_end_time"] - exec_info["run_start_time"]
-        self.timers.call_run += (
-            exec_info["call_run_end_time"] - exec_info["call_run_start_time"]
-        )
-
 
 def gtstencil(**stencil_kwargs) -> Callable[[Any], FV3StencilObject]:
     _ensure_global_flags_not_specified_in_kwargs(stencil_kwargs)
@@ -328,112 +404,6 @@ def gtstencil(**stencil_kwargs) -> Callable[[Any], FV3StencilObject]:
         return FV3StencilObject(func, **stencil_kwargs)
 
     return decorator
-
-
-class StencilWrapper:
-    """Wrapped GT4Py stencil object."""
-
-    def __init__(
-        self,
-        func: Callable,
-        origin: Optional[Tuple[int]] = None,
-        domain: Optional[Tuple[int]] = None,
-        **kwargs,
-    ):
-        self.func = func
-        self.origin = origin
-        self.domain = domain
-
-        if "format_source" not in kwargs:
-            kwargs["format_source"] = global_config.get_format_source()
-
-        self.stencil_object = gtscript.stencil(
-            definition=self.func,
-            backend=global_config.get_backend(),
-            rebuild=global_config.get_rebuild(),
-            **kwargs,
-        )
-
-    def __call__(self, *args, **kwargs) -> None:
-        if self.origin:
-            if "origin" in kwargs:
-                raise ValueError("Cannot override origin provided at init time")
-            kwargs["origin"] = self.origin
-        else:
-            kwargs["origin"] = self._get_field_origins(*args, **kwargs)
-
-        if self.domain:
-            if "domain" in kwargs:
-                raise ValueError("Cannot override domain provided at init time")
-            kwargs["domain"] = self.origin
-        elif "domain" not in kwargs:
-            raise ValueError("No domain provided at call time")
-
-        for keyword in ("origin", "domain"):
-            kwargs[f"_{keyword}_"] = kwargs[keyword]
-            del kwargs[keyword]
-
-        self.stencil_object.run(
-            *args,
-            **kwargs,
-            exec_info=None,
-        )
-
-    def _get_field_origins(self, *args, **kwargs) -> Dict[str, Tuple[int]]:
-        origin = kwargs["origin"]
-        origin_dict = {}
-        field_names = list(self.stencil_object.field_info.keys())
-        field_axes = []
-        for i in range(len(field_names)):
-            field_name = field_names[i]
-            if self.stencil_object.field_info[field_name]:
-                field_axes = self.stencil_object.field_info[field_name].axes
-            field_shape = args[i].shape if i < len(args) else kwargs[field_name].shape
-            if field_axes == ["K"]:
-                field_origin = [min(field_shape[0] - 1, origin[2])]
-            else:
-                field_origin = [
-                    min(field_shape[j] - 1, origin[j]) for j in range(len(field_shape))
-                ]
-            origin_dict[field_name] = tuple(field_origin)
-        return origin_dict
-
-    @property
-    def built(self) -> bool:
-        """Indicates whether the stencil is loaded."""
-        return self.stencil_object is not None
-
-
-class FrozenStencil(StencilWrapper):
-    """Wrapped GT4Py stencil object explicitly generating
-    and using the normalized origins."""
-
-    def __init__(self, func, origin, domain, **kwargs):
-        super().__init__(func, **kwargs)
-        self.domain = domain
-        self.normalized_origin = (
-            gtscript.gt_definitions.normalize_origin_mapping(origin)
-            if origin is not None
-            else {}
-        )
-        self.normalized_domain = (
-            gtscript.gt_definitions.normalize_domain(domain)
-            if domain is not None
-            else None
-        )
-
-    def __call__(self, *args, **kwargs) -> None:
-        if "origin" in kwargs:
-            raise ValueError("Cannot pass origin to FrozenStencil at call time")
-        if "domain" in kwargs:
-            raise ValueError("Cannot pass domain to FrozenStencil at call time")
-        self.stencil_object(
-            *args,
-            **kwargs,
-            normalized_domain=self.normalized_domain,
-            normalized_origin=self.normalized_origin,
-            validate_args=global_config.get_validate_args(),
-        )
 
 
 def _get_case_name(name, times_called):

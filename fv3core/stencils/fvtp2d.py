@@ -7,7 +7,7 @@ import fv3core.stencils.delnflux as delnflux
 import fv3core.utils.corners as corners
 import fv3core.utils.global_config as global_config
 import fv3core.utils.gt4py_utils as utils
-from fv3core.decorators import FrozenStencil
+from fv3core.decorators import StencilWrapper
 from fv3core.stencils.xppm import XPiecewiseParabolic
 from fv3core.stencils.yppm import YPiecewiseParabolic
 from fv3core.utils.typing import FloatField, FloatFieldIJ
@@ -80,17 +80,17 @@ class FiniteVolumeTransport:
             "backend": global_config.get_backend(),
             "rebuild": global_config.get_rebuild(),
         }
-        self.stencil_q_i = FrozenStencil(
+        self.stencil_q_i = StencilWrapper(
             q_i_stencil,
             origin=self.grid.full_origin(add=(0, 3, 0)),
             domain=self.grid.domain_shape_full(add=(0, -3, 1)),
         )
-        self.stencil_q_j = FrozenStencil(
+        self.stencil_q_j = StencilWrapper(
             q_j_stencil,
             origin=self.grid.full_origin(add=(3, 0, 0)),
             domain=self.grid.domain_shape_full(add=(-3, 0, 1)),
         )
-        self.stencil_transport_flux = FrozenStencil(
+        self.stencil_transport_flux = StencilWrapper(
             transport_flux_xy,
             origin=self.grid.compute_origin(),
             domain=self.grid.domain_shape_compute(add=(1, 1, 1)),

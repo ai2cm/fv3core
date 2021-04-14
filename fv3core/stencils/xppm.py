@@ -339,10 +339,10 @@ class XPiecewiseParabolic:
 
         nj = jlast - jfirst + 1
         self._compute_flux_stencil(
-            q=q,
-            courant=c,
-            dxa=self._dxa,
-            xflux=xflux,
+            q,
+            c,
+            self._dxa,
+            xflux,
             origin=(self._is_, jfirst, 0),
             domain=(self._nic + 1, nj, self._npz + 1),
         )
