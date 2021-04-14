@@ -277,9 +277,10 @@ class Tracer2D1L:
             )
 
         if self.do_halo_exchange:
+            reqs = {}
             for qname in utils.tracer_variables[0:nq]:
                 q = tracers[qname + "_quantity"]
-                self.comm.halo_update(q, n_points=utils.halo)
+                reqs[qname] = self.comm.start_halo_update(q, n_points=utils.halo)
 
         # TODO: Revisit: the loops over q and nsplt have two inefficient options
         # duplicating storages/stencil calls, return to this, maybe you have more
@@ -293,6 +294,8 @@ class Tracer2D1L:
             **self.stencil_runtime_args,
         )
         for qname in utils.tracer_variables[0:nq]:
+            if self.do_halo_exchange:
+                reqs[qname].wait()
             q = tracers[qname + "_quantity"]
             self._loop_temporaries_copy(
                 self._tmp_dp1_orig,
