@@ -574,6 +574,7 @@ class AcousticDynamics:
                     state.ptop,
                     akap,
                 )
+                utils.device_sync()
 
             if self.namelist.rf_fast:
                 # TODO: Pass through ks, or remove, inconsistent representation vs
