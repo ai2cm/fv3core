@@ -355,10 +355,12 @@ class FixedOriginStencil:
         )
 
     def __call__(self, *args, **kwargs) -> None:
-        if "origin" in kwargs:
-            raise ValueError("cannot pass origin to FixedOriginStencil at call time")
-        if "domain" in kwargs:
-            raise ValueError("cannot pass domain to FixedOriginStencil at call time")
+        assert (
+            "origin" not in kwargs
+        ), "cannot pass origin to FixedOriginStencil at call time"
+        assert (
+            "domain" not in kwargs
+        ), "cannot pass domain to FixedOriginStencil at call time"
         self.stencil_object(
             *args,
             **kwargs,
