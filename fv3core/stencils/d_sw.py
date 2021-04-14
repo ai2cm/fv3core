@@ -521,6 +521,8 @@ def damp_vertical_wind(w, heat_s, diss_est, dt, column_namelist):
                 wk,
                 kstart=kstart,
                 nk=nk,
+                conditional_calc=True,
+                column_check=True,
             )
     heat_diss(
         fx2,
@@ -614,6 +616,12 @@ def compute(
     dt,
 ):
     column_namelist = get_column_namelist()
+
+    print(column_namelist["nord"])
+    print(column_namelist["nord_v"])
+    print(column_namelist["nord_w"])
+    print(column_namelist["nord_t"])
+    print(column_namelist["damp_vt"] > dcon_threshold)
 
     if spec.namelist.d_ext > 0:
         raise Exception(
@@ -893,8 +901,8 @@ def compute(
         domain=grid().domain_shape_compute(add=(1, 1, 0)),
     )
 
-    for kstart, nk in k_bounds():
-        if column_namelist["damp_vt"][kstart] > dcon_threshold:
+    if column_namelist["damp_vt"][0] > dcon_threshold:
+        for kstart, nk in k_bounds():
             damp4 = (column_namelist["damp_vt"][kstart] * grid().da_min_c) ** (
                 column_namelist["nord_v"][kstart] + 1
             )
@@ -907,6 +915,8 @@ def compute(
                 vort,
                 kstart=kstart,
                 nk=nk,
+                conditional_calc=True,
+                column_check=False,
             )
 
     heat_source_from_vorticity_damping(

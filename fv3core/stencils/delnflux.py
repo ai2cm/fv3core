@@ -1,15 +1,141 @@
 from typing import Optional
 
 import gt4py.gtscript as gtscript
-from gt4py.gtscript import PARALLEL, computation, interval
+from gt4py.gtscript import PARALLEL, FORWARD, computation, interval, horizontal, region
 
 import fv3core._config as spec
 import fv3core.utils.corners as corners
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import gtstencil
 from fv3core.stencils.basic_operations import copy_stencil
-from fv3core.utils.typing import FloatField, FloatFieldIJ
+from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
 
+@gtstencil()
+def copy_corners_x_nord(q: FloatField, nord: FloatFieldK):
+    from __externals__ import i_end, i_start, j_end, j_start
+
+    with computation(PARALLEL), interval(...):
+        if nord > 0:
+            with horizontal(
+                region[i_start - 3, j_start - 3], region[i_end + 3, j_start - 3]
+            ):
+                q = q[0, 5, 0]
+            with horizontal(
+                region[i_start - 2, j_start - 3], region[i_end + 3, j_start - 2]
+            ):
+                q = q[-1, 4, 0]
+            with horizontal(
+                region[i_start - 1, j_start - 3], region[i_end + 3, j_start - 1]
+            ):
+                q = q[-2, 3, 0]
+            with horizontal(
+                region[i_start - 3, j_start - 2], region[i_end + 2, j_start - 3]
+            ):
+                q = q[1, 4, 0]
+            with horizontal(
+                region[i_start - 2, j_start - 2], region[i_end + 2, j_start - 2]
+            ):
+                q = q[0, 3, 0]
+            with horizontal(
+                region[i_start - 1, j_start - 2], region[i_end + 2, j_start - 1]
+            ):
+                q = q[-1, 2, 0]
+            with horizontal(
+                region[i_start - 3, j_start - 1], region[i_end + 1, j_start - 3]
+            ):
+                q = q[2, 3, 0]
+            with horizontal(
+                region[i_start - 2, j_start - 1], region[i_end + 1, j_start - 2]
+            ):
+                q = q[1, 2, 0]
+            with horizontal(
+                region[i_start - 1, j_start - 1], region[i_end + 1, j_start - 1]
+            ):
+                q = q[0, 1, 0]
+            with horizontal(region[i_start - 3, j_end + 1], region[i_end + 1, j_end + 3]):
+                q = q[2, -3, 0]
+            with horizontal(region[i_start - 2, j_end + 1], region[i_end + 1, j_end + 2]):
+                q = q[1, -2, 0]
+            with horizontal(region[i_start - 1, j_end + 1], region[i_end + 1, j_end + 1]):
+                q = q[0, -1, 0]
+            with horizontal(region[i_start - 3, j_end + 2], region[i_end + 2, j_end + 3]):
+                q = q[1, -4, 0]
+            with horizontal(region[i_start - 2, j_end + 2], region[i_end + 2, j_end + 2]):
+                q = q[0, -3, 0]
+            with horizontal(region[i_start - 1, j_end + 2], region[i_end + 2, j_end + 1]):
+                q = q[-1, -2, 0]
+            with horizontal(region[i_start - 3, j_end + 3], region[i_end + 3, j_end + 3]):
+                q = q[0, -5, 0]
+            with horizontal(region[i_start - 2, j_end + 3], region[i_end + 3, j_end + 2]):
+                q = q[-1, -4, 0]
+            with horizontal(region[i_start - 1, j_end + 3], region[i_end + 3, j_end + 1]):
+                q = q[-2, -3, 0]
+
+@gtstencil()
+def copy_corners_y_nord(q: FloatField, nord: FloatFieldK):
+    from __externals__ import i_end, i_start, j_end, j_start
+
+    with computation(PARALLEL), interval(...):
+        if nord > 0:
+            with horizontal(
+                region[i_start - 3, j_start - 3], region[i_start - 3, j_end + 3]
+            ):
+                q = q[5, 0, 0]
+            with horizontal(
+                region[i_start - 2, j_start - 3], region[i_start - 3, j_end + 2]
+            ):
+                q = q[4, 1, 0]
+            with horizontal(
+                region[i_start - 1, j_start - 3], region[i_start - 3, j_end + 1]
+            ):
+                q = q[3, 2, 0]
+            with horizontal(
+                region[i_start - 3, j_start - 2], region[i_start - 2, j_end + 3]
+            ):
+                q = q[4, -1, 0]
+            with horizontal(
+                region[i_start - 2, j_start - 2], region[i_start - 2, j_end + 2]
+            ):
+                q = q[3, 0, 0]
+            with horizontal(
+                region[i_start - 1, j_start - 2], region[i_start - 2, j_end + 1]
+            ):
+                q = q[2, 1, 0]
+            with horizontal(
+                region[i_start - 3, j_start - 1], region[i_start - 1, j_end + 3]
+            ):
+                q = q[3, -2, 0]
+            with horizontal(
+                region[i_start - 2, j_start - 1], region[i_start - 1, j_end + 2]
+            ):
+                q = q[2, -1, 0]
+            with horizontal(
+                region[i_start - 1, j_start - 1], region[i_start - 1, j_end + 1]
+            ):
+                q = q[1, 0, 0]
+            with horizontal(region[i_end + 1, j_start - 3], region[i_end + 3, j_end + 1]):
+                q = q[-3, 2, 0]
+            with horizontal(region[i_end + 2, j_start - 3], region[i_end + 3, j_end + 2]):
+                q = q[-4, 1, 0]
+            with horizontal(region[i_end + 3, j_start - 3], region[i_end + 3, j_end + 3]):
+                q = q[-5, 0, 0]
+            with horizontal(region[i_end + 1, j_start - 2], region[i_end + 2, j_end + 1]):
+                q = q[-2, 1, 0]
+            with horizontal(region[i_end + 2, j_start - 2], region[i_end + 2, j_end + 2]):
+                q = q[-3, 0, 0]
+            with horizontal(region[i_end + 3, j_start - 2], region[i_end + 2, j_end + 3]):
+                q = q[-4, -1, 0]
+            with horizontal(region[i_end + 1, j_start - 1], region[i_end + 1, j_end + 1]):
+                q = q[-1, 0, 0]
+            with horizontal(region[i_end + 2, j_start - 1], region[i_end + 1, j_end + 2]):
+                q = q[-2, -1, 0]
+            with horizontal(region[i_end + 3, j_start - 1], region[i_end + 1, j_end + 3]):
+                q = q[-3, -2, 0]
+
+@gtstencil()
+def calc_damp(nord: FloatFieldK, damp_c: FloatFieldK, damp4: FloatFieldK, da_min:float):
+    with computation(FORWARD), interval(...):
+        damp4 = (damp_c * da_min) ** (nord + 1)
 
 @gtstencil()
 def fx_calc_stencil(q: FloatField, del6_v: FloatFieldIJ, fx: FloatField, order: int):
@@ -20,6 +146,16 @@ def fx_calc_stencil(q: FloatField, del6_v: FloatFieldIJ, fx: FloatField, order: 
 def fy_calc_stencil(q: FloatField, del6_u: FloatFieldIJ, fy: FloatField, order: int):
     with computation(PARALLEL), interval(...):
         fy = fy_calculation(q, del6_u, order)
+
+@gtstencil()
+def fx_calc_stencil_column(q: FloatField, del6_v: FloatFieldIJ, fx: FloatField, nord: FloatFieldK):
+    with computation(PARALLEL), interval(...):
+        fx = fx_calculation(q, del6_v, nord + 2)
+
+@gtstencil()
+def fy_calc_stencil_column(q: FloatField, del6_u: FloatFieldIJ, fy: FloatField, nord: FloatFieldK):
+    with computation(PARALLEL), interval(...):
+        fy = fy_calculation(q, del6_u, nord + 2)
 
 
 @gtscript.function
@@ -83,10 +219,65 @@ def d2_highorder(fx: FloatField, fy: FloatField, rarea: FloatField):
 
 
 @gtstencil()
-def d2_damp(q: FloatField, d2: FloatField, damp: float):
-    with computation(PARALLEL), interval(...):
-        d2[0, 0, 0] = damp * q
+def d2_damp(q: FloatField, d2: FloatField, damp: FloatFieldK, nord: FloatFieldK, nmax:int):
+    from __externals__ import i_end, i_start, j_end, j_start
 
+    with computation(PARALLEL), interval(...):
+        with horizontal(
+            region[i_start + nmax - nord: i_end - nmax + nord, j_start + nmax - nord: j_end - nmax + nord]
+        ):
+            d2[0, 0, 0] = damp * q
+
+
+@gtstencil()
+def d2_damp_interval(q: FloatField, d2: FloatField, damp: FloatFieldK, nmax:int, nord0: int, nord1: int, nord2: int, nord3: int):
+    from __externals__ import i_end, i_start, j_end, j_start
+
+    with computation(PARALLEL), interval(0,1):
+        with horizontal(
+            region[i_start + nmax - nord0: i_end - nmax + nord0, j_start + nmax - nord0: j_end - nmax + nord0]
+        ):
+            d2[0, 0, 0] = damp * q
+    with computation(PARALLEL), interval(1,2):
+        with horizontal(
+            region[i_start + nmax - nord1: i_end - nmax + nord1, j_start + nmax - nord1: j_end - nmax + nord1]
+        ):
+            d2[0, 0, 0] = damp * q
+    with computation(PARALLEL), interval(2,3):
+        with horizontal(
+            region[i_start + nmax - nord2: i_end - nmax + nord2, j_start + nmax - nord2: j_end - nmax + nord2]
+        ):
+            d2[0, 0, 0] = damp * q
+    with computation(PARALLEL), interval(3,None):
+        with horizontal(
+            region[i_start + nmax - nord3: i_end - nmax + nord3, j_start + nmax - nord3: j_end - nmax + nord3]
+        ):
+            d2[0, 0, 0] = damp * q
+
+@gtstencil()
+def copy_stencil_regional(q_in: FloatField, q_out: FloatField, nmax:int, nord0: int, nord1: int, nord2: int, nord3: int):
+    from __externals__ import i_end, i_start, j_end, j_start
+
+    with computation(PARALLEL), interval(0,1):
+        with horizontal(
+            region[i_start + nmax - nord0: i_end - nmax + nord0, j_start + nmax - nord0: j_end - nmax + nord0]
+        ):
+            q_out = q_in
+    with computation(PARALLEL), interval(1,2):
+        with horizontal(
+            region[i_start + nmax - nord1: i_end - nmax + nord1, j_start + nmax - nord1: j_end - nmax + nord1]
+        ):
+            q_out = q_in
+    with computation(PARALLEL), interval(2,3):
+        with horizontal(
+            region[i_start + nmax - nord2: i_end - nmax + nord2, j_start + nmax - nord2: j_end - nmax + nord2]
+        ):
+            q_out = q_in
+    with computation(PARALLEL), interval(3,None):
+        with horizontal(
+            region[i_start + nmax - nord3: i_end - nmax + nord3, j_start + nmax - nord3: j_end - nmax + nord3]
+        ):
+            q_out = q_in
 
 @gtstencil()
 def add_diffusive_component(
@@ -104,7 +295,7 @@ def diffusive_damp(
     fy: FloatField,
     fy2: FloatField,
     mass: FloatField,
-    damp: float,
+    damp: FloatFieldK,
 ):
     with computation(PARALLEL), interval(...):
         fx[0, 0, 0] = fx + 0.5 * damp * (mass[-1, 0, 0] + mass) * fx2
@@ -125,7 +316,7 @@ def compute_delnflux_no_sg(
     """
     Del-n damping for fluxes, where n = 2 * nord + 2
     Args:
-        q: Tracer field (in)
+        q: Field for which to calculate damped fluxes (in)
         fx: x-flux on A-grid (inout)
         fy: y-flux on A-grid (inout)
         nord: Order of divergence damping (in)
@@ -146,13 +337,17 @@ def compute_delnflux_no_sg(
         )
     if damp_c <= 1e-4:
         return fx, fy
-    damp = (damp_c * grid.da_min) ** (nord + 1)
+    
+    damp_3d = utils.make_storage_from_shape((1,1, nk)) # fields must be 3d to assign to them
+    calc_damp(nord, damp_c, damp_3d, grid.da_min, origin=(0,0,0), domain=(1,1,nk))
+    damp = utils.make_storage_data(damp_3d[0,0,:], (nk,), (0,))
+
     fx2 = utils.make_storage_from_shape(q.shape, full_origin, cache_key="delnflux_fx2")
     fy2 = utils.make_storage_from_shape(q.shape, full_origin, cache_key="delnflux_fy2")
     diffuse_origin = (grid.is_, grid.js, kstart)
     extended_domain = (grid.nic + 1, grid.njc + 1, nk)
 
-    compute_no_sg(q, fx2, fy2, nord, damp, d2, kstart, nk, mass)
+    compute_no_sg(q, fx2, fy2, nord, damp, d2, kstart, nk, mass, conditional_calc=False)
 
     if mass is None:
         add_diffusive_component(fx, fx2, fy, fy2, origin=diffuse_origin, domain=extended_domain)
@@ -168,16 +363,33 @@ def compute_delnflux_no_sg(
     return fx, fy
 
 
-def compute_no_sg(q, fx2, fy2, nord, damp_c, d2, kstart=0, nk=None, mass=None):
+def compute_no_sg(
+        q,
+        fx2,
+        fy2,
+        nord,
+        damp_c,
+        d2,
+        kstart=0,
+        nk=None,
+        mass=None,
+        conditional_calc=True,
+        column_check=False,
+):
+    if (conditional_calc==True) and (column_check==False):
+        if damp_c[0] <= 1e-5: #dcon_threshold
+            raise Exception("damp <= 1e-5 in column_cols is untested")
+    if max(nord[:]) > 3:
+        raise NotImplementedError("nord > 3 is not implemented")
+    nmax = max(nord[:])
     grid = spec.grid
     nord = int(nord)
-    i1 = grid.is_ - 1 - nord
-    i2 = grid.ie + 1 + nord
-    j1 = grid.js - 1 - nord
-    j2 = grid.je + 1 + nord
+    i1 = grid.is_ - 1 - nmax
+    i2 = grid.ie + 1 + nmax
+    j1 = grid.js - 1 - nmax
+    j2 = grid.je + 1 + nmax
     if nk is None:
         nk = grid.npz - kstart
-    kslice = slice(kstart, kstart + nk)
     origin_d2 = (i1, j1, kstart)
     domain_d2 = (i2 - i1 + 1, j2 - j1 + 1, nk)
     f1_ny = grid.je - grid.js + 1 + 2 * nord
@@ -188,19 +400,18 @@ def compute_no_sg(q, fx2, fy2, nord, damp_c, d2, kstart=0, nk=None, mass=None):
     else:
         copy_stencil(q, d2, origin=origin_d2, domain=domain_d2)
 
-    if nord > 0:
-        corners.copy_corners_x_stencil(
-            d2, origin=(grid.isd, grid.jsd, kstart), domain=(grid.nid, grid.njd, nk)
-        )
+    copy_corners_x_nord(
+        d2, nord, origin=(grid.isd, grid.jsd, kstart), domain=(grid.nid, grid.njd, nk)
+    )
 
     fx_calc_stencil(
         d2, grid.del6_v, fx2, order=1, origin=fx_origin, domain=(f1_nx, f1_ny, nk)
     )
 
-    if nord > 0:
-        corners.copy_corners_y_stencil(
-            d2, origin=(grid.isd, grid.jsd, kstart), domain=(grid.nid, grid.njd, nk)
-        )
+    copy_corners_y_nord(
+        d2, origin=(grid.isd, grid.jsd, kstart), domain=(grid.nid, grid.njd, nk)
+    )
+
     fy_calc_stencil(
         d2,
         grid.del6_u,
@@ -223,11 +434,11 @@ def compute_no_sg(q, fx2, fy2, nord, damp_c, d2, kstart=0, nk=None, mass=None):
                 d2, origin=(grid.isd, grid.jsd, kstart), domain=(grid.nid, grid.njd, nk)
             )
             nt_origin = (grid.is_ - nt, grid.js - nt, kstart)
-            fx_calc_stencil(
+            fx_calc_stencil_column(
                 d2,
                 grid.del6_v,
                 fx2,
-                order=2 + n,
+                n,
                 origin=nt_origin,
                 domain=(nt_nx - 1, nt_ny - 2, nk),
             )
@@ -239,7 +450,7 @@ def compute_no_sg(q, fx2, fy2, nord, damp_c, d2, kstart=0, nk=None, mass=None):
                 d2,
                 grid.del6_u,
                 fy2,
-                order=2 + n,
+                n,
                 origin=nt_origin,
                 domain=(nt_nx - 2, nt_ny - 1, nk),
             )

@@ -349,6 +349,8 @@ def compute(
             wk,
             kstart=kstart,
             nk=nk,
+            conditional_calc=True,
+            column_check=True,
         )
     zh_damp(
         grid.area,
