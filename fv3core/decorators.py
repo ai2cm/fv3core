@@ -333,26 +333,50 @@ def gtstencil(**stencil_kwargs) -> Callable[[Any], FV3StencilObject]:
 class StencilWrapper:
     """Wrapped GT4Py stencil object."""
 
-    def __init__(self, func: Callable, **kwargs):
+    def __init__(
+        self,
+        func: Callable,
+        origin: Optional[Tuple[int]] = None,
+        domain: Optional[Tuple[int]] = None,
+        **kwargs,
+    ):
         self.func = func
+        self.origin = origin
+        self.domain = domain
 
         if "format_source" not in kwargs:
             kwargs["format_source"] = global_config.get_format_source()
 
         self.stencil_object = gtscript.stencil(
+            definition=self.func,
             backend=global_config.get_backend(),
             rebuild=global_config.get_rebuild(),
-            definition=self.func,
             **kwargs,
         )
 
     def __call__(self, *args, **kwargs) -> None:
-        kwargs["origin"] = self._get_field_origins(*args, **kwargs)
+        if self.origin:
+            if "origin" in kwargs:
+                raise ValueError("Cannot override origin provided at init time")
+            kwargs["origin"] = self.origin
+        else:
+            kwargs["origin"] = self._get_field_origins(*args, **kwargs)
 
-        self.stencil_object(
+        if self.domain:
+            if "domain" in kwargs:
+                raise ValueError("Cannot override domain provided at init time")
+            kwargs["domain"] = self.origin
+        elif "domain" not in kwargs:
+            raise ValueError("No domain provided at call time")
+
+        for keyword in ("origin", "domain"):
+            kwargs[f"_{keyword}_"] = kwargs[keyword]
+            del kwargs[keyword]
+
+        self.stencil_object.run(
             *args,
             **kwargs,
-            validate_args=global_config.get_validate_args(),
+            exec_info=None,
         )
 
     def _get_field_origins(self, *args, **kwargs) -> Dict[str, Tuple[int]]:
@@ -374,12 +398,19 @@ class StencilWrapper:
             origin_dict[field_name] = tuple(field_origin)
         return origin_dict
 
+    @property
+    def built(self) -> bool:
+        """Indicates whether the stencil is loaded."""
+        return self.stencil_object is not None
 
-class FixedOriginStencil(StencilWrapper):
-    """Wrapped GT4Py stencil object explicitly genrating
+
+class FrozenStencil(StencilWrapper):
+    """Wrapped GT4Py stencil object explicitly generating
     and using the normalized origins."""
 
     def __init__(self, func, origin, domain, **kwargs):
+        super().__init__(func, **kwargs)
+        self.domain = domain
         self.normalized_origin = (
             gtscript.gt_definitions.normalize_origin_mapping(origin)
             if origin is not None
@@ -390,26 +421,18 @@ class FixedOriginStencil(StencilWrapper):
             if domain is not None
             else None
         )
-        self.domain = domain
-        self.func = func
-        self.stencil_object = gtscript.stencil(
-            backend=global_config.get_backend(),
-            rebuild=global_config.get_rebuild(),
-            definition=self.func,
-            **kwargs,
-        )
 
     def __call__(self, *args, **kwargs) -> None:
         if "origin" in kwargs:
-            raise ValueError("cannot pass origin to FixedOriginStencil at call time")
+            raise ValueError("Cannot pass origin to FrozenStencil at call time")
         if "domain" in kwargs:
-            raise ValueError("cannot pass domain to FixedOriginStencil at call time")
+            raise ValueError("Cannot pass domain to FrozenStencil at call time")
         self.stencil_object(
             *args,
             **kwargs,
-            validate_args=global_config.get_validate_args(),
             normalized_domain=self.normalized_domain,
             normalized_origin=self.normalized_origin,
+            validate_args=global_config.get_validate_args(),
         )
 
 

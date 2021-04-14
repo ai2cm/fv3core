@@ -28,7 +28,7 @@ import fv3core.utils.global_constants as constants
 import fv3core.utils.gt4py_utils as utils
 import fv3gfs.util
 import fv3gfs.util as fv3util
-from fv3core.decorators import FixedOriginStencil
+from fv3core.decorators import FrozenStencil
 from fv3core.stencils.basic_operations import copy_stencil
 from fv3core.utils.grid import axis_offsets
 from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
@@ -221,17 +221,17 @@ class AcousticDynamics:
         self._temporaries["gz"][:] = HUGE_R
         if not namelist.hydrostatic:
             self._temporaries["pk3"][:] = HUGE_R
-        self._dp_ref_compute = FixedOriginStencil(
+        self._dp_ref_compute = FrozenStencil(
             dp_ref_compute,
             origin=self.grid.full_origin(),
             domain=self.grid.domain_shape_full(add=(0, 0, 1)),
         )
-        self._set_gz = FixedOriginStencil(
+        self._set_gz = FrozenStencil(
             set_gz,
             origin=self.grid.compute_origin(),
             domain=self.grid.domain_shape_compute(add=(0, 0, 1)),
         )
-        self._set_pem = FixedOriginStencil(
+        self._set_pem = FrozenStencil(
             set_pem,
             origin=self.grid.compute_origin(add=(-1, -1, 0)),
             domain=self.grid.domain_shape_compute(add=(2, 2, 0)),
@@ -240,13 +240,13 @@ class AcousticDynamics:
         pgradc_origin = self.grid.compute_origin()
         pgradc_domain = self.grid.domain_shape_compute(add=(1, 1, 0))
         ax_offsets = axis_offsets(self.grid, pgradc_origin, pgradc_domain)
-        self._p_grad_c = FixedOriginStencil(
+        self._p_grad_c = FrozenStencil(
             p_grad_c_stencil,
             origin=pgradc_origin,
             domain=pgradc_domain,
             externals={"hydrostatic": self.namelist.hydrostatic, **ax_offsets},
         )
-        self._zero_data = FixedOriginStencil(
+        self._zero_data = FrozenStencil(
             zero_data,
             origin=self.grid.full_origin(),
             domain=self.grid.domain_shape_full(),

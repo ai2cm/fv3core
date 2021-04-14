@@ -8,7 +8,7 @@ import fv3core.utils
 import fv3core.utils.global_config as global_config
 import fv3core.utils.gt4py_utils as utils
 import fv3gfs.util
-from fv3core.decorators import FixedOriginStencil
+from fv3core.decorators import FrozenStencil
 from fv3core.stencils import updatedzd
 from fv3core.stencils.basic_operations import copy_stencil
 from fv3core.stencils.fvtp2d import FiniteVolumeTransport
@@ -179,44 +179,44 @@ class Tracer2D1L:
         self.stencil_runtime_args = {"validate_args": global_config.get_validate_args()}
         stencil_wrapper = gtscript.stencil(**stencil_kwargs)
 
-        self._flux_compute = FixedOriginStencil(
+        self._flux_compute = FrozenStencil(
             flux_compute,
             origin=self.grid.full_origin(),
             domain=self.grid.domain_shape_full(add=(1, 1, 0)),
             externals=local_axis_offsets,
         )
-        self._ra_update = FixedOriginStencil(
+        self._ra_update = FrozenStencil(
             updatedzd.ra_update,
             origin=self.grid.full_origin(),
             domain=self.grid.domain_shape_full(),
             externals=local_axis_offsets,
         )
-        self._cmax_multiply_by_frac = FixedOriginStencil(
+        self._cmax_multiply_by_frac = FrozenStencil(
             cmax_multiply_by_frac,
             origin=self.grid.full_origin(),
             domain=self.grid.domain_shape_full(add=(1, 1, 0)),
             externals=local_axis_offsets,
         )
         self._copy_field = stencil_wrapper(copy_stencil.func)
-        self._loop_temporaries_copy = FixedOriginStencil(
+        self._loop_temporaries_copy = FrozenStencil(
             loop_temporaries_copy,
             origin=self.grid.full_origin(),
             domain=self.grid.domain_shape_full(),
             externals=local_axis_offsets,
         )
-        self._dp_fluxadjustment = FixedOriginStencil(
+        self._dp_fluxadjustment = FrozenStencil(
             dp_fluxadjustment,
             origin=self.grid.compute_origin(),
             domain=self.grid.domain_shape_compute(),
             externals=local_axis_offsets,
         )
-        self._q_adjustments = FixedOriginStencil(
+        self._q_adjustments = FrozenStencil(
             q_adjustments,
             origin=self.grid.compute_origin(),
             domain=self.grid.domain_shape_compute(),
             externals=local_axis_offsets,
         )
-        self._q_adjust = FixedOriginStencil(
+        self._q_adjust = FrozenStencil(
             q_adjust,
             origin=self.grid.compute_origin(),
             domain=self.grid.domain_shape_compute(),

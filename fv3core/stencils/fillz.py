@@ -140,36 +140,37 @@ class Fillz:
             shape_ij, origin=(0, 0), cache_key="fillz_sum1"
         )
 
-        do_async = True
+        do_async = False
         if do_async:
             n_jobs = len(tracer_list)
             futures = []
             with cf.ThreadPoolExecutor(max_workers=n_jobs) as executor:
                 for tracer in tracer_list:
-                    futures.append(executor.submit(
-                        fix_tracer,
-                        tracer,
-                        dp2,
-                        dm,
-                        dm_pos,
-                        zfix,
-                        sum0,
-                        sum1,
-                        origin=self.origin,
-                        domain=domain,
+                    futures.append(
+                        executor.submit(
+                            fix_tracer,
+                            tracer,
+                            dp2,
+                            dm,
+                            dm_pos,
+                            zfix,
+                            sum0,
+                            sum1,
+                            origin=self.origin,
+                            domain=domain,
                         )
                     )
             cf.wait(futures)
         else:
             for tracer in tracer_list:
                 self._fix_tracer_stencil(
-                    tracer,
-                    dp2,
-                    dm,
-                    dm_pos,
-                    zfix,
-                    sum0,
-                    sum1,
+                    q=tracer,
+                    dp=dp2,
+                    dm=dm,
+                    dm_pos=dm_pos,
+                    zfix=zfix,
+                    sum0=sum0,
+                    sum1=sum1,
                     origin=self.origin,
                     domain=domain,
                 )
