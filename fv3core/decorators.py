@@ -175,17 +175,15 @@ class StencilWrapper:
 
     def __call__(self, *args, **kwargs) -> None:
         if self.origin:
-            if "origin" in kwargs:
-                raise ValueError("Cannot override origin provided at init time")
+            assert "origin" not in kwargs, "Cannot override origin provided at init"
             kwargs["origin"] = self.origin
         kwargs["origin"] = self._get_field_origins(*args, **kwargs)
 
         if self.domain:
-            if "domain" in kwargs:
-                raise ValueError("Cannot override domain provided at init time")
+            assert "domain" not in kwargs, "Cannot override domain provided at init"
             kwargs["domain"] = self.domain
-        elif "domain" not in kwargs:
-            raise ValueError("No domain provided at call time")
+        else:
+            assert "domain" in kwargs, "No domain provided at call time"
 
         if global_config.get_validate_args():
             self.stencil_object(*args, **kwargs, validate_args=True)
@@ -307,11 +305,9 @@ class FV3StencilObject(StencilWrapper):
         2. any external value
         3. the function signature or code
         """
-        if "domain" not in kwargs:
-            raise ValueError("No domain provided at call time")
+        assert "domain" in kwargs, "No domain provided at call time"
         domain = kwargs.pop("domain")
-        if "origin" not in kwargs:
-            raise ValueError("No origin provided at call time")
+        assert "origin" in kwargs, "No origin provided at call time"
         origin = kwargs.pop("origin")
 
         # Can optimize this by marking stencils that need these
