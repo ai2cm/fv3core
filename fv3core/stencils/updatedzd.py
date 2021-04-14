@@ -59,8 +59,8 @@ def apply_geopotential_height_fluxes(
     initial_gz: FloatField,
     fx: FloatField,
     fy: FloatField,
-    xfx_interface: FloatField,
-    yfx_interface: FloatField,
+    x_area_flux: FloatField,
+    y_area_flux: FloatField,
     gz_x_diffusive_flux: FloatField,
     gz_y_diffusive_flux: FloatField,
     final_gz: FloatField,
@@ -80,8 +80,8 @@ def apply_geopotential_height_fluxes(
             in units of g * m^3
         fy: area-weighted flux of geopotential height in y-direction,
             in units of g * m^3
-        xfx_interface: flux of area in x-direction, in units of m^2 (in)
-        yfx_interface: flux of area in y-direction, in units of m^2 (in)
+        x_area_flux: flux of area in x-direction, in units of m^2 (in)
+        y_area_flux: flux of area in y-direction, in units of m^2 (in)
         gz_x_diffusive_flux: diffusive flux of area-weighted geopotential height
             in x-direction (in)
         gz_y_diffusive_flux: diffusive flux of area-weighted geopotential height
@@ -95,7 +95,7 @@ def apply_geopotential_height_fluxes(
     """
     with computation(PARALLEL), interval(...):
         final_gz = (
-            apply_height_flux(initial_gz, area, fx, fy, xfx_interface, yfx_interface)
+            apply_height_flux(initial_gz, area, fx, fy, x_area_flux, y_area_flux)
             + (
                 gz_x_diffusive_flux
                 - gz_x_diffusive_flux[1, 0, 0]
@@ -123,6 +123,8 @@ def cubic_spline_interpolation_constants(
     """
     Computes constants used in cubic spline interpolation
     from cell center to interface levels.
+
+    Corresponds to edge_profile in nh_utils.F90 in the original Fortran code.
 
     Args:
         dp0: target pressure on interface levels (in)
@@ -200,10 +202,10 @@ class UpdateDeltaZOnDGrid:
         self._cry_interface = utils.make_storage_from_shape(
             largest_possible_shape, grid.compute_origin(add=(-self.grid.halo, 0, 0))
         )
-        self._xfx_interface = utils.make_storage_from_shape(
+        self._x_area_flux_interface = utils.make_storage_from_shape(
             largest_possible_shape, grid.compute_origin(add=(0, -self.grid.halo, 0))
         )
-        self._yfx_interface = utils.make_storage_from_shape(
+        self._y_area_flux_interface = utils.make_storage_from_shape(
             largest_possible_shape, grid.compute_origin(add=(-self.grid.halo, 0, 0))
         )
         self._wk = utils.make_storage_from_shape(
@@ -261,8 +263,8 @@ class UpdateDeltaZOnDGrid:
         zh: FloatField,
         crx: FloatField,
         cry: FloatField,
-        xfx: FloatField,
-        yfx: FloatField,
+        x_area_flux: FloatField,
+        y_area_flux: FloatField,
         wsd: FloatFieldIJ,
         dt: float,
     ):
@@ -274,8 +276,8 @@ class UpdateDeltaZOnDGrid:
             zh: geopotential height defined on layer interfaces
             crx: Courant number in x-direction
             cry: Courant number in y-direction
-            xfx: Area flux in x-direction
-            yfx: Area flux in y-direction
+            x_area_flux: Area flux in x-direction
+            y_area_flux: Area flux in y-direction
             wsd: lowest layer vertical velocity required to keep layer at surface
             dt: ???
         """
@@ -289,13 +291,13 @@ class UpdateDeltaZOnDGrid:
             crx, self._crx_interface, self._gk, self._beta, self._gamma
         )
         self._interpolate_to_layer_interface(
-            xfx, self._xfx_interface, self._gk, self._beta, self._gamma
+            x_area_flux, self._x_area_flux_interface, self._gk, self._beta, self._gamma
         )
         self._interpolate_to_layer_interface(
             cry, self._cry_interface, self._gk, self._beta, self._gamma
         )
         self._interpolate_to_layer_interface(
-            yfx, self._yfx_interface, self._gk, self._beta, self._gamma
+            y_area_flux, self._y_area_flux_interface, self._gk, self._beta, self._gamma
         )
         basic_operations.copy_stencil(
             zh,
@@ -307,8 +309,8 @@ class UpdateDeltaZOnDGrid:
             self._zh_tmp,
             self._crx_interface,
             self._cry_interface,
-            self._xfx_interface,
-            self._yfx_interface,
+            self._x_area_flux_interface,
+            self._y_area_flux_interface,
             self._fx,
             self._fy,
         )
@@ -328,8 +330,8 @@ class UpdateDeltaZOnDGrid:
             zh,
             self._fx,
             self._fy,
-            self._xfx_interface,
-            self._yfx_interface,
+            self._x_area_flux_interface,
+            self._y_area_flux_interface,
             self._fx2,
             self._fy2,
             zh,
@@ -345,12 +347,12 @@ def compute(
     zh: FloatField,
     crx: FloatField,
     cry: FloatField,
-    xfx: FloatField,
-    yfx: FloatField,
+    x_area_flux: FloatField,
+    y_area_flux: FloatField,
     wsd: FloatFieldIJ,
     dt: float,
 ):
     updatedzd = utils.cached_stencil_class(UpdateDeltaZOnDGrid)(
         spec.grid, d_sw.get_column_namelist(), d_sw.k_bounds()
     )
-    updatedzd(dp0, zs, zh, crx, cry, xfx, yfx, wsd, dt)
+    updatedzd(dp0, zs, zh, crx, cry, x_area_flux, y_area_flux, wsd, dt)

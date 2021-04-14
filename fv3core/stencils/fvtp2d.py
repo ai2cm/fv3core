@@ -6,35 +6,51 @@ import fv3core.utils.corners as corners
 import fv3core.utils.global_config as global_config
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import FixedOriginStencil
-from fv3core.stencils import d_sw, delnflux, fxadv
+from fv3core.stencils import d_sw, delnflux
 from fv3core.stencils.xppm import XPiecewiseParabolic
 from fv3core.stencils.yppm import YPiecewiseParabolic
 from fv3core.utils.typing import FloatField, FloatFieldIJ
 
 
+@gtscript.function
+def apply_x_flux_divergence(q: FloatField, q_x_flux: FloatField) -> FloatField:
+    """
+    Update a scalar q according to its flux in the x direction.
+    """
+    return q + q_x_flux - q_x_flux[1, 0, 0]
+
+
+@gtscript.function
+def apply_y_flux_divergence(q: FloatField, q_y_flux: FloatField) -> FloatField:
+    """
+    Update a scalar q according to its flux in the x direction.
+    """
+    return q + q_y_flux - q_y_flux[0, 1, 0]
+
+
 def q_i_stencil(
     q: FloatField,
     area: FloatFieldIJ,
-    yfx: FloatField,
+    y_area_flux: FloatField,
     fy2: FloatField,
     q_i: FloatField,
 ):
     with computation(PARALLEL), interval(...):
-        fyy = yfx * fy2
-        area_with_y_flux = fxadv.apply_y_flux_divergence(area, yfx)
+        fyy = y_area_flux * fy2
+        area_with_y_flux = apply_y_flux_divergence(area, y_area_flux)
         q_i = (q * area + fyy - fyy[0, 1, 0]) / area_with_y_flux
 
 
 def q_j_stencil(
     q: FloatField,
     area: FloatFieldIJ,
-    xfx: FloatField,
+    x_area_flux: FloatField,
     fx2: FloatField,
     q_j: FloatField,
 ):
     with computation(PARALLEL), interval(...):
-        fx1 = xfx * fx2
-        area_with_x_flux = fxadv.apply_x_flux_divergence(area, xfx)
+        fx1 = x_area_flux * fx2
+        area_with_x_flux = apply_x_flux_divergence(area, x_area_flux)
         q_j = (q * area + fx1 - fx1[1, 0, 0]) / area_with_x_flux
 
 
@@ -104,8 +120,8 @@ class FiniteVolumeTransport:
         q,
         crx,
         cry,
-        xfx,
-        yfx,
+        x_area_flux,
+        y_area_flux,
         fx,
         fy,
         nord=None,
@@ -121,8 +137,8 @@ class FiniteVolumeTransport:
             q: scalar to be transported (in)
             crx: Courant number in x-direction
             cry: Courant number in y-direction
-            xfx: ??? (in)
-            yfx: ??? (in)
+            x_area_flux: flux of area in x-direction, in units of m^2 (in)
+            y_area_flux: flux of area in y-direction, in units of m^2 (in)
             fx: transport flux of q in x-direction (out)
             fy: transport flux of q in y-direction (out)
             nord: ???
@@ -140,7 +156,7 @@ class FiniteVolumeTransport:
         self.stencil_q_i(
             q,
             grid.area,
-            yfx,
+            y_area_flux,
             self._tmp_fy2,
             self._tmp_q_i,
         )
@@ -152,7 +168,7 @@ class FiniteVolumeTransport:
         self.stencil_q_j(
             q,
             grid.area,
-            xfx,
+            x_area_flux,
             self._tmp_fx2,
             self._tmp_q_j,
         )
@@ -177,8 +193,8 @@ class FiniteVolumeTransport:
                 self._tmp_fx2,
                 fy,
                 self._tmp_fy2,
-                xfx,
-                yfx,
+                x_area_flux,
+                y_area_flux,
             )
             if (nord is not None) and (damp_c is not None):
                 for kstart, nk in d_sw.k_bounds():
