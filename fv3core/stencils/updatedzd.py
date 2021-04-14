@@ -160,6 +160,8 @@ def cubic_spline_interpolation_from_layer_center_to_interfaces(
         beta (in): cubic spline interpolation constant
         gamma (in): cubic spline interpolation constant
     """
+    # NOTE: We have not ported the uniform_grid True option as it is never called
+    # that way in this model. We have also ignored limiter != 0 for the same reason.
     with computation(FORWARD):
         with interval(0, 1):
             xt1 = 2.0 * gk * (gk + 1.0)
