@@ -124,8 +124,6 @@ def cubic_spline_interpolation_constants(
     Computes constants used in cubic spline interpolation
     from cell center to interface levels.
 
-    Corresponds to edge_profile in nh_utils.F90 in the original Fortran code.
-
     Args:
         dp0: target pressure on interface levels (in)
         gk: interpolation constant on mid levels (out)
@@ -152,6 +150,8 @@ def cubic_spline_interpolation_from_layer_center_to_interfaces(
 ) -> FloatField:
     """
     Interpolate a field from layer (vertical) centers to interfaces.
+
+    Corresponds to edge_profile in nh_utils.F90 in the original Fortran code.
 
     Args:
         q_center (in): value on layer centers
