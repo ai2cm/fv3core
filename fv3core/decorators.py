@@ -158,40 +158,64 @@ class StencilWrapper:
         func: Callable[..., None],
         origin: Optional[Index3D] = None,
         domain: Optional[Index3D] = None,
+        *,
+        backend: Optional[str] = None,
+        rebuild: Optional[bool] = None,
+        format_source: Optional[bool] = None,
+        delay_compile: Optional[bool] = None,
+        device_sync: Optional[bool] = None,
         **kwargs,
     ):
         self.func = func
         """The definition function."""
+
         self.origin = origin
         """The compute origin."""
+
         self.domain = domain
         """The compute domain."""
 
-        if "format_source" not in kwargs:
-            kwargs["format_source"] = global_config.get_format_source()
+        self.backend: str = backend if backend else global_config.get_backend()
+        """The gt4py backend name."""
+
+        self.rebuild: bool = rebuild if rebuild else global_config.get_rebuild()
+        """The gt4py stencil is rebuilt if true."""
+
+        self.format_source: bool = format_source if format_source else global_config.get_format_source()
+        """The gt4py generated code is formatted if true."""
+
+        if not device_sync and backend and "cuda" in backend:
+            device_sync = global_config.get_device_sync()
+        self.device_sync: bool = device_sync
+        """Synchronize device (GPU) after each stencil call if true."""
+
+        self.field_origins: Dict[str, Tuple[int]] = {}
+        """A dictionary of data field origins."""
 
         stencil_object = None
-        if not kwargs.get("is_lazy", False):
+        if not delay_compile:
+            # Add to kwargs because option is not available in all backends...
+            if self.device_sync:
+                kwargs["device_sync"] = self.device_sync
+
             stencil_object = gtscript.stencil(
                 definition=self.func,
-                backend=global_config.get_backend(),
-                rebuild=global_config.get_rebuild(),
+                backend=self.backend,
+                rebuild=self.rebuild,
+                format_source=self.format_source,
                 **kwargs,
             )
 
         self.stencil_object: Optional[gt4py.StencilObject] = stencil_object
         """The current generated stencil object returned from gt4py."""
 
-        self._field_origins: Dict[str, Tuple[int]] = {}
-        """Dictionary of data field origins."""
-
-    def __call__(self, *args, **kwargs) -> None:
+    def __call__(self, *args, validate_args: Optional[bool] = None, **kwargs) -> None:
         if self.origin:
             assert "origin" not in kwargs, "cannot override origin provided at init"
             kwargs["origin"] = self.origin
-        if not self._field_origins:
-            self._field_origins = self._compute_field_origins(*args, **kwargs)
-        kwargs["origin"] = self._field_origins
+        if not self.field_origins:
+            self.field_origins = self._compute_field_origins(*args, **kwargs)
+        kwargs["origin"] = self.field_origins
 
         if self.domain:
             assert "domain" not in kwargs, "cannot override domain provided at init"
@@ -199,7 +223,10 @@ class StencilWrapper:
         else:
             assert "domain" in kwargs, "no domain provided at call time"
 
-        if global_config.get_validate_args():
+        if not validate_args:
+            validate_args = global_config.get_validate_args()
+
+        if validate_args:
             self.stencil_object(*args, **kwargs, validate_args=True)
         else:
             kwargs = self._process_kwargs(*args, **kwargs)
@@ -209,8 +236,7 @@ class StencilWrapper:
         """Processes keyword args for direct calls to stencil_object.run."""
 
         for keyword in ("origin", "domain"):
-            kwargs[f"_{keyword}_"] = kwargs[keyword]
-            del kwargs[keyword]
+            kwargs[f"_{keyword}_"] = kwargs.pop(keyword)
 
         arg_names = self.field_names + self.parameter_names
         for i in range(len(args)):
@@ -256,7 +282,7 @@ class FV3StencilObject(StencilWrapper):
     """GT4Py stencil object used for fv3core."""
 
     def __init__(self, func: Callable[..., None], **kwargs):
-        super().__init__(func, is_lazy=True)
+        super().__init__(func, delay_compile=True)
 
         self.times_called: int = 0
         """Number of times this stencil has been called."""
@@ -307,7 +333,7 @@ class FV3StencilObject(StencilWrapper):
                 return True
         return False
 
-    def __call__(self, *args, **kwargs) -> None:
+    def __call__(self, *args, validate_args: Optional[bool] = None, **kwargs) -> None:
         """Call the stencil, compiling the stencil if necessary.
 
         The stencil needs to be recompiled if any of the following changes
@@ -335,20 +361,24 @@ class FV3StencilObject(StencilWrapper):
             regenerate_stencil = regenerate_stencil or passed_externals_changed
 
         if regenerate_stencil:
+            if not self.backend:
+                self.backend = global_config.get_backend()
             new_build_info: Dict[str, Any] = {}
             stencil_kwargs = {
-                "rebuild": global_config.get_rebuild(),
-                "backend": global_config.get_backend(),
+                "rebuild": self.rebuild,
+                "backend": self.backend,
                 "externals": {
                     "namelist": spec.namelist,
                     "grid": spec.grid,
                     **axis_offsets,
                     **self._passed_externals,
                 },
-                "format_source": global_config.get_format_source(),
+                "format_source": self.format_source,
                 **self.backend_kwargs,
             }
-            gt4py_utils.apply_device_sync(stencil_kwargs)
+            if self.device_sync is None and "cuda" in self.backend:
+                self.device_sync = global_config.get_device_sync()
+                stencil_kwargs["device_sync"] = self.device_sync
 
             # gtscript.stencil always returns a new class instance even if it
             # used the cached module.
@@ -377,28 +407,29 @@ class FV3StencilObject(StencilWrapper):
             kwargs,
         )
 
-        if not self._field_origins or origin != self.origin:
-            self._field_origins = self._compute_field_origins(
+        if not self.field_origins or origin != self.origin:
+            self.field_origins = self._compute_field_origins(
                 *args, **kwargs, origin=origin
             )
             self.origin = origin
-        origins = self._field_origins
 
-        if global_config.get_validate_args():
-            kwargs["validate_args"] = True
-            self.stencil_object(*args, **kwargs, origin=origins, domain=domain)
+        if not validate_args:
+            validate_args = global_config.get_validate_args()
 
-            # Update timers
-            exec_info = kwargs["exec_info"]
-            self.timers.run += exec_info["run_end_time"] - exec_info["run_start_time"]
-            self.timers.call_run += (
-                exec_info["call_run_end_time"] - exec_info["call_run_start_time"]
-            )
+        if validate_args:
+            self.stencil_object(*args, **kwargs, origin=self.field_origins, domain=domain, validate_args=True)
         else:
             kwargs = self._process_kwargs(
-                *args, **kwargs, origin=origins, domain=domain
+                *args, **kwargs, origin=self.field_origins, domain=domain
             )
             self.stencil_object.run(**kwargs)
+
+        # Update timers
+        exec_info = kwargs["exec_info"]
+        self.timers.run += exec_info["run_end_time"] - exec_info["run_start_time"]
+        self.timers.call_run += (
+            exec_info["call_run_end_time"] - exec_info["call_run_start_time"]
+        )
 
         _maybe_save_report(
             f"{name}-after",
