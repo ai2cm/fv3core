@@ -473,6 +473,7 @@ class DynamicalCore:
                     state.mdt,
                     DynamicalCore.NQ,
                 )
+        utils.device_sync()
 
 
 def fv_dynamics(
