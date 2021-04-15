@@ -114,8 +114,18 @@ class UpdateGeopotentialHeightOnCGrid:
         vt: FloatField,
         gz: FloatField,
         ws: FloatFieldIJ,
-        dt2: float,
+        dt: float,
     ):
+        """
+        Args:
+            dp_ref: layer thickness in Pa
+            zs: surface height in m
+            ut: horizontal wind (TODO: covariant or contravariant?)
+            vt: horizontal wind (TODO: covariant or contravariant?)
+            gz: geopotential height (TODO: on cell mid levels or interfaces?)
+            ws: surface vertical wind implied by horizontal motion over topography
+            dt: timestep over which to evolve the geopotential height
+        """
         basic_operations.copy_stencil(
             gz,
             self._gz_in,
@@ -156,7 +166,7 @@ class UpdateGeopotentialHeightOnCGrid:
             self._gz_x,
             self._gz_y,
             ws,
-            dt=dt2,
+            dt=dt,
         )
 
         # should be able to combine these set_zero_2d with selective validation
