@@ -160,30 +160,43 @@ class StencilWrapper:
         **kwargs,
     ):
         self.func = func
+        """The definition function."""
         self.origin = origin
+        """The compute origin."""
         self.domain = domain
+        """The compute domain."""
 
         if "format_source" not in kwargs:
             kwargs["format_source"] = global_config.get_format_source()
 
-        self.stencil_object = gtscript.stencil(
-            definition=self.func,
-            backend=global_config.get_backend(),
-            rebuild=global_config.get_rebuild(),
-            **kwargs,
-        )
+        stencil_object = None
+        if not kwargs.get("is_lazy", False):
+            stencil_object = gtscript.stencil(
+                definition=self.func,
+                backend=global_config.get_backend(),
+                rebuild=global_config.get_rebuild(),
+                **kwargs,
+            )
+
+        self.stencil_object: Optional[gt4py.StencilObject] = stencil_object
+        """The current generated stencil object returned from gt4py."""
+
+        self._field_origins: Dict[str, Tuple[int]] = {}
+        """Dictionary of data field origins."""
 
     def __call__(self, *args, **kwargs) -> None:
         if self.origin:
-            assert "origin" not in kwargs, "Cannot override origin provided at init"
+            assert "origin" not in kwargs, "cannot override origin provided at init"
             kwargs["origin"] = self.origin
-        kwargs["origin"] = self._get_field_origins(*args, **kwargs)
+        if not self._field_origins:
+            self._field_origins = self._compute_field_origins(*args, **kwargs)
+        kwargs["origin"] = self._field_origins
 
         if self.domain:
-            assert "domain" not in kwargs, "Cannot override domain provided at init"
+            assert "domain" not in kwargs, "cannot override domain provided at init"
             kwargs["domain"] = self.domain
         else:
-            assert "domain" in kwargs, "No domain provided at call time"
+            assert "domain" in kwargs, "no domain provided at call time"
 
         if global_config.get_validate_args():
             self.stencil_object(*args, **kwargs, validate_args=True)
@@ -192,7 +205,7 @@ class StencilWrapper:
             self.stencil_object.run(**kwargs, exec_info=None)
 
     def _process_kwargs(self, *args, **kwargs):
-        """Process keyword args so they can be passed directly to stencil_object.run."""
+        """Processes keyword args for direct calls to stencil_object.run."""
 
         for keyword in ("origin", "domain"):
             kwargs[f"_{keyword}_"] = kwargs[keyword]
@@ -204,7 +217,7 @@ class StencilWrapper:
 
         return kwargs
 
-    def _get_field_origins(self, *args, **kwargs) -> Dict[str, Tuple[int, ...]]:
+    def _compute_field_origins(self, *args, **kwargs) -> Dict[str, Tuple[int]]:
         """Computes the origin for each field in the stencil call."""
 
         origin = kwargs["origin"]
@@ -242,11 +255,7 @@ class FV3StencilObject(StencilWrapper):
     """GT4Py stencil object used for fv3core."""
 
     def __init__(self, func: Callable[..., None], **kwargs):
-        self.func: Callable[..., None] = func
-        """The definition function."""
-
-        self.stencil_object: Optional[gt4py.StencilObject] = None
-        """The current generated stencil object returned from gt4py."""
+        super().__init__(func, is_lazy=True)
 
         self.times_called: int = 0
         """Number of times this stencil has been called."""
@@ -305,9 +314,9 @@ class FV3StencilObject(StencilWrapper):
         2. any external value
         3. the function signature or code
         """
-        assert "domain" in kwargs, "No domain provided at call time"
+        assert "domain" in kwargs, "no domain provided at call time"
         domain = kwargs.pop("domain")
-        assert "origin" in kwargs, "No origin provided at call time"
+        assert "origin" in kwargs, "no origin provided at call time"
         origin = kwargs.pop("origin")
 
         # Can optimize this by marking stencils that need these
@@ -366,7 +375,13 @@ class FV3StencilObject(StencilWrapper):
             kwargs,
         )
 
-        origins = self._get_field_origins(*args, **kwargs, origin=origin)
+        if not self._field_origins or origin != self.origin:
+            self._field_origins = self._compute_field_origins(
+                *args, **kwargs, origin=origin
+            )
+            self.origin = origin
+        origins = self._field_origins
+
         if global_config.get_validate_args():
             kwargs["validate_args"] = True
             self.stencil_object(*args, **kwargs, origin=origins, domain=domain)
