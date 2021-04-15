@@ -99,10 +99,10 @@ def compute(qdel: FloatField, nmax: int, cd: float, km: int):
 
     # Construct some necessary temporary storage objects
     fx = utils.make_storage_from_shape(
-        qdel.shape, origin=origin, cache_key="del2cubed_fx", init=True
+        qdel.shape, origin=origin, cache_key="del2cubed_fx"
     )
     fy = utils.make_storage_from_shape(
-        qdel.shape, origin=origin, cache_key="del2cubed_fy", init=True
+        qdel.shape, origin=origin, cache_key="del2cubed_fy"
     )
 
     # set up the temporal loop
