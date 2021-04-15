@@ -219,8 +219,8 @@ class Tracer2D1L:
         self.fvtp2d = FiniteVolumeTransport(namelist, namelist.hord_tr)
         # If use AllReduce, will need something like this:
         # self._tmp_cmax = utils.make_storage_from_shape(shape, origin)
-        # self._cmax_1 = stencil_wrapper(cmax_stencil1)
-        # self._cmax_2 = stencil_wrapper(cmax_stencil2)
+        # self._cmax_1 = StencilWrapper(cmax_stencil1)
+        # self._cmax_2 = StencilWrapper(cmax_stencil2)
 
     def __call__(self, tracers, dp1, mfxd, mfyd, cxd, cyd, mdt, nq):
         # start HALO update on q (in dyn_core in fortran -- just has started when
@@ -279,6 +279,7 @@ class Tracer2D1L:
             )
 
         if self.do_halo_exchange:
+            utils.device_sync()
             reqs = {}
             for qname in utils.tracer_variables[0:nq]:
                 q = tracers[qname + "_quantity"]
@@ -311,6 +312,7 @@ class Tracer2D1L:
                 dp1,
                 self._tmp_qn2.storage,
             )
+            utils.device_sync()
             for it in range(int(nsplt)):
                 self._dp_fluxadjustment(
                     dp1,
@@ -333,7 +335,6 @@ class Tracer2D1L:
                         mfx=mfxd,
                         mfy=mfyd,
                     )
-
                     self._q_adjustments(
                         self._tmp_qn2.storage,
                         q.storage,
@@ -345,6 +346,7 @@ class Tracer2D1L:
                         it,
                         nsplt,
                     )
+                    utils.device_sync()
                 else:
                     self.fvtp2d(
                         q.storage,
@@ -367,6 +369,7 @@ class Tracer2D1L:
                         self.grid.rarea,
                         self._tmp_dp2,
                     )
+                    utils.device_sync()
 
                 if it < nsplt - 1:
                     self._copy_field(
@@ -376,4 +379,5 @@ class Tracer2D1L:
                         domain=self.grid.domain_shape_compute(),
                     )
                     if self.do_halo_exchange:
+                        utils.device_sync()
                         self.comm.halo_update(self._tmp_qn2, n_points=utils.halo)

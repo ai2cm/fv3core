@@ -130,6 +130,8 @@ class XTP_U:
             raise NotImplementedError(
                 "Currently xtp_v is only supported for hord_mt == 5,6,7,8"
             )
+        assert namelist.grid_type < 3
+
         grid = spec.grid
         self.origin = grid.compute_origin()
         self.domain = grid.domain_shape_compute(add=(1, 1, 0))

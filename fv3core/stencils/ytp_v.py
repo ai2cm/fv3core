@@ -127,6 +127,8 @@ class YTP_V:
             raise NotImplementedError(
                 "Currently xtp_v is only supported for hord_mt == 5,6,7,8"
             )
+        assert namelist.grid_type < 3
+
         grid = spec.grid
         origin = grid.compute_origin()
         domain = grid.domain_shape_compute(add=(1, 1, 0))

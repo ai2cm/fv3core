@@ -17,6 +17,7 @@ import fv3core
 import fv3core._config as spec
 import fv3core.utils
 import fv3core.utils.global_config as global_config
+import fv3core.utils.gt4py_utils as gt4py_utils
 from fv3core.utils.typing import Index3D
 
 
@@ -347,6 +348,7 @@ class FV3StencilObject(StencilWrapper):
                 "format_source": global_config.get_format_source(),
                 **self.backend_kwargs,
             }
+            gt4py_utils.apply_device_sync(stencil_kwargs)
 
             # gtscript.stencil always returns a new class instance even if it
             # used the cached module.
