@@ -337,6 +337,10 @@ class FixedOriginStencil:
     def __init__(
         self, func, origin: Tuple[int, int, int], domain: Tuple[int, int, int], **kwargs
     ):
+        if "backend" not in kwargs:
+            kwargs["backend"] = global_config.get_backend()
+        if "rebuild" not in kwargs:
+            kwargs["rebuild"] = global_config.get_rebuild()
         self.normalized_origin = (
             gtscript.gt_definitions.normalize_origin_mapping(origin)
             if origin is not None
@@ -350,8 +354,6 @@ class FixedOriginStencil:
         self.domain = domain
         self.func = func
         self.stencil_object = gtscript.stencil(
-            backend=global_config.get_backend(),
-            rebuild=global_config.get_rebuild(),
             definition=self.func,
             **kwargs,
         )

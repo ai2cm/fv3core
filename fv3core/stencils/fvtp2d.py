@@ -99,21 +99,24 @@ class FiniteVolumeTransport:
             q_i_stencil,
             origin=self.grid.full_origin(add=(0, 3, 0)),
             domain=self.grid.domain_shape_full(add=(0, -3, 1)),
+            **stencil_kwargs,
         )
         self.stencil_q_j = FixedOriginStencil(
             q_j_stencil,
             origin=self.grid.full_origin(add=(3, 0, 0)),
             domain=self.grid.domain_shape_full(add=(-3, 0, 1)),
+            **stencil_kwargs,
         )
         self.stencil_transport_flux = FixedOriginStencil(
             transport_flux_xy,
             origin=self.grid.compute_origin(),
             domain=self.grid.domain_shape_compute(add=(1, 1, 1)),
+            **stencil_kwargs,
         )
-        self.x_piecewise_parabolic_inner = XPiecewiseParabolic(spec.namelist, ord_inner)
-        self.y_piecewise_parabolic_inner = YPiecewiseParabolic(spec.namelist, ord_inner)
-        self.x_piecewise_parabolic_outer = XPiecewiseParabolic(spec.namelist, ord_outer)
-        self.y_piecewise_parabolic_outer = YPiecewiseParabolic(spec.namelist, ord_outer)
+        self.x_piecewise_parabolic_inner = XPiecewiseParabolic(namelist, ord_inner)
+        self.y_piecewise_parabolic_inner = YPiecewiseParabolic(namelist, ord_inner)
+        self.x_piecewise_parabolic_outer = XPiecewiseParabolic(namelist, ord_outer)
+        self.y_piecewise_parabolic_outer = YPiecewiseParabolic(namelist, ord_outer)
 
     def __call__(
         self,

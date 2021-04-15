@@ -144,9 +144,9 @@ def cubic_spline_interpolation_constants(
 def cubic_spline_interpolation_from_layer_center_to_interfaces(
     q_center: FloatField,
     q_interface: FloatField,
-    gk: FloatField,
-    beta: FloatField,
-    gamma: FloatField,
+    gk: FloatFieldK,
+    beta: FloatFieldK,
+    gamma: FloatFieldK,
 ) -> FloatField:
     """
     Interpolate a field from layer (vertical) centers to interfaces.
@@ -171,9 +171,9 @@ def cubic_spline_interpolation_from_layer_center_to_interfaces(
                 3.0 * (q_center[0, 0, -1] + gk * q_center) - q_interface[0, 0, -1]
             ) / beta
         with interval(-1, None):
-            a_bot = 1.0 + gk[0, 0, -1] * (gk[0, 0, -1] + 1.5)
-            xt1 = 2.0 * gk[0, 0, -1] * (gk[0, 0, -1] + 1.0)
-            xt2 = gk[0, 0, -1] * (gk[0, 0, -1] + 0.5) - a_bot * gamma[0, 0, -1]
+            a_bot = 1.0 + gk[-1] * (gk[-1] + 1.5)
+            xt1 = 2.0 * gk[-1] * (gk[-1] + 1.0)
+            xt2 = gk[-1] * (gk[-1] + 0.5) - a_bot * gamma[-1]
             q_interface = (
                 xt1 * q_center[0, 0, -1]
                 + q_center[0, 0, -2]
@@ -188,7 +188,15 @@ class UpdateDeltaZOnDGrid:
     Fortran name is updatedzd.
     """
 
-    def __init__(self, grid, column_namelist, k_bounds):
+    def __init__(self, grid, dp0: FloatFieldK, column_namelist, k_bounds):
+        """
+        Args:
+            grid: fv3core grid object
+            dp0: air pressure on interface levels, reference pressure
+                can be used as an approximation
+            column_namelist: ???
+            k_bounds: ???
+        """
         self.grid = spec.grid
         self._column_namelist = column_namelist
         if any(
@@ -228,25 +236,26 @@ class UpdateDeltaZOnDGrid:
         self._zh_tmp = utils.make_storage_from_shape(
             largest_possible_shape, grid.full_origin()
         )
-        self._gk = utils.make_storage_from_shape(
-            largest_possible_shape, grid.full_origin()
-        )
-        self._gamma = utils.make_storage_from_shape(
-            largest_possible_shape, grid.full_origin()
-        )
-        self._beta = utils.make_storage_from_shape(
-            largest_possible_shape, grid.full_origin()
+        self._dp0 = dp0
+        # because stencils only work on 3D at the moment, need to compute in 3D
+        # and then make these 1D
+        gk_3d = utils.make_storage_from_shape((1, 1, self.grid.npz + 1), (0, 0, 0))
+        gamma_3d = utils.make_storage_from_shape((1, 1, self.grid.npz + 1), (0, 0, 0))
+        beta_3d = utils.make_storage_from_shape((1, 1, self.grid.npz + 1), (0, 0, 0))
+
+        _cubic_spline_interpolation_constants = FixedOriginStencil(
+            cubic_spline_interpolation_constants,
+            origin=(0, 0, 0),
+            domain=(1, 1, self.grid.npz + 1),
         )
 
-        self.finite_volume_transport = FiniteVolumeTransport(
-            spec.namelist, spec.namelist.hord_tm
+        _cubic_spline_interpolation_constants(self._dp0, gk_3d, beta_3d, gamma_3d)
+        self._gk = utils.make_storage_data(gk_3d[0, 0, :], gk_3d.shape[2:], (0,))
+        self._beta = utils.make_storage_data(beta_3d[0, 0, :], beta_3d.shape[2:], (0,))
+        self._gamma = utils.make_storage_data(
+            gamma_3d[0, 0, :], gamma_3d.shape[2:], (0,)
         )
-        self._cubic_spline_interpolation_constants = FixedOriginStencil(
-            cubic_spline_interpolation_constants,
-            origin=self.grid.full_origin(),
-            domain=self.grid.domain_shape_full(add=(0, 0, 1)),
-        )
-        self._cubic_spline_constants_initialized = False
+
         self._interpolate_to_layer_interface = FixedOriginStencil(
             cubic_spline_interpolation_from_layer_center_to_interfaces,
             origin=self.grid.full_origin(),
@@ -257,10 +266,12 @@ class UpdateDeltaZOnDGrid:
             origin=self.grid.compute_origin(),
             domain=self.grid.domain_shape_compute(add=(0, 0, 1)),
         )
+        self.finite_volume_transport = FiniteVolumeTransport(
+            spec.namelist, spec.namelist.hord_tm
+        )
 
     def __call__(
         self,
-        dp0: FloatFieldK,
         zs: FloatFieldIJ,
         zh: FloatField,
         crx: FloatField,
@@ -272,8 +283,6 @@ class UpdateDeltaZOnDGrid:
     ):
         """
         Args:
-            dp0: air pressure on interface levels, reference pressure
-                can be used as an approximation
             zs: geopotential height of surface
             zh: geopotential height defined on layer interfaces
             crx: Courant number in x-direction
@@ -283,12 +292,6 @@ class UpdateDeltaZOnDGrid:
             wsd: lowest layer vertical velocity required to keep layer at surface
             dt: ???
         """
-        # TODO: move this logic to init, adding dp0 as an initialization argument
-        if not self._cubic_spline_constants_initialized:
-            self._cubic_spline_interpolation_constants(
-                dp0, self._gk, self._beta, self._gamma
-            )
-            self._cubic_spline_constants_initialized = True
         self._interpolate_to_layer_interface(
             crx, self._crx_interface, self._gk, self._beta, self._gamma
         )
