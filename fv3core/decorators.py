@@ -185,8 +185,6 @@ class StencilWrapper:
         )
         """The gt4py generated code is formatted if true."""
 
-        if not device_sync and backend and "cuda" in backend:
-            device_sync = global_config.get_device_sync()
         self.device_sync: bool = device_sync
         """Synchronize device (GPU) after each stencil call if true."""
 
@@ -195,9 +193,7 @@ class StencilWrapper:
 
         stencil_object = None
         if not delay_compile:
-            # Add to kwargs because option is not available in all backends...
-            if self.device_sync:
-                kwargs["device_sync"] = self.device_sync
+            self._set_device_sync(kwargs)
 
             stencil_object = gtscript.stencil(
                 definition=self.func,
@@ -282,6 +278,13 @@ class StencilWrapper:
                 ]
             origin_dict[field_name] = tuple(field_origin)
         return origin_dict
+
+    def _set_device_sync(self, stencil_kwargs: Dict[str, Any]):
+        """Sets the 'device_sync' backend option in the stencil kwargs."""
+        if self.device_sync is None and "cuda" in self.backend:
+            self.device_sync = global_config.get_device_sync()
+        if self.device_sync is not None:
+            stencil_kwargs["device_sync"] = self.device_sync
 
     @property
     def field_names(self) -> List[str]:
@@ -370,7 +373,7 @@ class FV3StencilObject(StencilWrapper):
         # Can optimize this by marking stencils that need these
         axis_offsets = fv3core.utils.axis_offsets(spec.grid, origin, domain)
 
-        regenerate_stencil = not self.built or global_config.get_rebuild()
+        regenerate_stencil = not self.built or self.rebuild
 
         # Check if we really do need to regenerate
         if not regenerate_stencil:
@@ -382,8 +385,7 @@ class FV3StencilObject(StencilWrapper):
             regenerate_stencil = regenerate_stencil or passed_externals_changed
 
         if regenerate_stencil:
-            if not self.backend:
-                self.backend = global_config.get_backend()
+            self.backend = global_config.get_backend()
             new_build_info: Dict[str, Any] = {}
             stencil_kwargs = {
                 "rebuild": self.rebuild,
@@ -397,9 +399,7 @@ class FV3StencilObject(StencilWrapper):
                 "format_source": self.format_source,
                 **self.backend_kwargs,
             }
-            if self.device_sync is None and "cuda" in self.backend:
-                self.device_sync = global_config.get_device_sync()
-                stencil_kwargs["device_sync"] = self.device_sync
+            self._set_device_sync(stencil_kwargs)
 
             # gtscript.stencil always returns a new class instance even if it
             # used the cached module.
@@ -436,7 +436,7 @@ class FV3StencilObject(StencilWrapper):
             )
             self.origin = origin
 
-        if not validate_args:
+        if validate_args is None:
             validate_args = global_config.get_validate_args()
 
         if validate_args:
