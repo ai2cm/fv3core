@@ -251,6 +251,7 @@ class AcousticDynamics:
                 zs_3d,
                 1.0 / constants.GRAV,
             )
+            utils.device_sync()
             # After writing, make 'dp_ref' a K-field and 'zs' an IJ-field
             self._dp_ref = utils.make_storage_data(
                 dp_ref_3d[0, 0, :], (dp_ref_3d.shape[2],), (0,)
