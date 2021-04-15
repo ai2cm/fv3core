@@ -42,6 +42,8 @@ class TranslateFvTp2d(TranslateFortranData2Py):
             spec.namelist, int(inputs["hord"]), cache_key="regression-test"
         )
         del inputs["hord"]
+        inputs["x_area_flux"] = inputs.pop("xfx")
+        inputs["y_area_flux"] = inputs.pop("yfx")
         self.compute_func(**inputs)
         return inputs
 

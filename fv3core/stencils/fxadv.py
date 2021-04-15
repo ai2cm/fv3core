@@ -1,4 +1,3 @@
-import gt4py.gtscript as gtscript
 from gt4py.gtscript import PARALLEL, computation, horizontal, interval, region
 
 import fv3core._config as spec
@@ -358,7 +357,7 @@ def fxadv_fluxes_stencil(
     dx: FloatFieldIJ,
     crx_adv: FloatField,
     cry_adv: FloatField,
-    xfx_adv: FloatField,
+    xfx_adv: FloatField,  # TODO: rename to x_area_flux, similarly for y_area_flux
     yfx_adv: FloatField,
     ut: FloatField,
     vt: FloatField,
@@ -375,22 +374,6 @@ def fxadv_fluxes_stencil(
         with horizontal(region[:, local_js : local_je + 2]):
             cry_adv = prod * rdya[0, -1] if prod > 0 else prod * rdya
             yfx_adv = dx * prod * sin_sg4[0, -1] if prod > 0 else dx * prod * sin_sg2
-
-
-@gtscript.function
-def apply_x_flux_divergence(q: FloatField, q_x_flux: FloatField) -> FloatField:
-    """
-    Update a scalar q according to its flux in the x direction.
-    """
-    return q + q_x_flux - q_x_flux[1, 0, 0]
-
-
-@gtscript.function
-def apply_y_flux_divergence(q: FloatField, q_y_flux: FloatField) -> FloatField:
-    """
-    Update a scalar q according to its flux in the x direction.
-    """
-    return q + q_y_flux - q_y_flux[0, 1, 0]
 
 
 def compute(
