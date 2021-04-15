@@ -1,5 +1,15 @@
 import gt4py.gtscript as gtscript
-from gt4py.gtscript import PARALLEL, asin, computation, cos, interval, sin, sqrt
+from gt4py.gtscript import (
+    PARALLEL,
+    asin,
+    computation,
+    cos,
+    horizontal,
+    interval,
+    region,
+    sin,
+    sqrt,
+)
 
 import fv3core._config as spec
 import fv3core.utils.gt4py_utils as utils
@@ -46,6 +56,7 @@ def extrap_corner(
     x1 = great_circle_dist(p1a, p1b, p0a, p0b)
     x2 = great_circle_dist(p2a, p2b, p0a, p0b)
     return qa + x1 / (x2 - x1) * (qa - qb)
+
 
 @gtscript.function
 def _sw_corner(
@@ -233,12 +244,20 @@ def _nw_corner(
 
 
 @gtstencil()
-def _a2b_corners(qin:FloatField, qout:FloatField, agrid1:FloatFieldIJ, agrid2:FloatFieldIJ, bgrid1:FloatFieldIJ, bgrid2:FloatFieldIJ):
+def _a2b_corners(
+    qin: FloatField,
+    qout: FloatField,
+    agrid1: FloatFieldIJ,
+    agrid2: FloatFieldIJ,
+    bgrid1: FloatFieldIJ,
+    bgrid2: FloatFieldIJ,
+):
     with computation(PARALLEL), interval(...):
         qout = _sw_corner(qin, qout, agrid1, agrid2, bgrid1, bgrid2)
         qout = _se_corner(qin, qout, agrid1, agrid2, bgrid1, bgrid2)
         qout = _ne_corner(qin, qout, agrid1, agrid2, bgrid1, bgrid2)
         qout = _nw_corner(qin, qout, agrid1, agrid2, bgrid1, bgrid2)
+
 
 @gtstencil()
 def ppm_volume_mean_x(qin: FloatField, qx: FloatField):
@@ -617,7 +636,16 @@ def compute_qout(qxx, qyy, qout, kstart, nk):
 def compute(qin, qout, kstart=0, nk=None, replace=False):
     if nk is None:
         nk = grid().npz - kstart
-    _a2b_corners(qin, qout, grid().agrid1, grid().agrid2, grid().bgrid1, grid().bgrid2, origin=(grid().isd, grid().jsd, kstart), domain=(grid().nid, grid().njd, nk))
+    _a2b_corners(
+        qin,
+        qout,
+        grid().agrid1,
+        grid().agrid2,
+        grid().bgrid1,
+        grid().bgrid2,
+        origin=(grid().isd, grid().jsd, kstart),
+        domain=(grid().nid, grid().njd, nk),
+    )
     if spec.namelist.grid_type < 3:
         compute_qout_edges(qin, qout, kstart, nk)
         qx = compute_qx(qin, qout, kstart, nk)
