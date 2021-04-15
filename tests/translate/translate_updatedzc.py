@@ -5,7 +5,7 @@ from fv3core.testing import TranslateFortranData2Py
 class TranslateUpdateDzC(TranslateFortranData2Py):
     def __init__(self, grid):
         super().__init__(grid)
-        self.compute_func = updatedzc.compute
+        self.compute_func = updatedzc.UpdateGeopotentialHeightOnCGrid(grid)
         self.in_vars["data_vars"] = {
             "dp_ref": {"serialname": "dp0"},
             "zs": {},

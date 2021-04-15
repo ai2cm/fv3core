@@ -246,6 +246,11 @@ class AcousticDynamics:
             domain=pgradc_domain,
             externals={"hydrostatic": self.namelist.hydrostatic, **ax_offsets},
         )
+
+        self.update_geopotential_height_on_c_grid = (
+            updatedzc.UpdateGeopotentialHeightOnCGrid(self.grid)
+        )
+
         self._zero_data = FrozenStencil(
             zero_data,
             origin=self.grid.full_origin(),
@@ -411,7 +416,7 @@ class AcousticDynamics:
                     )
                 utils.device_sync()
             if not self.namelist.hydrostatic:
-                updatedzc.compute(
+                self.update_geopotential_height_on_c_grid(
                     state.dp_ref, state.zs, state.ut, state.vt, state.gz, state.ws3, dt2
                 )
                 riem_solver_c.compute(
