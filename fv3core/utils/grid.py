@@ -372,7 +372,7 @@ class Grid:
             return 0, 0
 
 
-@functools.lru_cache
+@functools.cache
 def axis_offsets(
     grid: Grid,
     origin: Tuple[int, ...],
