@@ -159,6 +159,7 @@ class StencilWrapper:
         origin: Optional[Tuple[int, ...]] = None,
         domain: Optional[Index3D] = None,
         *,
+        disable_cache: bool = True,
         backend: Optional[str] = None,
         rebuild: Optional[bool] = None,
         format_source: Optional[bool] = None,
@@ -176,6 +177,9 @@ class StencilWrapper:
             domain = Shape(domain)
         self.domain: Optional[Shape] = domain
         """The compute domain."""
+
+        self.disable_cache: bool = disable_cache
+        """Disable caching if true."""
 
         self.backend: str = backend if backend else global_config.get_backend()
         """The gt4py backend name."""
@@ -225,7 +229,7 @@ class StencilWrapper:
         if self.origin:
             assert origin is None, "cannot override origin provided at init"
             origin = self.origin
-        if not self.field_origins:
+        if not self.field_origins or self.disable_cache:
             self.field_origins = self._compute_field_origins(origin, *args, **kwargs)
 
         if self.domain:
