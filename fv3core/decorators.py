@@ -434,14 +434,6 @@ class FV3StencilObject(StencilWrapper):
         kwargs["exec_info"] = kwargs.get("exec_info", {})
         name = f"{self.func.__module__}.{self.func.__name__}"
 
-        _maybe_save_report(
-            f"{name}-before",
-            self.times_called,
-            self.func.__dict__["_gtscript_"]["api_signature"],
-            args,
-            kwargs,
-        )
-
         if not self.field_origins or origin != self.origin:
             self.field_origins = self._compute_field_origins(
                 origin,
@@ -454,6 +446,14 @@ class FV3StencilObject(StencilWrapper):
             validate_args = global_config.get_validate_args()
 
         if validate_args:
+            _maybe_save_report(
+                f"{name}-before",
+                self.times_called,
+                self.func.__dict__["_gtscript_"]["api_signature"],
+                args,
+                kwargs,
+            )
+
             self.stencil_object(
                 *args,
                 **kwargs,
@@ -468,6 +468,15 @@ class FV3StencilObject(StencilWrapper):
             self.timers.call_run += (
                 exec_info["call_run_end_time"] - exec_info["call_run_start_time"]
             )
+
+            _maybe_save_report(
+                f"{name}-after",
+                self.times_called,
+                self.func.__dict__["_gtscript_"]["api_signature"],
+                args,
+                kwargs,
+            )
+            self.times_called += 1
         else:
             kwargs = self._process_kwargs(
                 domain,
@@ -475,15 +484,6 @@ class FV3StencilObject(StencilWrapper):
                 **kwargs,
             )
             self.stencil_object.run(**kwargs)
-
-        _maybe_save_report(
-            f"{name}-after",
-            self.times_called,
-            self.func.__dict__["_gtscript_"]["api_signature"],
-            args,
-            kwargs,
-        )
-        self.times_called += 1
 
 
 class StencilObjectCache:
