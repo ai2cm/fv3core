@@ -18,6 +18,7 @@ import fv3core._config as spec
 import fv3core.utils
 import fv3core.utils.global_config as global_config
 import fv3core.utils.gt4py_utils as gt4py_utils
+from fv3core.utils import safety
 from fv3core.utils.typing import Index3D
 
 
@@ -25,6 +26,10 @@ ArgSpec = collections.namedtuple(
     "ArgSpec", ["arg_name", "standard_name", "units", "intent"]
 )
 VALID_INTENTS = ["in", "out", "inout", "unknown"]
+
+storage_types = (
+    gt_storage.storage.Storage
+)  # , gt_storage.storage.CPUStorage, gt_storage.storage.GPUStorage)
 
 
 def enable_stencil_report(
@@ -321,6 +326,14 @@ class FV3StencilObject:
         self.timers.call_run += (
             exec_info["call_run_end_time"] - exec_info["call_run_start_time"]
         )
+        if __debug__:
+            register_unsafe_storages(args, kwargs)
+
+
+def register_unsafe_storages(args, kwargs):
+    for maybe_storage in list(args) + list(kwargs.values()):
+        if isinstance(maybe_storage, storage_types):
+            safety.PYTHON_UNSAFE_STORAGES.append(maybe_storage)
 
 
 def gtstencil(**stencil_kwargs) -> Callable[[Any], FV3StencilObject]:
@@ -358,6 +371,9 @@ class StencilWrapper:
             **kwargs,
             validate_args=global_config.get_validate_args(),
         )
+        if __debug__:
+            register_unsafe_storages(args, kwargs)
+            assert len(safety.PYTHON_UNSAFE_STORAGES) > 0
 
 
 class FrozenStencil(StencilWrapper):
@@ -385,13 +401,9 @@ class FrozenStencil(StencilWrapper):
         assert (
             "domain" not in kwargs
         ), "cannot pass domain to FrozenStencil at call time"
-        self.stencil_object(
-            *args,
-            **kwargs,
-            normalized_domain=self.normalized_domain,
-            normalized_origin=self.normalized_origin,
-            validate_args=global_config.get_validate_args(),
-        )
+        kwargs["normalized_origin"] = self.normalized_origin
+        kwargs["normalized_domain"] = self.normalized_domain
+        super().__call__(*args, **kwargs)
 
 
 def _get_case_name(name, times_called):

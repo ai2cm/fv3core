@@ -12,6 +12,8 @@ import fv3core.utils.global_config as global_config
 from fv3core.utils.mpi import MPI
 from fv3core.utils.typing import DTypes, Field, Float, Int
 
+from . import safety
+
 
 try:
     import cupy as cp
@@ -150,6 +152,7 @@ def make_storage_data(
         mask=mask,
         managed_memory=managed_memory,
     )
+    storage.__getitem__ = safety.requires_safe(storage.__getitem__)
     return storage
 
 
@@ -554,6 +557,7 @@ def stack(tup, axis: int = 0, out=None):
 def device_sync() -> None:
     if cp and "cuda" in global_config.get_backend():
         cp.cuda.Device(0).synchronize()
+    safety.PYTHON_UNSAFE_STORAGES.clear()
 
 
 def apply_device_sync(stencil_kwargs: Dict[str, Any]) -> None:

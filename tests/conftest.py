@@ -47,6 +47,11 @@ def data_path(pytestconfig):
     return data_path_from_config(pytestconfig)
 
 
+@pytest.fixture(autouse=True)
+def sync_before_tests():
+    fv3core.utils.gt4py_utils.device_sync()
+
+
 def data_path_from_config(config):
     data_path = config.getoption("data_path")
     namelist_filename = os.path.join(data_path, "input.nml")
