@@ -256,7 +256,7 @@ class AcousticDynamics:
                 dp_ref_3d[0, 0, :], (dp_ref_3d.shape[2],), (0,)
             )
             self._zs = utils.make_storage_data(zs_3d[:, :, 0], zs_3d.shape[0:2], (0, 0))
-            self._update_height_on_d_grid = updatedzd.UpdateDeltaZOnDGrid(
+            self._update_height_on_d_grid = updatedzd.UpdateHeightOnDGrid(
                 self.grid,
                 self.namelist,
                 self._dp_ref,

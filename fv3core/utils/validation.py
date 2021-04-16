@@ -21,17 +21,6 @@ class SelectiveValidation:
         self.domain = domain
 
     @property
-    def translate_dict(self):
-        return {
-            "i_start": self.origin[0],
-            "j_start": self.origin[1],
-            "k_start": self.origin[2],
-            "i_end": self.origin[0] + self.domain[0],
-            "j_end": self.origin[1] + self.domain[1],
-            "k_end": self.origin[2] + self.domain[2],
-        }
-
-    @property
     def validation_slice(self) -> Tuple[slice, ...]:
         return self._validation_slice
 
