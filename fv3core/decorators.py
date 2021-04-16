@@ -457,6 +457,13 @@ class FV3StencilObject(StencilWrapper):
                 domain=domain,
                 validate_args=True,
             )
+
+            # Update timers
+            exec_info = kwargs["exec_info"]
+            self.timers.run += exec_info["run_end_time"] - exec_info["run_start_time"]
+            self.timers.call_run += (
+                exec_info["call_run_end_time"] - exec_info["call_run_start_time"]
+            )
         else:
             kwargs = self._process_kwargs(
                 domain,
@@ -464,13 +471,6 @@ class FV3StencilObject(StencilWrapper):
                 **kwargs,
             )
             self.stencil_object.run(**kwargs)
-
-        # Update timers
-        exec_info = kwargs["exec_info"]
-        self.timers.run += exec_info["run_end_time"] - exec_info["run_start_time"]
-        self.timers.call_run += (
-            exec_info["call_run_end_time"] - exec_info["call_run_start_time"]
-        )
 
         _maybe_save_report(
             f"{name}-after",
