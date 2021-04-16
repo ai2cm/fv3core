@@ -12,6 +12,7 @@ import gt4py.storage as gt_storage
 import numpy as np
 import yaml
 from gt4py import gtscript
+from gt4py.definitions import Shape
 
 import fv3core
 import fv3core._config as spec
@@ -171,7 +172,9 @@ class StencilWrapper:
         self.origin: Tuple[int, ...] = origin
         """The compute origin."""
 
-        self.domain: Index3D = domain
+        if domain is not None:
+            domain = Shape(domain)
+        self.domain: Optional[Shape] = domain
         """The compute domain."""
 
         self.backend: str = backend if backend else global_config.get_backend()
@@ -206,6 +209,11 @@ class StencilWrapper:
         self.stencil_object: Optional[gt4py.StencilObject] = stencil_object
         """The current generated stencil object returned from gt4py."""
 
+    def clear(self):
+        """Clears cached field origins."""
+
+        self.field_origins.clear()
+
     def __call__(
         self,
         *args,
@@ -239,9 +247,7 @@ class StencilWrapper:
             )
         else:
             kwargs = self._process_kwargs(domain, *args, **kwargs)
-            self.stencil_object.run(
-                **kwargs, origin=self.field_origins, domain=domain, exec_info=None
-            )
+            self.stencil_object.run(**kwargs, exec_info=None)
 
     def _process_kwargs(self, domain: Optional[Index3D], *args, **kwargs):
         """Processes keyword args for direct calls to stencil_object.run."""
@@ -308,6 +314,7 @@ class FV3StencilObject(StencilWrapper):
 
         self.timers = types.SimpleNamespace(call_run=0.0, run=0.0)
         """Accumulated time spent in this stencil.
+
         call_run includes stencil call overhead, while run omits it."""
 
         self._passed_externals: Dict[str, Any] = kwargs.pop("externals", {})
@@ -365,6 +372,10 @@ class FV3StencilObject(StencilWrapper):
         1. the origin and/or domain
         2. any external value
         3. the function signature or code
+
+        Args:
+            domain: Stencil compute domain (required)
+            origin: Data index mapped to (0, 0, 0) in the compute domain (required)
         """
         assert origin is not None, "no origin provided at call time"
         assert domain is not None, "no domain provided at call time"
@@ -427,14 +438,13 @@ class FV3StencilObject(StencilWrapper):
             kwargs,
         )
 
-        # TODO: can field origins be cached in this class?
-        # if not self.field_origins or origin != self.origin:
-        self.field_origins = self._compute_field_origins(
-            origin,
-            *args,
-            **kwargs,
-        )
-        # self.origin = origin
+        if not self.field_origins or origin != self.origin:
+            self.field_origins = self._compute_field_origins(
+                origin,
+                *args,
+                **kwargs,
+            )
+            self.origin = origin
 
         if validate_args is None:
             validate_args = global_config.get_validate_args()
@@ -472,11 +482,42 @@ class FV3StencilObject(StencilWrapper):
         self.times_called += 1
 
 
+class StencilObjectCache:
+    """Stencil object cache to enable run time access to compiled stencils."""
+
+    _instance = None
+
+    @classmethod
+    def instance(cls):
+        """Instance method for Singleton pattern."""
+        if cls._instance is None:
+            cls._instance = cls.__new__(cls)
+            cls._instance.stencil_cache = {}
+        return cls._instance
+
+    def __init__(self):
+        self.stencil_cache = {}
+
+    def add(self, stencil_object: StencilWrapper):
+        stencil_name = str(stencil_object.func)
+        self.stencil_cache[stencil_name] = stencil_object
+
+    def clear(self):
+        for stencil_object in self.stencil_cache.values():
+            stencil_object.clear()
+
+
+def get_stencil_cache() -> StencilObjectCache:
+    return StencilObjectCache.instance()
+
+
 def gtstencil(**stencil_kwargs) -> Callable[[Any], FV3StencilObject]:
     _ensure_global_flags_not_specified_in_kwargs(stencil_kwargs)
 
     def decorator(func):
-        return FV3StencilObject(func, **stencil_kwargs)
+        stencil_object = FV3StencilObject(func, **stencil_kwargs)
+        get_stencil_cache().add(stencil_object)
+        return stencil_object
 
     return decorator
 
