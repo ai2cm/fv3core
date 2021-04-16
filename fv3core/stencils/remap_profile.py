@@ -6,8 +6,8 @@ from gt4py.gtscript import __INLINED, BACKWARD, FORWARD, PARALLEL, computation, 
 import fv3core._config as spec
 import fv3core.utils.global_config as global_config
 import fv3core.utils.gt4py_utils as utils
-from fv3core.utils.typing import FloatField
 from fv3core.decorators import StencilWrapper
+from fv3core.utils.typing import FloatField
 
 
 @gtscript.function
