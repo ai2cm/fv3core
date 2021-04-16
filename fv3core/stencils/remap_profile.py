@@ -536,22 +536,27 @@ class RemapProfile:
         )
 
         self._set_values_stencil = StencilWrapper(
-            set_vals, externals={"iv": iv, "kord": abs(kord)}
-        )
-        self._apply_constraints_stencil = StencilWrapper(
-            apply_constraints,
+            func=set_vals,
             externals={"iv": iv, "kord": abs(kord)},
         )
+
+        self._apply_constraints_stencil = StencilWrapper(
+            func=apply_constraints,
+            externals={"iv": iv, "kord": abs(kord)},
+        )
+
         self._set_top_stencil = StencilWrapper(
-            set_top,
+            func=set_top,
             externals={"iv": iv},
         )
+
         self._set_set_inner_stencil = StencilWrapper(
-            set_inner,
+            func=set_inner,
             externals={"iv": iv, "kord": abs(kord)},
         )
+
         self._set_bottom_stencil = StencilWrapper(
-            set_bottom,
+            func=set_bottom,
             externals={"iv": iv},
         )
 
