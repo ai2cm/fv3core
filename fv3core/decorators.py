@@ -260,7 +260,7 @@ class StencilWrapper:
     ) -> Dict[str, Tuple[int, ...]]:
         """Computes the origin for each field in the stencil call."""
 
-        origin_dict: Dict[str, Tuple[int, ...]] = {"_all_": origin}
+        field_origins: Dict[str, Tuple[int, ...]] = {"_all_": origin}
         field_names: List[str] = self.field_names
         for i in range(len(field_names)):
             field_name = field_names[i]
@@ -276,8 +276,8 @@ class StencilWrapper:
                 field_origin = [
                     min(field_shape[j] - 1, origin[j]) for j in range(len(field_shape))
                 ]
-            origin_dict[field_name] = tuple(field_origin)
-        return origin_dict
+            field_origins[field_name] = tuple(field_origin)
+        return field_origins
 
     def _set_device_sync(self, stencil_kwargs: Dict[str, Any]):
         """Sets the 'device_sync' backend option in the stencil kwargs."""
@@ -308,7 +308,6 @@ class FV3StencilObject(StencilWrapper):
 
         self.timers = types.SimpleNamespace(call_run=0.0, run=0.0)
         """Accumulated time spent in this stencil.
-
         call_run includes stencil call overhead, while run omits it."""
 
         self._passed_externals: Dict[str, Any] = kwargs.pop("externals", {})
@@ -428,13 +427,14 @@ class FV3StencilObject(StencilWrapper):
             kwargs,
         )
 
-        if not self.field_origins or origin != self.origin:
-            self.field_origins = self._compute_field_origins(
-                origin,
-                *args,
-                **kwargs,
-            )
-            self.origin = origin
+        # TODO: can field origins be cached in this class?
+        # if not self.field_origins or origin != self.origin:
+        self.field_origins = self._compute_field_origins(
+            origin,
+            *args,
+            **kwargs,
+        )
+        # self.origin = origin
 
         if validate_args is None:
             validate_args = global_config.get_validate_args()
