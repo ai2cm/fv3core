@@ -209,7 +209,7 @@ class UpdateHeightOnDGrid:
         self._dp0 = dp0
         self._allocate_temporary_storages()
         self._initialize_interpolation_constants()
-        self._compile_stencils()
+        self._compile_stencils(namelist)
 
         self._zh_validator = validation.SelectiveValidation(
             origin=self.grid.compute_origin(),
@@ -269,13 +269,14 @@ class UpdateHeightOnDGrid:
         )
 
         _cubic_spline_interpolation_constants(self._dp0, gk_3d, beta_3d, gamma_3d)
+        utils.device_sync()
         self._gk = utils.make_storage_data(gk_3d[0, 0, :], gk_3d.shape[2:], (0,))
         self._beta = utils.make_storage_data(beta_3d[0, 0, :], beta_3d.shape[2:], (0,))
         self._gamma = utils.make_storage_data(
             gamma_3d[0, 0, :], gamma_3d.shape[2:], (0,)
         )
 
-    def _compile_stencils(self):
+    def _compile_stencils(self, namelist):
         self._interpolate_to_layer_interface = FrozenStencil(
             cubic_spline_interpolation_from_layer_center_to_interfaces,
             origin=self.grid.full_origin(),
@@ -286,6 +287,7 @@ class UpdateHeightOnDGrid:
             origin=self.grid.compute_origin(),
             domain=self.grid.domain_shape_compute(add=(0, 0, 1)),
         )
+        self.finite_volume_transport = FiniteVolumeTransport(namelist, namelist.hord_tm)
 
     def __call__(
         self,
