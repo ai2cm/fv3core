@@ -391,12 +391,10 @@ class FrozenStencil(StencilWrapper):
         self.domain = domain
 
     def __call__(self, *args, **kwargs) -> None:
-        assert (
-            "origin" not in kwargs
-        ), "cannot pass origin to FrozenStencil at call time"
-        assert (
-            "domain" not in kwargs
-        ), "cannot pass domain to FrozenStencil at call time"
+        if __debug__ and ("origin" in kwargs):
+            raise TypeError("cannot pass origin to FrozenStencil at call time")
+        if __debug__ and ("domain" in kwargs):
+            raise TypeError("cannot pass domain to FrozenStencil at call time")
         kwargs["normalized_origin"] = self.normalized_origin
         kwargs["normalized_domain"] = self.normalized_domain
         super().__call__(*args, **kwargs)

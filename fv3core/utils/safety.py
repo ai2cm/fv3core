@@ -7,6 +7,10 @@ import gt4py
 PYTHON_UNSAFE_STORAGES: List[gt4py.storage.storage.Storage] = []
 
 
+class UnsafeAccess(RuntimeError):
+    pass
+
+
 def _unsafe_storage_access(storages):
     for s1 in storages:
         for s2 in PYTHON_UNSAFE_STORAGES:
@@ -18,7 +22,7 @@ def _unsafe_storage_access(storages):
 def requires_safe(func, method_parent=None):
     def wrapped(*args, **kwargs):
         if __debug__ and _unsafe_storage_access(list(args) + list(kwargs.values())):
-            raise ValueError("operation requires you call utils.device_sync() first")
+            raise UnsafeAccess("operation requires you call utils.device_sync() first")
         return func(*args, **kwargs)
 
     if method_parent is not None:
