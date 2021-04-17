@@ -27,10 +27,6 @@ ArgSpec = collections.namedtuple(
 )
 VALID_INTENTS = ["in", "out", "inout", "unknown"]
 
-storage_types = (
-    gt_storage.storage.Storage
-)  # , gt_storage.storage.CPUStorage, gt_storage.storage.GPUStorage)
-
 
 def enable_stencil_report(
     *, path: str, save_args: bool, save_report: bool, include_halos: bool = False
@@ -332,7 +328,7 @@ class FV3StencilObject:
 
 def register_unsafe_storages(args, kwargs):
     for maybe_storage in list(args) + list(kwargs.values()):
-        if isinstance(maybe_storage, storage_types):
+        if isinstance(maybe_storage, gt_storage.storage.Storage):
             safety.PYTHON_UNSAFE_STORAGES.append(maybe_storage)
 
 

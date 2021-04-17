@@ -152,7 +152,6 @@ def make_storage_data(
         mask=mask,
         managed_memory=managed_memory,
     )
-    storage.__getitem__ = safety.requires_safe(storage.__getitem__)
     return storage
 
 
