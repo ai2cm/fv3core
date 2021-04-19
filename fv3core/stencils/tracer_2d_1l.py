@@ -296,7 +296,6 @@ class Tracer2D1L:
                 dp1,
                 self._tmp_qn2.storage,
             )
-            utils.device_sync()
             for it in range(int(nsplt)):
                 self._dp_fluxadjustment(
                     dp1,
@@ -328,7 +327,6 @@ class Tracer2D1L:
                         it,
                         nsplt,
                     )
-                    utils.device_sync()
                 else:
                     self.fvtp2d(
                         q.storage,
@@ -349,7 +347,6 @@ class Tracer2D1L:
                         self.grid.rarea,
                         self._tmp_dp2,
                     )
-                    utils.device_sync()
 
                 if it < nsplt - 1:
                     self._copy_field(
