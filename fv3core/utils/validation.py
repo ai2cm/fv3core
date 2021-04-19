@@ -24,6 +24,9 @@ class SelectiveValidation:
 
     @property
     def validation_slice(self) -> Tuple[slice, ...]:
+        """
+        A slice based on the origin and domain used to initialize this object.
+        """
         return self._validation_slice
 
     def set_nans_if_test_mode(self, array):
