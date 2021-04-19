@@ -159,10 +159,7 @@ class StencilWrapper:
         origin: Optional[Tuple[int, ...]] = None,
         domain: Optional[Index3D] = None,
         *,
-        disable_cache: bool = True,
-        backend: Optional[str] = None,
-        rebuild: Optional[bool] = None,
-        format_source: Optional[bool] = None,
+        disable_cache: bool = False,
         delay_compile: Optional[bool] = None,
         device_sync: Optional[bool] = None,
         **kwargs,
@@ -181,15 +178,13 @@ class StencilWrapper:
         self.disable_cache: bool = disable_cache
         """Disable caching if true."""
 
-        self.backend: str = backend if backend else global_config.get_backend()
+        self.backend: str = global_config.get_backend()
         """The gt4py backend name."""
 
-        self.rebuild: bool = rebuild if rebuild else global_config.get_rebuild()
+        self.rebuild: bool = global_config.get_rebuild()
         """The gt4py stencil is rebuilt if true."""
 
-        self.format_source: bool = (
-            format_source if format_source else global_config.get_format_source()
-        )
+        self.format_source: bool = global_config.get_format_source()
         """The gt4py generated code is formatted if true."""
 
         self.device_sync: bool = device_sync
@@ -238,7 +233,7 @@ class StencilWrapper:
         else:
             assert domain is not None, "no domain provided at call time"
 
-        if not validate_args:
+        if validate_args is None:
             validate_args = global_config.get_validate_args()
 
         if validate_args:
