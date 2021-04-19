@@ -208,10 +208,14 @@ class StencilWrapper:
         self.stencil_object: Optional[gt4py.StencilObject] = stencil_object
         """The current generated stencil object returned from gt4py."""
 
+        self.processed_kwargs: Dict[str, Any] = {}
+        """A dictionary of processed keyword args."""
+
     def clear(self):
-        """Clears cached field origins."""
+        """Clears cached data items."""
 
         self.field_origins.clear()
+        self.processed_kwargs.clear()
 
     def __call__(
         self,
@@ -251,14 +255,14 @@ class StencilWrapper:
     def _process_kwargs(self, domain: Optional[Index3D], *args, **kwargs):
         """Processes keyword args for direct calls to stencil_object.run."""
 
-        kwargs["_origin_"] = self.field_origins
-        kwargs["_domain_"] = domain
+        if not self.processed_kwargs:
+            kwargs["_origin_"] = self.field_origins
+            kwargs["_domain_"] = domain
 
-        arg_names = self.field_names + self.parameter_names
-        for i in range(len(args)):
-            kwargs[arg_names[i]] = args[i]
-
-        return kwargs
+            arg_names = self.field_names + self.parameter_names
+            kwargs.update({name: arg for name, arg in zip(arg_names, args)})
+            self.processed_kwargs = kwargs
+        return self.processed_kwargs
 
     def _compute_field_origins(
         self, origin: Tuple[int, ...], *args, **kwargs
