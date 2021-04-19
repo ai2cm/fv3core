@@ -608,7 +608,7 @@ def compute(
     xfx,
     yfx,
     q_con,
-    zh,
+    zh,  # input only
     heat_source,
     diss_est,
     dt,
