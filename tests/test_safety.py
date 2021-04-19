@@ -12,7 +12,7 @@ def storage():
     return fv3core.utils.gt4py_utils.make_storage_from_shape_uncached((3, 3, 3))
 
 
-@pytest.fixture(params=["frozen", "wrapped", "decorated"])
+@pytest.fixture(params=["frozen", "wrapped"])
 def stencil(request, storage):
     def func(storage: FloatField):
         with computation(PARALLEL), interval(...):
@@ -24,8 +24,6 @@ def stencil(request, storage):
         )
     elif request.param == "wrapped":
         return fv3core.decorators.StencilWrapper(func)
-    elif request.param == "decorated":
-        return fv3core.decorators.gtstencil()(func)
     else:
         raise NotImplementedError(request.param)
 
