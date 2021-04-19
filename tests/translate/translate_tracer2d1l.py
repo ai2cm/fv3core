@@ -50,10 +50,25 @@ class TranslateTracer2D1L(ParallelTranslate):
         self._base.compute_func(**inputs)
         for name in utils.tracer_variables:
             del inputs["tracers"][name + "_quantity"]
-        return self._base.slice_output(inputs)
+        outputs = self._base.slice_output(inputs)
+        outputs["tracers"] = self.subset_output("tracers", outputs["tracers"])
+        return outputs
 
     def compute_sequential(self, a, b):
         pytest.skip(
             f"{self.__class__} only has a mpirun implementation, "
             "not running in mock-parallel"
         )
+
+    def subset_output(self, varname: str, output):
+        """
+        Given an output array, return the slice of the array which we'd
+        like to validate against reference data
+        """
+        if varname == "tracers":
+            # must add slice on tracer dimension
+            tracer_slice = tuple(
+                self._base.compute_func._tracer_validator.validation_slice
+            ) + (slice(None, None),)
+            output = output[tracer_slice]
+        return output
