@@ -167,6 +167,9 @@ class StencilWrapper:
         self.func: Callable = func
         """The definition function."""
 
+        self.is_cached: bool = False
+        """Flag to check if the stencil's runtime information is fully cached."""
+
         self.origin: Tuple[int, ...] = origin
         """The compute origin."""
 
@@ -183,6 +186,9 @@ class StencilWrapper:
 
         self.rebuild: bool = global_config.get_rebuild()
         """The gt4py stencil is rebuilt if true."""
+
+        self.validate_args: bool = global_config.get_validate_args()
+        """The gt4py stencil validates the arguments upon call invocation if true."""
 
         self.format_source: bool = global_config.get_format_source()
         """The gt4py generated code is formatted if true."""
@@ -213,7 +219,7 @@ class StencilWrapper:
 
     def clear(self):
         """Clears cached data items."""
-
+        self.is_cached = False
         self.field_origins.clear()
         self.processed_kwargs.clear()
 
@@ -222,42 +228,44 @@ class StencilWrapper:
         *args,
         origin: Optional[Tuple[int, ...]] = None,
         domain: Optional[Index3D] = None,
-        validate_args: Optional[bool] = None,
         **kwargs,
     ) -> None:
-        if self.origin:
-            assert origin is None, "cannot override origin provided at init"
-            origin = self.origin
-        if not self.field_origins or self.disable_cache:
+        if self.is_cached and not self.validate_args:
+            self.stencil_object.run(**self.processed_kwargs, exec_info=None)
+        else:
+            if self.origin:
+                assert origin is None, "cannot override origin provided at init"
+                origin = self.origin
             self.field_origins = self._compute_field_origins(origin, *args, **kwargs)
 
-        if self.domain:
-            assert domain is None, "cannot override domain provided at init"
-            domain = self.domain
-        else:
-            assert domain is not None, "no domain provided at call time"
+            if self.domain:
+                assert domain is None, "cannot override domain provided at init"
+                domain = self.domain
+            else:
+                assert domain is not None, "no domain provided at call time"
 
-        if validate_args is None:
-            validate_args = global_config.get_validate_args()
+            self.validate_args = global_config.get_validate_args()
 
-        if validate_args:
-            self.stencil_object(
-                *args,
-                **kwargs,
-                origin=self.field_origins,
-                domain=domain,
-                validate_args=True,
-            )
-        else:
-            kwargs = self._process_kwargs(domain, *args, **kwargs)
-            self.stencil_object.run(**kwargs, exec_info=None)
+            if self.validate_args:
+                self.stencil_object(
+                    *args,
+                    **kwargs,
+                    origin=self.field_origins,
+                    domain=domain,
+                    validate_args=True,
+                )
+            else:
+                kwargs = self._process_kwargs(domain, *args, **kwargs)
+                self.stencil_object.run(**kwargs, exec_info=None)
+
+            self.is_cached = True
 
     def _process_kwargs(self, domain: Optional[Index3D], *args, **kwargs):
         """Processes keyword args for direct calls to stencil_object.run."""
 
         if not self.processed_kwargs:
             kwargs["_origin_"] = self.field_origins
-            kwargs["_domain_"] = domain
+            kwargs["_domain_"] = Shape(domain)
 
             arg_names = self.field_names + self.parameter_names
             kwargs.update({name: arg for name, arg in zip(arg_names, args)})
