@@ -2,6 +2,8 @@ from typing import Tuple
 
 import numpy as np
 
+import fv3core.utils.gt4py_utils
+
 
 class SelectiveValidation:
     """
@@ -26,6 +28,9 @@ class SelectiveValidation:
 
     def set_nans_if_test_mode(self, array):
         if SelectiveValidation.TEST_MODE:
+            fv3core.utils.gt4py_utils.device_sync()
             validation_data = np.copy(array[self.validation_slice])
             array[:] = np.nan
+            fv3core.utils.gt4py_utils.device_sync()
             array[self.validation_slice] = validation_data
+            fv3core.utils.gt4py_utils.device_sync()
