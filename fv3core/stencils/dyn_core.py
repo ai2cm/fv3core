@@ -286,7 +286,7 @@ class AcousticDynamics:
             updatedzc.UpdateGeopotentialHeightOnCGrid(self.grid)
         )
 
-        self._zero_data = FrozenStencil(
+        self._zero_data = StencilWrapper(
             zero_data,
             origin=self.grid.full_origin(),
             domain=self.grid.domain_shape_full(),
