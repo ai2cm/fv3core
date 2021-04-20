@@ -230,10 +230,7 @@ class StencilWrapper:
         domain: Optional[Index3D] = None,
         **kwargs,
     ) -> None:
-        if self.is_cached and not self.validate_args:
-            kwargs = self._process_kwargs(domain, *args, **kwargs)
-            self.stencil_object.run(**kwargs, exec_info=None)
-        else:
+        if not self.is_cached:
             if self.origin:
                 assert origin is None, "cannot override origin provided at init"
                 origin = self.origin
@@ -247,18 +244,18 @@ class StencilWrapper:
 
             self.validate_args = global_config.get_validate_args()
 
-            if self.validate_args:
-                self.stencil_object(
-                    *args,
-                    **kwargs,
-                    origin=self.field_origins,
-                    domain=domain,
-                    validate_args=True,
-                )
-            else:
-                kwargs = self._process_kwargs(domain, *args, **kwargs)
-                self.stencil_object.run(**kwargs, exec_info=None)
-            self.is_cached = True
+        if self.validate_args:
+            self.stencil_object(
+                *args,
+                **kwargs,
+                origin=self.field_origins,
+                domain=domain,
+                validate_args=True,
+            )
+        else:
+            kwargs = self._process_kwargs(domain, *args, **kwargs)
+            self.stencil_object.run(**kwargs, exec_info=None)
+        self.is_cached = True
 
     def _process_kwargs(self, domain: Optional[Index3D], *args, **kwargs):
         """Processes keyword args for direct calls to stencil_object.run."""
