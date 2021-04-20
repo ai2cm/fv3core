@@ -112,8 +112,6 @@ def xt_dxa_edge_0(q, dxa):
     from __externals__ import xt_minmax
 
     xt = xt_dxa_edge_0_base(q, dxa)
-    minq = 0.0
-    maxq = 0.0
     if __INLINED(xt_minmax):
         minq = min(min(min(q[-1, 0, 0], q), q[1, 0, 0]), q[2, 0, 0])
         maxq = max(max(max(q[-1, 0, 0], q), q[1, 0, 0]), q[2, 0, 0])
@@ -126,8 +124,6 @@ def xt_dxa_edge_1(q, dxa):
     from __externals__ import xt_minmax
 
     xt = xt_dxa_edge_1_base(q, dxa)
-    minq = 0.0
-    maxq = 0.0
     if __INLINED(xt_minmax):
         minq = min(min(min(q[-2, 0, 0], q[-1, 0, 0]), q), q[1, 0, 0])
         maxq = max(max(max(q[-2, 0, 0], q[-1, 0, 0]), q), q[1, 0, 0])
