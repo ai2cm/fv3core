@@ -86,25 +86,15 @@ def _compute_stencil(
             bl, br = yppm.blbr_jord8(v, al, dm)
             # }
             # {
-            with horizontal(region[:, j_start - 1]):
-                bl, br = yppm.south_edge_jord8plus_0(v, dy, dm)
+            xt_bl, xt_br = yppm.xt_bl_br_edges(v, dya, al, dm)
 
-            with horizontal(region[:, j_start]):
-                bl, br = yppm.south_edge_jord8plus_1(v, dy, dm)
-
-            with horizontal(region[:, j_start + 1]):
-                bl, br = yppm.south_edge_jord8plus_2(v, dm, al)
+            with horizontal(
+                region[:, j_start - 1 : j_start + 2], region[:, j_end - 1 : j_end + 2]
+            ):
+                bl = xt_bl - v
+                br = xt_br - v
+            with horizontal(region[:, j_start + 1], region[:, j_end - 1]):
                 bl, br = yppm.pert_ppm_standard_constraint_fcn(v, bl, br)
-
-            with horizontal(region[:, j_end - 1]):
-                bl, br = yppm.north_edge_jord8plus_0(v, dm, al)
-                bl, br = yppm.pert_ppm_standard_constraint_fcn(v, bl, br)
-
-            with horizontal(region[:, j_end]):
-                bl, br = yppm.north_edge_jord8plus_1(v, dy, dm)
-
-            with horizontal(region[:, j_end + 1]):
-                bl, br = yppm.north_edge_jord8plus_2(v, dy, dm)
 
             # Zero corners
             with horizontal(

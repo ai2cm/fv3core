@@ -246,15 +246,8 @@ def compute_al(q: FloatField, dya: FloatFieldIJ):
 
 
 @gtscript.function
-def compute_blbr_ord8plus(q: FloatField, dya: FloatFieldIJ):
-    from __externals__ import j_end, j_start, jord
-
-    dm = dm_jord8plus(q)
-    al = al_jord8plus(q, dm)
-
-    external_assert(jord == 8)
-
-    bl, br = blbr_jord8(q, al, dm)
+def xt_bl_br_edges(q, dya, al, dm):
+    from __externals__ import j_end, j_start
 
     with horizontal(region[:, j_start - 1]):
         xt_bl = s14 * dm[0, -1, 0] + s11 * (q[0, -1, 0] - q) + q
@@ -279,6 +272,21 @@ def compute_blbr_ord8plus(q: FloatField, dya: FloatFieldIJ):
     with horizontal(region[:, j_end + 1]):
         xt_bl = xt_dya_edge_1(q, dya)
         xt_br = s11 * (q[0, 1, 0] - q) - s14 * dm[0, 1, 0] + q
+
+    return xt_bl, xt_br
+
+
+@gtscript.function
+def compute_blbr_ord8plus(q: FloatField, dya: FloatFieldIJ):
+    from __externals__ import j_end, j_start, jord
+
+    dm = dm_jord8plus(q)
+    al = al_jord8plus(q, dm)
+
+    external_assert(jord == 8)
+
+    bl, br = blbr_jord8(q, al, dm)
+    xt_bl, xt_br = xt_bl_br_edges(q, dya, al, dm)
 
     with horizontal(
         region[:, j_start - 1 : j_start + 2], region[:, j_end - 1 : j_end + 2]
