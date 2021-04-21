@@ -94,7 +94,6 @@ def _compute_stencil(
         ):
             bl = 0.0
             br = 0.0
-        # }
 
         flux = _get_flux(u, courant, rdx, bl, br)
 
