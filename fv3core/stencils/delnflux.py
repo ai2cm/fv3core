@@ -1,4 +1,5 @@
 from typing import Optional
+import numpy as np
 
 import gt4py.gtscript as gtscript
 from gt4py.gtscript import PARALLEL, FORWARD, computation, interval, horizontal, region
@@ -138,14 +139,55 @@ def calc_damp(nord: FloatFieldK, damp_c: FloatFieldK, damp4: FloatFieldK, da_min
         damp4 = (damp_c * da_min) ** (nord + 1)
 
 @gtstencil()
-def fx_calc_stencil(q: FloatField, del6_v: FloatFieldIJ, fx: FloatField, order: int):
-    with computation(PARALLEL), interval(...):
-        fx = fx_calculation(q, del6_v, order)
+def fx_calc_stencil_region(q: FloatField, del6_v: FloatFieldIJ, fx: FloatField, order: int):
+    from __externals__ import i_end, i_start, j_end, j_start, nmax, nord0, nord1, nord2, nord3
+
+    with computation(PARALLEL), interval(0,1):
+        with horizontal(
+            region[i_start + nmax - nord0: i_end - nmax + nord0, j_start + nmax - nord0: j_end - nmax + nord0]
+        ):
+            fx = fx_calculation(q, del6_v, order)
+    with computation(PARALLEL), interval(1,2):
+        with horizontal(
+            region[i_start + nmax - nord1: i_end - nmax + nord1, j_start + nmax - nord1: j_end - nmax + nord1]
+        ):
+            fx = fx_calculation(q, del6_v, order)
+    with computation(PARALLEL), interval(2,3):
+        with horizontal(
+            region[i_start + nmax - nord2: i_end - nmax + nord2, j_start + nmax - nord2: j_end - nmax + nord2]
+        ):
+            fx = fx_calculation(q, del6_v, order)
+    with computation(PARALLEL), interval(3,None):
+        with horizontal(
+            region[i_start + nmax - nord3: i_end - nmax + nord3, j_start + nmax - nord3: j_end - nmax + nord3]
+        ):
+            fx = fx_calculation(q, del6_v, order)
 
 @gtstencil()
-def fy_calc_stencil(q: FloatField, del6_u: FloatFieldIJ, fy: FloatField, order: int):
-    with computation(PARALLEL), interval(...):
-        fy = fy_calculation(q, del6_u, order)
+def fy_calc_stencil_region(q: FloatField, del6_u: FloatFieldIJ, fy: FloatField, order: int):
+    from __externals__ import i_end, i_start, j_end, j_start, nmax, nord0, nord1, nord2, nord3
+
+    with computation(PARALLEL), interval(0,1):
+        with horizontal(
+            region[i_start + nmax - nord0: i_end - nmax + nord0, j_start + nmax - nord0: j_end - nmax + nord0]
+        ):
+            fy = fy_calculation(q, del6_u, order)
+    with computation(PARALLEL), interval(1,2):
+        with horizontal(
+            region[i_start + nmax - nord1: i_end - nmax + nord1, j_start + nmax - nord1: j_end - nmax + nord1]
+        ):
+            fy = fy_calculation(q, del6_u, order)
+    with computation(PARALLEL), interval(2,3):
+        with horizontal(
+            region[i_start + nmax - nord2: i_end - nmax + nord2, j_start + nmax - nord2: j_end - nmax + nord2]
+        ):
+            fy = fy_calculation(q, del6_u, order)
+    with computation(PARALLEL), interval(3,None):
+        with horizontal(
+            region[i_start + nmax - nord3: i_end - nmax + nord3, j_start + nmax - nord3: j_end - nmax + nord3]
+        ):
+            fy = fy_calculation(q, del6_u, order)
+        
 
 @gtstencil()
 def fx_calc_stencil_column(q: FloatField, del6_v: FloatFieldIJ, fx: FloatField, nord: FloatFieldK):
@@ -218,20 +260,8 @@ def d2_highorder(fx: FloatField, fy: FloatField, rarea: FloatField):
     return d2
 
 
-@gtstencil()
-def d2_damp(q: FloatField, d2: FloatField, damp: FloatFieldK, nord: FloatFieldK, nmax:int):
-    from __externals__ import i_end, i_start, j_end, j_start
-
-    with computation(PARALLEL), interval(...):
-        with horizontal(
-            region[i_start + nmax - nord: i_end - nmax + nord, j_start + nmax - nord: j_end - nmax + nord]
-        ):
-            d2[0, 0, 0] = damp * q
-
-
-@gtstencil()
-def d2_damp_interval(q: FloatField, d2: FloatField, damp: FloatFieldK, nmax:int, nord0: int, nord1: int, nord2: int, nord3: int):
-    from __externals__ import i_end, i_start, j_end, j_start
+def d2_damp_interval(q: FloatField, d2: FloatField, damp: FloatFieldK):
+    from __externals__ import i_end, i_start, j_end, j_start, nmax, nord0, nord1, nord2, nord3
 
     with computation(PARALLEL), interval(0,1):
         with horizontal(
@@ -254,9 +284,9 @@ def d2_damp_interval(q: FloatField, d2: FloatField, damp: FloatFieldK, nmax:int,
         ):
             d2[0, 0, 0] = damp * q
 
-@gtstencil()
-def copy_stencil_regional(q_in: FloatField, q_out: FloatField, nmax:int, nord0: int, nord1: int, nord2: int, nord3: int):
-    from __externals__ import i_end, i_start, j_end, j_start
+
+def copy_stencil_interval(q_in: FloatField, q_out: FloatField):
+    from __externals__ import i_end, i_start, j_end, j_start, nmax, nord0, nord1, nord2, nord3
 
     with computation(PARALLEL), interval(0,1):
         with horizontal(
@@ -308,8 +338,6 @@ def compute_delnflux_no_sg(
     fy: FloatField,
     nord: int,
     damp_c: float,
-    kstart: Optional[int] = 0,
-    nk: Optional[int] = None,
     d2: Optional["FloatField"] = None,
     mass: Optional["FloatField"] = None,
 ):
@@ -321,16 +349,13 @@ def compute_delnflux_no_sg(
         fy: y-flux on A-grid (inout)
         nord: Order of divergence damping (in)
         damp_c: damping coefficient (in)
-        kstart: k-level to begin computing on (in)
-        nk: Number of k-levels to compute on (in)
         d2: A damped copy of the q field (in)
         mass: Mass to weight the diffusive flux by (in)
     """
 
     grid = spec.grid
-    if nk is None:
-        nk = grid.npz - kstart
-    full_origin = (grid.isd, grid.jsd, kstart)
+    nk = grid.npz
+    full_origin = (grid.isd, grid.jsd, 0)
     if d2 is None:
         d2 = utils.make_storage_from_shape(
             q.shape, full_origin, cache_key="delnflux_d2"
@@ -344,10 +369,10 @@ def compute_delnflux_no_sg(
 
     fx2 = utils.make_storage_from_shape(q.shape, full_origin, cache_key="delnflux_fx2")
     fy2 = utils.make_storage_from_shape(q.shape, full_origin, cache_key="delnflux_fy2")
-    diffuse_origin = (grid.is_, grid.js, kstart)
+    diffuse_origin = (grid.is_, grid.js, 0)
     extended_domain = (grid.nic + 1, grid.njc + 1, nk)
 
-    compute_no_sg(q, fx2, fy2, nord, damp, d2, kstart, nk, mass, conditional_calc=False)
+    compute_no_sg(q, fx2, fy2, nord, damp, d2, mass, conditional_calc=False)
 
     if mass is None:
         add_diffusive_component(fx, fx2, fy, fy2, origin=diffuse_origin, domain=extended_domain)
@@ -370,8 +395,6 @@ def compute_no_sg(
         nord,
         damp_c,
         d2,
-        kstart=0,
-        nk=None,
         mass=None,
         conditional_calc=True,
         column_check=False,
@@ -380,38 +403,43 @@ def compute_no_sg(
         if damp_c[0] <= 1e-5: #dcon_threshold
             raise Exception("damp <= 1e-5 in column_cols is untested")
     if max(nord[:]) > 3:
-        raise NotImplementedError("nord > 3 is not implemented")
+        raise Exception("nord must be less than 3")
+    if not np.all(n in [0,2,3] for n in nord[:]):
+        raise NotImplementedError("nord must have values 0, 2, or 3")
     nmax = max(nord[:])
     grid = spec.grid
-    nord = int(nord)
+    # nord = int(nord)
     i1 = grid.is_ - 1 - nmax
     i2 = grid.ie + 1 + nmax
     j1 = grid.js - 1 - nmax
     j2 = grid.je + 1 + nmax
-    if nk is None:
-        nk = grid.npz - kstart
-    origin_d2 = (i1, j1, kstart)
+    nk = grid.npz
+    origin_d2 = (i1, j1, 0)
     domain_d2 = (i2 - i1 + 1, j2 - j1 + 1, nk)
-    f1_ny = grid.je - grid.js + 1 + 2 * nord
-    f1_nx = grid.ie - grid.is_ + 2 + 2 * nord
-    fx_origin = (grid.is_ - nord, grid.js - nord, kstart)
+    f1_ny = grid.je - grid.js + 1 + 2 * nmax
+    f1_nx = grid.ie - grid.is_ + 2 + 2 * nmax
+    fx_origin = (grid.is_ - nmax, grid.js - nmax, 0)
     if mass is None:
+        d2_damp = gtstencil(d2_damp_interval, externals={"nmax": nmax, "nord0":nord[0], "nord1":nord[1], "nord2":nord[2], "nord3":nord[3]})
         d2_damp(q, d2, damp_c, origin=origin_d2, domain=domain_d2)
     else:
-        copy_stencil(q, d2, origin=origin_d2, domain=domain_d2)
+        new_copy_stencil = gtstencil(copy_stencil_interval, externals={"nmax": nmax, "nord0":nord[0], "nord1":nord[1], "nord2":nord[2], "nord3":nord[3]})
+        new_copy_stencil(q, d2, origin=origin_d2, domain=domain_d2)
 
     copy_corners_x_nord(
-        d2, nord, origin=(grid.isd, grid.jsd, kstart), domain=(grid.nid, grid.njd, nk)
+        d2, nord, origin=(grid.isd, grid.jsd, 0), domain=(grid.nid, grid.njd, nk)
     )
 
+    fx_calc_stencil = gtstencil(fx_calc_stencil_region, externals={"nmax": nmax, "nord0":nord[0], "nord1":nord[1], "nord2":nord[2], "nord3":nord[3]})
     fx_calc_stencil(
         d2, grid.del6_v, fx2, order=1, origin=fx_origin, domain=(f1_nx, f1_ny, nk)
     )
 
     copy_corners_y_nord(
-        d2, origin=(grid.isd, grid.jsd, kstart), domain=(grid.nid, grid.njd, nk)
+        d2, origin=(grid.isd, grid.jsd, 0), domain=(grid.nid, grid.njd, nk)
     )
 
+    fy_calc_stencil = gtstencil(fy_calc_stencil_region, externals={"nmax": nmax, "nord0":nord[0], "nord1":nord[1], "nord2":nord[2], "nord3":nord[3]})
     fy_calc_stencil(
         d2,
         grid.del6_u,
@@ -421,36 +449,428 @@ def compute_no_sg(
         domain=(f1_nx - 1, f1_ny + 1, nk),
     )
 
-    if nord > 0:
-        for n in range(nord):
-            nt = nord - 1 - n
-            nt_origin = (grid.is_ - nt - 1, grid.js - nt - 1, kstart)
-            nt_ny = grid.je - grid.js + 3 + 2 * nt
-            nt_nx = grid.ie - grid.is_ + 3 + 2 * nt
-            d2_highorder_stencil(
-                fx2, fy2, grid.rarea, d2, origin=nt_origin, domain=(nt_nx, nt_ny, nk)
-            )
-            corners.copy_corners_x_stencil(
-                d2, origin=(grid.isd, grid.jsd, kstart), domain=(grid.nid, grid.njd, nk)
-            )
-            nt_origin = (grid.is_ - nt, grid.js - nt, kstart)
-            fx_calc_stencil_column(
-                d2,
-                grid.del6_v,
-                fx2,
-                n,
-                origin=nt_origin,
-                domain=(nt_nx - 1, nt_ny - 2, nk),
-            )
-            corners.copy_corners_y_stencil(
-                d2, origin=(grid.isd, grid.jsd, kstart), domain=(grid.nid, grid.njd, nk)
-            )
+    ohno_stencil = gtstencil(TheBigOne, externals={"nord0":nord[0], "nord1":nord[1], "nord2":nord[2], "nord3":nord[3]})
+    ohno_stencil(fx2, fy2, grid.rarea, d2, grid.del6_v, grid.del6_u, origin=grid.full_origin(), domain=grid.domain_shape_full())
 
-            fy_calc_stencil(
-                d2,
-                grid.del6_u,
-                fy2,
-                n,
-                origin=nt_origin,
-                domain=(nt_nx - 2, nt_ny - 1, nk),
-            )
+    # if nord > 0:
+    #     for n in range(nord):
+    #         nt = nord - 1 - n
+    #         nt_origin = (grid.is_ - nt - 1, grid.js - nt - 1, 0)
+    #         nt_ny = grid.je - grid.js + 3 + 2 * nt
+    #         nt_nx = grid.ie - grid.is_ + 3 + 2 * nt
+    #         d2_highorder_stencil(
+    #             fx2, fy2, grid.rarea, d2, origin=nt_origin, domain=(nt_nx, nt_ny, nk)
+    #         )
+    #         corners.copy_corners_x_nord(
+    #             d2, nord, origin=(grid.isd, grid.jsd, 0), domain=(grid.nid, grid.njd, nk)
+    #         )
+    #         nt_origin = (grid.is_ - nt, grid.js - nt, 0)
+    #         fx_calc_stencil_column(
+    #             d2,
+    #             grid.del6_v,
+    #             fx2,
+    #             n,
+    #             origin=nt_origin,
+    #             domain=(nt_nx - 1, nt_ny - 2, nk),
+    #         )
+    #         corners.copy_corners_y_nord(
+    #             d2, nord, origin=(grid.isd, grid.jsd, 0), domain=(grid.nid, grid.njd, nk)
+    #         )
+
+    #         fy_calc_stencil_column(
+    #             d2,
+    #             grid.del6_u,
+    #             fy2,
+    #             n,
+    #             origin=nt_origin,
+    #             domain=(nt_nx - 2, nt_ny - 1, nk),
+    #         )
+
+
+def TheBigOne(fx: FloatField, fy: FloatField, rarea: FloatFieldIJ, d2: FloatField, del6_v: FloatFieldIJ, del6_u: FloatFieldIJ):
+    from __externals__ import local_ie, local_is, local_je, local_js, nord0, nord1, nord2, nord3
+
+    with computation(PARALLEL):
+        with interval(0,1):
+            #first level
+            if __INLINED(nord0 == 3):
+                # unroll nt = 2, n = 0
+                with horizontal(
+                    region[
+                        (local_is - 2 - 1) : (local_ie + 2 + 2),
+                        (local_js - 2 - 1) : (local_je + 2 + 2),
+                    ]
+                ):
+                    d2 = (fx - fx[1, 0, 0] + fy - fy[0, 1, 0]) * rarea # d2 = d2_highorder(fx, fy, rarea)
+                copy_corners_x(d2)
+                with horizontal(
+                    region[(local_is - 2) : (local_ie + 2 + 2), (local_js - 2) : (local_je + 2 + 1)]
+                ):
+                    fx = fx_calculation(d2, del6_v, 2)
+                copy_corners_y(d2)
+                with horizontal(
+                    region[(local_is - 2) : (local_ie + 2 + 1), (local_js - 2) : (local_je + 2 + 2)]
+                ):
+                    fy = fy_calculation(d2, del6_u, 2)
+                # nt = 1, n = 1
+                with horizontal(
+                    region[
+                        (local_is - 1 - 1) : (local_ie + 1 + 2),
+                        (local_js - 1 - 1) : (local_je + 1 + 2),
+                    ]
+                ):
+                    d2 = d2_highorder(fx, fy, rarea)
+                d2 = corners.copy_corners_x(d2)
+                with horizontal(
+                    region[(local_is - 1) : (local_ie + 1 + 2), (local_js - 1) : (local_je + 1 + 1)]
+                ):
+                    fx = fx_calculation(d2, del6_v, 3)
+                d2 = corners.copy_corners_y(d2)
+                with horizontal(
+                    region[(local_is - 1) : (local_ie + 1 + 1), (local_js - 1) : (local_je + 1 + 2)]
+                ):
+                    fy = fy_calculation(d2, del6_u, 3)
+                # nt = 0, n = 2
+                with horizontal(
+                    region[
+                        (local_is - 0 - 1) : (local_ie + 0 + 2),
+                        (local_js - 0 - 1) : (local_je + 0 + 2),
+                    ]
+                ):
+                    d2 = d2_highorder(fx, fy, rarea)
+                d2 = corners.copy_corners_x(d2)
+                with horizontal(
+                    region[(local_is - 0) : (local_ie + 0 + 2), (local_js - 0) : (local_je + 0 + 1)]
+                ):
+                    fx = fx_calculation(d2, del6_v, 4)
+                d2 = corners.copy_corners_y(d2)
+                with horizontal(
+                    region[(local_is - 0) : (local_ie + 0 + 1), (local_js - 0) : (local_je + 0 + 2)]
+                ):
+                    fy = fy_calculation(d2, del6_u, 4)
+
+            elif __INLINED(nord0 == 2):
+                # unroll nt = 1, n = 0
+                with horizontal(
+                    region[
+                        (local_is - 1 - 1) : (local_ie + 1 + 2),
+                        (local_js - 1 - 1) : (local_je + 1 + 2),
+                    ]
+                ):
+                    d2 = d2_highorder(fx, fy, rarea)
+                d2 = corners.copy_corners_x(d2)
+                with horizontal(
+                    region[(local_is - 1) : (local_ie + 1 + 2), (local_js - 1) : (local_je + 1 + 1)]
+                ):
+                    fx = fx_calculation(d2, del6_v, 2)
+                d2 = corners.copy_corners_y(d2)
+                with horizontal(
+                    region[(local_is - 1) : (local_ie + 1 + 1), (local_js - 1) : (local_je + 1 + 2)]
+                ):
+                    fy = fy_calculation(d2, del6_u, 2)
+                # nt = 0, n = 2
+                with horizontal(
+                    region[
+                        (local_is - 0 - 1) : (local_ie + 0 + 2),
+                        (local_js - 0 - 1) : (local_je + 0 + 2),
+                    ]
+                ):
+                    d2 = d2_highorder(fx, fy, rarea)
+                d2 = corners.copy_corners_x(d2)
+                with horizontal(
+                    region[(local_is - 0) : (local_ie + 0 + 2), (local_js - 0) : (local_je + 0 + 1)]
+                ):
+                    fx = fx_calculation(d2, del6_v, 3)
+                d2 = corners.copy_corners_y(d2)
+                with horizontal(
+                    region[(local_is - 0) : (local_ie + 0 + 1), (local_js - 0) : (local_je + 0 + 2)]
+                ):
+                    fy = fy_calculation(d2, del6_u, 3)
+
+        with interval(1,2):
+            #second level
+            if __INLINED(nord1 == 3):
+                # unroll nt = 2, n = 0
+                with horizontal(
+                    region[
+                        (local_is - 2 - 1) : (local_ie + 2 + 2),
+                        (local_js - 2 - 1) : (local_je + 2 + 2),
+                    ]
+                ):
+                    d2 = (fx - fx[1, 0, 0] + fy - fy[0, 1, 0]) * rarea # d2 = d2_highorder(fx, fy, rarea)
+                copy_corners_x(d2)
+                with horizontal(
+                    region[(local_is - 2) : (local_ie + 2 + 2), (local_js - 2) : (local_je + 2 + 1)]
+                ):
+                    fx = fx_calculation(d2, del6_v, 2)
+                copy_corners_y(d2)
+                with horizontal(
+                    region[(local_is - 2) : (local_ie + 2 + 1), (local_js - 2) : (local_je + 2 + 2)]
+                ):
+                    fy = fy_calculation(d2, del6_u, 2)
+                # nt = 1, n = 1
+                with horizontal(
+                    region[
+                        (local_is - 1 - 1) : (local_ie + 1 + 2),
+                        (local_js - 1 - 1) : (local_je + 1 + 2),
+                    ]
+                ):
+                    d2 = d2_highorder(fx, fy, rarea)
+                d2 = corners.copy_corners_x(d2)
+                with horizontal(
+                    region[(local_is - 1) : (local_ie + 1 + 2), (local_js - 1) : (local_je + 1 + 1)]
+                ):
+                    fx = fx_calculation(d2, del6_v, 3)
+                d2 = corners.copy_corners_y(d2)
+                with horizontal(
+                    region[(local_is - 1) : (local_ie + 1 + 1), (local_js - 1) : (local_je + 1 + 2)]
+                ):
+                    fy = fy_calculation(d2, del6_u, 3)
+                # nt = 0, n = 2
+                with horizontal(
+                    region[
+                        (local_is - 0 - 1) : (local_ie + 0 + 2),
+                        (local_js - 0 - 1) : (local_je + 0 + 2),
+                    ]
+                ):
+                    d2 = d2_highorder(fx, fy, rarea)
+                d2 = corners.copy_corners_x(d2)
+                with horizontal(
+                    region[(local_is - 0) : (local_ie + 0 + 2), (local_js - 0) : (local_je + 0 + 1)]
+                ):
+                    fx = fx_calculation(d2, del6_v, 4)
+                d2 = corners.copy_corners_y(d2)
+                with horizontal(
+                    region[(local_is - 0) : (local_ie + 0 + 1), (local_js - 0) : (local_je + 0 + 2)]
+                ):
+                    fy = fy_calculation(d2, del6_u, 4)
+
+        elif __INLINED(nord1 == 2):
+            # unroll nt = 1, n = 0
+            with horizontal(
+                region[
+                    (local_is - 1 - 1) : (local_ie + 1 + 2),
+                    (local_js - 1 - 1) : (local_je + 1 + 2),
+                ]
+            ):
+                d2 = d2_highorder(fx, fy, rarea)
+            d2 = corners.copy_corners_x(d2)
+            with horizontal(
+                region[(local_is - 1) : (local_ie + 1 + 2), (local_js - 1) : (local_je + 1 + 1)]
+            ):
+                fx = fx_calculation(d2, del6_v, 2)
+            d2 = corners.copy_corners_y(d2)
+            with horizontal(
+                region[(local_is - 1) : (local_ie + 1 + 1), (local_js - 1) : (local_je + 1 + 2)]
+            ):
+                fy = fy_calculation(d2, del6_u, 2)
+            # nt = 0, n = 2
+            with horizontal(
+                region[
+                    (local_is - 0 - 1) : (local_ie + 0 + 2),
+                    (local_js - 0 - 1) : (local_je + 0 + 2),
+                ]
+            ):
+                d2 = d2_highorder(fx, fy, rarea)
+            d2 = corners.copy_corners_x(d2)
+            with horizontal(
+                region[(local_is - 0) : (local_ie + 0 + 2), (local_js - 0) : (local_je + 0 + 1)]
+            ):
+                fx = fx_calculation(d2, del6_v, 3)
+            d2 = corners.copy_corners_y(d2)
+            with horizontal(
+                region[(local_is - 0) : (local_ie + 0 + 1), (local_js - 0) : (local_je + 0 + 2)]
+            ):
+                fy = fy_calculation(d2, del6_u, 3)
+
+        with interval(2,3):
+            #third level
+            if __INLINED(nord2 == 3):
+                # unroll nt = 2, n = 0
+                with horizontal(
+                    region[
+                        (local_is - 2 - 1) : (local_ie + 2 + 2),
+                        (local_js - 2 - 1) : (local_je + 2 + 2),
+                    ]
+                ):
+                    d2 = (fx - fx[1, 0, 0] + fy - fy[0, 1, 0]) * rarea # d2 = d2_highorder(fx, fy, rarea)
+                copy_corners_x(d2)
+                with horizontal(
+                    region[(local_is - 2) : (local_ie + 2 + 2), (local_js - 2) : (local_je + 2 + 1)]
+                ):
+                    fx = fx_calculation(d2, del6_v, 2)
+                copy_corners_y(d2)
+                with horizontal(
+                    region[(local_is - 2) : (local_ie + 2 + 1), (local_js - 2) : (local_je + 2 + 2)]
+                ):
+                    fy = fy_calculation(d2, del6_u, 2)
+                # nt = 1, n = 1
+                with horizontal(
+                    region[
+                        (local_is - 1 - 1) : (local_ie + 1 + 2),
+                        (local_js - 1 - 1) : (local_je + 1 + 2),
+                    ]
+                ):
+                    d2 = d2_highorder(fx, fy, rarea)
+                d2 = corners.copy_corners_x(d2)
+                with horizontal(
+                    region[(local_is - 1) : (local_ie + 1 + 2), (local_js - 1) : (local_je + 1 + 1)]
+                ):
+                    fx = fx_calculation(d2, del6_v, 3)
+                d2 = corners.copy_corners_y(d2)
+                with horizontal(
+                    region[(local_is - 1) : (local_ie + 1 + 1), (local_js - 1) : (local_je + 1 + 2)]
+                ):
+                    fy = fy_calculation(d2, del6_u, 3)
+                # nt = 0, n = 2
+                with horizontal(
+                    region[
+                        (local_is - 0 - 1) : (local_ie + 0 + 2),
+                        (local_js - 0 - 1) : (local_je + 0 + 2),
+                    ]
+                ):
+                    d2 = d2_highorder(fx, fy, rarea)
+                d2 = corners.copy_corners_x(d2)
+                with horizontal(
+                    region[(local_is - 0) : (local_ie + 0 + 2), (local_js - 0) : (local_je + 0 + 1)]
+                ):
+                    fx = fx_calculation(d2, del6_v, 4)
+                d2 = corners.copy_corners_y(d2)
+                with horizontal(
+                    region[(local_is - 0) : (local_ie + 0 + 1), (local_js - 0) : (local_je + 0 + 2)]
+                ):
+                    fy = fy_calculation(d2, del6_u, 4)
+
+            elif __INLINED(nord2 == 2):
+                # unroll nt = 1, n = 0
+                with horizontal(
+                    region[
+                        (local_is - 1 - 1) : (local_ie + 1 + 2),
+                        (local_js - 1 - 1) : (local_je + 1 + 2),
+                    ]
+                ):
+                    d2 = d2_highorder(fx, fy, rarea)
+                d2 = corners.copy_corners_x(d2)
+                with horizontal(
+                    region[(local_is - 1) : (local_ie + 1 + 2), (local_js - 1) : (local_je + 1 + 1)]
+                ):
+                    fx = fx_calculation(d2, del6_v, 2)
+                d2 = corners.copy_corners_y(d2)
+                with horizontal(
+                    region[(local_is - 1) : (local_ie + 1 + 1), (local_js - 1) : (local_je + 1 + 2)]
+                ):
+                    fy = fy_calculation(d2, del6_u, 2)
+                # nt = 0, n = 2
+                with horizontal(
+                    region[
+                        (local_is - 0 - 1) : (local_ie + 0 + 2),
+                        (local_js - 0 - 1) : (local_je + 0 + 2),
+                    ]
+                ):
+                    d2 = d2_highorder(fx, fy, rarea)
+                d2 = corners.copy_corners_x(d2)
+                with horizontal(
+                    region[(local_is - 0) : (local_ie + 0 + 2), (local_js - 0) : (local_je + 0 + 1)]
+                ):
+                    fx = fx_calculation(d2, del6_v, 3)
+                d2 = corners.copy_corners_y(d2)
+                with horizontal(
+                    region[(local_is - 0) : (local_ie + 0 + 1), (local_js - 0) : (local_je + 0 + 2)]
+                ):
+                    fy = fy_calculation(d2, del6_u, 3)
+
+        with interval(3,None):
+            #fourth level through end
+            if __INLINED(nord3 == 3):
+                # unroll nt = 2, n = 0
+                with horizontal(
+                    region[
+                        (local_is - 2 - 1) : (local_ie + 2 + 2),
+                        (local_js - 2 - 1) : (local_je + 2 + 2),
+                    ]
+                ):
+                    d2 = (fx - fx[1, 0, 0] + fy - fy[0, 1, 0]) * rarea # d2 = d2_highorder(fx, fy, rarea)
+                copy_corners_x(d2)
+                with horizontal(
+                    region[(local_is - 2) : (local_ie + 2 + 2), (local_js - 2) : (local_je + 2 + 1)]
+                ):
+                    fx = fx_calculation(d2, del6_v, 2)
+                copy_corners_y(d2)
+                with horizontal(
+                    region[(local_is - 2) : (local_ie + 2 + 1), (local_js - 2) : (local_je + 2 + 2)]
+                ):
+                    fy = fy_calculation(d2, del6_u, 2)
+                # nt = 1, n = 1
+                with horizontal(
+                    region[
+                        (local_is - 1 - 1) : (local_ie + 1 + 2),
+                        (local_js - 1 - 1) : (local_je + 1 + 2),
+                    ]
+                ):
+                    d2 = d2_highorder(fx, fy, rarea)
+                d2 = corners.copy_corners_x(d2)
+                with horizontal(
+                    region[(local_is - 1) : (local_ie + 1 + 2), (local_js - 1) : (local_je + 1 + 1)]
+                ):
+                    fx = fx_calculation(d2, del6_v, 3)
+                d2 = corners.copy_corners_y(d2)
+                with horizontal(
+                    region[(local_is - 1) : (local_ie + 1 + 1), (local_js - 1) : (local_je + 1 + 2)]
+                ):
+                    fy = fy_calculation(d2, del6_u, 3)
+                # nt = 0, n = 2
+                with horizontal(
+                    region[
+                        (local_is - 0 - 1) : (local_ie + 0 + 2),
+                        (local_js - 0 - 1) : (local_je + 0 + 2),
+                    ]
+                ):
+                    d2 = d2_highorder(fx, fy, rarea)
+                d2 = corners.copy_corners_x(d2)
+                with horizontal(
+                    region[(local_is - 0) : (local_ie + 0 + 2), (local_js - 0) : (local_je + 0 + 1)]
+                ):
+                    fx = fx_calculation(d2, del6_v, 4)
+                d2 = corners.copy_corners_y(d2)
+                with horizontal(
+                    region[(local_is - 0) : (local_ie + 0 + 1), (local_js - 0) : (local_je + 0 + 2)]
+                ):
+                    fy = fy_calculation(d2, del6_u, 4)
+
+            elif __INLINED(nord3 == 2):
+                # unroll nt = 1, n = 0
+                with horizontal(
+                    region[
+                        (local_is - 1 - 1) : (local_ie + 1 + 2),
+                        (local_js - 1 - 1) : (local_je + 1 + 2),
+                    ]
+                ):
+                    d2 = d2_highorder(fx, fy, rarea)
+                d2 = corners.copy_corners_x(d2)
+                with horizontal(
+                    region[(local_is - 1) : (local_ie + 1 + 2), (local_js - 1) : (local_je + 1 + 1)]
+                ):
+                    fx = fx_calculation(d2, del6_v, 2)
+                d2 = corners.copy_corners_y(d2)
+                with horizontal(
+                    region[(local_is - 1) : (local_ie + 1 + 1), (local_js - 1) : (local_je + 1 + 2)]
+                ):
+                    fy = fy_calculation(d2, del6_u, 2)
+                # nt = 0, n = 2
+                with horizontal(
+                    region[
+                        (local_is - 0 - 1) : (local_ie + 0 + 2),
+                        (local_js - 0 - 1) : (local_je + 0 + 2),
+                    ]
+                ):
+                    d2 = d2_highorder(fx, fy, rarea)
+                d2 = corners.copy_corners_x(d2)
+                with horizontal(
+                    region[(local_is - 0) : (local_ie + 0 + 2), (local_js - 0) : (local_je + 0 + 1)]
+                ):
+                    fx = fx_calculation(d2, del6_v, 3)
+                d2 = corners.copy_corners_y(d2)
+                with horizontal(
+                    region[(local_is - 0) : (local_ie + 0 + 1), (local_js - 0) : (local_je + 0 + 2)]
+                ):
+                    fy = fy_calculation(d2, del6_u, 3)
