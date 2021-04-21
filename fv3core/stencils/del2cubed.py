@@ -52,8 +52,6 @@ def copy_column(a: FloatField):
 #
 # Stencil that copies/fills in the appropriate corner values for qdel
 # ------------------------------------------------------------------------
-
-
 @gtstencil()
 def corner_fill(q: FloatField):
     from __externals__ import i_end, i_start, j_end, j_start
@@ -106,8 +104,6 @@ def compute(qdel: FloatField, nmax: int, cd: float, km: int):
     for n in range(1, ntimes + 1):
         nt = ntimes - n
         origin = (grid.is_ - nt, grid.js - nt, 0)
-        nx = grid.nic + 2 * nt + 1  # (grid.ie+nt+1) - (grid.is_-nt) + 1
-        ny = grid.njc + 2 * nt  # (grid.je+nt) - (grid.js-nt) + 1
 
         # Fill in appropriate corner values
         corner_fill(
@@ -118,6 +114,8 @@ def compute(qdel: FloatField, nmax: int, cd: float, km: int):
             corners.copy_corners_x_stencil(
                 qdel, origin=(grid.isd, grid.jsd, 0), domain=(grid.nid, grid.njd, km)
             )
+        nx = grid.nic + 2 * nt + 1  # (grid.ie+nt+1) - (grid.is_-nt) + 1
+        ny = grid.njc + 2 * nt  # (grid.je+nt) - (grid.js-nt) + 1
         compute_zonal_flux(fx, qdel, grid.del6_v, origin=origin, domain=(nx, ny, km))
 
         if nt > 0:
