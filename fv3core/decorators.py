@@ -173,8 +173,6 @@ class StencilWrapper:
         self.origin: Tuple[int, ...] = origin
         """The compute origin."""
 
-        if domain is not None:
-            domain = Shape(domain)
         self.domain: Optional[Shape] = domain
         """The compute domain."""
 
@@ -265,7 +263,7 @@ class StencilWrapper:
         if not self.arg_names:
             self.arg_names = self.field_names + self.parameter_names
 
-        kwargs.update({"_origin_": self.field_origins, "_domain_": Shape(domain)})
+        kwargs.update({"_origin_": self.field_origins, "_domain_": domain})
         kwargs.update({name: arg for name, arg in zip(self.arg_names, args)})
         return kwargs
 
