@@ -33,20 +33,6 @@ def update_q(
         q = q + cd * rarea * (fx - fx[1, 0, 0] + fy - fy[0, 1, 0])
 
 
-@gtstencil()
-def copy_row(a: FloatField):
-    with computation(PARALLEL), interval(...):
-        a0 = a
-        a = a0[1, 0, 0]
-
-
-@gtstencil()
-def copy_column(a: FloatField):
-    with computation(PARALLEL), interval(...):
-        a0 = a
-        a = a0[0, 1, 0]
-
-
 #
 # corner_fill
 #
