@@ -12,7 +12,6 @@ import gt4py.storage as gt_storage
 import numpy as np
 import yaml
 from gt4py import gtscript
-from gt4py.definitions import Shape
 
 import fv3core
 import fv3core._config as spec
@@ -173,7 +172,7 @@ class StencilWrapper:
         self.origin: Tuple[int, ...] = origin
         """The compute origin."""
 
-        self.domain: Optional[Shape] = domain
+        self.domain: Optional[Index3D] = domain
         """The compute domain."""
 
         self.disable_cache: bool = disable_cache
