@@ -74,14 +74,8 @@ def _compute_stencil(
             external_assert(jord == 8)
 
             bl, br = yppm.blbr_jord8(v, al, dm)
+            bl, br = yppm.bl_br_edges(bl, br, v, dya, al, dm)
 
-            xt_bl, xt_br = yppm.xt_bl_br_edges(v, dya, al, dm)
-
-            with horizontal(
-                region[:, j_start - 1 : j_start + 2], region[:, j_end - 1 : j_end + 2]
-            ):
-                bl = xt_bl - v
-                br = xt_br - v
             with horizontal(region[:, j_start + 1], region[:, j_end - 1]):
                 bl, br = yppm.pert_ppm_standard_constraint_fcn(v, bl, br)
 

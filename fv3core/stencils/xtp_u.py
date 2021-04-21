@@ -11,7 +11,7 @@ from gt4py.gtscript import (
 
 import fv3core._config as spec
 from fv3core.decorators import StencilWrapper
-from fv3core.stencils import xppm
+from fv3core.stencils import xppm, yppm
 from fv3core.utils.grid import axis_offsets
 from fv3core.utils.typing import FloatField, FloatFieldIJ
 
@@ -77,13 +77,10 @@ def _compute_stencil(
             external_assert(iord == 8)
 
             bl, br = xppm.blbr_iord8(u, al, dm)
-            xt_bl, xt_br = xppm.xt_bl_br_edges(u, dxa, al, dm)
+            bl, br = xppm.bl_br_edges(bl, br, u, dxa, al, dm)
 
-            with horizontal(
-                region[i_start - 1 : i_start + 2, :], region[i_end - 1 : i_end + 2, :]
-            ):
-                bl = xt_bl - u
-                br = xt_br - u
+            with horizontal(region[i_start + 1, :], region[i_end - 1, :]):
+                bl, br = yppm.pert_ppm_standard_constraint_fcn(u, bl, br)
 
         # Zero corners
         with horizontal(

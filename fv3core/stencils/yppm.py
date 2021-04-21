@@ -246,7 +246,7 @@ def compute_al(q: FloatField, dya: FloatFieldIJ):
 
 
 @gtscript.function
-def xt_bl_br_edges(q, dya, al, dm):
+def bl_br_edges(bl, br, q, dya, al, dm):
     from __externals__ import j_end, j_start
 
     with horizontal(region[:, j_start - 1]):
@@ -273,12 +273,21 @@ def xt_bl_br_edges(q, dya, al, dm):
         xt_bl = xt_dya_edge_1(q, dya)
         xt_br = s11 * (q[0, 1, 0] - q) - s14 * dm[0, 1, 0] + q
 
-    return xt_bl, xt_br
+    with horizontal(
+        region[:, j_start - 1 : j_start + 2], region[:, j_end - 1 : j_end + 2]
+    ):
+        bl = xt_bl - q
+        br = xt_br - q
+
+    return bl, br
 
 
 @gtscript.function
 def compute_blbr_ord8plus(q: FloatField, dya: FloatFieldIJ):
     from __externals__ import j_end, j_start, jord
+
+    bl = 0.0
+    br = 0.0
 
     dm = dm_jord8plus(q)
     al = al_jord8plus(q, dm)
@@ -286,13 +295,11 @@ def compute_blbr_ord8plus(q: FloatField, dya: FloatFieldIJ):
     external_assert(jord == 8)
 
     bl, br = blbr_jord8(q, al, dm)
-    xt_bl, xt_br = xt_bl_br_edges(q, dya, al, dm)
+    bl, br = bl_br_edges(bl, br, q, dya, al, dm)
 
     with horizontal(
         region[:, j_start - 1 : j_start + 2], region[:, j_end - 1 : j_end + 2]
     ):
-        bl = xt_bl - q
-        br = xt_br - q
         bl, br = pert_ppm_standard_constraint_fcn(q, bl, br)
 
     return bl, br
