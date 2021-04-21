@@ -255,7 +255,7 @@ class StencilWrapper:
         else:
             kwargs = self._process_kwargs(domain, *args, **kwargs)
             self.stencil_object.run(**kwargs, exec_info=None)
-        self.is_cached = True
+            self.is_cached = True
 
     def _process_kwargs(self, domain: Optional[Index3D], *args, **kwargs):
         """Processes keyword args for direct calls to stencil_object.run."""
