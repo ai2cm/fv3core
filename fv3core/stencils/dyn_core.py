@@ -446,7 +446,7 @@ class AcousticDynamics:
                 utils.device_sync()
             if not self.namelist.hydrostatic:
                 self.update_geopotential_height_on_c_grid(
-                    self._dp_ref, self._zs, state.ut, state.vt, state.gz, state.ws3, dt2
+                    self._dp_ref, self._zs, state.ut, state.vt, state.gz, state.wsd, dt2
                 )
                 riem_solver_c.compute(
                     ms,
@@ -461,7 +461,7 @@ class AcousticDynamics:
                     state.delpc,
                     state.gz,
                     state.pkc,
-                    state.ws3,
+                    state.wsd,
                 )
 
             self._p_grad_c(
