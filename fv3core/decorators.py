@@ -397,13 +397,13 @@ class FV3StencilObject(StencilWrapper):
         regenerate_stencil = not self.built or self.rebuild
 
         # Check if we really do need to regenerate
-        if not regenerate_stencil:
-            axis_offsets_changed = self._check_axis_offsets(axis_offsets)
-            regenerate_stencil = regenerate_stencil or axis_offsets_changed
+        # if not regenerate_stencil:
+        #     axis_offsets_changed = self._check_axis_offsets(axis_offsets)
+        #     regenerate_stencil = regenerate_stencil or axis_offsets_changed
 
-        if self._passed_externals and not regenerate_stencil:
-            passed_externals_changed = self._check_passed_externals()
-            regenerate_stencil = regenerate_stencil or passed_externals_changed
+        # if self._passed_externals and not regenerate_stencil:
+        #     passed_externals_changed = self._check_passed_externals()
+        #     regenerate_stencil = regenerate_stencil or passed_externals_changed
 
         if regenerate_stencil:
             self.backend = global_config.get_backend()
