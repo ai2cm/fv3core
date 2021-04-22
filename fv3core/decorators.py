@@ -12,6 +12,7 @@ import gt4py.storage as gt_storage
 import numpy as np
 import yaml
 from gt4py import gtscript
+from gt4py.definitions import AccessKind
 
 import fv3core
 import fv3core._config as spec
@@ -211,14 +212,18 @@ class StencilWrapper:
         self.stencil_object: Optional[gt4py.StencilObject] = stencil_object
         """The current generated stencil object returned from gt4py."""
 
-        self.arg_names: List[str] = []
-        """List of argument names."""
+        self._arg_names: List[str] = []
+        """List of stencil argument names."""
+
+        self._write_fields: List[str] = []
+        """List of fields written in the stencil."""
 
     def clear(self):
         """Clears cached data items."""
         self.is_cached = False
         self.field_origins.clear()
-        self.arg_names.clear()
+        self._arg_names.clear()
+        self._write_fields.clear()
 
     def __call__(
         self,
@@ -250,17 +255,22 @@ class StencilWrapper:
                 validate_args=True,
             )
         else:
-            kwargs = self._process_kwargs(domain, *args, **kwargs)
-            self.stencil_object.run(**kwargs, exec_info=None)
+            self.run(domain, *args, **kwargs)
             self.is_cached = True
+
+    def run(self, domain: Optional[Index3D], *args, **kwargs):
+        """Runs the stencil with the provided domain and args."""
+        kwargs = self._process_kwargs(domain, *args, **kwargs)
+        self.stencil_object.run(**kwargs)
+        for write_field in self.write_fields:
+            kwargs[write_field]._set_device_modified()
 
     def _process_kwargs(self, domain: Optional[Index3D], *args, **kwargs):
         """Processes keyword args for direct calls to stencil_object.run."""
-
         if domain is None:
             domain = self.domain
-        if not self.arg_names:
-            self.arg_names = self.field_names + self.parameter_names
+        if "exec_info" not in kwargs:
+            kwargs["exec_info"] = None
 
         kwargs.update({"_origin_": self.field_origins, "_domain_": domain})
         kwargs.update({name: arg for name, arg in zip(self.arg_names, args)})
@@ -270,7 +280,6 @@ class StencilWrapper:
         self, origin: Tuple[int, ...], *args, **kwargs
     ) -> Dict[str, Tuple[int, ...]]:
         """Computes the origin for each field in the stencil call."""
-
         field_origins: Dict[str, Tuple[int, ...]] = {"_all_": origin}
         field_names: List[str] = self.field_names
         for i in range(len(field_names)):
@@ -306,6 +315,26 @@ class StencilWrapper:
     def parameter_names(self) -> List[str]:
         """Returns the list of stencil parameter names."""
         return list(self.stencil_object.parameter_info.keys())
+
+    @property
+    def arg_names(self) -> List[str]:
+        """Returns the list of stencil argument names."""
+        if not self._arg_names:
+            self._arg_names = self.field_names + self.parameter_names
+        return self._arg_names
+
+    @property
+    def write_fields(self) -> List[str]:
+        """Returns the list of fields that are written."""
+        if not self._write_fields:
+            field_info = self.stencil_object.field_info
+            self._write_fields = [
+                field_name
+                for field_name in field_info
+                if field_info[field_name]
+                and field_info[field_name].access != AccessKind.READ_ONLY
+            ]
+        return self._write_fields
 
 
 class FV3StencilObject(StencilWrapper):
@@ -485,12 +514,7 @@ class FV3StencilObject(StencilWrapper):
             )
             self.times_called += 1
         else:
-            kwargs = self._process_kwargs(
-                domain,
-                *args,
-                **kwargs,
-            )
-            self.stencil_object.run(**kwargs)
+            self.run(domain, *args, **kwargs)
 
 
 class StencilObjectCache:
