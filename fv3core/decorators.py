@@ -331,6 +331,9 @@ class FV3StencilObject(StencilWrapper):
         self._data_cache: StencilDataCache = StencilDataCache("data_cache.p")
         """Data cache to store axis offsets and passed externals."""
 
+        self._axis_offsets: Dict[str, Any] = {}
+        """Saved axis offsets."""
+
     @property
     def built(self) -> bool:
         """Indicates whether the stencil is loaded."""
@@ -386,7 +389,9 @@ class FV3StencilObject(StencilWrapper):
         assert domain is not None, "no domain provided at call time"
 
         # Can optimize this by marking stencils that need these
-        axis_offsets = fv3core.utils.axis_offsets(spec.grid, origin, domain)
+        if not self._axis_offsets:
+            self._axis_offsets = fv3core.utils.axis_offsets(spec.grid, origin, domain)
+        axis_offsets = self._axis_offsets
 
         self.rebuild = global_config.get_rebuild()
         regenerate_stencil = not self.built or self.rebuild

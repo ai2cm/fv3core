@@ -6,7 +6,7 @@ from fv3core.testing import TranslateFortranData2Py, TranslateGrid
 
 
 def pad_field_in_j(field, nj):
-    utils.device_sync()
+    utils.device_sync(True)
     outfield = utils.tile(field[:, 0, :], [nj, 1, 1]).transpose(1, 0, 2)
     np.testing.assert_array_equal(outfield[:, 0, :], field[:, 0, :])
     return outfield

@@ -551,6 +551,6 @@ def stack(tup, axis: int = 0, out=None):
     return xp.stack(array_tup, axis, out)
 
 
-def device_sync() -> None:
-    if cp and "cuda" in global_config.get_backend():
+def device_sync(force: bool = False) -> None:
+    if force and cp and "cuda" in global_config.get_backend():
         cp.cuda.Device(0).synchronize()
