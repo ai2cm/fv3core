@@ -25,7 +25,7 @@ class TranslateFillCorners(TranslateFortranData2Py):
 
     def compute_from_storage(self, inputs):
         nord_column = inputs["nord_col"][:]
-        utils.device_sync(True)
+        utils.device_sync()
         for nord in utils.unique(nord_column):
             if nord != 0:
                 ki = [i for i in range(self.grid.npz) if nord_column[i] == nord]

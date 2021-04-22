@@ -197,7 +197,7 @@ class TranslateFortranData2Py:
                 del inputs[serialname]
 
     def slice_output(self, inputs, out_data=None):
-        utils.device_sync(True)
+        utils.device_sync()
         if out_data is None:
             out_data = inputs
         else:
