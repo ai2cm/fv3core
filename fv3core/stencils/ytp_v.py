@@ -10,7 +10,7 @@ from gt4py.gtscript import (
 )
 
 import fv3core._config as spec
-from fv3core.decorators import FrozenStencil
+from fv3core.decorators import StencilWrapper
 from fv3core.stencils import yppm
 from fv3core.utils.grid import axis_offsets
 from fv3core.utils.typing import FloatField, FloatFieldIJ
@@ -67,55 +67,27 @@ def _compute_stencil(
             bl = al[0, 0, 0] - v[0, 0, 0]
             br = al[0, 1, 0] - v[0, 0, 0]
 
-            # Zero corners
-            with horizontal(
-                region[i_start, j_start - 1 : j_start + 1],
-                region[i_start, j_end : j_end + 2],
-                region[i_end + 1, j_start - 1 : j_start + 1],
-                region[i_end + 1, j_end : j_end + 2],
-            ):
-                bl = 0.0
-                br = 0.0
-
         else:
             dm = yppm.dm_jord8plus(v)
             al = yppm.al_jord8plus(v, dm)
 
             external_assert(jord == 8)
-            # {
+
             bl, br = yppm.blbr_jord8(v, al, dm)
-            # }
-            # {
-            with horizontal(region[:, j_start - 1]):
-                bl, br = yppm.south_edge_jord8plus_0(v, dy, dm)
+            bl, br = yppm.bl_br_edges(bl, br, v, dya, al, dm)
 
-            with horizontal(region[:, j_start]):
-                bl, br = yppm.south_edge_jord8plus_1(v, dy, dm)
-
-            with horizontal(region[:, j_start + 1]):
-                bl, br = yppm.south_edge_jord8plus_2(v, dm, al)
+            with horizontal(region[:, j_start + 1], region[:, j_end - 1]):
                 bl, br = yppm.pert_ppm_standard_constraint_fcn(v, bl, br)
 
-            with horizontal(region[:, j_end - 1]):
-                bl, br = yppm.north_edge_jord8plus_0(v, dm, al)
-                bl, br = yppm.pert_ppm_standard_constraint_fcn(v, bl, br)
-
-            with horizontal(region[:, j_end]):
-                bl, br = yppm.north_edge_jord8plus_1(v, dy, dm)
-
-            with horizontal(region[:, j_end + 1]):
-                bl, br = yppm.north_edge_jord8plus_2(v, dy, dm)
-
-            # Zero corners
-            with horizontal(
-                region[i_start, j_start - 1 : j_start + 1],
-                region[i_start, j_end : j_end + 2],
-                region[i_end + 1, j_start - 1 : j_start + 1],
-                region[i_end + 1, j_end : j_end + 2],
-            ):
-                bl = 0.0
-                br = 0.0
-            # }
+        # Zero corners
+        with horizontal(
+            region[i_start, j_start - 1 : j_start + 1],
+            region[i_start, j_end : j_end + 2],
+            region[i_end + 1, j_start - 1 : j_start + 1],
+            region[i_end + 1, j_end : j_end + 2],
+        ):
+            bl = 0.0
+            br = 0.0
 
         flux = _get_flux(v, courant, rdy, bl, br)
 
@@ -138,7 +110,7 @@ class YTP_V:
         ax_offsets = axis_offsets(grid, origin, domain)
         assert namelist.grid_type < 3
 
-        self.stencil = FrozenStencil(
+        self.stencil = StencilWrapper(
             _compute_stencil,
             externals={
                 "jord": jord,

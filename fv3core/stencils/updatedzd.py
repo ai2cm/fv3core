@@ -3,7 +3,7 @@ from gt4py.gtscript import BACKWARD, FORWARD, PARALLEL, computation, interval
 
 import fv3core.utils.global_constants as constants
 import fv3core.utils.gt4py_utils as utils
-from fv3core.decorators import FrozenStencil
+from fv3core.decorators import StencilWrapper
 from fv3core.stencils import delnflux
 from fv3core.stencils.fvtp2d import FiniteVolumeTransport
 from fv3core.utils import validation
@@ -207,9 +207,9 @@ class UpdateHeightOnDGrid:
         ):
             raise NotImplementedError("damp <= 1e-5 in column_cols is untested")
         self._dp0 = dp0
-        self._allocate_temporary_storages()
+        self._allocate_local_storages()
         self._initialize_interpolation_constants()
-        self._compile_stencils(namelist)
+        self._compile_stencils()
 
         self._zh_validator = validation.SelectiveValidation(
             origin=self.grid.compute_origin(),
@@ -218,7 +218,7 @@ class UpdateHeightOnDGrid:
 
         self.finite_volume_transport = FiniteVolumeTransport(namelist, namelist.hord_tm)
 
-    def _allocate_temporary_storages(self):
+    def _allocate_local_storages(self):
         largest_possible_shape = self.grid.domain_shape_full(add=(1, 1, 1))
         self._crx_interface = utils.make_storage_from_shape(
             largest_possible_shape,
@@ -262,7 +262,7 @@ class UpdateHeightOnDGrid:
         gamma_3d = utils.make_storage_from_shape((1, 1, self.grid.npz + 1), (0, 0, 0))
         beta_3d = utils.make_storage_from_shape((1, 1, self.grid.npz + 1), (0, 0, 0))
 
-        _cubic_spline_interpolation_constants = FrozenStencil(
+        _cubic_spline_interpolation_constants = StencilWrapper(
             cubic_spline_interpolation_constants,
             origin=(0, 0, 0),
             domain=(1, 1, self.grid.npz + 1),
@@ -276,18 +276,17 @@ class UpdateHeightOnDGrid:
             gamma_3d[0, 0, :], gamma_3d.shape[2:], (0,)
         )
 
-    def _compile_stencils(self, namelist):
-        self._interpolate_to_layer_interface = FrozenStencil(
+    def _compile_stencils(self):
+        self._interpolate_to_layer_interface = StencilWrapper(
             cubic_spline_interpolation_from_layer_center_to_interfaces,
             origin=self.grid.full_origin(),
             domain=self.grid.domain_shape_full(add=(0, 0, 1)),
         )
-        self._apply_height_fluxes = FrozenStencil(
+        self._apply_height_fluxes = StencilWrapper(
             apply_height_fluxes,
             origin=self.grid.compute_origin(),
             domain=self.grid.domain_shape_compute(add=(0, 0, 1)),
         )
-        self.finite_volume_transport = FiniteVolumeTransport(namelist, namelist.hord_tm)
 
     def __call__(
         self,
