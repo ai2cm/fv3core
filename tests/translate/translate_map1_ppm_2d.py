@@ -1,7 +1,15 @@
 import numpy as np
 
 import fv3core.stencils.map_single as map_single
+import fv3core.utils.gt4py_utils as utils
 from fv3core.testing import TranslateFortranData2Py, TranslateGrid
+
+
+def pad_field_in_j(field, nj):
+    utils.device_sync()
+    outfield = utils.tile(field[:, 0, :], [nj, 1, 1]).transpose(1, 0, 2)
+    np.testing.assert_array_equal(outfield[:, 0, :], field[:, 0, :])
+    return outfield
 
 
 class TranslateSingleJ(TranslateFortranData2Py):
@@ -37,9 +45,13 @@ class TranslateMap1_PPM_2d(TranslateFortranData2Py):
         self.out_vars = {"var_inout": {}}
         self.max_error = 5e-13
         self.write_vars = ["qs"]
+        self.nj = self.maxshape[1]
 
     def compute(self, inputs):
         self.make_storage_data_input_vars(inputs)
+        if "qs" in inputs:
+            qs_3d = pad_field_in_j(inputs["qs"], self.nj)
+            inputs["qs"] = self.make_storage_data(qs_3d)
         inputs["i1"] = self.grid.global_to_local_x(
             inputs["i1"] + TranslateGrid.fpy_model_index_offset
         )
@@ -50,6 +62,9 @@ class TranslateMap1_PPM_2d(TranslateFortranData2Py):
         inputs["j_2d"] = self.grid.global_to_local_y(
             inputs["j_2d"] + TranslateGrid.fpy_model_index_offset
         )
+        inputs["j1"] = inputs["j_2d"]
+        inputs["j2"] = inputs["j_2d"]
+        del inputs["j_2d"]
         var_inout = self.compute_func(**inputs)
         return self.slice_output(inputs, {"var_inout": var_inout})
 

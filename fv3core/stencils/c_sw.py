@@ -1,8 +1,8 @@
 import gt4py.gtscript as gtscript
 from gt4py.gtscript import (
-    __INLINED,
     PARALLEL,
     computation,
+    external_assert,
     horizontal,
     interval,
     region,
@@ -101,7 +101,7 @@ def transportdelp(
     from __externals__ import namelist
 
     with computation(PARALLEL), interval(...):
-        assert __INLINED(namelist.grid_type < 3)
+        external_assert(namelist.grid_type < 3)
         # additional assumption (not grid.nested)
 
         delp = corners.fill_corners_2cells_x(delp)
@@ -243,7 +243,7 @@ def update_vorticity_and_kinetic_energy(
     from __externals__ import i_end, i_start, j_end, j_start, namelist
 
     with computation(PARALLEL), interval(...):
-        assert __INLINED(namelist.grid_type < 3)
+        external_assert(namelist.grid_type < 3)
 
         ke = uc if ua > 0.0 else uc[1, 0, 0]
         vort = vc if va > 0.0 else vc[0, 1, 0]
@@ -275,7 +275,7 @@ def update_zonal_velocity(
     from __externals__ import i_end, i_start, namelist
 
     with computation(PARALLEL), interval(...):
-        assert __INLINED(namelist.grid_type < 3)
+        external_assert(namelist.grid_type < 3)
         # additional assumption: not __INLINED(spec.grid.nested)
 
         tmp_flux = dt2 * (velocity - velocity_c * cosa) / sina
@@ -300,7 +300,7 @@ def update_meridional_velocity(
     from __externals__ import j_end, j_start, namelist
 
     with computation(PARALLEL), interval(...):
-        assert __INLINED(namelist.grid_type < 3)
+        external_assert(namelist.grid_type < 3)
         # additional assumption: not __INLINED(spec.grid.nested)
 
         tmp_flux = dt2 * (velocity - velocity_c * cosa) / sina
@@ -309,6 +309,13 @@ def update_meridional_velocity(
 
         flux = vorticity[0, 0, 0] if tmp_flux > 0.0 else vorticity[1, 0, 0]
         velocity_c = velocity_c - tmp_flux * flux + rdyc * (ke[0, -1, 0] - ke)
+
+
+@gtstencil()
+def initialize_delpc_ptc(delpc: FloatField, ptc: FloatField):
+    with computation(PARALLEL), interval(...):
+        delpc = 0.0
+        ptc = 0.0
 
 
 def vorticitytransport_cgrid(
@@ -363,10 +370,13 @@ def compute(delp, pt, u, v, w, uc, vc, ua, va, ut, vt, divgd, omga, dt2):
     dord4 = True
     origin_halo1 = (grid.is_ - 1, grid.js - 1, 0)
     delpc = utils.make_storage_from_shape(
-        delp.shape, origin=origin_halo1, init=True, cache_key="c_sw_delpc"
+        delp.shape, origin=origin_halo1, cache_key="c_sw_delpc"
     )
     ptc = utils.make_storage_from_shape(
-        pt.shape, origin=origin_halo1, init=True, cache_key="c_sw_ptc"
+        pt.shape, origin=origin_halo1, cache_key="c_sw_ptc"
+    )
+    initialize_delpc_ptc(
+        delpc, ptc, origin=grid.full_origin(), domain=grid.domain_shape_full()
     )
     d2a2c.compute(dord4, uc, vc, u, v, ua, va, ut, vt)
     if spec.namelist.nord > 0:

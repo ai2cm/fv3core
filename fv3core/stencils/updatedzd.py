@@ -1,236 +1,350 @@
 import gt4py.gtscript as gtscript
-from gt4py.gtscript import (
-    BACKWARD,
-    FORWARD,
-    PARALLEL,
-    computation,
-    horizontal,
-    interval,
-    region,
-)
+from gt4py.gtscript import BACKWARD, FORWARD, PARALLEL, computation, interval
 
 import fv3core._config as spec
-import fv3core.stencils.d_sw as d_sw
-import fv3core.stencils.delnflux as delnflux
 import fv3core.utils.global_constants as constants
 import fv3core.utils.gt4py_utils as utils
-from fv3core.decorators import gtstencil
-from fv3core.stencils.basic_operations import copy
+from fv3core.decorators import StencilWrapper
+from fv3core.stencils import basic_operations, d_sw, delnflux
 from fv3core.stencils.fvtp2d import FiniteVolumeTransport
-from fv3core.stencils.fxadv import ra_x_func, ra_y_func
 from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
 
 
 DZ_MIN = constants.DZ_MIN
 
-# TODO merge with fxadv
+
 @gtscript.function
-def ra_func(
+def apply_height_flux(
+    geopotential_height: FloatField,
     area: FloatFieldIJ,
-    xfx_adv: FloatField,
-    yfx_adv: FloatField,
-    ra_x: FloatField,
-    ra_y: FloatField,
+    x_height_flux: FloatField,
+    y_height_flux: FloatField,
+    x_area_flux: FloatField,
+    y_area_flux: FloatField,
 ):
-    from __externals__ import local_ie, local_is, local_je, local_js
-
-    with horizontal(region[local_is : local_ie + 2, :]):
-        ra_x = ra_x_func(area, xfx_adv)
-    with horizontal(region[:, local_js : local_je + 2]):
-        ra_y = ra_y_func(area, yfx_adv)
-    return ra_x, ra_y
-
-
-@gtstencil()
-def ra_stencil_update(
-    area: FloatFieldIJ,
-    xfx_adv: FloatField,
-    ra_x: FloatField,
-    yfx_adv: FloatField,
-    ra_y: FloatField,
-):
-    """Updates 'ra' fields.
-    Args:
-       xfx_adv: Finite volume flux form operator in x direction (in)
-       yfx_adv: Finite volume flux form operator in y direction (in)
-       ra_x: Area increased in the x direction due to flux divergence (inout)
-       ra_y: Area increased in the y direction due to flux divergence (inout)
-    Grid input vars:
-      area
     """
-    with computation(PARALLEL), interval(...):
-        ra_x, ra_y = ra_func(area, xfx_adv, yfx_adv, ra_x, ra_y)
+    Apply the computed fluxes of height and gridcell area to the height profile.
+
+    A positive flux of area corresponds to convergence, which expands
+    the layer thickness.
+
+    Args:
+        geopotential_height: initial geopotential height
+        area: gridcell area in m^2
+        x_height_flux: area-weighted flux of geopotential height in x-direction,
+            in units of g * m^3
+        y_height_flux: area-weighted flux of geopotential height in y-direction,
+            in units of g * m^3
+        x_area_flux: flux of area in x-direction, in units of m^2
+        y_area_flux: flux of area in y-direction, in units of m^2
+    """
+    area_after_flux = (
+        (area + x_area_flux - x_area_flux[1, 0, 0])
+        + (area + y_area_flux - y_area_flux[0, 1, 0])
+        - area
+    )
+    # final height is the original volume plus the fluxed volumes,
+    # divided by the final area
+    return (
+        geopotential_height * area
+        + x_height_flux
+        - x_height_flux[1, 0, 0]
+        + y_height_flux
+        - y_height_flux[0, 1, 0]
+    ) / area_after_flux
 
 
-@gtscript.function
-def zh_base(
-    z2: FloatField,
+def apply_geopotential_height_fluxes(
     area: FloatFieldIJ,
+    initial_gz: FloatField,
     fx: FloatField,
     fy: FloatField,
-    ra_x: FloatField,
-    ra_y: FloatField,
-):
-    return (z2 * area + fx - fx[1, 0, 0] + fy - fy[0, 1, 0]) / (ra_x + ra_y - area)
-
-
-@gtstencil()
-def zh_damp(
-    area: FloatFieldIJ,
-    z2: FloatField,
-    fx: FloatField,
-    fy: FloatField,
-    ra_x: FloatField,
-    ra_y: FloatField,
-    fx2: FloatField,
-    fy2: FloatField,
-    rarea: FloatFieldIJ,
-    zh: FloatField,
+    x_area_flux: FloatField,
+    y_area_flux: FloatField,
+    gz_x_diffusive_flux: FloatField,
+    gz_y_diffusive_flux: FloatField,
+    final_gz: FloatField,
     gz_surface: FloatFieldIJ,
     ws: FloatFieldIJ,
     dt: float,
 ):
-    """Update geopotential height due to area average flux divergence
+    """
+    Apply all computed fluxes to profile of geopotential height.
+
+    All vertically-resolved arguments are defined on the same grid
+    (normally interface levels).
+
     Args:
-       z2: zh that has been advected forward in time (in)
-       fx: Flux in the x direction that transported z2 (in)
-       fy: Flux in the y direction that transported z2(in)
-       ra_x: Area increased in the x direction due to flux divergence (in)
-       ra_y: Area increased in the y direction due to flux divergence (in)
-       fx2: diffusive flux in the x-direction (in)
-       fy2: diffusive flux in the y-direction (in)
-       zh: geopotential height (out)
-       gz_surface: surface geopotential height (in)
-       ws: vertical velocity of the lowest level (to keep it at the surface) (out)
-       dt: acoustic timestep (seconds) (in)
+        initial_gz: geopotential height profile on which to apply fluxes (in)
+        fx: area-weighted flux of geopotential height in x-direction,
+            in units of g * m^3
+        fy: area-weighted flux of geopotential height in y-direction,
+            in units of g * m^3
+        x_area_flux: flux of area in x-direction, in units of m^2 (in)
+        y_area_flux: flux of area in y-direction, in units of m^2 (in)
+        gz_x_diffusive_flux: diffusive flux of area-weighted geopotential height
+            in x-direction (in)
+        gz_y_diffusive_flux: diffusive flux of area-weighted geopotential height
+            in y-direction (in)
+        final_gz: geopotential height (out)
+        gz_surface: surface geopotential height (in)
+        ws: vertical velocity of the lowest level (to keep it at the surface) (out)
+        dt: acoustic timestep (seconds) (in)
     Grid variable inputs:
-       area
-      rarea
+        area
     """
     with computation(PARALLEL), interval(...):
-        zhbase = zh_base(z2, area, fx, fy, ra_x, ra_y)
-        zh = zhbase + (fx2 - fx2[1, 0, 0] + fy2 - fy2[0, 1, 0]) * rarea
+        final_gz = (
+            apply_height_flux(initial_gz, area, fx, fy, x_area_flux, y_area_flux)
+            + (
+                gz_x_diffusive_flux
+                - gz_x_diffusive_flux[1, 0, 0]
+                + gz_y_diffusive_flux
+                - gz_y_diffusive_flux[0, 1, 0]
+            )
+            / area
+        )
+
     with computation(BACKWARD):
         with interval(-1, None):
-            ws = (gz_surface - zh) * 1.0 / dt
+            ws = (gz_surface - final_gz) / dt
         with interval(0, -1):
-            other = zh[0, 0, 1] + DZ_MIN
-            zh = zh if zh > other else other
+            # ensure layer thickness exceeds minimum
+            other = final_gz[0, 0, 1] + DZ_MIN
+            final_gz = final_gz if final_gz > other else other
 
 
-@gtstencil()
-def zh_stencil(
-    area: FloatFieldIJ,
-    zh: FloatField,
-    fx: FloatField,
-    fy: FloatField,
-    ra_x: FloatField,
-    ra_y: FloatField,
-):
-    with computation(PARALLEL), interval(...):
-        zh = zh_base(zh, area, fx, fy, ra_x, ra_y)
-
-
-@gtscript.function
-def edge_profile_top(
+def cubic_spline_interpolation_constants(
     dp0: FloatFieldK,
-    q1x: FloatField,
-    q2x: FloatField,
-    qe1x: FloatField,
-    qe2x: FloatField,
-    q1y: FloatField,
-    q2y: FloatField,
-    qe1y: FloatField,
-    qe2y: FloatField,
+    gk: FloatField,
+    beta: FloatField,
+    gamma: FloatField,
 ):
-    from __externals__ import local_ie, local_is, local_je, local_js
+    """
+    Computes constants used in cubic spline interpolation
+    from cell center to interface levels.
 
-    g0 = dp0[1] / dp0
-    xt1 = 2.0 * g0 * (g0 + 1.0)
-    bet = g0 * (g0 + 0.5)
-    gam = (1.0 + g0 * (g0 + 1.5)) / bet
-
-    with horizontal(region[local_is : local_ie + 2, :]):
-        qe1x = (xt1 * q1x + q1x[0, 0, 1]) / bet
-        qe2x = (xt1 * q2x + q2x[0, 0, 1]) / bet
-    with horizontal(region[:, local_js : local_je + 2]):
-        qe1y = (xt1 * q1y + q1y[0, 0, 1]) / bet
-        qe2y = (xt1 * q2y + q2y[0, 0, 1]) / bet
-
-    return qe1x, qe2x, qe1y, qe2y, gam
-
-
-@gtscript.function
-def edge_profile_reverse(
-    qe1x: FloatField,
-    qe2x: FloatField,
-    qe1y: FloatField,
-    qe2y: FloatField,
-    gam: FloatField,
-):
-    from __externals__ import local_ie, local_is, local_je, local_js
-
-    with horizontal(region[local_is : local_ie + 2, :]):
-        qe1x -= gam * qe1x[0, 0, 1]
-        qe2x -= gam * qe2x[0, 0, 1]
-    with horizontal(region[:, local_js : local_je + 2]):
-        qe1y -= gam * qe1y[0, 0, 1]
-        qe2y -= gam * qe2y[0, 0, 1]
-
-    return qe1x, qe2x, qe1y, qe2y
-
-
-# NOTE: We have not ported the uniform_grid True option as it is never called
-# that way in this model. We have also ignored limite != 0 for the same reason.
-@gtstencil()
-def edge_profile_stencil(
-    q1x: FloatField,
-    q2x: FloatField,
-    qe1x: FloatField,
-    qe2x: FloatField,
-    q1y: FloatField,
-    q2y: FloatField,
-    qe1y: FloatField,
-    qe2y: FloatField,
-    dp0: FloatFieldK,
-):
-    from __externals__ import local_ie, local_is, local_je, local_js
-
+    Args:
+        dp0: target pressure on interface levels (in)
+        gk: interpolation constant on mid levels (out)
+        beta: interpolation constant on mid levels (out)
+        gamma: interpolation constant on mid levels (out)
+    """
     with computation(FORWARD):
         with interval(0, 1):
-            qe1x, qe2x, qe1y, qe2y, gam = edge_profile_top(
-                dp0, q1x, q2x, qe1x, qe2x, q1y, q2y, qe1y, qe2y
-            )
+            gk = dp0[1] / dp0
+            beta = gk * (gk + 0.5)
+            gamma = (1.0 + gk * (gk + 1.5)) / beta
         with interval(1, -1):
             gk = dp0[-1] / dp0
-            bet = 2.0 + 2.0 * gk - gam[0, 0, -1]
-            gam = gk / bet
-            with horizontal(region[local_is : local_ie + 2, :]):
-                qe1x = (3.0 * (q1x[0, 0, -1] + gk * q1x) - qe1x[0, 0, -1]) / bet
-                qe2x = (3.0 * (q2x[0, 0, -1] + gk * q2x) - qe2x[0, 0, -1]) / bet
-            with horizontal(region[:, local_js : local_je + 2]):
-                qe1y = (3.0 * (q1y[0, 0, -1] + gk * q1y) - qe1y[0, 0, -1]) / bet
-                qe2y = (3.0 * (q2y[0, 0, -1] + gk * q2y) - qe2y[0, 0, -1]) / bet
+            beta = 2.0 + 2.0 * gk - gamma[0, 0, -1]
+            gamma = gk / beta
+
+
+def cubic_spline_interpolation_from_layer_center_to_interfaces(
+    q_center: FloatField,
+    q_interface: FloatField,
+    gk: FloatFieldK,
+    beta: FloatFieldK,
+    gamma: FloatFieldK,
+) -> FloatField:
+    """
+    Interpolate a field from layer (vertical) centers to interfaces.
+
+    Corresponds to edge_profile in nh_utils.F90 in the original Fortran code.
+
+    Args:
+        q_center (in): value on layer centers
+        q_interface (out): value on layer interfaces
+        gk (in): cubic spline interpolation constant
+        beta (in): cubic spline interpolation constant
+        gamma (in): cubic spline interpolation constant
+    """
+    # NOTE: We have not ported the uniform_grid True option as it is never called
+    # that way in this model. We have also ignored limiter != 0 for the same reason.
+    with computation(FORWARD):
+        with interval(0, 1):
+            xt1 = 2.0 * gk * (gk + 1.0)
+            q_interface = (xt1 * q_center + q_center[0, 0, 1]) / beta
+        with interval(1, -1):
+            q_interface = (
+                3.0 * (q_center[0, 0, -1] + gk * q_center) - q_interface[0, 0, -1]
+            ) / beta
         with interval(-1, None):
-            a_bot = 1.0 + gk[0, 0, -1] * (gk[0, 0, -1] + 1.5)
-            xt1 = 2.0 * gk[0, 0, -1] * (gk[0, 0, -1] + 1.0)
-            xt2 = gk[0, 0, -1] * (gk[0, 0, -1] + 0.5) - a_bot * gam[0, 0, -1]
-            with horizontal(region[local_is : local_ie + 2, :]):
-                qe1x = (
-                    xt1 * q1x[0, 0, -1] + q1x[0, 0, -2] - a_bot * qe1x[0, 0, -1]
-                ) / xt2
-                qe2x = (
-                    xt1 * q2x[0, 0, -1] + q2x[0, 0, -2] - a_bot * qe2x[0, 0, -1]
-                ) / xt2
-            with horizontal(region[:, local_js : local_je + 2]):
-                qe1y = (
-                    xt1 * q1y[0, 0, -1] + q1y[0, 0, -2] - a_bot * qe1y[0, 0, -1]
-                ) / xt2
-                qe2y = (
-                    xt1 * q2y[0, 0, -1] + q2y[0, 0, -2] - a_bot * qe2y[0, 0, -1]
-                ) / xt2
+            a_bot = 1.0 + gk[-1] * (gk[-1] + 1.5)
+            xt1 = 2.0 * gk[-1] * (gk[-1] + 1.0)
+            xt2 = gk[-1] * (gk[-1] + 0.5) - a_bot * gamma[-1]
+            q_interface = (
+                xt1 * q_center[0, 0, -1]
+                + q_center[0, 0, -2]
+                - a_bot * q_interface[0, 0, -1]
+            ) / xt2
     with computation(BACKWARD), interval(0, -1):
-        qe1x, qe2x, qe1y, qe2y = edge_profile_reverse(qe1x, qe2x, qe1y, qe2y, gam)
+        q_interface -= gamma * q_interface[0, 0, 1]
+
+
+class UpdateDeltaZOnDGrid:
+    """
+    Fortran name is updatedzd.
+    """
+
+    def __init__(self, grid, dp0: FloatFieldK, column_namelist, k_bounds):
+        """
+        Args:
+            grid: fv3core grid object
+            dp0: air pressure on interface levels, reference pressure
+                can be used as an approximation
+            column_namelist: ???
+            k_bounds: ???
+        """
+        self.grid = spec.grid
+        self._column_namelist = column_namelist
+        if any(
+            column_namelist["damp_vt"][kstart] <= 1e-5
+            for kstart in range(len(k_bounds))
+        ):
+            raise NotImplementedError("damp <= 1e-5 in column_cols is untested")
+        self._k_bounds = k_bounds  # d_sw.k_bounds()
+        largest_possible_shape = self.grid.domain_shape_full(add=(1, 1, 1))
+        self._crx_interface = utils.make_storage_from_shape(
+            largest_possible_shape, grid.compute_origin(add=(0, -self.grid.halo, 0))
+        )
+        self._cry_interface = utils.make_storage_from_shape(
+            largest_possible_shape, grid.compute_origin(add=(-self.grid.halo, 0, 0))
+        )
+        self._x_area_flux_interface = utils.make_storage_from_shape(
+            largest_possible_shape, grid.compute_origin(add=(0, -self.grid.halo, 0))
+        )
+        self._y_area_flux_interface = utils.make_storage_from_shape(
+            largest_possible_shape, grid.compute_origin(add=(-self.grid.halo, 0, 0))
+        )
+        self._wk = utils.make_storage_from_shape(
+            largest_possible_shape, grid.full_origin()
+        )
+        self._fx2 = utils.make_storage_from_shape(
+            largest_possible_shape, grid.full_origin()
+        )
+        self._fy2 = utils.make_storage_from_shape(
+            largest_possible_shape, grid.full_origin()
+        )
+        self._fx = utils.make_storage_from_shape(
+            largest_possible_shape, grid.full_origin()
+        )
+        self._fy = utils.make_storage_from_shape(
+            largest_possible_shape, grid.full_origin()
+        )
+        self._zh_tmp = utils.make_storage_from_shape(
+            largest_possible_shape, grid.full_origin()
+        )
+        self._dp0 = dp0
+        # because stencils only work on 3D at the moment, need to compute in 3D
+        # and then make these 1D
+        gk_3d = utils.make_storage_from_shape((1, 1, self.grid.npz + 1), (0, 0, 0))
+        gamma_3d = utils.make_storage_from_shape((1, 1, self.grid.npz + 1), (0, 0, 0))
+        beta_3d = utils.make_storage_from_shape((1, 1, self.grid.npz + 1), (0, 0, 0))
+
+        _cubic_spline_interpolation_constants = StencilWrapper(
+            cubic_spline_interpolation_constants,
+            origin=(0, 0, 0),
+            domain=(1, 1, self.grid.npz + 1),
+        )
+
+        _cubic_spline_interpolation_constants(self._dp0, gk_3d, beta_3d, gamma_3d)
+        utils.device_sync()
+        self._gk = utils.make_storage_data(gk_3d[0, 0, :], gk_3d.shape[2:], (0,))
+        self._beta = utils.make_storage_data(beta_3d[0, 0, :], beta_3d.shape[2:], (0,))
+        self._gamma = utils.make_storage_data(
+            gamma_3d[0, 0, :], gamma_3d.shape[2:], (0,)
+        )
+
+        self._interpolate_to_layer_interface = StencilWrapper(
+            cubic_spline_interpolation_from_layer_center_to_interfaces,
+            origin=self.grid.full_origin(),
+            domain=self.grid.domain_shape_full(add=(0, 0, 1)),
+        )
+        self._apply_geopotential_height_fluxes = StencilWrapper(
+            apply_geopotential_height_fluxes,
+            origin=self.grid.compute_origin(),
+            domain=self.grid.domain_shape_compute(add=(0, 0, 1)),
+        )
+        self.finite_volume_transport = FiniteVolumeTransport(
+            spec.namelist, spec.namelist.hord_tm
+        )
+
+    def __call__(
+        self,
+        gz_surface: FloatFieldIJ,
+        zh: FloatField,
+        crx: FloatField,
+        cry: FloatField,
+        x_area_flux: FloatField,
+        y_area_flux: FloatField,
+        wsd: FloatFieldIJ,
+        dt: float,
+    ):
+        """
+        Args:
+            gz_surface: geopotential height of surface
+            zh: geopotential height defined on layer interfaces
+            crx: Courant number in x-direction
+            cry: Courant number in y-direction
+            x_area_flux: Area flux in x-direction
+            y_area_flux: Area flux in y-direction
+            wsd: lowest layer vertical velocity required to keep layer at surface
+            dt: ???
+        """
+        self._interpolate_to_layer_interface(
+            crx, self._crx_interface, self._gk, self._beta, self._gamma
+        )
+        self._interpolate_to_layer_interface(
+            x_area_flux, self._x_area_flux_interface, self._gk, self._beta, self._gamma
+        )
+        self._interpolate_to_layer_interface(
+            cry, self._cry_interface, self._gk, self._beta, self._gamma
+        )
+        self._interpolate_to_layer_interface(
+            y_area_flux, self._y_area_flux_interface, self._gk, self._beta, self._gamma
+        )
+        basic_operations.copy_stencil(
+            zh,
+            self._zh_tmp,
+            origin=self.grid.full_origin(),
+            domain=self.grid.domain_shape_full(add=(0, 0, 1)),
+        )  # this temporary can be replaced with zh if we have selective validation
+        self.finite_volume_transport(
+            self._zh_tmp,
+            self._crx_interface,
+            self._cry_interface,
+            self._x_area_flux_interface,
+            self._y_area_flux_interface,
+            self._fx,
+            self._fy,
+        )
+        for kstart, nk in self._k_bounds:
+            delnflux.compute_no_sg(
+                self._zh_tmp,
+                self._fx2,
+                self._fy2,
+                int(self._column_namelist["nord_v"][kstart]),
+                self._column_namelist["damp_vt"][kstart],
+                self._wk,
+                kstart=kstart,
+                nk=nk,
+            )
+        self._apply_geopotential_height_fluxes(
+            self.grid.area,
+            zh,
+            self._fx,
+            self._fy,
+            self._x_area_flux_interface,
+            self._y_area_flux_interface,
+            self._fx2,
+            self._fy2,
+            zh,
+            gz_surface,
+            wsd,
+            dt,
+        )
 
 
 def compute(
@@ -239,125 +353,12 @@ def compute(
     zh: FloatField,
     crx: FloatField,
     cry: FloatField,
-    xfx: FloatField,
-    yfx: FloatField,
+    x_area_flux: FloatField,
+    y_area_flux: FloatField,
     wsd: FloatFieldIJ,
     dt: float,
 ):
-    grid = spec.grid
-    halo = grid.halo
-
-    crx_adv = utils.make_storage_from_shape(
-        crx.shape, grid.compute_origin(add=(0, -halo, 0)), cache_key="updatedzd_crx_adv"
+    updatedzd = utils.cached_stencil_class(UpdateDeltaZOnDGrid)(
+        spec.grid, d_sw.get_column_namelist(), d_sw.k_bounds()
     )
-    cry_adv = utils.make_storage_from_shape(
-        cry.shape, grid.compute_origin(add=(-halo, 0, 0)), cache_key="updatedzd_cry_adv"
-    )
-    xfx_adv = utils.make_storage_from_shape(
-        xfx.shape, grid.compute_origin(add=(0, -halo, 0)), cache_key="updatedzd_xfx_adv"
-    )
-    yfx_adv = utils.make_storage_from_shape(
-        yfx.shape, grid.compute_origin(add=(-halo, 0, 0)), cache_key="updatedzd_yfx_adv"
-    )
-    ra_x = utils.make_storage_from_shape(
-        crx.shape,
-        grid.compute_origin(add=(0, -halo, 0)),
-        cache_key="updatedzd_ra_x",
-    )
-    ra_y = utils.make_storage_from_shape(
-        cry.shape,
-        grid.compute_origin(add=(-halo, 0, 0)),
-        cache_key="updatedzd_ra_y",
-    )
-
-    edge_profile_stencil(
-        crx,
-        xfx,
-        crx_adv,
-        xfx_adv,
-        cry,
-        yfx,
-        cry_adv,
-        yfx_adv,
-        dp0,
-        origin=grid.full_origin(),
-        domain=grid.domain_shape_full(add=(0, 0, 1)),
-    )
-    ra_stencil_update(
-        grid.area,
-        xfx_adv,
-        ra_x,
-        yfx_adv,
-        ra_y,
-        origin=grid.full_origin(),
-        domain=grid.domain_shape_full(add=(0, 0, 1)),
-    )
-
-    grid = spec.grid
-
-    wk = utils.make_storage_from_shape(
-        zh.shape, grid.full_origin(), cache_key="updatedzd_wk"
-    )
-    fx2 = utils.make_storage_from_shape(
-        zh.shape, grid.full_origin(), cache_key="updatedzd_fx2"
-    )
-    fy2 = utils.make_storage_from_shape(
-        zh.shape, grid.full_origin(), cache_key="updatedzd_fy2"
-    )
-    fx = utils.make_storage_from_shape(
-        zh.shape, grid.full_origin(), cache_key="updatedzd_fx"
-    )
-    fy = utils.make_storage_from_shape(
-        zh.shape, grid.full_origin(), cache_key="updatedzd_fy"
-    )
-    z2 = copy(
-        zh, origin=grid.full_origin(), domain=grid.domain_shape_full(add=(0, 0, 1))
-    )
-
-    fvtp2d = utils.cached_stencil_class(FiniteVolumeTransport)(
-        spec.namelist, spec.namelist.hord_tm, cache_key="updatedzd"
-    )
-    fvtp2d(
-        z2,
-        crx_adv,
-        cry_adv,
-        xfx_adv,
-        yfx_adv,
-        ra_x,
-        ra_y,
-        fx,
-        fy,
-    )
-    # TODO, do not recreate this, and have it part of aninitialization step
-    # or remove entirely when refactored away
-    column_namelist = d_sw.get_column_namelist()
-    for kstart, nk in d_sw.k_bounds():
-        if column_namelist["damp_vt"][kstart] <= 1e-5:
-            raise Exception("damp <= 1e-5 in column_cols is untested")
-        delnflux.compute_no_sg(
-            z2,
-            fx2,
-            fy2,
-            int(column_namelist["nord_v"][kstart]),
-            column_namelist["damp_vt"][kstart],
-            wk,
-            kstart=kstart,
-            nk=nk,
-        )
-    zh_damp(
-        grid.area,
-        z2,
-        fx,
-        fy,
-        ra_x,
-        ra_y,
-        fx2,
-        fy2,
-        grid.rarea,
-        zh,
-        gz_surface,
-        wsd,
-        dt,
-        origin=grid.compute_origin(),
-        domain=grid.domain_shape_compute(add=(0, 0, 1)),
-    )
+    updatedzd(dp0, gz_surface, zh, crx, cry, x_area_flux, y_area_flux, wsd, dt)

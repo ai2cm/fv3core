@@ -169,7 +169,7 @@ def test_sequential_savepoint(
     subtests,
     caplog,
     threshold_overrides,
-    xy_indices=False,
+    xy_indices=True,
 ):
     caplog.set_level(logging.DEBUG, logger="fv3core")
     if testobj is None:

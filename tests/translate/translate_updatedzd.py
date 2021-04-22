@@ -1,11 +1,11 @@
-import fv3core.stencils.updatedzd as updatedzd
+import fv3core.stencils.updatedzd
+from fv3core.stencils import d_sw
 from fv3core.testing import TranslateFortranData2Py
 
 
 class TranslateUpdateDzD(TranslateFortranData2Py):
     def __init__(self, grid):
         super().__init__(grid)
-        self.compute_func = updatedzd.compute
         self.in_vars["data_vars"] = {
             "dp0": {},  # column var
             "gz_surface": {"serialname": "zs"},
@@ -27,5 +27,12 @@ class TranslateUpdateDzD(TranslateFortranData2Py):
 
     def compute(self, inputs):
         self.make_storage_data_input_vars(inputs)
-        self.compute_func(**inputs)
+        updatedzd = fv3core.stencils.updatedzd.UpdateDeltaZOnDGrid(
+            self.grid, inputs.pop("dp0"), d_sw.get_column_namelist(), d_sw.k_bounds()
+        )
+        inputs["x_area_flux"] = inputs.pop("xfx")
+        inputs["y_area_flux"] = inputs.pop("yfx")
+        updatedzd(**inputs)
+        inputs["xfx"] = inputs.pop("x_area_flux")
+        inputs["yfx"] = inputs.pop("y_area_flux")
         return self.slice_output(inputs)

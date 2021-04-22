@@ -2,8 +2,9 @@ import gt4py.gtscript as gtscript
 from gt4py.gtscript import BACKWARD, PARALLEL, computation, interval
 
 import fv3core.utils.global_constants as constants
-from fv3core.decorators import gtstencil
+from fv3core.decorators import StencilWrapper
 from fv3core.utils import corners
+from fv3core.utils.grid import axis_offsets
 from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
 
 
@@ -14,34 +15,29 @@ DZ_MIN = constants.DZ_MIN
 def p_weighted_average_top(vel, dp0):
     # TODO: ratio is a constant, where should this be placed?
     ratio = dp0 / (dp0 + dp0[1])
-    # return (1. + ratio) * vel - ratio * vel[0, 0, 1]
     return vel + (vel - vel[0, 0, 1]) * ratio
 
 
 @gtscript.function
 def p_weighted_average_bottom(vel, dp0):
     ratio = dp0[-1] / (dp0[-2] + dp0[-1])
-    # return (1. + ratio ) * vel[0, 0, -1] - ratio * vel[0, 0, -2]
     return vel[0, 0, -1] + (vel[0, 0, -1] - vel[0, 0, -2]) * ratio
 
 
 @gtscript.function
 def p_weighted_average_domain(vel, dp0):
-    # ratio = dp0 / ( dp0[-1] + dp0 )
-    # return ratio * vel[0, 0, -1] + (1. - ratio) * vel
     int_ratio = 1.0 / (dp0[-1] + dp0)
     return (dp0 * vel[0, 0, -1] + dp0[-1] * vel) * int_ratio
 
 
-@gtstencil()
-def update_dz_c_stencil(
+def update_dz_c(
     area: FloatFieldIJ,
     dp_ref: FloatFieldK,
     gz_surface: FloatFieldIJ,
     ut: FloatField,
     vt: FloatField,
     gz: FloatField,
-    surface_delta_gz: FloatFieldIJ,
+    ws: FloatFieldIJ,
     dt2: float,
 ):
     """Update the model heights from the C-grid wind flux
@@ -59,7 +55,7 @@ def update_dz_c_stencil(
          ut: x-velocity on the C-grid, contravariant of the D-grid winds (in)
          vt: y-velocity on the C-grid, contravariant of the D-grid winds (in)
          gz: geopotential height of the model grid cells (m) (inout)
-         surface_delta_gz: rate of change in the surface geopotential height
+         ws: rate of change in the surface geopotential height
              from the C-grid wind. A geopotential vertical velocity estimate
              at the surface.  (inout)
          dt2: timestep of the C-grid update in seconds (in)
@@ -87,8 +83,41 @@ def update_dz_c_stencil(
     with computation(BACKWARD):
         with interval(-1, None):
             rdt = 1.0 / dt2
-            zs = gz_surface
-            surface_delta_gz = (zs - gz) * rdt
+            gz_surface = gz_surface
+            ws = (gz_surface - gz) * rdt
         with interval(0, -1):
             gz_min = gz[0, 0, 1] + DZ_MIN
             gz = gz if gz > gz_min else gz_min
+
+
+class UpdateGeopotentialHeightOnCGrid:
+    def __init__(self, grid):
+        self.grid = grid
+        origin = self.grid.compute_origin(add=(-1, -1, 0))
+        domain = self.grid.domain_shape_compute(add=(2, 2, 1))
+        ax_offsets = axis_offsets(self.grid, origin, domain)
+        self._update_dz_c = StencilWrapper(
+            update_dz_c, origin=origin, domain=domain, externals=ax_offsets
+        )
+
+    def __call__(
+        self,
+        dp_ref: FloatFieldK,
+        gz_surface: FloatFieldIJ,
+        ut: FloatField,
+        vt: FloatField,
+        gz: FloatField,
+        ws: FloatFieldIJ,
+        dt: float,
+    ):
+        """
+        Args:
+            dp_ref: layer thickness in Pa
+            gz_surface: surface height in m
+            ut: horizontal wind (TODO: covariant or contravariant?)
+            vt: horizontal wind (TODO: covariant or contravariant?)
+            gz: geopotential height (TODO: on cell mid levels or interfaces?)
+            ws: surface vertical wind implied by horizontal motion over topography
+            dt: timestep over which to evolve the geopotential height
+        """
+        return self._update_dz_c(self.grid.area, dp_ref, gz_surface, ut, vt, gz, ws, dt)

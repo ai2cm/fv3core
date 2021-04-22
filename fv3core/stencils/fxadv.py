@@ -1,4 +1,3 @@
-import gt4py.gtscript as gtscript
 from gt4py.gtscript import PARALLEL, computation, horizontal, interval, region
 
 import fv3core._config as spec
@@ -9,7 +8,7 @@ from fv3core.utils.typing import FloatField, FloatFieldIJ
 # TODO: the mix of local and global regions is strange here
 # it's a workaround to specify DON'T do this calculation if on the tile edge
 # check that the fortran is correct
-@gtstencil
+@gtstencil()
 def main_ut(
     uc: FloatField,
     vc: FloatField,
@@ -34,7 +33,7 @@ def main_ut(
 # TODO: the mix of local and global regions is strange here
 # it's a workaround to specify DON'T do this calculation if on the tile edge
 # check that the fortran is correct
-@gtstencil
+@gtstencil()
 def main_vt(
     uc: FloatField,
     vc: FloatField,
@@ -54,7 +53,7 @@ def main_vt(
             vt = vtmp
 
 
-@gtstencil
+@gtstencil()
 def ut_y_edge(
     uc: FloatField,
     sin_sg1: FloatFieldIJ,
@@ -69,7 +68,7 @@ def ut_y_edge(
             ut = (uc / sin_sg3[-1, 0]) if (uc * dt > 0) else (uc / sin_sg1)
 
 
-@gtstencil
+@gtstencil()
 def ut_x_edge(uc: FloatField, cosa_u: FloatFieldIJ, vt: FloatField, ut: FloatField):
     from __externals__ import i_end, i_start, j_end, j_start, local_ie, local_is
 
@@ -90,7 +89,7 @@ def ut_x_edge(uc: FloatField, cosa_u: FloatFieldIJ, vt: FloatField, ut: FloatFie
             ut = utmp
 
 
-@gtstencil
+@gtstencil()
 def vt_y_edge(vc: FloatField, cosa_v: FloatFieldIJ, ut: FloatField, vt: FloatField):
     from __externals__ import i_end, i_start, j_end, j_start, local_je, local_js
 
@@ -124,7 +123,7 @@ def vt_y_edge(vc: FloatField, cosa_v: FloatFieldIJ, ut: FloatField, vt: FloatFie
             vt = vtmp
 
 
-@gtstencil
+@gtstencil()
 def vt_x_edge(
     vc: FloatField,
     sin_sg2: FloatFieldIJ,
@@ -139,7 +138,7 @@ def vt_x_edge(
             vt = (vc / sin_sg4[0, -1]) if (vc * dt > 0) else (vc / sin_sg2)
 
 
-@gtstencil
+@gtstencil()
 def ut_corners(
     cosa_u: FloatFieldIJ,
     cosa_v: FloatFieldIJ,
@@ -225,7 +224,7 @@ def ut_corners(
             ) * damp
 
 
-@gtstencil
+@gtstencil()
 def vt_corners(
     cosa_u: FloatFieldIJ,
     cosa_v: FloatFieldIJ,
@@ -297,16 +296,6 @@ def vt_corners(
             ) * damp
 
 
-@gtscript.function
-def ra_x_func(area, xfx_adv):
-    return area + xfx_adv - xfx_adv[1, 0, 0]
-
-
-@gtscript.function
-def ra_y_func(area, yfx_adv):
-    return area + yfx_adv - yfx_adv[0, 1, 0]
-
-
 """
 @gtstencil()
 def fxadv_stencil(
@@ -368,7 +357,7 @@ def fxadv_fluxes_stencil(
     dx: FloatFieldIJ,
     crx_adv: FloatField,
     cry_adv: FloatField,
-    xfx_adv: FloatField,
+    xfx_adv: FloatField,  # TODO: rename to x_area_flux, similarly for y_area_flux
     yfx_adv: FloatField,
     ut: FloatField,
     vt: FloatField,
@@ -387,33 +376,17 @@ def fxadv_fluxes_stencil(
             yfx_adv = dx * prod * sin_sg4[0, -1] if prod > 0 else dx * prod * sin_sg2
 
 
-@gtstencil()
-def flux_divergence_area(
-    area: FloatFieldIJ,
-    xfx_adv: FloatField,
-    yfx_adv: FloatField,
-    ra_x: FloatField,
-    ra_y: FloatField,
+def compute(
+    uc,
+    vc,
+    crx_adv,
+    cry_adv,
+    xfx_adv,
+    yfx_adv,
+    ut,
+    vt,
+    dt,
 ):
-    """Compute the area with flux divergence applied
-     Args:
-       xfx_adv: Finite volume flux form operator in x direction (in)
-       yfx_adv: Finite volume flux form operator in y direction (in)
-       ra_x: Area increased in the x direction due to flux divergence (inout)
-       ra_y: Area increased in the y direction due to flux divergence (inout)
-    Grid variable inputs:
-       area
-    """
-    from __externals__ import local_ie, local_is, local_je, local_js
-
-    with computation(PARALLEL), interval(...):
-        with horizontal(region[local_is : local_ie + 2, :]):
-            ra_x = ra_x_func(area, xfx_adv)
-        with horizontal(region[:, local_js : local_je + 2]):
-            ra_y = ra_y_func(area, yfx_adv)
-
-
-def compute(uc, vc, crx_adv, cry_adv, xfx_adv, yfx_adv, ut, vt, ra_x, ra_y, dt):
     grid = spec.grid
     main_ut(
         uc,
@@ -503,15 +476,6 @@ def compute(uc, vc, crx_adv, cry_adv, xfx_adv, yfx_adv, ut, vt, ra_x, ra_y, dt):
         ut,
         vt,
         dt,
-        origin=grid.full_origin(),
-        domain=grid.domain_shape_full(),
-    )
-    flux_divergence_area(
-        grid.area,
-        xfx_adv,
-        yfx_adv,
-        ra_x,
-        ra_y,
         origin=grid.full_origin(),
         domain=grid.domain_shape_full(),
     )
