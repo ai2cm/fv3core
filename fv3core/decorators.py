@@ -262,8 +262,9 @@ class StencilWrapper:
         """Runs the stencil with the provided domain and args."""
         kwargs = self._process_kwargs(domain, *args, **kwargs)
         self.stencil_object.run(**kwargs)
-        for write_field in self.write_fields:
-            kwargs[write_field]._set_device_modified()
+        if "cuda" in self.backend:
+            for write_field in self.write_fields:
+                kwargs[write_field]._set_device_modified()
 
     def _process_kwargs(self, domain: Optional[Index3D], *args, **kwargs):
         """Processes keyword args for direct calls to stencil_object.run."""
