@@ -100,15 +100,10 @@ def fix_tracer(
 class Fillz:
     def __init__(self):
         grid = spec.grid
-        self.domain = (grid.nic, 1, grid.npz)
-        self.origin = (grid.is_, grid.js, 0)
-
-        self._ntracers = 8
-        self._tracer_names = utils.tracer_variables[0 : self._ntracers]
-
+        self.origin = grid.compute_origin()
         self._fix_tracer_stencil = StencilWrapper(fix_tracer)
 
-        shape = grid.domain_shape_full(add=(0, 0, 1))
+        shape = grid.domain_shape_full(add=(1, 1, 1))
         shape_ij = shape[0:2]
 
         self._dm = utils.make_storage_from_shape(shape, origin=(0, 0, 0))
@@ -128,9 +123,7 @@ class Fillz:
         km: int,
         nq: int,
     ):
-        # domain = (im, jm, km)
-        tracer_list = [tracers[name] for name in self._tracer_names]
-
+        tracer_list = [tracers[name] for name in utils.tracer_variables[0:nq]]
         for tracer in tracer_list:
             self._fix_tracer_stencil(
                 tracer,
@@ -141,6 +134,6 @@ class Fillz:
                 self._sum0,
                 self._sum1,
                 origin=self.origin,
-                domain=self.domain,
+                domain=(im, jm, km),
             )
         return tracer_list
