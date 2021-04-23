@@ -110,4 +110,4 @@ def compute(
             version,
         )
     if spec.namelist.fill:
-        fillz.compute(dp2, tracers, i_extent, j_extent, spec.grid.npz, nq)
+        fillz.Fillz()(dp2, tracers, i_extent, j_extent, spec.grid.npz, nq)
