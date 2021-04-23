@@ -5,8 +5,10 @@ import gt4py.gtscript as gtscript
 from gt4py.gtscript import PARALLEL, FORWARD, computation, interval, horizontal, region, __INLINED
 
 import fv3core._config as spec
+import fv3core.utils.global_config as global_config
 import fv3core.utils.corners as corners
 import fv3core.utils.gt4py_utils as utils
+from fv3core.utils.grid import axis_offsets
 from fv3core.decorators import gtstencil
 from fv3core.stencils.basic_operations import copy_stencil
 from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
@@ -470,11 +472,10 @@ def copy_corners_y_nord(q: FloatField):
                 q = q[-3, -2, 0]
 
 @gtstencil()
-def calc_damp(nord: FloatFieldK, damp_c: FloatFieldK, damp4: FloatFieldK, da_min:float):
+def calc_damp(damp4: FloatField, nord: FloatFieldK, damp_c: FloatFieldK, da_min:float):
     with computation(FORWARD), interval(...):
         damp4 = (damp_c * da_min) ** (nord + 1)
 
-@gtstencil()
 def fx_calc_stencil_region(q: FloatField, del6_v: FloatFieldIJ, fx: FloatField, order: int):
     from __externals__ import i_end, i_start, j_end, j_start, nmax, nord0, nord1, nord2, nord3
 
@@ -511,7 +512,6 @@ def fx_calc_stencil_region(q: FloatField, del6_v: FloatFieldIJ, fx: FloatField, 
         else:
             fx = fx_calculation(q, del6_v, order)
 
-@gtstencil()
 def fy_calc_stencil_region(q: FloatField, del6_u: FloatFieldIJ, fy: FloatField, order: int):
     from __externals__ import i_end, i_start, j_end, j_start, nmax, nord0, nord1, nord2, nord3
 
@@ -550,16 +550,16 @@ def fy_calc_stencil_region(q: FloatField, del6_u: FloatFieldIJ, fy: FloatField, 
         
 
 @gtstencil()
-def fx_calc_stencil_column(q: FloatField, del6_v: FloatFieldIJ, fx: FloatField, nord: FloatFieldK):
+def fx_calc_stencil_column(q: FloatField, del6_v: FloatFieldIJ, fx: FloatField, nord: FloatFieldK, n: int):
     with computation(PARALLEL), interval(...):
         if nord > 0:
-            fx = fx_calculation(q, del6_v, nord + 2)
+            fx = fx_calculation(q, del6_v, n + 2)
 
 @gtstencil()
-def fy_calc_stencil_column(q: FloatField, del6_u: FloatFieldIJ, fy: FloatField, nord: FloatFieldK):
+def fy_calc_stencil_column(q: FloatField, del6_u: FloatFieldIJ, fy: FloatField, nord: FloatFieldK, n: int):
     with computation(PARALLEL), interval(...):
         if nord > 0:
-            fy = fy_calculation(q, del6_u, nord + 2)
+            fy = fy_calculation(q, del6_u, n + 2)
 
 
 @gtscript.function
@@ -756,11 +756,14 @@ def compute_delnflux_no_sg(
         d2 = utils.make_storage_from_shape(
             q.shape, full_origin, cache_key="delnflux_d2"
         )
-    if damp_c <= 1e-4:
+    if (damp_c <= 1e-4).all():
         return fx, fy
+    elif (damp_c[:-1] <= 1e-4).any():
+        print(len(damp_c))
+        raise NotImplementedError("damp_c currently must be always greater than or less than 10^-4 for delnflux")
     
     damp_3d = utils.make_storage_from_shape((1,1, nk)) # fields must be 3d to assign to them
-    calc_damp(nord, damp_c, damp_3d, grid.da_min, origin=(0,0,0), domain=(1,1,nk))
+    calc_damp(damp_3d, nord, damp_c, grid.da_min, origin=(0,0,0), domain=(1,1,nk))
     damp = utils.make_storage_data(damp_3d[0,0,:], (nk,), (0,))
 
     fx2 = utils.make_storage_from_shape(q.shape, full_origin, cache_key="delnflux_fx2")
@@ -802,7 +805,7 @@ def compute_no_sg(
         raise Exception("nord must be less than 3")
     if not np.all(n in [0,2,3] for n in nord[:]):
         raise NotImplementedError("nord must have values 0, 2, or 3")
-    nmax = max(nord[:])
+    nmax = int(max(nord[:]))
     grid = spec.grid
     # nord = int(nord)
     i1 = grid.is_ - 1 - nmax
@@ -810,28 +813,65 @@ def compute_no_sg(
     j1 = grid.js - 1 - nmax
     j2 = grid.je + 1 + nmax
     nk = grid.npz
-    origin_d2 = (i1, j1, 0)
-    domain_d2 = (i2 - i1 + 1, j2 - j1 + 1, nk)
-    f1_ny = grid.je - grid.js + 1 + 2 * nmax
-    f1_nx = grid.ie - grid.is_ + 2 + 2 * nmax
-    fx_origin = (grid.is_ - nmax, grid.js - nmax, 0)
+    origin_d2 = (int(i1), int(j1), 0)
+    domain_d2 = (int(i2 - i1 + 1), int(j2 - j1 + 1), nk)
+    f1_ny = int(grid.je - grid.js + 1 + 2 * nmax)
+    f1_nx = int(grid.ie - grid.is_ + 2 + 2 * nmax)
+    fx_origin = (int(grid.is_ - nmax), int(grid.js - nmax), 0)
+
+    preamble_ax_offsets = axis_offsets(spec.grid, origin_d2, domain_d2)
+    full_ax_offsets = axis_offsets(spec.grid, (grid.isd, grid.jsd, 0), (grid.nid, grid.njd, nk))
+    fx_ax_offsets = axis_offsets(spec.grid, fx_origin, (f1_nx, f1_ny, nk))
+    fy_ax_offsets = axis_offsets(spec.grid, fx_origin, (f1_nx - 1, f1_ny + 1, nk))
+
     if mass is None:
-        d2_damp = gtstencil(d2_damp_interval, externals={"nmax": nmax, "nord0":nord[0], "nord1":nord[1], "nord2":nord[2], "nord3":nord[3]})
+        d2_damp = gtscript.stencil(
+            definition = d2_damp_interval, 
+            externals={"nmax": nmax, "nord0":nord[0], "nord1":nord[1], "nord2":nord[2], "nord3":nord[3], **preamble_ax_offsets}, 
+            backend=global_config.get_backend(),
+            rebuild=global_config.get_rebuild(),
+        )
         d2_damp(q, d2, damp_c, origin=origin_d2, domain=domain_d2)
     else:
-        new_copy_stencil = gtstencil(copy_stencil_interval, externals={"nmax": nmax, "nord0":nord[0], "nord1":nord[1], "nord2":nord[2], "nord3":nord[3]})
+        new_copy_stencil = gtscript.stencil(
+            definition = copy_stencil_interval, 
+            externals={"nmax": nmax, "nord0":nord[0], "nord1":nord[1], "nord2":nord[2], "nord3":nord[3], **preamble_ax_offsets},
+            backend=global_config.get_backend(),
+            rebuild=global_config.get_rebuild(),
+        )
         new_copy_stencil(q, d2, origin=origin_d2, domain=domain_d2)
 
-    conditional_corner_copy_x = gtstencil(copy_corners_x_nord, externals={"nord0":nord[0], "nord1":nord[1], "nord2":nord[2], "nord3":nord[3]})
-    conditional_corner_copy_y = gtstencil(copy_corners_y_nord, externals={"nord0":nord[0], "nord1":nord[1], "nord2":nord[2], "nord3":nord[3]})
+    conditional_corner_copy_x = gtscript.stencil(
+        definition = copy_corners_x_nord, 
+        externals={"nord0":nord[0], "nord1":nord[1], "nord2":nord[2], "nord3":nord[3], **full_ax_offsets},
+        backend=global_config.get_backend(),
+        rebuild=global_config.get_rebuild(),
+    )
+    conditional_corner_copy_y = gtscript.stencil(
+        definition = copy_corners_y_nord, 
+        externals={"nord0":nord[0], "nord1":nord[1], "nord2":nord[2], "nord3":nord[3], **full_ax_offsets},
+        backend=global_config.get_backend(),
+        rebuild=global_config.get_rebuild(),
+    )
 
-    d2_stencil = gtstencil(d2_highorder_stencil, externals={"nord0":nord[0], "nord1":nord[1], "nord2":nord[2], "nord3":nord[3]})
+    d2_stencil = gtscript.stencil(
+        definition = d2_highorder_stencil, 
+        externals={"nord0":nord[0], "nord1":nord[1], "nord2":nord[2], "nord3":nord[3]},
+        backend=global_config.get_backend(),
+        rebuild=global_config.get_rebuild(),
+        )
 
     conditional_corner_copy_x(
         d2, origin=(grid.isd, grid.jsd, 0), domain=(grid.nid, grid.njd, nk)
     )
 
-    fx_calc_stencil = gtstencil(fx_calc_stencil_region, externals={"nmax": nmax, "nord0":nord[0], "nord1":nord[1], "nord2":nord[2], "nord3":nord[3]})
+    fx_calc_stencil = gtscript.stencil(
+        definition = fx_calc_stencil_region, 
+        externals={"nmax": nmax, "nord0":nord[0], "nord1":nord[1], "nord2":nord[2], "nord3":nord[3], **fx_ax_offsets},
+        backend=global_config.get_backend(),
+        rebuild=global_config.get_rebuild(),
+        )
+
     fx_calc_stencil(
         d2, grid.del6_v, fx2, order=1, origin=fx_origin, domain=(f1_nx, f1_ny, nk)
     )
@@ -840,7 +880,13 @@ def compute_no_sg(
         d2, origin=(grid.isd, grid.jsd, 0), domain=(grid.nid, grid.njd, nk)
     )
 
-    fy_calc_stencil = gtstencil(fy_calc_stencil_region, externals={"nmax": nmax, "nord0":nord[0], "nord1":nord[1], "nord2":nord[2], "nord3":nord[3]})
+    fy_calc_stencil = gtscript.stencil(
+        definition = fy_calc_stencil_region, 
+        externals={"nmax": nmax, "nord0":nord[0], "nord1":nord[1], "nord2":nord[2], "nord3":nord[3], **fy_ax_offsets},
+        backend=global_config.get_backend(),
+        rebuild=global_config.get_rebuild(),
+        )
+    
     fy_calc_stencil(
         d2,
         grid.del6_u,
@@ -866,6 +912,7 @@ def compute_no_sg(
             d2,
             grid.del6_v,
             fx2,
+            nord,
             n,
             origin=nt_origin,
             domain=(nt_nx - 1, nt_ny - 2, nk),
@@ -878,6 +925,7 @@ def compute_no_sg(
             d2,
             grid.del6_u,
             fy2,
+            nord,
             n,
             origin=nt_origin,
             domain=(nt_nx - 2, nt_ny - 1, nk),
