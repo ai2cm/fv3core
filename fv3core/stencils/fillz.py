@@ -98,6 +98,10 @@ def fix_tracer(
 
 
 class Fillz:
+    """
+    Fix tracers to prevent negative masses.
+    """
+
     def __init__(self):
         grid = spec.grid
         self.origin = grid.compute_origin()
