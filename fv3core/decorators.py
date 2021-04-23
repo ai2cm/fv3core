@@ -12,7 +12,6 @@ import gt4py.storage as gt_storage
 import numpy as np
 import yaml
 from gt4py import gtscript
-from gt4py.definitions import Shape
 
 import fv3core
 import fv3core._config as spec
@@ -159,10 +158,7 @@ class StencilWrapper:
         origin: Optional[Tuple[int, ...]] = None,
         domain: Optional[Index3D] = None,
         *,
-        disable_cache: bool = True,
-        backend: Optional[str] = None,
-        rebuild: Optional[bool] = None,
-        format_source: Optional[bool] = None,
+        disable_cache: bool = False,
         delay_compile: Optional[bool] = None,
         device_sync: Optional[bool] = None,
         **kwargs,
@@ -170,26 +166,28 @@ class StencilWrapper:
         self.func: Callable = func
         """The definition function."""
 
+        self.is_cached: bool = False
+        """Flag to check if the stencil's runtime information is fully cached."""
+
         self.origin: Tuple[int, ...] = origin
         """The compute origin."""
 
-        if domain is not None:
-            domain = Shape(domain)
-        self.domain: Optional[Shape] = domain
+        self.domain: Optional[Index3D] = domain
         """The compute domain."""
 
         self.disable_cache: bool = disable_cache
         """Disable caching if true."""
 
-        self.backend: str = backend if backend else global_config.get_backend()
+        self.backend: str = global_config.get_backend()
         """The gt4py backend name."""
 
-        self.rebuild: bool = rebuild if rebuild else global_config.get_rebuild()
+        self.rebuild: bool = global_config.get_rebuild()
         """The gt4py stencil is rebuilt if true."""
 
-        self.format_source: bool = (
-            format_source if format_source else global_config.get_format_source()
-        )
+        self.validate_args: bool = global_config.get_validate_args()
+        """The gt4py stencil validates the arguments upon call invocation if true."""
+
+        self.format_source: bool = global_config.get_format_source()
         """The gt4py generated code is formatted if true."""
 
         self.device_sync: bool = device_sync
@@ -213,35 +211,37 @@ class StencilWrapper:
         self.stencil_object: Optional[gt4py.StencilObject] = stencil_object
         """The current generated stencil object returned from gt4py."""
 
-    def clear(self):
-        """Clears cached field origins."""
+        self.arg_names: List[str] = []
+        """List of argument names."""
 
+    def clear(self):
+        """Clears cached data items."""
+        self.is_cached = False
         self.field_origins.clear()
+        self.arg_names.clear()
 
     def __call__(
         self,
         *args,
         origin: Optional[Tuple[int, ...]] = None,
         domain: Optional[Index3D] = None,
-        validate_args: Optional[bool] = None,
         **kwargs,
     ) -> None:
-        if self.origin:
-            assert origin is None, "cannot override origin provided at init"
-            origin = self.origin
-        if not self.field_origins or self.disable_cache:
+        if not self.is_cached:
+            if self.origin:
+                assert origin is None, "cannot override origin provided at init"
+                origin = self.origin
             self.field_origins = self._compute_field_origins(origin, *args, **kwargs)
 
-        if self.domain:
-            assert domain is None, "cannot override domain provided at init"
-            domain = self.domain
-        else:
-            assert domain is not None, "no domain provided at call time"
+            if self.domain:
+                assert domain is None, "cannot override domain provided at init"
+                domain = self.domain
+            else:
+                assert domain is not None, "no domain provided at call time"
 
-        if not validate_args:
-            validate_args = global_config.get_validate_args()
+            self.validate_args = global_config.get_validate_args()
 
-        if validate_args:
+        if self.validate_args:
             self.stencil_object(
                 *args,
                 **kwargs,
@@ -252,17 +252,18 @@ class StencilWrapper:
         else:
             kwargs = self._process_kwargs(domain, *args, **kwargs)
             self.stencil_object.run(**kwargs, exec_info=None)
+            self.is_cached = True
 
     def _process_kwargs(self, domain: Optional[Index3D], *args, **kwargs):
         """Processes keyword args for direct calls to stencil_object.run."""
 
-        kwargs["_origin_"] = self.field_origins
-        kwargs["_domain_"] = domain
+        if domain is None:
+            domain = self.domain
+        if not self.arg_names:
+            self.arg_names = self.field_names + self.parameter_names
 
-        arg_names = self.field_names + self.parameter_names
-        for i in range(len(args)):
-            kwargs[arg_names[i]] = args[i]
-
+        kwargs.update({"_origin_": self.field_origins, "_domain_": domain})
+        kwargs.update({name: arg for name, arg in zip(self.arg_names, args)})
         return kwargs
 
     def _compute_field_origins(
@@ -387,6 +388,7 @@ class FV3StencilObject(StencilWrapper):
         # Can optimize this by marking stencils that need these
         axis_offsets = fv3core.utils.axis_offsets(spec.grid, origin, domain)
 
+        self.rebuild = global_config.get_rebuild()
         regenerate_stencil = not self.built or self.rebuild
 
         # Check if we really do need to regenerate
@@ -434,14 +436,6 @@ class FV3StencilObject(StencilWrapper):
         kwargs["exec_info"] = kwargs.get("exec_info", {})
         name = f"{self.func.__module__}.{self.func.__name__}"
 
-        _maybe_save_report(
-            f"{name}-before",
-            self.times_called,
-            self.func.__dict__["_gtscript_"]["api_signature"],
-            args,
-            kwargs,
-        )
-
         if not self.field_origins or origin != self.origin:
             self.field_origins = self._compute_field_origins(
                 origin,
@@ -454,6 +448,14 @@ class FV3StencilObject(StencilWrapper):
             validate_args = global_config.get_validate_args()
 
         if validate_args:
+            _maybe_save_report(
+                f"{name}-before",
+                self.times_called,
+                self.func.__dict__["_gtscript_"]["api_signature"],
+                args,
+                kwargs,
+            )
+
             self.stencil_object(
                 *args,
                 **kwargs,
@@ -468,6 +470,15 @@ class FV3StencilObject(StencilWrapper):
             self.timers.call_run += (
                 exec_info["call_run_end_time"] - exec_info["call_run_start_time"]
             )
+
+            _maybe_save_report(
+                f"{name}-after",
+                self.times_called,
+                self.func.__dict__["_gtscript_"]["api_signature"],
+                args,
+                kwargs,
+            )
+            self.times_called += 1
         else:
             kwargs = self._process_kwargs(
                 domain,
@@ -475,15 +486,6 @@ class FV3StencilObject(StencilWrapper):
                 **kwargs,
             )
             self.stencil_object.run(**kwargs)
-
-        _maybe_save_report(
-            f"{name}-after",
-            self.times_called,
-            self.func.__dict__["_gtscript_"]["api_signature"],
-            args,
-            kwargs,
-        )
-        self.times_called += 1
 
 
 class StencilObjectCache:
