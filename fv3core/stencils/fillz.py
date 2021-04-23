@@ -101,9 +101,6 @@ def fix_tracer(
 class Fillz:
     def __init__(self):
         grid = spec.grid
-        # Same as above, but with multiple tracer fields
-        i1 = grid.is_
-        j1 = grid.js
         self.origin = (grid.is_, grid.js, 0)
         self._fix_tracer_stencil = StencilWrapper(fix_tracer)
 
