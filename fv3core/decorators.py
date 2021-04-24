@@ -2,10 +2,11 @@ import collections
 import collections.abc
 import functools
 import hashlib
+import inspect
 import os
 import pickle
 import types
-from typing import Any, BinaryIO, Callable, Dict, List, Optional, Tuple
+from typing import Any, BinaryIO, Callable, Dict, List, Mapping, Optional, Tuple, cast
 
 import gt4py
 import gt4py.storage as gt_storage
@@ -17,6 +18,7 @@ import fv3core
 import fv3core._config as spec
 import fv3core.utils
 import fv3core.utils.global_config as global_config
+from fv3core.utils.global_config import StencilConfig
 from fv3core.utils.typing import Index3D
 
 
@@ -149,14 +151,117 @@ class StencilDataCache(collections.abc.Mapping):
         return self.cache.__iter__()
 
 
+def ensure_reconstructed_args_match_defined(stencil_object):
+    spec = inspect.getfullargspec(stencil_object.definition_func)
+    definition_args = tuple(spec.args) + tuple(spec.kwonlyargs)
+    reconstructed_args = tuple(stencil_object.field_info.keys()) + tuple(
+        stencil_object.parameter_info.keys()
+    )
+    if not definition_args == reconstructed_args:
+        raise TypeError(
+            "Argument list constructed from field and parameter info "
+            "does not match stencil signature, possibly because "
+            "parameters (e.g. float) must come after fields "
+            f"in stencil arguments. Defined is {definition_args}, "
+            f"reconstructed is {reconstructed_args}."
+        )
+
+
+class FrozenStencil:
+    def __init__(
+        self,
+        func: Callable[..., None],
+        origin: Index3D,
+        domain: Index3D,
+        stencil_config: Optional[StencilConfig] = None,
+        externals: Optional[Mapping[str, Any]] = None,
+    ):
+        self.origin: Tuple[int, ...] = origin
+
+        self.domain: Optional[Index3D] = domain
+
+        if stencil_config is not None:
+            self.stencil_config: StencilConfig = stencil_config
+        else:
+            self.stencil_config = global_config.get_stencil_config()
+
+        if externals is None:
+            externals = {}
+
+        self.stencil_object: Optional[gt4py.StencilObject] = gtscript.stencil(
+            definition=func,
+            externals=externals,
+            **self.stencil_config.stencil_kwargs,
+        )
+        """generated stencil object returned from gt4py."""
+        ensure_reconstructed_args_match_defined(self.stencil_object)
+
+        self._field_origins: Dict[str, Tuple[int, ...]] = compute_field_origins(
+            self.stencil_object, self.origin
+        )
+        """mapping from field names to field origins"""
+
+        self._stencil_run_kwargs = {
+            "_origin_": self._field_origins,
+            "_domain_": self.domain,
+        }
+
+    def __call__(
+        self,
+        *args,
+        **kwargs,
+    ) -> None:
+        if self.stencil_config.validate_args:
+            self.stencil_object(
+                *args,
+                **kwargs,
+                origin=self._field_origins,
+                domain=self.domain,
+                validate_args=True,
+            )
+        else:
+            args_as_kwargs = dict(zip(self.field_names + self.parameter_names, args))
+            self.stencil_object.run(
+                **args_as_kwargs, **kwargs, **self._stencil_run_kwargs, exec_info=None
+            )
+
+    @property
+    def field_names(self) -> Tuple[str]:
+        """names of stencil field call arguments"""
+        return cast(Tuple[str], tuple(self.stencil_object.field_info.keys()))
+
+    @property
+    def parameter_names(self) -> Tuple[str]:
+        """names of stencil parameter call arguments"""
+        return cast(Tuple[str], tuple(self.stencil_object.parameter_info.keys()))
+
+
+def compute_field_origins(
+    stencil, origin: Tuple[int, ...]
+) -> Dict[str, Tuple[int, ...]]:
+    """Computes the origin for each field in the stencil call."""
+    field_origins: Dict[str, Tuple[int, ...]] = {"_all_": origin}
+    field_names = tuple(stencil.field_info.keys())
+    for i in range(len(field_names)):
+        field_name = field_names[i]
+        field_info = stencil.field_info[field_name]
+        if field_info is not None:
+            field_origin_list = []
+            for ax in field_info.axes:
+                field_origin_list.append(origin[{"I": 0, "J": 1, "K": 2}[ax]])
+            field_origin = tuple(field_origin_list)
+        else:
+            field_origin = origin
+        field_origins[field_name] = field_origin
+    return field_origins
+
+
 class StencilWrapper:
-    """Wrapped GT4Py stencil object."""
+    """Base class of FV3StencilObject, should possibly be merged with that class."""
 
     def __init__(
         self,
         func: Callable[..., None],
-        origin: Optional[Tuple[int, ...]] = None,
-        domain: Optional[Index3D] = None,
         *,
         disable_cache: bool = False,
         delay_compile: Optional[bool] = None,
@@ -169,10 +274,10 @@ class StencilWrapper:
         self.is_cached: bool = False
         """Flag to check if the stencil's runtime information is fully cached."""
 
-        self.origin: Tuple[int, ...] = origin
+        self.origin: Tuple[int, ...] = None
         """The compute origin."""
 
-        self.domain: Optional[Index3D] = domain
+        self.domain: Optional[Index3D] = None
         """The compute domain."""
 
         self.disable_cache: bool = disable_cache
