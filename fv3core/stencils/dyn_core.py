@@ -292,6 +292,9 @@ class AcousticDynamics:
             domain=self.grid.domain_shape_full(),
         )
 
+        if self.namelist.rf_fast:
+            self.rayleigh_damping = ray_fast.RayleighDamping(self.grid, self.namelist)
+
     def __call__(self, state):
         # u, v, w, delz, delp, pt, pe, pk, phis, wsd, omga, ua, va, uc, vc, mfxd,
         # mfyd, cxd, cyd, pkz, peln, q_con, ak, bk, diss_estd, cappa, mdt, n_split,
@@ -601,7 +604,7 @@ class AcousticDynamics:
             if self.namelist.rf_fast:
                 # TODO: Pass through ks, or remove, inconsistent representation vs
                 # Fortran.
-                ray_fast.compute(
+                self.rayleigh_damping(
                     state.u,
                     state.v,
                     state.w,
