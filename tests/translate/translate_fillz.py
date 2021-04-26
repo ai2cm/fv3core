@@ -8,7 +8,7 @@ from fv3core.testing import TranslateFortranData2Py
 class TranslateFillz(TranslateFortranData2Py):
     def __init__(self, grid):
         super().__init__(grid)
-        self.compute_func = fillz.Fillz()
+        self.compute_func = fillz.FillNegativeTracerValues()
         self.in_vars["data_vars"] = {
             "dp2": {"istart": grid.is_, "iend": grid.ie, "axis": 1},
             "q2tracers": {"istart": grid.is_, "iend": grid.ie, "axis": 1},

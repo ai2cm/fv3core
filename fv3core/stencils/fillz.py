@@ -97,9 +97,11 @@ def fix_tracer(
             q = fac * dm / dp if fac * dm / dp > 0.0 else 0.0
 
 
-class Fillz:
+class FillNegativeTracerValues:
     """
-    Fix tracers to prevent negative masses.
+    Fix tracer values to prevent negative masses.
+
+    Fortran name is `fillz`
     """
 
     def __init__(self):
