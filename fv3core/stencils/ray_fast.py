@@ -9,7 +9,6 @@ from gt4py.gtscript import (
     region,
 )
 
-import fv3core._config as spec
 from fv3core.decorators import StencilWrapper
 from fv3core.stencils.rayleigh_super import SDAY, compute_rf_vals
 from fv3core.utils import axis_offsets
@@ -170,6 +169,6 @@ class RayleighDamping:
             self._rt_cutoff,
             rf_cutoff_nudge,
             ks,
-            spec.namelist.hydrostatic,
+            self._hydrostatic,
             self._tau,
         )
