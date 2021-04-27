@@ -24,9 +24,7 @@ class TranslateDelnFlux(TranslateFortranData2Py):
         self.make_storage_data_input_vars(inputs)
         inputs["nord"] = inputs.pop("nord_column")
         self.compute_func(**inputs)
-        # return self.column_split_compute(
-        #     inputs, {"nord": "nord_column", "damp_c": "damp_c"}
-        # )
+        return self.slice_output(inputs)
 
 
 class TranslateDelnFlux_2(TranslateDelnFlux):

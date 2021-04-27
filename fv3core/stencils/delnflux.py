@@ -476,7 +476,7 @@ def calc_damp(damp4: FloatField, nord: FloatFieldK, damp_c: FloatFieldK, da_min:
     with computation(FORWARD), interval(...):
         damp4 = (damp_c * da_min) ** (nord + 1)
 
-def fx_calc_stencil_region(q: FloatField, del6_v: FloatFieldIJ, fx: FloatField, order: int):
+def fx_calc_stencil_region(q: FloatField, del6_v: FloatFieldIJ, fx: FloatField):
     from __externals__ import i_end, i_start, j_end, j_start, nmax, nord0, nord1, nord2, nord3
 
     with computation(PARALLEL), interval(0,1):
@@ -484,35 +484,35 @@ def fx_calc_stencil_region(q: FloatField, del6_v: FloatFieldIJ, fx: FloatField, 
             with horizontal(
                 region[i_start + nmax: i_end - nmax, j_start + nmax: j_end + nmax]
             ):
-                fx = fx_calculation(q, del6_v, order)
+                fx = fx_calculation(q, del6_v)
         else:
-            fx = fx_calculation(q, del6_v, order)
+            fx = fx_calculation(q, del6_v)
     with computation(PARALLEL), interval(1,2):
         if __INLINED(nord1 == 0):
             with horizontal(
                 region[i_start + nmax: i_end - nmax, j_start + nmax: j_end + nmax]
             ):
-                fx = fx_calculation(q, del6_v, order)
+                fx = fx_calculation(q, del6_v)
         else:
-            fx = fx_calculation(q, del6_v, order)
+            fx = fx_calculation(q, del6_v)
     with computation(PARALLEL), interval(2,3):
         if __INLINED(nord2 == 0):
             with horizontal(
                 region[i_start + nmax: i_end - nmax, j_start + nmax: j_end + nmax]
             ):
-                fx = fx_calculation(q, del6_v, order)
+                fx = fx_calculation(q, del6_v)
         else:
-            fx = fx_calculation(q, del6_v, order)
+            fx = fx_calculation(q, del6_v)
     with computation(PARALLEL), interval(3,None):
         if __INLINED(nord3 == 0):
             with horizontal(
                 region[i_start + nmax: i_end - nmax, j_start + nmax: j_end + nmax]
             ):
-                fx = fx_calculation(q, del6_v, order)
+                fx = fx_calculation(q, del6_v)
         else:
-            fx = fx_calculation(q, del6_v, order)
+            fx = fx_calculation(q, del6_v)
 
-def fy_calc_stencil_region(q: FloatField, del6_u: FloatFieldIJ, fy: FloatField, order: int):
+def fy_calc_stencil_region(q: FloatField, del6_u: FloatFieldIJ, fy: FloatField):
     from __externals__ import i_end, i_start, j_end, j_start, nmax, nord0, nord1, nord2, nord3
 
     with computation(PARALLEL), interval(0,1):
@@ -520,61 +520,63 @@ def fy_calc_stencil_region(q: FloatField, del6_u: FloatFieldIJ, fy: FloatField, 
             with horizontal(
                 region[i_start + nmax: i_end - nmax, j_start + nmax: j_end + nmax]
             ):
-                fy = fy_calculation(q, del6_u, order)
+                fy = fy_calculation(q, del6_u)
         else:
-            fy = fy_calculation(q, del6_u, order)
+            fy = fy_calculation(q, del6_u)
     with computation(PARALLEL), interval(1,2):
         if __INLINED(nord1 == 0):
             with horizontal(
                 region[i_start + nmax: i_end - nmax, j_start + nmax: j_end + nmax]
             ):
-                fy = fy_calculation(q, del6_u, order)
+                fy = fy_calculation(q, del6_u)
         else:
-            fy = fy_calculation(q, del6_u, order)
+            fy = fy_calculation(q, del6_u)
     with computation(PARALLEL), interval(2,3):
         if __INLINED(nord2 == 0):
             with horizontal(
                 region[i_start + nmax: i_end - nmax, j_start + nmax: j_end + nmax]
             ):
-                fy = fy_calculation(q, del6_u, order)
+                fy = fy_calculation(q, del6_u)
         else:
-            fy = fy_calculation(q, del6_u, order)
+            fy = fy_calculation(q, del6_u)
     with computation(PARALLEL), interval(3,None):
         if __INLINED(nord3 == 0):
             with horizontal(
                 region[i_start + nmax: i_end - nmax, j_start + nmax: j_end + nmax]
             ):
-                fy = fy_calculation(q, del6_u, order)
+                fy = fy_calculation(q, del6_u)
         else:
-            fy = fy_calculation(q, del6_u, order)
+            fy = fy_calculation(q, del6_u)
         
 
 @gtstencil()
-def fx_calc_stencil_column(q: FloatField, del6_v: FloatFieldIJ, fx: FloatField, nord: FloatFieldK, n: int):
+def fx_calc_stencil_column(q: FloatField, del6_v: FloatFieldIJ, fx: FloatField, nord: FloatFieldK):
     with computation(PARALLEL), interval(...):
         if nord > 0:
-            fx = fx_calculation(q, del6_v, n + 2)
+            fx = fx_calculation_neg(q, del6_v)
 
 @gtstencil()
-def fy_calc_stencil_column(q: FloatField, del6_u: FloatFieldIJ, fy: FloatField, nord: FloatFieldK, n: int):
+def fy_calc_stencil_column(q: FloatField, del6_u: FloatFieldIJ, fy: FloatField, nord: FloatFieldK):
     with computation(PARALLEL), interval(...):
         if nord > 0:
-            fy = fy_calculation(q, del6_u, n + 2)
+            fy = fy_calculation_neg(q, del6_u)
 
 
 @gtscript.function
-def fx_calculation(q: FloatField, del6_v: FloatField, order: int):
-    fx = del6_v * (q[-1, 0, 0] - q)
-    fx = -1.0 * fx if order > 1 else fx
-    return fx
-
+def fx_calculation(q: FloatField, del6_v: FloatField):
+    return del6_v * (q[-1, 0, 0] - q)
 
 @gtscript.function
-def fy_calculation(q: FloatField, del6_u: FloatField, order: int):
-    fy = del6_u * (q[0, -1, 0] - q)
-    fy = fy * -1 if order > 1 else fy
-    return fy
+def fx_calculation_neg(q: FloatField, del6_v: FloatField):
+    return - del6_v * (q[-1, 0, 0] - q)
 
+@gtscript.function
+def fy_calculation(q: FloatField, del6_u: FloatField):
+    return del6_u * (q[0, -1, 0] - q)
+
+@gtscript.function
+def fy_calculation_neg(q: FloatField, del6_u: FloatField):
+    return - del6_u * (q[0, -1, 0] - q)
 
 # WARNING: untested
 @gtstencil()
@@ -873,7 +875,7 @@ def compute_no_sg(
         )
 
     fx_calc_stencil(
-        d2, grid.del6_v, fx2, order=1, origin=fx_origin, domain=(f1_nx, f1_ny, nk)
+        d2, grid.del6_v, fx2, origin=fx_origin, domain=(f1_nx, f1_ny, nk)
     )
 
     conditional_corner_copy_y(
@@ -891,7 +893,6 @@ def compute_no_sg(
         d2,
         grid.del6_u,
         fy2,
-        order=1,
         origin=fx_origin,
         domain=(f1_nx - 1, f1_ny + 1, nk),
     )
@@ -913,7 +914,6 @@ def compute_no_sg(
             grid.del6_v,
             fx2,
             nord,
-            n,
             origin=nt_origin,
             domain=(nt_nx - 1, nt_ny - 2, nk),
         )
@@ -926,7 +926,6 @@ def compute_no_sg(
             grid.del6_u,
             fy2,
             nord,
-            n,
             origin=nt_origin,
             domain=(nt_nx - 2, nt_ny - 1, nk),
         )
