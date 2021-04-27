@@ -159,7 +159,6 @@ class StencilWrapper:
         origin: Optional[Tuple[int, ...]] = None,
         domain: Optional[Index3D] = None,
         *,
-        disable_cache: bool = False,
         delay_compile: Optional[bool] = None,
         device_sync: Optional[bool] = None,
         **kwargs,
@@ -175,9 +174,6 @@ class StencilWrapper:
 
         self.domain: Optional[Index3D] = domain
         """The compute domain."""
-
-        self.disable_cache: bool = disable_cache
-        """Disable caching if true."""
 
         self.backend: str = global_config.get_backend()
         """The gt4py backend name."""
