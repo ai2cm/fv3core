@@ -260,6 +260,7 @@ class AcousticDynamics:
             self._update_height_on_d_grid = updatedzd.UpdateDeltaZOnDGrid(
                 self.grid, self._dp_ref, d_sw.get_column_namelist(), d_sw.k_bounds()
             )
+            self._riem_solver3 = RiemannSolver3(spec.namelist)
 
         self._set_gz = StencilWrapper(
             set_gz,
@@ -527,10 +528,7 @@ class AcousticDynamics:
                     state.wsd,
                     dt,
                 )
-                riem_solver3 = utils.cached_stencil_class(RiemannSolver3)(
-                    spec.namelist, cache_key="riem_solver3"
-                )
-                riem_solver3(
+                self._riem_solver3(
                     remap_step,
                     dt,
                     state.cappa,
