@@ -118,10 +118,8 @@ class RiemannSolver3:
             grid.js,
             grid.je,
         )
-
-        km = grid.npz - 1
-        riemorigin = (grid.is_, grid.js, 0)
-        domain = (grid.nic, grid.njc, km + 2)
+        riemorigin = grid.compute_origin()
+        domain = grid.domain_shape_compute(add=(0, 0, 1))
         shape = grid.domain_shape_full(add=(1, 1, 1))
         self._tmp_dm = utils.make_storage_from_shape(shape, riemorigin)
         self._tmp_cp3 = utils.make_storage_from_shape(shape, riemorigin)
