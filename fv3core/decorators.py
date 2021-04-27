@@ -208,8 +208,8 @@ class StencilWrapper:
         self.stencil_object: Optional[gt4py.StencilObject] = stencil_object
         """The current generated stencil object returned from gt4py."""
 
-        self._arg_names: List[str] = []
-        """List of stencil argument names."""
+        self.arg_names: List[str] = []
+        """List of argument names."""
 
         self._write_fields: List[str] = []
         """List of fields written in the stencil."""
@@ -218,7 +218,7 @@ class StencilWrapper:
         """Clears cached data items."""
         self.is_cached = False
         self.field_origins.clear()
-        self._arg_names.clear()
+        self.arg_names.clear()
         self._write_fields.clear()
 
     def __call__(
@@ -266,6 +266,8 @@ class StencilWrapper:
         """Processes keyword args for direct calls to stencil_object.run."""
         if domain is None:
             domain = self.domain
+        if not self.arg_names:
+            self.arg_names = self.field_names + self.parameter_names
         if "exec_info" not in kwargs:
             kwargs["exec_info"] = None
 
@@ -277,6 +279,7 @@ class StencilWrapper:
         self, origin: Tuple[int, ...], *args, **kwargs
     ) -> Dict[str, Tuple[int, ...]]:
         """Computes the origin for each field in the stencil call."""
+
         field_origins: Dict[str, Tuple[int, ...]] = {"_all_": origin}
         field_names: List[str] = self.field_names
         for i in range(len(field_names)):
@@ -312,13 +315,6 @@ class StencilWrapper:
     def parameter_names(self) -> List[str]:
         """Returns the list of stencil parameter names."""
         return list(self.stencil_object.parameter_info.keys())
-
-    @property
-    def arg_names(self) -> List[str]:
-        """Returns the list of stencil argument names."""
-        if not self._arg_names:
-            self._arg_names = self.field_names + self.parameter_names
-        return self._arg_names
 
     @property
     def write_fields(self) -> List[str]:
@@ -357,9 +353,6 @@ class FV3StencilObject(StencilWrapper):
         self._data_cache: StencilDataCache = StencilDataCache("data_cache.p")
         """Data cache to store axis offsets and passed externals."""
 
-        self._axis_offsets: Dict[str, Any] = {}
-        """Saved axis offsets."""
-
     @property
     def built(self) -> bool:
         """Indicates whether the stencil is loaded."""
@@ -378,6 +371,19 @@ class FV3StencilObject(StencilWrapper):
         return (
             cached_data["passed_externals"] if "passed_externals" in cached_data else {}
         )
+
+    def _check_axis_offsets(self, axis_offsets: Dict[str, Any]) -> bool:
+        for key, value in self.axis_offsets.items():
+            if axis_offsets[key] != value:
+                return True
+        return False
+
+    def _check_passed_externals(self) -> bool:
+        passed_externals = self.passed_externals
+        for key, value in self._passed_externals.items():
+            if passed_externals[key] != value:
+                return True
+        return False
 
     def __call__(
         self,
@@ -402,12 +408,19 @@ class FV3StencilObject(StencilWrapper):
         assert domain is not None, "no domain provided at call time"
 
         # Can optimize this by marking stencils that need these
-        if not self._axis_offsets:
-            self._axis_offsets = fv3core.utils.axis_offsets(spec.grid, origin, domain)
-        axis_offsets = self._axis_offsets
+        axis_offsets = fv3core.utils.axis_offsets(spec.grid, origin, domain)
 
         self.rebuild = global_config.get_rebuild()
         regenerate_stencil = not self.built or self.rebuild
+
+        # Check if we really do need to regenerate
+        if not regenerate_stencil:
+            axis_offsets_changed = self._check_axis_offsets(axis_offsets)
+            regenerate_stencil = regenerate_stencil or axis_offsets_changed
+
+        if self._passed_externals and not regenerate_stencil:
+            passed_externals_changed = self._check_passed_externals()
+            regenerate_stencil = regenerate_stencil or passed_externals_changed
 
         if regenerate_stencil:
             self.backend = global_config.get_backend()
