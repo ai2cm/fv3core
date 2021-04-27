@@ -112,7 +112,7 @@ class RiemannSolver3:
         grid = spec.grid
         self._sim1_solve = Sim1Solver(
             namelist,
-            spec.grid,
+            grid,
             grid.is_,
             grid.ie,
             grid.js,
