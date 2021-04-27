@@ -482,7 +482,7 @@ def fx_calc_stencil_region(q: FloatField, del6_v: FloatFieldIJ, fx: FloatField):
     with computation(PARALLEL), interval(0,1):
         if __INLINED(nord0 == 0):
             with horizontal(
-                region[i_start + nmax: i_end - nmax, j_start + nmax: j_end + nmax]
+                region[i_start + nmax: i_end - nmax, j_start + nmax: j_end - nmax]
             ):
                 fx = fx_calculation(q, del6_v)
         else:
@@ -490,7 +490,7 @@ def fx_calc_stencil_region(q: FloatField, del6_v: FloatFieldIJ, fx: FloatField):
     with computation(PARALLEL), interval(1,2):
         if __INLINED(nord1 == 0):
             with horizontal(
-                region[i_start + nmax: i_end - nmax, j_start + nmax: j_end + nmax]
+                region[i_start + nmax: i_end - nmax, j_start + nmax: j_end - nmax]
             ):
                 fx = fx_calculation(q, del6_v)
         else:
@@ -498,7 +498,7 @@ def fx_calc_stencil_region(q: FloatField, del6_v: FloatFieldIJ, fx: FloatField):
     with computation(PARALLEL), interval(2,3):
         if __INLINED(nord2 == 0):
             with horizontal(
-                region[i_start + nmax: i_end - nmax, j_start + nmax: j_end + nmax]
+                region[i_start + nmax: i_end - nmax, j_start + nmax: j_end - nmax]
             ):
                 fx = fx_calculation(q, del6_v)
         else:
@@ -506,7 +506,7 @@ def fx_calc_stencil_region(q: FloatField, del6_v: FloatFieldIJ, fx: FloatField):
     with computation(PARALLEL), interval(3,None):
         if __INLINED(nord3 == 0):
             with horizontal(
-                region[i_start + nmax: i_end - nmax, j_start + nmax: j_end + nmax]
+                region[i_start + nmax: i_end - nmax, j_start + nmax: j_end - nmax]
             ):
                 fx = fx_calculation(q, del6_v)
         else:
@@ -518,7 +518,7 @@ def fy_calc_stencil_region(q: FloatField, del6_u: FloatFieldIJ, fy: FloatField):
     with computation(PARALLEL), interval(0,1):
         if __INLINED(nord0 == 0):
             with horizontal(
-                region[i_start + nmax: i_end - nmax, j_start + nmax: j_end + nmax]
+                region[i_start + nmax: i_end - nmax, j_start + nmax: j_end - nmax]
             ):
                 fy = fy_calculation(q, del6_u)
         else:
@@ -526,7 +526,7 @@ def fy_calc_stencil_region(q: FloatField, del6_u: FloatFieldIJ, fy: FloatField):
     with computation(PARALLEL), interval(1,2):
         if __INLINED(nord1 == 0):
             with horizontal(
-                region[i_start + nmax: i_end - nmax, j_start + nmax: j_end + nmax]
+                region[i_start + nmax: i_end - nmax, j_start + nmax: j_end - nmax]
             ):
                 fy = fy_calculation(q, del6_u)
         else:
@@ -534,7 +534,7 @@ def fy_calc_stencil_region(q: FloatField, del6_u: FloatFieldIJ, fy: FloatField):
     with computation(PARALLEL), interval(2,3):
         if __INLINED(nord2 == 0):
             with horizontal(
-                region[i_start + nmax: i_end - nmax, j_start + nmax: j_end + nmax]
+                region[i_start + nmax: i_end - nmax, j_start + nmax: j_end - nmax]
             ):
                 fy = fy_calculation(q, del6_u)
         else:
@@ -542,7 +542,7 @@ def fy_calc_stencil_region(q: FloatField, del6_u: FloatFieldIJ, fy: FloatField):
     with computation(PARALLEL), interval(3,None):
         if __INLINED(nord3 == 0):
             with horizontal(
-                region[i_start + nmax: i_end - nmax, j_start + nmax: j_end + nmax]
+                region[i_start + nmax: i_end - nmax, j_start + nmax: j_end - nmax]
             ):
                 fy = fy_calculation(q, del6_u)
         else:
@@ -641,7 +641,7 @@ def d2_damp_interval(q: FloatField, d2: FloatField, damp: FloatFieldK):
     with computation(PARALLEL), interval(0,1):
         if __INLINED(nord0 == 0):
             with horizontal(
-                region[i_start + nmax: i_end - nmax, j_start + nmax: j_end + nmax]
+                region[i_start + nmax: i_end - nmax, j_start + nmax: j_end - nmax]
             ):
                 d2[0, 0, 0] = damp * q
         else:
@@ -649,7 +649,7 @@ def d2_damp_interval(q: FloatField, d2: FloatField, damp: FloatFieldK):
     with computation(PARALLEL), interval(1,2):
         if __INLINED(nord1 == 0):
             with horizontal(
-                region[i_start + nmax: i_end - nmax, j_start + nmax: j_end + nmax]
+                region[i_start + nmax: i_end - nmax, j_start + nmax: j_end - nmax]
             ):
                 d2[0, 0, 0] = damp * q
         else:
@@ -657,7 +657,7 @@ def d2_damp_interval(q: FloatField, d2: FloatField, damp: FloatFieldK):
     with computation(PARALLEL), interval(2,3):
         if __INLINED(nord2 == 0):
             with horizontal(
-                region[i_start + nmax: i_end - nmax, j_start + nmax: j_end + nmax]
+                region[i_start + nmax: i_end - nmax, j_start + nmax: j_end - nmax]
             ):
                 d2[0, 0, 0] = damp * q
         else:
@@ -665,7 +665,7 @@ def d2_damp_interval(q: FloatField, d2: FloatField, damp: FloatFieldK):
     with computation(PARALLEL), interval(3,None):
         if __INLINED(nord3 == 0):
             with horizontal(
-                region[i_start + nmax: i_end - nmax, j_start + nmax: j_end + nmax]
+                region[i_start + nmax: i_end - nmax, j_start + nmax: j_end - nmax]
             ):
                 d2[0, 0, 0] = damp * q
         else:
@@ -734,8 +734,8 @@ def compute_delnflux_no_sg(
     q: FloatField,
     fx: FloatField,
     fy: FloatField,
-    nord: int,
-    damp_c: float,
+    nord: FloatFieldK,
+    damp_c: FloatFieldK,
     d2: Optional["FloatField"] = None,
     mass: Optional["FloatField"] = None,
 ):
@@ -754,6 +754,8 @@ def compute_delnflux_no_sg(
     grid = spec.grid
     nk = grid.npz
     full_origin = (grid.isd, grid.jsd, 0)
+    print(nord)
+    print("!!!!!!!!!")
     if d2 is None:
         d2 = utils.make_storage_from_shape(
             q.shape, full_origin, cache_key="delnflux_d2"
@@ -800,6 +802,8 @@ def compute_no_sg(
         conditional_calc=True,
         column_check=False,
 ):
+    print(nord)
+    print("!!!!!!!!!")
     if (conditional_calc==True) and (column_check==False):
         if damp_c[0] <= 1e-5: #dcon_threshold
             raise Exception("damp <= 1e-5 in column_cols is untested")
@@ -808,23 +812,25 @@ def compute_no_sg(
     if not np.all(n in [0,2,3] for n in nord[:]):
         raise NotImplementedError("nord must have values 0, 2, or 3")
     nmax = int(max(nord[:]))
+    print(nmax)
     grid = spec.grid
-    # nord = int(nord)
     i1 = grid.is_ - 1 - nmax
     i2 = grid.ie + 1 + nmax
     j1 = grid.js - 1 - nmax
     j2 = grid.je + 1 + nmax
     nk = grid.npz
-    origin_d2 = (int(i1), int(j1), 0)
-    domain_d2 = (int(i2 - i1 + 1), int(j2 - j1 + 1), nk)
-    f1_ny = int(grid.je - grid.js + 1 + 2 * nmax)
-    f1_nx = int(grid.ie - grid.is_ + 2 + 2 * nmax)
-    fx_origin = (int(grid.is_ - nmax), int(grid.js - nmax), 0)
+    origin_d2 = (i1, j1, 0)
+    domain_d2 = (i2 - i1 + 1, j2 - j1 + 1, nk)
+    f1_ny = grid.je - grid.js + 1 + 2 * nmax
+    f1_nx = grid.ie - grid.is_ + 2 + 2 * nmax
+    fx_origin = (grid.is_ - nmax, grid.js - nmax, 0)
 
     preamble_ax_offsets = axis_offsets(spec.grid, origin_d2, domain_d2)
     full_ax_offsets = axis_offsets(spec.grid, (grid.isd, grid.jsd, 0), (grid.nid, grid.njd, nk))
     fx_ax_offsets = axis_offsets(spec.grid, fx_origin, (f1_nx, f1_ny, nk))
     fy_ax_offsets = axis_offsets(spec.grid, fx_origin, (f1_nx - 1, f1_ny + 1, nk))
+
+    print(mass)
 
     if mass is None:
         d2_damp = gtscript.stencil(
