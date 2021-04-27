@@ -15,26 +15,26 @@ r3 = 1.0 / 3.0
 r23 = 2.0 / 3.0
 
 
-@gtstencil()
+@gtstencil
 def set_dp(dp1: FloatField, pe1: FloatField):
     with computation(PARALLEL), interval(...):
         dp1 = pe1[0, 0, 1] - pe1
 
 
-@gtstencil()
+@gtstencil
 def set_eulerian_pressures(pe: FloatField, ptop: FloatFieldIJ, pbot: FloatFieldIJ):
     with computation(FORWARD), interval(0, 1):
         ptop = pe[0, 0, 0]
         pbot = pe[0, 0, 1]
 
 
-@gtstencil()
+@gtstencil
 def set_remapped_quantity(q: FloatField, set_values: FloatFieldIJ):
     with computation(FORWARD), interval(0, 1):
         q = set_values[0, 0]
 
 
-@gtstencil()
+@gtstencil
 def lagrangian_contributions(
     pe1: FloatField,
     ptop: FloatFieldIJ,

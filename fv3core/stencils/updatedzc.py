@@ -104,7 +104,7 @@ class UpdateGeopotentialHeightOnCGrid:
             domain=(grid.nic + 3, grid.njc + 3, grid.npz + 1),
         )
         # TODO: convert to FrozenStencil when we have selective validation
-        self._set_zero_2d = gtstencil()(set_zero_2d)
+        self._set_zero_2d = gtstencil(set_zero_2d)
 
     def __call__(
         self,

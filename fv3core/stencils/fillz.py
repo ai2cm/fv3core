@@ -9,7 +9,7 @@ from fv3core.decorators import gtstencil
 from fv3core.utils.typing import FloatField, FloatFieldIJ, IntFieldIJ
 
 
-@gtstencil()
+@gtstencil
 def fix_tracer(
     q: FloatField,
     dp: FloatField,

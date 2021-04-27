@@ -5,7 +5,7 @@ from fv3core.decorators import gtstencil
 from fv3core.utils.typing import FloatField
 
 
-@gtstencil()
+@gtstencil
 def edge_pe(pe: FloatField, delp: FloatField, ptop: float):
     from __externals__ import local_ie, local_is, local_je, local_js
 

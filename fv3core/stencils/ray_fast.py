@@ -27,7 +27,7 @@ def dm_layer(rf, dp, wind):
     return (1.0 - rf) * dp * wind
 
 
-@gtstencil()
+@gtstencil
 def ray_fast_wind(
     u: FloatField,
     v: FloatField,

@@ -8,7 +8,7 @@ from fv3core.decorators import gtstencil
 from fv3core.utils.typing import FloatField, FloatFieldIJ
 
 
-@gtstencil()
+@gtstencil
 @typing.no_type_check
 def sim1_solver(
     w: FloatField,

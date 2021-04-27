@@ -48,7 +48,7 @@ def extrap_corner(
     return qa + x1 / (x2 - x1) * (qa - qb)
 
 
-@gtstencil()
+@gtstencil
 def _sw_corner(
     qin: FloatField,
     qout: FloatField,
@@ -93,7 +93,7 @@ def _sw_corner(
         qout = (ec1 + ec2 + ec3) * (1.0 / 3.0)
 
 
-@gtstencil()
+@gtstencil
 def _nw_corner(
     qin: FloatField,
     qout: FloatField,
@@ -136,7 +136,7 @@ def _nw_corner(
         qout = (ec1 + ec2 + ec3) * (1.0 / 3.0)
 
 
-@gtstencil()
+@gtstencil
 def _ne_corner(
     qin: FloatField,
     qout: FloatField,
@@ -179,7 +179,7 @@ def _ne_corner(
         qout = (ec1 + ec2 + ec3) * (1.0 / 3.0)
 
 
-@gtstencil()
+@gtstencil
 def _se_corner(
     qin: FloatField,
     qout: FloatField,
@@ -222,13 +222,13 @@ def _se_corner(
         qout = (ec1 + ec2 + ec3) * (1.0 / 3.0)
 
 
-@gtstencil()
+@gtstencil
 def ppm_volume_mean_x(qin: FloatField, qx: FloatField):
     with computation(PARALLEL), interval(...):
         qx[0, 0, 0] = b2 * (qin[-2, 0, 0] + qin[1, 0, 0]) + b1 * (qin[-1, 0, 0] + qin)
 
 
-@gtstencil()
+@gtstencil
 def ppm_volume_mean_y(qin: FloatField, qy: FloatField):
     with computation(PARALLEL), interval(...):
         qy[0, 0, 0] = b2 * (qin[0, -2, 0] + qin[0, 1, 0]) + b1 * (qin[0, -1, 0] + qin)
@@ -239,7 +239,7 @@ def lagrange_y_func(qx):
     return a2 * (qx[0, -2, 0] + qx[0, 1, 0]) + a1 * (qx[0, -1, 0] + qx)
 
 
-@gtstencil()
+@gtstencil
 def lagrange_interpolation_y(qx: FloatField, qout: FloatField):
     with computation(PARALLEL), interval(...):
         qout = lagrange_y_func(qx)
@@ -250,62 +250,62 @@ def lagrange_x_func(qy):
     return a2 * (qy[-2, 0, 0] + qy[1, 0, 0]) + a1 * (qy[-1, 0, 0] + qy)
 
 
-@gtstencil()
+@gtstencil
 def lagrange_interpolation_x(qy: FloatField, qout: FloatField):
     with computation(PARALLEL), interval(...):
         qout = lagrange_x_func(qy)
 
 
-@gtstencil()
+@gtstencil
 def cubic_interpolation_south(qx: FloatField, qout: FloatField, qxx: FloatField):
     with computation(PARALLEL), interval(...):
         qxx0 = qxx
         qxx = c1 * (qx[0, -1, 0] + qx) + c2 * (qout[0, -1, 0] + qxx0[0, 1, 0])
 
 
-@gtstencil()
+@gtstencil
 def cubic_interpolation_north(qx: FloatField, qout: FloatField, qxx: FloatField):
     with computation(PARALLEL), interval(...):
         qxx0 = qxx
         qxx = c1 * (qx[0, -1, 0] + qx) + c2 * (qout[0, 1, 0] + qxx0[0, -1, 0])
 
 
-@gtstencil()
+@gtstencil
 def cubic_interpolation_west(qy: FloatField, qout: FloatField, qyy: FloatField):
     with computation(PARALLEL), interval(...):
         qyy0 = qyy
         qyy = c1 * (qy[-1, 0, 0] + qy) + c2 * (qout[-1, 0, 0] + qyy0[1, 0, 0])
 
 
-@gtstencil()
+@gtstencil
 def cubic_interpolation_east(qy: FloatField, qout: FloatField, qyy: FloatField):
     with computation(PARALLEL), interval(...):
         qyy0 = qyy
         qyy = c1 * (qy[-1, 0, 0] + qy) + c2 * (qout[1, 0, 0] + qyy0[-1, 0, 0])
 
 
-@gtstencil()
+@gtstencil
 def qout_avg(qxx: FloatField, qyy: FloatField, qout: FloatField):
     with computation(PARALLEL), interval(...):
         qout[0, 0, 0] = 0.5 * (qxx + qyy)
 
 
-@gtstencil()
+@gtstencil
 def vort_adjust(qxx: FloatField, qyy: FloatField, qout: FloatField):
     with computation(PARALLEL), interval(...):
         qout[0, 0, 0] = 0.5 * (qxx + qyy)
 
 
-# @gtstencil()
+# @gtstencil
 # def x_edge_q2_west(qin: FloatField, dxa: FloatField, q2: FloatField):
 #    with computation(PARALLEL), interval(...):
 #        q2 = (qin[-1, 0, 0] * dxa + qin * dxa[-1, 0, 0]) / (dxa[-1, 0, 0] + dxa)
 
-# @gtstencil()
+# @gtstencil
 # def x_edge_qout_west_q2(edge_w: FloatField, q2: FloatField, qout: FloatField):
 #    with computation(PARALLEL), interval(...):
 #        qout = edge_w * q2[0, -1, 0] + (1.0 - edge_w) * q2
-@gtstencil()
+@gtstencil
 def qout_x_edge(
     qin: FloatField, dxa: FloatFieldIJ, edge_w: FloatFieldIJ, qout: FloatField
 ):
@@ -314,7 +314,7 @@ def qout_x_edge(
         qout[0, 0, 0] = edge_w * q2[0, -1, 0] + (1.0 - edge_w) * q2
 
 
-@gtstencil()
+@gtstencil
 def qout_y_edge(
     qin: FloatField, dya: FloatFieldIJ, edge_s: FloatFieldI, qout: FloatField
 ):
@@ -323,7 +323,7 @@ def qout_y_edge(
         qout[0, 0, 0] = edge_s * q1[-1, 0, 0] + (1.0 - edge_s) * q1
 
 
-@gtstencil()
+@gtstencil
 def qx_edge_west(qin: FloatField, dxa: FloatFieldIJ, qx: FloatField):
     with computation(PARALLEL), interval(...):
         g_in = dxa[1, 0] / dxa
@@ -338,7 +338,7 @@ def qx_edge_west(qin: FloatField, dxa: FloatFieldIJ, qx: FloatField):
         #     - (g_in * qx + qx[2, 0, 0])) / (2.0 + 2.0 * g_in)
 
 
-@gtstencil()
+@gtstencil
 def qx_edge_west2(qin: FloatField, dxa: FloatFieldIJ, qx: FloatField):
     with computation(PARALLEL), interval(...):
         g_in = dxa / dxa[-1, 0]
@@ -348,7 +348,7 @@ def qx_edge_west2(qin: FloatField, dxa: FloatFieldIJ, qx: FloatField):
         ) / (2.0 + 2.0 * g_in)
 
 
-@gtstencil()
+@gtstencil
 def qx_edge_east(qin: FloatField, dxa: FloatFieldIJ, qx: FloatField):
     with computation(PARALLEL), interval(...):
         g_in = dxa[-2, 0] / dxa[-1, 0]
@@ -359,7 +359,7 @@ def qx_edge_east(qin: FloatField, dxa: FloatFieldIJ, qx: FloatField):
         )
 
 
-@gtstencil()
+@gtstencil
 def qx_edge_east2(qin: FloatField, dxa: FloatFieldIJ, qx: FloatField):
     with computation(PARALLEL), interval(...):
         g_in = dxa[-1, 0] / dxa
@@ -369,7 +369,7 @@ def qx_edge_east2(qin: FloatField, dxa: FloatFieldIJ, qx: FloatField):
         ) / (2.0 + 2.0 * g_in)
 
 
-@gtstencil()
+@gtstencil
 def qy_edge_south(qin: FloatField, dya: FloatFieldIJ, qy: FloatField):
     with computation(PARALLEL), interval(...):
         g_in = dya[0, 1] / dya
@@ -380,7 +380,7 @@ def qy_edge_south(qin: FloatField, dya: FloatFieldIJ, qy: FloatField):
         )
 
 
-@gtstencil()
+@gtstencil
 def qy_edge_south2(qin: FloatField, dya: FloatFieldIJ, qy: FloatField):
     with computation(PARALLEL), interval(...):
         g_in = dya / dya[0, -1]
@@ -390,7 +390,7 @@ def qy_edge_south2(qin: FloatField, dya: FloatFieldIJ, qy: FloatField):
         ) / (2.0 + 2.0 * g_in)
 
 
-@gtstencil()
+@gtstencil
 def qy_edge_north(qin: FloatField, dya: FloatFieldIJ, qy: FloatField):
     with computation(PARALLEL), interval(...):
         g_in = dya[0, -2] / dya[0, -1]
@@ -401,7 +401,7 @@ def qy_edge_north(qin: FloatField, dya: FloatFieldIJ, qy: FloatField):
         )
 
 
-@gtstencil()
+@gtstencil
 def qy_edge_north2(qin: FloatField, dya: FloatFieldIJ, qy: FloatField):
     with computation(PARALLEL), interval(...):
         g_in = dya[0, -1] / dya
@@ -424,6 +424,7 @@ def compute_qout_x_edges(qin, qout, kstart, nk):
     je1 = grid().je if grid().north_edge else grid().je + 1
     dj2 = je1 - js2 + 1
     if grid().west_edge:
+        print(qin.shape, (grid().is_, js2, kstart), (1, dj2, nk))
         qout_x_edge(
             qin,
             grid().dxa,

@@ -19,7 +19,7 @@ from fv3core.decorators import gtstencil
 from fv3core.utils.typing import FloatField, FloatFieldIJ
 
 
-@gtstencil()
+@gtstencil
 def precompute(
     delp: FloatField,
     cappa: FloatField,
@@ -69,7 +69,7 @@ def precompute(
         dz = zh[0, 0, 1] - zh
 
 
-@gtstencil()
+@gtstencil
 def last_call_copy(
     peln_run: FloatField,
     peln: FloatField,
@@ -84,7 +84,7 @@ def last_call_copy(
         pe = pem
 
 
-@gtstencil()
+@gtstencil
 def finalize(
     zs: FloatFieldIJ,
     dz: FloatField,

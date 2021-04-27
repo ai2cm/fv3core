@@ -8,7 +8,7 @@ from fv3core.utils.typing import FloatField, FloatFieldIJ
 # TODO: the mix of local and global regions is strange here
 # it's a workaround to specify DON'T do this calculation if on the tile edge
 # check that the fortran is correct
-@gtstencil()
+@gtstencil
 def main_ut(
     uc: FloatField,
     vc: FloatField,
@@ -33,7 +33,7 @@ def main_ut(
 # TODO: the mix of local and global regions is strange here
 # it's a workaround to specify DON'T do this calculation if on the tile edge
 # check that the fortran is correct
-@gtstencil()
+@gtstencil
 def main_vt(
     uc: FloatField,
     vc: FloatField,
@@ -53,7 +53,7 @@ def main_vt(
             vt = vtmp
 
 
-@gtstencil()
+@gtstencil
 def ut_y_edge(
     uc: FloatField,
     sin_sg1: FloatFieldIJ,
@@ -68,7 +68,7 @@ def ut_y_edge(
             ut = (uc / sin_sg3[-1, 0]) if (uc * dt > 0) else (uc / sin_sg1)
 
 
-@gtstencil()
+@gtstencil
 def ut_x_edge(uc: FloatField, cosa_u: FloatFieldIJ, vt: FloatField, ut: FloatField):
     from __externals__ import i_end, i_start, j_end, j_start, local_ie, local_is
 
@@ -89,7 +89,7 @@ def ut_x_edge(uc: FloatField, cosa_u: FloatFieldIJ, vt: FloatField, ut: FloatFie
             ut = utmp
 
 
-@gtstencil()
+@gtstencil
 def vt_y_edge(vc: FloatField, cosa_v: FloatFieldIJ, ut: FloatField, vt: FloatField):
     from __externals__ import i_end, i_start, j_end, j_start, local_je, local_js
 
@@ -123,7 +123,7 @@ def vt_y_edge(vc: FloatField, cosa_v: FloatFieldIJ, ut: FloatField, vt: FloatFie
             vt = vtmp
 
 
-@gtstencil()
+@gtstencil
 def vt_x_edge(
     vc: FloatField,
     sin_sg2: FloatFieldIJ,
@@ -138,7 +138,7 @@ def vt_x_edge(
             vt = (vc / sin_sg4[0, -1]) if (vc * dt > 0) else (vc / sin_sg2)
 
 
-@gtstencil()
+@gtstencil
 def ut_corners(
     cosa_u: FloatFieldIJ,
     cosa_v: FloatFieldIJ,
@@ -224,7 +224,7 @@ def ut_corners(
             ) * damp
 
 
-@gtstencil()
+@gtstencil
 def vt_corners(
     cosa_u: FloatFieldIJ,
     cosa_v: FloatFieldIJ,
@@ -297,7 +297,7 @@ def vt_corners(
 
 
 """
-@gtstencil()
+@gtstencil
 def fxadv_stencil(
     cosa_u: FloatFieldIJ,
     cosa_v: FloatFieldIJ,
@@ -345,7 +345,7 @@ def fxadv_stencil(
 """
 
 
-@gtstencil()
+@gtstencil
 def fxadv_fluxes_stencil(
     sin_sg1: FloatFieldIJ,
     sin_sg2: FloatFieldIJ,

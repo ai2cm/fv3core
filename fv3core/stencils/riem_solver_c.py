@@ -10,7 +10,7 @@ from fv3core.decorators import gtstencil
 from fv3core.utils.typing import FloatField, FloatFieldIJ
 
 
-@gtstencil()
+@gtstencil
 @typing.no_type_check
 def precompute(
     delpc: FloatField,
@@ -47,7 +47,7 @@ def precompute(
         pm = (peg[0, 0, 1] - peg) / log(peg[0, 0, 1] / peg)
 
 
-@gtstencil()
+@gtstencil
 def finalize(
     pe2: FloatField,
     pem: FloatField,

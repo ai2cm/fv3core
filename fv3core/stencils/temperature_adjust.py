@@ -7,7 +7,7 @@ from fv3core.stencils.basic_operations import sign
 from fv3core.utils.typing import FloatField
 
 
-@gtstencil()
+@gtstencil
 def compute_pkz_tempadjust(
     delp: FloatField,
     delz: FloatField,

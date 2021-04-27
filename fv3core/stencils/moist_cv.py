@@ -103,7 +103,7 @@ def moist_cv_default_fn():
     return cvm, gz
 
 
-@gtstencil()
+@gtstencil
 def moist_cv_nwat6(
     qvapor: FloatField,
     qliquid: FloatField,
@@ -161,7 +161,7 @@ def moist_pt_func(
     return cvm, gz, q_con, cappa, pt
 
 
-@gtstencil()
+@gtstencil
 def moist_te_2d(
     qvapor: FloatField,
     qliquid: FloatField,
@@ -207,7 +207,7 @@ def moist_te_2d(
 # TODO: Calling gtscript functions from inside the if statements is causing
 # problems, if we want 'moist_phys' to be changeable, we either need to
 # duplicate the stencil code or fix the gt4py bug.
-@gtstencil()
+@gtstencil
 def moist_te_total_energy(
     qvapor: FloatField,
     qliquid: FloatField,
@@ -250,7 +250,7 @@ def moist_te_total_energy(
         #    )
 
 
-@gtstencil()
+@gtstencil
 def moist_pt(
     qvapor: FloatField,
     qliquid: FloatField,
@@ -298,7 +298,7 @@ def last_pt(
     return (pt + dtmp * pkz) / ((1.0 + zvir * qv) * (1.0 - gz))
 
 
-@gtstencil()
+@gtstencil
 def moist_pt_last_step(
     qvapor: FloatField,
     qliquid: FloatField,
@@ -331,7 +331,7 @@ def compute_pkz_func(delp, delz, pt, cappa):
     return exp(cappa * log(constants.RDG * delp / delz * pt))
 
 
-@gtstencil()
+@gtstencil
 def moist_pkz(
     qvapor: FloatField,
     qliquid: FloatField,
@@ -505,7 +505,7 @@ def compute_pkz(
     )
 
 
-@gtstencil()
+@gtstencil
 def compute_pkz_stencil_func(
     pkz: FloatField,
     cappa: FloatField,
@@ -601,7 +601,7 @@ def compute_last_step(
     )
 
 
-@gtstencil()
+@gtstencil
 def fvsetup_stencil(
     qvapor: FloatField,
     qliquid: FloatField,

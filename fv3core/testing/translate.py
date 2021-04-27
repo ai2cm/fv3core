@@ -4,7 +4,6 @@ from typing import Dict, List, Optional, Tuple
 import numpy as np
 
 import fv3core._config
-import fv3core.decorators as decorators
 import fv3core.utils.gt4py_utils as utils
 from fv3core.utils.grid import Grid
 from fv3core.utils.typing import Field
@@ -36,7 +35,6 @@ class TranslateFortranData2Py:
 
     def setup(self, inputs):
         self.make_storage_data_input_vars(inputs)
-        decorators.get_stencil_cache().clear()
 
     def compute_func(self, **inputs):
         raise NotImplementedError("Implement a child class compute method")

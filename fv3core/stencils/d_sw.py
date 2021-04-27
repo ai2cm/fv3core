@@ -48,7 +48,7 @@ def flux_integral(w, delp, gx, gy, rarea):
     return w * delp + flux_component(gx, gy, rarea)
 
 
-@gtstencil()
+@gtstencil
 def flux_adjust(
     w: FloatField, delp: FloatField, gx: FloatField, gy: FloatField, rarea: FloatFieldIJ
 ):
@@ -56,7 +56,7 @@ def flux_adjust(
         w = flux_integral(w, delp, gx, gy, rarea)
 
 
-@gtstencil()
+@gtstencil
 def flux_capacitor(
     cx: FloatField,
     cy: FloatField,
@@ -127,7 +127,7 @@ def all_corners_ke(ke, u, v, ut, vt, dt):
     return ke
 
 
-@gtstencil()
+@gtstencil
 def not_inlineq_pressure(
     gx: FloatField,
     gy: FloatField,
@@ -143,7 +143,7 @@ def not_inlineq_pressure(
         pt = pt / delp
 
 
-@gtstencil()
+@gtstencil
 def not_inlineq_pressure_and_vbke(
     gx: FloatField,
     gy: FloatField,
@@ -179,7 +179,7 @@ def ke_from_bwind(ke, ub, vb):
     return 0.5 * (ke + ub * vb)
 
 
-@gtstencil()
+@gtstencil
 def ub_vb_from_vort(
     vort: FloatField,
     ub: FloatField,
@@ -209,7 +209,7 @@ def v_from_ke(ke, ut, fx):
     return ut + ke - ke[0, 1, 0] - fx
 
 
-@gtstencil()
+@gtstencil
 def u_and_v_from_ke(
     ke: FloatField,
     ut: FloatField,
@@ -236,7 +236,6 @@ def coriolis_force_correction(zh, radius):
     return 1.0 + (zh + zh[0, 0, 1]) / radius
 
 
-@gtstencil(externals={"radius": constants.RADIUS})
 def compute_vorticity(
     wk: FloatField,
     f0: FloatFieldIJ,
@@ -254,7 +253,10 @@ def compute_vorticity(
             vort = wk[0, 0, 0] + f0[0, 0]
 
 
-@gtstencil()
+compute_vorticity = gtstencil(compute_vorticity, externals={"radius": constants.RADIUS})
+
+
+@gtstencil
 def adjust_w_and_qcon(
     w: FloatField,
     delp: FloatField,
@@ -278,7 +280,7 @@ def heat_damping_term(ub, vb, gx, gy, rsin2, cosa_s, u2, v2, du2, dv2):
     )
 
 
-@gtstencil()
+@gtstencil
 def heat_diss(
     fx2: FloatField,
     fy2: FloatField,
@@ -300,7 +302,7 @@ def heat_diss(
             diss_est = diss_e + heat_source
 
 
-@gtstencil()
+@gtstencil
 def heat_source_from_vorticity_damping(
     ub: FloatField,
     vb: FloatField,
@@ -385,7 +387,7 @@ def heat_source_from_vorticity_damping(
                 v = v - ut
 
 
-@gtstencil()
+@gtstencil
 def ke_horizontal_vorticity(
     ke: FloatField,
     u: FloatField,
@@ -553,7 +555,7 @@ def ubke(uc, vc, cosa, rsina, ut, ub, dt4, dt5):
     return ub
 
 
-@gtstencil()
+@gtstencil
 def mult_ubke(
     vb: FloatField,
     ke: FloatField,

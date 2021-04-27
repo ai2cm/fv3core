@@ -92,7 +92,7 @@ def fix_negative_liq(qvapor, qice, qsnow, qgraupel, qrain, qliquid, pt, lcpk, ic
     return qvapor, qice, qsnow, qgraupel, qrain, qliquid, pt
 
 
-@gtstencil()
+@gtstencil
 def fillq(q: FloatField, dp: FloatField, sum1: FloatFieldIJ, sum2: FloatFieldIJ):
     with computation(FORWARD), interval(...):
         # reset accumulating fields
@@ -114,7 +114,7 @@ def fillq(q: FloatField, dp: FloatField, sum1: FloatFieldIJ, sum2: FloatFieldIJ)
             q = q - dq / dp
 
 
-@gtstencil()
+@gtstencil
 def fix_neg_water(
     pt: FloatField,
     dp: FloatField,
@@ -150,7 +150,7 @@ def fix_neg_water(
         # no GFS_PHYS compiler flag -- additional saturation adjustment calculations!
 
 
-@gtstencil()
+@gtstencil
 def fix_neg_cloud(dp: FloatField, qcld: FloatField):
     with computation(FORWARD), interval(1, -1):
         if qcld[0, 0, -1] < 0.0:
@@ -228,7 +228,7 @@ def fix_water_vapor_k_loop(i, j, kbot, qvapor, dp):
 
 
 # Stencil version
-@gtstencil()
+@gtstencil
 def fix_water_vapor_down(
     qvapor: FloatField, dp: FloatField, upper_fix: FloatField, lower_fix: FloatField
 ):

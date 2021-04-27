@@ -10,13 +10,13 @@ from fv3core.utils.typing import FloatField, FloatFieldIJ
 #
 # Flux value stencils
 # ---------------------
-@gtstencil()
+@gtstencil
 def compute_zonal_flux(flux: FloatField, a_in: FloatField, del_term: FloatFieldIJ):
     with computation(PARALLEL), interval(...):
         flux = del_term * (a_in[-1, 0, 0] - a_in)
 
 
-@gtstencil()
+@gtstencil
 def compute_meridional_flux(flux: FloatField, a_in: FloatField, del_term: FloatFieldIJ):
     with computation(PARALLEL), interval(...):
         flux = del_term * (a_in[0, -1, 0] - a_in)
@@ -25,7 +25,7 @@ def compute_meridional_flux(flux: FloatField, a_in: FloatField, del_term: FloatF
 #
 # Q update stencil
 # ------------------
-@gtstencil()
+@gtstencil
 def update_q(
     q: FloatField, rarea: FloatFieldIJ, fx: FloatField, fy: FloatField, cd: float
 ):
@@ -38,7 +38,7 @@ def update_q(
 #
 # Stencil that copies/fills in the appropriate corner values for qdel
 # ------------------------------------------------------------------------
-@gtstencil()
+@gtstencil
 def corner_fill(q: FloatField):
     from __externals__ import i_end, i_start, j_end, j_start
 

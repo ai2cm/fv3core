@@ -10,9 +10,8 @@ from gt4py.gtscript import (
 )
 
 import fv3core._config as spec
-from fv3core.decorators import StencilWrapper, gtstencil
+from fv3core.decorators import gtstencil
 from fv3core.stencils.basic_operations import sign
-from fv3core.utils.grid import axis_offsets
 from fv3core.utils.typing import FloatField, FloatFieldIJ
 
 
@@ -175,7 +174,7 @@ def pert_ppm_positive_definite_constraint_fcn(
     return al, ar
 
 
-@gtstencil()
+@gtstencil
 def pert_ppm_positive_definite_constraint(
     a0: FloatField, al: FloatField, ar: FloatField
 ):
@@ -200,7 +199,7 @@ def pert_ppm_standard_constraint_fcn(a0: FloatField, al: FloatField, ar: FloatFi
     return al, ar
 
 
-@gtstencil()
+@gtstencil
 def pert_ppm_standard_constraint(a0: FloatField, al: FloatField, ar: FloatField):
     with computation(PARALLEL), interval(...):
         al, ar = pert_ppm_standard_constraint_fcn(a0, al, ar)
@@ -345,9 +344,6 @@ class YPiecewiseParabolic:
 
     def __init__(self, namelist, jord):
         grid = spec.grid
-        origin = grid.compute_origin()
-        domain = grid.domain_shape_compute(add=(1, 1, 1))
-        ax_offsets = axis_offsets(spec.grid, origin, domain)
         assert namelist.grid_type < 3
         if abs(jord) not in [5, 6, 7, 8]:
             raise NotImplementedError(
@@ -358,13 +354,12 @@ class YPiecewiseParabolic:
         self._js = grid.js
         self._njc = grid.njc
         self._dya = grid.dya
-        self._compute_flux_stencil = StencilWrapper(
+        self._compute_flux_stencil = gtstencil(
             func=compute_y_flux,
             externals={
                 "jord": jord,
                 "mord": abs(jord),
                 "xt_minmax": True,
-                **ax_offsets,
             },
         )
 
