@@ -26,7 +26,6 @@ def precompute(
     cappa: FloatField,
     pe: FloatField,
     pe_init: FloatField,
-    cp3: FloatField,
     dm: FloatField,
     zh: FloatField,
     q_con: FloatField,
@@ -42,7 +41,6 @@ def precompute(
 ):
     with computation(PARALLEL), interval(...):
         dm = delp
-        cp3 = cappa
         pe_init = pe
     with computation(FORWARD):
         with interval(0, 1):
@@ -62,7 +60,7 @@ def precompute(
             # interface pk is using constant akap
             pk3 = exp(constants.KAPPA * peln)
     with computation(PARALLEL), interval(...):
-        gm = 1.0 / (1.0 - cp3)
+        gm = 1.0 / (1.0 - cappa)
         dm = dm * constants.RGRAV
     with computation(PARALLEL), interval(0, -1):
         pm = (peg[0, 0, 1] - peg) / (pelng[0, 0, 1] - pelng)
@@ -83,10 +81,12 @@ def finalize(
     pe_init: FloatField,
     last_call: bool,
 ):
+    from __externals__ import beta, use_logp
+
     with computation(PARALLEL), interval(...):
-        if __INLINED(spec.namelist.use_logp):
+        if __INLINED(use_logp):
             pk3 = peln_run
-        if __INLINED(spec.namelist.beta < -0.1):
+        if __INLINED(beta < -0.1):
             ppe = pe + pem
         else:
             ppe = pe
@@ -118,11 +118,11 @@ class RiemannSolver3:
             grid.js,
             grid.je,
         )
+        assert namelist.a_imp > 0.999, "a_imp <= 0.999 is not implemented"
         riemorigin = grid.compute_origin()
         domain = grid.domain_shape_compute(add=(0, 0, 1))
         shape = grid.domain_shape_full(add=(1, 1, 1))
         self._tmp_dm = utils.make_storage_from_shape(shape, riemorigin)
-        self._tmp_cp3 = utils.make_storage_from_shape(shape, riemorigin)
         self._tmp_pe_init = utils.make_storage_from_shape(shape, riemorigin)
         self._tmp_pm = utils.make_storage_from_shape(shape, riemorigin)
         self._tmp_pem = utils.make_storage_from_shape(shape, riemorigin)
@@ -135,6 +135,7 @@ class RiemannSolver3:
         )
         self._finalize_stencil = StencilWrapper(
             finalize,
+            externals={"use_logp": namelist.use_logp, "beta": namelist.beta},
             origin=riemorigin,
             domain=domain,
         )
@@ -160,10 +161,13 @@ class RiemannSolver3:
         w: FloatFieldIJ,
     ):
         """
-        Riemann solver for after D-grid winds advected and model heights updated,
-        that accounts for vertically propagating sound waves by solving the
-        nonhydrostatic terms for vertical velocity (w) and non-hydrostatic
-        pressure perturbation.
+        Solves for the nonhydrostatic terms for vertical velocity (w)
+        and non-hydrostatic pressure perturbation after D-grid winds advect
+        and heights are updated.
+        This accounts for vertically propagating sound waves. Currently
+        the only implemented option of a_imp > 0.999 calls a semi-implicit
+        method solver, and the exact Riemann solver best used for > 1km resolution
+        simulations is not yet implemented.
 
         Args:
            last_call: boolean, is last acoustic timestep (in)
@@ -192,7 +196,6 @@ class RiemannSolver3:
             cappa,
             pe,
             self._tmp_pe_init,
-            self._tmp_cp3,
             self._tmp_dm,
             zh,
             q_con,
@@ -210,7 +213,7 @@ class RiemannSolver3:
         self._sim1_solve(
             dt,
             self._tmp_gm,
-            self._tmp_cp3,
+            cappa,
             pe,
             self._tmp_dm,
             self._tmp_pm,

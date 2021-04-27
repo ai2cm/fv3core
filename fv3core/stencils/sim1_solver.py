@@ -143,6 +143,24 @@ class Sim1Solver:
         ptr: FloatField,
         wsr: FloatFieldIJ,
     ):
+        """
+        Semi-Implicit Method solver -- solves a vertically tridiagonal
+        system for sound waves to compute nonhydrostatic terms for
+         vertical velocity and pressure perturbations
+        Args:
+          dt: timstep in seconds of solver (in),
+          gm: ?? 1 / (1 - cappa)(in),
+          cp3: cappa (in),
+          pe: full hydrostatic pressure (inout),
+          dm: delta in pressure / g (in),
+          pm: ?? ratio of change in layer pressure without condensates(in),
+          pem: recomputed pressure using ptop and delp(in),
+          w: vertical velocity (inout),
+          dz: vertical delta of atmospheric layer in meters (in),
+          ptr: potential temperature (in),
+          wsr: vertical velocity of the lowest level(in),
+
+        """
         t1g = 2.0 * dt * dt
         rdt = 1.0 / dt
         self._compute_sim1_solve(
