@@ -1,4 +1,5 @@
 import math
+import typing
 
 from gt4py.gtscript import (
     __INLINED,
@@ -14,11 +15,12 @@ from gt4py.gtscript import (
 import fv3core._config as spec
 import fv3core.utils.global_constants as constants
 import fv3core.utils.gt4py_utils as utils
-from fv3core.decorators import gtstencil
+from fv3core.decorators import StencilWrapper
 from fv3core.stencils.sim1_solver import Sim1Solver
 from fv3core.utils.typing import FloatField, FloatFieldIJ
-from fv3core.decorators import StencilWrapper
 
+
+@typing.no_type_check
 def precompute(
     delp: FloatField,
     cappa: FloatField,
@@ -54,10 +56,10 @@ def precompute(
             pem = pem[0, 0, -1] + dm[0, 0, -1]
             peln = log(pem)
             # Excluding contribution from condensates
-            # peln used during remap; pk3 used only for p_grad   
+            # peln used during remap; pk3 used only for p_grad
             peg = peg[0, 0, -1] + dm[0, 0, -1] * (1.0 - q_con[0, 0, -1])
             pelng = log(peg)
-            # interface pk is using constant akap 
+            # interface pk is using constant akap
             pk3 = exp(constants.KAPPA * peln)
     with computation(PARALLEL), interval(...):
         gm = 1.0 / (1.0 - cp3)
@@ -100,19 +102,22 @@ def finalize(
         with interval(0, -1):
             zh = zh[0, 0, 1] - dz
 
+
 class RiemannSolver3:
     """
     Fortran subroutine Riem_Solver3
     """
+
     def __init__(self, namelist):
         grid = spec.grid
-        self._sim1_solve = Sim1Solver(namelist,
-                                      spec.grid,
-                                      grid.is_,
-                                      grid.ie,
-                                      grid.js,
-                                      grid.je,
-                                      )
+        self._sim1_solve = Sim1Solver(
+            namelist,
+            spec.grid,
+            grid.is_,
+            grid.ie,
+            grid.js,
+            grid.je,
+        )
 
         km = grid.npz - 1
         riemorigin = (grid.is_, grid.js, 0)
@@ -132,11 +137,12 @@ class RiemannSolver3:
         )
         self._finalize_stencil = StencilWrapper(
             finalize,
-	    origin=riemorigin,
+            origin=riemorigin,
             domain=domain,
         )
 
-    def __call__(self, 
+    def __call__(
+        self,
         last_call: bool,
         dt: float,
         cappa: FloatField,
@@ -156,26 +162,29 @@ class RiemannSolver3:
         w: FloatFieldIJ,
     ):
         """
-        Riemann solver for after D-grid winds advected and model heights updated,                                                                                                                    that accounts for vertically propagating sound waves by solving the nonhydrostatic terms                                                                                                     for vertical velocity (w) and non-hydrostatic pressure perturbation.                                                                                                                 
+        Riemann solver for after D-grid winds advected and model heights updated,
+        that accounts for vertically propagating sound waves by solving the
+        nonhydrostatic terms for vertical velocity (w) and non-hydrostatic
+        pressure perturbation.
 
-        Args:                                                                                                                                                                                           last_call: boolean, is this the last acoustic timestep of an acoustic loop (in)
+        Args:
+           last_call: boolean, is last acoustic timestep (in)
            dt: acoustic timestep in seconds (in)
            cappa: (in)
            ptop: pressure at top of atmosphere (in)
            zs: surface geopotential height(in)
-           wsd: vertical velocity of the lowest level (to keep it at the surface) (in)
+           wsd: vertical velocity of the lowest level (in)
            delz: vertical delta of atmospheric layer in meters (in)
            q_con: total condensate mixing ratio (in)
            delp: vertical delta in pressure (in)
            pt: potential temperature (in)
            zh: geopotential heigh (inout)
-           pe: full hydrostatic pressure(inout),
+           pe: full hydrostatic pressure(inout)
            ppe: non-hydrostatic pressure perturbation (inout)
            pk3: interface pressure raised to power of kappa using constant kappa (inout)
-           pk: interface pressure raised to power of kappa, updated in last acoustic timestep(inout)
+           pk: interface pressure raised to power of kappa, final acoustic value (inout)
            peln: logarithm of interface pressure(inout)
-           w: vertical velocity (inout)     
-
+           w: vertical velocity (inout)
         """
 
         peln1 = math.log(ptop)
@@ -200,7 +209,19 @@ class RiemannSolver3:
             ptk,
         )
 
-        self._sim1_solve(dt, self._tmp_gm, self._tmp_cp3, pe, self._tmp_dm, self._tmp_pm, self._tmp_pem, w, delz, pt, wsd)
+        self._sim1_solve(
+            dt,
+            self._tmp_gm,
+            self._tmp_cp3,
+            pe,
+            self._tmp_dm,
+            self._tmp_pm,
+            self._tmp_pem,
+            w,
+            delz,
+            pt,
+            wsd,
+        )
 
         self._finalize_stencil(
             zs,
@@ -214,5 +235,5 @@ class RiemannSolver3:
             pe,
             ppe,
             self._tmp_pe_init,
-            last_call
+            last_call,
         )

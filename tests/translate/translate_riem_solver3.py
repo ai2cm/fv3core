@@ -1,6 +1,7 @@
+import fv3core._config as spec
 from fv3core.stencils.riem_solver3 import RiemannSolver3
 from fv3core.testing import TranslateFortranData2Py
-import fv3core._config as spec
+
 
 class TranslateRiem_Solver3(TranslateFortranData2Py):
     def __init__(self, grid):
