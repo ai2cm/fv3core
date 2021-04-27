@@ -383,19 +383,6 @@ class FV3StencilObject(StencilWrapper):
             cached_data["passed_externals"] if "passed_externals" in cached_data else {}
         )
 
-    def _check_axis_offsets(self, axis_offsets: Dict[str, Any]) -> bool:
-        for key, value in self.axis_offsets.items():
-            if axis_offsets[key] != value:
-                return True
-        return False
-
-    def _check_passed_externals(self) -> bool:
-        passed_externals = self.passed_externals
-        for key, value in self._passed_externals.items():
-            if passed_externals[key] != value:
-                return True
-        return False
-
     def __call__(
         self,
         *args,
@@ -425,15 +412,6 @@ class FV3StencilObject(StencilWrapper):
 
         self.rebuild = global_config.get_rebuild()
         regenerate_stencil = not self.built or self.rebuild
-
-        # Check if we really do need to regenerate
-        # if not regenerate_stencil:
-        #     axis_offsets_changed = self._check_axis_offsets(axis_offsets)
-        #     regenerate_stencil = regenerate_stencil or axis_offsets_changed
-
-        # if self._passed_externals and not regenerate_stencil:
-        #     passed_externals_changed = self._check_passed_externals()
-        #     regenerate_stencil = regenerate_stencil or passed_externals_changed
 
         if regenerate_stencil:
             self.backend = global_config.get_backend()

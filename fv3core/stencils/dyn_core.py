@@ -404,7 +404,6 @@ class AcousticDynamics:
             )
 
             if self.namelist.nord > 0 and self.do_halo_exchange:
-
                 reqs["divgd_quantity"] = self.comm.start_halo_update(
                     state.divgd_quantity, n_points=self.grid.halo
                 )
@@ -456,14 +455,12 @@ class AcousticDynamics:
                 dt2,
             )
             if self.do_halo_exchange:
-
                 req_vector_c_grid = self.comm.start_vector_halo_update(
                     state.uc_quantity, state.vc_quantity, n_points=self.grid.halo
                 )
                 if self.namelist.nord > 0:
                     reqs["divgd_quantity"].wait()
                 req_vector_c_grid.wait()
-
             # use the computed c-grid winds to evolve the d-grid winds forward
             # by 1 timestep
             d_sw.compute(
@@ -497,7 +494,6 @@ class AcousticDynamics:
             # they will be re-computed from scratch on the next acoustic timestep.
 
             if self.do_halo_exchange:
-
                 for halovar in ["delp_quantity", "pt_quantity", "q_con_quantity"]:
                     self.comm.halo_update(
                         state.__getattribute__(halovar), n_points=self.grid.halo
@@ -541,7 +537,6 @@ class AcousticDynamics:
                 )
 
                 if self.do_halo_exchange:
-
                     reqs["zh_quantity"] = self.comm.start_halo_update(
                         state.zh_quantity, n_points=self.grid.halo
                     )
@@ -604,7 +599,6 @@ class AcousticDynamics:
 
             if self.do_halo_exchange:
                 if it != n_split - 1:
-
                     reqs_vector = self.comm.start_vector_halo_update(
                         state.u_quantity, state.v_quantity, n_points=self.grid.halo
                     )
@@ -618,7 +612,6 @@ class AcousticDynamics:
             nf_ke = min(3, self.namelist.nord + 1)
 
             if self.do_halo_exchange:
-
                 self.comm.halo_update(
                     state.heat_source_quantity, n_points=self.grid.halo
                 )
