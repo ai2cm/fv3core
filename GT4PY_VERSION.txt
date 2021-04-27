@@ -1,1 +1,1 @@
-dev-sync-flag
+dev-auto-sync
