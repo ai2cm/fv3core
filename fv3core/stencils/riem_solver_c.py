@@ -10,7 +10,6 @@ from fv3core.stencils.sim1_solver import Sim1Solver
 from fv3core.utils.typing import FloatField, FloatFieldIJ
 
 
-@gtstencil()
 @typing.no_type_check
 def precompute(
     delpc: FloatField,
@@ -47,7 +46,6 @@ def precompute(
         pm = (peg[0, 0, 1] - peg) / log(peg[0, 0, 1] / peg)
 
 
-@gtstencil()
 def finalize(
     pe2: FloatField,
     pem: FloatField,
@@ -64,7 +62,6 @@ def finalize(
             hs_0 = hs
         with interval(1, None):
             hs_0 = hs_0[0, 0, -1]
-
     with computation(PARALLEL):
         with interval(0, 1):
             pef = ptop
@@ -75,6 +72,89 @@ def finalize(
             gz = hs_0
         with interval(0, -1):
             gz = gz[0, 0, 1] - dz * constants.GRAV
+
+
+class RiemannSolverC:
+    """
+    Fortran subroutine Riem_Solver_C
+    """
+
+    def __init__(self, namelist):
+        grid = spec.grid
+        is1 = grid.is_ - 1
+        ie1 = grid.ie + 1
+        js1 = grid.js - 1
+        je1 = grid.je + 1
+        km = spec.grid.npz - 1
+        riemorigin = (is1, js1, 0)
+        shape = w3.shape
+
+        domain = (grid.nic + 2, grid.njc + 2, km + 2)
+
+        self._tmp_dm = utils.make_storage_from_shape(shape, riemorigin)
+        self._tmp_cp3 = utils.make_storage_from_shape(shape, riemorigin)
+        self._tmp_w = utils.make_storage_from_shape(shape, riemorigin)
+        self._tmp_pem = utils.make_storage_from_shape(shape, riemorigin)
+        self._tmp_pe = utils.make_storage_from_shape(shape, riemorigin)
+        self._tmp_gm = utils.make_storage_from_shape(shape, riemorigin)
+        self._tmp_dz = utils.make_storage_from_shape(shape, riemorigin)
+        self._tmp_pm = utils.make_storage_from_shape(shape, riemorigin)
+
+        self._precompute_stencil = StencilWrapper(
+            precompute,
+            origin=riemorigin,
+            domain=domain,
+        )
+        self._finalize_stencil = StencilWrapper(
+            finalize,
+            origin=riemorigin,
+            domain=domain,
+        )
+        self._sim1_solve = Sim1Solver(
+            namelist,
+            grid,
+            is1,
+            ie1,
+            js1,
+            je1,
+        )
+
+    def __call__(
+        self,
+        ms: int,
+        dt2: float,
+        akap: float,
+        cappa: FloatField,
+        ptop: float,
+        hs: FloatFieldIJ,
+        w3: FloatField,
+        ptc: FloatField,
+        q_con: FloatField,
+        delpc: FloatField,
+        gz: FloatField,
+        pef: FloatField,
+        ws: FloatFieldIJ,
+    ):
+        self._precompute_stencil(
+            delpc,
+            cappa,
+            w3,
+            w,
+            cp3,
+            gz,
+            dm,
+            q_con,
+            pem,
+            dz,
+            gm,
+            pm,
+            ptop,
+        )
+
+
+        self._sim1_solve(dt2, gm, cp3, pe, dm, pm, pem, w, dz, ptc, ws)
+
+        self._finalize_stencil(pe, pem, hs, dz, pef, gz, ptop)
 
 
 # TODO: this is totally inefficient, can we use stencils?
