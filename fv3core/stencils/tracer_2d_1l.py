@@ -183,7 +183,7 @@ class Tracer2D1L:
             domain=self.grid.domain_shape_full(add=(1, 1, 0)),
             externals=local_axis_offsets,
         )
-        self._copy_field = StencilWrapper(copy_stencil.func, disable_cache=True)
+        self._copy_field = StencilWrapper(copy_stencil.func)
         self._loop_temporaries_copy = StencilWrapper(
             loop_temporaries_copy,
             origin=self.grid.full_origin(),
