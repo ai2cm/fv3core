@@ -123,9 +123,7 @@ class Sim1Solver:
         self._pfac = namelist.p_fac
         nic = iend - istart + 1
         njc = jend - jstart + 1
-        self._origin = (istart, jstart, 0)
-        self._domain = (nic, njc, grid.npz + 1)
-        self._compute_sim1_solve = StencilWrapper(func=sim1_solver, externals={})
+        self._compute_sim1_solve = StencilWrapper(func=sim1_solver,  origin=(istart, jstart, 0), domain=(nic, njc, grid.npz + 1))
 
     def __call__(
         self,
@@ -158,6 +156,4 @@ class Sim1Solver:
             t1g,
             rdt,
             self._pfac,
-            origin=self._origin,
-            domain=self._domain,
         )

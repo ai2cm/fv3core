@@ -8,7 +8,7 @@ from gt4py.gtscript import (
     interval,
     region,
 )
-
+from fv3core.stencils.riem_solver3 import RiemannSolver3
 import fv3core._config as spec
 import fv3core.stencils.basic_operations as basic
 import fv3core.stencils.c_sw as c_sw
@@ -527,15 +527,14 @@ class AcousticDynamics:
                     state.wsd,
                     dt,
                 )
-
-                riem_solver3.compute(
+                riem_solver3 = utils.cached_stencil_class(RiemannSolver3)(spec.namelist, cache_key="riem_solver3")
+                riem_solver3(
                     remap_step,
                     dt,
-                    akap,
                     state.cappa,
                     state.ptop,
                     self._zs,
-                    state.w,
+                    state.wsd,
                     state.delz,
                     state.q_con,
                     state.delp,
@@ -546,7 +545,7 @@ class AcousticDynamics:
                     state.pk3,
                     state.pk,
                     state.peln,
-                    state.wsd,
+                    state.w,
                 )
 
                 if self.do_halo_exchange:
