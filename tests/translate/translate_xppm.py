@@ -24,8 +24,8 @@ class TranslateXPPM(TranslateFortranData2Py):
     def jvars(self, inputs):
         inputs["jfirst"] += TranslateGrid.fpy_model_index_offset
         inputs["jlast"] += TranslateGrid.fpy_model_index_offset
-        inputs["jfirst"] = self.grid.global_to_local_y(inputs["jfirst"])
-        inputs["jlast"] = self.grid.global_to_local_y(inputs["jlast"])
+        inputs["jfirst"] = int(self.grid.global_to_local_y(inputs["jfirst"]))
+        inputs["jlast"] = int(self.grid.global_to_local_y(inputs["jlast"]))
 
     def process_inputs(self, inputs):
         self.jvars(inputs)
@@ -34,9 +34,10 @@ class TranslateXPPM(TranslateFortranData2Py):
     def compute(self, inputs):
         self.process_inputs(inputs)
         inputs["xflux"] = utils.make_storage_from_shape(inputs["q"].shape)
-        self.compute_func = xppm.XPiecewiseParabolic(spec.namelist, int(inputs["iord"]))
-        del inputs["iord"]
-        self.compute_func(**inputs)
+        self.compute_func = xppm.XPiecewiseParabolic(
+            spec.namelist, int(inputs["iord"]), inputs["jfirst"], inputs["jlast"]
+        )
+        self.compute_func(inputs["q"], inputs["c"], inputs["xflux"])
         return self.slice_output(inputs)
 
 
