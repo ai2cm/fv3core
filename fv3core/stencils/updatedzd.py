@@ -336,17 +336,21 @@ def compute(
     )
     # TODO, do not recreate this, and have it part of aninitialization step
     # or remove entirely when refactored away
+
     column_namelist = d_sw.get_column_namelist()
-    if column_namelist["damp_vt"][0] > 1e-5:  # dcon_threshold
-        delnflux.compute_no_sg(
-            z2,
-            fx2,
-            fy2,
-            column_namelist["nord_v"],
-            column_namelist["damp_vt"],
-            wk,
-            nk=grid.npz + 1,
-        )
+    assert (column_namelist["damp_vt"] > 1e-5).all()
+    # TODO: in theory, we should check if damp_vt > 1e-5 for each k-level and
+    # only compute for k-levels where this is true
+    delnflux.compute_no_sg(
+        z2,
+        fx2,
+        fy2,
+        column_namelist["nord_v"],
+        column_namelist["damp_vt"],
+        wk,
+        nk=grid.npz + 1,
+    )
+
     zh_damp(
         grid.area,
         z2,
