@@ -288,7 +288,7 @@ def vt_corners(
 
 
 """
-# Single stencil version
+# Single stencil version to use when possible with gt backends
 def fxadv_stencil(
     cosa_u: FloatFieldIJ,
     cosa_v: FloatFieldIJ,
@@ -338,16 +338,20 @@ def fxadv_fluxes_stencil(
     with computation(PARALLEL), interval(...):
         prod = dt * ut
         with horizontal(region[local_is : local_ie + 2, :]):
-            crx = prod * rdxa[-1, 0] if prod > 0 else prod * rdxa
-            x_area_flux = (
-                dy * prod * sin_sg3[-1, 0] if prod > 0 else dy * prod * sin_sg1
-            )
+            if prod > 0:
+                crx = prod * rdxa[-1, 0]
+                x_area_flux = dy * prod * sin_sg3[-1, 0]
+            else:
+                crx = prod * rdxa
+                x_area_flux = dy * prod * sin_sg1
         prod = dt * vt
         with horizontal(region[:, local_js : local_je + 2]):
-            cry = prod * rdya[0, -1] if prod > 0 else prod * rdya
-            y_area_flux = (
-                dx * prod * sin_sg4[0, -1] if prod > 0 else dx * prod * sin_sg2
-            )
+            if prod > 0:
+                cry = prod * rdya[0, -1]
+                y_area_flux = dx * prod * sin_sg4[0, -1]
+            else:
+                cry = prod * rdya
+                y_area_flux = dx * prod * sin_sg2
 
 
 class FiniteVolumeFluxPrep:
@@ -490,9 +494,13 @@ class FiniteVolumeFluxPrep:
 
 
 # -------------------- DEPRECATED CORNERS-----------------
+# TODO: Remove this when satisfied with this file, below is
+# another implementation option:
 # Using 1 function with different sets of externals
-# Unlikely to use as different externals in single stencil version
-# but if gt4py adds feature to assign index offsets with runtime integers,
+# Now that we are using a class here, this could work and
+# be performant if all external variations are initialized
+# as different stencil objects.
+# Or if gt4py adds feature to assign index offsets with runtime integers,
 # this might be useful.
 # Note, it changes the order of operatons slightly and yields 1e-15 errors
 # @gtscript.function
