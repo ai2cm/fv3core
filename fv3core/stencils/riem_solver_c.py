@@ -15,6 +15,7 @@ def precompute(
     delpc: FloatField,
     cappa: FloatField,
     w3: FloatField,
+    w: FloatField,
     gz: FloatField,
     dm: FloatField,
     q_con: FloatField,
@@ -26,6 +27,7 @@ def precompute(
 ):
     with computation(PARALLEL), interval(...):
         dm = delpc
+        w = w3
     with computation(FORWARD):
         with interval(0, 1):
             pem = ptop
@@ -75,6 +77,7 @@ class RiemannSolverC:
         shape = grid.domain_shape_full(add=(1, 1, 1))
 
         self._dm = utils.make_storage_from_shape(shape, origin)
+        self._w = utils.make_storage_from_shape(shape, origin)
         self._pem = utils.make_storage_from_shape(shape, origin)
         self._pe = utils.make_storage_from_shape(shape, origin)
         self._gm = utils.make_storage_from_shape(shape, origin)
@@ -136,6 +139,7 @@ class RiemannSolverC:
             delpc,
             cappa,
             w3,
+            self._w,
             gz,
             self._dm,
             q_con,
@@ -145,7 +149,6 @@ class RiemannSolverC:
             self._pm,
             ptop,
         )
-
         self._sim1_solve(
             dt2,
             self._gm,
@@ -154,10 +157,9 @@ class RiemannSolverC:
             self._dm,
             self._pm,
             self._pem,
-            w3,
+            self._w,
             self._dz,
             ptc,
             ws,
         )
-
         self._finalize_stencil(self._pe, self._pem, hs, self._dz, pef, gz, ptop)
