@@ -772,7 +772,7 @@ def compute_delnflux_no_sg(
     diffuse_origin = (grid.is_, grid.js, 0)
     extended_domain = (grid.nic + 1, grid.njc + 1, nk)
 
-    compute_no_sg(q, fx2, fy2, nord, damp, d2, mass, conditional_calc=False)
+    compute_no_sg(q, fx2, fy2, nord, damp, d2, mass)
 
     if mass is None:
         add_diffusive_component(fx, fx2, fy, fy2, origin=diffuse_origin, domain=extended_domain)
@@ -796,13 +796,147 @@ def compute_no_sg(
         damp_c,
         d2,
         mass=None,
-        conditional_calc=True,
-        check_all_columns=False,
         nk=None
 ):
-    if (conditional_calc==True) and (check_all_columns==False):
-        if damp_c[0] <= 1e-5: #dcon_threshold
-            raise Exception("damp <= 1e-5 in column_cols is untested")
+    if max(nord[:]) > 3:
+        raise Exception("nord must be less than 3")
+    if not np.all(n in [0,2,3] for n in nord[:]):
+        raise NotImplementedError("nord must have values 0, 2, or 3")
+    nmax = int(max(nord[:]))
+    grid = spec.grid
+    i1 = grid.is_ - 1 - nmax
+    i2 = grid.ie + 1 + nmax
+    j1 = grid.js - 1 - nmax
+    j2 = grid.je + 1 + nmax
+    if nk is None:
+        nk = grid.npz
+    origin_d2 = (i1, j1, 0)
+    domain_d2 = (i2 - i1 + 1, j2 - j1 + 1, nk)
+    f1_ny = grid.je - grid.js + 1 + 2 * nmax
+    f1_nx = grid.ie - grid.is_ + 2 + 2 * nmax
+    fx_origin = (grid.is_ - nmax, grid.js - nmax, 0)
+
+    preamble_ax_offsets = axis_offsets(spec.grid, origin_d2, domain_d2)
+    full_ax_offsets = axis_offsets(spec.grid, (grid.isd, grid.jsd, 0), (grid.nid, grid.njd, nk))
+    fx_ax_offsets = axis_offsets(spec.grid, fx_origin, (f1_nx, f1_ny, nk))
+    fy_ax_offsets = axis_offsets(spec.grid, fx_origin, (f1_nx - 1, f1_ny + 1, nk))
+
+    if mass is None:
+        d2_damp = gtscript.stencil(
+            definition = d2_damp_interval, 
+            externals={"nord0":nord[0], "nord1":nord[1], "nord2":nord[2], "nord3":nord[3], **preamble_ax_offsets}, 
+            backend=global_config.get_backend(),
+            rebuild=global_config.get_rebuild(),
+        )
+        d2_damp(q, d2, damp_c, origin=origin_d2, domain=domain_d2)
+    else:
+        new_copy_stencil = gtscript.stencil(
+            definition = copy_stencil_interval, 
+            externals={"nord0":nord[0], "nord1":nord[1], "nord2":nord[2], "nord3":nord[3], **preamble_ax_offsets},
+            backend=global_config.get_backend(),
+            rebuild=global_config.get_rebuild(),
+        )
+        new_copy_stencil(q, d2, origin=origin_d2, domain=domain_d2)
+
+    conditional_corner_copy_x = gtscript.stencil(
+        definition = copy_corners_x_nord, 
+        externals={"nord0":nord[0], "nord1":nord[1], "nord2":nord[2], "nord3":nord[3], **full_ax_offsets},
+        backend=global_config.get_backend(),
+        rebuild=global_config.get_rebuild(),
+    )
+    conditional_corner_copy_y = gtscript.stencil(
+        definition = copy_corners_y_nord, 
+        externals={"nord0":nord[0], "nord1":nord[1], "nord2":nord[2], "nord3":nord[3], **full_ax_offsets},
+        backend=global_config.get_backend(),
+        rebuild=global_config.get_rebuild(),
+    )
+
+    d2_stencil = gtscript.stencil(
+        definition = d2_highorder_stencil, 
+        externals={"nord0":nord[0], "nord1":nord[1], "nord2":nord[2], "nord3":nord[3]},
+        backend=global_config.get_backend(),
+        rebuild=global_config.get_rebuild(),
+        )
+
+    conditional_corner_copy_x(
+        d2, origin=(grid.isd, grid.jsd, 0), domain=(grid.nid, grid.njd, nk)
+    )
+
+    fx_calc_stencil = gtscript.stencil(
+        definition = fx_calc_stencil_region, 
+        externals={"nord0":nord[0], "nord1":nord[1], "nord2":nord[2], "nord3":nord[3], **fx_ax_offsets},
+        backend=global_config.get_backend(),
+        rebuild=global_config.get_rebuild(),
+        )
+
+    fx_calc_stencil(
+        d2, grid.del6_v, fx2, origin=fx_origin, domain=(f1_nx, f1_ny, nk)
+    )
+
+    conditional_corner_copy_y(
+        d2, origin=(grid.isd, grid.jsd, 0), domain=(grid.nid, grid.njd, nk)
+    )
+
+    fy_calc_stencil = gtscript.stencil(
+        definition = fy_calc_stencil_region, 
+        externals={"nord0":nord[0], "nord1":nord[1], "nord2":nord[2], "nord3":nord[3], **fy_ax_offsets},
+        backend=global_config.get_backend(),
+        rebuild=global_config.get_rebuild(),
+        )
+    
+    fy_calc_stencil(
+        d2,
+        grid.del6_u,
+        fy2,
+        origin=fx_origin,
+        domain=(f1_nx - 1, f1_ny + 1, nk),
+    )
+
+    for n in range(nmax):
+        nt = nmax - 1 - n
+        nt_origin = (grid.is_ - nt - 1, grid.js - nt - 1, 0)
+        nt_ny = grid.je - grid.js + 3 + 2 * nt
+        nt_nx = grid.ie - grid.is_ + 3 + 2 * nt
+        d2_stencil(
+            fx2, fy2, grid.rarea, d2, origin=nt_origin, domain=(nt_nx, nt_ny, nk)
+        )
+        conditional_corner_copy_x(
+            d2, origin=(grid.isd, grid.jsd, 0), domain=(grid.nid, grid.njd, nk)
+        )
+        nt_origin = (grid.is_ - nt, grid.js - nt, 0)
+        fx_calc_stencil_column(
+            d2,
+            grid.del6_v,
+            fx2,
+            nord,
+            origin=nt_origin,
+            domain=(nt_nx - 1, nt_ny - 2, nk),
+        )
+        conditional_corner_copy_y(
+            d2, origin=(grid.isd, grid.jsd, 0), domain=(grid.nid, grid.njd, nk)
+        )
+
+        fy_calc_stencil_column(
+            d2,
+            grid.del6_u,
+            fy2,
+            nord,
+            origin=nt_origin,
+            domain=(nt_nx - 2, nt_ny - 1, nk),
+        )
+
+
+def conditional_compute_no_sg(
+        q,
+        fx2,
+        fy2,
+        nord,
+        damp_c,
+        d2,
+        conditional_damp_check,
+        mass=None,
+        nk=None
+):
     if max(nord[:]) > 3:
         raise Exception("nord must be less than 3")
     if not np.all(n in [0,2,3] for n in nord[:]):
