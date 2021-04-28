@@ -161,10 +161,7 @@ def dyncore_temporaries(shape, namelist, grid):
         grid.full_origin(),
     )
     utils.storage_dict(
-        tmps,
-        ["ws3"],
-        shape[0:2],
-        grid.full_origin()[0:2],
+        tmps, ["ws3"], shape[0:2], grid.full_origin()[0:2],
     )
     utils.storage_dict(
         tmps, ["crx", "xfx"], shape, grid.compute_origin(add=(0, -grid.halo, 0))
@@ -244,12 +241,7 @@ class AcousticDynamics:
                 domain=self.grid.domain_shape_full(add=(0, 0, 1)),
             )
             dp_ref_stencil(
-                ak,
-                bk,
-                phis,
-                dp_ref_3d,
-                zs_3d,
-                1.0 / constants.GRAV,
+                ak, bk, phis, dp_ref_3d, zs_3d, 1.0 / constants.GRAV,
             )
             # After writing, make 'dp_ref' a K-field and 'zs' an IJ-field
             self._dp_ref = utils.make_storage_data(
@@ -282,8 +274,8 @@ class AcousticDynamics:
             externals={"hydrostatic": self.namelist.hydrostatic, **ax_offsets},
         )
 
-        self.update_geopotential_height_on_c_grid = (
-            updatedzc.UpdateGeopotentialHeightOnCGrid(self.grid)
+        self.update_geopotential_height_on_c_grid = updatedzc.UpdateGeopotentialHeightOnCGrid(
+            self.grid
         )
 
         self._zero_data = StencilWrapper(
@@ -291,6 +283,9 @@ class AcousticDynamics:
             origin=self.grid.full_origin(),
             domain=self.grid.domain_shape_full(),
         )
+
+        if self.namelist.rf_fast:
+            self._rayleigh_damping = ray_fast.RayleighDamping(self.grid, self.namelist)
 
     def __call__(self, state):
         # u, v, w, delz, delp, pt, pe, pk, phis, wsd, omga, ua, va, uc, vc, mfxd,
@@ -361,9 +356,7 @@ class AcousticDynamics:
                     )
                 if it == 0:
                     self._set_gz(
-                        self._zs,
-                        state.delz,
-                        state.gz,
+                        self._zs, state.delz, state.gz,
                     )
                     if self.do_halo_exchange:
                         reqs["gz_quantity"] = self.comm.start_halo_update(
@@ -377,9 +370,7 @@ class AcousticDynamics:
             if it == n_split - 1 and end_step:
                 if self.namelist.use_old_omega:
                     self._set_pem(
-                        state.delp,
-                        state.pem,
-                        state.ptop,
+                        state.delp, state.pem, state.ptop,
                     )
             if self.do_halo_exchange:
                 reqs_vector.wait()
@@ -585,7 +576,7 @@ class AcousticDynamics:
             if self.namelist.rf_fast:
                 # TODO: Pass through ks, or remove, inconsistent representation vs
                 # Fortran.
-                ray_fast.compute(
+                self._rayleigh_damping(
                     state.u,
                     state.v,
                     state.w,
