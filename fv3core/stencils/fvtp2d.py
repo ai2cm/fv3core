@@ -2,7 +2,6 @@ import gt4py.gtscript as gtscript
 from gt4py.gtscript import PARALLEL, computation, horizontal, interval, region
 
 import fv3core._config as spec
-import fv3core.stencils.d_sw as d_sw
 import fv3core.stencils.delnflux as delnflux
 import fv3core.utils.corners as corners
 import fv3core.utils.global_config as global_config
@@ -155,9 +154,7 @@ class FiniteVolumeTransport:
                 mfy,
             )
             if (mass is not None) and (nord is not None) and (damp_c is not None):
-                delnflux.compute_delnflux_no_sg(
-                    q, fx, fy, nord, damp_c, mass=mass
-                )
+                delnflux.compute_delnflux_no_sg(q, fx, fy, nord, damp_c, mass=mass)
         else:
             self.stencil_transport_flux(
                 fx,
@@ -168,6 +165,4 @@ class FiniteVolumeTransport:
                 yfx,
             )
             if (nord is not None) and (damp_c is not None):
-                delnflux.compute_delnflux_no_sg(
-                    q, fx, fy, nord, damp_c
-                )
+                delnflux.compute_delnflux_no_sg(q, fx, fy, nord, damp_c)

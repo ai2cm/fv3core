@@ -508,18 +508,23 @@ def damp_vertical_wind(w, heat_s, diss_est, dt, column_namelist):
         w.shape, grid().full_origin(), cache_key="d_sw_fy2"
     )
 
-    damp_3d = utils.make_storage_from_shape((1,1, grid().npz)) # fields must be 3d to assign to them
-    delnflux.calc_damp(damp_3d, column_namelist["nord_w"], column_namelist["damp_w"], grid().da_min_c, origin=(0,0,0), domain=(1,1,grid().npz))
-    damp4 = utils.make_storage_data(damp_3d[0,0,:], (grid().npz,), (0,))
+    assert (column_namelist["damp_w"] > dcon_threshold).all()
+    # TODO: in theory, we should check if damp_vt > 1e-5 for each k-level and
+    # only compute for k-levels where this is true
 
-    # for kstart, nk in k_bounds():
-    #     if column_namelist["damp_w"][kstart] > 1e-5:
-            # damp4 = (column_namelist["damp_w"][kstart] * grid().da_min_c) ** (
-            #     column_namelist["nord_w"][kstart] + 1
-            # )
+    damp_3d = utils.make_storage_from_shape(
+        (1, 1, grid().npz)
+    )  # fields must be 3d to assign to them
+    delnflux.calc_damp(
+        damp_3d,
+        column_namelist["nord_w"],
+        column_namelist["damp_w"],
+        grid().da_min_c,
+        origin=(0, 0, 0),
+        domain=(1, 1, grid().npz),
+    )
+    damp4 = utils.make_storage_data(damp_3d[0, 0, :], (grid().npz,), (0,))
 
-    # do_delnflux = column_namelist["damp_w"][:] > 1e-5
-    
     delnflux.compute_no_sg(
         w,
         fx2,
@@ -620,12 +625,6 @@ def compute(
     dt,
 ):
     column_namelist = get_column_namelist()
-
-    print(column_namelist["nord"])
-    print(column_namelist["nord_v"])
-    print(column_namelist["nord_w"])
-    print(column_namelist["nord_t"])
-    print(column_namelist["damp_vt"] > dcon_threshold)
 
     if spec.namelist.d_ext > 0:
         raise Exception(
@@ -905,19 +904,31 @@ def compute(
         domain=grid().domain_shape_compute(add=(1, 1, 0)),
     )
 
-    if column_namelist["damp_vt"][0] > dcon_threshold:
-        damp2_3d = utils.make_storage_from_shape((1,1, grid().npz)) # fields must be 3d to assign to them
-        delnflux.calc_damp(damp2_3d, column_namelist["nord_v"], column_namelist["damp_vt"], grid().da_min_c, origin=(0,0,0), domain=(1,1,grid().npz))
-        damp4_2 = utils.make_storage_data(damp2_3d[0,0,:], (grid().npz,), (0,))
-        
-        delnflux.compute_no_sg(
-            wk,
-            ut,
-            vt,
-            column_namelist["nord_v"],
-            damp4_2,
-            vort,
-        )
+    assert (column_namelist["damp_vt"] > dcon_threshold).all()
+    # TODO: in theory, we should check if damp_vt > 1e-5 for each k-level and
+    # only compute for k-levels where this is true
+
+    damp2_3d = utils.make_storage_from_shape(
+        (1, 1, grid().npz)
+    )  # fields must be 3d to assign to them
+    delnflux.calc_damp(
+        damp2_3d,
+        column_namelist["nord_v"],
+        column_namelist["damp_vt"],
+        grid().da_min_c,
+        origin=(0, 0, 0),
+        domain=(1, 1, grid().npz),
+    )
+    damp4_2 = utils.make_storage_data(damp2_3d[0, 0, :], (grid().npz,), (0,))
+
+    delnflux.compute_no_sg(
+        wk,
+        ut,
+        vt,
+        column_namelist["nord_v"],
+        damp4_2,
+        vort,
+    )
 
     heat_source_from_vorticity_damping(
         ub,

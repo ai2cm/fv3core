@@ -337,7 +337,7 @@ def compute(
     # TODO, do not recreate this, and have it part of aninitialization step
     # or remove entirely when refactored away
     column_namelist = d_sw.get_column_namelist()
-    if column_namelist["damp_vt"][0] > 1e-5: #dcon_threshold
+    if column_namelist["damp_vt"][0] > 1e-5:  # dcon_threshold
         delnflux.compute_no_sg(
             z2,
             fx2,
@@ -345,7 +345,7 @@ def compute(
             column_namelist["nord_v"],
             column_namelist["damp_vt"],
             wk,
-            nk=grid.npz+1
+            nk=grid.npz + 1,
         )
     zh_damp(
         grid.area,
