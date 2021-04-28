@@ -509,14 +509,14 @@ def damp_vertical_wind(w, heat_s, diss_est, dt, column_namelist):
     )
 
     damp_3d = utils.make_storage_from_shape((1,1, grid().npz)) # fields must be 3d to assign to them
-    delnflux.calc_damp(damp_3d, column_namelist["nord_w"], column_namelist["damp_w"], grid().da_min, origin=(0,0,0), domain=(1,1,grid().npz))
+    delnflux.calc_damp(damp_3d, column_namelist["nord_w"], column_namelist["damp_w"], grid().da_min_c, origin=(0,0,0), domain=(1,1,grid().npz))
     damp4 = utils.make_storage_data(damp_3d[0,0,:], (grid().npz,), (0,))
-    
+
     # for kstart, nk in k_bounds():
     #     if column_namelist["damp_w"][kstart] > 1e-5:
-    #         damp4 = (column_namelist["damp_w"][kstart] * grid().da_min_c) ** (
-    #             column_namelist["nord_w"][kstart] + 1
-    #         )
+            # damp4 = (column_namelist["damp_w"][kstart] * grid().da_min_c) ** (
+            #     column_namelist["nord_w"][kstart] + 1
+            # )
 
     # do_delnflux = column_namelist["damp_w"][:] > 1e-5
     
@@ -906,16 +906,16 @@ def compute(
     )
 
     if column_namelist["damp_vt"][0] > dcon_threshold:
-        damp_3d = utils.make_storage_from_shape((1,1, grid().npz)) # fields must be 3d to assign to them
-        delnflux.calc_damp(damp_3d, column_namelist["nord_v"], column_namelist["damp_vt"], grid().da_min, origin=(0,0,0), domain=(1,1,grid().npz))
-        damp4 = utils.make_storage_data(damp_3d[0,0,:], (grid().npz,), (0,))
+        damp2_3d = utils.make_storage_from_shape((1,1, grid().npz)) # fields must be 3d to assign to them
+        delnflux.calc_damp(damp2_3d, column_namelist["nord_v"], column_namelist["damp_vt"], grid().da_min_c, origin=(0,0,0), domain=(1,1,grid().npz))
+        damp4_2 = utils.make_storage_data(damp2_3d[0,0,:], (grid().npz,), (0,))
         
         delnflux.compute_no_sg(
             wk,
             ut,
             vt,
             column_namelist["nord_v"],
-            damp4,
+            damp4_2,
             vort,
         )
 
