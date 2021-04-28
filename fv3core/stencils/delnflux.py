@@ -477,12 +477,12 @@ def calc_damp(damp4: FloatField, nord: FloatFieldK, damp_c: FloatFieldK, da_min:
         damp4 = (damp_c * da_min) ** (nord + 1)
 
 def fx_calc_stencil_region(q: FloatField, del6_v: FloatFieldIJ, fx: FloatField):
-    from __externals__ import i_end, i_start, j_end, j_start, nmax, nord0, nord1, nord2, nord3
+    from __externals__ import local_is, local_js, local_ie, local_je, nord0, nord1, nord2, nord3
 
     with computation(PARALLEL), interval(0,1):
         if __INLINED(nord0 == 0):
             with horizontal(
-                region[i_start + nmax: i_end - nmax, j_start + nmax: j_end - nmax]
+                region[local_is: local_ie, local_js: local_je + 1]
             ):
                 fx = fx_calculation(q, del6_v)
         else:
@@ -490,7 +490,7 @@ def fx_calc_stencil_region(q: FloatField, del6_v: FloatFieldIJ, fx: FloatField):
     with computation(PARALLEL), interval(1,2):
         if __INLINED(nord1 == 0):
             with horizontal(
-                region[i_start + nmax: i_end - nmax, j_start + nmax: j_end - nmax]
+                region[local_is: local_ie, local_js: local_je+ 1]
             ):
                 fx = fx_calculation(q, del6_v)
         else:
@@ -498,7 +498,7 @@ def fx_calc_stencil_region(q: FloatField, del6_v: FloatFieldIJ, fx: FloatField):
     with computation(PARALLEL), interval(2,3):
         if __INLINED(nord2 == 0):
             with horizontal(
-                region[i_start + nmax: i_end - nmax, j_start + nmax: j_end - nmax]
+                region[local_is: local_ie, local_js: local_je+ 1]
             ):
                 fx = fx_calculation(q, del6_v)
         else:
@@ -506,19 +506,19 @@ def fx_calc_stencil_region(q: FloatField, del6_v: FloatFieldIJ, fx: FloatField):
     with computation(PARALLEL), interval(3,None):
         if __INLINED(nord3 == 0):
             with horizontal(
-                region[i_start + nmax: i_end - nmax, j_start + nmax: j_end - nmax]
+                region[local_is: local_ie, local_js: local_je+1]
             ):
                 fx = fx_calculation(q, del6_v)
         else:
             fx = fx_calculation(q, del6_v)
 
 def fy_calc_stencil_region(q: FloatField, del6_u: FloatFieldIJ, fy: FloatField):
-    from __externals__ import i_end, i_start, j_end, j_start, nmax, nord0, nord1, nord2, nord3
+    from __externals__ import local_is, local_js, local_ie, local_je, nord0, nord1, nord2, nord3
 
     with computation(PARALLEL), interval(0,1):
         if __INLINED(nord0 == 0):
             with horizontal(
-                region[i_start + nmax: i_end - nmax, j_start + nmax: j_end - nmax]
+                region[local_is: local_ie + 1, local_js: local_je]
             ):
                 fy = fy_calculation(q, del6_u)
         else:
@@ -526,7 +526,7 @@ def fy_calc_stencil_region(q: FloatField, del6_u: FloatFieldIJ, fy: FloatField):
     with computation(PARALLEL), interval(1,2):
         if __INLINED(nord1 == 0):
             with horizontal(
-                region[i_start + nmax: i_end - nmax, j_start + nmax: j_end - nmax]
+                region[local_is: local_ie + 1, local_js: local_je]
             ):
                 fy = fy_calculation(q, del6_u)
         else:
@@ -534,7 +534,7 @@ def fy_calc_stencil_region(q: FloatField, del6_u: FloatFieldIJ, fy: FloatField):
     with computation(PARALLEL), interval(2,3):
         if __INLINED(nord2 == 0):
             with horizontal(
-                region[i_start + nmax: i_end - nmax, j_start + nmax: j_end - nmax]
+                region[local_is: local_ie + 1, local_js: local_je]
             ):
                 fy = fy_calculation(q, del6_u)
         else:
@@ -542,7 +542,7 @@ def fy_calc_stencil_region(q: FloatField, del6_u: FloatFieldIJ, fy: FloatField):
     with computation(PARALLEL), interval(3,None):
         if __INLINED(nord3 == 0):
             with horizontal(
-                region[i_start + nmax: i_end - nmax, j_start + nmax: j_end - nmax]
+                region[local_is: local_ie + 1, local_js: local_je]
             ):
                 fy = fy_calculation(q, del6_u)
         else:
@@ -636,12 +636,12 @@ def d2_highorder(fx: FloatField, fy: FloatField, rarea: FloatField):
 
 
 def d2_damp_interval(q: FloatField, d2: FloatField, damp: FloatFieldK):
-    from __externals__ import i_end, i_start, j_end, j_start, nmax, nord0, nord1, nord2, nord3
+    from __externals__ import local_is, local_ie, local_je, local_js, nord0, nord1, nord2, nord3
 
     with computation(PARALLEL), interval(0,1):
         if __INLINED(nord0 == 0):
             with horizontal(
-                region[i_start + nmax: i_end - nmax, j_start + nmax: j_end - nmax]
+                region[local_is - 1: local_ie + 1, local_js -1: local_je + 1]
             ):
                 d2[0, 0, 0] = damp * q
         else:
@@ -649,7 +649,7 @@ def d2_damp_interval(q: FloatField, d2: FloatField, damp: FloatFieldK):
     with computation(PARALLEL), interval(1,2):
         if __INLINED(nord1 == 0):
             with horizontal(
-                region[i_start + nmax: i_end - nmax, j_start + nmax: j_end - nmax]
+                region[local_is - 1: local_ie + 1, local_js -1: local_je + 1]
             ):
                 d2[0, 0, 0] = damp * q
         else:
@@ -657,7 +657,7 @@ def d2_damp_interval(q: FloatField, d2: FloatField, damp: FloatFieldK):
     with computation(PARALLEL), interval(2,3):
         if __INLINED(nord2 == 0):
             with horizontal(
-                region[i_start + nmax: i_end - nmax, j_start + nmax: j_end - nmax]
+                region[local_is - 1: local_ie + 1, local_js -1: local_je + 1]
             ):
                 d2[0, 0, 0] = damp * q
         else:
@@ -665,7 +665,7 @@ def d2_damp_interval(q: FloatField, d2: FloatField, damp: FloatFieldK):
     with computation(PARALLEL), interval(3,None):
         if __INLINED(nord3 == 0):
             with horizontal(
-                region[i_start + nmax: i_end - nmax, j_start + nmax: j_end - nmax]
+                region[local_is - 1: local_ie + 1, local_js -1: local_je + 1]
             ):
                 d2[0, 0, 0] = damp * q
         else:
@@ -673,12 +673,12 @@ def d2_damp_interval(q: FloatField, d2: FloatField, damp: FloatFieldK):
 
 
 def copy_stencil_interval(q_in: FloatField, q_out: FloatField):
-    from __externals__ import i_end, i_start, j_end, j_start, nmax, nord0, nord1, nord2, nord3
+    from __externals__ import local_is, local_ie, local_je, local_js, nord0, nord1, nord2, nord3
 
     with computation(PARALLEL), interval(0,1):
         if __INLINED(nord0 == 0):
             with horizontal(
-                region[i_start + nmax: i_end - nmax, j_start + nmax: j_end - nmax]
+                region[local_is - 1: local_ie + 1, local_js -1: local_je + 1]
             ):
                 q_out = q_in
         else:
@@ -686,7 +686,7 @@ def copy_stencil_interval(q_in: FloatField, q_out: FloatField):
     with computation(PARALLEL), interval(1,2):
         if __INLINED(nord1 == 0):
             with horizontal(
-                region[i_start + nmax: i_end - nmax, j_start + nmax: j_end - nmax]
+                region[local_is - 1: local_ie + 1, local_js -1: local_je + 1]
             ):
                 q_out = q_in
         else:
@@ -694,7 +694,7 @@ def copy_stencil_interval(q_in: FloatField, q_out: FloatField):
     with computation(PARALLEL), interval(2,3):
         if __INLINED(nord2 == 0):
             with horizontal(
-                region[i_start + nmax: i_end - nmax, j_start + nmax: j_end - nmax]
+                region[local_is - 1: local_ie + 1, local_js -1: local_je + 1]
             ):
                 q_out = q_in
         else:
@@ -702,7 +702,7 @@ def copy_stencil_interval(q_in: FloatField, q_out: FloatField):
     with computation(PARALLEL), interval(3,None):
         if __INLINED(nord3 == 0):
             with horizontal(
-                region[i_start + nmax: i_end - nmax, j_start + nmax: j_end - nmax]
+                region[local_is - 1: local_ie + 1, local_js -1: local_je + 1]
             ):
                 q_out = q_in
         else: q_out = q_in
@@ -830,12 +830,10 @@ def compute_no_sg(
     fx_ax_offsets = axis_offsets(spec.grid, fx_origin, (f1_nx, f1_ny, nk))
     fy_ax_offsets = axis_offsets(spec.grid, fx_origin, (f1_nx - 1, f1_ny + 1, nk))
 
-    print(mass)
-
     if mass is None:
         d2_damp = gtscript.stencil(
             definition = d2_damp_interval, 
-            externals={"nmax": nmax, "nord0":nord[0], "nord1":nord[1], "nord2":nord[2], "nord3":nord[3], **preamble_ax_offsets}, 
+            externals={"nord0":nord[0], "nord1":nord[1], "nord2":nord[2], "nord3":nord[3], **preamble_ax_offsets}, 
             backend=global_config.get_backend(),
             rebuild=global_config.get_rebuild(),
         )
@@ -843,7 +841,7 @@ def compute_no_sg(
     else:
         new_copy_stencil = gtscript.stencil(
             definition = copy_stencil_interval, 
-            externals={"nmax": nmax, "nord0":nord[0], "nord1":nord[1], "nord2":nord[2], "nord3":nord[3], **preamble_ax_offsets},
+            externals={"nord0":nord[0], "nord1":nord[1], "nord2":nord[2], "nord3":nord[3], **preamble_ax_offsets},
             backend=global_config.get_backend(),
             rebuild=global_config.get_rebuild(),
         )
@@ -875,7 +873,7 @@ def compute_no_sg(
 
     fx_calc_stencil = gtscript.stencil(
         definition = fx_calc_stencil_region, 
-        externals={"nmax": nmax, "nord0":nord[0], "nord1":nord[1], "nord2":nord[2], "nord3":nord[3], **fx_ax_offsets},
+        externals={"nord0":nord[0], "nord1":nord[1], "nord2":nord[2], "nord3":nord[3], **fx_ax_offsets},
         backend=global_config.get_backend(),
         rebuild=global_config.get_rebuild(),
         )
@@ -890,7 +888,7 @@ def compute_no_sg(
 
     fy_calc_stencil = gtscript.stencil(
         definition = fy_calc_stencil_region, 
-        externals={"nmax": nmax, "nord0":nord[0], "nord1":nord[1], "nord2":nord[2], "nord3":nord[3], **fy_ax_offsets},
+        externals={"nord0":nord[0], "nord1":nord[1], "nord2":nord[2], "nord3":nord[3], **fy_ax_offsets},
         backend=global_config.get_backend(),
         rebuild=global_config.get_rebuild(),
         )
