@@ -72,25 +72,23 @@ def corner_fill(q: FloatField):
 
 class HyperdiffusionDamping:
     """
-    Fortran name is del2cubed
+    Fortran name is del2_cubed
     """
 
-    def __init__(self, grid, qdel: FloatField, km: int):
+    def __init__(self, grid):
         """
         Args:
             grid: fv3core grid object
-            qdel (inout): Variable to be filterd
-            km: Number of vertical levels (grid.npz)
         """
         self.grid = spec.grid
-        self.origin = (self.grid.isd, self.grid.jsd, 0)
-        self.domain = (self.grid.nid, self.grid.njd, km)
-        ax_offsets = axis_offsets(spec.grid, self.origin, self.domain)
+        origin = self.grid.full_origin()
+        domain = self.grid.domain_shape_full()
+        ax_offsets = axis_offsets(spec.grid, origin, domain)
         self._fx = utils.make_storage_from_shape(
-            qdel.shape, origin=self.origin, cache_key="del2cubed_fx"
+            self.grid.domain_shape_full(add=(1, 1, 1)), origin=origin
         )
         self._fy = utils.make_storage_from_shape(
-            qdel.shape, origin=self.origin, cache_key="del2cubed_fy"
+            self.grid.domain_shape_full(add=(1, 1, 1)), origin=origin
         )
 
         self._corner_fill = StencilWrapper(
@@ -98,14 +96,14 @@ class HyperdiffusionDamping:
             externals={
                 **ax_offsets,
             },
-            origin=self.origin,
-            domain=self.domain,
+            origin=origin,
+            domain=domain,
         )
         self._compute_zonal_flux = StencilWrapper(func=compute_zonal_flux)
         self._compute_meridional_flux = StencilWrapper(func=compute_meridional_flux)
         self._update_q = StencilWrapper(func=update_q)
 
-    def __call__(self, qdel: FloatField, nmax: int, cd: float, km: int):
+    def __call__(self, qdel: FloatField, nmax: int, cd: float):
         """
         Perform hyperdiffusion damping/filtering
 
@@ -113,7 +111,6 @@ class HyperdiffusionDamping:
             qdel (inout): Variable to be filterd
             nmax: Number of times to apply filtering
             cd: Damping coeffcient
-            km: Number of vertical levels (grid.npz)
         """
         ntimes = min(3, nmax)
         for n in range(1, ntimes + 1):
@@ -127,24 +124,32 @@ class HyperdiffusionDamping:
                 corners.copy_corners_x_stencil(
                     qdel,
                     origin=(self.grid.isd, self.grid.jsd, 0),
-                    domain=(self.grid.nid, self.grid.njd, km),
+                    domain=(self.grid.nid, self.grid.njd, self.grid.npz),
                 )
             nx = self.grid.nic + 2 * nt + 1
             ny = self.grid.njc + 2 * nt
             self._compute_zonal_flux(
-                self._fx, qdel, self.grid.del6_v, origin=origin, domain=(nx, ny, km)
+                self._fx,
+                qdel,
+                self.grid.del6_v,
+                origin=origin,
+                domain=(nx, ny, self.grid.npz),
             )
 
             if nt > 0:
                 corners.copy_corners_y_stencil(
                     qdel,
                     origin=(self.grid.isd, self.grid.jsd, 0),
-                    domain=(self.grid.nid, self.grid.njd, km),
+                    domain=(self.grid.nid, self.grid.njd, self.grid.npz),
                 )
             nx = self.grid.nic + 2 * nt
             ny = self.grid.njc + 2 * nt + 1
             self._compute_meridional_flux(
-                self._fy, qdel, self.grid.del6_u, origin=origin, domain=(nx, ny, km)
+                self._fy,
+                qdel,
+                self.grid.del6_u,
+                origin=origin,
+                domain=(nx, ny, self.grid.npz),
             )
 
             # Update q values
@@ -156,12 +161,5 @@ class HyperdiffusionDamping:
                 self._fy,
                 cd,
                 origin=origin,
-                domain=(nx, ny, km),
+                domain=(nx, ny, self.grid.npz),
             )
-
-
-def compute(qdel: FloatField, nmax: int, cd: float, km: int):
-    hyperdiffusion = utils.cached_stencil_class(HyperdiffusionDamping)(
-        spec.grid, qdel, km
-    )
-    hyperdiffusion(qdel, nmax, cd, km)
