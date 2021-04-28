@@ -35,13 +35,11 @@ def ray_fast_wind_compute(
     pfull: FloatFieldK,
     dt: float,
     ptop: float,
-    rf_cutoff: float,
     rf_cutoff_nudge: float,
     ks: int,
     hydrostatic: bool,
-    tau: float,
 ):
-    from __externals__ import local_ie, local_je
+    from __externals__ import rf_cutoff, tau, local_ie, local_je
 
     # dm_stencil
     with computation(PARALLEL), interval(...):
@@ -122,12 +120,11 @@ class RayleighDamping:
         - rf_cutoff [Float]: pressure below which no Rayleigh damping is applied
                              if tau > 0.
 
-    Fotran name: rf_fast.
+    Fotran name: ray_fast.
     """
 
     def __init__(self, grid, namelist):
-        self._tau = namelist.tau
-        self._rt_cutoff = namelist.rf_cutoff
+        self._rf_cutoff = namelist.rf_cutoff
         self._hydrostatic = namelist.hydrostatic
         origin = grid.compute_origin()
         domain = (grid.nic + 1, grid.njc + 1, grid.npz)
@@ -142,7 +139,11 @@ class RayleighDamping:
             ray_fast_wind_compute,
             origin=origin,
             domain=domain,
-            externals=local_axis_offsets,
+            externals={
+                "rf_cutoff": namelist.rf_cutoff,
+                "tau": namelist.tau,
+                **local_axis_offsets,
+            },
         )
 
     def __call__(
@@ -156,19 +157,8 @@ class RayleighDamping:
         ptop: float,
         ks: int,
     ):
-        rf_cutoff_nudge = self._rt_cutoff + min(100.0, 10.0 * ptop)
+        rf_cutoff_nudge = self._rf_cutoff + min(100.0, 10.0 * ptop)
 
         self._ray_fast_wind_compute(
-            u,
-            v,
-            w,
-            dp,
-            pfull,
-            dt,
-            ptop,
-            self._rt_cutoff,
-            rf_cutoff_nudge,
-            ks,
-            self._hydrostatic,
-            self._tau,
+            u, v, w, dp, pfull, dt, ptop, rf_cutoff_nudge, ks, self._hydrostatic,
         )
