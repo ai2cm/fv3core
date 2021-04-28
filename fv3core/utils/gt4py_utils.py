@@ -549,3 +549,8 @@ def stack(tup, axis: int = 0, out=None):
         array_tup.append(array)
     xp = cp if cp and type(array_tup[0]) is cp.ndarray else np
     return xp.stack(array_tup, axis, out)
+
+
+def device_sync() -> None:
+    if cp and "cuda" in global_config.get_backend():
+        cp.cuda.Device(0).synchronize()

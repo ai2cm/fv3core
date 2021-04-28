@@ -12,12 +12,12 @@ from gt4py.gtscript import (
 import fv3core._config as spec
 import fv3core.stencils.delnflux as delnflux
 import fv3core.stencils.divergence_damping as divdamp
-import fv3core.stencils.fxadv as fxadv
 import fv3core.utils.corners as corners
 import fv3core.utils.global_constants as constants
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import gtstencil
 from fv3core.stencils.fvtp2d import FiniteVolumeTransport
+from fv3core.stencils.fxadv import FiniteVolumeFluxPrep
 from fv3core.stencils.xtp_u import XTP_U
 from fv3core.stencils.ytp_v import YTP_V
 from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
@@ -659,12 +659,6 @@ def compute(
         shape, grid().compute_origin(), cache_key="d_sw_gy"
     )
 
-    ra_x = utils.make_storage_from_shape(
-        shape, grid().compute_origin(), cache_key="d_sw_ra_x"
-    )
-    ra_y = utils.make_storage_from_shape(
-        shape, grid().compute_origin(), cache_key="d_sw_ra_y"
-    )
     fvtp2d_dp = utils.cached_stencil_class(FiniteVolumeTransport)(
         spec.namelist, spec.namelist.hord_dp, cache_key="d_sw-dp"
     )
@@ -674,8 +668,8 @@ def compute(
     fvtp2d_tm = utils.cached_stencil_class(FiniteVolumeTransport)(
         spec.namelist, spec.namelist.hord_tm, cache_key="d_sw-tm"
     )
-
-    fxadv.compute(uc, vc, crx, cry, xfx, yfx, ut, vt, ra_x, ra_y, dt)
+    fv_prep = utils.cached_stencil_class(FiniteVolumeFluxPrep)(cache_key="fxadv")
+    fv_prep(uc, vc, crx, cry, xfx, yfx, ut, vt, dt)
 
     fvtp2d_dp(
         delp,
@@ -683,8 +677,6 @@ def compute(
         cry,
         xfx,
         yfx,
-        ra_x,
-        ra_y,
         fx,
         fy,
         nord=column_namelist["nord_v"],
@@ -712,8 +704,6 @@ def compute(
             cry,
             xfx,
             yfx,
-            ra_x,
-            ra_y,
             gx,
             gy,
             nord=column_namelist["nord_v"],
@@ -738,8 +728,6 @@ def compute(
         cry,
         xfx,
         yfx,
-        ra_x,
-        ra_y,
         gx,
         gy,
         nord=column_namelist["nord_t"],
@@ -767,8 +755,6 @@ def compute(
         cry,
         xfx,
         yfx,
-        ra_x,
-        ra_y,
         gx,
         gy,
         nord=column_namelist["nord_v"],
@@ -890,7 +876,7 @@ def compute(
         domain=grid().domain_shape_full(),
     )
 
-    fvtp2d_vt(vort, crx, cry, xfx, yfx, ra_x, ra_y, fx, fy)
+    fvtp2d_vt(vort, crx, cry, xfx, yfx, fx, fy)
 
     u_and_v_from_ke(
         ke,

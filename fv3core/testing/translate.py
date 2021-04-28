@@ -4,6 +4,7 @@ from typing import Dict, List, Optional, Tuple
 import numpy as np
 
 import fv3core._config
+import fv3core.decorators as decorators
 import fv3core.utils.gt4py_utils as utils
 from fv3core.utils.grid import Grid
 from fv3core.utils.typing import Field
@@ -33,16 +34,21 @@ class TranslateFortranData2Py:
         self.ordered_input_vars = None
         self.ignore_near_zero_errors = {}
 
+    def setup(self, inputs):
+        self.make_storage_data_input_vars(inputs)
+        decorators.get_stencil_cache().clear()
+
     def compute_func(self, **inputs):
         raise NotImplementedError("Implement a child class compute method")
 
     def compute(self, inputs):
-        self.make_storage_data_input_vars(inputs)
+        self.setup(inputs)
         return self.slice_output(self.compute_from_storage(inputs))
 
     # assume inputs already has been turned into gt4py storages (or Quantities)
     def compute_from_storage(self, inputs):
         outputs = self.compute_func(**inputs)
+        utils.device_sync()
         if outputs is not None:
             inputs.update(outputs)
         return inputs
@@ -192,6 +198,7 @@ class TranslateFortranData2Py:
                 del inputs[serialname]
 
     def slice_output(self, inputs, out_data=None):
+        utils.device_sync()
         if out_data is None:
             out_data = inputs
         else:

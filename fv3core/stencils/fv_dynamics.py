@@ -54,6 +54,7 @@ def compute_preamble(state, comm, grid, namelist):
         origin=(0, 0, 0),
         domain=(1, 1, grid.domain_shape_compute()[2]),
     )
+    utils.device_sync()
 
     state.pfull = utils.make_storage_data(state.pfull[0, 0, :], state.ak.shape, (0,))
 
@@ -143,6 +144,7 @@ def compute_preamble(state, comm, grid, namelist):
             origin=grid.compute_origin(),
             domain=grid.domain_shape_compute(),
         )
+        utils.device_sync()
 
 
 def post_remap(state, comm, grid, namelist):
@@ -164,6 +166,7 @@ def post_remap(state, comm, grid, namelist):
             if grid.rank == 0:
                 print("Del2Cubed")
         if global_config.get_do_halo_exchange():
+            utils.device_sync()
             comm.halo_update(state.omga_quantity, n_points=utils.halo)
         del2cubed.compute(state.omga, namelist.nf_omega, 0.18 * grid.da_min, grid.npz)
 
@@ -289,16 +292,34 @@ class DynamicalCore:
         ),
     )
 
-    def __init__(self, comm: fv3gfs.util.CubedSphereCommunicator, namelist):
+    def __init__(
+        self,
+        comm: fv3gfs.util.CubedSphereCommunicator,
+        namelist,
+        ak: fv3gfs.util.Quantity,
+        bk: fv3gfs.util.Quantity,
+        phis: fv3gfs.util.Quantity,
+    ):
+        """
+        Args:
+            comm: object for cubed sphere inter-process communication
+            namelist: flattened Fortran namelist
+            ak: atmosphere hybrid a coordinate (Pa)
+            bk: atmosphere hybrid b coordinate (dimensionless)
+            phis: surface geopotential height
+        """
         self.comm = comm
         self.grid = spec.grid
         self.namelist = namelist
         self.do_halo_exchange = global_config.get_do_halo_exchange()
 
         self.tracer_advection = Tracer2D1L(comm, namelist)
-        self.acoustic_dynamics = AcousticDynamics(comm, namelist)
-        # npx and npy are number of interfaces, npz is number of centers
-        # and shapes should be the full data shape
+        self._ak = ak.storage
+        self._bk = bk.storage
+        self._phis = phis.storage
+        self.acoustic_dynamics = AcousticDynamics(
+            comm, namelist, self._ak, self._bk, self._phis
+        )
 
         self._temporaries = fvdyn_temporaries(
             self.grid.domain_shape_full(add=(1, 1, 1)), self.grid
@@ -353,15 +374,19 @@ class DynamicalCore:
         timer: fv3gfs.util.NullTimer,
     ):
         state.__dict__.update(self._temporaries)
+        state.ak = self._ak
+        state.bk = self._bk
         last_step = False
         if self.do_halo_exchange:
+            utils.device_sync()
             self.comm.halo_update(state.phis_quantity, n_points=utils.halo)
         compute_preamble(state, self.comm, self.grid, self.namelist)
+
         for n_map in range(state.k_split):
             state.n_map = n_map + 1
-            if n_map == state.k_split - 1:
-                last_step = True
+            last_step = n_map == state.k_split - 1
             self._dyn(state, timer)
+
             if self.grid.npz > 4:
                 # nq is actually given by ncnst - pnats,
                 # where those are given in atmosphere.F90 by:
@@ -401,8 +426,8 @@ class DynamicalCore:
                         state.ps,
                         state.wsd_3d,
                         state.omga,
-                        state.ak,
-                        state.bk,
+                        self._ak,
+                        self._bk,
                         state.pfull,
                         state.dp1,
                         state.ptop,
@@ -448,6 +473,7 @@ class DynamicalCore:
                     state.mdt,
                     DynamicalCore.NQ,
                 )
+        utils.device_sync()
 
 
 def fv_dynamics(
@@ -461,7 +487,13 @@ def fv_dynamics(
     ks,
     timer=fv3gfs.util.NullTimer(),
 ):
-    dycore = utils.cached_stencil_class(DynamicalCore)(comm, spec.namelist)
+    dycore = utils.cached_stencil_class(DynamicalCore)(
+        comm,
+        spec.namelist,
+        state["atmosphere_hybrid_a_coordinate"],
+        state["atmosphere_hybrid_b_coordinate"],
+        state["surface_geopotential"],
+    )
     dycore.step_dynamics(
         state,
         consv_te,

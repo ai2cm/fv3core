@@ -1,5 +1,4 @@
-import fv3core.stencils.fxadv as fxadv
-import fv3core.utils.gt4py_utils as utils
+from fv3core.stencils.fxadv import FiniteVolumeFluxPrep
 from fv3core.testing import TranslateFortranData2Py
 
 
@@ -8,33 +7,27 @@ class TranslateFxAdv(TranslateFortranData2Py):
         super().__init__(grid)
         utinfo = grid.x3d_domain_dict()
         vtinfo = grid.y3d_domain_dict()
+        self.compute_func = FiniteVolumeFluxPrep()
         self.in_vars["data_vars"] = {
             "uc": {},
             "vc": {},
             "ut": utinfo,
             "vt": vtinfo,
-            "xfx_adv": grid.x3d_compute_domain_y_dict(),
-            "crx_adv": grid.x3d_compute_domain_y_dict(),
-            "yfx_adv": grid.y3d_compute_domain_x_dict(),
-            "cry_adv": grid.y3d_compute_domain_x_dict(),
+            "x_area_flux": {
+                **{"serialname": "xfx_adv"},
+                **grid.x3d_compute_domain_y_dict(),
+            },
+            "crx": {**{"serialname": "crx_adv"}, **grid.x3d_compute_domain_y_dict()},
+            "y_area_flux": {
+                **{"serialname": "yfx_adv"},
+                **grid.y3d_compute_domain_x_dict(),
+            },
+            "cry": {**{"serialname": "cry_adv"}, **grid.y3d_compute_domain_x_dict()},
         }
         self.in_vars["parameters"] = ["dt"]
         self.out_vars = {
-            "ra_x": {"istart": grid.is_, "iend": grid.ie},
-            "ra_y": {"jstart": grid.js, "jend": grid.je},
             "ut": utinfo,
             "vt": vtinfo,
         }
-        for var in ["xfx_adv", "crx_adv", "yfx_adv", "cry_adv"]:
+        for var in ["x_area_flux", "crx", "y_area_flux", "cry"]:
             self.out_vars[var] = self.in_vars["data_vars"][var]
-
-    def compute_from_storage(self, inputs):
-        grid = self.grid
-        inputs["ra_x"] = utils.make_storage_from_shape(
-            inputs["uc"].shape, grid.compute_origin()
-        )
-        inputs["ra_y"] = utils.make_storage_from_shape(
-            inputs["vc"].shape, grid.compute_origin()
-        )
-        fxadv.compute(**inputs)
-        return inputs
