@@ -28,12 +28,12 @@ def get_static_name(frame, event, args) -> str:
     """Static naming"""
     if (
         frame.f_code.co_name == "__call__"
-        and frame.f_code.co_filename == "fv3core/stencils/dyn_core.py"
+        and "fv3core/stencils/dyn_core.py" in frame.f_code.co_filename
     ):
         return "Acoustic timestep"
     elif (
         frame.f_code.co_name == "compute"
-        and frame.f_code.co_filename == "fv3core/stencils/remapping.py"
+        and "fv3core/stencils/remapping.py" in frame.f_code.co_filename
     ):
         return "Remapping"
 
@@ -59,6 +59,11 @@ functions_desc = [
         "fn": "compute",
         "file": "fv3core/stencils/remapping.py",
         "name_fn": get_static_name,
+    },
+    {
+        "fn": "step_dynamics",
+        "file": "fv3core/stencils/fv_dynamics.py",
+        "name_fn": get_name_from_frame,
     },
     {"fn": "fv_dynamics", "file": None, "name_fn": get_name_from_frame},
 ]
