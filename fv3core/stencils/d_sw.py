@@ -522,7 +522,7 @@ def damp_vertical_wind(w, heat_s, diss_est, dt, column_namelist):
                 kstart=kstart,
                 nk=nk,
                 conditional_calc=True,
-                column_check=True,
+                check_all_columns=True,
             )
     heat_diss(
         fx2,
@@ -916,7 +916,7 @@ def compute(
                 kstart=kstart,
                 nk=nk,
                 conditional_calc=True,
-                column_check=False,
+                check_all_columns=False,
             )
 
     heat_source_from_vorticity_damping(

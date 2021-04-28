@@ -798,11 +798,11 @@ def compute_no_sg(
         mass=None,
         conditional_calc=True,
         check_all_columns=False,
+        nk=None
 ):
     if (conditional_calc==True) and (check_all_columns==False):
         if damp_c[0] <= 1e-5: #dcon_threshold
-            pass
-            # raise Exception("damp <= 1e-5 in column_cols is untested")
+            raise Exception("damp <= 1e-5 in column_cols is untested")
     if max(nord[:]) > 3:
         raise Exception("nord must be less than 3")
     if not np.all(n in [0,2,3] for n in nord[:]):
@@ -813,7 +813,8 @@ def compute_no_sg(
     i2 = grid.ie + 1 + nmax
     j1 = grid.js - 1 - nmax
     j2 = grid.je + 1 + nmax
-    nk = grid.npz
+    if nk is None:
+        nk = grid.npz
     origin_d2 = (i1, j1, 0)
     domain_d2 = (i2 - i1 + 1, j2 - j1 + 1, nk)
     f1_ny = grid.je - grid.js + 1 + 2 * nmax

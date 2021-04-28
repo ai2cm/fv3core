@@ -155,10 +155,9 @@ class FiniteVolumeTransport:
                 mfy,
             )
             if (mass is not None) and (nord is not None) and (damp_c is not None):
-                for kstart, nk in d_sw.k_bounds():
-                    delnflux.compute_delnflux_no_sg(
-                        q, fx, fy, nord[kstart], damp_c[kstart], kstart, nk, mass=mass
-                    )
+                delnflux.compute_delnflux_no_sg(
+                    q, fx, fy, nord, damp_c, mass=mass
+                )
         else:
             self.stencil_transport_flux(
                 fx,
@@ -169,7 +168,6 @@ class FiniteVolumeTransport:
                 yfx,
             )
             if (nord is not None) and (damp_c is not None):
-                for kstart, nk in d_sw.k_bounds():
-                    delnflux.compute_delnflux_no_sg(
-                        q, fx, fy, nord[kstart], damp_c[kstart], kstart, nk
-                    )
+                delnflux.compute_delnflux_no_sg(
+                    q, fx, fy, nord, damp_c
+                )

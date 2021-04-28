@@ -337,21 +337,17 @@ def compute(
     # TODO, do not recreate this, and have it part of aninitialization step
     # or remove entirely when refactored away
     column_namelist = d_sw.get_column_namelist()
-    for kstart, nk in d_sw.k_bounds():
-        if column_namelist["damp_vt"][kstart] <= 1e-5:
-            raise Exception("damp <= 1e-5 in column_cols is untested")
-        delnflux.compute_no_sg(
-            z2,
-            fx2,
-            fy2,
-            int(column_namelist["nord_v"][kstart]),
-            column_namelist["damp_vt"][kstart],
-            wk,
-            kstart=kstart,
-            nk=nk,
-            conditional_calc=True,
-            column_check=True,
-        )
+    delnflux.compute_no_sg(
+        z2,
+        fx2,
+        fy2,
+        column_namelist["nord_v"],
+        column_namelist["damp_vt"],
+        wk,
+        conditional_calc=True,
+        check_all_columns=False,
+        nk=grid.npz+1
+    )
     zh_damp(
         grid.area,
         z2,
