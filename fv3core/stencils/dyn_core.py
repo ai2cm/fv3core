@@ -292,6 +292,8 @@ class AcousticDynamics:
             domain=self.grid.domain_shape_full(),
         )
 
+        self._pe_halo = pe_halo.PeHalo()
+
     def __call__(self, state):
         # u, v, w, delz, delp, pt, pe, pk, phis, wsd, omga, ua, va, uc, vc, mfxd,
         # mfyd, cxd, cyd, pkz, peln, q_con, ak, bk, diss_estd, cappa, mdt, n_split,
@@ -563,7 +565,7 @@ class AcousticDynamics:
                             state.pkc_quantity, n_points=self.grid.halo
                         )
                 if remap_step:
-                    pe_halo.compute(state.pe, state.delp, state.ptop)
+                    self._pe_halo(state.pe, state.delp, state.ptop)
                 if self.namelist.use_logp:
                     raise NotImplementedError(
                         "unimplemented namelist option use_logp=True"
