@@ -79,8 +79,8 @@ class HyperdiffusionDamping:
         """
         Args:
             grid: fv3core grid object
-            qdel (inout): variable to be filterd
-            km: vertical levels (grid.npz)
+            qdel (inout): Variable to be filterd
+            km: Number of vertical levels (grid.npz)
         """
         self.grid = spec.grid
         self.origin = (self.grid.isd, self.grid.jsd, 0)
@@ -107,13 +107,13 @@ class HyperdiffusionDamping:
 
     def __call__(self, qdel: FloatField, nmax: int, cd: float, km: int):
         """
-        Perform hyperdiffusion damping
+        Perform hyperdiffusion damping/filtering
 
         Args:
-            qdel (inout): variable to be filterd
-            nmax: number of times to damping
-            cd: damping coeffcient
-            km: vertical levels (grid.npz)
+            qdel (inout): Variable to be filterd
+            nmax: Number of times to apply filtering
+            cd: Damping coeffcient
+            km: Number of vertical levels (grid.npz)
         """
         ntimes = min(3, nmax)
         for n in range(1, ntimes + 1):
@@ -129,8 +129,8 @@ class HyperdiffusionDamping:
                     origin=(self.grid.isd, self.grid.jsd, 0),
                     domain=(self.grid.nid, self.grid.njd, km),
                 )
-            nx = self.grid.nic + 2 * nt + 1  # (grid.ie+nt+1) - (grid.is_-nt) + 1
-            ny = self.grid.njc + 2 * nt  # (grid.je+nt) - (grid.js-nt) + 1
+            nx = self.grid.nic + 2 * nt + 1
+            ny = self.grid.njc + 2 * nt
             self._compute_zonal_flux(
                 self._fx, qdel, self.grid.del6_v, origin=origin, domain=(nx, ny, km)
             )
@@ -141,14 +141,14 @@ class HyperdiffusionDamping:
                     origin=(self.grid.isd, self.grid.jsd, 0),
                     domain=(self.grid.nid, self.grid.njd, km),
                 )
-            nx = self.grid.nic + 2 * nt  # (grid.ie+nt) - (grid.is_-nt) + 1
-            ny = self.grid.njc + 2 * nt + 1  # (grid.je+nt+1) - (grid.js-nt) + 1
+            nx = self.grid.nic + 2 * nt
+            ny = self.grid.njc + 2 * nt + 1
             self._compute_meridional_flux(
                 self._fy, qdel, self.grid.del6_u, origin=origin, domain=(nx, ny, km)
             )
 
             # Update q values
-            ny = self.grid.njc + 2 * nt  # (grid.je+nt) - (grid.js-nt) + 1
+            ny = self.grid.njc + 2 * nt
             self._update_q(
                 qdel,
                 self.grid.rarea,
