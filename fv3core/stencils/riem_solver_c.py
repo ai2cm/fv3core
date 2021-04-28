@@ -109,17 +109,17 @@ class RiemannSolverC:
         cappa: FloatField,
         ptop: float,
         hs: FloatFieldIJ,
-        w3: FloatField,
+        ws: FloatFieldIJ,
         ptc: FloatField,
         q_con: FloatField,
         delpc: FloatField,
         gz: FloatField,
         pef: FloatField,
-        ws: FloatFieldIJ,
+        w3: FloatField,
     ):
         """
         Solves for the nonhydrostatic terms for vertical velocity (w)
-        and non-hydrostatic pressure perturbation after D-grid winds advect
+        and non-hydrostatic pressure perturbation after C-grid winds advect
         and heights are updated.
 
         Args:
@@ -127,13 +127,13 @@ class RiemannSolverC:
            cappa: ??? (in)
            ptop: pressure at top of atmosphere (in)
            hs: ??? (in)
-           w3: vertical velocity of the lowest level (in)
+           ws: vertical velocity of the lowest level (in)
            ptc: potential temperature (in)
            q_con: total condensate mixing ratio (in)
            delpc: vertical delta in pressure (in)
            gz: geopotential heigh (inout)
            pef: full hydrostatic pressure(inout)
-           ws: vertical velocity (inout)
+           w3: vertical velocity (inout)
         """
         self._precompute_stencil(
             delpc,

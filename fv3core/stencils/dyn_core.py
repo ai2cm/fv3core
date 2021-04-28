@@ -426,13 +426,13 @@ class AcousticDynamics:
                     state.cappa,
                     state.ptop,
                     state.phis,
-                    state.omga,
+                    state.ws3,
                     state.ptc,
                     state.q_con,
                     state.delpc,
                     state.gz,
                     state.pkc,
-                    state.ws3,
+                    state.omga,
                 )
 
             self._p_grad_c(
