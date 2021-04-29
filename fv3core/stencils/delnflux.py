@@ -20,606 +20,484 @@ from fv3core.utils.grid import axis_offsets
 from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
 
 
-def copy_corners_x_nord(q: FloatField):
-    from __externals__ import i_end, i_start, j_end, j_start, nord0, nord1, nord2, nord3
+def copy_corners_x_nord0(q: FloatField):
+    from __externals__ import i_end, i_start, j_end, j_start
 
     with computation(PARALLEL), interval(0, 1):
-        if __INLINED(nord0 > 0):
-            with horizontal(
-                region[i_start - 3, j_start - 3], region[i_end + 3, j_start - 3]
-            ):
-                q = q[0, 5, 0]
-            with horizontal(
-                region[i_start - 2, j_start - 3], region[i_end + 3, j_start - 2]
-            ):
-                q = q[-1, 4, 0]
-            with horizontal(
-                region[i_start - 1, j_start - 3], region[i_end + 3, j_start - 1]
-            ):
-                q = q[-2, 3, 0]
-            with horizontal(
-                region[i_start - 3, j_start - 2], region[i_end + 2, j_start - 3]
-            ):
-                q = q[1, 4, 0]
-            with horizontal(
-                region[i_start - 2, j_start - 2], region[i_end + 2, j_start - 2]
-            ):
-                q = q[0, 3, 0]
-            with horizontal(
-                region[i_start - 1, j_start - 2], region[i_end + 2, j_start - 1]
-            ):
-                q = q[-1, 2, 0]
-            with horizontal(
-                region[i_start - 3, j_start - 1], region[i_end + 1, j_start - 3]
-            ):
-                q = q[2, 3, 0]
-            with horizontal(
-                region[i_start - 2, j_start - 1], region[i_end + 1, j_start - 2]
-            ):
-                q = q[1, 2, 0]
-            with horizontal(
-                region[i_start - 1, j_start - 1], region[i_end + 1, j_start - 1]
-            ):
-                q = q[0, 1, 0]
-            with horizontal(
-                region[i_start - 3, j_end + 1], region[i_end + 1, j_end + 3]
-            ):
-                q = q[2, -3, 0]
-            with horizontal(
-                region[i_start - 2, j_end + 1], region[i_end + 1, j_end + 2]
-            ):
-                q = q[1, -2, 0]
-            with horizontal(
-                region[i_start - 1, j_end + 1], region[i_end + 1, j_end + 1]
-            ):
-                q = q[0, -1, 0]
-            with horizontal(
-                region[i_start - 3, j_end + 2], region[i_end + 2, j_end + 3]
-            ):
-                q = q[1, -4, 0]
-            with horizontal(
-                region[i_start - 2, j_end + 2], region[i_end + 2, j_end + 2]
-            ):
-                q = q[0, -3, 0]
-            with horizontal(
-                region[i_start - 1, j_end + 2], region[i_end + 2, j_end + 1]
-            ):
-                q = q[-1, -2, 0]
-            with horizontal(
-                region[i_start - 3, j_end + 3], region[i_end + 3, j_end + 3]
-            ):
-                q = q[0, -5, 0]
-            with horizontal(
-                region[i_start - 2, j_end + 3], region[i_end + 3, j_end + 2]
-            ):
-                q = q[-1, -4, 0]
-            with horizontal(
-                region[i_start - 1, j_end + 3], region[i_end + 3, j_end + 1]
-            ):
-                q = q[-2, -3, 0]
+        with horizontal(
+            region[i_start - 3, j_start - 3], region[i_end + 3, j_start - 3]
+        ):
+            q = q[0, 5, 0]
+        with horizontal(
+            region[i_start - 2, j_start - 3], region[i_end + 3, j_start - 2]
+        ):
+            q = q[-1, 4, 0]
+        with horizontal(
+            region[i_start - 1, j_start - 3], region[i_end + 3, j_start - 1]
+        ):
+            q = q[-2, 3, 0]
+        with horizontal(
+            region[i_start - 3, j_start - 2], region[i_end + 2, j_start - 3]
+        ):
+            q = q[1, 4, 0]
+        with horizontal(
+            region[i_start - 2, j_start - 2], region[i_end + 2, j_start - 2]
+        ):
+            q = q[0, 3, 0]
+        with horizontal(
+            region[i_start - 1, j_start - 2], region[i_end + 2, j_start - 1]
+        ):
+            q = q[-1, 2, 0]
+        with horizontal(
+            region[i_start - 3, j_start - 1], region[i_end + 1, j_start - 3]
+        ):
+            q = q[2, 3, 0]
+        with horizontal(
+            region[i_start - 2, j_start - 1], region[i_end + 1, j_start - 2]
+        ):
+            q = q[1, 2, 0]
+        with horizontal(
+            region[i_start - 1, j_start - 1], region[i_end + 1, j_start - 1]
+        ):
+            q = q[0, 1, 0]
+        with horizontal(region[i_start - 3, j_end + 1], region[i_end + 1, j_end + 3]):
+            q = q[2, -3, 0]
+        with horizontal(region[i_start - 2, j_end + 1], region[i_end + 1, j_end + 2]):
+            q = q[1, -2, 0]
+        with horizontal(region[i_start - 1, j_end + 1], region[i_end + 1, j_end + 1]):
+            q = q[0, -1, 0]
+        with horizontal(region[i_start - 3, j_end + 2], region[i_end + 2, j_end + 3]):
+            q = q[1, -4, 0]
+        with horizontal(region[i_start - 2, j_end + 2], region[i_end + 2, j_end + 2]):
+            q = q[0, -3, 0]
+        with horizontal(region[i_start - 1, j_end + 2], region[i_end + 2, j_end + 1]):
+            q = q[-1, -2, 0]
+        with horizontal(region[i_start - 3, j_end + 3], region[i_end + 3, j_end + 3]):
+            q = q[0, -5, 0]
+        with horizontal(region[i_start - 2, j_end + 3], region[i_end + 3, j_end + 2]):
+            q = q[-1, -4, 0]
+        with horizontal(region[i_start - 1, j_end + 3], region[i_end + 3, j_end + 1]):
+            q = q[-2, -3, 0]
+
+
+def copy_corners_x_nord1(q: FloatField):
+    from __externals__ import i_end, i_start, j_end, j_start
+
     with computation(PARALLEL), interval(1, 2):
-        if __INLINED(nord1 > 0):
-            with horizontal(
-                region[i_start - 3, j_start - 3], region[i_end + 3, j_start - 3]
-            ):
-                q = q[0, 5, 0]
-            with horizontal(
-                region[i_start - 2, j_start - 3], region[i_end + 3, j_start - 2]
-            ):
-                q = q[-1, 4, 0]
-            with horizontal(
-                region[i_start - 1, j_start - 3], region[i_end + 3, j_start - 1]
-            ):
-                q = q[-2, 3, 0]
-            with horizontal(
-                region[i_start - 3, j_start - 2], region[i_end + 2, j_start - 3]
-            ):
-                q = q[1, 4, 0]
-            with horizontal(
-                region[i_start - 2, j_start - 2], region[i_end + 2, j_start - 2]
-            ):
-                q = q[0, 3, 0]
-            with horizontal(
-                region[i_start - 1, j_start - 2], region[i_end + 2, j_start - 1]
-            ):
-                q = q[-1, 2, 0]
-            with horizontal(
-                region[i_start - 3, j_start - 1], region[i_end + 1, j_start - 3]
-            ):
-                q = q[2, 3, 0]
-            with horizontal(
-                region[i_start - 2, j_start - 1], region[i_end + 1, j_start - 2]
-            ):
-                q = q[1, 2, 0]
-            with horizontal(
-                region[i_start - 1, j_start - 1], region[i_end + 1, j_start - 1]
-            ):
-                q = q[0, 1, 0]
-            with horizontal(
-                region[i_start - 3, j_end + 1], region[i_end + 1, j_end + 3]
-            ):
-                q = q[2, -3, 0]
-            with horizontal(
-                region[i_start - 2, j_end + 1], region[i_end + 1, j_end + 2]
-            ):
-                q = q[1, -2, 0]
-            with horizontal(
-                region[i_start - 1, j_end + 1], region[i_end + 1, j_end + 1]
-            ):
-                q = q[0, -1, 0]
-            with horizontal(
-                region[i_start - 3, j_end + 2], region[i_end + 2, j_end + 3]
-            ):
-                q = q[1, -4, 0]
-            with horizontal(
-                region[i_start - 2, j_end + 2], region[i_end + 2, j_end + 2]
-            ):
-                q = q[0, -3, 0]
-            with horizontal(
-                region[i_start - 1, j_end + 2], region[i_end + 2, j_end + 1]
-            ):
-                q = q[-1, -2, 0]
-            with horizontal(
-                region[i_start - 3, j_end + 3], region[i_end + 3, j_end + 3]
-            ):
-                q = q[0, -5, 0]
-            with horizontal(
-                region[i_start - 2, j_end + 3], region[i_end + 3, j_end + 2]
-            ):
-                q = q[-1, -4, 0]
-            with horizontal(
-                region[i_start - 1, j_end + 3], region[i_end + 3, j_end + 1]
-            ):
-                q = q[-2, -3, 0]
+        with horizontal(
+            region[i_start - 3, j_start - 3], region[i_end + 3, j_start - 3]
+        ):
+            q = q[0, 5, 0]
+        with horizontal(
+            region[i_start - 2, j_start - 3], region[i_end + 3, j_start - 2]
+        ):
+            q = q[-1, 4, 0]
+        with horizontal(
+            region[i_start - 1, j_start - 3], region[i_end + 3, j_start - 1]
+        ):
+            q = q[-2, 3, 0]
+        with horizontal(
+            region[i_start - 3, j_start - 2], region[i_end + 2, j_start - 3]
+        ):
+            q = q[1, 4, 0]
+        with horizontal(
+            region[i_start - 2, j_start - 2], region[i_end + 2, j_start - 2]
+        ):
+            q = q[0, 3, 0]
+        with horizontal(
+            region[i_start - 1, j_start - 2], region[i_end + 2, j_start - 1]
+        ):
+            q = q[-1, 2, 0]
+        with horizontal(
+            region[i_start - 3, j_start - 1], region[i_end + 1, j_start - 3]
+        ):
+            q = q[2, 3, 0]
+        with horizontal(
+            region[i_start - 2, j_start - 1], region[i_end + 1, j_start - 2]
+        ):
+            q = q[1, 2, 0]
+        with horizontal(
+            region[i_start - 1, j_start - 1], region[i_end + 1, j_start - 1]
+        ):
+            q = q[0, 1, 0]
+        with horizontal(region[i_start - 3, j_end + 1], region[i_end + 1, j_end + 3]):
+            q = q[2, -3, 0]
+        with horizontal(region[i_start - 2, j_end + 1], region[i_end + 1, j_end + 2]):
+            q = q[1, -2, 0]
+        with horizontal(region[i_start - 1, j_end + 1], region[i_end + 1, j_end + 1]):
+            q = q[0, -1, 0]
+        with horizontal(region[i_start - 3, j_end + 2], region[i_end + 2, j_end + 3]):
+            q = q[1, -4, 0]
+        with horizontal(region[i_start - 2, j_end + 2], region[i_end + 2, j_end + 2]):
+            q = q[0, -3, 0]
+        with horizontal(region[i_start - 1, j_end + 2], region[i_end + 2, j_end + 1]):
+            q = q[-1, -2, 0]
+        with horizontal(region[i_start - 3, j_end + 3], region[i_end + 3, j_end + 3]):
+            q = q[0, -5, 0]
+        with horizontal(region[i_start - 2, j_end + 3], region[i_end + 3, j_end + 2]):
+            q = q[-1, -4, 0]
+        with horizontal(region[i_start - 1, j_end + 3], region[i_end + 3, j_end + 1]):
+            q = q[-2, -3, 0]
+
+
+def copy_corners_x_nord2(q: FloatField):
+    from __externals__ import i_end, i_start, j_end, j_start
+
     with computation(PARALLEL), interval(2, 3):
-        if __INLINED(nord2 > 0):
-            with horizontal(
-                region[i_start - 3, j_start - 3], region[i_end + 3, j_start - 3]
-            ):
-                q = q[0, 5, 0]
-            with horizontal(
-                region[i_start - 2, j_start - 3], region[i_end + 3, j_start - 2]
-            ):
-                q = q[-1, 4, 0]
-            with horizontal(
-                region[i_start - 1, j_start - 3], region[i_end + 3, j_start - 1]
-            ):
-                q = q[-2, 3, 0]
-            with horizontal(
-                region[i_start - 3, j_start - 2], region[i_end + 2, j_start - 3]
-            ):
-                q = q[1, 4, 0]
-            with horizontal(
-                region[i_start - 2, j_start - 2], region[i_end + 2, j_start - 2]
-            ):
-                q = q[0, 3, 0]
-            with horizontal(
-                region[i_start - 1, j_start - 2], region[i_end + 2, j_start - 1]
-            ):
-                q = q[-1, 2, 0]
-            with horizontal(
-                region[i_start - 3, j_start - 1], region[i_end + 1, j_start - 3]
-            ):
-                q = q[2, 3, 0]
-            with horizontal(
-                region[i_start - 2, j_start - 1], region[i_end + 1, j_start - 2]
-            ):
-                q = q[1, 2, 0]
-            with horizontal(
-                region[i_start - 1, j_start - 1], region[i_end + 1, j_start - 1]
-            ):
-                q = q[0, 1, 0]
-            with horizontal(
-                region[i_start - 3, j_end + 1], region[i_end + 1, j_end + 3]
-            ):
-                q = q[2, -3, 0]
-            with horizontal(
-                region[i_start - 2, j_end + 1], region[i_end + 1, j_end + 2]
-            ):
-                q = q[1, -2, 0]
-            with horizontal(
-                region[i_start - 1, j_end + 1], region[i_end + 1, j_end + 1]
-            ):
-                q = q[0, -1, 0]
-            with horizontal(
-                region[i_start - 3, j_end + 2], region[i_end + 2, j_end + 3]
-            ):
-                q = q[1, -4, 0]
-            with horizontal(
-                region[i_start - 2, j_end + 2], region[i_end + 2, j_end + 2]
-            ):
-                q = q[0, -3, 0]
-            with horizontal(
-                region[i_start - 1, j_end + 2], region[i_end + 2, j_end + 1]
-            ):
-                q = q[-1, -2, 0]
-            with horizontal(
-                region[i_start - 3, j_end + 3], region[i_end + 3, j_end + 3]
-            ):
-                q = q[0, -5, 0]
-            with horizontal(
-                region[i_start - 2, j_end + 3], region[i_end + 3, j_end + 2]
-            ):
-                q = q[-1, -4, 0]
-            with horizontal(
-                region[i_start - 1, j_end + 3], region[i_end + 3, j_end + 1]
-            ):
-                q = q[-2, -3, 0]
+        with horizontal(
+            region[i_start - 3, j_start - 3], region[i_end + 3, j_start - 3]
+        ):
+            q = q[0, 5, 0]
+        with horizontal(
+            region[i_start - 2, j_start - 3], region[i_end + 3, j_start - 2]
+        ):
+            q = q[-1, 4, 0]
+        with horizontal(
+            region[i_start - 1, j_start - 3], region[i_end + 3, j_start - 1]
+        ):
+            q = q[-2, 3, 0]
+        with horizontal(
+            region[i_start - 3, j_start - 2], region[i_end + 2, j_start - 3]
+        ):
+            q = q[1, 4, 0]
+        with horizontal(
+            region[i_start - 2, j_start - 2], region[i_end + 2, j_start - 2]
+        ):
+            q = q[0, 3, 0]
+        with horizontal(
+            region[i_start - 1, j_start - 2], region[i_end + 2, j_start - 1]
+        ):
+            q = q[-1, 2, 0]
+        with horizontal(
+            region[i_start - 3, j_start - 1], region[i_end + 1, j_start - 3]
+        ):
+            q = q[2, 3, 0]
+        with horizontal(
+            region[i_start - 2, j_start - 1], region[i_end + 1, j_start - 2]
+        ):
+            q = q[1, 2, 0]
+        with horizontal(
+            region[i_start - 1, j_start - 1], region[i_end + 1, j_start - 1]
+        ):
+            q = q[0, 1, 0]
+        with horizontal(region[i_start - 3, j_end + 1], region[i_end + 1, j_end + 3]):
+            q = q[2, -3, 0]
+        with horizontal(region[i_start - 2, j_end + 1], region[i_end + 1, j_end + 2]):
+            q = q[1, -2, 0]
+        with horizontal(region[i_start - 1, j_end + 1], region[i_end + 1, j_end + 1]):
+            q = q[0, -1, 0]
+        with horizontal(region[i_start - 3, j_end + 2], region[i_end + 2, j_end + 3]):
+            q = q[1, -4, 0]
+        with horizontal(region[i_start - 2, j_end + 2], region[i_end + 2, j_end + 2]):
+            q = q[0, -3, 0]
+        with horizontal(region[i_start - 1, j_end + 2], region[i_end + 2, j_end + 1]):
+            q = q[-1, -2, 0]
+        with horizontal(region[i_start - 3, j_end + 3], region[i_end + 3, j_end + 3]):
+            q = q[0, -5, 0]
+        with horizontal(region[i_start - 2, j_end + 3], region[i_end + 3, j_end + 2]):
+            q = q[-1, -4, 0]
+        with horizontal(region[i_start - 1, j_end + 3], region[i_end + 3, j_end + 1]):
+            q = q[-2, -3, 0]
+
+
+def copy_corners_x_nord3(q: FloatField):
+    from __externals__ import i_end, i_start, j_end, j_start
+
     with computation(PARALLEL), interval(3, None):
-        if __INLINED(nord3 > 0):
-            with horizontal(
-                region[i_start - 3, j_start - 3], region[i_end + 3, j_start - 3]
-            ):
-                q = q[0, 5, 0]
-            with horizontal(
-                region[i_start - 2, j_start - 3], region[i_end + 3, j_start - 2]
-            ):
-                q = q[-1, 4, 0]
-            with horizontal(
-                region[i_start - 1, j_start - 3], region[i_end + 3, j_start - 1]
-            ):
-                q = q[-2, 3, 0]
-            with horizontal(
-                region[i_start - 3, j_start - 2], region[i_end + 2, j_start - 3]
-            ):
-                q = q[1, 4, 0]
-            with horizontal(
-                region[i_start - 2, j_start - 2], region[i_end + 2, j_start - 2]
-            ):
-                q = q[0, 3, 0]
-            with horizontal(
-                region[i_start - 1, j_start - 2], region[i_end + 2, j_start - 1]
-            ):
-                q = q[-1, 2, 0]
-            with horizontal(
-                region[i_start - 3, j_start - 1], region[i_end + 1, j_start - 3]
-            ):
-                q = q[2, 3, 0]
-            with horizontal(
-                region[i_start - 2, j_start - 1], region[i_end + 1, j_start - 2]
-            ):
-                q = q[1, 2, 0]
-            with horizontal(
-                region[i_start - 1, j_start - 1], region[i_end + 1, j_start - 1]
-            ):
-                q = q[0, 1, 0]
-            with horizontal(
-                region[i_start - 3, j_end + 1], region[i_end + 1, j_end + 3]
-            ):
-                q = q[2, -3, 0]
-            with horizontal(
-                region[i_start - 2, j_end + 1], region[i_end + 1, j_end + 2]
-            ):
-                q = q[1, -2, 0]
-            with horizontal(
-                region[i_start - 1, j_end + 1], region[i_end + 1, j_end + 1]
-            ):
-                q = q[0, -1, 0]
-            with horizontal(
-                region[i_start - 3, j_end + 2], region[i_end + 2, j_end + 3]
-            ):
-                q = q[1, -4, 0]
-            with horizontal(
-                region[i_start - 2, j_end + 2], region[i_end + 2, j_end + 2]
-            ):
-                q = q[0, -3, 0]
-            with horizontal(
-                region[i_start - 1, j_end + 2], region[i_end + 2, j_end + 1]
-            ):
-                q = q[-1, -2, 0]
-            with horizontal(
-                region[i_start - 3, j_end + 3], region[i_end + 3, j_end + 3]
-            ):
-                q = q[0, -5, 0]
-            with horizontal(
-                region[i_start - 2, j_end + 3], region[i_end + 3, j_end + 2]
-            ):
-                q = q[-1, -4, 0]
-            with horizontal(
-                region[i_start - 1, j_end + 3], region[i_end + 3, j_end + 1]
-            ):
-                q = q[-2, -3, 0]
+        with horizontal(
+            region[i_start - 3, j_start - 3], region[i_end + 3, j_start - 3]
+        ):
+            q = q[0, 5, 0]
+        with horizontal(
+            region[i_start - 2, j_start - 3], region[i_end + 3, j_start - 2]
+        ):
+            q = q[-1, 4, 0]
+        with horizontal(
+            region[i_start - 1, j_start - 3], region[i_end + 3, j_start - 1]
+        ):
+            q = q[-2, 3, 0]
+        with horizontal(
+            region[i_start - 3, j_start - 2], region[i_end + 2, j_start - 3]
+        ):
+            q = q[1, 4, 0]
+        with horizontal(
+            region[i_start - 2, j_start - 2], region[i_end + 2, j_start - 2]
+        ):
+            q = q[0, 3, 0]
+        with horizontal(
+            region[i_start - 1, j_start - 2], region[i_end + 2, j_start - 1]
+        ):
+            q = q[-1, 2, 0]
+        with horizontal(
+            region[i_start - 3, j_start - 1], region[i_end + 1, j_start - 3]
+        ):
+            q = q[2, 3, 0]
+        with horizontal(
+            region[i_start - 2, j_start - 1], region[i_end + 1, j_start - 2]
+        ):
+            q = q[1, 2, 0]
+        with horizontal(
+            region[i_start - 1, j_start - 1], region[i_end + 1, j_start - 1]
+        ):
+            q = q[0, 1, 0]
+        with horizontal(region[i_start - 3, j_end + 1], region[i_end + 1, j_end + 3]):
+            q = q[2, -3, 0]
+        with horizontal(region[i_start - 2, j_end + 1], region[i_end + 1, j_end + 2]):
+            q = q[1, -2, 0]
+        with horizontal(region[i_start - 1, j_end + 1], region[i_end + 1, j_end + 1]):
+            q = q[0, -1, 0]
+        with horizontal(region[i_start - 3, j_end + 2], region[i_end + 2, j_end + 3]):
+            q = q[1, -4, 0]
+        with horizontal(region[i_start - 2, j_end + 2], region[i_end + 2, j_end + 2]):
+            q = q[0, -3, 0]
+        with horizontal(region[i_start - 1, j_end + 2], region[i_end + 2, j_end + 1]):
+            q = q[-1, -2, 0]
+        with horizontal(region[i_start - 3, j_end + 3], region[i_end + 3, j_end + 3]):
+            q = q[0, -5, 0]
+        with horizontal(region[i_start - 2, j_end + 3], region[i_end + 3, j_end + 2]):
+            q = q[-1, -4, 0]
+        with horizontal(region[i_start - 1, j_end + 3], region[i_end + 3, j_end + 1]):
+            q = q[-2, -3, 0]
 
 
-def copy_corners_y_nord(q: FloatField):
-    from __externals__ import i_end, i_start, j_end, j_start, nord0, nord1, nord2, nord3
+def copy_corners_y_nord0(q: FloatField):
+    from __externals__ import i_end, i_start, j_end, j_start
 
     with computation(PARALLEL), interval(0, 1):
-        if __INLINED(nord0 > 0):
-            with horizontal(
-                region[i_start - 3, j_start - 3], region[i_start - 3, j_end + 3]
-            ):
-                q = q[5, 0, 0]
-            with horizontal(
-                region[i_start - 2, j_start - 3], region[i_start - 3, j_end + 2]
-            ):
-                q = q[4, 1, 0]
-            with horizontal(
-                region[i_start - 1, j_start - 3], region[i_start - 3, j_end + 1]
-            ):
-                q = q[3, 2, 0]
-            with horizontal(
-                region[i_start - 3, j_start - 2], region[i_start - 2, j_end + 3]
-            ):
-                q = q[4, -1, 0]
-            with horizontal(
-                region[i_start - 2, j_start - 2], region[i_start - 2, j_end + 2]
-            ):
-                q = q[3, 0, 0]
-            with horizontal(
-                region[i_start - 1, j_start - 2], region[i_start - 2, j_end + 1]
-            ):
-                q = q[2, 1, 0]
-            with horizontal(
-                region[i_start - 3, j_start - 1], region[i_start - 1, j_end + 3]
-            ):
-                q = q[3, -2, 0]
-            with horizontal(
-                region[i_start - 2, j_start - 1], region[i_start - 1, j_end + 2]
-            ):
-                q = q[2, -1, 0]
-            with horizontal(
-                region[i_start - 1, j_start - 1], region[i_start - 1, j_end + 1]
-            ):
-                q = q[1, 0, 0]
-            with horizontal(
-                region[i_end + 1, j_start - 3], region[i_end + 3, j_end + 1]
-            ):
-                q = q[-3, 2, 0]
-            with horizontal(
-                region[i_end + 2, j_start - 3], region[i_end + 3, j_end + 2]
-            ):
-                q = q[-4, 1, 0]
-            with horizontal(
-                region[i_end + 3, j_start - 3], region[i_end + 3, j_end + 3]
-            ):
-                q = q[-5, 0, 0]
-            with horizontal(
-                region[i_end + 1, j_start - 2], region[i_end + 2, j_end + 1]
-            ):
-                q = q[-2, 1, 0]
-            with horizontal(
-                region[i_end + 2, j_start - 2], region[i_end + 2, j_end + 2]
-            ):
-                q = q[-3, 0, 0]
-            with horizontal(
-                region[i_end + 3, j_start - 2], region[i_end + 2, j_end + 3]
-            ):
-                q = q[-4, -1, 0]
-            with horizontal(
-                region[i_end + 1, j_start - 1], region[i_end + 1, j_end + 1]
-            ):
-                q = q[-1, 0, 0]
-            with horizontal(
-                region[i_end + 2, j_start - 1], region[i_end + 1, j_end + 2]
-            ):
-                q = q[-2, -1, 0]
-            with horizontal(
-                region[i_end + 3, j_start - 1], region[i_end + 1, j_end + 3]
-            ):
-                q = q[-3, -2, 0]
+        with horizontal(
+            region[i_start - 3, j_start - 3], region[i_start - 3, j_end + 3]
+        ):
+            q = q[5, 0, 0]
+        with horizontal(
+            region[i_start - 2, j_start - 3], region[i_start - 3, j_end + 2]
+        ):
+            q = q[4, 1, 0]
+        with horizontal(
+            region[i_start - 1, j_start - 3], region[i_start - 3, j_end + 1]
+        ):
+            q = q[3, 2, 0]
+        with horizontal(
+            region[i_start - 3, j_start - 2], region[i_start - 2, j_end + 3]
+        ):
+            q = q[4, -1, 0]
+        with horizontal(
+            region[i_start - 2, j_start - 2], region[i_start - 2, j_end + 2]
+        ):
+            q = q[3, 0, 0]
+        with horizontal(
+            region[i_start - 1, j_start - 2], region[i_start - 2, j_end + 1]
+        ):
+            q = q[2, 1, 0]
+        with horizontal(
+            region[i_start - 3, j_start - 1], region[i_start - 1, j_end + 3]
+        ):
+            q = q[3, -2, 0]
+        with horizontal(
+            region[i_start - 2, j_start - 1], region[i_start - 1, j_end + 2]
+        ):
+            q = q[2, -1, 0]
+        with horizontal(
+            region[i_start - 1, j_start - 1], region[i_start - 1, j_end + 1]
+        ):
+            q = q[1, 0, 0]
+        with horizontal(region[i_end + 1, j_start - 3], region[i_end + 3, j_end + 1]):
+            q = q[-3, 2, 0]
+        with horizontal(region[i_end + 2, j_start - 3], region[i_end + 3, j_end + 2]):
+            q = q[-4, 1, 0]
+        with horizontal(region[i_end + 3, j_start - 3], region[i_end + 3, j_end + 3]):
+            q = q[-5, 0, 0]
+        with horizontal(region[i_end + 1, j_start - 2], region[i_end + 2, j_end + 1]):
+            q = q[-2, 1, 0]
+        with horizontal(region[i_end + 2, j_start - 2], region[i_end + 2, j_end + 2]):
+            q = q[-3, 0, 0]
+        with horizontal(region[i_end + 3, j_start - 2], region[i_end + 2, j_end + 3]):
+            q = q[-4, -1, 0]
+        with horizontal(region[i_end + 1, j_start - 1], region[i_end + 1, j_end + 1]):
+            q = q[-1, 0, 0]
+        with horizontal(region[i_end + 2, j_start - 1], region[i_end + 1, j_end + 2]):
+            q = q[-2, -1, 0]
+        with horizontal(region[i_end + 3, j_start - 1], region[i_end + 1, j_end + 3]):
+            q = q[-3, -2, 0]
+
+
+def copy_corners_y_nord1(q: FloatField):
+    from __externals__ import i_end, i_start, j_end, j_start
+
     with computation(PARALLEL), interval(1, 2):
-        if __INLINED(nord1 > 0):
-            with horizontal(
-                region[i_start - 3, j_start - 3], region[i_start - 3, j_end + 3]
-            ):
-                q = q[5, 0, 0]
-            with horizontal(
-                region[i_start - 2, j_start - 3], region[i_start - 3, j_end + 2]
-            ):
-                q = q[4, 1, 0]
-            with horizontal(
-                region[i_start - 1, j_start - 3], region[i_start - 3, j_end + 1]
-            ):
-                q = q[3, 2, 0]
-            with horizontal(
-                region[i_start - 3, j_start - 2], region[i_start - 2, j_end + 3]
-            ):
-                q = q[4, -1, 0]
-            with horizontal(
-                region[i_start - 2, j_start - 2], region[i_start - 2, j_end + 2]
-            ):
-                q = q[3, 0, 0]
-            with horizontal(
-                region[i_start - 1, j_start - 2], region[i_start - 2, j_end + 1]
-            ):
-                q = q[2, 1, 0]
-            with horizontal(
-                region[i_start - 3, j_start - 1], region[i_start - 1, j_end + 3]
-            ):
-                q = q[3, -2, 0]
-            with horizontal(
-                region[i_start - 2, j_start - 1], region[i_start - 1, j_end + 2]
-            ):
-                q = q[2, -1, 0]
-            with horizontal(
-                region[i_start - 1, j_start - 1], region[i_start - 1, j_end + 1]
-            ):
-                q = q[1, 0, 0]
-            with horizontal(
-                region[i_end + 1, j_start - 3], region[i_end + 3, j_end + 1]
-            ):
-                q = q[-3, 2, 0]
-            with horizontal(
-                region[i_end + 2, j_start - 3], region[i_end + 3, j_end + 2]
-            ):
-                q = q[-4, 1, 0]
-            with horizontal(
-                region[i_end + 3, j_start - 3], region[i_end + 3, j_end + 3]
-            ):
-                q = q[-5, 0, 0]
-            with horizontal(
-                region[i_end + 1, j_start - 2], region[i_end + 2, j_end + 1]
-            ):
-                q = q[-2, 1, 0]
-            with horizontal(
-                region[i_end + 2, j_start - 2], region[i_end + 2, j_end + 2]
-            ):
-                q = q[-3, 0, 0]
-            with horizontal(
-                region[i_end + 3, j_start - 2], region[i_end + 2, j_end + 3]
-            ):
-                q = q[-4, -1, 0]
-            with horizontal(
-                region[i_end + 1, j_start - 1], region[i_end + 1, j_end + 1]
-            ):
-                q = q[-1, 0, 0]
-            with horizontal(
-                region[i_end + 2, j_start - 1], region[i_end + 1, j_end + 2]
-            ):
-                q = q[-2, -1, 0]
-            with horizontal(
-                region[i_end + 3, j_start - 1], region[i_end + 1, j_end + 3]
-            ):
-                q = q[-3, -2, 0]
+        with horizontal(
+            region[i_start - 3, j_start - 3], region[i_start - 3, j_end + 3]
+        ):
+            q = q[5, 0, 0]
+        with horizontal(
+            region[i_start - 2, j_start - 3], region[i_start - 3, j_end + 2]
+        ):
+            q = q[4, 1, 0]
+        with horizontal(
+            region[i_start - 1, j_start - 3], region[i_start - 3, j_end + 1]
+        ):
+            q = q[3, 2, 0]
+        with horizontal(
+            region[i_start - 3, j_start - 2], region[i_start - 2, j_end + 3]
+        ):
+            q = q[4, -1, 0]
+        with horizontal(
+            region[i_start - 2, j_start - 2], region[i_start - 2, j_end + 2]
+        ):
+            q = q[3, 0, 0]
+        with horizontal(
+            region[i_start - 1, j_start - 2], region[i_start - 2, j_end + 1]
+        ):
+            q = q[2, 1, 0]
+        with horizontal(
+            region[i_start - 3, j_start - 1], region[i_start - 1, j_end + 3]
+        ):
+            q = q[3, -2, 0]
+        with horizontal(
+            region[i_start - 2, j_start - 1], region[i_start - 1, j_end + 2]
+        ):
+            q = q[2, -1, 0]
+        with horizontal(
+            region[i_start - 1, j_start - 1], region[i_start - 1, j_end + 1]
+        ):
+            q = q[1, 0, 0]
+        with horizontal(region[i_end + 1, j_start - 3], region[i_end + 3, j_end + 1]):
+            q = q[-3, 2, 0]
+        with horizontal(region[i_end + 2, j_start - 3], region[i_end + 3, j_end + 2]):
+            q = q[-4, 1, 0]
+        with horizontal(region[i_end + 3, j_start - 3], region[i_end + 3, j_end + 3]):
+            q = q[-5, 0, 0]
+        with horizontal(region[i_end + 1, j_start - 2], region[i_end + 2, j_end + 1]):
+            q = q[-2, 1, 0]
+        with horizontal(region[i_end + 2, j_start - 2], region[i_end + 2, j_end + 2]):
+            q = q[-3, 0, 0]
+        with horizontal(region[i_end + 3, j_start - 2], region[i_end + 2, j_end + 3]):
+            q = q[-4, -1, 0]
+        with horizontal(region[i_end + 1, j_start - 1], region[i_end + 1, j_end + 1]):
+            q = q[-1, 0, 0]
+        with horizontal(region[i_end + 2, j_start - 1], region[i_end + 1, j_end + 2]):
+            q = q[-2, -1, 0]
+        with horizontal(region[i_end + 3, j_start - 1], region[i_end + 1, j_end + 3]):
+            q = q[-3, -2, 0]
+
+
+def copy_corners_y_nord2(q: FloatField):
+    from __externals__ import i_end, i_start, j_end, j_start
+
     with computation(PARALLEL), interval(2, 3):
-        if __INLINED(nord2 > 0):
-            with horizontal(
-                region[i_start - 3, j_start - 3], region[i_start - 3, j_end + 3]
-            ):
-                q = q[5, 0, 0]
-            with horizontal(
-                region[i_start - 2, j_start - 3], region[i_start - 3, j_end + 2]
-            ):
-                q = q[4, 1, 0]
-            with horizontal(
-                region[i_start - 1, j_start - 3], region[i_start - 3, j_end + 1]
-            ):
-                q = q[3, 2, 0]
-            with horizontal(
-                region[i_start - 3, j_start - 2], region[i_start - 2, j_end + 3]
-            ):
-                q = q[4, -1, 0]
-            with horizontal(
-                region[i_start - 2, j_start - 2], region[i_start - 2, j_end + 2]
-            ):
-                q = q[3, 0, 0]
-            with horizontal(
-                region[i_start - 1, j_start - 2], region[i_start - 2, j_end + 1]
-            ):
-                q = q[2, 1, 0]
-            with horizontal(
-                region[i_start - 3, j_start - 1], region[i_start - 1, j_end + 3]
-            ):
-                q = q[3, -2, 0]
-            with horizontal(
-                region[i_start - 2, j_start - 1], region[i_start - 1, j_end + 2]
-            ):
-                q = q[2, -1, 0]
-            with horizontal(
-                region[i_start - 1, j_start - 1], region[i_start - 1, j_end + 1]
-            ):
-                q = q[1, 0, 0]
-            with horizontal(
-                region[i_end + 1, j_start - 3], region[i_end + 3, j_end + 1]
-            ):
-                q = q[-3, 2, 0]
-            with horizontal(
-                region[i_end + 2, j_start - 3], region[i_end + 3, j_end + 2]
-            ):
-                q = q[-4, 1, 0]
-            with horizontal(
-                region[i_end + 3, j_start - 3], region[i_end + 3, j_end + 3]
-            ):
-                q = q[-5, 0, 0]
-            with horizontal(
-                region[i_end + 1, j_start - 2], region[i_end + 2, j_end + 1]
-            ):
-                q = q[-2, 1, 0]
-            with horizontal(
-                region[i_end + 2, j_start - 2], region[i_end + 2, j_end + 2]
-            ):
-                q = q[-3, 0, 0]
-            with horizontal(
-                region[i_end + 3, j_start - 2], region[i_end + 2, j_end + 3]
-            ):
-                q = q[-4, -1, 0]
-            with horizontal(
-                region[i_end + 1, j_start - 1], region[i_end + 1, j_end + 1]
-            ):
-                q = q[-1, 0, 0]
-            with horizontal(
-                region[i_end + 2, j_start - 1], region[i_end + 1, j_end + 2]
-            ):
-                q = q[-2, -1, 0]
-            with horizontal(
-                region[i_end + 3, j_start - 1], region[i_end + 1, j_end + 3]
-            ):
-                q = q[-3, -2, 0]
+        with horizontal(
+            region[i_start - 3, j_start - 3], region[i_start - 3, j_end + 3]
+        ):
+            q = q[5, 0, 0]
+        with horizontal(
+            region[i_start - 2, j_start - 3], region[i_start - 3, j_end + 2]
+        ):
+            q = q[4, 1, 0]
+        with horizontal(
+            region[i_start - 1, j_start - 3], region[i_start - 3, j_end + 1]
+        ):
+            q = q[3, 2, 0]
+        with horizontal(
+            region[i_start - 3, j_start - 2], region[i_start - 2, j_end + 3]
+        ):
+            q = q[4, -1, 0]
+        with horizontal(
+            region[i_start - 2, j_start - 2], region[i_start - 2, j_end + 2]
+        ):
+            q = q[3, 0, 0]
+        with horizontal(
+            region[i_start - 1, j_start - 2], region[i_start - 2, j_end + 1]
+        ):
+            q = q[2, 1, 0]
+        with horizontal(
+            region[i_start - 3, j_start - 1], region[i_start - 1, j_end + 3]
+        ):
+            q = q[3, -2, 0]
+        with horizontal(
+            region[i_start - 2, j_start - 1], region[i_start - 1, j_end + 2]
+        ):
+            q = q[2, -1, 0]
+        with horizontal(
+            region[i_start - 1, j_start - 1], region[i_start - 1, j_end + 1]
+        ):
+            q = q[1, 0, 0]
+        with horizontal(region[i_end + 1, j_start - 3], region[i_end + 3, j_end + 1]):
+            q = q[-3, 2, 0]
+        with horizontal(region[i_end + 2, j_start - 3], region[i_end + 3, j_end + 2]):
+            q = q[-4, 1, 0]
+        with horizontal(region[i_end + 3, j_start - 3], region[i_end + 3, j_end + 3]):
+            q = q[-5, 0, 0]
+        with horizontal(region[i_end + 1, j_start - 2], region[i_end + 2, j_end + 1]):
+            q = q[-2, 1, 0]
+        with horizontal(region[i_end + 2, j_start - 2], region[i_end + 2, j_end + 2]):
+            q = q[-3, 0, 0]
+        with horizontal(region[i_end + 3, j_start - 2], region[i_end + 2, j_end + 3]):
+            q = q[-4, -1, 0]
+        with horizontal(region[i_end + 1, j_start - 1], region[i_end + 1, j_end + 1]):
+            q = q[-1, 0, 0]
+        with horizontal(region[i_end + 2, j_start - 1], region[i_end + 1, j_end + 2]):
+            q = q[-2, -1, 0]
+        with horizontal(region[i_end + 3, j_start - 1], region[i_end + 1, j_end + 3]):
+            q = q[-3, -2, 0]
+
+
+def copy_corners_y_nord3(q: FloatField):
+    from __externals__ import i_end, i_start, j_end, j_start
+
     with computation(PARALLEL), interval(3, None):
-        if __INLINED(nord3 > 0):
-            with horizontal(
-                region[i_start - 3, j_start - 3], region[i_start - 3, j_end + 3]
-            ):
-                q = q[5, 0, 0]
-            with horizontal(
-                region[i_start - 2, j_start - 3], region[i_start - 3, j_end + 2]
-            ):
-                q = q[4, 1, 0]
-            with horizontal(
-                region[i_start - 1, j_start - 3], region[i_start - 3, j_end + 1]
-            ):
-                q = q[3, 2, 0]
-            with horizontal(
-                region[i_start - 3, j_start - 2], region[i_start - 2, j_end + 3]
-            ):
-                q = q[4, -1, 0]
-            with horizontal(
-                region[i_start - 2, j_start - 2], region[i_start - 2, j_end + 2]
-            ):
-                q = q[3, 0, 0]
-            with horizontal(
-                region[i_start - 1, j_start - 2], region[i_start - 2, j_end + 1]
-            ):
-                q = q[2, 1, 0]
-            with horizontal(
-                region[i_start - 3, j_start - 1], region[i_start - 1, j_end + 3]
-            ):
-                q = q[3, -2, 0]
-            with horizontal(
-                region[i_start - 2, j_start - 1], region[i_start - 1, j_end + 2]
-            ):
-                q = q[2, -1, 0]
-            with horizontal(
-                region[i_start - 1, j_start - 1], region[i_start - 1, j_end + 1]
-            ):
-                q = q[1, 0, 0]
-            with horizontal(
-                region[i_end + 1, j_start - 3], region[i_end + 3, j_end + 1]
-            ):
-                q = q[-3, 2, 0]
-            with horizontal(
-                region[i_end + 2, j_start - 3], region[i_end + 3, j_end + 2]
-            ):
-                q = q[-4, 1, 0]
-            with horizontal(
-                region[i_end + 3, j_start - 3], region[i_end + 3, j_end + 3]
-            ):
-                q = q[-5, 0, 0]
-            with horizontal(
-                region[i_end + 1, j_start - 2], region[i_end + 2, j_end + 1]
-            ):
-                q = q[-2, 1, 0]
-            with horizontal(
-                region[i_end + 2, j_start - 2], region[i_end + 2, j_end + 2]
-            ):
-                q = q[-3, 0, 0]
-            with horizontal(
-                region[i_end + 3, j_start - 2], region[i_end + 2, j_end + 3]
-            ):
-                q = q[-4, -1, 0]
-            with horizontal(
-                region[i_end + 1, j_start - 1], region[i_end + 1, j_end + 1]
-            ):
-                q = q[-1, 0, 0]
-            with horizontal(
-                region[i_end + 2, j_start - 1], region[i_end + 1, j_end + 2]
-            ):
-                q = q[-2, -1, 0]
-            with horizontal(
-                region[i_end + 3, j_start - 1], region[i_end + 1, j_end + 3]
-            ):
-                q = q[-3, -2, 0]
+        with horizontal(
+            region[i_start - 3, j_start - 3], region[i_start - 3, j_end + 3]
+        ):
+            q = q[5, 0, 0]
+        with horizontal(
+            region[i_start - 2, j_start - 3], region[i_start - 3, j_end + 2]
+        ):
+            q = q[4, 1, 0]
+        with horizontal(
+            region[i_start - 1, j_start - 3], region[i_start - 3, j_end + 1]
+        ):
+            q = q[3, 2, 0]
+        with horizontal(
+            region[i_start - 3, j_start - 2], region[i_start - 2, j_end + 3]
+        ):
+            q = q[4, -1, 0]
+        with horizontal(
+            region[i_start - 2, j_start - 2], region[i_start - 2, j_end + 2]
+        ):
+            q = q[3, 0, 0]
+        with horizontal(
+            region[i_start - 1, j_start - 2], region[i_start - 2, j_end + 1]
+        ):
+            q = q[2, 1, 0]
+        with horizontal(
+            region[i_start - 3, j_start - 1], region[i_start - 1, j_end + 3]
+        ):
+            q = q[3, -2, 0]
+        with horizontal(
+            region[i_start - 2, j_start - 1], region[i_start - 1, j_end + 2]
+        ):
+            q = q[2, -1, 0]
+        with horizontal(
+            region[i_start - 1, j_start - 1], region[i_start - 1, j_end + 1]
+        ):
+            q = q[1, 0, 0]
+        with horizontal(region[i_end + 1, j_start - 3], region[i_end + 3, j_end + 1]):
+            q = q[-3, 2, 0]
+        with horizontal(region[i_end + 2, j_start - 3], region[i_end + 3, j_end + 2]):
+            q = q[-4, 1, 0]
+        with horizontal(region[i_end + 3, j_start - 3], region[i_end + 3, j_end + 3]):
+            q = q[-5, 0, 0]
+        with horizontal(region[i_end + 1, j_start - 2], region[i_end + 2, j_end + 1]):
+            q = q[-2, 1, 0]
+        with horizontal(region[i_end + 2, j_start - 2], region[i_end + 2, j_end + 2]):
+            q = q[-3, 0, 0]
+        with horizontal(region[i_end + 3, j_start - 2], region[i_end + 2, j_end + 3]):
+            q = q[-4, -1, 0]
+        with horizontal(region[i_end + 1, j_start - 1], region[i_end + 1, j_end + 1]):
+            q = q[-1, 0, 0]
+        with horizontal(region[i_end + 2, j_start - 1], region[i_end + 1, j_end + 2]):
+            q = q[-2, -1, 0]
+        with horizontal(region[i_end + 3, j_start - 1], region[i_end + 1, j_end + 3]):
+            q = q[-3, -2, 0]
 
 
 def calc_damp(damp4: FloatField, nord: FloatFieldK, damp_c: FloatFieldK, da_min: float):
@@ -1037,30 +915,39 @@ def compute_no_sg(q, fx2, fy2, nord, damp_c, d2, mass=None, nk=None):
         )
         new_copy_stencil(q, d2)
 
-    conditional_corner_copy_x = StencilWrapper(
-        copy_corners_x_nord,
-        externals={
-            "nord0": nord[0],
-            "nord1": nord[1],
-            "nord2": nord[2],
-            "nord3": nord[3],
-            **full_ax_offsets,
-        },
-        origin=(grid.isd, grid.jsd, 0),
-        domain=(grid.nid, grid.njd, nk),
-    )
-    conditional_corner_copy_y = StencilWrapper(
-        copy_corners_y_nord,
-        externals={
-            "nord0": nord[0],
-            "nord1": nord[1],
-            "nord2": nord[2],
-            "nord3": nord[3],
-            **full_ax_offsets,
-        },
-        origin=(grid.isd, grid.jsd, 0),
-        domain=(grid.nid, grid.njd, nk),
-    )
+    conditional_corner_copy_x_functions = [
+        copy_corners_x_nord0,
+        copy_corners_x_nord1,
+        copy_corners_x_nord2,
+        copy_corners_x_nord3,
+    ]
+
+    conditional_corner_copy_x_stencils = [
+        StencilWrapper(
+            conditional_corner_copy_x_func,
+            externals=full_ax_offsets,
+            origin=(grid.isd, grid.jsd, 0),
+            domain=(grid.nid, grid.njd, nk),
+        )
+        for conditional_corner_copy_x_func in conditional_corner_copy_x_functions
+    ]
+
+    conditional_corner_copy_y_functions = [
+        copy_corners_y_nord0,
+        copy_corners_y_nord1,
+        copy_corners_y_nord2,
+        copy_corners_y_nord3,
+    ]
+
+    conditional_corner_copy_y_stencils = [
+        StencilWrapper(
+            conditional_corner_copy_y_func,
+            externals=full_ax_offsets,
+            origin=(grid.isd, grid.jsd, 0),
+            domain=(grid.nid, grid.njd, nk),
+        )
+        for conditional_corner_copy_y_func in conditional_corner_copy_y_functions
+    ]
 
     d2_stencil = gtscript.stencil(
         definition=d2_highorder_stencil,
@@ -1078,7 +965,9 @@ def compute_no_sg(q, fx2, fy2, nord, damp_c, d2, mass=None, nk=None):
 
     column_conditional_fy_calculation = StencilWrapper(fy_calc_stencil_column)
 
-    conditional_corner_copy_x(d2)
+    for i, conditional_corner_copy_x in enumerate(conditional_corner_copy_x_stencils):
+        if nord[i] > 0:
+            conditional_corner_copy_x(d2)
 
     fx_calc_stencil = StencilWrapper(
         fx_calc_stencil_region,
@@ -1095,7 +984,9 @@ def compute_no_sg(q, fx2, fy2, nord, damp_c, d2, mass=None, nk=None):
 
     fx_calc_stencil(d2, grid.del6_v, fx2)
 
-    conditional_corner_copy_y(d2)
+    for j, conditional_corner_copy_y in enumerate(conditional_corner_copy_y_stencils):
+        if nord[j] > 0:
+            conditional_corner_copy_y(d2)
 
     fy_calc_stencil = StencilWrapper(
         fy_calc_stencil_region,
@@ -1121,7 +1012,11 @@ def compute_no_sg(q, fx2, fy2, nord, damp_c, d2, mass=None, nk=None):
             fx2, fy2, grid.rarea, d2, origin=nt_origin, domain=(nt_nx, nt_ny, nk)
         )
 
-        conditional_corner_copy_x(d2)
+        for i, conditional_corner_copy_x in enumerate(
+            conditional_corner_copy_x_stencils
+        ):
+            if nord[i] > 0:
+                conditional_corner_copy_x(d2)
 
         nt_origin = (grid.is_ - nt, grid.js - nt, 0)
         column_conditional_fx_calculation(
@@ -1133,7 +1028,11 @@ def compute_no_sg(q, fx2, fy2, nord, damp_c, d2, mass=None, nk=None):
             domain=(nt_nx - 1, nt_ny - 2, nk),
         )
 
-        conditional_corner_copy_y(d2)
+        for i, conditional_corner_copy_y in enumerate(
+            conditional_corner_copy_y_stencils
+        ):
+            if nord[i] > 0:
+                conditional_corner_copy_y(d2)
 
         column_conditional_fy_calculation(
             d2,
