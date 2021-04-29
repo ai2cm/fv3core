@@ -346,19 +346,3 @@ class UpdateDeltaZOnDGrid:
             dt,
         )
 
-
-def compute(
-    dp0: FloatFieldK,
-    zs: FloatFieldIJ,
-    zh: FloatField,
-    crx: FloatField,
-    cry: FloatField,
-    x_area_flux: FloatField,
-    y_area_flux: FloatField,
-    wsd: FloatFieldIJ,
-    dt: float,
-):
-    updatedzd = utils.cached_stencil_class(UpdateDeltaZOnDGrid)(
-        spec.grid, d_sw.get_column_namelist(), d_sw.k_bounds()
-    )
-    updatedzd(dp0, zs, zh, crx, cry, x_area_flux, y_area_flux, wsd, dt)

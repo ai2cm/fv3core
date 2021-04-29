@@ -505,7 +505,7 @@ class DGridShallowWaterLagrangianDynamics:
     """
     Fortran name is the d_sw subroutine
     """
-    def __init__(self, namelist):
+    def __init__(self, namelist, column_namelist):
         self.grid = spec.grid
         assert namelist.grid_type < 3, "ubke and vbke only implemented for grid_type < 3"
         assert not namelist.inline_q, "inline_q not yet implemented"
@@ -535,7 +535,7 @@ class DGridShallowWaterLagrangianDynamics:
         self.fv_prep = FiniteVolumeFluxPrep()
         self.ytp_v = YTP_V(namelist)
         self.xtp_u = XTP_U(namelist)
-        self.column_namelist = get_column_namelist(namelist, self.grid.npz)
+        self._column_namelist = column_namelist
         full_origin = self.grid.full_origin()
         full_domain= self.grid.domain_shape_full()
         ax_offsets_full = axis_offsets(self.grid, full_origin, full_domain)
@@ -595,8 +595,8 @@ class DGridShallowWaterLagrangianDynamics:
             yfx,
             self._tmp_fx,
             self._tmp_fy,
-            nord=self.column_namelist["nord_v"],
-            damp_c=self.column_namelist["damp_vt"],
+            nord=self._column_namelist["nord_v"],
+            damp_c=self._column_namelist["damp_vt"],
         )
 
         self._flux_capacitor_stencil(
@@ -612,15 +612,15 @@ class DGridShallowWaterLagrangianDynamics:
 
         if not self.hydrostatic:
             for kstart, nk in k_bounds():
-                if self.column_namelist["damp_w"][kstart] > 1e-5:
-                    damp4 = (self.column_namelist["damp_w"][kstart] * self.grid.da_min_c) ** (
-                        self.column_namelist["nord_w"][kstart] + 1
+                if self._column_namelist["damp_w"][kstart] > 1e-5:
+                    damp4 = (self._column_namelist["damp_w"][kstart] * self.grid.da_min_c) ** (
+                        self._column_namelist["nord_w"][kstart] + 1
                     )
                     delnflux.compute_no_sg(
                         w,
                         self._tmp_fx2,
                         self._tmp_fy2,
-                        self.column_namelist["nord_w"][kstart],
+                        self._column_namelist["nord_w"][kstart],
 		        damp4,
                         self._tmp_wk,
                         kstart=kstart,
@@ -634,8 +634,8 @@ class DGridShallowWaterLagrangianDynamics:
                  self._tmp_heat_s,
                  diss_est,
                  self._tmp_dw,
-                 self.column_namelist["damp_w"],
-                 self.column_namelist["ke_bg"],
+                 self._column_namelist["damp_w"],
+                 self._column_namelist["ke_bg"],
                  dt
              )
 
@@ -648,8 +648,8 @@ class DGridShallowWaterLagrangianDynamics:
                 yfx,
                 self._tmp_gx,
                 self._tmp_gy,
-                nord=self.column_namelist["nord_v"],
-                damp_c=self.column_namelist["damp_vt"],
+                nord=self._column_namelist["nord_v"],
+                damp_c=self._column_namelist["damp_vt"],
                 mfx=self._tmp_fx,
                 mfy=self._tmp_fy,
             )
@@ -670,8 +670,8 @@ class DGridShallowWaterLagrangianDynamics:
             yfx,
             self._tmp_gx,
             self._tmp_gy,
-            nord=self.column_namelist["nord_t"],
-            damp_c=self.column_namelist["damp_t"],
+            nord=self._column_namelist["nord_t"],
+            damp_c=self._column_namelist["damp_t"],
             mass=delp,
             mfx=self._tmp_fx,
             mfy=self._tmp_fy,
@@ -695,8 +695,8 @@ class DGridShallowWaterLagrangianDynamics:
             yfx,
             self._tmp_gx,
             self._tmp_gy,
-            nord=self.column_namelist["nord_v"],
-            damp_c=self.column_namelist["damp_vt"],
+            nord=self._column_namelist["nord_v"],
+            damp_c=self._column_namelist["damp_vt"],
             mass=delp,
             mfx=self._tmp_fx,
             mfy=self._tmp_fy,
@@ -761,7 +761,7 @@ class DGridShallowWaterLagrangianDynamics:
             delp,
             self._tmp_dw,
             q_con,
-            self.column_namelist["damp_w"]
+            self._column_namelist["damp_w"]
         )
         for kstart, nk in k_bounds():
             divdamp.compute(
@@ -777,9 +777,9 @@ class DGridShallowWaterLagrangianDynamics:
                 delpc,
                 self._tmp_ke,
                 self._tmp_wk,
-                self.column_namelist["d2_divg"][kstart],
+                self._column_namelist["d2_divg"][kstart],
                 dt,
-                self.column_namelist["nord"][kstart],
+                self._column_namelist["nord"][kstart],
                 kstart=kstart,
                 nk=nk,
             )
@@ -788,7 +788,7 @@ class DGridShallowWaterLagrangianDynamics:
             self._tmp_vort,
             self._tmp_ub,
             self._tmp_vb,
-            self.column_namelist["d_con"]
+            self._column_namelist["d_con"]
         )
 
         # Vorticity transport
@@ -812,15 +812,15 @@ class DGridShallowWaterLagrangianDynamics:
         )
 
         for kstart, nk in k_bounds():
-            if self.column_namelist["damp_vt"][kstart] > dcon_threshold:
-                damp4 = (self.column_namelist["damp_vt"][kstart] * self.grid.da_min_c) ** (
-                    self.column_namelist["nord_v"][kstart] + 1
+            if self._column_namelist["damp_vt"][kstart] > dcon_threshold:
+                damp4 = (self._column_namelist["damp_vt"][kstart] * self.grid.da_min_c) ** (
+                    self._column_namelist["nord_v"][kstart] + 1
                 )
                 delnflux.compute_no_sg(
                     self._tmp_wk,
                     self._tmp_ut,
                     self._tmp_vt,
-                    self.column_namelist["nord_v"][kstart],
+                    self._column_namelist["nord_v"][kstart],
                     damp4,
                     self._tmp_vort,
                     kstart=kstart,
@@ -842,6 +842,6 @@ class DGridShallowWaterLagrangianDynamics:
             self._tmp_heat_s,
             heat_source,
             diss_est,
-            self.column_namelist["d_con"],
-            self.column_namelist["damp_vt"]
+            self._column_namelist["d_con"],
+            self._column_namelist["damp_vt"]
         )
