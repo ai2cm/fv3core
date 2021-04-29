@@ -1,5 +1,5 @@
-from fv3core.testing import TranslateFortranData2Py
 from fv3core.stencils.dyn_core import AcousticDynamics
+from fv3core.testing import TranslateFortranData2Py
 
 
 class TranslatePE_Halo(TranslateFortranData2Py):
