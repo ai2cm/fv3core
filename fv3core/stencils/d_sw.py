@@ -633,7 +633,37 @@ class DGridShallowWaterLagrangianDynamics:
         diss_est,
         dt,
     ):
-        shape = heat_source.shape
+        """D-Grid Shallow Water Routine
+        Peforms a full-timestep advance of the D-grid winds and other
+        prognostic variables using Lagrangian dynamics on the cubed-sphere.
+        described by Lin 1997, Lin 2004 and Harris 2013.
+        Args:
+            delpc: C-grid  vertical delta in pressure (in)
+            delp: D-grid vertical delta in pressure (inout),
+            ptc: C-grid potential temperature (in)
+            pt: D-grid potnetial teperature (inout)
+            u: D-grid x-velocity (inout)
+            v: D-grid y-velocity (inout)
+            w: vertical velocity (inout)
+            uc: C-grid x-velocity (in)
+            vc: C-grid y-velocity (in)
+            ua: A-grid x-velocity (in)
+            va A-grid y-velocity(in)
+            divgd: D-grid horizontal divergence (inout)
+            mfx: accumulated x mass flux (inout)
+            mfy: accumulated y mass flux (inout)
+            cx: accumulated Courant number in the x direction (inout)
+            cy: accumulated Courant number in the y direction (inout)
+            crx: local courant number in the x direction (inout)
+            cry: local courant number in the y direction (inout)
+            xfx: flux of area in x-direction, in units of m^2 (in)
+            yfx: flux of area in y-direction, in units of m^2 (in)
+            q_con: total condensate mixing ratio (inout)
+            zh: geopotential height defined on layer interfaces (in)
+            heat_source:  accumulated heat source (inout)
+            diss_est: dissipation estimate (inout)
+            dt: acoustic timestep in seconds (in)
+        """
 
         self.fv_prep(uc, vc, crx, cry, xfx, yfx, self._tmp_ut, self._tmp_vt, dt)
 
