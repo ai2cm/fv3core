@@ -24,7 +24,7 @@ def copy_corners_x_nord(q: FloatField):
     from __externals__ import i_end, i_start, j_end, j_start, nord0, nord1, nord2, nord3
 
     with computation(PARALLEL), interval(0, 1):
-        if nord0 > 0:
+        if __INLINED(nord0 > 0):
             with horizontal(
                 region[i_start - 3, j_start - 3], region[i_end + 3, j_start - 3]
             ):
@@ -98,7 +98,7 @@ def copy_corners_x_nord(q: FloatField):
             ):
                 q = q[-2, -3, 0]
     with computation(PARALLEL), interval(1, 2):
-        if nord1 > 0:
+        if __INLINED(nord1 > 0):
             with horizontal(
                 region[i_start - 3, j_start - 3], region[i_end + 3, j_start - 3]
             ):
@@ -172,7 +172,7 @@ def copy_corners_x_nord(q: FloatField):
             ):
                 q = q[-2, -3, 0]
     with computation(PARALLEL), interval(2, 3):
-        if nord2 > 0:
+        if __INLINED(nord2 > 0):
             with horizontal(
                 region[i_start - 3, j_start - 3], region[i_end + 3, j_start - 3]
             ):
@@ -246,7 +246,7 @@ def copy_corners_x_nord(q: FloatField):
             ):
                 q = q[-2, -3, 0]
     with computation(PARALLEL), interval(3, None):
-        if nord3 > 0:
+        if __INLINED(nord3 > 0):
             with horizontal(
                 region[i_start - 3, j_start - 3], region[i_end + 3, j_start - 3]
             ):
@@ -325,7 +325,7 @@ def copy_corners_y_nord(q: FloatField):
     from __externals__ import i_end, i_start, j_end, j_start, nord0, nord1, nord2, nord3
 
     with computation(PARALLEL), interval(0, 1):
-        if nord0 > 0:
+        if __INLINED(nord0 > 0):
             with horizontal(
                 region[i_start - 3, j_start - 3], region[i_start - 3, j_end + 3]
             ):
@@ -399,7 +399,7 @@ def copy_corners_y_nord(q: FloatField):
             ):
                 q = q[-3, -2, 0]
     with computation(PARALLEL), interval(1, 2):
-        if nord1 > 0:
+        if __INLINED(nord1 > 0):
             with horizontal(
                 region[i_start - 3, j_start - 3], region[i_start - 3, j_end + 3]
             ):
@@ -473,7 +473,7 @@ def copy_corners_y_nord(q: FloatField):
             ):
                 q = q[-3, -2, 0]
     with computation(PARALLEL), interval(2, 3):
-        if nord2 > 0:
+        if __INLINED(nord2 > 0):
             with horizontal(
                 region[i_start - 3, j_start - 3], region[i_start - 3, j_end + 3]
             ):
@@ -547,7 +547,7 @@ def copy_corners_y_nord(q: FloatField):
             ):
                 q = q[-3, -2, 0]
     with computation(PARALLEL), interval(3, None):
-        if nord3 > 0:
+        if __INLINED(nord3 > 0):
             with horizontal(
                 region[i_start - 3, j_start - 3], region[i_start - 3, j_end + 3]
             ):
