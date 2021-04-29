@@ -1,5 +1,7 @@
 """Adding semantic marking to external profiler
 
+Usage: python external_profiler.py <PYTHON SCRIPT>.py <ARGS>
+
 Works with nvtx (via cupy) for now.
 """
 
@@ -10,11 +12,6 @@ try:
 except ModuleNotFoundError:
     cp = None
 
-try:
-    from mpi4py import MPI
-except ModuleNotFoundError:
-    MPI = None
-
 
 def get_stencil_name(frame, event, args) -> str:
     """Get the name of the stencil from within a call to StencilWrapper.__call__"""
@@ -22,20 +19,6 @@ def get_stencil_name(frame, event, args) -> str:
         frame.f_locals["self"].func, "__name__", repr(frame.f_locals["self"].func)
     )
     return f"{name}.__call__"
-
-
-def get_static_name(frame, event, args) -> str:
-    """Static naming"""
-    if (
-        frame.f_code.co_name == "__call__"
-        and "fv3core/stencils/dyn_core.py" in frame.f_code.co_filename
-    ):
-        return "Acoustic timestep"
-    elif (
-        frame.f_code.co_name == "compute"
-        and "fv3core/stencils/remapping.py" in frame.f_code.co_filename
-    ):
-        return "Remapping"
 
 
 def get_name_from_frame(frame, event, args) -> str:
@@ -47,25 +30,52 @@ def get_name_from_frame(frame, event, args) -> str:
 
 Each entry define a unique id (function name + filename[Optional]) and a function
 that gives back a str for the marker.
+
+TODO: this is a poor-person JSON, a ppjson if you will, it could be extracted as an
+configuration file if there's a usage for it
 """
 functions_desc = [
-    {"fn": "__call__", "file": "fv3core/decorators.py", "name_fn": get_stencil_name},
+    {
+        "fn": "__call__",
+        "file": "fv3core/decorators.py",
+        "name": get_stencil_name,
+    },  # All call from StencilX decorators
     {
         "fn": "__call__",
         "file": "fv3core/stencils/dyn_core.py",
-        "name_fn": get_static_name,
+        "name": "Acoustic timestep",
     },
     {
-        "fn": "compute",
-        "file": "fv3core/stencils/remapping.py",
-        "name_fn": get_static_name,
+        "fn": "__call__",
+        "file": "fv3core/stencils/tracer_2d_1l.py",
+        "name": "Tracer advection",
     },
+    {"fn": "compute", "file": "fv3core/stencils/remapping.py", "name": "Remapping"},
     {
         "fn": "step_dynamics",
         "file": "fv3core/stencils/fv_dynamics.py",
-        "name_fn": get_name_from_frame,
+        "name": get_name_from_frame,
     },
-    {"fn": "fv_dynamics", "file": None, "name_fn": get_name_from_frame},
+    {
+        "fn": "halo_update",
+        "file": None,
+        "name": "HaloEx: sync scalar",
+    },  # Synchroneous halo update
+    {
+        "fn": "vector_halo_update",
+        "file": None,
+        "name": "HaloEx: sync vector",
+    },  # Synchroneous vector halo update
+    {
+        "fn": "start_halo_update",
+        "file": None,
+        "name": "HaloEx: async scalar",
+    },  # Asynchroneous halo update
+    {
+        "fn": "start_vector_halo_update",
+        "file": None,
+        "name": "HaloEx: async vector",
+    },  # Asynchroneous vector halo update
 ]
 
 
@@ -76,7 +86,11 @@ def profile_hook(frame, event, args):
             if frame.f_code.co_name == fn_desc["fn"] and (
                 fn_desc["file"] is None or fn_desc["file"] in frame.f_code.co_filename
             ):
-                name = fn_desc["name_fn"](frame, event, args)
+                name = (
+                    fn_desc["name"]
+                    if isinstance(fn_desc["name"], str)
+                    else fn_desc["name"](frame, event, args)
+                )
                 cp.cuda.nvtx.RangePush(name)
     elif event == "return":
         for fn_desc in functions_desc:
