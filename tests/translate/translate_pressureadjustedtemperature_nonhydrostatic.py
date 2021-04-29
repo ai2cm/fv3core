@@ -1,9 +1,7 @@
-from fv3core.testing.translate import MockNamelist
-from fv3core.testing import TranslateFortranData2Py
-
-
-from fv3core.stencils.dyn_core import AcousticDynamics
 import fv3core._config as spec
+from fv3core.stencils.dyn_core import AcousticDynamics
+from fv3core.testing import TranslateFortranData2Py
+from fv3core.testing.translate import MockNamelist
 
 
 class TranslatePressureAdjustedTemperature_NonHydrostatic(TranslateFortranData2Py):
