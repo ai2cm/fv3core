@@ -505,76 +505,92 @@ def calc_damp(damp4: FloatField, nord: FloatFieldK, damp_c: FloatFieldK, da_min:
         damp4 = (damp_c * da_min) ** (nord + 1)
 
 
-def fx_calc_stencil_region(q: FloatField, del6_v: FloatFieldIJ, fx: FloatField):
+def fx_calc_stencil_region(
+    q: FloatField,
+    del6_v: FloatFieldIJ,
+    fx: FloatField,
+    nord0: float,
+    nord1: float,
+    nord2: float,
+    nord3: float,
+):
     from __externals__ import (
         local_ie,
         local_is,
         local_je,
         local_js,
-        nord0,
-        nord1,
-        nord2,
-        nord3,
+        # nord0,
+        # nord1,
+        # nord2,
+        # nord3,
     )
 
     with computation(PARALLEL), interval(0, 1):
-        if __INLINED(nord0 == 0):
+        if nord0 == 0:
             with horizontal(region[local_is : local_ie + 2, local_js : local_je + 1]):
                 fx = fx_calculation(q, del6_v)
         else:
             fx = fx_calculation(q, del6_v)
     with computation(PARALLEL), interval(1, 2):
-        if __INLINED(nord1 == 0):
+        if nord1 == 0:
             with horizontal(region[local_is : local_ie + 2, local_js : local_je + 1]):
                 fx = fx_calculation(q, del6_v)
         else:
             fx = fx_calculation(q, del6_v)
     with computation(PARALLEL), interval(2, 3):
-        if __INLINED(nord2 == 0):
+        if nord2 == 0:
             with horizontal(region[local_is : local_ie + 2, local_js : local_je + 1]):
                 fx = fx_calculation(q, del6_v)
         else:
             fx = fx_calculation(q, del6_v)
     with computation(PARALLEL), interval(3, None):
-        if __INLINED(nord3 == 0):
+        if nord3 == 0:
             with horizontal(region[local_is : local_ie + 2, local_js : local_je + 1]):
                 fx = fx_calculation(q, del6_v)
         else:
             fx = fx_calculation(q, del6_v)
 
 
-def fy_calc_stencil_region(q: FloatField, del6_u: FloatFieldIJ, fy: FloatField):
+def fy_calc_stencil_region(
+    q: FloatField,
+    del6_u: FloatFieldIJ,
+    fy: FloatField,
+    nord0: float,
+    nord1: float,
+    nord2: float,
+    nord3: float,
+):
     from __externals__ import (
         local_ie,
         local_is,
         local_je,
         local_js,
-        nord0,
-        nord1,
-        nord2,
-        nord3,
+        # nord0,
+        # nord1,
+        # nord2,
+        # nord3,
     )
 
     with computation(PARALLEL), interval(0, 1):
-        if __INLINED(nord0 == 0):
+        if nord0 == 0:
             with horizontal(region[local_is : local_ie + 1, local_js : local_je + 2]):
                 fy = fy_calculation(q, del6_u)
         else:
             fy = fy_calculation(q, del6_u)
     with computation(PARALLEL), interval(1, 2):
-        if __INLINED(nord1 == 0):
+        if nord1 == 0:
             with horizontal(region[local_is : local_ie + 1, local_js : local_je + 2]):
                 fy = fy_calculation(q, del6_u)
         else:
             fy = fy_calculation(q, del6_u)
     with computation(PARALLEL), interval(2, 3):
-        if __INLINED(nord2 == 0):
+        if nord2 == 0:
             with horizontal(region[local_is : local_ie + 1, local_js : local_je + 2]):
                 fy = fy_calculation(q, del6_u)
         else:
             fy = fy_calculation(q, del6_u)
     with computation(PARALLEL), interval(3, None):
-        if __INLINED(nord3 == 0):
+        if nord3 == 0:
             with horizontal(region[local_is : local_ie + 1, local_js : local_je + 2]):
                 fy = fy_calculation(q, del6_u)
         else:
@@ -650,21 +666,26 @@ def fy_firstorder_use_sg(
 
 
 def d2_highorder_stencil(
-    fx: FloatField, fy: FloatField, rarea: FloatFieldIJ, d2: FloatField
+    fx: FloatField,
+    fy: FloatField,
+    rarea: FloatFieldIJ,
+    d2: FloatField,
+    nord0: float,
+    nord1: float,
+    nord2: float,
+    nord3: float,
 ):
-    from __externals__ import nord0, nord1, nord2, nord3
-
     with computation(PARALLEL), interval(0, 1):
-        if __INLINED(nord0 > 0):
+        if nord0 > 0:
             d2 = d2_highorder(fx, fy, rarea)
     with computation(PARALLEL), interval(1, 2):
-        if __INLINED(nord1 > 0):
+        if nord1 > 0:
             d2 = d2_highorder(fx, fy, rarea)
     with computation(PARALLEL), interval(2, 3):
-        if __INLINED(nord2 > 0):
+        if nord2 > 0:
             d2 = d2_highorder(fx, fy, rarea)
     with computation(PARALLEL), interval(3, None):
-        if __INLINED(nord3 > 0):
+        if nord3 > 0:
             d2 = d2_highorder(fx, fy, rarea)
 
 
@@ -674,20 +695,28 @@ def d2_highorder(fx: FloatField, fy: FloatField, rarea: FloatField):
     return d2
 
 
-def d2_damp_interval(q: FloatField, d2: FloatField, damp: FloatFieldK):
+def d2_damp_interval(
+    q: FloatField,
+    d2: FloatField,
+    damp: FloatFieldK,
+    nord0: float,
+    nord1: float,
+    nord2: float,
+    nord3: float,
+):
     from __externals__ import (
         local_ie,
         local_is,
         local_je,
         local_js,
-        nord0,
-        nord1,
-        nord2,
-        nord3,
+        # nord0,
+        # nord1,
+        # nord2,
+        # nord3,
     )
 
     with computation(PARALLEL), interval(0, 1):
-        if __INLINED(nord0 == 0):
+        if nord0 == 0:
             with horizontal(
                 region[local_is - 1 : local_ie + 2, local_js - 1 : local_je + 2]
             ):
@@ -695,7 +724,7 @@ def d2_damp_interval(q: FloatField, d2: FloatField, damp: FloatFieldK):
         else:
             d2[0, 0, 0] = damp * q
     with computation(PARALLEL), interval(1, 2):
-        if __INLINED(nord1 == 0):
+        if nord1 == 0:
             with horizontal(
                 region[local_is - 1 : local_ie + 2, local_js - 1 : local_je + 2]
             ):
@@ -703,7 +732,7 @@ def d2_damp_interval(q: FloatField, d2: FloatField, damp: FloatFieldK):
         else:
             d2[0, 0, 0] = damp * q
     with computation(PARALLEL), interval(2, 3):
-        if __INLINED(nord2 == 0):
+        if nord2 == 0:
             with horizontal(
                 region[local_is - 1 : local_ie + 2, local_js - 1 : local_je + 2]
             ):
@@ -711,7 +740,7 @@ def d2_damp_interval(q: FloatField, d2: FloatField, damp: FloatFieldK):
         else:
             d2[0, 0, 0] = damp * q
     with computation(PARALLEL), interval(3, None):
-        if __INLINED(nord3 == 0):
+        if nord3 == 0:
             with horizontal(
                 region[local_is - 1 : local_ie + 2, local_js - 1 : local_je + 2]
             ):
@@ -720,20 +749,27 @@ def d2_damp_interval(q: FloatField, d2: FloatField, damp: FloatFieldK):
             d2[0, 0, 0] = damp * q
 
 
-def copy_stencil_interval(q_in: FloatField, q_out: FloatField):
+def copy_stencil_interval(
+    q_in: FloatField,
+    q_out: FloatField,
+    nord0: float,
+    nord1: float,
+    nord2: float,
+    nord3: float,
+):
     from __externals__ import (
         local_ie,
         local_is,
         local_je,
         local_js,
-        nord0,
-        nord1,
-        nord2,
-        nord3,
+        # nord0,
+        # nord1,
+        # nord2,
+        # nord3,
     )
 
     with computation(PARALLEL), interval(0, 1):
-        if __INLINED(nord0 == 0):
+        if nord0 == 0:
             with horizontal(
                 region[local_is - 1 : local_ie + 2, local_js - 1 : local_je + 2]
             ):
@@ -741,7 +777,7 @@ def copy_stencil_interval(q_in: FloatField, q_out: FloatField):
         else:
             q_out = q_in
     with computation(PARALLEL), interval(1, 2):
-        if __INLINED(nord1 == 0):
+        if nord1 == 0:
             with horizontal(
                 region[local_is - 1 : local_ie + 2, local_js - 1 : local_je + 2]
             ):
@@ -749,7 +785,7 @@ def copy_stencil_interval(q_in: FloatField, q_out: FloatField):
         else:
             q_out = q_in
     with computation(PARALLEL), interval(2, 3):
-        if __INLINED(nord2 == 0):
+        if nord2 == 0:
             with horizontal(
                 region[local_is - 1 : local_ie + 2, local_js - 1 : local_je + 2]
             ):
@@ -757,7 +793,7 @@ def copy_stencil_interval(q_in: FloatField, q_out: FloatField):
         else:
             q_out = q_in
     with computation(PARALLEL), interval(3, None):
-        if __INLINED(nord3 == 0):
+        if nord3 == 0:
             with horizontal(
                 region[local_is - 1 : local_ie + 2, local_js - 1 : local_je + 2]
             ):
@@ -837,7 +873,8 @@ def compute_delnflux_no_sg(
     diffuse_origin = (grid.is_, grid.js, 0)
     extended_domain = (grid.nic + 1, grid.njc + 1, nk)
 
-    compute_no_sg(q, fx2, fy2, nord, damp, d2, mass)
+    delnflux_stencil = utils.cached_stencil_class(DelnFlux)(cache_key="delnflux")
+    delnflux_stencil(q, fx2, fy2, nord, damp, d2, mass)
 
     if mass is None:
         add_diffusive_stencil = StencilWrapper(
@@ -860,185 +897,333 @@ def compute_delnflux_no_sg(
     return fx, fy
 
 
-def compute_no_sg(q, fx2, fy2, nord, damp_c, d2, mass=None, nk=None):
-    if max(nord[:]) > 3:
-        raise Exception("nord must be less than 3")
-    if not np.all(n in [0, 2, 3] for n in nord[:]):
-        raise NotImplementedError("nord must have values 0, 2, or 3")
-    nmax = int(max(nord[:]))
-    grid = spec.grid
-    i1 = grid.is_ - 1 - nmax
-    i2 = grid.ie + 1 + nmax
-    j1 = grid.js - 1 - nmax
-    j2 = grid.je + 1 + nmax
-    if nk is None:
-        nk = grid.npz
-    origin_d2 = (i1, j1, 0)
-    domain_d2 = (i2 - i1 + 1, j2 - j1 + 1, nk)
-    f1_ny = grid.je - grid.js + 1 + 2 * nmax
-    f1_nx = grid.ie - grid.is_ + 2 + 2 * nmax
-    fx_origin = (grid.is_ - nmax, grid.js - nmax, 0)
+class DelnFlux:
+    def __init__(self, nmax: int = 3, nk: Optional[int] = None):
+        grid = spec.grid
+        i1 = grid.is_ - 1 - nmax
+        i2 = grid.ie + 1 + nmax
+        j1 = grid.js - 1 - nmax
+        j2 = grid.je + 1 + nmax
+        if nk is None:
+            nk = grid.npz
+        origin_d2 = (i1, j1, 0)
+        domain_d2 = (i2 - i1 + 1, j2 - j1 + 1, nk)
+        f1_ny = grid.je - grid.js + 1 + 2 * nmax
+        f1_nx = grid.ie - grid.is_ + 2 + 2 * nmax
+        fx_origin = (grid.is_ - nmax, grid.js - nmax, 0)
 
-    preamble_ax_offsets = axis_offsets(spec.grid, origin_d2, domain_d2)
-    full_ax_offsets = axis_offsets(
-        spec.grid, (grid.isd, grid.jsd, 0), (grid.nid, grid.njd, nk)
-    )
-    fx_ax_offsets = axis_offsets(spec.grid, fx_origin, (f1_nx, f1_ny, nk))
-    fy_ax_offsets = axis_offsets(spec.grid, fx_origin, (f1_nx - 1, f1_ny + 1, nk))
+        preamble_ax_offsets = axis_offsets(grid, origin_d2, domain_d2)
+        full_ax_offsets = axis_offsets(
+            spec.grid, (grid.isd, grid.jsd, 0), (grid.nid, grid.njd, nk)
+        )
+        fx_ax_offsets = axis_offsets(grid, fx_origin, (f1_nx, f1_ny, nk))
+        fy_ax_offsets = axis_offsets(grid, fx_origin, (f1_nx - 1, f1_ny + 1, nk))
 
-    if mass is None:
-        d2_damp = StencilWrapper(
+        self._d2_damp = StencilWrapper(
             d2_damp_interval,
-            externals={
-                "nord0": nord[0],
-                "nord1": nord[1],
-                "nord2": nord[2],
-                "nord3": nord[3],
-                **preamble_ax_offsets,
-            },
-            origin=origin_d2,
-            domain=domain_d2,
+            externals=preamble_ax_offsets,
         )
-        d2_damp(q, d2, damp_c)
-    else:
-        new_copy_stencil = StencilWrapper(
+
+        self._copy_stencil_interval = StencilWrapper(
             copy_stencil_interval,
-            externals={
-                "nord0": nord[0],
-                "nord1": nord[1],
-                "nord2": nord[2],
-                "nord3": nord[3],
-                **preamble_ax_offsets,
-            },
-            origin=origin_d2,
-            domain=domain_d2,
+            externals=preamble_ax_offsets,
+            # origin=origin_d2,
+            # domain=domain_d2,
         )
-        new_copy_stencil(q, d2)
 
-    conditional_corner_copy_x_functions = [
-        copy_corners_x_nord0,
-        copy_corners_x_nord1,
-        copy_corners_x_nord2,
-        copy_corners_x_nord3,
-    ]
+        conditional_corner_copy_x_functions = [
+            copy_corners_x_nord0,
+            copy_corners_x_nord1,
+            copy_corners_x_nord2,
+            copy_corners_x_nord3,
+        ]
 
-    conditional_corner_copy_x_stencils = [
-        StencilWrapper(
-            conditional_corner_copy_x_func,
-            externals=full_ax_offsets,
-            origin=(grid.isd, grid.jsd, 0),
-            domain=(grid.nid, grid.njd, nk),
+        self._conditional_corner_copy_x_stencils = [
+            StencilWrapper(
+                conditional_corner_copy_x_func,
+                externals=full_ax_offsets,
+                origin=(grid.isd, grid.jsd, 0),
+                # domain=(grid.nid, grid.njd, nk),
+            )
+            for conditional_corner_copy_x_func in conditional_corner_copy_x_functions
+        ]
+
+        conditional_corner_copy_y_functions = [
+            copy_corners_y_nord0,
+            copy_corners_y_nord1,
+            copy_corners_y_nord2,
+            copy_corners_y_nord3,
+        ]
+
+        self._conditional_corner_copy_y_stencils = [
+            StencilWrapper(
+                conditional_corner_copy_y_func,
+                externals=full_ax_offsets,
+                origin=(grid.isd, grid.jsd, 0),
+                # domain=(grid.nid, grid.njd, nk),
+            )
+            for conditional_corner_copy_y_func in conditional_corner_copy_y_functions
+        ]
+
+        self._d2_stencil = StencilWrapper(
+            d2_highorder_stencil,
+            # externals={
+            #     "nord0": nord[0],
+            #     "nord1": nord[1],
+            #     "nord2": nord[2],
+            #     "nord3": nord[3],
+            # },
         )
-        for conditional_corner_copy_x_func in conditional_corner_copy_x_functions
-    ]
 
-    conditional_corner_copy_y_functions = [
-        copy_corners_y_nord0,
-        copy_corners_y_nord1,
-        copy_corners_y_nord2,
-        copy_corners_y_nord3,
-    ]
+        self._column_conditional_fx_calculation = StencilWrapper(fx_calc_stencil_column)
 
-    conditional_corner_copy_y_stencils = [
-        StencilWrapper(
-            conditional_corner_copy_y_func,
-            externals=full_ax_offsets,
-            origin=(grid.isd, grid.jsd, 0),
-            domain=(grid.nid, grid.njd, nk),
+        self._column_conditional_fy_calculation = StencilWrapper(fy_calc_stencil_column)
+
+        self._fx_calc_stencil = StencilWrapper(
+            fx_calc_stencil_region,
+            externals=fx_ax_offsets,
+            # origin=fx_origin,
+            # domain=(f1_nx, f1_ny, nk),
         )
-        for conditional_corner_copy_y_func in conditional_corner_copy_y_functions
-    ]
 
-    d2_stencil = gtscript.stencil(
-        definition=d2_highorder_stencil,
-        externals={
-            "nord0": nord[0],
-            "nord1": nord[1],
-            "nord2": nord[2],
-            "nord3": nord[3],
-        },
-        backend=global_config.get_backend(),
-        rebuild=global_config.get_rebuild(),
-    )
-
-    column_conditional_fx_calculation = StencilWrapper(fx_calc_stencil_column)
-
-    column_conditional_fy_calculation = StencilWrapper(fy_calc_stencil_column)
-
-    for i, conditional_corner_copy_x in enumerate(conditional_corner_copy_x_stencils):
-        if nord[i] > 0:
-            conditional_corner_copy_x(d2)
-
-    fx_calc_stencil = StencilWrapper(
-        fx_calc_stencil_region,
-        externals={
-            "nord0": nord[0],
-            "nord1": nord[1],
-            "nord2": nord[2],
-            "nord3": nord[3],
-            **fx_ax_offsets,
-        },
-        origin=fx_origin,
-        domain=(f1_nx, f1_ny, nk),
-    )
-
-    fx_calc_stencil(d2, grid.del6_v, fx2)
-
-    for j, conditional_corner_copy_y in enumerate(conditional_corner_copy_y_stencils):
-        if nord[j] > 0:
-            conditional_corner_copy_y(d2)
-
-    fy_calc_stencil = StencilWrapper(
-        fy_calc_stencil_region,
-        externals={
-            "nord0": nord[0],
-            "nord1": nord[1],
-            "nord2": nord[2],
-            "nord3": nord[3],
-            **fy_ax_offsets,
-        },
-        origin=fx_origin,
-        domain=(f1_nx - 1, f1_ny + 1, nk),
-    )
-
-    fy_calc_stencil(d2, grid.del6_u, fy2)
-
-    for n in range(nmax):
-        nt = nmax - 1 - n
-        nt_origin = (grid.is_ - nt - 1, grid.js - nt - 1, 0)
-        nt_ny = grid.je - grid.js + 3 + 2 * nt
-        nt_nx = grid.ie - grid.is_ + 3 + 2 * nt
-        d2_stencil(
-            fx2, fy2, grid.rarea, d2, origin=nt_origin, domain=(nt_nx, nt_ny, nk)
+        self._fy_calc_stencil = StencilWrapper(
+            fy_calc_stencil_region,
+            externals=fy_ax_offsets,
+            # origin=fx_origin,
+            # domain=(f1_nx - 1, f1_ny + 1, nk),
         )
+
+    def __call__(self, q, fx2, fy2, nord, damp_c, d2, mass=None, nk=None):
+        if max(nord[:]) > 3:
+            raise Exception("nord must be less than 3")
+        if not np.all(n in [0, 2, 3] for n in nord[:]):
+            raise NotImplementedError("nord must have values 0, 2, or 3")
+        nmax = int(max(nord[:]))
+        grid = spec.grid
+        i1 = grid.is_ - 1 - nmax
+        i2 = grid.ie + 1 + nmax
+        j1 = grid.js - 1 - nmax
+        j2 = grid.je + 1 + nmax
+        if nk is None:
+            nk = grid.npz
+        origin_d2 = (i1, j1, 0)
+        domain_d2 = (i2 - i1 + 1, j2 - j1 + 1, nk)
+        f1_ny = grid.je - grid.js + 1 + 2 * nmax
+        f1_nx = grid.ie - grid.is_ + 2 + 2 * nmax
+        fx_origin = (grid.is_ - nmax, grid.js - nmax, 0)
+
+        # preamble_ax_offsets = axis_offsets(spec.grid, origin_d2, domain_d2)
+        # full_ax_offsets = axis_offsets(
+        #     spec.grid, (grid.isd, grid.jsd, 0), (grid.nid, grid.njd, nk)
+        # )
+        # fx_ax_offsets = axis_offsets(spec.grid, fx_origin, (f1_nx, f1_ny, nk))
+        # fy_ax_offsets = axis_offsets(spec.grid, fx_origin, (f1_nx - 1, f1_ny + 1, nk))
+
+        if mass is None:
+            # d2_damp = StencilWrapper(
+            #     d2_damp_interval,
+            #     externals={
+            #         "nord0": nord[0],
+            #         "nord1": nord[1],
+            #         "nord2": nord[2],
+            #         "nord3": nord[3],
+            #         **preamble_ax_offsets,
+            #     },
+            #     origin=origin_d2,
+            #     domain=domain_d2,
+            # )
+            self._d2_damp(
+                q,
+                d2,
+                damp_c,
+                nord[0],
+                nord[1],
+                nord[2],
+                nord[3],
+                origin=origin_d2,
+                domain=domain_d2,
+            )
+        else:
+            # new_copy_stencil = StencilWrapper(
+            #     copy_stencil_interval,
+            #     externals={
+            #         "nord0": nord[0],
+            #         "nord1": nord[1],
+            #         "nord2": nord[2],
+            #         "nord3": nord[3],
+            #         **preamble_ax_offsets,
+            #     },
+            #     origin=origin_d2,
+            #     domain=domain_d2,
+            # )
+            self._copy_stencil_interval(
+                q,
+                d2,
+                nord[0],
+                nord[1],
+                nord[2],
+                nord[3],
+                origin=origin_d2,
+                domain=domain_d2,
+            )
+
+        # conditional_corner_copy_x_functions = [
+        #     copy_corners_x_nord0,
+        #     copy_corners_x_nord1,
+        #     copy_corners_x_nord2,
+        #     copy_corners_x_nord3,
+        # ]
+
+        # conditional_corner_copy_x_stencils = [
+        #     StencilWrapper(
+        #         conditional_corner_copy_x_func,
+        #         externals=full_ax_offsets,
+        #         origin=(grid.isd, grid.jsd, 0),
+        #         domain=(grid.nid, grid.njd, nk),
+        #     )
+        #     for conditional_corner_copy_x_func in conditional_corner_copy_x_functions
+        # ]
+
+        # conditional_corner_copy_y_functions = [
+        #     copy_corners_y_nord0,
+        #     copy_corners_y_nord1,
+        #     copy_corners_y_nord2,
+        #     copy_corners_y_nord3,
+        # ]
+
+        # conditional_corner_copy_y_stencils = [
+        #     StencilWrapper(
+        #         conditional_corner_copy_y_func,
+        #         externals=full_ax_offsets,
+        #         origin=(grid.isd, grid.jsd, 0),
+        #         domain=(grid.nid, grid.njd, nk),
+        #     )
+        #     for conditional_corner_copy_y_func in conditional_corner_copy_y_functions
+        # ]
+
+        # d2_stencil = StencilWrapper(
+        #     definition=d2_highorder_stencil,
+        #     externals={
+        #         "nord0": nord[0],
+        #         "nord1": nord[1],
+        #         "nord2": nord[2],
+        #         "nord3": nord[3],
+        #     },
+        # )
+
+        # column_conditional_fx_calculation = StencilWrapper(fx_calc_stencil_column)
+
+        # column_conditional_fy_calculation = StencilWrapper(fy_calc_stencil_column)
+
+        copy_domain = (grid.nid, grid.njd, nk)
 
         for i, conditional_corner_copy_x in enumerate(
-            conditional_corner_copy_x_stencils
+            self._conditional_corner_copy_x_stencils
         ):
             if nord[i] > 0:
-                conditional_corner_copy_x(d2)
+                conditional_corner_copy_x(d2, domain=copy_domain)
 
-        nt_origin = (grid.is_ - nt, grid.js - nt, 0)
-        column_conditional_fx_calculation(
+        # fx_calc_stencil = StencilWrapper(
+        #     fx_calc_stencil_region,
+        #     externals={
+        #         "nord0": nord[0],
+        #         "nord1": nord[1],
+        #         "nord2": nord[2],
+        #         "nord3": nord[3],
+        #         **fx_ax_offsets,
+        #     },
+        #     origin=fx_origin,
+        #     domain=(f1_nx, f1_ny, nk),
+        # )
+
+        self._fx_calc_stencil(
             d2,
             grid.del6_v,
             fx2,
-            nord,
-            origin=nt_origin,
-            domain=(nt_nx - 1, nt_ny - 2, nk),
+            nord[0],
+            nord[1],
+            nord[2],
+            nord[3],
+            origin=fx_origin,
+            domain=(f1_nx, f1_ny, nk),
         )
 
-        for i, conditional_corner_copy_y in enumerate(
-            conditional_corner_copy_y_stencils
+        for j, conditional_corner_copy_y in enumerate(
+            self._conditional_corner_copy_y_stencils
         ):
-            if nord[i] > 0:
-                conditional_corner_copy_y(d2)
+            if nord[j] > 0:
+                conditional_corner_copy_y(d2, domain=copy_domain)
 
-        column_conditional_fy_calculation(
+        # fy_calc_stencil = StencilWrapper(
+        #     fy_calc_stencil_region,
+        #     externals={
+        #         "nord0": nord[0],
+        #         "nord1": nord[1],
+        #         "nord2": nord[2],
+        #         "nord3": nord[3],
+        #         **fy_ax_offsets,
+        #     },
+        #     origin=fx_origin,
+        #     domain=(f1_nx - 1, f1_ny + 1, nk),
+        # )
+
+        self._fy_calc_stencil(
             d2,
             grid.del6_u,
             fy2,
-            nord,
-            origin=nt_origin,
-            domain=(nt_nx - 2, nt_ny - 1, nk),
+            nord[0],
+            nord[1],
+            nord[2],
+            nord[3],
+            origin=fx_origin,
+            domain=(f1_nx - 1, f1_ny + 1, nk),
         )
+
+        for n in range(nmax):
+            nt = nmax - 1 - n
+            nt_origin = (grid.is_ - nt - 1, grid.js - nt - 1, 0)
+            nt_ny = grid.je - grid.js + 3 + 2 * nt
+            nt_nx = grid.ie - grid.is_ + 3 + 2 * nt
+            self._d2_stencil(
+                fx2,
+                fy2,
+                grid.rarea,
+                d2,
+                nord[0],
+                nord[1],
+                nord[2],
+                nord[3],
+                origin=nt_origin,
+                domain=(nt_nx, nt_ny, nk),
+            )
+
+            for i, conditional_corner_copy_x in enumerate(
+                self._conditional_corner_copy_x_stencils
+            ):
+                if nord[i] > 0:
+                    conditional_corner_copy_x(d2, domain=copy_domain)
+
+            nt_origin = (grid.is_ - nt, grid.js - nt, 0)
+            self._column_conditional_fx_calculation(
+                d2,
+                grid.del6_v,
+                fx2,
+                nord,
+                origin=nt_origin,
+                domain=(nt_nx - 1, nt_ny - 2, nk),
+            )
+
+            for i, conditional_corner_copy_y in enumerate(
+                self._conditional_corner_copy_y_stencils
+            ):
+                if nord[i] > 0:
+                    conditional_corner_copy_y(d2, domain=copy_domain)
+
+            self._column_conditional_fy_calculation(
+                d2,
+                grid.del6_u,
+                fy2,
+                nord,
+                origin=nt_origin,
+                domain=(nt_nx - 2, nt_ny - 1, nk),
+            )
