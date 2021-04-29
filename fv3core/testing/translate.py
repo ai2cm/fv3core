@@ -20,17 +20,6 @@ def read_serialized_data(serializer, savepoint, variable):
     return data
 
 
-class MockNamelist:
-    def __init__(self) -> None:
-        self.hydrostatic = True
-        self.d_ext = 0
-        self.beta = 0
-        self.use_logp = False
-        self.convert_ke = True
-        self.d_con = 0
-        self.rf_fast = False
-
-
 class TranslateFortranData2Py:
     max_error = 1e-14
     near_zero = 1e-18

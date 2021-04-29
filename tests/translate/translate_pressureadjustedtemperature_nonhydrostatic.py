@@ -1,16 +1,13 @@
 import fv3core._config as spec
-from fv3core.stencils.dyn_core import AcousticDynamics
+from fv3core.stencils.dyn_core import AcousticDynamics, get_nk_heat_dissipation
 from fv3core.testing import TranslateFortranData2Py
-from fv3core.testing.translate import MockNamelist
 
 
 class TranslatePressureAdjustedTemperature_NonHydrostatic(TranslateFortranData2Py):
     def __init__(self, grid):
         super().__init__(grid)
-
-        namelist = MockNamelist()
-        acoustic_dynamics = AcousticDynamics(None, namelist, None, None, None)
-        self.compute_func = acoustic_dynamics._compute_pkz_tempadjust
+        n_adj = get_nk_heat_dissipation(spec.namelist, grid)
+        self.compute_func = AcousticDynamics.initialize_temp_adjust_stencil(grid, n_adj)
         self.in_vars["data_vars"] = {
             "cappa": {},
             "delp": {},

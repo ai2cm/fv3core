@@ -309,6 +309,24 @@ class AcousticDynamics:
             domain=(self.grid.nic, self.grid.njc, self._nk_heat_dissipation),
         )
 
+        self._compute_pkz_tempadjust = self.initialize_temp_adjust_stencil(
+            self.grid,
+            self._nk_heat_dissipation,
+        )
+
+    @staticmethod
+    def initialize_temp_adjust_stencil(grid, n_adj):
+        """
+        Returns the StencilWrapper Object for the temperature_adjust stencil
+        Args:
+            n_adj: Number of vertical levels to adjust temperature on
+        """
+        return StencilWrapper(
+            temperature_adjust.compute_pkz_tempadjust,
+            origin=grid.compute_origin(),
+            domain=(grid.nic, grid.njc, n_adj),
+        )
+
     def __call__(self, state):
         # u, v, w, delz, delp, pt, pe, pk, phis, wsd, omga, ua, va, uc, vc, mfxd,
         # mfyd, cxd, cyd, pkz, peln, q_con, ak, bk, diss_estd, cappa, mdt, n_split,
