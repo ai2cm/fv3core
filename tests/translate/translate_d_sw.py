@@ -2,15 +2,16 @@ from gt4py.gtscript import PARALLEL, computation, interval
 
 import fv3core._config as spec
 from fv3core.decorators import gtstencil
-from fv3core.stencils import d_sw
+from fv3core.stencils.d_sw import DGridShallowWaterLagrangianDynamics
 from fv3core.testing import TranslateFortranData2Py
 from fv3core.utils.typing import FloatField, FloatFieldIJ
-
+import fv3core._config as spec
 
 class TranslateD_SW(TranslateFortranData2Py):
     def __init__(self, grid):
         super().__init__(grid)
-        self.max_error = 3e-11  # propagated error from vt roundoff error in FxAdv
+        self.max_error = 3e-11
+        self.compute_func = DGridShallowWaterLagrangianDynamics(spec.namelist)
         self.in_vars["data_vars"] = {
             "uc": grid.x3d_domain_dict(),
             "vc": grid.y3d_domain_dict(),
@@ -42,31 +43,6 @@ class TranslateD_SW(TranslateFortranData2Py):
         self.in_vars["parameters"] = ["dt"]
         self.out_vars = self.in_vars["data_vars"].copy()
         del self.out_vars["zh"]
-
-    # use_sg -- 'dx', 'dy', 'rdxc', 'rdyc', 'sin_sg needed
-    def compute(self, inputs):
-        self.make_storage_data_input_vars(inputs)
-        for v in [
-            "utco",
-            "vtco",
-            "keco",
-            "uco",
-            "uvort",
-            "kex",
-            "kevort",
-            "vco",
-            "ubkey",
-            "vbkey",
-            "fyh",
-            "uts",
-            "utafter",
-        ]:
-            if v in inputs:
-                del inputs[v]
-
-        d_sw.compute(**inputs)
-        return self.slice_output(inputs)
-
 
 class TranslateUbKE(TranslateFortranData2Py):
     @gtstencil()

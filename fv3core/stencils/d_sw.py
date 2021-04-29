@@ -438,7 +438,7 @@ def max_d2_bg1():
     return max(spec.namelist.d2_bg, spec.namelist.d2_bg_k2)
 
 
-def get_column_namelist():
+def get_column_namelist(namelist, npz):
     """
     Generate a dictionary of columns that specify how parameters (such as nord, damp)
     used in several functions called by D_SW vary over the k-dimension.
@@ -465,78 +465,33 @@ def get_column_namelist():
     col = {}
     for name in all_names:
         col[name] = utils.make_storage_from_shape(
-            (spec.grid.npz + 1,), (0,), cache_key="nam-" + name
+            (npz + 1,), (0,)
         )
     for name in direct_namelist:
-        col[name][:] = getattr(spec.namelist, name)
+        col[name][:] = getattr(namelist, name)
 
-    col["d2_divg"][:] = min(0.2, spec.namelist.d2_bg)
+    col["d2_divg"][:] = min(0.2, namelist.d2_bg)
     col["nord_v"][:] = min(2, col["nord"][0])
     col["nord_w"][:] = col["nord_v"][0]
     col["nord_t"][:] = col["nord_v"][0]
-    if spec.namelist.do_vort_damp:
-        col["damp_vt"][:] = spec.namelist.vtdm4
+    if namelist.do_vort_damp:
+        col["damp_vt"][:] = namelist.vtdm4
     else:
         col["damp_vt"][:] = 0
     col["damp_w"][:] = col["damp_vt"][0]
     col["damp_t"][:] = col["damp_vt"][0]
-    if grid().npz == 1 or spec.namelist.n_sponge < 0:
-        col["d2_divg"][0] = spec.namelist.d2_bg
+    if npz == 1 or namelist.n_sponge < 0:
+        col["d2_divg"][0] = namelist.d2_bg
     else:
         col["d2_divg"][0] = max_d2_bg0()
         lowest_kvals(col, 0)
-        if spec.namelist.d2_bg_k2 > 0.01:
+        if namelist.d2_bg_k2 > 0.01:
             col["d2_divg"][1] = max_d2_bg1()
             lowest_kvals(col, 1)
-        if spec.namelist.d2_bg_k2 > 0.05:
-            col["d2_divg"][2] = max(spec.namelist.d2_bg, 0.2 * spec.namelist.d2_bg_k2)
+        if namelist.d2_bg_k2 > 0.05:
+            col["d2_divg"][2] = max(namelist.d2_bg, 0.2 * namelist.d2_bg_k2)
             set_low_kvals(col, 2)
     return col
-
-
-def damp_vertical_wind(w, heat_s, diss_est, dt, column_namelist):
-    dw = utils.make_storage_from_shape(
-        w.shape, grid().compute_origin(), cache_key="d_sw_dw"
-    )
-    wk = utils.make_storage_from_shape(
-        w.shape, grid().full_origin(), cache_key="d_sw_wk"
-    )
-    fx2 = utils.make_storage_from_shape(
-        w.shape, grid().full_origin(), cache_key="d_sw_fx2"
-    )
-    fy2 = utils.make_storage_from_shape(
-        w.shape, grid().full_origin(), cache_key="d_sw_fy2"
-    )
-    for kstart, nk in k_bounds():
-        if column_namelist["damp_w"][kstart] > 1e-5:
-            damp4 = (column_namelist["damp_w"][kstart] * grid().da_min_c) ** (
-                column_namelist["nord_w"][kstart] + 1
-            )
-            delnflux.compute_no_sg(
-                w,
-                fx2,
-                fy2,
-                column_namelist["nord_w"][kstart],
-                damp4,
-                wk,
-                kstart=kstart,
-                nk=nk,
-            )
-    heat_diss(
-        fx2,
-        fy2,
-        w,
-        grid().rarea,
-        heat_s,
-        diss_est,
-        dw,
-        column_namelist["damp_w"],
-        column_namelist["ke_bg"],
-        dt,
-        origin=grid().compute_origin(),
-        domain=grid().domain_shape_compute(),
-    )
-    return dw, wk
 
 
 @gtscript.function
@@ -585,333 +540,358 @@ def vbke(vc, uc, cosa, rsina, vt, vb, dt4, dt5):
 
     return vb
 
+class DGridShallowWaterLagrangianDynamics:
+    """
+    Fortran name is the d_sw subroutine
+    """
+    def __init__(self, namelist):
+        self.grid = spec.grid
+        shape = self.grid.domain_shape_full(add=(1, 1, 1))
+        origin = self.grid.compute_origin()
+        self.hydrostatic = namelist.hydrostatic
+        self._tmp_heat_s = utils.make_storage_from_shape(shape, origin)
+        self._tmp_ub = utils.make_storage_from_shape(shape, origin)
+        self._tmp_vb = utils.make_storage_from_shape(shape, origin)
+        self._tmp_ke = utils.make_storage_from_shape(shape, origin)
+        self._tmp_vort = utils.make_storage_from_shape(shape, origin)
+        self._tmp_ut = utils.make_storage_from_shape(shape, origin)
+        self._tmp_vt = utils.make_storage_from_shape(shape, origin)
+        self._tmp_fx = utils.make_storage_from_shape(shape, origin)
+        self._tmp_fy = utils.make_storage_from_shape(shape, origin)
+        self._tmp_gx = utils.make_storage_from_shape(shape, origin)
+        self._tmp_gy = utils.make_storage_from_shape(shape, origin)
+        self._tmp_dw = utils.make_storage_from_shape(shape, origin)
+        self._tmp_wk = utils.make_storage_from_shape(shape, origin)
+        self._tmp_fx2 = utils.make_storage_from_shape(shape, origin)
+        self._tmp_fy2 = utils.make_storage_from_shape(shape, origin)
 
-def compute(
-    delpc,
-    delp,
-    ptc,
-    pt,
-    u,
-    v,
-    w,
-    uc,
-    vc,
-    ua,
-    va,
-    divgd,
-    mfx,
-    mfy,
-    cx,
-    cy,
-    crx,
-    cry,
-    xfx,
-    yfx,
-    q_con,
-    zh,
-    heat_source,
-    diss_est,
-    dt,
-):
-    column_namelist = get_column_namelist()
+        self.fvtp2d_dp = FiniteVolumeTransport(namelist, namelist.hord_dp)
+        self.fvtp2d_vt = FiniteVolumeTransport(namelist, namelist.hord_vt)
+        self.fvtp2d_tm = FiniteVolumeTransport(namelist, namelist.hord_tm)
+        self.fv_prep = FiniteVolumeFluxPrep()
+        self.ytp_v = YTP_V(namelist)
+        self.xtp_u = XTP_U(namelist)
+        self.column_namelist = get_column_namelist(namelist, self.grid.npz)
 
-    if spec.namelist.d_ext > 0:
-        raise Exception(
-            "untested d_ext > 0. need to call a2b_ord2, not yet implemented"
-        )
-    shape = heat_source.shape
-    heat_s = utils.make_storage_from_shape(
-        shape, grid().compute_origin(), cache_key="d_sw_heat_s"
-    )
-    ub = utils.make_storage_from_shape(
-        shape, grid().compute_origin(), cache_key="d_sw_ub"
-    )
-    vb = utils.make_storage_from_shape(
-        shape, grid().compute_origin(), cache_key="d_sw_vb"
-    )
-    ke = utils.make_storage_from_shape(shape, grid().full_origin(), cache_key="d_sw_ke")
-    vort = utils.make_storage_from_shape(
-        shape, grid().full_origin(), cache_key="d_sw_vort"
-    )
-    ut = utils.make_storage_from_shape(shape, grid().full_origin(), cache_key="d_sw_ut")
-    vt = utils.make_storage_from_shape(shape, grid().full_origin(), cache_key="d_sw_vt")
-    fx = utils.make_storage_from_shape(
-        shape, grid().compute_origin(), cache_key="d_sw_fx"
-    )
-    fy = utils.make_storage_from_shape(
-        shape, grid().compute_origin(), cache_key="d_sw_fy"
-    )
-    gx = utils.make_storage_from_shape(
-        shape, grid().compute_origin(), cache_key="d_sw_gx"
-    )
-    gy = utils.make_storage_from_shape(
-        shape, grid().compute_origin(), cache_key="d_sw_gy"
-    )
-
-    fvtp2d_dp = utils.cached_stencil_class(FiniteVolumeTransport)(
-        spec.namelist, spec.namelist.hord_dp, cache_key="d_sw-dp"
-    )
-    fvtp2d_vt = utils.cached_stencil_class(FiniteVolumeTransport)(
-        spec.namelist, spec.namelist.hord_vt, cache_key="d_sw-vt"
-    )
-    fvtp2d_tm = utils.cached_stencil_class(FiniteVolumeTransport)(
-        spec.namelist, spec.namelist.hord_tm, cache_key="d_sw-tm"
-    )
-    fv_prep = utils.cached_stencil_class(FiniteVolumeFluxPrep)(cache_key="fxadv")
-    fv_prep(uc, vc, crx, cry, xfx, yfx, ut, vt, dt)
-
-    fvtp2d_dp(
+    def __call__(
+        self,
+        delpc,
         delp,
+        ptc,
+        pt,
+        u,
+        v,
+        w,
+        uc,
+        vc,
+        ua,
+        va,
+        divgd,
+        mfx,
+        mfy,
+        cx,
+        cy,
         crx,
         cry,
         xfx,
         yfx,
-        fx,
-        fy,
-        nord=column_namelist["nord_v"],
-        damp_c=column_namelist["damp_vt"],
-    )
+        q_con,
+        zh,
+        heat_source,
+        diss_est,
+        dt,
+    ):
 
-    flux_capacitor(
-        cx,
-        cy,
-        mfx,
-        mfy,
-        crx,
-        cry,
-        fx,
-        fy,
-        origin=spec.grid.full_origin(),
-        domain=spec.grid.domain_shape_full(),
-    )
+        if spec.namelist.d_ext > 0:
+            raise Exception(
+                "untested d_ext > 0. need to call a2b_ord2, not yet implemented"
+            )
+        shape = heat_source.shape
 
-    if not spec.namelist.hydrostatic:
-        dw, wk = damp_vertical_wind(w, heat_s, diss_est, dt, column_namelist)
-        fvtp2d_vt(
-            w,
+        self.fv_prep(uc, vc, crx, cry, xfx, yfx, self._tmp_ut, self._tmp_vt, dt)
+
+        self.fvtp2d_dp(
+            delp,
             crx,
             cry,
             xfx,
             yfx,
-            gx,
-            gy,
-            nord=column_namelist["nord_v"],
-            damp_c=column_namelist["damp_vt"],
-            mfx=fx,
-            mfy=fy,
+            self._tmp_fx,
+            self._tmp_fy,
+            nord=self.column_namelist["nord_v"],
+            damp_c=self.column_namelist["damp_vt"],
+        )
+
+        flux_capacitor(
+            cx,
+            cy,
+            mfx,
+            mfy,
+            crx,
+            cry,
+            self._tmp_fx,
+            self._tmp_fy,
+            origin=spec.grid.full_origin(),
+            domain=spec.grid.domain_shape_full(),
+        )
+
+        if not self.hydrostatic:
+            for kstart, nk in k_bounds():
+                if self.column_namelist["damp_w"][kstart] > 1e-5:
+                    damp4 = (self.column_namelist["damp_w"][kstart] * self.grid.da_min_c) ** (
+                        self.column_namelist["nord_w"][kstart] + 1
+                    )
+                    delnflux.compute_no_sg(
+                        w,
+                        self._tmp_fx2,
+                        self._tmp_fy2,
+                        self.column_namelist["nord_w"][kstart],
+		        damp4,
+                        self._tmp_wk,
+                        kstart=kstart,
+                        nk=nk,
+                    )
+            heat_diss(
+                 self._tmp_fx2,
+	         self._tmp_fy2,
+                 w,
+                 self.grid.rarea,
+                 self._tmp_heat_s,
+                 diss_est,
+                 self._tmp_dw,
+                 self.column_namelist["damp_w"],
+                 self.column_namelist["ke_bg"],
+                 dt,
+	         origin=self.grid.compute_origin(),
+                 domain=self.grid.domain_shape_compute(),
+             )
+
+
+            self.fvtp2d_vt(
+                w,
+                crx,
+                cry,
+                xfx,
+                yfx,
+                self._tmp_gx,
+                self._tmp_gy,
+                nord=self.column_namelist["nord_v"],
+                damp_c=self.column_namelist["damp_vt"],
+                mfx=self._tmp_fx,
+                mfy=self._tmp_fy,
+            )
+
+            flux_adjust(
+                w,
+                delp,
+                self._tmp_gx,
+                self._tmp_gy,
+                self.grid.rarea,
+                origin=self.grid.compute_origin(),
+                domain=self.grid.domain_shape_compute(),
+            )
+        # USE_COND
+        self.fvtp2d_dp(
+            q_con,
+            crx,
+            cry,
+            xfx,
+            yfx,
+            self._tmp_gx,
+            self._tmp_gy,
+            nord=self.column_namelist["nord_t"],
+            damp_c=self.column_namelist["damp_t"],
+            mass=delp,
+            mfx=self._tmp_fx,
+            mfy=self._tmp_fy,
         )
 
         flux_adjust(
-            w,
+            q_con,
             delp,
-            gx,
-            gy,
-            grid().rarea,
-            origin=grid().compute_origin(),
-            domain=grid().domain_shape_compute(),
+            self._tmp_gx,
+            self._tmp_gy,
+            self.grid.rarea,
+            origin=self.grid.compute_origin(),
+            domain=self.grid.domain_shape_compute(),
         )
-    # USE_COND
-    fvtp2d_dp(
-        q_con,
-        crx,
-        cry,
-        xfx,
-        yfx,
-        gx,
-        gy,
-        nord=column_namelist["nord_t"],
-        damp_c=column_namelist["damp_t"],
-        mass=delp,
-        mfx=fx,
-        mfy=fy,
-    )
 
-    flux_adjust(
-        q_con,
-        delp,
-        gx,
-        gy,
-        grid().rarea,
-        origin=grid().compute_origin(),
-        domain=grid().domain_shape_compute(),
-    )
+        # END USE_COND
 
-    # END USE_COND
+        self.fvtp2d_tm(
+            pt,
+            crx,
+            cry,
+            xfx,
+            yfx,
+            self._tmp_gx,
+            self._tmp_gy,
+            nord=self.column_namelist["nord_v"],
+            damp_c=self.column_namelist["damp_vt"],
+            mass=delp,
+            mfx=self._tmp_fx,
+            mfy=self._tmp_fy,
+        )
 
-    fvtp2d_tm(
-        pt,
-        crx,
-        cry,
-        xfx,
-        yfx,
-        gx,
-        gy,
-        nord=column_namelist["nord_v"],
-        damp_c=column_namelist["damp_vt"],
-        mass=delp,
-        mfx=fx,
-        mfy=fy,
-    )
+        if spec.namelist.inline_q:
+            raise Exception("inline_q not yet implemented")
 
-    if spec.namelist.inline_q:
-        raise Exception("inline_q not yet implemented")
+        dt5 = 0.5 * dt
+        dt4 = 0.25 * dt
 
-    dt5 = 0.5 * dt
-    dt4 = 0.25 * dt
-
-    not_inlineq_pressure_and_vbke(
-        gx,
-        gy,
-        grid().rarea,
-        fx,
-        fy,
-        pt,
-        delp,
-        vc,
-        uc,
-        grid().cosa,
-        grid().rsina,
-        vt,
-        vb,
-        dt4,
-        dt5,
-        origin=grid().compute_origin(),
-        domain=grid().domain_shape_compute(add=(1, 1, 0)),
-    )
-    ytp_v_obj = utils.cached_stencil_class(YTP_V)(spec.namelist, cache_key="ytp_v")
-    ytp_v_obj(vb, v, ub)
-
-    mult_ubke(
-        vb,
-        ke,
-        uc,
-        vc,
-        grid().cosa,
-        grid().rsina,
-        ut,
-        ub,
-        dt4,
-        dt5,
-        origin=grid().compute_origin(),
-        domain=grid().domain_shape_compute(add=(1, 1, 0)),
-    )
-    xtp_u_obj = utils.cached_stencil_class(XTP_U)(spec.namelist, cache_key="xtp_u")
-    xtp_u_obj(ub, u, vb)
-
-    ke_horizontal_vorticity(
-        ke,
-        u,
-        v,
-        ub,
-        vb,
-        ut,
-        vt,
-        spec.grid.dx,
-        spec.grid.dy,
-        spec.grid.rarea,
-        wk,
-        dt,
-        origin=grid().full_origin(),
-        domain=grid().domain_shape_full(),
-    )
-
-    # TODO if spec.namelist.d_f3d and ROT3 unimplemeneted
-    adjust_w_and_qcon(
-        w,
-        delp,
-        dw,
-        q_con,
-        column_namelist["damp_w"],
-        origin=grid().compute_origin(),
-        domain=grid().domain_shape_compute(),
-    )
-    for kstart, nk in k_bounds():
-        divdamp.compute(
-            u,
-            v,
-            va,
-            ptc,
-            vort,
-            ua,
-            divgd,
+        not_inlineq_pressure_and_vbke(
+            self._tmp_gx,
+            self._tmp_gy,
+            self.grid.rarea,
+            self._tmp_fx,
+            self._tmp_fy,
+            pt,
+            delp,
             vc,
             uc,
-            delpc,
-            ke,
-            wk,
-            column_namelist["d2_divg"][kstart],
-            dt,
-            column_namelist["nord"][kstart],
-            kstart=kstart,
-            nk=nk,
+            self.grid.cosa,
+            self.grid.rsina,
+            self._tmp_vt,
+            self._tmp_vb,
+            dt4,
+            dt5,
+            origin=self.grid.compute_origin(),
+            domain=self.grid.domain_shape_compute(add=(1, 1, 0)),
         )
 
-    ub_vb_from_vort(
-        vort,
-        ub,
-        vb,
-        column_namelist["d_con"],
-        origin=grid().compute_origin(),
-        domain=grid().domain_shape_compute(add=(1, 1, 0)),
-    )
+        self.ytp_v(self._tmp_vb, v, self._tmp_ub)
 
-    # Vorticity transport
-    compute_vorticity(
-        wk,
-        grid().f0,
-        zh,
-        vort,
-        origin=grid().full_origin(),
-        domain=grid().domain_shape_full(),
-    )
+        mult_ubke(
+            self._tmp_vb,
+            self._tmp_ke,
+            uc,
+            vc,
+            self.grid.cosa,
+            self.grid.rsina,
+            self._tmp_ut,
+            self._tmp_ub,
+            dt4,
+            dt5,
+            origin=self.grid.compute_origin(),
+            domain=self.grid.domain_shape_compute(add=(1, 1, 0)),
+        )
 
-    fvtp2d_vt(vort, crx, cry, xfx, yfx, fx, fy)
+        self.xtp_u(self._tmp_ub, u, self._tmp_vb)
 
-    u_and_v_from_ke(
-        ke,
-        ut,
-        vt,
-        fx,
-        fy,
-        u,
-        v,
-        origin=grid().compute_origin(),
-        domain=grid().domain_shape_compute(add=(1, 1, 0)),
-    )
+        ke_horizontal_vorticity(
+            self._tmp_ke,
+            u,
+            v,
+            self._tmp_ub,
+            self._tmp_vb,
+            self._tmp_ut,
+            self._tmp_vt,
+            self.grid.dx,
+            self.grid.dy,
+            self.grid.rarea,
+            self._tmp_wk,
+            dt,
+            origin=self.grid.full_origin(),
+            domain=self.grid.domain_shape_full(),
+        )
 
-    for kstart, nk in k_bounds():
-        if column_namelist["damp_vt"][kstart] > dcon_threshold:
-            damp4 = (column_namelist["damp_vt"][kstart] * grid().da_min_c) ** (
-                column_namelist["nord_v"][kstart] + 1
-            )
-            delnflux.compute_no_sg(
-                wk,
-                ut,
-                vt,
-                column_namelist["nord_v"][kstart],
-                damp4,
-                vort,
+        # TODO if spec.namelist.d_f3d and ROT3 unimplemeneted
+        adjust_w_and_qcon(
+            w,
+            delp,
+            self._tmp_dw,
+            q_con,
+            self.column_namelist["damp_w"],
+            origin=self.grid.compute_origin(),
+            domain=self.grid.domain_shape_compute(),
+        )
+        for kstart, nk in k_bounds():
+            divdamp.compute(
+                u,
+                v,
+                va,
+                ptc,
+                self._tmp_vort,
+                ua,
+                divgd,
+                vc,
+                uc,
+                delpc,
+                self._tmp_ke,
+                self._tmp_wk,
+                self.column_namelist["d2_divg"][kstart],
+                dt,
+                self.column_namelist["nord"][kstart],
                 kstart=kstart,
                 nk=nk,
             )
 
-    heat_source_from_vorticity_damping(
-        ub,
-        vb,
-        ut,
-        vt,
-        u,
-        v,
-        delp,
-        grid().rsin2,
-        grid().cosa_s,
-        grid().rdx,
-        grid().rdy,
-        heat_s,
-        heat_source,
-        diss_est,
-        column_namelist["d_con"],
-        column_namelist["damp_vt"],
-        origin=grid().compute_origin(),
-        domain=grid().domain_shape_compute(add=(1, 1, 0)),
-    )
+        ub_vb_from_vort(
+            self._tmp_vort,
+            self._tmp_ub,
+            self._tmp_vb,
+            self.column_namelist["d_con"],
+            origin=self.grid.compute_origin(),
+            domain=self.grid.domain_shape_compute(add=(1, 1, 0)),
+        )
+
+        # Vorticity transport
+        compute_vorticity(
+            self._tmp_wk,
+            self.grid.f0,
+            zh,
+            self._tmp_vort,
+            origin=self.grid.full_origin(),
+            domain=self.grid.domain_shape_full(),
+        )
+
+        self.fvtp2d_vt(self._tmp_vort, crx, cry, xfx, yfx, self._tmp_fx, self._tmp_fy)
+
+        u_and_v_from_ke(
+            self._tmp_ke,
+            self._tmp_ut,
+            self._tmp_vt,
+            self._tmp_fx,
+            self._tmp_fy,
+            u,
+            v,
+            origin=self.grid.compute_origin(),
+            domain=self.grid.domain_shape_compute(add=(1, 1, 0)),
+        )
+
+        for kstart, nk in k_bounds():
+            if self.column_namelist["damp_vt"][kstart] > dcon_threshold:
+                damp4 = (self.column_namelist["damp_vt"][kstart] * self.grid.da_min_c) ** (
+                    self.column_namelist["nord_v"][kstart] + 1
+                )
+                delnflux.compute_no_sg(
+                    self._tmp_wk,
+                    self._tmp_ut,
+                    self._tmp_vt,
+                    self.column_namelist["nord_v"][kstart],
+                    damp4,
+                    self._tmp_vort,
+                    kstart=kstart,
+                    nk=nk,
+                )
+
+        heat_source_from_vorticity_damping(
+            self._tmp_ub,
+            self._tmp_vb,
+            self._tmp_ut,
+            self._tmp_vt,
+            u,
+            v,
+            delp,
+            self.grid.rsin2,
+            self.grid.cosa_s,
+            self.grid.rdx,
+            self.grid.rdy,
+            self._tmp_heat_s,
+            heat_source,
+            diss_est,
+            self.column_namelist["d_con"],
+            self.column_namelist["damp_vt"],
+            origin=self.grid.compute_origin(),
+            domain=self.grid.domain_shape_compute(add=(1, 1, 0)),
+        )
