@@ -723,7 +723,7 @@ class DGridShallowWaterLagrangianDynamics:
             q_con, delp, self._tmp_gx, self._tmp_gy, self.grid.rarea
         )
 
-        # END USE_COND
+        # Fortran #endif //USE_COND
 
         self.fvtp2d_tm(
             pt,

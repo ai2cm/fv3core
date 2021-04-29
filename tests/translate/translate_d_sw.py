@@ -143,14 +143,11 @@ class TranslateFluxCapacitor(TranslateFortranData2Py):
         self.out_vars = {}
         for outvar in ["cx", "cy", "xflux", "yflux"]:
             self.out_vars[outvar] = self.in_vars["data_vars"][outvar]
-
-    def compute_from_storage(self, inputs):
-        d_sw.flux_capacitor(
-            **inputs,
-            origin=self.grid.full_origin(),
-            domain=self.grid.domain_shape_full(),
+        self.compute_func = StencilWrapper(
+            d_sw.flux_capacitor,
+            origin=grid.full_origin(),
+            domain=grid.domain_shape_full(),
         )
-        return inputs
 
 
 class TranslateHeatDiss(TranslateFortranData2Py):
@@ -185,4 +182,21 @@ class TranslateHeatDiss(TranslateFortranData2Py):
             domain=self.grid.domain_shape_compute(),
         )
         heat_diss_stencil(**inputs)
+        return inputs
+
+
+class TranslateWdivergence(TranslateFortranData2Py):
+    def __init__(self, grid):
+        super().__init__(grid)
+        self.in_vars["data_vars"] = {"w": {}, "delp": {}, "gx": {}, "gy": {}}
+        self.out_vars = {"w": {}}
+        self.compute_func = StencilWrapper(
+            d_sw.flux_adjust,
+            origin=self.grid.compute_origin(),
+            domain=self.grid.domain_shape_compute(),
+        )
+
+    def compute_from_storage(self, inputs):
+        inputs["rarea"] = self.grid.rarea
+        self.compute_func(**inputs)
         return inputs
