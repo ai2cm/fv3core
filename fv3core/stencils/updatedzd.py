@@ -5,7 +5,7 @@ import fv3core._config as spec
 import fv3core.utils.global_constants as constants
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import StencilWrapper
-from fv3core.stencils import basic_operations, d_sw, delnflux
+from fv3core.stencils import basic_operations, delnflux
 from fv3core.stencils.fvtp2d import FiniteVolumeTransport
 from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
 
@@ -345,4 +345,3 @@ class UpdateDeltaZOnDGrid:
             wsd,
             dt,
         )
-

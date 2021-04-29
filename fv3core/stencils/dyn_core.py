@@ -262,7 +262,9 @@ class AcousticDynamics:
                 self.grid, self._dp_ref, column_namelist, d_sw.k_bounds()
             )
             self.riem_solver3 = RiemannSolver3(namelist)
-            self.dgrid_shallow_water_lagrangian_dynamics = d_sw.DGridShallowWaterLagrangianDynamics(namelist, column_namelist)
+            self.dgrid_shallow_water_lagrangian_dynamics = (
+                d_sw.DGridShallowWaterLagrangianDynamics(namelist, column_namelist)
+            )
         self._set_gz = StencilWrapper(
             set_gz,
             origin=self.grid.compute_origin(),

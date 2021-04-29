@@ -1,19 +1,21 @@
 from gt4py.gtscript import PARALLEL, computation, interval
 
 import fv3core._config as spec
-from fv3core.decorators import gtstencil
 import fv3core.stencils.d_sw as d_sw
-from fv3core.testing import TranslateFortranData2Py
-from fv3core.utils.typing import FloatField, FloatFieldIJ
-import fv3core._config as spec
 from fv3core.decorators import StencilWrapper
+from fv3core.testing import TranslateFortranData2Py
 from fv3core.utils.grid import axis_offsets
+from fv3core.utils.typing import FloatField, FloatFieldIJ
+
+
 class TranslateD_SW(TranslateFortranData2Py):
     def __init__(self, grid):
         super().__init__(grid)
         self.max_error = 3e-11
         column_namelist = d_sw.get_column_namelist(spec.namelist, grid.npz)
-        self.compute_func = d_sw.DGridShallowWaterLagrangianDynamics(spec.namelist, column_namelist)
+        self.compute_func = d_sw.DGridShallowWaterLagrangianDynamics(
+            spec.namelist, column_namelist
+        )
         self.in_vars["data_vars"] = {
             "uc": grid.x3d_domain_dict(),
             "vc": grid.y3d_domain_dict(),
@@ -48,17 +50,18 @@ class TranslateD_SW(TranslateFortranData2Py):
 
 
 def ubke(
-        uc: FloatField,
-        vc: FloatField,
-        cosa: FloatFieldIJ,
-        rsina: FloatFieldIJ,
-        ut: FloatField,
-        ub: FloatField,
-        dt4: float,
-        dt5: float,
-    ):
+    uc: FloatField,
+    vc: FloatField,
+    cosa: FloatFieldIJ,
+    rsina: FloatFieldIJ,
+    ut: FloatField,
+    ub: FloatField,
+    dt4: float,
+    dt5: float,
+):
     with computation(PARALLEL), interval(...):
         ub = d_sw.ubke(uc, vc, cosa, rsina, ut, ub, dt4, dt5)
+
 
 class TranslateUbKE(TranslateFortranData2Py):
     def __init__(self, grid):
@@ -72,28 +75,32 @@ class TranslateUbKE(TranslateFortranData2Py):
         self.in_vars["parameters"] = ["dt5", "dt4"]
         self.out_vars = {"ub": grid.compute_dict_buffer_2d()}
         origin = self.grid.compute_origin()
-        domain = self.grid.domain_shape_compute(add=(1,1,0))
+        domain = self.grid.domain_shape_compute(add=(1, 1, 0))
         ax_offsets = axis_offsets(self.grid, origin, domain)
-        self.compute_func = StencilWrapper(ubke,  externals=ax_offsets, origin=origin, domain=domain)
+        self.compute_func = StencilWrapper(
+            ubke, externals=ax_offsets, origin=origin, domain=domain
+        )
 
     def compute_from_storage(self, inputs):
         inputs["cosa"] = self.grid.cosa
-        inputs["rsina"]= self.grid.rsina
+        inputs["rsina"] = self.grid.rsina
         self.compute_func(**inputs)
         return inputs
 
+
 def vbke(
-        vc: FloatField,
-        uc: FloatField,
-        cosa: FloatFieldIJ,
-        rsina: FloatFieldIJ,
-        vt: FloatField,
-        vb: FloatField,
-        dt4: float,
-        dt5: float,
-    ):
+    vc: FloatField,
+    uc: FloatField,
+    cosa: FloatFieldIJ,
+    rsina: FloatFieldIJ,
+    vt: FloatField,
+    vb: FloatField,
+    dt4: float,
+    dt5: float,
+):
     with computation(PARALLEL), interval(...):
         vb = d_sw.vbke(vc, uc, cosa, rsina, vt, vb, dt4, dt5)
+
 
 class TranslateVbKE(TranslateFortranData2Py):
     def __init__(self, grid):
@@ -107,16 +114,19 @@ class TranslateVbKE(TranslateFortranData2Py):
         self.in_vars["parameters"] = ["dt5", "dt4"]
         self.out_vars = {"vb": grid.compute_dict_buffer_2d()}
         origin = self.grid.compute_origin()
-        domain = self.grid.domain_shape_compute(add=(1,1,0))
+        domain = self.grid.domain_shape_compute(add=(1, 1, 0))
         ax_offsets = axis_offsets(self.grid, origin, domain)
-        self.compute_func = StencilWrapper(vbke,  externals=ax_offsets, origin=origin, domain=domain)
+        self.compute_func = StencilWrapper(
+            vbke, externals=ax_offsets, origin=origin, domain=domain
+        )
 
     def compute_from_storage(self, inputs):
         inputs["cosa"] = self.grid.cosa
-        inputs["rsina"]= self.grid.rsina
+        inputs["rsina"] = self.grid.rsina
         self.compute_func(**inputs)
         return inputs
-    
+
+
 class TranslateFluxCapacitor(TranslateFortranData2Py):
     def __init__(self, grid):
         super().__init__(grid)
@@ -169,6 +179,10 @@ class TranslateHeatDiss(TranslateFortranData2Py):
             spec.namelist.dt_atmos / spec.namelist.k_split / spec.namelist.n_split
         )
         inputs["rarea"] = self.grid.rarea
-        heat_diss_stencil = StencilWrapper(d_sw.heat_diss,  origin=self.grid.compute_origin(), domain=self.grid.domain_shape_compute())
+        heat_diss_stencil = StencilWrapper(
+            d_sw.heat_diss,
+            origin=self.grid.compute_origin(),
+            domain=self.grid.domain_shape_compute(),
+        )
         heat_diss_stencil(**inputs)
         return inputs
