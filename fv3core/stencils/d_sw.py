@@ -15,7 +15,7 @@ import fv3core.stencils.divergence_damping as divdamp
 import fv3core.utils.corners as corners
 import fv3core.utils.global_constants as constants
 import fv3core.utils.gt4py_utils as utils
-from fv3core.decorators import gtstencil
+from fv3core.decorators import StencilWrapper, gtstencil
 from fv3core.stencils.fvtp2d import FiniteVolumeTransport
 from fv3core.stencils.fxadv import FiniteVolumeFluxPrep
 from fv3core.stencils.xtp_u import XTP_U
@@ -512,16 +512,18 @@ def damp_vertical_wind(w, heat_s, diss_est, dt, column_namelist):
     # TODO: in theory, we should check if damp_vt > 1e-5 for each k-level and
     # only compute for k-levels where this is true
 
+    damping_factor_calculation1 = StencilWrapper(
+        delnflux.calc_damp, origin=(0, 0, 0), domain=(1, 1, grid().npz)
+    )
+
     damp_3d = utils.make_storage_from_shape(
-        (1, 1, grid().npz)
+        (1, 1, grid().npz), cache_key="d_sw_damp_d3"
     )  # fields must be 3d to assign to them
-    delnflux.calc_damp(
+    damping_factor_calculation1(
         damp_3d,
         column_namelist["nord_w"],
         column_namelist["damp_w"],
         grid().da_min_c,
-        origin=(0, 0, 0),
-        domain=(1, 1, grid().npz),
     )
     damp4 = utils.make_storage_data(damp_3d[0, 0, :], (grid().npz,), (0,))
 
@@ -894,16 +896,18 @@ def compute(
     # TODO: in theory, we should check if damp_vt > 1e-5 for each k-level and
     # only compute for k-levels where this is true
 
+    damping_factor_calculation2 = StencilWrapper(
+        delnflux.calc_damp, origin=(0, 0, 0), domain=(1, 1, grid().npz)
+    )
+
     damp2_3d = utils.make_storage_from_shape(
-        (1, 1, grid().npz)
+        (1, 1, grid().npz), cache_key="d_sw_damp2_3d"
     )  # fields must be 3d to assign to them
-    delnflux.calc_damp(
+    damping_factor_calculation2(
         damp2_3d,
         column_namelist["nord_v"],
         column_namelist["damp_vt"],
         grid().da_min_c,
-        origin=(0, 0, 0),
-        domain=(1, 1, grid().npz),
     )
     damp4_2 = utils.make_storage_data(damp2_3d[0, 0, :], (grid().npz,), (0,))
 

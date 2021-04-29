@@ -15,7 +15,7 @@ from gt4py.gtscript import (
 import fv3core._config as spec
 import fv3core.utils.global_config as global_config
 import fv3core.utils.gt4py_utils as utils
-from fv3core.decorators import gtstencil
+from fv3core.decorators import StencilWrapper, gtstencil
 from fv3core.utils.grid import axis_offsets
 from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
 
@@ -622,7 +622,6 @@ def copy_corners_y_nord(q: FloatField):
                 q = q[-3, -2, 0]
 
 
-@gtstencil()
 def calc_damp(damp4: FloatField, nord: FloatFieldK, damp_c: FloatFieldK, da_min: float):
     with computation(FORWARD), interval(...):
         damp4 = (damp_c * da_min) ** (nord + 1)
@@ -704,7 +703,6 @@ def fy_calc_stencil_region(q: FloatField, del6_u: FloatFieldIJ, fy: FloatField):
             fy = fy_calculation(q, del6_u)
 
 
-@gtstencil()
 def fx_calc_stencil_column(
     q: FloatField, del6_v: FloatFieldIJ, fx: FloatField, nord: FloatFieldK
 ):
@@ -713,7 +711,6 @@ def fx_calc_stencil_column(
             fx = fx_calculation_neg(q, del6_v)
 
 
-@gtstencil()
 def fy_calc_stencil_column(
     q: FloatField, del6_u: FloatFieldIJ, fy: FloatField, nord: FloatFieldK
 ):
@@ -891,7 +888,6 @@ def copy_stencil_interval(q_in: FloatField, q_out: FloatField):
             q_out = q_in
 
 
-@gtstencil()
 def add_diffusive_component(
     fx: FloatField, fx2: FloatField, fy: FloatField, fy2: FloatField
 ):
@@ -900,7 +896,6 @@ def add_diffusive_component(
         fy[0, 0, 0] = fy + fy2
 
 
-@gtstencil()
 def diffusive_damp(
     fx: FloatField,
     fx2: FloatField,
@@ -950,9 +945,13 @@ def compute_delnflux_no_sg(
         )
 
     damp_3d = utils.make_storage_from_shape(
-        (1, 1, nk)
+        (1, 1, nk), cache_key="dalnflux_damp_3d"
     )  # fields must be 3d to assign to them
-    calc_damp(damp_3d, nord, damp_c, grid.da_min, origin=(0, 0, 0), domain=(1, 1, nk))
+    damping_factor_calculation = StencilWrapper(
+        calc_damp, origin=(0, 0, 0), domain=(1, 1, nk)
+    )
+
+    damping_factor_calculation(damp_3d, nord, damp_c, grid.da_min)
     damp = utils.make_storage_data(damp_3d[0, 0, :], (nk,), (0,))
 
     fx2 = utils.make_storage_from_shape(q.shape, full_origin, cache_key="delnflux_fx2")
@@ -963,18 +962,23 @@ def compute_delnflux_no_sg(
     compute_no_sg(q, fx2, fy2, nord, damp, d2, mass)
 
     if mass is None:
-        add_diffusive_component(
-            fx, fx2, fy, fy2, origin=diffuse_origin, domain=extended_domain
+        add_diffusive_stencil = StencilWrapper(
+            add_diffusive_component, origin=diffuse_origin, domain=extended_domain
         )
+
+        add_diffusive_stencil(fx, fx2, fy, fy2)
     else:
         # TODO: To join these stencils you need to overcompute, making the edges
         # 'wrong', but not actually used, separating now for comparison sanity.
 
         # diffusive_damp(fx, fx2, fy, fy2, mass, damp, origin=diffuse_origin,
         # domain=(grid.nic + 1, grid.njc + 1, nk))
-        diffusive_damp(
-            fx, fx2, fy, fy2, mass, damp, origin=diffuse_origin, domain=extended_domain
+        diffusive_damp_stencil = StencilWrapper(
+            diffusive_damp, origin=diffuse_origin, domain=extended_domain
         )
+
+        diffusive_damp_stencil(fx, fx2, fy, fy2, mass, damp)
+
     return fx, fy
 
 
@@ -1005,8 +1009,8 @@ def compute_no_sg(q, fx2, fy2, nord, damp_c, d2, mass=None, nk=None):
     fy_ax_offsets = axis_offsets(spec.grid, fx_origin, (f1_nx - 1, f1_ny + 1, nk))
 
     if mass is None:
-        d2_damp = gtscript.stencil(
-            definition=d2_damp_interval,
+        d2_damp = StencilWrapper(
+            d2_damp_interval,
             externals={
                 "nord0": nord[0],
                 "nord1": nord[1],
@@ -1014,13 +1018,13 @@ def compute_no_sg(q, fx2, fy2, nord, damp_c, d2, mass=None, nk=None):
                 "nord3": nord[3],
                 **preamble_ax_offsets,
             },
-            backend=global_config.get_backend(),
-            rebuild=global_config.get_rebuild(),
+            origin=origin_d2,
+            domain=domain_d2,
         )
-        d2_damp(q, d2, damp_c, origin=origin_d2, domain=domain_d2)
+        d2_damp(q, d2, damp_c)
     else:
-        new_copy_stencil = gtscript.stencil(
-            definition=copy_stencil_interval,
+        new_copy_stencil = StencilWrapper(
+            copy_stencil_interval,
             externals={
                 "nord0": nord[0],
                 "nord1": nord[1],
@@ -1028,13 +1032,13 @@ def compute_no_sg(q, fx2, fy2, nord, damp_c, d2, mass=None, nk=None):
                 "nord3": nord[3],
                 **preamble_ax_offsets,
             },
-            backend=global_config.get_backend(),
-            rebuild=global_config.get_rebuild(),
+            origin=origin_d2,
+            domain=domain_d2,
         )
-        new_copy_stencil(q, d2, origin=origin_d2, domain=domain_d2)
+        new_copy_stencil(q, d2)
 
-    conditional_corner_copy_x = gtscript.stencil(
-        definition=copy_corners_x_nord,
+    conditional_corner_copy_x = StencilWrapper(
+        copy_corners_x_nord,
         externals={
             "nord0": nord[0],
             "nord1": nord[1],
@@ -1042,11 +1046,11 @@ def compute_no_sg(q, fx2, fy2, nord, damp_c, d2, mass=None, nk=None):
             "nord3": nord[3],
             **full_ax_offsets,
         },
-        backend=global_config.get_backend(),
-        rebuild=global_config.get_rebuild(),
+        origin=(grid.isd, grid.jsd, 0),
+        domain=(grid.nid, grid.njd, nk),
     )
-    conditional_corner_copy_y = gtscript.stencil(
-        definition=copy_corners_y_nord,
+    conditional_corner_copy_y = StencilWrapper(
+        copy_corners_y_nord,
         externals={
             "nord0": nord[0],
             "nord1": nord[1],
@@ -1054,8 +1058,8 @@ def compute_no_sg(q, fx2, fy2, nord, damp_c, d2, mass=None, nk=None):
             "nord3": nord[3],
             **full_ax_offsets,
         },
-        backend=global_config.get_backend(),
-        rebuild=global_config.get_rebuild(),
+        origin=(grid.isd, grid.jsd, 0),
+        domain=(grid.nid, grid.njd, nk),
     )
 
     d2_stencil = gtscript.stencil(
@@ -1070,12 +1074,14 @@ def compute_no_sg(q, fx2, fy2, nord, damp_c, d2, mass=None, nk=None):
         rebuild=global_config.get_rebuild(),
     )
 
-    conditional_corner_copy_x(
-        d2, origin=(grid.isd, grid.jsd, 0), domain=(grid.nid, grid.njd, nk)
-    )
+    column_conditional_fx_calculation = StencilWrapper(fx_calc_stencil_column)
 
-    fx_calc_stencil = gtscript.stencil(
-        definition=fx_calc_stencil_region,
+    column_conditional_fy_calculation = StencilWrapper(fy_calc_stencil_column)
+
+    conditional_corner_copy_x(d2)
+
+    fx_calc_stencil = StencilWrapper(
+        fx_calc_stencil_region,
         externals={
             "nord0": nord[0],
             "nord1": nord[1],
@@ -1083,18 +1089,16 @@ def compute_no_sg(q, fx2, fy2, nord, damp_c, d2, mass=None, nk=None):
             "nord3": nord[3],
             **fx_ax_offsets,
         },
-        backend=global_config.get_backend(),
-        rebuild=global_config.get_rebuild(),
+        origin=fx_origin,
+        domain=(f1_nx, f1_ny, nk),
     )
 
-    fx_calc_stencil(d2, grid.del6_v, fx2, origin=fx_origin, domain=(f1_nx, f1_ny, nk))
+    fx_calc_stencil(d2, grid.del6_v, fx2)
 
-    conditional_corner_copy_y(
-        d2, origin=(grid.isd, grid.jsd, 0), domain=(grid.nid, grid.njd, nk)
-    )
+    conditional_corner_copy_y(d2)
 
-    fy_calc_stencil = gtscript.stencil(
-        definition=fy_calc_stencil_region,
+    fy_calc_stencil = StencilWrapper(
+        fy_calc_stencil_region,
         externals={
             "nord0": nord[0],
             "nord1": nord[1],
@@ -1102,17 +1106,11 @@ def compute_no_sg(q, fx2, fy2, nord, damp_c, d2, mass=None, nk=None):
             "nord3": nord[3],
             **fy_ax_offsets,
         },
-        backend=global_config.get_backend(),
-        rebuild=global_config.get_rebuild(),
-    )
-
-    fy_calc_stencil(
-        d2,
-        grid.del6_u,
-        fy2,
         origin=fx_origin,
         domain=(f1_nx - 1, f1_ny + 1, nk),
     )
+
+    fy_calc_stencil(d2, grid.del6_u, fy2)
 
     for n in range(nmax):
         nt = nmax - 1 - n
@@ -1122,11 +1120,11 @@ def compute_no_sg(q, fx2, fy2, nord, damp_c, d2, mass=None, nk=None):
         d2_stencil(
             fx2, fy2, grid.rarea, d2, origin=nt_origin, domain=(nt_nx, nt_ny, nk)
         )
-        conditional_corner_copy_x(
-            d2, origin=(grid.isd, grid.jsd, 0), domain=(grid.nid, grid.njd, nk)
-        )
+
+        conditional_corner_copy_x(d2)
+
         nt_origin = (grid.is_ - nt, grid.js - nt, 0)
-        fx_calc_stencil_column(
+        column_conditional_fx_calculation(
             d2,
             grid.del6_v,
             fx2,
@@ -1134,11 +1132,10 @@ def compute_no_sg(q, fx2, fy2, nord, damp_c, d2, mass=None, nk=None):
             origin=nt_origin,
             domain=(nt_nx - 1, nt_ny - 2, nk),
         )
-        conditional_corner_copy_y(
-            d2, origin=(grid.isd, grid.jsd, 0), domain=(grid.nid, grid.njd, nk)
-        )
 
-        fy_calc_stencil_column(
+        conditional_corner_copy_y(d2)
+
+        column_conditional_fy_calculation(
             d2,
             grid.del6_u,
             fy2,
