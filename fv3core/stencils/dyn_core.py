@@ -291,15 +291,22 @@ class AcousticDynamics:
             origin=self.grid.full_origin(),
             domain=self.grid.domain_shape_full(),
         )
+        self._edge_pe_stencil = self.initialize_edge_pe_stencil(self.grid)
+
+    @staticmethod
+    def initialize_edge_pe_stencil(grid):
+        """
+        Returns the StencilWrapper Object for the pe_halo stencil
+        """
         ax_offsets_pe = axis_offsets(
-            self.grid,
-            self.grid.full_origin(),
-            self.grid.domain_shape_full(add=(0, 0, 1)),
+            grid,
+            grid.full_origin(),
+            grid.domain_shape_full(add=(0, 0, 1)),
         )
-        self._edge_pe_stencil = StencilWrapper(
+        return StencilWrapper(
             pe_halo.edge_pe,
-            origin=self.grid.full_origin(),
-            domain=self.grid.domain_shape_full(add=(0, 0, 1)),
+            origin=grid.full_origin(),
+            domain=grid.domain_shape_full(add=(0, 0, 1)),
             externals={**ax_offsets_pe},
         )
 

@@ -1,6 +1,5 @@
 from fv3core.testing import TranslateFortranData2Py
 from fv3core.stencils.dyn_core import AcousticDynamics
-from fv3core.testing.translate import MockNamelist
 
 
 class TranslatePE_Halo(TranslateFortranData2Py):
@@ -21,6 +20,4 @@ class TranslatePE_Halo(TranslateFortranData2Py):
         self.in_vars["parameters"] = ["ptop"]
         self.out_vars = {"pe": self.in_vars["data_vars"]["pe"]}
 
-        namelist = MockNamelist()
-        acoustic_dynamics = AcousticDynamics(None, namelist, None, None, None)
-        self.compute_func = acoustic_dynamics._edge_pe_stencil
+        self.compute_func = AcousticDynamics.initialize_edge_pe_stencil(grid)
