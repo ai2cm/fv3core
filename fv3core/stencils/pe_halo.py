@@ -53,21 +53,10 @@ class PeHalo:
 
     def __call__(self, pe: FloatField, delp: FloatField, ptop: float):
         """
-        Some in depth explanation of what is happening
+        Updading the interface pressure from the pressure differences
         Arguments:
-            pe: ???
-            delp: The pressure difference between grid levels
+            pe: The pressure on the interfaces of the cell
+            delp: The pressure difference between vertical grid cells
             ptop: The pressure level at the top of the grid
         """
         self._edge_pe_stencil(pe, delp, ptop)
-
-
-def compute(pe, delp, ptop):
-    grid = spec.grid
-    edge_pe(
-        pe,
-        delp,
-        ptop,
-        origin=grid.full_origin(),
-        domain=grid.domain_shape_full(add=(0, 0, 1)),
-    )
