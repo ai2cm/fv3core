@@ -291,8 +291,17 @@ class AcousticDynamics:
             origin=self.grid.full_origin(),
             domain=self.grid.domain_shape_full(),
         )
-
-        self._pe_halo = pe_halo.PeHalo()
+        ax_offsets_pe = axis_offsets(
+            self.grid,
+            self.grid.full_origin(),
+            self.grid.domain_shape_full(add=(0, 0, 1)),
+        )
+        self._edge_pe_stencil = StencilWrapper(
+            pe_halo.edge_pe,
+            origin=self.grid.full_origin(),
+            domain=self.grid.domain_shape_full(add=(0, 0, 1)),
+            externals={**ax_offsets_pe},
+        )
 
     def __call__(self, state):
         # u, v, w, delz, delp, pt, pe, pk, phis, wsd, omga, ua, va, uc, vc, mfxd,
@@ -565,7 +574,7 @@ class AcousticDynamics:
                             state.pkc_quantity, n_points=self.grid.halo
                         )
                 if remap_step:
-                    self._pe_halo(state.pe, state.delp, state.ptop)
+                    self._edge_pe_stencil(state.pe, state.delp, state.ptop)
                 if self.namelist.use_logp:
                     raise NotImplementedError(
                         "unimplemented namelist option use_logp=True"

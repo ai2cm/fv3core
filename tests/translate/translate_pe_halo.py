@@ -1,5 +1,7 @@
 import fv3core.stencils.pe_halo as pe_halo
+from fv3core.decorators import StencilWrapper
 from fv3core.testing import TranslateFortranData2Py
+from fv3core.utils.grid import axis_offsets
 
 
 class TranslatePE_Halo(TranslateFortranData2Py):
@@ -18,9 +20,15 @@ class TranslatePE_Halo(TranslateFortranData2Py):
         }
         self.in_vars["parameters"] = ["ptop"]
         self.out_vars = {"pe": self.in_vars["data_vars"]["pe"]}
-        self.compute_func = pe_halo.PeHalo()
 
-    def compute(self, inputs):
-        self.make_storage_data_input_vars(inputs)
-        self.compute_func(**inputs)
-        return self.slice_output(inputs)
+        ax_offsets_pe = axis_offsets(
+            grid,
+            grid.full_origin(),
+            grid.domain_shape_full(add=(0, 0, 1)),
+        )
+        self.compute_func = StencilWrapper(
+            pe_halo.edge_pe,
+            origin=grid.full_origin(),
+            domain=grid.domain_shape_full(add=(0, 0, 1)),
+            externals={**ax_offsets_pe},
+        )
