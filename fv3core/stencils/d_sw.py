@@ -238,7 +238,7 @@ def adjust_w_and_qcon(
     with computation(PARALLEL), interval(...):
         w = w / delp
         w = w + dw if damp_w > 1e-5 else w
-        # USE_COND
+        # Fortran: #ifdef USE_COND
         q_con = q_con / delp
 
 
@@ -703,7 +703,7 @@ class DGridShallowWaterLagrangianDynamics:
                 self._tmp_gy,
                 self.grid.rarea,
             )
-        # USE_COND
+        # Fortran: #ifdef USE_COND
         self.fvtp2d_dp(
             q_con,
             crx,
