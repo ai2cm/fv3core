@@ -201,7 +201,7 @@ def gtstencil(
     return stencil
 
 
-def get_non_frozen_stencil(func, externals) -> Callable[..., FrozenStencil]:
+def get_non_frozen_stencil(func, externals) -> Callable[..., None]:
     stencil_dict: Dict[Hashable, FrozenStencil] = {}
 
     @functools.wraps(func)
