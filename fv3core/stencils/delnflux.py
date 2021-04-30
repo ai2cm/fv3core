@@ -519,10 +519,6 @@ def fx_calc_stencil_region(
         local_is,
         local_je,
         local_js,
-        # nord0,
-        # nord1,
-        # nord2,
-        # nord3,
     )
 
     with computation(PARALLEL), interval(0, 1):
@@ -565,10 +561,6 @@ def fy_calc_stencil_region(
         local_is,
         local_je,
         local_js,
-        # nord0,
-        # nord1,
-        # nord2,
-        # nord3,
     )
 
     with computation(PARALLEL), interval(0, 1):
@@ -709,10 +701,6 @@ def d2_damp_interval(
         local_is,
         local_je,
         local_js,
-        # nord0,
-        # nord1,
-        # nord2,
-        # nord3,
     )
 
     with computation(PARALLEL), interval(0, 1):
@@ -927,8 +915,6 @@ class DelnFlux:
         self._copy_stencil_interval = StencilWrapper(
             copy_stencil_interval,
             externals=preamble_ax_offsets,
-            # origin=origin_d2,
-            # domain=domain_d2,
         )
 
         conditional_corner_copy_x_functions = [
@@ -938,12 +924,15 @@ class DelnFlux:
             copy_corners_x_nord3,
         ]
 
+        copy_origin = (grid.isd, grid.jsd, 0)
+        copy_domain = (grid.nid, grid.njd, nk)
+
         self._conditional_corner_copy_x_stencils = [
             StencilWrapper(
                 conditional_corner_copy_x_func,
                 externals=full_ax_offsets,
                 origin=(grid.isd, grid.jsd, 0),
-                # domain=(grid.nid, grid.njd, nk),
+                domain=copy_domain,
             )
             for conditional_corner_copy_x_func in conditional_corner_copy_x_functions
         ]
@@ -959,39 +948,21 @@ class DelnFlux:
             StencilWrapper(
                 conditional_corner_copy_y_func,
                 externals=full_ax_offsets,
-                origin=(grid.isd, grid.jsd, 0),
-                # domain=(grid.nid, grid.njd, nk),
+                origin=copy_origin,
+                domain=copy_domain,
             )
             for conditional_corner_copy_y_func in conditional_corner_copy_y_functions
         ]
 
-        self._d2_stencil = StencilWrapper(
-            d2_highorder_stencil,
-            # externals={
-            #     "nord0": nord[0],
-            #     "nord1": nord[1],
-            #     "nord2": nord[2],
-            #     "nord3": nord[3],
-            # },
-        )
+        self._d2_stencil = StencilWrapper(d2_highorder_stencil)
 
         self._column_conditional_fx_calculation = StencilWrapper(fx_calc_stencil_column)
 
         self._column_conditional_fy_calculation = StencilWrapper(fy_calc_stencil_column)
 
-        self._fx_calc_stencil = StencilWrapper(
-            fx_calc_stencil_region,
-            externals=fx_ax_offsets,
-            # origin=fx_origin,
-            # domain=(f1_nx, f1_ny, nk),
-        )
+        self._fx_calc_stencil = StencilWrapper(fx_calc_stencil_region, externals=fx_ax_offsets)
 
-        self._fy_calc_stencil = StencilWrapper(
-            fy_calc_stencil_region,
-            externals=fy_ax_offsets,
-            # origin=fx_origin,
-            # domain=(f1_nx - 1, f1_ny + 1, nk),
-        )
+        self._fy_calc_stencil = StencilWrapper(fy_calc_stencil_region, externals=fy_ax_offsets)
 
     def __call__(self, q, fx2, fy2, nord, damp_c, d2, mass=None, nk=None):
         if max(nord[:]) > 3:
@@ -1012,29 +983,10 @@ class DelnFlux:
         f1_nx = grid.ie - grid.is_ + 2 + 2 * nmax
         fx_origin = (grid.is_ - nmax, grid.js - nmax, 0)
 
-        with open("./delnflux.log", "a") as log:
-            log.write(f"delnflux: nmax={nmax}, nk={nk}\n")
-
-        # preamble_ax_offsets = axis_offsets(spec.grid, origin_d2, domain_d2)
-        # full_ax_offsets = axis_offsets(
-        #     spec.grid, (grid.isd, grid.jsd, 0), (grid.nid, grid.njd, nk)
-        # )
-        # fx_ax_offsets = axis_offsets(spec.grid, fx_origin, (f1_nx, f1_ny, nk))
-        # fy_ax_offsets = axis_offsets(spec.grid, fx_origin, (f1_nx - 1, f1_ny + 1, nk))
+        # with open("./delnflux.log", "a") as log:
+        #     log.write(f"delnflux: nmax={nmax}, nk={nk}\n")
 
         if mass is None:
-            # d2_damp = StencilWrapper(
-            #     d2_damp_interval,
-            #     externals={
-            #         "nord0": nord[0],
-            #         "nord1": nord[1],
-            #         "nord2": nord[2],
-            #         "nord3": nord[3],
-            #         **preamble_ax_offsets,
-            #     },
-            #     origin=origin_d2,
-            #     domain=domain_d2,
-            # )
             self._d2_damp(
                 q,
                 d2,
@@ -1047,18 +999,6 @@ class DelnFlux:
                 domain=domain_d2,
             )
         else:
-            # new_copy_stencil = StencilWrapper(
-            #     copy_stencil_interval,
-            #     externals={
-            #         "nord0": nord[0],
-            #         "nord1": nord[1],
-            #         "nord2": nord[2],
-            #         "nord3": nord[3],
-            #         **preamble_ax_offsets,
-            #     },
-            #     origin=origin_d2,
-            #     domain=domain_d2,
-            # )
             self._copy_stencil_interval(
                 q,
                 d2,
@@ -1070,74 +1010,11 @@ class DelnFlux:
                 domain=domain_d2,
             )
 
-        # conditional_corner_copy_x_functions = [
-        #     copy_corners_x_nord0,
-        #     copy_corners_x_nord1,
-        #     copy_corners_x_nord2,
-        #     copy_corners_x_nord3,
-        # ]
-
-        # conditional_corner_copy_x_stencils = [
-        #     StencilWrapper(
-        #         conditional_corner_copy_x_func,
-        #         externals=full_ax_offsets,
-        #         origin=(grid.isd, grid.jsd, 0),
-        #         domain=(grid.nid, grid.njd, nk),
-        #     )
-        #     for conditional_corner_copy_x_func in conditional_corner_copy_x_functions
-        # ]
-
-        # conditional_corner_copy_y_functions = [
-        #     copy_corners_y_nord0,
-        #     copy_corners_y_nord1,
-        #     copy_corners_y_nord2,
-        #     copy_corners_y_nord3,
-        # ]
-
-        # conditional_corner_copy_y_stencils = [
-        #     StencilWrapper(
-        #         conditional_corner_copy_y_func,
-        #         externals=full_ax_offsets,
-        #         origin=(grid.isd, grid.jsd, 0),
-        #         domain=(grid.nid, grid.njd, nk),
-        #     )
-        #     for conditional_corner_copy_y_func in conditional_corner_copy_y_functions
-        # ]
-
-        # d2_stencil = StencilWrapper(
-        #     definition=d2_highorder_stencil,
-        #     externals={
-        #         "nord0": nord[0],
-        #         "nord1": nord[1],
-        #         "nord2": nord[2],
-        #         "nord3": nord[3],
-        #     },
-        # )
-
-        # column_conditional_fx_calculation = StencilWrapper(fx_calc_stencil_column)
-
-        # column_conditional_fy_calculation = StencilWrapper(fy_calc_stencil_column)
-
-        copy_domain = (grid.nid, grid.njd, nk)
-
         for i, conditional_corner_copy_x in enumerate(
             self._conditional_corner_copy_x_stencils
         ):
             if nord[i] > 0:
-                conditional_corner_copy_x(d2, domain=copy_domain)
-
-        # fx_calc_stencil = StencilWrapper(
-        #     fx_calc_stencil_region,
-        #     externals={
-        #         "nord0": nord[0],
-        #         "nord1": nord[1],
-        #         "nord2": nord[2],
-        #         "nord3": nord[3],
-        #         **fx_ax_offsets,
-        #     },
-        #     origin=fx_origin,
-        #     domain=(f1_nx, f1_ny, nk),
-        # )
+                conditional_corner_copy_x(d2)
 
         self._fx_calc_stencil(
             d2,
@@ -1155,20 +1032,7 @@ class DelnFlux:
             self._conditional_corner_copy_y_stencils
         ):
             if nord[j] > 0:
-                conditional_corner_copy_y(d2, domain=copy_domain)
-
-        # fy_calc_stencil = StencilWrapper(
-        #     fy_calc_stencil_region,
-        #     externals={
-        #         "nord0": nord[0],
-        #         "nord1": nord[1],
-        #         "nord2": nord[2],
-        #         "nord3": nord[3],
-        #         **fy_ax_offsets,
-        #     },
-        #     origin=fx_origin,
-        #     domain=(f1_nx - 1, f1_ny + 1, nk),
-        # )
+                conditional_corner_copy_y(d2)
 
         self._fy_calc_stencil(
             d2,
@@ -1204,7 +1068,7 @@ class DelnFlux:
                 self._conditional_corner_copy_x_stencils
             ):
                 if nord[i] > 0:
-                    conditional_corner_copy_x(d2, domain=copy_domain)
+                    conditional_corner_copy_x(d2)
 
             nt_origin = (grid.is_ - nt, grid.js - nt, 0)
             self._column_conditional_fx_calculation(
@@ -1220,7 +1084,7 @@ class DelnFlux:
                 self._conditional_corner_copy_y_stencils
             ):
                 if nord[i] > 0:
-                    conditional_corner_copy_y(d2, domain=copy_domain)
+                    conditional_corner_copy_y(d2)
 
             self._column_conditional_fy_calculation(
                 d2,
