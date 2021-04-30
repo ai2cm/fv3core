@@ -3,7 +3,7 @@ from gt4py.gtscript import BACKWARD, FORWARD, PARALLEL, computation, interval
 
 import fv3core.utils.global_constants as constants
 import fv3core.utils.gt4py_utils as utils
-from fv3core.decorators import StencilWrapper, gtstencil
+from fv3core.decorators import StencilWrapper
 from fv3core.utils.typing import FloatField, FloatFieldIJ
 
 
@@ -226,7 +226,6 @@ def fix_water_vapor_k_loop(i, j, kbot, qvapor, dp):
 """
 
 # Stencil version
-@gtstencil()
 def fix_water_vapor_down(
     qvapor: FloatField, dp: FloatField, upper_fix: FloatField, lower_fix: FloatField
 ):
@@ -282,6 +281,24 @@ def fix_water_vapor_down(
 
 
 class AdjustNegativeTracerMixingRatio:
+    """Adjust tracer mixing ratios to fix negative values
+
+    Named neg_adj3 in fortran
+
+    Args:
+        qvapor: Water vapor mixing ration (inout)
+        qliquid: Liquid water mixing ration (inout)
+        qrain: Rain mixing ration (inout)
+        qsnow: Snow mixing ration (inout)
+        qice: Ice mixing ration (inout)
+        qgraupel: Graupel mixing ration (inout)
+        qcld: Cloud mixing ration (inout)
+        pt: Air temperature (in)
+        delp: Pressur thickness of atmosphere layers (in)
+        delz: Vertical thickness of atmosphere layers (in)
+        peln: Logarithm of interface pressure (in)
+    """
+
     def __init__(
         self,
         grid,

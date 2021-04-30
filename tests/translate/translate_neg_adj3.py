@@ -1,5 +1,3 @@
-import pytest
-
 import fv3core._config as spec
 import fv3core.utils.gt4py_utils as utils
 from fv3core.stencils.neg_adj3 import AdjustNegativeTracerMixingRatio
@@ -36,9 +34,8 @@ class TranslateNeg_Adj3(TranslateFortranData2Py):
         for qvar in utils.tracer_variables:
             self.ignore_near_zero_errors[qvar] = True
 
-    def compute_parallel(self, inputs, communicator):
-        inputs["comm"] = communicator
-        state = self.state_from_inputs(inputs)
+    def compute(self, inputs):
+        self.make_storage_data_input_vars(inputs)
         compute_fn = AdjustNegativeTracerMixingRatio(
             self.grid, spec.namelist, inputs["qvapor"], inputs["qgraupel"]
         )
@@ -55,11 +52,4 @@ class TranslateNeg_Adj3(TranslateFortranData2Py):
             inputs["delz"],
             inputs["peln"],
         )
-        outputs = self.outputs_from_state(state)
-        return outputs
-
-    def compute_sequential(self, *args, **kwargs):
-        pytest.skip(
-            f"{self.__class__} only has a mpirun implementation, "
-            "not running in mock-parallel"
-        )
+        return self.slice_output(inputs)
