@@ -276,7 +276,7 @@ def lagrange_x_func(qy):
 
 
 @gtstencil()
-def second_derivative_interpolation(
+def a2b_interpolation(
         qout: FloatField, qin: FloatField, qx: FloatField, qy: FloatField, qxx: FloatField, qyy: FloatField, dxa: FloatFieldIJ, dya:FloatFieldIJ,
 ):
     from __externals__ import i_end, i_start, j_end, j_start
@@ -508,31 +508,9 @@ def compute(qin, qout, kstart=0, nk=None, replace=False):
         qx = utils.make_storage_from_shape(
             qin.shape, origin=(grid().is_, grid().jsd, kstart), cache_key="a2b_ord4_qx"
         )
-        """
-        ppm_volume_mean_x(
-            qin,
-            grid().dxa,
-            qx,
-            origin=(grid().is_, grid().js - 2, kstart),
-            domain=(grid().nic + 1, grid().njc + 4, nk),
-        )
-        """
         qy = utils.make_storage_from_shape(
             qin.shape, origin=(grid().isd, grid().js, kstart), cache_key="a2b_ord4_qy"
         )
-        """
-        ppm_volume_mean_y(
-            qin,
-            grid().dya,
-            qy,
-            origin=(grid().is_ - 2, grid().js, kstart),
-            domain=(grid().nic + 4, grid().njc + 1, nk),
-        )
-        """
-        js = grid().js + 1 if grid().south_edge else grid().js
-        je = grid().je if grid().north_edge else grid().je + 1
-        is_ = grid().is_ + 1 if grid().west_edge else grid().is_
-        ie = grid().ie if grid().east_edge else grid().ie + 1
         qxx = utils.make_storage_from_shape(
              qin.shape, origin=(grid().isd, grid().js, kstart), cache_key="a2b_ord4_qxx"
 	)
@@ -540,8 +518,13 @@ def compute(qin, qout, kstart=0, nk=None, replace=False):
         qyy = utils.make_storage_from_shape(
             qin.shape, origin=(grid().isd, grid().js, kstart), cache_key="a2b_ord4_qyy"
 	)
+        js = grid().js + 1 if grid().south_edge else grid().js
+        je = grid().je if grid().north_edge else grid().je + 1
+        is_ = grid().is_ + 1 if grid().west_edge else grid().is_
+        ie = grid().ie if grid().east_edge else grid().ie + 1
 
-        second_derivative_interpolation(
+
+        a2b_interpolation(
             qout,
             qin,
             qx,
