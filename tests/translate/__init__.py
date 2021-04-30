@@ -2,7 +2,6 @@
 from fv3core.testing import TranslateFVDynamics
 
 from .translate_a2b_ord4 import TranslateA2B_Ord4
-from .translate_c2l_ord2 import TranslateC2L_Ord2
 from .translate_c_sw import (
     TranslateC_SW,
     TranslateCirculation_Cgrid,
