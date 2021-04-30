@@ -298,6 +298,15 @@ class AcousticDynamics:
         )
         self._edge_pe_stencil = self.initialize_edge_pe_stencil(self.grid)
 
+        self._do_del2cubed = (
+            self._nk_heat_dissipation != 0 and self.namelist.d_con > 1.0e-5
+        )
+
+        if self._do_del2cubed:
+            self._hyperdiffusion = HyperdiffusionDamping(self.grid)
+        if self.namelist.rf_fast:
+            self._rayleigh_damping = ray_fast.RayleighDamping(self.grid, self.namelist)
+
     @staticmethod
     def initialize_edge_pe_stencil(grid):
         """
@@ -314,15 +323,6 @@ class AcousticDynamics:
             domain=grid.domain_shape_full(add=(0, 0, 1)),
             externals={**ax_offsets_pe},
         )
-
-        self._do_del2cubed = (
-            self._nk_heat_dissipation != 0 and self.namelist.d_con > 1.0e-5
-        )
-
-        if self._do_del2cubed:
-            self._hyperdiffusion = HyperdiffusionDamping(self.grid)
-        if self.namelist.rf_fast:
-            self._rayleigh_damping = ray_fast.RayleighDamping(self.grid, self.namelist)
 
     def __call__(self, state):
         # u, v, w, delz, delp, pt, pe, pk, phis, wsd, omga, ua, va, uc, vc, mfxd,
