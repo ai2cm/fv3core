@@ -204,52 +204,6 @@ def moist_te_2d(
             )
 
 
-# TODO: Calling gtscript functions from inside the if statements is causing
-# problems, if we want 'moist_phys' to be changeable, we either need to
-# duplicate the stencil code or fix the gt4py bug.
-@gtstencil()
-def moist_te_total_energy(
-    qvapor: FloatField,
-    qliquid: FloatField,
-    qrain: FloatField,
-    qsnow: FloatField,
-    qice: FloatField,
-    qgraupel: FloatField,
-    te_2d: FloatField,
-    delp: FloatField,
-    pt: FloatField,
-    phis: FloatField,
-    u: FloatField,
-    v: FloatField,
-    w: FloatField,
-    rsin2: FloatField,
-    cosa_s: FloatField,
-    delz: FloatField,
-    r_vir: float,
-    moist_phys: bool,
-):
-    with computation(BACKWARD):
-        with interval(-1, None):
-            phiz = phis
-        with interval(0, -1):
-            phiz = phiz[0, 0, 1] - constants.GRAV * delz
-            te_2d = 0.0
-    with computation(FORWARD), interval(0, -1):
-        qd = 0.0
-        cvm = 0.0
-        # if moist_phys:
-        cvm, qd = moist_cv_nwat6_fn(
-            qvapor, qliquid, qrain, qsnow, qice, qgraupel
-        )  # if (nwat == 6) else moist_cv_default_fn()
-        te_2d = te_2d[0, 0, -1] + delp * (
-            cvm * pt + te_always_part(u, v, w, phiz, rsin2, cosa_s)
-        )
-        # else:
-        #    te_2d = te_2d[0, 0, -1] + delp * (
-        #        constants.CV_AIR * pt + te_always_part(u, v, w, phiz, rsin2, cosa_s)
-        #    )
-
-
 @gtstencil()
 def moist_pt(
     qvapor: FloatField,
@@ -516,58 +470,6 @@ def compute_pkz_stencil_func(
     with computation(PARALLEL), interval(...):
         pkz = compute_pkz_func(delp, delz, pt, cappa)
 
-
-def compute_total_energy(
-    u: FloatField,
-    v: FloatField,
-    w: FloatField,
-    delz: FloatField,
-    pt: FloatField,
-    delp: FloatField,
-    qc: FloatField,
-    pe: FloatField,
-    peln: FloatField,
-    hs: FloatField,
-    zvir: float,
-    te_2d: FloatField,
-    qvapor: FloatField,
-    qliquid: FloatField,
-    qice: FloatField,
-    qrain: FloatField,
-    qsnow: FloatField,
-    qgraupel: FloatField,
-):
-    grid = spec.grid
-    if spec.namelist.hydrostatic:
-        raise Exception("Porting compute_total_energy incomplete for hydrostatic=True")
-    if not spec.namelist.moist_phys:
-        raise Exception(
-            "To run without moist_phys, the if conditional bug needs to be fixed, "
-            "or code needs to be duplicated"
-        )
-    moist_te_total_energy(
-        qvapor,
-        qliquid,
-        qrain,
-        qsnow,
-        qice,
-        qgraupel,
-        te_2d,
-        delp,
-        pt,
-        hs,
-        u,
-        v,
-        w,
-        grid.rsin2,
-        grid.cosa_s,
-        delz,
-        zvir,
-        spec.namelist.nwat,
-        spec.namelist.moist_phys,
-        origin=(grid.is_, grid.js, 0),
-        domain=(grid.nic, grid.njc, grid.npz + 1),
-    )
 
 
 def compute_last_step(

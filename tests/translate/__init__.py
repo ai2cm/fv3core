@@ -11,7 +11,7 @@ from .translate_c_sw import (
     TranslateTransportDelp,
     TranslateVorticityTransport_Cgrid,
 )
-from .translate_compute_total_energy import TranslateComputeTotalEnergy
+
 from .translate_corners import (
     TranslateCopyCorners,
     TranslateFill4Corners,
@@ -65,7 +65,6 @@ from .translate_pressureadjustedtemperature_nonhydrostatic import (
 )
 from .translate_qsinit import TranslateQSInit
 from .translate_ray_fast import TranslateRay_Fast
-from .translate_rayleigh_super import TranslateRayleigh_Super
 from .translate_remap_profile_2d import TranslateCS_Profile_2d, TranslateCS_Profile_2d_2
 from .translate_remapping import TranslateRemapping
 from .translate_remapping_part1 import TranslateRemapping_Part1
