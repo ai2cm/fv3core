@@ -31,7 +31,7 @@ class _FieldDescriptor:
         self.dtype = dtype
 
     def __getitem__(self, axes):
-        return Field[self.dtype, axes]
+        return Field[axes, self.dtype]
 
 
 def _FieldDescriptorMaker(dtype):
