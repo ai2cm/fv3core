@@ -12,6 +12,7 @@ from gt4py.gtscript import (
 )
 
 import fv3core._config as spec
+import fv3core.utils.gt4py_utils as utils
 # import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import gtstencil
 from fv3core.stencils.basic_operations import copy_stencil
@@ -275,37 +276,38 @@ def lagrange_x_func(qy):
 
 
 @gtstencil()
-def second_derivative_interpolation(
-    qout: FloatField,
+def qout_edges(
     qin: FloatField,
+    qout: FloatField,
     dxa: FloatFieldIJ,
     dya: FloatFieldIJ,
-    # qx: FloatField,
-    # qy: FloatField,
+    edge_w: FloatFieldIJ,
+    edge_e: FloatFieldIJ,
+    edge_s: FloatFieldI,
+    edge_n: FloatFieldI,
 ):
     from __externals__ import i_end, i_start, j_end, j_start
 
     with computation(PARALLEL), interval(...):
-        qx = b2 * (qin[-2, 0, 0] + qin[1, 0, 0]) + b1 * (qin[-1, 0, 0] + qin)
+        q1 = (qin[0, -1, 0] * dya + qin * dya[0, -1]) / (dya[0, -1] + dya)
+        q2 = (qin[-1, 0, 0] * dxa + qin * dxa[-1, 0]) / (dxa[-1, 0] + dxa)
         with horizontal(region[i_start, :]):
-            qx = qx_edge_west(qin, dxa)
-        with horizontal(region[i_start + 1, :]):
-            qx = qx_edge_west2(qin, dxa, qx)
+            qout = edge_w * q2[0, -1, 0] + (1.0 - edge_w) * q2
         with horizontal(region[i_end + 1, :]):
-            qx = qx_edge_east(qin, dxa)
-        with horizontal(region[i_end, :]):
-            qx = qx_edge_east2(qin, dxa, qx)
-        qy = b2 * (qin[0, -2, 0] + qin[0, 1, 0]) + b1 * (qin[0, -1, 0] + qin)
+            qout = edge_e * q2[0, -1, 0] + (1.0 - edge_e) * q2
         with horizontal(region[:, j_start]):
-            qy = qy_edge_south(qin, dya)
-        with horizontal(region[:, j_start + 1]):
-            qy = qy_edge_south2(qin, dya, qy)
+            qout = edge_s * q1[-1, 0, 0] + (1.0 - edge_s) * q1
         with horizontal(region[:, j_end + 1]):
-            qy = qy_edge_north(qin, dya)
-        with horizontal(region[:, j_end]):
-            qy = qy_edge_north2(qin, dya, qy)
+            qout = edge_n * q1[-1, 0, 0] + (1.0 - edge_s) * q1
 
-        # with computation(PARALLEL), interval(...):
+
+@gtstencil()
+def second_derivative_interpolation(
+    qout: FloatField, qin: FloatField, qx: FloatField, qy: FloatField
+):
+    from __externals__ import i_end, i_start, j_end, j_start
+
+    with computation(PARALLEL), interval(...):
         qxx = lagrange_y_func(qx)
         with horizontal(region[:, j_start + 1]):
             qxx = cubic_interpolation_south(qx, qout, qxx)
@@ -455,14 +457,7 @@ def qy_edge_north2(qin: FloatField, dya: FloatFieldIJ, qy: FloatField):
 
 
 def compute_qout_edges(qin, qout, kstart, nk):
-    compute_qout_x_edges(qin, qout, kstart, nk)
-    compute_qout_y_edges(qin, qout, kstart, nk)
 
-
-def compute_qout_x_edges(qin, qout, kstart, nk):
-    # qout bounds
-    # avoid running west/east computation on south/north tile edges, since
-    # they'll be overwritten.
     js2 = grid().js + 1 if grid().south_edge else grid().js
     je1 = grid().je if grid().north_edge else grid().je + 1
     dj2 = je1 - js2 + 1
@@ -485,10 +480,6 @@ def compute_qout_x_edges(qin, qout, kstart, nk):
             domain=(1, dj2, nk),
         )
 
-
-def compute_qout_y_edges(qin, qout, kstart, nk):
-    # avoid running south/north computation on west/east tile edges, since
-    # they'll be overwritten.
     is2 = grid().is_ + 1 if grid().west_edge else grid().is_
     ie1 = grid().ie if grid().east_edge else grid().ie + 1
     di2 = ie1 - is2 + 1
@@ -558,8 +549,9 @@ def compute(qin, qout, kstart=0, nk=None, replace=False):
         domain=corner_domain,
     )
     if spec.namelist.grid_type < 3:
+
         compute_qout_edges(qin, qout, kstart, nk)
-        """
+
         qx = utils.make_storage_from_shape(
             qin.shape, origin=(grid().is_, grid().jsd, kstart), cache_key="a2b_ord4_qx"
         )
@@ -581,7 +573,7 @@ def compute(qin, qout, kstart=0, nk=None, replace=False):
             origin=(grid().is_ - 2, grid().js, kstart),
             domain=(grid().nic + 4, grid().njc + 1, nk),
         )
-        """
+
         js = grid().js + 1 if grid().south_edge else grid().js
         je = grid().je if grid().north_edge else grid().je + 1
         is_ = grid().is_ + 1 if grid().west_edge else grid().is_
@@ -590,10 +582,8 @@ def compute(qin, qout, kstart=0, nk=None, replace=False):
         second_derivative_interpolation(
             qout,
             qin,
-            grid().dxa,
-            grid().dya,
-            # qx,
-            # qy,
+            qx,
+            qy,
             origin=(is_, js, kstart),
             domain=(ie - is_ + 1, je - js + 1, nk),
         )
