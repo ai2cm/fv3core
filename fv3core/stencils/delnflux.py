@@ -2,18 +2,9 @@ from typing import Optional
 
 import gt4py.gtscript as gtscript
 import numpy as np
-from gt4py.gtscript import (
-    __INLINED,
-    FORWARD,
-    PARALLEL,
-    computation,
-    horizontal,
-    interval,
-    region,
-)
+from gt4py.gtscript import FORWARD, PARALLEL, computation, horizontal, interval, region
 
 import fv3core._config as spec
-import fv3core.utils.global_config as global_config
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import StencilWrapper, gtstencil
 from fv3core.utils.grid import axis_offsets
@@ -514,12 +505,7 @@ def fx_calc_stencil_region(
     nord2: float,
     nord3: float,
 ):
-    from __externals__ import (
-        local_ie,
-        local_is,
-        local_je,
-        local_js,
-    )
+    from __externals__ import local_ie, local_is, local_je, local_js
 
     with computation(PARALLEL), interval(0, 1):
         if nord0 == 0:
@@ -556,12 +542,7 @@ def fy_calc_stencil_region(
     nord2: float,
     nord3: float,
 ):
-    from __externals__ import (
-        local_ie,
-        local_is,
-        local_je,
-        local_js,
-    )
+    from __externals__ import local_ie, local_is, local_je, local_js
 
     with computation(PARALLEL), interval(0, 1):
         if nord0 == 0:
@@ -696,12 +677,7 @@ def d2_damp_interval(
     nord2: float,
     nord3: float,
 ):
-    from __externals__ import (
-        local_ie,
-        local_is,
-        local_je,
-        local_js,
-    )
+    from __externals__ import local_ie, local_is, local_je, local_js
 
     with computation(PARALLEL), interval(0, 1):
         if nord0 == 0:
@@ -745,16 +721,7 @@ def copy_stencil_interval(
     nord2: float,
     nord3: float,
 ):
-    from __externals__ import (
-        local_ie,
-        local_is,
-        local_je,
-        local_js,
-        # nord0,
-        # nord1,
-        # nord2,
-        # nord3,
-    )
+    from __externals__ import local_ie, local_is, local_je, local_js
 
     with computation(PARALLEL), interval(0, 1):
         if nord0 == 0:
@@ -811,81 +778,96 @@ def diffusive_damp(
         fy[0, 0, 0] = fy + 0.5 * damp * (mass[0, -1, 0] + mass) * fy2
 
 
-def compute_delnflux_no_sg(
-    q: FloatField,
-    fx: FloatField,
-    fy: FloatField,
-    nord: FloatFieldK,
-    damp_c: FloatFieldK,
-    d2: Optional["FloatField"] = None,
-    mass: Optional["FloatField"] = None,
-):
+class DelnFlux:
     """
-    Del-n damping for fluxes, where n = 2 * nord + 2
-    Args:
-        q: Field for which to calculate damped fluxes (in)
-        fx: x-flux on A-grid (inout)
-        fy: y-flux on A-grid (inout)
-        nord: Order of divergence damping (in)
-        damp_c: damping coefficient (in)
-        d2: A damped copy of the q field (in)
-        mass: Mass to weight the diffusive flux by (in)
+    Fortran name is delnflux
     """
 
-    grid = spec.grid
-    nk = grid.npz
-    full_origin = (grid.isd, grid.jsd, 0)
-    if d2 is None:
-        d2 = utils.make_storage_from_shape(
-            q.shape, full_origin, cache_key="delnflux_d2"
+    def __init__(self):
+        grid = spec.grid
+        nk = grid.npz
+        self._origin = (grid.isd, grid.jsd, 0)
+        self._grid = grid
+
+        shape = grid.domain_shape_full(add=(1, 1, 1))
+        k_shape = (1, 1, nk)
+
+        self._damp_3d = utils.make_storage_from_shape(k_shape)
+        # fields must be 3d to assign to them
+        self._fx2 = utils.make_storage_from_shape(shape, self._origin)
+        self._fy2 = utils.make_storage_from_shape(shape, self._origin)
+
+        diffuse_origin = (grid.is_, grid.js, 0)
+        extended_domain = (grid.nic + 1, grid.njc + 1, nk)
+
+        self._damping_factor_calculation = StencilWrapper(
+            calc_damp, origin=(0, 0, 0), domain=k_shape
         )
-    if (damp_c <= 1e-4).all():
-        return fx, fy
-    elif (damp_c[:-1] <= 1e-4).any():
-        raise NotImplementedError(
-            "damp_c currently must be always greater than 10^-4 for delnflux"
-        )
-
-    damp_3d = utils.make_storage_from_shape(
-        (1, 1, nk), cache_key="dalnflux_damp_3d"
-    )  # fields must be 3d to assign to them
-    damping_factor_calculation = StencilWrapper(
-        calc_damp, origin=(0, 0, 0), domain=(1, 1, nk)
-    )
-
-    damping_factor_calculation(damp_3d, nord, damp_c, grid.da_min)
-    damp = utils.make_storage_data(damp_3d[0, 0, :], (nk,), (0,))
-
-    fx2 = utils.make_storage_from_shape(q.shape, full_origin, cache_key="delnflux_fx2")
-    fy2 = utils.make_storage_from_shape(q.shape, full_origin, cache_key="delnflux_fy2")
-    diffuse_origin = (grid.is_, grid.js, 0)
-    extended_domain = (grid.nic + 1, grid.njc + 1, nk)
-
-    delnflux_stencil = utils.cached_stencil_class(DelnFlux)(cache_key="delnflux")
-    delnflux_stencil(q, fx2, fy2, nord, damp, d2, mass)
-
-    if mass is None:
-        add_diffusive_stencil = StencilWrapper(
+        self._add_diffusive_stencil = StencilWrapper(
             add_diffusive_component, origin=diffuse_origin, domain=extended_domain
         )
-
-        add_diffusive_stencil(fx, fx2, fy, fy2)
-    else:
-        # TODO: To join these stencils you need to overcompute, making the edges
-        # 'wrong', but not actually used, separating now for comparison sanity.
-
-        # diffusive_damp(fx, fx2, fy, fy2, mass, damp, origin=diffuse_origin,
-        # domain=(grid.nic + 1, grid.njc + 1, nk))
-        diffusive_damp_stencil = StencilWrapper(
+        self._diffusive_damp_stencil = StencilWrapper(
             diffusive_damp, origin=diffuse_origin, domain=extended_domain
         )
+        self.delnflux_nosg = DelnFluxNoSG()
 
-        diffusive_damp_stencil(fx, fx2, fy, fy2, mass, damp)
+    def __call__(
+        self,
+        q: FloatField,
+        fx: FloatField,
+        fy: FloatField,
+        nord: FloatFieldK,
+        damp_c: FloatFieldK,
+        d2: Optional["FloatField"] = None,
+        mass: Optional["FloatField"] = None,
+    ):
+        """
+        Del-n damping for fluxes, where n = 2 * nord + 2
+        Args:
+            q: Field for which to calculate damped fluxes (in)
+            fx: x-flux on A-grid (inout)
+            fy: y-flux on A-grid (inout)
+            nord: Order of divergence damping (in)
+            damp_c: damping coefficient (in)
+            d2: A damped copy of the q field (in)
+            mass: Mass to weight the diffusive flux by (in)
+        """
 
-    return fx, fy
+        if d2 is None:
+            d2 = utils.make_storage_from_shape(
+                q.shape, self._origin, cache_key="delnflux_d2"
+            )
+        if (damp_c <= 1e-4).all():
+            return fx, fy
+        elif (damp_c[:-1] <= 1e-4).any():
+            raise NotImplementedError(
+                "damp_c currently must be always greater than 10^-4 for delnflux"
+            )
+
+        self._damping_factor_calculation(self._damp_3d, nord, damp_c, self._grid.da_min)
+        nk = self._grid.npz
+        damp = utils.make_storage_data(self._damp_3d[0, 0, :], (nk,), (0,))
+
+        self.delnflux_nosg(q, self._fx2, self._fy2, nord, damp, d2, mass)
+
+        if mass is None:
+            self._add_diffusive_stencil(fx, self._fx2, fy, self._fy2)
+        else:
+            # TODO: To join these stencils you need to overcompute, making the edges
+            # 'wrong', but not actually used, separating now for comparison sanity.
+
+            # diffusive_damp(fx, fx2, fy, fy2, mass, damp, origin=diffuse_origin,
+            # domain=(grid.nic + 1, grid.njc + 1, nk))
+            self._diffusive_damp_stencil(fx, self._fx2, fy, self._fy2, mass, damp)
+
+        return fx, fy
 
 
-class DelnFlux:
+class DelnFluxNoSG:
+    """
+    Fortran name is delnflux
+    """
+
     def __init__(self, nmax: int = 2, nk: Optional[int] = None):
         grid = spec.grid
         i1 = grid.is_ - 1 - nmax
@@ -893,7 +875,7 @@ class DelnFlux:
         j1 = grid.js - 1 - nmax
         j2 = grid.je + 1 + nmax
         if nk is None:
-            nk = grid.npz
+            nk = grid.npz + 1
         origin_d2 = (i1, j1, 0)
         domain_d2 = (i2 - i1 + 1, j2 - j1 + 1, nk)
         f1_ny = grid.je - grid.js + 1 + 2 * nmax
@@ -955,14 +937,14 @@ class DelnFlux:
         ]
 
         self._d2_stencil = StencilWrapper(d2_highorder_stencil)
-
         self._column_conditional_fx_calculation = StencilWrapper(fx_calc_stencil_column)
-
         self._column_conditional_fy_calculation = StencilWrapper(fy_calc_stencil_column)
-
-        self._fx_calc_stencil = StencilWrapper(fx_calc_stencil_region, externals=fx_ax_offsets)
-
-        self._fy_calc_stencil = StencilWrapper(fy_calc_stencil_region, externals=fy_ax_offsets)
+        self._fx_calc_stencil = StencilWrapper(
+            fx_calc_stencil_region, externals=fx_ax_offsets
+        )
+        self._fy_calc_stencil = StencilWrapper(
+            fy_calc_stencil_region, externals=fy_ax_offsets
+        )
 
     def __call__(self, q, fx2, fy2, nord, damp_c, d2, mass=None, nk=None):
         if max(nord[:]) > 3:
@@ -982,9 +964,6 @@ class DelnFlux:
         f1_ny = grid.je - grid.js + 1 + 2 * nmax
         f1_nx = grid.ie - grid.is_ + 2 + 2 * nmax
         fx_origin = (grid.is_ - nmax, grid.js - nmax, 0)
-
-        # with open("./delnflux.log", "a") as log:
-        #     log.write(f"delnflux: nmax={nmax}, nk={nk}\n")
 
         if mass is None:
             self._d2_damp(
