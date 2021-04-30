@@ -450,7 +450,7 @@ class AGrid2BGridFourthOrder:
         self._copy_stencil = StencilWrapper(
             copy_stencil_method,
             origin=(self.grid.is_, self.grid.js, kstart),
-            domain=(self.grid.nic + 2, self.grid.njc + 2, nk),
+            domain=(self.grid.nic + 1, self.grid.njc + 1, nk),
         )
 
     def __call__(self, qin, qout):

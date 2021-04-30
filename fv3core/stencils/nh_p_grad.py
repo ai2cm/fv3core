@@ -186,11 +186,11 @@ class NonHydrostaticPressureGradient:
             top_value,
         )
 
-        self.a2b_k1.compute(pp, self._tmp_wk1)
-        self.a2b_k1.compute(pk3, self._tmp_wk1)
+        self.a2b_k1(pp, self._tmp_wk1)
+        self.a2b_k1(pk3, self._tmp_wk1)
 
-        self.a2b_kbuffer.compute(gz, self._tmp_wk1)
-        self.a2b_kstandard.compute(delp, self._tmp_wk1)
+        self.a2b_kbuffer(gz, self._tmp_wk1)
+        self.a2b_kstandard(delp, self._tmp_wk1)
 
         self._calc_wk_stencil(pk3, self._tmp_wk)
 
