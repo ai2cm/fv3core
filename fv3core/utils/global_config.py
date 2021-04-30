@@ -1,4 +1,6 @@
+import hashlib
 import os
+from collections.abc import Hashable
 
 
 def getenv_bool(name: str, default: str) -> bool:
@@ -61,7 +63,7 @@ def get_device_sync() -> bool:
     return _DEVICE_SYNC
 
 
-class StencilConfig:
+class StencilConfig(Hashable):
     def __init__(
         self,
         backend: str,
@@ -75,6 +77,28 @@ class StencilConfig:
         self.validate_args = validate_args
         self.format_source = format_source
         self.device_sync = device_sync
+        self._hash = self._compute_hash()
+
+    def _compute_hash(self):
+        md5 = hashlib.md5()
+        md5.update(self.backend.encode())
+        for attr in (
+            self.rebuild,
+            self.validate_args,
+            self.format_source,
+            self.device_sync,
+        ):
+            md5.update(bytes(attr))
+        return int(md5.hexdigest(), base=16)
+
+    def __hash__(self):
+        return self._hash
+
+    def __eq__(self, other):
+        if isinstance(other, Hashable):
+            return self.__hash__() == other.__hash__()
+        else:
+            return False
 
     @property
     def stencil_kwargs(self):

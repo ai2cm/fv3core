@@ -3,7 +3,8 @@ import unittest.mock
 import gt4py.gtscript
 import numpy as np
 import pytest
-from gt4py.gtscript import PARALLEL, computation, interval, stencil
+from gt4py.gtscript import PARALLEL, computation, interval
+from gt4py.gtscript import stencil as original_stencil
 
 import fv3core.decorators
 from fv3core.decorators import FrozenStencil, StencilConfig
@@ -83,7 +84,7 @@ def copy_stencil(q_in: FloatField, q_out: FloatField):
 @pytest.mark.parametrize("device_sync", [True])
 @pytest.mark.parametrize("rebuild", [False])
 @pytest.mark.parametrize("format_source", [False])
-def test_copy_wrapper(
+def test_copy_frozen_stencil(
     backend: str,
     rebuild: bool,
     validate_args: bool,
@@ -116,7 +117,7 @@ def test_copy_wrapper(
     "rebuild, validate_args, format_source, device_sync",
     [[False, False, False, False], [True, False, False, False]],
 )
-def test_stencil_kwargs_passed_to_init(
+def test_frozen_stencil_kwargs_passed_to_init(
     backend: str,
     rebuild: bool,
     validate_args: bool,
@@ -151,7 +152,7 @@ def test_stencil_kwargs_passed_to_init(
             definition=copy_stencil, externals={}, **config.stencil_kwargs
         )
     finally:
-        gt4py.gtscript.stencil = stencil
+        gt4py.gtscript.stencil = original_stencil
 
 
 def one_field_stencil(q_out: FloatField):
@@ -179,7 +180,7 @@ def three_field_parameter_stencil(
         [three_field_parameter_stencil, ("q_out", "q_in1", "q_in2")],
     ],
 )
-def test_field_names(definition, field_names, backend):
+def test_frozen_stencil_field_names(definition, field_names, backend):
     config = StencilConfig(
         backend=backend,
         rebuild=False,
@@ -205,7 +206,7 @@ def test_field_names(definition, field_names, backend):
         [three_field_parameter_stencil, ("param",)],
     ],
 )
-def test_parameter_names(definition, parameter_names, backend):
+def test_frozen_stencil_parameter_names(definition, parameter_names, backend):
     config = StencilConfig(
         backend=backend,
         rebuild=False,
@@ -228,7 +229,7 @@ def field_after_parameter_stencil(q_in: FloatField, param: float, q_out: FloatFi
         q_out = param * q_in
 
 
-def test_field_after_parameter_raises(backend):
+def test_frozen_field_after_parameter_raises(backend):
     config = StencilConfig(
         backend=backend,
         rebuild=False,
@@ -244,3 +245,196 @@ def test_field_after_parameter_raises(backend):
             stencil_config=config,
             externals={},
         )
+
+
+@pytest.mark.parametrize("validate_args", [True, False])
+@pytest.mark.parametrize("device_sync", [True])
+@pytest.mark.parametrize("rebuild", [False])
+@pytest.mark.parametrize("format_source", [False])
+def test_copy_non_frozen_stencil(
+    backend: str,
+    rebuild: bool,
+    validate_args: bool,
+    format_source: bool,
+    device_sync: bool,
+):
+    config = StencilConfig(
+        backend=backend,
+        rebuild=rebuild,
+        validate_args=validate_args,
+        format_source=format_source,
+        device_sync=device_sync,
+    )
+    stencil = fv3core.decorators.gtstencil(
+        copy_stencil,
+        stencil_config=config,
+        externals={},
+    )
+    q_in = make_storage_from_shape_uncached((3, 3, 3))
+    q_in[:] = 1.0
+    q_out = make_storage_from_shape_uncached((3, 3, 3))
+    q_out[:] = 2.0
+    stencil(
+        q_in,
+        q_out,
+        origin=(0, 0, 0),
+        domain=(3, 3, 3),
+    )
+    np.testing.assert_array_equal(q_in, q_out)
+
+
+@pytest.mark.parametrize("validate_args", [True, False])
+@pytest.mark.parametrize("device_sync", [True])
+@pytest.mark.parametrize("rebuild", [False, True])  # even if rebuild=True for gt4py
+@pytest.mark.parametrize("format_source", [False])
+def test_copy_non_frozen_stencil_does_not_rebuild(
+    backend: str,
+    rebuild: bool,
+    validate_args: bool,
+    format_source: bool,
+    device_sync: bool,
+):
+    config = StencilConfig(
+        backend=backend,
+        rebuild=rebuild,
+        validate_args=validate_args,
+        format_source=format_source,
+        device_sync=device_sync,
+    )
+    stencil = fv3core.decorators.gtstencil(
+        copy_stencil,
+        stencil_config=config,
+        externals={},
+    )
+    stencil_object = FrozenStencil(
+        copy_stencil,
+        origin=(0, 0, 0),
+        domain=(3, 3, 3),
+        stencil_config=config,
+        externals={},
+    ).stencil_object
+    mock_stencil = unittest.mock.MagicMock(return_value=stencil_object)
+    q_in = make_storage_from_shape_uncached((3, 3, 3))
+    q_out = make_storage_from_shape_uncached((3, 3, 3))
+    try:
+        gt4py.gtscript.stencil = mock_stencil
+        stencil(
+            q_in,
+            q_out,
+            origin=(0, 0, 0),
+            domain=(3, 3, 3),
+        )
+        mock_stencil.assert_called_once()
+        stencil(
+            q_in,
+            q_out,
+            origin=(0, 0, 0),
+            domain=(3, 3, 3),
+        )
+        mock_stencil.assert_called_once()
+    finally:
+        gt4py.gtscript.stencil = original_stencil
+
+
+@pytest.mark.parametrize("validate_args", [True, False])
+@pytest.mark.parametrize("device_sync", [True])
+@pytest.mark.parametrize("rebuild", [False, True])  # even if rebuild=True for gt4py
+@pytest.mark.parametrize("format_source", [False])
+def test_copy_non_frozen_stencil_rebuilds_for_new_origin(
+    backend: str,
+    rebuild: bool,
+    validate_args: bool,
+    format_source: bool,
+    device_sync: bool,
+):
+    config = StencilConfig(
+        backend=backend,
+        rebuild=rebuild,
+        validate_args=validate_args,
+        format_source=format_source,
+        device_sync=device_sync,
+    )
+    stencil = fv3core.decorators.gtstencil(
+        copy_stencil,
+        stencil_config=config,
+        externals={},
+    )
+    stencil_object = FrozenStencil(
+        copy_stencil,
+        origin=(0, 0, 0),
+        domain=(3, 3, 3),
+        stencil_config=config,
+        externals={},
+    ).stencil_object
+    mock_stencil = unittest.mock.MagicMock(return_value=stencil_object)
+    q_in = make_storage_from_shape_uncached((3, 3, 3))
+    q_out = make_storage_from_shape_uncached((3, 3, 3))
+    try:
+        gt4py.gtscript.stencil = mock_stencil
+        stencil(
+            q_in,
+            q_out,
+            origin=(0, 0, 0),
+            domain=(2, 2, 2),
+        )
+        stencil(
+            q_in,
+            q_out,
+            origin=(1, 1, 1),
+            domain=(2, 2, 2),
+        )
+        assert mock_stencil.call_count == 2
+    finally:
+        gt4py.gtscript.stencil = original_stencil
+
+
+@pytest.mark.parametrize("validate_args", [True, False])
+@pytest.mark.parametrize("device_sync", [True])
+@pytest.mark.parametrize("rebuild", [False, True])  # even if rebuild=True for gt4py
+@pytest.mark.parametrize("format_source", [False])
+def test_copy_non_frozen_stencil_rebuilds_for_new_domain(
+    backend: str,
+    rebuild: bool,
+    validate_args: bool,
+    format_source: bool,
+    device_sync: bool,
+):
+    config = StencilConfig(
+        backend=backend,
+        rebuild=rebuild,
+        validate_args=validate_args,
+        format_source=format_source,
+        device_sync=device_sync,
+    )
+    stencil = fv3core.decorators.gtstencil(
+        copy_stencil,
+        stencil_config=config,
+        externals={},
+    )
+    stencil_object = FrozenStencil(
+        copy_stencil,
+        origin=(0, 0, 0),
+        domain=(3, 3, 3),
+        stencil_config=config,
+        externals={},
+    ).stencil_object
+    mock_stencil = unittest.mock.MagicMock(return_value=stencil_object)
+    q_in = make_storage_from_shape_uncached((3, 3, 3))
+    q_out = make_storage_from_shape_uncached((3, 3, 3))
+    try:
+        gt4py.gtscript.stencil = mock_stencil
+        stencil(
+            q_in,
+            q_out,
+            origin=(0, 0, 0),
+            domain=(2, 2, 2),
+        )
+        stencil(
+            q_in,
+            q_out,
+            origin=(0, 0, 0),
+            domain=(3, 3, 3),
+        )
+        assert mock_stencil.call_count == 2
+    finally:
+        gt4py.gtscript.stencil = original_stencil

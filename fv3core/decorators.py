@@ -3,18 +3,7 @@ import collections.abc
 import functools
 import inspect
 import types
-from typing import (
-    Any,
-    Callable,
-    Dict,
-    Hashable,
-    Mapping,
-    MutableMapping,
-    Optional,
-    Tuple,
-    Union,
-    cast,
-)
+from typing import Any, Callable, Dict, Hashable, Mapping, Optional, Tuple, Union, cast
 
 import gt4py
 from gt4py import gtscript
@@ -212,17 +201,8 @@ def gtstencil(
     return stencil
 
 
-def get_non_frozen_stencil(func, externals) -> Callable[[Any], FrozenStencil]:
+def get_non_frozen_stencil(func, externals) -> Callable[..., FrozenStencil]:
     stencil_dict: Dict[Hashable, FrozenStencil] = {}
-    return _get_decorated(func, stencil_dict, externals)
-
-
-def _get_decorated(
-    func,
-    stencil_dict: MutableMapping[Hashable, FrozenStencil],
-    externals,
-):
-    # separated this code into its own routine for easier unit testing
 
     @functools.wraps(func)
     def decorated(
