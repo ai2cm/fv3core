@@ -277,7 +277,14 @@ def lagrange_x_func(qy):
 
 @gtstencil()
 def a2b_interpolation(
-        qout: FloatField, qin: FloatField, qx: FloatField, qy: FloatField, qxx: FloatField, qyy: FloatField, dxa: FloatFieldIJ, dya:FloatFieldIJ,
+    qout: FloatField,
+    qin: FloatField,
+    qx: FloatField,
+    qy: FloatField,
+    qxx: FloatField,
+    qyy: FloatField,
+    dxa: FloatFieldIJ,
+    dya: FloatFieldIJ,
 ):
     from __externals__ import i_end, i_start, j_end, j_start
 
@@ -300,7 +307,6 @@ def a2b_interpolation(
             qy = qy_edge_north(qin, dya)
         with horizontal(region[:, j_end]):
             qy = qy_edge_north2(qin, dya, qy)
-
 
         qxx = a2 * (qx[0, -2, 0] + qx[0, 1, 0]) + a1 * (qx[0, -1, 0] + qx)
         with horizontal(region[:, j_start + 1]):
@@ -512,23 +518,26 @@ def compute(qin, qout, kstart=0, nk=None, replace=False):
             qin.shape, origin=(grid().isd, grid().js, kstart), cache_key="a2b_ord4_qy"
         )
         qxx = utils.make_storage_from_shape(
-             qin.shape, origin=(grid().isd, grid().js, kstart), cache_key="a2b_ord4_qxx"
-	)
+            qin.shape, origin=(grid().isd, grid().js, kstart), cache_key="a2b_ord4_qxx"
+        )
 
         qyy = utils.make_storage_from_shape(
             qin.shape, origin=(grid().isd, grid().js, kstart), cache_key="a2b_ord4_qyy"
-	)
+        )
         js = grid().js + 1 if grid().south_edge else grid().js
         je = grid().je if grid().north_edge else grid().je + 1
         is_ = grid().is_ + 1 if grid().west_edge else grid().is_
         ie = grid().ie if grid().east_edge else grid().ie + 1
 
-
         a2b_interpolation(
             qout,
             qin,
             qx,
-            qy,qxx, qyy,grid().dxa, grid().dya,
+            qy,
+            qxx,
+            qyy,
+            grid().dxa,
+            grid().dya,
             origin=(is_, js, kstart),
             domain=(ie - is_ + 1, je - js + 1, nk),
         )
