@@ -1,10 +1,9 @@
 import gt4py.gtscript as gtscript
 from gt4py.gtscript import BACKWARD, FORWARD, PARALLEL, computation, interval
 
-import fv3core._config as spec
 import fv3core.utils.global_constants as constants
 import fv3core.utils.gt4py_utils as utils
-from fv3core.decorators import gtstencil
+from fv3core.decorators import StencilWrapper, gtstencil
 from fv3core.utils.typing import FloatField, FloatFieldIJ
 
 
@@ -92,7 +91,6 @@ def fix_negative_liq(qvapor, qice, qsnow, qgraupel, qrain, qliquid, pt, lcpk, ic
     return qvapor, qice, qsnow, qgraupel, qrain, qliquid, pt
 
 
-@gtstencil()
 def fillq(q: FloatField, dp: FloatField, sum1: FloatFieldIJ, sum2: FloatFieldIJ):
     with computation(FORWARD), interval(...):
         # reset accumulating fields
@@ -114,7 +112,6 @@ def fillq(q: FloatField, dp: FloatField, sum1: FloatFieldIJ, sum2: FloatFieldIJ)
             q = q - dq / dp
 
 
-@gtstencil()
 def fix_neg_water(
     pt: FloatField,
     dp: FloatField,
@@ -150,7 +147,6 @@ def fix_neg_water(
         # no GFS_PHYS compiler flag -- additional saturation adjustment calculations!
 
 
-@gtstencil()
 def fix_neg_cloud(dp: FloatField, qcld: FloatField):
     with computation(FORWARD), interval(1, -1):
         if qcld[0, 0, -1] < 0.0:
@@ -178,7 +174,9 @@ def fix_neg_cloud(dp: FloatField, qcld: FloatField):
                 qcld = 0.0 if 0.0 > qcld else qcld
 
 
-# Nonstencil code for reference:
+"""
+Nonstencil code for reference:
+
 def fix_water_vapor_nonstencil(grid, qvapor, dp):
     k = 0
     for j in range(grid.js, grid.je + 1):
@@ -225,7 +223,7 @@ def fix_water_vapor_k_loop(i, j, kbot, qvapor, dp):
             )
             qvapor[i, j, k] = qvapor[i, j, k] - dq / dp[i, j, k]
             qvapor[i, j, kbot] = qvapor[i, j, kbot] + dq / dp[i, j, kbot]
-
+"""
 
 # Stencil version
 @gtstencil()
@@ -283,86 +281,80 @@ def fix_water_vapor_down(
         qvapor[0, 0, 0] = upper_fix[0, 0, 0]
 
 
-def compute(qvapor, qliquid, qrain, qsnow, qice, qgraupel, qcld, pt, delp, delz, peln):
-    """
-    Adjust tracer mixing ratios to fix negative values
-    Args:
-        qvapor: Water vapor mixing ration (inout)
-        qliquid: Liquid water mixing ration (inout)
-        qrain: Rain mixing ration (inout)
-        qsnow: Snow mixing ration (inout)
-        qice: Ice mixing ration (inout)
-        qgraupel: Graupel mixing ration (inout)
-        qcld: Cloud mixing ration (inout)
-        pt: Air temperature (in)
-        delp: Pressur thickness of atmosphere layers (in)
-        delz: Vertical thickness of atmosphere layers (in)
-        peln: Logarithm of interface pressure (in)
-    """
-    grid = spec.grid
+class AdjustNegativeTracerMixingRatio:
+    def __init__(
+        self,
+        grid,
+        namelist,
+        qvapor,
+        qgraupel,
+    ):
 
-    shape_ij = qgraupel.shape[0:2]
-    sum1 = utils.make_storage_from_shape(
-        shape_ij, origin=(0, 0), cache_key="neg_adj3_sum1"
-    )
-    sum2 = utils.make_storage_from_shape(
-        shape_ij, origin=(0, 0), cache_key="neg_adj3_sum2"
-    )
-    upper_fix = utils.make_storage_from_shape(
-        qvapor.shape, origin=(0, 0, 0), cache_key="neg_adj3_upper_fix"
-    )
-    lower_fix = utils.make_storage_from_shape(
-        qvapor.shape, origin=(0, 0, 0), cache_key="neg_adj3_lower_fix"
-    )
-    if spec.namelist.check_negative:
-        raise NotImplementedError("Unimplemented namelist value check_negative=True")
-    if spec.namelist.hydrostatic:
-        d0_vap = constants.CP_VAP - constants.C_LIQ
-        raise NotImplementedError("Unimplemented namelist hydrostatic=True")
-    else:
-        d0_vap = constants.CV_VAP - constants.C_LIQ
-    lv00 = constants.HLV - d0_vap * constants.TICE
-    fix_neg_water(
-        pt,
-        delp,
-        delz,
+        shape_ij = qgraupel.shape[0:2]
+        self._sum1 = utils.make_storage_from_shape(shape_ij, origin=(0, 0))
+        self._sum2 = utils.make_storage_from_shape(shape_ij, origin=(0, 0))
+        self._upper_fix = utils.make_storage_from_shape(qvapor.shape, origin=(0, 0, 0))
+        self._lower_fix = utils.make_storage_from_shape(qvapor.shape, origin=(0, 0, 0))
+        if namelist.check_negative:
+            raise NotImplementedError(
+                "Unimplemented namelist value check_negative=True"
+            )
+        if namelist.hydrostatic:
+            self._d0_vap = constants.CP_VAP - constants.C_LIQ
+            raise NotImplementedError("Unimplemented namelist hydrostatic=True")
+        else:
+            self._d0_vap = constants.CV_VAP - constants.C_LIQ
+        self._lv00 = constants.HLV - self._d0_vap * constants.TICE
+
+        self._fix_neg_water = StencilWrapper(
+            func=fix_neg_water,
+            origin=grid.compute_origin(),
+            domain=grid.domain_shape_compute(),
+        )
+        self._fillq = StencilWrapper(
+            func=fillq,
+            origin=grid.compute_origin(),
+            domain=grid.domain_shape_compute(),
+        )
+        self._fix_water_vapor_down = StencilWrapper(
+            func=fix_water_vapor_down,
+            origin=grid.compute_origin(),
+            domain=grid.domain_shape_compute(),
+        )
+        self._fix_neg_cloud = StencilWrapper(
+            func=fix_neg_cloud,
+            origin=grid.compute_origin(),
+            domain=grid.domain_shape_compute(),
+        )
+
+    def __call__(
+        self,
         qvapor,
         qliquid,
         qrain,
         qsnow,
         qice,
         qgraupel,
-        lv00,
-        d0_vap,
-        origin=grid.compute_origin(),
-        domain=grid.domain_shape_compute(),
-    )
-    fillq(
-        qgraupel,
+        qcld,
+        pt,
         delp,
-        sum1,
-        sum2,
-        origin=grid.compute_origin(),
-        domain=grid.domain_shape_compute(),
-    )
-    fillq(
-        qrain,
-        delp,
-        sum1,
-        sum2,
-        origin=grid.compute_origin(),
-        domain=grid.domain_shape_compute(),
-    )
-
-    fix_water_vapor_down(
-        qvapor,
-        delp,
-        upper_fix,
-        lower_fix,
-        origin=grid.compute_origin(),
-        domain=grid.domain_shape_compute(),
-    )
-
-    fix_neg_cloud(
-        delp, qcld, origin=grid.compute_origin(), domain=grid.domain_shape_compute()
-    )
+        delz,
+        peln,
+    ):
+        self._fix_neg_water(
+            pt,
+            delp,
+            delz,
+            qvapor,
+            qliquid,
+            qrain,
+            qsnow,
+            qice,
+            qgraupel,
+            self._lv00,
+            self._d0_vap,
+        )
+        self._fillq(qgraupel, delp, self._sum1, self._sum2)
+        self._fillq(qrain, delp, self._sum1, self._sum2)
+        self._fix_water_vapor_down(qvapor, delp, self._upper_fix, self._lower_fix)
+        self._fix_neg_cloud(delp, qcld)
