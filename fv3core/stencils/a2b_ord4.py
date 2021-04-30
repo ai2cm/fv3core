@@ -251,6 +251,7 @@ def ppm_volume_mean_x(qin: FloatField, dxa: FloatFieldIJ, qx: FloatField):
 @gtstencil()
 def ppm_volume_mean_y(qin: FloatField, dya: FloatFieldIJ, qy: FloatField):
     from __externals__ import j_end, j_start
+
     with computation(PARALLEL), interval(...):
         qy[0, 0, 0] = b2 * (qin[0, -2, 0] + qin[0, 1, 0]) + b1 * (qin[0, -1, 0] + qin)
         with horizontal(region[:, j_start]):
@@ -262,15 +263,22 @@ def ppm_volume_mean_y(qin: FloatField, dya: FloatFieldIJ, qy: FloatField):
         with horizontal(region[:, j_end]):
             qy = qy_edge_north2(qin, dya, qy)
 
+
 @gtscript.function
 def lagrange_y_func(qx):
     return a2 * (qx[0, -2, 0] + qx[0, 1, 0]) + a1 * (qx[0, -1, 0] + qx)
 
 
 @gtstencil()
-def lagrange_interpolation_y(qx: FloatField, qout: FloatField):
+def qxx_interpolation_y(qx: FloatField, qout: FloatField, qxx: FloatField):
+    from __externals__ import j_end, j_start
+
     with computation(PARALLEL), interval(...):
-        qout = lagrange_y_func(qx)
+        qxx = lagrange_y_func(qx)
+        with horizontal(region[:, j_start + 1]):
+            qxx = cubic_interpolation_south(qx, qout, qxx)
+        with horizontal(region[:, j_end]):
+            qxx = cubic_interpolation_north(qx, qout, qxx)
 
 
 @gtscript.function
@@ -279,37 +287,54 @@ def lagrange_x_func(qy):
 
 
 @gtstencil()
-def lagrange_interpolation_x(qy: FloatField, qout: FloatField):
+def qyy_interpolation_x(qy: FloatField, qout: FloatField, qyy: FloatField):
+    from __externals__ import i_end, i_start
+
     with computation(PARALLEL), interval(...):
-        qout = lagrange_x_func(qy)
+        qyy = lagrange_x_func(qy)
+        with horizontal(region[i_start + 1, :]):
+            qyy = cubic_interpolation_west(qy, qout, qyy)
+        with horizontal(region[i_end, :]):
+            qyy = cubic_interpolation_east(qy, qout, qyy)
 
 
 @gtstencil()
+def second_derivative_interpolation(
+    qout: FloatField, qx: FloatField, qy: FloatField, qxx: FloatField, qyy: FloatField
+):
+    from __externals__ import i_end, i_start, j_end, j_start
+
+    with computation(PARALLEL), interval(...):
+        qxx = lagrange_y_func(qx)
+        with horizontal(region[:, j_start + 1]):
+            qxx = cubic_interpolation_south(qx, qout, qxx)
+        with horizontal(region[:, j_end]):
+            qxx = cubic_interpolation_north(qx, qout, qxx)
+        qyy = lagrange_x_func(qy)
+        with horizontal(region[i_start + 1, :]):
+            qyy = cubic_interpolation_west(qy, qout, qyy)
+        with horizontal(region[i_end, :]):
+            qyy = cubic_interpolation_east(qy, qout, qyy)
+
+
+@gtscript.function
 def cubic_interpolation_south(qx: FloatField, qout: FloatField, qxx: FloatField):
-    with computation(PARALLEL), interval(...):
-        qxx0 = qxx
-        qxx = c1 * (qx[0, -1, 0] + qx) + c2 * (qout[0, -1, 0] + qxx0[0, 1, 0])
+    return c1 * (qx[0, -1, 0] + qx) + c2 * (qout[0, -1, 0] + qxx[0, 1, 0])
 
 
-@gtstencil()
+@gtscript.function
 def cubic_interpolation_north(qx: FloatField, qout: FloatField, qxx: FloatField):
-    with computation(PARALLEL), interval(...):
-        qxx0 = qxx
-        qxx = c1 * (qx[0, -1, 0] + qx) + c2 * (qout[0, 1, 0] + qxx0[0, -1, 0])
+    return c1 * (qx[0, -1, 0] + qx) + c2 * (qout[0, 1, 0] + qxx[0, -1, 0])
 
 
-@gtstencil()
+@gtscript.function
 def cubic_interpolation_west(qy: FloatField, qout: FloatField, qyy: FloatField):
-    with computation(PARALLEL), interval(...):
-        qyy0 = qyy
-        qyy = c1 * (qy[-1, 0, 0] + qy) + c2 * (qout[-1, 0, 0] + qyy0[1, 0, 0])
+    return c1 * (qy[-1, 0, 0] + qy) + c2 * (qout[-1, 0, 0] + qyy[1, 0, 0])
 
 
-@gtstencil()
+@gtscript.function
 def cubic_interpolation_east(qy: FloatField, qout: FloatField, qyy: FloatField):
-    with computation(PARALLEL), interval(...):
-        qyy0 = qyy
-        qyy = c1 * (qy[-1, 0, 0] + qy) + c2 * (qout[1, 0, 0] + qyy0[-1, 0, 0])
+    return c1 * (qy[-1, 0, 0] + qy) + c2 * (qout[1, 0, 0] + qyy[-1, 0, 0])
 
 
 @gtstencil()
@@ -425,7 +450,7 @@ def qy_edge_north2(qin: FloatField, dya: FloatFieldIJ, qy: FloatField):
     return (
         3.0 * (qin[0, -1, 0] + g_in * qin) - (g_in * qy[0, 1, 0] + qy[0, -1, 0])
     ) / (2.0 + 2.0 * g_in)
-    
+
 
 def compute_qout_edges(qin, qout, kstart, nk):
     compute_qout_x_edges(qin, qout, kstart, nk)
@@ -483,106 +508,6 @@ def compute_qout_y_edges(qin, qout, kstart, nk):
             origin=(is2, grid().je + 1, kstart),
             domain=(di2, 1, nk),
         )
-
-
-def compute_qx(qin, qout, kstart, nk):
-    qx = utils.make_storage_from_shape(
-        qin.shape, origin=(grid().is_, grid().jsd, kstart), cache_key="a2b_ord4_qx"
-    )
-    js = grid().js - 2 
-    je = grid().je + 2
-    is_ = grid().is_ 
-    ie = grid().ie + 1
-    dj = je - js + 1
-    # qx interior
-    ppm_volume_mean_x(
-        qin, grid().dxa, qx, origin=(grid().is_, grid().js - 2, kstart), domain=(grid().nic + 1, grid().njc + 4, nk)
-    )
-    return qx
-
-
-def compute_qy(qin, qout, kstart, nk):
-    qy = utils.make_storage_from_shape(
-        qin.shape, origin=(grid().isd, grid().js, kstart), cache_key="a2b_ord4_qy"
-    )
-    # qy bounds
-    # avoid running center-domain computation on tile edges, since they'll be
-    # overwritten.
-    js = grid().js
-    je = grid().je + 1
-    is_ = grid().is_ - 2
-    ie = grid().ie + 2
-    di = ie - is_ + 1
-    # qy interior
-    ppm_volume_mean_y(qin, grid().dya, qy, origin=(is_, js, kstart), domain=(di, je - js + 1, nk))
-    # qy edges
-    """
-    if grid().south_edge:
-        qy_edge_south(
-            qin, grid().dya, qy, origin=(is_, grid().js, kstart), domain=(di, 1, nk)
-        )
-        qy_edge_south2(
-            qin, grid().dya, qy, origin=(is_, grid().js + 1, kstart), domain=(di, 1, nk)
-        )
-    if grid().north_edge:
-        qy_edge_north(
-            qin, grid().dya, qy, origin=(is_, grid().je + 1, kstart), domain=(di, 1, nk)
-        )
-        qy_edge_north2(
-            qin, grid().dya, qy, origin=(is_, grid().je, kstart), domain=(di, 1, nk)
-        )
-    """
-    return qy
-
-
-def compute_qxx(qx, qout, kstart, nk):
-    qxx = utils.make_storage_from_shape(
-        qx.shape, origin=grid().full_origin(), cache_key="a2b_ord4_qxx"
-    )
-    # avoid running center-domain computation on tile edges, since they'll be
-    # overwritten.
-    js = grid().js + 2 if grid().south_edge else grid().js
-    je = grid().je - 1 if grid().north_edge else grid().je + 1
-    is_ = grid().is_ + 1 if grid().west_edge else grid().is_
-    ie = grid().ie if grid().east_edge else grid().ie + 1
-    di = ie - is_ + 1
-    lagrange_interpolation_y(
-        qx, qxx, origin=(is_, js, kstart), domain=(di, je - js + 1, nk)
-    )
-    if grid().south_edge:
-        cubic_interpolation_south(
-            qx, qout, qxx, origin=(is_, grid().js + 1, kstart), domain=(di, 1, nk)
-        )
-    if grid().north_edge:
-        cubic_interpolation_north(
-            qx, qout, qxx, origin=(is_, grid().je, kstart), domain=(di, 1, nk)
-        )
-    return qxx
-
-
-def compute_qyy(qy, qout, kstart, nk):
-    qyy = utils.make_storage_from_shape(
-        qy.shape, origin=grid().full_origin(), cache_key="a2b_ord4_qyy"
-    )
-    # avoid running center-domain computation on tile edges, since they'll be
-    # overwritten.
-    js = grid().js + 1 if grid().south_edge else grid().js
-    je = grid().je if grid().north_edge else grid().je + 1
-    is_ = grid().is_ + 2 if grid().west_edge else grid().is_
-    ie = grid().ie - 1 if grid().east_edge else grid().ie + 1
-    dj = je - js + 1
-    lagrange_interpolation_x(
-        qy, qyy, origin=(is_, js, kstart), domain=(ie - is_ + 1, dj, nk)
-    )
-    if grid().west_edge:
-        cubic_interpolation_west(
-            qy, qout, qyy, origin=(grid().is_ + 1, js, kstart), domain=(1, dj, nk)
-        )
-    if grid().east_edge:
-        cubic_interpolation_east(
-            qy, qout, qyy, origin=(grid().ie, js, kstart), domain=(1, dj, nk)
-        )
-    return qyy
 
 
 def compute_qout(qxx, qyy, qout, kstart, nk):
@@ -647,19 +572,63 @@ def compute(qin, qout, kstart=0, nk=None, replace=False):
         qx = utils.make_storage_from_shape(
             qin.shape, origin=(grid().is_, grid().jsd, kstart), cache_key="a2b_ord4_qx"
         )
-    
+
         ppm_volume_mean_x(
-            qin, grid().dxa, qx, origin=(grid().is_, grid().js - 2, kstart), domain=(grid().nic + 1, grid().njc + 4, nk)
+            qin,
+            grid().dxa,
+            qx,
+            origin=(grid().is_, grid().js - 2, kstart),
+            domain=(grid().nic + 1, grid().njc + 4, nk),
         )
         qy = utils.make_storage_from_shape(
             qin.shape, origin=(grid().isd, grid().js, kstart), cache_key="a2b_ord4_qy"
         )
-        ppm_volume_mean_y(qin, grid().dya, qy, origin=( grid().is_ - 2, grid().js, kstart), domain=(grid().nic + 4, grid().njc + 1, nk))
-        #qx = compute_qx(qin, qout, kstart, nk)
-        #qy = compute_qy(qin, qout, kstart, nk)
-        qxx = compute_qxx(qx, qout, kstart, nk)
-        qyy = compute_qyy(qy, qout, kstart, nk)
-        compute_qout(qxx, qyy, qout, kstart, nk)
+        ppm_volume_mean_y(
+            qin,
+            grid().dya,
+            qy,
+            origin=(grid().is_ - 2, grid().js, kstart),
+            domain=(grid().nic + 4, grid().njc + 1, nk),
+        )
+        qxx = utils.make_storage_from_shape(
+            qx.shape, origin=grid().full_origin(), cache_key="a2b_ord4_qxx"
+        )
+        # qxx_interpolation_y(
+        # qx, qout, qxx, origin=(grid().is_, grid().js, kstart),
+        # domain=(grid().nic + 1, grid().njc + 1, nk)
+        # )
+        qyy = utils.make_storage_from_shape(
+            qy.shape, origin=grid().full_origin(), cache_key="a2b_ord4_qyy"
+        )
+        # qyy_interpolation_x(
+        # qy, qout, qyy, origin=(grid().is_, grid().js, kstart),
+        # domain=(grid().nic + 1, grid().njc + 1, nk)
+        # )
+        second_derivative_interpolation(
+            qout,
+            qx,
+            qy,
+            qxx,
+            qyy,
+            origin=(grid().is_, grid().js, kstart),
+            domain=(grid().nic + 1, grid().njc + 1, nk),
+        )
+        js = grid().js + 1 if grid().south_edge else grid().js
+        je = grid().je if grid().north_edge else grid().je + 1
+        is_ = grid().is_ + 1 if grid().west_edge else grid().is_
+        ie = grid().ie if grid().east_edge else grid().ie + 1
+        qout_avg(
+            qxx,
+            qyy,
+            qout,
+            origin=(is_, js, kstart),
+            domain=(ie - is_ + 1, je - js + 1, nk),
+        )
+        # qx = compute_qx(qin, qout, kstart, nk)
+        # qy = compute_qy(qin, qout, kstart, nk)
+        # qxx = compute_qxx(qx, qout, kstart, nk)
+        # qyy = compute_qyy(qy, qout, kstart, nk)
+        # compute_qout(qxx, qyy, qout, kstart, nk)
         if replace:
             copy_stencil(
                 qout,
