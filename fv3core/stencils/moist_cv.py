@@ -324,60 +324,6 @@ def region_mode(j_2d: Optional[int], grid: Grid):
     return origin, domain, jslice
 
 
-# Computes the FV3-consistent moist heat capacity under constant volume,
-# including the heating capacity of water vapor and condensates.
-# See emanuel1994atmospheric for information on variable heat capacities.
-
-# assumes 3d variables are indexed to j
-def compute_te(
-    qvapor_js: FloatField,
-    qliquid_js: FloatField,
-    qice_js: FloatField,
-    qrain_js: FloatField,
-    qsnow_js: FloatField,
-    qgraupel_js: FloatField,
-    te_2d: FloatField,
-    gz: FloatField,
-    cvm: FloatField,
-    delp: FloatField,
-    q_con: FloatField,
-    pt: FloatField,
-    phis: FloatField,
-    w: FloatField,
-    u: FloatField,
-    v: FloatField,
-    r_vir: float,
-    j_2d: int = None,
-):
-    # TODO -- to do this cleanly, we probably need if blocks working inside stencils
-    if spec.namelist.nwat != 6:
-        raise Exception("We still need to implement other nwats for moist_cv")
-    grid = spec.grid
-    origin, domain, jslice = region_mode(j_2d, grid)
-    moist_te_2d(
-        qvapor_js,
-        qliquid_js,
-        qrain_js,
-        qsnow_js,
-        qice_js,
-        qgraupel_js,
-        q_con,
-        gz,
-        cvm,
-        te_2d,
-        delp,
-        pt,
-        phis,
-        u,
-        v,
-        w,
-        grid.rsin2,
-        grid.cosa_s,
-        r_vir,
-        origin=origin,
-        domain=domain,
-    )
-
 
 def compute_pt(
     qvapor_js: FloatField,
