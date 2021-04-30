@@ -1,4 +1,4 @@
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 import numpy as np
 from gt4py.gtscript import FORWARD, PARALLEL, computation, interval
@@ -106,10 +106,14 @@ def compute(
     jm: int,
     km: int,
     nq: int,
+    js: Optional[int] = None,
 ):
     # Same as above, but with multiple tracer fields
     i1 = spec.grid.is_
-    j1 = spec.grid.js
+    if js is None:
+        j1 = spec.grid.js
+    else:
+        j1 = js
 
     tracer_list = [tracers[q] for q in utils.tracer_variables[0:nq]]
     shape = tracer_list[0].shape

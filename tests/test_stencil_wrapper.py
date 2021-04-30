@@ -5,9 +5,73 @@ import numpy as np
 import pytest
 from gt4py.gtscript import PARALLEL, computation, interval, stencil
 
+import fv3core.decorators
 from fv3core.decorators import FrozenStencil, StencilConfig
 from fv3core.utils.gt4py_utils import make_storage_from_shape_uncached
 from fv3core.utils.typing import FloatField
+
+
+class MockFieldInfo:
+    def __init__(self, axes):
+        self.axes = axes
+
+
+@pytest.mark.parametrize(
+    "field_info, origin, field_origins",
+    [
+        pytest.param(
+            {"a": MockFieldInfo(["I"])},
+            (1, 2, 3),
+            {"_all_": (1, 2, 3), "a": (1,)},
+            id="single_field_I",
+        ),
+        pytest.param(
+            {"a": MockFieldInfo(["J"])},
+            (1, 2, 3),
+            {"_all_": (1, 2, 3), "a": (2,)},
+            id="single_field_J",
+        ),
+        pytest.param(
+            {"a": MockFieldInfo(["K"])},
+            (1, 2, 3),
+            {"_all_": (1, 2, 3), "a": (3,)},
+            id="single_field_K",
+        ),
+        pytest.param(
+            {"a": MockFieldInfo(["I", "J"])},
+            (1, 2, 3),
+            {"_all_": (1, 2, 3), "a": (1, 2)},
+            id="single_field_IJ",
+        ),
+        pytest.param(
+            {"a": MockFieldInfo(["I", "J", "K"])},
+            {"_all_": (1, 2, 3), "a": (1, 2, 3)},
+            {"_all_": (1, 2, 3), "a": (1, 2, 3)},
+            id="single_field_origin_mapping",
+        ),
+        pytest.param(
+            {"a": MockFieldInfo(["I", "J", "K"]), "b": MockFieldInfo(["I"])},
+            {"_all_": (1, 2, 3), "a": (1, 2, 3)},
+            {"_all_": (1, 2, 3), "a": (1, 2, 3), "b": (1,)},
+            id="two_fields_update_origin_mapping",
+        ),
+        pytest.param(
+            {"a": None},
+            (1, 2, 3),
+            {"_all_": (1, 2, 3), "a": (1, 2, 3)},
+            id="single_field_None",
+        ),
+        pytest.param(
+            {"a": MockFieldInfo(["I", "J"]), "b": MockFieldInfo(["I", "J", "K"])},
+            (1, 2, 3),
+            {"_all_": (1, 2, 3), "a": (1, 2), "b": (1, 2, 3)},
+            id="two_fields",
+        ),
+    ],
+)
+def test_compute_field_origins(field_info, origin, field_origins):
+    result = fv3core.decorators.compute_field_origins(field_info, origin)
+    assert result == field_origins
 
 
 def copy_stencil(q_in: FloatField, q_out: FloatField):

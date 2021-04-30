@@ -110,7 +110,7 @@ def compute(
     remap_profile_k = utils.cached_stencil_class(RemapProfile)(
         kord, mode, cache_key=f"map_profile_{kord}_{mode}"
     )
-    dp1, q4_1, q4_2, q4_3, q4_4, origin, domain, i_extent, j_extent = setup_data(
+    dp1, q4_1, q4_2, q4_3, q4_4, origin, domain, _, _ = setup_data(
         q1, pe1, i1, i2, j1, j2
     )
     q4_1, q4_2, q4_3, q4_4 = remap_profile_k(

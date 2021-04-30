@@ -3,7 +3,18 @@ import collections.abc
 import functools
 import inspect
 import types
-from typing import Any, Callable, Dict, Mapping, MutableMapping, Optional, Tuple, cast
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Hashable,
+    Mapping,
+    MutableMapping,
+    Optional,
+    Tuple,
+    Union,
+    cast,
+)
 
 import gt4py
 from gt4py import gtscript
@@ -80,12 +91,12 @@ class FrozenStencil:
     def __init__(
         self,
         func: Callable[..., None],
-        origin: Index3D,
+        origin: Union[Index3D, Mapping[str, Tuple[int, ...]]],
         domain: Index3D,
         stencil_config: Optional[StencilConfig] = None,
         externals: Optional[Mapping[str, Any]] = None,
     ):
-        self.origin: Tuple[int, ...] = origin
+        self.origin = origin
 
         self.domain: Optional[Index3D] = domain
 
@@ -109,7 +120,7 @@ class FrozenStencil:
         )
 
         self._field_origins: Dict[str, Tuple[int, ...]] = compute_field_origins(
-            self.stencil_object, self.origin
+            self.stencil_object.field_info, self.origin
         )
         """mapping from field names to field origins"""
 
@@ -124,11 +135,10 @@ class FrozenStencil:
         **kwargs,
     ) -> None:
         if self.stencil_config.validate_args:
-            print(self._field_origins, self.domain)
             self.stencil_object(
                 *args,
                 **kwargs,
-                origin=self.origin,
+                origin=self._field_origins,
                 domain=self.domain,
                 validate_args=True,
             )
@@ -150,22 +160,28 @@ class FrozenStencil:
 
 
 def compute_field_origins(
-    stencil, origin: Tuple[int, ...]
+    field_info_mapping, origin: Union[Index3D, Mapping[str, Tuple[int, ...]]]
 ) -> Dict[str, Tuple[int, ...]]:
     """Computes the origin for each field in the stencil call."""
-    field_origins: Dict[str, Tuple[int, ...]] = {"_all_": origin}
-    field_names = tuple(stencil.field_info.keys())
-    for i in range(len(field_names)):
-        field_name = field_names[i]
-        field_info = stencil.field_info[field_name]
-        if field_info is not None:
-            field_origin_list = []
-            for ax in field_info.axes:
-                field_origin_list.append(origin[{"I": 0, "J": 1, "K": 2}[ax]])
-            field_origin = tuple(field_origin_list)
-        else:
-            field_origin = origin
-        field_origins[field_name] = field_origin
+    if isinstance(origin, tuple):
+        field_origins: Dict[str, Tuple[int, ...]] = {"_all_": origin}
+        origin_tuple: Tuple[int, ...] = origin
+    else:
+        field_origins = {**origin}
+        origin_tuple = origin["_all_"]
+    field_names = tuple(field_info_mapping.keys())
+    for i, field_name in enumerate(field_names):
+        if field_name not in field_origins:
+            field_info = field_info_mapping[field_name]
+            if field_info is not None:
+                field_origin_list = []
+                for ax in field_info.axes:
+                    origin_index = {"I": 0, "J": 1, "K": 2}[ax]
+                    field_origin_list.append(origin_tuple[origin_index])
+                field_origin = tuple(field_origin_list)
+            else:
+                field_origin = origin_tuple
+            field_origins[field_name] = field_origin
     return field_origins
 
 
@@ -197,31 +213,42 @@ def gtstencil(
 
 
 def get_non_frozen_stencil(func, externals) -> Callable[[Any], FrozenStencil]:
-    stencil_dict: Dict[Tuple[Index3D, Index3D], FrozenStencil] = {}
+    stencil_dict: Dict[Hashable, FrozenStencil] = {}
     return _get_decorated(func, stencil_dict, externals)
 
 
 def _get_decorated(
     func,
-    stencil_dict: MutableMapping[Tuple[Index3D, Index3D], FrozenStencil],
+    stencil_dict: MutableMapping[Hashable, FrozenStencil],
     externals,
 ):
     # separated this code into its own routine for easier unit testing
 
     @functools.wraps(func)
-    def decorated(*args, origin=None, domain=None, **kwargs):
+    def decorated(
+        *args,
+        origin: Union[Index3D, Mapping[str, Tuple[int, ...]]],
+        domain: Index3D,
+        **kwargs,
+    ):
         stencil_config = global_config.get_stencil_config()
-        key = (origin, domain, stencil_config)
+        if isinstance(origin, Mapping):
+            origin_key: Hashable = tuple(sorted(origin.items(), key=lambda x: x[0]))
+            origin_tuple: Tuple[int, ...] = origin["_all_"]
+        else:
+            origin_key = origin
+            origin_tuple = origin
+        key: Hashable = (origin_key, domain, stencil_config)
         if key not in stencil_dict:
             axis_offsets = fv3core.utils.grid.axis_offsets(
-                spec.grid, origin=origin, domain=domain
+                spec.grid, origin=origin_tuple, domain=domain
             )
             stencil_dict[key] = FrozenStencil(
                 func,
                 origin,
                 domain,
                 stencil_config=stencil_config,
-                externals={**axis_offsets, **externals},
+                externals={**axis_offsets, **externals, "namelist": spec.namelist},
             )
         return stencil_dict[key](*args, **kwargs)
 

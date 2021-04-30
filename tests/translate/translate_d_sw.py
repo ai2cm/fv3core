@@ -68,23 +68,24 @@ class TranslateD_SW(TranslateFortranData2Py):
         return self.slice_output(inputs)
 
 
-class TranslateUbKE(TranslateFortranData2Py):
-    @gtstencil
-    def ubke(
-        uc: FloatField,
-        vc: FloatField,
-        cosa: FloatFieldIJ,
-        rsina: FloatFieldIJ,
-        ut: FloatField,
-        ub: FloatField,
-        dt4: float,
-        dt5: float,
-    ):
-        with computation(PARALLEL), interval(...):
-            ub = d_sw.ubke(uc, vc, cosa, rsina, ut, ub, dt4, dt5)
+@gtstencil
+def ubke(
+    uc: FloatField,
+    vc: FloatField,
+    cosa: FloatFieldIJ,
+    rsina: FloatFieldIJ,
+    ut: FloatField,
+    ub: FloatField,
+    dt4: float,
+    dt5: float,
+):
+    with computation(PARALLEL), interval(...):
+        ub = d_sw.ubke(uc, vc, cosa, rsina, ut, ub, dt4, dt5)
 
+
+class TranslateUbKE(TranslateFortranData2Py):
     def _call(self, *args, **kwargs):
-        self.ubke(
+        ubke(
             *args,
             **kwargs,
             cosa=self.grid.cosa,
@@ -106,23 +107,24 @@ class TranslateUbKE(TranslateFortranData2Py):
         self.out_vars = {"ub": grid.compute_dict_buffer_2d()}
 
 
-class TranslateVbKE(TranslateFortranData2Py):
-    @gtstencil
-    def vbke(
-        vc: FloatField,
-        uc: FloatField,
-        cosa: FloatFieldIJ,
-        rsina: FloatFieldIJ,
-        vt: FloatField,
-        vb: FloatField,
-        dt4: float,
-        dt5: float,
-    ):
-        with computation(PARALLEL), interval(...):
-            vb = d_sw.vbke(vc, uc, cosa, rsina, vt, vb, dt4, dt5)
+@gtstencil
+def vbke(
+    vc: FloatField,
+    uc: FloatField,
+    cosa: FloatFieldIJ,
+    rsina: FloatFieldIJ,
+    vt: FloatField,
+    vb: FloatField,
+    dt4: float,
+    dt5: float,
+):
+    with computation(PARALLEL), interval(...):
+        vb = d_sw.vbke(vc, uc, cosa, rsina, vt, vb, dt4, dt5)
 
+
+class TranslateVbKE(TranslateFortranData2Py):
     def _call(self, *args, **kwargs):
-        self.vbke(
+        vbke(
             *args,
             **kwargs,
             cosa=self.grid.cosa,

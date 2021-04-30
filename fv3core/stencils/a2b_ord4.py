@@ -424,13 +424,12 @@ def compute_qout_x_edges(qin, qout, kstart, nk):
     je1 = grid().je if grid().north_edge else grid().je + 1
     dj2 = je1 - js2 + 1
     if grid().west_edge:
-        print(qin.shape, (grid().is_, js2, kstart), (1, dj2, nk))
         qout_x_edge(
             qin,
             grid().dxa,
-            grid().edge_w,
+            grid().edge_w,  # shape (1, 19)
             qout,
-            origin=(grid().is_, js2, kstart),
+            origin={"_all_": (grid().is_, js2, kstart), "edge_w": (0, js2)},
             domain=(1, dj2, nk),
         )
     if grid().east_edge:
@@ -439,7 +438,10 @@ def compute_qout_x_edges(qin, qout, kstart, nk):
             grid().dxa,
             grid().edge_e,
             qout,
-            origin=(grid().ie + 1, js2, kstart),
+            origin={
+                "_all_": (grid().ie + 1, js2, kstart),
+                "edge_w": (0, js2),
+            },
             domain=(1, dj2, nk),
         )
 

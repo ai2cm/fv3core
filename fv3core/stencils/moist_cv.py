@@ -442,7 +442,7 @@ def compute_pt(
     r_vir: float,
     j_2d: int = None,
 ):
-    origin, domain, jslice = region_mode(j_2d, spec.grid)
+    origin, domain, _ = region_mode(j_2d, spec.grid)
     moist_pt(
         qvapor_js,
         qliquid_js,
@@ -482,7 +482,7 @@ def compute_pkz(
     j_2d: int = None,
 ):
     grid = spec.grid
-    origin, domain, jslice = region_mode(j_2d, grid)
+    origin, domain, _ = region_mode(j_2d, grid)
 
     moist_pkz(
         qvapor_js,
@@ -539,9 +539,11 @@ def compute_total_energy(
 ):
     grid = spec.grid
     if spec.namelist.hydrostatic:
-        raise Exception("Porting compute_total_energy incomplete for hydrostatic=True")
+        raise NotImplementedError(
+            "Porting compute_total_energy incomplete for hydrostatic=True"
+        )
     if not spec.namelist.moist_phys:
-        raise Exception(
+        raise NotImplementedError(
             "To run without moist_phys, the if conditional bug needs to be fixed, "
             "or code needs to be duplicated"
         )
