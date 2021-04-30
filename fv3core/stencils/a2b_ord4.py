@@ -276,92 +276,25 @@ def lagrange_x_func(qy):
 
 
 @gtstencil()
-def qout_edges(
-    qin: FloatField,
-    qout: FloatField,
-    dxa: FloatFieldIJ,
-    dya: FloatFieldIJ,
-    edge_w: FloatFieldIJ,
-    edge_e: FloatFieldIJ,
-    edge_s: FloatFieldI,
-    edge_n: FloatFieldI,
-):
-    from __externals__ import i_end, i_start, j_end, j_start
-
-    with computation(PARALLEL), interval(...):
-        q1 = (qin[0, -1, 0] * dya + qin * dya[0, -1]) / (dya[0, -1] + dya)
-        q2 = (qin[-1, 0, 0] * dxa + qin * dxa[-1, 0]) / (dxa[-1, 0] + dxa)
-        with horizontal(region[i_start, :]):
-            qout = edge_w * q2[0, -1, 0] + (1.0 - edge_w) * q2
-        with horizontal(region[i_end + 1, :]):
-            qout = edge_e * q2[0, -1, 0] + (1.0 - edge_e) * q2
-        with horizontal(region[:, j_start]):
-            qout = edge_s * q1[-1, 0, 0] + (1.0 - edge_s) * q1
-        with horizontal(region[:, j_end + 1]):
-            qout = edge_n * q1[-1, 0, 0] + (1.0 - edge_s) * q1
-
-
-@gtstencil()
 def second_derivative_interpolation(
     qout: FloatField, qin: FloatField, qx: FloatField, qy: FloatField
 ):
     from __externals__ import i_end, i_start, j_end, j_start
 
     with computation(PARALLEL), interval(...):
-        qxx = lagrange_y_func(qx)
+        qxx = a2 * (qx[0, -2, 0] + qx[0, 1, 0]) + a1 * (qx[0, -1, 0] + qx)
         with horizontal(region[:, j_start + 1]):
-            qxx = cubic_interpolation_south(qx, qout, qxx)
+            qxx = c1 * (qx[0, -1, 0] + qx) + c2 * (qout[0, -1, 0] + qxx[0, 1, 0])
         with horizontal(region[:, j_end]):
-            qxx = cubic_interpolation_north(qx, qout, qxx)
-        qyy = lagrange_x_func(qy)
+            qxx = c1 * (qx[0, -1, 0] + qx) + c2 * (qout[0, 1, 0] + qxx[0, -1, 0])
+        qyy = a2 * (qy[-2, 0, 0] + qy[1, 0, 0]) + a1 * (qy[-1, 0, 0] + qy)
         with horizontal(region[i_start + 1, :]):
-            qyy = cubic_interpolation_west(qy, qout, qyy)
+            qyy = c1 * (qy[-1, 0, 0] + qy) + c2 * (qout[-1, 0, 0] + qyy[1, 0, 0])
         with horizontal(region[i_end, :]):
-            qyy = cubic_interpolation_east(qy, qout, qyy)
+            qyy = c1 * (qy[-1, 0, 0] + qy) + c2 * (qout[1, 0, 0] + qyy[-1, 0, 0])
         qout = 0.5 * (qxx + qyy)
 
 
-@gtscript.function
-def cubic_interpolation_south(qx: FloatField, qout: FloatField, qxx: FloatField):
-    return c1 * (qx[0, -1, 0] + qx) + c2 * (qout[0, -1, 0] + qxx[0, 1, 0])
-
-
-@gtscript.function
-def cubic_interpolation_north(qx: FloatField, qout: FloatField, qxx: FloatField):
-    return c1 * (qx[0, -1, 0] + qx) + c2 * (qout[0, 1, 0] + qxx[0, -1, 0])
-
-
-@gtscript.function
-def cubic_interpolation_west(qy: FloatField, qout: FloatField, qyy: FloatField):
-    return c1 * (qy[-1, 0, 0] + qy) + c2 * (qout[-1, 0, 0] + qyy[1, 0, 0])
-
-
-@gtscript.function
-def cubic_interpolation_east(qy: FloatField, qout: FloatField, qyy: FloatField):
-    return c1 * (qy[-1, 0, 0] + qy) + c2 * (qout[1, 0, 0] + qyy[-1, 0, 0])
-
-
-@gtstencil()
-def qout_avg(qxx: FloatField, qyy: FloatField, qout: FloatField):
-    with computation(PARALLEL), interval(...):
-        qout[0, 0, 0] = 0.5 * (qxx + qyy)
-
-
-@gtstencil()
-def vort_adjust(qxx: FloatField, qyy: FloatField, qout: FloatField):
-    with computation(PARALLEL), interval(...):
-        qout[0, 0, 0] = 0.5 * (qxx + qyy)
-
-
-# @gtstencil()
-# def x_edge_q2_west(qin: FloatField, dxa: FloatField, q2: FloatField):
-#    with computation(PARALLEL), interval(...):
-#        q2 = (qin[-1, 0, 0] * dxa + qin * dxa[-1, 0, 0]) / (dxa[-1, 0, 0] + dxa)
-
-# @gtstencil()
-# def x_edge_qout_west_q2(edge_w: FloatField, q2: FloatField, qout: FloatField):
-#    with computation(PARALLEL), interval(...):
-#        qout = edge_w * q2[0, -1, 0] + (1.0 - edge_w) * q2
 @gtstencil()
 def qout_x_edge(
     qin: FloatField, dxa: FloatFieldIJ, edge_w: FloatFieldIJ, qout: FloatField
