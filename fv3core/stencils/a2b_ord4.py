@@ -58,7 +58,7 @@ def extrap_corner(
     return qa + x1 / (x2 - x1) * (qa - qb)
 
 
-@gtscript.function
+@gtstencil()
 def _sw_corner(
     qin: FloatField,
     qout: FloatField,
@@ -67,9 +67,8 @@ def _sw_corner(
     bgrid1: FloatFieldIJ,
     bgrid2: FloatFieldIJ,
 ):
-    from __externals__ import i_start, j_start
 
-    with horizontal(region[i_start, j_start]):
+    with computation(PARALLEL), interval(...):
         ec1 = extrap_corner(
             bgrid1[0, 0],
             bgrid2[0, 0],
@@ -102,102 +101,9 @@ def _sw_corner(
         )
 
         qout = (ec1 + ec2 + ec3) * (1.0 / 3.0)
-    return qout
 
 
-@gtscript.function
-def _se_corner(
-    qin: FloatField,
-    qout: FloatField,
-    agrid1: FloatFieldIJ,
-    agrid2: FloatFieldIJ,
-    bgrid1: FloatFieldIJ,
-    bgrid2: FloatFieldIJ,
-):
-    from __externals__ import i_end, j_start
-
-    with horizontal(region[i_end + 1, j_start]):
-        ec1 = extrap_corner(
-            bgrid1[0, 0],
-            bgrid2[0, 0],
-            agrid1[-1, 0],
-            agrid2[-1, 0],
-            agrid1[-2, 1],
-            agrid2[-2, 1],
-            qin[-1, 0, 0],
-            qin[-2, 1, 0],
-        )
-        ec2 = extrap_corner(
-            bgrid1[0, 0],
-            bgrid2[0, 0],
-            agrid1[-1, -1],
-            agrid2[-1, -1],
-            agrid1[-2, -2],
-            agrid2[-2, -2],
-            qin[-1, -1, 0],
-            qin[-2, -2, 0],
-        )
-        ec3 = extrap_corner(
-            bgrid1[0, 0],
-            bgrid2[0, 0],
-            agrid1[0, 0],
-            agrid2[0, 0],
-            agrid1[1, 1],
-            agrid2[1, 1],
-            qin[0, 0, 0],
-            qin[1, 1, 0],
-        )
-        qout = (ec1 + ec2 + ec3) * (1.0 / 3.0)
-    return qout
-
-
-@gtscript.function
-def _ne_corner(
-    qin: FloatField,
-    qout: FloatField,
-    agrid1: FloatFieldIJ,
-    agrid2: FloatFieldIJ,
-    bgrid1: FloatFieldIJ,
-    bgrid2: FloatFieldIJ,
-):
-    from __externals__ import i_end, j_end
-
-    with horizontal(region[i_end + 1, j_end + 1]):
-        ec1 = extrap_corner(
-            bgrid1[0, 0],
-            bgrid2[0, 0],
-            agrid1[-1, -1],
-            agrid2[-1, -1],
-            agrid1[-2, -2],
-            agrid2[-2, -2],
-            qin[-1, -1, 0],
-            qin[-2, -2, 0],
-        )
-        ec2 = extrap_corner(
-            bgrid1[0, 0],
-            bgrid2[0, 0],
-            agrid1[0, -1],
-            agrid2[0, -1],
-            agrid1[1, -2],
-            agrid2[1, -2],
-            qin[0, -1, 0],
-            qin[1, -2, 0],
-        )
-        ec3 = extrap_corner(
-            bgrid1[0, 0],
-            bgrid2[0, 0],
-            agrid1[-1, 0],
-            agrid2[-1, 0],
-            agrid1[-2, 1],
-            agrid2[-2, 1],
-            qin[-1, 0, 0],
-            qin[-2, 1, 0],
-        )
-        qout = (ec1 + ec2 + ec3) * (1.0 / 3.0)
-    return qout
-
-
-@gtscript.function
+@gtstencil()
 def _nw_corner(
     qin: FloatField,
     qout: FloatField,
@@ -206,9 +112,93 @@ def _nw_corner(
     bgrid1: FloatFieldIJ,
     bgrid2: FloatFieldIJ,
 ):
-    from __externals__ import i_start, j_end
+    with computation(PARALLEL), interval(...):
+        ec1 = extrap_corner(
+            bgrid1[0, 0],
+            bgrid2[0, 0],
+            agrid1[-1, 0],
+            agrid2[-1, 0],
+            agrid1[-2, 1],
+            agrid2[-2, 1],
+            qin[-1, 0, 0],
+            qin[-2, 1, 0],
+        )
+        ec2 = extrap_corner(
+            bgrid1[0, 0],
+            bgrid2[0, 0],
+            agrid1[-1, -1],
+            agrid2[-1, -1],
+            agrid1[-2, -2],
+            agrid2[-2, -2],
+            qin[-1, -1, 0],
+            qin[-2, -2, 0],
+        )
+        ec3 = extrap_corner(
+            bgrid1[0, 0],
+            bgrid2[0, 0],
+            agrid1[0, 0],
+            agrid2[0, 0],
+            agrid1[1, 1],
+            agrid2[1, 1],
+            qin[0, 0, 0],
+            qin[1, 1, 0],
+        )
+        qout = (ec1 + ec2 + ec3) * (1.0 / 3.0)
 
-    with horizontal(region[i_start, j_end + 1]):
+
+@gtstencil()
+def _ne_corner(
+    qin: FloatField,
+    qout: FloatField,
+    agrid1: FloatFieldIJ,
+    agrid2: FloatFieldIJ,
+    bgrid1: FloatFieldIJ,
+    bgrid2: FloatFieldIJ,
+):
+    with computation(PARALLEL), interval(...):
+        ec1 = extrap_corner(
+            bgrid1[0, 0],
+            bgrid2[0, 0],
+            agrid1[-1, -1],
+            agrid2[-1, -1],
+            agrid1[-2, -2],
+            agrid2[-2, -2],
+            qin[-1, -1, 0],
+            qin[-2, -2, 0],
+        )
+        ec2 = extrap_corner(
+            bgrid1[0, 0],
+            bgrid2[0, 0],
+            agrid1[0, -1],
+            agrid2[0, -1],
+            agrid1[1, -2],
+            agrid2[1, -2],
+            qin[0, -1, 0],
+            qin[1, -2, 0],
+        )
+        ec3 = extrap_corner(
+            bgrid1[0, 0],
+            bgrid2[0, 0],
+            agrid1[-1, 0],
+            agrid2[-1, 0],
+            agrid1[-2, 1],
+            agrid2[-2, 1],
+            qin[-1, 0, 0],
+            qin[-2, 1, 0],
+        )
+        qout = (ec1 + ec2 + ec3) * (1.0 / 3.0)
+
+
+@gtstencil()
+def _se_corner(
+    qin: FloatField,
+    qout: FloatField,
+    agrid1: FloatFieldIJ,
+    agrid2: FloatFieldIJ,
+    bgrid1: FloatFieldIJ,
+    bgrid2: FloatFieldIJ,
+):
+    with computation(PARALLEL), interval(...):
         ec1 = extrap_corner(
             bgrid1[0, 0],
             bgrid2[0, 0],
@@ -240,29 +230,22 @@ def _nw_corner(
             qin[1, 1, 0],
         )
         qout = (ec1 + ec2 + ec3) * (1.0 / 3.0)
-    return qout
 
 
 @gtstencil()
-def _a2b_corners(
-    qin: FloatField,
-    qout: FloatField,
-    agrid1: FloatFieldIJ,
-    agrid2: FloatFieldIJ,
-    bgrid1: FloatFieldIJ,
-    bgrid2: FloatFieldIJ,
-):
-    with computation(PARALLEL), interval(...):
-        qout = _sw_corner(qin, qout, agrid1, agrid2, bgrid1, bgrid2)
-        qout = _se_corner(qin, qout, agrid1, agrid2, bgrid1, bgrid2)
-        qout = _ne_corner(qin, qout, agrid1, agrid2, bgrid1, bgrid2)
-        qout = _nw_corner(qin, qout, agrid1, agrid2, bgrid1, bgrid2)
+def ppm_volume_mean_x(qin: FloatField, dxa: FloatFieldIJ, qx: FloatField):
+    from __externals__ import i_end, i_start
 
-
-@gtstencil()
-def ppm_volume_mean_x(qin: FloatField, qx: FloatField):
     with computation(PARALLEL), interval(...):
-        qx[0, 0, 0] = b2 * (qin[-2, 0, 0] + qin[1, 0, 0]) + b1 * (qin[-1, 0, 0] + qin)
+        qx = b2 * (qin[-2, 0, 0] + qin[1, 0, 0]) + b1 * (qin[-1, 0, 0] + qin)
+        with horizontal(region[i_start, :]):
+            qx = qx_edge_west(qin, dxa)
+        with horizontal(region[i_start + 1, :]):
+            qx = qx_edge_west2(qin, dxa, qx)
+        with horizontal(region[i_end + 1, :]):
+            qx = qx_edge_east(qin, dxa)
+        with horizontal(region[i_end, :]):
+            qx = qx_edge_east2(qin, dxa, qx)
 
 
 @gtstencil()
@@ -360,23 +343,45 @@ def qout_y_edge(
         qout[0, 0, 0] = edge_s * q1[-1, 0, 0] + (1.0 - edge_s) * q1
 
 
+# @gtstencil()
+@gtscript.function
+def qx_edge_west(qin: FloatField, dxa: FloatFieldIJ):
+    # with computation(PARALLEL), interval(...):
+    g_in = dxa[1, 0] / dxa
+    g_ou = dxa[-2, 0] / dxa[-1, 0]
+    return 0.5 * (
+        ((2.0 + g_in) * qin - qin[1, 0, 0]) / (1.0 + g_in)
+        + ((2.0 + g_ou) * qin[-1, 0, 0] - qin[-2, 0, 0]) / (1.0 + g_ou)
+    )
+    # This does not work, due to access of qx that is changing above
+
+    # qx[1, 0, 0] = (3.0 * (g_in * qin + qin[1, 0, 0])
+    #     - (g_in * qx + qx[2, 0, 0])) / (2.0 + 2.0 * g_in)
+
+
 @gtstencil()
-def qx_edge_west(qin: FloatField, dxa: FloatFieldIJ, qx: FloatField):
+def qx_edge_west_stencil(qin: FloatField, dxa: FloatFieldIJ, qx: FloatField):
     with computation(PARALLEL), interval(...):
         g_in = dxa[1, 0] / dxa
         g_ou = dxa[-2, 0] / dxa[-1, 0]
-        qx[0, 0, 0] = 0.5 * (
+        qx = 0.5 * (
             ((2.0 + g_in) * qin - qin[1, 0, 0]) / (1.0 + g_in)
             + ((2.0 + g_ou) * qin[-1, 0, 0] - qin[-2, 0, 0]) / (1.0 + g_ou)
         )
-        # This does not work, due to access of qx that is changing above
 
-        # qx[1, 0, 0] = (3.0 * (g_in * qin + qin[1, 0, 0])
-        #     - (g_in * qx + qx[2, 0, 0])) / (2.0 + 2.0 * g_in)
+
+# @gtstencil()
+@gtscript.function
+def qx_edge_west2(qin: FloatField, dxa: FloatFieldIJ, qx: FloatField):
+    # with computation(PARALLEL), interval(...):
+    g_in = dxa / dxa[-1, 0]
+    return (
+        3.0 * (g_in * qin[-1, 0, 0] + qin) - (g_in * qx[-1, 0, 0] + qx[1, 0, 0])
+    ) / (2.0 + 2.0 * g_in)
 
 
 @gtstencil()
-def qx_edge_west2(qin: FloatField, dxa: FloatFieldIJ, qx: FloatField):
+def qx_edge_west2_stencil(qin: FloatField, dxa: FloatFieldIJ, qx: FloatField):
     with computation(PARALLEL), interval(...):
         g_in = dxa / dxa[-1, 0]
         qx0 = qx
@@ -385,25 +390,22 @@ def qx_edge_west2(qin: FloatField, dxa: FloatFieldIJ, qx: FloatField):
         ) / (2.0 + 2.0 * g_in)
 
 
-@gtstencil()
-def qx_edge_east(qin: FloatField, dxa: FloatFieldIJ, qx: FloatField):
-    with computation(PARALLEL), interval(...):
-        g_in = dxa[-2, 0] / dxa[-1, 0]
-        g_ou = dxa[1, 0] / dxa
-        qx[0, 0, 0] = 0.5 * (
-            ((2.0 + g_in) * qin[-1, 0, 0] - qin[-2, 0, 0]) / (1.0 + g_in)
-            + ((2.0 + g_ou) * qin - qin[1, 0, 0]) / (1.0 + g_ou)
-        )
+@gtscript.function
+def qx_edge_east(qin: FloatField, dxa: FloatFieldIJ):
+    g_in = dxa[-2, 0] / dxa[-1, 0]
+    g_ou = dxa[1, 0] / dxa
+    return 0.5 * (
+        ((2.0 + g_in) * qin[-1, 0, 0] - qin[-2, 0, 0]) / (1.0 + g_in)
+        + ((2.0 + g_ou) * qin - qin[1, 0, 0]) / (1.0 + g_ou)
+    )
 
 
-@gtstencil()
+@gtscript.function
 def qx_edge_east2(qin: FloatField, dxa: FloatFieldIJ, qx: FloatField):
-    with computation(PARALLEL), interval(...):
-        g_in = dxa[-1, 0] / dxa
-        qx0 = qx
-        qx = (
-            3.0 * (qin[-1, 0, 0] + g_in * qin) - (g_in * qx0[1, 0, 0] + qx0[-1, 0, 0])
-        ) / (2.0 + 2.0 * g_in)
+    g_in = dxa[-1, 0] / dxa
+    return (
+        3.0 * (qin[-1, 0, 0] + g_in * qin) - (g_in * qx[1, 0, 0] + qx[-1, 0, 0])
+    ) / (2.0 + 2.0 * g_in)
 
 
 @gtstencil()
@@ -515,27 +517,13 @@ def compute_qx(qin, qout, kstart, nk):
     # overwritten.
     js = grid().js if grid().south_edge else grid().js - 2
     je = grid().je if grid().north_edge else grid().je + 2
-    is_ = grid().is_ + 2 if grid().west_edge else grid().is_
-    ie = grid().ie - 1 if grid().east_edge else grid().ie + 1
+    is_ = grid().is_  # grid().is_ + 2 if grid().west_edge else grid().is_
+    ie = grid().ie + 1  # grid().ie - 1 if grid().east_edge else grid().ie + 1
     dj = je - js + 1
     # qx interior
-    ppm_volume_mean_x(qin, qx, origin=(is_, js, kstart), domain=(ie - is_ + 1, dj, nk))
-
-    # qx edges
-    if grid().west_edge:
-        qx_edge_west(
-            qin, grid().dxa, qx, origin=(grid().is_, js, kstart), domain=(1, dj, nk)
-        )
-        qx_edge_west2(
-            qin, grid().dxa, qx, origin=(grid().is_ + 1, js, kstart), domain=(1, dj, nk)
-        )
-    if grid().east_edge:
-        qx_edge_east(
-            qin, grid().dxa, qx, origin=(grid().ie + 1, js, kstart), domain=(1, dj, nk)
-        )
-        qx_edge_east2(
-            qin, grid().dxa, qx, origin=(grid().ie, js, kstart), domain=(1, dj, nk)
-        )
+    ppm_volume_mean_x(
+        qin, grid().dxa, qx, origin=(is_, js, kstart), domain=(ie - is_ + 1, dj, nk)
+    )
     return qx
 
 
@@ -636,15 +624,47 @@ def compute_qout(qxx, qyy, qout, kstart, nk):
 def compute(qin, qout, kstart=0, nk=None, replace=False):
     if nk is None:
         nk = grid().npz - kstart
-    _a2b_corners(
+    corner_domain = (1, 1, nk)
+    _sw_corner(
         qin,
         qout,
         grid().agrid1,
         grid().agrid2,
         grid().bgrid1,
         grid().bgrid2,
-        origin=(grid().isd, grid().jsd, kstart),
-        domain=(grid().nid, grid().njd, nk),
+        origin=(grid().is_, grid().js, kstart),
+        domain=corner_domain,
+    )
+
+    _nw_corner(
+        qin,
+        qout,
+        grid().agrid1,
+        grid().agrid2,
+        grid().bgrid1,
+        grid().bgrid2,
+        origin=(grid().ie + 1, grid().js, kstart),
+        domain=corner_domain,
+    )
+    _ne_corner(
+        qin,
+        qout,
+        grid().agrid1,
+        grid().agrid2,
+        grid().bgrid1,
+        grid().bgrid2,
+        origin=(grid().ie + 1, grid().je + 1, kstart),
+        domain=corner_domain,
+    )
+    _se_corner(
+        qin,
+        qout,
+        grid().agrid1,
+        grid().agrid2,
+        grid().bgrid1,
+        grid().bgrid2,
+        origin=(grid().is_, grid().je + 1, kstart),
+        domain=corner_domain,
     )
     if spec.namelist.grid_type < 3:
         compute_qout_edges(qin, qout, kstart, nk)
