@@ -302,13 +302,6 @@ class AcousticDynamics:
         if self.namelist.rf_fast:
             self._rayleigh_damping = ray_fast.RayleighDamping(self.grid, self.namelist)
 
-        # self._compute_tempadjust_delt_time_factor =
-        self._compute_pkz_tempadjust = StencilWrapper(
-            temperature_adjust.compute_pkz_tempadjust,
-            origin=self.grid.compute_origin(),
-            domain=(self.grid.nic, self.grid.njc, self._nk_heat_dissipation),
-        )
-
         self._compute_pkz_tempadjust = self.initialize_temp_adjust_stencil(
             self.grid,
             self._nk_heat_dissipation,
