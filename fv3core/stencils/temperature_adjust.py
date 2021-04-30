@@ -19,12 +19,12 @@ def compute_pkz_tempadjust(
         Heating is limited by deltmax times the length of a timestep, with the
         highest levels limited further.
     Args:
-        delp: Pressur thickness of atmosphere layers (in)
+        delp: Pressure thickness of atmosphere layers (in)
         delz: Vertical thickness of atmosphere layers (in)
         cappa: Power to raise pressure to (in)
         heat_source: heat source from vorticity damping implied by
             energy conservation (in)
-        pt: Air temperature (inout)
+        pt: Air potential temperature (inout)
         pkz: Layer mean pressure raised to the power of Kappa (in)
         delta_time_factor: scaled time step (in)
     """
