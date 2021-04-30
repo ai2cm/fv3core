@@ -161,7 +161,10 @@ def dyncore_temporaries(shape, namelist, grid):
         grid.full_origin(),
     )
     utils.storage_dict(
-        tmps, ["ws3"], shape[0:2], grid.full_origin()[0:2],
+        tmps,
+        ["ws3"],
+        shape[0:2],
+        grid.full_origin()[0:2],
     )
     utils.storage_dict(
         tmps, ["crx", "xfx"], shape, grid.compute_origin(add=(0, -grid.halo, 0))
@@ -241,18 +244,27 @@ class AcousticDynamics:
                 domain=self.grid.domain_shape_full(add=(0, 0, 1)),
             )
             dp_ref_stencil(
-                ak, bk, phis, dp_ref_3d, zs_3d, 1.0 / constants.GRAV,
+                ak,
+                bk,
+                phis,
+                dp_ref_3d,
+                zs_3d,
+                1.0 / constants.GRAV,
             )
             # After writing, make 'dp_ref' a K-field and 'zs' an IJ-field
             self._dp_ref = utils.make_storage_data(
                 dp_ref_3d[0, 0, :], (dp_ref_3d.shape[2],), (0,)
             )
             self._zs = utils.make_storage_data(zs_3d[:, :, 0], zs_3d.shape[0:2], (0, 0))
-            self._update_height_on_d_grid = updatedzd.UpdateDeltaZOnDGrid(
-                self.grid, self._dp_ref, d_sw.get_column_namelist(), d_sw.k_bounds()
+            column_namelist = d_sw.get_column_namelist(namelist, self.grid.npz)
+            self.update_height_on_d_grid = updatedzd.UpdateDeltaZOnDGrid(
+                self.grid, self._dp_ref, column_namelist, d_sw.k_bounds()
             )
-            self._riem_solver3 = RiemannSolver3(spec.namelist)
-            self._riem_solver_c = RiemannSolverC(spec.namelist)
+            self.dgrid_shallow_water_lagrangian_dynamics = (
+                d_sw.DGridShallowWaterLagrangianDynamics(namelist, column_namelist)
+            )
+            self.riem_solver3 = RiemannSolver3(spec.namelist)
+            self.riem_solver_c = RiemannSolverC(spec.namelist)
 
         self._set_gz = StencilWrapper(
             set_gz,
@@ -275,8 +287,8 @@ class AcousticDynamics:
             externals={"hydrostatic": self.namelist.hydrostatic, **ax_offsets},
         )
 
-        self.update_geopotential_height_on_c_grid = updatedzc.UpdateGeopotentialHeightOnCGrid(
-            self.grid
+        self.update_geopotential_height_on_c_grid = (
+            updatedzc.UpdateGeopotentialHeightOnCGrid(self.grid)
         )
 
         self._zero_data = StencilWrapper(
@@ -363,7 +375,9 @@ class AcousticDynamics:
                     )
                 if it == 0:
                     self._set_gz(
-                        self._zs, state.delz, state.gz,
+                        self._zs,
+                        state.delz,
+                        state.gz,
                     )
                     if self.do_halo_exchange:
                         reqs["gz_quantity"] = self.comm.start_halo_update(
@@ -377,7 +391,9 @@ class AcousticDynamics:
             if it == n_split - 1 and end_step:
                 if self.namelist.use_old_omega:
                     self._set_pem(
-                        state.delp, state.pem, state.ptop,
+                        state.delp,
+                        state.pem,
+                        state.ptop,
                     )
             if self.do_halo_exchange:
                 reqs_vector.wait()
@@ -427,7 +443,7 @@ class AcousticDynamics:
                 self.update_geopotential_height_on_c_grid(
                     self._dp_ref, self._zs, state.ut, state.vt, state.gz, state.ws3, dt2
                 )
-                self._riem_solver_c(
+                self.riem_solver_c(
                     dt2,
                     state.cappa,
                     state.ptop,
@@ -460,7 +476,7 @@ class AcousticDynamics:
                 req_vector_c_grid.wait()
             # use the computed c-grid winds to evolve the d-grid winds forward
             # by 1 timestep
-            d_sw.compute(
+            self.dgrid_shallow_water_lagrangian_dynamics(
                 state.vt,
                 state.delp,
                 state.ptc,
@@ -501,7 +517,7 @@ class AcousticDynamics:
             #    raise 'Unimplemented namelist option d_ext > 0'
 
             if not self.namelist.hydrostatic:
-                self._update_height_on_d_grid(
+                self.update_height_on_d_grid(
                     self._zs,
                     state.zh,
                     state.crx,
@@ -511,7 +527,7 @@ class AcousticDynamics:
                     state.wsd,
                     dt,
                 )
-                self._riem_solver3(
+                self.riem_solver3(
                     remap_step,
                     dt,
                     state.cappa,
