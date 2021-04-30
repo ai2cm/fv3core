@@ -93,48 +93,66 @@ def lagrangian_contributions(
         q2_adds += q2_tmp
 
 
-def compute(
-    q1: FloatField,
-    pe1: FloatField,
-    pe2: FloatField,
-    qs: FloatField,
-    mode: int,
-    i1: int,
-    i2: int,
-    j1: int,
-    j2: int,
-    kord: int,
-    qmin: float = 0.0,
-    version: str = "stencil",
-):
-    remap_profile_k = utils.cached_stencil_class(RemapProfile)(
-        kord, mode, cache_key=f"map_profile_{kord}_{mode}"
-    )
-    dp1, q4_1, q4_2, q4_3, q4_4, origin, domain, i_extent, j_extent = setup_data(
-        q1, pe1, i1, i2, j1, j2
-    )
-    q4_1, q4_2, q4_3, q4_4 = remap_profile_k(
-        qs, q4_1, q4_2, q4_3, q4_4, dp1, i1, i2, j1, j2, qmin
-    )
-    do_lagrangian_contributions(
-        q1,
-        pe1,
-        pe2,
-        q4_1,
-        q4_2,
-        q4_3,
-        q4_4,
-        dp1,
-        i1,
-        i2,
-        j1,
-        j2,
-        kord,
-        origin,
-        domain,
-        version,
-    )
-    return q1
+class MapSingle:
+    """
+    Fortran name is map_single
+    """
+
+    def __init__(self, namelist, kord: int, mode: int):
+        self._remap_profile_k = RemapProfile(kord, mode)
+
+    def __call__(
+        self,
+        q1: FloatField,
+        pe1: FloatField,
+        pe2: FloatField,
+        qs: FloatField,
+        # mode: int,
+        i1: int,
+        i2: int,
+        j1: int,
+        j2: int,
+        # kord: int,
+        qmin: float = 0.0,
+        version: str = "stencil",
+    ):
+        """
+        Compute x-flux using the PPM method.
+
+        Args:
+            q1 (in): Transported scalar
+            pe1 (in): ???
+            pe2 (out): ???
+            qs (out): ???
+            jfirst: Starting index of the J-dir compute domain
+            jlast: Final index of the J-dir compute domain
+        """
+
+        dp1, q4_1, q4_2, q4_3, q4_4, origin, domain, i_extent, j_extent = setup_data(
+            q1, pe1, i1, i2, j1, j2
+        )
+        q4_1, q4_2, q4_3, q4_4 = self._remap_profile_k(
+            qs, q4_1, q4_2, q4_3, q4_4, dp1, i1, i2, j1, j2, qmin
+        )
+        do_lagrangian_contributions(
+            q1,
+            pe1,
+            pe2,
+            q4_1,
+            q4_2,
+            q4_3,
+            q4_4,
+            dp1,
+            i1,
+            i2,
+            j1,
+            j2,
+            kord,
+            origin,
+            domain,
+            version,
+        )
+        return q1
 
 
 def do_lagrangian_contributions(
