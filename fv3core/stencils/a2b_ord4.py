@@ -13,9 +13,9 @@ from gt4py.gtscript import (
 
 import fv3core._config as spec
 import fv3core.utils.gt4py_utils as utils
-# import fv3core.utils.gt4py_utils as utils
-from fv3core.decorators import gtstencil
-from fv3core.stencils.basic_operations import copy_stencil
+from fv3core.decorators import StencilWrapper
+from fv3core.stencils.basic_operations import copy_stencil_method
+from fv3core.utils import axis_offsets
 from fv3core.utils.typing import FloatField, FloatFieldI, FloatFieldIJ
 
 
@@ -30,10 +30,6 @@ b2 = -1.0 / 12.0
 # 4-pt Lagrange interpolation
 a1 = 9.0 / 16.0
 a2 = -1.0 / 16.0
-
-
-def grid():
-    return spec.grid
 
 
 @gtscript.function
@@ -59,7 +55,6 @@ def extrap_corner(
     return qa + x1 / (x2 - x1) * (qa - qb)
 
 
-@gtstencil()
 def _sw_corner(
     qin: FloatField,
     qout: FloatField,
@@ -104,7 +99,6 @@ def _sw_corner(
         qout = (ec1 + ec2 + ec3) * (1.0 / 3.0)
 
 
-@gtstencil()
 def _nw_corner(
     qin: FloatField,
     qout: FloatField,
@@ -147,7 +141,6 @@ def _nw_corner(
         qout = (ec1 + ec2 + ec3) * (1.0 / 3.0)
 
 
-@gtstencil()
 def _ne_corner(
     qin: FloatField,
     qout: FloatField,
@@ -190,7 +183,6 @@ def _ne_corner(
         qout = (ec1 + ec2 + ec3) * (1.0 / 3.0)
 
 
-@gtstencil()
 def _se_corner(
     qin: FloatField,
     qout: FloatField,
@@ -233,38 +225,6 @@ def _se_corner(
         qout = (ec1 + ec2 + ec3) * (1.0 / 3.0)
 
 
-@gtstencil()
-def ppm_volume_mean_x(qin: FloatField, dxa: FloatFieldIJ, qx: FloatField):
-    from __externals__ import i_end, i_start
-
-    with computation(PARALLEL), interval(...):
-        qx = b2 * (qin[-2, 0, 0] + qin[1, 0, 0]) + b1 * (qin[-1, 0, 0] + qin)
-        with horizontal(region[i_start, :]):
-            qx = qx_edge_west(qin, dxa)
-        with horizontal(region[i_start + 1, :]):
-            qx = qx_edge_west2(qin, dxa, qx)
-        with horizontal(region[i_end + 1, :]):
-            qx = qx_edge_east(qin, dxa)
-        with horizontal(region[i_end, :]):
-            qx = qx_edge_east2(qin, dxa, qx)
-
-
-@gtstencil()
-def ppm_volume_mean_y(qin: FloatField, dya: FloatFieldIJ, qy: FloatField):
-    from __externals__ import j_end, j_start
-
-    with computation(PARALLEL), interval(...):
-        qy = b2 * (qin[0, -2, 0] + qin[0, 1, 0]) + b1 * (qin[0, -1, 0] + qin)
-        with horizontal(region[:, j_start]):
-            qy = qy_edge_south(qin, dya)
-        with horizontal(region[:, j_start + 1]):
-            qy = qy_edge_south2(qin, dya, qy)
-        with horizontal(region[:, j_end + 1]):
-            qy = qy_edge_north(qin, dya)
-        with horizontal(region[:, j_end]):
-            qy = qy_edge_north2(qin, dya, qy)
-
-
 @gtscript.function
 def lagrange_y_func(qx):
     return a2 * (qx[0, -2, 0] + qx[0, 1, 0]) + a1 * (qx[0, -1, 0] + qx)
@@ -275,7 +235,6 @@ def lagrange_x_func(qy):
     return a2 * (qy[-2, 0, 0] + qy[1, 0, 0]) + a1 * (qy[-1, 0, 0] + qy)
 
 
-@gtstencil()
 def a2b_interpolation(
     qout: FloatField,
     qin: FloatField,
@@ -321,7 +280,6 @@ def a2b_interpolation(
         qout = 0.5 * (qxx + qyy)
 
 
-@gtstencil()
 def qout_x_edge(
     qin: FloatField, dxa: FloatFieldIJ, edge_w: FloatFieldIJ, qout: FloatField
 ):
@@ -330,7 +288,6 @@ def qout_x_edge(
         qout[0, 0, 0] = edge_w * q2[0, -1, 0] + (1.0 - edge_w) * q2
 
 
-@gtstencil()
 def qout_y_edge(
     qin: FloatField, dya: FloatFieldIJ, edge_s: FloatFieldI, qout: FloatField
 ):
@@ -415,139 +372,168 @@ def qy_edge_north2(qin: FloatField, dya: FloatFieldIJ, qy: FloatField):
     ) / (2.0 + 2.0 * g_in)
 
 
-def compute_qout_edges(qin, qout, kstart, nk):
+class AGrid2BGridFourthOrder:
+    """
+    Fortran name is a2b_ord4, test module is A2B_Ord4
+    """
 
-    js2 = grid().js + 1 if grid().south_edge else grid().js
-    je1 = grid().je if grid().north_edge else grid().je + 1
-    dj2 = je1 - js2 + 1
-    if grid().west_edge:
-        qout_x_edge(
+    def __init__(self, namelist, kstart=0, nk=None, replace=False):
+        assert namelist.grid_type < 3
+        self.grid = spec.grid
+        self.replace = replace
+        shape = self.grid.domain_shape_full(add=(1, 1, 1))
+        full_origin = (self.grid.isd, self.grid.jsd, kstart)
+
+        self._tmp_qx = utils.make_storage_from_shape(shape)
+        self._tmp_qy = utils.make_storage_from_shape(shape)
+        self._tmp_qxx = utils.make_storage_from_shape(shape)
+        self._tmp_qyy = utils.make_storage_from_shape(shape)
+
+        if nk is None:
+            nk = self.grid.npz - kstart
+        corner_domain = (1, 1, nk)
+
+        self._sw_corner_stencil = StencilWrapper(
+            _sw_corner,
+            origin=(self.grid.is_, self.grid.js, kstart),
+            domain=corner_domain,
+        )
+        self._nw_corner_stencil = StencilWrapper(
+            _nw_corner,
+            origin=(self.grid.ie + 1, self.grid.js, kstart),
+            domain=corner_domain,
+        )
+        self._ne_corner_stencil = StencilWrapper(
+            _ne_corner,
+            origin=(self.grid.ie + 1, self.grid.je + 1, kstart),
+            domain=corner_domain,
+        )
+        self._se_corner_stencil = StencilWrapper(
+            _se_corner,
+            origin=(self.grid.is_, self.grid.je + 1, kstart),
+            domain=corner_domain,
+        )
+        js2 = self.grid.js + 1 if self.grid.south_edge else self.grid.js
+        je1 = self.grid.je if self.grid.north_edge else self.grid.je + 1
+        dj2 = je1 - js2 + 1
+        self._qout_x_edge_west = StencilWrapper(
+            qout_x_edge, origin=(self.grid.is_, js2, kstart), domain=(1, dj2, nk)
+        )
+        self._qout_x_edge_east = StencilWrapper(
+            qout_x_edge, origin=(self.grid.ie + 1, js2, kstart), domain=(1, dj2, nk)
+        )
+
+        is2 = self.grid.is_ + 1 if self.grid.west_edge else self.grid.is_
+        ie1 = self.grid.ie if self.grid.east_edge else self.grid.ie + 1
+        di2 = ie1 - is2 + 1
+        self._qout_y_edge_south = StencilWrapper(
+            qout_y_edge, origin=(is2, self.grid.js, kstart), domain=(di2, 1, nk)
+        )
+        self._qout_y_edge_north = StencilWrapper(
+            qout_y_edge, origin=(is2, self.grid.je + 1, kstart), domain=(di2, 1, nk)
+        )
+
+        js = self.grid.js + 1 if self.grid.south_edge else self.grid.js
+        je = self.grid.je if self.grid.north_edge else self.grid.je + 1
+        is_ = self.grid.is_ + 1 if self.grid.west_edge else self.grid.is_
+        ie = self.grid.ie if self.grid.east_edge else self.grid.ie + 1
+        origin = (is_, js, kstart)
+        domain = (ie - is_ + 1, je - js + 1, nk)
+        ax_offsets = axis_offsets(
+            self.grid,
+            origin,
+            domain,
+        )
+        self._a2b_interpolation_stencil = StencilWrapper(
+            a2b_interpolation, externals=ax_offsets, origin=origin, domain=domain
+        )
+        self._copy_stencil = StencilWrapper(
+            copy_stencil_method,
+            origin=(self.grid.is_, self.grid.js, kstart),
+            domain=(self.grid.nic + 2, self.grid.njc + 2, nk),
+        )
+
+    def __call__(self, qin, qout):
+        self._sw_corner_stencil(
             qin,
-            grid().dxa,
-            grid().edge_w,
             qout,
-            origin=(grid().is_, js2, kstart),
-            domain=(1, dj2, nk),
+            self.grid.agrid1,
+            self.grid.agrid2,
+            self.grid.bgrid1,
+            self.grid.bgrid2,
         )
-    if grid().east_edge:
-        qout_x_edge(
+
+        self._nw_corner_stencil(
             qin,
-            grid().dxa,
-            grid().edge_e,
             qout,
-            origin=(grid().ie + 1, js2, kstart),
-            domain=(1, dj2, nk),
+            self.grid.agrid1,
+            self.grid.agrid2,
+            self.grid.bgrid1,
+            self.grid.bgrid2,
         )
-
-    is2 = grid().is_ + 1 if grid().west_edge else grid().is_
-    ie1 = grid().ie if grid().east_edge else grid().ie + 1
-    di2 = ie1 - is2 + 1
-    if grid().south_edge:
-        qout_y_edge(
+        self._ne_corner_stencil(
             qin,
-            grid().dya,
-            grid().edge_s,
             qout,
-            origin=(is2, grid().js, kstart),
-            domain=(di2, 1, nk),
+            self.grid.agrid1,
+            self.grid.agrid2,
+            self.grid.bgrid1,
+            self.grid.bgrid2,
         )
-    if grid().north_edge:
-        qout_y_edge(
+        self._se_corner_stencil(
             qin,
-            grid().dya,
-            grid().edge_n,
             qout,
-            origin=(is2, grid().je + 1, kstart),
-            domain=(di2, 1, nk),
+            self.grid.agrid1,
+            self.grid.agrid2,
+            self.grid.bgrid1,
+            self.grid.bgrid2,
         )
 
+        self.compute_qout_edges(qin, qout)
 
-def compute(qin, qout, kstart=0, nk=None, replace=False):
-    if nk is None:
-        nk = grid().npz - kstart
-    corner_domain = (1, 1, nk)
-    _sw_corner(
-        qin,
-        qout,
-        grid().agrid1,
-        grid().agrid2,
-        grid().bgrid1,
-        grid().bgrid2,
-        origin=(grid().is_, grid().js, kstart),
-        domain=corner_domain,
-    )
-
-    _nw_corner(
-        qin,
-        qout,
-        grid().agrid1,
-        grid().agrid2,
-        grid().bgrid1,
-        grid().bgrid2,
-        origin=(grid().ie + 1, grid().js, kstart),
-        domain=corner_domain,
-    )
-    _ne_corner(
-        qin,
-        qout,
-        grid().agrid1,
-        grid().agrid2,
-        grid().bgrid1,
-        grid().bgrid2,
-        origin=(grid().ie + 1, grid().je + 1, kstart),
-        domain=corner_domain,
-    )
-    _se_corner(
-        qin,
-        qout,
-        grid().agrid1,
-        grid().agrid2,
-        grid().bgrid1,
-        grid().bgrid2,
-        origin=(grid().is_, grid().je + 1, kstart),
-        domain=corner_domain,
-    )
-    if spec.namelist.grid_type < 3:
-
-        compute_qout_edges(qin, qout, kstart, nk)
-
-        qx = utils.make_storage_from_shape(
-            qin.shape, origin=(grid().is_, grid().jsd, kstart), cache_key="a2b_ord4_qx"
-        )
-        qy = utils.make_storage_from_shape(
-            qin.shape, origin=(grid().isd, grid().js, kstart), cache_key="a2b_ord4_qy"
-        )
-        qxx = utils.make_storage_from_shape(
-            qin.shape, origin=(grid().isd, grid().js, kstart), cache_key="a2b_ord4_qxx"
-        )
-
-        qyy = utils.make_storage_from_shape(
-            qin.shape, origin=(grid().isd, grid().js, kstart), cache_key="a2b_ord4_qyy"
-        )
-        js = grid().js + 1 if grid().south_edge else grid().js
-        je = grid().je if grid().north_edge else grid().je + 1
-        is_ = grid().is_ + 1 if grid().west_edge else grid().is_
-        ie = grid().ie if grid().east_edge else grid().ie + 1
-
-        a2b_interpolation(
+        self._a2b_interpolation_stencil(
             qout,
             qin,
-            qx,
-            qy,
-            qxx,
-            qyy,
-            grid().dxa,
-            grid().dya,
-            origin=(is_, js, kstart),
-            domain=(ie - is_ + 1, je - js + 1, nk),
+            self._tmp_qx,
+            self._tmp_qy,
+            self._tmp_qxx,
+            self._tmp_qyy,
+            self.grid.dxa,
+            self.grid.dya,
         )
 
-        if replace:
-            copy_stencil(
+        if self.replace:
+            self._copy_stencil(
                 qout,
                 qin,
-                origin=(grid().is_, grid().js, kstart),
-                domain=(grid().ie - grid().is_ + 2, grid().je - grid().js + 2, nk),
             )
-    else:
-        raise Exception("grid_type >= 3 is not implemented")
+
+    def compute_qout_edges(self, qin, qout):
+        if self.grid.west_edge:
+            self._qout_x_edge_west(
+                qin,
+                self.grid.dxa,
+                self.grid.edge_w,
+                qout,
+            )
+        if self.grid.east_edge:
+            self._qout_x_edge_east(
+                qin,
+                self.grid.dxa,
+                self.grid.edge_e,
+                qout,
+            )
+
+        if self.grid.south_edge:
+            self._qout_y_edge_south(
+                qin,
+                self.grid.dya,
+                self.grid.edge_s,
+                qout,
+            )
+        if self.grid.north_edge:
+            self._qout_y_edge_north(
+                qin,
+                self.grid.dya,
+                self.grid.edge_n,
+                qout,
+            )
