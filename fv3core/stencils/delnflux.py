@@ -898,7 +898,7 @@ def compute_delnflux_no_sg(
 
 
 class DelnFlux:
-    def __init__(self, nmax: int = 3, nk: Optional[int] = None):
+    def __init__(self, nmax: int = 2, nk: Optional[int] = None):
         grid = spec.grid
         i1 = grid.is_ - 1 - nmax
         i2 = grid.ie + 1 + nmax
@@ -1011,6 +1011,9 @@ class DelnFlux:
         f1_ny = grid.je - grid.js + 1 + 2 * nmax
         f1_nx = grid.ie - grid.is_ + 2 + 2 * nmax
         fx_origin = (grid.is_ - nmax, grid.js - nmax, 0)
+
+        with open("./delnflux.log", "a") as log:
+            log.write(f"delnflux: nmax={nmax}, nk={nk}\n")
 
         # preamble_ax_offsets = axis_offsets(spec.grid, origin_d2, domain_d2)
         # full_ax_offsets = axis_offsets(
