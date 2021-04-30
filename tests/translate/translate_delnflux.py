@@ -21,10 +21,9 @@ class TranslateDelnFlux(TranslateFortranData2Py):
     def compute(self, inputs):
         if "mass" not in inputs:
             inputs["mass"] = None
-        self.make_storage_data_input_vars(inputs)
-        inputs["nord"] = inputs.pop("nord_column")
-        self.compute_func(**inputs)
-        return self.slice_output(inputs)
+        return self.column_split_compute(
+            inputs, {"nord": "nord_column", "damp_c": "damp_c"}
+        )
 
 
 class TranslateDelnFlux_2(TranslateDelnFlux):
