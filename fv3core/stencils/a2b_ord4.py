@@ -269,38 +269,14 @@ def lagrange_y_func(qx):
     return a2 * (qx[0, -2, 0] + qx[0, 1, 0]) + a1 * (qx[0, -1, 0] + qx)
 
 
-@gtstencil()
-def qxx_interpolation_y(qx: FloatField, qout: FloatField, qxx: FloatField):
-    from __externals__ import j_end, j_start
-
-    with computation(PARALLEL), interval(...):
-        qxx = lagrange_y_func(qx)
-        with horizontal(region[:, j_start + 1]):
-            qxx = cubic_interpolation_south(qx, qout, qxx)
-        with horizontal(region[:, j_end]):
-            qxx = cubic_interpolation_north(qx, qout, qxx)
-
-
 @gtscript.function
 def lagrange_x_func(qy):
     return a2 * (qy[-2, 0, 0] + qy[1, 0, 0]) + a1 * (qy[-1, 0, 0] + qy)
 
 
 @gtstencil()
-def qyy_interpolation_x(qy: FloatField, qout: FloatField, qyy: FloatField):
-    from __externals__ import i_end, i_start
-
-    with computation(PARALLEL), interval(...):
-        qyy = lagrange_x_func(qy)
-        with horizontal(region[i_start + 1, :]):
-            qyy = cubic_interpolation_west(qy, qout, qyy)
-        with horizontal(region[i_end, :]):
-            qyy = cubic_interpolation_east(qy, qout, qyy)
-
-
-@gtstencil()
 def second_derivative_interpolation(
-    qout: FloatField, qx: FloatField, qy: FloatField, qxx: FloatField, qyy: FloatField
+    qout: FloatField, qx: FloatField, qy: FloatField,
 ):
     from __externals__ import i_end, i_start, j_end, j_start
 
@@ -315,7 +291,7 @@ def second_derivative_interpolation(
             qyy = cubic_interpolation_west(qy, qout, qyy)
         with horizontal(region[i_end, :]):
             qyy = cubic_interpolation_east(qy, qout, qyy)
-
+        qout = 0.5 * (qxx + qyy)
 
 @gtscript.function
 def cubic_interpolation_south(qx: FloatField, qout: FloatField, qxx: FloatField):
@@ -510,18 +486,6 @@ def compute_qout_y_edges(qin, qout, kstart, nk):
         )
 
 
-def compute_qout(qxx, qyy, qout, kstart, nk):
-    # avoid running center-domain computation on tile edges, since they'll be
-    # overwritten.
-    js = grid().js + 1 if grid().south_edge else grid().js
-    je = grid().je if grid().north_edge else grid().je + 1
-    is_ = grid().is_ + 1 if grid().west_edge else grid().is_
-    ie = grid().ie if grid().east_edge else grid().ie + 1
-    qout_avg(
-        qxx, qyy, qout, origin=(is_, js, kstart), domain=(ie - is_ + 1, je - js + 1, nk)
-    )
-
-
 def compute(qin, qout, kstart=0, nk=None, replace=False):
     if nk is None:
         nk = grid().npz - kstart
@@ -590,45 +554,28 @@ def compute(qin, qout, kstart=0, nk=None, replace=False):
             origin=(grid().is_ - 2, grid().js, kstart),
             domain=(grid().nic + 4, grid().njc + 1, nk),
         )
-        qxx = utils.make_storage_from_shape(
-            qx.shape, origin=grid().full_origin(), cache_key="a2b_ord4_qxx"
-        )
-        # qxx_interpolation_y(
-        # qx, qout, qxx, origin=(grid().is_, grid().js, kstart),
-        # domain=(grid().nic + 1, grid().njc + 1, nk)
-        # )
-        qyy = utils.make_storage_from_shape(
-            qy.shape, origin=grid().full_origin(), cache_key="a2b_ord4_qyy"
-        )
-        # qyy_interpolation_x(
-        # qy, qout, qyy, origin=(grid().is_, grid().js, kstart),
-        # domain=(grid().nic + 1, grid().njc + 1, nk)
-        # )
+        #qxx = utils.make_storage_from_shape(
+        #    qx.shape, origin=grid().full_origin(), cache_key="a2b_ord4_qxx"
+        #)
+        #qyy = utils.make_storage_from_shape(
+        #    qy.shape, origin=grid().full_origin(), cache_key="a2b_ord4_qyy"
+        #)
+        js = grid().js  #grid().js + 1 if grid().south_edge else grid().js
+        je = grid().je + 1 #grid().je if grid().north_edge else grid().je + 1
+        is_ =grid().is_ # grid().is_ + 1 if grid().west_edge else grid().is_
+        ie = grid().ie + 1 #grid().ie if grid().east_edge else grid().ie + 1
+        
         second_derivative_interpolation(
             qout,
             qx,
             qy,
-            qxx,
-            qyy,
-            origin=(grid().is_, grid().js, kstart),
-            domain=(grid().nic + 1, grid().njc + 1, nk),
+            #qxx,
+            #qyy,
+            #origin=(grid().is_, grid().js, kstart),
+            #domain=(grid().nic + 1, grid().njc + 1, nk),
+            origin=(is_, js, kstart), domain=(ie - is_ + 1, je - js + 1, nk)
         )
-        js = grid().js + 1 if grid().south_edge else grid().js
-        je = grid().je if grid().north_edge else grid().je + 1
-        is_ = grid().is_ + 1 if grid().west_edge else grid().is_
-        ie = grid().ie if grid().east_edge else grid().ie + 1
-        qout_avg(
-            qxx,
-            qyy,
-            qout,
-            origin=(is_, js, kstart),
-            domain=(ie - is_ + 1, je - js + 1, nk),
-        )
-        # qx = compute_qx(qin, qout, kstart, nk)
-        # qy = compute_qy(qin, qout, kstart, nk)
-        # qxx = compute_qxx(qx, qout, kstart, nk)
-        # qyy = compute_qyy(qy, qout, kstart, nk)
-        # compute_qout(qxx, qyy, qout, kstart, nk)
+     
         if replace:
             copy_stencil(
                 qout,
