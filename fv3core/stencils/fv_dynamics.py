@@ -80,10 +80,14 @@ def compute_preamble(state, comm, grid, namelist):
     )
 
     if state.consv_te > 0 and not state.do_adiabatic_init:
-        raise NotImplementedError("compute total energy is not implemented, it needs an allReduce")
-    
+        raise NotImplementedError(
+            "compute total energy is not implemented, it needs an allReduce"
+        )
+
     if (not namelist.rf_fast) and namelist.tau != 0:
-        raise NotImplementedError("Rayleigh_Super, called when rf_fast=False and tau !=0")
+        raise NotImplementedError(
+            "Rayleigh_Super, called when rf_fast=False and tau !=0"
+        )
 
     if namelist.adiabatic and namelist.kord_tm > 0:
         raise NotImplementedError(

@@ -1,7 +1,7 @@
 from typing import Optional
 
 import gt4py.gtscript as gtscript
-from gt4py.gtscript import BACKWARD, FORWARD, PARALLEL, computation, exp, interval, log
+from gt4py.gtscript import FORWARD, PARALLEL, computation, exp, interval, log
 
 import fv3core._config as spec
 import fv3core.utils.global_constants as constants
@@ -324,7 +324,6 @@ def region_mode(j_2d: Optional[int], grid: Grid):
     return origin, domain, jslice
 
 
-
 def compute_pt(
     qvapor_js: FloatField,
     qliquid_js: FloatField,
@@ -415,7 +414,6 @@ def compute_pkz_stencil_func(
 ):
     with computation(PARALLEL), interval(...):
         pkz = compute_pkz_func(delp, delz, pt, cappa)
-
 
 
 def compute_last_step(

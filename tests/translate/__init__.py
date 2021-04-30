@@ -10,7 +10,6 @@ from .translate_c_sw import (
     TranslateTransportDelp,
     TranslateVorticityTransport_Cgrid,
 )
-
 from .translate_corners import (
     TranslateCopyCorners,
     TranslateFill4Corners,

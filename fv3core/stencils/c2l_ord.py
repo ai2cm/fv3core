@@ -72,24 +72,7 @@ def compute_cubed_to_latlon(
     grid = spec.grid
 
     if spec.namelist.c2l_ord == 2:
-        c2l_ord2(
-            u.storage,
-            v.storage,
-            grid.dx,
-            grid.dy,
-            grid.a11,
-            grid.a12,
-            grid.a21,
-            grid.a22,
-            ua,
-            va,
-            origin=grid.compute_origin(
-                add=(-1, -1, 0) if do_halo_update else (0, 0, 0)
-            ),
-            domain=grid.domain_shape_compute(
-                add=(2, 2, 0) if do_halo_update else (0, 0, 0)
-            ),
-        )
+        raise NotImplementedError("c2l_ord of 2 is not implemented")
     else:
         if do_halo_update:
             comm.vector_halo_update(u, v, n_points=grid.halo)
