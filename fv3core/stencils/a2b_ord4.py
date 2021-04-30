@@ -12,7 +12,7 @@ from gt4py.gtscript import (
 )
 
 import fv3core._config as spec
-import fv3core.utils.gt4py_utils as utils
+# import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import gtstencil
 from fv3core.stencils.basic_operations import copy_stencil
 from fv3core.utils.typing import FloatField, FloatFieldI, FloatFieldIJ
@@ -253,7 +253,7 @@ def ppm_volume_mean_y(qin: FloatField, dya: FloatFieldIJ, qy: FloatField):
     from __externals__ import j_end, j_start
 
     with computation(PARALLEL), interval(...):
-        qy[0, 0, 0] = b2 * (qin[0, -2, 0] + qin[0, 1, 0]) + b1 * (qin[0, -1, 0] + qin)
+        qy = b2 * (qin[0, -2, 0] + qin[0, 1, 0]) + b1 * (qin[0, -1, 0] + qin)
         with horizontal(region[:, j_start]):
             qy = qy_edge_south(qin, dya)
         with horizontal(region[:, j_start + 1]):
@@ -277,12 +277,35 @@ def lagrange_x_func(qy):
 @gtstencil()
 def second_derivative_interpolation(
     qout: FloatField,
-    qx: FloatField,
-    qy: FloatField,
+    qin: FloatField,
+    dxa: FloatFieldIJ,
+    dya: FloatFieldIJ,
+    # qx: FloatField,
+    # qy: FloatField,
 ):
     from __externals__ import i_end, i_start, j_end, j_start
 
     with computation(PARALLEL), interval(...):
+        qx = b2 * (qin[-2, 0, 0] + qin[1, 0, 0]) + b1 * (qin[-1, 0, 0] + qin)
+        with horizontal(region[i_start, :]):
+            qx = qx_edge_west(qin, dxa)
+        with horizontal(region[i_start + 1, :]):
+            qx = qx_edge_west2(qin, dxa, qx)
+        with horizontal(region[i_end + 1, :]):
+            qx = qx_edge_east(qin, dxa)
+        with horizontal(region[i_end, :]):
+            qx = qx_edge_east2(qin, dxa, qx)
+        qy = b2 * (qin[0, -2, 0] + qin[0, 1, 0]) + b1 * (qin[0, -1, 0] + qin)
+        with horizontal(region[:, j_start]):
+            qy = qy_edge_south(qin, dya)
+        with horizontal(region[:, j_start + 1]):
+            qy = qy_edge_south2(qin, dya, qy)
+        with horizontal(region[:, j_end + 1]):
+            qy = qy_edge_north(qin, dya)
+        with horizontal(region[:, j_end]):
+            qy = qy_edge_north2(qin, dya, qy)
+
+        # with computation(PARALLEL), interval(...):
         qxx = lagrange_y_func(qx)
         with horizontal(region[:, j_start + 1]):
             qxx = cubic_interpolation_south(qx, qout, qxx)
@@ -536,6 +559,7 @@ def compute(qin, qout, kstart=0, nk=None, replace=False):
     )
     if spec.namelist.grid_type < 3:
         compute_qout_edges(qin, qout, kstart, nk)
+        """
         qx = utils.make_storage_from_shape(
             qin.shape, origin=(grid().is_, grid().jsd, kstart), cache_key="a2b_ord4_qx"
         )
@@ -557,6 +581,7 @@ def compute(qin, qout, kstart=0, nk=None, replace=False):
             origin=(grid().is_ - 2, grid().js, kstart),
             domain=(grid().nic + 4, grid().njc + 1, nk),
         )
+        """
         js = grid().js + 1 if grid().south_edge else grid().js
         je = grid().je if grid().north_edge else grid().je + 1
         is_ = grid().is_ + 1 if grid().west_edge else grid().is_
@@ -564,8 +589,11 @@ def compute(qin, qout, kstart=0, nk=None, replace=False):
 
         second_derivative_interpolation(
             qout,
-            qx,
-            qy,
+            qin,
+            grid().dxa,
+            grid().dya,
+            # qx,
+            # qy,
             origin=(is_, js, kstart),
             domain=(ie - is_ + 1, je - js + 1, nk),
         )
