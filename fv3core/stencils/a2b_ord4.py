@@ -276,7 +276,9 @@ def lagrange_x_func(qy):
 
 @gtstencil()
 def second_derivative_interpolation(
-    qout: FloatField, qx: FloatField, qy: FloatField,
+    qout: FloatField,
+    qx: FloatField,
+    qy: FloatField,
 ):
     from __externals__ import i_end, i_start, j_end, j_start
 
@@ -292,6 +294,7 @@ def second_derivative_interpolation(
         with horizontal(region[i_end, :]):
             qyy = cubic_interpolation_east(qy, qout, qyy)
         qout = 0.5 * (qxx + qyy)
+
 
 @gtscript.function
 def cubic_interpolation_south(qx: FloatField, qout: FloatField, qxx: FloatField):
@@ -554,28 +557,19 @@ def compute(qin, qout, kstart=0, nk=None, replace=False):
             origin=(grid().is_ - 2, grid().js, kstart),
             domain=(grid().nic + 4, grid().njc + 1, nk),
         )
-        #qxx = utils.make_storage_from_shape(
-        #    qx.shape, origin=grid().full_origin(), cache_key="a2b_ord4_qxx"
-        #)
-        #qyy = utils.make_storage_from_shape(
-        #    qy.shape, origin=grid().full_origin(), cache_key="a2b_ord4_qyy"
-        #)
-        js = grid().js  #grid().js + 1 if grid().south_edge else grid().js
-        je = grid().je + 1 #grid().je if grid().north_edge else grid().je + 1
-        is_ =grid().is_ # grid().is_ + 1 if grid().west_edge else grid().is_
-        ie = grid().ie + 1 #grid().ie if grid().east_edge else grid().ie + 1
-        
+        js = grid().js + 1 if grid().south_edge else grid().js
+        je = grid().je if grid().north_edge else grid().je + 1
+        is_ = grid().is_ + 1 if grid().west_edge else grid().is_
+        ie = grid().ie if grid().east_edge else grid().ie + 1
+
         second_derivative_interpolation(
             qout,
             qx,
             qy,
-            #qxx,
-            #qyy,
-            #origin=(grid().is_, grid().js, kstart),
-            #domain=(grid().nic + 1, grid().njc + 1, nk),
-            origin=(is_, js, kstart), domain=(ie - is_ + 1, je - js + 1, nk)
+            origin=(is_, js, kstart),
+            domain=(ie - is_ + 1, je - js + 1, nk),
         )
-     
+
         if replace:
             copy_stencil(
                 qout,
