@@ -180,7 +180,7 @@ class RiemannSolver3:
            q_con: total condensate mixing ratio (in)
            delp: vertical delta in pressure (in)
            pt: potential temperature (in)
-           zh: geopotential height (inout)
+           zh: geopotential heigh (inout)
            pe: full hydrostatic pressure(inout)
            ppe: non-hydrostatic pressure perturbation (inout)
            pk3: interface pressure raised to power of kappa using constant kappa (inout)
