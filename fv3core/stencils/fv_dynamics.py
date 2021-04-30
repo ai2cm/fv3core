@@ -505,8 +505,8 @@ def fv_dynamics(
         state["atmosphere_hybrid_a_coordinate"],
         state["atmosphere_hybrid_b_coordinate"],
         state["surface_geopotential"],
-        state["specific_humidity"],
-        state["graupel_mixing_ratio"],
+        state["specific_humidity"].data,
+        state["graupel_mixing_ratio"].data,
     )
     dycore.step_dynamics(
         state,
