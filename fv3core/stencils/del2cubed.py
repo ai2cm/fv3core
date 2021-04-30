@@ -6,6 +6,7 @@ import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import StencilWrapper
 from fv3core.utils.grid import axis_offsets
 from fv3core.utils.typing import FloatField, FloatFieldIJ
+from fv3core.stencils.basic_operations import copy_defn
 
 
 #
@@ -90,6 +91,9 @@ class HyperdiffusionDamping:
         self._fy = utils.make_storage_from_shape(
             self.grid.domain_shape_full(add=(1, 1, 1)), origin=origin
         )
+        self._corner_tmp = utils.make_storage_from_shape(
+            self.grid.domain_shape_full(add=(1, 1, 1)), origin=origin
+        )
 
         self._corner_fill = StencilWrapper(
             func=corner_fill,
@@ -102,6 +106,26 @@ class HyperdiffusionDamping:
         self._compute_zonal_flux = StencilWrapper(func=compute_zonal_flux)
         self._compute_meridional_flux = StencilWrapper(func=compute_meridional_flux)
         self._update_q = StencilWrapper(func=update_q)
+
+        self._copy_full_domain = StencilWrapper(
+            func=copy_defn, origin=origin, domain=domain
+        )
+        self._copy_corners_x = StencilWrapper(
+            func=corners.copy_corners_x_stencil_in_out,
+            origin=(self.grid.isd, self.grid.jsd, 0),
+            domain=(self.grid.nid, self.grid.njd, self.grid.npz),
+            externals={
+                **ax_offsets,
+            },
+        )
+        self._copy_corners_y = StencilWrapper(
+            func=corners.copy_corners_y_stencil_in_out,
+            origin=(self.grid.isd, self.grid.jsd, 0),
+            domain=(self.grid.nid, self.grid.njd, self.grid.npz),
+            externals={
+                **ax_offsets,
+            },
+        )
 
     def __call__(self, qdel: FloatField, nmax: int, cd: float):
         """
@@ -121,11 +145,14 @@ class HyperdiffusionDamping:
             self._corner_fill(qdel)
 
             if nt > 0:
-                corners.copy_corners_x_stencil(
-                    qdel,
-                    origin=(self.grid.isd, self.grid.jsd, 0),
-                    domain=(self.grid.nid, self.grid.njd, self.grid.npz),
-                )
+                self._copy_full_domain(qdel, self._corner_tmp)
+                self._copy_corners_x(self._corner_tmp, qdel)
+                # corners.copy_corners_x_stencil(
+                #     self._corner_tmp,
+                #     qdel,
+                #     origin=(self.grid.isd, self.grid.jsd, 0),
+                #     domain=(self.grid.nid, self.grid.njd, self.grid.npz),
+                # )
             nx = self.grid.nic + 2 * nt + 1
             ny = self.grid.njc + 2 * nt
             self._compute_zonal_flux(
@@ -137,11 +164,13 @@ class HyperdiffusionDamping:
             )
 
             if nt > 0:
-                corners.copy_corners_y_stencil(
-                    qdel,
-                    origin=(self.grid.isd, self.grid.jsd, 0),
-                    domain=(self.grid.nid, self.grid.njd, self.grid.npz),
-                )
+                self._copy_full_domain(qdel, self._corner_tmp)
+                self._copy_corners_y(self._corner_tmp, qdel)
+                # corners.copy_corners_y_stencil(
+                #     qdel,
+                #     origin=(self.grid.isd, self.grid.jsd, 0),
+                #     domain=(self.grid.nid, self.grid.njd, self.grid.npz),
+                # )
             nx = self.grid.nic + 2 * nt
             ny = self.grid.njc + 2 * nt + 1
             self._compute_meridional_flux(

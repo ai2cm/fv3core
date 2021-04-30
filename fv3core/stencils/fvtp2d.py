@@ -9,6 +9,8 @@ from fv3core.stencils import d_sw, delnflux
 from fv3core.stencils.xppm import XPiecewiseParabolic
 from fv3core.stencils.yppm import YPiecewiseParabolic
 from fv3core.utils.typing import FloatField, FloatFieldIJ
+from fv3core.stencils.basic_operations import copy_defn
+from fv3core.utils.grid import axis_offsets
 
 
 @gtscript.function
@@ -117,6 +119,31 @@ class FiniteVolumeTransport:
         self.y_piecewise_parabolic_outer = YPiecewiseParabolic(
             namelist, ord_outer, self.grid.is_, self.grid.ie
         )
+        origin = self.grid.full_origin()
+        domain = self.grid.domain_shape_full()
+        ax_offsets = axis_offsets(spec.grid, origin, domain)
+        self._copy_full_domain = StencilWrapper(
+            func=copy_defn, origin=origin, domain=domain
+        )
+        self._copy_corners_x = StencilWrapper(
+            func=corners.copy_corners_x_stencil_in_out,
+            origin=self.grid.full_origin(),
+            domain=self.grid.domain_shape_full(add=(0, 0, 1)),
+            externals={
+                **ax_offsets,
+            },
+        )
+        self._copy_corners_y = StencilWrapper(
+            func=corners.copy_corners_y_stencil_in_out,
+            origin=self.grid.full_origin(),
+            domain=self.grid.domain_shape_full(add=(0, 0, 1)),
+            externals={
+                **ax_offsets,
+            },
+        )
+        self._corner_tmp = utils.make_storage_from_shape(
+            self.grid.domain_shape_full(add=(1, 1, 1)), origin=origin
+        )
 
     def __call__(
         self,
@@ -151,9 +178,11 @@ class FiniteVolumeTransport:
             mfy: ???
         """
         grid = self.grid
-        corners.copy_corners_y_stencil(
-            q, origin=grid.full_origin(), domain=grid.domain_shape_full(add=(0, 0, 1))
-        )
+        self._copy_full_domain(q, self._corner_tmp)
+        self._copy_corners_y(self._corner_tmp, q)
+        # corners.copy_corners_y_stencil(
+        #     q, origin=grid.full_origin(), domain=grid.domain_shape_full(add=(0, 0, 1))
+        # )
         self.y_piecewise_parabolic_inner(q, cry, self._tmp_fy2)
         self.stencil_q_i(
             q,
@@ -163,9 +192,11 @@ class FiniteVolumeTransport:
             self._tmp_q_i,
         )
         self.x_piecewise_parabolic_outer(self._tmp_q_i, crx, fx)
-        corners.copy_corners_x_stencil(
-            q, origin=grid.full_origin(), domain=grid.domain_shape_full(add=(0, 0, 1))
-        )
+        self._copy_full_domain(q, self._corner_tmp)
+        self._copy_corners_x(self._corner_tmp, q)
+        # corners.copy_corners_x_stencil(
+        #     q, origin=grid.full_origin(), domain=grid.domain_shape_full(add=(0, 0, 1))
+        # )
         self.x_piecewise_parabolic_inner(q, crx, self._tmp_fx2)
         self.stencil_q_j(
             q,
