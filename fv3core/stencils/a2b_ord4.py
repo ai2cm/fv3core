@@ -249,10 +249,18 @@ def ppm_volume_mean_x(qin: FloatField, dxa: FloatFieldIJ, qx: FloatField):
 
 
 @gtstencil()
-def ppm_volume_mean_y(qin: FloatField, qy: FloatField):
+def ppm_volume_mean_y(qin: FloatField, dya: FloatFieldIJ, qy: FloatField):
+    from __externals__ import j_end, j_start
     with computation(PARALLEL), interval(...):
         qy[0, 0, 0] = b2 * (qin[0, -2, 0] + qin[0, 1, 0]) + b1 * (qin[0, -1, 0] + qin)
-
+        with horizontal(region[:, j_start]):
+            qy = qy_edge_south(qin, dya)
+        with horizontal(region[:, j_start + 1]):
+            qy = qy_edge_south2(qin, dya, qy)
+        with horizontal(region[:, j_end + 1]):
+            qy = qy_edge_north(qin, dya)
+        with horizontal(region[:, j_end]):
+            qy = qy_edge_north2(qin, dya, qy)
 
 @gtscript.function
 def lagrange_y_func(qx):
@@ -343,10 +351,8 @@ def qout_y_edge(
         qout[0, 0, 0] = edge_s * q1[-1, 0, 0] + (1.0 - edge_s) * q1
 
 
-# @gtstencil()
 @gtscript.function
 def qx_edge_west(qin: FloatField, dxa: FloatFieldIJ):
-    # with computation(PARALLEL), interval(...):
     g_in = dxa[1, 0] / dxa
     g_ou = dxa[-2, 0] / dxa[-1, 0]
     return 0.5 * (
@@ -359,35 +365,12 @@ def qx_edge_west(qin: FloatField, dxa: FloatFieldIJ):
     #     - (g_in * qx + qx[2, 0, 0])) / (2.0 + 2.0 * g_in)
 
 
-@gtstencil()
-def qx_edge_west_stencil(qin: FloatField, dxa: FloatFieldIJ, qx: FloatField):
-    with computation(PARALLEL), interval(...):
-        g_in = dxa[1, 0] / dxa
-        g_ou = dxa[-2, 0] / dxa[-1, 0]
-        qx = 0.5 * (
-            ((2.0 + g_in) * qin - qin[1, 0, 0]) / (1.0 + g_in)
-            + ((2.0 + g_ou) * qin[-1, 0, 0] - qin[-2, 0, 0]) / (1.0 + g_ou)
-        )
-
-
-# @gtstencil()
 @gtscript.function
 def qx_edge_west2(qin: FloatField, dxa: FloatFieldIJ, qx: FloatField):
-    # with computation(PARALLEL), interval(...):
     g_in = dxa / dxa[-1, 0]
     return (
         3.0 * (g_in * qin[-1, 0, 0] + qin) - (g_in * qx[-1, 0, 0] + qx[1, 0, 0])
     ) / (2.0 + 2.0 * g_in)
-
-
-@gtstencil()
-def qx_edge_west2_stencil(qin: FloatField, dxa: FloatFieldIJ, qx: FloatField):
-    with computation(PARALLEL), interval(...):
-        g_in = dxa / dxa[-1, 0]
-        qx0 = qx
-        qx = (
-            3.0 * (g_in * qin[-1, 0, 0] + qin) - (g_in * qx0[-1, 0, 0] + qx0[1, 0, 0])
-        ) / (2.0 + 2.0 * g_in)
 
 
 @gtscript.function
@@ -408,47 +391,41 @@ def qx_edge_east2(qin: FloatField, dxa: FloatFieldIJ, qx: FloatField):
     ) / (2.0 + 2.0 * g_in)
 
 
-@gtstencil()
-def qy_edge_south(qin: FloatField, dya: FloatFieldIJ, qy: FloatField):
-    with computation(PARALLEL), interval(...):
-        g_in = dya[0, 1] / dya
-        g_ou = dya[0, -2] / dya[0, -1]
-        qy[0, 0, 0] = 0.5 * (
-            ((2.0 + g_in) * qin - qin[0, 1, 0]) / (1.0 + g_in)
-            + ((2.0 + g_ou) * qin[0, -1, 0] - qin[0, -2, 0]) / (1.0 + g_ou)
-        )
+@gtscript.function
+def qy_edge_south(qin: FloatField, dya: FloatFieldIJ):
+    g_in = dya[0, 1] / dya
+    g_ou = dya[0, -2] / dya[0, -1]
+    return 0.5 * (
+        ((2.0 + g_in) * qin - qin[0, 1, 0]) / (1.0 + g_in)
+        + ((2.0 + g_ou) * qin[0, -1, 0] - qin[0, -2, 0]) / (1.0 + g_ou)
+    )
 
 
-@gtstencil()
+@gtscript.function
 def qy_edge_south2(qin: FloatField, dya: FloatFieldIJ, qy: FloatField):
-    with computation(PARALLEL), interval(...):
-        g_in = dya / dya[0, -1]
-        qy0 = qy
-        qy = (
-            3.0 * (g_in * qin[0, -1, 0] + qin) - (g_in * qy0[0, -1, 0] + qy0[0, 1, 0])
-        ) / (2.0 + 2.0 * g_in)
+    g_in = dya / dya[0, -1]
+    return (
+        3.0 * (g_in * qin[0, -1, 0] + qin) - (g_in * qy[0, -1, 0] + qy[0, 1, 0])
+    ) / (2.0 + 2.0 * g_in)
 
 
-@gtstencil()
-def qy_edge_north(qin: FloatField, dya: FloatFieldIJ, qy: FloatField):
-    with computation(PARALLEL), interval(...):
-        g_in = dya[0, -2] / dya[0, -1]
-        g_ou = dya[0, 1] / dya
-        qy[0, 0, 0] = 0.5 * (
-            ((2.0 + g_in) * qin[0, -1, 0] - qin[0, -2, 0]) / (1.0 + g_in)
-            + ((2.0 + g_ou) * qin - qin[0, 1, 0]) / (1.0 + g_ou)
-        )
+@gtscript.function
+def qy_edge_north(qin: FloatField, dya: FloatFieldIJ):
+    g_in = dya[0, -2] / dya[0, -1]
+    g_ou = dya[0, 1] / dya
+    return 0.5 * (
+        ((2.0 + g_in) * qin[0, -1, 0] - qin[0, -2, 0]) / (1.0 + g_in)
+        + ((2.0 + g_ou) * qin - qin[0, 1, 0]) / (1.0 + g_ou)
+    )
 
 
-@gtstencil()
+@gtscript.function
 def qy_edge_north2(qin: FloatField, dya: FloatFieldIJ, qy: FloatField):
-    with computation(PARALLEL), interval(...):
-        g_in = dya[0, -1] / dya
-        qy0 = qy
-        qy = (
-            3.0 * (qin[0, -1, 0] + g_in * qin) - (g_in * qy0[0, 1, 0] + qy0[0, -1, 0])
-        ) / (2.0 + 2.0 * g_in)
-
+    g_in = dya[0, -1] / dya
+    return (
+        3.0 * (qin[0, -1, 0] + g_in * qin) - (g_in * qy[0, 1, 0] + qy[0, -1, 0])
+    ) / (2.0 + 2.0 * g_in)
+    
 
 def compute_qout_edges(qin, qout, kstart, nk):
     compute_qout_x_edges(qin, qout, kstart, nk)
@@ -512,17 +489,14 @@ def compute_qx(qin, qout, kstart, nk):
     qx = utils.make_storage_from_shape(
         qin.shape, origin=(grid().is_, grid().jsd, kstart), cache_key="a2b_ord4_qx"
     )
-    # qx bounds
-    # avoid running center-domain computation on tile edges, since they'll be
-    # overwritten.
-    js = grid().js if grid().south_edge else grid().js - 2
-    je = grid().je if grid().north_edge else grid().je + 2
-    is_ = grid().is_  # grid().is_ + 2 if grid().west_edge else grid().is_
-    ie = grid().ie + 1  # grid().ie - 1 if grid().east_edge else grid().ie + 1
+    js = grid().js - 2 
+    je = grid().je + 2
+    is_ = grid().is_ 
+    ie = grid().ie + 1
     dj = je - js + 1
     # qx interior
     ppm_volume_mean_x(
-        qin, grid().dxa, qx, origin=(is_, js, kstart), domain=(ie - is_ + 1, dj, nk)
+        qin, grid().dxa, qx, origin=(grid().is_, grid().js - 2, kstart), domain=(grid().nic + 1, grid().njc + 4, nk)
     )
     return qx
 
@@ -534,14 +508,15 @@ def compute_qy(qin, qout, kstart, nk):
     # qy bounds
     # avoid running center-domain computation on tile edges, since they'll be
     # overwritten.
-    js = grid().js + 2 if grid().south_edge else grid().js
-    je = grid().je - 1 if grid().north_edge else grid().je + 1
-    is_ = grid().is_ if grid().west_edge else grid().is_ - 2
-    ie = grid().ie if grid().east_edge else grid().ie + 2
+    js = grid().js
+    je = grid().je + 1
+    is_ = grid().is_ - 2
+    ie = grid().ie + 2
     di = ie - is_ + 1
     # qy interior
-    ppm_volume_mean_y(qin, qy, origin=(is_, js, kstart), domain=(di, je - js + 1, nk))
+    ppm_volume_mean_y(qin, grid().dya, qy, origin=(is_, js, kstart), domain=(di, je - js + 1, nk))
     # qy edges
+    """
     if grid().south_edge:
         qy_edge_south(
             qin, grid().dya, qy, origin=(is_, grid().js, kstart), domain=(di, 1, nk)
@@ -556,6 +531,7 @@ def compute_qy(qin, qout, kstart, nk):
         qy_edge_north2(
             qin, grid().dya, qy, origin=(is_, grid().je, kstart), domain=(di, 1, nk)
         )
+    """
     return qy
 
 
@@ -668,8 +644,19 @@ def compute(qin, qout, kstart=0, nk=None, replace=False):
     )
     if spec.namelist.grid_type < 3:
         compute_qout_edges(qin, qout, kstart, nk)
-        qx = compute_qx(qin, qout, kstart, nk)
-        qy = compute_qy(qin, qout, kstart, nk)
+        qx = utils.make_storage_from_shape(
+            qin.shape, origin=(grid().is_, grid().jsd, kstart), cache_key="a2b_ord4_qx"
+        )
+    
+        ppm_volume_mean_x(
+            qin, grid().dxa, qx, origin=(grid().is_, grid().js - 2, kstart), domain=(grid().nic + 1, grid().njc + 4, nk)
+        )
+        qy = utils.make_storage_from_shape(
+            qin.shape, origin=(grid().isd, grid().js, kstart), cache_key="a2b_ord4_qy"
+        )
+        ppm_volume_mean_y(qin, grid().dya, qy, origin=( grid().is_ - 2, grid().js, kstart), domain=(grid().nic + 4, grid().njc + 1, nk))
+        #qx = compute_qx(qin, qout, kstart, nk)
+        #qy = compute_qy(qin, qout, kstart, nk)
         qxx = compute_qxx(qx, qout, kstart, nk)
         qyy = compute_qyy(qy, qout, kstart, nk)
         compute_qout(qxx, qyy, qout, kstart, nk)
