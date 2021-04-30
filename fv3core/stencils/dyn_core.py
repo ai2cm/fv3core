@@ -13,13 +13,10 @@ import fv3core._config as spec
 import fv3core.stencils.basic_operations as basic
 import fv3core.stencils.c_sw as c_sw
 import fv3core.stencils.d_sw as d_sw
-import fv3core.stencils.del2cubed as del2cubed
 import fv3core.stencils.nh_p_grad as nh_p_grad
 import fv3core.stencils.pe_halo as pe_halo
 import fv3core.stencils.pk3_halo as pk3_halo
 import fv3core.stencils.ray_fast as ray_fast
-import fv3core.stencils.riem_solver3 as riem_solver3
-import fv3core.stencils.riem_solver_c as riem_solver_c
 import fv3core.stencils.temperature_adjust as temperature_adjust
 import fv3core.stencils.updatedzc as updatedzc
 import fv3core.stencils.updatedzd as updatedzd
@@ -28,8 +25,11 @@ import fv3core.utils.global_constants as constants
 import fv3core.utils.gt4py_utils as utils
 import fv3gfs.util
 import fv3gfs.util as fv3util
-from fv3core.decorators import FixedOriginStencil
+from fv3core.decorators import StencilWrapper
 from fv3core.stencils.basic_operations import copy_stencil
+from fv3core.stencils.del2cubed import HyperdiffusionDamping
+from fv3core.stencils.riem_solver3 import RiemannSolver3
+from fv3core.stencils.riem_solver_c import RiemannSolverC
 from fv3core.utils.grid import axis_offsets
 from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
 
@@ -160,15 +160,6 @@ def dyncore_temporaries(shape, namelist, grid):
         shape,
         grid.full_origin(),
     )
-    if not namelist.hydrostatic:
-        # To write lower dimensional storages, these need to be 3D
-        # then converted to lower dimensional
-        utils.storage_dict(
-            tmps,
-            ["dp_ref", "zs"],
-            shape,
-            grid.full_origin(),
-        )
     utils.storage_dict(
         tmps,
         ["ws3"],
@@ -203,7 +194,22 @@ class AcousticDynamics:
     Peforms the Lagrangian acoustic dynamics described by Lin 2004
     """
 
-    def __init__(self, comm: fv3gfs.util.CubedSphereCommunicator, namelist):
+    def __init__(
+        self,
+        comm: fv3gfs.util.CubedSphereCommunicator,
+        namelist,
+        ak: FloatFieldK,
+        bk: FloatFieldK,
+        phis: FloatFieldIJ,
+    ):
+        """
+        Args:
+            comm: object for cubed sphere inter-process communication
+            namelist: flattened Fortran namelist
+            ak: atmosphere hybrid a coordinate (Pa)
+            bk: atmosphere hybrid b coordinate (dimensionless)
+            phis: surface geopotential height
+        """
         self.comm = comm
         self.namelist = namelist
         assert self.namelist.d_ext == 0, "d_ext != 0 is not implemented"
@@ -221,17 +227,51 @@ class AcousticDynamics:
         self._temporaries["gz"][:] = HUGE_R
         if not namelist.hydrostatic:
             self._temporaries["pk3"][:] = HUGE_R
-        self._dp_ref_compute = FixedOriginStencil(
-            dp_ref_compute,
-            origin=self.grid.full_origin(),
-            domain=self.grid.domain_shape_full(add=(0, 0, 1)),
-        )
-        self._set_gz = FixedOriginStencil(
+
+        if not namelist.hydrostatic:
+            # To write lower dimensional storages, these need to be 3D
+            # then converted to lower dimensional
+            dp_ref_3d = utils.make_storage_from_shape(
+                self.grid.domain_shape_full(add=(1, 1, 1)), self.grid.full_origin()
+            )
+            zs_3d = utils.make_storage_from_shape(
+                self.grid.domain_shape_full(add=(1, 1, 1)), self.grid.full_origin()
+            )
+
+            dp_ref_stencil = StencilWrapper(
+                dp_ref_compute,
+                origin=self.grid.full_origin(),
+                domain=self.grid.domain_shape_full(add=(0, 0, 1)),
+            )
+            dp_ref_stencil(
+                ak,
+                bk,
+                phis,
+                dp_ref_3d,
+                zs_3d,
+                1.0 / constants.GRAV,
+            )
+            # After writing, make 'dp_ref' a K-field and 'zs' an IJ-field
+            self._dp_ref = utils.make_storage_data(
+                dp_ref_3d[0, 0, :], (dp_ref_3d.shape[2],), (0,)
+            )
+            self._zs = utils.make_storage_data(zs_3d[:, :, 0], zs_3d.shape[0:2], (0, 0))
+            column_namelist = d_sw.get_column_namelist(namelist, self.grid.npz)
+            self.update_height_on_d_grid = updatedzd.UpdateDeltaZOnDGrid(
+                self.grid, self._dp_ref, column_namelist, d_sw.k_bounds()
+            )
+            self.dgrid_shallow_water_lagrangian_dynamics = (
+                d_sw.DGridShallowWaterLagrangianDynamics(namelist, column_namelist)
+            )
+            self.riem_solver3 = RiemannSolver3(spec.namelist)
+            self.riem_solver_c = RiemannSolverC(spec.namelist)
+
+        self._set_gz = StencilWrapper(
             set_gz,
             origin=self.grid.compute_origin(),
             domain=self.grid.domain_shape_compute(add=(0, 0, 1)),
         )
-        self._set_pem = FixedOriginStencil(
+        self._set_pem = StencilWrapper(
             set_pem,
             origin=self.grid.compute_origin(add=(-1, -1, 0)),
             domain=self.grid.domain_shape_compute(add=(2, 2, 0)),
@@ -240,17 +280,31 @@ class AcousticDynamics:
         pgradc_origin = self.grid.compute_origin()
         pgradc_domain = self.grid.domain_shape_compute(add=(1, 1, 0))
         ax_offsets = axis_offsets(self.grid, pgradc_origin, pgradc_domain)
-        self._p_grad_c = FixedOriginStencil(
+        self._p_grad_c = StencilWrapper(
             p_grad_c_stencil,
             origin=pgradc_origin,
             domain=pgradc_domain,
             externals={"hydrostatic": self.namelist.hydrostatic, **ax_offsets},
         )
-        self._zero_data = FixedOriginStencil(
+
+        self.update_geopotential_height_on_c_grid = (
+            updatedzc.UpdateGeopotentialHeightOnCGrid(self.grid)
+        )
+
+        self._zero_data = StencilWrapper(
             zero_data,
             origin=self.grid.full_origin(),
             domain=self.grid.domain_shape_full(),
         )
+
+        self._do_del2cubed = (
+            self._nk_heat_dissipation != 0 and self.namelist.d_con > 1.0e-5
+        )
+
+        if self._do_del2cubed:
+            self._hyperdiffusion = HyperdiffusionDamping(self.grid)
+        if self.namelist.rf_fast:
+            self._rayleigh_damping = ray_fast.RayleighDamping(self.grid, self.namelist)
 
     def __call__(self, state):
         # u, v, w, delz, delp, pt, pe, pk, phis, wsd, omga, ua, va, uc, vc, mfxd,
@@ -295,21 +349,6 @@ class AcousticDynamics:
             state.diss_estd,
             state.n_map == 1,
         )
-        if not self.namelist.hydrostatic:
-            # k1k = akap / (1.0 - akap)
-            self._dp_ref_compute(
-                state.ak,
-                state.bk,
-                state.phis,
-                state.dp_ref,
-                state.zs,
-                rgrav,
-            )
-            # After writing, make 'dp_ref' a K-field and 'zs' an IJ-field
-            state.dp_ref = utils.make_storage_data(
-                state.dp_ref[0, 0, :], (shape[2],), (0,)
-            )
-            state.zs = utils.make_storage_data(state.zs[:, :, 0], shape[0:2], (0, 0))
 
         # "acoustic" loop
         # called this because its timestep is usually limited by horizontal sound-wave
@@ -336,7 +375,7 @@ class AcousticDynamics:
                     )
                 if it == 0:
                     self._set_gz(
-                        state.zs,
+                        self._zs,
                         state.delz,
                         state.gz,
                     )
@@ -401,23 +440,21 @@ class AcousticDynamics:
                         domain=self.grid.domain_shape_full(add=(0, 0, 1)),
                     )
             if not self.namelist.hydrostatic:
-                updatedzc.compute(
-                    state.dp_ref, state.zs, state.ut, state.vt, state.gz, state.ws3, dt2
+                self.update_geopotential_height_on_c_grid(
+                    self._dp_ref, self._zs, state.ut, state.vt, state.gz, state.ws3, dt2
                 )
-                riem_solver_c.compute(
-                    ms,
+                self.riem_solver_c(
                     dt2,
-                    akap,
                     state.cappa,
                     state.ptop,
                     state.phis,
-                    state.omga,
+                    state.ws3,
                     state.ptc,
                     state.q_con,
                     state.delpc,
                     state.gz,
                     state.pkc,
-                    state.ws3,
+                    state.omga,
                 )
 
             self._p_grad_c(
@@ -439,7 +476,7 @@ class AcousticDynamics:
                 req_vector_c_grid.wait()
             # use the computed c-grid winds to evolve the d-grid winds forward
             # by 1 timestep
-            d_sw.compute(
+            self.dgrid_shallow_water_lagrangian_dynamics(
                 state.vt,
                 state.delp,
                 state.ptc,
@@ -480,9 +517,8 @@ class AcousticDynamics:
             #    raise 'Unimplemented namelist option d_ext > 0'
 
             if not self.namelist.hydrostatic:
-                updatedzd.compute(
-                    state.dp_ref,
-                    state.zs,
+                self.update_height_on_d_grid(
+                    self._zs,
                     state.zh,
                     state.crx,
                     state.cry,
@@ -491,15 +527,13 @@ class AcousticDynamics:
                     state.wsd,
                     dt,
                 )
-
-                riem_solver3.compute(
+                self.riem_solver3(
                     remap_step,
                     dt,
-                    akap,
                     state.cappa,
                     state.ptop,
-                    state.zs,
-                    state.w,
+                    self._zs,
+                    state.wsd,
                     state.delz,
                     state.q_con,
                     state.delp,
@@ -510,7 +544,7 @@ class AcousticDynamics:
                     state.pk3,
                     state.pk,
                     state.peln,
-                    state.wsd,
+                    state.w,
                 )
 
                 if self.do_halo_exchange:
@@ -563,11 +597,11 @@ class AcousticDynamics:
             if self.namelist.rf_fast:
                 # TODO: Pass through ks, or remove, inconsistent representation vs
                 # Fortran.
-                ray_fast.compute(
+                self._rayleigh_damping(
                     state.u,
                     state.v,
                     state.w,
-                    state.dp_ref,
+                    self._dp_ref,
                     state.pfull,
                     dt,
                     state.ptop,
@@ -585,7 +619,7 @@ class AcousticDynamics:
                             state.u_quantity, state.v_quantity
                         )
 
-        if self._nk_heat_dissipation != 0 and self.namelist.d_con > 1.0e-5:
+        if self._do_del2cubed:
             nf_ke = min(3, self.namelist.nord + 1)
 
             if self.do_halo_exchange:
@@ -593,7 +627,7 @@ class AcousticDynamics:
                     state.heat_source_quantity, n_points=self.grid.halo
                 )
             cd = constants.CNST_0P20 * self.grid.da_min
-            del2cubed.compute(state.heat_source, nf_ke, cd, self.grid.npz)
+            self._hyperdiffusion(state.heat_source, nf_ke, cd)
             if not self.namelist.hydrostatic:
                 temperature_adjust.compute(
                     state.pt,

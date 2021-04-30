@@ -3,7 +3,6 @@ from typing import Mapping
 from gt4py.gtscript import PARALLEL, computation, interval, log
 
 import fv3core._config as spec
-import fv3core.stencils.del2cubed as del2cubed
 import fv3core.stencils.moist_cv as moist_cv
 import fv3core.stencils.neg_adj3 as neg_adj3
 import fv3core.stencils.rayleigh_super as rayleigh_super
@@ -15,6 +14,7 @@ import fv3gfs.util
 from fv3core.decorators import ArgSpec, get_namespace, gtstencil
 from fv3core.stencils import c2l_ord
 from fv3core.stencils.basic_operations import copy_stencil
+from fv3core.stencils.del2cubed import HyperdiffusionDamping
 from fv3core.stencils.dyn_core import AcousticDynamics
 from fv3core.stencils.tracer_2d_1l import Tracer2D1L
 from fv3core.utils.typing import FloatField, FloatFieldK
@@ -145,7 +145,7 @@ def compute_preamble(state, comm, grid, namelist):
         )
 
 
-def post_remap(state, comm, grid, namelist):
+def post_remap(hyperdiffusion, state, comm, grid, namelist):
     grid = grid
     if not namelist.hydrostatic:
         if __debug__:
@@ -165,7 +165,7 @@ def post_remap(state, comm, grid, namelist):
                 print("Del2Cubed")
         if global_config.get_do_halo_exchange():
             comm.halo_update(state.omga_quantity, n_points=utils.halo)
-        del2cubed.compute(state.omga, namelist.nf_omega, 0.18 * grid.da_min, grid.npz)
+        hyperdiffusion(state.omga, namelist.nf_omega, 0.18 * grid.da_min)
 
 
 def wrapup(state, comm: fv3gfs.util.CubedSphereCommunicator, grid):
@@ -289,16 +289,35 @@ class DynamicalCore:
         ),
     )
 
-    def __init__(self, comm: fv3gfs.util.CubedSphereCommunicator, namelist):
+    def __init__(
+        self,
+        comm: fv3gfs.util.CubedSphereCommunicator,
+        namelist,
+        ak: fv3gfs.util.Quantity,
+        bk: fv3gfs.util.Quantity,
+        phis: fv3gfs.util.Quantity,
+    ):
+        """
+        Args:
+            comm: object for cubed sphere inter-process communication
+            namelist: flattened Fortran namelist
+            ak: atmosphere hybrid a coordinate (Pa)
+            bk: atmosphere hybrid b coordinate (dimensionless)
+            phis: surface geopotential height
+        """
         self.comm = comm
         self.grid = spec.grid
         self.namelist = namelist
         self.do_halo_exchange = global_config.get_do_halo_exchange()
 
         self.tracer_advection = Tracer2D1L(comm, namelist)
-        self.acoustic_dynamics = AcousticDynamics(comm, namelist)
-        # npx and npy are number of interfaces, npz is number of centers
-        # and shapes should be the full data shape
+        self._ak = ak.storage
+        self._bk = bk.storage
+        self._phis = phis.storage
+        self.acoustic_dynamics = AcousticDynamics(
+            comm, namelist, self._ak, self._bk, self._phis
+        )
+        self._hyperdiffusion = HyperdiffusionDamping(self.grid)
 
         self._temporaries = fvdyn_temporaries(
             self.grid.domain_shape_full(add=(1, 1, 1)), self.grid
@@ -353,15 +372,18 @@ class DynamicalCore:
         timer: fv3gfs.util.NullTimer,
     ):
         state.__dict__.update(self._temporaries)
+        state.ak = self._ak
+        state.bk = self._bk
         last_step = False
         if self.do_halo_exchange:
             self.comm.halo_update(state.phis_quantity, n_points=utils.halo)
         compute_preamble(state, self.comm, self.grid, self.namelist)
+
         for n_map in range(state.k_split):
             state.n_map = n_map + 1
-            if n_map == state.k_split - 1:
-                last_step = True
+            last_step = n_map == state.k_split - 1
             self._dyn(state, timer)
+
             if self.grid.npz > 4:
                 # nq is actually given by ncnst - pnats,
                 # where those are given in atmosphere.F90 by:
@@ -401,8 +423,8 @@ class DynamicalCore:
                         state.ps,
                         state.wsd_3d,
                         state.omga,
-                        state.ak,
-                        state.bk,
+                        self._ak,
+                        self._bk,
                         state.pfull,
                         state.dp1,
                         state.ptop,
@@ -417,7 +439,13 @@ class DynamicalCore:
                         DynamicalCore.NQ,
                     )
                 if last_step:
-                    post_remap(state, self.comm, self.grid, self.namelist)
+                    post_remap(
+                        self._hyperdiffusion,
+                        state,
+                        self.comm,
+                        self.grid,
+                        self.namelist,
+                    )
                 state.wsd[:] = state.wsd_3d[:, :, 0]
         wrapup(state, self.comm, self.grid)
 
@@ -461,7 +489,13 @@ def fv_dynamics(
     ks,
     timer=fv3gfs.util.NullTimer(),
 ):
-    dycore = utils.cached_stencil_class(DynamicalCore)(comm, spec.namelist)
+    dycore = utils.cached_stencil_class(DynamicalCore)(
+        comm,
+        spec.namelist,
+        state["atmosphere_hybrid_a_coordinate"],
+        state["atmosphere_hybrid_b_coordinate"],
+        state["surface_geopotential"],
+    )
     dycore.step_dynamics(
         state,
         consv_te,

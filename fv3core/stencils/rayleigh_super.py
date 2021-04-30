@@ -111,6 +111,7 @@ def compute(u, v, w, ua, va, pt, delz, phis, bdt, ptop, pfull, comm):
     )
 
     comm.halo_update(u2f, n_points=utils.halo)
+
     rayleigh_pt_vert(
         pt,
         ua,

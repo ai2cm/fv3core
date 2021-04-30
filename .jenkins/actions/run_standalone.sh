@@ -41,7 +41,7 @@ SCRIPT=`realpath $0`
 SCRIPTPATH=`dirname $SCRIPT`
 ROOT_DIR="$(dirname "$(dirname "$SCRIPTPATH")")"
 DATA_VERSION=`grep 'FORTRAN_SERIALIZED_DATA_VERSION *=' ${ROOT_DIR}/Makefile | cut -d '=' -f 2`
-TIMESTEPS=6
+TIMESTEPS=60
 RANKS=6
 BENCHMARK_DIR=${ROOT_DIR}/examples/standalone/benchmarks
 DATA_DIR="/project/s1053/fv3core_serialized_test_data/${DATA_VERSION}/${experiment}"
@@ -100,8 +100,11 @@ fi
 
 # store cache artifacts (and remove caches afterwards)
 if [ "${SAVE_CACHE}" == "true" ] ; then
-    mkdir -p ${CACHE_DIR}
+    echo "Pruning cache to make sure no __pycache__ and *_pyext_BUILD dirs are present"
+    find .gt_cache* -type d -name \*_pyext_BUILD -prune -exec \rm -rf {} \;
+    find .gt_cache* -type d -name __pycache__ -prune -exec \rm -rf {} \;
     echo "Copying GT4Py cache directories to ${CACHE_DIR}"
+    mkdir -p ${CACHE_DIR}
     cp ${ROOT_DIR}/GT4PY_VERSION.txt ${CACHE_DIR}
     rm -rf ${CACHE_DIR}/.gt_cache*
     cp -rp .gt_cache* ${CACHE_DIR}/
