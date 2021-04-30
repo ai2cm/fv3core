@@ -241,6 +241,13 @@ def ppm_volume_mean_x(qin: FloatField, dxa: FloatFieldIJ, qx: FloatField):
         qx = b2 * (qin[-2, 0, 0] + qin[1, 0, 0]) + b1 * (qin[-1, 0, 0] + qin)
         with horizontal(region[i_start, :]):
             qx = qx_edge_west(qin, dxa)
+            #g_in = dxa[1, 0] / dxa
+            #g_ou = dxa[-2, 0] / dxa[-1, 0]
+            #return 0.5 * (
+            #    ((2.0 + g_in) * qin - qin[1, 0, 0]) / (1.0 + g_in)
+            #    + ((2.0 + g_ou) * qin[-1, 0, 0] - qin[-2, 0, 0]) / (1.0 + g_ou)
+            #)
+
         with horizontal(region[i_start + 1, :]):
             qx = qx_edge_west2(qin, dxa, qx)
         with horizontal(region[i_end + 1, :]):
@@ -277,7 +284,7 @@ def lagrange_x_func(qy):
 
 @gtstencil()
 def second_derivative_interpolation(
-    qout: FloatField, qin: FloatField, qx: FloatField, qy: FloatField
+    qout: FloatField, qin: FloatField, qx: FloatField, qy: FloatField, qxx: FloatField, qyy: FloatField
 ):
     from __externals__ import i_end, i_start, j_end, j_start
 
@@ -511,12 +518,19 @@ def compute(qin, qout, kstart=0, nk=None, replace=False):
         je = grid().je if grid().north_edge else grid().je + 1
         is_ = grid().is_ + 1 if grid().west_edge else grid().is_
         ie = grid().ie if grid().east_edge else grid().ie + 1
+        qxx = utils.make_storage_from_shape(
+             qin.shape, origin=(grid().isd, grid().js, kstart), cache_key="a2b_ord4_qxx"
+	)
+
+        qyy = utils.make_storage_from_shape(
+            qin.shape, origin=(grid().isd, grid().js, kstart), cache_key="a2b_ord4_qyy"
+	)
 
         second_derivative_interpolation(
             qout,
             qin,
             qx,
-            qy,
+            qy,qxx, qyy,
             origin=(is_, js, kstart),
             domain=(ie - is_ + 1, je - js + 1, nk),
         )
