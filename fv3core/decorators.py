@@ -5,7 +5,7 @@ import hashlib
 import os
 import pickle
 import types
-from typing import Any, BinaryIO, Callable, Dict, List, Optional, Tuple
+from typing import Any, BinaryIO, Callable, Dict, List, Optional, Tuple, Union
 
 import gt4py
 import gt4py.storage as gt_storage
@@ -277,24 +277,20 @@ class StencilWrapper:
         return kwargs
 
     def _compute_field_origins(
-        self, origin: Tuple[int, ...], *args, **kwargs
+        self,
+        origin: Union[Tuple[int, ...], Dict[str, Tuple[int, ...]]],
+        *args,
+        **kwargs,
     ) -> Dict[str, Tuple[int, ...]]:
         """Computes the origin for each field in the stencil call."""
-
-        if args:
-            field_args = {
-                name: args[i] for i, name in enumerate(self.stencil_object.field_info)
-            }
-        else:
-            field_args = {name: kwargs[name] for name in self.stencil_object.field_info}
 
         field_origins = self.stencil_object._make_origin_dict(origin)
         all_origin = field_origins.get("_all_", None)
 
-        # Set an appropriate origin for all fields
-        for name, field_info in self.stencil_object.field_info.items():
+        for i, name in enumerate(self.field_names):
+            field_info = self.stencil_object.field_info[name]
+            field_arg = args[i] if i < len(args) else kwargs[name]
             if field_info is not None:
-                assert name in field_args, f"Missing value for '{name}' field."
                 field_origin = field_origins.get(name, None)
                 if field_origin is not None:
                     field_origin_ndim = len(field_origin)
@@ -312,12 +308,8 @@ class StencilWrapper:
                         *gt_utils.filter_mask(all_origin, field_info.domain_mask),
                         *((0,) * len(field_info.data_dims)),
                     )
-                elif isinstance(
-                    field_arg := field_args[name], gt_storage.storage.Storage
-                ):
-                    field_origins[name] = field_arg.default_origin
                 else:
-                    field_origins[name] = (0,) * field_info.ndim
+                    field_origins[name] = field_arg.default_origin
         return field_origins
 
     def _set_device_sync(self, stencil_kwargs: Dict[str, Any]):
