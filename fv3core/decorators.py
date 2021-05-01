@@ -9,6 +9,7 @@ from typing import Any, BinaryIO, Callable, Dict, List, Optional, Tuple
 
 import gt4py
 import gt4py.storage as gt_storage
+import gt4py.utils as gt_utils
 import numpy as np
 import yaml
 from gt4py import gtscript
@@ -280,23 +281,44 @@ class StencilWrapper:
     ) -> Dict[str, Tuple[int, ...]]:
         """Computes the origin for each field in the stencil call."""
 
-        field_origins: Dict[str, Tuple[int, ...]] = {"_all_": origin}
-        field_names: List[str] = self.field_names
-        for i in range(len(field_names)):
-            field_name = field_names[i]
-            field_axes = (
-                self.stencil_object.field_info[field_name].axes
-                if self.stencil_object.field_info[field_name]
-                else []
-            )
-            field_shape = args[i].shape if i < len(args) else kwargs[field_name].shape
-            if field_axes == ["K"]:
-                field_origin = [min(field_shape[0] - 1, origin[2])]
-            else:
-                field_origin = [
-                    min(field_shape[j] - 1, origin[j]) for j in range(len(field_shape))
-                ]
-            field_origins[field_name] = tuple(field_origin)
+        if args:
+            field_args = {
+                name: args[i] for i, name in enumerate(self.stencil_object.field_info)
+            }
+        else:
+            field_args = {name: kwargs[name] for name in self.stencil_object.field_info}
+
+        field_origins = self.stencil_object._make_origin_dict(origin)
+        all_origin = field_origins.get("_all_", None)
+
+        # Set an appropriate origin for all fields
+        for name, field_info in self.stencil_object.field_info.items():
+            if field_info is not None:
+                assert name in field_args, f"Missing value for '{name}' field."
+                field_origin = field_origins.get(name, None)
+                if field_origin is not None:
+                    err = (
+                        f"Invalid origin specification ({field_origin})"
+                        f" for '{name}' field."
+                    )
+                    field_origin_ndim = len(field_origin)
+                    if field_origin_ndim != field_info.ndim:
+                        assert field_origin_ndim == field_info.domain_ndim, err
+                        field_origins[name] = (
+                            *field_origin,
+                            *((0,) * len(field_info.data_dims)),
+                        )
+                elif all_origin is not None:
+                    field_origins[name] = (
+                        *gt_utils.filter_mask(all_origin, field_info.domain_mask),
+                        *((0,) * len(field_info.data_dims)),
+                    )
+                elif isinstance(
+                    field_arg := field_args[name], gt_storage.storage.Storage
+                ):
+                    field_origins[name] = field_arg.default_origin
+                else:
+                    field_origins[name] = (0,) * field_info.ndim
         return field_origins
 
     def _set_device_sync(self, stencil_kwargs: Dict[str, Any]):
