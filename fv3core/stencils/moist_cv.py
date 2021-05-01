@@ -103,20 +103,6 @@ def moist_cv_default_fn():
     return cvm, gz
 
 
-@gtstencil()
-def moist_cv_nwat6(
-    qvapor: FloatField,
-    qliquid: FloatField,
-    qrain: FloatField,
-    qsnow: FloatField,
-    qice: FloatField,
-    qgraupel: FloatField,
-    cvm: FloatField,
-):
-    with computation(PARALLEL), interval(...):
-        cvm = moist_cv_nwat6_fn(qvapor, qliquid, qrain, qsnow, qice, qgraupel)
-
-
 @gtscript.function
 def te_always_part(u, v, w, phis, rsin2, cosa_s):
     return 0.5 * (
@@ -402,18 +388,6 @@ def compute_pkz(
         origin=origin,
         domain=domain,
     )
-
-
-@gtstencil()
-def compute_pkz_stencil_func(
-    pkz: FloatField,
-    cappa: FloatField,
-    delp: FloatField,
-    delz: FloatField,
-    pt: FloatField,
-):
-    with computation(PARALLEL), interval(...):
-        pkz = compute_pkz_func(delp, delz, pt, cappa)
 
 
 def compute_last_step(
