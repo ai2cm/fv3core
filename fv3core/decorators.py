@@ -297,13 +297,12 @@ class StencilWrapper:
                 assert name in field_args, f"Missing value for '{name}' field."
                 field_origin = field_origins.get(name, None)
                 if field_origin is not None:
-                    err = (
-                        f"Invalid origin specification ({field_origin})"
-                        f" for '{name}' field."
-                    )
                     field_origin_ndim = len(field_origin)
                     if field_origin_ndim != field_info.ndim:
-                        assert field_origin_ndim == field_info.domain_ndim, err
+                        assert field_origin_ndim == field_info.domain_ndim, (
+                            f"Invalid origin specification ({field_origin})"
+                            f" for '{name}' field."
+                        )
                         field_origins[name] = (
                             *field_origin,
                             *((0,) * len(field_info.data_dims)),
