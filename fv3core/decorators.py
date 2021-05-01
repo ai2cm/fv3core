@@ -124,6 +124,10 @@ class FrozenStencil:
         **kwargs,
     ) -> None:
         if self.stencil_config.validate_args:
+            if __debug__ and "origin" in kwargs:
+                raise TypeError("origin cannot be passed to FrozenStencil call")
+            if __debug__ and "domain" in kwargs:
+                raise TypeError("domain cannot be passed to FrozenStencil call")
             self.stencil_object(
                 *args,
                 **kwargs,
