@@ -5,7 +5,7 @@ from gt4py.gtscript import FORWARD, PARALLEL, computation, exp, floor, interval,
 
 import fv3core._config as spec
 import fv3core.utils.global_constants as constants
-from fv3core.decorators import gtstencil
+from fv3core.decorators import StencilWrapper, gtstencil
 from fv3core.stencils.basic_operations import dim
 from fv3core.stencils.moist_cv import compute_pkz_func
 from fv3core.utils.typing import FloatField, FloatFieldIJ
@@ -552,7 +552,6 @@ def compute_q_tables(
         des2 = des2_table(index)
 
 
-@gtstencil()
 def satadjust(
     peln: FloatField,
     qv: FloatField,
@@ -886,103 +885,107 @@ def satadjust(
             pkz = compute_pkz_func(dp, delz, pt, cappa)
 
 
-def compute(
-    te: FloatField,
-    qvapor: FloatField,
-    qliquid: FloatField,
-    qice: FloatField,
-    qrain: FloatField,
-    qsnow: FloatField,
-    qgraupel: FloatField,
-    qcld: FloatField,
-    hs: FloatFieldIJ,
-    peln: FloatField,
-    delp: FloatField,
-    delz: FloatField,
-    q_con: FloatField,
-    pt: FloatField,
-    pkz: FloatField,
-    cappa: FloatField,
-    r_vir: float,
-    mdt: float,
-    fast_mp_consv: bool,
-    last_step: bool,
-    akap: float,
-    kmp: int,
-) -> None:
+class SatAdjust3d:
+    def __init__(self):
+        self.grid = spec.grid
+        origin = self.grid.full_origin()
+        domain = self.grid.domain_shape_full()
+        self._satadjust_stencil = StencilWrapper(func=satadjust)
 
-    grid = spec.grid
-    origin = (grid.is_, grid.js, kmp)
-    domain = (grid.nic, grid.njc, (grid.npz - kmp))
-    hydrostatic = spec.namelist.hydrostatic
-    sdt = 0.5 * mdt  # half remapping time step
-    # define conversion scalar / factor
-    fac_i2s = 1.0 - math.exp(-mdt / spec.namelist.tau_i2s)
-    fac_v2l = 1.0 - math.exp(-sdt / spec.namelist.tau_v2l)
-    fac_r2g = 1.0 - math.exp(-mdt / spec.namelist.tau_r2g)
-    fac_l2r = 1.0 - math.exp(-mdt / spec.namelist.tau_l2r)
+    def __call__(
+        self,
+        te: FloatField,
+        qvapor: FloatField,
+        qliquid: FloatField,
+        qice: FloatField,
+        qrain: FloatField,
+        qsnow: FloatField,
+        qgraupel: FloatField,
+        qcld: FloatField,
+        hs: FloatFieldIJ,
+        peln: FloatField,
+        delp: FloatField,
+        delz: FloatField,
+        q_con: FloatField,
+        pt: FloatField,
+        pkz: FloatField,
+        cappa: FloatField,
+        r_vir: float,
+        mdt: float,
+        fast_mp_consv: bool,
+        last_step: bool,
+        akap: float,
+        kmp: int,
+    ):
+        hydrostatic = spec.namelist.hydrostatic
+        sdt = 0.5 * mdt  # half remapping time step
+        # define conversion scalar / factor
+        fac_i2s = 1.0 - math.exp(-mdt / spec.namelist.tau_i2s)
+        fac_v2l = 1.0 - math.exp(-sdt / spec.namelist.tau_v2l)
+        fac_r2g = 1.0 - math.exp(-mdt / spec.namelist.tau_r2g)
+        fac_l2r = 1.0 - math.exp(-mdt / spec.namelist.tau_l2r)
 
-    fac_l2v = 1.0 - math.exp(-sdt / spec.namelist.tau_l2v)
-    fac_l2v = min(spec.namelist.sat_adj0, fac_l2v)
+        fac_l2v = 1.0 - math.exp(-sdt / spec.namelist.tau_l2v)
+        fac_l2v = min(spec.namelist.sat_adj0, fac_l2v)
 
-    fac_imlt = 1.0 - math.exp(-sdt / spec.namelist.tau_imlt)
-    fac_smlt = 1.0 - math.exp(-mdt / spec.namelist.tau_smlt)
+        fac_imlt = 1.0 - math.exp(-sdt / spec.namelist.tau_imlt)
+        fac_smlt = 1.0 - math.exp(-mdt / spec.namelist.tau_smlt)
 
-    # define heat capacity of dry air and water vapor based on hydrostatical
-    # property
+        # define heat capacity of dry air and water vapor based on hydrostatical
+        # property
 
-    if hydrostatic:
-        c_air = constants.CP_AIR
-        c_vap = constants.CP_VAP
-    else:
-        c_air = constants.CV_AIR
-        c_vap = constants.CV_VAP
+        if hydrostatic:
+            c_air = constants.CP_AIR
+            c_vap = constants.CP_VAP
+        else:
+            c_air = constants.CV_AIR
+            c_vap = constants.CV_VAP
 
-    d0_vap = c_vap - constants.C_LIQ
-    lv00 = constants.HLV - d0_vap * TICE
+        d0_vap = c_vap - constants.C_LIQ
+        lv00 = constants.HLV - d0_vap * TICE
 
-    do_qa = True
+        do_qa = True
 
-    satadjust(
-        peln,
-        qvapor,
-        qliquid,
-        qice,
-        qrain,
-        qsnow,
-        cappa,
-        qgraupel,
-        pt,
-        delp,
-        delz,
-        te,
-        q_con,
-        qcld,
-        grid.area_64,
-        hs,
-        pkz,
-        sdt,
-        r_vir,
-        fac_i2s,
-        do_qa,
-        hydrostatic,
-        fast_mp_consv,
-        c_air,
-        c_vap,
-        mdt,
-        fac_r2g,
-        fac_smlt,
-        fac_l2r,
-        fac_imlt,
-        d0_vap,
-        lv00,
-        fac_v2l,
-        fac_l2v,
-        last_step,
-        spec.namelist.rad_snow,
-        spec.namelist.rad_rain,
-        spec.namelist.rad_graupel,
-        spec.namelist.tintqs,
-        origin=origin,
-        domain=domain,
-    )
+        self._satadjust_stencil(
+            peln,
+            qvapor,
+            qliquid,
+            qice,
+            qrain,
+            qsnow,
+            cappa,
+            qgraupel,
+            pt,
+            delp,
+            delz,
+            te,
+            q_con,
+            qcld,
+            self.grid.area_64,
+            hs,
+            pkz,
+            sdt,
+            r_vir,
+            fac_i2s,
+            do_qa,
+            hydrostatic,
+            fast_mp_consv,
+            c_air,
+            c_vap,
+            mdt,
+            fac_r2g,
+            fac_smlt,
+            fac_l2r,
+            fac_imlt,
+            d0_vap,
+            lv00,
+            fac_v2l,
+            fac_l2v,
+            last_step,
+            spec.namelist.rad_snow,
+            spec.namelist.rad_rain,
+            spec.namelist.rad_graupel,
+            spec.namelist.tintqs,
+            origin=(self.grid.is_, self.grid.js, kmp),
+            domain=(self.grid.nic, self.grid.njc, (self.grid.npz - kmp)),
+        )

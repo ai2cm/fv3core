@@ -1,11 +1,12 @@
-import fv3core.stencils.saturation_adjustment as satadjust
+from fv3core.stencils.saturation_adjustment import SatAdjust3d
 from fv3core.testing import TranslateFortranData2Py
 
 
 class TranslateSatAdjust3d(TranslateFortranData2Py):
     def __init__(self, grid):
         super().__init__(grid)
-        self.compute_func = satadjust.compute
+        # self.compute_func = satadjust.compute
+        self.compute_func = SatAdjust3d()
         cvar = {"axis": 0, "kstart": 3}
         self.in_vars["data_vars"] = {
             "te": {},
@@ -59,4 +60,5 @@ class TranslateSatAdjust3d(TranslateFortranData2Py):
         self.make_storage_data_input_vars(inputs)
         inputs["kmp"] -= 1
         self.compute_func(**inputs)
+        # self.compute_func(**inputs)
         return self.slice_output(inputs)
