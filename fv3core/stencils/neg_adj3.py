@@ -371,6 +371,8 @@ class AdjustNegativeTracerMixingRatio:
             self._lv00,
             self._d0_vap,
         )
+        # TODO - optimisation: those could be merged into one stencil. To keep
+        # the physical meaning we could keep the structure as @gtstencil.function
         self._fillq(qgraupel, delp, self._sum1, self._sum2)
         self._fillq(qrain, delp, self._sum1, self._sum2)
         self._fix_water_vapor_down(qvapor, delp, self._upper_fix, self._lower_fix)
