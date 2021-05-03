@@ -226,13 +226,11 @@ def fix_water_vapor_k_loop(i, j, kbot, qvapor, dp):
 """
 
 # Stencil version
-def fix_water_vapor_down(
-    qvapor: FloatField, dp: FloatField, upper_fix: FloatField, lower_fix: FloatField
-):
+def fix_water_vapor_down(qvapor: FloatField, dp: FloatField):
     with computation(PARALLEL):
         with interval(...):
-            upper_fix = 0.0
-            lower_fix = 0.0
+            upper_fix = 0.0  # type: FloatField
+            lower_fix = 0.0  # type: FloatField
         with interval(0, 1):
             qvapor = qvapor if qvapor >= 0 else 0
         with interval(1, 2):
@@ -310,8 +308,6 @@ class AdjustNegativeTracerMixingRatio:
         shape_ij = qgraupel.shape[0:2]
         self._sum1 = utils.make_storage_from_shape(shape_ij, origin=(0, 0))
         self._sum2 = utils.make_storage_from_shape(shape_ij, origin=(0, 0))
-        self._upper_fix = utils.make_storage_from_shape(qvapor.shape, origin=(0, 0, 0))
-        self._lower_fix = utils.make_storage_from_shape(qvapor.shape, origin=(0, 0, 0))
         if namelist.check_negative:
             raise NotImplementedError(
                 "Unimplemented namelist value check_negative=True"
@@ -375,5 +371,5 @@ class AdjustNegativeTracerMixingRatio:
         # the physical meaning we could keep the structure as @gtstencil.function
         self._fillq(qgraupel, delp, self._sum1, self._sum2)
         self._fillq(qrain, delp, self._sum1, self._sum2)
-        self._fix_water_vapor_down(qvapor, delp, self._upper_fix, self._lower_fix)
+        self._fix_water_vapor_down(qvapor, delp)
         self._fix_neg_cloud(delp, qcld)
