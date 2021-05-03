@@ -390,6 +390,13 @@ class AGrid2BGridFourthOrder:
     """
 
     def __init__(self, namelist, kstart=0, nk=None, replace=False):
+        """
+        Args:
+            namelist: model configuration
+            kstart: first klevel to compute on
+            nk: number of k levels to compute
+            replace: boolean, update qin to the B grid as well
+        """
         assert namelist.grid_type < 3
         self.grid = spec.grid
         self.replace = replace
@@ -485,6 +492,13 @@ class AGrid2BGridFourthOrder:
         )
 
     def __call__(self, qin, qout):
+        """Converts qin from A-grid to B-grid in qout.
+        In some cases, qin is also updated to the B grid.
+        Args:
+        qin: Input on A-grid (inout)
+        qout: Output on B-grid (inout)
+        """
+
         self._sw_corner_stencil(
             qin,
             qout,
