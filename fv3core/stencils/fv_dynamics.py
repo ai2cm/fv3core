@@ -3,9 +3,7 @@ from typing import Mapping
 from gt4py.gtscript import PARALLEL, computation, interval, log
 
 import fv3core._config as spec
-import fv3core.stencils.del2cubed as del2cubed
 import fv3core.stencils.moist_cv as moist_cv
-import fv3core.stencils.neg_adj3 as neg_adj3
 import fv3core.stencils.rayleigh_super as rayleigh_super
 import fv3core.stencils.remapping as lagrangian_to_eulerian
 import fv3core.utils.global_config as global_config
@@ -15,7 +13,9 @@ import fv3gfs.util
 from fv3core.decorators import ArgSpec, get_namespace, gtstencil
 from fv3core.stencils import c2l_ord
 from fv3core.stencils.basic_operations import copy_stencil
+from fv3core.stencils.del2cubed import HyperdiffusionDamping
 from fv3core.stencils.dyn_core import AcousticDynamics
+from fv3core.stencils.neg_adj3 import AdjustNegativeTracerMixingRatio
 from fv3core.stencils.tracer_2d_1l import Tracer2D1L
 from fv3core.utils.typing import FloatField, FloatFieldK
 
@@ -54,7 +54,6 @@ def compute_preamble(state, comm, grid, namelist):
         origin=(0, 0, 0),
         domain=(1, 1, grid.domain_shape_compute()[2]),
     )
-    utils.device_sync()
 
     state.pfull = utils.make_storage_data(state.pfull[0, 0, :], state.ak.shape, (0,))
 
@@ -144,10 +143,9 @@ def compute_preamble(state, comm, grid, namelist):
             origin=grid.compute_origin(),
             domain=grid.domain_shape_compute(),
         )
-        utils.device_sync()
 
 
-def post_remap(state, comm, grid, namelist):
+def post_remap(hyperdiffusion, state, comm, grid, namelist):
     grid = grid
     if not namelist.hydrostatic:
         if __debug__:
@@ -166,16 +164,20 @@ def post_remap(state, comm, grid, namelist):
             if grid.rank == 0:
                 print("Del2Cubed")
         if global_config.get_do_halo_exchange():
-            utils.device_sync()
             comm.halo_update(state.omga_quantity, n_points=utils.halo)
-        del2cubed.compute(state.omga, namelist.nf_omega, 0.18 * grid.da_min, grid.npz)
+        hyperdiffusion(state.omga, namelist.nf_omega, 0.18 * grid.da_min)
 
 
-def wrapup(state, comm: fv3gfs.util.CubedSphereCommunicator, grid):
+def wrapup(
+    state,
+    comm: fv3gfs.util.CubedSphereCommunicator,
+    grid,
+    adjust_stencil: AdjustNegativeTracerMixingRatio,
+):
     if __debug__:
         if grid.rank == 0:
             print("Neg Adj 3")
-    neg_adj3.compute(
+    adjust_stencil(
         state.qvapor,
         state.qliquid,
         state.qrain,
@@ -299,6 +301,8 @@ class DynamicalCore:
         ak: fv3gfs.util.Quantity,
         bk: fv3gfs.util.Quantity,
         phis: fv3gfs.util.Quantity,
+        qvapor: fv3gfs.util.Quantity,
+        qgraupel: fv3gfs.util.Quantity,
     ):
         """
         Args:
@@ -320,12 +324,16 @@ class DynamicalCore:
         self.acoustic_dynamics = AcousticDynamics(
             comm, namelist, self._ak, self._bk, self._phis
         )
+        self._hyperdiffusion = HyperdiffusionDamping(self.grid)
 
         self._temporaries = fvdyn_temporaries(
             self.grid.domain_shape_full(add=(1, 1, 1)), self.grid
         )
         if not (not self.namelist.inline_q and DynamicalCore.NQ != 0):
             raise NotImplementedError("tracer_2d not implemented, turn on z_tracer")
+        self._adjust_tracer_mixing_ratio = AdjustNegativeTracerMixingRatio(
+            self.grid, self.namelist, qvapor, qgraupel
+        )
 
     def step_dynamics(
         self,
@@ -378,7 +386,6 @@ class DynamicalCore:
         state.bk = self._bk
         last_step = False
         if self.do_halo_exchange:
-            utils.device_sync()
             self.comm.halo_update(state.phis_quantity, n_points=utils.halo)
         compute_preamble(state, self.comm, self.grid, self.namelist)
 
@@ -442,9 +449,15 @@ class DynamicalCore:
                         DynamicalCore.NQ,
                     )
                 if last_step:
-                    post_remap(state, self.comm, self.grid, self.namelist)
+                    post_remap(
+                        self._hyperdiffusion,
+                        state,
+                        self.comm,
+                        self.grid,
+                        self.namelist,
+                    )
                 state.wsd[:] = state.wsd_3d[:, :, 0]
-        wrapup(state, self.comm, self.grid)
+        wrapup(state, self.comm, self.grid, self._adjust_tracer_mixing_ratio)
 
     def _dyn(self, state, timer=fv3gfs.util.NullTimer()):
         copy_stencil(
@@ -473,7 +486,6 @@ class DynamicalCore:
                     state.mdt,
                     DynamicalCore.NQ,
                 )
-        utils.device_sync()
 
 
 def fv_dynamics(
@@ -493,6 +505,8 @@ def fv_dynamics(
         state["atmosphere_hybrid_a_coordinate"],
         state["atmosphere_hybrid_b_coordinate"],
         state["surface_geopotential"],
+        state["specific_humidity"].data,
+        state["graupel_mixing_ratio"].data,
     )
     dycore.step_dynamics(
         state,

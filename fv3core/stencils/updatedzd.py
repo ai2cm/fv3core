@@ -5,7 +5,7 @@ import fv3core._config as spec
 import fv3core.utils.global_constants as constants
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import FrozenStencil
-from fv3core.stencils import basic_operations, d_sw, delnflux
+from fv3core.stencils import basic_operations, delnflux
 from fv3core.stencils.fvtp2d import FiniteVolumeTransport
 from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
 
@@ -250,7 +250,6 @@ class UpdateDeltaZOnDGrid:
         )
 
         _cubic_spline_interpolation_constants(self._dp0, gk_3d, beta_3d, gamma_3d)
-        utils.device_sync()
         self._gk = utils.make_storage_data(gk_3d[0, 0, :], gk_3d.shape[2:], (0,))
         self._beta = utils.make_storage_data(beta_3d[0, 0, :], beta_3d.shape[2:], (0,))
         self._gamma = utils.make_storage_data(
@@ -345,20 +344,3 @@ class UpdateDeltaZOnDGrid:
             wsd,
             dt,
         )
-
-
-def compute(
-    dp0: FloatFieldK,
-    zs: FloatFieldIJ,
-    zh: FloatField,
-    crx: FloatField,
-    cry: FloatField,
-    x_area_flux: FloatField,
-    y_area_flux: FloatField,
-    wsd: FloatFieldIJ,
-    dt: float,
-):
-    updatedzd = utils.cached_stencil_class(UpdateDeltaZOnDGrid)(
-        spec.grid, d_sw.get_column_namelist(), d_sw.k_bounds()
-    )
-    updatedzd(dp0, zs, zh, crx, cry, x_area_flux, y_area_flux, wsd, dt)
