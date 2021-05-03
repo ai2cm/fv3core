@@ -267,7 +267,7 @@ class UpdateDeltaZOnDGrid:
             origin=self.grid.compute_origin(),
             domain=self.grid.domain_shape_compute(add=(0, 0, 1)),
         )
-        self.delnflux = DelnFluxNoSG()
+        self.delnflux = DelnFluxNoSG(self._column_namelist["nord_v"], nk=self._nk)
         self.finite_volume_transport = FiniteVolumeTransport(
             spec.namelist, spec.namelist.hord_tm
         )
@@ -292,7 +292,7 @@ class UpdateDeltaZOnDGrid:
             x_area_flux: Area flux in x-direction
             y_area_flux: Area flux in y-direction
             wsd: lowest layer vertical velocity required to keep layer at surface
-            dt: ???
+            dt: Length of one timestep
         """
         self._interpolate_to_layer_interface(
             crx, self._crx_interface, self._gk, self._beta, self._gamma
@@ -328,10 +328,8 @@ class UpdateDeltaZOnDGrid:
             self._zh_tmp,
             self._fx2,
             self._fy2,
-            self._column_namelist["nord_v"],
             self._column_namelist["damp_vt"],
             self._wk,
-            nk=self._nk,
         )
 
         self._apply_geopotential_height_fluxes(
