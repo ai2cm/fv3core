@@ -5,6 +5,55 @@ import fv3core._config as spec
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import gtstencil
 from fv3core.utils.typing import FloatField
+from fv3core.decorators import StencilWrapper
+from fv3core.utils.grid import axis_offsets
+from typing import Optional
+from fv3core.stencils.basic_operations import copy_defn
+
+
+class CopyCorners:
+    def __init__(self, direction: str, temporary_field=None) -> None:
+        self.grid = spec.grid
+        origin = self.grid.full_origin()
+        domain = self.grid.domain_shape_full()
+        if temporary_field is not None:
+            self._corner_tmp = temporary_field
+        else:
+            self._corner_tmp = utils.make_storage_from_shape(
+                self.grid.domain_shape_full(add=(1, 1, 1)), origin=origin
+            )
+        ax_offsets = axis_offsets(spec.grid, origin, domain)
+        self._copy_full_domain = StencilWrapper(
+            func=copy_defn, origin=origin, domain=domain
+        )
+
+        if direction == "x":
+            self._copy_corners = StencilWrapper(
+                func=copy_corners_x_stencil,
+                origin=self.grid.full_origin(),
+                domain=self.grid.domain_shape_full(add=(0, 0, 1)),
+                externals={
+                    **ax_offsets,
+                },
+            )
+        elif direction == "y":
+            self._copy_corners = StencilWrapper(
+                func=copy_corners_y_stencil,
+                origin=(self.grid.isd, self.grid.jsd, 0),
+                domain=(self.grid.nid, self.grid.njd, self.grid.npz),
+                externals={
+                    **ax_offsets,
+                },
+            )
+        else:
+            raise NotImplementedError()
+
+    def __call__(self, field: FloatField):
+        """
+        Fills cell quantity field using corners from itself and multipliers in x-dir.
+        """
+        self._copy_full_domain(field, self._corner_tmp)
+        self._copy_corners(self._corner_tmp, field)
 
 
 @gtscript.function
@@ -231,70 +280,7 @@ def fill_corners_cells(q: FloatField, direction: str, num_fill: int = 2):
     stencil(q, origin=origin, domain=domain)
 
 
-# @gtscript.function
-# def copy_corners_x(q):
-@gtstencil()
-def copy_corners_x_stencil(q: FloatField):
-    from __externals__ import i_end, i_start, j_end, j_start
-
-    with computation(PARALLEL), interval(...):
-        with horizontal(
-            region[i_start - 3, j_start - 3], region[i_end + 3, j_start - 3]
-        ):
-            q = q[0, 5, 0]
-        with horizontal(
-            region[i_start - 2, j_start - 3], region[i_end + 3, j_start - 2]
-        ):
-            q = q[-1, 4, 0]
-        with horizontal(
-            region[i_start - 1, j_start - 3], region[i_end + 3, j_start - 1]
-        ):
-            q = q[-2, 3, 0]
-        with horizontal(
-            region[i_start - 3, j_start - 2], region[i_end + 2, j_start - 3]
-        ):
-            q = q[1, 4, 0]
-        with horizontal(
-            region[i_start - 2, j_start - 2], region[i_end + 2, j_start - 2]
-        ):
-            q = q[0, 3, 0]
-        with horizontal(
-            region[i_start - 1, j_start - 2], region[i_end + 2, j_start - 1]
-        ):
-            q = q[-1, 2, 0]
-        with horizontal(
-            region[i_start - 3, j_start - 1], region[i_end + 1, j_start - 3]
-        ):
-            q = q[2, 3, 0]
-        with horizontal(
-            region[i_start - 2, j_start - 1], region[i_end + 1, j_start - 2]
-        ):
-            q = q[1, 2, 0]
-        with horizontal(
-            region[i_start - 1, j_start - 1], region[i_end + 1, j_start - 1]
-        ):
-            q = q[0, 1, 0]
-        with horizontal(region[i_start - 3, j_end + 1], region[i_end + 1, j_end + 3]):
-            q = q[2, -3, 0]
-        with horizontal(region[i_start - 2, j_end + 1], region[i_end + 1, j_end + 2]):
-            q = q[1, -2, 0]
-        with horizontal(region[i_start - 1, j_end + 1], region[i_end + 1, j_end + 1]):
-            q = q[0, -1, 0]
-        with horizontal(region[i_start - 3, j_end + 2], region[i_end + 2, j_end + 3]):
-            q = q[1, -4, 0]
-        with horizontal(region[i_start - 2, j_end + 2], region[i_end + 2, j_end + 2]):
-            q = q[0, -3, 0]
-        with horizontal(region[i_start - 1, j_end + 2], region[i_end + 2, j_end + 1]):
-            q = q[-1, -2, 0]
-        with horizontal(region[i_start - 3, j_end + 3], region[i_end + 3, j_end + 3]):
-            q = q[0, -5, 0]
-        with horizontal(region[i_start - 2, j_end + 3], region[i_end + 3, j_end + 2]):
-            q = q[-1, -4, 0]
-        with horizontal(region[i_start - 1, j_end + 3], region[i_end + 3, j_end + 1]):
-            q = q[-2, -3, 0]
-
-
-def copy_corners_x_stencil_in_out(q_in: FloatField, q_out: FloatField):
+def copy_corners_x_stencil(q_in: FloatField, q_out: FloatField):
     from __externals__ import i_end, i_start, j_end, j_start
 
     with computation(PARALLEL), interval(...):
@@ -354,70 +340,7 @@ def copy_corners_x_stencil_in_out(q_in: FloatField, q_out: FloatField):
             q_out = q_in[-2, -3, 0]
 
 
-# @gtscript.function
-# def copy_corners_y(q):
-@gtstencil()
-def copy_corners_y_stencil(q: FloatField):
-    from __externals__ import i_end, i_start, j_end, j_start
-
-    with computation(PARALLEL), interval(...):
-        with horizontal(
-            region[i_start - 3, j_start - 3], region[i_start - 3, j_end + 3]
-        ):
-            q = q[5, 0, 0]
-        with horizontal(
-            region[i_start - 2, j_start - 3], region[i_start - 3, j_end + 2]
-        ):
-            q = q[4, 1, 0]
-        with horizontal(
-            region[i_start - 1, j_start - 3], region[i_start - 3, j_end + 1]
-        ):
-            q = q[3, 2, 0]
-        with horizontal(
-            region[i_start - 3, j_start - 2], region[i_start - 2, j_end + 3]
-        ):
-            q = q[4, -1, 0]
-        with horizontal(
-            region[i_start - 2, j_start - 2], region[i_start - 2, j_end + 2]
-        ):
-            q = q[3, 0, 0]
-        with horizontal(
-            region[i_start - 1, j_start - 2], region[i_start - 2, j_end + 1]
-        ):
-            q = q[2, 1, 0]
-        with horizontal(
-            region[i_start - 3, j_start - 1], region[i_start - 1, j_end + 3]
-        ):
-            q = q[3, -2, 0]
-        with horizontal(
-            region[i_start - 2, j_start - 1], region[i_start - 1, j_end + 2]
-        ):
-            q = q[2, -1, 0]
-        with horizontal(
-            region[i_start - 1, j_start - 1], region[i_start - 1, j_end + 1]
-        ):
-            q = q[1, 0, 0]
-        with horizontal(region[i_end + 1, j_start - 3], region[i_end + 3, j_end + 1]):
-            q = q[-3, 2, 0]
-        with horizontal(region[i_end + 2, j_start - 3], region[i_end + 3, j_end + 2]):
-            q = q[-4, 1, 0]
-        with horizontal(region[i_end + 3, j_start - 3], region[i_end + 3, j_end + 3]):
-            q = q[-5, 0, 0]
-        with horizontal(region[i_end + 1, j_start - 2], region[i_end + 2, j_end + 1]):
-            q = q[-2, 1, 0]
-        with horizontal(region[i_end + 2, j_start - 2], region[i_end + 2, j_end + 2]):
-            q = q[-3, 0, 0]
-        with horizontal(region[i_end + 3, j_start - 2], region[i_end + 2, j_end + 3]):
-            q = q[-4, -1, 0]
-        with horizontal(region[i_end + 1, j_start - 1], region[i_end + 1, j_end + 1]):
-            q = q[-1, 0, 0]
-        with horizontal(region[i_end + 2, j_start - 1], region[i_end + 1, j_end + 2]):
-            q = q[-2, -1, 0]
-        with horizontal(region[i_end + 3, j_start - 1], region[i_end + 1, j_end + 3]):
-            q = q[-3, -2, 0]
-
-
-def copy_corners_y_stencil_in_out(q_in: FloatField, q_out: FloatField):
+def copy_corners_y_stencil(q_in: FloatField, q_out: FloatField):
     from __externals__ import i_end, i_start, j_end, j_start
 
     with computation(PARALLEL), interval(...):
@@ -475,20 +398,6 @@ def copy_corners_y_stencil_in_out(q_in: FloatField, q_out: FloatField):
             q_out = q_in[-2, -1, 0]
         with horizontal(region[i_end + 3, j_start - 1], region[i_end + 1, j_end + 3]):
             q_out = q_in[-3, -2, 0]
-
-
-"""
-@gtstencil()
-def copy_corners_x_stencil(q: FloatField):
-    with computation(PARALLEL), interval(...):
-        q = copy_corners_x(q)
-
-
-@gtstencil()
-def copy_corners_y_stencil(q: FloatField):
-    with computation(PARALLEL), interval(...):
-        q = copy_corners_y(q)
-"""
 
 
 @gtstencil()
