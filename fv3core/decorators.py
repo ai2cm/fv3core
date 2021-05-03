@@ -109,7 +109,7 @@ class FrozenStencil:
         )
 
         self._field_origins: Dict[str, Tuple[int, ...]] = compute_field_origins(
-            self.stencil_object.field_info, self.origin
+            self.stencil_object, self.origin
         )
         """mapping from field names to field origins"""
 
@@ -153,28 +153,36 @@ class FrozenStencil:
 
 
 def compute_field_origins(
-    field_info_mapping, origin: Union[Index3D, Mapping[str, Tuple[int, ...]]]
+    stencil_object: gt4py.StencilObject,
+    origin: Union[Index3D, Mapping[str, Tuple[int, ...]]],
 ) -> Dict[str, Tuple[int, ...]]:
     """Computes the origin for each field in the stencil call."""
-    if isinstance(origin, tuple):
-        field_origins: Dict[str, Tuple[int, ...]] = {"_all_": origin}
-        origin_tuple: Tuple[int, ...] = origin
-    else:
-        field_origins = {**origin}
-        origin_tuple = origin["_all_"]
-    field_names = tuple(field_info_mapping.keys())
-    for i, field_name in enumerate(field_names):
-        if field_name not in field_origins:
-            field_info = field_info_mapping[field_name]
-            if field_info is not None:
-                field_origin_list = []
-                for ax in field_info.axes:
-                    origin_index = {"I": 0, "J": 1, "K": 2}[ax]
-                    field_origin_list.append(origin_tuple[origin_index])
-                field_origin = tuple(field_origin_list)
+    field_origins = stencil_object._make_origin_dict(
+        origin
+    )  # optional: if not done before call
+    all_origin = field_origins.get("_all_", None)
+
+    for name, field_info in stencil_object.field_info.items():
+        if field_info is not None:
+            field_origin = field_origins.get(name, None)
+            if field_origin is not None:
+                field_origin_ndim = len(field_origin)
+                if field_origin_ndim != field_info.ndim:
+                    assert field_origin_ndim == field_info.domain_ndim, (
+                        f"Invalid origin specification ({field_origin})"
+                        f" for '{name}' field."
+                    )
+                    field_origins[name] = (
+                        *field_origin,
+                        *((0,) * len(field_info.data_dims)),
+                    )
+            elif all_origin is not None:
+                field_origins[name] = (
+                    *gt4py.utils.filter_mask(all_origin, field_info.domain_mask),
+                    *((0,) * len(field_info.data_dims)),
+                )
             else:
-                field_origin = origin_tuple
-            field_origins[field_name] = field_origin
+                raise ValueError(f"Missing origin for {name}")
     return field_origins
 
 
