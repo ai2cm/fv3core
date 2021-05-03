@@ -77,6 +77,15 @@ def ensure_reconstructed_args_match_defined(stencil_object, reconstructed_args):
 
 
 class FrozenStencil:
+    """
+    Wrapper for gt4py stencils which stores origin and domain at compile time,
+    and uses their stored values at call time.
+
+    This is useful when the stencil itself is meant to be used on a certain
+    grid, for example if a compile-time external variable is tied to the
+    values of origin and domain.
+    """
+
     def __init__(
         self,
         func: Callable[..., None],
@@ -85,6 +94,14 @@ class FrozenStencil:
         stencil_config: Optional[StencilConfig] = None,
         externals: Optional[Mapping[str, Any]] = None,
     ):
+        """
+        Args:
+            func: stencil definition function
+            origin: gt4py origin to use at call time
+            domain: gt4py domain to use at call time
+            stencil_config: container for stencil configuration
+            externals: compile-time external variables required by stencil
+        """
         self.origin = origin
 
         self.domain: Optional[Index3D] = domain
@@ -155,7 +172,17 @@ class FrozenStencil:
 def compute_field_origins(
     field_info_mapping, origin: Union[Index3D, Mapping[str, Tuple[int, ...]]]
 ) -> Dict[str, Tuple[int, ...]]:
-    """Computes the origin for each field in the stencil call."""
+    """
+    Computes the origin for each field in the stencil call.
+
+    Args:
+        field_info_mapping: from stencil.field_info, a mapping which gives the
+            dimensionality of each input field
+        origin: the (i, j, k) coordinate of the origin
+
+    Returns:
+        origin_mapping: a mapping from field names to origins
+    """
     if isinstance(origin, tuple):
         field_origins: Dict[str, Tuple[int, ...]] = {"_all_": origin}
         origin_tuple: Tuple[int, ...] = origin
@@ -183,8 +210,27 @@ def gtstencil(
     origin: Optional[Index3D] = None,
     domain: Optional[Index3D] = None,
     stencil_config: Optional[StencilConfig] = None,
-    externals=None,
+    externals: Optional[Mapping[str, Any]] = None,
 ):
+    """
+    Returns a wrapper over gt4py stencils.
+
+    If origin and domain are not given, they must be provided at call time,
+    and a separate stencil is compiled for each origin and domain pair used.
+
+    Args:
+        func: stencil definition function
+        origin: the start of the compute domain
+        domain: the size of the compute domain, required if origin is given
+        stencil_config: stencil configuration, by default global stencil
+            configuration at the time of calling this function is used
+        externals: compile-time constants used by stencil
+
+    Returns:
+        wrapped_stencil: an object similar to gt4py stencils, takes origin
+            and domain as arguments if and only if they were not given
+            as arguments to gtstencil
+    """
     if not (origin is None) == (domain is None):
         raise TypeError("must give both origin and domain arguments, or neither")
     if externals is None:
