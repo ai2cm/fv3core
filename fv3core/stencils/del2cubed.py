@@ -6,6 +6,7 @@ import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import StencilWrapper
 from fv3core.utils.grid import axis_offsets
 from fv3core.utils.typing import FloatField, FloatFieldIJ
+from fv3core.stencils.basic_operations import copy_defn
 
 
 #

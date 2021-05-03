@@ -9,6 +9,8 @@ from fv3core.stencils import d_sw, delnflux
 from fv3core.stencils.xppm import XPiecewiseParabolic
 from fv3core.stencils.yppm import YPiecewiseParabolic
 from fv3core.utils.typing import FloatField, FloatFieldIJ
+from fv3core.stencils.basic_operations import copy_defn
+from fv3core.utils.grid import axis_offsets
 
 
 @gtscript.function
