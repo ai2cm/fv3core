@@ -233,7 +233,7 @@ class StencilWrapper:
             if self.origin:
                 assert origin is None, "cannot override origin provided at init"
                 origin = self.origin
-            self.field_origins = self._compute_field_origins(origin, *args, **kwargs)
+            self.field_origins = self._compute_field_origins(origin)
 
             if self.domain:
                 assert domain is None, "cannot override domain provided at init"
@@ -277,19 +277,15 @@ class StencilWrapper:
         return kwargs
 
     def _compute_field_origins(
-        self,
-        origin: Union[Tuple[int, ...], Dict[str, Tuple[int, ...]]],
-        *args,
-        **kwargs,
+        self, origin: Union[Tuple[int, ...], Dict[str, Tuple[int, ...]]]
     ) -> Dict[str, Tuple[int, ...]]:
         """Computes the origin for each field in the stencil call."""
 
         field_origins = self.stencil_object._make_origin_dict(origin)
         all_origin = field_origins.get("_all_", None)
 
-        for i, name in enumerate(self.field_names):
+        for name in self.field_names:
             field_info = self.stencil_object.field_info[name]
-            field_arg = args[i] if i < len(args) else kwargs[name]
             if field_info is not None:
                 field_origin = field_origins.get(name, None)
                 if field_origin is not None:
@@ -309,7 +305,7 @@ class StencilWrapper:
                         *((0,) * len(field_info.data_dims)),
                     )
                 else:
-                    field_origins[name] = field_arg.default_origin
+                    raise ValueError(f"Missing origin for {name}")
         return field_origins
 
     def _set_device_sync(self, stencil_kwargs: Dict[str, Any]):
@@ -472,11 +468,7 @@ class FV3StencilObject(StencilWrapper):
         name = f"{self.func.__module__}.{self.func.__name__}"
 
         if not self.field_origins or origin != self.origin:
-            self.field_origins = self._compute_field_origins(
-                origin,
-                *args,
-                **kwargs,
-            )
+            self.field_origins = self._compute_field_origins(origin)
             self.origin = origin
 
         if validate_args is None:
