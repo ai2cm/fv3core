@@ -253,12 +253,14 @@ def ppm_volume_mean_x(
         with horizontal(region[i_end, :]):
             qx = qx_edge_east2(qin, dxa, qx)
 
+
 def ppm_volume_mean_y(
     qin: FloatField,
     qy: FloatField,
     dya: FloatFieldIJ,
 ):
     from __externals__ import j_end, j_start
+
     with computation(PARALLEL), interval(...):
         qy = b2 * (qin[0, -2, 0] + qin[0, 1, 0]) + b1 * (qin[0, -1, 0] + qin)
         with horizontal(region[:, j_start]):
@@ -270,6 +272,7 @@ def ppm_volume_mean_y(
         with horizontal(region[:, j_end]):
             qy = qy_edge_north2(qin, dya, qy)
 
+
 def a2b_interpolation(
     qout: FloatField,
     qx: FloatField,
@@ -278,6 +281,7 @@ def a2b_interpolation(
     qyy: FloatField,
 ):
     from __externals__ import i_end, i_start, j_end, j_start
+
     with computation(PARALLEL), interval(...):
         qxx = a2 * (qx[0, -2, 0] + qx[0, 1, 0]) + a1 * (qx[0, -1, 0] + qx)
         with horizontal(region[:, j_start + 1]):
@@ -451,17 +455,18 @@ class AGrid2BGridFourthOrder:
         self._qout_y_edge_north = StencilWrapper(
             qout_y_edge, origin=(is2, self.grid.je + 1, kstart), domain=(di2, 1, nk)
         )
-        origin_x=(self.grid.is_, self.grid.js - 2, kstart)
-        domain_x=(self.grid.nic + 1, self.grid.njc + 4, nk)
+        origin_x = (self.grid.is_, self.grid.js - 2, kstart)
+        domain_x = (self.grid.nic + 1, self.grid.njc + 4, nk)
         ax_offsets_x = axis_offsets(
             self.grid,
             origin_x,
             domain_x,
         )
         self._ppm_volume_mean_x_stencil = StencilWrapper(
-            ppm_volume_mean_x, externals=ax_offsets_x, origin=origin_x, domain=domain_x)
-        origin_y=(self.grid.is_ - 2, self.grid.js, kstart)
-        domain_y=(self.grid.nic + 4, self.grid.njc + 1, nk)
+            ppm_volume_mean_x, externals=ax_offsets_x, origin=origin_x, domain=domain_x
+        )
+        origin_y = (self.grid.is_ - 2, self.grid.js, kstart)
+        domain_y = (self.grid.nic + 4, self.grid.njc + 1, nk)
         ax_offsets_y = axis_offsets(
             self.grid,
             origin_y,
