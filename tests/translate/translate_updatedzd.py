@@ -3,6 +3,7 @@ from typing import Optional
 import numpy as np
 
 import fv3core._config as spec
+import fv3core.stencils.updatedzd
 from fv3core.stencils import d_sw
 from fv3core.stencils.updatedzd import UpdateHeightOnDGrid
 from fv3core.testing import TranslateFortranData2Py
@@ -33,11 +34,11 @@ class TranslateUpdateDzD(TranslateFortranData2Py):
 
     def compute(self, inputs):
         self.make_storage_data_input_vars(inputs)
-        self.updatedzd = UpdateHeightOnDGrid(
+        self.updatedzd = fv3core.stencils.updatedzd.UpdateHeightOnDGrid(
             self.grid,
             spec.namelist,
             inputs.pop("dp0"),
-            d_sw.get_column_namelist(),
+            d_sw.get_column_namelist(spec.namelist, self.grid.npz),
             d_sw.k_bounds(),
         )
         inputs["x_area_flux"] = inputs.pop("xfx")

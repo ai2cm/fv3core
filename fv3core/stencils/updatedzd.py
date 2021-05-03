@@ -4,7 +4,7 @@ from gt4py.gtscript import BACKWARD, FORWARD, PARALLEL, computation, interval
 import fv3core.utils.global_constants as constants
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import StencilWrapper
-from fv3core.stencils import basic_operations, d_sw, delnflux
+from fv3core.stencils import delnflux
 from fv3core.stencils.fvtp2d import FiniteVolumeTransport
 from fv3core.utils import validation
 from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
@@ -269,7 +269,6 @@ class UpdateHeightOnDGrid:
         )
 
         _cubic_spline_interpolation_constants(self._dp0, gk_3d, beta_3d, gamma_3d)
-        utils.device_sync()
         self._gk = utils.make_storage_data(gk_3d[0, 0, :], gk_3d.shape[2:], (0,))
         self._beta = utils.make_storage_data(beta_3d[0, 0, :], beta_3d.shape[2:], (0,))
         self._gamma = utils.make_storage_data(
