@@ -442,10 +442,14 @@ class AGrid2BGridFourthOrder:
         je1 = self.grid.je if self.grid.north_edge else self.grid.je + 1
         dj2 = je1 - js2 + 1
         self._qout_x_edge_west = FrozenStencil(
-            qout_x_edge, origin=(self.grid.is_, js2, kstart), domain=(1, dj2, nk)
+            qout_x_edge,
+            origin={"_all_": (self.grid.is_, js2, kstart), "edge_w": (0, js2)},
+            domain=(1, dj2, nk),
         )
         self._qout_x_edge_east = FrozenStencil(
-            qout_x_edge, origin=(self.grid.ie + 1, js2, kstart), domain=(1, dj2, nk)
+            qout_x_edge,
+            origin={"_all_": (self.grid.ie + 1, js2, kstart), "edge_w": (0, js2)},
+            domain=(1, dj2, nk),
         )
 
         is2 = self.grid.is_ + 1 if self.grid.west_edge else self.grid.is_

@@ -12,6 +12,7 @@ from gt4py.gtscript import (
 import fv3core._config as spec
 from fv3core.decorators import gtstencil
 from fv3core.stencils.basic_operations import sign
+from fv3core.utils.grid import axis_offsets
 from fv3core.utils.typing import FloatField, FloatFieldIJ
 
 
@@ -351,15 +352,20 @@ class YPiecewiseParabolic:
                 "Currently only support hord={5, 6, 7, 8}"
             )
         self._dya = grid.dya
+        origin = (ifirst, grid.js, 0)
+        domain = (ilast - ifirst + 1, grid.njc + 1, grid.npz + 1)
+        ax_offsets = axis_offsets(grid, origin, domain)
         self._compute_flux_stencil = gtstencil(
             func=compute_y_flux,
             externals={
                 "jord": jord,
                 "mord": abs(jord),
                 "xt_minmax": True,
+                "j_start": ax_offsets["j_start"],
+                "j_end": ax_offsets["j_end"],
             },
-            origin=(ifirst, grid.js, 0),
-            domain=(ilast - ifirst + 1, grid.njc + 1, grid.npz + 1),
+            origin=origin,
+            domain=domain,
         )
 
     def __call__(self, q: FloatField, c: FloatField, flux: FloatField):
