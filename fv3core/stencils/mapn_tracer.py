@@ -1,12 +1,12 @@
-from typing import Any, Dict
+from typing import Dict
 
 from gt4py.gtscript import PARALLEL, computation, interval
 
 import fv3core._config as spec
-import fv3core.stencils.map_single as map_single
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import gtstencil
 from fv3core.stencils.fillz import FillNegativeTracerValues
+from fv3core.stencils.map_single import MapSingle
 from fv3core.stencils.remap_profile import RemapProfile
 from fv3core.utils.typing import FloatField
 
@@ -30,7 +30,7 @@ def compute(
     pe1: FloatField,
     pe2: FloatField,
     dp2: FloatField,
-    tracers: Dict[str, Any],  # Dict[str, FloatField] but that causes error on import
+    tracers: Dict[str, "FloatField"],
     nq: int,
     q_min: float,
     i1: int,
@@ -38,7 +38,6 @@ def compute(
     j1: int,
     j2: int,
     kord: int,
-    version: str = "stencil",
 ):
     remapping_calculation = utils.cached_stencil_class(RemapProfile)(
         kord, 0, cache_key=f"map_profile_{kord}_0"
@@ -53,45 +52,38 @@ def compute(
     qs = utils.make_storage_from_shape(
         pe1.shape, origin=(0, 0, 0), cache_key="mapn_tracer_qs"
     )
-    (
-        dp1,
-        q4_1,
-        q4_2,
-        q4_3,
-        q4_4,
-        origin,
-        domain,
-        i_extent,
-        j_extent,
-    ) = map_single.setup_data(tracers[utils.tracer_variables[0]], pe1, i1, i2, j1, j2)
 
-    # transliterated fortran 3d or 2d validate, not bit-for bit
+    map_single = utils.cached_stencil_class(MapSingle)(
+        spec.namelist, cache_key="mapntracer-single"
+    )
     tracer_list = [tracers[q] for q in utils.tracer_variables[0:nq]]
+    map_single.setup_data(tracer_list[0], pe1, i1, i2, j1, j2)
+
     for tracer in tracer_list:
         set_components(
             tracer,
-            q4_1,
-            q4_2,
-            q4_3,
-            q4_4,
+            map_single.q4_1,
+            map_single.q4_2,
+            map_single.q4_3,
+            map_single.q4_4,
             origin=(spec.grid.is_, spec.grid.js, 0),
             domain=domain_compute,
         )
 
         q4_1, q4_2, q4_3, q4_4 = remapping_calculation(
             qs,
-            q4_1,
-            q4_2,
-            q4_3,
-            q4_4,
-            dp1,
+            map_single.q4_1,
+            map_single.q4_2,
+            map_single.q4_3,
+            map_single.q4_4,
+            map_single.dp1,
             i1,
             i2,
             j1,
             j2,
             q_min,
         )
-        map_single.do_lagrangian_contributions(
+        map_single.lagrangian_contributions(
             tracer,
             pe1,
             pe2,
@@ -99,18 +91,16 @@ def compute(
             q4_2,
             q4_3,
             q4_4,
-            dp1,
+            map_single.dp1,
             i1,
             i2,
             j1,
             j2,
-            kord,
-            origin,
-            domain,
-            version,
+            map_single.origin,
+            map_single.domain,
         )
     if spec.namelist.fill:
         fillz = utils.cached_stencil_class(FillNegativeTracerValues)(
             cache_key="mapntracer-fillz"
         )
-        fillz(dp2, tracers, i_extent, j_extent, spec.grid.npz, nq)
+        fillz(dp2, tracers, map_single.i_extent, map_single.j_extent, spec.grid.npz, nq)

@@ -3,11 +3,11 @@ from typing import Any, Dict
 from gt4py.gtscript import BACKWARD, FORWARD, PARALLEL, computation, exp, interval, log
 
 import fv3core._config as spec
-import fv3core.stencils.map_single as map_single
 import fv3core.stencils.mapn_tracer as mapn_tracer
 import fv3core.stencils.moist_cv as moist_cv
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import gtstencil
+from fv3core.stencils.map_single import MapSingle
 from fv3core.stencils.moist_cv import moist_pt_func
 from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
 
@@ -244,6 +244,10 @@ def compute(
         pe.shape, grid.compute_origin(), cache_key="remapping_part1_pe3"
     )
 
+    map_single = utils.cached_stencil_class(MapSingle)(
+        spec.namelist, cache_key="remap1-single"
+    )
+
     init_pe(pe, pe1, pe2, ptop, origin=grid.compute_origin(), domain=domain_jextra)
 
     moist_cv_pt_pressure(
@@ -290,7 +294,7 @@ def compute(
         domain=grid.domain_shape_compute(),
     )
 
-    map_single.compute(
+    map_single(
         pt,
         peln,
         pn2,
@@ -321,12 +325,8 @@ def compute(
     # TODO else if nq > 0:
     # TODO map1_q2, fillz
     kord_wz = spec.namelist.kord_wz
-    map_single.compute(
-        w, pe1, pe2, wsd, -2, grid.is_, grid.ie, grid.js, grid.je, kord_wz
-    )
-    map_single.compute(
-        delz, pe1, pe2, gz, 1, grid.is_, grid.ie, grid.js, grid.je, kord_wz
-    )
+    map_single(w, pe1, pe2, wsd, -2, grid.is_, grid.ie, grid.js, grid.je, kord_wz)
+    map_single(delz, pe1, pe2, gz, 1, grid.is_, grid.ie, grid.js, grid.je, kord_wz)
 
     undo_delz_adjust_and_copy_peln(
         delp,
@@ -364,7 +364,7 @@ def compute(
     pressures_mapu(
         pe, pe1, ak, bk, pe0, pe3, origin=grid.compute_origin(), domain=domain_jextra
     )
-    map_single.compute(
+    map_single(
         u,
         pe0,
         pe3,
@@ -380,7 +380,7 @@ def compute(
     pressures_mapv(
         pe, ak, bk, pe0, pe3, origin=grid.compute_origin(), domain=domain_iextra
     )
-    map_single.compute(
+    map_single(
         v,
         pe0,
         pe3,

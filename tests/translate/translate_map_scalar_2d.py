@@ -1,12 +1,12 @@
 import fv3core._config as spec
-import fv3core.stencils.map_single as Map_Single
+from fv3core.stencils.map_single import MapSingle
 from fv3core.testing import TranslateFortranData2Py, TranslateGrid
 
 
 class TranslateMapScalar_2d(TranslateFortranData2Py):
     def __init__(self, grid):
         super().__init__(grid)
-        self.compute_func = Map_Single.compute
+        self.compute_func = MapSingle(spec.namelist)
         self.in_vars["data_vars"] = {
             "q1": {"serialname": "pt"},
             "pe1": {
@@ -39,8 +39,7 @@ class TranslateMapScalar_2d(TranslateFortranData2Py):
         )
         inputs["i1"] = self.is_
         inputs["i2"] = self.ie
-        inputs["j1"] = inputs["j_2d"]
-        inputs["j2"] = inputs["j_2d"]
+        inputs["j1"] = inputs["j2"] = inputs["j_2d"]
         del inputs["j_2d"]
         inputs["kord"] = abs(spec.namelist.kord_tm)
         inputs["qmin"] = 184.0

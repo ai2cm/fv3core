@@ -1,40 +1,32 @@
-from typing import Tuple
+from types import SimpleNamespace
+from typing import List, Tuple
 
-import numpy as np
 from gt4py.gtscript import FORWARD, PARALLEL, computation, interval
 
 import fv3core._config as spec
 import fv3core.utils.gt4py_utils as utils
-from fv3core.decorators import gtstencil
+from fv3core.decorators import StencilWrapper
 from fv3core.stencils.basic_operations import copy_stencil
 from fv3core.stencils.remap_profile import RemapProfile
 from fv3core.utils.typing import FloatField, FloatFieldIJ
 
 
-r3 = 1.0 / 3.0
-r23 = 2.0 / 3.0
-
-
-@gtstencil()
 def set_dp(dp1: FloatField, pe1: FloatField):
     with computation(PARALLEL), interval(...):
         dp1 = pe1[0, 0, 1] - pe1
 
 
-@gtstencil()
 def set_eulerian_pressures(pe: FloatField, ptop: FloatFieldIJ, pbot: FloatFieldIJ):
     with computation(FORWARD), interval(0, 1):
         ptop = pe[0, 0, 0]
         pbot = pe[0, 0, 1]
 
 
-@gtstencil()
 def set_remapped_quantity(q: FloatField, set_values: FloatFieldIJ):
     with computation(FORWARD), interval(0, 1):
         q = set_values[0, 0]
 
 
-@gtstencil()
 def lagrangian_contributions(
     pe1: FloatField,
     ptop: FloatFieldIJ,
@@ -59,7 +51,7 @@ def lagrangian_contributions(
                     q2_tmp = (
                         q4_2
                         + 0.5 * (q4_4 + q4_3 - q4_2) * (pr + pl)
-                        - q4_4 * r3 * (pr * (pr + pl) + pl ** 2)
+                        - q4_4 * (1.0 / 3.0) * (pr * (pr + pl) + pl ** 2)
                     )
                 else:
                     # Eulerian element encompasses multiple Lagrangian elements
@@ -69,7 +61,7 @@ def lagrangian_contributions(
                         * (
                             q4_2
                             + 0.5 * (q4_4 + q4_3 - q4_2) * (1.0 + pl)
-                            - q4_4 * r3 * (1.0 + pl * (1.0 + pl))
+                            - q4_4 * (1.0 / 3.0) * (1.0 + pl * (1.0 + pl))
                         )
                         / (pbot - ptop)
                     )
@@ -84,7 +76,12 @@ def lagrangian_contributions(
                     esl = dp / dp1
                     q2_tmp = (
                         dp
-                        * (q4_2 + 0.5 * esl * (q4_3 - q4_2 + q4_4 * (1.0 - r23 * esl)))
+                        * (
+                            q4_2
+                            + 0.5
+                            * esl
+                            * (q4_3 - q4_2 + q4_4 * (1.0 - (2.0 / 3.0) * esl))
+                        )
                         / (pbot - ptop)
                     )
     with computation(FORWARD), interval(0, 1):
@@ -93,13 +90,104 @@ def lagrangian_contributions(
         q2_adds += q2_tmp
 
 
-class MapSingle:
+class LagrangianContributions:
     """
-    Fortran name is map_single
+    Fortran name is lagrangian_contributions
     """
 
-    def __init__(self, namelist, kord: int, mode: int):
-        self._remap_profile_k = RemapProfile(kord, mode)
+    def __init__(self):
+        self._grid = spec.grid
+        self._km = self._grid.npz
+        shape = self._grid.domain_shape_full(add=(1, 1, 1))
+        shape2d = shape[0:2]
+
+        self._q2_adds = utils.make_storage_from_shape(shape2d)
+        self._ptop = utils.make_storage_from_shape(shape2d)
+        self._pbot = utils.make_storage_from_shape(shape2d)
+
+        self._set_eulerian_pressures = StencilWrapper(set_eulerian_pressures)
+        self._lagrangian_contributions = StencilWrapper(lagrangian_contributions)
+        self._set_remapped_quantity = StencilWrapper(set_remapped_quantity)
+
+    def __call__(
+        self,
+        q1: FloatField,
+        pe1: FloatField,
+        pe2: FloatField,
+        q4_1: FloatField,
+        q4_2: FloatField,
+        q4_3: FloatField,
+        q4_4: FloatField,
+        dp1: FloatField,
+        i1: int,
+        i2: int,
+        j1: int,
+        j2: int,
+        origin: Tuple[int, int, int],
+        domain: Tuple[int, int, int],
+    ):
+        # A stencil with a loop over k2:
+        for k_eul in range(self._km):
+            # TODO (olivere): This is hacky
+            # merge with subsequent stencil when possible
+            self._set_eulerian_pressures(
+                pe2,
+                self._ptop,
+                self._pbot,
+                origin=(origin[0], origin[1], k_eul),
+                domain=(domain[0], domain[1], 1),
+            )
+
+            self._lagrangian_contributions(
+                pe1,
+                self._ptop,
+                self._pbot,
+                q4_1,
+                q4_2,
+                q4_3,
+                q4_4,
+                dp1,
+                self._q2_adds,
+                origin=origin,
+                domain=domain,
+            )
+
+            self._set_remapped_quantity(
+                q1,
+                self._q2_adds,
+                origin=(origin[0], origin[1], k_eul),
+                domain=(domain[0], domain[1], 1),
+            )
+
+
+class MapSingle:
+    """
+    Fortran name is map_single, test class is Map1_PPM_2d
+    """
+
+    def __init__(self, namelist: SimpleNamespace):
+        self._grid = spec.grid
+        shape = self._grid.domain_shape_full(add=(1, 1, 1))
+        origin = self._grid.compute_origin()
+
+        self.dp1 = utils.make_storage_from_shape(shape, origin=origin)
+        self.q4_1 = utils.make_storage_from_shape(shape, origin=origin)
+        self.q4_2 = utils.make_storage_from_shape(shape, origin=origin)
+        self.q4_3 = utils.make_storage_from_shape(shape, origin=origin)
+        self.q4_4 = utils.make_storage_from_shape(shape, origin=origin)
+
+        self.lagrangian_contributions = LagrangianContributions()
+
+        self._used_kords: Tuple[int] = (namelist.kord_tm, namelist.kord_tr)
+        self._used_modes: Tuple[int] = (-2, -1, 1)
+
+        kord_mode_combos: List[Tuple[int]] = []
+        for kord in self._used_kords:
+            for mode in self._used_modes:
+                kord_mode_combos.append((kord, mode))
+
+        self._remap_profiles = {pair: RemapProfile(*pair) for pair in kord_mode_combos}
+        self._set_dp = StencilWrapper(set_dp)
 
     def __call__(
         self,
@@ -107,14 +195,13 @@ class MapSingle:
         pe1: FloatField,
         pe2: FloatField,
         qs: FloatField,
-        # mode: int,
+        mode: int,
         i1: int,
         i2: int,
         j1: int,
         j2: int,
-        # kord: int,
+        kord: int,
         qmin: float = 0.0,
-        version: str = "stencil",
     ):
         """
         Compute x-flux using the PPM method.
@@ -127,14 +214,21 @@ class MapSingle:
             jfirst: Starting index of the J-dir compute domain
             jlast: Final index of the J-dir compute domain
         """
-
-        dp1, q4_1, q4_2, q4_3, q4_4, origin, domain, i_extent, j_extent = setup_data(
-            q1, pe1, i1, i2, j1, j2
+        self.setup_data(q1, pe1, i1, i2, j1, j2)
+        q4_1, q4_2, q4_3, q4_4 = self._remap_profiles[(kord, mode)](
+            qs,
+            self.q4_1,
+            self.q4_2,
+            self.q4_3,
+            self.q4_4,
+            self.dp1,
+            i1,
+            i2,
+            j1,
+            j2,
+            qmin,
         )
-        q4_1, q4_2, q4_3, q4_4 = self._remap_profile_k(
-            qs, q4_1, q4_2, q4_3, q4_4, dp1, i1, i2, j1, j2, qmin
-        )
-        do_lagrangian_contributions(
+        self.lagrangian_contributions(
             q1,
             pe1,
             pe2,
@@ -142,226 +236,29 @@ class MapSingle:
             q4_2,
             q4_3,
             q4_4,
-            dp1,
+            self.dp1,
             i1,
             i2,
             j1,
             j2,
-            kord,
-            origin,
-            domain,
-            version,
+            self.origin,
+            self.domain,
         )
         return q1
 
+    def setup_data(
+        self, q1: FloatField, pe1: FloatField, i1: int, i2: int, j1: int, j2: int
+    ):
+        grid = self._grid
+        self.i_extent = i2 - i1 + 1
+        self.j_extent = j2 - j1 + 1
+        self.origin = (i1, j1, 0)
+        self.domain = (self.i_extent, self.j_extent, grid.npz)
 
-def do_lagrangian_contributions(
-    q1: FloatField,
-    pe1: FloatField,
-    pe2: FloatField,
-    q4_1: FloatField,
-    q4_2: FloatField,
-    q4_3: FloatField,
-    q4_4: FloatField,
-    dp1: FloatField,
-    i1: int,
-    i2: int,
-    j1: int,
-    j2: int,
-    kord: int,
-    origin: Tuple[int, int, int],
-    domain: Tuple[int, int, int],
-    version: str,
-):
-    if version == "transliterated":
-        lagrangian_contributions_transliterated(
-            q1, pe1, pe2, q4_1, q4_2, q4_3, q4_4, dp1, i1, i2, j1, j2, kord
-        )
-    elif version == "stencil":
-        lagrangian_contributions_stencil(
+        copy_stencil(
             q1,
-            pe1,
-            pe2,
-            q4_1,
-            q4_2,
-            q4_3,
-            q4_4,
-            dp1,
-            i1,
-            i2,
-            j1,
-            j2,
-            kord,
-            origin,
-            domain,
+            self.q4_1,
+            origin=(0, 0, 0),
+            domain=grid.domain_shape_full(),
         )
-    else:
-        raise NotImplementedError(version + " is not an implemented remapping version")
-
-
-def setup_data(q1: FloatField, pe1: FloatField, i1: int, i2: int, j1: int, j2: int):
-    grid = spec.grid
-    i_extent = i2 - i1 + 1
-    j_extent = j2 - j1 + 1
-    origin = (i1, j1, 0)
-    domain = (i_extent, j_extent, grid.npz)
-
-    dp1 = utils.make_storage_from_shape(
-        q1.shape, origin=origin, cache_key="map_single_dp1"
-    )
-    q4_1 = utils.make_storage_from_shape(
-        q1.shape, origin=(grid.is_, 0, 0), cache_key="map_single_q4_1"
-    )
-    q4_2 = utils.make_storage_from_shape(
-        q4_1.shape, origin=grid.compute_origin(), cache_key="map_single_q4_2"
-    )
-    q4_3 = utils.make_storage_from_shape(
-        q4_1.shape, origin=grid.compute_origin(), cache_key="map_single_q4_3"
-    )
-    q4_4 = utils.make_storage_from_shape(
-        q4_1.shape, origin=grid.compute_origin(), cache_key="map_single_q4_4"
-    )
-    copy_stencil(
-        q1,
-        q4_1,
-        origin=(0, 0, 0),
-        domain=grid.domain_shape_full(),
-    )
-    set_dp(dp1, pe1, origin=origin, domain=domain)
-    return dp1, q4_1, q4_2, q4_3, q4_4, origin, domain, i_extent, j_extent
-
-
-def lagrangian_contributions_stencil(
-    q1: FloatField,
-    pe1: FloatField,
-    pe2: FloatField,
-    q4_1: FloatField,
-    q4_2: FloatField,
-    q4_3: FloatField,
-    q4_4: FloatField,
-    dp1: FloatField,
-    i1: int,
-    i2: int,
-    j1: int,
-    j2: int,
-    kord: int,
-    origin: Tuple[int, int, int],
-    domain: Tuple[int, int, int],
-):
-    # A stencil with a loop over k2:
-    km = spec.grid.npz
-    shape2d = pe2.shape[0:2]
-    q2_adds = utils.make_storage_from_shape(shape2d, cache_key="map_single_q2_adds")
-    ptop = utils.make_storage_from_shape(shape2d, cache_key="map_single_ptop")
-    pbot = utils.make_storage_from_shape(shape2d, cache_key="map_single_pbot")
-
-    for k_eul in range(km):
-
-        # TODO (olivere): This is hacky
-        # merge with subsequent stencil when possible
-        set_eulerian_pressures(
-            pe2,
-            ptop,
-            pbot,
-            origin=(origin[0], origin[1], k_eul),
-            domain=(domain[0], domain[1], 1),
-        )
-
-        lagrangian_contributions(
-            pe1,
-            ptop,
-            pbot,
-            q4_1,
-            q4_2,
-            q4_3,
-            q4_4,
-            dp1,
-            q2_adds,
-            origin=origin,
-            domain=domain,
-        )
-
-        set_remapped_quantity(
-            q1,
-            q2_adds,
-            origin=(origin[0], origin[1], k_eul),
-            domain=(domain[0], domain[1], 1),
-        )
-
-
-def lagrangian_contributions_transliterated(
-    q1: FloatField,
-    pe1: FloatField,
-    pe2: FloatField,
-    q4_1: FloatField,
-    q4_2: FloatField,
-    q4_3: FloatField,
-    q4_4: FloatField,
-    dp1: FloatField,
-    i1: int,
-    i2: int,
-    j1: int,
-    j2: int,
-    kord: int,
-):
-    grid = spec.grid
-    i_vals = np.arange(i1, i2 + 1)
-    kn = grid.npz
-    km = grid.npz
-    for j in range(j1, j2 + 1):
-        for ii in i_vals:
-            k0 = 0
-            for k2 in np.arange(kn):  # loop over new, remapped ks]
-                for k1 in np.arange(k0, km):  # loop over old ks
-                    # find the top edge of new grid: pe2[ii, k2]
-                    if (
-                        pe2[ii, j, k2] >= pe1[ii, j, k1]
-                        and pe2[ii, j, k2] <= pe1[ii, j, k1 + 1]
-                    ):
-                        pl = (pe2[ii, j, k2] - pe1[ii, j, k1]) / dp1[ii, j, k1]
-                        if (
-                            pe2[ii, j, k2 + 1] <= pe1[ii, j, k1 + 1]
-                        ):  # then the new grid layer is entirely within the old one
-                            pr = (pe2[ii, j, k2 + 1] - pe1[ii, j, k1]) / dp1[ii, j, k1]
-                            q1[ii, j, k2] = (
-                                q4_2[ii, j, k1]
-                                + 0.5
-                                * (q4_4[ii, j, k1] + q4_3[ii, j, k1] - q4_2[ii, j, k1])
-                                * (pr + pl)
-                                - q4_4[ii, j, k1] * r3 * (pr * (pr + pl) + pl ** 2)
-                            )
-                            k0 = k1
-                            break
-                        else:  # new grid layer extends into more old grid layers
-                            qsum = (pe1[ii, j, k1 + 1] - pe2[ii, j, k2]) * (
-                                q4_2[ii, j, k1]
-                                + 0.5
-                                * (q4_4[ii, j, k1] + q4_3[ii, j, k1] - q4_2[ii, j, k1])
-                                * (1.0 + pl)
-                                - q4_4[ii, j, k1] * (r3 * (1.0 + pl * (1.0 + pl)))
-                            )
-
-                            for mm in np.arange(k1 + 1, km):  # find the bottom edge
-                                if (
-                                    pe2[ii, j, k2 + 1] > pe1[ii, j, mm + 1]
-                                ):  # Not there yet; add the whole layer
-                                    qsum = qsum + dp1[ii, j, mm] * q4_1[ii, j, mm]
-                                else:
-                                    dp = pe2[ii, j, k2 + 1] - pe1[ii, j, mm]
-                                    esl = dp / dp1[ii, j, mm]
-                                    qsum = qsum + dp * (
-                                        q4_2[ii, j, mm]
-                                        + 0.5
-                                        * esl
-                                        * (
-                                            q4_3[ii, j, mm]
-                                            - q4_2[ii, j, mm]
-                                            + q4_4[ii, j, mm] * (1.0 - r23 * esl)
-                                        )
-                                    )
-                                    k0 = mm
-                                    flag = 1
-                                    break
-                            # Add everything up and divide by the pressure difference
-                            q1[ii, j, k2] = qsum / (pe2[ii, j, k2 + 1] - pe2[ii, j, k2])
-                            break
+        self._set_dp(self.dp1, pe1, origin=self.origin, domain=self.domain)
