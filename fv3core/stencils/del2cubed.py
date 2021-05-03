@@ -107,8 +107,25 @@ class HyperdiffusionDamping:
         self._compute_meridional_flux = StencilWrapper(func=compute_meridional_flux)
         self._update_q = StencilWrapper(func=update_q)
 
-        self._copy_corners_x = corners.CopyCorners("x")
-        self._copy_corners_y = corners.CopyCorners("y")
+        self._copy_full_domain = StencilWrapper(
+            func=copy_defn, origin=origin, domain=domain
+        )
+        self._copy_corners_x = StencilWrapper(
+            func=corners.copy_corners_x_stencil_in_out,
+            origin=(self.grid.isd, self.grid.jsd, 0),
+            domain=(self.grid.nid, self.grid.njd, self.grid.npz),
+            externals={
+                **ax_offsets,
+            },
+        )
+        self._copy_corners_y = StencilWrapper(
+            func=corners.copy_corners_y_stencil_in_out,
+            origin=(self.grid.isd, self.grid.jsd, 0),
+            domain=(self.grid.nid, self.grid.njd, self.grid.npz),
+            externals={
+                **ax_offsets,
+            },
+        )
 
     def __call__(self, qdel: FloatField, nmax: int, cd: float):
         """
@@ -128,7 +145,14 @@ class HyperdiffusionDamping:
             self._corner_fill(qdel)
 
             if nt > 0:
-                self._copy_corners_x(qdel)
+                self._copy_full_domain(qdel, self._corner_tmp)
+                self._copy_corners_x(self._corner_tmp, qdel)
+                # corners.copy_corners_x_stencil(
+                #     self._corner_tmp,
+                #     qdel,
+                #     origin=(self.grid.isd, self.grid.jsd, 0),
+                #     domain=(self.grid.nid, self.grid.njd, self.grid.npz),
+                # )
             nx = self.grid.nic + 2 * nt + 1
             ny = self.grid.njc + 2 * nt
             self._compute_zonal_flux(
@@ -140,7 +164,13 @@ class HyperdiffusionDamping:
             )
 
             if nt > 0:
-                self._copy_corners_y(qdel)
+                self._copy_full_domain(qdel, self._corner_tmp)
+                self._copy_corners_y(self._corner_tmp, qdel)
+                # corners.copy_corners_y_stencil(
+                #     qdel,
+                #     origin=(self.grid.isd, self.grid.jsd, 0),
+                #     domain=(self.grid.nid, self.grid.njd, self.grid.npz),
+                # )
             nx = self.grid.nic + 2 * nt
             ny = self.grid.njc + 2 * nt + 1
             self._compute_meridional_flux(
