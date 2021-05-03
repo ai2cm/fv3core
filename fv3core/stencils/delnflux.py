@@ -214,9 +214,6 @@ def compute_no_sg(q, fx2, fy2, nord, damp_c, d2, kstart=0, nk=None, mass=None):
                 "y", cache_key="delnflux_copy_corners_y_v2"
             )
             copy_corners_y(d2)
-            # corners.copy_corners_y_stencil(
-            #     d2, origin=(grid.isd, grid.jsd, kstart), domain=(grid.nid, grid.njd, nk)
-            # )
 
             fy2_order(
                 d2,

@@ -91,9 +91,6 @@ class HyperdiffusionDamping:
         self._fy = utils.make_storage_from_shape(
             self.grid.domain_shape_full(add=(1, 1, 1)), origin=origin
         )
-        self._corner_tmp = utils.make_storage_from_shape(
-            self.grid.domain_shape_full(add=(1, 1, 1)), origin=origin
-        )
 
         self._corner_fill = StencilWrapper(
             func=corner_fill,
