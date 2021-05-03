@@ -393,7 +393,9 @@ class AGrid2BGridFourthOrder:
     Fortran name is a2b_ord4, test module is A2B_Ord4
     """
 
-    def __init__(self, namelist, kstart=0, nk=None, replace=False):
+    def __init__(
+        self, namelist, kstart: int = 0, nk: int = None, replace: bool = False
+    ):
         """
         Args:
             namelist: model configuration
@@ -496,7 +498,7 @@ class AGrid2BGridFourthOrder:
             domain=(self.grid.nic + 1, self.grid.njc + 1, nk),
         )
 
-    def __call__(self, qin, qout):
+    def __call__(self, qin: FloatField, qout: FloatField):
         """Converts qin from A-grid to B-grid in qout.
         In some cases, qin is also updated to the B grid.
         Args:
@@ -538,7 +540,7 @@ class AGrid2BGridFourthOrder:
             self.grid.bgrid2,
         )
 
-        self.compute_qout_edges(qin, qout)
+        self._compute_qout_edges(qin, qout)
         self._ppm_volume_mean_x_stencil(
             qin,
             self._tmp_qx,
@@ -562,7 +564,7 @@ class AGrid2BGridFourthOrder:
                 qin,
             )
 
-    def compute_qout_edges(self, qin, qout):
+    def _compute_qout_edges(self, qin: FloatField, qout: FloatField):
         if self.grid.west_edge:
             self._qout_x_edge_west(
                 qin,
