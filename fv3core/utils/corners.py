@@ -492,67 +492,6 @@ def copy_corners_y_stencil(q: FloatField):
 
 
 @gtstencil()
-def copy_corners_y_stencil(q: FloatField):
-    from __externals__ import i_end, i_start, j_end, j_start
-
-    with computation(PARALLEL), interval(...):
-        with horizontal(
-            region[i_start - 3, j_start - 3], region[i_start - 3, j_end + 3]
-        ):
-            q = q[5, 0, 0]
-        with horizontal(
-            region[i_start - 2, j_start - 3], region[i_start - 3, j_end + 2]
-        ):
-            q = q[4, 1, 0]
-        with horizontal(
-            region[i_start - 1, j_start - 3], region[i_start - 3, j_end + 1]
-        ):
-            q = q[3, 2, 0]
-        with horizontal(
-            region[i_start - 3, j_start - 2], region[i_start - 2, j_end + 3]
-        ):
-            q = q[4, -1, 0]
-        with horizontal(
-            region[i_start - 2, j_start - 2], region[i_start - 2, j_end + 2]
-        ):
-            q = q[3, 0, 0]
-        with horizontal(
-            region[i_start - 1, j_start - 2], region[i_start - 2, j_end + 1]
-        ):
-            q = q[2, 1, 0]
-        with horizontal(
-            region[i_start - 3, j_start - 1], region[i_start - 1, j_end + 3]
-        ):
-            q = q[3, -2, 0]
-        with horizontal(
-            region[i_start - 2, j_start - 1], region[i_start - 1, j_end + 2]
-        ):
-            q = q[2, -1, 0]
-        with horizontal(
-            region[i_start - 1, j_start - 1], region[i_start - 1, j_end + 1]
-        ):
-            q = q[1, 0, 0]
-        with horizontal(region[i_end + 1, j_start - 3], region[i_end + 3, j_end + 1]):
-            q = q[-3, 2, 0]
-        with horizontal(region[i_end + 2, j_start - 3], region[i_end + 3, j_end + 2]):
-            q = q[-4, 1, 0]
-        with horizontal(region[i_end + 3, j_start - 3], region[i_end + 3, j_end + 3]):
-            q = q[-5, 0, 0]
-        with horizontal(region[i_end + 1, j_start - 2], region[i_end + 2, j_end + 1]):
-            q = q[-2, 1, 0]
-        with horizontal(region[i_end + 2, j_start - 2], region[i_end + 2, j_end + 2]):
-            q = q[-3, 0, 0]
-        with horizontal(region[i_end + 3, j_start - 2], region[i_end + 2, j_end + 3]):
-            q = q[-4, -1, 0]
-        with horizontal(region[i_end + 1, j_start - 1], region[i_end + 1, j_end + 1]):
-            q = q[-1, 0, 0]
-        with horizontal(region[i_end + 2, j_start - 1], region[i_end + 1, j_end + 2]):
-            q = q[-2, -1, 0]
-        with horizontal(region[i_end + 3, j_start - 1], region[i_end + 1, j_end + 3]):
-            q = q[-3, -2, 0]
-
-
-@gtstencil()
 def fill_corners_bgrid_x(q: FloatField):
     from __externals__ import i_end, i_start, j_end, j_start
 
