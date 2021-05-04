@@ -14,7 +14,7 @@ from gt4py.gtscript import (
 import fv3core._config as spec
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import FrozenStencil
-from fv3core.stencils.basic_operations import copy_stencil_method
+from fv3core.stencils.basic_operations import copy_defn
 from fv3core.utils import axis_offsets
 from fv3core.utils.typing import FloatField, FloatFieldI, FloatFieldIJ
 
@@ -441,6 +441,10 @@ class AGrid2BGridFourthOrder:
         js2 = self.grid.js + 1 if self.grid.south_edge else self.grid.js
         je1 = self.grid.je if self.grid.north_edge else self.grid.je + 1
         dj2 = je1 - js2 + 1
+
+        # edge_w is singleton in the I-dimension to work around gt4py not yet
+        # supporting J-fields. As a result, the origin has to be zero for
+        # edge_w, anything higher is outside its index range
         self._qout_x_edge_west = FrozenStencil(
             qout_x_edge,
             origin={"_all_": (self.grid.is_, js2, kstart), "edge_w": (0, js2)},
@@ -497,7 +501,7 @@ class AGrid2BGridFourthOrder:
             a2b_interpolation, externals=ax_offsets, origin=origin, domain=domain
         )
         self._copy_stencil = FrozenStencil(
-            copy_stencil_method,
+            copy_defn,
             origin=(self.grid.is_, self.grid.js, kstart),
             domain=(self.grid.nic + 1, self.grid.njc + 1, nk),
         )

@@ -222,81 +222,12 @@ def test_frozen_stencil_kwargs_passed_to_init(
     )
 
 
-def one_field_stencil(q_out: FloatField):
-    with computation(PARALLEL), interval(...):
-        q_out = 1.0
-
-
-def three_field_stencil(q_out: FloatField, q_in1: FloatField, q_in2: FloatField):
-    with computation(PARALLEL), interval(...):
-        q_out = q_in1 + q_in2
-
-
-def three_field_parameter_stencil(
-    q_out: FloatField, q_in1: FloatField, q_in2: FloatField, param: float
-):
-    with computation(PARALLEL), interval(...):
-        q_out = param * (q_in1 + q_in2)
-
-
-@pytest.mark.parametrize(
-    "definition, field_names",
-    [
-        [one_field_stencil, ("q_out",)],
-        [three_field_stencil, ("q_out", "q_in1", "q_in2")],
-        [three_field_parameter_stencil, ("q_out", "q_in1", "q_in2")],
-    ],
-)
-def test_frozen_stencil_field_names(definition, field_names, backend):
-    config = StencilConfig(
-        backend=backend,
-        rebuild=False,
-        validate_args=False,
-        format_source=False,
-        device_sync=False,
-    )
-    result = FrozenStencil(
-        definition,
-        origin=(0, 0, 0),
-        domain=(3, 3, 3),
-        stencil_config=config,
-        externals={},
-    )
-    assert result.field_names == field_names
-
-
-@pytest.mark.parametrize(
-    "definition, parameter_names",
-    [
-        [one_field_stencil, tuple()],
-        [three_field_stencil, tuple()],
-        [three_field_parameter_stencil, ("param",)],
-    ],
-)
-def test_frozen_stencil_parameter_names(definition, parameter_names, backend):
-    config = StencilConfig(
-        backend=backend,
-        rebuild=False,
-        validate_args=False,
-        format_source=False,
-        device_sync=False,
-    )
-    result = FrozenStencil(
-        definition,
-        origin=(0, 0, 0),
-        domain=(3, 3, 3),
-        stencil_config=config,
-        externals={},
-    )
-    assert result.parameter_names == parameter_names
-
-
 def field_after_parameter_stencil(q_in: FloatField, param: float, q_out: FloatField):
     with computation(PARALLEL), interval(...):
         q_out = param * q_in
 
 
-def test_frozen_field_after_parameter_raises(backend):
+def test_frozen_field_after_parameter(backend):
     config = StencilConfig(
         backend=backend,
         rebuild=False,
@@ -304,14 +235,13 @@ def test_frozen_field_after_parameter_raises(backend):
         format_source=False,
         device_sync=False,
     )
-    with pytest.raises(TypeError):
-        FrozenStencil(
-            field_after_parameter_stencil,
-            origin=(0, 0, 0),
-            domain=(3, 3, 3),
-            stencil_config=config,
-            externals={},
-        )
+    result = FrozenStencil(
+        field_after_parameter_stencil,
+        origin=(0, 0, 0),
+        domain=(3, 3, 3),
+        stencil_config=config,
+        externals={},
+    )
 
 
 @pytest.mark.parametrize("validate_args", [True, False])
