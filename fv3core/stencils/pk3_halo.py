@@ -65,20 +65,3 @@ class PK3Halo:
             akap: Poisson constant (KAPPA)
         """
         self._edge_pe_update(self._pe_tmp, delp, pk3, ptop, akap)
-
-
-# def compute(pk3, delp, ptop, akap):
-#     grid = spec.grid
-#     pe_tmp = utils.make_storage_from_shape(
-#         pk3.shape[0:2], grid.full_origin(), cache_key="pk3_halo_pe_tmp"
-#     )
-
-#     edge_pe_update(
-#         pe_tmp,
-#         delp,
-#         pk3,
-#         ptop,
-#         akap,
-#         origin=grid.full_origin(),
-#         domain=grid.domain_shape_full(add=(0, 0, 1)),
-#     )
