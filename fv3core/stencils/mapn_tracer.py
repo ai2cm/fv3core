@@ -54,7 +54,7 @@ def compute(
     )
 
     map_single = utils.cached_stencil_class(MapSingle)(
-        spec.namelist, cache_key="mapntracer-single"
+        kord, 0, cache_key="mapntracer-single"
     )
     tracer_list = [tracers[q] for q in utils.tracer_variables[0:nq]]
     map_single.setup_data(tracer_list[0], pe1, i1, i2, j1, j2)

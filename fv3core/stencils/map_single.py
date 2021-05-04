@@ -165,7 +165,7 @@ class MapSingle:
     Fortran name is map_single, test class is Map1_PPM_2d
     """
 
-    def __init__(self, namelist: SimpleNamespace):
+    def __init__(self, kord: int, mode: int):
         self._grid = spec.grid
         shape = self._grid.domain_shape_full(add=(1, 1, 1))
         origin = self._grid.compute_origin()
@@ -177,16 +177,7 @@ class MapSingle:
         self.q4_4 = utils.make_storage_from_shape(shape, origin=origin)
 
         self.lagrangian_contributions = LagrangianContributions()
-
-        self._used_kords: Tuple[int] = (namelist.kord_tm, namelist.kord_tr)
-        self._used_modes: Tuple[int] = (-2, -1, 1)
-
-        kord_mode_combos: List[Tuple[int]] = []
-        for kord in self._used_kords:
-            for mode in self._used_modes:
-                kord_mode_combos.append((kord, mode))
-
-        self._remap_profiles = {pair: RemapProfile(*pair) for pair in kord_mode_combos}
+        self._remap_profile = RemapProfile(kord, mode)
         self._set_dp = StencilWrapper(set_dp)
 
     def __call__(
@@ -195,12 +186,10 @@ class MapSingle:
         pe1: FloatField,
         pe2: FloatField,
         qs: FloatField,
-        mode: int,
         i1: int,
         i2: int,
         j1: int,
         j2: int,
-        kord: int,
         qmin: float = 0.0,
     ):
         """
@@ -215,7 +204,7 @@ class MapSingle:
             jlast: Final index of the J-dir compute domain
         """
         self.setup_data(q1, pe1, i1, i2, j1, j2)
-        q4_1, q4_2, q4_3, q4_4 = self._remap_profiles[(kord, mode)](
+        q4_1, q4_2, q4_3, q4_4 = self._remap_profile(
             qs,
             self.q4_1,
             self.q4_2,
@@ -262,3 +251,14 @@ class MapSingle:
             domain=grid.domain_shape_full(),
         )
         self._set_dp(self.dp1, pe1, origin=self.origin, domain=self.domain)
+
+
+class MapSingleFactory:
+    def __init__(self):
+        self._object_pool: Dict[Tuple[int, int], MapSingle] = {}
+
+    def __call__(self, kord: int, mode: int, *args, **kwargs):
+        key_pair = (kord, mode)
+        if key_pair not in self._object_pool:
+            self._object_pool[key_pair] = MapSingle(*key_pair)
+        return self._object_pool[key_pair](*args, **kwargs)

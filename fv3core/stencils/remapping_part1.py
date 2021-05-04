@@ -7,7 +7,7 @@ import fv3core.stencils.mapn_tracer as mapn_tracer
 import fv3core.stencils.moist_cv as moist_cv
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import gtstencil
-from fv3core.stencils.map_single import MapSingle
+from fv3core.stencils.map_single import MapSingleFactory
 from fv3core.stencils.moist_cv import moist_pt_func
 from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
 
@@ -244,9 +244,7 @@ def compute(
         pe.shape, grid.compute_origin(), cache_key="remapping_part1_pe3"
     )
 
-    map_single = utils.cached_stencil_class(MapSingle)(
-        spec.namelist, cache_key="remap1-single"
-    )
+    map_single = MapSingleFactory()
 
     init_pe(pe, pe1, pe2, ptop, origin=grid.compute_origin(), domain=domain_jextra)
 
@@ -295,16 +293,16 @@ def compute(
     )
 
     map_single(
+        abs(spec.namelist.kord_tm),
+        1,
         pt,
         peln,
         pn2,
         gz,
-        1,
         grid.is_,
         grid.ie,
         grid.js,
         grid.je,
-        abs(spec.namelist.kord_tm),
         qmin=t_min,
     )
 
@@ -325,8 +323,8 @@ def compute(
     # TODO else if nq > 0:
     # TODO map1_q2, fillz
     kord_wz = spec.namelist.kord_wz
-    map_single(w, pe1, pe2, wsd, -2, grid.is_, grid.ie, grid.js, grid.je, kord_wz)
-    map_single(delz, pe1, pe2, gz, 1, grid.is_, grid.ie, grid.js, grid.je, kord_wz)
+    map_single(kord_wz, -2, w, pe1, pe2, wsd, grid.is_, grid.ie, grid.js, grid.je)
+    map_single(kord_wz, 1, delz, pe1, pe2, gz, grid.is_, grid.ie, grid.js, grid.je)
 
     undo_delz_adjust_and_copy_peln(
         delp,
@@ -365,31 +363,31 @@ def compute(
         pe, pe1, ak, bk, pe0, pe3, origin=grid.compute_origin(), domain=domain_jextra
     )
     map_single(
+        spec.namelist.kord_mt,
+        -1,
         u,
         pe0,
         pe3,
         gz,
-        -1,
         grid.is_,
         grid.ie,
         grid.js,
         grid.je + 1,
-        spec.namelist.kord_mt,
     )
     domain_iextra = (grid.nic + 1, grid.njc, grid.npz + 1)
     pressures_mapv(
         pe, ak, bk, pe0, pe3, origin=grid.compute_origin(), domain=domain_iextra
     )
     map_single(
+        spec.namelist.kord_mt,
+        -1,
         v,
         pe0,
         pe3,
         gz,
-        -1,
         grid.is_,
         grid.ie + 1,
         grid.js,
         grid.je,
-        spec.namelist.kord_mt,
     )
     update_ua(pe2, ua, origin=grid.compute_origin(), domain=domain_jextra)
