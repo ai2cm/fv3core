@@ -189,16 +189,16 @@ def dyncore_temporaries(shape, namelist, grid):
     return tmps
 
 
-def _initialize_edge_pe_stencil(grid: Grid) -> StencilWrapper:
+def _initialize_edge_pe_stencil(grid: Grid) -> FrozenStencil:
     """
-    Returns the StencilWrapper Object for the pe_halo stencil
+    Returns the FrozenStencil object for the pe_halo stencil
     """
     ax_offsets_pe = axis_offsets(
         grid,
         grid.full_origin(),
         grid.domain_shape_full(add=(0, 0, 1)),
     )
-    return StencilWrapper(
+    return FrozenStencil(
         pe_halo.edge_pe,
         origin=grid.full_origin(),
         domain=grid.domain_shape_full(add=(0, 0, 1)),
@@ -314,7 +314,7 @@ class AcousticDynamics:
             origin=self.grid.full_origin(),
             domain=self.grid.domain_shape_full(),
         )
-        self._edge_pe_stencil: StencilWrapper = _initialize_edge_pe_stencil(self.grid)
+        self._edge_pe_stencil: FrozenStencil = _initialize_edge_pe_stencil(self.grid)
         """ The stencil object responsible for updading the interface pressure"""
 
         self._do_del2cubed = (
