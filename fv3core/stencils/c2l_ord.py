@@ -15,7 +15,7 @@ C1 = 1.125
 C2 = -0.125
 
 
-@gtstencil()
+@gtstencil
 def ord4_transform(
     u: FloatField,
     v: FloatField,

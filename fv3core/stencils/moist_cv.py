@@ -102,7 +102,6 @@ def moist_cv_default_fn():
     cvm = constants.CV_AIR
     return cvm, gz
 
-
 @gtscript.function
 def te_always_part(u, v, w, phis, rsin2, cosa_s):
     return 0.5 * (
@@ -147,7 +146,7 @@ def moist_pt_func(
     return cvm, gz, q_con, cappa, pt
 
 
-@gtstencil()
+@gtstencil
 def moist_te_2d(
     qvapor: FloatField,
     qliquid: FloatField,
@@ -189,8 +188,7 @@ def moist_te_2d(
                 + te_always_part(u, v, w, phis, rsin2, cosa_s)
             )
 
-
-@gtstencil()
+@gtstencil
 def moist_pt(
     qvapor: FloatField,
     qliquid: FloatField,
@@ -238,7 +236,7 @@ def last_pt(
     return (pt + dtmp * pkz) / ((1.0 + zvir * qv) * (1.0 - gz))
 
 
-@gtstencil()
+@gtstencil
 def moist_pt_last_step(
     qvapor: FloatField,
     qliquid: FloatField,
@@ -271,7 +269,7 @@ def compute_pkz_func(delp, delz, pt, cappa):
     return exp(cappa * log(constants.RDG * delp / delz * pt))
 
 
-@gtstencil()
+@gtstencil
 def moist_pkz(
     qvapor: FloatField,
     qliquid: FloatField,
@@ -327,7 +325,7 @@ def compute_pt(
     r_vir: float,
     j_2d: int = None,
 ):
-    origin, domain, jslice = region_mode(j_2d, spec.grid)
+    origin, domain, _ = region_mode(j_2d, spec.grid)
     moist_pt(
         qvapor_js,
         qliquid_js,
@@ -367,7 +365,7 @@ def compute_pkz(
     j_2d: int = None,
 ):
     grid = spec.grid
-    origin, domain, jslice = region_mode(j_2d, grid)
+    origin, domain, _ = region_mode(j_2d, grid)
 
     moist_pkz(
         qvapor_js,
@@ -421,7 +419,7 @@ def compute_last_step(
     )
 
 
-@gtstencil()
+@gtstencil
 def fvsetup_stencil(
     qvapor: FloatField,
     qliquid: FloatField,

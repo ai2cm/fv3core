@@ -1,13 +1,15 @@
+import typing
 from typing import Any, Dict
 
 from gt4py.gtscript import FORWARD, PARALLEL, computation, interval
 
 import fv3core._config as spec
 import fv3core.utils.gt4py_utils as utils
-from fv3core.decorators import StencilWrapper
+from fv3core.decorators import gtstencil
 from fv3core.utils.typing import FloatField, FloatFieldIJ, IntFieldIJ
 
 
+@typing.no_type_check
 def fix_tracer(
     q: FloatField,
     dp: FloatField,
@@ -107,7 +109,7 @@ class FillNegativeTracerValues:
     def __init__(self):
         grid = spec.grid
         self.origin = grid.compute_origin()
-        self._fix_tracer_stencil = StencilWrapper(fix_tracer)
+        self._fix_tracer_stencil = gtstencil(fix_tracer)
 
         shape = grid.domain_shape_full(add=(1, 1, 1))
         shape_ij = shape[0:2]

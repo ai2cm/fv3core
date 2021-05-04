@@ -5,7 +5,7 @@ from gt4py.gtscript import __INLINED, BACKWARD, FORWARD, PARALLEL, computation, 
 
 import fv3core._config as spec
 import fv3core.utils.gt4py_utils as utils
-from fv3core.decorators import StencilWrapper
+from fv3core.decorators import gtstencil
 from fv3core.utils.typing import FloatField
 
 
@@ -535,27 +535,27 @@ class RemapProfile:
             grid.domain_shape_full(add=(0, 0, 1)), origin=self._full_orig
         )
 
-        self._set_values_stencil = StencilWrapper(
+        self._set_values_stencil = gtstencil(
             func=set_vals,
             externals={"iv": iv, "kord": abs(kord)},
         )
 
-        self._apply_constraints_stencil = StencilWrapper(
+        self._apply_constraints_stencil = gtstencil(
             func=apply_constraints,
             externals={"iv": iv, "kord": abs(kord)},
         )
 
-        self._set_top_stencil = StencilWrapper(
+        self._set_top_stencil = gtstencil(
             func=set_top,
             externals={"iv": iv},
         )
 
-        self._set_set_inner_stencil = StencilWrapper(
+        self._set_set_inner_stencil = gtstencil(
             func=set_inner,
             externals={"iv": iv, "kord": abs(kord)},
         )
 
-        self._set_bottom_stencil = StencilWrapper(
+        self._set_bottom_stencil = gtstencil(
             func=set_bottom,
             externals={"iv": iv},
         )
@@ -593,9 +593,9 @@ class RemapProfile:
         """
         i_extent: int = i2 - i1 + 1
         j_extent: int = j2 - j1 + 1
-        orig: Tuple[int] = (i1, j1, 0)
-        dom: Tuple[int] = (i_extent, j_extent, self._km)
-        dom_extend: Tuple[int] = (i_extent, j_extent, self._km + 1)
+        origin: Tuple[int, int, int] = (i1, j1, 0)
+        domain: Tuple[int, int, int] = (i_extent, j_extent, self._km)
+        domain_extend: Tuple[int, int, int] = (i_extent, j_extent, self._km + 1)
 
         self._set_values_stencil(
             self._gam,
@@ -607,8 +607,8 @@ class RemapProfile:
             a4_4,
             self._q_bot,
             qs,
-            origin=orig,
-            domain=dom_extend,
+            origin=origin,
+            domain=domain_extend,
         )
 
         if abs(self._kord) <= 16:
@@ -622,8 +622,8 @@ class RemapProfile:
                 self._ext5,
                 self._ext6,
                 self._extm,
-                origin=orig,
-                domain=dom,
+                origin=origin,
+                domain=domain,
             )
 
             self._set_top_stencil(
@@ -632,7 +632,7 @@ class RemapProfile:
                 a4_3,
                 a4_4,
                 self._extm,
-                origin=orig,
+                origin=origin,
                 domain=(i_extent, j_extent, 2),
             )
 
