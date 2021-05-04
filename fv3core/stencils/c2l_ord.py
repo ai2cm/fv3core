@@ -2,7 +2,7 @@ from gt4py.gtscript import PARALLEL, computation, horizontal, interval, region
 
 import fv3core.utils.global_config as global_config
 import fv3core.utils.gt4py_utils as utils
-from fv3core.decorators import StencilWrapper
+from fv3core.decorators import FrozenStencil
 from fv3core.utils.grid import axis_offsets
 from fv3core.utils.typing import FloatField, FloatFieldIJ
 from fv3gfs.util import CubedSphereCommunicator
@@ -96,7 +96,7 @@ class CubedToLatLon:
         self.grid = grid
         if namelist.c2l_ord == 2:
             self._do_ord4 = False
-            self._compute_cubed_to_latlon = StencilWrapper(
+            self._compute_cubed_to_latlon = FrozenStencil(
                 func=c2l_ord2,
                 origin=self.grid.compute_origin(
                     add=(-1, -1, 0) if self._do_halo_update else (0, 0, 0)
@@ -109,7 +109,7 @@ class CubedToLatLon:
             origin = self.grid.compute_origin()
             domain = self.grid.domain_shape_compute()
             ax_offsets = axis_offsets(self.grid, origin, domain)
-            self._compute_cubed_to_latlon = StencilWrapper(
+            self._compute_cubed_to_latlon = FrozenStencil(
                 func=ord4_transform,
                 externals={
                     **ax_offsets,
