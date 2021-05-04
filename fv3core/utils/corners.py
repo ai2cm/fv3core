@@ -39,8 +39,8 @@ class CopyCorners:
         elif direction == "y":
             self._copy_corners = StencilWrapper(
                 func=copy_corners_y_stencil_defn,
-                origin=(self.grid.isd, self.grid.jsd, 0),
-                domain=(self.grid.nid, self.grid.njd, self.grid.npz),
+                origin=self.grid.full_origin(),
+                domain=self.grid.domain_shape_full(add=(0, 0, 1)),
                 externals={
                     **ax_offsets,
                 },
