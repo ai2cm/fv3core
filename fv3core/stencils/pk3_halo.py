@@ -1,6 +1,5 @@
 from gt4py.gtscript import FORWARD, computation, horizontal, interval, region
 
-import fv3core._config as spec
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import StencilWrapper
 from fv3core.utils.grid import axis_offsets
@@ -39,12 +38,11 @@ class PK3Halo:
     Fortran name is pk3_halo
     """
 
-    def __init__(self):
-        grid = spec.grid
+    def __init__(self, grid):
         shape_2D = grid.domain_shape_full(add=(1, 1, 1))[0:2]
         origin = grid.full_origin()
         domain = grid.domain_shape_full(add=(0, 0, 1))
-        ax_offsets = axis_offsets(spec.grid, origin, domain)
+        ax_offsets = axis_offsets(grid, origin, domain)
         self._pe_tmp = utils.make_storage_from_shape(shape_2D, grid.full_origin())
         self._edge_pe_update = StencilWrapper(
             func=edge_pe_update,

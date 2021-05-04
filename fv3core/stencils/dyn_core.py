@@ -310,7 +310,7 @@ class AcousticDynamics:
             self.grid,
             self._nk_heat_dissipation,
         )
-        self._pk3_halo = PK3Halo()
+        self._pk3_halo = PK3Halo(self.grid)
 
     @staticmethod
     def initialize_temp_adjust_stencil(grid, n_adj):
