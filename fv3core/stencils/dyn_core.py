@@ -30,8 +30,8 @@ from fv3core.stencils.basic_operations import copy_stencil
 from fv3core.stencils.del2cubed import HyperdiffusionDamping
 from fv3core.stencils.riem_solver3 import RiemannSolver3
 from fv3core.stencils.riem_solver_c import RiemannSolverC
-from fv3core.utils.grid import axis_offsets
 from fv3core.utils import Grid
+from fv3core.utils.grid import axis_offsets
 from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
 
 
@@ -315,7 +315,7 @@ class AcousticDynamics:
             domain=self.grid.domain_shape_full(),
         )
         self._edge_pe_stencil: StencilWrapper = _initialize_edge_pe_stencil(self.grid)
-        """ The stencil object responsible for updading the interface pressure from the pressure differences"""
+        """ The stencil object responsible for updading the interface pressure"""
 
         self._do_del2cubed = (
             self._nk_heat_dissipation != 0 and self.namelist.d_con > 1.0e-5
