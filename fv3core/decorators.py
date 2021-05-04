@@ -179,7 +179,7 @@ def compute_field_origins(
     else:
         field_origins = {**origin}
         origin_tuple = origin["_all_"]
-    for name, field_info in field_info_mapping:
+    for name, field_info in field_info_mapping.items():
         if field_info is not None:
             field_origin = field_origins.get(name, None)
             if field_origin is not None:
