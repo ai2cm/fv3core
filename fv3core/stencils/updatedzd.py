@@ -3,7 +3,7 @@ from gt4py.gtscript import BACKWARD, FORWARD, PARALLEL, computation, interval
 
 import fv3core.utils.global_constants as constants
 import fv3core.utils.gt4py_utils as utils
-from fv3core.decorators import StencilWrapper
+from fv3core.decorators import FrozenStencil
 from fv3core.stencils import delnflux
 from fv3core.stencils.fvtp2d import FiniteVolumeTransport
 from fv3core.utils import validation
@@ -262,7 +262,7 @@ class UpdateHeightOnDGrid:
         gamma_3d = utils.make_storage_from_shape((1, 1, self.grid.npz + 1), (0, 0, 0))
         beta_3d = utils.make_storage_from_shape((1, 1, self.grid.npz + 1), (0, 0, 0))
 
-        _cubic_spline_interpolation_constants = StencilWrapper(
+        _cubic_spline_interpolation_constants = FrozenStencil(
             cubic_spline_interpolation_constants,
             origin=(0, 0, 0),
             domain=(1, 1, self.grid.npz + 1),
@@ -276,12 +276,12 @@ class UpdateHeightOnDGrid:
         )
 
     def _compile_stencils(self, namelist):
-        self._interpolate_to_layer_interface = StencilWrapper(
+        self._interpolate_to_layer_interface = FrozenStencil(
             cubic_spline_interpolation_from_layer_center_to_interfaces,
             origin=self.grid.full_origin(),
             domain=self.grid.domain_shape_full(add=(0, 0, 1)),
         )
-        self._apply_height_fluxes = StencilWrapper(
+        self._apply_geopotential_height_fluxes = FrozenStencil(
             apply_height_fluxes,
             origin=self.grid.compute_origin(),
             domain=self.grid.domain_shape_compute(add=(0, 0, 1)),
