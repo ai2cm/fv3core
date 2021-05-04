@@ -4,7 +4,7 @@ from gt4py.gtscript import FORWARD, PARALLEL, computation, interval
 
 import fv3core._config as spec
 import fv3core.utils.gt4py_utils as utils
-from fv3core.decorators import gtstencil, FrozenStencil
+from fv3core.decorators import FrozenStencil, gtstencil
 from fv3core.stencils.basic_operations import copy_stencil
 from fv3core.stencils.remap_profile import RemapProfile
 from fv3core.utils.typing import FloatField, FloatFieldIJ
@@ -239,9 +239,8 @@ class MapSingle:
 
 
 class MapSingleFactory:
-    def __init__(self):
-        self._object_pool: Dict[Tuple[int, int], MapSingle] = {}
-        """Pool of MapSingle objects."""
+    _object_pool: Dict[Tuple[int, ...], MapSingle] = {}
+    """Pool of MapSingle objects."""
 
     def __call__(
         self, kord: int, mode: int, i1: int, i2: int, j1: int, j2: int, *args, **kwargs
