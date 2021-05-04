@@ -4,7 +4,7 @@ from gt4py.gtscript import FORWARD, PARALLEL, computation, interval
 
 import fv3core._config as spec
 import fv3core.utils.gt4py_utils as utils
-from fv3core.decorators import StencilWrapper
+from fv3core.decorators import gtstencil, FrozenStencil
 from fv3core.stencils.basic_operations import copy_stencil
 from fv3core.stencils.remap_profile import RemapProfile
 from fv3core.utils.typing import FloatField, FloatFieldIJ
@@ -107,13 +107,13 @@ class LagrangianContributions:
         self.origin = origin
         self.domain = domain
 
-        self._set_eulerian_pressures = StencilWrapper(set_eulerian_pressures)
-        self._lagrangian_contributions = StencilWrapper(
+        self._set_eulerian_pressures = gtstencil(set_eulerian_pressures)
+        self._lagrangian_contributions = FrozenStencil(
             lagrangian_contributions,
             origin=origin,
             domain=domain,
         )
-        self._set_remapped_quantity = StencilWrapper(set_remapped_quantity)
+        self._set_remapped_quantity = gtstencil(set_remapped_quantity)
 
     def __call__(
         self,
@@ -180,14 +180,12 @@ class MapSingle:
 
         self.i_extent = i2 - i1 + 1
         self.j_extent = j2 - j1 + 1
-        self.origin = (i1, j1, 0)
-        self.domain = (self.i_extent, self.j_extent, self._grid.npz)
+        origin = (i1, j1, 0)
+        domain = (self.i_extent, self.j_extent, self._grid.npz)
 
-        self.lagrangian_contributions = LagrangianContributions(
-            self.origin, self.domain
-        )
+        self.lagrangian_contributions = LagrangianContributions(origin, domain)
         self._remap_profile = RemapProfile(kord, mode, i1, i2, j1, j2)
-        self._set_dp = StencilWrapper(set_dp)
+        self._set_dp = FrozenStencil(set_dp, origin=origin, domain=domain)
 
     def __call__(
         self,
@@ -237,7 +235,7 @@ class MapSingle:
             origin=(0, 0, 0),
             domain=self._grid.domain_shape_full(),
         )
-        self._set_dp(self.dp1, pe1, origin=self.origin, domain=self.domain)
+        self._set_dp(self.dp1, pe1)
 
 
 class MapSingleFactory:

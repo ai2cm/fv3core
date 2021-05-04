@@ -5,7 +5,7 @@ from gt4py.gtscript import __INLINED, BACKWARD, FORWARD, PARALLEL, computation, 
 
 import fv3core._config as spec
 import fv3core.utils.gt4py_utils as utils
-from fv3core.decorators import StencilWrapper
+from fv3core.decorators import FrozenStencil
 from fv3core.utils.typing import FloatField
 
 
@@ -559,35 +559,35 @@ class RemapProfile:
         domain: Tuple[int, int, int] = (i_extent, j_extent, km)
         domain_extend: Tuple[int, int, int] = (i_extent, j_extent, km + 1)
 
-        self._set_values_stencil = StencilWrapper(
+        self._set_values_stencil = FrozenStencil(
             func=set_vals,
             externals={"iv": iv, "kord": abs(kord)},
             origin=origin,
             domain=domain_extend,
         )
 
-        self._apply_constraints_stencil = StencilWrapper(
+        self._apply_constraints_stencil = FrozenStencil(
             func=apply_constraints,
             externals={"iv": iv, "kord": abs(kord)},
             origin=origin,
             domain=domain,
         )
 
-        self._set_top_stencil = StencilWrapper(
+        self._set_top_stencil = FrozenStencil(
             func=set_top,
             externals={"iv": iv},
             origin=origin,
             domain=(i_extent, j_extent, 2),
         )
 
-        self._set_set_inner_stencil = StencilWrapper(
+        self._set_set_inner_stencil = FrozenStencil(
             func=set_inner,
             externals={"iv": iv, "kord": abs(kord)},
             origin=(i1, j1, 2),
             domain=(i_extent, j_extent, km - 4),
         )
 
-        self._set_bottom_stencil = StencilWrapper(
+        self._set_bottom_stencil = FrozenStencil(
             func=set_bottom,
             externals={"iv": iv},
             origin=(i1, j1, km - 2),

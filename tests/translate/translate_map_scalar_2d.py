@@ -1,6 +1,6 @@
 import fv3core._config as spec
 from fv3core.stencils.map_single import MapSingleFactory
-from fv3core.testing import TranslateFortranData2Py, TranslateGrid
+from fv3core.testing import TranslateFortranData2Py, TranslateGrid, pad_field_in_j
 
 
 class TranslateMapScalar_2d(TranslateFortranData2Py):
@@ -44,5 +44,16 @@ class TranslateMapScalar_2d(TranslateFortranData2Py):
         del inputs["j_2d"]
         inputs["kord"] = abs(spec.namelist.kord_tm)
         inputs["qmin"] = 184.0
+        # these are sometimes 3D and sometimes singleton in J
+        if inputs["pe1"].shape[1] == 1:
+            inputs["pe1"] = self.make_storage_data(
+                pad_field_in_j(inputs["pe1"], self.nj)
+            )
+        if inputs["pe2"].shape[1] == 1:
+            inputs["pe2"] = self.make_storage_data(
+                pad_field_in_j(inputs["pe2"], self.nj)
+            )
+        if inputs["qs"].shape[1] == 1:
+            inputs["qs"] = self.make_storage_data(pad_field_in_j(inputs["qs"], self.nj))
         var_inout = self.compute_func(**inputs)
         return self.slice_output(inputs, {"pt": var_inout})
