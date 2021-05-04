@@ -40,7 +40,7 @@ def compute(
     kord: int,
 ):
     remapping_calculation = utils.cached_stencil_class(RemapProfile)(
-        kord, 0, cache_key=f"map_profile_{kord}_0"
+        kord, 0, i1, i2, j1, j2, cache_key=f"map_profile_{kord}_0"
     )
 
     domain_compute = (
@@ -76,10 +76,6 @@ def compute(
             map_single.q4_3,
             map_single.q4_4,
             map_single.dp1,
-            i1,
-            i2,
-            j1,
-            j2,
             q_min,
         )
         map_single.lagrangian_contributions(

@@ -186,7 +186,7 @@ class MapSingle:
         self.lagrangian_contributions = LagrangianContributions(
             self.origin, self.domain
         )
-        self._remap_profile = RemapProfile(kord, mode)
+        self._remap_profile = RemapProfile(kord, mode, i1, i2, j1, j2)
         self._set_dp = StencilWrapper(set_dp)
 
     def __call__(
@@ -216,10 +216,6 @@ class MapSingle:
             self.q4_3,
             self.q4_4,
             self.dp1,
-            self.origin[0],
-            self.i_extent + self.origin[0] - 1,
-            self.origin[1],
-            self.j_extent + self.origin[1] - 1,
             qmin,
         )
         self.lagrangian_contributions(
