@@ -1,4 +1,4 @@
-from fv3core.stencils.dyn_core import AcousticDynamics
+from fv3core.stencils.dyn_core import _initialize_edge_pe_stencil
 from fv3core.testing import TranslateFortranData2Py
 
 
@@ -20,4 +20,4 @@ class TranslatePE_Halo(TranslateFortranData2Py):
         self.in_vars["parameters"] = ["ptop"]
         self.out_vars = {"pe": self.in_vars["data_vars"]["pe"]}
 
-        self.compute_func = AcousticDynamics.initialize_edge_pe_stencil(grid)
+        self.compute_func = _initialize_edge_pe_stencil(grid)
