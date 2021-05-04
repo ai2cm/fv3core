@@ -118,11 +118,8 @@ class FiniteVolumeTransport:
             namelist, ord_outer, self.grid.is_, self.grid.ie
         )
         origin = self.grid.full_origin()
-        self._corner_tmp = utils.make_storage_from_shape(
-            self.grid.domain_shape_full(add=(1, 1, 1)), origin=origin
-        )
-        self._copy_corners_x = corners.CopyCorners("x", self._corner_tmp)
-        self._copy_corners_y = corners.CopyCorners("y", self._corner_tmp)
+        self._copy_corners_x = corners.CopyCorners("x")
+        self._copy_corners_y = corners.CopyCorners("y")
 
     def __call__(
         self,
@@ -157,7 +154,9 @@ class FiniteVolumeTransport:
             mfy: ???
         """
         grid = self.grid
+
         self._copy_corners_y(q)
+
         self.y_piecewise_parabolic_inner(q, cry, self._tmp_fy2)
         self.stencil_q_i(
             q,
@@ -167,7 +166,9 @@ class FiniteVolumeTransport:
             self._tmp_q_i,
         )
         self.x_piecewise_parabolic_outer(self._tmp_q_i, crx, fx)
+
         self._copy_corners_x(q)
+
         self.x_piecewise_parabolic_inner(q, crx, self._tmp_fx2)
         self.stencil_q_j(
             q,
