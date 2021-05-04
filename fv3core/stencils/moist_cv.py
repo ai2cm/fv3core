@@ -102,6 +102,7 @@ def moist_cv_default_fn():
     cvm = constants.CV_AIR
     return cvm, gz
 
+
 @gtscript.function
 def te_always_part(u, v, w, phis, rsin2, cosa_s):
     return 0.5 * (
@@ -187,6 +188,7 @@ def moist_te_2d(
                 cvm * pt / ((1.0 + r_vir * qvapor) * (1.0 - gz))
                 + te_always_part(u, v, w, phis, rsin2, cosa_s)
             )
+
 
 @gtstencil
 def moist_pt(
