@@ -306,6 +306,10 @@ class AcousticDynamics:
             self._hyperdiffusion = HyperdiffusionDamping(self.grid)
         if self.namelist.rf_fast:
             self._rayleigh_damping = ray_fast.RayleighDamping(self.grid, self.namelist)
+        self._compute_pkz_tempadjust = self.initialize_temp_adjust_stencil(
+            self.grid,
+            self._nk_heat_dissipation,
+        )
 
     @staticmethod
     def initialize_edge_pe_stencil(grid):
@@ -322,6 +326,18 @@ class AcousticDynamics:
             origin=grid.full_origin(),
             domain=grid.domain_shape_full(add=(0, 0, 1)),
             externals={**ax_offsets_pe},
+
+    @staticmethod
+    def initialize_temp_adjust_stencil(grid, n_adj):
+        """
+        Returns the StencilWrapper Object for the temperature_adjust stencil
+        Args:
+            n_adj: Number of vertical levels to adjust temperature on
+        """
+        return StencilWrapper(
+            temperature_adjust.compute_pkz_tempadjust,
+            origin=grid.compute_origin(),
+            domain=(grid.nic, grid.njc, n_adj),
         )
 
     def __call__(self, state):
@@ -647,13 +663,13 @@ class AcousticDynamics:
             cd = constants.CNST_0P20 * self.grid.da_min
             self._hyperdiffusion(state.heat_source, nf_ke, cd)
             if not self.namelist.hydrostatic:
-                temperature_adjust.compute(
+                delt_time_factor = abs(dt * self.namelist.delt_max)
+                self._compute_pkz_tempadjust(
+                    state.delp,
+                    state.delz,
+                    state.cappa,
+                    state.heat_source,
                     state.pt,
                     state.pkz,
-                    state.heat_source,
-                    state.delz,
-                    state.delp,
-                    state.cappa,
-                    self._nk_heat_dissipation,
-                    dt,
+                    delt_time_factor,
                 )

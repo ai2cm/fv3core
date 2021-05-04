@@ -28,7 +28,6 @@ class TranslateDel6VtFlux(TranslateFortranData2Py):
 
     # use_sg -- 'dx', 'dy', 'rdxc', 'rdyc', 'sin_sg needed
     def compute(self, inputs):
-        self.make_storage_data_input_vars(inputs)
-        inputs["nord"] = inputs.pop("nord_column")
-        self.compute_func(**inputs)
-        return self.slice_output(inputs)
+        return self.column_split_compute(
+            inputs, {"nord": "nord_column", "damp_c": "damp_c"}
+        )
