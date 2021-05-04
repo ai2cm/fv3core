@@ -162,13 +162,9 @@ def compute_no_sg(q, fx2, fy2, nord, damp_c, d2, kstart=0, nk=None, mass=None):
         copy_stencil(q, d2, origin=origin_d2, domain=domain_d2)
 
     if nord > 0:
-        # corners.copy_corners_x_stencil(
-        #     d2, origin=(grid.isd, grid.jsd, kstart), domain=(grid.nid, grid.njd, nk)
-        # )
-        copy_corners_x = utils.cached_stencil_class(corners.CopyCorners)(
-            "x", cache_key="delnflux_copy_corners_x"
+        corners.copy_corners_x_stencil(
+            d2, origin=(grid.isd, grid.jsd, kstart), domain=(grid.nid, grid.njd, nk)
         )
-        copy_corners_x(d2)
     f1_ny = grid.je - grid.js + 1 + 2 * nord
     f1_nx = grid.ie - grid.is_ + 2 + 2 * nord
     fx_origin = (grid.is_ - nord, grid.js - nord, kstart)
@@ -178,13 +174,9 @@ def compute_no_sg(q, fx2, fy2, nord, damp_c, d2, kstart=0, nk=None, mass=None):
     )
 
     if nord > 0:
-        # corners.copy_corners_y_stencil(
-        #     d2, origin=(grid.isd, grid.jsd, kstart), domain=(grid.nid, grid.njd, nk)
-        # )
-        copy_corners_y = utils.cached_stencil_class(corners.CopyCorners)(
-            "y", cache_key="delnflux_copy_corners_y"
+        corners.copy_corners_y_stencil(
+            d2, origin=(grid.isd, grid.jsd, kstart), domain=(grid.nid, grid.njd, nk)
         )
-        copy_corners_y(d2)
     fy2_order(
         d2,
         grid.del6_u,
