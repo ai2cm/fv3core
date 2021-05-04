@@ -123,7 +123,9 @@ class FiniteVolumeTransport:
         domain = self.grid.domain_shape_full()
         ax_offsets = axis_offsets(spec.grid, origin, domain)
         self._copy_full_domain = StencilWrapper(
-            func=copy_defn, origin=origin, domain=domain
+            func=copy_defn,
+            origin=origin,
+            domain=self.grid.domain_shape_full(add=(0, 0, 1)),
         )
         self._copy_corners_x = StencilWrapper(
             func=corners.copy_corners_x_stencil_in_out,
