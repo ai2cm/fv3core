@@ -3,10 +3,12 @@ import collections.abc
 import functools
 import inspect
 import types
-from typing import Any, Callable, Dict, Hashable, Mapping, Optional, Tuple, Union, cast
+from typing import Any, Callable, Dict, Hashable, List, Mapping, Optional, Tuple, Union
 
 import gt4py
+import gt4py.definitions
 from gt4py import gtscript
+from gt4py.storage.storage import Storage
 
 import fv3core
 import fv3core._config as spec
@@ -63,19 +65,6 @@ def get_namespace(arg_specs, state):
     return types.SimpleNamespace(**namespace_kwargs)
 
 
-def ensure_reconstructed_args_match_defined(stencil_object, reconstructed_args):
-    spec = inspect.getfullargspec(stencil_object.definition_func)
-    definition_args = tuple(spec.args) + tuple(spec.kwonlyargs)
-    if not definition_args == reconstructed_args:
-        raise TypeError(
-            "Argument list constructed from field and parameter info "
-            "does not match stencil signature, possibly because "
-            "parameters (e.g. float) must come after fields "
-            f"in stencil arguments. Defined is {definition_args}, "
-            f"reconstructed is {reconstructed_args}."
-        )
-
-
 class FrozenStencil:
     """
     Wrapper for gt4py stencils which stores origin and domain at compile time,
@@ -104,7 +93,7 @@ class FrozenStencil:
         """
         self.origin = origin
 
-        self.domain: Optional[Index3D] = domain
+        self.domain = domain
 
         if stencil_config is not None:
             self.stencil_config: StencilConfig = stencil_config
@@ -120,10 +109,7 @@ class FrozenStencil:
             **self.stencil_config.stencil_kwargs,
         )
         """generated stencil object returned from gt4py."""
-        self._argument_names = self.field_names + self.parameter_names
-        ensure_reconstructed_args_match_defined(
-            self.stencil_object, self._argument_names
-        )
+        self._argument_names = tuple(inspect.getfullargspec(func).args)
 
         self._field_origins: Dict[str, Tuple[int, ...]] = compute_field_origins(
             self.stencil_object.field_info, self.origin
@@ -134,6 +120,8 @@ class FrozenStencil:
             "_origin_": self._field_origins,
             "_domain_": self.domain,
         }
+
+        self._written_fields = get_written_fields(self.stencil_object.field_info)
 
     def __call__(
         self,
@@ -157,16 +145,27 @@ class FrozenStencil:
             self.stencil_object.run(
                 **args_as_kwargs, **kwargs, **self._stencil_run_kwargs, exec_info=None
             )
+            self._mark_cuda_fields_written({**args_as_kwargs, **kwargs})
 
-    @property
-    def field_names(self) -> Tuple[str]:
-        """names of stencil field call arguments"""
-        return cast(Tuple[str], tuple(self.stencil_object.field_info.keys()))
+    def _mark_cuda_fields_written(self, fields: Mapping[str, Storage]):
+        if "cuda" in self.stencil_config.backend:
+            for write_field in self._written_fields:
+                fields[write_field]._set_device_modified()
 
-    @property
-    def parameter_names(self) -> Tuple[str]:
-        """names of stencil parameter call arguments"""
-        return cast(Tuple[str], tuple(self.stencil_object.parameter_info.keys()))
+
+def get_written_fields(field_info) -> List[str]:
+    """Returns the list of fields that are written.
+
+    Args:
+        field_info: field_info attribute of gt4py stencil object
+    """
+    write_fields = [
+        field_name
+        for field_name in field_info
+        if field_info[field_name]
+        and field_info[field_name].access != gt4py.definitions.AccessKind.READ_ONLY
+    ]
+    return write_fields
 
 
 def compute_field_origins(
