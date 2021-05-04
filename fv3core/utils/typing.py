@@ -28,6 +28,7 @@ Bool = np.bool_
 
 FloatField = Field[gtscript.IJK, Float]
 FloatFieldI = Field[gtscript.I, Float]
+FloatFieldJ = Field[gtscript.J, Float]
 FloatFieldIJ = Field[gtscript.IJ, Float]
 FloatFieldK = Field[gtscript.K, Float]
 IntField = Field[gtscript.IJK, Int]
