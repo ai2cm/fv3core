@@ -103,8 +103,10 @@ class HyperdiffusionDamping:
         self._compute_meridional_flux = StencilWrapper(func=compute_meridional_flux)
         self._update_q = StencilWrapper(func=update_q)
 
-        self._copy_corners_x = corners.CopyCorners("x")
-        self._copy_corners_y = corners.CopyCorners("y")
+        self._copy_corners_x: corners.CopyCorners = corners.CopyCorners("x")
+        """Stencil responsible for doing corners updates in x-direction."""
+        self._copy_corners_y: corners.CopyCorners = corners.CopyCorners("y")
+        """Stencil responsible for doing corners updates in y-direction."""
 
     def __call__(self, qdel: FloatField, nmax: int, cd: float):
         """

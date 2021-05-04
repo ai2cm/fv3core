@@ -131,9 +131,6 @@ def compute_delnflux_no_sg(
     else:
         # TODO: To join these stencils you need to overcompute, making the edges
         # 'wrong', but not actually used, separating now for comparison sanity.
-
-        # diffusive_damp(fx, fx2, fy, fy2, mass, damp, origin=diffuse_origin,
-        # domain=(grid.nic + 1, grid.njc + 1, nk))
         diffusive_damp_x(
             fx, fx2, mass, damp, origin=diffuse_origin, domain=diffuse_domain_x
         )
@@ -198,10 +195,6 @@ def compute_no_sg(q, fx2, fy2, nord, damp_c, d2, kstart=0, nk=None, mass=None):
             corners.copy_corners_x_stencil(
                 d2, origin=(grid.isd, grid.jsd, kstart), domain=(grid.nid, grid.njd, nk)
             )
-            # copy_corners_x = utils.cached_stencil_class(corners.CopyCorners)(
-            #     "x", cache_key="delnflux_copy_corners_x_v2"
-            # )
-            # copy_corners_x(d2)
             nt_origin = (grid.is_ - nt, grid.js - nt, kstart)
             fx2_order(
                 d2,
@@ -214,10 +207,6 @@ def compute_no_sg(q, fx2, fy2, nord, damp_c, d2, kstart=0, nk=None, mass=None):
             corners.copy_corners_y_stencil(
                 d2, origin=(grid.isd, grid.jsd, kstart), domain=(grid.nid, grid.njd, nk)
             )
-            # copy_corners_y = utils.cached_stencil_class(corners.CopyCorners)(
-            #     "y", cache_key="delnflux_copy_corners_y_v2"
-            # )
-            # copy_corners_y(d2)
 
             fy2_order(
                 d2,

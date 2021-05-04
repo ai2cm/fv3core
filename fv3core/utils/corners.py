@@ -10,28 +10,41 @@ from fv3core.utils.typing import FloatField
 
 
 class CopyCorners:
+    """
+    Helper-class to copy corners corresponding to the fortran functions
+    copy_corners_x or copy_corners_y respectively
+    """
+
     def __init__(self, direction: str, temporary_field=None) -> None:
         self.grid = spec.grid
+        """The grid for this stencil"""
+
         origin = self.grid.full_origin()
-        domain = self.grid.domain_shape_full()
+        """The origin for the corner computation"""
+
+        domain = self.grid.domain_shape_full(add=(0, 0, 1))
+        """The full domain required to do corner computation everywhere"""
+
         if temporary_field is not None:
             self._corner_tmp = temporary_field
         else:
             self._corner_tmp = utils.make_storage_from_shape(
                 self.grid.domain_shape_full(add=(1, 1, 1)), origin=origin
             )
-        ax_offsets = axis_offsets(spec.grid, origin, domain)
+
         self._copy_full_domain = StencilWrapper(
             func=copy_defn,
             origin=origin,
-            domain=self.grid.domain_shape_full(add=(0, 0, 1)),
+            domain=domain,
         )
+        """Stencil Wrapper to do the copy of the input field to the temporary field"""
 
+        ax_offsets = axis_offsets(spec.grid, origin, domain)
         if direction == "x":
             self._copy_corners = StencilWrapper(
                 func=copy_corners_x_stencil_defn,
-                origin=self.grid.full_origin(),
-                domain=self.grid.domain_shape_full(add=(0, 0, 1)),
+                origin=origin,
+                domain=domain,
                 externals={
                     **ax_offsets,
                 },
@@ -39,8 +52,8 @@ class CopyCorners:
         elif direction == "y":
             self._copy_corners = StencilWrapper(
                 func=copy_corners_y_stencil_defn,
-                origin=self.grid.full_origin(),
-                domain=self.grid.domain_shape_full(add=(0, 0, 1)),
+                origin=origin,
+                domain=domain,
                 externals={
                     **ax_offsets,
                 },
@@ -50,7 +63,8 @@ class CopyCorners:
 
     def __call__(self, field: FloatField):
         """
-        Fills cell quantity field using corners from itself and multipliers in x-dir.
+        Fills cell quantity field using corners from itself and multipliers
+        in the dirction specified initialization of the instance of this class.
         """
         self._copy_full_domain(field, self._corner_tmp)
         self._copy_corners(self._corner_tmp, field)
@@ -399,6 +413,7 @@ def copy_corners_x_stencil_defn(q_in: FloatField, q_out: FloatField):
             q_out = q_in[-1, -4, 0]
         with horizontal(region[i_start - 1, j_end + 3], region[i_end + 3, j_end + 1]):
             q_out = q_in[-2, -3, 0]
+
 
 def copy_corners_y_stencil_defn(q_in: FloatField, q_out: FloatField):
     from __externals__ import i_end, i_start, j_end, j_start

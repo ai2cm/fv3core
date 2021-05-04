@@ -88,6 +88,10 @@ class FiniteVolumeTransport:
         self._tmp_q_j = utils.make_storage_from_shape(shape, origin)
         self._tmp_fx2 = utils.make_storage_from_shape(shape, origin)
         self._tmp_fy2 = utils.make_storage_from_shape(shape, origin)
+        self._corner_tmp = utils.make_storage_from_shape(
+            self.grid.domain_shape_full(add=(1, 1, 1)), origin=self.grid.full_origin()
+        )
+        """Temporary field to use for corner computation in both x and y direction"""
         ord_outer = hord
         ord_inner = 8 if hord == 10 else hord
         self.stencil_q_i = StencilWrapper(
@@ -117,9 +121,16 @@ class FiniteVolumeTransport:
         self.y_piecewise_parabolic_outer = YPiecewiseParabolic(
             namelist, ord_outer, self.grid.is_, self.grid.ie
         )
-        origin = self.grid.full_origin()
-        self._copy_corners_x = corners.CopyCorners("x")
-        self._copy_corners_y = corners.CopyCorners("y")
+
+        self._copy_corners_x: corners.CopyCorners = corners.CopyCorners(
+            "x", self._corner_tmp
+        )
+        """Stencil responsible for doing corners updates in x-direction."""
+
+        self._copy_corners_y: corners.CopyCorners = corners.CopyCorners(
+            "y", self._corner_tmp
+        )
+        """Stencil responsible for doing corners updates in y-direction."""
 
     def __call__(
         self,
