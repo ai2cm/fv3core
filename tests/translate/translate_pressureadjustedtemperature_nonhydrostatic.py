@@ -1,7 +1,7 @@
 import fv3core._config as spec
 from fv3core.stencils.dyn_core import (
-    get_nk_heat_dissipation,
     _initialize_temp_adjust_stencil,
+    get_nk_heat_dissipation,
 )
 from fv3core.testing import TranslateFortranData2Py
 
