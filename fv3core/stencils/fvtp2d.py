@@ -127,25 +127,11 @@ class FiniteVolumeTransport:
             origin=origin,
             domain=self.grid.domain_shape_full(add=(0, 0, 1)),
         )
-        self._copy_corners_x = StencilWrapper(
-            func=corners.copy_corners_x_stencil_in_out,
-            origin=self.grid.full_origin(),
-            domain=self.grid.domain_shape_full(add=(0, 0, 1)),
-            externals={
-                **ax_offsets,
-            },
-        )
-        self._copy_corners_y = StencilWrapper(
-            func=corners.copy_corners_y_stencil_in_out,
-            origin=self.grid.full_origin(),
-            domain=self.grid.domain_shape_full(add=(0, 0, 1)),
-            externals={
-                **ax_offsets,
-            },
-        )
         self._corner_tmp = utils.make_storage_from_shape(
             self.grid.domain_shape_full(add=(1, 1, 1)), origin=origin
         )
+        self._copy_corners_x = corners.CopyCorners("x", self._corner_tmp)
+        self._copy_corners_y = corners.CopyCorners("y", self._corner_tmp)
 
     def __call__(
         self,
@@ -180,11 +166,7 @@ class FiniteVolumeTransport:
             mfy: ???
         """
         grid = self.grid
-        self._copy_full_domain(q, self._corner_tmp)
-        self._copy_corners_y(self._corner_tmp, q)
-        # corners.copy_corners_y_stencil(
-        #     q, origin=grid.full_origin(), domain=grid.domain_shape_full(add=(0, 0, 1))
-        # )
+        self._copy_corners_y(q)
         self.y_piecewise_parabolic_inner(q, cry, self._tmp_fy2)
         self.stencil_q_i(
             q,
@@ -194,11 +176,7 @@ class FiniteVolumeTransport:
             self._tmp_q_i,
         )
         self.x_piecewise_parabolic_outer(self._tmp_q_i, crx, fx)
-        self._copy_full_domain(q, self._corner_tmp)
-        self._copy_corners_x(self._corner_tmp, q)
-        # corners.copy_corners_x_stencil(
-        #     q, origin=grid.full_origin(), domain=grid.domain_shape_full(add=(0, 0, 1))
-        # )
+        self._copy_corners_x(q)
         self.x_piecewise_parabolic_inner(q, crx, self._tmp_fx2)
         self.stencil_q_j(
             q,
