@@ -281,7 +281,7 @@ class UpdateHeightOnDGrid:
             origin=self.grid.full_origin(),
             domain=self.grid.domain_shape_full(add=(0, 0, 1)),
         )
-        self._apply_geopotential_height_fluxes = FrozenStencil(
+        self._apply_height_fluxes = FrozenStencil(
             apply_height_fluxes,
             origin=self.grid.compute_origin(),
             domain=self.grid.domain_shape_compute(add=(0, 0, 1)),
