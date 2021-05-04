@@ -126,7 +126,7 @@ class FrozenStencil:
         )
 
         self._field_origins: Dict[str, Tuple[int, ...]] = compute_field_origins(
-            self.stencil_object, self.origin
+            self.stencil_object.field_info, self.origin
         )
         """mapping from field names to field origins"""
 
@@ -170,16 +170,16 @@ class FrozenStencil:
 
 
 def compute_field_origins(
-    stencil_object: gt4py.StencilObject,
-    origin: Union[Index3D, Mapping[str, Tuple[int, ...]]],
+    field_info_mapping, origin: Union[Index3D, Mapping[str, Tuple[int, ...]]]
 ) -> Dict[str, Tuple[int, ...]]:
     """Computes the origin for each field in the stencil call."""
-    field_origins = stencil_object._make_origin_dict(
-        origin
-    )  # optional: if not done before call
-    all_origin = field_origins.get("_all_", None)
-
-    for name, field_info in stencil_object.field_info.items():
+    if isinstance(origin, tuple):
+        field_origins: Dict[str, Tuple[int, ...]] = {"_all_": origin}
+        origin_tuple: Tuple[int, ...] = origin
+    else:
+        field_origins = {**origin}
+        origin_tuple = origin["_all_"]
+    for name, field_info in field_info_mapping:
         if field_info is not None:
             field_origin = field_origins.get(name, None)
             if field_origin is not None:
@@ -193,9 +193,9 @@ def compute_field_origins(
                         *field_origin,
                         *((0,) * len(field_info.data_dims)),
                     )
-            elif all_origin is not None:
+            elif origin_tuple is not None:
                 field_origins[name] = (
-                    *gt4py.utils.filter_mask(all_origin, field_info.domain_mask),
+                    *gt4py.utils.filter_mask(origin_tuple, field_info.domain_mask),
                     *((0,) * len(field_info.data_dims)),
                 )
             else:
