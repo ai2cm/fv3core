@@ -5,7 +5,7 @@ from gt4py.gtscript import FORWARD, PARALLEL, computation, exp, floor, interval,
 
 import fv3core._config as spec
 import fv3core.utils.global_constants as constants
-from fv3core.decorators import FrozenStencil, gtstencil
+from fv3core.decorators import gtstencil
 from fv3core.stencils.basic_operations import dim
 from fv3core.stencils.moist_cv import compute_pkz_func
 from fv3core.utils.typing import FloatField, FloatFieldIJ
