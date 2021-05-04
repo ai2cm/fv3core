@@ -1,7 +1,7 @@
 from typing import Optional
 
 import gt4py.gtscript as gtscript
-from gt4py.gtscript import FORWARD, PARALLEL, computation, exp, interval, log
+from gt4py.gtscript import PARALLEL, computation, exp, interval, log
 
 import fv3core._config as spec
 import fv3core.utils.global_constants as constants
@@ -104,24 +104,6 @@ def moist_cv_default_fn():
 
 
 @gtscript.function
-def te_always_part(u, v, w, phis, rsin2, cosa_s):
-    return 0.5 * (
-        phis
-        + phis[0, 0, 1]
-        + w ** 2
-        + 0.5
-        * rsin2
-        * (
-            u ** 2
-            + u[0, 1, 0] ** 2
-            + v ** 2
-            + v[1, 0, 0] ** 2
-            - (u + u[0, 1, 0]) * (v + v[1, 0, 0]) * cosa_s
-        )
-    )
-
-
-@gtscript.function
 def moist_pt_func(
     qvapor: FloatField,
     qliquid: FloatField,
@@ -145,49 +127,6 @@ def moist_pt_func(
     cappa = set_cappa(qvapor, cvm, r_vir)
     pt = pt * exp(cappa / (1.0 - cappa) * log(constants.RDG * delp / delz * pt))
     return cvm, gz, q_con, cappa, pt
-
-
-@gtstencil
-def moist_te_2d(
-    qvapor: FloatField,
-    qliquid: FloatField,
-    qrain: FloatField,
-    qsnow: FloatField,
-    qice: FloatField,
-    qgraupel: FloatField,
-    q_con: FloatField,
-    gz: FloatField,
-    cvm: FloatField,
-    te_2d: FloatField,
-    delp: FloatField,
-    pt: FloatField,
-    phis: FloatField,
-    u: FloatField,
-    v: FloatField,
-    w: FloatField,
-    rsin2: FloatField,
-    cosa_s: FloatField,
-    r_vir: float,
-):
-    with computation(FORWARD):
-        with interval(0, 1):
-            cvm, gz = moist_cv_nwat6_fn(
-                qvapor, qliquid, qrain, qsnow, qice, qgraupel
-            )  # if (nwat == 6) else moist_cv_default_fn()
-            q_con = gz
-            te_2d = te_2d + delp * (
-                cvm * pt / ((1.0 + r_vir * qvapor) * (1.0 - gz))
-                + te_always_part(u, v, w, phis, rsin2, cosa_s)
-            )
-        with interval(1, None):
-            cvm, gz = moist_cv_nwat6_fn(
-                qvapor, qliquid, qrain, qsnow, qice, qgraupel
-            )  # if (nwat == 6) else moist_cv_default_fn()
-            q_con = gz
-            te_2d = te_2d[0, 0, -1] + delp * (
-                cvm * pt / ((1.0 + r_vir * qvapor) * (1.0 - gz))
-                + te_always_part(u, v, w, phis, rsin2, cosa_s)
-            )
 
 
 @gtstencil

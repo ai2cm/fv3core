@@ -53,7 +53,6 @@ from .translate_map_scalar_2d import TranslateMapScalar_2d
 from .translate_mapn_tracer_2d import TranslateMapN_Tracer_2d
 from .translate_moistcvpluspkz_2d import TranslateMoistCVPlusPkz_2d
 from .translate_moistcvpluspt_2d import TranslateMoistCVPlusPt_2d
-from .translate_moistcvpluste_2d import TranslateMoistCVPlusTe_2d
 from .translate_neg_adj3 import TranslateNeg_Adj3
 from .translate_nh_p_grad import TranslateNH_P_Grad
 from .translate_pe_halo import TranslatePE_Halo
