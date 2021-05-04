@@ -120,13 +120,6 @@ class FiniteVolumeTransport:
             namelist, ord_outer, self.grid.is_, self.grid.ie
         )
         origin = self.grid.full_origin()
-        domain = self.grid.domain_shape_full()
-        ax_offsets = axis_offsets(spec.grid, origin, domain)
-        self._copy_full_domain = StencilWrapper(
-            func=copy_defn,
-            origin=origin,
-            domain=self.grid.domain_shape_full(add=(0, 0, 1)),
-        )
         self._corner_tmp = utils.make_storage_from_shape(
             self.grid.domain_shape_full(add=(1, 1, 1)), origin=origin
         )
