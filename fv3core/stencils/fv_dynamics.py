@@ -330,7 +330,7 @@ class DynamicalCore:
             comm, namelist, self._ak, self._bk, self._phis
         )
         self._hyperdiffusion = HyperdiffusionDamping(self.grid)
-        self._do_cubed_to_latlon = CubedToLatLon(self.grid, True)
+        self._do_cubed_to_latlon = CubedToLatLon(self.grid, namelist)
 
         self._temporaries = fvdyn_temporaries(
             self.grid.domain_shape_full(add=(1, 1, 1)), self.grid

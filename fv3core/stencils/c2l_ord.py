@@ -1,6 +1,5 @@
 from gt4py.gtscript import PARALLEL, computation, horizontal, interval, region
 
-import fv3core._config as spec
 import fv3core.utils.global_config as global_config
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import StencilWrapper
@@ -78,16 +77,24 @@ class CubedToLatLon:
     Fortan name is c2l_ord2
     """
 
-    def __init__(self, grid, do_halo_update: bool):
+    def __init__(self, grid, namelist, do_halo_update=None):
         """
+        Initializes stencils to use either 2nd or 4th order of interpolation
+        based on namelist setting
         Args:
             grid: fv3core grid object
-            do_halo_update: If True, performs a halo update on u and v
+            namelist:
+                c2l_ord: Order of interpolation
+            do_halo_update: Optional. If passed, overrides global halo exchange flag
+                            and performs a halo update on u and v
         """
-        self._do_halo_update = do_halo_update and global_config.get_do_halo_exchange()
+        if do_halo_update is not None:
+            self._do_halo_update = do_halo_update
+        else:
+            self._do_halo_update = global_config.get_do_halo_exchange()
         self._do_ord4 = True
         self.grid = grid
-        if spec.namelist.c2l_ord == 2:
+        if namelist.c2l_ord == 2:
             self._do_ord4 = False
             self._compute_cubed_to_latlon = StencilWrapper(
                 func=c2l_ord2,
