@@ -91,7 +91,7 @@ def lagrangian_contributions(
 
 class LagrangianContributions:
     """
-    Fortran name is lagrangian_contributions
+    Stencil implementation of remap_z, map1_ppm, map_scalar, in Fortran
     """
 
     def __init__(self, origin: Tuple[int, int, int], domain: Tuple[int, int, int]):
@@ -164,7 +164,7 @@ class LagrangianContributions:
 
 class MapSingle:
     """
-    Fortran name is map_single, test class is Map1_PPM_2d
+    Fortran name is map_single, test classes are Map1_PPM_2d, Map_Scalar_2d
     """
 
     def __init__(self, kord: int, mode: int, i1: int, i2: int, j1: int, j2: int):
@@ -199,10 +199,10 @@ class MapSingle:
         Compute x-flux using the PPM method.
 
         Args:
-            q1 (in): Transported scalar
-            pe1 (in): ???
-            pe2 (out): ???
-            qs (out): ???
+            q1 (out): Remapped field on Eulerian grid
+            pe1 (in): Lagrangian pressure levels
+            pe2 (out): Eulerian pressure levels
+            qs (out): Field to be remapped on deformed grid
             jfirst: Starting index of the J-dir compute domain
             jlast: Final index of the J-dir compute domain
         """
@@ -239,8 +239,9 @@ class MapSingle:
 
 
 class MapSingleFactory:
-    _object_pool: Dict[Tuple[int, ...], MapSingle] = {}
-    """Pool of MapSingle objects."""
+    def __init__(self):
+        self._object_pool: Dict[Tuple[int, int], MapSingle] = {}
+        """Pool of MapSingle objects."""
 
     def __call__(
         self, kord: int, mode: int, i1: int, i2: int, j1: int, j2: int, *args, **kwargs
