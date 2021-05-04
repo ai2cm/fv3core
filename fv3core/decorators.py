@@ -3,7 +3,18 @@ import collections.abc
 import functools
 import inspect
 import types
-from typing import Any, Callable, Dict, Hashable, List, Mapping, Optional, Tuple, Union
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Hashable,
+    List,
+    Mapping,
+    Optional,
+    Tuple,
+    Union,
+    cast,
+)
 
 import gt4py
 import gt4py.definitions
@@ -234,12 +245,12 @@ def gtstencil(
         raise TypeError("must give both origin and domain arguments, or neither")
     if externals is None:
         externals = {}
+    # TODO: delete this global default
+    if stencil_config is None:
+        stencil_config = global_config.get_stencil_config()
     if origin is None:
-        stencil = get_non_frozen_stencil(func, externals)
+        stencil = get_non_frozen_stencil(func, externals, stencil_config)
     else:
-        # TODO: delete this global default
-        if stencil_config is None:
-            stencil_config = global_config.get_stencil_config()
         stencil = FrozenStencil(
             func,
             origin=origin,
@@ -250,7 +261,9 @@ def gtstencil(
     return stencil
 
 
-def get_non_frozen_stencil(func, externals) -> Callable[..., None]:
+def get_non_frozen_stencil(
+    func, externals, stencil_config: StencilConfig
+) -> Callable[..., None]:
     stencil_dict: Dict[Hashable, FrozenStencil] = {}
 
     @functools.wraps(func)
@@ -260,14 +273,15 @@ def get_non_frozen_stencil(func, externals) -> Callable[..., None]:
         domain: Index3D,
         **kwargs,
     ):
-        stencil_config = global_config.get_stencil_config()
-        if isinstance(origin, Mapping):
-            origin_key: Hashable = tuple(sorted(origin.items(), key=lambda x: x[0]))
-            origin_tuple: Tuple[int, ...] = origin["_all_"]
-        else:
+        try:  # works if isinstance(Mapping)
+            origin_key: Hashable = tuple(
+                sorted(origin.items(), key=lambda x: x[0])  # type: ignore
+            )
+            origin_tuple: Tuple[int, ...] = origin["_all_"]  # type: ignore
+        except AttributeError:  # means we were passed a tuple
             origin_key = origin
-            origin_tuple = origin
-        key: Hashable = (origin_key, domain, stencil_config)
+            origin_tuple = cast(Index3D, origin)
+        key: Hashable = (origin_key, domain)
         if key not in stencil_dict:
             axis_offsets = fv3core.utils.grid.axis_offsets(
                 spec.grid, origin=origin_tuple, domain=domain
