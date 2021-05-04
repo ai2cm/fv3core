@@ -295,14 +295,14 @@ def compute(
     map_single(
         abs(spec.namelist.kord_tm),
         1,
-        pt,
-        peln,
-        pn2,
-        gz,
         grid.is_,
         grid.ie,
         grid.js,
         grid.je,
+        pt,
+        peln,
+        pn2,
+        gz,
         qmin=t_min,
     )
 
@@ -323,8 +323,8 @@ def compute(
     # TODO else if nq > 0:
     # TODO map1_q2, fillz
     kord_wz = spec.namelist.kord_wz
-    map_single(kord_wz, -2, w, pe1, pe2, wsd, grid.is_, grid.ie, grid.js, grid.je)
-    map_single(kord_wz, 1, delz, pe1, pe2, gz, grid.is_, grid.ie, grid.js, grid.je)
+    map_single(kord_wz, -2, grid.is_, grid.ie, grid.js, grid.je, w, pe1, pe2, wsd)
+    map_single(kord_wz, 1, grid.is_, grid.ie, grid.js, grid.je, delz, pe1, pe2, gz)
 
     undo_delz_adjust_and_copy_peln(
         delp,
@@ -365,14 +365,14 @@ def compute(
     map_single(
         spec.namelist.kord_mt,
         -1,
-        u,
-        pe0,
-        pe3,
-        gz,
         grid.is_,
         grid.ie,
         grid.js,
         grid.je + 1,
+        u,
+        pe0,
+        pe3,
+        gz,
     )
     domain_iextra = (grid.nic + 1, grid.njc, grid.npz + 1)
     pressures_mapv(
@@ -381,13 +381,13 @@ def compute(
     map_single(
         spec.namelist.kord_mt,
         -1,
-        v,
-        pe0,
-        pe3,
-        gz,
         grid.is_,
         grid.ie + 1,
         grid.js,
         grid.je,
+        v,
+        pe0,
+        pe3,
+        gz,
     )
     update_ua(pe2, ua, origin=grid.compute_origin(), domain=domain_jextra)

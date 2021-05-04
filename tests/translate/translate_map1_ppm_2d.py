@@ -1,6 +1,5 @@
 import numpy as np
 
-import fv3core._config as spec
 import fv3core.utils.gt4py_utils as utils
 from fv3core.stencils.map_single import MapSingleFactory
 from fv3core.testing import TranslateFortranData2Py, TranslateGrid

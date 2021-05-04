@@ -1,5 +1,4 @@
-from types import SimpleNamespace
-from typing import List, Tuple
+from typing import Dict, Tuple
 
 from gt4py.gtscript import FORWARD, PARALLEL, computation, interval
 
@@ -95,7 +94,7 @@ class LagrangianContributions:
     Fortran name is lagrangian_contributions
     """
 
-    def __init__(self):
+    def __init__(self, origin: Tuple[int, int, int], domain: Tuple[int, int, int]):
         self._grid = spec.grid
         self._km = self._grid.npz
         shape = self._grid.domain_shape_full(add=(1, 1, 1))
@@ -105,8 +104,15 @@ class LagrangianContributions:
         self._ptop = utils.make_storage_from_shape(shape2d)
         self._pbot = utils.make_storage_from_shape(shape2d)
 
+        self.origin = origin
+        self.domain = domain
+
         self._set_eulerian_pressures = StencilWrapper(set_eulerian_pressures)
-        self._lagrangian_contributions = StencilWrapper(lagrangian_contributions)
+        self._lagrangian_contributions = StencilWrapper(
+            lagrangian_contributions,
+            origin=origin,
+            domain=domain,
+        )
         self._set_remapped_quantity = StencilWrapper(set_remapped_quantity)
 
     def __call__(
@@ -119,23 +125,21 @@ class LagrangianContributions:
         q4_3: FloatField,
         q4_4: FloatField,
         dp1: FloatField,
-        i1: int,
-        i2: int,
-        j1: int,
-        j2: int,
-        origin: Tuple[int, int, int],
-        domain: Tuple[int, int, int],
     ):
+        eul_domain = (self.domain[0], self.domain[1], 1)
+
         # A stencil with a loop over k2:
         for k_eul in range(self._km):
+            eul_origin = (self.origin[0], self.origin[1], k_eul)
+
             # TODO (olivere): This is hacky
             # merge with subsequent stencil when possible
             self._set_eulerian_pressures(
                 pe2,
                 self._ptop,
                 self._pbot,
-                origin=(origin[0], origin[1], k_eul),
-                domain=(domain[0], domain[1], 1),
+                origin=eul_origin,
+                domain=eul_domain,
             )
 
             self._lagrangian_contributions(
@@ -148,15 +152,13 @@ class LagrangianContributions:
                 q4_4,
                 dp1,
                 self._q2_adds,
-                origin=origin,
-                domain=domain,
             )
 
             self._set_remapped_quantity(
                 q1,
                 self._q2_adds,
-                origin=(origin[0], origin[1], k_eul),
-                domain=(domain[0], domain[1], 1),
+                origin=eul_origin,
+                domain=eul_domain,
             )
 
 
@@ -165,7 +167,7 @@ class MapSingle:
     Fortran name is map_single, test class is Map1_PPM_2d
     """
 
-    def __init__(self, kord: int, mode: int):
+    def __init__(self, kord: int, mode: int, i1: int, i2: int, j1: int, j2: int):
         self._grid = spec.grid
         shape = self._grid.domain_shape_full(add=(1, 1, 1))
         origin = self._grid.compute_origin()
@@ -176,7 +178,14 @@ class MapSingle:
         self.q4_3 = utils.make_storage_from_shape(shape, origin=origin)
         self.q4_4 = utils.make_storage_from_shape(shape, origin=origin)
 
-        self.lagrangian_contributions = LagrangianContributions()
+        self.i_extent = i2 - i1 + 1
+        self.j_extent = j2 - j1 + 1
+        self.origin = (i1, j1, 0)
+        self.domain = (self.i_extent, self.j_extent, self._grid.npz)
+
+        self.lagrangian_contributions = LagrangianContributions(
+            self.origin, self.domain
+        )
         self._remap_profile = RemapProfile(kord, mode)
         self._set_dp = StencilWrapper(set_dp)
 
@@ -186,10 +195,6 @@ class MapSingle:
         pe1: FloatField,
         pe2: FloatField,
         qs: FloatField,
-        i1: int,
-        i2: int,
-        j1: int,
-        j2: int,
         qmin: float = 0.0,
     ):
         """
@@ -203,7 +208,7 @@ class MapSingle:
             jfirst: Starting index of the J-dir compute domain
             jlast: Final index of the J-dir compute domain
         """
-        self.setup_data(q1, pe1, i1, i2, j1, j2)
+        self.setup_data(q1, pe1)
         q4_1, q4_2, q4_3, q4_4 = self._remap_profile(
             qs,
             self.q4_1,
@@ -211,10 +216,10 @@ class MapSingle:
             self.q4_3,
             self.q4_4,
             self.dp1,
-            i1,
-            i2,
-            j1,
-            j2,
+            self.origin[0],
+            self.i_extent + self.origin[0] - 1,
+            self.origin[1],
+            self.j_extent + self.origin[1] - 1,
             qmin,
         )
         self.lagrangian_contributions(
@@ -226,39 +231,27 @@ class MapSingle:
             q4_3,
             q4_4,
             self.dp1,
-            i1,
-            i2,
-            j1,
-            j2,
-            self.origin,
-            self.domain,
         )
         return q1
 
-    def setup_data(
-        self, q1: FloatField, pe1: FloatField, i1: int, i2: int, j1: int, j2: int
-    ):
-        grid = self._grid
-        self.i_extent = i2 - i1 + 1
-        self.j_extent = j2 - j1 + 1
-        self.origin = (i1, j1, 0)
-        self.domain = (self.i_extent, self.j_extent, grid.npz)
-
+    def setup_data(self, q1: FloatField, pe1: FloatField):
         copy_stencil(
             q1,
             self.q4_1,
             origin=(0, 0, 0),
-            domain=grid.domain_shape_full(),
+            domain=self._grid.domain_shape_full(),
         )
         self._set_dp(self.dp1, pe1, origin=self.origin, domain=self.domain)
 
 
 class MapSingleFactory:
-    def __init__(self):
-        self._object_pool: Dict[Tuple[int, int], MapSingle] = {}
+    _object_pool: Dict[Tuple[int, ...], MapSingle] = {}
+    """Pool of MapSingle objects."""
 
-    def __call__(self, kord: int, mode: int, *args, **kwargs):
-        key_pair = (kord, mode)
-        if key_pair not in self._object_pool:
-            self._object_pool[key_pair] = MapSingle(*key_pair)
-        return self._object_pool[key_pair](*args, **kwargs)
+    def __call__(
+        self, kord: int, mode: int, i1: int, i2: int, j1: int, j2: int, *args, **kwargs
+    ):
+        key_tuple = (kord, mode, i1, i2, j1, j2)
+        if key_tuple not in self._object_pool:
+            self._object_pool[key_tuple] = MapSingle(*key_tuple)
+        return self._object_pool[key_tuple](*args, **kwargs)

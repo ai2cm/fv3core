@@ -54,10 +54,10 @@ def compute(
     )
 
     map_single = utils.cached_stencil_class(MapSingle)(
-        kord, 0, cache_key="mapntracer-single"
+        kord, 0, i1, i2, j1, j2, cache_key="mapntracer-single"
     )
     tracer_list = [tracers[q] for q in utils.tracer_variables[0:nq]]
-    map_single.setup_data(tracer_list[0], pe1, i1, i2, j1, j2)
+    map_single.setup_data(tracer_list[0], pe1)
 
     for tracer in tracer_list:
         set_components(
@@ -69,7 +69,6 @@ def compute(
             origin=(spec.grid.is_, spec.grid.js, 0),
             domain=domain_compute,
         )
-
         q4_1, q4_2, q4_3, q4_4 = remapping_calculation(
             qs,
             map_single.q4_1,
@@ -92,12 +91,6 @@ def compute(
             q4_3,
             q4_4,
             map_single.dp1,
-            i1,
-            i2,
-            j1,
-            j2,
-            map_single.origin,
-            map_single.domain,
         )
     if spec.namelist.fill:
         fillz = utils.cached_stencil_class(FillNegativeTracerValues)(
