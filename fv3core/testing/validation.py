@@ -73,6 +73,14 @@ def get_update_height_on_d_grid_selective_domain(
 
 
 def enable_selective_validation():
+    """
+    Replaces certain function-classes with wrapped versions that set data we aren't
+    validating to NaN, and have an attribute function `subset_output` that
+    takes in a string variable name and an output array and returns the
+    subset of that array which should be validated.
+
+    This wrapping removes any attributes of the wrapped module.
+    """
     # to enable selective validation for a new class, add a new monkeypatch
     # this should require only a new function for (origin, domain)
     # note we have not implemented disabling selective validation once enabled
