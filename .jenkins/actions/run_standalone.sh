@@ -26,6 +26,7 @@ DO_PROFILE="false"
 SAVE_CACHE="false"
 SAVE_TIMINGS="false"
 SAVE_ARTIFACTS="true"
+
 if [ "$1" == "profile" ] ; then
     DO_PROFILE="true"
 fi
@@ -35,6 +36,11 @@ fi
 # only save timings if this is neither a cache build nor a profiling run
 if [ "${SAVE_CACHE}" != "true" -a "${DO_PROFILE}" != "true" ] ; then
     SAVE_TIMINGS="true"
+fi
+# check if we store the results of this run
+BRANCH="$(git rev-parse --abbrev-ref HEAD)"
+if [[ "$BRANCH" != "master" ]]; then
+  SAVE_ARTIFACTS="false"
 fi
 
 # configuration
@@ -48,14 +54,9 @@ BENCHMARK_DIR=${ROOT_DIR}/examples/standalone/benchmarks
 DATA_DIR="/project/s1053/fv3core_serialized_test_data/${DATA_VERSION}/${experiment}"
 ARTIFACT_ROOT="/project/s1053/performance/"
 TIMING_DIR="${ARTIFACT_ROOT}/fv3core_monitor/${backend}"
-PROFILE_DIR="${ARTIFACT_ROOT}/fv3core_profile"
+PROFILE_DIR="${ARTIFACT_ROOT}/fv3core_profile/${backend}"
 CACHE_DIR="/scratch/snx3000/olifu/jenkins/scratch/store_gt_caches/${experiment}/${backend}"
-BRANCH="$(git rev-parse --abbrev-ref HEAD)"
 
-# check if we store the results of this run
-if [[ "$BRANCH" != "master" ]]; then
-  SAVE_ARTIFACTS="false"
-fi
 
 # check sanity of environment
 test -n "${experiment}" || exitError 1001 ${LINENO} "experiment is not defined"
@@ -118,7 +119,7 @@ if [ "${SAVE_CACHE}" == "true" ] && [ "${SAVE_ARTIFACTS}" == "true" ] ; then
     mkdir -p ${CACHE_DIR}
     cp ${ROOT_DIR}/GT4PY_VERSION.txt ${CACHE_DIR}
     rm -rf ${CACHE_DIR}/.gt_cache*
-    cp -rp .gt_cache* ${CACHE_DIR}/
+    cp -rp .gt_cache* ${CACHE_DIR}
 fi
 rm -rf .gt_cache*
 
@@ -128,7 +129,7 @@ if [ "${DO_PROFILE}" == "true" ] ; then
     ${BENCHMARK_DIR}/process_profiling.sh
     if [ "${SAVE_ARTIFACTS}" == "true" ] ; then
         echo "Copying profiling information to ${PROFILE_DIR}"
-        cp $ROOT_DIR/*.prof ${PROFILE_DIR}/
+        cp $ROOT_DIR/*.prof ${PROFILE_DIR}/prof/
     fi
 fi
 
