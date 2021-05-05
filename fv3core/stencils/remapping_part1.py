@@ -303,7 +303,7 @@ def compute(
     )
 
     # TODO if nq > 5:
-    MapN_Tracer = utils.cached_stencil_class(MapNTracer)(
+    mapn_tracer = utils.cached_stencil_class(MapNTracer)(
         abs(spec.namelist.kord_tr),
         grid.is_,
         grid.ie,
@@ -311,7 +311,7 @@ def compute(
         grid.je,
         cache_key="remap1-tracers",
     )
-    MapN_Tracer(pe1, pe2, dp2, tracers, nq, 0.0)
+    mapn_tracer(pe1, pe2, dp2, tracers, nq, 0.0)
     # TODO else if nq > 0:
     # TODO map1_q2, fillz
     kord_wz = spec.namelist.kord_wz

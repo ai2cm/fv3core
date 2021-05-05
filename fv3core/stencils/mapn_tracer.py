@@ -27,15 +27,11 @@ class MapNTracer:
             cache_key="mapn_tracer_qs",
         )
 
-        self._map_single = utils.cached_stencil_class(MapSingle)(
-            kord, 0, i1, i2, j1, j2, cache_key=f"mapntracer-single{j2}"
-        )
+        self._map_single = MapSingle(kord, 0, i1, i2, j1, j2)
 
         if spec.namelist.fill:
             self._fill_negative_tracers = True
-            self._fillz = utils.cached_stencil_class(FillNegativeTracerValues)(
-                cache_key="mapntracer-fillz"
-            )
+            self._fillz = FillNegativeTracerValues()
         else:
             self._fill_negative_tracers = False
 
@@ -55,7 +51,7 @@ class MapNTracer:
         Args:
             pe1 (in): Lagrangian pressure levels
             pe2 (out): Eulerian pressure levels
-            dp2 (in)
+            dp2 (in): Difference in pressure between Eulerian levels
             qs (out): Field to be remapped on deformed grid
             jfirst: Starting index of the J-dir compute domain
             jlast: Final index of the J-dir compute domain
