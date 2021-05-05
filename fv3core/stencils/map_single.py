@@ -5,7 +5,7 @@ from gt4py.gtscript import FORWARD, PARALLEL, computation, interval
 import fv3core._config as spec
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import FrozenStencil, gtstencil
-from fv3core.stencils.basic_operations import copy_stencil
+from fv3core.stencils.basic_operations import copy_defn
 from fv3core.stencils.remap_profile import RemapProfile
 from fv3core.utils.typing import FloatField, FloatFieldIJ
 
@@ -183,9 +183,14 @@ class MapSingle:
         origin = (i1, j1, 0)
         domain = (self.i_extent, self.j_extent, self._grid.npz)
 
-        self.lagrangian_contributions = LagrangianContributions(origin, domain)
+        self._lagrangian_contributions = LagrangianContributions(origin, domain)
         self._remap_profile = RemapProfile(kord, mode, i1, i2, j1, j2)
         self._set_dp = FrozenStencil(set_dp, origin=origin, domain=domain)
+        self._copy_stencil = FrozenStencil(
+            copy_defn,
+            origin=(0, 0, 0),
+            domain=self._grid.domain_shape_full(),
+        )
 
     def __call__(
         self,
@@ -206,7 +211,8 @@ class MapSingle:
             jfirst: Starting index of the J-dir compute domain
             jlast: Final index of the J-dir compute domain
         """
-        self.setup_data(q1, pe1)
+        self._copy_stencil(q1, self.q4_1)
+        self._set_dp(self.dp1, pe1)
         q4_1, q4_2, q4_3, q4_4 = self._remap_profile(
             qs,
             self.q4_1,
@@ -216,7 +222,7 @@ class MapSingle:
             self.dp1,
             qmin,
         )
-        self.lagrangian_contributions(
+        self._lagrangian_contributions(
             q1,
             pe1,
             pe2,
@@ -227,15 +233,6 @@ class MapSingle:
             self.dp1,
         )
         return q1
-
-    def setup_data(self, q1: FloatField, pe1: FloatField):
-        copy_stencil(
-            q1,
-            self.q4_1,
-            origin=(0, 0, 0),
-            domain=self._grid.domain_shape_full(),
-        )
-        self._set_dp(self.dp1, pe1)
 
 
 class MapSingleFactory:
