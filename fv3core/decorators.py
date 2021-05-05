@@ -267,7 +267,7 @@ def get_non_frozen_stencil(func, externals) -> Callable[..., None]:
         else:
             origin_key = origin
             origin_tuple = origin
-        key: Hashable = (origin_key, domain, stencil_config)
+        key: Hashable = (origin_key, domain, stencil_config, spec.grid.rank)
         if key not in stencil_dict:
             axis_offsets = fv3core.utils.grid.axis_offsets(
                 spec.grid, origin=origin_tuple, domain=domain
