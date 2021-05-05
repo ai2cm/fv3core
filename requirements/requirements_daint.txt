@@ -1,2 +1,4 @@
 -r requirements_base.txt
 # fill this
+/project/s1053/install/mpi4py/mpi4py-3.1.0a0-cp38-cp38-linux_x86_64.whl
+git+https://github.com/VulcanClimateModeling/fv3config.git@a0799928824a4f10617cf4615e8837c81ccb1f2d
