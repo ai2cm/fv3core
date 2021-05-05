@@ -31,8 +31,6 @@ def get_selective_class(
             self._validation_slice = tuple(
                 slice(start, start + n) for start, n in zip(origin, domain)
             )
-            self.origin = origin
-            self.domain = domain
             self._all_argument_names = tuple(
                 inspect.getfullargspec(self.wrapped).args[1:]
             )
