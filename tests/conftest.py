@@ -9,7 +9,9 @@ import yaml
 
 import fv3core
 import fv3core._config
+import fv3core.testing
 import fv3core.utils.gt4py_utils
+import fv3core.utils.validation
 import fv3gfs.util as fv3util
 from fv3core.testing import ParallelTranslate, TranslateGrid
 from fv3core.utils.mpi import MPI
@@ -21,6 +23,9 @@ import serialbox  # noqa: E402
 
 
 GRID_SAVEPOINT_NAME = "Grid-Info"
+
+# this must happen before any classes from fv3core are instantiated
+fv3core.testing.enable_selective_validation()
 
 
 class ReplaceRepr:
