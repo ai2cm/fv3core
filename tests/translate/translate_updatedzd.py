@@ -1,3 +1,5 @@
+import numpy as np
+
 import fv3core._config as spec
 import fv3core.stencils.updatedzd
 from fv3core.stencils import d_sw
@@ -23,8 +25,8 @@ class TranslateUpdateDzD(TranslateFortranData2Py):
         self.out_vars = {}
         for v in out_vars:
             self.out_vars[v] = self.in_vars["data_vars"][v]
-        self.out_vars["wsd"]["kstart"] = grid.npz
-        self.out_vars["wsd"]["kend"] = None
+        self.out_vars["ws"]["kstart"] = grid.npz
+        self.out_vars["ws"]["kend"] = None
 
     def compute(self, inputs):
         self.make_storage_data_input_vars(inputs)
@@ -34,9 +36,14 @@ class TranslateUpdateDzD(TranslateFortranData2Py):
             d_sw.get_column_namelist(spec.namelist, self.grid.npz),
             d_sw.k_bounds(),
         )
-        inputs["x_area_flux"] = inputs.pop("xfx")
-        inputs["y_area_flux"] = inputs.pop("yfx")
-        updatedzd(**inputs)
-        inputs["xfx"] = inputs.pop("x_area_flux")
-        inputs["yfx"] = inputs.pop("y_area_flux")
-        return self.slice_output(inputs)
+        self.updatedzd(**inputs)
+        outputs = self.slice_output(inputs)
+        outputs["zh"] = self.subset_output("zh", outputs["zh"])
+        return outputs
+
+    def subset_output(self, varname: str, output: np.ndarray) -> np.ndarray:
+        """
+        Given an output array, return the slice of the array which we'd
+        like to validate against reference data
+        """
+        return self.updatedzd.subset_output(varname, output)

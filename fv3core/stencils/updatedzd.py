@@ -206,6 +206,14 @@ class UpdateHeightOnDGrid:
             for kstart in range(len(k_bounds))
         ):
             raise NotImplementedError("damp <= 1e-5 in column_cols is untested")
+        self._dp0 = dp0
+        self._allocate_temporary_storages()
+        self._initialize_interpolation_constants()
+        self._compile_stencils(namelist)
+
+        self.finite_volume_transport = FiniteVolumeTransport(namelist, namelist.hord_tm)
+
+    def _allocate_temporary_storages(self):
         largest_possible_shape = self.grid.domain_shape_full(add=(1, 1, 1))
         self._crx_interface = utils.make_storage_from_shape(
             largest_possible_shape, grid.compute_origin(add=(0, -self.grid.halo, 0))
