@@ -1,7 +1,6 @@
 from typing import Mapping
 
-import numpy as np
-from gt4py.gtscript import PARALLEL, computation, interval
+from gt4py.gtscript import PARALLEL, computation, interval, log
 
 import fv3core._config as spec
 import fv3core.stencils.moist_cv as moist_cv
@@ -10,7 +9,7 @@ import fv3core.utils.global_config as global_config
 import fv3core.utils.global_constants as constants
 import fv3core.utils.gt4py_utils as utils
 import fv3gfs.util
-from fv3core.decorators import ArgSpec, get_namespace, gtstencil
+from fv3core.decorators import ArgSpec, FrozenStencil, get_namespace, gtstencil
 from fv3core.stencils.basic_operations import copy_stencil
 from fv3core.stencils.c2l_ord import CubedToLatLon
 from fv3core.stencils.del2cubed import HyperdiffusionDamping
@@ -30,6 +29,18 @@ def pt_adjust(pkz: FloatField, dp1: FloatField, q_con: FloatField, pt: FloatFiel
 def set_omega(delp: FloatField, delz: FloatField, w: FloatField, omga: FloatField):
     with computation(PARALLEL), interval(...):
         omga = delp / delz * w
+
+
+def init_pfull(
+    ak: FloatFieldK,
+    bk: FloatFieldK,
+    pfull: FloatField,
+    p_ref: float,
+):
+    with computation(PARALLEL), interval(...):
+        ph1 = ak + bk * p_ref
+        ph2 = ak[1] + bk[1] * p_ref
+        pfull = (ph2 - ph1) / log(ph2 / ph1)
 
 
 def compute_preamble(state, comm, grid, namelist):
@@ -265,7 +276,13 @@ class DynamicalCore:
         self._ak = ak.storage
         self._bk = bk.storage
         self._phis = phis.storage
-        self._pfull = self.compute_pfull()
+        pfull_stencil = FrozenStencil(
+            init_pfull, origin=(0, 0, 0), domain=(1, 1, self.grid.npz)
+        )
+        pfull = utils.make_storage_from_shape((1, 1, self._ak.shape[0]))
+        pfull_stencil(self._ak, self._bk, pfull, self.namelist.p_ref)
+        # workaround because cannot write to FieldK storage in stencil
+        self._pfull = utils.make_storage_data(pfull[0, 0, :], self._ak.shape, (0,))
         self.acoustic_dynamics = AcousticDynamics(
             comm, namelist, self._ak, self._bk, self._pfull, self._phis
         )
@@ -280,12 +297,6 @@ class DynamicalCore:
         self._adjust_tracer_mixing_ratio = AdjustNegativeTracerMixingRatio(
             self.grid, self.namelist, qvapor, qgraupel
         )
-
-    def compute_pfull(self) -> FloatFieldK:
-        ph1 = self._ak.data[:-1] + self._bk.data[:-1] * self.namelist.p_ref
-        ph2 = self._ak.data[1:] + self._bk.data[1:] * self.namelist.p_ref
-        pfull = (ph2 - ph1) / np.log(ph2 / ph1)
-        return utils.make_storage_data(pfull, self._ak.shape, (0,))
 
     def step_dynamics(
         self,
