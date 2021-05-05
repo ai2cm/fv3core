@@ -45,7 +45,9 @@ TIMESTEPS=60
 RANKS=6
 BENCHMARK_DIR=${ROOT_DIR}/examples/standalone/benchmarks
 DATA_DIR="/project/s1053/fv3core_serialized_test_data/${DATA_VERSION}/${experiment}"
-ARTIFACT_DIR="/project/s1053/performance/fv3core_monitor/${backend}"
+ARTIFACT_ROOT="/project/s1053/performance/"
+TIMING_DIR="${ARTIFACT_ROOT}/fv3core_monitor/${backend}"
+PROFILE_DIR="${ARTIFACT_ROOT}/fv3core_profile"
 CACHE_DIR="/scratch/snx3000/olifu/jenkins/scratch/store_gt_caches/${experiment}/${backend}"
 
 # check sanity of environment
@@ -54,8 +56,8 @@ test -n "${backend}" || exitError 1002 ${LINENO} "backend is not defined"
 if [ ! -d "${DATA_DIR}" ] ; then
     exitError 1003 ${LINENO} "test data directory ${DATA_DIR} does not exist"
 fi
-if [ ! -d "${ARTIFACT_DIR}" ] ; then
-    exitError 1004 ${LINENO} "Artifact directory ${ARTIFACT_DIR} does not exist"
+if [ ! -d "${ARTIFACT_ROOT}" ] ; then
+    exitError 1004 ${LINENO} "Artifact directory ${ARTIFACT_ROOT} does not exist"
 fi
 if [ ! -d "${BENCHMARK_DIR}" ] ; then
     exitError 1005 ${LINENO} "Benchmark directory ${BENCHMARK_DIR} does not exist"
@@ -78,7 +80,7 @@ echo "Timesteps:            ${TIMESTEPS}"
 echo "Ranks:                ${RANKS}"
 echo "Benchmark directory:  ${BENCHMARK_DIR}"
 echo "Data directory:       ${DATA_DIR}"
-echo "Artifact directory:   ${ARTIFACT_DIR}"
+echo "Artifact directory:   ${ARTIFACT_ROOT}"
 echo "Cache directory:      ${CACHE_DIR}"
 
 # run standalone
@@ -94,8 +96,8 @@ echo "=== Post-processing ============================"
 
 # store timing artifacts
 if [ "${SAVE_TIMINGS}" == "true" ] ; then
-    echo "Copying timing information to ${ARTIFACT_DIR}"
-    cp $ROOT_DIR/*.json ${ARTIFACT_DIR}/
+    echo "Copying timing information to ${TIMING_DIR}"
+    cp $ROOT_DIR/*.json ${TIMING_DIR}/
 fi
 
 # store cache artifacts (and remove caches afterwards)
@@ -115,8 +117,8 @@ rm -rf .gt_cache*
 if [ "${DO_PROFILE}" == "true" ] ; then
     echo "Analyzing profiling results"
     ${BENCHMARK_DIR}/process_profiling.sh
-    echo "Copying profiling information to ${ARTIFACT_DIR}"
-    cp $ROOT_DIR/*.prof ${ARTIFACT_DIR}/
+    echo "Copying profiling information to ${PROFILE_DIR}"
+    cp $ROOT_DIR/*.prof ${PROFILE_DIR}/
 fi
 
 # remove venv (too many files!)
