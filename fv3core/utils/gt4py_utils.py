@@ -100,7 +100,7 @@ def make_storage_data(
         axis: Axis for 2D to 3D arrays
 
     Returns:
-        Field[dtype]: New storage
+        Field[..., dtype]: New storage
 
     Examples:
         1) ptop = utils.make_storage_data(top_p, q4_1.shape)
@@ -257,7 +257,7 @@ def make_storage_from_shape_uncached(
         mask: Tuple indicating the axes used when initializing the storage
 
     Returns:
-        Field[dtype]: New storage
+        Field[..., dtype]: New storage
 
     Examples:
         1) utmp = utils.make_storage_from_shape(ua.shape)
@@ -307,7 +307,7 @@ def make_storage_from_shape(
         mask: Tuple indicating the axes used when initializing the storage
         cache_key: string for memoizing the storage
     Returns:
-        Field[dtype]: New storage
+        Field[..., dtype]: New storage
 
     Examples:
         1) utmp = utils.make_storage_from_shape(ua.shape)
@@ -554,9 +554,3 @@ def stack(tup, axis: int = 0, out=None):
 def device_sync() -> None:
     if cp and "cuda" in global_config.get_backend():
         cp.cuda.Device(0).synchronize()
-
-
-def apply_device_sync(stencil_kwargs: Dict[str, Any]) -> None:
-    backend = global_config.get_backend()
-    if "cuda" in backend and "device_sync" not in stencil_kwargs:
-        stencil_kwargs["device_sync"] = global_config.get_device_sync()

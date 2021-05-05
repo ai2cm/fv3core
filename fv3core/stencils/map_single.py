@@ -1,9 +1,11 @@
+from typing import Dict, Tuple
+
 from gt4py.gtscript import FORWARD, PARALLEL, computation, interval
 
 import fv3core._config as spec
 import fv3core.utils.gt4py_utils as utils
-from fv3core.decorators import gtstencil
-from fv3core.stencils.basic_operations import copy_stencil
+from fv3core.decorators import FrozenStencil, gtstencil
+from fv3core.stencils.basic_operations import copy_defn
 from fv3core.stencils.remap_profile import RemapProfile
 from fv3core.utils.typing import FloatField, IntFieldIJ
 
@@ -16,88 +18,6 @@ r23 = 2.0 / 3.0
 def set_dp(dp1: FloatField, pe1: FloatField):
     with computation(PARALLEL), interval(...):
         dp1 = pe1[0, 0, 1] - pe1
-
-
-def compute(
-    q1: FloatField,
-    pe1: FloatField,
-    pe2: FloatField,
-    qs: FloatField,
-    mode: int,
-    i1: int,
-    i2: int,
-    j1: int,
-    j2: int,
-    kord: int,
-    qmin: float = 0.0,
-    version: str = "stencil",
-):
-    remap_profile_k = utils.cached_stencil_class(RemapProfile)(
-        kord, mode, cache_key=f"map_profile_{kord}_{mode}"
-    )
-    dp1, q4_1, q4_2, q4_3, q4_4, origin, domain, i_extent, j_extent = setup_data(
-        q1, pe1, i1, i2, j1, j2
-    )
-    q4_1, q4_2, q4_3, q4_4 = remap_profile_k(
-        qs, q4_1, q4_2, q4_3, q4_4, dp1, i1, i2, j1, j2, qmin
-    )
-
-    lev = utils.make_storage_from_shape(
-        q1.shape[:-1],
-        origin=spec.grid.compute_origin()[:-1],
-        cache_key="lagrangian_contributions_lev",
-        init=True,
-        mask=(True, True, False),
-        dtype=int,
-    )
-
-    lagrangian_contributions(
-        q1,
-        pe1,
-        pe2,
-        q4_1,
-        q4_2,
-        q4_3,
-        q4_4,
-        dp1,
-        lev,
-        origin=origin,
-        domain=domain,
-    )
-
-    return q1
-
-
-def setup_data(q1: FloatField, pe1: FloatField, i1: int, i2: int, j1: int, j2: int):
-    grid = spec.grid
-    i_extent = i2 - i1 + 1
-    j_extent = j2 - j1 + 1
-    origin = (i1, j1, 0)
-    domain = (i_extent, j_extent, grid.npz)
-
-    dp1 = utils.make_storage_from_shape(
-        q1.shape, origin=origin, cache_key="map_single_dp1"
-    )
-    q4_1 = utils.make_storage_from_shape(
-        q1.shape, origin=(grid.is_, 0, 0), cache_key="map_single_q4_1"
-    )
-    q4_2 = utils.make_storage_from_shape(
-        q4_1.shape, origin=grid.compute_origin(), cache_key="map_single_q4_2"
-    )
-    q4_3 = utils.make_storage_from_shape(
-        q4_1.shape, origin=grid.compute_origin(), cache_key="map_single_q4_3"
-    )
-    q4_4 = utils.make_storage_from_shape(
-        q4_1.shape, origin=grid.compute_origin(), cache_key="map_single_q4_4"
-    )
-    copy_stencil(
-        q1,
-        q4_1,
-        origin=(0, 0, 0),
-        domain=grid.domain_shape_full(),
-    )
-    set_dp(dp1, pe1, origin=origin, domain=domain)
-    return dp1, q4_1, q4_2, q4_3, q4_4, origin, domain, i_extent, j_extent
 
 
 @gtstencil()
@@ -151,3 +71,90 @@ def lagrangian_contributions(
             )
             q = qsum / (pe2[0, 0, 1] - pe2)
         lev = lev - 1
+
+
+class MapSingle:
+    """
+    Fortran name is map_single, test classes are Map1_PPM_2d, Map_Scalar_2d
+    """
+
+    def __init__(self, kord: int, mode: int, i1: int, i2: int, j1: int, j2: int):
+        shape = spec.grid.domain_shape_full(add=(1, 1, 1))
+        origin = spec.grid.compute_origin()
+
+        self.dp1 = utils.make_storage_from_shape(shape, origin=origin)
+        self.q4_1 = utils.make_storage_from_shape(shape, origin=origin)
+        self.q4_2 = utils.make_storage_from_shape(shape, origin=origin)
+        self.q4_3 = utils.make_storage_from_shape(shape, origin=origin)
+        self.q4_4 = utils.make_storage_from_shape(shape, origin=origin)
+
+        self.lev = utils.make_storage_from_shape(
+            shape[:-1],
+            origin=origin[:-1],
+            cache_key="lagrangian_contributions_lev",
+            init=True,
+            mask=(True, True, False),
+            dtype=int,
+        )
+
+        origin = (i1, j1, 0)
+        domain = (i2 - i1 + 1, j2 - j1 + 1, spec.grid.npz)
+
+        self._lagrangian_contributions = FrozenStencil(
+            lagrangian_contributions,
+            origin=origin,
+            domain=domain,
+        )
+        self._remap_profile = RemapProfile(kord, mode, i1, i2, j1, j2)
+
+        self._set_dp = FrozenStencil(set_dp, origin=origin, domain=domain)
+        self._copy_stencil = FrozenStencil(
+            copy_defn,
+            origin=(0, 0, 0),
+            domain=spec.grid.domain_shape_full(),
+        )
+
+    def __call__(
+        self,
+        q1: FloatField,
+        pe1: FloatField,
+        pe2: FloatField,
+        qs: FloatField,
+        qmin: float = 0.0,
+    ):
+        self._copy_stencil(q1, self.q4_1)
+        self._set_dp(self.dp1, pe1)
+        q4_1, q4_2, q4_3, q4_4 = self._remap_profile(
+            qs,
+            self.q4_1,
+            self.q4_2,
+            self.q4_3,
+            self.q4_4,
+            self.dp1,
+            qmin,
+        )
+        self._lagrangian_contributions(
+            q1,
+            pe1,
+            pe2,
+            q4_1,
+            q4_2,
+            q4_3,
+            q4_4,
+            self.dp1,
+            self.lev,
+        )
+        return q1
+
+
+class MapSingleFactory:
+    _object_pool: Dict[Tuple[int, ...], MapSingle] = {}
+    """Pool of MapSingle objects."""
+
+    def __call__(
+        self, kord: int, mode: int, i1: int, i2: int, j1: int, j2: int, *args, **kwargs
+    ):
+        key_tuple = (kord, mode, i1, i2, j1, j2)
+        if key_tuple not in self._object_pool:
+            self._object_pool[key_tuple] = MapSingle(*key_tuple)
+        return self._object_pool[key_tuple](*args, **kwargs)

@@ -9,7 +9,7 @@ import fv3core.utils
 import fv3core.utils.global_config as global_config
 import fv3core.utils.gt4py_utils as utils
 import fv3gfs.util
-from fv3core.decorators import FrozenStencil, StencilWrapper
+from fv3core.decorators import FrozenStencil
 from fv3core.stencils.basic_operations import copy_stencil
 from fv3core.stencils.fvtp2d import FiniteVolumeTransport
 from fv3core.utils.typing import FloatField, FloatFieldIJ
@@ -162,6 +162,7 @@ class Tracer2D1L:
             utils.make_storage_from_shape(shape, origin),
             units="kg/m^2",
         )
+
         ax_offsets = fv3core.utils.axis_offsets(
             self.grid, self.grid.full_origin(), self.grid.domain_shape_full()
         )
@@ -182,7 +183,6 @@ class Tracer2D1L:
             domain=self.grid.domain_shape_full(add=(1, 1, 0)),
             externals=local_axis_offsets,
         )
-        self._copy_field = StencilWrapper(copy_stencil.func)
         self._loop_temporaries_copy = FrozenStencil(
             loop_temporaries_copy,
             origin=self.grid.full_origin(),
@@ -210,8 +210,8 @@ class Tracer2D1L:
         self.fvtp2d = FiniteVolumeTransport(namelist, namelist.hord_tr)
         # If use AllReduce, will need something like this:
         # self._tmp_cmax = utils.make_storage_from_shape(shape, origin)
-        # self._cmax_1 = StencilWrapper(cmax_stencil1)
-        # self._cmax_2 = StencilWrapper(cmax_stencil2)
+        # self._cmax_1 = FrozenStencil(cmax_stencil1)
+        # self._cmax_2 = FrozenStencil(cmax_stencil2)
 
     def __call__(self, tracers, dp1, mfxd, mfyd, cxd, cyd, mdt, nq):
         # start HALO update on q (in dyn_core in fortran -- just has started when
@@ -270,7 +270,6 @@ class Tracer2D1L:
             )
 
         if self.do_halo_exchange:
-            utils.device_sync()
             reqs = {}
             for qname in utils.tracer_variables[0:nq]:
                 q = tracers[qname + "_quantity"]
@@ -280,7 +279,7 @@ class Tracer2D1L:
         # duplicating storages/stencil calls, return to this, maybe you have more
         # options now, or maybe the one chosen here is the worse one.
 
-        self._copy_field(
+        copy_stencil(
             dp1,
             self._tmp_dp1_orig,
             origin=self.grid.full_origin(),
@@ -296,7 +295,6 @@ class Tracer2D1L:
                 dp1,
                 self._tmp_qn2.storage,
             )
-            utils.device_sync()
             for it in range(int(nsplt)):
                 self._dp_fluxadjustment(
                     dp1,
@@ -328,7 +326,6 @@ class Tracer2D1L:
                         it,
                         nsplt,
                     )
-                    utils.device_sync()
                 else:
                     self.fvtp2d(
                         q.storage,
@@ -349,15 +346,13 @@ class Tracer2D1L:
                         self.grid.rarea,
                         self._tmp_dp2,
                     )
-                    utils.device_sync()
 
                 if it < nsplt - 1:
-                    self._copy_field(
+                    copy_stencil(
                         self._tmp_dp2,
                         dp1,
                         origin=self.grid.compute_origin(),
                         domain=self.grid.domain_shape_compute(),
                     )
                     if self.do_halo_exchange:
-                        utils.device_sync()
                         self.comm.halo_update(self._tmp_qn2, n_points=utils.halo)

@@ -1,6 +1,6 @@
 import fv3core._config as spec
 import fv3core.stencils.mapn_tracer as MapN_Tracer
-from fv3core.testing import TranslateFortranData2Py, TranslateGrid
+from fv3core.testing import TranslateFortranData2Py, TranslateGrid, pad_field_in_j
 
 
 class TranslateMapN_Tracer_2d(TranslateFortranData2Py):
@@ -21,10 +21,9 @@ class TranslateMapN_Tracer_2d(TranslateFortranData2Py):
         self.max_error = 3.5e-11
         self.near_zero = 7e-17
         self.ignore_near_zero_errors["qtracers"] = True
-        self.nj = grid.npy
 
     def compute(self, inputs):
-        self.make_storage_data_input_vars(inputs)
+        self.setup(inputs)
         inputs["j_2d"] = self.grid.global_to_local_y(
             inputs["j_2d"] + TranslateGrid.fpy_model_index_offset
         )
@@ -33,6 +32,15 @@ class TranslateMapN_Tracer_2d(TranslateFortranData2Py):
         inputs["j1"] = inputs["j_2d"]
         inputs["j2"] = inputs["j_2d"]
         del inputs["j_2d"]
+        inputs["pe1"] = self.make_storage_data(
+            pad_field_in_j(inputs["pe1"], self.grid.npy)
+        )
+        inputs["pe2"] = self.make_storage_data(
+            pad_field_in_j(inputs["pe2"], self.grid.npy)
+        )
+        inputs["dp2"] = self.make_storage_data(
+            pad_field_in_j(inputs["dp2"], self.grid.npy)
+        )
         inputs["kord"] = abs(spec.namelist.kord_tr)
         self.compute_func(**inputs)
         return self.slice_output(inputs)

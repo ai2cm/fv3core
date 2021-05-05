@@ -19,6 +19,12 @@ def read_serialized_data(serializer, savepoint, variable):
     return data
 
 
+def pad_field_in_j(field, nj):
+    utils.device_sync()
+    outfield = utils.tile(field[:, 0, :], [nj, 1, 1]).transpose(1, 0, 2)
+    return outfield
+
+
 class TranslateFortranData2Py:
     max_error = 1e-14
     near_zero = 1e-18
@@ -33,17 +39,19 @@ class TranslateFortranData2Py:
         self.ordered_input_vars = None
         self.ignore_near_zero_errors = {}
 
+    def setup(self, inputs):
+        self.make_storage_data_input_vars(inputs)
+
     def compute_func(self, **inputs):
         raise NotImplementedError("Implement a child class compute method")
 
     def compute(self, inputs):
-        self.make_storage_data_input_vars(inputs)
+        self.setup(inputs)
         return self.slice_output(self.compute_from_storage(inputs))
 
     # assume inputs already has been turned into gt4py storages (or Quantities)
     def compute_from_storage(self, inputs):
         outputs = self.compute_func(**inputs)
-        utils.device_sync()
         if outputs is not None:
             inputs.update(outputs)
         return inputs

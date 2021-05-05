@@ -2,7 +2,6 @@
 from fv3core.testing import TranslateFVDynamics
 
 from .translate_a2b_ord4 import TranslateA2B_Ord4
-from .translate_c2l_ord2 import TranslateC2L_Ord2
 from .translate_c_sw import (
     TranslateC_SW,
     TranslateCirculation_Cgrid,
@@ -11,7 +10,6 @@ from .translate_c_sw import (
     TranslateTransportDelp,
     TranslateVorticityTransport_Cgrid,
 )
-from .translate_compute_total_energy import TranslateComputeTotalEnergy
 from .translate_corners import (
     TranslateCopyCorners,
     TranslateFill4Corners,
@@ -26,6 +24,7 @@ from .translate_d_sw import (
     TranslateHeatDiss,
     TranslateUbKE,
     TranslateVbKE,
+    TranslateWdivergence,
 )
 from .translate_del2cubed import TranslateDel2Cubed
 from .translate_del6vtflux import TranslateDel6VtFlux
@@ -54,7 +53,6 @@ from .translate_map_scalar_2d import TranslateMapScalar_2d
 from .translate_mapn_tracer_2d import TranslateMapN_Tracer_2d
 from .translate_moistcvpluspkz_2d import TranslateMoistCVPlusPkz_2d
 from .translate_moistcvpluspt_2d import TranslateMoistCVPlusPt_2d
-from .translate_moistcvpluste_2d import TranslateMoistCVPlusTe_2d
 from .translate_neg_adj3 import TranslateNeg_Adj3
 from .translate_nh_p_grad import TranslateNH_P_Grad
 from .translate_pe_halo import TranslatePE_Halo
@@ -64,7 +62,6 @@ from .translate_pressureadjustedtemperature_nonhydrostatic import (
 )
 from .translate_qsinit import TranslateQSInit
 from .translate_ray_fast import TranslateRay_Fast
-from .translate_rayleigh_super import TranslateRayleigh_Super
 from .translate_remap_profile_2d import TranslateCS_Profile_2d, TranslateCS_Profile_2d_2
 from .translate_remapping import TranslateRemapping
 from .translate_remapping_part1 import TranslateRemapping_Part1
@@ -75,7 +72,6 @@ from .translate_satadjust3d import TranslateSatAdjust3d
 from .translate_tracer2d1l import TranslateTracer2D1L
 from .translate_updatedzc import TranslateUpdateDzC
 from .translate_updatedzd import TranslateUpdateDzD
-from .translate_wdivergence import TranslateWdivergence
 from .translate_xppm import TranslateXPPM, TranslateXPPM_2
 from .translate_xtp_u import TranslateXTP_U
 from .translate_yppm import TranslateYPPM, TranslateYPPM_2
