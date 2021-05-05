@@ -1,7 +1,7 @@
 from gt4py.gtscript import FORWARD, computation, horizontal, interval, region
 
 import fv3core.utils.gt4py_utils as utils
-from fv3core.decorators import StencilWrapper
+from fv3core.decorators import FrozenStencil
 from fv3core.utils.grid import axis_offsets
 from fv3core.utils.typing import FloatField, FloatFieldIJ
 
@@ -44,7 +44,7 @@ class PK3Halo:
         domain = grid.domain_shape_full(add=(0, 0, 1))
         ax_offsets = axis_offsets(grid, origin, domain)
         self._pe_tmp = utils.make_storage_from_shape(shape_2D, grid.full_origin())
-        self._edge_pe_update = StencilWrapper(
+        self._edge_pe_update = FrozenStencil(
             func=edge_pe_update,
             externals={
                 **ax_offsets,

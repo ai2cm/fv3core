@@ -4,7 +4,6 @@ from gt4py.gtscript import PARALLEL, computation, interval, log
 
 import fv3core._config as spec
 import fv3core.stencils.moist_cv as moist_cv
-import fv3core.stencils.rayleigh_super as rayleigh_super
 import fv3core.stencils.remapping as lagrangian_to_eulerian
 import fv3core.utils.global_config as global_config
 import fv3core.utils.global_constants as constants
@@ -20,7 +19,7 @@ from fv3core.stencils.tracer_2d_1l import Tracer2D1L
 from fv3core.utils.typing import FloatField, FloatFieldK
 
 
-@gtstencil()
+@gtstencil
 def init_ph_columns(
     ak: FloatFieldK,
     bk: FloatFieldK,
@@ -33,13 +32,13 @@ def init_ph_columns(
         pfull = (ph2 - ph1) / log(ph2 / ph1)
 
 
-@gtstencil()
+@gtstencil
 def pt_adjust(pkz: FloatField, dp1: FloatField, q_con: FloatField, pt: FloatField):
     with computation(PARALLEL), interval(...):
         pt = pt * (1.0 + dp1) * (1.0 - q_con) / pkz
 
 
-@gtstencil()
+@gtstencil
 def set_omega(delp: FloatField, delz: FloatField, w: FloatField, omga: FloatField):
     with computation(PARALLEL), interval(...):
         omga = delp / delz * w
@@ -58,7 +57,7 @@ def compute_preamble(state, comm, grid, namelist):
     state.pfull = utils.make_storage_data(state.pfull[0, 0, :], state.ak.shape, (0,))
 
     if namelist.hydrostatic:
-        raise Exception("Hydrostatic is not implemented")
+        raise NotImplementedError("Hydrostatic is not implemented")
     if __debug__:
         if grid.rank == 0:
             print("FV Setup")
@@ -81,54 +80,17 @@ def compute_preamble(state, comm, grid, namelist):
     )
 
     if state.consv_te > 0 and not state.do_adiabatic_init:
-        # NOTE: Not run in default configuration (turned off consv_te so we don't
-        # need a global allreduce).
-        if __debug__:
-            if grid.rank == 0:
-                print("Compute Total Energy")
-        moist_cv.compute_total_energy(
-            state.u,
-            state.v,
-            state.w,
-            state.delz,
-            state.pt,
-            state.delp,
-            state.dp1,
-            state.pe,
-            state.peln,
-            state.phis,
-            constants.ZVIR,
-            state.te_2d,
-            state.qvapor,
-            state.qliquid,
-            state.qice,
-            state.qrain,
-            state.qsnow,
-            state.qgraupel,
+        raise NotImplementedError(
+            "compute total energy is not implemented, it needs an allReduce"
         )
 
     if (not namelist.rf_fast) and namelist.tau != 0:
-        if grid.grid_type < 4:
-            if __debug__:
-                if grid.rank == 0:
-                    print("Rayleigh Super")
-            rayleigh_super.compute(
-                state.u,
-                state.v,
-                state.w,
-                state.ua,
-                state.va,
-                state.pt,
-                state.delz,
-                state.phis,
-                state.bdt,
-                state.ptop,
-                state.pfull,
-                comm,
-            )
+        raise NotImplementedError(
+            "Rayleigh_Super, called when rf_fast=False and tau !=0"
+        )
 
     if namelist.adiabatic and namelist.kord_tm > 0:
-        raise Exception(
+        raise NotImplementedError(
             "unimplemented namelist options adiabatic with positive kord_tm"
         )
     else:

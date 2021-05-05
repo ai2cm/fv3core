@@ -2,15 +2,15 @@ from gt4py import gtscript
 from gt4py.gtscript import (
     __INLINED,
     PARALLEL,
+    compile_assert,
     computation,
-    external_assert,
     horizontal,
     interval,
     region,
 )
 
 import fv3core._config as spec
-from fv3core.decorators import StencilWrapper
+from fv3core.decorators import FrozenStencil
 from fv3core.stencils import xppm, yppm
 from fv3core.utils.grid import axis_offsets
 from fv3core.utils.typing import FloatField, FloatFieldIJ
@@ -74,7 +74,7 @@ def _compute_stencil(
             dm = xppm.dm_iord8plus(u)
             al = xppm.al_iord8plus(u, dm)
 
-            external_assert(iord == 8)
+            compile_assert(iord == 8)
 
             bl, br = xppm.blbr_iord8(u, al, dm)
             bl, br = xppm.bl_br_edges(bl, br, u, dxa, al, dm)
@@ -112,7 +112,7 @@ class XTP_U:
         self.rdx = grid.rdx
         ax_offsets = axis_offsets(grid, self.origin, self.domain)
         assert namelist.grid_type < 3
-        self.stencil = StencilWrapper(
+        self.stencil = FrozenStencil(
             _compute_stencil,
             externals={
                 "iord": iord,

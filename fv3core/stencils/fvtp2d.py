@@ -4,7 +4,7 @@ from gt4py.gtscript import PARALLEL, computation, horizontal, interval, region
 import fv3core._config as spec
 import fv3core.utils.corners as corners
 import fv3core.utils.gt4py_utils as utils
-from fv3core.decorators import StencilWrapper
+from fv3core.decorators import FrozenStencil
 from fv3core.stencils import d_sw, delnflux
 from fv3core.stencils.xppm import XPiecewiseParabolic
 from fv3core.stencils.yppm import YPiecewiseParabolic
@@ -88,19 +88,23 @@ class FiniteVolumeTransport:
         self._tmp_q_j = utils.make_storage_from_shape(shape, origin)
         self._tmp_fx2 = utils.make_storage_from_shape(shape, origin)
         self._tmp_fy2 = utils.make_storage_from_shape(shape, origin)
+        self._corner_tmp = utils.make_storage_from_shape(
+            self.grid.domain_shape_full(add=(1, 1, 1)), origin=self.grid.full_origin()
+        )
+        """Temporary field to use for corner computation in both x and y direction"""
         ord_outer = hord
         ord_inner = 8 if hord == 10 else hord
-        self.stencil_q_i = StencilWrapper(
+        self.stencil_q_i = FrozenStencil(
             q_i_stencil,
             origin=self.grid.full_origin(add=(0, 3, 0)),
             domain=self.grid.domain_shape_full(add=(0, -3, 1)),
         )
-        self.stencil_q_j = StencilWrapper(
+        self.stencil_q_j = FrozenStencil(
             q_j_stencil,
             origin=self.grid.full_origin(add=(3, 0, 0)),
             domain=self.grid.domain_shape_full(add=(-3, 0, 1)),
         )
-        self.stencil_transport_flux = StencilWrapper(
+        self.stencil_transport_flux = FrozenStencil(
             transport_flux_xy,
             origin=self.grid.compute_origin(),
             domain=self.grid.domain_shape_compute(add=(1, 1, 1)),
@@ -117,6 +121,16 @@ class FiniteVolumeTransport:
         self.y_piecewise_parabolic_outer = YPiecewiseParabolic(
             namelist, ord_outer, self.grid.is_, self.grid.ie
         )
+
+        self._copy_corners_x: corners.CopyCorners = corners.CopyCorners(
+            "x", self._corner_tmp
+        )
+        """Stencil responsible for doing corners updates in x-direction."""
+
+        self._copy_corners_y: corners.CopyCorners = corners.CopyCorners(
+            "y", self._corner_tmp
+        )
+        """Stencil responsible for doing corners updates in y-direction."""
 
     def __call__(
         self,
@@ -151,9 +165,9 @@ class FiniteVolumeTransport:
             mfy: ???
         """
         grid = self.grid
-        corners.copy_corners_y_stencil(
-            q, origin=grid.full_origin(), domain=grid.domain_shape_full(add=(0, 0, 1))
-        )
+
+        self._copy_corners_y(q)
+
         self.y_piecewise_parabolic_inner(q, cry, self._tmp_fy2)
         self.stencil_q_i(
             q,
@@ -163,9 +177,9 @@ class FiniteVolumeTransport:
             self._tmp_q_i,
         )
         self.x_piecewise_parabolic_outer(self._tmp_q_i, crx, fx)
-        corners.copy_corners_x_stencil(
-            q, origin=grid.full_origin(), domain=grid.domain_shape_full(add=(0, 0, 1))
-        )
+
+        self._copy_corners_x(q)
+
         self.x_piecewise_parabolic_inner(q, crx, self._tmp_fx2)
         self.stencil_q_j(
             q,
