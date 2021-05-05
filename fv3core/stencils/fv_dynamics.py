@@ -1,6 +1,7 @@
 from typing import Mapping
 
-from gt4py.gtscript import PARALLEL, computation, interval, log
+import numpy as np
+from gt4py.gtscript import PARALLEL, computation, interval
 
 import fv3core._config as spec
 import fv3core.stencils.moist_cv as moist_cv
@@ -16,20 +17,7 @@ from fv3core.stencils.del2cubed import HyperdiffusionDamping
 from fv3core.stencils.dyn_core import AcousticDynamics
 from fv3core.stencils.neg_adj3 import AdjustNegativeTracerMixingRatio
 from fv3core.stencils.tracer_2d_1l import Tracer2D1L
-from fv3core.utils.typing import FloatField, FloatFieldK
-
-
-@gtstencil
-def init_ph_columns(
-    ak: FloatFieldK,
-    bk: FloatFieldK,
-    pfull: FloatField,
-    p_ref: float,
-):
-    with computation(PARALLEL), interval(...):
-        ph1 = ak + bk * p_ref
-        ph2 = ak[1] + bk[1] * p_ref
-        pfull = (ph2 - ph1) / log(ph2 / ph1)
+from fv3core.utils.typing import FloatField
 
 
 @gtstencil
@@ -45,17 +33,6 @@ def set_omega(delp: FloatField, delz: FloatField, w: FloatField, omga: FloatFiel
 
 
 def compute_preamble(state, comm, grid, namelist):
-    init_ph_columns(
-        state.ak,
-        state.bk,
-        state.pfull,
-        namelist.p_ref,
-        origin=(0, 0, 0),
-        domain=(1, 1, grid.domain_shape_compute()[2]),
-    )
-
-    state.pfull = utils.make_storage_data(state.pfull[0, 0, :], state.ak.shape, (0,))
-
     if namelist.hydrostatic:
         raise NotImplementedError("Hydrostatic is not implemented")
     if __debug__:
@@ -170,7 +147,7 @@ def fvdyn_temporaries(shape, grid):
     origin = grid.full_origin()
     tmps = {}
     halo_vars = ["cappa"]
-    storage_vars = ["te_2d", "dp1", "pfull", "cvm", "wsd_3d"]
+    storage_vars = ["te_2d", "dp1", "cvm", "wsd_3d"]
     column_vars = ["gz"]
     plane_vars = ["te_2d", "te0_2d", "wsd"]
     utils.storage_dict(
@@ -288,8 +265,12 @@ class DynamicalCore:
         self._ak = ak.storage
         self._bk = bk.storage
         self._phis = phis.storage
+        ph1 = self._ak.data[:-1] + self._bk.data[:-1] * self.namelist.p_ref
+        ph2 = self._ak.data[1:] + self._bk.data[1:] * self.namelist.p_ref
+        pfull = (ph2 - ph1) / np.log(ph2 / ph1)
+        self._pfull = utils.make_storage_data(pfull, self._ak.shape, (0,))
         self.acoustic_dynamics = AcousticDynamics(
-            comm, namelist, self._ak, self._bk, self._phis
+            comm, namelist, self._ak, self._bk, self._pfull, self._phis
         )
         self._hyperdiffusion = HyperdiffusionDamping(self.grid)
         self._do_cubed_to_latlon = CubedToLatLon(self.grid, namelist)
@@ -403,7 +384,7 @@ class DynamicalCore:
                         state.omga,
                         self._ak,
                         self._bk,
-                        state.pfull,
+                        self._pfull,
                         state.dp1,
                         state.ptop,
                         constants.KAPPA,
