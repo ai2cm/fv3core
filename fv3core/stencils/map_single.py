@@ -122,6 +122,17 @@ class MapSingle:
         qs: FloatField,
         qmin: float = 0.0,
     ):
+        """
+        Compute x-flux using the PPM method.
+
+        Args:
+            q1 (out): Remapped field on Eulerian grid
+            pe1 (in): Lagrangian pressure levels
+            pe2 (in): Eulerian pressure levels
+            qs (in): Field to be remapped on deformed grid
+            jfirst: Starting index of the J-dir compute domain
+            jlast: Final index of the J-dir compute domain
+        """
         self._copy_stencil(q1, self.q4_1)
         self._set_dp(self.dp1, pe1)
         q4_1, q4_2, q4_3, q4_4 = self._remap_profile(
