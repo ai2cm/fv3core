@@ -98,14 +98,26 @@ def sample_wherefail(
     )
 
     if xy_indices:
+        if len(computed_data.shape) == 3:
+            axis = 2
+            any = np.any
+        elif len(computed_data.shape) == 4:
+            axis = (2, 3)
+            any = np.any
+        else:
+            axis = None
+
+            def any(array, axis):
+                return array
+
         found_xy_indices = np.where(
-            np.any(
+            any(
                 np.logical_not(
                     success_array(
                         computed_data, ref_data, eps, ignore_near_zero_errors, near_zero
                     )
                 ),
-                axis=2,
+                axis=axis,
             )
         )
 
@@ -169,7 +181,7 @@ def test_sequential_savepoint(
     subtests,
     caplog,
     threshold_overrides,
-    xy_indices=False,
+    xy_indices=True,
 ):
     caplog.set_level(logging.DEBUG, logger="fv3core")
     if testobj is None:
@@ -189,6 +201,8 @@ def test_sequential_savepoint(
     for varname in testobj.serialnames(testobj.out_vars):
         ignore_near_zero = testobj.ignore_near_zero_errors.get(varname, False)
         ref_data = serializer.read(varname, savepoint_out)
+        if hasattr(testobj, "subset_output"):
+            ref_data = testobj.subset_output(varname, ref_data)
         with subtests.test(varname=varname):
             failing_names.append(varname)
             assert success(
@@ -204,9 +218,9 @@ def test_sequential_savepoint(
                 print_failures,
                 failure_stride,
                 test_name,
-                ignore_near_zero,
-                testobj.near_zero,
-                xy_indices,
+                ignore_near_zero_errors=ignore_near_zero,
+                near_zero=testobj.near_zero,
+                xy_indices=xy_indices,
             )
             passing_names.append(failing_names.pop())
     assert failing_names == [], f"only the following variables passed: {passing_names}"
@@ -353,7 +367,7 @@ def test_parallel_savepoint(
         pytest.xfail(f"python_regression not set for test {test_name}")
     if testobj is None:
         pytest.xfail(f"no translate object available for savepoint {test_name}")
-    # Reduce error threshold for GPU
+    # Increase minimum error threshold for GPU
     if backend.endswith("cuda"):
         testobj.max_error = max(testobj.max_error, GPU_MAX_ERR)
         testobj.near_zero = max(testobj.near_zero, GPU_NEAR_ZERO)

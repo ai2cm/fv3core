@@ -14,7 +14,7 @@ from gt4py.gtscript import (
 
 import fv3core._config as spec
 import fv3core.utils.gt4py_utils as utils
-from fv3core.decorators import StencilWrapper, gtstencil
+from fv3core.decorators import FrozenStencil, gtstencil
 from fv3core.utils.grid import axis_offsets
 from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
 
@@ -635,7 +635,7 @@ def fy_calculation_neg(q: FloatField, del6_u: FloatField):
 
 
 # WARNING: untested
-@gtstencil()
+@gtstencil
 def fx_firstorder_use_sg(
     q: FloatField,
     sin_sg1: FloatField,
@@ -651,7 +651,7 @@ def fx_firstorder_use_sg(
 
 
 # WARNING: untested
-@gtstencil()
+@gtstencil
 def fy_firstorder_use_sg(
     q: FloatField,
     sin_sg2: FloatField,
@@ -835,13 +835,13 @@ class DelnFlux:
         diffuse_origin = (grid.is_, grid.js, 0)
         extended_domain = (grid.nic + 1, grid.njc + 1, nk)
 
-        self._damping_factor_calculation = StencilWrapper(
+        self._damping_factor_calculation = FrozenStencil(
             calc_damp, origin=(0, 0, 0), domain=k_shape
         )
-        self._add_diffusive_stencil = StencilWrapper(
+        self._add_diffusive_stencil = FrozenStencil(
             add_diffusive_component, origin=diffuse_origin, domain=extended_domain
         )
-        self._diffusive_damp_stencil = StencilWrapper(
+        self._diffusive_damp_stencil = FrozenStencil(
             diffusive_damp, origin=diffuse_origin, domain=extended_domain
         )
 
@@ -925,7 +925,7 @@ class DelnFluxNoSG:
         fx_ax_offsets = axis_offsets(grid, fx_origin, (f1_nx, f1_ny, self._nk))
         fy_ax_offsets = axis_offsets(grid, fx_origin, (f1_nx - 1, f1_ny + 1, self._nk))
 
-        self._d2_damp = StencilWrapper(
+        self._d2_damp = FrozenStencil(
             d2_damp_interval,
             externals={
                 "nord0": nord[0],
@@ -938,7 +938,7 @@ class DelnFluxNoSG:
             domain=domain_d2,
         )
 
-        self._copy_stencil_interval = StencilWrapper(
+        self._copy_stencil_interval = FrozenStencil(
             copy_stencil_interval,
             externals={
                 "nord0": nord[0],
@@ -962,7 +962,7 @@ class DelnFluxNoSG:
         copy_domain = (grid.nid, grid.njd, self._nk)
 
         self._conditional_corner_copy_x_stencils = [
-            StencilWrapper(
+            FrozenStencil(
                 conditional_corner_copy_x_func,
                 externals=full_ax_offsets,
                 origin=(grid.isd, grid.jsd, 0),
@@ -979,7 +979,7 @@ class DelnFluxNoSG:
         ]
 
         self._conditional_corner_copy_y_stencils = [
-            StencilWrapper(
+            FrozenStencil(
                 conditional_corner_copy_y_func,
                 externals=full_ax_offsets,
                 origin=copy_origin,
@@ -988,7 +988,7 @@ class DelnFluxNoSG:
             for conditional_corner_copy_y_func in conditional_corner_copy_y_functions
         ]
 
-        self._d2_stencil = StencilWrapper(
+        self._d2_stencil = gtstencil(
             d2_highorder_stencil,
             externals={
                 "nord0": nord[0],
@@ -997,7 +997,7 @@ class DelnFluxNoSG:
                 "nord3": nord[3],
             },
         )
-        self._column_conditional_fx_calculation = StencilWrapper(
+        self._column_conditional_fx_calculation = gtstencil(
             fx_calc_stencil_column,
             externals={
                 "nord0": nord[0],
@@ -1006,7 +1006,7 @@ class DelnFluxNoSG:
                 "nord3": nord[3],
             },
         )
-        self._column_conditional_fy_calculation = StencilWrapper(
+        self._column_conditional_fy_calculation = gtstencil(
             fy_calc_stencil_column,
             externals={
                 "nord0": nord[0],
@@ -1015,7 +1015,7 @@ class DelnFluxNoSG:
                 "nord3": nord[3],
             },
         )
-        self._fx_calc_stencil = StencilWrapper(
+        self._fx_calc_stencil = FrozenStencil(
             fx_calc_stencil_region,
             externals={
                 **fx_ax_offsets,
@@ -1027,7 +1027,7 @@ class DelnFluxNoSG:
             origin=fx_origin,
             domain=(f1_nx, f1_ny, self._nk),
         )
-        self._fy_calc_stencil = StencilWrapper(
+        self._fy_calc_stencil = FrozenStencil(
             fy_calc_stencil_region,
             externals={
                 **fy_ax_offsets,

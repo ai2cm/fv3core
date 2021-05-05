@@ -3,11 +3,11 @@ from typing import Any, Dict
 from gt4py.gtscript import BACKWARD, FORWARD, PARALLEL, computation, exp, interval, log
 
 import fv3core._config as spec
-import fv3core.stencils.map_single as map_single
 import fv3core.stencils.mapn_tracer as mapn_tracer
 import fv3core.stencils.moist_cv as moist_cv
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import gtstencil
+from fv3core.stencils.map_single import MapSingle
 from fv3core.stencils.moist_cv import moist_pt_func
 from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
 
@@ -15,7 +15,7 @@ from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
 CONSV_MIN = 0.001
 
 
-@gtstencil()
+@gtstencil
 def init_pe(pe: FloatField, pe1: FloatField, pe2: FloatField, ptop: float):
     with computation(PARALLEL):
         with interval(0, 1):
@@ -26,7 +26,7 @@ def init_pe(pe: FloatField, pe1: FloatField, pe2: FloatField, ptop: float):
         pe1 = pe
 
 
-@gtstencil()
+@gtstencil
 def undo_delz_adjust_and_copy_peln(
     delp: FloatField,
     delz: FloatField,
@@ -41,7 +41,7 @@ def undo_delz_adjust_and_copy_peln(
         peln = pn2
 
 
-@gtstencil()
+@gtstencil
 def moist_cv_pt_pressure(
     qvapor: FloatField,
     qliquid: FloatField,
@@ -109,14 +109,14 @@ def moist_cv_pt_pressure(
         delp = dp2
 
 
-@gtstencil()
+@gtstencil
 def copy_j_adjacent(pe2: FloatField):
     with computation(PARALLEL), interval(...):
         pe2_0 = pe2[0, -1, 0]
         pe2 = pe2_0
 
 
-@gtstencil()
+@gtstencil
 def pn2_pk_delp(
     dp2: FloatField,
     delp: FloatField,
@@ -131,7 +131,7 @@ def pn2_pk_delp(
         pk = exp(akap * pn2)
 
 
-@gtstencil()
+@gtstencil
 def pressures_mapu(
     pe: FloatField,
     pe1: FloatField,
@@ -157,7 +157,7 @@ def pressures_mapu(
         pe3 = ak + bkh * (pe_bottom[0, -1, 0] + pe1_bottom)
 
 
-@gtstencil()
+@gtstencil
 def pressures_mapv(
     pe: FloatField, ak: FloatFieldK, bk: FloatFieldK, pe0: FloatField, pe3: FloatField
 ):
@@ -176,7 +176,7 @@ def pressures_mapv(
             pe3 = ak + bkh * (pe_bottom[-1, 0, 0] + pe_bottom)
 
 
-@gtstencil()
+@gtstencil
 def update_ua(pe2: FloatField, ua: FloatField):
     with computation(PARALLEL), interval(0, -1):
         ua = pe2[0, 0, 1]
@@ -290,17 +290,15 @@ def compute(
         domain=grid.domain_shape_compute(),
     )
 
-    map_single.compute(
+    kord_tm = abs(spec.namelist.kord_tm)
+    map_single = utils.cached_stencil_class(MapSingle)(
+        kord_tm, 1, grid.is_, grid.ie, grid.js, grid.je, cache_key="remap1-single1"
+    )
+    map_single(
         pt,
         peln,
         pn2,
         gz,
-        1,
-        grid.is_,
-        grid.ie,
-        grid.js,
-        grid.je,
-        abs(spec.namelist.kord_tm),
         qmin=t_min,
     )
 
@@ -321,12 +319,14 @@ def compute(
     # TODO else if nq > 0:
     # TODO map1_q2, fillz
     kord_wz = spec.namelist.kord_wz
-    map_single.compute(
-        w, pe1, pe2, wsd, -2, grid.is_, grid.ie, grid.js, grid.je, kord_wz
+    map_single = utils.cached_stencil_class(MapSingle)(
+        kord_wz, -2, grid.is_, grid.ie, grid.js, grid.je, cache_key="remap1-single2"
     )
-    map_single.compute(
-        delz, pe1, pe2, gz, 1, grid.is_, grid.ie, grid.js, grid.je, kord_wz
+    map_single(w, pe1, pe2, wsd)
+    map_single = utils.cached_stencil_class(MapSingle)(
+        kord_wz, 1, grid.is_, grid.ie, grid.js, grid.je, cache_key="remap1-single3"
     )
+    map_single(delz, pe1, pe2, gz)
 
     undo_delz_adjust_and_copy_peln(
         delp,
@@ -364,32 +364,17 @@ def compute(
     pressures_mapu(
         pe, pe1, ak, bk, pe0, pe3, origin=grid.compute_origin(), domain=domain_jextra
     )
-    map_single.compute(
-        u,
-        pe0,
-        pe3,
-        gz,
-        -1,
-        grid.is_,
-        grid.ie,
-        grid.js,
-        grid.je + 1,
-        spec.namelist.kord_mt,
+    kord_mt = spec.namelist.kord_mt
+    map_single = utils.cached_stencil_class(MapSingle)(
+        kord_mt, -1, grid.is_, grid.ie, grid.js, grid.je + 1, cache_key="remap1-single4"
     )
+    map_single(u, pe0, pe3, gz)
     domain_iextra = (grid.nic + 1, grid.njc, grid.npz + 1)
     pressures_mapv(
         pe, ak, bk, pe0, pe3, origin=grid.compute_origin(), domain=domain_iextra
     )
-    map_single.compute(
-        v,
-        pe0,
-        pe3,
-        gz,
-        -1,
-        grid.is_,
-        grid.ie + 1,
-        grid.js,
-        grid.je,
-        spec.namelist.kord_mt,
+    map_single = utils.cached_stencil_class(MapSingle)(
+        kord_mt, -1, grid.is_, grid.ie + 1, grid.js, grid.je, cache_key="remap1-single5"
     )
+    map_single(v, pe0, pe3, gz)
     update_ua(pe2, ua, origin=grid.compute_origin(), domain=domain_jextra)

@@ -28,7 +28,7 @@ class TranslateUpdateDzD(TranslateFortranData2Py):
 
     def compute(self, inputs):
         self.make_storage_data_input_vars(inputs)
-        updatedzd = fv3core.stencils.updatedzd.UpdateDeltaZOnDGrid(
+        updatedzd = fv3core.stencils.updatedzd.UpdateHeightOnDGrid(
             self.grid,
             inputs.pop("dp0"),
             d_sw.get_column_namelist(spec.namelist, self.grid.npz),
