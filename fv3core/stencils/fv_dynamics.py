@@ -17,7 +17,7 @@ from fv3core.stencils.del2cubed import HyperdiffusionDamping
 from fv3core.stencils.dyn_core import AcousticDynamics
 from fv3core.stencils.neg_adj3 import AdjustNegativeTracerMixingRatio
 from fv3core.stencils.tracer_2d_1l import Tracer2D1L
-from fv3core.utils.typing import FloatField
+from fv3core.utils.typing import FloatField, FloatFieldK
 
 
 @gtstencil
@@ -265,10 +265,7 @@ class DynamicalCore:
         self._ak = ak.storage
         self._bk = bk.storage
         self._phis = phis.storage
-        ph1 = self._ak.data[:-1] + self._bk.data[:-1] * self.namelist.p_ref
-        ph2 = self._ak.data[1:] + self._bk.data[1:] * self.namelist.p_ref
-        pfull = (ph2 - ph1) / np.log(ph2 / ph1)
-        self._pfull = utils.make_storage_data(pfull, self._ak.shape, (0,))
+        self._pfull = self.compute_pfull()
         self.acoustic_dynamics = AcousticDynamics(
             comm, namelist, self._ak, self._bk, self._pfull, self._phis
         )
@@ -283,6 +280,12 @@ class DynamicalCore:
         self._adjust_tracer_mixing_ratio = AdjustNegativeTracerMixingRatio(
             self.grid, self.namelist, qvapor, qgraupel
         )
+
+    def compute_pfull(self) -> FloatFieldK:
+        ph1 = self._ak.data[:-1] + self._bk.data[:-1] * self.namelist.p_ref
+        ph2 = self._ak.data[1:] + self._bk.data[1:] * self.namelist.p_ref
+        pfull = (ph2 - ph1) / np.log(ph2 / ph1)
+        return utils.make_storage_data(pfull, self._ak.shape, (0,))
 
     def step_dynamics(
         self,
