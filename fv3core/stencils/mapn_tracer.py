@@ -24,7 +24,7 @@ def compute(
         pe1.shape, origin=(0, 0, 0), cache_key="mapn_tracer_qs"
     )
     map_single = utils.cached_stencil_class(MapSingle)(
-        kord, 0, i1, i2, j1, j2, cache_key="mapntracer-single"
+        kord, 0, i1, i2, j1, j2, cache_key=f"mapntracer-single-j{j2}"
     )
 
     for q in utils.tracer_variables[0:nq]:
