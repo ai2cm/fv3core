@@ -11,17 +11,31 @@ class TranslateUpdateDzD(TranslateFortranData2Py):
         super().__init__(grid)
         self.in_vars["data_vars"] = {
             "dp0": {},  # column var
-            "zs": {},
-            "zh": {"kend": grid.npz + 1},
-            "crx": grid.x3d_compute_domain_y_dict(),
-            "cry": grid.y3d_compute_domain_x_dict(),
-            "xfx": grid.x3d_compute_domain_y_dict(),
-            "yfx": grid.y3d_compute_domain_x_dict(),
-            "wsd": grid.compute_dict(),
+            "surface_height": {"serialname": "zs"},
+            "height": {"kend": grid.npz + 1},
+            "courant_number_x": grid.x3d_compute_domain_y_dict(),
+            "courant_number_y": grid.y3d_compute_domain_x_dict(),
+            "x_area_flux": grid.x3d_compute_domain_y_dict(),
+            "y_area_flux": grid.y3d_compute_domain_x_dict(),
+            "ws": grid.compute_dict(),
         }
+        self.in_vars["data_vars"]["courant_number_x"]["serialname"] = "crx"
+        self.in_vars["data_vars"]["courant_number_y"]["serialname"] = "cry"
+        self.in_vars["data_vars"]["x_area_flux"]["serialname"] = "xfx"
+        self.in_vars["data_vars"]["y_area_flux"]["serialname"] = "yfx"
+        self.in_vars["data_vars"]["y_area_flux"]["serialname"] = "yfx"
+        self.in_vars["data_vars"]["height"]["serialname"] = "zh"
+        self.in_vars["data_vars"]["ws"]["serialname"] = "wsd"
 
         self.in_vars["parameters"] = ["dt"]
-        out_vars = ["zh", "crx", "cry", "xfx", "yfx", "wsd"]
+        out_vars = [
+            "height",
+            "courant_number_x",
+            "courant_number_y",
+            "x_area_flux",
+            "y_area_flux",
+            "ws",
+        ]
         self.out_vars = {}
         for v in out_vars:
             self.out_vars[v] = self.in_vars["data_vars"][v]
@@ -30,8 +44,9 @@ class TranslateUpdateDzD(TranslateFortranData2Py):
 
     def compute(self, inputs):
         self.make_storage_data_input_vars(inputs)
-        updatedzd = fv3core.stencils.updatedzd.UpdateHeightOnDGrid(
+        self.updatedzd = fv3core.stencils.updatedzd.UpdateHeightOnDGrid(
             self.grid,
+            spec.namelist,
             inputs.pop("dp0"),
             d_sw.get_column_namelist(spec.namelist, self.grid.npz),
             d_sw.k_bounds(),
