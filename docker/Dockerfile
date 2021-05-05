@@ -76,7 +76,7 @@ COPY --from=esmf_image /usr/local/esmf $ESMF_DIR
 COPY --from=fortran_image /FV3/ /external/fv3gfs-fortran/FV3/
 COPY --from=fortran_image /stochastic_physics/ /external/fv3gfs-fortran/stochastic_physics/
 
-COPY requirements_wrapper.txt /
+COPY requirements/requirements_wrapper.txt /
 RUN pip3 install -r /requirements_wrapper.txt -c /constraints.txt
 
 COPY external/fv3gfs-wrapper /external/fv3gfs-wrapper

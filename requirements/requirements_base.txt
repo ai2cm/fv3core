@@ -1,0 +1,25 @@
+f90nml
+pytest-xdist
+pytest-dependency
+pytest
+pytest-cov
+pytest-subtests
+pytest-profiling
+xarray
+numpy
+zarr
+cftime
+pip-tools
+wheel
+netCDF4
+hypothesis
+scipy
+pytest-regressions
+gitpython
+
+# GT4Py Tests
+clang-format
+factory-boy
+pytest-factoryboy
+pytest-cache
+pytest-cov
