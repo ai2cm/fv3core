@@ -177,7 +177,6 @@ def last_pt(
     return (pt + dtmp * pkz) / ((1.0 + zvir * qv) * (1.0 - gz))
 
 
-#@gtstencil
 def moist_pt_last_step(
     qvapor: FloatField,
     qliquid: FloatField,

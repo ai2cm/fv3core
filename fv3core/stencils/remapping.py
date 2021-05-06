@@ -55,6 +55,8 @@ def compute(
         pt.shape, grid.compute_origin(), cache_key="remapping_cvm"
     )
 
+    remap_part2_compute = remap_part2.Remapping_Part2()
+
     remap_part1.compute(
         tracers,
         pt,
@@ -84,7 +86,7 @@ def compute(
         zvir,
         nq,
     )
-    remap_part2.compute(
+    remap_part2_compute(
         tracers["qvapor"],
         tracers["qliquid"],
         tracers["qice"],
