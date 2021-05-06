@@ -22,9 +22,7 @@ class MapNTracer:
         self._j1 = j1
         self._j2 = j2
         self._qs = utils.make_storage_from_shape(
-            (grid.npx, grid.npy, self._nk + 1),
-            origin=(0, 0, 0),
-            cache_key="mapn_tracer_qs",
+            (grid.npx, grid.npy, self._nk + 1), origin=(0, 0, 0)
         )
 
         self._map_single = MapSingle(kord, 0, i1, i2, j1, j2)

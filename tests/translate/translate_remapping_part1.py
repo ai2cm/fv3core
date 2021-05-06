@@ -5,7 +5,7 @@ from fv3core.testing import TranslateFortranData2Py
 class TranslateRemapping_Part1(TranslateFortranData2Py):
     def __init__(self, grid):
         super().__init__(grid)
-        self.compute_func = remap_part1.compute
+        self.compute_func = remap_part1.VerticalRemapping1()
         self.in_vars["data_vars"] = {
             "tracers": {"serialname": "qtracers"},
             "w": {},
