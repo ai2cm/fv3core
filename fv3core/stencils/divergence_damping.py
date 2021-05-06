@@ -98,8 +98,8 @@ def damping_nord0_stencil(
     delpc: FloatField,
     vort: FloatField,
     ke: FloatField,
+    d2_bg: FloatFieldK,
     da_min_c: float,
-    d2_bg: float,
     dddmp: float,
     dt: float,
 ):
@@ -189,7 +189,14 @@ class DivergenceDamping:
         self._grid_type = namelist.grid_type
         self._nord_column = nord_col
         self._d2_bg_column = d2_bg
-        
+        self._nonzero_nord_k = 0
+        self._nonzero_nord = int(namelist.nord)
+        for k in range(len(self._nord_column)):
+            if self._nord_column[k] > 0:
+                self._nonzero_nord_k = k
+                self._nonzero_nord = int(self._nord_column[k])
+                break
+            
     def __call__(
         self, 
         u: FloatField,
@@ -207,129 +214,131 @@ class DivergenceDamping:
         dt: float
     ) -> None:
         grid = spec.grid
-        for kstart, nk in d_sw.k_bounds():
-            if nk is None:
-                nk = grid.npz - kstart
-            nk = min(grid.npz - kstart, nk)
-            # Avoid running center-domain computation on tile edges, since they'll be
-            # overwritten.
-            is2 = grid.is_ + 1 if grid.west_edge else grid.is_
-            ie1 = grid.ie if grid.east_edge else grid.ie + 1
-            nord = int(self._nord_column[kstart])
-            if nord == 0:
-                self.damping_zero_order(
-                    u, v, va, ptc, vort, ua, vc, uc, delpc, ke, self._d2_bg_column[kstart], dt, is2, ie1, kstart, nk
+        #for kstart, nk in d_sw.k_bounds():
+        #    if nk is None:
+        #        nk = grid.npz - kstart
+        #    nk = min(grid.npz - kstart, nk)
+        #    # Avoid running center-domain computation on tile edges, since they'll be
+        #    # overwritten.
+        is2 = grid.is_ + 1 if grid.west_edge else grid.is_
+        ie1 = grid.ie if grid.east_edge else grid.ie + 1
+        #nord = int(self._nord_column[kstart])
+        #if nord == 0:
+        self.damping_zero_order(
+            u, v, va, ptc, vort, ua, vc, uc, delpc, ke, self._d2_bg_column, dt, is2, ie1, 0, self._nonzero_nord_k
+        )
+        #else:
+        kstart = self._nonzero_nord_k
+        nk = grid.npz - self._nonzero_nord_k
+        copy_stencil(
+            divg_d,
+            delpc,
+            origin=(grid.is_, grid.js, kstart),
+            domain=(grid.nic + 1, grid.njc + 1, nk),
+        )
+        for n in range(1, self._nonzero_nord + 1):
+            nt = self._nonzero_nord - n
+            nint = grid.nic + 2 * nt + 1
+            njnt = grid.njc + 2 * nt + 1
+            js = grid.js - nt
+            is_ = grid.is_ - nt
+            fillc = (
+                (n != self._nonzero_nord)
+                and self._grid_type < 3
+                and not grid.nested
+                and (
+                    grid.sw_corner or grid.se_corner or grid.ne_corner or grid.nw_corner
                 )
-            else:
-                copy_stencil(
+            )
+            if fillc:
+                corners.fill_corners_bgrid_x(
                     divg_d,
-                    delpc,
-                    origin=(grid.is_, grid.js, kstart),
-                    domain=(grid.nic + 1, grid.njc + 1, nk),
+                    origin=(grid.isd, grid.jsd, kstart),
+                    domain=(grid.nid + 1, grid.njd + 1, nk),
                 )
-                for n in range(1, nord + 1):
-                    nt = nord - n
-                    nint = grid.nic + 2 * nt + 1
-                    njnt = grid.njc + 2 * nt + 1
-                    js = grid.js - nt
-                    is_ = grid.is_ - nt
-                    fillc = (
-                        (n != nord)
-                        and self._grid_type < 3
-                        and not grid.nested
-                        and (
-                            grid.sw_corner or grid.se_corner or grid.ne_corner or grid.nw_corner
-                        )
-                    )
-                    if fillc:
-                        corners.fill_corners_bgrid_x(
-                            divg_d,
-                            origin=(grid.isd, grid.jsd, kstart),
-                            domain=(grid.nid + 1, grid.njd + 1, nk),
-                        )
-                    vc_from_divg(
-                        divg_d,
-                        grid.divg_u,
-                        vc,
-                        origin=(is_ - 1, js, kstart),
-                        domain=(nint + 1, njnt, nk),
-                    )
-                    if fillc:
-                        corners.fill_corners_bgrid_y(
-                            divg_d,
-                            origin=(grid.isd, grid.jsd, kstart),
-                            domain=(grid.nid + 1, grid.njd + 1, nk),
-                        )
-                    uc_from_divg(
-                        divg_d,
-                        grid.divg_v,
-                        uc,
-                        origin=(is_, js - 1, kstart),
-                        domain=(nint, njnt + 1, nk),
-                    )
-                    if fillc:
-                        corners.fill_corners_dgrid(
-                            vc,
-                            uc,
-                            -1.0,
-                            origin=(grid.isd, grid.jsd, kstart),
-                            domain=(grid.nid + 1, grid.njd + 1, nk),
-                        )
-
-                    redo_divg_d(
-                        uc, vc, divg_d, origin=(is_, js, kstart), domain=(nint, njnt, nk)
-                    )
-                    corner_domain = (1, 1, nk)
-                    if grid.sw_corner:
-                        corner_south_remove_extra_term(
-                            uc, divg_d, origin=(grid.is_, grid.js, kstart), domain=corner_domain
-                        )
-                    if grid.se_corner:
-                        corner_south_remove_extra_term(
-                            uc,
-                            divg_d,
-                            origin=(grid.ie + 1, grid.js, kstart),
-                            domain=corner_domain,
-                        )
-                    if grid.ne_corner:
-                        corner_north_remove_extra_term(
-                            uc,
-                            divg_d,
-                            origin=(grid.ie + 1, grid.je + 1, kstart),
-                            domain=corner_domain,
-                        )
-                    if grid.nw_corner:
-                        corner_north_remove_extra_term(
-                            uc,
-                            divg_d,
-                            origin=(grid.is_, grid.je + 1, kstart),
-                            domain=corner_domain,
-                        )
-                    if not grid.stretched_grid:
-                        basic.adjustmentfactor_stencil(
-                            grid.rarea_c,
-                            divg_d,
-                            origin=(is_, js, kstart),
-                            domain=(nint, njnt, nk),
-                        )
-
-                vorticity_calc(wk, vort, delpc, dt, nord, kstart, nk, self._dddmp, self._grid_type)
-                if grid.stretched_grid:
-                    dd8 = grid.da_min * self._d4_bg ** (nord + 1)
-                else:
-                    dd8 = (grid.da_min_c * self._d4_bg) ** (nord + 1)
-                damping_nord_highorder_stencil(
-                    vort,
-                    ke,
-                    delpc,
+            vc_from_divg(
+                divg_d,
+                grid.divg_u,
+                vc,
+                origin=(is_ - 1, js, kstart),
+                domain=(nint + 1, njnt, nk),
+            )
+            if fillc:
+                corners.fill_corners_bgrid_y(
                     divg_d,
-                    grid.da_min_c,
-                    self._d2_bg_column[kstart],
-                    self._dddmp,
-                    dd8,
-                    origin=(grid.is_, grid.js, kstart),
-                    domain=(grid.nic + 1, grid.njc + 1, nk),
+                    origin=(grid.isd, grid.jsd, kstart),
+                    domain=(grid.nid + 1, grid.njd + 1, nk),
                 )
+            uc_from_divg(
+                divg_d,
+                grid.divg_v,
+                uc,
+                origin=(is_, js - 1, kstart),
+                domain=(nint, njnt + 1, nk),
+            )
+            if fillc:
+                corners.fill_corners_dgrid(
+                    vc,
+                    uc,
+                    -1.0,
+                    origin=(grid.isd, grid.jsd, kstart),
+                    domain=(grid.nid + 1, grid.njd + 1, nk),
+                )
+
+            redo_divg_d(
+                uc, vc, divg_d, origin=(is_, js, kstart), domain=(nint, njnt, nk)
+            )
+            corner_domain = (1, 1, nk)
+            if grid.sw_corner:
+                corner_south_remove_extra_term(
+                    uc, divg_d, origin=(grid.is_, grid.js, kstart), domain=corner_domain
+                )
+            if grid.se_corner:
+                corner_south_remove_extra_term(
+                    uc,
+                    divg_d,
+                    origin=(grid.ie + 1, grid.js, kstart),
+                    domain=corner_domain,
+                )
+            if grid.ne_corner:
+                corner_north_remove_extra_term(
+                    uc,
+                    divg_d,
+                    origin=(grid.ie + 1, grid.je + 1, kstart),
+                    domain=corner_domain,
+                )
+            if grid.nw_corner:
+                corner_north_remove_extra_term(
+                    uc,
+                    divg_d,
+                    origin=(grid.is_, grid.je + 1, kstart),
+                    domain=corner_domain,
+                )
+            if not grid.stretched_grid:
+                basic.adjustmentfactor_stencil(
+                    grid.rarea_c,
+                    divg_d,
+                    origin=(is_, js, kstart),
+                    domain=(nint, njnt, nk),
+                )
+
+        vorticity_calc(wk, vort, delpc, dt, self._nonzero_nord, kstart, nk, self._dddmp, self._grid_type)
+        if grid.stretched_grid:
+            dd8 = grid.da_min * self._d4_bg ** (self._nonzero_nord + 1)
+        else:
+            dd8 = (grid.da_min_c * self._d4_bg) ** (self._nonzero_nord + 1)
+        damping_nord_highorder_stencil(
+            vort,
+            ke,
+            delpc,
+            divg_d,
+            grid.da_min_c,
+            self._d2_bg_column[kstart],
+            self._dddmp,
+            dd8,
+            origin=(grid.is_, grid.js, kstart),
+            domain=(grid.nic + 1, grid.njc + 1, nk),
+        )
 
 
     def damping_zero_order(
@@ -344,7 +353,7 @@ class DivergenceDamping:
         uc: FloatField,
         delpc: FloatField,
         ke: FloatField,
-        d2_bg: float,
+        d2_bg: FloatFieldK,
         dt: float,
         is2: int,
         ie1: int,
@@ -449,8 +458,8 @@ class DivergenceDamping:
             delpc,
             vort,
             ke,
-            grid.da_min_c,
             d2_bg,
+            grid.da_min_c,
             self._dddmp,
             dt,
             origin=compute_origin,
