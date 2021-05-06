@@ -10,11 +10,11 @@ from gt4py.gtscript import (
 
 import fv3core._config as spec
 import fv3core.stencils.delnflux as delnflux
-from fv3core.stencils.divergence_damping import DivergenceDamping
 import fv3core.utils.corners as corners
 import fv3core.utils.global_constants as constants
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import FrozenStencil
+from fv3core.stencils.divergence_damping import DivergenceDamping
 from fv3core.stencils.fvtp2d import FiniteVolumeTransport
 from fv3core.stencils.fxadv import FiniteVolumeFluxPrep
 from fv3core.stencils.xtp_u import XTP_U
@@ -538,7 +538,9 @@ class DGridShallowWaterLagrangianDynamics:
         self.fv_prep = FiniteVolumeFluxPrep()
         self.ytp_v = YTP_V(namelist)
         self.xtp_u = XTP_U(namelist)
-        self.divergence_damping = DivergenceDamping(namelist, column_namelist["nord"], column_namelist["d2_bg"])
+        self.divergence_damping = DivergenceDamping(
+            namelist, column_namelist["nord"], column_namelist["d2_bg"]
+        )
         self._column_namelist = column_namelist
         full_origin = self.grid.full_origin()
         full_domain = self.grid.domain_shape_full()
@@ -832,22 +834,22 @@ class DGridShallowWaterLagrangianDynamics:
             w, delp, self._tmp_dw, q_con, self._column_namelist["damp_w"]
         )
         self._divergence_damping(
-                u,
-                v,
-                va,
-                ptc,
-                self._tmp_vort,
-                ua,
-                divgd,
-                vc,
-                uc,
-                delpc,
-                self._tmp_ke,
-                self._tmp_wk,
-                #self._column_namelist["d2_divg"],
-                #self._column_namelist["nord"],
-                dt
-            )
+            u,
+            v,
+            va,
+            ptc,
+            self._tmp_vort,
+            ua,
+            divgd,
+            vc,
+            uc,
+            delpc,
+            self._tmp_ke,
+            self._tmp_wk,
+            # self._column_namelist["d2_divg"],
+            # self._column_namelist["nord"],
+            dt,
+        )
 
         self._ub_vb_from_vort_stencil(
             self._tmp_vort, self._tmp_ub, self._tmp_vb, self._column_namelist["d_con"]

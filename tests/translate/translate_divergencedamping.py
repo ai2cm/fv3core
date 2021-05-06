@@ -1,6 +1,7 @@
+import fv3core._config as spec
 from fv3core.stencils.divergence_damping import DivergenceDamping
 from fv3core.testing import TranslateFortranData2Py
-import fv3core._config as spec
+
 
 class TranslateDivergenceDamping(TranslateFortranData2Py):
     def __init__(self, grid):

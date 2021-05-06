@@ -394,7 +394,7 @@ class AGrid2BGridFourthOrder:
     """
 
     def __init__(
-            self, grid_type,  kstart: int = 0, nk: int = None, replace: bool = False
+        self, grid_type, kstart: int = 0, nk: int = None, replace: bool = False
     ):
         """
         Args:
