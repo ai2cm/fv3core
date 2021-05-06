@@ -3,20 +3,20 @@ from gt4py.gtscript import BACKWARD, FORWARD, PARALLEL, computation, interval
 import fv3core._config as spec
 import fv3core.stencils.basic_operations as basic
 import fv3core.stencils.moist_cv as moist_cv
-import fv3core.stencils.saturation_adjustment as saturation_adjustment
 import fv3core.utils.global_constants as constants
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import gtstencil
+from fv3core.stencils.saturation_adjustment import SatAdjust3d
 from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
 
 
-@gtstencil()
+@gtstencil
 def copy_from_below(a: FloatField, b: FloatField):
     with computation(PARALLEL), interval(1, None):
         b = a[0, 0, -1]
 
 
-@gtstencil()
+@gtstencil
 def init_phis(hs: FloatField, delz: FloatField, phis: FloatField, te_2d: FloatFieldIJ):
     with computation(BACKWARD):
         with interval(-1, None):
@@ -27,24 +27,7 @@ def init_phis(hs: FloatField, delz: FloatField, phis: FloatField, te_2d: FloatFi
             phis = phis[0, 0, 1] - constants.GRAV * delz
 
 
-@gtstencil()
-def sum_z1(
-    pkz: FloatField,
-    delp: FloatField,
-    te0_2d: FloatField,
-    te_2d: FloatFieldIJ,
-    zsum1: FloatFieldIJ,
-):
-    with computation(FORWARD):
-        with interval(0, 1):
-            te_2d = te0_2d - te_2d
-            zsum1 = pkz * delp
-        with interval(1, None):
-            te_2d = te0_2d - te_2d
-            zsum1 = zsum1[0, 0, -1] + pkz * delp
-
-
-@gtstencil()
+@gtstencil
 def sum_te(te: FloatField, te0_2d: FloatField):
     with computation(FORWARD):
         with interval(0, None):
@@ -87,6 +70,10 @@ def compute(
     consv: float,
     do_adiabatic_init: bool,
 ):
+    saturation_adjustment = utils.cached_stencil_class(SatAdjust3d)(
+        cache_key="satadjust3d"
+    )
+
     grid = spec.grid
     copy_from_below(
         ua, pe, origin=grid.compute_origin(), domain=grid.domain_shape_compute()
@@ -111,67 +98,11 @@ def compute(
                 break
     if last_step and not do_adiabatic_init:
         if consv > constants.CONSV_MIN:
-            if spec.namelist.hydrostatic:
-                raise Exception("Hydrostatic not supported")
-            else:
-                init_phis(
-                    hs,
-                    delz,
-                    phis,
-                    te_2d,
-                    origin=grid.compute_origin(),
-                    domain=(grid.nic, grid.njc, grid.npz + 1),
-                )
-                moist_cv.compute_te(
-                    qvapor,
-                    qliquid,
-                    qice,
-                    qrain,
-                    qsnow,
-                    qgraupel,
-                    te_2d,
-                    gz,
-                    cvm,
-                    delp,
-                    q_con,
-                    pt,
-                    phis,
-                    w,
-                    u,
-                    v,
-                    r_vir,
-                )
-            sum_z1(
-                pkz,
-                delp,
-                te0_2d,
-                te_2d,
-                zsum1,
-                origin=grid.compute_origin(),
-                domain=(grid.nic, grid.njc, grid.npz),
-            )
-            # dtmp = consv * g_sum(te_2d, grid.area_64)  # global mpi step
-            # dtmp = dtmp / (constants.CV_AIR * g_sum(zsum1, grid.area_64))
             raise NotImplementedError(
                 "We do not support consv_te > 0.001 "
                 "because that would trigger an allReduce"
             )
-            # E_Flux = dtmp / (constants.GRAV * pdt * 4. * constants.PI *
-            # constants.RADIUS**2)
         elif consv < -constants.CONSV_MIN:
-            sum_z1(
-                pkz,
-                delp,
-                te0_2d,
-                te_2d,
-                zsum1,
-                origin=grid.compute_origin(),
-                domain=grid.domain_shape_compute(),
-            )
-            # E_Flux = consv
-            # dtmp  = E_Flux *  (constants.GRAV * pdt * 4. * constants.PI *
-            # constants.RADIUS**2) / (constants.CV_AIR * g_sum(zsum1,
-            # grid,.area_64))
             raise Exception(
                 "Unimplemented/untested case consv("
                 + str(consv)
@@ -184,7 +115,7 @@ def compute(
 
         kmp_origin = (grid.is_, grid.js, kmp)
         kmp_domain = (grid.nic, grid.njc, grid.npz - kmp)
-        saturation_adjustment.compute(
+        saturation_adjustment(
             te,
             qvapor,
             qliquid,

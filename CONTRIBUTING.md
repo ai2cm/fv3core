@@ -119,7 +119,7 @@ This eventually calls `gt4py.gtscript.stencil`, but sets default external argume
 The type of each input of a stencil requires a type and the first version of the model used a shorthand 'sd' (storage data) to indicate a 3D gt4py storage, such as
 
 ```python
-@gtstencil()
+@gtstencil
 def pt_adjust(pkz:sd, dp1: sd, q_con: sd, pt: sd):
     with computation(PARALLEL), interval(...):
 ```
@@ -132,7 +132,7 @@ For example, `FloatField[IJ]` for a 2D field of default floating point values.
 The `fv3core.gtstencil` decorator automatically makes `namelist` available, if `from __externals__ import namelist` is added at the top of the stencil or any stencil function along with other imports.
 
 ```python
-@fv3core.gtstencil()
+@fv3core.gtstencil
 def mystencil(var: FloatField):
     from gtscript import parallel
     from __externals__ import namelist, x_start
@@ -148,7 +148,7 @@ e.g.:
     def get_bl(al, q):
 
 ### Assertions
-We can now include assertions of compile time variables inside of gtscript functions with the syntax `external_assert(<expression>)`, for example `external_assert(namelist.grid_type < 3)`.
+We can now include assertions of compile time variables inside of gtscript functions with the syntax `compile_assert(<expression>)`, for example `compile_assert(namelist.grid_type < 3)`.
 
 ### State
 Some outer functions include a 'state' object that is a SimpleNamespace of variables and a `comm` object that is the `CubedSphereCommunicator` object enabling halo updates.

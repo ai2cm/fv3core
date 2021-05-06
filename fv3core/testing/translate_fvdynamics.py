@@ -289,6 +289,8 @@ class TranslateFVDynamics(ParallelTranslateBaseSlicing):
             state["atmosphere_hybrid_a_coordinate"],
             state["atmosphere_hybrid_b_coordinate"],
             state["surface_geopotential"],
+            state["specific_humidity"].data,
+            state["graupel_mixing_ratio"].data,
         )
         self.dycore.step_dynamics(
             state,

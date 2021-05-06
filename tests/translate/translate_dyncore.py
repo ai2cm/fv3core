@@ -1,7 +1,7 @@
 import fv3core._config as spec
 import fv3core.stencils.dyn_core as dyn_core
 import fv3gfs.util as fv3util
-from fv3core.decorators import StencilWrapper
+from fv3core.decorators import FrozenStencil
 from fv3core.testing import ParallelTranslate2PyState, TranslateFortranData2Py
 from fv3core.utils.grid import axis_offsets
 
@@ -117,12 +117,12 @@ class TranslateDynCore(ParallelTranslate2PyState):
         self.max_error = 2e-6
 
     def compute_parallel(self, inputs, communicator):
-
         self._base.compute_func = dyn_core.AcousticDynamics(
             communicator,
             spec.namelist,
             inputs["ak"],
             inputs["bk"],
+            inputs["pfull"],
             inputs["phis"],
         )
         return super().compute_parallel(inputs, communicator)
@@ -145,7 +145,7 @@ class TranslatePGradC(TranslateFortranData2Py):
         origin = self.grid.compute_origin()
         domain = self.grid.domain_shape_compute(add=(1, 1, 0))
         ax_offsets = axis_offsets(self.grid, origin, domain)
-        pgradc = StencilWrapper(
+        pgradc = FrozenStencil(
             dyn_core.p_grad_c_stencil,
             externals={
                 "hydrostatic": spec.namelist.hydrostatic,

@@ -2,15 +2,15 @@ from gt4py import gtscript
 from gt4py.gtscript import (
     __INLINED,
     PARALLEL,
+    compile_assert,
     computation,
-    external_assert,
     horizontal,
     interval,
     region,
 )
 
 import fv3core._config as spec
-from fv3core.decorators import StencilWrapper
+from fv3core.decorators import gtstencil
 from fv3core.stencils import yppm
 from fv3core.stencils.basic_operations import sign
 from fv3core.utils.grid import axis_offsets
@@ -145,12 +145,12 @@ def compute_al(q: FloatField, dxa: FloatFieldIJ):
     """
     from __externals__ import i_end, i_start, iord
 
-    external_assert(iord < 8)
+    compile_assert(iord < 8)
 
     al = yppm.p1 * (q[-1, 0, 0] + q) + yppm.p2 * (q[-2, 0, 0] + q[1, 0, 0])
 
     if __INLINED(iord < 0):
-        external_assert(False)
+        compile_assert(False)
         al = max(al, 0.0)
 
     with horizontal(region[i_start - 1, :], region[i_end, :]):
@@ -212,7 +212,7 @@ def compute_blbr_ord8plus(q: FloatField, dxa: FloatFieldIJ):
     dm = dm_iord8plus(q)
     al = al_iord8plus(q, dm)
 
-    external_assert(iord == 8)
+    compile_assert(iord == 8)
 
     bl, br = blbr_iord8(q, al, dm)
     bl, br = bl_br_edges(bl, br, q, dxa, al, dm)
@@ -244,29 +244,27 @@ class XPiecewiseParabolic:
     Fortran name is xppm
     """
 
-    def __init__(self, namelist, iord):
+    def __init__(self, namelist, iord, jfirst, jlast):
         grid = spec.grid
-        origin = grid.compute_origin()
-        domain = grid.domain_shape_compute(add=(1, 1, 1))
-        ax_offsets = axis_offsets(spec.grid, origin, domain)
         assert namelist.grid_type < 3
-        self._npz = grid.npz
-        self._is_ = grid.is_
-        self._nic = grid.nic
         self._dxa = grid.dxa
-        self._compute_flux_stencil = StencilWrapper(
+        origin = (grid.is_, jfirst, 0)
+        domain = (grid.nic + 1, jlast - jfirst + 1, grid.npz + 1)
+        ax_offsets = axis_offsets(grid, origin, domain)
+        self._compute_flux_stencil = gtstencil(
             func=compute_x_flux,
             externals={
                 "iord": iord,
                 "mord": abs(iord),
                 "xt_minmax": True,
-                **ax_offsets,
+                "i_start": ax_offsets["i_start"],
+                "i_end": ax_offsets["i_end"],
             },
+            origin=origin,
+            domain=domain,
         )
 
-    def __call__(
-        self, q: FloatField, c: FloatField, xflux: FloatField, jfirst: int, jlast: int
-    ):
+    def __call__(self, q: FloatField, c: FloatField, xflux: FloatField):
         """
         Compute x-flux using the PPM method.
 
@@ -278,12 +276,4 @@ class XPiecewiseParabolic:
             jlast: Final index of the J-dir compute domain
         """
 
-        nj = jlast - jfirst + 1
-        self._compute_flux_stencil(
-            q,
-            c,
-            self._dxa,
-            xflux,
-            origin=(self._is_, jfirst, 0),
-            domain=(self._nic + 1, nj, self._npz + 1),
-        )
+        self._compute_flux_stencil(q, c, self._dxa, xflux)

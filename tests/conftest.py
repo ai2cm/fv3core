@@ -9,6 +9,7 @@ import yaml
 
 import fv3core
 import fv3core._config
+import fv3core.testing
 import fv3core.utils.gt4py_utils
 import fv3core.utils.validation
 import fv3gfs.util as fv3util
@@ -23,6 +24,9 @@ import serialbox  # noqa: E402
 
 GRID_SAVEPOINT_NAME = "Grid-Info"
 fv3core.utils.validation.SelectiveValidation.TEST_MODE = True
+
+# this must happen before any classes from fv3core are instantiated
+fv3core.testing.enable_selective_validation()
 
 
 class ReplaceRepr:
@@ -362,8 +366,12 @@ def generate_parallel_stencil_tests(metafunc):
 def _generate_stencil_tests(metafunc, arg_names, savepoint_cases, get_param):
     param_list = []
     for case in savepoint_cases:
-        fv3core._config.set_grid(case.grid)
-        testobj = get_test_class_instance(case.test_name, case.grid)
+        original_grid = fv3core._config.grid
+        try:
+            fv3core._config.set_grid(case.grid)
+            testobj = get_test_class_instance(case.test_name, case.grid)
+        finally:
+            fv3core._config.set_grid(original_grid)
         max_call_count = min(len(case.input_savepoints), len(case.output_savepoints))
         for i, (savepoint_in, savepoint_out) in enumerate(
             zip(case.input_savepoints, case.output_savepoints)
