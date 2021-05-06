@@ -13,8 +13,8 @@ from gt4py.gtscript import (
 )
 
 import fv3core._config as spec
-import fv3core.utils.gt4py_utils as utils
 import fv3core.utils.corners as corners
+import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import FrozenStencil, gtstencil
 from fv3core.utils.grid import axis_offsets
 from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
@@ -441,7 +441,7 @@ class DelnFluxNoSG:
 
         if self._nk <= 3:
             raise Exception("nk must be more than 3 for DelnFluxNoSG")
-        self._k_bounds = [1, 1, 1, self._nk-3]
+        self._k_bounds = [1, 1, 1, self._nk - 3]
 
         preamble_ax_offsets = axis_offsets(grid, origin_d2, domain_d2)
         fx_ax_offsets = axis_offsets(grid, fx_origin, (f1_nx, f1_ny, self._nk))
@@ -538,7 +538,7 @@ class DelnFluxNoSG:
                 corners.copy_corners_x_stencil(
                     d2,
                     origin=(grid.isd, grid.jsd, kstart),
-                    domain = (grid.nid, grid.njd, k_range)
+                    domain=(grid.nid, grid.njd, k_range),
                 )
 
         self._fx_calc_stencil(d2, grid.del6_v, fx2)
@@ -548,9 +548,8 @@ class DelnFluxNoSG:
                 corners.copy_corners_y_stencil(
                     d2,
                     origin=(grid.isd, grid.jsd, kstart),
-                    domain = (grid.nid, grid.njd, k_range)
+                    domain=(grid.nid, grid.njd, k_range),
                 )
-
 
         self._fy_calc_stencil(d2, grid.del6_u, fy2)
 
@@ -573,7 +572,7 @@ class DelnFluxNoSG:
                     corners.copy_corners_x_stencil(
                         d2,
                         origin=(grid.isd, grid.jsd, kstart),
-                        domain = (grid.nid, grid.njd, k_range)
+                        domain=(grid.nid, grid.njd, k_range),
                     )
 
             nt_origin = (grid.is_ - nt, grid.js - nt, 0)
@@ -590,7 +589,7 @@ class DelnFluxNoSG:
                     corners.copy_corners_y_stencil(
                         d2,
                         origin=(grid.isd, grid.jsd, kstart),
-                        domain = (grid.nid, grid.njd, k_range)
+                        domain=(grid.nid, grid.njd, k_range),
                     )
 
             self._column_conditional_fy_calculation(
