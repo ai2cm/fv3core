@@ -263,6 +263,11 @@ def gtstencil(
 
 def get_non_frozen_stencil(func, externals) -> Callable[..., None]:
     stencil_dict: Dict[Hashable, FrozenStencil] = {}
+    # must use a mutable container object here to hold config,
+    # `global` does not work in this case. Cannot retreve StencilConfig
+    # yet because it is not set at import time, when this function
+    # is called by gtstencil throughout the repo
+    # so instead we retrieve it at first call time
     stencil_config_holder: List[StencilConfig] = []
 
     @functools.wraps(func)
