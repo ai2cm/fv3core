@@ -10,7 +10,7 @@ from gt4py.gtscript import (
 
 import fv3core._config as spec
 import fv3core.stencils.delnflux as delnflux
-import fv3core.stencils.divergence_damping as divdamp
+from fv3core.stencils.divergence_damping import DivergenceDamping
 import fv3core.utils.corners as corners
 import fv3core.utils.global_constants as constants
 import fv3core.utils.gt4py_utils as utils
@@ -538,6 +538,7 @@ class DGridShallowWaterLagrangianDynamics:
         self.fv_prep = FiniteVolumeFluxPrep()
         self.ytp_v = YTP_V(namelist)
         self.xtp_u = XTP_U(namelist)
+        self.divergence_damping = DivergenceDamping(namelist, column_namelist["nord"], column_namelist["d2_bg"])
         self._column_namelist = column_namelist
         full_origin = self.grid.full_origin()
         full_domain = self.grid.domain_shape_full()
@@ -830,8 +831,7 @@ class DGridShallowWaterLagrangianDynamics:
         self._adjust_w_and_qcon_stencil(
             w, delp, self._tmp_dw, q_con, self._column_namelist["damp_w"]
         )
-        for kstart, nk in k_bounds():
-            divdamp.compute(
+        self._divergence_damping(
                 u,
                 v,
                 va,
@@ -844,11 +844,9 @@ class DGridShallowWaterLagrangianDynamics:
                 delpc,
                 self._tmp_ke,
                 self._tmp_wk,
-                self._column_namelist["d2_divg"][kstart],
-                dt,
-                self._column_namelist["nord"][kstart],
-                kstart=kstart,
-                nk=nk,
+                #self._column_namelist["d2_divg"],
+                #self._column_namelist["nord"],
+                dt
             )
 
         self._ub_vb_from_vort_stencil(
