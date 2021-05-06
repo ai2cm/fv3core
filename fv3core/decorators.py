@@ -120,6 +120,7 @@ class FrozenStencil:
             **self.stencil_config.stencil_kwargs,
         )
         """generated stencil object returned from gt4py."""
+
         self._argument_names = tuple(inspect.getfullargspec(func).args)
 
         self._field_origins: Dict[str, Tuple[int, ...]] = compute_field_origins(
@@ -290,7 +291,10 @@ def get_non_frozen_stencil(func, externals) -> Callable[..., None]:
         except AttributeError:  # assume origin is a tuple
             origin_key = origin
             origin_tuple = cast(Index3D, origin)
-        key: Hashable = (origin_key, domain)
+        # rank is needed in the key for regression testing
+        # for > 6 ranks, where each rank may or may not be
+        # on a tile edge
+        key: Hashable = (origin_key, domain, spec.grid.rank)
         if key not in stencil_dict:
             axis_offsets = fv3core.utils.grid.axis_offsets(
                 spec.grid, origin=origin_tuple, domain=domain
