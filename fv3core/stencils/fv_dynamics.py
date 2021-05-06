@@ -4,15 +4,14 @@ from gt4py.gtscript import PARALLEL, computation, interval, log
 
 import fv3core._config as spec
 import fv3core.stencils.moist_cv as moist_cv
-import fv3core.stencils.rayleigh_super as rayleigh_super
 import fv3core.stencils.remapping as lagrangian_to_eulerian
 import fv3core.utils.global_config as global_config
 import fv3core.utils.global_constants as constants
 import fv3core.utils.gt4py_utils as utils
 import fv3gfs.util
-from fv3core.decorators import ArgSpec, get_namespace, gtstencil
-from fv3core.stencils import c2l_ord
+from fv3core.decorators import ArgSpec, FrozenStencil, get_namespace, gtstencil
 from fv3core.stencils.basic_operations import copy_stencil
+from fv3core.stencils.c2l_ord import CubedToLatLon
 from fv3core.stencils.del2cubed import HyperdiffusionDamping
 from fv3core.stencils.dyn_core import AcousticDynamics
 from fv3core.stencils.neg_adj3 import AdjustNegativeTracerMixingRatio
@@ -20,8 +19,19 @@ from fv3core.stencils.tracer_2d_1l import Tracer2D1L
 from fv3core.utils.typing import FloatField, FloatFieldK
 
 
-@gtstencil()
-def init_ph_columns(
+@gtstencil
+def pt_adjust(pkz: FloatField, dp1: FloatField, q_con: FloatField, pt: FloatField):
+    with computation(PARALLEL), interval(...):
+        pt = pt * (1.0 + dp1) * (1.0 - q_con) / pkz
+
+
+@gtstencil
+def set_omega(delp: FloatField, delz: FloatField, w: FloatField, omga: FloatField):
+    with computation(PARALLEL), interval(...):
+        omga = delp / delz * w
+
+
+def init_pfull(
     ak: FloatFieldK,
     bk: FloatFieldK,
     pfull: FloatField,
@@ -33,32 +43,9 @@ def init_ph_columns(
         pfull = (ph2 - ph1) / log(ph2 / ph1)
 
 
-@gtstencil()
-def pt_adjust(pkz: FloatField, dp1: FloatField, q_con: FloatField, pt: FloatField):
-    with computation(PARALLEL), interval(...):
-        pt = pt * (1.0 + dp1) * (1.0 - q_con) / pkz
-
-
-@gtstencil()
-def set_omega(delp: FloatField, delz: FloatField, w: FloatField, omga: FloatField):
-    with computation(PARALLEL), interval(...):
-        omga = delp / delz * w
-
-
 def compute_preamble(state, comm, grid, namelist):
-    init_ph_columns(
-        state.ak,
-        state.bk,
-        state.pfull,
-        namelist.p_ref,
-        origin=(0, 0, 0),
-        domain=(1, 1, grid.domain_shape_compute()[2]),
-    )
-
-    state.pfull = utils.make_storage_data(state.pfull[0, 0, :], state.ak.shape, (0,))
-
     if namelist.hydrostatic:
-        raise Exception("Hydrostatic is not implemented")
+        raise NotImplementedError("Hydrostatic is not implemented")
     if __debug__:
         if grid.rank == 0:
             print("FV Setup")
@@ -81,54 +68,17 @@ def compute_preamble(state, comm, grid, namelist):
     )
 
     if state.consv_te > 0 and not state.do_adiabatic_init:
-        # NOTE: Not run in default configuration (turned off consv_te so we don't
-        # need a global allreduce).
-        if __debug__:
-            if grid.rank == 0:
-                print("Compute Total Energy")
-        moist_cv.compute_total_energy(
-            state.u,
-            state.v,
-            state.w,
-            state.delz,
-            state.pt,
-            state.delp,
-            state.dp1,
-            state.pe,
-            state.peln,
-            state.phis,
-            constants.ZVIR,
-            state.te_2d,
-            state.qvapor,
-            state.qliquid,
-            state.qice,
-            state.qrain,
-            state.qsnow,
-            state.qgraupel,
+        raise NotImplementedError(
+            "compute total energy is not implemented, it needs an allReduce"
         )
 
     if (not namelist.rf_fast) and namelist.tau != 0:
-        if grid.grid_type < 4:
-            if __debug__:
-                if grid.rank == 0:
-                    print("Rayleigh Super")
-            rayleigh_super.compute(
-                state.u,
-                state.v,
-                state.w,
-                state.ua,
-                state.va,
-                state.pt,
-                state.delz,
-                state.phis,
-                state.bdt,
-                state.ptop,
-                state.pfull,
-                comm,
-            )
+        raise NotImplementedError(
+            "Rayleigh_Super, called when rf_fast=False and tau !=0"
+        )
 
     if namelist.adiabatic and namelist.kord_tm > 0:
-        raise Exception(
+        raise NotImplementedError(
             "unimplemented namelist options adiabatic with positive kord_tm"
         )
     else:
@@ -173,6 +123,7 @@ def wrapup(
     comm: fv3gfs.util.CubedSphereCommunicator,
     grid,
     adjust_stencil: AdjustNegativeTracerMixingRatio,
+    cubed_to_latlon_stencil: CubedToLatLon,
 ):
     if __debug__:
         if grid.rank == 0:
@@ -194,8 +145,12 @@ def wrapup(
     if __debug__:
         if grid.rank == 0:
             print("CubedToLatLon")
-    c2l_ord.compute_cubed_to_latlon(
-        state.u_quantity, state.v_quantity, state.ua, state.va, comm, True
+    cubed_to_latlon_stencil(
+        state.u_quantity,
+        state.v_quantity,
+        state.ua,
+        state.va,
+        comm,
     )
 
 
@@ -203,7 +158,7 @@ def fvdyn_temporaries(shape, grid):
     origin = grid.full_origin()
     tmps = {}
     halo_vars = ["cappa"]
-    storage_vars = ["te_2d", "dp1", "pfull", "cvm", "wsd_3d"]
+    storage_vars = ["te_2d", "dp1", "cvm", "wsd_3d"]
     column_vars = ["gz"]
     plane_vars = ["te_2d", "te0_2d", "wsd"]
     utils.storage_dict(
@@ -321,10 +276,18 @@ class DynamicalCore:
         self._ak = ak.storage
         self._bk = bk.storage
         self._phis = phis.storage
+        pfull_stencil = FrozenStencil(
+            init_pfull, origin=(0, 0, 0), domain=(1, 1, self.grid.npz)
+        )
+        pfull = utils.make_storage_from_shape((1, 1, self._ak.shape[0]))
+        pfull_stencil(self._ak, self._bk, pfull, self.namelist.p_ref)
+        # workaround because cannot write to FieldK storage in stencil
+        self._pfull = utils.make_storage_data(pfull[0, 0, :], self._ak.shape, (0,))
         self.acoustic_dynamics = AcousticDynamics(
-            comm, namelist, self._ak, self._bk, self._phis
+            comm, namelist, self._ak, self._bk, self._pfull, self._phis
         )
         self._hyperdiffusion = HyperdiffusionDamping(self.grid)
+        self._do_cubed_to_latlon = CubedToLatLon(self.grid, namelist)
 
         self._temporaries = fvdyn_temporaries(
             self.grid.domain_shape_full(add=(1, 1, 1)), self.grid
@@ -435,7 +398,7 @@ class DynamicalCore:
                         state.omga,
                         self._ak,
                         self._bk,
-                        state.pfull,
+                        self._pfull,
                         state.dp1,
                         state.ptop,
                         constants.KAPPA,
@@ -457,7 +420,13 @@ class DynamicalCore:
                         self.namelist,
                     )
                 state.wsd[:] = state.wsd_3d[:, :, 0]
-        wrapup(state, self.comm, self.grid, self._adjust_tracer_mixing_ratio)
+        wrapup(
+            state,
+            self.comm,
+            self.grid,
+            self._adjust_tracer_mixing_ratio,
+            self._do_cubed_to_latlon,
+        )
 
     def _dyn(self, state, timer=fv3gfs.util.NullTimer()):
         copy_stencil(

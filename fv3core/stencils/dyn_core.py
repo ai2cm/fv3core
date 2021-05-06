@@ -15,7 +15,6 @@ import fv3core.stencils.c_sw as c_sw
 import fv3core.stencils.d_sw as d_sw
 import fv3core.stencils.nh_p_grad as nh_p_grad
 import fv3core.stencils.pe_halo as pe_halo
-import fv3core.stencils.pk3_halo as pk3_halo
 import fv3core.stencils.ray_fast as ray_fast
 import fv3core.stencils.temperature_adjust as temperature_adjust
 import fv3core.stencils.updatedzc as updatedzc
@@ -25,11 +24,13 @@ import fv3core.utils.global_constants as constants
 import fv3core.utils.gt4py_utils as utils
 import fv3gfs.util
 import fv3gfs.util as fv3util
-from fv3core.decorators import StencilWrapper
+from fv3core.decorators import FrozenStencil
 from fv3core.stencils.basic_operations import copy_stencil
 from fv3core.stencils.del2cubed import HyperdiffusionDamping
+from fv3core.stencils.pk3_halo import PK3Halo
 from fv3core.stencils.riem_solver3 import RiemannSolver3
 from fv3core.stencils.riem_solver_c import RiemannSolverC
+from fv3core.utils import Grid
 from fv3core.utils.grid import axis_offsets
 from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
 
@@ -188,6 +189,36 @@ def dyncore_temporaries(shape, namelist, grid):
     return tmps
 
 
+def _initialize_edge_pe_stencil(grid: Grid) -> FrozenStencil:
+    """
+    Returns the FrozenStencil object for the pe_halo stencil
+    """
+    ax_offsets_pe = axis_offsets(
+        grid,
+        grid.full_origin(),
+        grid.domain_shape_full(add=(0, 0, 1)),
+    )
+    return FrozenStencil(
+        pe_halo.edge_pe,
+        origin=grid.full_origin(),
+        domain=grid.domain_shape_full(add=(0, 0, 1)),
+        externals={**ax_offsets_pe},
+    )
+
+
+def _initialize_temp_adjust_stencil(grid, n_adj):
+    """
+    Returns the FrozenStencil Object for the temperature_adjust stencil
+    Args:
+        n_adj: Number of vertical levels to adjust temperature on
+    """
+    return FrozenStencil(
+        temperature_adjust.compute_pkz_tempadjust,
+        origin=grid.compute_origin(),
+        domain=(grid.nic, grid.njc, n_adj),
+    )
+
+
 class AcousticDynamics:
     """
     Fortran name is dyn_core
@@ -200,6 +231,7 @@ class AcousticDynamics:
         namelist,
         ak: FloatFieldK,
         bk: FloatFieldK,
+        pfull: FloatFieldK,
         phis: FloatFieldIJ,
     ):
         """
@@ -217,6 +249,7 @@ class AcousticDynamics:
         assert not self.namelist.use_logp, "use_logp=True is not implemented"
         self.grid = spec.grid
         self.do_halo_exchange = global_config.get_do_halo_exchange()
+        self._pfull = pfull
         self._nk_heat_dissipation = get_nk_heat_dissipation(namelist, self.grid)
         self.nonhydrostatic_pressure_gradient = (
             nh_p_grad.NonHydrostaticPressureGradient()
@@ -238,7 +271,7 @@ class AcousticDynamics:
                 self.grid.domain_shape_full(add=(1, 1, 1)), self.grid.full_origin()
             )
 
-            dp_ref_stencil = StencilWrapper(
+            dp_ref_stencil = FrozenStencil(
                 dp_ref_compute,
                 origin=self.grid.full_origin(),
                 domain=self.grid.domain_shape_full(add=(0, 0, 1)),
@@ -257,21 +290,21 @@ class AcousticDynamics:
             )
             self._zs = utils.make_storage_data(zs_3d[:, :, 0], zs_3d.shape[0:2], (0, 0))
             column_namelist = d_sw.get_column_namelist(namelist, self.grid.npz)
-            self.update_height_on_d_grid = updatedzd.UpdateDeltaZOnDGrid(
-                self.grid, self._dp_ref, column_namelist, d_sw.k_bounds()
+            self.update_height_on_d_grid = updatedzd.UpdateHeightOnDGrid(
+                self.grid, self.namelist, self._dp_ref, column_namelist, d_sw.k_bounds()
             )
             self.dgrid_shallow_water_lagrangian_dynamics = (
                 d_sw.DGridShallowWaterLagrangianDynamics(namelist, column_namelist)
             )
-            self.riem_solver3 = RiemannSolver3(spec.namelist)
-            self.riem_solver_c = RiemannSolverC(spec.namelist)
+            self.riem_solver3 = RiemannSolver3(namelist)
+            self.riem_solver_c = RiemannSolverC(namelist)
 
-        self._set_gz = StencilWrapper(
+        self._set_gz = FrozenStencil(
             set_gz,
             origin=self.grid.compute_origin(),
             domain=self.grid.domain_shape_compute(add=(0, 0, 1)),
         )
-        self._set_pem = StencilWrapper(
+        self._set_pem = FrozenStencil(
             set_pem,
             origin=self.grid.compute_origin(add=(-1, -1, 0)),
             domain=self.grid.domain_shape_compute(add=(2, 2, 0)),
@@ -280,7 +313,7 @@ class AcousticDynamics:
         pgradc_origin = self.grid.compute_origin()
         pgradc_domain = self.grid.domain_shape_compute(add=(1, 1, 0))
         ax_offsets = axis_offsets(self.grid, pgradc_origin, pgradc_domain)
-        self._p_grad_c = StencilWrapper(
+        self._p_grad_c = FrozenStencil(
             p_grad_c_stencil,
             origin=pgradc_origin,
             domain=pgradc_domain,
@@ -291,11 +324,13 @@ class AcousticDynamics:
             updatedzc.UpdateGeopotentialHeightOnCGrid(self.grid)
         )
 
-        self._zero_data = StencilWrapper(
+        self._zero_data = FrozenStencil(
             zero_data,
             origin=self.grid.full_origin(),
             domain=self.grid.domain_shape_full(),
         )
+        self._edge_pe_stencil: FrozenStencil = _initialize_edge_pe_stencil(self.grid)
+        """ The stencil object responsible for updading the interface pressure"""
 
         self._do_del2cubed = (
             self._nk_heat_dissipation != 0 and self.namelist.d_con > 1.0e-5
@@ -305,29 +340,16 @@ class AcousticDynamics:
             self._hyperdiffusion = HyperdiffusionDamping(self.grid)
         if self.namelist.rf_fast:
             self._rayleigh_damping = ray_fast.RayleighDamping(self.grid, self.namelist)
-
-        self._compute_pkz_tempadjust = self.initialize_temp_adjust_stencil(
+        self._compute_pkz_tempadjust = _initialize_temp_adjust_stencil(
             self.grid,
             self._nk_heat_dissipation,
         )
-
-    @staticmethod
-    def initialize_temp_adjust_stencil(grid, n_adj):
-        """
-        Returns the StencilWrapper Object for the temperature_adjust stencil
-        Args:
-            n_adj: Number of vertical levels to adjust temperature on
-        """
-        return StencilWrapper(
-            temperature_adjust.compute_pkz_tempadjust,
-            origin=grid.compute_origin(),
-            domain=(grid.nic, grid.njc, n_adj),
-        )
+        self._pk3_halo = PK3Halo(self.grid)
 
     def __call__(self, state):
         # u, v, w, delz, delp, pt, pe, pk, phis, wsd, omga, ua, va, uc, vc, mfxd,
         # mfyd, cxd, cyd, pkz, peln, q_con, ak, bk, diss_estd, cappa, mdt, n_split,
-        # akap, ptop, pfull, n_map, comm):
+        # akap, ptop, n_map, comm):
         end_step = state.n_map == self.namelist.k_split
         akap = constants.KAPPA
         dt = state.mdt / self.namelist.n_split
@@ -578,13 +600,13 @@ class AcousticDynamics:
                             state.pkc_quantity, n_points=self.grid.halo
                         )
                 if remap_step:
-                    pe_halo.compute(state.pe, state.delp, state.ptop)
+                    self._edge_pe_stencil(state.pe, state.delp, state.ptop)
                 if self.namelist.use_logp:
                     raise NotImplementedError(
                         "unimplemented namelist option use_logp=True"
                     )
                 else:
-                    pk3_halo.compute(state.pk3, state.delp, state.ptop, akap)
+                    self._pk3_halo(state.pk3, state.delp, state.ptop, akap)
             if not self.namelist.hydrostatic:
                 if self.do_halo_exchange:
                     reqs["zh_quantity"].wait()
@@ -620,7 +642,7 @@ class AcousticDynamics:
                     state.v,
                     state.w,
                     self._dp_ref,
-                    state.pfull,
+                    self._pfull,
                     dt,
                     state.ptop,
                     state.ks,
