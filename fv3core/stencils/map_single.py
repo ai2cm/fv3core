@@ -78,16 +78,15 @@ class MapSingle:
         shape = spec.grid.domain_shape_full(add=(1, 1, 1))
         origin = spec.grid.compute_origin()
 
-        self.dp1 = utils.make_storage_from_shape(shape, origin=origin)
-        self.q4_1 = utils.make_storage_from_shape(shape, origin=origin)
-        self.q4_2 = utils.make_storage_from_shape(shape, origin=origin)
-        self.q4_3 = utils.make_storage_from_shape(shape, origin=origin)
-        self.q4_4 = utils.make_storage_from_shape(shape, origin=origin)
+        self._dp1 = utils.make_storage_from_shape(shape, origin=origin)
+        self._q4_1 = utils.make_storage_from_shape(shape, origin=origin)
+        self._q4_2 = utils.make_storage_from_shape(shape, origin=origin)
+        self._q4_3 = utils.make_storage_from_shape(shape, origin=origin)
+        self._q4_4 = utils.make_storage_from_shape(shape, origin=origin)
 
-        self.lev = utils.make_storage_from_shape(
+        self._lev = utils.make_storage_from_shape(
             shape[:-1],
             origin=origin[:-1],
-            cache_key="lagrangian_contributions_lev",
             mask=(True, True, False),
             dtype=int,
         )
@@ -137,15 +136,15 @@ class MapSingle:
             jfirst: Starting index of the J-dir compute domain
             jlast: Final index of the J-dir compute domain
         """
-        self._copy_stencil(q1, self.q4_1)
-        self._set_dp(self.dp1, pe1, self.lev)
+        self._copy_stencil(q1, self._q4_1)
+        self._set_dp(self._dp1, pe1, self._lev)
         q4_1, q4_2, q4_3, q4_4 = self._remap_profile(
             qs,
-            self.q4_1,
-            self.q4_2,
-            self.q4_3,
-            self.q4_4,
-            self.dp1,
+            self._q4_1,
+            self._q4_2,
+            self._q4_3,
+            self._q4_4,
+            self._dp1,
             qmin,
         )
         self._lagrangian_contributions(
@@ -156,8 +155,8 @@ class MapSingle:
             q4_2,
             q4_3,
             q4_4,
-            self.dp1,
-            self.lev,
+            self._dp1,
+            self._lev,
         )
         return q1
 
