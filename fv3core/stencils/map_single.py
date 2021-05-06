@@ -4,23 +4,17 @@ from gt4py.gtscript import FORWARD, PARALLEL, computation, interval
 
 import fv3core._config as spec
 import fv3core.utils.gt4py_utils as utils
-from fv3core.decorators import FrozenStencil, gtstencil
+from fv3core.decorators import FrozenStencil
 from fv3core.stencils.basic_operations import copy_defn
 from fv3core.stencils.remap_profile import RemapProfile
 from fv3core.utils.typing import FloatField, IntFieldIJ
 
 
-r3 = 1.0 / 3.0
-r23 = 2.0 / 3.0
-
-
-@gtstencil()
 def set_dp(dp1: FloatField, pe1: FloatField):
     with computation(PARALLEL), interval(...):
         dp1 = pe1[0, 0, 1] - pe1
 
 
-@gtstencil()
 def lagrangian_contributions(
     q: FloatField,
     pe1: FloatField,
