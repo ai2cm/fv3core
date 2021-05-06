@@ -116,8 +116,8 @@ def damping_nord_highorder_stencil(
     ke: FloatField,
     delpc: FloatField,
     divg_d: FloatField,
+    d2_bg: FloatFieldK,
     da_min_c: float,
-    d2_bg: float,
     dddmp: float,
     dd8: float,
 ):
@@ -142,36 +142,10 @@ def redo_divg_d(uc: FloatField, vc: FloatField, divg_d: FloatField):
         divg_d[0, 0, 0] = uc[0, -1, 0] - uc + vc[-1, 0, 0] - vc
 
 
-@gtstencil
 def smagorinksy_diffusion_approx(delpc: FloatField, vort: FloatField, absdt: float):
     with computation(PARALLEL), interval(...):
         vort = absdt * (delpc ** 2.0 + vort ** 2.0) ** 0.5
 
-
-def vorticity_calc( wk, vort, delpc, dt, nord, kstart, nk, dddmp, grid_type):
-    if nord != 0:
-        if dddmp < 1e-5:
-            vort[:, :, kstart : kstart + nk] = 0
-        else:
-            if grid_type < 3:
-                a2b = utils.cached_stencil_class(AGrid2BGridFourthOrder)(
-                    grid_type,
-                    kstart,
-                    nk,
-                    replace=False,
-                    cache_key="a2bdd-" + str(kstart) + "-" + str(nk),
-                )
-
-                a2b(wk, vort)
-                smagorinksy_diffusion_approx(
-                    delpc,
-                    vort,
-                    abs(dt),
-                    origin=(spec.grid.is_, spec.grid.js, kstart),
-                    domain=(spec.grid.nic + 1, spec.grid.njc + 1, nk),
-                )
-            else:
-                raise Exception("Not implemented, smag_corner")
 
 class DivergenceDamping:
     """
@@ -180,6 +154,7 @@ class DivergenceDamping:
     def __init__(self, namelist: SimpleNamespace, nord_col: FloatFieldK, d2_bg: FloatFieldK):
         self.grid = spec.grid
         assert not self.grid.nested, "nested not implemented"
+        assert namelist.grid_type < 3, "Not implemented, grid_type>=3, specifically smag_corner"
         self._dddmp = namelist.dddmp
         self._d4_bg = namelist.d4_bg
         self._grid_type = namelist.grid_type
@@ -192,6 +167,10 @@ class DivergenceDamping:
                 self._nonzero_nord_k = k
                 self._nonzero_nord = int(self._nord_column[k])
                 break
+        kstart = self._nonzero_nord_k
+        nk = self.grid.npz - kstart
+
+        self.a2b_ord4 = AGrid2BGridFourthOrder(self._grid_type, self._nonzero_nord_k, self.grid.npz - kstart,replace=False)
         # most of these will be able to be removed when we merge stencils with regions
         # nord=0 stencils:
         is2 = self.grid.is_ + 1 if self.grid.west_edge else self.grid.is_
@@ -228,9 +207,6 @@ class DivergenceDamping:
         self._delpc_main_stencil = FrozenStencil(delpc_main, origin=compute_origin, domain=compute_domain)
         corner_domain = (1, 1,  self._nonzero_nord_k)
         # nord > 0 stencils and nord=0 corner stencils
-        kstart = self._nonzero_nord_k
-        nk = self.grid.npz - kstart
-
         corner_domain_nordk = (1, 1,  nk)
         if self.grid.sw_corner:
             self._corner_south_remove_extra_term_sw_stencil = FrozenStencil(corner_south_remove_extra_term,
@@ -293,8 +269,13 @@ class DivergenceDamping:
                                                            ))
         self._damping_nord_highorder_stencil = FrozenStencil(damping_nord_highorder_stencil,
                                                              origin=(self.grid.is_, self.grid.js, kstart),
-                                                             domain=(self.grid.nic + 1, self.grid.njc + 1, nk),
-                                                             )
+                                                             domain=(self.grid.nic + 1, self.grid.njc + 1, nk),)
+        self._smagorinksy_diffusion_approx_stencil = FrozenStencil(smagorinksy_diffusion_approx,
+                                                                    origin=(self.grid.is_, self.grid.js, kstart),
+                                                                    domain=(self.grid.nic + 1, self.grid.njc + 1, nk),
+                                                                    )
+        self._set_value = FrozenStencil(basic.set_value_defn, origin=(self.grid.isd, self.grid.jsd, kstart), domain=(self.grid.nid+1, self.grid.njd+1, nk))
+
     def __call__(
         self, 
         u: FloatField,
@@ -396,7 +377,7 @@ class DivergenceDamping:
                     divg_d,
                 )
 
-        vorticity_calc(wk, vort, delpc, dt, self._nonzero_nord, kstart, nk, self._dddmp, self._grid_type)
+        self.vorticity_calc(wk, vort, delpc, dt)
         if self.grid.stretched_grid:
             dd8 = self.grid.da_min * self._d4_bg ** (self._nonzero_nord + 1)
         else:
@@ -406,8 +387,8 @@ class DivergenceDamping:
             ke,
             delpc,
             divg_d,
+            self._d2_bg_column,
             self.grid.da_min_c,
-            self._d2_bg_column[kstart],
             self._dddmp,
             dd8,
         )
@@ -518,3 +499,15 @@ class DivergenceDamping:
             self._dddmp,
             dt,
         )
+        
+    def vorticity_calc(self, wk, vort, delpc, dt):
+        if self._dddmp < 1e-5:
+            self._set_value(vort, 0.0)
+        else:
+            self.a2b_ord4(wk, vort)
+            self._smagorinksy_diffusion_approx_stencil(
+                delpc,
+                vort,
+                abs(dt),
+            )
+
