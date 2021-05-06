@@ -539,7 +539,7 @@ class DGridShallowWaterLagrangianDynamics:
         self.ytp_v = YTP_V(namelist)
         self.xtp_u = XTP_U(namelist)
         self.divergence_damping = DivergenceDamping(
-            namelist, column_namelist["nord"], column_namelist["d2_bg"]
+            namelist, column_namelist["nord"], column_namelist["d2_divg"]
         )
         self._column_namelist = column_namelist
         full_origin = self.grid.full_origin()
@@ -833,7 +833,7 @@ class DGridShallowWaterLagrangianDynamics:
         self._adjust_w_and_qcon_stencil(
             w, delp, self._tmp_dw, q_con, self._column_namelist["damp_w"]
         )
-        self._divergence_damping(
+        self.divergence_damping(
             u,
             v,
             va,
