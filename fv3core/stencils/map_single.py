@@ -10,9 +10,11 @@ from fv3core.stencils.remap_profile import RemapProfile
 from fv3core.utils.typing import FloatField, IntFieldIJ
 
 
-def set_dp(dp1: FloatField, pe1: FloatField):
+def set_dp(dp1: FloatField, pe1: FloatField, lev: IntFieldIJ):
     with computation(PARALLEL), interval(...):
         dp1 = pe1[0, 0, 1] - pe1
+    with computation(FORWARD), interval(0, 1):
+        lev = 0
 
 
 def lagrangian_contributions(
@@ -86,13 +88,13 @@ class MapSingle:
             shape[:-1],
             origin=origin[:-1],
             cache_key="lagrangian_contributions_lev",
-            init=True,
             mask=(True, True, False),
             dtype=int,
         )
 
+        self._extents = (i2 - i1 + 1, j2 - j1 + 1)
         origin = (i1, j1, 0)
-        domain = (i2 - i1 + 1, j2 - j1 + 1, spec.grid.npz)
+        domain = (*self._extents, spec.grid.npz)
 
         self._lagrangian_contributions = FrozenStencil(
             lagrangian_contributions,
@@ -107,6 +109,14 @@ class MapSingle:
             origin=(0, 0, 0),
             domain=spec.grid.domain_shape_full(),
         )
+
+    @property
+    def i_extent(self):
+        return self._extents[0]
+
+    @property
+    def j_extent(self):
+        return self._extents[1]
 
     def __call__(
         self,
@@ -128,7 +138,7 @@ class MapSingle:
             jlast: Final index of the J-dir compute domain
         """
         self._copy_stencil(q1, self.q4_1)
-        self._set_dp(self.dp1, pe1)
+        self._set_dp(self.dp1, pe1, self.lev)
         q4_1, q4_2, q4_3, q4_4 = self._remap_profile(
             qs,
             self.q4_1,
