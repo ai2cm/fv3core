@@ -111,7 +111,6 @@ def damping_nord0_stencil(
         ke += vort
 
 
-@gtstencil
 def damping_nord_highorder_stencil(
     vort: FloatField,
     ke: FloatField,
@@ -128,19 +127,16 @@ def damping_nord_highorder_stencil(
         ke = ke + vort
 
 
-@gtstencil
 def vc_from_divg(divg_d: FloatField, divg_u: FloatFieldIJ, vc: FloatField):
     with computation(PARALLEL), interval(...):
         vc[0, 0, 0] = (divg_d[1, 0, 0] - divg_d) * divg_u
 
 
-@gtstencil
 def uc_from_divg(divg_d: FloatField, divg_v: FloatFieldIJ, uc: FloatField):
     with computation(PARALLEL), interval(...):
         uc[0, 0, 0] = (divg_d[0, 1, 0] - divg_d) * divg_v
 
 
-@gtstencil
 def redo_divg_d(uc: FloatField, vc: FloatField, divg_d: FloatField):
     with computation(PARALLEL), interval(...):
         divg_d[0, 0, 0] = uc[0, -1, 0] - uc + vc[-1, 0, 0] - vc
@@ -271,7 +267,34 @@ class DivergenceDamping:
                                                     )
         self._copy_computeplus = FrozenStencil(copy_defn, origin=(self.grid.is_, self.grid.js, kstart),
                                                domain=(self.grid.nic + 1, self.grid.njc + 1, nk))
-        
+        self._vc_from_divg_stencils = []
+        self._uc_from_divg_stencils = []
+        self._redo_divg_d_stencils = []
+        self._adjustment_stencils = []
+        for n in range(1, self._nonzero_nord + 1):
+            nt = self._nonzero_nord - n
+            nint = self.grid.nic + 2 * nt + 1
+            njnt = self.grid.njc + 2 * nt + 1
+            js = self.grid.js - nt
+            is_ = self.grid.is_ - nt
+            self._vc_from_divg_stencils.append(FrozenStencil(vc_from_divg,
+                                                          origin=(is_ - 1, js, kstart),
+                                                          domain=(nint + 1, njnt, nk)))
+            self._uc_from_divg_stencils.append(FrozenStencil(uc_from_divg,
+                                                           origin=(is_, js - 1, kstart),
+                                                           domain=(nint, njnt + 1, nk),
+                                                           ))
+            self._redo_divg_d_stencils.append(FrozenStencil(redo_divg_d,
+                                                            origin=(is_, js, kstart), domain=(nint, njnt, nk)
+                                                            ))
+            self._adjustment_stencils.append(FrozenStencil( basic.adjustmentfactor_stencil_defn,
+                                                              origin=(is_, js, kstart),
+                                                              domain=(nint, njnt, nk),
+                                                           ))
+        self._damping_nord_highorder_stencil = FrozenStencil(damping_nord_highorder_stencil,
+                                                             origin=(self.grid.is_, self.grid.js, kstart),
+                                                             domain=(self.grid.nic + 1, self.grid.njc + 1, nk),
+                                                             )
     def __call__(
         self, 
         u: FloatField,
@@ -319,12 +342,10 @@ class DivergenceDamping:
                     origin=(self.grid.isd, self.grid.jsd, kstart),
                     domain=(self.grid.nid + 1, self.grid.njd + 1, nk),
                 )
-            vc_from_divg(
+            self._vc_from_divg_stencils[n-1](
                 divg_d,
                 self.grid.divg_u,
                 vc,
-                origin=(is_ - 1, js, kstart),
-                domain=(nint + 1, njnt, nk),
             )
             if fillc:
                 corners.fill_corners_bgrid_y(
@@ -332,12 +353,10 @@ class DivergenceDamping:
                     origin=(self.grid.isd, self.grid.jsd, kstart),
                     domain=(self.grid.nid + 1, self.grid.njd + 1, nk),
                 )
-            uc_from_divg(
+            self._uc_from_divg_stencils[n-1](
                 divg_d,
                 self.grid.divg_v,
                 uc,
-                origin=(is_, js - 1, kstart),
-                domain=(nint, njnt + 1, nk),
             )
             if fillc:
                 corners.fill_corners_dgrid(
@@ -348,10 +367,10 @@ class DivergenceDamping:
                     domain=(self.grid.nid + 1, self.grid.njd + 1, nk),
                 )
 
-            redo_divg_d(
-                uc, vc, divg_d, origin=(is_, js, kstart), domain=(nint, njnt, nk)
+            self._redo_divg_d_stencils[n-1](
+                uc, vc, divg_d
             )
-            corner_domain = (1, 1, nk)
+
             if self.grid.sw_corner:
                 self._corner_south_remove_extra_term_sw_nordk_stencil(
                     uc, divg_d,
@@ -372,11 +391,9 @@ class DivergenceDamping:
                     divg_d,
                 )
             if not self.grid.stretched_grid:
-                basic.adjustmentfactor_stencil(
+                self._adjustment_stencils[n-1](
                     self.grid.rarea_c,
                     divg_d,
-                    origin=(is_, js, kstart),
-                    domain=(nint, njnt, nk),
                 )
 
         vorticity_calc(wk, vort, delpc, dt, self._nonzero_nord, kstart, nk, self._dddmp, self._grid_type)
@@ -384,7 +401,7 @@ class DivergenceDamping:
             dd8 = self.grid.da_min * self._d4_bg ** (self._nonzero_nord + 1)
         else:
             dd8 = (self.grid.da_min_c * self._d4_bg) ** (self._nonzero_nord + 1)
-        damping_nord_highorder_stencil(
+        self._damping_nord_highorder_stencil(
             vort,
             ke,
             delpc,
@@ -393,8 +410,6 @@ class DivergenceDamping:
             self._d2_bg_column[kstart],
             self._dddmp,
             dd8,
-            origin=(self.grid.is_, self.grid.js, kstart),
-            domain=(self.grid.nic + 1, self.grid.njc + 1, nk),
         )
 
 

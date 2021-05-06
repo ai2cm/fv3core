@@ -81,6 +81,9 @@ def adjustmentfactor_stencil(adjustment: FloatFieldIJ, q_out: FloatField):
     with computation(PARALLEL), interval(...):
         q_out[0, 0, 0] = q_out * adjustment
 
+def adjustmentfactor_stencil_defn(adjustment: FloatFieldIJ, q_out: FloatField):
+    with computation(PARALLEL), interval(...):
+        q_out[0, 0, 0] = q_out * adjustment
 
 @gtstencil
 def adjust_divide_stencil(adjustment: FloatField, q_out: FloatField):
