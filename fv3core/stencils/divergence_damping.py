@@ -6,9 +6,11 @@ from gt4py.gtscript import PARALLEL, computation, interval
 import fv3core._config as spec
 import fv3core.stencils.basic_operations as basic
 import fv3core.utils.corners as corners
+import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import FrozenStencil
 from fv3core.stencils.a2b_ord4 import AGrid2BGridFourthOrder
 from fv3core.stencils.basic_operations import copy_defn
+from fv3core.utils.grid import axis_offsets
 from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
 
 
@@ -325,6 +327,24 @@ class DivergenceDamping:
             origin=(self.grid.isd, self.grid.jsd, kstart),
             domain=(self.grid.nid + 1, self.grid.njd + 1, nk),
         )
+        self._corner_tmp = utils.make_storage_from_shape(
+            self.grid.domain_shape_full(add=(1, 1, 1)), origin=self.grid.full_origin()
+        )
+        fill_origin = (self.grid.isd, self.grid.jsd, kstart)
+        fill_domain = (self.grid.nid + 1, self.grid.njd + 1, nk)
+        self.fill_corners_bgrid_x = corners.FillCornersBGrid(
+            "x", self._corner_tmp, origin=fill_origin, domain=fill_domain
+        )
+        self.fill_corners_bgrid_y = corners.FillCornersBGrid(
+            "x", self._corner_tmp, origin=fill_origin, domain=fill_domain
+        )
+        ax_offsets = axis_offsets(self.grid, fill_origin, fill_domain)
+        self._fill_corners_dgrid_stencil = FrozenStencil(
+            corners.fill_corners_dgrid_defn,
+            externals=ax_offsets,
+            origin=fill_origin,
+            domain=fill_domain,
+        )
 
     def __call__(
         self,
@@ -363,18 +383,11 @@ class DivergenceDamping:
             0,
             self._nonzero_nord_k,
         )
-        kstart = self._nonzero_nord_k
-        nk = self.grid.npz - self._nonzero_nord_k
         self._copy_computeplus(
             divg_d,
             delpc,
         )
         for n in range(1, self._nonzero_nord + 1):
-            nt = self._nonzero_nord - n
-            nint = self.grid.nic + 2 * nt + 1
-            njnt = self.grid.njc + 2 * nt + 1
-            js = self.grid.js - nt
-            is_ = self.grid.is_ - nt
             fillc = (
                 (n != self._nonzero_nord)
                 and self._grid_type < 3
@@ -386,10 +399,8 @@ class DivergenceDamping:
                 )
             )
             if fillc:
-                corners.fill_corners_bgrid_x(
+                self.fill_corners_bgrid_x(
                     divg_d,
-                    origin=(self.grid.isd, self.grid.jsd, kstart),
-                    domain=(self.grid.nid + 1, self.grid.njd + 1, nk),
                 )
             self._vc_from_divg_stencils[n - 1](
                 divg_d,
@@ -397,10 +408,8 @@ class DivergenceDamping:
                 vc,
             )
             if fillc:
-                corners.fill_corners_bgrid_y(
+                self.fill_corners_bgrid_y(
                     divg_d,
-                    origin=(self.grid.isd, self.grid.jsd, kstart),
-                    domain=(self.grid.nid + 1, self.grid.njd + 1, nk),
                 )
             self._uc_from_divg_stencils[n - 1](
                 divg_d,
@@ -408,12 +417,10 @@ class DivergenceDamping:
                 uc,
             )
             if fillc:
-                corners.fill_corners_dgrid(
+                self._fill_corners_dgrid_stencil(
                     vc,
                     uc,
                     -1.0,
-                    origin=(self.grid.isd, self.grid.jsd, kstart),
-                    domain=(self.grid.nid + 1, self.grid.njd + 1, nk),
                 )
 
             self._redo_divg_d_stencils[n - 1](uc, vc, divg_d)
