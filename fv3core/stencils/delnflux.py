@@ -327,10 +327,19 @@ def diffusive_damp(
 
 class DelnFlux:
     """
-    Fortran name is delnflux
+    Fortran name is deln_flux
+    The test class is DelnFlux
     """
 
     def __init__(self, nord: FloatFieldK, damp_c: FloatFieldK):
+        """
+        nord sets the order of damping to apply:
+        nord = 0:   del-2
+        nord = 1:   del-4
+        nord = 2:   del-6
+
+        nord and damp_c define the damping coefficient used in DelnFluxNoSG
+        """
         self._no_compute = False
         if (damp_c <= 1e-4).all():
             self._no_compute = True
@@ -385,8 +394,6 @@ class DelnFlux:
             q: Field for which to calculate damped fluxes (in)
             fx: x-flux on A-grid (inout)
             fy: y-flux on A-grid (inout)
-            nord: Order of divergence damping (in)
-            damp_c: damping coefficient (in)
             d2: A damped copy of the q field (in)
             mass: Mass to weight the diffusive flux by (in)
         """
@@ -415,10 +422,18 @@ class DelnFlux:
 
 class DelnFluxNoSG:
     """
-    Fortran name is del6vt
+    This contains the mechanics of del6_vt and some of deln_flux from
+    the Fortran code, since they are very similar routines. The test class
+    is Del6VtFlux
     """
 
     def __init__(self, nord, nk: Optional[int] = None):
+        """
+        nord sets the order of damping to apply:
+        nord = 0:   del-2
+        nord = 1:   del-4
+        nord = 2:   del-6
+        """
         if max(nord[:]) > 3:
             raise Exception("nord must be less than 3")
         if not np.all(n in [0, 2, 3] for n in nord[:]):
@@ -526,6 +541,17 @@ class DelnFluxNoSG:
         )
 
     def __call__(self, q, fx2, fy2, damp_c, d2, mass=None):
+        """
+        Applies del-n damping to fluxes, where n is set by nord.
+
+        Args:
+            q: Field for which to calculate damped fluxes (in)
+            fx2: diffusive x-flux on A grid (in/out)
+            fy2: diffusive y-flux on A grid (in/out)
+            damp_c: damping coefficient for q (in)
+            d2: A damped copy of the q field (in)
+            mass: Mass to weight the diffusive flux by (in)
+        """
         grid = spec.grid
 
         if mass is None:
