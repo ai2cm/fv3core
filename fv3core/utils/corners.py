@@ -67,7 +67,7 @@ class CopyCorners:
         in the dirction specified initialization of the instance of this class.
         """
         self._copy_full_domain(field, self._corner_tmp)
-        self._copy_corners(self._corner_tmp, field)
+        self._copy_corners(q_in=self._corner_tmp, q_out=field)
 
 
 @gtscript.function
