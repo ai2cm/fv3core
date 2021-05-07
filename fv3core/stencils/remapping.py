@@ -47,6 +47,7 @@ def compute(
     coordinate levels.
     """
     grid = spec.grid
+    namelist = spec.namelist
     gz: FloatField = utils.make_storage_from_shape(
         pt.shape, grid.compute_origin(), cache_key="remapping_gz"
     )
@@ -55,7 +56,7 @@ def compute(
     )
 
     remapping_part_1 = utils.cached_stencil_class(VerticalRemapping1)(
-        cache_key="remapping_part_1"
+        namelist, nq, cache_key="remapping_part_1"
     )
 
     remapping_part_1(
@@ -83,9 +84,6 @@ def compute(
         gz,
         cvm,
         ptop,
-        akap,
-        zvir,
-        nq,
     )
     remap_part2.compute(
         tracers["qvapor"],

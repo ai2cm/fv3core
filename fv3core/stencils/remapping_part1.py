@@ -13,6 +13,7 @@ from gt4py.gtscript import (
 
 import fv3core._config as spec
 import fv3core.stencils.moist_cv as moist_cv
+import fv3core.utils.global_constants as constants
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import FrozenStencil, gtstencil
 from fv3core.stencils.map_single import MapSingle
@@ -184,32 +185,33 @@ def update_ua(pe2: FloatField, ua: FloatField):
 
 
 class VerticalRemapping1:
-    def __init__(self):
+    def __init__(self, namelist, nq):
         """
         Test is Remapping_Part1
         Fortran code is the first section of lagrangian_to_eulerian in fv_mapz.F90
         """
-        if spec.namelist.kord_tm >= 0:
+
+        if namelist.kord_tm >= 0:
             raise Exception("map ppm, untested mode where kord_tm >= 0")
 
-        hydrostatic = spec.namelist.hydrostatic
+        hydrostatic = namelist.hydrostatic
         if hydrostatic:
             raise Exception("Hydrostatic is not implemented")
 
         grid = spec.grid
         shape_kplus = grid.domain_shape_full(add=(0, 0, 1))
         self._t_min = 184.0
-
+        self._nq = nq
         # do_omega = hydrostatic and last_step # TODO pull into inputs
         self._domain_jextra = (grid.nic, grid.njc + 1, grid.npz + 1)
 
-        self._pe1 = utils.make_storage_from_shape(shape_kplus, grid.compute_origin())
+        self._pe1 = utils.make_storage_from_shape(shape_kplus)
 
-        self._pe2 = utils.make_storage_from_shape(shape_kplus, grid.compute_origin())
-        self._dp2 = utils.make_storage_from_shape(shape_kplus, grid.compute_origin())
-        self._pn2 = utils.make_storage_from_shape(shape_kplus, grid.compute_origin())
-        self._pe0 = utils.make_storage_from_shape(shape_kplus, grid.compute_origin())
-        self._pe3 = utils.make_storage_from_shape(shape_kplus, grid.compute_origin())
+        self._pe2 = utils.make_storage_from_shape(shape_kplus)
+        self._dp2 = utils.make_storage_from_shape(shape_kplus)
+        self._pn2 = utils.make_storage_from_shape(shape_kplus)
+        self._pe0 = utils.make_storage_from_shape(shape_kplus)
+        self._pe3 = utils.make_storage_from_shape(shape_kplus)
 
         self._init_pe = FrozenStencil(
             init_pe, origin=grid.compute_origin(), domain=self._domain_jextra
@@ -217,7 +219,7 @@ class VerticalRemapping1:
 
         self._moist_cv_pt_pressure = FrozenStencil(
             moist_cv_pt_pressure,
-            externals={"kord_tm": spec.namelist.kord_tm, "hydrostatic": hydrostatic},
+            externals={"kord_tm": namelist.kord_tm, "hydrostatic": hydrostatic},
             origin=grid.compute_origin(),
             domain=grid.domain_shape_compute(add=(0, 0, 1)),
         )
@@ -234,14 +236,14 @@ class VerticalRemapping1:
             domain=grid.domain_shape_compute(),
         )
 
-        kord_tm = abs(spec.namelist.kord_tm)
+        kord_tm = abs(namelist.kord_tm)
         self._map_single_pt = MapSingle(kord_tm, 1, grid.is_, grid.ie, grid.js, grid.je)
 
         self._mapn_tracer = MapNTracer(
-            abs(spec.namelist.kord_tr), grid.is_, grid.ie, grid.js, grid.je
+            abs(namelist.kord_tr), nq, grid.is_, grid.ie, grid.js, grid.je
         )
 
-        kord_wz = spec.namelist.kord_wz
+        kord_wz = namelist.kord_wz
         self._map_single_w = MapSingle(kord_wz, -2, grid.is_, grid.ie, grid.js, grid.je)
         self._map_single_delz = MapSingle(
             kord_wz, 1, grid.is_, grid.ie, grid.js, grid.je
@@ -257,7 +259,7 @@ class VerticalRemapping1:
             pressures_mapu, origin=grid.compute_origin(), domain=self._domain_jextra
         )
 
-        kord_mt = spec.namelist.kord_mt
+        kord_mt = namelist.kord_mt
         self._map_single_u = MapSingle(
             kord_mt, -1, grid.is_, grid.ie, grid.js, grid.je + 1
         )
@@ -301,15 +303,15 @@ class VerticalRemapping1:
         gz: FloatField,
         cvm: FloatField,
         ptop: float,
-        akap: float,
-        r_vir: float,
-        nq: int,
     ):
         # TODO: Many of these could be passed at runtime
         """
         Remaps tracers, winds, pt, and delz from the deformed Lagrangian grid
         to the Eulerian grid.
         """
+
+        akap = constants.KAPPA
+        r_vir = constants.ZVIR
 
         self._init_pe(pe, self._pe1, self._pe2, ptop)
 
@@ -346,9 +348,9 @@ class VerticalRemapping1:
 
         self._map_single_pt(pt, peln, self._pn2, gz, qmin=self._t_min)
 
-        # TODO if nq > 5:
-        self._mapn_tracer(self._pe1, self._pe2, self._dp2, tracers, nq, 0.0)
-        # TODO else if nq > 0:
+        # TODO if self._nq > 5:
+        self._mapn_tracer(self._pe1, self._pe2, self._dp2, tracers, 0.0)
+        # TODO else if self._nq > 0:
         # TODO map1_q2, fillz
 
         self._map_single_w(w, self._pe1, self._pe2, wsd)
