@@ -235,14 +235,20 @@ def lagrange_x_func(qy):
     return a2 * (qy[-2, 0, 0] + qy[1, 0, 0]) + a1 * (qy[-1, 0, 0] + qy)
 
 
-def ppm_volume_mean_x(
+def a2b_interpolation(
     qin: FloatField,
+    qout: FloatField,
     qx: FloatField,
+    qy: FloatField,
+    qxx: FloatField,
+    qyy: FloatField,
     dxa: FloatFieldIJ,
+    dya: FloatFieldIJ
 ):
-    from __externals__ import i_end, i_start
+    from __externals__ import i_end, i_start, j_end, j_start
 
     with computation(PARALLEL), interval(...):
+        # ppm_volume_mean_x
         qx = b2 * (qin[-2, 0, 0] + qin[1, 0, 0]) + b1 * (qin[-1, 0, 0] + qin)
         with horizontal(region[i_start, :]):
             qx = qx_edge_west(qin, dxa)
@@ -252,16 +258,7 @@ def ppm_volume_mean_x(
             qx = qx_edge_east(qin, dxa)
         with horizontal(region[i_end, :]):
             qx = qx_edge_east2(qin, dxa, qx)
-
-
-def ppm_volume_mean_y(
-    qin: FloatField,
-    qy: FloatField,
-    dya: FloatFieldIJ,
-):
-    from __externals__ import j_end, j_start
-
-    with computation(PARALLEL), interval(...):
+        # ppm_volume_mean_y
         qy = b2 * (qin[0, -2, 0] + qin[0, 1, 0]) + b1 * (qin[0, -1, 0] + qin)
         with horizontal(region[:, j_start]):
             qy = qy_edge_south(qin, dya)
@@ -272,17 +269,6 @@ def ppm_volume_mean_y(
         with horizontal(region[:, j_end]):
             qy = qy_edge_north2(qin, dya, qy)
 
-
-def a2b_interpolation(
-    qout: FloatField,
-    qx: FloatField,
-    qy: FloatField,
-    qxx: FloatField,
-    qyy: FloatField,
-):
-    from __externals__ import i_end, i_start, j_end, j_start
-
-    with computation(PARALLEL), interval(...):
         qxx = a2 * (qx[0, -2, 0] + qx[0, 1, 0]) + a1 * (qx[0, -1, 0] + qx)
         with horizontal(region[:, j_start + 1]):
             qxx = c1 * (qx[0, -1, 0] + qx) + c2 * (qout[0, -1, 0] + qxx[0, 1, 0])
@@ -465,26 +451,6 @@ class AGrid2BGridFourthOrder:
         self._qout_y_edge_north = FrozenStencil(
             qout_y_edge, origin=(is2, self.grid.je + 1, kstart), domain=(di2, 1, nk)
         )
-        origin_x = (self.grid.is_, self.grid.js - 2, kstart)
-        domain_x = (self.grid.nic + 1, self.grid.njc + 4, nk)
-        ax_offsets_x = axis_offsets(
-            self.grid,
-            origin_x,
-            domain_x,
-        )
-        self._ppm_volume_mean_x_stencil = FrozenStencil(
-            ppm_volume_mean_x, externals=ax_offsets_x, origin=origin_x, domain=domain_x
-        )
-        origin_y = (self.grid.is_ - 2, self.grid.js, kstart)
-        domain_y = (self.grid.nic + 4, self.grid.njc + 1, nk)
-        ax_offsets_y = axis_offsets(
-            self.grid,
-            origin_y,
-            domain_y,
-        )
-        self._ppm_volume_mean_y_stencil = FrozenStencil(
-            ppm_volume_mean_y, externals=ax_offsets_y, origin=origin_y, domain=domain_y
-        )
 
         js = self.grid.js + 1 if self.grid.south_edge else self.grid.js
         je = self.grid.je if self.grid.north_edge else self.grid.je + 1
@@ -549,22 +515,15 @@ class AGrid2BGridFourthOrder:
         )
 
         self._compute_qout_edges(qin, qout)
-        self._ppm_volume_mean_x_stencil(
-            qin,
-            self._tmp_qx,
-            self.grid.dxa,
-        )
-        self._ppm_volume_mean_y_stencil(
-            qin,
-            self._tmp_qy,
-            self.grid.dya,
-        )
         self._a2b_interpolation_stencil(
+            qin,
             qout,
             self._tmp_qx,
             self._tmp_qy,
             self._tmp_qxx,
             self._tmp_qyy,
+            self.grid.dxa,
+            self.grid.dya,
         )
         if self.replace:
             self._copy_stencil(
