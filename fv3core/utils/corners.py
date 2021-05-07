@@ -591,7 +591,7 @@ class FillCornersBGrid:
 
     def __call__(self, field: FloatField):
         self._copy_full_domain(field, self._corner_tmp)
-        self._fill_corners_bgrid(self._corner_tmp, field)
+        self._fill_corners_bgrid(q_in=self._corner_tmp, q_out=field)
 
 
 def fill_corners_bgrid_x_defn(q_in: FloatField, q_out: FloatField):
