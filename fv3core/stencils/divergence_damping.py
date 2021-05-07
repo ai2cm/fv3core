@@ -166,12 +166,17 @@ class DivergenceDamping:
                 self._nonzero_nord_k = k
                 self._nonzero_nord = int(self._nord_column[k])
                 break
+        if self.grid.stretched_grid:
+            self._dd8 = self.grid.da_min * self._d4_bg ** (self._nonzero_nord + 1)
+        else:
+            self._dd8 = (self.grid.da_min_c * self._d4_bg) ** (self._nonzero_nord + 1)
         kstart = self._nonzero_nord_k
         nk = self.grid.npz - kstart
 
         self.a2b_ord4 = AGrid2BGridFourthOrder(
             self._grid_type, self._nonzero_nord_k, self.grid.npz - kstart, replace=False
         )
+
         # most of these will be able to be removed when we merge stencils with regions
         # nord=0 stencils:
         is2 = self.grid.is_ + 1 if self.grid.west_edge else self.grid.is_
@@ -300,6 +305,7 @@ class DivergenceDamping:
                     domain=(nint, njnt + 1, nk),
                 )
             )
+
             self._redo_divg_d_stencils.append(
                 FrozenStencil(
                     redo_divg_d, origin=(is_, js, kstart), domain=(nint, njnt, nk)
@@ -336,7 +342,7 @@ class DivergenceDamping:
             "x", self._corner_tmp, origin=fill_origin, domain=fill_domain
         )
         self.fill_corners_bgrid_y = corners.FillCornersBGrid(
-            "x", self._corner_tmp, origin=fill_origin, domain=fill_domain
+            "y", self._corner_tmp, origin=fill_origin, domain=fill_domain
         )
         ax_offsets = axis_offsets(self.grid, fill_origin, fill_domain)
         self._fill_corners_dgrid_stencil = FrozenStencil(
@@ -387,9 +393,9 @@ class DivergenceDamping:
             divg_d,
             delpc,
         )
-        for n in range(1, self._nonzero_nord + 1):
+        for n in range(self._nonzero_nord):
             fillc = (
-                (n != self._nonzero_nord)
+                (n + 1 != self._nonzero_nord)
                 and self._grid_type < 3
                 and (
                     self.grid.sw_corner
@@ -402,7 +408,7 @@ class DivergenceDamping:
                 self.fill_corners_bgrid_x(
                     divg_d,
                 )
-            self._vc_from_divg_stencils[n - 1](
+            self._vc_from_divg_stencils[n](
                 divg_d,
                 self.grid.divg_u,
                 vc,
@@ -411,7 +417,7 @@ class DivergenceDamping:
                 self.fill_corners_bgrid_y(
                     divg_d,
                 )
-            self._uc_from_divg_stencils[n - 1](
+            self._uc_from_divg_stencils[n](
                 divg_d,
                 self.grid.divg_v,
                 uc,
@@ -422,9 +428,7 @@ class DivergenceDamping:
                     uc,
                     -1.0,
                 )
-
-            self._redo_divg_d_stencils[n - 1](uc, vc, divg_d)
-
+            self._redo_divg_d_stencils[n](uc, vc, divg_d)
             if self.grid.sw_corner:
                 self._corner_south_remove_extra_term_sw_nordk_stencil(
                     uc,
@@ -446,16 +450,12 @@ class DivergenceDamping:
                     divg_d,
                 )
             if not self.grid.stretched_grid:
-                self._adjustment_stencils[n - 1](
+                self._adjustment_stencils[n](
                     self.grid.rarea_c,
                     divg_d,
                 )
 
         self.vorticity_calc(wk, vort, delpc, dt)
-        if self.grid.stretched_grid:
-            dd8 = self.grid.da_min * self._d4_bg ** (self._nonzero_nord + 1)
-        else:
-            dd8 = (self.grid.da_min_c * self._d4_bg) ** (self._nonzero_nord + 1)
         self._damping_nord_highorder_stencil(
             vort,
             ke,
@@ -464,7 +464,7 @@ class DivergenceDamping:
             self._d2_bg_column,
             self.grid.da_min_c,
             self._dddmp,
-            dd8,
+            self._dd8,
         )
 
     def damping_zero_order(

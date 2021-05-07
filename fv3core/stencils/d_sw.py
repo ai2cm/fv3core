@@ -846,8 +846,6 @@ class DGridShallowWaterLagrangianDynamics:
             delpc,
             self._tmp_ke,
             self._tmp_wk,
-            # self._column_namelist["d2_divg"],
-            # self._column_namelist["nord"],
             dt,
         )
 
