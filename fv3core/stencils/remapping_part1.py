@@ -15,7 +15,7 @@ import fv3core._config as spec
 import fv3core.stencils.moist_cv as moist_cv
 import fv3core.utils.global_constants as constants
 import fv3core.utils.gt4py_utils as utils
-from fv3core.decorators import FrozenStencil, gtstencil
+from fv3core.decorators import FrozenStencil
 from fv3core.stencils.map_single import MapSingle
 from fv3core.stencils.mapn_tracer import MapNTracer
 from fv3core.stencils.moist_cv import moist_pt_func
@@ -160,7 +160,6 @@ def pressures_mapu(
         pe3 = ak + bkh * (pe_bottom[0, -1, 0] + pe1_bottom)
 
 
-@gtstencil
 def pressures_mapv(
     pe: FloatField, ak: FloatFieldK, bk: FloatFieldK, pe0: FloatField, pe3: FloatField
 ):
