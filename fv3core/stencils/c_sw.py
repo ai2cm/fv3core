@@ -11,12 +11,11 @@ from gt4py.gtscript import (
 import fv3core._config as spec
 import fv3core.stencils.d2a2c_vect as d2a2c
 import fv3core.utils.gt4py_utils as utils
-from fv3core.decorators import gtstencil
+from fv3core.decorators import FrozenStencil
 from fv3core.utils import corners
 from fv3core.utils.typing import FloatField, FloatFieldIJ
 
 
-@gtstencil
 def geoadjust_ut(
     ut: FloatField,
     dy: FloatFieldIJ,
@@ -30,7 +29,6 @@ def geoadjust_ut(
         )
 
 
-@gtstencil
 def geoadjust_vt(
     vt: FloatField,
     dx: FloatFieldIJ,
@@ -44,7 +42,6 @@ def geoadjust_vt(
         )
 
 
-@gtstencil
 def absolute_vorticity(vort: FloatField, fC: FloatFieldIJ, rarea_c: FloatFieldIJ):
     with computation(PARALLEL), interval(...):
         vort[0, 0, 0] = fC + rarea_c * vort
@@ -72,7 +69,6 @@ def nonhydro_y_fluxes(delp: FloatField, pt: FloatField, w: FloatField, vtc: Floa
     return fy, fy1, fy2
 
 
-@gtstencil
 def transportdelp(
     delp: FloatField,
     pt: FloatField,
@@ -121,7 +117,6 @@ def transportdelp(
         wc = (w * delp + (fx2 - fx2[1, 0, 0] + fy2 - fy2[0, 1, 0]) * rarea) / delpc
 
 
-@gtstencil
 def divergence_corner(
     u: FloatField,
     v: FloatField,
@@ -188,7 +183,6 @@ def divergence_corner(
         divg_d *= rarea_c
 
 
-@gtstencil
 def circulation_cgrid(
     uc: FloatField,
     vc: FloatField,
@@ -220,7 +214,6 @@ def circulation_cgrid(
             vort_c -= fy[0, 0, 0]
 
 
-@gtstencil
 def update_vorticity_and_kinetic_energy(
     ke: FloatField,
     vort: FloatField,
@@ -261,7 +254,6 @@ def update_vorticity_and_kinetic_energy(
         ke = 0.5 * dt2 * (ua * ke + va * vort)
 
 
-@gtstencil
 def update_zonal_velocity(
     vorticity: FloatField,
     ke: FloatField,
@@ -286,7 +278,6 @@ def update_zonal_velocity(
         velocity_c = velocity_c + tmp_flux * flux + rdxc * (ke[-1, 0, 0] - ke)
 
 
-@gtstencil
 def update_meridional_velocity(
     vorticity: FloatField,
     ke: FloatField,
@@ -311,7 +302,6 @@ def update_meridional_velocity(
         velocity_c = velocity_c - tmp_flux * flux + rdyc * (ke[0, -1, 0] - ke)
 
 
-@gtstencil
 def initialize_delpc_ptc(delpc: FloatField, ptc: FloatField):
     with computation(PARALLEL), interval(...):
         delpc = 0.0
@@ -365,120 +355,321 @@ def vorticitytransport_cgrid(
     )
 
 
-def compute(delp, pt, u, v, w, uc, vc, ua, va, ut, vt, divgd, omga, dt2):
-    grid = spec.grid
-    dord4 = True
-    origin_halo1 = (grid.is_ - 1, grid.js - 1, 0)
-    delpc = utils.make_storage_from_shape(
-        delp.shape, origin=origin_halo1, cache_key="c_sw_delpc"
-    )
-    ptc = utils.make_storage_from_shape(
-        pt.shape, origin=origin_halo1, cache_key="c_sw_ptc"
-    )
-    initialize_delpc_ptc(
-        delpc, ptc, origin=grid.full_origin(), domain=grid.domain_shape_full()
-    )
-    d2a2c.compute(dord4, uc, vc, u, v, ua, va, ut, vt)
-    if spec.namelist.nord > 0:
-        divergence_corner(
-            u,
-            v,
+class CGridShallowWaterLagrangianDynamics:
+    """
+    Fortran name is c_sw
+    """
+
+    def __init__(self, grid, namelist):
+        self.grid = grid
+        self.namelist = namelist
+        self._dord4 = True
+        origin_halo1 = (self.grid.is_ - 1, self.grid.js - 1, 0)
+        self.delpc = utils.make_storage_from_shape(
+            self.grid.domain_shape_full(add=(1, 1, 1)), origin=origin_halo1
+        )
+        self.ptc = utils.make_storage_from_shape(
+            self.grid.domain_shape_full(add=(1, 1, 1)), origin=origin_halo1
+        )
+        self._initialize_delpc_ptc = FrozenStencil(
+            func=initialize_delpc_ptc,
+            origin=self.grid.full_origin(),
+            domain=self.grid.domain_shape_full(),
+        )
+
+        self._ke = utils.make_storage_from_shape(
+            self.grid.domain_shape_full(add=(1, 1, 1))
+        )
+        self._vort = utils.make_storage_from_shape(
+            self.grid.domain_shape_full(add=(1, 1, 1))
+        )
+
+        if self.namelist.nord > 0:
+            self._divergence_corner = FrozenStencil(
+                func=divergence_corner,
+                origin=self.grid.compute_origin(),
+                domain=self.grid.domain_shape_compute(add=(1, 1, 0)),
+            )
+        geo_origin = (self.grid.is_ - 1, self.grid.js - 1, 0)
+        self._geoadjust_ut = FrozenStencil(
+            func=geoadjust_ut,
+            origin=geo_origin,
+            domain=(self.grid.nic + 3, self.grid.njc + 2, self.grid.npz),
+        )
+        self._geoadjust_vt = FrozenStencil(
+            func=geoadjust_vt,
+            origin=geo_origin,
+            domain=(self.grid.nic + 2, self.grid.njc + 3, self.grid.npz),
+        )
+        self._transportdelp = FrozenStencil(
+            func=transportdelp,
+            origin=geo_origin,
+            domain=(self.grid.nic + 2, self.grid.njc + 2, self.grid.npz),
+        )
+        self._update_vorticity_and_kinetic_energy = FrozenStencil(
+            func=update_vorticity_and_kinetic_energy,
+            origin=(self.grid.is_ - 1, self.grid.js - 1, 0),
+            domain=(self.grid.nic + 2, self.grid.njc + 2, self.grid.npz),
+        )
+        self._circulation_cgrid = FrozenStencil(
+            func=circulation_cgrid,
+            origin=self.grid.compute_origin(),
+            domain=self.grid.domain_shape_compute(add=(1, 1, 0)),
+        )
+        self._absolute_vorticity = FrozenStencil(
+            func=absolute_vorticity,
+            origin=self.grid.compute_origin(),
+            domain=(self.grid.nic + 1, self.grid.njc + 1, self.grid.npz),
+        )
+        self._update_meridional_velocity = FrozenStencil(
+            func=update_meridional_velocity,
+            origin=self._grid.compute_origin(),
+            domain=self._grid.domain_shape_compute(add=(0, 1, 0)),
+        )
+        self._update_zonal_velocity = FrozenStencil(
+            func=update_zonal_velocity,
+            origin=self._grid.compute_origin(),
+            domain=self._grid.domain_shape_compute(add=(1, 0, 0)),
+        )
+
+    def __call__(self, delp, pt, u, v, w, uc, vc, ua, va, ut, vt, divgd, omga, dt2):
+        """
+        C-grid shallow water routine.
+
+        Advances C-grid winds by half a time step.
+        Args:
+            delp: D-grid vertical delta in pressure
+            pt: D-grid potential temperature
+            u: D-grid x-velocity
+            v: D-grid y-velocity
+            w: vertical velocity
+            uc: C-grid x-velocity
+            vc: C-grid y-velocity
+            ua: A-grid x-velocity
+            va: A-grid y-velocity
+            ut: u * dx
+            vt: v * dy
+            divgd: D-grid horizontal divergence
+            omga: Vertical pressure velocity
+            dt2: Acoustic timestep in seconds
+        """
+        self._initialize_delpc_ptc(
+            self.delpc,
+            self.ptc,
+        )
+        d2a2c.compute(self._dord4, uc, vc, u, v, ua, va, ut, vt)
+        if self.namelist.nord > 0:
+            self._divergence_corner(
+                u,
+                v,
+                ua,
+                va,
+                self.grid.dxc,
+                self.grid.dyc,
+                self.grid.sin_sg1,
+                self.grid.sin_sg2,
+                self.grid.sin_sg3,
+                self.grid.sin_sg4,
+                self.grid.cos_sg1,
+                self.grid.cos_sg2,
+                self.grid.cos_sg3,
+                self.grid.cos_sg4,
+                self.grid.rarea_c,
+                divgd,
+            )
+        self._geoadjust_ut(
+            ut,
+            self.grid.dy,
+            self.grid.sin_sg3,
+            self.grid.sin_sg1,
+            dt2,
+        )
+        self._geoadjust_vt(
+            vt,
+            self.grid.dx,
+            self.grid.sin_sg4,
+            self.grid.sin_sg2,
+            dt2,
+        )
+        self._transportdelp(
+            delp,
+            pt,
+            ut,
+            vt,
+            w,
+            self.grid.rarea,
+            self.delpc,
+            self.ptc,
+            omga,
+        )
+        self._update_vorticity_and_kinetic_energy(
+            self._ke,
+            self._vort,
             ua,
             va,
-            grid.dxc,
-            grid.dyc,
-            grid.sin_sg1,
-            grid.sin_sg2,
-            grid.sin_sg3,
-            grid.sin_sg4,
-            grid.cos_sg1,
-            grid.cos_sg2,
-            grid.cos_sg3,
-            grid.cos_sg4,
-            grid.rarea_c,
-            divgd,
-            origin=grid.compute_origin(),
-            domain=grid.domain_shape_compute(add=(1, 1, 0)),
+            uc,
+            vc,
+            u,
+            v,
+            self.grid.sin_sg1,
+            self.grid.cos_sg1,
+            self.grid.sin_sg2,
+            self.grid.cos_sg2,
+            self.grid.sin_sg3,
+            self.grid.cos_sg3,
+            self.grid.sin_sg4,
+            self.grid.cos_sg4,
+            dt2,
         )
-    geo_origin = (grid.is_ - 1, grid.js - 1, 0)
-    geoadjust_ut(
-        ut,
-        grid.dy,
-        grid.sin_sg3,
-        grid.sin_sg1,
-        dt2,
-        origin=geo_origin,
-        domain=(grid.nic + 3, grid.njc + 2, grid.npz),
-    )
-    geoadjust_vt(
-        vt,
-        grid.dx,
-        grid.sin_sg4,
-        grid.sin_sg2,
-        dt2,
-        origin=geo_origin,
-        domain=(grid.nic + 2, grid.njc + 3, grid.npz),
-    )
-    transportdelp(
-        delp,
-        pt,
-        ut,
-        vt,
-        w,
-        grid.rarea,
-        delpc,
-        ptc,
-        omga,
-        origin=geo_origin,
-        domain=(grid.nic + 2, grid.njc + 2, grid.npz),
-    )
+        self._circulation_cgrid(
+            uc,
+            vc,
+            self.grid.dxc,
+            self.grid.dyc,
+            self._vort,
+        )
+        self._absolute_vorticity(
+            self.vort,
+            self.grid.fC,
+            self.grid.rarea_c,
+        )
+        self._update_meridional_velocity(
+            self._vort,
+            self._ke,
+            u,
+            vc,
+            self.grid.cosa_v,
+            self.grid.sina_v,
+            self.grid.rdyc,
+            dt2,
+        )
+        self._update_zonal_velocity(
+            self._vort,
+            self._ke,
+            v,
+            uc,
+            self.grid.cosa_u,
+            self.grid.sina_u,
+            self.grid.rdxc,
+            dt2,
+        )
+        return self.delpc, self.ptc
 
-    # ke_c_sw
-    # {
-    # Create storage objects to hold the new vorticity and kinetic energy values
-    ke = utils.make_storage_from_shape(uc.shape, cache_key="c_sw_ke")
-    vort = utils.make_storage_from_shape(vc.shape, cache_key="c_sw_vort")
 
-    # Set vorticity and kinetic energy values
-    update_vorticity_and_kinetic_energy(
-        ke,
-        vort,
-        ua,
-        va,
-        uc,
-        vc,
-        u,
-        v,
-        grid.sin_sg1,
-        grid.cos_sg1,
-        grid.sin_sg2,
-        grid.cos_sg2,
-        grid.sin_sg3,
-        grid.cos_sg3,
-        grid.sin_sg4,
-        grid.cos_sg4,
-        dt2,
-        origin=(grid.is_ - 1, grid.js - 1, 0),
-        domain=(grid.nic + 2, grid.njc + 2, grid.npz),
-    )
-    # }
+# def compute(delp, pt, u, v, w, uc, vc, ua, va, ut, vt, divgd, omga, dt2):
+#     grid = spec.grid
+#     dord4 = True
+#     origin_halo1 = (grid.is_ - 1, grid.js - 1, 0)
+#     delpc = utils.make_storage_from_shape(
+#         delp.shape, origin=origin_halo1, cache_key="c_sw_delpc"
+#     )
+#     ptc = utils.make_storage_from_shape(
+#         pt.shape, origin=origin_halo1, cache_key="c_sw_ptc"
+#     )
+#     initialize_delpc_ptc(
+#         delpc, ptc, origin=grid.full_origin(), domain=grid.domain_shape_full()
+#     )
+#     d2a2c.compute(dord4, uc, vc, u, v, ua, va, ut, vt)
+#     if spec.namelist.nord > 0:
+#         divergence_corner(
+#             u,
+#             v,
+#             ua,
+#             va,
+#             grid.dxc,
+#             grid.dyc,
+#             grid.sin_sg1,
+#             grid.sin_sg2,
+#             grid.sin_sg3,
+#             grid.sin_sg4,
+#             grid.cos_sg1,
+#             grid.cos_sg2,
+#             grid.cos_sg3,
+#             grid.cos_sg4,
+#             grid.rarea_c,
+#             divgd,
+#             origin=grid.compute_origin(),
+#             domain=grid.domain_shape_compute(add=(1, 1, 0)),
+#         )
+#     geo_origin = (grid.is_ - 1, grid.js - 1, 0)
+#     geoadjust_ut(
+#         ut,
+#         grid.dy,
+#         grid.sin_sg3,
+#         grid.sin_sg1,
+#         dt2,
+#         origin=geo_origin,
+#         domain=(grid.nic + 3, grid.njc + 2, grid.npz),
+#     )
+#     geoadjust_vt(
+#         vt,
+#         grid.dx,
+#         grid.sin_sg4,
+#         grid.sin_sg2,
+#         dt2,
+#         origin=geo_origin,
+#         domain=(grid.nic + 2, grid.njc + 3, grid.npz),
+#     )
+#     transportdelp(
+#         delp,
+#         pt,
+#         ut,
+#         vt,
+#         w,
+#         grid.rarea,
+#         delpc,
+#         ptc,
+#         omga,
+#         origin=geo_origin,
+#         domain=(grid.nic + 2, grid.njc + 2, grid.npz),
+#     )
 
-    # ke, vort = ke_c_sw.compute(uc, vc, u, v, ua, va, dt2)
-    circulation_cgrid(
-        uc,
-        vc,
-        grid.dxc,
-        grid.dyc,
-        vort,
-        origin=grid.compute_origin(),
-        domain=grid.domain_shape_compute(add=(1, 1, 0)),
-    )
-    absolute_vorticity(
-        vort,
-        grid.fC,
-        grid.rarea_c,
-        origin=grid.compute_origin(),
-        domain=(grid.nic + 1, grid.njc + 1, grid.npz),
-    )
-    vorticitytransport_cgrid(uc, vc, vort, ke, v, u, dt2)
-    return delpc, ptc
+#     # ke_c_sw
+#     # {
+#     # Create storage objects to hold the new vorticity and kinetic energy values
+#     ke = utils.make_storage_from_shape(uc.shape, cache_key="c_sw_ke")
+#     vort = utils.make_storage_from_shape(vc.shape, cache_key="c_sw_vort")
+
+#     # Set vorticity and kinetic energy values
+#     update_vorticity_and_kinetic_energy(
+#         ke,
+#         vort,
+#         ua,
+#         va,
+#         uc,
+#         vc,
+#         u,
+#         v,
+#         grid.sin_sg1,
+#         grid.cos_sg1,
+#         grid.sin_sg2,
+#         grid.cos_sg2,
+#         grid.sin_sg3,
+#         grid.cos_sg3,
+#         grid.sin_sg4,
+#         grid.cos_sg4,
+#         dt2,
+#         origin=(grid.is_ - 1, grid.js - 1, 0),
+#         domain=(grid.nic + 2, grid.njc + 2, grid.npz),
+#     )
+#     # }
+
+#     # ke, vort = ke_c_sw.compute(uc, vc, u, v, ua, va, dt2)
+#     circulation_cgrid(
+#         uc,
+#         vc,
+#         grid.dxc,
+#         grid.dyc,
+#         vort,
+#         origin=grid.compute_origin(),
+#         domain=grid.domain_shape_compute(add=(1, 1, 0)),
+#     )
+#     absolute_vorticity(
+#         vort,
+#         grid.fC,
+#         grid.rarea_c,
+#         origin=grid.compute_origin(),
+#         domain=(grid.nic + 1, grid.njc + 1, grid.npz),
+#     )
+#     vorticitytransport_cgrid(uc, vc, vort, ke, v, u, dt2)
+#     return delpc, ptc

@@ -1,4 +1,6 @@
+import fv3core._config as spec
 import fv3core.stencils.c_sw as c_sw
+from fv3core.stencils.c_sw import CGridShallowWaterLagrangianDynamics
 import fv3core.utils.gt4py_utils as utils
 from fv3core.testing import TranslateFortranData2Py
 
@@ -6,7 +8,10 @@ from fv3core.testing import TranslateFortranData2Py
 class TranslateC_SW(TranslateFortranData2Py):
     def __init__(self, grid):
         super().__init__(grid)
-        self.compute_func = c_sw.compute
+        cgrid_shallow_water_lagrangian_dynamics = CGridShallowWaterLagrangianDynamics(
+            grid, spec.namelist
+        )
+        self.compute_func = cgrid_shallow_water_lagrangian_dynamics
         self.in_vars["data_vars"] = {
             "delp": {},
             "pt": {},
