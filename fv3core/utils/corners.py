@@ -587,7 +587,7 @@ class FillCornersBGrid:
 
     def __call__(self, field: FloatField):
         self._copy_full_domain(field, self._corner_tmp)
-        self._fill_corners_bgrid(q_in=self._corner_tmp, q_out=field)
+        self._fill_corners_bgrid(self._corner_tmp, field)
 
 
 def fill_corners_bgrid_x_defn(q_in: FloatField, q_out: FloatField):
@@ -652,7 +652,6 @@ def fill_corners_bgrid_x_defn(q_in: FloatField, q_out: FloatField):
             q_out = q_in[0, -6, 0]
 
 
-@gtstencil
 def fill_corners_bgrid_y_defn(q_in: FloatField, q_out: FloatField):
     from __externals__ import i_end, i_start, j_end, j_start
 
