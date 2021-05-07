@@ -239,43 +239,36 @@ def a2b_interpolation(
     qin: FloatField,
     qout: FloatField,
     qx: FloatField,
-    qx_copy: FloatField,
     qy: FloatField,
-    qy_copy: FloatField,
     qxx: FloatField,
     qyy: FloatField,
     dxa: FloatFieldIJ,
-    dya: FloatFieldIJ,
+    dya: FloatFieldIJ
 ):
     from __externals__ import i_end, i_start, j_end, j_start
 
     with computation(PARALLEL), interval(...):
         # ppm_volume_mean_x
         qx = b2 * (qin[-2, 0, 0] + qin[1, 0, 0]) + b1 * (qin[-1, 0, 0] + qin)
-        qx_copy = qx
         with horizontal(region[i_start, :]):
             qx = qx_edge_west(qin, dxa)
-            qx_copy = qx
         with horizontal(region[i_start + 1, :]):
-            qx = qx_edge_west2(qin, dxa, qx_copy)
+            qx = qx_edge_west2(qin, dxa, qx)
         with horizontal(region[i_end + 1, :]):
             qx = qx_edge_east(qin, dxa)
-            qx_copy = qx
         with horizontal(region[i_end, :]):
-            qx = qx_edge_east2(qin, dxa, qx_copy)
+            qx = qx_edge_east2(qin, dxa, qx)
         # ppm_volume_mean_y
         qy = b2 * (qin[0, -2, 0] + qin[0, 1, 0]) + b1 * (qin[0, -1, 0] + qin)
-        qy_copy = qy
         with horizontal(region[:, j_start]):
             qy = qy_edge_south(qin, dya)
-            qy_copy = qy
         with horizontal(region[:, j_start + 1]):
-            qy = qy_edge_south2(qin, dya, qy_copy)
+            qy = qy_edge_south2(qin, dya, qy)
         with horizontal(region[:, j_end + 1]):
             qy = qy_edge_north(qin, dya)
-            qy_copy = qy
         with horizontal(region[:, j_end]):
-            qy = qy_edge_north2(qin, dya, qy_copy)
+            qy = qy_edge_north2(qin, dya, qy)
+
         qxx = a2 * (qx[0, -2, 0] + qx[0, 1, 0]) + a1 * (qx[0, -1, 0] + qx)
         with horizontal(region[:, j_start + 1]):
             qxx = c1 * (qx[0, -1, 0] + qx) + c2 * (qout[0, -1, 0] + qxx[0, 1, 0])
@@ -406,8 +399,7 @@ class AGrid2BGridFourthOrder:
         self._tmp_qy = utils.make_storage_from_shape(shape)
         self._tmp_qxx = utils.make_storage_from_shape(shape)
         self._tmp_qyy = utils.make_storage_from_shape(shape)
-        self._tmp_qx_copy = utils.make_storage_from_shape(shape)
-        self._tmp_qy_copy = utils.make_storage_from_shape(shape)
+
         if nk is None:
             nk = self.grid.npz - kstart
         corner_domain = (1, 1, nk)
@@ -527,9 +519,7 @@ class AGrid2BGridFourthOrder:
             qin,
             qout,
             self._tmp_qx,
-            self._tmp_qx_copy,
             self._tmp_qy,
-            self._tmp_qy_copy,
             self._tmp_qxx,
             self._tmp_qyy,
             self.grid.dxa,
