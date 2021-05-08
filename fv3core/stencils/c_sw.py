@@ -254,7 +254,7 @@ def update_vorticity_and_kinetic_energy(
         ke = 0.5 * dt2 * (ua * ke + va * vort)
 
 
-def update_zonal_velocity(
+def update_x_velocity(
     vorticity: FloatField,
     ke: FloatField,
     velocity: FloatField,
@@ -278,7 +278,7 @@ def update_zonal_velocity(
         velocity_c = velocity_c + tmp_flux * flux + rdxc * (ke[-1, 0, 0] - ke)
 
 
-def update_meridional_velocity(
+def update_y_velocity(
     vorticity: FloatField,
     ke: FloatField,
     velocity: FloatField,
@@ -402,8 +402,8 @@ class CGridShallowWaterLagrangianDynamics:
 
         domain_meridional = self.grid.domain_shape_compute(add=(0, 1, 0))
         axis_offsets_meridional = axis_offsets(self.grid, origin, domain_meridional)
-        self._update_meridional_velocity = FrozenStencil(
-            func=update_meridional_velocity,
+        self._update_y_velocity = FrozenStencil(
+            func=update_y_velocity,
             externals={
                 "grid_type": grid_type,
                 **axis_offsets_meridional,
@@ -413,8 +413,8 @@ class CGridShallowWaterLagrangianDynamics:
         )
         domain_zonal = self.grid.domain_shape_compute(add=(1, 0, 0))
         axis_offsets_zonal = axis_offsets(self.grid, origin, domain_zonal)
-        self._update_zonal_velocity = FrozenStencil(
-            func=update_zonal_velocity,
+        self._update_x_velocity = FrozenStencil(
+            func=update_x_velocity,
             externals={
                 "grid_type": grid_type,
                 **axis_offsets_zonal,
@@ -444,7 +444,7 @@ class CGridShallowWaterLagrangianDynamics:
             u: x-velocity on D-grid (input)
             dt2: timestep (input)
         """
-        self._update_meridional_velocity(
+        self._update_y_velocity(
             vort_c,
             ke_c,
             u,
@@ -454,7 +454,7 @@ class CGridShallowWaterLagrangianDynamics:
             self.grid.rdyc,
             dt2,
         )
-        self._update_zonal_velocity(
+        self._update_x_velocity(
             vort_c,
             ke_c,
             v,
