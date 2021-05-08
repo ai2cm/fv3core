@@ -487,20 +487,20 @@ class CGridShallowWaterLagrangianDynamics:
 
         Advances C-grid winds by half a time step.
         Args:
-            delp: D-grid vertical delta in pressure
-            pt: D-grid potential temperature
-            u: D-grid x-velocity
-            v: D-grid y-velocity
-            w: vertical velocity
-            uc: C-grid x-velocity
-            vc: C-grid y-velocity
-            ua: A-grid x-velocity
-            va: A-grid y-velocity
-            ut: u * dx
-            vt: v * dy
-            divgd: D-grid horizontal divergence
-            omga: Vertical pressure velocity
-            dt2: Acoustic timestep in seconds
+            delp: D-grid vertical delta in pressure (in)
+            pt: D-grid potential temperature (in)
+            u: D-grid x-velocity (in)
+            v: D-grid y-velocity (in)
+            w: vertical velocity (in)
+            uc: C-grid x-velocity (inout)
+            vc: C-grid y-velocity (inout)
+            ua: A-grid x-velocity (in)
+            va: A-grid y-velocity (in)
+            ut: u * dx (inout)
+            vt: v * dy (inout)
+            divgd: D-grid horizontal divergence (inout)
+            omga: Vertical pressure velocity (inout)
+            dt2: Acoustic timestep in seconds (in)
         """
         self._initialize_delpc_ptc(
             self.delpc,
