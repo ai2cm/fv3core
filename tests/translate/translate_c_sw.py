@@ -1,6 +1,6 @@
 import fv3core._config as spec
-from fv3core.stencils.c_sw import CGridShallowWaterLagrangianDynamics
 import fv3core.utils.gt4py_utils as utils
+from fv3core.stencils.c_sw import CGridShallowWaterLagrangianDynamics
 from fv3core.testing import TranslateFortranData2Py
 
 

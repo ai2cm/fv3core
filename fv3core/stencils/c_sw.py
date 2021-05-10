@@ -233,7 +233,7 @@ def update_vorticity_and_kinetic_energy(
     cos_sg4: FloatFieldIJ,
     dt2: float,
 ):
-    from __externals__ import i_end, i_start, j_end, j_start, grid_type
+    from __externals__ import grid_type, i_end, i_start, j_end, j_start
 
     with computation(PARALLEL), interval(...):
         compile_assert(grid_type < 3)
@@ -264,7 +264,7 @@ def update_x_velocity(
     rdxc: FloatFieldIJ,
     dt2: float,
 ):
-    from __externals__ import i_end, i_start, grid_type
+    from __externals__ import grid_type, i_end, i_start
 
     with computation(PARALLEL), interval(...):
         compile_assert(grid_type < 3)
@@ -288,7 +288,7 @@ def update_y_velocity(
     rdyc: FloatFieldIJ,
     dt2: float,
 ):
-    from __externals__ import j_end, j_start, grid_type
+    from __externals__ import grid_type, j_end, j_start
 
     with computation(PARALLEL), interval(...):
         compile_assert(grid_type < 3)
