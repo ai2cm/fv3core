@@ -256,8 +256,6 @@ class DynamicalCore:
         ak: fv3gfs.util.Quantity,
         bk: fv3gfs.util.Quantity,
         phis: fv3gfs.util.Quantity,
-        qvapor: fv3gfs.util.Quantity,
-        qgraupel: fv3gfs.util.Quantity,
     ):
         """
         Args:
@@ -295,7 +293,7 @@ class DynamicalCore:
         if not (not self.namelist.inline_q and DynamicalCore.NQ != 0):
             raise NotImplementedError("tracer_2d not implemented, turn on z_tracer")
         self._adjust_tracer_mixing_ratio = AdjustNegativeTracerMixingRatio(
-            self.grid, self.namelist, qvapor, qgraupel
+            self.grid, self.namelist
         )
 
     def step_dynamics(
@@ -364,8 +362,7 @@ class DynamicalCore:
                 # pnats = Atm(mytile)%flagstruct%pnats
                 # here we hard-coded it because 8 is the only supported value,
                 # refactor this later!
-                kord_tracer = [self.namelist.kord_tr] * DynamicalCore.NQ
-                kord_tracer[6] = 9
+
                 # do_omega = self.namelist.hydrostatic and last_step
                 # TODO: Determine a better way to do this, polymorphic fields perhaps?
                 # issue is that set_val in map_single expects a 3D field for the
@@ -407,7 +404,6 @@ class DynamicalCore:
                         state.consv_te,
                         state.bdt / state.k_split,
                         state.bdt,
-                        kord_tracer,
                         state.do_adiabatic_init,
                         DynamicalCore.NQ,
                     )
@@ -474,8 +470,6 @@ def fv_dynamics(
         state["atmosphere_hybrid_a_coordinate"],
         state["atmosphere_hybrid_b_coordinate"],
         state["surface_geopotential"],
-        state["specific_humidity"].data,
-        state["graupel_mixing_ratio"].data,
     )
     dycore.step_dynamics(
         state,
