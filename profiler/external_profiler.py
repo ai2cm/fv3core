@@ -5,16 +5,19 @@ Usage: python external_profiler.py <PYTHON SCRIPT>.py <ARGS>
 Works with nvtx (via cupy) for now.
 """
 
-import shutil
+import fnmatch
+import pickle
 import sys
 from argparse import ArgumentParser
-from os import getenv, getcwd, listdir, path, walk, mkdir
 from datetime import datetime
-import fnmatch
-from typing import Any, Tuple, Dict
-import pickle
-from shutil import copytree, copy
 from glob import glob
+from os import getcwd, getenv, listdir, mkdir, path, walk
+from shutil import copy, copytree
+from typing import Any, Dict, Tuple
+
+import numpy as np
+from gt4py import storage
+
 
 try:
     import cupy as cp
@@ -139,19 +142,26 @@ def stencil_data_serialization(frame, event, args):
                 and stencil_info[0] == frame.f_code.co_filename
             ):
                 print(f"[PROFILER] Pickling args of {stencil_key} @ event {event}")
-                args_dict_to_pickle = {
-                    key: frame.f_locals[key]
-                    for key in frame.f_locals
-                    if key not in ["self"]
-                }
                 if event == "call":
-                    pickle_file = f"{stencil_info[1]}/args_pre_run"
+                    prefix = "pre_run_"
                 else:
-                    pickle_file = f"{stencil_info[1]}/args_post_run"
-                with open(pickle_file, "wb") as handle:
-                    pickle.dump(
-                        args_dict_to_pickle, handle, protocol=pickle.HIGHEST_PROTOCOL
-                    )
+                    prefix = "post_run_"
+
+                scalars = {}
+                for arg_key, arg_value in frame.f_locals.items():
+                    if arg_key == "self":
+                        continue
+                    if isinstance(arg_value, storage.Storage):
+                        arg_value.device_to_host()
+                        np.savez_compressed(
+                            f"{stencil_info[1]}/data/{prefix}_{arg_key}.npz",
+                            arg_value.data,
+                        )
+                    else:
+                        scalars[arg_key] = arg_value
+                scalar_file = f"{stencil_info[1]}/data/{prefix}_scalars.pickled"
+                with open(scalar_file, "wb") as handle:
+                    pickle.dump(scalars, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
 
 def find_stencil_candidate(stencil_name):
@@ -175,7 +185,10 @@ def find_stencil_candidate(stencil_name):
                     )
     if len(STENCIL_CANDIDATE_FOR_EXTRACT.items()) != 0:
         # Create the result dir
-        repro_dir = f"{getcwd()}/repro_{stencil_name}_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
+        repro_dir = (
+            f"{getcwd()}/repro_{stencil_name}_"
+            f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
+        )
         mkdir(repro_dir)
         # Copy required file for repro & prepare for args pickling
         for stencil_key, stencil_info in STENCIL_CANDIDATE_FOR_EXTRACT.items():
@@ -185,6 +198,8 @@ def find_stencil_candidate(stencil_name):
             # Save info
             stencil_info = (stencil_info[0], stencil_dir)
             STENCIL_CANDIDATE_FOR_EXTRACT[stencil_key] = stencil_info
+            # Create data directories
+            mkdir(f"{stencil_dir}/data")
             # Copy original code
             origin_code_copy_dir = f"{stencil_dir}/original_code"
             mkdir(origin_code_copy_dir)
@@ -200,19 +215,32 @@ def find_stencil_candidate(stencil_name):
                     f"""from original_code import {stencil_key}
 from os import path
 import pickle
+from gt4py import storage
+import cupy as cp
+import numpy as np
 
-if __name__ == '__main__':
+if __name__ == "__main__":
+    # Load compiled object
     root_dir = path.dirname(path.realpath(__file__))
     compute_object = (
         {stencil_key}.{stencil_key[2:].replace('__', '____')}()
     )
-    with open(root_dir+'/args_pre_run', 'rb') as handle:
-        pre_run_args = pickle.load(handle)
-    compute_object.run(**pre_run_args)
-    # TO TEST SPECIALIZE THE BELOW CODE:
-    # with open(root_dir+'/args_post_run', 'rb') as handle:
-    #    post_run_args = pickle.load(handle)
-    # assert pre_run_args['key'] == post_run_args['key']
+    # Select a module depending on backend to load the serialized data
+    loading_module = np
+    if compute_object._gt_backend_ == "gtcuda":
+        loading_module = cp
+    # Setup the fields
+    arguments = {{}}
+    for field_name, _field_info in compute_object._gt_field_info_.items():
+        field_file = f"{{root_dir}}/data/pre_run__{{field_name}}.npz"
+        with cp.load(field_file) as npz_handle:
+            arguments[field_name] = storage.from_array(
+                npz_handle["arr_0"], compute_object._gt_backend_, (0, 0, 0)
+            )
+    # Un-pickle the scalars and finalize the argument list
+    with open(root_dir + "/data/pre_run__scalars.pickled", "rb") as handle:
+        arguments.update(pickle.load(handle))
+    compute_object.run(**arguments)
 """
                 )
 
