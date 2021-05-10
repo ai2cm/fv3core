@@ -4,7 +4,6 @@ import fv3core._config as spec
 import fv3core.stencils.basic_operations as basic
 import fv3core.stencils.moist_cv as moist_cv
 import fv3core.utils.global_constants as constants
-import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import FrozenStencil, gtstencil
 from fv3core.stencils.saturation_adjustment import SatAdjust3d
 from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
@@ -34,12 +33,10 @@ def sum_te(te: FloatField, te0_2d: FloatField):
 
 
 class Remapping_Part2:
-    def __init__(self):
+    def __init__(self, pfull):
         self.grid = spec.grid
         self.namelist = spec.namelist
-        self._saturation_adjustment = utils.cached_stencil_class(SatAdjust3d)(
-            cache_key="satadjust3d"
-        )
+
         self._copy_from_below_stencil = FrozenStencil(
             copy_from_below,
             origin=self.grid.compute_origin(),
@@ -60,22 +57,20 @@ class Remapping_Part2:
 
         self.do_sat_adjust = self.namelist.do_sat_adj
 
-        # TODO : When remapping becomes an object, these stencils can be declared in
-        #        __init__ when (I think) pFull can be passed into __init__
-        # self._saturation_adjustment_stencil = FrozenStencil(SatAdjust3d,...)
-        # self._sum_te_stencil = FrozenStencil(sum_te,...)
+        # TODO pfull is a 1d var
+        self.kmp = self.grid.npz - 1
+        for k in range(pfull.shape[0]):
+            if pfull[k] > 10.0e2:
+                self.kmp = k
+                break
 
-        # TODO : When state.pt from fv_dynamics can be passed into __init__, these
-        #        storages can be declared in __init__
-        # phis = utils.make_storage_from_shape(
-        #     pt.shape, grid.compute_origin(), cache_key="remapping_part2_phis"
-        # )
-        # te_2d = utils.make_storage_from_shape(
-        #     pt.shape[0:2], grid.compute_origin(), cache_key="remapping_part2_te_2d"
-        # )
-        # zsum1 = utils.make_storage_from_shape(
-        #     pt.shape[0:2], grid.compute_origin(), cache_key="remapping_part2_zsum1"
-        # )
+        self._saturation_adjustment = SatAdjust3d()
+
+        self._sum_te_stencil = FrozenStencil(
+            sum_te,
+            origin=(self.grid.is_, self.grid.js, self.kmp),
+            domain=(self.grid.nic, self.grid.njc, self.grid.npz - self.kmp),
+        )
 
     def __call__(
         self,
@@ -114,31 +109,8 @@ class Remapping_Part2:
         consv: float,
         do_adiabatic_init: bool,
     ):
-        saturation_adjustment = utils.cached_stencil_class(SatAdjust3d)(
-            cache_key="satadjust3d"
-        )
-
-        sum_te_stencil = gtstencil(func=sum_te)
-
         self._copy_from_below_stencil(ua, pe)
         dtmp = 0.0
-        phis = utils.make_storage_from_shape(
-            pt.shape, self.grid.compute_origin(), cache_key="remapping_part2_phis"
-        )
-        te_2d = utils.make_storage_from_shape(
-            pt.shape[0:2], self.grid.compute_origin(), cache_key="remapping_part2_te_2d"
-        )
-        zsum1 = utils.make_storage_from_shape(
-            pt.shape[0:2], self.grid.compute_origin(), cache_key="remapping_part2_zsum1"
-        )
-        if self.do_sat_adjust:
-            fast_mp_consv = not do_adiabatic_init and consv > constants.CONSV_MIN
-            # TODO pfull is a 1d var
-            kmp = self.grid.npz - 1
-            for k in range(pfull.shape[0]):
-                if pfull[k] > 10.0e2:
-                    kmp = k
-                    break
         if last_step and not do_adiabatic_init:
             if consv > constants.CONSV_MIN:
                 raise NotImplementedError(
@@ -155,10 +127,8 @@ class Remapping_Part2:
                 )
 
         if self.do_sat_adjust:
-
-            kmp_origin = (self.grid.is_, self.grid.js, kmp)
-            kmp_domain = (self.grid.nic, self.grid.njc, self.grid.npz - kmp)
-            saturation_adjustment(
+            fast_mp_consv = not do_adiabatic_init and consv > constants.CONSV_MIN
+            self._saturation_adjustment(
                 te,
                 qvapor,
                 qliquid,
@@ -180,10 +150,13 @@ class Remapping_Part2:
                 fast_mp_consv,
                 last_step,
                 akap,
-                kmp,
+                self.kmp,
             )
             if fast_mp_consv:
-                sum_te_stencil(te, te0_2d, origin=kmp_origin, domain=kmp_domain)
+                self._sum_te_stencil(
+                    te,
+                    te0_2d,
+                )
         if last_step:
             self._moist_cv_last_step_stencil(
                 qvapor,

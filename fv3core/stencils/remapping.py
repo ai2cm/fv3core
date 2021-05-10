@@ -55,7 +55,9 @@ def compute(
         pt.shape, grid.compute_origin(), cache_key="remapping_cvm"
     )
 
-    remap_part2_compute = remap_part2.Remapping_Part2()
+    remap_part2_compute = utils.cached_stencil_class(remap_part2.Remapping_Part2)(
+        pfull=pfull, cache_key="remapping_part2"
+    )
 
     remap_part1.compute(
         tracers,
