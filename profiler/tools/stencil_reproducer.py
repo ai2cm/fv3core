@@ -1,12 +1,14 @@
+import fnmatch
+import pickle
 from datetime import datetime
 from glob import glob
 from os import getcwd, getenv, listdir, mkdir, path, walk
 from shutil import copy, copytree
-from typing import Dict, Tuple, Any
-import fnmatch
-import pickle
+from typing import Any, Dict, Tuple
+
 import numpy as np
 from gt4py import storage
+
 
 STENCIL_CANDIDATE_FOR_EXTRACT: Dict[str, Tuple[str, str]] = {}
 STENCIL_SERIALIZED_ARGUMENTS: Dict[str, Any] = {}  # Indexed on file path

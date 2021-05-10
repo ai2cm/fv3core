@@ -8,7 +8,7 @@ Works with nvtx (via cupy) for now.
 import sys
 from argparse import ArgumentParser
 
-from .tools import nvtx_markings, stencil_reproducer
+from tools import nvtx_markings, stencil_reproducer
 
 
 try:
@@ -36,9 +36,9 @@ def parse_args():
 
 
 def profile_hook(frame, event, args):
-    if cmd_line_args.nvtx:
+    if cmd_line_args.nvtx and nvtx_markings.mark is not None:
         nvtx_markings.mark(frame, event, args)
-    if cmd_line_args.stencil:
+    if cmd_line_args.stencil and stencil_reproducer.field_serialization is not None:
         stencil_reproducer.field_serialization(frame, event, args)
 
 

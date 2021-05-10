@@ -24,7 +24,7 @@ root director `fv3core` with a `sbatch` command.
 ## Stencil reproducer (`--stencil=STENCIL_NAME`)
 
 Capture all data, libs & source code to reproduce a stencil run on its own. It requires the targeted stencil to be already
-compiled. 
+compiled.
 
 Once ran the reproducer package all required files in a `repro_<STENCIL_NAME>_<TIMESTAMP>` folder.
 
