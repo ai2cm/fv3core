@@ -1,20 +1,21 @@
+# type: ignore
 import gt4py
 from gt4py.gtscript import (
-    stencil,
-    Field,
-    horizontal,
-    region,
-    function,
-    IJ,
-    computation,
-    PARALLEL,
-    interval,
     __INLINED,
+    IJ,
+    PARALLEL,
+    Field,
+    computation,
+    function,
+    horizontal,
+    interval,
+    region,
+    stencil,
 )
 
 
 FloatField = Field[float]
-FloatFieldIJ = Field[float, IJ]
+FloatFieldIJ = Field[IJ, float]
 
 backend = "gtx86"
 shape = (64, 64, 79)
