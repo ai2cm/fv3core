@@ -25,7 +25,7 @@ import fv3gfs.util
 import fv3gfs.util as fv3util
 from fv3core.decorators import FrozenStencil
 from fv3core.stencils.basic_operations import copy_stencil
-from fv3core.stencils.c_sw import CGridShallowWaterLagrangianDynamics
+from fv3core.stencils.c_sw import CGridShallowWaterDynamics
 from fv3core.stencils.del2cubed import HyperdiffusionDamping
 from fv3core.stencils.pk3_halo import PK3Halo
 from fv3core.stencils.riem_solver3 import RiemannSolver3
@@ -296,8 +296,8 @@ class AcousticDynamics:
             self.dgrid_shallow_water_lagrangian_dynamics = (
                 d_sw.DGridShallowWaterLagrangianDynamics(namelist, column_namelist)
             )
-            self.cgrid_shallow_water_lagrangian_dynamics = (
-                CGridShallowWaterLagrangianDynamics(self.grid, namelist)
+            self.cgrid_shallow_water_lagrangian_dynamics = CGridShallowWaterDynamics(
+                self.grid, namelist
             )
             self.riem_solver3 = RiemannSolver3(namelist)
             self.riem_solver_c = RiemannSolverC(namelist)

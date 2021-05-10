@@ -308,7 +308,7 @@ def initialize_delpc_ptc(delpc: FloatField, ptc: FloatField):
         ptc = 0.0
 
 
-class CGridShallowWaterLagrangianDynamics:
+class CGridShallowWaterDynamics:
     """
     Fortran name is c_sw
     """
@@ -400,27 +400,29 @@ class CGridShallowWaterLagrangianDynamics:
             domain=(self.grid.nic + 1, self.grid.njc + 1, self.grid.npz),
         )
 
-        domain_meridional = self.grid.domain_shape_compute(add=(0, 1, 0))
-        axis_offsets_meridional = axis_offsets(self.grid, origin, domain_meridional)
+        domain_y = self.grid.domain_shape_compute(add=(0, 1, 0))
+        axis_offsets_y = axis_offsets(self.grid, origin, domain_y)
         self._update_y_velocity = FrozenStencil(
             func=update_y_velocity,
             externals={
                 "grid_type": grid_type,
-                **axis_offsets_meridional,
+                "j_start": axis_offsets_y["j_start"],
+                "j_end": axis_offsets_y["j_end"],
             },
             origin=origin,
-            domain=domain_meridional,
+            domain=domain_y,
         )
-        domain_zonal = self.grid.domain_shape_compute(add=(1, 0, 0))
-        axis_offsets_zonal = axis_offsets(self.grid, origin, domain_zonal)
+        domain_x = self.grid.domain_shape_compute(add=(1, 0, 0))
+        axis_offsets_x = axis_offsets(self.grid, origin, domain_x)
         self._update_x_velocity = FrozenStencil(
             func=update_x_velocity,
             externals={
                 "grid_type": grid_type,
-                **axis_offsets_zonal,
+                "i_start": axis_offsets_x["i_start"],
+                "i_end": axis_offsets_x["i_end"],
             },
             origin=origin,
-            domain=domain_zonal,
+            domain=domain_x,
         )
 
     def _vorticitytransport_cgrid(
@@ -500,7 +502,7 @@ class CGridShallowWaterLagrangianDynamics:
             vt: v * dy (inout)
             divgd: D-grid horizontal divergence (inout)
             omga: Vertical pressure velocity (inout)
-            dt2: Acoustic timestep in seconds (in)
+            dt2: Half a model timestep in seconds (in)
         """
         self._initialize_delpc_ptc(
             self.delpc,

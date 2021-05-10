@@ -1,13 +1,13 @@
 import fv3core._config as spec
 import fv3core.utils.gt4py_utils as utils
-from fv3core.stencils.c_sw import CGridShallowWaterLagrangianDynamics
+from fv3core.stencils.c_sw import CGridShallowWaterDynamics
 from fv3core.testing import TranslateFortranData2Py
 
 
 class TranslateC_SW(TranslateFortranData2Py):
     def __init__(self, grid):
         super().__init__(grid)
-        cgrid_shallow_water_lagrangian_dynamics = CGridShallowWaterLagrangianDynamics(
+        cgrid_shallow_water_lagrangian_dynamics = CGridShallowWaterDynamics(
             grid, spec.namelist
         )
         self.compute_func = cgrid_shallow_water_lagrangian_dynamics
@@ -47,7 +47,7 @@ class TranslateC_SW(TranslateFortranData2Py):
 class TranslateTransportDelp(TranslateFortranData2Py):
     def __init__(self, grid):
         super().__init__(grid)
-        self.cgrid_sw_lagrangian_dynamics = CGridShallowWaterLagrangianDynamics(
+        self.cgrid_sw_lagrangian_dynamics = CGridShallowWaterDynamics(
             grid, spec.namelist
         )
         self.in_vars["data_vars"] = {
@@ -81,7 +81,7 @@ class TranslateTransportDelp(TranslateFortranData2Py):
 class TranslateDivergenceCorner(TranslateFortranData2Py):
     def __init__(self, grid):
         super().__init__(grid)
-        self.cgrid_sw_lagrangian_dynamics = CGridShallowWaterLagrangianDynamics(
+        self.cgrid_sw_lagrangian_dynamics = CGridShallowWaterDynamics(
             grid, spec.namelist
         )
         self.in_vars["data_vars"] = {
@@ -132,7 +132,7 @@ class TranslateDivergenceCorner(TranslateFortranData2Py):
 class TranslateCirculation_Cgrid(TranslateFortranData2Py):
     def __init__(self, grid):
         super().__init__(grid)
-        self.cgrid_sw_lagrangian_dynamics = CGridShallowWaterLagrangianDynamics(
+        self.cgrid_sw_lagrangian_dynamics = CGridShallowWaterDynamics(
             grid, spec.namelist
         )
         self.in_vars["data_vars"] = {
@@ -167,7 +167,7 @@ class TranslateCirculation_Cgrid(TranslateFortranData2Py):
 class TranslateKE_C_SW(TranslateFortranData2Py):
     def __init__(self, grid):
         super().__init__(grid)
-        self.cgrid_sw_lagrangian_dynamics = CGridShallowWaterLagrangianDynamics(
+        self.cgrid_sw_lagrangian_dynamics = CGridShallowWaterDynamics(
             grid, spec.namelist
         )
         self.in_vars["data_vars"] = {
@@ -217,9 +217,7 @@ class TranslateKE_C_SW(TranslateFortranData2Py):
 class TranslateVorticityTransport_Cgrid(TranslateFortranData2Py):
     def __init__(self, grid):
         super().__init__(grid)
-        cgrid_sw_lagrangian_dynamics = CGridShallowWaterLagrangianDynamics(
-            grid, spec.namelist
-        )
+        cgrid_sw_lagrangian_dynamics = CGridShallowWaterDynamics(grid, spec.namelist)
         self.compute_func = cgrid_sw_lagrangian_dynamics._vorticitytransport_cgrid
         self.in_vars["data_vars"] = {
             "uc": {},
