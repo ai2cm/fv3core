@@ -129,42 +129,6 @@ def moist_pt_func(
     return cvm, gz, q_con, cappa, pt
 
 
-@gtstencil
-def moist_pt(
-    qvapor: FloatField,
-    qliquid: FloatField,
-    qrain: FloatField,
-    qsnow: FloatField,
-    qice: FloatField,
-    qgraupel: FloatField,
-    q_con: FloatField,
-    gz: FloatField,
-    cvm: FloatField,
-    pt: FloatField,
-    cappa: FloatField,
-    delp: FloatField,
-    delz: FloatField,
-    r_vir: float,
-):
-    with computation(PARALLEL), interval(...):
-        cvm, gz, q_con, cappa, pt = moist_pt_func(
-            qvapor,
-            qliquid,
-            qrain,
-            qsnow,
-            qice,
-            qgraupel,
-            q_con,
-            gz,
-            cvm,
-            pt,
-            cappa,
-            delp,
-            delz,
-            r_vir,
-        )
-
-
 @gtscript.function
 def last_pt(
     pt: FloatField,
@@ -210,7 +174,6 @@ def compute_pkz_func(delp, delz, pt, cappa):
     return exp(cappa * log(constants.RDG * delp / delz * pt))
 
 
-@gtstencil
 def moist_pkz(
     qvapor: FloatField,
     qliquid: FloatField,
@@ -235,99 +198,6 @@ def moist_pkz(
         q_con[0, 0, 0] = gz
         cappa = set_cappa(qvapor, cvm, r_vir)
         pkz = compute_pkz_func(delp, delz, pt, cappa)
-
-
-def region_mode(j_2d: Optional[int], grid: Grid):
-    if j_2d is None:
-        origin = grid.compute_origin()
-        domain = grid.domain_shape_compute()
-        jslice = slice(grid.js, grid.je + 1)
-    else:
-        origin = (grid.is_, j_2d, 0)
-        domain = (grid.nic, 1, grid.npz)
-        jslice = slice(j_2d, j_2d + 1)
-    return origin, domain, jslice
-
-
-def compute_pt(
-    qvapor_js: FloatField,
-    qliquid_js: FloatField,
-    qice_js: FloatField,
-    qrain_js: FloatField,
-    qsnow_js: FloatField,
-    qgraupel_js: FloatField,
-    q_con: FloatField,
-    gz: FloatField,
-    cvm: FloatField,
-    pt: FloatField,
-    cappa: FloatField,
-    delp: FloatField,
-    delz: FloatField,
-    r_vir: float,
-    j_2d: int = None,
-):
-    origin, domain, _ = region_mode(j_2d, spec.grid)
-    moist_pt(
-        qvapor_js,
-        qliquid_js,
-        qrain_js,
-        qsnow_js,
-        qice_js,
-        qgraupel_js,
-        q_con,
-        gz,
-        cvm,
-        pt,
-        cappa,
-        delp,
-        delz,
-        r_vir,
-        origin=origin,
-        domain=domain,
-    )
-
-
-def compute_pkz(
-    qvapor_js: FloatField,
-    qliquid_js: FloatField,
-    qice_js: FloatField,
-    qrain_js: FloatField,
-    qsnow_js: FloatField,
-    qgraupel_js: FloatField,
-    q_con: FloatField,
-    gz: FloatField,
-    cvm: FloatField,
-    pkz: FloatField,
-    pt: FloatField,
-    cappa: FloatField,
-    delp: FloatField,
-    delz: FloatField,
-    r_vir: float,
-    j_2d: int = None,
-):
-    grid = spec.grid
-    origin, domain, _ = region_mode(j_2d, grid)
-
-    moist_pkz(
-        qvapor_js,
-        qliquid_js,
-        qrain_js,
-        qsnow_js,
-        qice_js,
-        qgraupel_js,
-        q_con,
-        gz,
-        cvm,
-        pkz,
-        pt,
-        cappa,
-        delp,
-        delz,
-        r_vir,
-        origin=origin,
-        domain=domain,
-    )
-
 
 def compute_last_step(
     pt: FloatField,
