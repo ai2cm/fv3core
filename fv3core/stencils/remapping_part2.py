@@ -9,7 +9,6 @@ from fv3core.stencils.saturation_adjustment import SatAdjust3d
 from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
 
 
-@gtstencil
 def copy_from_below(a: FloatField, b: FloatField):
     with computation(PARALLEL), interval(1, None):
         b = a[0, 0, -1]
