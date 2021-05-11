@@ -1,12 +1,9 @@
-from typing import Optional
-
 import gt4py.gtscript as gtscript
-from gt4py.gtscript import PARALLEL, computation, exp, interval, log
+from gt4py.gtscript import __INLINED, PARALLEL, computation, exp, interval, log
 
 import fv3core._config as spec
 import fv3core.utils.global_constants as constants
 from fv3core.decorators import gtstencil
-from fv3core.utils import Grid
 from fv3core.utils.typing import FloatField
 
 
@@ -199,6 +196,7 @@ def moist_pkz(
         cappa = set_cappa(qvapor, cvm, r_vir)
         pkz = compute_pkz_func(delp, delz, pt, cappa)
 
+
 def compute_last_step(
     pt: FloatField,
     pkz: FloatField,
@@ -247,21 +245,18 @@ def fv_setup(
     dp1: FloatField,
 ):
     with computation(PARALLEL), interval(...):
-        from __externals__ import nwat, moist_phys
-        # TODO: The conditional with gtscript function triggers and undefined
-        # temporary variable, even though there are no new temporaries
-        # if moist_phys:
-        cvm, q_con = moist_cv_nwat6_fn(
-            qvapor, qliquid, qrain, qsnow, qice, qgraupel
-        )  # if (nwat == 6) else moist_cv_default_fn(cv_air)
-        dp1 = constants.ZVIR * qvapor
-        cappa = constants.RDGAS / (constants.RDGAS + cvm / (1.0 + dp1))
-        pkz = exp(
-            cappa * log(constants.RDG * delp * pt * (1.0 + dp1) * (1.0 - q_con) / delz)
-        )
-        # else:
-        #    dp1 = 0
-        #    pkz = exp(constants.KAPPA * log(constants.RDG * delp * pt / delz)
-        #
+        from __externals__ import moist_phys
 
-
+        if __INLINED(moist_phys):
+            cvm, q_con = moist_cv_nwat6_fn(
+                qvapor, qliquid, qrain, qsnow, qice, qgraupel
+            )  # if (nwat == 6) else moist_cv_default_fn(cv_air)
+            dp1 = constants.ZVIR * qvapor
+            cappa = constants.RDGAS / (constants.RDGAS + cvm / (1.0 + dp1))
+            pkz = exp(
+                cappa
+                * log(constants.RDG * delp * pt * (1.0 + dp1) * (1.0 - q_con) / delz)
+            )
+        else:
+            dp1 = 0
+            pkz = exp(constants.KAPPA * log(constants.RDG * delp * pt / delz))

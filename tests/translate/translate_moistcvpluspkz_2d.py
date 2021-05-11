@@ -1,17 +1,18 @@
 import fv3core.stencils.moist_cv as moist_cv
-from fv3core.testing import TranslateFortranData2Py, TranslateGrid, pad_field_in_j
-from fv3core.stencils.moist_cv import moist_pkz
 from fv3core.decorators import FrozenStencil
+from fv3core.testing import TranslateFortranData2Py, pad_field_in_j
+
+
 class TranslateMoistCVPlusPkz_2d(TranslateFortranData2Py):
     def __init__(self, grid):
         super().__init__(grid)
         self.in_vars["data_vars"] = {
             "qvapor": {"serialname": "qvapor_js"},
             "qliquid": {"serialname": "qliquid_js"},
-            "qice": {"serialname":"qice_js"},
-            "qrain": {"serialname":"qrain_js"},
+            "qice": {"serialname": "qice_js"},
+            "qrain": {"serialname": "qrain_js"},
             "qsnow": {"serialname": "qsnow_js"},
-            "qgraupel": {"serialname":"qgraupel_js"},
+            "qgraupel": {"serialname": "qgraupel_js"},
             "gz": {"serialname": "gz1d", "kstart": grid.is_, "axis": 0},
             "cvm": {"kstart": grid.is_, "axis": 0},
             "delp": {},
@@ -41,7 +42,7 @@ class TranslateMoistCVPlusPkz_2d(TranslateFortranData2Py):
                 "istart": grid.is_,
                 "iend": grid.ie,
                 "jstart": grid.js,
-                "jend":	grid.js,
+                "jend": grid.js,
                 "kstart": grid.npz - 1,
                 "kend": grid.npz - 1,
             },
@@ -59,10 +60,12 @@ class TranslateMoistCVPlusPkz_2d(TranslateFortranData2Py):
         moist_cv_pkz = FrozenStencil(
             moist_cv.moist_pkz,
             origin=(self.grid.is_, self.grid.js, 0),
-            domain=(self.grid.nic, 1, self.grid.npz)
+            domain=(self.grid.nic, 1, self.grid.npz),
         )
         for name, value in inputs.items():
             if hasattr(value, "shape") and len(value.shape) > 1 and value.shape[1] == 1:
-                inputs[name] = self.make_storage_data(pad_field_in_j(value, self.grid.njd))
+                inputs[name] = self.make_storage_data(
+                    pad_field_in_j(value, self.grid.njd)
+                )
         moist_cv_pkz(**inputs)
         return inputs

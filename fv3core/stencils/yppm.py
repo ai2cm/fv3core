@@ -291,25 +291,6 @@ def compute_blbr_ord8plus(q: FloatField, dya: FloatFieldIJ):
     return bl, br
 
 
-# Optimized PPM in perturbation form:
-def pert_ppm(a0, al, ar, iv, istart, jstart, ni, nj):
-    r12 = 1.0 / 12.0
-    if iv == 0:
-        pert_ppm_positive_definite_constraint(
-            a0,
-            al,
-            ar,
-            r12,
-            origin=(istart, jstart, 0),
-            domain=(ni, nj, spec.grid.npz + 1),
-        )
-    else:
-        pert_ppm_standard_constraint(
-            a0, al, ar, origin=(istart, jstart, 0), domain=(ni, nj, spec.grid.npz + 1)
-        )
-    return al, ar
-
-
 def compute_y_flux(
     q: FloatField, courant: FloatField, dya: FloatFieldIJ, yflux: FloatField
 ):
