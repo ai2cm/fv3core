@@ -28,8 +28,6 @@ def lagrangian_contributions(
     dp1: FloatField,
     lev: IntFieldIJ,
 ):
-    from __externals__ import k_max
-
     with computation(FORWARD), interval(...):
         v_pe2 = pe2
         v_pe1 = pe1[0, 0, lev]
@@ -52,7 +50,7 @@ def lagrangian_contributions(
                 - q4_4[0, 0, lev] * 1.0 / 3.0 * (1.0 + pl * (1.0 + pl))
             )
             lev = lev + 1
-            while lev + 1 < k_max and pe1[0, 0, lev + 1] < pe2[0, 0, 1]:
+            while pe1[0, 0, lev + 1] < pe2[0, 0, 1]:
                 qsum += dp1[0, 0, lev] * q4_1[0, 0, lev]
                 lev = lev + 1
             dp = pe2[0, 0, 1] - pe1[0, 0, lev]
@@ -102,7 +100,6 @@ class MapSingle:
             lagrangian_contributions,
             origin=origin,
             domain=domain,
-            externals={"k_max": domain[2]},
         )
         self._remap_profile = RemapProfile(kord, mode, i1, i2, j1, j2)
 
