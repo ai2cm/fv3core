@@ -1,4 +1,4 @@
-import fv3core.stencils.remapping_part2 as remap_part2
+from fv3core.stencils.remapping_part2 import VerticalRemapping2
 from fv3core.testing import TranslateFortranData2Py
 
 
@@ -101,6 +101,6 @@ class TranslateRemapping_Part2(TranslateFortranData2Py):
         self.write_vars = ["gz", "cvm"]
 
     def compute_from_storage(self, inputs):
-        remapping_pt2_obj = remap_part2.Remapping_Part2(inputs["pfull"])
+        remapping_pt2_obj = VerticalRemapping2(inputs["pfull"])
         remapping_pt2_obj(**inputs)
         return inputs

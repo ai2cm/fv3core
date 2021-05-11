@@ -1,10 +1,10 @@
 from gt4py.gtscript import BACKWARD, FORWARD, PARALLEL, computation, interval
 
 import fv3core._config as spec
-import fv3core.stencils.basic_operations as basic
-import fv3core.stencils.moist_cv as moist_cv
 import fv3core.utils.global_constants as constants
 from fv3core.decorators import FrozenStencil, gtstencil
+from fv3core.stencils.basic_operations import adjust_divide_stencil
+from fv3core.stencils.moist_cv import moist_pt_last_step
 from fv3core.stencils.saturation_adjustment import SatAdjust3d
 from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
 
@@ -31,7 +31,7 @@ def sum_te(te: FloatField, te0_2d: FloatField):
             te0_2d = te0_2d[0, 0, -1] + te
 
 
-class Remapping_Part2:
+class VerticalRemapping2:
     def __init__(self, pfull):
         self.grid = spec.grid
         self.namelist = spec.namelist
@@ -43,27 +43,26 @@ class Remapping_Part2:
         )
 
         self._moist_cv_last_step_stencil = FrozenStencil(
-            moist_cv.moist_pt_last_step,
+            moist_pt_last_step,
             origin=(self.grid.is_, self.grid.js, 0),
             domain=(self.grid.nic, self.grid.njc, self.grid.npz + 1),
         )
 
         self._basic_adjust_divide_stencil = FrozenStencil(
-            basic.adjust_divide_stencil,
+            adjust_divide_stencil,
             origin=self.grid.compute_origin(),
             domain=self.grid.domain_shape_compute(),
         )
 
-        self.do_sat_adjust = self.namelist.do_sat_adj
+        self._do_sat_adjust = self.namelist.do_sat_adj
 
-        # TODO pfull is a 1d var
         self.kmp = self.grid.npz - 1
         for k in range(pfull.shape[0]):
             if pfull[k] > 10.0e2:
                 self.kmp = k
                 break
 
-        self._saturation_adjustment = SatAdjust3d()
+        self._saturation_adjustment = SatAdjust3d(self.kmp)
 
         self._sum_te_stencil = FrozenStencil(
             sum_te,
@@ -125,7 +124,7 @@ class Remapping_Part2:
                     + ")"
                 )
 
-        if self.do_sat_adjust:
+        if self._do_sat_adjust:
             fast_mp_consv = not do_adiabatic_init and consv > constants.CONSV_MIN
             self._saturation_adjustment(
                 te,
