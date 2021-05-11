@@ -230,8 +230,7 @@ def compute_last_step(
     )
 
 
-@gtstencil
-def fvsetup_stencil(
+def fv_setup(
     qvapor: FloatField,
     qliquid: FloatField,
     qrain: FloatField,
@@ -246,18 +245,16 @@ def fvsetup_stencil(
     delp: FloatField,
     delz: FloatField,
     dp1: FloatField,
-    zvir: float,
-    nwat: int,
-    moist_phys: bool,
 ):
     with computation(PARALLEL), interval(...):
+        from __externals__ import nwat, moist_phys
         # TODO: The conditional with gtscript function triggers and undefined
         # temporary variable, even though there are no new temporaries
         # if moist_phys:
         cvm, q_con = moist_cv_nwat6_fn(
             qvapor, qliquid, qrain, qsnow, qice, qgraupel
         )  # if (nwat == 6) else moist_cv_default_fn(cv_air)
-        dp1 = zvir * qvapor
+        dp1 = constants.ZVIR * qvapor
         cappa = constants.RDGAS / (constants.RDGAS + cvm / (1.0 + dp1))
         pkz = exp(
             cappa * log(constants.RDG * delp * pt * (1.0 + dp1) * (1.0 - q_con) / delz)
@@ -268,43 +265,3 @@ def fvsetup_stencil(
         #
 
 
-def fv_setup(
-    pt: FloatField,
-    pkz: FloatField,
-    delz: FloatField,
-    delp: FloatField,
-    cappa: FloatField,
-    q_con: FloatField,
-    zvir: float,
-    qvapor: FloatField,
-    qliquid: FloatField,
-    qice: FloatField,
-    qrain: FloatField,
-    qsnow: FloatField,
-    qgraupel: FloatField,
-    cvm: FloatField,
-    dp1: FloatField,
-):
-    if not spec.namelist.moist_phys:
-        raise Exception("fvsetup is only implem ented for moist_phys=true")
-    fvsetup_stencil(
-        qvapor,
-        qliquid,
-        qrain,
-        qsnow,
-        qice,
-        qgraupel,
-        q_con,
-        cvm,
-        pkz,
-        pt,
-        cappa,
-        delp,
-        delz,
-        dp1,
-        zvir,
-        spec.namelist.nwat,
-        spec.namelist.moist_phys,
-        origin=spec.grid.compute_origin(),
-        domain=spec.grid.domain_shape_compute(),
-    )
