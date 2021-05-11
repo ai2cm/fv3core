@@ -37,7 +37,12 @@ class MapNTracer:
 
         if namelist.fill:
             self._fill_negative_tracers = True
-            self._fillz = FillNegativeTracerValues()
+            self._fillz = FillNegativeTracerValues(
+                self._list_of_remap_objects[0].i_extent,
+                self._list_of_remap_objects[0].j_extent,
+                self._nk,
+                self._nq,
+            )
         else:
             self._fill_negative_tracers = False
 
@@ -67,9 +72,9 @@ class MapNTracer:
         if self._fill_negative_tracers is True:
             self._fillz(
                 dp2,
-                tracers,
-                self._list_of_remap_objects[0].i_extent,
-                self._list_of_remap_objects[0].j_extent,
-                self._nk,
-                self._nq,
+                tracers
+                # self._list_of_remap_objects[0].i_extent,
+                # self._list_of_remap_objects[0].j_extent,
+                # self._nk,
+                # self._nq,
             )
