@@ -3,7 +3,7 @@ from gt4py.gtscript import PARALLEL, computation, horizontal, interval, region
 import fv3core._config as spec
 import fv3core.utils.corners as corners
 import fv3core.utils.gt4py_utils as utils
-from fv3core.decorators import FrozenStencil, gtstencil
+from fv3core.decorators import FrozenStencil
 from fv3core.utils.grid import axis_offsets
 from fv3core.utils.typing import FloatField, FloatFieldIJ
 
@@ -111,12 +111,29 @@ class HyperdiffusionDamping:
             nx = self.grid.nic + 2 * nt
             ny = self.grid.njc + 2 * nt
             domains_x.append((nx + 1, ny, self.grid.npz))
-            domains_y.append((nx, ny+1, self.grid.npz))
+            domains_y.append((nx, ny + 1, self.grid.npz))
             domains.append((nx, ny, self.grid.npz))
-        self._compute_zonal_flux = FrozenStencil(compute_zonal_flux, origin=origins[0], domain=domains_x[0], additional_origins=origins[1:], additional_domains=domains_x[1:])
-        self._compute_meridional_flux = FrozenStencil(compute_meridional_flux, origin=origins[0], domain=domains_y[0],  additional_origins=origins[1:], additional_domains=domains_y[1:])
-        self._update_q = FrozenStencil(update_q, origin=origins[0], domain=domains[0],  additional_origins=origins[1:], additional_domains=domains[1:])
-
+        self._compute_zonal_flux = FrozenStencil(
+            compute_zonal_flux,
+            origin=origins[0],
+            domain=domains_x[0],
+            additional_origins=origins[1:],
+            additional_domains=domains_x[1:],
+        )
+        self._compute_meridional_flux = FrozenStencil(
+            compute_meridional_flux,
+            origin=origins[0],
+            domain=domains_y[0],
+            additional_origins=origins[1:],
+            additional_domains=domains_y[1:],
+        )
+        self._update_q = FrozenStencil(
+            update_q,
+            origin=origins[0],
+            domain=domains[0],
+            additional_origins=origins[1:],
+            additional_domains=domains[1:],
+        )
 
         self._copy_corners_x: corners.CopyCorners = corners.CopyCorners("x")
         """Stencil responsible for doing corners updates in x-direction."""
@@ -132,15 +149,15 @@ class HyperdiffusionDamping:
             nmax: Number of times to apply filtering
             cd: Damping coeffcient
         """
-        
-        for n in range(self._ntimes):        
+
+        for n in range(self._ntimes):
             nt = self._ntimes - (n + 1)
             # Fill in appropriate corner values
             self._corner_fill(qdel)
 
             if nt > 0:
                 self._copy_corners_x(qdel)
-            
+
             self._compute_zonal_flux.__call_nth__(
                 n,
                 self._fx,
