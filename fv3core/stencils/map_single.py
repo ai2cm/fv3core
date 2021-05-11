@@ -89,121 +89,53 @@ def lagrangian_contributions(
         q2_adds += q2_tmp
 
 
-class LagrangianContributions:
-    """
-    Stencil implementation of remap_z, map1_ppm, map_scalar, in Fortran
-    """
-
-    def __init__(self, origin: Tuple[int, int, int], domain: Tuple[int, int, int]):
-        self._grid = spec.grid
-        self._km = self._grid.npz
-        shape = self._grid.domain_shape_full(add=(1, 1, 1))
-        shape2d = shape[0:2]
-
-        self._q2_adds = utils.make_storage_from_shape(shape2d)
-        self._ptop = utils.make_storage_from_shape(shape2d)
-        self._pbot = utils.make_storage_from_shape(shape2d)
-
-        self.origin = origin
-        self.domain = domain
-
-        self._set_eulerian_pressures = gtstencil(set_eulerian_pressures)
-        self._lagrangian_contributions = FrozenStencil(
-            lagrangian_contributions,
-            origin=origin,
-            domain=domain,
-        )
-        self._set_remapped_quantity = gtstencil(set_remapped_quantity)
-
-    def __call__(
-        self,
-        q1: FloatField,
-        pe1: FloatField,
-        pe2: FloatField,
-        q4_1: FloatField,
-        q4_2: FloatField,
-        q4_3: FloatField,
-        q4_4: FloatField,
-        dp1: FloatField,
-    ):
-        """
-        Distributes a field from the deformed Lagrangian grid onto the remapped
-        Eulerian grid.
-
-        Args:
-            q1 (out): the field on the remapped grid
-            pe1 (in): Lagrangian pressure levels
-            pe2 (in): Eulerian pressure levels
-            q4_1, q4_2, q4_3, a4_4 (in): the interpolation coefficients that specify
-                the cubic subgrid distribution of q on the deformed grid.
-            dp1 (in): the pressure difference between the top and bottom of each
-                Lagrangian level
-        """
-        eul_domain = (self.domain[0], self.domain[1], 1)
-
-        # A stencil with a loop over k2:
-        for k_eul in range(self._km):
-            eul_origin = (self.origin[0], self.origin[1], k_eul)
-
-            # TODO (olivere): This is hacky
-            # merge with subsequent stencil when possible
-            self._set_eulerian_pressures(
-                pe2,
-                self._ptop,
-                self._pbot,
-                origin=eul_origin,
-                domain=eul_domain,
-            )
-
-            self._lagrangian_contributions(
-                pe1,
-                self._ptop,
-                self._pbot,
-                q4_1,
-                q4_2,
-                q4_3,
-                q4_4,
-                dp1,
-                self._q2_adds,
-            )
-
-            self._set_remapped_quantity(
-                q1,
-                self._q2_adds,
-                origin=eul_origin,
-                domain=eul_domain,
-            )
-
-
 class MapSingle:
     """
     Fortran name is map_single, test classes are Map1_PPM_2d, Map_Scalar_2d
     """
 
     def __init__(self, kord: int, mode: int, i1: int, i2: int, j1: int, j2: int):
-        self._grid = spec.grid
-        shape = self._grid.domain_shape_full(add=(1, 1, 1))
-        origin = self._grid.compute_origin()
+        shape = spec.grid.domain_shape_full(add=(1, 1, 1))
+        origin = spec.grid.compute_origin()
+        shape2d = shape[0:2]
 
-        self.dp1 = utils.make_storage_from_shape(shape, origin=origin)
-        self.q4_1 = utils.make_storage_from_shape(shape, origin=origin)
-        self.q4_2 = utils.make_storage_from_shape(shape, origin=origin)
-        self.q4_3 = utils.make_storage_from_shape(shape, origin=origin)
-        self.q4_4 = utils.make_storage_from_shape(shape, origin=origin)
+        self._q2_adds = utils.make_storage_from_shape(shape2d)
+        self._ptop = utils.make_storage_from_shape(shape2d)
+        self._pbot = utils.make_storage_from_shape(shape2d)
 
-        self.i_extent = i2 - i1 + 1
-        self.j_extent = j2 - j1 + 1
-        origin = (i1, j1, 0)
-        domain = (self.i_extent, self.j_extent, self._grid.npz)
+        self._dp1 = utils.make_storage_from_shape(shape, origin=origin)
+        self._q4_1 = utils.make_storage_from_shape(shape, origin=origin)
+        self._q4_2 = utils.make_storage_from_shape(shape, origin=origin)
+        self._q4_3 = utils.make_storage_from_shape(shape, origin=origin)
+        self._q4_4 = utils.make_storage_from_shape(shape, origin=origin)
 
-        self._lagrangian_contributions = LagrangianContributions(origin, domain)
+        self._extents = (i2 - i1 + 1, j2 - j1 + 1)
+        self._origin = (i1, j1, 0)
+        self._domain = (*self._extents, spec.grid.npz)
+
+        self._set_eulerian_pressures = gtstencil(set_eulerian_pressures)
+        self._lagrangian_contributions = FrozenStencil(
+            lagrangian_contributions,
+            origin=self._origin,
+            domain=self._domain,
+        )
+        self._set_remapped_quantity = gtstencil(set_remapped_quantity)
         self._remap_profile = RemapProfile(kord, mode, i1, i2, j1, j2)
-        self._set_dp = FrozenStencil(set_dp, origin=origin, domain=domain)
+
+        self._set_dp = FrozenStencil(set_dp, origin=origin, domain=self._domain)
         self._copy_stencil = FrozenStencil(
             copy_defn,
             origin=(0, 0, 0),
-            domain=self._grid.domain_shape_full(),
+            domain=spec.grid.domain_shape_full(),
         )
+
+    @property
+    def i_extent(self):
+        return self._extents[0]
+
+    @property
+    def j_extent(self):
+        return self._extents[1]
 
     def __call__(
         self,
@@ -224,27 +156,52 @@ class MapSingle:
             jfirst: Starting index of the J-dir compute domain
             jlast: Final index of the J-dir compute domain
         """
-        self._copy_stencil(q1, self.q4_1)
-        self._set_dp(self.dp1, pe1)
+        self._copy_stencil(q1, self._q4_1)
+        self._set_dp(self._dp1, pe1)
         q4_1, q4_2, q4_3, q4_4 = self._remap_profile(
             qs,
-            self.q4_1,
-            self.q4_2,
-            self.q4_3,
-            self.q4_4,
-            self.dp1,
+            self._q4_1,
+            self._q4_2,
+            self._q4_3,
+            self._q4_4,
+            self._dp1,
             qmin,
         )
-        self._lagrangian_contributions(
-            q1,
-            pe1,
-            pe2,
-            q4_1,
-            q4_2,
-            q4_3,
-            q4_4,
-            self.dp1,
-        )
+
+        eul_domain = (self._domain[0], self._domain[1], 1)
+
+        # A stencil with a loop over k2:
+        for k_eul in range(self._domain[2]):
+            eul_origin = (self._origin[0], self._origin[1], k_eul)
+
+            # TODO (olivere): This is hacky
+            # merge with subsequent stencil when possible
+            self._set_eulerian_pressures(
+                pe2,
+                self._ptop,
+                self._pbot,
+                origin=eul_origin,
+                domain=eul_domain,
+            )
+
+            self._lagrangian_contributions(
+                pe1,
+                self._ptop,
+                self._pbot,
+                q4_1,
+                q4_2,
+                q4_3,
+                q4_4,
+                self._dp1,
+                self._q2_adds,
+            )
+
+            self._set_remapped_quantity(
+                q1,
+                self._q2_adds,
+                origin=eul_origin,
+                domain=eul_domain,
+            )
         return q1
 
 
