@@ -93,6 +93,8 @@ class FrozenStencil:
         domain: Index3D,
         stencil_config: Optional[StencilConfig] = None,
         externals: Optional[Mapping[str, Any]] = None,
+        additional_origins = [],
+        additional_domains = []    
     ):
         """
         Args:
@@ -126,7 +128,7 @@ class FrozenStencil:
         assert (
             len(self._argument_names) > 0
         ), "A stencil with no arguments? You may be double decorating"
-
+        assert len(additional_origins) == len(additional_domains), "If adding extra origins and domain, they need to have the same count"
         self._field_origins: Dict[str, Tuple[int, ...]] = compute_field_origins(
             self.stencil_object.field_info, self.origin
         )
@@ -139,6 +141,12 @@ class FrozenStencil:
 
         self._written_fields = get_written_fields(self.stencil_object.field_info)
 
+        self._all_stencil_run_kwargs = [self._stencil_run_kwargs]
+
+        if len(additional_domains) > 0:
+            for i in range(len(additional_origins)):
+                self._append_snapshot(additional_origins[i], additional_domains[i])
+    
     def __call__(
         self,
         *args,
@@ -163,11 +171,40 @@ class FrozenStencil:
             )
             self._mark_cuda_fields_written({**args_as_kwargs, **kwargs})
 
+    def __call_nth__(
+        self,
+        n: int,
+        *args,
+        **kwargs,
+    ) -> None:
+        if self.stencil_config.validate_args:
+            self.stencil_object(
+                *args,
+                **kwargs,
+                origin=self._all_stencil_run_kwargs[n]['_origin_'],
+                domain=self._all_stencil_run_kwargs[n]['_domain_'],
+                validate_args=True,
+            )
+        else:
+            args_as_kwargs = dict(zip(self._argument_names, args))
+            self.stencil_object.run(
+                **args_as_kwargs, **kwargs, **self._stencil_run_kwargs[n], exec_info=None
+            )
+            self._mark_cuda_fields_written({**args_as_kwargs, **kwargs})
+
     def _mark_cuda_fields_written(self, fields: Mapping[str, Storage]):
         if "cuda" in self.stencil_config.backend:
             for write_field in self._written_fields:
                 fields[write_field]._set_device_modified()
-
+                
+    def _append_snapshot(self, origin: Index3D, domain: Index3D):
+        field_origins: Dict[str, Tuple[int, ...]] = compute_field_origins(
+            self.stencil_object.field_info, origin
+        )
+        self._all_stencil_run_kwargs.append({
+            "_origin_": field_origins,
+            "_domain_": domain,
+        })
 
 def get_written_fields(field_info) -> List[str]:
     """Returns the list of fields that are written.
