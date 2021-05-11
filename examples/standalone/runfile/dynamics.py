@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 
+import copy
 import json
 from argparse import ArgumentParser
 from datetime import datetime
+from typing import Any, Dict, List
 
 import numpy as np
 import serialbox
@@ -60,8 +62,10 @@ def parse_args():
     return parser.parse_args()
 
 
-def set_experiment_info(experiment_name, time_step, backend, git_hash):
-    experiment = {}
+def set_experiment_info(
+    experiment_name: str, time_step: int, backend: str, git_hash: str
+) -> Dict[str, Any]:
+    experiment: Dict[str, Any] = {}
     now = datetime.now()
     dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
     experiment["setup"] = {}
@@ -70,36 +74,90 @@ def set_experiment_info(experiment_name, time_step, backend, git_hash):
     experiment["setup"]["timesteps"] = time_step
     experiment["setup"]["hash"] = git_hash
     experiment["setup"]["version"] = "python/" + backend
+    experiment["setup"]["format_version"] = 2
     experiment["times"] = {}
     return experiment
 
 
-def gather_timing_statistics(timer, experiment, comm, root=0):
+def collect_keys_from_data(times_per_step: List[Dict[str, float]]) -> List[str]:
+    """Collects all the keys in the list of dics and returns a sorted version"""
+    keys = set()
+    for data_point in times_per_step:
+        for k, _ in data_point.items():
+            keys.add(k)
+    sorted_keys = list(keys)
+    sorted_keys.sort()
+    return sorted_keys
+
+
+def gather_timing_data(
+    times_per_step: List[Dict[str, float]],
+    results: Dict[str, Any],
+    comm,
+    root: int = 0,
+) -> Dict[str, Any]:
+    """returns an updated version of  the results dictionary owned
+    by the root node to hold data on the substeps as well as the main loop timers"""
     is_root = comm.Get_rank() == root
-    recvbuf = np.array(0.0)
-    for name, value in timer.times.items():
+    keys = collect_keys_from_data(times_per_step)
+    data: List[float] = []
+    for timer_name in keys:
+        data.clear()
+        for data_point in times_per_step:
+            if timer_name in data_point:
+                data.append(data_point[timer_name])
+
+        sendbuf = np.array(data)
+        recvbuf = None
         if is_root:
-            print(name)
-            experiment["times"][name] = {}
-            experiment["times"][name]["hits"] = int(timer.hits[name])
-        for label, op in [
-            ("minimum", MPI.MIN),
-            ("maximum", MPI.MAX),
-            ("mean", MPI.SUM),
-        ]:
-            comm.Reduce(np.array(value), recvbuf, op=op)
-            if is_root:
-                if label == "mean":
-                    recvbuf /= comm.Get_size()
-                print(f"    {label}: {recvbuf}")
-                experiment["times"][name][label] = float(recvbuf)
+            recvbuf = np.array([data] * comm.Get_size())
+        comm.Gather(sendbuf, recvbuf, root=0)
+        if is_root:
+            results["times"][timer_name]["times"] = copy.deepcopy(recvbuf.tolist())
+    return results
 
 
-def write_global_timings(experiment, filename, comm, root=0):
-    is_root = comm.Get_rank() == root
-    if is_root:
-        with open(filename + ".json", "w") as outfile:
-            json.dump(experiment, outfile, sort_keys=True, indent=4)
+def write_global_timings(experiment):
+    now = datetime.now()
+    filename = now.strftime("%Y-%m-%d-%H-%M-%S")
+    with open(filename + ".json", "w") as outfile:
+        json.dump(experiment, outfile, sort_keys=True, indent=4)
+
+
+def gather_hit_counts(
+    hits_per_step: List[Dict[str, int]], results: Dict[str, Any]
+) -> Dict[str, Any]:
+    """collects the hit count across all timers called in a program execution"""
+    for data_point in hits_per_step:
+        for name, value in data_point.items():
+            if name not in results["times"]:
+                print(name)
+                results["times"][name] = {"hits": value, "times": []}
+            else:
+                results["times"][name]["hits"] += value
+    return results
+
+
+def collect_data_and_write_to_file(
+    args, comm, hits_per_step, times_per_step, experiment_name
+):
+    """
+    collect the gathered data from all the ranks onto rank 0 and write the timing file
+    """
+    if not args.disable_halo_exchange:
+        is_root = comm.Get_rank() == 0
+        results = None
+        if is_root:
+            print("Gathering Times")
+            results = set_experiment_info(
+                experiment_name, args.time_step, args.backend, args.hash
+            )
+            results = gather_hit_counts(hits_per_step, results)
+
+        results = gather_timing_data(times_per_step, results, comm)
+
+        if is_root:
+            write_global_timings(results)
 
 
 if __name__ == "__main__":
@@ -191,8 +249,13 @@ if __name__ == "__main__":
     if profiler is not None:
         profiler.enable()
 
-    with timer.clock("mainloop"):
-        for i in range(args.time_step - 1):
+    times_per_step = []
+    hits_per_step = []
+    # we set up a specific timer for each timestep
+    # that is cleared after so we get individual statistics
+    timestep_timer = util.Timer()
+    for i in range(args.time_step - 1):
+        with timestep_timer.clock("mainloop"):
             if rank == 0:
                 print(f"timestep {i+2}")
             dycore.step_dynamics(
@@ -203,13 +266,18 @@ if __name__ == "__main__":
                 input_data["ptop"],
                 input_data["n_split"],
                 input_data["ks"],
-                timer,
+                timestep_timer,
             )
+        times_per_step.append(timestep_timer.times)
+        hits_per_step.append(timestep_timer.hits)
+        timestep_timer.reset()
 
     if profiler is not None:
         profiler.disable()
 
     timer.stop("total")
+    times_per_step.append(timer.times)
+    hits_per_step.append(timer.hits)
 
     # output profiling data
     if profiler is not None:
@@ -218,14 +286,9 @@ if __name__ == "__main__":
     # collect times and output simple statistics
     comm.Barrier()
     if not args.disable_halo_exchange:
-        print("Gathering Times")
-        experiment = set_experiment_info(
-            experiment_name, args.time_step, args.backend, args.hash
+        collect_data_and_write_to_file(
+            args, comm, hits_per_step, times_per_step, experiment_name
         )
-        gather_timing_statistics(timer, experiment, comm)
-        now = datetime.now()
-        filename = now.strftime("%Y-%m-%d-%H-%M-%S")
-        write_global_timings(experiment, filename, comm)
 
     if rank == 0:
         print("SUCCESS")

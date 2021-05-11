@@ -192,3 +192,5 @@ else
     echo "performance run sucessful"
 fi
 python examples/standalone/benchmarks/collect_memory_usage_data.py . $githash
+
+python examples/standalone/benchmarks/summary.py .
