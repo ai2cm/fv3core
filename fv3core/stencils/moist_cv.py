@@ -1,9 +1,7 @@
 import gt4py.gtscript as gtscript
 from gt4py.gtscript import __INLINED, PARALLEL, computation, exp, interval, log
 
-import fv3core._config as spec
 import fv3core.utils.global_constants as constants
-from fv3core.decorators import gtstencil
 from fv3core.utils.typing import FloatField
 
 
@@ -149,16 +147,16 @@ def moist_pt_last_step(
     pt: FloatField,
     pkz: FloatField,
     dtmp: float,
-    zvir: float,
+    r_vir: float,
 ):
     with computation(PARALLEL), interval(...):
         # if nwat == 2:
         #    gz = qliquid if qliquid > 0. else 0.
         #    qv = qvapor if qvapor > 0. else 0.
-        #    pt = last_pt(pt, dtmp, pkz, gz, qv, zvir)
+        #    pt = last_pt(pt, dtmp, pkz, gz, qv, r_vir)
         # elif nwat == 6:
         gz = qliquid + qrain + qice + qsnow + qgraupel
-        pt = last_pt(pt, dtmp, pkz, gz, qvapor, zvir)
+        pt = last_pt(pt, dtmp, pkz, gz, qvapor, r_vir)
         # else:
         #    cvm, gz = moist_cv_nwat6_fn(qvapor, qliquid, qrain, qsnow, qice, qgraupel)
         #    pt = last_pt(pt, dtmp, pkz, gz, qvapor, zvir)
@@ -194,41 +192,6 @@ def moist_pkz(
         q_con[0, 0, 0] = gz
         cappa = set_cappa(qvapor, cvm, r_vir)
         pkz = compute_pkz_func(delp, delz, pt, cappa)
-
-
-def compute_last_step(
-    pt: FloatField,
-    pkz: FloatField,
-    dtmp: FloatField,
-    r_vir: float,
-    qvapor: FloatField,
-    qliquid: FloatField,
-    qice: FloatField,
-    qrain: FloatField,
-    qsnow: FloatField,
-    qgraupel: FloatField,
-    gz: FloatField,
-):
-    grid = spec.grid
-
-    # Temporary Fix for calling moist_pt_last_step for verification tests
-    last_step = gtstencil(moist_pt_last_step)
-
-    last_step(
-        qvapor,
-        qliquid,
-        qrain,
-        qsnow,
-        qice,
-        qgraupel,
-        gz,
-        pt,
-        pkz,
-        dtmp,
-        r_vir,
-        origin=(grid.is_, grid.js, 0),
-        domain=(grid.nic, grid.njc, grid.npz + 1),
-    )
 
 
 def fv_setup(
