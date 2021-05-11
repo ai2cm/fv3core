@@ -101,6 +101,15 @@ cmd="${BENCHMARK_DIR}/run_on_daint.sh ${TIMESTEPS} ${RANKS} ${backend} ${DATA_DI
 echo "Run command: ${cmd} \"\" \"${profile}\""
 ${cmd} "" "${profile}"
 
+# Extra run in 'gtcuda' with nsys
+if [ "${DO_PROFILE}" == "true" ] && [ "${backend}" == "gtcuda" ] ; then
+    echo "=== Running standalone in nsys ========================="
+    echo "Running 2 timesteps"
+    cmd="${BENCHMARK_DIR}/run_on_daint.sh 2 ${RANKS} ${backend} ${DATA_DIR}"
+    echo "[NSYS] Run command: ${cmd} \"wrap_in_nsys\""
+    ${cmd} "wrap_in_nsys" ""
+fi
+
 echo "=== Post-processing ============================"
 
 # store timing artifacts

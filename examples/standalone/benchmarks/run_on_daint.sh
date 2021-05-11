@@ -174,7 +174,11 @@ sed -i "s/<OUTFILE>/run.daint.out\n#SBATCH --hint=nomultithread/g" run.daint.slu
 sed -i "s/00:45:00/00:40:00/g" run.daint.slurm
 sed -i "s/cscsci/normal/g" run.daint.slurm
 sed -i "s/<G2G>/export PYTHONOPTIMIZE=TRUE/g" run.daint.slurm
-sed -i "s#<CMD>#export PYTHONPATH=/project/s1053/install/serialbox2_master/gnu/python:\$PYTHONPATH\nsrun python $py_args examples/standalone/runfile/dynamics.py $data_path $timesteps $backend $githash $run_args#g" run.daint.slurm
+if [ $py_args == "wrap_in_nsys" ]; then
+    sed -i "s#<CMD>#export PYTHONPATH=/project/s1053/install/serialbox2_master/gnu/python:\$PYTHONPATH\nsrun nsys profile --force-overwrite=true -o /project/s1053/performance/fv3core_profile/gtcuda/nsys/%h.%q{SLURM_NODEID}.%q{SLURM_PROCID}.qdstrm --trace=cuda,mpi,nvtx --mpi-impl=mpich python $ROOT_DIR/profiler/external_profiler.py examples/standalone/runfile/dynamics.py $data_path $timesteps $backend $githash $run_args#g" run.daint.slurm
+else
+    sed -i "s#<CMD>#export PYTHONPATH=/project/s1053/install/serialbox2_master/gnu/python:\$PYTHONPATH\nsrun python $py_args examples/standalone/runfile/dynamics.py $data_path $timesteps $backend $githash $run_args#g" run.daint.slurm
+fi
 # execute on a gpu node
 set +e
 res=$(sbatch -W -C gpu run.daint.slurm 2>&1)
