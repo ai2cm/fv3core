@@ -505,9 +505,7 @@ class AGrid2BGridFourthOrder:
             origin=(self.grid.is_, self.grid.je + 1, kstart),
             domain=corner_domain,
         )
-        #js2 = self.grid.js + 1 if self.grid.south_edge else self.grid.js
-        #je1 = self.grid.je if self.grid.north_edge else self.grid.je + 1
-        #dj2 = je1 - js2 + 1
+      
         js = self.grid.js + 1 if self.grid.south_edge else self.grid.js
         je = self.grid.je if self.grid.north_edge else self.grid.je + 1
         is_ = self.grid.is_ + 1 if self.grid.west_edge else self.grid.is_
@@ -537,14 +535,11 @@ class AGrid2BGridFourthOrder:
         x_offsets = axis_offsets(self.grid, x_edge_origin, x_edge_domain)
         self._qout_edges_x = FrozenStencil(qout_edges_x,externals=x_offsets,
                                            origin=x_edge_origin,
-
                                            domain=x_edge_domain,
                                            )
         self._tmp_q2 = utils.make_storage_from_shape(shape)
         self._tmp_q1 = utils.make_storage_from_shape(shape)
-        #is2 = self.grid.is_ + 1 if self.grid.west_edge else self.grid.is_
-        #ie1 = self.grid.ie if self.grid.east_edge else self.grid.ie + 1
-        #di2 = ie1 - is2 + 1
+    
         y_edge_origin = (is_, self.grid.js, kstart)
         y_edge_domain = (di, self.grid.njc + 2, nk)
         y_offsets = axis_offsets(self.grid, y_edge_origin, y_edge_domain)
@@ -552,18 +547,7 @@ class AGrid2BGridFourthOrder:
                                            origin=y_edge_origin,
                                            domain=y_edge_domain,
                                            )
-        
-        self._qout_y_edge_south = FrozenStencil(
-            qout_y_edge, origin=(is_, self.grid.js, kstart), domain=(di, 1, nk)
-        )
-        self._qout_y_edge_north = FrozenStencil(
-            qout_y_edge, origin=(is_, self.grid.je + 1, kstart), domain=(di, 1, nk)
-        )
        
-        #js = self.grid.js + 1 if self.grid.south_edge else self.grid.js
-        #je = self.grid.je if self.grid.north_edge else self.grid.je + 1
-        #is_ = self.grid.is_ + 1 if self.grid.west_edge else self.grid.is_
-        #ie = self.grid.ie if self.grid.east_edge else self.grid.ie + 1
         origin = (is_, js, kstart)
         domain = (ie - is_ + 1, je - js + 1, nk)
         ax_offsets = axis_offsets(
@@ -656,43 +640,11 @@ class AGrid2BGridFourthOrder:
             self.grid.dxa,self._edge_w,self._edge_e
         )
       
-        """
-       
-        
-        if self.grid.west_edge:
-            self._qout_x_edge_west(
-                qin,
-                self.grid.dxa,
-                self.grid.edge_w,
-                qout,
-            )
-        if self.grid.east_edge:
-            self._qout_x_edge_east(
-                qin,
-                self.grid.dxa,
-                self.grid.edge_e,
-                qout,
-            )
-        """
+      
         self._qout_edges_y(
             self._tmp_q1,
 	    qin,
             qout,
             self.grid.dya, self.grid.edge_s, self.grid.edge_n, 
         )
-        """
-        if self.grid.south_edge:
-            self._qout_y_edge_south(
-                qin,
-                self.grid.dya,
-                self.grid.edge_s,
-                qout,
-            )
-        if self.grid.north_edge:
-            self._qout_y_edge_north(
-                qin,
-                self.grid.dya,
-                self.grid.edge_n,
-                qout,
-            )
-        """
+       
