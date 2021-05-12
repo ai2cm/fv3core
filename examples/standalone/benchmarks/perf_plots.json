@@ -156,8 +156,7 @@
             ],
             "run_to_go_back": 3,
             "title": "Performance comparison to fortran of mainloop (last 3 per backends)",
-            "type": "latest_vs_fortran",
-            "y_axis_label": "Median execution time per timestep [s]"
+            "type": "latest_vs_fortran"
         }
     },
     "memory_plots": {
