@@ -268,7 +268,7 @@ def a2b_interpolation(
     edge_s: FloatFieldI,
     edge_n: FloatFieldI,
 ):
-    from __externals__ import i_end, i_start, j_end, j_start, replace
+    from __externals__ import i_end, i_start, j_end, j_start
 
     with computation(PARALLEL), interval(...):
         #qout x edges
@@ -325,6 +325,7 @@ def a2b_interpolation(
                 ((2.0 + g_in) * qin - qin[0, 1, 0]) / (1.0 + g_in)
 	        + ((2.0 + g_ou) * qin[0, -1, 0] - qin[0, -2, 0]) / (1.0 + g_ou)
             )
+
             qy_copy = qy
         with horizontal(region[:, j_start + 1]):
             qy = qy_edge_south2(qin, dya, qy_copy)
@@ -343,10 +344,8 @@ def a2b_interpolation(
             qyy = c1 * (qy[-1, 0, 0] + qy) + c2 * (qout[-1, 0, 0] + qyy[1, 0, 0])
         with horizontal(region[i_end, :]):
             qyy = c1 * (qy[-1, 0, 0] + qy) + c2 * (qout[1, 0, 0] + qyy[-1, 0, 0])
-        with horizontal(region[i_start + 1 : i_end + 1, j_start + 1 : j_end + 1]):
-            qout = 0.5 * (qxx + qyy)
-        if __INLINED(replace):
-            qin = qout
+        qout = 0.5 * (qxx + qyy)
+
 
 def qout_x_edge(
     qin: FloatField, dxa: FloatFieldIJ, edge_w: FloatFieldIJ, qout: FloatField
@@ -489,6 +488,7 @@ class AGrid2BGridFourthOrder:
         """
         assert namelist.grid_type < 3
         self.grid = spec.grid
+        self.replace = replace
         shape = self.grid.domain_shape_full(add=(1, 1, 1))
         full_origin = (self.grid.isd, self.grid.jsd, kstart)
 
@@ -526,10 +526,10 @@ class AGrid2BGridFourthOrder:
             domain=corner_domain,
         )
       
-        js =  self.grid.js #self.grid.js + 1 if self.grid.south_edge else self.grid.js
-        je = self.grid.je + 1 #self.grid.je if self.grid.north_edge else self.grid.je + 1
-        is_ = self.grid.is_ #self.grid.is_ + 1 if self.grid.west_edge else self.grid.is_
-        ie =  self.grid.ie + 1 #self.grid.ie if self.grid.east_edge else self.grid.ie + 1
+        js = self.grid.js + 1 if self.grid.south_edge else self.grid.js
+        je = self.grid.je if self.grid.north_edge else self.grid.je + 1
+        is_ = self.grid.is_ + 1 if self.grid.west_edge else self.grid.is_
+        ie = self.grid.ie if self.grid.east_edge else self.grid.ie + 1
          
         self._edge_e = self._j_storage_repeat_over_i(self.grid.edge_e, shape[0:2])
         self._edge_w = self._j_storage_repeat_over_i(self.grid.edge_w, shape[0:2])    
@@ -543,7 +543,7 @@ class AGrid2BGridFourthOrder:
             domain,
         )
         self._a2b_interpolation_stencil = FrozenStencil(
-            a2b_interpolation, externals={"replace": replace, **ax_offsets}, origin=origin, domain=domain
+            a2b_interpolation, externals=ax_offsets, origin=origin, domain=domain
         )
         self._copy_stencil = FrozenStencil(
             copy_defn,
@@ -617,10 +617,10 @@ class AGrid2BGridFourthOrder:
             self.grid.dxa,
             self.grid.dya,self._edge_w,self._edge_e,self.grid.edge_s, self.grid.edge_n, 
         )
-        #if self.replace:
-        #    self._copy_stencil(
-        #        qout,
-        #        qin,
-        #    )
+        if self.replace:
+            self._copy_stencil(
+                qout,
+                qin,
+            )
 
    
