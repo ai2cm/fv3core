@@ -259,13 +259,30 @@ def a2b_interpolation(
     qy_copy: FloatField,
     qxx: FloatField,
     qyy: FloatField,
+    q1: FloatField,
+    q2: FloatField,
     dxa: FloatFieldIJ,
     dya: FloatFieldIJ,
+    edge_w: FloatFieldIJ,
+    edge_e: FloatFieldIJ,
+    edge_s: FloatFieldI,
+    edge_n: FloatFieldI,
 ):
     from __externals__ import i_end, i_start, j_end, j_start
 
     with computation(PARALLEL), interval(...):
-        
+        #qout x edges
+        q2 = (qin[-1, 0, 0] * dxa + qin * dxa[-1, 0]) / (dxa[-1, 0] + dxa)
+        with horizontal(region[i_start, j_start + 1 : j_end + 1]):
+            qout = edge_w * q2[0, -1, 0] + (1.0 - edge_w) * q2
+        with horizontal(region[i_end + 1, j_start + 1 : j_end + 1]):
+            qout = edge_e * q2[0, -1, 0] + (1.0 - edge_e) * q2
+        # qout y edges
+        q1 = (qin[0, -1, 0] * dya + qin * dya[0, -1]) / (dya[0, -1] + dya)
+        with horizontal(region[i_start + 1 : i_end + 1, j_start]):
+            qout = edge_s * q1[-1, 0, 0] + (1.0 - edge_s) * q1
+        with horizontal(region[i_start + 1 : i_end + 1, j_end + 1]):
+            qout = edge_n * q1[-1, 0, 0] + (1.0 - edge_n) * q1
         # ppm_volume_mean_x
         qx = b2 * (qin[-2, 0, 0] + qin[1, 0, 0]) + b1 * (qin[-1, 0, 0] + qin)
         qx_copy = qx
@@ -481,6 +498,9 @@ class AGrid2BGridFourthOrder:
         self._tmp_qyy = utils.make_storage_from_shape(shape)
         self._tmp_qx_copy = utils.make_storage_from_shape(shape)
         self._tmp_qy_copy = utils.make_storage_from_shape(shape)
+        self._tmp_q2 = utils.make_storage_from_shape(shape)
+        self._tmp_q1 = utils.make_storage_from_shape(shape)
+    
         if nk is None:
             nk = self.grid.npz - kstart
         corner_domain = (1, 1, nk)
@@ -510,43 +530,10 @@ class AGrid2BGridFourthOrder:
         je = self.grid.je if self.grid.north_edge else self.grid.je + 1
         is_ = self.grid.is_ + 1 if self.grid.west_edge else self.grid.is_
         ie = self.grid.ie if self.grid.east_edge else self.grid.ie + 1
-        dj = je - js + 1
-        di = ie - is_ + 1
-        # edge_w is singleton in the I-dimension to work around gt4py not yet
-        # supporting J-fields. As a result, the origin has to be zero for
-        # edge_w, anything higher is outside its index range
-    
-        self._qout_x_edge_west = FrozenStencil(
-            qout_x_edge,
-            origin={"_all_": (self.grid.is_, js, kstart), "edge_w": (0, js)},
-            domain=(1, dj, nk),
-        )
-        self._qout_x_edge_east = FrozenStencil(
-            qout_x_edge,
-            origin={"_all_": (self.grid.ie + 1, js, kstart), "edge_w": (0, js)},
-            domain=(1, dj, nk),
-        )
-        
-        
+         
         self._edge_e = self._j_storage_repeat_over_i(self.grid.edge_e, shape[0:2])
-        self._edge_w = self._j_storage_repeat_over_i(self.grid.edge_w, shape[0:2])
-        x_edge_origin = (self.grid.is_, js, kstart)
-        x_edge_domain = (self.grid.nic +2  , dj, nk)
-        x_offsets = axis_offsets(self.grid, x_edge_origin, x_edge_domain)
-        self._qout_edges_x = FrozenStencil(qout_edges_x,externals=x_offsets,
-                                           origin=x_edge_origin,
-                                           domain=x_edge_domain,
-                                           )
-        self._tmp_q2 = utils.make_storage_from_shape(shape)
-        self._tmp_q1 = utils.make_storage_from_shape(shape)
-    
-        y_edge_origin = (is_, self.grid.js, kstart)
-        y_edge_domain = (di, self.grid.njc + 2, nk)
-        y_offsets = axis_offsets(self.grid, y_edge_origin, y_edge_domain)
-        self._qout_edges_y = FrozenStencil(qout_edges_y,externals=y_offsets,
-                                           origin=y_edge_origin,
-                                           domain=y_edge_domain,
-                                           )
+        self._edge_w = self._j_storage_repeat_over_i(self.grid.edge_w, shape[0:2])    
+      
        
         origin = (is_, js, kstart)
         domain = (ie - is_ + 1, je - js + 1, nk)
@@ -566,7 +553,9 @@ class AGrid2BGridFourthOrder:
     # TODO                                                                                                    
     # within regions, the edge_w and edge_w variables that are singleton in the
     # I dimension error, workaround is repeating the data, but the longterm
-    # fix should happen in regions                                                                                                                                                                                                    
+    # fix should happen in regions
+    # Setting the origin to 0 does not work when the domain size > 1
+    # in that dimension
     def _j_storage_repeat_over_i(self, grid_array: gt4py.storage.Storage, shape: Tuple[int, int]):
         dup = utils.repeat(grid_array, shape[1], axis=0)
         return utils.make_storage_data(dup, shape, (0, 0))
@@ -613,7 +602,7 @@ class AGrid2BGridFourthOrder:
             self.grid.bgrid2,
         )
 
-        self._compute_qout_edges(qin, qout)
+        #self._compute_qout_edges(qin, qout)
         self._a2b_interpolation_stencil(
             qin,
             qout,
@@ -623,8 +612,10 @@ class AGrid2BGridFourthOrder:
             self._tmp_qy_copy,
             self._tmp_qxx,
             self._tmp_qyy,
+            self._tmp_q1,
+            self._tmp_q2,
             self.grid.dxa,
-            self.grid.dya,
+            self.grid.dya,self._edge_w,self._edge_e,self.grid.edge_s, self.grid.edge_n, 
         )
         if self.replace:
             self._copy_stencil(
@@ -632,19 +623,4 @@ class AGrid2BGridFourthOrder:
                 qin,
             )
 
-    def _compute_qout_edges(self, qin: FloatField, qout: FloatField):
-        
-        self._qout_edges_x(self._tmp_q2,
-            qin,
-            qout,
-            self.grid.dxa,self._edge_w,self._edge_e
-        )
-      
-      
-        self._qout_edges_y(
-            self._tmp_q1,
-	    qin,
-            qout,
-            self.grid.dya, self.grid.edge_s, self.grid.edge_n, 
-        )
-       
+   
