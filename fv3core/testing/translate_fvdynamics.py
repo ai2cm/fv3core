@@ -9,6 +9,18 @@ import fv3gfs.util as fv3util
 from fv3core.testing import ParallelTranslateBaseSlicing
 
 
+TRACER_NAMES = [
+    "qsgs_tke",
+    "qgraupel",
+    "qrain",
+    "qliquid",
+    "qice",
+    "qsnow",
+    "qo3mr",
+    "qvapor",
+]
+
+
 class TranslateFVDynamics(ParallelTranslateBaseSlicing):
     python_regression = True
     inputs = {
@@ -302,8 +314,10 @@ class TranslateFVDynamics(ParallelTranslateBaseSlicing):
             inputs["ks"],
         )
         outputs = self.outputs_from_state(state)
-        for name, value in outputs.items():
-            outputs[name] = self.subset_output(name, value)
+        for name in TRACER_NAMES:
+            outputs[name] = self.dycore.tracer_advection.subset_output(
+                "tracers", outputs[name]
+            )
         return outputs
 
     def compute_sequential(self, *args, **kwargs):
@@ -322,19 +336,9 @@ class TranslateFVDynamics(ParallelTranslateBaseSlicing):
                 "cannot call subset_output before calling compute_parallel "
                 "to initialize dycore"
             )
-        tracer_names = [
-            "qsgs_tke",
-            "qgraupel",
-            "qrain",
-            "qliquid",
-            "qice",
-            "qsnow",
-            "qo3mr",
-            "qvapor",
-        ]
-        if varname in tracer_names:
-            tracer_slice = tuple(
-                self.dycore.tracer_advection._tracer_validator.validation_slice
+        if varname in TRACER_NAMES:
+            return self.dycore.tracer_advection.subset_output(  # type: ignore
+                "tracers", output
             )
-            output = output[tracer_slice]
-        return output
+        else:
+            return output

@@ -12,7 +12,6 @@ import fv3gfs.util
 from fv3core.decorators import FrozenStencil
 from fv3core.stencils.fvtp2d import FiniteVolumeTransport
 from fv3core.utils.typing import FloatField, FloatFieldIJ
-from fv3core.utils.validation import SelectiveValidation
 
 
 @gtscript.function
@@ -128,11 +127,17 @@ def q_adjust(
         q_out = adjustment(q_in, dp1, fx, fy, rarea, dp2)
 
 
-class Tracer2D1L:
+class TracerAdvection:
+    """
+    Performs horizontal advection on tracers.
+
+    Corresponds to tracer_2D_1L in the Fortran code.
+    """
+
     def __init__(self, comm: fv3gfs.util.CubedSphereCommunicator, namelist):
         self.comm = comm
         self.grid = spec.grid
-        self.do_halo_exchange = global_config.get_do_halo_exchange()
+        self._do_halo_exchange = global_config.get_do_halo_exchange()
         shape = self.grid.domain_shape_full(add=(1, 1, 1))
         origin = self.grid.compute_origin()
         self._tmp_xfx = utils.make_storage_from_shape(shape, origin)
@@ -183,16 +188,13 @@ class Tracer2D1L:
             domain=self.grid.domain_shape_compute(),
             externals=local_axis_offsets,
         )
-        self.fvtp2d = FiniteVolumeTransport(namelist, namelist.hord_tr)
-        self._tracer_validator = SelectiveValidation(
-            self.grid.compute_origin(), self.grid.domain_shape_compute()
-        )
+        self.finite_volume_transport = FiniteVolumeTransport(namelist, namelist.hord_tr)
         # If use AllReduce, will need something like this:
         # self._tmp_cmax = utils.make_storage_from_shape(shape, origin)
         # self._cmax_1 = FrozenStencil(cmax_stencil1)
         # self._cmax_2 = FrozenStencil(cmax_stencil2)
 
-    def __call__(self, tracers, dp1, mfxd, mfyd, cxd, cyd, mdt, nq):
+    def __call__(self, tracers, dp1, mfxd, mfyd, cxd, cyd, mdt):
         # start HALO update on q (in dyn_core in fortran -- just has started when
         # this function is called...)
         self._flux_compute(
@@ -248,10 +250,9 @@ class Tracer2D1L:
                 n_split,
             )
 
-        if self.do_halo_exchange:
+        if self._do_halo_exchange:
             reqs = {}
-            for qname in utils.tracer_variables[0:nq]:
-                q = tracers[qname + "_quantity"]
+            for qname, q in tracers.items():
                 reqs[qname] = self.comm.start_halo_update(q, n_points=utils.halo)
 
         dp2 = self._tmp_dp
@@ -265,11 +266,10 @@ class Tracer2D1L:
                 self.grid.rarea,
                 dp2,
             )
-            for qname in utils.tracer_variables[0:nq]:
-                if self.do_halo_exchange:
+            for qname, q in tracers.items():
+                if self._do_halo_exchange:
                     reqs[qname].wait()
-                q = tracers[qname + "_quantity"]
-                self.fvtp2d(
+                self.finite_volume_transport(
                     q.storage,
                     cxd,
                     cyd,
@@ -289,12 +289,10 @@ class Tracer2D1L:
                     self.grid.rarea,
                     dp2,
                 )
-                if not last_call and self.do_halo_exchange:
+                if not last_call and self._do_halo_exchange:
                     utils.device_sync()
                     reqs[qname] = self.comm.start_halo_update(q, n_points=utils.halo)
 
             if not last_call:
                 # use variable assignment to avoid a data copy
                 dp1, dp2 = dp2, dp1
-        for qname in utils.tracer_variables[:nq]:
-            self._tracer_validator.set_nans_if_test_mode(tracers[qname])

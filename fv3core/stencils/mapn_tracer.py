@@ -5,6 +5,7 @@ import fv3core.utils.gt4py_utils as utils
 from fv3core.stencils.fillz import FillNegativeTracerValues
 from fv3core.stencils.map_single import MapSingle
 from fv3core.utils.typing import FloatField
+from fv3gfs.util import Quantity
 
 
 class MapNTracer:
@@ -40,7 +41,7 @@ class MapNTracer:
         pe1: FloatField,
         pe2: FloatField,
         dp2: FloatField,
-        tracers: Dict[str, "FloatField"],
+        tracers: Dict[str, Quantity],
         nq: int,
         q_min: float,
     ):
@@ -56,8 +57,8 @@ class MapNTracer:
             jfirst: Starting index of the J-dir compute domain
             jlast: Final index of the J-dir compute domain
         """
-        for q in utils.tracer_variables[0:nq]:
-            self._map_single(tracers[q], pe1, pe2, self._qs)
+        for tracer in tracers.values():
+            self._map_single(tracer, pe1, pe2, self._qs)
 
         if self._fill_negative_tracers is True:
             self._fillz(

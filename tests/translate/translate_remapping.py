@@ -106,3 +106,10 @@ class TranslateRemapping(TranslateFortranData2Py):
         self.max_error = 2e-8
         self.near_zero = 3e-18
         self.ignore_near_zero_errors = {"q_con": True, "tracers": True}
+
+    def compute(self, inputs):
+        self.make_storage_data_input_vars(inputs)
+        inputs["q_cld"] = inputs["tracers"]["qcld"]
+        self.compute_func(**inputs)
+        inputs.pop("q_cld")
+        return self.slice_output(inputs)
