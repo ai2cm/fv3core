@@ -227,7 +227,7 @@ if __name__ == "__main__":
             ax = plt.gca()
             plt.xticks(xs, xs_hash, fontsize=fontsize)
             plt.ylabel("Speed up factor")
-            plt.xlabel("Commit hashes")
+            plt.xlabel("Commit hashes (latest to the right)")
             plt.yticks(fontsize=fontsize)
             plt.title(
                 f"Speedup of {backend} vs Fortran on mainloop (last 3 runs)",
