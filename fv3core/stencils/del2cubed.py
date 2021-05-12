@@ -3,7 +3,7 @@ from gt4py.gtscript import PARALLEL, computation, horizontal, interval, region
 import fv3core._config as spec
 import fv3core.utils.corners as corners
 import fv3core.utils.gt4py_utils as utils
-from fv3core.decorators import FrozenStencil
+from fv3core.decorators import FrozenStencil, LoopStencil
 from fv3core.utils.grid import axis_offsets
 from fv3core.utils.typing import FloatField, FloatFieldIJ
 
@@ -99,7 +99,6 @@ class HyperdiffusionDamping:
             origin=origin,
             domain=domain,
         )
-
         self._ntimes = min(3, nmax)
         origins = []
         domains_x = []
@@ -113,26 +112,20 @@ class HyperdiffusionDamping:
             domains_x.append((nx + 1, ny, self.grid.npz))
             domains_y.append((nx, ny + 1, self.grid.npz))
             domains.append((nx, ny, self.grid.npz))
-        self._compute_zonal_flux = FrozenStencil(
+        self._compute_zonal_flux = LoopStencil(
             compute_zonal_flux,
-            origin=origins[0],
-            domain=domains_x[0],
-            additional_origins=origins[1:],
-            additional_domains=domains_x[1:],
+            origins,
+            domains_x,
         )
-        self._compute_meridional_flux = FrozenStencil(
+        self._compute_meridional_flux = LoopStencil(
             compute_meridional_flux,
-            origin=origins[0],
-            domain=domains_y[0],
-            additional_origins=origins[1:],
-            additional_domains=domains_y[1:],
+            origins,
+            domains_y,
         )
-        self._update_q = FrozenStencil(
+        self._update_q = LoopStencil(
             update_q,
-            origin=origins[0],
-            domain=domains[0],
-            additional_origins=origins[1:],
-            additional_domains=domains[1:],
+            origins,
+            domains,
         )
 
         self._copy_corners_x: corners.CopyCorners = corners.CopyCorners("x")
@@ -158,7 +151,7 @@ class HyperdiffusionDamping:
             if nt > 0:
                 self._copy_corners_x(qdel)
 
-            self._compute_zonal_flux.__call_nth__(
+            self._compute_zonal_flux(
                 n,
                 self._fx,
                 qdel,
@@ -168,7 +161,7 @@ class HyperdiffusionDamping:
             if nt > 0:
                 self._copy_corners_y(qdel)
 
-            self._compute_meridional_flux.__call_nth__(
+            self._compute_meridional_flux(
                 n,
                 self._fy,
                 qdel,
@@ -176,7 +169,7 @@ class HyperdiffusionDamping:
             )
 
             # Update q values
-            self._update_q.__call_nth__(
+            self._update_q(
                 n,
                 qdel,
                 self.grid.rarea,

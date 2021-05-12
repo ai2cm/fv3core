@@ -93,8 +93,6 @@ class FrozenStencil:
         domain: Index3D,
         stencil_config: Optional[StencilConfig] = None,
         externals: Optional[Mapping[str, Any]] = None,
-        additional_origins=[],
-        additional_domains=[],
     ):
         """
         Args:
@@ -128,9 +126,7 @@ class FrozenStencil:
         assert (
             len(self._argument_names) > 0
         ), "A stencil with no arguments? You may be double decorating"
-        assert len(additional_origins) == len(
-            additional_domains
-        ), "If adding extra origins and domain, they need to have the same count"
+
         self._field_origins: Dict[str, Tuple[int, ...]] = compute_field_origins(
             self.stencil_object.field_info, self.origin
         )
@@ -142,12 +138,6 @@ class FrozenStencil:
         }
 
         self._written_fields = get_written_fields(self.stencil_object.field_info)
-
-        self._all_stencil_run_kwargs = [self._stencil_run_kwargs]
-
-        if len(additional_domains) > 0:
-            for i in range(len(additional_origins)):
-                self._append_snapshot(additional_origins[i], additional_domains[i])
 
     def __call__(
         self,
@@ -173,6 +163,102 @@ class FrozenStencil:
             )
             self._mark_cuda_fields_written({**args_as_kwargs, **kwargs})
 
+    def _mark_cuda_fields_written(self, fields: Mapping[str, Storage]):
+        if "cuda" in self.stencil_config.backend:
+            for write_field in self._written_fields:
+                fields[write_field]._set_device_modified()
+
+
+class LoopStencil:
+    def __init__(
+        self,
+        func: Callable[..., None],
+        origins: List[Index3D],
+        domains: List[Index3D],
+        stencil_config: Optional[StencilConfig] = None,
+        externals: Optional[Mapping[str, Any]] = None,
+    ):
+        assert len(origins) == len(domains), (
+            "Lists of origins and domains need to have the same length, you provided "
+            + str(len(origins))
+            + " origins and "
+            + str(len(domains))
+            + " domains"
+        )
+        if externals is None:
+            externals = {}
+        if stencil_config is None:
+            stencil_config = global_config.get_stencil_config()
+        self._frozen_stencils = []
+        for index in range(len(origins)):
+            origin = origins[index]
+            domain = domains[index]
+            ax_offsets = fv3core.utils.grid.axis_offsets(spec.grid, origin, domain)
+            externals = {**externals, **ax_offsets}
+            self._frozen_stencils.append(
+                FrozenStencil(
+                    func,
+                    origin=origin,
+                    domain=domain,
+                    stencil_config=stencil_config,
+                    externals=externals,
+                )
+            )
+
+    def __call__(
+        self,
+        n: int,
+        *args,
+        **kwargs,
+    ) -> None:
+        self._frozen_stencils[n](*args, **kwargs)
+
+
+class MultiOriginStencil(FrozenStencil):
+    def __init__(
+        self,
+        func: Callable[..., None],
+        origins: List[Index3D],
+        domains: List[Index3D],
+        stencil_config: Optional[StencilConfig] = None,
+        externals: Optional[Mapping[str, Any]] = None,
+    ):
+
+        assert len(origins) == len(domains), (
+            "Lists of origins and domains need to have the same length, you provided "
+            + str(len(origins))
+            + " origins and "
+            + str(len(domains))
+            + " domains"
+        )
+
+        self._ensure_no_regions(externals, origins[0], domains[0])
+        super().__init__(func, origins[0], domains[0], stencil_config, externals)
+        self._all_stencil_run_kwargs = [self._stencil_run_kwargs]
+
+        if len(origins) > 1:
+            for i in range(1, len(origins)):
+                self._append_snapshot(origins[i], domains[i])
+
+    def _ensure_no_regions(self, externals, origin, domain):
+        if externals is not None:
+            ax_offsets = fv3core.utils.grid.axis_offsets(spec.grid, origin, domain)
+            for offset in ax_offsets.keys():
+                assert (
+                    offset not in externals
+                ), "MultiOriginStencil does not work with regions/axis offsets"
+
+    def _append_snapshot(self, origin: Index3D, domain: Index3D):
+        field_origins: Dict[str, Tuple[int, ...]] = compute_field_origins(
+            self.stencil_object.field_info, origin
+        )
+        self._all_stencil_run_kwargs.append(
+            {
+                "_origin_": field_origins,
+                "_domain_": domain,
+            }
+        )
+
     def __call_nth__(
         self,
         n: int,
@@ -196,22 +282,6 @@ class FrozenStencil:
                 exec_info=None,
             )
             self._mark_cuda_fields_written({**args_as_kwargs, **kwargs})
-
-    def _mark_cuda_fields_written(self, fields: Mapping[str, Storage]):
-        if "cuda" in self.stencil_config.backend:
-            for write_field in self._written_fields:
-                fields[write_field]._set_device_modified()
-
-    def _append_snapshot(self, origin: Index3D, domain: Index3D):
-        field_origins: Dict[str, Tuple[int, ...]] = compute_field_origins(
-            self.stencil_object.field_info, origin
-        )
-        self._all_stencil_run_kwargs.append(
-            {
-                "_origin_": field_origins,
-                "_domain_": domain,
-            }
-        )
 
 
 def get_written_fields(field_info) -> List[str]:
