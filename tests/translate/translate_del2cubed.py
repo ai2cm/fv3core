@@ -10,7 +10,6 @@ class TranslateDel2Cubed(TranslateFortranData2Py):
         self.out_vars = {"qdel": {}}
 
     def compute_from_storage(self, inputs):
-        hyperdiffusion = HyperdiffusionDamping(self.grid, inputs["nmax"])
-        del inputs["nmax"]
+        hyperdiffusion = HyperdiffusionDamping(self.grid, inputs.pop("nmax"))
         hyperdiffusion(**inputs)
         return inputs

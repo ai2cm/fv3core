@@ -175,7 +175,7 @@ def get_stencils_with_varied_bounds(
     domains: List[Index3D],
     stencil_config: Optional[StencilConfig] = None,
     externals: Optional[Mapping[str, Any]] = None,
-):
+) -> List[FrozenStencil]:
     assert len(origins) == len(domains), (
         "Lists of origins and domains need to have the same length, you provided "
         + str(len(origins))
@@ -190,14 +190,13 @@ def get_stencils_with_varied_bounds(
     stencils = []
     for origin, domain in zip(origins, domains):
         ax_offsets = fv3core.utils.grid.axis_offsets(spec.grid, origin, domain)
-        externals = {**externals, **ax_offsets}
         stencils.append(
             FrozenStencil(
                 func,
                 origin=origin,
                 domain=domain,
                 stencil_config=stencil_config,
-                externals=externals,
+                externals={**externals, **ax_offsets},
             )
         )
     return stencils
