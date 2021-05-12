@@ -151,8 +151,7 @@ class HyperdiffusionDamping:
             if nt > 0:
                 self._copy_corners_x(qdel)
 
-            self._compute_zonal_flux(
-                n,
+            self._compute_zonal_flux[n](
                 self._fx,
                 qdel,
                 self.grid.del6_v,
@@ -161,16 +160,14 @@ class HyperdiffusionDamping:
             if nt > 0:
                 self._copy_corners_y(qdel)
 
-            self._compute_meridional_flux(
-                n,
+            self._compute_meridional_flux[n](
                 self._fy,
                 qdel,
                 self.grid.del6_u,
             )
 
             # Update q values
-            self._update_q(
-                n,
+            self._update_q[n](
                 qdel,
                 self.grid.rarea,
                 self._fx,
