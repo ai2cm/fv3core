@@ -3,7 +3,7 @@ from gt4py.gtscript import PARALLEL, computation, horizontal, interval, region
 import fv3core._config as spec
 import fv3core.utils.corners as corners
 import fv3core.utils.gt4py_utils as utils
-from fv3core.decorators import FrozenStencil, LoopStencil
+from fv3core.decorators import FrozenStencil, get_stencils_with_varied_bounds
 from fv3core.utils.grid import axis_offsets
 from fv3core.utils.typing import FloatField, FloatFieldIJ
 
@@ -112,17 +112,17 @@ class HyperdiffusionDamping:
             domains_x.append((nx + 1, ny, self.grid.npz))
             domains_y.append((nx, ny + 1, self.grid.npz))
             domains.append((nx, ny, self.grid.npz))
-        self._compute_zonal_flux = LoopStencil(
+        self._compute_zonal_flux = get_stencils_with_varied_bounds(
             compute_zonal_flux,
             origins,
             domains_x,
         )
-        self._compute_meridional_flux = LoopStencil(
+        self._compute_meridional_flux = get_stencils_with_varied_bounds(
             compute_meridional_flux,
             origins,
             domains_y,
         )
-        self._update_q = LoopStencil(
+        self._update_q = get_stencils_with_varied_bounds(
             update_q,
             origins,
             domains,
