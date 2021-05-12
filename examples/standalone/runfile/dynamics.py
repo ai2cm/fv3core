@@ -2,9 +2,10 @@
 
 import copy
 import json
-from argparse import ArgumentParser
+from argparse import ArgumentParser, Namespace
 from datetime import datetime
 from typing import Any, Dict, List
+import mpi4py
 
 import numpy as np
 import serialbox
@@ -18,7 +19,7 @@ import fv3core.utils.global_config as global_config
 import fv3gfs.util as util
 
 
-def parse_args():
+def parse_args() -> Namespace:
     usage = (
         "usage: python %(prog)s <data_dir> <timesteps> <backend> <hash> <halo_exchange>"
     )
@@ -93,7 +94,7 @@ def collect_keys_from_data(times_per_step: List[Dict[str, float]]) -> List[str]:
 def gather_timing_data(
     times_per_step: List[Dict[str, float]],
     results: Dict[str, Any],
-    comm,
+    comm: MPI.Comm,
     root: int = 0,
 ) -> Dict[str, Any]:
     """returns an updated version of  the results dictionary owned
@@ -117,7 +118,7 @@ def gather_timing_data(
     return results
 
 
-def write_global_timings(experiment):
+def write_global_timings(experiment: Dict[str, Any]) -> None:
     now = datetime.now()
     filename = now.strftime("%Y-%m-%d-%H-%M-%S")
     with open(filename + ".json", "w") as outfile:
@@ -139,8 +140,8 @@ def gather_hit_counts(
 
 
 def collect_data_and_write_to_file(
-    args, comm, hits_per_step, times_per_step, experiment_name
-):
+    args: Namespace, comm: MPI.Comm, hits_per_step, times_per_step, experiment_name
+) -> None:
     """
     collect the gathered data from all the ranks onto rank 0 and write the timing file
     """
