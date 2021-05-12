@@ -5,7 +5,6 @@ import json
 from argparse import ArgumentParser, Namespace
 from datetime import datetime
 from typing import Any, Dict, List
-import mpi4py
 
 import numpy as np
 import serialbox

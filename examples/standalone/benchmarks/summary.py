@@ -3,10 +3,11 @@
 import json
 import os
 from argparse import ArgumentParser
-from statistics import median, mean
 from pathlib import Path
+from statistics import mean, median
+from typing import Any, Dict
+
 import numpy as np
-from typing import Dict, Any
 
 
 def parse_arguments():
@@ -24,7 +25,9 @@ def parse_arguments():
 
 
 def get_statistics_from_data(data_dict: Dict[str, Any]) -> Dict[str, Any]:
-    """collects basic statistics from the raw data and writes them into the summary file"""
+    """
+    collects basic statistics from the raw data and writes them into the summary file
+    """
 
     median_points = []
     mean_points = []
@@ -32,7 +35,7 @@ def get_statistics_from_data(data_dict: Dict[str, Any]) -> Dict[str, Any]:
         median_points.append(median(rankdata))
         mean_points.append(mean(rankdata))
 
-    returnvalue = {"medians": {}, "means": {}}
+    returnvalue: Dict[str, Any] = {"medians": {}, "means": {}}
     returnvalue["hits"] = data_dict["hits"]
 
     returnvalue["medians"]["mean_of_medians"] = mean(median_points)
@@ -55,7 +58,7 @@ def analyze_file_at_path(fullpath: str) -> None:
     """analyzes the file at a given path and writes a summary file"""
     with open(fullpath) as f:
         data = json.load(f)
-        summary_data = {"times": {}, "setup": {}}
+        summary_data: Dict[str, Any] = {"times": {}, "setup": {}}
         summary_data["setup"].update(data["setup"])
         for data_set, times in data["times"].items():
             summary_data["times"][data_set] = get_statistics_from_data(times)
