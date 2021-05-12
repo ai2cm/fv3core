@@ -92,7 +92,6 @@ def set_value_defn(q_out: FloatField, value: float):
         q_out[0, 0, 0] = value
 
 
-@gtstencil
 def adjust_divide_stencil(adjustment: FloatField, q_out: FloatField):
     with computation(PARALLEL), interval(...):
         q_out[0, 0, 0] = q_out / adjustment
