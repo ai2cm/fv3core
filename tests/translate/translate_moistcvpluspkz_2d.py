@@ -6,6 +6,12 @@ from fv3core.testing import TranslateFortranData2Py, pad_field_in_j
 class TranslateMoistCVPlusPkz_2d(TranslateFortranData2Py):
     def __init__(self, grid):
         super().__init__(grid)
+        self.compute_func = FrozenStencil(
+            moist_cv.moist_pkz,
+            origin=self.grid.compute_origin(),
+            domain=(self.grid.nic, 1, self.grid.npz),
+        )
+
         self.in_vars["data_vars"] = {
             "qvapor": {"serialname": "qvapor_js"},
             "qliquid": {"serialname": "qliquid_js"},
@@ -57,15 +63,10 @@ class TranslateMoistCVPlusPkz_2d(TranslateFortranData2Py):
         }
 
     def compute_from_storage(self, inputs):
-        moist_cv_pkz = FrozenStencil(
-            moist_cv.moist_pkz,
-            origin=(self.grid.is_, self.grid.js, 0),
-            domain=(self.grid.nic, 1, self.grid.npz),
-        )
         for name, value in inputs.items():
             if hasattr(value, "shape") and len(value.shape) > 1 and value.shape[1] == 1:
                 inputs[name] = self.make_storage_data(
                     pad_field_in_j(value, self.grid.njd)
                 )
-        moist_cv_pkz(**inputs)
+        self.compute_func(**inputs)
         return inputs
