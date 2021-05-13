@@ -7,7 +7,7 @@ import fv3core._config as spec
 import fv3core.stencils.basic_operations as basic
 import fv3core.utils.corners as corners
 import fv3core.utils.gt4py_utils as utils
-from fv3core.decorators import FrozenStencil
+from fv3core.decorators import FrozenStencil, get_stencils_with_varied_bounds
 from fv3core.stencils.a2b_ord4 import AGrid2BGridFourthOrder
 from fv3core.stencils.basic_operations import copy_defn
 from fv3core.utils.grid import axis_offsets
@@ -286,39 +286,45 @@ class DivergenceDamping:
         self._uc_from_divg_stencils = []
         self._redo_divg_d_stencils = []
         self._adjustment_stencils = []
+        origins = []
+        origins_v = []
+        origins_u = []
+        domains = []
+        domains_v = []
+        domains_u = []
         for n in range(1, self._nonzero_nord + 1):
             nt = self._nonzero_nord - n
             nint = self.grid.nic + 2 * nt + 1
             njnt = self.grid.njc + 2 * nt + 1
             js = self.grid.js - nt
             is_ = self.grid.is_ - nt
-            self._vc_from_divg_stencils.append(
-                FrozenStencil(
-                    vc_from_divg,
-                    origin=(is_ - 1, js, kstart),
-                    domain=(nint + 1, njnt, nk),
-                )
-            )
-            self._uc_from_divg_stencils.append(
-                FrozenStencil(
-                    uc_from_divg,
-                    origin=(is_, js - 1, kstart),
-                    domain=(nint, njnt + 1, nk),
-                )
-            )
+            origins_v.append((is_ - 1, js, kstart))
+            domains_v.append((nint + 1, njnt, nk))
+            origins_u.append((is_, js - 1, kstart))
+            domains_u.append((nint, njnt + 1, nk))
+            origins.append((is_, js, kstart))
+            domains.append((nint, njnt, nk))
+        self._vc_from_divg_stencils = get_stencils_with_varied_bounds(
+            vc_from_divg,
+            origins=origins_v,
+            domains=domains_v,
+        )
 
-            self._redo_divg_d_stencils.append(
-                FrozenStencil(
-                    redo_divg_d, origin=(is_, js, kstart), domain=(nint, njnt, nk)
-                )
-            )
-            self._adjustment_stencils.append(
-                FrozenStencil(
-                    basic.adjustmentfactor_stencil_defn,
-                    origin=(is_, js, kstart),
-                    domain=(nint, njnt, nk),
-                )
-            )
+        self._uc_from_divg_stencils = get_stencils_with_varied_bounds(
+            uc_from_divg,
+            origins=origins_u,
+            domains=domains_u,
+        )
+
+        self._redo_divg_d_stencils = get_stencils_with_varied_bounds(
+            redo_divg_d, origins=origins, domains=domains
+        )
+        self._adjustment_stencils = get_stencils_with_varied_bounds(
+            basic.adjustmentfactor_stencil_defn,
+            origins=origins,
+            domains=domains,
+        )
+
         self._damping_nord_highorder_stencil = FrozenStencil(
             damping_nord_highorder_stencil,
             origin=(self.grid.is_, self.grid.js, kstart),
