@@ -168,7 +168,7 @@ else
     echo "performance run sucessful"
 fi
 
-if [ "${DO_NSYS_RUN}" == "true" ] :
+if [ "${DO_NSYS_RUN}" == "true" ] ; then
     echo "submitting script to do performance run wrapped by nsys"
     # Adapt batch script to run the code:
     sed -i "s/<NAME>/standalone/g" run.nsys.daint.slurm
