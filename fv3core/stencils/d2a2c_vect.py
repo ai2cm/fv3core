@@ -466,9 +466,7 @@ class DGrid2AGrid2CGridVectors:
         ax_offsets_edges = axis_offsets(self.grid, origin_edges, domain_edges)
         self._fill_corners_x = FrozenStencil(
             func=fill_corners_x,
-            externals={
-                **ax_offsets_edges,
-            },
+            externals=ax_offsets_edges,
             origin=origin_edges,
             domain=domain_edges,
         )
