@@ -139,8 +139,8 @@ fi
 # copy nsys results - cleaning the old ones first
 if [ "${DO_NSYS_RUN}" == "true" ] ; then
     echo "Copying new nsys results to ${PROFILE_DIR}/nsys/"
-    rm -f ${PROFILE_DIR}/nsys/*.qdstrm || true
-    cp $ROOT_DIR/*.qdstrm ${PROFILE_DIR}/nsys/
+    rm -f ${PROFILE_DIR}/nsys/*.qdrep || true
+    cp $ROOT_DIR/*.qdrep ${PROFILE_DIR}/nsys/
 fi
 
 # remove venv (too many files!)

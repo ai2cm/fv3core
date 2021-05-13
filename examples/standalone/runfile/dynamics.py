@@ -52,6 +52,11 @@ def parse_args():
         help="enable or disable the halo exchange",
     )
     parser.add_argument(
+        "--disable_json_dump",
+        action="store_true",
+        help="enable or disable json dump",
+    )
+    parser.add_argument(
         "--profile",
         action="store_true",
         help="enable performance profiling using cProfile",
@@ -107,7 +112,6 @@ if __name__ == "__main__":
     timer.start("total")
     with timer.clock("initialization"):
         args = parse_args()
-
         comm = MPI.COMM_WORLD
         rank = comm.Get_rank()
 
@@ -217,12 +221,13 @@ if __name__ == "__main__":
 
     # collect times and output simple statistics
     comm.Barrier()
-    if not args.disable_halo_exchange:
-        print("Gathering Times")
-        experiment = set_experiment_info(
-            experiment_name, args.time_step, args.backend, args.hash
-        )
-        gather_timing_statistics(timer, experiment, comm)
+    print("Gathering Times")
+    experiment = set_experiment_info(
+        experiment_name, args.time_step, args.backend, args.hash
+    )
+    gather_timing_statistics(timer, experiment, comm)
+    print(f"{experiment}")
+    if not args.disable_json_dump:
         now = datetime.now()
         filename = now.strftime("%Y-%m-%d-%H-%M-%S")
         write_global_timings(experiment, filename, comm)
