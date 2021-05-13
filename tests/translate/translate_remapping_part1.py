@@ -1,7 +1,7 @@
 import fv3core._config as spec
 import fv3core.stencils.remapping_part1 as remap_part1
 from fv3core.testing import TranslateFortranData2Py
-
+import fv3core.utils.gt4py_utils as utils
 
 class TranslateRemapping_Part1(TranslateFortranData2Py):
     def __init__(self, grid):
@@ -62,7 +62,7 @@ class TranslateRemapping_Part1(TranslateFortranData2Py):
             },
             "cvm": {"kstart": grid.is_, "axis": 0, "full_shape": True},
         }
-        self.in_vars["parameters"] = ["ptop", "akap", "r_vir", "nq"]
+        self.in_vars["parameters"] = ["ptop", "nq"]
         self.out_vars = {}
         self.write_vars = ["gz", "cvm", "wsd"]
         for k in [
@@ -93,11 +93,12 @@ class TranslateRemapping_Part1(TranslateFortranData2Py):
         self.near_zero = 5e-18
         self.ignore_near_zero_errors = {"q_con": True, "qtracers": True}
 
-    def compute(self, inputs):
-        self.setup(inputs)
+    def compute_from_storage(self, inputs):
         self.compute_func = remap_part1.VerticalRemapping1(
             spec.namelist, inputs.pop("nq")
         )
-        del inputs["akap"]
-        del inputs["r_vir"]
-        return self.slice_output(self.compute_from_storage(inputs))
+        wsd_2d = utils.make_storage_from_shape(inputs["wsd"].shape[0:2])
+        wsd_2d[:,:] = inputs["wsd"][:,:, 0]
+        inputs["wsd"] = wsd_2d
+        self.compute_func(**inputs)
+        return inputs 

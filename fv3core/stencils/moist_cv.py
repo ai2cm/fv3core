@@ -2,7 +2,7 @@ import gt4py.gtscript as gtscript
 from gt4py.gtscript import __INLINED, PARALLEL, computation, exp, interval, log
 
 import fv3core.utils.global_constants as constants
-from fv3core.utils.typing import FloatField
+from fv3core.utils.typing import FloatField, FloatFieldIJ
 
 
 @gtscript.function
@@ -192,7 +192,6 @@ def moist_pkz(
         q_con[0, 0, 0] = gz
         cappa = set_cappa(qvapor, cvm, r_vir)
         pkz = compute_pkz_func(delp, delz, pt, cappa)
-
 
 def fv_setup(
     qvapor: FloatField,
