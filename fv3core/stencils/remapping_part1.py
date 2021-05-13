@@ -303,7 +303,7 @@ class VerticalRemapping1:
         omga: FloatField,
         ak: FloatFieldK,
         bk: FloatFieldK,
-        gz: FloatFieldIJ,
+        gz: FloatField,
         cvm: FloatField,
         ptop: float,
     ):
