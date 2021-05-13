@@ -261,6 +261,7 @@ class AcousticDynamics:
         if not namelist.hydrostatic:
             self._temporaries["pk3"][:] = HUGE_R
 
+        column_namelist = d_sw.get_column_namelist(namelist, self.grid.npz)
         if not namelist.hydrostatic:
             # To write lower dimensional storages, these need to be 3D
             # then converted to lower dimensional
@@ -289,18 +290,17 @@ class AcousticDynamics:
                 dp_ref_3d[0, 0, :], (dp_ref_3d.shape[2],), (0,)
             )
             self._zs = utils.make_storage_data(zs_3d[:, :, 0], zs_3d.shape[0:2], (0, 0))
-            column_namelist = d_sw.get_column_namelist(namelist, self.grid.npz)
             self.update_height_on_d_grid = updatedzd.UpdateHeightOnDGrid(
                 self.grid, self.namelist, self._dp_ref, column_namelist, d_sw.k_bounds()
             )
-            self.dgrid_shallow_water_lagrangian_dynamics = (
-                d_sw.DGridShallowWaterLagrangianDynamics(namelist, column_namelist)
-            )
-            self.cgrid_shallow_water_lagrangian_dynamics = CGridShallowWaterDynamics(
-                self.grid, namelist
-            )
             self.riem_solver3 = RiemannSolver3(namelist)
             self.riem_solver_c = RiemannSolverC(namelist)
+        self.dgrid_shallow_water_lagrangian_dynamics = (
+            d_sw.DGridShallowWaterLagrangianDynamics(namelist, column_namelist)
+        )
+        self.cgrid_shallow_water_lagrangian_dynamics = CGridShallowWaterDynamics(
+            self.grid, namelist
+        )
 
         self._set_gz = FrozenStencil(
             set_gz,
@@ -340,7 +340,8 @@ class AcousticDynamics:
         )
 
         if self._do_del2cubed:
-            self._hyperdiffusion = HyperdiffusionDamping(self.grid)
+            nf_ke = min(3, self.namelist.nord + 1)
+            self._hyperdiffusion = HyperdiffusionDamping(self.grid, nf_ke)
         if self.namelist.rf_fast:
             self._rayleigh_damping = ray_fast.RayleighDamping(self.grid, self.namelist)
         self._compute_pkz_tempadjust = _initialize_temp_adjust_stencil(
@@ -663,14 +664,12 @@ class AcousticDynamics:
                         )
 
         if self._do_del2cubed:
-            nf_ke = min(3, self.namelist.nord + 1)
-
             if self.do_halo_exchange:
                 self.comm.halo_update(
                     state.heat_source_quantity, n_points=self.grid.halo
                 )
             cd = constants.CNST_0P20 * self.grid.da_min
-            self._hyperdiffusion(state.heat_source, nf_ke, cd)
+            self._hyperdiffusion(state.heat_source, cd)
             if not self.namelist.hydrostatic:
                 delt_time_factor = abs(dt * self.namelist.delt_max)
                 self._compute_pkz_tempadjust(
