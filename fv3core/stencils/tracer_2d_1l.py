@@ -238,6 +238,7 @@ class TracerAdvection:
                 reqs[qname] = self.comm.start_halo_update(q, n_points=utils.halo)
 
         dp2 = self._tmp_dp
+        reqs = []
 
         for it in range(int(n_split)):
             last_call = it == n_split - 1
@@ -249,8 +250,6 @@ class TracerAdvection:
                 dp2,
             )
             for qname, q in tracers.items():
-                if self._do_halo_exchange:
-                    reqs[qname].wait()
                 self.finite_volume_transport(
                     q.storage,
                     cxd,
@@ -270,10 +269,13 @@ class TracerAdvection:
                     self.grid.rarea,
                     dp2,
                 )
-                if not last_call and self._do_halo_exchange:
-                    utils.device_sync()
-                    reqs[qname] = self.comm.start_halo_update(q, n_points=utils.halo)
-
             if not last_call:
+                if self._do_halo_exchange:
+                    reqs.clear()
+                    for q in tracers.values():
+                        reqs.append(self.comm.start_halo_update(q, n_points=utils.halo))
+                    for req in reqs:
+                        req.wait()
+
                 # use variable assignment to avoid a data copy
                 dp1, dp2 = dp2, dp1
