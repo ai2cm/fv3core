@@ -185,8 +185,6 @@ def get_stencils_with_varied_bounds(
     )
     if externals is None:
         externals = {}
-    if stencil_config is None:
-        stencil_config = global_config.get_stencil_config()
     stencils = []
     for origin, domain in zip(origins, domains):
         ax_offsets = fv3core.utils.grid.axis_offsets(spec.grid, origin, domain)
