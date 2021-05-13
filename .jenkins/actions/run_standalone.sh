@@ -139,7 +139,7 @@ fi
 # copy nsys results - cleaning the old ones first
 if [ "${DO_NSYS_RUN}" == "true" ] ; then
     echo "Copying new nsys results to ${PROFILE_DIR}/nsys/"
-    rm ${PROFILE_DIR}/nsys/*.qdstrm
+    rm -f ${PROFILE_DIR}/nsys/*.qdstrm || true
     cp $ROOT_DIR/*.qdstrm ${PROFILE_DIR}/nsys/
 fi
 
