@@ -232,14 +232,15 @@ class TracerAdvection:
                 n_split,
             )
 
+        reqs = []
         if self._do_halo_exchange:
-            reqs = {}
-            for qname, q in tracers.items():
-                reqs[qname] = self.comm.start_halo_update(q, n_points=utils.halo)
-                reqs[qname].wait()
+            reqs.clear()
+            for q in tracers.values():
+                reqs.append(self.comm.start_halo_update(q, n_points=utils.halo))
+            for req in reqs:
+                req.wait()
 
         dp2 = self._tmp_dp
-        reqs = []
 
         for it in range(int(n_split)):
             last_call = it == n_split - 1
