@@ -554,6 +554,8 @@ class AcousticDynamics:
                     self.comm.halo_update(
                         state.__getattribute__(halovar), n_points=self.grid.halo
                     )
+            else:
+                utils.device_sync()
 
             # Not used unless we implement other betas and alternatives to nh_p_grad
             # if self.namelist.d_ext > 0:
@@ -602,6 +604,8 @@ class AcousticDynamics:
                         reqs["pkc_quantity"] = self.comm.start_halo_update(
                             state.pkc_quantity, n_points=self.grid.halo
                         )
+                else:
+                    utils.device_sync()
                 if remap_step:
                     self._edge_pe_stencil(state.pe, state.delp, state.ptop)
                 if self.namelist.use_logp:
@@ -661,6 +665,8 @@ class AcousticDynamics:
                         self.comm.synchronize_vector_interfaces(
                             state.u_quantity, state.v_quantity
                         )
+            else:
+                utils.device_sync()
 
         if self._do_del2cubed:
             nf_ke = min(3, self.namelist.nord + 1)
