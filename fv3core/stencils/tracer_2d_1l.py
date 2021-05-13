@@ -236,6 +236,7 @@ class TracerAdvection:
             reqs = {}
             for qname, q in tracers.items():
                 reqs[qname] = self.comm.start_halo_update(q, n_points=utils.halo)
+                reqs[qname].wait()
 
         dp2 = self._tmp_dp
         reqs = []
