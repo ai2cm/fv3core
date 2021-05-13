@@ -11,6 +11,7 @@
 # $4: path to the data directory that should be run
 # $5: (optional) arguments to pass to python invocation
 # $6: (optional) arguments to pass to dynamics.py invocation
+# $7: (optional) true|false wraps an extra 2 timestep run in nsys
 
 # stop on all errors
 set -e
@@ -68,11 +69,7 @@ test -n "$4" || exitError 1004 ${LINENO} "must pass a data path"
 data_path="$4"
 py_args="$5"
 run_args="$6"
-
-DO_NSYS_RUN="false" 
-if [ "$py_args" == "wrap_in_nsys" ]; then
-    DO_NSYS_RUN="true"
-fi
+DO_NSYS_RUN="$7"
 
 # get dependencies
 cd $ROOT_DIR
@@ -182,7 +179,7 @@ if [ "${DO_NSYS_RUN}" == "true" ] :
     sed -i "s/00:45:00/00:40:00/g" run.nsys.daint.slurm
     sed -i "s/cscsci/normal/g" run.nsys.daint.slurm
     sed -i "s/<G2G>/export PYTHONOPTIMIZE=TRUE/g" run.nsys.daint.slurm
-    sed -i "s#<CMD>#export PYTHONPATH=/project/s1053/install/serialbox2_master/gnu/python:\$PYTHONPATH\nsrun nsys profile --force-overwrite=true -o /project/s1053/performance/fv3core_profile/gtcuda/nsys/%h.%q{SLURM_NODEID}.%q{SLURM_PROCID}.qdstrm --trace=cuda,mpi,nvtx --mpi-impl=mpich python $ROOT_DIR/profiler/external_profiler.py examples/standalone/runfile/dynamics.py $data_path $timesteps $backend $githash $run_args#g" run.nsys.daint.slurm
+    sed -i "s#<CMD>#export PYTHONPATH=/project/s1053/install/serialbox2_master/gnu/python:\$PYTHONPATH\nsrun nsys profile --force-overwrite=true -o %h.%q{SLURM_NODEID}.%q{SLURM_PROCID}.qdstrm --trace=cuda,mpi,nvtx --mpi-impl=mpich python $ROOT_DIR/profiler/external_profiler.py examples/standalone/runfile/dynamics.py $data_path 2 $backend $githash $run_args#g" run.nsys.daint.slurm
     # execute on a gpu node
     set +e
     res=$(sbatch -W -C gpu run.nsys.daint.slurm 2>&1)
