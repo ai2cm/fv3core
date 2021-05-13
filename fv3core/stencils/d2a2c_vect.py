@@ -521,7 +521,7 @@ class DGrid2AGrid2CGridVectors:
 
     def __call__(self, uc, vc, u, v, ua, va, utc, vtc):
         """
-        Calculate velocity vector from D-grid to A-grid to C-grid
+        Calculate velocity vector from D-grid to A-grid to C-grid.
 
         Args:
             uc: C-grid x-velocity (inout)
