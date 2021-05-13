@@ -59,7 +59,7 @@ class CopyCorners:
                 },
             )
         else:
-            raise NotImplementedError()
+            raise ValueError("Direction must be either 'x' or 'y'")
 
     def __call__(self, field: FloatField):
         """
@@ -583,7 +583,7 @@ class FillCornersBGrid:
             )
 
         else:
-            raise NotImplementedError()
+            raise ValueError("Direction must be either 'x' or 'y'")
 
     def __call__(self, field: FloatField):
         self._copy_full_domain(field, self._corner_tmp)
