@@ -98,7 +98,7 @@ pip list
 if [ -d ./buildenv ] ; then rm -rf buildenv ; fi
 git clone https://github.com/VulcanClimateModeling/buildenv/
 cp ./buildenv/submit.daint.slurm run.daint.slurm
-if [ "${DO_NSYS_RUN}" == "true" ] :
+if [ "${DO_NSYS_RUN}" == "true" ] ; then
     cp ./buildenv/submit.daint.slurm run.nsys.daint.slurm
 fi
 
