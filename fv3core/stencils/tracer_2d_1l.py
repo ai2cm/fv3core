@@ -98,25 +98,13 @@ def dp_fluxadjustment(
         dp2 = dp1 + (mfx - mfx[1, 0, 0] + mfy - mfy[0, 1, 0]) * rarea
 
 
-def loop_temporaries_copy(
-    tmp_dp1_orig: FloatField,
-    q: FloatField,
-    dp1: FloatField,
-    tmp_qn2: FloatField,
-):
-    with computation(PARALLEL), interval(...):
-        dp1 = tmp_dp1_orig
-        tmp_qn2 = q
-
-
 @gtscript.function
 def adjustment(q, dp1, fx, fy, rarea, dp2):
     return (q * dp1 + (fx - fx[1, 0, 0] + fy - fy[0, 1, 0]) * rarea) / dp2
 
 
 def q_adjust(
-    q_in: FloatField,
-    q_out: FloatField,
+    q: FloatField,
     dp1: FloatField,
     fx: FloatField,
     fy: FloatField,
@@ -124,7 +112,7 @@ def q_adjust(
     dp2: FloatField,
 ):
     with computation(PARALLEL), interval(...):
-        q_out = adjustment(q_in, dp1, fx, fy, rarea, dp2)
+        q = adjustment(q, dp1, fx, fy, rarea, dp2)
 
 
 class TracerAdvection:
@@ -168,12 +156,6 @@ class TracerAdvection:
             cmax_multiply_by_frac,
             origin=self.grid.full_origin(),
             domain=self.grid.domain_shape_full(add=(1, 1, 0)),
-            externals=local_axis_offsets,
-        )
-        self._loop_temporaries_copy = FrozenStencil(
-            loop_temporaries_copy,
-            origin=self.grid.full_origin(),
-            domain=self.grid.domain_shape_full(),
             externals=local_axis_offsets,
         )
         self._dp_fluxadjustment = FrozenStencil(
@@ -281,7 +263,6 @@ class TracerAdvection:
                     mfy=mfyd,
                 )
                 self._q_adjust(
-                    q.storage,
                     q.storage,
                     dp1,
                     self._tmp_fx,

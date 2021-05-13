@@ -373,6 +373,7 @@ class DynamicalCore:
         tracers = {}
         for name in utils.tracer_variables[0 : DynamicalCore.NQ]:
             tracers[name] = state.__dict__[name + "_quantity"]
+        tracer_storages = {name: quantity.storage for name, quantity in tracers.items()}
 
         state.ak = self._ak
         state.bk = self._bk
@@ -409,9 +410,6 @@ class DynamicalCore:
                     if self.grid.rank == 0:
                         print("Remapping")
                 with timer.clock("Remapping"):
-                    tracer_storages = {
-                        name: quantity.storage for name, quantity in tracers.items()
-                    }
                     lagrangian_to_eulerian.compute(
                         tracer_storages,
                         state.pt,
