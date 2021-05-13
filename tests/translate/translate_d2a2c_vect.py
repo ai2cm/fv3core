@@ -18,7 +18,6 @@ class TranslateD2A2C_Vect(TranslateFortranData2Py):
             "utc": {},
             "vtc": {},
         }
-        # self.in_vars["parameters"] = ["dord4"]
         self.out_vars = {
             "uc": grid.x3d_domain_dict(),
             "vc": grid.y3d_domain_dict(),

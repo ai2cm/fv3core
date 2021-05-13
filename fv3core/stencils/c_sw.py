@@ -512,7 +512,6 @@ class CGridShallowWaterDynamics:
             self.delpc,
             self.ptc,
         )
-        # d2a2c.compute(self._dord4, uc, vc, u, v, ua, va, ut, vt)
         self._D2A2CGrid_Vectors(uc, vc, u, v, ua, va, ut, vt)
         if self.namelist.nord > 0:
             self._divergence_corner(
