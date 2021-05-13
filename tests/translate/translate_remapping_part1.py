@@ -1,7 +1,8 @@
 import fv3core._config as spec
 import fv3core.stencils.remapping_part1 as remap_part1
-from fv3core.testing import TranslateFortranData2Py
 import fv3core.utils.gt4py_utils as utils
+from fv3core.testing import TranslateFortranData2Py
+
 
 class TranslateRemapping_Part1(TranslateFortranData2Py):
     def __init__(self, grid):
@@ -98,7 +99,7 @@ class TranslateRemapping_Part1(TranslateFortranData2Py):
             spec.namelist, inputs.pop("nq")
         )
         wsd_2d = utils.make_storage_from_shape(inputs["wsd"].shape[0:2])
-        wsd_2d[:,:] = inputs["wsd"][:,:, 0]
+        wsd_2d[:, :] = inputs["wsd"][:, :, 0]
         inputs["wsd"] = wsd_2d
         self.compute_func(**inputs)
-        return inputs 
+        return inputs

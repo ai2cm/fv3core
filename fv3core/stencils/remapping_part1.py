@@ -348,7 +348,7 @@ class VerticalRemapping1:
         self._copy_j_adjacent(self._pe2)
 
         self._pn2_pk_delp(self._dp2, delp, self._pe2, self._pn2, pk, akap)
-        
+
         self._map_single_pt(pt, peln, self._pn2, qmin=self._t_min)
 
         # TODO if self._nq > 5:

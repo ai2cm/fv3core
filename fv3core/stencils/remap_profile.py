@@ -162,9 +162,9 @@ def set_vals(
             old_bet = 2.0 + old_grid_ratio + old_grid_ratio - gam[0, 0, -1]
             gam = old_grid_ratio / old_bet
             grid_ratio = delp[0, 0, -1] / delp
-            q = (
-                3.0 * (a4_1[0, 0, -1] + a4_1) - grid_ratio * qs - q[0, 0, -1]
-            ) / (2.0 + grid_ratio + grid_ratio - gam)
+            q = (3.0 * (a4_1[0, 0, -1] + a4_1) - grid_ratio * qs - q[0, 0, -1]) / (
+                2.0 + grid_ratio + grid_ratio - gam
+            )
             q_bot = qs
     with computation(PARALLEL), interval(-1, None):
         if __INLINED(iv == -2):
