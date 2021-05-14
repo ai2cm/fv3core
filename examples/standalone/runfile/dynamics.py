@@ -219,18 +219,27 @@ if __name__ == "__main__":
     if profiler is not None:
         profiler.dump_stats(f"fv3core_{experiment_name}_{args.backend}_{rank}.prof")
 
-    # collect times and output simple statistics
-    comm.Barrier()
-    print("Gathering Times")
-    experiment = set_experiment_info(
-        experiment_name, args.time_step, args.backend, args.hash
-    )
-    gather_timing_statistics(timer, experiment, comm)
-    print(f"{experiment}")
+    # Timings
     if not args.disable_json_dump:
+        # Collect times and output statistics in json
+        comm.Barrier()
+        print("Gathering Times")
+        experiment = set_experiment_info(
+            experiment_name, args.time_step, args.backend, args.hash
+        )
+        gather_timing_statistics(timer, experiment, comm)
+        print(f"{experiment}")
         now = datetime.now()
         filename = now.strftime("%Y-%m-%d-%H-%M-%S")
         write_global_timings(experiment, filename, comm)
+    else:
+        # Print a brief summary of timings
+        # Dev Note: we especially do _not_ gather timings here to have a
+        # no-MPI-communication codepath
+        print(
+            f"Rank {rank} done. Total time: {timer.times['total']}."
+            f"Mainloop time: {timer.times['mainloop']}"
+        )
 
     if rank == 0:
         print("SUCCESS")
