@@ -11,7 +11,6 @@ from gt4py.gtscript import (
     log,
 )
 
-import fv3core._config as spec
 import fv3core.stencils.moist_cv as moist_cv
 import fv3core.utils.global_constants as constants
 import fv3core.utils.gt4py_utils as utils
@@ -196,19 +195,15 @@ def sum_te(te: FloatField, te0_2d: FloatField):
             te0_2d = te0_2d[0, 0, -1] + te
 
 
-class VerticalRemapping:
-    def __init__(self, nq, pfull):
-        self.grid = spec.grid
-        self.namelist = spec.namelist
-
-        if self.namelist.kord_tm >= 0:
+class Lagrangian_to_Eulerian:
+    def __init__(self, grid, namelist, nq, pfull):
+        if namelist.kord_tm >= 0:
             raise Exception("map ppm, untested mode where kord_tm >= 0")
 
-        hydrostatic = self.namelist.hydrostatic
+        hydrostatic = namelist.hydrostatic
         if hydrostatic:
             raise Exception("Hydrostatic is not implemented")
 
-        grid = spec.grid
         shape_kplus = grid.domain_shape_full(add=(0, 0, 1))
         self._t_min = 184.0
         self._nq = nq
@@ -235,7 +230,7 @@ class VerticalRemapping:
 
         self._moist_cv_pt_pressure = FrozenStencil(
             moist_cv_pt_pressure,
-            externals={"kord_tm": self.namelist.kord_tm, "hydrostatic": hydrostatic},
+            externals={"kord_tm": namelist.kord_tm, "hydrostatic": hydrostatic},
             origin=grid.compute_origin(),
             domain=grid.domain_shape_compute(add=(0, 0, 1)),
         )
@@ -256,16 +251,16 @@ class VerticalRemapping:
             domain=grid.domain_shape_compute(),
         )
 
-        self._kord_tm = abs(self.namelist.kord_tm)
+        self._kord_tm = abs(namelist.kord_tm)
         self._map_single_pt = MapSingle(
             self._kord_tm, 1, grid.is_, grid.ie, grid.js, grid.je
         )
 
         self._mapn_tracer = MapNTracer(
-            abs(self.namelist.kord_tr), nq, grid.is_, grid.ie, grid.js, grid.je
+            abs(namelist.kord_tr), nq, grid.is_, grid.ie, grid.js, grid.je
         )
 
-        self._kord_wz = self.namelist.kord_wz
+        self._kord_wz = namelist.kord_wz
         self._map_single_w = MapSingle(
             self._kord_wz, -2, grid.is_, grid.ie, grid.js, grid.je
         )
@@ -283,7 +278,7 @@ class VerticalRemapping:
             pressures_mapu, origin=grid.compute_origin(), domain=self._domain_jextra
         )
 
-        self._kord_mt = self.namelist.kord_mt
+        self._kord_mt = namelist.kord_mt
         self._map_single_u = MapSingle(
             self._kord_mt, -1, grid.is_, grid.ie, grid.js, grid.je + 1
         )
@@ -304,25 +299,25 @@ class VerticalRemapping:
 
         self._copy_from_below_stencil = FrozenStencil(
             copy_from_below,
-            origin=self.grid.compute_origin(),
-            domain=self.grid.domain_shape_compute(),
+            origin=grid.compute_origin(),
+            domain=grid.domain_shape_compute(),
         )
 
         self._moist_cv_last_step_stencil = FrozenStencil(
             moist_pt_last_step,
-            origin=(self.grid.is_, self.grid.js, 0),
-            domain=(self.grid.nic, self.grid.njc, self.grid.npz + 1),
+            origin=(grid.is_, grid.js, 0),
+            domain=(grid.nic, grid.njc, grid.npz + 1),
         )
 
         self._basic_adjust_divide_stencil = FrozenStencil(
             adjust_divide_stencil,
-            origin=self.grid.compute_origin(),
-            domain=self.grid.domain_shape_compute(),
+            origin=grid.compute_origin(),
+            domain=grid.domain_shape_compute(),
         )
 
-        self._do_sat_adjust = self.namelist.do_sat_adj
+        self._do_sat_adjust = namelist.do_sat_adj
 
-        self.kmp = self.grid.npz - 1
+        self.kmp = grid.npz - 1
         for k in range(pfull.shape[0]):
             if pfull[k] > 10.0e2:
                 self.kmp = k
@@ -332,8 +327,8 @@ class VerticalRemapping:
 
         self._sum_te_stencil = FrozenStencil(
             sum_te,
-            origin=(self.grid.is_, self.grid.js, self.kmp),
-            domain=(self.grid.nic, self.grid.njc, self.grid.npz - self.kmp),
+            origin=(grid.is_, grid.js, self.kmp),
+            domain=(grid.nic, grid.njc, grid.npz - self.kmp),
         )
 
     def __call__(
@@ -374,6 +369,40 @@ class VerticalRemapping:
         nq: int,
     ):
         """
+        pt: D-grid potential temperature (inout)
+        delp: Pressure Thickness (inout)
+        delz: Vertical thickness of atmosphere layers (in)
+        peln: Logarithm of interface pressure (inout)
+        u: D-grid x-velocity (inout)
+        v: D-grid y-velocity (inout)
+        w: vertical velocity (inout)
+        ua: A-grid x-velocity (inout)
+        va: A-grid y-velocity (inout)
+        cappa: Power to raise pressure to (inout)
+        q_con: total condensate mixing ratio (inout)
+        q_cld:
+        pkz: Layer mean pressure raised to the power of Kappa (in)
+        pk: interface pressure raised to power of kappa, final acoustic value (inout)
+        pe: pressure at layer edges (inout)
+        hs: surface geopotential (in)
+        te0_2d:
+        ps: surface pressure (inout)
+        wsd:
+        omga: Vertical pressure velocity (inout)
+        ak: (in)
+        bk (in)
+        pfull: (in)
+        dp1:
+        ptop: (in)
+        akap: (in)
+        zvir:
+        last_step
+        consv_te
+        mdt : remap time step (in)
+        bdt
+        do_adiabatic_init
+        nq: number of tracers (in)
+
         Remap the deformed Lagrangian surfaces onto the reference, or "Eulerian",
         coordinate levels.
         """

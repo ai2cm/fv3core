@@ -15,7 +15,7 @@ from fv3core.stencils.c2l_ord import CubedToLatLon
 from fv3core.stencils.del2cubed import HyperdiffusionDamping
 from fv3core.stencils.dyn_core import AcousticDynamics
 from fv3core.stencils.neg_adj3 import AdjustNegativeTracerMixingRatio
-from fv3core.stencils.remapping import VerticalRemapping
+from fv3core.stencils.remapping import Lagrangian_to_Eulerian
 from fv3core.utils.typing import FloatField, FloatFieldK
 
 
@@ -323,8 +323,8 @@ class DynamicalCore:
             self.grid, self.namelist
         )
 
-        self._lagrangian_to_eulerian_obj = VerticalRemapping(
-            DynamicalCore.NQ, self._pfull
+        self._lagrangian_to_eulerian_obj = Lagrangian_to_Eulerian(
+            self.grid, namelist, DynamicalCore.NQ, self._pfull
         )
 
     def step_dynamics(
