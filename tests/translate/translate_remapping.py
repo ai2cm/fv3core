@@ -1,12 +1,11 @@
-import fv3core.stencils.remapping as remapping
 import fv3core.utils.gt4py_utils as utils
+from fv3core.stencils.remapping import VerticalRemapping
 from fv3core.testing import TranslateFortranData2Py
 
 
 class TranslateRemapping(TranslateFortranData2Py):
     def __init__(self, grid):
         super().__init__(grid)
-        self.compute_func = remapping.compute
         self.in_vars["data_vars"] = {
             "tracers": {},
             "w": {},
@@ -112,6 +111,7 @@ class TranslateRemapping(TranslateFortranData2Py):
         wsd_2d[:, :] = inputs["wsd"][:, :, 0]
         inputs["wsd"] = wsd_2d
         inputs["q_cld"] = inputs["tracers"]["qcld"]
-        self.compute_func(**inputs)
+        remapping_obj = VerticalRemapping(inputs["nq"], inputs["pfull"], inputs["pt"])
+        remapping_obj(**inputs)
         inputs.pop("q_cld")
         return inputs
