@@ -1,9 +1,9 @@
 from typing import Dict
 
 import fv3core._config as spec
-import fv3core.stencils.remapping_part2 as remap_part2
 import fv3core.utils.gt4py_utils as utils
 from fv3core.stencils.remapping_part1 import VerticalRemapping1
+from fv3core.stencils.remapping_part2 import VerticalRemapping2
 from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
 
 
@@ -20,13 +20,14 @@ def compute(
     va: FloatField,
     cappa: FloatField,
     q_con: FloatField,
+    q_cld: FloatField,
     pkz: FloatField,
     pk: FloatField,
     pe: FloatField,
     hs: FloatFieldIJ,
     te0_2d: FloatFieldIJ,
     ps: FloatFieldIJ,
-    wsd: FloatField,
+    wsd: FloatFieldIJ,
     omga: FloatField,
     ak: FloatFieldK,
     bk: FloatFieldK,
@@ -59,6 +60,10 @@ def compute(
         namelist, nq, cache_key="remapping_part_1"
     )
 
+    remapping_part_2 = utils.cached_stencil_class(VerticalRemapping2)(
+        pfull=pfull, cache_key="remapping_part2"
+    )
+
     remapping_part_1(
         tracers,
         pt,
@@ -85,14 +90,14 @@ def compute(
         cvm,
         ptop,
     )
-    remap_part2.compute(
+    remapping_part_2(
         tracers["qvapor"],
         tracers["qliquid"],
         tracers["qice"],
         tracers["qrain"],
         tracers["qsnow"],
         tracers["qgraupel"],
-        tracers["qcld"],
+        q_cld,
         pt,
         delp,
         delz,
