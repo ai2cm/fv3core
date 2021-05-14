@@ -282,10 +282,7 @@ class DivergenceDamping:
             origin=(self.grid.is_, self.grid.js, kstart),
             domain=(self.grid.nic + 1, self.grid.njc + 1, nk),
         )
-        self._vc_from_divg_stencils = []
-        self._uc_from_divg_stencils = []
-        self._redo_divg_d_stencils = []
-        self._adjustment_stencils = []
+
         origins = []
         origins_v = []
         origins_u = []
@@ -376,8 +373,6 @@ class DivergenceDamping:
         dt: float,
     ) -> None:
 
-        is2 = self.grid.is_ + 1 if self.grid.west_edge else self.grid.is_
-        ie1 = self.grid.ie if self.grid.east_edge else self.grid.ie + 1
         self.damping_zero_order(
             u, v, va, ptc, vort, ua, vc, uc, delpc, ke, self._d2_bg_column, dt
         )
