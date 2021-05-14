@@ -324,7 +324,7 @@ class DynamicalCore:
         )
 
         self._lagrangian_to_eulerian_obj = VerticalRemapping(
-            DynamicalCore.NQ, self._pfull, self._pt_adjust_stencil
+            DynamicalCore.NQ, self._pfull
         )
 
     def step_dynamics(

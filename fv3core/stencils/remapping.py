@@ -197,7 +197,7 @@ def sum_te(te: FloatField, te0_2d: FloatField):
 
 
 class VerticalRemapping:
-    def __init__(self, nq, pfull, pt):
+    def __init__(self, nq, pfull):
         self.grid = spec.grid
         self.namelist = spec.namelist
 
@@ -223,10 +223,10 @@ class VerticalRemapping:
         self._pe3 = utils.make_storage_from_shape(shape_kplus)
 
         self._gz: FloatField = utils.make_storage_from_shape(
-            pt.shape, grid.compute_origin()
+            shape_kplus, grid.compute_origin()
         )
         self._cvm: FloatField = utils.make_storage_from_shape(
-            pt.shape, grid.compute_origin()
+            shape_kplus, grid.compute_origin()
         )
 
         self._init_pe = FrozenStencil(

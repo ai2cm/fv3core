@@ -111,7 +111,7 @@ class TranslateRemapping(TranslateFortranData2Py):
         wsd_2d[:, :] = inputs["wsd"][:, :, 0]
         inputs["wsd"] = wsd_2d
         inputs["q_cld"] = inputs["tracers"]["qcld"]
-        remapping_obj = VerticalRemapping(inputs["nq"], inputs["pfull"], inputs["pt"])
+        remapping_obj = VerticalRemapping(inputs["nq"], inputs["pfull"])
         remapping_obj(**inputs)
         inputs.pop("q_cld")
         return inputs
