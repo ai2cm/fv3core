@@ -4,28 +4,26 @@ from gt4py.gtscript import PARALLEL, computation, interval, log
 
 import fv3core._config as spec
 import fv3core.stencils.moist_cv as moist_cv
-import fv3core.stencils.remapping as lagrangian_to_eulerian
 import fv3core.utils.global_config as global_config
 import fv3core.utils.global_constants as constants
 import fv3core.utils.gt4py_utils as utils
 import fv3gfs.util
-from fv3core.decorators import ArgSpec, FrozenStencil, get_namespace, gtstencil
+from fv3core.decorators import ArgSpec, FrozenStencil, get_namespace
+from fv3core.stencils import tracer_2d_1l
 from fv3core.stencils.basic_operations import copy_stencil
 from fv3core.stencils.c2l_ord import CubedToLatLon
 from fv3core.stencils.del2cubed import HyperdiffusionDamping
 from fv3core.stencils.dyn_core import AcousticDynamics
 from fv3core.stencils.neg_adj3 import AdjustNegativeTracerMixingRatio
-from fv3core.stencils.tracer_2d_1l import Tracer2D1L
+from fv3core.stencils.remapping import Lagrangian_to_Eulerian
 from fv3core.utils.typing import FloatField, FloatFieldK
 
 
-@gtstencil
 def pt_adjust(pkz: FloatField, dp1: FloatField, q_con: FloatField, pt: FloatField):
     with computation(PARALLEL), interval(...):
         pt = pt * (1.0 + dp1) * (1.0 - q_con) / pkz
 
 
-@gtstencil
 def set_omega(delp: FloatField, delz: FloatField, w: FloatField, omga: FloatField):
     with computation(PARALLEL), interval(...):
         omga = delp / delz * w
@@ -43,27 +41,32 @@ def init_pfull(
         pfull = (ph2 - ph1) / log(ph2 / ph1)
 
 
-def compute_preamble(state, comm, grid, namelist):
+def compute_preamble(
+    state,
+    grid,
+    namelist,
+    fv_setup_stencil: FrozenStencil,
+    pt_adjust_stencil: FrozenStencil,
+):
     if namelist.hydrostatic:
         raise NotImplementedError("Hydrostatic is not implemented")
     if __debug__:
         if grid.rank == 0:
             print("FV Setup")
-    moist_cv.fv_setup(
-        state.pt,
-        state.pkz,
-        state.delz,
-        state.delp,
-        state.cappa,
-        state.q_con,
-        constants.ZVIR,
+    fv_setup_stencil(
         state.qvapor,
         state.qliquid,
-        state.qice,
         state.qrain,
         state.qsnow,
+        state.qice,
         state.qgraupel,
+        state.q_con,
         state.cvm,
+        state.pkz,
+        state.pt,
+        state.cappa,
+        state.delp,
+        state.delz,
         state.dp1,
     )
 
@@ -85,29 +88,32 @@ def compute_preamble(state, comm, grid, namelist):
         if __debug__:
             if grid.rank == 0:
                 print("Adjust pt")
-        pt_adjust(
+        pt_adjust_stencil(
             state.pkz,
             state.dp1,
             state.q_con,
             state.pt,
-            origin=grid.compute_origin(),
-            domain=grid.domain_shape_compute(),
         )
 
 
-def post_remap(hyperdiffusion, state, comm, grid, namelist):
+def post_remap(
+    state,
+    comm,
+    grid,
+    namelist,
+    hyperdiffusion: HyperdiffusionDamping,
+    set_omega_stencil: FrozenStencil,
+):
     grid = grid
     if not namelist.hydrostatic:
         if __debug__:
             if grid.rank == 0:
                 print("Omega")
-        set_omega(
+        set_omega_stencil(
             state.delp,
             state.delz,
             state.w,
             state.omga,
-            origin=grid.compute_origin(),
-            domain=grid.domain_shape_compute(),
         )
     if namelist.nf_omega > 0:
         if __debug__:
@@ -115,7 +121,7 @@ def post_remap(hyperdiffusion, state, comm, grid, namelist):
                 print("Del2Cubed")
         if global_config.get_do_halo_exchange():
             comm.halo_update(state.omga_quantity, n_points=utils.halo)
-        hyperdiffusion(state.omga, namelist.nf_omega, 0.18 * grid.da_min)
+        hyperdiffusion(state.omga, 0.18 * grid.da_min)
 
 
 def wrapup(
@@ -158,7 +164,7 @@ def fvdyn_temporaries(shape, grid):
     origin = grid.full_origin()
     tmps = {}
     halo_vars = ["cappa"]
-    storage_vars = ["te_2d", "dp1", "cvm", "wsd_3d"]
+    storage_vars = ["te_2d", "dp1", "cvm"]
     column_vars = ["gz"]
     plane_vars = ["te_2d", "te0_2d", "wsd"]
     utils.storage_dict(
@@ -265,12 +271,14 @@ class DynamicalCore:
             bk: atmosphere hybrid b coordinate (dimensionless)
             phis: surface geopotential height
         """
+        assert namelist.moist_phys, "fvsetup is only implemented for moist_phys=true"
+        assert namelist.nwat == 6, "Only nwat=6 has been implemented and tested"
         self.comm = comm
         self.grid = spec.grid
         self.namelist = namelist
         self.do_halo_exchange = global_config.get_do_halo_exchange()
 
-        self.tracer_advection = Tracer2D1L(comm, namelist)
+        self.tracer_advection = tracer_2d_1l.TracerAdvection(comm, namelist)
         self._ak = ak.storage
         self._bk = bk.storage
         self._phis = phis.storage
@@ -281,10 +289,29 @@ class DynamicalCore:
         pfull_stencil(self._ak, self._bk, pfull, self.namelist.p_ref)
         # workaround because cannot write to FieldK storage in stencil
         self._pfull = utils.make_storage_data(pfull[0, 0, :], self._ak.shape, (0,))
+        self._fv_setup_stencil = FrozenStencil(
+            moist_cv.fv_setup,
+            externals={
+                "nwat": self.namelist.nwat,
+                "moist_phys": self.namelist.moist_phys,
+            },
+            origin=self.grid.compute_origin(),
+            domain=self.grid.domain_shape_compute(),
+        )
+        self._pt_adjust_stencil = FrozenStencil(
+            pt_adjust,
+            origin=self.grid.compute_origin(),
+            domain=self.grid.domain_shape_compute(),
+        )
+        self._set_omega_stencil = FrozenStencil(
+            set_omega,
+            origin=self.grid.compute_origin(),
+            domain=self.grid.domain_shape_compute(),
+        )
         self.acoustic_dynamics = AcousticDynamics(
             comm, namelist, self._ak, self._bk, self._pfull, self._phis
         )
-        self._hyperdiffusion = HyperdiffusionDamping(self.grid)
+        self._hyperdiffusion = HyperdiffusionDamping(self.grid, self.namelist.nf_omega)
         self._do_cubed_to_latlon = CubedToLatLon(self.grid, namelist)
 
         self._temporaries = fvdyn_temporaries(
@@ -294,6 +321,10 @@ class DynamicalCore:
             raise NotImplementedError("tracer_2d not implemented, turn on z_tracer")
         self._adjust_tracer_mixing_ratio = AdjustNegativeTracerMixingRatio(
             self.grid, self.namelist
+        )
+
+        self._lagrangian_to_eulerian_obj = Lagrangian_to_Eulerian(
+            self.grid, namelist, DynamicalCore.NQ, self._pfull
         )
 
     def step_dynamics(
@@ -343,17 +374,28 @@ class DynamicalCore:
         timer: fv3gfs.util.NullTimer,
     ):
         state.__dict__.update(self._temporaries)
+        tracers = {}
+        for name in utils.tracer_variables[0 : DynamicalCore.NQ]:
+            tracers[name] = state.__dict__[name + "_quantity"]
+        tracer_storages = {name: quantity.storage for name, quantity in tracers.items()}
+
         state.ak = self._ak
         state.bk = self._bk
         last_step = False
         if self.do_halo_exchange:
             self.comm.halo_update(state.phis_quantity, n_points=utils.halo)
-        compute_preamble(state, self.comm, self.grid, self.namelist)
+        compute_preamble(
+            state,
+            self.grid,
+            self.namelist,
+            self._fv_setup_stencil,
+            self._pt_adjust_stencil,
+        )
 
         for n_map in range(state.k_split):
             state.n_map = n_map + 1
             last_step = n_map == state.k_split - 1
-            self._dyn(state, timer)
+            self._dyn(state, tracers, timer)
 
             if self.grid.npz > 4:
                 # nq is actually given by ncnst - pnats,
@@ -362,19 +404,17 @@ class DynamicalCore:
                 # pnats = Atm(mytile)%flagstruct%pnats
                 # here we hard-coded it because 8 is the only supported value,
                 # refactor this later!
-                kord_tracer = [self.namelist.kord_tr] * DynamicalCore.NQ
-                kord_tracer[6] = 9
+
                 # do_omega = self.namelist.hydrostatic and last_step
                 # TODO: Determine a better way to do this, polymorphic fields perhaps?
                 # issue is that set_val in map_single expects a 3D field for the
                 # "surface" array
-                state.wsd_3d[:] = utils.reshape(state.wsd, state.wsd_3d.shape)
                 if __debug__:
                     if self.grid.rank == 0:
                         print("Remapping")
                 with timer.clock("Remapping"):
-                    lagrangian_to_eulerian.compute(
-                        state.__dict__,
+                    self._lagrangian_to_eulerian_obj(
+                        tracer_storages,
                         state.pt,
                         state.delp,
                         state.delz,
@@ -386,13 +426,14 @@ class DynamicalCore:
                         state.va,
                         state.cappa,
                         state.q_con,
+                        state.qcld,
                         state.pkz,
                         state.pk,
                         state.pe,
                         state.phis,
                         state.te0_2d,
                         state.ps,
-                        state.wsd_3d,
+                        state.wsd,
                         state.omga,
                         self._ak,
                         self._bk,
@@ -405,19 +446,18 @@ class DynamicalCore:
                         state.consv_te,
                         state.bdt / state.k_split,
                         state.bdt,
-                        kord_tracer,
                         state.do_adiabatic_init,
                         DynamicalCore.NQ,
                     )
                 if last_step:
                     post_remap(
-                        self._hyperdiffusion,
                         state,
                         self.comm,
                         self.grid,
                         self.namelist,
+                        self._hyperdiffusion,
+                        self._set_omega_stencil,
                     )
-                state.wsd[:] = state.wsd_3d[:, :, 0]
         wrapup(
             state,
             self.comm,
@@ -426,7 +466,7 @@ class DynamicalCore:
             self._do_cubed_to_latlon,
         )
 
-    def _dyn(self, state, timer=fv3gfs.util.NullTimer()):
+    def _dyn(self, state, tracers, timer=fv3gfs.util.NullTimer()):
         copy_stencil(
             state.delp,
             state.dp1,
@@ -441,17 +481,16 @@ class DynamicalCore:
         if self.namelist.z_tracer:
             if __debug__:
                 if self.grid.rank == 0:
-                    print("Tracer2D1L")
+                    print("TracerAdvection")
             with timer.clock("TracerAdvection"):
                 self.tracer_advection(
-                    state.__dict__,
+                    tracers,
                     state.dp1,
                     state.mfxd,
                     state.mfyd,
                     state.cxd,
                     state.cyd,
                     state.mdt,
-                    DynamicalCore.NQ,
                 )
 
 
