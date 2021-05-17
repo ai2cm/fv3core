@@ -1117,6 +1117,9 @@ class DelnFluxNoSG:
         corner_domain = (self._grid.nid, self._grid.njd, self._nk)
         corner_axis_offsets = axis_offsets(self._grid, corner_origin, corner_domain)
 
+        self._corner_tmp = utils.make_storage_from_shape(
+            corner_domain, origin=corner_origin
+        )
         self._copy_corners_x_nord = FrozenStencil(
             copy_corners_x_nord,
             externals={**corner_axis_offsets, **nord_dictionary},
@@ -1129,16 +1132,10 @@ class DelnFluxNoSG:
             origin=corner_origin,
             domain=corner_domain,
         )
-
-        origin = self._grid.full_origin()
-        domain = self._grid.domain_shape_full()
         self._copy_full_domain = FrozenStencil(
             func=corners.copy_defn,
-            origin=origin,
-            domain=domain,
-        )
-        self._corner_tmp = utils.make_storage_from_shape(
-            self._grid.domain_shape_full(add=(1, 1, 0)), origin=origin
+            origin=corner_origin,
+            domain=corner_domain,
         )
 
     def __call__(self, q, fx2, fy2, damp_c, d2, mass=None):
