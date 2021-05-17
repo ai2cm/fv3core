@@ -298,8 +298,8 @@ if __name__ == "__main__":
         # Dev Note: we especially do _not_ gather timings here to have a
         # no-MPI-communication codepath
         print(
-            f"Rank {rank} done. Total time: {timer.times['total']}."
-            f"Mainloop time: {timer.times['mainloop']}"
+            f"Rank {rank} done. Total time: {times_per_step['total']}."
+            f"Mainloop time: {times_per_step['mainloop']}"
         )
 
     if rank == 0:
