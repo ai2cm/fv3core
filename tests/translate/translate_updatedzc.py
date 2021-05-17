@@ -7,11 +7,11 @@ from fv3core.testing import TranslateFortranData2Py
 class TranslateUpdateDzC(TranslateFortranData2Py):
     def __init__(self, grid):
         super().__init__(grid)
-        update_gz_on_c_grid = updatedzc.UpdateGeopotentialHeightOnCGrid(grid)
+        self.update_gz_on_c_grid = updatedzc.UpdateGeopotentialHeightOnCGrid(grid)
 
         def compute(**kwargs):
             kwargs["dt"] = kwargs.pop("dt2")
-            update_gz_on_c_grid(**kwargs)
+            self.update_gz_on_c_grid(**kwargs)
 
         self.compute_func = compute
         self.in_vars["data_vars"] = {
@@ -39,4 +39,4 @@ class TranslateUpdateDzC(TranslateFortranData2Py):
         Given an output array, return the slice of the array which we'd
         like to validate against reference data
         """
-        return self.updatedzd.subset_output(varname, output)
+        return self.update_gz_on_c_grid.subset_output(varname, output)

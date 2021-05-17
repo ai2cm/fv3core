@@ -169,10 +169,10 @@ class UpdateGeopotentialHeightOnCGrid:
             dt=dt,
         )
 
-        # should be able to combine these set_zero_2d with selective validation
-        self._set_zero_2d(ws, origin=(1, 1, 0), domain=(1, self.grid.njc + 3, 1))
-        self._set_zero_2d(ws, origin=(1, 1, 0), domain=(self.grid.nic + 3, 1, 1))
-        # similarly should be able to combine these copies with selective validation
+        # # should be able to combine these set_zero_2d with selective validation
+        # self._set_zero_2d(ws, origin=(1, 1, 0), domain=(1, self.grid.njc + 3, 1))
+        # self._set_zero_2d(ws, origin=(1, 1, 0), domain=(self.grid.nic + 3, 1, 1))
+        # # similarly should be able to combine these copies with selective validation
         basic_operations.copy_stencil(
             self._gz_in,
             gz,

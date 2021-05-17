@@ -64,11 +64,19 @@ def get_selective_class(
     return SelectivelyValidated
 
 
-def get_update_height_selective_domain(
+def get_update_height_on_d_grid_selective_domain(
     instance,
 ) -> Tuple[Tuple[int, ...], Tuple[int, ...]]:
     origin = instance.grid.compute_origin()
     domain = instance.grid.domain_shape_compute(add=(0, 0, 1))
+    return origin, domain
+
+
+def get_update_height_on_c_grid_selective_domain(
+    instance,
+) -> Tuple[Tuple[int, ...], Tuple[int, ...]]:
+    origin = (instance.grid.is_, instance.grid.js)
+    domain = (instance.grid.npx, instance.grid.npy)
     return origin, domain
 
 
@@ -87,7 +95,7 @@ def enable_selective_validation():
     fv3core.stencils.updatedzd.UpdateHeightOnDGrid = get_selective_class(
         fv3core.stencils.updatedzd.UpdateHeightOnDGrid,
         ["height", "zh"],  # must include both function and savepoint names
-        get_update_height_selective_domain,
+        get_update_height_on_d_grid_selective_domain,
     )
     # make absolutely sure you don't write just the savepoint name, this would
     # selecively validate without making sure it's safe to do so
@@ -98,7 +106,7 @@ def enable_selective_validation():
     fv3core.stencils.updatedzc.UpdateGeopotentialHeightOnCGrid = get_selective_class(
         fv3core.stencils.updatedzc.UpdateGeopotentialHeightOnCGrid,
         ["ws", "ws"],  # must include both function and savepoint names
-        get_update_height_selective_domain,
+        get_update_height_on_c_grid_selective_domain,
     )
     # make absolutely sure you don't write just the savepoint name, this would
     # selecively validate without making sure it's safe to do so
