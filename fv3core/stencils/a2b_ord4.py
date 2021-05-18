@@ -53,10 +53,10 @@ def extrap_corner(
 ):
     #x1 =  asin(sqrt(sin((p1b - p0b) / 2.0) ** 2.0 + cos(p1b) * cos(p0b) *  sin((p1a - p0a) / 2.0) ** 2.0)) * 2.0
     #x2 =  asin(sqrt(sin((p2b - p0b) / 2.0) ** 2.0 + cos(p2b) * cos(p0b) *  sin((p2a - p0a) / 2.0) ** 2.0)) * 2.0
-    #return qa + (asin(sqrt(sin((p1b - p0b) / 2.0) ** 2.0 + cos(p1b) * cos(p0b) *  sin((p1a - p0a) / 2.0) ** 2.0)) * 2.0) / (asin(sqrt(sin((p2b - p0b) / 2.0) ** 2.0 + cos(p2b) * cos(p0b) *  sin((p2a - p0a) / 2.0) ** 2.0)) * 2.0 -asin(sqrt(sin((p1b - p0b) / 2.0) ** 2.0 + cos(p1b) * cos(p0b) *  sin((p1a - p0a) / 2.0) ** 2.0)) * 2.0) * (qa - qb)
-    x1 = great_circle_dist(p1a, p1b, p0a, p0b)
-    x2 = great_circle_dist(p2a, p2b, p0a, p0b)
-    return qa + x1 / (x2 - x1) * (qa - qb)
+    return qa + (asin(sqrt(sin((p1b - p0b) / 2.0) ** 2.0 + cos(p1b) * cos(p0b) *  sin((p1a - p0a) / 2.0) ** 2.0)) * 2.0) / (asin(sqrt(sin((p2b - p0b) / 2.0) ** 2.0 + cos(p2b) * cos(p0b) *  sin((p2a - p0a) / 2.0) ** 2.0)) * 2.0 -asin(sqrt(sin((p1b - p0b) / 2.0) ** 2.0 + cos(p1b) * cos(p0b) *  sin((p1a - p0a) / 2.0) ** 2.0)) * 2.0) * (qa - qb)
+#    x1 = great_circle_dist(p1a, p1b, p0a, p0b)
+#    x2 = great_circle_dist(p2a, p2b, p0a, p0b)
+#    return qa + x1 / (x2 - x1) * (qa - qb)
     
 """
 def _a2b_corners(qin, qout, agrid1, agrid2, bgrid1, bgrid2):
@@ -78,40 +78,42 @@ def _sw_corner(
     bgrid1: FloatFieldIJ,
     bgrid2: FloatFieldIJ,
 ):
-
+    from __externals__ import i_start, j_start
     with computation(PARALLEL), interval(...):
-        ec1 = extrap_corner(
-            bgrid1[0, 0],
-            bgrid2[0, 0],
-            agrid1[0, 0],
-            agrid2[0, 0],
-            agrid1[1, 1],
-            agrid2[1, 1],
-            qin[0, 0, 0],
-            qin[1, 1, 0],
-        )
-        ec2 = extrap_corner(
-            bgrid1[0, 0],
-            bgrid2[0, 0],
-            agrid1[-1, 0],
-            agrid2[-1, 0],
-            agrid1[-2, 1],
-            agrid2[-2, 1],
-            qin[-1, 0, 0],
-            qin[-2, 1, 0],
-        )
-        ec3 = extrap_corner(
-            bgrid1[0, 0],
-            bgrid2[0, 0],
-            agrid1[0, -1],
-            agrid2[0, -1],
-            agrid1[1, -2],
-            agrid2[1, -2],
-            qin[0, -1, 0],
-            qin[1, -2, 0],
-        )
+        tmp = 0.0
+        with horizontal(region[i_start, j_start]):
+            ec1 = extrap_corner(
+                bgrid1[0, 0],
+                bgrid2[0, 0],
+                agrid1[0, 0],
+                agrid2[0, 0],
+                agrid1[1, 1],
+                agrid2[1, 1],
+                qin[0, 0, 0],
+                qin[1, 1, 0],
+            )
+            ec2 = extrap_corner(
+                bgrid1[0, 0],
+                bgrid2[0, 0],
+                agrid1[-1, 0],
+                agrid2[-1, 0],
+                agrid1[-2, 1],
+                agrid2[-2, 1],
+                qin[-1, 0, 0],
+                qin[-2, 1, 0],
+            )
+            ec3 = extrap_corner(
+                bgrid1[0, 0],
+                bgrid2[0, 0],
+                agrid1[0, -1],
+                agrid2[0, -1],
+                agrid1[1, -2],
+                agrid2[1, -2],
+                qin[0, -1, 0],
+                qin[1, -2, 0],
+            )
 
-        qout = (ec1 + ec2 + ec3) * (1.0 / 3.0)
+            qout = (ec1 + ec2 + ec3) * (1.0 / 3.0)
 
 
 def _nw_corner(
@@ -484,11 +486,15 @@ class AGrid2BGridFourthOrder:
         if nk is None:
             nk = self.grid.npz - kstart
         corner_domain = (1, 1, nk)
-
+        full_ax_offsets = axis_offsets(
+            self.grid,
+            self.grid.full_origin(),
+            self.grid.domain_shape_full(),
+        )
         self._sw_corner_stencil = FrozenStencil(
-            _sw_corner,
-            origin=(self.grid.is_, self.grid.js, kstart),
-            domain=corner_domain,
+            _sw_corner, externals=full_ax_offsets,
+            origin=(self.grid.isd, self.grid.jsd, kstart),
+            domain=(self.grid.nid, self.grid.njd, nk),
         )
         self._nw_corner_stencil = FrozenStencil(
             _nw_corner,
