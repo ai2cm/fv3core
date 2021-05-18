@@ -103,8 +103,6 @@ class UpdateGeopotentialHeightOnCGrid:
             origin=(1, 1, 0),
             domain=(grid.nic + 3, grid.njc + 3, grid.npz + 1),
         )
-        # # TODO: convert to FrozenStencil when we have selective validation
-        # self._set_zero_2d = gtstencil(set_zero_2d)
 
     def __call__(
         self,
@@ -167,21 +165,4 @@ class UpdateGeopotentialHeightOnCGrid:
             self._gz_y,
             ws,
             dt=dt,
-        )
-
-        # # should be able to combine these set_zero_2d with selective validation
-        # self._set_zero_2d(ws, origin=(1, 1, 0), domain=(1, self.grid.njc + 3, 1))
-        # self._set_zero_2d(ws, origin=(1, 1, 0), domain=(self.grid.nic + 3, 1, 1))
-        # # similarly should be able to combine these copies with selective validation
-        basic_operations.copy_stencil(
-            self._gz_in,
-            gz,
-            origin=(1, 1, 0),
-            domain=(1, self.grid.njc + 3, self.grid.npz + 1),
-        )
-        basic_operations.copy_stencil(
-            self._gz_in,
-            gz,
-            origin=(1, 1, 0),
-            domain=(self.grid.nic + 3, 1, self.grid.npz + 1),
         )

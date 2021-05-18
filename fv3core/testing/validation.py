@@ -147,7 +147,11 @@ def enable_selective_validation():
             "ws": {
                 "savepoint_name": "ws",
                 "origin_domain_func": get_update_height_on_c_grid_selective_domain_2d,
-            }
+            },
+            "gz": {
+                "savepoint_name": "gz",
+                "origin_domain_func": get_update_height_on_c_grid_selective_domain_3d,
+            },
         },  # must include both function and savepoint names
     )
     # make absolutely sure you don't write just the savepoint name, this would
