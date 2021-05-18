@@ -70,7 +70,7 @@ def _a2b_corners(qin, qout, agrid1, agrid2, bgrid1, bgrid2):
         qout = _nw_corner(qin, qout, agrid1, agrid2, bgrid1, bgrid2)
     return qout   
 """ 
-def _sw_corner(
+def _south_corners(
     qin: FloatField,
     qout: FloatField,
     agrid1: FloatFieldIJ,
@@ -145,7 +145,18 @@ def _sw_corner(
                 qin[1, 1, 0],
             )
             qout = (ec1 + ec2 + ec3) * (1.0 / 3.0)
-
+def _north_corners(
+    qin: FloatField,
+    qout: FloatField,
+    agrid1: FloatFieldIJ,
+    agrid2: FloatFieldIJ,
+    bgrid1: FloatFieldIJ,
+    bgrid2: FloatFieldIJ,
+):
+    from __externals__ import i_start, i_end, j_start, j_end
+    with computation(PARALLEL), interval(...):
+        tmp = 0.0
+ 
         with horizontal(region[i_end + 1, j_end + 1]):
             ec1 = extrap_corner(
                 bgrid1[0, 0],
@@ -240,32 +251,30 @@ def a2b_interpolation(
         
         # ppm_volume_mean_x
         qx = b2 * (qin[-2, 0, 0] + qin[1, 0, 0]) + b1 * (qin[-1, 0, 0] + qin)
-        qx_copy = qx
         with horizontal(region[i_start, :]):
-            #qx = qx_edge_west(qin, dxa)
             qx =  0.5 * (
 	        ((2.0 + dxa[1, 0] / dxa) * qin - qin[1, 0, 0]) / (1.0 + dxa[1, 0] / dxa)
 	        + ((2.0 +  dxa[-2, 0] / dxa[-1, 0]) * qin[-1, 0, 0] - qin[-2, 0, 0]) / (1.0 +  dxa[-2, 0] / dxa[-1, 0])
             )
 
-            qx_copy = qx
         with horizontal(region[i_start + 1, :]):
-            #qx = qx_edge_west2(qin, dxa, qx_copy)
-             qx = (
-                 3.0 * (dxa / dxa[-1, 0] * qin[-1, 0, 0] + qin) - (dxa / dxa[-1, 0] * qx_copy[-1, 0, 0] + qx_copy[1, 0, 0])
-             ) / (2.0 + 2.0 * dxa / dxa[-1, 0])
+            qx = (
+                3.0 * (dxa / dxa[-1, 0] * qin[-1, 0, 0] + qin) - (dxa / dxa[-1, 0] * (0.5 * (
+	            ((2.0 + dxa[0, 0] / dxa[-1, 0]) * qin[-1, 0, 0] - qin) / (1.0 + dxa[0, 0] / dxa[-1, 0])
+	            + ((2.0 +  dxa[-3, 0] / dxa[-2, 0]) * qin[-2, 0, 0] - qin[-3, 0, 0]) / (1.0 +  dxa[-3, 0] / dxa[-2, 0])
+                )) + (b2 * (qin[-1, 0, 0] + qin[2, 0, 0]) + b1 * (qin + qin[1, 0, 0])))
+            ) / (2.0 + 2.0 * dxa / dxa[-1, 0])
         with horizontal(region[i_end + 1, :]):
-            #qx = qx_edge_east(qin, dxa)
             qx = 0.5 * (
 	        ((2.0 + dxa[-2, 0] / dxa[-1, 0]) * qin[-1, 0, 0] - qin[-2, 0, 0]) / (1.0 + dxa[-2, 0] / dxa[-1, 0])
                 + ((2.0 + dxa[1, 0] / dxa) * qin - qin[1, 0, 0]) / (1.0 + dxa[1, 0] / dxa)
             )
-
-            qx_copy = qx
         with horizontal(region[i_end, :]):
-            #qx = qx_edge_east2(qin, dxa, qx_copy)
             qx = (
-                3.0 * (qin[-1, 0, 0] + dxa[-1, 0] / dxa * qin) - (dxa[-1, 0] / dxa * qx_copy[1, 0, 0] + qx_copy[-1, 0, 0])
+                3.0 * (qin[-1, 0, 0] + dxa[-1, 0] / dxa * qin) - (dxa[-1, 0] / dxa * ( 0.5 * (
+	        ((2.0 + dxa[-1, 0] / dxa) * qin - qin[-1, 0, 0]) / (1.0 + dxa[-1, 0] / dxa)
+                + ((2.0 + dxa[2, 0] / dxa[1, 0]) * qin[1, 0, 0] - qin[2, 0, 0]) / (1.0 + dxa[2, 0] / dxa[1, 0])
+            )) + ( b2 * (qin[-3, 0, 0] + qin) + b1 * (qin[-2, 0, 0] + qin[-1, 0, 0])))
             ) / (2.0 + 2.0 * dxa[-1, 0] / dxa)
 
 
@@ -273,7 +282,6 @@ def a2b_interpolation(
         qy = b2 * (qin[0, -2, 0] + qin[0, 1, 0]) + b1 * (qin[0, -1, 0] + qin)
         qy_copy = qy
         with horizontal(region[:, j_start]):
-            #qy = qy_edge_south(qin, dya)
             g_in = dya[0, 1] / dya
             g_ou = dya[0, -2] / dya[0, -1]
             qy= 0.5 * (
@@ -283,12 +291,19 @@ def a2b_interpolation(
 
             qy_copy = qy
         with horizontal(region[:, j_start + 1]):
-            qy = qy_edge_south2(qin, dya, qy_copy)
+            qy = (3.0 * (dya / dya[0, -1] * qin[0, -1, 0] + qin) - (dya / dya[0, -1] * qy[0, -1, 0] + qy[0, 1, 0])
+                  ) / (2.0 + 2.0 * dya / dya[0, -1])
         with horizontal(region[:, j_end + 1]):
-            qy = qy_edge_north(qin, dya)
+            qy =  0.5 * (
+                ((2.0 + dya[0, -2] / dya[0, -1]) * qin[0, -1, 0] - qin[0, -2, 0]) / (1.0 + dya[0, -2] / dya[0, -1])
+                + ((2.0 +  dya[0, 1] / dya) * qin - qin[0, 1, 0]) / (1.0 +  dya[0, 1] / dya)
+            )
             qy_copy = qy
         with horizontal(region[:, j_end]):
-            qy = qy_edge_north2(qin, dya, qy_copy)
+            qy =  (
+                3.0 * (qin[0, -1, 0] + dya[0, -1] / dya * qin) - (dya[0, -1] / dya * qy[0, 1, 0] + qy[0, -1, 0])
+            ) / (2.0 + 2.0 * dya[0, -1] / dya)
+            
         qxx = a2 * (qx[0, -2, 0] + qx[0, 1, 0]) + a1 * (qx[0, -1, 0] + qx)
         with horizontal(region[:, j_start + 1]):
             qxx = c1 * (qx[0, -1, 0] + qx) + c2 * (qout[0, -1, 0] + qxx[0, 1, 0])
@@ -461,8 +476,13 @@ class AGrid2BGridFourthOrder:
             self.grid.full_origin(),
             self.grid.domain_shape_full(),
         )
-        self._sw_corner_stencil = FrozenStencil(
-            _sw_corner, externals=full_ax_offsets,
+        self._south_corners_stencil = FrozenStencil(
+            _south_corners, externals=full_ax_offsets,
+            origin=(self.grid.isd, self.grid.jsd, kstart),
+            domain=(self.grid.nid, self.grid.njd, nk),
+        )
+        self._north_corners_stencil = FrozenStencil(
+            _north_corners, externals=full_ax_offsets,
             origin=(self.grid.isd, self.grid.jsd, kstart),
             domain=(self.grid.nid, self.grid.njd, nk),
         )
@@ -555,7 +575,7 @@ class AGrid2BGridFourthOrder:
         qout: Output on B-grid (inout)
         """
 
-        self._sw_corner_stencil(
+        self._south_corners_stencil(
             qin,
             qout,
             self.grid.agrid1,
@@ -563,7 +583,14 @@ class AGrid2BGridFourthOrder:
             self.grid.bgrid1,
             self.grid.bgrid2,
         )
-
+        self._north_corners_stencil(
+            qin,
+            qout,
+            self.grid.agrid1,
+            self.grid.agrid2,
+            self.grid.bgrid1,
+            self.grid.bgrid2,
+        )
         #self._nw_corner_stencil(
         #    qin,
         #    qout,
