@@ -1,11 +1,12 @@
-import fv3core.stencils.remapping as remapping
+import fv3core._config as spec
+import fv3core.utils.gt4py_utils as utils
+from fv3core.stencils.remapping import LagrangianToEulerian
 from fv3core.testing import TranslateFortranData2Py
 
 
 class TranslateRemapping(TranslateFortranData2Py):
     def __init__(self, grid):
         super().__init__(grid)
-        self.compute_func = remapping.compute
         self.in_vars["data_vars"] = {
             "tracers": {},
             "w": {},
@@ -105,3 +106,15 @@ class TranslateRemapping(TranslateFortranData2Py):
         self.max_error = 2e-8
         self.near_zero = 3e-18
         self.ignore_near_zero_errors = {"q_con": True, "tracers": True}
+
+    def compute_from_storage(self, inputs):
+        wsd_2d = utils.make_storage_from_shape(inputs["wsd"].shape[0:2])
+        wsd_2d[:, :] = inputs["wsd"][:, :, 0]
+        inputs["wsd"] = wsd_2d
+        inputs["q_cld"] = inputs["tracers"]["qcld"]
+        l_to_e_obj = LagrangianToEulerian(
+            spec.grid, spec.namelist, inputs["nq"], inputs["pfull"]
+        )
+        l_to_e_obj(**inputs)
+        inputs.pop("q_cld")
+        return inputs
