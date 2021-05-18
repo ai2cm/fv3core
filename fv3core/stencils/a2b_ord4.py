@@ -1,3 +1,6 @@
+from typing import Tuple
+
+import gt4py
 import gt4py.gtscript as gtscript
 from gt4py.gtscript import (
     PARALLEL,
@@ -13,12 +16,11 @@ from gt4py.gtscript import (
 
 import fv3core._config as spec
 import fv3core.utils.gt4py_utils as utils
-from fv3core.decorators import FrozenStencil,gtstencil
+from fv3core.decorators import FrozenStencil
 from fv3core.stencils.basic_operations import copy_defn
 from fv3core.utils import axis_offsets
 from fv3core.utils.typing import FloatField, FloatFieldI, FloatFieldIJ
-import gt4py
-from typing import Tuple
+
 
 # comact 4-pt cubic interpolation
 c1 = 2.0 / 3.0
@@ -38,7 +40,7 @@ def great_circle_dist(p1a, p1b, p2a, p2b):
     tb = sin((p1b - p2b) / 2.0) ** 2.0
     ta = sin((p1a - p2a) / 2.0) ** 2.0
     return asin(sqrt(tb + cos(p1b) * cos(p2b) * ta)) * 2.0
-#return asin(sqrt(sin((p1b - p2b) / 2.0) ** 2.0 + cos(p1b) * cos(p2b) *  sin((p1a - p2a) / 2.0) ** 2.0)) * 2.0
+
 
 @gtscript.function
 def extrap_corner(
@@ -51,25 +53,25 @@ def extrap_corner(
     qa,
     qb,
 ):
-    #x1 =  asin(sqrt(sin((p1b - p0b) / 2.0) ** 2.0 + cos(p1b) * cos(p0b) *  sin((p1a - p0a) / 2.0) ** 2.0)) * 2.0
-    #x2 =  asin(sqrt(sin((p2b - p0b) / 2.0) ** 2.0 + cos(p2b) * cos(p0b) *  sin((p2a - p0a) / 2.0) ** 2.0)) * 2.0
-    #return qa + (asin(sqrt(sin((p1b - p0b) / 2.0) ** 2.0 + cos(p1b) * cos(p0b) *  sin((p1a - p0a) / 2.0) ** 2.0)) * 2.0) / (asin(sqrt(sin((p2b - p0b) / 2.0) ** 2.0 + cos(p2b) * cos(p0b) *  sin((p2a - p0a) / 2.0) ** 2.0)) * 2.0 -asin(sqrt(sin((p1b - p0b) / 2.0) ** 2.0 + cos(p1b) * cos(p0b) *  sin((p1a - p0a) / 2.0) ** 2.0)) * 2.0) * (qa - qb)
     x1 = great_circle_dist(p1a, p1b, p0a, p0b)
     x2 = great_circle_dist(p2a, p2b, p0a, p0b)
     return qa + x1 / (x2 - x1) * (qa - qb)
-    
+
+
 """
 def _a2b_corners(qin, qout, agrid1, agrid2, bgrid1, bgrid2):
     with computation(PARALLEL), interval(...):
         from __externals__ import i_start, j_start
-        
+
         with horizontal(region[i_start, j_start]):
         qout = _sw_corner(qin, qout, agrid1, agrid2, bgrid1, bgrid2)
         qout = _se_corner(qin, qout, agrid1, agrid2, bgrid1, bgrid2)
         qout = _ne_corner(qin, qout, agrid1, agrid2, bgrid1, bgrid2)
         qout = _nw_corner(qin, qout, agrid1, agrid2, bgrid1, bgrid2)
-    return qout   
-""" 
+    return qout
+"""
+
+
 def _south_corners(
     qin: FloatField,
     qout: FloatField,
@@ -78,7 +80,8 @@ def _south_corners(
     bgrid1: FloatFieldIJ,
     bgrid2: FloatFieldIJ,
 ):
-    from __externals__ import i_start, i_end, j_start, j_end
+    from __externals__ import i_end, i_start, j_end, j_start
+
     with computation(PARALLEL), interval(...):
         tmp = 0.0
         with horizontal(region[i_start, j_start]):
@@ -145,6 +148,8 @@ def _south_corners(
                 qin[1, 1, 0],
             )
             qout = (ec1 + ec2 + ec3) * (1.0 / 3.0)
+
+
 def _north_corners(
     qin: FloatField,
     qout: FloatField,
@@ -153,10 +158,11 @@ def _north_corners(
     bgrid1: FloatFieldIJ,
     bgrid2: FloatFieldIJ,
 ):
-    from __externals__ import i_start, i_end, j_start, j_end
+    from __externals__ import i_end, i_start, j_end, j_start
+
     with computation(PARALLEL), interval(...):
         tmp = 0.0
- 
+
         with horizontal(region[i_end + 1, j_end + 1]):
             ec1 = extrap_corner(
                 bgrid1[0, 0],
@@ -237,9 +243,7 @@ def a2b_interpolation(
     qin: FloatField,
     qout: FloatField,
     qx: FloatField,
-    qx_copy: FloatField,
     qy: FloatField,
-    qy_copy: FloatField,
     qxx: FloatField,
     qyy: FloatField,
     dxa: FloatFieldIJ,
@@ -248,62 +252,112 @@ def a2b_interpolation(
     from __externals__ import i_end, i_start, j_end, j_start
 
     with computation(PARALLEL), interval(...):
-        
+
         # ppm_volume_mean_x
         qx = b2 * (qin[-2, 0, 0] + qin[1, 0, 0]) + b1 * (qin[-1, 0, 0] + qin)
         with horizontal(region[i_start, :]):
-            qx =  0.5 * (
-	        ((2.0 + dxa[1, 0] / dxa) * qin - qin[1, 0, 0]) / (1.0 + dxa[1, 0] / dxa)
-	        + ((2.0 +  dxa[-2, 0] / dxa[-1, 0]) * qin[-1, 0, 0] - qin[-2, 0, 0]) / (1.0 +  dxa[-2, 0] / dxa[-1, 0])
+            qx = 0.5 * (
+                ((2.0 + dxa[1, 0] / dxa) * qin - qin[1, 0, 0]) / (1.0 + dxa[1, 0] / dxa)
+                + ((2.0 + dxa[-2, 0] / dxa[-1, 0]) * qin[-1, 0, 0] - qin[-2, 0, 0])
+                / (1.0 + dxa[-2, 0] / dxa[-1, 0])
             )
 
         with horizontal(region[i_start + 1, :]):
             qx = (
-                3.0 * (dxa / dxa[-1, 0] * qin[-1, 0, 0] + qin) - (dxa / dxa[-1, 0] * (0.5 * (
-	            ((2.0 + dxa[0, 0] / dxa[-1, 0]) * qin[-1, 0, 0] - qin) / (1.0 + dxa[0, 0] / dxa[-1, 0])
-	            + ((2.0 +  dxa[-3, 0] / dxa[-2, 0]) * qin[-2, 0, 0] - qin[-3, 0, 0]) / (1.0 +  dxa[-3, 0] / dxa[-2, 0])
-                )) + (b2 * (qin[-1, 0, 0] + qin[2, 0, 0]) + b1 * (qin + qin[1, 0, 0])))
+                3.0 * (dxa / dxa[-1, 0] * qin[-1, 0, 0] + qin)
+                - (
+                    dxa
+                    / dxa[-1, 0]
+                    * (
+                        0.5
+                        * (
+                            ((2.0 + dxa[0, 0] / dxa[-1, 0]) * qin[-1, 0, 0] - qin)
+                            / (1.0 + dxa[0, 0] / dxa[-1, 0])
+                            + (
+                                (2.0 + dxa[-3, 0] / dxa[-2, 0]) * qin[-2, 0, 0]
+                                - qin[-3, 0, 0]
+                            )
+                            / (1.0 + dxa[-3, 0] / dxa[-2, 0])
+                        )
+                    )
+                    + (b2 * (qin[-1, 0, 0] + qin[2, 0, 0]) + b1 * (qin + qin[1, 0, 0]))
+                )
             ) / (2.0 + 2.0 * dxa / dxa[-1, 0])
         with horizontal(region[i_end + 1, :]):
             qx = 0.5 * (
-	        ((2.0 + dxa[-2, 0] / dxa[-1, 0]) * qin[-1, 0, 0] - qin[-2, 0, 0]) / (1.0 + dxa[-2, 0] / dxa[-1, 0])
-                + ((2.0 + dxa[1, 0] / dxa) * qin - qin[1, 0, 0]) / (1.0 + dxa[1, 0] / dxa)
+                ((2.0 + dxa[-2, 0] / dxa[-1, 0]) * qin[-1, 0, 0] - qin[-2, 0, 0])
+                / (1.0 + dxa[-2, 0] / dxa[-1, 0])
+                + ((2.0 + dxa[1, 0] / dxa) * qin - qin[1, 0, 0])
+                / (1.0 + dxa[1, 0] / dxa)
             )
         with horizontal(region[i_end, :]):
             qx = (
-                3.0 * (qin[-1, 0, 0] + dxa[-1, 0] / dxa * qin) - (dxa[-1, 0] / dxa * ( 0.5 * (
-	        ((2.0 + dxa[-1, 0] / dxa) * qin - qin[-1, 0, 0]) / (1.0 + dxa[-1, 0] / dxa)
-                + ((2.0 + dxa[2, 0] / dxa[1, 0]) * qin[1, 0, 0] - qin[2, 0, 0]) / (1.0 + dxa[2, 0] / dxa[1, 0])
-            )) + ( b2 * (qin[-3, 0, 0] + qin) + b1 * (qin[-2, 0, 0] + qin[-1, 0, 0])))
+                3.0 * (qin[-1, 0, 0] + dxa[-1, 0] / dxa * qin)
+                - (
+                    dxa[-1, 0]
+                    / dxa
+                    * (
+                        0.5
+                        * (
+                            ((2.0 + dxa[-1, 0] / dxa) * qin - qin[-1, 0, 0])
+                            / (1.0 + dxa[-1, 0] / dxa)
+                            + (
+                                (2.0 + dxa[2, 0] / dxa[1, 0]) * qin[1, 0, 0]
+                                - qin[2, 0, 0]
+                            )
+                            / (1.0 + dxa[2, 0] / dxa[1, 0])
+                        )
+                    )
+                    + (
+                        b2 * (qin[-3, 0, 0] + qin)
+                        + b1 * (qin[-2, 0, 0] + qin[-1, 0, 0])
+                    )
+                )
             ) / (2.0 + 2.0 * dxa[-1, 0] / dxa)
-
 
         # ppm_volume_mean_y
         qy = b2 * (qin[0, -2, 0] + qin[0, 1, 0]) + b1 * (qin[0, -1, 0] + qin)
-        qy_copy = qy
         with horizontal(region[:, j_start]):
-            g_in = dya[0, 1] / dya
-            g_ou = dya[0, -2] / dya[0, -1]
-            qy= 0.5 * (
-                ((2.0 + g_in) * qin - qin[0, 1, 0]) / (1.0 + g_in)
-	        + ((2.0 + g_ou) * qin[0, -1, 0] - qin[0, -2, 0]) / (1.0 + g_ou)
+            qy = 0.5 * (
+                ((2.0 + dya[0, 1] / dya) * qin - qin[0, 1, 0]) / (1.0 + dya[0, 1] / dya)
+                + ((2.0 + dya[0, -2] / dya[0, -1]) * qin[0, -1, 0] - qin[0, -2, 0])
+                / (1.0 + dya[0, -2] / dya[0, -1])
             )
 
-            qy_copy = qy
         with horizontal(region[:, j_start + 1]):
-            qy = (3.0 * (dya / dya[0, -1] * qin[0, -1, 0] + qin) - (dya / dya[0, -1] * qy[0, -1, 0] + qy[0, 1, 0])
-                  ) / (2.0 + 2.0 * dya / dya[0, -1])
+            qy = (
+                3.0 * (dya / dya[0, -1] * qin[0, -1, 0] + qin)
+                - (
+                    dya
+                    / dya[0, -1]
+                    * (
+                        0.5
+                        * (
+                            ((2.0 + dya / dya[0, -1]) * qin[0, -1, 0] - qin)
+                            / (1.0 + dya / dya[0, -1])
+                            + (
+                                (2.0 + dya[0, -3] / dya[0, -2]) * qin[0, -2, 0]
+                                - qin[0, -3, 0]
+                            )
+                            / (1.0 + dya[0, -3] / dya[0, -2])
+                        )
+                    )
+                    + (b2 * (qin[0, -1, 0] + qin[0, 2, 0]) + b1 * (qin + qin[0, 1, 0]))
+                )
+            ) / (2.0 + 2.0 * dya / dya[0, -1])
         with horizontal(region[:, j_end + 1]):
-            qy =  0.5 * (
-                ((2.0 + dya[0, -2] / dya[0, -1]) * qin[0, -1, 0] - qin[0, -2, 0]) / (1.0 + dya[0, -2] / dya[0, -1])
-                + ((2.0 +  dya[0, 1] / dya) * qin - qin[0, 1, 0]) / (1.0 +  dya[0, 1] / dya)
+            qy = 0.5 * (
+                ((2.0 + dya[0, -2] / dya[0, -1]) * qin[0, -1, 0] - qin[0, -2, 0])
+                / (1.0 + dya[0, -2] / dya[0, -1])
+                + ((2.0 + dya[0, 1] / dya) * qin - qin[0, 1, 0])
+                / (1.0 + dya[0, 1] / dya)
             )
-            qy_copy = qy
         with horizontal(region[:, j_end]):
-            qy =  (
-                3.0 * (qin[0, -1, 0] + dya[0, -1] / dya * qin) - (dya[0, -1] / dya * qy[0, 1, 0] + qy[0, -1, 0])
+            qy = (
+                3.0 * (qin[0, -1, 0] + dya[0, -1] / dya * qin)
+                - (dya[0, -1] / dya * qy[0, 1, 0] + qy[0, -1, 0])
             ) / (2.0 + 2.0 * dya[0, -1] / dya)
-            
+
         qxx = a2 * (qx[0, -2, 0] + qx[0, 1, 0]) + a1 * (qx[0, -1, 0] + qx)
         with horizontal(region[:, j_start + 1]):
             qxx = c1 * (qx[0, -1, 0] + qx) + c2 * (qout[0, -1, 0] + qxx[0, 1, 0])
@@ -408,7 +462,9 @@ def qy_edge_north2(qin: FloatField, dya: FloatFieldIJ, qy: FloatField):
         3.0 * (qin[0, -1, 0] + g_in * qin) - (g_in * qy[0, 1, 0] + qy[0, -1, 0])
     ) / (2.0 + 2.0 * g_in)
 
-def qout_edges_x(q2: FloatField,
+
+def qout_edges_x(
+    q2: FloatField,
     qin: FloatField,
     qout: FloatField,
     dxa: FloatFieldIJ,
@@ -423,6 +479,7 @@ def qout_edges_x(q2: FloatField,
             qout = edge_w * q2[0, -1, 0] + (1.0 - edge_w) * q2
         with horizontal(region[i_end + 1, :]):
             qout = edge_e * q2[0, -1, 0] + (1.0 - edge_e) * q2
+
 
 def qout_edges_y(
     q1: FloatField,
@@ -440,6 +497,7 @@ def qout_edges_y(
             qout = edge_s * q1[-1, 0, 0] + (1.0 - edge_s) * q1
         with horizontal(region[:, j_end + 1]):
             qout = edge_n * q1[-1, 0, 0] + (1.0 - edge_n) * q1
+
 
 class AGrid2BGridFourthOrder:
     """
@@ -466,8 +524,6 @@ class AGrid2BGridFourthOrder:
         self._tmp_qy = utils.make_storage_from_shape(shape)
         self._tmp_qxx = utils.make_storage_from_shape(shape)
         self._tmp_qyy = utils.make_storage_from_shape(shape)
-        self._tmp_qx_copy = utils.make_storage_from_shape(shape)
-        self._tmp_qy_copy = utils.make_storage_from_shape(shape)
         if nk is None:
             nk = self.grid.npz - kstart
         corner_domain = (1, 1, nk)
@@ -477,31 +533,18 @@ class AGrid2BGridFourthOrder:
             self.grid.domain_shape_full(),
         )
         self._south_corners_stencil = FrozenStencil(
-            _south_corners, externals=full_ax_offsets,
+            _south_corners,
+            externals=full_ax_offsets,
             origin=(self.grid.isd, self.grid.jsd, kstart),
             domain=(self.grid.nid, self.grid.njd, nk),
         )
         self._north_corners_stencil = FrozenStencil(
-            _north_corners, externals=full_ax_offsets,
+            _north_corners,
+            externals=full_ax_offsets,
             origin=(self.grid.isd, self.grid.jsd, kstart),
             domain=(self.grid.nid, self.grid.njd, nk),
         )
-        #self._nw_corner_stencil = FrozenStencil(
-        #    _nw_corner,
-        #    origin=(self.grid.ie + 1, self.grid.js, kstart),
-        #    domain=corner_domain,
-        #)
-        #self._ne_corner_stencil = FrozenStencil(
-        #    _ne_corner,
-        #    origin=(self.grid.ie + 1, self.grid.je + 1, kstart),
-        #    domain=corner_domain,
-        #)
-        #self._se_corner_stencil = FrozenStencil(
-        #    _se_corner,
-        #    origin=(self.grid.is_, self.grid.je + 1, kstart),
-        #    domain=corner_domain,
-        #)
-      
+
         js = self.grid.js + 1 if self.grid.south_edge else self.grid.js
         je = self.grid.je if self.grid.north_edge else self.grid.je + 1
         is_ = self.grid.is_ + 1 if self.grid.west_edge else self.grid.is_
@@ -511,7 +554,7 @@ class AGrid2BGridFourthOrder:
         # edge_w is singleton in the I-dimension to work around gt4py not yet
         # supporting J-fields. As a result, the origin has to be zero for
         # edge_w, anything higher is outside its index range
-    
+
         self._qout_x_edge_west = FrozenStencil(
             qout_x_edge,
             origin={"_all_": (self.grid.is_, js, kstart), "edge_w": (0, js)},
@@ -522,28 +565,31 @@ class AGrid2BGridFourthOrder:
             origin={"_all_": (self.grid.ie + 1, js, kstart), "edge_w": (0, js)},
             domain=(1, dj, nk),
         )
-        
-        
+
         self._edge_e = self._j_storage_repeat_over_i(self.grid.edge_e, shape[0:2])
         self._edge_w = self._j_storage_repeat_over_i(self.grid.edge_w, shape[0:2])
         x_edge_origin = (self.grid.is_, js, kstart)
-        x_edge_domain = (self.grid.nic +2  , dj, nk)
+        x_edge_domain = (self.grid.nic + 2, dj, nk)
         x_offsets = axis_offsets(self.grid, x_edge_origin, x_edge_domain)
-        self._qout_edges_x = FrozenStencil(qout_edges_x,externals=x_offsets,
-                                           origin=x_edge_origin,
-                                           domain=x_edge_domain,
-                                           )
+        self._qout_edges_x = FrozenStencil(
+            qout_edges_x,
+            externals=x_offsets,
+            origin=x_edge_origin,
+            domain=x_edge_domain,
+        )
         self._tmp_q2 = utils.make_storage_from_shape(shape)
         self._tmp_q1 = utils.make_storage_from_shape(shape)
-    
+
         y_edge_origin = (is_, self.grid.js, kstart)
         y_edge_domain = (di, self.grid.njc + 2, nk)
         y_offsets = axis_offsets(self.grid, y_edge_origin, y_edge_domain)
-        self._qout_edges_y = FrozenStencil(qout_edges_y,externals=y_offsets,
-                                           origin=y_edge_origin,
-                                           domain=y_edge_domain,
-                                           )
-       
+        self._qout_edges_y = FrozenStencil(
+            qout_edges_y,
+            externals=y_offsets,
+            origin=y_edge_origin,
+            domain=y_edge_domain,
+        )
+
         origin = (is_, js, kstart)
         domain = (ie - is_ + 1, je - js + 1, nk)
         ax_offsets = axis_offsets(
@@ -559,11 +605,14 @@ class AGrid2BGridFourthOrder:
             origin=(self.grid.is_, self.grid.js, kstart),
             domain=(self.grid.nic + 1, self.grid.njc + 1, nk),
         )
-    # TODO                                                                                                    
+
+    # TODO
     # within regions, the edge_w and edge_w variables that are singleton in the
     # I dimension error, workaround is repeating the data, but the longterm
-    # fix should happen in regions                                                                                                                                                                                                    
-    def _j_storage_repeat_over_i(self, grid_array: gt4py.storage.Storage, shape: Tuple[int, int]):
+    # fix should happen in regions
+    def _j_storage_repeat_over_i(
+        self, grid_array: gt4py.storage.Storage, shape: Tuple[int, int]
+    ):
         dup = utils.repeat(grid_array, shape[1], axis=0)
         return utils.make_storage_data(dup, shape, (0, 0))
 
@@ -591,40 +640,13 @@ class AGrid2BGridFourthOrder:
             self.grid.bgrid1,
             self.grid.bgrid2,
         )
-        #self._nw_corner_stencil(
-        #    qin,
-        #    qout,
-        #    self.grid.agrid1,
-        #    self.grid.agrid2,
-        #    self.grid.bgrid1,
-        #    self.grid.bgrid2,
-        #)
-        """
-        self._ne_corner_stencil(
-            qin,
-            qout,
-            self.grid.agrid1,
-            self.grid.agrid2,
-            self.grid.bgrid1,
-            self.grid.bgrid2,
-        )
-        self._se_corner_stencil(
-            qin,
-            qout,
-            self.grid.agrid1,
-            self.grid.agrid2,
-            self.grid.bgrid1,
-            self.grid.bgrid2,
-        )
-        """
+
         self._compute_qout_edges(qin, qout)
         self._a2b_interpolation_stencil(
             qin,
             qout,
             self._tmp_qx,
-            self._tmp_qx_copy,
             self._tmp_qy,
-            self._tmp_qy_copy,
             self._tmp_qxx,
             self._tmp_qyy,
             self.grid.dxa,
@@ -637,18 +659,16 @@ class AGrid2BGridFourthOrder:
             )
 
     def _compute_qout_edges(self, qin: FloatField, qout: FloatField):
-        
-        self._qout_edges_x(self._tmp_q2,
-            qin,
-            qout,
-            self.grid.dxa,self._edge_w,self._edge_e
+
+        self._qout_edges_x(
+            self._tmp_q2, qin, qout, self.grid.dxa, self._edge_w, self._edge_e
         )
-      
-      
+
         self._qout_edges_y(
             self._tmp_q1,
-	    qin,
+            qin,
             qout,
-            self.grid.dya, self.grid.edge_s, self.grid.edge_n, 
+            self.grid.dya,
+            self.grid.edge_s,
+            self.grid.edge_n,
         )
-       
