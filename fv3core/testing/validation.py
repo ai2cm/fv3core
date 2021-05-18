@@ -1,5 +1,5 @@
 import inspect
-from typing import Callable, Tuple
+from typing import Tuple
 
 import numpy as np
 
@@ -8,8 +8,7 @@ import fv3core.stencils.updatedzd
 
 def get_selective_class(
     cls,
-    selective_arg_names,
-    origin_domain_func: Callable[..., Tuple[Tuple[int, ...], Tuple[int, ...]]],
+    name_to_function_dict,
 ):
     """
     Convert a model class into one that sets nans on non-validated outputs,
@@ -26,11 +25,38 @@ def get_selective_class(
         """
 
         def __init__(self, *args, **kwargs):
+
+            selective_arg_names = []
+            origin_domain_funcs = []
+
+            for argument_name in name_to_function_dict.keys():
+                selective_arg_names.append(argument_name)
+                selective_arg_names.append(
+                    name_to_function_dict[argument_name]["savepoint_name"]
+                )
+                origin_domain_funcs.append(
+                    name_to_function_dict[argument_name]["origin_domain_func"]
+                )
+                origin_domain_funcs.append(
+                    name_to_function_dict[argument_name]["origin_domain_func"]
+                )
+
             self.wrapped = cls(*args, **kwargs)
-            origin, domain = origin_domain_func(self.wrapped)
-            self._validation_slice = tuple(
-                slice(start, start + n) for start, n in zip(origin, domain)
-            )
+            origin = []
+            domain = []
+            for variable_origin, variable_domain in [
+                origin_domain_func(self.wrapped)
+                for origin_domain_func in origin_domain_funcs
+            ]:
+                origin.append(variable_origin)
+                domain.append(variable_domain)
+
+            self._validation_slice = {}
+            for i in range(len(selective_arg_names)):
+                self._validation_slice[selective_arg_names[i]] = tuple(
+                    slice(start, start + n) for start, n in zip(origin[i], domain[i])
+                )
+
             self._all_argument_names = tuple(
                 inspect.getfullargspec(self.wrapped).args[1:]
             )
@@ -51,15 +77,15 @@ def get_selective_class(
             like to validate against reference data
             """
             if varname in self._selective_argument_names:
-                output = output[self._validation_slice]
+                output = output[self._validation_slice[varname]]
             return output
 
         def _set_nans(self, kwargs):
             for name in set(kwargs.keys()).intersection(self._selective_argument_names):
                 array = kwargs[name]
-                validation_data = np.copy(array[self._validation_slice])
+                validation_data = np.copy(array[self._validation_slice[name]])
                 array[:] = np.nan
-                array[self._validation_slice] = validation_data
+                array[self._validation_slice[name]] = validation_data
 
     return SelectivelyValidated
 
@@ -72,11 +98,19 @@ def get_update_height_on_d_grid_selective_domain(
     return origin, domain
 
 
-def get_update_height_on_c_grid_selective_domain(
+def get_update_height_on_c_grid_selective_domain_2d(
     instance,
 ) -> Tuple[Tuple[int, ...], Tuple[int, ...]]:
     origin = (instance.grid.is_, instance.grid.js)
     domain = (instance.grid.npx, instance.grid.npy)
+    return origin, domain
+
+
+def get_update_height_on_c_grid_selective_domain_3d(
+    instance,
+) -> Tuple[Tuple[int, ...], Tuple[int, ...]]:
+    origin = instance.grid.compute_origin()
+    domain = instance.grid.domain_shape_compute(add=(0, 0, 1))
     return origin, domain
 
 
@@ -94,8 +128,12 @@ def enable_selective_validation():
     # note we have not implemented disabling selective validation once enabled
     fv3core.stencils.updatedzd.UpdateHeightOnDGrid = get_selective_class(
         fv3core.stencils.updatedzd.UpdateHeightOnDGrid,
-        ["height", "zh"],  # must include both function and savepoint names
-        get_update_height_on_d_grid_selective_domain,
+        {
+            "height": {
+                "savepoint_name": "zh",
+                "origin_domain_func": get_update_height_on_d_grid_selective_domain,
+            }
+        },  # must include both function and savepoint names
     )
     # make absolutely sure you don't write just the savepoint name, this would
     # selecively validate without making sure it's safe to do so
@@ -105,8 +143,12 @@ def enable_selective_validation():
     # note we have not implemented disabling selective validation once enabled
     fv3core.stencils.updatedzc.UpdateGeopotentialHeightOnCGrid = get_selective_class(
         fv3core.stencils.updatedzc.UpdateGeopotentialHeightOnCGrid,
-        ["ws", "ws"],  # must include both function and savepoint names
-        get_update_height_on_c_grid_selective_domain,
+        {
+            "ws": {
+                "savepoint_name": "ws",
+                "origin_domain_func": get_update_height_on_c_grid_selective_domain_2d,
+            }
+        },  # must include both function and savepoint names
     )
     # make absolutely sure you don't write just the savepoint name, this would
     # selecively validate without making sure it's safe to do so

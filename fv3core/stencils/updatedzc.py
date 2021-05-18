@@ -2,7 +2,7 @@ import gt4py.gtscript as gtscript
 from gt4py.gtscript import BACKWARD, FORWARD, PARALLEL, computation, interval
 
 import fv3core.utils.global_constants as constants
-from fv3core.decorators import FrozenStencil, gtstencil
+from fv3core.decorators import FrozenStencil
 from fv3core.stencils import basic_operations
 from fv3core.utils import corners, gt4py_utils
 from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
@@ -37,12 +37,12 @@ def xy_flux(gz_x, gz_y, xfx, yfx):
     return fx, fy
 
 
-def set_zero_2d(out_field: FloatFieldIJ):
-    with computation(FORWARD):
-        with interval(0, 1):
-            out_field = 0.0  # in_field
-        with interval(1, None):
-            out_field = out_field
+# def set_zero_2d(out_field: FloatFieldIJ):
+#     with computation(FORWARD):
+#         with interval(0, 1):
+#             out_field = 0.0  # in_field
+#         with interval(1, None):
+#             out_field = out_field
 
 
 def update_dz_c(
@@ -103,8 +103,8 @@ class UpdateGeopotentialHeightOnCGrid:
             origin=(1, 1, 0),
             domain=(grid.nic + 3, grid.njc + 3, grid.npz + 1),
         )
-        # TODO: convert to FrozenStencil when we have selective validation
-        self._set_zero_2d = gtstencil(set_zero_2d)
+        # # TODO: convert to FrozenStencil when we have selective validation
+        # self._set_zero_2d = gtstencil(set_zero_2d)
 
     def __call__(
         self,

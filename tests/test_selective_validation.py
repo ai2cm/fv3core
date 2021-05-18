@@ -34,7 +34,13 @@ class DummyClass:
 )
 def test_wrapped_class(all_arg_names, selective_arg_names, shape, origin, domain):
     origin_domain_func = MagicMock(return_value=(origin, domain))
-    Wrapped = get_selective_class(DummyClass, selective_arg_names, origin_domain_func)
+    name_to_function_dict = {}
+    for name in selective_arg_names:
+        name_to_function_dict[name] = {
+            "savepoint_name": name,
+            "origin_domain_func": origin_domain_func,
+        }
+    Wrapped = get_selective_class(DummyClass, name_to_function_dict)
     kwargs = {name: np.zeros(shape) for name in all_arg_names}
     instance = Wrapped()
     instance(**kwargs)
