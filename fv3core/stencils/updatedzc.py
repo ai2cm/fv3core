@@ -37,14 +37,6 @@ def xy_flux(gz_x, gz_y, xfx, yfx):
     return fx, fy
 
 
-# def set_zero_2d(out_field: FloatFieldIJ):
-#     with computation(FORWARD):
-#         with interval(0, 1):
-#             out_field = 0.0  # in_field
-#         with interval(1, None):
-#             out_field = out_field
-
-
 def update_dz_c(
     dp_ref: FloatFieldK,
     zs: FloatFieldIJ,
