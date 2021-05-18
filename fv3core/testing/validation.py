@@ -90,7 +90,7 @@ def get_selective_class(
     return SelectivelyValidated
 
 
-def get_update_height_on_d_grid_selective_domain(
+def get_compute_domain_kplus1(
     instance,
 ) -> Tuple[Tuple[int, ...], Tuple[int, ...]]:
     origin = instance.grid.compute_origin()
@@ -98,19 +98,11 @@ def get_update_height_on_d_grid_selective_domain(
     return origin, domain
 
 
-def get_update_height_on_c_grid_selective_domain_2d(
+def get_compute_domain_2d(
     instance,
 ) -> Tuple[Tuple[int, ...], Tuple[int, ...]]:
     origin = (instance.grid.is_, instance.grid.js)
     domain = (instance.grid.npx, instance.grid.npy)
-    return origin, domain
-
-
-def get_update_height_on_c_grid_selective_domain_3d(
-    instance,
-) -> Tuple[Tuple[int, ...], Tuple[int, ...]]:
-    origin = instance.grid.compute_origin()
-    domain = instance.grid.domain_shape_compute(add=(0, 0, 1))
     return origin, domain
 
 
@@ -131,7 +123,7 @@ def enable_selective_validation():
         {
             "height": {
                 "savepoint_name": "zh",
-                "origin_domain_func": get_update_height_on_d_grid_selective_domain,
+                "origin_domain_func": get_compute_domain_kplus1,
             }
         },  # must include both function and savepoint names
     )
@@ -146,11 +138,11 @@ def enable_selective_validation():
         {
             "ws": {
                 "savepoint_name": "ws",
-                "origin_domain_func": get_update_height_on_c_grid_selective_domain_2d,
+                "origin_domain_func": get_compute_domain_2d,
             },
             "gz": {
                 "savepoint_name": "gz",
-                "origin_domain_func": get_update_height_on_c_grid_selective_domain_3d,
+                "origin_domain_func": get_compute_domain_kplus1,
             },
         },  # must include both function and savepoint names
     )
