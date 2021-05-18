@@ -78,7 +78,9 @@ def sim1_solver(
             p1 = t1g * gm / dz * (pem[0, 0, 1] + pp[0, 0, 1])
             gam = aa / bet[0, 0, -1]
             bet = dm - (aa + p1 + aa * gam)
-            w = (dm * w1 + dt * (pp[0, 0, 1] - pp) - p1 * wsr - aa * w[0, 0, -1]) / bet
+            w = (
+                dm * w1 + dt * (pp[0, 0, 1] - pp) - p1 * wsr[0, 0] - aa * w[0, 0, -1]
+            ) / bet
     with computation(BACKWARD), interval(0, -2):
         w = w - gam[0, 0, 1] * w[0, 0, 1]
     with computation(FORWARD):
