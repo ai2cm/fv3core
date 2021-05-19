@@ -32,7 +32,7 @@ class TranslateUpdateDzC(TranslateFortranData2Py):
         self.setup(inputs)
         outputs = self.slice_output(self.compute_from_storage(inputs))
         outputs["ws"] = self.subset_output("ws", outputs["ws"])
-        # outputs["gz"] = self.subset_output("gz", outputs["gz"])
+        outputs["gz"] = self.subset_output("gz", outputs["gz"])
         return outputs
 
     def subset_output(self, varname: str, output: np.ndarray) -> np.ndarray:

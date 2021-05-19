@@ -190,6 +190,10 @@ def enable_selective_validation():
                 "savepoint_name": "ws",
                 "origin_domain_func": get_compute_domain_2d,
             },
+            "gz": {
+                "savepoint_name": "gz",
+                "origin_domain_func": get_compute_domain_kplus1,
+            },
         },  # must include both function and savepoint names
     )
     # make absolutely sure you don't write just the savepoint name, this would

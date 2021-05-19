@@ -37,14 +37,6 @@ def xy_flux(gz_x, gz_y, xfx, yfx):
     return fx, fy
 
 
-# def set_zero_2d(out_field: FloatFieldIJ):
-#     with computation(FORWARD):
-#         with interval(0, 1):
-#             out_field = 0.0  # in_field
-#         with interval(1, None):
-#             out_field = out_field
-
-
 def update_dz_c(
     dp_ref: FloatFieldK,
     zs: FloatFieldIJ,
@@ -165,21 +157,4 @@ class UpdateGeopotentialHeightOnCGrid:
             self._gz_y,
             ws,
             dt=dt,
-        )
-
-        # # should be able to combine these set_zero_2d with selective validation
-        # self._set_zero_2d(ws, origin=(1, 1, 0), domain=(1, self.grid.njc + 3, 1))
-        # self._set_zero_2d(ws, origin=(1, 1, 0), domain=(self.grid.nic + 3, 1, 1))
-        # # similarly should be able to combine these copies with selective validation
-        basic_operations.copy_stencil(
-            self._gz_in,
-            gz,
-            origin=(1, 1, 0),
-            domain=(1, self.grid.njc + 3, self.grid.npz + 1),
-        )
-        basic_operations.copy_stencil(
-            self._gz_in,
-            gz,
-            origin=(1, 1, 0),
-            domain=(self.grid.nic + 3, 1, self.grid.npz + 1),
         )
