@@ -239,18 +239,14 @@ def lagrange_x_func(qy):
     return a2 * (qy[-2, 0, 0] + qy[1, 0, 0]) + a1 * (qy[-1, 0, 0] + qy)
 
 
-def a2b_interpolation_qxqy(
+def a2b_interpolation_qx(
     qin: FloatField,
-    qout: FloatField,
     qx: FloatField,
-    qy: FloatField,
     dxa: FloatFieldIJ,
-    dya: FloatFieldIJ,
 ):
     from __externals__ import i_end, i_start, j_end, j_start
 
     with computation(PARALLEL), interval(...):
-        #qout = qin
         # ppm_volume_mean_x
         qx = b2 * (qin[-2, 0, 0] + qin[1, 0, 0]) + b1 * (qin[-1, 0, 0] + qin)
         with horizontal(region[i_start, :]):
@@ -313,6 +309,15 @@ def a2b_interpolation_qxqy(
                 )
             ) / (2.0 + 2.0 * dxa[-1, 0] / dxa)
 
+def a2b_interpolation_qy(
+    qin: FloatField,
+    qy: FloatField,
+    dya: FloatFieldIJ,
+):
+    from __externals__ import i_end, i_start, j_end, j_start
+
+    with computation(PARALLEL), interval(...):
+
         # ppm_volume_mean_y
         qy = b2 * (qin[0, -2, 0] + qin[0, 1, 0]) + b1 * (qin[0, -1, 0] + qin)
         with horizontal(region[:, j_start]):
@@ -355,6 +360,7 @@ def a2b_interpolation_qxqy(
                 3.0 * (qin[0, -1, 0] + dya[0, -1] / dya * qin)
                 - (dya[0, -1] / dya * qy[0, 1, 0] + qy[0, -1, 0])
             ) / (2.0 + 2.0 * dya[0, -1] / dya)
+
 def a2b_interpolation(
     qin: FloatField,
     qout: FloatField,
@@ -369,7 +375,7 @@ def a2b_interpolation(
     edge_s: FloatFieldI,
     edge_n: FloatFieldI,
 ):
-    from __externals__ import REPLACE, i_end, i_start, j_end, j_start, local_is, local_js, local_ie,local_je
+    from __externals__ import REPLACE, i_end, i_start, j_end, j_start
 
     with computation(PARALLEL), interval(...):
         # qout_edges_x
@@ -444,6 +450,8 @@ def a2b_interpolation(
             ))
                 + (a2 * (qy[-3, 0, 0] + qy) + a1 * (qy[-2, 0, 0] + qy[-1, 0, 0]))
             )
+
+    with computation(PARALLEL), interval(...):
         with horizontal(region[i_start + 1 : i_end + 1, j_start + 1 : j_end + 1]):
             qout = 0.5 * (qxx + qyy)
         if __INLINED(REPLACE):
@@ -493,29 +501,33 @@ class AGrid2BGridFourthOrder:
             origin=origin,
             domain=domain,
         )
-        origin_prep = (self.grid.is_ - 1, self.grid.js - 1, kstart)
-        domain_prep = (self.grid.nic + 3, self.grid.njc + 3, nk)
-        ax_offsets_prep = axis_offsets(self.grid, origin_prep, domain_prep)
-        self._a2b_interpolation_qxqy_stencil = FrozenStencil(
-            a2b_interpolation_qxqy,
-            externals=ax_offsets_prep,
-            origin=origin_prep,
-            domain=domain_prep,
+        origin_prep_x = (self.grid.is_ - 1, self.grid.js - 2, kstart)
+        domain_prep_x = (self.grid.nic + 3, self.grid.njc + 4, nk)
+        ax_offsets_prep_x = axis_offsets(self.grid, origin_prep_x, domain_prep_x)
+        self._a2b_interpolation_qx_stencil = FrozenStencil(
+            a2b_interpolation_qx,
+            externals=ax_offsets_prep_x,
+            origin=origin_prep_x,
+            domain=domain_prep_x,
         )
-        #js = self.grid.js + 1 if self.grid.south_edge else self.grid.js
-        #je = self.grid.je if self.grid.north_edge else self.grid.je + 1
-        #is_ = self.grid.is_ + 1 if self.grid.west_edge else self.grid.is_
-        #ie = self.grid.ie if self.grid.east_edge else self.grid.ie + 1
-        #origin = (is_, js, kstart)
-        #domain = (ie - is_ + 1, je - js + 1, nk)
-        #ax_offsets = axis_offsets(self.grid, origin, domain)
+        origin_prep_y = (self.grid.is_ - 2, self.grid.js - 1, kstart)
+        domain_prep_y = (self.grid.nic + 4, self.grid.njc + 3, nk)
+        ax_offsets_prep_y = axis_offsets(self.grid, origin_prep_y, domain_prep_y)
+        self._a2b_interpolation_qy_stencil = FrozenStencil(
+            a2b_interpolation_qy,
+            externals=ax_offsets_prep_y,
+            origin=origin_prep_y,
+            domain=domain_prep_y,
+        )
+        
         self._a2b_interpolation_stencil = FrozenStencil(
             a2b_interpolation,
             externals={"REPLACE": replace, **ax_offsets},
             origin=origin,
             domain=domain,
         )
-
+    
+  
     # TODO
     # within regions, the edge_w and edge_w variables that are singleton in the
     # I dimension error, workaround is repeating the data, but the longterm
@@ -550,15 +562,19 @@ class AGrid2BGridFourthOrder:
             self.grid.bgrid1,
             self.grid.bgrid2,
         )
-        self._a2b_interpolation_qxqy_stencil(
+        
+        self._a2b_interpolation_qx_stencil(
             qin,
-            qout,
             self._tmp_qx,
-            self._tmp_qy,
             self.grid.dxa,
+        )
+        
+        self._a2b_interpolation_qy_stencil(
+            qin,
+            self._tmp_qy,
             self.grid.dya,
         )
-        print('going into interpolation', qout[3,4,3])
+       
         self._a2b_interpolation_stencil(
             qin,
             qout,
@@ -573,6 +589,5 @@ class AGrid2BGridFourthOrder:
             self.grid.edge_s,
             self.grid.edge_n,
         )
-        print('after interpolation', qout[3,4,3])
-        #after 3.4542028400165024e-06
-        # 3.700316608845214e-06
+       
+     
