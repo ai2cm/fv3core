@@ -239,24 +239,18 @@ def lagrange_x_func(qy):
     return a2 * (qy[-2, 0, 0] + qy[1, 0, 0]) + a1 * (qy[-1, 0, 0] + qy)
 
 
-def a2b_interpolation(
+def a2b_interpolation_qxqy(
     qin: FloatField,
     qout: FloatField,
     qx: FloatField,
     qy: FloatField,
-    qxx: FloatField,
-    qyy: FloatField,
     dxa: FloatFieldIJ,
     dya: FloatFieldIJ,
-    edge_w: FloatFieldIJ,
-    edge_e: FloatFieldIJ,
-    edge_s: FloatFieldI,
-    edge_n: FloatFieldI,
 ):
-    from __externals__ import REPLACE, i_end, i_start, j_end, j_start
+    from __externals__ import i_end, i_start, j_end, j_start
 
     with computation(PARALLEL), interval(...):
-       
+        #qout = qin
         # ppm_volume_mean_x
         qx = b2 * (qin[-2, 0, 0] + qin[1, 0, 0]) + b1 * (qin[-1, 0, 0] + qin)
         with horizontal(region[i_start, :]):
@@ -361,13 +355,30 @@ def a2b_interpolation(
                 3.0 * (qin[0, -1, 0] + dya[0, -1] / dya * qin)
                 - (dya[0, -1] / dya * qy[0, 1, 0] + qy[0, -1, 0])
             ) / (2.0 + 2.0 * dya[0, -1] / dya)
+def a2b_interpolation(
+    qin: FloatField,
+    qout: FloatField,
+    qx: FloatField,
+    qy: FloatField,
+    qxx: FloatField,
+    qyy: FloatField,
+    dxa: FloatFieldIJ,
+    dya: FloatFieldIJ,
+    edge_w: FloatFieldIJ,
+    edge_e: FloatFieldIJ,
+    edge_s: FloatFieldI,
+    edge_n: FloatFieldI,
+):
+    from __externals__ import REPLACE, i_end, i_start, j_end, j_start, local_is, local_js, local_ie,local_je
+
+    with computation(PARALLEL), interval(...):
         # qout_edges_x
-        with horizontal(region[i_start, j_start + 1 : j_end + 1]):
+        with horizontal(region[i_start,j_start + 1 : j_end + 1]):
             qout = edge_w * (
                 (qin[-1, -1, 0] * dxa[0, -1] + qin[0, -1, 0] * dxa[-1, -1])
                 / (dxa[-1, -1] + dxa[0, -1])
             ) + (1.0 - edge_w) * (
-                (qin[-1, 0, 0] * dxa + qin * dxa[-1, 0]) / (dxa[-1, 0] + dxa)
+                (qin[-1, 0, 0] * dxa[0, 0] + qin * dxa[-1, 0]) / (dxa[-1, 0] + dxa[0, 0])
             )
         with horizontal(region[i_end + 1, j_start + 1 : j_end + 1]):
             qout = edge_e * (
@@ -413,7 +424,7 @@ def a2b_interpolation(
                 + (a2 * (qx[0, -3, 0] + qx) + a1 * (qx[0, -2, 0] + qx[0, -1, 0]))
             )
         qyy = a2 * (qy[-2, 0, 0] + qy[1, 0, 0]) + a1 * (qy[-1, 0, 0] + qy)
-        with horizontal(region[i_start + 1, j_start + 1 : j_end + 1]):
+        with horizontal(region[i_start + 1,j_start + 1 : j_end + 1]):
             qyy = c1 * (qy[-1, 0, 0] + qy) + c2 * (
                 (edge_w * (
                 (qin[-2, -1, 0] * dxa[-1, -1] + qin[-1, -1, 0] * dxa[-2, -1])
@@ -438,57 +449,6 @@ def a2b_interpolation(
         if __INLINED(REPLACE):
             qin = qout
 
-
-def qout_x_edge(
-    qin: FloatField, dxa: FloatFieldIJ, edge_w: FloatFieldIJ, qout: FloatField
-):
-    with computation(PARALLEL), interval(...):
-        q2 = (qin[-1, 0, 0] * dxa + qin * dxa[-1, 0]) / (dxa[-1, 0] + dxa)
-        qout[0, 0, 0] = edge_w * q2[0, -1, 0] + (1.0 - edge_w) * q2
-
-
-def qout_y_edge(
-    qin: FloatField, dya: FloatFieldIJ, edge_s: FloatFieldI, qout: FloatField
-):
-    with computation(PARALLEL), interval(...):
-        q1 = (qin[0, -1, 0] * dya + qin * dya[0, -1]) / (dya[0, -1] + dya)
-        qout[0, 0, 0] = edge_s * q1[-1, 0, 0] + (1.0 - edge_s) * q1
-
-
-def qout_edges_x(
-    q2: FloatField,
-    qin: FloatField,
-    qout: FloatField,
-    dxa: FloatFieldIJ,
-    edge_w: FloatFieldIJ,
-    edge_e: FloatFieldIJ,
-):
-    from __externals__ import i_end, i_start
-
-    with computation(PARALLEL), interval(...):
-        q2 = (qin[-1, 0, 0] * dxa + qin * dxa[-1, 0]) / (dxa[-1, 0] + dxa)
-        with horizontal(region[i_start, :]):
-            qout = edge_w * q2[0, -1, 0] + (1.0 - edge_w) * q2
-        with horizontal(region[i_end + 1, :]):
-            qout = edge_e * q2[0, -1, 0] + (1.0 - edge_e) * q2
-
-
-def qout_edges_y(
-    q1: FloatField,
-    qin: FloatField,
-    qout: FloatField,
-    dya: FloatFieldIJ,
-    edge_s: FloatFieldI,
-    edge_n: FloatFieldI,
-):
-    from __externals__ import j_end, j_start
-
-    with computation(PARALLEL), interval(...):
-        q1 = (qin[0, -1, 0] * dya + qin * dya[0, -1]) / (dya[0, -1] + dya)
-        with horizontal(region[:, j_start]):
-            qout = edge_s * q1[-1, 0, 0] + (1.0 - edge_s) * q1
-        with horizontal(region[:, j_end + 1]):
-            qout = edge_n * q1[-1, 0, 0] + (1.0 - edge_n) * q1
 
 
 class AGrid2BGridFourthOrder:
@@ -533,7 +493,22 @@ class AGrid2BGridFourthOrder:
             origin=origin,
             domain=domain,
         )
-
+        origin_prep = (self.grid.is_ - 1, self.grid.js - 1, kstart)
+        domain_prep = (self.grid.nic + 3, self.grid.njc + 3, nk)
+        ax_offsets_prep = axis_offsets(self.grid, origin_prep, domain_prep)
+        self._a2b_interpolation_qxqy_stencil = FrozenStencil(
+            a2b_interpolation_qxqy,
+            externals=ax_offsets_prep,
+            origin=origin_prep,
+            domain=domain_prep,
+        )
+        #js = self.grid.js + 1 if self.grid.south_edge else self.grid.js
+        #je = self.grid.je if self.grid.north_edge else self.grid.je + 1
+        #is_ = self.grid.is_ + 1 if self.grid.west_edge else self.grid.is_
+        #ie = self.grid.ie if self.grid.east_edge else self.grid.ie + 1
+        #origin = (is_, js, kstart)
+        #domain = (ie - is_ + 1, je - js + 1, nk)
+        #ax_offsets = axis_offsets(self.grid, origin, domain)
         self._a2b_interpolation_stencil = FrozenStencil(
             a2b_interpolation,
             externals={"REPLACE": replace, **ax_offsets},
@@ -575,7 +550,15 @@ class AGrid2BGridFourthOrder:
             self.grid.bgrid1,
             self.grid.bgrid2,
         )
-
+        self._a2b_interpolation_qxqy_stencil(
+            qin,
+            qout,
+            self._tmp_qx,
+            self._tmp_qy,
+            self.grid.dxa,
+            self.grid.dya,
+        )
+        print('going into interpolation', qout[3,4,3])
         self._a2b_interpolation_stencil(
             qin,
             qout,
@@ -590,4 +573,6 @@ class AGrid2BGridFourthOrder:
             self.grid.edge_s,
             self.grid.edge_n,
         )
-
+        print('after interpolation', qout[3,4,3])
+        #after 3.4542028400165024e-06
+        # 3.700316608845214e-06
