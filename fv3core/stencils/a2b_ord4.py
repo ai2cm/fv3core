@@ -257,7 +257,6 @@ def a2b_interpolation(
 
     with computation(PARALLEL), interval(...):
         # qout_edges_x
-
         with horizontal(region[i_start, j_start + 1 : j_end + 1]):
             qout = edge_w * ((qin[-1, -1, 0] * dxa[0, -1] + qin[0, -1, 0] * dxa[-1, -1]) / (dxa[-1, -1] + dxa[0, -1])) + (1.0 - edge_w) * ((qin[-1, 0, 0] * dxa + qin * dxa[-1, 0]) / (dxa[-1, 0] + dxa))
         with horizontal(region[i_end + 1, j_start + 1 : j_end + 1]):
@@ -375,14 +374,14 @@ def a2b_interpolation(
 
         qxx = a2 * (qx[0, -2, 0] + qx[0, 1, 0]) + a1 * (qx[0, -1, 0] + qx)
         with horizontal(region[:, j_start + 1]):
-            qxx = c1 * (qx[0, -1, 0] + qx) + c2 * (qout[0, -1, 0] + qxx[0, 1, 0])
+            qxx = c1 * (qx[0, -1, 0] + qx) + c2 * (qout[0, -1, 0] + (a2 * (qx[0, -1, 0] + qx[0, 2, 0]) + a1 * (qx + qx[0, 1, 0])))
         with horizontal(region[:, j_end]):
-            qxx = c1 * (qx[0, -1, 0] + qx) + c2 * (qout[0, 1, 0] + qxx[0, -1, 0])
+            qxx = c1 * (qx[0, -1, 0] + qx) + c2 * (qout[0, 1, 0] + (a2 * (qx[0, -3, 0] + qx) + a1 * (qx[0, -2, 0] + qx[0, -1, 0])))
         qyy = a2 * (qy[-2, 0, 0] + qy[1, 0, 0]) + a1 * (qy[-1, 0, 0] + qy)
         with horizontal(region[i_start + 1, :]):
-            qyy = c1 * (qy[-1, 0, 0] + qy) + c2 * (qout[-1, 0, 0] + qyy[1, 0, 0])
+            qyy = c1 * (qy[-1, 0, 0] + qy) + c2 * (qout[-1, 0, 0] + (a2 * (qy[-1, 0, 0] + qy[2, 0, 0]) + a1 * (qy + qy[1, 0, 0])))
         with horizontal(region[i_end, :]):
-            qyy = c1 * (qy[-1, 0, 0] + qy) + c2 * (qout[1, 0, 0] + qyy[-1, 0, 0])
+            qyy = c1 * (qy[-1, 0, 0] + qy) + c2 * (qout[1, 0, 0] + ( a2 * (qy[-3, 0, 0] + qy) + a1 * (qy[-2, 0, 0] + qy[-1, 0, 0])))
         with horizontal(region[i_start + 1 : i_end + 1, j_start + 1 : j_end + 1]):
             qout = 0.5 * (qxx + qyy)
         if __INLINED(REPLACE):
@@ -459,20 +458,16 @@ class AGrid2BGridFourthOrder:
         """
         assert grid_type < 3
         self.grid = spec.grid
-        self.replace = replace
+      
         shape = self.grid.domain_shape_full(add=(1, 1, 1))
-        full_origin = (self.grid.isd, self.grid.jsd, kstart)
-
+        if nk is None:
+            nk = self.grid.npz - kstart
+        self._edge_e = self._j_storage_repeat_over_i(self.grid.edge_e, shape[0:2])
+        self._edge_w = self._j_storage_repeat_over_i(self.grid.edge_w, shape[0:2])
         self._tmp_qx = utils.make_storage_from_shape(shape)
         self._tmp_qy = utils.make_storage_from_shape(shape)
         self._tmp_qxx = utils.make_storage_from_shape(shape)
         self._tmp_qyy = utils.make_storage_from_shape(shape)
-        self._edge_e = self._j_storage_repeat_over_i(self.grid.edge_e, shape[0:2])
-        self._edge_w = self._j_storage_repeat_over_i(self.grid.edge_w, shape[0:2])
-       
-        if nk is None:
-            nk = self.grid.npz - kstart
-        corner_domain = (1, 1, nk)
         origin=(self.grid.is_, self.grid.js, kstart)
         domain=(self.grid.nic + 1, self.grid.njc + 1, nk)
         ax_offsets = axis_offsets(
