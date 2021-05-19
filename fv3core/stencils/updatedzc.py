@@ -92,8 +92,8 @@ class UpdateGeopotentialHeightOnCGrid:
         )
         self._update_dz_c = FrozenStencil(
             update_dz_c,
-            origin=(1, 1, 0),
-            domain=(grid.nic + 3, grid.njc + 3, grid.npz + 1),
+            origin=self.grid.compute_origin(add=(-1, -1, 0)),
+            domain=self.grid.domain_shape_compute(add=(2, 2, 1)),
         )
 
     def __call__(

@@ -9,7 +9,9 @@ from fv3gfs.util.quantity import Quantity
 
 def get_selective_class(
     cls: type,
-    name_to_function_dict,
+    name_to_function: Mapping[
+        str, Callable[..., Tuple[Tuple[int, ...], Tuple[int, ...]]]
+    ],
 ):
     """
     Convert a model class into one that sets nans on non-validated outputs,
@@ -30,16 +32,16 @@ def get_selective_class(
             selective_arg_names = []
             origin_domain_funcs = []
 
-            for argument_name in name_to_function_dict.keys():
+            for argument_name in name_to_function.keys():
                 selective_arg_names.append(argument_name)
                 selective_arg_names.append(
-                    name_to_function_dict[argument_name]["savepoint_name"]
+                    name_to_function[argument_name]["savepoint_name"]
                 )
                 origin_domain_funcs.append(
-                    name_to_function_dict[argument_name]["origin_domain_func"]
+                    name_to_function[argument_name]["origin_domain_func"]
                 )
                 origin_domain_funcs.append(
-                    name_to_function_dict[argument_name]["origin_domain_func"]
+                    name_to_function[argument_name]["origin_domain_func"]
                 )
 
             self.wrapped = cls(*args, **kwargs)
@@ -140,7 +142,7 @@ def get_selective_tracer_advection(
     return SelectivelyValidatedTracerAdvection
 
 
-def get_compute_domain_kplus1(
+def get_compute_domain_k_interfaces(
     instance,
 ) -> Tuple[Tuple[int, ...], Tuple[int, ...]]:
     origin = instance.grid.compute_origin()
@@ -173,27 +175,8 @@ def enable_selective_validation():
         {
             "height": {
                 "savepoint_name": "zh",
-                "origin_domain_func": get_compute_domain_kplus1,
+                "origin_domain_func": get_compute_domain_k_interfaces,
             }
-        },  # must include both function and savepoint names
-    )
-    # make absolutely sure you don't write just the savepoint name, this would
-    # selecively validate without making sure it's safe to do so
-
-    # to enable selective validation for a new class, add a new monkeypatch
-    # this should require only a new function for (origin, domain)
-    # note we have not implemented disabling selective validation once enabled
-    fv3core.stencils.updatedzc.UpdateGeopotentialHeightOnCGrid = get_selective_class(
-        fv3core.stencils.updatedzc.UpdateGeopotentialHeightOnCGrid,
-        {
-            "ws": {
-                "savepoint_name": "ws",
-                "origin_domain_func": get_compute_domain_2d,
-            },
-            "gz": {
-                "savepoint_name": "gz",
-                "origin_domain_func": get_compute_domain_kplus1,
-            },
         },  # must include both function and savepoint names
     )
     # make absolutely sure you don't write just the savepoint name, this would
@@ -201,5 +184,5 @@ def enable_selective_validation():
 
     fv3core.stencils.tracer_2d_1l.TracerAdvection = get_selective_tracer_advection(
         fv3core.stencils.tracer_2d_1l.TracerAdvection,
-        get_compute_domain_kplus1,
+        get_compute_domain_k_interfaces,
     )
