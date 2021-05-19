@@ -29,42 +29,22 @@ def get_selective_class(
 
         def __init__(self, *args, **kwargs):
 
-            selective_arg_names = []
-            origin_domain_funcs = []
-
-            for argument_name in name_to_function.keys():
-                selective_arg_names.append(argument_name)
-                selective_arg_names.append(
-                    name_to_function[argument_name]["savepoint_name"]
-                )
-                origin_domain_funcs.append(
-                    name_to_function[argument_name]["origin_domain_func"]
-                )
-                origin_domain_funcs.append(
-                    name_to_function[argument_name]["origin_domain_func"]
-                )
-
             self.wrapped = cls(*args, **kwargs)
-            origin = []
-            domain = []
-            for variable_origin, variable_domain in [
-                origin_domain_func(self.wrapped)
-                for origin_domain_func in origin_domain_funcs
-            ]:
-                origin.append(variable_origin)
-                domain.append(variable_domain)
-
             self._validation_slice = {}
-            for i in range(len(selective_arg_names)):
-                self._validation_slice[selective_arg_names[i]] = tuple(
-                    slice(start, start + n) for start, n in zip(origin[i], domain[i])
+
+            for arg_name, func in name_to_function.items():
+                variable_origin, variable_domain = func(self.wrapped)
+
+                self._validation_slice[arg_name] = tuple(
+                    slice(start, start + n)
+                    for start, n in zip(variable_origin, variable_domain)
                 )
 
             self._all_argument_names = tuple(
                 inspect.getfullargspec(self.wrapped).args[1:]
             )
             assert "self" not in self._all_argument_names
-            self._selective_argument_names = selective_arg_names
+            self._selective_argument_names = [name for name in name_to_function.keys()]
 
         def __call__(self, *args, **kwargs):
             kwargs.update(self._args_to_kwargs(args))
@@ -173,10 +153,8 @@ def enable_selective_validation():
     fv3core.stencils.updatedzd.UpdateHeightOnDGrid = get_selective_class(
         fv3core.stencils.updatedzd.UpdateHeightOnDGrid,
         {
-            "height": {
-                "savepoint_name": "zh",
-                "origin_domain_func": get_compute_domain_k_interfaces,
-            }
+            "height": get_compute_domain_k_interfaces,
+            "zh": get_compute_domain_k_interfaces,
         },  # must include both function and savepoint names
     )
     # make absolutely sure you don't write just the savepoint name, this would
