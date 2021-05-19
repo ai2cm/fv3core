@@ -420,7 +420,56 @@ def a2b_interpolation(
             qin = qout
 
 
+def qout_x_edge(
+    qin: FloatField, dxa: FloatFieldIJ, edge_w: FloatFieldIJ, qout: FloatField
+):
+    with computation(PARALLEL), interval(...):
+        q2 = (qin[-1, 0, 0] * dxa + qin * dxa[-1, 0]) / (dxa[-1, 0] + dxa)
+        qout[0, 0, 0] = edge_w * q2[0, -1, 0] + (1.0 - edge_w) * q2
 
+
+def qout_y_edge(
+    qin: FloatField, dya: FloatFieldIJ, edge_s: FloatFieldI, qout: FloatField
+):
+    with computation(PARALLEL), interval(...):
+        q1 = (qin[0, -1, 0] * dya + qin * dya[0, -1]) / (dya[0, -1] + dya)
+        qout[0, 0, 0] = edge_s * q1[-1, 0, 0] + (1.0 - edge_s) * q1
+
+
+def qout_edges_x(
+    q2: FloatField,
+    qin: FloatField,
+    qout: FloatField,
+    dxa: FloatFieldIJ,
+    edge_w: FloatFieldIJ,
+    edge_e: FloatFieldIJ,
+):
+    from __externals__ import i_end, i_start
+
+    with computation(PARALLEL), interval(...):
+        q2 = (qin[-1, 0, 0] * dxa + qin * dxa[-1, 0]) / (dxa[-1, 0] + dxa)
+        with horizontal(region[i_start, :]):
+            qout = edge_w * q2[0, -1, 0] + (1.0 - edge_w) * q2
+        with horizontal(region[i_end + 1, :]):
+            qout = edge_e * q2[0, -1, 0] + (1.0 - edge_e) * q2
+
+
+def qout_edges_y(
+    q1: FloatField,
+    qin: FloatField,
+    qout: FloatField,
+    dya: FloatFieldIJ,
+    edge_s: FloatFieldI,
+    edge_n: FloatFieldI,
+):
+    from __externals__ import j_end, j_start
+
+    with computation(PARALLEL), interval(...):
+        q1 = (qin[0, -1, 0] * dya + qin * dya[0, -1]) / (dya[0, -1] + dya)
+        with horizontal(region[:, j_start]):
+            qout = edge_s * q1[-1, 0, 0] + (1.0 - edge_s) * q1
+        with horizontal(region[:, j_end + 1]):
+            qout = edge_n * q1[-1, 0, 0] + (1.0 - edge_n) * q1
 
 
 class AGrid2BGridFourthOrder:
@@ -507,7 +556,7 @@ class AGrid2BGridFourthOrder:
             self.grid.bgrid1,
             self.grid.bgrid2,
         )
-       
+
         self._a2b_interpolation_stencil(
             qin,
             qout,
