@@ -239,11 +239,13 @@ def lagrange_x_func(qy):
     return a2 * (qy[-2, 0, 0] + qy[1, 0, 0]) + a1 * (qy[-1, 0, 0] + qy)
 
 
-def a2b_interpolation_prep(
+def a2b_interpolation(
     qin: FloatField,
     qout: FloatField,
     qx: FloatField,
     qy: FloatField,
+    qxx: FloatField,
+    qyy: FloatField,
     dxa: FloatFieldIJ,
     dya: FloatFieldIJ,
     edge_w: FloatFieldIJ,
@@ -251,40 +253,10 @@ def a2b_interpolation_prep(
     edge_s: FloatFieldI,
     edge_n: FloatFieldI,
 ):
-    from __externals__ import i_end, i_start, j_end, j_start
+    from __externals__ import REPLACE, i_end, i_start, j_end, j_start
 
     with computation(PARALLEL), interval(...):
-        # qout_edges_x
-        with horizontal(region[i_start, j_start + 1 : j_end + 1]):
-            qout = edge_w * (
-                (qin[-1, -1, 0] * dxa[0, -1] + qin[0, -1, 0] * dxa[-1, -1])
-                / (dxa[-1, -1] + dxa[0, -1])
-            ) + (1.0 - edge_w) * (
-                (qin[-1, 0, 0] * dxa + qin * dxa[-1, 0]) / (dxa[-1, 0] + dxa)
-            )
-        with horizontal(region[i_end + 1, j_start + 1 : j_end + 1]):
-            qout = edge_e * (
-                (qin[-1, -1, 0] * dxa[0, -1] + qin[0, -1, 0] * dxa[-1, -1])
-                / (dxa[-1, -1] + dxa[0, -1])
-            ) + (1.0 - edge_e) * (
-                (qin[-1, 0, 0] * dxa + qin * dxa[-1, 0]) / (dxa[-1, 0] + dxa)
-            )
-
-        with horizontal(region[i_start + 1 : i_end + 1, j_start]):
-            qout = edge_s * (
-                (qin[-1, -1, 0] * dya[-1, 0] + qin[-1, 0, 0] * dya[-1, -1])
-                / (dya[-1, -1] + dya[-1, 0])
-            ) + (1.0 - edge_s) * (
-                (qin[0, -1, 0] * dya + qin * dya[0, -1]) / (dya[0, -1] + dya)
-            )
-        with horizontal(region[i_start + 1 : i_end + 1, j_end + 1]):
-            qout = edge_n * (
-                (qin[-1, -1, 0] * dya[-1, 0] + qin[-1, 0, 0] * dya[-1, -1])
-                / (dya[-1, -1] + dya[-1, 0])
-            ) + (1.0 - edge_n) * (
-                (qin[0, -1, 0] * dya + qin * dya[0, -1]) / (dya[0, -1] + dya)
-            )
-
+       
         # ppm_volume_mean_x
         qx = b2 * (qin[-2, 0, 0] + qin[1, 0, 0]) + b1 * (qin[-1, 0, 0] + qin)
         with horizontal(region[i_start, :]):
@@ -389,55 +361,82 @@ def a2b_interpolation_prep(
                 3.0 * (qin[0, -1, 0] + dya[0, -1] / dya * qin)
                 - (dya[0, -1] / dya * qy[0, 1, 0] + qy[0, -1, 0])
             ) / (2.0 + 2.0 * dya[0, -1] / dya)
-            
-def a2b_interpolation_2nd(
-    qout: FloatField,
-    qx: FloatField,
-    qy: FloatField,
-    qxx: FloatField,
-    qyy: FloatField,
-):
-    from __externals__ import i_end, i_start, j_end, j_start
-
-    with computation(PARALLEL), interval(...):
-
+        # qout_edges_x
+        with horizontal(region[i_start, j_start + 1 : j_end + 1]):
+            qout = edge_w * (
+                (qin[-1, -1, 0] * dxa[0, -1] + qin[0, -1, 0] * dxa[-1, -1])
+                / (dxa[-1, -1] + dxa[0, -1])
+            ) + (1.0 - edge_w) * (
+                (qin[-1, 0, 0] * dxa + qin * dxa[-1, 0]) / (dxa[-1, 0] + dxa)
+            )
+        with horizontal(region[i_end + 1, j_start + 1 : j_end + 1]):
+            qout = edge_e * (
+                (qin[-1, -1, 0] * dxa[0, -1] + qin[0, -1, 0] * dxa[-1, -1])
+                / (dxa[-1, -1] + dxa[0, -1])
+            ) + (1.0 - edge_e) * (
+                (qin[-1, 0, 0] * dxa + qin * dxa[-1, 0]) / (dxa[-1, 0] + dxa)
+            )
+        # qout edges y
+        with horizontal(region[i_start + 1 : i_end + 1, j_start]):
+            qout = edge_s * (
+                (qin[-1, -1, 0] * dya[-1, 0] + qin[-1, 0, 0] * dya[-1, -1])
+                / (dya[-1, -1] + dya[-1, 0])
+            ) + (1.0 - edge_s) * (
+                (qin[0, -1, 0] * dya + qin * dya[0, -1]) / (dya[0, -1] + dya)
+            )
+        with horizontal(region[i_start + 1 : i_end + 1, j_end + 1]):
+            qout = edge_n * (
+                (qin[-1, -1, 0] * dya[-1, 0] + qin[-1, 0, 0] * dya[-1, -1])
+                / (dya[-1, -1] + dya[-1, 0])
+            ) + (1.0 - edge_n) * (
+                (qin[0, -1, 0] * dya + qin * dya[0, -1]) / (dya[0, -1] + dya)
+            )
         qxx = a2 * (qx[0, -2, 0] + qx[0, 1, 0]) + a1 * (qx[0, -1, 0] + qx)
-        with horizontal(region[:, j_start + 1]):
+        with horizontal(region[i_start + 1 : i_end + 1, j_start + 1]):
             qxx = c1 * (qx[0, -1, 0] + qx) + c2 * (
-                qout[0, -1, 0]
+                (edge_s * (
+                (qin[-1, -2, 0] * dya[-1, -1] + qin[-1, -1, 0] * dya[-1, -2])
+                / (dya[-1, -2] + dya[-1, -1])
+            ) + (1.0 - edge_s) * (
+                (qin[0, -2, 0] * dya[0, -1] + qin[0, -1, 0] * dya[0, -2]) / (dya[0, -2] + dya[0, -1])
+            ))
                 + (a2 * (qx[0, -1, 0] + qx[0, 2, 0]) + a1 * (qx + qx[0, 1, 0]))
             )
-        with horizontal(region[:, j_end]):
+        with horizontal(region[i_start + 1 : i_end + 1, j_end]):
             qxx = c1 * (qx[0, -1, 0] + qx) + c2 * (
-                qout[0, 1, 0]
+                ( edge_n * (
+                (qin[-1, 0, 0] * dya[-1, 1] + qin[-1, 1, 0] * dya[-1, 0])
+                / (dya[-1, 0] + dya[-1, 1])
+            ) + (1.0 - edge_n) * (
+                (qin[0, 0, 0] * dya[0, 1] + qin[0, 1, 0] * dya[0, 0]) / (dya[0, 0] + dya[0, 1])
+            ))
                 + (a2 * (qx[0, -3, 0] + qx) + a1 * (qx[0, -2, 0] + qx[0, -1, 0]))
             )
         qyy = a2 * (qy[-2, 0, 0] + qy[1, 0, 0]) + a1 * (qy[-1, 0, 0] + qy)
-        with horizontal(region[i_start + 1, :]):
+        with horizontal(region[i_start + 1, j_start + 1 : j_end + 1]):
             qyy = c1 * (qy[-1, 0, 0] + qy) + c2 * (
-                qout[-1, 0, 0]
+                (edge_w * (
+                (qin[-2, -1, 0] * dxa[-1, -1] + qin[-1, -1, 0] * dxa[-2, -1])
+                / (dxa[-2, -1] + dxa[-1, -1])
+            ) + (1.0 - edge_w) * (
+                (qin[-2, 0, 0] * dxa[-1, 0] + qin[-1, 0, 0] * dxa[-2, 0]) / (dxa[-2, 0] + dxa[-1, 0])
+            ))
                 + (a2 * (qy[-1, 0, 0] + qy[2, 0, 0]) + a1 * (qy + qy[1, 0, 0]))
             )
-        with horizontal(region[i_end, :]):
+        with horizontal(region[i_end, j_start + 1 : j_end + 1]):
             qyy = c1 * (qy[-1, 0, 0] + qy) + c2 * (
-                qout[1, 0, 0]
+               (edge_e * (
+                (qin[0, -1, 0] * dxa[1, -1] + qin[1, -1, 0] * dxa[0, -1])
+                / (dxa[0, -1] + dxa[1, -1])
+            ) + (1.0 - edge_e) * (
+                (qin[0, 0, 0] * dxa[1, 0] + qin[1, 0, 0] * dxa[0, 0]) / (dxa[0, 0] + dxa[1, 0])
+            ))
                 + (a2 * (qy[-3, 0, 0] + qy) + a1 * (qy[-2, 0, 0] + qy[-1, 0, 0]))
             )
-
-def a2b_interpolation(
-    qin: FloatField,
-    qout: FloatField,
-    qxx: FloatField,
-    qyy: FloatField,
-):
-    from __externals__ import REPLACE, i_end, i_start, j_end, j_start
-
-    with computation(PARALLEL), interval(...):
         with horizontal(region[i_start + 1 : i_end + 1, j_start + 1 : j_end + 1]):
             qout = 0.5 * (qxx + qyy)
         if __INLINED(REPLACE):
             qin = qout
-
 
 
 
@@ -483,18 +482,7 @@ class AGrid2BGridFourthOrder:
             origin=origin,
             domain=domain,
         )
-        self._a2b_interpolation_prep_stencil = FrozenStencil(
-            a2b_interpolation_prep,
-            externals=ax_offsets,
-            origin=origin,
-            domain=domain,
-        )
-        self._a2b_interpolation_2nd_stencil = FrozenStencil(
-            a2b_interpolation_2nd,
-            externals=ax_offsets,
-            origin=origin,
-            domain=domain,
-        )
+
         self._a2b_interpolation_stencil = FrozenStencil(
             a2b_interpolation,
             externals={"REPLACE": replace, **ax_offsets},
@@ -537,11 +525,13 @@ class AGrid2BGridFourthOrder:
             self.grid.bgrid2,
         )
 
-        self._a2b_interpolation_prep_stencil(
+        self._a2b_interpolation_stencil(
             qin,
             qout,
             self._tmp_qx,
             self._tmp_qy,
+            self._tmp_qxx,
+            self._tmp_qyy,
             self.grid.dxa,
             self.grid.dya,
             self._edge_w,
@@ -549,19 +539,4 @@ class AGrid2BGridFourthOrder:
             self.grid.edge_s,
             self.grid.edge_n,
         )
-        
-        self._a2b_interpolation_2nd_stencil(
-            qout,
-            self._tmp_qx,
-            self._tmp_qy,
-            self._tmp_qxx,
-            self._tmp_qyy,
-        )
-        
-        self._a2b_interpolation_stencil(
-            qin,
-            qout,
-            self._tmp_qxx,
-            self._tmp_qyy,
-           
-        )
+
