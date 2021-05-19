@@ -375,7 +375,7 @@ def a2b_interpolation(
     edge_s: FloatFieldI,
     edge_n: FloatFieldI,
 ):
-    from __externals__ import REPLACE, i_end, i_start, j_end, j_start
+    from __externals__ import i_end, i_start, j_end, j_start
 
     with computation(PARALLEL), interval(...):
         # qout_edges_x
@@ -450,7 +450,12 @@ def a2b_interpolation(
             ))
                 + (a2 * (qy[-3, 0, 0] + qy) + a1 * (qy[-2, 0, 0] + qy[-1, 0, 0]))
             )
-
+def a2b_interpolation_final(
+    qout: FloatField,
+    qxx: FloatField,
+    qyy: FloatField,
+):
+    from __externals__ import REPLACE, i_end, i_start, j_end, j_start
     with computation(PARALLEL), interval(...):
         with horizontal(region[i_start + 1 : i_end + 1, j_start + 1 : j_end + 1]):
             qout = 0.5 * (qxx + qyy)
@@ -522,6 +527,12 @@ class AGrid2BGridFourthOrder:
         
         self._a2b_interpolation_stencil = FrozenStencil(
             a2b_interpolation,
+            externals=ax_offsets,
+            origin=origin,
+            domain=domain,
+        )
+        self._a2b_interpolation_final_stencil = FrozenStencil(
+            a2b_interpolation_final,
             externals={"REPLACE": replace, **ax_offsets},
             origin=origin,
             domain=domain,
@@ -589,5 +600,9 @@ class AGrid2BGridFourthOrder:
             self.grid.edge_s,
             self.grid.edge_n,
         )
-       
+        self._a2b_interpolation_final_stencil(
+            qout,
+            self._tmp_qxx,
+            self._tmp_qyy,
+        )
      
