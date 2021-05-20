@@ -451,6 +451,7 @@ def a2b_interpolation(
                 + (a2 * (qy[-3, 0, 0] + qy) + a1 * (qy[-2, 0, 0] + qy[-1, 0, 0]))
             )
 def a2b_interpolation_final(
+    qin: FloatField,
     qout: FloatField,
     qxx: FloatField,
     qyy: FloatField,
@@ -601,6 +602,7 @@ class AGrid2BGridFourthOrder:
             self.grid.edge_n,
         )
         self._a2b_interpolation_final_stencil(
+            qin,
             qout,
             self._tmp_qxx,
             self._tmp_qyy,
