@@ -3,8 +3,8 @@ from gt4py.gtscript import BACKWARD, FORWARD, PARALLEL, computation, interval
 
 import fv3core.utils.global_constants as constants
 from fv3core.decorators import FrozenStencil
-from fv3core.stencils import basic_operations
-from fv3core.utils import corners, gt4py_utils
+from fv3core.utils import corners
+from fv3core.utils.grid import axis_offsets
 from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
 
 
@@ -44,8 +44,6 @@ def update_dz_c(
     ut: FloatField,
     vt: FloatField,
     gz: FloatField,
-    gz_x: FloatField,
-    gz_y: FloatField,
     ws: FloatFieldIJ,
     *,
     dt: float,
@@ -61,9 +59,12 @@ def update_dz_c(
             xfx = p_weighted_average_bottom(ut, dp_ref)
             yfx = p_weighted_average_bottom(vt, dp_ref)
     with computation(PARALLEL), interval(...):
-        fx, fy = xy_flux(gz_x, gz_y, xfx, yfx)
+        gz_tmp = corners.fill_corners_2cells_mult_x(gz, gz, 1.0, 1.0, 1.0, 1.0)
+        fx = xfx * (gz_tmp[-1, 0, 0] if xfx > 0.0 else gz_tmp)
+        gz_tmp = corners.fill_corners_2cells_mult_y(gz_tmp, gz_tmp, 1.0, 1.0, 1.0, 1.0)
+        fy = yfx * (gz_tmp[0, -1, 0] if yfx > 0.0 else gz_tmp)
         # TODO: check if below gz is ok, or if we need gz_y to pass this
-        gz = (gz_y * area + fx - fx[1, 0, 0] + fy - fy[0, 1, 0]) / (
+        gz = (gz_tmp * area + fx - fx[1, 0, 0] + fy - fy[0, 1, 0]) / (
             area + xfx - xfx[1, 0, 0] + yfx - yfx[0, 1, 0]
         )
     with computation(FORWARD), interval(-1, None):
@@ -77,23 +78,16 @@ def update_dz_c(
 class UpdateGeopotentialHeightOnCGrid:
     def __init__(self, grid):
         self.grid = grid
-        largest_possible_shape = self.grid.domain_shape_full(add=(1, 1, 1))
-        self._gz_in = gt4py_utils.make_storage_from_shape(
-            largest_possible_shape,
-            self.grid.compute_origin(add=(0, -self.grid.halo, 0)),
-        )
-        self._gz_x = gt4py_utils.make_storage_from_shape(
-            largest_possible_shape,
-            self.grid.compute_origin(add=(0, -self.grid.halo, 0)),
-        )
-        self._gz_y = gt4py_utils.make_storage_from_shape(
-            largest_possible_shape,
-            self.grid.compute_origin(add=(0, -self.grid.halo, 0)),
-        )
+
         self._update_dz_c = FrozenStencil(
             update_dz_c,
             origin=self.grid.compute_origin(add=(-1, -1, 0)),
             domain=self.grid.domain_shape_compute(add=(2, 2, 1)),
+            externals=axis_offsets(
+                self.grid,
+                self.grid.compute_origin(add=(-1, -1, 0)),
+                self.grid.domain_shape_compute(add=(2, 2, 1)),
+            ),
         )
 
     def __call__(
@@ -116,35 +110,6 @@ class UpdateGeopotentialHeightOnCGrid:
             ws: surface vertical wind implied by horizontal motion over topography
             dt: timestep over which to evolve the geopotential height
         """
-        basic_operations.copy_stencil(
-            gz,
-            self._gz_in,
-            origin=self.grid.full_origin(),
-            domain=self.grid.domain_shape_full(add=(0, 0, 1)),
-        )
-        basic_operations.copy_stencil(
-            gz,
-            self._gz_x,
-            origin=self.grid.full_origin(),
-            domain=self.grid.domain_shape_full(add=(0, 0, 1)),
-        )
-        basic_operations.copy_stencil(
-            gz,
-            self._gz_y,
-            origin=self.grid.full_origin(),
-            domain=self.grid.domain_shape_full(add=(0, 0, 1)),
-        )
-
-        corners.fill_corners_2cells_x_stencil(
-            self._gz_x,
-            origin=self.grid.full_origin(),
-            domain=self.grid.domain_shape_full(add=(0, 0, 1)),
-        )
-        corners.fill_corners_2cells_y_stencil(
-            self._gz_y,
-            origin=self.grid.full_origin(),
-            domain=self.grid.domain_shape_full(add=(0, 0, 1)),
-        )
 
         self._update_dz_c(
             dp_ref,
@@ -153,8 +118,6 @@ class UpdateGeopotentialHeightOnCGrid:
             ut,
             vt,
             gz,
-            self._gz_x,
-            self._gz_y,
             ws,
             dt=dt,
         )
