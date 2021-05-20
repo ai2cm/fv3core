@@ -224,7 +224,55 @@ def lagrange_y_func(qx):
 def lagrange_x_func(qy):
     return a2 * (qy[-2, 0, 0] + qy[1, 0, 0]) + a1 * (qy[-1, 0, 0] + qy)
 
+@gtscript.function
+def _ppm_volume_mean_x(qin: FloatField):
+    return b2 * (qin[-2, 0, 0] + qin[1, 0, 0]) + b1 * (qin[-1, 0, 0] + qin)
 
+
+@gtscript.function
+def _ppm_volume_mean_y(qin: FloatField):
+    return b2 * (qin[0, -2, 0] + qin[0, 1, 0]) + b1 * (qin[0, -1, 0] + qin)
+
+@gtscript.function
+def _qx_edge_west(qin: FloatField, dxa: FloatFieldIJ):
+    g_in = dxa[1, 0] / dxa
+    g_ou = dxa[-2, 0] / dxa[-1, 0]
+    return 0.5 * (
+        ((2.0 + g_in) * qin - qin[1, 0, 0]) / (1.0 + g_in)
+        + ((2.0 + g_ou) * qin[-1, 0, 0] - qin[-2, 0, 0]) / (1.0 + g_ou)
+    )
+
+
+@gtscript.function
+def _qx_edge_west2(qin: FloatField, dxa: FloatFieldIJ):
+    # TODO: should be able to use 2d variable with offset:
+    # qxleft =  _qx_edge_west(qin[-1, 0, 0], dxa[-1, 0])
+    # TODO this seemsed to work for a bit, and then stopped
+    #qxright =  _ppm_volume_mean_x(qin[1, 0, 0])
+    #g_in = dxa / dxa[-1, 0]
+    #return (
+    #    3.0 * (g_in * qin[-1, 0, 0] + qin) - (g_in * qxleft + qxright)
+    #) / (2.0 + 2.0 * g_in)
+    return (
+        3.0 * (dxa / dxa[-1, 0] * qin[-1, 0, 0] + qin)
+        - (
+            dxa
+            / dxa[-1, 0]
+            * (
+                0.5
+                * (
+                    ((2.0 + dxa[0, 0] / dxa[-1, 0]) * qin[-1, 0, 0] - qin)
+                    / (1.0 + dxa[0, 0] / dxa[-1, 0])
+                    + (
+                        (2.0 + dxa[-3, 0] / dxa[-2, 0]) * qin[-2, 0, 0]
+                        - qin[-3, 0, 0]
+                    )
+                    / (1.0 + dxa[-3, 0] / dxa[-2, 0])
+                )
+            )
+            + (b2 * (qin[-1, 0, 0] + qin[2, 0, 0]) + b1 * (qin + qin[1, 0, 0]))
+        )
+    ) / (2.0 + 2.0 * dxa / dxa[-1, 0])
 def a2b_interpolation_qx(
     qin: FloatField,
     qx: FloatField,
@@ -233,36 +281,14 @@ def a2b_interpolation_qx(
     from __externals__ import i_end, i_start
 
     with computation(PARALLEL), interval(...):
-        # ppm_volume_mean_x
-        qx = b2 * (qin[-2, 0, 0] + qin[1, 0, 0]) + b1 * (qin[-1, 0, 0] + qin)
+        qx = _ppm_volume_mean_x(qin)
+            
         with horizontal(region[i_start, :]):
-            qx = 0.5 * (
-                ((2.0 + dxa[1, 0] / dxa) * qin - qin[1, 0, 0]) / (1.0 + dxa[1, 0] / dxa)
-                + ((2.0 + dxa[-2, 0] / dxa[-1, 0]) * qin[-1, 0, 0] - qin[-2, 0, 0])
-                / (1.0 + dxa[-2, 0] / dxa[-1, 0])
-            )
+            qx = _qx_edge_west(qin, dxa)
 
         with horizontal(region[i_start + 1, :]):
-            qx = (
-                3.0 * (dxa / dxa[-1, 0] * qin[-1, 0, 0] + qin)
-                - (
-                    dxa
-                    / dxa[-1, 0]
-                    * (
-                        0.5
-                        * (
-                            ((2.0 + dxa[0, 0] / dxa[-1, 0]) * qin[-1, 0, 0] - qin)
-                            / (1.0 + dxa[0, 0] / dxa[-1, 0])
-                            + (
-                                (2.0 + dxa[-3, 0] / dxa[-2, 0]) * qin[-2, 0, 0]
-                                - qin[-3, 0, 0]
-                            )
-                            / (1.0 + dxa[-3, 0] / dxa[-2, 0])
-                        )
-                    )
-                    + (b2 * (qin[-1, 0, 0] + qin[2, 0, 0]) + b1 * (qin + qin[1, 0, 0]))
-                )
-            ) / (2.0 + 2.0 * dxa / dxa[-1, 0])
+            qx = _qx_edge_west2(qin, dxa)
+       
         with horizontal(region[i_end + 1, :]):
             qx = 0.5 * (
                 ((2.0 + dxa[-2, 0] / dxa[-1, 0]) * qin[-1, 0, 0] - qin[-2, 0, 0])
@@ -730,7 +756,6 @@ def a2b_interpolation(
                 (a2 * (qx[0, -2, 0] + qx[0, 1, 0]) + a1 * (qx[0, -1, 0] + qx))
                 + (a2 * (qy[-2, 0, 0] + qy[1, 0, 0]) + a1 * (qy[-1, 0, 0] + qy))
             )
-
 
 class AGrid2BGridFourthOrder:
     """
