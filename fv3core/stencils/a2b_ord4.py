@@ -20,7 +20,7 @@ import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import FrozenStencil
 from fv3core.utils import axis_offsets
 from fv3core.utils.typing import FloatField, FloatFieldI, FloatFieldIJ
-
+from fv3core.stencils.basic_operations import copy_defn
 
 # comact 4-pt cubic interpolation
 c1 = 2.0 / 3.0
@@ -511,9 +511,9 @@ def a2b_interpolation(
             )))
         with horizontal(region[i_start + 2 : i_end, j_start + 2:j_end]):
             qout = 0.5 * ((a2 * (qx[0, -2, 0] + qx[0, 1, 0]) + a1 * (qx[0, -1, 0] + qx)) + (a2 * (qy[-2, 0, 0] + qy[1, 0, 0]) + a1 * (qy[-1, 0, 0] + qy)))
-    with computation(PARALLEL), interval(...):
-        if __INLINED(REPLACE):
-            qin = qout
+    #with computation(PARALLEL), interval(...):
+    #    if __INLINED(REPLACE):
+    #        qin = qout
            
 
 
@@ -534,7 +534,7 @@ class AGrid2BGridFourthOrder:
         """
         assert grid_type < 3
         self.grid = spec.grid
-
+        self._replace = replace
         shape = self.grid.domain_shape_full(add=(1, 1, 1))
         if nk is None:
             nk = self.grid.npz - kstart
@@ -582,7 +582,11 @@ class AGrid2BGridFourthOrder:
             origin=origin,
             domain=domain,
         )
-    
+        self._copy_stencil = FrozenStencil(
+            copy_defn,
+            origin=origin,
+            domain=domain,
+        )
   
     # TODO
     # within regions, the edge_w and edge_w variables that are singleton in the
@@ -644,3 +648,5 @@ class AGrid2BGridFourthOrder:
             self.grid.edge_n,
         )
  
+        if self._replace:
+            self._copy_stencil(qout, qin)
