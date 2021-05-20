@@ -5,11 +5,11 @@ from fv3core.testing import TranslateFortranData2Py
 class TranslateUpdateDzC(TranslateFortranData2Py):
     def __init__(self, grid):
         super().__init__(grid)
-        self.update_gz_on_c_grid = updatedzc.UpdateGeopotentialHeightOnCGrid(grid)
+        update_gz_on_c_grid = updatedzc.UpdateGeopotentialHeightOnCGrid(grid)
 
         def compute(**kwargs):
             kwargs["dt"] = kwargs.pop("dt2")
-            self.update_gz_on_c_grid(**kwargs)
+            update_gz_on_c_grid(**kwargs)
 
         self.compute_func = compute
         self.in_vars["data_vars"] = {

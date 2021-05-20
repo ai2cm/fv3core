@@ -61,7 +61,7 @@ def update_dz_c(
     with computation(PARALLEL), interval(...):
         gz_tmp = corners.fill_corners_2cells_mult_x(gz, gz, 1.0, 1.0, 1.0, 1.0)
         fx = xfx * (gz_tmp[-1, 0, 0] if xfx > 0.0 else gz_tmp)
-        gz_tmp = corners.fill_corners_2cells_mult_y(gz_tmp, gz_tmp, 1.0, 1.0, 1.0, 1.0)
+        gz_tmp = corners.fill_corners_2cells_mult_y(gz, gz, 1.0, 1.0, 1.0, 1.0)
         fy = yfx * (gz_tmp[0, -1, 0] if yfx > 0.0 else gz_tmp)
         # TODO: check if below gz is ok, or if we need gz_y to pass this
         gz = (gz_tmp * area + fx - fx[1, 0, 0] + fy - fy[0, 1, 0]) / (

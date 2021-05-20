@@ -9,7 +9,7 @@ from fv3gfs.util.quantity import Quantity
 
 def get_selective_class(
     cls: type,
-    name_to_function: Mapping[
+    name_to_origin_domain_function: Mapping[
         str, Callable[..., Tuple[Tuple[int, ...], Tuple[int, ...]]]
     ],
 ):
@@ -32,7 +32,7 @@ def get_selective_class(
             self.wrapped = cls(*args, **kwargs)
             self._validation_slice = {}
 
-            for arg_name, func in name_to_function.items():
+            for arg_name, func in name_to_origin_domain_function.items():
                 variable_origin, variable_domain = func(self.wrapped)
 
                 self._validation_slice[arg_name] = tuple(
@@ -44,7 +44,9 @@ def get_selective_class(
                 inspect.getfullargspec(self.wrapped).args[1:]
             )
             assert "self" not in self._all_argument_names
-            self._selective_argument_names = [name for name in name_to_function.keys()]
+            self._selective_argument_names = tuple(
+                name_to_origin_domain_function.keys()
+            )
 
         def __call__(self, *args, **kwargs):
             kwargs.update(self._args_to_kwargs(args))
@@ -127,14 +129,6 @@ def get_compute_domain_k_interfaces(
 ) -> Tuple[Tuple[int, ...], Tuple[int, ...]]:
     origin = instance.grid.compute_origin()
     domain = instance.grid.domain_shape_compute(add=(0, 0, 1))
-    return origin, domain
-
-
-def get_compute_domain_2d(
-    instance,
-) -> Tuple[Tuple[int, ...], Tuple[int, ...]]:
-    origin = (instance.grid.is_, instance.grid.js)
-    domain = (instance.grid.npx, instance.grid.npy)
     return origin, domain
 
 
