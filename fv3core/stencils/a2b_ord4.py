@@ -418,8 +418,8 @@ def _cubic_interpolation_south(qx, qoutlower, qxxupper):
     return c1 * (qx[0, -1, 0] + qx) + c2 * (qoutlower + qxxupper)
 
 @gtscript.function
-def _cubic_interpolation_north(qx: FloatField, qout: FloatField, qxx: FloatField):
-    return c1 * (qx[0, -1, 0] + qx) + c2 * (qout[0, 1, 0] + qxx[0, -1, 0])
+def _cubic_interpolation_north(qx, qoutupper, qxxlower):
+    return c1 * (qx[0, -1, 0] + qx) + c2 * (qoutupper + qxxlower)
 
 
 @gtscript.function
@@ -439,6 +439,16 @@ def qxx_south(qin, qx, dya, edge_s):
     qoutlower = (edge_s* ((qin[-1, -2, 0] * dya[-1, -1]+ qin[-1, -1, 0] * dya[-1, -2])/ (dya[-1, -2] + dya[-1, -1]))
                  + (1.0 - edge_s)* ((qin[0, -2, 0] * dya[0, -1] + qin[0, -1, 0] * dya[0, -2])/ (dya[0, -2] + dya[0, -1])))
     return  _cubic_interpolation_south(qx, qoutlower, qxxupper)
+
+@gtscript.function
+def qxx_north(qin, qx, dya, edge_n):
+    # qxxlower = lagrange_y(qx[0, -1, 0])
+    qxxlower = a2 * (qx[0, -3, 0] + qx) + a1 * (qx[0, -2, 0] + qx[0, -1, 0])
+    # qoutupper = _qout_y_edge(qin[0, 1, 0], dya[0, 1, 0], edge_s[0, 1])
+    qoutupper = (edge_n* ((qin[-1, 0, 0] * dya[-1, 1]+ qin[-1, 1, 0] * dya[-1, 0])/ (dya[-1, 0] + dya[-1, 1]))
+                 + (1.0 - edge_n) * ((qin[0, 0, 0] * dya[0, 1] + qin[0, 1, 0] * dya[0, 0])/ (dya[0, 0] + dya[0, 1])))
+    return  _cubic_interpolation_north(qx, qoutupper, qxxlower)
+
 @gtscript.function
 def qyy_west(qin, qy, dxa, edge_w):
     # qyyright = lagrange_x(qy[0, 1, 0])
@@ -447,7 +457,16 @@ def qyy_west(qin, qy, dxa, edge_w):
     qoutleft = (edge_w * ((qin[-2, -1, 0] * dxa[-1, -1]+ qin[-1, -1, 0] * dxa[-2, -1])/ (dxa[-2, -1] + dxa[-1, -1]))
                 + (1.0 - edge_w)* ((qin[-2, 0, 0] * dxa[-1, 0]+ qin[-1, 0, 0] * dxa[-2, 0])/ (dxa[-2, 0] + dxa[-1, 0])))
     return _cubic_interpolation_west(qy, qoutleft, qyyright)
-    
+
+@gtscript.function
+def qyy_east(qin, qy, dxa, edge_e):
+    # qyyleft = lagrange_x(qy[-1, 0, 0])
+    qyyleft =  a2 * (qy[-3, 0, 0] + qy)+ a1 * (qy[-2, 0, 0] + qy[-1, 0, 0])
+    # qoutright =  _qout_x_edge(qin[1, 0, 0], dxa[1, 0],  edge_e)
+    qoutright = (edge_e* ((qin[0, -1, 0] * dxa[1, -1]+ qin[1, -1, 0] * dxa[0, -1])/ (dxa[0, -1] + dxa[1, -1]))
+                 + (1.0 - edge_e)* ((qin[0, 0, 0] * dxa[1, 0] + qin[1, 0, 0] * dxa[0, 0])/ (dxa[0, 0] + dxa[1, 0])))
+    return  _cubic_interpolation_east(qy, qoutright, qyyleft)
+
 def a2b_interpolation_qx(
     qin: FloatField,
     qx: FloatField,
@@ -501,6 +520,7 @@ def a2b_interpolation(
     from __externals__ import i_end, i_start, j_end, j_start
 
     with computation(PARALLEL), interval(...):
+        # TODO: remove when regions horizontalIf bug fixed
         tmp = 0.0
         with horizontal(region[i_start, j_start + 1 : j_end + 1]):
             qout = _qout_x_edge(qin, dxa,  edge_w)
@@ -508,234 +528,27 @@ def a2b_interpolation(
             qout = _qout_x_edge(qin, dxa,  edge_e)
         with horizontal(region[i_start + 1 : i_end + 1, j_start]):
             qout = _qout_y_edge(qin, dya, edge_s)
-            
         with horizontal(region[i_start + 1 : i_end + 1, j_end + 1]):
             qout = _qout_y_edge(qin, dya, edge_n)
-
         # combined (qxx and qyy folded in)
         with horizontal(region[i_start + 1, j_start + 1]):
-            qxx =  qxx_south(qin, qx, dya, edge_s)
-            qyy = qyy_west(qin, qy, dxa, edge_w)
-            qout = 0.5 *(qxx + qyy)
-         
+            qout = 0.5 *(qxx_south(qin, qx, dya, edge_s) + qyy_west(qin, qy, dxa, edge_w))
         with horizontal(region[i_end, j_start + 1]):
-            # qxxupper = lagrange_y(qx[0, 1, 0])
-            qxxupper = a2 * (qx[0, -1, 0] + qx[0, 2, 0]) + a1 * (qx + qx[0, 1, 0])
-            # qoutlower = _qout_y_edge(qin[0, -1, 0], dya[0, -1, 0], edge_s[0, -1])
-            qoutlower = (edge_s* ((qin[-1, -2, 0] * dya[-1, -1]+ qin[-1, -1, 0] * dya[-1, -2])/ (dya[-1, -2] + dya[-1, -1]))
-            + (1.0 - edge_s)* ((qin[0, -2, 0] * dya[0, -1] + qin[0, -1, 0] * dya[0, -2])/ (dya[0, -2] + dya[0, -1])))
-            qxx =  _cubic_interpolation_south(qx, qoutlower, qxxupper)
-            
-            # qyyleft = lagrange_x(qy[-1, 0, 0])
-            qyyleft =  a2 * (qy[-3, 0, 0] + qy)+ a1 * (qy[-2, 0, 0] + qy[-1, 0, 0])
-            # qoutright =  _qout_x_edge(qin[1, 0, 0], dxa[1, 0],  edge_e)
-            qoutright = (edge_e* ((qin[0, -1, 0] * dxa[1, -1]+ qin[1, -1, 0] * dxa[0, -1])/ (dxa[0, -1] + dxa[1, -1]))
-                         + (1.0 - edge_e)* ((qin[0, 0, 0] * dxa[1, 0] + qin[1, 0, 0] * dxa[0, 0])/ (dxa[0, 0] + dxa[1, 0])))
-            qyy =  _cubic_interpolation_east(qy, qoutright, qyyleft)
-            qout = 0.5 * (qxx + qyy)
-        with horizontal(region[i_start + 2 : i_end, j_start + 1]):
-            qxx =  qxx_south(qin, qx, dya, edge_s)
-            qyy = lagrange_x(qy)
-            qout = 0.5 * (qxx + qyy)
-          
-        with horizontal(region[i_end, j_start + 2 : j_end]):
-            qout = 0.5 * (
-                (a2 * (qx[0, -2, 0] + qx[0, 1, 0]) + a1 * (qx[0, -1, 0] + qx))
-                + (
-                    c1 * (qy[-1, 0, 0] + qy)
-                    + c2
-                    * (
-                        (
-                            edge_e
-                            * (
-                                (
-                                    qin[0, -1, 0] * dxa[1, -1]
-                                    + qin[1, -1, 0] * dxa[0, -1]
-                                )
-                                / (dxa[0, -1] + dxa[1, -1])
-                            )
-                            + (1.0 - edge_e)
-                            * (
-                                (qin[0, 0, 0] * dxa[1, 0] + qin[1, 0, 0] * dxa[0, 0])
-                                / (dxa[0, 0] + dxa[1, 0])
-                            )
-                        )
-                        + (
-                            a2 * (qy[-3, 0, 0] + qy)
-                            + a1 * (qy[-2, 0, 0] + qy[-1, 0, 0])
-                        )
-                    )
-                )
-            )
+            qout = 0.5 * (qxx_south(qin, qx, dya, edge_s) + qyy_east(qin, qy, dxa, edge_e))
         with horizontal(region[i_start + 1, j_end]):
-            qout = 0.5 * (
-                (
-                    c1 * (qx[0, -1, 0] + qx)
-                    + c2
-                    * (
-                        (
-                            edge_n
-                            * (
-                                (
-                                    qin[-1, 0, 0] * dya[-1, 1]
-                                    + qin[-1, 1, 0] * dya[-1, 0]
-                                )
-                                / (dya[-1, 0] + dya[-1, 1])
-                            )
-                            + (1.0 - edge_n)
-                            * (
-                                (qin[0, 0, 0] * dya[0, 1] + qin[0, 1, 0] * dya[0, 0])
-                                / (dya[0, 0] + dya[0, 1])
-                            )
-                        )
-                        + (
-                            a2 * (qx[0, -3, 0] + qx)
-                            + a1 * (qx[0, -2, 0] + qx[0, -1, 0])
-                        )
-                    )
-                )
-                + (
-                    c1 * (qy[-1, 0, 0] + qy)
-                    + c2
-                    * (
-                        (
-                            edge_w
-                            * (
-                                (
-                                    qin[-2, -1, 0] * dxa[-1, -1]
-                                    + qin[-1, -1, 0] * dxa[-2, -1]
-                                )
-                                / (dxa[-2, -1] + dxa[-1, -1])
-                            )
-                            + (1.0 - edge_w)
-                            * (
-                                (
-                                    qin[-2, 0, 0] * dxa[-1, 0]
-                                    + qin[-1, 0, 0] * dxa[-2, 0]
-                                )
-                                / (dxa[-2, 0] + dxa[-1, 0])
-                            )
-                        )
-                        + (a2 * (qy[-1, 0, 0] + qy[2, 0, 0]) + a1 * (qy + qy[1, 0, 0]))
-                    )
-                )
-            )
+            qout = 0.5 * ( qxx_north(qin, qx, dya, edge_n) + qyy_west(qin, qy, dxa, edge_w))
         with horizontal(region[i_end, j_end]):
-            qout = 0.5 * (
-                (
-                    c1 * (qx[0, -1, 0] + qx)
-                    + c2
-                    * (
-                        (
-                            edge_n
-                            * (
-                                (
-                                    qin[-1, 0, 0] * dya[-1, 1]
-                                    + qin[-1, 1, 0] * dya[-1, 0]
-                                )
-                                / (dya[-1, 0] + dya[-1, 1])
-                            )
-                            + (1.0 - edge_n)
-                            * (
-                                (qin[0, 0, 0] * dya[0, 1] + qin[0, 1, 0] * dya[0, 0])
-                                / (dya[0, 0] + dya[0, 1])
-                            )
-                        )
-                        + (
-                            a2 * (qx[0, -3, 0] + qx)
-                            + a1 * (qx[0, -2, 0] + qx[0, -1, 0])
-                        )
-                    )
-                )
-                + (
-                    c1 * (qy[-1, 0, 0] + qy)
-                    + c2
-                    * (
-                        (
-                            edge_e
-                            * (
-                                (
-                                    qin[0, -1, 0] * dxa[1, -1]
-                                    + qin[1, -1, 0] * dxa[0, -1]
-                                )
-                                / (dxa[0, -1] + dxa[1, -1])
-                            )
-                            + (1.0 - edge_e)
-                            * (
-                                (qin[0, 0, 0] * dxa[1, 0] + qin[1, 0, 0] * dxa[0, 0])
-                                / (dxa[0, 0] + dxa[1, 0])
-                            )
-                        )
-                        + (
-                            a2 * (qy[-3, 0, 0] + qy)
-                            + a1 * (qy[-2, 0, 0] + qy[-1, 0, 0])
-                        )
-                    )
-                )
-            )
+            qout = 0.5 * (qxx_north(qin, qx, dya, edge_n)+ qyy_east(qin, qy, dxa, edge_e))
+        with horizontal(region[i_start + 2 : i_end, j_start + 1]):
+            qout = 0.5 * ( qxx_south(qin, qx, dya, edge_s) +  lagrange_x(qy))
+        with horizontal(region[i_end, j_start + 2 : j_end]):
+            qout = 0.5 * (lagrange_y(qx)+ qyy_east(qin, qy, dxa, edge_e))
         with horizontal(region[i_start + 2 : i_end, j_end]):
-            qout = 0.5 * (
-                (
-                    c1 * (qx[0, -1, 0] + qx)
-                    + c2
-                    * (
-                        (
-                            edge_n
-                            * (
-                                (
-                                    qin[-1, 0, 0] * dya[-1, 1]
-                                    + qin[-1, 1, 0] * dya[-1, 0]
-                                )
-                                / (dya[-1, 0] + dya[-1, 1])
-                            )
-                            + (1.0 - edge_n)
-                            * (
-                                (qin[0, 0, 0] * dya[0, 1] + qin[0, 1, 0] * dya[0, 0])
-                                / (dya[0, 0] + dya[0, 1])
-                            )
-                        )
-                        + (
-                            a2 * (qx[0, -3, 0] + qx)
-                            + a1 * (qx[0, -2, 0] + qx[0, -1, 0])
-                        )
-                    )
-                )
-                + (a2 * (qy[-2, 0, 0] + qy[1, 0, 0]) + a1 * (qy[-1, 0, 0] + qy))
-            )
+            qout = 0.5 * (qxx_north(qin, qx, dya, edge_n) + lagrange_x(qy))            
         with horizontal(region[i_start + 1, j_start + 2 : j_end]):
-            qout = 0.5 * (
-                (a2 * (qx[0, -2, 0] + qx[0, 1, 0]) + a1 * (qx[0, -1, 0] + qx))
-                + (
-                    c1 * (qy[-1, 0, 0] + qy)
-                    + c2
-                    * (
-                        (
-                            edge_w
-                            * (
-                                (
-                                    qin[-2, -1, 0] * dxa[-1, -1]
-                                    + qin[-1, -1, 0] * dxa[-2, -1]
-                                )
-                                / (dxa[-2, -1] + dxa[-1, -1])
-                            )
-                            + (1.0 - edge_w)
-                            * (
-                                (
-                                    qin[-2, 0, 0] * dxa[-1, 0]
-                                    + qin[-1, 0, 0] * dxa[-2, 0]
-                                )
-                                / (dxa[-2, 0] + dxa[-1, 0])
-                            )
-                        )
-                        + (a2 * (qy[-1, 0, 0] + qy[2, 0, 0]) + a1 * (qy + qy[1, 0, 0]))
-                    )
-                )
-            )
+            qout = 0.5 * (lagrange_y(qx)+ qyy_west(qin, qy, dxa, edge_w))
         with horizontal(region[i_start + 2 : i_end, j_start + 2 : j_end]):
-            qout = 0.5 * (
-                (a2 * (qx[0, -2, 0] + qx[0, 1, 0]) + a1 * (qx[0, -1, 0] + qx))
-                + (a2 * (qy[-2, 0, 0] + qy[1, 0, 0]) + a1 * (qy[-1, 0, 0] + qy))
-            )
+            qout = 0.5 * (lagrange_y(qx) +  lagrange_x(qy))
 
 class AGrid2BGridFourthOrder:
     """
