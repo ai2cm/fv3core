@@ -263,14 +263,20 @@ def apply_constraints(
             ext6 = abs(a4_4) > x1
 
 
-def set_top(
+# origin=origin,
+# domain=(i_extent, j_extent, 2),
+def set_interpolation_coefficients(
     a4_1: FloatField,
     a4_2: FloatField,
     a4_3: FloatField,
     a4_4: FloatField,
+    gam: FloatField,
     extm: FloatField,
+    ext5: FloatField,
+    ext6: FloatField,
+    qmin: float,
 ):
-    from __externals__ import iv
+    from __externals__ import iv, kord
 
     # set_top_as_iv0
     with computation(PARALLEL):
@@ -300,32 +306,18 @@ def set_top(
                 a4_4 = 3 * (2 * a4_1 - (a4_2 + a4_3))
     # set_top_as_else
     with computation(PARALLEL):
-        with interval(...):
+        with interval(0, 2):
             if __INLINED(iv < -1 or iv == 1 or iv > 2):
                 a4_4 = 3.0 * (2.0 * a4_1 - (a4_2 + a4_3))
-        with interval(0, -1):
+        with interval(0, 2):
             if __INLINED(iv != 2):
                 a4_1, a4_2, a4_3, a4_4 = remap_constraint(
                     a4_1, a4_2, a4_3, a4_4, extm, 1
                 )
-        with interval(1, None):
+        with interval(1, 2):
             a4_1, a4_2, a4_3, a4_4 = remap_constraint(a4_1, a4_2, a4_3, a4_4, extm, 2)
 
-
-def set_inner(
-    a4_1: FloatField,
-    a4_2: FloatField,
-    a4_3: FloatField,
-    a4_4: FloatField,
-    gam: FloatField,
-    extm: FloatField,
-    ext5: FloatField,
-    ext6: FloatField,
-    qmin: float,
-):
-    from __externals__ import iv, kord
-
-    with computation(PARALLEL), interval(...):
+    with computation(PARALLEL), interval(2, -2):
         # set_inner_as_kordsmall
         if __INLINED(kord < 9):
             # left edges?
@@ -470,25 +462,15 @@ def set_inner(
         if __INLINED(iv == 0):
             a4_1, a4_2, a4_3, a4_4 = remap_constraint(a4_1, a4_2, a4_3, a4_4, extm, 0)
 
-
-def set_bottom(
-    a4_1: FloatField,
-    a4_2: FloatField,
-    a4_3: FloatField,
-    a4_4: FloatField,
-    extm: FloatField,
-):
-    from __externals__ import iv
-
     # set_bottom_as_iv0
-    with computation(PARALLEL), interval(1, None):
+    with computation(PARALLEL), interval(-1, None):
         if __INLINED(iv == 0):
             a4_3 = a4_3 if a4_3 > 0.0 else 0.0
     # set_bottom_as_iv1
     with computation(PARALLEL), interval(-1, None):
         if __INLINED(iv == -1):
             a4_3 = 0.0 if a4_3 * a4_1 <= 0.0 else a4_3
-    with computation(PARALLEL), interval(...):
+    with computation(PARALLEL), interval(-2, None):
         # set_bottom_as_iv0
         if __INLINED(iv == 0):
             a4_4 = 3.0 * (2.0 * a4_1 - (a4_2 + a4_3))
@@ -498,9 +480,9 @@ def set_bottom(
         # set_bottom_as_else
         if __INLINED(iv > 0 or iv < -1):
             a4_4 = 3.0 * (2.0 * a4_1 - (a4_2 + a4_3))
-    with computation(PARALLEL), interval(0, -1):
+    with computation(PARALLEL), interval(-2, -1):
         a4_1, a4_2, a4_3, a4_4 = remap_constraint(a4_1, a4_2, a4_3, a4_4, extm, 2)
-    with computation(PARALLEL), interval(1, None):
+    with computation(PARALLEL), interval(-1, None):
         a4_1, a4_2, a4_3, a4_4 = remap_constraint(a4_1, a4_2, a4_3, a4_4, extm, 1)
 
 
@@ -573,25 +555,11 @@ class RemapProfile:
             domain=domain,
         )
 
-        self._set_top_stencil = FrozenStencil(
-            func=set_top,
-            externals={"iv": iv},
-            origin=origin,
-            domain=(i_extent, j_extent, 2),
-        )
-
-        self._set_set_inner_stencil = FrozenStencil(
-            func=set_inner,
+        self._set_interpolation_coefficients = FrozenStencil(
+            set_interpolation_coefficients,
             externals={"iv": iv, "kord": abs(kord)},
-            origin=(i1, j1, 2),
-            domain=(i_extent, j_extent, km - 4),
-        )
-
-        self._set_bottom_stencil = FrozenStencil(
-            func=set_bottom,
-            externals={"iv": iv},
-            origin=(i1, j1, km - 2),
-            domain=(i_extent, j_extent, 2),
+            origin=origin,
+            domain=domain,
         )
 
     def __call__(
@@ -642,15 +610,7 @@ class RemapProfile:
                 self._extm,
             )
 
-            self._set_top_stencil(
-                a4_1,
-                a4_2,
-                a4_3,
-                a4_4,
-                self._extm,
-            )
-
-            self._set_set_inner_stencil(
+            self._set_interpolation_coefficients(
                 a4_1,
                 a4_2,
                 a4_3,
@@ -660,14 +620,6 @@ class RemapProfile:
                 self._ext5,
                 self._ext6,
                 qmin,
-            )
-
-            self._set_bottom_stencil(
-                a4_1,
-                a4_2,
-                a4_3,
-                a4_4,
-                self._extm,
             )
 
         return a4_1, a4_2, a4_3, a4_4
