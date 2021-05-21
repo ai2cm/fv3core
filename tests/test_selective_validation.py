@@ -15,6 +15,22 @@ class DummyClass:
         pass
 
 
+def check_selective_region_and_values(instance, name, array, domain):
+    validated_gridcells = np.product(domain)
+    total_gridcells = np.product(array.shape)
+    assert np.sum(np.isnan(array)) == total_gridcells - validated_gridcells
+    validation_subset = instance.subset_output(name, array)
+    assert validation_subset.shape == domain
+    assert (
+        np.sum(np.isnan(validation_subset)) == 0
+    ), "validation slice does not match the values set to nan"
+
+
+def ensure_no_selective_validation(instance, name, array):
+    assert np.sum(np.isnan(array)) == 0
+    assert instance.subset_output(name, array).shape == array.shape
+
+
 @pytest.mark.parametrize(
     "shape1, origin1, domain1, shape2, origin2, domain2",
     [
@@ -91,25 +107,10 @@ def test_selective_validation(
     instance(**kwargs)
     for name, array in kwargs.items():
         if name in selective_arg_names_shape1:
-            validated_gridcells = np.product(domain1)
-            total_gridcells = np.product(array.shape)
-            assert np.sum(np.isnan(array)) == total_gridcells - validated_gridcells
-            validation_subset = instance.subset_output(name, array)
-            assert validation_subset.shape == domain1
-            assert (
-                np.sum(np.isnan(validation_subset)) == 0
-            ), "validation slice does not match the values set to nan"
+            check_selective_region_and_values(instance, name, array, domain1)
         elif name in selective_arg_names_shape2:
-            validated_gridcells = np.product(domain2)
-            total_gridcells = np.product(array.shape)
-            assert np.sum(np.isnan(array)) == total_gridcells - validated_gridcells
-            validation_subset = instance.subset_output(name, array)
-            assert validation_subset.shape == domain2
-            assert (
-                np.sum(np.isnan(validation_subset)) == 0
-            ), "validation slice does not match the values set to nan"
+            check_selective_region_and_values(instance, name, array, domain2)
         else:
-            assert np.sum(np.isnan(array)) == 0
-            assert instance.subset_output(name, array).shape == array.shape
+            ensure_no_selective_validation(instance, name, array)
     assert origin_domain_func1.call_count == len(selective_arg_names_shape1)
     assert origin_domain_func2.call_count == len(selective_arg_names_shape2)
