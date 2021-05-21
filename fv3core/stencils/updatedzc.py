@@ -78,10 +78,6 @@ class UpdateGeopotentialHeightOnCGrid:
     def __init__(self, grid):
         self.grid = grid
         largest_possible_shape = self.grid.domain_shape_full(add=(1, 1, 1))
-        self._gz_in = gt4py_utils.make_storage_from_shape(
-            largest_possible_shape,
-            self.grid.compute_origin(add=(0, -self.grid.halo, 0)),
-        )
         self._gz_x = gt4py_utils.make_storage_from_shape(
             largest_possible_shape,
             self.grid.compute_origin(add=(0, -self.grid.halo, 0)),
@@ -116,12 +112,6 @@ class UpdateGeopotentialHeightOnCGrid:
             ws: surface vertical wind implied by horizontal motion over topography
             dt: timestep over which to evolve the geopotential height
         """
-        basic_operations.copy_stencil(
-            gz,
-            self._gz_in,
-            origin=self.grid.full_origin(),
-            domain=self.grid.domain_shape_full(add=(0, 0, 1)),
-        )
         basic_operations.copy_stencil(
             gz,
             self._gz_x,
