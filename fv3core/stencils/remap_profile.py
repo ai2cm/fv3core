@@ -106,7 +106,7 @@ def remap_constraint(
     return a4_1, a4_2, a4_3, a4_4
 
 
-def set_vals(
+def set_initial_vals(
     gam: FloatField,
     q: FloatField,
     delp: FloatField,
@@ -263,7 +263,7 @@ def apply_constraints_and_set_interpolation_coefficients(
             a4_4 = 3.0 * x0
             ext5 = abs(x0) > x1
             ext6 = abs(a4_4) > x1
-    
+
     # set_interpolation_coefficients
     # set_top_as_iv0
     with computation(PARALLEL):
@@ -528,8 +528,8 @@ class RemapProfile:
         domain: Tuple[int, int, int] = (i_extent, j_extent, km)
         domain_extend: Tuple[int, int, int] = (i_extent, j_extent, km + 1)
 
-        self._set_values_stencil = FrozenStencil(
-            func=set_vals,
+        self._set_initial_values_stencil = FrozenStencil(
+            func=set_initial_vals,
             externals={"iv": iv, "kord": abs(kord)},
             origin=origin,
             domain=domain_extend,
@@ -565,7 +565,7 @@ class RemapProfile:
             delp: The pressure difference between grid levels
             qmin: The minimum value the field can take in a cell
         """
-        self._set_values_stencil(
+        self._set_initial_values_stencil(
             self._gam,
             self._q,
             delp,
