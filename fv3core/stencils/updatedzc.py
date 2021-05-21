@@ -3,7 +3,6 @@ from gt4py.gtscript import BACKWARD, FORWARD, PARALLEL, computation, interval
 
 import fv3core.utils.global_constants as constants
 from fv3core.decorators import FrozenStencil
-from fv3core.stencils import basic_operations
 from fv3core.utils import corners, gt4py_utils
 from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
 
@@ -35,6 +34,12 @@ def xy_flux(gz_x, gz_y, xfx, yfx):
     fx = xfx * (gz_x[-1, 0, 0] if xfx > 0.0 else gz_x)
     fy = yfx * (gz_y[0, -1, 0] if yfx > 0.0 else gz_y)
     return fx, fy
+
+
+def double_copy(q_in: FloatField, copy_1: FloatField, copy_2: FloatField):
+    with computation(PARALLEL), interval(...):
+        copy_1 = q_in
+        copy_2 = q_in
 
 
 def update_dz_c(
@@ -86,6 +91,13 @@ class UpdateGeopotentialHeightOnCGrid:
             largest_possible_shape,
             self.grid.compute_origin(add=(0, -self.grid.halo, 0)),
         )
+
+        self._double_copy_stencil = FrozenStencil(
+            double_copy,
+            origin=self.grid.full_origin(),
+            domain=self.grid.domain_shape_full(add=(0, 0, 1)),
+        )
+
         self._update_dz_c = FrozenStencil(
             update_dz_c,
             origin=self.grid.compute_origin(add=(-1, -1, 0)),
@@ -112,18 +124,7 @@ class UpdateGeopotentialHeightOnCGrid:
             ws: surface vertical wind implied by horizontal motion over topography
             dt: timestep over which to evolve the geopotential height
         """
-        basic_operations.copy_stencil(
-            gz,
-            self._gz_x,
-            origin=self.grid.full_origin(),
-            domain=self.grid.domain_shape_full(add=(0, 0, 1)),
-        )
-        basic_operations.copy_stencil(
-            gz,
-            self._gz_y,
-            origin=self.grid.full_origin(),
-            domain=self.grid.domain_shape_full(add=(0, 0, 1)),
-        )
+        self._double_copy_stencil(gz, self._gz_x, self._gz_y)
 
         corners.fill_corners_2cells_x_stencil(
             self._gz_x,
