@@ -379,7 +379,31 @@ def _qy_edge_north2(qin: FloatField, dya: FloatFieldIJ, qy):
         + ((2.0 + g_ou) * qin[0, 1, 0] - qin[0, 2, 0]) / (1.0 + g_ou)
     )) + (b2 * (qin[0, -3, 0] + qin[0, 0, 0]) + b1 * (qin[0, -2, 0] + qin[0, -1, 0])))
               ) / (2.0 + 2.0 * g_in)
-    
+
+@gtscript.function
+def _dxa_weighted_left_average_q(qin, dxa):
+    return (qin[-1, 0, 0] * dxa + qin * dxa[-1, 0]) / (dxa[-1, 0] + dxa)
+
+@gtscript.function
+def _dya_weighted_lower_average_q(qin, dya):
+    return (qin[0, -1, 0] * dya + qin * dya[0, -1]) / (dya[0, -1] + dya)
+ 
+@gtscript.function
+def _qout_x_edge(qin: FloatField, dxa: FloatFieldIJ,  edge_w: FloatFieldIJ):
+    # TODO when possible:
+    #q 2lower = _dxa_weighted_left_average_q(qin[0, -1, 0], dxa[0, -1])
+    q2lower = (qin[-1, -1, 0] * dxa[0, -1] + qin[0, -1, 0] * dxa[-1, -1]) / (dxa[-1, -1] + dxa[0, -1])
+    q2 = _dxa_weighted_left_average_q(qin, dxa) 
+    return edge_w * q2lower + (1.0 - edge_w) * q2
+
+
+@gtscript.function
+def _qout_y_edge(qin: FloatField, dya: FloatFieldIJ,edge_s: FloatFieldI):
+    q1left = (qin[-1, -1, 0] * dya[-1, 0] + qin[-1, 0, 0] * dya[-1, -1]) / (dya[-1, -1] + dya[-1, 0])
+    q1 = _dya_weighted_lower_average_q(qin, dya) 
+    return edge_s * q1left + (1.0 - edge_s) * q1
+
+
 def a2b_interpolation_qx(
     qin: FloatField,
     qx: FloatField,
@@ -433,37 +457,16 @@ def a2b_interpolation(
     from __externals__ import i_end, i_start, j_end, j_start
 
     with computation(PARALLEL), interval(...):
-        # qout_edges_x
+        tmp = 0.0
         with horizontal(region[i_start, j_start + 1 : j_end + 1]):
-            qout = edge_w * (
-                (qin[-1, -1, 0] * dxa[0, -1] + qin[0, -1, 0] * dxa[-1, -1])
-                / (dxa[-1, -1] + dxa[0, -1])
-            ) + (1.0 - edge_w) * (
-                (qin[-1, 0, 0] * dxa[0, 0] + qin * dxa[-1, 0])
-                / (dxa[-1, 0] + dxa[0, 0])
-            )
+            qout = _qout_x_edge(qin, dxa,  edge_w)
         with horizontal(region[i_end + 1, j_start + 1 : j_end + 1]):
-            qout = edge_e * (
-                (qin[-1, -1, 0] * dxa[0, -1] + qin[0, -1, 0] * dxa[-1, -1])
-                / (dxa[-1, -1] + dxa[0, -1])
-            ) + (1.0 - edge_e) * (
-                (qin[-1, 0, 0] * dxa + qin * dxa[-1, 0]) / (dxa[-1, 0] + dxa)
-            )
-        # qout edges y
+            qout = _qout_x_edge(qin, dxa,  edge_e)
         with horizontal(region[i_start + 1 : i_end + 1, j_start]):
-            qout = edge_s * (
-                (qin[-1, -1, 0] * dya[-1, 0] + qin[-1, 0, 0] * dya[-1, -1])
-                / (dya[-1, -1] + dya[-1, 0])
-            ) + (1.0 - edge_s) * (
-                (qin[0, -1, 0] * dya + qin * dya[0, -1]) / (dya[0, -1] + dya)
-            )
+            qout = _qout_y_edge(qin, dya, edge_s)
+            
         with horizontal(region[i_start + 1 : i_end + 1, j_end + 1]):
-            qout = edge_n * (
-                (qin[-1, -1, 0] * dya[-1, 0] + qin[-1, 0, 0] * dya[-1, -1])
-                / (dya[-1, -1] + dya[-1, 0])
-            ) + (1.0 - edge_n) * (
-                (qin[0, -1, 0] * dya + qin * dya[0, -1]) / (dya[0, -1] + dya)
-            )
+            qout = _qout_y_edge(qin, dya, edge_n)
 
         # combined (qxx and qyy folded in)
         with horizontal(region[i_start + 1, j_start + 1]):
