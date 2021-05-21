@@ -124,6 +124,9 @@ class UpdateGeopotentialHeightOnCGrid:
             ws: surface vertical wind implied by horizontal motion over topography
             dt: timestep over which to evolve the geopotential height
         """
+        # TODO: use a tmp variable inside the update_dz_c stencil instead of
+        # _gz_x and _gz_y stencil to skip the copies and corner-fill stencils
+        # once regions bug is fixed
         self._double_copy_stencil(gz, self._gz_x, self._gz_y)
 
         corners.fill_corners_2cells_x_stencil(

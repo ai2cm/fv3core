@@ -44,9 +44,6 @@ def get_selective_class(
                 inspect.getfullargspec(self.wrapped).args[1:]
             )
             assert "self" not in self._all_argument_names
-            self._selective_argument_names = tuple(
-                name_to_origin_domain_function.keys()
-            )
 
         def __call__(self, *args, **kwargs):
             kwargs.update(self._args_to_kwargs(args))
@@ -61,16 +58,18 @@ def get_selective_class(
             Given an output array, return the slice of the array which we'd
             like to validate against reference data
             """
-            if varname in self._selective_argument_names:
+            if varname in self._validation_slice.keys():
                 output = output[self._validation_slice[varname]]
             return output
 
         def _set_nans(self, kwargs):
-            for name in set(kwargs.keys()).intersection(self._selective_argument_names):
-                array = kwargs[name]
-                validation_data = np.copy(array[self._validation_slice[name]])
-                array[:] = np.nan
-                array[self._validation_slice[name]] = validation_data
+            print(self._validation_slice)
+            for name, validation_slice in self._validation_slice.items():
+                if name in kwargs.keys():
+                    array = kwargs[name]
+                    validation_data = np.copy(array[validation_slice])
+                    array[:] = np.nan
+                    array[validation_slice] = validation_data
 
     return SelectivelyValidated
 

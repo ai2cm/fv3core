@@ -62,8 +62,7 @@ def ensure_no_selective_validation(instance, name, array):
     [
         pytest.param(["a"], [], [], id="no_selective_validation"),
         pytest.param(["a"], ["a"], [], id="one_out_of_one_arg"),
-        pytest.param(["a", "b", "c"], ["a"], [], id="one_shape1_arg"),
-        pytest.param(["a", "b", "c"], [], ["a"], id="one_shape2_arg"),
+        pytest.param(["a", "b", "c"], ["a"], [], id="one_out_of_three_args"),
         pytest.param(
             ["a", "b", "c"], ["a", "b"], [], id="two_out_of_three_args_same_shape"
         ),
