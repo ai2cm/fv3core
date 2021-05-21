@@ -413,23 +413,14 @@ def lagrange_x(qy: FloatField):
     return a2 * (qy[-2, 0, 0] + qy[1, 0, 0]) + a1 * (qy[-1, 0, 0] + qy)
 
 @gtscript.function
-def _cubic_interpolation_south(qx, qoutlower, qxxupper):
-    #return c1 * (qx[0, -1, 0] + qx) + c2 * (qout[0, -1, 0] + qxx[0, 1, 0])
-    return c1 * (qx[0, -1, 0] + qx) + c2 * (qoutlower + qxxupper)
-
-@gtscript.function
-def _cubic_interpolation_north(qx, qoutupper, qxxlower):
-    return c1 * (qx[0, -1, 0] + qx) + c2 * (qoutupper + qxxlower)
+def _cubic_interpolation_y(qx, qout_offset_y, qxx_offset_y):
+    return c1 * (qx[0, -1, 0] + qx) + c2 * (qout_offset_y + qxx_offset_y)
 
 
 @gtscript.function
-def _cubic_interpolation_west(qy, qoutleft, qyyright):
-    return c1 * (qy[-1, 0, 0] + qy) + c2 * (qoutleft + qyyright)
+def _cubic_interpolation_x(qy, qout_offset_x, qyy_offset_x):
+    return c1 * (qy[-1, 0, 0] + qy) + c2 * (qout_offset_x + qyy_offset_x)
 
-
-@gtscript.function
-def _cubic_interpolation_east(qy, qoutright, qyyleft):
-    return c1 * (qy[-1, 0, 0] + qy) + c2 * (qoutright + qyyleft)
 
 @gtscript.function
 def qxx_south(qin, qx, dya, edge_s):
@@ -438,7 +429,7 @@ def qxx_south(qin, qx, dya, edge_s):
     # qoutlower = _qout_y_edge(qin[0, -1, 0], dya[0, -1, 0], edge_s[0, -1])
     qoutlower = (edge_s* ((qin[-1, -2, 0] * dya[-1, -1]+ qin[-1, -1, 0] * dya[-1, -2])/ (dya[-1, -2] + dya[-1, -1]))
                  + (1.0 - edge_s)* ((qin[0, -2, 0] * dya[0, -1] + qin[0, -1, 0] * dya[0, -2])/ (dya[0, -2] + dya[0, -1])))
-    return  _cubic_interpolation_south(qx, qoutlower, qxxupper)
+    return  _cubic_interpolation_y(qx, qoutlower, qxxupper)
 
 @gtscript.function
 def qxx_north(qin, qx, dya, edge_n):
@@ -447,7 +438,7 @@ def qxx_north(qin, qx, dya, edge_n):
     # qoutupper = _qout_y_edge(qin[0, 1, 0], dya[0, 1, 0], edge_s[0, 1])
     qoutupper = (edge_n* ((qin[-1, 0, 0] * dya[-1, 1]+ qin[-1, 1, 0] * dya[-1, 0])/ (dya[-1, 0] + dya[-1, 1]))
                  + (1.0 - edge_n) * ((qin[0, 0, 0] * dya[0, 1] + qin[0, 1, 0] * dya[0, 0])/ (dya[0, 0] + dya[0, 1])))
-    return  _cubic_interpolation_north(qx, qoutupper, qxxlower)
+    return  _cubic_interpolation_y(qx, qoutupper, qxxlower)
 
 @gtscript.function
 def qyy_west(qin, qy, dxa, edge_w):
@@ -456,7 +447,7 @@ def qyy_west(qin, qy, dxa, edge_w):
     # qoutleft =  _qout_x_edge(qin[-1, 0, 0], dxa[-1, 0],  edge_w)
     qoutleft = (edge_w * ((qin[-2, -1, 0] * dxa[-1, -1]+ qin[-1, -1, 0] * dxa[-2, -1])/ (dxa[-2, -1] + dxa[-1, -1]))
                 + (1.0 - edge_w)* ((qin[-2, 0, 0] * dxa[-1, 0]+ qin[-1, 0, 0] * dxa[-2, 0])/ (dxa[-2, 0] + dxa[-1, 0])))
-    return _cubic_interpolation_west(qy, qoutleft, qyyright)
+    return _cubic_interpolation_x(qy, qoutleft, qyyright)
 
 @gtscript.function
 def qyy_east(qin, qy, dxa, edge_e):
@@ -465,7 +456,7 @@ def qyy_east(qin, qy, dxa, edge_e):
     # qoutright =  _qout_x_edge(qin[1, 0, 0], dxa[1, 0],  edge_e)
     qoutright = (edge_e* ((qin[0, -1, 0] * dxa[1, -1]+ qin[1, -1, 0] * dxa[0, -1])/ (dxa[0, -1] + dxa[1, -1]))
                  + (1.0 - edge_e)* ((qin[0, 0, 0] * dxa[1, 0] + qin[1, 0, 0] * dxa[0, 0])/ (dxa[0, 0] + dxa[1, 0])))
-    return  _cubic_interpolation_east(qy, qoutright, qyyleft)
+    return  _cubic_interpolation_x(qy, qoutright, qyyleft)
 
 def a2b_interpolation_qx(
     qin: FloatField,
