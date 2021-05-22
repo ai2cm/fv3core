@@ -131,7 +131,69 @@ def recompute_qcon(
         if ri[0, 0, 1] < ri_ref[0, 0, 1]:
             qcon = qcon_func(qcon, q0_liquid, q0_ice, q0_snow, q0_rain, q0_graupel)
 
+@gtscript.function
+def adjust_cvm( cpm, cvm, q0_vapor, q0_liquid, q0_rain, q0_ice, q0_snow, q0_graupel, gz, u0, v0, w0, t0, te):
+    cpm, cvm = standard_cm(
+        cpm, cvm, q0_vapor, q0_liquid, q0_rain, q0_ice, q0_snow, q0_graupel
+    )
+    tv = tvol(gz, u0, v0, w0)
+    t0 = (te - tv) / cvm
+    hd = cpm * t0 + tv
+    return cpm, cvm, t0, hd
+@gtscript.function
+def compute_ri(t0, q0_vapor, qcon, pkz, pm, gz, u0, v0,xvir,t_max, t_min):
+    tv1 = t0[0, 0, -1] * (1.0 + xvir * q0_vapor[0, 0, -1] - qcon[0, 0, -1])
+    tv2 = t0 * (1.0 + xvir * q0_vapor - qcon)
+    pt1 = tv1 / pkz[0, 0, -1]
+    pt2 = tv2 / pkz
+    ri = (
+        (gz[0, 0, -1] - gz)
+        * (pt1 - pt2)
+        / (
+            0.5
+            * (pt1 + pt2)
+            * ((u0[0, 0, -1] - u0) ** 2 + (v0[0, 0, -1] - v0) ** 2 + USTAR2)
+        )
+    )
+    if tv1 > t_max and tv1 > tv2:
+        ri = 0
+    elif tv2 < t_min:
+        ri = ri if ri < 0.1 else 0.1
+    # Adjustment for K-H instability:
+    # Compute equivalent mass flux: mc
+    # Add moist 2-dz instability consideration:
+    ri_ref = RI_MIN + (RI_MAX - RI_MIN) * dim(400.0e2, pm) / 200.0e2
+    if RI_MAX < ri_ref:
+        ri_ref = RI_MAX
+    return ri, ri_ref
+@gtscript.function
+def compute_mass_flux(ri, ri_ref, delp, ratio):
+    max_ri_ratio = ri / ri_ref
+    if max_ri_ratio < 0.0:
+        max_ri_ratio = 0.0
+    if ri < ri_ref:
+        mc = (
+            ratio
+            * delp[0, 0, -1]
+            * delp
+            / (delp[0, 0, -1] + delp)
+            * (1.0 - max_ri_ratio) ** 2.0
+        )
+    return mc
 
+@gtscript.function
+def KH_instability_adjustment_bottom(ri, ri_ref, mc, delp, h0, q0):
+    if ri < ri_ref:
+        h0 = mc * (q0 - q0[0, 0, -1])
+        q0 = q0 - h0 / delp
+
+    return q0, h0
+
+@gtscript.function
+def KH_instability_adjustment_top(ri, ri_ref, delp, h0, q0):
+    if ri[0, 0, 1] < ri_ref[0, 0, 1]:
+        q0 = q0 + h0[0, 0, 1] / delp
+    return q0
 @gtstencil
 def m_loop(
     ri: sd,
@@ -149,82 +211,69 @@ def m_loop(
     q0_vapor: sd,
     pt1: sd,
     pt2: sd,
-    tv2: sd,
+    tv2: sd,te: sd,
+    mc: sd,cpm: sd, cvm:sd, 
+    q0_liquid: sd,
+    q0_rain: sd,
+    q0_ice: sd,
+    q0_snow: sd,
+    q0_graupel: sd,
+    q0_o3mr: sd,
+    q0_sgs_tke: sd,
+    q0_cld: sd,
     t_min: float,
     t_max: float,
     ratio: float,
     xvir: float,
 ):
-    with computation(BACKWARD), interval(
-        ...
-    ):  # interval(1, None): -- from doing the full stencil
-        tv1 = t0[0, 0, -1] * (1.0 + xvir * q0_vapor[0, 0, -1] - qcon[0, 0, -1])
-        tv2 = t0 * (1.0 + xvir * q0_vapor - qcon)
-        pt1 = tv1 / pkz[0, 0, -1]
-        pt2 = tv2 / pkz
-        ri = (
-            (gz[0, 0, -1] - gz)
-            * (pt1 - pt2)
-            / (
-                0.5
-                * (pt1 + pt2)
-                * ((u0[0, 0, -1] - u0) ** 2 + (v0[0, 0, -1] - v0) ** 2 + USTAR2)
-            )
-        )
-        if tv1 > t_max and tv1 > tv2:
-            ri = 0
-        elif tv2 < t_min:
-            ri = ri if ri < 0.1 else 0.1
-        # Adjustment for K-H instability:
-        # Compute equivalent mass flux: mc
-        # Add moist 2-dz instability consideration:
-        ri_ref = RI_MIN + (RI_MAX - RI_MIN) * dim(400.0e2, pm) / 200.0e2
-        if RI_MAX < ri_ref:
-            ri_ref = RI_MAX
-
-    # with computation(BACKWARD):
-    #     with interval(1, 2):
-    #         ri_ref = 4.0 * ri_ref
-    #     with interval(2, 3):
-    #         ri_ref = 2.0 * ri_ref
-    #     # This crashes gt4py, invalid interval, offset_limit default is 2 in
-    #     # make_axis_interval function
-    #     # with interval(3, 4):
-    #     #    ri_ref = 1.5 * ri_ref
-    # with computation(BACKWARD), interval(1, None):
-    #     max_ri_ratio = ri / ri_ref
-    #     if max_ri_ratio < 0.0:
-    #         max_ri_ratio = 0.0
-    #     if ri < ri_ref:
-    #         mc = (
-    #             ratio
-    #             * delp[0, 0, -1]
-    #             * delp
-    #             / (delp[0, 0, -1] + delp)
-    #             * (1.0 - max_ri_ratio) ** 2.0
-    #         )
-
-
-@gtstencil
-def m_loop_hack_interval_3_4(ri: sd, ri_ref: sd, mc: sd, delp: sd, ratio: float):
-    with computation(BACKWARD), interval(2, 3):
-        ri_ref = 1.5 * ri_ref
-        max_ri_ratio = ri / ri_ref
-        if max_ri_ratio < 0.0:
-            max_ri_ratio = 0.0
-        if ri < ri_ref:
-            mc = (
-                ratio
-                * delp[0, 0, -1]
-                * delp
-                / (delp[0, 0, -1] + delp)
-                * (1.0 - max_ri_ratio) ** 2
-            )
-
-
-# }
-
-
+    with computation(PARALLEL), interval(...):
+        h0_vapor = 0.0
+        h0_u = 0.0
+    with computation(BACKWARD):
+        with interval(-1, None):
+            ri, ri_ref = compute_ri(t0, q0_vapor, qcon, pkz, pm, gz, u0, v0,xvir, t_max, t_min)
+            mc = compute_mass_flux(ri, ri_ref, delp, ratio)
+            q0_vapor, h0_vapor = KH_instability_adjustment_bottom(ri, ri_ref, mc, delp, h0_vapor, q0_vapor)
+            q0_u, h0_u = KH_instability_adjustment_bottom(ri, ri_ref, mc, delp, h0_u, u0)
+        with interval(4, -1):
+            q0_vapor  = KH_instability_adjustment_top(ri, ri_ref, delp, h0_vapor,q0_vapor)
+            if ri[0, 0, 1] < ri_ref[0, 0, 1]:
+                qcon = qcon_func(qcon, q0_liquid, q0_ice, q0_snow, q0_rain, q0_graupel)
+            q0_u = KH_instability_adjustment_top(ri, ri_ref, delp, h0_u, u0)
+            cpm, cvm, t0, hd = adjust_cvm( cpm, cvm, q0_vapor, q0_liquid, q0_rain, q0_ice, q0_snow, q0_graupel, gz, u0, v0, w0, t0, te,)
+            #
+            ri, ri_ref = compute_ri(t0, q0_vapor, qcon, pkz, pm, gz, u0, v0,xvir, t_max, t_min)
+            # with computation(PARALLEL):
+            #    with interval(1, 2):
+            #        ri_ref = ri_ref_copy * 3.0
+            #    with interval(2, 3):
+            #        ri_ref = ri_ref_copy * 2.0
+            #    with interval(3, 4):
+            #        ri_ref = ri_ref_copy * 1.5
+            #with computation(PARALLEL), interval(1, None):
+            mc = compute_mass_flux(ri, ri_ref, delp, ratio)
+        
+            q0_vapor, h0_vapor =KH_instability_adjustment_bottom(ri, ri_ref, mc, delp, h0_vapor, q0_vapor)
+       
+            # kh_bottom tracers
+            # with computation(BACKWARD), interval(...):
+            #if ri < ri_ref:
+            #    h0 = mc * (q0 - q0[0, 0, -1])
+            #    q0 = q0 - h0 / delp
+            # kh _top tracers k - 1
+            #with computation(BACKWARD), interval(...):
+            #    if ri[0, 0, 1] < ri_ref[0, 0, 1]:
+            #        q0 = q0 + h0[0, 0, 1] / delp
+            # recompute qcon
+            #with computation(BACKWARD), interval(...):
+            #    if ri[0, 0, 1] < ri_ref[0, 0, 1]:
+            #        qcon = qcon_func(qcon, q0_liquid, q0_ice, q0_snow, q0_rain, q0_graupel)
+            # KH on u0, v0, w0, te
+            # double adjust
+            #with computation(BACKWARD), interval(...):
+            cpm, cvm, t0, hd = adjust_cvm( cpm, cvm, q0_vapor, q0_liquid, q0_rain, q0_ice, q0_snow, q0_graupel, gz, u0, v0, w0, t0, te)
+        #with interval(3, 4)
+        
 @gtstencil
 def equivalent_mass_flux(ri: sd, ri_ref: sd, mc: sd, delp: sd, ratio: float):
     with computation(PARALLEL), interval(...):
@@ -263,21 +312,6 @@ def equivalent_mass_flux(ri: sd, ri_ref: sd, mc: sd, delp: sd, ratio: float):
 #                 q0 = q0 + h0[0, 0, 1] / delp
 
 
-@gtstencil
-def KH_instability_adjustment_bottom(
-    ri: sd, ri_ref: sd, mc: sd, q0: sd, delp: sd, h0: sd
-):
-    with computation(BACKWARD), interval(...):
-        if ri < ri_ref:
-            h0 = mc * (q0 - q0[0, 0, -1])
-            q0 = q0 - h0 / delp
-
-
-@gtstencil
-def KH_instability_adjustment_top(ri: sd, ri_ref: sd, mc: sd, q0: sd, delp: sd, h0: sd):
-    with computation(BACKWARD), interval(...):
-        if ri[0, 0, 1] < ri_ref[0, 0, 1]:
-            q0 = q0 + h0[0, 0, 1] / delp
 
 
 def KH_instability_adjustment(ri, ri_ref, mc, q0, delp, h0, origin=None, domain=None):
@@ -565,51 +599,49 @@ def compute(state, nq, dt):
             origin=origin,
             domain=kbot_domain,
         )
+        m_loop(
+            ri,
+            ri_ref,
+            pm,
+            u0,
+            v0,
+            w0,
+            t0,
+            hd,
+            gz,
+            qcon,
+            state.delp,
+            state.pkz,
+            q0["qvapor"],
+            pt1,
+            pt2,
+            tv2,te,
+            mc,cpm, cvm, q0["qliquid"], q0["qrain"], q0["qice"], q0["qsnow"], q0["qgraupel"], q0["qo3mr"], q0["qsgs_tke"], q0["qcld"],
+            t_min,
+            t_max,
+            ratio,
+            xvir,
+            origin=grid.compute_origin(),
+            domain=kbot_domain,
+        )
+        
+        #if k == 1:
+        #    ri_ref *= 4.0
+        #if k == 2:
+        #    ri_ref *= 2.0
+        #if k == 3:
+        #    ri_ref *= 1.5
+            
+        #equivalent_mass_flux(
+        #    ri, ri_ref, mc, state.delp, ratio, origin=korigin, domain=kdomain
+        #
+        """
         for k in range(k_bot - 1, 0, -1):
             korigin = (grid.is_, grid.js, k)
             korigin_m1 = (grid.is_, grid.js, k - 1)
             kdomain = (grid.nic, grid.njc, 1)
             kdomain_m1 = (grid.nic, grid.njc, 2)
 
-            m_loop(
-                ri,
-                ri_ref,
-                pm,
-                u0,
-                v0,
-                w0,
-                t0,
-                hd,
-                gz,
-                qcon,
-                state.delp,
-                state.pkz,
-                q0["qvapor"],
-                pt1,
-                pt2,
-                tv2,
-                t_min,
-                t_max,
-                ratio,
-                xvir,
-                origin=korigin,
-                domain=kdomain,
-            )
-
-            if k == 1:
-                ri_ref *= 4.0
-            if k == 2:
-                ri_ref *= 2.0
-            if k == 3:
-                ri_ref *= 1.5
-
-            # work around that gt4py will not accept interval(3, 4), no longer
-            # used, mc calc per k.
-            # m_loop_hack_interval_3_4(ri, ri_ref, mc, state.delp, ratio,
-            # origin=(grid.is_, grid.js, 1), domain=(grid.nic, grid.njc, k_bot - 1))
-            equivalent_mass_flux(
-                ri, ri_ref, mc, state.delp, ratio, origin=korigin, domain=kdomain
-            )
             for tracername in utils.tracer_variables:
                 KH_instability_adjustment(
                     ri,
@@ -668,6 +700,7 @@ def compute(state, nq, dt):
                 origin=korigin_m1,
                 domain=kdomain_m1,
             )
+        """
     if fra < 1.0:
         fraction_adjust(
             t0,
