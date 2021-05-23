@@ -194,6 +194,16 @@ def KH_instability_adjustment_top(ri, ri_ref, delp, h0, q0):
     if ri[0, 0, 1] < ri_ref[0, 0, 1]:
         q0 = q0 + h0[0, 0, 1] / delp
     return q0
+
+@gtscript.function
+def KH_instability_adjustment_bottom_te(ri, ri_ref, mc, delp, h0, q0, hd):
+    if ri < ri_ref:
+        h0 = mc * (hd - hd[0, 0, -1])
+        q0 = q0 - h0 / delp
+
+    return q0, h0
+
+
 @gtstencil
 def m_loop(
     ri: sd,
@@ -229,17 +239,24 @@ def m_loop(
     with computation(PARALLEL), interval(...):
         h0_vapor = 0.0
         h0_u = 0.0
+        h0_v = 0.0
+        h0_w = 0.0
+        h0_te = 0.0
     with computation(BACKWARD):
         with interval(-1, None):
             ri, ri_ref = compute_ri(t0, q0_vapor, qcon, pkz, pm, gz, u0, v0,xvir, t_max, t_min)
             mc = compute_mass_flux(ri, ri_ref, delp, ratio)
             q0_vapor, h0_vapor = KH_instability_adjustment_bottom(ri, ri_ref, mc, delp, h0_vapor, q0_vapor)
-            q0_u, h0_u = KH_instability_adjustment_bottom(ri, ri_ref, mc, delp, h0_u, u0)
+            u0, h0_u = KH_instability_adjustment_bottom(ri, ri_ref, mc, delp, h0_u, u0)
+            v0, h0_v = KH_instability_adjustment_bottom(ri, ri_ref, mc, delp, h0_v, v0)
+            w0, h0_w = KH_instability_adjustment_bottom(ri, ri_ref, mc, delp, h0_w, w0)
+            te, h0_te = KH_instability_adjustment_bottom_te(ri, ri_ref, mc, delp, h0_te, te, hd)
+            cpm, cvm, t0, hd = adjust_cvm( cpm, cvm, q0_vapor, q0_liquid, q0_rain, q0_ice, q0_snow, q0_graupel, gz, u0, v0, w0, t0, te,)
         with interval(4, -1):
             q0_vapor  = KH_instability_adjustment_top(ri, ri_ref, delp, h0_vapor,q0_vapor)
             if ri[0, 0, 1] < ri_ref[0, 0, 1]:
                 qcon = qcon_func(qcon, q0_liquid, q0_ice, q0_snow, q0_rain, q0_graupel)
-            q0_u = KH_instability_adjustment_top(ri, ri_ref, delp, h0_u, u0)
+            u0 = KH_instability_adjustment_top(ri, ri_ref, delp, h0_u, u0)
             cpm, cvm, t0, hd = adjust_cvm( cpm, cvm, q0_vapor, q0_liquid, q0_rain, q0_ice, q0_snow, q0_graupel, gz, u0, v0, w0, t0, te,)
             #
             ri, ri_ref = compute_ri(t0, q0_vapor, qcon, pkz, pm, gz, u0, v0,xvir, t_max, t_min)
@@ -255,7 +272,11 @@ def m_loop(
         
             q0_vapor, h0_vapor =KH_instability_adjustment_bottom(ri, ri_ref, mc, delp, h0_vapor, q0_vapor)
        
-            # kh_bottom tracers
+           
+            cpm, cvm, t0, hd = adjust_cvm( cpm, cvm, q0_vapor, q0_liquid, q0_rain, q0_ice, q0_snow, q0_graupel, gz, u0, v0, w0, t0, te)
+        #with interval(3, 4)
+"""
+ # kh_bottom tracers
             # with computation(BACKWARD), interval(...):
             #if ri < ri_ref:
             #    h0 = mc * (q0 - q0[0, 0, -1])
@@ -271,9 +292,7 @@ def m_loop(
             # KH on u0, v0, w0, te
             # double adjust
             #with computation(BACKWARD), interval(...):
-            cpm, cvm, t0, hd = adjust_cvm( cpm, cvm, q0_vapor, q0_liquid, q0_rain, q0_ice, q0_snow, q0_graupel, gz, u0, v0, w0, t0, te)
-        #with interval(3, 4)
-        
+"""
 @gtstencil
 def equivalent_mass_flux(ri: sd, ri_ref: sd, mc: sd, delp: sd, ratio: float):
     with computation(PARALLEL), interval(...):
@@ -312,7 +331,7 @@ def equivalent_mass_flux(ri: sd, ri_ref: sd, mc: sd, delp: sd, ratio: float):
 #                 q0 = q0 + h0[0, 0, 1] / delp
 
 
-
+"""
 
 def KH_instability_adjustment(ri, ri_ref, mc, q0, delp, h0, origin=None, domain=None):
     KH_instability_adjustment_bottom(
@@ -385,7 +404,7 @@ def double_adjust_cvm(
         t0 = (te - tv) / cvm
         hd = cpm * t0 + tv
 
-
+"""
 @gtscript.function
 def readjust_by_frac(a0, a, fra):
     return a + (a0 - a) * fra
