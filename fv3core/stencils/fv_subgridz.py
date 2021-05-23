@@ -238,6 +238,13 @@ def m_loop(
 ):
     with computation(PARALLEL), interval(...):
         h0_vapor = 0.0
+        h0_liquid = 0.0
+        h0_rain = 0.0
+        h0_ice = 0.0
+        h0_snow = 0.0
+        h0_graupel = 0.0
+        h0_o3mr = 0.0
+        h0_cld = 0.0
         h0_u = 0.0
         h0_v = 0.0
         h0_w = 0.0
@@ -247,6 +254,13 @@ def m_loop(
             ri, ri_ref = compute_ri(t0, q0_vapor, qcon, pkz, pm, gz, u0, v0,xvir, t_max, t_min)
             mc = compute_mass_flux(ri, ri_ref, delp, ratio)
             q0_vapor, h0_vapor = KH_instability_adjustment_bottom(ri, ri_ref, mc, delp, h0_vapor, q0_vapor)
+            q0_liquid, h0_liquid = KH_instability_adjustment_bottom(ri, ri_ref, mc, delp, h0_liquid, q0_liquid)
+            q0_rain, h0_rain = KH_instability_adjustment_bottom(ri, ri_ref, mc, delp, h0_rain, q0_rain)
+            q0_ice, h0_ice = KH_instability_adjustment_bottom(ri, ri_ref, mc, delp, h0_ice, q0_ice)
+            q0_snow, h0_snow = KH_instability_adjustment_bottom(ri, ri_ref, mc, delp, h0_snow, q0_snow)
+            q0_graupel, h0_graupel = KH_instability_adjustment_bottom(ri, ri_ref, mc, delp, h0_graupel, q0_graupel)
+            q0_o3mr, h0_o3mr = KH_instability_adjustment_bottom(ri, ri_ref, mc, delp, h0_o3mr, q0_o3mr)
+            q0_cld, h0_cld = KH_instability_adjustment_bottom(ri, ri_ref, mc, delp, h0_cld, q0_cld)
             u0, h0_u = KH_instability_adjustment_bottom(ri, ri_ref, mc, delp, h0_u, u0)
             v0, h0_v = KH_instability_adjustment_bottom(ri, ri_ref, mc, delp, h0_v, v0)
             w0, h0_w = KH_instability_adjustment_bottom(ri, ri_ref, mc, delp, h0_w, w0)
@@ -254,6 +268,13 @@ def m_loop(
             cpm, cvm, t0, hd = adjust_cvm( cpm, cvm, q0_vapor, q0_liquid, q0_rain, q0_ice, q0_snow, q0_graupel, gz, u0, v0, w0, t0, te,)
         with interval(4, -1):
             q0_vapor  = KH_instability_adjustment_top(ri, ri_ref, delp, h0_vapor,q0_vapor)
+            q0_liquid= KH_instability_adjustment_top(ri, ri_ref,  delp, h0_liquid, q0_liquid)
+            q0_rain = KH_instability_adjustment_top(ri, ri_ref,  delp, h0_rain, q0_rain)
+            q0_ice = KH_instability_adjustment_top(ri, ri_ref,  delp, h0_ice, q0_ice)
+            q0_snow = KH_instability_adjustment_top(ri, ri_ref,  delp, h0_snow, q0_snow)
+            q0_graupel = KH_instability_adjustment_top(ri, ri_ref,  delp, h0_graupel, q0_graupel)
+            q0_o3mr = KH_instability_adjustment_top(ri, ri_ref,  delp, h0_o3mr, q0_o3mr)
+            q0_cld = KH_instability_adjustment_top(ri, ri_ref,  delp, h0_cld, q0_cld)
             if ri[0, 0, 1] < ri_ref[0, 0, 1]:
                 qcon = qcon_func(qcon, q0_liquid, q0_ice, q0_snow, q0_rain, q0_graupel)
             u0 = KH_instability_adjustment_top(ri, ri_ref, delp, h0_u, u0)
