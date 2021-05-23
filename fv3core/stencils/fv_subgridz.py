@@ -278,6 +278,9 @@ def m_loop(
             if ri[0, 0, 1] < ri_ref[0, 0, 1]:
                 qcon = qcon_func(qcon, q0_liquid, q0_ice, q0_snow, q0_rain, q0_graupel)
             u0 = KH_instability_adjustment_top(ri, ri_ref, delp, h0_u, u0)
+            v0 = KH_instability_adjustment_top(ri, ri_ref, delp, h0_v, v0)
+            w0 = KH_instability_adjustment_top(ri, ri_ref, delp, h0_w, w0)
+            te = KH_instability_adjustment_top(ri, ri_ref, delp, h0_te, te)
             cpm, cvm, t0, hd = adjust_cvm( cpm, cvm, q0_vapor, q0_liquid, q0_rain, q0_ice, q0_snow, q0_graupel, gz, u0, v0, w0, t0, te,)
             #
             ri, ri_ref = compute_ri(t0, q0_vapor, qcon, pkz, pm, gz, u0, v0,xvir, t_max, t_min)
