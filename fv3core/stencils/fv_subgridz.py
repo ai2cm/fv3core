@@ -194,15 +194,28 @@ def KH_instability_adjustment_top(ri, ri_ref, delp, h0, q0):
         q0 = q0 + h0[0, 0, 1] / delp
     return q0
 
+
+@gtscript.function
+def KH_instability_adjustment_bottom2(mc, delp, h0, q0):
+    h0 = mc * (q0 - q0[0, 0, -1])
+    q0 = q0 - h0 / delp
+    return q0, h0
+
+@gtscript.function
+def KH_instability_adjustment_top2(delp, h0, q0):
+    return q0 + h0[0, 0, 1] / delp
+
+@gtscript.function
+def KH_instability_adjustment_bottom_te2(mc, delp, h0, q0, hd):
+    h0 = mc * (hd - hd[0, 0, -1])
+    q0 = q0 - h0 / delp
+    return q0, h0
+
 @gtscript.function
 def KH_instability_adjustment_bottom_te(ri, ri_ref, mc, delp, h0, q0, hd):
     if ri < ri_ref:
         h0 = mc * (hd - hd[0, 0, -1])
         q0 = q0 - h0 / delp
-    else:
-        h0 = h0
-        q0 = q0
-
     return q0, h0
 
 
@@ -266,7 +279,11 @@ def m_loop(
             q0_o3mr, h0_o3mr = KH_instability_adjustment_bottom(ri, ri_ref, mc, delp, h0_o3mr, q0_o3mr)
             q0_sgs_tke, h0_sgs_tke = KH_instability_adjustment_bottom(ri, ri_ref, mc, delp, h0_sgs_tke, q0_sgs_tke)
             q0_cld, h0_cld = KH_instability_adjustment_bottom(ri, ri_ref, mc, delp, h0_cld, q0_cld)
-            u0, h0_u = KH_instability_adjustment_bottom(ri, ri_ref, mc, delp, h0_u, u0)
+            if ri < ri_ref:
+                #h0_u = mc * (u0 - u0[0, 0, -1])
+                #u0 = u0 - h0_u / delp
+                u0, h0_u = KH_instability_adjustment_bottom2(mc, delp, h0_u, u0)
+            #u0, h0_u = KH_instability_adjustment_bottom(ri, ri_ref, mc, delp, h0_u, u0)
             v0, h0_v = KH_instability_adjustment_bottom(ri, ri_ref, mc, delp, h0_v, v0)
             w0, h0_w = KH_instability_adjustment_bottom(ri, ri_ref, mc, delp, h0_w, w0)
             te, h0_te = KH_instability_adjustment_bottom_te(ri, ri_ref, mc, delp, h0_te, te, hd)
@@ -283,7 +300,10 @@ def m_loop(
             q0_cld = KH_instability_adjustment_top(ri, ri_ref,  delp, h0_cld, q0_cld)
             if ri[0, 0, 1] < ri_ref[0, 0, 1]:
                 qcon = qcon_func(qcon, q0_liquid, q0_ice, q0_snow, q0_rain, q0_graupel)
-            u0 = KH_instability_adjustment_top(ri, ri_ref, delp, h0_u, u0)
+            #u0 = KH_instability_adjustment_top(ri, ri_ref, delp, h0_u, u0)
+            if ri[0, 0, 1] < ri_ref[0, 0, 1]:
+                u0 = u0 + h0_u[0, 0, 1] / delp
+                u0 = KH_instability_adjustment_top2(delp, h0_u, u0)
             v0 = KH_instability_adjustment_top(ri, ri_ref, delp, h0_v, v0)
             w0 = KH_instability_adjustment_top(ri, ri_ref, delp, h0_w, w0)
             te = KH_instability_adjustment_top(ri, ri_ref, delp, h0_te, te)
@@ -308,7 +328,10 @@ def m_loop(
             q0_o3mr, h0_o3mr = KH_instability_adjustment_bottom(ri, ri_ref, mc, delp, h0_o3mr, q0_o3mr)
             q0_sgs_tke, h0_sgs_tke = KH_instability_adjustment_bottom(ri, ri_ref, mc, delp, h0_sgs_tke, q0_sgs_tke)
             q0_cld, h0_cld = KH_instability_adjustment_bottom(ri, ri_ref, mc, delp, h0_cld, q0_cld)
-            u0, h0_u = KH_instability_adjustment_bottom(ri, ri_ref, mc, delp, h0_u, u0)
+            if ri < ri_ref:
+                #h0_u = mc * (u0 - u0[0, 0, -1])
+                #u0 = u0 - h0_u / delp
+                u0, h0_u = KH_instability_adjustment_bottom2(mc, delp, h0_u, u0)
             v0, h0_v = KH_instability_adjustment_bottom(ri, ri_ref, mc, delp, h0_v, v0)
             w0, h0_w = KH_instability_adjustment_bottom(ri, ri_ref, mc, delp, h0_w, w0)
             te, h0_te = KH_instability_adjustment_bottom_te(ri, ri_ref, mc, delp, h0_te, te, hd)
