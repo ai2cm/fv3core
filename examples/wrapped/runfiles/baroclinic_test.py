@@ -266,6 +266,7 @@ if __name__ == "__main__":
     v_tendency.metadata.gt4py_backend = fv3core.get_backend()
 
     n_tracers = 6
+
     state = wrapper.get_state(allocator=allocator, names=initial_names)
     dycore = fv3core.DynamicalCore(
         cube_comm,
@@ -274,7 +275,6 @@ if __name__ == "__main__":
         state["atmosphere_hybrid_b_coordinate"],
         state["surface_geopotential"],
     )
-
     fvsubgridz = fv3core.FVSubgridZ(spec.namelist)
     # Step through time
     for i in range(wrapper.get_step_count()):

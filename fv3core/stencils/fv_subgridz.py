@@ -186,8 +186,9 @@ def compute_richardson_number(
 
 
 @gtscript.function
-def compute_mass_flux(ri, ri_ref, delp, mc, ratio):
+def compute_mass_flux(ri, ri_ref, delp, ratio):
     max_ri_ratio = ri / ri_ref
+    mc = 0.0
     if max_ri_ratio < 0.0:
         max_ri_ratio = 0.0
     if ri < ri_ref:
@@ -202,17 +203,19 @@ def compute_mass_flux(ri, ri_ref, delp, mc, ratio):
 
 
 @gtscript.function
-def kh_adjustment(mc, q0):
-    return mc * (q0 - q0[0, 0, -1])
+def kh_adjust_down(mc, delp, q0, h0):
+    h0 = mc * (q0 - q0[0, 0, -1])
+    return q0 - h0 / delp, h0
 
 
 @gtscript.function
-def adjust_down(delp, h0, q0):
-    return q0 - h0 / delp
+def kh_adjust_energy_down(mc, delp, static_energy, total_energy, h0):
+    h0 = mc * (static_energy - static_energy[0, 0, -1])
+    return total_energy - h0 / delp, h0
 
 
 @gtscript.function
-def adjust_up(delp, h0, q0):
+def kh_adjust_up(delp, h0, q0):
     return q0 + h0[0, 0, 1] / delp
 
 
@@ -258,7 +261,6 @@ def m_loop(
         h0_v = 0.0
         h0_w = 0.0
         h0_total_energy = 0.0
-        mc = 0.0
         ri = 0.0
         ref = 0.0
     with computation(BACKWARD):
@@ -266,37 +268,30 @@ def m_loop(
             ri, ri_ref = compute_richardson_number(
                 t0, q0_vapor, qcon, pkz, delp, peln, gz, u0, v0, xvir, t_max, t_min
             )
-            mc = compute_mass_flux(ri, ri_ref, delp, mc, ratio)
+            mc = compute_mass_flux(ri, ri_ref, delp, ratio)
             if ri < ri_ref:
                 # TODO: loop over tracers not hardcoded
                 # Note combining into functions breaks
                 # validation, may want to try again with changes to gt4py
-                h0_vapor = kh_adjustment(mc, q0_vapor)
-                q0_vapor = adjust_down(delp, h0_vapor, q0_vapor)
-                h0_liquid = kh_adjustment(mc, q0_liquid)
-                q0_liquid = adjust_down(delp, h0_liquid, q0_liquid)
-                h0_rain = kh_adjustment(mc, q0_rain)
-                q0_rain = adjust_down(delp, h0_rain, q0_rain)
-                h0_ice = kh_adjustment(mc, q0_ice)
-                q0_ice = adjust_down(delp, h0_ice, q0_ice)
-                h0_snow = kh_adjustment(mc, q0_snow)
-                q0_snow = adjust_down(delp, h0_snow, q0_snow)
-                h0_graupel = kh_adjustment(mc, q0_graupel)
-                q0_graupel = adjust_down(delp, h0_graupel, q0_graupel)
-                h0_o3mr = kh_adjustment(mc, q0_o3mr)
-                q0_o3mr = adjust_down(delp, h0_o3mr, q0_o3mr)
-                h0_sgs_tke = kh_adjustment(mc, q0_sgs_tke)
-                q0_sgs_tke = adjust_down(delp, h0_sgs_tke, q0_sgs_tke)
-                h0_cld = kh_adjustment(mc, q0_cld)
-                q0_cld = adjust_down(delp, h0_cld, q0_cld)
-                h0_u = kh_adjustment(mc, u0)
-                u0 = adjust_down(delp, h0_u, u0)
-                h0_v = kh_adjustment(mc, v0)
-                v0 = adjust_down(delp, h0_v, v0)
-                h0_w = kh_adjustment(mc, w0)
-                w0 = adjust_down(delp, h0_w, w0)
-                h0_total_energy = kh_adjustment(mc, static_energy)
-                total_energy = adjust_down(delp, h0_total_energy, total_energy)
+                q0_vapor, h0_vapor = kh_adjust_down(mc, delp, q0_vapor, h0_vapor)
+                q0_liquid, h0_liquid = kh_adjust_down(mc, delp, q0_liquid, h0_liquid)
+                q0_rain, h0_rain = kh_adjust_down(mc, delp, q0_rain, h0_rain)
+                q0_ice, h0_ice = kh_adjust_down(mc, delp, q0_ice, h0_ice)
+                q0_snow, h0_snow = kh_adjust_down(mc, delp, q0_snow, h0_snow)
+                q0_graupel, h0_graupel = kh_adjust_down(
+                    mc, delp, q0_graupel, h0_graupel
+                )
+                q0_o3mr, h0_o3mr = kh_adjust_down(mc, delp, q0_o3mr, h0_o3mr)
+                q0_sgs_tke, h0_sgs_tke = kh_adjust_down(
+                    mc, delp, q0_sgs_tke, h0_sgs_tke
+                )
+                q0_cld, h0_cld = kh_adjust_down(mc, delp, q0_cld, h0_cld)
+                u0, h0_u = kh_adjust_down(mc, delp, u0, h0_u)
+                v0, h0_v = kh_adjust_down(mc, delp, v0, h0_v)
+                w0, h0_w = kh_adjust_down(mc, delp, w0, h0_w)
+                total_energy, h0_total_energy = kh_adjust_energy_down(
+                    mc, delp, static_energy, total_energy, h0_total_energy
+                )
             cpm, cvm, t0, static_energy = adjust_cvm(
                 cpm,
                 cvm,
@@ -316,21 +311,20 @@ def m_loop(
             )
         with interval(4, -1):
             if ri[0, 0, 1] < ri_ref[0, 0, 1]:
-                q0_vapor = adjust_up(delp, h0_vapor, q0_vapor)
-                q0_liquid = adjust_up(delp, h0_liquid, q0_liquid)
-                q0_rain = adjust_up(delp, h0_rain, q0_rain)
-                q0_ice = adjust_up(delp, h0_ice, q0_ice)
-                q0_snow = adjust_up(delp, h0_snow, q0_snow)
-                q0_graupel = adjust_up(delp, h0_graupel, q0_graupel)
-                q0_o3mr = adjust_up(delp, h0_o3mr, q0_o3mr)
-                q0_sgs_tke = adjust_up(delp, h0_sgs_tke, q0_sgs_tke)
-                q0_cld = adjust_up(delp, h0_cld, q0_cld)
-                # recompute qcon
+                q0_vapor = kh_adjust_up(delp, h0_vapor, q0_vapor)
+                q0_liquid = kh_adjust_up(delp, h0_liquid, q0_liquid)
+                q0_rain = kh_adjust_up(delp, h0_rain, q0_rain)
+                q0_ice = kh_adjust_up(delp, h0_ice, q0_ice)
+                q0_snow = kh_adjust_up(delp, h0_snow, q0_snow)
+                q0_graupel = kh_adjust_up(delp, h0_graupel, q0_graupel)
+                q0_o3mr = kh_adjust_up(delp, h0_o3mr, q0_o3mr)
+                q0_sgs_tke = kh_adjust_up(delp, h0_sgs_tke, q0_sgs_tke)
+                q0_cld = kh_adjust_up(delp, h0_cld, q0_cld)
                 qcon = qcon_func(q0_liquid, q0_ice, q0_snow, q0_rain, q0_graupel)
-                u0 = adjust_up(delp, h0_u, u0)
-                v0 = adjust_up(delp, h0_v, v0)
-                w0 = adjust_up(delp, h0_w, w0)
-                total_energy = adjust_up(delp, h0_total_energy, total_energy)
+                u0 = kh_adjust_up(delp, h0_u, u0)
+                v0 = kh_adjust_up(delp, h0_v, v0)
+                w0 = kh_adjust_up(delp, h0_w, w0)
+                total_energy = kh_adjust_up(delp, h0_total_energy, total_energy)
             cpm, cvm, t0, static_energy = adjust_cvm(
                 cpm,
                 cvm,
@@ -351,37 +345,27 @@ def m_loop(
             ri, ri_ref = compute_richardson_number(
                 t0, q0_vapor, qcon, pkz, delp, peln, gz, u0, v0, xvir, t_max, t_min
             )
-
-            mc = compute_mass_flux(ri, ri_ref, delp, mc, ratio)
+            mc = compute_mass_flux(ri, ri_ref, delp, ratio)
             if ri < ri_ref:
-                h0_vapor = kh_adjustment(mc, q0_vapor)
-                q0_vapor = adjust_down(delp, h0_vapor, q0_vapor)
-                h0_liquid = kh_adjustment(mc, q0_liquid)
-                q0_liquid = adjust_down(delp, h0_liquid, q0_liquid)
-                h0_rain = kh_adjustment(mc, q0_rain)
-                q0_rain = adjust_down(delp, h0_rain, q0_rain)
-                h0_ice = kh_adjustment(mc, q0_ice)
-                q0_ice = adjust_down(delp, h0_ice, q0_ice)
-                h0_snow = kh_adjustment(mc, q0_snow)
-                q0_snow = adjust_down(delp, h0_snow, q0_snow)
-                h0_graupel = kh_adjustment(mc, q0_graupel)
-                q0_graupel = adjust_down(delp, h0_graupel, q0_graupel)
-                h0_o3mr = kh_adjustment(mc, q0_o3mr)
-                q0_o3mr = adjust_down(delp, h0_o3mr, q0_o3mr)
-                h0_sgs_tke = kh_adjustment(mc, q0_sgs_tke)
-                q0_sgs_tke = adjust_down(delp, h0_sgs_tke, q0_sgs_tke)
-                h0_cld = kh_adjustment(mc, q0_cld)
-                q0_cld = adjust_down(delp, h0_cld, q0_cld)
-
-                h0_u = kh_adjustment(mc, u0)
-                u0 = adjust_down(delp, h0_u, u0)
-                h0_v = kh_adjustment(mc, v0)
-                v0 = adjust_down(delp, h0_v, v0)
-                h0_w = kh_adjustment(mc, w0)
-                w0 = adjust_down(delp, h0_w, w0)
-                h0_total_energy = kh_adjustment(mc, static_energy)
-                total_energy = adjust_down(delp, h0_total_energy, total_energy)
-
+                q0_vapor, h0_vapor = kh_adjust_down(mc, delp, q0_vapor, h0_vapor)
+                q0_liquid, h0_liquid = kh_adjust_down(mc, delp, q0_liquid, h0_liquid)
+                q0_rain, h0_rain = kh_adjust_down(mc, delp, q0_rain, h0_rain)
+                q0_ice, h0_ice = kh_adjust_down(mc, delp, q0_ice, h0_ice)
+                q0_snow, h0_snow = kh_adjust_down(mc, delp, q0_snow, h0_snow)
+                q0_graupel, h0_graupel = kh_adjust_down(
+                    mc, delp, q0_graupel, h0_graupel
+                )
+                q0_o3mr, h0_o3mr = kh_adjust_down(mc, delp, q0_o3mr, h0_o3mr)
+                q0_sgs_tke, h0_sgs_tke = kh_adjust_down(
+                    mc, delp, q0_sgs_tke, h0_sgs_tke
+                )
+                q0_cld, h0_cld = kh_adjust_down(mc, delp, q0_cld, h0_cld)
+                u0, h0_u = kh_adjust_down(mc, delp, u0, h0_u)
+                v0, h0_v = kh_adjust_down(mc, delp, v0, h0_v)
+                w0, h0_w = kh_adjust_down(mc, delp, w0, h0_w)
+                total_energy, h0_total_energy = kh_adjust_energy_down(
+                    mc, delp, static_energy, total_energy, h0_total_energy
+                )
             cpm, cvm, t0, static_energy = adjust_cvm(
                 cpm,
                 cvm,
@@ -404,20 +388,20 @@ def m_loop(
             # expected. spend some more time here so not so much needs
             # to be repeated just to multiply ri_ref by a constant
             if ri[0, 0, 1] < ri_ref[0, 0, 1]:
-                q0_vapor = adjust_up(delp, h0_vapor, q0_vapor)
-                q0_liquid = adjust_up(delp, h0_liquid, q0_liquid)
-                q0_rain = adjust_up(delp, h0_rain, q0_rain)
-                q0_ice = adjust_up(delp, h0_ice, q0_ice)
-                q0_snow = adjust_up(delp, h0_snow, q0_snow)
-                q0_graupel = adjust_up(delp, h0_graupel, q0_graupel)
-                q0_o3mr = adjust_up(delp, h0_o3mr, q0_o3mr)
-                q0_sgs_tke = adjust_up(delp, h0_sgs_tke, q0_sgs_tke)
-                q0_cld = adjust_up(delp, h0_cld, q0_cld)
+                q0_vapor = kh_adjust_up(delp, h0_vapor, q0_vapor)
+                q0_liquid = kh_adjust_up(delp, h0_liquid, q0_liquid)
+                q0_rain = kh_adjust_up(delp, h0_rain, q0_rain)
+                q0_ice = kh_adjust_up(delp, h0_ice, q0_ice)
+                q0_snow = kh_adjust_up(delp, h0_snow, q0_snow)
+                q0_graupel = kh_adjust_up(delp, h0_graupel, q0_graupel)
+                q0_o3mr = kh_adjust_up(delp, h0_o3mr, q0_o3mr)
+                q0_sgs_tke = kh_adjust_up(delp, h0_sgs_tke, q0_sgs_tke)
+                q0_cld = kh_adjust_up(delp, h0_cld, q0_cld)
                 qcon = qcon_func(q0_liquid, q0_ice, q0_snow, q0_rain, q0_graupel)
-                u0 = adjust_up(delp, h0_u, u0)
-                v0 = adjust_up(delp, h0_v, v0)
-                w0 = adjust_up(delp, h0_w, w0)
-                total_energy = adjust_up(delp, h0_total_energy, total_energy)
+                u0 = kh_adjust_up(delp, h0_u, u0)
+                v0 = kh_adjust_up(delp, h0_v, v0)
+                w0 = kh_adjust_up(delp, h0_w, w0)
+                total_energy = kh_adjust_up(delp, h0_total_energy, total_energy)
 
             cpm, cvm, t0, static_energy = adjust_cvm(
                 cpm,
@@ -441,36 +425,27 @@ def m_loop(
             )
             # TODO, can we just check if index(K) == 3?
             ri_ref = ri_ref * 1.5
-            mc = compute_mass_flux(ri, ri_ref, delp, mc, ratio)
+            mc = compute_mass_flux(ri, ri_ref, delp, ratio)
             if ri < ri_ref:
-                h0_vapor = kh_adjustment(mc, q0_vapor)
-                q0_vapor = adjust_down(delp, h0_vapor, q0_vapor)
-                h0_liquid = kh_adjustment(mc, q0_liquid)
-                q0_liquid = adjust_down(delp, h0_liquid, q0_liquid)
-                h0_rain = kh_adjustment(mc, q0_rain)
-                q0_rain = adjust_down(delp, h0_rain, q0_rain)
-                h0_ice = kh_adjustment(mc, q0_ice)
-                q0_ice = adjust_down(delp, h0_ice, q0_ice)
-                h0_snow = kh_adjustment(mc, q0_snow)
-                q0_snow = adjust_down(delp, h0_snow, q0_snow)
-                h0_graupel = kh_adjustment(mc, q0_graupel)
-                q0_graupel = adjust_down(delp, h0_graupel, q0_graupel)
-                h0_o3mr = kh_adjustment(mc, q0_o3mr)
-                q0_o3mr = adjust_down(delp, h0_o3mr, q0_o3mr)
-                h0_sgs_tke = kh_adjustment(mc, q0_sgs_tke)
-                q0_sgs_tke = adjust_down(delp, h0_sgs_tke, q0_sgs_tke)
-                h0_cld = kh_adjustment(mc, q0_cld)
-                q0_cld = adjust_down(delp, h0_cld, q0_cld)
-
-                h0_u = kh_adjustment(mc, u0)
-                u0 = adjust_down(delp, h0_u, u0)
-                h0_v = kh_adjustment(mc, v0)
-                v0 = adjust_down(delp, h0_v, v0)
-                h0_w = kh_adjustment(mc, w0)
-                w0 = adjust_down(delp, h0_w, w0)
-                h0_total_energy = kh_adjustment(mc, static_energy)
-                total_energy = adjust_down(delp, h0_total_energy, total_energy)
-
+                q0_vapor, h0_vapor = kh_adjust_down(mc, delp, q0_vapor, h0_vapor)
+                q0_liquid, h0_liquid = kh_adjust_down(mc, delp, q0_liquid, h0_liquid)
+                q0_rain, h0_rain = kh_adjust_down(mc, delp, q0_rain, h0_rain)
+                q0_ice, h0_ice = kh_adjust_down(mc, delp, q0_ice, h0_ice)
+                q0_snow, h0_snow = kh_adjust_down(mc, delp, q0_snow, h0_snow)
+                q0_graupel, h0_graupel = kh_adjust_down(
+                    mc, delp, q0_graupel, h0_graupel
+                )
+                q0_o3mr, h0_o3mr = kh_adjust_down(mc, delp, q0_o3mr, h0_o3mr)
+                q0_sgs_tke, h0_sgs_tke = kh_adjust_down(
+                    mc, delp, q0_sgs_tke, h0_sgs_tke
+                )
+                q0_cld, h0_cld = kh_adjust_down(mc, delp, q0_cld, h0_cld)
+                u0, h0_u = kh_adjust_down(mc, delp, u0, h0_u)
+                v0, h0_v = kh_adjust_down(mc, delp, v0, h0_v)
+                w0, h0_w = kh_adjust_down(mc, delp, w0, h0_w)
+                total_energy, h0_total_energy = kh_adjust_energy_down(
+                    mc, delp, static_energy, total_energy, h0_total_energy
+                )
             cpm, cvm, t0, static_energy = adjust_cvm(
                 cpm,
                 cvm,
@@ -490,20 +465,20 @@ def m_loop(
             )
         with interval(2, 3):
             if ri[0, 0, 1] < ri_ref[0, 0, 1]:
-                q0_vapor = adjust_up(delp, h0_vapor, q0_vapor)
-                q0_liquid = adjust_up(delp, h0_liquid, q0_liquid)
-                q0_rain = adjust_up(delp, h0_rain, q0_rain)
-                q0_ice = adjust_up(delp, h0_ice, q0_ice)
-                q0_snow = adjust_up(delp, h0_snow, q0_snow)
-                q0_graupel = adjust_up(delp, h0_graupel, q0_graupel)
-                q0_o3mr = adjust_up(delp, h0_o3mr, q0_o3mr)
-                q0_sgs_tke = adjust_up(delp, h0_sgs_tke, q0_sgs_tke)
-                q0_cld = adjust_up(delp, h0_cld, q0_cld)
+                q0_vapor = kh_adjust_up(delp, h0_vapor, q0_vapor)
+                q0_liquid = kh_adjust_up(delp, h0_liquid, q0_liquid)
+                q0_rain = kh_adjust_up(delp, h0_rain, q0_rain)
+                q0_ice = kh_adjust_up(delp, h0_ice, q0_ice)
+                q0_snow = kh_adjust_up(delp, h0_snow, q0_snow)
+                q0_graupel = kh_adjust_up(delp, h0_graupel, q0_graupel)
+                q0_o3mr = kh_adjust_up(delp, h0_o3mr, q0_o3mr)
+                q0_sgs_tke = kh_adjust_up(delp, h0_sgs_tke, q0_sgs_tke)
+                q0_cld = kh_adjust_up(delp, h0_cld, q0_cld)
                 qcon = qcon_func(q0_liquid, q0_ice, q0_snow, q0_rain, q0_graupel)
-                u0 = adjust_up(delp, h0_u, u0)
-                v0 = adjust_up(delp, h0_v, v0)
-                w0 = adjust_up(delp, h0_w, w0)
-                total_energy = adjust_up(delp, h0_total_energy, total_energy)
+                u0 = kh_adjust_up(delp, h0_u, u0)
+                v0 = kh_adjust_up(delp, h0_v, v0)
+                w0 = kh_adjust_up(delp, h0_w, w0)
+                total_energy = kh_adjust_up(delp, h0_total_energy, total_energy)
 
             cpm, cvm, t0, static_energy = adjust_cvm(
                 cpm,
@@ -526,36 +501,27 @@ def m_loop(
                 t0, q0_vapor, qcon, pkz, delp, peln, gz, u0, v0, xvir, t_max, t_min
             )
             ri_ref = ri_ref * 2.0
-            mc = compute_mass_flux(ri, ri_ref, delp, mc, ratio)
+            mc = compute_mass_flux(ri, ri_ref, delp, ratio)
             if ri < ri_ref:
-                h0_vapor = kh_adjustment(mc, q0_vapor)
-                q0_vapor = adjust_down(delp, h0_vapor, q0_vapor)
-                h0_liquid = kh_adjustment(mc, q0_liquid)
-                q0_liquid = adjust_down(delp, h0_liquid, q0_liquid)
-                h0_rain = kh_adjustment(mc, q0_rain)
-                q0_rain = adjust_down(delp, h0_rain, q0_rain)
-                h0_ice = kh_adjustment(mc, q0_ice)
-                q0_ice = adjust_down(delp, h0_ice, q0_ice)
-                h0_snow = kh_adjustment(mc, q0_snow)
-                q0_snow = adjust_down(delp, h0_snow, q0_snow)
-                h0_graupel = kh_adjustment(mc, q0_graupel)
-                q0_graupel = adjust_down(delp, h0_graupel, q0_graupel)
-                h0_o3mr = kh_adjustment(mc, q0_o3mr)
-                q0_o3mr = adjust_down(delp, h0_o3mr, q0_o3mr)
-                h0_sgs_tke = kh_adjustment(mc, q0_sgs_tke)
-                q0_sgs_tke = adjust_down(delp, h0_sgs_tke, q0_sgs_tke)
-                h0_cld = kh_adjustment(mc, q0_cld)
-                q0_cld = adjust_down(delp, h0_cld, q0_cld)
-
-                h0_u = kh_adjustment(mc, u0)
-                u0 = adjust_down(delp, h0_u, u0)
-                h0_v = kh_adjustment(mc, v0)
-                v0 = adjust_down(delp, h0_v, v0)
-                h0_w = kh_adjustment(mc, w0)
-                w0 = adjust_down(delp, h0_w, w0)
-                h0_total_energy = kh_adjustment(mc, static_energy)
-                total_energy = adjust_down(delp, h0_total_energy, total_energy)
-
+                q0_vapor, h0_vapor = kh_adjust_down(mc, delp, q0_vapor, h0_vapor)
+                q0_liquid, h0_liquid = kh_adjust_down(mc, delp, q0_liquid, h0_liquid)
+                q0_rain, h0_rain = kh_adjust_down(mc, delp, q0_rain, h0_rain)
+                q0_ice, h0_ice = kh_adjust_down(mc, delp, q0_ice, h0_ice)
+                q0_snow, h0_snow = kh_adjust_down(mc, delp, q0_snow, h0_snow)
+                q0_graupel, h0_graupel = kh_adjust_down(
+                    mc, delp, q0_graupel, h0_graupel
+                )
+                q0_o3mr, h0_o3mr = kh_adjust_down(mc, delp, q0_o3mr, h0_o3mr)
+                q0_sgs_tke, h0_sgs_tke = kh_adjust_down(
+                    mc, delp, q0_sgs_tke, h0_sgs_tke
+                )
+                q0_cld, h0_cld = kh_adjust_down(mc, delp, q0_cld, h0_cld)
+                u0, h0_u = kh_adjust_down(mc, delp, u0, h0_u)
+                v0, h0_v = kh_adjust_down(mc, delp, v0, h0_v)
+                w0, h0_w = kh_adjust_down(mc, delp, w0, h0_w)
+                total_energy, h0_total_energy = kh_adjust_energy_down(
+                    mc, delp, static_energy, total_energy, h0_total_energy
+                )
             cpm, cvm, t0, static_energy = adjust_cvm(
                 cpm,
                 cvm,
@@ -575,20 +541,20 @@ def m_loop(
             )
         with interval(1, 2):
             if ri[0, 0, 1] < ri_ref[0, 0, 1]:
-                q0_vapor = adjust_up(delp, h0_vapor, q0_vapor)
-                q0_liquid = adjust_up(delp, h0_liquid, q0_liquid)
-                q0_rain = adjust_up(delp, h0_rain, q0_rain)
-                q0_ice = adjust_up(delp, h0_ice, q0_ice)
-                q0_snow = adjust_up(delp, h0_snow, q0_snow)
-                q0_graupel = adjust_up(delp, h0_graupel, q0_graupel)
-                q0_o3mr = adjust_up(delp, h0_o3mr, q0_o3mr)
-                q0_sgs_tke = adjust_up(delp, h0_sgs_tke, q0_sgs_tke)
-                q0_cld = adjust_up(delp, h0_cld, q0_cld)
+                q0_vapor = kh_adjust_up(delp, h0_vapor, q0_vapor)
+                q0_liquid = kh_adjust_up(delp, h0_liquid, q0_liquid)
+                q0_rain = kh_adjust_up(delp, h0_rain, q0_rain)
+                q0_ice = kh_adjust_up(delp, h0_ice, q0_ice)
+                q0_snow = kh_adjust_up(delp, h0_snow, q0_snow)
+                q0_graupel = kh_adjust_up(delp, h0_graupel, q0_graupel)
+                q0_o3mr = kh_adjust_up(delp, h0_o3mr, q0_o3mr)
+                q0_sgs_tke = kh_adjust_up(delp, h0_sgs_tke, q0_sgs_tke)
+                q0_cld = kh_adjust_up(delp, h0_cld, q0_cld)
                 qcon = qcon_func(q0_liquid, q0_ice, q0_snow, q0_rain, q0_graupel)
-                u0 = adjust_up(delp, h0_u, u0)
-                v0 = adjust_up(delp, h0_v, v0)
-                w0 = adjust_up(delp, h0_w, w0)
-                total_energy = adjust_up(delp, h0_total_energy, total_energy)
+                u0 = kh_adjust_up(delp, h0_u, u0)
+                v0 = kh_adjust_up(delp, h0_v, v0)
+                w0 = kh_adjust_up(delp, h0_w, w0)
+                total_energy = kh_adjust_up(delp, h0_total_energy, total_energy)
 
             cpm, cvm, t0, static_energy = adjust_cvm(
                 cpm,
@@ -611,36 +577,27 @@ def m_loop(
                 t0, q0_vapor, qcon, pkz, delp, peln, gz, u0, v0, xvir, t_max, t_min
             )
             ri_ref = ri_ref * 4.0
-            mc = compute_mass_flux(ri, ri_ref, delp, mc, ratio)
+            mc = compute_mass_flux(ri, ri_ref, delp, ratio)
             if ri < ri_ref:
-                h0_vapor = kh_adjustment(mc, q0_vapor)
-                q0_vapor = adjust_down(delp, h0_vapor, q0_vapor)
-                h0_liquid = kh_adjustment(mc, q0_liquid)
-                q0_liquid = adjust_down(delp, h0_liquid, q0_liquid)
-                h0_rain = kh_adjustment(mc, q0_rain)
-                q0_rain = adjust_down(delp, h0_rain, q0_rain)
-                h0_ice = kh_adjustment(mc, q0_ice)
-                q0_ice = adjust_down(delp, h0_ice, q0_ice)
-                h0_snow = kh_adjustment(mc, q0_snow)
-                q0_snow = adjust_down(delp, h0_snow, q0_snow)
-                h0_graupel = kh_adjustment(mc, q0_graupel)
-                q0_graupel = adjust_down(delp, h0_graupel, q0_graupel)
-                h0_o3mr = kh_adjustment(mc, q0_o3mr)
-                q0_o3mr = adjust_down(delp, h0_o3mr, q0_o3mr)
-                h0_sgs_tke = kh_adjustment(mc, q0_sgs_tke)
-                q0_sgs_tke = adjust_down(delp, h0_sgs_tke, q0_sgs_tke)
-                h0_cld = kh_adjustment(mc, q0_cld)
-                q0_cld = adjust_down(delp, h0_cld, q0_cld)
-
-                h0_u = kh_adjustment(mc, u0)
-                u0 = adjust_down(delp, h0_u, u0)
-                h0_v = kh_adjustment(mc, v0)
-                v0 = adjust_down(delp, h0_v, v0)
-                h0_w = kh_adjustment(mc, w0)
-                w0 = adjust_down(delp, h0_w, w0)
-                h0_total_energy = kh_adjustment(mc, static_energy)
-                total_energy = adjust_down(delp, h0_total_energy, total_energy)
-
+                q0_vapor, h0_vapor = kh_adjust_down(mc, delp, q0_vapor, h0_vapor)
+                q0_liquid, h0_liquid = kh_adjust_down(mc, delp, q0_liquid, h0_liquid)
+                q0_rain, h0_rain = kh_adjust_down(mc, delp, q0_rain, h0_rain)
+                q0_ice, h0_ice = kh_adjust_down(mc, delp, q0_ice, h0_ice)
+                q0_snow, h0_snow = kh_adjust_down(mc, delp, q0_snow, h0_snow)
+                q0_graupel, h0_graupel = kh_adjust_down(
+                    mc, delp, q0_graupel, h0_graupel
+                )
+                q0_o3mr, h0_o3mr = kh_adjust_down(mc, delp, q0_o3mr, h0_o3mr)
+                q0_sgs_tke, h0_sgs_tke = kh_adjust_down(
+                    mc, delp, q0_sgs_tke, h0_sgs_tke
+                )
+                q0_cld, h0_cld = kh_adjust_down(mc, delp, q0_cld, h0_cld)
+                u0, h0_u = kh_adjust_down(mc, delp, u0, h0_u)
+                v0, h0_v = kh_adjust_down(mc, delp, v0, h0_v)
+                w0, h0_w = kh_adjust_down(mc, delp, w0, h0_w)
+                total_energy, h0_total_energy = kh_adjust_energy_down(
+                    mc, delp, static_energy, total_energy, h0_total_energy
+                )
             cpm, cvm, t0, static_energy = adjust_cvm(
                 cpm,
                 cvm,
@@ -660,20 +617,20 @@ def m_loop(
             )
         with interval(0, 1):
             if ri[0, 0, 1] < ri_ref[0, 0, 1]:
-                q0_vapor = adjust_up(delp, h0_vapor, q0_vapor)
-                q0_liquid = adjust_up(delp, h0_liquid, q0_liquid)
-                q0_rain = adjust_up(delp, h0_rain, q0_rain)
-                q0_ice = adjust_up(delp, h0_ice, q0_ice)
-                q0_snow = adjust_up(delp, h0_snow, q0_snow)
-                q0_graupel = adjust_up(delp, h0_graupel, q0_graupel)
-                q0_o3mr = adjust_up(delp, h0_o3mr, q0_o3mr)
-                q0_sgs_tke = adjust_up(delp, h0_sgs_tke, q0_sgs_tke)
-                q0_cld = adjust_up(delp, h0_cld, q0_cld)
+                q0_vapor = kh_adjust_up(delp, h0_vapor, q0_vapor)
+                q0_liquid = kh_adjust_up(delp, h0_liquid, q0_liquid)
+                q0_rain = kh_adjust_up(delp, h0_rain, q0_rain)
+                q0_ice = kh_adjust_up(delp, h0_ice, q0_ice)
+                q0_snow = kh_adjust_up(delp, h0_snow, q0_snow)
+                q0_graupel = kh_adjust_up(delp, h0_graupel, q0_graupel)
+                q0_o3mr = kh_adjust_up(delp, h0_o3mr, q0_o3mr)
+                q0_sgs_tke = kh_adjust_up(delp, h0_sgs_tke, q0_sgs_tke)
+                q0_cld = kh_adjust_up(delp, h0_cld, q0_cld)
                 qcon = qcon_func(q0_liquid, q0_ice, q0_snow, q0_rain, q0_graupel)
-                u0 = adjust_up(delp, h0_u, u0)
-                v0 = adjust_up(delp, h0_v, v0)
-                w0 = adjust_up(delp, h0_w, w0)
-                total_energy = adjust_up(delp, h0_total_energy, total_energy)
+                u0 = kh_adjust_up(delp, h0_u, u0)
+                v0 = kh_adjust_up(delp, h0_v, v0)
+                w0 = kh_adjust_up(delp, h0_w, w0)
+                total_energy = kh_adjust_up(delp, h0_total_energy, total_energy)
 
             cpm, cvm, t0, static_energy = adjust_cvm(
                 cpm,
@@ -913,8 +870,6 @@ class FVSubgridZ:
             state.qsgs_tke,
             state.qcld,
         )
-
-        ratios = {0: 0.25, 1: 0.5, 2: 0.999}
 
         for n in range(self._m):
             self._m_loop_stencil(
