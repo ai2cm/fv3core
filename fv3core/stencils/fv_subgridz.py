@@ -270,23 +270,45 @@ def m_loop(
         with interval(-1, None):
             ri, ri_ref = compute_ri(t0, q0_vapor, qcon, pkz, pm, gz, u0, v0,xvir, t_max, t_min)
             mc = compute_mass_flux(ri, ri_ref, delp, mc, ratio)
-            q0_vapor, h0_vapor = KH_instability_adjustment_bottom(ri, ri_ref, mc, delp, h0_vapor, q0_vapor)
-            q0_liquid, h0_liquid = KH_instability_adjustment_bottom(ri, ri_ref, mc, delp, h0_liquid, q0_liquid)
-            q0_rain, h0_rain = KH_instability_adjustment_bottom(ri, ri_ref, mc, delp, h0_rain, q0_rain)
-            q0_ice, h0_ice = KH_instability_adjustment_bottom(ri, ri_ref, mc, delp, h0_ice, q0_ice)
-            q0_snow, h0_snow = KH_instability_adjustment_bottom(ri, ri_ref, mc, delp, h0_snow, q0_snow)
-            q0_graupel, h0_graupel = KH_instability_adjustment_bottom(ri, ri_ref, mc, delp, h0_graupel, q0_graupel)
-            q0_o3mr, h0_o3mr = KH_instability_adjustment_bottom(ri, ri_ref, mc, delp, h0_o3mr, q0_o3mr)
-            q0_sgs_tke, h0_sgs_tke = KH_instability_adjustment_bottom(ri, ri_ref, mc, delp, h0_sgs_tke, q0_sgs_tke)
-            q0_cld, h0_cld = KH_instability_adjustment_bottom(ri, ri_ref, mc, delp, h0_cld, q0_cld)
+            #q0_vapor, h0_vapor = KH_instability_adjustment_bottom(ri, ri_ref, mc, delp, h0_vapor, q0_vapor)
+            #q0_liquid, h0_liquid = KH_instability_adjustment_bottom(ri, ri_ref, mc, delp, h0_liquid, q0_liquid)
+            #q0_rain, h0_rain = KH_instability_adjustment_bottom(ri, ri_ref, mc, delp, h0_rain, q0_rain)
+            #q0_ice, h0_ice = KH_instability_adjustment_bottom(ri, ri_ref, mc, delp, h0_ice, q0_ice)
+            #q0_snow, h0_snow = KH_instability_adjustment_bottom(ri, ri_ref, mc, delp, h0_snow, q0_snow)
+            #q0_graupel, h0_graupel = KH_instability_adjustment_bottom(ri, ri_ref, mc, delp, h0_graupel, q0_graupel)
+            #q0_o3mr, h0_o3mr = KH_instability_adjustment_bottom(ri, ri_ref, mc, delp, h0_o3mr, q0_o3mr)
+            #q0_sgs_tke, h0_sgs_tke = KH_instability_adjustment_bottom(ri, ri_ref, mc, delp, h0_sgs_tke, q0_sgs_tke)
+            #q0_cld, h0_cld = KH_instability_adjustment_bottom(ri, ri_ref, mc, delp, h0_cld, q0_cld)
             if ri < ri_ref:
+                h0_vapor = mc * (q0_vapor - q0_vapor[0, 0, -1])
+                q0_vapor = q0_vapor - h0_vapor / delp
+                h0_liquid = mc * (q0_liquid - q0_liquid[0, 0, -1])
+                q0_liquid = q0_liquid - h0_liquid / delp
+                h0_rain = mc * (q0_rain - q0_rain[0, 0, -1])
+                q0_rain = q0_rain - h0_rain / delp
+                h0_ice = mc * (q0_ice - q0_ice[0, 0, -1])
+                q0_ice = q0_ice - h0_ice / delp
+                h0_snow = mc * (q0_snow - q0_snow[0, 0, -1])
+                q0_snow = q0_snow - h0_snow / delp
+                h0_graupel = mc * (q0_graupel - q0_graupel[0, 0, -1])
+                q0_graupel = q0_graupel - h0_graupel / delp
+                h0_o3mr = mc * (q0_o3mr - q0_o3mr[0, 0, -1])
+                q0_o3mr = q0_o3mr - h0_o3mr / delp
+                h0_sgs_tke = mc * (q0_sgs_tke - q0_sgs_tke[0, 0, -1])
+                q0_sgs_tke = q0_sgs_tke - h0_sgs_tke / delp
                 h0_u = mc * (u0 - u0[0, 0, -1])
                 u0 = u0 - h0_u / delp
+                h0_v = mc * (v0 - v0[0, 0, -1])
+                v0 = v0 - h0_v / delp
+                h0_w = mc * (w0 - w0[0, 0, -1])
+                w0 = w0 - h0_w / delp
+                h0_te = mc * (hd - hd[0, 0, -1])
+                te = te - h0_te / delp
                 #u0, h0_u = KH_instability_adjustment_bottom2(mc, delp, h0_u, u0)
             #u0, h0_u = KH_instability_adjustment_bottom(ri, ri_ref, mc, delp, h0_u, u0)
-            v0, h0_v = KH_instability_adjustment_bottom(ri, ri_ref, mc, delp, h0_v, v0)
-            w0, h0_w = KH_instability_adjustment_bottom(ri, ri_ref, mc, delp, h0_w, w0)
-            te, h0_te = KH_instability_adjustment_bottom_te(ri, ri_ref, mc, delp, h0_te, te, hd)
+            #v0, h0_v = KH_instability_adjustment_bottom(ri, ri_ref, mc, delp, h0_v, v0)
+            #w0, h0_w = KH_instability_adjustment_bottom(ri, ri_ref, mc, delp, h0_w, w0)
+            #te, h0_te = KH_instability_adjustment_bottom_te(ri, ri_ref, mc, delp, h0_te, te, hd)
             cpm, cvm, t0, hd = adjust_cvm( cpm, cvm, q0_vapor, q0_liquid, q0_rain, q0_ice, q0_snow, q0_graupel, gz, u0, v0, w0, t0, te,hd)
         with interval(4, -1):
             if ri[0, 0, 1] < ri_ref[0, 0, 1]:
@@ -741,7 +763,7 @@ def compute(state, nq, dt):
         )
         if n ==	0:
             i = 10
-            j = 11
+            j = 12
             print(t_min)
             for	z in range(43,50):
                 print('---')
