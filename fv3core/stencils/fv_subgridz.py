@@ -296,6 +296,8 @@ def m_loop(
                 q0_o3mr = q0_o3mr - h0_o3mr / delp
                 h0_sgs_tke = mc * (q0_sgs_tke - q0_sgs_tke[0, 0, -1])
                 q0_sgs_tke = q0_sgs_tke - h0_sgs_tke / delp
+                h0_cld = mc * (q0_cld - q0_cld[0, 0, -1])
+                q0_cld = q0_cld - h0_cld / delp
                 h0_u = mc * (u0 - u0[0, 0, -1])
                 u0 = u0 - h0_u / delp
                 h0_v = mc * (v0 - v0[0, 0, -1])
@@ -320,6 +322,7 @@ def m_loop(
                 q0_graupel = q0_graupel + h0_graupel[0, 0, 1] / delp
                 q0_o3mr = q0_o3mr + h0_o3mr[0, 0, 1] / delp
                 q0_sgs_tke = q0_sgs_tke + h0_sgs_tke[0, 0, 1] / delp
+                q0_cld = q0_cld + h0_cld[0, 0, 1] / delp
             #q0_vapor  = KH_instability_adjustment_top(ri, ri_ref, delp, h0_vapor,q0_vapor)
             #q0_liquid= KH_instability_adjustment_top(ri, ri_ref,  delp, h0_liquid, q0_liquid)
             #q0_rain = KH_instability_adjustment_top(ri, ri_ref,  delp, h0_rain, q0_rain)
@@ -368,6 +371,8 @@ def m_loop(
                 q0_o3mr = q0_o3mr - h0_o3mr / delp
                 h0_sgs_tke = mc * (q0_sgs_tke - q0_sgs_tke[0, 0, -1])
                 q0_sgs_tke = q0_sgs_tke - h0_sgs_tke / delp
+                h0_cld = mc * (q0_cld - q0_cld[0, 0, -1])
+                q0_cld = q0_cld - h0_cld / delp
             #q0_vapor, h0_vapor =KH_instability_adjustment_bottom(ri, ri_ref, mc, delp, h0_vapor, q0_vapor)
             #q0_liquid, h0_liquid = KH_instability_adjustment_bottom(ri, ri_ref, mc, delp, h0_liquid, q0_liquid)
             #q0_rain, h0_rain = KH_instability_adjustment_bottom(ri, ri_ref, mc, delp, h0_rain, q0_rain)
