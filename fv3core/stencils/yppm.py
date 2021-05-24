@@ -8,11 +8,11 @@ from gt4py.gtscript import (
     interval,
     region,
 )
+from typing_extensions import Literal
 
-import fv3core._config as spec
 from fv3core.decorators import FrozenStencil
 from fv3core.stencils.basic_operations import sign
-from fv3core.utils.grid import axis_offsets
+from fv3core.utils.grid import GridIndexing, axis_offsets
 from fv3core.utils.typing import FloatField, FloatFieldIJ
 
 
@@ -310,17 +310,25 @@ class YPiecewiseParabolic:
     Fortran name is yppm
     """
 
-    def __init__(self, namelist, jord, ifirst, ilast):
-        grid = spec.grid
-        assert namelist.grid_type < 3
+    def __init__(
+        self,
+        grid: GridIndexing,
+        dya,
+        grid_type: int,
+        jord,
+        i_domain: Literal["compute", "full"],
+    ):
+        # Arguments come from:
+        # namelist.grid_type
+        # grid.dya
+        assert grid_type < 3
         if abs(jord) not in [5, 6, 7, 8]:
             raise NotImplementedError(
                 f"Unimplemented hord value, {jord}. "
                 "Currently only support hord={5, 6, 7, 8}"
             )
-        self._dya = grid.dya
-        origin = (ifirst, grid.js, 0)
-        domain = (ilast - ifirst + 1, grid.njc + 1, grid.npz + 1)
+        self._dya = dya
+        origin, domain = self._get_origin_domain(grid, i_domain)
         ax_offsets = axis_offsets(grid, origin, domain)
         self._compute_flux_stencil = FrozenStencil(
             func=compute_y_flux,
@@ -334,6 +342,19 @@ class YPiecewiseParabolic:
             origin=origin,
             domain=domain,
         )
+
+    def _get_origin_domain(
+        self, grid: GridIndexing, i_domain: Literal["compute", "full"]
+    ):
+        if i_domain == "compute":
+            add_origin = (0, 0, 0)
+            add_domain = (1, 1, 1)
+        elif i_domain == "full":
+            add_origin = (-grid.n_halo, 0, 0)
+            add_domain = (1 + 2 * grid.n_halo, 1, 1)
+        origin = grid.origin_compute(add=add_origin)
+        domain = grid.domain_compute(add=add_domain)
+        return origin, domain
 
     def __call__(self, q: FloatField, c: FloatField, flux: FloatField):
         """

@@ -20,7 +20,7 @@ from fv3core.stencils.fvtp2d import FiniteVolumeTransport
 from fv3core.stencils.fxadv import FiniteVolumeFluxPrep
 from fv3core.stencils.xtp_u import XTP_U
 from fv3core.stencils.ytp_v import YTP_V
-from fv3core.utils.grid import axis_offsets
+from fv3core.utils.grid import GridIndexing, axis_offsets
 from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
 
 
@@ -546,30 +546,53 @@ class DGridShallowWaterLagrangianDynamics:
         self.delnflux_nosg_w = DelnFluxNoSG(self._column_namelist["nord_w"])
         self.delnflux_nosg_v = DelnFluxNoSG(self._column_namelist["nord_v"])
         self.fvtp2d_dp = FiniteVolumeTransport(
-            namelist,
-            namelist.hord_dp,
-            self._column_namelist["nord_v"],
-            self._column_namelist["damp_vt"],
+            grid=GridIndexing.from_legacy_grid(self.grid),
+            dxa=self.grid.dxa,
+            dya=self.grid.dya,
+            area=self.grid.area,
+            grid_type=namelist.grid_type,
+            hord=namelist.hord_dp,
+            nord=self._column_namelist["nord_v"],
+            damp_c=self._column_namelist["damp_vt"],
         )
         self.fvtp2d_dp_t = FiniteVolumeTransport(
-            namelist,
-            namelist.hord_dp,
-            self._column_namelist["nord_t"],
-            self._column_namelist["damp_t"],
+            grid=GridIndexing.from_legacy_grid(self.grid),
+            dxa=self.grid.dxa,
+            dya=self.grid.dya,
+            area=self.grid.area,
+            grid_type=namelist.grid_type,
+            hord=namelist.hord_dp,
+            nord=self._column_namelist["nord_t"],
+            damp_c=self._column_namelist["damp_t"],
         )
         self.fvtp2d_vt = FiniteVolumeTransport(
-            namelist,
-            namelist.hord_vt,
-            self._column_namelist["nord_v"],
-            self._column_namelist["damp_vt"],
+            grid=GridIndexing.from_legacy_grid(self.grid),
+            dxa=self.grid.dxa,
+            dya=self.grid.dya,
+            area=self.grid.area,
+            grid_type=namelist.grid_type,
+            hord=namelist.hord_vt,
+            nord=self._column_namelist["nord_v"],
+            damp_c=self._column_namelist["damp_vt"],
         )
         self.fvtp2d_tm = FiniteVolumeTransport(
-            namelist,
-            namelist.hord_tm,
-            self._column_namelist["nord_v"],
-            self._column_namelist["damp_vt"],
+            grid=GridIndexing.from_legacy_grid(self.grid),
+            dxa=self.grid.dxa,
+            dya=self.grid.dya,
+            area=self.grid.area,
+            grid_type=namelist.grid_type,
+            hord=namelist.hord_tm,
+            nord=self._column_namelist["nord_v"],
+            damp_c=self._column_namelist["damp_vt"],
         )
-        self.fvtp2d_vt_nodelnflux = FiniteVolumeTransport(namelist, namelist.hord_vt)
+        self.fvtp2d_vt_nodelnflux = FiniteVolumeTransport(
+            grid=GridIndexing.from_legacy_grid(self.grid),
+            dxa=self.grid.dxa,
+            dya=self.grid.dya,
+            area=self.grid.area,
+            grid_type=namelist.grid_type,
+            hord=namelist.hord_vt,
+        )
         self.fv_prep = FiniteVolumeFluxPrep()
         self.ytp_v = YTP_V(namelist)
         self.xtp_u = XTP_U(namelist)
