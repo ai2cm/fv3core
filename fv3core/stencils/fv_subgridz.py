@@ -108,28 +108,6 @@ def qcon_func(qcon, q0_liquid, q0_ice, q0_snow, q0_rain, q0_graupel):
     return q0_liquid + q0_ice + q0_snow + q0_rain + q0_graupel
 
 
-@gtstencil
-def compute_qcon(
-    qcon: sd, q0_liquid: sd, q0_ice: sd, q0_snow: sd, q0_rain: sd, q0_graupel: sd
-):
-    with computation(PARALLEL), interval(...):
-        qcon = qcon_func(qcon, q0_liquid, q0_ice, q0_snow, q0_rain, q0_graupel)
-
-
-@gtstencil
-def recompute_qcon(
-    ri: sd,
-    ri_ref: sd,
-    qcon: sd,
-    q0_liquid: sd,
-    q0_rain: sd,
-    q0_ice: sd,
-    q0_snow: sd,
-    q0_graupel: sd,
-):
-    with computation(BACKWARD), interval(...):
-        if ri[0, 0, 1] < ri_ref[0, 0, 1]:
-            qcon = qcon_func(qcon, q0_liquid, q0_ice, q0_snow, q0_rain, q0_graupel)
 
 @gtscript.function
 def adjust_cvm( cpm, cvm, q0_vapor, q0_liquid, q0_rain, q0_ice, q0_snow, q0_graupel, gz, u0, v0, w0, t0, te, hd):
@@ -140,6 +118,7 @@ def adjust_cvm( cpm, cvm, q0_vapor, q0_liquid, q0_rain, q0_ice, q0_snow, q0_grau
     t0 = (te - tv) / cvm
     hd = cpm * t0 + tv
     return cpm, cvm, t0, hd
+
 @gtscript.function
 def compute_ri(t0, q0_vapor, qcon, pkz, pm, gz, u0, v0,xvir,t_max, t_min):
     tv1 = t0[0, 0, -1] * (1.0 + xvir * q0_vapor[0, 0, -1] - qcon[0, 0, -1])
@@ -166,6 +145,7 @@ def compute_ri(t0, q0_vapor, qcon, pkz, pm, gz, u0, v0,xvir,t_max, t_min):
     if RI_MAX < ri_ref:
         ri_ref = RI_MAX
     return ri, ri_ref
+
 @gtscript.function
 def compute_mass_flux(ri, ri_ref, delp, mc, ratio):
     max_ri_ratio = ri / ri_ref
@@ -181,25 +161,7 @@ def compute_mass_flux(ri, ri_ref, delp, mc, ratio):
         )
     return mc
 
-@gtscript.function
-def KH_instability_adjustment_bottom(ri, ri_ref, mc, delp, h0, q0):
-    if ri < ri_ref:
-        h0 = mc * (q0 - q0[0, 0, -1])
-        q0 = q0 - h0 / delp
-    return q0, h0
 
-@gtscript.function
-def KH_instability_adjustment_top(ri, ri_ref, delp, h0, q0):
-    if ri[0, 0, 1] < ri_ref[0, 0, 1]:
-        q0 = q0 + h0[0, 0, 1] / delp
-    return q0
-
-
-@gtscript.function
-def KH_instability_adjustment_bottom2(mc, delp, h0, q0):
-    h0 = mc * (q0 - q0[0, 0, -1])
-    q0 = q0 - h0 / delp
-    return q0, h0
 @gtscript.function
 def kh_adjustment(mc, q0):
     return mc * (q0 - q0[0, 0, -1])
@@ -211,19 +173,6 @@ def adjust_down(delp, h0, q0):
 @gtscript.function
 def adjust_up(delp, h0, q0):
     return  q0 + h0[0, 0, 1] / delp
-
-@gtscript.function
-def KH_instability_adjustment_bottom_te2(mc, delp, h0, q0, hd):
-    h0 = mc * (hd - hd[0, 0, -1])
-    q0 = q0 - h0 / delp
-    return q0, h0
-
-@gtscript.function
-def KH_instability_adjustment_bottom_te(ri, ri_ref, mc, delp, h0, q0, hd):
-    if ri < ri_ref:
-        h0 = mc * (hd - hd[0, 0, -1])
-        q0 = q0 - h0 / delp
-    return q0, h0
 
 
 @gtstencil
@@ -241,11 +190,6 @@ def m_loop(
     delp: sd,
     pkz: sd,
     q0_vapor: sd,
-    #pt1: sd,
-    #pt2: sd,
-    #tv2: sd,
-    te: sd,
-    mc: sd,cpm: sd, cvm:sd, 
     q0_liquid: sd,
     q0_rain: sd,
     q0_ice: sd,
@@ -254,12 +198,15 @@ def m_loop(
     q0_o3mr: sd,
     q0_sgs_tke: sd,
     q0_cld: sd,
+    te: sd,
+    cpm: sd, cvm:sd, 
     t_min: float,
     t_max: float,
     ratio: float,
     xvir: float,
 ):
     with computation(PARALLEL), interval(...):
+        qcon = qcon_func(qcon, q0_liquid, q0_ice, q0_snow, q0_rain, q0_graupel)
         h0_vapor = 0.0
         h0_liquid = 0.0
         h0_rain = 0.0
@@ -273,6 +220,7 @@ def m_loop(
         h0_v = 0.0
         h0_w = 0.0
         h0_te = 0.0
+        mc = 0.0
     with computation(BACKWARD):
         with interval(-1, None):
             ri, ri_ref = compute_ri(t0, q0_vapor, qcon, pkz, pm, gz, u0, v0,xvir, t_max, t_min)
@@ -325,17 +273,9 @@ def m_loop(
                 v0 = adjust_up(delp, h0_v, v0)
                 w0 = adjust_up(delp, h0_w, w0)
                 te = adjust_up(delp, h0_te, te)
-
             cpm, cvm, t0, hd = adjust_cvm( cpm, cvm, q0_vapor, q0_liquid, q0_rain, q0_ice, q0_snow, q0_graupel, gz, u0, v0, w0, t0, te,hd)
             ri, ri_ref = compute_ri(t0, q0_vapor, qcon, pkz, pm, gz, u0, v0,xvir, t_max, t_min)
-            # with computation(PARALLEL):
-            #    with interval(1, 2):
-            #        ri_ref = ri_ref_copy * 3.0
-            #    with interval(2, 3):
-            #        ri_ref = ri_ref_copy * 2.0
-            #    with interval(3, 4):
-            #        ri_ref = ri_ref_copy * 1.5
-            #with computation(PARALLEL), interval(1, None):
+
             mc = compute_mass_flux(ri, ri_ref, delp, mc, ratio)
             if ri < ri_ref:
                 h0_vapor = kh_adjustment(mc, q0_vapor)
@@ -368,6 +308,9 @@ def m_loop(
         
             cpm, cvm, t0, hd = adjust_cvm( cpm, cvm, q0_vapor, q0_liquid, q0_rain, q0_ice, q0_snow, q0_graupel, gz, u0, v0, w0, t0, te, hd)
         with interval(3, 4):
+            # TODO: this is repetitive, but using functions did not work as
+            # expected. spend some more time here so not so much needs
+            # to be repeated just to multiply ri_ref by a constant
             if ri[0, 0, 1] < ri_ref[0, 0, 1]:
                 q0_vapor = adjust_up(delp, h0_vapor, q0_vapor)
                 q0_liquid = adjust_up(delp, h0_liquid, q0_liquid)
@@ -387,6 +330,7 @@ def m_loop(
 
             cpm, cvm, t0, hd = adjust_cvm( cpm, cvm, q0_vapor, q0_liquid, q0_rain, q0_ice, q0_snow, q0_graupel, gz, u0, v0, w0, t0, te,hd)
             ri, ri_ref = compute_ri(t0, q0_vapor, qcon, pkz, pm, gz, u0, v0,xvir, t_max, t_min)
+            # TODO, can we just check if index(K) == 3?
             ri_ref = ri_ref * 1.5
             mc = compute_mass_flux(ri, ri_ref, delp, mc, ratio)
             if ri < ri_ref:
@@ -523,136 +467,7 @@ def m_loop(
                 te = adjust_down(delp, h0_te, te)
         
             cpm, cvm, t0, hd = adjust_cvm( cpm, cvm, q0_vapor, q0_liquid, q0_rain, q0_ice, q0_snow, q0_graupel, gz, u0, v0, w0, t0, te, hd)
-"""
- # kh_bottom tracers
-            # with computation(BACKWARD), interval(...):
-            #if ri < ri_ref:
-            #    h0 = mc * (q0 - q0[0, 0, -1])
-            #    q0 = q0 - h0 / delp
-            # kh _top tracers k - 1
-            #with computation(BACKWARD), interval(...):
-            #    if ri[0, 0, 1] < ri_ref[0, 0, 1]:
-            #        q0 = q0 + h0[0, 0, 1] / delp
-            # recompute qcon
-            #with computation(BACKWARD), interval(...):
-            #    if ri[0, 0, 1] < ri_ref[0, 0, 1]:
-            #        qcon = qcon_func(qcon, q0_liquid, q0_ice, q0_snow, q0_rain, q0_graupel)
-            # KH on u0, v0, w0, te
-            # double adjust
-            #with computation(BACKWARD), interval(...):
-"""
-@gtstencil
-def equivalent_mass_flux(ri: sd, ri_ref: sd, mc: sd, delp: sd, ratio: float):
-    with computation(PARALLEL), interval(...):
-        max_ri_ratio = ri / ri_ref
-        if max_ri_ratio < 0.0:
-            max_ri_ratio = 0.0
-        if ri < ri_ref:
-            mc = (
-                ratio
-                * delp[0, 0, -1]
-                * delp
-                / (delp[0, 0, -1] + delp)
-                * (1.0 - max_ri_ratio) ** 2
-            )
 
-
-# 3d version, doesn't work due to this k-1 value needing to be updated before
-# calculating variables in the k - 1 case.
-# @gtstencil
-# def KH_instability_adjustment(ri: sd, ri_ref: sd, mc: sd, q0: sd, delp: sd):
-#     with computation(BACKWARD):
-#         with interval(-1, None):
-#             h0 = 0.
-#             if ri < ri_ref:
-#                 h0 = mc * (q0 - q0[0, 0, -1])
-#                 q0 = q0 - h0 / delp
-#         with interval(1, -1):
-#             h0 = 0.
-#             if ri[0, 0, 1] < ri_ref[0, 0, 1]:
-#                 q0 = q0 + h0[0, 0, 1] / delp
-#             if ri < ri_ref:
-#                 h0 = mc * (q0 - q0[0, 0, -1])
-#                 q0 = q0 - h0 / delp
-#         with interval(0, 1):
-#             if ri[0, 0, 1] < ri_ref[0, 0, 1]:
-#                 q0 = q0 + h0[0, 0, 1] / delp
-
-
-"""
-
-def KH_instability_adjustment(ri, ri_ref, mc, q0, delp, h0, origin=None, domain=None):
-    KH_instability_adjustment_bottom(
-        ri, ri_ref, mc, q0, delp, h0, origin=origin, domain=domain
-    )
-    KH_instability_adjustment_top(
-        ri,
-        ri_ref,
-        mc,
-        q0,
-        delp,
-        h0,
-        origin=(origin[0], origin[1], origin[2] - 1),
-        domain=domain,
-    )
-
-
-# special case for total energy that may be a fortran bug
-def KH_instability_adjustment_te(
-    ri, ri_ref, mc, q0, delp, h0, hd, origin=None, domain=None
-):
-    KH_instability_adjustment_bottom_te(
-        ri, ri_ref, mc, q0, delp, h0, hd, origin=origin, domain=domain
-    )
-    KH_instability_adjustment_top(
-        ri,
-        ri_ref,
-        mc,
-        q0,
-        delp,
-        h0,
-        origin=(origin[0], origin[1], origin[2] - 1),
-        domain=domain,
-    )
-
-
-@gtstencil
-def KH_instability_adjustment_bottom_te(
-    ri: sd, ri_ref: sd, mc: sd, q0: sd, delp: sd, h0: sd, hd: sd
-):
-    with computation(BACKWARD), interval(...):
-        if ri < ri_ref:
-            h0 = mc * (hd - hd[0, 0, -1])
-            q0 = q0 - h0 / delp
-
-
-@gtstencil
-def double_adjust_cvm(
-    cvm: sd,
-    cpm: sd,
-    gz: sd,
-    u0: sd,
-    v0: sd,
-    w0: sd,
-    hd: sd,
-    t0: sd,
-    te: sd,
-    q0_liquid: sd,
-    q0_vapor: sd,
-    q0_ice: sd,
-    q0_snow: sd,
-    q0_rain: sd,
-    q0_graupel: sd,
-):
-    with computation(BACKWARD), interval(...):
-        cpm, cvm = standard_cm(
-            cpm, cvm, q0_vapor, q0_liquid, q0_rain, q0_ice, q0_snow, q0_graupel
-        )
-        tv = tvol(gz, u0, v0, w0)
-        t0 = (te - tv) / cvm
-        hd = cpm * t0 + tv
-
-"""
 @gtscript.function
 def readjust_by_frac(a0, a, fra):
     return a + (a0 - a) * fra
@@ -856,16 +671,7 @@ def compute(state, nq, dt):
 
     for n in range(m):
         ratio = ratios[n]
-        compute_qcon(
-            qcon,
-            q0["qliquid"],
-            q0["qrain"],
-            q0["qice"],
-            q0["qsnow"],
-            q0["qgraupel"],
-            origin=origin,
-            domain=kbot_domain,
-        )
+       
         m_loop(
             ri,
             ri_ref,
@@ -879,12 +685,13 @@ def compute(state, nq, dt):
             qcon,
             state.delp,
             state.pkz,
-            q0["qvapor"],
+            q0["qvapor"],q0["qliquid"], q0["qrain"], q0["qice"], q0["qsnow"], q0["qgraupel"], q0["qo3mr"], q0["qsgs_tke"], q0["qcld"],
             #pt1,
             #pt2,
             #tv2,
             te,
-            mc,cpm, cvm, q0["qliquid"], q0["qrain"], q0["qice"], q0["qsnow"], q0["qgraupel"], q0["qo3mr"], q0["qsgs_tke"], q0["qcld"],
+            #mc,
+            cpm, cvm, 
             t_min,
             t_max,
             ratio,
