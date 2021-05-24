@@ -1,10 +1,10 @@
 import gt4py.gtscript as gtscript
-from gt4py.gtscript import BACKWARD, PARALLEL, computation, interval
-
+from gt4py.gtscript import BACKWARD, PARALLEL, computation, interval, __INLINED
+import fv3gfs.util
 import fv3core._config as spec
 import fv3core.utils.gt4py_utils as utils
-from fv3core.decorators import ArgSpec, FrozenStencil, gtstencil, state_inputs
-from fv3core.stencils.basic_operations import copy, copy_stencil, dim
+from fv3core.decorators import ArgSpec, FrozenStencil
+from fv3core.stencils.basic_operations import dim
 from fv3core.utils.global_constants import (
     C_ICE,
     C_LIQ,
@@ -17,7 +17,7 @@ from fv3core.utils.global_constants import (
     ZVIR,
 )
 from fv3core.utils.typing import FloatField
-
+from typing import Mapping
 RK = CP_AIR / RDGAS + 1.0
 G2 = 0.5 * GRAV
 T1_MIN = 160.0
@@ -53,7 +53,6 @@ def tvol(gz, u0, v0, w0):
     return gz + 0.5 * (u0 ** 2 + v0 ** 2 + w0 ** 2)
 
 
-@gtstencil
 def init(
     gz: FloatField,
     t0: FloatField,
@@ -87,8 +86,8 @@ def init(
     qo3mr: FloatField,
     qsgs_tke: FloatField,
     qcld: FloatField,    
-    xvir: float,
 ):
+    
     with computation(PARALLEL), interval(...):
         t0 = ta
         u0 = ua
@@ -186,7 +185,6 @@ def adjust_up(delp, h0, q0):
     return  q0 + h0[0, 0, 1] / delp
 
 
-@gtstencil
 def m_loop(
     u0: FloatField,
     v0: FloatField,
@@ -208,10 +206,9 @@ def m_loop(
     te: FloatField,
     cpm: FloatField, cvm:FloatField, 
     t_min: float,
-    t_max: float,
     ratio: float,
-    xvir: float,n: int,
 ):
+    from __externals__ import t_max, xvir
     with computation(PARALLEL), interval(...):
         qcon = qcon_func(qcon, q0_liquid, q0_ice, q0_snow, q0_rain, q0_graupel)
         h0_vapor = 0.0
@@ -232,15 +229,12 @@ def m_loop(
         ref = 0.0
     with computation(BACKWARD):
         with interval(-1, None):
-            # Adjustment for K-H instability:
-            # Compute equivalent mass flux: mc
-            # Add moist 2-dz instability consideration:
             ri, ri_ref = compute_richardson_number(t0, q0_vapor, qcon, pkz,delp, peln, gz, u0, v0,xvir, t_max, t_min)
             mc = compute_mass_flux(ri, ri_ref, delp, mc, ratio)
             if ri < ri_ref:
                 # TODO: loop over tracers not hardcoded
                 # Note combining into functions breaks
-                # validation
+                # validation, may want to try again with changes to gt4py
                 h0_vapor = kh_adjustment(mc, q0_vapor)
                 q0_vapor = adjust_down(delp, h0_vapor, q0_vapor)
                 h0_liquid = kh_adjustment(mc, q0_liquid)
@@ -333,7 +327,6 @@ def m_loop(
                 q0_o3mr = adjust_up(delp, h0_o3mr, q0_o3mr)
                 q0_sgs_tke = adjust_up(delp, h0_sgs_tke, q0_sgs_tke)
                 q0_cld = adjust_up(delp, h0_cld, q0_cld)
-                # recompute qcon
                 qcon = qcon_func(qcon, q0_liquid, q0_ice, q0_snow, q0_rain, q0_graupel)
                 u0 = adjust_up(delp, h0_u, u0)
                 v0 = adjust_up(delp, h0_v, v0)
@@ -386,7 +379,6 @@ def m_loop(
                 q0_o3mr = adjust_up(delp, h0_o3mr, q0_o3mr)
                 q0_sgs_tke = adjust_up(delp, h0_sgs_tke, q0_sgs_tke)
                 q0_cld = adjust_up(delp, h0_cld, q0_cld)
-                # recompute qcon
                 qcon = qcon_func(qcon, q0_liquid, q0_ice, q0_snow, q0_rain, q0_graupel)
                 u0 = adjust_up(delp, h0_u, u0)
                 v0 = adjust_up(delp, h0_v, v0)
@@ -438,7 +430,6 @@ def m_loop(
                 q0_o3mr = adjust_up(delp, h0_o3mr, q0_o3mr)
                 q0_sgs_tke = adjust_up(delp, h0_sgs_tke, q0_sgs_tke)
                 q0_cld = adjust_up(delp, h0_cld, q0_cld)
-                # recompute qcon
                 qcon = qcon_func(qcon, q0_liquid, q0_ice, q0_snow, q0_rain, q0_graupel)
                 u0 = adjust_up(delp, h0_u, u0)
                 v0 = adjust_up(delp, h0_v, v0)
@@ -484,36 +475,6 @@ def m_loop(
 def readjust_by_frac(a0, a, fra):
     return a + (a0 - a) * fra
 
-
-@gtstencil
-def fraction_adjust(
-    t0: FloatField,
-    ta: FloatField,
-    u0: FloatField,
-    ua: FloatField,
-    v0: FloatField,
-    va: FloatField,
-    w0: FloatField,
-    w: FloatField,
-    fra: float,
-    hydrostatic: bool,
-):
-    with computation(PARALLEL), interval(...):
-        t0 = readjust_by_frac(t0, ta, fra)
-        u0 = readjust_by_frac(u0, ua, fra)
-        v0 = readjust_by_frac(v0, va, fra)
-        if not hydrostatic:
-            w0 = readjust_by_frac(w0, w, fra)
-
-
-@gtstencil
-def finalize_tracer(q0: FloatField, q: FloatField, fra: float):
-    with computation(PARALLEL), interval(...):
-        if fra < 1.0:
-            q0 = readjust_by_frac(q0, q, fra)
-        q = q0
-
-@gtstencil
 def finalize(
     u0: FloatField,
     v0: FloatField,
@@ -525,197 +486,212 @@ def finalize(
     w: FloatField,
     u_dt: FloatField,
     v_dt: FloatField,
-    rdt: float, fra: float, hydrostatic: bool
+    q0_vapor: FloatField,
+    q0_liquid: FloatField,
+    q0_rain: FloatField,
+    q0_ice: FloatField,
+    q0_snow: FloatField,
+    q0_graupel: FloatField,
+    q0_o3mr: FloatField,
+    q0_sgs_tke: FloatField,
+    q0_cld: FloatField,
+    qvapor: FloatField,
+    qliquid: FloatField,
+    qrain: FloatField,
+    qice: FloatField,
+    qsnow: FloatField,
+    qgraupel: FloatField,
+    qo3mr: FloatField,
+    qsgs_tke: FloatField,
+    qcld: FloatField,    
+    rdt: float, fra: float
 ):
+    from __externals__ import hydrostatic
     with computation(PARALLEL), interval(...):
         if fra < 1.0:
             t0 = readjust_by_frac(t0, ta, fra)
             u0 = readjust_by_frac(u0, ua, fra)
             v0 = readjust_by_frac(v0, va, fra)
-            if not hydrostatic:
+            if __INLINED(not hydrostatic):
                 w0 = readjust_by_frac(w0, w, fra)
+            q0_vapor = readjust_by_frac(q0_vapor, qvapor, fra)
+            q0_liquid = readjust_by_frac(q0_liquid, qliquid, fra)
+            q0_rain = readjust_by_frac(q0_rain, qrain, fra)
+            q0_ice = readjust_by_frac(q0_ice, qice, fra)
+            q0_snow = readjust_by_frac(q0_snow, qsnow, fra)
+            q0_graupel = readjust_by_frac(q0_graupel, qgraupel, fra)
+            q0_o3mr = readjust_by_frac(q0_o3mr, qo3mr, fra)
+            q0_sgs_tke = readjust_by_frac(q0_sgs_tke, qsgs_tke, fra)
+            q0_cld = readjust_by_frac(q0_cld, qcld, fra)
         u_dt = rdt * (u0 - ua)
         v_dt = rdt * (v0 - va)
         ta = t0
         ua = u0
         va = v0
         w = w0
+        qvapor = q0_vapor
+        qliquid = q0_liquid
+        qrain = q0_rain
+        qice = q0_ice
+        qsnow = q0_snow
+        qgraupel = q0_graupel
+        qo3mr = q0_o3mr
+        qsgs_tke = q0_sgs_tke
+        qcld = q0_cld
 
 
-# TODO: Replace with something from fv3core.onfig probably, using the
-# field_table. When finalize reperesentation of tracers, adjust this.
-def tracers_dict(state):
-    tracers = {}
-    for tracername in utils.tracer_variables:
-        tracers[tracername] = state.__dict__[tracername]
-    state.tracers = tracers
-
-
-@state_inputs(
-    ArgSpec("delp", "pressure_thickness_of_atmospheric_layer", "Pa", intent="in"),
-    ArgSpec("delz", "vertical_thickness_of_atmospheric_layer", "m", intent="in"),
-    ArgSpec("pe", "interface_pressure", "Pa", intent="in"),
-    ArgSpec(
-        "pkz", "layer_mean_pressure_raised_to_power_of_kappa", "unknown", intent="in"
-    ),
-    ArgSpec("peln", "logarithm_of_interface_pressure", "ln(Pa)", intent="in"),
-    ArgSpec("pt", "air_temperature", "degK", intent="inout"),
-    ArgSpec("ua", "eastward_wind", "m/s", intent="inout"),
-    ArgSpec("va", "northward_wind", "m/s", intent="inout"),
-    ArgSpec("w", "vertical_wind", "m/s", intent="inout"),
-    ArgSpec("qvapor", "specific_humidity", "kg/kg", intent="inout"),
-    ArgSpec("qliquid", "cloud_water_mixing_ratio", "kg/kg", intent="inout"),
-    ArgSpec("qrain", "rain_mixing_ratio", "kg/kg", intent="inout"),
-    ArgSpec("qsnow", "snow_mixing_ratio", "kg/kg", intent="inout"),
-    ArgSpec("qice", "cloud_ice_mixing_ratio", "kg/kg", intent="inout"),
-    ArgSpec("qgraupel", "graupel_mixing_ratio", "kg/kg", intent="inout"),
-    ArgSpec("qo3mr", "ozone_mixing_ratio", "kg/kg", intent="inout"),
-    ArgSpec("qsgs_tke", "turbulent_kinetic_energy", "m**2/s**2", intent="inout"),
-    ArgSpec("qcld", "cloud_fraction", "", intent="inout"),
-    ArgSpec("u_dt", "eastward_wind_tendency_due_to_physics", "m/s**2", intent="inout"),
-    ArgSpec("v_dt", "northward_wind_tendency_due_to_physics", "m/s**2", intent="inout"),
-)
-def compute(state, nq, dt):
-    tracers_dict(state)  # TODO get rid of this when finalize representation of tracers
-
-    grid = spec.grid
-    rdt = 1.0 / dt
-    k_bot = spec.namelist.n_sponge
-    if k_bot is not None:
-        if k_bot < 3:
-            return
-    else:
-        k_bot = grid.npz
-    if k_bot < min(grid.npz, 24):
-        t_max = T2_MAX
-    else:
-        t_max = T3_MAX
-    if state.pe[grid.is_, grid.js, 0] < 2.0:
-        t_min = T1_MIN
-    else:
-        t_min = T2_MIN
-
-    if spec.namelist.nwat == 0:
-        xvir = 0.0
-        # rz = 0 # hydrostatic only
-    else:
-        xvir = ZVIR
-        # rz = constants.RV_GAS - constants.RDGAS # hydrostatic only
-    m = 3
-    fra = dt / float(spec.namelist.fv_sg_adj)
-    if spec.namelist.hydrostatic:
-        raise Exception("Hydrostatic not supported for fv_subgridz")
-    origin = grid.compute_origin()
-    shape = state.delp.shape
-    q0 = {}
-    for tracername in utils.tracer_variables:
-        q0[tracername] =utils.make_storage_from_shape(shape)
-        #copy(
-        #    state.__dict__[tracername], cache_key="fv_subgridz_" + tracername
-        #)
-
-    # not 100% sure which of these require init=True,
-    # if you figure it out please remove unnecessary ones and this comment
-    u0 = utils.make_storage_from_shape(
-        shape, origin, init=True, cache_key="fv_subgridz_u0"
+class FVSubgridZ:
+    """
+    Corresponds to fv_subgrid_z in Fortran's fv_sg module
+    """
+    arg_specs = (
+        ArgSpec("delp", "pressure_thickness_of_atmospheric_layer", "Pa", intent="in"),
+        ArgSpec("delz", "vertical_thickness_of_atmospheric_layer", "m", intent="in"),
+        ArgSpec("pe", "interface_pressure", "Pa", intent="in"),
+        ArgSpec(
+            "pkz", "layer_mean_pressure_raised_to_power_of_kappa", "unknown", intent="in"
+        ),
+        ArgSpec("peln", "logarithm_of_interface_pressure", "ln(Pa)", intent="in"),
+        ArgSpec("pt", "air_temperature", "degK", intent="inout"),
+        ArgSpec("ua", "eastward_wind", "m/s", intent="inout"),
+        ArgSpec("va", "northward_wind", "m/s", intent="inout"),
+        ArgSpec("w", "vertical_wind", "m/s", intent="inout"),
+        ArgSpec("qvapor", "specific_humidity", "kg/kg", intent="inout"),
+        ArgSpec("qliquid", "cloud_water_mixing_ratio", "kg/kg", intent="inout"),
+        ArgSpec("qrain", "rain_mixing_ratio", "kg/kg", intent="inout"),
+        ArgSpec("qsnow", "snow_mixing_ratio", "kg/kg", intent="inout"),
+        ArgSpec("qice", "cloud_ice_mixing_ratio", "kg/kg", intent="inout"),
+        ArgSpec("qgraupel", "graupel_mixing_ratio", "kg/kg", intent="inout"),
+        ArgSpec("qo3mr", "ozone_mixing_ratio", "kg/kg", intent="inout"),
+        ArgSpec("qsgs_tke", "turbulent_kinetic_energy", "m**2/s**2", intent="inout"),
+        ArgSpec("qcld", "cloud_fraction", "", intent="inout"),
+        ArgSpec("u_dt", "eastward_wind_tendency_due_to_physics", "m/s**2", intent="inout"),
+        ArgSpec("v_dt", "northward_wind_tendency_due_to_physics", "m/s**2", intent="inout"),
     )
-    v0 = utils.make_storage_from_shape(
-        shape, origin, init=True, cache_key="fv_subgridz_v0"
-    )
-    w0 = utils.make_storage_from_shape(
-        shape, origin, init=True, cache_key="fv_subgridz_w0"
-    )
-    gz = utils.make_storage_from_shape(
-        shape, origin, init=True, cache_key="fv_subgridz_gz"
-    )
-    t0 = utils.make_storage_from_shape(
-        shape, origin, init=True, cache_key="fv_subgridz_t0"
-    )
+    def __init__(self, namelist):
+        self.grid = spec.grid
+        self.namelist = namelist
+        assert not self.namelist.hydrostatic, "Hydrostatic not implemented for fv_subgridz"
+        self._k_sponge = self.namelist.n_sponge
+        if self._k_sponge is not None:
+            if self._k_sponge < 3:
+                return
+        else:
+            self._k_sponge = self.grid.npz
+        if self._k_sponge < min(self.grid.npz, 24):
+            t_max = T2_MAX
+        else:
+            t_max = T3_MAX
+        if self.namelist.nwat == 0:
+            xvir = 0.0
+        else:
+            xvir = ZVIR
+        self._m = 3
+        self._fv_sg_adj = float(spec.namelist.fv_sg_adj)
+        self._is = self.grid.is_
+        self._js = self.grid.js
+        kbot_domain = (self.grid.nic, self.grid.njc, self._k_sponge)
+        origin = self.grid.compute_origin()
 
-    hd = utils.make_storage_from_shape(shape, origin, cache_key="fv_subgridz_hd")
-    te = utils.make_storage_from_shape(shape, origin, cache_key="fv_subgridz_te")
+        self._init_stencil = FrozenStencil(init, origin=origin,domain=(self.grid.nic, self.grid.njc, self._k_sponge+1))
+        self._m_loop_stencil = FrozenStencil(m_loop, externals={'t_max': t_max, 'xvir': xvir},origin=origin, domain=kbot_domain)
+        self._finalize_stencil = FrozenStencil(finalize, externals={'hydrostatic': self.namelist.hydrostatic},origin=origin, domain=kbot_domain)
+        shape = self.grid.domain_shape_full(add=(1, 1, 0))
+        self._q0 = {}
+        for tracername in utils.tracer_variables:
+            self._q0[tracername] = utils.make_storage_from_shape(shape)
+        self._tmp_u0 = utils.make_storage_from_shape(shape)
+        self._tmp_v0 = utils.make_storage_from_shape(shape)
+        self._tmp_w0 = utils.make_storage_from_shape(shape)
+        self._tmp_gz = utils.make_storage_from_shape(shape)
+        self._tmp_t0 = utils.make_storage_from_shape(shape)
+        self._tmp_hd = utils.make_storage_from_shape(shape)
+        self._tmp_te = utils.make_storage_from_shape(shape)
+        self._tmp_cvm = utils.make_storage_from_shape(shape)
+        self._tmp_cpm = utils.make_storage_from_shape(shape)
+        self._ratios = {0: 0.25, 1: 0.5, 2: 0.999}
 
-    cvm = utils.make_storage_from_shape(shape, origin, cache_key="fv_subgridz_cvm")
-    cpm = utils.make_storage_from_shape(shape, origin, cache_key="fv_subgridz_cpm")
+    def __call__(
+            self,
+            state: Mapping[str, fv3gfs.util.Quantity],
+            nq: int,
+            dt:float):
 
-    kbot_domain = (grid.nic, grid.njc, k_bot)
-    origin = grid.compute_origin()
-    init(
-        gz,
-        t0,
-        u0,
-        v0,
-        w0,
-        hd,
-        cvm,
-        cpm,
-        te,
-        state.ua,
-        state.va,
-        state.w,
-        state.pt,
-        state.delz,
-        q0["qvapor"],
-        q0["qliquid"],
-        q0["qrain"],
-        q0["qice"],
-        q0["qsnow"],
-        q0["qgraupel"],
-        q0["qo3mr"], q0["qsgs_tke"], q0["qcld"],
-        state.qvapor,state.qliquid, state.qrain, state.qice, state.qsnow, state.qgraupel, state.qo3mr, state.qsgs_tke, state.qcld, 
-        xvir,
-        origin=origin,
-        domain=(grid.nic, grid.njc, k_bot+1),
-    )
+        
+        rdt = 1.0 / dt
+        if state.pe[self._is, self._js, 0] < 2.0:
+            t_min = T1_MIN
+        else:
+            t_min = T2_MIN
 
-    ratios = {0: 0.25, 1: 0.5, 2: 0.999}
+        fra = dt / self._fv_sg_adj
 
-    for n in range(m):
-        ratio = ratios[n]
-       
-        m_loop(
-            u0,
-            v0,
-            w0,
-            t0,
-            hd,
-            gz,
-            state.delp,state.peln, 
-            state.pkz,
-            q0["qvapor"],q0["qliquid"], q0["qrain"], q0["qice"], q0["qsnow"], q0["qgraupel"], q0["qo3mr"], q0["qsgs_tke"], q0["qcld"],
-            te,
-            cpm,
-            cvm, 
-            t_min,
-            t_max,
-            ratio,
-            xvir,n,
-            origin=grid.compute_origin(),
-            domain=kbot_domain,
+        self._init_stencil(
+            self._tmp_gz,
+            self._tmp_t0,
+            self._tmp_u0,
+            self._tmp_v0,
+            self._tmp_w0,
+            self._tmp_hd,
+            self._tmp_cvm,
+            self._tmp_cpm,
+            self._tmp_te,
+            state.ua,
+            state.va,
+            state.w,
+            state.pt,
+            state.delz,
+            self._q0["qvapor"],
+            self._q0["qliquid"],
+            self._q0["qrain"],
+            self._q0["qice"],
+            self._q0["qsnow"],
+            self._q0["qgraupel"],
+            self._q0["qo3mr"], self._q0["qsgs_tke"], self._q0["qcld"],
+            state.qvapor,state.qliquid, state.qrain, state.qice, state.qsnow, state.qgraupel, state.qo3mr, state.qsgs_tke, state.qcld, 
         )
-       
-   
-    for tracername in utils.tracer_variables:
-        finalize_tracer(
-            q0[tracername],
-            state.tracers[tracername],
-            fra,
-            origin=origin,
-            domain=kbot_domain,
+
+        ratios = {0: 0.25, 1: 0.5, 2: 0.999}
+
+        for n in range(self._m):
+            self._m_loop_stencil(
+                self._tmp_u0,
+                self._tmp_v0,
+                self._tmp_w0,
+                self._tmp_t0,
+                self._tmp_hd,
+                self._tmp_gz,
+                state.delp,state.peln, 
+                state.pkz,
+                self._q0["qvapor"],self._q0["qliquid"], self._q0["qrain"], self._q0["qice"], self._q0["qsnow"], self._q0["qgraupel"], self._q0["qo3mr"], self._q0["qsgs_tke"], self._q0["qcld"],
+                self._tmp_te,
+                self._tmp_cpm,
+                self._tmp_cvm, 
+                t_min,
+                self._ratios[n],
+            )
+
+
+
+        self._finalize_stencil(
+            self._tmp_u0,
+            self._tmp_v0,
+            self._tmp_w0,
+            self._tmp_t0,
+            state.ua,
+            state.va,
+            state.pt,
+            state.w,
+            state.u_dt,
+            state.v_dt,
+            self._q0["qvapor"],
+            self._q0["qliquid"],
+            self._q0["qrain"],
+            self._q0["qice"],
+            self._q0["qsnow"],
+            self._q0["qgraupel"],
+            self._q0["qo3mr"], self._q0["qsgs_tke"], self._q0["qcld"],
+            state.qvapor,state.qliquid, state.qrain, state.qice, state.qsnow, state.qgraupel, state.qo3mr, state.qsgs_tke, state.qcld,
+            rdt,fra, 
+
         )
-    
-    finalize(
-        u0,
-        v0,
-        w0,
-        t0,
-        state.ua,
-        state.va,
-        state.pt,
-        state.w,
-        state.u_dt,
-        state.v_dt,
-        rdt,fra, spec.namelist.hydrostatic, 
-        origin=origin,
-        domain=kbot_domain,
-    )
