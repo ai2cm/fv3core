@@ -131,20 +131,20 @@ def set_initial_vals(
                 (grid_ratio + grid_ratio) * (grid_ratio + 1.0) * a4_1 + a4_1[0, 0, 1]
             ) / bet
             gam = (1.0 + grid_ratio * (grid_ratio + 1.5)) / bet
+    with computation(FORWARD), interval(1, 2):
+        if __INLINED(iv == -2):
+            gam = 0.5
+            grid_ratio = delp[0, 0, -1] / delp
+            bet = 2.0 + grid_ratio + grid_ratio - gam
+            q = (3.0 * (a4_1[0, 0, -1] + a4_1) - q[0, 0, -1]) / bet
+    with computation(FORWARD), interval(1, -1):
+        if __INLINED(iv != -2):
+            # set middle
+            d4 = delp[0, 0, -1] / delp
+            bet = 2.0 + d4 + d4 - gam[0, 0, -1]
+            q = (3.0 * (a4_1[0, 0, -1] + d4 * a4_1) - q[0, 0, -1]) / bet
+            gam = d4 / bet
     with computation(FORWARD):
-        with interval(1, 2):
-            if __INLINED(iv == -2):
-                gam = 0.5
-                grid_ratio = delp[0, 0, -1] / delp
-                bet = 2.0 + grid_ratio + grid_ratio - gam
-                q = (3.0 * (a4_1[0, 0, -1] + a4_1) - q[0, 0, -1]) / bet
-        with interval(1, -1):
-            if __INLINED(iv != -2):
-                # set middle
-                d4 = delp[0, 0, -1] / delp
-                bet = 2.0 + d4 + d4 - gam[0, 0, -1]
-                q = (3.0 * (a4_1[0, 0, -1] + d4 * a4_1) - q[0, 0, -1]) / bet
-                gam = d4 / bet
         with interval(2, -2):
             if __INLINED(iv == -2):
                 # set middle
@@ -155,30 +155,30 @@ def set_initial_vals(
                 bet = 2.0 + grid_ratio + grid_ratio - gam
                 q = (3.0 * (a4_1[0, 0, -1] + a4_1) - q[0, 0, -1]) / bet
                 # gam[0, 0, 1] = grid_ratio / bet
-    with computation(FORWARD), interval(-2, -1):
-        if __INLINED(iv == -2):
-            # set bottom
-            old_grid_ratio = delp[0, 0, -2] / delp[0, 0, -1]
-            old_bet = 2.0 + old_grid_ratio + old_grid_ratio - gam[0, 0, -1]
-            gam = old_grid_ratio / old_bet
-            grid_ratio = delp[0, 0, -1] / delp
-            q = (3.0 * (a4_1[0, 0, -1] + a4_1) - grid_ratio * qs - q[0, 0, -1]) / (
-                2.0 + grid_ratio + grid_ratio - gam
-            )
-            q_bot = qs
-    with computation(PARALLEL), interval(-1, None):
-        if __INLINED(iv == -2):
-            q_bot = qs
-            q = qs
-        else:
-            # set bottom
-            d4 = delp[0, 0, -2] / delp[0, 0, -1]
-            a_bot = 1.0 + d4 * (d4 + 1.5)
-            q = (
-                2.0 * d4 * (d4 + 1.0) * a4_1[0, 0, -1]
-                + a4_1[0, 0, -2]
-                - a_bot * q[0, 0, -1]
-            ) / (d4 * (d4 + 0.5) - a_bot * gam[0, 0, -1])
+        with interval(-2, -1):
+            if __INLINED(iv == -2):
+                # set bottom
+                old_grid_ratio = delp[0, 0, -2] / delp[0, 0, -1]
+                old_bet = 2.0 + old_grid_ratio + old_grid_ratio - gam[0, 0, -1]
+                gam = old_grid_ratio / old_bet
+                grid_ratio = delp[0, 0, -1] / delp
+                q = (3.0 * (a4_1[0, 0, -1] + a4_1) - grid_ratio * qs - q[0, 0, -1]) / (
+                    2.0 + grid_ratio + grid_ratio - gam
+                )
+                q_bot = qs
+        with interval(-1, None):
+            if __INLINED(iv == -2):
+                q_bot = qs
+                q = qs
+            else:
+                # set bottom
+                d4 = delp[0, 0, -2] / delp[0, 0, -1]
+                a_bot = 1.0 + d4 * (d4 + 1.5)
+                q = (
+                    2.0 * d4 * (d4 + 1.0) * a4_1[0, 0, -1]
+                    + a4_1[0, 0, -2]
+                    - a_bot * q[0, 0, -1]
+                ) / (d4 * (d4 + 0.5) - a_bot * gam[0, 0, -1])
     with computation(BACKWARD), interval(0, -1):
         if __INLINED(iv != -2):
             q = q - gam * q[0, 0, 1]
@@ -214,16 +214,15 @@ def apply_constraints_and_set_interpolation_coefficients(
     from __externals__ import iv, kord
 
     # apply constraints
-    with computation(PARALLEL):
-        with interval(1, None):
-            a4_1_0 = a4_1[0, 0, -1]
-            tmp = a4_1_0 if a4_1_0 > a4_1 else a4_1
-            tmp2 = a4_1_0 if a4_1_0 < a4_1 else a4_1
-            gam = a4_1 - a4_1_0
-        with interval(1, 2):
-            # do top
-            q = q if q < tmp else tmp
-            q = q if q > tmp2 else tmp2
+    with computation(PARALLEL), interval(1, None):
+        a4_1_0 = a4_1[0, 0, -1]
+        tmp = a4_1_0 if a4_1_0 > a4_1 else a4_1
+        tmp2 = a4_1_0 if a4_1_0 < a4_1 else a4_1
+        gam = a4_1 - a4_1_0
+    with computation(PARALLEL), interval(1, 2):
+        # do top
+        q = q if q < tmp else tmp
+        q = q if q > tmp2 else tmp2
     with computation(FORWARD):
         with interval(2, -1):
             # do middle
@@ -266,21 +265,19 @@ def apply_constraints_and_set_interpolation_coefficients(
 
     # set_interpolation_coefficients
     # set_top_as_iv0
-    with computation(PARALLEL):
-        with interval(0, 1):
-            if __INLINED(iv == 0):
-                a4_2 = a4_2 if a4_2 > 0.0 else 0.0
-        with interval(...):
-            if __INLINED(iv == 0):
-                a4_4 = 3 * (2 * a4_1 - (a4_2 + a4_3))
+    with computation(PARALLEL), interval(0, 1):
+        if __INLINED(iv == 0):
+            a4_2 = a4_2 if a4_2 > 0.0 else 0.0
+    with computation(PARALLEL), interval(0, 2):
+        if __INLINED(iv == 0):
+            a4_4 = 3 * (2 * a4_1 - (a4_2 + a4_3))
     # set_top_as_iv1
-    with computation(PARALLEL):
-        with interval(0, 1):
-            if __INLINED(iv == -1):
-                a4_2 = 0.0 if a4_2 * a4_1 <= 0.0 else a4_2
-        with interval(...):
-            if __INLINED(iv == -1):
-                a4_4 = 3 * (2 * a4_1 - (a4_2 + a4_3))
+    with computation(PARALLEL), interval(0, 1):
+        if __INLINED(iv == -1):
+            a4_2 = 0.0 if a4_2 * a4_1 <= 0.0 else a4_2
+    with computation(PARALLEL), interval(0, 2):
+        if __INLINED(iv == -1):
+            a4_4 = 3 * (2 * a4_1 - (a4_2 + a4_3))
     # set_top_as_iv2
     with computation(PARALLEL):
         with interval(0, 1):
@@ -288,15 +285,15 @@ def apply_constraints_and_set_interpolation_coefficients(
                 a4_2 = a4_1
                 a4_3 = a4_1
                 a4_4 = 0.0
-        with interval(1, None):
+        with interval(1, 2):
             if __INLINED(iv == 2):
                 a4_4 = 3 * (2 * a4_1 - (a4_2 + a4_3))
     # set_top_as_else
+    with computation(PARALLEL), interval(0, 2):
+        if __INLINED(iv < -1 or iv == 1 or iv > 2):
+            a4_4 = 3.0 * (2.0 * a4_1 - (a4_2 + a4_3))
     with computation(PARALLEL):
-        with interval(0, 2):
-            if __INLINED(iv < -1 or iv == 1 or iv > 2):
-                a4_4 = 3.0 * (2.0 * a4_1 - (a4_2 + a4_3))
-        with interval(0, 2):
+        with interval(0, 1):
             if __INLINED(iv != 2):
                 a4_1, a4_2, a4_3, a4_4 = remap_constraint(
                     a4_1, a4_2, a4_3, a4_4, extm, 1
