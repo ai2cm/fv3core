@@ -3,7 +3,7 @@ from gt4py.gtscript import BACKWARD, PARALLEL, computation, interval
 
 import fv3core._config as spec
 import fv3core.utils.gt4py_utils as utils
-from fv3core.decorators import ArgSpec, gtstencil, state_inputs
+from fv3core.decorators import ArgSpec, FrozenStencil, gtstencil, state_inputs
 from fv3core.stencils.basic_operations import copy, copy_stencil, dim
 from fv3core.utils.global_constants import (
     C_ICE,
@@ -75,6 +75,18 @@ def init(
     q0_ice: FloatField,
     q0_snow: FloatField,
     q0_graupel: FloatField,
+    q0_o3mr: FloatField,
+    q0_sgs_tke: FloatField,
+    q0_cld: FloatField,
+    qvapor: FloatField,
+    qliquid: FloatField,
+    qrain: FloatField,
+    qice: FloatField,
+    qsnow: FloatField,
+    qgraupel: FloatField,
+    qo3mr: FloatField,
+    qsgs_tke: FloatField,
+    qcld: FloatField,    
     xvir: float,
 ):
     with computation(PARALLEL), interval(...):
@@ -82,6 +94,16 @@ def init(
         u0 = ua
         v0 = va
         w0 = w
+        # TODO: in a loop over tracers
+        q0_vapor = qvapor
+        q0_liquid = qliquid
+        q0_rain = qrain
+        q0_ice = qice
+        q0_snow = qsnow
+        q0_graupel = qgraupel
+        q0_o3mr = qo3mr
+        q0_sgs_tke = qsgs_tke
+        q0_cld = qcld
         gzh = 0.0
     with computation(BACKWARD), interval(0, -1):
         # note only for nwat = 6
@@ -485,10 +507,11 @@ def fraction_adjust(
 
 
 @gtstencil
-def fraction_adjust_tracer(q0: FloatField, q: FloatField, fra: float):
+def finalize_tracer(q0: FloatField, q: FloatField, fra: float):
     with computation(PARALLEL), interval(...):
-        q0 = readjust_by_frac(q0, q, fra)
-
+        if fra < 1.0:
+            q0 = readjust_by_frac(q0, q, fra)
+        q = q0
 
 @gtstencil
 def finalize(
@@ -502,9 +525,15 @@ def finalize(
     w: FloatField,
     u_dt: FloatField,
     v_dt: FloatField,
-    rdt: float,
+    rdt: float, fra: float, hydrostatic: bool
 ):
     with computation(PARALLEL), interval(...):
+        if fra < 1.0:
+            t0 = readjust_by_frac(t0, ta, fra)
+            u0 = readjust_by_frac(u0, ua, fra)
+            v0 = readjust_by_frac(v0, va, fra)
+            if not hydrostatic:
+                w0 = readjust_by_frac(w0, w, fra)
         u_dt = rdt * (u0 - ua)
         v_dt = rdt * (v0 - va)
         ta = t0
@@ -576,13 +605,15 @@ def compute(state, nq, dt):
     fra = dt / float(spec.namelist.fv_sg_adj)
     if spec.namelist.hydrostatic:
         raise Exception("Hydrostatic not supported for fv_subgridz")
-    q0 = {}
-    for tracername in utils.tracer_variables:
-        q0[tracername] = copy(
-            state.__dict__[tracername], cache_key="fv_subgridz_" + tracername
-        )
     origin = grid.compute_origin()
     shape = state.delp.shape
+    q0 = {}
+    for tracername in utils.tracer_variables:
+        q0[tracername] =utils.make_storage_from_shape(shape)
+        #copy(
+        #    state.__dict__[tracername], cache_key="fv_subgridz_" + tracername
+        #)
+
     # not 100% sure which of these require init=True,
     # if you figure it out please remove unnecessary ones and this comment
     u0 = utils.make_storage_from_shape(
@@ -630,6 +661,8 @@ def compute(state, nq, dt):
         q0["qice"],
         q0["qsnow"],
         q0["qgraupel"],
+        q0["qo3mr"], q0["qsgs_tke"], q0["qcld"],
+        state.qvapor,state.qliquid, state.qrain, state.qice, state.qsnow, state.qgraupel, state.qo3mr, state.qsgs_tke, state.qcld, 
         xvir,
         origin=origin,
         domain=(grid.nic, grid.njc, k_bot+1),
@@ -661,33 +694,16 @@ def compute(state, nq, dt):
             domain=kbot_domain,
         )
        
-    if fra < 1.0:
-        fraction_adjust(
-            t0,
-            state.pt,
-            u0,
-            state.ua,
-            v0,
-            state.va,
-            w0,
-            state.w,
+   
+    for tracername in utils.tracer_variables:
+        finalize_tracer(
+            q0[tracername],
+            state.tracers[tracername],
             fra,
-            spec.namelist.hydrostatic,
             origin=origin,
             domain=kbot_domain,
         )
-        for tracername in utils.tracer_variables:
-            fraction_adjust_tracer(
-                q0[tracername],
-                state.tracers[tracername],
-                fra,
-                origin=origin,
-                domain=kbot_domain,
-            )
-    for tracername in utils.tracer_variables:
-        copy_stencil(
-            q0[tracername], state.tracers[tracername], origin=origin, domain=kbot_domain
-        )
+    
     finalize(
         u0,
         v0,
@@ -699,7 +715,7 @@ def compute(state, nq, dt):
         state.w,
         state.u_dt,
         state.v_dt,
-        rdt,
+        rdt,fra, spec.namelist.hydrostatic, 
         origin=origin,
         domain=kbot_domain,
     )
