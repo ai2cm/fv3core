@@ -470,7 +470,25 @@ def m_loop(
                 te = adjust_down(delp, h0_te, te)
         
             cpm, cvm, t0, hd = adjust_cvm( cpm, cvm, q0_vapor, q0_liquid, q0_rain, q0_ice, q0_snow, q0_graupel, gz, u0, v0, w0, t0, te, hd)
+        with interval(0, 1):
+            if ri[0, 0, 1] < ri_ref[0, 0, 1]:
+                q0_vapor = adjust_up(delp, h0_vapor, q0_vapor)
+                q0_liquid = adjust_up(delp, h0_liquid, q0_liquid)
+                q0_rain = adjust_up(delp, h0_rain, q0_rain)
+                q0_ice = adjust_up(delp, h0_ice, q0_ice)
+                q0_snow = adjust_up(delp, h0_snow, q0_snow)
+                q0_graupel = adjust_up(delp, h0_graupel, q0_graupel)
+                q0_o3mr = adjust_up(delp, h0_o3mr, q0_o3mr)
+                q0_sgs_tke = adjust_up(delp, h0_sgs_tke, q0_sgs_tke)
+                q0_cld = adjust_up(delp, h0_cld, q0_cld)
+                qcon = qcon_func(qcon, q0_liquid, q0_ice, q0_snow, q0_rain, q0_graupel)
+                u0 = adjust_up(delp, h0_u, u0)
+                v0 = adjust_up(delp, h0_v, v0)
+                w0 = adjust_up(delp, h0_w, w0)
+                te = adjust_up(delp, h0_te, te)
 
+            cpm, cvm, t0, hd = adjust_cvm( cpm, cvm, q0_vapor, q0_liquid, q0_rain, q0_ice, q0_snow, q0_graupel, gz, u0, v0, w0, t0, te,hd)
+            
 @gtscript.function
 def readjust_by_frac(a0, a, fra):
     return a + (a0 - a) * fra
