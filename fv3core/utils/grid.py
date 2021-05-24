@@ -1,5 +1,5 @@
 import functools
-from typing import Iterable, Tuple, Union
+from typing import Iterable, Mapping, Tuple, Union
 
 import numpy as np
 from gt4py import gtscript
@@ -390,12 +390,26 @@ class GridIndexing:
         west_edge: bool,
         east_edge: bool,
     ):
+        """
+        Initialize a grid indexing object.
+
+        Args:
+            origin: index of the compute domain origin for cell-centered variables
+            domain: size of the compute domain for cell-centered variables
+            n_halo: number of halo points
+            south_edge: whether the current rank is on the south edge of a tile
+            north_edge: whether the current rank is on the north edge of a tile
+            west_edge: whether the current rank is on the west edge of a tile
+            east_edge: whether the current rank is on the east edge of a tile
+        """
         self.origin = origin
         self.domain = domain
         self.n_halo = n_halo
         # TODO: split edge booleans into their own class, they aren't needed
         # for any of the indexing operations, only needed for axis_offsets
-        # maybe give this responsibility to CubedSphereCommunicator.
+        # and they make the API pretty big
+        # maybe give this responsibility to CubedSphereCommunicator
+        # as it already contains this information
         self.south_edge = south_edge
         self.north_edge = north_edge
         self.west_edge = west_edge
@@ -405,6 +419,8 @@ class GridIndexing:
     def from_sizer_and_communicator(
         cls, sizer: fv3util.GridSizer, cube: fv3util.CubedSphereCommunicator
     ) -> "GridIndexing":
+        # TODO: if this class is refactored to split off the *_edge booleans,
+        # this init routine can be refactored to require only a GridSizer
         origin = sizer.get_origin([fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_DIM])
         domain = sizer.get_extent([fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_DIM])
         south_edge = cube.tile.on_tile_bottom(cube.rank)
@@ -520,8 +536,20 @@ def axis_offsets(
     grid: Union[Grid, GridIndexing],
     origin: Iterable[int],
     domain: Iterable[int],
-):
-    """Return the axis offsets relative to stencil compute domain."""
+) -> Mapping[str, gtscript._AxisOffset]:
+    """Return the axis offsets relative to stencil compute domain.
+
+    Args:
+        grid: indexing data
+        origin: origin of a stencil's computation
+        domain: shape over which computation is being performed
+
+    Returns:
+        axis_offsets: Mapping from offset name to value. i_start, i_end, j_start, and
+            j_end indicate the offset to the edges of the tile face in each direction.
+            local_is, local_ie, local_js, and local_je indicate the offset to the
+            edges of the cell-centered compute domain in each direction.
+    """
     origin = tuple(origin)
     domain = tuple(domain)
     if isinstance(grid, Grid):
@@ -535,7 +563,7 @@ def _old_grid_axis_offsets(
     grid: Grid,
     origin: Tuple[int, ...],
     domain: Tuple[int, ...],
-):
+) -> Mapping[str, gtscript._AxisOffset]:
     if grid.west_edge:
         proc_offset = grid.is_ - grid.global_is
         origin_offset = grid.is_ - origin[0]
@@ -581,7 +609,8 @@ def _grid_indexing_axis_offsets(
     grid: GridIndexing,
     origin: Tuple[int, ...],
     domain: Tuple[int, ...],
-):
+) -> Mapping[str, gtscript._AxisOffset]:
+    print(type(gtscript.I[0]))
     if grid.west_edge:
         i_start = gtscript.I[0] + grid.origin[0] - origin[0]
     else:
