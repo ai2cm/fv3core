@@ -24,7 +24,7 @@ import fv3core.utils.gt4py_utils as utils
 import fv3gfs.util
 import fv3gfs.util as fv3util
 from fv3core.decorators import FrozenStencil
-from fv3core.stencils.basic_operations import copy_stencil
+from fv3core.stencils.basic_operations import copy_defn
 from fv3core.stencils.c_sw import CGridShallowWaterDynamics
 from fv3core.stencils.del2cubed import HyperdiffusionDamping
 from fv3core.stencils.pk3_halo import PK3Halo
@@ -349,7 +349,11 @@ class AcousticDynamics:
             self._nk_heat_dissipation,
         )
         self._pk3_halo = PK3Halo(self.grid)
-
+        self._copy_stencil = FrozenStencil(
+            copy_defn,
+            origin=self.grid.full_origin(),
+            domain=self.grid.domain_shape_full(add=(0, 0, 1)))
+        
     def __call__(self, state):
         # u, v, w, delz, delp, pt, pe, pk, phis, wsd, omga, ua, va, uc, vc, mfxd,
         # mfyd, cxd, cyd, pkz, peln, q_con, ak, bk, diss_estd, cappa, mdt, n_split,
@@ -470,18 +474,14 @@ class AcousticDynamics:
                 if it == 0:
                     if self.do_halo_exchange:
                         reqs["gz_quantity"].wait()
-                    copy_stencil(
+                    self._copy_stencil(
                         state.gz,
                         state.zh,
-                        origin=self.grid.full_origin(),
-                        domain=self.grid.domain_shape_full(add=(0, 0, 1)),
                     )
                 else:
-                    copy_stencil(
+                    self._copy_stencil(
                         state.zh,
                         state.gz,
-                        origin=self.grid.full_origin(),
-                        domain=self.grid.domain_shape_full(add=(0, 0, 1)),
                     )
             if not self.namelist.hydrostatic:
                 self.update_geopotential_height_on_c_grid(
