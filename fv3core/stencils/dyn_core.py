@@ -86,6 +86,11 @@ def set_pem(delp: FloatField, pem: FloatField, ptop: float):
             pem[0, 0, 0] = pem[0, 0, -1] + delp
 
 
+def compute_geopotential(zh: FloatField, gz: FloatField):
+    with computation(PARALLEL), interval(...):
+        gz = zh * constants.GRAV
+
+
 def p_grad_c_stencil(
     rdxc: FloatFieldIJ,
     rdyc: FloatFieldIJ,
@@ -294,6 +299,11 @@ class AcousticDynamics:
             )
             self.riem_solver3 = RiemannSolver3(namelist)
             self.riem_solver_c = RiemannSolverC(namelist)
+            self._compute_geopotential_stencil = FrozenStencil(
+                compute_geopotential,
+                origin=(self.grid.is_ - 2, self.grid.js - 2, 0),
+                domain=(self.grid.nic + 4, self.grid.njc + 4, self.grid.npz + 1),
+            )
         self.dgrid_shallow_water_lagrangian_dynamics = (
             d_sw.DGridShallowWaterLagrangianDynamics(namelist, column_namelist)
         )
@@ -616,12 +626,9 @@ class AcousticDynamics:
                     reqs["zh_quantity"].wait()
                     if self.grid.npx != self.grid.npy:
                         reqs["pkc_quantity"].wait()
-                basic.multiply_constant(
+                self._compute_geopotential_stencil(
                     state.zh,
                     state.gz,
-                    constants.GRAV,
-                    origin=(self.grid.is_ - 2, self.grid.js - 2, 0),
-                    domain=(self.grid.nic + 4, self.grid.njc + 4, self.grid.npz + 1),
                 )
                 if self.grid.npx == self.grid.npy and self.do_halo_exchange:
                     reqs["pkc_quantity"].wait()
