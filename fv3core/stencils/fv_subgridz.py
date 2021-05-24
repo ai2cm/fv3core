@@ -63,10 +63,10 @@ def init(
     u0: FloatField,
     v0: FloatField,
     w0: FloatField,
-    hd: FloatField,
+    static_energy: FloatField,
     cvm: FloatField,
     cpm: FloatField,
-    te: FloatField,
+    total_energy: FloatField,
     ua: FloatField,
     va: FloatField,
     w: FloatField,
@@ -115,8 +115,8 @@ def init(
         )
         gz = gzh[0, 0, 1] - G2 * delz
         tmp = tvol(gz, u0, v0, w0)
-        hd = cpm * t0 + tmp
-        te = cvm * t0 + tmp
+        static_energy = cpm * t0 + tmp
+        total_energy = cvm * t0 + tmp
         gzh = gzh[0, 0, 1] - GRAV * delz
 
 
@@ -140,16 +140,19 @@ def adjust_cvm(
     v0,
     w0,
     t0,
-    te,
-    hd,
+    total_energy,
+    static_energy,
 ):
+    """
+    Non-hydrostatic under constant volume heating/cooling
+    """
     cpm, cvm = standard_cm(
         cpm, cvm, q0_vapor, q0_liquid, q0_rain, q0_ice, q0_snow, q0_graupel
     )
     tv = tvol(gz, u0, v0, w0)
-    t0 = (te - tv) / cvm
-    hd = cpm * t0 + tv
-    return cpm, cvm, t0, hd
+    t0 = (total_energy - tv) / cvm
+    static_energy = cpm * t0 + tv
+    return cpm, cvm, t0, static_energy
 
 
 @gtscript.function
@@ -218,7 +221,7 @@ def m_loop(
     v0: FloatField,
     w0: FloatField,
     t0: FloatField,
-    hd: FloatField,
+    static_energy: FloatField,
     gz: FloatField,
     delp: FloatField,
     peln: FloatField,
@@ -232,7 +235,7 @@ def m_loop(
     q0_o3mr: FloatField,
     q0_sgs_tke: FloatField,
     q0_cld: FloatField,
-    te: FloatField,
+    total_energy: FloatField,
     cpm: FloatField,
     cvm: FloatField,
     t_min: float,
@@ -254,7 +257,7 @@ def m_loop(
         h0_u = 0.0
         h0_v = 0.0
         h0_w = 0.0
-        h0_te = 0.0
+        h0_total_energy = 0.0
         mc = 0.0
         ri = 0.0
         ref = 0.0
@@ -292,9 +295,9 @@ def m_loop(
                 v0 = adjust_down(delp, h0_v, v0)
                 h0_w = kh_adjustment(mc, w0)
                 w0 = adjust_down(delp, h0_w, w0)
-                h0_te = kh_adjustment(mc, hd)
-                te = adjust_down(delp, h0_te, te)
-            cpm, cvm, t0, hd = adjust_cvm(
+                h0_total_energy = kh_adjustment(mc, static_energy)
+                total_energy = adjust_down(delp, h0_total_energy, total_energy)
+            cpm, cvm, t0, static_energy = adjust_cvm(
                 cpm,
                 cvm,
                 q0_vapor,
@@ -308,8 +311,8 @@ def m_loop(
                 v0,
                 w0,
                 t0,
-                te,
-                hd,
+                total_energy,
+                static_energy,
             )
         with interval(4, -1):
             if ri[0, 0, 1] < ri_ref[0, 0, 1]:
@@ -327,8 +330,8 @@ def m_loop(
                 u0 = adjust_up(delp, h0_u, u0)
                 v0 = adjust_up(delp, h0_v, v0)
                 w0 = adjust_up(delp, h0_w, w0)
-                te = adjust_up(delp, h0_te, te)
-            cpm, cvm, t0, hd = adjust_cvm(
+                total_energy = adjust_up(delp, h0_total_energy, total_energy)
+            cpm, cvm, t0, static_energy = adjust_cvm(
                 cpm,
                 cvm,
                 q0_vapor,
@@ -342,8 +345,8 @@ def m_loop(
                 v0,
                 w0,
                 t0,
-                te,
-                hd,
+                total_energy,
+                static_energy,
             )
             ri, ri_ref = compute_richardson_number(
                 t0, q0_vapor, qcon, pkz, delp, peln, gz, u0, v0, xvir, t_max, t_min
@@ -376,10 +379,10 @@ def m_loop(
                 v0 = adjust_down(delp, h0_v, v0)
                 h0_w = kh_adjustment(mc, w0)
                 w0 = adjust_down(delp, h0_w, w0)
-                h0_te = kh_adjustment(mc, hd)
-                te = adjust_down(delp, h0_te, te)
+                h0_total_energy = kh_adjustment(mc, static_energy)
+                total_energy = adjust_down(delp, h0_total_energy, total_energy)
 
-            cpm, cvm, t0, hd = adjust_cvm(
+            cpm, cvm, t0, static_energy = adjust_cvm(
                 cpm,
                 cvm,
                 q0_vapor,
@@ -393,8 +396,8 @@ def m_loop(
                 v0,
                 w0,
                 t0,
-                te,
-                hd,
+                total_energy,
+                static_energy,
             )
         with interval(3, 4):
             # TODO: this is repetitive, but using functions did not work as
@@ -414,9 +417,9 @@ def m_loop(
                 u0 = adjust_up(delp, h0_u, u0)
                 v0 = adjust_up(delp, h0_v, v0)
                 w0 = adjust_up(delp, h0_w, w0)
-                te = adjust_up(delp, h0_te, te)
+                total_energy = adjust_up(delp, h0_total_energy, total_energy)
 
-            cpm, cvm, t0, hd = adjust_cvm(
+            cpm, cvm, t0, static_energy = adjust_cvm(
                 cpm,
                 cvm,
                 q0_vapor,
@@ -430,8 +433,8 @@ def m_loop(
                 v0,
                 w0,
                 t0,
-                te,
-                hd,
+                total_energy,
+                static_energy,
             )
             ri, ri_ref = compute_richardson_number(
                 t0, q0_vapor, qcon, pkz, delp, peln, gz, u0, v0, xvir, t_max, t_min
@@ -465,10 +468,10 @@ def m_loop(
                 v0 = adjust_down(delp, h0_v, v0)
                 h0_w = kh_adjustment(mc, w0)
                 w0 = adjust_down(delp, h0_w, w0)
-                h0_te = kh_adjustment(mc, hd)
-                te = adjust_down(delp, h0_te, te)
+                h0_total_energy = kh_adjustment(mc, static_energy)
+                total_energy = adjust_down(delp, h0_total_energy, total_energy)
 
-            cpm, cvm, t0, hd = adjust_cvm(
+            cpm, cvm, t0, static_energy = adjust_cvm(
                 cpm,
                 cvm,
                 q0_vapor,
@@ -482,8 +485,8 @@ def m_loop(
                 v0,
                 w0,
                 t0,
-                te,
-                hd,
+                total_energy,
+                static_energy,
             )
         with interval(2, 3):
             if ri[0, 0, 1] < ri_ref[0, 0, 1]:
@@ -500,9 +503,9 @@ def m_loop(
                 u0 = adjust_up(delp, h0_u, u0)
                 v0 = adjust_up(delp, h0_v, v0)
                 w0 = adjust_up(delp, h0_w, w0)
-                te = adjust_up(delp, h0_te, te)
+                total_energy = adjust_up(delp, h0_total_energy, total_energy)
 
-            cpm, cvm, t0, hd = adjust_cvm(
+            cpm, cvm, t0, static_energy = adjust_cvm(
                 cpm,
                 cvm,
                 q0_vapor,
@@ -516,8 +519,8 @@ def m_loop(
                 v0,
                 w0,
                 t0,
-                te,
-                hd,
+                total_energy,
+                static_energy,
             )
             ri, ri_ref = compute_richardson_number(
                 t0, q0_vapor, qcon, pkz, delp, peln, gz, u0, v0, xvir, t_max, t_min
@@ -550,10 +553,10 @@ def m_loop(
                 v0 = adjust_down(delp, h0_v, v0)
                 h0_w = kh_adjustment(mc, w0)
                 w0 = adjust_down(delp, h0_w, w0)
-                h0_te = kh_adjustment(mc, hd)
-                te = adjust_down(delp, h0_te, te)
+                h0_total_energy = kh_adjustment(mc, static_energy)
+                total_energy = adjust_down(delp, h0_total_energy, total_energy)
 
-            cpm, cvm, t0, hd = adjust_cvm(
+            cpm, cvm, t0, static_energy = adjust_cvm(
                 cpm,
                 cvm,
                 q0_vapor,
@@ -567,8 +570,8 @@ def m_loop(
                 v0,
                 w0,
                 t0,
-                te,
-                hd,
+                total_energy,
+                static_energy,
             )
         with interval(1, 2):
             if ri[0, 0, 1] < ri_ref[0, 0, 1]:
@@ -585,9 +588,9 @@ def m_loop(
                 u0 = adjust_up(delp, h0_u, u0)
                 v0 = adjust_up(delp, h0_v, v0)
                 w0 = adjust_up(delp, h0_w, w0)
-                te = adjust_up(delp, h0_te, te)
+                total_energy = adjust_up(delp, h0_total_energy, total_energy)
 
-            cpm, cvm, t0, hd = adjust_cvm(
+            cpm, cvm, t0, static_energy = adjust_cvm(
                 cpm,
                 cvm,
                 q0_vapor,
@@ -601,8 +604,8 @@ def m_loop(
                 v0,
                 w0,
                 t0,
-                te,
-                hd,
+                total_energy,
+                static_energy,
             )
             ri, ri_ref = compute_richardson_number(
                 t0, q0_vapor, qcon, pkz, delp, peln, gz, u0, v0, xvir, t_max, t_min
@@ -635,10 +638,10 @@ def m_loop(
                 v0 = adjust_down(delp, h0_v, v0)
                 h0_w = kh_adjustment(mc, w0)
                 w0 = adjust_down(delp, h0_w, w0)
-                h0_te = kh_adjustment(mc, hd)
-                te = adjust_down(delp, h0_te, te)
+                h0_total_energy = kh_adjustment(mc, static_energy)
+                total_energy = adjust_down(delp, h0_total_energy, total_energy)
 
-            cpm, cvm, t0, hd = adjust_cvm(
+            cpm, cvm, t0, static_energy = adjust_cvm(
                 cpm,
                 cvm,
                 q0_vapor,
@@ -652,8 +655,8 @@ def m_loop(
                 v0,
                 w0,
                 t0,
-                te,
-                hd,
+                total_energy,
+                static_energy,
             )
         with interval(0, 1):
             if ri[0, 0, 1] < ri_ref[0, 0, 1]:
@@ -670,9 +673,9 @@ def m_loop(
                 u0 = adjust_up(delp, h0_u, u0)
                 v0 = adjust_up(delp, h0_v, v0)
                 w0 = adjust_up(delp, h0_w, w0)
-                te = adjust_up(delp, h0_te, te)
+                total_energy = adjust_up(delp, h0_total_energy, total_energy)
 
-            cpm, cvm, t0, hd = adjust_cvm(
+            cpm, cvm, t0, static_energy = adjust_cvm(
                 cpm,
                 cvm,
                 q0_vapor,
@@ -686,8 +689,8 @@ def m_loop(
                 v0,
                 w0,
                 t0,
-                te,
-                hd,
+                total_energy,
+                static_energy,
             )
 
 
@@ -725,12 +728,12 @@ def finalize(
     qo3mr: FloatField,
     qsgs_tke: FloatField,
     qcld: FloatField,
-    rdt: float,
-    fra: float,
+    timestep: float,
 ):
-    from __externals__ import hydrostatic
+    from __externals__ import fv_sg_adj, hydrostatic
 
     with computation(PARALLEL), interval(...):
+        fra = timestep / fv_sg_adj
         if fra < 1.0:
             t0 = readjust_by_frac(t0, ta, fra)
             u0 = readjust_by_frac(u0, ua, fra)
@@ -746,6 +749,7 @@ def finalize(
             q0_o3mr = readjust_by_frac(q0_o3mr, qo3mr, fra)
             q0_sgs_tke = readjust_by_frac(q0_sgs_tke, qsgs_tke, fra)
             q0_cld = readjust_by_frac(q0_cld, qcld, fra)
+        rdt = 1.0 / timestep
         u_dt = rdt * (u0 - ua)
         v_dt = rdt * (v0 - va)
         ta = t0
@@ -840,7 +844,10 @@ class FVSubgridZ:
         )
         self._finalize_stencil = FrozenStencil(
             finalize,
-            externals={"hydrostatic": self.namelist.hydrostatic},
+            externals={
+                "hydrostatic": self.namelist.hydrostatic,
+                "fv_sg_adj": self.namelist.fv_sg_adj,
+            },
             origin=origin,
             domain=kbot_domain,
         )
@@ -853,21 +860,24 @@ class FVSubgridZ:
         self._tmp_w0 = utils.make_storage_from_shape(shape)
         self._tmp_gz = utils.make_storage_from_shape(shape)
         self._tmp_t0 = utils.make_storage_from_shape(shape)
-        self._tmp_hd = utils.make_storage_from_shape(shape)
-        self._tmp_te = utils.make_storage_from_shape(shape)
+        self._tmp_static_energy = utils.make_storage_from_shape(shape)
+        self._tmp_total_energy = utils.make_storage_from_shape(shape)
         self._tmp_cvm = utils.make_storage_from_shape(shape)
         self._tmp_cpm = utils.make_storage_from_shape(shape)
         self._ratios = {0: 0.25, 1: 0.5, 2: 0.999}
 
-    def __call__(self, state: Mapping[str, fv3gfs.util.Quantity], dt: float):
-
-        rdt = 1.0 / dt
+    def __call__(self, state: Mapping[str, fv3gfs.util.Quantity], timestep: float):
+        """
+        Performs dry convective adjustment mixing on the subgrid vertical scale.
+        Args:
+            state: see arg_specs, includes mainly windspeed, temperature,
+                   pressure and tracer variables
+            timestep:  time to progress forward in seconds
+        """
         if state.pe[self._is, self._js, 0] < 2.0:
             t_min = T1_MIN
         else:
             t_min = T2_MIN
-
-        fra = dt / self._fv_sg_adj
 
         self._init_stencil(
             self._tmp_gz,
@@ -875,10 +885,10 @@ class FVSubgridZ:
             self._tmp_u0,
             self._tmp_v0,
             self._tmp_w0,
-            self._tmp_hd,
+            self._tmp_static_energy,
             self._tmp_cvm,
             self._tmp_cpm,
-            self._tmp_te,
+            self._tmp_total_energy,
             state.ua,
             state.va,
             state.w,
@@ -912,7 +922,7 @@ class FVSubgridZ:
                 self._tmp_v0,
                 self._tmp_w0,
                 self._tmp_t0,
-                self._tmp_hd,
+                self._tmp_static_energy,
                 self._tmp_gz,
                 state.delp,
                 state.peln,
@@ -926,7 +936,7 @@ class FVSubgridZ:
                 self._q0["qo3mr"],
                 self._q0["qsgs_tke"],
                 self._q0["qcld"],
-                self._tmp_te,
+                self._tmp_total_energy,
                 self._tmp_cpm,
                 self._tmp_cvm,
                 t_min,
@@ -962,6 +972,5 @@ class FVSubgridZ:
             state.qo3mr,
             state.qsgs_tke,
             state.qcld,
-            rdt,
-            fra,
+            timestep,
         )
