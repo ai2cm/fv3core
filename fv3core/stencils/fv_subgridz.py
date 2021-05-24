@@ -200,10 +200,17 @@ def KH_instability_adjustment_bottom2(mc, delp, h0, q0):
     h0 = mc * (q0 - q0[0, 0, -1])
     q0 = q0 - h0 / delp
     return q0, h0
+@gtscript.function
+def kh_adjustment(mc, q0):
+    return mc * (q0 - q0[0, 0, -1])
 
 @gtscript.function
-def KH_instability_adjustment_top2(delp, h0, q0):
-    return q0 + h0[0, 0, 1] / delp
+def adjust_down(delp, h0, q0):
+    return  q0 - h0 / delp
+
+@gtscript.function
+def adjust_up(delp, h0, q0):
+    return  q0 + h0[0, 0, 1] / delp
 
 @gtscript.function
 def KH_instability_adjustment_bottom_te2(mc, delp, h0, q0, hd):
@@ -270,79 +277,55 @@ def m_loop(
         with interval(-1, None):
             ri, ri_ref = compute_ri(t0, q0_vapor, qcon, pkz, pm, gz, u0, v0,xvir, t_max, t_min)
             mc = compute_mass_flux(ri, ri_ref, delp, mc, ratio)
-            #q0_vapor, h0_vapor = KH_instability_adjustment_bottom(ri, ri_ref, mc, delp, h0_vapor, q0_vapor)
-            #q0_liquid, h0_liquid = KH_instability_adjustment_bottom(ri, ri_ref, mc, delp, h0_liquid, q0_liquid)
-            #q0_rain, h0_rain = KH_instability_adjustment_bottom(ri, ri_ref, mc, delp, h0_rain, q0_rain)
-            #q0_ice, h0_ice = KH_instability_adjustment_bottom(ri, ri_ref, mc, delp, h0_ice, q0_ice)
-            #q0_snow, h0_snow = KH_instability_adjustment_bottom(ri, ri_ref, mc, delp, h0_snow, q0_snow)
-            #q0_graupel, h0_graupel = KH_instability_adjustment_bottom(ri, ri_ref, mc, delp, h0_graupel, q0_graupel)
-            #q0_o3mr, h0_o3mr = KH_instability_adjustment_bottom(ri, ri_ref, mc, delp, h0_o3mr, q0_o3mr)
-            #q0_sgs_tke, h0_sgs_tke = KH_instability_adjustment_bottom(ri, ri_ref, mc, delp, h0_sgs_tke, q0_sgs_tke)
-            #q0_cld, h0_cld = KH_instability_adjustment_bottom(ri, ri_ref, mc, delp, h0_cld, q0_cld)
             if ri < ri_ref:
-                h0_vapor = mc * (q0_vapor - q0_vapor[0, 0, -1])
-                q0_vapor = q0_vapor - h0_vapor / delp
-                h0_liquid = mc * (q0_liquid - q0_liquid[0, 0, -1])
-                q0_liquid = q0_liquid - h0_liquid / delp
-                h0_rain = mc * (q0_rain - q0_rain[0, 0, -1])
-                q0_rain = q0_rain - h0_rain / delp
-                h0_ice = mc * (q0_ice - q0_ice[0, 0, -1])
-                q0_ice = q0_ice - h0_ice / delp
-                h0_snow = mc * (q0_snow - q0_snow[0, 0, -1])
-                q0_snow = q0_snow - h0_snow / delp
-                h0_graupel = mc * (q0_graupel - q0_graupel[0, 0, -1])
-                q0_graupel = q0_graupel - h0_graupel / delp
-                h0_o3mr = mc * (q0_o3mr - q0_o3mr[0, 0, -1])
-                q0_o3mr = q0_o3mr - h0_o3mr / delp
-                h0_sgs_tke = mc * (q0_sgs_tke - q0_sgs_tke[0, 0, -1])
-                q0_sgs_tke = q0_sgs_tke - h0_sgs_tke / delp
-                h0_cld = mc * (q0_cld - q0_cld[0, 0, -1])
-                q0_cld = q0_cld - h0_cld / delp
-                h0_u = mc * (u0 - u0[0, 0, -1])
-                u0 = u0 - h0_u / delp
-                h0_v = mc * (v0 - v0[0, 0, -1])
-                v0 = v0 - h0_v / delp
-                h0_w = mc * (w0 - w0[0, 0, -1])
-                w0 = w0 - h0_w / delp
-                h0_te = mc * (hd - hd[0, 0, -1])
-                te = te - h0_te / delp
-                #u0, h0_u = KH_instability_adjustment_bottom2(mc, delp, h0_u, u0)
-            #u0, h0_u = KH_instability_adjustment_bottom(ri, ri_ref, mc, delp, h0_u, u0)
-            #v0, h0_v = KH_instability_adjustment_bottom(ri, ri_ref, mc, delp, h0_v, v0)
-            #w0, h0_w = KH_instability_adjustment_bottom(ri, ri_ref, mc, delp, h0_w, w0)
-            #te, h0_te = KH_instability_adjustment_bottom_te(ri, ri_ref, mc, delp, h0_te, te, hd)
+                # TODO: loop over tracers not hardcoded
+                # Note combining into functions breaks
+                # validation
+                h0_vapor = kh_adjustment(mc, q0_vapor)
+                q0_vapor = adjust_down(delp, h0_vapor, q0_vapor)
+                h0_liquid = kh_adjustment(mc, q0_liquid)
+                q0_liquid = adjust_down(delp, h0_liquid, q0_liquid)
+                h0_rain = kh_adjustment(mc, q0_rain)
+                q0_rain = adjust_down(delp, h0_rain, q0_rain)
+                h0_ice = kh_adjustment(mc, q0_ice)
+                q0_ice = adjust_down(delp, h0_ice, q0_ice)
+                h0_snow = kh_adjustment(mc, q0_snow)
+                q0_snow = adjust_down(delp, h0_snow, q0_snow)
+                h0_graupel = kh_adjustment(mc, q0_graupel)
+                q0_graupel = adjust_down(delp, h0_graupel, q0_graupel)
+                h0_o3mr = kh_adjustment(mc, q0_o3mr)
+                q0_o3mr = adjust_down(delp, h0_o3mr, q0_o3mr)
+                h0_sgs_tke = kh_adjustment(mc, q0_sgs_tke)
+                q0_sgs_tke = adjust_down(delp, h0_sgs_tke, q0_sgs_tke)
+                h0_cld = kh_adjustment(mc, q0_cld)
+                q0_cld = adjust_down(delp, h0_cld, q0_cld)
+                h0_u = kh_adjustment(mc, u0)
+                u0 = adjust_down(delp, h0_u, u0)
+                h0_v = kh_adjustment(mc, v0)
+                v0 = adjust_down(delp, h0_v, v0)
+                h0_w = kh_adjustment(mc, w0)
+                w0 = adjust_down(delp, h0_w, w0)
+                h0_te = kh_adjustment(mc, hd)
+                te = adjust_down(delp, h0_te, te)
             cpm, cvm, t0, hd = adjust_cvm( cpm, cvm, q0_vapor, q0_liquid, q0_rain, q0_ice, q0_snow, q0_graupel, gz, u0, v0, w0, t0, te,hd)
         with interval(4, -1):
             if ri[0, 0, 1] < ri_ref[0, 0, 1]:
-                q0_vapor = q0_vapor + h0_vapor[0, 0, 1] / delp
-                q0_liquid = q0_liquid + h0_liquid[0, 0, 1] / delp
-                q0_rain = q0_rain + h0_rain[0, 0, 1] / delp
-                q0_ice = q0_ice + h0_ice[0, 0, 1] / delp
-                q0_snow = q0_snow + h0_snow[0, 0, 1] / delp
-                q0_graupel = q0_graupel + h0_graupel[0, 0, 1] / delp
-                q0_o3mr = q0_o3mr + h0_o3mr[0, 0, 1] / delp
-                q0_sgs_tke = q0_sgs_tke + h0_sgs_tke[0, 0, 1] / delp
-                q0_cld = q0_cld + h0_cld[0, 0, 1] / delp
-            #q0_vapor  = KH_instability_adjustment_top(ri, ri_ref, delp, h0_vapor,q0_vapor)
-            #q0_liquid= KH_instability_adjustment_top(ri, ri_ref,  delp, h0_liquid, q0_liquid)
-            #q0_rain = KH_instability_adjustment_top(ri, ri_ref,  delp, h0_rain, q0_rain)
-            #q0_ice = KH_instability_adjustment_top(ri, ri_ref,  delp, h0_ice, q0_ice)
-            #q0_snow = KH_instability_adjustment_top(ri, ri_ref,  delp, h0_snow, q0_snow)
-            #q0_graupel = KH_instability_adjustment_top(ri, ri_ref,  delp, h0_graupel, q0_graupel)
-            #q0_o3mr = KH_instability_adjustment_top(ri, ri_ref,  delp, h0_o3mr, q0_o3mr)
-            #q0_sgs_tke = KH_instability_adjustment_top(ri, ri_ref,  delp, h0_sgs_tke, q0_sgs_tke)
-            #q0_cld = KH_instability_adjustment_top(ri, ri_ref,  delp, h0_cld, q0_cld)
-            #if ri[0, 0, 1] < ri_ref[0, 0, 1]:
+                q0_vapor = adjust_up(delp, h0_vapor, q0_vapor)
+                q0_liquid = adjust_up(delp, h0_liquid, q0_liquid)
+                q0_rain = adjust_up(delp, h0_rain, q0_rain)
+                q0_ice = adjust_up(delp, h0_ice, q0_ice)
+                q0_snow = adjust_up(delp, h0_snow, q0_snow)
+                q0_graupel = adjust_up(delp, h0_graupel, q0_graupel)
+                q0_o3mr = adjust_up(delp, h0_o3mr, q0_o3mr)
+                q0_sgs_tke = adjust_up(delp, h0_sgs_tke, q0_sgs_tke)
+                q0_cld = adjust_up(delp, h0_cld, q0_cld)
+                # recompute qcon
                 qcon = qcon_func(qcon, q0_liquid, q0_ice, q0_snow, q0_rain, q0_graupel)
-            #u0 = KH_instability_adjustment_top(ri, ri_ref, delp, h0_u, u0)
-            #if ri[0, 0, 1] < ri_ref[0, 0, 1]:
-                u0 = u0 + h0_u[0, 0, 1] / delp
-                v0 = v0 + h0_v[0, 0, 1] / delp
-                w0 = w0 + h0_w[0, 0, 1] / delp
-                te = te + h0_te[0, 0, 1] / delp
-            #v0 = KH_instability_adjustment_top(ri, ri_ref, delp, h0_v, v0)
-            #w0 = KH_instability_adjustment_top(ri, ri_ref, delp, h0_w, w0)
-            #te = KH_instability_adjustment_top(ri, ri_ref, delp, h0_te, te)
+                u0 = adjust_up(delp, h0_u, u0)
+                v0 = adjust_up(delp, h0_v, v0)
+                w0 = adjust_up(delp, h0_w, w0)
+                te = adjust_up(delp, h0_te, te)
+
             cpm, cvm, t0, hd = adjust_cvm( cpm, cvm, q0_vapor, q0_liquid, q0_rain, q0_ice, q0_snow, q0_graupel, gz, u0, v0, w0, t0, te,hd)
             ri, ri_ref = compute_ri(t0, q0_vapor, qcon, pkz, pm, gz, u0, v0,xvir, t_max, t_min)
             # with computation(PARALLEL):
@@ -355,48 +338,191 @@ def m_loop(
             #with computation(PARALLEL), interval(1, None):
             mc = compute_mass_flux(ri, ri_ref, delp, mc, ratio)
             if ri < ri_ref:
-                h0_vapor = mc * (q0_vapor - q0_vapor[0, 0, -1])
-                q0_vapor = q0_vapor - h0_vapor / delp
-                h0_liquid = mc * (q0_liquid - q0_liquid[0, 0, -1])
-                q0_liquid = q0_liquid - h0_liquid / delp
-                h0_rain = mc * (q0_rain - q0_rain[0, 0, -1])
-                q0_rain = q0_rain - h0_rain / delp
-                h0_ice = mc * (q0_ice - q0_ice[0, 0, -1])
-                q0_ice = q0_ice - h0_ice / delp
-                h0_snow = mc * (q0_snow - q0_snow[0, 0, -1])
-                q0_snow = q0_snow - h0_snow / delp
-                h0_graupel = mc * (q0_graupel - q0_graupel[0, 0, -1])
-                q0_graupel = q0_graupel - h0_graupel / delp
-                h0_o3mr = mc * (q0_o3mr - q0_o3mr[0, 0, -1])
-                q0_o3mr = q0_o3mr - h0_o3mr / delp
-                h0_sgs_tke = mc * (q0_sgs_tke - q0_sgs_tke[0, 0, -1])
-                q0_sgs_tke = q0_sgs_tke - h0_sgs_tke / delp
-                h0_cld = mc * (q0_cld - q0_cld[0, 0, -1])
-                q0_cld = q0_cld - h0_cld / delp
-            #q0_vapor, h0_vapor =KH_instability_adjustment_bottom(ri, ri_ref, mc, delp, h0_vapor, q0_vapor)
-            #q0_liquid, h0_liquid = KH_instability_adjustment_bottom(ri, ri_ref, mc, delp, h0_liquid, q0_liquid)
-            #q0_rain, h0_rain = KH_instability_adjustment_bottom(ri, ri_ref, mc, delp, h0_rain, q0_rain)
-            #q0_ice, h0_ice = KH_instability_adjustment_bottom(ri, ri_ref, mc, delp, h0_ice, q0_ice)
-            #q0_snow, h0_snow = KH_instability_adjustment_bottom(ri, ri_ref, mc, delp, h0_snow, q0_snow)
-            #q0_graupel, h0_graupel = KH_instability_adjustment_bottom(ri, ri_ref, mc, delp, h0_graupel, q0_graupel)
-            #q0_o3mr, h0_o3mr = KH_instability_adjustment_bottom(ri, ri_ref, mc, delp, h0_o3mr, q0_o3mr)
-            #q0_sgs_tke, h0_sgs_tke = KH_instability_adjustment_bottom(ri, ri_ref, mc, delp, h0_sgs_tke, q0_sgs_tke)
-            #q0_cld, h0_cld = KH_instability_adjustment_bottom(ri, ri_ref, mc, delp, h0_cld, q0_cld)
-            #if ri < ri_ref:
-                h0_u = mc * (u0 - u0[0, 0, -1])
-                u0 = u0 - h0_u / delp
-                h0_v = mc * (v0 - v0[0, 0, -1])
-                v0 = v0 - h0_v / delp
-                h0_w = mc * (w0 - w0[0, 0, -1])
-                w0 = w0 - h0_w / delp
-                h0_te = mc * (hd - hd[0, 0, -1])
-                te = te - h0_te / delp
-            #v0, h0_v = KH_instability_adjustment_bottom(ri, ri_ref, mc, delp, h0_v, v0)
-            #w0, h0_w = KH_instability_adjustment_bottom(ri, ri_ref, mc, delp, h0_w, w0)
-            #te, h0_te = KH_instability_adjustment_bottom_te(ri, ri_ref, mc, delp, h0_te, te, hd)
-           
+                h0_vapor = kh_adjustment(mc, q0_vapor)
+                q0_vapor = adjust_down(delp, h0_vapor, q0_vapor)
+                h0_liquid = kh_adjustment(mc, q0_liquid)
+                q0_liquid = adjust_down(delp, h0_liquid, q0_liquid)
+                h0_rain = kh_adjustment(mc, q0_rain)
+                q0_rain = adjust_down(delp, h0_rain, q0_rain)
+                h0_ice = kh_adjustment(mc, q0_ice)
+                q0_ice = adjust_down(delp, h0_ice, q0_ice)
+                h0_snow = kh_adjustment(mc, q0_snow)
+                q0_snow = adjust_down(delp, h0_snow, q0_snow)
+                h0_graupel = kh_adjustment(mc, q0_graupel)
+                q0_graupel = adjust_down(delp, h0_graupel, q0_graupel)
+                h0_o3mr = kh_adjustment(mc, q0_o3mr)
+                q0_o3mr = adjust_down(delp, h0_o3mr, q0_o3mr)
+                h0_sgs_tke = kh_adjustment(mc, q0_sgs_tke)
+                q0_sgs_tke = adjust_down(delp, h0_sgs_tke, q0_sgs_tke)
+                h0_cld = kh_adjustment(mc, q0_cld)
+                q0_cld = adjust_down(delp, h0_cld, q0_cld)
+               
+                h0_u = kh_adjustment(mc, u0)
+                u0 = adjust_down(delp, h0_u, u0)
+                h0_v = kh_adjustment(mc, v0)
+                v0 = adjust_down(delp, h0_v, v0)
+                h0_w = kh_adjustment(mc, w0)
+                w0 = adjust_down(delp, h0_w, w0)
+                h0_te = kh_adjustment(mc, hd)
+                te = adjust_down(delp, h0_te, te)
+        
             cpm, cvm, t0, hd = adjust_cvm( cpm, cvm, q0_vapor, q0_liquid, q0_rain, q0_ice, q0_snow, q0_graupel, gz, u0, v0, w0, t0, te, hd)
-        #with interval(3, 4)
+        with interval(3, 4):
+            if ri[0, 0, 1] < ri_ref[0, 0, 1]:
+                q0_vapor = adjust_up(delp, h0_vapor, q0_vapor)
+                q0_liquid = adjust_up(delp, h0_liquid, q0_liquid)
+                q0_rain = adjust_up(delp, h0_rain, q0_rain)
+                q0_ice = adjust_up(delp, h0_ice, q0_ice)
+                q0_snow = adjust_up(delp, h0_snow, q0_snow)
+                q0_graupel = adjust_up(delp, h0_graupel, q0_graupel)
+                q0_o3mr = adjust_up(delp, h0_o3mr, q0_o3mr)
+                q0_sgs_tke = adjust_up(delp, h0_sgs_tke, q0_sgs_tke)
+                q0_cld = adjust_up(delp, h0_cld, q0_cld)
+                # recompute qcon
+                qcon = qcon_func(qcon, q0_liquid, q0_ice, q0_snow, q0_rain, q0_graupel)
+                u0 = adjust_up(delp, h0_u, u0)
+                v0 = adjust_up(delp, h0_v, v0)
+                w0 = adjust_up(delp, h0_w, w0)
+                te = adjust_up(delp, h0_te, te)
+
+            cpm, cvm, t0, hd = adjust_cvm( cpm, cvm, q0_vapor, q0_liquid, q0_rain, q0_ice, q0_snow, q0_graupel, gz, u0, v0, w0, t0, te,hd)
+            ri, ri_ref = compute_ri(t0, q0_vapor, qcon, pkz, pm, gz, u0, v0,xvir, t_max, t_min)
+            ri_ref = ri_ref * 1.5
+            mc = compute_mass_flux(ri, ri_ref, delp, mc, ratio)
+            if ri < ri_ref:
+                h0_vapor = kh_adjustment(mc, q0_vapor)
+                q0_vapor = adjust_down(delp, h0_vapor, q0_vapor)
+                h0_liquid = kh_adjustment(mc, q0_liquid)
+                q0_liquid = adjust_down(delp, h0_liquid, q0_liquid)
+                h0_rain = kh_adjustment(mc, q0_rain)
+                q0_rain = adjust_down(delp, h0_rain, q0_rain)
+                h0_ice = kh_adjustment(mc, q0_ice)
+                q0_ice = adjust_down(delp, h0_ice, q0_ice)
+                h0_snow = kh_adjustment(mc, q0_snow)
+                q0_snow = adjust_down(delp, h0_snow, q0_snow)
+                h0_graupel = kh_adjustment(mc, q0_graupel)
+                q0_graupel = adjust_down(delp, h0_graupel, q0_graupel)
+                h0_o3mr = kh_adjustment(mc, q0_o3mr)
+                q0_o3mr = adjust_down(delp, h0_o3mr, q0_o3mr)
+                h0_sgs_tke = kh_adjustment(mc, q0_sgs_tke)
+                q0_sgs_tke = adjust_down(delp, h0_sgs_tke, q0_sgs_tke)
+                h0_cld = kh_adjustment(mc, q0_cld)
+                q0_cld = adjust_down(delp, h0_cld, q0_cld)
+               
+                h0_u = kh_adjustment(mc, u0)
+                u0 = adjust_down(delp, h0_u, u0)
+                h0_v = kh_adjustment(mc, v0)
+                v0 = adjust_down(delp, h0_v, v0)
+                h0_w = kh_adjustment(mc, w0)
+                w0 = adjust_down(delp, h0_w, w0)
+                h0_te = kh_adjustment(mc, hd)
+                te = adjust_down(delp, h0_te, te)
+        
+            cpm, cvm, t0, hd = adjust_cvm( cpm, cvm, q0_vapor, q0_liquid, q0_rain, q0_ice, q0_snow, q0_graupel, gz, u0, v0, w0, t0, te, hd)
+        with interval(2, 3):
+            if ri[0, 0, 1] < ri_ref[0, 0, 1]:
+                q0_vapor = adjust_up(delp, h0_vapor, q0_vapor)
+                q0_liquid = adjust_up(delp, h0_liquid, q0_liquid)
+                q0_rain = adjust_up(delp, h0_rain, q0_rain)
+                q0_ice = adjust_up(delp, h0_ice, q0_ice)
+                q0_snow = adjust_up(delp, h0_snow, q0_snow)
+                q0_graupel = adjust_up(delp, h0_graupel, q0_graupel)
+                q0_o3mr = adjust_up(delp, h0_o3mr, q0_o3mr)
+                q0_sgs_tke = adjust_up(delp, h0_sgs_tke, q0_sgs_tke)
+                q0_cld = adjust_up(delp, h0_cld, q0_cld)
+                # recompute qcon
+                qcon = qcon_func(qcon, q0_liquid, q0_ice, q0_snow, q0_rain, q0_graupel)
+                u0 = adjust_up(delp, h0_u, u0)
+                v0 = adjust_up(delp, h0_v, v0)
+                w0 = adjust_up(delp, h0_w, w0)
+                te = adjust_up(delp, h0_te, te)
+
+            cpm, cvm, t0, hd = adjust_cvm( cpm, cvm, q0_vapor, q0_liquid, q0_rain, q0_ice, q0_snow, q0_graupel, gz, u0, v0, w0, t0, te,hd)
+            ri, ri_ref = compute_ri(t0, q0_vapor, qcon, pkz, pm, gz, u0, v0,xvir, t_max, t_min)
+            ri_ref = ri_ref * 2.0
+            mc = compute_mass_flux(ri, ri_ref, delp, mc, ratio)
+            if ri < ri_ref:
+                h0_vapor = kh_adjustment(mc, q0_vapor)
+                q0_vapor = adjust_down(delp, h0_vapor, q0_vapor)
+                h0_liquid = kh_adjustment(mc, q0_liquid)
+                q0_liquid = adjust_down(delp, h0_liquid, q0_liquid)
+                h0_rain = kh_adjustment(mc, q0_rain)
+                q0_rain = adjust_down(delp, h0_rain, q0_rain)
+                h0_ice = kh_adjustment(mc, q0_ice)
+                q0_ice = adjust_down(delp, h0_ice, q0_ice)
+                h0_snow = kh_adjustment(mc, q0_snow)
+                q0_snow = adjust_down(delp, h0_snow, q0_snow)
+                h0_graupel = kh_adjustment(mc, q0_graupel)
+                q0_graupel = adjust_down(delp, h0_graupel, q0_graupel)
+                h0_o3mr = kh_adjustment(mc, q0_o3mr)
+                q0_o3mr = adjust_down(delp, h0_o3mr, q0_o3mr)
+                h0_sgs_tke = kh_adjustment(mc, q0_sgs_tke)
+                q0_sgs_tke = adjust_down(delp, h0_sgs_tke, q0_sgs_tke)
+                h0_cld = kh_adjustment(mc, q0_cld)
+                q0_cld = adjust_down(delp, h0_cld, q0_cld)
+               
+                h0_u = kh_adjustment(mc, u0)
+                u0 = adjust_down(delp, h0_u, u0)
+                h0_v = kh_adjustment(mc, v0)
+                v0 = adjust_down(delp, h0_v, v0)
+                h0_w = kh_adjustment(mc, w0)
+                w0 = adjust_down(delp, h0_w, w0)
+                h0_te = kh_adjustment(mc, hd)
+                te = adjust_down(delp, h0_te, te)
+        
+            cpm, cvm, t0, hd = adjust_cvm( cpm, cvm, q0_vapor, q0_liquid, q0_rain, q0_ice, q0_snow, q0_graupel, gz, u0, v0, w0, t0, te, hd)
+        with interval(1, 2):
+            if ri[0, 0, 1] < ri_ref[0, 0, 1]:
+                q0_vapor = adjust_up(delp, h0_vapor, q0_vapor)
+                q0_liquid = adjust_up(delp, h0_liquid, q0_liquid)
+                q0_rain = adjust_up(delp, h0_rain, q0_rain)
+                q0_ice = adjust_up(delp, h0_ice, q0_ice)
+                q0_snow = adjust_up(delp, h0_snow, q0_snow)
+                q0_graupel = adjust_up(delp, h0_graupel, q0_graupel)
+                q0_o3mr = adjust_up(delp, h0_o3mr, q0_o3mr)
+                q0_sgs_tke = adjust_up(delp, h0_sgs_tke, q0_sgs_tke)
+                q0_cld = adjust_up(delp, h0_cld, q0_cld)
+                # recompute qcon
+                qcon = qcon_func(qcon, q0_liquid, q0_ice, q0_snow, q0_rain, q0_graupel)
+                u0 = adjust_up(delp, h0_u, u0)
+                v0 = adjust_up(delp, h0_v, v0)
+                w0 = adjust_up(delp, h0_w, w0)
+                te = adjust_up(delp, h0_te, te)
+
+            cpm, cvm, t0, hd = adjust_cvm( cpm, cvm, q0_vapor, q0_liquid, q0_rain, q0_ice, q0_snow, q0_graupel, gz, u0, v0, w0, t0, te,hd)
+            ri, ri_ref = compute_ri(t0, q0_vapor, qcon, pkz, pm, gz, u0, v0,xvir, t_max, t_min)
+            ri_ref = ri_ref * 4.0
+            mc = compute_mass_flux(ri, ri_ref, delp, mc, ratio)
+            if ri < ri_ref:
+                h0_vapor = kh_adjustment(mc, q0_vapor)
+                q0_vapor = adjust_down(delp, h0_vapor, q0_vapor)
+                h0_liquid = kh_adjustment(mc, q0_liquid)
+                q0_liquid = adjust_down(delp, h0_liquid, q0_liquid)
+                h0_rain = kh_adjustment(mc, q0_rain)
+                q0_rain = adjust_down(delp, h0_rain, q0_rain)
+                h0_ice = kh_adjustment(mc, q0_ice)
+                q0_ice = adjust_down(delp, h0_ice, q0_ice)
+                h0_snow = kh_adjustment(mc, q0_snow)
+                q0_snow = adjust_down(delp, h0_snow, q0_snow)
+                h0_graupel = kh_adjustment(mc, q0_graupel)
+                q0_graupel = adjust_down(delp, h0_graupel, q0_graupel)
+                h0_o3mr = kh_adjustment(mc, q0_o3mr)
+                q0_o3mr = adjust_down(delp, h0_o3mr, q0_o3mr)
+                h0_sgs_tke = kh_adjustment(mc, q0_sgs_tke)
+                q0_sgs_tke = adjust_down(delp, h0_sgs_tke, q0_sgs_tke)
+                h0_cld = kh_adjustment(mc, q0_cld)
+                q0_cld = adjust_down(delp, h0_cld, q0_cld)
+               
+                h0_u = kh_adjustment(mc, u0)
+                u0 = adjust_down(delp, h0_u, u0)
+                h0_v = kh_adjustment(mc, v0)
+                v0 = adjust_down(delp, h0_v, v0)
+                h0_w = kh_adjustment(mc, w0)
+                w0 = adjust_down(delp, h0_w, w0)
+                h0_te = kh_adjustment(mc, hd)
+                te = adjust_down(delp, h0_te, te)
+        
+            cpm, cvm, t0, hd = adjust_cvm( cpm, cvm, q0_vapor, q0_liquid, q0_rain, q0_ice, q0_snow, q0_graupel, gz, u0, v0, w0, t0, te, hd)
 """
  # kh_bottom tracers
             # with computation(BACKWARD), interval(...):
@@ -766,6 +892,7 @@ def compute(state, nq, dt):
             origin=grid.compute_origin(),
             domain=kbot_domain,
         )
+        """
         if n ==	0:
             i = 10
             j = 12
@@ -788,6 +915,7 @@ def compute(state, nq, dt):
                     print(z, k, v[i, j,z])
             #for z in range(ri.shape[2]):
             #    print('pm at ',z,  pm[i, j,z])
+        """
         #if k == 1:
         #    ri_ref *= 4.0
         #if k == 2:
