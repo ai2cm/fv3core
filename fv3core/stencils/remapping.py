@@ -119,6 +119,7 @@ def moist_cv_pt_pressure(
 def copy_j_adjacent(pe2: FloatField):
     with computation(PARALLEL), interval(...):
         pe2_0 = pe2[0, -1, 0]
+    with computation(PARALLEL), interval(...):
         pe2 = pe2_0
 
 
