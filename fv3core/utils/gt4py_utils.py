@@ -23,10 +23,6 @@ logger = logging.getLogger("fv3ser")
 # If True, automatically transfers memory between CPU and GPU (see gt4py.storage)
 managed_memory = True
 
-# [DEPRECATED] field types
-sd = gtscript.Field[Float]
-si = gtscript.Field[Int]
-
 # Number of halo lines for each field and default origin
 halo = 3
 origin = (halo, halo, 0)

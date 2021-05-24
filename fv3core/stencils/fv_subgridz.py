@@ -56,7 +56,6 @@ def tvol(gz, u0, v0, w0):
 @gtstencil
 def init(
     gz: FloatField,
-    gzh: FloatField,
     t0: FloatField,
     u0: FloatField,
     v0: FloatField,
@@ -82,12 +81,13 @@ def init(
         t0 = ta
         u0 = ua
         v0 = va
-    with computation(BACKWARD), interval(...):
+        w0 = w
+        gzh = 0.0
+    with computation(BACKWARD), interval(0, -1):
         # note only for nwat = 6
         cpm, cvm = standard_cm(
             cpm, cvm, q0_vapor, q0_liquid, q0_rain, q0_ice, q0_snow, q0_graupel
         )
-        w0 = w
         gz = gzh[0, 0, 1] - G2 * delz
         tmp = tvol(gz, u0, v0, w0)
         hd = cpm * t0 + tmp
@@ -112,7 +112,7 @@ def adjust_cvm( cpm, cvm, q0_vapor, q0_liquid, q0_rain, q0_ice, q0_snow, q0_grau
     return cpm, cvm, t0, hd
 
 @gtscript.function
-def compute_ri(t0, q0_vapor, qcon, pkz, delp, peln, gz, u0, v0,xvir,t_max, t_min):
+def compute_richardson_number(t0, q0_vapor, qcon, pkz, delp, peln, gz, u0, v0,xvir,t_max, t_min):
     tv1 = t0[0, 0, -1] * (1.0 + xvir * q0_vapor[0, 0, -1] - qcon[0, 0, -1])
     tv2 = t0 * (1.0 + xvir * q0_vapor - qcon)
     pt1 = tv1 / pkz[0, 0, -1]
@@ -172,7 +172,6 @@ def m_loop(
     t0: FloatField,
     hd: FloatField,
     gz: FloatField,
-    qcon: FloatField,
     delp: FloatField,peln: FloatField, 
     pkz: FloatField,
     q0_vapor: FloatField,
@@ -214,7 +213,7 @@ def m_loop(
             # Adjustment for K-H instability:
             # Compute equivalent mass flux: mc
             # Add moist 2-dz instability consideration:
-            ri, ri_ref = compute_ri(t0, q0_vapor, qcon, pkz,delp, peln, gz, u0, v0,xvir, t_max, t_min)
+            ri, ri_ref = compute_richardson_number(t0, q0_vapor, qcon, pkz,delp, peln, gz, u0, v0,xvir, t_max, t_min)
             mc = compute_mass_flux(ri, ri_ref, delp, mc, ratio)
             if ri < ri_ref:
                 # TODO: loop over tracers not hardcoded
@@ -265,7 +264,7 @@ def m_loop(
                 w0 = adjust_up(delp, h0_w, w0)
                 te = adjust_up(delp, h0_te, te)
             cpm, cvm, t0, hd = adjust_cvm( cpm, cvm, q0_vapor, q0_liquid, q0_rain, q0_ice, q0_snow, q0_graupel, gz, u0, v0, w0, t0, te,hd)
-            ri, ri_ref = compute_ri(t0, q0_vapor, qcon, pkz,delp, peln, gz, u0, v0,xvir, t_max, t_min)
+            ri, ri_ref = compute_richardson_number(t0, q0_vapor, qcon, pkz,delp, peln, gz, u0, v0,xvir, t_max, t_min)
 
             mc = compute_mass_flux(ri, ri_ref, delp, mc, ratio)
             if ri < ri_ref:
@@ -320,7 +319,7 @@ def m_loop(
                 te = adjust_up(delp, h0_te, te)
 
             cpm, cvm, t0, hd = adjust_cvm( cpm, cvm, q0_vapor, q0_liquid, q0_rain, q0_ice, q0_snow, q0_graupel, gz, u0, v0, w0, t0, te,hd)
-            ri, ri_ref = compute_ri(t0, q0_vapor, qcon, pkz,delp, peln, gz, u0, v0,xvir, t_max, t_min)
+            ri, ri_ref = compute_richardson_number(t0, q0_vapor, qcon, pkz,delp, peln, gz, u0, v0,xvir, t_max, t_min)
             # TODO, can we just check if index(K) == 3?
             ri_ref = ri_ref * 1.5
             mc = compute_mass_flux(ri, ri_ref, delp, mc, ratio)
@@ -373,7 +372,7 @@ def m_loop(
                 te = adjust_up(delp, h0_te, te)
 
             cpm, cvm, t0, hd = adjust_cvm( cpm, cvm, q0_vapor, q0_liquid, q0_rain, q0_ice, q0_snow, q0_graupel, gz, u0, v0, w0, t0, te,hd)
-            ri, ri_ref = compute_ri(t0, q0_vapor, qcon, pkz,delp, peln, gz, u0, v0,xvir, t_max, t_min)
+            ri, ri_ref = compute_richardson_number(t0, q0_vapor, qcon, pkz,delp, peln, gz, u0, v0,xvir, t_max, t_min)
             ri_ref = ri_ref * 2.0
             mc = compute_mass_flux(ri, ri_ref, delp, mc, ratio)
             if ri < ri_ref:
@@ -425,7 +424,7 @@ def m_loop(
                 te = adjust_up(delp, h0_te, te)
 
             cpm, cvm, t0, hd = adjust_cvm( cpm, cvm, q0_vapor, q0_liquid, q0_rain, q0_ice, q0_snow, q0_graupel, gz, u0, v0, w0, t0, te,hd)
-            ri, ri_ref = compute_ri(t0, q0_vapor, qcon, pkz,delp, peln, gz, u0, v0,xvir, t_max, t_min)
+            ri, ri_ref = compute_richardson_number(t0, q0_vapor, qcon, pkz,delp, peln, gz, u0, v0,xvir, t_max, t_min)
             ri_ref = ri_ref * 4.0
             mc = compute_mass_flux(ri, ri_ref, delp, mc, ratio)
             if ri < ri_ref:
@@ -595,9 +594,6 @@ def compute(state, nq, dt):
     w0 = utils.make_storage_from_shape(
         shape, origin, init=True, cache_key="fv_subgridz_w0"
     )
-    gzh = utils.make_storage_from_shape(
-        shape, origin, init=True, cache_key="fv_subgridz_gzh"
-    )
     gz = utils.make_storage_from_shape(
         shape, origin, init=True, cache_key="fv_subgridz_gz"
     )
@@ -607,9 +603,7 @@ def compute(state, nq, dt):
 
     hd = utils.make_storage_from_shape(shape, origin, cache_key="fv_subgridz_hd")
     te = utils.make_storage_from_shape(shape, origin, cache_key="fv_subgridz_te")
-    qcon = utils.make_storage_from_shape(
-        shape, origin, init=True, cache_key="fv_subgridz_qcon"
-    )
+
     cvm = utils.make_storage_from_shape(shape, origin, cache_key="fv_subgridz_cvm")
     cpm = utils.make_storage_from_shape(shape, origin, cache_key="fv_subgridz_cpm")
 
@@ -617,7 +611,6 @@ def compute(state, nq, dt):
     origin = grid.compute_origin()
     init(
         gz,
-        gzh,
         t0,
         u0,
         v0,
@@ -639,7 +632,7 @@ def compute(state, nq, dt):
         q0["qgraupel"],
         xvir,
         origin=origin,
-        domain=kbot_domain,
+        domain=(grid.nic, grid.njc, k_bot+1),
     )
 
     ratios = {0: 0.25, 1: 0.5, 2: 0.999}
@@ -654,7 +647,6 @@ def compute(state, nq, dt):
             t0,
             hd,
             gz,
-            qcon,
             state.delp,state.peln, 
             state.pkz,
             q0["qvapor"],q0["qliquid"], q0["qrain"], q0["qice"], q0["qsnow"], q0["qgraupel"], q0["qo3mr"], q0["qsgs_tke"], q0["qcld"],
