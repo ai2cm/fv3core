@@ -1,11 +1,14 @@
+from types import SimpleNamespace
+
 import pytest
 
+import fv3core._config as spec
 import fv3core.stencils.fv_subgridz as fv_subgridz
 import fv3core.utils.gt4py_utils as utils
 import fv3gfs.util as fv3util
 from fv3core.testing import ParallelTranslateBaseSlicing
-import fv3core._config as spec
-from types import SimpleNamespace
+
+
 # NOTE, does no halo updates, does not need to be a Parallel test,
 # but doing so here to make the interface match fv_dynamics.
 # Could add support to the TranslateFortranData2Py class
@@ -114,12 +117,11 @@ class TranslateFVSubgridZ(ParallelTranslateBaseSlicing):
             "dims": [fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_DIM],
             "units": "m/s**2",
         },
-        "nq": {"dims": []},
         "dt": {"dims": []},
     }
     outputs = inputs.copy()
 
-    for name in ("nq", "dt", "pe", "peln", "delp", "delz", "pkz"):
+    for name in ("dt", "pe", "peln", "delp", "delz", "pkz"):
         outputs.pop(name)
 
     def __init__(self, grids, *args, **kwargs):
@@ -176,7 +178,7 @@ class TranslateFVSubgridZ(ParallelTranslateBaseSlicing):
             spec.namelist,
         )
         state = SimpleNamespace(**state)
-        fvsubgridz(state, inputs["nq"], inputs["dt"])
+        fvsubgridz(state, inputs["dt"])
         outputs = self.outputs_from_state(state.__dict__)
         return outputs
 

@@ -1,8 +1,11 @@
+from typing import Mapping
+
 import gt4py.gtscript as gtscript
-from gt4py.gtscript import BACKWARD, PARALLEL, computation, interval, __INLINED
-import fv3gfs.util
+from gt4py.gtscript import __INLINED, BACKWARD, PARALLEL, computation, interval
+
 import fv3core._config as spec
 import fv3core.utils.gt4py_utils as utils
+import fv3gfs.util
 from fv3core.decorators import ArgSpec, FrozenStencil
 from fv3core.stencils.basic_operations import dim
 from fv3core.utils.global_constants import (
@@ -17,7 +20,8 @@ from fv3core.utils.global_constants import (
     ZVIR,
 )
 from fv3core.utils.typing import FloatField
-from typing import Mapping
+
+
 RK = CP_AIR / RDGAS + 1.0
 G2 = 0.5 * GRAV
 T1_MIN = 160.0
@@ -85,9 +89,9 @@ def init(
     qgraupel: FloatField,
     qo3mr: FloatField,
     qsgs_tke: FloatField,
-    qcld: FloatField,    
+    qcld: FloatField,
 ):
-    
+
     with computation(PARALLEL), interval(...):
         t0 = ta
         u0 = ua
@@ -117,13 +121,28 @@ def init(
 
 
 @gtscript.function
-def qcon_func(qcon, q0_liquid, q0_ice, q0_snow, q0_rain, q0_graupel):
+def qcon_func(q0_liquid, q0_ice, q0_snow, q0_rain, q0_graupel):
     return q0_liquid + q0_ice + q0_snow + q0_rain + q0_graupel
 
 
-
 @gtscript.function
-def adjust_cvm( cpm, cvm, q0_vapor, q0_liquid, q0_rain, q0_ice, q0_snow, q0_graupel, gz, u0, v0, w0, t0, te, hd):
+def adjust_cvm(
+    cpm,
+    cvm,
+    q0_vapor,
+    q0_liquid,
+    q0_rain,
+    q0_ice,
+    q0_snow,
+    q0_graupel,
+    gz,
+    u0,
+    v0,
+    w0,
+    t0,
+    te,
+    hd,
+):
     cpm, cvm = standard_cm(
         cpm, cvm, q0_vapor, q0_liquid, q0_rain, q0_ice, q0_snow, q0_graupel
     )
@@ -132,8 +151,11 @@ def adjust_cvm( cpm, cvm, q0_vapor, q0_liquid, q0_rain, q0_ice, q0_snow, q0_grau
     hd = cpm * t0 + tv
     return cpm, cvm, t0, hd
 
+
 @gtscript.function
-def compute_richardson_number(t0, q0_vapor, qcon, pkz, delp, peln, gz, u0, v0,xvir,t_max, t_min):
+def compute_richardson_number(
+    t0, q0_vapor, qcon, pkz, delp, peln, gz, u0, v0, xvir, t_max, t_min
+):
     tv1 = t0[0, 0, -1] * (1.0 + xvir * q0_vapor[0, 0, -1] - qcon[0, 0, -1])
     tv2 = t0 * (1.0 + xvir * q0_vapor - qcon)
     pt1 = tv1 / pkz[0, 0, -1]
@@ -151,10 +173,14 @@ def compute_richardson_number(t0, q0_vapor, qcon, pkz, delp, peln, gz, u0, v0,xv
         ri = 0
     elif tv2 < t_min:
         ri = ri if ri < 0.1 else 0.1
-    ri_ref = RI_MIN + (RI_MAX - RI_MIN) * dim(400.0e2, delp / (peln[0, 0, 1] - peln)) / 200.0e2
+    ri_ref = (
+        RI_MIN
+        + (RI_MAX - RI_MIN) * dim(400.0e2, delp / (peln[0, 0, 1] - peln)) / 200.0e2
+    )
     if RI_MAX < ri_ref:
         ri_ref = RI_MAX
     return ri, ri_ref
+
 
 @gtscript.function
 def compute_mass_flux(ri, ri_ref, delp, mc, ratio):
@@ -176,13 +202,15 @@ def compute_mass_flux(ri, ri_ref, delp, mc, ratio):
 def kh_adjustment(mc, q0):
     return mc * (q0 - q0[0, 0, -1])
 
+
 @gtscript.function
 def adjust_down(delp, h0, q0):
-    return  q0 - h0 / delp
+    return q0 - h0 / delp
+
 
 @gtscript.function
 def adjust_up(delp, h0, q0):
-    return  q0 + h0[0, 0, 1] / delp
+    return q0 + h0[0, 0, 1] / delp
 
 
 def m_loop(
@@ -192,7 +220,8 @@ def m_loop(
     t0: FloatField,
     hd: FloatField,
     gz: FloatField,
-    delp: FloatField,peln: FloatField, 
+    delp: FloatField,
+    peln: FloatField,
     pkz: FloatField,
     q0_vapor: FloatField,
     q0_liquid: FloatField,
@@ -204,13 +233,15 @@ def m_loop(
     q0_sgs_tke: FloatField,
     q0_cld: FloatField,
     te: FloatField,
-    cpm: FloatField, cvm:FloatField, 
+    cpm: FloatField,
+    cvm: FloatField,
     t_min: float,
     ratio: float,
 ):
     from __externals__ import t_max, xvir
+
     with computation(PARALLEL), interval(...):
-        qcon = qcon_func(qcon, q0_liquid, q0_ice, q0_snow, q0_rain, q0_graupel)
+        qcon = qcon_func(q0_liquid, q0_ice, q0_snow, q0_rain, q0_graupel)
         h0_vapor = 0.0
         h0_liquid = 0.0
         h0_rain = 0.0
@@ -229,7 +260,9 @@ def m_loop(
         ref = 0.0
     with computation(BACKWARD):
         with interval(-1, None):
-            ri, ri_ref = compute_richardson_number(t0, q0_vapor, qcon, pkz,delp, peln, gz, u0, v0,xvir, t_max, t_min)
+            ri, ri_ref = compute_richardson_number(
+                t0, q0_vapor, qcon, pkz, delp, peln, gz, u0, v0, xvir, t_max, t_min
+            )
             mc = compute_mass_flux(ri, ri_ref, delp, mc, ratio)
             if ri < ri_ref:
                 # TODO: loop over tracers not hardcoded
@@ -261,7 +294,23 @@ def m_loop(
                 w0 = adjust_down(delp, h0_w, w0)
                 h0_te = kh_adjustment(mc, hd)
                 te = adjust_down(delp, h0_te, te)
-            cpm, cvm, t0, hd = adjust_cvm( cpm, cvm, q0_vapor, q0_liquid, q0_rain, q0_ice, q0_snow, q0_graupel, gz, u0, v0, w0, t0, te,hd)
+            cpm, cvm, t0, hd = adjust_cvm(
+                cpm,
+                cvm,
+                q0_vapor,
+                q0_liquid,
+                q0_rain,
+                q0_ice,
+                q0_snow,
+                q0_graupel,
+                gz,
+                u0,
+                v0,
+                w0,
+                t0,
+                te,
+                hd,
+            )
         with interval(4, -1):
             if ri[0, 0, 1] < ri_ref[0, 0, 1]:
                 q0_vapor = adjust_up(delp, h0_vapor, q0_vapor)
@@ -274,13 +323,31 @@ def m_loop(
                 q0_sgs_tke = adjust_up(delp, h0_sgs_tke, q0_sgs_tke)
                 q0_cld = adjust_up(delp, h0_cld, q0_cld)
                 # recompute qcon
-                qcon = qcon_func(qcon, q0_liquid, q0_ice, q0_snow, q0_rain, q0_graupel)
+                qcon = qcon_func(q0_liquid, q0_ice, q0_snow, q0_rain, q0_graupel)
                 u0 = adjust_up(delp, h0_u, u0)
                 v0 = adjust_up(delp, h0_v, v0)
                 w0 = adjust_up(delp, h0_w, w0)
                 te = adjust_up(delp, h0_te, te)
-            cpm, cvm, t0, hd = adjust_cvm( cpm, cvm, q0_vapor, q0_liquid, q0_rain, q0_ice, q0_snow, q0_graupel, gz, u0, v0, w0, t0, te,hd)
-            ri, ri_ref = compute_richardson_number(t0, q0_vapor, qcon, pkz,delp, peln, gz, u0, v0,xvir, t_max, t_min)
+            cpm, cvm, t0, hd = adjust_cvm(
+                cpm,
+                cvm,
+                q0_vapor,
+                q0_liquid,
+                q0_rain,
+                q0_ice,
+                q0_snow,
+                q0_graupel,
+                gz,
+                u0,
+                v0,
+                w0,
+                t0,
+                te,
+                hd,
+            )
+            ri, ri_ref = compute_richardson_number(
+                t0, q0_vapor, qcon, pkz, delp, peln, gz, u0, v0, xvir, t_max, t_min
+            )
 
             mc = compute_mass_flux(ri, ri_ref, delp, mc, ratio)
             if ri < ri_ref:
@@ -302,7 +369,7 @@ def m_loop(
                 q0_sgs_tke = adjust_down(delp, h0_sgs_tke, q0_sgs_tke)
                 h0_cld = kh_adjustment(mc, q0_cld)
                 q0_cld = adjust_down(delp, h0_cld, q0_cld)
-               
+
                 h0_u = kh_adjustment(mc, u0)
                 u0 = adjust_down(delp, h0_u, u0)
                 h0_v = kh_adjustment(mc, v0)
@@ -311,8 +378,24 @@ def m_loop(
                 w0 = adjust_down(delp, h0_w, w0)
                 h0_te = kh_adjustment(mc, hd)
                 te = adjust_down(delp, h0_te, te)
-        
-            cpm, cvm, t0, hd = adjust_cvm( cpm, cvm, q0_vapor, q0_liquid, q0_rain, q0_ice, q0_snow, q0_graupel, gz, u0, v0, w0, t0, te, hd)
+
+            cpm, cvm, t0, hd = adjust_cvm(
+                cpm,
+                cvm,
+                q0_vapor,
+                q0_liquid,
+                q0_rain,
+                q0_ice,
+                q0_snow,
+                q0_graupel,
+                gz,
+                u0,
+                v0,
+                w0,
+                t0,
+                te,
+                hd,
+            )
         with interval(3, 4):
             # TODO: this is repetitive, but using functions did not work as
             # expected. spend some more time here so not so much needs
@@ -327,14 +410,32 @@ def m_loop(
                 q0_o3mr = adjust_up(delp, h0_o3mr, q0_o3mr)
                 q0_sgs_tke = adjust_up(delp, h0_sgs_tke, q0_sgs_tke)
                 q0_cld = adjust_up(delp, h0_cld, q0_cld)
-                qcon = qcon_func(qcon, q0_liquid, q0_ice, q0_snow, q0_rain, q0_graupel)
+                qcon = qcon_func(q0_liquid, q0_ice, q0_snow, q0_rain, q0_graupel)
                 u0 = adjust_up(delp, h0_u, u0)
                 v0 = adjust_up(delp, h0_v, v0)
                 w0 = adjust_up(delp, h0_w, w0)
                 te = adjust_up(delp, h0_te, te)
 
-            cpm, cvm, t0, hd = adjust_cvm( cpm, cvm, q0_vapor, q0_liquid, q0_rain, q0_ice, q0_snow, q0_graupel, gz, u0, v0, w0, t0, te,hd)
-            ri, ri_ref = compute_richardson_number(t0, q0_vapor, qcon, pkz,delp, peln, gz, u0, v0,xvir, t_max, t_min)
+            cpm, cvm, t0, hd = adjust_cvm(
+                cpm,
+                cvm,
+                q0_vapor,
+                q0_liquid,
+                q0_rain,
+                q0_ice,
+                q0_snow,
+                q0_graupel,
+                gz,
+                u0,
+                v0,
+                w0,
+                t0,
+                te,
+                hd,
+            )
+            ri, ri_ref = compute_richardson_number(
+                t0, q0_vapor, qcon, pkz, delp, peln, gz, u0, v0, xvir, t_max, t_min
+            )
             # TODO, can we just check if index(K) == 3?
             ri_ref = ri_ref * 1.5
             mc = compute_mass_flux(ri, ri_ref, delp, mc, ratio)
@@ -357,7 +458,7 @@ def m_loop(
                 q0_sgs_tke = adjust_down(delp, h0_sgs_tke, q0_sgs_tke)
                 h0_cld = kh_adjustment(mc, q0_cld)
                 q0_cld = adjust_down(delp, h0_cld, q0_cld)
-               
+
                 h0_u = kh_adjustment(mc, u0)
                 u0 = adjust_down(delp, h0_u, u0)
                 h0_v = kh_adjustment(mc, v0)
@@ -366,8 +467,24 @@ def m_loop(
                 w0 = adjust_down(delp, h0_w, w0)
                 h0_te = kh_adjustment(mc, hd)
                 te = adjust_down(delp, h0_te, te)
-        
-            cpm, cvm, t0, hd = adjust_cvm( cpm, cvm, q0_vapor, q0_liquid, q0_rain, q0_ice, q0_snow, q0_graupel, gz, u0, v0, w0, t0, te, hd)
+
+            cpm, cvm, t0, hd = adjust_cvm(
+                cpm,
+                cvm,
+                q0_vapor,
+                q0_liquid,
+                q0_rain,
+                q0_ice,
+                q0_snow,
+                q0_graupel,
+                gz,
+                u0,
+                v0,
+                w0,
+                t0,
+                te,
+                hd,
+            )
         with interval(2, 3):
             if ri[0, 0, 1] < ri_ref[0, 0, 1]:
                 q0_vapor = adjust_up(delp, h0_vapor, q0_vapor)
@@ -379,14 +496,32 @@ def m_loop(
                 q0_o3mr = adjust_up(delp, h0_o3mr, q0_o3mr)
                 q0_sgs_tke = adjust_up(delp, h0_sgs_tke, q0_sgs_tke)
                 q0_cld = adjust_up(delp, h0_cld, q0_cld)
-                qcon = qcon_func(qcon, q0_liquid, q0_ice, q0_snow, q0_rain, q0_graupel)
+                qcon = qcon_func(q0_liquid, q0_ice, q0_snow, q0_rain, q0_graupel)
                 u0 = adjust_up(delp, h0_u, u0)
                 v0 = adjust_up(delp, h0_v, v0)
                 w0 = adjust_up(delp, h0_w, w0)
                 te = adjust_up(delp, h0_te, te)
 
-            cpm, cvm, t0, hd = adjust_cvm( cpm, cvm, q0_vapor, q0_liquid, q0_rain, q0_ice, q0_snow, q0_graupel, gz, u0, v0, w0, t0, te,hd)
-            ri, ri_ref = compute_richardson_number(t0, q0_vapor, qcon, pkz,delp, peln, gz, u0, v0,xvir, t_max, t_min)
+            cpm, cvm, t0, hd = adjust_cvm(
+                cpm,
+                cvm,
+                q0_vapor,
+                q0_liquid,
+                q0_rain,
+                q0_ice,
+                q0_snow,
+                q0_graupel,
+                gz,
+                u0,
+                v0,
+                w0,
+                t0,
+                te,
+                hd,
+            )
+            ri, ri_ref = compute_richardson_number(
+                t0, q0_vapor, qcon, pkz, delp, peln, gz, u0, v0, xvir, t_max, t_min
+            )
             ri_ref = ri_ref * 2.0
             mc = compute_mass_flux(ri, ri_ref, delp, mc, ratio)
             if ri < ri_ref:
@@ -408,7 +543,7 @@ def m_loop(
                 q0_sgs_tke = adjust_down(delp, h0_sgs_tke, q0_sgs_tke)
                 h0_cld = kh_adjustment(mc, q0_cld)
                 q0_cld = adjust_down(delp, h0_cld, q0_cld)
-               
+
                 h0_u = kh_adjustment(mc, u0)
                 u0 = adjust_down(delp, h0_u, u0)
                 h0_v = kh_adjustment(mc, v0)
@@ -417,8 +552,24 @@ def m_loop(
                 w0 = adjust_down(delp, h0_w, w0)
                 h0_te = kh_adjustment(mc, hd)
                 te = adjust_down(delp, h0_te, te)
-        
-            cpm, cvm, t0, hd = adjust_cvm( cpm, cvm, q0_vapor, q0_liquid, q0_rain, q0_ice, q0_snow, q0_graupel, gz, u0, v0, w0, t0, te, hd)
+
+            cpm, cvm, t0, hd = adjust_cvm(
+                cpm,
+                cvm,
+                q0_vapor,
+                q0_liquid,
+                q0_rain,
+                q0_ice,
+                q0_snow,
+                q0_graupel,
+                gz,
+                u0,
+                v0,
+                w0,
+                t0,
+                te,
+                hd,
+            )
         with interval(1, 2):
             if ri[0, 0, 1] < ri_ref[0, 0, 1]:
                 q0_vapor = adjust_up(delp, h0_vapor, q0_vapor)
@@ -430,14 +581,32 @@ def m_loop(
                 q0_o3mr = adjust_up(delp, h0_o3mr, q0_o3mr)
                 q0_sgs_tke = adjust_up(delp, h0_sgs_tke, q0_sgs_tke)
                 q0_cld = adjust_up(delp, h0_cld, q0_cld)
-                qcon = qcon_func(qcon, q0_liquid, q0_ice, q0_snow, q0_rain, q0_graupel)
+                qcon = qcon_func(q0_liquid, q0_ice, q0_snow, q0_rain, q0_graupel)
                 u0 = adjust_up(delp, h0_u, u0)
                 v0 = adjust_up(delp, h0_v, v0)
                 w0 = adjust_up(delp, h0_w, w0)
                 te = adjust_up(delp, h0_te, te)
 
-            cpm, cvm, t0, hd = adjust_cvm( cpm, cvm, q0_vapor, q0_liquid, q0_rain, q0_ice, q0_snow, q0_graupel, gz, u0, v0, w0, t0, te,hd)
-            ri, ri_ref = compute_richardson_number(t0, q0_vapor, qcon, pkz,delp, peln, gz, u0, v0,xvir, t_max, t_min)
+            cpm, cvm, t0, hd = adjust_cvm(
+                cpm,
+                cvm,
+                q0_vapor,
+                q0_liquid,
+                q0_rain,
+                q0_ice,
+                q0_snow,
+                q0_graupel,
+                gz,
+                u0,
+                v0,
+                w0,
+                t0,
+                te,
+                hd,
+            )
+            ri, ri_ref = compute_richardson_number(
+                t0, q0_vapor, qcon, pkz, delp, peln, gz, u0, v0, xvir, t_max, t_min
+            )
             ri_ref = ri_ref * 4.0
             mc = compute_mass_flux(ri, ri_ref, delp, mc, ratio)
             if ri < ri_ref:
@@ -459,7 +628,7 @@ def m_loop(
                 q0_sgs_tke = adjust_down(delp, h0_sgs_tke, q0_sgs_tke)
                 h0_cld = kh_adjustment(mc, q0_cld)
                 q0_cld = adjust_down(delp, h0_cld, q0_cld)
-               
+
                 h0_u = kh_adjustment(mc, u0)
                 u0 = adjust_down(delp, h0_u, u0)
                 h0_v = kh_adjustment(mc, v0)
@@ -468,8 +637,24 @@ def m_loop(
                 w0 = adjust_down(delp, h0_w, w0)
                 h0_te = kh_adjustment(mc, hd)
                 te = adjust_down(delp, h0_te, te)
-        
-            cpm, cvm, t0, hd = adjust_cvm( cpm, cvm, q0_vapor, q0_liquid, q0_rain, q0_ice, q0_snow, q0_graupel, gz, u0, v0, w0, t0, te, hd)
+
+            cpm, cvm, t0, hd = adjust_cvm(
+                cpm,
+                cvm,
+                q0_vapor,
+                q0_liquid,
+                q0_rain,
+                q0_ice,
+                q0_snow,
+                q0_graupel,
+                gz,
+                u0,
+                v0,
+                w0,
+                t0,
+                te,
+                hd,
+            )
         with interval(0, 1):
             if ri[0, 0, 1] < ri_ref[0, 0, 1]:
                 q0_vapor = adjust_up(delp, h0_vapor, q0_vapor)
@@ -481,17 +666,35 @@ def m_loop(
                 q0_o3mr = adjust_up(delp, h0_o3mr, q0_o3mr)
                 q0_sgs_tke = adjust_up(delp, h0_sgs_tke, q0_sgs_tke)
                 q0_cld = adjust_up(delp, h0_cld, q0_cld)
-                qcon = qcon_func(qcon, q0_liquid, q0_ice, q0_snow, q0_rain, q0_graupel)
+                qcon = qcon_func(q0_liquid, q0_ice, q0_snow, q0_rain, q0_graupel)
                 u0 = adjust_up(delp, h0_u, u0)
                 v0 = adjust_up(delp, h0_v, v0)
                 w0 = adjust_up(delp, h0_w, w0)
                 te = adjust_up(delp, h0_te, te)
 
-            cpm, cvm, t0, hd = adjust_cvm( cpm, cvm, q0_vapor, q0_liquid, q0_rain, q0_ice, q0_snow, q0_graupel, gz, u0, v0, w0, t0, te,hd)
-            
+            cpm, cvm, t0, hd = adjust_cvm(
+                cpm,
+                cvm,
+                q0_vapor,
+                q0_liquid,
+                q0_rain,
+                q0_ice,
+                q0_snow,
+                q0_graupel,
+                gz,
+                u0,
+                v0,
+                w0,
+                t0,
+                te,
+                hd,
+            )
+
+
 @gtscript.function
 def readjust_by_frac(a0, a, fra):
     return a + (a0 - a) * fra
+
 
 def finalize(
     u0: FloatField,
@@ -521,10 +724,12 @@ def finalize(
     qgraupel: FloatField,
     qo3mr: FloatField,
     qsgs_tke: FloatField,
-    qcld: FloatField,    
-    rdt: float, fra: float
+    qcld: FloatField,
+    rdt: float,
+    fra: float,
 ):
     from __externals__ import hydrostatic
+
     with computation(PARALLEL), interval(...):
         if fra < 1.0:
             t0 = readjust_by_frac(t0, ta, fra)
@@ -562,12 +767,16 @@ class FVSubgridZ:
     """
     Corresponds to fv_subgrid_z in Fortran's fv_sg module
     """
+
     arg_specs = (
         ArgSpec("delp", "pressure_thickness_of_atmospheric_layer", "Pa", intent="in"),
         ArgSpec("delz", "vertical_thickness_of_atmospheric_layer", "m", intent="in"),
         ArgSpec("pe", "interface_pressure", "Pa", intent="in"),
         ArgSpec(
-            "pkz", "layer_mean_pressure_raised_to_power_of_kappa", "unknown", intent="in"
+            "pkz",
+            "layer_mean_pressure_raised_to_power_of_kappa",
+            "unknown",
+            intent="in",
         ),
         ArgSpec("peln", "logarithm_of_interface_pressure", "ln(Pa)", intent="in"),
         ArgSpec("pt", "air_temperature", "degK", intent="inout"),
@@ -583,13 +792,20 @@ class FVSubgridZ:
         ArgSpec("qo3mr", "ozone_mixing_ratio", "kg/kg", intent="inout"),
         ArgSpec("qsgs_tke", "turbulent_kinetic_energy", "m**2/s**2", intent="inout"),
         ArgSpec("qcld", "cloud_fraction", "", intent="inout"),
-        ArgSpec("u_dt", "eastward_wind_tendency_due_to_physics", "m/s**2", intent="inout"),
-        ArgSpec("v_dt", "northward_wind_tendency_due_to_physics", "m/s**2", intent="inout"),
+        ArgSpec(
+            "u_dt", "eastward_wind_tendency_due_to_physics", "m/s**2", intent="inout"
+        ),
+        ArgSpec(
+            "v_dt", "northward_wind_tendency_due_to_physics", "m/s**2", intent="inout"
+        ),
     )
+
     def __init__(self, namelist):
         self.grid = spec.grid
         self.namelist = namelist
-        assert not self.namelist.hydrostatic, "Hydrostatic not implemented for fv_subgridz"
+        assert (
+            not self.namelist.hydrostatic
+        ), "Hydrostatic not implemented for fv_subgridz"
         self._k_sponge = self.namelist.n_sponge
         if self._k_sponge is not None:
             if self._k_sponge < 3:
@@ -611,9 +827,23 @@ class FVSubgridZ:
         kbot_domain = (self.grid.nic, self.grid.njc, self._k_sponge)
         origin = self.grid.compute_origin()
 
-        self._init_stencil = FrozenStencil(init, origin=origin,domain=(self.grid.nic, self.grid.njc, self._k_sponge+1))
-        self._m_loop_stencil = FrozenStencil(m_loop, externals={'t_max': t_max, 'xvir': xvir},origin=origin, domain=kbot_domain)
-        self._finalize_stencil = FrozenStencil(finalize, externals={'hydrostatic': self.namelist.hydrostatic},origin=origin, domain=kbot_domain)
+        self._init_stencil = FrozenStencil(
+            init,
+            origin=origin,
+            domain=(self.grid.nic, self.grid.njc, self._k_sponge + 1),
+        )
+        self._m_loop_stencil = FrozenStencil(
+            m_loop,
+            externals={"t_max": t_max, "xvir": xvir},
+            origin=origin,
+            domain=kbot_domain,
+        )
+        self._finalize_stencil = FrozenStencil(
+            finalize,
+            externals={"hydrostatic": self.namelist.hydrostatic},
+            origin=origin,
+            domain=kbot_domain,
+        )
         shape = self.grid.domain_shape_full(add=(1, 1, 0))
         self._q0 = {}
         for tracername in utils.tracer_variables:
@@ -629,13 +859,8 @@ class FVSubgridZ:
         self._tmp_cpm = utils.make_storage_from_shape(shape)
         self._ratios = {0: 0.25, 1: 0.5, 2: 0.999}
 
-    def __call__(
-            self,
-            state: Mapping[str, fv3gfs.util.Quantity],
-            nq: int,
-            dt:float):
+    def __call__(self, state: Mapping[str, fv3gfs.util.Quantity], dt: float):
 
-        
         rdt = 1.0 / dt
         if state.pe[self._is, self._js, 0] < 2.0:
             t_min = T1_MIN
@@ -665,8 +890,18 @@ class FVSubgridZ:
             self._q0["qice"],
             self._q0["qsnow"],
             self._q0["qgraupel"],
-            self._q0["qo3mr"], self._q0["qsgs_tke"], self._q0["qcld"],
-            state.qvapor,state.qliquid, state.qrain, state.qice, state.qsnow, state.qgraupel, state.qo3mr, state.qsgs_tke, state.qcld, 
+            self._q0["qo3mr"],
+            self._q0["qsgs_tke"],
+            self._q0["qcld"],
+            state.qvapor,
+            state.qliquid,
+            state.qrain,
+            state.qice,
+            state.qsnow,
+            state.qgraupel,
+            state.qo3mr,
+            state.qsgs_tke,
+            state.qcld,
         )
 
         ratios = {0: 0.25, 1: 0.5, 2: 0.999}
@@ -679,17 +914,24 @@ class FVSubgridZ:
                 self._tmp_t0,
                 self._tmp_hd,
                 self._tmp_gz,
-                state.delp,state.peln, 
+                state.delp,
+                state.peln,
                 state.pkz,
-                self._q0["qvapor"],self._q0["qliquid"], self._q0["qrain"], self._q0["qice"], self._q0["qsnow"], self._q0["qgraupel"], self._q0["qo3mr"], self._q0["qsgs_tke"], self._q0["qcld"],
+                self._q0["qvapor"],
+                self._q0["qliquid"],
+                self._q0["qrain"],
+                self._q0["qice"],
+                self._q0["qsnow"],
+                self._q0["qgraupel"],
+                self._q0["qo3mr"],
+                self._q0["qsgs_tke"],
+                self._q0["qcld"],
                 self._tmp_te,
                 self._tmp_cpm,
-                self._tmp_cvm, 
+                self._tmp_cvm,
                 t_min,
                 self._ratios[n],
             )
-
-
 
         self._finalize_stencil(
             self._tmp_u0,
@@ -708,8 +950,18 @@ class FVSubgridZ:
             self._q0["qice"],
             self._q0["qsnow"],
             self._q0["qgraupel"],
-            self._q0["qo3mr"], self._q0["qsgs_tke"], self._q0["qcld"],
-            state.qvapor,state.qliquid, state.qrain, state.qice, state.qsnow, state.qgraupel, state.qo3mr, state.qsgs_tke, state.qcld,
-            rdt,fra, 
-
+            self._q0["qo3mr"],
+            self._q0["qsgs_tke"],
+            self._q0["qcld"],
+            state.qvapor,
+            state.qliquid,
+            state.qrain,
+            state.qice,
+            state.qsnow,
+            state.qgraupel,
+            state.qo3mr,
+            state.qsgs_tke,
+            state.qcld,
+            rdt,
+            fra,
         )
