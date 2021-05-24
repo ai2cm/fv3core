@@ -6,9 +6,7 @@ from fv3core.testing import TranslateFortranData2Py
 class TranslateRay_Fast(TranslateFortranData2Py):
     def __init__(self, grid):
         super().__init__(grid)
-        self.compute_func = RayleighDamping(
-            grid, spec.namelist
-        )
+        self.compute_func = RayleighDamping(grid, spec.namelist)
         self.in_vars["data_vars"] = {
             "u": grid.y3d_domain_dict(),
             "v": grid.x3d_domain_dict(),

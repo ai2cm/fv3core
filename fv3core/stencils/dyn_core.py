@@ -24,7 +24,6 @@ import fv3core.utils.gt4py_utils as utils
 import fv3gfs.util
 import fv3gfs.util as fv3util
 from fv3core.decorators import FrozenStencil
-from fv3core.stencils.basic_operations import copy_defn
 from fv3core.stencils.c_sw import CGridShallowWaterDynamics
 from fv3core.stencils.del2cubed import HyperdiffusionDamping
 from fv3core.stencils.pk3_halo import PK3Halo
@@ -350,10 +349,11 @@ class AcousticDynamics:
         )
         self._pk3_halo = PK3Halo(self.grid)
         self._copy_stencil = FrozenStencil(
-            copy_defn,
+            basic.copy_defn,
             origin=self.grid.full_origin(),
-            domain=self.grid.domain_shape_full(add=(0, 0, 1)))
-        
+            domain=self.grid.domain_shape_full(add=(0, 0, 1)),
+        )
+
     def __call__(self, state):
         # u, v, w, delz, delp, pt, pe, pk, phis, wsd, omga, ua, va, uc, vc, mfxd,
         # mfyd, cxd, cyd, pkz, peln, q_con, ak, bk, diss_estd, cappa, mdt, n_split,

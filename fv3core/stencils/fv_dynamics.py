@@ -495,33 +495,3 @@ class DynamicalCore:
                     state.cyd,
                     state.mdt,
                 )
-
-
-def fv_dynamics(
-    state,
-    comm,
-    consv_te,
-    do_adiabatic_init,
-    timestep,
-    ptop,
-    n_split,
-    ks,
-    timer=fv3gfs.util.NullTimer(),
-):
-    dycore = utils.cached_stencil_class(DynamicalCore)(
-        comm,
-        spec.namelist,
-        state["atmosphere_hybrid_a_coordinate"],
-        state["atmosphere_hybrid_b_coordinate"],
-        state["surface_geopotential"],
-    )
-    dycore.step_dynamics(
-        state,
-        consv_te,
-        do_adiabatic_init,
-        timestep,
-        ptop,
-        n_split,
-        ks,
-        timer,
-    )
