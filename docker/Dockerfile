@@ -16,7 +16,7 @@ RUN pip3 install --upgrade pip setuptools wheel && \
     ln -s /bin/python3 /bin/python && \
     ln -s /bin/pip3 /bin/pip
 
-COPY constraints.txt requirements.txt requirements/* /
+COPY constraints.txt requirements.txt requirements /
 RUN pip3 install -r /requirements.txt -c /constraints.txt
 
 COPY --from=serialbox_image /usr/local/serialbox /usr/local/serialbox
