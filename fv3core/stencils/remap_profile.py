@@ -199,7 +199,7 @@ def set_initial_vals(
                 a4_4 = 3.0 * (2.0 * a4_1 - (a4_2 + a4_3))
 
 
-def apply_constraints_and_set_interpolation_coefficients(
+def apply_constraints(
     q: FloatField,
     gam: FloatField,
     a4_1: FloatField,
@@ -209,7 +209,6 @@ def apply_constraints_and_set_interpolation_coefficients(
     ext5: FloatField,
     ext6: FloatField,
     extm: FloatField,
-    qmin: float,
 ):
     from __externals__ import iv, kord
 
@@ -263,7 +262,21 @@ def apply_constraints_and_set_interpolation_coefficients(
             ext5 = abs(x0) > x1
             ext6 = abs(a4_4) > x1
 
-    # set_interpolation_coefficients
+
+def set_interpolation_coefficients(
+    q: FloatField,
+    gam: FloatField,
+    a4_1: FloatField,
+    a4_2: FloatField,
+    a4_3: FloatField,
+    a4_4: FloatField,
+    ext5: FloatField,
+    ext6: FloatField,
+    extm: FloatField,
+    qmin: float,
+):
+    from __externals__ import iv, kord
+
     # set_top_as_iv0
     with computation(PARALLEL), interval(0, 1):
         if __INLINED(iv == 0):
@@ -532,8 +545,15 @@ class RemapProfile:
             domain=domain_extend,
         )
 
-        self._apply_constraints_and_set_interpolation_coefficients = FrozenStencil(
-            func=apply_constraints_and_set_interpolation_coefficients,
+        self._apply_constraints = FrozenStencil(
+            func=apply_constraints,
+            externals={"iv": iv, "kord": abs(kord)},
+            origin=origin,
+            domain=domain,
+        )
+
+        self._set_interpolation_coefficients = FrozenStencil(
+            func=set_interpolation_coefficients,
             externals={"iv": iv, "kord": abs(kord)},
             origin=origin,
             domain=domain,
@@ -575,7 +595,19 @@ class RemapProfile:
         )
 
         if abs(self._kord) <= 16:
-            self._apply_constraints_and_set_interpolation_coefficients(
+            self._apply_constraints(
+                self._q,
+                self._gam,
+                a4_1,
+                a4_2,
+                a4_3,
+                a4_4,
+                self._ext5,
+                self._ext6,
+                self._extm,
+            )
+
+            self._set_interpolation_coefficients(
                 self._q,
                 self._gam,
                 a4_1,
