@@ -32,7 +32,6 @@ from .translate_delnflux import TranslateDelnFlux, TranslateDelnFlux_2
 from .translate_divergencedamping import TranslateDivergenceDamping
 from .translate_dyncore import TranslateDynCore, TranslatePGradC
 from .translate_fillz import TranslateFillz
-from .translate_fvsetup import TranslateFVSetup
 from .translate_fvsubgridz import TranslateFVSubgridZ
 from .translate_fvtp2d import TranslateFvTp2d, TranslateFvTp2d_2
 from .translate_fxadv import TranslateFxAdv
@@ -64,8 +63,6 @@ from .translate_qsinit import TranslateQSInit
 from .translate_ray_fast import TranslateRay_Fast
 from .translate_remap_profile_2d import TranslateCS_Profile_2d, TranslateCS_Profile_2d_2
 from .translate_remapping import TranslateRemapping
-from .translate_remapping_part1 import TranslateRemapping_Part1
-from .translate_remapping_part2 import TranslateRemapping_Part2
 from .translate_riem_solver3 import TranslateRiem_Solver3
 from .translate_riem_solver_c import TranslateRiem_Solver_C
 from .translate_satadjust3d import TranslateSatAdjust3d

@@ -8,7 +8,6 @@ from fv3core.testing import TranslateFortranData2Py, pad_field_in_j
 class TranslateFillz(TranslateFortranData2Py):
     def __init__(self, grid):
         super().__init__(grid)
-        self.compute_func = fillz.FillNegativeTracerValues()
         self.in_vars["data_vars"] = {
             "dp2": {"istart": grid.is_, "iend": grid.ie, "axis": 1},
             "q2tracers": {"istart": grid.is_, "iend": grid.ie, "axis": 1},
@@ -49,14 +48,17 @@ class TranslateFillz(TranslateFortranData2Py):
         for name, value in tuple(inputs.items()):
             if hasattr(value, "shape") and len(value.shape) > 1 and value.shape[1] == 1:
                 inputs[name] = self.make_storage_data(
-                    pad_field_in_j(value, self.grid.npy)
+                    pad_field_in_j(value, self.grid.njd)
                 )
         for name, value in tuple(inputs["tracers"].items()):
             if hasattr(value, "shape") and len(value.shape) > 1 and value.shape[1] == 1:
                 inputs["tracers"][name] = self.make_storage_data(
-                    pad_field_in_j(value, self.grid.npy)
+                    pad_field_in_j(value, self.grid.njd)
                 )
-        self.compute_func(**inputs)
+        run_fillz = fillz.FillNegativeTracerValues(
+            inputs.pop("im"), inputs.pop("jm"), inputs.pop("km"), inputs.pop("nq")
+        )
+        run_fillz(**inputs)
         ds = self.grid.default_domain_dict()
         ds.update(self.out_vars["q2tracers"])
         tracers = np.zeros((self.grid.nic, self.grid.npz, len(inputs["tracers"])))
