@@ -8,7 +8,7 @@ FROM $FORTRAN_IMAGE as fortran_image
 FROM $ESMF_IMAGE as esmf_image
 FROM $FMS_IMAGE as fms_image
 FROM $SERIALBOX_IMAGE as serialbox_image
-from $ENVIRONMENT_IMAGE AS environment
+FROM $ENVIRONMENT_IMAGE as environment
 
 FROM environment as fv3core
 
@@ -16,7 +16,7 @@ RUN pip3 install --upgrade pip setuptools wheel && \
     ln -s /bin/python3 /bin/python && \
     ln -s /bin/pip3 /bin/pip
 
-COPY constraints.txt requirements.txt /
+COPY constraints.txt requirements.txt requirements/* /
 RUN pip3 install -r /requirements.txt -c /constraints.txt
 
 COPY --from=serialbox_image /usr/local/serialbox /usr/local/serialbox
