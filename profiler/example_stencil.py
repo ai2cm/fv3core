@@ -1,3 +1,6 @@
+# The below stencil is a "light" version of fv3core xppm - mainly
+# demonstrating behaviors when many regions are used
+
 # flak8/blake can't parse this file since it's really part of the codebase
 # but an external example of how to use the sentic reproducer.
 # This scripts requries a verion of GT4PY in the env to run
