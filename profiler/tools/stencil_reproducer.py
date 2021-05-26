@@ -58,7 +58,7 @@ def collect_stencil_candidate(stencil_name):
     for fname in listdir(gt_cache_root):
         fullpath = path.join(gt_cache_root, fname)
         if fname.startswith(".gt_cache") and path.isdir(fullpath):
-            for root, _dirnames, filenames in walk(fullpath):
+            for root, _, filenames in walk(fullpath):
                 for py_wrapper_file in fnmatch.filter(
                     filenames, f"{expected_py_wrapper_partialname}*.py"
                 ):
