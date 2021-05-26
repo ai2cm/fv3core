@@ -538,7 +538,7 @@ class RemapProfile:
         domain: Tuple[int, int, int] = (i_extent, j_extent, km)
         domain_extend: Tuple[int, int, int] = (i_extent, j_extent, km + 1)
 
-        self._set_initial_values_stencil = FrozenStencil(
+        self._set_initial_values = FrozenStencil(
             func=set_initial_vals,
             externals={"iv": iv, "kord": abs(kord)},
             origin=origin,
@@ -582,7 +582,7 @@ class RemapProfile:
             delp: The pressure difference between grid levels
             qmin: The minimum value the field can take in a cell
         """
-        self._set_initial_values_stencil(
+        self._set_initial_values(
             self._gam,
             self._q,
             delp,
