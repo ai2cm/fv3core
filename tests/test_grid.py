@@ -75,7 +75,7 @@ def test_axis_offsets(
     call_domain = tuple(
         compute + offset for (compute, offset) in zip(domain, domain_offset)
     )
-    axis_offsets = fv3core.utils.grid.axis_offsets(grid, call_origin, call_domain)
+    axis_offsets = grid.axis_offsets(call_origin, call_domain)
     if west_edge:
         assert axis_offsets["i_start"] == i_start
     else:

@@ -8,12 +8,11 @@ from gt4py.gtscript import (
     interval,
     region,
 )
-from typing_extensions import Literal
 
 from fv3core.decorators import FrozenStencil
 from fv3core.stencils.basic_operations import sign
-from fv3core.utils.grid import GridIndexing, axis_offsets
-from fv3core.utils.typing import FloatField, FloatFieldIJ
+from fv3core.utils.grid import GridIndexing
+from fv3core.utils.typing import FloatField, FloatFieldIJ, Index3D
 
 
 input_vars = ["q", "c"]
@@ -312,11 +311,12 @@ class YPiecewiseParabolic:
 
     def __init__(
         self,
-        grid: GridIndexing,
+        grid_indexing: GridIndexing,
         dya,
         grid_type: int,
         jord,
-        i_domain: Literal["compute", "full"],
+        origin: Index3D,
+        domain: Index3D,
     ):
         # Arguments come from:
         # namelist.grid_type
@@ -328,8 +328,7 @@ class YPiecewiseParabolic:
                 "Currently only support hord={5, 6, 7, 8}"
             )
         self._dya = dya
-        origin, domain = self._get_origin_domain(grid, i_domain)
-        ax_offsets = axis_offsets(grid, origin, domain)
+        ax_offsets = grid_indexing.axis_offsets(origin, domain)
         self._compute_flux_stencil = FrozenStencil(
             func=compute_y_flux,
             externals={
@@ -342,19 +341,6 @@ class YPiecewiseParabolic:
             origin=origin,
             domain=domain,
         )
-
-    def _get_origin_domain(
-        self, grid: GridIndexing, i_domain: Literal["compute", "full"]
-    ):
-        if i_domain == "compute":
-            add_origin = (0, 0, 0)
-            add_domain = (1, 1, 1)
-        elif i_domain == "full":
-            add_origin = (-grid.n_halo, 0, 0)
-            add_domain = (1 + 2 * grid.n_halo, 1, 1)
-        origin = grid.origin_compute(add=add_origin)
-        domain = grid.domain_compute(add=add_domain)
-        return origin, domain
 
     def __call__(self, q: FloatField, c: FloatField, flux: FloatField):
         """

@@ -405,11 +405,6 @@ class GridIndexing:
         self.origin = origin
         self.domain = domain
         self.n_halo = n_halo
-        # TODO: split edge booleans into their own class, they aren't needed
-        # for any of the indexing operations, only needed for axis_offsets
-        # and they make the API pretty big
-        # maybe give this responsibility to CubedSphereCommunicator
-        # as it already contains this information
         self.south_edge = south_edge
         self.north_edge = north_edge
         self.west_edge = west_edge
@@ -531,7 +526,11 @@ class GridIndexing:
             self.ke - self.ks + add[2],
         )
 
+    def axis_offsets(self, origin: Index3D, domain: Index3D):
+        return _grid_indexing_axis_offsets(self, origin, domain)
 
+
+# TODO: delete this routine in favor of grid_indexing.axis_offsets
 def axis_offsets(
     grid: Union[Grid, GridIndexing],
     origin: Iterable[int],
@@ -610,7 +609,6 @@ def _grid_indexing_axis_offsets(
     origin: Tuple[int, ...],
     domain: Tuple[int, ...],
 ) -> Mapping[str, gtscript._AxisOffset]:
-    print(type(gtscript.I[0]))
     if grid.west_edge:
         i_start = gtscript.I[0] + grid.origin[0] - origin[0]
     else:

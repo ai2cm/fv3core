@@ -38,7 +38,7 @@ class TranslateFvTp2d(TranslateFortranData2Py):
             if optional_arg not in inputs:
                 inputs[optional_arg] = None
         self.compute_func = FiniteVolumeTransport(
-            grid=self.grid.grid_indexing,
+            grid_indexing=self.grid.grid_indexing,
             dxa=self.grid.dxa,
             dya=self.grid.dya,
             area=self.grid.area,

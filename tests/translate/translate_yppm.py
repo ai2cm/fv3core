@@ -34,16 +34,15 @@ class TranslateYPPM(TranslateFortranData2Py):
 
     def compute(self, inputs):
         self.process_inputs(inputs)
-        if inputs["ifirst"] == 0:
-            i_domain = "full"
-        else:
-            i_domain = "compute"
+        origin = self.grid.grid_indexing.origin_compute()
+        domain = self.grid.grid_indexing.domain_compute(add=(1, 1, 0))
         self.compute_func = yppm.YPiecewiseParabolic(
-            grid=self.grid.grid_indexing,
+            grid_indexing=self.grid.grid_indexing,
             dya=self.grid.dya,
             grid_type=self.grid.grid_type,
             jord=int(inputs["jord"]),
-            i_domain=i_domain,
+            origin=(inputs["ifirst"], origin[1], origin[2]),
+            domain=(inputs["ilast"] - inputs["ifirst"] + 1, domain[1], domain[2]),
         )
         self.compute_func(inputs["q"], inputs["c"], inputs["flux"])
         return self.slice_output(inputs)

@@ -33,16 +33,15 @@ class TranslateXPPM(TranslateFortranData2Py):
     def compute(self, inputs):
         self.process_inputs(inputs)
         inputs["xflux"] = utils.make_storage_from_shape(inputs["q"].shape)
-        if inputs["jfirst"] == 0:
-            j_domain = "full"
-        else:
-            j_domain = "compute"
+        origin = self.grid.grid_indexing.origin_compute()
+        domain = self.grid.grid_indexing.domain_compute(add=(1, 1, 0))
         self.compute_func = xppm.XPiecewiseParabolic(
-            grid=self.grid.grid_indexing,
+            grid_indexing=self.grid.grid_indexing,
             dxa=self.grid.dxa,
             grid_type=self.grid.grid_type,
             iord=int(inputs["iord"]),
-            j_domain=j_domain,
+            origin=(origin[0], inputs["jfirst"], origin[2]),
+            domain=(domain[0], inputs["jlast"] - inputs["jfirst"] + 1, domain[2]),
         )
         self.compute_func(inputs["q"], inputs["c"], inputs["xflux"])
         return self.slice_output(inputs)

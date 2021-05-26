@@ -14,7 +14,6 @@ requirements = [
     "gt4py",
     "numpy",
     "fv3gfs-util>=0.4.3",
-    "typing_extensions",
 ]
 
 test_requirements = ["pytest==5.2.2", "pytest-subtests>=0.3.0", "serialbox"]
