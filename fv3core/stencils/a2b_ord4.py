@@ -56,163 +56,8 @@ def extrap_corner(
     x1 = great_circle_dist(p1a, p1b, p0a, p0b)
     x2 = great_circle_dist(p2a, p2b, p0a, p0b)
     return qa + x1 / (x2 - x1) * (qa - qb)
+#return qa + (asin(sqrt(sin((p1b - p0b) / 2.0) ** 2.0 + cos(p1b) * cos(p0b) *  sin((p1a - p0a) / 2.0) ** 2.0)) * 2.0) / (asin(sqrt(sin((p2b - p0b) / 2.0) ** 2.0 + cos(p2b) * cos(p0b) *  sin((p2a - p0a) / 2.0) ** 2.0)) * 2.0 -asin(sqrt(sin((p1b - p0b) / 2.0) ** 2.0 + cos(p1b) * cos(p0b) *  sin((p1a - p0a) / 2.0) ** 2.0)) * 2.0) * (qa - qb)
 
-
-def _south_corners(
-    qin: FloatField,
-    qout: FloatField,
-    agrid1: FloatFieldIJ,
-    agrid2: FloatFieldIJ,
-    bgrid1: FloatFieldIJ,
-    bgrid2: FloatFieldIJ,
-):
-    from __externals__ import i_end, i_start, j_start
-
-    with computation(PARALLEL), interval(...):
-        tmp = 0.0
-        with horizontal(region[i_start, j_start]):
-            ec1 = extrap_corner(
-                bgrid1[0, 0],
-                bgrid2[0, 0],
-                agrid1[0, 0],
-                agrid2[0, 0],
-                agrid1[1, 1],
-                agrid2[1, 1],
-                qin[0, 0, 0],
-                qin[1, 1, 0],
-            )
-            ec2 = extrap_corner(
-                bgrid1[0, 0],
-                bgrid2[0, 0],
-                agrid1[-1, 0],
-                agrid2[-1, 0],
-                agrid1[-2, 1],
-                agrid2[-2, 1],
-                qin[-1, 0, 0],
-                qin[-2, 1, 0],
-            )
-            ec3 = extrap_corner(
-                bgrid1[0, 0],
-                bgrid2[0, 0],
-                agrid1[0, -1],
-                agrid2[0, -1],
-                agrid1[1, -2],
-                agrid2[1, -2],
-                qin[0, -1, 0],
-                qin[1, -2, 0],
-            )
-            qout = (ec1 + ec2 + ec3) * (1.0 / 3.0)
-        with horizontal(region[i_end + 1, j_start]):
-            ec1 = extrap_corner(
-                bgrid1[0, 0],
-                bgrid2[0, 0],
-                agrid1[-1, 0],
-                agrid2[-1, 0],
-                agrid1[-2, 1],
-                agrid2[-2, 1],
-                qin[-1, 0, 0],
-                qin[-2, 1, 0],
-            )
-            ec2 = extrap_corner(
-                bgrid1[0, 0],
-                bgrid2[0, 0],
-                agrid1[-1, -1],
-                agrid2[-1, -1],
-                agrid1[-2, -2],
-                agrid2[-2, -2],
-                qin[-1, -1, 0],
-                qin[-2, -2, 0],
-            )
-            ec3 = extrap_corner(
-                bgrid1[0, 0],
-                bgrid2[0, 0],
-                agrid1[0, 0],
-                agrid2[0, 0],
-                agrid1[1, 1],
-                agrid2[1, 1],
-                qin[0, 0, 0],
-                qin[1, 1, 0],
-            )
-            qout = (ec1 + ec2 + ec3) * (1.0 / 3.0)
-
-
-def _north_corners(
-    qin: FloatField,
-    qout: FloatField,
-    agrid1: FloatFieldIJ,
-    agrid2: FloatFieldIJ,
-    bgrid1: FloatFieldIJ,
-    bgrid2: FloatFieldIJ,
-):
-    from __externals__ import i_end, i_start, j_end
-
-    with computation(PARALLEL), interval(...):
-        tmp = 0.0
-
-        with horizontal(region[i_end + 1, j_end + 1]):
-            ec1 = extrap_corner(
-                bgrid1[0, 0],
-                bgrid2[0, 0],
-                agrid1[-1, -1],
-                agrid2[-1, -1],
-                agrid1[-2, -2],
-                agrid2[-2, -2],
-                qin[-1, -1, 0],
-                qin[-2, -2, 0],
-            )
-            ec2 = extrap_corner(
-                bgrid1[0, 0],
-                bgrid2[0, 0],
-                agrid1[0, -1],
-                agrid2[0, -1],
-                agrid1[1, -2],
-                agrid2[1, -2],
-                qin[0, -1, 0],
-                qin[1, -2, 0],
-            )
-            ec3 = extrap_corner(
-                bgrid1[0, 0],
-                bgrid2[0, 0],
-                agrid1[-1, 0],
-                agrid2[-1, 0],
-                agrid1[-2, 1],
-                agrid2[-2, 1],
-                qin[-1, 0, 0],
-                qin[-2, 1, 0],
-            )
-            qout = (ec1 + ec2 + ec3) * (1.0 / 3.0)
-        with horizontal(region[i_start, j_end + 1]):
-            ec1 = extrap_corner(
-                bgrid1[0, 0],
-                bgrid2[0, 0],
-                agrid1[0, -1],
-                agrid2[0, -1],
-                agrid1[1, -2],
-                agrid2[1, -2],
-                qin[0, -1, 0],
-                qin[1, -2, 0],
-            )
-            ec2 = extrap_corner(
-                bgrid1[0, 0],
-                bgrid2[0, 0],
-                agrid1[-1, -1],
-                agrid2[-1, -1],
-                agrid1[-2, -2],
-                agrid2[-2, -2],
-                qin[-1, -1, 0],
-                qin[-2, -2, 0],
-            )
-            ec3 = extrap_corner(
-                bgrid1[0, 0],
-                bgrid2[0, 0],
-                agrid1[0, 0],
-                agrid2[0, 0],
-                agrid1[1, 1],
-                agrid2[1, 1],
-                qin[0, 0, 0],
-                qin[1, 1, 0],
-            )
-            qout = (ec1 + ec2 + ec3) * (1.0 / 3.0)
 
 
 @gtscript.function
@@ -360,10 +205,44 @@ def a2b_interpolation(
     edge_e: FloatFieldIJ,
     edge_s: FloatFieldI,
     edge_n: FloatFieldI,
+        agrid1: FloatFieldIJ, agrid2: FloatFieldIJ, bgrid1: FloatFieldIJ, bgrid2: FloatFieldIJ
 ):
     from __externals__ import i_end, i_start, j_end, j_start
 
     with computation(PARALLEL), interval(...):
+        with horizontal(region[i_start, j_start]):
+            qout =  ((
+                qin[0, 0, 0]  + (asin(sqrt(sin((agrid2[0, 0] - bgrid2[0, 0]) / 2.0) ** 2.0 + cos(agrid2[0, 0]) * cos(bgrid2[0, 0]) *  sin((agrid1[0, 0] -  bgrid1[0, 0]) / 2.0) ** 2.0)) * 2.0) / (asin(sqrt(sin((agrid2[1, 1] - bgrid2[0, 0]) / 2.0) ** 2.0 + cos(agrid2[1, 1]) * cos(bgrid2[0, 0]) *  sin((agrid1[1, 1] -  bgrid1[0, 0]) / 2.0) ** 2.0)) * 2.0 -asin(sqrt(sin((agrid2[0, 0] - bgrid2[0, 0]) / 2.0) ** 2.0 + cos(agrid2[0, 0]) * cos(bgrid2[0, 0]) *  sin((agrid1[0, 0] -  bgrid1[0, 0]) / 2.0) ** 2.0)) * 2.0) * (qin[0, 0, 0] - qin[1, 1, 0])
+
+            ) + (
+                qin[-1, 0, 0] + (asin(sqrt(sin(( agrid2[-1, 0] - bgrid2[0, 0]) / 2.0) ** 2.0 + cos( agrid2[-1, 0]) * cos(bgrid2[0, 0]) *  sin(( agrid1[-1, 0] - bgrid1[0, 0]) / 2.0) ** 2.0)) * 2.0) / (asin(sqrt(sin((agrid2[-2, 1] - bgrid2[0, 0]) / 2.0) ** 2.0 + cos(agrid2[-2, 1]) * cos(bgrid2[0, 0]) *  sin(( agrid1[-2, 1] - bgrid1[0, 0]) / 2.0) ** 2.0)) * 2.0 -asin(sqrt(sin(( agrid2[-1, 0] - bgrid2[0, 0]) / 2.0) ** 2.0 + cos( agrid2[-1, 0]) * cos(bgrid2[0, 0]) *  sin(( agrid1[-1, 0] - bgrid1[0, 0]) / 2.0) ** 2.0)) * 2.0) * (qin[-1, 0, 0] - qin[-2, 1, 0])
+            ) + (
+                qin[0, -1, 0] + (asin(sqrt(sin(( agrid2[0, -1] - bgrid2[0, 0]) / 2.0) ** 2.0 + cos( agrid2[0, -1]) * cos(bgrid2[0, 0]) *  sin((agrid1[0, -1] - bgrid1[0, 0]) / 2.0) ** 2.0)) * 2.0) / (asin(sqrt(sin(( agrid2[1, -2] - bgrid2[0, 0]) / 2.0) ** 2.0 + cos( agrid2[1, -2]) * cos(bgrid2[0, 0]) *  sin((agrid1[1, -2] - bgrid1[0, 0]) / 2.0) ** 2.0)) * 2.0 -asin(sqrt(sin(( agrid2[0, -1] - bgrid2[0, 0]) / 2.0) ** 2.0 + cos( agrid2[0, -1]) * cos(bgrid2[0, 0]) *  sin((agrid1[0, -1] - bgrid1[0, 0]) / 2.0) ** 2.0)) * 2.0) * (qin[0, -1, 0] - qin[1, -2, 0])
+            )) * (1.0 / 3.0)
+        with horizontal(region[i_end + 1, j_start]):
+            qout = ((
+                qin[-1, 0, 0] + (asin(sqrt(sin((agrid2[-1, 0] - bgrid2[0, 0]) / 2.0) ** 2.0 + cos(agrid2[-1, 0]) * cos(bgrid2[0, 0]) *  sin((agrid1[-1, 0] - bgrid1[0, 0]) / 2.0) ** 2.0)) * 2.0) / (asin(sqrt(sin((agrid2[-2, 1] - bgrid2[0, 0]) / 2.0) ** 2.0 + cos(agrid2[-2, 1]) * cos(bgrid2[0, 0]) *  sin((agrid1[-2, 1] - bgrid1[0, 0]) / 2.0) ** 2.0)) * 2.0 -asin(sqrt(sin((agrid2[-1, 0] - bgrid2[0, 0]) / 2.0) ** 2.0 + cos(agrid2[-1, 0]) * cos(bgrid2[0, 0]) *  sin((agrid1[-1, 0] - bgrid1[0, 0]) / 2.0) ** 2.0)) * 2.0) * (qin[-1, 0, 0] - qin[-2, 1, 0])
+            ) + (
+                qin[-1, -1, 0] + (asin(sqrt(sin((agrid2[-1, -1] - bgrid2[0, 0]) / 2.0) ** 2.0 + cos(agrid2[-1, -1]) * cos(bgrid2[0, 0]) *  sin(( agrid1[-1, -1] - bgrid1[0, 0]) / 2.0) ** 2.0)) * 2.0) / (asin(sqrt(sin((agrid2[-2, -2] - bgrid2[0, 0]) / 2.0) ** 2.0 + cos(agrid2[-2, -2]) * cos(bgrid2[0, 0]) *  sin((agrid1[-2, -2] - bgrid1[0, 0]) / 2.0) ** 2.0)) * 2.0 -asin(sqrt(sin((agrid2[-1, -1] - bgrid2[0, 0]) / 2.0) ** 2.0 + cos(agrid2[-1, -1]) * cos(bgrid2[0, 0]) *  sin(( agrid1[-1, -1] - bgrid1[0, 0]) / 2.0) ** 2.0)) * 2.0) * (qin[-1, -1, 0] - qin[-2, -2, 0])
+            ) + (
+                qin[0, 0, 0] + (asin(sqrt(sin((agrid2[0, 0] - bgrid2[0, 0]) / 2.0) ** 2.0 + cos(agrid2[0, 0]) * cos(bgrid2[0, 0]) *  sin((agrid1[0, 0] - bgrid1[0, 0]) / 2.0) ** 2.0)) * 2.0) / (asin(sqrt(sin((agrid2[1, 1] - bgrid2[0, 0]) / 2.0) ** 2.0 + cos(agrid2[1, 1]) * cos(bgrid2[0, 0]) *  sin((agrid1[1, 1] - bgrid1[0, 0]) / 2.0) ** 2.0)) * 2.0 -asin(sqrt(sin((agrid2[0, 0] - bgrid2[0, 0]) / 2.0) ** 2.0 + cos(agrid2[0, 0]) * cos(bgrid2[0, 0]) *  sin((agrid1[0, 0] - bgrid1[0, 0]) / 2.0) ** 2.0)) * 2.0) * (qin[0, 0, 0] - qin[1, 1, 0])
+            )) * (1.0 / 3.0)
+        with horizontal(region[i_end + 1, j_end + 1]):
+            qout = ((
+                qin[-1, -1, 0] + (asin(sqrt(sin((agrid2[-1, -1] -  bgrid2[0, 0]) / 2.0) ** 2.0 + cos(agrid2[-1, -1]) * cos( bgrid2[0, 0]) *  sin((agrid1[-1, -1] - bgrid1[0, 0]) / 2.0) ** 2.0)) * 2.0) / (asin(sqrt(sin((agrid2[-2, -2] -  bgrid2[0, 0]) / 2.0) ** 2.0 + cos(agrid2[-2, -2]) * cos( bgrid2[0, 0]) *  sin((agrid1[-2, -2] - bgrid1[0, 0]) / 2.0) ** 2.0)) * 2.0 -asin(sqrt(sin((agrid2[-1, -1] -  bgrid2[0, 0]) / 2.0) ** 2.0 + cos(agrid2[-1, -1]) * cos( bgrid2[0, 0]) *  sin((agrid1[-1, -1] - bgrid1[0, 0]) / 2.0) ** 2.0)) * 2.0) * (qin[-1, -1, 0] -  qin[-2, -2, 0])
+            ) + (
+                qin[0, -1, 0] + (asin(sqrt(sin((agrid2[0, -1] - bgrid2[0, 0]) / 2.0) ** 2.0 + cos(agrid2[0, -1]) * cos(bgrid2[0, 0]) *  sin((agrid1[0, -1] - bgrid1[0, 0]) / 2.0) ** 2.0)) * 2.0) / (asin(sqrt(sin((agrid2[1, -2] - bgrid2[0, 0]) / 2.0) ** 2.0 + cos(agrid2[1, -2]) * cos(bgrid2[0, 0]) *  sin((agrid1[1, -2] - bgrid1[0, 0]) / 2.0) ** 2.0)) * 2.0 -asin(sqrt(sin((agrid2[0, -1] - bgrid2[0, 0]) / 2.0) ** 2.0 + cos(agrid2[0, -1]) * cos(bgrid2[0, 0]) *  sin((agrid1[0, -1] - bgrid1[0, 0]) / 2.0) ** 2.0)) * 2.0) * (qin[0, -1, 0] -  qin[1, -2, 0])
+            ) + (
+                qin[-1, 0, 0] + (asin(sqrt(sin((agrid2[-1, 0] - bgrid2[0, 0]) / 2.0) ** 2.0 + cos(agrid2[-1, 0]) * cos(bgrid2[0, 0]) *  sin((agrid1[-1, 0] - bgrid1[0, 0]) / 2.0) ** 2.0)) * 2.0) / (asin(sqrt(sin((agrid2[-2, 1] - bgrid2[0, 0]) / 2.0) ** 2.0 + cos(agrid2[-2, 1]) * cos(bgrid2[0, 0]) *  sin((agrid1[-2, 1] - bgrid1[0, 0]) / 2.0) ** 2.0)) * 2.0 -asin(sqrt(sin((agrid2[-1, 0] - bgrid2[0, 0]) / 2.0) ** 2.0 + cos(agrid2[-1, 0]) * cos(bgrid2[0, 0]) *  sin((agrid1[-1, 0] - bgrid1[0, 0]) / 2.0) ** 2.0)) * 2.0) * (qin[-1, 0, 0] - qin[-2, 1, 0])
+            )) * (1.0 / 3.0)
+        with horizontal(region[i_start, j_end + 1]):
+            qout = ((
+                qin[0, -1, 0] + (asin(sqrt(sin((agrid2[0, -1] - bgrid2[0, 0]) / 2.0) ** 2.0 + cos(agrid2[0, -1]) * cos(bgrid2[0, 0]) *  sin((agrid1[0, -1] - bgrid1[0, 0]) / 2.0) ** 2.0)) * 2.0) / (asin(sqrt(sin((agrid2[1, -2] - bgrid2[0, 0]) / 2.0) ** 2.0 + cos(agrid2[1, -2]) * cos(bgrid2[0, 0]) *  sin(( agrid1[1, -2] - bgrid1[0, 0]) / 2.0) ** 2.0)) * 2.0 -asin(sqrt(sin((agrid2[0, -1] - bgrid2[0, 0]) / 2.0) ** 2.0 + cos(agrid2[0, -1]) * cos(bgrid2[0, 0]) *  sin((agrid1[0, -1] - bgrid1[0, 0]) / 2.0) ** 2.0)) * 2.0) * (qin[0, -1, 0] - qin[1, -2, 0])
+            ) + (
+                qin[-1, -1, 0] + (asin(sqrt(sin((agrid2[-1, -1] - bgrid2[0, 0]) / 2.0) ** 2.0 + cos(agrid2[-1, -1]) * cos(bgrid2[0, 0]) *  sin((agrid1[-1, -1] - bgrid1[0, 0]) / 2.0) ** 2.0)) * 2.0) / (asin(sqrt(sin((agrid2[-2, -2] - bgrid2[0, 0]) / 2.0) ** 2.0 + cos(agrid2[-2, -2]) * cos(bgrid2[0, 0]) *  sin(( agrid1[-2, -2] - bgrid1[0, 0]) / 2.0) ** 2.0)) * 2.0 -asin(sqrt(sin((agrid2[-1, -1] - bgrid2[0, 0]) / 2.0) ** 2.0 + cos(agrid2[-1, -1]) * cos(bgrid2[0, 0]) *  sin((agrid1[-1, -1] - bgrid1[0, 0]) / 2.0) ** 2.0)) * 2.0) * (qin[-1, -1, 0] - qin[-2, -2, 0])
+            ) + (
+                qin[0, 0, 0] + (asin(sqrt(sin((agrid2[0, 0] - bgrid2[0, 0]) / 2.0) ** 2.0 + cos(agrid2[0, 0]) * cos(bgrid2[0, 0]) *  sin((agrid1[0, 0] - bgrid1[0, 0]) / 2.0) ** 2.0)) * 2.0) / (asin(sqrt(sin((agrid2[1, 1] - bgrid2[0, 0]) / 2.0) ** 2.0 + cos(agrid2[1, 1]) * cos(bgrid2[0, 0]) *  sin((agrid1[1, 1] - bgrid1[0, 0]) / 2.0) ** 2.0)) * 2.0 -asin(sqrt(sin((agrid2[0, 0] - bgrid2[0, 0]) / 2.0) ** 2.0 + cos(agrid2[0, 0]) * cos(bgrid2[0, 0]) *  sin((agrid1[0, 0] - bgrid1[0, 0]) / 2.0) ** 2.0)) * 2.0) * (qin[0, 0, 0] - qin[1, 1, 0])
+            )) * (1.0 / 3.0)
         # qout_edges_x
         with horizontal(region[i_start, j_start + 1 : j_end + 1]):
             qout = edge_w * (
@@ -760,18 +639,7 @@ class AGrid2BGridFourthOrder:
         origin = (self.grid.is_, self.grid.js, kstart)
         domain = (self.grid.nic + 1, self.grid.njc + 1, nk)
         ax_offsets = axis_offsets(self.grid, origin, domain)
-        self._south_corners_stencil = FrozenStencil(
-            _south_corners,
-            externals=ax_offsets,
-            origin=origin,
-            domain=domain,
-        )
-        self._north_corners_stencil = FrozenStencil(
-            _north_corners,
-            externals=ax_offsets,
-            origin=origin,
-            domain=domain,
-        )
+
         origin_prep_x = (self.grid.is_ - 1, self.grid.js - 2, kstart)
         domain_prep_x = (self.grid.nic + 3, self.grid.njc + 4, nk)
         ax_offsets_prep_x = axis_offsets(self.grid, origin_prep_x, domain_prep_x)
@@ -820,24 +688,8 @@ class AGrid2BGridFourthOrder:
         qin: Input on A-grid (inout)
         qout: Output on B-grid (inout)
         """
-
-        self._south_corners_stencil(
-            qin,
-            qout,
-            self.grid.agrid1,
-            self.grid.agrid2,
-            self.grid.bgrid1,
-            self.grid.bgrid2,
-        )
-        self._north_corners_stencil(
-            qin,
-            qout,
-            self.grid.agrid1,
-            self.grid.agrid2,
-            self.grid.bgrid1,
-            self.grid.bgrid2,
-        )
-
+        
+        
         self._a2b_interpolation_qx_stencil(
             qin,
             self._tmp_qx,
@@ -861,6 +713,7 @@ class AGrid2BGridFourthOrder:
             self._edge_e,
             self.grid.edge_s,
             self.grid.edge_n,
+            self.grid.agrid1, self.grid.agrid2, self.grid.bgrid1, self.grid.bgrid2,
         )
 
         if self._replace:
