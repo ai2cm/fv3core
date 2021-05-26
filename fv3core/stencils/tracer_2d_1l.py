@@ -171,7 +171,7 @@ class TracerAdvection:
             externals=local_axis_offsets,
         )
         self.finite_volume_transport = FiniteVolumeTransport(
-            grid=self.grid.grid_indexing,
+            grid_indexing=self.grid.grid_indexing,
             dxa=self.grid.dxa,
             dya=self.grid.dya,
             area=self.grid.area,

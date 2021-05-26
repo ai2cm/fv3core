@@ -546,7 +546,7 @@ class DGridShallowWaterLagrangianDynamics:
         self.delnflux_nosg_w = DelnFluxNoSG(self._column_namelist["nord_w"])
         self.delnflux_nosg_v = DelnFluxNoSG(self._column_namelist["nord_v"])
         self.fvtp2d_dp = FiniteVolumeTransport(
-            grid=self.grid.grid_indexing,
+            grid_indexing=self.grid.grid_indexing,
             dxa=self.grid.dxa,
             dya=self.grid.dya,
             area=self.grid.area,
@@ -556,7 +556,7 @@ class DGridShallowWaterLagrangianDynamics:
             damp_c=self._column_namelist["damp_vt"],
         )
         self.fvtp2d_dp_t = FiniteVolumeTransport(
-            grid=self.grid.grid_indexing,
+            grid_indexing=self.grid.grid_indexing,
             dxa=self.grid.dxa,
             dya=self.grid.dya,
             area=self.grid.area,
@@ -566,7 +566,7 @@ class DGridShallowWaterLagrangianDynamics:
             damp_c=self._column_namelist["damp_t"],
         )
         self.fvtp2d_vt = FiniteVolumeTransport(
-            grid=self.grid.grid_indexing,
+            grid_indexing=self.grid.grid_indexing,
             dxa=self.grid.dxa,
             dya=self.grid.dya,
             area=self.grid.area,
@@ -576,7 +576,7 @@ class DGridShallowWaterLagrangianDynamics:
             damp_c=self._column_namelist["damp_vt"],
         )
         self.fvtp2d_tm = FiniteVolumeTransport(
-            grid=self.grid.grid_indexing,
+            grid_indexing=self.grid.grid_indexing,
             dxa=self.grid.dxa,
             dya=self.grid.dya,
             area=self.grid.area,
@@ -586,7 +586,7 @@ class DGridShallowWaterLagrangianDynamics:
             damp_c=self._column_namelist["damp_vt"],
         )
         self.fvtp2d_vt_nodelnflux = FiniteVolumeTransport(
-            grid=self.grid.grid_indexing,
+            grid_indexing=self.grid.grid_indexing,
             dxa=self.grid.dxa,
             dya=self.grid.dya,
             area=self.grid.area,
