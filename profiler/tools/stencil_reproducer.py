@@ -4,14 +4,13 @@ from datetime import datetime
 from glob import glob
 from os import getcwd, getenv, listdir, mkdir, path, walk
 from shutil import copy, copytree
-from typing import Any, Dict, Tuple
+from typing import Dict, Tuple
 
 import numpy as np
 from gt4py import storage
 
 
 STENCIL_CANDIDATE_FOR_EXTRACT: Dict[str, Tuple[str, str]] = {}
-STENCIL_SERIALIZED_ARGUMENTS: Dict[str, Any] = {}  # Indexed on file path
 
 
 def field_serialization(frame, event, args):
@@ -134,7 +133,3 @@ if __name__ == "__main__":
     compute_object.run(**arguments)
 """
             )
-
-
-def extract_stencils():
-    pass
