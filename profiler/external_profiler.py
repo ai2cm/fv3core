@@ -20,7 +20,6 @@ except ModuleNotFoundError:
 def parse_args():
     usage = "usage: python %(prog)s <--nvtx> <--stencil=STENCIL_NAME> <CMD TO PROFILE>"
     parser = ArgumentParser(usage=usage)
-
     parser.add_argument(
         "--nvtx",
         action="store_true",

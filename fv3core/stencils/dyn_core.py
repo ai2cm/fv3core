@@ -11,7 +11,6 @@ from gt4py.gtscript import (
 
 import fv3core._config as spec
 import fv3core.stencils.basic_operations as basic
-import fv3core.stencils.c_sw as c_sw
 import fv3core.stencils.d_sw as d_sw
 import fv3core.stencils.nh_p_grad as nh_p_grad
 import fv3core.stencils.pe_halo as pe_halo
@@ -25,7 +24,7 @@ import fv3core.utils.gt4py_utils as utils
 import fv3gfs.util
 import fv3gfs.util as fv3util
 from fv3core.decorators import FrozenStencil
-from fv3core.stencils.basic_operations import copy_stencil
+from fv3core.stencils.c_sw import CGridShallowWaterDynamics
 from fv3core.stencils.del2cubed import HyperdiffusionDamping
 from fv3core.stencils.pk3_halo import PK3Halo
 from fv3core.stencils.riem_solver3 import RiemannSolver3
@@ -85,6 +84,11 @@ def set_pem(delp: FloatField, pem: FloatField, ptop: float):
             pem[0, 0, 0] = ptop
         with interval(1, None):
             pem[0, 0, 0] = pem[0, 0, -1] + delp
+
+
+def compute_geopotential(zh: FloatField, gz: FloatField):
+    with computation(PARALLEL), interval(...):
+        gz = zh * constants.GRAV
 
 
 def p_grad_c_stencil(
@@ -252,7 +256,7 @@ class AcousticDynamics:
         self._pfull = pfull
         self._nk_heat_dissipation = get_nk_heat_dissipation(namelist, self.grid)
         self.nonhydrostatic_pressure_gradient = (
-            nh_p_grad.NonHydrostaticPressureGradient()
+            nh_p_grad.NonHydrostaticPressureGradient(self.namelist.grid_type)
         )
         self._temporaries = dyncore_temporaries(
             self.grid.domain_shape_full(add=(1, 1, 1)), self.namelist, self.grid
@@ -261,6 +265,7 @@ class AcousticDynamics:
         if not namelist.hydrostatic:
             self._temporaries["pk3"][:] = HUGE_R
 
+        column_namelist = d_sw.get_column_namelist(namelist, self.grid.npz)
         if not namelist.hydrostatic:
             # To write lower dimensional storages, these need to be 3D
             # then converted to lower dimensional
@@ -289,15 +294,22 @@ class AcousticDynamics:
                 dp_ref_3d[0, 0, :], (dp_ref_3d.shape[2],), (0,)
             )
             self._zs = utils.make_storage_data(zs_3d[:, :, 0], zs_3d.shape[0:2], (0, 0))
-            column_namelist = d_sw.get_column_namelist(namelist, self.grid.npz)
             self.update_height_on_d_grid = updatedzd.UpdateHeightOnDGrid(
                 self.grid, self.namelist, self._dp_ref, column_namelist, d_sw.k_bounds()
             )
-            self.dgrid_shallow_water_lagrangian_dynamics = (
-                d_sw.DGridShallowWaterLagrangianDynamics(namelist, column_namelist)
-            )
             self.riem_solver3 = RiemannSolver3(namelist)
             self.riem_solver_c = RiemannSolverC(namelist)
+            self._compute_geopotential_stencil = FrozenStencil(
+                compute_geopotential,
+                origin=(self.grid.is_ - 2, self.grid.js - 2, 0),
+                domain=(self.grid.nic + 4, self.grid.njc + 4, self.grid.npz + 1),
+            )
+        self.dgrid_shallow_water_lagrangian_dynamics = (
+            d_sw.DGridShallowWaterLagrangianDynamics(namelist, column_namelist)
+        )
+        self.cgrid_shallow_water_lagrangian_dynamics = CGridShallowWaterDynamics(
+            self.grid, namelist
+        )
 
         self._set_gz = FrozenStencil(
             set_gz,
@@ -337,7 +349,8 @@ class AcousticDynamics:
         )
 
         if self._do_del2cubed:
-            self._hyperdiffusion = HyperdiffusionDamping(self.grid)
+            nf_ke = min(3, self.namelist.nord + 1)
+            self._hyperdiffusion = HyperdiffusionDamping(self.grid, nf_ke)
         if self.namelist.rf_fast:
             self._rayleigh_damping = ray_fast.RayleighDamping(self.grid, self.namelist)
         self._compute_pkz_tempadjust = _initialize_temp_adjust_stencil(
@@ -345,6 +358,11 @@ class AcousticDynamics:
             self._nk_heat_dissipation,
         )
         self._pk3_halo = PK3Halo(self.grid)
+        self._copy_stencil = FrozenStencil(
+            basic.copy_defn,
+            origin=self.grid.full_origin(),
+            domain=self.grid.domain_shape_full(add=(0, 0, 1)),
+        )
 
     def __call__(self, state):
         # u, v, w, delz, delp, pt, pe, pk, phis, wsd, omga, ua, va, uc, vc, mfxd,
@@ -441,7 +459,7 @@ class AcousticDynamics:
                     reqs["w_quantity"].wait()
 
             # compute the c-grid winds at t + 1/2 timestep
-            state.delpc, state.ptc = c_sw.compute(
+            state.delpc, state.ptc = self.cgrid_shallow_water_lagrangian_dynamics(
                 state.delp,
                 state.pt,
                 state.u,
@@ -466,18 +484,14 @@ class AcousticDynamics:
                 if it == 0:
                     if self.do_halo_exchange:
                         reqs["gz_quantity"].wait()
-                    copy_stencil(
+                    self._copy_stencil(
                         state.gz,
                         state.zh,
-                        origin=self.grid.full_origin(),
-                        domain=self.grid.domain_shape_full(add=(0, 0, 1)),
                     )
                 else:
-                    copy_stencil(
+                    self._copy_stencil(
                         state.zh,
                         state.gz,
-                        origin=self.grid.full_origin(),
-                        domain=self.grid.domain_shape_full(add=(0, 0, 1)),
                     )
             if not self.namelist.hydrostatic:
                 self.update_geopotential_height_on_c_grid(
@@ -612,12 +626,9 @@ class AcousticDynamics:
                     reqs["zh_quantity"].wait()
                     if self.grid.npx != self.grid.npy:
                         reqs["pkc_quantity"].wait()
-                basic.multiply_constant(
+                self._compute_geopotential_stencil(
                     state.zh,
                     state.gz,
-                    constants.GRAV,
-                    origin=(self.grid.is_ - 2, self.grid.js - 2, 0),
-                    domain=(self.grid.nic + 4, self.grid.njc + 4, self.grid.npz + 1),
                 )
                 if self.grid.npx == self.grid.npy and self.do_halo_exchange:
                     reqs["pkc_quantity"].wait()
@@ -660,14 +671,12 @@ class AcousticDynamics:
                         )
 
         if self._do_del2cubed:
-            nf_ke = min(3, self.namelist.nord + 1)
-
             if self.do_halo_exchange:
                 self.comm.halo_update(
                     state.heat_source_quantity, n_points=self.grid.halo
                 )
             cd = constants.CNST_0P20 * self.grid.da_min
-            self._hyperdiffusion(state.heat_source, nf_ke, cd)
+            self._hyperdiffusion(state.heat_source, cd)
             if not self.namelist.hydrostatic:
                 delt_time_factor = abs(dt * self.namelist.delt_max)
                 self._compute_pkz_tempadjust(
