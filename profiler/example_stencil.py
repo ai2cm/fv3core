@@ -1,3 +1,6 @@
+# flak8/blake can't parse this file since it's really part of the codebase
+# but an external example of how to use the sentic reproducer.
+# This scripts requries a verion of GT4PY in the env to run
 # type: ignore
 import gt4py
 from gt4py.gtscript import (

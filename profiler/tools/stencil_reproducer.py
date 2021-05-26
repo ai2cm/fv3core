@@ -51,6 +51,7 @@ def collect_stencil_candidate(stencil_name):
     Multiple stencils can be collected if compile time varaiables lead to multiple
     stencil code path.
     """
+    # Collect all compiled version of the stencil
     expected_py_wrapper_partialname = f"m_{stencil_name}__"
     gt_cache_root = getenv("GT_CACHE_ROOT")
     gt_cache_root = gt_cache_root if gt_cache_root is not None else getcwd()
@@ -69,36 +70,40 @@ def collect_stencil_candidate(stencil_name):
                         stencil_file_wrapper,
                         None,
                     )
-    if len(STENCIL_CANDIDATE_FOR_EXTRACT.items()) != 0:
-        # Create the result dir
-        repro_dir = (
-            f"{getcwd()}/repro_{stencil_name}_"
-            f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
-        )
-        mkdir(repro_dir)
-        # Copy required file for repro & prepare for args pickling
-        for stencil_key, stencil_info in STENCIL_CANDIDATE_FOR_EXTRACT.items():
-            # One folder per stencil candidate
-            stencil_dir = f"{repro_dir}/{stencil_key}"
-            mkdir(stencil_dir)
-            # Save info
-            stencil_info = (stencil_info[0], stencil_dir)
-            STENCIL_CANDIDATE_FOR_EXTRACT[stencil_key] = stencil_info
-            # Create data directories
-            mkdir(f"{stencil_dir}/data")
-            # Copy original code
-            origin_code_copy_dir = f"{stencil_dir}/original_code"
-            mkdir(origin_code_copy_dir)
-            widlcard = f"{path.dirname(stencil_info[0])}/{stencil_key[:-2]}*"
-            for orignal_file in glob(widlcard):
-                if path.isfile(orignal_file):
-                    copy(orignal_file, origin_code_copy_dir)
-                if path.isdir(orignal_file):
-                    copytree(orignal_file, origin_code_copy_dir, dirs_exist_ok=True)
-            # Write reproducer script
-            with open(f"{stencil_dir}/repro.py", "w") as handle:
-                handle.write(
-                    f"""from original_code import {stencil_key}
+
+    # Raise an exception is the collection came back with no results
+    if len(STENCIL_CANDIDATE_FOR_EXTRACT.items()) == 0:
+        raise RuntimeError(f"[Profiler] not stencil collected for {stencil_name}")
+
+    # Create the result dir
+    repro_dir = (
+        f"{getcwd()}/repro_{stencil_name}_"
+        f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
+    )
+    mkdir(repro_dir)
+    # Copy required file for repro & prepare for args pickling
+    for stencil_key, stencil_info in STENCIL_CANDIDATE_FOR_EXTRACT.items():
+        # One folder per stencil candidate
+        stencil_dir = f"{repro_dir}/{stencil_key}"
+        mkdir(stencil_dir)
+        # Save info
+        stencil_info = (stencil_info[0], stencil_dir)
+        STENCIL_CANDIDATE_FOR_EXTRACT[stencil_key] = stencil_info
+        # Create data directories
+        mkdir(f"{stencil_dir}/data")
+        # Copy original code
+        origin_code_copy_dir = f"{stencil_dir}/original_code"
+        mkdir(origin_code_copy_dir)
+        widlcard = f"{path.dirname(stencil_info[0])}/{stencil_key[:-2]}*"
+        for orignal_file in glob(widlcard):
+            if path.isfile(orignal_file):
+                copy(orignal_file, origin_code_copy_dir)
+            if path.isdir(orignal_file):
+                copytree(orignal_file, origin_code_copy_dir, dirs_exist_ok=True)
+        # Write reproducer script
+        with open(f"{stencil_dir}/repro.py", "w") as handle:
+            handle.write(
+                f"""from original_code import {stencil_key}
 from os import path
 import pickle
 from gt4py import storage
@@ -128,7 +133,7 @@ if __name__ == "__main__":
         arguments.update(pickle.load(handle))
     compute_object.run(**arguments)
 """
-                )
+            )
 
 
 def extract_stencils():
