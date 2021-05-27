@@ -1,7 +1,7 @@
 from types import SimpleNamespace
 
 import gt4py.gtscript as gtscript
-from gt4py.gtscript import PARALLEL, computation, interval
+from gt4py.gtscript import PARALLEL, computation, interval, horizontal, region
 
 import fv3core._config as spec
 import fv3core.stencils.basic_operations as basic
@@ -16,25 +16,20 @@ from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
 def ptc_main(
     u: FloatField,
     va: FloatField,
+    vc: FloatField,
     cosa_v: FloatFieldIJ,
     sina_v: FloatFieldIJ,
     dyc: FloatFieldIJ,
+    sin_sg2: FloatFieldIJ,
+    sin_sg4: FloatFieldIJ,
     ptc: FloatField,
 ):
+    from __externals__ import i_end, i_start, j_end, j_start
+
     with computation(PARALLEL), interval(...):
         ptc = (u - 0.5 * (va[0, -1, 0] + va) * cosa_v) * dyc * sina_v
-
-
-def ptc_y_edge(
-    u: FloatField,
-    vc: FloatField,
-    dyc: FloatFieldIJ,
-    sin_sg4: FloatFieldIJ,
-    sin_sg2: FloatFieldIJ,
-    ptc: FloatField,
-):
-    with computation(PARALLEL), interval(...):
-        ptc = u * dyc * sin_sg4[0, -1] if vc > 0 else u * dyc * sin_sg2
+        with horizontal(region[:, j_start], region[:, j_end + 1]):
+            ptc = u * dyc * sin_sg4[0, -1] if vc > 0 else u * dyc * sin_sg2
 
 
 def vorticity_main(
@@ -44,9 +39,16 @@ def vorticity_main(
     sina_u: FloatFieldIJ,
     dxc: FloatFieldIJ,
     vort: FloatField,
+    uc: FloatField,
+    sin_sg3: FloatFieldIJ,
+    sin_sg1: FloatFieldIJ,
 ):
+    from __externals__ import i_end, i_start, j_end, j_start
+
     with computation(PARALLEL), interval(...):
         vort = (v - 0.5 * (ua[-1, 0, 0] + ua) * cosa_u) * dxc * sina_u
+        with horizontal(region[i_start, :], region[i_end + 1, :]):
+            vort = v * dxc * sin_sg3[-1, 0] if uc > 0 else v * dxc * sin_sg1
 
 
 def vorticity_x_edge(
@@ -182,42 +184,30 @@ class DivergenceDamping:
         is2 = self.grid.is_ + 1 if self.grid.west_edge else self.grid.is_
         ie1 = self.grid.ie if self.grid.east_edge else self.grid.ie + 1
 
+        axoff = axis_offsets(
+            self.grid,
+            (self.grid.is_ - 1, self.grid.js, low_kstart),
+            (self.grid.nic + 2, self.grid.njc + 1, low_nk),
+        )
         self._ptc_main_stencil = FrozenStencil(
             ptc_main,
             origin=(self.grid.is_ - 1, self.grid.js, low_kstart),
             domain=(self.grid.nic + 2, self.grid.njc + 1, low_nk),
+            externals={**axoff, "namelist": spec.namelist},
         )
-        y_edge_domain = (self.grid.nic + 2, 1, low_nk)
-        if self.grid.south_edge:
-            self._ptc_y_edge_south_stencil = FrozenStencil(
-                ptc_y_edge,
-                origin=(self.grid.is_ - 1, self.grid.js, low_kstart),
-                domain=y_edge_domain,
-            )
-        if self.grid.north_edge:
-            self._ptc_y_edge_north_stencil = FrozenStencil(
-                ptc_y_edge,
-                origin=(self.grid.is_ - 1, self.grid.je + 1, low_kstart),
-                domain=y_edge_domain,
-            )
+        vert_origin = (self.grid.is_, self.grid.js - 1, low_kstart)
+        vert_domain = (self.grid.ie + 1 - self.grid.is_ + 1, self.grid.njc + 2, low_nk)
+        axoff = axis_offsets(
+            self.grid,
+            vert_origin,
+            vert_domain,
+        )
         self._vorticity_main_stencil = FrozenStencil(
             vorticity_main,
-            origin=(is2, self.grid.js - 1, low_kstart),
-            domain=(ie1 - is2 + 1, self.grid.njc + 2, low_nk),
+            origin=vert_origin,
+            domain=vert_domain,
+            externals={**axoff, "namelist": spec.namelist},
         )
-        x_edge_domain = (1, self.grid.njc + 2, low_nk)
-        if self.grid.west_edge:
-            self._vorticity_x_west_edge_stencil = FrozenStencil(
-                vorticity_x_edge,
-                origin=(self.grid.is_, self.grid.js - 1, low_kstart),
-                domain=x_edge_domain,
-            )
-        if self.grid.east_edge:
-            self._vorticity_x_east_edge_stencil = FrozenStencil(
-                vorticity_x_edge,
-                origin=(self.grid.ie + 1, self.grid.js - 1, low_kstart),
-                domain=x_edge_domain,
-            )
         low_compute_origin = (self.grid.is_, self.grid.js, low_kstart)
         low_compute_domain = (self.grid.nic + 1, self.grid.njc + 1, low_nk)
         self._delpc_main_stencil = FrozenStencil(
@@ -473,29 +463,14 @@ class DivergenceDamping:
         self._ptc_main_stencil(
             u,
             va,
+            vc,
             self.grid.cosa_v,
             self.grid.sina_v,
             self.grid.dyc,
+            self.grid.sin_sg2,
+            self.grid.sin_sg4,
             ptc,
         )
-        if self.grid.south_edge:
-            self._ptc_y_edge_south_stencil(
-                u,
-                vc,
-                self.grid.dyc,
-                self.grid.sin_sg4,
-                self.grid.sin_sg2,
-                ptc,
-            )
-        if self.grid.north_edge:
-            self._ptc_y_edge_north_stencil(
-                u,
-                vc,
-                self.grid.dyc,
-                self.grid.sin_sg4,
-                self.grid.sin_sg2,
-                ptc,
-            )
 
         self._vorticity_main_stencil(
             v,
@@ -504,25 +479,10 @@ class DivergenceDamping:
             self.grid.sina_u,
             self.grid.dxc,
             vort,
+            uc,
+            self.grid.sin_sg3,
+            self.grid.sin_sg1,
         )
-        if self.grid.west_edge:
-            self._vorticity_x_west_edge_stencil(
-                v,
-                uc,
-                self.grid.dxc,
-                self.grid.sin_sg3,
-                self.grid.sin_sg1,
-                vort,
-            )
-        if self.grid.east_edge:
-            self._vorticity_x_east_edge_stencil(
-                v,
-                uc,
-                self.grid.dxc,
-                self.grid.sin_sg3,
-                self.grid.sin_sg1,
-                vort,
-            )
         # end if nested
 
         self._delpc_main_stencil(vort, ptc, delpc)
