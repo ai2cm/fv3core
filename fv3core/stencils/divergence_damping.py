@@ -51,21 +51,15 @@ def vorticity_main(
             vort = v * dxc * sin_sg3[-1, 0] if uc > 0 else v * dxc * sin_sg1
 
 
-def vorticity_x_edge(
-    v: FloatField,
-    uc: FloatField,
-    dxc: FloatFieldIJ,
-    sin_sg3: FloatFieldIJ,
-    sin_sg1: FloatFieldIJ,
-    vort: FloatField,
-):
-    with computation(PARALLEL), interval(...):
-        vort = v * dxc * sin_sg3[-1, 0] if uc > 0 else v * dxc * sin_sg1
-
-
 def delpc_main(vort: FloatField, ptc: FloatField, delpc: FloatField):
+    from __externals__ import i_end, i_start, j_end, j_start
+
     with computation(PARALLEL), interval(...):
         delpc = vort[0, -1, 0] - vort + ptc[-1, 0, 0] - ptc
+        with horizontal(region[i_start, j_start], region[i_end + 1, j_start]):
+            delpc = ptc[-1, 0, 0] - ptc - vort
+        with horizontal(region[i_start, j_end + 1], region[i_end + 1, j_end + 1]):
+            delpc = vort[0, -1, 0] + ptc[-1, 0, 0] - ptc
 
 
 def corner_south_remove_extra_term(vort: FloatField, delpc: FloatField):
@@ -133,8 +127,14 @@ def uc_from_divg(divg_d: FloatField, divg_v: FloatFieldIJ, uc: FloatField):
 
 
 def redo_divg_d(uc: FloatField, vc: FloatField, divg_d: FloatField):
+    from __externals__ import i_end, i_start, j_end, j_start
+
     with computation(PARALLEL), interval(...):
         divg_d = uc[0, -1, 0] - uc + vc[-1, 0, 0] - vc
+        with horizontal(region[i_start, j_start], region[i_end + 1, j_start]):
+            divg_d = vc[-1, 0, 0] - vc - uc
+        with horizontal(region[i_start, j_end + 1], region[i_end + 1, j_end + 1]):
+            divg_d = uc[0, -1, 0] + vc[-1, 0, 0] - vc
 
 
 def smagorinksy_diffusion_approx(delpc: FloatField, vort: FloatField, absdt: float):
@@ -208,53 +208,42 @@ class DivergenceDamping:
             domain=vert_domain,
             externals={**axoff, "namelist": spec.namelist},
         )
+
         low_compute_origin = (self.grid.is_, self.grid.js, low_kstart)
         low_compute_domain = (self.grid.nic + 1, self.grid.njc + 1, low_nk)
+        axoff = axis_offsets(
+            self.grid,
+            low_compute_origin,
+            low_compute_domain,
+        )
         self._delpc_main_stencil = FrozenStencil(
-            delpc_main, origin=low_compute_origin, domain=low_compute_domain
+            delpc_main,
+            origin=low_compute_origin,
+            domain=low_compute_domain,
+            externals={**axoff, "namelist": spec.namelist},
         )
         low_corner_domain = (1, 1, low_nk)
         # nord > 0 stencils and nord=0 corner stencils
         corner_domain = (1, 1, nk)
         if self.grid.sw_corner:
-            self._corner_south_remove_extra_term_sw_stencil = FrozenStencil(
-                corner_south_remove_extra_term,
-                origin=(self.grid.is_, self.grid.js, low_kstart),
-                domain=low_corner_domain,
-            )
             self._corner_south_remove_extra_term_sw_nordk_stencil = FrozenStencil(
                 corner_south_remove_extra_term,
                 origin=(self.grid.is_, self.grid.js, kstart),
                 domain=corner_domain,
             )
         if self.grid.se_corner:
-            self._corner_south_remove_extra_term_se_stencil = FrozenStencil(
-                corner_south_remove_extra_term,
-                origin=(self.grid.ie + 1, self.grid.js, low_kstart),
-                domain=low_corner_domain,
-            )
             self._corner_south_remove_extra_term_se_nordk_stencil = FrozenStencil(
                 corner_south_remove_extra_term,
                 origin=(self.grid.ie + 1, self.grid.js, kstart),
                 domain=corner_domain,
             )
         if self.grid.ne_corner:
-            self._corner_north_remove_extra_term_ne_stencil = FrozenStencil(
-                corner_north_remove_extra_term,
-                origin=(self.grid.ie + 1, self.grid.je + 1, low_kstart),
-                domain=low_corner_domain,
-            )
             self._corner_north_remove_extra_term_ne_nordk_stencil = FrozenStencil(
                 corner_north_remove_extra_term,
                 origin=(self.grid.ie + 1, self.grid.je + 1, kstart),
                 domain=corner_domain,
             )
         if self.grid.nw_corner:
-            self._corner_north_remove_extra_term_nw_stencil = FrozenStencil(
-                corner_north_remove_extra_term,
-                origin=(self.grid.is_, self.grid.je + 1, low_kstart),
-                domain=low_corner_domain,
-            )
             self._corner_north_remove_extra_term_nw_nordk_stencil = FrozenStencil(
                 corner_north_remove_extra_term,
                 origin=(self.grid.is_, self.grid.je + 1, kstart),
@@ -405,26 +394,6 @@ class DivergenceDamping:
                     -1.0,
                 )
             self._redo_divg_d_stencils[n](uc, vc, divg_d)
-            if self.grid.sw_corner:
-                self._corner_south_remove_extra_term_sw_nordk_stencil(
-                    uc,
-                    divg_d,
-                )
-            if self.grid.se_corner:
-                self._corner_south_remove_extra_term_se_nordk_stencil(
-                    uc,
-                    divg_d,
-                )
-            if self.grid.ne_corner:
-                self._corner_north_remove_extra_term_ne_nordk_stencil(
-                    uc,
-                    divg_d,
-                )
-            if self.grid.nw_corner:
-                self._corner_north_remove_extra_term_nw_nordk_stencil(
-                    uc,
-                    divg_d,
-                )
             if not self.grid.stretched_grid:
                 self._adjustment_stencils[n](
                     self.grid.rarea_c,
@@ -486,28 +455,6 @@ class DivergenceDamping:
         # end if nested
 
         self._delpc_main_stencil(vort, ptc, delpc)
-
-        if self.grid.sw_corner:
-            self._corner_south_remove_extra_term_sw_stencil(
-                vort,
-                delpc,
-            )
-        if self.grid.se_corner:
-            self._corner_south_remove_extra_term_se_stencil(
-                vort,
-                delpc,
-            )
-        if self.grid.ne_corner:
-            self._corner_north_remove_extra_term_ne_stencil(
-                vort,
-                delpc,
-            )
-        if self.grid.nw_corner:
-            self._corner_north_remove_extra_term_nw_stencil(
-                vort,
-                delpc,
-            )
-
         self._damping_nord0_stencil(
             self.grid.rarea_c,
             delpc,
