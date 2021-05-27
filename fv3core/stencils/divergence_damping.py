@@ -13,6 +13,15 @@ from fv3core.utils.grid import axis_offsets
 from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
 
 
+@gtscript.function
+def damp_tmp(q, da_min_c, d2_bg, dddmp):
+    tmpddd = dddmp * q
+    mintmp = 0.2 if 0.2 < tmpddd else tmpddd
+    maxd2 = d2_bg if d2_bg > mintmp else mintmp
+    damp = da_min_c * maxd2
+    return damp
+
+
 def ptc_main(
     u: FloatField,
     va: FloatField,
@@ -24,7 +33,8 @@ def ptc_main(
     sin_sg4: FloatFieldIJ,
     ptc: FloatField,
 ):
-    from __externals__ import i_end, i_start, j_end, j_start
+    """computation of pct"""
+    from __externals__ import j_end, j_start
 
     with computation(PARALLEL), interval(...):
         ptc = (u - 0.5 * (va[0, -1, 0] + va) * cosa_v) * dyc * sina_v
@@ -32,7 +42,7 @@ def ptc_main(
             ptc = u * dyc * sin_sg4[0, -1] if vc > 0 else u * dyc * sin_sg2
 
 
-def vorticity_main(
+def vorticity_computation(
     v: FloatField,
     ua: FloatField,
     cosa_u: FloatFieldIJ,
@@ -43,7 +53,8 @@ def vorticity_main(
     sin_sg3: FloatFieldIJ,
     sin_sg1: FloatFieldIJ,
 ):
-    from __externals__ import i_end, i_start, j_end, j_start
+    """computataion of the vorticity"""
+    from __externals__ import i_end, i_start
 
     with computation(PARALLEL), interval(...):
         vort = (v - 0.5 * (ua[-1, 0, 0] + ua) * cosa_u) * dxc * sina_u
@@ -60,25 +71,6 @@ def delpc_main(vort: FloatField, ptc: FloatField, delpc: FloatField):
             delpc = ptc[-1, 0, 0] - ptc - vort
         with horizontal(region[i_start, j_end + 1], region[i_end + 1, j_end + 1]):
             delpc = vort[0, -1, 0] + ptc[-1, 0, 0] - ptc
-
-
-def corner_south_remove_extra_term(vort: FloatField, delpc: FloatField):
-    with computation(PARALLEL), interval(...):
-        delpc -= vort[0, -1, 0]
-
-
-def corner_north_remove_extra_term(vort: FloatField, delpc: FloatField):
-    with computation(PARALLEL), interval(...):
-        delpc += vort
-
-
-@gtscript.function
-def damp_tmp(q, da_min_c, d2_bg, dddmp):
-    tmpddd = dddmp * q
-    mintmp = 0.2 if 0.2 < tmpddd else tmpddd
-    maxd2 = d2_bg if d2_bg > mintmp else mintmp
-    damp = da_min_c * maxd2
-    return damp
 
 
 def damping_nord0_stencil(
@@ -202,8 +194,8 @@ class DivergenceDamping:
             vert_origin,
             vert_domain,
         )
-        self._vorticity_main_stencil = FrozenStencil(
-            vorticity_main,
+        self._vorticity_computation = FrozenStencil(
+            vorticity_computation,
             origin=vert_origin,
             domain=vert_domain,
             externals={**axoff, "namelist": spec.namelist},
@@ -222,34 +214,6 @@ class DivergenceDamping:
             domain=low_compute_domain,
             externals={**axoff, "namelist": spec.namelist},
         )
-        low_corner_domain = (1, 1, low_nk)
-        # nord > 0 stencils and nord=0 corner stencils
-        corner_domain = (1, 1, nk)
-        if self.grid.sw_corner:
-            self._corner_south_remove_extra_term_sw_nordk_stencil = FrozenStencil(
-                corner_south_remove_extra_term,
-                origin=(self.grid.is_, self.grid.js, kstart),
-                domain=corner_domain,
-            )
-        if self.grid.se_corner:
-            self._corner_south_remove_extra_term_se_nordk_stencil = FrozenStencil(
-                corner_south_remove_extra_term,
-                origin=(self.grid.ie + 1, self.grid.js, kstart),
-                domain=corner_domain,
-            )
-        if self.grid.ne_corner:
-            self._corner_north_remove_extra_term_ne_nordk_stencil = FrozenStencil(
-                corner_north_remove_extra_term,
-                origin=(self.grid.ie + 1, self.grid.je + 1, kstart),
-                domain=corner_domain,
-            )
-        if self.grid.nw_corner:
-            self._corner_north_remove_extra_term_nw_nordk_stencil = FrozenStencil(
-                corner_north_remove_extra_term,
-                origin=(self.grid.is_, self.grid.je + 1, kstart),
-                domain=corner_domain,
-            )
-
         self._damping_nord0_stencil = FrozenStencil(
             damping_nord0_stencil,
             origin=low_compute_origin,
@@ -441,7 +405,7 @@ class DivergenceDamping:
             ptc,
         )
 
-        self._vorticity_main_stencil(
+        self._vorticity_computation(
             v,
             ua,
             self.grid.cosa_u,
