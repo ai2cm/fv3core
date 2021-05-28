@@ -53,7 +53,7 @@ def vorticity_computation(
     sin_sg3: FloatFieldIJ,
     sin_sg1: FloatFieldIJ,
 ):
-    """computataion of the vorticity"""
+    """computation of the vorticity"""
     from __externals__ import i_end, i_start
 
     with computation(PARALLEL), interval(...):
