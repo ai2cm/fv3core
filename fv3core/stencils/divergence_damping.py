@@ -15,7 +15,7 @@ from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
 
 @gtscript.function
 def damp_tmp(q, da_min_c, d2_bg, dddmp):
-    tmpddd = dddmp * q
+    tmpddd = dddmp * abs(q)
     mintmp = 0.2 if 0.2 < tmpddd else tmpddd
     maxd2 = d2_bg if d2_bg > mintmp else mintmp
     damp = da_min_c * maxd2
@@ -62,16 +62,11 @@ def vorticity_computation(
             vort = v * dxc * sin_sg3[-1, 0] if uc > 0 else v * dxc * sin_sg1
 
 
-def delpc_computation_and_damping(
+def delpc_computation(
     ptc: FloatField,
     rarea_c: FloatFieldIJ,
     delpc: FloatField,
     vort: FloatField,
-    ke: FloatField,
-    d2_bg: FloatFieldK,
-    da_min_c: float,
-    dddmp: float,
-    dt: float,
 ):
     from __externals__ import i_end, i_start, j_end, j_start
 
@@ -82,9 +77,20 @@ def delpc_computation_and_damping(
         with horizontal(region[i_start, j_end + 1], region[i_end + 1, j_end + 1]):
             delpc = vort[0, -1, 0] + ptc[-1, 0, 0] - ptc
         delpc = rarea_c * delpc
+
+
+def damping(
+    delpc: FloatField,
+    vort: FloatField,
+    ke: FloatField,
+    d2_bg: FloatFieldK,
+    da_min_c: float,
+    dddmp: float,
+    dt: float,
+):
+    with computation(PARALLEL), interval(...):
         delpcdt = delpc * dt
-        absdelpcdt = delpcdt if delpcdt >= 0 else -delpcdt
-        damp = damp_tmp(absdelpcdt, da_min_c, d2_bg, dddmp)
+        damp = damp_tmp(delpcdt, da_min_c, d2_bg, dddmp)
         vort = damp * delpc
         ke += vort
 
@@ -214,10 +220,15 @@ class DivergenceDamping:
             delpc_domain,
         )
         self._delpc_computation_and_damping = FrozenStencil(
-            delpc_computation_and_damping,
+            delpc_computation,
             origin=delpc_origin,
             domain=delpc_domain,
             externals=start_points,
+        )
+        self._damping = FrozenStencil(
+            damping,
+            origin=delpc_origin,
+            domain=delpc_domain,
         )
 
         self._copy_computeplus = FrozenStencil(
@@ -414,6 +425,10 @@ class DivergenceDamping:
         self._delpc_computation_and_damping(
             ptc,
             self.grid.rarea_c,
+            delpc,
+            vort,
+        )
+        self._damping(
             delpc,
             vort,
             ke,
