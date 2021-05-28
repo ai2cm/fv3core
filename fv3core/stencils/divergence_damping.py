@@ -22,7 +22,7 @@ def damp_tmp(q, da_min_c, d2_bg, dddmp):
     return damp
 
 
-def ptc_main(
+def ptc_computation(
     u: FloatField,
     va: FloatField,
     vc: FloatField,
@@ -181,8 +181,8 @@ class DivergenceDamping:
             (self.grid.is_ - 1, self.grid.js, low_kstart),
             (self.grid.nic + 2, self.grid.njc + 1, low_nk),
         )
-        self._ptc_main_stencil = FrozenStencil(
-            ptc_main,
+        self._ptc_computation = FrozenStencil(
+            ptc_computation,
             origin=(self.grid.is_ - 1, self.grid.js, low_kstart),
             domain=(self.grid.nic + 2, self.grid.njc + 1, low_nk),
             externals=start_points,
@@ -386,7 +386,7 @@ class DivergenceDamping:
     ) -> None:
         # if nested
         # TODO: ptc and vort are equivalent, but x vs y, consolidate if possible.
-        self._ptc_main_stencil(
+        self._ptc_computation(
             u,
             va,
             vc,
