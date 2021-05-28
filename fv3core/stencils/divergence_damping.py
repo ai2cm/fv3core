@@ -62,18 +62,8 @@ def vorticity_computation(
             vort = v * dxc * sin_sg3[-1, 0] if uc > 0 else v * dxc * sin_sg1
 
 
-def delpc_main(vort: FloatField, ptc: FloatField, delpc: FloatField):
-    from __externals__ import i_end, i_start, j_end, j_start
-
-    with computation(PARALLEL), interval(...):
-        delpc = vort[0, -1, 0] - vort + ptc[-1, 0, 0] - ptc
-        with horizontal(region[i_start, j_start], region[i_end + 1, j_start]):
-            delpc = ptc[-1, 0, 0] - ptc - vort
-        with horizontal(region[i_start, j_end + 1], region[i_end + 1, j_end + 1]):
-            delpc = vort[0, -1, 0] + ptc[-1, 0, 0] - ptc
-
-
-def damping_nord0_stencil(
+def delpc_computation_and_damping(
+    ptc: FloatField,
     rarea_c: FloatFieldIJ,
     delpc: FloatField,
     vort: FloatField,
@@ -83,7 +73,14 @@ def damping_nord0_stencil(
     dddmp: float,
     dt: float,
 ):
+    from __externals__ import i_end, i_start, j_end, j_start
+
     with computation(PARALLEL), interval(...):
+        delpc = vort[0, -1, 0] - vort + ptc[-1, 0, 0] - ptc
+        with horizontal(region[i_start, j_start], region[i_end + 1, j_start]):
+            delpc = ptc[-1, 0, 0] - ptc - vort
+        with horizontal(region[i_start, j_end + 1], region[i_end + 1, j_end + 1]):
+            delpc = vort[0, -1, 0] + ptc[-1, 0, 0] - ptc
         delpc = rarea_c * delpc
         delpcdt = delpc * dt
         absdelpcdt = delpcdt if delpcdt >= 0 else -delpcdt
@@ -118,7 +115,13 @@ def uc_from_divg(divg_d: FloatField, divg_v: FloatFieldIJ, uc: FloatField):
         uc = (divg_d[0, 1, 0] - divg_d) * divg_v
 
 
-def redo_divg_d(uc: FloatField, vc: FloatField, divg_d: FloatField):
+def redo_divg_d(
+    uc: FloatField,
+    vc: FloatField,
+    divg_d: FloatField,
+    adjustment_factor: FloatFieldIJ,
+    skip_adjustment: bool,
+):
     from __externals__ import i_end, i_start, j_end, j_start
 
     with computation(PARALLEL), interval(...):
@@ -127,6 +130,8 @@ def redo_divg_d(uc: FloatField, vc: FloatField, divg_d: FloatField):
             divg_d = vc[-1, 0, 0] - vc - uc
         with horizontal(region[i_start, j_end + 1], region[i_end + 1, j_end + 1]):
             divg_d = uc[0, -1, 0] + vc[-1, 0, 0] - vc
+        if not skip_adjustment:
+            divg_d = divg_d * adjustment_factor
 
 
 def smagorinksy_diffusion_approx(delpc: FloatField, vort: FloatField, absdt: float):
@@ -171,12 +176,7 @@ class DivergenceDamping:
             self._grid_type, kstart, nk, replace=False
         )
 
-        # most of these will be able to be removed when we merge stencils with regions
-        # nord=0 stencils:
-        is2 = self.grid.is_ + 1 if self.grid.west_edge else self.grid.is_
-        ie1 = self.grid.ie if self.grid.east_edge else self.grid.ie + 1
-
-        axoff = axis_offsets(
+        start_points = axis_offsets(
             self.grid,
             (self.grid.is_ - 1, self.grid.js, low_kstart),
             (self.grid.nic + 2, self.grid.njc + 1, low_nk),
@@ -185,40 +185,41 @@ class DivergenceDamping:
             ptc_main,
             origin=(self.grid.is_ - 1, self.grid.js, low_kstart),
             domain=(self.grid.nic + 2, self.grid.njc + 1, low_nk),
-            externals={**axoff, "namelist": spec.namelist},
+            externals=start_points,
         )
-        vert_origin = (self.grid.is_, self.grid.js - 1, low_kstart)
-        vert_domain = (self.grid.ie + 1 - self.grid.is_ + 1, self.grid.njc + 2, low_nk)
-        axoff = axis_offsets(
+
+        vorticity_origin = (self.grid.is_, self.grid.js - 1, low_kstart)
+        vorticity_domain = (
+            self.grid.ie + 1 - self.grid.is_ + 1,
+            self.grid.njc + 2,
+            low_nk,
+        )
+        start_points = axis_offsets(
             self.grid,
-            vert_origin,
-            vert_domain,
+            vorticity_origin,
+            vorticity_domain,
         )
         self._vorticity_computation = FrozenStencil(
             vorticity_computation,
-            origin=vert_origin,
-            domain=vert_domain,
-            externals={**axoff, "namelist": spec.namelist},
+            origin=vorticity_origin,
+            domain=vorticity_domain,
+            externals=start_points,
         )
 
-        low_compute_origin = (self.grid.is_, self.grid.js, low_kstart)
-        low_compute_domain = (self.grid.nic + 1, self.grid.njc + 1, low_nk)
-        axoff = axis_offsets(
+        delpc_origin = (self.grid.is_, self.grid.js, low_kstart)
+        delpc_domain = (self.grid.nic + 1, self.grid.njc + 1, low_nk)
+        start_points = axis_offsets(
             self.grid,
-            low_compute_origin,
-            low_compute_domain,
+            delpc_origin,
+            delpc_domain,
         )
-        self._delpc_main_stencil = FrozenStencil(
-            delpc_main,
-            origin=low_compute_origin,
-            domain=low_compute_domain,
-            externals={**axoff, "namelist": spec.namelist},
+        self._delpc_computation_and_damping = FrozenStencil(
+            delpc_computation_and_damping,
+            origin=delpc_origin,
+            domain=delpc_domain,
+            externals=start_points,
         )
-        self._damping_nord0_stencil = FrozenStencil(
-            damping_nord0_stencil,
-            origin=low_compute_origin,
-            domain=low_compute_domain,
-        )
+
         self._copy_computeplus = FrozenStencil(
             basic.copy_defn,
             origin=(self.grid.is_, self.grid.js, kstart),
@@ -257,11 +258,6 @@ class DivergenceDamping:
 
         self._redo_divg_d_stencils = get_stencils_with_varied_bounds(
             redo_divg_d, origins=origins, domains=domains
-        )
-        self._adjustment_stencils = get_stencils_with_varied_bounds(
-            basic.adjustmentfactor_stencil_defn,
-            origins=origins,
-            domains=domains,
         )
 
         self._damping_nord_highorder_stencil = FrozenStencil(
@@ -357,12 +353,9 @@ class DivergenceDamping:
                     uc,
                     -1.0,
                 )
-            self._redo_divg_d_stencils[n](uc, vc, divg_d)
-            if not self.grid.stretched_grid:
-                self._adjustment_stencils[n](
-                    self.grid.rarea_c,
-                    divg_d,
-                )
+            self._redo_divg_d_stencils[n](
+                uc, vc, divg_d, self.grid.rarea_c, self.grid.stretched_grid
+            )
 
         self.vorticity_calc(wk, vort, delpc, dt)
         self._damping_nord_highorder_stencil(
@@ -418,8 +411,8 @@ class DivergenceDamping:
         )
         # end if nested
 
-        self._delpc_main_stencil(vort, ptc, delpc)
-        self._damping_nord0_stencil(
+        self._delpc_computation_and_damping(
+            ptc,
             self.grid.rarea_c,
             delpc,
             vort,
