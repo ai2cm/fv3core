@@ -106,7 +106,7 @@ class NonHydrostaticPressureGradient:
             grid.domain_shape_full(add=(0, 0, 1)), origin=self.orig
         )  # pp.shape
 
-        self._calc_wk_stencil = FrozenStencil(
+        self._set_k0_and_calc_wk_stencil = FrozenStencil(
             set_k0_and_calc_wk,
             origin=self.orig,
             domain=self.domain_full_k,
@@ -179,7 +179,7 @@ class NonHydrostaticPressureGradient:
         self.a2b_kbuffer(gz, self._tmp_wk1)
         self.a2b_kstandard(delp, self._tmp_wk1)
 
-        self._calc_wk_stencil(pp, pk3, self._tmp_wk, top_value)
+        self._set_k0_and_calc_wk_stencil(pp, pk3, self._tmp_wk, top_value)
 
         self._calc_u_stencil(
             u,
