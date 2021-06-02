@@ -445,6 +445,17 @@ class GridIndexing:
         )
 
     @property
+    def max_shape(self):
+        """
+        Maximum required storage shape, corresponding to the shape of a cell-corner
+        variable with maximum halo points.
+
+        This should rarely be required, consider using appropriate calls to helper
+        methods that get the correct shape for your particular variable.
+        """
+        return self.domain_full(add=(1, 1, 1))
+
+    @property
     def isc(self):
         """start of the compute domain along the x-axis"""
         return self.origin[0]

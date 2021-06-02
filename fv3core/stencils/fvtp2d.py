@@ -96,14 +96,13 @@ class FiniteVolumeTransport:
         # use a shorter alias for grid_indexing here to avoid very verbose lines
         idx = grid_indexing
         self._area = area
-        shape = idx.domain_full(add=(1, 1, 1))
         origin = idx.origin_compute()
-        self._tmp_q_i = utils.make_storage_from_shape(shape, origin)
-        self._tmp_q_j = utils.make_storage_from_shape(shape, origin)
-        self._tmp_fx2 = utils.make_storage_from_shape(shape, origin)
-        self._tmp_fy2 = utils.make_storage_from_shape(shape, origin)
+        self._tmp_q_i = utils.make_storage_from_shape(idx.max_shape, origin)
+        self._tmp_q_j = utils.make_storage_from_shape(idx.max_shape, origin)
+        self._tmp_fx2 = utils.make_storage_from_shape(idx.max_shape, origin)
+        self._tmp_fy2 = utils.make_storage_from_shape(idx.max_shape, origin)
         self._corner_tmp = utils.make_storage_from_shape(
-            idx.domain_full(add=(1, 1, 1)), origin=idx.origin_full()
+            idx.max_shape, origin=idx.origin_full()
         )
         """Temporary field to use for corner computation in both x and y direction"""
         self._nord = nord
