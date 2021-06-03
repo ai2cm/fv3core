@@ -148,7 +148,7 @@ sed -i "s/<NTASKS>/$ranks/g" run.daint.slurm
 sed -i "s/<NTASKSPERNODE>/1/g" run.daint.slurm
 sed -i "s/<CPUSPERTASK>/$NTHREADS/g" run.daint.slurm
 sed -i "s/<OUTFILE>/run.daint.out\n#SBATCH --hint=nomultithread/g" run.daint.slurm
-sed -i "s/00:65:00/00:40:00/g" run.daint.slurm
+sed -i "s/00:45:00/01:10:00/g" run.daint.slurm
 sed -i "s/cscsci/normal/g" run.daint.slurm
 sed -i "s/<G2G>/export PYTHONOPTIMIZE=TRUE/g" run.daint.slurm
 sed -i "s#<CMD>#export PYTHONPATH=/project/s1053/install/serialbox2_master/gnu/python:\$PYTHONPATH\nsrun python $py_args examples/standalone/runfile/dynamics.py $data_path $timesteps $backend $githash $run_args#g" run.daint.slurm
@@ -180,7 +180,7 @@ if [ "${DO_NSYS_RUN}" == "true" ] ; then
     sed -i "s/00:45:00/00:40:00/g" run.nsys.daint.slurm
     sed -i "s/cscsci/normal/g" run.nsys.daint.slurm
     sed -i "s#<G2G>#module load nvidia-nsight-systems/2021.1.1.66-6c5c5cb\nexport PYTHONOPTIMIZE=TRUE#g" run.nsys.daint.slurm
-    sed -i "s#<CMD>#export PYTHONPATH=/project/s1053/install/serialbox2_master/gnu/python:\$PYTHONPATH\nsrun nsys profile --force-overwrite=true -o %h.%q{SLURM_NODEID}.%q{SLURM_PROCID}.qdstrm --trace=cuda,mpi,nvtx --mpi-impl=mpich python $ROOT_DIR/profiler/external_profiler.py examples/standalone/runfile/dynamics.py $data_path 3 $backend $githash --disable_json_dump#g" run.nsys.daint.slurm
+    sed -i "s#<CMD>#export PYTHONPATH=/project/s1053/install/serialbox2_master/gnu/python:\$PYTHONPATH\nsrun nsys profile --force-overwrite=true -o %h.%q{SLURM_NODEID}.%q{SLURM_PROCID}.qdstrm --trace=cuda,mpi,nvtx --mpi-impl=mpich python $ROOT_DIR/profiler/external_profiler.py --nvtx examples/standalone/runfile/dynamics.py $data_path 3 $backend $githash --disable_json_dump#g" run.nsys.daint.slurm
     # execute on a gpu node
     set +e
     res=$(sbatch -W -C gpu run.nsys.daint.slurm 2>&1)
@@ -200,5 +200,3 @@ if [ "${DO_NSYS_RUN}" == "true" ] ; then
 fi
 
 python examples/standalone/benchmarks/collect_memory_usage_data.py . $githash
-
-python examples/standalone/benchmarks/summary.py .
