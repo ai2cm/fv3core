@@ -1,5 +1,5 @@
 import functools
-from typing import Iterable, Mapping, Tuple, Union
+from typing import Iterable, Mapping, Sequence, Tuple, Union
 
 import numpy as np
 from gt4py import gtscript
@@ -539,6 +539,12 @@ class GridIndexing:
 
     def axis_offsets(self, origin: Index3D, domain: Index3D):
         return _grid_indexing_axis_offsets(self, origin, domain)
+
+    def get_shape(self, dims: Sequence[str], halos: Sequence[int]):
+        pass
+
+    def get_origin_domain(self, dims: Sequence[str], halos: Sequence[int]):
+        pass
 
 
 # TODO: delete this routine in favor of grid_indexing.axis_offsets
