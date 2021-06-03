@@ -242,6 +242,7 @@ def ppm_volume_mean_x(
 ):
     from __externals__ import i_end, i_start
 
+    # TODO(eddied): Deal with self-assigns here w/o temporaries for GTC...
     with computation(PARALLEL), interval(...):
         qx = b2 * (qin[-2, 0, 0] + qin[1, 0, 0]) + b1 * (qin[-1, 0, 0] + qin)
         with horizontal(region[i_start, :]):
