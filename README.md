@@ -491,5 +491,7 @@ For `ParallelTranslate` objects:
 Pytest can be configured to give you a pdb session when a test fails. To route this properly through docker, you can run:
 
 ```bash
-TEST_ARGS="-v -s --pdb" RUN_FLAGS="--rm -it" make test
+TEST_ARGS="-v -s --pdb" RUN_FLAGS="--rm -it" make tests
 ```
+
+This can be done with any pytest target, such as `make savepoint_tests` and `make savepoint_tests_mpi`.
