@@ -47,8 +47,13 @@ clean:
 
 update_submodules:
 	if [ ! -f $(FV3UTIL_DIR)/requirements.txt  ]; then \
-		git submodule update --init external/fv3gfs-util external/daint_venv; \
+		git submodule update --init external/fv3gfs-util ; \
 	fi
+
+update_submodules_venv:
+	if [ ! -f $(CWD)/external/daint_venv/install.sh  ]; then \
+                git submodule update --init external/daint_venv; \
+        fi
 
 constraints.txt: requirements.txt requirements/requirements_wrapper.txt requirements/requirements_lint.txt
 	pip-compile $^ --output-file constraints.txt
@@ -154,10 +159,10 @@ dev_test_mpi: dev_tests_mpi
 dev_tests_mpi_host:
 	MOUNTS=$(DEV_MOUNTS) $(MAKE) run_tests_parallel_host
 
-tests_venv:
+tests_venv: update_submodules_venv
 	pip list && $(BASH_PREFIX) bash -c "$(PYTEST_SEQUENTIAL)"
 
-tests_venv_mpi:
+tests_venv_mpi: update_submodules_venv
 	pip list && $(BASH_PREFIX) bash -c "$(PYTEST_PARALLEL)"
 
 test_base:
@@ -205,7 +210,7 @@ gt4py_tests_gpu:
 	CUDA=y make build && \
         docker run --gpus all $(FV3CORE_IMAGE) python3 -m pytest -k "gtcuda or (not gtc)" -x gt4py/tests
 
-.PHONY: update_submodules build_environment build dev dev_tests dev_tests_mpi flake8 lint get_test_data unpack_test_data \
+.PHONY: update_submodules update_submodules_venv build_environment build dev dev_tests dev_tests_mpi flake8 lint get_test_data unpack_test_data \
 	 list_test_data_options pull_environment pull_test_data push_environment \
 	rebuild_environment reformat run_tests_sequential run_tests_parallel test_base test_base_parallel \
 	tests update_submodules push_core pull_core tar_core sarus_load_tar cleanup_remote
