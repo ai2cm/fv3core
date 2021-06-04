@@ -306,7 +306,6 @@ def fxadv_stencil(
     vt: FloatField,
     dt: float,
 ):
-    # from __externals__ import i_end, i_start, j_end, j_start, local_ie, local_is
 
     with computation(PARALLEL), interval(...):
         ut = main_ut(uc, vc, cosa_u, rsin_u, ut)
@@ -325,7 +324,6 @@ def fxadv_corners_stencil(
     cosa_u: FloatFieldIJ,
     cosa_v: FloatFieldIJ,
 ):
-    # from __externals__ import i_end, i_start, j_end, j_start, local_ie, local_is
 
     with computation(PARALLEL), interval(...):
         ut = ut_corners(cosa_u, cosa_v, uc, vc, ut, vt)
@@ -390,15 +388,7 @@ class FiniteVolumeFluxPrep:
             "origin": origin_corners,
             "domain": domain_corners,
         }
-        # self._main_ut_stencil = FrozenStencil(main_ut, **kwargs)
-        # self._main_vt_stencil = FrozenStencil(main_vt, **kwargs)
-        # self._ut_y_edge_stencil = FrozenStencil(ut_y_edge, **kwargs)
-        # self._vt_y_edge_stencil = FrozenStencil(vt_y_edge, **kwargs)
-        # self._ut_x_edge_stencil = FrozenStencil(ut_x_edge, **kwargs)
-        # self._vt_x_edge_stencil = FrozenStencil(vt_x_edge, **kwargs)
         self._fxadv_stencil = FrozenStencil(fxadv_stencil, **kwargs)
-        # self._ut_corners_stencil = FrozenStencil(ut_corners, **kwargs_corners)
-        # self._vt_corners_stencil = FrozenStencil(vt_corners, **kwargs_corners)
         self._fxadv_corners_stencil = FrozenStencil(
             fxadv_corners_stencil, **kwargs_corners
         )
@@ -438,46 +428,6 @@ class FiniteVolumeFluxPrep:
             cosa_u, cosa_v, rsin_u, rsin_v, sin_sg1,sin_sg2, sin_sg3, sin_sg4, dx, dy
         """
 
-        # self._main_ut_stencil(
-        #     uc,
-        #     vc,
-        #     self.grid.cosa_u,
-        #     self.grid.rsin_u,
-        #     ut,
-        # )
-        # self._ut_y_edge_stencil(
-        #     uc,
-        #     self.grid.sin_sg1,
-        #     self.grid.sin_sg3,
-        #     ut,
-        #     dt,
-        # )
-        # self._main_vt_stencil(
-        #     uc,
-        #     vc,
-        #     self.grid.cosa_v,
-        #     self.grid.rsin_v,
-        #     vt,
-        # )
-        # self._vt_y_edge_stencil(
-        #     vc,
-        #     self.grid.cosa_v,
-        #     ut,
-        #     vt,
-        # )
-        # self._vt_x_edge_stencil(
-        #     vc,
-        #     self.grid.sin_sg2,
-        #     self.grid.sin_sg4,
-        #     vt,
-        #     dt,
-        # )
-        # self._ut_x_edge_stencil(
-        #     uc,
-        #     self.grid.cosa_u,
-        #     vt,
-        #     ut,
-        # )
         self._fxadv_stencil(
             self.grid.cosa_u,
             self.grid.cosa_v,
@@ -501,22 +451,6 @@ class FiniteVolumeFluxPrep:
             self.grid.cosa_u,
             self.grid.cosa_v,
         )
-        # self._ut_corners_stencil(
-        #     self.grid.cosa_u,
-        #     self.grid.cosa_v,
-        #     uc,
-        #     vc,
-        #     ut,
-        #     vt,
-        # )
-        # self._vt_corners_stencil(
-        #     self.grid.cosa_u,
-        #     self.grid.cosa_v,
-        #     uc,
-        #     vc,
-        #     ut,
-        #     vt,
-        # )
         self._fxadv_fluxes_stencil(
             self.grid.sin_sg1,
             self.grid.sin_sg2,
