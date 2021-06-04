@@ -328,8 +328,8 @@ def fxadv_corners_stencil(
     # from __externals__ import i_end, i_start, j_end, j_start, local_ie, local_is
 
     with computation(PARALLEL), interval(...):
-        ut = ut_corners(uc, vc, cosa_u, cosa_v, ut, vt)
-        vt = vt_corners(uc, vc, cosa_u, cosa_v, ut, vt)
+        ut = ut_corners(cosa_u, cosa_v, uc, vc, ut, vt)
+        vt = vt_corners(cosa_u, cosa_v, uc, vc, ut, vt)
 
 
 def fxadv_fluxes_stencil(
