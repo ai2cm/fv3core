@@ -73,8 +73,7 @@ DO_NSYS_RUN="$7"
 
 # get dependencies
 cd $ROOT_DIR
-git submodule update --init external/fv3gfs-util external/daint_venv
-
+make update_submodules_venv
 # set GT4PY version
 cd $ROOT_DIR
 export GT4PY_VERSION=`cat GT4PY_VERSION.txt`
