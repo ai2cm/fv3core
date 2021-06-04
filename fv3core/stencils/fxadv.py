@@ -290,7 +290,6 @@ def vt_corners(
     return vt
 
 
-# Single stencil version to use when possible with gt backends
 def fxadv_stencil(
     cosa_u: FloatFieldIJ,
     cosa_v: FloatFieldIJ,

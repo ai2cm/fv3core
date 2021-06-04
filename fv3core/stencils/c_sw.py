@@ -120,6 +120,7 @@ def transportdelp_update_vorticity_and_kineticenergy(
     from __externals__ import grid_type, i_end, i_start, j_end, j_start
 
     with computation(PARALLEL), interval(...):
+        # transport delP
         compile_assert(grid_type < 3)
         # additional assumption (not grid.nested)
 
@@ -140,6 +141,7 @@ def transportdelp_update_vorticity_and_kineticenergy(
         wc = (w * delp + (fx2 - fx2[1, 0, 0] + fy2 - fy2[0, 1, 0]) * rarea) / delpc
 
     with computation(PARALLEL), interval(...):
+        # update vorticity and kinetic energy
         compile_assert(grid_type < 3)
 
         ke = uc if ua > 0.0 else uc[1, 0, 0]
