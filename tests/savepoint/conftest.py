@@ -4,7 +4,6 @@ import sys
 import warnings
 
 import pytest
-import translate
 import yaml
 
 import fv3core
@@ -14,6 +13,8 @@ import fv3core.utils.gt4py_utils
 import fv3gfs.util as fv3util
 from fv3core.testing import ParallelTranslate, TranslateGrid
 from fv3core.utils.mpi import MPI
+
+from . import translate
 
 
 # get MPI environment
