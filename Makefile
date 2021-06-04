@@ -152,7 +152,7 @@ dev_wrapper:
 	$(MAKE) -C docker dev_wrapper
 
 test_base:
-ifneq ($(CONTAINER_CMD),)
+ifneq ($(findstring docker,$(CONTAINER_CMD)),)
 	$(MAKE) build
 endif
 	$(CONTAINER_CMD) bash -c "pip list && $(PYTEST_CMD)"
