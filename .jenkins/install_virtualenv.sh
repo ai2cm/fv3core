@@ -12,7 +12,7 @@ exitError()
 test -n "$1" || exitError 1001 ${virtualenv_path} "must pass an argument"
 wheel_dir=/project/s1053/install/wheeldir
 wheel_command="--find-links=$wheel_dir"
-
+make update_submodules_venv
 virtualenv_path=$1
 fv3core_dir=`dirname $0`/../
 (cd ${fv3core_dir}/external/daint_venv && ./install.sh ${virtualenv_path})
