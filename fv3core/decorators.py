@@ -138,14 +138,17 @@ class FrozenStencil:
         stencil_path = get_stencil_path(func.__name__, externals)
         # Check for cacheinfo file
         cache_file = f"{stencil_path}.cacheinfo"
+        lock_file = ""
         if not os.path.exists(cache_file):
+            if not os.path.exists(stencil_path):
+                os.makedirs(stencil_path, 0o755)
             # Check for lock file
             lock_file = f"{stencil_path}.lock"
             if os.path.exists(lock_file):
                 # Wait for lock to vanish...
                 while os.path.exists(lock_file):
                     time.sleep(0.1)
-                pass
+                lock_file = ""
             else:
                 # Lock the file...
                 with open(lock_file, "w") as writer:
@@ -159,9 +162,9 @@ class FrozenStencil:
         )
         """generated stencil object returned from gt4py."""
 
-        # cache_path = self.stencil_object._file_name.replace(".py", "")
-        # with open("./cache_files.lst", "a") as fp:
-        #     fp.write(f"{func.__name__}\t{externals}\t{cache_path}\n")
+        # Remove lock file if created by this rank...
+        if lock_file:
+            os.remove(lock_file)
 
         self._argument_names = tuple(inspect.getfullargspec(func).args)
 
