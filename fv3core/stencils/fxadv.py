@@ -1,3 +1,4 @@
+from gt4py import gtscript
 from gt4py.gtscript import PARALLEL, computation, horizontal, interval, region
 
 import fv3core._config as spec
@@ -8,6 +9,7 @@ from fv3core.utils.typing import FloatField, FloatFieldIJ
 
 # TODO: the mix of local and global regions is strange here
 # it's a workaround to specify DON'T do this calculation if on the tile edge
+@gtscript.function
 def main_ut(
     uc: FloatField,
     vc: FloatField,
@@ -17,20 +19,19 @@ def main_ut(
 ):
     from __externals__ import j_end, j_start, local_ie, local_is
 
-    with computation(PARALLEL), interval(...):
-        utmp = ut
-        with horizontal(region[local_is - 1 : local_ie + 3, :]):
-            ut = (
-                uc - 0.25 * cosa_u * (vc[-1, 0, 0] + vc + vc[-1, 1, 0] + vc[0, 1, 0])
-            ) * rsin_u
-        with horizontal(
-            region[:, j_start - 1 : j_start + 1], region[:, j_end : j_end + 2]
-        ):
-            ut = utmp
+    utmp = ut
+    with horizontal(region[local_is - 1 : local_ie + 3, :]):
+        ut = (
+            uc - 0.25 * cosa_u * (vc[-1, 0, 0] + vc + vc[-1, 1, 0] + vc[0, 1, 0])
+        ) * rsin_u
+    with horizontal(region[:, j_start - 1 : j_start + 1], region[:, j_end : j_end + 2]):
+        ut = utmp
+    return ut
 
 
 # TODO: the mix of local and global regions is strange here
 # it's a workaround to specify DON'T do this calculation if on the tile edge
+@gtscript.function
 def main_vt(
     uc: FloatField,
     vc: FloatField,
@@ -40,16 +41,17 @@ def main_vt(
 ):
     from __externals__ import j_end, j_start, local_je, local_js
 
-    with computation(PARALLEL), interval(...):
-        vtmp = vt
-        with horizontal(region[:, local_js - 1 : local_je + 3]):
-            vt = (
-                vc - 0.25 * cosa_v * (uc[0, -1, 0] + uc[1, -1, 0] + uc + uc[1, 0, 0])
-            ) * rsin_v
-        with horizontal(region[:, j_start], region[:, j_end + 1]):
-            vt = vtmp
+    vtmp = vt
+    with horizontal(region[:, local_js - 1 : local_je + 3]):
+        vt = (
+            vc - 0.25 * cosa_v * (uc[0, -1, 0] + uc[1, -1, 0] + uc + uc[1, 0, 0])
+        ) * rsin_v
+    with horizontal(region[:, j_start], region[:, j_end + 1]):
+        vt = vtmp
+    return vt
 
 
+@gtscript.function
 def ut_y_edge(
     uc: FloatField,
     sin_sg1: FloatFieldIJ,
@@ -59,31 +61,33 @@ def ut_y_edge(
 ):
     from __externals__ import i_end, i_start
 
-    with computation(PARALLEL), interval(...):
-        with horizontal(region[i_start, :], region[i_end + 1, :]):
-            ut = (uc / sin_sg3[-1, 0]) if (uc * dt > 0) else (uc / sin_sg1)
+    with horizontal(region[i_start, :], region[i_end + 1, :]):
+        ut = (uc / sin_sg3[-1, 0]) if (uc * dt > 0) else (uc / sin_sg1)
+    return ut
 
 
+@gtscript.function
 def ut_x_edge(uc: FloatField, cosa_u: FloatFieldIJ, vt: FloatField, ut: FloatField):
     from __externals__ import i_end, i_start, j_end, j_start, local_ie, local_is
 
-    with computation(PARALLEL), interval(...):
-        # TODO: parallel to what done for the vt_y_edge section
-        utmp = ut
-        with horizontal(
-            region[local_is : local_ie + 2, j_start - 1 : j_start + 1],
-            region[local_is : local_ie + 2, j_end : j_end + 2],
-        ):
-            ut = uc - 0.25 * cosa_u * (vt[-1, 0, 0] + vt + vt[-1, 1, 0] + vt[0, 1, 0])
-        with horizontal(
-            region[i_start : i_start + 2, j_start - 1 : j_start + 1],
-            region[i_start : i_start + 2, j_end : j_end + 2],
-            region[i_end : i_end + 2, j_start - 1 : j_start + 1],
-            region[i_end : i_end + 2, j_end : j_end + 2],
-        ):
-            ut = utmp
+    # TODO: parallel to what done for the vt_y_edge section
+    utmp = ut
+    with horizontal(
+        region[local_is : local_ie + 2, j_start - 1 : j_start + 1],
+        region[local_is : local_ie + 2, j_end : j_end + 2],
+    ):
+        ut = uc - 0.25 * cosa_u * (vt[-1, 0, 0] + vt + vt[-1, 1, 0] + vt[0, 1, 0])
+    with horizontal(
+        region[i_start : i_start + 2, j_start - 1 : j_start + 1],
+        region[i_start : i_start + 2, j_end : j_end + 2],
+        region[i_end : i_end + 2, j_start - 1 : j_start + 1],
+        region[i_end : i_end + 2, j_end : j_end + 2],
+    ):
+        ut = utmp
+    return ut
 
 
+@gtscript.function
 def vt_y_edge(vc: FloatField, cosa_v: FloatFieldIJ, ut: FloatField, vt: FloatField):
     from __externals__ import i_end, i_start, j_end, j_start, local_je, local_js
 
@@ -101,22 +105,23 @@ def vt_y_edge(vc: FloatField, cosa_v: FloatFieldIJ, ut: FloatField, vt: FloatFie
     # rank 0, 1, 2: local_js + 2:local_je + 2
     # rank 3, 4, 5: local_js:local_je + 2
     # rank 6, 7, 8: local_js:local_je
-    with computation(PARALLEL), interval(...):
-        vtmp = vt
-        with horizontal(
-            region[i_start - 1 : i_start + 1, local_js : local_je + 2],
-            region[i_end : i_end + 2, local_js : local_je + 2],
-        ):
-            vt = vc - 0.25 * cosa_v * (ut[0, -1, 0] + ut[1, -1, 0] + ut + ut[1, 0, 0])
-        with horizontal(
-            region[i_start - 1 : i_start + 1, j_start : j_start + 2],
-            region[i_end : i_end + 2, j_start : j_start + 2],
-            region[i_start - 1 : i_start + 1, j_end : j_end + 2],
-            region[i_end : i_end + 2, j_end : j_end + 2],
-        ):
-            vt = vtmp
+    vtmp = vt
+    with horizontal(
+        region[i_start - 1 : i_start + 1, local_js : local_je + 2],
+        region[i_end : i_end + 2, local_js : local_je + 2],
+    ):
+        vt = vc - 0.25 * cosa_v * (ut[0, -1, 0] + ut[1, -1, 0] + ut + ut[1, 0, 0])
+    with horizontal(
+        region[i_start - 1 : i_start + 1, j_start : j_start + 2],
+        region[i_end : i_end + 2, j_start : j_start + 2],
+        region[i_start - 1 : i_start + 1, j_end : j_end + 2],
+        region[i_end : i_end + 2, j_end : j_end + 2],
+    ):
+        vt = vtmp
+    return vt
 
 
+@gtscript.function
 def vt_x_edge(
     vc: FloatField,
     sin_sg2: FloatFieldIJ,
@@ -126,11 +131,12 @@ def vt_x_edge(
 ):
     from __externals__ import j_end, j_start
 
-    with computation(PARALLEL), interval(...):
-        with horizontal(region[:, j_start], region[:, j_end + 1]):
-            vt = (vc / sin_sg4[0, -1]) if (vc * dt > 0) else (vc / sin_sg2)
+    with horizontal(region[:, j_start], region[:, j_end + 1]):
+        vt = (vc / sin_sg4[0, -1]) if (vc * dt > 0) else (vc / sin_sg2)
+    return vt
 
 
+@gtscript.function
 def ut_corners(
     cosa_u: FloatFieldIJ,
     cosa_v: FloatFieldIJ,
@@ -154,68 +160,67 @@ def ut_corners(
     """
     from __externals__ import i_end, i_start, j_end, j_start
 
-    with computation(PARALLEL), interval(...):
-        damp = 1.0 / (1.0 - 0.0625 * cosa_u * cosa_v[-1, 0])
-        with horizontal(region[i_start + 1, j_start - 1], region[i_start + 1, j_end]):
-            ut = (
-                uc
-                - 0.25
-                * cosa_u
-                * (
-                    vt[-1, 1, 0]
-                    + vt[0, 1, 0]
-                    + vt
-                    + vc[-1, 0, 0]
-                    - 0.25
-                    * cosa_v[-1, 0]
-                    * (ut[-1, 0, 0] + ut[-1, -1, 0] + ut[0, -1, 0])
-                )
-            ) * damp
+    damp = 1.0 / (1.0 - 0.0625 * cosa_u * cosa_v[-1, 0])
+    with horizontal(region[i_start + 1, j_start - 1], region[i_start + 1, j_end]):
+        ut = (
+            uc
+            - 0.25
+            * cosa_u
+            * (
+                vt[-1, 1, 0]
+                + vt[0, 1, 0]
+                + vt
+                + vc[-1, 0, 0]
+                - 0.25 * cosa_v[-1, 0] * (ut[-1, 0, 0] + ut[-1, -1, 0] + ut[0, -1, 0])
+            )
+        ) * damp
+    damp = 1.0 / (1.0 - 0.0625 * cosa_u * cosa_v[-1, 1])
+    with horizontal(region[i_start + 1, j_start], region[i_start + 1, j_end + 1]):
         damp = 1.0 / (1.0 - 0.0625 * cosa_u * cosa_v[-1, 1])
-        with horizontal(region[i_start + 1, j_start], region[i_start + 1, j_end + 1]):
-            damp = 1.0 / (1.0 - 0.0625 * cosa_u * cosa_v[-1, 1])
-            ut = (
-                uc
-                - 0.25
-                * cosa_u
-                * (
-                    vt[-1, 0, 0]
-                    + vt
-                    + vt[0, 1, 0]
-                    + vc[-1, 1, 0]
-                    - 0.25 * cosa_v[-1, 1] * (ut[-1, 0, 0] + ut[-1, 1, 0] + ut[0, 1, 0])
-                )
-            ) * damp
-        damp = 1.0 / (1.0 - 0.0625 * cosa_u * cosa_v)
-        with horizontal(region[i_end, j_start - 1], region[i_end, j_end]):
-            ut = (
-                uc
-                - 0.25
-                * cosa_u
-                * (
-                    vt[0, 1, 0]
-                    + vt[-1, 1, 0]
-                    + vt[-1, 0, 0]
-                    + vc
-                    - 0.25 * cosa_v * (ut[1, 0, 0] + ut[1, -1, 0] + ut[0, -1, 0])
-                )
-            ) * damp
-        damp = 1.0 / (1.0 - 0.0625 * cosa_u * cosa_v[0, 1])
-        with horizontal(region[i_end, j_start], region[i_end, j_end + 1]):
-            ut = (
-                uc
-                - 0.25
-                * cosa_u
-                * (
-                    vt
-                    + vt[-1, 0, 0]
-                    + vt[-1, 1, 0]
-                    + vc[0, 1, 0]
-                    - 0.25 * cosa_v[0, 1] * (ut[1, 0, 0] + ut[1, 1, 0] + ut[0, 1, 0])
-                )
-            ) * damp
+        ut = (
+            uc
+            - 0.25
+            * cosa_u
+            * (
+                vt[-1, 0, 0]
+                + vt
+                + vt[0, 1, 0]
+                + vc[-1, 1, 0]
+                - 0.25 * cosa_v[-1, 1] * (ut[-1, 0, 0] + ut[-1, 1, 0] + ut[0, 1, 0])
+            )
+        ) * damp
+    damp = 1.0 / (1.0 - 0.0625 * cosa_u * cosa_v)
+    with horizontal(region[i_end, j_start - 1], region[i_end, j_end]):
+        ut = (
+            uc
+            - 0.25
+            * cosa_u
+            * (
+                vt[0, 1, 0]
+                + vt[-1, 1, 0]
+                + vt[-1, 0, 0]
+                + vc
+                - 0.25 * cosa_v * (ut[1, 0, 0] + ut[1, -1, 0] + ut[0, -1, 0])
+            )
+        ) * damp
+    damp = 1.0 / (1.0 - 0.0625 * cosa_u * cosa_v[0, 1])
+    with horizontal(region[i_end, j_start], region[i_end, j_end + 1]):
+        ut = (
+            uc
+            - 0.25
+            * cosa_u
+            * (
+                vt
+                + vt[-1, 0, 0]
+                + vt[-1, 1, 0]
+                + vc[0, 1, 0]
+                - 0.25 * cosa_v[0, 1] * (ut[1, 0, 0] + ut[1, 1, 0] + ut[0, 1, 0])
+            )
+        ) * damp
+    return ut
 
 
+@gtscript.function
 def vt_corners(
     cosa_u: FloatFieldIJ,
     cosa_v: FloatFieldIJ,
@@ -226,68 +231,65 @@ def vt_corners(
 ):
     from __externals__ import i_end, i_start, j_end, j_start
 
-    with computation(PARALLEL), interval(...):
-        damp = 1.0 / (1.0 - 0.0625 * cosa_u[0, -1] * cosa_v)
-        with horizontal(region[i_start - 1, j_start + 1], region[i_end, j_start + 1]):
-            vt = (
-                vc
-                - 0.25
-                * cosa_v
-                * (
-                    ut[1, -1, 0]
-                    + ut[1, 0, 0]
-                    + ut
-                    + uc[0, -1, 0]
-                    - 0.25
-                    * cosa_u[0, -1]
-                    * (vt[0, -1, 0] + vt[-1, -1, 0] + vt[-1, 0, 0])
-                )
-            ) * damp
-        damp = 1.0 / (1.0 - 0.0625 * cosa_u[1, -1] * cosa_v)
-        with horizontal(region[i_start, j_start + 1], region[i_end + 1, j_start + 1]):
-            vt = (
-                vc
-                - 0.25
-                * cosa_v
-                * (
-                    ut[0, -1, 0]
-                    + ut
-                    + ut[1, 0, 0]
-                    + uc[1, -1, 0]
-                    - 0.25 * cosa_u[1, -1] * (vt[0, -1, 0] + vt[1, -1, 0] + vt[1, 0, 0])
-                )
-            ) * damp
-        damp = 1.0 / (1.0 - 0.0625 * cosa_u[1, 0] * cosa_v)
-        with horizontal(region[i_end + 1, j_end], region[i_start, j_end]):
-            vt = (
-                vc
-                - 0.25
-                * cosa_v
-                * (
-                    ut
-                    + ut[0, -1, 0]
-                    + ut[1, -1, 0]
-                    + uc[1, 0, 0]
-                    - 0.25 * cosa_u[1, 0] * (vt[0, 1, 0] + vt[1, 1, 0] + vt[1, 0, 0])
-                )
-            ) * damp
-        damp = 1.0 / (1.0 - 0.0625 * cosa_u * cosa_v)
-        with horizontal(region[i_end, j_end], region[i_start - 1, j_end]):
-            vt = (
-                vc
-                - 0.25
-                * cosa_v
-                * (
-                    ut[1, 0, 0]
-                    + ut[1, -1, 0]
-                    + ut[0, -1, 0]
-                    + uc
-                    - 0.25 * cosa_u * (vt[0, 1, 0] + vt[-1, 1, 0] + vt[-1, 0, 0])
-                )
-            ) * damp
+    damp = 1.0 / (1.0 - 0.0625 * cosa_u[0, -1] * cosa_v)
+    with horizontal(region[i_start - 1, j_start + 1], region[i_end, j_start + 1]):
+        vt = (
+            vc
+            - 0.25
+            * cosa_v
+            * (
+                ut[1, -1, 0]
+                + ut[1, 0, 0]
+                + ut
+                + uc[0, -1, 0]
+                - 0.25 * cosa_u[0, -1] * (vt[0, -1, 0] + vt[-1, -1, 0] + vt[-1, 0, 0])
+            )
+        ) * damp
+    damp = 1.0 / (1.0 - 0.0625 * cosa_u[1, -1] * cosa_v)
+    with horizontal(region[i_start, j_start + 1], region[i_end + 1, j_start + 1]):
+        vt = (
+            vc
+            - 0.25
+            * cosa_v
+            * (
+                ut[0, -1, 0]
+                + ut
+                + ut[1, 0, 0]
+                + uc[1, -1, 0]
+                - 0.25 * cosa_u[1, -1] * (vt[0, -1, 0] + vt[1, -1, 0] + vt[1, 0, 0])
+            )
+        ) * damp
+    damp = 1.0 / (1.0 - 0.0625 * cosa_u[1, 0] * cosa_v)
+    with horizontal(region[i_end + 1, j_end], region[i_start, j_end]):
+        vt = (
+            vc
+            - 0.25
+            * cosa_v
+            * (
+                ut
+                + ut[0, -1, 0]
+                + ut[1, -1, 0]
+                + uc[1, 0, 0]
+                - 0.25 * cosa_u[1, 0] * (vt[0, 1, 0] + vt[1, 1, 0] + vt[1, 0, 0])
+            )
+        ) * damp
+    damp = 1.0 / (1.0 - 0.0625 * cosa_u * cosa_v)
+    with horizontal(region[i_end, j_end], region[i_start - 1, j_end]):
+        vt = (
+            vc
+            - 0.25
+            * cosa_v
+            * (
+                ut[1, 0, 0]
+                + ut[1, -1, 0]
+                + ut[0, -1, 0]
+                + uc
+                - 0.25 * cosa_u * (vt[0, 1, 0] + vt[-1, 1, 0] + vt[-1, 0, 0])
+            )
+        ) * damp
+    return vt
 
 
-"""
 # Single stencil version to use when possible with gt backends
 def fxadv_stencil(
     cosa_u: FloatFieldIJ,
@@ -304,6 +306,8 @@ def fxadv_stencil(
     vt: FloatField,
     dt: float,
 ):
+    # from __externals__ import i_end, i_start, j_end, j_start, local_ie, local_is
+
     with computation(PARALLEL), interval(...):
         ut = main_ut(uc, vc, cosa_u, rsin_u, ut)
         ut = ut_y_edge(uc, sin_sg1, sin_sg3, ut, dt)
@@ -311,9 +315,21 @@ def fxadv_stencil(
         vt = vt_y_edge(vc, cosa_v, ut, vt)
         vt = vt_x_edge(vc, sin_sg2, sin_sg4, vt, dt)
         ut = ut_x_edge(uc, cosa_u, vt, ut)
+
+
+def fxadv_corners_stencil(
+    uc: FloatField,
+    vc: FloatField,
+    ut: FloatField,
+    vt: FloatField,
+    cosa_u: FloatFieldIJ,
+    cosa_v: FloatFieldIJ,
+):
+    # from __externals__ import i_end, i_start, j_end, j_start, local_ie, local_is
+
+    with computation(PARALLEL), interval(...):
         ut = ut_corners(uc, vc, cosa_u, cosa_v, ut, vt)
         vt = vt_corners(uc, vc, cosa_u, cosa_v, ut, vt)
-"""
 
 
 def fxadv_fluxes_stencil(
@@ -356,7 +372,7 @@ def fxadv_fluxes_stencil(
 
 class FiniteVolumeFluxPrep:
     """
-    A large section of code near the beginning of Fortran's d_sw subroutinw
+    A large section of code near the beginning of Fortran's d_sw subroutine
     Known in this repo as FxAdv,
     """
 
@@ -374,14 +390,18 @@ class FiniteVolumeFluxPrep:
             "origin": origin_corners,
             "domain": domain_corners,
         }
-        self._main_ut_stencil = FrozenStencil(main_ut, **kwargs)
-        self._main_vt_stencil = FrozenStencil(main_vt, **kwargs)
-        self._ut_y_edge_stencil = FrozenStencil(ut_y_edge, **kwargs)
-        self._vt_y_edge_stencil = FrozenStencil(vt_y_edge, **kwargs)
-        self._ut_x_edge_stencil = FrozenStencil(ut_x_edge, **kwargs)
-        self._vt_x_edge_stencil = FrozenStencil(vt_x_edge, **kwargs)
-        self._ut_corners_stencil = FrozenStencil(ut_corners, **kwargs_corners)
-        self._vt_corners_stencil = FrozenStencil(vt_corners, **kwargs_corners)
+        # self._main_ut_stencil = FrozenStencil(main_ut, **kwargs)
+        # self._main_vt_stencil = FrozenStencil(main_vt, **kwargs)
+        # self._ut_y_edge_stencil = FrozenStencil(ut_y_edge, **kwargs)
+        # self._vt_y_edge_stencil = FrozenStencil(vt_y_edge, **kwargs)
+        # self._ut_x_edge_stencil = FrozenStencil(ut_x_edge, **kwargs)
+        # self._vt_x_edge_stencil = FrozenStencil(vt_x_edge, **kwargs)
+        self._fxadv_stencil = FrozenStencil(fxadv_stencil, **kwargs)
+        # self._ut_corners_stencil = FrozenStencil(ut_corners, **kwargs_corners)
+        # self._vt_corners_stencil = FrozenStencil(vt_corners, **kwargs_corners)
+        self._fxadv_corners_stencil = FrozenStencil(
+            fxadv_corners_stencil, **kwargs_corners
+        )
         self._fxadv_fluxes_stencil = FrozenStencil(fxadv_fluxes_stencil, **kwargs)
 
     def __call__(
@@ -418,62 +438,85 @@ class FiniteVolumeFluxPrep:
             cosa_u, cosa_v, rsin_u, rsin_v, sin_sg1,sin_sg2, sin_sg3, sin_sg4, dx, dy
         """
 
-        self._main_ut_stencil(
-            uc,
-            vc,
+        # self._main_ut_stencil(
+        #     uc,
+        #     vc,
+        #     self.grid.cosa_u,
+        #     self.grid.rsin_u,
+        #     ut,
+        # )
+        # self._ut_y_edge_stencil(
+        #     uc,
+        #     self.grid.sin_sg1,
+        #     self.grid.sin_sg3,
+        #     ut,
+        #     dt,
+        # )
+        # self._main_vt_stencil(
+        #     uc,
+        #     vc,
+        #     self.grid.cosa_v,
+        #     self.grid.rsin_v,
+        #     vt,
+        # )
+        # self._vt_y_edge_stencil(
+        #     vc,
+        #     self.grid.cosa_v,
+        #     ut,
+        #     vt,
+        # )
+        # self._vt_x_edge_stencil(
+        #     vc,
+        #     self.grid.sin_sg2,
+        #     self.grid.sin_sg4,
+        #     vt,
+        #     dt,
+        # )
+        # self._ut_x_edge_stencil(
+        #     uc,
+        #     self.grid.cosa_u,
+        #     vt,
+        #     ut,
+        # )
+        self._fxadv_stencil(
             self.grid.cosa_u,
+            self.grid.cosa_v,
             self.grid.rsin_u,
-            ut,
-        )
-        self._ut_y_edge_stencil(
-            uc,
-            self.grid.sin_sg1,
-            self.grid.sin_sg3,
-            ut,
-            dt,
-        )
-        self._main_vt_stencil(
-            uc,
-            vc,
-            self.grid.cosa_v,
             self.grid.rsin_v,
-            vt,
-        )
-        self._vt_y_edge_stencil(
-            vc,
-            self.grid.cosa_v,
-            ut,
-            vt,
-        )
-        self._vt_x_edge_stencil(
-            vc,
+            self.grid.sin_sg1,
             self.grid.sin_sg2,
+            self.grid.sin_sg3,
             self.grid.sin_sg4,
+            uc,
+            vc,
+            ut,
             vt,
             dt,
         )
-        self._ut_x_edge_stencil(
-            uc,
-            self.grid.cosa_u,
-            vt,
-            ut,
-        )
-        self._ut_corners_stencil(
-            self.grid.cosa_u,
-            self.grid.cosa_v,
+        self._fxadv_corners_stencil(
             uc,
             vc,
             ut,
             vt,
-        )
-        self._vt_corners_stencil(
             self.grid.cosa_u,
             self.grid.cosa_v,
-            uc,
-            vc,
-            ut,
-            vt,
         )
+        # self._ut_corners_stencil(
+        #     self.grid.cosa_u,
+        #     self.grid.cosa_v,
+        #     uc,
+        #     vc,
+        #     ut,
+        #     vt,
+        # )
+        # self._vt_corners_stencil(
+        #     self.grid.cosa_u,
+        #     self.grid.cosa_v,
+        #     uc,
+        #     vc,
+        #     ut,
+        #     vt,
+        # )
         self._fxadv_fluxes_stencil(
             self.grid.sin_sg1,
             self.grid.sin_sg2,
