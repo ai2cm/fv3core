@@ -50,7 +50,7 @@ update_submodules:
 		git submodule update --init external/fv3gfs-util ; \
 	fi
 
-update_submodules_venv:
+update_submodules_venv: update_submodules
 	if [ ! -f $(CWD)/external/daint_venv/install.sh  ]; then \
                 git submodule update --init external/daint_venv; \
         fi
