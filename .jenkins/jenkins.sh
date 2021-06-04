@@ -55,8 +55,6 @@ test -f ${envloc}/env/machineEnvironment.sh || exitError 1201 ${LINENO} "cannot 
 . ${envloc}/env/machineEnvironment.sh
 export python_env=${python_env}
 echo "PYTHON env ${python_env}"
-
-
 # get root directory of where jenkins.sh is sitting
 export jenkins_dir=`dirname $0`
 
@@ -165,6 +163,7 @@ if [ ${python_env} == "virtualenv" ]; then
 	echo "Using existing virtualenv ${VIRTUALENV}"
     else
 	echo "virtualenv ${VIRTUALENV} is not setup yet, installing now"
+	export FV3CORE_INSTALL_FLAGS="-e"
 	${jenkins_dir}/install_virtualenv.sh ${VIRTUALENV}
     fi
     source ${VIRTUALENV}/bin/activate
