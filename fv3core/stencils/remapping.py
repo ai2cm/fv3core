@@ -118,11 +118,6 @@ def moist_cv_pt_pressure(
     with computation(PARALLEL), interval(0, -1):
         delp = dp2
 
-def copy_j_adjacent(pe2: FloatField):
-    with computation(PARALLEL), interval(...):
-        pe2_0 = pe2[0, -1, 0]
-        pe2 = pe2_0
-
 
 def pn2_pk_delp(
     dp2: FloatField,
@@ -187,6 +182,9 @@ def update_ua(pe2: FloatField, ua: FloatField):
     with computation(PARALLEL), interval(...):
         ua = pe2[0, 0, 1]
 
+    # pe2[:, je+1, 1:npz] should equal pe2[:, je, 1:npz] as in the Fortran model, 
+    # but the extra j-elements are only used here, so we can just directly assign ua.
+    # Maybe we can eliminate this later?
     with computation(PARALLEL), interval(0,-1):
         with horizontal(region[:, local_je+1]):
             ua = pe2[0, -1, 1]
@@ -250,11 +248,6 @@ class LagrangianToEulerian:
             moist_cv.moist_pkz,
             origin=grid.compute_origin(),
             domain=grid.domain_shape_compute(),
-        )
-        self._copy_j_adjacent = FrozenStencil(
-            copy_j_adjacent,
-            origin=(grid.is_, grid.je + 1, 1),
-            domain=(grid.nic, 1, grid.npz - 1),
         )
 
         self._pn2_pk_delp = FrozenStencil(
@@ -445,10 +438,6 @@ class LagrangianToEulerian:
             peln,
             zvir,
         )
-
-        # TODO: Fix silly hack due to pe2 being 2d, so pe[:, je+1, 1:npz] should be
-        # the same as it was for pe[:, je, 1:npz] (unchanged)
-        # self._copy_j_adjacent(self._pe2)
 
         self._pn2_pk_delp(self._dp2, delp, self._pe2, self._pn2, pk, akap)
 
