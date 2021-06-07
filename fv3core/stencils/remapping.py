@@ -7,9 +7,9 @@ from gt4py.gtscript import (
     PARALLEL,
     computation,
     exp,
+    horizontal,
     interval,
     log,
-    horizontal,
     region,
 )
 
@@ -182,11 +182,11 @@ def update_ua(pe2: FloatField, ua: FloatField):
     with computation(PARALLEL), interval(...):
         ua = pe2[0, 0, 1]
 
-    # pe2[:, je+1, 1:npz] should equal pe2[:, je, 1:npz] as in the Fortran model, 
+    # pe2[:, je+1, 1:npz] should equal pe2[:, je, 1:npz] as in the Fortran model,
     # but the extra j-elements are only used here, so we can just directly assign ua.
     # Maybe we can eliminate this later?
-    with computation(PARALLEL), interval(0,-1):
-        with horizontal(region[:, local_je+1]):
+    with computation(PARALLEL), interval(0, -1):
+        with horizontal(region[:, local_je + 1]):
             ua = pe2[0, -1, 1]
 
 
@@ -298,9 +298,14 @@ class LagrangianToEulerian:
             self._kord_mt, -1, grid.is_, grid.ie + 1, grid.js, grid.je
         )
 
-        ax_offsets_jextra = axis_offsets(grid, grid.compute_origin(), grid.domain_shape_compute(add=(0,1,0)))
+        ax_offsets_jextra = axis_offsets(
+            grid, grid.compute_origin(), grid.domain_shape_compute(add=(0, 1, 0))
+        )
         self._update_ua = FrozenStencil(
-            update_ua, origin=grid.compute_origin(), domain=grid.domain_shape_compute(add=(0,1,0)), externals={**ax_offsets_jextra}
+            update_ua,
+            origin=grid.compute_origin(),
+            domain=grid.domain_shape_compute(add=(0, 1, 0)),
+            externals={**ax_offsets_jextra},
         )
 
         self._copy_from_below_stencil = FrozenStencil(
