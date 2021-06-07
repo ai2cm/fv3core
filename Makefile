@@ -12,7 +12,6 @@ PULL ?=True
 DEV ?=n
 NUM_RANKS ?=6
 VOLUMES ?=
-MOUNTS ?=
 CONTAINER_ENGINE ?=docker
 RUN_FLAGS ?=--rm
 TEST_ARGS ?=
@@ -32,7 +31,6 @@ MPIRUN_CALL ?=mpirun -np $(NUM_RANKS)
 BASE_INSTALL?=$(FV3)-install-serialbox
 DATA_BUCKET= $(REGRESSION_DATA_STORAGE_BUCKET)/$(FORTRAN_SERIALIZED_DATA_VERSION)/$(EXPERIMENT)/
 
-DEV_MOUNTS = -v $(CWD)/$(FV3):/$(FV3)/$(FV3) -v $(CWD)/tests:/$(FV3)/tests -v $(FV3UTIL_DIR):/usr/src/fv3gfs-util
 TEST_TYPE=$(word 3, $(subst _, ,$(EXPERIMENT)))
 THRESH_ARGS=--threshold_overrides_file=$(FV3_PATH)/tests/savepoint/translate/overrides/$(TEST_TYPE).yaml
 PYTEST_MAIN=pytest $(TEST_ARGS) $(FV3_PATH)/tests/main
@@ -40,9 +38,9 @@ PYTEST_SEQUENTIAL=pytest --data_path=$(TEST_DATA_RUN_LOC) $(TEST_ARGS) $(THRESH_
 # we can't rule out a deadlock if one test fails, so we must set maxfail=1 for parallel tests
 PYTEST_PARALLEL=$(MPIRUN_CALL) python -m mpi4py -m pytest --maxfail=1 --data_path=$(TEST_DATA_RUN_LOC) $(TEST_ARGS) $(THRESH_ARGS) -m parallel $(FV3_PATH)/tests/savepoint
 ifeq ($(DEV),y)
-	VOLUMES += $(DEV_MOUNTS)
+	VOLUMES += -v $(CWD)/$(FV3):/$(FV3)/$(FV3) -v $(CWD)/tests:/$(FV3)/tests -v $(FV3UTIL_DIR):/usr/src/fv3gfs-util
 endif
-CONTAINER_CMD?=$(CONTAINER_ENGINE) run $(RUN_FLAGS) $(VOLUMES) $(MOUNTS) $(CUDA_FLAGS) $(FV3CORE_IMAGE)
+CONTAINER_CMD?=$(CONTAINER_ENGINE) run $(RUN_FLAGS) $(VOLUMES) $(CUDA_FLAGS) $(FV3CORE_IMAGE)
 
 clean:
 	find . -name ""
@@ -138,12 +136,12 @@ tests:
 
 savepoint_tests:
 	$(MAKE) get_test_data
-	VOLUMES='-v $(TEST_DATA_HOST):$(TEST_DATA_RUN_LOC)' \
+	VOLUMES='$(VOLUMES) -v $(TEST_DATA_HOST):$(TEST_DATA_RUN_LOC)' \
 	PYTEST_CMD="$(PYTEST_SEQUENTIAL)" $(MAKE) test_base
 
 savepoint_tests_mpi:
 	$(MAKE) get_test_data
-	VOLUMES='-v $(TEST_DATA_HOST):$(TEST_DATA_RUN_LOC)' \
+	VOLUMES='$(VOLUMES) -v $(TEST_DATA_HOST):$(TEST_DATA_RUN_LOC)' \
 	PYTEST_CMD="$(PYTEST_PARALLEL)" $(MAKE) test_base
 
 dev:
