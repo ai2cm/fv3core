@@ -561,7 +561,6 @@ class GridIndexing:
         """
         origin = list(self._sizer.get_origin(dims))
         domain = list(self._sizer.get_extent(dims))
-        print(origin, domain)
         for i, n in enumerate(halos):
             origin[i] -= n
             domain[i] += 2 * n
