@@ -157,25 +157,7 @@ def compute_vbke(
 def ke_from_bwind(ke, ub, vb):
     return 0.5 * (ke + ub * vb)
 
-"""
-def ub_vb_from_vort(
-    vort: FloatField,
-    ub: FloatField,
-    vb: FloatField,
-    dcon: FloatFieldK,
-):
-    from __externals__ import local_ie, local_is, local_je, local_js
 
-    with computation(PARALLEL), interval(...):
-        if dcon[0] > dcon_threshold:
-            # Creating a gtscript function for the ub/vb computation
-            # results in an "NotImplementedError" error for Jenkins
-            # Inlining the ub/vb computation in this stencil resolves the Jenkins error
-            with horizontal(region[local_is : local_ie + 1, local_js : local_je + 2]):
-                ub = vort - vort[1, 0, 0]
-            with horizontal(region[local_is : local_ie + 2, local_js : local_je + 1]):
-                vb = vort - vort[0, 1, 0]
-"""
 def ub_from_vort(vort: FloatField, ub: FloatField,  dcon: FloatFieldK,):
     with computation(PARALLEL), interval(...):
         if dcon[0] > dcon_threshold:
@@ -186,35 +168,25 @@ def vb_from_vort(vort: FloatField, vb: FloatField,  dcon: FloatFieldK,):
     with computation(PARALLEL), interval(...):
         if dcon[0] > dcon_threshold:
             vb = vort - vort[0, 1, 0]
-        
-@gtscript.function
-def u_from_ke(ke, vt, fy):
-    return vt + ke - ke[1, 0, 0] + fy
+    
 
-
-@gtscript.function
-def v_from_ke(ke, ut, fx):
-    return ut + ke - ke[0, 1, 0] - fx
-
-
-def u_and_v_from_ke(
+def u_from_ke(
     ke: FloatField,
-    ut: FloatField,
     vt: FloatField,
-    fx: FloatField,
     fy: FloatField,
     u: FloatField,
-    v: FloatField,
 ):
-    from __externals__ import local_ie, local_is, local_je, local_js
-
     with computation(PARALLEL), interval(...):
-        # TODO: may be able to remove local regions once this stencil and
-        # heat_from_damping are in the same stencil
-        with horizontal(region[local_is : local_ie + 1, local_js : local_je + 2]):
-            u = u_from_ke(ke, vt, fy)
-        with horizontal(region[local_is : local_ie + 2, local_js : local_je + 1]):
-            v = v_from_ke(ke, ut, fx)
+        u = vt + ke - ke[1, 0, 0] + fy
+
+def v_from_ke(
+    ke: FloatField,
+    ut: FloatField,
+    fx: FloatField,
+    v: FloatField,
+): 
+    with computation(PARALLEL), interval(...):
+        v = ut + ke - ke[0, 1, 0] - fx
 
 
 # TODO: This is untested and the radius may be incorrect
@@ -638,8 +610,13 @@ class DGridShallowWaterLagrangianDynamics:
             vb_from_vort, origin=self.grid.compute_origin(),
             domain=self.grid.domain_shape_compute(add=(1, 0, 0)),
         )
-        self._u_and_v_from_ke_stencil = FrozenStencil(
-            u_and_v_from_ke, externals=ax_offsets_b, origin=b_origin, domain=b_domain
+        self._u_from_ke_stencil = FrozenStencil(
+            u_from_ke,  origin=self.grid.compute_origin(),
+            domain=self.grid.domain_shape_compute(add=(0, 1, 0)),
+        )
+        self._v_from_ke_stencil = FrozenStencil(
+            v_from_ke,origin=self.grid.compute_origin(),
+            domain=self.grid.domain_shape_compute(add=(1, 0, 0)),
         )
         self._compute_vorticity_stencil = FrozenStencil(
             compute_vorticity,
@@ -994,8 +971,11 @@ class DGridShallowWaterLagrangianDynamics:
             self._tmp_vort, crx, cry, xfx, yfx, self._tmp_fx, self._tmp_fy
         )
 
-        self._u_and_v_from_ke_stencil(
-            self._tmp_ke, self._tmp_ut, self._tmp_vt, self._tmp_fx, self._tmp_fy, u, v
+        self._u_from_ke_stencil(
+            self._tmp_ke, self._tmp_vt, self._tmp_fy, u,
+        )
+        self._v_from_ke_stencil(
+            self._tmp_ke, self._tmp_ut, self._tmp_fx, v
         )
 
         self.delnflux_nosg_v(
