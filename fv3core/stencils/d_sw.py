@@ -123,7 +123,7 @@ def all_corners_ke(ke, u, v, ut, vt, dt):
     return ke
 
 
-def pressure_and_vbke(
+def compute_temperature_and_pressure_delta(
     gx: FloatField,
     gy: FloatField,
     rarea: FloatFieldIJ,
@@ -131,6 +131,15 @@ def pressure_and_vbke(
     fy: FloatField,
     pt: FloatField,
     delp: FloatField,
+  ):
+    from __externals__ import inline_q
+    with computation(PARALLEL), interval(...):
+        if __INLINED(inline_q == 0):
+            pt = flux_integral(pt, delp, gx, gy, rarea)
+            delp = delp + flux_component(fx, fy, rarea)
+            pt = pt / delp
+
+def compute_vbke(
     vc: FloatField,
     uc: FloatField,
     cosa: FloatFieldIJ,
@@ -140,15 +149,7 @@ def pressure_and_vbke(
     dt4: float,
     dt5: float,
 ):
-    from __externals__ import inline_q, local_ie, local_is, local_je, local_js
-
     with computation(PARALLEL), interval(...):
-        # TODO: only needed for d_sw validation
-        if __INLINED(inline_q == 0):
-            with horizontal(region[local_is : local_ie + 1, local_js : local_je + 1]):
-                pt = flux_integral(pt, delp, gx, gy, rarea)
-                delp = delp + flux_component(fx, fy, rarea)
-                pt = pt / delp
         vb = vbke(vc, uc, cosa, rsina, vt, vb, dt4, dt5)
 
 
@@ -485,7 +486,7 @@ def mult_ubke(
         ke = vb * ub
         ub = ubke(uc, vc, cosa, rsina, ut, ub, dt4, dt5)
 
-
+"""
 @gtscript.function
 def vbke(vc, uc, cosa, rsina, vt, vb, dt4, dt5):
     from __externals__ import i_end, i_start, j_end, j_start
@@ -498,7 +499,21 @@ def vbke(vc, uc, cosa, rsina, vt, vb, dt4, dt5):
         vb = dt5 * (vt[-1, 0, 0] + vt)
 
     return vb
+"""
 
+def main_vb(vc: FloatField, uc: FloatField, cosa: FloatFieldIJ, rsina: FloatFieldIJ, vb: FloatField, dt5: float):
+    with computation(PARALLEL), interval(...):
+        vb[0, 0, 0] = dt5 * (vc[-1, 0, 0] + vc - (uc[0, -1, 0] + uc) * cosa) * rsina
+
+
+def vb_y_edge(vt: FloatField, vb: FloatField, dt5: float):
+    with computation(PARALLEL), interval(...):
+        vb[0, 0, 0] = dt5 * (vt[-1, 0, 0] + vt)
+
+
+def vb_x_edge(vt: FloatField, vb: FloatField, dt4: float):
+    with computation(PARALLEL), interval(...):
+        vb[0, 0, 0] = dt4 * (-vt[-2, 0, 0] + 3.0 * (vt[-1, 0, 0] + vt) - vt[1, 0, 0])
 
 class DGridShallowWaterLagrangianDynamics:
     """
@@ -582,12 +597,39 @@ class DGridShallowWaterLagrangianDynamics:
         b_origin = self.grid.compute_origin()
         b_domain = self.grid.domain_shape_compute(add=(1, 1, 0))
         ax_offsets_b = axis_offsets(self.grid, b_origin, b_domain)
-        self._pressure_and_vbke_stencil = FrozenStencil(
-            pressure_and_vbke,
-            externals={"inline_q": namelist.inline_q, **ax_offsets_b},
-            origin=b_origin,
-            domain=b_domain,
+        self._temperature_and_dp_stencil = FrozenStencil(
+            compute_temperature_and_pressure_delta,
+            externals={"inline_q": namelist.inline_q},
+            origin=self.grid.compute_origin(),
+            domain=self.grid.domain_shape_compute(),
         )
+        js2 = self.grid.js + 1 if self.grid.south_edge else self.grid.js
+        is2 = self.grid.is_ + 1 if self.grid.west_edge else self.grid.is_
+        je1 = self.grid.je if self.grid.north_edge else self.grid.je + 1
+        ie1 = self.grid.ie if self.grid.east_edge else self.grid.ie + 1
+        jdiff = je1 - js2 + 1
+        idiff = ie1 - is2 + 1
+        domain_x = (1, jdiff, self.grid.npz)
+        domain_y = (self.grid.nic + 1, 1, self.grid.npz)
+        self._vb_stencil = FrozenStencil(
+            main_vb,
+            origin=(is2, js2, 0),
+            domain=(idiff, jdiff, self.grid.npz)
+        )
+        if self.grid.south_edge:
+            self._vb_south_edge_stencil = FrozenStencil(
+                vb_y_edge,origin=self.grid.compute_origin(), domain=domain_y)
+        if self.grid.west_edge:
+            self._vb_west_edge_stencil=FrozenStencil(
+                vb_x_edge,
+                origin=(self.grid.is_, js2, 0), domain=domain_x)
+        if self.grid.east_edge:
+            self._vb_east_edge_stencil=FrozenStencil(
+                vb_x_edge,origin=(self.grid.ie + 1, js2, 0), domain=domain_x)
+        if self.grid.north_edge:
+            self._vb_north_edge_stencil=FrozenStencil(
+                vb_y_edge,
+                origin=(self.grid.is_, self.grid.je + 1, 0), domain=domain_y)
         self._flux_adjust_stencil = FrozenStencil(
             flux_adjust,
             origin=self.grid.compute_origin(),
@@ -819,7 +861,7 @@ class DGridShallowWaterLagrangianDynamics:
         dt5 = 0.5 * dt
         dt4 = 0.25 * dt
 
-        self._pressure_and_vbke_stencil(
+        self._temperature_and_dp_stencil(
             self._tmp_gx,
             self._tmp_gy,
             self.grid.rarea,
@@ -827,16 +869,23 @@ class DGridShallowWaterLagrangianDynamics:
             self._tmp_fy,
             pt,
             delp,
+            )
+        if self.grid.south_edge:
+            self._vb_south_edge_stencil(self._tmp_vt, self._tmp_vb, dt5)
+        self._vb_stencil(
             vc,
             uc,
             self.grid.cosa,
             self.grid.rsina,
-            self._tmp_vt,
             self._tmp_vb,
-            dt4,
-            dt5,
+            dt5
         )
-
+        if self.grid.west_edge:
+            self._vb_west_edge_stencil(self._tmp_vt, self._tmp_vb, dt4)
+        if self.grid.east_edge:
+            self._vb_east_edge_stencil(self._tmp_vt, self._tmp_vb, dt4)
+        if self.grid.north_edge:
+            self._vb_north_edge_stencil(self._tmp_vt, self._tmp_vb, dt5)
         self.ytp_v(self._tmp_vb, v, self._tmp_ub)
 
         self._mult_ubke_stencil(
