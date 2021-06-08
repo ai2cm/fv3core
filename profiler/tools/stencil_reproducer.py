@@ -9,6 +9,8 @@ from typing import Dict, Tuple
 import numpy as np
 from gt4py import storage
 
+from fv3core.utils.mpi import MPI
+
 
 STENCIL_CANDIDATE_FOR_EXTRACT: Dict[str, Tuple[str, str]] = {}
 
@@ -33,8 +35,11 @@ def field_serialization(frame, event, args):
                         continue
                     if isinstance(arg_value, storage.Storage):
                         arg_value.device_to_host()
+                        pickle_file = f"{stencil_info[1]}/data/{prefix}_{arg_key}.npz"
+                        if path.isfile(pickle_file):
+                            raise Exception("already wrote to", pickle_file)
                         np.savez_compressed(
-                            f"{stencil_info[1]}/data/{prefix}_{arg_key}.npz",
+                            pickle_file,
                             arg_value.data,
                         )
                     else:
@@ -75,9 +80,11 @@ def collect_stencil_candidate(stencil_name):
         raise RuntimeError(f"[Profiler] not stencil collected for {stencil_name}")
 
     # Create the result dir
+    rank = MPI.COMM_WORLD.Get_rank()
     repro_dir = (
         f"{getcwd()}/repro_{stencil_name}_"
-        f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
+        f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S_')}"
+        f"{rank}"
     )
     mkdir(repro_dir)
     # Copy required file for repro & prepare for args pickling
