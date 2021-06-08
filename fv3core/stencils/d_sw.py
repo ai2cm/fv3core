@@ -269,43 +269,16 @@ def heat_source_from_vorticity_damping(
     rdx: FloatFieldIJ,
     rdy: FloatFieldIJ,
     heat_source: FloatField,
-    heat_source_total: FloatField,
-    dissipation_estimate: FloatField,
+    dampterm: FloatField,
     kinetic_energy_fraction_to_damp: FloatFieldK,
-    damp_vt: FloatFieldK,
+    
 ):
-    """
-    Calculates heat source from vorticity damping implied by energy conservation.
-    Updates u and v
-    Args:
-        ub (in)
-        vb (in)
-        ut (in)
-        vt (in)
-        u (in)
-        v (in)
-        delp (in)
-        rsin2 (in)
-        cosa_s (in)
-        rdx (in): radius of Earth multiplied by x-direction gridcell width
-        rdy (in): radius of Earth multiplied by y-direction gridcell width
-        heat_source (out): heat source from vorticity damping
-            implied by energy conservation
-        heat_source_total: (out) accumulated heat source
-        dissipation_estimate (out): dissipation estimate, only calculated if
-            calculate_dissipation_estimate is 1
-        kinetic_energy_fraction_to_damp (in): according to its comment in fv_arrays,
-            the fraction of kinetic energy to explicitly damp and convert into heat.
-            TODO: confirm this description is accurate, why is it multiplied
-            by 0.25 below?
-        damp_vt: column scalar for damping vorticity
-    """
-    from __externals__ import d_con, do_skeb, local_ie, local_is, local_je, local_js
+   
+    from __externals__ import do_skeb
 
     with computation(PARALLEL), interval(...):
         # if (kinetic_energy_fraction_to_damp[0] > dcon_threshold) or do_skeb:
         heat_s = heat_source
-        diss_e = dissipation_estimate
         ubt = (ub + vt) * rdx
         fy = u * rdx
         gy = fy * ubt
@@ -324,20 +297,39 @@ def heat_source_from_vorticity_damping(
             heat_source = delp * (
                 heat_s - 0.25 * kinetic_energy_fraction_to_damp[0] * dampterm
             )
+
+def heat_source_accumulate(
+    heat_source: FloatField,
+    heat_source_total: FloatField,
+    dissipation_estimate: FloatField,
+    dampterm: FloatField
+):
+    from __externals__ import d_con, do_skeb
     with computation(PARALLEL), interval(...):
+        diss_e = dissipation_estimate
         if __INLINED((d_con > dcon_threshold) or do_skeb):
-            with horizontal(region[local_is : local_ie + 1, local_js : local_je + 1]):
-                heat_source_total = heat_source_total + heat_source
-                # do_skeb could be renamed to calculate_dissipation_estimate
-                # when d_sw is converted into a D_SW object
-                if __INLINED(do_skeb == 1):
-                    dissipation_estimate = diss_e - dampterm
+        #    with horizontal(region[local_is : local_ie + 1, local_js : local_je + 1]):
+            heat_source_total = heat_source_total + heat_source
+            if __INLINED(do_skeb == 1):
+                dissipation_estimate = diss_e - dampterm
+def damped_u(
+    vt: FloatField,
+    u: FloatField,
+    damp_vt: FloatFieldK,
+):
     with computation(PARALLEL), interval(...):
         if damp_vt > 1e-5:
-            with horizontal(region[local_is : local_ie + 1, local_js : local_je + 2]):
-                u = u + vt
-            with horizontal(region[local_is : local_ie + 2, local_js : local_je + 1]):
-                v = v - ut
+            #with horizontal(region[local_is : local_ie + 1, local_js : local_je + 2]):
+            u = u + vt
+def damped_v(
+    ut: FloatField,
+    v: FloatField,
+    damp_vt: FloatFieldK,
+):
+    with computation(PARALLEL), interval(...):
+        if damp_vt > 1e-5:
+            #with horizontal(region[local_is : local_ie + 2, local_js : local_je + 1]):
+            v = v - ut
 
 
 def ke_horizontal_vorticity(
@@ -520,6 +512,7 @@ class DGridShallowWaterLagrangianDynamics:
         self._tmp_fx2 = utils.make_storage_from_shape(shape, origin)
         self._tmp_fy2 = utils.make_storage_from_shape(shape, origin)
         self._tmp_damp_3d = utils.make_storage_from_shape((1, 1, self.grid.npz))
+        self._tmp_dampterm = utils.make_storage_from_shape(shape, origin)
         self._column_namelist = column_namelist
 
         self.delnflux_nosg_w = DelnFluxNoSG(self._column_namelist["nord_w"])
@@ -642,12 +635,21 @@ class DGridShallowWaterLagrangianDynamics:
             heat_source_from_vorticity_damping,
             externals={
                 "do_skeb": namelist.do_skeb,
-                "d_con": namelist.d_con,
-                **ax_offsets_b,
             },
             origin=b_origin,
             domain=b_domain,
         )
+        self._heat_source_accumulate = FrozenStencil(
+            heat_source_accumulate,
+            externals={
+                "do_skeb": namelist.do_skeb,
+                "d_con": namelist.d_con,
+            },
+            origin=self.grid.compute_origin(),
+            domain=self.grid.domain_shape_compute()
+        )
+        self._damp_u = FrozenStencil(damped_u,  origin=self.grid.compute_origin(), domain=self.grid.domain_shape_compute(add=(0, 1, 0)))
+        self._damp_v = FrozenStencil(damped_v,  origin=self.grid.compute_origin(), domain=self.grid.domain_shape_compute(add=(1, 0, 0)))
         self._ke_horizontal_vorticity_stencil = FrozenStencil(
             ke_horizontal_vorticity,
             externals=ax_offsets_full,
@@ -890,18 +892,7 @@ class DGridShallowWaterLagrangianDynamics:
             self._vb_north_edge_stencil(self._tmp_vt, self._tmp_vb, dt5)
         self.ytp_v(self._tmp_vb, v, self._tmp_ub)
         self._ke_stencil(self._tmp_ub, self._tmp_vb,  self._tmp_ke)
-        #        self._mult_ubke_stencil(
-        #            self._tmp_vb,
-        #            self._tmp_ke,
-        #            uc,
-        #            vc,
-        #            self.grid.cqosa,
-        #            self.grid.rsina,
-        #            self._tmp_ut,
-        #            self._tmp_ub,
-        #            dt4,
-        #            dt5,
-        #     
+       
         if self.grid.west_edge:
             self._ub_west_edge_stencil(self._tmp_ut, self._tmp_ub, dt5)
         self._ub_stencil(
@@ -999,8 +990,9 @@ class DGridShallowWaterLagrangianDynamics:
             self.grid.rdx,
             self.grid.rdy,
             self._tmp_heat_s,
-            heat_source,
-            diss_est,
+            self._tmp_dampterm,
             self._column_namelist["d_con"],
-            self._column_namelist["damp_vt"],
         )
+        self._heat_source_accumulate(self._tmp_heat_s, heat_source,  diss_est,self._tmp_dampterm)
+        self._damp_u(self._tmp_vt, u, self._column_namelist["damp_vt"])
+        self._damp_v(self._tmp_ut, v, self._column_namelist["damp_vt"])
