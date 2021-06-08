@@ -9,13 +9,12 @@ from gt4py.gtscript import (
     region,
 )
 
-import fv3core._config as spec
 from fv3core.decorators import FrozenStencil
 from fv3core.stencils import yppm
 from fv3core.stencils.basic_operations import sign
-from fv3core.utils.grid import axis_offsets
-from fv3core.utils.typing import FloatField, FloatFieldIJ
-
+from fv3core.utils.typing import FloatField, FloatFieldIJ, Index3D
+import fv3core.utils.gt4py_utils as utils
+import fv3core._config as spec
 
 @gtscript.function
 def final_flux(courant, q, fx1, tmp):
@@ -58,210 +57,76 @@ def get_flux(q: FloatField, courant: FloatField, al: FloatField):
     fx1 = fx1_fn(courant, br, b0, bl)
     return final_flux(courant, q, fx1, tmp)  # noqa
 
+        
+def main_al(q: FloatField, al: FloatField):
+    with computation(PARALLEL), interval(...):
+        al = yppm.p1 * (q[-1, 0, 0] + q) + yppm.p2 * (q[-2, 0, 0] + q[1, 0, 0])
 
-@gtscript.function
-def get_flux_ord8plus(
-    q: FloatField, courant: FloatField, bl: FloatField, br: FloatField
-):
-    b0 = bl + br
-    fx1 = fx1_fn(courant, br, b0, bl)
-    return final_flux(courant, q, fx1, 1.0)
-
-
-@gtscript.function
-def dm_iord8plus(q: FloatField):
-    xt = 0.25 * (q[1, 0, 0] - q[-1, 0, 0])
-    dqr = max(max(q, q[-1, 0, 0]), q[1, 0, 0]) - q
-    dql = q - min(min(q, q[-1, 0, 0]), q[1, 0, 0])
-    return sign(min(min(abs(xt), dqr), dql), xt)
-
-
-@gtscript.function
-def al_iord8plus(q: FloatField, dm: FloatField):
-    return 0.5 * (q[-1, 0, 0] + q) + 1.0 / 3.0 * (dm[-1, 0, 0] - dm)
-
-
-@gtscript.function
-def blbr_iord8(q: FloatField, al: FloatField, dm: FloatField):
-    xt = 2.0 * dm
-    bl = -1.0 * sign(min(abs(xt), abs(al - q)), xt)
-    br = sign(min(abs(xt), abs(al[1, 0, 0] - q)), xt)
-    return bl, br
-
-
-@gtscript.function
-def xt_dxa_edge_0_base(q, dxa):
-    return 0.5 * (
-        ((2.0 * dxa + dxa[-1, 0]) * q - dxa * q[-1, 0, 0]) / (dxa[-1, 0] + dxa)
-        + ((2.0 * dxa[1, 0] + dxa[2, 0]) * q[1, 0, 0] - dxa[1, 0] * q[2, 0, 0])
-        / (dxa[1, 0] + dxa[2, 0])
-    )
-
-
-@gtscript.function
-def xt_dxa_edge_1_base(q, dxa):
-    return 0.5 * (
-        ((2.0 * dxa[-1, 0] + dxa[-2, 0]) * q[-1, 0, 0] - dxa[-1, 0] * q[-2, 0, 0])
-        / (dxa[-2, 0] + dxa[-1, 0])
-        + ((2.0 * dxa + dxa[1, 0]) * q - dxa * q[1, 0, 0]) / (dxa + dxa[1, 0])
-    )
-
-
-@gtscript.function
-def xt_dxa_edge_0(q, dxa):
-    from __externals__ import xt_minmax
-
-    xt = xt_dxa_edge_0_base(q, dxa)
-    if __INLINED(xt_minmax):
-        minq = min(min(min(q[-1, 0, 0], q), q[1, 0, 0]), q[2, 0, 0])
-        maxq = max(max(max(q[-1, 0, 0], q), q[1, 0, 0]), q[2, 0, 0])
-        xt = min(max(xt, minq), maxq)
-    return xt
-
-
-@gtscript.function
-def xt_dxa_edge_1(q, dxa):
-    from __externals__ import xt_minmax
-
-    xt = xt_dxa_edge_1_base(q, dxa)
-    if __INLINED(xt_minmax):
-        minq = min(min(min(q[-2, 0, 0], q[-1, 0, 0]), q), q[1, 0, 0])
-        maxq = max(max(max(q[-2, 0, 0], q[-1, 0, 0]), q), q[1, 0, 0])
-        xt = min(max(xt, minq), maxq)
-    return xt
-
-
-@gtscript.function
-def compute_al(q: FloatField, dxa: FloatFieldIJ):
-    """
-    Interpolate q at interface.
-
-    Inputs:
-        q: Transported scalar
-        dxa: dx on A-grid (?)
-
-    Returns:
-        Interpolated quantity
-    """
-    from __externals__ import i_end, i_start, iord
-
-    compile_assert(iord < 8)
-
-    al = yppm.p1 * (q[-1, 0, 0] + q) + yppm.p2 * (q[-2, 0, 0] + q[1, 0, 0])
-
-    if __INLINED(iord < 0):
-        compile_assert(False)
-        al = max(al, 0.0)
-
-    with horizontal(region[i_start - 1, :], region[i_end, :]):
+        
+def al_y_edge_0(q: FloatField,  al: FloatField):
+    with computation(PARALLEL), interval(0, None):
         al = yppm.c1 * q[-2, 0, 0] + yppm.c2 * q[-1, 0, 0] + yppm.c3 * q
-    with horizontal(region[i_start, :], region[i_end + 1, :]):
+
+
+def al_y_edge_1(q: FloatField, dxa: FloatFieldIJ, al: FloatField):
+    with computation(PARALLEL), interval(0, None):
         al = 0.5 * (
             ((2.0 * dxa[-1, 0] + dxa[-2, 0]) * q[-1, 0, 0] - dxa[-1, 0] * q[-2, 0, 0])
             / (dxa[-2, 0] + dxa[-1, 0])
             + ((2.0 * dxa[0, 0] + dxa[1, 0]) * q[0, 0, 0] - dxa[0, 0] * q[1, 0, 0])
             / (dxa[0, 0] + dxa[1, 0])
         )
-    with horizontal(region[i_start + 1, :], region[i_end + 2, :]):
+        
+def al_y_edge_2(q: FloatField, dxa: FloatFieldIJ, al: FloatField):
+    with computation(PARALLEL), interval(0, None):
         al = yppm.c3 * q[-1, 0, 0] + yppm.c2 * q[0, 0, 0] + yppm.c1 * q[1, 0, 0]
 
-    return al
-
-
-@gtscript.function
-def bl_br_edges(bl, br, q, dxa, al, dm):
-    from __externals__ import i_end, i_start
-
-    with horizontal(region[i_start - 1, :]):
-        xt_bl = yppm.s14 * dm[-1, 0, 0] + yppm.s11 * (q[-1, 0, 0] - q) + q
-        xt_br = xt_dxa_edge_0(q, dxa)
-
-    with horizontal(region[i_start, :]):
-        xt_bl = xt_dxa_edge_1(q, dxa)
-        xt_br = yppm.s15 * q + yppm.s11 * q[1, 0, 0] - yppm.s14 * dm[1, 0, 0]
-
-    with horizontal(region[i_start + 1, :]):
-        xt_bl = yppm.s15 * q[-1, 0, 0] + yppm.s11 * q - yppm.s14 * dm
-        xt_br = al[1, 0, 0]
-
-    with horizontal(region[i_end - 1, :]):
-        xt_bl = al
-        xt_br = yppm.s15 * q[1, 0, 0] + yppm.s11 * q + yppm.s14 * dm
-
-    with horizontal(region[i_end, :]):
-        xt_bl = yppm.s15 * q + yppm.s11 * q[-1, 0, 0] + yppm.s14 * dm[-1, 0, 0]
-        xt_br = xt_dxa_edge_0(q, dxa)
-
-    with horizontal(region[i_end + 1, :]):
-        xt_bl = xt_dxa_edge_1(q, dxa)
-        xt_br = yppm.s11 * (q[1, 0, 0] - q) - yppm.s14 * dm[1, 0, 0] + q
-
-    with horizontal(
-        region[i_start - 1 : i_start + 2, :], region[i_end - 1 : i_end + 2, :]
-    ):
-        bl = xt_bl - q
-        br = xt_br - q
-
-    return bl, br
-
-
-@gtscript.function
-def compute_blbr_ord8plus(q: FloatField, dxa: FloatFieldIJ):
-    from __externals__ import i_end, i_start, iord
-
-    dm = dm_iord8plus(q)
-    al = al_iord8plus(q, dm)
-
-    compile_assert(iord == 8)
-
-    bl, br = blbr_iord8(q, al, dm)
-    bl, br = bl_br_edges(bl, br, q, dxa, al, dm)
-
-    with horizontal(
-        region[i_start - 1 : i_start + 2, :], region[i_end - 1 : i_end + 2, :]
-    ):
-        bl, br = yppm.pert_ppm_standard_constraint_fcn(q, bl, br)
-
-    return bl, br
-
-
 def compute_x_flux(
-    q: FloatField, courant: FloatField, dxa: FloatFieldIJ, xflux: FloatField
+        q: FloatField, courant: FloatField, al: FloatField, dxa: FloatFieldIJ, xflux: FloatField
 ):
-    from __externals__ import mord
-
     with computation(PARALLEL), interval(...):
-        if __INLINED(mord < 8):
-            al = compute_al(q, dxa)
-            xflux = get_flux(q, courant, al)
-        else:
-            bl, br = compute_blbr_ord8plus(q, dxa)
-            xflux = get_flux_ord8plus(q, courant, bl, br)
-
+        xflux = get_flux(q, courant, al)
 
 class XPiecewiseParabolic:
     """
     Fortran name is xppm
     """
 
-    def __init__(self, namelist, iord, jfirst, jlast):
-        grid = spec.grid
+    def __init__(
+        self,
+        namelist,
+        iord,
+        jfirst,
+        jlast
+    ):
+        self.grid = spec.grid
         assert namelist.grid_type < 3
-        self._dxa = grid.dxa
-        origin = (grid.is_, jfirst, 0)
-        domain = (grid.nic + 1, jlast - jfirst + 1, grid.npz + 1)
-        ax_offsets = axis_offsets(grid, origin, domain)
+        assert iord < 8
+        flux_origin = (self.grid.is_, jfirst, 0)
+        flux_domain = (self.grid.nic + 1, jlast - jfirst + 1, self.grid.npz + 1)
+        is1 = self.grid.is_ + 2 if self.grid.west_edge else self.grid.is_ - 1
+        ie3 = self.grid.ie - 1 if self.grid.east_edge else self.grid.ie + 2
+        self._dxa = self.grid.dxa
+        shape = self.grid.domain_shape_full(add=(1, 1, 1))
+        edge_domain = (1, shape[1], shape[2])
+        self._al = utils.make_storage_from_shape(shape)
+        self._main_al_stencil =  FrozenStencil(main_al,origin=(is1, jfirst, 0), domain=(ie3 - is1 + 1, jlast - jfirst + 1, self.grid.npz + 1))
+        if self.grid.west_edge:
+            self._al_west_0_stencil = FrozenStencil(al_y_edge_0, origin=(self.grid.is_ - 1, 0, 0), domain=edge_domain)
+            self._al_west_1_stencil = FrozenStencil(al_y_edge_1, origin=(self.grid.is_, 0, 0), domain=edge_domain)
+            self._al_west_2_stencil = FrozenStencil(al_y_edge_2, origin=(self.grid.is_ + 1, 0, 0), domain=edge_domain)
+        if self.grid.east_edge:
+            self._al_east_0_stencil = FrozenStencil(al_y_edge_0, origin=(self.grid.ie, 0, 0), domain=edge_domain)
+            self._al_east_1_stencil = FrozenStencil(al_y_edge_1, origin=(self.grid.ie+1, 0, 0), domain=edge_domain)
+            self._al_east_2_stencil = FrozenStencil(al_y_edge_2, origin=(self.grid.ie+2, 0, 0), domain=edge_domain)
+        
         self._compute_flux_stencil = FrozenStencil(
             func=compute_x_flux,
             externals={
-                "iord": iord,
                 "mord": abs(iord),
-                "xt_minmax": True,
-                "i_start": ax_offsets["i_start"],
-                "i_end": ax_offsets["i_end"],
             },
-            origin=origin,
-            domain=domain,
+            origin=flux_origin,
+            domain=flux_domain,
         )
 
     def __call__(self, q: FloatField, c: FloatField, xflux: FloatField):
@@ -275,5 +140,26 @@ class XPiecewiseParabolic:
             jfirst: Starting index of the J-dir compute domain
             jlast: Final index of the J-dir compute domain
         """
+        self._main_al_stencil(q, self._al)
+        if self.grid.west_edge:
+            self._al_west_0_stencil(
+                q, self._al
+            )
+            self._al_west_1_stencil(
+                q, self._dxa, self._al
+            )
+            self._al_west_2_stencil(
+                q, self._dxa, self._al
+            )
 
-        self._compute_flux_stencil(q, c, self._dxa, xflux)
+        if self.grid.east_edge:
+            self._al_east_0_stencil(
+                q, self._al
+            )
+            self._al_east_1_stencil(
+                q, self._dxa, self._al
+            )
+            self._al_east_2_stencil(
+                q, self._dxa, self._al
+            )
+        self._compute_flux_stencil(q, c, self._al, self._dxa, xflux)
