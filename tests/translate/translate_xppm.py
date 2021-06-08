@@ -1,3 +1,4 @@
+import fv3core._config as spec
 import fv3core.utils.gt4py_utils as utils
 from fv3core.stencils import xppm
 from fv3core.testing import TranslateFortranData2Py, TranslateGrid
@@ -33,15 +34,8 @@ class TranslateXPPM(TranslateFortranData2Py):
     def compute(self, inputs):
         self.process_inputs(inputs)
         inputs["xflux"] = utils.make_storage_from_shape(inputs["q"].shape)
-        origin = self.grid.grid_indexing.origin_compute()
-        domain = self.grid.grid_indexing.domain_compute(add=(1, 1, 0))
         self.compute_func = xppm.XPiecewiseParabolic(
-            grid_indexing=self.grid.grid_indexing,
-            dxa=self.grid.dxa,
-            grid_type=self.grid.grid_type,
-            iord=int(inputs["iord"]),
-            origin=(origin[0], inputs["jfirst"], origin[2]),
-            domain=(domain[0], inputs["jlast"] - inputs["jfirst"] + 1, domain[2]),
+            spec.namelist, int(inputs["iord"]), inputs["jfirst"], inputs["jlast"]
         )
         self.compute_func(inputs["q"], inputs["c"], inputs["xflux"])
         return self.slice_output(inputs)
