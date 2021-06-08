@@ -157,7 +157,7 @@ def compute_vbke(
 def ke_from_bwind(ke, ub, vb):
     return 0.5 * (ke + ub * vb)
 
-
+"""
 def ub_vb_from_vort(
     vort: FloatField,
     ub: FloatField,
@@ -175,8 +175,18 @@ def ub_vb_from_vort(
                 ub = vort - vort[1, 0, 0]
             with horizontal(region[local_is : local_ie + 2, local_js : local_je + 1]):
                 vb = vort - vort[0, 1, 0]
+"""
+def ub_from_vort(vort: FloatField, ub: FloatField,  dcon: FloatFieldK,):
+    with computation(PARALLEL), interval(...):
+        if dcon[0] > dcon_threshold:
+            ub = vort - vort[1, 0, 0]
 
 
+def vb_from_vort(vort: FloatField, vb: FloatField,  dcon: FloatFieldK,):
+    with computation(PARALLEL), interval(...):
+        if dcon[0] > dcon_threshold:
+            vb = vort - vort[0, 1, 0]
+        
 @gtscript.function
 def u_from_ke(ke, vt, fy):
     return vt + ke - ke[1, 0, 0] + fy
@@ -620,8 +630,13 @@ class DGridShallowWaterLagrangianDynamics:
         self._flux_capacitor_stencil = FrozenStencil(
             flux_capacitor, origin=full_origin, domain=full_domain
         )
-        self._ub_vb_from_vort_stencil = FrozenStencil(
-            ub_vb_from_vort, externals=ax_offsets_b, origin=b_origin, domain=b_domain
+        self._ub_from_vort_stencil = FrozenStencil(
+            ub_from_vort,  origin=self.grid.compute_origin(),
+            domain=self.grid.domain_shape_compute(add=(0, 1, 0)),
+        )
+        self._vb_from_vort_stencil = FrozenStencil(
+            vb_from_vort, origin=self.grid.compute_origin(),
+            domain=self.grid.domain_shape_compute(add=(1, 0, 0)),
         )
         self._u_and_v_from_ke_stencil = FrozenStencil(
             u_and_v_from_ke, externals=ax_offsets_b, origin=b_origin, domain=b_domain
@@ -963,9 +978,14 @@ class DGridShallowWaterLagrangianDynamics:
             dt,
         )
 
-        self._ub_vb_from_vort_stencil(
-            self._tmp_vort, self._tmp_ub, self._tmp_vb, self._column_namelist["d_con"]
+        self._ub_from_vort_stencil(
+            self._tmp_vort, self._tmp_ub, self._column_namelist["d_con"]
         )
+        
+        self._vb_from_vort_stencil(
+            self._tmp_vort, self._tmp_vb, self._column_namelist["d_con"]
+        )
+
 
         # Vorticity transport
         self._compute_vorticity_stencil(self._tmp_wk, self.grid.f0, zh, self._tmp_vort)
