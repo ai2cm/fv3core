@@ -14,7 +14,7 @@ from fv3core.decorators import FrozenStencil
 from fv3core.stencils import xppm, yppm
 from fv3core.utils.grid import axis_offsets
 from fv3core.utils.typing import FloatField, FloatFieldIJ
-
+import fv3core.utils.gt4py_utils as utils
 
 @gtscript.function
 def _get_flux(
@@ -52,78 +52,69 @@ def _get_flux(
     return xppm.final_flux(courant, u, fx0, tmp)
 
 
-def _xtp_u(
+def bl_br_main(
+    u: FloatField,
+    al: FloatField,
+    bl: FloatField,
+    br: FloatField
+):
+    with computation(PARALLEL), interval(...):
+        bl = al[0, 0, 0] - u[0, 0, 0]
+        br = al[1, 0, 0] - u[0, 0, 0]
+
+def xtp_flux(
     courant: FloatField,
     u: FloatField,
+    bl: FloatField,
+    br: FloatField,
     flux: FloatField,
-    dx: FloatFieldIJ,
-    dxa: FloatFieldIJ,
     rdx: FloatFieldIJ,
 ):
-    from __externals__ import i_end, i_start, iord, j_end, j_start
-
     with computation(PARALLEL), interval(...):
-
-        if __INLINED(iord < 8):
-            al = xppm.compute_al(u, dx)
-
-            bl = al[0, 0, 0] - u[0, 0, 0]
-            br = al[1, 0, 0] - u[0, 0, 0]
-
-        else:
-            dm = xppm.dm_iord8plus(u)
-            al = xppm.al_iord8plus(u, dm)
-
-            compile_assert(iord == 8)
-
-            bl, br = xppm.blbr_iord8(u, al, dm)
-            bl, br = xppm.bl_br_edges(bl, br, u, dxa, al, dm)
-
-            with horizontal(region[i_start + 1, :], region[i_end - 1, :]):
-                bl, br = yppm.pert_ppm_standard_constraint_fcn(u, bl, br)
-
-        # Zero corners
-        with horizontal(
-            region[i_start - 1 : i_start + 1, j_start],
-            region[i_start - 1 : i_start + 1, j_end + 1],
-            region[i_end : i_end + 2, j_start],
-            region[i_end : i_end + 2, j_end + 1],
-        ):
-            bl = 0.0
-            br = 0.0
-
         flux = _get_flux(u, courant, rdx, bl, br)
-
+        
+def zero_br_bl(br: FloatField, bl: FloatField):
+    with computation(PARALLEL), interval(...):
+        br = 0.0
+        bl = 0.0
 
 class XTP_U:
     def __init__(self, namelist):
         iord = spec.namelist.hord_mt
+        assert iord < 8
         if iord not in (5, 6, 7, 8):
             raise NotImplementedError(
                 "Currently xtp_v is only supported for hord_mt == 5,6,7,8"
             )
         assert namelist.grid_type < 3
-
-        grid = spec.grid
-        self.origin = grid.compute_origin()
-        self.domain = grid.domain_shape_compute(add=(1, 1, 0))
-        self.dx = grid.dx
-        self.dxa = grid.dxa
-        self.rdx = grid.rdx
-        ax_offsets = axis_offsets(grid, self.origin, self.domain)
+        self.grid = spec.grid
+        self.rdx = self.grid.rdx
         assert namelist.grid_type < 3
-        self.stencil = FrozenStencil(
-            _xtp_u,
+        shape = self.grid.domain_shape_full(add=(1, 1, 1))
+        self._bl = utils.make_storage_from_shape(shape)
+        self._br = utils.make_storage_from_shape(shape)
+        self._bl_br_stencil =  FrozenStencil(bl_br_main, origin=(self.grid.is_ - 1, self.grid.js, 0), domain=(self.grid.nic + 2, self.grid.njc + 1, self.grid.npz))
+        corner_domain = (2, 1, self.grid.npz)
+        if self.grid.sw_corner:
+            self._zero_bl_br_sw_corner_stencil =  FrozenStencil(zero_br_bl, origin=(self.grid.is_ - 1, self.grid.js, 0), domain=corner_domain)
+        if self.grid.nw_corner:
+            self._zero_bl_br_nw_corner_stencil =  FrozenStencil(zero_br_bl, origin=(self.grid.is_ - 1, self.grid.je+1, 0), domain=corner_domain)
+        if self.grid.se_corner:
+            self._zero_bl_br_se_corner_stencil =  FrozenStencil(zero_br_bl, origin=(self.grid.ie, self.grid.js, 0), domain=corner_domain)
+        if self.grid.ne_corner:
+            self._zero_bl_br_ne_corner_stencil =  FrozenStencil(zero_br_bl,  origin=(self.grid.ie, self.grid.je+1, 0), domain=corner_domain)
+        self._xtp_flux = FrozenStencil(
+            xtp_flux,
             externals={
                 "iord": iord,
                 "mord": iord,
-                "xt_minmax": False,
-                **ax_offsets,
             },
-            origin=self.origin,
-            domain=self.domain,
+            origin=self.grid.compute_origin(),
+            domain=self.grid.domain_shape_compute(add=(1, 1, 0)),
         )
-
+        self._xppm = xppm.XPiecewiseParabolic(
+            namelist, iord, self.grid.js, self.grid.je+1, self.grid.dx
+        )
     def __call__(self, c: FloatField, u: FloatField, flux: FloatField):
         """
         Compute flux of kinetic energy in x-dir.
@@ -133,11 +124,23 @@ class XTP_U:
             u (in): x-dir wind on D-grid
             flux (out): Flux of kinetic energy
         """
-        self.stencil(
+      
+        self._xppm.compute_al(u)
+        self._bl_br_stencil(u, self._xppm._al, self._bl, self._br)
+        if self.grid.sw_corner:
+            self._zero_bl_br_sw_corner_stencil(self._bl, self._br)
+        if self.grid.nw_corner:
+            self._zero_bl_br_nw_corner_stencil(self._bl, self._br)
+        if self.grid.se_corner:
+            self._zero_bl_br_se_corner_stencil(self._bl, self._br)
+        if self.grid.ne_corner:
+            self._zero_bl_br_ne_corner_stencil(self._bl, self._br)
+       
+        self._xtp_flux(
             c,
             u,
+            self._bl,
+            self._br,
             flux,
-            self.dx,
-            self.dxa,
             self.rdx,
         )

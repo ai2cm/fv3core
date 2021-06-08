@@ -94,16 +94,21 @@ class XPiecewiseParabolic:
         namelist,
         iord,
         jfirst,
-        jlast
+        jlast,
+        dxa=None,
     ):
         self.grid = spec.grid
         assert namelist.grid_type < 3
         assert iord < 8
         flux_origin = (self.grid.is_, jfirst, 0)
         flux_domain = (self.grid.nic + 1, jlast - jfirst + 1, self.grid.npz + 1)
+    
         is1 = self.grid.is_ + 2 if self.grid.west_edge else self.grid.is_ - 1
         ie3 = self.grid.ie - 1 if self.grid.east_edge else self.grid.ie + 2
-        self._dxa = self.grid.dxa
+        if dxa is None:
+            self._dxa = self.grid.dxa
+        else:
+            self._dxa = dxa
         shape = self.grid.domain_shape_full(add=(1, 1, 1))
         edge_domain = (1, shape[1], shape[2])
         self._al = utils.make_storage_from_shape(shape)
@@ -125,18 +130,8 @@ class XPiecewiseParabolic:
             origin=flux_origin,
             domain=flux_domain,
         )
-
-    def __call__(self, q: FloatField, c: FloatField, xflux: FloatField):
-        """
-        Compute x-flux using the PPM method.
-
-        Args:
-            q (in): Transported scalar
-            c (in): Courant number
-            xflux (out): Flux
-            jfirst: Starting index of the J-dir compute domain
-            jlast: Final index of the J-dir compute domain
-        """
+    
+    def compute_al(self, q):
         self._main_al_stencil(q, self._al)
         if self.grid.west_edge:
             self._al_west_0_stencil(
@@ -159,4 +154,18 @@ class XPiecewiseParabolic:
             self._al_east_2_stencil(
                 q, self._dxa, self._al
             )
+
+
+    def __call__(self, q: FloatField, c: FloatField, xflux: FloatField):
+        """
+        Compute x-flux using the PPM method.
+
+        Args:
+            q (in): Transported scalar
+            c (in): Courant number
+            xflux (out): Flux
+            jfirst: Starting index of the J-dir compute domain
+            jlast: Final index of the J-dir compute domain
+        """
+        self.compute_al(q)
         self._compute_flux_stencil(q, c, self._al, self._dxa, xflux)

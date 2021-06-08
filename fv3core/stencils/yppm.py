@@ -114,7 +114,7 @@ class YPiecewiseParabolic:
     Fortran name is yppm
     """
 
-    def __init__(self, namelist, jord, ifirst, ilast):
+    def __init__(self, namelist, jord, ifirst, ilast, dya=None,js1=None,je3=None):
         self.grid = spec.grid
         assert namelist.grid_type < 3
         if abs(jord) not in [5, 6, 7, 8]:
@@ -124,9 +124,14 @@ class YPiecewiseParabolic:
             )
         flux_origin = (ifirst, self.grid.js, 0)
         flux_domain = (ilast - ifirst + 1, self.grid.njc + 1, self.grid.npz + 1)
-        js1 = self.grid.js + 2 if self.grid.south_edge else self.grid.js - 1
-        je3 = self.grid.je - 1 if self.grid.north_edge else self.grid.je + 2
-        self._dya = self.grid.dya
+        if js1 is None:
+            js1 = self.grid.js + 2 if self.grid.south_edge else self.grid.js - 1
+        if je3 is None:
+            je3 = self.grid.je - 1 if self.grid.north_edge else self.grid.je + 2
+        if dya is None:
+            self._dya = self.grid.dya
+        else:
+            self._dya = dya
         shape = self.grid.domain_shape_full(add=(1, 1, 1))
         self._al = utils.make_storage_from_shape(shape)
         edge_domain = (shape[0], 1, shape[2])
@@ -148,17 +153,7 @@ class YPiecewiseParabolic:
             domain=flux_domain,
         )
 
-    def __call__(self, q: FloatField, c: FloatField, flux: FloatField):
-        """
-        Compute y-flux using the PPM method.
-
-        Args:
-            q (in): Transported scalar
-            c (in): Courant number
-            flux (out): Flux
-            ifirst: Starting index of the I-dir compute domain
-            ilast: Final index of the I-dir compute domain
-        """
+    def compute_al(self, q):
         self._main_al_stencil(q, self._al)
         if self.grid.south_edge:
             self._al_south_0_stencil(
@@ -181,4 +176,16 @@ class YPiecewiseParabolic:
             self._al_north_2_stencil(
                 q, self._dya, self._al
             )
+    def __call__(self, q: FloatField, c: FloatField, flux: FloatField):
+        """
+        Compute y-flux using the PPM method.
+
+        Args:
+            q (in): Transported scalar
+            c (in): Courant number
+            flux (out): Flux
+            ifirst: Starting index of the I-dir compute domain
+            ilast: Final index of the I-dir compute domain
+        """
+        self.compute_al(q)
         self._compute_flux_stencil(q, c, self._al, self._dya, flux)
