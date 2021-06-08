@@ -50,7 +50,7 @@ Correlation id can be found on the tooltip when overring above a kernel in `nsys
 
 # `nsys` datbase mining
 
-`nsys` can generate a `sqlite` database from its internal `qdrep` format. 
+`nsys` can generate a `sqlite` database from its internal `qdrep` format.
 
 This script is looking to mine data for _a single timestep_ of the dyncore. It will
 jump over the first timestep and record the second one.

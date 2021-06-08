@@ -1,12 +1,12 @@
 """ Taken from Nvidia Night Systems 2021.1.1 /reports. """
 
-import sys
+import csv
 import inspect
 import os.path
-import urllib.parse
-import csv
-import sqlite3
 import re
+import sqlite3
+import sys
+import urllib.parse
 
 
 class Report:
@@ -78,8 +78,8 @@ class Report:
 
     short_name = None
     usage = "{SCRIPT} -- NO USAGE INFORMATION PROVIDED"
-    table_checks = {}
-    statements = []
+    table_checks = {}  # type: ignore
+    statements = []  # type: ignore
     query = "SELECT 1 AS 'ONE'"
 
     def __init__(self, dbfile, args=[]):

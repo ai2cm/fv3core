@@ -1,5 +1,7 @@
-from .nsysreport import Report
 import enum
+
+from .nsysreport import Report
+
 
 """ Taken from Nvidia Night Systems 2021.1.1 /reports. """
 

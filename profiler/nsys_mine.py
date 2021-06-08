@@ -3,17 +3,19 @@
 See arg_parse() for usage
 """
 
-from argparse import ArgumentParser
-from nsys_data_mining.kernelquery import CUDAKernelTrace, KernelReportIndexing
-from nsys_data_mining.nvtxquery import CUDANVTXTrace, NVTXReportIndexing
-import sys
-import matplotlib.pyplot as plot
-from typing import Any, Collection, Dict, Optional
-import numpy as np
-import re
-from tabulate import tabulate
 import csv
 import os
+import re
+import sys
+from argparse import ArgumentParser
+from typing import Any, Collection, Dict, List, Optional
+
+import matplotlib.pyplot as plot
+import numpy as np
+from nsys_data_mining.kernelquery import CUDAKernelTrace, KernelReportIndexing
+from nsys_data_mining.nvtxquery import CUDANVTXTrace, NVTXReportIndexing
+from tabulate import tabulate
+
 
 FV3_MAINLOOP = "step_dynamics"
 FV3_STAGES = [
@@ -50,7 +52,7 @@ def _filter_cupy_out(rows, index):
     return hit
 
 
-def _plot_total_time(fv3_kernel_timings: Dict[str, Collection[int]]):
+def _plot_total_time(fv3_kernel_timings: Dict[str, List[int]]):
     fig, ax = plot.subplots()
     fig.set_figwidth(30)
     fig.set_figheight(10)
@@ -70,7 +72,7 @@ def _plot_total_time(fv3_kernel_timings: Dict[str, Collection[int]]):
     plot.savefig("total_times_per_kernel.png")
 
 
-def _plot_total_time_and_counts(fv3_kernel_timings: Dict[str, Collection[int]]):
+def _plot_total_time_and_counts(fv3_kernel_timings: Dict[str, List[int]]):
     fig, ax = plot.subplots()
     fig.set_figwidth(30)
     fig.set_figheight(10)
@@ -99,7 +101,7 @@ def _plot_total_time_and_counts(fv3_kernel_timings: Dict[str, Collection[int]]):
 
 
 def _print_total_time_kernel_table(
-    fv3_kernel_timings: Dict[str, Collection[int]],
+    fv3_kernel_timings: Dict[str, List[int]],
     timestep_time_in_ms: float,
     write_csv: Optional[bool] = False,
 ):
@@ -111,7 +113,7 @@ def _print_total_time_kernel_table(
             total_time += v
         percent_of_total_in_ms = ((total_time / 1e6) / timestep_time_in_ms) * 100
         kernels.append([key, total_time, percent_of_total_in_ms, hits])
-    kernels.sort(key=lambda x: x[1], reverse=True)
+    kernels.sort(key=lambda x: x[1], reverse=True)  # type: ignore
     print("Kernel time - sorted by cumulative time")
     table = tabulate(
         kernels,
@@ -124,7 +126,7 @@ def _print_total_time_kernel_table(
             csv.writer(csvfile).writerows(kernels)
 
 
-def _plot_median_time(fv3_kernel_timings: Dict[str, Collection[int]]):
+def _plot_median_time(fv3_kernel_timings: Dict[str, List[int]]):
     fig, ax = plot.subplots()
     fig.set_figwidth(30)
     fig.set_figheight(10)
@@ -143,7 +145,7 @@ def _plot_median_time(fv3_kernel_timings: Dict[str, Collection[int]]):
 
 
 def _print_median_time_kernel_table(
-    fv3_kernel_timings: Dict[str, Collection[int]],
+    fv3_kernel_timings: Dict[str, List[int]],
     write_csv: Optional[bool] = False,
 ):
     kernels = []
@@ -159,7 +161,7 @@ def _print_median_time_kernel_table(
             csv.writer(csvfile).writerows(kernels)
 
 
-def _plot_total_call(fv3_kernel_timings: Dict[str, Collection[int]]):
+def _plot_total_call(fv3_kernel_timings: Dict[str, List[int]]):
     fig, ax = plot.subplots()
     fig.set_figwidth(30)
     fig.set_figheight(10)
@@ -178,7 +180,7 @@ def _plot_total_call(fv3_kernel_timings: Dict[str, Collection[int]]):
     plot.savefig("call_per_kernel.png")
 
 
-def _filter_kernel_name(kernels: Collection[Any]) -> Collection[Any]:
+def _filter_kernel_name(kernels: List[Any]) -> Collection[Any]:
     if kernels is None:
         return None
     # Run a query to convert the stencil generated string to a readable one
@@ -290,8 +292,8 @@ if __name__ == "__main__":
                 only_start_halo += 1
     else:
         # > No halo nvtx tags - can't calculate
-        halo_ex_time_in_ms = "Could not calculate"
-        only_start_halo = "Could not calculate"
+        halo_ex_time_in_ms = "Could not calculate"  # type: ignore
+        only_start_halo = "Could not calculate"  # type: ignore
 
     # Filter the rows between - min_start/max_end
     filtered_rows = []
@@ -316,7 +318,7 @@ if __name__ == "__main__":
     assert fv3_kernels_count == len(fv3_kernels)
 
     # Count unique kernel
-    unique_fv3_kernel_timings = {}
+    unique_fv3_kernel_timings: Dict[str, List[Any]] = {}
     for row in fv3_kernels:
         name = row[KernelReportIndexing.NAME.value]
         if name not in unique_fv3_kernel_timings.keys():
