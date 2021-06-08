@@ -2,6 +2,8 @@ import hashlib
 import os
 from collections.abc import Hashable
 
+from fv3core.utils.mpi import MPI
+
 
 def getenv_bool(name: str, default: str) -> bool:
     indicator = os.getenv(name, default).title()
@@ -109,6 +111,9 @@ class StencilConfig(Hashable):
         }
         if "cuda" in self.backend:
             kwargs["device_sync"] = self.device_sync
+        if MPI is not None and MPI.COMM_WORLD.Get_size() > 1:
+            kwargs["uid"] = MPI.COMM_WORLD.Get_rank()
+
         return kwargs
 
 
