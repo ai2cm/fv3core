@@ -1,12 +1,9 @@
 from gt4py import gtscript
 from gt4py.gtscript import (
-    __INLINED,
     PARALLEL,
-    compile_assert,
     computation,
     horizontal,
     interval,
-    region,
 )
 
 import fv3core._config as spec

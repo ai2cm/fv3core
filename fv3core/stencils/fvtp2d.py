@@ -1,5 +1,5 @@
 import gt4py.gtscript as gtscript
-from gt4py.gtscript import PARALLEL, computation, horizontal, interval, region
+from gt4py.gtscript import PARALLEL, computation, horizontal, interval
 
 import fv3core._config as spec
 import fv3core.utils.corners as corners
@@ -53,24 +53,12 @@ def q_j_stencil(
         q_j = (q * area + fx1 - fx1[1, 0, 0]) / area_with_x_flux
 
 
-@gtscript.function
-def transport_flux(f, f2, mf):
-    return 0.5 * (f + f2) * mf
 
-
-def transport_flux_xy(
-    fx: FloatField,
-    fx2: FloatField,
-    fy: FloatField,
-    fy2: FloatField,
-    mfx: FloatField,
-    mfy: FloatField,
-):
+def transport_flux(f: FloatField, f2: FloatField, mf: FloatField):
     with computation(PARALLEL), interval(...):
-        with horizontal(region[:, :-1]):
-            fx = transport_flux(fx, fx2, mfx)
-        with horizontal(region[:-1, :]):
-            fy = transport_flux(fy, fy2, mfy)
+        ftmp =  0.5 * (f + f2) * mf
+        f = ftmp
+
 
 
 class FiniteVolumeTransport:
@@ -106,10 +94,15 @@ class FiniteVolumeTransport:
             origin=self.grid.full_origin(add=(3, 0, 0)),
             domain=self.grid.domain_shape_full(add=(-3, 0, 1)),
         )
-        self.stencil_transport_flux = FrozenStencil(
-            transport_flux_xy,
+        self.stencil_transport_flux_x = FrozenStencil(
+            transport_flux,
             origin=self.grid.compute_origin(),
-            domain=self.grid.domain_shape_compute(add=(1, 1, 1)),
+            domain=self.grid.domain_shape_compute(add=(1, 0, 1)),
+        )
+        self.stencil_transport_flux_y = FrozenStencil(
+            transport_flux,
+            origin=self.grid.compute_origin(),
+            domain=self.grid.domain_shape_compute(add=(0, 1, 1)),
         )
         if (self._nord is not None) and (self._damp_c is not None):
             self.delnflux = DelnFlux(self._nord, self._damp_c)
@@ -191,12 +184,14 @@ class FiniteVolumeTransport:
         )
         self.y_piecewise_parabolic_outer(self._tmp_q_j, cry, fy)
         if mfx is not None and mfy is not None:
-            self.stencil_transport_flux(
+            self.stencil_transport_flux_x(
                 fx,
                 self._tmp_fx2,
+                mfx,
+            )
+            self.stencil_transport_flux_y(
                 fy,
                 self._tmp_fy2,
-                mfx,
                 mfy,
             )
             if (
@@ -206,12 +201,14 @@ class FiniteVolumeTransport:
             ):
                 self.delnflux(q, fx, fy, mass=mass)
         else:
-            self.stencil_transport_flux(
+            self.stencil_transport_flux_x(
                 fx,
                 self._tmp_fx2,
+                x_area_flux,
+            )
+            self.stencil_transport_flux_y(
                 fy,
                 self._tmp_fy2,
-                x_area_flux,
                 y_area_flux,
             )
             if (self._nord is not None) and (self._damp_c is not None):
