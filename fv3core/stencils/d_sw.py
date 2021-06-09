@@ -5,7 +5,6 @@ from gt4py.gtscript import (
     computation,
     horizontal,
     interval,
-    region,
 )
 
 import fv3core._config as spec
@@ -105,24 +104,6 @@ def horizontal_relative_vorticity_from_winds(u, v, ut, vt, dx, dy, rarea, vortic
 
     return vt, ut, vorticity
 
-
-@gtscript.function
-def all_corners_ke(ke, u, v, ut, vt, dt):
-    from __externals__ import i_end, i_start, j_end, j_start
-
-    # Assumption: not __INLINED(grid.nested)
-    with horizontal(region[i_start, j_start]):
-        ke = corners.corner_ke(ke, u, v, ut, vt, dt, 0, 0, -1, 1)
-    with horizontal(region[i_end + 1, j_start]):
-        ke = corners.corner_ke(ke, u, v, ut, vt, dt, -1, 0, 0, -1)
-    with horizontal(region[i_end + 1, j_end + 1]):
-        ke = corners.corner_ke(ke, u, v, ut, vt, dt, -1, -1, 0, 1)
-    with horizontal(region[i_start, j_end + 1]):
-        ke = corners.corner_ke(ke, u, v, ut, vt, dt, 0, -1, -1, -1)
-
-    return ke
-
-
 def compute_temperature_and_pressure_delta(
     gx: FloatField,
     gy: FloatField,
@@ -151,11 +132,6 @@ def compute_vbke(
 ):
     with computation(PARALLEL), interval(...):
         vb = vbke(vc, uc, cosa, rsina, vt, vb, dt4, dt5)
-
-
-@gtscript.function
-def ke_from_bwind(ke, ub, vb):
-    return 0.5 * (ke + ub * vb)
 
 
 def ub_from_vort(vort: FloatField, ub: FloatField,  dcon: FloatFieldK,):
@@ -308,7 +284,6 @@ def heat_source_accumulate(
     with computation(PARALLEL), interval(...):
         diss_e = dissipation_estimate
         if __INLINED((d_con > dcon_threshold) or do_skeb):
-        #    with horizontal(region[local_is : local_ie + 1, local_js : local_je + 1]):
             heat_source_total = heat_source_total + heat_source
             if __INLINED(do_skeb == 1):
                 dissipation_estimate = diss_e - dampterm
@@ -319,7 +294,6 @@ def damped_u(
 ):
     with computation(PARALLEL), interval(...):
         if damp_vt > 1e-5:
-            #with horizontal(region[local_is : local_ie + 1, local_js : local_je + 2]):
             u = u + vt
 def damped_v(
     ut: FloatField,
@@ -328,27 +302,29 @@ def damped_v(
 ):
     with computation(PARALLEL), interval(...):
         if damp_vt > 1e-5:
-            #with horizontal(region[local_is : local_ie + 2, local_js : local_je + 1]):
             v = v - ut
 
 
-def ke_horizontal_vorticity(
+def ke_from_bwind(
     ke: FloatField,
-    u: FloatField,
-    v: FloatField,
     ub: FloatField,
     vb: FloatField,
+   
+):
+    with computation(PARALLEL), interval(...):
+        ke = 0.5 * (ke + ub * vb)
+     
+def horizontal_vorticity(
+    u: FloatField,
+    v: FloatField,
     ut: FloatField,
     vt: FloatField,
     dx: FloatFieldIJ,
     dy: FloatFieldIJ,
     rarea: FloatFieldIJ,
     vorticity: FloatField,
-    dt: float,
 ):
     with computation(PARALLEL), interval(...):
-        ke = ke_from_bwind(ke, ub, vb)
-        ke = all_corners_ke(ke, u, v, ut, vt, dt)
         vt, ut, vorticity = horizontal_relative_vorticity_from_winds(
             u, v, ut, vt, dx, dy, rarea, vorticity
         )
@@ -650,18 +626,31 @@ class DGridShallowWaterLagrangianDynamics:
         )
         self._damp_u = FrozenStencil(damped_u,  origin=self.grid.compute_origin(), domain=self.grid.domain_shape_compute(add=(0, 1, 0)))
         self._damp_v = FrozenStencil(damped_v,  origin=self.grid.compute_origin(), domain=self.grid.domain_shape_compute(add=(1, 0, 0)))
-        self._ke_horizontal_vorticity_stencil = FrozenStencil(
-            ke_horizontal_vorticity,
-            externals=ax_offsets_full,
+        self._ke_from_bwind_stencil = FrozenStencil(
+            ke_from_bwind,
+            origin=full_origin,
+            domain=full_domain,
+        )
+        corner_domain=(1, 1, self.grid.npz)
+        if self.grid.sw_corner:
+            self.ke_sw_corner_stencil = FrozenStencil(corners.corner_ke, origin=self.grid.compute_origin(), domain=corner_domain)
+        if self.grid.se_corner:
+            self.ke_se_corner_stencil = FrozenStencil(corners.corner_ke, origin=(self.grid.ie + 1, self.grid.js, 0), domain=corner_domain)
+        if self.grid.ne_corner:
+            self.ke_ne_corner_stencil = FrozenStencil(corners.corner_ke, origin=(self.grid.ie + 1, self.grid.je+1, 0), domain=corner_domain)
+        if self.grid.nw_corner:
+            self.ke_nw_corner_stencil = FrozenStencil(corners.corner_ke, origin=(self.grid.is_, self.grid.je+1, 0), domain=corner_domain)
+
+
+        self._horizontal_vorticity_stencil = FrozenStencil(
+            horizontal_vorticity,
             origin=full_origin,
             domain=full_domain,
         )
         self._ke_stencil = FrozenStencil(
             kinetic_energy, origin=b_origin, domain=b_domain
         )
-        #self._mult_ubke_stencil = FrozenStencil(
-        #    mult_ubke, externals=ax_offsets_b, origin=b_origin, domain=b_domain
-        #)
+
         is2 = self.grid.is_ + 1 if self.grid.west_edge else self.grid.is_
         ie1 = self.grid.ie if self.grid.east_edge else self.grid.ie + 1
         idiff = ie1 - is2 + 1
@@ -910,20 +899,24 @@ class DGridShallowWaterLagrangianDynamics:
         if self.grid.east_edge:
             self._ub_east_edge_stencil(self._tmp_ut, self._tmp_ub, dt5)
         self.xtp_u(self._tmp_ub, u, self._tmp_vb)
-
-        self._ke_horizontal_vorticity_stencil(
-            self._tmp_ke,
+        self._ke_from_bwind_stencil(self._tmp_ke, self._tmp_ub, self._tmp_vb)
+        if self.grid.sw_corner:
+            self.ke_sw_corner_stencil(self._tmp_ke, u, v, self._tmp_ut, self._tmp_vt, dt, 0, 0, -1, 1)
+        if self.grid.se_corner:
+            self.ke_se_corner_stencil(self._tmp_ke, u, v, self._tmp_ut, self._tmp_vt, dt, -1, 0, 0, -1)
+        if self.grid.ne_corner:
+            self.ke_ne_corner_stencil(self._tmp_ke, u, v, self._tmp_ut, self._tmp_vt, dt, -1, -1, 0, 1)
+        if self.grid.nw_corner:
+            self.ke_nw_corner_stencil(self._tmp_ke, u, v, self._tmp_ut, self._tmp_vt, dt, 0, -1, -1, -1)
+        self._horizontal_vorticity_stencil(
             u,
             v,
-            self._tmp_ub,
-            self._tmp_vb,
             self._tmp_ut,
             self._tmp_vt,
             self.grid.dx,
             self.grid.dy,
             self.grid.rarea,
             self._tmp_wk,
-            dt,
         )
 
         # TODO if namelist.d_f3d and ROT3 unimplemeneted

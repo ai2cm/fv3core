@@ -749,29 +749,28 @@ def fill_corners_dgrid_defn(x: FloatField, y: FloatField, mysign: float):
             y = x[-6, 0, 0]
 
 
-@gtscript.function
 def corner_ke(
-    ke,
-    u,
-    v,
-    ut,
-    vt,
-    dt,
-    io1,
-    jo1,
-    io2,
-    vsign,
+    ke: FloatField,
+    u: FloatField,
+    v: FloatField,
+    ut: FloatField,
+    vt: FloatField,
+    dt: float,
+    io1: int,
+    jo1: int,
+    io2: int,
+    vsign: int,
 ):
-    dt6 = dt / 6.0
-
-    ke = dt6 * (
-        (ut[0, 0, 0] + ut[0, -1, 0]) * ((io1 + 1) * u[0, 0, 0] - (io1 * u[-1, 0, 0]))
-        + (vt[0, 0, 0] + vt[-1, 0, 0]) * ((jo1 + 1) * v[0, 0, 0] - (jo1 * v[0, -1, 0]))
-        + (
-            ((jo1 + 1) * ut[0, 0, 0] - (jo1 * ut[0, -1, 0]))
-            + vsign * ((io1 + 1) * vt[0, 0, 0] - (io1 * vt[-1, 0, 0]))
+    with computation(PARALLEL), interval(...):
+        dt6 = dt / 6.0
+        
+        ke = dt6 * (
+            (ut[0, 0, 0] + ut[0, -1, 0]) * ((io1 + 1) * u[0, 0, 0] - (io1 * u[-1, 0, 0]))
+            + (vt[0, 0, 0] + vt[-1, 0, 0]) * ((jo1 + 1) * v[0, 0, 0] - (jo1 * v[0, -1, 0]))
+            + (
+                ((jo1 + 1) * ut[0, 0, 0] - (jo1 * ut[0, -1, 0]))
+                + vsign * ((io1 + 1) * vt[0, 0, 0] - (io1 * vt[-1, 0, 0]))
+            )
+            * ((io2 + 1) * u[0, 0, 0] - (io2 * u[-1, 0, 0]))
         )
-        * ((io2 + 1) * u[0, 0, 0] - (io2 * u[-1, 0, 0]))
-    )
-
-    return ke
+        
