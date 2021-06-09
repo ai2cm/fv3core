@@ -179,45 +179,16 @@ def final_kineticenergy( ua: FloatField, va: FloatField, vort: FloatField, ke: F
         ke = 0.5 * dt2 * (ua * ke + va * vort)
 
 
-def divergence_corner(
+def uf_main(
     u: FloatField,
-    v: FloatField,
-    ua: FloatField,
     va: FloatField,
-    dxc: FloatFieldIJ,
     dyc: FloatFieldIJ,
-    sin_sg1: FloatFieldIJ,
     sin_sg2: FloatFieldIJ,
-    sin_sg3: FloatFieldIJ,
     sin_sg4: FloatFieldIJ,
-    cos_sg1: FloatFieldIJ,
     cos_sg2: FloatFieldIJ,
-    cos_sg3: FloatFieldIJ,
     cos_sg4: FloatFieldIJ,
-    rarea_c: FloatFieldIJ,
-    divg_d: FloatField,
+    uf: FloatField,
 ):
-    """Calculate divg on d-grid.
-    Args:
-        u: x-velocity (input)
-        v: y-velocity (input)
-        ua: x-velocity on a (input)
-        va: y-velocity on a (input)
-        dxc: grid spacing in x-direction (input)
-        dyc: grid spacing in y-direction (input)
-        sin_sg1: grid sin(sg1) (input)
-        sin_sg2: grid sin(sg2) (input)
-        sin_sg3: grid sin(sg3) (input)
-        sin_sg4: grid sin(sg4) (input)
-        cos_sg1: grid cos(sg1) (input)
-        cos_sg2: grid cos(sg2) (input)
-        cos_sg3: grid cos(sg3) (input)
-        cos_sg4: grid cos(sg4) (input)
-        rarea_c: inverse cell areas on c-grid (input)
-        divg_d: divergence on d-grid (output)
-    """
-    from __externals__ import i_end, i_start, j_end, j_start
-
     with computation(PARALLEL), interval(...):
         uf = (
             (u - 0.25 * (va[0, -1, 0] + va) * (cos_sg4[0, -1] + cos_sg2))
@@ -225,23 +196,71 @@ def divergence_corner(
             * 0.5
             * (sin_sg4[0, -1] + sin_sg2)
         )
-        with horizontal(region[:, j_start], region[:, j_end + 1]):
-            uf = u * dyc * 0.5 * (sin_sg4[0, -1] + sin_sg2)
 
+def vf_main(
+    v: FloatField,
+    ua: FloatField,
+    dxc: FloatFieldIJ,
+    sin_sg1: FloatFieldIJ,
+    sin_sg3: FloatFieldIJ,
+    cos_sg1: FloatFieldIJ,
+    cos_sg3: FloatFieldIJ,
+    vf: FloatField
+):
+    with computation(PARALLEL), interval(...):
         vf = (
             (v - 0.25 * (ua[-1, 0, 0] + ua) * (cos_sg3[-1, 0] + cos_sg1))
             * dxc
             * 0.5
             * (sin_sg3[-1, 0] + sin_sg1)
         )
-        with horizontal(region[i_start, :], region[i_end + 1, :]):
-            vf = v * dxc * 0.5 * (sin_sg3[-1, 0] + sin_sg1)
 
+def uf_y_edge(
+    u: FloatField,
+    uf: FloatField,
+    sin_sg2: FloatFieldIJ,
+    sin_sg4: FloatFieldIJ,
+    dyc: FloatFieldIJ
+):
+    with computation(PARALLEL), interval(...):
+        uf = u * dyc * 0.5 * (sin_sg4[0, -1] + sin_sg2)
+
+def vf_x_edge(
+    v: FloatField,
+    vf: FloatField,
+    sin_sg1: FloatFieldIJ,
+    sin_sg3: FloatFieldIJ,
+    dxc: FloatFieldIJ
+):
+    with computation(PARALLEL), interval(...):
+        vf = v * dxc * 0.5 * (sin_sg3[-1, 0] + sin_sg1)
+
+def divergence_main(
+    uf: FloatField,
+    vf: FloatField,
+    divg_d: FloatField
+):
+     with computation(PARALLEL), interval(...):
         divg_d = vf[0, -1, 0] - vf + uf[-1, 0, 0] - uf
-        with horizontal(region[i_start, j_start], region[i_end + 1, j_start]):
-            divg_d -= vf[0, -1, 0]
-        with horizontal(region[i_end + 1, j_end + 1], region[i_start, j_end + 1]):
-            divg_d += vf
+def divergence_south_corner(
+    vf: FloatField,
+    divg_d: FloatField
+):
+    with computation(PARALLEL), interval(...):
+        divg_d -= vf[0, -1, 0]
+
+def divergence_north_corner(
+    vf: FloatField,
+    divg_d: FloatField
+):
+    with computation(PARALLEL), interval(...):
+        divg_d += vf
+
+def divergence_main_final(
+        rarea_c: FloatFieldIJ,
+        divg_d: FloatField
+):
+    with computation(PARALLEL), interval(...):
         divg_d *= rarea_c
 
 
@@ -345,12 +364,11 @@ class CGridShallowWaterDynamics:
         )
         grid_type = self.namelist.grid_type
         origin_halo1 = (self.grid.is_ - 1, self.grid.js - 1, 0)
-        self.delpc = utils.make_storage_from_shape(
-            self.grid.domain_shape_full(add=(1, 1, 1)), origin=origin_halo1
-        )
-        self.ptc = utils.make_storage_from_shape(
-            self.grid.domain_shape_full(add=(1, 1, 1)), origin=origin_halo1
-        )
+        shape =  self.grid.domain_shape_full(add=(1, 1, 1))
+        self.delpc = utils.make_storage_from_shape(shape)
+        self.ptc = utils.make_storage_from_shape(shape)
+        self._tmp_uf =  utils.make_storage_from_shape(shape)
+        self._tmp_vf =  utils.make_storage_from_shape(shape)
         self._initialize_delpc_ptc = FrozenStencil(
             func=initialize_delpc_ptc,
             origin=self.grid.full_origin(),
@@ -366,13 +384,66 @@ class CGridShallowWaterDynamics:
         origin = self.grid.compute_origin()
         domain = self.grid.domain_shape_compute(add=(1, 1, 0))
         ax_offsets = axis_offsets(self.grid, origin, domain)
-
+        
         if self.namelist.nord > 0:
-            self._divergence_corner = FrozenStencil(
-                func=divergence_corner,
-                externals={
-                    **ax_offsets,
-                },
+            self._uf_main = FrozenStencil(
+                uf_main,
+                origin=self.grid.compute_origin(add=(-1, 0, 0)),
+                domain=self.grid.domain_shape_compute(add=(2,1, 0)),
+            )
+            self._vf_main = FrozenStencil(
+                vf_main,
+                origin=self.grid.compute_origin(add=(0, -1, 0)),
+                domain=self.grid.domain_shape_compute(add=(1, 2, 0)),
+            )
+            if self.grid.south_edge:
+                self._uf_south_edge = FrozenStencil(
+                    uf_y_edge,
+                    origin=(self.grid.is_ - 1,self.grid.js, origin[2]),
+                    domain=(self.grid.nic+2, 1, domain[2]),
+                )
+            if self.grid.north_edge:
+               self._uf_north_edge = FrozenStencil(
+                   uf_y_edge,
+                   origin=(self.grid.is_ - 1,self.grid.je+1, origin[2]),
+                   domain=(self.grid.nic+2, 1, domain[2]),
+               )
+            if self.grid.west_edge:
+                self._vf_west_edge = FrozenStencil(
+                    vf_x_edge,
+                    origin=(self.grid.is_, self.grid.js - 1, origin[2]),
+                    domain=(1, self.grid.njc+2, domain[2]),
+                )
+            if self.grid.east_edge:
+               self._vf_east_edge = FrozenStencil(
+                   vf_x_edge,
+                   origin=(self.grid.ie+1,self.grid.js - 1, origin[2]),
+                   domain=(1,  self.grid.njc+2, domain[2]),
+               )
+            self._divergence_main = FrozenStencil(
+                divergence_main,
+                origin=origin,
+                domain=domain,
+            )
+            corner_domain = (1, 1, self.grid.npz)
+            if self.grid.sw_corner:
+                self._divergence_sw_corner = FrozenStencil(
+                    divergence_south_corner, origin=self.grid.compute_origin(), domain=corner_domain
+                    )
+            if self.grid.se_corner:
+                self._divergence_se_corner = FrozenStencil(
+                    divergence_south_corner, origin=(self.grid.ie+1, self.grid.js, 0), domain=corner_domain
+                    )
+            if self.grid.nw_corner:
+                self._divergence_nw_corner = FrozenStencil(
+                    divergence_north_corner, origin=(self.grid.ie+1, self.grid.je+1, 0), domain=corner_domain
+                    )
+            if self.grid.ne_corner:
+                self._divergence_ne_corner = FrozenStencil(
+                    divergence_north_corner, origin=(self.grid.is_, self.grid.je+1, 0), domain=corner_domain
+                    )
+            self._divergence_main_final = FrozenStencil(
+                divergence_main_final,
                 origin=origin,
                 domain=domain,
             )
@@ -575,24 +646,44 @@ class CGridShallowWaterDynamics:
         )
         self._D2A2CGrid_Vectors(uc, vc, u, v, ua, va, ut, vt)
         if self.namelist.nord > 0:
-            self._divergence_corner(
+            self._uf_main(
                 u,
+                va,
+                self.grid.dyc,
+                self.grid.sin_sg2,
+                self.grid.sin_sg4,
+                self.grid.cos_sg2,
+                self.grid.cos_sg4,
+                self._tmp_uf,
+            )
+            self._vf_main(
                 v,
                 ua,
-                va,
                 self.grid.dxc,
-                self.grid.dyc,
                 self.grid.sin_sg1,
-                self.grid.sin_sg2,
                 self.grid.sin_sg3,
-                self.grid.sin_sg4,
                 self.grid.cos_sg1,
-                self.grid.cos_sg2,
                 self.grid.cos_sg3,
-                self.grid.cos_sg4,
-                self.grid.rarea_c,
-                divgd,
+                self._tmp_vf,
             )
+            if self.grid.south_edge:
+                self._uf_south_edge(u, self._tmp_uf, self.grid.sin_sg2, self.grid.sin_sg4, self.grid.dyc)
+            if self.grid.north_edge:
+                self._uf_north_edge(u, self._tmp_uf, self.grid.sin_sg2, self.grid.sin_sg4, self.grid.dyc)
+            if self.grid.west_edge:
+                self._vf_west_edge(v, self._tmp_vf, self.grid.sin_sg1, self.grid.sin_sg3, self.grid.dxc)
+            if self.grid.east_edge:
+                self._vf_east_edge(v, self._tmp_vf, self.grid.sin_sg1, self.grid.sin_sg3, self.grid.dxc)
+            self._divergence_main( self._tmp_uf,  self._tmp_vf, divgd)
+            if self.grid.sw_corner:
+                self._divergence_sw_corner(self._tmp_vf, divgd)
+            if self.grid.se_corner:
+                self._divergence_se_corner(self._tmp_vf, divgd)
+            if self.grid.nw_corner:
+                self._divergence_nw_corner(self._tmp_vf, divgd)
+            if self.grid.ne_corner:
+                self._divergence_ne_corner(self._tmp_vf, divgd)
+            self._divergence_main_final(self.grid.rarea_c, divgd)
         self._geoadjust_ut(
             ut,
             self.grid.dy,
