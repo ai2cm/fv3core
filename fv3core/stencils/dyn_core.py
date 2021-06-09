@@ -6,7 +6,6 @@ from gt4py.gtscript import (
     computation,
     horizontal,
     interval,
-    region,
 )
 
 import fv3core._config as spec
@@ -51,8 +50,7 @@ def zero_data(
         cxd = 0.0
         cyd = 0.0
         if first_timestep:
-            with horizontal(region[3:-3, 3:-3]):
-                diss_estd = 0.0
+            diss_estd = 0.0
 
 
 # NOTE in Fortran these are columns
@@ -128,17 +126,17 @@ def p_grad_c_stencil(
         else:
             wk = delpc
         # TODO for PGradC validation only, not necessary for DynCore
-        with horizontal(region[local_is : local_ie + 2, local_js : local_je + 1]):
-            uc = uc + dt2 * rdxc / (wk[-1, 0, 0] + wk) * (
-                (gz[-1, 0, 1] - gz) * (pkc[0, 0, 1] - pkc[-1, 0, 0])
-                + (gz[-1, 0, 0] - gz[0, 0, 1]) * (pkc[-1, 0, 1] - pkc)
-            )
+        #with horizontal(region[local_is : local_ie + 2, local_js : local_je + 1]):
+        uc = uc + dt2 * rdxc / (wk[-1, 0, 0] + wk) * (
+            (gz[-1, 0, 1] - gz) * (pkc[0, 0, 1] - pkc[-1, 0, 0])
+            + (gz[-1, 0, 0] - gz[0, 0, 1]) * (pkc[-1, 0, 1] - pkc)
+        )
         # TODO for PGradC validation only, not necessary for DynCore
-        with horizontal(region[local_is : local_ie + 1, local_js : local_je + 2]):
-            vc = vc + dt2 * rdyc / (wk[0, -1, 0] + wk) * (
-                (gz[0, -1, 1] - gz) * (pkc[0, 0, 1] - pkc[0, -1, 0])
-                + (gz[0, -1, 0] - gz[0, 0, 1]) * (pkc[0, -1, 1] - pkc)
-            )
+        #with horizontal(region[local_is : local_ie + 1, local_js : local_je + 2]):
+        vc = vc + dt2 * rdyc / (wk[0, -1, 0] + wk) * (
+            (gz[0, -1, 1] - gz) * (pkc[0, 0, 1] - pkc[0, -1, 0])
+            + (gz[0, -1, 0] - gz[0, 0, 1]) * (pkc[0, -1, 1] - pkc)
+        )
 
 
 def get_nk_heat_dissipation(namelist, grid):
