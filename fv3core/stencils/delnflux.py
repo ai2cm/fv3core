@@ -9,7 +9,6 @@ from gt4py.gtscript import (
     computation,
     horizontal,
     interval,
-    region,
 )
 
 import fv3core._config as spec
@@ -18,122 +17,35 @@ import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import FrozenStencil, get_stencils_with_varied_bounds
 from fv3core.utils.grid import axis_offsets
 from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
-
+from fv3core.stencils.basic_operations import copy_defn
 
 def calc_damp(damp4: FloatField, nord: FloatFieldK, damp_c: FloatFieldK, da_min: float):
     with computation(FORWARD), interval(...):
         damp4 = (damp_c * da_min) ** (nord + 1)
 
 
-def fx_calc_stencil_nord(q: FloatField, del6_v: FloatFieldIJ, fx: FloatField):
-    from __externals__ import (
-        local_ie,
-        local_is,
-        local_je,
-        local_js,
-        nord0,
-        nord1,
-        nord2,
-        nord3,
-    )
+def fx_calc_stencil(q: FloatField, del6_v: FloatFieldIJ, fx: FloatField):
 
-    with computation(PARALLEL), interval(0, 1):
-        if __INLINED(nord0 == 0):
-            with horizontal(region[local_is : local_ie + 2, local_js : local_je + 1]):
-                fx = fx_calculation(q, del6_v)
-        else:
-            fx = fx_calculation(q, del6_v)
-    with computation(PARALLEL), interval(1, 2):
-        if __INLINED(nord1 == 0):
-            with horizontal(region[local_is : local_ie + 2, local_js : local_je + 1]):
-                fx = fx_calculation(q, del6_v)
-        else:
-            fx = fx_calculation(q, del6_v)
-    with computation(PARALLEL), interval(2, 3):
-        if __INLINED(nord2 == 0):
-            with horizontal(region[local_is : local_ie + 2, local_js : local_je + 1]):
-                fx = fx_calculation(q, del6_v)
-        else:
-            fx = fx_calculation(q, del6_v)
-    with computation(PARALLEL), interval(3, None):
-        if __INLINED(nord3 == 0):
-            with horizontal(region[local_is : local_ie + 2, local_js : local_je + 1]):
-                fx = fx_calculation(q, del6_v)
-        else:
-            fx = fx_calculation(q, del6_v)
+    with computation(PARALLEL), interval(...):
+        fx = fx_calculation(q, del6_v)
 
 
-def fy_calc_stencil_nord(q: FloatField, del6_u: FloatFieldIJ, fy: FloatField):
-    from __externals__ import (
-        local_ie,
-        local_is,
-        local_je,
-        local_js,
-        nord0,
-        nord1,
-        nord2,
-        nord3,
-    )
-
-    with computation(PARALLEL), interval(0, 1):
-        if __INLINED(nord0 == 0):
-            with horizontal(region[local_is : local_ie + 1, local_js : local_je + 2]):
-                fy = fy_calculation(q, del6_u)
-        else:
-            fy = fy_calculation(q, del6_u)
-    with computation(PARALLEL), interval(1, 2):
-        if __INLINED(nord1 == 0):
-            with horizontal(region[local_is : local_ie + 1, local_js : local_je + 2]):
-                fy = fy_calculation(q, del6_u)
-        else:
-            fy = fy_calculation(q, del6_u)
-    with computation(PARALLEL), interval(2, 3):
-        if __INLINED(nord2 == 0):
-            with horizontal(region[local_is : local_ie + 1, local_js : local_je + 2]):
-                fy = fy_calculation(q, del6_u)
-        else:
-            fy = fy_calculation(q, del6_u)
-    with computation(PARALLEL), interval(3, None):
-        if __INLINED(nord3 == 0):
-            with horizontal(region[local_is : local_ie + 1, local_js : local_je + 2]):
-                fy = fy_calculation(q, del6_u)
-        else:
-            fy = fy_calculation(q, del6_u)
+def fy_calc_stencil(q: FloatField, del6_u: FloatFieldIJ, fy: FloatField):
+    with computation(PARALLEL), interval(...):
+        fy = fy_calculation(q, del6_u)
+   
 
 
-def fx_calc_stencil_column(q: FloatField, del6_v: FloatFieldIJ, fx: FloatField):
-    from __externals__ import nord0, nord1, nord2, nord3
-
-    with computation(PARALLEL), interval(0, 1):
-        if __INLINED(nord0 > 0):
-            fx = fx_calculation_neg(q, del6_v)
-    with computation(PARALLEL), interval(1, 2):
-        if __INLINED(nord1 > 0):
-            fx = fx_calculation_neg(q, del6_v)
-    with computation(PARALLEL), interval(2, 3):
-        if __INLINED(nord2 > 0):
-            fx = fx_calculation_neg(q, del6_v)
-    with computation(PARALLEL), interval(3, None):
-        if __INLINED(nord3 > 0):
-            fx = fx_calculation_neg(q, del6_v)
+def fx_calc_stencil_column(q: FloatField, del6_v: FloatFieldIJ, fx: FloatField, nord:FloatFieldK):
+    with computation(PARALLEL), interval(...):
+         if (nord > 0):
+             fx = fx_calculation_neg(q, del6_v)
 
 
-def fy_calc_stencil_column(q: FloatField, del6_u: FloatFieldIJ, fy: FloatField):
-    from __externals__ import nord0, nord1, nord2, nord3
-
-    with computation(PARALLEL), interval(0, 1):
-        if __INLINED(nord0 > 0):
+def fy_calc_stencil_column(q: FloatField, del6_u: FloatFieldIJ, fy: FloatField,  nord:FloatFieldK):
+    with computation(PARALLEL), interval(...):
+        if (nord > 0):
             fy = fy_calculation_neg(q, del6_u)
-    with computation(PARALLEL), interval(1, 2):
-        if __INLINED(nord1 > 0):
-            fy = fy_calculation_neg(q, del6_u)
-    with computation(PARALLEL), interval(2, 3):
-        if __INLINED(nord2 > 0):
-            fy = fy_calculation_neg(q, del6_u)
-    with computation(PARALLEL), interval(3, None):
-        if __INLINED(nord3 > 0):
-            fy = fy_calculation_neg(q, del6_u)
-
 
 @gtscript.function
 def fx_calculation(q: FloatField, del6_v: FloatField):
@@ -156,21 +68,10 @@ def fy_calculation_neg(q: FloatField, del6_u: FloatField):
 
 
 def d2_highorder_stencil(
-    fx: FloatField, fy: FloatField, rarea: FloatFieldIJ, d2: FloatField
+        fx: FloatField, fy: FloatField, rarea: FloatFieldIJ, d2: FloatField,  nord:FloatFieldK
 ):
-    from __externals__ import nord0, nord1, nord2, nord3
-
-    with computation(PARALLEL), interval(0, 1):
-        if __INLINED(nord0 > 0):
-            d2 = d2_highorder(fx, fy, rarea)
-    with computation(PARALLEL), interval(1, 2):
-        if __INLINED(nord1 > 0):
-            d2 = d2_highorder(fx, fy, rarea)
-    with computation(PARALLEL), interval(2, 3):
-        if __INLINED(nord2 > 0):
-            d2 = d2_highorder(fx, fy, rarea)
-    with computation(PARALLEL), interval(3, None):
-        if __INLINED(nord3 > 0):
+    with computation(PARALLEL), interval(...):
+        if (nord > 0):
             d2 = d2_highorder(fx, fy, rarea)
 
 
@@ -181,95 +82,10 @@ def d2_highorder(fx: FloatField, fy: FloatField, rarea: FloatField):
 
 
 def d2_damp_interval(q: FloatField, d2: FloatField, damp: FloatFieldK):
-    from __externals__ import (
-        local_ie,
-        local_is,
-        local_je,
-        local_js,
-        nord0,
-        nord1,
-        nord2,
-        nord3,
-    )
 
-    with computation(PARALLEL), interval(0, 1):
-        if __INLINED(nord0 == 0):
-            with horizontal(
-                region[local_is - 1 : local_ie + 2, local_js - 1 : local_je + 2]
-            ):
-                d2 = damp * q
-        else:
-            d2 = damp * q
-    with computation(PARALLEL), interval(1, 2):
-        if __INLINED(nord1 == 0):
-            with horizontal(
-                region[local_is - 1 : local_ie + 2, local_js - 1 : local_je + 2]
-            ):
-                d2 = damp * q
-        else:
-            d2 = damp * q
-    with computation(PARALLEL), interval(2, 3):
-        if __INLINED(nord2 == 0):
-            with horizontal(
-                region[local_is - 1 : local_ie + 2, local_js - 1 : local_je + 2]
-            ):
-                d2 = damp * q
-        else:
-            d2 = damp * q
-    with computation(PARALLEL), interval(3, None):
-        if __INLINED(nord3 == 0):
-            with horizontal(
-                region[local_is - 1 : local_ie + 2, local_js - 1 : local_je + 2]
-            ):
-                d2 = damp * q
-        else:
-            d2 = damp * q
-
-
-def copy_stencil_interval(q_in: FloatField, q_out: FloatField):
-    from __externals__ import (
-        local_ie,
-        local_is,
-        local_je,
-        local_js,
-        nord0,
-        nord1,
-        nord2,
-        nord3,
-    )
-
-    with computation(PARALLEL), interval(0, 1):
-        if __INLINED(nord0 == 0):
-            with horizontal(
-                region[local_is - 1 : local_ie + 2, local_js - 1 : local_je + 2]
-            ):
-                q_out = q_in
-        else:
-            q_out = q_in
-    with computation(PARALLEL), interval(1, 2):
-        if __INLINED(nord1 == 0):
-            with horizontal(
-                region[local_is - 1 : local_ie + 2, local_js - 1 : local_je + 2]
-            ):
-                q_out = q_in
-        else:
-            q_out = q_in
-    with computation(PARALLEL), interval(2, 3):
-        if __INLINED(nord2 == 0):
-            with horizontal(
-                region[local_is - 1 : local_ie + 2, local_js - 1 : local_je + 2]
-            ):
-                q_out = q_in
-        else:
-            q_out = q_in
-    with computation(PARALLEL), interval(3, None):
-        if __INLINED(nord3 == 0):
-            with horizontal(
-                region[local_is - 1 : local_ie + 2, local_js - 1 : local_je + 2]
-            ):
-                q_out = q_in
-        else:
-            q_out = q_in
+    with computation(PARALLEL), interval(...):
+        d2 = damp * q
+  
 
 
 def add_diffusive_component(
@@ -293,609 +109,16 @@ def diffusive_damp(
         fy = fy + 0.5 * damp * (mass[0, -1, 0] + mass) * fy2
 
 
-def copy_corners_y_nord(q_in: FloatField, q_out: FloatField):
-    from __externals__ import i_end, i_start, j_end, j_start, nord0, nord1, nord2, nord3
-
-    with computation(PARALLEL), interval(0, 1):
-        if __INLINED(nord0 > 0):
-            with horizontal(
-                region[i_start - 3, j_start - 3], region[i_start - 3, j_end + 3]
-            ):
-                q_out = q_in[5, 0, 0]
-            with horizontal(
-                region[i_start - 2, j_start - 3], region[i_start - 3, j_end + 2]
-            ):
-                q_out = q_in[4, 1, 0]
-            with horizontal(
-                region[i_start - 1, j_start - 3], region[i_start - 3, j_end + 1]
-            ):
-                q_out = q_in[3, 2, 0]
-            with horizontal(
-                region[i_start - 3, j_start - 2], region[i_start - 2, j_end + 3]
-            ):
-                q_out = q_in[4, -1, 0]
-            with horizontal(
-                region[i_start - 2, j_start - 2], region[i_start - 2, j_end + 2]
-            ):
-                q_out = q_in[3, 0, 0]
-            with horizontal(
-                region[i_start - 1, j_start - 2], region[i_start - 2, j_end + 1]
-            ):
-                q_out = q_in[2, 1, 0]
-            with horizontal(
-                region[i_start - 3, j_start - 1], region[i_start - 1, j_end + 3]
-            ):
-                q_out = q_in[3, -2, 0]
-            with horizontal(
-                region[i_start - 2, j_start - 1], region[i_start - 1, j_end + 2]
-            ):
-                q_out = q_in[2, -1, 0]
-            with horizontal(
-                region[i_start - 1, j_start - 1], region[i_start - 1, j_end + 1]
-            ):
-                q_out = q_in[1, 0, 0]
-            with horizontal(
-                region[i_end + 1, j_start - 3], region[i_end + 3, j_end + 1]
-            ):
-                q_out = q_in[-3, 2, 0]
-            with horizontal(
-                region[i_end + 2, j_start - 3], region[i_end + 3, j_end + 2]
-            ):
-                q_out = q_in[-4, 1, 0]
-            with horizontal(
-                region[i_end + 3, j_start - 3], region[i_end + 3, j_end + 3]
-            ):
-                q_out = q_in[-5, 0, 0]
-            with horizontal(
-                region[i_end + 1, j_start - 2], region[i_end + 2, j_end + 1]
-            ):
-                q_out = q_in[-2, 1, 0]
-            with horizontal(
-                region[i_end + 2, j_start - 2], region[i_end + 2, j_end + 2]
-            ):
-                q_out = q_in[-3, 0, 0]
-            with horizontal(
-                region[i_end + 3, j_start - 2], region[i_end + 2, j_end + 3]
-            ):
-                q_out = q_in[-4, -1, 0]
-            with horizontal(
-                region[i_end + 1, j_start - 1], region[i_end + 1, j_end + 1]
-            ):
-                q_out = q_in[-1, 0, 0]
-            with horizontal(
-                region[i_end + 2, j_start - 1], region[i_end + 1, j_end + 2]
-            ):
-                q_out = q_in[-2, -1, 0]
-            with horizontal(
-                region[i_end + 3, j_start - 1], region[i_end + 1, j_end + 3]
-            ):
-                q_out = q_in[-3, -2, 0]
-    with computation(PARALLEL), interval(1, 2):
-        if __INLINED(nord1 > 0):
-            with horizontal(
-                region[i_start - 3, j_start - 3], region[i_start - 3, j_end + 3]
-            ):
-                q_out = q_in[5, 0, 0]
-            with horizontal(
-                region[i_start - 2, j_start - 3], region[i_start - 3, j_end + 2]
-            ):
-                q_out = q_in[4, 1, 0]
-            with horizontal(
-                region[i_start - 1, j_start - 3], region[i_start - 3, j_end + 1]
-            ):
-                q_out = q_in[3, 2, 0]
-            with horizontal(
-                region[i_start - 3, j_start - 2], region[i_start - 2, j_end + 3]
-            ):
-                q_out = q_in[4, -1, 0]
-            with horizontal(
-                region[i_start - 2, j_start - 2], region[i_start - 2, j_end + 2]
-            ):
-                q_out = q_in[3, 0, 0]
-            with horizontal(
-                region[i_start - 1, j_start - 2], region[i_start - 2, j_end + 1]
-            ):
-                q_out = q_in[2, 1, 0]
-            with horizontal(
-                region[i_start - 3, j_start - 1], region[i_start - 1, j_end + 3]
-            ):
-                q_out = q_in[3, -2, 0]
-            with horizontal(
-                region[i_start - 2, j_start - 1], region[i_start - 1, j_end + 2]
-            ):
-                q_out = q_in[2, -1, 0]
-            with horizontal(
-                region[i_start - 1, j_start - 1], region[i_start - 1, j_end + 1]
-            ):
-                q_out = q_in[1, 0, 0]
-            with horizontal(
-                region[i_end + 1, j_start - 3], region[i_end + 3, j_end + 1]
-            ):
-                q_out = q_in[-3, 2, 0]
-            with horizontal(
-                region[i_end + 2, j_start - 3], region[i_end + 3, j_end + 2]
-            ):
-                q_out = q_in[-4, 1, 0]
-            with horizontal(
-                region[i_end + 3, j_start - 3], region[i_end + 3, j_end + 3]
-            ):
-                q_out = q_in[-5, 0, 0]
-            with horizontal(
-                region[i_end + 1, j_start - 2], region[i_end + 2, j_end + 1]
-            ):
-                q_out = q_in[-2, 1, 0]
-            with horizontal(
-                region[i_end + 2, j_start - 2], region[i_end + 2, j_end + 2]
-            ):
-                q_out = q_in[-3, 0, 0]
-            with horizontal(
-                region[i_end + 3, j_start - 2], region[i_end + 2, j_end + 3]
-            ):
-                q_out = q_in[-4, -1, 0]
-            with horizontal(
-                region[i_end + 1, j_start - 1], region[i_end + 1, j_end + 1]
-            ):
-                q_out = q_in[-1, 0, 0]
-            with horizontal(
-                region[i_end + 2, j_start - 1], region[i_end + 1, j_end + 2]
-            ):
-                q_out = q_in[-2, -1, 0]
-            with horizontal(
-                region[i_end + 3, j_start - 1], region[i_end + 1, j_end + 3]
-            ):
-                q_out = q_in[-3, -2, 0]
-
-    with computation(PARALLEL), interval(2, 3):
-        if __INLINED(nord2 > 0):
-            with horizontal(
-                region[i_start - 3, j_start - 3], region[i_start - 3, j_end + 3]
-            ):
-                q_out = q_in[5, 0, 0]
-            with horizontal(
-                region[i_start - 2, j_start - 3], region[i_start - 3, j_end + 2]
-            ):
-                q_out = q_in[4, 1, 0]
-            with horizontal(
-                region[i_start - 1, j_start - 3], region[i_start - 3, j_end + 1]
-            ):
-                q_out = q_in[3, 2, 0]
-            with horizontal(
-                region[i_start - 3, j_start - 2], region[i_start - 2, j_end + 3]
-            ):
-                q_out = q_in[4, -1, 0]
-            with horizontal(
-                region[i_start - 2, j_start - 2], region[i_start - 2, j_end + 2]
-            ):
-                q_out = q_in[3, 0, 0]
-            with horizontal(
-                region[i_start - 1, j_start - 2], region[i_start - 2, j_end + 1]
-            ):
-                q_out = q_in[2, 1, 0]
-            with horizontal(
-                region[i_start - 3, j_start - 1], region[i_start - 1, j_end + 3]
-            ):
-                q_out = q_in[3, -2, 0]
-            with horizontal(
-                region[i_start - 2, j_start - 1], region[i_start - 1, j_end + 2]
-            ):
-                q_out = q_in[2, -1, 0]
-            with horizontal(
-                region[i_start - 1, j_start - 1], region[i_start - 1, j_end + 1]
-            ):
-                q_out = q_in[1, 0, 0]
-            with horizontal(
-                region[i_end + 1, j_start - 3], region[i_end + 3, j_end + 1]
-            ):
-                q_out = q_in[-3, 2, 0]
-            with horizontal(
-                region[i_end + 2, j_start - 3], region[i_end + 3, j_end + 2]
-            ):
-                q_out = q_in[-4, 1, 0]
-            with horizontal(
-                region[i_end + 3, j_start - 3], region[i_end + 3, j_end + 3]
-            ):
-                q_out = q_in[-5, 0, 0]
-            with horizontal(
-                region[i_end + 1, j_start - 2], region[i_end + 2, j_end + 1]
-            ):
-                q_out = q_in[-2, 1, 0]
-            with horizontal(
-                region[i_end + 2, j_start - 2], region[i_end + 2, j_end + 2]
-            ):
-                q_out = q_in[-3, 0, 0]
-            with horizontal(
-                region[i_end + 3, j_start - 2], region[i_end + 2, j_end + 3]
-            ):
-                q_out = q_in[-4, -1, 0]
-            with horizontal(
-                region[i_end + 1, j_start - 1], region[i_end + 1, j_end + 1]
-            ):
-                q_out = q_in[-1, 0, 0]
-            with horizontal(
-                region[i_end + 2, j_start - 1], region[i_end + 1, j_end + 2]
-            ):
-                q_out = q_in[-2, -1, 0]
-            with horizontal(
-                region[i_end + 3, j_start - 1], region[i_end + 1, j_end + 3]
-            ):
-                q_out = q_in[-3, -2, 0]
-    with computation(PARALLEL), interval(3, None):
-        if __INLINED(nord3 > 0):
-            with horizontal(
-                region[i_start - 3, j_start - 3], region[i_start - 3, j_end + 3]
-            ):
-                q_out = q_in[5, 0, 0]
-            with horizontal(
-                region[i_start - 2, j_start - 3], region[i_start - 3, j_end + 2]
-            ):
-                q_out = q_in[4, 1, 0]
-            with horizontal(
-                region[i_start - 1, j_start - 3], region[i_start - 3, j_end + 1]
-            ):
-                q_out = q_in[3, 2, 0]
-            with horizontal(
-                region[i_start - 3, j_start - 2], region[i_start - 2, j_end + 3]
-            ):
-                q_out = q_in[4, -1, 0]
-            with horizontal(
-                region[i_start - 2, j_start - 2], region[i_start - 2, j_end + 2]
-            ):
-                q_out = q_in[3, 0, 0]
-            with horizontal(
-                region[i_start - 1, j_start - 2], region[i_start - 2, j_end + 1]
-            ):
-                q_out = q_in[2, 1, 0]
-            with horizontal(
-                region[i_start - 3, j_start - 1], region[i_start - 1, j_end + 3]
-            ):
-                q_out = q_in[3, -2, 0]
-            with horizontal(
-                region[i_start - 2, j_start - 1], region[i_start - 1, j_end + 2]
-            ):
-                q_out = q_in[2, -1, 0]
-            with horizontal(
-                region[i_start - 1, j_start - 1], region[i_start - 1, j_end + 1]
-            ):
-                q_out = q_in[1, 0, 0]
-            with horizontal(
-                region[i_end + 1, j_start - 3], region[i_end + 3, j_end + 1]
-            ):
-                q_out = q_in[-3, 2, 0]
-            with horizontal(
-                region[i_end + 2, j_start - 3], region[i_end + 3, j_end + 2]
-            ):
-                q_out = q_in[-4, 1, 0]
-            with horizontal(
-                region[i_end + 3, j_start - 3], region[i_end + 3, j_end + 3]
-            ):
-                q_out = q_in[-5, 0, 0]
-            with horizontal(
-                region[i_end + 1, j_start - 2], region[i_end + 2, j_end + 1]
-            ):
-                q_out = q_in[-2, 1, 0]
-            with horizontal(
-                region[i_end + 2, j_start - 2], region[i_end + 2, j_end + 2]
-            ):
-                q_out = q_in[-3, 0, 0]
-            with horizontal(
-                region[i_end + 3, j_start - 2], region[i_end + 2, j_end + 3]
-            ):
-                q_out = q_in[-4, -1, 0]
-            with horizontal(
-                region[i_end + 1, j_start - 1], region[i_end + 1, j_end + 1]
-            ):
-                q_out = q_in[-1, 0, 0]
-            with horizontal(
-                region[i_end + 2, j_start - 1], region[i_end + 1, j_end + 2]
-            ):
-                q_out = q_in[-2, -1, 0]
-            with horizontal(
-                region[i_end + 3, j_start - 1], region[i_end + 1, j_end + 3]
-            ):
-                q_out = q_in[-3, -2, 0]
-
-
-def copy_corners_x_nord(q_in: FloatField, q_out: FloatField):
-    from __externals__ import i_end, i_start, j_end, j_start, nord0, nord1, nord2, nord3
-
-    with computation(PARALLEL), interval(0, 1):
-        if __INLINED(nord0 > 0):
-            with horizontal(
-                region[i_start - 3, j_start - 3], region[i_end + 3, j_start - 3]
-            ):
-                q_out = q_in[0, 5, 0]
-            with horizontal(
-                region[i_start - 2, j_start - 3], region[i_end + 3, j_start - 2]
-            ):
-                q_out = q_in[-1, 4, 0]
-            with horizontal(
-                region[i_start - 1, j_start - 3], region[i_end + 3, j_start - 1]
-            ):
-                q_out = q_in[-2, 3, 0]
-            with horizontal(
-                region[i_start - 3, j_start - 2], region[i_end + 2, j_start - 3]
-            ):
-                q_out = q_in[1, 4, 0]
-            with horizontal(
-                region[i_start - 2, j_start - 2], region[i_end + 2, j_start - 2]
-            ):
-                q_out = q_in[0, 3, 0]
-            with horizontal(
-                region[i_start - 1, j_start - 2], region[i_end + 2, j_start - 1]
-            ):
-                q_out = q_in[-1, 2, 0]
-            with horizontal(
-                region[i_start - 3, j_start - 1], region[i_end + 1, j_start - 3]
-            ):
-                q_out = q_in[2, 3, 0]
-            with horizontal(
-                region[i_start - 2, j_start - 1], region[i_end + 1, j_start - 2]
-            ):
-                q_out = q_in[1, 2, 0]
-            with horizontal(
-                region[i_start - 1, j_start - 1], region[i_end + 1, j_start - 1]
-            ):
-                q_out = q_in[0, 1, 0]
-            with horizontal(
-                region[i_start - 3, j_end + 1], region[i_end + 1, j_end + 3]
-            ):
-                q_out = q_in[2, -3, 0]
-            with horizontal(
-                region[i_start - 2, j_end + 1], region[i_end + 1, j_end + 2]
-            ):
-                q_out = q_in[1, -2, 0]
-            with horizontal(
-                region[i_start - 1, j_end + 1], region[i_end + 1, j_end + 1]
-            ):
-                q_out = q_in[0, -1, 0]
-            with horizontal(
-                region[i_start - 3, j_end + 2], region[i_end + 2, j_end + 3]
-            ):
-                q_out = q_in[1, -4, 0]
-            with horizontal(
-                region[i_start - 2, j_end + 2], region[i_end + 2, j_end + 2]
-            ):
-                q_out = q_in[0, -3, 0]
-            with horizontal(
-                region[i_start - 1, j_end + 2], region[i_end + 2, j_end + 1]
-            ):
-                q_out = q_in[-1, -2, 0]
-            with horizontal(
-                region[i_start - 3, j_end + 3], region[i_end + 3, j_end + 3]
-            ):
-                q_out = q_in[0, -5, 0]
-            with horizontal(
-                region[i_start - 2, j_end + 3], region[i_end + 3, j_end + 2]
-            ):
-                q_out = q_in[-1, -4, 0]
-            with horizontal(
-                region[i_start - 1, j_end + 3], region[i_end + 3, j_end + 1]
-            ):
-                q_out = q_in[-2, -3, 0]
-    with computation(PARALLEL), interval(1, 2):
-        if __INLINED(nord1 > 0):
-            with horizontal(
-                region[i_start - 3, j_start - 3], region[i_end + 3, j_start - 3]
-            ):
-                q_out = q_in[0, 5, 0]
-            with horizontal(
-                region[i_start - 2, j_start - 3], region[i_end + 3, j_start - 2]
-            ):
-                q_out = q_in[-1, 4, 0]
-            with horizontal(
-                region[i_start - 1, j_start - 3], region[i_end + 3, j_start - 1]
-            ):
-                q_out = q_in[-2, 3, 0]
-            with horizontal(
-                region[i_start - 3, j_start - 2], region[i_end + 2, j_start - 3]
-            ):
-                q_out = q_in[1, 4, 0]
-            with horizontal(
-                region[i_start - 2, j_start - 2], region[i_end + 2, j_start - 2]
-            ):
-                q_out = q_in[0, 3, 0]
-            with horizontal(
-                region[i_start - 1, j_start - 2], region[i_end + 2, j_start - 1]
-            ):
-                q_out = q_in[-1, 2, 0]
-            with horizontal(
-                region[i_start - 3, j_start - 1], region[i_end + 1, j_start - 3]
-            ):
-                q_out = q_in[2, 3, 0]
-            with horizontal(
-                region[i_start - 2, j_start - 1], region[i_end + 1, j_start - 2]
-            ):
-                q_out = q_in[1, 2, 0]
-            with horizontal(
-                region[i_start - 1, j_start - 1], region[i_end + 1, j_start - 1]
-            ):
-                q_out = q_in[0, 1, 0]
-            with horizontal(
-                region[i_start - 3, j_end + 1], region[i_end + 1, j_end + 3]
-            ):
-                q_out = q_in[2, -3, 0]
-            with horizontal(
-                region[i_start - 2, j_end + 1], region[i_end + 1, j_end + 2]
-            ):
-                q_out = q_in[1, -2, 0]
-            with horizontal(
-                region[i_start - 1, j_end + 1], region[i_end + 1, j_end + 1]
-            ):
-                q_out = q_in[0, -1, 0]
-            with horizontal(
-                region[i_start - 3, j_end + 2], region[i_end + 2, j_end + 3]
-            ):
-                q_out = q_in[1, -4, 0]
-            with horizontal(
-                region[i_start - 2, j_end + 2], region[i_end + 2, j_end + 2]
-            ):
-                q_out = q_in[0, -3, 0]
-            with horizontal(
-                region[i_start - 1, j_end + 2], region[i_end + 2, j_end + 1]
-            ):
-                q_out = q_in[-1, -2, 0]
-            with horizontal(
-                region[i_start - 3, j_end + 3], region[i_end + 3, j_end + 3]
-            ):
-                q_out = q_in[0, -5, 0]
-            with horizontal(
-                region[i_start - 2, j_end + 3], region[i_end + 3, j_end + 2]
-            ):
-                q_out = q_in[-1, -4, 0]
-            with horizontal(
-                region[i_start - 1, j_end + 3], region[i_end + 3, j_end + 1]
-            ):
-                q_out = q_in[-2, -3, 0]
-
-    with computation(PARALLEL), interval(2, 3):
-        if __INLINED(nord2 > 0):
-            with horizontal(
-                region[i_start - 3, j_start - 3], region[i_end + 3, j_start - 3]
-            ):
-                q_out = q_in[0, 5, 0]
-            with horizontal(
-                region[i_start - 2, j_start - 3], region[i_end + 3, j_start - 2]
-            ):
-                q_out = q_in[-1, 4, 0]
-            with horizontal(
-                region[i_start - 1, j_start - 3], region[i_end + 3, j_start - 1]
-            ):
-                q_out = q_in[-2, 3, 0]
-            with horizontal(
-                region[i_start - 3, j_start - 2], region[i_end + 2, j_start - 3]
-            ):
-                q_out = q_in[1, 4, 0]
-            with horizontal(
-                region[i_start - 2, j_start - 2], region[i_end + 2, j_start - 2]
-            ):
-                q_out = q_in[0, 3, 0]
-            with horizontal(
-                region[i_start - 1, j_start - 2], region[i_end + 2, j_start - 1]
-            ):
-                q_out = q_in[-1, 2, 0]
-            with horizontal(
-                region[i_start - 3, j_start - 1], region[i_end + 1, j_start - 3]
-            ):
-                q_out = q_in[2, 3, 0]
-            with horizontal(
-                region[i_start - 2, j_start - 1], region[i_end + 1, j_start - 2]
-            ):
-                q_out = q_in[1, 2, 0]
-            with horizontal(
-                region[i_start - 1, j_start - 1], region[i_end + 1, j_start - 1]
-            ):
-                q_out = q_in[0, 1, 0]
-            with horizontal(
-                region[i_start - 3, j_end + 1], region[i_end + 1, j_end + 3]
-            ):
-                q_out = q_in[2, -3, 0]
-            with horizontal(
-                region[i_start - 2, j_end + 1], region[i_end + 1, j_end + 2]
-            ):
-                q_out = q_in[1, -2, 0]
-            with horizontal(
-                region[i_start - 1, j_end + 1], region[i_end + 1, j_end + 1]
-            ):
-                q_out = q_in[0, -1, 0]
-            with horizontal(
-                region[i_start - 3, j_end + 2], region[i_end + 2, j_end + 3]
-            ):
-                q_out = q_in[1, -4, 0]
-            with horizontal(
-                region[i_start - 2, j_end + 2], region[i_end + 2, j_end + 2]
-            ):
-                q_out = q_in[0, -3, 0]
-            with horizontal(
-                region[i_start - 1, j_end + 2], region[i_end + 2, j_end + 1]
-            ):
-                q_out = q_in[-1, -2, 0]
-            with horizontal(
-                region[i_start - 3, j_end + 3], region[i_end + 3, j_end + 3]
-            ):
-                q_out = q_in[0, -5, 0]
-            with horizontal(
-                region[i_start - 2, j_end + 3], region[i_end + 3, j_end + 2]
-            ):
-                q_out = q_in[-1, -4, 0]
-            with horizontal(
-                region[i_start - 1, j_end + 3], region[i_end + 3, j_end + 1]
-            ):
-                q_out = q_in[-2, -3, 0]
-    with computation(PARALLEL), interval(3, None):
-        if __INLINED(nord3 > 0):
-            with horizontal(
-                region[i_start - 3, j_start - 3], region[i_end + 3, j_start - 3]
-            ):
-                q_out = q_in[0, 5, 0]
-            with horizontal(
-                region[i_start - 2, j_start - 3], region[i_end + 3, j_start - 2]
-            ):
-                q_out = q_in[-1, 4, 0]
-            with horizontal(
-                region[i_start - 1, j_start - 3], region[i_end + 3, j_start - 1]
-            ):
-                q_out = q_in[-2, 3, 0]
-            with horizontal(
-                region[i_start - 3, j_start - 2], region[i_end + 2, j_start - 3]
-            ):
-                q_out = q_in[1, 4, 0]
-            with horizontal(
-                region[i_start - 2, j_start - 2], region[i_end + 2, j_start - 2]
-            ):
-                q_out = q_in[0, 3, 0]
-            with horizontal(
-                region[i_start - 1, j_start - 2], region[i_end + 2, j_start - 1]
-            ):
-                q_out = q_in[-1, 2, 0]
-            with horizontal(
-                region[i_start - 3, j_start - 1], region[i_end + 1, j_start - 3]
-            ):
-                q_out = q_in[2, 3, 0]
-            with horizontal(
-                region[i_start - 2, j_start - 1], region[i_end + 1, j_start - 2]
-            ):
-                q_out = q_in[1, 2, 0]
-            with horizontal(
-                region[i_start - 1, j_start - 1], region[i_end + 1, j_start - 1]
-            ):
-                q_out = q_in[0, 1, 0]
-            with horizontal(
-                region[i_start - 3, j_end + 1], region[i_end + 1, j_end + 3]
-            ):
-                q_out = q_in[2, -3, 0]
-            with horizontal(
-                region[i_start - 2, j_end + 1], region[i_end + 1, j_end + 2]
-            ):
-                q_out = q_in[1, -2, 0]
-            with horizontal(
-                region[i_start - 1, j_end + 1], region[i_end + 1, j_end + 1]
-            ):
-                q_out = q_in[0, -1, 0]
-            with horizontal(
-                region[i_start - 3, j_end + 2], region[i_end + 2, j_end + 3]
-            ):
-                q_out = q_in[1, -4, 0]
-            with horizontal(
-                region[i_start - 2, j_end + 2], region[i_end + 2, j_end + 2]
-            ):
-                q_out = q_in[0, -3, 0]
-            with horizontal(
-                region[i_start - 1, j_end + 2], region[i_end + 2, j_end + 1]
-            ):
-                q_out = q_in[-1, -2, 0]
-            with horizontal(
-                region[i_start - 3, j_end + 3], region[i_end + 3, j_end + 3]
-            ):
-                q_out = q_in[0, -5, 0]
-            with horizontal(
-                region[i_start - 2, j_end + 3], region[i_end + 3, j_end + 2]
-            ):
-                q_out = q_in[-1, -4, 0]
-            with horizontal(
-                region[i_start - 1, j_end + 3], region[i_end + 3, j_end + 1]
-            ):
-                q_out = q_in[-2, -3, 0]
-
+def nord_split(nord_column, nord_nml):
+    nonzero_nord_k = 0
+    nonzero_nord = int(nord_nml)
+    for k in range(len(nord_column)):
+        if nord_column[k] > 0:
+            nonzero_nord_k = k
+            nonzero_nord = int(nord_column[k])
+            break
+    return nonzero_nord_k, nonzero_nord
+            
 
 class DelnFlux:
     """
@@ -912,6 +135,7 @@ class DelnFlux:
 
         nord and damp_c define the damping coefficient used in DelnFluxNoSG
         """
+       
         self._no_compute = False
         if (damp_c <= 1e-4).all():
             self._no_compute = True
@@ -926,7 +150,7 @@ class DelnFlux:
 
         shape = grid.domain_shape_full(add=(1, 1, 1))
         k_shape = (1, 1, nk)
-
+        self._nonzero_nord_k, self._nonzero_nord = nord_split(nord, spec.namelist.nord)
         self._damp_3d = utils.make_storage_from_shape(k_shape)
         # fields must be 3d to assign to them
         self._fx2 = utils.make_storage_from_shape(shape)
@@ -1007,8 +231,10 @@ class DelnFluxNoSG:
             raise ValueError("nord must be less than 3")
         if not np.all(n in [0, 2, 3] for n in nord[:]):
             raise NotImplementedError("nord must have values 0, 2, or 3")
+        
         self._nmax = int(max(nord[:]))
         self._grid = spec.grid
+       
         i1 = self._grid.is_ - 1 - self._nmax
         i2 = self._grid.ie + 1 + self._nmax
         j1 = self._grid.js - 1 - self._nmax
@@ -1016,6 +242,11 @@ class DelnFluxNoSG:
         if nk is None:
             nk = self._grid.npz
         self._nk = nk
+        nonzero_nord_k, nonzero_nord = nord_split(nord, spec.namelist.nord)
+        kstart = nonzero_nord_k
+        low_kstart = 0
+        nk = self._nk - kstart
+        low_nk = nonzero_nord_k
         origin_d2 = (i1, j1, 0)
         domain_d2 = (i2 - i1 + 1, j2 - j1 + 1, self._nk)
         f1_ny = self._grid.je - self._grid.js + 1 + 2 * self._nmax
@@ -1027,12 +258,7 @@ class DelnFluxNoSG:
             raise Exception("nk must be more than 3 for DelnFluxNoSG")
         self._k_bounds = [1, 1, 1, self._nk - 3]
 
-        preamble_ax_offsets = axis_offsets(self._grid, origin_d2, domain_d2)
-        fx_ax_offsets = axis_offsets(self._grid, fx_origin, (f1_nx, f1_ny, self._nk))
-        fy_ax_offsets = axis_offsets(
-            self._grid, fx_origin, (f1_nx - 1, f1_ny + 1, self._nk)
-        )
-
+       
         origins_d2 = []
         domains_d2 = []
         origins_flux = []
@@ -1056,80 +282,72 @@ class DelnFluxNoSG:
             "nord3": nord[3],
         }
 
+        self._d2_damp_low = FrozenStencil(
+            d2_damp_interval,
+            origin=(self._grid.is_ - 1, self._grid.js - 1, low_kstart),
+            domain=(self._grid.nic+2,self._grid.njc+2, low_nk)
+        )
         self._d2_damp = FrozenStencil(
             d2_damp_interval,
-            externals={
-                **nord_dictionary,
-                **preamble_ax_offsets,
-            },
-            origin=origin_d2,
-            domain=domain_d2,
+            origin=(i1, j1, kstart),
+            domain=(i2 - i1 + 1, j2 - j1 + 1, nk)
         )
-
+        self._copy_stencil_interval_low = FrozenStencil(
+            copy_defn,
+            origin=(self._grid.is_ - 1, self._grid.js - 1, low_kstart),
+            domain=(self._grid.nic+2,self._grid.njc+2, low_nk)
+        )
         self._copy_stencil_interval = FrozenStencil(
-            copy_stencil_interval,
-            externals={
-                **nord_dictionary,
-                **preamble_ax_offsets,
-            },
-            origin=origin_d2,
-            domain=domain_d2,
+            copy_defn,
+            origin=(i1, j1, kstart),
+            domain=(i2 - i1 + 1, j2 - j1 + 1, nk)
         )
 
         self._d2_stencil = get_stencils_with_varied_bounds(
             d2_highorder_stencil,
             origins_d2,
             domains_d2,
-            externals={**nord_dictionary},
         )
         self._column_conditional_fx_calculation = get_stencils_with_varied_bounds(
             fx_calc_stencil_column,
             origins_flux,
             domains_fx,
-            externals={**nord_dictionary},
         )
         self._column_conditional_fy_calculation = get_stencils_with_varied_bounds(
             fy_calc_stencil_column,
             origins_flux,
             domains_fy,
-            externals={**nord_dictionary},
+        )
+
+        self._fx_calc_stencil_low = FrozenStencil(
+            fx_calc_stencil,
+            origin=(self._grid.is_, self._grid.js , low_kstart),
+            domain=(self._grid.nic+1, self._grid.njc, low_nk),
         )
         self._fx_calc_stencil = FrozenStencil(
-            fx_calc_stencil_nord,
-            externals={**fx_ax_offsets, **nord_dictionary},
-            origin=fx_origin,
-            domain=(f1_nx, f1_ny, self._nk),
+            fx_calc_stencil,
+            origin=(self._grid.is_ - self._nmax, self._grid.js - self._nmax, kstart),
+            domain=(f1_nx, f1_ny, nk),
+        )
+        self._fy_calc_stencil_low = FrozenStencil(
+            fy_calc_stencil,
+            origin=(self._grid.is_, self._grid.js , low_kstart),
+            domain=(self._grid.nic, self._grid.njc+1, low_nk),
         )
         self._fy_calc_stencil = FrozenStencil(
-            fy_calc_stencil_nord,
-            externals={**fy_ax_offsets, **nord_dictionary},
-            origin=fx_origin,
-            domain=(f1_nx - 1, f1_ny + 1, self._nk),
+            fy_calc_stencil,
+            origin=(self._grid.is_ - self._nmax, self._grid.js - self._nmax, kstart),
+            domain=(f1_nx - 1, f1_ny + 1, nk),
         )
 
-        corner_origin = (self._grid.isd, self._grid.jsd, 0)
-        corner_domain = (self._grid.nid, self._grid.njd, self._nk)
-        corner_axis_offsets = axis_offsets(self._grid, corner_origin, corner_domain)
-
-        self._corner_tmp = utils.make_storage_from_shape(
-            corner_domain, origin=corner_origin
-        )
-        self._copy_corners_x_nord = FrozenStencil(
-            copy_corners_x_nord,
-            externals={**corner_axis_offsets, **nord_dictionary},
-            origin=corner_origin,
-            domain=corner_domain,
-        )
-        self._copy_corners_y_nord = FrozenStencil(
-            copy_corners_y_nord,
-            externals={**corner_axis_offsets, **nord_dictionary},
-            origin=corner_origin,
-            domain=corner_domain,
-        )
+      
+        self._copy_corners_x_nord = corners.CopyCorners("x", origin=(0, 0, kstart), domain=(self._grid.nid, self._grid.njd, nk))
+        self._copy_corners_y_nord = corners.CopyCorners("y", origin=(0, 0, kstart), domain=(self._grid.nid, self._grid.njd, nk))
+       
         self._copy_full_domain = FrozenStencil(
-            func=corners.copy_defn,
-            origin=corner_origin,
-            domain=corner_domain,
+            copy_defn,
+            origin=self._grid.full_origin(),
+            domain=(self._grid.nid, self._grid.njd, self._nk),
         )
 
     def __call__(self, q, fx2, fy2, damp_c, d2, mass=None):
@@ -1146,23 +364,23 @@ class DelnFluxNoSG:
         """
 
         if mass is None:
+            self._d2_damp_low(q, d2, damp_c)
             self._d2_damp(q, d2, damp_c)
         else:
+            self._copy_stencil_interval_low(q, d2)
             self._copy_stencil_interval(q, d2)
 
-        self._copy_full_domain(d2, self._corner_tmp)
+       
         self._copy_corners_x_nord(
-            self._corner_tmp,
             d2,
         )
-
+        self._fx_calc_stencil_low(d2, self._grid.del6_v, fx2)
         self._fx_calc_stencil(d2, self._grid.del6_v, fx2)
 
         self._copy_corners_y_nord(
-            self._corner_tmp,
             d2,
         )
-
+        self._fy_calc_stencil_low(d2, self._grid.del6_u, fy2)
         self._fy_calc_stencil(d2, self._grid.del6_u, fy2)
 
         for n in range(self._nmax):
@@ -1171,11 +389,10 @@ class DelnFluxNoSG:
                 fy2,
                 self._grid.rarea,
                 d2,
+                self._nord
             )
 
-            self._copy_full_domain(d2, self._corner_tmp)
             self._copy_corners_x_nord(
-                self._corner_tmp,
                 d2,
             )
 
@@ -1183,10 +400,10 @@ class DelnFluxNoSG:
                 d2,
                 self._grid.del6_v,
                 fx2,
+                self._nord
             )
 
             self._copy_corners_y_nord(
-                self._corner_tmp,
                 d2,
             )
 
@@ -1194,4 +411,5 @@ class DelnFluxNoSG:
                 d2,
                 self._grid.del6_u,
                 fy2,
+                self._nord
             )
