@@ -1,4 +1,3 @@
-from fv3core.stencils.dyn_core import _initialize_edge_pe_stencil
 from fv3core.testing import TranslateFortranData2Py
 
 

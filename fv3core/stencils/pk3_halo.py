@@ -11,24 +11,11 @@ from fv3core.utils.typing import FloatField, FloatFieldIJ
 def edge_pe_update(
     pe: FloatFieldIJ, delp: FloatField, pk3: FloatField, ptop: float, akap: float
 ):
-    from __externals__ import local_ie, local_is, local_je, local_js
 
     with computation(FORWARD):
         with interval(0, 1):
-            with horizontal(
-                region[local_is - 2 : local_is, local_js : local_je + 1],
-                region[local_ie + 1 : local_ie + 3, local_js : local_je + 1],
-                region[local_is - 2 : local_ie + 3, local_js - 2 : local_js],
-                region[local_is - 2 : local_ie + 3, local_je + 1 : local_je + 3],
-            ):
                 pe = ptop
         with interval(1, None):
-            with horizontal(
-                region[local_is - 2 : local_is, local_js : local_je + 1],
-                region[local_ie + 1 : local_ie + 3, local_js : local_je + 1],
-                region[local_is - 2 : local_ie + 3, local_js - 2 : local_js],
-                region[local_is - 2 : local_ie + 3, local_je + 1 : local_je + 3],
-            ):
                 pe = pe + delp[0, 0, -1]
                 pk3 = pe ** akap
 
@@ -42,17 +29,30 @@ class PK3Halo:
         shape_2D = grid.domain_shape_full(add=(1, 1, 1))[0:2]
         origin = grid.full_origin()
         domain = grid.domain_shape_full(add=(0, 0, 1))
-        ax_offsets = axis_offsets(grid, origin, domain)
+       
         self._pe_tmp = utils.make_storage_from_shape(shape_2D, grid.full_origin())
-        self._edge_pe_update = FrozenStencil(
-            func=edge_pe_update,
-            externals={
-                **ax_offsets,
-            },
-            origin=origin,
-            domain=domain,
+        edge_domain_x = (2, grid.njc, grid.npz + 1)
+        self._edge_pe_update_west = FrozenStencil(
+            edge_pe_update,
+            origin=(grid.is_ - 2, grid.js, 0),
+            domain=edge_domain_x,
         )
-
+        self._edge_pe_update_east = FrozenStencil(
+            edge_pe_update,
+            origin=(grid.ie+1, grid.js, 0),
+            domain=edge_domain_x,
+        )
+        edge_domain_y = (grid.nic + 4, 2, grid.npz + 1)
+        self._edge_pe_update_south = FrozenStencil(
+            edge_pe_update,
+            origin=(grid.is_ - 2, grid.js - 2, 0),
+            domain=edge_domain_y,
+        )
+        self._edge_pe_update_north = FrozenStencil(
+            edge_pe_update,
+            origin=(grid.is_ - 2, grid.je + 1, 0),
+            domain=edge_domain_y,
+        )
     def __call__(self, pk3: FloatField, delp: FloatField, ptop: float, akap: float):
         """Update pressure (pk3) in halo region
 
@@ -62,4 +62,7 @@ class PK3Halo:
             ptop: The pressure level at the top of atmosphere
             akap: Poisson constant (KAPPA)
         """
-        self._edge_pe_update(self._pe_tmp, delp, pk3, ptop, akap)
+        self._edge_pe_update_west(self._pe_tmp, delp, pk3, ptop, akap)
+        self._edge_pe_update_east(self._pe_tmp, delp, pk3, ptop, akap)
+        self._edge_pe_update_south(self._pe_tmp, delp, pk3, ptop, akap)
+        self._edge_pe_update_north(self._pe_tmp, delp, pk3, ptop, akap)

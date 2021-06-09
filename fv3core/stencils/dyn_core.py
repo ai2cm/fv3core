@@ -191,21 +191,6 @@ def dyncore_temporaries(shape, namelist, grid):
     return tmps
 
 
-def _initialize_edge_pe_stencil(grid: Grid) -> FrozenStencil:
-    """
-    Returns the FrozenStencil object for the pe_halo stencil
-    """
-    ax_offsets_pe = axis_offsets(
-        grid,
-        grid.full_origin(),
-        grid.domain_shape_full(add=(0, 0, 1)),
-    )
-    return FrozenStencil(
-        pe_halo.edge_pe,
-        origin=grid.full_origin(),
-        domain=grid.domain_shape_full(add=(0, 0, 1)),
-        externals={**ax_offsets_pe},
-    )
 
 
 def _initialize_temp_adjust_stencil(grid, n_adj):
@@ -339,7 +324,24 @@ class AcousticDynamics:
             origin=self.grid.full_origin(),
             domain=self.grid.domain_shape_full(),
         )
-        self._edge_pe_stencil: FrozenStencil = _initialize_edge_pe_stencil(self.grid)
+        edge_domain_x = (1, self.grid.njc, self.grid.npz + 1)
+        self._edge_pe_west_stencil = FrozenStencil(
+            pe_halo.edge_pe,
+            origin=(self.grid.is_ - 1, self.grid.js, 0), domain=edge_domain_x
+        )
+        self._edge_pe_east_stencil = FrozenStencil(
+            pe_halo.edge_pe,
+            origin=(self.grid.ie+1, self.grid.js, 0), domain=edge_domain_x
+        )
+        edge_domain_y = (self.grid.nic + 2, 1, self.grid.npz + 1)
+        self._edge_pe_south_stencil = FrozenStencil(
+            pe_halo.edge_pe,
+            origin=(self.grid.is_ - 1, self.grid.js - 1, 0), domain=edge_domain_y
+        )
+        self._edge_pe_north_stencil = FrozenStencil(
+            pe_halo.edge_pe,
+            origin=(self.grid.is_ - 1, self.grid.je+1, 0), domain=edge_domain_y
+        )
         """ The stencil object responsible for updading the interface pressure"""
 
         self._do_del2cubed = (
@@ -612,7 +614,10 @@ class AcousticDynamics:
                             state.pkc_quantity, n_points=self.grid.halo
                         )
                 if remap_step:
-                    self._edge_pe_stencil(state.pe, state.delp, state.ptop)
+                    self._edge_pe_west_stencil(state.pe, state.delp, state.ptop)
+                    self._edge_pe_east_stencil(state.pe, state.delp, state.ptop)
+                    self._edge_pe_south_stencil(state.pe, state.delp, state.ptop)
+                    self._edge_pe_north_stencil(state.pe, state.delp, state.ptop)
                 if self.namelist.use_logp:
                     raise NotImplementedError(
                         "unimplemented namelist option use_logp=True"
