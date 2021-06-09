@@ -1,5 +1,6 @@
 import gt4py.gtscript as gtscript
 from gt4py.gtscript import (
+    __INLINED,
     BACKWARD,
     FORWARD,
     PARALLEL,
@@ -7,7 +8,6 @@ from gt4py.gtscript import (
     horizontal,
     interval,
     log,
-    region,
     sin,
 )
 
@@ -15,7 +15,7 @@ import fv3core.utils.global_constants as constants
 from fv3core.decorators import FrozenStencil
 from fv3core.utils import axis_offsets
 from fv3core.utils.typing import FloatField, FloatFieldK
-
+import fv3core.utils.gt4py_utils as utils
 
 SDAY = 86400.0
 
@@ -43,19 +43,17 @@ def dm_layer(rf, dp, wind):
     return (1.0 - rf) * dp * wind
 
 
-def ray_fast_wind_compute(
-    u: FloatField,
-    v: FloatField,
-    w: FloatField,
+def dm_compute(
+    rf: FloatField,
+    dm: FloatField,
     dp: FloatFieldK,
     pfull: FloatFieldK,
     dt: float,
     ptop: float,
     rf_cutoff_nudge: float,
     ks: int,
-    hydrostatic: bool,
 ):
-    from __externals__ import local_ie, local_je, rf_cutoff, tau
+    from __externals__ import rf_cutoff, tau
 
     # dm_stencil
     with computation(PARALLEL), interval(...):
@@ -74,54 +72,47 @@ def ray_fast_wind_compute(
     with computation(BACKWARD), interval(0, -1):
         if pfull < rf_cutoff_nudge:
             dm = dm[0, 0, 1]
-    # ray_fast_wind(u)
+def ray_fast_wind(
+    wind: FloatField,
+    rf: FloatField,
+    dm: FloatField,
+    dp: FloatFieldK,
+    pfull: FloatFieldK,
+    dt: float,
+    rf_cutoff_nudge: float,
+    ks: int,
+):
+    from __externals__ import rf_cutoff
+
     with computation(FORWARD):
         with interval(0, 1):
-            with horizontal(region[: local_ie + 1, :]):
-                if pfull < rf_cutoff:
-                    dmdir = dm_layer(rf, dp, u)
-                    u *= rf
-                else:
-                    dm = 0
+            if pfull < rf_cutoff:
+                dmdir = dm_layer(rf, dp, wind)
+                wind *= rf
+            else:
+                dm = 0
         with interval(1, None):
-            with horizontal(region[: local_ie + 1, :]):
-                dmdir = dmdir[0, 0, -1]
-                if pfull < rf_cutoff:
-                    dmdir += dm_layer(rf, dp, u)
-                    u *= rf
+            dmdir = dmdir[0, 0, -1]
+            if pfull < rf_cutoff:
+                dmdir += dm_layer(rf, dp, wind)
+                wind *= rf
     with computation(BACKWARD), interval(0, -1):
         if pfull < rf_cutoff:
             dmdir = dmdir[0, 0, 1]
     with computation(PARALLEL), interval(...):
-        with horizontal(region[: local_ie + 1, :]):
-            if pfull < rf_cutoff_nudge:  # TODO and axes(k) < ks:
-                u += dmdir / dm
-    # ray_fast_wind(v)
-    with computation(FORWARD):
-        with interval(0, 1):
-            with horizontal(region[:, : local_je + 1]):
-                if pfull < rf_cutoff:
-                    dmdir = dm_layer(rf, dp, v)
-                    v *= rf
-                else:
-                    dm = 0
-        with interval(1, None):
-            with horizontal(region[:, : local_je + 1]):
-                dmdir = dmdir[0, 0, -1]
-                if pfull < rf_cutoff:
-                    dmdir += dm_layer(rf, dp, v)
-                    v *= rf
-    with computation(BACKWARD), interval(0, -1):
-        if pfull < rf_cutoff:
-            dmdir = dmdir[0, 0, 1]
+        if pfull < rf_cutoff_nudge:  # TODO and axes(k) < ks:
+            wind += dmdir / dm
+
+def ray_fast_wind_w(
+    w: FloatField,
+    rf: FloatField,
+    pfull: FloatFieldK,
+  
+):
+    from __externals__ import rf_cutoff, hydrostatic   
     with computation(PARALLEL), interval(...):
-        with horizontal(region[:, : local_je + 1]):
-            if pfull < rf_cutoff_nudge:  # TODO and axes(k) < ks:
-                v += dmdir / dm
-    # ray_fast_w
-    with computation(PARALLEL), interval(...):
-        with horizontal(region[: local_ie + 1, : local_je + 1]):
-            if not hydrostatic and pfull < rf_cutoff:
+        if __INLINED(not hydrostatic):
+            if pfull < rf_cutoff:
                 w *= rf
 
 
@@ -141,27 +132,46 @@ class RayleighDamping:
 
     def __init__(self, grid, namelist):
         self._rf_cutoff = namelist.rf_cutoff
-        self._hydrostatic = namelist.hydrostatic
         origin = grid.compute_origin()
         domain = (grid.nic + 1, grid.njc + 1, grid.npz)
 
-        ax_offsets = axis_offsets(grid, origin, domain)
-        local_axis_offsets = {}
-        for axis_offset_name, axis_offset_value in ax_offsets.items():
-            if "local" in axis_offset_name:
-                local_axis_offsets[axis_offset_name] = axis_offset_value
+        shape = grid.domain_shape_full(add=(1,1,1))
+        self._tmp_dm = utils.make_storage_from_shape(shape)
 
-        self._ray_fast_wind_compute = FrozenStencil(
-            ray_fast_wind_compute,
+        self._tmp_rf = utils.make_storage_from_shape(shape)
+        self._dm_compute = FrozenStencil(
+            dm_compute,
             origin=origin,
             domain=domain,
             externals={
                 "rf_cutoff": namelist.rf_cutoff,
                 "tau": namelist.tau,
-                **local_axis_offsets,
             },
         )
-
+        self._ray_fast_u = FrozenStencil(
+            ray_fast_wind,
+            origin=origin,
+            domain=grid.domain_shape_compute(add=(0, 1, 0)),
+            externals={
+                "rf_cutoff": namelist.rf_cutoff,
+            },
+        )
+        self._ray_fast_v = FrozenStencil(
+            ray_fast_wind,
+            origin=origin,
+            domain=grid.domain_shape_compute(add=(1, 0, 0)),
+            externals={
+                "rf_cutoff": namelist.rf_cutoff,
+            },
+        )
+        self._ray_fast_w = FrozenStencil(
+            ray_fast_wind_w,
+            origin=origin,
+            domain=grid.domain_shape_compute(),
+            externals={
+                "rf_cutoff": namelist.rf_cutoff,"hydrostatic": namelist.hydrostatic
+            },
+        )
     def __call__(
         self,
         u: FloatField,
@@ -174,16 +184,32 @@ class RayleighDamping:
         ks: int,
     ):
         rf_cutoff_nudge = self._rf_cutoff + min(100.0, 10.0 * ptop)
-
-        self._ray_fast_wind_compute(
-            u,
-            v,
-            w,
+        self._dm_compute(
+            self._tmp_rf,
+            self._tmp_dm,
             dp,
             pfull,
             dt,
             ptop,
             rf_cutoff_nudge,
+            ks)
+        self._ray_fast_u(
+            u,
+            self._tmp_rf, self._tmp_dm,
+            dp,
+            pfull,
+            dt,
+            rf_cutoff_nudge,
             ks,
-            self._hydrostatic,
+
         )
+        self._ray_fast_v(
+            v,
+            self._tmp_rf, self._tmp_dm,
+            dp,
+            pfull,
+            dt,
+            rf_cutoff_nudge,
+            ks,
+        )
+        self._ray_fast_w(w, self._tmp_rf, pfull)
