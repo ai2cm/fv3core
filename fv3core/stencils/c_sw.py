@@ -5,7 +5,6 @@ from gt4py.gtscript import (
     computation,
     horizontal,
     interval,
-    region,
 )
 
 import fv3core.utils.gt4py_utils as utils
@@ -312,19 +311,21 @@ def update_x_velocity(
     rdxc: FloatFieldIJ,
     dt2: float,
 ):
-    from __externals__ import grid_type, i_end, i_start
-
     with computation(PARALLEL), interval(...):
-        compile_assert(grid_type < 3)
-        # additional assumption: not __INLINED(spec.grid.nested)
-
         tmp_flux = dt2 * (velocity - velocity_c * cosa) / sina
-        with horizontal(region[i_start, :], region[i_end + 1, :]):
-            tmp_flux = dt2 * velocity
-
         flux = vorticity[0, 0, 0] if tmp_flux > 0.0 else vorticity[0, 1, 0]
         velocity_c = velocity_c + tmp_flux * flux + rdxc * (ke[-1, 0, 0] - ke)
-
+def correct_x_edge_velocity(
+        vorticity: FloatField,
+        ke: FloatField,
+        velocity: FloatField,
+        velocity_c: FloatField,
+        rdxc: FloatFieldIJ,
+        dt2: float,):
+    with computation(PARALLEL), interval(...):
+        tmp_flux = dt2 * velocity
+        flux = vorticity[0, 0, 0] if tmp_flux > 0.0 else vorticity[0, 1, 0]
+        velocity_c = velocity_c + tmp_flux * flux + rdxc * (ke[-1, 0, 0] - ke)
 
 def update_y_velocity(
     vorticity: FloatField,
@@ -336,19 +337,23 @@ def update_y_velocity(
     rdyc: FloatFieldIJ,
     dt2: float,
 ):
-    from __externals__ import grid_type, j_end, j_start
-
     with computation(PARALLEL), interval(...):
-        compile_assert(grid_type < 3)
-        # additional assumption: not __INLINED(spec.grid.nested)
-
         tmp_flux = dt2 * (velocity - velocity_c * cosa) / sina
-        with horizontal(region[:, j_start], region[:, j_end + 1]):
-            tmp_flux = dt2 * velocity
-
         flux = vorticity[0, 0, 0] if tmp_flux > 0.0 else vorticity[1, 0, 0]
         velocity_c = velocity_c - tmp_flux * flux + rdyc * (ke[0, -1, 0] - ke)
 
+def correct_y_edge_velocity(
+    vorticity: FloatField,
+    ke: FloatField,
+    velocity: FloatField,
+    velocity_c: FloatField,
+    rdyc: FloatFieldIJ,
+    dt2: float,
+):
+    with computation(PARALLEL), interval(...):
+        tmp_flux = dt2 * velocity
+        flux = vorticity[0, 0, 0] if tmp_flux > 0.0 else vorticity[1, 0, 0]
+        velocity_c = velocity_c - tmp_flux * flux + rdyc * (ke[0, -1, 0] - ke)
 
 def initialize_delpc_ptc(delpc: FloatField, ptc: FloatField):
     with computation(PARALLEL), interval(...):
@@ -567,31 +572,49 @@ class CGridShallowWaterDynamics:
             domain=(self.grid.nic + 1, self.grid.njc + 1, self.grid.npz),
         )
 
-        domain_y = self.grid.domain_shape_compute(add=(0, 1, 0))
-        axis_offsets_y = axis_offsets(self.grid, origin, domain_y)
+        
+        js = self.grid.js + 1 if self.grid.south_edge else self.grid.js
+        je = self.grid.je if self.grid.north_edge else self.grid.je+1
         self._update_y_velocity = FrozenStencil(
             func=update_y_velocity,
-            externals={
-                "grid_type": grid_type,
-                "j_start": axis_offsets_y["j_start"],
-                "j_end": axis_offsets_y["j_end"],
-            },
-            origin=origin,
-            domain=domain_y,
-        )
-        domain_x = self.grid.domain_shape_compute(add=(1, 0, 0))
-        axis_offsets_x = axis_offsets(self.grid, origin, domain_x)
-        self._update_x_velocity = FrozenStencil(
-            func=update_x_velocity,
-            externals={
-                "grid_type": grid_type,
-                "i_start": axis_offsets_x["i_start"],
-                "i_end": axis_offsets_x["i_end"],
-            },
-            origin=origin,
-            domain=domain_x,
+            origin=(self.grid.is_, js, 0),
+            domain=(self.grid.nic,je - js + 1, self.grid.npz),
         )
 
+        if self.grid.south_edge:
+            self._update_south_velocity = FrozenStencil(
+                correct_y_edge_velocity,
+                origin=(self.grid.is_,self.grid.js,0),
+                domain=(self.grid.nic, 1, self.grid.npz)
+                )
+        if self.grid.north_edge:
+            self._update_north_velocity = FrozenStencil(
+                correct_y_edge_velocity,
+                origin=(self.grid.is_,self.grid.je+1,0),
+                domain=(self.grid.nic, 1,self.grid.npz)
+            )
+        
+       
+        is_ = self.grid.is_ + 1 if self.grid.west_edge else self.grid.is_
+        ie = self.grid.ie if self.grid.east_edge else self.grid.ie+1
+        self._update_x_velocity = FrozenStencil(
+            func=update_x_velocity,
+            origin=(is_, self.grid.js, 0),
+            domain=(ie - is_ + 1, self.grid.njc, self.grid.npz),
+        )
+
+        if self.grid.west_edge:
+            self._update_west_velocity = FrozenStencil(
+                correct_x_edge_velocity,
+                origin=(self.grid.is_,self.grid.js,0),
+                domain=(1, self.grid.njc, self.grid.npz)
+                )
+        if self.grid.east_edge:
+            self._update_east_velocity = FrozenStencil(
+                correct_x_edge_velocity,
+                origin=(self.grid.ie+1,self.grid.js,0),
+                domain=(1, self.grid.njc, self.grid.npz)
+            )
     def _vorticitytransport_cgrid(
         self,
         uc: FloatField,
@@ -623,6 +646,24 @@ class CGridShallowWaterDynamics:
             self.grid.rdyc,
             dt2,
         )
+        if self.grid.south_edge:
+            self._update_south_velocity(
+                vort_c,
+                ke_c,
+                u,
+                vc,
+                self.grid.rdyc,
+                dt2,
+            )
+        if self.grid.north_edge:
+            self._update_north_velocity(
+                vort_c,
+                ke_c,
+                u,
+                vc,
+                self.grid.rdyc,
+                dt2,
+            )
         self._update_x_velocity(
             vort_c,
             ke_c,
@@ -633,6 +674,24 @@ class CGridShallowWaterDynamics:
             self.grid.rdxc,
             dt2,
         )
+        if self.grid.west_edge:
+            self._update_west_velocity(
+                vort_c,
+                ke_c,
+                v,
+                uc,
+                self.grid.rdxc,
+                dt2,
+            )
+        if self.grid.west_edge:
+            self._update_east_velocity(
+                vort_c,
+                ke_c,
+                v,
+                uc,
+                self.grid.rdxc,
+                dt2,
+            )
 
     def __call__(
         self,
