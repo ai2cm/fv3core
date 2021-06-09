@@ -68,6 +68,24 @@ def nonhydro_y_fluxes(delp: FloatField, pt: FloatField, w: FloatField, vtc: Floa
     return fy, fy1, fy2
 
 
+def compute_nonhydro_x_fluxes(
+    delp: FloatField,
+    pt: FloatField,
+    utc: FloatField,
+    w: FloatField,
+    fx: FloatField,
+    fx1: FloatField,
+    fx2: FloatField,
+):
+    
+    with computation(PARALLEL), interval(...):
+        #delp = corners.fill_corners_2cells_x(delp)
+        #pt = corners.fill_corners_2cells_x(pt)
+        #w = corners.fill_corners_2cells_x(w)
+        fx, fx1, fx2 = nonhydro_x_fluxes(delp, pt, w, utc)
+        #delp = corners.fill_corners_2cells_y(delp)
+        #pt = corners.fill_corners_2cells_y(pt)
+        #w = corners.fill_corners_2cells_y(w)
 def transportdelp_update_vorticity_and_kineticenergy(
     delp: FloatField,
     pt: FloatField,
@@ -86,50 +104,18 @@ def transportdelp_update_vorticity_and_kineticenergy(
     vc: FloatField,
     u: FloatField,
     v: FloatField,
+    fx: FloatField,
+    fx1: FloatField,
+    fx2: FloatField,
 ):
-    """Transport delp then update vorticity and kinetic energy
-
-    Args:
-        delp: What is transported (input)
-        pt: Pressure (input)
-        utc: x-velocity on C-grid (input)
-        vtc: y-velocity on C-grid (input)
-        w: z-velocity on C-grid (input)
-        rarea: Inverse areas (input) -- IJ field
-        delpc: Updated delp (output)
-        ptc: Updated pt (output)
-        wc: Updated w (output)
-        ke: kinetic energy (inout)
-        vort: vorticity (inout)
-        ua/uc/u: u wind on the a/c/d grid (in)
-        va/vc/v: v wind on the a/c/d grid (in)
-        sin_sg/cos_sg 1/2/3/4: variables that specify grid geometry grid (in)
-      
-    """
-    from __externals__ import grid_type
+    
     with computation(PARALLEL), interval(...):
-        # transport delp
-        compile_assert(grid_type < 3)
-        # additional assumption (not grid.nested)
-
-        delp = corners.fill_corners_2cells_x(delp)
-        pt = corners.fill_corners_2cells_x(pt)
-        w = corners.fill_corners_2cells_x(w)
-
-        fx, fx1, fx2 = nonhydro_x_fluxes(delp, pt, w, utc)
-
-        delp = corners.fill_corners_2cells_y(delp)
-        pt = corners.fill_corners_2cells_y(pt)
-        w = corners.fill_corners_2cells_y(w)
-
         fy, fy1, fy2 = nonhydro_y_fluxes(delp, pt, w, vtc)
-
         delpc = delp + (fx1 - fx1[1, 0, 0] + fy1 - fy1[0, 1, 0]) * rarea
         ptc = (pt * delp + (fx - fx[1, 0, 0] + fy - fy[0, 1, 0]) * rarea) / delpc
         wc = (w * delp + (fx2 - fx2[1, 0, 0] + fy2 - fy2[0, 1, 0]) * rarea) / delpc
     with computation(PARALLEL), interval(...):
         # update vorticity and kinetic energy
-        compile_assert(grid_type < 3)
         ke = uc if ua > 0.0 else uc[1, 0, 0]
         vort = vc if va > 0.0 else vc[0, 1, 0]
         
@@ -382,6 +368,9 @@ class CGridShallowWaterDynamics:
         self._tmp_uf =  utils.make_storage_from_shape(shape)
         self._tmp_vf =  utils.make_storage_from_shape(shape)
         self._tmp_fy =  utils.make_storage_from_shape(shape)
+        self._tmp_fx =  utils.make_storage_from_shape(shape)
+        self._tmp_fx1 =  utils.make_storage_from_shape(shape)
+        self._tmp_fx2 =  utils.make_storage_from_shape(shape)
         corner_domain = (1, 1, self.grid.npz)
         self._initialize_delpc_ptc = FrozenStencil(
             func=initialize_delpc_ptc,
@@ -472,11 +461,17 @@ class CGridShallowWaterDynamics:
             origin=geo_origin,
             domain=(self.grid.nic + 2, self.grid.njc + 3, self.grid.npz),
         )
-        fake_ax_offsets = axis_offsets(self.grid, geo_origin, self.grid.domain_shape_compute(add=(2,2,0)))
+       
+        self._compute_nonhydro_x_fluxes = FrozenStencil(
+            compute_nonhydro_x_fluxes,
+            origin=geo_origin,
+            domain=self.grid.domain_shape_compute(add=(3,2,0))
+        )
+
         self._transportdelp_updatevorticity_and_ke = FrozenStencil(
             transportdelp_update_vorticity_and_kineticenergy,
             externals={
-                "grid_type": grid_type,  **fake_ax_offsets,
+                "grid_type": grid_type, 
             },
             origin=geo_origin,
             domain=self.grid.domain_shape_compute(add=(2,2,0)),
@@ -788,6 +783,19 @@ class CGridShallowWaterDynamics:
             self.grid.sin_sg2,
             dt2,
         )
+        corners.fill2_4corners(delp, pt, "x", self.grid)
+        corners.fill_4corners(w, "x", self.grid)
+        self._compute_nonhydro_x_fluxes(
+            delp,
+            pt,
+            ut,
+            w,
+            self._tmp_fx,
+            self._tmp_fx1,
+            self._tmp_fx2,
+        )
+        corners.fill2_4corners(delp, pt, "y", self.grid)
+        corners.fill_4corners(w, "y", self.grid)
         self._transportdelp_updatevorticity_and_ke(
             delp,
             pt,
@@ -806,6 +814,9 @@ class CGridShallowWaterDynamics:
             vc,
             u,
             v,
+            self._tmp_fx,
+            self._tmp_fx1,
+            self._tmp_fx2,
         )
         if self.grid.south_edge:
             self._vorticity_edge_south1( u, va, self._vort, self.grid.sin_sg4, self.grid.cos_sg4)
