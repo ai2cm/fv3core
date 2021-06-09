@@ -467,7 +467,7 @@ class GridIndexing:
     @property
     def iec(self):
         """end of the compute domain along the x-axis"""
-        return self.origin[0] + self.domain[0]
+        return self.origin[0] + self.domain[0] - 1
 
     @property
     def jsc(self):
@@ -477,7 +477,7 @@ class GridIndexing:
     @property
     def jec(self):
         """end of the compute domain along the y-axis"""
-        return self.origin[1] + self.domain[1]
+        return self.origin[1] + self.domain[1] - 1
 
     @property
     def ks(self):
@@ -536,8 +536,8 @@ class GridIndexing:
         Returns the shape of the compute domain, plus an optional offset.
         """
         return (
-            self.iec - self.isc + add[0],
-            self.jec - self.jsc + add[1],
+            self.iec + 1 - self.isc + add[0],
+            self.jec + 1 - self.jsc + add[1],
             self.ke - self.ks + add[2],
         )
 

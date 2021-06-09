@@ -177,7 +177,21 @@ class DivergenceDamping:
         nk = self.grid.npz - kstart
         low_nk = self._nonzero_nord_k
         self.a2b_ord4 = AGrid2BGridFourthOrder(
-            self._grid_type, kstart, nk, replace=False
+            self.grid.grid_indexing,
+            self.grid.agrid1,
+            self.grid.agrid2,
+            self.grid.bgrid1,
+            self.grid.bgrid2,
+            self.grid.dxa,
+            self.grid.dya,
+            self.grid.edge_n,
+            self.grid.edge_s,
+            self.grid.edge_e,
+            self.grid.edge_w,
+            self._grid_type,
+            kstart,
+            nk,
+            replace=False,
         )
 
         start_points = axis_offsets(

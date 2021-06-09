@@ -90,6 +90,7 @@ class NonHydrostaticPressureGradient:
 
     def __init__(self, grid_type):
         grid = spec.grid
+        self.grid = spec.grid
         self.orig = grid.compute_origin()
         self.domain_full_k = grid.domain_shape_compute(add=(1, 1, 0))
         self.domain_k1 = (grid.nic + 1, grid.njc + 1, 1)
@@ -124,18 +125,51 @@ class NonHydrostaticPressureGradient:
             domain=self.v_domain,
         )
         self.a2b_k1 = AGrid2BGridFourthOrder(
+            self.grid.grid_indexing,
+            self.grid.agrid1,
+            self.grid.agrid2,
+            self.grid.bgrid1,
+            self.grid.bgrid2,
+            self.grid.dxa,
+            self.grid.dya,
+            self.grid.edge_n,
+            self.grid.edge_s,
+            self.grid.edge_e,
+            self.grid.edge_w,
             grid_type,
             kstart=1,
             nk=self.nk,
             replace=True,
         )
         self.a2b_kbuffer = AGrid2BGridFourthOrder(
+            self.grid.grid_indexing,
+            self.grid.agrid1,
+            self.grid.agrid2,
+            self.grid.bgrid1,
+            self.grid.bgrid2,
+            self.grid.dxa,
+            self.grid.dya,
+            self.grid.edge_n,
+            self.grid.edge_s,
+            self.grid.edge_e,
+            self.grid.edge_w,
             grid_type,
             kstart=0,
             nk=self.nk + 1,
             replace=True,
         )
         self.a2b_kstandard = AGrid2BGridFourthOrder(
+            self.grid.grid_indexing,
+            self.grid.agrid1,
+            self.grid.agrid2,
+            self.grid.bgrid1,
+            self.grid.bgrid2,
+            self.grid.dxa,
+            self.grid.dya,
+            self.grid.edge_n,
+            self.grid.edge_s,
+            self.grid.edge_e,
+            self.grid.edge_w,
             grid_type,
             kstart=0,
             nk=self.nk,
