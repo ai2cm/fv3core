@@ -1,5 +1,5 @@
 import gt4py.gtscript as gtscript
-from gt4py.gtscript import PARALLEL, computation, horizontal, interval, region
+from gt4py.gtscript import PARALLEL, computation, horizontal, interval
 
 import fv3core._config as spec
 import fv3core.utils.gt4py_utils as utils
@@ -46,72 +46,76 @@ def fill_corners_y(utmp: FloatField, vtmp: FloatField, ua: FloatField, va: Float
         )
 
 
-def east_west_edges(
-    u: FloatField,
-    ua: FloatField,
+def u_east_west_edges1(
     uc: FloatField,
     utc: FloatField,
     utmp: FloatField,
     v: FloatField,
-    sin_sg1: FloatFieldIJ,
-    sin_sg3: FloatFieldIJ,
     cosa_u: FloatFieldIJ,
     rsin_u: FloatFieldIJ,
+):
+    with computation(PARALLEL), interval(...):
+        uc = vol_conserv_cubic_interp_func_x(utmp)
+        utc = contravariant(uc, v, cosa_u, rsin_u)
+def u_east_west_edges2(
+    ua: FloatField,
+    uc: FloatField,
+    utc: FloatField,
+    sin_sg1: FloatFieldIJ,
+    sin_sg3: FloatFieldIJ,
     dxa: FloatFieldIJ,
 ):
-    from __externals__ import i_end, i_start, local_je, local_js
-
     with computation(PARALLEL), interval(...):
-        # West
-        with horizontal(region[i_start - 1, local_js - 1 : local_je + 2], region[i_end, local_js - 1 : local_je + 2]):
-            uc = vol_conserv_cubic_interp_func_x(utmp)
-
-        faketmp = 0  # noqa
-        with horizontal(region[i_start, local_js - 1 : local_je + 2], region[i_end + 1, local_js - 1 : local_je + 2]):
-            utc = edge_interpolate4_x(ua, dxa)
-            uc = utc * sin_sg3[-1, 0] if utc > 0 else utc * sin_sg1
-
-        with horizontal(region[i_start + 1, local_js - 1 : local_je + 2], region[i_end + 2, local_js - 1 : local_je + 2]):
-            uc = vol_conserv_cubic_interp_func_x_rev(utmp)
-
-        with horizontal(region[i_start - 1, local_js - 1 : local_je + 2], region[i_start + 1, local_js - 1 : local_je + 2], region[i_end, local_js - 1 : local_je + 2], region[i_end + 2, local_js - 1 : local_je + 2]):
-            utc = contravariant(uc, v, cosa_u, rsin_u)
+        utc = edge_interpolate4_x(ua, dxa)
+        uc = utc * sin_sg3[-1, 0] if utc > 0 else utc * sin_sg1
         
-     
-
-def north_south_edges(
+def u_east_west_edges3(
+    uc: FloatField,
+    utc: FloatField,
+    utmp: FloatField,
     v: FloatField,
-    va: FloatField,
+    cosa_u: FloatFieldIJ,
+    rsin_u: FloatFieldIJ,
+):
+    with computation(PARALLEL), interval(...):
+        uc = vol_conserv_cubic_interp_func_x_rev(utmp)
+        utc = contravariant(uc, v, cosa_u, rsin_u)
+    
+
+def v_north_south_edges1(
     vc: FloatField,
     vtc: FloatField,
     vtmp: FloatField,
     u: FloatField,
-    sin_sg2: FloatFieldIJ,
-    sin_sg4: FloatFieldIJ,
     cosa_v: FloatFieldIJ,
     rsin_v: FloatFieldIJ,
+):
+    with computation(PARALLEL), interval(...):
+        vc = vol_conserv_cubic_interp_func_y(vtmp)
+        vtc = contravariant(vc, u, cosa_v, rsin_v)
+def v_north_south_edges2(
+    va: FloatField,
+    vc: FloatField,
+    vtc: FloatField,
+    sin_sg2: FloatFieldIJ,
+    sin_sg4: FloatFieldIJ,
     dya: FloatFieldIJ,
 ):
-    from __externals__ import j_end, j_start, local_ie, local_is, local_je, local_js
-
     with computation(PARALLEL), interval(...):
-        faketmp = 0  # noqa
-        with horizontal(
-            region[local_is - 1 : local_ie + 2, local_js - 1 : local_je + 3]
-        ):
-            vtc = contravariant(vc, u, cosa_v, rsin_v)
+        vtc = edge_interpolate4_y(va, dya)
+        vc = vtc * sin_sg4[0, -1] if vtc > 0 else vtc * sin_sg2
 
-        with horizontal(region[local_is - 1 : local_ie + 2, j_start - 1], region[local_is - 1 : local_ie + 2, j_end]):
-            vc = vol_conserv_cubic_interp_func_y(vtmp)
-            vtc = contravariant(vc, u, cosa_v, rsin_v)
-
-        with horizontal(region[local_is - 1 : local_ie + 2, j_start], region[local_is - 1 : local_ie + 2, j_end + 1]):
-            vtc = edge_interpolate4_y(va, dya)
-            vc = vtc * sin_sg4[0, -1] if vtc > 0 else vtc * sin_sg2
-
-        with horizontal(region[local_is - 1 : local_ie + 2, j_start + 1], region[local_is - 1 : local_ie + 2, j_end + 2]):
-            vc = vol_conserv_cubic_interp_func_y_rev(vtmp)
-            vtc = contravariant(vc, u, cosa_v, rsin_v)
+def v_north_south_edges3(
+    vc: FloatField,
+    vtc: FloatField,
+    vtmp: FloatField,
+    u: FloatField,
+    cosa_v: FloatFieldIJ,
+    rsin_v: FloatFieldIJ,
+):
+    with computation(PARALLEL), interval(...):
+        vc = vol_conserv_cubic_interp_func_y_rev(vtmp)
+        vtc = contravariant(vc, u, cosa_v, rsin_v)
 
 
 # almost the same as a2b_ord4's version
@@ -451,18 +455,39 @@ class DGrid2AGrid2CGridVectors:
             origin=(ifirst, j1, 0),
             domain=(idiff, self.grid.njc + 2, self.grid.npz),
         )
-
-        self._east_west_edges = FrozenStencil(
-            func=east_west_edges,
-            externals={
-                "i_end": ax_offsets_edges["i_end"],
-                "i_start": ax_offsets_edges["i_start"],
-                "local_je": ax_offsets_edges["local_je"],
-                "local_js": ax_offsets_edges["local_js"],
-            },
-            origin=origin_edges,
-            domain=domain_edges,
-        )
+        edge_domain_x = (1, self.grid.njc + 2, self.grid.npz)
+        if self.grid.west_edge:
+            self._u_west_edge1 = FrozenStencil(
+                func=u_east_west_edges1,
+                origin=self.grid.compute_origin(add=(-1, -1, 0)),
+                domain= edge_domain_x,
+            )
+            self._u_west_edge2 = FrozenStencil(
+                func=u_east_west_edges2,
+                origin=self.grid.compute_origin(add=(0, -1, 0)),
+                domain=edge_domain_x,
+            )
+            self._u_west_edge3 = FrozenStencil(
+                func=u_east_west_edges3,
+                origin=self.grid.compute_origin(add=(1, -1, 0)),
+                domain=edge_domain_x,
+            )
+        if self.grid.east_edge:
+            self._u_east_edge1 = FrozenStencil(
+                func=u_east_west_edges1,
+                origin=(self.grid.ie, self.grid.js - 1, 0),
+                domain= edge_domain_x,
+            )
+            self._u_east_edge2 = FrozenStencil(
+                func=u_east_west_edges2,
+                origin=(self.grid.ie+1, self.grid.js - 1, 0),
+                domain= edge_domain_x,
+            )
+            self._u_east_edge3 = FrozenStencil(
+                func=u_east_west_edges3,
+                origin=(self.grid.ie+2, self.grid.js - 1, 0),
+                domain= edge_domain_x,
+            )
 
         # Ydir:
         self._fill_corners_y = FrozenStencil(
@@ -473,21 +498,40 @@ class DGrid2AGrid2CGridVectors:
             origin=origin_edges,
             domain=domain_edges,
         )
-
-        self._north_south_edges = FrozenStencil(
-            func=north_south_edges,
-            externals={
-                "j_end": ax_offsets_edges["j_end"],
-                "j_start": ax_offsets_edges["j_start"],
-                "local_ie": ax_offsets_edges["local_ie"],
-                "local_is": ax_offsets_edges["local_is"],
-                "local_je": ax_offsets_edges["local_je"],
-                "local_js": ax_offsets_edges["local_js"],
-            },
-            origin=origin_edges,
-            domain=domain_edges,
-        )
-
+        edge_domain_y = (self.grid.nic + 2, 1, self.grid.npz)
+        if self.grid.south_edge:
+            self._v_south_edge1 = FrozenStencil(
+                func=v_north_south_edges1,
+                origin=self.grid.compute_origin(add=(-1, -1, 0)),
+                domain= edge_domain_y,
+            )
+            self._v_south_edge2 = FrozenStencil(
+                func=v_north_south_edges2,
+                origin=self.grid.compute_origin(add=(-1, 0, 0)),
+                domain=edge_domain_y,
+            )
+            self._v_south_edge3 = FrozenStencil(
+                func=v_north_south_edges3,
+                origin=self.grid.compute_origin(add=(-1, 1, 0)),
+                domain=edge_domain_y,
+            )
+        if self.grid.north_edge:
+            self._v_north_edge1 = FrozenStencil(
+                func=v_north_south_edges1,
+                origin=(self.grid.is_ - 1, self.grid.je, 0),
+                domain= edge_domain_y,
+            )
+            self._v_north_edge2 = FrozenStencil(
+                func=v_north_south_edges2,
+                origin=( self.grid.is_ - 1,self.grid.je+1, 0),
+                domain= edge_domain_y,
+            )
+            self._v_north_edge3 = FrozenStencil(
+                func=v_north_south_edges3,
+                origin=(self.grid.is_ - 1,self.grid.je+2,  0),
+                domain= edge_domain_y,
+            )
+    
         self._vt_main = FrozenStencil(
             func=vt_main,
             origin=(i1, jfirst, 0),
@@ -580,20 +624,16 @@ class DGrid2AGrid2CGridVectors:
             self.grid.rsin_u,
             utc,
         )
-
-        self._east_west_edges(
-            u,
-            ua,
-            uc,
-            utc,
-            self._utmp,
-            v,
-            self.grid.sin_sg1,
-            self.grid.sin_sg3,
-            self.grid.cosa_u,
-            self.grid.rsin_u,
-            self.grid.dxa,
-        )
+            
+        if self.grid.west_edge:
+            self._u_west_edge1(uc, utc, self._utmp, v,  self.grid.cosa_u, self.grid.rsin_u,)
+            self._u_west_edge2(ua, uc, utc,  self.grid.sin_sg1,self.grid.sin_sg3, self.grid.dxa)
+            self._u_west_edge3(uc, utc, self._utmp, v,  self.grid.cosa_u, self.grid.rsin_u)
+        if self.grid.east_edge:
+            self._u_east_edge1(uc, utc, self._utmp, v,  self.grid.cosa_u, self.grid.rsin_u)
+            self._u_east_edge2(ua, uc, utc,  self.grid.sin_sg1,self.grid.sin_sg3, self.grid.dxa)
+            self._u_east_edge3(uc, utc, self._utmp, v,  self.grid.cosa_u, self.grid.rsin_u)
+      
 
         # Ydir:
         self._fill_corners_y(
@@ -602,21 +642,16 @@ class DGrid2AGrid2CGridVectors:
             ua,
             va,
         )
-
-        self._north_south_edges(
-            v,
-            va,
-            vc,
-            vtc,
-            self._vtmp,
-            u,
-            self.grid.sin_sg2,
-            self.grid.sin_sg4,
-            self.grid.cosa_v,
-            self.grid.rsin_v,
-            self.grid.dya,
-        )
-
+     
+        if self.grid.south_edge:
+            self._v_south_edge1(vc, vtc, self._vtmp, u,  self.grid.cosa_v, self.grid.rsin_v,)
+            self._v_south_edge2(va, vc, vtc,  self.grid.sin_sg2,self.grid.sin_sg4, self.grid.dya)
+            self._v_south_edge3(vc, vtc, self._vtmp, u,  self.grid.cosa_v, self.grid.rsin_v)
+        if self.grid.north_edge:
+            self._v_north_edge1(vc, vtc, self._vtmp, u,  self.grid.cosa_v, self.grid.rsin_v)
+            self._v_north_edge2(va, vc, vtc,  self.grid.sin_sg2,self.grid.sin_sg4, self.grid.dya)
+            self._v_north_edge3(vc, vtc, self._vtmp, u,  self.grid.cosa_v, self.grid.rsin_v)
+       
         self._vt_main(
             self._vtmp,
             vc,
