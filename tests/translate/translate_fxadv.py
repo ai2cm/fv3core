@@ -8,6 +8,7 @@ class TranslateFxAdv(TranslateFortranData2Py):
         utinfo = grid.x3d_domain_dict()
         vtinfo = grid.y3d_domain_dict()
         self.compute_func = FiniteVolumeFluxPrep()
+        self.max_error = 1e-12
         self.in_vars["data_vars"] = {
             "uc": {},
             "vc": {},
