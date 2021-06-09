@@ -168,23 +168,9 @@ def lagrange_interpolation_x_p1(qy: FloatField, qout: FloatField):
 
 
 def avg_box(u: FloatField, v: FloatField, utmp: FloatField, vtmp: FloatField):
-    """
-    D2A2C_AVG_OFFSET is an external that describes how far the
-    averaging should go before switching to Lagrangian interpolation. For
-    sufficiently small grids, this should be set to -1, otherwise 3. Note that
-    this makes the stencil code in d2a2c grid-dependent!
-    """
-    from __externals__ import D2A2C_AVG_OFFSET, i_end, i_start, j_end, j_start
-
     with computation(PARALLEL), interval(...):
-        with horizontal(
-            region[:, : j_start + D2A2C_AVG_OFFSET],
-            region[:, j_end - D2A2C_AVG_OFFSET + 1 :],
-            region[: i_start + D2A2C_AVG_OFFSET, :],
-            region[i_end - D2A2C_AVG_OFFSET + 1 :, :],
-        ):
-            utmp = 0.5 * (u + u[0, 1, 0])
-            vtmp = 0.5 * (v + v[1, 0, 0])
+        utmp = 0.5 * (u + u[0, 1, 0])
+        vtmp = 0.5 * (v + v[1, 0, 0])
 
 
 @gtscript.function
@@ -451,14 +437,32 @@ class DGrid2AGrid2CGridVectors:
             d2a2c_avg_offset = -1
         else:
             d2a2c_avg_offset = 3
-
-        self._avg_box = FrozenStencil(
-            func=avg_box,
-            externals={"D2A2C_AVG_OFFSET": d2a2c_avg_offset, **ax_offsets},
-            origin=origin,
-            domain=domain,
-        )
-
+       
+     
+        if self.grid.south_edge:
+            self._avg_box_south = FrozenStencil(
+                avg_box, 
+                origin=(self.grid.isd, self.grid.jsd, 0),
+                domain=(self.grid.nid, self.grid.js + d2a2c_avg_offset, self.grid.npz),
+            )
+        if self.grid.north_edge:
+            self._avg_box_north = FrozenStencil(
+                avg_box, 
+                origin=(self.grid.isd, self.grid.je - d2a2c_avg_offset + 1, 0),
+                domain=(self.grid.nid, self.grid.jed - self.grid.je + d2a2c_avg_offset, self.grid.npz),
+            )
+        if self.grid.west_edge:
+            self._avg_box_west = FrozenStencil(
+                avg_box, 
+                origin=(self.grid.isd, self.grid.jsd, 0),
+                domain=(self.grid.is_ + d2a2c_avg_offset, self.grid.njd, self.grid.npz),
+            )
+        if self.grid.east_edge:
+            self._avg_box_east = FrozenStencil(
+                avg_box, 
+                origin=(self.grid.ie - d2a2c_avg_offset + 1, self.grid.jsd, 0),
+                domain=(self.grid.ied - self.grid.ie + d2a2c_avg_offset, self.grid.njd, self.grid.npz),
+            )
         self._contravariant_components = FrozenStencil(
             func=contravariant_components,
             origin=(self.grid.is_ - 1 - id_, self.grid.js - 1 - id_, 0),
@@ -553,12 +557,34 @@ class DGrid2AGrid2CGridVectors:
         )
 
         # tmp edges
-        self._avg_box(
-            u,
-            v,
-            self._utmp,
-            self._vtmp,
-        )
+        if self.grid.south_edge:
+            self._avg_box_south(
+                u,
+                v,
+                self._utmp,
+                self._vtmp,
+            )
+        if self.grid.north_edge:
+            self._avg_box_north(
+                u,
+                v,
+                self._utmp,
+                self._vtmp,
+            )
+        if self.grid.west_edge:
+            self._avg_box_west(
+                u,
+                v,
+                self._utmp,
+                self._vtmp,
+            )
+        if self.grid.east_edge:
+            self._avg_box_east(
+                u,
+                v,
+                self._utmp,
+                self._vtmp,
+            )
 
         # contra-variant components at cell center
         self._contravariant_components(
