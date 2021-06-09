@@ -63,40 +63,21 @@ def east_west_edges(
 
     with computation(PARALLEL), interval(...):
         # West
-        with horizontal(region[i_start - 1, local_js - 1 : local_je + 2]):
+        with horizontal(region[i_start - 1, local_js - 1 : local_je + 2], region[i_end, local_js - 1 : local_je + 2]):
             uc = vol_conserv_cubic_interp_func_x(utmp)
 
         faketmp = 0  # noqa
-        with horizontal(region[i_start, local_js - 1 : local_je + 2]):
+        with horizontal(region[i_start, local_js - 1 : local_je + 2], region[i_end + 1, local_js - 1 : local_je + 2]):
             utc = edge_interpolate4_x(ua, dxa)
             uc = utc * sin_sg3[-1, 0] if utc > 0 else utc * sin_sg1
 
-        with horizontal(region[i_start + 1, local_js - 1 : local_je + 2]):
+        with horizontal(region[i_start + 1, local_js - 1 : local_je + 2], region[i_end + 2, local_js - 1 : local_je + 2]):
             uc = vol_conserv_cubic_interp_func_x_rev(utmp)
 
-        with horizontal(region[i_start - 1, local_js - 1 : local_je + 2]):
+        with horizontal(region[i_start - 1, local_js - 1 : local_je + 2], region[i_start + 1, local_js - 1 : local_je + 2], region[i_end, local_js - 1 : local_je + 2], region[i_end + 2, local_js - 1 : local_je + 2]):
             utc = contravariant(uc, v, cosa_u, rsin_u)
-
-        with horizontal(region[i_start + 1, local_js - 1 : local_je + 2]):
-            utc = contravariant(uc, v, cosa_u, rsin_u)
-
-        # East
-        with horizontal(region[i_end, local_js - 1 : local_je + 2]):
-            uc = vol_conserv_cubic_interp_func_x(utmp)
-
-        with horizontal(region[i_end + 1, local_js - 1 : local_je + 2]):
-            utc = edge_interpolate4_x(ua, dxa)
-            uc = utc * sin_sg3[-1, 0] if utc > 0 else utc * sin_sg1
-
-        with horizontal(region[i_end + 2, local_js - 1 : local_je + 2]):
-            uc = vol_conserv_cubic_interp_func_x_rev(utmp)
-
-        with horizontal(region[i_end, local_js - 1 : local_je + 2]):
-            utc = contravariant(uc, v, cosa_u, rsin_u)
-
-        with horizontal(region[i_end + 2, local_js - 1 : local_je + 2]):
-            utc = contravariant(uc, v, cosa_u, rsin_u)
-
+        
+     
 
 def north_south_edges(
     v: FloatField,
@@ -118,30 +99,17 @@ def north_south_edges(
         with horizontal(
             region[local_is - 1 : local_ie + 2, local_js - 1 : local_je + 3]
         ):
-            vc = lagrange_y_func(vtmp)
             vtc = contravariant(vc, u, cosa_v, rsin_v)
 
-        with horizontal(region[local_is - 1 : local_ie + 2, j_start - 1]):
+        with horizontal(region[local_is - 1 : local_ie + 2, j_start - 1], region[local_is - 1 : local_ie + 2, j_end]):
             vc = vol_conserv_cubic_interp_func_y(vtmp)
             vtc = contravariant(vc, u, cosa_v, rsin_v)
 
-        with horizontal(region[local_is - 1 : local_ie + 2, j_start]):
+        with horizontal(region[local_is - 1 : local_ie + 2, j_start], region[local_is - 1 : local_ie + 2, j_end + 1]):
             vtc = edge_interpolate4_y(va, dya)
             vc = vtc * sin_sg4[0, -1] if vtc > 0 else vtc * sin_sg2
 
-        with horizontal(region[local_is - 1 : local_ie + 2, j_start + 1]):
-            vc = vol_conserv_cubic_interp_func_y_rev(vtmp)
-            vtc = contravariant(vc, u, cosa_v, rsin_v)
-
-        with horizontal(region[local_is - 1 : local_ie + 2, j_end]):
-            vc = vol_conserv_cubic_interp_func_y(vtmp)
-            vtc = contravariant(vc, u, cosa_v, rsin_v)
-
-        with horizontal(region[local_is - 1 : local_ie + 2, j_end + 1]):
-            vtc = edge_interpolate4_y(va, dya)
-            vc = vtc * sin_sg4[0, -1] if vtc > 0 else vtc * sin_sg2
-
-        with horizontal(region[local_is - 1 : local_ie + 2, j_end + 2]):
+        with horizontal(region[local_is - 1 : local_ie + 2, j_start + 1], region[local_is - 1 : local_ie + 2, j_end + 2]):
             vc = vol_conserv_cubic_interp_func_y_rev(vtmp)
             vtc = contravariant(vc, u, cosa_v, rsin_v)
 
