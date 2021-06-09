@@ -264,12 +264,13 @@ def divergence_main_final(
         divg_d *= rarea_c
 
 
-def circulation_cgrid(
+def update_vorticity(
     uc: FloatField,
     vc: FloatField,
     dxc: FloatFieldIJ,
     dyc: FloatFieldIJ,
     vort_c: FloatField,
+    fy: FloatField    
 ):
     """Update vort_c.
 
@@ -280,19 +281,25 @@ def circulation_cgrid(
         dyc: grid spacing in y-dir (input)
         vort_c: C-grid vorticity (output)
     """
-    from __externals__ import i_end, i_start, j_end, j_start
 
     with computation(PARALLEL), interval(...):
         fx = dxc * uc
         fy = dyc * vc
-
         vort_c = fx[0, -1, 0] - fx - fy[-1, 0, 0] + fy
 
-        with horizontal(region[i_start, j_start], region[i_start, j_end + 1]):
-            vort_c += fy[-1, 0, 0]
-
-        with horizontal(region[i_end + 1, j_start], region[i_end + 1, j_end + 1]):
-            vort_c -= fy[0, 0, 0]
+def vorticity_west_corner(
+    fy: FloatField,
+    vort_c: FloatField,
+):
+    with computation(PARALLEL), interval(...):
+        vort_c += fy[-1, 0, 0]
+        
+def vorticity_east_corner(
+    fy: FloatField,
+    vort_c: FloatField,
+):
+    with computation(PARALLEL), interval(...):
+        vort_c -= fy[0, 0, 0]
 
 
 def update_x_velocity(
@@ -369,6 +376,8 @@ class CGridShallowWaterDynamics:
         self.ptc = utils.make_storage_from_shape(shape)
         self._tmp_uf =  utils.make_storage_from_shape(shape)
         self._tmp_vf =  utils.make_storage_from_shape(shape)
+        self._tmp_fy =  utils.make_storage_from_shape(shape)
+        corner_domain = (1, 1, self.grid.npz)
         self._initialize_delpc_ptc = FrozenStencil(
             func=initialize_delpc_ptc,
             origin=self.grid.full_origin(),
@@ -376,10 +385,10 @@ class CGridShallowWaterDynamics:
         )
 
         self._ke = utils.make_storage_from_shape(
-            self.grid.domain_shape_full(add=(1, 1, 1))
+           shape
         )
         self._vort = utils.make_storage_from_shape(
-            self.grid.domain_shape_full(add=(1, 1, 1))
+           shape
         )
         origin = self.grid.compute_origin()
         domain = self.grid.domain_shape_compute(add=(1, 1, 0))
@@ -425,7 +434,7 @@ class CGridShallowWaterDynamics:
                 origin=origin,
                 domain=domain,
             )
-            corner_domain = (1, 1, self.grid.npz)
+           
             if self.grid.sw_corner:
                 self._divergence_sw_corner = FrozenStencil(
                     divergence_south_corner, origin=self.grid.compute_origin(), domain=corner_domain
@@ -522,14 +531,36 @@ class CGridShallowWaterDynamics:
             origin=geo_origin,
             domain=self.grid.domain_shape_compute(add=(2,2,0)),
         )
-        self._circulation_cgrid = FrozenStencil(
-            func=circulation_cgrid,
-            externals={
-                **ax_offsets,
-            },
+        self._update_vorticity = FrozenStencil(
+            update_vorticity,
             origin=origin,
             domain=domain,
         )
+       
+        if self.grid.sw_corner:
+            self._sw_corner_vorticity = FrozenStencil(
+                vorticity_west_corner,
+                origin=(self.grid.is_,self.grid.js, 0),
+                domain=corner_domain
+            )
+        if self.grid.nw_corner:
+            self._nw_corner_vorticity = FrozenStencil(
+                vorticity_west_corner,
+                origin=(self.grid.is_,self.grid.je+1, 0),
+                domain=corner_domain
+            )
+        if self.grid.se_corner:
+            self._se_corner_vorticity = FrozenStencil(
+                vorticity_east_corner,
+                origin=(self.grid.ie+1,self.grid.js, 0),
+                domain=corner_domain
+            )
+        if self.grid.ne_corner:
+            self._ne_corner_vorticity = FrozenStencil(
+                vorticity_east_corner,
+                origin=(self.grid.ie+1,self.grid.je+1, 0),
+                domain=corner_domain
+            )
         self._absolute_vorticity = FrozenStencil(
             func=absolute_vorticity,
             origin=origin,
@@ -732,13 +763,22 @@ class CGridShallowWaterDynamics:
             self._kineticenergy_edge_east1( v, ua, self._ke, self.grid.sin_sg3, self.grid.cos_sg3)
             self._kineticenergy_edge_east2( v, ua, self._ke, self.grid.sin_sg1, self.grid.cos_sg1)
         self._final_ke( ua, va, self._vort, self._ke,  dt2)
-        self._circulation_cgrid(
+        self._update_vorticity(
             uc,
             vc,
             self.grid.dxc,
             self.grid.dyc,
             self._vort,
+            self._tmp_fy
         )
+        if self.grid.sw_corner:
+            self._sw_corner_vorticity(self._tmp_fy, self._vort)
+        if self.grid.nw_corner:
+            self._nw_corner_vorticity(self._tmp_fy, self._vort)
+        if self.grid.se_corner:
+            self._se_corner_vorticity(self._tmp_fy, self._vort)
+        if self.grid.ne_corner:
+            self._ne_corner_vorticity(self._tmp_fy, self._vort)
         self._absolute_vorticity(
             self._vort,
             self.grid.fC,
