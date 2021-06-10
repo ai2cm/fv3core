@@ -17,58 +17,22 @@ class CopyCorners:
 
     def __init__(self, direction: str, temporary_field=None, origin=None, domain=None) -> None:
         self.grid = spec.grid
-        """The grid for this stencil"""
         if origin is None:
             origin = self.grid.full_origin()
-        """The origin for the corner computation"""
+       
         if domain is None:
             domain = self.grid.domain_shape_full(add=(0, 0, 1))
-        """The full domain required to do corner computation everywhere"""
-
-        if temporary_field is not None:
-            self._corner_tmp = temporary_field
-        else:
-            self._corner_tmp = utils.make_storage_from_shape(
-                self.grid.domain_shape_full(add=(1, 1, 1)), origin=origin
-            )
-
-        self._copy_full_domain = FrozenStencil(
-            func=copy_defn,
-            origin=origin,
-            domain=domain
-        )
-        """Stencil Wrapper to do the copy of the input field to the temporary field"""
-
-        ax_offsets = axis_offsets(spec.grid, origin, domain)
-        if direction == "x":
-            self._copy_corners = FrozenStencil(
-                func=copy_corners_x_stencil_defn,
-                origin=origin,
-                domain=domain,
-                externals={
-                    **ax_offsets,
-                },
-            )
-        elif direction == "y":
-            self._copy_corners = FrozenStencil(
-                func=copy_corners_y_stencil_defn,
-                origin=origin,
-                domain=domain,
-                externals={
-                    **ax_offsets,
-                },
-            )
-        else:
-            raise ValueError("Direction must be either 'x' or 'y'")
-
+        self._origin=origin
+        self._domain=domain
+        self.direction = direction
+       
     def __call__(self, field: FloatField):
         """
         Fills cell quantity field using corners from itself and multipliers
         in the dirction specified initialization of the instance of this class.
         """
-        self._copy_full_domain(field, self._corner_tmp)
-        self._copy_corners(self._corner_tmp, field)
-
+        copy_corners(field, self.direction, self.grid, kslice=slice(self._origin[2], self._origin[0] + self._domain[2]))
+       
 
 @gtscript.function
 def fill_corners_2cells_mult_x(

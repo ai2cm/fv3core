@@ -36,38 +36,48 @@ def update_q(
 #
 # Stencil that copies/fills in the appropriate corner values for qdel
 # ------------------------------------------------------------------------
-def corner_fill(q: FloatField):
-    from __externals__ import i_end, i_start, j_end, j_start
+def corner_fill(grid, q):
+    r3 = 1.0 / 3.0
+    if grid.sw_corner:
+        q[grid.is_, grid.js, :] = (
+            q[grid.is_, grid.js, :]
+            + q[grid.is_ - 1, grid.js, :]
+            + q[grid.is_, grid.js - 1, :]
+        ) * r3
+        q[grid.is_ - 1, grid.js, :] = q[grid.is_, grid.js, :]
+        q[grid.is_, grid.js - 1, :] = q[grid.is_, grid.js, :]
+    if grid.se_corner:
+        q[grid.ie, grid.js, :] = (
+            q[grid.ie, grid.js, :]
+            + q[grid.ie + 1, grid.js, :]
+            + q[grid.ie, grid.js - 1, :]
+        ) * r3
+        q[grid.ie + 1, grid.js, :] = q[grid.ie, grid.js, :]
+        for k in range(grid.npz):
+            q[grid.ie, grid.js - 1, k] =  q[grid.ie, grid.js, k]
+        
+    if grid.ne_corner:
+        q[grid.ie, grid.je, :] = (
+            q[grid.ie, grid.je, :]
+            + q[grid.ie + 1, grid.je, :]
+            + q[grid.ie, grid.je + 1, :]
+        ) * r3
+        q[grid.ie + 1, grid.je, :] = q[grid.ie, grid.je, :]
+        q[grid.ie, grid.je + 1, :] = q[grid.ie, grid.je, :]
 
-    # Fills the same scalar value into three locations in q for each corner
-    with computation(PARALLEL), interval(...):
-        with horizontal(region[i_start, j_start]):
-            q = (q[0, 0, 0] + q[-1, 0, 0] + q[0, -1, 0]) * (1.0 / 3.0)
-        with horizontal(region[i_start - 1, j_start]):
-            q = q[1, 0, 0]
-        with horizontal(region[i_start, j_start - 1]):
-            q = q[0, 1, 0]
+    if grid.nw_corner:
+        q[grid.is_, grid.je, :] = (
+            q[grid.is_, grid.je, :]
+            + q[grid.is_ - 1, grid.je, :]
+            + q[grid.is_, grid.je + 1, :]
+        ) * r3
+        for k in range(grid.npz):
+            q[grid.is_ - 1, grid.je, k] =  q[grid.is_, grid.je, k]
+                        
+        q[grid.is_, grid.je + 1, :] = q[grid.is_, grid.je, :]
 
-        with horizontal(region[i_end, j_start]):
-            q = (q[0, 0, 0] + q[1, 0, 0] + q[0, -1, 0]) * (1.0 / 3.0)
-        with horizontal(region[i_end + 1, j_start]):
-            q = q[-1, 0, 0]
-        with horizontal(region[i_end, j_start - 1]):
-            q = q[0, 1, 0]
+  
 
-        with horizontal(region[i_end, j_end]):
-            q = (q[0, 0, 0] + q[1, 0, 0] + q[0, 1, 0]) * (1.0 / 3.0)
-        with horizontal(region[i_end + 1, j_end]):
-            q = q[-1, 0, 0]
-        with horizontal(region[i_end, j_end + 1]):
-            q = q[0, -1, 0]
-
-        with horizontal(region[i_start, j_end]):
-            q = (q[0, 0, 0] + q[-1, 0, 0] + q[0, 1, 0]) * (1.0 / 3.0)
-        with horizontal(region[i_start - 1, j_end]):
-            q = q[1, 0, 0]
-        with horizontal(region[i_start, j_end + 1]):
-            q = q[0, -1, 0]
 
 
 class HyperdiffusionDamping:
@@ -89,15 +99,6 @@ class HyperdiffusionDamping:
         )
         self._fy = utils.make_storage_from_shape(
             self.grid.domain_shape_full(add=(1, 1, 1)), origin=origin
-        )
-
-        self._corner_fill = FrozenStencil(
-            func=corner_fill,
-            externals={
-                **ax_offsets,
-            },
-            origin=origin,
-            domain=domain,
         )
         self._ntimes = min(3, nmax)
         origins = []
@@ -146,8 +147,8 @@ class HyperdiffusionDamping:
         for n in range(self._ntimes):
             nt = self._ntimes - (n + 1)
             # Fill in appropriate corner values
-            self._corner_fill(qdel)
-
+            corner_fill(self.grid,qdel)
+            
             if nt > 0:
                 self._copy_corners_x(qdel)
 

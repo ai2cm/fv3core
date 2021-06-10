@@ -99,20 +99,7 @@ class UpdateGeopotentialHeightOnCGrid:
             origin=full_origin,
             domain=full_domain,
         )
-
-        ax_offsets = axis_offsets(self.grid, full_origin, full_domain)
-        self._fill_corners_x_stencil = FrozenStencil(
-            corners.fill_corners_2cells_x_stencil,
-            externals=ax_offsets,
-            origin=full_origin,
-            domain=full_domain,
-        )
-        self._fill_corners_y_stencil = FrozenStencil(
-            corners.fill_corners_2cells_y_stencil,
-            externals=ax_offsets,
-            origin=full_origin,
-            domain=full_domain,
-        )
+   
         self._update_dz_c = FrozenStencil(
             update_dz_c,
             origin=self.grid.compute_origin(add=(-1, -1, 0)),
@@ -143,14 +130,9 @@ class UpdateGeopotentialHeightOnCGrid:
         # _gz_x and _gz_y stencil to skip the copies and corner-fill stencils
         # once regions bug is fixed
         self._double_copy_stencil(gz, self._gz_x, self._gz_y)
-
-        self._fill_corners_x_stencil(
-            self._gz_x,
-        )
-        self._fill_corners_y_stencil(
-            self._gz_y,
-        )
-
+        corners.fill_4corners(self._gz_x, "x", self.grid)
+        corners.fill_4corners(self._gz_y, "y", self.grid)
+       
         self._update_dz_c(
             dp_ref,
             zs,
