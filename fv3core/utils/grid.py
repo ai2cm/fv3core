@@ -496,8 +496,8 @@ class GridIndexing:
 
     @property
     def ied(self):
-        """end of the full domain including halos along the x-axis"""
-        return self.isd + self.domain[0] + 2 * self.n_halo
+        """index of the last data point along the x-axis"""
+        return self.isd + self.domain[0] + 2 * self.n_halo - 1
 
     @property
     def jsd(self):
@@ -506,8 +506,8 @@ class GridIndexing:
 
     @property
     def jed(self):
-        """end of the full domain including halos along the y-axis"""
-        return self.jsd + self.domain[1] + 2 * self.n_halo
+        """index of the last data point along the y-axis"""
+        return self.jsd + self.domain[1] + 2 * self.n_halo - 1
 
     @property
     def nw_corner(self):
