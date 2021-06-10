@@ -466,7 +466,7 @@ class GridIndexing:
 
     @property
     def iec(self):
-        """end of the compute domain along the x-axis"""
+        """last index of the compute domain along the x-axis"""
         return self.origin[0] + self.domain[0] - 1
 
     @property
@@ -476,7 +476,7 @@ class GridIndexing:
 
     @property
     def jec(self):
-        """end of the compute domain along the y-axis"""
+        """last index of the compute domain along the y-axis"""
         return self.origin[1] + self.domain[1] - 1
 
     @property
@@ -508,6 +508,22 @@ class GridIndexing:
     def jed(self):
         """end of the full domain including halos along the y-axis"""
         return self.jsd + self.domain[1] + 2 * self.n_halo
+
+    @property
+    def nw_corner(self):
+        return self.north_edge and self.west_edge
+
+    @property
+    def sw_corner(self):
+        return self.south_edge and self.west_edge
+
+    @property
+    def ne_corner(self):
+        return self.north_edge and self.east_edge
+
+    @property
+    def se_corner(self):
+        return self.south_edge and self.east_edge
 
     def origin_full(self, add: Index3D = (0, 0, 0)):
         """

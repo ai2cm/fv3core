@@ -1,16 +1,16 @@
-from types import SimpleNamespace
+from typing import Sequence
 
 import gt4py.gtscript as gtscript
 from gt4py.gtscript import PARALLEL, computation, horizontal, interval, region
 
-import fv3core._config as spec
 import fv3core.stencils.basic_operations as basic
 import fv3core.utils.corners as corners
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import FrozenStencil, get_stencils_with_varied_bounds
 from fv3core.stencils.a2b_ord4 import AGrid2BGridFourthOrder
-from fv3core.utils.grid import axis_offsets
+from fv3core.utils.grid import GridIndexing, axis_offsets
 from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
+from fv3gfs.util import X_DIM, X_INTERFACE_DIM, Y_DIM, Y_INTERFACE_DIM
 
 
 @gtscript.function
@@ -149,104 +149,138 @@ class DivergenceDamping:
     """
 
     def __init__(
-        self, namelist: SimpleNamespace, nord_col: FloatFieldK, d2_bg: FloatFieldK
+        self,
+        grid_indexing: GridIndexing,
+        agrid1,
+        agrid2,
+        bgrid1,
+        bgrid2,
+        dxa,
+        dya,
+        edge_n,
+        edge_s,
+        edge_e,
+        edge_w,
+        nested: bool,
+        stretched_grid: bool,
+        da_min,
+        da_min_c,
+        divg_u,
+        divg_v,
+        rarea_c,
+        sin_sg1,
+        sin_sg2,
+        sin_sg3,
+        sin_sg4,
+        cosa_u,
+        cosa_v,
+        sina_u,
+        sina_v,
+        dxc,
+        dyc,
+        dddmp,
+        d4_bg,
+        nord,
+        grid_type,
+        nord_col: FloatFieldK,
+        d2_bg: FloatFieldK,
     ):
-        self.grid = spec.grid
-        assert not self.grid.nested, "nested not implemented"
-        assert (
-            namelist.grid_type < 3
-        ), "Not implemented, grid_type>=3, specifically smag_corner"
-        self._dddmp = namelist.dddmp
-        self._d4_bg = namelist.d4_bg
-        self._grid_type = namelist.grid_type
+        self._idx = grid_indexing
+        assert not nested, "nested not implemented"
+        assert grid_type < 3, "Not implemented, grid_type>=3, specifically smag_corner"
+        # TODO: make dddmp a compile-time external, instead of runtime scalar
+        self._dddmp = dddmp
+        # TODO: make da_min_c a compile-time external, instead of runtime scalar
+        self._da_min_c = da_min_c
+        self._grid_type = grid_type
         self._nord_column = nord_col
         self._d2_bg_column = d2_bg
+        self._divg_u = divg_u
+        self._divg_v = divg_v
+        self._rarea_c = rarea_c
+        self._sin_sg1 = sin_sg1
+        self._sin_sg2 = sin_sg2
+        self._sin_sg3 = sin_sg3
+        self._sin_sg4 = sin_sg4
+        self._cosa_u = cosa_u
+        self._cosa_v = cosa_v
+        self._sina_u = sina_u
+        self._sina_v = sina_v
+        self._dxc = dxc
+        self._dyc = dyc
         self._nonzero_nord_k = 0
-        self._nonzero_nord = int(namelist.nord)
+        self._nonzero_nord = int(nord)
         for k in range(len(self._nord_column)):
             if self._nord_column[k] > 0:
                 self._nonzero_nord_k = k
                 self._nonzero_nord = int(self._nord_column[k])
                 break
-        if self.grid.stretched_grid:
-            self._dd8 = self.grid.da_min * self._d4_bg ** (self._nonzero_nord + 1)
+        if stretched_grid:
+            self._dd8 = da_min * d4_bg ** (self._nonzero_nord + 1)
         else:
-            self._dd8 = (self.grid.da_min_c * self._d4_bg) ** (self._nonzero_nord + 1)
+            self._dd8 = (da_min_c * d4_bg) ** (self._nonzero_nord + 1)
+        # TODO: make stretched_grid a compile-time external, instead of runtime scalar
+        self._stretched_grid = stretched_grid
         kstart = self._nonzero_nord_k
         low_kstart = 0
-        nk = self.grid.npz - kstart
+        nk = self._idx.ke - kstart
         low_nk = self._nonzero_nord_k
         self.a2b_ord4 = AGrid2BGridFourthOrder(
-            self.grid.grid_indexing,
-            self.grid.agrid1,
-            self.grid.agrid2,
-            self.grid.bgrid1,
-            self.grid.bgrid2,
-            self.grid.dxa,
-            self.grid.dya,
-            self.grid.edge_n,
-            self.grid.edge_s,
-            self.grid.edge_e,
-            self.grid.edge_w,
+            grid_indexing,
+            agrid1,
+            agrid2,
+            bgrid1,
+            bgrid2,
+            dxa,
+            dya,
+            edge_n,
+            edge_s,
+            edge_e,
+            edge_w,
             self._grid_type,
             kstart,
             nk,
             replace=False,
         )
 
-        start_points = axis_offsets(
-            self.grid,
-            (self.grid.is_ - 1, self.grid.js, low_kstart),
-            (self.grid.nic + 2, self.grid.njc + 1, low_nk),
-        )
-        self._ptc_computation = FrozenStencil(
+        self._ptc_computation = self._get_stencil(
             ptc_computation,
-            origin=(self.grid.is_ - 1, self.grid.js, low_kstart),
-            domain=(self.grid.nic + 2, self.grid.njc + 1, low_nk),
-            externals=start_points,
+            dims=[X_DIM, Y_INTERFACE_DIM],
+            halos=(1, 0),
+            kstart=low_kstart,
+            nk=low_nk,
         )
 
-        vorticity_origin = (self.grid.is_, self.grid.js - 1, low_kstart)
-        vorticity_domain = (
-            self.grid.ie + 1 - self.grid.is_ + 1,
-            self.grid.njc + 2,
-            low_nk,
-        )
-        start_points = axis_offsets(
-            self.grid,
-            vorticity_origin,
-            vorticity_domain,
-        )
-        self._vorticity_computation = FrozenStencil(
+        self._vorticity_computation = self._get_stencil(
             vorticity_computation,
-            origin=vorticity_origin,
-            domain=vorticity_domain,
-            externals=start_points,
+            dims=[X_INTERFACE_DIM, Y_DIM],
+            halos=(0, 1),
+            kstart=low_kstart,
+            nk=low_nk,
         )
 
-        delpc_origin = (self.grid.is_, self.grid.js, low_kstart)
-        delpc_domain = (self.grid.nic + 1, self.grid.njc + 1, low_nk)
-        start_points = axis_offsets(
-            self.grid,
-            delpc_origin,
-            delpc_domain,
-        )
-        self._delpc_computation_and_damping = FrozenStencil(
+        self._delpc_computation_and_damping = self._get_stencil(
             delpc_computation,
-            origin=delpc_origin,
-            domain=delpc_domain,
-            externals=start_points,
-        )
-        self._damping = FrozenStencil(
-            damping,
-            origin=delpc_origin,
-            domain=delpc_domain,
+            dims=[X_INTERFACE_DIM, Y_INTERFACE_DIM],
+            halos=(0, 0),
+            kstart=low_kstart,
+            nk=low_nk,
         )
 
-        self._copy_computeplus = FrozenStencil(
+        self._damping = self._get_stencil(
+            damping,
+            dims=[X_INTERFACE_DIM, Y_INTERFACE_DIM],
+            halos=(0, 0),
+            kstart=low_kstart,
+            nk=low_nk,
+        )
+
+        self._copy_computeplus = self._get_stencil(
             basic.copy_defn,
-            origin=(self.grid.is_, self.grid.js, kstart),
-            domain=(self.grid.nic + 1, self.grid.njc + 1, nk),
+            dims=[X_INTERFACE_DIM, Y_INTERFACE_DIM],
+            halos=(0, 0),
+            kstart=kstart,
+            nk=nk,
         )
 
         origins = []
@@ -257,10 +291,10 @@ class DivergenceDamping:
         domains_u = []
         for n in range(1, self._nonzero_nord + 1):
             nt = self._nonzero_nord - n
-            nint = self.grid.nic + 2 * nt + 1
-            njnt = self.grid.njc + 2 * nt + 1
-            js = self.grid.js - nt
-            is_ = self.grid.is_ - nt
+            nint = self._idx.domain[0] + 2 * nt + 1
+            njnt = self._idx.domain[1] + 2 * nt + 1
+            js = self._idx.jsc - nt
+            is_ = self._idx.isc - nt
             origins_v.append((is_ - 1, js, kstart))
             domains_v.append((nint + 1, njnt, nk))
             origins_u.append((is_, js - 1, kstart))
@@ -283,38 +317,69 @@ class DivergenceDamping:
             redo_divg_d, origins=origins, domains=domains
         )
 
-        self._damping_nord_highorder_stencil = FrozenStencil(
+        self._damping_nord_highorder_stencil = self._get_stencil(
             damping_nord_highorder_stencil,
-            origin=(self.grid.is_, self.grid.js, kstart),
-            domain=(self.grid.nic + 1, self.grid.njc + 1, nk),
+            dims=[X_INTERFACE_DIM, Y_INTERFACE_DIM],
+            halos=(0, 0),
+            kstart=kstart,
+            nk=nk,
         )
-        self._smagorinksy_diffusion_approx_stencil = FrozenStencil(
+
+        self._smagorinksy_diffusion_approx_stencil = self._get_stencil(
             smagorinksy_diffusion_approx,
-            origin=(self.grid.is_, self.grid.js, kstart),
-            domain=(self.grid.nic + 1, self.grid.njc + 1, nk),
+            dims=[X_INTERFACE_DIM, Y_INTERFACE_DIM],
+            halos=(0, 0),
+            kstart=kstart,
+            nk=nk,
         )
-        self._set_value = FrozenStencil(
+
+        self._set_value = self._get_stencil(
             basic.set_value_defn,
-            origin=(self.grid.isd, self.grid.jsd, kstart),
-            domain=(self.grid.nid + 1, self.grid.njd + 1, nk),
+            dims=[X_INTERFACE_DIM, Y_INTERFACE_DIM],
+            halos=(self._idx.n_halo, self._idx.n_halo),
+            kstart=kstart,
+            nk=nk,
         )
-        self._corner_tmp = utils.make_storage_from_shape(
-            self.grid.domain_shape_full(add=(1, 1, 1)), origin=self.grid.full_origin()
+
+        self._corner_tmp = utils.make_storage_from_shape(self._idx.max_shape)
+
+        fill_origin, fill_domain = self._idx.get_origin_domain(
+            [X_INTERFACE_DIM, Y_INTERFACE_DIM],
+            halos=(self._idx.n_halo, self._idx.n_halo),
         )
-        fill_origin = (self.grid.isd, self.grid.jsd, kstart)
-        fill_domain = (self.grid.nid + 1, self.grid.njd + 1, nk)
+        fill_origin += (kstart,)
+        fill_domain += (nk,)
         self.fill_corners_bgrid_x = corners.FillCornersBGrid(
             "x", self._corner_tmp, origin=fill_origin, domain=fill_domain
         )
         self.fill_corners_bgrid_y = corners.FillCornersBGrid(
             "y", self._corner_tmp, origin=fill_origin, domain=fill_domain
         )
-        ax_offsets = axis_offsets(self.grid, fill_origin, fill_domain)
+        ax_offsets = axis_offsets(self._idx, fill_origin, fill_domain)
         self._fill_corners_dgrid_stencil = FrozenStencil(
             corners.fill_corners_dgrid_defn,
             externals=ax_offsets,
             origin=fill_origin,
             domain=fill_domain,
+        )
+
+    def _get_stencil(
+        self,
+        definition,
+        dims: Sequence[str],
+        halos: Sequence[int],
+        kstart: int,
+        nk: int,
+    ):
+        # helper function for vertically-restricted stencil definition
+        origin, domain = self._idx.get_origin_domain(dims=dims, halos=halos)
+        origin += (kstart,)
+        domain += (nk,)
+        return FrozenStencil(
+            definition,
+            origin=origin,
+            domain=domain,
+            externals=axis_offsets(self._idx, origin, domain),
         )
 
     def __call__(
@@ -346,10 +411,10 @@ class DivergenceDamping:
                 (n + 1 != self._nonzero_nord)
                 and self._grid_type < 3
                 and (
-                    self.grid.sw_corner
-                    or self.grid.se_corner
-                    or self.grid.ne_corner
-                    or self.grid.nw_corner
+                    self._idx.sw_corner
+                    or self._idx.se_corner
+                    or self._idx.ne_corner
+                    or self._idx.nw_corner
                 )
             )
             if fillc:
@@ -358,7 +423,7 @@ class DivergenceDamping:
                 )
             self._vc_from_divg_stencils[n](
                 divg_d,
-                self.grid.divg_u,
+                self._divg_u,
                 vc,
             )
             if fillc:
@@ -367,7 +432,7 @@ class DivergenceDamping:
                 )
             self._uc_from_divg_stencils[n](
                 divg_d,
-                self.grid.divg_v,
+                self._divg_v,
                 uc,
             )
 
@@ -378,7 +443,7 @@ class DivergenceDamping:
                     -1.0,
                 )
             self._redo_divg_d_stencils[n](
-                uc, vc, divg_d, self.grid.rarea_c, self.grid.stretched_grid
+                uc, vc, divg_d, self._rarea_c, self._stretched_grid
             )
 
         self.vorticity_calc(wk, vort, delpc, dt)
@@ -388,7 +453,7 @@ class DivergenceDamping:
             delpc,
             divg_d,
             self._d2_bg_column,
-            self.grid.da_min_c,
+            self._da_min_c,
             self._dddmp,
             self._dd8,
         )
@@ -414,30 +479,30 @@ class DivergenceDamping:
             u,
             va,
             vc,
-            self.grid.cosa_v,
-            self.grid.sina_v,
-            self.grid.dyc,
-            self.grid.sin_sg2,
-            self.grid.sin_sg4,
+            self._cosa_v,
+            self._sina_v,
+            self._dyc,
+            self._sin_sg2,
+            self._sin_sg4,
             ptc,
         )
 
         self._vorticity_computation(
             v,
             ua,
-            self.grid.cosa_u,
-            self.grid.sina_u,
-            self.grid.dxc,
+            self._cosa_u,
+            self._sina_u,
+            self._dxc,
             vort,
             uc,
-            self.grid.sin_sg3,
-            self.grid.sin_sg1,
+            self._sin_sg3,
+            self._sin_sg1,
         )
         # end if nested
 
         self._delpc_computation_and_damping(
             ptc,
-            self.grid.rarea_c,
+            self._rarea_c,
             delpc,
             vort,
         )
@@ -446,7 +511,7 @@ class DivergenceDamping:
             vort,
             ke,
             d2_bg,
-            self.grid.da_min_c,
+            self._da_min_c,
             self._dddmp,
             dt,
         )
