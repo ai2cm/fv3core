@@ -1,5 +1,6 @@
 # flake8: noqa: F401
 from fv3core.testing import TranslateFVDynamics
+from fv3core.testing import TranslateDynCore, TranslatePGradC
 
 from .translate_a2b_ord4 import TranslateA2B_Ord4
 from .translate_c_sw import (
@@ -26,7 +27,7 @@ from .translate_del2cubed import TranslateDel2Cubed
 from .translate_del6vtflux import TranslateDel6VtFlux
 from .translate_delnflux import TranslateDelnFlux, TranslateDelnFlux_2
 from .translate_divergencedamping import TranslateDivergenceDamping
-from .translate_dyncore import TranslateDynCore, TranslatePGradC
+
 from .translate_fillz import TranslateFillz
 from .translate_fvsubgridz import TranslateFVSubgridZ
 from .translate_fvtp2d import TranslateFvTp2d, TranslateFvTp2d_2
