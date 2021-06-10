@@ -1,11 +1,7 @@
-from gt4py.gtscript import PARALLEL, computation, interval
-
 import fv3core._config as spec
 import fv3core.stencils.d_sw as d_sw
 from fv3core.decorators import FrozenStencil
 from fv3core.testing import TranslateFortranData2Py
-from fv3core.utils.grid import axis_offsets
-from fv3core.utils.typing import FloatField, FloatFieldIJ
 
 
 class TranslateD_SW(TranslateFortranData2Py):
@@ -47,84 +43,6 @@ class TranslateD_SW(TranslateFortranData2Py):
         self.in_vars["parameters"] = ["dt"]
         self.out_vars = self.in_vars["data_vars"].copy()
         del self.out_vars["zh"]
-
-
-def ubke(
-    uc: FloatField,
-    vc: FloatField,
-    cosa: FloatFieldIJ,
-    rsina: FloatFieldIJ,
-    ut: FloatField,
-    ub: FloatField,
-    dt4: float,
-    dt5: float,
-):
-    with computation(PARALLEL), interval(...):
-        ub = d_sw.ubke(uc, vc, cosa, rsina, ut, ub, dt4, dt5)
-
-
-class TranslateUbKE(TranslateFortranData2Py):
-    def __init__(self, grid):
-        super().__init__(grid)
-        self.in_vars["data_vars"] = {
-            "uc": {},
-            "vc": {},
-            "ut": {},
-            "ub": grid.compute_dict_buffer_2d(),
-        }
-        self.in_vars["parameters"] = ["dt5", "dt4"]
-        self.out_vars = {"ub": grid.compute_dict_buffer_2d()}
-        origin = self.grid.compute_origin()
-        domain = self.grid.domain_shape_compute(add=(1, 1, 0))
-        ax_offsets = axis_offsets(self.grid, origin, domain)
-        self.compute_func = FrozenStencil(
-            ubke, externals=ax_offsets, origin=origin, domain=domain
-        )
-
-    def compute_from_storage(self, inputs):
-        inputs["cosa"] = self.grid.cosa
-        inputs["rsina"] = self.grid.rsina
-        self.compute_func(**inputs)
-        return inputs
-
-
-def vbke(
-    vc: FloatField,
-    uc: FloatField,
-    cosa: FloatFieldIJ,
-    rsina: FloatFieldIJ,
-    vt: FloatField,
-    vb: FloatField,
-    dt4: float,
-    dt5: float,
-):
-    with computation(PARALLEL), interval(...):
-        vb = d_sw.vbke(vc, uc, cosa, rsina, vt, vb, dt4, dt5)
-
-
-class TranslateVbKE(TranslateFortranData2Py):
-    def __init__(self, grid):
-        super().__init__(grid)
-        self.in_vars["data_vars"] = {
-            "vc": {},
-            "uc": {},
-            "vt": {},
-            "vb": grid.compute_dict_buffer_2d(),
-        }
-        self.in_vars["parameters"] = ["dt5", "dt4"]
-        self.out_vars = {"vb": grid.compute_dict_buffer_2d()}
-        origin = self.grid.compute_origin()
-        domain = self.grid.domain_shape_compute(add=(1, 1, 0))
-        ax_offsets = axis_offsets(self.grid, origin, domain)
-        self.compute_func = FrozenStencil(
-            vbke, externals=ax_offsets, origin=origin, domain=domain
-        )
-
-    def compute_from_storage(self, inputs):
-        inputs["cosa"] = self.grid.cosa
-        inputs["rsina"] = self.grid.rsina
-        self.compute_func(**inputs)
-        return inputs
 
 
 class TranslateFluxCapacitor(TranslateFortranData2Py):

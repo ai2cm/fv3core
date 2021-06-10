@@ -1,12 +1,10 @@
 import gt4py.gtscript as gtscript
-from gt4py.gtscript import PARALLEL, computation, horizontal, interval
+from gt4py.gtscript import PARALLEL, computation, interval
 
 import fv3core._config as spec
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import FrozenStencil
 from fv3core.stencils.a2b_ord4 import a1, a2, lagrange_x_func, lagrange_y_func
-from fv3core.utils import corners
-from fv3core.utils.grid import axis_offsets
 from fv3core.utils.typing import FloatField, FloatFieldIJ
 
 
@@ -37,6 +35,8 @@ def u_east_west_edges1(
     with computation(PARALLEL), interval(...):
         uc = vol_conserv_cubic_interp_func_x(utmp)
         utc = contravariant(uc, v, cosa_u, rsin_u)
+
+
 def u_east_west_edges2(
     ua: FloatField,
     uc: FloatField,
@@ -48,7 +48,8 @@ def u_east_west_edges2(
     with computation(PARALLEL), interval(...):
         utc = edge_interpolate4_x(ua, dxa)
         uc = utc * sin_sg3[-1, 0] if utc > 0 else utc * sin_sg1
-        
+
+
 def u_east_west_edges3(
     uc: FloatField,
     utc: FloatField,
@@ -60,7 +61,7 @@ def u_east_west_edges3(
     with computation(PARALLEL), interval(...):
         uc = vol_conserv_cubic_interp_func_x_rev(utmp)
         utc = contravariant(uc, v, cosa_u, rsin_u)
-    
+
 
 def v_north_south_edges1(
     vc: FloatField,
@@ -73,6 +74,8 @@ def v_north_south_edges1(
     with computation(PARALLEL), interval(...):
         vc = vol_conserv_cubic_interp_func_y(vtmp)
         vtc = contravariant(vc, u, cosa_v, rsin_v)
+
+
 def v_north_south_edges2(
     va: FloatField,
     vc: FloatField,
@@ -84,6 +87,7 @@ def v_north_south_edges2(
     with computation(PARALLEL), interval(...):
         vtc = edge_interpolate4_y(va, dya)
         vc = vtc * sin_sg4[0, -1] if vtc > 0 else vtc * sin_sg2
+
 
 def v_north_south_edges3(
     vc: FloatField,
@@ -389,31 +393,38 @@ class DGrid2AGrid2CGridVectors:
             d2a2c_avg_offset = -1
         else:
             d2a2c_avg_offset = 3
-       
-     
+
         if self.grid.south_edge:
             self._avg_box_south = FrozenStencil(
-                avg_box, 
+                avg_box,
                 origin=(self.grid.isd, self.grid.jsd, 0),
                 domain=(self.grid.nid, self.grid.js + d2a2c_avg_offset, self.grid.npz),
             )
         if self.grid.north_edge:
             self._avg_box_north = FrozenStencil(
-                avg_box, 
+                avg_box,
                 origin=(self.grid.isd, self.grid.je - d2a2c_avg_offset + 1, 0),
-                domain=(self.grid.nid, self.grid.jed - self.grid.je + d2a2c_avg_offset, self.grid.npz),
+                domain=(
+                    self.grid.nid,
+                    self.grid.jed - self.grid.je + d2a2c_avg_offset,
+                    self.grid.npz,
+                ),
             )
         if self.grid.west_edge:
             self._avg_box_west = FrozenStencil(
-                avg_box, 
+                avg_box,
                 origin=(self.grid.isd, self.grid.jsd, 0),
                 domain=(self.grid.is_ + d2a2c_avg_offset, self.grid.njd, self.grid.npz),
             )
         if self.grid.east_edge:
             self._avg_box_east = FrozenStencil(
-                avg_box, 
+                avg_box,
                 origin=(self.grid.ie - d2a2c_avg_offset + 1, self.grid.jsd, 0),
-                domain=(self.grid.ied - self.grid.ie + d2a2c_avg_offset, self.grid.njd, self.grid.npz),
+                domain=(
+                    self.grid.ied - self.grid.ie + d2a2c_avg_offset,
+                    self.grid.njd,
+                    self.grid.npz,
+                ),
             )
         self._contravariant_components = FrozenStencil(
             func=contravariant_components,
@@ -422,7 +433,7 @@ class DGrid2AGrid2CGridVectors:
         )
         origin_edges = self.grid.compute_origin(add=(-3, -3, 0))
         domain_edges = self.grid.domain_shape_compute(add=(6, 6, 0))
-       
+
         self._ut_main = FrozenStencil(
             func=ut_main,
             origin=(ifirst, self._j1, 0),
@@ -433,7 +444,7 @@ class DGrid2AGrid2CGridVectors:
             self._u_west_edge1 = FrozenStencil(
                 func=u_east_west_edges1,
                 origin=self.grid.compute_origin(add=(-1, -1, 0)),
-                domain= edge_domain_x,
+                domain=edge_domain_x,
             )
             self._u_west_edge2 = FrozenStencil(
                 func=u_east_west_edges2,
@@ -449,17 +460,17 @@ class DGrid2AGrid2CGridVectors:
             self._u_east_edge1 = FrozenStencil(
                 func=u_east_west_edges1,
                 origin=(self.grid.ie, self.grid.js - 1, 0),
-                domain= edge_domain_x,
+                domain=edge_domain_x,
             )
             self._u_east_edge2 = FrozenStencil(
                 func=u_east_west_edges2,
-                origin=(self.grid.ie+1, self.grid.js - 1, 0),
-                domain= edge_domain_x,
+                origin=(self.grid.ie + 1, self.grid.js - 1, 0),
+                domain=edge_domain_x,
             )
             self._u_east_edge3 = FrozenStencil(
                 func=u_east_west_edges3,
-                origin=(self.grid.ie+2, self.grid.js - 1, 0),
-                domain= edge_domain_x,
+                origin=(self.grid.ie + 2, self.grid.js - 1, 0),
+                domain=edge_domain_x,
             )
 
         # Ydir:
@@ -468,7 +479,7 @@ class DGrid2AGrid2CGridVectors:
             self._v_south_edge1 = FrozenStencil(
                 func=v_north_south_edges1,
                 origin=self.grid.compute_origin(add=(-1, -1, 0)),
-                domain= edge_domain_y,
+                domain=edge_domain_y,
             )
             self._v_south_edge2 = FrozenStencil(
                 func=v_north_south_edges2,
@@ -484,25 +495,24 @@ class DGrid2AGrid2CGridVectors:
             self._v_north_edge1 = FrozenStencil(
                 func=v_north_south_edges1,
                 origin=(self.grid.is_ - 1, self.grid.je, 0),
-                domain= edge_domain_y,
+                domain=edge_domain_y,
             )
             self._v_north_edge2 = FrozenStencil(
                 func=v_north_south_edges2,
-                origin=( self.grid.is_ - 1,self.grid.je+1, 0),
-                domain= edge_domain_y,
+                origin=(self.grid.is_ - 1, self.grid.je + 1, 0),
+                domain=edge_domain_y,
             )
             self._v_north_edge3 = FrozenStencil(
                 func=v_north_south_edges3,
-                origin=(self.grid.is_ - 1,self.grid.je+2,  0),
-                domain= edge_domain_y,
+                origin=(self.grid.is_ - 1, self.grid.je + 2, 0),
+                domain=edge_domain_y,
             )
-    
+
         self._vt_main = FrozenStencil(
             func=vt_main,
             origin=(self._i1, jfirst, 0),
             domain=(self.grid.nic + 2, jdiff, self.grid.npz),
         )
-
 
     def __call__(self, uc, vc, u, v, ua, va, utc, vtc):
         """
@@ -577,22 +587,30 @@ class DGrid2AGrid2CGridVectors:
         # Xdir:
         if self.grid.sw_corner:
             for i in range(-2, 1):
-                self._utmp[i + 2, self.grid.js - 1, :] = -self._vtmp[self.grid.is_ - 1, self.grid.js - i, :]
+                self._utmp[i + 2, self.grid.js - 1, :] = -self._vtmp[
+                    self.grid.is_ - 1, self.grid.js - i, :
+                ]
             ua[self._i1 - 1, self._j1, :] = -va[self._i1, self._j1 + 2, :]
             ua[self._i1, self._j1, :] = -va[self._i1, self._j1 + 1, :]
         if self.grid.se_corner:
             for i in range(0, 3):
-                self._utmp[self._nx + i, self.grid.js - 1, :] = self._vtmp[self._nx, i + self.grid.js, :]
+                self._utmp[self._nx + i, self.grid.js - 1, :] = self._vtmp[
+                    self._nx, i + self.grid.js, :
+                ]
             ua[self._nx, self._j1, :] = va[self._nx, self._j1 + 1, :]
             ua[self._nx + 1, self._j1, :] = va[self._nx, self._j1 + 2, :]
         if self.grid.ne_corner:
             for i in range(0, 3):
-                self._utmp[self._nx + i, self._ny, :] = -self._vtmp[self._nx, self.grid.je - i, :]
+                self._utmp[self._nx + i, self._ny, :] = -self._vtmp[
+                    self._nx, self.grid.je - i, :
+                ]
             ua[self._nx, self._ny, :] = -va[self._nx, self._ny - 1, :]
             ua[self._nx + 1, self._ny, :] = -va[self._nx, self._ny - 2, :]
         if self.grid.nw_corner:
             for i in range(-2, 1):
-                self._utmp[i + 2, self._ny, :] = self._vtmp[self.grid.is_ - 1, self.grid.je + i, :]
+                self._utmp[i + 2, self._ny, :] = self._vtmp[
+                    self.grid.is_ - 1, self.grid.je + i, :
+                ]
             ua[self._i1 - 1, self._ny, :] = va[self._i1, self._ny - 2, :]
             ua[self._i1, self._ny, :] = va[self._i1, self._ny - 1, :]
         self._ut_main(
@@ -603,48 +621,89 @@ class DGrid2AGrid2CGridVectors:
             self.grid.rsin_u,
             utc,
         )
-            
+
         if self.grid.west_edge:
-            self._u_west_edge1(uc, utc, self._utmp, v,  self.grid.cosa_u, self.grid.rsin_u,)
-            self._u_west_edge2(ua, uc, utc,  self.grid.sin_sg1,self.grid.sin_sg3, self.grid.dxa)
-            self._u_west_edge3(uc, utc, self._utmp, v,  self.grid.cosa_u, self.grid.rsin_u)
+            self._u_west_edge1(
+                uc,
+                utc,
+                self._utmp,
+                v,
+                self.grid.cosa_u,
+                self.grid.rsin_u,
+            )
+            self._u_west_edge2(
+                ua, uc, utc, self.grid.sin_sg1, self.grid.sin_sg3, self.grid.dxa
+            )
+            self._u_west_edge3(
+                uc, utc, self._utmp, v, self.grid.cosa_u, self.grid.rsin_u
+            )
         if self.grid.east_edge:
-            self._u_east_edge1(uc, utc, self._utmp, v,  self.grid.cosa_u, self.grid.rsin_u)
-            self._u_east_edge2(ua, uc, utc,  self.grid.sin_sg1,self.grid.sin_sg3, self.grid.dxa)
-            self._u_east_edge3(uc, utc, self._utmp, v,  self.grid.cosa_u, self.grid.rsin_u)
-      
+            self._u_east_edge1(
+                uc, utc, self._utmp, v, self.grid.cosa_u, self.grid.rsin_u
+            )
+            self._u_east_edge2(
+                ua, uc, utc, self.grid.sin_sg1, self.grid.sin_sg3, self.grid.dxa
+            )
+            self._u_east_edge3(
+                uc, utc, self._utmp, v, self.grid.cosa_u, self.grid.rsin_u
+            )
 
         # Ydir:
         if self.grid.sw_corner:
             for j in range(-2, 1):
-                self._vtmp[self.grid.is_ - 1, j + 2, :] = -self._utmp[self.grid.is_ - j, self.grid.js - 1, :]
+                self._vtmp[self.grid.is_ - 1, j + 2, :] = -self._utmp[
+                    self.grid.is_ - j, self.grid.js - 1, :
+                ]
             va[self._i1, self._j1 - 1, :] = -ua[self._i1 + 2, self._j1, :]
             va[self._i1, self._j1, :] = -ua[self._i1 + 1, self._j1, :]
         if self.grid.nw_corner:
             for j in range(0, 3):
-                self._vtmp[self.grid.is_ - 1, self._ny + j, :] = self._utmp[j + self.grid.is_, self._ny, :]
+                self._vtmp[self.grid.is_ - 1, self._ny + j, :] = self._utmp[
+                    j + self.grid.is_, self._ny, :
+                ]
             va[self._i1, self._ny, :] = ua[self._i1 + 1, self._ny, :]
             va[self._i1, self._ny + 1, :] = ua[self._i1 + 2, self._ny, :]
         if self.grid.se_corner:
             for j in range(-2, 1):
-                self._vtmp[self._nx, j + 2, :] = self._utmp[self.grid.ie + j, self.grid.js - 1, :]
+                self._vtmp[self._nx, j + 2, :] = self._utmp[
+                    self.grid.ie + j, self.grid.js - 1, :
+                ]
             va[self._nx, self._j1, :] = ua[self._nx - 1, self._j1, :]
             va[self._nx, self._j1 - 1, :] = ua[self._nx - 2, self._j1, :]
         if self.grid.ne_corner:
             for j in range(0, 3):
-                self._vtmp[self._nx, self._ny + j, :] = -self._utmp[self.grid.ie - j, self._ny, :]
+                self._vtmp[self._nx, self._ny + j, :] = -self._utmp[
+                    self.grid.ie - j, self._ny, :
+                ]
             va[self._nx, self._ny, :] = -ua[self._nx - 1, self._ny, :]
             va[self._nx, self._ny + 1, :] = -ua[self._nx - 2, self._ny, :]
-     
+
         if self.grid.south_edge:
-            self._v_south_edge1(vc, vtc, self._vtmp, u,  self.grid.cosa_v, self.grid.rsin_v,)
-            self._v_south_edge2(va, vc, vtc,  self.grid.sin_sg2,self.grid.sin_sg4, self.grid.dya)
-            self._v_south_edge3(vc, vtc, self._vtmp, u,  self.grid.cosa_v, self.grid.rsin_v)
+            self._v_south_edge1(
+                vc,
+                vtc,
+                self._vtmp,
+                u,
+                self.grid.cosa_v,
+                self.grid.rsin_v,
+            )
+            self._v_south_edge2(
+                va, vc, vtc, self.grid.sin_sg2, self.grid.sin_sg4, self.grid.dya
+            )
+            self._v_south_edge3(
+                vc, vtc, self._vtmp, u, self.grid.cosa_v, self.grid.rsin_v
+            )
         if self.grid.north_edge:
-            self._v_north_edge1(vc, vtc, self._vtmp, u,  self.grid.cosa_v, self.grid.rsin_v)
-            self._v_north_edge2(va, vc, vtc,  self.grid.sin_sg2,self.grid.sin_sg4, self.grid.dya)
-            self._v_north_edge3(vc, vtc, self._vtmp, u,  self.grid.cosa_v, self.grid.rsin_v)
-       
+            self._v_north_edge1(
+                vc, vtc, self._vtmp, u, self.grid.cosa_v, self.grid.rsin_v
+            )
+            self._v_north_edge2(
+                va, vc, vtc, self.grid.sin_sg2, self.grid.sin_sg4, self.grid.dya
+            )
+            self._v_north_edge3(
+                vc, vtc, self._vtmp, u, self.grid.cosa_v, self.grid.rsin_v
+            )
+
         self._vt_main(
             self._vtmp,
             vc,

@@ -1,17 +1,10 @@
 from gt4py import gtscript
-from gt4py.gtscript import (
-    PARALLEL,
-    computation,
-    horizontal,
-    interval,
-)
+from gt4py.gtscript import PARALLEL, computation, interval
 
 import fv3core._config as spec
-from fv3core.decorators import FrozenStencil
-from fv3core.stencils.basic_operations import sign
-from fv3core.utils.grid import axis_offsets
-from fv3core.utils.typing import FloatField, FloatFieldIJ
 import fv3core.utils.gt4py_utils as utils
+from fv3core.decorators import FrozenStencil
+from fv3core.utils.typing import FloatField, FloatFieldIJ
 
 
 input_vars = ["q", "c"]
@@ -74,13 +67,16 @@ def get_flux(q: FloatField, courant: FloatField, al: FloatField):
     fx1 = fx1_fn(courant, br, b0, bl)
     return final_flux(courant, q, fx1, tmp)
 
+
 def main_al(q: FloatField, al: FloatField):
     with computation(PARALLEL), interval(...):
         al = p1 * (q[0, -1, 0] + q) + p2 * (q[0, -2, 0] + q[0, 1, 0])
 
+
 def al_x_edge_0(q: FloatField, al: FloatField):
     with computation(PARALLEL), interval(0, None):
         al = c1 * q[0, -2, 0] + c2 * q[0, -1, 0] + c3 * q
+
 
 def al_x_edge_1(q: FloatField, dya: FloatFieldIJ, al: FloatField):
     with computation(PARALLEL), interval(0, None):
@@ -91,30 +87,29 @@ def al_x_edge_1(q: FloatField, dya: FloatFieldIJ, al: FloatField):
             / (dya[0, 0] + dya[0, 1])
         )
 
-        
+
 def al_x_edge_2(q: FloatField, dya: FloatFieldIJ, al: FloatField):
     with computation(PARALLEL), interval(0, None):
         al = c3 * q[0, -1, 0] + c2 * q[0, 0, 0] + c1 * q[0, 1, 0]
 
 
-
-
-
 def compute_y_flux(
-        q: FloatField, courant: FloatField, al: FloatField, dya: FloatFieldIJ, yflux: FloatField
+    q: FloatField,
+    courant: FloatField,
+    al: FloatField,
+    dya: FloatFieldIJ,
+    yflux: FloatField,
 ):
-    from __externals__ import mord
-
     with computation(PARALLEL), interval(...):
         yflux = get_flux(q, courant, al)
-        
+
 
 class YPiecewiseParabolic:
     """
     Fortran name is yppm
     """
 
-    def __init__(self, namelist, jord, ifirst, ilast, dya=None,js1=None,je3=None):
+    def __init__(self, namelist, jord, ifirst, ilast, dya=None, js1=None, je3=None):
         self.grid = spec.grid
         assert namelist.grid_type < 3
         if abs(jord) not in [5, 6, 7, 8]:
@@ -135,15 +130,31 @@ class YPiecewiseParabolic:
         shape = self.grid.domain_shape_full(add=(1, 1, 1))
         self._al = utils.make_storage_from_shape(shape)
         edge_domain = (shape[0], 1, shape[2])
-        self._main_al_stencil =  FrozenStencil(main_al,origin=(ifirst, js1, 0), domain=(ilast - ifirst + 1, je3 - js1 + 1, self.grid.npz+1))
+        self._main_al_stencil = FrozenStencil(
+            main_al,
+            origin=(ifirst, js1, 0),
+            domain=(ilast - ifirst + 1, je3 - js1 + 1, self.grid.npz + 1),
+        )
         if self.grid.south_edge:
-            self._al_south_0_stencil = FrozenStencil(al_x_edge_0, origin=(0, self.grid.js - 1, 0), domain=edge_domain)
-            self._al_south_1_stencil = FrozenStencil(al_x_edge_1, origin=(0, self.grid.js, 0), domain=edge_domain)
-            self._al_south_2_stencil = FrozenStencil(al_x_edge_2, origin=(0, self.grid.js + 1, 0), domain=edge_domain)
+            self._al_south_0_stencil = FrozenStencil(
+                al_x_edge_0, origin=(0, self.grid.js - 1, 0), domain=edge_domain
+            )
+            self._al_south_1_stencil = FrozenStencil(
+                al_x_edge_1, origin=(0, self.grid.js, 0), domain=edge_domain
+            )
+            self._al_south_2_stencil = FrozenStencil(
+                al_x_edge_2, origin=(0, self.grid.js + 1, 0), domain=edge_domain
+            )
         if self.grid.north_edge:
-            self._al_north_0_stencil = FrozenStencil(al_x_edge_0, origin=(0, self.grid.je, 0), domain=edge_domain)
-            self._al_north_1_stencil = FrozenStencil(al_x_edge_1, origin=(0, self.grid.je + 1, 0), domain=edge_domain)
-            self._al_north_2_stencil = FrozenStencil(al_x_edge_2, origin=(0, self.grid.je +2, 0), domain=edge_domain)
+            self._al_north_0_stencil = FrozenStencil(
+                al_x_edge_0, origin=(0, self.grid.je, 0), domain=edge_domain
+            )
+            self._al_north_1_stencil = FrozenStencil(
+                al_x_edge_1, origin=(0, self.grid.je + 1, 0), domain=edge_domain
+            )
+            self._al_north_2_stencil = FrozenStencil(
+                al_x_edge_2, origin=(0, self.grid.je + 2, 0), domain=edge_domain
+            )
         self._compute_flux_stencil = FrozenStencil(
             func=compute_y_flux,
             externals={
@@ -156,26 +167,15 @@ class YPiecewiseParabolic:
     def compute_al(self, q):
         self._main_al_stencil(q, self._al)
         if self.grid.south_edge:
-            self._al_south_0_stencil(
-                q, self._al
-            )
-            self._al_south_1_stencil(
-                q, self._dya, self._al
-            )
-            self._al_south_2_stencil(
-                q, self._dya, self._al
-            )
+            self._al_south_0_stencil(q, self._al)
+            self._al_south_1_stencil(q, self._dya, self._al)
+            self._al_south_2_stencil(q, self._dya, self._al)
 
         if self.grid.north_edge:
-            self._al_north_0_stencil(
-                q, self._al
-            )
-            self._al_north_1_stencil(
-                q, self._dya, self._al
-            )
-            self._al_north_2_stencil(
-                q, self._dya, self._al
-            )
+            self._al_north_0_stencil(q, self._al)
+            self._al_north_1_stencil(q, self._dya, self._al)
+            self._al_north_2_stencil(q, self._dya, self._al)
+
     def __call__(self, q: FloatField, c: FloatField, flux: FloatField):
         """
         Compute y-flux using the PPM method.

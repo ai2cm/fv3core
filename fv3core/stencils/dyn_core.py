@@ -1,12 +1,4 @@
-from gt4py.gtscript import (
-    __INLINED,
-    BACKWARD,
-    FORWARD,
-    PARALLEL,
-    computation,
-    horizontal,
-    interval,region
-)
+from gt4py.gtscript import __INLINED, BACKWARD, FORWARD, PARALLEL, computation, interval
 
 import fv3core._config as spec
 import fv3core.stencils.basic_operations as basic
@@ -28,8 +20,6 @@ from fv3core.stencils.del2cubed import HyperdiffusionDamping
 from fv3core.stencils.pk3_halo import PK3Halo
 from fv3core.stencils.riem_solver3 import RiemannSolver3
 from fv3core.stencils.riem_solver_c import RiemannSolverC
-from fv3core.utils import Grid
-from fv3core.utils.grid import axis_offsets
 from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
 
 
@@ -47,6 +37,7 @@ def zero_data(
         mfyd = 0.0
         cxd = 0.0
         cyd = 0.0
+
 
 def zero_diss(
     diss_estd: FloatField,
@@ -122,7 +113,7 @@ def p_grad_c_stencil(
     Grid variable inputs:
         rdxc, rdyc
     """
-    from __externals__ import hydrostatic, local_ie, local_is, local_je, local_js
+    from __externals__ import hydrostatic
 
     with computation(PARALLEL), interval(...):
         if __INLINED(hydrostatic):
@@ -130,13 +121,13 @@ def p_grad_c_stencil(
         else:
             wk = delpc
         # TODO for PGradC validation only, not necessary for DynCore
-        #with horizontal(region[local_is : local_ie + 2, local_js : local_je + 1]):
+        # with horizontal(region[local_is : local_ie + 2, local_js : local_je + 1]):
         uc = uc + dt2 * rdxc / (wk[-1, 0, 0] + wk) * (
             (gz[-1, 0, 1] - gz) * (pkc[0, 0, 1] - pkc[-1, 0, 0])
             + (gz[-1, 0, 0] - gz[0, 0, 1]) * (pkc[-1, 0, 1] - pkc)
         )
         # TODO for PGradC validation only, not necessary for DynCore
-        #with horizontal(region[local_is : local_ie + 1, local_js : local_je + 2]):
+        # with horizontal(region[local_is : local_ie + 1, local_js : local_je + 2]):
         vc = vc + dt2 * rdyc / (wk[0, -1, 0] + wk) * (
             (gz[0, -1, 1] - gz) * (pkc[0, 0, 1] - pkc[0, -1, 0])
             + (gz[0, -1, 0] - gz[0, 0, 1]) * (pkc[0, -1, 1] - pkc)
@@ -193,8 +184,6 @@ def dyncore_temporaries(shape, namelist, grid):
     )
 
     return tmps
-
-
 
 
 def _initialize_temp_adjust_stencil(grid, n_adj):
@@ -311,12 +300,13 @@ class AcousticDynamics:
 
         pgradc_origin = self.grid.compute_origin()
         pgradc_domain = self.grid.domain_shape_compute(add=(1, 1, 0))
-        ax_offsets = axis_offsets(self.grid, pgradc_origin, pgradc_domain)
         self._p_grad_c = FrozenStencil(
             p_grad_c_stencil,
             origin=pgradc_origin,
             domain=pgradc_domain,
-            externals={"hydrostatic": self.namelist.hydrostatic, **ax_offsets},
+            externals={
+                "hydrostatic": self.namelist.hydrostatic,
+            },
         )
 
         self.update_geopotential_height_on_c_grid = (
@@ -328,7 +318,6 @@ class AcousticDynamics:
             origin=self.grid.full_origin(),
             domain=self.grid.domain_shape_full(),
         )
-        # with horizontal(region[3:-3, 3:-3]):
         self._zero_diss = FrozenStencil(
             zero_diss,
             origin=self.grid.compute_origin(),
@@ -337,20 +326,24 @@ class AcousticDynamics:
         edge_domain_x = (1, self.grid.njc, self.grid.npz + 1)
         self._edge_pe_west_stencil = FrozenStencil(
             pe_halo.edge_pe,
-            origin=(self.grid.is_ - 1, self.grid.js, 0), domain=edge_domain_x
+            origin=(self.grid.is_ - 1, self.grid.js, 0),
+            domain=edge_domain_x,
         )
         self._edge_pe_east_stencil = FrozenStencil(
             pe_halo.edge_pe,
-            origin=(self.grid.ie+1, self.grid.js, 0), domain=edge_domain_x
+            origin=(self.grid.ie + 1, self.grid.js, 0),
+            domain=edge_domain_x,
         )
         edge_domain_y = (self.grid.nic + 2, 1, self.grid.npz + 1)
         self._edge_pe_south_stencil = FrozenStencil(
             pe_halo.edge_pe,
-            origin=(self.grid.is_ - 1, self.grid.js - 1, 0), domain=edge_domain_y
+            origin=(self.grid.is_ - 1, self.grid.js - 1, 0),
+            domain=edge_domain_y,
         )
         self._edge_pe_north_stencil = FrozenStencil(
             pe_halo.edge_pe,
-            origin=(self.grid.is_ - 1, self.grid.je+1, 0), domain=edge_domain_y
+            origin=(self.grid.is_ - 1, self.grid.je + 1, 0),
+            domain=edge_domain_y,
         )
         """ The stencil object responsible for updading the interface pressure"""
 

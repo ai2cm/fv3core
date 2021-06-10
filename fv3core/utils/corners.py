@@ -1,11 +1,6 @@
-from gt4py import gtscript
-from gt4py.gtscript import PARALLEL, computation, horizontal, interval
+from gt4py.gtscript import PARALLEL, computation, interval
 
 import fv3core._config as spec
-import fv3core.utils.gt4py_utils as utils
-from fv3core.decorators import FrozenStencil
-from fv3core.stencils.basic_operations import copy_defn
-from fv3core.utils.grid import axis_offsets
 from fv3core.utils.typing import FloatField
 
 
@@ -15,24 +10,30 @@ class CopyCorners:
     copy_corners_x or copy_corners_y respectively
     """
 
-    def __init__(self, direction: str, temporary_field=None, origin=None, domain=None) -> None:
+    def __init__(
+        self, direction: str, temporary_field=None, origin=None, domain=None
+    ) -> None:
         self.grid = spec.grid
         if origin is None:
             origin = self.grid.full_origin()
-       
+
         if domain is None:
             domain = self.grid.domain_shape_full(add=(0, 0, 1))
-        self._origin=origin
-        self._domain=domain
+        self._origin = origin
+        self._domain = domain
         self.direction = direction
-       
+
     def __call__(self, field: FloatField):
         """
         Fills cell quantity field using corners from itself and multipliers
         in the dirction specified initialization of the instance of this class.
         """
-        copy_corners(field, self.direction, self.grid, kslice=slice(self._origin[2], self._origin[0] + self._domain[2]+2))
-       
+        copy_corners(
+            field,
+            self.direction,
+            self.grid,
+            kslice=slice(self._origin[2], self._origin[0] + self._domain[2] + 2),
+        )
 
 
 class FillCornersBGrid:
@@ -52,15 +53,18 @@ class FillCornersBGrid:
         if domain is None:
             domain = self.grid.domain_shape_full()
         """The full domain required to do corner computation everywhere"""
-        self._origin=origin
-        self._domain=domain
+        self._origin = origin
+        self._domain = domain
         self._direction = direction
 
-        
-
     def __call__(self, field: FloatField):
-        fill_corners(field, self.grid, "B", self._direction, kslice=slice(self._origin[2], self._origin[0] + self._domain[2]+2))
-
+        fill_corners(
+            field,
+            self.grid,
+            "B",
+            self._direction,
+            kslice=slice(self._origin[2], self._origin[0] + self._domain[2] + 2),
+        )
 
 
 def corner_ke(
@@ -77,17 +81,20 @@ def corner_ke(
 ):
     with computation(PARALLEL), interval(...):
         dt6 = dt / 6.0
-        
+
         ke = dt6 * (
-            (ut[0, 0, 0] + ut[0, -1, 0]) * ((io1 + 1) * u[0, 0, 0] - (io1 * u[-1, 0, 0]))
-            + (vt[0, 0, 0] + vt[-1, 0, 0]) * ((jo1 + 1) * v[0, 0, 0] - (jo1 * v[0, -1, 0]))
+            (ut[0, 0, 0] + ut[0, -1, 0])
+            * ((io1 + 1) * u[0, 0, 0] - (io1 * u[-1, 0, 0]))
+            + (vt[0, 0, 0] + vt[-1, 0, 0])
+            * ((jo1 + 1) * v[0, 0, 0] - (jo1 * v[0, -1, 0]))
             + (
                 ((jo1 + 1) * ut[0, 0, 0] - (jo1 * ut[0, -1, 0]))
                 + vsign * ((io1 + 1) * vt[0, 0, 0] - (io1 * vt[-1, 0, 0]))
             )
             * ((io2 + 1) * u[0, 0, 0] - (io2 * u[-1, 0, 0]))
         )
-        
+
+
 # FOR DACE
 def fill_4corners(q, direction, grid):
     if direction == "x":
@@ -229,23 +236,35 @@ def fill_sw_corner_bgrid(q, i, j, direction, grid, kslice):
 
 def fill_nw_corner_bgrid(q, i, j, direction, grid, kslice):
     if direction == "x":
-        q[grid.is_ - i, grid.je + 1 + j, kslice] = q[grid.is_ - j, grid.je + 1 - i, kslice]
+        q[grid.is_ - i, grid.je + 1 + j, kslice] = q[
+            grid.is_ - j, grid.je + 1 - i, kslice
+        ]
     if direction == "y":
-        q[grid.is_ - j, grid.je + 1 + i, kslice] = q[grid.is_ + i, grid.je + 1 + j, kslice]
+        q[grid.is_ - j, grid.je + 1 + i, kslice] = q[
+            grid.is_ + i, grid.je + 1 + j, kslice
+        ]
 
 
 def fill_se_corner_bgrid(q, i, j, direction, grid, kslice):
     if direction == "x":
-        q[grid.ie + 1 + i, grid.js - j, kslice] = q[grid.ie + 1 + j, grid.js + i, kslice]
+        q[grid.ie + 1 + i, grid.js - j, kslice] = q[
+            grid.ie + 1 + j, grid.js + i, kslice
+        ]
     if direction == "y":
-        q[grid.ie + 1 + j, grid.js - i, kslice] = q[grid.ie + 1 - i, grid.js - j, kslice]
+        q[grid.ie + 1 + j, grid.js - i, kslice] = q[
+            grid.ie + 1 - i, grid.js - j, kslice
+        ]
 
 
 def fill_ne_corner_bgrid(q, i, j, direction, grid, kslice):
     if direction == "x":
-        q[grid.ie + 1 + i, grid.je + 1 + j, kslice] = q[grid.ie + 1 + j, grid.je + 1 - i, kslice]
+        q[grid.ie + 1 + i, grid.je + 1 + j, kslice] = q[
+            grid.ie + 1 + j, grid.je + 1 - i, kslice
+        ]
     if direction == "y":
-        q[grid.ie + 1 + j, grid.je + 1 + i, kslice] = q[grid.ie + 1 - i, grid.je + 1 + j, kslice]
+        q[grid.ie + 1 + j, grid.je + 1 + i, kslice] = q[
+            grid.ie + 1 - i, grid.je + 1 + j, kslice
+        ]
 
 
 def fill_sw_corner_agrid(q, i, j, direction, grid, kslice):
@@ -269,14 +288,14 @@ def fill_se_corner_agrid(q, i, j, direction, grid, kslice):
         q[grid.ie + j, grid.js - i, kslice] = q[grid.ie - i + 1, grid.js - j, kslice]
 
 
-def fill_ne_corner_agrid(q, i, j, direction, grid,kslice, mysign=1.0):
+def fill_ne_corner_agrid(q, i, j, direction, grid, kslice, mysign=1.0):
     if direction == "x":
         q[grid.ie + i, grid.je + j, kslice] = q[grid.ie + j, grid.je - i + 1, kslice]
     if direction == "y":
         q[grid.ie + j, grid.je + i, kslice] = q[grid.ie - i + 1, grid.je + j, kslice]
 
 
-def fill_corners(q, grid, gridtype, direction="x", kslice=slice(0,None)):
+def fill_corners(q, grid, gridtype, direction="x", kslice=slice(0, None)):
     for i in range(1, 1 + grid.halo):
         for j in range(1, 1 + grid.halo):
             if gridtype == "B":
@@ -315,8 +334,12 @@ def fill_se_corner_vector_dgrid(x, y, i, j, grid, kslice):
 
 
 def fill_ne_corner_vector_dgrid(x, y, i, j, grid, mysign, kslice):
-    x[grid.ie + i, grid.je + 1 + j, kslice] = mysign * y[grid.ie + 1 + j, grid.je - i + 1, kslice]
-    y[grid.ie + 1 + i, grid.je + j, kslice] = mysign * x[grid.ie - j + 1, grid.je + 1 + i, kslice]
+    x[grid.ie + i, grid.je + 1 + j, kslice] = (
+        mysign * y[grid.ie + 1 + j, grid.je - i + 1, kslice]
+    )
+    y[grid.ie + 1 + i, grid.je + j, kslice] = (
+        mysign * x[grid.ie - j + 1, grid.je + 1 + i, kslice]
+    )
 
 
 def fill_corners_dgrid(x, y, grid, vector, kslice=slice(0, None)):

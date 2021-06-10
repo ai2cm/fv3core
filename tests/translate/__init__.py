@@ -20,8 +20,6 @@ from .translate_d_sw import (
     TranslateD_SW,
     TranslateFluxCapacitor,
     TranslateHeatDiss,
-    TranslateUbKE,
-    TranslateVbKE,
     TranslateWdivergence,
 )
 from .translate_del2cubed import TranslateDel2Cubed
@@ -52,7 +50,6 @@ from .translate_moistcvpluspkz_2d import TranslateMoistCVPlusPkz_2d
 from .translate_moistcvpluspt_2d import TranslateMoistCVPlusPt_2d
 from .translate_neg_adj3 import TranslateNeg_Adj3
 from .translate_nh_p_grad import TranslateNH_P_Grad
-from .translate_pe_halo import TranslatePE_Halo
 from .translate_pk3_halo import TranslatePK3_Halo
 from .translate_pressureadjustedtemperature_nonhydrostatic import (
     TranslatePressureAdjustedTemperature_NonHydrostatic,

@@ -340,7 +340,7 @@ class DivergenceDamping:
             self.grid.domain_shape_full(add=(1, 1, 1)), origin=self.grid.full_origin()
         )
         fill_origin = (self.grid.isd, self.grid.jsd, kstart)
-        fill_domain = (self.grid.nid + 1, self.grid.njd + 1, nk+1)
+        fill_domain = (self.grid.nid + 1, self.grid.njd + 1, nk + 1)
         self.fill_corners_bgrid_x = corners.FillCornersBGrid(
             "x", self._corner_tmp, origin=fill_origin, domain=fill_domain
         )
@@ -348,7 +348,6 @@ class DivergenceDamping:
             "y", self._corner_tmp, origin=fill_origin, domain=fill_domain
         )
         ax_offsets = axis_offsets(self.grid, fill_origin, fill_domain)
-        
 
     def __call__(
         self,
@@ -404,7 +403,9 @@ class DivergenceDamping:
                 uc,
             )
             if fillc:
-                corners.fill_corners_dgrid(vc, uc, self.grid, -1.0, kslice=slice(self._nonzero_nord_k, None))
+                corners.fill_corners_dgrid(
+                    vc, uc, self.grid, -1.0, kslice=slice(self._nonzero_nord_k, None)
+                )
             self._redo_divg_d_stencils[n](uc, vc, divg_d)
             if self.grid.sw_corner:
                 self._corner_south_remove_extra_term_sw_nordk_stencil(

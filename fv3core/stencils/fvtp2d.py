@@ -1,5 +1,5 @@
 import gt4py.gtscript as gtscript
-from gt4py.gtscript import PARALLEL, computation, horizontal, interval
+from gt4py.gtscript import PARALLEL, computation, interval
 
 import fv3core._config as spec
 import fv3core.utils.corners as corners
@@ -53,12 +53,10 @@ def q_j_stencil(
         q_j = (q * area + fx1 - fx1[1, 0, 0]) / area_with_x_flux
 
 
-
 def transport_flux(f: FloatField, f2: FloatField, mf: FloatField):
     with computation(PARALLEL), interval(...):
-        ftmp =  0.5 * (f + f2) * mf
+        ftmp = 0.5 * (f + f2) * mf
         f = ftmp
-
 
 
 class FiniteVolumeTransport:

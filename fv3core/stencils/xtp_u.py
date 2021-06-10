@@ -1,19 +1,12 @@
 from gt4py import gtscript
-from gt4py.gtscript import (
-    __INLINED,
-    PARALLEL,
-    compile_assert,
-    computation,
-    horizontal,
-    interval,
-)
+from gt4py.gtscript import __INLINED, PARALLEL, computation, interval
 
 import fv3core._config as spec
-from fv3core.decorators import FrozenStencil
-from fv3core.stencils import xppm, yppm
-from fv3core.utils.grid import axis_offsets
-from fv3core.utils.typing import FloatField, FloatFieldIJ
 import fv3core.utils.gt4py_utils as utils
+from fv3core.decorators import FrozenStencil
+from fv3core.stencils import xppm
+from fv3core.utils.typing import FloatField, FloatFieldIJ
+
 
 @gtscript.function
 def _get_flux(
@@ -51,15 +44,11 @@ def _get_flux(
     return xppm.final_flux(courant, u, fx0, tmp)
 
 
-def bl_br_main(
-    u: FloatField,
-    al: FloatField,
-    bl: FloatField,
-    br: FloatField
-):
+def bl_br_main(u: FloatField, al: FloatField, bl: FloatField, br: FloatField):
     with computation(PARALLEL), interval(...):
         bl = al[0, 0, 0] - u[0, 0, 0]
         br = al[1, 0, 0] - u[0, 0, 0]
+
 
 def xtp_flux(
     courant: FloatField,
@@ -71,11 +60,13 @@ def xtp_flux(
 ):
     with computation(PARALLEL), interval(...):
         flux = _get_flux(u, courant, rdx, bl, br)
-        
+
+
 def zero_br_bl(br: FloatField, bl: FloatField):
     with computation(PARALLEL), interval(...):
         br = 0.0
         bl = 0.0
+
 
 class XTP_U:
     def __init__(self, namelist):
@@ -92,16 +83,34 @@ class XTP_U:
         shape = self.grid.domain_shape_full(add=(1, 1, 1))
         self._bl = utils.make_storage_from_shape(shape)
         self._br = utils.make_storage_from_shape(shape)
-        self._bl_br_stencil =  FrozenStencil(bl_br_main, origin=(self.grid.is_ - 1, self.grid.js, 0), domain=(self.grid.nic + 2, self.grid.njc + 1, self.grid.npz))
+        self._bl_br_stencil = FrozenStencil(
+            bl_br_main,
+            origin=(self.grid.is_ - 1, self.grid.js, 0),
+            domain=(self.grid.nic + 2, self.grid.njc + 1, self.grid.npz),
+        )
         corner_domain = (2, 1, self.grid.npz)
         if self.grid.sw_corner:
-            self._zero_bl_br_sw_corner_stencil =  FrozenStencil(zero_br_bl, origin=(self.grid.is_ - 1, self.grid.js, 0), domain=corner_domain)
+            self._zero_bl_br_sw_corner_stencil = FrozenStencil(
+                zero_br_bl,
+                origin=(self.grid.is_ - 1, self.grid.js, 0),
+                domain=corner_domain,
+            )
         if self.grid.nw_corner:
-            self._zero_bl_br_nw_corner_stencil =  FrozenStencil(zero_br_bl, origin=(self.grid.is_ - 1, self.grid.je+1, 0), domain=corner_domain)
+            self._zero_bl_br_nw_corner_stencil = FrozenStencil(
+                zero_br_bl,
+                origin=(self.grid.is_ - 1, self.grid.je + 1, 0),
+                domain=corner_domain,
+            )
         if self.grid.se_corner:
-            self._zero_bl_br_se_corner_stencil =  FrozenStencil(zero_br_bl, origin=(self.grid.ie, self.grid.js, 0), domain=corner_domain)
+            self._zero_bl_br_se_corner_stencil = FrozenStencil(
+                zero_br_bl, origin=(self.grid.ie, self.grid.js, 0), domain=corner_domain
+            )
         if self.grid.ne_corner:
-            self._zero_bl_br_ne_corner_stencil =  FrozenStencil(zero_br_bl,  origin=(self.grid.ie, self.grid.je+1, 0), domain=corner_domain)
+            self._zero_bl_br_ne_corner_stencil = FrozenStencil(
+                zero_br_bl,
+                origin=(self.grid.ie, self.grid.je + 1, 0),
+                domain=corner_domain,
+            )
         self._xtp_flux = FrozenStencil(
             xtp_flux,
             externals={
@@ -112,8 +121,9 @@ class XTP_U:
             domain=self.grid.domain_shape_compute(add=(1, 1, 0)),
         )
         self._xppm = xppm.XPiecewiseParabolic(
-            namelist, iord, self.grid.js, self.grid.je+1, self.grid.dx
+            namelist, iord, self.grid.js, self.grid.je + 1, self.grid.dx
         )
+
     def __call__(self, c: FloatField, u: FloatField, flux: FloatField):
         """
         Compute flux of kinetic energy in x-dir.
@@ -123,7 +133,7 @@ class XTP_U:
             u (in): x-dir wind on D-grid
             flux (out): Flux of kinetic energy
         """
-      
+
         self._xppm.compute_al(u)
         self._bl_br_stencil(u, self._xppm._al, self._bl, self._br)
         if self.grid.sw_corner:
@@ -134,7 +144,7 @@ class XTP_U:
             self._zero_bl_br_se_corner_stencil(self._bl, self._br)
         if self.grid.ne_corner:
             self._zero_bl_br_ne_corner_stencil(self._bl, self._br)
-       
+
         self._xtp_flux(
             c,
             u,

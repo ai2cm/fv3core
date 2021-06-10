@@ -1,4 +1,4 @@
-from gt4py.gtscript import FORWARD, computation, horizontal, interval
+from gt4py.gtscript import FORWARD, computation, interval
 
 from fv3core.utils.typing import FloatField
 
@@ -12,7 +12,7 @@ def edge_pe(pe: FloatField, delp: FloatField, ptop: float):
         delp: The pressure difference between vertical grid cells
         ptop: The pressure level at the top of the grid
     """
-   
+
     with computation(FORWARD):
         with interval(0, 1):
             pe[0, 0, 0] = ptop

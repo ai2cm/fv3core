@@ -4,7 +4,6 @@ from gt4py.gtscript import BACKWARD, FORWARD, PARALLEL, computation, interval
 import fv3core.utils.global_constants as constants
 from fv3core.decorators import FrozenStencil
 from fv3core.utils import corners, gt4py_utils
-from fv3core.utils.grid import axis_offsets
 from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
 
 
@@ -99,7 +98,7 @@ class UpdateGeopotentialHeightOnCGrid:
             origin=full_origin,
             domain=full_domain,
         )
-   
+
         self._update_dz_c = FrozenStencil(
             update_dz_c,
             origin=self.grid.compute_origin(add=(-1, -1, 0)),
@@ -132,7 +131,7 @@ class UpdateGeopotentialHeightOnCGrid:
         self._double_copy_stencil(gz, self._gz_x, self._gz_y)
         corners.fill_4corners(self._gz_x, "x", self.grid)
         corners.fill_4corners(self._gz_y, "y", self.grid)
-       
+
         self._update_dz_c(
             dp_ref,
             zs,

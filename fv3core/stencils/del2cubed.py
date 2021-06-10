@@ -1,4 +1,4 @@
-from gt4py.gtscript import PARALLEL, computation, horizontal, interval
+from gt4py.gtscript import PARALLEL, computation, interval
 
 import fv3core._config as spec
 import fv3core.utils.corners as corners
@@ -54,8 +54,8 @@ def corner_fill(grid, q):
         ) * r3
         q[grid.ie + 1, grid.js, :] = q[grid.ie, grid.js, :]
         for k in range(grid.npz):
-            q[grid.ie, grid.js - 1, k] =  q[grid.ie, grid.js, k]
-        
+            q[grid.ie, grid.js - 1, k] = q[grid.ie, grid.js, k]
+
     if grid.ne_corner:
         q[grid.ie, grid.je, :] = (
             q[grid.ie, grid.je, :]
@@ -72,12 +72,9 @@ def corner_fill(grid, q):
             + q[grid.is_, grid.je + 1, :]
         ) * r3
         for k in range(grid.npz):
-            q[grid.is_ - 1, grid.je, k] =  q[grid.is_, grid.je, k]
-                        
+            q[grid.is_ - 1, grid.je, k] = q[grid.is_, grid.je, k]
+
         q[grid.is_, grid.je + 1, :] = q[grid.is_, grid.je, :]
-
-  
-
 
 
 class HyperdiffusionDamping:
@@ -147,8 +144,8 @@ class HyperdiffusionDamping:
         for n in range(self._ntimes):
             nt = self._ntimes - (n + 1)
             # Fill in appropriate corner values
-            corner_fill(self.grid,qdel)
-            
+            corner_fill(self.grid, qdel)
+
             if nt > 0:
                 self._copy_corners_x(qdel)
 

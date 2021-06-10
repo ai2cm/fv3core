@@ -5,17 +5,16 @@ from gt4py.gtscript import (
     FORWARD,
     PARALLEL,
     computation,
-    horizontal,
     interval,
     log,
     sin,
 )
 
 import fv3core.utils.global_constants as constants
-from fv3core.decorators import FrozenStencil
-from fv3core.utils import axis_offsets
-from fv3core.utils.typing import FloatField, FloatFieldK
 import fv3core.utils.gt4py_utils as utils
+from fv3core.decorators import FrozenStencil
+from fv3core.utils.typing import FloatField, FloatFieldK
+
 
 SDAY = 86400.0
 
@@ -72,6 +71,8 @@ def dm_compute(
     with computation(BACKWARD), interval(0, -1):
         if pfull < rf_cutoff_nudge:
             dm = dm[0, 0, 1]
+
+
 def ray_fast_wind(
     wind: FloatField,
     rf: FloatField,
@@ -103,13 +104,14 @@ def ray_fast_wind(
         if pfull < rf_cutoff_nudge:  # TODO and axes(k) < ks:
             wind += dmdir / dm
 
+
 def ray_fast_wind_w(
     w: FloatField,
     rf: FloatField,
     pfull: FloatFieldK,
-  
 ):
-    from __externals__ import rf_cutoff, hydrostatic   
+    from __externals__ import hydrostatic, rf_cutoff
+
     with computation(PARALLEL), interval(...):
         if __INLINED(not hydrostatic):
             if pfull < rf_cutoff:
@@ -135,7 +137,7 @@ class RayleighDamping:
         origin = grid.compute_origin()
         domain = (grid.nic + 1, grid.njc + 1, grid.npz)
 
-        shape = grid.domain_shape_full(add=(1,1,1))
+        shape = grid.domain_shape_full(add=(1, 1, 1))
         self._tmp_dm = utils.make_storage_from_shape(shape)
 
         self._tmp_rf = utils.make_storage_from_shape(shape)
@@ -169,9 +171,11 @@ class RayleighDamping:
             origin=origin,
             domain=grid.domain_shape_compute(),
             externals={
-                "rf_cutoff": namelist.rf_cutoff,"hydrostatic": namelist.hydrostatic
+                "rf_cutoff": namelist.rf_cutoff,
+                "hydrostatic": namelist.hydrostatic,
             },
         )
+
     def __call__(
         self,
         u: FloatField,
@@ -185,27 +189,22 @@ class RayleighDamping:
     ):
         rf_cutoff_nudge = self._rf_cutoff + min(100.0, 10.0 * ptop)
         self._dm_compute(
+            self._tmp_rf, self._tmp_dm, dp, pfull, dt, ptop, rf_cutoff_nudge, ks
+        )
+        self._ray_fast_u(
+            u,
             self._tmp_rf,
             self._tmp_dm,
             dp,
             pfull,
             dt,
-            ptop,
-            rf_cutoff_nudge,
-            ks)
-        self._ray_fast_u(
-            u,
-            self._tmp_rf, self._tmp_dm,
-            dp,
-            pfull,
-            dt,
             rf_cutoff_nudge,
             ks,
-
         )
         self._ray_fast_v(
             v,
-            self._tmp_rf, self._tmp_dm,
+            self._tmp_rf,
+            self._tmp_dm,
             dp,
             pfull,
             dt,

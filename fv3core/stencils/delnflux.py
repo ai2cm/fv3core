@@ -2,22 +2,15 @@ from typing import Optional
 
 import gt4py.gtscript as gtscript
 import numpy as np
-from gt4py.gtscript import (
-    __INLINED,
-    FORWARD,
-    PARALLEL,
-    computation,
-    horizontal,
-    interval,
-)
+from gt4py.gtscript import FORWARD, PARALLEL, computation, interval
 
 import fv3core._config as spec
 import fv3core.utils.corners as corners
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import FrozenStencil, get_stencils_with_varied_bounds
-from fv3core.utils.grid import axis_offsets
-from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
 from fv3core.stencils.basic_operations import copy_defn
+from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
+
 
 def calc_damp(damp4: FloatField, nord: FloatFieldK, damp_c: FloatFieldK, da_min: float):
     with computation(FORWARD), interval(...):
@@ -33,19 +26,23 @@ def fx_calc_stencil(q: FloatField, del6_v: FloatFieldIJ, fx: FloatField):
 def fy_calc_stencil(q: FloatField, del6_u: FloatFieldIJ, fy: FloatField):
     with computation(PARALLEL), interval(...):
         fy = fy_calculation(q, del6_u)
-   
 
 
-def fx_calc_stencil_column(q: FloatField, del6_v: FloatFieldIJ, fx: FloatField, nord:FloatFieldK):
+def fx_calc_stencil_column(
+    q: FloatField, del6_v: FloatFieldIJ, fx: FloatField, nord: FloatFieldK
+):
     with computation(PARALLEL), interval(...):
-         if (nord > 0):
-             fx = fx_calculation_neg(q, del6_v)
+        if nord > 0:
+            fx = fx_calculation_neg(q, del6_v)
 
 
-def fy_calc_stencil_column(q: FloatField, del6_u: FloatFieldIJ, fy: FloatField,  nord:FloatFieldK):
+def fy_calc_stencil_column(
+    q: FloatField, del6_u: FloatFieldIJ, fy: FloatField, nord: FloatFieldK
+):
     with computation(PARALLEL), interval(...):
-        if (nord > 0):
+        if nord > 0:
             fy = fy_calculation_neg(q, del6_u)
+
 
 @gtscript.function
 def fx_calculation(q: FloatField, del6_v: FloatField):
@@ -68,10 +65,14 @@ def fy_calculation_neg(q: FloatField, del6_u: FloatField):
 
 
 def d2_highorder_stencil(
-        fx: FloatField, fy: FloatField, rarea: FloatFieldIJ, d2: FloatField,  nord:FloatFieldK
+    fx: FloatField,
+    fy: FloatField,
+    rarea: FloatFieldIJ,
+    d2: FloatField,
+    nord: FloatFieldK,
 ):
     with computation(PARALLEL), interval(...):
-        if (nord > 0):
+        if nord > 0:
             d2 = d2_highorder(fx, fy, rarea)
 
 
@@ -85,7 +86,6 @@ def d2_damp_interval(q: FloatField, d2: FloatField, damp: FloatFieldK):
 
     with computation(PARALLEL), interval(...):
         d2 = damp * q
-  
 
 
 def add_diffusive_component(
@@ -118,7 +118,7 @@ def nord_split(nord_column, nord_nml):
             nonzero_nord = int(nord_column[k])
             break
     return nonzero_nord_k, nonzero_nord
-            
+
 
 class DelnFlux:
     """
@@ -135,7 +135,7 @@ class DelnFlux:
 
         nord and damp_c define the damping coefficient used in DelnFluxNoSG
         """
-       
+
         self._no_compute = False
         if (damp_c <= 1e-4).all():
             self._no_compute = True
@@ -231,10 +231,10 @@ class DelnFluxNoSG:
             raise ValueError("nord must be less than 3")
         if not np.all(n in [0, 2, 3] for n in nord[:]):
             raise NotImplementedError("nord must have values 0, 2, or 3")
-        
+
         self._nmax = int(max(nord[:]))
         self._grid = spec.grid
-       
+
         i1 = self._grid.is_ - 1 - self._nmax
         i2 = self._grid.ie + 1 + self._nmax
         j1 = self._grid.js - 1 - self._nmax
@@ -258,7 +258,6 @@ class DelnFluxNoSG:
             raise Exception("nk must be more than 3 for DelnFluxNoSG")
         self._k_bounds = [1, 1, 1, self._nk - 3]
 
-       
         origins_d2 = []
         domains_d2 = []
         origins_flux = []
@@ -285,22 +284,20 @@ class DelnFluxNoSG:
         self._d2_damp_low = FrozenStencil(
             d2_damp_interval,
             origin=(self._grid.is_ - 1, self._grid.js - 1, low_kstart),
-            domain=(self._grid.nic+2,self._grid.njc+2, low_nk)
+            domain=(self._grid.nic + 2, self._grid.njc + 2, low_nk),
         )
         self._d2_damp = FrozenStencil(
             d2_damp_interval,
             origin=(i1, j1, kstart),
-            domain=(i2 - i1 + 1, j2 - j1 + 1, nk)
+            domain=(i2 - i1 + 1, j2 - j1 + 1, nk),
         )
         self._copy_stencil_interval_low = FrozenStencil(
             copy_defn,
             origin=(self._grid.is_ - 1, self._grid.js - 1, low_kstart),
-            domain=(self._grid.nic+2,self._grid.njc+2, low_nk)
+            domain=(self._grid.nic + 2, self._grid.njc + 2, low_nk),
         )
         self._copy_stencil_interval = FrozenStencil(
-            copy_defn,
-            origin=(i1, j1, kstart),
-            domain=(i2 - i1 + 1, j2 - j1 + 1, nk)
+            copy_defn, origin=(i1, j1, kstart), domain=(i2 - i1 + 1, j2 - j1 + 1, nk)
         )
 
         self._d2_stencil = get_stencils_with_varied_bounds(
@@ -321,8 +318,8 @@ class DelnFluxNoSG:
 
         self._fx_calc_stencil_low = FrozenStencil(
             fx_calc_stencil,
-            origin=(self._grid.is_, self._grid.js , low_kstart),
-            domain=(self._grid.nic+1, self._grid.njc, low_nk),
+            origin=(self._grid.is_, self._grid.js, low_kstart),
+            domain=(self._grid.nic + 1, self._grid.njc, low_nk),
         )
         self._fx_calc_stencil = FrozenStencil(
             fx_calc_stencil,
@@ -331,8 +328,8 @@ class DelnFluxNoSG:
         )
         self._fy_calc_stencil_low = FrozenStencil(
             fy_calc_stencil,
-            origin=(self._grid.is_, self._grid.js , low_kstart),
-            domain=(self._grid.nic, self._grid.njc+1, low_nk),
+            origin=(self._grid.is_, self._grid.js, low_kstart),
+            domain=(self._grid.nic, self._grid.njc + 1, low_nk),
         )
         self._fy_calc_stencil = FrozenStencil(
             fy_calc_stencil,
@@ -340,10 +337,13 @@ class DelnFluxNoSG:
             domain=(f1_nx - 1, f1_ny + 1, nk),
         )
 
-      
-        self._copy_corners_x_nord = corners.CopyCorners("x", origin=(0, 0, kstart), domain=(self._grid.nid, self._grid.njd, nk+1))
-        self._copy_corners_y_nord = corners.CopyCorners("y", origin=(0, 0, kstart), domain=(self._grid.nid, self._grid.njd, nk+1))
-       
+        self._copy_corners_x_nord = corners.CopyCorners(
+            "x", origin=(0, 0, kstart), domain=(self._grid.nid, self._grid.njd, nk + 1)
+        )
+        self._copy_corners_y_nord = corners.CopyCorners(
+            "y", origin=(0, 0, kstart), domain=(self._grid.nid, self._grid.njd, nk + 1)
+        )
+
         self._copy_full_domain = FrozenStencil(
             copy_defn,
             origin=self._grid.full_origin(),
@@ -370,7 +370,6 @@ class DelnFluxNoSG:
             self._copy_stencil_interval_low(q, d2)
             self._copy_stencil_interval(q, d2)
 
-       
         self._copy_corners_x_nord(
             d2,
         )
@@ -384,23 +383,14 @@ class DelnFluxNoSG:
         self._fy_calc_stencil(d2, self._grid.del6_u, fy2)
 
         for n in range(self._nmax):
-            self._d2_stencil[n](
-                fx2,
-                fy2,
-                self._grid.rarea,
-                d2,
-                self._nord
-            )
+            self._d2_stencil[n](fx2, fy2, self._grid.rarea, d2, self._nord)
 
             self._copy_corners_x_nord(
                 d2,
             )
 
             self._column_conditional_fx_calculation[n](
-                d2,
-                self._grid.del6_v,
-                fx2,
-                self._nord
+                d2, self._grid.del6_v, fx2, self._nord
             )
 
             self._copy_corners_y_nord(
@@ -408,8 +398,5 @@ class DelnFluxNoSG:
             )
 
             self._column_conditional_fy_calculation[n](
-                d2,
-                self._grid.del6_u,
-                fy2,
-                self._nord
+                d2, self._grid.del6_u, fy2, self._nord
             )

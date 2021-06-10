@@ -1,11 +1,5 @@
 import gt4py.gtscript as gtscript
-from gt4py.gtscript import (
-    __INLINED,
-    PARALLEL,
-    computation,
-    horizontal,
-    interval,
-)
+from gt4py.gtscript import __INLINED, PARALLEL, computation, interval
 
 import fv3core._config as spec
 import fv3core.stencils.delnflux as delnflux
@@ -104,6 +98,7 @@ def horizontal_relative_vorticity_from_winds(u, v, ut, vt, dx, dy, rarea, vortic
 
     return vt, ut, vorticity
 
+
 def compute_temperature_and_pressure_delta(
     gx: FloatField,
     gy: FloatField,
@@ -112,39 +107,35 @@ def compute_temperature_and_pressure_delta(
     fy: FloatField,
     pt: FloatField,
     delp: FloatField,
-  ):
+):
     from __externals__ import inline_q
+
     with computation(PARALLEL), interval(...):
         if __INLINED(inline_q == 0):
             pt = flux_integral(pt, delp, gx, gy, rarea)
             delp = delp + flux_component(fx, fy, rarea)
             pt = pt / delp
 
-def compute_vbke(
-    vc: FloatField,
-    uc: FloatField,
-    cosa: FloatFieldIJ,
-    rsina: FloatFieldIJ,
-    vt: FloatField,
-    vb: FloatField,
-    dt4: float,
-    dt5: float,
+
+def ub_from_vort(
+    vort: FloatField,
+    ub: FloatField,
+    dcon: FloatFieldK,
 ):
-    with computation(PARALLEL), interval(...):
-        vb = vbke(vc, uc, cosa, rsina, vt, vb, dt4, dt5)
-
-
-def ub_from_vort(vort: FloatField, ub: FloatField,  dcon: FloatFieldK,):
     with computation(PARALLEL), interval(...):
         if dcon[0] > dcon_threshold:
             ub = vort - vort[1, 0, 0]
 
 
-def vb_from_vort(vort: FloatField, vb: FloatField,  dcon: FloatFieldK,):
+def vb_from_vort(
+    vort: FloatField,
+    vb: FloatField,
+    dcon: FloatFieldK,
+):
     with computation(PARALLEL), interval(...):
         if dcon[0] > dcon_threshold:
             vb = vort - vort[0, 1, 0]
-    
+
 
 def u_from_ke(
     ke: FloatField,
@@ -155,12 +146,13 @@ def u_from_ke(
     with computation(PARALLEL), interval(...):
         u = vt + ke - ke[1, 0, 0] + fy
 
+
 def v_from_ke(
     ke: FloatField,
     ut: FloatField,
     fx: FloatField,
     v: FloatField,
-): 
+):
     with computation(PARALLEL), interval(...):
         v = ut + ke - ke[0, 1, 0] - fx
 
@@ -247,9 +239,8 @@ def heat_source_from_vorticity_damping(
     heat_source: FloatField,
     dampterm: FloatField,
     kinetic_energy_fraction_to_damp: FloatFieldK,
-    
 ):
-   
+
     from __externals__ import do_skeb
 
     with computation(PARALLEL), interval(...):
@@ -274,19 +265,23 @@ def heat_source_from_vorticity_damping(
                 heat_s - 0.25 * kinetic_energy_fraction_to_damp[0] * dampterm
             )
 
+
 def heat_source_accumulate(
     heat_source: FloatField,
     heat_source_total: FloatField,
     dissipation_estimate: FloatField,
-    dampterm: FloatField
+    dampterm: FloatField,
 ):
     from __externals__ import d_con, do_skeb
+
     with computation(PARALLEL), interval(...):
         diss_e = dissipation_estimate
         if __INLINED((d_con > dcon_threshold) or do_skeb):
             heat_source_total = heat_source_total + heat_source
             if __INLINED(do_skeb == 1):
                 dissipation_estimate = diss_e - dampterm
+
+
 def damped_u(
     vt: FloatField,
     u: FloatField,
@@ -295,6 +290,8 @@ def damped_u(
     with computation(PARALLEL), interval(...):
         if damp_vt > 1e-5:
             u = u + vt
+
+
 def damped_v(
     ut: FloatField,
     v: FloatField,
@@ -309,11 +306,11 @@ def ke_from_bwind(
     ke: FloatField,
     ub: FloatField,
     vb: FloatField,
-   
 ):
     with computation(PARALLEL), interval(...):
         ke = 0.5 * (ke + ub * vb)
-     
+
+
 def horizontal_vorticity(
     u: FloatField,
     v: FloatField,
@@ -407,16 +404,22 @@ def get_column_namelist(namelist, npz):
 
 
 def kinetic_energy(
-    ub: FloatField,   
+    ub: FloatField,
     vb: FloatField,
     ke: FloatField,
-
 ):
     with computation(PARALLEL), interval(...):
         ke = vb * ub
 
 
-def main_vb(vc: FloatField, uc: FloatField, cosa: FloatFieldIJ, rsina: FloatFieldIJ, vb: FloatField, dt5: float):
+def main_vb(
+    vc: FloatField,
+    uc: FloatField,
+    cosa: FloatFieldIJ,
+    rsina: FloatFieldIJ,
+    vb: FloatField,
+    dt5: float,
+):
     with computation(PARALLEL), interval(...):
         vb[0, 0, 0] = dt5 * (vc[-1, 0, 0] + vc - (uc[0, -1, 0] + uc) * cosa) * rsina
 
@@ -431,15 +434,21 @@ def vb_x_edge(vt: FloatField, vb: FloatField, dt4: float):
         vb[0, 0, 0] = dt4 * (-vt[-2, 0, 0] + 3.0 * (vt[-1, 0, 0] + vt) - vt[1, 0, 0])
 
 
-def main_ub(uc: FloatField, vc: FloatField, cosa: FloatFieldIJ, rsina: FloatFieldIJ, ub: FloatField, dt5: float):
+def main_ub(
+    uc: FloatField,
+    vc: FloatField,
+    cosa: FloatFieldIJ,
+    rsina: FloatFieldIJ,
+    ub: FloatField,
+    dt5: float,
+):
     with computation(PARALLEL), interval(...):
         ub[0, 0, 0] = dt5 * (uc[0, -1, 0] + uc - (vc[-1, 0, 0] + vc) * cosa) * rsina
 
 
-def ub_x_edge(ut: FloatField, ub: FloatField,  dt5: float):
+def ub_x_edge(ut: FloatField, ub: FloatField, dt5: float):
     with computation(PARALLEL), interval(...):
         ub[0, 0, 0] = dt5 * (ut[0, -1, 0] + ut)
-
 
 
 def ub_y_edge(ut: FloatField, ub: FloatField, dt4: float):
@@ -545,24 +554,24 @@ class DGridShallowWaterLagrangianDynamics:
         domain_x = (1, jdiff, self.grid.npz)
         domain_y = (self.grid.nic + 1, 1, self.grid.npz)
         self._vb_stencil = FrozenStencil(
-            main_vb,
-            origin=(is2, js2, 0),
-            domain=(idiff, jdiff, self.grid.npz)
+            main_vb, origin=(is2, js2, 0), domain=(idiff, jdiff, self.grid.npz)
         )
         if self.grid.south_edge:
             self._vb_south_edge_stencil = FrozenStencil(
-                vb_y_edge,origin=self.grid.compute_origin(), domain=domain_y)
+                vb_y_edge, origin=self.grid.compute_origin(), domain=domain_y
+            )
         if self.grid.west_edge:
-            self._vb_west_edge_stencil=FrozenStencil(
-                vb_x_edge,
-                origin=(self.grid.is_, js2, 0), domain=domain_x)
+            self._vb_west_edge_stencil = FrozenStencil(
+                vb_x_edge, origin=(self.grid.is_, js2, 0), domain=domain_x
+            )
         if self.grid.east_edge:
-            self._vb_east_edge_stencil=FrozenStencil(
-                vb_x_edge,origin=(self.grid.ie + 1, js2, 0), domain=domain_x)
+            self._vb_east_edge_stencil = FrozenStencil(
+                vb_x_edge, origin=(self.grid.ie + 1, js2, 0), domain=domain_x
+            )
         if self.grid.north_edge:
-            self._vb_north_edge_stencil=FrozenStencil(
-                vb_y_edge,
-                origin=(self.grid.is_, self.grid.je + 1, 0), domain=domain_y)
+            self._vb_north_edge_stencil = FrozenStencil(
+                vb_y_edge, origin=(self.grid.is_, self.grid.je + 1, 0), domain=domain_y
+            )
         self._flux_adjust_stencil = FrozenStencil(
             flux_adjust,
             origin=self.grid.compute_origin(),
@@ -572,19 +581,23 @@ class DGridShallowWaterLagrangianDynamics:
             flux_capacitor, origin=full_origin, domain=full_domain
         )
         self._ub_from_vort_stencil = FrozenStencil(
-            ub_from_vort,  origin=self.grid.compute_origin(),
+            ub_from_vort,
+            origin=self.grid.compute_origin(),
             domain=self.grid.domain_shape_compute(add=(0, 1, 0)),
         )
         self._vb_from_vort_stencil = FrozenStencil(
-            vb_from_vort, origin=self.grid.compute_origin(),
+            vb_from_vort,
+            origin=self.grid.compute_origin(),
             domain=self.grid.domain_shape_compute(add=(1, 0, 0)),
         )
         self._u_from_ke_stencil = FrozenStencil(
-            u_from_ke,  origin=self.grid.compute_origin(),
+            u_from_ke,
+            origin=self.grid.compute_origin(),
             domain=self.grid.domain_shape_compute(add=(0, 1, 0)),
         )
         self._v_from_ke_stencil = FrozenStencil(
-            v_from_ke,origin=self.grid.compute_origin(),
+            v_from_ke,
+            origin=self.grid.compute_origin(),
             domain=self.grid.domain_shape_compute(add=(1, 0, 0)),
         )
         self._compute_vorticity_stencil = FrozenStencil(
@@ -622,25 +635,48 @@ class DGridShallowWaterLagrangianDynamics:
                 "d_con": namelist.d_con,
             },
             origin=self.grid.compute_origin(),
-            domain=self.grid.domain_shape_compute()
+            domain=self.grid.domain_shape_compute(),
         )
-        self._damp_u = FrozenStencil(damped_u,  origin=self.grid.compute_origin(), domain=self.grid.domain_shape_compute(add=(0, 1, 0)))
-        self._damp_v = FrozenStencil(damped_v,  origin=self.grid.compute_origin(), domain=self.grid.domain_shape_compute(add=(1, 0, 0)))
+        self._damp_u = FrozenStencil(
+            damped_u,
+            origin=self.grid.compute_origin(),
+            domain=self.grid.domain_shape_compute(add=(0, 1, 0)),
+        )
+        self._damp_v = FrozenStencil(
+            damped_v,
+            origin=self.grid.compute_origin(),
+            domain=self.grid.domain_shape_compute(add=(1, 0, 0)),
+        )
         self._ke_from_bwind_stencil = FrozenStencil(
             ke_from_bwind,
             origin=full_origin,
             domain=full_domain,
         )
-        corner_domain=(1, 1, self.grid.npz)
+        corner_domain = (1, 1, self.grid.npz)
         if self.grid.sw_corner:
-            self.ke_sw_corner_stencil = FrozenStencil(corners.corner_ke, origin=self.grid.compute_origin(), domain=corner_domain)
+            self.ke_sw_corner_stencil = FrozenStencil(
+                corners.corner_ke,
+                origin=self.grid.compute_origin(),
+                domain=corner_domain,
+            )
         if self.grid.se_corner:
-            self.ke_se_corner_stencil = FrozenStencil(corners.corner_ke, origin=(self.grid.ie + 1, self.grid.js, 0), domain=corner_domain)
+            self.ke_se_corner_stencil = FrozenStencil(
+                corners.corner_ke,
+                origin=(self.grid.ie + 1, self.grid.js, 0),
+                domain=corner_domain,
+            )
         if self.grid.ne_corner:
-            self.ke_ne_corner_stencil = FrozenStencil(corners.corner_ke, origin=(self.grid.ie + 1, self.grid.je+1, 0), domain=corner_domain)
+            self.ke_ne_corner_stencil = FrozenStencil(
+                corners.corner_ke,
+                origin=(self.grid.ie + 1, self.grid.je + 1, 0),
+                domain=corner_domain,
+            )
         if self.grid.nw_corner:
-            self.ke_nw_corner_stencil = FrozenStencil(corners.corner_ke, origin=(self.grid.is_, self.grid.je+1, 0), domain=corner_domain)
-
+            self.ke_nw_corner_stencil = FrozenStencil(
+                corners.corner_ke,
+                origin=(self.grid.is_, self.grid.je + 1, 0),
+                domain=corner_domain,
+            )
 
         self._horizontal_vorticity_stencil = FrozenStencil(
             horizontal_vorticity,
@@ -660,22 +696,23 @@ class DGridShallowWaterLagrangianDynamics:
             main_ub,
             origin=(is2, self.grid.js, 0),
             domain=(idiff, self.grid.njc + 1, self.grid.npz),
-
         )
         if self.grid.south_edge:
             self._ub_south_edge_stencil = FrozenStencil(
-                ub_y_edge,origin=(is2, self.grid.js, 0), domain=domain_y)
+                ub_y_edge, origin=(is2, self.grid.js, 0), domain=domain_y
+            )
         if self.grid.west_edge:
-            self._ub_west_edge_stencil=FrozenStencil(
-                ub_x_edge,
-                origin=(self.grid.is_, self.grid.js, 0), domain=domain_x)
+            self._ub_west_edge_stencil = FrozenStencil(
+                ub_x_edge, origin=(self.grid.is_, self.grid.js, 0), domain=domain_x
+            )
         if self.grid.east_edge:
-            self._ub_east_edge_stencil=FrozenStencil(
-                ub_x_edge, origin=(self.grid.ie + 1, self.grid.js, 0), domain=domain_x)
+            self._ub_east_edge_stencil = FrozenStencil(
+                ub_x_edge, origin=(self.grid.ie + 1, self.grid.js, 0), domain=domain_x
+            )
         if self.grid.north_edge:
-            self._ub_north_edge_stencil=FrozenStencil(
-                ub_y_edge,
-                origin=(is2, self.grid.je + 1, 0), domain=domain_y)
+            self._ub_north_edge_stencil = FrozenStencil(
+                ub_y_edge, origin=(is2, self.grid.je + 1, 0), domain=domain_y
+            )
         self._damping_factor_calculation_stencil = FrozenStencil(
             delnflux.calc_damp, origin=(0, 0, 0), domain=(1, 1, self.grid.npz)
         )
@@ -862,17 +899,10 @@ class DGridShallowWaterLagrangianDynamics:
             self._tmp_fy,
             pt,
             delp,
-            )
+        )
         if self.grid.south_edge:
             self._vb_south_edge_stencil(self._tmp_vt, self._tmp_vb, dt5)
-        self._vb_stencil(
-            vc,
-            uc,
-            self.grid.cosa,
-            self.grid.rsina,
-            self._tmp_vb,
-            dt5
-        )
+        self._vb_stencil(vc, uc, self.grid.cosa, self.grid.rsina, self._tmp_vb, dt5)
         if self.grid.west_edge:
             self._vb_west_edge_stencil(self._tmp_vt, self._tmp_vb, dt4)
         if self.grid.east_edge:
@@ -880,18 +910,11 @@ class DGridShallowWaterLagrangianDynamics:
         if self.grid.north_edge:
             self._vb_north_edge_stencil(self._tmp_vt, self._tmp_vb, dt5)
         self.ytp_v(self._tmp_vb, v, self._tmp_ub)
-        self._ke_stencil(self._tmp_ub, self._tmp_vb,  self._tmp_ke)
-       
+        self._ke_stencil(self._tmp_ub, self._tmp_vb, self._tmp_ke)
+
         if self.grid.west_edge:
             self._ub_west_edge_stencil(self._tmp_ut, self._tmp_ub, dt5)
-        self._ub_stencil(
-            uc,
-            vc,
-            self.grid.cosa,
-            self.grid.rsina,
-            self._tmp_ub,
-            dt5
-        )
+        self._ub_stencil(uc, vc, self.grid.cosa, self.grid.rsina, self._tmp_ub, dt5)
         if self.grid.south_edge:
             self._ub_south_edge_stencil(self._tmp_ut, self._tmp_ub, dt4)
         if self.grid.north_edge:
@@ -901,13 +924,21 @@ class DGridShallowWaterLagrangianDynamics:
         self.xtp_u(self._tmp_ub, u, self._tmp_vb)
         self._ke_from_bwind_stencil(self._tmp_ke, self._tmp_ub, self._tmp_vb)
         if self.grid.sw_corner:
-            self.ke_sw_corner_stencil(self._tmp_ke, u, v, self._tmp_ut, self._tmp_vt, dt, 0, 0, -1, 1)
+            self.ke_sw_corner_stencil(
+                self._tmp_ke, u, v, self._tmp_ut, self._tmp_vt, dt, 0, 0, -1, 1
+            )
         if self.grid.se_corner:
-            self.ke_se_corner_stencil(self._tmp_ke, u, v, self._tmp_ut, self._tmp_vt, dt, -1, 0, 0, -1)
+            self.ke_se_corner_stencil(
+                self._tmp_ke, u, v, self._tmp_ut, self._tmp_vt, dt, -1, 0, 0, -1
+            )
         if self.grid.ne_corner:
-            self.ke_ne_corner_stencil(self._tmp_ke, u, v, self._tmp_ut, self._tmp_vt, dt, -1, -1, 0, 1)
+            self.ke_ne_corner_stencil(
+                self._tmp_ke, u, v, self._tmp_ut, self._tmp_vt, dt, -1, -1, 0, 1
+            )
         if self.grid.nw_corner:
-            self.ke_nw_corner_stencil(self._tmp_ke, u, v, self._tmp_ut, self._tmp_vt, dt, 0, -1, -1, -1)
+            self.ke_nw_corner_stencil(
+                self._tmp_ke, u, v, self._tmp_ut, self._tmp_vt, dt, 0, -1, -1, -1
+            )
         self._horizontal_vorticity_stencil(
             u,
             v,
@@ -942,11 +973,10 @@ class DGridShallowWaterLagrangianDynamics:
         self._ub_from_vort_stencil(
             self._tmp_vort, self._tmp_ub, self._column_namelist["d_con"]
         )
-        
+
         self._vb_from_vort_stencil(
             self._tmp_vort, self._tmp_vb, self._column_namelist["d_con"]
         )
-
 
         # Vorticity transport
         self._compute_vorticity_stencil(self._tmp_wk, self.grid.f0, zh, self._tmp_vort)
@@ -956,11 +986,12 @@ class DGridShallowWaterLagrangianDynamics:
         )
 
         self._u_from_ke_stencil(
-            self._tmp_ke, self._tmp_vt, self._tmp_fy, u,
+            self._tmp_ke,
+            self._tmp_vt,
+            self._tmp_fy,
+            u,
         )
-        self._v_from_ke_stencil(
-            self._tmp_ke, self._tmp_ut, self._tmp_fx, v
-        )
+        self._v_from_ke_stencil(self._tmp_ke, self._tmp_ut, self._tmp_fx, v)
 
         self.delnflux_nosg_v(
             self._tmp_wk,
@@ -986,6 +1017,8 @@ class DGridShallowWaterLagrangianDynamics:
             self._tmp_dampterm,
             self._column_namelist["d_con"],
         )
-        self._heat_source_accumulate(self._tmp_heat_s, heat_source,  diss_est,self._tmp_dampterm)
+        self._heat_source_accumulate(
+            self._tmp_heat_s, heat_source, diss_est, self._tmp_dampterm
+        )
         self._damp_u(self._tmp_vt, u, self._column_namelist["damp_vt"])
         self._damp_v(self._tmp_ut, v, self._column_namelist["damp_vt"])

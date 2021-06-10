@@ -1,11 +1,5 @@
 import gt4py.gtscript as gtscript
-from gt4py.gtscript import (
-    PARALLEL,
-    compile_assert,
-    computation,
-    horizontal,
-    interval,
-)
+from gt4py.gtscript import PARALLEL, computation, interval
 
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import FrozenStencil
@@ -77,15 +71,17 @@ def compute_nonhydro_x_fluxes(
     fx1: FloatField,
     fx2: FloatField,
 ):
-    
+
     with computation(PARALLEL), interval(...):
-        #delp = corners.fill_corners_2cells_x(delp)
-        #pt = corners.fill_corners_2cells_x(pt)
-        #w = corners.fill_corners_2cells_x(w)
+        # delp = corners.fill_corners_2cells_x(delp)
+        # pt = corners.fill_corners_2cells_x(pt)
+        # w = corners.fill_corners_2cells_x(w)
         fx, fx1, fx2 = nonhydro_x_fluxes(delp, pt, w, utc)
-        #delp = corners.fill_corners_2cells_y(delp)
-        #pt = corners.fill_corners_2cells_y(pt)
-        #w = corners.fill_corners_2cells_y(w)
+        # delp = corners.fill_corners_2cells_y(delp)
+        # pt = corners.fill_corners_2cells_y(pt)
+        # w = corners.fill_corners_2cells_y(w)
+
+
 def transportdelp_update_vorticity_and_kineticenergy(
     delp: FloatField,
     pt: FloatField,
@@ -108,7 +104,7 @@ def transportdelp_update_vorticity_and_kineticenergy(
     fx1: FloatField,
     fx2: FloatField,
 ):
-    
+
     with computation(PARALLEL), interval(...):
         fy, fy1, fy2 = nonhydro_y_fluxes(delp, pt, w, vtc)
         delpc = delp + (fx1 - fx1[1, 0, 0] + fy1 - fy1[0, 1, 0]) * rarea
@@ -118,48 +114,55 @@ def transportdelp_update_vorticity_and_kineticenergy(
         # update vorticity and kinetic energy
         ke = uc if ua > 0.0 else uc[1, 0, 0]
         vort = vc if va > 0.0 else vc[0, 1, 0]
-        
+
+
 def north_south_edge_vorticity1(
-        u: FloatField,
-        va: FloatField,
-        vort: FloatField,
-        sin_sg4: FloatFieldIJ,
-        cos_sg4: FloatFieldIJ,
+    u: FloatField,
+    va: FloatField,
+    vort: FloatField,
+    sin_sg4: FloatFieldIJ,
+    cos_sg4: FloatFieldIJ,
 ):
     with computation(PARALLEL), interval(...):
         vort = vort * sin_sg4 + u[0, 1, 0] * cos_sg4 if va <= 0.0 else vort
-        
+
+
 def north_south_edge_vorticity2(
-        u: FloatField,
-        va: FloatField,
-        vort: FloatField,
-        sin_sg2: FloatFieldIJ,
-        cos_sg2: FloatFieldIJ,
+    u: FloatField,
+    va: FloatField,
+    vort: FloatField,
+    sin_sg2: FloatFieldIJ,
+    cos_sg2: FloatFieldIJ,
 ):
     with computation(PARALLEL), interval(...):
         vort = vort * sin_sg2 + u * cos_sg2 if va > 0.0 else vort
 
+
 def east_west_edge_kineticenergy1(
-        v: FloatField,
-        ua: FloatField,
-        ke: FloatField,
-        sin_sg3: FloatFieldIJ,
-        cos_sg3: FloatFieldIJ,
+    v: FloatField,
+    ua: FloatField,
+    ke: FloatField,
+    sin_sg3: FloatFieldIJ,
+    cos_sg3: FloatFieldIJ,
 ):
     with computation(PARALLEL), interval(...):
         ke = ke * sin_sg3 + v[1, 0, 0] * cos_sg3 if ua <= 0.0 else ke
-        
+
+
 def east_west_edge_kineticenergy2(
-        v: FloatField,
-        ua: FloatField,
-        ke: FloatField,
-        sin_sg1: FloatFieldIJ,
-        cos_sg1: FloatFieldIJ,
+    v: FloatField,
+    ua: FloatField,
+    ke: FloatField,
+    sin_sg1: FloatFieldIJ,
+    cos_sg1: FloatFieldIJ,
 ):
     with computation(PARALLEL), interval(...):
         ke = ke * sin_sg1 + v * cos_sg1 if ua > 0.0 else ke
-        
-def final_kineticenergy( ua: FloatField, va: FloatField, vort: FloatField, ke: FloatField, dt2: float):
+
+
+def final_kineticenergy(
+    ua: FloatField, va: FloatField, vort: FloatField, ke: FloatField, dt2: float
+):
     with computation(PARALLEL), interval(...):
         ke = 0.5 * dt2 * (ua * ke + va * vort)
 
@@ -182,6 +185,7 @@ def uf_main(
             * (sin_sg4[0, -1] + sin_sg2)
         )
 
+
 def vf_main(
     v: FloatField,
     ua: FloatField,
@@ -190,7 +194,7 @@ def vf_main(
     sin_sg3: FloatFieldIJ,
     cos_sg1: FloatFieldIJ,
     cos_sg3: FloatFieldIJ,
-    vf: FloatField
+    vf: FloatField,
 ):
     with computation(PARALLEL), interval(...):
         vf = (
@@ -200,51 +204,45 @@ def vf_main(
             * (sin_sg3[-1, 0] + sin_sg1)
         )
 
+
 def uf_y_edge(
     u: FloatField,
     uf: FloatField,
     sin_sg2: FloatFieldIJ,
     sin_sg4: FloatFieldIJ,
-    dyc: FloatFieldIJ
+    dyc: FloatFieldIJ,
 ):
     with computation(PARALLEL), interval(...):
         uf = u * dyc * 0.5 * (sin_sg4[0, -1] + sin_sg2)
+
 
 def vf_x_edge(
     v: FloatField,
     vf: FloatField,
     sin_sg1: FloatFieldIJ,
     sin_sg3: FloatFieldIJ,
-    dxc: FloatFieldIJ
+    dxc: FloatFieldIJ,
 ):
     with computation(PARALLEL), interval(...):
         vf = v * dxc * 0.5 * (sin_sg3[-1, 0] + sin_sg1)
 
-def divergence_main(
-    uf: FloatField,
-    vf: FloatField,
-    divg_d: FloatField
-):
-     with computation(PARALLEL), interval(...):
+
+def divergence_main(uf: FloatField, vf: FloatField, divg_d: FloatField):
+    with computation(PARALLEL), interval(...):
         divg_d = vf[0, -1, 0] - vf + uf[-1, 0, 0] - uf
-def divergence_south_corner(
-    vf: FloatField,
-    divg_d: FloatField
-):
+
+
+def divergence_south_corner(vf: FloatField, divg_d: FloatField):
     with computation(PARALLEL), interval(...):
         divg_d -= vf[0, -1, 0]
 
-def divergence_north_corner(
-    vf: FloatField,
-    divg_d: FloatField
-):
+
+def divergence_north_corner(vf: FloatField, divg_d: FloatField):
     with computation(PARALLEL), interval(...):
         divg_d += vf
 
-def divergence_main_final(
-        rarea_c: FloatFieldIJ,
-        divg_d: FloatField
-):
+
+def divergence_main_final(rarea_c: FloatFieldIJ, divg_d: FloatField):
     with computation(PARALLEL), interval(...):
         divg_d *= rarea_c
 
@@ -255,7 +253,7 @@ def update_vorticity(
     dxc: FloatFieldIJ,
     dyc: FloatFieldIJ,
     vort_c: FloatField,
-    fy: FloatField    
+    fy: FloatField,
 ):
     """Update vort_c.
 
@@ -272,13 +270,15 @@ def update_vorticity(
         fy = dyc * vc
         vort_c = fx[0, -1, 0] - fx - fy[-1, 0, 0] + fy
 
+
 def vorticity_west_corner(
     fy: FloatField,
     vort_c: FloatField,
 ):
     with computation(PARALLEL), interval(...):
         vort_c += fy[-1, 0, 0]
-        
+
+
 def vorticity_east_corner(
     fy: FloatField,
     vort_c: FloatField,
@@ -301,17 +301,21 @@ def update_x_velocity(
         tmp_flux = dt2 * (velocity - velocity_c * cosa) / sina
         flux = vorticity[0, 0, 0] if tmp_flux > 0.0 else vorticity[0, 1, 0]
         velocity_c = velocity_c + tmp_flux * flux + rdxc * (ke[-1, 0, 0] - ke)
+
+
 def correct_x_edge_velocity(
-        vorticity: FloatField,
-        ke: FloatField,
-        velocity: FloatField,
-        velocity_c: FloatField,
-        rdxc: FloatFieldIJ,
-        dt2: float,):
+    vorticity: FloatField,
+    ke: FloatField,
+    velocity: FloatField,
+    velocity_c: FloatField,
+    rdxc: FloatFieldIJ,
+    dt2: float,
+):
     with computation(PARALLEL), interval(...):
         tmp_flux = dt2 * velocity
         flux = vorticity[0, 0, 0] if tmp_flux > 0.0 else vorticity[0, 1, 0]
         velocity_c = velocity_c + tmp_flux * flux + rdxc * (ke[-1, 0, 0] - ke)
+
 
 def update_y_velocity(
     vorticity: FloatField,
@@ -328,6 +332,7 @@ def update_y_velocity(
         flux = vorticity[0, 0, 0] if tmp_flux > 0.0 else vorticity[1, 0, 0]
         velocity_c = velocity_c - tmp_flux * flux + rdyc * (ke[0, -1, 0] - ke)
 
+
 def correct_y_edge_velocity(
     vorticity: FloatField,
     ke: FloatField,
@@ -340,6 +345,7 @@ def correct_y_edge_velocity(
         tmp_flux = dt2 * velocity
         flux = vorticity[0, 0, 0] if tmp_flux > 0.0 else vorticity[1, 0, 0]
         velocity_c = velocity_c - tmp_flux * flux + rdyc * (ke[0, -1, 0] - ke)
+
 
 def initialize_delpc_ptc(delpc: FloatField, ptc: FloatField):
     with computation(PARALLEL), interval(...):
@@ -362,15 +368,15 @@ class CGridShallowWaterDynamics:
         )
         grid_type = self.namelist.grid_type
         origin_halo1 = (self.grid.is_ - 1, self.grid.js - 1, 0)
-        shape =  self.grid.domain_shape_full(add=(1, 1, 1))
+        shape = self.grid.domain_shape_full(add=(1, 1, 1))
         self.delpc = utils.make_storage_from_shape(shape)
         self.ptc = utils.make_storage_from_shape(shape)
-        self._tmp_uf =  utils.make_storage_from_shape(shape)
-        self._tmp_vf =  utils.make_storage_from_shape(shape)
-        self._tmp_fy =  utils.make_storage_from_shape(shape)
-        self._tmp_fx =  utils.make_storage_from_shape(shape)
-        self._tmp_fx1 =  utils.make_storage_from_shape(shape)
-        self._tmp_fx2 =  utils.make_storage_from_shape(shape)
+        self._tmp_uf = utils.make_storage_from_shape(shape)
+        self._tmp_vf = utils.make_storage_from_shape(shape)
+        self._tmp_fy = utils.make_storage_from_shape(shape)
+        self._tmp_fx = utils.make_storage_from_shape(shape)
+        self._tmp_fx1 = utils.make_storage_from_shape(shape)
+        self._tmp_fx2 = utils.make_storage_from_shape(shape)
         corner_domain = (1, 1, self.grid.npz)
         self._initialize_delpc_ptc = FrozenStencil(
             func=initialize_delpc_ptc,
@@ -378,21 +384,17 @@ class CGridShallowWaterDynamics:
             domain=self.grid.domain_shape_full(),
         )
 
-        self._ke = utils.make_storage_from_shape(
-           shape
-        )
-        self._vort = utils.make_storage_from_shape(
-           shape
-        )
+        self._ke = utils.make_storage_from_shape(shape)
+        self._vort = utils.make_storage_from_shape(shape)
         origin = self.grid.compute_origin()
         domain = self.grid.domain_shape_compute(add=(1, 1, 0))
         ax_offsets = axis_offsets(self.grid, origin, domain)
-        
+
         if self.namelist.nord > 0:
             self._uf_main = FrozenStencil(
                 uf_main,
                 origin=self.grid.compute_origin(add=(-1, 0, 0)),
-                domain=self.grid.domain_shape_compute(add=(2,1, 0)),
+                domain=self.grid.domain_shape_compute(add=(2, 1, 0)),
             )
             self._vf_main = FrozenStencil(
                 vf_main,
@@ -402,49 +404,57 @@ class CGridShallowWaterDynamics:
             if self.grid.south_edge:
                 self._uf_south_edge = FrozenStencil(
                     uf_y_edge,
-                    origin=(self.grid.is_ - 1,self.grid.js, origin[2]),
-                    domain=(self.grid.nic+2, 1, domain[2]),
+                    origin=(self.grid.is_ - 1, self.grid.js, origin[2]),
+                    domain=(self.grid.nic + 2, 1, domain[2]),
                 )
             if self.grid.north_edge:
-               self._uf_north_edge = FrozenStencil(
-                   uf_y_edge,
-                   origin=(self.grid.is_ - 1,self.grid.je+1, origin[2]),
-                   domain=(self.grid.nic+2, 1, domain[2]),
-               )
+                self._uf_north_edge = FrozenStencil(
+                    uf_y_edge,
+                    origin=(self.grid.is_ - 1, self.grid.je + 1, origin[2]),
+                    domain=(self.grid.nic + 2, 1, domain[2]),
+                )
             if self.grid.west_edge:
                 self._vf_west_edge = FrozenStencil(
                     vf_x_edge,
                     origin=(self.grid.is_, self.grid.js - 1, origin[2]),
-                    domain=(1, self.grid.njc+2, domain[2]),
+                    domain=(1, self.grid.njc + 2, domain[2]),
                 )
             if self.grid.east_edge:
-               self._vf_east_edge = FrozenStencil(
-                   vf_x_edge,
-                   origin=(self.grid.ie+1,self.grid.js - 1, origin[2]),
-                   domain=(1,  self.grid.njc+2, domain[2]),
-               )
+                self._vf_east_edge = FrozenStencil(
+                    vf_x_edge,
+                    origin=(self.grid.ie + 1, self.grid.js - 1, origin[2]),
+                    domain=(1, self.grid.njc + 2, domain[2]),
+                )
             self._divergence_main = FrozenStencil(
                 divergence_main,
                 origin=origin,
                 domain=domain,
             )
-           
+
             if self.grid.sw_corner:
                 self._divergence_sw_corner = FrozenStencil(
-                    divergence_south_corner, origin=self.grid.compute_origin(), domain=corner_domain
-                    )
+                    divergence_south_corner,
+                    origin=self.grid.compute_origin(),
+                    domain=corner_domain,
+                )
             if self.grid.se_corner:
                 self._divergence_se_corner = FrozenStencil(
-                    divergence_south_corner, origin=(self.grid.ie+1, self.grid.js, 0), domain=corner_domain
-                    )
+                    divergence_south_corner,
+                    origin=(self.grid.ie + 1, self.grid.js, 0),
+                    domain=corner_domain,
+                )
             if self.grid.nw_corner:
                 self._divergence_nw_corner = FrozenStencil(
-                    divergence_north_corner, origin=(self.grid.ie+1, self.grid.je+1, 0), domain=corner_domain
-                    )
+                    divergence_north_corner,
+                    origin=(self.grid.ie + 1, self.grid.je + 1, 0),
+                    domain=corner_domain,
+                )
             if self.grid.ne_corner:
                 self._divergence_ne_corner = FrozenStencil(
-                    divergence_north_corner, origin=(self.grid.is_, self.grid.je+1, 0), domain=corner_domain
-                    )
+                    divergence_north_corner,
+                    origin=(self.grid.is_, self.grid.je + 1, 0),
+                    domain=corner_domain,
+                )
             self._divergence_main_final = FrozenStencil(
                 divergence_main_final,
                 origin=origin,
@@ -461,105 +471,105 @@ class CGridShallowWaterDynamics:
             origin=geo_origin,
             domain=(self.grid.nic + 2, self.grid.njc + 3, self.grid.npz),
         )
-       
+
         self._compute_nonhydro_x_fluxes = FrozenStencil(
             compute_nonhydro_x_fluxes,
             origin=geo_origin,
-            domain=self.grid.domain_shape_compute(add=(3,2,0))
+            domain=self.grid.domain_shape_compute(add=(3, 2, 0)),
         )
 
         self._transportdelp_updatevorticity_and_ke = FrozenStencil(
             transportdelp_update_vorticity_and_kineticenergy,
             externals={
-                "grid_type": grid_type, 
+                "grid_type": grid_type,
             },
             origin=geo_origin,
-            domain=self.grid.domain_shape_compute(add=(2,2,0)),
+            domain=self.grid.domain_shape_compute(add=(2, 2, 0)),
         )
-        
+
         edge_domain_y = (self.grid.nic + 2, 1, self.grid.npz)
         if self.grid.south_edge:
             self._vorticity_edge_south1 = FrozenStencil(
                 north_south_edge_vorticity1,
                 origin=(self.grid.is_ - 1, self.grid.js - 1, 0),
-                domain=edge_domain_y
+                domain=edge_domain_y,
             )
             self._vorticity_edge_south2 = FrozenStencil(
-            north_south_edge_vorticity2,
+                north_south_edge_vorticity2,
                 origin=(self.grid.is_ - 1, self.grid.js, 0),
-                domain=edge_domain_y
+                domain=edge_domain_y,
             )
 
         if self.grid.north_edge:
             self._vorticity_edge_north1 = FrozenStencil(
                 north_south_edge_vorticity1,
                 origin=(self.grid.is_ - 1, self.grid.je, 0),
-                domain=edge_domain_y
+                domain=edge_domain_y,
             )
             self._vorticity_edge_north2 = FrozenStencil(
                 north_south_edge_vorticity2,
-                origin=(self.grid.is_ - 1, self.grid.je+1, 0),
-                domain=edge_domain_y
+                origin=(self.grid.is_ - 1, self.grid.je + 1, 0),
+                domain=edge_domain_y,
             )
-           
-        edge_domain_x = (1,self.grid.njc + 2, self.grid.npz)
+
+        edge_domain_x = (1, self.grid.njc + 2, self.grid.npz)
         if self.grid.west_edge:
             self._kineticenergy_edge_west1 = FrozenStencil(
                 east_west_edge_kineticenergy1,
                 origin=(self.grid.is_ - 1, self.grid.js - 1, 0),
-                domain=edge_domain_x
+                domain=edge_domain_x,
             )
             self._kineticenergy_edge_west2 = FrozenStencil(
                 east_west_edge_kineticenergy2,
-                origin=(self.grid.is_ , self.grid.js - 1, 0),
-                domain=edge_domain_x
-             )
-            
+                origin=(self.grid.is_, self.grid.js - 1, 0),
+                domain=edge_domain_x,
+            )
+
         if self.grid.east_edge:
             self._kineticenergy_edge_east1 = FrozenStencil(
                 east_west_edge_kineticenergy1,
                 origin=(self.grid.ie, self.grid.js - 1, 0),
-                domain=edge_domain_x
+                domain=edge_domain_x,
             )
             self._kineticenergy_edge_east2 = FrozenStencil(
                 east_west_edge_kineticenergy2,
-                origin=(self.grid.ie+1, self.grid.js - 1, 0),
-                domain=edge_domain_x
+                origin=(self.grid.ie + 1, self.grid.js - 1, 0),
+                domain=edge_domain_x,
             )
         self._final_ke = FrozenStencil(
             final_kineticenergy,
             origin=geo_origin,
-            domain=self.grid.domain_shape_compute(add=(2,2,0)),
+            domain=self.grid.domain_shape_compute(add=(2, 2, 0)),
         )
         self._update_vorticity = FrozenStencil(
             update_vorticity,
             origin=origin,
             domain=domain,
         )
-       
+
         if self.grid.sw_corner:
             self._sw_corner_vorticity = FrozenStencil(
                 vorticity_west_corner,
-                origin=(self.grid.is_,self.grid.js, 0),
-                domain=corner_domain
+                origin=(self.grid.is_, self.grid.js, 0),
+                domain=corner_domain,
             )
         if self.grid.nw_corner:
             self._nw_corner_vorticity = FrozenStencil(
                 vorticity_west_corner,
-                origin=(self.grid.is_,self.grid.je+1, 0),
-                domain=corner_domain
+                origin=(self.grid.is_, self.grid.je + 1, 0),
+                domain=corner_domain,
             )
         if self.grid.se_corner:
             self._se_corner_vorticity = FrozenStencil(
                 vorticity_east_corner,
-                origin=(self.grid.ie+1,self.grid.js, 0),
-                domain=corner_domain
+                origin=(self.grid.ie + 1, self.grid.js, 0),
+                domain=corner_domain,
             )
         if self.grid.ne_corner:
             self._ne_corner_vorticity = FrozenStencil(
                 vorticity_east_corner,
-                origin=(self.grid.ie+1,self.grid.je+1, 0),
-                domain=corner_domain
+                origin=(self.grid.ie + 1, self.grid.je + 1, 0),
+                domain=corner_domain,
             )
         self._absolute_vorticity = FrozenStencil(
             func=absolute_vorticity,
@@ -567,31 +577,29 @@ class CGridShallowWaterDynamics:
             domain=(self.grid.nic + 1, self.grid.njc + 1, self.grid.npz),
         )
 
-        
         js = self.grid.js + 1 if self.grid.south_edge else self.grid.js
-        je = self.grid.je if self.grid.north_edge else self.grid.je+1
+        je = self.grid.je if self.grid.north_edge else self.grid.je + 1
         self._update_y_velocity = FrozenStencil(
             func=update_y_velocity,
             origin=(self.grid.is_, js, 0),
-            domain=(self.grid.nic,je - js + 1, self.grid.npz),
+            domain=(self.grid.nic, je - js + 1, self.grid.npz),
         )
 
         if self.grid.south_edge:
             self._update_south_velocity = FrozenStencil(
                 correct_y_edge_velocity,
-                origin=(self.grid.is_,self.grid.js,0),
-                domain=(self.grid.nic, 1, self.grid.npz)
-                )
+                origin=(self.grid.is_, self.grid.js, 0),
+                domain=(self.grid.nic, 1, self.grid.npz),
+            )
         if self.grid.north_edge:
             self._update_north_velocity = FrozenStencil(
                 correct_y_edge_velocity,
-                origin=(self.grid.is_,self.grid.je+1,0),
-                domain=(self.grid.nic, 1,self.grid.npz)
+                origin=(self.grid.is_, self.grid.je + 1, 0),
+                domain=(self.grid.nic, 1, self.grid.npz),
             )
-        
-       
+
         is_ = self.grid.is_ + 1 if self.grid.west_edge else self.grid.is_
-        ie = self.grid.ie if self.grid.east_edge else self.grid.ie+1
+        ie = self.grid.ie if self.grid.east_edge else self.grid.ie + 1
         self._update_x_velocity = FrozenStencil(
             func=update_x_velocity,
             origin=(is_, self.grid.js, 0),
@@ -601,15 +609,16 @@ class CGridShallowWaterDynamics:
         if self.grid.west_edge:
             self._update_west_velocity = FrozenStencil(
                 correct_x_edge_velocity,
-                origin=(self.grid.is_,self.grid.js,0),
-                domain=(1, self.grid.njc, self.grid.npz)
-                )
+                origin=(self.grid.is_, self.grid.js, 0),
+                domain=(1, self.grid.njc, self.grid.npz),
+            )
         if self.grid.east_edge:
             self._update_east_velocity = FrozenStencil(
                 correct_x_edge_velocity,
-                origin=(self.grid.ie+1,self.grid.js,0),
-                domain=(1, self.grid.njc, self.grid.npz)
+                origin=(self.grid.ie + 1, self.grid.js, 0),
+                domain=(1, self.grid.njc, self.grid.npz),
             )
+
     def _vorticitytransport_cgrid(
         self,
         uc: FloatField,
@@ -752,14 +761,22 @@ class CGridShallowWaterDynamics:
                 self._tmp_vf,
             )
             if self.grid.south_edge:
-                self._uf_south_edge(u, self._tmp_uf, self.grid.sin_sg2, self.grid.sin_sg4, self.grid.dyc)
+                self._uf_south_edge(
+                    u, self._tmp_uf, self.grid.sin_sg2, self.grid.sin_sg4, self.grid.dyc
+                )
             if self.grid.north_edge:
-                self._uf_north_edge(u, self._tmp_uf, self.grid.sin_sg2, self.grid.sin_sg4, self.grid.dyc)
+                self._uf_north_edge(
+                    u, self._tmp_uf, self.grid.sin_sg2, self.grid.sin_sg4, self.grid.dyc
+                )
             if self.grid.west_edge:
-                self._vf_west_edge(v, self._tmp_vf, self.grid.sin_sg1, self.grid.sin_sg3, self.grid.dxc)
+                self._vf_west_edge(
+                    v, self._tmp_vf, self.grid.sin_sg1, self.grid.sin_sg3, self.grid.dxc
+                )
             if self.grid.east_edge:
-                self._vf_east_edge(v, self._tmp_vf, self.grid.sin_sg1, self.grid.sin_sg3, self.grid.dxc)
-            self._divergence_main( self._tmp_uf,  self._tmp_vf, divgd)
+                self._vf_east_edge(
+                    v, self._tmp_vf, self.grid.sin_sg1, self.grid.sin_sg3, self.grid.dxc
+                )
+            self._divergence_main(self._tmp_uf, self._tmp_vf, divgd)
             if self.grid.sw_corner:
                 self._divergence_sw_corner(self._tmp_vf, divgd)
             if self.grid.se_corner:
@@ -819,27 +836,38 @@ class CGridShallowWaterDynamics:
             self._tmp_fx2,
         )
         if self.grid.south_edge:
-            self._vorticity_edge_south1( u, va, self._vort, self.grid.sin_sg4, self.grid.cos_sg4)
-            self._vorticity_edge_south2( u, va, self._vort, self.grid.sin_sg2, self.grid.cos_sg2)
+            self._vorticity_edge_south1(
+                u, va, self._vort, self.grid.sin_sg4, self.grid.cos_sg4
+            )
+            self._vorticity_edge_south2(
+                u, va, self._vort, self.grid.sin_sg2, self.grid.cos_sg2
+            )
         if self.grid.north_edge:
-            self._vorticity_edge_north1( u, va, self._vort, self.grid.sin_sg4, self.grid.cos_sg4)
-            self._vorticity_edge_north2( u, va, self._vort, self.grid.sin_sg2, self.grid.cos_sg2)
-            
+            self._vorticity_edge_north1(
+                u, va, self._vort, self.grid.sin_sg4, self.grid.cos_sg4
+            )
+            self._vorticity_edge_north2(
+                u, va, self._vort, self.grid.sin_sg2, self.grid.cos_sg2
+            )
+
         if self.grid.west_edge:
-            self._kineticenergy_edge_west1( v, ua, self._ke, self.grid.sin_sg3, self.grid.cos_sg3)
-            self._kineticenergy_edge_west2( v, ua, self._ke, self.grid.sin_sg1, self.grid.cos_sg1)
-            
+            self._kineticenergy_edge_west1(
+                v, ua, self._ke, self.grid.sin_sg3, self.grid.cos_sg3
+            )
+            self._kineticenergy_edge_west2(
+                v, ua, self._ke, self.grid.sin_sg1, self.grid.cos_sg1
+            )
+
         if self.grid.east_edge:
-            self._kineticenergy_edge_east1( v, ua, self._ke, self.grid.sin_sg3, self.grid.cos_sg3)
-            self._kineticenergy_edge_east2( v, ua, self._ke, self.grid.sin_sg1, self.grid.cos_sg1)
-        self._final_ke( ua, va, self._vort, self._ke,  dt2)
+            self._kineticenergy_edge_east1(
+                v, ua, self._ke, self.grid.sin_sg3, self.grid.cos_sg3
+            )
+            self._kineticenergy_edge_east2(
+                v, ua, self._ke, self.grid.sin_sg1, self.grid.cos_sg1
+            )
+        self._final_ke(ua, va, self._vort, self._ke, dt2)
         self._update_vorticity(
-            uc,
-            vc,
-            self.grid.dxc,
-            self.grid.dyc,
-            self._vort,
-            self._tmp_fy
+            uc, vc, self.grid.dxc, self.grid.dyc, self._vort, self._tmp_fy
         )
         if self.grid.sw_corner:
             self._sw_corner_vorticity(self._tmp_fy, self._vort)
