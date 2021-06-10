@@ -349,45 +349,13 @@ class FillCornersBGrid:
         if domain is None:
             domain = self.grid.domain_shape_full()
         """The full domain required to do corner computation everywhere"""
+        
+        self._direction = direction
 
-        if temporary_field is not None:
-            self._corner_tmp = temporary_field
-        else:
-            self._corner_tmp = utils.make_storage_from_shape(
-                self.grid.domain_shape_full(add=(1, 1, 1)), origin=origin
-            )
-
-        self._copy_full_domain = FrozenStencil(
-            func=copy_defn,
-            origin=origin,
-            domain=domain,
-        )
-
-        """Stencil Wrapper to do the copy of the input field to the temporary field"""
-
-        ax_offsets = axis_offsets(self.grid, origin, domain)
-
-        if direction == "x":
-            self._fill_corners_bgrid = FrozenStencil(
-                func=fill_corners_bgrid_x_defn,
-                origin=origin,
-                domain=domain,
-                externals=ax_offsets,
-            )
-        elif direction == "y":
-            self._fill_corners_bgrid = FrozenStencil(
-                func=fill_corners_bgrid_y_defn,
-                origin=origin,
-                domain=domain,
-                externals=ax_offsets,
-            )
-
-        else:
-            raise ValueError("Direction must be either 'x' or 'y'")
+        
 
     def __call__(self, field: FloatField):
-        self._copy_full_domain(field, self._corner_tmp)
-        self._fill_corners_bgrid(self._corner_tmp, field)
+        fill_corners_2d(field, self.grid, "B", self._direction)
 
 
 def fill_corners_bgrid_x_defn(q_in: FloatField, q_out: FloatField):
