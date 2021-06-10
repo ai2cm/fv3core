@@ -341,8 +341,8 @@ class DelnFluxNoSG:
         )
 
       
-        self._copy_corners_x_nord = corners.CopyCorners("x", origin=(0, 0, kstart), domain=(self._grid.nid, self._grid.njd, nk))
-        self._copy_corners_y_nord = corners.CopyCorners("y", origin=(0, 0, kstart), domain=(self._grid.nid, self._grid.njd, nk))
+        self._copy_corners_x_nord = corners.CopyCorners("x", origin=(0, 0, kstart), domain=(self._grid.nid, self._grid.njd, nk+1))
+        self._copy_corners_y_nord = corners.CopyCorners("y", origin=(0, 0, kstart), domain=(self._grid.nid, self._grid.njd, nk+1))
        
         self._copy_full_domain = FrozenStencil(
             copy_defn,

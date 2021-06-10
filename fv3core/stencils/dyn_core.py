@@ -5,7 +5,7 @@ from gt4py.gtscript import (
     PARALLEL,
     computation,
     horizontal,
-    interval,
+    interval,region
 )
 
 import fv3core._config as spec
@@ -41,14 +41,18 @@ def zero_data(
     mfyd: FloatField,
     cxd: FloatField,
     cyd: FloatField,
-    diss_estd: FloatField,
-    first_timestep: bool,
 ):
     with computation(PARALLEL), interval(...):
         mfxd = 0.0
         mfyd = 0.0
         cxd = 0.0
         cyd = 0.0
+
+def zero_diss(
+    diss_estd: FloatField,
+    first_timestep: bool,
+):
+    with computation(PARALLEL), interval(...):
         if first_timestep:
             diss_estd = 0.0
 
@@ -324,6 +328,12 @@ class AcousticDynamics:
             origin=self.grid.full_origin(),
             domain=self.grid.domain_shape_full(),
         )
+        # with horizontal(region[3:-3, 3:-3]):
+        self._zero_diss = FrozenStencil(
+            zero_diss,
+            origin=self.grid.compute_origin(),
+            domain=self.grid.domain_shape_compute(),
+        )
         edge_domain_x = (1, self.grid.njc, self.grid.npz + 1)
         self._edge_pe_west_stencil = FrozenStencil(
             pe_halo.edge_pe,
@@ -404,10 +414,11 @@ class AcousticDynamics:
             state.mfyd,
             state.cxd,
             state.cyd,
+        )
+        self._zero_diss(
             state.diss_estd,
             state.n_map == 1,
         )
-
         # "acoustic" loop
         # called this because its timestep is usually limited by horizontal sound-wave
         # processes. Note this is often not the limiting factor near the poles, where
