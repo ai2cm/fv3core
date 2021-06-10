@@ -117,7 +117,7 @@ class StencilConfig(Hashable):
         if is_gpu_backend():
             kwargs["device_sync"] = self.device_sync
         if MPI is not None and MPI.COMM_WORLD.Get_size() > 1:
-            kwargs["uid"] = MPI.COMM_WORLD.Get_rank()
+            kwargs["uid"] = (MPI.COMM_WORLD.Get_rank(), MPI.COMM_WORLD.Get_size())
 
         return kwargs
 
