@@ -1,4 +1,4 @@
-from gt4py.gtscript import PARALLEL, computation, horizontal, interval, region
+from gt4py.gtscript import PARALLEL, computation, horizontal, interval
 
 import fv3core._config as spec
 import fv3core.utils.corners as corners

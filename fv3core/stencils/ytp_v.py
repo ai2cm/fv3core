@@ -6,7 +6,6 @@ from gt4py.gtscript import (
     computation,
     horizontal,
     interval,
-    region,
 )
 
 import fv3core._config as spec
