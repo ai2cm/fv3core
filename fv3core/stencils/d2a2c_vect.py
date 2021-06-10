@@ -26,26 +26,6 @@ def set_tmps(utmp: FloatField, vtmp: FloatField, big_number: float):
         vtmp = big_number
 
 
-def fill_corners_x(utmp: FloatField, vtmp: FloatField, ua: FloatField, va: FloatField):
-    with computation(PARALLEL), interval(...):
-        utmp = corners.fill_corners_3cells_mult_x(
-            utmp, vtmp, sw_mult=-1, se_mult=1, ne_mult=-1, nw_mult=1
-        )
-        ua = corners.fill_corners_2cells_mult_x(
-            ua, va, sw_mult=-1, se_mult=1, ne_mult=-1, nw_mult=1
-        )
-
-
-def fill_corners_y(utmp: FloatField, vtmp: FloatField, ua: FloatField, va: FloatField):
-    with computation(PARALLEL), interval(...):
-        vtmp = corners.fill_corners_3cells_mult_y(
-            vtmp, utmp, sw_mult=-1, se_mult=1, ne_mult=-1, nw_mult=1
-        )
-        va = corners.fill_corners_2cells_mult_y(
-            va, ua, sw_mult=-1, se_mult=1, ne_mult=-1, nw_mult=1
-        )
-
-
 def u_east_west_edges1(
     uc: FloatField,
     utc: FloatField,
@@ -345,10 +325,10 @@ class DGrid2AGrid2CGridVectors:
             raise Exception("unimplemented grid_type >= 3")
         self.grid = grid
         self._big_number = 1e30  # 1e8 if 32 bit
-        nx = self.grid.ie + 1  # grid.npx + 2
-        ny = self.grid.je + 1  # grid.npy + 2
-        i1 = self.grid.is_ - 1
-        j1 = self.grid.js - 1
+        self._nx = self.grid.ie + 1  # grid.npx + 2
+        self._ny = self.grid.je + 1  # grid.npy + 2
+        self._i1 = self.grid.is_ - 1
+        self._j1 = self.grid.js - 1
         id_ = 1 if dord4 else 0
         pad = 2 + 2 * id_
         npt = 4 if not self.grid.nested else 0
@@ -363,14 +343,14 @@ class DGrid2AGrid2CGridVectors:
         )
 
         js1 = npt + OFFSET if self.grid.south_edge else self.grid.js - 1
-        je1 = ny - npt if self.grid.north_edge else self.grid.je + 1
+        je1 = self._ny - npt if self.grid.north_edge else self.grid.je + 1
         is1 = npt + OFFSET if self.grid.west_edge else self.grid.isd
-        ie1 = nx - npt if self.grid.east_edge else self.grid.ied
+        ie1 = self._nx - npt if self.grid.east_edge else self.grid.ied
 
         is2 = npt + OFFSET if self.grid.west_edge else self.grid.is_ - 1
-        ie2 = nx - npt if self.grid.east_edge else self.grid.ie + 1
+        ie2 = self._nx - npt if self.grid.east_edge else self.grid.ie + 1
         js2 = npt + OFFSET if self.grid.south_edge else self.grid.jsd
-        je2 = ny - npt if self.grid.north_edge else self.grid.jed
+        je2 = self._ny - npt if self.grid.north_edge else self.grid.jed
 
         ifirst = self.grid.is_ + 2 if self.grid.west_edge else self.grid.is_ - 1
         ilast = self.grid.ie - 1 if self.grid.east_edge else self.grid.ie + 2
@@ -381,7 +361,7 @@ class DGrid2AGrid2CGridVectors:
         jdiff = jlast - jfirst + 1
 
         js3 = npt + OFFSET if self.grid.south_edge else self.grid.jsd
-        je3 = ny - npt if self.grid.north_edge else self.grid.jed
+        je3 = self._ny - npt if self.grid.north_edge else self.grid.jed
         jdiff3 = je3 - js3 + 1
 
         self._set_tmps = FrozenStencil(
@@ -404,7 +384,7 @@ class DGrid2AGrid2CGridVectors:
 
         origin = self.grid.full_origin()
         domain = self.grid.domain_shape_full()
-        ax_offsets = axis_offsets(self.grid, origin, domain)
+
         if namelist.npx <= 13 and namelist.layout[0] > 1:
             d2a2c_avg_offset = -1
         else:
@@ -442,17 +422,10 @@ class DGrid2AGrid2CGridVectors:
         )
         origin_edges = self.grid.compute_origin(add=(-3, -3, 0))
         domain_edges = self.grid.domain_shape_compute(add=(6, 6, 0))
-        ax_offsets_edges = axis_offsets(self.grid, origin_edges, domain_edges)
-        self._fill_corners_x = FrozenStencil(
-            func=fill_corners_x,
-            externals=ax_offsets_edges,
-            origin=origin_edges,
-            domain=domain_edges,
-        )
-
+       
         self._ut_main = FrozenStencil(
             func=ut_main,
-            origin=(ifirst, j1, 0),
+            origin=(ifirst, self._j1, 0),
             domain=(idiff, self.grid.njc + 2, self.grid.npz),
         )
         edge_domain_x = (1, self.grid.njc + 2, self.grid.npz)
@@ -490,14 +463,6 @@ class DGrid2AGrid2CGridVectors:
             )
 
         # Ydir:
-        self._fill_corners_y = FrozenStencil(
-            func=fill_corners_y,
-            externals={
-                **ax_offsets_edges,
-            },
-            origin=origin_edges,
-            domain=domain_edges,
-        )
         edge_domain_y = (self.grid.nic + 2, 1, self.grid.npz)
         if self.grid.south_edge:
             self._v_south_edge1 = FrozenStencil(
@@ -534,9 +499,10 @@ class DGrid2AGrid2CGridVectors:
     
         self._vt_main = FrozenStencil(
             func=vt_main,
-            origin=(i1, jfirst, 0),
+            origin=(self._i1, jfirst, 0),
             domain=(self.grid.nic + 2, jdiff, self.grid.npz),
         )
+
 
     def __call__(self, uc, vc, u, v, ua, va, utc, vtc):
         """
@@ -609,13 +575,26 @@ class DGrid2AGrid2CGridVectors:
         )
         # Fix the edges
         # Xdir:
-        self._fill_corners_x(
-            self._utmp,
-            self._vtmp,
-            ua,
-            va,
-        )
-
+        if self.grid.sw_corner:
+            for i in range(-2, 1):
+                self._utmp[i + 2, self.grid.js - 1, :] = -self._vtmp[self.grid.is_ - 1, self.grid.js - i, :]
+            ua[self._i1 - 1, self._j1, :] = -va[self._i1, self._j1 + 2, :]
+            ua[self._i1, self._j1, :] = -va[self._i1, self._j1 + 1, :]
+        if self.grid.se_corner:
+            for i in range(0, 3):
+                self._utmp[self._nx + i, self.grid.js - 1, :] = self._vtmp[self._nx, i + self.grid.js, :]
+            ua[self._nx, self._j1, :] = va[self._nx, self._j1 + 1, :]
+            ua[self._nx + 1, self._j1, :] = va[self._nx, self._j1 + 2, :]
+        if self.grid.ne_corner:
+            for i in range(0, 3):
+                self._utmp[self._nx + i, self._ny, :] = -self._vtmp[self._nx, self.grid.je - i, :]
+            ua[self._nx, self._ny, :] = -va[self._nx, self._ny - 1, :]
+            ua[self._nx + 1, self._ny, :] = -va[self._nx, self._ny - 2, :]
+        if self.grid.nw_corner:
+            for i in range(-2, 1):
+                self._utmp[i + 2, self._ny, :] = self._vtmp[self.grid.is_ - 1, self.grid.je + i, :]
+            ua[self._i1 - 1, self._ny, :] = va[self._i1, self._ny - 2, :]
+            ua[self._i1, self._ny, :] = va[self._i1, self._ny - 1, :]
         self._ut_main(
             self._utmp,
             uc,
@@ -636,12 +615,26 @@ class DGrid2AGrid2CGridVectors:
       
 
         # Ydir:
-        self._fill_corners_y(
-            self._utmp,
-            self._vtmp,
-            ua,
-            va,
-        )
+        if self.grid.sw_corner:
+            for j in range(-2, 1):
+                self._vtmp[self.grid.is_ - 1, j + 2, :] = -self._utmp[self.grid.is_ - j, self.grid.js - 1, :]
+            va[self._i1, self._j1 - 1, :] = -ua[self._i1 + 2, self._j1, :]
+            va[self._i1, self._j1, :] = -ua[self._i1 + 1, self._j1, :]
+        if self.grid.nw_corner:
+            for j in range(0, 3):
+                self._vtmp[self.grid.is_ - 1, self._ny + j, :] = self._utmp[j + self.grid.is_, self._ny, :]
+            va[self._i1, self._ny, :] = ua[self._i1 + 1, self._ny, :]
+            va[self._i1, self._ny + 1, :] = ua[self._i1 + 2, self._ny, :]
+        if self.grid.se_corner:
+            for j in range(-2, 1):
+                self._vtmp[self._nx, j + 2, :] = self._utmp[self.grid.ie + j, self.grid.js - 1, :]
+            va[self._nx, self._j1, :] = ua[self._nx - 1, self._j1, :]
+            va[self._nx, self._j1 - 1, :] = ua[self._nx - 2, self._j1, :]
+        if self.grid.ne_corner:
+            for j in range(0, 3):
+                self._vtmp[self._nx, self._ny + j, :] = -self._utmp[self.grid.ie - j, self._ny, :]
+            va[self._nx, self._ny, :] = -ua[self._nx - 1, self._ny, :]
+            va[self._nx, self._ny + 1, :] = -ua[self._nx - 2, self._ny, :]
      
         if self.grid.south_edge:
             self._v_south_edge1(vc, vtc, self._vtmp, u,  self.grid.cosa_v, self.grid.rsin_v,)
