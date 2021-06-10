@@ -37,22 +37,6 @@ ArgSpec = collections.namedtuple(
 )
 VALID_INTENTS = ["in", "out", "inout", "unknown"]
 
-STENCIL_CACHE = {}
-
-
-def read_stencil_cache() -> None:
-    with open("./cache_files.lst") as fp:
-        for line in fp:
-            name, externals, path = line.split("\t")
-            STENCIL_CACHE[(name, externals)] = dict(path=path.rstrip())
-
-
-def get_stencil_path(name: str, externals: Dict[str, Any]) -> str:
-    try:
-        return STENCIL_CACHE[(name, str(externals))]["path"]
-    except Exception:
-        raise KeyError(f"No data found for stencil '{name}'\n")
-
 
 def state_inputs(*arg_specs):
     for sp in arg_specs:
@@ -132,39 +116,12 @@ class FrozenStencil:
         if externals is None:
             externals = {}
 
-        if not STENCIL_CACHE:
-            read_stencil_cache()
-
-        stencil_path = get_stencil_path(func.__name__, externals)
-        # Check for cacheinfo file
-        cache_file = f"{stencil_path}.cacheinfo"
-        lock_file = ""
-        if not os.path.exists(cache_file):
-            if not os.path.exists(stencil_path):
-                os.makedirs(stencil_path, 0o755)
-            # Check for lock file
-            lock_file = f"{stencil_path}.lock"
-            if os.path.exists(lock_file):
-                # Wait for lock to vanish...
-                while os.path.exists(lock_file):
-                    time.sleep(0.1)
-                lock_file = ""
-            else:
-                # Lock the file...
-                with open(lock_file, "w") as writer:
-                    writer.write("%d" % global_config.mpi_rank())
-                # Continue to compile the stencil...
-
         self.stencil_object: gt4py.StencilObject = gtscript.stencil(
             definition=func,
             externals=externals,
             **self.stencil_config.stencil_kwargs,
         )
         """generated stencil object returned from gt4py."""
-
-        # Remove lock file if created by this rank...
-        if lock_file:
-            os.remove(lock_file)
 
         self._argument_names = tuple(inspect.getfullargspec(func).args)
 

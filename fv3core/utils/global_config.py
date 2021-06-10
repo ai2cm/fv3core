@@ -70,10 +70,6 @@ def is_gpu_backend() -> bool:
     return get_backend().endswith("cuda") or get_backend().endswith("gpu")
 
 
-def mpi_rank():
-    return MPI.COMM_WORLD.Get_rank() if MPI is not None else 0
-
-
 class StencilConfig(Hashable):
     def __init__(
         self,
