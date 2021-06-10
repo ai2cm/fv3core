@@ -542,8 +542,8 @@ class GridIndexing:
         Returns the shape of the full domain including halos, plus an optional offset.
         """
         return (
-            self.ied - self.isd + add[0],
-            self.jed - self.jsd + add[1],
+            self.ied + 1 - self.isd + add[0],
+            self.jed + 1 - self.jsd + add[1],
             self.ke - self.ks + add[2],
         )
 
