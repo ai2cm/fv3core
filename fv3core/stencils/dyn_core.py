@@ -205,6 +205,10 @@ class AcousticDynamics:
     Peforms the Lagrangian acoustic dynamics described by Lin 2004
     """
 
+    # @dace.method
+    # def dace_dummy(field_1):
+    #     return field_1 + 1
+
     def __init__(
         self,
         comm: fv3gfs.util.CubedSphereCommunicator,

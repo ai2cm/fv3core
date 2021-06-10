@@ -254,8 +254,10 @@ def qx_west_edge2(
 ):
     with computation(PARALLEL), interval(...):
         g_in = dxa / dxa[-1, 0]
+        q_tmp = qx
         qx = (
-            3.0 * (g_in * qin[-1, 0, 0] + qin) - (g_in * qx[-1, 0, 0] + qx[1, 0, 0])
+            3.0 * (g_in * qin[-1, 0, 0] + qin)
+            - (g_in * q_tmp[-1, 0, 0] + q_tmp[1, 0, 0])
         ) / (2.0 + 2.0 * g_in)
 
 
@@ -280,8 +282,10 @@ def qx_east_edge2(
 ):
     with computation(PARALLEL), interval(...):
         g_in = dxa[-1, 0] / dxa
+        q_tmp = qx
         qx = (
-            3.0 * (qin[-1, 0, 0] + g_in * qin) - (g_in * qx[1, 0, 0] + qx[-1, 0, 0])
+            3.0 * (qin[-1, 0, 0] + g_in * qin)
+            - (g_in * q_tmp[1, 0, 0] + q_tmp[-1, 0, 0])
         ) / (2.0 + 2.0 * g_in)
 
 
@@ -315,8 +319,10 @@ def qy_south_edge2(
 ):
     with computation(PARALLEL), interval(...):
         g_in = dya / dya[0, -1]
+        q_tmp = qy
         qy = (
-            3.0 * (g_in * qin[0, -1, 0] + qin) - (g_in * qy[0, -1, 0] + qy[0, 1, 0])
+            3.0 * (g_in * qin[0, -1, 0] + qin)
+            - (g_in * q_tmp[0, -1, 0] + q_tmp[0, 1, 0])
         ) / (2.0 + 2.0 * g_in)
 
 
@@ -341,8 +347,10 @@ def qy_north_edge2(
 ):
     with computation(PARALLEL), interval(...):
         g_in = dya[0, -1] / dya
+        q_tmp = qy
         qy = (
-            3.0 * (qin[0, -1, 0] + g_in * qin) - (g_in * qy[0, 1, 0] + qy[0, -1, 0])
+            3.0 * (qin[0, -1, 0] + g_in * qin)
+            - (g_in * q_tmp[0, 1, 0] + q_tmp[0, -1, 0])
         ) / (2.0 + 2.0 * g_in)
 
 
@@ -363,7 +371,8 @@ def qxx_edge_south(
     qxx: FloatField,
 ):
     with computation(PARALLEL), interval(...):
-        qxx = c1 * (qx[0, -1, 0] + qx) + c2 * (qout[0, -1, 0] + qxx[0, 1, 0])
+        q_tmp = qxx
+        qxx = c1 * (qx[0, -1, 0] + qx) + c2 * (qout[0, -1, 0] + q_tmp[0, 1, 0])
 
 
 def qxx_edge_north(
@@ -372,7 +381,8 @@ def qxx_edge_north(
     qxx: FloatField,
 ):
     with computation(PARALLEL), interval(...):
-        qxx = c1 * (qx[0, -1, 0] + qx) + c2 * (qout[0, 1, 0] + qxx[0, -1, 0])
+        q_tmp = qxx
+        qxx = c1 * (qx[0, -1, 0] + qx) + c2 * (qout[0, 1, 0] + q_tmp[0, -1, 0])
 
 
 def qyy_edge_west(
@@ -381,7 +391,8 @@ def qyy_edge_west(
     qyy: FloatField,
 ):
     with computation(PARALLEL), interval(...):
-        qyy = c1 * (qy[-1, 0, 0] + qy) + c2 * (qout[-1, 0, 0] + qyy[1, 0, 0])
+        q_tmp = qyy
+        qyy = c1 * (qy[-1, 0, 0] + qy) + c2 * (qout[-1, 0, 0] + q_tmp[1, 0, 0])
 
 
 def qyy_edge_east(
@@ -390,7 +401,8 @@ def qyy_edge_east(
     qyy: FloatField,
 ):
     with computation(PARALLEL), interval(...):
-        qyy = c1 * (qy[-1, 0, 0] + qy) + c2 * (qout[1, 0, 0] + qyy[-1, 0, 0])
+        q_tmp = qyy
+        qyy = c1 * (qy[-1, 0, 0] + qy) + c2 * (qout[1, 0, 0] + q_tmp[-1, 0, 0])
 
 
 def final_qout(

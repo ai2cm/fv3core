@@ -124,6 +124,7 @@ def corner_ut(
     from __externals__ import ux, uy, vi, vj, vx, vy
 
     with computation(PARALLEL), interval(...):
+        ut_tmp = ut
         ut = (
             (
                 uc
@@ -136,7 +137,7 @@ def corner_ut(
                     + vc[vi, vj, 0]
                     - 0.25
                     * cosa_v[vi, vj]
-                    * (ut[ux, 0, 0] + ut[ux, uy, 0] + ut[0, uy, 0])
+                    * (ut_tmp[ux, 0, 0] + ut_tmp[ux, uy, 0] + ut_tmp[0, uy, 0])
                 )
             )
             * 1.0
