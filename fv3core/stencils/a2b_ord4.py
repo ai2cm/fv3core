@@ -492,10 +492,11 @@ class AGrid2BGridFourthOrder:
             qout_y_edge, origin=(is2, self._idx.jec + 1, kstart), domain=(di2, 1, nk)
         )
         origin_x, domain_x = self._idx.get_origin_domain(
-            dims=[X_DIM, Y_DIM], halos=(0, 2)
+            dims=[X_INTERFACE_DIM, Y_DIM], halos=(0, 2)
         )
         origin_x += (kstart,)
         domain_x += (nk,)
+
         ax_offsets_x = axis_offsets(
             self._idx,
             origin_x,
@@ -505,7 +506,7 @@ class AGrid2BGridFourthOrder:
             ppm_volume_mean_x, externals=ax_offsets_x, origin=origin_x, domain=domain_x
         )
         origin_y, domain_y = self._idx.get_origin_domain(
-            dims=[X_DIM, Y_DIM], halos=(2, 0)
+            dims=[X_DIM, Y_INTERFACE_DIM], halos=(2, 0)
         )
         origin_y += (kstart,)
         domain_y += (nk,)
