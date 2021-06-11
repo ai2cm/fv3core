@@ -6,7 +6,7 @@ from fv3core.testing import ParallelTranslate2PyState, TranslateFortranData2Py
 from fv3core.utils.grid import axis_offsets
 
 
-class TranslateDynCore(ParallelTranslate2PyState):
+class TranslateDynCore(ParallelTranslate2Py):
     inputs = {
         "q_con": {
             "dims": [fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_DIM],
@@ -117,6 +117,7 @@ class TranslateDynCore(ParallelTranslate2PyState):
         self.max_error = 2e-6
 
     def compute_parallel(self, inputs, communicator):
+        self._base.make_storage_data_input_vars(inputs)
         self._base.compute_func = dyn_core.AcousticDynamics(
             communicator,
             spec.namelist,
@@ -125,7 +126,15 @@ class TranslateDynCore(ParallelTranslate2PyState):
             inputs["pfull"],
             inputs["phis"],
         )
-        return super().compute_parallel(inputs, communicator)
+
+        for name, properties in self.inputs.items():
+            self.grid.quantity_dict_update(
+                inputs, name, dims=properties["dims"], units=properties["units"]
+            )
+        statevars = SimpleNamespace(**inputs)
+        state = {"state": statevars}
+        self._base.compute_func(**state)
+        return self._base.slice_output(vars(state["state"]))
 
 
 class TranslatePGradC(TranslateFortranData2Py):
