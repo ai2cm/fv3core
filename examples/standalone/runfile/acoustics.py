@@ -25,7 +25,9 @@ def initialize_serializer(data_directory: str, rank: int = 0) -> serialbox.Seria
     )
 
 
-def read_grid(serializer: serialbox.Serializer, rank: int = 0) -> fv3core.testing.TranslateGrid:
+def read_grid(
+    serializer: serialbox.Serializer, rank: int = 0
+) -> fv3core.testing.TranslateGrid:
     grid_savepoint = serializer.get_savepoint("Grid-Info")[0]
     grid_data = {}
     grid_fields = serializer.fields_at_savepoint(grid_savepoint)
