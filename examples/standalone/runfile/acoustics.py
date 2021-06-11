@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 from types import SimpleNamespace
-from typing import Any, Dict, List
+from typing import Any, Dict
 
 import click
-import numpy as np
 import serialbox
 
 import fv3core
@@ -11,6 +10,7 @@ import fv3core._config as spec
 import fv3core.testing
 import fv3core.utils.global_config as global_config
 from fv3core.stencils.dyn_core import AcousticDynamics
+from fv3core.utils.grid import Grid
 
 
 def set_up_namelist(data_directory: str) -> None:
@@ -25,9 +25,7 @@ def initialize_serializer(data_directory: str, rank: int = 0) -> serialbox.Seria
     )
 
 
-def read_grid(
-    serializer: serialbox.Serializer, rank: int = 0
-) -> fv3core.testing.TranslateGrid:
+def read_grid(serializer: serialbox.Serializer, rank: int = 0) -> Grid:
     grid_savepoint = serializer.get_savepoint("Grid-Info")[0]
     grid_data = {}
     grid_fields = serializer.fields_at_savepoint(grid_savepoint)
@@ -45,16 +43,14 @@ def initialize_fv3core(backend: str, do_halo_updates: bool) -> None:
     global_config.set_do_halo_exchange(do_halo_updates)
 
 
-def read_input_data(
-    grid: fv3core.testing.TranslateGrid, serializer: serialbox.Serializer
-) -> Dict[str, Any]:
+def read_input_data(grid: Grid, serializer: serialbox.Serializer) -> Dict[str, Any]:
     driver_object = fv3core.testing.TranslateDynCore([grid])
     savepoint_in = serializer.get_savepoint("DynCore-In")[0]
     return driver_object.collect_input_data(serializer, savepoint_in)
 
 
 def get_state_from_input(
-    grid: fv3core.testing.TranslateGrid, input_data: Dict[str, Any]
+    grid: Grid, input_data: Dict[str, Any]
 ) -> Dict[str, SimpleNamespace]:
     driver_object = fv3core.testing.TranslateDynCore([grid])
     driver_object._base.make_storage_data_input_vars(input_data)
