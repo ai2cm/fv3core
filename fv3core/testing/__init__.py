@@ -3,7 +3,6 @@ from . import parallel_translate, translate
 from .parallel_translate import (
     ParallelTranslate,
     ParallelTranslate2Py,
-    ParallelTranslate2PyState,
     ParallelTranslateBaseSlicing,
 )
 from .translate import (
@@ -12,6 +11,6 @@ from .translate import (
     pad_field_in_j,
     read_serialized_data,
 )
+from .translate_dyncore import TranslateDynCore, TranslatePGradC
 from .translate_fvdynamics import TranslateFVDynamics
 from .validation import enable_selective_validation
-from .translate_dyncore import TranslateDynCore, TranslatePGradC
