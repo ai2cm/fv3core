@@ -183,8 +183,6 @@ def _plot_total_call(fv3_kernel_timings: Dict[str, List[int]]):
 
 def _filter_kernel_name(kernels: List[Any]) -> List[Any]:
     """Filter the gridtools c++ kernel name to a readable name"""
-    if kernels is None:
-        return None
     # Run a query to convert the stencil generated string to a readable one
     approx_stencil_name_re = re.search(
         "(?<=bound_functorIN)(.*)(?=___gtcuda)",
@@ -300,6 +298,8 @@ if __name__ == "__main__":
     # Filter the rows between - min_start/max_end
     filtered_rows = []
     for row in kernels_results:
+        if row is None:
+            continue
         row = _filter_kernel_name(row)
         if (
             row[KernelReportIndexing.START.value] > min_start
