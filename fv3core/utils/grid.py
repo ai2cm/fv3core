@@ -1,5 +1,5 @@
 import functools
-from typing import Iterable, Mapping, Sequence, Tuple, Union
+from typing import Iterable, List, Mapping, Sequence, Tuple, Union
 
 import numpy as np
 from gt4py import gtscript
@@ -401,16 +401,24 @@ class GridIndexing:
             east_edge: whether the current rank is on the east edge of a tile
         """
         self.origin = (n_halo, n_halo, 0)
-        self.domain = domain
         self.n_halo = n_halo
+        self.domain = domain
         self.south_edge = south_edge
         self.north_edge = north_edge
         self.west_edge = west_edge
         self.east_edge = east_edge
+
+    @property
+    def domain(self):
+        return self._domain
+
+    @domain.setter
+    def domain(self, domain):
+        self._domain = domain
         self._sizer = fv3util.SubtileGridSizer(
-            nx=self.domain[0],
-            ny=self.domain[1],
-            nz=self.domain[2],
+            nx=domain[0],
+            ny=domain[1],
+            nz=domain[2],
             n_halo=self.n_halo,
             extra_dim_lengths={},
         )
@@ -457,7 +465,7 @@ class GridIndexing:
         This should rarely be required, consider using appropriate calls to helper
         methods that get the correct shape for your particular variable.
         """
-        return self.domain_full(add=(1, 1, 1))
+        return self.domain_full(add=(1, 1, 1 + self.origin[2]))
 
     @property
     def isc(self):
@@ -575,12 +583,23 @@ class GridIndexing:
             origin: origin of the computation
             domain: shape of the computation
         """
-        origin = list(self._sizer.get_origin(dims))
+        origin = self._origin_from_dims(dims)
         domain = list(self._sizer.get_extent(dims))
         for i, n in enumerate(halos):
             origin[i] -= n
             domain[i] += 2 * n
         return tuple(origin), tuple(domain)
+
+    def _origin_from_dims(self, dims: Iterable[str]) -> List[int]:
+        return_origin = []
+        for dim in dims:
+            if dim in fv3util.X_DIMS:
+                return_origin.append(self.origin[0])
+            elif dim in fv3util.Y_DIMS:
+                return_origin.append(self.origin[1])
+            elif dim in fv3util.Z_DIMS:
+                return_origin.append(self.origin[2])
+        return return_origin
 
     def get_shape(
         self, dims: Sequence[str], halos: Sequence[int] = tuple()
@@ -606,6 +625,44 @@ class GridIndexing:
         for i, n in enumerate(halos):
             shape[i] += n
         return tuple(shape)
+
+    def restrict_vertical(self, k_start=0, nk=None) -> "GridIndexing":
+        """
+        Returns a copy of itself with modified vertical origin and domain.
+
+        Args:
+            k_start: offset to apply to current vertical origin, must be
+                greater than 0 and less than the size of the vertical domain
+            nk: new vertical domain size as a number of grid cells,
+                defaults to remaining grid cells in the current domain,
+                can be at most the size of the vertical domain minus k_start
+        """
+        if k_start < 0:
+            raise ValueError("k_start must be positive")
+        if k_start > self.domain[2]:
+            raise ValueError(
+                "k_start must be less than the number of vertical levels "
+                f"(received {k_start} for {self.domain[2]} vertical levels"
+            )
+        if nk is None:
+            nk = self.domain[2] - k_start
+        elif nk < 0:
+            raise ValueError("number of vertical levels should be positive")
+        elif nk > (self.domain[2] - k_start):
+            raise ValueError(
+                "nk can be at most the size of the vertical domain minus k_start"
+            )
+
+        new = GridIndexing(
+            self.domain[:2] + (nk,),
+            self.n_halo,
+            self.south_edge,
+            self.north_edge,
+            self.west_edge,
+            self.east_edge,
+        )
+        new.origin = self.origin[:2] + (self.origin[2] + k_start,)
+        return new
 
 
 # TODO: delete this routine in favor of grid_indexing.axis_offsets

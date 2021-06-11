@@ -31,7 +31,6 @@ class TranslateDivergenceDamping(TranslateFortranData2Py):
         self.max_error = 3.0e-11
 
     def compute_from_storage(self, inputs):
-        self.grid = spec.grid
         divdamp = DivergenceDamping(
             self.grid.grid_indexing,
             self.grid.agrid1,

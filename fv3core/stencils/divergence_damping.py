@@ -1,5 +1,3 @@
-from typing import Sequence
-
 import gt4py.gtscript as gtscript
 from gt4py.gtscript import PARALLEL, computation, horizontal, interval, region
 
@@ -10,7 +8,7 @@ from fv3core.decorators import FrozenStencil, get_stencils_with_varied_bounds
 from fv3core.stencils.a2b_ord4 import AGrid2BGridFourthOrder
 from fv3core.utils.grid import GridIndexing, axis_offsets
 from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
-from fv3gfs.util import X_DIM, X_INTERFACE_DIM, Y_DIM, Y_INTERFACE_DIM
+from fv3gfs.util import X_DIM, X_INTERFACE_DIM, Y_DIM, Y_INTERFACE_DIM, Z_DIM
 
 
 @gtscript.function
@@ -208,11 +206,11 @@ class DivergenceDamping:
         self._sina_v = sina_v
         self._dxc = dxc
         self._dyc = dyc
-        self._nonzero_nord_k = 0
+        nonzero_nord_k = 0
         self._nonzero_nord = int(nord)
         for k in range(len(self._nord_column)):
             if self._nord_column[k] > 0:
-                self._nonzero_nord_k = k
+                nonzero_nord_k = k
                 self._nonzero_nord = int(self._nord_column[k])
                 break
         if stretched_grid:
@@ -221,12 +219,12 @@ class DivergenceDamping:
             self._dd8 = (da_min_c * d4_bg) ** (self._nonzero_nord + 1)
         # TODO: make stretched_grid a compile-time external, instead of runtime scalar
         self._stretched_grid = stretched_grid
-        kstart = self._nonzero_nord_k
-        low_kstart = 0
+        kstart = nonzero_nord_k
         nk = self._idx.ke - kstart
-        low_nk = self._nonzero_nord_k
+        low_k_idx = self._idx.restrict_vertical(k_start=0, nk=nonzero_nord_k)
+        high_k_idx = grid_indexing.restrict_vertical(k_start=kstart)
         self.a2b_ord4 = AGrid2BGridFourthOrder(
-            grid_indexing,
+            high_k_idx,
             agrid1,
             agrid2,
             bgrid1,
@@ -238,49 +236,49 @@ class DivergenceDamping:
             edge_e,
             edge_w,
             self._grid_type,
-            kstart,
-            nk,
             replace=False,
         )
 
-        self._ptc_computation = self._get_stencil(
+        origin, domain = low_k_idx.get_origin_domain(
+            dims=[X_DIM, Y_INTERFACE_DIM, Z_DIM], halos=(1, 0)
+        )
+        self._ptc_computation = FrozenStencil(
             ptc_computation,
-            dims=[X_DIM, Y_INTERFACE_DIM],
-            halos=(1, 0),
-            kstart=low_kstart,
-            nk=low_nk,
+            origin=origin,
+            domain=domain,
+            externals=axis_offsets(low_k_idx, origin, domain),
         )
 
-        self._vorticity_computation = self._get_stencil(
+        origin, domain = low_k_idx.get_origin_domain(
+            dims=[X_INTERFACE_DIM, Y_DIM, Z_DIM], halos=(0, 1)
+        )
+        self._vorticity_computation = FrozenStencil(
             vorticity_computation,
-            dims=[X_INTERFACE_DIM, Y_DIM],
-            halos=(0, 1),
-            kstart=low_kstart,
-            nk=low_nk,
+            origin=origin,
+            domain=domain,
+            externals=axis_offsets(low_k_idx, origin, domain),
         )
 
-        self._delpc_computation_and_damping = self._get_stencil(
+        origin, domain = low_k_idx.get_origin_domain(
+            dims=[X_INTERFACE_DIM, Y_INTERFACE_DIM, Z_DIM], halos=(0, 0)
+        )
+        self._delpc_computation_and_damping = FrozenStencil(
             delpc_computation,
-            dims=[X_INTERFACE_DIM, Y_INTERFACE_DIM],
-            halos=(0, 0),
-            kstart=low_kstart,
-            nk=low_nk,
+            origin=origin,
+            domain=domain,
+            externals=axis_offsets(self._idx, origin, domain),
         )
-
-        self._damping = self._get_stencil(
+        self._damping = FrozenStencil(
             damping,
-            dims=[X_INTERFACE_DIM, Y_INTERFACE_DIM],
-            halos=(0, 0),
-            kstart=low_kstart,
-            nk=low_nk,
+            origin=origin,
+            domain=domain,
         )
 
-        self._copy_computeplus = self._get_stencil(
-            basic.copy_defn,
-            dims=[X_INTERFACE_DIM, Y_INTERFACE_DIM],
-            halos=(0, 0),
-            kstart=kstart,
-            nk=nk,
+        origin, domain = high_k_idx.get_origin_domain(
+            dims=[X_INTERFACE_DIM, Y_INTERFACE_DIM, Z_DIM], halos=(0, 0)
+        )
+        self._copy_computeplus = FrozenStencil(
+            basic.copy_defn, origin=origin, domain=domain
         )
 
         origins = []
@@ -317,38 +315,37 @@ class DivergenceDamping:
             redo_divg_d, origins=origins, domains=domains
         )
 
-        self._damping_nord_highorder_stencil = self._get_stencil(
+        origin, domain = high_k_idx.get_origin_domain(
+            dims=[X_INTERFACE_DIM, Y_INTERFACE_DIM, Z_DIM], halos=(0, 0)
+        )
+        self._damping_nord_highorder_stencil = FrozenStencil(
             damping_nord_highorder_stencil,
-            dims=[X_INTERFACE_DIM, Y_INTERFACE_DIM],
-            halos=(0, 0),
-            kstart=kstart,
-            nk=nk,
+            origin=origin,
+            domain=domain,
         )
 
-        self._smagorinksy_diffusion_approx_stencil = self._get_stencil(
+        self._smagorinksy_diffusion_approx_stencil = FrozenStencil(
             smagorinksy_diffusion_approx,
-            dims=[X_INTERFACE_DIM, Y_INTERFACE_DIM],
-            halos=(0, 0),
-            kstart=kstart,
-            nk=nk,
+            origin=origin,
+            domain=domain,
         )
 
-        self._set_value = self._get_stencil(
-            basic.set_value_defn,
-            dims=[X_INTERFACE_DIM, Y_INTERFACE_DIM],
+        origin, domain = high_k_idx.get_origin_domain(
+            dims=[X_INTERFACE_DIM, Y_INTERFACE_DIM, Z_DIM],
             halos=(self._idx.n_halo, self._idx.n_halo),
-            kstart=kstart,
-            nk=nk,
+        )
+        self._set_value = FrozenStencil(
+            basic.set_value_defn,
+            origin=origin,
+            domain=domain,
         )
 
         self._corner_tmp = utils.make_storage_from_shape(self._idx.max_shape)
 
-        fill_origin, fill_domain = self._idx.get_origin_domain(
-            [X_INTERFACE_DIM, Y_INTERFACE_DIM],
+        fill_origin, fill_domain = high_k_idx.get_origin_domain(
+            [X_INTERFACE_DIM, Y_INTERFACE_DIM, Z_DIM],
             halos=(self._idx.n_halo, self._idx.n_halo),
         )
-        fill_origin += (kstart,)
-        fill_domain += (nk,)
         self.fill_corners_bgrid_x = corners.FillCornersBGrid(
             "x", self._corner_tmp, origin=fill_origin, domain=fill_domain
         )
@@ -361,25 +358,6 @@ class DivergenceDamping:
             externals=ax_offsets,
             origin=fill_origin,
             domain=fill_domain,
-        )
-
-    def _get_stencil(
-        self,
-        definition,
-        dims: Sequence[str],
-        halos: Sequence[int],
-        kstart: int,
-        nk: int,
-    ):
-        # helper function for vertically-restricted stencil definition
-        origin, domain = self._idx.get_origin_domain(dims=dims, halos=halos)
-        origin += (kstart,)
-        domain += (nk,)
-        return FrozenStencil(
-            definition,
-            origin=origin,
-            domain=domain,
-            externals=axis_offsets(self._idx, origin, domain),
         )
 
     def __call__(

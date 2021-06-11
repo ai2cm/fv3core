@@ -17,7 +17,7 @@ from fv3core.stencils.basic_operations import copy_defn
 from fv3core.utils import axis_offsets
 from fv3core.utils.grid import GridIndexing
 from fv3core.utils.typing import FloatField, FloatFieldI, FloatFieldIJ
-from fv3gfs.util import X_DIM, X_INTERFACE_DIM, Y_DIM, Y_INTERFACE_DIM
+from fv3gfs.util import X_DIM, X_INTERFACE_DIM, Y_DIM, Y_INTERFACE_DIM, Z_DIM
 
 
 # comact 4-pt cubic interpolation
@@ -408,16 +408,14 @@ class AGrid2BGridFourthOrder:
         edge_e,
         edge_w,
         grid_type,
-        kstart: int = 0,
-        nk: int = None,
+        z_dim=Z_DIM,
         replace: bool = False,
     ):
         """
         Args:
+            grid_indexing: defines indices over which to perform conversion
             grid_type: integer representing the type of grid
-            kstart: first klevel to compute on
-            nk: number of k levels to compute, by default includes points
-                to the end of the vertically-centered domain
+            z_dim: defines whether vertical dimension is centered or staggered
             replace: boolean, update qin to the B grid as well
         """
         assert grid_type < 3
@@ -440,28 +438,27 @@ class AGrid2BGridFourthOrder:
         self._tmp_qxx = utils.make_storage_from_shape(self._idx.max_shape)
         self._tmp_qyy = utils.make_storage_from_shape(self._idx.max_shape)
 
-        if nk is None:
-            nk = self._idx.ke - kstart
-        corner_domain = (1, 1, nk)
+        _, (z_domain,) = self._idx.get_origin_domain([z_dim])
+        corner_domain = (1, 1, z_domain)
 
         self._sw_corner_stencil = FrozenStencil(
             _sw_corner,
-            origin=self._idx.origin_compute()[:2] + (kstart,),
+            origin=self._idx.origin_compute(),
             domain=corner_domain,
         )
         self._nw_corner_stencil = FrozenStencil(
             _nw_corner,
-            origin=(self._idx.iec + 1, self._idx.jsc, kstart),
+            origin=(self._idx.iec + 1, self._idx.jsc, self._idx.origin[2]),
             domain=corner_domain,
         )
         self._ne_corner_stencil = FrozenStencil(
             _ne_corner,
-            origin=(self._idx.iec + 1, self._idx.jec + 1, kstart),
+            origin=(self._idx.iec + 1, self._idx.jec + 1, self._idx.origin[2]),
             domain=corner_domain,
         )
         self._se_corner_stencil = FrozenStencil(
             _se_corner,
-            origin=(self._idx.isc, self._idx.jec + 1, kstart),
+            origin=(self._idx.isc, self._idx.jec + 1, self._idx.origin[2]),
             domain=corner_domain,
         )
         js2 = self._idx.jsc + 1 if self._idx.south_edge else self._idx.jsc
@@ -473,29 +470,38 @@ class AGrid2BGridFourthOrder:
         # edge_w, anything higher is outside its index range
         self._qout_x_edge_west = FrozenStencil(
             qout_x_edge,
-            origin={"_all_": (self._idx.isc, js2, kstart), "edge_w": (0, js2)},
-            domain=(1, dj2, nk),
+            origin={
+                "_all_": (self._idx.isc, js2, self._idx.origin[2]),
+                "edge_w": (0, js2),
+            },
+            domain=(1, dj2, z_domain),
         )
         self._qout_x_edge_east = FrozenStencil(
             qout_x_edge,
-            origin={"_all_": (self._idx.iec + 1, js2, kstart), "edge_w": (0, js2)},
-            domain=(1, dj2, nk),
+            origin={
+                "_all_": (self._idx.iec + 1, js2, self._idx.origin[2]),
+                "edge_w": (0, js2),
+            },
+            domain=(1, dj2, z_domain),
         )
 
         is2 = self._idx.isc + 1 if self._idx.west_edge else self._idx.isc
         ie1 = self._idx.iec if self._idx.east_edge else self._idx.iec + 1
         di2 = ie1 - is2 + 1
         self._qout_y_edge_south = FrozenStencil(
-            qout_y_edge, origin=(is2, self._idx.jsc, kstart), domain=(di2, 1, nk)
+            qout_y_edge,
+            origin=(is2, self._idx.jsc, self._idx.origin[2]),
+            domain=(di2, 1, z_domain),
         )
         self._qout_y_edge_north = FrozenStencil(
-            qout_y_edge, origin=(is2, self._idx.jec + 1, kstart), domain=(di2, 1, nk)
+            qout_y_edge,
+            origin=(is2, self._idx.jec + 1, self._idx.origin[2]),
+            domain=(di2, 1, z_domain),
         )
+
         origin_x, domain_x = self._idx.get_origin_domain(
-            dims=[X_INTERFACE_DIM, Y_DIM], halos=(0, 2)
+            dims=[X_INTERFACE_DIM, Y_DIM, z_dim], halos=(0, 2)
         )
-        origin_x += (kstart,)
-        domain_x += (nk,)
 
         ax_offsets_x = axis_offsets(
             self._idx,
@@ -506,10 +512,8 @@ class AGrid2BGridFourthOrder:
             ppm_volume_mean_x, externals=ax_offsets_x, origin=origin_x, domain=domain_x
         )
         origin_y, domain_y = self._idx.get_origin_domain(
-            dims=[X_DIM, Y_INTERFACE_DIM], halos=(2, 0)
+            dims=[X_DIM, Y_INTERFACE_DIM, z_dim], halos=(2, 0)
         )
-        origin_y += (kstart,)
-        domain_y += (nk,)
         ax_offsets_y = axis_offsets(
             self._idx,
             origin_y,
@@ -519,12 +523,11 @@ class AGrid2BGridFourthOrder:
             ppm_volume_mean_y, externals=ax_offsets_y, origin=origin_y, domain=domain_y
         )
 
-        js = self._idx.jsc + 1 if self._idx.south_edge else self._idx.jsc
-        je = self._idx.jec if self._idx.north_edge else self._idx.jec + 1
-        is_ = self._idx.isc + 1 if self._idx.west_edge else self._idx.isc
-        ie = self._idx.iec if self._idx.east_edge else self._idx.iec + 1
-        origin = (is_, js, kstart)
-        domain = (ie - is_ + 1, je - js + 1, nk)
+        origin, domain = self._idx.get_origin_domain(
+            dims=(X_DIM, Y_DIM, z_dim),
+        )
+        origin, domain = self._exclude_tile_edges(origin, domain)
+
         ax_offsets = axis_offsets(
             self._idx,
             origin,
@@ -533,14 +536,34 @@ class AGrid2BGridFourthOrder:
         self._a2b_interpolation_stencil = FrozenStencil(
             a2b_interpolation, externals=ax_offsets, origin=origin, domain=domain
         )
-        origin_2d, domain_2d = self._idx.get_origin_domain(
-            dims=[X_INTERFACE_DIM, Y_INTERFACE_DIM]
+        origin, domain = self._idx.get_origin_domain(
+            dims=[X_INTERFACE_DIM, Y_INTERFACE_DIM, z_dim]
         )
         self._copy_stencil = FrozenStencil(
             copy_defn,
-            origin=origin_2d + (kstart,),
-            domain=domain_2d + (nk,),
+            origin=origin,
+            domain=domain,
         )
+
+    def _exclude_tile_edges(self, origin, domain, dims=("x", "y")):
+        """
+        Args:
+            origin: origin for which to exclude tile edges
+            domain: domain for which to exclude tile edges
+            dims: dimensions on which to exclude tile edges,
+                can include "x" or "y" and defaults to both
+        """
+        origin, domain = list(origin), list(domain)
+        # don't compute last point in tile domain on each edge
+        if self._idx.south_edge and "y" in dims:
+            origin[1] += 1
+        if self._idx.north_edge and "y" in dims:
+            domain[1] -= 1
+        if self._idx.west_edge and "x" in dims:
+            origin[0] += 1
+        if self._idx.east_edge and "x" in dims:
+            domain[0] -= 1
+        return tuple(origin), tuple(domain)
 
     def __call__(self, qin: FloatField, qout: FloatField):
         """Converts qin from A-grid to B-grid in qout.
