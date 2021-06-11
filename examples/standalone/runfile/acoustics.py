@@ -1,24 +1,15 @@
 #!/usr/bin/env python3
-
-import copy
-import json
-from argparse import ArgumentParser, Namespace
-from datetime import datetime
 from typing import Any, Dict, List
 
-import numpy as np
 import serialbox
-import yaml
-from mpi4py import MPI
+import numpy as np
 
 import fv3core
 import fv3core._config as spec
 import fv3core.testing
 import fv3core.utils.global_config as global_config
-import fv3gfs.util as util
 import click
 from fv3core.stencils.dyn_core import AcousticDynamics
-from fv3core.testing.translate import TranslateFortranData2Py
 from types import SimpleNamespace
 
 
@@ -103,6 +94,11 @@ def driver(
     )
 
     state = get_state_from_input(grid, input_data)
+
+    # Testing dace infrastucture
+    output_field = acoutstics_object.dace_dummy(input_data["omga"])
+    output_field = acoutstics_object.dace_dummy(state["state"].omga)
+    print(output_field)
 
     # @Linus: make this call a dace program
     for _ in range(int(time_steps)):

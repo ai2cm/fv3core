@@ -1,4 +1,5 @@
 make update_submodules_base
+rm -rf test_venv
 python -m venv test_venv
 source ./test_venv/bin/activate
 pip install --upgrade pip
@@ -29,6 +30,19 @@ git checkout ${GT4PY_VERSION}
 cd ../
 pip install -e ./gt4py
 python -m gt4py.gt_src_manager install
+
+# installation of serialbox
+rm -rf serialbox
+git clone git@github.com:VulcanClimateModeling/serialbox.git serialbox
+cd serialbox
+mkdir build
+cd build
+cmake ../
+cmake --build . -j 8
+cmake --build . --target install
+cd ..
+export PYTHONPATH=`pwd`/install/python:$PYTHONPATH
+cd ..
 
 
 pip install ./external/fv3gfs-util/
