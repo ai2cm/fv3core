@@ -14,10 +14,15 @@ from fv3core.utils.grid import Grid
 
 
 def set_up_namelist(data_directory: str) -> None:
+    """
+    Reads the namelist at the given directory and sets
+    the global fv3core config to it
+    """
     spec.set_namelist(data_directory + "/input.nml")
 
 
 def initialize_serializer(data_directory: str, rank: int = 0) -> serialbox.Serializer:
+    """Creates a Serializer based on the data-directory and the rank"""
     return serialbox.Serializer(
         serialbox.OpenModeKind.Read,
         data_directory,
@@ -26,6 +31,7 @@ def initialize_serializer(data_directory: str, rank: int = 0) -> serialbox.Seria
 
 
 def read_grid(serializer: serialbox.Serializer, rank: int = 0) -> Grid:
+    """Uses the serializer to generate a Grid object from serialized data"""
     grid_savepoint = serializer.get_savepoint("Grid-Info")[0]
     grid_data = {}
     grid_fields = serializer.fields_at_savepoint(grid_savepoint)
@@ -37,6 +43,10 @@ def read_grid(serializer: serialbox.Serializer, rank: int = 0) -> Grid:
 
 
 def initialize_fv3core(backend: str, do_halo_updates: bool) -> None:
+    """
+    Initializes globalfv3core config to the arguments for single runs
+    with the given backend and choice of halo updates
+    """
     fv3core.set_backend(backend)
     fv3core.set_rebuild(False)
     fv3core.set_validate_args(False)
@@ -44,6 +54,7 @@ def initialize_fv3core(backend: str, do_halo_updates: bool) -> None:
 
 
 def read_input_data(grid: Grid, serializer: serialbox.Serializer) -> Dict[str, Any]:
+    """Uses the serializer to read the input data from disk"""
     driver_object = fv3core.testing.TranslateDynCore([grid])
     savepoint_in = serializer.get_savepoint("DynCore-In")[0]
     return driver_object.collect_input_data(serializer, savepoint_in)
@@ -52,6 +63,16 @@ def read_input_data(grid: Grid, serializer: serialbox.Serializer) -> Dict[str, A
 def get_state_from_input(
     grid: Grid, input_data: Dict[str, Any]
 ) -> Dict[str, SimpleNamespace]:
+    """
+    Transforms the input data from the dictionary of strings
+    to arrays into a state  we can pass in
+
+    Input is a dict of arrays. These are transformed into Storage arrays
+    useable in GT4Py
+
+    This will also take care of reshaping the arrays into same sized
+    fields as required by the acoustics
+    """
     driver_object = fv3core.testing.TranslateDynCore([grid])
     driver_object._base.make_storage_data_input_vars(input_data)
 
