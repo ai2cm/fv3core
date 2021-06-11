@@ -8,7 +8,7 @@ import os
 import re
 import sys
 from argparse import ArgumentParser
-from typing import Any, Collection, Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 import matplotlib.pyplot as plot
 import numpy as np
@@ -17,11 +17,12 @@ from nsys_data_mining.nvtxquery import CUDANVTXTrace, NVTXReportIndexing
 from tabulate import tabulate
 
 
+# TODO: All of those should be part of a .json if we move it out of `fv3core`
 FV3_MAINLOOP = "step_dynamics"
 FV3_STAGES = [
     "Acoustic timestep",
     "Tracer advection",
-]  # ToDo remap is not tagged in nvtx
+]  # TODO remap is not tagged in nvtx
 
 FV3_START_ASYNC_HALOS = [
     "HaloEx: async scalar",
@@ -35,7 +36,7 @@ FV3_ASYNC_HALOS = FV3_START_ASYNC_HALOS + [
 FV3_NOT_HALOS = ["Pre HaloEx"]
 
 
-def _count_start_with_name(rows, index, target_name):
+def _count_calls_start_with_name(rows: List[str], index: int, target_name: str) -> int:
     hit = 0
     for row in rows:
         if row[index].startswith(target_name):
@@ -43,7 +44,7 @@ def _count_start_with_name(rows, index, target_name):
     return hit
 
 
-def _filter_cupy_out(rows, index):
+def _filter_cupy_out(rows: List[str], index: int) -> List[str]:
     hit = []
     for row in rows:
         if row[index].startswith("cupy") or row[index].startswith("neg_f64"):
@@ -106,13 +107,13 @@ def _print_total_time_kernel_table(
     write_csv: Optional[bool] = False,
 ):
     kernels = []
-    for key, timings in fv3_kernel_timings.items():
+    for name, timings in fv3_kernel_timings.items():
         total_time = 0
         hits = len(timings)
         for v in timings:
             total_time += v
         percent_of_total_in_ms = ((total_time / 1e6) / timestep_time_in_ms) * 100
-        kernels.append([key, total_time, percent_of_total_in_ms, hits])
+        kernels.append([name, total_time, percent_of_total_in_ms, hits])
     kernels.sort(key=lambda x: x[1], reverse=True)  # type: ignore
     print("Kernel time - sorted by cumulative time")
     table = tabulate(
@@ -132,8 +133,8 @@ def _plot_median_time(fv3_kernel_timings: Dict[str, List[int]]):
     fig.set_figheight(10)
     kernel_names = []
     kernel_median_time = []
-    for key, timings in fv3_kernel_timings.items():
-        kernel_names.append(key)
+    for name, timings in fv3_kernel_timings.items():
+        kernel_names.append(name)
         kernel_median_time.append(np.median(timings))
 
     ax.bar(kernel_names, kernel_median_time)
@@ -149,10 +150,10 @@ def _print_median_time_kernel_table(
     write_csv: Optional[bool] = False,
 ):
     kernels = []
-    for key, timings in fv3_kernel_timings.items():
+    for name, timings in fv3_kernel_timings.items():
         hits = len(timings)
         median = np.median(timings)
-        kernels.append([key, median, hits])
+        kernels.append([name, median, hits])
     kernels.sort(key=lambda x: x[1], reverse=True)
     table = tabulate(kernels, headers=["Name", "Time", "Count"], tablefmt="orgtbl")
     print(f"{table}")
@@ -180,7 +181,8 @@ def _plot_total_call(fv3_kernel_timings: Dict[str, List[int]]):
     plot.savefig("call_per_kernel.png")
 
 
-def _filter_kernel_name(kernels: List[Any]) -> Collection[Any]:
+def _filter_kernel_name(kernels: List[Any]) -> List[Any]:
+    """Filter the gridtools c++ kernel name to a readable name"""
     if kernels is None:
         return None
     # Run a query to convert the stencil generated string to a readable one
@@ -307,10 +309,10 @@ if __name__ == "__main__":
 
     # Split results between CUPY & FV3
     all_kernels_count = len(filtered_rows)
-    cupy_copies_kernels_count = _count_start_with_name(
+    cupy_copies_kernels_count = _count_calls_start_with_name(
         filtered_rows, KernelReportIndexing.NAME.value, "cupy"
     )
-    cupy_copies_kernels_count += _count_start_with_name(
+    cupy_copies_kernels_count += _count_calls_start_with_name(
         filtered_rows, KernelReportIndexing.NAME.value, "neg_f64"
     )
     fv3_kernels_count = all_kernels_count - cupy_copies_kernels_count
