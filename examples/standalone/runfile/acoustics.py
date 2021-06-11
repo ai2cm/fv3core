@@ -94,6 +94,7 @@ def driver(
     )
 
     state = get_state_from_input(grid, input_data)
+    state.__dict__.update(acoutstics_object._temporaries)
 
     # Testing dace infrastucture
     output_field = acoutstics_object.dace_dummy(input_data["omga"])
@@ -102,7 +103,7 @@ def driver(
 
     # @Linus: make this call a dace program
     for _ in range(int(time_steps)):
-        acoutstics_object(**state)
+        acoutstics_object(state["state"], insert_temporaries=False)
 
 
 if __name__ == "__main__":

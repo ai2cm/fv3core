@@ -374,7 +374,7 @@ class AcousticDynamics:
             domain=self.grid.domain_shape_full(add=(0, 0, 1)),
         )
 
-    def __call__(self, state):
+    def __call__(self, state, insert_temporaries: bool = True):
         # u, v, w, delz, delp, pt, pe, pk, phis, wsd, omga, ua, va, uc, vc, mfxd,
         # mfyd, cxd, cyd, pkz, peln, q_con, ak, bk, diss_estd, cappa, mdt, n_split,
         # akap, ptop, n_map, comm):
@@ -407,7 +407,8 @@ class AcousticDynamics:
             reqs["q_con_quantity"].wait()
             reqs["cappa_quantity"].wait()
 
-        state.__dict__.update(self._temporaries)
+        if insert_temporaries:
+            state.__dict__.update(self._temporaries)
 
         self._zero_data(
             state.mfxd,
