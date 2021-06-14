@@ -267,8 +267,12 @@ def update_vorticity(
 
     with computation(PARALLEL), interval(...):
         fx = dxc * uc
-        fy = dyc * vc
-        vort_c = fx[0, -1, 0] - fx - fy[-1, 0, 0] + fy
+        fy_tmp = dyc * vc
+        fx_jm1 = fx[0, -1, 0]
+        fy_im1 = fy_tmp[-1, 0, 0]
+    with computation(PARALLEL), interval(...):
+        vort_c = fx_jm1 - fx - fy_im1 + fy_tmp
+        fy = fy_tmp
 
 
 def vorticity_west_corner(

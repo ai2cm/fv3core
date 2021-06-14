@@ -207,7 +207,7 @@ class AcousticDynamics:
     Peforms the Lagrangian acoustic dynamics described by Lin 2004
     """
 
-    @dace.method
+    # @dace.method
     def dace_dummy(self, A):
         # self.__call__(state)
         return A + 2
