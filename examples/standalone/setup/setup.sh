@@ -12,6 +12,14 @@ pip install cftime f90nml pandas pyparsing python-dateutil pytz pyyaml xarray za
 fv3config_sha1=1eb1f2898e9965ed7b32970bed83e64e074a7630
 pip install git+git://github.com/VulcanClimateModeling/fv3config.git@${fv3config_sha1}
 
+# install of boost
+wget -q https://boostorg.jfrog.io/artifactory/main/release/1.74.0/source/boost_1_74_0.tar.gz
+tar xzf boost_1_74_0.tar.gz
+cd boost_1_74_0
+mkdir include
+cp -r boost include
+BOOST_ROOT=`pwd`/boost_1_74_0
+
 # installation of gt4py
 export GT4PY_VERSION=`cat GT4PY_VERSION.txt`
 rm -rf gt4py
