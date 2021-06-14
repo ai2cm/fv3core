@@ -116,7 +116,7 @@ def p_grad_c_stencil(
     """
     from __externals__ import hydrostatic
 
-    with computation(PARALLEL), interval(...):
+    with computation(PARALLEL), interval(0, -1):
         if __INLINED(hydrostatic):
             wk = pkc[0, 0, 1] - pkc
         else:

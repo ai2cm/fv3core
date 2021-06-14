@@ -33,6 +33,7 @@ def compute_pkz_tempadjust(
             pkz = exp(cappa / (1.0 - cappa) * log(constants.RDG * delp / delz * pt))
             pkz = (constants.RDG * delp / delz * pt) ** (cappa / (1.0 - cappa))
             dtmp = heat_source / (constants.CV_AIR * delp)
+    with computation(PARALLEL):
         with interval(0, 1):
             deltmin = sign(min(delt_time_factor * 0.1, abs(dtmp)), dtmp)
             pt = pt + deltmin / pkz

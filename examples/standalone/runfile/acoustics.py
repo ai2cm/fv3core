@@ -60,7 +60,7 @@ def get_state_from_input(grid, input_data):
         )
 
     statevars = SimpleNamespace(**input_data)
-    return {"state": statevars}
+    return statevars
 
 
 @click.command()
@@ -96,12 +96,12 @@ def driver(
 
     # Testing dace infrastucture
     output_field = acoutstics_object.dace_dummy(input_data["omga"])
-    output_field = acoutstics_object.dace_dummy(state["state"].omga)
+    output_field = acoutstics_object.dace_dummy(state.omga)
     print(output_field)
 
     # @Linus: make this call a dace program
     for _ in range(int(time_steps)):
-        acoutstics_object(state["state"], insert_temporaries=False)
+        acoutstics_object(state, insert_temporaries=False)
 
 
 if __name__ == "__main__":

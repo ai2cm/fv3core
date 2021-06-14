@@ -13,7 +13,7 @@ def set_k0_and_calc_wk(
     with computation(PARALLEL), interval(0, 1):
         pp[0, 0, 0] = 0.0
         pk3[0, 0, 0] = top_value
-    with computation(PARALLEL), interval(...):
+    with computation(PARALLEL), interval(0, -1):
         wk = pk3[0, 0, 1] - pk3[0, 0, 0]
 
 
@@ -27,7 +27,7 @@ def calc_u(
     rdx: FloatFieldIJ,
     dt: float,
 ):
-    with computation(PARALLEL), interval(...):
+    with computation(PARALLEL), interval(0, -1):
         # hydrostatic contribution
         du = (
             dt
@@ -60,7 +60,7 @@ def calc_v(
     rdy: FloatFieldIJ,
     dt: float,
 ):
-    with computation(PARALLEL), interval(...):
+    with computation(PARALLEL), interval(0, -1):
         # hydrostatic contribution
         dv = (
             dt

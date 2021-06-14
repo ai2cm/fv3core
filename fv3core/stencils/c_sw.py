@@ -268,6 +268,7 @@ def update_vorticity(
     with computation(PARALLEL), interval(...):
         fx = dxc * uc
         fy = dyc * vc
+    with computation(PARALLEL), interval(...):
         vort_c = fx[0, -1, 0] - fx - fy[-1, 0, 0] + fy
 
 
