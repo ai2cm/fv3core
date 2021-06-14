@@ -1,6 +1,6 @@
 from gt4py.gtscript import __INLINED, BACKWARD, FORWARD, PARALLEL, computation, interval
 
-import dace
+#import dace
 import fv3core._config as spec
 import fv3core.stencils.basic_operations as basic
 import fv3core.stencils.d_sw as d_sw
@@ -116,7 +116,7 @@ def p_grad_c_stencil(
     """
     from __externals__ import hydrostatic
 
-    with computation(PARALLEL), interval(...):
+    with computation(PARALLEL), interval(0, -1):
         if __INLINED(hydrostatic):
             wk = pkc[0, 0, 1] - pkc
         else:
@@ -305,7 +305,7 @@ class AcousticDynamics:
         )
 
         pgradc_origin = self.grid.compute_origin()
-        pgradc_domain = self.grid.domain_shape_compute(add=(1, 1, 0))
+        pgradc_domain = self.grid.domain_shape_compute(add=(1, 1, 1))
         self._p_grad_c = FrozenStencil(
             p_grad_c_stencil,
             origin=pgradc_origin,
