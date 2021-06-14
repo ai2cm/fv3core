@@ -1,16 +1,14 @@
 #!/usr/bin/env python3
-from typing import Any, Dict, List
+from types import SimpleNamespace
 
-import serialbox
-import numpy as np
+import click
 
 import fv3core
 import fv3core._config as spec
 import fv3core.testing
 import fv3core.utils.global_config as global_config
-import click
+import serialbox
 from fv3core.stencils.dyn_core import AcousticDynamics
-from types import SimpleNamespace
 
 
 def set_up_namelist(data_directory: str) -> None:

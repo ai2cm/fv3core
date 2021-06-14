@@ -1,5 +1,4 @@
 import copy
-from types import SimpleNamespace
 from typing import Any, Dict, List
 
 import numpy as np

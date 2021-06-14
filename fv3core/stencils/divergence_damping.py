@@ -7,7 +7,7 @@ import fv3core._config as spec
 import fv3core.stencils.basic_operations as basic
 import fv3core.utils.corners as corners
 import fv3core.utils.gt4py_utils as utils
-from fv3core.decorators import FrozenStencil, get_stencils_with_varied_bounds
+from fv3core.decorators import FrozenStencil
 from fv3core.stencils.a2b_ord4 import AGrid2BGridFourthOrder
 from fv3core.utils.grid import axis_offsets
 from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
@@ -282,45 +282,108 @@ class DivergenceDamping:
             domain=(self.grid.nic + 1, self.grid.njc + 1, nk),
         )
 
-        origins = []
-        origins_v = []
-        origins_u = []
-        domains = []
-        domains_v = []
-        domains_u = []
-        for n in range(1, self._nonzero_nord + 1):
-            nt = self._nonzero_nord - n
-            nint = self.grid.nic + 2 * nt + 1
-            njnt = self.grid.njc + 2 * nt + 1
-            js = self.grid.js - nt
-            is_ = self.grid.is_ - nt
-            origins_v.append((is_ - 1, js, kstart))
-            domains_v.append((nint + 1, njnt, nk))
-            origins_u.append((is_, js - 1, kstart))
-            domains_u.append((nint, njnt + 1, nk))
-            origins.append((is_, js, kstart))
-            domains.append((nint, njnt, nk))
-        self._vc_from_divg_stencils = get_stencils_with_varied_bounds(
+        # for n in range(1, self._nonzero_nord + 1):
+        # loop n = 1
+        n = 1
+        nt = self._nonzero_nord - n
+        nint = self.grid.nic + 2 * nt + 1
+        njnt = self.grid.njc + 2 * nt + 1
+        js = self.grid.js - nt
+        is_ = self.grid.is_ - nt
+        origin_v = (is_ - 1, js, kstart)
+        domain_v = (nint + 1, njnt, nk)
+        origin_u = (is_, js - 1, kstart)
+        domain_u = (nint, njnt + 1, nk)
+        origin = (is_, js, kstart)
+        domain = (nint, njnt, nk)
+        self._vc_from_divg_stencils1 = FrozenStencil(
             vc_from_divg,
-            origins=origins_v,
-            domains=domains_v,
+            origin=origin_v,
+            domain=domain_v,
         )
 
-        self._uc_from_divg_stencils = get_stencils_with_varied_bounds(
+        self._uc_from_divg_stencils1 = FrozenStencil(
             uc_from_divg,
-            origins=origins_u,
-            domains=domains_u,
+            origin=origin_u,
+            domain=domain_u,
         )
 
-        self._redo_divg_d_stencils = get_stencils_with_varied_bounds(
-            redo_divg_d, origins=origins, domains=domains
+        self._redo_divg_d_stencils1 = FrozenStencil(
+            redo_divg_d, origin=origin, domain=domain
         )
-        self._adjustment_stencils = get_stencils_with_varied_bounds(
+        self._adjustment_stencils1 = FrozenStencil(
             basic.adjustmentfactor_stencil_defn,
-            origins=origins,
-            domains=domains,
+            origin=origin,
+            domain=domain,
         )
 
+        # loop n = 2
+        n = 2
+        nt = self._nonzero_nord - n
+        nint = self.grid.nic + 2 * nt + 1
+        njnt = self.grid.njc + 2 * nt + 1
+        js = self.grid.js - nt
+        is_ = self.grid.is_ - nt
+        origin_v = (is_ - 1, js, kstart)
+        domain_v = (nint + 1, njnt, nk)
+        origin_u = (is_, js - 1, kstart)
+        domain_u = (nint, njnt + 1, nk)
+        origin = (is_, js, kstart)
+        domain = (nint, njnt, nk)
+        self._vc_from_divg_stencils2 = FrozenStencil(
+            vc_from_divg,
+            origin=origin_v,
+            domain=domain_v,
+        )
+
+        self._uc_from_divg_stencils2 = FrozenStencil(
+            uc_from_divg,
+            origin=origin_u,
+            domain=domain_u,
+        )
+
+        self._redo_divg_d_stencils2 = FrozenStencil(
+            redo_divg_d, origin=origin, domain=domain
+        )
+        self._adjustment_stencils2 = FrozenStencil(
+            basic.adjustmentfactor_stencil_defn,
+            origin=origin,
+            domain=domain,
+        )
+        # loop n == 3
+        n = 3
+        nt = self._nonzero_nord - n
+        nint = self.grid.nic + 2 * nt + 1
+        njnt = self.grid.njc + 2 * nt + 1
+        js = self.grid.js - nt
+        is_ = self.grid.is_ - nt
+        origin_v = (is_ - 1, js, kstart)
+        domain_v = (nint + 1, njnt, nk)
+        origin_u = (is_, js - 1, kstart)
+        domain_u = (nint, njnt + 1, nk)
+        origin = (is_, js, kstart)
+        domain = (nint, njnt, nk)
+        self._vc_from_divg_stencils3 = FrozenStencil(
+            vc_from_divg,
+            origin=origin_v,
+            domain=domain_v,
+        )
+
+        self._uc_from_divg_stencils3 = FrozenStencil(
+            uc_from_divg,
+            origin=origin_u,
+            domain=domain_u,
+        )
+
+        self._redo_divg_d_stencils3 = FrozenStencil(
+            redo_divg_d, origin=origin, domain=domain
+        )
+        self._adjustment_stencils3 = FrozenStencil(
+            basic.adjustmentfactor_stencil_defn,
+            origin=origin,
+            domain=domain,
+        )
+        #
         self._damping_nord_highorder_stencil = FrozenStencil(
             damping_nord_highorder_stencil,
             origin=(self.grid.is_, self.grid.js, kstart),
@@ -373,66 +436,187 @@ class DivergenceDamping:
             divg_d,
             delpc,
         )
-        for n in range(self._nonzero_nord):
-            fillc = (
-                (n + 1 != self._nonzero_nord)
-                and self._grid_type < 3
-                and (
-                    self.grid.sw_corner
-                    or self.grid.se_corner
-                    or self.grid.ne_corner
-                    or self.grid.nw_corner
-                )
-            )
-            if fillc:
-                self.fill_corners_bgrid_x(
-                    divg_d,
-                )
-            self._vc_from_divg_stencils[n](
-                divg_d,
-                self.grid.divg_u,
-                vc,
-            )
-            if fillc:
-                self.fill_corners_bgrid_y(
-                    divg_d,
-                )
-            self._uc_from_divg_stencils[n](
-                divg_d,
-                self.grid.divg_v,
-                uc,
-            )
-            if fillc:
-                corners.fill_corners_dgrid(
-                    vc, uc, self.grid, -1.0, kslice=slice(self._nonzero_nord_k, None)
-                )
-            self._redo_divg_d_stencils[n](uc, vc, divg_d)
-            if self.grid.sw_corner:
-                self._corner_south_remove_extra_term_sw_nordk_stencil(
-                    uc,
-                    divg_d,
-                )
-            if self.grid.se_corner:
-                self._corner_south_remove_extra_term_se_nordk_stencil(
-                    uc,
-                    divg_d,
-                )
-            if self.grid.ne_corner:
-                self._corner_north_remove_extra_term_ne_nordk_stencil(
-                    uc,
-                    divg_d,
-                )
-            if self.grid.nw_corner:
-                self._corner_north_remove_extra_term_nw_nordk_stencil(
-                    uc,
-                    divg_d,
-                )
-            if not self.grid.stretched_grid:
-                self._adjustment_stencils[n](
-                    self.grid.rarea_c,
-                    divg_d,
-                )
+        # for n in range(self._nonzero_nord):
 
+        n = 1
+        fillc = (
+            (n != self._nonzero_nord)
+            and self._grid_type < 3
+            and (
+                self.grid.sw_corner
+                or self.grid.se_corner
+                or self.grid.ne_corner
+                or self.grid.nw_corner
+            )
+        )
+        if fillc:
+            self.fill_corners_bgrid_x(
+                divg_d,
+            )
+        self._vc_from_divg_stencils1(
+            divg_d,
+            self.grid.divg_u,
+            vc,
+        )
+        if fillc:
+            self.fill_corners_bgrid_y(
+                divg_d,
+            )
+        self._uc_from_divg_stencils1(
+            divg_d,
+            self.grid.divg_v,
+            uc,
+        )
+        if fillc:
+            corners.fill_corners_dgrid(
+                vc, uc, self.grid, -1.0, kslice=slice(self._nonzero_nord_k, None)
+            )
+        self._redo_divg_d_stencils1(uc, vc, divg_d)
+        if self.grid.sw_corner:
+            self._corner_south_remove_extra_term_sw_nordk_stencil(
+                uc,
+                divg_d,
+            )
+        if self.grid.se_corner:
+            self._corner_south_remove_extra_term_se_nordk_stencil(
+                uc,
+                divg_d,
+            )
+        if self.grid.ne_corner:
+            self._corner_north_remove_extra_term_ne_nordk_stencil(
+                uc,
+                divg_d,
+            )
+        if self.grid.nw_corner:
+            self._corner_north_remove_extra_term_nw_nordk_stencil(
+                uc,
+                divg_d,
+            )
+        if not self.grid.stretched_grid:
+            self._adjustment_stencils1(
+                self.grid.rarea_c,
+                divg_d,
+            )
+        # loop n = 2
+        n = 2
+        fillc = (
+            (n != self._nonzero_nord)
+            and self._grid_type < 3
+            and (
+                self.grid.sw_corner
+                or self.grid.se_corner
+                or self.grid.ne_corner
+                or self.grid.nw_corner
+            )
+        )
+        if fillc:
+            self.fill_corners_bgrid_x(
+                divg_d,
+            )
+        self._vc_from_divg_stencils2(
+            divg_d,
+            self.grid.divg_u,
+            vc,
+        )
+        if fillc:
+            self.fill_corners_bgrid_y(
+                divg_d,
+            )
+        self._uc_from_divg_stencils2(
+            divg_d,
+            self.grid.divg_v,
+            uc,
+        )
+        if fillc:
+            corners.fill_corners_dgrid(
+                vc, uc, self.grid, -1.0, kslice=slice(self._nonzero_nord_k, None)
+            )
+        self._redo_divg_d_stencils2(uc, vc, divg_d)
+        if self.grid.sw_corner:
+            self._corner_south_remove_extra_term_sw_nordk_stencil(
+                uc,
+                divg_d,
+            )
+        if self.grid.se_corner:
+            self._corner_south_remove_extra_term_se_nordk_stencil(
+                uc,
+                divg_d,
+            )
+        if self.grid.ne_corner:
+            self._corner_north_remove_extra_term_ne_nordk_stencil(
+                uc,
+                divg_d,
+            )
+        if self.grid.nw_corner:
+            self._corner_north_remove_extra_term_nw_nordk_stencil(
+                uc,
+                divg_d,
+            )
+        if not self.grid.stretched_grid:
+            self._adjustment_stencils2(
+                self.grid.rarea_c,
+                divg_d,
+            )
+        # loop n = 3
+        n = 3
+        fillc = (
+            (n != self._nonzero_nord)
+            and self._grid_type < 3
+            and (
+                self.grid.sw_corner
+                or self.grid.se_corner
+                or self.grid.ne_corner
+                or self.grid.nw_corner
+            )
+        )
+        if fillc:
+            self.fill_corners_bgrid_x(
+                divg_d,
+            )
+        self._vc_from_divg_stencils3(
+            divg_d,
+            self.grid.divg_u,
+            vc,
+        )
+        if fillc:
+            self.fill_corners_bgrid_y(
+                divg_d,
+            )
+        self._uc_from_divg_stencils3(
+            divg_d,
+            self.grid.divg_v,
+            uc,
+        )
+        if fillc:
+            corners.fill_corners_dgrid(
+                vc, uc, self.grid, -1.0, kslice=slice(self._nonzero_nord_k, None)
+            )
+        self._redo_divg_d_stencils3(uc, vc, divg_d)
+        if self.grid.sw_corner:
+            self._corner_south_remove_extra_term_sw_nordk_stencil(
+                uc,
+                divg_d,
+            )
+        if self.grid.se_corner:
+            self._corner_south_remove_extra_term_se_nordk_stencil(
+                uc,
+                divg_d,
+            )
+        if self.grid.ne_corner:
+            self._corner_north_remove_extra_term_ne_nordk_stencil(
+                uc,
+                divg_d,
+            )
+        if self.grid.nw_corner:
+            self._corner_north_remove_extra_term_nw_nordk_stencil(
+                uc,
+                divg_d,
+            )
+        if not self.grid.stretched_grid:
+            self._adjustment_stencils3(
+                self.grid.rarea_c,
+                divg_d,
+            )
         self.vorticity_calc(wk, vort, delpc, dt)
         self._damping_nord_highorder_stencil(
             vort,

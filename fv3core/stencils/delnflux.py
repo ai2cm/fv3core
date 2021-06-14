@@ -7,7 +7,7 @@ from gt4py.gtscript import FORWARD, PARALLEL, computation, interval
 import fv3core._config as spec
 import fv3core.utils.corners as corners
 import fv3core.utils.gt4py_utils as utils
-from fv3core.decorators import FrozenStencil, get_stencils_with_varied_bounds
+from fv3core.decorators import FrozenStencil
 from fv3core.stencils.basic_operations import copy_defn
 from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
 
@@ -258,22 +258,56 @@ class DelnFluxNoSG:
             raise Exception("nk must be more than 3 for DelnFluxNoSG")
         self._k_bounds = [1, 1, 1, self._nk - 3]
 
-        origins_d2 = []
-        domains_d2 = []
-        origins_flux = []
-        domains_fx = []
-        domains_fy = []
-
-        for n in range(self._nmax):
-            nt = self._nmax - 1 - n
-            nt_ny = self._grid.je - self._grid.js + 3 + 2 * nt
-            nt_nx = self._grid.ie - self._grid.is_ + 3 + 2 * nt
-            origins_d2.append((self._grid.is_ - nt - 1, self._grid.js - nt - 1, 0))
-            domains_d2.append((nt_nx, nt_ny, self._nk))
-            origins_flux.append((self._grid.is_ - nt, self._grid.js - nt, 0))
-            domains_fx.append((nt_nx - 1, nt_ny - 2, self._nk))
-            domains_fy.append((nt_nx - 2, nt_ny - 1, self._nk))
-
+        # nmax for this namelist is always 2
+        # for n in range(self._nmax):
+        # n = 0
+        nt = self._nmax - 1 - 0
+        nt_ny = self._grid.je - self._grid.js + 3 + 2 * nt
+        nt_nx = self._grid.ie - self._grid.is_ + 3 + 2 * nt
+        origin_d2 = (self._grid.is_ - nt - 1, self._grid.js - nt - 1, 0)
+        domain_d2 = (nt_nx, nt_ny, self._nk)
+        origin_flux = (self._grid.is_ - nt, self._grid.js - nt, 0)
+        domain_fx = (nt_nx - 1, nt_ny - 2, self._nk)
+        domain_fy = (nt_nx - 2, nt_ny - 1, self._nk)
+        self._d2_stencil0 = FrozenStencil(
+            d2_highorder_stencil,
+            origin_d2,
+            domain_d2,
+        )
+        self._column_conditional_fx_calculation0 = FrozenStencil(
+            fx_calc_stencil_column,
+            origin_flux,
+            domain_fx,
+        )
+        self._column_conditional_fy_calculation0 = FrozenStencil(
+            fy_calc_stencil_column,
+            origin_flux,
+            domain_fy,
+        )
+        # loop n = 1
+        nt = self._nmax - 1 - 1
+        nt_ny = self._grid.je - self._grid.js + 3 + 2 * nt
+        nt_nx = self._grid.ie - self._grid.is_ + 3 + 2 * nt
+        origin_d2 = (self._grid.is_ - nt - 1, self._grid.js - nt - 1, 0)
+        domain_d2 = (nt_nx, nt_ny, self._nk)
+        origin_flux = (self._grid.is_ - nt, self._grid.js - nt, 0)
+        domain_fx = (nt_nx - 1, nt_ny - 2, self._nk)
+        domain_fy = (nt_nx - 2, nt_ny - 1, self._nk)
+        self._d2_stencil1 = FrozenStencil(
+            d2_highorder_stencil,
+            origin_d2,
+            domain_d2,
+        )
+        self._column_conditional_fx_calculation1 = FrozenStencil(
+            fx_calc_stencil_column,
+            origin_flux,
+            domain_fx,
+        )
+        self._column_conditional_fy_calculation1 = FrozenStencil(
+            fy_calc_stencil_column,
+            origin_flux,
+            domain_fy,
+        )
         nord_dictionary = {
             "nord0": nord[0],
             "nord1": nord[1],
@@ -298,22 +332,6 @@ class DelnFluxNoSG:
         )
         self._copy_stencil_interval = FrozenStencil(
             copy_defn, origin=(i1, j1, kstart), domain=(i2 - i1 + 1, j2 - j1 + 1, nk)
-        )
-
-        self._d2_stencil = get_stencils_with_varied_bounds(
-            d2_highorder_stencil,
-            origins_d2,
-            domains_d2,
-        )
-        self._column_conditional_fx_calculation = get_stencils_with_varied_bounds(
-            fx_calc_stencil_column,
-            origins_flux,
-            domains_fx,
-        )
-        self._column_conditional_fy_calculation = get_stencils_with_varied_bounds(
-            fy_calc_stencil_column,
-            origins_flux,
-            domains_fy,
         )
 
         self._fx_calc_stencil_low = FrozenStencil(
@@ -381,22 +399,31 @@ class DelnFluxNoSG:
         )
         self._fy_calc_stencil_low(d2, self._grid.del6_u, fy2)
         self._fy_calc_stencil(d2, self._grid.del6_u, fy2)
+        #  for n in range(self._nmax):
+        self._d2_stencil0(fx2, fy2, self._grid.rarea, d2, self._nord)
 
-        for n in range(self._nmax):
-            self._d2_stencil[n](fx2, fy2, self._grid.rarea, d2, self._nord)
+        self._copy_corners_x_nord(
+            d2,
+        )
 
-            self._copy_corners_x_nord(
-                d2,
-            )
+        self._column_conditional_fx_calculation0(d2, self._grid.del6_v, fx2, self._nord)
 
-            self._column_conditional_fx_calculation[n](
-                d2, self._grid.del6_v, fx2, self._nord
-            )
+        self._copy_corners_y_nord(
+            d2,
+        )
 
-            self._copy_corners_y_nord(
-                d2,
-            )
+        self._column_conditional_fy_calculation0(d2, self._grid.del6_u, fy2, self._nord)
+        # loop n = 1
+        self._d2_stencil1(fx2, fy2, self._grid.rarea, d2, self._nord)
 
-            self._column_conditional_fy_calculation[n](
-                d2, self._grid.del6_u, fy2, self._nord
-            )
+        self._copy_corners_x_nord(
+            d2,
+        )
+
+        self._column_conditional_fx_calculation1(d2, self._grid.del6_v, fx2, self._nord)
+
+        self._copy_corners_y_nord(
+            d2,
+        )
+
+        self._column_conditional_fy_calculation1(d2, self._grid.del6_u, fy2, self._nord)
