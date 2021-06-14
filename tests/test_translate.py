@@ -8,6 +8,7 @@ import pytest
 import xarray as xr
 
 import fv3core._config
+import fv3core.utils.global_config as config
 import fv3core.utils.gt4py_utils as gt_utils
 import fv3gfs.util as fv3util
 import serialbox as ser
@@ -187,7 +188,7 @@ def test_sequential_savepoint(
     if testobj is None:
         pytest.xfail(f"no translate object available for savepoint {test_name}")
     # Reduce error threshold for GPU
-    if backend.endswith("cuda"):
+    if config.is_gpu_backend():
         testobj.max_error = max(testobj.max_error, GPU_MAX_ERR)
         testobj.near_zero = max(testobj.near_zero, GPU_NEAR_ZERO)
     if threshold_overrides is not None:
@@ -276,7 +277,7 @@ def test_mock_parallel_savepoint(
     if testobj is None:
         pytest.xfail(f"no translate object available for savepoint {test_name}")
     # Reduce error threshold for GPU
-    if backend.endswith("cuda"):
+    if config.is_gpu_backend():
         testobj.max_error = max(testobj.max_error, GPU_MAX_ERR)
         testobj.near_zero = max(testobj.near_zero, GPU_NEAR_ZERO)
     if threshold_overrides is not None:
@@ -368,7 +369,7 @@ def test_parallel_savepoint(
     if testobj is None:
         pytest.xfail(f"no translate object available for savepoint {test_name}")
     # Increase minimum error threshold for GPU
-    if backend.endswith("cuda"):
+    if config.is_gpu_backend():
         testobj.max_error = max(testobj.max_error, GPU_MAX_ERR)
         testobj.near_zero = max(testobj.near_zero, GPU_NEAR_ZERO)
     if threshold_overrides is not None:
