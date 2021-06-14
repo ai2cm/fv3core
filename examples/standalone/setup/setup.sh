@@ -18,7 +18,7 @@ tar xzf boost_1_74_0.tar.gz
 cd boost_1_74_0
 mkdir include
 cp -r boost include
-BOOST_ROOT=`pwd`/boost_1_74_0
+export BOOST_ROOT=`pwd`/boost_1_74_0
 
 # installation of gt4py
 export GT4PY_VERSION=`cat GT4PY_VERSION.txt`
