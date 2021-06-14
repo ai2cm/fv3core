@@ -1,7 +1,9 @@
 import hashlib
+import json
 import os
 from collections.abc import Hashable
-from fv3core.utils.mpi import MPI
+from pathlib import Path
+from typing import Dict, List
 
 from fv3core.utils.mpi import MPI
 
@@ -71,6 +73,10 @@ def is_gpu_backend() -> bool:
 
 
 class StencilConfig(Hashable):
+    _stencil_ids: Dict[str, List[str]] = json.loads(
+        Path("./stencil-ids.json").read_text()
+    )
+
     def __init__(
         self,
         backend: str,
@@ -117,8 +123,10 @@ class StencilConfig(Hashable):
         if is_gpu_backend():
             kwargs["device_sync"] = self.device_sync
         if MPI is not None and MPI.COMM_WORLD.Get_size() > 1:
-            kwargs["uid"] = (MPI.COMM_WORLD.Get_rank(), MPI.COMM_WORLD.Get_size())
-
+            comm = MPI.COMM_WORLD
+            kwargs["distrib_ctx"] = (
+                comm.Get_rank(), comm.Get_size(), self._stencil_ids
+            )
         return kwargs
 
 
