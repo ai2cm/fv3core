@@ -97,34 +97,79 @@ class HyperdiffusionDamping:
         self._fy = utils.make_storage_from_shape(
             self.grid.domain_shape_full(add=(1, 1, 1)), origin=origin
         )
+      
         self._ntimes = min(3, nmax)
-        origins = []
-        domains_x = []
-        domains_y = []
-        domains = []
-        for n in range(1, self._ntimes + 1):
-            nt = self._ntimes - n
-            origins.append((self.grid.is_ - nt, self.grid.js - nt, 0))
-            nx = self.grid.nic + 2 * nt
-            ny = self.grid.njc + 2 * nt
-            domains_x.append((nx + 1, ny, self.grid.npz))
-            domains_y.append((nx, ny + 1, self.grid.npz))
-            domains.append((nx, ny, self.grid.npz))
-        self._compute_zonal_flux = get_stencils_with_varied_bounds(
+      
+        # n = 0
+        nt = self._ntimes - 1
+        origin = (self.grid.is_ - nt, self.grid.js - nt, 0)
+        nx = self.grid.nic + 2 * nt
+        ny = self.grid.njc + 2 * nt
+        domain_x = (nx + 1, ny, self.grid.npz)
+        domain_y = (nx, ny + 1, self.grid.npz)
+        domain = (nx, ny, self.grid.npz)
+        self._compute_zonal_flux1 =FrozenStencil(
             compute_zonal_flux,
-            origins,
-            domains_x,
+            origin,
+            domain_x,
         )
-        self._compute_meridional_flux = get_stencils_with_varied_bounds(
+        self._compute_meridional_flux1 = FrozenStencil(
             compute_meridional_flux,
-            origins,
-            domains_y,
+            origin,
+            domain_y,
         )
-        self._update_q = get_stencils_with_varied_bounds(
+        self._update_q1 = FrozenStencil(
             update_q,
-            origins,
-            domains,
+            origin,
+            domain,
         )
+        # n = 1
+        nt = self._ntimes - 2
+        origin = (self.grid.is_ - nt, self.grid.js - nt, 0)
+        nx = self.grid.nic + 2 * nt
+        ny = self.grid.njc + 2 * nt
+        domain_x = (nx + 1, ny, self.grid.npz)
+        domain_y = (nx, ny + 1, self.grid.npz)
+        domain = (nx, ny, self.grid.npz)
+        self._compute_zonal_flux2 =FrozenStencil(
+            compute_zonal_flux,
+            origin,
+            domain_x,
+        )
+        self._compute_meridional_flux2 = FrozenStencil(
+            compute_meridional_flux,
+            origin,
+            domain_y,
+        )
+        self._update_q2 = FrozenStencil(
+            update_q,
+            origin,
+            domain,
+        )
+        # n = 2
+        nt = self._ntimes - 3
+        origin = (self.grid.is_ - nt, self.grid.js - nt, 0)
+        nx = self.grid.nic + 2 * nt
+        ny = self.grid.njc + 2 * nt
+        domain_x = (nx + 1, ny, self.grid.npz)
+        domain_y = (nx, ny + 1, self.grid.npz)
+        domain = (nx, ny, self.grid.npz)
+        self._compute_zonal_flux3 =FrozenStencil(
+            compute_zonal_flux,
+            origin,
+            domain_x,
+        )
+        self._compute_meridional_flux3 = FrozenStencil(
+            compute_meridional_flux,
+            origin,
+            domain_y,
+        )
+        self._update_q3 = FrozenStencil(
+            update_q,
+            origin,
+            domain,
+        )
+        
 
         self._copy_corners_x: corners.CopyCorners = corners.CopyCorners("x")
         """Stencil responsible for doing corners updates in x-direction."""
@@ -140,35 +185,99 @@ class HyperdiffusionDamping:
             nmax: Number of times to apply filtering
             cd: Damping coeffcient
         """
+        # n = 0
+        nt = self._ntimes - 1
 
-        for n in range(self._ntimes):
-            nt = self._ntimes - (n + 1)
-            # Fill in appropriate corner values
-            corner_fill(self.grid, qdel)
+        corner_fill(self.grid, qdel)
+        
+        if nt > 0:
+            self._copy_corners_x(qdel)
 
-            if nt > 0:
-                self._copy_corners_x(qdel)
+        self._compute_zonal_flux1(
+            self._fx,
+            qdel,
+            self.grid.del6_v,
+        )
 
-            self._compute_zonal_flux[n](
-                self._fx,
-                qdel,
-                self.grid.del6_v,
-            )
+        if nt > 0:
+            self._copy_corners_y(qdel)
 
-            if nt > 0:
-                self._copy_corners_y(qdel)
+        self._compute_meridional_flux1(
+            self._fy,
+            qdel,
+            self.grid.del6_u,
+        )
 
-            self._compute_meridional_flux[n](
-                self._fy,
-                qdel,
-                self.grid.del6_u,
-            )
+    
+        self._update_q1(
+            qdel,
+            self.grid.rarea,
+            self._fx,
+            self._fy,
+            cd,
+        )
+        if self._ntimes == 1:
+            return
+            
+        # n = 1
+        nt = self._ntimes - 2
+       
+        corner_fill(self.grid, qdel)
+        
+        if nt > 0:
+            self._copy_corners_x(qdel)
 
-            # Update q values
-            self._update_q[n](
-                qdel,
-                self.grid.rarea,
-                self._fx,
-                self._fy,
-                cd,
-            )
+        self._compute_zonal_flux2(
+            self._fx,
+            qdel,
+            self.grid.del6_v,
+        )
+
+        if nt > 0:
+            self._copy_corners_y(qdel)
+
+        self._compute_meridional_flux2(
+            self._fy,
+            qdel,
+            self.grid.del6_u,
+        )
+
+       
+        self._update_q2(
+            qdel,
+            self.grid.rarea,
+            self._fx,
+            self._fy,
+            cd,
+        )
+        # n = 2
+        nt = self._ntimes - 3
+       
+        corner_fill(self.grid, qdel)
+        
+        if nt > 0:
+            self._copy_corners_x(qdel)
+
+        self._compute_zonal_flux3(
+            self._fx,
+            qdel,
+            self.grid.del6_v,
+        )
+
+        if nt > 0:
+            self._copy_corners_y(qdel)
+
+        self._compute_meridional_flux3(
+            self._fy,
+            qdel,
+            self.grid.del6_u,
+        )
+
+    
+        self._update_q3(
+            qdel,
+            self.grid.rarea,
+            self._fx,
+            self._fy,
+            cd,
+        )
