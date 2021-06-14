@@ -2,9 +2,9 @@ import collections
 import collections.abc
 import functools
 import inspect
-import os
-import time
+import json
 import types
+from pathlib import Path
 from typing import (
     Any,
     Callable,
@@ -79,6 +79,10 @@ def get_namespace(arg_specs, state):
 
 
 class FrozenStencil:
+    _stencil_groups: Dict[str, List[str]] = json.loads(
+        Path("./stencil-groups.json").read_text()
+    )
+
     """
     Wrapper for gt4py stencils which stores origin and domain at compile time,
     and uses their stored values at call time.
@@ -116,10 +120,21 @@ class FrozenStencil:
         if externals is None:
             externals = {}
 
+        stencil_kwargs = self.stencil_config.stencil_kwargs
+        if "distrib_ctx" in stencil_kwargs:
+            group_key = func.__name__ + (f"->{str(externals)}" if externals else "")
+            node_groups = (
+                set(self._stencil_groups[group_key])
+                if group_key in self._stencil_groups
+                else set()
+            )
+            distrib_ctx = stencil_kwargs["distrib_ctx"] + (node_groups,)
+            stencil_kwargs["distrib_ctx"] = distrib_ctx
+
         self.stencil_object: gt4py.StencilObject = gtscript.stencil(
             definition=func,
             externals=externals,
-            **self.stencil_config.stencil_kwargs,
+            **stencil_kwargs,
         )
         """generated stencil object returned from gt4py."""
 
