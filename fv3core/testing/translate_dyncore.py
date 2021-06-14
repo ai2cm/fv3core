@@ -1,4 +1,5 @@
 from types import SimpleNamespace
+
 import fv3core._config as spec
 import fv3core.stencils.dyn_core as dyn_core
 import fv3gfs.util as fv3util

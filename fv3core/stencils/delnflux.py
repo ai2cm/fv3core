@@ -258,7 +258,6 @@ class DelnFluxNoSG:
             raise Exception("nk must be more than 3 for DelnFluxNoSG")
         self._k_bounds = [1, 1, 1, self._nk - 3]
 
-       
         # nmax for this namelist is always 2
         # for n in range(self._nmax):
         # n = 0
@@ -402,37 +401,29 @@ class DelnFluxNoSG:
         self._fy_calc_stencil(d2, self._grid.del6_u, fy2)
         #  for n in range(self._nmax):
         self._d2_stencil0(fx2, fy2, self._grid.rarea, d2, self._nord)
-        
+
         self._copy_corners_x_nord(
             d2,
         )
-        
-        self._column_conditional_fx_calculation0(
-            d2, self._grid.del6_v, fx2, self._nord
-        )
-        
+
+        self._column_conditional_fx_calculation0(d2, self._grid.del6_v, fx2, self._nord)
+
         self._copy_corners_y_nord(
             d2,
         )
-        
-        self._column_conditional_fy_calculation0(
-            d2, self._grid.del6_u, fy2, self._nord
-        )
+
+        self._column_conditional_fy_calculation0(d2, self._grid.del6_u, fy2, self._nord)
         # loop n = 1
         self._d2_stencil1(fx2, fy2, self._grid.rarea, d2, self._nord)
-        
+
         self._copy_corners_x_nord(
             d2,
         )
-        
-        self._column_conditional_fx_calculation1(
-            d2, self._grid.del6_v, fx2, self._nord
-        )
-        
+
+        self._column_conditional_fx_calculation1(d2, self._grid.del6_v, fx2, self._nord)
+
         self._copy_corners_y_nord(
             d2,
         )
-        
-        self._column_conditional_fy_calculation1(
-            d2, self._grid.del6_u, fy2, self._nord
-        )
+
+        self._column_conditional_fy_calculation1(d2, self._grid.del6_u, fy2, self._nord)

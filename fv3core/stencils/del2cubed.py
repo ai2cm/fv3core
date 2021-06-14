@@ -97,9 +97,9 @@ class HyperdiffusionDamping:
         self._fy = utils.make_storage_from_shape(
             self.grid.domain_shape_full(add=(1, 1, 1)), origin=origin
         )
-      
+
         self._ntimes = min(3, nmax)
-      
+
         # n = 0
         nt = self._ntimes - 1
         origin = (self.grid.is_ - nt, self.grid.js - nt, 0)
@@ -108,7 +108,7 @@ class HyperdiffusionDamping:
         domain_x = (nx + 1, ny, self.grid.npz)
         domain_y = (nx, ny + 1, self.grid.npz)
         domain = (nx, ny, self.grid.npz)
-        self._compute_zonal_flux1 =FrozenStencil(
+        self._compute_zonal_flux1 = FrozenStencil(
             compute_zonal_flux,
             origin,
             domain_x,
@@ -131,7 +131,7 @@ class HyperdiffusionDamping:
         domain_x = (nx + 1, ny, self.grid.npz)
         domain_y = (nx, ny + 1, self.grid.npz)
         domain = (nx, ny, self.grid.npz)
-        self._compute_zonal_flux2 =FrozenStencil(
+        self._compute_zonal_flux2 = FrozenStencil(
             compute_zonal_flux,
             origin,
             domain_x,
@@ -154,7 +154,7 @@ class HyperdiffusionDamping:
         domain_x = (nx + 1, ny, self.grid.npz)
         domain_y = (nx, ny + 1, self.grid.npz)
         domain = (nx, ny, self.grid.npz)
-        self._compute_zonal_flux3 =FrozenStencil(
+        self._compute_zonal_flux3 = FrozenStencil(
             compute_zonal_flux,
             origin,
             domain_x,
@@ -169,7 +169,6 @@ class HyperdiffusionDamping:
             origin,
             domain,
         )
-        
 
         self._copy_corners_x: corners.CopyCorners = corners.CopyCorners("x")
         """Stencil responsible for doing corners updates in x-direction."""
@@ -189,7 +188,7 @@ class HyperdiffusionDamping:
         nt = self._ntimes - 1
 
         corner_fill(self.grid, qdel)
-        
+
         if nt > 0:
             self._copy_corners_x(qdel)
 
@@ -208,7 +207,6 @@ class HyperdiffusionDamping:
             self.grid.del6_u,
         )
 
-    
         self._update_q1(
             qdel,
             self.grid.rarea,
@@ -218,12 +216,12 @@ class HyperdiffusionDamping:
         )
         if self._ntimes == 1:
             return
-            
+
         # n = 1
         nt = self._ntimes - 2
-       
+
         corner_fill(self.grid, qdel)
-        
+
         if nt > 0:
             self._copy_corners_x(qdel)
 
@@ -242,7 +240,6 @@ class HyperdiffusionDamping:
             self.grid.del6_u,
         )
 
-       
         self._update_q2(
             qdel,
             self.grid.rarea,
@@ -252,9 +249,9 @@ class HyperdiffusionDamping:
         )
         # n = 2
         nt = self._ntimes - 3
-       
+
         corner_fill(self.grid, qdel)
-        
+
         if nt > 0:
             self._copy_corners_x(qdel)
 
@@ -273,7 +270,6 @@ class HyperdiffusionDamping:
             self.grid.del6_u,
         )
 
-    
         self._update_q3(
             qdel,
             self.grid.rarea,

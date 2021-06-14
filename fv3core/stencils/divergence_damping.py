@@ -282,8 +282,7 @@ class DivergenceDamping:
             domain=(self.grid.nic + 1, self.grid.njc + 1, nk),
         )
 
-        
-        #for n in range(1, self._nonzero_nord + 1):
+        # for n in range(1, self._nonzero_nord + 1):
         # loop n = 1
         n = 1
         nt = self._nonzero_nord - n
@@ -303,7 +302,7 @@ class DivergenceDamping:
             domain=domain_v,
         )
 
-        self._uc_from_divg_stencils1 =FrozenStencil(
+        self._uc_from_divg_stencils1 = FrozenStencil(
             uc_from_divg,
             origin=origin_u,
             domain=domain_u,
@@ -312,7 +311,7 @@ class DivergenceDamping:
         self._redo_divg_d_stencils1 = FrozenStencil(
             redo_divg_d, origin=origin, domain=domain
         )
-        self._adjustment_stencils1 =FrozenStencil(
+        self._adjustment_stencils1 = FrozenStencil(
             basic.adjustmentfactor_stencil_defn,
             origin=origin,
             domain=domain,
@@ -337,7 +336,7 @@ class DivergenceDamping:
             domain=domain_v,
         )
 
-        self._uc_from_divg_stencils2 =FrozenStencil(
+        self._uc_from_divg_stencils2 = FrozenStencil(
             uc_from_divg,
             origin=origin_u,
             domain=domain_u,
@@ -346,7 +345,7 @@ class DivergenceDamping:
         self._redo_divg_d_stencils2 = FrozenStencil(
             redo_divg_d, origin=origin, domain=domain
         )
-        self._adjustment_stencils2 =FrozenStencil(
+        self._adjustment_stencils2 = FrozenStencil(
             basic.adjustmentfactor_stencil_defn,
             origin=origin,
             domain=domain,
@@ -370,7 +369,7 @@ class DivergenceDamping:
             domain=domain_v,
         )
 
-        self._uc_from_divg_stencils3 =FrozenStencil(
+        self._uc_from_divg_stencils3 = FrozenStencil(
             uc_from_divg,
             origin=origin_u,
             domain=domain_u,
@@ -379,7 +378,7 @@ class DivergenceDamping:
         self._redo_divg_d_stencils3 = FrozenStencil(
             redo_divg_d, origin=origin, domain=domain
         )
-        self._adjustment_stencils3 =FrozenStencil(
+        self._adjustment_stencils3 = FrozenStencil(
             basic.adjustmentfactor_stencil_defn,
             origin=origin,
             domain=domain,
@@ -437,8 +436,8 @@ class DivergenceDamping:
             divg_d,
             delpc,
         )
-        #for n in range(self._nonzero_nord):
-        
+        # for n in range(self._nonzero_nord):
+
         n = 1
         fillc = (
             (n != self._nonzero_nord)
@@ -452,7 +451,7 @@ class DivergenceDamping:
         )
         if fillc:
             self.fill_corners_bgrid_x(
-            divg_d,
+                divg_d,
             )
         self._vc_from_divg_stencils1(
             divg_d,

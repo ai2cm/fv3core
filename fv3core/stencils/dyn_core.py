@@ -1,5 +1,6 @@
 from gt4py.gtscript import __INLINED, BACKWARD, FORWARD, PARALLEL, computation, interval
 
+import dace
 import fv3core._config as spec
 import fv3core.stencils.basic_operations as basic
 import fv3core.stencils.d_sw as d_sw
@@ -21,8 +22,6 @@ from fv3core.stencils.pk3_halo import PK3Halo
 from fv3core.stencils.riem_solver3 import RiemannSolver3
 from fv3core.stencils.riem_solver_c import RiemannSolverC
 from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
-
-import dace
 
 
 HUGE_R = 1.0e40
