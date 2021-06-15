@@ -494,12 +494,18 @@ def failure_stride(pytestconfig):
 @pytest.fixture()
 def print_domains(pytestconfig):
     value = bool(pytestconfig.getoption("print_domains"))
-    original_value = fv3core.decorators.FrozenStencil.DEBUG
+    original_init = fv3core.decorators.FrozenStencil.__init__
     try:
-        fv3core.decorators.FrozenStencil.DEBUG = value
+        if value:
+
+            def __init__(self, func, origin, domain, *args, **kwargs):
+                print(func.__name__, origin, domain)
+                original_init(self, func, origin, domain, *args, **kwargs)
+
+            fv3core.decorators.FrozenStencil.__init__ = __init__
         yield value
     finally:
-        fv3core.decorators.FrozenStencil.DEBUG = original_value
+        fv3core.decorators.FrozenStencil.__init__ = original_init
 
 
 @pytest.fixture()

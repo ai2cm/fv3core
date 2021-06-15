@@ -84,13 +84,7 @@ class FrozenStencil:
     This is useful when the stencil itself is meant to be used on a certain
     grid, for example if a compile-time external variable is tied to the
     values of origin and domain.
-
-    Attributes:
-        DEBUG: if True, instances print function name, origin, and domain
-            at initialization time
     """
-
-    DEBUG: bool = False
 
     def __init__(
         self,
@@ -108,8 +102,6 @@ class FrozenStencil:
             stencil_config: container for stencil configuration
             externals: compile-time external variables required by stencil
         """
-        if FrozenStencil.DEBUG:
-            print(func.__name__, origin, domain)
         self.origin = origin
         self.domain = domain
 
