@@ -1,4 +1,4 @@
-a2binclude docker/Makefile.image_names
+include docker/Makefile.image_names
 
 GCR_URL = us.gcr.io/vcm-ml
 REGRESSION_DATA_STORAGE_BUCKET = gs://vcm-fv3gfs-serialized-regression-data
