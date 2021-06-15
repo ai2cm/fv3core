@@ -524,7 +524,7 @@ class AGrid2BGridFourthOrder:
         )
 
         origin, domain = self._idx.get_origin_domain(
-            dims=(X_DIM, Y_DIM, z_dim),
+            dims=(X_INTERFACE_DIM, Y_INTERFACE_DIM, z_dim),
         )
         origin, domain = self._exclude_tile_edges(origin, domain)
 
