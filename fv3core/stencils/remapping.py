@@ -177,17 +177,16 @@ def pressures_mapv(
 
 
 def update_ua(pe2: FloatField, ua: FloatField):
-    from __externals__ import local_je
-
     with computation(PARALLEL), interval(...):
         ua = pe2[0, 0, 1]
 
+
+def update_ua_edge_y(pe2: FloatField, ua: FloatField):
     # pe2[:, je+1, 1:npz] should equal pe2[:, je, 1:npz] as in the Fortran model,
     # but the extra j-elements are only used here, so we can just directly assign ua.
     # Maybe we can eliminate this later?
     with computation(PARALLEL), interval(0, -1):
-        with horizontal(region[:, local_je + 1]):
-            ua = pe2[0, -1, 1]
+        ua = pe2[0, -1, 1]
 
 
 def copy_from_below(a: FloatField, b: FloatField):
@@ -218,7 +217,8 @@ class LagrangianToEulerian:
         self._t_min = 184.0
         self._nq = nq
         # do_omega = hydrostatic and last_step # TODO pull into inputs
-        self._domain_jextra = (grid.nic, grid.njc + 1, grid.npz + 1)
+        self._domain_jextra = grid.domain_shape_compute(add=(0, 1, 1))
+        compute_origin = grid.compute_origin()
 
         self._pe1 = utils.make_storage_from_shape(shape_kplus)
         self._pe2 = utils.make_storage_from_shape(shape_kplus)
@@ -228,31 +228,31 @@ class LagrangianToEulerian:
         self._pe3 = utils.make_storage_from_shape(shape_kplus)
 
         self._gz: FloatField = utils.make_storage_from_shape(
-            shape_kplus, grid.compute_origin()
+            shape_kplus, compute_origin
         )
         self._cvm: FloatField = utils.make_storage_from_shape(
-            shape_kplus, grid.compute_origin()
+            shape_kplus, compute_origin
         )
 
         self._init_pe = FrozenStencil(
-            init_pe, origin=grid.compute_origin(), domain=self._domain_jextra
+            init_pe, origin=compute_origin, domain=self._domain_jextra
         )
 
         self._moist_cv_pt_pressure = FrozenStencil(
             moist_cv_pt_pressure,
             externals={"kord_tm": namelist.kord_tm, "hydrostatic": hydrostatic},
-            origin=grid.compute_origin(),
+            origin=compute_origin,
             domain=grid.domain_shape_compute(add=(0, 0, 1)),
         )
         self._moist_cv_pkz = FrozenStencil(
             moist_cv.moist_pkz,
-            origin=grid.compute_origin(),
+            origin=compute_origin,
             domain=grid.domain_shape_compute(),
         )
 
         self._pn2_pk_delp = FrozenStencil(
             pn2_pk_delp,
-            origin=grid.compute_origin(),
+            origin=compute_origin,
             domain=grid.domain_shape_compute(),
         )
 
@@ -275,12 +275,12 @@ class LagrangianToEulerian:
 
         self._undo_delz_adjust_and_copy_peln = FrozenStencil(
             undo_delz_adjust_and_copy_peln,
-            origin=grid.compute_origin(),
+            origin=compute_origin,
             domain=(grid.nic, grid.njc, grid.npz + 1),
         )
 
         self._pressures_mapu = FrozenStencil(
-            pressures_mapu, origin=grid.compute_origin(), domain=self._domain_jextra
+            pressures_mapu, origin=compute_origin, domain=self._domain_jextra
         )
 
         self._kord_mt = namelist.kord_mt
@@ -290,7 +290,7 @@ class LagrangianToEulerian:
 
         self._pressures_mapv = FrozenStencil(
             pressures_mapv,
-            origin=grid.compute_origin(),
+            origin=compute_origin,
             domain=(grid.nic + 1, grid.njc, grid.npz + 1),
         )
 
@@ -298,19 +298,21 @@ class LagrangianToEulerian:
             self._kord_mt, -1, grid.is_, grid.ie + 1, grid.js, grid.je
         )
 
-        ax_offsets_jextra = axis_offsets(
-            grid, grid.compute_origin(), grid.domain_shape_compute(add=(0, 1, 0))
-        )
+        domain_jextra = self._domain_jextra[0:2] + (self._domain_jextra[2] - 1,)
         self._update_ua = FrozenStencil(
             update_ua,
-            origin=grid.compute_origin(),
-            domain=grid.domain_shape_compute(add=(0, 1, 0)),
-            externals={**ax_offsets_jextra},
+            origin=compute_origin,
+            domain=domain_jextra,
+        )
+        self._update_ua_edge_y = FrozenStencil(
+            update_ua_edge_y,
+            origin=(compute_origin[0], domain_jextra[1] + 2, compute_origin[2]),
+            domain=(domain_jextra[0], 1, domain_jextra[2]),
         )
 
         self._copy_from_below_stencil = FrozenStencil(
             copy_from_below,
-            origin=grid.compute_origin(),
+            origin=compute_origin,
             domain=grid.domain_shape_compute(),
         )
 
@@ -489,6 +491,7 @@ class LagrangianToEulerian:
         self._map_single_v(v, self._pe0, self._pe3)
 
         self._update_ua(self._pe2, ua)
+        self._update_ua_edge_y(self._pe2, ua)
 
         self._copy_from_below_stencil(ua, pe)
         dtmp = 0.0
