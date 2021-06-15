@@ -492,5 +492,22 @@ def failure_stride(pytestconfig):
 
 
 @pytest.fixture()
+def print_domains(pytestconfig):
+    value = bool(pytestconfig.getoption("print_domains"))
+    original_init = fv3core.decorators.FrozenStencil.__init__
+    try:
+        if value:
+
+            def __init__(self, func, origin, domain, *args, **kwargs):
+                print(func.__name__, origin, domain)
+                original_init(self, func, origin, domain, *args, **kwargs)
+
+            fv3core.decorators.FrozenStencil.__init__ = __init__
+        yield value
+    finally:
+        fv3core.decorators.FrozenStencil.__init__ = original_init
+
+
+@pytest.fixture()
 def python_regression(pytestconfig):
     return pytestconfig.getoption("python_regression")
