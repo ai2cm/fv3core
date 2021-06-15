@@ -1,7 +1,10 @@
+import numpy as np
+
 import gt4py.gtscript as gtscript
-from gt4py.gtscript import PARALLEL, asin, computation, cos, interval, sin, sqrt
+from gt4py.gtscript import FORWARD, PARALLEL, asin, computation, cos, interval, sin, sqrt
 
 import fv3core._config as spec
+import fv3core.utils.global_config as config
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import FrozenStencil
 from fv3core.stencils.basic_operations import copy_defn
@@ -298,7 +301,7 @@ def qx_west_edge2(
             3.0 * (g_in * qin[-1, 0, 0] + qin)
             - (g_in * qxleft + qxright)
         ) / (2.0 + 2.0 * g_in)
-        
+
 
 def qx_east_edge(
     qin: FloatField,
@@ -383,8 +386,6 @@ def qy_south_edge2(
             3.0 * (g_in * qin[0, -1, 0] + qin)
             - (g_in * qylower + qyupper)
         ) / (2.0 + 2.0 * g_in)
-
-  
 
 
 def qy_north_edge(
@@ -503,10 +504,11 @@ class AGrid2BGridFourthOrder:
         shape = self.grid.domain_shape_full(add=(1, 1, 1))
         full_origin = (self.grid.isd, self.grid.jsd, kstart)
 
+        self._tmp_q = utils.make_storage_from_shape(shape)
         self._tmp_qx = utils.make_storage_from_shape(shape)
         self._tmp_qy = utils.make_storage_from_shape(shape)
-        self._tmp_qxx = utils.make_storage_from_shape(shape)
-        self._tmp_qyy = utils.make_storage_from_shape(shape)
+        self._tmp_qxx = utils.make_storage_from_shape(shape, init=True)
+        self._tmp_qyy = utils.make_storage_from_shape(shape, init=True)
 
         if nk is None:
             nk = self.grid.npz - kstart
@@ -569,7 +571,7 @@ class AGrid2BGridFourthOrder:
             self._qx_west_edge_stencil = FrozenStencil(
                 qx_west_edge, origin=origin_x, domain=(1, domain_x[1], nk)
             )
-            self._qx_west_edge_stencil2 = FrozenStencil(
+            self._qx_west_edge2_stencil = FrozenStencil(
                 qx_west_edge2,
                 origin=(self.grid.is_ + 1, origin_x[1], kstart),
                 domain=(1, domain_x[1], nk),
@@ -580,7 +582,7 @@ class AGrid2BGridFourthOrder:
                 origin=(self.grid.ie + 1, origin_x[1], kstart),
                 domain=(1, domain_x[1], nk),
             )
-            self._qx_east_edge_stencil2 = FrozenStencil(
+            self._qx_east_edge2_stencil = FrozenStencil(
                 qx_east_edge2,
                 origin=(self.grid.ie, origin_x[1], kstart),
                 domain=(1, domain_x[1], nk),
@@ -703,10 +705,19 @@ class AGrid2BGridFourthOrder:
         )
         if self.grid.west_edge:
             self._qx_west_edge_stencil(qin, self._tmp_qx, self.grid.dxa)
-            self._qx_west_edge_stencil2(qin, self._tmp_qx, self.grid.dxa)
+            self._qx_west_edge2_stencil(qin, self._tmp_qx, self.grid.dxa)
+            # if config.get_backend() == "numpy":
+            #     utils.serialize("/tmp/a2b_ord4", qout=qout, qx=self._tmp_qx, qy=self._tmp_qy, qxx=self._tmp_qxx, qyy=self._tmp_qyy)
+            # else:
+            #     data = utils.deserialize("/tmp/a2b_ord4")
+            #     assert np.allclose(qout, data["qout"])
+            #     assert np.allclose(self._tmp_qx, data["qx"])
+            #     assert np.allclose(self._tmp_qy, data["qy"])
+            #     assert np.allclose(self._tmp_qxx, data["qxx"])
+            #     assert np.allclose(self._tmp_qyy, data["qyy"])
         if self.grid.east_edge:
             self._qx_east_edge_stencil(qin, self._tmp_qx, self.grid.dxa)
-            self._qx_east_edge_stencil2(qin, self._tmp_qx, self.grid.dxa)
+            self._qx_east_edge2_stencil(qin, self._tmp_qx, self.grid.dxa)
         self._ppm_volume_mean_y_stencil(
             qin,
             self._tmp_qy,

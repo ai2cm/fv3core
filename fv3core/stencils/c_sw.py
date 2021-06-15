@@ -370,7 +370,6 @@ class CGridShallowWaterDynamics:
             self.grid, self.namelist, self._dord4
         )
         grid_type = self.namelist.grid_type
-        origin_halo1 = (self.grid.is_ - 1, self.grid.js - 1, 0)
         shape = self.grid.domain_shape_full(add=(1, 1, 1))
         self.delpc = utils.make_storage_from_shape(shape)
         self.ptc = utils.make_storage_from_shape(shape)
