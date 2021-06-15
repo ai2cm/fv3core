@@ -7,10 +7,8 @@ from gt4py.gtscript import (
     PARALLEL,
     computation,
     exp,
-    horizontal,
     interval,
     log,
-    region,
 )
 
 import fv3core.stencils.moist_cv as moist_cv
@@ -22,7 +20,6 @@ from fv3core.stencils.map_single import MapSingle
 from fv3core.stencils.mapn_tracer import MapNTracer
 from fv3core.stencils.moist_cv import moist_pt_func, moist_pt_last_step
 from fv3core.stencils.saturation_adjustment import SatAdjust3d
-from fv3core.utils.grid import axis_offsets
 from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
 
 
@@ -119,6 +116,12 @@ def moist_cv_pt_pressure(
         delp = dp2
 
 
+def copy_j_adjacent(pe2: FloatField):
+    with computation(PARALLEL), interval(...):
+        pe2_0 = pe2[0, -1, 0]
+        pe2 = pe2_0
+
+
 def pn2_pk_delp(
     dp2: FloatField,
     delp: FloatField,
@@ -177,17 +180,8 @@ def pressures_mapv(
 
 
 def update_ua(pe2: FloatField, ua: FloatField):
-    from __externals__ import local_je
-
-    with computation(PARALLEL), interval(...):
-        ua = pe2[0, 0, 1]
-
-    # pe2[:, je+1, 1:npz] should equal pe2[:, je, 1:npz] as in the Fortran model,
-    # but the extra j-elements are only used here, so we can just directly assign ua.
-    # Maybe we can eliminate this later?
     with computation(PARALLEL), interval(0, -1):
-        with horizontal(region[:, local_je + 1]):
-            ua = pe2[0, -1, 1]
+        ua = pe2[0, 0, 1]
 
 
 def copy_from_below(a: FloatField, b: FloatField):
@@ -249,6 +243,11 @@ class LagrangianToEulerian:
             origin=grid.compute_origin(),
             domain=grid.domain_shape_compute(),
         )
+        self._copy_j_adjacent = FrozenStencil(
+            copy_j_adjacent,
+            origin=(grid.is_, grid.je + 1, 1),
+            domain=(grid.nic, 1, grid.npz - 1),
+        )
 
         self._pn2_pk_delp = FrozenStencil(
             pn2_pk_delp,
@@ -298,14 +297,8 @@ class LagrangianToEulerian:
             self._kord_mt, -1, grid.is_, grid.ie + 1, grid.js, grid.je
         )
 
-        ax_offsets_jextra = axis_offsets(
-            grid, grid.compute_origin(), grid.domain_shape_compute(add=(0, 1, 0))
-        )
         self._update_ua = FrozenStencil(
-            update_ua,
-            origin=grid.compute_origin(),
-            domain=grid.domain_shape_compute(add=(0, 1, 0)),
-            externals={**ax_offsets_jextra},
+            update_ua, origin=grid.compute_origin(), domain=self._domain_jextra
         )
 
         self._copy_from_below_stencil = FrozenStencil(
@@ -443,6 +436,10 @@ class LagrangianToEulerian:
             peln,
             zvir,
         )
+
+        # TODO: Fix silly hack due to pe2 being 2d, so pe[:, je+1, 1:npz] should be
+        # the same as it was for pe[:, je, 1:npz] (unchanged)
+        self._copy_j_adjacent(self._pe2)
 
         self._pn2_pk_delp(self._dp2, delp, self._pe2, self._pn2, pk, akap)
 
