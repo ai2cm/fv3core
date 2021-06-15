@@ -223,14 +223,43 @@ def lagrange_y_func(qx):
 def lagrange_x_func(qy):
     return a2 * (qy[-2, 0, 0] + qy[1, 0, 0]) + a1 * (qy[-1, 0, 0] + qy)
 
+@gtscript.function
+def cubic_interpolation_y_fn(qx, qout_offset_y, qxx_offset_y):
+    return c1 * (qx[0, -1, 0] + qx) + c2 * (qout_offset_y + qxx_offset_y)
+
+
+@gtscript.function
+def cubic_interpolation_x_fn(qy, qout_offset_x, qyy_offset_x):
+    return c1 * (qy[-1, 0, 0] + qy) + c2 * (qout_offset_x + qyy_offset_x)
+
+@gtscript.function
+def ppm_volume_mean_x_fn(
+    qin: FloatField,
+):
+    return b2 * (qin[-2, 0, 0] + qin[1, 0, 0]) + b1 * (qin[-1, 0, 0] + qin)
 
 def ppm_volume_mean_x(
     qin: FloatField,
     qx: FloatField,
-    dxa: FloatFieldIJ,
 ):
     with computation(PARALLEL), interval(...):
-        qx = b2 * (qin[-2, 0, 0] + qin[1, 0, 0]) + b1 * (qin[-1, 0, 0] + qin)
+        qx = ppm_volume_mean_x_fn(qin)
+
+
+def qout_x_edge(
+    qin: FloatField, dxa: FloatFieldIJ, edge_w: FloatFieldIJ, qout: FloatField
+):
+    with computation(PARALLEL), interval(...):
+        q2 = (qin[-1, 0, 0] * dxa + qin * dxa[-1, 0]) / (dxa[-1, 0] + dxa)
+        qout[0, 0, 0] = edge_w * q2[0, -1, 0] + (1.0 - edge_w) * q2
+
+
+def qout_y_edge(
+    qin: FloatField, dya: FloatFieldIJ, edge_s: FloatFieldI, qout: FloatField
+):
+    with computation(PARALLEL), interval(...):
+        q1 = (qin[0, -1, 0] * dya + qin * dya[0, -1]) / (dya[0, -1] + dya)
+        qout[0, 0, 0] = edge_s * q1[-1, 0, 0] + (1.0 - edge_s) * q1
 
 
 def qx_west_edge(
@@ -241,10 +270,11 @@ def qx_west_edge(
     with computation(PARALLEL), interval(...):
         g_in = dxa[1, 0] / dxa
         g_ou = dxa[-2, 0] / dxa[-1, 0]
-        qx = 0.5 * (
+        qx =  0.5 * (
             ((2.0 + g_in) * qin - qin[1, 0, 0]) / (1.0 + g_in)
             + ((2.0 + g_ou) * qin[-1, 0, 0] - qin[-2, 0, 0]) / (1.0 + g_ou)
         )
+
 
 
 def qx_west_edge2(
@@ -254,12 +284,21 @@ def qx_west_edge2(
 ):
     with computation(PARALLEL), interval(...):
         g_in = dxa / dxa[-1, 0]
-        q_tmp = qx
+        # qxleft = qx_west_edge_fn(qin[-1, 0, 0], dxa[-1, 0])
+        g_inleft = dxa / dxa[-1, 0]
+        g_ouleft = dxa[-3, 0] / dxa[-2, 0]
+        qxleft =  0.5 * (
+            ((2.0 + g_inleft) * qin[-1, 0, 0] - qin) / (1.0 + g_inleft)
+            + ((2.0 + g_ouleft) * qin[-2, 0, 0] - qin[-3, 0, 0]) / (1.0 + g_ouleft)
+        )
+
+        qxright = ppm_volume_mean_x_fn(qin[1, 0, 0])
+
         qx = (
             3.0 * (g_in * qin[-1, 0, 0] + qin)
-            - (g_in * q_tmp[-1, 0, 0] + q_tmp[1, 0, 0])
+            - (g_in * qxleft + qxright)
         ) / (2.0 + 2.0 * g_in)
-
+        
 
 def qx_east_edge(
     qin: FloatField,
@@ -282,20 +321,32 @@ def qx_east_edge2(
 ):
     with computation(PARALLEL), interval(...):
         g_in = dxa[-1, 0] / dxa
-        q_tmp = qx
+        #qxright =  qx_east_edge_fn(qin[1, 0, 0], dxa[1, 0])
+        g_inright = dxa[-1, 0] / dxa
+        g_ouright = dxa[2, 0] / dxa[1, 0]
+        qxright = 0.5 * (
+            ((2.0 + g_inright) * qin - qin[-1, 0, 0]) / (1.0 + g_inright)
+            + ((2.0 + g_ouright) * qin[1, 0, 0] - qin[2, 0, 0]) / (1.0 + g_ouright)
+        )
+        qxleft = ppm_volume_mean_x_fn(qin[-1, 0, 0])
         qx = (
             3.0 * (qin[-1, 0, 0] + g_in * qin)
-            - (g_in * q_tmp[1, 0, 0] + q_tmp[-1, 0, 0])
+            - (g_in * qxright + qxleft)
         ) / (2.0 + 2.0 * g_in)
+
+@gtscript.function
+def ppm_volume_mean_y_fn(
+    qin: FloatField,
+):
+    return b2 * (qin[0, -2, 0] + qin[0, 1, 0]) + b1 * (qin[0, -1, 0] + qin)
 
 
 def ppm_volume_mean_y(
     qin: FloatField,
     qy: FloatField,
-    dya: FloatFieldIJ,
 ):
     with computation(PARALLEL), interval(...):
-        qy = b2 * (qin[0, -2, 0] + qin[0, 1, 0]) + b1 * (qin[0, -1, 0] + qin)
+        qy = ppm_volume_mean_y_fn(qin)
 
 
 def qy_south_edge(
@@ -306,10 +357,11 @@ def qy_south_edge(
     with computation(PARALLEL), interval(...):
         g_in = dya[0, 1] / dya
         g_ou = dya[0, -2] / dya[0, -1]
-        qy = 0.5 * (
+        qy= 0.5 * (
             ((2.0 + g_in) * qin - qin[0, 1, 0]) / (1.0 + g_in)
             + ((2.0 + g_ou) * qin[0, -1, 0] - qin[0, -2, 0]) / (1.0 + g_ou)
         )
+
 
 
 def qy_south_edge2(
@@ -319,11 +371,20 @@ def qy_south_edge2(
 ):
     with computation(PARALLEL), interval(...):
         g_in = dya / dya[0, -1]
-        q_tmp = qy
+        # qylower = qy_south_edge_fn(qin[0, -1, 0], dya[0, -1])
+        g_inlower = dya / dya[0, -1]
+        g_oulower = dya[0, -3] / dya[0, -2]
+        qylower = 0.5 * (
+            ((2.0 + g_inlower) * qin[0, -1, 0] - qin) / (1.0 + g_inlower)
+            + ((2.0 + g_oulower) * qin[0, -2, 0] - qin[0, -3, 0]) / (1.0 + g_oulower)
+        )
+        qyupper = ppm_volume_mean_y_fn(qin[0, 1, 0])
         qy = (
             3.0 * (g_in * qin[0, -1, 0] + qin)
-            - (g_in * q_tmp[0, -1, 0] + q_tmp[0, 1, 0])
+            - (g_in * qylower + qyupper)
         ) / (2.0 + 2.0 * g_in)
+
+  
 
 
 def qy_north_edge(
@@ -347,10 +408,17 @@ def qy_north_edge2(
 ):
     with computation(PARALLEL), interval(...):
         g_in = dya[0, -1] / dya
-        q_tmp = qy
+        qylower =  ppm_volume_mean_y_fn(qin[0, -1, 0])
+        # qyupper = qy_north_edge_fn(qin[0, 1, 0], dya[0, 1])
+        g_in_upper = dya[0, -1] / dya
+        g_ou_upper = dya[0, 2] / dya[0, 1]
+        qyupper = 0.5 * (
+            ((2.0 + g_in_upper) * qin - qin[0, -1, 0]) / (1.0 + g_in_upper)
+            + ((2.0 + g_ou_upper) * qin[0, 1, 0] - qin[0, 2, 0]) / (1.0 + g_ou_upper)
+        )
         qy = (
             3.0 * (qin[0, -1, 0] + g_in * qin)
-            - (g_in * q_tmp[0, 1, 0] + q_tmp[0, -1, 0])
+            - (g_in * qyupper + qylower)
         ) / (2.0 + 2.0 * g_in)
 
 
@@ -371,9 +439,8 @@ def qxx_edge_south(
     qxx: FloatField,
 ):
     with computation(PARALLEL), interval(...):
-        q_tmp = qxx
-        qxx = c1 * (qx[0, -1, 0] + qx) + c2 * (qout[0, -1, 0] + q_tmp[0, 1, 0])
-
+        qxxupper = lagrange_y_func(qx[0, 1, 0])
+        qxx = cubic_interpolation_y_fn(qx, qout[0, -1, 0], qxxupper)
 
 def qxx_edge_north(
     qout: FloatField,
@@ -381,8 +448,8 @@ def qxx_edge_north(
     qxx: FloatField,
 ):
     with computation(PARALLEL), interval(...):
-        q_tmp = qxx
-        qxx = c1 * (qx[0, -1, 0] + qx) + c2 * (qout[0, 1, 0] + q_tmp[0, -1, 0])
+        qxxlower = lagrange_y_func(qx[0, -1, 0])
+        qxx = cubic_interpolation_y_fn(qx, qout[0, 1, 0], qxxlower)
 
 
 def qyy_edge_west(
@@ -391,8 +458,9 @@ def qyy_edge_west(
     qyy: FloatField,
 ):
     with computation(PARALLEL), interval(...):
-        q_tmp = qyy
-        qyy = c1 * (qy[-1, 0, 0] + qy) + c2 * (qout[-1, 0, 0] + q_tmp[1, 0, 0])
+        qyyright = lagrange_x_func(qy[1, 0, 0])
+        qyy = cubic_interpolation_x_fn(qy, qout[-1, 0, 0], qyyright)
+
 
 
 def qyy_edge_east(
@@ -401,8 +469,8 @@ def qyy_edge_east(
     qyy: FloatField,
 ):
     with computation(PARALLEL), interval(...):
-        q_tmp = qyy
-        qyy = c1 * (qy[-1, 0, 0] + qy) + c2 * (qout[1, 0, 0] + q_tmp[-1, 0, 0])
+        qyyleft = lagrange_x_func(qy[-1, 0, 0])
+        qyy = cubic_interpolation_x_fn(qy, qout[1, 0, 0], qyyleft)
 
 
 def final_qout(
@@ -412,22 +480,6 @@ def final_qout(
 ):
     with computation(PARALLEL), interval(...):
         qout = 0.5 * (qxx + qyy)
-
-
-def qout_x_edge(
-    qin: FloatField, dxa: FloatFieldIJ, edge_w: FloatFieldIJ, qout: FloatField
-):
-    with computation(PARALLEL), interval(...):
-        q2 = (qin[-1, 0, 0] * dxa + qin * dxa[-1, 0]) / (dxa[-1, 0] + dxa)
-        qout[0, 0, 0] = edge_w * q2[0, -1, 0] + (1.0 - edge_w) * q2
-
-
-def qout_y_edge(
-    qin: FloatField, dya: FloatFieldIJ, edge_s: FloatFieldI, qout: FloatField
-):
-    with computation(PARALLEL), interval(...):
-        q1 = (qin[0, -1, 0] * dya + qin * dya[0, -1]) / (dya[0, -1] + dya)
-        qout[0, 0, 0] = edge_s * q1[-1, 0, 0] + (1.0 - edge_s) * q1
 
 
 class AGrid2BGridFourthOrder:
@@ -648,7 +700,6 @@ class AGrid2BGridFourthOrder:
         self._ppm_volume_mean_x_stencil(
             qin,
             self._tmp_qx,
-            self.grid.dxa,
         )
         if self.grid.west_edge:
             self._qx_west_edge_stencil(qin, self._tmp_qx, self.grid.dxa)
@@ -659,7 +710,6 @@ class AGrid2BGridFourthOrder:
         self._ppm_volume_mean_y_stencil(
             qin,
             self._tmp_qy,
-            self.grid.dya,
         )
         if self.grid.south_edge:
             self._qy_south_edge_stencil(qin, self._tmp_qy, self.grid.dya)
