@@ -19,6 +19,7 @@ def pytest_addoption(parser):
     parser.addoption("--data_path", action="store", default="./")
     parser.addoption("--python_regression", action="store_true")
     parser.addoption("--threshold_overrides_file", action="store", default=None)
+    parser.addoption("--print_domains", action="store_true")
 
 
 def pytest_configure(config):
