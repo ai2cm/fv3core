@@ -11,7 +11,6 @@ class TranslateA2B_Ord4(TranslateFortranData2Py):
         self.out_vars = {"wk": {}, "vort": {}}
 
     def compute_from_storage(self, inputs):
-        self.grid = spec.grid
         divdamp = DivergenceDamping(
             self.grid.grid_indexing,
             self.grid.agrid1,
