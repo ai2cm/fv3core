@@ -1,7 +1,7 @@
 import math
 
 import gt4py.gtscript as gtscript
-from gt4py.gtscript import PARALLEL, computation, horizontal, interval, region
+from gt4py.gtscript import PARALLEL, computation, interval
 
 import fv3core._config as spec
 import fv3core.stencils.fxadv
@@ -14,45 +14,27 @@ from fv3core.stencils.fvtp2d import FiniteVolumeTransport
 from fv3core.utils.typing import FloatField, FloatFieldIJ
 
 
-@gtscript.function
-def flux_x(cx, dxa, dy, sin_sg3, sin_sg1, xfx):
-    from __externals__ import local_ie, local_is, local_je, local_js
-
-    with horizontal(region[local_is : local_ie + 2, local_js - 3 : local_je + 4]):
-        xfx = (
-            cx * dxa[-1, 0] * dy * sin_sg3[-1, 0] if cx > 0 else cx * dxa * dy * sin_sg1
-        )
-    return xfx
-
-
-@gtscript.function
-def flux_y(cy, dya, dx, sin_sg4, sin_sg2, yfx):
-    from __externals__ import local_ie, local_is, local_je, local_js
-
-    with horizontal(region[local_is - 3 : local_ie + 4, local_js : local_je + 2]):
-        yfx = (
-            cy * dya[0, -1] * dx * sin_sg4[0, -1] if cy > 0 else cy * dya * dx * sin_sg2
-        )
-    return yfx
-
-
-def flux_compute(
+def flux_x_compute(
     cx: FloatField,
-    cy: FloatField,
     dxa: FloatFieldIJ,
-    dya: FloatFieldIJ,
-    dx: FloatFieldIJ,
     dy: FloatFieldIJ,
     sin_sg1: FloatFieldIJ,
-    sin_sg2: FloatFieldIJ,
     sin_sg3: FloatFieldIJ,
-    sin_sg4: FloatFieldIJ,
     xfx: FloatField,
+):
+    with computation(PARALLEL), interval(...):
+        xfx = cx * dxa[-1, 0] * dy * sin_sg3[-1, 0] if cx > 0 else cx * dxa * dy * sin_sg1
+
+def flux_y_compute(
+    cy: FloatField,
+    dya: FloatFieldIJ,
+    dx: FloatFieldIJ,
+    sin_sg2: FloatFieldIJ,
+    sin_sg4: FloatFieldIJ,
     yfx: FloatField,
 ):
     with computation(PARALLEL), interval(...):
-        xfx = flux_x(cx, dxa, dy, sin_sg3, sin_sg1, xfx)
-        yfx = flux_y(cy, dya, dx, sin_sg4, sin_sg2, yfx)
+        yfx = cy * dya[0, -1] * dx * sin_sg4[0, -1] if cy > 0 else cy * dya * dx * sin_sg2
 
 
 def cmax_multiply_by_frac(
@@ -138,37 +120,30 @@ class TracerAdvection:
             units="kg/m^2",
         )
 
-        ax_offsets = fv3core.utils.axis_offsets(
-            self.grid, self.grid.full_origin(), self.grid.domain_shape_full()
+        self._flux_x_compute = FrozenStencil(
+            flux_x_compute,
+            origin=self.grid.full_origin(add=(3, 0, 0)),
+            domain=self.grid.domain_shape_full(add=(-3, 1, 0)),
         )
-        local_axis_offsets = {}
-        for axis_offset_name, axis_offset_value in ax_offsets.items():
-            if "local" in axis_offset_name:
-                local_axis_offsets[axis_offset_name] = axis_offset_value
-
-        self._flux_compute = FrozenStencil(
-            flux_compute,
-            origin=self.grid.full_origin(),
-            domain=self.grid.domain_shape_full(add=(1, 1, 0)),
-            externals=local_axis_offsets,
+        self._flux_y_compute = FrozenStencil(
+            flux_y_compute,
+            origin=self.grid.full_origin(add=(0, 3, 0)),
+            domain=self.grid.domain_shape_full(add=(1, -3, 0)),
         )
         self._cmax_multiply_by_frac = FrozenStencil(
             cmax_multiply_by_frac,
             origin=self.grid.full_origin(),
             domain=self.grid.domain_shape_full(add=(1, 1, 0)),
-            externals=local_axis_offsets,
         )
         self._dp_fluxadjustment = FrozenStencil(
             dp_fluxadjustment,
             origin=self.grid.compute_origin(),
             domain=self.grid.domain_shape_compute(),
-            externals=local_axis_offsets,
         )
         self._q_adjust = FrozenStencil(
             q_adjust,
             origin=self.grid.compute_origin(),
             domain=self.grid.domain_shape_compute(),
-            externals=local_axis_offsets,
         )
         self.finite_volume_transport = FiniteVolumeTransport(namelist, namelist.hord_tr)
         # If use AllReduce, will need something like this:
@@ -179,21 +154,22 @@ class TracerAdvection:
     def __call__(self, tracers, dp1, mfxd, mfyd, cxd, cyd, mdt):
         # start HALO update on q (in dyn_core in fortran -- just has started when
         # this function is called...)
-        self._flux_compute(
+        self._flux_x_compute(
             cxd,
-            cyd,
             self.grid.dxa,
-            self.grid.dya,
-            self.grid.dx,
             self.grid.dy,
             self.grid.sin_sg1,
-            self.grid.sin_sg2,
             self.grid.sin_sg3,
-            self.grid.sin_sg4,
             self._tmp_xfx,
+        )
+        self._flux_y_compute(
+            cyd,
+            self.grid.dya,
+            self.grid.dx,
+            self.grid.sin_sg2,
+            self.grid.sin_sg4,
             self._tmp_yfx,
         )
-
         # # TODO for if we end up using the Allreduce and compute cmax globally
         # (or locally). For now, hardcoded.
         # split = int(self.grid.npz / 6)
