@@ -32,8 +32,6 @@ def tmps_y_edge(
     vtmp: FloatField,
 ):
     with computation(PARALLEL), interval(...):
-        # south/north edge
-        #with horizontal(region[:, j_start], region[:, j_end]):
         vtmp = 2.0 * ((v * dy) + (v[1, 0, 0] * dy[1, 0])) / (dy + dy[1, 0])
         utmp = 2.0 * (u * dx + u[0, 1, 0] * dx[0, 1]) / (dx + dx[0, 1])
 
@@ -46,8 +44,6 @@ def tmps_x_edge(
     vtmp: FloatField,
 ):
     with computation(PARALLEL), interval(...):
-        # west/east edge
-        #with horizontal(region[i_start, :], region[i_end, :]):
         utmp = 2.0 * ((u * dx) + (u[0, 1, 0] * dx[0, 1])) / (dx + dx[0, 1])
         vtmp = 2.0 * ((v * dy) + (v[1, 0, 0] * dy[1, 0])) / (dy + dy[1, 0])
 
