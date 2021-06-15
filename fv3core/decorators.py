@@ -210,7 +210,7 @@ def get_written_fields(field_info) -> List[str]:
         field_name
         for field_name in field_info
         if field_info[field_name]
-        and field_info[field_name].access != gt4py.definitions.AccessKind.READ
+        and field_info[field_name].access != gt4py.definitions.AccessKind.READ_ONLY
     ]
     return write_fields
 

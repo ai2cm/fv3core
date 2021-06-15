@@ -15,7 +15,7 @@ MOUNTS ?=
 CONTAINER_ENGINE ?=docker
 RUN_FLAGS ?=--rm
 BASH_PREFIX ?=
-TEST_DATA_HOST ?=$(CWD)/test_data/$(EXPERIMENT)
+TEST_DATA_HOST ?=$(CWD)/../a2b/test_data/$(EXPERIMENT)
 FV3UTIL_DIR=$(CWD)/external/fv3gfs-util
 
 FV3=fv3core
