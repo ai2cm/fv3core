@@ -91,10 +91,10 @@ class NonHydrostaticPressureGradient:
     def __init__(self, grid_type):
         grid = spec.grid
         self.orig = grid.compute_origin()
-        self.domain_full_k = grid.domain_shape_compute(add=(1, 1, 0))
+        self.domain_full_k = grid.domain_shape_compute(add=(1, 1, 1))
         self.domain_k1 = (grid.nic + 1, grid.njc + 1, 1)
-        self.u_domain = grid.domain_shape_compute(add=(0, 1, 0))
-        self.v_domain = grid.domain_shape_compute(add=(1, 0, 0))
+        self.u_domain = grid.domain_shape_compute(add=(0, 1, 1))
+        self.v_domain = grid.domain_shape_compute(add=(1, 0, 1))
         self.nk = grid.npz
         self.rdx = grid.rdx
         self.rdy = grid.rdy

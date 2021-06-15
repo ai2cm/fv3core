@@ -305,7 +305,7 @@ class AcousticDynamics:
         )
 
         pgradc_origin = self.grid.compute_origin()
-        pgradc_domain = self.grid.domain_shape_compute(add=(1, 1, 0))
+        pgradc_domain = self.grid.domain_shape_compute(add=(1, 1, 1))
         self._p_grad_c = FrozenStencil(
             p_grad_c_stencil,
             origin=pgradc_origin,

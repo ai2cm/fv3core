@@ -24,7 +24,7 @@ pip install -e ./dace
 # installation of gt4py
 export GT4PY_VERSION=`cat GT4PY_VERSION.txt`
 rm -rf gt4py
-git clone git://github.com/VulcanClimateModeling/gt4py.git gt4py
+git clone git://github.com/gronerl/gt4py.git gt4py
 cd gt4py
 git checkout ${GT4PY_VERSION}
 cd ../
