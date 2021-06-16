@@ -1,3 +1,4 @@
+
 from gt4py.gtscript import PARALLEL, computation, interval
 
 import fv3core._config as spec
@@ -116,6 +117,7 @@ def fxadv_y_fluxes(
 def corner_ut(
     uc: FloatField,
     vc: FloatField,
+    ut_in: FloatField,
     ut: FloatField,
     vt: FloatField,
     cosa_u: FloatFieldIJ,
@@ -124,7 +126,6 @@ def corner_ut(
     from __externals__ import ux, uy, vi, vj, vx, vy
 
     with computation(PARALLEL), interval(...):
-        ut_tmp = ut
         ut = (
             (
                 uc
@@ -137,7 +138,7 @@ def corner_ut(
                     + vc[vi, vj, 0]
                     - 0.25
                     * cosa_v[vi, vj]
-                    * (ut_tmp[ux, 0, 0] + ut_tmp[ux, uy, 0] + ut_tmp[0, uy, 0])
+                    * (ut_in[ux, 0, 0] + ut_in[ux, uy, 0] + ut_in[0, uy, 0])
                 )
             )
             * 1.0
@@ -575,6 +576,7 @@ class FiniteVolumeFluxPrep:
                 uc,
                 vc,
                 ut,
+                ut,
                 vt,
                 self.grid.cosa_u,
                 self.grid.cosa_v,
@@ -582,6 +584,7 @@ class FiniteVolumeFluxPrep:
             self._sw_corner_vt_stencil1(
                 vc,
                 uc,
+                vt,
                 vt,
                 ut,
                 self.grid.cosa_v,
@@ -591,6 +594,7 @@ class FiniteVolumeFluxPrep:
                 uc,
                 vc,
                 ut,
+                ut,
                 vt,
                 self.grid.cosa_u,
                 self.grid.cosa_v,
@@ -598,6 +602,7 @@ class FiniteVolumeFluxPrep:
             self._sw_corner_vt_stencil2(
                 vc,
                 uc,
+                vt,
                 vt,
                 ut,
                 self.grid.cosa_v,
@@ -608,6 +613,7 @@ class FiniteVolumeFluxPrep:
                 uc,
                 vc,
                 ut,
+                ut,
                 vt,
                 self.grid.cosa_u,
                 self.grid.cosa_v,
@@ -615,6 +621,7 @@ class FiniteVolumeFluxPrep:
             self._se_corner_vt_stencil1(
                 vc,
                 uc,
+                vt,
                 vt,
                 ut,
                 self.grid.cosa_v,
@@ -624,6 +631,7 @@ class FiniteVolumeFluxPrep:
                 uc,
                 vc,
                 ut,
+                ut,
                 vt,
                 self.grid.cosa_u,
                 self.grid.cosa_v,
@@ -631,6 +639,7 @@ class FiniteVolumeFluxPrep:
             self._se_corner_vt_stencil2(
                 vc,
                 uc,
+                vt,
                 vt,
                 ut,
                 self.grid.cosa_v,
@@ -641,6 +650,7 @@ class FiniteVolumeFluxPrep:
                 uc,
                 vc,
                 ut,
+                ut,
                 vt,
                 self.grid.cosa_u,
                 self.grid.cosa_v,
@@ -648,6 +658,7 @@ class FiniteVolumeFluxPrep:
             self._ne_corner_vt_stencil1(
                 vc,
                 uc,
+                vt,
                 vt,
                 ut,
                 self.grid.cosa_v,
@@ -657,6 +668,7 @@ class FiniteVolumeFluxPrep:
                 uc,
                 vc,
                 ut,
+                ut,
                 vt,
                 self.grid.cosa_u,
                 self.grid.cosa_v,
@@ -664,6 +676,7 @@ class FiniteVolumeFluxPrep:
             self._ne_corner_vt_stencil2(
                 vc,
                 uc,
+                vt,
                 vt,
                 ut,
                 self.grid.cosa_v,
@@ -674,6 +687,7 @@ class FiniteVolumeFluxPrep:
                 uc,
                 vc,
                 ut,
+                ut,
                 vt,
                 self.grid.cosa_u,
                 self.grid.cosa_v,
@@ -681,6 +695,7 @@ class FiniteVolumeFluxPrep:
             self._nw_corner_vt_stencil1(
                 vc,
                 uc,
+                vt,
                 vt,
                 ut,
                 self.grid.cosa_v,
@@ -690,6 +705,7 @@ class FiniteVolumeFluxPrep:
                 uc,
                 vc,
                 ut,
+                ut,
                 vt,
                 self.grid.cosa_u,
                 self.grid.cosa_v,
@@ -698,11 +714,11 @@ class FiniteVolumeFluxPrep:
                 vc,
                 uc,
                 vt,
+                vt,
                 ut,
                 self.grid.cosa_v,
                 self.grid.cosa_u,
             )
-
         self._fxadv_x_fluxes_stencil(
             self.grid.sin_sg1,
             self.grid.sin_sg3,
@@ -723,7 +739,6 @@ class FiniteVolumeFluxPrep:
             vt,
             dt,
         )
-
 
 # -------------------- REGIONS CORNERS-----------------
 
