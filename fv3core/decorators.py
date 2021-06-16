@@ -1,5 +1,6 @@
 import collections
 import collections.abc
+import datetime as dt
 import functools
 import inspect
 import json
@@ -122,12 +123,7 @@ class FrozenStencil:
 
         stencil_kwargs = self.stencil_config.stencil_kwargs
         if "distrib_ctx" in stencil_kwargs:
-            group_key = func.__name__ + (f"->{str(externals)}" if externals else "")
-            node_groups = (
-                set(self._stencil_groups[group_key])
-                if group_key in self._stencil_groups
-                else set()
-            )
+            node_groups = self._get_node_groups(func.__name__, externals)
             distrib_ctx = stencil_kwargs["distrib_ctx"] + (node_groups,)
             stencil_kwargs["distrib_ctx"] = distrib_ctx
 
@@ -154,7 +150,7 @@ class FrozenStencil:
             "_domain_": self.domain,
         }
 
-        self._written_fields = get_written_fields(self.stencil_object.field_info)
+        self._written_fields = []
 
     def __call__(
         self,
@@ -182,8 +178,34 @@ class FrozenStencil:
 
     def _mark_cuda_fields_written(self, fields: Mapping[str, Storage]):
         if global_config.is_gpu_backend():
+            if not self._written_fields:
+                self._written_fields = get_written_fields(
+                    self.stencil_object.field_info
+                )
             for write_field in self._written_fields:
                 fields[write_field]._set_device_modified()
+
+    def _get_node_groups(self, func_name: str, externals: dict):
+        group_key = func_name
+        if externals:
+            extent_list: list = []
+            for ext_key, ext_val in sorted(externals.items()):
+                if isinstance(ext_val, gtscript.AxisOffset):
+                    extent_list.append(f"'{ext_key}': {ext_val.__dict__}")
+            if extent_list:
+                extent_str = ", ".join(extent_list)
+                group_key += f"->{{{extent_str}}}"
+        node_groups = (
+            set([int(node) for node in self._stencil_groups[group_key]])
+            if group_key in self._stencil_groups
+            else set()
+        )
+        node_id = global_config.MPI.COMM_WORLD.Get_rank()
+        with open(f"./caching_r{node_id}.log", "a") as log:
+            log.write(
+                f"{dt.datetime.now()}: R{node_id}: Sending node_groups='{node_groups} to '{group_key}'\n"
+            )
+        return node_groups
 
 
 def get_stencils_with_varied_bounds(
