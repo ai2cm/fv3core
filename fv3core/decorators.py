@@ -190,7 +190,8 @@ class FrozenStencil:
         if externals:
             extent_list: list = []
             for ext_key, ext_val in sorted(externals.items()):
-                if isinstance(ext_val, gtscript.AxisOffset):
+                is_axis_offset = isinstance(ext_val, gtscript.AxisOffset)
+                if is_axis_offset and not ext_key.startswith("local"):
                     extent_list.append(f"'{ext_key}': {ext_val.__dict__}")
             if extent_list:
                 extent_str = ", ".join(extent_list)
@@ -203,7 +204,7 @@ class FrozenStencil:
         node_id = global_config.MPI.COMM_WORLD.Get_rank()
         with open(f"./caching_r{node_id}.log", "a") as log:
             log.write(
-                f"{dt.datetime.now()}: R{node_id}: Sending node_groups='{node_groups} to '{group_key}'\n"
+                f"{dt.datetime.now()}: R{node_id}: Sending node_groups='{node_groups} to '{func_name}'\n"
             )
         return node_groups
 
@@ -214,6 +215,7 @@ def get_stencils_with_varied_bounds(
     domains: List[Index3D],
     stencil_config: Optional[StencilConfig] = None,
     externals: Optional[Mapping[str, Any]] = None,
+    add_offsets: bool = True,
 ) -> List[FrozenStencil]:
     assert len(origins) == len(domains), (
         "Lists of origins and domains need to have the same length, you provided "
@@ -226,14 +228,16 @@ def get_stencils_with_varied_bounds(
         externals = {}
     stencils = []
     for origin, domain in zip(origins, domains):
-        ax_offsets = fv3core.utils.grid.axis_offsets(spec.grid, origin, domain)
+        if add_offsets:
+            ax_offsets = fv3core.utils.grid.axis_offsets(spec.grid, origin, domain)
+            externals = {**externals, **ax_offsets}
         stencils.append(
             FrozenStencil(
                 func,
                 origin=origin,
                 domain=domain,
                 stencil_config=stencil_config,
-                externals={**externals, **ax_offsets},
+                externals=externals,
             )
         )
     return stencils

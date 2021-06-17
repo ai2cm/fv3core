@@ -123,19 +123,27 @@ def redo_divg_d(
     uc: FloatField,
     vc: FloatField,
     divg_d: FloatField,
+):
+    with computation(PARALLEL), interval(...):
+        divg_d = uc[0, -1, 0] - uc + vc[-1, 0, 0] - vc
+
+
+def redo_divg_d_corners(
+    uc: FloatField,
+    vc: FloatField,
+    divg_d: FloatField,
     adjustment_factor: FloatFieldIJ,
     skip_adjustment: bool,
 ):
     from __externals__ import i_end, i_start, j_end, j_start
 
     with computation(PARALLEL), interval(...):
-        divg_d = uc[0, -1, 0] - uc + vc[-1, 0, 0] - vc
         with horizontal(region[i_start, j_start], region[i_end + 1, j_start]):
             divg_d = vc[-1, 0, 0] - vc - uc
         with horizontal(region[i_start, j_end + 1], region[i_end + 1, j_end + 1]):
             divg_d = uc[0, -1, 0] + vc[-1, 0, 0] - vc
         if not skip_adjustment:
-            divg_d = divg_d * adjustment_factor
+            divg_d *= adjustment_factor
 
 
 def smagorinksy_diffusion_approx(delpc: FloatField, vort: FloatField, absdt: float):
@@ -253,20 +261,29 @@ class DivergenceDamping:
             domains_u.append((nint, njnt + 1, nk))
             origins.append((is_, js, kstart))
             domains.append((nint, njnt, nk))
+
         self._vc_from_divg_stencils = get_stencils_with_varied_bounds(
             vc_from_divg,
             origins=origins_v,
             domains=domains_v,
+            add_offsets=False,
         )
 
         self._uc_from_divg_stencils = get_stencils_with_varied_bounds(
             uc_from_divg,
             origins=origins_u,
             domains=domains_u,
+            add_offsets=False,
         )
 
         self._redo_divg_d_stencils = get_stencils_with_varied_bounds(
-            redo_divg_d, origins=origins, domains=domains
+            redo_divg_d, origins=origins, domains=domains, add_offsets=False
+        )
+        self._redo_divg_d_corners = FrozenStencil(
+            redo_divg_d_corners,
+            origin=origins[0],
+            domain=domains[0],
+            externals=axis_offsets(self.grid, origins[0], domains[0]),
         )
 
         self._damping_nord_highorder_stencil = FrozenStencil(
@@ -363,7 +380,8 @@ class DivergenceDamping:
                     uc,
                     -1.0,
                 )
-            self._redo_divg_d_stencils[n](
+            self._redo_divg_d_stencils[n](uc, vc, divg_d)
+            self._redo_divg_d_corners(
                 uc, vc, divg_d, self.grid.rarea_c, self.grid.stretched_grid
             )
 
