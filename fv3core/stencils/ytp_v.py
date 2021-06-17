@@ -112,6 +112,7 @@ class YTP_V:
             _ytp_v,
             externals={
                 "jord": jord,
+                "mord": jord,
                 "xt_minmax": False,
                 **ax_offsets,
             },

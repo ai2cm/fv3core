@@ -118,6 +118,7 @@ class XTP_U:
             _xtp_u,
             externals={
                 "iord": iord,
+                "mord": iord,
                 "xt_minmax": False,
                 **ax_offsets,
             },
