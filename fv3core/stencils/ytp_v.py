@@ -9,7 +9,6 @@ from gt4py.gtscript import (
     region,
 )
 
-import fv3core._config as spec
 from fv3core.decorators import FrozenStencil
 from fv3core.stencils import yppm
 from fv3core.utils.grid import GridIndexing, axis_offsets
@@ -102,19 +101,17 @@ class YTP_V:
             )
         assert grid_type < 3
 
-        grid = spec.grid
         origin = grid_indexing.origin_compute()
         domain = grid_indexing.domain_compute(add=(1, 1, 0))
-        self.dy = grid.dy
-        self.dya = grid.dya
-        self.rdy = grid.rdy
-        ax_offsets = axis_offsets(grid, origin, domain)
+        self.dy = dy
+        self.dya = dya
+        self.rdy = rdy
+        ax_offsets = axis_offsets(grid_indexing, origin, domain)
 
         self.stencil = FrozenStencil(
             _ytp_v,
             externals={
                 "jord": jord,
-                "mord": jord,
                 "xt_minmax": False,
                 **ax_offsets,
             },
