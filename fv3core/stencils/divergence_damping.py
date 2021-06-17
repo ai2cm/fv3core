@@ -266,18 +266,16 @@ class DivergenceDamping:
             vc_from_divg,
             origins=origins_v,
             domains=domains_v,
-            add_offsets=False,
         )
 
         self._uc_from_divg_stencils = get_stencils_with_varied_bounds(
             uc_from_divg,
             origins=origins_u,
             domains=domains_u,
-            add_offsets=False,
         )
 
         self._redo_divg_d_stencils = get_stencils_with_varied_bounds(
-            redo_divg_d, origins=origins, domains=domains, add_offsets=False
+            redo_divg_d, origins=origins, domains=domains
         )
         self._redo_divg_d_corners = FrozenStencil(
             redo_divg_d_corners,

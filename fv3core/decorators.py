@@ -80,8 +80,8 @@ def get_namespace(arg_specs, state):
 
 
 class FrozenStencil:
-    _stencil_groups: Dict[str, List[str]] = json.loads(
-        Path("./stencil-groups.json").read_text()
+    _external_groups: Dict[str, List[str]] = json.loads(
+        Path("./external-groups.json").read_text()
     )
 
     """
@@ -186,7 +186,7 @@ class FrozenStencil:
                 fields[write_field]._set_device_modified()
 
     def _get_node_groups(self, func_name: str, externals: dict):
-        group_key = func_name
+        group_key = ""
         if externals:
             extent_list: list = []
             for ext_key, ext_val in sorted(externals.items()):
@@ -195,16 +195,16 @@ class FrozenStencil:
                     extent_list.append(f"'{ext_key}': {ext_val.__dict__}")
             if extent_list:
                 extent_str = ", ".join(extent_list)
-                group_key += f"->{{{extent_str}}}"
+                group_key += f"{{{extent_str}}}"
         node_groups = (
-            set([int(node) for node in self._stencil_groups[group_key]])
-            if group_key in self._stencil_groups
-            else set()
+            [int(node) for node in self._external_groups[group_key]]
+            if group_key in self._external_groups
+            else []
         )
         node_id = global_config.MPI.COMM_WORLD.Get_rank()
         with open(f"./caching_r{node_id}.log", "a") as log:
             log.write(
-                f"{dt.datetime.now()}: R{node_id}: Sending node_groups='{node_groups} to '{func_name}'\n"
+                f"{dt.datetime.now()}: R{node_id}: Sending node_groups='{node_groups} to '{func_name}->{group_key}'\n"
             )
         return node_groups
 
@@ -215,7 +215,7 @@ def get_stencils_with_varied_bounds(
     domains: List[Index3D],
     stencil_config: Optional[StencilConfig] = None,
     externals: Optional[Mapping[str, Any]] = None,
-    add_offsets: bool = True,
+    add_offsets: bool = False,
 ) -> List[FrozenStencil]:
     assert len(origins) == len(domains), (
         "Lists of origins and domains need to have the same length, you provided "
