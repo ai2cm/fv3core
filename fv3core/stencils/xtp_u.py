@@ -104,6 +104,10 @@ class XTP_U:
             )
         assert grid_type < 3
 
+        # TODO: XTP_U and YTP_V only depend on whether iord is less than 8 or
+        # greater than 8, not on the particular value of iord itself. We can
+        # refactor it to a boolean variable describing what iord < 8 means physically
+
         origin = grid_indexing.origin_compute()
         domain = grid_indexing.domain_compute(add=(1, 1, 0))
         self.dx = dx
