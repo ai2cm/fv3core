@@ -557,10 +557,12 @@ class AGrid2BGridFourthOrder:
         # don't compute last point in tile domain on each edge
         if self._idx.south_edge and "y" in dims:
             origin[1] += 1
+            domain[1] -= 1  # must adjust domain to keep endpoint the same
         if self._idx.north_edge and "y" in dims:
             domain[1] -= 1
         if self._idx.west_edge and "x" in dims:
             origin[0] += 1
+            domain[0] -= 1
         if self._idx.east_edge and "x" in dims:
             domain[0] -= 1
         return tuple(origin), tuple(domain)
