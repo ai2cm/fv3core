@@ -15,6 +15,8 @@ class TranslateYTP_V(TranslateFortranData2Py):
         self.out_vars = {"flux": flux_info}
 
     def compute_from_storage(self, inputs):
-        ytp_obj = ytp_v.YTP_V(spec.namelist)
+        ytp_obj = ytp_v.YTP_V(
+            grid_type=spec.namelist.grid_type, jord=spec.namelist.hord_mt
+        )
         ytp_obj(inputs["c"], inputs["v"], inputs["flux"])
         return inputs

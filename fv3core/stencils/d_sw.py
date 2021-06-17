@@ -594,8 +594,8 @@ class DGridShallowWaterLagrangianDynamics:
             hord=namelist.hord_vt,
         )
         self.fv_prep = FiniteVolumeFluxPrep()
-        self.ytp_v = YTP_V(namelist)
-        self.xtp_u = XTP_U(namelist)
+        self.ytp_v = YTP_V(namelist.grid_type, namelist.hord_mt)
+        self.xtp_u = XTP_U(namelist.grid_type, namelist.hord_mt)
         self.divergence_damping = DivergenceDamping(
             namelist, column_namelist["nord"], column_namelist["d2_divg"]
         )

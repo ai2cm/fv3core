@@ -96,13 +96,12 @@ def _xtp_u(
 
 
 class XTP_U:
-    def __init__(self, namelist):
-        iord = spec.namelist.hord_mt
+    def __init__(self, grid_type: int, iord: int):
         if iord not in (5, 6, 7, 8):
             raise NotImplementedError(
                 "Currently xtp_v is only supported for hord_mt == 5,6,7,8"
             )
-        assert namelist.grid_type < 3
+        assert grid_type < 3
 
         grid = spec.grid
         self.origin = grid.compute_origin()
@@ -111,7 +110,6 @@ class XTP_U:
         self.dxa = grid.dxa
         self.rdx = grid.rdx
         ax_offsets = axis_offsets(grid, self.origin, self.domain)
-        assert namelist.grid_type < 3
         self.stencil = FrozenStencil(
             _xtp_u,
             externals={
