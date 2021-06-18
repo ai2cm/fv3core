@@ -5,6 +5,7 @@ Usage: python external_profiler.py <PYTHON SCRIPT>.py <ARGS>
 Works with nvtx (via cupy) for now.
 """
 
+import argparse
 import sys
 from argparse import ArgumentParser
 
@@ -16,9 +17,8 @@ try:
 except ModuleNotFoundError:
     cp = None
 
-
 def parse_args():
-    usage = "usage: python %(prog)s <--nvtx> <--stencil=STENCIL_NAME> <CMD TO PROFILE>"
+    usage = "usage: python %(prog)s <--nvtx> <--stencil=STENCIL_NAME> <--call_number=N> <CMD TO PROFILE>"
     parser = ArgumentParser(usage=usage)
     parser.add_argument(
         "--nvtx",
@@ -30,6 +30,12 @@ def parse_args():
         type=str,
         action="store",
         help="create a small reproducer for the stencil",
+    )
+    parser.add_argument(
+        "--call_number",
+        type=int,
+        default=0,
+        help="which stencil call to reproduce. If 0 or less, collects all calls"
     )
     return parser.parse_known_args()
 
@@ -50,7 +56,7 @@ if __name__ == "__main__":
         print("WARNING: cupy isn't available, NVTX marking deactivated.")
         cmd_line_args.nvtx = False
     if cmd_line_args.stencil is not None:
-        stencil_reproducer.collect_stencil_candidate(cmd_line_args.stencil)
+        stencil_reproducer.collect_stencil_candidate(cmd_line_args.stencil, cmd_line_args.call_number)
     if cmd_line_args.nvtx or cmd_line_args.stencil:
         sys.setprofile(profile_hook)
     filename = unknown[0]

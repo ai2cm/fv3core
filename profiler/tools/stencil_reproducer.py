@@ -1,5 +1,6 @@
 import fnmatch
 import pickle
+import sys
 from datetime import datetime
 from glob import glob
 from os import getcwd, getenv, listdir, mkdir, path, walk
@@ -47,9 +48,11 @@ def field_serialization(frame, event, args):
                 scalar_file = f"{stencil_info[1]}/data/{prefix}_scalars.pickled"
                 with open(scalar_file, "wb") as handle:
                     pickle.dump(scalars, handle, protocol=pickle.HIGHEST_PROTOCOL)
+    if event == "return":
+        sys.exit(0)
 
 
-def collect_stencil_candidate(stencil_name):
+def collect_stencil_candidate(stencil_name, call_number):
     """Collect all stencils that correspond to `stencil_name`.
 
     Multiple stencils can be collected if compile time varaiables lead to multiple
@@ -64,16 +67,17 @@ def collect_stencil_candidate(stencil_name):
         fullpath = path.join(gt_cache_root, fname)
         if fname.startswith(".gt_cache") and path.isdir(fullpath):
             for root, _, filenames in walk(fullpath):
-                for py_wrapper_file in fnmatch.filter(
+                for call_count, py_wrapper_file in enumerate(fnmatch.filter(
                     filenames, f"{expected_py_wrapper_partialname}*.py"
-                ):
-                    print(f"...found candidate {path.join(root, py_wrapper_file)}")
-                    stencil_key = path.splitext(py_wrapper_file)[0]
-                    stencil_file_wrapper = path.join(root, py_wrapper_file)
-                    STENCIL_CANDIDATE_FOR_EXTRACT[stencil_key] = (
-                        stencil_file_wrapper,
-                        None,
-                    )
+                )):
+                    if (call_number <= 0) or (call_count+1 == call_number):
+                        print(f"...found candidate {path.join(root, py_wrapper_file)}")
+                        stencil_key = path.splitext(py_wrapper_file)[0]
+                        stencil_file_wrapper = path.join(root, py_wrapper_file)
+                        STENCIL_CANDIDATE_FOR_EXTRACT[stencil_key] = (
+                            stencil_file_wrapper,
+                            None,
+                        )
 
     # Raise an exception is the collection came back with no results
     if len(STENCIL_CANDIDATE_FOR_EXTRACT.items()) == 0:
