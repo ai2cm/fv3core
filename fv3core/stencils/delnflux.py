@@ -6,7 +6,6 @@ from gt4py.gtscript import FORWARD, PARALLEL, computation, interval
 
 import fv3core._config as spec
 import fv3core.utils.corners as corners
-import fv3core.utils.global_config as config
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import FrozenStencil
 from fv3core.stencils.basic_operations import copy_defn
@@ -377,14 +376,6 @@ class DelnFluxNoSG:
         if mass is None:
             self._d2_damp_low(q, d2, damp_c)
             self._d2_damp(q, d2, damp_c)
-            # if config.get_backend() == "numpy":
-            #     utils.serialize("/tmp/delvt6", q=q, d2=d2, damp_c=damp_c, fx2=fx2)
-            # else:
-            #     data = utils.deserialize("/tmp/delvt6")
-            #     assert np.allclose(q, data["q"])
-            #     assert np.allclose(damp_c, data["damp_c"])
-            #     assert np.allclose(d2, data["d2"])
-            #     assert np.allclose(fx2, data["fx2"])
         else:
             self._copy_stencil_interval_low(q, d2)
             self._copy_stencil_interval(q, d2)
