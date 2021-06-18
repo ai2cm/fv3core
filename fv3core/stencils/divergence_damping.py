@@ -123,13 +123,21 @@ def redo_divg_d(
     uc: FloatField,
     vc: FloatField,
     divg_d: FloatField,
+):
+    with computation(PARALLEL), interval(...):
+        divg_d = uc[0, -1, 0] - uc + vc[-1, 0, 0] - vc
+
+
+def redo_divg_d_corners(
+    uc: FloatField,
+    vc: FloatField,
+    divg_d: FloatField,
     adjustment_factor: FloatFieldIJ,
     skip_adjustment: bool,
 ):
     from __externals__ import i_end, i_start, j_end, j_start
 
     with computation(PARALLEL), interval(...):
-        divg_d = uc[0, -1, 0] - uc + vc[-1, 0, 0] - vc
         with horizontal(region[i_start, j_start], region[i_end + 1, j_start]):
             divg_d = vc[-1, 0, 0] - vc - uc
         with horizontal(region[i_start, j_end + 1], region[i_end + 1, j_end + 1]):
@@ -268,6 +276,12 @@ class DivergenceDamping:
         self._redo_divg_d_stencils = get_stencils_with_varied_bounds(
             redo_divg_d, origins=origins, domains=domains
         )
+        self._redo_divg_d_corners = FrozenStencil(
+            redo_divg_d_corners,
+            origin=origins[0],
+            domain=domains[0],
+            externals=axis_offsets(self.grid, origins[0], domains[0]),
+        )
 
         self._damping_nord_highorder_stencil = FrozenStencil(
             damping_nord_highorder_stencil,
@@ -363,7 +377,8 @@ class DivergenceDamping:
                     uc,
                     -1.0,
                 )
-            self._redo_divg_d_stencils[n](
+            self._redo_divg_d_stencils[n](uc, vc, divg_d)
+            self._redo_divg_d_corners(
                 uc, vc, divg_d, self.grid.rarea_c, self.grid.stretched_grid
             )
 

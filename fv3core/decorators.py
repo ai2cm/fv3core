@@ -2,7 +2,9 @@ import collections
 import collections.abc
 import functools
 import inspect
+import json
 import types
+from pathlib import Path
 from typing import (
     Any,
     Callable,
@@ -77,6 +79,10 @@ def get_namespace(arg_specs, state):
 
 
 class FrozenStencil:
+    _external_groups: Dict[str, List[str]] = json.loads(
+        Path("./external-groups.json").read_text()
+    )
+
     """
     Wrapper for gt4py stencils which stores origin and domain at compile time,
     and uses their stored values at call time.
@@ -114,10 +120,14 @@ class FrozenStencil:
         if externals is None:
             externals = {}
 
+        stencil_kwargs = self.stencil_config.stencil_kwargs
+        if "distrib_ctx" in stencil_kwargs:
+            stencil_kwargs["distrib_ctx"][2] = self._get_node_groups(externals)
+
         self.stencil_object: gt4py.StencilObject = gtscript.stencil(
             definition=func,
             externals=externals,
-            **self.stencil_config.stencil_kwargs,
+            **stencil_kwargs,
         )
         """generated stencil object returned from gt4py."""
 
@@ -168,6 +178,22 @@ class FrozenStencil:
             for write_field in self._written_fields:
                 fields[write_field]._set_device_modified()
 
+    def _get_node_groups(self, externals: Mapping[str, Any]) -> List[int]:
+        group_key: str = ""
+        if externals:
+            extent_list: List[str] = [
+                f"'{ext_key}': {ext_val.__dict__}"
+                for ext_key, ext_val in sorted(externals.items())
+                if isinstance(ext_val, gtscript.AxisOffset)
+            ]
+            if extent_list:
+                group_key += "{{{extents}}}".format(extents=", ".join(extent_list))
+        return (
+            [int(node) for node in self._external_groups[group_key]]
+            if group_key in self._external_groups
+            else []
+        )
+
 
 def get_stencils_with_varied_bounds(
     func: Callable[..., None],
@@ -175,6 +201,7 @@ def get_stencils_with_varied_bounds(
     domains: List[Index3D],
     stencil_config: Optional[StencilConfig] = None,
     externals: Optional[Mapping[str, Any]] = None,
+    add_offsets: bool = False,
 ) -> List[FrozenStencil]:
     assert len(origins) == len(domains), (
         "Lists of origins and domains need to have the same length, you provided "
@@ -187,14 +214,16 @@ def get_stencils_with_varied_bounds(
         externals = {}
     stencils = []
     for origin, domain in zip(origins, domains):
-        ax_offsets = fv3core.utils.grid.axis_offsets(spec.grid, origin, domain)
+        if add_offsets:
+            ax_offsets = fv3core.utils.grid.axis_offsets(spec.grid, origin, domain)
+            externals = {**externals, **ax_offsets}
         stencils.append(
             FrozenStencil(
                 func,
                 origin=origin,
                 domain=domain,
                 stencil_config=stencil_config,
-                externals={**externals, **ax_offsets},
+                externals=externals,
             )
         )
     return stencils
@@ -210,7 +239,7 @@ def get_written_fields(field_info) -> List[str]:
         field_name
         for field_name in field_info
         if field_info[field_name]
-        and field_info[field_name].access != gt4py.definitions.AccessKind.READ_ONLY
+        and field_info[field_name].access != gt4py.definitions.AccessKind.READ
     ]
     return write_fields
 
