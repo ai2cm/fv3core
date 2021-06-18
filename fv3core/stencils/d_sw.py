@@ -13,9 +13,15 @@ from fv3core.stencils.fvtp2d import FiniteVolumeTransport
 from fv3core.stencils.fxadv import FiniteVolumeFluxPrep
 from fv3core.stencils.xtp_u import XTP_U
 from fv3core.stencils.ytp_v import YTP_V
+from fv3core.utils.global_config import get_stencil_config
 from fv3core.utils.grid import axis_offsets
 from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
 
+def get_dace_stencil_config():
+    stencil_config = get_stencil_config()
+    if "gt" in stencil_config.backend:
+        stencil_config.backend = "gtc:dace"
+    return stencil_config
 
 dcon_threshold = 1e-5
 
@@ -682,6 +688,7 @@ class DGridShallowWaterLagrangianDynamics:
             horizontal_vorticity,
             origin=full_origin,
             domain=full_domain,
+            stencil_config=get_dace_stencil_config(),
         )
         self._ke_stencil = FrozenStencil(
             kinetic_energy, origin=b_origin, domain=b_domain

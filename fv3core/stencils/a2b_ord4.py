@@ -5,7 +5,14 @@ import fv3core._config as spec
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import FrozenStencil
 from fv3core.stencils.basic_operations import copy_defn
+from fv3core.utils.global_config import get_stencil_config
 from fv3core.utils.typing import FloatField, FloatFieldI, FloatFieldIJ
+
+def get_dace_stencil_config():
+    stencil_config = get_stencil_config()
+    if "gt" in stencil_config.backend:
+        stencil_config.backend = "gtc:dace"
+    return stencil_config
 
 
 # comact 4-pt cubic interpolation
@@ -517,10 +524,12 @@ class AGrid2BGridFourthOrder:
             self._qx_west_edge_stencil = FrozenStencil(
                 qx_west_edge, origin=origin_x, domain=(1, domain_x[1], nk)
             )
+
             self._qx_west_edge_stencil2 = FrozenStencil(
                 qx_west_edge2,
                 origin=(self.grid.is_ + 1, origin_x[1], kstart),
                 domain=(1, domain_x[1], nk),
+                stencil_config=get_dace_stencil_config()
             )
         if self.grid.east_edge:
             self._qx_east_edge_stencil = FrozenStencil(
@@ -532,6 +541,7 @@ class AGrid2BGridFourthOrder:
                 qx_east_edge2,
                 origin=(self.grid.ie, origin_x[1], kstart),
                 domain=(1, domain_x[1], nk),
+                stencil_config=get_dace_stencil_config()
             )
         origin_y = (self.grid.is_ - 2, self.grid.js, kstart)
         domain_y = (self.grid.nic + 4, self.grid.njc + 1, nk)
@@ -547,6 +557,7 @@ class AGrid2BGridFourthOrder:
                 qy_south_edge2,
                 origin=(origin_y[0], self.grid.js + 1, kstart),
                 domain=(domain_y[0], 1, nk),
+                stencil_config=get_dace_stencil_config()
             )
         if self.grid.north_edge:
             self._qy_north_edge_stencil = FrozenStencil(
@@ -558,6 +569,7 @@ class AGrid2BGridFourthOrder:
                 qy_north_edge2,
                 origin=(origin_y[0], self.grid.je, kstart),
                 domain=(domain_y[0], 1, nk),
+                stencil_config=get_dace_stencil_config()
             )
         js = self.grid.js + 1 if self.grid.south_edge else self.grid.js
         je = self.grid.je if self.grid.north_edge else self.grid.je + 1
@@ -574,24 +586,29 @@ class AGrid2BGridFourthOrder:
                 qxx_edge_south,
                 origin=(origin[0], self.grid.js + 1, origin[2]),
                 domain=(domain[0], 1, domain[2]),
+                stencil_config=get_dace_stencil_config()
             )
         if self.grid.north_edge:
+
             self._qxx_edge_north_stencil = FrozenStencil(
                 qxx_edge_north,
                 origin=(origin[0], self.grid.je, origin[2]),
                 domain=(domain[0], 1, domain[2]),
+                stencil_config=get_dace_stencil_config()
             )
         if self.grid.west_edge:
             self._qyy_edge_west_stencil = FrozenStencil(
                 qyy_edge_west,
                 origin=(self.grid.is_ + 1, origin[1], origin[2]),
                 domain=(1, domain[1], domain[2]),
+                stencil_config=get_dace_stencil_config()
             )
         if self.grid.east_edge:
             self._qyy_edge_east_stencil = FrozenStencil(
                 qyy_edge_east,
                 origin=(self.grid.ie, origin[1], origin[2]),
                 domain=(1, domain[1], domain[2]),
+                stencil_config=get_dace_stencil_config()
             )
         self._final_qout_stencil = FrozenStencil(
             final_qout, origin=origin, domain=domain
