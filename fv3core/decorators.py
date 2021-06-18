@@ -1,6 +1,5 @@
 import collections
 import collections.abc
-import datetime as dt
 import functools
 import inspect
 import json
@@ -123,7 +122,7 @@ class FrozenStencil:
 
         stencil_kwargs = self.stencil_config.stencil_kwargs
         if "distrib_ctx" in stencil_kwargs:
-            node_groups = self._get_node_groups(func.__name__, externals)
+            node_groups = self._get_node_groups(externals)
             distrib_ctx = stencil_kwargs["distrib_ctx"] + (node_groups,)
             stencil_kwargs["distrib_ctx"] = distrib_ctx
 
@@ -185,28 +184,21 @@ class FrozenStencil:
             for write_field in self._written_fields:
                 fields[write_field]._set_device_modified()
 
-    def _get_node_groups(self, func_name: str, externals: dict):
-        group_key = ""
+    def _get_node_groups(self, externals: Dict[str, Any]) -> List[int]:
+        group_key: str = ""
         if externals:
-            extent_list: list = []
-            for ext_key, ext_val in sorted(externals.items()):
-                is_axis_offset = isinstance(ext_val, gtscript.AxisOffset)
-                if is_axis_offset and not ext_key.startswith("local"):
-                    extent_list.append(f"'{ext_key}': {ext_val.__dict__}")
+            extent_list: List[str] = [
+                f"'{ext_key}': {ext_val.__dict__}"
+                for ext_key, ext_val in sorted(externals.items())
+                if isinstance(ext_val, gtscript.AxisOffset)
+            ]
             if extent_list:
-                extent_str = ", ".join(extent_list)
-                group_key += f"{{{extent_str}}}"
-        node_groups = (
+                group_key += "{{{extents}}}".format(extents=", ".join(extent_list))
+        return (
             [int(node) for node in self._external_groups[group_key]]
             if group_key in self._external_groups
             else []
         )
-        node_id = global_config.MPI.COMM_WORLD.Get_rank()
-        with open(f"./caching_r{node_id}.log", "a") as log:
-            log.write(
-                f"{dt.datetime.now()}: R{node_id}: Sending node_groups='{node_groups} to '{func_name}->{group_key}'\n"
-            )
-        return node_groups
 
 
 def get_stencils_with_varied_bounds(
