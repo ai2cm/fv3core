@@ -192,7 +192,7 @@ def corner_ut_stencil_init(
         },
         origin=(ui, uj, 0),
         domain=(1, 1, spec.grid.npz),
-        stencil_config=get_dace_stencil_config,
+        stencil_config=get_dace_stencil_config(),
     )
     return corner_stencil
 
