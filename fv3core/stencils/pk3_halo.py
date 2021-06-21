@@ -42,13 +42,11 @@ class PK3Halo:
         shape_2D = grid.domain_shape_full(add=(1, 1, 1))[0:2]
         origin = grid.full_origin()
         domain = grid.domain_shape_full(add=(0, 0, 1))
-        ax_offsets = axis_offsets(grid, origin, domain)
+        ax_offsets = axis_offsets(grid, origin, domain, locals_only=True)
         self._pe_tmp = utils.make_storage_from_shape(shape_2D, grid.full_origin())
         self._edge_pe_update = FrozenStencil(
             func=edge_pe_update,
-            externals={
-                **ax_offsets,
-            },
+            externals=ax_offsets,
             origin=origin,
             domain=domain,
         )
