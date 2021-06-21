@@ -220,7 +220,7 @@ class DivergenceDamping:
         # TODO: make stretched_grid a compile-time external, instead of runtime scalar
         self._stretched_grid = stretched_grid
         kstart = nonzero_nord_k
-        nk = self._idx.ke - kstart
+        nk = self._idx.domain[2] - kstart
         low_k_idx = self._idx.restrict_vertical(k_start=0, nk=nonzero_nord_k)
         high_k_idx = grid_indexing.restrict_vertical(k_start=nonzero_nord_k)
         self.a2b_ord4 = AGrid2BGridFourthOrder(

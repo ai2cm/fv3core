@@ -488,16 +488,6 @@ class GridIndexing:
         return self.origin[1] + self.domain[1] - 1
 
     @property
-    def ks(self):
-        """start of the data domain along the z-axis"""
-        return self.origin[2]
-
-    @property
-    def ke(self):
-        """end of the data domain along the z-axis"""
-        return self.origin[2] + self.domain[2]
-
-    @property
     def isd(self):
         """start of the full domain including halos along the x-axis"""
         return self.origin[0] - self.n_halo
@@ -537,13 +527,13 @@ class GridIndexing:
         """
         Returns the origin of the full domain including halos, plus an optional offset.
         """
-        return (self.isd + add[0], self.jsd + add[1], self.ks + add[2])
+        return (self.isd + add[0], self.jsd + add[1], self.origin[2] + add[2])
 
     def origin_compute(self, add: Index3D = (0, 0, 0)):
         """
         Returns the origin of the compute domain, plus an optional offset
         """
-        return (self.isc + add[0], self.jsc + add[1], self.ks + add[2])
+        return (self.isc + add[0], self.jsc + add[1], self.origin[2] + add[2])
 
     def domain_full(self, add: Index3D = (0, 0, 0)):
         """
@@ -552,7 +542,7 @@ class GridIndexing:
         return (
             self.ied + 1 - self.isd + add[0],
             self.jed + 1 - self.jsd + add[1],
-            self.ke - self.ks + add[2],
+            self.domain[2] + add[2],
         )
 
     def domain_compute(self, add: Index3D = (0, 0, 0)):
@@ -562,7 +552,7 @@ class GridIndexing:
         return (
             self.iec + 1 - self.isc + add[0],
             self.jec + 1 - self.jsc + add[1],
-            self.ke - self.ks + add[2],
+            self.domain[2] + add[2],
         )
 
     def axis_offsets(self, origin: Index3D, domain: Index3D):
