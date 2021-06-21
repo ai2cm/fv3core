@@ -1027,10 +1027,14 @@ class DelnFluxNoSG:
             raise Exception("nk must be more than 3 for DelnFluxNoSG")
         self._k_bounds = [1, 1, 1, self._nk - 3]
 
-        preamble_ax_offsets = axis_offsets(self._grid, origin_d2, domain_d2)
-        fx_ax_offsets = axis_offsets(self._grid, fx_origin, (f1_nx, f1_ny, self._nk))
+        preamble_ax_offsets = axis_offsets(
+            self._grid, origin_d2, domain_d2, locals_only=True
+        )
+        fx_ax_offsets = axis_offsets(
+            self._grid, fx_origin, (f1_nx, f1_ny, self._nk), locals_only=True
+        )
         fy_ax_offsets = axis_offsets(
-            self._grid, fx_origin, (f1_nx - 1, f1_ny + 1, self._nk)
+            self._grid, fx_origin, (f1_nx - 1, f1_ny + 1, self._nk), locals_only=True
         )
 
         origins_d2 = []

@@ -147,7 +147,8 @@ class FrozenStencil:
             "_domain_": self.domain,
         }
 
-        self._written_fields = get_written_fields(self.stencil_object.field_info)
+        if "cuda" in self.stencil_config.backend:
+            self._written_fields = get_written_fields(self.stencil_object.field_info)
 
     def __call__(
         self,
