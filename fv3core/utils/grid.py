@@ -465,6 +465,8 @@ class GridIndexing:
         This should rarely be required, consider using appropriate calls to helper
         methods that get the correct shape for your particular variable.
         """
+        # need to add back origin as buffer points, what we're returning here
+        # isn't a domain - it's an array size
         return self.domain_full(add=(1, 1, 1 + self.origin[2]))
 
     @property
