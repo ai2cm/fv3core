@@ -605,6 +605,7 @@ class DGridShallowWaterLagrangianDynamics:
         b_origin = self.grid.compute_origin()
         b_domain = self.grid.domain_shape_compute(add=(1, 1, 0))
         ax_offsets_b = axis_offsets(self.grid, b_origin, b_domain)
+        ax_locals_b = axis_offsets(self.grid, b_origin, b_domain, locals_only=True)
         self._pressure_and_vbke_stencil = FrozenStencil(
             pressure_and_vbke,
             externals={"inline_q": namelist.inline_q, **ax_offsets_b},
@@ -620,10 +621,10 @@ class DGridShallowWaterLagrangianDynamics:
             flux_capacitor, origin=full_origin, domain=full_domain
         )
         self._ub_vb_from_vort_stencil = FrozenStencil(
-            ub_vb_from_vort, externals=ax_offsets_b, origin=b_origin, domain=b_domain
+            ub_vb_from_vort, externals=ax_locals_b, origin=b_origin, domain=b_domain
         )
         self._u_and_v_from_ke_stencil = FrozenStencil(
-            u_and_v_from_ke, externals=ax_offsets_b, origin=b_origin, domain=b_domain
+            u_and_v_from_ke, externals=ax_locals_b, origin=b_origin, domain=b_domain
         )
         self._compute_vorticity_stencil = FrozenStencil(
             compute_vorticity,

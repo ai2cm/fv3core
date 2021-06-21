@@ -597,6 +597,7 @@ def axis_offsets(
     grid: Union[Grid, GridIndexing],
     origin: Iterable[int],
     domain: Iterable[int],
+    locals_only: bool = False,
 ) -> Mapping[str, gtscript.AxisOffset]:
     """Return the axis offsets relative to stencil compute domain.
 
@@ -614,7 +615,7 @@ def axis_offsets(
     origin = tuple(origin)
     domain = tuple(domain)
     if isinstance(grid, Grid):
-        return _old_grid_axis_offsets(grid, origin, domain)
+        return _old_grid_axis_offsets(grid, origin, domain, locals_only)
     else:
         return _grid_indexing_axis_offsets(grid, origin, domain)
 
@@ -624,45 +625,51 @@ def _old_grid_axis_offsets(
     grid: Grid,
     origin: Tuple[int, ...],
     domain: Tuple[int, ...],
+    locals_only: bool = False,
 ) -> Mapping[str, gtscript.AxisOffset]:
-    if grid.west_edge:
-        proc_offset = grid.is_ - grid.global_is
-        origin_offset = grid.is_ - origin[0]
-        i_start = gtscript.I[0] + proc_offset + origin_offset
-    else:
-        i_start = gtscript.I[0] - np.iinfo(np.int32).max
-
-    if grid.east_edge:
-        proc_offset = grid.npx + grid.halo - 2 - grid.global_is
-        endpt_offset = (grid.is_ - origin[0]) - domain[0] + 1
-        i_end = gtscript.I[-1] + proc_offset + endpt_offset
-    else:
-        i_end = gtscript.I[-1] + np.iinfo(np.int32).max
-
-    if grid.south_edge:
-        proc_offset = grid.js - grid.global_js
-        origin_offset = grid.js - origin[1]
-        j_start = gtscript.J[0] + proc_offset + origin_offset
-    else:
-        j_start = gtscript.J[0] - np.iinfo(np.int32).max
-
-    if grid.north_edge:
-        proc_offset = grid.npy + grid.halo - 2 - grid.global_js
-        endpt_offset = (grid.js - origin[1]) - domain[1] + 1
-        j_end = gtscript.J[-1] + proc_offset + endpt_offset
-    else:
-        j_end = gtscript.J[-1] + np.iinfo(np.int32).max
-
-    return {
-        "i_start": i_start,
+    offsets = {
         "local_is": gtscript.I[0] + grid.is_ - origin[0],
-        "i_end": i_end,
         "local_ie": gtscript.I[-1] + grid.ie - origin[0] - domain[0] + 1,
-        "j_start": j_start,
         "local_js": gtscript.J[0] + grid.js - origin[1],
-        "j_end": j_end,
         "local_je": gtscript.J[-1] + grid.je - origin[1] - domain[1] + 1,
     }
+    if not locals_only:
+        if grid.west_edge:
+            proc_offset = grid.is_ - grid.global_is
+            origin_offset = grid.is_ - origin[0]
+            i_start = gtscript.I[0] + proc_offset + origin_offset
+        else:
+            i_start = gtscript.I[0] - np.iinfo(np.int32).max
+
+        if grid.east_edge:
+            proc_offset = grid.npx + grid.halo - 2 - grid.global_is
+            endpt_offset = (grid.is_ - origin[0]) - domain[0] + 1
+            i_end = gtscript.I[-1] + proc_offset + endpt_offset
+        else:
+            i_end = gtscript.I[-1] + np.iinfo(np.int32).max
+
+        if grid.south_edge:
+            proc_offset = grid.js - grid.global_js
+            origin_offset = grid.js - origin[1]
+            j_start = gtscript.J[0] + proc_offset + origin_offset
+        else:
+            j_start = gtscript.J[0] - np.iinfo(np.int32).max
+
+        if grid.north_edge:
+            proc_offset = grid.npy + grid.halo - 2 - grid.global_js
+            endpt_offset = (grid.js - origin[1]) - domain[1] + 1
+            j_end = gtscript.J[-1] + proc_offset + endpt_offset
+        else:
+            j_end = gtscript.J[-1] + np.iinfo(np.int32).max
+        offsets.update(
+            {
+                "i_start": i_start,
+                "i_end": i_end,
+                "j_start": j_start,
+                "j_end": j_end,
+            }
+        )
+    return offsets
 
 
 @functools.lru_cache(maxsize=None)

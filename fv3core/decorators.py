@@ -80,7 +80,7 @@ def get_namespace(arg_specs, state):
 
 class FrozenStencil:
     _external_groups: Dict[str, List[str]] = json.loads(
-        Path("./external-groups.json").read_text()
+        (Path(__file__).parents[0] / "external-groups.json").read_text()
     )
 
     """
@@ -122,9 +122,7 @@ class FrozenStencil:
 
         stencil_kwargs = self.stencil_config.stencil_kwargs
         if "distrib_ctx" in stencil_kwargs:
-            node_groups = self._get_node_groups(externals)
-            distrib_ctx = stencil_kwargs["distrib_ctx"] + (node_groups,)
-            stencil_kwargs["distrib_ctx"] = distrib_ctx
+            stencil_kwargs["distrib_ctx"][2] = self._get_node_groups(externals)
 
         self.stencil_object: gt4py.StencilObject = gtscript.stencil(
             definition=func,
@@ -149,7 +147,8 @@ class FrozenStencil:
             "_domain_": self.domain,
         }
 
-        self._written_fields = []
+        if "cuda" in self.stencil_config.backend:
+            self._written_fields = get_written_fields(self.stencil_object.field_info)
 
     def __call__(
         self,
@@ -176,21 +175,18 @@ class FrozenStencil:
             self._mark_cuda_fields_written({**args_as_kwargs, **kwargs})
 
     def _mark_cuda_fields_written(self, fields: Mapping[str, Storage]):
-        if global_config.is_gpu_backend():
-            if not self._written_fields:
-                self._written_fields = get_written_fields(
-                    self.stencil_object.field_info
-                )
+        if "cuda" in self.stencil_config.backend:
             for write_field in self._written_fields:
                 fields[write_field]._set_device_modified()
 
-    def _get_node_groups(self, externals: Dict[str, Any]) -> List[int]:
+    def _get_node_groups(self, externals: Mapping[str, Any]) -> List[int]:
         group_key: str = ""
         if externals:
             extent_list: List[str] = [
                 f"'{ext_key}': {ext_val.__dict__}"
                 for ext_key, ext_val in sorted(externals.items())
                 if isinstance(ext_val, gtscript.AxisOffset)
+                and not ext_key.startswith("local")
             ]
             if extent_list:
                 group_key += "{{{extents}}}".format(extents=", ".join(extent_list))

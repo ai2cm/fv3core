@@ -201,6 +201,7 @@ def _initialize_edge_pe_stencil(grid: Grid) -> FrozenStencil:
         grid,
         grid.full_origin(),
         grid.domain_shape_full(add=(0, 0, 1)),
+        locals_only=True,
     )
     return FrozenStencil(
         pe_halo.edge_pe,

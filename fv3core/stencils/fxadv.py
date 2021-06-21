@@ -365,7 +365,9 @@ class FiniteVolumeFluxPrep:
         origin = self.grid.full_origin()
         domain = self.grid.domain_shape_full()
         ax_offsets = axis_offsets(self.grid, origin, domain)
+        local_offsets = axis_offsets(self.grid, origin, domain, locals_only=True)
         kwargs = {"externals": ax_offsets, "origin": origin, "domain": domain}
+        kwargs_fluxes = {"externals": local_offsets, "origin": origin, "domain": domain}
         origin_corners = self.grid.full_origin(add=(1, 1, 0))
         domain_corners = self.grid.domain_shape_full(add=(-1, -1, 0))
         corner_offsets = axis_offsets(self.grid, origin_corners, domain_corners)
@@ -382,7 +384,9 @@ class FiniteVolumeFluxPrep:
         self._vt_x_edge_stencil = FrozenStencil(vt_x_edge, **kwargs)
         self._ut_corners_stencil = FrozenStencil(ut_corners, **kwargs_corners)
         self._vt_corners_stencil = FrozenStencil(vt_corners, **kwargs_corners)
-        self._fxadv_fluxes_stencil = FrozenStencil(fxadv_fluxes_stencil, **kwargs)
+        self._fxadv_fluxes_stencil = FrozenStencil(
+            fxadv_fluxes_stencil, **kwargs_fluxes
+        )
 
     def __call__(
         self,

@@ -3,6 +3,8 @@ import os
 from collections.abc import Hashable
 from fv3core.utils.mpi import MPI
 
+from fv3core.utils.mpi import MPI
+
 
 def getenv_bool(name: str, default: str) -> bool:
     indicator = os.getenv(name, default).title()
@@ -116,7 +118,7 @@ class StencilConfig(Hashable):
             kwargs["device_sync"] = self.device_sync
         if MPI is not None and MPI.COMM_WORLD.Get_size() > 1:
             comm = MPI.COMM_WORLD
-            kwargs["distrib_ctx"] = (comm.Get_rank(), comm.Get_size())
+            kwargs["distrib_ctx"] = [comm.Get_rank(), comm.Get_size(), list()]
         return kwargs
 
 

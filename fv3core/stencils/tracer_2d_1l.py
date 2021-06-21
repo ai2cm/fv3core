@@ -138,14 +138,12 @@ class TracerAdvection:
             units="kg/m^2",
         )
 
-        ax_offsets = fv3core.utils.axis_offsets(
-            self.grid, self.grid.full_origin(), self.grid.domain_shape_full()
+        local_axis_offsets = fv3core.utils.axis_offsets(
+            self.grid,
+            self.grid.full_origin(),
+            self.grid.domain_shape_full(),
+            locals_only=True,
         )
-        local_axis_offsets = {}
-        for axis_offset_name, axis_offset_value in ax_offsets.items():
-            if "local" in axis_offset_name:
-                local_axis_offsets[axis_offset_name] = axis_offset_value
-
         self._flux_compute = FrozenStencil(
             flux_compute,
             origin=self.grid.full_origin(),
