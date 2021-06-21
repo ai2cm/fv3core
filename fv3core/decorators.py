@@ -80,7 +80,7 @@ def get_namespace(arg_specs, state):
 
 class FrozenStencil:
     _external_groups: Dict[str, List[str]] = json.loads(
-        Path("./external-groups.json").read_text()
+        (Path(__file__).parents[0] / "external-groups.json").read_text()
     )
 
     """
@@ -186,6 +186,7 @@ class FrozenStencil:
                 f"'{ext_key}': {ext_val.__dict__}"
                 for ext_key, ext_val in sorted(externals.items())
                 if isinstance(ext_val, gtscript.AxisOffset)
+                and not ext_key.startswith("local")
             ]
             if extent_list:
                 group_key += "{{{extents}}}".format(extents=", ".join(extent_list))

@@ -605,9 +605,7 @@ class DGridShallowWaterLagrangianDynamics:
         b_origin = self.grid.compute_origin()
         b_domain = self.grid.domain_shape_compute(add=(1, 1, 0))
         ax_offsets_b = axis_offsets(self.grid, b_origin, b_domain)
-        ax_locals_b = axis_offsets(
-            self.grid, b_origin, b_domain, locals_only=True
-        )
+        ax_locals_b = axis_offsets(self.grid, b_origin, b_domain, locals_only=True)
         self._pressure_and_vbke_stencil = FrozenStencil(
             pressure_and_vbke,
             externals={"inline_q": namelist.inline_q, **ax_offsets_b},
