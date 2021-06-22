@@ -245,7 +245,7 @@ class DelnFluxNoSG:
         kstart = nonzero_nord_k
         low_kstart = 0
         nk = self._nk - kstart
-        low_nk = nonzero_nord_k
+        low_nk = max(1, nonzero_nord_k)
         origin_d2 = (i1, j1, 0)
         domain_d2 = (i2 - i1 + 1, j2 - j1 + 1, self._nk)
         f1_ny = self._grid.je - self._grid.js + 1 + 2 * self._nmax
