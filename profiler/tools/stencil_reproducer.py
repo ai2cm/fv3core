@@ -41,6 +41,7 @@ def field_serialization(frame, event, args):
                         arg_value.device_to_host()
                         pickle_file = f"{stencil_info[1]}/data/{prefix}_{arg_key}.npz"
                         if path.isfile(pickle_file):
+                            # TODO: sensible handling for args.call_number > 0
                             print(f"already wrote to {pickle_file}, skipping...")
                             return -1
                         np.savez_compressed(
