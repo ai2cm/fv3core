@@ -19,10 +19,14 @@ STENCIL_CANDIDATE_FOR_EXTRACT: Dict[str, Tuple[str, str]] = {}
 def field_serialization(frame, event, args):
     """Serialize all fields from a stencil"""
     if event == "call" or event == "return":
+        rank = MPI.COMM_WORLD.Get_rank()
         for stencil_key, stencil_info in STENCIL_CANDIDATE_FOR_EXTRACT.items():
+            # search for the stencil independent of the cache directory
+            # under {backend}/fv3core/decorators/{stencil}/
+            end_of_stencil_path = '/'.join(stencil_info[0].split('/')[-5:])
             if (
                 frame.f_code.co_name == "run"
-                and stencil_info[0] == frame.f_code.co_filename
+                and end_of_stencil_path in frame.f_code.co_filename
             ):
                 print(f"[PROFILER] Pickling args of {stencil_key} @ event {event}")
                 if event == "call":
@@ -38,6 +42,8 @@ def field_serialization(frame, event, args):
                         arg_value.device_to_host()
                         pickle_file = f"{stencil_info[1]}/data/{prefix}_{arg_key}.npz"
                         if path.isfile(pickle_file):
+                            print(f"already wrote to {pickle_file}")
+                            # continue
                             raise Exception("already wrote to", pickle_file)
                         np.savez_compressed(
                             pickle_file,
@@ -48,8 +54,6 @@ def field_serialization(frame, event, args):
                 scalar_file = f"{stencil_info[1]}/data/{prefix}_scalars.pickled"
                 with open(scalar_file, "wb") as handle:
                     pickle.dump(scalars, handle, protocol=pickle.HIGHEST_PROTOCOL)
-    if event == "return":
-        sys.exit(0)
 
 
 def collect_stencil_candidate(stencil_name, call_number):
@@ -65,7 +69,7 @@ def collect_stencil_candidate(stencil_name, call_number):
     print(f"[PROFILER] Searching for {stencil_name} in {gt_cache_root}...")
     for fname in listdir(gt_cache_root):
         fullpath = path.join(gt_cache_root, fname)
-        if fname.startswith(".gt_cache") and path.isdir(fullpath):
+        if fname.startswith(".gt_cache") and path.isdir(fullpath): #
             for root, _, filenames in walk(fullpath):
                 for call_count, py_wrapper_file in enumerate(fnmatch.filter(
                     filenames, f"{expected_py_wrapper_partialname}*.py"
