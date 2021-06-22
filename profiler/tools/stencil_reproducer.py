@@ -1,6 +1,5 @@
 import fnmatch
 import pickle
-import sys
 from datetime import datetime
 from glob import glob
 from os import getcwd, getenv, listdir, mkdir, path, walk
