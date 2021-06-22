@@ -22,7 +22,7 @@ def field_serialization(frame, event, args):
         for stencil_key, stencil_info in STENCIL_CANDIDATE_FOR_EXTRACT.items():
             # search for the stencil independent of the cache directory
             # under {backend}/fv3core/decorators/{stencil}/
-            end_of_stencil_path = '/'.join(stencil_info[0].split('/')[-5:])
+            end_of_stencil_path = "/".join(stencil_info[0].split("/")[-5:])
             if (
                 frame.f_code.co_name == "run"
                 and end_of_stencil_path in frame.f_code.co_filename
@@ -68,12 +68,12 @@ def collect_stencil_candidate(stencil_name, call_number):
     print(f"[PROFILER] Searching for {stencil_name} in {gt_cache_root}...")
     for fname in listdir(gt_cache_root):
         fullpath = path.join(gt_cache_root, fname)
-        if fname.startswith(".gt_cache") and path.isdir(fullpath): #
+        if fname.startswith(".gt_cache") and path.isdir(fullpath):  #
             for root, _, filenames in walk(fullpath):
-                for call_count, py_wrapper_file in enumerate(fnmatch.filter(
-                    filenames, f"{expected_py_wrapper_partialname}*.py"
-                )):
-                    if (call_number <= 0) or (call_count+1 == call_number):
+                for call_count, py_wrapper_file in enumerate(
+                    fnmatch.filter(filenames, f"{expected_py_wrapper_partialname}*.py")
+                ):
+                    if (call_number <= 0) or (call_count + 1 == call_number):
                         print(f"...found candidate {path.join(root, py_wrapper_file)}")
                         stencil_key = path.splitext(py_wrapper_file)[0]
                         stencil_file_wrapper = path.join(root, py_wrapper_file)
