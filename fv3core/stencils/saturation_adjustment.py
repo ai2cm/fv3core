@@ -608,7 +608,7 @@ def satadjust(
     )
 
     with computation(PARALLEL), interval(1, None):
-        if __INLINED(hydrostatic):      # if hydrostatic:
+        if __INLINED(hydrostatic):  # if hydrostatic:
             delz_0 = delz[0, 0, -1]
             delz = delz_0
     with computation(PARALLEL), interval(...):
