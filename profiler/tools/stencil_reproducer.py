@@ -41,9 +41,8 @@ def field_serialization(frame, event, args):
                         arg_value.device_to_host()
                         pickle_file = f"{stencil_info[1]}/data/{prefix}_{arg_key}.npz"
                         if path.isfile(pickle_file):
-                            print(f"already wrote to {pickle_file}")
-                            # continue
-                            raise Exception("already wrote to", pickle_file)
+                            print(f"already wrote to {pickle_file}, skipping...")
+                            return -1
                         np.savez_compressed(
                             pickle_file,
                             arg_value.data,
@@ -53,6 +52,7 @@ def field_serialization(frame, event, args):
                 scalar_file = f"{stencil_info[1]}/data/{prefix}_scalars.pickled"
                 with open(scalar_file, "wb") as handle:
                     pickle.dump(scalars, handle, protocol=pickle.HIGHEST_PROTOCOL)
+    return 0
 
 
 def collect_stencil_candidate(stencil_name, call_number):

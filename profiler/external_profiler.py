@@ -44,7 +44,7 @@ def profile_hook(frame, event, args):
     if cmd_line_args.nvtx and nvtx_markings.mark is not None:
         nvtx_markings.mark(frame, event, args)
     if cmd_line_args.stencil and stencil_reproducer.field_serialization is not None:
-        stencil_reproducer.field_serialization(frame, event, args)
+        _ = stencil_reproducer.field_serialization(frame, event, args)
 
 
 cmd_line_args = None
