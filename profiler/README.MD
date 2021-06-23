@@ -49,3 +49,8 @@ Lookup kernel name using `nsys` correlation id and the `sqlite` database
 Usage: `python nsys_id_kernel <NSYS_GENERATED.sqlite> <CORRELATION_ID> [--all]`
 
 Correlation id can be found on the tooltip when overring above a kernel in `nsys` ui.
+
+## TODO list:
+
+* json configuration
+* record all versions of a stencil then `exit()` from the program
