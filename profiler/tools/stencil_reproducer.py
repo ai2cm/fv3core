@@ -18,7 +18,6 @@ STENCIL_CANDIDATE_FOR_EXTRACT: Dict[str, Tuple[str, str]] = {}
 def field_serialization(frame, event, args):
     """Serialize all fields from a stencil"""
     if event == "call" or event == "return":
-        rank = MPI.COMM_WORLD.Get_rank()
         for stencil_key, stencil_info in STENCIL_CANDIDATE_FOR_EXTRACT.items():
             # search for the stencil independent of the cache directory
             # under {backend}/fv3core/decorators/{stencil}/
