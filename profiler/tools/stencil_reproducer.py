@@ -68,7 +68,7 @@ def collect_stencil_candidate(stencil_name, call_number):
     print(f"[PROFILER] Searching for {stencil_name} in {gt_cache_root}...")
     for fname in listdir(gt_cache_root):
         fullpath = path.join(gt_cache_root, fname)
-        if fname.startswith(".gt_cache") and path.isdir(fullpath):  #
+        if fname.startswith(".gt_cache") and path.isdir(fullpath):
             for root, _, filenames in walk(fullpath):
                 for call_count, py_wrapper_file in enumerate(
                     fnmatch.filter(filenames, f"{expected_py_wrapper_partialname}*.py")
