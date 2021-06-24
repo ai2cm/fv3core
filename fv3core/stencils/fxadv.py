@@ -438,9 +438,6 @@ class FiniteVolumeFluxPrep:
             ut: temporary x-velocity transformed from C-grid to D-grid equiv(?) (inout)
             vt: temporary y-velocity transformed from C-grid to D-grid equiv(?) (inout)
             dt: acoustic timestep in seconds
-
-        Grid variable inputs:
-            cosa_u, cosa_v, rsin_u, rsin_v, sin_sg1,sin_sg2, sin_sg3, sin_sg4, dx, dy
         """
 
         self._main_ut_stencil(
