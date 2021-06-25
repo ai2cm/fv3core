@@ -76,6 +76,7 @@ def test_get_stencils_with_varied_bounds_and_regions(backend):
         origins,
         domains,
         stencil_config=config,
+        add_offsets=True,
     )
     q, q_ref = setup_data_vars()
     stencils[0](q, q)

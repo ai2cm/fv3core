@@ -105,7 +105,6 @@ class FrozenStencil:
             externals: compile-time external variables required by stencil
         """
         self.origin = origin
-
         self.domain = domain
 
         if stencil_config is not None:

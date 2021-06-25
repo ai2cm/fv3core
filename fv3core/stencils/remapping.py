@@ -219,6 +219,7 @@ class LagrangianToEulerian:
         self._nq = nq
         # do_omega = hydrostatic and last_step # TODO pull into inputs
         self._domain_jextra = (grid.nic, grid.njc + 1, grid.npz + 1)
+        self._grid = grid
 
         self._pe1 = utils.make_storage_from_shape(shape_kplus)
         self._pe2 = utils.make_storage_from_shape(shape_kplus)
@@ -555,3 +556,17 @@ class LagrangianToEulerian:
             )
         else:
             self._basic_adjust_divide_stencil(pkz, pt)
+
+    def _copy_j_adjacent(self, pe2: FloatField) -> None:
+        grid = self._grid
+        origin = (grid.is_, grid.je + 1, 1)
+        domain = (grid.nic, 1, grid.npz - 1)
+        pe2[
+            origin[0] : origin[0] + domain[0],
+            origin[1] : origin[1] + domain[1],
+            origin[2] + 0 : origin[2] + domain[2],
+        ] = pe2[
+            origin[0] : origin[0] + domain[0],
+            origin[1] - 1 : origin[1] + domain[1] - 1,
+            origin[2] + 0 : origin[2] + domain[2],
+        ]
