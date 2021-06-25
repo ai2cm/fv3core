@@ -23,8 +23,6 @@ class TranslateD2A2C_Vect(TranslateFortranData2Py):
             self.grid.sin_sg4,
             self.grid.nested,
             spec.namelist.grid_type,
-            spec.namelist.npx,
-            spec.namelist.layout,
             dord4,
         )
         self.in_vars["data_vars"] = {

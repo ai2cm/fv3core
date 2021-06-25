@@ -1,5 +1,3 @@
-from typing import Tuple
-
 import gt4py.gtscript as gtscript
 from gt4py.gtscript import PARALLEL, computation, horizontal, interval, region
 
@@ -396,10 +394,6 @@ class DGrid2AGrid2CGridVectors:
         sin_sg4,
         nested: bool,
         grid_type: int,
-        # TODO: remove npx and layout, and in doing so
-        # remove MPI-grid dependence of outputs
-        npx: int,
-        layout: Tuple[int, int],
         dord4: bool,
     ):
         self._cosa_s = cosa_s
@@ -482,7 +476,7 @@ class DGrid2AGrid2CGridVectors:
         origin = grid_indexing.origin_full()
         domain = grid_indexing.domain_full()
         ax_offsets = axis_offsets(grid_indexing, origin, domain)
-        if npx <= 13 and layout[0] > 1:
+        if npt == 0:
             d2a2c_avg_offset = -1
         else:
             d2a2c_avg_offset = 3

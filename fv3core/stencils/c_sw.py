@@ -337,8 +337,6 @@ class CGridShallowWaterDynamics:
             self.grid.sin_sg4,
             self.grid.nested,
             self.namelist.grid_type,
-            self.namelist.npx,
-            self.namelist.layout,
             self._dord4,
         )
         grid_type = self.namelist.grid_type
