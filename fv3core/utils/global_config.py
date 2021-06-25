@@ -113,7 +113,7 @@ class StencilConfig(Hashable):
             kwargs["device_sync"] = self.device_sync
         if MPI is not None and MPI.COMM_WORLD.Get_size() > 1:
             comm = MPI.COMM_WORLD
-            kwargs["distrib_ctx"] = [comm.Get_rank(), comm.Get_size(), list()]
+            kwargs["distrib_ctx"] = (comm.Get_rank(), comm.Get_size())
         return kwargs
 
 
