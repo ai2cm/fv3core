@@ -119,24 +119,25 @@ def set_initial_vals(
 ):
     from __externals__ import iv, kord
 
-    with computation(PARALLEL), interval(0, 1):
-        # set top
-        if __INLINED(iv == -2):
-            # gam = 0.5
-            q = 1.5 * a4_1
-        else:
-            grid_ratio = delp[0, 0, 1] / delp
-            bet = grid_ratio * (grid_ratio + 0.5)
-            q = (
-                (grid_ratio + grid_ratio) * (grid_ratio + 1.0) * a4_1 + a4_1[0, 0, 1]
-            ) / bet
-            gam = (1.0 + grid_ratio * (grid_ratio + 1.5)) / bet
-    with computation(FORWARD), interval(1, 2):
-        if __INLINED(iv == -2):
-            gam = 0.5
-            grid_ratio = delp[0, 0, -1] / delp
-            bet = 2.0 + grid_ratio + grid_ratio - gam
-            q = (3.0 * (a4_1[0, 0, -1] + a4_1) - q[0, 0, -1]) / bet
+    with computation(FORWARD):
+        with interval(0, 1):
+            # set top
+            if __INLINED(iv == -2):
+                # gam = 0.5
+                q = 1.5 * a4_1
+            else:
+                grid_ratio = delp[0, 0, 1] / delp
+                bet = grid_ratio * (grid_ratio + 0.5)
+                q = (
+                    (grid_ratio + grid_ratio) * (grid_ratio + 1.0) * a4_1 + a4_1[0, 0, 1]
+                ) / bet
+                gam = (1.0 + grid_ratio * (grid_ratio + 1.5)) / bet
+        with interval(1, 2):
+            if __INLINED(iv == -2):
+                gam = 0.5
+                grid_ratio = delp[0, 0, -1] / delp
+                bet = 2.0 + grid_ratio + grid_ratio - gam
+                q = (3.0 * (a4_1[0, 0, -1] + a4_1) - q[0, 0, -1]) / bet
     with computation(FORWARD), interval(1, -1):
         if __INLINED(iv != -2):
             # set middle
@@ -145,23 +146,22 @@ def set_initial_vals(
             q = (3.0 * (a4_1[0, 0, -1] + d4 * a4_1) - q[0, 0, -1]) / bet
             gam = d4 / bet
     with computation(FORWARD):
-        with interval(2, -2):
+        with interval(2, -1):
             if __INLINED(iv == -2):
-                # set middle
                 old_grid_ratio = delp[0, 0, -2] / delp[0, 0, -1]
                 old_bet = 2.0 + old_grid_ratio + old_grid_ratio - gam[0, 0, -1]
                 gam = old_grid_ratio / old_bet
                 grid_ratio = delp[0, 0, -1] / delp
+    with computation(FORWARD):
+        with interval(2, -2):
+            if __INLINED(iv == -2):
+                # set middle
                 bet = 2.0 + grid_ratio + grid_ratio - gam
                 q = (3.0 * (a4_1[0, 0, -1] + a4_1) - q[0, 0, -1]) / bet
                 # gam[0, 0, 1] = grid_ratio / bet
         with interval(-2, -1):
             if __INLINED(iv == -2):
                 # set bottom
-                old_grid_ratio = delp[0, 0, -2] / delp[0, 0, -1]
-                old_bet = 2.0 + old_grid_ratio + old_grid_ratio - gam[0, 0, -1]
-                gam = old_grid_ratio / old_bet
-                grid_ratio = delp[0, 0, -1] / delp
                 q = (3.0 * (a4_1[0, 0, -1] + a4_1) - grid_ratio * qs - q[0, 0, -1]) / (
                     2.0 + grid_ratio + grid_ratio - gam
                 )
@@ -186,17 +186,14 @@ def set_initial_vals(
         if __INLINED(iv == -2):
             q = q - gam[0, 0, 1] * q[0, 0, 1]
     # set_avals
-    with computation(PARALLEL):
-        with interval(0, -1):
-            if __INLINED(kord > 16):
-                a4_2 = q
-                a4_3 = q[0, 0, 1]
-                a4_4 = 3.0 * (2.0 * a4_1 - (a4_2 + a4_3))
-        with interval(-1, None):
-            if __INLINED(kord > 16):
-                a4_2 = q
-                a4_3 = q_bot
-                a4_4 = 3.0 * (2.0 * a4_1 - (a4_2 + a4_3))
+    with computation(PARALLEL), interval(...):
+        if __INLINED(kord > 16):
+            a4_2 = q
+            a4_3 = q[0, 0, 1]
+            a4_4 = 3.0 * (2.0 * a4_1 - (a4_2 + a4_3))
+    with computation(PARALLEL), interval(-1, None):
+        if __INLINED(kord > 16):
+            a4_3 = q_bot
 
 
 def apply_constraints(
