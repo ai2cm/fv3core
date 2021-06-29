@@ -194,55 +194,59 @@ def heat_diss(
             diss_est = diss_e + heat_source
 
 
-def heat_source_from_vorticity_damping(
+def vorticity_damping_temporaries(
     ub: FloatField,
     vb: FloatField,
     ut: FloatField,
     vt: FloatField,
     u: FloatField,
     v: FloatField,
+    rdx: FloatFieldIJ,
+    rdy: FloatFieldIJ,
+    fx: FloatField,
+    fy: FloatField,
+    gx: FloatField,
+    gy: FloatField,
+    kinetic_energy_fraction_to_damp: FloatFieldK,
+):
+    from __externals__ import do_skeb
+    with computation(PARALLEL), interval(...):
+        if (kinetic_energy_fraction_to_damp[0] > dcon_threshold) or do_skeb:
+            ub = (ub + vt) * rdx
+            fy = u * rdx
+            gy = fy * ub
+            vb = (vb - ut) * rdy
+            fx = v * rdy
+            gx = fx * vb
+
+def heat_source_from_vorticity_damping(
+    ubt: FloatField,
+    vbt: FloatField,
+    fx:	FloatField,
+    fy: FloatField,
+    gx: FloatField,
+    gy: FloatField,
     delp: FloatField,
     rsin2: FloatFieldIJ,
     cosa_s: FloatFieldIJ,
-    rdx: FloatFieldIJ,
-    rdy: FloatFieldIJ,
     heat_source: FloatField,
     dampterm: FloatField,
     kinetic_energy_fraction_to_damp: FloatFieldK,
 ):
-
     from __externals__ import do_skeb
-
     with computation(PARALLEL), interval(...):
-        # if (kinetic_energy_fraction_to_damp[0] > dcon_threshold) or do_skeb:
         heat_s = heat_source
-        # TODO, if gt4py enable using temporaries this way
-        # while still avoiding a race condition
-        #    ubt = (ub + vt) * rdx
-        #    fy = u * rdx
-        #    gy = fy * ubt
-        #    vbt = (vb - ut) * rdy
-        #    fx = v * rdy
-        #    gx = fx * vbt
-
     with computation(PARALLEL), interval(...):
         if (kinetic_energy_fraction_to_damp[0] > dcon_threshold) or do_skeb:
-            #u2 = fy + fy[0, 1, 0]
-            #du2 = ubt + ubt[0, 1, 0]
-            #v2 = fx + fx[1, 0, 0]
-            #dv2 = vbt + vbt[1, 0, 0]
-            #dampterm = rsin2 * (
-            #    (ubt * ubt + ubt[0, 1, 0] * ubt[0, 1, 0] + vbt * vbt + vbt[1, 0, 0] * vbt[1, 0, 0])
-            #+ 2.0 * (gy + gy[0, 1, 0] + gx + gx[1, 0, 0])
-            #    - cosa_s * (u2 * dv2 + v2 * du2 + du2 * dv2)
-            #)
-            # inlined and difficult to read, this should not be necessary
-            # can split into more stencils and make more temporaries
-            dampterm =  rsin2 * (
-                (((ub + vt) * rdx) * ((ub + vt) * rdx) + ((ub[0, 1, 0] + vt[0, 1, 0]) * rdx[0, 1]) * ((ub[0, 1, 0] + vt[0, 1, 0]) * rdx[0, 1]) + ((vb - ut) * rdy) * ((vb - ut) * rdy) + ((vb[1, 0, 0] - ut[1, 0, 0]) * rdy[1, 0]) * ((vb[1, 0, 0] - ut[1, 0, 0]) * rdy[1, 0]))
-                + 2.0 * (((u * rdx) * ((ub + vt) * rdx)) + ((u[0, 1, 0] * rdx[0, 1]) *((ub[0, 1, 0] + vt[0, 1, 0]) * rdx[0, 1])) + ((v * rdy ) * ((vb - ut) * rdy)) + ((v[1, 0, 0] * rdy[1, 0]) * ((vb[1, 0, 0] - ut[1, 0, 0]) * rdy[1, 0])))
-                - cosa_s * (( (u * rdx) + (u[0, 1, 0] * rdx[0, 1])) * (((vb - ut) * rdy) + ((vb[1, 0, 0] - ut[1, 0, 0]) * rdy[1, 0])) + ( ( v * rdy) + (v[1, 0, 0] * rdy[1, 0])) * (((ub + vt) * rdx) + ((ub[0, 1, 0] + vt[0, 1, 0]) * rdx[0, 1])) + (((ub + vt) * rdx) + ((ub[0, 1, 0] + vt[0, 1, 0]) * rdx[0, 1])) * (((vb - ut) * rdy) + ((vb[1, 0, 0]) - ut[1, 0, 0]) * rdy[1, 0])))
-
+            u2 = fy + fy[0, 1, 0]
+            du2 = ubt + ubt[0, 1, 0]
+            v2 = fx + fx[1, 0, 0]
+            dv2 = vbt + vbt[1, 0, 0]
+            dampterm = rsin2 * (
+                (ubt * ubt + ubt[0, 1, 0] * ubt[0, 1, 0] + vbt * vbt + vbt[1, 0, 0] * vbt[1, 0, 0])
+            + 2.0 * (gy + gy[0, 1, 0] + gx + gx[1, 0, 0])
+                - cosa_s * (u2 * dv2 + v2 * du2 + du2 * dv2)
+            
             heat_source = delp * (
                 heat_s - 0.25 * kinetic_energy_fraction_to_damp[0] * dampterm
             )
@@ -279,7 +283,7 @@ def damped_v(
     v: FloatField,
     damp_vt: FloatFieldK,
 ):
-    with computation(PARALLEL), interval(...):
+t    with computation(PARALLEL), interval(...):
         if damp_vt > 1e-5:
             v = v - ut
 
@@ -616,6 +620,14 @@ class DGridShallowWaterLagrangianDynamics:
             origin=self.grid.compute_origin(),
             domain=self.grid.domain_shape_compute(),
         )
+        self._vorticity_damping_temporaries_stencil = FrozenStencil(
+            vorticity_damping_temporaries,
+            externals={
+                "do_skeb": namelist.do_skeb,
+            },
+            origin=self.grid.compute_origin(),
+            domain=self.grid.domain_shape_compute(add=(2, 2, 0))
+            )
         self._heat_source_from_vorticity_damping_stencil = FrozenStencil(
             heat_source_from_vorticity_damping,
             externals={
@@ -989,18 +1001,31 @@ class DGridShallowWaterLagrangianDynamics:
             self._delnflux_damp_vt,
             self._tmp_vort,
         )
-        self._heat_source_from_vorticity_damping_stencil(
+        self._vorticity_damping_temporaries_stencil(
             self._tmp_ub,
             self._tmp_vb,
             self._tmp_ut,
             self._tmp_vt,
             u,
             v,
+            self.grid.rdx,
+            self.grid.rdy,
+            self._tmp_fx,
+            self._tmp_fy,
+            self._tmp_gx,
+            self._tmp_gy,
+            self._column_namelist["d_con"],
+        )
+        self._heat_source_from_vorticity_damping_stencil(
+            self._tmp_ub,
+            self._tmp_vb,
+            self._tmp_fx,
+            self._tmp_fy,
+            self._tmp_gx,
+            self._tmp_gy,
             delp,
             self.grid.rsin2,
             self.grid.cosa_s,
-            self.grid.rdx,
-            self.grid.rdy,
             self._tmp_heat_s,
             self._tmp_dampterm,
             self._column_namelist["d_con"],
