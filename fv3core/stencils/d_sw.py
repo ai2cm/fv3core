@@ -75,30 +75,6 @@ def flux_capacitor(
         xflux = xflux + fx
         yflux = yflux + fy
 
-
-@gtscript.function
-def horizontal_relative_vorticity_from_winds(u, v, ut, vt, dx, dy, rarea, vorticity):
-    """
-    Compute the area mean relative vorticity in the z-direction from the D-grid winds.
-
-    Args:
-        u (in): x-direction wind on D grid
-        v (in): y-direction wind on D grid
-        ut (out): u * dx
-        vt (out): v * dy
-        dx (in): gridcell width in x-direction
-        dy (in): gridcell width in y-direction
-        rarea (in): inverse of area
-        vorticity (out): area mean horizontal relative vorticity
-    """
-
-    vt = u * dx
-    ut = v * dy
-    vorticity = rarea * (vt - vt[0, 1, 0] - ut + ut[1, 0, 0])
-
-    return vt, ut, vorticity
-
-
 def compute_temperature_and_pressure_delta(
     gx: FloatField,
     gy: FloatField,
@@ -242,27 +218,25 @@ def heat_source_from_vorticity_damping(
 ):
 
     from __externals__ import do_skeb
-
-    with computation(PARALLEL), interval(...):
-        # if (kinetic_energy_fraction_to_damp[0] > dcon_threshold) or do_skeb:
-        heat_s = heat_source
-        ubt = (ub + vt) * rdx
-        fy = u * rdx
-        gy = fy * ubt
-        vbt = (vb - ut) * rdy
-        fx = v * rdy
-        gx = fx * vbt
     with computation(PARALLEL), interval(...):
         if (kinetic_energy_fraction_to_damp[0] > dcon_threshold) or do_skeb:
+            ubt = (ub + vt) * rdx
+            fy = u * rdx
+            gy = fy * ubt
+            vbt = (vb - ut) * rdy
+            fx = v * rdy
+            gx = fx * vbt
             u2 = fy + fy[0, 1, 0]
             du2 = ubt + ubt[0, 1, 0]
             v2 = fx + fx[1, 0, 0]
             dv2 = vbt + vbt[1, 0, 0]
-            dampterm = heat_damping_term(
-                ubt, vbt, gx, gy, rsin2, cosa_s, u2, v2, du2, dv2
+            dampterm =  rsin2 * (
+                (ubt * ubt + ubt[0, 1, 0] * ubt[0, 1, 0] + vbt * vbt + vbt[1, 0, 0] * vbt[1, 0, 0])
+	        + 2.0 * (gy + gy[0, 1, 0] + gx + gx[1, 0, 0])
+                - cosa_s * (u2 * dv2 + v2 * du2 + du2 * dv2)
             )
             heat_source = delp * (
-                heat_s - 0.25 * kinetic_energy_fraction_to_damp[0] * dampterm
+                heat_source - 0.25 * kinetic_energy_fraction_to_damp[0] * dampterm
             )
 
 
@@ -321,10 +295,22 @@ def horizontal_vorticity(
     rarea: FloatFieldIJ,
     vorticity: FloatField,
 ):
+    """
+    Compute the area mean relative vorticity in the z-direction from the D-grid winds.                                                                                                                                    Args
+        u (in): x-direction wind on D grid
+        v (in): y-direction wind on D grid
+        ut (out): u * dx
+        vt (out): v * dy
+        dx (in): gridcell width in x-direction
+        dy (in): gridcell width in y-direction
+        rarea (in): inverse of area
+        vorticity (out): area mean horizontal relative vorticity
+    """
     with computation(PARALLEL), interval(...):
-        vt, ut, vorticity = horizontal_relative_vorticity_from_winds(
-            u, v, ut, vt, dx, dy, rarea, vorticity
-        )
+        vt = u * dx
+        ut = v * dy
+    with computation(PARALLEL), interval(...):
+        vorticity = rarea * (vt - vt[0, 1, 0] - ut + ut[1, 0, 0])
 
 
 # Set the unique parameters for the smallest
