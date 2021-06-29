@@ -42,67 +42,78 @@ def constrain_interior(q, gam, a4):
 
 
 @gtscript.function
+def posdef_constraint_iv0(
+    a4_1: FloatField,
+    a4_2: FloatField,
+    a4_3: FloatField,
+    a4_4: FloatField,
+):
+    if a4_1 <= 0.0:
+        a4_2 = a4_1
+        a4_3 = a4_1
+        a4_4 = 0.0
+    else:
+        if (
+            abs(a4_3 - a4_2) < -a4_4
+            and (a4_1 + 0.25 * (a4_3 - a4_2) ** 2 / a4_4 + a4_4 * (1.0 / 12.0)) < 0.0
+        ):
+            if (a4_1 < a4_3) and (a4_1 < a4_2):
+                a4_3 = a4_1
+                a4_2 = a4_1
+                a4_4 = 0.0
+            elif a4_3 > a4_2:
+                a4_4 = 3.0 * (a4_2 - a4_1)
+                a4_3 = a4_2 - a4_4
+            else:
+                a4_4 = 3.0 * (a4_3 - a4_1)
+                a4_2 = a4_3 - a4_4
+    return a4_1, a4_2, a4_3, a4_4
+
+
+@gtscript.function
+def posdef_constraint_iv1(
+    a4_1: FloatField,
+    a4_2: FloatField,
+    a4_3: FloatField,
+    a4_4: FloatField,
+):
+    da1 = a4_3 - a4_2
+    da2 = da1 * da1
+    a6da = a4_4 * da1
+    if ((a4_1 - a4_2) * (a4_1 - a4_3)) >= 0.0:
+        a4_2 = a4_1
+        a4_3 = a4_1
+        a4_4 = 0.0
+    elif a6da < -1.0 * da2:
+        a4_4 = 3.0 * (a4_2 - a4_1)
+        a4_3 = a4_2 - a4_4
+    elif a6da > da2:
+        a4_4 = 3.0 * (a4_3 - a4_1)
+        a4_2 = a4_3 - a4_4
+    return a4_1, a4_2, a4_3, a4_4
+
+
+@gtscript.function
 def remap_constraint(
     a4_1: FloatField,
     a4_2: FloatField,
     a4_3: FloatField,
     a4_4: FloatField,
     extm: FloatField,
-    iv: int,
 ):
-    # posdef_constraint_iv0
-    if iv == 0:
-        if a4_1 <= 0.0:
-            a4_2 = a4_1
-            a4_3 = a4_1
-            a4_4 = 0.0
-        else:
-            if abs(a4_3 - a4_2) < -a4_4:
-                if (
-                    a4_1 + 0.25 * (a4_3 - a4_2) ** 2 / a4_4 + a4_4 * (1.0 / 12.0)
-                ) < 0.0:
-                    if (a4_1 < a4_3) and (a4_1 < a4_2):
-                        a4_3 = a4_1
-                        a4_2 = a4_1
-                        a4_4 = 0.0
-                    elif a4_3 > a4_2:
-                        a4_4 = 3.0 * (a4_2 - a4_1)
-                        a4_3 = a4_2 - a4_4
-                    else:
-                        a4_4 = 3.0 * (a4_3 - a4_1)
-                        a4_2 = a4_3 - a4_4
-    if iv == 1:
-        # posdef_constraint_iv1
-        da1 = a4_3 - a4_2
-        da2 = da1 * da1
-        a6da = a4_4 * da1
-        if ((a4_1 - a4_2) * (a4_1 - a4_3)) >= 0.0:
-            a4_2 = a4_1
-            a4_3 = a4_1
-            a4_4 = 0.0
-        else:
-            if a6da < -1.0 * da2:
-                a4_4 = 3.0 * (a4_2 - a4_1)
-                a4_3 = a4_2 - a4_4
-            elif a6da > da2:
-                a4_4 = 3.0 * (a4_3 - a4_1)
-                a4_2 = a4_3 - a4_4
-    # remap_constraint
-    if iv >= 2:
-        da1 = a4_3 - a4_2
-        da2 = da1 * da1
-        a6da = a4_4 * da1
-        if extm == 1:
-            a4_2 = a4_1
-            a4_3 = a4_1
-            a4_4 = 0.0
-        else:
-            if a6da < -da2:
-                a4_4 = 3.0 * (a4_2 - a4_1)
-                a4_3 = a4_2 - a4_4
-            elif a6da > da2:
-                a4_4 = 3.0 * (a4_3 - a4_1)
-                a4_2 = a4_3 - a4_4
+    da1 = a4_3 - a4_2
+    da2 = da1 * da1
+    a6da = a4_4 * da1
+    if extm == 1:
+        a4_2 = a4_1
+        a4_3 = a4_1
+        a4_4 = 0.0
+    elif a6da < -da2:
+        a4_4 = 3.0 * (a4_2 - a4_1)
+        a4_3 = a4_2 - a4_4
+    elif a6da > da2:
+        a4_4 = 3.0 * (a4_3 - a4_1)
+        a4_2 = a4_3 - a4_4
     return a4_1, a4_2, a4_3, a4_4
 
 
@@ -129,7 +140,8 @@ def set_initial_vals(
                 grid_ratio = delp[0, 0, 1] / delp
                 bet = grid_ratio * (grid_ratio + 0.5)
                 q = (
-                    (grid_ratio + grid_ratio) * (grid_ratio + 1.0) * a4_1 + a4_1[0, 0, 1]
+                    (grid_ratio + grid_ratio) * (grid_ratio + 1.0) * a4_1
+                    + a4_1[0, 0, 1]
                 ) / bet
                 gam = (1.0 + grid_ratio * (grid_ratio + 1.5)) / bet
         with interval(1, 2):
@@ -289,14 +301,15 @@ def set_interpolation_coefficients(
                 a4_2 = 0.0
     with computation(PARALLEL), interval(0, 2):
         if __INLINED(iv == 0):
-            a4_4 = 3 * (2 * a4_1 - (a4_2 + a4_3))
+            a4_4 = 3.0 * (2.0 * a4_1 - (a4_2 + a4_3))
     # set_top_as_iv1
     with computation(PARALLEL), interval(0, 1):
         if __INLINED(iv == -1):
-            a4_2 = 0.0 if a4_2 * a4_1 <= 0.0 else a4_2
+            if a4_2 * a4_1 <= 0.0:
+                a4_2 = 0.0
     with computation(PARALLEL), interval(0, 2):
         if __INLINED(iv == -1):
-            a4_4 = 3 * (2 * a4_1 - (a4_2 + a4_3))
+            a4_4 = 3.0 * (2.0 * a4_1 - (a4_2 + a4_3))
     # set_top_as_iv2
     with computation(PARALLEL):
         with interval(0, 1):
@@ -306,7 +319,7 @@ def set_interpolation_coefficients(
                 a4_4 = 0.0
         with interval(1, 2):
             if __INLINED(iv == 2):
-                a4_4 = 3 * (2 * a4_1 - (a4_2 + a4_3))
+                a4_4 = 3.0 * (2.0 * a4_1 - (a4_2 + a4_3))
     # set_top_as_else
     with computation(PARALLEL), interval(0, 2):
         if __INLINED(iv < -1 or iv == 1 or iv > 2):
@@ -314,11 +327,9 @@ def set_interpolation_coefficients(
     with computation(PARALLEL):
         with interval(0, 1):
             if __INLINED(iv != 2):
-                a4_1, a4_2, a4_3, a4_4 = remap_constraint(
-                    a4_1, a4_2, a4_3, a4_4, extm, 1
-                )
+                a4_1, a4_2, a4_3, a4_4 = posdef_constraint_iv1(a4_1, a4_2, a4_3, a4_4)
         with interval(1, 2):
-            a4_1, a4_2, a4_3, a4_4 = remap_constraint(a4_1, a4_2, a4_3, a4_4, extm, 2)
+            a4_1, a4_2, a4_3, a4_4 = remap_constraint(a4_1, a4_2, a4_3, a4_4, extm)
 
     with computation(PARALLEL), interval(2, -2):
         # set_inner_as_kordsmall
@@ -463,30 +474,24 @@ def set_interpolation_coefficients(
             a4_4 = 3.0 * (2.0 * a4_1 - (a4_2 + a4_3))
         # remap_constraint
         if __INLINED(iv == 0):
-            a4_1, a4_2, a4_3, a4_4 = remap_constraint(a4_1, a4_2, a4_3, a4_4, extm, 0)
-
-    # set_bottom_as_iv0
+            a4_1, a4_2, a4_3, a4_4 = posdef_constraint_iv0(a4_1, a4_2, a4_3, a4_4)
+    # set_bottom_as_iv0, set_bottom_as_iv1
     with computation(PARALLEL), interval(-1, None):
         if __INLINED(iv == 0):
-            a4_3 = a4_3 if a4_3 > 0.0 else 0.0
-    # set_bottom_as_iv1
-    with computation(PARALLEL), interval(-1, None):
+            if a4_3 < 0.0:
+                a4_3 = 0.0
         if __INLINED(iv == -1):
-            a4_3 = 0.0 if a4_3 * a4_1 <= 0.0 else a4_3
+            if a4_3 * a4_1 <= 0.0:
+                a4_3 = 0.0
     with computation(PARALLEL), interval(-2, None):
-        # set_bottom_as_iv0
-        if __INLINED(iv == 0):
+        # set_bottom_as_iv0, set_bottom_as_iv1, set_bottom_as_else
+        if __INLINED(iv == 0 or iv == -1 or iv > 0 or iv < -1):
             a4_4 = 3.0 * (2.0 * a4_1 - (a4_2 + a4_3))
-        # set_bottom_as_iv1
-        if __INLINED(iv == -1):
-            a4_4 = 3.0 * (2.0 * a4_1 - (a4_2 + a4_3))
-        # set_bottom_as_else
-        if __INLINED(iv > 0 or iv < -1):
-            a4_4 = 3.0 * (2.0 * a4_1 - (a4_2 + a4_3))
-    with computation(PARALLEL), interval(-2, -1):
-        a4_1, a4_2, a4_3, a4_4 = remap_constraint(a4_1, a4_2, a4_3, a4_4, extm, 2)
-    with computation(PARALLEL), interval(-1, None):
-        a4_1, a4_2, a4_3, a4_4 = remap_constraint(a4_1, a4_2, a4_3, a4_4, extm, 1)
+    with computation(FORWARD):
+        with interval(-2, -1):
+            a4_1, a4_2, a4_3, a4_4 = remap_constraint(a4_1, a4_2, a4_3, a4_4, extm)
+        with interval(-1, None):
+            a4_1, a4_2, a4_3, a4_4 = posdef_constraint_iv1(a4_1, a4_2, a4_3, a4_4)
 
 
 class RemapProfile:
