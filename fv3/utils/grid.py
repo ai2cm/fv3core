@@ -1,7 +1,9 @@
-import fv3.utils.gt4py_utils as utils
-from .global_constants import N_TILES, LON_OR_LAT_DIM, TILE_DIM
-import numpy as np
 import fv3util
+import numpy as np
+
+import fv3.utils.gt4py_utils as utils
+
+from .global_constants import LON_OR_LAT_DIM, N_TILES, TILE_DIM
 
 
 class Grid:

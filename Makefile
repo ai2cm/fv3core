@@ -1,258 +1,201 @@
+include docker/Makefile.image_names
+
 GCR_URL = us.gcr.io/vcm-ml
-CWD=$(shell pwd)
-SED := $(shell { command -v gsed || command -v sed; } 2>/dev/null)
-
-#<some large conceptual version change>.<serialization statement change>.<hotfix>
-FORTRAN_VERSION=0.4.justgrid.5_gfs_phys
-
-
+REGRESSION_DATA_STORAGE_BUCKET = gs://vcm-fv3gfs-serialized-regression-data
+EXPERIMENT ?=c12_6ranks_standard
+FORTRAN_SERIALIZED_DATA_VERSION=7.2.5
+WRAPPER_IMAGE = us.gcr.io/vcm-ml/fv3gfs-wrapper:gnu9-mpich314-nocuda
+DOCKER_BUILDKIT=1
 SHELL=/bin/bash
-
-TEST_ARGS ?=-v -s -rsx
+CWD=$(shell pwd)
 PULL ?=True
+DEV ?=n
+NUM_RANKS ?=6
 VOLUMES ?=
-MOUNTS ?=
-TEST_DATA_HOST ?=$(CWD)/test_data
-FV3_IMAGE ?=$(GCR_URL)/fv3ser:latest
+CONTAINER_ENGINE ?=docker
+RUN_FLAGS ?=--rm
+TEST_ARGS ?=
+TEST_DATA_HOST ?=$(CWD)/test_data/$(EXPERIMENT)
+FV3UTIL_DIR=$(CWD)/external/fv3gfs-util
 
-FV3_INSTALL_TARGET=fv3ser-install
-FV3_INSTALL_IMAGE=$(GCR_URL)/$(FV3_INSTALL_TARGET):latest
+FV3=fv3core
+FV3_PATH ?=/$(FV3)
 
-FORTRAN_DIR=$(CWD)/external/fv3gfs-fortran
-
-FV3UTIL_DIR=$(CWD)/external/fv3util
-COMPILED_IMAGE ?= $(GCR_URL)/fv3gfs-compiled:$(FORTRAN_VERSION)-serialize
-SERIALBOX_TARGET=fv3gfs-environment-serialbox
-SERIALBOX_IMAGE=$(GCR_URL)/$(SERIALBOX_TARGET):latest
-BASE_ENV_IMAGE=$(GCR_URL)/fv3gfs-environment:latest
-RUNDIR_IMAGE=$(GCR_URL)/fv3gfs-rundir:$(FORTRAN_VERSION)
-GCOV_IMAGE=$(GCR_URL)/fv3gfs-gcov-data:$(FORTRAN_VERSION)
-
-TEST_DATA_CONTAINER=/test_data
-TEST_DATA_REPO=$(GCR_URL)/fv3gfs-serialization-test-data
-TEST_DATA_IMAGE=$(TEST_DATA_REPO):$(FORTRAN_VERSION)
-TEST_IMAGE=$(GCR_URL)/fv3ser-test:$(FORTRAN_VERSION)
-TEST_DATA_RUN_CONTAINER=TestDataContainer-$(FORTRAN_VERSION)
-
-FORTRAN_SHA=$(shell git --git-dir=$(FORTRAN_DIR)/.git rev-parse HEAD)
-REMOTE_TAGS="$(shell gcloud container images list-tags --format='get(tags)' $(TEST_DATA_REPO) | grep $(FORTRAN_VERSION))"
-
+TEST_DATA_RUN_LOC ?=/test_data
 PYTHON_FILES = $(shell git ls-files | grep -e 'py$$' | grep -v -e '__init__.py')
 PYTHON_INIT_FILES = $(shell git ls-files | grep '__init__.py')
+TEST_DATA_TARFILE=dat_files.tar.gz
+TEST_DATA_TARPATH=$(TEST_DATA_HOST)/$(TEST_DATA_TARFILE)
+CORE_TAR=$(SARUS_FV3CORE_IMAGE).tar
+MPIRUN_CALL ?=mpirun -np $(NUM_RANKS)
+BASE_INSTALL?=$(FV3)-install-serialbox
+DATA_BUCKET= $(REGRESSION_DATA_STORAGE_BUCKET)/$(FORTRAN_SERIALIZED_DATA_VERSION)/$(EXPERIMENT)/
 
-update_submodules:
-	if [ ! -d $(FORTRAN_DIR)/FV3 -o ! -d $(FV3UTIL_DIR) ]; then \
-		git submodule update --init --recursive; \
+TEST_TYPE=$(word 3, $(subst _, ,$(EXPERIMENT)))
+THRESH_ARGS=--threshold_overrides_file=$(FV3_PATH)/tests/savepoint/translate/overrides/$(TEST_TYPE).yaml
+PYTEST_MAIN=pytest $(TEST_ARGS) $(FV3_PATH)/tests/main
+PYTEST_SEQUENTIAL=pytest --data_path=$(TEST_DATA_RUN_LOC) $(TEST_ARGS) $(THRESH_ARGS) $(FV3_PATH)/tests/savepoint
+# we can't rule out a deadlock if one test fails, so we must set maxfail=1 for parallel tests
+PYTEST_PARALLEL=$(MPIRUN_CALL) python -m mpi4py -m pytest --maxfail=1 --data_path=$(TEST_DATA_RUN_LOC) $(TEST_ARGS) $(THRESH_ARGS) -m parallel $(FV3_PATH)/tests/savepoint
+ifeq ($(DEV),y)
+	VOLUMES += -v $(CWD)/$(FV3):/$(FV3)/$(FV3) -v $(CWD)/tests:/$(FV3)/tests -v $(FV3UTIL_DIR):/usr/src/fv3gfs-util
+endif
+CONTAINER_CMD?=$(CONTAINER_ENGINE) run $(RUN_FLAGS) $(VOLUMES) $(CUDA_FLAGS) $(FV3CORE_IMAGE)
+
+clean:
+	find . -name ""
+	$(RM) -rf examples/wrapped/output/*
+	$(MAKE) -C external/fv3gfs-wrapper clean
+	$(MAKE) -C external/fv3gfs-fortran clean
+
+update_submodules_base:
+	if [ ! -f $(FV3UTIL_DIR)/requirements.txt  ]; then \
+		git submodule update --init external/fv3gfs-util ; \
 	fi
 
-build_environment_serialbox: update_submodules
-	DOCKERFILE=$(FORTRAN_DIR)/docker/Dockerfile \
-	ENVIRONMENT_TARGET=$(SERIALBOX_TARGET) \
-	$(MAKE) -C $(FORTRAN_DIR) build_environment
+update_submodules_venv: update_submodules_base
+	if [ ! -f $(CWD)/external/daint_venv/install.sh  ]; then \
+                git submodule update --init external/daint_venv; \
+        fi
 
-build_environment: build_environment_serialbox
-	DOCKER_BUILDKIT=1 docker build \
+constraints.txt: requirements.txt requirements/requirements_wrapper.txt requirements/requirements_lint.txt
+	pip-compile $^ --output-file constraints.txt
+	sed -i '' '/^git+https/d' constraints.txt
+# Image build instructions have moved to docker/Makefile but are kept here for backwards-compatibility
+
+build_environment: update_submodules_base
+	$(MAKE) -C docker build_core_deps
+
+build_cuda_environment: build_environment
+	CUDA=y $(MAKE) -C docker build_core_env
+
+build_wrapped_environment:
+	$(MAKE) -C external/fv3gfs-wrapper build-docker
+	docker build \
 		--network host \
-		--build-arg serialbox_image=$(SERIALBOX_IMAGE) \
-		-f docker/Dockerfile.build_environment \
-		-t $(FV3_INSTALL_IMAGE) \
+		-f $(CWD)/docker/Dockerfile.build_environment \
+		-t $(WRAPPER_INSTALL_IMAGE) \
 		--target $(FV3_INSTALL_TARGET) \
+		--build-arg BASE_IMAGE=$(WRAPPER_IMAGE) \
 		.
 
-build: update_submodules
+build: update_submodules_base
 	if [ $(PULL) == True ]; then \
-		$(MAKE) pull_environment; \
+		$(MAKE) pull_environment_if_needed; \
 	else \
 		$(MAKE) build_environment; \
 	fi
-	docker build \
-		--network host \
-		--build-arg build_image=$(FV3_INSTALL_IMAGE) \
-		-f docker/Dockerfile \
-		-t $(FV3_IMAGE) \
-		.
+	$(MAKE) -C docker fv3core_image
 
-pull_environment:
-	if [ -z $(shell docker images -q $(FV3_INSTALL_IMAGE)) ]; then \
-		docker pull $(FV3_INSTALL_IMAGE); \
+build_wrapped: update_submodules_base
+	if [ $(PULL) == True ]; then \
+		$(MAKE) pull_wrapped_environment_if_needed; \
+	else \
+		$(MAKE) build_wrapped_environment; \
+	fi
+	$(MAKE) -C docker fv3core_wrapper_image
+
+pull_environment_if_needed:
+	$(MAKE) -C docker pull_core_deps_if_needed
+
+
+pull_wrapped_environment_if_needed:
+	if [ -z $(shell docker images -q $(WRAPPER_INSTALL_IMAGE)) ]; then \
+		docker pull $(WRAPPER_INSTALL_IMAGE); \
 	fi
 
-push_environment:
-	docker push $(FV3_INSTALL_IMAGE)
+pull_environment:
+	$(MAKE) -C docker pull_core_deps
 
-rebuild_environment: build_environment
-	$(MAKE) push_environment
+push_environment:
+	$(MAKE) -C docker push_deps
+
+rebuild_environment: build_environment push_environment
+
+push_core:
+	$(MAKE) -C docker push
+
+pull_core:
+	$(MAKE) -C docker pull
+
+tar_core:
+	$(MAKE) -C docker tar_core
+
+sarus_load_tar:
+	$(MAKE) -C docker sarus_load_tar
+
+cleanup_remote:
+	$(MAKE) -C docker cleanup_remote
+
+# end of image build targets which have been moved to docker/Makefile
+
+test: tests
+
+tests:
+	PYTEST_CMD="$(PYTEST_MAIN)" $(MAKE) test_base
+
+savepoint_tests:
+	$(MAKE) get_test_data
+	VOLUMES='$(VOLUMES) -v $(TEST_DATA_HOST):$(TEST_DATA_RUN_LOC)' \
+	PYTEST_CMD="$(PYTEST_SEQUENTIAL)" $(MAKE) test_base
+
+savepoint_tests_mpi:
+	$(MAKE) get_test_data
+	VOLUMES='$(VOLUMES) -v $(TEST_DATA_HOST):$(TEST_DATA_RUN_LOC)' \
+	PYTEST_CMD="$(PYTEST_PARALLEL)" $(MAKE) test_base
 
 dev:
 	docker run --rm -it \
 		--network host \
-		-v $(TEST_DATA_HOST):$(TEST_DATA_CONTAINER) \
+		-v $(TEST_DATA_HOST):$(TEST_DATA_RUN_LOC) \
 		-v $(CWD):/port_dev \
-		$(FV3_IMAGE)
+		$(FV3CORE_IMAGE) bash
 
-devc:
-	if [ -z $(shell docker ps -q -f name=$(TEST_DATA_RUN_CONTAINER)) ]; then \
-		$(MAKE) data_container; \
-	fi
-	docker run --rm -it \
-		--network host \
-		--volumes-from $(TEST_DATA_RUN_CONTAINER) \
-		-v $(CWD):/port_dev \
-		$(FV3_IMAGE)
-
-fortran_model_data: #uses the 'fv3config.yml' in the fv3gfs-fortran regression tests to configure a test run for generation serialization data
-	docker build \
-		--network host \
-		--build-arg model_image=$(COMPILED_IMAGE) \
-		--build-arg commit_hash=$(FORTRAN_SHA)\
-		-f docker/Dockerfile.fortran_model_data \
-		--target $(DATA_TARGET) \
-		-t $(DATA_IMAGE) \
-		.
-
-generate_test_data: update_submodules
-
-	cd $(FORTRAN_DIR) && DOCKER_BUILDKIT=1 SERIALIZE_IMAGE_GT4PYDEV=$(COMPILED_IMAGE) $(MAKE) build_serialize_gt4pydev
-	DATA_IMAGE=$(RUNDIR_IMAGE) DATA_TARGET=rundir $(MAKE) fortran_model_data
-	DATA_IMAGE=$(TEST_DATA_IMAGE) DATA_TARGET=test_data_storage $(MAKE) fortran_model_data
-	docker rmi $(RUNDIR_IMAGE)
-
-generate_test_data_local:
-	cd $(FORTRAN_DIR) && DOCKER_BUILDKIT=1 SERIALIZE_IMAGE_GT4PYDEV=$(COMPILED_IMAGE) $(MAKE) build_serialize_gt4pydev
-	docker run --network host --rm -v $(CWD)/rundir:/rundir -it $(COMPILED_IMAGE) /rundir/submit_job.sh
-
-
-generate_coverage: update_submodules
-	rm -rf coverage
-	cd $(FORTRAN_DIR) && DOCKER_BUILDKIT=1 $(MAKE) build_coverage
-	cp fv3/test/fv3config_coverage.yml fv3/test/fv3config.yml
-	DATA_IMAGE=$(GCOV_IMAGE) COMPILED_IMAGE=fv3gfs-compiled:gcov DATA_TARGET=rundir $(MAKE) fortran_model_data
-	git checkout fv3/test/fv3config.yml
-	mkdir coverage
-	docker run -it --rm --network host --mount type=bind,source=$(PWD)/coverage,target=/coverage $(GCR_URL)/fv3gfs-gcov-data:$(FORTRAN_VERSION) bash -c "pip install gcovr; cd /coverage; mkdir physics; cd physics; gcovr -d -r /FV3/gfsphysics --html --html-details -o index.html; cd ../; mkdir dycore; cd dycore; gcovr -d -r /FV3/atmos_cubed_sphere --html --html-details -o index.html"
-	@echo "==== Coverage ananlysis done. Now open coverage/dycore/index.html coverage/physics/index.html in your browser ===="
-
-extract_test_data:
-	if [ -d $(TEST_DATA_HOST) ]; then \
-		echo "NOTE: $(TEST_DATA_HOST) already exists, move or delete it if you want a new extraction"; \
-	else \
-		docker create --name tmp_modelrundata -it $(TEST_DATA_IMAGE)  && \
-		docker cp tmp_modelrundata:/test_data $(TEST_DATA_HOST)  && \
-		docker rm -f tmp_modelrundata; \
-	fi
-
-
-post_test_data:
-	if [ -z $(REMOTE_TAGS) ]; then \
-		docker push $(TEST_DATA_IMAGE); \
-	else \
-		echo "ERROR: $(FORTRAN_VERSION) of test data has already been pushed. Do a direct docker push if you really intend to overwrite it" && exit 1; \
-	fi
-
-
-pull_test_data:
-	docker pull $(TEST_DATA_IMAGE)
-
-move_test_data:
-	docker build -f docker/Dockerfile.dev_data -t $(TEST_DATA_IMAGE) .
-
-setup_tests:
-	$(MAKE) build
-	if [ -z $(shell docker images -q $(TEST_DATA_IMAGE)) ]; then \
-		$(MAKE) pull_test_data; \
-	fi
-	if [ -z $(shell docker ps -q -f name=$(TEST_DATA_RUN_CONTAINER)) ]; then \
-		$(MAKE) data_container; \
-	fi
-
-tests:
-	$(MAKE) setup_tests
-	$(MAKE) run_tests_container
-
-tests_mpi:
-	$(MAKE) setup_tests
-	$(MAKE) run_tests_parallel_container
-
-
-data_container:
-	docker run -d -it \
-		--name=$(TEST_DATA_RUN_CONTAINER) \
-		-v TestDataVolume$(FORTRAN_VERSION):/test_data \
-		$(TEST_DATA_IMAGE)
-
-cleanup_container:
-	docker stop $(TEST_DATA_RUN_CONTAINER)
-	docker rm $(TEST_DATA_RUN_CONTAINER)
-
-tests_host:
-	$(MAKE) pull_test_data
-	$(MAKE) extract_test_data
-	$(MAKE) run_tests_host_data
-
-dev_tests:
-	MOUNTS='-v $(CWD)/fv3:/fv3 -v $(FV3UTIL_DIR):/usr/src/fv3util' \
-		$(MAKE) run_tests_container
-dev_tests_host:
-	MOUNTS='-v $(CWD)/fv3:/fv3 -v $(FV3UTIL_DIR):/usr/src/fv3util' \
-    $(MAKE) run_tests_host_data
-
-dev_tests_mpi:
-	MOUNTS='-v $(CWD)/fv3:/fv3 -v $(FV3UTIL_DIR):/usr/src/fv3util' $(MAKE) run_tests_parallel_container
-
-dev_tests_mpi_host:
-	MOUNTS='-v $(CWD)/fv3:/fv3 -v $(FV3UTIL_DIR):/usr/src/fv3util' $(MAKE) run_tests_parallel_host
-
+dev_wrapper:
+	$(MAKE) -C docker dev_wrapper
 
 test_base:
-	docker run --rm $(VOLUMES) $(MOUNTS) \
-	-it $(RUNTEST_IMAGE) pytest --data_path=$(TEST_DATA_CONTAINER) ${TEST_ARGS} /fv3/test
+ifneq ($(findstring docker,$(CONTAINER_CMD)),)
+	$(MAKE) build
+endif
+	$(CONTAINER_CMD) bash -c "pip list && $(PYTEST_CMD)"
 
 test_base_parallel:
 	docker run --rm $(VOLUMES) $(MOUNTS) \
-<<<<<<< HEAD
-	-it $(RUNTEST_IMAGE) mpirun --allow-run-as-root --mca btl_vader_single_copy_mechanism none --oversubscribe -np 6 pytest --data_path=$(TEST_DATA_CONTAINER) ${TEST_ARGS} -m parallel /fv3/test
-=======
 		-it $(RUNTEST_IMAGE) \
 		mpirun -np 6 --allow-run-as-root --mca btl_vader_single_copy_mechanism none --oversubscribe \
 		pytest --data_path=$(TEST_DATA_CONTAINER) ${TEST_ARGS} -m parallel /fv3/test
->>>>>>> master
 
-run_tests_parallel_container:
-	VOLUMES='--volumes-from $(TEST_DATA_RUN_CONTAINER)' \
-	RUNTEST_IMAGE=$(FV3_IMAGE) $(MAKE) test_base_parallel
+sync_test_data:
+	mkdir -p $(TEST_DATA_HOST) && gsutil -m rsync -r $(DATA_BUCKET) $(TEST_DATA_HOST)
 
-run_tests_container:
-	VOLUMES='--volumes-from $(TEST_DATA_RUN_CONTAINER)' \
-	RUNTEST_IMAGE=$(FV3_IMAGE) $(MAKE) test_base
+push_python_regressions:
+	gsutil -m cp -r $(TEST_DATA_HOST)/python_regressions $(DATA_BUCKET)python_regressions
 
-run_tests_host_data:
-	VOLUMES='-v $(TEST_DATA_HOST):$(TEST_DATA_CONTAINER)' \
-	RUNTEST_IMAGE=$(FV3_IMAGE) \
-	$(MAKE) test_base
+get_test_data:
+	if [ ! -f "$(TEST_DATA_HOST)/input.nml" ] || \
+	[ "$$(gsutil cat $(DATA_BUCKET)md5sums.txt)" != "$$(cat $(TEST_DATA_HOST)/md5sums.txt)"  ]; then \
+	rm -rf $(TEST_DATA_HOST) && \
+	$(MAKE) sync_test_data && \
+	$(MAKE) unpack_test_data ;\
+	fi
 
-run_tests_parallel_host:
-	VOLUMES='-v $(TEST_DATA_HOST):$(TEST_DATA_CONTAINER)' \
-	RUNTEST_IMAGE=$(FV3_IMAGE) \
-	$(MAKE) test_base_parallel
+unpack_test_data:
+	if [ -f $(TEST_DATA_TARPATH) ]; then \
+	cd $(TEST_DATA_HOST) && tar -xf $(TEST_DATA_TARFILE) && \
+	rm $(TEST_DATA_TARFILE); fi
+
+list_test_data_options:
+	gsutil ls $(REGRESSION_DATA_STORAGE_BUCKET)/$(FORTRAN_SERIALIZED_DATA_VERSION)
 
 lint:
-	black --diff --check $(PYTHON_FILES) $(PYTHON_INIT_FILES)
-	# disable flake8 tests for now, re-enable when dycore is "running"
-	#flake8 $(PYTHON_FILES)
-	# ignore unused import error in __init__.py files
-	#flake8 --ignore=F401 $(PYTHON_INIT_FILES)
-	@echo "LINTING SUCCESSFUL"
+	pre-commit run --all-files
 
-flake8:
-	flake8 $(PYTHON_FILES)
-	# ignore unused import error in __init__.py files
-	flake8 --ignore=F401 $(PYTHON_INIT_FILES)
+gt4py_tests_gpu:
+	CUDA=y make build && \
+        docker run --gpus all $(FV3CORE_IMAGE) python3 -m pytest -k "gtcuda or (not gtc)" -x gt4py/tests
 
-reformat:
-	black $(PYTHON_FILES) $(PYTHON_INIT_FILES)
-
-.PHONY: build build_environment build_environment_serialbox cleanup_container data_container \
-	dev dev_tests devc extract_test_data flake8 fortran_model_data generate_coverage \
-	generate_test_data lint post_test_data pull_environment pull_test_data push_environment \
-	rebuild_environment reformat run_tests_container run_tests_host_data test_base \
-	tests tests_host update_submodules generate_test_data_local move_test_data
+.PHONY: update_submodules_base update_submodules_venv build_environment build dev dev_tests dev_tests_mpi flake8 lint get_test_data unpack_test_data \
+	 list_test_data_options pull_environment pull_test_data push_environment \
+	rebuild_environment reformat run_tests_sequential run_tests_parallel test_base test_base_parallel \
+	tests push_core pull_core tar_core sarus_load_tar cleanup_remote

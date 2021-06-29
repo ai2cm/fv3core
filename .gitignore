@@ -6,7 +6,7 @@ __pycache__/
 coverage
 gridtools4py
 test_data
-fv3/test/output
+tests/output
 .DS_Store
 
 # C extensions
@@ -139,3 +139,8 @@ dmypy.json
 
 # GT4Py
 **/.gt_cache/
+gt4py/
+
+# Run outputs
+examples/wrapped/output/
+examples/wrapped/plots/

@@ -261,8 +261,12 @@ def fill_corners_agrid(x, y, grid, vector):
     for i in range(1, 1 + grid.halo):
         for j in range(1, 1 + grid.halo):
             if grid.sw_corner:
-                x[grid.halo - i, grid.halo - j, :] = mysign * y[grid.halo - j, grid.halo - 1 + i, :]
-                y[grid.halo - j, grid.halo - i, :] = mysign * x[grid.halo - 1 + i, grid.halo - j, :]
+                x[grid.halo - i, grid.halo - j, :] = (
+                    mysign * y[grid.halo - j, grid.halo - 1 + i, :]
+                )
+                y[grid.halo - j, grid.halo - i, :] = (
+                    mysign * x[grid.halo - 1 + i, grid.halo - j, :]
+                )
             if grid.nw_corner:
                 x[grid.halo - i, j_end + j, :] = y[grid.halo - j, j_end - i + 1, :]
                 y[grid.halo - j, j_end + i, :] = x[grid.halo - 1 + i, j_end + j, :]
