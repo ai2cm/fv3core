@@ -76,6 +76,28 @@ def flux_capacitor(
         yflux = yflux + fy
 
 
+@gtscript.function
+def horizontal_relative_vorticity_from_winds(u, v, ut, vt, dx, dy, rarea, vorticity):
+    """
+    Compute the area mean relative vorticity in the z-direction from the D-grid winds.
+
+    Args:
+        u (in): x-direction wind on D grid
+        v (in): y-direction wind on D grid
+        ut (out): u * dx
+        vt (out): v * dy
+        dx (in): gridcell width in x-direction
+        dy (in): gridcell width in y-direction
+        rarea (in): inverse of area
+        vorticity (out): area mean horizontal relative vorticity
+    """
+
+    vt = u * dx
+    ut = v * dy
+    vorticity = rarea * (vt - vt[0, 1, 0] - ut + ut[1, 0, 0])
+
+    return vt, ut, vorticity
+
 
 def compute_temperature_and_pressure_delta(
     gx: FloatField,
@@ -172,6 +194,14 @@ def adjust_w_and_qcon(
         q_con = q_con / delp
 
 
+@gtscript.function
+def heat_damping_term(ub, vb, gx, gy, rsin2, cosa_s, u2, v2, du2, dv2):
+    return rsin2 * (
+        (ub * ub + ub[0, 1, 0] * ub[0, 1, 0] + vb * vb + vb[1, 0, 0] * vb[1, 0, 0])
+        + 2.0 * (gy + gy[0, 1, 0] + gx + gx[1, 0, 0])
+        - cosa_s * (u2 * dv2 + v2 * du2 + du2 * dv2)
+    )
+
 
 def heat_diss(
     fx2: FloatField,
@@ -216,33 +246,21 @@ def heat_source_from_vorticity_damping(
     with computation(PARALLEL), interval(...):
         # if (kinetic_energy_fraction_to_damp[0] > dcon_threshold) or do_skeb:
         heat_s = heat_source
-        # TODO, if gt4py enable using temporaries this way
-        # while still avoiding a race condition
-        #    ubt = (ub + vt) * rdx
-        #    fy = u * rdx
-        #    gy = fy * ubt
-        #    vbt = (vb - ut) * rdy
-        #    fx = v * rdy
-        #    gx = fx * vbt
-
+        ubt = (ub + vt) * rdx
+        fy = u * rdx
+        gy = fy * ubt
+        vbt = (vb - ut) * rdy
+        fx = v * rdy
+        gx = fx * vbt
     with computation(PARALLEL), interval(...):
         if (kinetic_energy_fraction_to_damp[0] > dcon_threshold) or do_skeb:
-            #u2 = fy + fy[0, 1, 0]
-            #du2 = ubt + ubt[0, 1, 0]
-            #v2 = fx + fx[1, 0, 0]
-            #dv2 = vbt + vbt[1, 0, 0]
-            #dampterm = rsin2 * (
-            #    (ubt * ubt + ubt[0, 1, 0] * ubt[0, 1, 0] + vbt * vbt + vbt[1, 0, 0] * vbt[1, 0, 0])
-            #+ 2.0 * (gy + gy[0, 1, 0] + gx + gx[1, 0, 0])
-            #    - cosa_s * (u2 * dv2 + v2 * du2 + du2 * dv2)
-            #)
-            # inlined and difficult to read, this should not be necessary
-            # can split into more stencils and make more temporaries
-            dampterm =  rsin2 * (
-                (((ub + vt) * rdx) * ((ub + vt) * rdx) + ((ub[0, 1, 0] + vt[0, 1, 0]) * rdx[0, 1]) * ((ub[0, 1, 0] + vt[0, 1, 0]) * rdx[0, 1]) + ((vb - ut) * rdy) * ((vb - ut) * rdy) + ((vb[1, 0, 0] - ut[1, 0, 0]) * rdy[1, 0]) * ((vb[1, 0, 0] - ut[1, 0, 0]) * rdy[1, 0]))
-                + 2.0 * (((u * rdx) * ((ub + vt) * rdx)) + ((u[0, 1, 0] * rdx[0, 1]) *((ub[0, 1, 0] + vt[0, 1, 0]) * rdx[0, 1])) + ((v * rdy ) * ((vb - ut) * rdy)) + ((v[1, 0, 0] * rdy[1, 0]) * ((vb[1, 0, 0] - ut[1, 0, 0]) * rdy[1, 0])))
-                - cosa_s * (( (u * rdx) + (u[0, 1, 0] * rdx[0, 1])) * (((vb - ut) * rdy) + ((vb[1, 0, 0] - ut[1, 0, 0]) * rdy[1, 0])) + ( ( v * rdy) + (v[1, 0, 0] * rdy[1, 0])) * (((ub + vt) * rdx) + ((ub[0, 1, 0] + vt[0, 1, 0]) * rdx[0, 1])) + (((ub + vt) * rdx) + ((ub[0, 1, 0] + vt[0, 1, 0]) * rdx[0, 1])) * (((vb - ut) * rdy) + ((vb[1, 0, 0]) - ut[1, 0, 0]) * rdy[1, 0])))
-
+            u2 = fy + fy[0, 1, 0]
+            du2 = ubt + ubt[0, 1, 0]
+            v2 = fx + fx[1, 0, 0]
+            dv2 = vbt + vbt[1, 0, 0]
+            dampterm = heat_damping_term(
+                ubt, vbt, gx, gy, rsin2, cosa_s, u2, v2, du2, dv2
+            )
             heat_source = delp * (
                 heat_s - 0.25 * kinetic_energy_fraction_to_damp[0] * dampterm
             )
@@ -303,24 +321,10 @@ def horizontal_vorticity(
     rarea: FloatFieldIJ,
     vorticity: FloatField,
 ):
-    """
-    Compute the area mean relative vorticity in the z-direction from the D-grid winds.  
-    Args:
-        u (in): x-direction wind on D grid
-        v (in): y-direction wind on D grid
-        ut (out): u * dx
-        vt (out): v * dy
-        dx (in): gridcell width in x-direction
-        dy (in): gridcell width in y-direction                                                                                                                                 
-        rarea (in): inverse of area
-        vorticity (out): area mean horizontal relative vorticity
-    """
-
     with computation(PARALLEL), interval(...):
-        vt = u * dx
-        ut = v * dy
-    with computation(PARALLEL), interval(...):
-        vorticity = rarea * (vt - vt[0, 1, 0] - ut + ut[1, 0, 0])
+        vt, ut, vorticity = horizontal_relative_vorticity_from_winds(
+            u, v, ut, vt, dx, dy, rarea, vorticity
+        )
 
 
 # Set the unique parameters for the smallest
@@ -792,7 +796,7 @@ class DGridShallowWaterLagrangianDynamics:
             diss_est: dissipation estimate (inout)
             dt: acoustic timestep in seconds (in)
         """
-        
+
         self.fv_prep(uc, vc, crx, cry, xfx, yfx, self._tmp_ut, self._tmp_vt, dt)
 
         self.fvtp2d_dp(
@@ -810,6 +814,7 @@ class DGridShallowWaterLagrangianDynamics:
         )
 
         if not self.hydrostatic:
+
             self.delnflux_nosg_w(
                 w,
                 self._tmp_fx2,
@@ -817,6 +822,7 @@ class DGridShallowWaterLagrangianDynamics:
                 self._delnflux_damp_w,
                 self._tmp_wk,
             )
+
             self._heat_diss_stencil(
                 self._tmp_fx2,
                 self._tmp_fy2,
@@ -829,6 +835,7 @@ class DGridShallowWaterLagrangianDynamics:
                 self._column_namelist["ke_bg"],
                 dt,
             )
+
             self.fvtp2d_vt(
                 w,
                 crx,
@@ -962,6 +969,7 @@ class DGridShallowWaterLagrangianDynamics:
             self._tmp_wk,
             dt,
         )
+
         self._ub_from_vort_stencil(
             self._tmp_vort, self._tmp_ub, self._column_namelist["d_con"]
         )
@@ -972,9 +980,11 @@ class DGridShallowWaterLagrangianDynamics:
 
         # Vorticity transport
         self._compute_vorticity_stencil(self._tmp_wk, self.grid.f0, zh, self._tmp_vort)
+
         self.fvtp2d_vt_nodelnflux(
             self._tmp_vort, crx, cry, xfx, yfx, self._tmp_fx, self._tmp_fy
         )
+
         self._u_from_ke_stencil(
             self._tmp_ke,
             self._tmp_vt,
@@ -982,6 +992,7 @@ class DGridShallowWaterLagrangianDynamics:
             u,
         )
         self._v_from_ke_stencil(self._tmp_ke, self._tmp_ut, self._tmp_fx, v)
+
         self.delnflux_nosg_v(
             self._tmp_wk,
             self._tmp_ut,
@@ -989,6 +1000,7 @@ class DGridShallowWaterLagrangianDynamics:
             self._delnflux_damp_vt,
             self._tmp_vort,
         )
+
         self._heat_source_from_vorticity_damping_stencil(
             self._tmp_ub,
             self._tmp_vb,
