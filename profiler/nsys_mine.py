@@ -323,7 +323,7 @@ if __name__ == "__main__":
     assert fv3_kernels_count == len(fv3_kernels)
 
     # Cumulative time spend in kernel
-    total_gpu_kernel_time_in_ms = 0
+    total_gpu_kernel_time_in_ms = 0.0
     for row in filtered_rows:
         total_gpu_kernel_time_in_ms += row[KernelReportIndexing.DURATION.value]
     total_gpu_kernel_time_in_ms /= 1.0e6
