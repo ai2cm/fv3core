@@ -25,6 +25,11 @@ MapN_Tracer_2d:
     near_zero: 1e-17
     ignore_near_zero_errors:
       - qtracers
+  - backend: gtc:gt:gpu
+    max_error: 2e-7
+    near_zero: 1e-17
+    ignore_near_zero_errors:
+      - qtracers
   - backend: numpy
     platform: docker
     max_error: 9e-9 # 48_6ranks
