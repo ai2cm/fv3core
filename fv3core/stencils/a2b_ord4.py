@@ -248,11 +248,11 @@ def ppm_volume_mean_x(
         with horizontal(region[i_start, :]):
             qx = qx_edge_west(qin, dxa)
         with horizontal(region[i_start + 1, :]):
-            qx = qx_edge_west2(qin, dxa, qx)
+            qx = qx_edge_west2(qin, dxa)
         with horizontal(region[i_end + 1, :]):
             qx = qx_edge_east(qin, dxa)
         with horizontal(region[i_end, :]):
-            qx = qx_edge_east2(qin, dxa, qx)
+            qx = qx_edge_east2(qin, dxa)
 
 
 def ppm_volume_mean_y(
@@ -267,11 +267,11 @@ def ppm_volume_mean_y(
         with horizontal(region[:, j_start]):
             qy = qy_edge_south(qin, dya)
         with horizontal(region[:, j_start + 1]):
-            qy = qy_edge_south2(qin, dya, qy)
+            qy = qy_edge_south2(qin, dya)
         with horizontal(region[:, j_end + 1]):
             qy = qy_edge_north(qin, dya)
         with horizontal(region[:, j_end]):
-            qy = qy_edge_north2(qin, dya, qy)
+            qy = qy_edge_north2(qin, dya)
 
 
 def a2b_interpolation(
@@ -286,14 +286,30 @@ def a2b_interpolation(
     with computation(PARALLEL), interval(...):
         qxx = a2 * (qx[0, -2, 0] + qx[0, 1, 0]) + a1 * (qx[0, -1, 0] + qx)
         with horizontal(region[:, j_start + 1]):
-            qxx = c1 * (qx[0, -1, 0] + qx) + c2 * (qout[0, -1, 0] + qxx[0, 1, 0])
+            qxx = c1 * (qx[0, -1, 0] + qx) + c2 * (
+                qout[0, -1, 0]
+                + a2 * (qx[0, 1, 0] + qx[0, 2, 0])
+                + a1 * (qx[0, 0, 0] + qx[0, 1, 0])
+            )
         with horizontal(region[:, j_end]):
-            qxx = c1 * (qx[0, -1, 0] + qx) + c2 * (qout[0, 1, 0] + qxx[0, -1, 0])
+            qxx = c1 * (qx[0, -1, 0] + qx) + c2 * (
+                qout[0, 1, 0]
+                + a2 * (qx[0, -3, 0] + qx[0, 0, 0])
+                + a1 * (qx[0, -2, 0] + qx[0, -1, 0])
+            )
         qyy = a2 * (qy[-2, 0, 0] + qy[1, 0, 0]) + a1 * (qy[-1, 0, 0] + qy)
         with horizontal(region[i_start + 1, :]):
-            qyy = c1 * (qy[-1, 0, 0] + qy) + c2 * (qout[-1, 0, 0] + qyy[1, 0, 0])
+            qyy = c1 * (qy[-1, 0, 0] + qy) + c2 * (
+                qout[-1, 0, 0]
+                + a2 * (qy[-1, 0, 0] + qy[2, 0, 0])
+                + a1 * (qy[0, 0, 0] + qy[1, 0, 0])
+            )
         with horizontal(region[i_end, :]):
-            qyy = c1 * (qy[-1, 0, 0] + qy) + c2 * (qout[1, 0, 0] + qyy[-1, 0, 0])
+            qyy = c1 * (qy[-1, 0, 0] + qy) + c2 * (
+                qout[1, 0, 0]
+                + a2 * (qy[-3, 0, 0] + qy[0, 0, 0])
+                + a1 * (qy[-2, 0, 0] + qy[-1, 0, 0])
+            )
         qout = 0.5 * (qxx + qyy)
 
 
@@ -328,10 +344,16 @@ def qx_edge_west(qin: FloatField, dxa: FloatFieldIJ):
 
 
 @gtscript.function
-def qx_edge_west2(qin: FloatField, dxa: FloatFieldIJ, qx: FloatField):
+def qx_edge_west2(qin: FloatField, dxa: FloatFieldIJ):
     g_in = dxa / dxa[-1, 0]
     return (
-        3.0 * (g_in * qin[-1, 0, 0] + qin) - (g_in * qx[-1, 0, 0] + qx[1, 0, 0])
+        3.0 * (g_in * qin[-1, 0, 0] + qin)
+        - (
+            g_in * b2 * (qin[-3, 0, 0] + qin[0, 0, 0])
+            + b1 * (qin[-2, 0, 0] + qin[-1, 0, 0])
+            + b2 * (qin[-1, 0, 0] + qin[2, 0, 0])
+            + b1 * (qin[0, 0, 0] + qin[1, 0, 0])
+        )
     ) / (2.0 + 2.0 * g_in)
 
 
@@ -346,10 +368,16 @@ def qx_edge_east(qin: FloatField, dxa: FloatFieldIJ):
 
 
 @gtscript.function
-def qx_edge_east2(qin: FloatField, dxa: FloatFieldIJ, qx: FloatField):
+def qx_edge_east2(qin: FloatField, dxa: FloatFieldIJ):
     g_in = dxa[-1, 0] / dxa
     return (
-        3.0 * (qin[-1, 0, 0] + g_in * qin) - (g_in * qx[1, 0, 0] + qx[-1, 0, 0])
+        3.0 * (qin[-1, 0, 0] + g_in * qin)
+        - (
+            g_in * b2 * (qin[-1, 0, 0] + qin[2, 0, 0])
+            + b1 * (qin[0, 0, 0] + qin[1, 0, 0])
+            + b2 * (qin[-3, 0, 0] + qin[0, 0, 0])
+            + b1 * (qin[-2, 0, 0] + qin[-1, 0, 0])
+        )
     ) / (2.0 + 2.0 * g_in)
 
 
@@ -364,10 +392,16 @@ def qy_edge_south(qin: FloatField, dya: FloatFieldIJ):
 
 
 @gtscript.function
-def qy_edge_south2(qin: FloatField, dya: FloatFieldIJ, qy: FloatField):
+def qy_edge_south2(qin: FloatField, dya: FloatFieldIJ):
     g_in = dya / dya[0, -1]
     return (
-        3.0 * (g_in * qin[0, -1, 0] + qin) - (g_in * qy[0, -1, 0] + qy[0, 1, 0])
+        3.0 * (g_in * qin[0, -1, 0] + qin)
+        - (
+            g_in * b2 * (qin[0, -3, 0] + qin[0, 0, 0])
+            + b1 * (qin[0, -2, 0] + qin[0, -1, 0])
+            + b2 * (qin[0, -1, 0] + qin[0, 2, 0])
+            + b1 * (qin[0, 0, 0] + qin[0, 1, 0])
+        )
     ) / (2.0 + 2.0 * g_in)
 
 
@@ -382,10 +416,16 @@ def qy_edge_north(qin: FloatField, dya: FloatFieldIJ):
 
 
 @gtscript.function
-def qy_edge_north2(qin: FloatField, dya: FloatFieldIJ, qy: FloatField):
+def qy_edge_north2(qin: FloatField, dya: FloatFieldIJ):
     g_in = dya[0, -1] / dya
     return (
-        3.0 * (qin[0, -1, 0] + g_in * qin) - (g_in * qy[0, 1, 0] + qy[0, -1, 0])
+        3.0 * (qin[0, -1, 0] + g_in * qin)
+        - (
+            g_in * b2 * (qin[0, -1, 0] + qin[0, 2, 0])
+            + b1 * (qin[0, 0, 0] + qin[0, 1, 0])
+            + b2 * (qin[0, -3, 0] + qin[0, 0, 0])
+            + b1 * (qin[0, -2, 0] + qin[0, -1, 0])
+        )
     ) / (2.0 + 2.0 * g_in)
 
 
