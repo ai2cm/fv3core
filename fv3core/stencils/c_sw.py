@@ -220,7 +220,18 @@ def divergence_corner(
 
         divg_d = vf[0, -1, 0] - vf + uf[-1, 0, 0] - uf
         with horizontal(region[i_start, j_start], region[i_end + 1, j_start]):
-            divg_d -= vf[0, -1, 0]
+            divg_d -= (
+                (
+                    v
+                    - 0.25
+                    * (ua[-1, -1, 0] + ua[0, -1, 0])
+                    * (cos_sg3[-1, -1] + cos_sg1[0, -1])
+                )
+                * dxc[0, -1]
+                * 0.5
+                * (sin_sg3[-1, -1] + sin_sg1[0, -1])
+            )
+
         with horizontal(region[i_end + 1, j_end + 1], region[i_start, j_end + 1]):
             divg_d += vf
         divg_d *= rarea_c
@@ -251,10 +262,10 @@ def circulation_cgrid(
         vort_c = fx[0, -1, 0] - fx - fy[-1, 0, 0] + fy
 
         with horizontal(region[i_start, j_start], region[i_start, j_end + 1]):
-            vort_c += fy[-1, 0, 0]
+            vort_c += dyc[-1, 0] * vc[-1, 0, 0]
 
         with horizontal(region[i_end + 1, j_start], region[i_end + 1, j_end + 1]):
-            vort_c -= fy[0, 0, 0]
+            vort_c -= dyc * vc
 
 
 def update_x_velocity(
