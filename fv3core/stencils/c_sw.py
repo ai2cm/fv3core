@@ -810,8 +810,6 @@ class CGridShallowWaterDynamics:
             self._tmp_fx1,
             self._tmp_fx2,
         )
-        # TODO(eddied): Why does auto-sync storage logic does not catch this?
-        utils.device_sync()
         corners.fill2_4corners(delp, pt, "y", self.grid)
         corners.fill_4corners(w, "y", self.grid)
         self._transportdelp_updatevorticity_and_ke(

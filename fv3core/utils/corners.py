@@ -1,6 +1,7 @@
 from gt4py.gtscript import PARALLEL, computation, interval
 
 import fv3core._config as spec
+import fv3core.utils.gt4py_utils as utils
 from fv3core.utils.typing import FloatField
 
 
@@ -343,16 +344,22 @@ def fill_ne_corner_vector_dgrid(x, y, i, j, grid, mysign, kslice):
 
 
 def fill_corners_dgrid(x, y, grid, vector, kslice=slice(0, None)):
-    mysign = 1.0
-    if vector:
-        mysign = -1.0
+    # Convert gt4py storages to numpy/cupy arrays...
+    x_arr = utils.asarray(x)
+    y_arr = utils.asarray(y)
+
+    mysign = -1.0 if vector else 1.0
     for i in range(1, 1 + grid.halo):
         for j in range(1, 1 + grid.halo):
             if grid.sw_corner:
-                fill_sw_corner_vector_dgrid(x, y, i, j, grid, mysign, kslice)
+                fill_sw_corner_vector_dgrid(x_arr, y_arr, i, j, grid, mysign, kslice)
             if grid.nw_corner:
-                fill_nw_corner_vector_dgrid(x, y, i, j, grid, kslice)
+                fill_nw_corner_vector_dgrid(x_arr, y_arr, i, j, grid, kslice)
             if grid.se_corner:
-                fill_se_corner_vector_dgrid(x, y, i, j, grid, kslice)
+                fill_se_corner_vector_dgrid(x_arr, y_arr, i, j, grid, kslice)
             if grid.ne_corner:
-                fill_ne_corner_vector_dgrid(x, y, i, j, grid, mysign, kslice)
+                fill_ne_corner_vector_dgrid(x_arr, y_arr, i, j, grid, mysign, kslice)
+
+    # Assign results back to gt4py storages...
+    x[:] = x_arr
+    y[:] = y_arr

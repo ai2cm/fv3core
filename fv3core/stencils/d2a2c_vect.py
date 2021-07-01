@@ -583,36 +583,10 @@ class DGrid2AGrid2CGridVectors:
             ua,
             va,
         )
-        # Fix the edges
-        # Xdir:
-        if self.grid.sw_corner:
-            for i in range(-2, 1):
-                self._utmp[i + 2, self.grid.js - 1, :] = -self._vtmp[
-                    self.grid.is_ - 1, self.grid.js - i, :
-                ]
-            ua[self._i1 - 1, self._j1, :] = -va[self._i1, self._j1 + 2, :]
-            ua[self._i1, self._j1, :] = -va[self._i1, self._j1 + 1, :]
-        if self.grid.se_corner:
-            for i in range(0, 3):
-                self._utmp[self._nx + i, self.grid.js - 1, :] = self._vtmp[
-                    self._nx, i + self.grid.js, :
-                ]
-            ua[self._nx, self._j1, :] = va[self._nx, self._j1 + 1, :]
-            ua[self._nx + 1, self._j1, :] = va[self._nx, self._j1 + 2, :]
-        if self.grid.ne_corner:
-            for i in range(0, 3):
-                self._utmp[self._nx + i, self._ny, :] = -self._vtmp[
-                    self._nx, self.grid.je - i, :
-                ]
-            ua[self._nx, self._ny, :] = -va[self._nx, self._ny - 1, :]
-            ua[self._nx + 1, self._ny, :] = -va[self._nx, self._ny - 2, :]
-        if self.grid.nw_corner:
-            for i in range(-2, 1):
-                self._utmp[i + 2, self._ny, :] = self._vtmp[
-                    self.grid.is_ - 1, self.grid.je + i, :
-                ]
-            ua[self._i1 - 1, self._ny, :] = va[self._i1, self._ny - 2, :]
-            ua[self._i1, self._ny, :] = va[self._i1, self._ny - 1, :]
+
+        # Fix the x-edges
+        self._fix_x_edges(ua, va)
+
         self._ut_main(
             self._utmp,
             uc,
@@ -648,35 +622,7 @@ class DGrid2AGrid2CGridVectors:
                 uc, utc, self._utmp, v, self.grid.cosa_u, self.grid.rsin_u
             )
 
-        # Ydir:
-        if self.grid.sw_corner:
-            for j in range(-2, 1):
-                self._vtmp[self.grid.is_ - 1, j + 2, :] = -self._utmp[
-                    self.grid.is_ - j, self.grid.js - 1, :
-                ]
-            va[self._i1, self._j1 - 1, :] = -ua[self._i1 + 2, self._j1, :]
-            va[self._i1, self._j1, :] = -ua[self._i1 + 1, self._j1, :]
-        if self.grid.nw_corner:
-            for j in range(0, 3):
-                self._vtmp[self.grid.is_ - 1, self._ny + j, :] = self._utmp[
-                    j + self.grid.is_, self._ny, :
-                ]
-            va[self._i1, self._ny, :] = ua[self._i1 + 1, self._ny, :]
-            va[self._i1, self._ny + 1, :] = ua[self._i1 + 2, self._ny, :]
-        if self.grid.se_corner:
-            for j in range(-2, 1):
-                self._vtmp[self._nx, j + 2, :] = self._utmp[
-                    self.grid.ie + j, self.grid.js - 1, :
-                ]
-            va[self._nx, self._j1, :] = ua[self._nx - 1, self._j1, :]
-            va[self._nx, self._j1 - 1, :] = ua[self._nx - 2, self._j1, :]
-        if self.grid.ne_corner:
-            for j in range(0, 3):
-                self._vtmp[self._nx, self._ny + j, :] = -self._utmp[
-                    self.grid.ie - j, self._ny, :
-                ]
-            va[self._nx, self._ny, :] = -ua[self._nx - 1, self._ny, :]
-            va[self._nx, self._ny + 1, :] = -ua[self._nx - 2, self._ny, :]
+        self._fix_y_edges(ua, va)
 
         if self.grid.south_edge:
             self._v_south_edge1(
@@ -712,3 +658,89 @@ class DGrid2AGrid2CGridVectors:
             self.grid.rsin_v,
             vtc,
         )
+
+    def _fix_x_edges(self, ua: FloatField, va: FloatField):
+        # Convert gt4py storages to numpy/cupy arrays...
+        ua_arr = utils.asarray(ua)
+        va_arr = utils.asarray(va)
+        utmp_arr = utils.asarray(self._utmp)
+        vtmp_arr = utils.asarray(self._vtmp)
+
+        # Xdir:
+        if self.grid.sw_corner:
+            for i in range(-2, 1):
+                utmp_arr[i + 2, self.grid.js - 1, :] = vtmp_arr[
+                    self.grid.is_ - 1, self.grid.js - i, :
+                ] * -1.0
+            ua_arr[self._i1 - 1, self._j1, :] = -va_arr[self._i1, self._j1 + 2, :]
+            ua_arr[self._i1, self._j1, :] = -va_arr[self._i1, self._j1 + 1, :]
+        if self.grid.se_corner:
+            for i in range(0, 3):
+                utmp_arr[self._nx + i, self.grid.js - 1, :] = vtmp_arr[
+                    self._nx, i + self.grid.js, :
+                ]
+            ua_arr[self._nx, self._j1, :] = va_arr[self._nx, self._j1 + 1, :]
+            ua_arr[self._nx + 1, self._j1, :] = va_arr[self._nx, self._j1 + 2, :]
+        if self.grid.ne_corner:
+            for i in range(0, 3):
+                utmp_arr[self._nx + i, self._ny, :] = -vtmp_arr[
+                    self._nx, self.grid.je - i, :
+                ]
+            ua_arr[self._nx, self._ny, :] = -va_arr[self._nx, self._ny - 1, :]
+            ua_arr[self._nx + 1, self._ny, :] = -va_arr[self._nx, self._ny - 2, :]
+        if self.grid.nw_corner:
+            for i in range(-2, 1):
+                utmp_arr[i + 2, self._ny, :] = vtmp_arr[
+                    self.grid.is_ - 1, self.grid.je + i, :
+                ]
+            ua_arr[self._i1 - 1, self._ny, :] = va_arr[self._i1, self._ny - 2, :]
+            ua_arr[self._i1, self._ny, :] = va_arr[self._i1, self._ny - 1, :]
+
+        # Assign results back to gt4py storages...
+        ua[:] = ua_arr
+        va[:] = va_arr
+        self._utmp[:] = utmp_arr
+        self._vtmp[:] = vtmp_arr
+
+    def _fix_y_edges(self, ua: FloatField, va: FloatField):
+        # Convert gt4py storages to numpy/cupy arrays...
+        ua_arr = utils.asarray(ua)
+        va_arr = utils.asarray(va)
+        utmp_arr = utils.asarray(self._utmp)
+        vtmp_arr = utils.asarray(self._vtmp)
+
+        # Ydir:
+        if self.grid.sw_corner:
+            for j in range(-2, 1):
+                vtmp_arr[self.grid.is_ - 1, j + 2, :] = -utmp_arr[
+                    self.grid.is_ - j, self.grid.js - 1, :
+                ]
+            va_arr[self._i1, self._j1 - 1, :] = -ua_arr[self._i1 + 2, self._j1, :]
+            va_arr[self._i1, self._j1, :] = -ua_arr[self._i1 + 1, self._j1, :]
+        if self.grid.nw_corner:
+            for j in range(0, 3):
+                vtmp_arr[self.grid.is_ - 1, self._ny + j, :] = utmp_arr[
+                    j + self.grid.is_, self._ny, :
+                ]
+            va_arr[self._i1, self._ny, :] = ua_arr[self._i1 + 1, self._ny, :]
+            va_arr[self._i1, self._ny + 1, :] = ua_arr[self._i1 + 2, self._ny, :]
+        if self.grid.se_corner:
+            for j in range(-2, 1):
+                vtmp_arr[self._nx, j + 2, :] = utmp_arr[
+                    self.grid.ie + j, self.grid.js - 1, :
+                ]
+            va_arr[self._nx, self._j1, :] = ua_arr[self._nx - 1, self._j1, :]
+            va_arr[self._nx, self._j1 - 1, :] = ua_arr[self._nx - 2, self._j1, :]
+        if self.grid.ne_corner:
+            for j in range(0, 3):
+                vtmp_arr[self._nx, self._ny + j, :] = -utmp_arr[
+                    self.grid.ie - j, self._ny, :
+                ]
+            va_arr[self._nx, self._ny, :] = -ua_arr[self._nx - 1, self._ny, :]
+            va_arr[self._nx, self._ny + 1, :] = -ua_arr[self._nx - 2, self._ny, :]
+
+        # Assign results back to gt4py storages...
+        ua[:] = ua_arr
+        va[:] = va_arr
+        self._utmp[:] = utmp_arr
+        self._vtmp[:] = vtmp_arr
