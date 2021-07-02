@@ -24,3 +24,4 @@ factory-boy
 pytest-factoryboy
 pytest-cache
 pytest-cov
+redis_dict
