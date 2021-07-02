@@ -232,6 +232,7 @@ if __name__ == "__main__":
             state["atmosphere_hybrid_a_coordinate"],
             state["atmosphere_hybrid_b_coordinate"],
             state["surface_geopotential"],
+            state,
         )
 
         # warm-up timestep.

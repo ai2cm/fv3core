@@ -1,3 +1,4 @@
+from fv3gfs.util.halo_updater import HaloUpdater
 from gt4py.gtscript import (
     __INLINED,
     BACKWARD,
@@ -237,6 +238,7 @@ class AcousticDynamics:
         bk: FloatFieldK,
         pfull: FloatFieldK,
         phis: FloatFieldIJ,
+        state,
     ):
         """
         Args:
@@ -364,6 +366,58 @@ class AcousticDynamics:
             domain=self.grid.domain_shape_full(add=(0, 0, 1)),
         )
 
+        # Initialize all halo exchanges required at runtime
+        state.__dict__.update(self._temporaries)
+        self._zh_halo_update = self.comm.get_scalar_halo_updater(
+            [state.zh_quantity], self.grid.halo
+        )
+        if self.grid.npx == self.grid.npy:
+            self._pkc_halo_update = self.comm.get_scalar_halo_updater(
+                [state.pkc_quantity], 2
+            )
+        else:
+            self._pkc_halo_update = self.comm.get_scalar_halo_updater(
+                [state.pkc_quantity], self.grid.halo
+            )
+
+        self._q_con__cappa_halo_update = self.comm.get_scalar_halo_updater(
+            [
+                state.q_con_quantity,
+                state.cappa_quantity,
+            ],
+            self.grid.halo,
+        )
+        self._q_con_halo_update = self.comm.get_scalar_halo_updater(
+            [state.q_con_quantity],
+            self.grid.halo,
+        )
+
+        self._delp__pt_halo_update = self.comm.get_scalar_halo_updater(
+            [
+                state.delp_quantity,
+                state.pt_quantity,
+            ],
+            self.grid.halo,
+        )
+        self._u__v_halo_update = self.comm.get_vector_halo_updater(
+            [state.u_quantity], [state.v_quantity], self.grid.halo
+        )
+        self._w_halo_update = self.comm.get_scalar_halo_updater(
+            [state.w_quantity], self.grid.halo
+        )
+        self._gz_halo_update = self.comm.get_scalar_halo_updater(
+            [state.gz_quantity], self.grid.halo
+        )
+        self._divgd_halo_update = self.comm.get_scalar_halo_updater(
+            [state.divgd_quantity], self.grid.halo
+        )
+        self._heat_source_halo_update = self.comm.get_scalar_halo_updater(
+            [state.heat_source_quantity], self.grid.halo
+        )
+        self._uc__vc_halo_update = self.comm.get_vector_halo_updater(
+            [state.uc_quantity], [state.vc_quantity], self.grid.halo
+        )
+
     def __call__(self, state):
         # u, v, w, delz, delp, pt, pe, pk, phis, wsd, omga, ua, va, uc, vc, mfxd,
         # mfyd, cxd, cyd, pkz, peln, q_con, ak, bk, diss_estd, cappa, mdt, n_split,
@@ -382,20 +436,10 @@ class AcousticDynamics:
         # NOTE: In Fortran model the halo update starts happens in fv_dynamics, not here
         reqs = {}
         if self.do_halo_exchange:
-            for halovar in [
-                "q_con_quantity",
-                "cappa_quantity",
-                "delp_quantity",
-                "pt_quantity",
-            ]:
-                reqs[halovar] = self.comm.start_halo_update(
-                    state.__getattribute__(halovar), n_points=self.grid.halo
-                )
-            reqs_vector = self.comm.start_vector_halo_update(
-                state.u_quantity, state.v_quantity, n_points=self.grid.halo
-            )
-            reqs["q_con_quantity"].wait()
-            reqs["cappa_quantity"].wait()
+            self._q_con__cappa_halo_update.async_exchange_start()
+            self._delp__pt_halo_update.async_exchange_start()
+            self._u__v_halo_update.async_exchange_start()
+            self._q_con__cappa_halo_update.async_exchange_wait()
 
         state.__dict__.update(self._temporaries)
 
@@ -428,9 +472,7 @@ class AcousticDynamics:
                 remap_step = True
             if not self.namelist.hydrostatic:
                 if self.do_halo_exchange:
-                    reqs["w_quantity"] = self.comm.start_halo_update(
-                        state.w_quantity, n_points=self.grid.halo
-                    )
+                    self._w_halo_update.async_exchange_start()
                 if it == 0:
                     self._set_gz(
                         self._zs,
@@ -438,13 +480,10 @@ class AcousticDynamics:
                         state.gz,
                     )
                     if self.do_halo_exchange:
-                        reqs["gz_quantity"] = self.comm.start_halo_update(
-                            state.gz_quantity, n_points=self.grid.halo
-                        )
+                        self._gz_halo_update.async_exchange_start()
             if it == 0:
                 if self.do_halo_exchange:
-                    reqs["delp_quantity"].wait()
-                    reqs["pt_quantity"].wait()
+                    self._delp__pt_halo_update.async_exchange_wait()
 
             if it == n_split - 1 and end_step:
                 if self.namelist.use_old_omega:
@@ -454,9 +493,9 @@ class AcousticDynamics:
                         state.ptop,
                     )
             if self.do_halo_exchange:
-                reqs_vector.wait()
+                self._u__v_halo_update.async_exchange_wait()
                 if not self.namelist.hydrostatic:
-                    reqs["w_quantity"].wait()
+                    self._w_halo_update.async_exchange_wait()
 
             # compute the c-grid winds at t + 1/2 timestep
             state.delpc, state.ptc = self.cgrid_shallow_water_lagrangian_dynamics(
@@ -477,13 +516,11 @@ class AcousticDynamics:
             )
 
             if self.namelist.nord > 0 and self.do_halo_exchange:
-                reqs["divgd_quantity"] = self.comm.start_halo_update(
-                    state.divgd_quantity, n_points=self.grid.halo
-                )
+                self._divgd_halo_update.async_exchange_start()
             if not self.namelist.hydrostatic:
                 if it == 0:
                     if self.do_halo_exchange:
-                        reqs["gz_quantity"].wait()
+                        self._gz_halo_update.async_exchange_wait()
                     self._copy_stencil(
                         state.gz,
                         state.zh,
@@ -522,12 +559,10 @@ class AcousticDynamics:
                 dt2,
             )
             if self.do_halo_exchange:
-                req_vector_c_grid = self.comm.start_vector_halo_update(
-                    state.uc_quantity, state.vc_quantity, n_points=self.grid.halo
-                )
+                self._uc__vc_halo_update.async_exchange_start()
                 if self.namelist.nord > 0:
-                    reqs["divgd_quantity"].wait()
-                req_vector_c_grid.wait()
+                    self._divgd_halo_update.async_exchange_wait()
+                self._uc__vc_halo_update.async_exchange_wait()
             # use the computed c-grid winds to evolve the d-grid winds forward
             # by 1 timestep
             self.dgrid_shallow_water_lagrangian_dynamics(
@@ -561,10 +596,8 @@ class AcousticDynamics:
             # they will be re-computed from scratch on the next acoustic timestep.
 
             if self.do_halo_exchange:
-                for halovar in ["delp_quantity", "pt_quantity", "q_con_quantity"]:
-                    self.comm.halo_update(
-                        state.__getattribute__(halovar), n_points=self.grid.halo
-                    )
+                self._delp__pt_halo_update.blocking_exchange()
+                self._q_con_halo_update.blocking_exchange()
 
             # Not used unless we implement other betas and alternatives to nh_p_grad
             # if self.namelist.d_ext > 0:
@@ -602,17 +635,9 @@ class AcousticDynamics:
                 )
 
                 if self.do_halo_exchange:
-                    reqs["zh_quantity"] = self.comm.start_halo_update(
-                        state.zh_quantity, n_points=self.grid.halo
-                    )
-                    if self.grid.npx == self.grid.npy:
-                        reqs["pkc_quantity"] = self.comm.start_halo_update(
-                            state.pkc_quantity, n_points=2
-                        )
-                    else:
-                        reqs["pkc_quantity"] = self.comm.start_halo_update(
-                            state.pkc_quantity, n_points=self.grid.halo
-                        )
+                    self._zh_halo_update.async_exchange_start()
+                    self._pkc_halo_update.async_exchange_start()
+
                 if remap_step:
                     self._edge_pe_stencil(state.pe, state.delp, state.ptop)
                 if self.namelist.use_logp:
@@ -623,15 +648,15 @@ class AcousticDynamics:
                     self._pk3_halo(state.pk3, state.delp, state.ptop, akap)
             if not self.namelist.hydrostatic:
                 if self.do_halo_exchange:
-                    reqs["zh_quantity"].wait()
+                    self._zh_halo_update.async_exchange_wait()
                     if self.grid.npx != self.grid.npy:
-                        reqs["pkc_quantity"].wait()
+                        self._pkc_halo_update.async_exchange_wait()
                 self._compute_geopotential_stencil(
                     state.zh,
                     state.gz,
                 )
                 if self.grid.npx == self.grid.npy and self.do_halo_exchange:
-                    reqs["pkc_quantity"].wait()
+                    self._pkc_halo_update.async_exchange_wait()
 
                 self.nonhydrostatic_pressure_gradient(
                     state.u,
@@ -661,9 +686,7 @@ class AcousticDynamics:
 
             if self.do_halo_exchange:
                 if it != n_split - 1:
-                    reqs_vector = self.comm.start_vector_halo_update(
-                        state.u_quantity, state.v_quantity, n_points=self.grid.halo
-                    )
+                    self._u__v_halo_update.async_exchange_start()
                 else:
                     if self.namelist.grid_type < 4:
                         self.comm.synchronize_vector_interfaces(
@@ -672,9 +695,7 @@ class AcousticDynamics:
 
         if self._do_del2cubed:
             if self.do_halo_exchange:
-                self.comm.halo_update(
-                    state.heat_source_quantity, n_points=self.grid.halo
-                )
+                self._heat_source_halo_update.blocking_exchange()
             cd = constants.CNST_0P20 * self.grid.da_min
             self._hyperdiffusion(state.heat_source, cd)
             if not self.namelist.hydrostatic:

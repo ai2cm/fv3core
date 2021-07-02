@@ -75,7 +75,7 @@ class CubedToLatLon:
     Fortan name is c2l_ord2
     """
 
-    def __init__(self, grid, namelist, do_halo_update=None):
+    def __init__(self, grid, namelist, comm:CubedSphereCommunicator, u:Quantity, v:Quantity, do_halo_update=None):
         """
         Initializes stencils to use either 2nd or 4th order of interpolation
         based on namelist setting
@@ -115,7 +115,9 @@ class CubedToLatLon:
                 origin=origin,
                 domain=domain,
             )
-
+        self._u__v_halo_updater = comm.get_vector_halo_updater(
+            [u], [v], self.grid.halo
+        )
     def __call__(
         self,
         u: Quantity,
@@ -134,7 +136,7 @@ class CubedToLatLon:
             comm: Cubed-sphere communicator
         """
         if self._do_halo_update and self._do_ord4:
-            comm.vector_halo_update(u, v, n_points=self.grid.halo)
+            self._u__v_halo_updater.blocking_exchange()
         self._compute_cubed_to_latlon(
             u.storage,
             v.storage,

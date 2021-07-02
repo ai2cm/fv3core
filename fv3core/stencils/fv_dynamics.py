@@ -1,4 +1,5 @@
 from typing import Mapping
+from fv3gfs.util.halo_updater import HaloUpdater
 
 from gt4py.gtscript import PARALLEL, computation, interval, log
 
@@ -103,6 +104,7 @@ def post_remap(
     namelist,
     hyperdiffusion: HyperdiffusionDamping,
     set_omega_stencil: FrozenStencil,
+    omga_halo_updater: HaloUpdater
 ):
     grid = grid
     if not namelist.hydrostatic:
@@ -120,7 +122,7 @@ def post_remap(
             if grid.rank == 0:
                 print("Del2Cubed")
         if global_config.get_do_halo_exchange():
-            comm.halo_update(state.omga_quantity, n_points=utils.halo)
+            omga_halo_updater.blocking_exchange()
         hyperdiffusion(state.omga, 0.18 * grid.da_min)
 
 
@@ -262,6 +264,7 @@ class DynamicalCore:
         ak: fv3gfs.util.Quantity,
         bk: fv3gfs.util.Quantity,
         phis: fv3gfs.util.Quantity,
+        state,
     ):
         """
         Args:
@@ -278,7 +281,6 @@ class DynamicalCore:
         self.namelist = namelist
         self.do_halo_exchange = global_config.get_do_halo_exchange()
 
-        self.tracer_advection = tracer_2d_1l.TracerAdvection(comm, namelist)
         self._ak = ak.storage
         self._bk = bk.storage
         self._phis = phis.storage
@@ -313,15 +315,19 @@ class DynamicalCore:
             origin=self.grid.full_origin(),
             domain=self.grid.domain_shape_full(),
         )
-        self.acoustic_dynamics = AcousticDynamics(
-            comm, namelist, self._ak, self._bk, self._pfull, self._phis
-        )
-        self._hyperdiffusion = HyperdiffusionDamping(self.grid, self.namelist.nf_omega)
-        self._do_cubed_to_latlon = CubedToLatLon(self.grid, namelist)
 
         self._temporaries = fvdyn_temporaries(
             self.grid.domain_shape_full(add=(1, 1, 1)), self.grid
         )
+
+        state = get_namespace(self.arg_specs, state)
+        state.__dict__.update(self._temporaries)
+        self.acoustic_dynamics = AcousticDynamics(
+            comm, namelist, self._ak, self._bk, self._pfull, self._phis, state
+        )
+        self._hyperdiffusion = HyperdiffusionDamping(self.grid, self.namelist.nf_omega)
+        self._do_cubed_to_latlon = CubedToLatLon(self.grid, namelist, self.comm, state.u_quantity, state.v_quantity)
+
         if not (not self.namelist.inline_q and DynamicalCore.NQ != 0):
             raise NotImplementedError("tracer_2d not implemented, turn on z_tracer")
         self._adjust_tracer_mixing_ratio = AdjustNegativeTracerMixingRatio(
@@ -331,6 +337,25 @@ class DynamicalCore:
         self._lagrangian_to_eulerian_obj = LagrangianToEulerian(
             self.grid, namelist, DynamicalCore.NQ, self._pfull
         )
+
+        tracers, _tracer_storages = self._tracers_update(state)
+        self.tracer_advection = tracer_2d_1l.TracerAdvection(
+            comm, namelist, list(tracers.values())
+        )
+        self._phis_halo_updater = self.comm.get_scalar_halo_updater(
+            [state.phis_quantity], utils.halo
+        )
+        self._omga_halo_updater = self.comm.get_scalar_halo_updater(
+            [state.omga_quantity], utils.halo
+        )
+
+    def _tracers_update(self, state):
+        state.__dict__.update(self._temporaries)
+        tracers = {}
+        for name in utils.tracer_variables[0 : DynamicalCore.NQ]:
+            tracers[name] = state.__dict__[name + "_quantity"]
+        tracer_storages = {name: quantity.storage for name, quantity in tracers.items()}
+        return tracers, tracer_storages
 
     def step_dynamics(
         self,
@@ -378,17 +403,13 @@ class DynamicalCore:
         state,
         timer: fv3gfs.util.NullTimer,
     ):
-        state.__dict__.update(self._temporaries)
-        tracers = {}
-        for name in utils.tracer_variables[0 : DynamicalCore.NQ]:
-            tracers[name] = state.__dict__[name + "_quantity"]
-        tracer_storages = {name: quantity.storage for name, quantity in tracers.items()}
+        tracers, tracer_storages = self._tracers_update(state)
 
         state.ak = self._ak
         state.bk = self._bk
         last_step = False
         if self.do_halo_exchange:
-            self.comm.halo_update(state.phis_quantity, n_points=utils.halo)
+            self._phis_halo_updater.blocking_exchange()
         compute_preamble(
             state,
             self.grid,
@@ -462,6 +483,7 @@ class DynamicalCore:
                         self.namelist,
                         self._hyperdiffusion,
                         self._set_omega_stencil,
+                        self._omga_halo_updater
                     )
         wrapup(
             state,

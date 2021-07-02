@@ -292,6 +292,7 @@ class TranslateFVDynamics(ParallelTranslateBaseSlicing):
             state["atmosphere_hybrid_a_coordinate"],
             state["atmosphere_hybrid_b_coordinate"],
             state["surface_geopotential"],
+            state,
         )
         self.dycore.step_dynamics(
             state,
