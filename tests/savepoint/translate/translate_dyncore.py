@@ -124,7 +124,7 @@ class TranslateDynCore(ParallelTranslate2PyState):
             inputs["bk"],
             inputs["pfull"],
             inputs["phis"],
-            self.state_from_inputs(inputs)
+            self.state_from_inputs(inputs),
         )
         return super().compute_parallel(inputs, communicator)
 

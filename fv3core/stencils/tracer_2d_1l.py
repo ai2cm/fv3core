@@ -1,5 +1,5 @@
 import math
-from fv3gfs.util.quantity import Quantity
+from typing import List
 
 import gt4py.gtscript as gtscript
 from gt4py.gtscript import PARALLEL, computation, horizontal, interval, region
@@ -13,7 +13,7 @@ import fv3gfs.util
 from fv3core.decorators import FrozenStencil
 from fv3core.stencils.fvtp2d import FiniteVolumeTransport
 from fv3core.utils.typing import FloatField, FloatFieldIJ
-from typing import List
+from fv3gfs.util.quantity import Quantity
 
 
 @gtscript.function
