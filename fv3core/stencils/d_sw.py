@@ -827,7 +827,7 @@ class DGridShallowWaterLagrangianDynamics:
 
         if not self.hydrostatic:
 
-            self.delnflux_nosg_w(
+            self.delnflux_nosg_w.__call__(
                 w,
                 self._tmp_fx2,
                 self._tmp_fy2,
@@ -1006,7 +1006,7 @@ class DGridShallowWaterLagrangianDynamics:
         )
         self._v_from_ke_stencil(self._tmp_ke, self._tmp_ut, self._tmp_fx, v)
 
-        self.delnflux_nosg_v(
+        self.delnflux_nosg_v.__call__(
             self._tmp_wk,
             self._tmp_ut,
             self._tmp_vt,

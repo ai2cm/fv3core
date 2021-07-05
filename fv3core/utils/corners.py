@@ -23,20 +23,17 @@ class CopyCorners:
         self._origin = origin
         self._domain = domain
         self.direction = direction
-        self.kmax2 = np.empty((1,), dtype=np.int32)
 
     @dace.method
-    def __call__(self, field):
+    def __call__(self, field, direction: dace.constant):
         """
         Fills cell quantity field using corners from itself and multipliers
         in the dirction specified initialization of the instance of this class.
         """
         copy_corners(
             field,
-            self.direction,
+            direction,
             self.grid,
-            # slice(self._origin[2] + self._domain[2])
-            # slice(self._origin[2], None)
             self._origin[2]
         )
 
@@ -316,7 +313,6 @@ def fill_ne_corner_agrid(q, i, j, direction: dace.constant, grid: dace.constant,
     if direction == "y":
         q[grid.ie + j, grid.je + i, kslice] = q[grid.ie - i + 1, grid.je + j, kslice]
 
-# @dace.program
 @dace.program
 def _fill_corners(q, grid: dace.constant, gridtype: dace.constant, direction: dace.constant, kslice: dace.constant):
     for i in range(1, 1 + grid.halo):

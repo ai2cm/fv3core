@@ -161,7 +161,7 @@ class FiniteVolumeTransport:
         """
         grid = self.grid
 
-        self._copy_corners_y.__call__(q)
+        self._copy_corners_y.__call__(q, "y")
 
         self.y_piecewise_parabolic_inner.__call__(q, cry, self._tmp_fy2)
         self.stencil_q_i(
@@ -173,7 +173,7 @@ class FiniteVolumeTransport:
         )
         self.x_piecewise_parabolic_outer.__call__(self._tmp_q_i, crx, fx)
 
-        self._copy_corners_x.__call__(q)
+        self._copy_corners_x.__call__(q, "x")
 
         self.x_piecewise_parabolic_inner.__call__(q, crx, self._tmp_fx2)
         self.stencil_q_j(

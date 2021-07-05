@@ -555,7 +555,7 @@ def device_sync() -> None:
         cp.cuda.Device(0).synchronize()
 
 import dace
-dacemode=False
+dacemode=True
 
 def computepath_method(method):
     if dacemode:
