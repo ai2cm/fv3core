@@ -7,6 +7,8 @@ from fv3core.decorators import FrozenStencil
 from fv3core.stencils import yppm
 from fv3core.utils.typing import FloatField, FloatFieldIJ
 
+from fv3core.utils.gt4py_utils import computepath_method
+import dace
 
 @gtscript.function
 def final_flux(courant, q, fx1, tmp):
@@ -149,6 +151,7 @@ class XPiecewiseParabolic:
             domain=flux_domain,
         )
 
+    @computepath_method
     def compute_al(self, q):
         self._main_al_stencil(q, self._al)
         if self.grid.west_edge:
@@ -161,7 +164,8 @@ class XPiecewiseParabolic:
             self._al_east_1_stencil(q, self._dxa, self._al)
             self._al_east_2_stencil(q, self._dxa, self._al)
 
-    def __call__(self, q: FloatField, c: FloatField, xflux: FloatField):
+    @computepath_method
+    def __call__(self, q, c, xflux):
         """
         Compute x-flux using the PPM method.
 

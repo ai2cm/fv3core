@@ -1,11 +1,13 @@
 import typing
 
+import dace
 from gt4py.gtscript import BACKWARD, FORWARD, PARALLEL, computation, exp, interval, log
 
 import fv3core.utils.global_constants as constants
 from fv3core.decorators import FrozenStencil
 from fv3core.utils.typing import FloatField, FloatFieldIJ
 
+from fv3core.utils.gt4py_utils import computepath_method
 
 @typing.no_type_check
 def sim1_solver(
@@ -121,19 +123,20 @@ class Sim1Solver:
             domain=(nic, njc, grid.npz + 1),
         )
 
+    @computepath_method
     def __call__(
         self,
         dt: float,
-        gm: FloatField,
-        cp3: FloatField,
-        pe: FloatField,
-        dm: FloatField,
-        pm: FloatField,
-        pem: FloatField,
-        w: FloatField,
-        dz: FloatField,
-        ptr: FloatField,
-        wsr: FloatFieldIJ,
+        gm,
+        cp3,
+        pe,
+        dm,
+        pm,
+        pem,
+        w,
+        dz,
+        ptr,
+        wsr,
     ):
         """
         Semi-Implicit Method solver -- solves a vertically tridiagonal

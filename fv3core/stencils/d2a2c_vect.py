@@ -1,3 +1,4 @@
+import dace
 import gt4py.gtscript as gtscript
 from gt4py.gtscript import PARALLEL, computation, interval
 
@@ -7,6 +8,7 @@ from fv3core.decorators import FrozenStencil
 from fv3core.stencils.a2b_ord4 import a1, a2, lagrange_x_func, lagrange_y_func
 from fv3core.utils.typing import FloatField, FloatFieldIJ
 
+from fv3core.utils.gt4py_utils import computepath_method
 
 c1 = -2.0 / 14.0
 c2 = 11.0 / 14.0
@@ -338,10 +340,11 @@ class DGrid2AGrid2CGridVectors:
         npt = 4 if not self.grid.nested else 0
         if npt > self.grid.nic - 1 or npt > self.grid.njc - 1:
             npt = 0
-        self._utmp = utils.make_storage_from_shape(
+        import numpy as np
+        self._utmp = np.asarray(utils.make_storage_from_shape(
             self.grid.domain_shape_full(add=(1, 1, 1)),
             self.grid.full_origin(),
-        )
+        ))
         self._vtmp = utils.make_storage_from_shape(
             self.grid.domain_shape_full(add=(1, 1, 1)), self.grid.full_origin()
         )
@@ -514,6 +517,8 @@ class DGrid2AGrid2CGridVectors:
             domain=(self.grid.nic + 2, jdiff, self.grid.npz),
         )
 
+
+    @computepath_method
     def __call__(self, uc, vc, u, v, ua, va, utc, vtc):
         """
         Calculate velocity vector from D-grid to A-grid to C-grid.

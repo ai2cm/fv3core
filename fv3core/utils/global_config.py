@@ -122,7 +122,7 @@ def get_stencil_config():
     )
 
 
-_BACKEND = None  # Options: numpy, gtx86, gtcuda, debug
+_BACKEND = "gtc:dace"  # Options: numpy, gtx86, gtcuda, debug
 _REBUILD = getenv_bool("FV3_STENCIL_REBUILD_FLAG", "True")
 _FORMAT_SOURCE = getenv_bool("FV3_STENCIL_FORMAT_SOURCE", "False")
 _DO_HALO_EXCHANGE = True

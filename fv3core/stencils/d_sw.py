@@ -744,6 +744,11 @@ class DGridShallowWaterLagrangianDynamics:
             self._tmp_damp_3d[0, 0, :], (self.grid.npz,), (0,)
         )
 
+        self.damp_w = self._column_namelist["damp_w"]
+        self.ke_bg = self._column_namelist["ke_bg"]
+        self.d_con = self._column_namelist["d_con"]
+        self.damp_vt = self._column_namelist["damp_vt"]
+
     def __call__(
         self,
         delpc,
@@ -828,6 +833,7 @@ class DGridShallowWaterLagrangianDynamics:
                 self._tmp_fy2,
                 self._delnflux_damp_w,
                 self._tmp_wk,
+                None
             )
 
             self._heat_diss_stencil(
@@ -838,8 +844,8 @@ class DGridShallowWaterLagrangianDynamics:
                 self._tmp_heat_s,
                 diss_est,
                 self._tmp_dw,
-                self._column_namelist["damp_w"],
-                self._column_namelist["ke_bg"],
+                self.damp_w,
+                self.ke_bg,
                 dt,
             )
 
@@ -959,7 +965,7 @@ class DGridShallowWaterLagrangianDynamics:
 
         # TODO if namelist.d_f3d and ROT3 unimplemeneted
         self._adjust_w_and_qcon_stencil(
-            w, delp, self._tmp_dw, q_con, self._column_namelist["damp_w"]
+            w, delp, self._tmp_dw, q_con, self.damp_w
         )
         self.divergence_damping(
             u,
@@ -978,11 +984,11 @@ class DGridShallowWaterLagrangianDynamics:
         )
 
         self._ub_from_vort_stencil(
-            self._tmp_vort, self._tmp_ub, self._column_namelist["d_con"]
+            self._tmp_vort, self._tmp_ub, self.d_con
         )
 
         self._vb_from_vort_stencil(
-            self._tmp_vort, self._tmp_vb, self._column_namelist["d_con"]
+            self._tmp_vort, self._tmp_vb, self.d_con
         )
 
         # Vorticity transport
@@ -1006,6 +1012,7 @@ class DGridShallowWaterLagrangianDynamics:
             self._tmp_vt,
             self._delnflux_damp_vt,
             self._tmp_vort,
+            None
         )
 
         self._heat_source_from_vorticity_damping_stencil(
@@ -1022,10 +1029,10 @@ class DGridShallowWaterLagrangianDynamics:
             self.grid.rdy,
             self._tmp_heat_s,
             self._tmp_dampterm,
-            self._column_namelist["d_con"],
+            self.d_con,
         )
         self._heat_source_accumulate(
             self._tmp_heat_s, heat_source, diss_est, self._tmp_dampterm
         )
-        self._damp_u(self._tmp_vt, u, self._column_namelist["damp_vt"])
-        self._damp_v(self._tmp_ut, v, self._column_namelist["damp_vt"])
+        self._damp_u(self._tmp_vt, u, self.damp_vt)
+        self._damp_v(self._tmp_ut, v, self.damp_vt)

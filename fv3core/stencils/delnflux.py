@@ -1,3 +1,4 @@
+import dace
 from typing import Optional
 
 import gt4py.gtscript as gtscript
@@ -11,6 +12,7 @@ from fv3core.decorators import FrozenStencil
 from fv3core.stencils.basic_operations import copy_defn
 from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
 
+from fv3core.utils.gt4py_utils import computepath_method
 
 def calc_damp(damp4: FloatField, nord: FloatFieldK, damp_c: FloatFieldK, da_min: float):
     with computation(FORWARD), interval(...):
@@ -175,13 +177,14 @@ class DelnFlux:
 
         self.delnflux_nosg = DelnFluxNoSG(nord, nk=nk)
 
+    # @dace.method
     def __call__(
         self,
-        q: FloatField,
-        fx: FloatField,
-        fy: FloatField,
-        d2: Optional["FloatField"] = None,
-        mass: Optional["FloatField"] = None,
+        q,
+        fx,
+        fy,
+        d2_inp=None,
+        mass= None,
     ):
         """
         Del-n damping for fluxes, where n = 2 * nord + 2
@@ -195,10 +198,15 @@ class DelnFlux:
         if self._no_compute is True:
             return fx, fy
 
-        if d2 is None:
+        if d2_inp is None:
             d2 = self._d2
+        else:
+            d2 = d2_inp
 
-        self.delnflux_nosg(q, self._fx2, self._fy2, self._damp, d2, mass)
+        if mass is None:
+            self.delnflux_nosg.__call__(q, self._fx2, self._fy2, self._damp, d2, None)
+        else:
+            self.delnflux_nosg.__call__(q, self._fx2, self._fy2, self._damp, d2, mass)
 
         if mass is None:
             self._add_diffusive_stencil(fx, self._fx2, fy, self._fy2)
@@ -368,7 +376,8 @@ class DelnFluxNoSG:
             domain=(self._grid.nid, self._grid.njd, self._nk),
         )
 
-    def __call__(self, q, fx2, fy2, damp_c, d2, mass=None):
+    # @dace.method
+    def __call__(self, q, fx2, fy2, damp_c, d2, mass):
         """
         Applies del-n damping to fluxes, where n is set by nord.
 
@@ -388,13 +397,13 @@ class DelnFluxNoSG:
             self._copy_stencil_interval_low(q, d2)
             self._copy_stencil_interval(q, d2)
 
-        self._copy_corners_x_nord(
+        self._copy_corners_x_nord.__call__(
             d2,
         )
         self._fx_calc_stencil_low(d2, self._grid.del6_v, fx2)
         self._fx_calc_stencil(d2, self._grid.del6_v, fx2)
 
-        self._copy_corners_y_nord(
+        self._copy_corners_y_nord.__call__(
             d2,
         )
         self._fy_calc_stencil_low(d2, self._grid.del6_u, fy2)
@@ -402,13 +411,13 @@ class DelnFluxNoSG:
         #  for n in range(self._nmax):
         self._d2_stencil0(fx2, fy2, self._grid.rarea, d2, self._nord)
 
-        self._copy_corners_x_nord(
+        self._copy_corners_x_nord.__call__(
             d2,
         )
 
         self._column_conditional_fx_calculation0(d2, self._grid.del6_v, fx2, self._nord)
 
-        self._copy_corners_y_nord(
+        self._copy_corners_y_nord.__call__(
             d2,
         )
 
@@ -416,13 +425,13 @@ class DelnFluxNoSG:
         # loop n = 1
         self._d2_stencil1(fx2, fy2, self._grid.rarea, d2, self._nord)
 
-        self._copy_corners_x_nord(
+        self._copy_corners_x_nord.__call__(
             d2,
         )
 
         self._column_conditional_fx_calculation1(d2, self._grid.del6_v, fx2, self._nord)
 
-        self._copy_corners_y_nord(
+        self._copy_corners_y_nord.__call__(
             d2,
         )
 

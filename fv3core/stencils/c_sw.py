@@ -1,3 +1,4 @@
+import dace
 import gt4py.gtscript as gtscript
 from gt4py.gtscript import PARALLEL, computation, interval
 
@@ -8,6 +9,7 @@ from fv3core.utils import corners
 from fv3core.utils.grid import axis_offsets
 from fv3core.utils.typing import FloatField, FloatFieldIJ
 
+from fv3core.utils.gt4py_utils import computepath_method
 
 def geoadjust_ut(
     ut: FloatField,
@@ -620,14 +622,15 @@ class CGridShallowWaterDynamics:
                 domain=(1, self.grid.njc, self.grid.npz),
             )
 
+    @computepath_method
     def _vorticitytransport_cgrid(
         self,
-        uc: FloatField,
-        vc: FloatField,
-        vort_c: FloatField,
-        ke_c: FloatField,
-        v: FloatField,
-        u: FloatField,
+        uc,
+        vc,
+        vort_c,
+        ke_c,
+        v,
+        u,
         dt2: float,
     ):
         """Update the C-Grid x and y velocity fields.
@@ -698,21 +701,22 @@ class CGridShallowWaterDynamics:
                 dt2,
             )
 
+    @computepath_method
     def __call__(
         self,
-        delp: FloatField,
-        pt: FloatField,
-        u: FloatField,
-        v: FloatField,
-        w: FloatField,
-        uc: FloatField,
-        vc: FloatField,
-        ua: FloatField,
-        va: FloatField,
-        ut: FloatField,
-        vt: FloatField,
-        divgd: FloatField,
-        omga: FloatField,
+        delp,
+        pt,
+        u,
+        v,
+        w,
+        uc,
+        vc,
+        ua,
+        va,
+        ut,
+        vt,
+        divgd,
+        omga,
         dt2: float,
     ):
         """
@@ -739,7 +743,7 @@ class CGridShallowWaterDynamics:
             self.delpc,
             self.ptc,
         )
-        self._D2A2CGrid_Vectors(uc, vc, u, v, ua, va, ut, vt)
+        self._D2A2CGrid_Vectors.__call__(uc, vc, u, v, ua, va, ut, vt)
         if self.namelist.nord > 0:
             self._uf_main(
                 u,

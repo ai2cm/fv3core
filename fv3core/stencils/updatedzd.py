@@ -7,7 +7,7 @@ from fv3core.decorators import FrozenStencil
 from fv3core.stencils.delnflux import DelnFluxNoSG
 from fv3core.stencils.fvtp2d import FiniteVolumeTransport
 from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
-
+from fv3core.utils.gt4py_utils import computepath_method
 
 DZ_MIN = constants.DZ_MIN
 
@@ -285,15 +285,16 @@ class UpdateHeightOnDGrid:
         )
         self.finite_volume_transport = FiniteVolumeTransport(namelist, namelist.hord_tm)
 
+    # @computepath_method
     def __call__(
         self,
-        surface_height: FloatFieldIJ,
-        height: FloatField,
-        courant_number_x: FloatField,
-        courant_number_y: FloatField,
-        x_area_flux: FloatField,
-        y_area_flux: FloatField,
-        ws: FloatFieldIJ,
+        surface_height,
+        height,
+        courant_number_x,
+        courant_number_y,
+        x_area_flux,
+        y_area_flux,
+        ws,
         dt: float,
     ):
         """
@@ -324,7 +325,7 @@ class UpdateHeightOnDGrid:
         self._interpolate_to_layer_interface(
             y_area_flux, self._y_area_flux_interface, self._gk, self._beta, self._gamma
         )
-        self.finite_volume_transport(
+        self.finite_volume_transport.__call__(
             height,
             self._crx_interface,
             self._cry_interface,
@@ -336,12 +337,13 @@ class UpdateHeightOnDGrid:
 
         # TODO: in theory, we should check if damp_vt > 1e-5 for each k-level and
         # only compute for k-levels where this is true
-        self.delnflux(
+        self.delnflux.__call__(
             height,
             self._height_x_diffusive_flux,
             self._height_y_diffusive_flux,
             self._column_namelist["damp_vt"],
             self._wk,
+            None
         )
         self._apply_height_fluxes(
             self.grid.area,

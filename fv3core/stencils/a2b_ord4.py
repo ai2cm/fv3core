@@ -1,3 +1,4 @@
+import dace
 import gt4py.gtscript as gtscript
 from gt4py.gtscript import PARALLEL, asin, computation, cos, interval, sin, sqrt
 
@@ -8,6 +9,7 @@ from fv3core.stencils.basic_operations import copy_defn
 from fv3core.utils.global_config import get_stencil_config
 from fv3core.utils.typing import FloatField, FloatFieldI, FloatFieldIJ
 
+from fv3core.utils.gt4py_utils import computepath_method
 def get_dace_stencil_config():
     stencil_config = get_stencil_config()
     if "gt" in stencil_config.backend:
@@ -619,7 +621,8 @@ class AGrid2BGridFourthOrder:
             domain=(self.grid.nic + 1, self.grid.njc + 1, nk),
         )
 
-    def __call__(self, qin: FloatField, qout: FloatField):
+    @computepath_method
+    def __call__(self, qin, qout):
         """Converts qin from A-grid to B-grid in qout.
         In some cases, qin is also updated to the B grid.
         Args:
@@ -705,7 +708,8 @@ class AGrid2BGridFourthOrder:
                 qin,
             )
 
-    def _compute_qout_edges(self, qin: FloatField, qout: FloatField):
+    @computepath_method
+    def _compute_qout_edges(self, qin, qout):
         if self.grid.west_edge:
             self._qout_x_edge_west(
                 qin,

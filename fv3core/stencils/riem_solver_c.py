@@ -1,5 +1,6 @@
 import typing
 
+import dace
 from gt4py.gtscript import BACKWARD, FORWARD, PARALLEL, computation, interval, log
 
 import fv3core._config as spec
@@ -8,7 +9,7 @@ import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import FrozenStencil
 from fv3core.stencils.sim1_solver import Sim1Solver
 from fv3core.utils.typing import FloatField, FloatFieldIJ
-
+from fv3core.utils.gt4py_utils import computepath_method
 
 @typing.no_type_check
 def precompute(
@@ -103,19 +104,20 @@ class RiemannSolverC:
             domain=domain,
         )
 
+    @computepath_method
     def __call__(
         self,
         dt2: float,
-        cappa: FloatField,
+        cappa,
         ptop: float,
-        hs: FloatFieldIJ,
-        ws: FloatFieldIJ,
-        ptc: FloatField,
-        q_con: FloatField,
-        delpc: FloatField,
-        gz: FloatField,
-        pef: FloatField,
-        w3: FloatField,
+        hs,
+        ws,
+        ptc,
+        q_con,
+        delpc,
+        gz,
+        pef,
+        w3,
     ):
         """
         Solves for the nonhydrostatic terms for vertical velocity (w)
@@ -149,7 +151,7 @@ class RiemannSolverC:
             self._pm,
             ptop,
         )
-        self._sim1_solve(
+        self._sim1_solve.__call__(
             dt2,
             self._gm,
             cappa,

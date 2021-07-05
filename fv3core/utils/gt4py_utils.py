@@ -2,6 +2,7 @@ import logging
 from functools import wraps
 from typing import Any, Callable, Dict, Hashable, List, Optional, Tuple, Union
 
+import dace
 import gt4py as gt
 import gt4py.storage as gt_storage
 import numpy as np
@@ -48,7 +49,10 @@ if MPI is not None and MPI.COMM_WORLD.Get_size() > 1:
     gt.config.cache_settings["dir_name"] = ".gt_cache_{:0>6d}".format(
         MPI.COMM_WORLD.Get_rank()
     )
-
+dace.Config.set('default_build_folder', value="{gt_cache}/dacecache".format(
+    gt_cache=gt.config.cache_settings["dir_name"]
+))
+dace.Config.set('compiler', 'allow_view_arguments', value=True)
 
 # TODO remove when using quantities throughout model
 def quantity_name(name):
@@ -549,3 +553,18 @@ def stack(tup, axis: int = 0, out=None):
 def device_sync() -> None:
     if cp and "cuda" in global_config.get_backend():
         cp.cuda.Device(0).synchronize()
+
+import dace
+dacemode=False
+
+def computepath_method(method):
+    if dacemode:
+        return dace.method(method)
+    else:
+        return method
+
+def computepath_function(function):
+    if dacemode:
+        return dace.program(function)
+    else:
+        return function

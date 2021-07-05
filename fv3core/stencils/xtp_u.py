@@ -1,3 +1,4 @@
+import dace
 from gt4py import gtscript
 from gt4py.gtscript import __INLINED, PARALLEL, computation, interval
 
@@ -7,6 +8,7 @@ from fv3core.decorators import FrozenStencil
 from fv3core.stencils import xppm
 from fv3core.utils.typing import FloatField, FloatFieldIJ
 
+from fv3core.utils.gt4py_utils import computepath_method
 
 @gtscript.function
 def _get_flux(
@@ -124,7 +126,8 @@ class XTP_U:
             namelist, iord, self.grid.js, self.grid.je + 1, self.grid.dx
         )
 
-    def __call__(self, c: FloatField, u: FloatField, flux: FloatField):
+    @computepath_method
+    def __call__(self, c, u, flux):
         """
         Compute flux of kinetic energy in x-dir.
 

@@ -1,3 +1,5 @@
+from fv3core.utils.gt4py_utils import computepath_method
+import dace
 import gt4py.gtscript as gtscript
 from gt4py.gtscript import PARALLEL, computation, interval
 
@@ -128,6 +130,7 @@ class FiniteVolumeTransport:
         )
         """Stencil responsible for doing corners updates in y-direction."""
 
+    # @computepath_method
     def __call__(
         self,
         q,
@@ -158,9 +161,9 @@ class FiniteVolumeTransport:
         """
         grid = self.grid
 
-        self._copy_corners_y(q)
+        self._copy_corners_y.__call__(q)
 
-        self.y_piecewise_parabolic_inner(q, cry, self._tmp_fy2)
+        self.y_piecewise_parabolic_inner.__call__(q, cry, self._tmp_fy2)
         self.stencil_q_i(
             q,
             grid.area,
@@ -168,11 +171,11 @@ class FiniteVolumeTransport:
             self._tmp_fy2,
             self._tmp_q_i,
         )
-        self.x_piecewise_parabolic_outer(self._tmp_q_i, crx, fx)
+        self.x_piecewise_parabolic_outer.__call__(self._tmp_q_i, crx, fx)
 
-        self._copy_corners_x(q)
+        self._copy_corners_x.__call__(q)
 
-        self.x_piecewise_parabolic_inner(q, crx, self._tmp_fx2)
+        self.x_piecewise_parabolic_inner.__call__(q, crx, self._tmp_fx2)
         self.stencil_q_j(
             q,
             grid.area,
@@ -180,7 +183,7 @@ class FiniteVolumeTransport:
             self._tmp_fx2,
             self._tmp_q_j,
         )
-        self.y_piecewise_parabolic_outer(self._tmp_q_j, cry, fy)
+        self.y_piecewise_parabolic_outer.__call__(self._tmp_q_j, cry, fy)
         if mfx is not None and mfy is not None:
             self.stencil_transport_flux_x(
                 fx,

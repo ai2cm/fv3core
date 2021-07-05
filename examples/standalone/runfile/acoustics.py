@@ -74,35 +74,47 @@ def driver(
     backend: str,
     halo_update: bool,
 ):
-    set_up_namelist(data_directory)
-    serializer = initialize_serializer(data_directory)
-    initialize_fv3core(backend, halo_update)
-    grid = read_grid(serializer)
-    spec.set_grid(grid)
+        set_up_namelist(data_directory)
+        serializer = initialize_serializer(data_directory)
+        initialize_fv3core(backend, halo_update)
+        grid = read_grid(serializer)
+        spec.set_grid(grid)
 
-    input_data = read_input_data(grid, serializer)
+        input_data = read_input_data(grid, serializer)
 
-    acoutstics_object = AcousticDynamics(
-        None,
-        spec.namelist,
-        input_data["ak"],
-        input_data["bk"],
-        input_data["pfull"],
-        input_data["phis"],
-    )
+        acoutstics_object = AcousticDynamics(
+            None,
+            spec.namelist,
+            input_data["ak"],
+            input_data["bk"],
+            input_data["pfull"],
+            input_data["phis"],
+        )
 
-    state = get_state_from_input(grid, input_data)
-    state.__dict__.update(acoutstics_object._temporaries)
+        state = get_state_from_input(grid, input_data)
+        state.__dict__.update(acoutstics_object._temporaries)
 
-    # Testing dace infrastucture
-    output_field = acoutstics_object.dace_dummy(input_data["omga"])
-    output_field = acoutstics_object.dace_dummy(state.omga)
-    print(output_field)
+        # Testing dace infrastucture
+        output_field = acoutstics_object.dace_dummy(input_data["omga"])
+        output_field = acoutstics_object.dace_dummy(state.omga)
+        print(output_field)
 
-    # @Linus: make this call a dace program
-    for _ in range(int(time_steps)):
-        acoutstics_object(state, insert_temporaries=False)
+        import cProfile, pstats, io
+        from pstats import SortKey
+        pr = cProfile.Profile()
+        pr.enable()
 
+        try:
+            # @Linus: make this call a dace program
+            for _ in range(int(time_steps)):
+                acoutstics_object(state, insert_temporaries=False)
+        finally:
+            pr.disable()
+            s = io.StringIO()
+            sortby = SortKey.CUMULATIVE
+            ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
+            ps.print_stats()
+            print("\n".join(s.getvalue().split("\n")[:50]))
 
 if __name__ == "__main__":
     driver()

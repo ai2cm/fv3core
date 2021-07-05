@@ -6,6 +6,8 @@ from fv3core.decorators import FrozenStencil
 from fv3core.utils import corners, gt4py_utils
 from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
 
+from fv3core.utils.gt4py_utils import computepath_method
+import dace
 
 DZ_MIN = constants.DZ_MIN
 
@@ -105,14 +107,15 @@ class UpdateGeopotentialHeightOnCGrid:
             domain=self.grid.domain_shape_compute(add=(2, 2, 1)),
         )
 
+    @computepath_method
     def __call__(
         self,
-        dp_ref: FloatFieldK,
-        zs: FloatFieldIJ,
-        ut: FloatField,
-        vt: FloatField,
-        gz: FloatField,
-        ws: FloatFieldIJ,
+        dp_ref,
+        zs,
+        ut,
+        vt,
+        gz,
+        ws,
         dt: float,
     ):
         """

@@ -23,6 +23,7 @@ from fv3core.stencils.riem_solver3 import RiemannSolver3
 from fv3core.stencils.riem_solver_c import RiemannSolverC
 from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
 
+from fv3core.utils.gt4py_utils import computepath_method
 
 HUGE_R = 1.0e40
 
@@ -206,7 +207,7 @@ class AcousticDynamics:
     Peforms the Lagrangian acoustic dynamics described by Lin 2004
     """
 
-    @dace.method
+    # @computepath_method
     def dace_dummy(self, A):
         # self.__call__(state)
         return A + 2
@@ -373,6 +374,7 @@ class AcousticDynamics:
             domain=self.grid.domain_shape_full(add=(0, 0, 1)),
         )
 
+    # @computepath_method
     def __call__(self, state, insert_temporaries: bool = True):
         # u, v, w, delz, delp, pt, pe, pk, phis, wsd, omga, ua, va, uc, vc, mfxd,
         # mfyd, cxd, cyd, pkz, peln, q_con, ak, bk, diss_estd, cappa, mdt, n_split,
@@ -505,10 +507,10 @@ class AcousticDynamics:
                         state.gz,
                     )
             if not self.namelist.hydrostatic:
-                self.update_geopotential_height_on_c_grid(
+                self.update_geopotential_height_on_c_grid.__call__(
                     self._dp_ref, self._zs, state.ut, state.vt, state.gz, state.ws3, dt2
                 )
-                self.riem_solver_c(
+                self.riem_solver_c.__call__(
                     dt2,
                     state.cappa,
                     state.ptop,
@@ -690,7 +692,7 @@ class AcousticDynamics:
                     state.heat_source_quantity, n_points=self.grid.halo
                 )
             cd = constants.CNST_0P20 * self.grid.da_min
-            self._hyperdiffusion(state.heat_source, cd)
+            self._hyperdiffusion.__call__(state.heat_source, cd)
             if not self.namelist.hydrostatic:
                 delt_time_factor = abs(dt * self.namelist.delt_max)
                 self._compute_pkz_tempadjust(
