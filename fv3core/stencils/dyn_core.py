@@ -1,4 +1,3 @@
-from fv3gfs.util.halo_updater import HaloUpdater
 from gt4py.gtscript import (
     __INLINED,
     BACKWARD,

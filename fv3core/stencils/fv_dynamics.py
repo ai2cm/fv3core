@@ -1,5 +1,4 @@
 from typing import Mapping
-from fv3gfs.util.halo_updater import HaloUpdater
 
 from gt4py.gtscript import PARALLEL, computation, interval, log
 
@@ -18,6 +17,7 @@ from fv3core.stencils.dyn_core import AcousticDynamics
 from fv3core.stencils.neg_adj3 import AdjustNegativeTracerMixingRatio
 from fv3core.stencils.remapping import LagrangianToEulerian
 from fv3core.utils.typing import FloatField, FloatFieldK
+from fv3gfs.util.halo_updater import HaloUpdater
 
 
 def pt_adjust(pkz: FloatField, dp1: FloatField, q_con: FloatField, pt: FloatField):
@@ -104,7 +104,7 @@ def post_remap(
     namelist,
     hyperdiffusion: HyperdiffusionDamping,
     set_omega_stencil: FrozenStencil,
-    omga_halo_updater: HaloUpdater
+    omga_halo_updater: HaloUpdater,
 ):
     grid = grid
     if not namelist.hydrostatic:
@@ -326,7 +326,9 @@ class DynamicalCore:
             comm, namelist, self._ak, self._bk, self._pfull, self._phis, state
         )
         self._hyperdiffusion = HyperdiffusionDamping(self.grid, self.namelist.nf_omega)
-        self._do_cubed_to_latlon = CubedToLatLon(self.grid, namelist, self.comm, state.u_quantity, state.v_quantity)
+        self._do_cubed_to_latlon = CubedToLatLon(
+            self.grid, namelist, self.comm, state.u_quantity, state.v_quantity
+        )
 
         if not (not self.namelist.inline_q and DynamicalCore.NQ != 0):
             raise NotImplementedError("tracer_2d not implemented, turn on z_tracer")
@@ -483,7 +485,7 @@ class DynamicalCore:
                         self.namelist,
                         self._hyperdiffusion,
                         self._set_omega_stencil,
-                        self._omga_halo_updater
+                        self._omga_halo_updater,
                     )
         wrapup(
             state,
