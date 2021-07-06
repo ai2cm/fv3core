@@ -4,7 +4,7 @@ from gt4py.gtscript import PARALLEL, computation, interval
 import fv3core._config as spec
 from fv3core.utils.typing import FloatField
 from fv3core.utils.gt4py_utils import computepath_method, computepath_function
-
+import numpy as np
 class CopyCorners:
     """
     Helper-class to copy corners corresponding to the fortran functions
@@ -23,17 +23,20 @@ class CopyCorners:
         self._origin = origin
         self._domain = domain
         self.direction = direction
+        self.kmax2 = np.empty((1,), dtype=np.int32)
 
     @computepath_method
-    def __call__(self, field, direction: dace.constant):
+    def __call__(self, field):
         """
         Fills cell quantity field using corners from itself and multipliers
         in the dirction specified initialization of the instance of this class.
         """
         copy_corners(
             field,
-            direction,
+            self.direction,
             self.grid,
+            # slice(self._origin[2] + self._domain[2])
+            # slice(self._origin[2], None)
             self._origin[2]
         )
 
@@ -68,8 +71,8 @@ class FillCornersBGrid:
     def __call__(self, field, direction: dace.constant):
         self.fill_corners.__call__(
             field,
+            direction,
             slice(self._origin[2], self._origin[2] + self._domain[2]),
-            direction
         )
 
 
@@ -338,14 +341,13 @@ def _fill_corners(q, grid: dace.constant, gridtype: dace.constant, direction: da
                     fill_ne_corner_agrid(q, i, j, direction, grid, kslice)
 
 class FillCorners:
-
     def __init__(self, grid,B,direction):
         self.grid = grid
         self.gridtype = B
         self.direction = direction
 
     @computepath_method
-    def __call__(self, q, kslice: dace.constant, direction: dace.constant):
+    def __call__(self, q, direction: dace.constant, kslice: dace.constant):
         for i in range(1, 1 + self.grid.halo):
             for j in range(1, 1 + self.grid.halo):
                 if self.gridtype == "B":
@@ -384,6 +386,7 @@ def fill_nw_corner_vector_dgrid(x, y, i, j, grid: dace.constant, kslice: dace.co
 def fill_se_corner_vector_dgrid(x, y, i, j, grid: dace.constant, kslice: dace.constant):
     x[grid.ie + i, grid.js - j, kslice] = y[grid.ie + 1 + j, i + 2, kslice]
     y[grid.ie + 1 + i, grid.js - j, kslice] = x[grid.ie - j + 1, grid.js - i, kslice]
+
 
 @computepath_function
 def fill_ne_corner_vector_dgrid(x, y, i, j, grid: dace.constant, mysign, kslice: dace.constant):

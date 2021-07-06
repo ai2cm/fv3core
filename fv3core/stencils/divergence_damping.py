@@ -427,7 +427,7 @@ class DivergenceDamping:
             )
         )
         n = 2
-        self.fillc2 = fillc = (
+        self.fillc2 = (
             (n != self._nonzero_nord)
             and self._grid_type < 3
             and (
@@ -450,7 +450,7 @@ class DivergenceDamping:
             )
         )
 
-    @computepath_method
+    # @computepath_method
     def __call__(
         self,
         u,
@@ -480,7 +480,7 @@ class DivergenceDamping:
 
         if self.fillc1:
             self.fill_corners_bgrid_x.__call__(
-                divg_d,"x"
+                divg_d, "x"
             )
         self._vc_from_divg_stencils1(
             divg_d,
@@ -489,7 +489,7 @@ class DivergenceDamping:
         )
         if self.fillc1:
             self.fill_corners_bgrid_y.__call__(
-                divg_d,"y"
+                divg_d, "y"
             )
         self._uc_from_divg_stencils1(
             divg_d,

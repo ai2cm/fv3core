@@ -559,7 +559,7 @@ class LazyComputepathFunction:
 
     def __init__(self, func):
         self.func = func
-        # self.daceprog = dace.program(self.func)
+        self.daceprog = dace.program(self.func)
 
     def __call__(self, *args, **kwargs):
         return self.func(*args, **kwargs)
@@ -576,23 +576,6 @@ class LazyComputepathFunction:
     def __sdfg_closure__(self, *args, **kwargs):
         return self.daceprog.__sdfg_closure__(*args, **kwargs)
 
-# class DaceOnlyComputepathFunction:
-#
-#     def __init__(self, func):
-#         self.func = func
-#
-#     def __call__(self, *args, **kwargs):
-#         self.daceprog = dace.program(self.func)
-#         sdfg = self.daceprog.to_sdfg(*args, **self.daceprog.__sdfg_closure__(), **kwargs)
-#         return self.daceprog(*args, **kwargs)
-#
-#     def __sdfg__(self, *args, **kwargs):
-#         self.daceprog = dace.program(self.func)
-#         return self.daceprog.to_sdfg()
-#
-#     def __sdfg_closure__(self, *args, **kwargs):
-#         return self.daceprog.__sdfg_closure__(*args, **kwargs)
-
 class LazyComputepathMethod:
 
     def __init__(self, func):
@@ -602,16 +585,25 @@ class LazyComputepathMethod:
         # bound_f = partial(self.func, obj)
         class SDFGEnabledCallable:
 
+            def __init__(myself):
+                methodwrapper = dace.method(self.func)
+                myself.daceprog = methodwrapper.__get__(obj)
+
             def __call__(_, *args, **kwargs):
                 return self.func(obj, *args, **kwargs)
 
             def __sdfg__(myself, *args, **kwargs):
-                methodwrapper = dace.method(self.func)
-                myself.daceprog = methodwrapper.__get__(obj)
                 return myself.daceprog.to_sdfg(*args, **myself.daceprog.__sdfg_closure__(), **kwargs)
 
             def __sdfg_closure__(myself, *args, **kwargs):
                 return myself.daceprog.__sdfg_closure__(*args, **kwargs)
+
+            def __sdfg_constant_args__(myself):
+                return myself.daceprog.constant_args
+
+            def __sdfg_argnames__(myself):
+                return myself.daceprog.argnames
+
 
         return SDFGEnabledCallable()
 
@@ -625,53 +617,54 @@ class DaceOnlyComputepathMethod:
         # bound_f = partial(self.func, obj)
         class SDFGEnabledCallable:
 
-            def __call__(_, *args, **kwargs):
+            def __init__(myself):
                 methodwrapper = dace.method(self.func)
-                return methodwrapper.__get__(obj).__call__(*args, **kwargs)
+                myself.daceprog = methodwrapper.__get__(obj)
 
-            def __sdfg__(_, *args, **kwargs):
-                methodwrapper = dace.method(self.func)
-                daceprog = methodwrapper.__get__(obj)
-                return daceprog.to_sdfg(*args, **daceprog.__sdfg_closure__(), **kwargs)
+            def __call__(myself, *args, **kwargs):
+                return myself.daceprog.__call__(*args, **kwargs)
 
-            def __sdfg_closure__(_, *args, **kwargs):
-                methodwrapper = dace.method(self.func)
-                daceprog = methodwrapper.__get__(obj)
-                return daceprog.__sdfg_closure__(*args, **kwargs)
+            def __sdfg__(myself, *args, **kwargs):
+                return myself.daceprog.to_sdfg(*args, **myself.daceprog.__sdfg_closure__(), **kwargs)
 
+            def __sdfg_closure__(myself, *args, **kwargs):
+                return myself.daceprog.__sdfg_closure__(*args, **kwargs)
+
+            def __sdfg_constant_args__(myself):
+                return myself.daceprog.constant_args
+
+            def __sdfg_argnames__(myself):
+                return myself.daceprog.argnames
 
 
         return SDFGEnabledCallable()
 
 
-# def computepath_method(*args, **kwargs):
-#     use_dace = kwargs.get('use_dace', global_config.get_dacemode())
-#     def _decorator(method):
-#         if use_dace:
-#             return DaceOnlyComputepathMethod(method)
-#         else:
-#             return LazyComputepathMethod(method)
-#
-#     if len(args)==1 and not kwargs and callable(args[0]):
-#         return _decorator(args[0])
-#     else:
-#         assert not args and len(kwargs)==1 and 'use_dace' in kwargs, "bad args"
-#         return _decorator
-#
-#
-# def computepath_function(*args, **kwargs):
-#     use_dace = kwargs.get('use_dace', global_config.get_dacemode())
-#     def _decorator(function):
-#         if use_dace:
-#             return dace.program(function)
-#         else:
-#             return LazyComputepathFunction(function)
-#
-#     if len(args)==1 and not kwargs and callable(args[0]):
-#         return _decorator(args[0])
-#     else:
-#         assert not args and len(kwargs)==1 and 'use_dace' in kwargs, "bad args"
-#         return _decorator
+def computepath_method(*args, **kwargs):
+    use_dace = kwargs.get('use_dace', global_config.get_dacemode())
+    def _decorator(method):
+        if use_dace:
+            return DaceOnlyComputepathMethod(method)
+        else:
+            return LazyComputepathMethod(method)
 
-computepath_method = lambda x:x
-computepath_function = lambda x:x
+    if len(args)==1 and not kwargs and callable(args[0]):
+        return _decorator(args[0])
+    else:
+        assert not args and len(kwargs)==1 and 'use_dace' in kwargs, "bad args"
+        return _decorator
+
+
+def computepath_function(*args, **kwargs):
+    use_dace = kwargs.get('use_dace', global_config.get_dacemode())
+    def _decorator(function):
+        if use_dace:
+            return dace.program(function)
+        else:
+            return LazyComputepathFunction(function)
+
+    if len(args)==1 and not kwargs and callable(args[0]):
+        return _decorator(args[0])
+    else:
+        assert not args and len(kwargs)==1 and 'use_dace' in kwargs, "bad args"
+        return _decorator

@@ -161,7 +161,7 @@ class FiniteVolumeTransport:
         """
         grid = self.grid
 
-        self._copy_corners_y.__call__(q, "y")
+        self._copy_corners_y.__call__(q)
 
         self.y_piecewise_parabolic_inner.__call__(q, cry, self._tmp_fy2)
         self.stencil_q_i(
@@ -173,7 +173,7 @@ class FiniteVolumeTransport:
         )
         self.x_piecewise_parabolic_outer.__call__(self._tmp_q_i, crx, fx)
 
-        self._copy_corners_x.__call__(q, "x")
+        self._copy_corners_x.__call__(q)
 
         self.x_piecewise_parabolic_inner.__call__(q, crx, self._tmp_fx2)
         self.stencil_q_j(
@@ -200,7 +200,7 @@ class FiniteVolumeTransport:
                 and (self._nord is not None)
                 and (self._damp_c is not None)
             ):
-                self.delnflux.__call__(q, fx, fy, mass)
+                self.delnflux(q, fx, fy, mass=mass)
         else:
             self.stencil_transport_flux_x(
                 fx,
@@ -213,4 +213,4 @@ class FiniteVolumeTransport:
                 y_area_flux,
             )
             if (self._nord is not None) and (self._damp_c is not None):
-                self.delnflux.__call__(q, fx, fy, None)
+                self.delnflux(q, fx, fy)
