@@ -25,12 +25,12 @@ FV3_STAGES = [
 ]  # TODO remap is not tagged in nvtx
 
 FV3_START_ASYNC_HALOS = [
-    "HaloEx: async scalar",
-    "HaloEx: async vector",
+    "start async halo ex",
+    "blocking halo ex",
 ]
 
 FV3_ASYNC_HALOS = FV3_START_ASYNC_HALOS + [
-    "HaloEx: unpack and wait",
+    "stop async halo ex",
 ]
 
 FV3_NOT_HALOS = ["Pre HaloEx"]

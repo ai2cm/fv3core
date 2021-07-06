@@ -79,6 +79,102 @@ functions_desc = [
         "file": "fv3gfs/util/communicator.py",
         "name": "Pre HaloEx",
     },  # Synchronize all work prior to halo exchange
+    {
+        "fn": "_build_flatten_indices",
+        "file": "fv3gfs/util/message.py",
+        "name": "Build Idx",
+    },
+    {
+        "fn": "async_pack",
+        "file": "fv3gfs/util/message.py",
+        "name": "async_pack",
+    },
+    {
+        "fn": "async_unpack",
+        "file": "fv3gfs/util/message.py",
+        "name": "async_unpack",
+    },
+    {
+        "fn": "synchronize",
+        "file": "fv3gfs/util/message.py",
+        "name": "synchronize",
+    },
+    {
+        "fn": "finalize",
+        "file": "fv3gfs/util/message.py",
+        "name": "finalize",
+    },
+    {
+        "fn": "allocate",
+        "file": "fv3gfs/util/message.py",
+        "name": "allocate",
+    },
+    {
+        "fn": "_Isend_Irecv_halos",
+        "file": "fv3gfs/util/communicator.py",
+        "name": "_Isend_Irecv_halos",
+    },
+    {
+        "fn": "async_exchange_start",
+        "file": "fv3gfs/util/halo_updater.py",
+        "name": "start async halo ex",
+    },
+    {
+        "fn": "async_pack",
+        "file": "fv3gfs/util/packed_buffer.py",
+        "name": "pack to one buffer",
+    },
+    {
+        "fn": "async_unpack",
+        "file": "fv3gfs/util/packed_buffer.py",
+        "name": "unpack to one buffer",
+    },
+    {
+        "fn": "synchronize",
+        "file": "fv3gfs/util/packed_buffer.py",
+        "name": "internal sync",
+    },
+    {
+        "fn": "async_exchange_wait",
+        "file": "fv3gfs/util/halo_updater.py",
+        "name": "stop async halo ex",
+    },
+    {
+        "fn": "blocking_exchange",
+        "file": "fv3gfs/util/halo_updater.py",
+        "name": "blocking halo ex",
+    },
+    # Physics
+    {
+        "fn": "run",
+        "file": "gfdl_cloud_microphys_gt4py.py",
+        "name": "microph",
+    },
+    {
+        "fn": "__call__",
+        "file": "m_fields_init__gtcuda_98664b9438.py",
+        "name": "fields_init",
+    },
+    {
+        "fn": "__call__",
+        "file": "m_icloud__gtcuda_fffa848465.py",
+        "name": "warm_rain",
+    },
+    {
+        "fn": "__call__",
+        "file": "m_sedimentation__gtcuda_ad614ff181.py",
+        "name": "sedimentation",
+    },
+    {
+        "fn": "__call__",
+        "file": "m_warm_rain__gtcuda_564217f553.py",
+        "name": "icloud",
+    },
+    {
+        "fn": "__call__",
+        "file": "m_fields_update__gtcuda_7d4765ae41.py",
+        "name": "fields_update",
+    },
 ]
 
 
