@@ -177,7 +177,8 @@ class DelnFlux:
 
         self.delnflux_nosg = DelnFluxNoSG(nord, nk=nk)
 
-    # @dace.method
+
+    @computepath_method
     def __call__(
         self,
         q,
@@ -199,14 +200,16 @@ class DelnFlux:
             return fx, fy
 
         if d2_inp is None:
-            d2 = self._d2
+            if mass is None:
+                self.delnflux_nosg.__call__(q, self._fx2, self._fy2, self._damp, self._d2, None)
+            else:
+                self.delnflux_nosg.__call__(q, self._fx2, self._fy2, self._damp, self._d2, mass)
         else:
-            d2 = d2_inp
+            if mass is None:
+                self.delnflux_nosg.__call__(q, self._fx2, self._fy2, self._damp, d2_inp, None)
+            else:
+                self.delnflux_nosg.__call__(q, self._fx2, self._fy2, self._damp, d2_inp, mass)
 
-        if mass is None:
-            self.delnflux_nosg.__call__(q, self._fx2, self._fy2, self._damp, d2, None)
-        else:
-            self.delnflux_nosg.__call__(q, self._fx2, self._fy2, self._damp, d2, mass)
 
         if mass is None:
             self._add_diffusive_stencil(fx, self._fx2, fy, self._fy2)
@@ -376,7 +379,7 @@ class DelnFluxNoSG:
             domain=(self._grid.nid, self._grid.njd, self._nk),
         )
 
-    @dace.method
+    @computepath_method
     def __call__(self, q, fx2, fy2, damp_c, d2, mass):
         """
         Applies del-n damping to fluxes, where n is set by nord.

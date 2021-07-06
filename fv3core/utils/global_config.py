@@ -44,6 +44,14 @@ def set_format_source(flag: bool):
 def get_format_source() -> bool:
     return _FORMAT_SOURCE
 
+def set_dacemode(flag: bool):
+    global _DACEMODE
+    _DACEMODE = flag
+
+
+def get_dacemode() -> bool:
+    return _DACEMODE
+
 
 def set_do_halo_exchange(flag: bool):
     global _DO_HALO_EXCHANGE
@@ -125,6 +133,7 @@ def get_stencil_config():
 _BACKEND = "gtc:dace"  # Options: numpy, gtx86, gtcuda, debug
 _REBUILD = getenv_bool("FV3_STENCIL_REBUILD_FLAG", "True")
 _FORMAT_SOURCE = getenv_bool("FV3_STENCIL_FORMAT_SOURCE", "False")
+_DACEMODE = getenv_bool("FV3_DACEMODE", "False")
 _DO_HALO_EXCHANGE = True
 _VALIDATE_ARGS = True
 _DEVICE_SYNC = False

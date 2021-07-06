@@ -200,7 +200,7 @@ class FiniteVolumeTransport:
                 and (self._nord is not None)
                 and (self._damp_c is not None)
             ):
-                self.delnflux(q, fx, fy, mass=mass)
+                self.delnflux.__call__(q, fx, fy, mass)
         else:
             self.stencil_transport_flux_x(
                 fx,
@@ -213,4 +213,4 @@ class FiniteVolumeTransport:
                 y_area_flux,
             )
             if (self._nord is not None) and (self._damp_c is not None):
-                self.delnflux(q, fx, fy)
+                self.delnflux.__call__(q, fx, fy, None)

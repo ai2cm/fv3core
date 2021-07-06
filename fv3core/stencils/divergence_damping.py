@@ -480,7 +480,7 @@ class DivergenceDamping:
 
         if self.fillc1:
             self.fill_corners_bgrid_x.__call__(
-                divg_d,
+                divg_d,"x"
             )
         self._vc_from_divg_stencils1(
             divg_d,
@@ -489,7 +489,7 @@ class DivergenceDamping:
         )
         if self.fillc1:
             self.fill_corners_bgrid_y.__call__(
-                divg_d,
+                divg_d,"y"
             )
         self._uc_from_divg_stencils1(
             divg_d,
@@ -529,7 +529,7 @@ class DivergenceDamping:
         # loop n = 2
         if self.fillc2:
             self.fill_corners_bgrid_x.__call__(
-                divg_d,
+                divg_d, "x"
             )
         self._vc_from_divg_stencils2(
             divg_d,
@@ -538,7 +538,7 @@ class DivergenceDamping:
         )
         if self.fillc2:
             self.fill_corners_bgrid_y.__call__(
-                divg_d,
+                divg_d, "y"
             )
         self._uc_from_divg_stencils2(
             divg_d,
@@ -578,7 +578,7 @@ class DivergenceDamping:
         # loop n = 3
         if self.fillc3:
             self.fill_corners_bgrid_x.__call__(
-                divg_d,
+                divg_d, "x"
             )
         self._vc_from_divg_stencils3(
             divg_d,
@@ -587,7 +587,7 @@ class DivergenceDamping:
         )
         if self.fillc3:
             self.fill_corners_bgrid_y.__call__(
-                divg_d,
+                divg_d, "y"
             )
         self._uc_from_divg_stencils3(
             divg_d,

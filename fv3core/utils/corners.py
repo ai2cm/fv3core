@@ -4,7 +4,7 @@ from gt4py.gtscript import PARALLEL, computation, interval
 import fv3core._config as spec
 from fv3core.utils.typing import FloatField
 from fv3core.utils.gt4py_utils import computepath_method, computepath_function
-import numpy as np
+
 class CopyCorners:
     """
     Helper-class to copy corners corresponding to the fortran functions
@@ -24,7 +24,7 @@ class CopyCorners:
         self._domain = domain
         self.direction = direction
 
-    @dace.method
+    @computepath_method
     def __call__(self, field, direction: dace.constant):
         """
         Fills cell quantity field using corners from itself and multipliers
@@ -64,11 +64,12 @@ class FillCornersBGrid:
             self.B,
             self._direction,)
 
-    @dace.method
-    def __call__(self, field):
+    @computepath_method
+    def __call__(self, field, direction: dace.constant):
         self.fill_corners.__call__(
             field,
             slice(self._origin[2], self._origin[2] + self._domain[2]),
+            direction
         )
 
 
@@ -101,7 +102,7 @@ def corner_ke(
 
 
 # FOR DACE
-@dace.program
+@computepath_function
 def fill_4corners(q, direction: dace.constant, grid: dace.constant):
     if direction == "x":
         for k in range(q.shape[2]):
@@ -134,7 +135,7 @@ def fill_4corners(q, direction: dace.constant, grid: dace.constant):
     else:
         raise ValueError("Direction not recognized. Specify either x or y")
 
-@dace.program
+@computepath_function
 def fill2_4corners(q1, q2, direction: dace.constant, grid: dace.constant):
     if direction == "x":
         for k in range(q1.shape[2]):
@@ -183,7 +184,7 @@ def fill2_4corners(q1, q2, direction: dace.constant, grid: dace.constant):
     else:
         raise ValueError("Direction not recognized. Specify either x or y")
 
-@dace.program
+@computepath_function
 def copy_sw_corner(q, direction: dace.constant, grid: dace.constant, kslice: dace.constant):
     for j in range(grid.js - grid.halo, grid.js):
         for i in range(grid.is_ - grid.halo, grid.is_):
@@ -193,7 +194,7 @@ def copy_sw_corner(q, direction: dace.constant, grid: dace.constant, kslice: dac
                 q[i, j, kslice:] = q[grid.js - j + 2, i, kslice:]
 
 
-@dace.program
+@computepath_function
 def copy_se_corner(q, direction: dace.constant, grid: dace.constant, kslice: dace.constant):
     for j in range(grid.js - grid.halo, grid.js):
         for i in range(grid.ie + 1, grid.ie + grid.halo + 1):
@@ -203,7 +204,7 @@ def copy_se_corner(q, direction: dace.constant, grid: dace.constant, kslice: dac
                 q[i, j, kslice:] = q[grid.je + j - 2, grid.ie + 1 - i + 2, kslice:]
 
 
-@dace.program
+@computepath_function
 def copy_ne_corner(q, direction: dace.constant, grid: dace.constant, kslice: dace.constant):
     for j in range(grid.je + 1, grid.je + grid.halo + 1):
         for i in range(grid.ie + 1, grid.ie + grid.halo + 1):
@@ -213,7 +214,7 @@ def copy_ne_corner(q, direction: dace.constant, grid: dace.constant, kslice: dac
                 q[i, j, kslice:] = q[2 * (grid.je + 1) - 1 - j, i, kslice:]
 
 
-@dace.program
+@computepath_function
 def copy_nw_corner(q, direction: dace.constant, grid: dace.constant, kslice: dace.constant):
     for j in range(grid.je + 1, grid.je + grid.halo + 1):
         for i in range(grid.is_ - grid.halo, grid.is_):
@@ -224,7 +225,7 @@ def copy_nw_corner(q, direction: dace.constant, grid: dace.constant, kslice: dac
 
 
 # can't actually be a stencil because offsets are variable
-@dace.program
+@computepath_function
 def copy_corners(q, direction: dace.constant, grid: dace.constant, kslice: dace.constant):
     if grid.sw_corner:
         copy_sw_corner(q, direction, grid, kslice)
@@ -238,7 +239,7 @@ def copy_corners(q, direction: dace.constant, grid: dace.constant, kslice: dace.
 
 # TODO these can definitely be consolidated/made simpler
 
-@dace.program
+@computepath_function
 def fill_sw_corner_bgrid(q, i, j, direction: dace.constant, grid: dace.constant, kslice: dace.constant):
     if direction == "x":
         q[grid.is_ - i, grid.js - j, kslice] = q[grid.is_ - j, grid.js + i, kslice]
@@ -246,7 +247,7 @@ def fill_sw_corner_bgrid(q, i, j, direction: dace.constant, grid: dace.constant,
         q[grid.is_ - j, grid.js - i, kslice] = q[grid.is_ + i, grid.js - j, kslice]
 
 
-@dace.program
+@computepath_function
 def fill_nw_corner_bgrid(q, i, j, direction: dace.constant, grid: dace.constant, kslice: dace.constant):
     if direction == "x":
         q[grid.is_ - i, grid.je + 1 + j, kslice] = q[
@@ -258,7 +259,7 @@ def fill_nw_corner_bgrid(q, i, j, direction: dace.constant, grid: dace.constant,
         ]
 
 
-@dace.program
+@computepath_function
 def fill_se_corner_bgrid(q, i, j, direction: dace.constant, grid: dace.constant, kslice: dace.constant):
     if direction == "x":
         q[grid.ie + 1 + i, grid.js - j, kslice] = q[
@@ -270,7 +271,7 @@ def fill_se_corner_bgrid(q, i, j, direction: dace.constant, grid: dace.constant,
         ]
 
 
-@dace.program
+@computepath_function
 def fill_ne_corner_bgrid(q, i, j, direction: dace.constant, grid: dace.constant, kslice: dace.constant):
     if direction == "x":
         q[grid.ie + 1 + i, grid.je + 1 + j, kslice] = q[
@@ -282,7 +283,7 @@ def fill_ne_corner_bgrid(q, i, j, direction: dace.constant, grid: dace.constant,
         ]
 
 
-@dace.program
+@computepath_function
 def fill_sw_corner_agrid(q, i, j, direction: dace.constant, grid: dace.constant, kslice: dace.constant):
     if direction == "x":
         q[grid.is_ - i, grid.js - j, kslice] = q[grid.is_ - j, i, kslice]
@@ -290,7 +291,7 @@ def fill_sw_corner_agrid(q, i, j, direction: dace.constant, grid: dace.constant,
         q[grid.is_ - j, grid.js - i, kslice] = q[i, grid.js - j, kslice]
 
 
-@dace.program
+@computepath_function
 def fill_nw_corner_agrid(q, i, j, direction: dace.constant, grid: dace.constant, kslice: dace.constant):
     if direction == "x":
         q[grid.is_ - i, grid.je + j, kslice] = q[grid.is_ - j, grid.je - i + 1, kslice]
@@ -298,7 +299,7 @@ def fill_nw_corner_agrid(q, i, j, direction: dace.constant, grid: dace.constant,
         q[grid.is_ - j, grid.je + i, kslice] = q[i, grid.je + j, kslice]
 
 
-@dace.program
+@computepath_function
 def fill_se_corner_agrid(q, i, j, direction: dace.constant, grid: dace.constant, kslice: dace.constant):
     if direction == "x":
         q[grid.ie + i, grid.js - j, kslice] = q[grid.ie + j, i, kslice]
@@ -306,14 +307,14 @@ def fill_se_corner_agrid(q, i, j, direction: dace.constant, grid: dace.constant,
         q[grid.ie + j, grid.js - i, kslice] = q[grid.ie - i + 1, grid.js - j, kslice]
 
 
-@dace.program
+@computepath_function
 def fill_ne_corner_agrid(q, i, j, direction: dace.constant, grid: dace.constant, kslice: dace.constant, mysign: dace.constant=1.0):
     if direction == "x":
         q[grid.ie + i, grid.je + j, kslice] = q[grid.ie + j, grid.je - i + 1, kslice]
     if direction == "y":
         q[grid.ie + j, grid.je + i, kslice] = q[grid.ie - i + 1, grid.je + j, kslice]
 
-@dace.program
+@computepath_function
 def _fill_corners(q, grid: dace.constant, gridtype: dace.constant, direction: dace.constant, kslice: dace.constant):
     for i in range(1, 1 + grid.halo):
         for j in range(1, 1 + grid.halo):
@@ -337,54 +338,54 @@ def _fill_corners(q, grid: dace.constant, gridtype: dace.constant, direction: da
                     fill_ne_corner_agrid(q, i, j, direction, grid, kslice)
 
 class FillCorners:
+
     def __init__(self, grid,B,direction):
         self.grid = grid
         self.gridtype = B
         self.direction = direction
 
-    @dace.method
-    def __call__(self, q, kslice: dace.constant):
+    @computepath_method
+    def __call__(self, q, kslice: dace.constant, direction: dace.constant):
         for i in range(1, 1 + self.grid.halo):
             for j in range(1, 1 + self.grid.halo):
                 if self.gridtype == "B":
                     if self.grid.sw_corner:
-                        fill_sw_corner_bgrid(q, i, j, self.direction, self.grid, kslice)
+                        fill_sw_corner_bgrid(q, i, j, direction, self.grid, kslice)
                     if self.grid.nw_corner:
-                        fill_nw_corner_bgrid(q, i, j, self.direction, self.grid, kslice)
+                        fill_nw_corner_bgrid(q, i, j, direction, self.grid, kslice)
                     if self.grid.se_corner:
-                        fill_se_corner_bgrid(q, i, j, self.direction, self.grid, kslice)
+                        fill_se_corner_bgrid(q, i, j, direction, self.grid, kslice)
                     if self.grid.ne_corner:
-                        fill_ne_corner_bgrid(q, i, j, self.direction, self.grid, kslice)
+                        fill_ne_corner_bgrid(q, i, j, direction, self.grid, kslice)
                 if self.gridtype == "A":
                     if self.grid.sw_corner:
-                        fill_sw_corner_agrid(q, i, j, self.direction, self.grid, kslice)
+                        fill_sw_corner_agrid(q, i, j, direction, self.grid, kslice)
                     if self.grid.nw_corner:
-                        fill_nw_corner_agrid(q, i, j, self.direction, self.grid, kslice)
+                        fill_nw_corner_agrid(q, i, j, direction, self.grid, kslice)
                     if self.grid.se_corner:
-                        fill_se_corner_agrid(q, i, j, self.direction, self.grid, kslice)
+                        fill_se_corner_agrid(q, i, j, direction, self.grid, kslice)
                     if self.grid.ne_corner:
-                        fill_ne_corner_agrid(q, i, j, self.direction, self.grid, kslice)
+                        fill_ne_corner_agrid(q, i, j, direction, self.grid, kslice)
 
 
-@dace.program
+@computepath_function
 def fill_sw_corner_vector_dgrid(x, y, i, j, grid: dace.constant, mysign, kslice: dace.constant):
     x[grid.is_ - i, grid.js - j, kslice] = mysign * y[grid.is_ - j, i + 2, kslice]
     y[grid.is_ - i, grid.js - j, kslice] = mysign * x[j + 2, grid.js - i, kslice]
 
 
-@dace.program
+@computepath_function
 def fill_nw_corner_vector_dgrid(x, y, i, j, grid: dace.constant, kslice: dace.constant):
     x[grid.is_ - i, grid.je + 1 + j, kslice] = y[grid.is_ - j, grid.je + 1 - i, kslice]
     y[grid.is_ - i, grid.je + j, kslice] = x[j + 2, grid.je + 1 + i, kslice]
 
 
-@dace.program
+@computepath_function
 def fill_se_corner_vector_dgrid(x, y, i, j, grid: dace.constant, kslice: dace.constant):
     x[grid.ie + i, grid.js - j, kslice] = y[grid.ie + 1 + j, i + 2, kslice]
     y[grid.ie + 1 + i, grid.js - j, kslice] = x[grid.ie - j + 1, grid.js - i, kslice]
 
-
-@dace.program
+@computepath_function
 def fill_ne_corner_vector_dgrid(x, y, i, j, grid: dace.constant, mysign, kslice: dace.constant):
     x[grid.ie + i, grid.je + 1 + j, kslice] = (
         mysign * y[grid.ie + 1 + j, grid.je - i + 1, kslice]
@@ -393,7 +394,7 @@ def fill_ne_corner_vector_dgrid(x, y, i, j, grid: dace.constant, mysign, kslice:
         mysign * x[grid.ie - j + 1, grid.je + 1 + i, kslice]
     )
 
-@dace.program
+@computepath_function
 def fill_corners_dgrid(x, y, grid: dace.constant, vector, kslice: dace.constant=slice(0, None)):
     mysign = 1.0
     if vector:
