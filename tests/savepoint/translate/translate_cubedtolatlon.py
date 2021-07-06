@@ -19,7 +19,6 @@ class TranslateCubedToLatLon(ParallelTranslate2Py):
     def __init__(self, grids):
         super().__init__(grids)
         grid = grids[0]
-        self._base.compute_func = CubedToLatLon(grid, spec.namelist)
         self._base.in_vars["data_vars"] = {"u": {}, "v": {}, "ua": {}, "va": {}}
         self._base.out_vars = {
             "ua": {},
@@ -27,3 +26,21 @@ class TranslateCubedToLatLon(ParallelTranslate2Py):
             "u": grid.y3d_domain_dict(),
             "v": grid.x3d_domain_dict(),
         }
+
+    def compute_parallel(self, inputs, communicator):
+        inputs["comm"] = communicator
+        inputs = self.state_from_inputs(inputs)
+        result = self._base.compute_from_storage(inputs)
+        quantity_result = self.outputs_from_state(result)
+        result.update(quantity_result)
+        for name, data in result.items():
+            if isinstance(data, fv3util.Quantity):
+                result[name] = data.storage
+        # Create stencil object
+        self.cubedToLatLon = CubedToLatLon(
+            communicator, spec.namelist, communicator, result["u"], result["v"]
+        )
+        # Run
+        self.cubedToLatLon(**result)
+        result.update(self._base.slice_output(result))
+        return result
