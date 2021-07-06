@@ -906,8 +906,8 @@ class DelnFlux:
     def __init__(
         self,
         grid_indexing: GridIndexing,
-        del6_u,
-        del6_v,
+        del6_u: FloatFieldIJ,
+        del6_v: FloatFieldIJ,
         rarea,
         da_min,
         nord: FloatFieldK,
@@ -1009,8 +1009,8 @@ class DelnFluxNoSG:
     def __init__(
         self,
         grid_indexing: GridIndexing,
-        del6_u,
-        del6_v,
+        del6_u: FloatFieldIJ,
+        del6_v: FloatFieldIJ,
         rarea,
         nord,
         nk: Optional[int] = None,
