@@ -41,7 +41,7 @@ class TranslateTracer2D1L(ParallelTranslate):
             inputs["tracers"], inputs.pop("nq")
         )
         self.tracer_advection = fv3core.stencils.tracer_2d_1l.TracerAdvection(
-            communicator, spec.namelist
+            communicator, spec.namelist, list(inputs["tracers"].values())
         )
         self.tracer_advection(**inputs)
         inputs[
