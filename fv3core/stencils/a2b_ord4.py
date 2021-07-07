@@ -235,7 +235,6 @@ def lagrange_y_func(qx):
 def lagrange_x_func(qy):
     return a2 * (qy[-2, 0, 0] + qy[1, 0, 0]) + a1 * (qy[-1, 0, 0] + qy)
 
-
 def ppm_volume_mean_x(
     qin: FloatField,
     qx: FloatField,
@@ -248,11 +247,11 @@ def ppm_volume_mean_x(
         with horizontal(region[i_start, :]):
             qx = qx_edge_west(qin, dxa)
         with horizontal(region[i_start + 1, :]):
-            qx = qx_edge_west2(qin, dxa, qx)
+            qx = qx_edge_west2(qin, dxa)
         with horizontal(region[i_end + 1, :]):
             qx = qx_edge_east(qin, dxa)
         with horizontal(region[i_end, :]):
-            qx = qx_edge_east2(qin, dxa, qx)
+            qx = qx_edge_east2(qin, dxa)
 
 
 def ppm_volume_mean_y(
@@ -267,11 +266,11 @@ def ppm_volume_mean_y(
         with horizontal(region[:, j_start]):
             qy = qy_edge_south(qin, dya)
         with horizontal(region[:, j_start + 1]):
-            qy = qy_edge_south2(qin, dya, qy)
+            qy = qy_edge_south2(qin, dya)
         with horizontal(region[:, j_end + 1]):
             qy = qy_edge_north(qin, dya)
         with horizontal(region[:, j_end]):
-            qy = qy_edge_north2(qin, dya, qy)
+            qy = qy_edge_north2(qin, dya)
 
 
 def a2b_interpolation(
@@ -328,12 +327,22 @@ def qx_edge_west(qin: FloatField, dxa: FloatFieldIJ):
 
 
 @gtscript.function
-def qx_edge_west2(qin: FloatField, dxa: FloatFieldIJ, qx: FloatField):
+def qx_edge_west2(qin: FloatField, dxa: FloatFieldIJ):
+    # TODO: should be able to use 2d variable with offset:
+    # qxleft = qx_edge_west(qin[-1, 0, 0], dxa[-1, 0])
+    # TODO this seemed to work for a bit, and then stopped
+    # qxright = ppm_volume_mean_x_main(qin[1, 0, 0])
     g_in = dxa / dxa[-1, 0]
+    g_ou = dxa[-3, 0] / dxa[-2, 0]
+    qxleft = 0.5 * (
+        ((2.0 + g_in) * qin[-1, 0, 0] - qin) / (1.0 + g_in)
+        + ((2.0 + g_ou) * qin[-2, 0, 0] - qin[-3, 0, 0]) / (1.0 + g_ou)
+    )
+    qxright = b2 * (qin[-1, 0, 0] + qin[2, 0, 0]) + b1 * (qin + qin[1, 0, 0])
     return (
-        3.0 * (g_in * qin[-1, 0, 0] + qin) - (g_in * qx[-1, 0, 0] + qx[1, 0, 0])
+       3.0 * (g_in * qin[-1, 0, 0] + qin) - (g_in * qxleft + qxright)
     ) / (2.0 + 2.0 * g_in)
-
+  
 
 @gtscript.function
 def qx_edge_east(qin: FloatField, dxa: FloatFieldIJ):
@@ -346,12 +355,20 @@ def qx_edge_east(qin: FloatField, dxa: FloatFieldIJ):
 
 
 @gtscript.function
-def qx_edge_east2(qin: FloatField, dxa: FloatFieldIJ, qx: FloatField):
+def qx_edge_east2(qin: FloatField, dxa: FloatFieldIJ):
+    # TODO when possible
+    # qxright = qx_edge_east(qin[1, 0, 0], dxa[1, 0])
+    # qxleft = ppm_volume_mean_x_main(qin[-1, 0, 0])
     g_in = dxa[-1, 0] / dxa
+    g_ou = dxa[2, 0] / dxa[1, 0]
+    qxright = 0.5 * (
+        ((2.0 + g_in) * qin - qin[-1, 0, 0]) / (1.0 + g_in)
+        + ((2.0 + g_ou) * qin[1, 0, 0] - qin[2, 0, 0]) / (1.0 + g_ou)
+    )
+    qxleft = b2 * (qin[-3, 0, 0] + qin) + b1 * (qin[-2, 0, 0] + qin[-1, 0, 0])
     return (
-        3.0 * (qin[-1, 0, 0] + g_in * qin) - (g_in * qx[1, 0, 0] + qx[-1, 0, 0])
+        3.0 * (qin[-1, 0, 0] + g_in * qin) - (g_in * qxright + qxleft)
     ) / (2.0 + 2.0 * g_in)
-
 
 @gtscript.function
 def qy_edge_south(qin: FloatField, dya: FloatFieldIJ):
@@ -364,10 +381,19 @@ def qy_edge_south(qin: FloatField, dya: FloatFieldIJ):
 
 
 @gtscript.function
-def qy_edge_south2(qin: FloatField, dya: FloatFieldIJ, qy: FloatField):
+def qy_edge_south2(qin: FloatField, dya: FloatFieldIJ):
+    # TODO
+    # qy_lower = qy_edge_south(qin[0, -1, 0], dya[0, -1])
+    # qy_upper = ppm_volume_mean_y_main(qin[0, 1, 0])
     g_in = dya / dya[0, -1]
+    g_ou = dya[0, -3] / dya[0, -2]
+    qy_lower =  0.5 * (
+        ((2.0 + g_in) * qin[0, -1, 0] - qin) / (1.0 + g_in)
+    + ((2.0 + g_ou) * qin[0, -2, 0] - qin[0, -3, 0]) / (1.0 + g_ou)
+    )
+    qy_upper = b2 * (qin[0, -1, 0] + qin[0, 2, 0]) + b1 * (qin + qin[0, 1, 0])
     return (
-        3.0 * (g_in * qin[0, -1, 0] + qin) - (g_in * qy[0, -1, 0] + qy[0, 1, 0])
+        3.0 * (g_in * qin[0, -1, 0] + qin) - (g_in * qy_lower + qy_upper)
     ) / (2.0 + 2.0 * g_in)
 
 
@@ -382,10 +408,19 @@ def qy_edge_north(qin: FloatField, dya: FloatFieldIJ):
 
 
 @gtscript.function
-def qy_edge_north2(qin: FloatField, dya: FloatFieldIJ, qy: FloatField):
+def qy_edge_north2(qin: FloatField, dya: FloatFieldIJ):
+    # TODO
+    # qy_lower = ppm_volume_mean_y_main(qin[0, -1, 0])
+    # qy_upper = qy_edge_north(qin[0, 1, 0], dya[0, 1])
     g_in = dya[0, -1] / dya
+    g_ou = dya[0, 2] / dya[0, 1]
+    qy_lower = b2 * (qin[0, -3, 0] + qin[0, 0, 0]) + b1 * (qin[0, -2, 0] + qin[0, -1, 0])
+    qy_upper = 0.5 * (
+        ((2.0 + g_in) * qin - qin[0, -1, 0]) / (1.0 + g_in)
+        + ((2.0 + g_ou) * qin[0, 1, 0] - qin[0, 2, 0]) / (1.0 + g_ou)
+    )
     return (
-        3.0 * (qin[0, -1, 0] + g_in * qin) - (g_in * qy[0, 1, 0] + qy[0, -1, 0])
+        3.0 * (qin[0, -1, 0] + g_in * qin) - (g_in * qy_upper + qy_lower)
     ) / (2.0 + 2.0 * g_in)
 
 
