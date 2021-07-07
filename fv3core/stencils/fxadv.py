@@ -494,6 +494,7 @@ class FiniteVolumeFluxPrep:
             vt,
             ut,
         )
+        # NOTE: this is aliasing memory
         self._ut_corners_stencil(
             self._cosa_u,
             self._cosa_v,
@@ -503,6 +504,7 @@ class FiniteVolumeFluxPrep:
             ut,
             vt,
         )
+        # NOTE: this is aliasing memory
         self._vt_corners_stencil(
             self._cosa_u,
             self._cosa_v,
