@@ -285,7 +285,7 @@ class UpdateHeightOnDGrid:
         )
         self.finite_volume_transport = FiniteVolumeTransport(namelist, namelist.hord_tm)
 
-    # @computepath_method
+    @computepath_method
     def __call__(
         self,
         surface_height,

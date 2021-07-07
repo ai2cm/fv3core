@@ -374,7 +374,7 @@ class AcousticDynamics:
             domain=self.grid.domain_shape_full(add=(0, 0, 1)),
         )
 
-    # @computepath_method
+    @computepath_method(use_dace=True)
     def __call__(self, state, insert_temporaries: bool = True):
         # u, v, w, delz, delp, pt, pe, pk, phis, wsd, omga, ua, va, uc, vc, mfxd,
         # mfyd, cxd, cyd, pkz, peln, q_con, ak, bk, diss_estd, cappa, mdt, n_split,
@@ -389,10 +389,10 @@ class AcousticDynamics:
         # m_split = 1. + abs(dt_atmos)/real(k_split*n_split*abs(p_split))
         # n_split = nint( real(n0split)/real(k_split*abs(p_split)) * stretch_fac + 0.5 )
         ms = max(1, self.namelist.m_split / 2.0)
-        shape = state.delz.shape
+        # shape = state.delz.shape
         # NOTE: In Fortran model the halo update starts happens in fv_dynamics, not here
-        reqs = {}
         if self.do_halo_exchange:
+            reqs = {}
             for halovar in [
                 "q_con_quantity",
                 "cappa_quantity",
@@ -472,7 +472,7 @@ class AcousticDynamics:
                     reqs["w_quantity"].wait()
 
             # compute the c-grid winds at t + 1/2 timestep
-            state.delpc, state.ptc = self.cgrid_shallow_water_lagrangian_dynamics(
+            state.delpc, state.ptc = self.cgrid_shallow_water_lagrangian_dynamics.__call__(
                 state.delp,
                 state.pt,
                 state.u,
@@ -543,7 +543,7 @@ class AcousticDynamics:
                 req_vector_c_grid.wait()
             # use the computed c-grid winds to evolve the d-grid winds forward
             # by 1 timestep
-            self.dgrid_shallow_water_lagrangian_dynamics(
+            self.dgrid_shallow_water_lagrangian_dynamics.__call__(
                 state.vt,
                 state.delp,
                 state.ptc,
@@ -584,7 +584,7 @@ class AcousticDynamics:
             #    raise 'Unimplemented namelist option d_ext > 0'
 
             if not self.namelist.hydrostatic:
-                self.update_height_on_d_grid(
+                self.update_height_on_d_grid.__call__(
                     self._zs,
                     state.zh,
                     state.crx,
@@ -594,7 +594,7 @@ class AcousticDynamics:
                     state.wsd,
                     dt,
                 )
-                self.riem_solver3(
+                self.riem_solver3.__call__(
                     remap_step,
                     dt,
                     state.cappa,
@@ -649,7 +649,7 @@ class AcousticDynamics:
                 if self.grid.npx == self.grid.npy and self.do_halo_exchange:
                     reqs["pkc_quantity"].wait()
 
-                self.nonhydrostatic_pressure_gradient(
+                self.nonhydrostatic_pressure_gradient.__call__(
                     state.u,
                     state.v,
                     state.pkc,
@@ -664,7 +664,7 @@ class AcousticDynamics:
             if self.namelist.rf_fast:
                 # TODO: Pass through ks, or remove, inconsistent representation vs
                 # Fortran.
-                self._rayleigh_damping(
+                self._rayleigh_damping.__call__(
                     state.u,
                     state.v,
                     state.w,
@@ -694,7 +694,8 @@ class AcousticDynamics:
             cd = constants.CNST_0P20 * self.grid.da_min
             self._hyperdiffusion.__call__(state.heat_source, cd)
             if not self.namelist.hydrostatic:
-                delt_time_factor = abs(dt * self.namelist.delt_max)
+                tmp = dt * self.namelist.delt_max
+                delt_time_factor = (tmp*tmp)**0.5
                 self._compute_pkz_tempadjust(
                     state.delp,
                     state.delz,

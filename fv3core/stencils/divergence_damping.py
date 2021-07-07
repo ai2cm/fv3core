@@ -452,7 +452,7 @@ class DivergenceDamping:
             )
         )
 
-    @computepath_method(use_dace=True)
+    @computepath_method
     def __call__(
         self,
         u,

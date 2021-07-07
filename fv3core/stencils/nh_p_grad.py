@@ -1,3 +1,4 @@
+from fv3core.utils.gt4py_utils import computepath_method
 from gt4py.gtscript import PARALLEL, computation, interval
 
 import fv3core._config as spec
@@ -141,15 +142,15 @@ class NonHydrostaticPressureGradient:
             nk=self.nk,
             replace=False,
         )
-
+    @computepath_method
     def __call__(
         self,
-        u: FloatField,
-        v: FloatField,
-        pp: FloatField,
-        gz: FloatField,
-        pk3: FloatField,
-        delp: FloatField,
+        u,
+        v,
+        pp,
+        gz,
+        pk3,
+        delp,
         dt: float,
         ptop: float,
         akap: float,
@@ -173,11 +174,11 @@ class NonHydrostaticPressureGradient:
         ptk = ptop ** akap
         top_value = ptk  # = peln1 if spec.namelist.use_logp else ptk
 
-        self.a2b_k1(pp, self._tmp_wk1)
-        self.a2b_k1(pk3, self._tmp_wk1)
+        self.a2b_k1.__call__(pp, self._tmp_wk1)
+        self.a2b_k1.__call__(pk3, self._tmp_wk1)
 
-        self.a2b_kbuffer(gz, self._tmp_wk1)
-        self.a2b_kstandard(delp, self._tmp_wk1)
+        self.a2b_kbuffer.__call__(gz, self._tmp_wk1)
+        self.a2b_kstandard.__call__(delp, self._tmp_wk1)
 
         self._set_k0_and_calc_wk_stencil(pp, pk3, self._tmp_wk, top_value)
 
