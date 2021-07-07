@@ -251,10 +251,10 @@ def circulation_cgrid(
         vort_c = fx[0, -1, 0] - fx - fy[-1, 0, 0] + fy
 
         with horizontal(region[i_start, j_start], region[i_start, j_end + 1]):
-            vort_c += dyc[-1, 0] * vc[-1, 0, 0]
+            vort_c = fx[0, -1, 0] - fx - fy[-1, 0, 0] + fy + dyc[-1, 0] * vc[-1, 0, 0]
 
         with horizontal(region[i_end + 1, j_start], region[i_end + 1, j_end + 1]):
-            vort_c -= dyc * vc
+            vort_c = fx[0, -1, 0] - fx - fy[-1, 0, 0] + fy - dyc * vc
 
 
 def update_x_velocity(
