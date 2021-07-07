@@ -620,9 +620,13 @@ class DaceOnlyComputepathMethod:
             def __init__(myself):
                 methodwrapper = dace.method(self.func)
                 myself.daceprog = methodwrapper.__get__(obj)
+                myself.daceprog.validate = False
 
             def __call__(myself, *args, **kwargs):
                 return myself.daceprog.__call__(*args, **kwargs)
+                sdfg = myself.daceprog.to_sdfg(*args, **kwargs)
+                csdfg = sdfg.compile(validate=False)
+                return csdfg(*args, **kwargs)
 
             def __sdfg__(myself, *args, **kwargs):
                 return myself.daceprog.to_sdfg(*args, **myself.daceprog.__sdfg_closure__(), **kwargs)
@@ -639,7 +643,7 @@ class DaceOnlyComputepathMethod:
 
         return SDFGEnabledCallable()
 
-
+#
 def computepath_method(*args, **kwargs):
     use_dace = kwargs.get('use_dace', global_config.get_dacemode())
     def _decorator(method):

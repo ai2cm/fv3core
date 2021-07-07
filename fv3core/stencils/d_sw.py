@@ -1,3 +1,4 @@
+from fv3core.utils.gt4py_utils import computepath_method
 import gt4py.gtscript as gtscript
 from gt4py.gtscript import __INLINED, PARALLEL, computation, interval
 
@@ -749,6 +750,7 @@ class DGridShallowWaterLagrangianDynamics:
         self.d_con = self._column_namelist["d_con"]
         self.damp_vt = self._column_namelist["damp_vt"]
 
+    @computepath_method(use_dace=True)
     def __call__(
         self,
         delpc,
@@ -809,9 +811,9 @@ class DGridShallowWaterLagrangianDynamics:
             dt: acoustic timestep in seconds (in)
         """
 
-        self.fv_prep(uc, vc, crx, cry, xfx, yfx, self._tmp_ut, self._tmp_vt, dt)
+        self.fv_prep.__call__(uc, vc, crx, cry, xfx, yfx, self._tmp_ut, self._tmp_vt, dt)
 
-        self.fvtp2d_dp(
+        self.fvtp2d_dp.__call__(
             delp,
             crx,
             cry,
@@ -819,6 +821,7 @@ class DGridShallowWaterLagrangianDynamics:
             yfx,
             self._tmp_fx,
             self._tmp_fy,
+            None, None, None,
         )
 
         self._flux_capacitor_stencil(
@@ -827,7 +830,7 @@ class DGridShallowWaterLagrangianDynamics:
 
         if not self.hydrostatic:
 
-            self.delnflux_nosg_w(
+            self.delnflux_nosg_w.__call__(
                 w,
                 self._tmp_fx2,
                 self._tmp_fy2,
@@ -849,7 +852,7 @@ class DGridShallowWaterLagrangianDynamics:
                 dt,
             )
 
-            self.fvtp2d_vt(
+            self.fvtp2d_vt.__call__(
                 w,
                 crx,
                 cry,
@@ -857,8 +860,9 @@ class DGridShallowWaterLagrangianDynamics:
                 yfx,
                 self._tmp_gx,
                 self._tmp_gy,
-                mfx=self._tmp_fx,
-                mfy=self._tmp_fy,
+                None,
+                self._tmp_fx,
+                self._tmp_fy,
             )
 
             self._flux_adjust_stencil(
@@ -869,7 +873,7 @@ class DGridShallowWaterLagrangianDynamics:
                 self.grid.rarea,
             )
         # Fortran: #ifdef USE_COND
-        self.fvtp2d_dp_t(
+        self.fvtp2d_dp_t.__call__(
             q_con,
             crx,
             cry,
@@ -877,9 +881,9 @@ class DGridShallowWaterLagrangianDynamics:
             yfx,
             self._tmp_gx,
             self._tmp_gy,
-            mass=delp,
-            mfx=self._tmp_fx,
-            mfy=self._tmp_fy,
+            delp,
+            self._tmp_fx,
+            self._tmp_fy,
         )
 
         self._flux_adjust_stencil(
@@ -888,7 +892,7 @@ class DGridShallowWaterLagrangianDynamics:
 
         # Fortran #endif //USE_COND
 
-        self.fvtp2d_tm(
+        self.fvtp2d_tm.__call__(
             pt,
             crx,
             cry,
@@ -896,9 +900,9 @@ class DGridShallowWaterLagrangianDynamics:
             yfx,
             self._tmp_gx,
             self._tmp_gy,
-            mass=delp,
-            mfx=self._tmp_fx,
-            mfy=self._tmp_fy,
+            delp,
+            self._tmp_fx,
+            self._tmp_fy,
         )
 
         dt5 = 0.5 * dt
@@ -922,7 +926,7 @@ class DGridShallowWaterLagrangianDynamics:
             self._vb_east_edge_stencil(self._tmp_vt, self._tmp_vb, dt4)
         if self.grid.north_edge:
             self._vb_north_edge_stencil(self._tmp_vt, self._tmp_vb, dt5)
-        self.ytp_v(self._tmp_vb, v, self._tmp_ub)
+        self.ytp_v.__call__(self._tmp_vb, v, self._tmp_ub)
         self._ke_stencil(self._tmp_ub, self._tmp_vb, self._tmp_ke)
 
         if self.grid.west_edge:
@@ -934,7 +938,7 @@ class DGridShallowWaterLagrangianDynamics:
             self._ub_north_edge_stencil(self._tmp_ut, self._tmp_ub, dt4)
         if self.grid.east_edge:
             self._ub_east_edge_stencil(self._tmp_ut, self._tmp_ub, dt5)
-        self.xtp_u(self._tmp_ub, u, self._tmp_vb)
+        self.xtp_u.__call__(self._tmp_ub, u, self._tmp_vb)
         self._ke_from_bwind_stencil(self._tmp_ke, self._tmp_ub, self._tmp_vb)
         if self.grid.sw_corner:
             self.ke_sw_corner_stencil(
@@ -967,7 +971,7 @@ class DGridShallowWaterLagrangianDynamics:
         self._adjust_w_and_qcon_stencil(
             w, delp, self._tmp_dw, q_con, self.damp_w
         )
-        self.divergence_damping(
+        self.divergence_damping.__call__(
             u,
             v,
             va,
@@ -994,8 +998,8 @@ class DGridShallowWaterLagrangianDynamics:
         # Vorticity transport
         self._compute_vorticity_stencil(self._tmp_wk, self.grid.f0, zh, self._tmp_vort)
 
-        self.fvtp2d_vt_nodelnflux(
-            self._tmp_vort, crx, cry, xfx, yfx, self._tmp_fx, self._tmp_fy
+        self.fvtp2d_vt_nodelnflux.__call__(
+            self._tmp_vort, crx, cry, xfx, yfx, self._tmp_fx, self._tmp_fy, None, None, None
         )
 
         self._u_from_ke_stencil(
@@ -1006,7 +1010,7 @@ class DGridShallowWaterLagrangianDynamics:
         )
         self._v_from_ke_stencil(self._tmp_ke, self._tmp_ut, self._tmp_fx, v)
 
-        self.delnflux_nosg_v(
+        self.delnflux_nosg_v.__call__(
             self._tmp_wk,
             self._tmp_ut,
             self._tmp_vt,

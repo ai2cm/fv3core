@@ -533,10 +533,11 @@ class DGrid2AGrid2CGridVectors:
             utc: C-grid u * dx (inout)
             vtc: C-grid v * dy (inout)
         """
+        big_number = self._big_number
         self._set_tmps(
             self._utmp,
             self._vtmp,
-            self._big_number,
+            big_number,
         )
 
         self._lagrange_interpolation_y_p1(

@@ -333,6 +333,7 @@ class UpdateHeightOnDGrid:
             self._y_area_flux_interface,
             self._fx,
             self._fy,
+            None, None, None
         )
 
         # TODO: in theory, we should check if damp_vt > 1e-5 for each k-level and

@@ -177,15 +177,14 @@ class DelnFlux:
 
         self.delnflux_nosg = DelnFluxNoSG(nord, nk=nk)
 
-
     @computepath_method
     def __call__(
         self,
         q,
         fx,
         fy,
-        d2_inp=None,
-        mass= None,
+        d2_inp,
+        mass,
     ):
         """
         Del-n damping for fluxes, where n = 2 * nord + 2
@@ -401,13 +400,13 @@ class DelnFluxNoSG:
             self._copy_stencil_interval(q, d2)
 
         self._copy_corners_x_nord.__call__(
-            d2,"x"
+            d2
         )
         self._fx_calc_stencil_low(d2, self._grid.del6_v, fx2)
         self._fx_calc_stencil(d2, self._grid.del6_v, fx2)
 
         self._copy_corners_y_nord.__call__(
-            d2,"y"
+            d2
         )
         self._fy_calc_stencil_low(d2, self._grid.del6_u, fy2)
         self._fy_calc_stencil(d2, self._grid.del6_u, fy2)
@@ -415,13 +414,13 @@ class DelnFluxNoSG:
         self._d2_stencil0(fx2, fy2, self._grid.rarea, d2, self._nord)
 
         self._copy_corners_x_nord.__call__(
-            d2,"x"
+            d2
         )
 
         self._column_conditional_fx_calculation0(d2, self._grid.del6_v, fx2, self._nord)
 
         self._copy_corners_y_nord.__call__(
-            d2,"y"
+            d2
         )
 
         self._column_conditional_fy_calculation0(d2, self._grid.del6_u, fy2, self._nord)
@@ -429,13 +428,13 @@ class DelnFluxNoSG:
         self._d2_stencil1(fx2, fy2, self._grid.rarea, d2, self._nord)
 
         self._copy_corners_x_nord.__call__(
-            d2,"x"
+            d2
         )
 
         self._column_conditional_fx_calculation1(d2, self._grid.del6_v, fx2, self._nord)
 
         self._copy_corners_y_nord.__call__(
-            d2,"y"
+            d2
         )
 
         self._column_conditional_fy_calculation1(d2, self._grid.del6_u, fy2, self._nord)
