@@ -4,7 +4,7 @@
 
 For maximum error, a blanket `max_error` is specified to override the parent classes relative error threshold.
 
-For near zero override, `ignore_near_zero_errors` is specified to allow some fields to pass with higher relative error if the absolute error is very small.
+For near zero override, `ignore_near_zero_errors` is specified to allow some fields to pass with higher relative error if the absolute error is very small. Additionally, it is also possible to define a global near zero value for all remaining fields not specified in `ignore_near_zero_errors`. This is done by specifying `all_other_near_zero=<value>`.
 
 Override yaml file should have one of the following formats:
 
@@ -15,7 +15,7 @@ Override yaml file should have one of the following formats:
    max_error: <value>
    near_zero: <value>
    ignore_near_zero_errors:
-    - <var>
+    - <var1>
     - <var2>
     - ...
 ```
@@ -24,9 +24,22 @@ Override yaml file should have one of the following formats:
 ```Stencil_name:
  - backend: <backend>
    max_error: <value>
-   near_zero: <value>
    ignore_near_zero_errors:
-    <var>:<value>
-    <var2>:<value>
+    <var1>:<value1>
+    <var2>:<value2>
     ...
 ```
+
+## [optional] Global near zero value for remaining fields
+
+```Stencil_name:
+ - backend: <backend>
+   max_error: <value>
+   ignore_near_zero_errors:
+    <var1>:<value1>
+    <var2>:<value2>
+   all_other_near_zero:<global_value>
+    ...
+```
+
+where fields other than `var1` and `var2` will use `global_value`.

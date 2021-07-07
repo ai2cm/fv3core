@@ -2,6 +2,7 @@ import contextlib
 import hashlib
 import logging
 import os
+from typing import Union
 
 import numpy as np
 import pytest
@@ -29,7 +30,13 @@ def compare_arr(computed_data, ref_data):
     return compare
 
 
-def success_array(computed_data, ref_data, eps, ignore_near_zero_errors, near_zero):
+def success_array(
+    computed_data: np.ndarray,
+    ref_data: np.ndarray,
+    eps: float,
+    ignore_near_zero_errors: Union[dict, bool],
+    near_zero: float,
+):
     success = np.logical_or(
         np.logical_and(np.isnan(computed_data), np.isnan(ref_data)),
         compare_arr(computed_data, ref_data) < eps,
@@ -173,6 +180,15 @@ def process_override(threshold_overrides, testobj, test_name, backend):
                         testobj.ignore_near_zero_errors[key]["near_zero"] = float(
                             parsed_ignore_zero[key]
                         )
+                    if "all_other_near_zero" in match:
+                        for key in testobj.out_vars.keys():
+                            if key not in testobj.ignore_near_zero_errors:
+                                testobj.ignore_near_zero_errors[key] = True
+                                testobj.ignore_near_zero_errors[key] = {}
+                                testobj.ignore_near_zero_errors[key][
+                                    "near_zero"
+                                ] = float(match["all_other_near_zero"])
+
                 else:
                     raise TypeError("ignore_near_zero_erros is either a list or a dict")
         elif len(matches) > 1:
