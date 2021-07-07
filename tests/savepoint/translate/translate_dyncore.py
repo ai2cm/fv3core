@@ -4,6 +4,7 @@ import fv3gfs.util as fv3util
 from fv3core.decorators import FrozenStencil
 from fv3core.testing import ParallelTranslate2PyState, TranslateFortranData2Py
 from fv3core.utils.grid import axis_offsets
+from types import SimpleNamespace
 
 
 class TranslateDynCore(ParallelTranslate2PyState):
@@ -117,6 +118,13 @@ class TranslateDynCore(ParallelTranslate2PyState):
         self.max_error = 2e-6
 
     def compute_parallel(self, inputs, communicator):
+        self._base.make_storage_data_input_vars(inputs)
+        for name, properties in self.inputs.items():
+            self.grid.quantity_dict_update(
+                inputs, name, dims=properties["dims"], units=properties["units"]
+            )
+        statevars = SimpleNamespace(**inputs)
+        state = {"state": statevars}
         self._base.compute_func = dyn_core.AcousticDynamics(
             communicator,
             spec.namelist,
@@ -124,9 +132,10 @@ class TranslateDynCore(ParallelTranslate2PyState):
             inputs["bk"],
             inputs["pfull"],
             inputs["phis"],
-            self.state_from_inputs(inputs),
+            state["state"],
         )
-        return super().compute_parallel(inputs, communicator)
+        self._base.compute_func(**state)
+        return self._base.slice_output(vars(state["state"]))
 
 
 class TranslatePGradC(TranslateFortranData2Py):

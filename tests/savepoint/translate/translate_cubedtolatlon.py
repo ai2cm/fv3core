@@ -30,17 +30,21 @@ class TranslateCubedToLatLon(ParallelTranslate2Py):
     def compute_parallel(self, inputs, communicator):
         inputs["comm"] = communicator
         inputs = self.state_from_inputs(inputs)
+
+        # Create stencil object
+        self._base.compute_func = CubedToLatLon(
+            self.grid,
+            spec.namelist,
+            communicator,
+            inputs["u"],
+            inputs["v"],
+        )
+
         result = self._base.compute_from_storage(inputs)
         quantity_result = self.outputs_from_state(result)
         result.update(quantity_result)
         for name, data in result.items():
             if isinstance(data, fv3util.Quantity):
                 result[name] = data.storage
-        # Create stencil object
-        self.cubedToLatLon = CubedToLatLon(
-            communicator, spec.namelist, communicator, result["u"], result["v"]
-        )
-        # Run
-        self.cubedToLatLon(**result)
         result.update(self._base.slice_output(result))
         return result
