@@ -287,7 +287,7 @@ def a2b_interpolation(
     with computation(PARALLEL), interval(...):
         qxx = a2 * (qx[0, -2, 0] + qx[0, 1, 0]) + a1 * (qx[0, -1, 0] + qx)
         qyy = a2 * (qy[-2, 0, 0] + qy[1, 0, 0]) + a1 * (qy[-1, 0, 0] + qy)
-        # TODO use a function with an offset when that works consistently
+        # TODO(rheag) use a function with an offset when that works consistently
         with horizontal(region[:, j_start + 1]):
             qxx_upper = a2 * (qx[0, -1, 0] + qx[0, 2, 0]) + a1 * (qx + qx[0, 1, 0])
             qxx = c1 * (qx[0, -1, 0] + qx) + c2 * (qout[0, -1, 0] + qxx_upper)
@@ -363,7 +363,7 @@ def qx_edge_east(qin: FloatField, dxa: FloatFieldIJ):
 
 @gtscript.function
 def qx_edge_east2(qin: FloatField, dxa: FloatFieldIJ):
-    # TODO when possible
+    # TODO(rheag) use a function with an offset when that works consistently
     # qxright = qx_edge_east(qin[1, 0, 0], dxa[1, 0])
     # qxleft = ppm_volume_mean_x_main(qin[-1, 0, 0])
     g_in = dxa[-1, 0] / dxa
@@ -390,7 +390,7 @@ def qy_edge_south(qin: FloatField, dya: FloatFieldIJ):
 
 @gtscript.function
 def qy_edge_south2(qin: FloatField, dya: FloatFieldIJ):
-    # TODO
+    # TODO(rheag) use a function with an offset when that works consistently
     # qy_lower = qy_edge_south(qin[0, -1, 0], dya[0, -1])
     # qy_upper = ppm_volume_mean_y_main(qin[0, 1, 0])
     g_in = dya / dya[0, -1]
@@ -417,7 +417,7 @@ def qy_edge_north(qin: FloatField, dya: FloatFieldIJ):
 
 @gtscript.function
 def qy_edge_north2(qin: FloatField, dya: FloatFieldIJ):
-    # TODO
+    # TODO(rheag) use a function with an offset when that works consistently
     # qy_lower = ppm_volume_mean_y_main(qin[0, -1, 0])
     # qy_upper = qy_edge_north(qin[0, 1, 0], dya[0, 1])
     g_in = dya[0, -1] / dya
