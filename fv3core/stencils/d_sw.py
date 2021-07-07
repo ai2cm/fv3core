@@ -750,7 +750,7 @@ class DGridShallowWaterLagrangianDynamics:
         self.d_con = self._column_namelist["d_con"]
         self.damp_vt = self._column_namelist["damp_vt"]
 
-    @computepath_method(use_dace=True)
+    @computepath_method
     def __call__(
         self,
         delpc,
