@@ -218,23 +218,12 @@ def divergence_corner(
         with horizontal(region[i_start, :], region[i_end + 1, :]):
             vf = v * dxc * 0.5 * (sin_sg3[-1, 0] + sin_sg1)
 
-        divg_d = vf[0, -1, 0] - vf + uf[-1, 0, 0] - uf
+        divg_d = (vf[0, -1, 0] - vf + uf[-1, 0, 0] - uf) * rarea_c
         with horizontal(region[i_start, j_start], region[i_end + 1, j_start]):
-            divg_d -= (
-                (
-                    v
-                    - 0.25
-                    * (ua[-1, -1, 0] + ua[0, -1, 0])
-                    * (cos_sg3[-1, -1] + cos_sg1[0, -1])
-                )
-                * dxc[0, -1]
-                * 0.5
-                * (sin_sg3[-1, -1] + sin_sg1[0, -1])
-            )
+            divg_d = (-vf + uf[-1, 0, 0] - uf) * rarea_c
 
         with horizontal(region[i_end + 1, j_end + 1], region[i_start, j_end + 1]):
-            divg_d += vf
-        divg_d *= rarea_c
+            divg_d = (vf[0, -1, 0] + uf[-1, 0, 0] - uf) * rarea_c
 
 
 def circulation_cgrid(
