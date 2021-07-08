@@ -274,13 +274,10 @@ def ppm_volume_mean_y(
             qy = qy_edge_north2(qin, dya)
 
 
-@gtscript.function
 def a2b_interpolation(
     qout: FloatField,
     qx: FloatField,
     qy: FloatField,
-    qxx: FloatField,
-    qyy: FloatField,
 ):
     from __externals__ import i_end, i_start, j_end, j_start
 
@@ -480,8 +477,6 @@ class AGrid2BGridFourthOrder:
 
         self._tmp_qx = utils.make_storage_from_shape(self._idx.max_shape)
         self._tmp_qy = utils.make_storage_from_shape(self._idx.max_shape)
-        self._tmp_qxx = utils.make_storage_from_shape(self._idx.max_shape)
-        self._tmp_qyy = utils.make_storage_from_shape(self._idx.max_shape)
 
         _, (z_domain,) = self._idx.get_origin_domain([z_dim])
         corner_domain = (1, 1, z_domain)
@@ -669,8 +664,6 @@ class AGrid2BGridFourthOrder:
             qout,
             self._tmp_qx,
             self._tmp_qy,
-            self._tmp_qxx,
-            self._tmp_qyy,
         )
         if self.replace:
             self._copy_stencil(
