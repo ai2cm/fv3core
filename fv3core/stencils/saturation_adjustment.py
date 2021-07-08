@@ -783,14 +783,14 @@ def satadjust(
         q_con = q_liq + q_sol
         tmp = 1.0 + zvir * qv
         pt = pt1 * tmp * (1.0 - q_con)
-        tmp = constants.RDGAS * tmp
+        tmp *= constants.RDGAS
         cappa = tmp / (tmp + cvm)
         #  fix negative graupel with available cloud ice
         if qg < 0:
             maxtmp = max(0.0, qi)
-            tmp = min(-qg, maxtmp)
-            qg = qg + tmp
-            qi = qi - tmp
+            mintmp = min(-qg, maxtmp)
+            qg = qg + mintmp
+            qi = qi - mintmp
         else:
             qg = qg
         #  autoconversion from cloud ice to snow
@@ -853,7 +853,7 @@ def satadjust(
             dw = dw_ocean + (dw_land - dw_ocean) * mindw
             # "scale - aware" subgrid variability: 100 - km as the base
             dbl_sqrt_area = dw * (area ** 0.5 / 100.0e3) ** 0.5
-            maxtmp = 0.01 if 0.01 > dbl_sqrt_area else dbl_sqrt_area
+            maxtmp = max(0.01, dbl_sqrt_area)
             hvar = min(0.2, maxtmp)
             # partial cloudiness by pdf:
             # assuming subgrid linear distribution in horizontal; this is
