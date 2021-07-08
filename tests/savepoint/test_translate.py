@@ -190,7 +190,9 @@ def process_override(threshold_overrides, testobj, test_name, backend):
                                 ] = float(match["all_other_near_zero"])
 
                 else:
-                    raise TypeError("ignore_near_zero_errors is either a list or a dict")
+                    raise TypeError(
+                        "ignore_near_zero_errors is either a list or a dict"
+                    )
         elif len(matches) > 1:
             raise Exception(
                 "misconfigured threshold overrides file, more than 1 specification for "
