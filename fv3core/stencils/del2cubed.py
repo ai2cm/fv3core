@@ -38,43 +38,47 @@ def update_q(
 # ------------------------------------------------------------------------
 def corner_fill(grid, q):
     r3 = 1.0 / 3.0
+    q_arr = utils.asarray(q)
+
     if grid.sw_corner:
-        q[grid.is_, grid.js, :] = (
-            q[grid.is_, grid.js, :]
-            + q[grid.is_ - 1, grid.js, :]
-            + q[grid.is_, grid.js - 1, :]
+        q_arr[grid.is_, grid.js, :] = (
+            q_arr[grid.is_, grid.js, :]
+            + q_arr[grid.is_ - 1, grid.js, :]
+            + q_arr[grid.is_, grid.js - 1, :]
         ) * r3
-        q[grid.is_ - 1, grid.js, :] = q[grid.is_, grid.js, :]
-        q[grid.is_, grid.js - 1, :] = q[grid.is_, grid.js, :]
+        q_arr[grid.is_ - 1, grid.js, :] = q_arr[grid.is_, grid.js, :]
+        q_arr[grid.is_, grid.js - 1, :] = q_arr[grid.is_, grid.js, :]
+
     if grid.se_corner:
-        q[grid.ie, grid.js, :] = (
-            q[grid.ie, grid.js, :]
-            + q[grid.ie + 1, grid.js, :]
-            + q[grid.ie, grid.js - 1, :]
+        q_arr[grid.ie, grid.js, :] = (
+            q_arr[grid.ie, grid.js, :]
+            + q_arr[grid.ie + 1, grid.js, :]
+            + q_arr[grid.ie, grid.js - 1, :]
         ) * r3
-        q[grid.ie + 1, grid.js, :] = q[grid.ie, grid.js, :]
+        q_arr[grid.ie + 1, grid.js, :] = q_arr[grid.ie, grid.js, :]
         for k in range(grid.npz):
-            q[grid.ie, grid.js - 1, k] = q[grid.ie, grid.js, k]
+            q_arr[grid.ie, grid.js - 1, k] = q_arr[grid.ie, grid.js, k]
 
     if grid.ne_corner:
-        q[grid.ie, grid.je, :] = (
-            q[grid.ie, grid.je, :]
-            + q[grid.ie + 1, grid.je, :]
-            + q[grid.ie, grid.je + 1, :]
+        q_arr[grid.ie, grid.je, :] = (
+            q_arr[grid.ie, grid.je, :]
+            + q_arr[grid.ie + 1, grid.je, :]
+            + q_arr[grid.ie, grid.je + 1, :]
         ) * r3
-        q[grid.ie + 1, grid.je, :] = q[grid.ie, grid.je, :]
-        q[grid.ie, grid.je + 1, :] = q[grid.ie, grid.je, :]
+        q_arr[grid.ie + 1, grid.je, :] = q_arr[grid.ie, grid.je, :]
+        q_arr[grid.ie, grid.je + 1, :] = q_arr[grid.ie, grid.je, :]
 
     if grid.nw_corner:
-        q[grid.is_, grid.je, :] = (
-            q[grid.is_, grid.je, :]
-            + q[grid.is_ - 1, grid.je, :]
-            + q[grid.is_, grid.je + 1, :]
+        q_arr[grid.is_, grid.je, :] = (
+            q_arr[grid.is_, grid.je, :]
+            + q_arr[grid.is_ - 1, grid.je, :]
+            + q_arr[grid.is_, grid.je + 1, :]
         ) * r3
         for k in range(grid.npz):
-            q[grid.is_ - 1, grid.je, k] = q[grid.is_, grid.je, k]
+            q_arr[grid.is_ - 1, grid.je, k] = q_arr[grid.is_, grid.je, k]
+        q_arr[grid.is_, grid.je + 1, :] = q_arr[grid.is_, grid.je, :]
 
-        q[grid.is_, grid.je + 1, :] = q[grid.is_, grid.je, :]
+    q[:] = q_arr
 
 
 class HyperdiffusionDamping:
