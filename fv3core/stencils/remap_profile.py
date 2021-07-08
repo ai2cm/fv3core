@@ -6,7 +6,7 @@ from gt4py.gtscript import __INLINED, BACKWARD, FORWARD, PARALLEL, computation, 
 import fv3core._config as spec
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import FrozenStencil
-from fv3core.utils.typing import FloatField, FloatFieldIJ
+from fv3core.utils.typing import FloatField, FloatFieldIJ, BoolField
 
 
 @gtscript.function
@@ -99,12 +99,12 @@ def remap_constraint(
     a4_2: FloatField,
     a4_3: FloatField,
     a4_4: FloatField,
-    extm: FloatField,
+    extm: BoolField,
 ):
     da1 = a4_3 - a4_2
     da2 = da1 * da1
     a6da = a4_4 * da1
-    if extm == 1:
+    if extm:
         a4_2 = a4_1
         a4_3 = a4_1
         a4_4 = 0.0
@@ -215,9 +215,9 @@ def apply_constraints(
     a4_2: FloatField,
     a4_3: FloatField,
     a4_4: FloatField,
-    ext5: FloatField,
-    ext6: FloatField,
-    extm: FloatField,
+    ext5: BoolField,
+    ext6: BoolField,
+    extm: BoolField,
 ):
     from __externals__ import iv, kord
 
@@ -288,9 +288,9 @@ def set_interpolation_coefficients(
     a4_2: FloatField,
     a4_3: FloatField,
     a4_4: FloatField,
-    ext5: FloatField,
-    ext6: FloatField,
-    extm: FloatField,
+    ext5: BoolField,
+    ext6: BoolField,
+    extm: BoolField,
     qmin: float,
 ):
     from __externals__ import iv, kord
@@ -384,9 +384,9 @@ def set_interpolation_coefficients(
             tmp_max = a4_2
             tmp_max0 = a4_1
             if (
-                (extm != 0.0 and extm[0, 0, -1] != 0.0)
-                or (extm != 0.0 and extm[0, 0, 1] != 0.0)
-                or (extm > 0.0 and (qmin > 0.0 and a4_1 < qmin))
+                (extm and extm[0, 0, -1])
+                or (extm and extm[0, 0, 1])
+                or (extm and (qmin > 0.0 and a4_1 < qmin))
             ):
                 a4_2 = a4_1
                 a4_3 = a4_1
@@ -534,14 +534,14 @@ class RemapProfile:
         self._q_bot: FloatField = utils.make_storage_from_shape(
             grid.domain_shape_full(add=(0, 0, 1)), origin=full_orig
         )
-        self._extm: FloatField = utils.make_storage_from_shape(
-            grid.domain_shape_full(add=(0, 0, 1)), origin=full_orig
+        self._extm: BoolField = utils.make_storage_from_shape(
+            grid.domain_shape_full(add=(0, 0, 1)), origin=full_orig, dtype=utils.booltype
         )
-        self._ext5: FloatField = utils.make_storage_from_shape(
-            grid.domain_shape_full(add=(0, 0, 1)), origin=full_orig
+        self._ext5: BoolField = utils.make_storage_from_shape(
+            grid.domain_shape_full(add=(0, 0, 1)), origin=full_orig, dtype=utils.booltype
         )
-        self._ext6: FloatField = utils.make_storage_from_shape(
-            grid.domain_shape_full(add=(0, 0, 1)), origin=full_orig
+        self._ext6: BoolField = utils.make_storage_from_shape(
+            grid.domain_shape_full(add=(0, 0, 1)), origin=full_orig, dtype=utils.booltype
         )
 
         i_extent: int = i2 - i1 + 1
