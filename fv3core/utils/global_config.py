@@ -113,6 +113,8 @@ class StencilConfig(Hashable):
         }
         if is_gpu_backend():
             kwargs["device_sync"] = self.device_sync
+            if kwargs["backend"].startswith("gtc:"):
+                kwargs["opt_level"] = 2
         return kwargs
 
 
