@@ -17,10 +17,6 @@ try:
     import cupy as cp
 except ImportError:
     cp = None
-if cp:
-    booltype=cp.bool
-else:
-    booltype=np.bool
 
 logger = logging.getLogger("fv3ser")
 
@@ -46,8 +42,6 @@ tracer_variables = [
 
 # Logger instance
 logger = logging.getLogger("fv3ser")
-
-booltype = np.bool
 
 # 1 indexing to 0 and halos: -2, -1, 0 --> 0, 1,2
 if MPI is not None and MPI.COMM_WORLD.Get_size() > 1:
