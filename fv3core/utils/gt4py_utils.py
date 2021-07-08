@@ -5,6 +5,7 @@ from typing import Any, Callable, Dict, Hashable, List, Optional, Tuple, Union
 import gt4py as gt
 import gt4py.storage as gt_storage
 import numpy as np
+import os
 
 import fv3core._config as spec
 import fv3core.utils.global_config as global_config
@@ -42,11 +43,13 @@ tracer_variables = [
 # Logger instance
 logger = logging.getLogger("fv3ser")
 
+booltype = np.bool
 
 # 1 indexing to 0 and halos: -2, -1, 0 --> 0, 1,2
 if MPI is not None and MPI.COMM_WORLD.Get_size() > 1:
-    gt.config.cache_settings["dir_name"] = ".gt_cache_{:0>6d}".format(
-        MPI.COMM_WORLD.Get_rank()
+    dir_name = os.get("GT_CACHE_DIR_NAME", ".gt_cache")
+    gt.config.cache_settings["dir_name"] = "{}_{:0>6d}".format(
+        dir_name, MPI.COMM_WORLD.Get_rank()
     )
 
 
