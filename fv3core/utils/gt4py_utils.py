@@ -17,6 +17,10 @@ try:
     import cupy as cp
 except ImportError:
     cp = None
+if cp:
+    booltype=cp.bool
+else:
+    booltype=np.bool
 
 logger = logging.getLogger("fv3ser")
 

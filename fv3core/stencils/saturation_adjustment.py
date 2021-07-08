@@ -893,7 +893,9 @@ def satadjust(
                 qa = 0.0
 
         if __INLINED(not hydrostatic):
-            pkz = compute_pkz_func(dp, delz, pt, cappa)
+            # pkz = compute_pkz_func(dp, delz, pt, cappa)
+            # TODO(eddied): Why manual inlining necessary?
+            pkz = exp(cappa * log(constants.RDG * dp / delz * pt))
 
 
 class SatAdjust3d:
