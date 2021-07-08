@@ -246,14 +246,12 @@ def divergence_main_final(rarea_c: FloatFieldIJ, divg_d: FloatField):
     with computation(PARALLEL), interval(...):
         divg_d *= rarea_c
 
-
 def update_vorticity(
     uc: FloatField,
     vc: FloatField,
     dxc: FloatFieldIJ,
     dyc: FloatFieldIJ,
     vort_c: FloatField,
-    fy: FloatField,
 ):
     """Update vort_c.
 
@@ -268,23 +266,25 @@ def update_vorticity(
     with computation(PARALLEL), interval(...):
         fx = dxc * uc
         fy = dyc * vc
-    with computation(PARALLEL), interval(...):
         vort_c = fx[0, -1, 0] - fx - fy[-1, 0, 0] + fy
 
+
 def vorticity_west_corner(
-    fy: FloatField,
+    vc: FloatField,
+    dyc: FloatFieldIJ,
     vort_c: FloatField,
 ):
     with computation(PARALLEL), interval(...):
-        vort_c += fy[-1, 0, 0]
+        vort_c += dyc[-1, 0] * vc[-1, 0, 0]
 
 
 def vorticity_east_corner(
-    fy: FloatField,
+    vc: FloatField,
+    dyc: FloatFieldIJ,
     vort_c: FloatField,
 ):
     with computation(PARALLEL), interval(...):
-        vort_c -= fy[0, 0, 0]
+        vort_c -= dyc * vc
 
 
 def update_x_velocity(
@@ -372,7 +372,6 @@ class CGridShallowWaterDynamics:
         self.ptc = utils.make_storage_from_shape(shape)
         self._tmp_uf = utils.make_storage_from_shape(shape)
         self._tmp_vf = utils.make_storage_from_shape(shape)
-        self._tmp_fy = utils.make_storage_from_shape(shape)
         self._tmp_fx = utils.make_storage_from_shape(shape)
         self._tmp_fx1 = utils.make_storage_from_shape(shape)
         self._tmp_fx2 = utils.make_storage_from_shape(shape)
@@ -866,16 +865,16 @@ class CGridShallowWaterDynamics:
             )
         self._final_ke(ua, va, self._vort, self._ke, dt2)
         self._update_vorticity(
-            uc, vc, self.grid.dxc, self.grid.dyc, self._vort, self._tmp_fy
+            uc, vc, self.grid.dxc, self.grid.dyc, self._vort
         )
         if self.grid.sw_corner:
-            self._sw_corner_vorticity(self._tmp_fy, self._vort)
+            self._sw_corner_vorticity(vc, self.grid.dyc, self._vort)
         if self.grid.nw_corner:
-            self._nw_corner_vorticity(self._tmp_fy, self._vort)
+            self._nw_corner_vorticity(vc, self.grid.dyc, self._vort)
         if self.grid.se_corner:
-            self._se_corner_vorticity(self._tmp_fy, self._vort)
+            self._se_corner_vorticity(vc, self.grid.dyc, self._vort)
         if self.grid.ne_corner:
-            self._ne_corner_vorticity(self._tmp_fy, self._vort)
+            self._ne_corner_vorticity(vc, self.grid.dyc, self._vort)
         self._absolute_vorticity(
             self._vort,
             self.grid.fC,
