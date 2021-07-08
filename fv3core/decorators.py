@@ -145,8 +145,6 @@ class FrozenStencil:
         *args,
         **kwargs,
     ) -> None:
-        if kwargs.pop("serialize", False):
-            self._serialize(*args, **kwargs)
         if self.stencil_config.validate_args:
             if __debug__ and "origin" in kwargs:
                 raise TypeError("origin cannot be passed to FrozenStencil call")
@@ -170,11 +168,6 @@ class FrozenStencil:
         if global_config.is_gpu_backend():
             for write_field in self._written_fields:
                 fields[write_field]._set_device_modified()
-
-    def _serialize(self, *args, **kwargs) -> None:
-        kwargs.update(dict(zip(self._argument_names, args)))
-        data_file = self.stencil_object._file_name.replace(".py", ".npz")
-        np.savez(data_file, **kwargs)
 
 
 def get_stencils_with_varied_bounds(
