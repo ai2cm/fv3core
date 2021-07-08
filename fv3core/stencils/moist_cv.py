@@ -156,8 +156,7 @@ def moist_pt_last_step(
         #    pt = last_pt(pt, dtmp, pkz, gz, qv, r_vir)
         # elif nwat == 6:
         gz = qliquid + qrain + qice + qsnow + qgraupel
-        # pt = last_pt(pt, dtmp, pkz, gz, qvapor, r_vir)
-        pt = (pt + dtmp * pkz) / ((1.0 + r_vir * qvapor) * (1.0 - gz))
+        pt = last_pt(pt, dtmp, pkz, gz, qvapor, r_vir)
         # else:
         #    cvm, gz = moist_cv_nwat6_fn(qvapor, qliquid, qrain, qsnow, qice, qgraupel)
         #    pt = last_pt(pt, dtmp, pkz, gz, qvapor, zvir)
@@ -187,22 +186,12 @@ def moist_pkz(
     r_vir: float,
 ):
     with computation(PARALLEL), interval(...):
-        # TODO(eddied): Why manual inlining necessary?
-        # cvm, gz = moist_cv_nwat6_fn(
-        #     qvapor, qliquid, qrain, qsnow, qice, qgraupel
-        # )  # if (nwat == 6) else moist_cv_default_fn(cv_air)
-        gz = qliquid + qrain + qice + qsnow + qgraupel
-        # cvm = moist_cvm(qvapor, gz, qliquid + qrain, qice + qsnow + qgraupel)
-        cvm = (
-            (1.0 - (qvapor + gz)) * constants.CV_AIR
-            + qvapor * constants.CV_VAP
-            + qliquid + qrain * constants.C_LIQ
-            + qice + qsnow + qgraupel * constants.C_ICE
-        )
-        q_con = gz
+        cvm, gz = moist_cv_nwat6_fn(
+            qvapor, qliquid, qrain, qsnow, qice, qgraupel
+        )  # if (nwat == 6) else moist_cv_default_fn(cv_air)
+        q_con[0, 0, 0] = gz
         cappa = set_cappa(qvapor, cvm, r_vir)
-        # pkz = compute_pkz_func(delp, delz, pt, cappa)
-        pkz = exp(cappa * log(constants.RDG * delp / delz * pt))
+        pkz = compute_pkz_func(delp, delz, pt, cappa)
 
 
 def fv_setup(
