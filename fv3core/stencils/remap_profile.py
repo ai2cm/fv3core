@@ -486,8 +486,7 @@ def set_interpolation_coefficients(
                 a4_3 = 0.0
     with computation(PARALLEL), interval(-2, None):
         # set_bottom_as_iv0, set_bottom_as_iv1, set_bottom_as_else
-        if __INLINED(iv == 0 or iv == -1 or iv > 0 or iv < -1):
-            a4_4 = 3.0 * (2.0 * a4_1 - (a4_2 + a4_3))
+        a4_4 = 3.0 * (2.0 * a4_1 - (a4_2 + a4_3))
     with computation(FORWARD):
         with interval(-2, -1):
             a4_1, a4_2, a4_3, a4_4 = remap_constraint(a4_1, a4_2, a4_3, a4_4, extm)
