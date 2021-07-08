@@ -275,6 +275,7 @@ def ppm_volume_mean_y(
 
 
 def a2b_interpolation(
+    tmp_qout_edges: FloatField,
     qout: FloatField,
     qx: FloatField,
     qy: FloatField,
@@ -287,16 +288,16 @@ def a2b_interpolation(
         # TODO(rheag) use a function with an offset when that works consistently
         with horizontal(region[:, j_start + 1]):
             qxx_upper = a2 * (qx[0, -1, 0] + qx[0, 2, 0]) + a1 * (qx + qx[0, 1, 0])
-            qxx = c1 * (qx[0, -1, 0] + qx) + c2 * (qout[0, -1, 0] + qxx_upper)
+            qxx = c1 * (qx[0, -1, 0] + qx) + c2 * (tmp_qout_edges[0, -1, 0] + qxx_upper)
         with horizontal(region[:, j_end]):
             qxx_lower = a2 * (qx[0, -3, 0] + qx) + a1 * (qx[0, -2, 0] + qx[0, -1, 0])
-            qxx = c1 * (qx[0, -1, 0] + qx) + c2 * (qout[0, 1, 0] + qxx_lower)
+            qxx = c1 * (qx[0, -1, 0] + qx) + c2 * (tmp_qout_edges[0, 1, 0] + qxx_lower)
         with horizontal(region[i_start + 1, :]):
             qyy_right = a2 * (qy[-1, 0, 0] + qy[2, 0, 0]) + a1 * (qy + qy[1, 0, 0])
-            qyy = c1 * (qy[-1, 0, 0] + qy) + c2 * (qout[-1, 0, 0] + qyy_right)
+            qyy = c1 * (qy[-1, 0, 0] + qy) + c2 * (tmp_qout_edges[-1, 0, 0] + qyy_right)
         with horizontal(region[i_end, :]):
             qyy_left = a2 * (qy[-3, 0, 0] + qy) + a1 * (qy[-2, 0, 0] + qy[-1, 0, 0])
-            qyy = c1 * (qy[-1, 0, 0] + qy) + c2 * (qout[1, 0, 0] + qyy_left)
+            qyy = c1 * (qy[-1, 0, 0] + qy) + c2 * (tmp_qout_edges[1, 0, 0] + qyy_left)
         qout = 0.5 * (qxx + qyy)
 
 
@@ -477,7 +478,7 @@ class AGrid2BGridFourthOrder:
 
         self._tmp_qx = utils.make_storage_from_shape(self._idx.max_shape)
         self._tmp_qy = utils.make_storage_from_shape(self._idx.max_shape)
-
+        self._tmp_qout_edges = utils.make_storage_from_shape(self._idx.max_shape)
         _, (z_domain,) = self._idx.get_origin_domain([z_dim])
         corner_domain = (1, 1, z_domain)
 
@@ -617,7 +618,7 @@ class AGrid2BGridFourthOrder:
 
         self._sw_corner_stencil(
             qin,
-            qout,
+            self._tmp_qout_edges,
             self._agrid1,
             self._agrid2,
             self._bgrid1,
@@ -626,7 +627,7 @@ class AGrid2BGridFourthOrder:
 
         self._nw_corner_stencil(
             qin,
-            qout,
+            self._tmp_qout_edges,
             self._agrid1,
             self._agrid2,
             self._bgrid1,
@@ -634,7 +635,7 @@ class AGrid2BGridFourthOrder:
         )
         self._ne_corner_stencil(
             qin,
-            qout,
+            self._tmp_qout_edges,
             self._agrid1,
             self._agrid2,
             self._bgrid1,
@@ -642,14 +643,14 @@ class AGrid2BGridFourthOrder:
         )
         self._se_corner_stencil(
             qin,
-            qout,
+            self._tmp_qout_edges,
             self._agrid1,
             self._agrid2,
             self._bgrid1,
             self._bgrid2,
         )
 
-        self._compute_qout_edges(qin, qout)
+        self._compute_qout_edges(qin, self._tmp_qout_edges)
         self._ppm_volume_mean_x_stencil(
             qin,
             self._tmp_qx,
@@ -660,7 +661,12 @@ class AGrid2BGridFourthOrder:
             self._tmp_qy,
             self._dya,
         )
+        self._copy_stencil(
+            self._tmp_qout_edges,
+            qout,
+        )
         self._a2b_interpolation_stencil(
+            self._tmp_qout_edges,
             qout,
             self._tmp_qx,
             self._tmp_qy,
