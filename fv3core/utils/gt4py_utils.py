@@ -45,7 +45,7 @@ logger = logging.getLogger("fv3ser")
 
 # 1 indexing to 0 and halos: -2, -1, 0 --> 0, 1,2
 if MPI is not None and MPI.COMM_WORLD.Get_size() > 1:
-    dir_name = os.get("GT_CACHE_DIR_NAME", ".gt_cache")
+    dir_name = os.environ.get("GT_CACHE_DIR_NAME", ".gt_cache")
     gt.config.cache_settings["dir_name"] = "{}_{:0>6d}".format(
         dir_name, MPI.COMM_WORLD.Get_rank()
     )
