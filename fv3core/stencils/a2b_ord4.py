@@ -59,6 +59,7 @@ def extrap_corner(
 def _sw_corner(
     qin: FloatField,
     qout: FloatField,
+    tmp_qout_edges: FloatField,
     agrid1: FloatFieldIJ,
     agrid2: FloatFieldIJ,
     bgrid1: FloatFieldIJ,
@@ -98,11 +99,13 @@ def _sw_corner(
         )
 
         qout = (ec1 + ec2 + ec3) * (1.0 / 3.0)
+        tmp_qout_edges = qout
 
 
 def _nw_corner(
     qin: FloatField,
     qout: FloatField,
+    tmp_qout_edges: FloatField,
     agrid1: FloatFieldIJ,
     agrid2: FloatFieldIJ,
     bgrid1: FloatFieldIJ,
@@ -140,11 +143,13 @@ def _nw_corner(
             qin[1, 1, 0],
         )
         qout = (ec1 + ec2 + ec3) * (1.0 / 3.0)
+        tmp_qout_edges = qout
 
 
 def _ne_corner(
     qin: FloatField,
     qout: FloatField,
+    tmp_qout_edges: FloatField,
     agrid1: FloatFieldIJ,
     agrid2: FloatFieldIJ,
     bgrid1: FloatFieldIJ,
@@ -182,11 +187,13 @@ def _ne_corner(
             qin[-2, 1, 0],
         )
         qout = (ec1 + ec2 + ec3) * (1.0 / 3.0)
+        tmp_qout_edges = qout
 
 
 def _se_corner(
     qin: FloatField,
     qout: FloatField,
+    tmp_qout_edges: FloatField,
     agrid1: FloatFieldIJ,
     agrid2: FloatFieldIJ,
     bgrid1: FloatFieldIJ,
@@ -224,6 +231,7 @@ def _se_corner(
             qin[1, 1, 0],
         )
         qout = (ec1 + ec2 + ec3) * (1.0 / 3.0)
+        tmp_qout_edges = qout
 
 
 @gtscript.function
@@ -302,19 +310,29 @@ def a2b_interpolation(
 
 
 def qout_x_edge(
-    qin: FloatField, dxa: FloatFieldIJ, edge_w: FloatFieldIJ, qout: FloatField
+    qin: FloatField,
+    dxa: FloatFieldIJ,
+    edge_w: FloatFieldIJ,
+    qout: FloatField,
+    tmp_qout_edges: FloatField,
 ):
     with computation(PARALLEL), interval(...):
         q2 = (qin[-1, 0, 0] * dxa + qin * dxa[-1, 0]) / (dxa[-1, 0] + dxa)
-        qout[0, 0, 0] = edge_w * q2[0, -1, 0] + (1.0 - edge_w) * q2
+        qout = edge_w * q2[0, -1, 0] + (1.0 - edge_w) * q2
+        tmp_qout_edges = qout
 
 
 def qout_y_edge(
-    qin: FloatField, dya: FloatFieldIJ, edge_s: FloatFieldI, qout: FloatField
+    qin: FloatField,
+    dya: FloatFieldIJ,
+    edge_s: FloatFieldI,
+    qout: FloatField,
+    tmp_qout_edges: FloatField,
 ):
     with computation(PARALLEL), interval(...):
         q1 = (qin[0, -1, 0] * dya + qin * dya[0, -1]) / (dya[0, -1] + dya)
-        qout[0, 0, 0] = edge_s * q1[-1, 0, 0] + (1.0 - edge_s) * q1
+        qout = edge_s * q1[-1, 0, 0] + (1.0 - edge_s) * q1
+        tmp_qout_edges = qout
 
 
 @gtscript.function
@@ -618,6 +636,7 @@ class AGrid2BGridFourthOrder:
 
         self._sw_corner_stencil(
             qin,
+            qout,
             self._tmp_qout_edges,
             self._agrid1,
             self._agrid2,
@@ -627,6 +646,7 @@ class AGrid2BGridFourthOrder:
 
         self._nw_corner_stencil(
             qin,
+            qout,
             self._tmp_qout_edges,
             self._agrid1,
             self._agrid2,
@@ -635,6 +655,7 @@ class AGrid2BGridFourthOrder:
         )
         self._ne_corner_stencil(
             qin,
+            qout,
             self._tmp_qout_edges,
             self._agrid1,
             self._agrid2,
@@ -643,6 +664,7 @@ class AGrid2BGridFourthOrder:
         )
         self._se_corner_stencil(
             qin,
+            qout,
             self._tmp_qout_edges,
             self._agrid1,
             self._agrid2,
@@ -650,7 +672,7 @@ class AGrid2BGridFourthOrder:
             self._bgrid2,
         )
 
-        self._compute_qout_edges(qin, self._tmp_qout_edges)
+        self._compute_qout_edges(qin, qout)
         self._ppm_volume_mean_x_stencil(
             qin,
             self._tmp_qx,
@@ -661,10 +683,7 @@ class AGrid2BGridFourthOrder:
             self._tmp_qy,
             self._dya,
         )
-        self._copy_stencil(
-            self._tmp_qout_edges,
-            qout,
-        )
+
         self._a2b_interpolation_stencil(
             self._tmp_qout_edges,
             qout,
@@ -680,30 +699,18 @@ class AGrid2BGridFourthOrder:
     def _compute_qout_edges(self, qin: FloatField, qout: FloatField):
         if self._idx.west_edge:
             self._qout_x_edge_west(
-                qin,
-                self._dxa,
-                self._edge_w,
-                qout,
+                qin, self._dxa, self._edge_w, qout, self._tmp_qout_edges
             )
         if self._idx.east_edge:
             self._qout_x_edge_east(
-                qin,
-                self._dxa,
-                self._edge_e,
-                qout,
+                qin, self._dxa, self._edge_e, qout, self._tmp_qout_edges
             )
 
         if self._idx.south_edge:
             self._qout_y_edge_south(
-                qin,
-                self._dya,
-                self._edge_s,
-                qout,
+                qin, self._dya, self._edge_s, qout, self._tmp_qout_edges
             )
         if self._idx.north_edge:
             self._qout_y_edge_north(
-                qin,
-                self._dya,
-                self._edge_n,
-                qout,
+                qin, self._dya, self._edge_n, qout, self._tmp_qout_edges
             )
