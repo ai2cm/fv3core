@@ -246,15 +246,18 @@ def circulation_cgrid(
 
     with computation(PARALLEL), interval(...):
         fx = dxc * uc
-        fy = dyc * vc
+        fx1 = dxc[0, -1] * uc[0, -1, 0]
 
-        vort_c = fx[0, -1, 0] - fx - fy[-1, 0, 0] + fy
+        fy = dyc * vc
+        fy1 = dyc[-1, 0] * vc[-1, 0, 0]
+
+        vort_c = fx1 - fx - fy1 + fy
 
         with horizontal(region[i_start, j_start], region[i_start, j_end + 1]):
-            vort_c = fx[0, -1, 0] - fx - fy[-1, 0, 0] + fy + dyc[-1, 0] * vc[-1, 0, 0]
+            vort_c = fx1 - fx + fy
 
         with horizontal(region[i_end + 1, j_start], region[i_end + 1, j_end + 1]):
-            vort_c = fx[0, -1, 0] - fx - fy[-1, 0, 0] + fy - dyc * vc
+            vort_c = fx1 - fx - fy1
 
 
 def update_x_velocity(
