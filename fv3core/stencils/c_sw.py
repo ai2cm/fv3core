@@ -110,7 +110,7 @@ def transportdelp_update_vorticity_and_kineticenergy(
         delpc = delp + (fx1 - fx1[1, 0, 0] + fy1 - fy1[0, 1, 0]) * rarea
         ptc = (pt * delp + (fx - fx[1, 0, 0] + fy - fy[0, 1, 0]) * rarea) / delpc
         wc = (w * delp + (fx2 - fx2[1, 0, 0] + fy2 - fy2[0, 1, 0]) * rarea) / delpc
-    with computation(PARALLEL), interval(...):
+
         # update vorticity and kinetic energy
         ke = uc if ua > 0.0 else uc[1, 0, 0]
         vort = vc if va > 0.0 else vc[0, 1, 0]
@@ -809,6 +809,8 @@ class CGridShallowWaterDynamics:
             self._tmp_fx1,
             self._tmp_fx2,
         )
+        # TODO(eddied): Why does auto-sync storage logic does not catch this?
+        utils.device_sync()
         corners.fill2_4corners(delp, pt, "y", self.grid)
         corners.fill_4corners(w, "y", self.grid)
         self._transportdelp_updatevorticity_and_ke(
