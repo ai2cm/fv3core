@@ -34,6 +34,8 @@ The reproducer will also write a `repro.py` script that runs a single computatio
 
 Example command line: `python external_profiler.py --stencil=MY_STENCIL <TARGET PYTHON SCRIPT>.py <TARGET ARGS>`
 
+If you move the `repro_XXXX` folder you'll have to adapt the hardcoded path from the py wrapper to the `.so` that are embedded in the `original_code` folder. Search for `pyext_module = gt_utils.make_module_from_file` in the `original_code`.
+
 ### Using `ncu`
 
 This work has started in order to allow easy run on `ncu`. And `example_run_ncu.sh` is provided as an example to show
