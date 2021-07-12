@@ -37,6 +37,7 @@ def update_q(
 # Stencil that copies/fills in the appropriate corner values for qdel
 # ------------------------------------------------------------------------
 def corner_fill(grid, q):
+    utils.device_sync()
     r3 = 1.0 / 3.0
     q_arr = utils.asarray(q)
 

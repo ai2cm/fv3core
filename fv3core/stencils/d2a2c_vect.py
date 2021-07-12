@@ -660,6 +660,7 @@ class DGrid2AGrid2CGridVectors:
         )
 
     def _fix_x_edges(self, ua: FloatField, va: FloatField):
+        utils.device_sync()
         # Convert gt4py storages to numpy/cupy arrays...
         ua_arr = utils.asarray(ua)
         va_arr = utils.asarray(va)
@@ -701,8 +702,9 @@ class DGrid2AGrid2CGridVectors:
         va[:] = va_arr
         self._utmp[:] = utmp_arr
         self._vtmp[:] = vtmp_arr
-
+    
     def _fix_y_edges(self, ua: FloatField, va: FloatField):
+        utils.device_sync()
         # Convert gt4py storages to numpy/cupy arrays...
         ua_arr = utils.asarray(ua)
         va_arr = utils.asarray(va)

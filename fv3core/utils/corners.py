@@ -98,6 +98,7 @@ def corner_ke(
 
 # FOR DACE
 def fill_4corners(q, direction, grid):
+    utils.device_sync()
     if direction == "x":
         for k in range(q.shape[2]):
             if grid.sw_corner:
@@ -131,6 +132,7 @@ def fill_4corners(q, direction, grid):
 
 
 def fill2_4corners(q1, q2, direction, grid):
+    utils.device_sync()
     if direction == "x":
         for k in range(q1.shape[2]):
             if grid.sw_corner:
@@ -217,6 +219,7 @@ def copy_nw_corner(q, direction, grid, kslice):
 
 # can't actually be a stencil because offsets are variable
 def copy_corners(q, direction, grid, kslice=slice(0, None)):
+    utils.device_sync()
     if grid.sw_corner:
         copy_sw_corner(q, direction, grid, kslice)
     if grid.se_corner:
@@ -297,6 +300,7 @@ def fill_ne_corner_agrid(q, i, j, direction, grid, kslice, mysign=1.0):
 
 
 def fill_corners(q, grid, gridtype, direction="x", kslice=slice(0, None)):
+    utils.device_sync()
     for i in range(1, 1 + grid.halo):
         for j in range(1, 1 + grid.halo):
             if gridtype == "B":
@@ -344,6 +348,7 @@ def fill_ne_corner_vector_dgrid(x, y, i, j, grid, mysign, kslice):
 
 
 def fill_corners_dgrid(x, y, grid, vector, kslice=slice(0, None)):
+    utils.device_sync()
     # Convert gt4py storages to numpy/cupy arrays...
     x_arr = utils.asarray(x)
     y_arr = utils.asarray(y)
@@ -363,3 +368,4 @@ def fill_corners_dgrid(x, y, grid, vector, kslice=slice(0, None)):
     # Assign results back to gt4py storages...
     x[:] = x_arr
     y[:] = y_arr
+
