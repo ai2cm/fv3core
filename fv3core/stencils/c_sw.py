@@ -215,6 +215,24 @@ def divergence_corner(
         )
 
         divg_d = (vf[0, -1, 0] - vf + uf[-1, 0, 0] - uf) * rarea_c
+
+        # The original code is:
+        # ---------
+        # with horizontal(region[:, j_start], region[:, j_end + 1]):
+        #     uf = u * dyc * 0.5 * (sin_sg4[0, -1] + sin_sg2)
+        # with horizontal(region[i_start, :], region[i_end + 1, :]):
+        #     vf = v * dxc * 0.5 * (sin_sg3[-1, 0] + sin_sg1)
+        # with horizontal(region[i_start, j_start], region[i_end + 1, j_start]):
+        #     divg_d = (-vf + uf[-1, 0, 0] - uf) * rarea_c
+        # with horizontal(region[i_end + 1, j_end + 1], region[i_start, j_end + 1]):
+        #     divg_d = (vf[0, -1, 0] + uf[-1, 0, 0] - uf) * rarea_c
+        # ---------
+        #
+        # Code with regions restrictions:
+        # ---------
+        # variables ending with 1 are the shifted versions
+        # in the future we could use gtscript functions when they support shifts
+
         with horizontal(region[i_start, :], region[i_end + 1, :]):
             vf = v * dxc * 0.5 * (sin_sg3[-1, 0] + sin_sg1)
             vf1 = v[0, -1, 0] * dxc[0, -1] * 0.5 * (sin_sg3[-1, -1] + sin_sg1[0, -1])
@@ -259,6 +277,8 @@ def divergence_corner(
             uf = u * dyc * 0.5 * (sin_sg4[0, -1] + sin_sg2)
             divg_d = (vf1 + uf1 - uf) * rarea_c
 
+        # ---------
+
 
 def circulation_cgrid(
     uc: FloatField,
@@ -280,16 +300,16 @@ def circulation_cgrid(
 
     with computation(PARALLEL), interval(...):
         fx = dxc * uc
-        fx1 = dxc[0, -1] * uc[0, -1, 0]
-
         fy = dyc * vc
+
+        # fx1 and fy1 are the shifted versions of fx and fy and are defined
+        # because temporaries are not allowed to be accessed with offsets in regions.
+        fx1 = dxc[0, -1] * uc[0, -1, 0]
         fy1 = dyc[-1, 0] * vc[-1, 0, 0]
 
         vort_c = fx1 - fx - fy1 + fy
-
         with horizontal(region[i_start, j_start], region[i_start, j_end + 1]):
             vort_c = fx1 - fx + fy
-
         with horizontal(region[i_end + 1, j_start], region[i_end + 1, j_end + 1]):
             vort_c = fx1 - fx - fy1
 
