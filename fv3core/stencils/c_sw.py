@@ -247,7 +247,10 @@ def circulation_cgrid(
     with computation(PARALLEL), interval(...):
         fx = dxc * uc
         fy = dyc * vc
-
+    # TODO(rheag) this computation should not be required
+    # but was needed for GTC validation (cpu_ifirst)
+    # Check again and open an issue if repeatable
+    with computation(PARALLEL), interval(...):
         vort_c = fx[0, -1, 0] - fx - fy[-1, 0, 0] + fy
 
         with horizontal(region[i_start, j_start], region[i_start, j_end + 1]):
