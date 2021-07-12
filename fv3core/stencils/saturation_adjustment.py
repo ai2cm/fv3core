@@ -1,7 +1,7 @@
 import math
 
 import gt4py.gtscript as gtscript
-from gt4py.gtscript import FORWARD, PARALLEL, computation, exp, floor, interval, log
+from gt4py.gtscript import __INLINED, FORWARD, PARALLEL, computation, exp, floor, interval, log
 
 import fv3core._config as spec
 import fv3core.utils.global_constants as constants
@@ -607,9 +607,10 @@ def satadjust(
         tintqs,
     )
 
-    with computation(FORWARD), interval(1, None):
-        if hydrostatic:
-            delz = delz[0, 0, -1]
+    with computation(PARALLEL), interval(1, None):
+        if __INLINED(hydrostatic):
+            delz_0 = delz[0, 0, -1]
+            delz = delz_0
     with computation(PARALLEL), interval(...):
         q_liq = ql + qr
         q_sol = qi + qs + qg
@@ -618,18 +619,17 @@ def satadjust(
         t0 = pt1  # true temperature
         qpz = qpz + qv  # total_wat conserved in this routine
         # define air density based on hydrostatical property
-        den = (
-            dp / ((peln[0, 0, 1] - peln) * constants.RDGAS * pt)
-            if hydrostatic
-            else -dp / (constants.GRAV * delz)
-        )
+        if __INLINED(hydrostatic):
+            den = dp / ((peln[0, 0, 1] - peln) * constants.RDGAS * pt)
+        else:
+            den = -dp / (constants.GRAV * delz)
         # define heat capacity and latend heat coefficient
         mc_air = (1.0 - qpz) * c_air
         cvm = compute_cvm(mc_air, qv, c_vap, q_liq, q_sol)
         lhi, icp2 = update_latent_heat_coefficient_i(pt1, cvm)
         #  fix energy conservation
         if consv_te:
-            if hydrostatic:
+            if __INLINED(hydrostatic):
                 te0 = -c_air * t0
             else:
                 te0 = -cvm * t0
@@ -801,7 +801,7 @@ def satadjust(
             qs = qs + sink
         # fix energy conservation
         if consv_te:
-            if hydrostatic:
+            if __INLINED(hydrostatic):
                 te0 = dp * (te0 + c_air * pt1)
             else:
                 te0 = dp * (te0 + cvm * pt1)
@@ -892,7 +892,7 @@ def satadjust(
             else:
                 qa = 0.0
 
-        if not hydrostatic:
+        if __INLINED(not hydrostatic):
             pkz = compute_pkz_func(dp, delz, pt, cappa)
 
 
