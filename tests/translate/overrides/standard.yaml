@@ -86,3 +86,8 @@ UpdateDzD:
 FVSubgridZ:
   - backend: gtcuda
     max_error: 1e-8
+
+DynCore:
+ - backend: gtc:gt:gpu
+   ignore_near_zero_errors:
+     - wsd
