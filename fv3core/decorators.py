@@ -21,6 +21,7 @@ from typing import (
 
 import dace
 import dace.data
+from dace.frontend.python.common import SDFGConvertible
 import gt4py
 import gt4py.definitions
 from gt4py import gtscript
@@ -181,14 +182,15 @@ class FrozenStencil:
         print('saved (__sdfg__):', filename)
         return dace.SDFG.from_json(self._sdfg.to_json())
 
+    def __sdfg_signature__(self):
+        return ( [arg for arg in self.func.__annotations__.keys() if arg != 'return'], [])
+
     def __sdfg_closure__(self, *args, **kwargs):
         return {}
 
-    def __sdfg_constant_args__(self):
-        return []
 
-    def __sdfg_argnames__(self):
-        return [arg for arg in self.func.__annotations__.keys() if arg != 'return']
+
+
 
     def __init__(
         self,

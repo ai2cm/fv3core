@@ -1,12 +1,19 @@
 #!/usr/bin/env python3
+import copy
 from types import SimpleNamespace
 
 import click
 
+import dace
+
+import numpy as np
+from fv3core.utils.gt4py_utils import computepath_function
 import fv3core
 import fv3core._config as spec
 import fv3core.testing
 import fv3core.utils.global_config as global_config
+
+import fv3gfs
 import serialbox
 from fv3core.stencils.dyn_core import AcousticDynamics
 
@@ -63,9 +70,75 @@ def get_state_from_input(grid, input_data):
     return statevars
 
 
+def run(data_directory, halo_update, backend, time_steps, reference_run):
+    set_up_namelist(data_directory)
+    serializer = initialize_serializer(data_directory)
+    initialize_fv3core(backend, halo_update)
+    grid = read_grid(serializer)
+    spec.set_grid(grid)
+
+    input_data = read_input_data(grid, serializer)
+
+
+
+    state = get_state_from_input(grid, input_data)
+    # state.__dict__.update()
+
+    acoutstics_object = AcousticDynamics(
+        None,
+        spec.namelist,
+        state,
+        input_data["ak"],
+        input_data["bk"],
+        input_data["pfull"],
+        input_data["phis"],
+        insert_temporaries=False
+    )
+
+    import time
+    def iterate(time_steps):
+        # @Linus: make this call a dace program
+        start = time.time()
+        acoutstics_object.__call__()
+        mid=time.time()
+        for _ in range(time_steps):
+            acoutstics_object.__call__()
+        end = time.time()
+
+        print('total time:',end-start)
+        print('iteration 1:',mid-start)
+        print(f'iterations 2-{time_steps+1}:',end-mid)
+
+    if reference_run:
+        iterate(time_steps)
+    else:
+        from fv3core.utils.global_config import set_dacemode
+        set_dacemode(True)
+
+        import cProfile, pstats, io
+        from pstats import SortKey
+        pr = cProfile.Profile()
+        pr.enable()
+
+        try:
+            # compiled_iterate = computepath_function(iterate)
+            # compiled_iterate(time_steps)
+            iterate(time_steps)
+        finally:
+            pr.disable()
+            s = io.StringIO()
+            sortby = SortKey.CUMULATIVE
+            ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
+            ps.print_stats()
+            print("\n".join(s.getvalue().split("\n")[:50]))
+            set_dacemode(False)
+
+
+    return state
+
 @click.command()
 @click.argument("data_directory", required=True, nargs=1)
-@click.argument("time_steps", required=False, default="1")
+@click.argument("time_steps", required=False, default=1, type=int)
 @click.argument("backend", required=False, default="gtc:gt:cpu_ifirst")
 @click.option("--halo_update/--no-halo_update", default=False)
 def driver(
@@ -74,47 +147,23 @@ def driver(
     backend: str,
     halo_update: bool,
 ):
-        set_up_namelist(data_directory)
-        serializer = initialize_serializer(data_directory)
-        initialize_fv3core(backend, halo_update)
-        grid = read_grid(serializer)
-        spec.set_grid(grid)
+    state = run(data_directory, halo_update, time_steps=time_steps, backend=backend, reference_run=False)
+    ref_state = run(data_directory, halo_update, time_steps=time_steps, backend='numpy', reference_run=True)
 
-        input_data = read_input_data(grid, serializer)
+    for name, ref_value in ref_state.__dict__.items():
 
-        acoutstics_object = AcousticDynamics(
-            None,
-            spec.namelist,
-            input_data["ak"],
-            input_data["bk"],
-            input_data["pfull"],
-            input_data["phis"],
-        )
+        if name in {'mfxd', 'mfyd'}:
+            continue
+        value = state.__dict__[name]
+        if isinstance(ref_value, fv3gfs.util.quantity.Quantity):
+            ref_value = ref_value.storage
+        if isinstance(value, fv3gfs.util.quantity.Quantity):
+            value = value.storage
+        if hasattr(value, 'shape') and len(value.shape)==3:
+            value = value[1:-1, 1:-1, :]
+            ref_value = ref_value[1:-1, 1:-1, :]
+        np.testing.assert_allclose(np.asarray(ref_value), np.asarray(value), err_msg=name)
 
-        state = get_state_from_input(grid, input_data)
-        state.__dict__.update(acoutstics_object._temporaries)
-
-        # Testing dace infrastucture
-        output_field = acoutstics_object.dace_dummy(input_data["omga"])
-        output_field = acoutstics_object.dace_dummy(state.omga)
-        print(output_field)
-
-        import cProfile, pstats, io
-        from pstats import SortKey
-        pr = cProfile.Profile()
-        pr.enable()
-
-        try:
-            # @Linus: make this call a dace program
-            for _ in range(int(time_steps)):
-                acoutstics_object(state, insert_temporaries=False)
-        finally:
-            pr.disable()
-            s = io.StringIO()
-            sortby = SortKey.CUMULATIVE
-            ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
-            ps.print_stats()
-            print("\n".join(s.getvalue().split("\n")[:50]))
 
 if __name__ == "__main__":
     driver()

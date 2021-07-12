@@ -18,7 +18,7 @@ import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import FrozenStencil
 from fv3core.stencils.sim1_solver import Sim1Solver
 from fv3core.utils.typing import FloatField, FloatFieldIJ
-
+from fv3core.utils.gt4py_utils import computepath_method
 
 @typing.no_type_check
 def precompute(
@@ -140,6 +140,7 @@ class RiemannSolver3:
             domain=domain,
         )
 
+    @computepath_method
     def __call__(
         self,
         last_call: bool,
@@ -210,7 +211,7 @@ class RiemannSolver3:
             ptk,
         )
 
-        self._sim1_solve(
+        self._sim1_solve.__call__(
             dt,
             self._tmp_gm,
             cappa,

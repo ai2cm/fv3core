@@ -216,10 +216,12 @@ class AcousticDynamics:
         self,
         comm: fv3gfs.util.CubedSphereCommunicator,
         namelist,
+        state,
         ak: FloatFieldK,
         bk: FloatFieldK,
         pfull: FloatFieldK,
         phis: FloatFieldIJ,
+        insert_temporaries: bool = False,
     ):
         """
         Args:
@@ -373,15 +375,21 @@ class AcousticDynamics:
             origin=self.grid.full_origin(),
             domain=self.grid.domain_shape_full(add=(0, 0, 1)),
         )
+        self.state = state
+        self.state.__dict__.update(self._temporaries)
+        self.insert_temporaries = insert_temporaries
 
-    @computepath_method(use_dace=True)
-    def __call__(self, state, insert_temporaries: bool = True):
+    @computepath_method
+    def __call__(self):
         # u, v, w, delz, delp, pt, pe, pk, phis, wsd, omga, ua, va, uc, vc, mfxd,
         # mfyd, cxd, cyd, pkz, peln, q_con, ak, bk, diss_estd, cappa, mdt, n_split,
         # akap, ptop, n_map, comm):
-        end_step = state.n_map == self.namelist.k_split
+        if self.state.n_map == self.namelist.k_split:
+            end_step = 1
+        else:
+            end_step = 0
         akap = constants.KAPPA
-        dt = state.mdt / self.namelist.n_split
+        dt = self.state.mdt / self.namelist.n_split
         dt2 = 0.5 * dt
         rgrav = 1.0 / constants.GRAV
         n_split = self.namelist.n_split
@@ -389,7 +397,7 @@ class AcousticDynamics:
         # m_split = 1. + abs(dt_atmos)/real(k_split*n_split*abs(p_split))
         # n_split = nint( real(n0split)/real(k_split*abs(p_split)) * stretch_fac + 0.5 )
         ms = max(1, self.namelist.m_split / 2.0)
-        # shape = state.delz.shape
+        # shape = self.state.delz.shape
         # NOTE: In Fortran model the halo update starts happens in fv_dynamics, not here
         if self.do_halo_exchange:
             reqs = {}
@@ -400,31 +408,32 @@ class AcousticDynamics:
                 "pt_quantity",
             ]:
                 reqs[halovar] = self.comm.start_halo_update(
-                    state.__getattribute__(halovar), n_points=self.grid.halo
+                    self.state.__getattribute__(halovar), n_points=self.grid.haloq
                 )
             reqs_vector = self.comm.start_vector_halo_update(
-                state.u_quantity, state.v_quantity, n_points=self.grid.halo
+                self.state.u_quantity, self.state.v_quantity, n_points=self.grid.halo
             )
             reqs["q_con_quantity"].wait()
             reqs["cappa_quantity"].wait()
 
-        if insert_temporaries:
-            state.__dict__.update(self._temporaries)
+        if self.insert_temporaries:
+            self.state.__dict__.update(self._temporaries)
 
         self._zero_data(
-            state.mfxd,
-            state.mfyd,
-            state.cxd,
-            state.cyd,
+            self.state.mfxd,
+            self.state.mfyd,
+            self.state.cxd,
+            self.state.cyd,
         )
         self._zero_diss(
-            state.diss_estd,
-            state.n_map == 1,
+            self.state.diss_estd,
+            self.state.n_map == 1,
         )
         # "acoustic" loop
         # called this because its timestep is usually limited by horizontal sound-wave
         # processes. Note this is often not the limiting factor near the poles, where
         # the speed of the polar night jets can exceed two-thirds of the speed of sound.
+        breed_vortex_inline = 1 if self.namelist.breed_vortex_inline else 0
         for it in range(n_split):
             # the Lagrangian dynamics have two parts. First we advance the C-grid winds
             # by half a time step (c_sw). Then the C-grid winds are used to define
@@ -436,23 +445,27 @@ class AcousticDynamics:
             #
             # The pressure gradient force and elastic terms are then evaluated
             # backwards-in-time, to improve stability.
-            remap_step = False
-            if self.namelist.breed_vortex_inline or (it == n_split - 1):
-                remap_step = True
+            remap_step = 0
+            if it == n_split - 1:
+                tmpbool = 1
+            else:
+                tmpbool = 0
+            if  breed_vortex_inline or tmpbool:
+                remap_step = 1
             if not self.namelist.hydrostatic:
                 if self.do_halo_exchange:
                     reqs["w_quantity"] = self.comm.start_halo_update(
-                        state.w_quantity, n_points=self.grid.halo
+                        self.state.w_quantity, n_points=self.grid.halo
                     )
                 if it == 0:
                     self._set_gz(
                         self._zs,
-                        state.delz,
-                        state.gz,
+                        self.state.delz,
+                        self.state.gz,
                     )
                     if self.do_halo_exchange:
                         reqs["gz_quantity"] = self.comm.start_halo_update(
-                            state.gz_quantity, n_points=self.grid.halo
+                            self.state.gz_quantity, n_points=self.grid.halo
                         )
             if it == 0:
                 if self.do_halo_exchange:
@@ -462,9 +475,9 @@ class AcousticDynamics:
             if it == n_split - 1 and end_step:
                 if self.namelist.use_old_omega:
                     self._set_pem(
-                        state.delp,
-                        state.pem,
-                        state.ptop,
+                        self.state.delp,
+                        self.state.pem,
+                        self.state.ptop,
                     )
             if self.do_halo_exchange:
                 reqs_vector.wait()
@@ -472,71 +485,71 @@ class AcousticDynamics:
                     reqs["w_quantity"].wait()
 
             # compute the c-grid winds at t + 1/2 timestep
-            state.delpc, state.ptc = self.cgrid_shallow_water_lagrangian_dynamics.__call__(
-                state.delp,
-                state.pt,
-                state.u,
-                state.v,
-                state.w,
-                state.uc,
-                state.vc,
-                state.ua,
-                state.va,
-                state.ut,
-                state.vt,
-                state.divgd,
-                state.omga,
+            delpc, ptc = self.cgrid_shallow_water_lagrangian_dynamics.__call__(
+                self.state.delp,
+                self.state.pt,
+                self.state.u,
+                self.state.v,
+                self.state.w,
+                self.state.uc,
+                self.state.vc,
+                self.state.ua,
+                self.state.va,
+                self.state.ut,
+                self.state.vt,
+                self.state.divgd,
+                self.state.omga,
                 dt2,
             )
 
             if self.namelist.nord > 0 and self.do_halo_exchange:
                 reqs["divgd_quantity"] = self.comm.start_halo_update(
-                    state.divgd_quantity, n_points=self.grid.halo
+                    self.state.divgd_quantity, n_points=self.grid.halo
                 )
             if not self.namelist.hydrostatic:
                 if it == 0:
                     if self.do_halo_exchange:
                         reqs["gz_quantity"].wait()
                     self._copy_stencil(
-                        state.gz,
-                        state.zh,
+                        self.state.gz,
+                        self.state.zh,
                     )
                 else:
                     self._copy_stencil(
-                        state.zh,
-                        state.gz,
+                        self.state.zh,
+                        self.state.gz,
                     )
             if not self.namelist.hydrostatic:
                 self.update_geopotential_height_on_c_grid.__call__(
-                    self._dp_ref, self._zs, state.ut, state.vt, state.gz, state.ws3, dt2
+                    self._dp_ref, self._zs, self.state.ut, self.state.vt, self.state.gz, self.state.ws3, dt2
                 )
                 self.riem_solver_c.__call__(
                     dt2,
-                    state.cappa,
-                    state.ptop,
-                    state.phis,
-                    state.ws3,
-                    state.ptc,
-                    state.q_con,
-                    state.delpc,
-                    state.gz,
-                    state.pkc,
-                    state.omga,
+                    self.state.cappa,
+                    self.state.ptop,
+                    self.state.phis,
+                    self.state.ws3,
+                    ptc,
+                    self.state.q_con,
+                    delpc,
+                    self.state.gz,
+                    self.state.pkc,
+                    self.state.omga,
                 )
 
             self._p_grad_c(
                 self.grid.rdxc,
                 self.grid.rdyc,
-                state.uc,
-                state.vc,
-                state.delpc,
-                state.pkc,
-                state.gz,
+                self.state.uc,
+                self.state.vc,
+                delpc,
+                self.state.pkc,
+                self.state.gz,
                 dt2,
             )
             if self.do_halo_exchange:
                 req_vector_c_grid = self.comm.start_vector_halo_update(
-                    state.uc_quantity, state.vc_quantity, n_points=self.grid.halo
+                    self.state.uc_quantity, self.state.vc_quantity, n_points=self.grid.halo
                 )
                 if self.namelist.nord > 0:
                     reqs["divgd_quantity"].wait()
@@ -544,30 +557,30 @@ class AcousticDynamics:
             # use the computed c-grid winds to evolve the d-grid winds forward
             # by 1 timestep
             self.dgrid_shallow_water_lagrangian_dynamics.__call__(
-                state.vt,
-                state.delp,
-                state.ptc,
-                state.pt,
-                state.u,
-                state.v,
-                state.w,
-                state.uc,
-                state.vc,
-                state.ua,
-                state.va,
-                state.divgd,
-                state.mfxd,
-                state.mfyd,
-                state.cxd,
-                state.cyd,
-                state.crx,
-                state.cry,
-                state.xfx,
-                state.yfx,
-                state.q_con,
-                state.zh,
-                state.heat_source,
-                state.diss_estd,
+                self.state.vt,
+                self.state.delp,
+                ptc,
+                self.state.pt,
+                self.state.u,
+                self.state.v,
+                self.state.w,
+                self.state.uc,
+                self.state.vc,
+                self.state.ua,
+                self.state.va,
+                self.state.divgd,
+                self.state.mfxd,
+                self.state.mfyd,
+                self.state.cxd,
+                self.state.cyd,
+                self.state.crx,
+                self.state.cry,
+                self.state.xfx,
+                self.state.yfx,
+                self.state.q_con,
+                self.state.zh,
+                self.state.heat_source,
+                self.state.diss_estd,
                 dt,
             )
             # note that uc and vc are not needed at all past this point.
@@ -576,7 +589,7 @@ class AcousticDynamics:
             if self.do_halo_exchange:
                 for halovar in ["delp_quantity", "pt_quantity", "q_con_quantity"]:
                     self.comm.halo_update(
-                        state.__getattribute__(halovar), n_points=self.grid.halo
+                        self.state.__getattribute__(halovar), n_points=self.grid.halo
                     )
 
             # Not used unless we implement other betas and alternatives to nh_p_grad
@@ -586,78 +599,78 @@ class AcousticDynamics:
             if not self.namelist.hydrostatic:
                 self.update_height_on_d_grid.__call__(
                     self._zs,
-                    state.zh,
-                    state.crx,
-                    state.cry,
-                    state.xfx,
-                    state.yfx,
-                    state.wsd,
+                    self.state.zh,
+                    self.state.crx,
+                    self.state.cry,
+                    self.state.xfx,
+                    self.state.yfx,
+                    self.state.wsd,
                     dt,
                 )
                 self.riem_solver3.__call__(
                     remap_step,
                     dt,
-                    state.cappa,
-                    state.ptop,
+                    self.state.cappa,
+                    self.state.ptop,
                     self._zs,
-                    state.wsd,
-                    state.delz,
-                    state.q_con,
-                    state.delp,
-                    state.pt,
-                    state.zh,
-                    state.pe,
-                    state.pkc,
-                    state.pk3,
-                    state.pk,
-                    state.peln,
-                    state.w,
+                    self.state.wsd,
+                    self.state.delz,
+                    self.state.q_con,
+                    self.state.delp,
+                    self.state.pt,
+                    self.state.zh,
+                    self.state.pe,
+                    self.state.pkc,
+                    self.state.pk3,
+                    self.state.pk,
+                    self.state.peln,
+                    self.state.w,
                 )
 
                 if self.do_halo_exchange:
                     reqs["zh_quantity"] = self.comm.start_halo_update(
-                        state.zh_quantity, n_points=self.grid.halo
+                        self.state.zh_quantity, n_points=self.grid.halo
                     )
                     if self.grid.npx == self.grid.npy:
                         reqs["pkc_quantity"] = self.comm.start_halo_update(
-                            state.pkc_quantity, n_points=2
+                            self.state.pkc_quantity, n_points=2
                         )
                     else:
                         reqs["pkc_quantity"] = self.comm.start_halo_update(
-                            state.pkc_quantity, n_points=self.grid.halo
+                            self.state.pkc_quantity, n_points=self.grid.halo
                         )
                 if remap_step:
-                    self._edge_pe_west_stencil(state.pe, state.delp, state.ptop)
-                    self._edge_pe_east_stencil(state.pe, state.delp, state.ptop)
-                    self._edge_pe_south_stencil(state.pe, state.delp, state.ptop)
-                    self._edge_pe_north_stencil(state.pe, state.delp, state.ptop)
+                    self._edge_pe_west_stencil(self.state.pe, self.state.delp, self.state.ptop)
+                    self._edge_pe_east_stencil(self.state.pe, self.state.delp, self.state.ptop)
+                    self._edge_pe_south_stencil(self.state.pe, self.state.delp, self.state.ptop)
+                    self._edge_pe_north_stencil(self.state.pe, self.state.delp, self.state.ptop)
                 if self.namelist.use_logp:
                     raise NotImplementedError(
                         "unimplemented namelist option use_logp=True"
                     )
                 else:
-                    self._pk3_halo(state.pk3, state.delp, state.ptop, akap)
+                    self._pk3_halo(self.state.pk3, self.state.delp, self.state.ptop, akap)
             if not self.namelist.hydrostatic:
                 if self.do_halo_exchange:
                     reqs["zh_quantity"].wait()
                     if self.grid.npx != self.grid.npy:
                         reqs["pkc_quantity"].wait()
                 self._compute_geopotential_stencil(
-                    state.zh,
-                    state.gz,
+                    self.state.zh,
+                    self.state.gz,
                 )
                 if self.grid.npx == self.grid.npy and self.do_halo_exchange:
                     reqs["pkc_quantity"].wait()
 
                 self.nonhydrostatic_pressure_gradient.__call__(
-                    state.u,
-                    state.v,
-                    state.pkc,
-                    state.gz,
-                    state.pk3,
-                    state.delp,
+                    self.state.u,
+                    self.state.v,
+                    self.state.pkc,
+                    self.state.gz,
+                    self.state.pk3,
+                    self.state.delp,
                     dt,
-                    state.ptop,
+                    self.state.ptop,
                     akap,
                 )
 
@@ -665,43 +678,43 @@ class AcousticDynamics:
                 # TODO: Pass through ks, or remove, inconsistent representation vs
                 # Fortran.
                 self._rayleigh_damping.__call__(
-                    state.u,
-                    state.v,
-                    state.w,
+                    self.state.u,
+                    self.state.v,
+                    self.state.w,
                     self._dp_ref,
                     self._pfull,
                     dt,
-                    state.ptop,
-                    state.ks,
+                    self.state.ptop,
+                    self.state.ks,
                 )
 
             if self.do_halo_exchange:
                 if it != n_split - 1:
                     reqs_vector = self.comm.start_vector_halo_update(
-                        state.u_quantity, state.v_quantity, n_points=self.grid.halo
+                        self.state.u_quantity, self.state.v_quantity, n_points=self.grid.halo
                     )
                 else:
                     if self.namelist.grid_type < 4:
                         self.comm.synchronize_vector_interfaces(
-                            state.u_quantity, state.v_quantity
+                            self.state.u_quantity, self.state.v_quantity
                         )
 
         if self._do_del2cubed:
             if self.do_halo_exchange:
                 self.comm.halo_update(
-                    state.heat_source_quantity, n_points=self.grid.halo
+                    self.state.heat_source_quantity, n_points=self.grid.halo
                 )
             cd = constants.CNST_0P20 * self.grid.da_min
-            self._hyperdiffusion.__call__(state.heat_source, cd)
+            self._hyperdiffusion.__call__(self.state.heat_source, cd)
             if not self.namelist.hydrostatic:
                 tmp = dt * self.namelist.delt_max
                 delt_time_factor = (tmp*tmp)**0.5
                 self._compute_pkz_tempadjust(
-                    state.delp,
-                    state.delz,
-                    state.cappa,
-                    state.heat_source,
-                    state.pt,
-                    state.pkz,
+                    self.state.delp,
+                    self.state.delz,
+                    self.state.cappa,
+                    self.state.heat_source,
+                    self.state.pt,
+                    self.state.pkz,
                     delt_time_factor,
                 )
