@@ -121,8 +121,9 @@ def p_grad_c_stencil(
         rdxc, rdyc
     """
     from __externals__ import hydrostatic
-
-    with computation(PARALLEL), interval(...):
+    # TODO(rheag) change back to interval(...)
+    # https://github.com/GridTools/gt4py/issues/437
+    with computation(PARALLEL), interval(0, -1):
         if __INLINED(hydrostatic):
             wk = pkc[0, 0, 1] - pkc
         else:
@@ -322,7 +323,9 @@ class AcousticDynamics:
         self._p_grad_c = FrozenStencil(
             p_grad_c_stencil,
             origin=self.grid.compute_origin(),
-            domain=self.grid.domain_shape_compute(add=(1, 1, 0)),
+            # TODO(rheag) change back to add=(1, 1,0)
+            # https://github.com/GridTools/gt4py/issues/437
+            domain=self.grid.domain_shape_compute(add=(1, 1, 1)),
             externals={"hydrostatic": self.namelist.hydrostatic},
         )
 
