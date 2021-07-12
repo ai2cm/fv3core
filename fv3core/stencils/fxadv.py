@@ -421,9 +421,7 @@ class FiniteVolumeFluxPrep:
         self._vt_x_edge_stencil = FrozenStencil(vt_x_edge, **kwargs)
         self._ut_corners_stencil = FrozenStencil(ut_corners, **kwargs_corners)
         self._vt_corners_stencil = FrozenStencil(vt_corners, **kwargs_corners)
-        self._fxadv_fluxes_stencil = FrozenStencil(
-            fxadv_fluxes_stencil, **kwargs_fluxes
-        )
+        self._fxadv_fluxes_stencil = FrozenStencil(fxadv_fluxes_stencil, **kwargs)
 
     def __call__(
         self,
