@@ -535,13 +535,13 @@ class RemapProfile:
             grid.domain_shape_full(add=(0, 0, 1)), origin=full_orig
         )
         self._extm: BoolField = utils.make_storage_from_shape(
-            grid.domain_shape_full(add=(0, 0, 1)), origin=full_orig, dtype=utils.booltype
+            grid.domain_shape_full(add=(0, 0, 1)), origin=full_orig, dtype=bool
         )
         self._ext5: BoolField = utils.make_storage_from_shape(
-            grid.domain_shape_full(add=(0, 0, 1)), origin=full_orig, dtype=utils.booltype
+            grid.domain_shape_full(add=(0, 0, 1)), origin=full_orig, dtype=bool
         )
         self._ext6: BoolField = utils.make_storage_from_shape(
-            grid.domain_shape_full(add=(0, 0, 1)), origin=full_orig, dtype=utils.booltype
+            grid.domain_shape_full(add=(0, 0, 1)), origin=full_orig, dtype=bool
         )
 
         i_extent: int = i2 - i1 + 1
