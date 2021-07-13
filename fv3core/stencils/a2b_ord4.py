@@ -507,8 +507,8 @@ class AGrid2BGridFourthOrder:
         self._tmp_q = utils.make_storage_from_shape(shape)
         self._tmp_qx = utils.make_storage_from_shape(shape)
         self._tmp_qy = utils.make_storage_from_shape(shape)
-        self._tmp_qxx = utils.make_storage_from_shape(shape, init=True)
-        self._tmp_qyy = utils.make_storage_from_shape(shape, init=True)
+        self._tmp_qxx = utils.make_storage_from_shape(shape)
+        self._tmp_qyy = utils.make_storage_from_shape(shape)
 
         if nk is None:
             nk = self.grid.npz - kstart
