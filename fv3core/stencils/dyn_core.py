@@ -116,7 +116,7 @@ def p_grad_c_stencil(
     """
     from __externals__ import hydrostatic
 
-    with computation(PARALLEL), interval(0, -1):
+    with computation(PARALLEL), interval(...):
         if __INLINED(hydrostatic):
             wk = pkc[0, 0, 1] - pkc
         else:
@@ -305,7 +305,7 @@ class AcousticDynamics:
         )
 
         pgradc_origin = self.grid.compute_origin()
-        pgradc_domain = self.grid.domain_shape_compute(add=(1, 1, 1))
+        pgradc_domain = self.grid.domain_shape_compute(add=(1, 1, 0))
         self._p_grad_c = FrozenStencil(
             p_grad_c_stencil,
             origin=pgradc_origin,
