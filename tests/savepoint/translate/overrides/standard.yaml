@@ -2,7 +2,7 @@ CS_Profile_2d:
   - backend: gtcuda
     max_error: 2.5e-9
     near_zero: 1.5e-14
-  - backend: gtc:gt:gpu	
+  - backend: gtc:gt:gpu
     max_error: 2.5e-9
     near_zero: 1.5e-14
 
