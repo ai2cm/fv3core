@@ -561,12 +561,12 @@ class GridData:
 
     @property
     def dx(self):
-        """Gridcell spacing at cell center in x-direction"""
+        """gridcell spacing at cell center in x-direction"""
         return self._horizontal_data.dx
 
     @property
     def dy(self):
-        """Gridcell spacing at cell center in y-direction"""
+        """gridcell spacing at cell center in y-direction"""
         return self._horizontal_data.dy
 
     @property
