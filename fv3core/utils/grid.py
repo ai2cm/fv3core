@@ -534,6 +534,8 @@ class DampingCoefficients:
 
 
 class GridData:
+    # TODO: add docstrings to remaining properties
+
     def __init__(
         self,
         horizontal_data: HorizontalGridData,
