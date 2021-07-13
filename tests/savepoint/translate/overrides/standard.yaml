@@ -49,6 +49,7 @@ Remapping:
       - q_con
       - tracers
   - backend: gtc:gt:gpu
+    max_error: 1e-5
     near_zero: 5e-6
     ignore_near_zero_errors:
       - q_con
