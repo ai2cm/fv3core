@@ -75,6 +75,7 @@ def flux_capacitor(
         xflux = xflux + fx
         yflux = yflux + fy
 
+
 def compute_temperature_and_pressure_delta(
     gx: FloatField,
     gy: FloatField,
@@ -218,6 +219,7 @@ def heat_source_from_vorticity_damping(
 ):
 
     from __externals__ import do_skeb
+
     with computation(PARALLEL), interval(...):
         if (kinetic_energy_fraction_to_damp[0] > dcon_threshold) or do_skeb:
             ubt = (ub + vt) * rdx
@@ -226,13 +228,20 @@ def heat_source_from_vorticity_damping(
             vbt = (vb - ut) * rdy
             fx = v * rdy
             gx = fx * vbt
+    with computation(PARALLEL), interval(...):
+        if (kinetic_energy_fraction_to_damp[0] > dcon_threshold) or do_skeb:
             u2 = fy + fy[0, 1, 0]
             du2 = ubt + ubt[0, 1, 0]
             v2 = fx + fx[1, 0, 0]
             dv2 = vbt + vbt[1, 0, 0]
-            dampterm =  rsin2 * (
-                (ubt * ubt + ubt[0, 1, 0] * ubt[0, 1, 0] + vbt * vbt + vbt[1, 0, 0] * vbt[1, 0, 0])
-	        + 2.0 * (gy + gy[0, 1, 0] + gx + gx[1, 0, 0])
+            dampterm = rsin2 * (
+                (
+                    ubt * ubt
+                    + ubt[0, 1, 0] * ubt[0, 1, 0]
+                    + vbt * vbt
+                    + vbt[1, 0, 0] * vbt[1, 0, 0]
+                )
+                + 2.0 * (gy + gy[0, 1, 0] + gx + gx[1, 0, 0])
                 - cosa_s * (u2 * dv2 + v2 * du2 + du2 * dv2)
             )
             heat_source = delp * (
