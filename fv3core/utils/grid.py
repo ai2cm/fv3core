@@ -422,6 +422,10 @@ class Grid:
 
 @dataclasses.dataclass(frozen=True)
 class HorizontalGridData:
+    """
+    Terms defining the horizontal grid.
+    """
+
     area: FloatFieldIJ
     rarea: FloatFieldIJ
     # TODO: refactor this to "area_c" and invert where used
@@ -451,6 +455,9 @@ class HorizontalGridData:
 
 @dataclasses.dataclass(frozen=True)
 class VerticalGridData:
+    """
+    Terms defining the vertical grid.
+    """
 
     # TODO: refactor so we can init with this,
     # instead of taking it as an argument to DynamicalCore
@@ -487,6 +494,12 @@ class ContravariantGridData:
 
 @dataclasses.dataclass(frozen=True)
 class AngleGridData:
+    """
+    sin and cos of certain angles used in metric calculations.
+
+    Corresponds in the fortran code to sin_sg and cos_sg.
+    """
+
     sin_sg1: FloatFieldIJ
     sin_sg2: FloatFieldIJ
     sin_sg3: FloatFieldIJ
@@ -499,6 +512,10 @@ class AngleGridData:
 
 @dataclasses.dataclass(frozen=True)
 class DampingCoefficients:
+    """
+    Terms used to compute damping coefficients.
+    """
+
     del6_u: FloatFieldIJ
     del6_v: FloatFieldIJ
     da_min: float
@@ -520,18 +537,22 @@ class GridData:
 
     @property
     def lon(self):
+        """longitude"""
         return self._horizontal_data.lon
 
     @property
     def lat(self):
+        """latitude"""
         return self._horizontal_data.lat
 
     @property
     def area(self):
+        """Gridcell area"""
         return self._horizontal_data.area
 
     @property
     def rarea(self):
+        """1 / area"""
         return self._horizontal_data.rarea
 
     @property
@@ -540,10 +561,12 @@ class GridData:
 
     @property
     def dx(self):
+        """Gridcell spacing at cell center in x-direction"""
         return self._horizontal_data.dx
 
     @property
     def dy(self):
+        """Gridcell spacing at cell center in y-direction"""
         return self._horizontal_data.dy
 
     @property
@@ -564,30 +587,37 @@ class GridData:
 
     @property
     def rdx(self):
+        """1 / dx"""
         return self._horizontal_data.rdx
 
     @property
     def rdy(self):
+        """1 / dy"""
         return self._horizontal_data.rdy
 
     @property
     def rdxc(self):
+        """1 / dxc"""
         return self._horizontal_data.rdxc
 
     @property
     def rdyc(self):
+        """1 / dyc"""
         return self._horizontal_data.rdyc
 
     @property
     def rdxa(self):
+        """1 / dxa"""
         return self._horizontal_data.rdxa
 
     @property
     def rdya(self):
+        """1 / dya"""
         return self._horizontal_data.rdya
 
     @property
     def ptop(self):
+        """pressure at top of atmosphere (Pa)"""
         return self._vertical_data.ptop
 
     @property
