@@ -136,7 +136,7 @@ class FrozenStencil:
         *args,
         **kwargs,
     ) -> None:
-        if len(self._field_origins) < 1:
+        if not self._field_origins:
             field_info = self.stencil_object.field_info
             self._field_origins = compute_field_origins(
                 field_info, self.origin
@@ -145,8 +145,7 @@ class FrozenStencil:
                 "_origin_": self._field_origins,
                 "_domain_": self.domain,
             }
-            if "cuda" in self.stencil_config.backend:
-                self._written_fields = get_written_fields(field_info)
+            self._written_fields = get_written_fields(field_info)
 
         if self.stencil_config.validate_args:
             if __debug__ and "origin" in kwargs:
@@ -168,7 +167,7 @@ class FrozenStencil:
             self._mark_cuda_fields_written({**args_as_kwargs, **kwargs})
 
     def _mark_cuda_fields_written(self, fields: Mapping[str, Storage]):
-        if "cuda" in self.stencil_config.backend:
+        if global_config.is_gpu_backend():
             for write_field in self._written_fields:
                 fields[write_field]._set_device_modified()
 
@@ -213,13 +212,14 @@ def get_written_fields(field_info) -> List[str]:
     Args:
         field_info: field_info attribute of gt4py stencil object
     """
-    write_fields = [
-        field_name
-        for field_name in field_info
-        if field_info[field_name]
-        and field_info[field_name].access != gt4py.definitions.AccessKind.READ
-    ]
-    return write_fields
+    if global_config.is_gpu_backend():
+        return [
+            field_name
+            for field_name in field_info
+            if field_info[field_name]
+            and field_info[field_name].access != gt4py.definitions.AccessKind.READ
+        ]
+    return []
 
 
 def compute_field_origins(
