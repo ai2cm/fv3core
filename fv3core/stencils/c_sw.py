@@ -46,28 +46,17 @@ def absolute_vorticity(vort: FloatField, fC: FloatFieldIJ, rarea_c: FloatFieldIJ
         vort[0, 0, 0] = fC + rarea_c * vort
 
 
-def fill_corners_x_delp_pt_w(
+def fill_corners_delp_pt_w(
     delp: FloatField,
     pt: FloatField,
     w: FloatField,
 ):
+    from __externals__ import fill_corners_func
 
     with computation(PARALLEL), interval(...):
-        delp = corners.fill_corners_2cells_x(delp)
-        pt = corners.fill_corners_2cells_x(pt)
-        w = corners.fill_corners_2cells_x(w)
-
-
-def fill_corners_y_delp_pt_w(
-    delp: FloatField,
-    pt: FloatField,
-    w: FloatField,
-):
-
-    with computation(PARALLEL), interval(...):
-        delp = corners.fill_corners_2cells_y(delp)
-        pt = corners.fill_corners_2cells_y(pt)
-        w = corners.fill_corners_2cells_y(w)
+        delp = fill_corners_func(delp)
+        pt = fill_corners_func(pt)
+        w = fill_corners_func(w)
 
 
 def compute_nonhydro_fluxes_x(
@@ -455,14 +444,20 @@ class CGridShallowWaterDynamics:
         ax_offsets_full = axis_offsets(self.grid, origin_full, domain_full)
 
         self._fill_corners_x_delp_pt_w_stencil = FrozenStencil(
-            fill_corners_x_delp_pt_w,
-            externals=ax_offsets_full,
+            fill_corners_delp_pt_w,
+            externals={
+                "fill_corners_func": corners.fill_corners_2cells_x,
+                **ax_offsets_full,
+            },
             origin=origin_full,
             domain=domain_full,
         )
         self._fill_corners_y_delp_pt_w_stencil = FrozenStencil(
-            fill_corners_y_delp_pt_w,
-            externals=ax_offsets_full,
+            fill_corners_delp_pt_w,
+            externals={
+                "fill_corners_func": corners.fill_corners_2cells_y,
+                **ax_offsets_full,
+            },
             origin=origin_full,
             domain=domain_full,
         )
