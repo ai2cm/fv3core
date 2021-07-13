@@ -457,6 +457,8 @@ class HorizontalGridData:
 class VerticalGridData:
     """
     Terms defining the vertical grid.
+
+    Eulerian vertical grid is defined by p = ak + bk * p_ref
     """
 
     # TODO: refactor so we can init with this,
@@ -464,6 +466,15 @@ class VerticalGridData:
     # we'll need to initialize this class for the physics
     @property
     def ptop(self) -> float:
+        """pressure at top of atmosphere"""
+        raise NotImplementedError()
+
+    @property
+    def p_ref(self) -> float:
+        """
+        reference pressure (Pa) used to define pressure at vertical interfaces,
+        where p = ak + bk * p_ref
+        """
         raise NotImplementedError()
 
     @property
@@ -561,28 +572,32 @@ class GridData:
 
     @property
     def dx(self):
-        """gridcell spacing at cell center in x-direction"""
+        """distance between cell corners in x-direction"""
         return self._horizontal_data.dx
 
     @property
     def dy(self):
-        """gridcell spacing at cell center in y-direction"""
+        """distance between cell corners in y-direction"""
         return self._horizontal_data.dy
 
     @property
     def dxc(self):
+        """distance between gridcell centers in x-direction"""
         return self._horizontal_data.dxc
 
     @property
     def dyc(self):
+        """distance between gridcell centers in y-direction"""
         return self._horizontal_data.dyc
 
     @property
     def dxa(self):
+        """distance between centers of west and east edges of gridcell"""
         return self._horizontal_data.dxa
 
     @property
     def dya(self):
+        """distance between centers of north and south edges of gridcell"""
         return self._horizontal_data.dya
 
     @property
@@ -621,11 +636,27 @@ class GridData:
         return self._vertical_data.ptop
 
     @property
+    def p_ref(self) -> float:
+        """
+        reference pressure (Pa) used to define pressure at vertical interfaces,
+        where p = ak + bk * p_ref
+        """
+        return self._vertical_data.p_ref
+
+    @property
     def ak(self):
+        """
+        constant used to define pressure at vertical interfaces,
+        where p = ak + bk * p_ref
+        """
         return self._vertical_data.ak
 
     @property
     def bk(self):
+        """
+        constant used to define pressure at vertical interfaces,
+        where p = ak + bk * p_ref
+        """
         return self._vertical_data.bk
 
     @property
