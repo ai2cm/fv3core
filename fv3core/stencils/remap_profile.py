@@ -6,7 +6,7 @@ from gt4py.gtscript import __INLINED, BACKWARD, FORWARD, PARALLEL, computation, 
 import fv3core._config as spec
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import FrozenStencil
-from fv3core.utils.typing import FloatField, FloatFieldIJ, BoolField
+from fv3core.utils.typing import BoolField, FloatField, FloatFieldIJ
 
 
 @gtscript.function
@@ -170,7 +170,7 @@ def set_initial_vals(
                 # set middle
                 bet = 2.0 + grid_ratio + grid_ratio - gam
                 q = (3.0 * (a4_1[0, 0, -1] + a4_1) - q[0, 0, -1]) / bet
-                # gam[0, 0, 1] = grid_ratio / bet                                                                                                                                                                             
+                # gam[0, 0, 1] = grid_ratio / bet
         with interval(-2, -1):
             if __INLINED(iv == -2):
                 # set bottom
@@ -206,6 +206,7 @@ def set_initial_vals(
     with computation(PARALLEL), interval(-1, None):
         if __INLINED(kord > 16):
             a4_3 = q_bot
+
 
 def apply_constraints(
     q: FloatField,

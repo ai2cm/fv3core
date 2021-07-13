@@ -295,6 +295,7 @@ def heat_source_from_vorticity_damping(
         damp_vt: column scalar for damping vorticity
     """
     from __externals__ import d_con, do_skeb, local_ie, local_is, local_je, local_js
+
     # TODO(rheag) For GTC, due to a potential gt4py bug
     # do these assignments in the next computation
     # breaks validation for gtcuda
@@ -360,9 +361,10 @@ def ke_horizontal_vorticity(
     # ut and vt are API fields. If the distinction
     # is removed, so can this computation.
     # Compute the area mean relative vorticity in the z-direction
-    # from the D-grid winds. 
+    # from the D-grid winds.
     with computation(PARALLEL), interval(...):
         vorticity = rarea * (vt - vt[0, 1, 0] - ut + ut[1, 0, 0])
+
 
 # Set the unique parameters for the smallest
 # k-values, e.g. k = 0, 1, 2 when generating

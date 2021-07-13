@@ -62,8 +62,10 @@ def set_device_sync(flag: bool):
 def get_device_sync() -> bool:
     return _DEVICE_SYNC
 
+
 def is_gpu_backend() -> bool:
     return get_backend().endswith("cuda") or get_backend().endswith("gpu")
+
 
 class StencilConfig(Hashable):
     def __init__(

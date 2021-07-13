@@ -1,7 +1,7 @@
 import math
 
 import gt4py.gtscript as gtscript
-from gt4py.gtscript import __INLINED, FORWARD, PARALLEL, computation, exp, floor, interval, log
+from gt4py.gtscript import __INLINED, PARALLEL, computation, exp, floor, interval, log
 
 import fv3core._config as spec
 import fv3core.utils.global_constants as constants
