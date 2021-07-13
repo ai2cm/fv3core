@@ -220,27 +220,36 @@ def apply_constraints(
         gam = a4_1 - a4_1_0
     with computation(PARALLEL), interval(1, 2):
         # do top
-        q = q if q < tmp else tmp
-        q = q if q > tmp2 else tmp2
+        if q >= tmp:
+            q = tmp
+        if q <= tmp2:
+            q = tmp2
     with computation(FORWARD):
         with interval(2, -1):
             # do middle
             if (gam[0, 0, -1] * gam[0, 0, 1]) > 0:
-                q = q if q < tmp else tmp
-                q = q if q > tmp2 else tmp2
+                if q >= tmp:
+                    q = tmp
+                if q <= tmp2:
+                    q = tmp2
             elif gam[0, 0, -1] > 0:
                 # there's a local maximum
-                q = q if q > tmp2 else tmp2
+                if q <= tmp2:
+                    q = tmp2
             else:
                 # there's a local minimum
-                q = q if q < tmp else tmp
+                if q >= tmp:
+                    q = tmp
                 if __INLINED(iv == 0):
-                    q = 0.0 if (q < 0.0) else q
+                    if q < 0.0:
+                        q = 0.0
             # q = constrain_interior(q, gam, a4_1)
         with interval(-1, None):
             # do bottom
-            q = q if q < tmp else tmp
-            q = q if q > tmp2 else tmp2
+            if q >= tmp:
+                q = tmp
+            if q <= tmp2:
+                q = tmp2
     with computation(PARALLEL), interval(...):
         # re-set a4_2 and a4_3
         a4_2 = q
@@ -280,7 +289,8 @@ def set_interpolation_coefficients(
     # set_top_as_iv0
     with computation(PARALLEL), interval(0, 1):
         if __INLINED(iv == 0):
-            a4_2 = a4_2 if a4_2 > 0.0 else 0.0
+            if a4_2 < 0.0:
+                a4_2 = 0.0
     with computation(PARALLEL), interval(0, 2):
         if __INLINED(iv == 0):
             a4_4 = 3 * (2 * a4_1 - (a4_2 + a4_3))
