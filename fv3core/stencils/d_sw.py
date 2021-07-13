@@ -295,7 +295,10 @@ def heat_source_from_vorticity_damping(
         damp_vt: column scalar for damping vorticity
     """
     from __externals__ import d_con, do_skeb, local_ie, local_is, local_je, local_js
-
+    # TODO(rheag) For GTC, due to a potential gt4py bug
+    # do these assignments in the next computation
+    # breaks validation for gtcuda
+    # alternative -- split into 2 stencils and allocate some more storages
     with computation(PARALLEL), interval(...):
         # if (kinetic_energy_fraction_to_damp[0] > dcon_threshold) or do_skeb:
         heat_s = heat_source
