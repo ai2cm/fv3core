@@ -40,7 +40,6 @@ MapN_Tracer_2d:
     platform: docker
     max_error: 9e-9 # 48_6ranks
 
-
 NH_P_Grad:
   - backend: gtcuda
     max_error: 2e-9
@@ -67,6 +66,12 @@ Remapping:
     near_zero: 5e-6
     ignore_near_zero_errors:
       - q_con
+      - tracers
+
+Tracer2D1L:
+  - backend: gtc:gt:gpu
+    near_zero: 1e-15
+    ignore_near_zero_errors:
       - tracers
 
 UpdateDzC:
