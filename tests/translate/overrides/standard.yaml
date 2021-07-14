@@ -40,7 +40,6 @@ MapN_Tracer_2d:
     platform: docker
     max_error: 9e-9 # 48_6ranks
 
-
 NH_P_Grad:
   - backend: gtcuda
     max_error: 2e-9

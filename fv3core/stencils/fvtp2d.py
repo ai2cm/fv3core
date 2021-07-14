@@ -140,7 +140,6 @@ class FiniteVolumeTransport:
         mass=None,
         mfx=None,
         mfy=None,
-        printit=False
     ):
         """
         Calculate fluxes for horizontal finite volume transport.
@@ -161,14 +160,8 @@ class FiniteVolumeTransport:
         ii = 14
         jj = 4
         kk = 67
-        if grid.rank == 4 and printit:
-            print('incoming', q[ii,jj,kk], fx[ii+1,jj,kk], fy[ii,jj+1,kk])
         self._copy_corners_y(q)
-        if grid.rank ==	4 and printit:
-            print('corners y', q[ii,jj,kk])
         self.y_piecewise_parabolic_inner(q, cry, self._tmp_fy2)
-        if grid.rank == 4 and printit:
-            print('inner yppm', q[ii,jj,kk])
         self.stencil_q_i(
             q,
             grid.area,
@@ -176,14 +169,8 @@ class FiniteVolumeTransport:
             self._tmp_fy2,
             self._tmp_q_i,
         )
-        if grid.rank == 4 and printit:
-            print('q_i', q[ii,jj,kk])
-        self.x_piecewise_parabolic_outer(self._tmp_q_i, crx, fx, printit=printit)
-        if grid.rank == 4 and printit:
-            print('XPPM outer fx', q[ii,jj,kk], fx[ii+1,jj,kk])
+        self.x_piecewise_parabolic_outer(self._tmp_q_i, crx, fx)
         self._copy_corners_x(q)
-        if grid.rank == 4 and printit:
-            print('corners x', q[ii,jj,kk])
 
         self.x_piecewise_parabolic_inner(q, crx, self._tmp_fx2)
         self.stencil_q_j(
@@ -194,8 +181,6 @@ class FiniteVolumeTransport:
             self._tmp_q_j,
         )
         self.y_piecewise_parabolic_outer(self._tmp_q_j, cry, fy)
-        if grid.rank == 4 and printit:
-            print('YPPM outer fy', q[ii,jj,kk], fy[ii,jj+1,kk])
         if mfx is not None and mfy is not None:
             self.stencil_transport_flux_x(
                 fx,
@@ -212,11 +197,7 @@ class FiniteVolumeTransport:
                 and (self._nord is not None)
                 and (self._damp_c is not None)
             ):
-                if grid.rank == 4 and printit:
-                    print('pre delnflux', q[ii,jj,kk], fx[ii+1,jj,kk], fy[ii,jj+1,kk])
                 self.delnflux(q, fx, fy, mass=mass)
-                if grid.rank == 4 and printit:
-                    print('post delnflux', q[ii,jj,kk], fx[ii+1,jj,kk], fy[ii,jj+1,kk])
         else:
             self.stencil_transport_flux_x(
                 fx,
@@ -230,5 +211,3 @@ class FiniteVolumeTransport:
             )
             if (self._nord is not None) and (self._damp_c is not None):
                 self.delnflux(q, fx, fy)
-            if grid.rank == 4 and printit:
-                print('OTHER BRANCH delnflux', q[ii,jj,kk], fx[ii+1,jj,kk], fy[ii,jj+1,kk])
