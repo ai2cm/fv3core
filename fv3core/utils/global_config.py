@@ -2,6 +2,9 @@ import hashlib
 import os
 from collections.abc import Hashable
 
+from fv3core.utils.future_stencil import FutureStencil
+from fv3core.utils.mpi import MPI
+
 
 def getenv_bool(name: str, default: str) -> bool:
     indicator = os.getenv(name, default).title()
@@ -113,6 +116,8 @@ class StencilConfig(Hashable):
         }
         if is_gpu_backend():
             kwargs["device_sync"] = self.device_sync
+        if MPI is not None and MPI.COMM_WORLD.Get_size() > 1:
+            kwargs["defer_function"] = FutureStencil
         return kwargs
 
 
