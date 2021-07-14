@@ -69,6 +69,12 @@ Remapping:
       - q_con
       - tracers
 
+Tracer2D1L:
+  - backend: gtc:gt:gpu
+    near_zero: 1e-15
+    ignore_near_zero_errors:
+      - tracers
+
 UpdateDzC:
   - backend: gtcuda
     max_error: 5e-10
@@ -102,6 +108,8 @@ UpdateDzD:
 
 FVSubgridZ:
   - backend: gtcuda
+    max_error: 1e-8
+  - backend: gtc:gt:gpu
     max_error: 1e-8
 
 DynCore:
