@@ -73,6 +73,10 @@ Tracer2D1L:
     near_zero: 1e-15
     ignore_near_zero_errors:
       - tracers
+  - backend: gtc:cuda
+    near_zero: 1e-15
+    ignore_near_zero_errors:
+      - tracers
 
 UpdateDzC:
   - backend: gtcuda
@@ -113,5 +117,8 @@ FVSubgridZ:
 
 DynCore:
  - backend: gtc:gt:gpu
+   ignore_near_zero_errors:
+     - wsd
+ - backend: gtc:cuda
    ignore_near_zero_errors:
      - wsd
