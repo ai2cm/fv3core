@@ -132,14 +132,21 @@ class SqliteTable(StencilTable):
 
 
 class WindowTable(StencilTable):
+    MAX_STENCILS: int = 100
+
     def __init__(self, comm: Optional[Any] = None):
         super().__init__()
         self._node_id = comm.Get_rank()
         self._n_nodes = comm.Get_size()
         self._key_nodes: Dict[int, int] = dict()
-        disp_unit = MPI.INT.Get_size()
-        self._window = MPI.Win.Allocate(disp_unit, disp_unit, comm=comm)
-        self._set_value(self.NONE_STATE)
+
+        int_size = MPI.INT.Get_size()
+        self._buffer_size = self.MAX_STENCILS + 1
+        self._window_size = int_size * self._buffer_size
+        self._window = MPI.Win.Allocate(self._window_size, int_size, comm=comm)
+
+        self._buffer: np.ndarray = np.empty(self._buffer_size, dtype=np.int32)
+        self._initialize(self.NONE_STATE)
         comm.Barrier()
 
     def __getitem__(self, key: int) -> int:
@@ -148,14 +155,19 @@ class WindowTable(StencilTable):
 
         value: int = self.NONE_STATE
         if key in self._key_nodes:
-            node_id = self._key_nodes[key]
-            value = self._get_value(node_id)
+            node_id, index = self._key_nodes[key]
+            buffer = self._get_buffer(node_id)
+            assert buffer[index] == key
+            value = buffer[index + 1]
         else:
             for node_id in range(self._n_nodes):
-                if node_id != self._node_id:
-                    value = self._get_value(node_id)
-                    if value == key:
-                        self._key_nodes[key] = node_id
+                buffer = self._get_buffer(node_id)
+                n_stencils = buffer[0]
+                for n in range(n_stencils):
+                    index = n * 2 + 1
+                    if buffer[index] == key:
+                        value = buffer[index] + 1
+                        self._key_nodes[key] = (node_id, index)
                         break
 
         if value == self.DONE_STATE:
@@ -165,27 +177,49 @@ class WindowTable(StencilTable):
     def __setitem__(self, key: int, value: int) -> None:
         if value == self.DONE_STATE:
             self._finished_keys.add(key)
-            self._set_value(value)
-        else:
-            self._set_value(key)
 
-    def _set_value(self, value: int):
-        buffer = np.zeros(1, np.int)
-        buffer[0] = value
-        with open(f"./caching_r{self._node_id}.log", "a") as log:
-            log.write(f"{dt.datetime.now()}: R{self._node_id}: W: {value}\n")
+        if key in self._key_nodes:
+            index = self._key_nodes[key][1]
+        else:
+            n_stencils = self._buffer[0]
+            index: int = -1
+            for n in range(n_stencils):
+                pos = n * 2 + 1
+                if self._buffer[pos] == key:
+                    index = pos
+                    break
+            # New entry...
+            if index < 0:
+                index = n_stencils * 2 + 1
+                self._buffer[0] = n_stencils + 1
+
+        self._buffer[index] = key
+        self._buffer[index + 1] = value
+        self._set_buffer()
+        self._key_nodes[key] = (self._node_id, index)
+
+    def _initialize(self, value: int):
+        self._buffer.fill(value)
+        self._buffer[0] = 0
+        self._set_buffer()
+
+    def _set_buffer(self):
+        # with open(f"./caching_r{self._node_id}.log", "a") as log:
+        #     log.write(f"{dt.datetime.now()}: R{self._node_id}: W: {value}\n")
         self._window.Lock(self._node_id)
-        self._window.Put([buffer, MPI.INT], self._node_id)
+        self._window.Put([self._buffer, MPI.INT], self._node_id)
         self._window.Unlock(self._node_id)
 
-    def _get_value(self, node_id: int) -> int:
-        buffer = np.zeros(1, np.int)
-        self._window.Lock(node_id)
-        self._window.Get([buffer, MPI.INT], node_id)
-        self._window.Unlock(node_id)
-        with open(f"./caching_r{self._node_id}.log", "a") as log:
-            log.write(f"{dt.datetime.now()}: R{self._node_id}: R: {buffer[0]} from {node_id}\n")
-        return buffer[0]
+    def _get_buffer(self, node_id: int) -> np.ndarray:
+        if node_id != self._node_id:
+            buffer = np.empty(self._buffer_size, dtype=np.int32)
+            self._window.Lock(node_id)
+            self._window.Get([buffer, MPI.INT], node_id)
+            self._window.Unlock(node_id)
+            # with open(f"./caching_r{self._node_id}.log", "a") as log:
+            #     log.write(f"{dt.datetime.now()}: R{self._node_id}: R: {buffer[0]} from {node_id}\n")
+            return buffer
+        return self._buffer
 
 
 class FutureStencil:
