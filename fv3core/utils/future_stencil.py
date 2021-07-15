@@ -239,6 +239,10 @@ class FutureStencil:
         self._timeout: float = 60.0
 
     @property
+    def is_built(self) -> bool:
+        return self._stencil_object is not None
+
+    @property
     def stencil_object(self) -> StencilObject:
         if self._stencil_object is None:
             self.wait_for_stencil()
