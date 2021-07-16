@@ -1,12 +1,16 @@
+import datetime as dt
 import numpy as np
 import pytest
+import random as rand
+import time
 
 from gt4py.gtscript import PARALLEL, computation, interval, stencil
 
 from fv3core.decorators import StencilConfig
-from fv3core.utils.future_stencil import FutureStencil
+from fv3core.utils.future_stencil import FutureStencil, RedisTable
 from fv3core.utils.global_config import set_backend
 from fv3core.utils.gt4py_utils import make_storage_from_shape_uncached
+from fv3core.utils.mpi import MPI
 from fv3core.utils.typing import FloatField
 
 
@@ -30,6 +34,11 @@ def setup_data_vars():
     return q, q_ref
 
 
+@pytest.mark.sequential
+@pytest.mark.skipif(
+    MPI is not None and MPI.COMM_WORLD.Get_size() > 1,
+    reason="Running in parallel with mpi",
+)
 @pytest.mark.parametrize("backend", ("numpy", "gtx86"))
 @pytest.mark.parametrize("rebuild", (True, False))
 def test_future_stencil(backend: str, rebuild: bool):
@@ -62,3 +71,39 @@ def test_future_stencil(backend: str, rebuild: bool):
     add1_object(q, origin=origin, domain=domain)
     q_ref[1:3, 1:3, :] = 2.0
     np.testing.assert_array_equal(q.data, q_ref.data)
+
+
+@pytest.mark.parallel
+@pytest.mark.skipif(
+    MPI is not None and MPI.COMM_WORLD.Get_size() == 1,
+    reason="Not running in parallel with mpi",
+)
+def test_distributed_table():
+    node_id = MPI.COMM_WORLD.Get_rank()
+    n_nodes = MPI.COMM_WORLD.Get_size()
+    rand.seed(node_id)
+    random_int = rand.randint(0, n_nodes)
+
+    table = RedisTable()
+    table[node_id] = random_int
+    with open(f"./caching_r{node_id}.log", "a") as log:
+        log.write(
+            f"{dt.datetime.now()}: R{node_id}: Write {random_int} to table\n"
+        )
+
+    time.sleep(0.1)
+
+    # Read from all other ranks
+    expected_values = []
+    received_values = []
+    for n in range(n_nodes):
+        rand.seed(n)
+        expected_values.append(rand.randint(0, n_nodes))
+        received_values.append(table[n])
+
+    with open(f"./caching_r{node_id}.log", "a") as log:
+        log.write(
+            f"{dt.datetime.now()}: R{node_id}: Read {received_values} from table\n"
+        )
+
+    assert received_values == expected_values
