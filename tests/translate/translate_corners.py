@@ -14,24 +14,10 @@ class TranslateFill4Corners(TranslateFortranData2Py):
 
     def compute(self, inputs):
         self.make_storage_data_input_vars(inputs)
-        origin = self.grid.full_origin()
-        domain = self.grid.domain_shape_full()
-        axes_offsets = axis_offsets(self.grid, origin, domain)
         if inputs["dir"] == 1:
-            stencil = FrozenStencil(
-                corners.fill_corners_2cells_x_stencil,
-                externals=axes_offsets,
-                origin=origin,
-                domain=domain,
-            )
+            corners.fill_4corners(inputs["q4c"], "x", self.grid)
         elif inputs["dir"] == 2:
-            stencil = FrozenStencil(
-                corners.fill_corners_2cells_y_stencil,
-                externals=axes_offsets,
-                origin=origin,
-                domain=domain,
-            )
-        stencil(inputs["q4c"])
+            corners.fill_4corners(inputs["q4c"], "y", self.grid)
         return self.slice_output(inputs, {"q4c": inputs["q4c"]})
 
 
@@ -101,18 +87,5 @@ class TranslateFillCornersVector(TranslateFortranData2Py):
         for nord in utils.unique(nord_column):
             if nord != 0:
                 ki = [k for k in range(self.grid.npz) if nord_column[0, 0, k] == nord]
-                origin = (self.grid.isd, self.grid.jsd, ki[0])
-                domain = (self.grid.nid + 1, self.grid.njd + 1, len(ki))
-                axes_offsets = axis_offsets(self.grid, origin, domain)
-                vector_corner_fill = FrozenStencil(
-                    corners.fill_corners_dgrid_defn,
-                    externals=axes_offsets,
-                    origin=origin,
-                    domain=domain,
-                )
-                vector_corner_fill(
-                    inputs["vc"],
-                    inputs["uc"],
-                    -1.0,
-                )
+                corners.fill_corners_dgrid(inputs["vc"], inputs["uc"], self.grid, -1.0, kslice=slice(ki[0], ki[0] + len(ki)))
         return self.slice_output(inputs)

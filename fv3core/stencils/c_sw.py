@@ -695,6 +695,67 @@ class CGridShallowWaterDynamics:
                 dt2,
             )
 
+    def _circulation_cgrid(self, uc, vc):
+        self._update_vorticity(
+            uc, vc, self.grid.dxc, self.grid.dyc, self._vort
+        )
+        if self.grid.sw_corner:
+            self._sw_corner_vorticity(vc, self.grid.dyc, self._vort)
+        if self.grid.nw_corner:
+            self._nw_corner_vorticity(vc, self.grid.dyc, self._vort)
+        if self.grid.se_corner:
+            self._se_corner_vorticity(vc, self.grid.dyc, self._vort)
+        if self.grid.ne_corner:
+            self._ne_corner_vorticity(vc, self.grid.dyc, self._vort)
+
+    def _divergence_corner(self, u, v, ua, va, divg_d):
+        self._uf_main(
+            u,
+            va,
+            self.grid.dyc,
+            self.grid.sin_sg2,
+            self.grid.sin_sg4,
+            self.grid.cos_sg2,
+            self.grid.cos_sg4,
+            self._tmp_uf,
+        )
+        self._vf_main(
+            v,
+            ua,
+            self.grid.dxc,
+            self.grid.sin_sg1,
+            self.grid.sin_sg3,
+            self.grid.cos_sg1,
+            self.grid.cos_sg3,
+            self._tmp_vf,
+        )
+        if self.grid.south_edge:
+            self._uf_south_edge(
+                u, self._tmp_uf, self.grid.sin_sg2, self.grid.sin_sg4, self.grid.dyc
+            )
+        if self.grid.north_edge:
+            self._uf_north_edge(
+                u, self._tmp_uf, self.grid.sin_sg2, self.grid.sin_sg4, self.grid.dyc
+            )
+        if self.grid.west_edge:
+            self._vf_west_edge(
+                v, self._tmp_vf, self.grid.sin_sg1, self.grid.sin_sg3, self.grid.dxc
+            )
+        if self.grid.east_edge:
+            self._vf_east_edge(
+                v, self._tmp_vf, self.grid.sin_sg1, self.grid.sin_sg3, self.grid.dxc
+            )
+        self._divergence_main(self._tmp_uf, self._tmp_vf, divg_d)
+        if self.grid.sw_corner:
+            self._divergence_sw_corner(self._tmp_vf, divg_d)
+        if self.grid.se_corner:
+            self._divergence_se_corner(self._tmp_vf, divg_d)
+        if self.grid.nw_corner:
+            self._divergence_nw_corner(self._tmp_vf, divg_d)
+        if self.grid.ne_corner:
+            self._divergence_ne_corner(self._tmp_vf, divg_d)
+        self._divergence_main_final(self.grid.rarea_c, divg_d)
+
     def __call__(
         self,
         delp: FloatField,
@@ -738,52 +799,7 @@ class CGridShallowWaterDynamics:
         )
         self._D2A2CGrid_Vectors(uc, vc, u, v, ua, va, ut, vt)
         if self.namelist.nord > 0:
-            self._uf_main(
-                u,
-                va,
-                self.grid.dyc,
-                self.grid.sin_sg2,
-                self.grid.sin_sg4,
-                self.grid.cos_sg2,
-                self.grid.cos_sg4,
-                self._tmp_uf,
-            )
-            self._vf_main(
-                v,
-                ua,
-                self.grid.dxc,
-                self.grid.sin_sg1,
-                self.grid.sin_sg3,
-                self.grid.cos_sg1,
-                self.grid.cos_sg3,
-                self._tmp_vf,
-            )
-            if self.grid.south_edge:
-                self._uf_south_edge(
-                    u, self._tmp_uf, self.grid.sin_sg2, self.grid.sin_sg4, self.grid.dyc
-                )
-            if self.grid.north_edge:
-                self._uf_north_edge(
-                    u, self._tmp_uf, self.grid.sin_sg2, self.grid.sin_sg4, self.grid.dyc
-                )
-            if self.grid.west_edge:
-                self._vf_west_edge(
-                    v, self._tmp_vf, self.grid.sin_sg1, self.grid.sin_sg3, self.grid.dxc
-                )
-            if self.grid.east_edge:
-                self._vf_east_edge(
-                    v, self._tmp_vf, self.grid.sin_sg1, self.grid.sin_sg3, self.grid.dxc
-                )
-            self._divergence_main(self._tmp_uf, self._tmp_vf, divgd)
-            if self.grid.sw_corner:
-                self._divergence_sw_corner(self._tmp_vf, divgd)
-            if self.grid.se_corner:
-                self._divergence_se_corner(self._tmp_vf, divgd)
-            if self.grid.nw_corner:
-                self._divergence_nw_corner(self._tmp_vf, divgd)
-            if self.grid.ne_corner:
-                self._divergence_ne_corner(self._tmp_vf, divgd)
-            self._divergence_main_final(self.grid.rarea_c, divgd)
+            self._divergence_corner(u, v, ua, va, divgd)
         self._geoadjust_ut(
             ut,
             self.grid.dy,
@@ -866,17 +882,7 @@ class CGridShallowWaterDynamics:
                 v, ua, self._ke, self.grid.sin_sg1, self.grid.cos_sg1
             )
         self._final_ke(ua, va, self._vort, self._ke, dt2)
-        self._update_vorticity(
-            uc, vc, self.grid.dxc, self.grid.dyc, self._vort
-        )
-        if self.grid.sw_corner:
-            self._sw_corner_vorticity(vc, self.grid.dyc, self._vort)
-        if self.grid.nw_corner:
-            self._nw_corner_vorticity(vc, self.grid.dyc, self._vort)
-        if self.grid.se_corner:
-            self._se_corner_vorticity(vc, self.grid.dyc, self._vort)
-        if self.grid.ne_corner:
-            self._ne_corner_vorticity(vc, self.grid.dyc, self._vort)
+        self._circulation_cgrid(uc, vc)
         self._absolute_vorticity(
             self._vort,
             self.grid.fC,

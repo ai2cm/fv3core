@@ -64,7 +64,7 @@ class FillCornersBGrid:
             self.grid,
             "B",
             self._direction,
-            kslice=slice(self._origin[2], self._origin[0] + self._domain[2] + 2),
+            kslice=slice(self._origin[2], self._origin[2] + self._domain[2]),
         )
 
 

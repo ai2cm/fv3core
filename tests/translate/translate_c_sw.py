@@ -77,19 +77,9 @@ class TranslateDivergenceCorner(TranslateFortranData2Py):
 
     def compute(self, inputs):
         self.make_storage_data_input_vars(inputs)
+        
         self.cgrid_sw_lagrangian_dynamics._divergence_corner(
             **inputs,
-            dxc=self.grid.dxc,
-            dyc=self.grid.dyc,
-            sin_sg1=self.grid.sin_sg1,
-            sin_sg2=self.grid.sin_sg2,
-            sin_sg3=self.grid.sin_sg3,
-            sin_sg4=self.grid.sin_sg4,
-            cos_sg1=self.grid.cos_sg1,
-            cos_sg2=self.grid.cos_sg2,
-            cos_sg3=self.grid.cos_sg3,
-            cos_sg4=self.grid.cos_sg4,
-            rarea_c=self.grid.rarea_c,
         )
         return self.slice_output({"divg_d": inputs["divg_d"]})
 
@@ -121,10 +111,9 @@ class TranslateCirculation_Cgrid(TranslateFortranData2Py):
 
     def compute(self, inputs):
         self.make_storage_data_input_vars(inputs)
+        self.cgrid_sw_lagrangian_dynamics._vort = inputs["vort_c"]
         self.cgrid_sw_lagrangian_dynamics._circulation_cgrid(
-            **inputs,
-            dxc=self.grid.dxc,
-            dyc=self.grid.dyc,
+            inputs["uc"], inputs["vc"], 
         )
         return self.slice_output({"vort_c": inputs["vort_c"]})
 
