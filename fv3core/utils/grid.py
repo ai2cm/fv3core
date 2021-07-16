@@ -1,13 +1,13 @@
 import dataclasses
 import functools
 from typing import Iterable, List, Mapping, Sequence, Tuple, Union
-from fv3gfs.util.halo_data_transformer import HaloUpdateSpec
 
 import numpy as np
 from gt4py import gtscript
 
 import fv3core.utils.global_config as global_config
 import fv3gfs.util as fv3util
+from fv3gfs.util.halo_data_transformer import HaloUpdateSpec
 
 from . import gt4py_utils as utils
 from .typing import FloatFieldIJ, FloatFieldK, Index3D
@@ -367,11 +367,12 @@ class Grid:
         halo_points,
         dims=[fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_DIM],
     ) -> HaloUpdateSpec:
-        """Build memory specification for the halo update of a give shape/halo_points."""
+        """Build memory specifications for the halo update."""
 
         # TEMPORARY: we do a nasty temporary allocation here to read in the hardware
         # memory layout. Firther work in GT4PY will allow for deferred allocation
-        # which will give access to those information while making sure we don't allocate
+        # which will give access to those information while making sure
+        # we don't allocate
 
         temp_storage = utils.make_storage_from_shape(shape, origin)
         temp_quantity = self.quantity_wrap(temp_storage, dims=dims)
