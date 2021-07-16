@@ -8,7 +8,7 @@ import sqlite3
 import time
 
 from concurrent.futures import ThreadPoolExecutor
-from typing import Any, Dict, Optional, Set
+from typing import Any, Dict, Optional, Set, Union
 
 from fv3core.utils.mpi import MPI
 
@@ -145,20 +145,27 @@ class SqliteTable(StencilTable):
 class WindowTable(StencilTable):
     MAX_STENCILS: int = 100
 
-    def __init__(self, comm: Optional[Any] = None):
+    def __init__(self, comm: Optional[Any] = None, max_size: int = 100):
         super().__init__()
         self._node_id = comm.Get_rank()
         self._n_nodes = comm.Get_size()
         self._key_nodes: Dict[int, int] = dict()
 
         int_size = MPI.INT.Get_size()
-        self._buffer_size = self.MAX_STENCILS + 1
+        self._buffer_size = max_size + 1
         self._window_size = int_size * self._buffer_size
         self._window = MPI.Win.Allocate(self._window_size, int_size, comm=comm)
 
         self._buffer: np.ndarray = np.empty(self._buffer_size, dtype=np.int32)
         self._initialize(self.NONE_STATE)
         comm.Barrier()
+
+    def to_dict(self) -> Dict[int, Union[int, np.ndarray]]:
+        table_dict = dict(node_id=self._node_id, n_nodes=self._n_nodes, buffers=[])
+        for n in range(self._n_nodes):
+            buffer = self._get_buffer(n)
+            table_dict["buffers"].append(buffer)
+        return table_dict
 
     def __getitem__(self, key: int) -> int:
         if key in self._finished_keys:

@@ -78,15 +78,21 @@ def test_future_stencil(backend: str, rebuild: bool):
     MPI is not None and MPI.COMM_WORLD.Get_size() == 1,
     reason="Not running in parallel with mpi",
 )
-@pytest.mark.parametrize("table_type", ("redis", "window"))
+# @pytest.mark.parametrize("table_type", ("redis", "window"))
+@pytest.mark.parametrize("table_type", ("window",))
 def test_distributed_table(table_type: str):
     comm = MPI.COMM_WORLD
     node_id = comm.Get_rank()
     n_nodes = comm.Get_size()
 
+    table = RedisTable() if table_type == "redis" else WindowTable(comm, n_nodes)
+    with open(f"./caching_r{node_id}.log", "a") as log:
+        log.write(
+            f"{dt.datetime.now()}: R{node_id}: {table.to_dict()}\n"
+        )
+
     rand.seed(node_id)
     random_int = rand.randint(0, n_nodes)
-    table = RedisTable() if table_type == "redis" else WindowTable(comm)
     table[node_id] = random_int
 
     with open(f"./caching_r{node_id}.log", "a") as log:
