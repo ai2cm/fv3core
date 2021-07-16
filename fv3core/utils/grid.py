@@ -1,6 +1,7 @@
 import dataclasses
 import functools
 from typing import Iterable, List, Mapping, Sequence, Tuple, Union
+from fv3gfs.util.halo_data_transformer import HaloUpdateSpec
 
 import numpy as np
 from gt4py import gtscript
@@ -358,6 +359,39 @@ class Grid:
             return self.is_ - 1, self.js - 1
         else:
             return 0, 0
+
+    def get_halo_update_spec(
+        self,
+        shape,
+        origin,
+        halo_points,
+        dims=[fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_DIM],
+    ) -> HaloUpdateSpec:
+        """Build memory specification for the halo update of a give shape/halo_points."""
+
+        # TEMPORARY: we do a nasty temporary allocation here to read in the hardware
+        # memory layout. Firther work in GT4PY will allow for deferred allocation
+        # which will give access to those information while making sure we don't allocate
+
+        temp_storage = utils.make_storage_from_shape(shape, origin)
+        temp_quantity = self.quantity_wrap(temp_storage, dims=dims)
+
+        spec = HaloUpdateSpec(
+            halo_points,
+            temp_quantity.data.strides,
+            temp_quantity.data.itemsize,
+            temp_quantity.data.shape,
+            temp_quantity.metadata.origin,
+            temp_quantity.metadata.extent,
+            temp_quantity.metadata.dims,
+            temp_quantity.np,
+            temp_quantity.metadata.dtype,
+        )
+
+        del temp_storage
+        del temp_quantity
+
+        return spec
 
     @property
     def grid_indexing(self) -> "GridIndexing":
