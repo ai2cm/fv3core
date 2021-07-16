@@ -7,7 +7,7 @@ import time
 from gt4py.gtscript import PARALLEL, computation, interval, stencil
 
 from fv3core.decorators import StencilConfig
-from fv3core.utils.future_stencil import FutureStencil, RedisTable
+from fv3core.utils.future_stencil import FutureStencil, RedisTable, WindowTable
 from fv3core.utils.global_config import set_backend
 from fv3core.utils.gt4py_utils import make_storage_from_shape_uncached
 from fv3core.utils.mpi import MPI
@@ -78,17 +78,20 @@ def test_future_stencil(backend: str, rebuild: bool):
     MPI is not None and MPI.COMM_WORLD.Get_size() == 1,
     reason="Not running in parallel with mpi",
 )
-def test_distributed_table():
-    node_id = MPI.COMM_WORLD.Get_rank()
-    n_nodes = MPI.COMM_WORLD.Get_size()
+@pytest.mark.parametrize("table_type", ("redis", "window"))
+def test_distributed_table(table_type: str):
+    comm = MPI.COMM_WORLD
+    node_id = comm.Get_rank()
+    n_nodes = comm.Get_size()
+
     rand.seed(node_id)
     random_int = rand.randint(0, n_nodes)
-
-    table = RedisTable()
+    table = RedisTable() if table_type == "redis" else WindowTable(comm)
     table[node_id] = random_int
+
     with open(f"./caching_r{node_id}.log", "a") as log:
         log.write(
-            f"{dt.datetime.now()}: R{node_id}: Write {random_int} to table\n"
+            f"{dt.datetime.now()}: R{node_id}: Write {random_int} to {table_type} table\n"
         )
 
     time.sleep(0.1)
@@ -103,7 +106,7 @@ def test_distributed_table():
 
     with open(f"./caching_r{node_id}.log", "a") as log:
         log.write(
-            f"{dt.datetime.now()}: R{node_id}: Read {received_values} from table\n"
+            f"{dt.datetime.now()}: R{node_id}: Read {received_values} from {table_type} table\n"
         )
 
     assert received_values == expected_values
