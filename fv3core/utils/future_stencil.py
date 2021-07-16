@@ -23,16 +23,17 @@ except ModuleNotFoundError:
     redis_dict = None
 
 
-class Singleton(type):
+class Container(type):
     _instances = {}
 
     def __call__(cls, *args, **kwargs):
         if cls not in cls._instances:
-            cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
+            cls._instances[cls] = super(Container, cls).__call__(*args, **kwargs)
+            cls._instances[cls].clear()
         return cls._instances[cls]
 
 
-class StencilPool(object, metaclass=Singleton):
+class StencilPool(object, metaclass=Container):
     def __init__(self):
         self._executor = ThreadPoolExecutor(max_workers=os.cpu_count())
         self._futures: Dict[int, object] = {}
@@ -48,13 +49,19 @@ class StencilPool(object, metaclass=Singleton):
     def __getitem__(self, stencil_id: int) -> int:
         return self._futures[stencil_id]
 
+    def clear(self) -> None:
+        self._futures.clear()
 
-class StencilTable(object, metaclass=Singleton):
+
+class StencilTable(object, metaclass=Container):
     DONE_STATE: int = -1
     NONE_STATE: int = -2
 
     def __init__(self):
         self._finished_keys: Set[int] = set()
+
+    def clear(self) -> None:
+        self._finished_keys.clear()
 
     def set_done(self, key: int) -> None:
         self[key] = self.DONE_STATE
@@ -84,6 +91,10 @@ class RedisTable(StencilTable):
     def __init__(self):
         super().__init__()
         self._dict: Dict[int, int] = RedisDict(namespace="gt4py")
+
+    def clear(self) -> None:
+        super().clear()
+        self._dict.clear()
 
     def __getitem__(self, key: int) -> int:
         if key in self._dict:
