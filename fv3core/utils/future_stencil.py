@@ -96,6 +96,9 @@ class RedisTable(StencilTable):
         super().clear()
         self._dict.clear()
 
+    def to_dict(self) -> Dict[int, int]:
+        return self._dict
+
     def __getitem__(self, key: int) -> int:
         if key in self._dict:
             value = int(self._dict[key])
