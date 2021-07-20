@@ -113,9 +113,12 @@ class FrozenStencil:
         if externals is None:
             externals = {}
 
+        self.build_info = {}
+
         self.stencil_object: gt4py.StencilObject = gtscript.stencil(
             definition=func,
             externals=externals,
+            build_info=self.build_info,
             **self.stencil_config.stencil_kwargs,
         )
         """generated stencil object returned from gt4py."""
