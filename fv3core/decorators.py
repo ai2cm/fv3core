@@ -1,10 +1,7 @@
 import collections
 import collections.abc
-import copy
 import functools
 import inspect
-import os
-import re
 import types
 from typing import (
     Any,
@@ -19,15 +16,11 @@ from typing import (
     cast,
 )
 
-import dace
-import dace.data
 from dace.frontend.python.common import SDFGConvertible
 import gt4py
 import gt4py.definitions
 from gt4py import gtscript
 from gt4py.storage.storage import Storage
-from gt4py.utils import shash
-import numpy as np
 
 import fv3core
 import fv3core._config as spec
@@ -84,7 +77,7 @@ def get_namespace(arg_specs, state):
     return types.SimpleNamespace(**namespace_kwargs)
 
 
-class FrozenStencil:
+class FrozenStencil(SDFGConvertible):
     """
     Wrapper for gt4py stencils which stores origin and domain at compile time,
     and uses their stored values at call time.
@@ -94,8 +87,6 @@ class FrozenStencil:
     values of origin and domain.
     """
 
-
-
     def __init__(
         self,
         func: Callable[..., None],
@@ -103,7 +94,6 @@ class FrozenStencil:
         domain: Index3D,
         stencil_config: Optional[StencilConfig] = None,
         externals: Optional[Mapping[str, Any]] = None,
-        jit=False
     ):
         """
         Args:
@@ -113,15 +103,9 @@ class FrozenStencil:
             stencil_config: container for stencil configuration
             externals: compile-time external variables required by stencil
         """
-
-        from gt4py import gtscript # ??? why is this needed
         self.origin = origin
 
         self.domain = domain
-
-        self.func = func
-
-        self._sdfg = None
 
         if stencil_config is not None:
             self.stencil_config: StencilConfig = stencil_config
@@ -130,21 +114,14 @@ class FrozenStencil:
 
         if externals is None:
             externals = {}
-        self.externals = externals
 
         self.stencil_object: gt4py.StencilObject = gtscript.stencil(
             definition=func,
             externals=externals,
             **self.stencil_config.stencil_kwargs,
-        ) if not jit else None
+        )
         """generated stencil object returned from gt4py."""
 
-        ref_stencil_kwargs = copy.deepcopy(self.stencil_config.stencil_kwargs)
-        ref_stencil_kwargs['backend'] = "numpy"
-        self.ref_stencil_object: gt4py.StencilObject = gtscript.stencil(
-            definition=func,
-            externals=externals,
-            **ref_stencil_kwargs,)
         self._argument_names = tuple(inspect.getfullargspec(func).args)
 
         assert (
@@ -153,27 +130,24 @@ class FrozenStencil:
 
         self._field_origins: Dict[str, Tuple[int, ...]] = compute_field_origins(
             self.stencil_object.field_info, self.origin
-        ) if not jit else None
+        )
         """mapping from field names to field origins"""
 
         self._stencil_run_kwargs = {
             "_origin_": self._field_origins,
             "_domain_": self.domain,
-        } if not jit else None
+        }
 
-        self._written_fields = get_written_fields(self.stencil_object.field_info) if not jit else None
+        self._written_fields = get_written_fields(self.stencil_object.field_info)
 
-        if not jit:
-            self.sdfg_wrapper = gtscript.SDFGWrapper(
-                definition=func,
-                origin=origin,
-                domain=domain,
-                externals=externals,
-                name=f"{__name__}.{func.__name__}",
-                **ref_stencil_kwargs,
-            )
-        else:
-            self.sdfg_wrapper = None
+        self.sdfg_wrapper = gtscript.SDFGWrapper(
+            definition=func,
+            origin=origin,
+            domain=domain,
+            externals=externals,
+            name=f"{__name__}.{func.__name__}",
+            **ref_stencil_kwargs,
+        )
 
     def __call__(
         self,
