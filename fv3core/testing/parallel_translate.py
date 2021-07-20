@@ -88,6 +88,16 @@ class ParallelTranslate:
             return_dict[name] = state[standard_name].data[output_slice]
         return return_dict
 
+    def allocate_output_state(self):
+        state = {}
+        for name, properties in self.outputs.items():
+            if len(properties["dims"]) > 0:
+                state[properties["name"]] = self.grid.quantity_factory.empty(
+                    properties["dims"],
+                    properties["units"],
+                )
+        return state
+
     @property
     def rank_grids(self):
         return self._rank_grids
@@ -149,6 +159,36 @@ def _serialize_slice(quantity, n_halo, real_dims=None):
         else:
             slice_list.append(-1)
     return tuple(slice_list)
+
+
+class ParallelTranslateGrid(ParallelTranslate):
+    """
+    Translation class which only uses quantity factory for initialization, to
+    support some non-standard array dimension layouts not supported by the
+    TranslateFortranData2Py initializers.
+    """
+
+    def state_from_inputs(self, inputs: dict, grid=None) -> dict:
+        if grid is None:
+            grid = self.grid
+        state = {}
+        for name, properties in self.inputs.items():
+            standard_name = properties.get("name", name)
+            if len(properties["dims"]) > 0:
+                state[standard_name] = grid.quantity_factory.empty(
+                    properties["dims"], properties["units"], dtype=inputs[name].dtype
+                )
+                input_slice = _serialize_slice(
+                    state[standard_name], properties.get("n_halo", utils.halo)
+                )
+                state[standard_name].data[input_slice] = inputs[name]
+                if len(properties["dims"]) > 0:
+                    state[standard_name].data[input_slice] = inputs[name]
+                else:
+                    state[standard_name].data[:] = inputs[name]
+            else:
+                state[standard_name] = inputs[name]
+        return state
 
 
 class ParallelTranslate2Py(ParallelTranslate):
