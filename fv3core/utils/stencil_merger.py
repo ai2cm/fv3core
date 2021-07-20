@@ -5,7 +5,8 @@ import numpy as np
 from collections import OrderedDict
 from typing import Any, Dict, List, Optional, Set, Union
 
-from gt4py.definitions import FieldInfo
+import gt4py
+from gt4py.definitions import BuildOptions, FieldInfo
 from gt4py.stencil_builder import StencilBuilder
 from gt4py.stencil_object import StencilObject
 
@@ -56,8 +57,21 @@ class StencilMerger(object, metaclass=Container):
             top_stencil.build_info["def_ir"] = top_ir
             self._stencil_groups[group_id] = [top_stencil]
 
+        self._rebuild()
+
+    def _rebuild(self):
         # TODO(eddied): Merge stencil objects and regenerate code from merged IRs
-        return
+        for stencil_group in self._stencil_groups:
+            top_stencil = stencil_group[0]
+            stencil_object = top_stencil.stencil_object
+            backend_class = gt4py.backend.from_name(stencil_object.backend)
+            build_options = BuildOptions(**stencil_object.options)
+            builder = StencilBuilder(
+                top_stencil.definition_func,
+                backend=backend_class,
+                options=build_options,
+            )
+            stop = 1
 
     def _merge_irs(self, dest_ir, source_ir) -> object:
         dest_ir.computations.extend(source_ir.computations)

@@ -114,6 +114,7 @@ class FrozenStencil:
             externals = {}
 
         self.build_info = {}
+        self.definition_func = func
 
         self.stencil_object: gt4py.StencilObject = gtscript.stencil(
             definition=func,
