@@ -154,14 +154,9 @@ class WindowTable(StencilTable):
         self._n_nodes = comm.Get_size()
         self._key_nodes: Dict[int, int] = dict()
 
-        int_size = MPI.INT.Get_size()
-        self._buffer_size = max_size + 1
-        self._window_size = int_size * self._buffer_size
-        self._window = MPI.Win.Allocate(self._window_size, int_size, comm=comm)
-
-        self._buffer: np.ndarray = np.empty(self._buffer_size, dtype=np.int32)
+        self._buffer_size = 2 * max_size + 1
+        self._comm = comm
         self._initialize(self.NONE_STATE)
-        comm.Barrier()
 
     def to_dict(self) -> Dict[int, Union[int, np.ndarray]]:
         table_dict = dict(node_id=self._node_id, n_nodes=self._n_nodes, buffers=[])
@@ -183,8 +178,8 @@ class WindowTable(StencilTable):
         else:
             for node_id in range(self._n_nodes):
                 buffer = self._get_buffer(node_id)
-                n_stencils = buffer[0]
-                for n in range(n_stencils):
+                n_items = buffer[0]
+                for n in range(n_items):
                     index = n * 2 + 1
                     if buffer[index] == key:
                         value = buffer[index] + 1
@@ -202,17 +197,17 @@ class WindowTable(StencilTable):
         if key in self._key_nodes:
             index = self._key_nodes[key][1]
         else:
-            n_stencils = self._buffer[0]
+            n_items = self._buffer[0]
             index: int = -1
-            for n in range(n_stencils):
+            for n in range(n_items):
                 pos = n * 2 + 1
                 if self._buffer[pos] == key:
                     index = pos
                     break
             # New entry...
             if index < 0:
-                index = n_stencils * 2 + 1
-                self._buffer[0] = n_stencils + 1
+                index = n_items * 2 + 1
+                self._buffer[0] = n_items + 1
 
         self._buffer[index] = key
         self._buffer[index + 1] = value
@@ -220,23 +215,35 @@ class WindowTable(StencilTable):
         self._key_nodes[key] = (self._node_id, index)
 
     def _initialize(self, value: int):
-        self._buffer.fill(value)
+        self._mpi_type = MPI.INT
+        int_size = self._mpi_type.Get_size()
+        self._np_type = np.int32
+        self._window_size = int_size * self._buffer_size if self._node_id == 0 else 0
+        self._window = MPI.Win.Allocate(self._window_size, int_size, comm=self._comm)
+
+        if self._node_id == 0:
+            self._buffer = np.frombuffer(self._window, dtype=self._np_type)
+            self._buffer[:] = np.full(len(self._buffer), value, dtype=self._np_type)
+        else:
+            self._buffer = np.full(self._buffer_size, value, dtype=self._np_type)
         self._buffer[0] = 0
-        self._set_buffer()
+        self._comm.Barrier()
 
     def _set_buffer(self):
         # with open(f"./caching_r{self._node_id}.log", "a") as log:
         #     log.write(f"{dt.datetime.now()}: R{self._node_id}: W: {value}\n")
-        self._window.Lock(self._node_id)
-        self._window.Put([self._buffer, MPI.INT], self._node_id)
+        target = (self._node_id, self._buffer_size, self._mpi_type)
+        self._window.Lock(rank=self._node_id)
+        self._window.Put(self._buffer, target_rank=self._node_id, target=target)
         self._window.Unlock(self._node_id)
 
     def _get_buffer(self, node_id: int) -> np.ndarray:
         if node_id != self._node_id:
-            buffer = np.empty(self._buffer_size, dtype=np.int32)
-            self._window.Lock(node_id)
-            self._window.Get([buffer, MPI.INT], node_id)
-            self._window.Unlock(node_id)
+            buffer = np.empty(self._buffer_size, dtype=self._np_type)
+            target = (self._node_id, self._buffer_size, self._mpi_type)
+            self._window.Lock(rank=self._node_id)
+            self._window.Get(buffer, target_rank=self._node_id, target=target)
+            self._window.Unlock(rank=self._node_id)
             # with open(f"./caching_r{self._node_id}.log", "a") as log:
             #     log.write(f"{dt.datetime.now()}: R{self._node_id}: R: {buffer[0]} from {node_id}\n")
             return buffer
