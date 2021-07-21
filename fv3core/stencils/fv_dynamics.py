@@ -1,5 +1,4 @@
 from typing import Mapping
-from fv3gfs.util.halo_updater import HaloUpdater
 
 from gt4py.gtscript import PARALLEL, computation, interval, log
 
@@ -18,6 +17,7 @@ from fv3core.stencils.dyn_core import AcousticDynamics
 from fv3core.stencils.neg_adj3 import AdjustNegativeTracerMixingRatio
 from fv3core.stencils.remapping import LagrangianToEulerian
 from fv3core.utils.typing import FloatField, FloatFieldK
+from fv3gfs.util.halo_updater import HaloUpdater
 
 
 def pt_adjust(pkz: FloatField, dp1: FloatField, q_con: FloatField, pt: FloatField):
