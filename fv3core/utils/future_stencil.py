@@ -8,7 +8,7 @@ import sqlite3
 import time
 
 from concurrent.futures import ThreadPoolExecutor
-from typing import Any, Dict, Optional, Set, Tuple, Union
+from typing import Any, Dict, Optional, Set, Tuple
 
 from fv3core.utils.mpi import MPI
 
@@ -96,9 +96,6 @@ class RedisTable(StencilTable):
         super().clear()
         self._dict.clear()
 
-    def to_dict(self) -> Dict[int, int]:
-        return self._dict
-
     def __getitem__(self, key: int) -> int:
         if key in self._dict:
             value = int(self._dict[key])
@@ -148,6 +145,8 @@ class SqliteTable(StencilTable):
 class WindowTable(StencilTable):
     def __init__(self, comm: Optional[Any] = None, max_size: int = 100):
         super().__init__()
+        if not comm:
+            comm = MPI.COMM_WORLD
         self._node_id = comm.Get_rank()
         self._n_nodes = comm.Get_size()
         self._key_nodes: Dict[int, int] = dict()
@@ -155,13 +154,6 @@ class WindowTable(StencilTable):
         self._buffer_size = 2 * max_size + 1
         self._comm = comm
         self._initialize(self.NONE_STATE)
-
-    def to_dict(self) -> Dict[int, Union[int, np.ndarray]]:
-        table_dict = dict(node_id=self._node_id, n_nodes=self._n_nodes, buffers=[])
-        for n in range(self._n_nodes):
-            buffer = self._get_buffer(n)
-            table_dict["buffers"].append(buffer)
-        return table_dict
 
     def __getitem__(self, key: int) -> int:
         if key in self._finished_keys:
@@ -267,7 +259,7 @@ class FutureStencil:
     A stencil object that is compiled by another node in a distributed context.
     """
 
-    _thread_pool: StencilPool = StencilPool()
+    # _thread_pool: StencilPool = StencilPool()
     _id_table: StencilTable = RedisTable()
     # _id_table: StencilTable = SqliteTable()
     # _id_table: StencilTable = WindowTable()
@@ -310,12 +302,14 @@ class FutureStencil:
             if self._id_table.is_none(stencil_id):
                 # Stencil not yet compiled or in progress so claim it...
                 self._id_table[stencil_id] = node_id
-                # stencil_class = builder.backend.generate()
-                self._thread_pool(stencil_id, builder)
+                stencil_class = builder.backend.generate()
+                # self._thread_pool(stencil_id, builder)
                 with open(f"./caching_r{node_id}.log", "a") as log:
                     log.write(
                         f"{dt.datetime.now()}: R{node_id}: Submitted stencil '{cache_info_path.stem}' ({stencil_id})\n"
                     )
+                # Set to DONE...
+                self._id_table.set_done(stencil_id)
             else:
                 if not self._id_table.is_done(stencil_id):
                     # Wait for stencil to be done...
@@ -342,11 +336,11 @@ class FutureStencil:
                     )
                 stencil_class = builder.backend.load()
 
-            if stencil_id in self._thread_pool:
-                future = self._thread_pool[stencil_id]
-                stencil_class = future.result()
-                # Set to DONE...
-                self._id_table.set_done(stencil_id)
+            # if stencil_id in self._thread_pool:
+            #     future = self._thread_pool[stencil_id]
+            #     stencil_class = future.result()
+            #     # Set to DONE...
+            #     self._id_table.set_done(stencil_id)
 
         if not stencil_class:
             error_message = f"`stencil_class` is None '{cache_info_path.stem}' ({stencil_id})!"
