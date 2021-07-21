@@ -185,10 +185,10 @@ class WindowTable(StencilTable):
         if value == self.DONE_STATE:
             self._finished_keys.add(key)
 
+        buffer = self._get_buffer()
         if key in self._key_nodes:
             index = self._key_nodes[key][1]
         else:
-            buffer = self._get_buffer()
             n_items = buffer[0]
             index: int = -1
             for n in range(n_items):
@@ -260,9 +260,9 @@ class FutureStencil:
     """
 
     # _thread_pool: StencilPool = StencilPool()
-    _id_table: StencilTable = RedisTable()
+    # _id_table: StencilTable = RedisTable()
     # _id_table: StencilTable = SqliteTable()
-    # _id_table: StencilTable = WindowTable()
+    _id_table: StencilTable = WindowTable()
 
     def __init__(self, builder: Optional["StencilBuilder"] = None):
         self._builder: Optional["StencilBuilder"] = builder
