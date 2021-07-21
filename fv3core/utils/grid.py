@@ -1,7 +1,7 @@
 import dataclasses
 import functools
 from typing import Iterable, List, Mapping, Sequence, Tuple, Union
-from fv3gfs.util.halo_data_transformer import HaloUpdateSpec
+from fv3gfs.util.halo_data_transformer import QuantityHaloSpec
 
 import numpy as np
 from gt4py import gtscript
@@ -366,7 +366,7 @@ class Grid:
         origin,
         halo_points,
         dims=[fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_DIM],
-    ) -> HaloUpdateSpec:
+    ) -> QuantityHaloSpec:
         """Build memory specification for the halo update of a give shape/halo_points."""
 
         # TEMPORARY: we do a nasty temporary allocation here to read in the hardware
@@ -376,7 +376,7 @@ class Grid:
         temp_storage = utils.make_storage_from_shape(shape, origin)
         temp_quantity = self.quantity_wrap(temp_storage, dims=dims)
 
-        spec = HaloUpdateSpec(
+        spec = QuantityHaloSpec(
             halo_points,
             temp_quantity.data.strides,
             temp_quantity.data.itemsize,
