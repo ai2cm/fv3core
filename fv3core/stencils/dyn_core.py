@@ -306,12 +306,31 @@ class AcousticDynamics:
                 self.grid.grid_indexing,
                 self.grid.grid_data,
                 self.grid.damping_coefficients,
-                namelist,
                 column_namelist,
+                self.grid.nested,
+                self.grid.stretched_grid,
+                namelist.dddmp,
+                namelist.d4_bg,
+                namelist.nord,
+                namelist.grid_type,
+                d_ext=namelist.d_ext,
+                inline_q=namelist.inline_q,
+                hord_dp=namelist.hord_dp,
+                hord_tm=namelist.hord_tm,
+                hord_mt=namelist.hord_mt,
+                hord_vt=namelist.hord_vt,
+                do_f3d=namelist.do_f3d,
+                do_skeb=namelist.do_skeb,
+                d_con=namelist.d_con,
+                hydrostatic=namelist.hydrostatic,
             )
         )
         self.cgrid_shallow_water_lagrangian_dynamics = CGridShallowWaterDynamics(
-            self.grid, namelist
+            self.grid.grid_indexing,
+            self.grid.grid_data,
+            self.grid.nested,
+            namelist.grid_type,
+            namelist.nord,
         )
 
         self._set_gz = FrozenStencil(

@@ -393,11 +393,13 @@ class Grid:
         )
         vertical = VerticalGridData()
         contravariant = ContravariantGridData(
+            self.cosa,
             self.cosa_u,
             self.cosa_v,
             self.cosa_s,
             self.sina_u,
             self.sina_v,
+            self.rsina,
             self.rsin_u,
             self.rsin_v,
             self.rsin2,
@@ -493,11 +495,13 @@ class ContravariantGridData:
     contravariant components.
     """
 
+    cosa: FloatFieldIJ
     cosa_u: FloatFieldIJ
     cosa_v: FloatFieldIJ
     cosa_s: FloatFieldIJ
     sina_u: FloatFieldIJ
     sina_v: FloatFieldIJ
+    rsina: FloatFieldIJ
     rsin_u: FloatFieldIJ
     rsin_v: FloatFieldIJ
     rsin2: FloatFieldIJ
@@ -662,6 +666,10 @@ class GridData:
         return self._vertical_data.bk
 
     @property
+    def cosa(self):
+        return self._contravariant_data.cosa
+
+    @property
     def cosa_u(self):
         return self._contravariant_data.cosa_u
 
@@ -680,6 +688,10 @@ class GridData:
     @property
     def sina_v(self):
         return self._contravariant_data.sina_v
+
+    @property
+    def rsina(self):
+        return self._contravariant_data.rsina
 
     @property
     def rsin_u(self):
