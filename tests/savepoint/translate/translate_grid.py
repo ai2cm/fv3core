@@ -15,6 +15,8 @@ from fv3core.grid import (
     set_corner_area_to_triangle_area,
     set_tile_border_dxc,
     set_tile_border_dyc,
+    init_grid,
+    init_grid_utils,
 )
 
 from fv3core.utils.corners import fill_corners_2d, fill_corners_agrid, fill_corners_dgrid
@@ -828,8 +830,17 @@ cubedsphere=Atm(n)%gridstruct%latlon
         }
     }
 
-    def compute():
-        pass
+    def compute_sequential(self, inputs_list, communicator_list):
+        outputs=[]
+        for inputs in inputs_list:
+            outputs.append(self._compute_local(inputs))
+        return outputs
+
+    def _compute_local(self, inputs):
+        state = self.state_from_inputs(inputs)
+        init_grid(state)
+        outputs = self.outputs_from_state(state)
+        return outputs
 
 
 class TranslateGridUtils_Init(ParallelTranslateGrid):
@@ -946,4 +957,201 @@ nw_corner=Atm(n)%gridstruct%nw_corner"""
             "dims": [],
             "units": "ccc"
         },
+        "edge_s": {
+            "name": "edge_south",
+            "dims": [],
+            "units": ""
+        },
+        "edge_n": {
+            "name": "edge_north",
+            "dims": [],
+            "units": ""
+        },
+        "edge_w": {
+            "name": "edge_w",
+            "dims": [],
+            "units": ""
+        },
+        "edge_e": {
+            "name": "edge_e",
+            "dims": [],
+            "units": "ccc"
+        },
+        "del6_u": {
+            "name": "del6_u",
+            "dims": [],
+            "units": ""
+        },
+        "del6_v": {
+            "name": "del6_v",
+            "dims": [],
+            "units": ""
+        },
+        "divg_u": {
+            "name": "divg_u",
+            "dims": [],
+            "units": ""
+        },
+        "divg_v": {
+            "name": "divg_v",
+            "dims": [],
+            "units": ""
+        },
+        "cosa_u": {
+            "name": "cosa_u",
+            "dims": [],
+            "units": ""
+        },
+        "cosa_v": {
+            "name": "cosa_v",
+            "dims": [],
+            "units": ""
+        },
+        "cosa_s": {
+            "name": "cosa_s",
+            "dims": [],
+            "units": ""
+        },
+        "cosa": {
+            "name": "cosa",
+            "dims": [],
+            "units": ""
+        },
+        "sina_u": {
+            "name": "sina_u",
+            "dims": [],
+            "units": ""
+        },
+        "sina_v": {
+            "name": "sina_v",
+            "dims": [],
+            "units": ""
+        },
+        "rsin_u": {
+            "name": "rsin_u",
+            "dims": [],
+            "units": ""
+        },
+        "rsin_v": {
+            "name": "rsin_v",
+            "dims": [],
+            "units": ""
+        },
+        "rsina": {
+            "name": "rsina",
+            "dims": [],
+            "units": ""
+        },
+        "rsin2": {
+            "name": "rsin2",
+            "dims": [],
+            "units": ""
+        },
+        "sina": {
+            "name": "sina",
+            "dims": [],
+            "units": ""
+        },
+        "sin_sg": {
+            "name": "sin_sg",
+            "dims": [],
+            "units": ""
+        },
+        "cos_sg": {
+            "name": "cos_sg",
+            "dims": [],
+            "units": ""
+        },
+        "ks": {
+            "name": "ks",
+            "dims": [],
+            "units": ""
+        },
+        "ptop": {
+            "name": "ptop",
+            "dims": [],
+            "units": ""
+        },
+        "ak": {
+            "name": "ak",
+            "dims": [],
+            "units": ""
+        },
+        "bk": {
+            "name": "bk",
+            "dims": [],
+            "units": ""
+        },
+        "a11": {
+            "name": "a11",
+            "dims": [],
+            "units": ""
+        },
+        "a12": {
+            "name": "a12",
+            "dims": [],
+            "units": ""
+        },
+        "a21": {
+            "name": "a21",
+            "dims": [],
+            "units": ""
+        },
+        "a22": {
+            "name": "a22",
+            "dims": [],
+            "units": ""
+        },
+        "da_min": {
+            "name": "da_min",
+            "dims": [],
+            "units": ""
+        },
+        "da_max": {
+            "name": "da_max",
+            "dims": [],
+            "units": ""
+        },
+        "da_min_c": {
+            "name": "da_min_c",
+            "dims": [],
+            "units": ""
+        },
+        "da_max_c": {
+            "name": "da_max_c",
+            "dims": [],
+            "units": ""
+        },
+        "sw_corner": {
+            "name": "sw_corner",
+            "dims": [],
+            "units": ""
+        },
+        "se_corner": {
+            "name": "se_corner",
+            "dims": [],
+            "units": ""
+        },
+        "nw_corner": {
+            "name": "nw_corner",
+            "dims": [],
+            "units": ""
+        },
+        "ne_corner": {
+            "name": "ne_corner",
+            "dims": [],
+            "units": ""
+        },
     }
+
+    def compute_sequential(self, inputs_list, communicator_list):
+        outputs=[]
+        for inputs in inputs_list:
+            outputs.append(self._compute_local(inputs))
+        return outputs
+
+    def _compute_local(self, inputs):
+        state = self.state_from_inputs(inputs)
+        init_grid_utils(state)
+        outputs = self.outputs_from_state(state)
+        return outputs
