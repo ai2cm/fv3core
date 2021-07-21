@@ -86,19 +86,10 @@ def test_distributed_table(table_type: str):
     n_nodes = comm.Get_size()
 
     table = RedisTable() if table_type == "redis" else WindowTable(comm, n_nodes)
-    with open(f"./caching_r{node_id}.log", "a") as log:
-        log.write(
-            f"{dt.datetime.now()}: R{node_id}: {table.to_dict()}\n"
-        )
 
     rand.seed(node_id)
     random_int = rand.randint(0, n_nodes)
     table[node_id] = random_int
-
-    with open(f"./caching_r{node_id}.log", "a") as log:
-        log.write(
-            f"{dt.datetime.now()}: R{node_id}: Write {random_int} to {table_type} table\n"
-        )
 
     time.sleep(0.1)
 
@@ -110,9 +101,37 @@ def test_distributed_table(table_type: str):
         expected_values.append(rand.randint(0, n_nodes))
         received_values.append(table[n])
 
-    with open(f"./caching_r{node_id}.log", "a") as log:
-        log.write(
-            f"{dt.datetime.now()}: R{node_id}: Read {received_values} from {table_type} table\n"
-        )
-
     assert received_values == expected_values
+
+
+@pytest.mark.parallel
+@pytest.mark.skipif(
+    MPI is not None and MPI.COMM_WORLD.Get_size() == 1,
+    reason="Not running in parallel with mpi",
+)
+def test_one_sided_mpi():
+    comm = MPI.COMM_WORLD
+    rank = comm.Get_rank()
+
+    data_type = MPI.FLOAT
+    np_dtype = np.int32
+    item_size = data_type.Get_size()
+
+    n_ranks = comm.Get_size() + 1
+    win_size = n_ranks * item_size if rank == 0 else 0
+    win = MPI.Win.Allocate(
+        size=win_size,
+        disp_unit=item_size,
+        comm=comm,
+    )
+    if rank == 0:
+        mem = np.frombuffer(win, dtype=np_dtype)
+        mem[:] = np.arange(len(mem), dtype=np_dtype)
+    comm.Barrier()
+
+    buffer = np.zeros(3, dtype=np_dtype)
+    target = (rank, 2, data_type)
+    win.Lock(rank=0)
+    win.Get(buffer, target_rank=0, target=target)
+    win.Unlock(rank=0)
+    assert np.all(buffer == [rank, rank + 1, 0])

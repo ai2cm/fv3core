@@ -8,7 +8,7 @@ import sqlite3
 import time
 
 from concurrent.futures import ThreadPoolExecutor
-from typing import Any, Dict, Optional, Set, Union
+from typing import Any, Dict, Optional, Set, Tuple, Union
 
 from fv3core.utils.mpi import MPI
 
@@ -146,8 +146,6 @@ class SqliteTable(StencilTable):
 
 
 class WindowTable(StencilTable):
-    MAX_STENCILS: int = 100
-
     def __init__(self, comm: Optional[Any] = None, max_size: int = 100):
         super().__init__()
         self._node_id = comm.Get_rank()
@@ -182,12 +180,13 @@ class WindowTable(StencilTable):
                 for n in range(n_items):
                     index = n * 2 + 1
                     if buffer[index] == key:
-                        value = buffer[index] + 1
+                        value = buffer[index + 1]
                         self._key_nodes[key] = (node_id, index)
                         break
 
         if value == self.DONE_STATE:
             self._finished_keys.add(key)
+
         return value
 
     def __setitem__(self, key: int, value: int) -> None:
@@ -197,57 +196,70 @@ class WindowTable(StencilTable):
         if key in self._key_nodes:
             index = self._key_nodes[key][1]
         else:
-            n_items = self._buffer[0]
+            buffer = self._get_buffer()
+            n_items = buffer[0]
             index: int = -1
             for n in range(n_items):
                 pos = n * 2 + 1
-                if self._buffer[pos] == key:
+                if buffer[pos] == key:
                     index = pos
                     break
             # New entry...
             if index < 0:
                 index = n_items * 2 + 1
-                self._buffer[0] = n_items + 1
+                buffer[0] = n_items + 1
 
-        self._buffer[index] = key
-        self._buffer[index + 1] = value
-        self._set_buffer()
+        buffer[index] = key
+        buffer[index + 1] = value
+        self._set_buffer(buffer)
         self._key_nodes[key] = (self._node_id, index)
 
     def _initialize(self, value: int):
         self._mpi_type = MPI.INT
         int_size = self._mpi_type.Get_size()
         self._np_type = np.int32
-        self._window_size = int_size * self._buffer_size if self._node_id == 0 else 0
-        self._window = MPI.Win.Allocate(self._window_size, int_size, comm=self._comm)
+        self._window_size = (
+            int_size * self._buffer_size * self._n_nodes if self._node_id == 0 else 0
+        )
+        self._window = MPI.Win.Allocate(
+            size=self._window_size, disp_unit=int_size, comm=self._comm
+        )
 
         if self._node_id == 0:
-            self._buffer = np.frombuffer(self._window, dtype=self._np_type)
-            self._buffer[:] = np.full(len(self._buffer), value, dtype=self._np_type)
-        else:
-            self._buffer = np.full(self._buffer_size, value, dtype=self._np_type)
-        self._buffer[0] = 0
+            buffer = np.frombuffer(self._window, dtype=self._np_type)
+            buffer[:] = np.full(len(buffer), value, dtype=self._np_type)
+            for n in range(self._n_nodes):
+                buffer[n * self._buffer_size] = 0
+
         self._comm.Barrier()
 
-    def _set_buffer(self):
-        # with open(f"./caching_r{self._node_id}.log", "a") as log:
-        #     log.write(f"{dt.datetime.now()}: R{self._node_id}: W: {value}\n")
-        target = (self._node_id, self._buffer_size, self._mpi_type)
-        self._window.Lock(rank=self._node_id)
-        self._window.Put(self._buffer, target_rank=self._node_id, target=target)
-        self._window.Unlock(self._node_id)
+    def _get_target(self, node_id: int = -1) -> Tuple[int]:
+        if node_id < 0:
+            node_id = self._node_id
+        return (node_id * self._buffer_size, self._buffer_size, self._mpi_type)
 
-    def _get_buffer(self, node_id: int) -> np.ndarray:
-        if node_id != self._node_id:
-            buffer = np.empty(self._buffer_size, dtype=self._np_type)
-            target = (self._node_id, self._buffer_size, self._mpi_type)
-            self._window.Lock(rank=self._node_id)
-            self._window.Get(buffer, target_rank=self._node_id, target=target)
-            self._window.Unlock(rank=self._node_id)
-            # with open(f"./caching_r{self._node_id}.log", "a") as log:
-            #     log.write(f"{dt.datetime.now()}: R{self._node_id}: R: {buffer[0]} from {node_id}\n")
-            return buffer
-        return self._buffer
+    def _set_buffer(self, buffer: np.ndarray):
+        target = self._get_target()
+        self._window.Lock(rank=0)
+        self._window.Put(buffer, target_rank=0, target=target)
+        self._window.Unlock(rank=0)
+        with open(f"./caching_r{self._node_id}.log", "a") as log:
+            log.write(
+                f"{dt.datetime.now()}: R{self._node_id}: W: {buffer}\n"
+            )
+        self._comm.Barrier()
+
+    def _get_buffer(self, node_id: int = -1) -> np.ndarray:
+        buffer = np.empty(self._buffer_size, dtype=self._np_type)
+        target = self._get_target(node_id)
+        self._window.Lock(rank=0)
+        self._window.Get(buffer, target_rank=0, target=target)
+        self._window.Unlock(rank=0)
+        with open(f"./caching_r{self._node_id}.log", "a") as log:
+            log.write(
+                f"{dt.datetime.now()}: R{self._node_id}: R: {buffer} from {node_id}\n"
+            )
+        return buffer
 
 
 class FutureStencil:
