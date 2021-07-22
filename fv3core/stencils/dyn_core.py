@@ -229,7 +229,7 @@ class AcousticDynamics:
     class HaloUpdaters:
         """Encapsulate all HaloUpdater objects"""
 
-        def __init__(self, grid, shape, origin):
+        def __init__(self, comm, grid, shape, origin):
             # Define the memory specification required
             # Those can be re-used as they are read-only descriptors
             full_size_xyz_halo_spec = grid.get_halo_update_spec(
@@ -267,25 +267,21 @@ class AcousticDynamics:
             # but because of call overlap between different variable, we kept the
             # straighforward solution of one HaloUpdater per group of updated variable.
             # It also makes the code in call() more readable
-            self.q_con__cappa = self.comm.get_scalar_halo_updater(
+            self.q_con__cappa = comm.get_scalar_halo_updater(
                 [full_size_xyz_halo_spec] * 2
             )
-            self.delp__pt = self.comm.get_scalar_halo_updater(
-                [full_size_xyz_halo_spec] * 2
-            )
-            self.u__v = self.comm.get_vector_halo_updater(
+            self.delp__pt = comm.get_scalar_halo_updater([full_size_xyz_halo_spec] * 2)
+            self.u__v = comm.get_vector_halo_updater(
                 [full_size_xyiz_halo_spec], [full_size_xiyz_halo_spec]
             )
-            self.w = self.comm.get_scalar_halo_updater([full_size_xyz_halo_spec])
-            self.gz = self.comm.get_scalar_halo_updater([full_size_xyzi_halo_spec])
-            self.delp__pt__q_con = self.comm.get_scalar_halo_updater(
+            self.w = comm.get_scalar_halo_updater([full_size_xyz_halo_spec])
+            self.gz = comm.get_scalar_halo_updater([full_size_xyzi_halo_spec])
+            self.delp__pt__q_con = comm.get_scalar_halo_updater(
                 [full_size_xyz_halo_spec] * 3
             )
-            self.zh = self.comm.get_scalar_halo_updater([full_size_xyzi_halo_spec])
-            self.divgd = self.comm.get_scalar_halo_updater([full_size_xiyiz_halo_spec])
-            self.heat_source = self.comm.get_scalar_halo_updater(
-                [full_size_xyz_halo_spec]
-            )
+            self.zh = comm.get_scalar_halo_updater([full_size_xyzi_halo_spec])
+            self.divgd = comm.get_scalar_halo_updater([full_size_xiyiz_halo_spec])
+            self.heat_source = comm.get_scalar_halo_updater([full_size_xyz_halo_spec])
             if grid.npx == grid.npy:
                 full_3Dfield_2pts_halo_spec = grid.get_halo_update_spec(
                     shape,
@@ -293,12 +289,10 @@ class AcousticDynamics:
                     2,
                     dims=[fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_INTERFACE_DIM],
                 )
-                self.pkc = self.comm.get_scalar_halo_updater(
-                    [full_3Dfield_2pts_halo_spec]
-                )
+                self.pkc = comm.get_scalar_halo_updater([full_3Dfield_2pts_halo_spec])
             else:
-                self.pkc = self.comm.get_scalar_halo_updater([full_size_xyzi_halo_spec])
-            self.uc__vc = self.comm.get_vector_halo_updater(
+                self.pkc = comm.get_scalar_halo_updater([full_size_xyzi_halo_spec])
+            self.uc__vc = comm.get_vector_halo_updater(
                 [full_size_xiyz_halo_spec], [full_size_xyiz_halo_spec]
             )
 
@@ -443,7 +437,9 @@ class AcousticDynamics:
         # Halo updaters
         shape = self.grid.domain_shape_full(add=(1, 1, 1))
         origin = self.grid.compute_origin()
-        self._halo_updaters = AcousticDynamics.HaloUpdaters(self.grid, shape, origin)
+        self._halo_updaters = AcousticDynamics.HaloUpdaters(
+            self.comm, self.grid, shape, origin
+        )
 
     def __call__(self, state):
         # u, v, w, delz, delp, pt, pe, pk, phis, wsd, omga, ua, va, uc, vc, mfxd,
