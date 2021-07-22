@@ -24,14 +24,9 @@ FV3_STAGES = [
     "Tracer advection",
 ]  # TODO remap is not tagged in nvtx
 
-FV3_START_ASYNC_HALOS = [
-    "HaloEx: async scalar",
-    "HaloEx: async vector",
-]
+FV3_START_ASYNC_HALOS = ["HaloUpdater.start"]
 
-FV3_ASYNC_HALOS = FV3_START_ASYNC_HALOS + [
-    "HaloEx: unpack and wait",
-]
+FV3_ASYNC_HALOS = FV3_START_ASYNC_HALOS + ["HaloUpdater.wait"]
 
 FV3_NOT_HALOS = ["Pre HaloEx"]
 
@@ -47,7 +42,7 @@ def _count_calls_start_with_name(rows: List[str], index: int, target_name: str) 
 def _filter_cupy_out(rows: List[str], index: int) -> List[str]:
     hit = []
     for row in rows:
-        if row[index].startswith("cupy") or row[index].startswith("neg_f64"):
+        if row[index].startswith("cupy"):
             continue
         hit.append(row)
     return hit
@@ -315,9 +310,6 @@ if __name__ == "__main__":
     cupy_copies_kernels_count = _count_calls_start_with_name(
         filtered_rows, KernelReportIndexing.NAME.value, "cupy"
     )
-    cupy_copies_kernels_count += _count_calls_start_with_name(
-        filtered_rows, KernelReportIndexing.NAME.value, "neg_f64"
-    )
     fv3_kernels_count = all_kernels_count - cupy_copies_kernels_count
     fv3_kernels = _filter_cupy_out(filtered_rows, KernelReportIndexing.NAME.value)
     assert fv3_kernels_count == len(fv3_kernels)
@@ -363,7 +355,7 @@ if __name__ == "__main__":
         / timestep_time_in_ms
     ) * 100.0
     print(
-        f"==== SUMMARY ====\n"
+        "==== SUMMARY ====\n"
         f"Timestep time in ms: {timestep_time_in_ms:.2f}\n"
         f"  GPU kernel time (all): {total_gpu_kernel_time_in_ms:.2f}"
         f"({percentage_of_kernel_time:.2f}%)\n"
