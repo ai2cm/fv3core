@@ -1,6 +1,6 @@
 import dataclasses
 import functools
-from typing import Iterable, List, Mapping, Sequence, Tuple, Union
+from typing import Any, Iterable, List, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
 from gt4py import gtscript
@@ -9,7 +9,7 @@ import fv3core.utils.global_config as global_config
 import fv3gfs.util as fv3util
 
 from . import gt4py_utils as utils
-from .typing import FloatFieldIJ, FloatFieldK, Index3D
+from .typing import FloatFieldIJ, Index3D
 
 
 class Grid:
@@ -455,12 +455,21 @@ class HorizontalGridData:
         raise NotImplementedError()
 
 
-@dataclasses.dataclass(frozen=True)
+@dataclasses.dataclass
 class VerticalGridData:
     """
     Terms defining the vertical grid.
 
     Eulerian vertical grid is defined by p = ak + bk * p_ref
+    """
+
+    # TODO: make these non-optional, make FloatFieldK a true type and use it
+    ak: Optional[Any] = None
+    bk: Optional[Any] = None
+    p_ref: Optional[Any] = None
+    """
+    reference pressure (Pa) used to define pressure at vertical interfaces,
+    where p = ak + bk * p_ref
     """
 
     # TODO: refactor so we can init with this,
@@ -469,22 +478,6 @@ class VerticalGridData:
     @property
     def ptop(self) -> float:
         """pressure at top of atmosphere"""
-        raise NotImplementedError()
-
-    @property
-    def p_ref(self) -> float:
-        """
-        reference pressure (Pa) used to define pressure at vertical interfaces,
-        where p = ak + bk * p_ref
-        """
-        raise NotImplementedError()
-
-    @property
-    def ak(self) -> FloatFieldK:
-        raise NotImplementedError()
-
-    @property
-    def bk(self) -> FloatFieldK:
         raise NotImplementedError()
 
 
@@ -649,6 +642,10 @@ class GridData:
         """
         return self._vertical_data.p_ref
 
+    @p_ref.setter
+    def p_ref(self, value):
+        self._vertical_data.p_ref = value
+
     @property
     def ak(self):
         """
@@ -657,6 +654,10 @@ class GridData:
         """
         return self._vertical_data.ak
 
+    @ak.setter
+    def ak(self, value):
+        self._vertical_data.ak = value
+
     @property
     def bk(self):
         """
@@ -664,6 +665,10 @@ class GridData:
         where p = ak + bk * p_ref
         """
         return self._vertical_data.bk
+
+    @bk.setter
+    def bk(self, value):
+        self._vertical_data.bk = value
 
     @property
     def cosa(self):
