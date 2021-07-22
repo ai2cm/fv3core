@@ -264,8 +264,8 @@ class AcousticDynamics:
             )
 
             # Build the HaloUpdater. We could build one updater per specification group
-            # but because of call overlap between different variable, we kept the straighforward
-            # solution of one HaloUpdater per group of updated variable.
+            # but because of call overlap between different variable, we kept the
+            # straighforward solution of one HaloUpdater per group of updated variable.
             # It also makes the code in call() more readable
             self.q_con__cappa = self.comm.get_scalar_halo_updater(
                 [full_size_xyz_halo_spec] * 2
