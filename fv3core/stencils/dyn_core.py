@@ -227,9 +227,11 @@ class AcousticDynamics:
     """
 
     class HaloUpdaters:
-        """Encapsulate all HaloUpdaters required in the AcousticDynamics"""
+        """Encapsulate all HaloUpdater objects"""
 
         def __init__(self, grid, shape, origin):
+            # Define the memory specification required
+            # Those can be re-used as they are read-only descriptors
             full_size_xyz_halo_spec = grid.get_halo_update_spec(
                 shape,
                 origin,
@@ -261,6 +263,10 @@ class AcousticDynamics:
                 dims=[fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM, fv3util.Z_DIM],
             )
 
+            # Build the HaloUpdater. We could build one updater per specification group
+            # but because of call overlap between different variable, we kept the straighforward
+            # solution of one HaloUpdater per group of updated variable.
+            # It also makes the code in call() more readable
             self.q_con__cappa = self.comm.get_scalar_halo_updater(
                 [full_size_xyz_halo_spec] * 2
             )

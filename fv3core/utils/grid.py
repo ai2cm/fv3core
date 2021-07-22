@@ -370,10 +370,10 @@ class Grid:
         """Build memory specifications for the halo update."""
 
         # TEMPORARY: we do a nasty temporary allocation here to read in the hardware
-        # memory layout. Firther work in GT4PY will allow for deferred allocation
+        # memory layout. Further work in GT4PY will allow for deferred allocation
         # which will give access to those information while making sure
         # we don't allocate
-        # Refactor is filed in ticker DSL-820
+        # Refactor is filed in ticket DSL-820
 
         temp_storage = utils.make_storage_from_shape(shape, origin)
         temp_quantity = self.quantity_wrap(temp_storage, dims=dims)
