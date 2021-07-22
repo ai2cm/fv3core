@@ -39,9 +39,8 @@ class TranslateFvTp2d(TranslateFortranData2Py):
                 inputs[optional_arg] = None
         self.compute_func = FiniteVolumeTransport(
             grid_indexing=self.grid.grid_indexing,
-            dxa=self.grid.dxa,
-            dya=self.grid.dya,
-            area=self.grid.area,
+            grid_data=self.grid.grid_data,
+            damping_coefficients=self.grid.damping_coefficients,
             grid_type=self.grid.grid_type,
             hord=int(inputs["hord"]),
             nord=inputs.pop("nord"),

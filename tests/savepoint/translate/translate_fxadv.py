@@ -7,7 +7,10 @@ class TranslateFxAdv(TranslateFortranData2Py):
         super().__init__(grid)
         utinfo = grid.x3d_domain_dict()
         vtinfo = grid.y3d_domain_dict()
-        self.compute_func = FiniteVolumeFluxPrep()
+        self.compute_func = FiniteVolumeFluxPrep(
+            self.grid.grid_indexing,
+            self.grid.grid_data,
+        )
         self.in_vars["data_vars"] = {
             "uc": {},
             "vc": {},
@@ -31,3 +34,7 @@ class TranslateFxAdv(TranslateFortranData2Py):
         }
         for var in ["x_area_flux", "crx", "y_area_flux", "cry"]:
             self.out_vars[var] = self.in_vars["data_vars"][var]
+
+    def compute_from_storage(self, inputs):
+        self.compute_func(**inputs)
+        return inputs
