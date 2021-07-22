@@ -85,41 +85,18 @@ def flux_capacitor(
 
 
 @gtscript.function
-def horizontal_relative_vorticity_from_winds(u, v, ut, vt, dx, dy, rarea, vorticity):
-    """
-    Compute the area mean relative vorticity in the z-direction from the D-grid winds.
-
-    Args:
-        u (in): x-direction wind on D grid
-        v (in): y-direction wind on D grid
-        ut (out): u * dx
-        vt (out): v * dy
-        dx (in): gridcell width in x-direction
-        dy (in): gridcell width in y-direction
-        rarea (in): inverse of area
-        vorticity (out): area mean horizontal relative vorticity
-    """
-
-    vt = u * dx
-    ut = v * dy
-    vorticity = rarea * (vt - vt[0, 1, 0] - ut + ut[1, 0, 0])
-
-    return vt, ut, vorticity
-
-
-@gtscript.function
 def all_corners_ke(ke, u, v, ut, vt, dt):
     from __externals__ import i_end, i_start, j_end, j_start
 
     # Assumption: not __INLINED(grid.nested)
     with horizontal(region[i_start, j_start]):
-        ke = corners.corner_ke(ke, u, v, ut, vt, dt, 0, 0, -1, 1)
+        ke = corners.corner_ke(u, v, ut, vt, dt, 0, 0, -1, 1)
     with horizontal(region[i_end + 1, j_start]):
-        ke = corners.corner_ke(ke, u, v, ut, vt, dt, -1, 0, 0, -1)
+        ke = corners.corner_ke(u, v, ut, vt, dt, -1, 0, 0, -1)
     with horizontal(region[i_end + 1, j_end + 1]):
-        ke = corners.corner_ke(ke, u, v, ut, vt, dt, -1, -1, 0, 1)
+        ke = corners.corner_ke(u, v, ut, vt, dt, -1, -1, 0, 1)
     with horizontal(region[i_start, j_end + 1]):
-        ke = corners.corner_ke(ke, u, v, ut, vt, dt, 0, -1, -1, -1)
+        ke = corners.corner_ke(u, v, ut, vt, dt, 0, -1, -1, -1)
 
     return ke
 
@@ -321,7 +298,6 @@ def heat_source_from_vorticity_damping(
     from __externals__ import d_con, do_skeb, local_ie, local_is, local_je, local_js
 
     with computation(PARALLEL), interval(...):
-        # if (kinetic_energy_fraction_to_damp[0] > dcon_threshold) or do_skeb:
         heat_s = heat_source
         diss_e = dissipation_estimate
         ubt = (ub + vt) * rdx
@@ -358,7 +334,7 @@ def heat_source_from_vorticity_damping(
                 v = v - ut
 
 
-def ke_horizontal_vorticity(
+def update_ke(
     ke: FloatField,
     u: FloatField,
     v: FloatField,
@@ -366,18 +342,33 @@ def ke_horizontal_vorticity(
     vb: FloatField,
     ut: FloatField,
     vt: FloatField,
-    dx: FloatFieldIJ,
-    dy: FloatFieldIJ,
-    rarea: FloatFieldIJ,
-    vorticity: FloatField,
     dt: float,
 ):
     with computation(PARALLEL), interval(...):
         ke = ke_from_bwind(ke, ub, vb)
         ke = all_corners_ke(ke, u, v, ut, vt, dt)
-        vt, ut, vorticity = horizontal_relative_vorticity_from_winds(
-            u, v, ut, vt, dx, dy, rarea, vorticity
-        )
+
+
+def update_horizontal_vorticity(
+    u: FloatField,
+    v: FloatField,
+    ut: FloatField,
+    vt: FloatField,
+    dx: FloatFieldIJ,
+    dy: FloatFieldIJ,
+    rarea: FloatFieldIJ,
+    vorticity: FloatField,
+):
+    with computation(PARALLEL), interval(...):
+        vt = u * dx
+        ut = v * dy
+    # TODO(rheag). This computation is required because
+    # ut and vt are API fields. If the distinction
+    # is removed, so can this computation.
+    # Compute the area mean relative vorticity in the z-direction
+    # from the D-grid winds.
+    with computation(PARALLEL), interval(...):
+        vorticity = rarea * (vt - vt[0, 1, 0] - ut + ut[1, 0, 0])
 
 
 # Set the unique parameters for the smallest
@@ -709,9 +700,14 @@ class DGridShallowWaterLagrangianDynamics:
             origin=b_origin,
             domain=b_domain,
         )
-        self._ke_horizontal_vorticity_stencil = FrozenStencil(
-            ke_horizontal_vorticity,
+        self._update_ke_stencil = FrozenStencil(
+            update_ke,
             externals=ax_offsets_full,
+            origin=full_origin,
+            domain=full_domain,
+        )
+        self._update_horizontal_vorticity_stencil = FrozenStencil(
+            update_horizontal_vorticity,
             origin=full_origin,
             domain=full_domain,
         )
@@ -931,7 +927,7 @@ class DGridShallowWaterLagrangianDynamics:
 
         self.xtp_u(self._tmp_ub, u, self._tmp_vb)
 
-        self._ke_horizontal_vorticity_stencil(
+        self._update_ke_stencil(
             self._tmp_ke,
             u,
             v,
@@ -939,11 +935,18 @@ class DGridShallowWaterLagrangianDynamics:
             self._tmp_vb,
             self._tmp_ut,
             self._tmp_vt,
+            dt,
+        )
+
+        self._update_horizontal_vorticity_stencil(
+            u,
+            v,
+            self._tmp_ut,
+            self._tmp_vt,
             self.grid.dx,
             self.grid.dy,
             self.grid.rarea,
             self._tmp_wk,
-            dt,
         )
 
         # TODO if namelist.d_f3d and ROT3 unimplemeneted
