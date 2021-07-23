@@ -701,7 +701,7 @@ class CGridShallowWaterDynamics:
         )
         self._absolute_vorticity(
             self._tmp_vort,
-            self.grid.fC,
+            self._fC,
             self.grid.rarea_c,
         )
         self._vorticitytransport_cgrid(uc, vc, self._tmp_vort, self._tmp_ke, v, u, dt2)
