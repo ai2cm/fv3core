@@ -13,10 +13,11 @@ from typing import Any, Dict, List, Optional
 import matplotlib.pyplot as plot
 import numpy as np
 from nsys_data_mining.kernelquery import CUDAKernelTrace, KernelReportIndexing
-from nsys_data_mining.nvtxquery import CUDANVTXTrace, NVTXReportIndexing
-from nsys_data_mining.synchronizequery import SyncTrace, SyncReportIndexing
 from nsys_data_mining.nsys_sql_version import get_nsys_sql_version
+from nsys_data_mining.nvtxquery import CUDANVTXTrace, NVTXReportIndexing
+from nsys_data_mining.synchronizequery import SyncReportIndexing, SyncTrace
 from tabulate import tabulate
+
 
 # TODO: All of those should be part of a .json if we move it out of `fv3core`
 FV3_MAINLOOP = "step_dynamics"
@@ -187,8 +188,6 @@ def _plot_total_call(fv3_kernel_timings: Dict[str, List[int]]):
 def _filter_kernel_name(kernels: List[Any]) -> List[Any]:
     """Filter the gridtools c++ kernel name to a readable name"""
     # Run a regex to convert the stencil generated string to a readable one
-    # TODO: this aggregate different versions of the same stencils. We need to get into
-    # account the hash of those stencils into the name
     approx_stencil_name_re = re.search(
         "(?<=bound_functor)(.*?)(?=_pyext)",
         kernels[KernelReportIndexing.NAME.value],

@@ -1,7 +1,7 @@
 import enum
 import os
-import urllib
 import sqlite3
+import urllib
 
 
 class NsysSQLVersion(enum.Enum):

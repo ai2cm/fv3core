@@ -2,8 +2,8 @@
 
 """ Taken from Nvidia Night Systems 2021.1.1 /reports. """
 
-from .nsysreport import Report
 from .nsys_sql_version import NsysSQLVersion
+from .nsysreport import Report
 
 
 class CUDAGPUTrace(Report):
