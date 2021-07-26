@@ -160,6 +160,7 @@ def _print_median_time_kernel_table(
         kernels.append([name, median, hits])
     kernels.sort(key=lambda x: x[1], reverse=True)
     table = tabulate(kernels, headers=["Name", "Time", "Count"], tablefmt="orgtbl")
+    print("\nMedian time per kernel")
     print(f"{table}")
     if write_csv:
         with open("median_time_kernel.csv", "w") as csvfile:
