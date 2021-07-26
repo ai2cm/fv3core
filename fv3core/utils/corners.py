@@ -1,10 +1,12 @@
 import dace
+import numpy as np
 from gt4py.gtscript import PARALLEL, computation, interval
 
 import fv3core._config as spec
+from fv3core.decorators import computepath_function, computepath_method
 from fv3core.utils.typing import FloatField
-from fv3core.utils.gt4py_utils import computepath_method, computepath_function
-import numpy as np
+
+
 class CopyCorners:
     """
     Helper-class to copy corners corresponding to the fortran functions

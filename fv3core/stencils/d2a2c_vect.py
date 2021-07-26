@@ -1,14 +1,12 @@
-import dace
 import gt4py.gtscript as gtscript
 from gt4py.gtscript import PARALLEL, computation, interval
 
 import fv3core._config as spec
 import fv3core.utils.gt4py_utils as utils
-from fv3core.decorators import FrozenStencil
+from fv3core.decorators import FrozenStencil, computepath_method
 from fv3core.stencils.a2b_ord4 import a1, a2, lagrange_x_func, lagrange_y_func
 from fv3core.utils.typing import FloatField, FloatFieldIJ
 
-from fv3core.utils.gt4py_utils import computepath_method
 
 c1 = -2.0 / 14.0
 c2 = 11.0 / 14.0
@@ -340,11 +338,10 @@ class DGrid2AGrid2CGridVectors:
         npt = 4 if not self.grid.nested else 0
         if npt > self.grid.nic - 1 or npt > self.grid.njc - 1:
             npt = 0
-        import numpy as np
-        self._utmp = np.asarray(utils.make_storage_from_shape(
+        self._utmp = utils.make_storage_from_shape(
             self.grid.domain_shape_full(add=(1, 1, 1)),
             self.grid.full_origin(),
-        ))
+        )
         self._vtmp = utils.make_storage_from_shape(
             self.grid.domain_shape_full(add=(1, 1, 1)), self.grid.full_origin()
         )
@@ -533,11 +530,10 @@ class DGrid2AGrid2CGridVectors:
             utc: C-grid u * dx (inout)
             vtc: C-grid v * dy (inout)
         """
-        big_number = self._big_number
         self._set_tmps(
             self._utmp,
             self._vtmp,
-            big_number,
+            self._big_number,
         )
 
         self._lagrange_interpolation_y_p1(

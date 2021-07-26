@@ -2,10 +2,9 @@ import dace
 from gt4py.gtscript import FORWARD, computation, interval
 
 import fv3core.utils.gt4py_utils as utils
-from fv3core.decorators import FrozenStencil
+from fv3core.decorators import FrozenStencil, computepath_method
 from fv3core.utils.typing import FloatField, FloatFieldIJ
 
-from fv3core.utils.gt4py_utils import computepath_method
 
 # TODO merge with pe_halo? reuse partials?
 # NOTE: This is different from fv3core.stencils.pe_halo.edge_pe

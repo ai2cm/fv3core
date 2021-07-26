@@ -4,10 +4,9 @@ import dace
 from gt4py.gtscript import BACKWARD, FORWARD, PARALLEL, computation, exp, interval, log
 
 import fv3core.utils.global_constants as constants
-from fv3core.decorators import FrozenStencil
+from fv3core.decorators import FrozenStencil, computepath_method
 from fv3core.utils.typing import FloatField, FloatFieldIJ
 
-from fv3core.utils.gt4py_utils import computepath_method
 
 @typing.no_type_check
 def sim1_solver(

@@ -2,12 +2,10 @@ import gt4py.gtscript as gtscript
 from gt4py.gtscript import BACKWARD, FORWARD, PARALLEL, computation, interval
 
 import fv3core.utils.global_constants as constants
-from fv3core.decorators import FrozenStencil
+from fv3core.decorators import FrozenStencil, computepath_method
 from fv3core.utils import corners, gt4py_utils
 from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
 
-from fv3core.utils.gt4py_utils import computepath_method
-import dace
 
 DZ_MIN = constants.DZ_MIN
 

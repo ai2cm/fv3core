@@ -1,16 +1,15 @@
-import numpy as np
-import dace
 from types import SimpleNamespace
 
+import dace
 import gt4py.gtscript as gtscript
+import numpy as np
 from gt4py.gtscript import PARALLEL, computation, interval
 
 import fv3core._config as spec
 import fv3core.stencils.basic_operations as basic
 import fv3core.utils.corners as corners
 import fv3core.utils.gt4py_utils as utils
-from fv3core.utils.gt4py_utils import computepath_method
-from fv3core.decorators import FrozenStencil
+from fv3core.decorators import FrozenStencil, computepath_method
 from fv3core.stencils.a2b_ord4 import AGrid2BGridFourthOrder
 from fv3core.utils.grid import axis_offsets
 from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK

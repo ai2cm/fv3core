@@ -1,6 +1,6 @@
+import dace
 from gt4py.gtscript import __INLINED, BACKWARD, FORWARD, PARALLEL, computation, interval
 
-import dace
 import fv3core._config as spec
 import fv3core.stencils.basic_operations as basic
 import fv3core.stencils.d_sw as d_sw
@@ -15,7 +15,7 @@ import fv3core.utils.global_constants as constants
 import fv3core.utils.gt4py_utils as utils
 import fv3gfs.util
 import fv3gfs.util as fv3util
-from fv3core.decorators import FrozenStencil
+from fv3core.decorators import FrozenStencil, computepath_method
 from fv3core.stencils.c_sw import CGridShallowWaterDynamics
 from fv3core.stencils.del2cubed import HyperdiffusionDamping
 from fv3core.stencils.pk3_halo import PK3Halo
@@ -23,7 +23,6 @@ from fv3core.stencils.riem_solver3 import RiemannSolver3
 from fv3core.stencils.riem_solver_c import RiemannSolverC
 from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
 
-from fv3core.utils.gt4py_utils import computepath_method
 
 HUGE_R = 1.0e40
 
@@ -556,7 +555,7 @@ class AcousticDynamics:
                 req_vector_c_grid.wait()
             # use the computed c-grid winds to evolve the d-grid winds forward
             # by 1 timestep
-            self.dgrid_shallow_water_lagrangian_dynamics.__call__(
+            self.dgrid_shallow_water_lagrangian_dynamics(
                 state.vt,
                 state.delp,
                 ptc,
@@ -597,7 +596,7 @@ class AcousticDynamics:
             #    raise 'Unimplemented namelist option d_ext > 0'
 
             if not self.namelist.hydrostatic:
-                self.update_height_on_d_grid.__call__(
+                self.update_height_on_d_grid(
                     self._zs,
                     state.zh,
                     state.crx,
@@ -607,7 +606,7 @@ class AcousticDynamics:
                     state.wsd,
                     dt,
                 )
-                self.riem_solver3.__call__(
+                self.riem_solver3(
                     remap_step,
                     dt,
                     state.cappa,
