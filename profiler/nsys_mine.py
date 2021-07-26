@@ -281,7 +281,7 @@ if __name__ == "__main__":
                 break
     assert skip_first_mainloop is False and min_start != 0
     timestep_time_in_ms = (float(max_end) - float(min_start)) * 1.0e3
-    print(f"Mining timespte between {min_start} and {max_end}")
+    print(f"Mining timestep between {min_start} and {max_end}")
 
     # Gather HaloEx markers
     filtered_halo_nvtx = []
