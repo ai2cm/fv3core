@@ -386,7 +386,7 @@ class CGridShallowWaterDynamics:
         grid_type: int,
         nord: int,
     ):
-        self.grid = grid_data
+        self.grid_data = grid_data
         self._dord4 = True
         self._fC = spec.grid.fC
 
@@ -565,9 +565,9 @@ class CGridShallowWaterDynamics:
             ke_c,
             u,
             vc,
-            self.grid.cosa_v,
-            self.grid.sina_v,
-            self.grid.rdyc,
+            self.grid_data.cosa_v,
+            self.grid_data.sina_v,
+            self.grid_data.rdyc,
             dt2,
         )
         self._update_x_velocity(
@@ -575,9 +575,9 @@ class CGridShallowWaterDynamics:
             ke_c,
             v,
             uc,
-            self.grid.cosa_u,
-            self.grid.sina_u,
-            self.grid.rdxc,
+            self.grid_data.cosa_u,
+            self.grid_data.sina_u,
+            self.grid_data.rdxc,
             dt2,
         )
 
@@ -628,31 +628,31 @@ class CGridShallowWaterDynamics:
                 v,
                 ua,
                 va,
-                self.grid.dxc,
-                self.grid.dyc,
-                self.grid.sin_sg1,
-                self.grid.sin_sg2,
-                self.grid.sin_sg3,
-                self.grid.sin_sg4,
-                self.grid.cos_sg1,
-                self.grid.cos_sg2,
-                self.grid.cos_sg3,
-                self.grid.cos_sg4,
-                self.grid.rarea_c,
+                self.grid_data.dxc,
+                self.grid_data.dyc,
+                self.grid_data.sin_sg1,
+                self.grid_data.sin_sg2,
+                self.grid_data.sin_sg3,
+                self.grid_data.sin_sg4,
+                self.grid_data.cos_sg1,
+                self.grid_data.cos_sg2,
+                self.grid_data.cos_sg3,
+                self.grid_data.cos_sg4,
+                self.grid_data.rarea_c,
                 divgd,
             )
         self._geoadjust_ut(
             ut,
-            self.grid.dy,
-            self.grid.sin_sg3,
-            self.grid.sin_sg1,
+            self.grid_data.dy,
+            self.grid_data.sin_sg3,
+            self.grid_data.sin_sg1,
             dt2,
         )
         self._geoadjust_vt(
             vt,
-            self.grid.dx,
-            self.grid.sin_sg4,
-            self.grid.sin_sg2,
+            self.grid_data.dx,
+            self.grid_data.sin_sg4,
+            self.grid_data.sin_sg2,
             dt2,
         )
 
@@ -667,7 +667,7 @@ class CGridShallowWaterDynamics:
             ut,
             vt,
             w,
-            self.grid.rarea,
+            self.grid_data.rarea,
             self.delpc,
             self.ptc,
             omga,
@@ -682,27 +682,27 @@ class CGridShallowWaterDynamics:
             self._tmp_fx,
             self._tmp_fx1,
             self._tmp_fx2,
-            self.grid.sin_sg1,
-            self.grid.cos_sg1,
-            self.grid.sin_sg2,
-            self.grid.cos_sg2,
-            self.grid.sin_sg3,
-            self.grid.cos_sg3,
-            self.grid.sin_sg4,
-            self.grid.cos_sg4,
+            self.grid_data.sin_sg1,
+            self.grid_data.cos_sg1,
+            self.grid_data.sin_sg2,
+            self.grid_data.cos_sg2,
+            self.grid_data.sin_sg3,
+            self.grid_data.cos_sg3,
+            self.grid_data.sin_sg4,
+            self.grid_data.cos_sg4,
             dt2,
         )
         self._circulation_cgrid(
             uc,
             vc,
-            self.grid.dxc,
-            self.grid.dyc,
+            self.grid_data.dxc,
+            self.grid_data.dyc,
             self._tmp_vort,
         )
         self._absolute_vorticity(
             self._tmp_vort,
             self._fC,
-            self.grid.rarea_c,
+            self.grid_data.rarea_c,
         )
         self._vorticitytransport_cgrid(uc, vc, self._tmp_vort, self._tmp_ke, v, u, dt2)
         return self.delpc, self.ptc
