@@ -25,9 +25,16 @@ FV3_STAGES = [
     "Tracer advection",
 ]  # TODO remap is not tagged in nvtx
 
-FV3_START_ASYNC_HALOS = ["HaloUpdater.start"]
+FV3_START_ASYNC_HALOS = [
+    "HaloUpdater.start",
+    "HaloEx: async scalar",
+    "HaloEx: async vector",
+]
 
-FV3_ASYNC_HALOS = FV3_START_ASYNC_HALOS + ["HaloUpdater.wait"]
+FV3_ASYNC_HALOS = FV3_START_ASYNC_HALOS + [
+    "HaloUpdater.wait",
+    "HaloEx: unpack and wait",
+]
 
 FV3_NOT_HALOS = ["Pre HaloEx"]
 
@@ -183,13 +190,18 @@ def _filter_kernel_name(kernels: List[Any]) -> List[Any]:
     # TODO: this aggregate different versions of the same stencils. We need to get into
     # account the hash of those stencils into the name
     approx_stencil_name_re = re.search(
-        "(?<=bound_functor)(.*?)(?=____gtcuda)",
+        "(?<=bound_functor)(.*?)(?=_pyext)",
         kernels[KernelReportIndexing.NAME.value],
     )
     if approx_stencil_name_re is None:
         return kernels
     # Clean up & insert
-    approx_stencil_name = approx_stencil_name_re.groups()[0].replace(" ", "")
+    approx_stencil_name = (
+        approx_stencil_name_re.groups()[0]
+        .lstrip("IN0123456789<")
+        .replace(" ", "")
+        .replace("____gtcuda", "")
+    )
     row_as_list = list(kernels)
     row_as_list[KernelReportIndexing.NAME.value] = approx_stencil_name
     return row_as_list
