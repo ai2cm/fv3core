@@ -235,10 +235,10 @@ class WindowTable(StencilTable):
         self._window.Lock(rank=0)
         self._window.Put(buffer, target_rank=0, target=target)
         self._window.Unlock(rank=0)
-        with open(f"./caching_r{self._node_id}.log", "a") as log:
-            log.write(
-                f"{dt.datetime.now()}: R{self._node_id}: W: {buffer}\n"
-            )
+        # with open(f"./caching_r{self._node_id}.log", "a") as log:
+        #     log.write(
+        #         f"{dt.datetime.now()}: R{self._node_id}: W: {buffer}\n"
+        #     )
         self._comm.Barrier()
 
     def _get_buffer(self, node_id: int = -1) -> np.ndarray:
@@ -247,10 +247,10 @@ class WindowTable(StencilTable):
         self._window.Lock(rank=0)
         self._window.Get(buffer, target_rank=0, target=target)
         self._window.Unlock(rank=0)
-        with open(f"./caching_r{self._node_id}.log", "a") as log:
-            log.write(
-                f"{dt.datetime.now()}: R{self._node_id}: R: {buffer} from {node_id}\n"
-            )
+        # with open(f"./caching_r{self._node_id}.log", "a") as log:
+        #     log.write(
+        #         f"{dt.datetime.now()}: R{self._node_id}: R: {buffer} from {node_id}\n"
+        #     )
         return buffer
 
 
