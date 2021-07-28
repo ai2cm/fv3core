@@ -4,6 +4,7 @@ from gt4py.gtscript import PARALLEL, computation, interval
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import FrozenStencil
 from fv3core.stencils.d2a2c_vect import DGrid2AGrid2CGridVectors
+from fv3core.utils import corners
 from fv3core.utils.grid import axis_offsets
 from fv3core.utils.typing import FloatField, FloatFieldIJ
 
@@ -159,6 +160,16 @@ def divergence_main(uf: FloatField, vf: FloatField, divg_d: FloatField):
         divg_d = vf[0, -1, 0] - vf + uf[-1, 0, 0] - uf
 
 
+def divergence_south_corner(vf: FloatField, divg_d: FloatField):
+    with computation(PARALLEL), interval(...):
+        divg_d -= vf[0, -1, 0]
+
+
+def divergence_north_corner(vf: FloatField, divg_d: FloatField):
+    with computation(PARALLEL), interval(...):
+        divg_d += vf
+
+
 def divergence_main_final(rarea_c: FloatFieldIJ, divg_d: FloatField):
     with computation(PARALLEL), interval(...):
         divg_d *= rarea_c
@@ -184,6 +195,24 @@ def update_vorticity(
         fx = dxc * uc
         fy = dyc * vc
         vort_c = fx[0, -1, 0] - fx - fy[-1, 0, 0] + fy
+
+
+def vorticity_west_corner(
+    vc: FloatField,
+    dyc: FloatFieldIJ,
+    vort_c: FloatField,
+):
+    with computation(PARALLEL), interval(...):
+        vort_c += dyc[-1, 0] * vc[-1, 0, 0]
+
+
+def vorticity_east_corner(
+    vc: FloatField,
+    dyc: FloatFieldIJ,
+    vort_c: FloatField,
+):
+    with computation(PARALLEL), interval(...):
+        vort_c -= dyc * vc
 
 
 def update_x_velocity(
@@ -246,6 +275,7 @@ class CGridShallowWaterDynamics:
         self._tmp_fx = utils.make_storage_from_shape(shape)
         self._tmp_fx1 = utils.make_storage_from_shape(shape)
         self._tmp_fx2 = utils.make_storage_from_shape(shape)
+        corner_domain = (1, 1, self.grid.npz)
         self._initialize_delpc_ptc = FrozenStencil(
             func=initialize_delpc_ptc,
             origin=self.grid.full_origin(),
@@ -276,7 +306,30 @@ class CGridShallowWaterDynamics:
                 domain=domain,
             )
 
-
+            if self.grid.sw_corner:
+                self._divergence_sw_corner = FrozenStencil(
+                    divergence_south_corner,
+                    origin=self.grid.compute_origin(),
+                    domain=corner_domain,
+                )
+            if self.grid.se_corner:
+                self._divergence_se_corner = FrozenStencil(
+                    divergence_south_corner,
+                    origin=(self.grid.ie + 1, self.grid.js, 0),
+                    domain=corner_domain,
+                )
+            if self.grid.nw_corner:
+                self._divergence_nw_corner = FrozenStencil(
+                    divergence_north_corner,
+                    origin=(self.grid.ie + 1, self.grid.je + 1, 0),
+                    domain=corner_domain,
+                )
+            if self.grid.ne_corner:
+                self._divergence_ne_corner = FrozenStencil(
+                    divergence_north_corner,
+                    origin=(self.grid.is_, self.grid.je + 1, 0),
+                    domain=corner_domain,
+                )
             self._divergence_main_final = FrozenStencil(
                 divergence_main_final,
                 origin=origin,
@@ -320,7 +373,30 @@ class CGridShallowWaterDynamics:
             domain=domain,
         )
 
-
+        if self.grid.sw_corner:
+            self._sw_corner_vorticity = FrozenStencil(
+                vorticity_west_corner,
+                origin=(self.grid.is_, self.grid.js, 0),
+                domain=corner_domain,
+            )
+        if self.grid.nw_corner:
+            self._nw_corner_vorticity = FrozenStencil(
+                vorticity_west_corner,
+                origin=(self.grid.is_, self.grid.je + 1, 0),
+                domain=corner_domain,
+            )
+        if self.grid.se_corner:
+            self._se_corner_vorticity = FrozenStencil(
+                vorticity_east_corner,
+                origin=(self.grid.ie + 1, self.grid.js, 0),
+                domain=corner_domain,
+            )
+        if self.grid.ne_corner:
+            self._ne_corner_vorticity = FrozenStencil(
+                vorticity_east_corner,
+                origin=(self.grid.ie + 1, self.grid.je + 1, 0),
+                domain=corner_domain,
+            )
         self._absolute_vorticity = FrozenStencil(
             func=absolute_vorticity,
             origin=origin,
@@ -473,6 +549,8 @@ class CGridShallowWaterDynamics:
             self.grid.sin_sg2,
             dt2,
         )
+        #corners.fill2_4corners(delp, pt, "x", self.grid)
+        #corners.fill_4corners(w, "x", self.grid)
         self._compute_nonhydro_x_fluxes(
             delp,
             pt,
@@ -484,6 +562,8 @@ class CGridShallowWaterDynamics:
         )
         # TODO(eddied): Why does auto-sync storage logic does not catch this?
         utils.device_sync()
+        #corners.fill2_4corners(delp, pt, "y", self.grid)
+        #corners.fill_4corners(w, "y", self.grid)
         self._transportdelp_updatevorticity_and_ke(
             delp,
             pt,
