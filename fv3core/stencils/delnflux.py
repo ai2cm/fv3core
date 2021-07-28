@@ -5,7 +5,6 @@ import numpy as np
 from gt4py.gtscript import FORWARD, PARALLEL, computation, interval
 
 import fv3core._config as spec
-import fv3core.utils.corners as corners
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import FrozenStencil
 from fv3core.stencils.basic_operations import copy_defn
@@ -346,14 +345,6 @@ class DelnFluxNoSG:
             origin=(self._grid.is_ - self._nmax, self._grid.js - self._nmax, kstart),
             domain=(f1_nx - 1, f1_ny + 1, nk),
         )
-
-        self._copy_corners_x_nord = corners.CopyCorners(
-            "x", origin=(0, 0, kstart), domain=(self._grid.nid, self._grid.njd, nk + 1)
-        )
-        self._copy_corners_y_nord = corners.CopyCorners(
-            "y", origin=(0, 0, kstart), domain=(self._grid.nid, self._grid.njd, nk + 1)
-        )
-
         self._copy_full_domain = FrozenStencil(
             copy_defn,
             origin=self._grid.full_origin(),
@@ -380,42 +371,21 @@ class DelnFluxNoSG:
             self._copy_stencil_interval_low(q, d2)
             self._copy_stencil_interval(q, d2)
 
-        self._copy_corners_x_nord(
-            d2,
-        )
         self._fx_calc_stencil_low(d2, self._grid.del6_v, fx2)
         self._fx_calc_stencil(d2, self._grid.del6_v, fx2)
 
-        self._copy_corners_y_nord(
-            d2,
-        )
         self._fy_calc_stencil_low(d2, self._grid.del6_u, fy2)
         self._fy_calc_stencil(d2, self._grid.del6_u, fy2)
         #  for n in range(self._nmax):
         self._d2_stencil0(fx2, fy2, self._grid.rarea, d2, self._nord)
 
-        self._copy_corners_x_nord(
-            d2,
-        )
 
         self._column_conditional_fx_calculation0(d2, self._grid.del6_v, fx2, self._nord)
-
-        self._copy_corners_y_nord(
-            d2,
-        )
 
         self._column_conditional_fy_calculation0(d2, self._grid.del6_u, fy2, self._nord)
         # loop n = 1
         self._d2_stencil1(fx2, fy2, self._grid.rarea, d2, self._nord)
 
-        self._copy_corners_x_nord(
-            d2,
-        )
-
         self._column_conditional_fx_calculation1(d2, self._grid.del6_v, fx2, self._nord)
-
-        self._copy_corners_y_nord(
-            d2,
-        )
 
         self._column_conditional_fy_calculation1(d2, self._grid.del6_u, fy2, self._nord)
