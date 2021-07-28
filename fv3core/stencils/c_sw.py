@@ -685,7 +685,7 @@ class CGridShallowWaterDynamics:
                 self.grid.rdxc,
                 dt2,
             )
-        if self.grid.west_edge:
+        if self.grid.east_edge:
             self._update_east_velocity(
                 vort_c,
                 ke_c,
