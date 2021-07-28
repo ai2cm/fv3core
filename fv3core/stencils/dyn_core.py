@@ -357,7 +357,7 @@ class AcousticDynamics:
         self.do_halo_exchange = global_config.get_do_halo_exchange()
         self._pfull = pfull
         self._nk_heat_dissipation = get_nk_heat_dissipation(
-            config.d_sw,
+            config.d_grid_shallow_water,
             npz=grid_indexing.domain[2],
         )
         self.nonhydrostatic_pressure_gradient = (
@@ -368,7 +368,9 @@ class AcousticDynamics:
         if not config.hydrostatic:
             self._temporaries["pk3"][:] = HUGE_R
 
-        column_namelist = d_sw.get_column_namelist(config.d_sw, grid_indexing.domain[2])
+        column_namelist = d_sw.get_column_namelist(
+            config.d_grid_shallow_water, grid_indexing.domain[2]
+        )
         if not config.hydrostatic:
             # To write lower dimensional storages, these need to be 3D
             # then converted to lower dimensional
@@ -421,7 +423,7 @@ class AcousticDynamics:
                 column_namelist,
                 nested,
                 stretched_grid,
-                config.d_sw,
+                config.d_grid_shallow_water,
             )
         )
         self.cgrid_shallow_water_lagrangian_dynamics = CGridShallowWaterDynamics(
