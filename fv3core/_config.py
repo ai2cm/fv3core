@@ -322,7 +322,7 @@ class Namelist:
     use_logp: bool = False
     moist_phys: bool = True
     check_negative: bool = False
-    # gfdl_cloud_mucrophys.F90
+    # gfdl_cloud_microphys.F90
     tau_r2g: float = 900.0  # rain freezing during fast_sat
     tau_smlt: float = 900.0  # snow melting
     tau_g2r: float = 600.0  # graupel melting to rain
