@@ -458,7 +458,7 @@ class TranslateGridGrid(ParallelTranslateGrid):
 class TranslateDxDy(ParallelTranslateGrid):
 
     inputs = {
-        "gridvar": {
+        "grid": {
             "name": "grid",
             "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM, LON_OR_LAT_DIM],
             "units": "radians",

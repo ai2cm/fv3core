@@ -102,7 +102,7 @@ def _corner_to_center_mean(corner_array):
 
 def normalize_vector(np, *vector_components):
     scale = 1 / sum(item ** 2 for item in vector_components) ** 0.5
-    return (item * scale for item in vector_components)
+    return [item * scale for item in vector_components]
 
 
 def normalize_xyz(xyz):
