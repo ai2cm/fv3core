@@ -85,7 +85,7 @@ from fv3core.testing.parallel_translate import ParallelTranslateGrid
 #         pass
 
 
-class TranslateGnomonic_Grids(ParallelTranslateGrid):
+class Translate_GnomonicGrids(ParallelTranslateGrid):
 
     max_error = 2e-14
 
@@ -373,14 +373,14 @@ class TranslateGrid_Grid(ParallelTranslateGrid):
     max_error = 1e-14
     inputs: Dict[str, Any] = {
         "grid": {
-            "name": "grid",
-            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM, LON_OR_LAT_DIM],
+            "name": "grid_global",
+            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM, LON_OR_LAT_DIM, TILE_DIM],
             "units": "radians",}
     }
     outputs = {
         "gridvar": {
-            "name": "grid",
-            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM, LON_OR_LAT_DIM],
+            "name": "grid_global",
+            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM, LON_OR_LAT_DIM, TILE_DIM],
             "units": "radians",
         },
     }

@@ -35,3 +35,7 @@ ql0_max = 2.0e-3  # max cloud water value (auto converted to rain)
 t_sub = 184.0  # min temp for sublimation of cloud ice
 DC_ICE = C_LIQ - C_ICE
 LI0 = HLF - DC_ICE * TICE
+
+# Grid dimensions and associated constants
+LON_OR_LAT_DIM = 2
+TILE_DIM = 6

@@ -197,18 +197,19 @@ def sequential_savepoint_cases(metafunc, data_path):
         for test_name in sorted(list(savepoint_names)):
             input_savepoints = serializer.get_savepoint(f"{test_name}-In")
             output_savepoints = serializer.get_savepoint(f"{test_name}-Out")
-            check_savepoint_counts(test_name, input_savepoints, output_savepoints)
-            return_list.append(
-                SavepointCase(
-                    test_name,
-                    rank,
-                    serializer,
-                    input_savepoints,
-                    output_savepoints,
-                    grid,
-                    layout,
+            if len(input_savepoints) > 0 and len(output_savepoints) > 0:
+                check_savepoint_counts(test_name, input_savepoints, output_savepoints)
+                return_list.append(
+                    SavepointCase(
+                        test_name,
+                        rank,
+                        serializer,
+                        input_savepoints,
+                        output_savepoints,
+                        grid,
+                        layout,
+                    )
                 )
-            )
     fv3core._config.set_grid(grid_rank0)
     return return_list
 
