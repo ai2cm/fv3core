@@ -85,7 +85,7 @@ from fv3core.testing.parallel_translate import ParallelTranslateGrid
 #         pass
 
 
-class Translate_GnomonicGrids(ParallelTranslateGrid):
+class TranslateGnomonicGrids(ParallelTranslateGrid):
 
     max_error = 2e-14
 
@@ -136,7 +136,7 @@ class Translate_GnomonicGrids(ParallelTranslateGrid):
         return outputs
 
 
-class TranslateMirror_Grid(ParallelTranslateGrid):
+class TranslateMirrorGrid(ParallelTranslateGrid):
 
     inputs = {
         "grid_global": {
@@ -188,7 +188,7 @@ class TranslateMirror_Grid(ParallelTranslateGrid):
         return outputs
 
 
-class TranslateGrid_Areas(ParallelTranslateGrid):
+class TranslateGridAreas(ParallelTranslateGrid):
 
     inputs = {
         "gridvar": {
@@ -255,7 +255,7 @@ class TranslateGrid_Areas(ParallelTranslateGrid):
         return state
 
 
-class TranslateGrid_MoreAreas(ParallelTranslateGrid):
+class TranslateMoreAreas(ParallelTranslateGrid):
 
     inputs = {
         "gridvar": {
@@ -368,7 +368,7 @@ class TranslateGrid_MoreAreas(ParallelTranslateGrid):
         return state
 
 
-class TranslateGrid_Grid(ParallelTranslateGrid):
+class TranslateGridGrid(ParallelTranslateGrid):
 
     max_error = 1e-14
     inputs: Dict[str, Any] = {
@@ -455,7 +455,7 @@ class TranslateGrid_Grid(ParallelTranslateGrid):
         return outputs
 
 
-class TranslateGrid_DxDy(ParallelTranslateGrid):
+class TranslateDxDy(ParallelTranslateGrid):
 
     inputs = {
         "gridvar": {
@@ -534,7 +534,7 @@ class TranslateGrid_DxDy(ParallelTranslateGrid):
         return state
 
 
-class TranslateGrid_Agrid(ParallelTranslateGrid):
+class TranslateAgrid(ParallelTranslateGrid):
 
     inputs = {
         "agrid": {
@@ -843,7 +843,7 @@ cubedsphere=Atm(n)%gridstruct%latlon
         return outputs
 
 
-class TranslateGridUtils_Init(ParallelTranslateGrid):
+class TranslateInitGridUtils(ParallelTranslateGrid):
 
     """!$ser
     data
