@@ -46,34 +46,48 @@ class StencilMerger(object, metaclass=Container):
         stencil_group.append(stencil)
 
     def merge(self) -> None:
+        self._merged_groups = set()
         for group_id, stencil_group in enumerate(self._stencil_groups):
-            top_stencil = stencil_group[0]
-            top_ir = top_stencil.build_info["def_ir"]
+            if len(stencil_group) > 1:
+                top_stencil = stencil_group[0]
+                top_ir = top_stencil.build_info["def_ir"]
 
-            for next_stencil in stencil_group[1:]:
-                next_ir = next_stencil.build_info["def_ir"]
-                top_ir = self._merge_irs(top_ir, next_ir)
+                for next_stencil in stencil_group[1:]:
+                    next_ir = next_stencil.build_info["def_ir"]
+                    top_ir = self._merge_irs(top_ir, next_ir)
 
-            top_stencil.build_info["def_ir"] = top_ir
-            self._stencil_groups[group_id] = [top_stencil]
+                self._stencil_groups[group_id] = [top_stencil]
+                self._merged_groups.add(group_id)
 
         self._rebuild()
 
     def _rebuild(self):
-        # TODO(eddied): Merge stencil objects and regenerate code from merged IRs
-        for stencil_group in self._stencil_groups:
-            top_stencil = stencil_group[0]
-            stencil_object = top_stencil.stencil_object
-            backend_class = gt4py.backend.from_name(stencil_object.backend)
-            build_options = BuildOptions(**stencil_object.options)
-            builder = StencilBuilder(
-                top_stencil.definition_func,
-                backend=backend_class,
-                options=build_options,
-            )
-            stop = 1
+        for group_id, stencil_group in enumerate(self._stencil_groups):
+            if group_id in self._merged_groups:
+                top_stencil = stencil_group[0]
+                stencil_object = top_stencil.stencil_object
+                backend_class = gt4py.backend.from_name(stencil_object.backend)
+                def_ir = top_stencil.build_info["def_ir"]
 
-    def _merge_irs(self, dest_ir, source_ir) -> object:
+                stencil_options = stencil_object.options
+                stencil_options["name"] = def_ir.name.split(".")[-1]
+                stencil_options.pop("_impl_opts")
+
+                builder = StencilBuilder(
+                    top_stencil.definition_func,
+                    backend=backend_class,
+                    options=BuildOptions(**stencil_options),
+                )
+                builder.definition_ir = def_ir
+                builder.externals = def_ir.externals
+
+                stencil_class = builder.build()
+                top_stencil.stencil_object = stencil_class()
+
+    def _merge_irs(
+        self, dest_ir: "StencilDefinition", source_ir: "StencilDefinition"
+    ) -> "StencilDefinition":
+        dest_ir.name = self._merge_names(dest_ir.name, source_ir.name)
         dest_ir.computations.extend(source_ir.computations)
         dest_ir.externals.update(source_ir.externals)
         dest_ir.api_fields = self._merge_named_lists(
@@ -83,6 +97,13 @@ class StencilMerger(object, metaclass=Container):
             dest_ir.parameters, source_ir.parameters
         )
         return dest_ir
+
+    def _merge_names(self, dest_name: str, source_name: str) -> str:
+        items = dest_name.split(".")
+        module_name = ".".join(items[0:-1])
+        dest_name = items[-1]
+        source_name = source_name.split(".")[-1]
+        return f"{module_name}.{dest_name}__{source_name}"
 
     def _merge_named_lists(
         self, dest_list: List[object], source_list: List[object]
