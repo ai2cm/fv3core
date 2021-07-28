@@ -527,7 +527,7 @@ class DivergenceDamping:
 
 
         if self.fillc1:
-            self.fill_corners_bgrid_x.__call__(
+            self.fill_corners_bgrid_x(
                 divg_d, "x"
             )
         self._vc_from_divg_stencils1(
@@ -536,7 +536,7 @@ class DivergenceDamping:
             vc,
         )
         if self.fillc1:
-            self.fill_corners_bgrid_y.__call__(
+            self.fill_corners_bgrid_y(
                 divg_d, "y"
             )
         self._uc_from_divg_stencils1(
@@ -576,7 +576,7 @@ class DivergenceDamping:
             )
         # loop n = 2
         if self.fillc2:
-            self.fill_corners_bgrid_x.__call__(
+            self.fill_corners_bgrid_x(
                 divg_d, "x"
             )
         self._vc_from_divg_stencils2(
@@ -585,7 +585,7 @@ class DivergenceDamping:
             vc,
         )
         if self.fillc2:
-            self.fill_corners_bgrid_y.__call__(
+            self.fill_corners_bgrid_y(
                 divg_d, "y"
             )
         self._uc_from_divg_stencils2(
@@ -626,7 +626,7 @@ class DivergenceDamping:
             )
         # loop n = 3
         if self.fillc3:
-            self.fill_corners_bgrid_x.__call__(
+            self.fill_corners_bgrid_x(
                 divg_d, "x"
             )
         self._vc_from_divg_stencils3(
@@ -635,7 +635,7 @@ class DivergenceDamping:
             vc,
         )
         if self.fillc3:
-            self.fill_corners_bgrid_y.__call__(
+            self.fill_corners_bgrid_y(
                 divg_d, "y"
             )
         self._uc_from_divg_stencils3(
@@ -826,7 +826,7 @@ class DivergenceDamping:
         if self._dddmp < 1e-5:
             self._set_value(vort, 0.0)
         else:
-            self.a2b_ord4.__call__(wk, vort)
+            self.a2b_ord4(wk, vort)
             self._smagorinksy_diffusion_approx_stencil(
                 delpc,
                 vort,

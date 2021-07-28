@@ -8,14 +8,6 @@ from fv3core.utils.global_config import get_stencil_config
 from fv3core.utils.grid import axis_offsets
 from fv3core.utils.typing import FloatField, FloatFieldIJ
 
-
-def get_dace_stencil_config():
-    stencil_config = get_stencil_config()
-    if "gt" in stencil_config.backend:
-        stencil_config.backend = "gtc:dace"
-    return stencil_config
-
-
 def main_ut(
     uc: FloatField,
     vc: FloatField,
@@ -193,7 +185,6 @@ def corner_ut_stencil_init(
         },
         origin=(ui, uj, 0),
         domain=(1, 1, spec.grid.npz),
-        stencil_config=get_dace_stencil_config(),
     )
     return corner_stencil
 

@@ -13,7 +13,7 @@ def set_k0_and_calc_wk(
     with computation(PARALLEL), interval(0, 1):
         pp[0, 0, 0] = 0.0
         pk3[0, 0, 0] = top_value
-    with computation(PARALLEL), interval(0, -1):
+    with computation(PARALLEL), interval(...):
         wk = pk3[0, 0, 1] - pk3[0, 0, 0]
 
 
@@ -27,7 +27,7 @@ def calc_u(
     rdx: FloatFieldIJ,
     dt: float,
 ):
-    with computation(PARALLEL), interval(0, -1):
+    with computation(PARALLEL), interval(...):
         # hydrostatic contribution
         du = (
             dt
@@ -60,7 +60,7 @@ def calc_v(
     rdy: FloatFieldIJ,
     dt: float,
 ):
-    with computation(PARALLEL), interval(0, -1):
+    with computation(PARALLEL), interval(...):
         # hydrostatic contribution
         dv = (
             dt
@@ -91,10 +91,10 @@ class NonHydrostaticPressureGradient:
     def __init__(self, grid_type):
         grid = spec.grid
         self.orig = grid.compute_origin()
-        self.domain_full_k = grid.domain_shape_compute(add=(1, 1, 1))
+        self.domain_full_k = grid.domain_shape_compute(add=(1, 1, 0))
         self.domain_k1 = (grid.nic + 1, grid.njc + 1, 1)
-        self.u_domain = grid.domain_shape_compute(add=(0, 1, 1))
-        self.v_domain = grid.domain_shape_compute(add=(1, 0, 1))
+        self.u_domain = grid.domain_shape_compute(add=(0, 1, 0))
+        self.v_domain = grid.domain_shape_compute(add=(1, 0, 0))
         self.nk = grid.npz
         self.rdx = grid.rdx
         self.rdy = grid.rdy
@@ -173,11 +173,11 @@ class NonHydrostaticPressureGradient:
         ptk = ptop ** akap
         top_value = ptk  # = peln1 if spec.namelist.use_logp else ptk
 
-        self.a2b_k1.__call__(pp, self._tmp_wk1)
-        self.a2b_k1.__call__(pk3, self._tmp_wk1)
+        self.a2b_k1(pp, self._tmp_wk1)
+        self.a2b_k1(pk3, self._tmp_wk1)
 
-        self.a2b_kbuffer.__call__(gz, self._tmp_wk1)
-        self.a2b_kstandard.__call__(delp, self._tmp_wk1)
+        self.a2b_kbuffer(gz, self._tmp_wk1)
+        self.a2b_kstandard(delp, self._tmp_wk1)
 
         self._set_k0_and_calc_wk_stencil(pp, pk3, self._tmp_wk, top_value)
 

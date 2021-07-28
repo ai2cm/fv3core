@@ -1,5 +1,6 @@
 import dace
 from gt4py.gtscript import __INLINED, BACKWARD, FORWARD, PARALLEL, computation, interval
+import numpy as np
 
 import fv3core._config as spec
 import fv3core.stencils.basic_operations as basic
@@ -116,7 +117,7 @@ def p_grad_c_stencil(
     """
     from __externals__ import hydrostatic
 
-    with computation(PARALLEL), interval(0, -1):
+    with computation(PARALLEL), interval(...):
         if __INLINED(hydrostatic):
             wk = pkc[0, 0, 1] - pkc
         else:
@@ -307,7 +308,7 @@ class AcousticDynamics:
         )
 
         pgradc_origin = self.grid.compute_origin()
-        pgradc_domain = self.grid.domain_shape_compute(add=(1, 1, 1))
+        pgradc_domain = self.grid.domain_shape_compute(add=(1, 1, 0))
         self._p_grad_c = FrozenStencil(
             p_grad_c_stencil,
             origin=pgradc_origin,
@@ -484,7 +485,7 @@ class AcousticDynamics:
                     reqs["w_quantity"].wait()
 
             # compute the c-grid winds at t + 1/2 timestep
-            delpc, ptc = self.cgrid_shallow_water_lagrangian_dynamics.__call__(
+            delpc, ptc = self.cgrid_shallow_water_lagrangian_dynamics(
                 state.delp,
                 state.pt,
                 state.u,
@@ -519,10 +520,10 @@ class AcousticDynamics:
                         state.gz,
                     )
             if not self.namelist.hydrostatic:
-                self.update_geopotential_height_on_c_grid.__call__(
+                self.update_geopotential_height_on_c_grid(
                     self._dp_ref, self._zs, state.ut, state.vt, state.gz, state.ws3, dt2
                 )
-                self.riem_solver_c.__call__(
+                self.riem_solver_c(
                     dt2,
                     state.cappa,
                     state.ptop,
@@ -661,7 +662,7 @@ class AcousticDynamics:
                 if self.grid.npx == self.grid.npy and self.do_halo_exchange:
                     reqs["pkc_quantity"].wait()
 
-                self.nonhydrostatic_pressure_gradient.__call__(
+                self.nonhydrostatic_pressure_gradient(
                     state.u,
                     state.v,
                     state.pkc,
@@ -676,7 +677,7 @@ class AcousticDynamics:
             if self.namelist.rf_fast:
                 # TODO: Pass through ks, or remove, inconsistent representation vs
                 # Fortran.
-                self._rayleigh_damping.__call__(
+                self._rayleigh_damping(
                     state.u,
                     state.v,
                     state.w,
@@ -704,7 +705,7 @@ class AcousticDynamics:
                     state.heat_source_quantity, n_points=self.grid.halo
                 )
             cd = constants.CNST_0P20 * self.grid.da_min
-            self._hyperdiffusion.__call__(state.heat_source, cd)
+            self._hyperdiffusion(state.heat_source, cd)
             if not self.namelist.hydrostatic:
                 tmp = dt * self.namelist.delt_max
                 delt_time_factor = (tmp*tmp)**0.5

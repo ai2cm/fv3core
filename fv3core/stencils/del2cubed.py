@@ -193,7 +193,7 @@ class HyperdiffusionDamping:
         corner_fill(self.grid, qdel)
 
         if nt > 0:
-            self._copy_corners_x.__call__(qdel)
+            self._copy_corners_x(qdel)
 
         self._compute_zonal_flux1(
             self._fx,
@@ -202,7 +202,7 @@ class HyperdiffusionDamping:
         )
 
         if nt > 0:
-            self._copy_corners_y.__call__(qdel)
+            self._copy_corners_y(qdel)
 
         self._compute_meridional_flux1(
             self._fy,
@@ -226,7 +226,7 @@ class HyperdiffusionDamping:
         corner_fill(self.grid, qdel)
 
         if nt > 0:
-            self._copy_corners_x.__call__(qdel)
+            self._copy_corners_x(qdel)
 
         self._compute_zonal_flux2(
             self._fx,
@@ -235,7 +235,7 @@ class HyperdiffusionDamping:
         )
 
         if nt > 0:
-            self._copy_corners_y.__call__(qdel)
+            self._copy_corners_y(qdel)
 
         self._compute_meridional_flux2(
             self._fy,
@@ -256,7 +256,7 @@ class HyperdiffusionDamping:
         corner_fill(self.grid, qdel)
 
         if nt > 0:
-            self._copy_corners_x.__call__(qdel)
+            self._copy_corners_x(qdel)
 
         self._compute_zonal_flux3(
             self._fx,
@@ -265,7 +265,7 @@ class HyperdiffusionDamping:
         )
 
         if nt > 0:
-            self._copy_corners_y.__call__(qdel)
+            self._copy_corners_y(qdel)
 
         self._compute_meridional_flux3(
             self._fy,

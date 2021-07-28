@@ -211,7 +211,6 @@ class UpdateHeightOnDGrid:
         self._compile_stencils(namelist)
 
         self.finite_volume_transport = FiniteVolumeTransport(namelist, namelist.hord_tm)
-        self.damp_vt = self._column_namelist["damp_vt"]
 
     def _allocate_temporary_storages(self):
         largest_possible_shape = self.grid.domain_shape_full(add=(1, 1, 1))
@@ -343,7 +342,7 @@ class UpdateHeightOnDGrid:
             height,
             self._height_x_diffusive_flux,
             self._height_y_diffusive_flux,
-            self.damp_vt,
+            self._column_namelist["damp_vt"],
             self._wk,
             None
         )

@@ -151,7 +151,7 @@ class RiemannSolverC:
             self._pm,
             ptop,
         )
-        self._sim1_solve.__call__(
+        self._sim1_solve(
             dt2,
             self._gm,
             cappa,

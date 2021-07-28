@@ -211,7 +211,7 @@ class RiemannSolver3:
             ptk,
         )
 
-        self._sim1_solve.__call__(
+        self._sim1_solve(
             dt,
             self._tmp_gm,
             cappa,
