@@ -227,7 +227,6 @@ class Namelist:
     # consv_am: Any
     consv_te: bool = DEFAULT_BOOL
     d2_bg: float = DEFAULT_FLOAT
-    """docstring"""
     d2_bg_k1: float = DEFAULT_FLOAT
     d2_bg_k2: float = DEFAULT_FLOAT
     d4_bg: float = DEFAULT_FLOAT
