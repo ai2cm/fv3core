@@ -90,6 +90,9 @@ class StencilMerger(object, metaclass=Container):
         dest_ir.name = self._merge_names(dest_ir.name, source_ir.name)
         dest_ir.computations.extend(source_ir.computations)
         dest_ir.externals.update(source_ir.externals)
+        dest_ir.api_signature = self._merge_named_lists(
+            dest_ir.api_signature, source_ir.api_signature
+        )
         dest_ir.api_fields = self._merge_named_lists(
             dest_ir.api_fields, source_ir.api_fields
         )
