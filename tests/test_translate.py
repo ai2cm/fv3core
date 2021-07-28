@@ -187,6 +187,8 @@ def test_sequential_savepoint(
     caplog.set_level(logging.DEBUG, logger="fv3core")
     if testobj is None:
         pytest.xfail(f"no translate object available for savepoint {test_name}")
+    if rank not in range(4, 54, 9):
+        return
     # Reduce error threshold for GPU
     if config.is_gpu_backend():
         testobj.max_error = max(testobj.max_error, GPU_MAX_ERR)
@@ -387,6 +389,8 @@ def test_parallel_savepoint(
             hash_result_data(output, out_vars),
             fullpath=os.path.join(data_path, filename),
         )
+        return
+    if grid[0].rank not in range(4, 54, 9):
         return
     failing_names = []
     passing_names = []
