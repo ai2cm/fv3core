@@ -20,7 +20,7 @@ from fv3core.grid import (
 )
 
 from fv3core.utils.corners import fill_corners_2d, fill_corners_agrid, fill_corners_dgrid
-from fv3core.utils.global_constants import LON_OR_LAT_DIM, PI, RADIUS, TILE_DIM
+from fv3core.utils.global_constants import PI, RADIUS, LON_OR_LAT_DIM, TILE_DIM
 from fv3core.testing.parallel_translate import ParallelTranslateGrid
 
 
@@ -139,7 +139,7 @@ class TranslateGnomonicGrids(ParallelTranslateGrid):
 class TranslateMirrorGrid(ParallelTranslateGrid):
 
     inputs = {
-        "grid_global": {
+        "master_grid_global": {
             "name": "grid_global",
             "dims": [
                 fv3util.X_INTERFACE_DIM,
@@ -150,12 +150,12 @@ class TranslateMirrorGrid(ParallelTranslateGrid):
             "units": "radians",
             "n_halo": 3,
         },
-        "ng": {"name": "n_ghost", "dims": []},
-        "npx": {"name": "npx", "dims": []},
-        "npy": {"name": "npy", "dims": []},
+        "master_ng": {"name": "n_ghost", "dims": []},
+        "master_npx": {"name": "npx", "dims": []},
+        "master_npy": {"name": "npy", "dims": []},
     }
     outputs = {
-        "grid_global": {
+        "master_grid_global": {
             "name": "grid_global",
             "dims": [
                 fv3util.X_INTERFACE_DIM,
@@ -191,7 +191,7 @@ class TranslateMirrorGrid(ParallelTranslateGrid):
 class TranslateGridAreas(ParallelTranslateGrid):
 
     inputs = {
-        "gridvar": {
+        "grid": {
             "name": "grid",
             "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM, LON_OR_LAT_DIM],
             "units": "radians",
@@ -305,8 +305,8 @@ class TranslateMoreAreas(ParallelTranslateGrid):
         },
     }
     outputs = {
-        "area_c": {
-            "name": "area_cgrid",
+        "area_cgrid": {
+            "name": "area_c",
             "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM],
             "units": "m^2",
         },
@@ -372,13 +372,13 @@ class TranslateGridGrid(ParallelTranslateGrid):
 
     max_error = 1e-14
     inputs: Dict[str, Any] = {
-        "grid": {
+        "grid_global": {
             "name": "grid_global",
             "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM, LON_OR_LAT_DIM, TILE_DIM],
             "units": "radians",}
     }
     outputs = {
-        "gridvar": {
+        "grid_global": {
             "name": "grid_global",
             "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM, LON_OR_LAT_DIM, TILE_DIM],
             "units": "radians",

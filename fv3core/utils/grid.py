@@ -9,6 +9,7 @@ import fv3gfs.util as fv3util
 
 from . import gt4py_utils as utils
 from .typing import Index3D
+from .global_constants import LON_OR_LAT_DIM, TILE_DIM
 
 
 class Grid:
@@ -74,7 +75,10 @@ class Grid:
                 ny_tile=self.npy - 1,
                 nz=self.npz,
                 n_halo=self.halo,
-                extra_dim_lengths={},
+                extra_dim_lengths={
+                    LON_OR_LAT_DIM: 2,
+                    TILE_DIM: 6,
+                },
                 layout=self.layout,
             )
         return self._sizer
