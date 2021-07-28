@@ -124,39 +124,39 @@ class AcousticDynamicsConfig:
     d_grid_shallow_water: DGridShallowWaterLagrangianDynamicsConfig
 
     @property
-    def nord(self):
+    def nord(self) -> int:
         return self.d_grid_shallow_water.nord
 
     @property
-    def grid_type(self):
+    def grid_type(self) -> int:
         return self.d_grid_shallow_water.grid_type
 
     @property
-    def hydrostatic(self):
+    def hydrostatic(self) -> bool:
         return self.d_grid_shallow_water.hydrostatic
 
     @property
-    def hord_tm(self):
+    def hord_tm(self) -> int:
         return self.d_grid_shallow_water.hord_tm
 
     @property
-    def p_fac(self):
+    def p_fac(self) -> float:
         return self.riemann.p_fac
 
     @property
-    def d_ext(self):
+    def d_ext(self) -> float:
         return self.d_grid_shallow_water.d_ext
 
     @property
-    def d_con(self):
+    def d_con(self) -> float:
         return self.d_grid_shallow_water.d_con
 
     @property
-    def beta(self):
+    def beta(self) -> float:
         return self.riemann.beta
 
     @property
-    def use_logp(self):
+    def use_logp(self) -> bool:
         return self.riemann.use_logp
 
 
@@ -227,6 +227,7 @@ class Namelist:
     # consv_am: Any
     consv_te: bool = DEFAULT_BOOL
     d2_bg: float = DEFAULT_FLOAT
+    """docstring"""
     d2_bg_k1: float = DEFAULT_FLOAT
     d2_bg_k2: float = DEFAULT_FLOAT
     d4_bg: float = DEFAULT_FLOAT
@@ -458,7 +459,7 @@ class Namelist:
     n_sponge: int = 1
 
     @property
-    def riemann(self):
+    def riemann(self) -> RiemannConfig:
         return RiemannConfig(
             p_fac=self.p_fac,
             a_imp=self.a_imp,
@@ -467,36 +468,34 @@ class Namelist:
         )
 
     @property
-    def d_grid_shallow_water(self):
-        return (
-            DGridShallowWaterLagrangianDynamicsConfig(
-                dddmp=self.dddmp,
-                d2_bg=self.d2_bg,
-                d2_bg_k1=self.d2_bg_k1,
-                d2_bg_k2=self.d2_bg_k2,
-                d4_bg=self.d4_bg,
-                ke_bg=self.ke_bg,
-                nord=self.nord,
-                n_sponge=self.n_sponge,
-                grid_type=self.grid_type,
-                d_ext=self.d_ext,
-                inline_q=self.inline_q,
-                hord_dp=self.hord_dp,
-                hord_tm=self.hord_tm,
-                hord_mt=self.hord_mt,
-                hord_vt=self.hord_vt,
-                do_f3d=self.do_f3d,
-                do_skeb=self.do_skeb,
-                d_con=self.d_con,
-                vtdm4=self.vtdm4,
-                do_vort_damp=self.do_vort_damp,
-                hydrostatic=self.hydrostatic,
-                convert_ke=self.convert_ke,
-            ),
+    def d_grid_shallow_water(self) -> DGridShallowWaterLagrangianDynamicsConfig:
+        return DGridShallowWaterLagrangianDynamicsConfig(
+            dddmp=self.dddmp,
+            d2_bg=self.d2_bg,
+            d2_bg_k1=self.d2_bg_k1,
+            d2_bg_k2=self.d2_bg_k2,
+            d4_bg=self.d4_bg,
+            ke_bg=self.ke_bg,
+            nord=self.nord,
+            n_sponge=self.n_sponge,
+            grid_type=self.grid_type,
+            d_ext=self.d_ext,
+            inline_q=self.inline_q,
+            hord_dp=self.hord_dp,
+            hord_tm=self.hord_tm,
+            hord_mt=self.hord_mt,
+            hord_vt=self.hord_vt,
+            do_f3d=self.do_f3d,
+            do_skeb=self.do_skeb,
+            d_con=self.d_con,
+            vtdm4=self.vtdm4,
+            do_vort_damp=self.do_vort_damp,
+            hydrostatic=self.hydrostatic,
+            convert_ke=self.convert_ke,
         )
 
     @property
-    def acoustic_dynamics(self):
+    def acoustic_dynamics(self) -> AcousticDynamicsConfig:
         return AcousticDynamicsConfig(
             tau=self.tau,
             k_split=self.k_split,
