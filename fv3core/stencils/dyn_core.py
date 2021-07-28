@@ -326,6 +326,7 @@ class AcousticDynamics:
         nested,
         stretched_grid,
         config: AcousticDynamicsConfig,
+        # TODO: move ak, bk, pfull, and phis into GridData
         ak: FloatFieldK,
         bk: FloatFieldK,
         pfull: FloatFieldK,
@@ -334,9 +335,16 @@ class AcousticDynamics:
         """
         Args:
             comm: object for cubed sphere inter-process communication
-            namelist: flattened Fortran namelist
+            grid_indexing: indexing data
+            grid_data: metric terms defining the grid
+            damping_coefficients: damping configuration
+            grid_type: ???
+            nested: ???
+            stretched_grid: ???
+            config: configuration settings
             ak: atmosphere hybrid a coordinate (Pa)
             bk: atmosphere hybrid b coordinate (dimensionless)
+            pfull: atmospheric Eulerian grid reference pressure (Pa)
             phis: surface geopotential height
         """
         self.comm = comm
