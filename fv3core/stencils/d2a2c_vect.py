@@ -346,26 +346,26 @@ class DGrid2AGrid2CGridVectors:
             self.grid.domain_shape_full(add=(1, 1, 1)), self.grid.full_origin()
         )
 
-        js1 = npt + OFFSET if self.grid.south_edge else self.grid.js - 1
-        je1 = self._ny - npt if self.grid.north_edge else self.grid.je + 1
-        is1 = npt + OFFSET if self.grid.west_edge else self.grid.isd
-        ie1 = self._nx - npt if self.grid.east_edge else self.grid.ied
+        js1 = self.grid.js - 1
+        je1 = self.grid.je + 1
+        is1 = self.grid.isd
+        ie1 = self.grid.ied
 
-        is2 = npt + OFFSET if self.grid.west_edge else self.grid.is_ - 1
-        ie2 = self._nx - npt if self.grid.east_edge else self.grid.ie + 1
-        js2 = npt + OFFSET if self.grid.south_edge else self.grid.jsd
-        je2 = self._ny - npt if self.grid.north_edge else self.grid.jed
+        is2 = self.grid.is_ - 1
+        ie2 = self.grid.ie + 1
+        js2 = self.grid.jsd
+        je2 = self.grid.jed
 
-        ifirst = self.grid.is_ + 2 if self.grid.west_edge else self.grid.is_ - 1
-        ilast = self.grid.ie - 1 if self.grid.east_edge else self.grid.ie + 2
+        ifirst = self.grid.is_ - 1
+        ilast = self.grid.ie + 2
         idiff = ilast - ifirst + 1
 
-        jfirst = self.grid.js + 2 if self.grid.south_edge else self.grid.js - 1
-        jlast = self.grid.je - 1 if self.grid.north_edge else self.grid.je + 2
+        jfirst = self.grid.js - 1
+        jlast = self.grid.je + 2
         jdiff = jlast - jfirst + 1
 
-        js3 = npt + OFFSET if self.grid.south_edge else self.grid.jsd
-        je3 = self._ny - npt if self.grid.north_edge else self.grid.jed
+        js3 = self.grid.jsd
+        je3 = self.grid.jed
         jdiff3 = je3 - js3 + 1
 
         self._set_tmps = FrozenStencil(
@@ -544,36 +544,6 @@ class DGrid2AGrid2CGridVectors:
             self._vtmp,
         )
 
-        # tmp edges
-        if self.grid.south_edge:
-            self._avg_box_south(
-                u,
-                v,
-                self._utmp,
-                self._vtmp,
-            )
-        if self.grid.north_edge:
-            self._avg_box_north(
-                u,
-                v,
-                self._utmp,
-                self._vtmp,
-            )
-        if self.grid.west_edge:
-            self._avg_box_west(
-                u,
-                v,
-                self._utmp,
-                self._vtmp,
-            )
-        if self.grid.east_edge:
-            self._avg_box_east(
-                u,
-                v,
-                self._utmp,
-                self._vtmp,
-            )
-
         # contra-variant components at cell center
         self._contravariant_components(
             self._utmp,
@@ -596,59 +566,7 @@ class DGrid2AGrid2CGridVectors:
             utc,
         )
 
-        if self.grid.west_edge:
-            self._u_west_edge1(
-                uc,
-                utc,
-                self._utmp,
-                v,
-                self.grid.cosa_u,
-                self.grid.rsin_u,
-            )
-            self._u_west_edge2(
-                ua, uc, utc, self.grid.sin_sg1, self.grid.sin_sg3, self.grid.dxa
-            )
-            self._u_west_edge3(
-                uc, utc, self._utmp, v, self.grid.cosa_u, self.grid.rsin_u
-            )
-        if self.grid.east_edge:
-            self._u_east_edge1(
-                uc, utc, self._utmp, v, self.grid.cosa_u, self.grid.rsin_u
-            )
-            self._u_east_edge2(
-                ua, uc, utc, self.grid.sin_sg1, self.grid.sin_sg3, self.grid.dxa
-            )
-            self._u_east_edge3(
-                uc, utc, self._utmp, v, self.grid.cosa_u, self.grid.rsin_u
-            )
-
         self._fix_y_edges(ua, va)
-
-        if self.grid.south_edge:
-            self._v_south_edge1(
-                vc,
-                vtc,
-                self._vtmp,
-                u,
-                self.grid.cosa_v,
-                self.grid.rsin_v,
-            )
-            self._v_south_edge2(
-                va, vc, vtc, self.grid.sin_sg2, self.grid.sin_sg4, self.grid.dya
-            )
-            self._v_south_edge3(
-                vc, vtc, self._vtmp, u, self.grid.cosa_v, self.grid.rsin_v
-            )
-        if self.grid.north_edge:
-            self._v_north_edge1(
-                vc, vtc, self._vtmp, u, self.grid.cosa_v, self.grid.rsin_v
-            )
-            self._v_north_edge2(
-                va, vc, vtc, self.grid.sin_sg2, self.grid.sin_sg4, self.grid.dya
-            )
-            self._v_north_edge3(
-                vc, vtc, self._vtmp, u, self.grid.cosa_v, self.grid.rsin_v
-            )
 
         self._vt_main(
             self._vtmp,
@@ -658,7 +576,6 @@ class DGrid2AGrid2CGridVectors:
             self.grid.rsin_v,
             vtc,
         )
-
     def _fix_x_edges(self, ua: FloatField, va: FloatField):
         utils.device_sync()
         # Convert gt4py storages to numpy/cupy arrays...
