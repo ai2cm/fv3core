@@ -23,30 +23,6 @@ def tmps_main(
         utmp = C2 * (u[0, -1, 0] + u[0, 2, 0]) + C1 * (u + u[0, 1, 0])
         vtmp = C2 * (v[-1, 0, 0] + v[2, 0, 0]) + C1 * (v + v[1, 0, 0])
 
-def tmps_y_edge(
-    u: FloatField,
-    v: FloatField,
-    dx: FloatFieldIJ,
-    dy: FloatFieldIJ,
-    utmp: FloatField,
-    vtmp: FloatField,
-):
-    with computation(PARALLEL), interval(...):
-        vtmp = 2.0 * ((v * dy) + (v[1, 0, 0] * dy[1, 0])) / (dy + dy[1, 0])
-        utmp = 2.0 * (u * dx + u[0, 1, 0] * dx[0, 1]) / (dx + dx[0, 1])
-
-def tmps_x_edge(
-    u: FloatField,
-    v: FloatField,
-    dx: FloatFieldIJ,
-    dy: FloatFieldIJ,
-    utmp: FloatField,
-    vtmp: FloatField,
-):
-    with computation(PARALLEL), interval(...):
-        utmp = 2.0 * ((u * dx) + (u[0, 1, 0] * dx[0, 1])) / (dx + dx[0, 1])
-        vtmp = 2.0 * ((v * dy) + (v[1, 0, 0] * dy[1, 0])) / (dy + dy[1, 0])
-
 def ord4_transform(
     utmp: FloatField,
     vtmp: FloatField,
@@ -97,30 +73,7 @@ class CubedToLatLon:
             origin=origin,
             domain=domain,
         )
-        if self.grid.south_edge:
-            self._tmps_south_edge = FrozenStencil(
-                tmps_y_edge,
-                origin=(origin[0], self.grid.js, origin[2]),
-                domain=(domain[0], 1, domain[2]),
-            )
-        if self.grid.north_edge:
-            self._tmps_north_edge = FrozenStencil(
-                tmps_y_edge,
-                origin=(origin[0], self.grid.je, origin[2]),
-                domain=(domain[0], 1, domain[2]),
-            )
-        if self.grid.west_edge:
-            self._tmps_west_edge = FrozenStencil(
-                tmps_x_edge,
-                origin=(self.grid.is_, origin[1],  origin[2]),
-                domain=(1, domain[1], domain[2]),
-            )
-        if self.grid.east_edge:
-            self._tmps_east_edge = FrozenStencil(
-                tmps_x_edge,
-                origin=(self.grid.ie, origin[1],  origin[2]),
-                domain=(1, domain[1], domain[2]),
-            )
+
         self._compute_cubed_to_latlon = FrozenStencil(
             ord4_transform,
             origin=origin,
@@ -152,42 +105,6 @@ class CubedToLatLon:
             self._utmp,
             self._vtmp,
         )
-        if self.grid.south_edge:
-            self._tmps_south_edge(
-                u.storage,
-                v.storage,
-                self.grid.dx,
-                self.grid.dy,
-                self._utmp,
-                self._vtmp,
-            )
-        if self.grid.north_edge:
-            self._tmps_north_edge(
-                u.storage,
-                v.storage,
-                self.grid.dx,
-                self.grid.dy,
-                self._utmp,
-                self._vtmp,
-            )
-        if self.grid.west_edge:
-            self._tmps_west_edge(
-                u.storage,
-                v.storage,
-                self.grid.dx,
-                self.grid.dy,
-                self._utmp,
-                self._vtmp,
-            )
-        if self.grid.east_edge:
-            self._tmps_east_edge(
-                u.storage,
-                v.storage,
-                self.grid.dx,
-                self.grid.dy,
-                self._utmp,
-                self._vtmp,
-            )
         self._compute_cubed_to_latlon(
             self._utmp,
             self._vtmp,
