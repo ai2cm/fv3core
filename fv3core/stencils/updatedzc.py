@@ -3,7 +3,7 @@ from gt4py.gtscript import BACKWARD, FORWARD, PARALLEL, computation, interval
 
 import fv3core.utils.global_constants as constants
 from fv3core.decorators import FrozenStencil
-from fv3core.utils import corners, gt4py_utils
+from fv3core.utils import gt4py_utils
 from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
 
 
@@ -129,9 +129,6 @@ class UpdateGeopotentialHeightOnCGrid:
         # _gz_x and _gz_y stencil to skip the copies and corner-fill stencils
         # once regions bug is fixed
         self._double_copy_stencil(gz, self._gz_x, self._gz_y)
-        corners.fill_4corners(self._gz_x, "x", self.grid)
-        corners.fill_4corners(self._gz_y, "y", self.grid)
-
         self._update_dz_c(
             dp_ref,
             zs,
