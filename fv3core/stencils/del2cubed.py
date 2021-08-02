@@ -1,7 +1,6 @@
 from gt4py.gtscript import PARALLEL, computation, interval
 
 import fv3core._config as spec
-import fv3core.utils.corners as corners
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import FrozenStencil
 from fv3core.utils.grid import axis_offsets
@@ -30,56 +29,6 @@ def update_q(
     with computation(PARALLEL), interval(...):
         q = q + cd * rarea * (fx - fx[1, 0, 0] + fy - fy[0, 1, 0])
 
-
-#
-# corner_fill
-#
-# Stencil that copies/fills in the appropriate corner values for qdel
-# ------------------------------------------------------------------------
-def corner_fill(grid, q):
-    utils.device_sync()
-    r3 = 1.0 / 3.0
-    q_arr = utils.asarray(q)
-
-    if grid.sw_corner:
-        q_arr[grid.is_, grid.js, :] = (
-            q_arr[grid.is_, grid.js, :]
-            + q_arr[grid.is_ - 1, grid.js, :]
-            + q_arr[grid.is_, grid.js - 1, :]
-        ) * r3
-        q_arr[grid.is_ - 1, grid.js, :] = q_arr[grid.is_, grid.js, :]
-        q_arr[grid.is_, grid.js - 1, :] = q_arr[grid.is_, grid.js, :]
-
-    if grid.se_corner:
-        q_arr[grid.ie, grid.js, :] = (
-            q_arr[grid.ie, grid.js, :]
-            + q_arr[grid.ie + 1, grid.js, :]
-            + q_arr[grid.ie, grid.js - 1, :]
-        ) * r3
-        q_arr[grid.ie + 1, grid.js, :] = q_arr[grid.ie, grid.js, :]
-        for k in range(grid.npz):
-            q_arr[grid.ie, grid.js - 1, k] = q_arr[grid.ie, grid.js, k]
-
-    if grid.ne_corner:
-        q_arr[grid.ie, grid.je, :] = (
-            q_arr[grid.ie, grid.je, :]
-            + q_arr[grid.ie + 1, grid.je, :]
-            + q_arr[grid.ie, grid.je + 1, :]
-        ) * r3
-        q_arr[grid.ie + 1, grid.je, :] = q_arr[grid.ie, grid.je, :]
-        q_arr[grid.ie, grid.je + 1, :] = q_arr[grid.ie, grid.je, :]
-
-    if grid.nw_corner:
-        q_arr[grid.is_, grid.je, :] = (
-            q_arr[grid.is_, grid.je, :]
-            + q_arr[grid.is_ - 1, grid.je, :]
-            + q_arr[grid.is_, grid.je + 1, :]
-        ) * r3
-        for k in range(grid.npz):
-            q_arr[grid.is_ - 1, grid.je, k] = q_arr[grid.is_, grid.je, k]
-        q_arr[grid.is_, grid.je + 1, :] = q_arr[grid.is_, grid.je, :]
-
-    q[:] = q_arr
 
 
 class HyperdiffusionDamping:
@@ -175,11 +124,6 @@ class HyperdiffusionDamping:
             domain,
         )
 
-        self._copy_corners_x: corners.CopyCorners = corners.CopyCorners("x")
-        """Stencil responsible for doing corners updates in x-direction."""
-        self._copy_corners_y: corners.CopyCorners = corners.CopyCorners("y")
-        """Stencil responsible for doing corners updates in y-direction."""
-
     def __call__(self, qdel: FloatField, cd: float):
         """
         Perform hyperdiffusion damping/filtering
@@ -192,20 +136,11 @@ class HyperdiffusionDamping:
         # n = 0
         nt = self._ntimes - 1
 
-        corner_fill(self.grid, qdel)
-
-        if nt > 0:
-            self._copy_corners_x(qdel)
-
         self._compute_zonal_flux1(
             self._fx,
             qdel,
             self.grid.del6_v,
         )
-
-        if nt > 0:
-            self._copy_corners_y(qdel)
-
         self._compute_meridional_flux1(
             self._fy,
             qdel,
@@ -225,19 +160,11 @@ class HyperdiffusionDamping:
         # n = 1
         nt = self._ntimes - 2
 
-        corner_fill(self.grid, qdel)
-
-        if nt > 0:
-            self._copy_corners_x(qdel)
-
         self._compute_zonal_flux2(
             self._fx,
             qdel,
             self.grid.del6_v,
         )
-
-        if nt > 0:
-            self._copy_corners_y(qdel)
 
         self._compute_meridional_flux2(
             self._fy,
@@ -255,19 +182,11 @@ class HyperdiffusionDamping:
         # n = 2
         nt = self._ntimes - 3
 
-        corner_fill(self.grid, qdel)
-
-        if nt > 0:
-            self._copy_corners_x(qdel)
-
         self._compute_zonal_flux3(
             self._fx,
             qdel,
             self.grid.del6_v,
         )
-
-        if nt > 0:
-            self._copy_corners_y(qdel)
 
         self._compute_meridional_flux3(
             self._fy,
