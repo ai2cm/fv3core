@@ -49,74 +49,9 @@ def get_flux(q: FloatField, courant: FloatField, al: FloatField):
     fx1 = fx1_fn(courant, br, b0, bl)
     return final_flux(courant, q, fx1, tmp)  # noqa
 
-@gtscript.function
-def xt_dxa_edge_0_base(q, dxa):
-    return 0.5 * (
-        ((2.0 * dxa + dxa[-1, 0]) * q - dxa * q[-1, 0, 0]) / (dxa[-1, 0] + dxa)
-        + ((2.0 * dxa[1, 0] + dxa[2, 0]) * q[1, 0, 0] - dxa[1, 0] * q[2, 0, 0])
-        / (dxa[1, 0] + dxa[2, 0])
-    )
-
-
-@gtscript.function
-def xt_dxa_edge_1_base(q, dxa):
-    return 0.5 * (
-        (
-            (2.0 * dxa[-1, 0] + dxa[-2, 0]) * q[-1, 0, 0]
-            - dxa[-1, 0] * q[-2, 0, 0]
-        )
-        / (dxa[-2, 0] + dxa[-1, 0])
-        + ((2.0 * dxa + dxa[1, 0]) * q - dxa * q[1, 0, 0]) / (dxa + dxa[1, 0])
-    )
-
-
-@gtscript.function
-def xt_dxa_edge_0(q, dxa, xt_minmax):
-    xt = xt_dxa_edge_0_base(q, dxa)
-    minq = 0.0
-    maxq = 0.0
-    if xt_minmax:
-        minq = min(min(min(q[-1, 0, 0], q), q[1, 0, 0]), q[2, 0, 0])
-        maxq = max(max(max(q[-1, 0, 0], q), q[1, 0, 0]), q[2, 0, 0])
-        xt = min(max(xt, minq), maxq)
-    return xt
-
-
-@gtscript.function
-def xt_dxa_edge_1(q, dxa, xt_minmax):
-    xt = xt_dxa_edge_1_base(q, dxa)
-    minq = 0.0
-    maxq = 0.0
-    if xt_minmax:
-        minq = min(min(min(q[-2, 0, 0], q[-1, 0, 0]), q), q[1, 0, 0])
-        maxq = max(max(max(q[-2, 0, 0], q[-1, 0, 0]), q), q[1, 0, 0])
-        xt = min(max(xt, minq), maxq)
-    return xt
-
-
 def main_al(q: FloatField, al: FloatField):
     with computation(PARALLEL), interval(...):
         al = yppm.p1 * (q[-1, 0, 0] + q) + yppm.p2 * (q[-2, 0, 0] + q[1, 0, 0])
-
-
-def al_y_edge_0(q: FloatField, al: FloatField):
-    with computation(PARALLEL), interval(0, None):
-        al = yppm.c1 * q[-2, 0, 0] + yppm.c2 * q[-1, 0, 0] + yppm.c3 * q
-
-
-def al_y_edge_1(q: FloatField, dxa: FloatFieldIJ, al: FloatField):
-    with computation(PARALLEL), interval(0, None):
-        al = 0.5 * (
-            ((2.0 * dxa[-1, 0] + dxa[-2, 0]) * q[-1, 0, 0] - dxa[-1, 0] * q[-2, 0, 0])
-            / (dxa[-2, 0] + dxa[-1, 0])
-            + ((2.0 * dxa[0, 0] + dxa[1, 0]) * q[0, 0, 0] - dxa[0, 0] * q[1, 0, 0])
-            / (dxa[0, 0] + dxa[1, 0])
-        )
-
-
-def al_y_edge_2(q: FloatField, dxa: FloatFieldIJ, al: FloatField):
-    with computation(PARALLEL), interval(0, None):
-        al = yppm.c3 * q[-1, 0, 0] + yppm.c2 * q[0, 0, 0] + yppm.c1 * q[1, 0, 0]
 
 
 def compute_x_flux(
@@ -154,44 +89,6 @@ def blbr_iord8(q: FloatField, al: FloatField, bl: FloatField, br: FloatField, dm
         br = sign(min(abs(xt), abs(al[1, 0, 0] - q)), xt)
 
 
-def west_edge_iord8plus_0(q: FloatField, dxa: FloatFieldIJ, dm: FloatField, bl: FloatField, br: FloatField, xt_minmax: bool):
-    with computation(PARALLEL), interval(...):
-        bl = yppm.s14 * dm[-1, 0, 0] + yppm.s11 * (q[-1, 0, 0] - q)
-        xt = xt_dxa_edge_0(q, dxa, xt_minmax)
-        br = xt - q
-        
-def west_edge_iord8plus_1(q: FloatField, dxa: FloatFieldIJ, dm: FloatField, bl: FloatField, br: FloatField, xt_minmax: bool):
-    with computation(PARALLEL), interval(...):
-        xt = xt_dxa_edge_1(q, dxa, xt_minmax)
-        bl = xt - q
-        xt = yppm.s15 * q + yppm.s11 * q[1, 0, 0] - yppm.s14 * dm[1, 0, 0]
-        br = xt - q
-def west_edge_iord8plus_2(q: FloatField, dxa: FloatFieldIJ, dm: FloatField, al: FloatField, bl: FloatField, br: FloatField):
-    with computation(PARALLEL), interval(...):
-        xt = yppm.s15 * q[-1, 0, 0] + yppm.s11 * q - yppm.s14 * dm
-        bl = xt - q
-        br = al[1, 0, 0] - q
-
-def east_edge_iord8plus_0(q: FloatField, dxa: FloatFieldIJ, dm: FloatField, al: FloatField, bl: FloatField, br: FloatField):
-    with computation(PARALLEL), interval(...):
-        bl = al - q
-        xt = yppm.s15 * q[1, 0, 0] + yppm.s11 * q + yppm.s14 * dm
-        br = xt - q
-
-def east_edge_iord8plus_1(q: FloatField, dxa: FloatFieldIJ, dm: FloatField, bl: FloatField, br: FloatField, xt_minmax: bool):
-    with computation(PARALLEL), interval(...):
-        xt = yppm.s15 * q + yppm.s11 * q[-1, 0, 0] + yppm.s14 * dm[-1, 0, 0]
-        bl = xt - q
-        xt = xt_dxa_edge_0(q, dxa, xt_minmax)
-        br = xt - q
-def east_edge_iord8plus_2(q: FloatField, dxa: FloatFieldIJ, dm: FloatField, bl: FloatField, br: FloatField, xt_minmax: bool):
-    with computation(PARALLEL), interval(...):
-        xt = xt_dxa_edge_1(q, dxa, xt_minmax)
-        bl = xt - q
-        br = yppm.s11 * (q[1, 0, 0] - q) - yppm.s14 * dm[1, 0, 0]
-
-
-
 
 class XPiecewiseParabolic:
     """
@@ -214,41 +111,21 @@ class XPiecewiseParabolic:
         flux_origin = (self.grid.is_, jfirst, 0)
         flux_domain = (self.grid.nic + 1, jlast - jfirst + 1, self.grid.npz + 1)
 
-        is1 = self.grid.is_ + 2 if self.grid.west_edge else self.grid.is_ - 1
-        ie3 = self.grid.ie - 1 if self.grid.east_edge else self.grid.ie + 2
+        is1 = self.grid.is_ - 1
+        ie3 = self.grid.ie + 2
         if dxa is None:
             self._dxa = self.grid.dxa
         else:
             self._dxa = dxa
         shape = self.grid.domain_shape_full(add=(1, 1, 1))
         self._al = utils.make_storage_from_shape(shape)
-        edge_domain = (1, shape[1], shape[2])
+
         if self._mord < 8:
             self._main_al_stencil = FrozenStencil(
                 main_al,
                 origin=(is1, jfirst, 0),
                 domain=(ie3 - is1 + 1, jlast - jfirst + 1, self.grid.npz + 1),
             )
-            if self.grid.west_edge:
-                self._al_west_0_stencil = FrozenStencil(
-                    al_y_edge_0, origin=(self.grid.is_ - 1, 0, 0), domain=edge_domain
-                )
-                self._al_west_1_stencil = FrozenStencil(
-                    al_y_edge_1, origin=(self.grid.is_, 0, 0), domain=edge_domain
-                )
-                self._al_west_2_stencil = FrozenStencil(
-                    al_y_edge_2, origin=(self.grid.is_ + 1, 0, 0), domain=edge_domain
-                )
-            if self.grid.east_edge:
-                self._al_east_0_stencil = FrozenStencil(
-                    al_y_edge_0, origin=(self.grid.ie, 0, 0), domain=edge_domain
-                )
-                self._al_east_1_stencil = FrozenStencil(
-                    al_y_edge_1, origin=(self.grid.ie + 1, 0, 0), domain=edge_domain
-                )
-                self._al_east_2_stencil = FrozenStencil(
-                    al_y_edge_2, origin=(self.grid.ie + 2, 0, 0), domain=edge_domain
-                )
 
             self._compute_flux_stencil = FrozenStencil(
                 func=compute_x_flux,
@@ -260,7 +137,7 @@ class XPiecewiseParabolic:
             )
         else:
             assert iord == 8
-            ie1 = self.grid.ie - 2 if self.grid.east_edge else self.grid.ie + 1
+            ie1 =  self.grid.ie + 1
             self._bl = utils.make_storage_from_shape(shape)
             self._br = utils.make_storage_from_shape(shape)
             self._dm = utils.make_storage_from_shape(shape)
@@ -279,49 +156,8 @@ class XPiecewiseParabolic:
                 origin=(is1, jfirst, 0),
                 domain=(ie1 - is1 + 1, dj, self.grid.npz + 1),
             )
-            y_edge_domain = (1, dj, self.grid.npz + 1)
+
             self._do_xt_minmax = True
-            if self.grid.west_edge:
-                self._west_edge_iord8plus_0_stencil = FrozenStencil(
-                    west_edge_iord8plus_0,
-                    origin=(self.grid.is_ - 1, jfirst, 0),
-                    domain=y_edge_domain,
-                )
-                self._west_edge_iord8plus_1_stencil = FrozenStencil(
-                    west_edge_iord8plus_1,
-                    origin=(self.grid.is_, jfirst, 0),
-                    domain=y_edge_domain,
-                )
-                self._west_edge_iord8plus_2_stencil = FrozenStencil(
-                    west_edge_iord8plus_2,
-                    origin=(self.grid.is_+1, jfirst, 0),
-                    domain=y_edge_domain,
-                )
-                self._pert_ppm_west_stencil = FrozenStencil(
-                    yppm.pert_ppm_standard_constraint,
-                    origin=(self.grid.is_ - 1, jfirst, 0), domain=(3, dj, self.grid.npz+1)
-                )
-                
-            if self.grid.east_edge:
-                self._east_edge_iord8plus_0_stencil = FrozenStencil(
-                    east_edge_iord8plus_0,
-                    origin=(self.grid.ie - 1, jfirst, 0),
-                    domain=y_edge_domain,
-                )
-                self._east_edge_iord8plus_1_stencil = FrozenStencil(
-                    east_edge_iord8plus_1,
-                    origin=(self.grid.ie, jfirst, 0),
-                    domain=y_edge_domain,
-                )
-                self._east_edge_iord8plus_2_stencil = FrozenStencil(
-                    east_edge_iord8plus_2,
-                    origin=(self.grid.ie + 1, jfirst, 0),
-                    domain=y_edge_domain,
-                )
-                self._pert_ppm_east_stencil = FrozenStencil(
-                    yppm.pert_ppm_standard_constraint,
-                    origin=(self.grid.ie - 1, jfirst, 0), domain=(3, dj, self.grid.npz+1)
-                )
                 
             self._finalflux_ord8plus_stencil =  FrozenStencil(
                 finalflux_ord8plus,
@@ -331,15 +167,6 @@ class XPiecewiseParabolic:
 
     def compute_al(self, q):
         self._main_al_stencil(q, self._al)
-        if self.grid.west_edge:
-            self._al_west_0_stencil(q, self._al)
-            self._al_west_1_stencil(q, self._dxa, self._al)
-            self._al_west_2_stencil(q, self._dxa, self._al)
-
-        if self.grid.east_edge:
-            self._al_east_0_stencil(q, self._al)
-            self._al_east_1_stencil(q, self._dxa, self._al)
-            self._al_east_2_stencil(q, self._dxa, self._al)
 
     def _compute_blbr_ord8plus(self, q):
         r3 = 1.0 / 3.0
@@ -357,59 +184,6 @@ class XPiecewiseParabolic:
             self._br,
             self._dm,
         )
-        if self.grid.west_edge:
-            self._west_edge_iord8plus_0_stencil(
-                q,
-                self._dxa,
-                self._dm,
-                self._bl,
-                self._br,
-                self._do_xt_minmax,
-            )
-            self._west_edge_iord8plus_1_stencil(
-                q,
-                self._dxa,
-                self._dm,
-                self._bl,
-                self._br,
-                self._do_xt_minmax,
-            )
-            self._west_edge_iord8plus_2_stencil(
-                q,
-                self._dxa,
-                self._dm,
-                self._al,
-                self._bl,
-                self._br,
-            )
-            self._pert_ppm_west_stencil(q, self._bl, self._br)
-        if self.grid.east_edge:
-            self._east_edge_iord8plus_0_stencil(
-                q,
-                self._dxa,
-                self._dm,
-                self._al,
-                self._bl,
-                self._br,
-            )
-            self._east_edge_iord8plus_1_stencil(
-                q,
-                self._dxa,
-                self._dm,
-                self._bl,
-                self._br,
-                self._do_xt_minmax,
-            )
-            self._east_edge_iord8plus_2_stencil(
-                q,
-                self._dxa,
-                self._dm,
-                self._bl,
-                self._br,
-                self._do_xt_minmax,
-            )
-            self._pert_ppm_east_stencil(q, self._bl, self._br)
-            
 
 
     def __call__(self, q: FloatField, c: FloatField, xflux: FloatField):
