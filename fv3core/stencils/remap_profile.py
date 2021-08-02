@@ -5,8 +5,7 @@ from gt4py.gtscript import __INLINED, BACKWARD, FORWARD, PARALLEL, computation, 
 
 import fv3core._config as spec
 import fv3core.utils.gt4py_utils as utils
-from fv3core.decorators import FrozenStencil
-from fv3core.utils.stencil_merger import StencilMerger
+from fv3core.decorators import FrozenStencil, clear_stencils, merge_stencils
 from fv3core.utils.typing import BoolField, FloatField, FloatFieldIJ
 
 
@@ -552,7 +551,7 @@ class RemapProfile:
         domain: Tuple[int, int, int] = (i_extent, j_extent, km)
         domain_extend: Tuple[int, int, int] = (i_extent, j_extent, km + 1)
 
-        self._stencil_merger = StencilMerger()
+        clear_stencils()
 
         self._set_initial_values = FrozenStencil(
             func=set_initial_vals,
@@ -560,7 +559,6 @@ class RemapProfile:
             origin=origin,
             domain=domain_extend,
         )
-        self._stencil_merger.add(self._set_initial_values)
 
         self._apply_constraints = FrozenStencil(
             func=apply_constraints,
@@ -568,7 +566,6 @@ class RemapProfile:
             origin=origin,
             domain=domain,
         )
-        self._stencil_merger.add(self._apply_constraints)
 
         self._set_interpolation_coefficients = FrozenStencil(
             func=set_interpolation_coefficients,
@@ -576,9 +573,8 @@ class RemapProfile:
             origin=origin,
             domain=domain,
         )
-        self._stencil_merger.add(self._set_interpolation_coefficients)
 
-        self._stencil_merger.merge()
+        merge_stencils()
 
     def __call__(
         self,

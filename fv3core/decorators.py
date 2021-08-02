@@ -27,6 +27,7 @@ import fv3core.utils
 import fv3core.utils.global_config as global_config
 import fv3core.utils.grid
 from fv3core.utils.global_config import StencilConfig
+from fv3core.utils.stencil_merger import StencilMerger
 from fv3core.utils.typing import Index3D
 
 
@@ -74,6 +75,17 @@ def get_namespace(arg_specs, state):
             namespace_kwargs[arg_name] = state[standard_name].storage
             namespace_kwargs[arg_name + "_quantity"] = state[standard_name]
     return types.SimpleNamespace(**namespace_kwargs)
+
+
+_stencil_merger = StencilMerger()
+
+
+def clear_stencils():
+    _stencil_merger.clear()
+
+
+def merge_stencils():
+    _stencil_merger.merge()
 
 
 class FrozenStencil:
@@ -142,17 +154,25 @@ class FrozenStencil:
 
         self._written_fields = get_written_fields(self.stencil_object.field_info)
 
-    def __call__(
-        self,
-        *args,
-        **kwargs,
-    ) -> None:
+        _stencil_merger.add(self)
+
+    def __call__(self, *args, **kwargs) -> None:
+        stencil_object = self.stencil_object
+        if _stencil_merger.is_merged(self):
+            # Save inputs for last call...
+            _stencil_merger.save_args(self, *args, **kwargs)
+            group_id, _, is_last_call = _stencil_merger.merged_position(self)
+            if not is_last_call:
+                return
+            args, kwargs = _stencil_merger.merge_args(group_id)
+            stencil_object = _stencil_merger.merged_stencil(group_id)
+
         if self.stencil_config.validate_args:
             if __debug__ and "origin" in kwargs:
                 raise TypeError("origin cannot be passed to FrozenStencil call")
             if __debug__ and "domain" in kwargs:
                 raise TypeError("domain cannot be passed to FrozenStencil call")
-            self.stencil_object(
+            stencil_object(
                 *args,
                 **kwargs,
                 origin=self._field_origins,
@@ -161,7 +181,7 @@ class FrozenStencil:
             )
         else:
             args_as_kwargs = dict(zip(self._argument_names, args))
-            self.stencil_object.run(
+            stencil_object.run(
                 **args_as_kwargs, **kwargs, **self._stencil_run_kwargs, exec_info=None
             )
             self._mark_cuda_fields_written({**args_as_kwargs, **kwargs})
@@ -170,6 +190,10 @@ class FrozenStencil:
         if global_config.is_gpu_backend():
             for write_field in self._written_fields:
                 fields[write_field]._set_device_modified()
+
+    @property
+    def name(self) -> str:
+        return self.stencil_object._file_name.split("/")[-2]
 
 
 def get_stencils_with_varied_bounds(

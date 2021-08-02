@@ -1,16 +1,13 @@
 # -*- coding: utf-8 -*-
-import datetime as dt
-import numpy as np
-
 from collections import OrderedDict
-from typing import Any, Dict, List, Optional, Set, Union
+from typing import Any, Dict, List, Tuple
 
 import gt4py
-from gt4py.definitions import BuildOptions, FieldInfo
+from gt4py.definitions import BuildOptions
 from gt4py.stencil_builder import StencilBuilder
 from gt4py.stencil_object import StencilObject
 
-from fv3core.decorators import FrozenStencil
+# from fv3core.decorators import FrozenStencil
 
 
 class Container(type):
@@ -25,12 +22,15 @@ class Container(type):
 
 class StencilMerger(object, metaclass=Container):
     def __init__(self):
-        self._stencil_groups: List[List[object]] = []
+        self._stencil_groups: List[List["FrozenStencil"]] = []
+        self._merged_groups: Dict[int, List[str]] = {}
+        self._merged_stencils: Dict[int, "FrozenStencil"] = {}
+        self._saved_args: Dict[str, Dict[str, Any]] = {}
 
     def clear(self) -> None:
         self._stencil_groups.clear()
 
-    def add(self, stencil: FrozenStencil) -> None:
+    def add(self, stencil: "FrozenStencil") -> None:
         assert "def_ir" in stencil.build_info
         if not self._stencil_groups:
             self._stencil_groups.append([])
@@ -45,19 +45,81 @@ class StencilMerger(object, metaclass=Container):
 
         stencil_group.append(stencil)
 
+    def is_merged(self, stencil: "FrozenStencil") -> bool:
+        for merged_names in self._merged_groups.values():
+            if stencil.name in merged_names:
+                return True
+        return False
+
+    def merged_position(self, stencil: "FrozenStencil") -> Tuple[int, int, int]:
+        for group_id, merged_names in self._merged_groups.items():
+            merged_index = merged_names.index(stencil.name)
+            if merged_index >= 0:
+                is_last = int(merged_index == len(merged_names) - 1)
+                return (group_id, merged_index, is_last)
+        return (-1, -1, 0)
+
+    def merged_stencil(self, group_id: int) -> "StencilObject":
+        return self._merged_stencils[group_id]
+
+    def merge_args(self, group_id: int) -> Tuple[List[Any], Dict[str, Any]]:
+        stencil_names = self._merged_groups[group_id]
+        merged_args = list(self._saved_args[stencil_names[0]]["args"])
+        merged_kwargs = self._saved_args[stencil_names[0]]["kwargs"]
+
+        for i in range(1, len(stencil_names)):
+            args = self._saved_args[stencil_names[i]]["args"]
+            for arg in args:
+                arg_found: bool = False
+                for merged_arg in merged_args:
+                    arg_found = id(arg) == id(merged_arg)
+                    if arg_found:
+                        break
+                if not arg_found:
+                    merged_args.append(arg)
+
+            kwargs = self._saved_args[stencil_names[i]]["kwargs"]
+            merged_kwargs.update({name: value for name, value in kwargs.items()})
+
+        self._saved_args.clear()
+        return merged_args, merged_kwargs
+
+    def save_args(self, stencil: "FrozenStencil", *args, **kwargs) -> None:
+        self._saved_args[stencil.name] = dict(args=args, kwargs=kwargs)
+
     def merge(self) -> None:
-        self._merged_groups = set()
+        self._merged_groups.clear()
         for group_id, stencil_group in enumerate(self._stencil_groups):
             if len(stencil_group) > 1:
                 top_stencil = stencil_group[0]
                 top_ir = top_stencil.build_info["def_ir"]
 
+                self._merged_groups[group_id] = [top_stencil.name]
                 for next_stencil in stencil_group[1:]:
                     next_ir = next_stencil.build_info["def_ir"]
                     top_ir = self._merge_irs(top_ir, next_ir)
+                    arg_names = [
+                        arg_name
+                        for arg_name in next_stencil._argument_names
+                        if arg_name not in top_stencil._argument_names
+                    ]
+
+                    top_stencil._argument_names += tuple(arg_names)
+                    top_stencil._field_origins.update(next_stencil._field_origins)
+                    written_fields = [
+                        written_field
+                        for written_field in next_stencil._written_fields
+                        if written_field not in top_stencil._written_fields
+                    ]
+                    top_stencil._written_fields.extend(written_fields)
+
+                    next_stencil._argument_names = top_stencil._argument_names
+                    next_stencil._field_origins = top_stencil._field_origins
+                    next_stencil._written_fields = top_stencil._written_fields
+
+                    self._merged_groups[group_id].append(next_stencil.name)
 
                 self._stencil_groups[group_id] = [top_stencil]
-                self._merged_groups.add(group_id)
 
         self._rebuild()
 
@@ -82,7 +144,7 @@ class StencilMerger(object, metaclass=Container):
                 builder.externals = def_ir.externals
 
                 stencil_class = builder.build()
-                top_stencil.stencil_object = stencil_class()
+                self._merged_stencils[group_id] = stencil_class()
 
     def _merge_irs(
         self, dest_ir: "StencilDefinition", source_ir: "StencilDefinition"
