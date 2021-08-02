@@ -3,7 +3,6 @@ from gt4py.gtscript import __INLINED, PARALLEL, computation, interval
 
 import fv3core._config as spec
 import fv3core.stencils.delnflux as delnflux
-import fv3core.utils.corners as corners
 import fv3core.utils.global_constants as constants
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import FrozenStencil
