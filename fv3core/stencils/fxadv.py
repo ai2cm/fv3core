@@ -92,14 +92,7 @@ class FiniteVolumeFluxPrep:
         domain = self.grid.domain_shape_full()
         ax_offsets = axis_offsets(self.grid, origin, domain)
         kwargs = {"externals": ax_offsets, "origin": origin, "domain": domain}
-        origin_corners = self.grid.full_origin(add=(1, 1, 0))
-        domain_corners = self.grid.domain_shape_full(add=(-1, -1, 0))
-        corner_offsets = axis_offsets(self.grid, origin_corners, domain_corners)
-        kwargs_corners = {
-            "externals": corner_offsets,
-            "origin": origin_corners,
-            "domain": domain_corners,
-        }
+
         shape = self.grid.domain_shape_full(add=(1, 1, 1))
         self._copy_in_stencil = FrozenStencil(
             copy_defn,
@@ -114,33 +107,11 @@ class FiniteVolumeFluxPrep:
             origin=(self.grid.is_ - 1, self.grid.jsd, 0),
             domain=(self.grid.nic + 3, self.grid.njd, self.grid.npz),
         )
-        # region[:, j_start - 1 : j_start + 1], region[:, j_end : j_end + 2]
-
-        self._copy_ut_south = FrozenStencil(
-            copy_defn,
-            origin=(origin_corners[0], self.grid.js - 1, 0),
-            domain=(domain_corners[0], 2, domain_corners[2]),
-        )
-        self._copy_ut_north = FrozenStencil(
-            copy_defn,
-            origin=(origin_corners[0], self.grid.je, 0),
-            domain=(domain_corners[0], 2, domain_corners[2]),
-        )
         # with horizontal(region[:, local_js - 1 : local_je + 3]):
         self._main_vt_stencil = FrozenStencil(
             main_vt,
             origin=(self.grid.isd, self.grid.js - 1, 0),
             domain=(self.grid.nid, self.grid.njc + 3, self.grid.npz),
-        )
-        self._copy_vt_south = FrozenStencil(
-            copy_defn,
-            origin=(origin_corners[0], self.grid.js, 0),
-            domain=(domain_corners[0], 1, domain_corners[2]),
-        )
-        self._copy_vt_north = FrozenStencil(
-            copy_defn,
-            origin=(origin_corners[0], self.grid.je + 1, 0),
-            domain=(domain_corners[0], 1, domain_corners[2]),
         )
         i1 = self.grid.is_ 
         i2 = self.grid.ie + 1
