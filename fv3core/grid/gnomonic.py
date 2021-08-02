@@ -513,7 +513,7 @@ def get_rectangle_area(p1, p2, p3, p4, radius, np):
     Given four point arrays whose last dimensions are x/y/z in clockwise or
     counterclockwise order, return an array of spherical rectangle areas.
     """
-    total_angle = spherical_angle(p2, p1, p3, np)
+    total_angle = spherical_angle(p2, p3, p1, np)
     for (
         q1,
         q2,

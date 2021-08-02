@@ -306,7 +306,7 @@ class TranslateMoreAreas(ParallelTranslateGrid):
     }
     outputs = {
         "area_cgrid": {
-            "name": "area_c",
+            "name": "area_cgrid",
             "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM],
             "units": "m^2",
         },
