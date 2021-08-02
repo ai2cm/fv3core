@@ -101,8 +101,6 @@ class FiniteVolumeFluxPrep:
             "domain": domain_corners,
         }
         shape = self.grid.domain_shape_full(add=(1, 1, 1))
-        self._utmp = utils.make_storage_from_shape(shape)
-        self._vtmp = utils.make_storage_from_shape(shape)
         self._copy_in_stencil = FrozenStencil(
             copy_defn,
             origin=self.grid.full_origin(),
@@ -192,8 +190,7 @@ class FiniteVolumeFluxPrep:
         Grid variable inputs:
             cosa_u, cosa_v, rsin_u, rsin_v, sin_sg1,sin_sg2, sin_sg3, sin_sg4, dx, dy
         """
-        self._copy_in_stencil(ut, self._utmp)
-        self._copy_in_stencil(vt, self._vtmp)
+
         self._main_ut_stencil(
             uc,
             vc,
