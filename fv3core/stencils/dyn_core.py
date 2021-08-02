@@ -216,12 +216,10 @@ class AcousticDynamics:
         self,
         comm: fv3gfs.util.CubedSphereCommunicator,
         namelist,
-        # state,
         ak: FloatFieldK,
         bk: FloatFieldK,
         pfull: FloatFieldK,
         phis: FloatFieldIJ,
-        # insert_temporaries: bool = False,
     ):
         """
         Args:
@@ -375,12 +373,9 @@ class AcousticDynamics:
             origin=self.grid.full_origin(),
             domain=self.grid.domain_shape_full(add=(0, 0, 1)),
         )
-        # self.state = state
-        # self.state.__dict__.update(self._temporaries)
-        # self.insert_temporaries = insert_temporaries
 
-    # @computepath_method
-    def __call__(self, state: dace.constant, insert_temporaries: dace.constant=True):
+    @computepath_method(skip_dacemode=True)
+    def __call__(self, state: dace.constant, insert_temporaries: dace.constant = True):
         # u, v, w, delz, delp, pt, pe, pk, phis, wsd, omga, ua, va, uc, vc, mfxd,
         # mfyd, cxd, cyd, pkz, peln, q_con, ak, bk, diss_estd, cappa, mdt, n_split,
         # akap, ptop, n_map, comm):
@@ -718,3 +713,4 @@ class AcousticDynamics:
                     state.pkz,
                     delt_time_factor,
                 )
+

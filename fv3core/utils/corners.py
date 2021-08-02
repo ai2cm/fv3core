@@ -63,17 +63,15 @@ class FillCornersBGrid:
         self._origin = origin
         self._domain = domain
         self._direction = direction
-        self.B = "B"
-        self.fill_corners = FillCorners(
-            self.grid,
-            self.B,
-            self._direction,)
 
     @computepath_method
-    def __call__(self, field, direction: dace.constant):
-        self.fill_corners.__call__(
+    def __call__(self, field):
+        # self.fill_corners.__call__(
+        fill_corners(
             field,
-            direction,
+            self.grid,
+            "B",
+            self._direction,
             slice(self._origin[2], self._origin[2] + self._domain[2]),
         )
 
@@ -320,7 +318,7 @@ def fill_ne_corner_agrid(q, i, j, direction: dace.constant, grid: dace.constant,
         q[grid.ie + j, grid.je + i, kslice] = q[grid.ie - i + 1, grid.je + j, kslice]
 
 @computepath_function
-def _fill_corners(q, grid: dace.constant, gridtype: dace.constant, direction: dace.constant, kslice: dace.constant):
+def fill_corners(q, grid: dace.constant, gridtype: dace.constant, direction: dace.constant, kslice: dace.constant):
     for i in range(1, 1 + grid.halo):
         for j in range(1, 1 + grid.halo):
             if gridtype == "B":

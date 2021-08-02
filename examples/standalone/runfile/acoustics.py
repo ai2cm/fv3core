@@ -7,7 +7,7 @@ import click
 import dace
 
 import numpy as np
-from fv3core.utils.gt4py_utils import computepath_function
+from fv3core.decorators import computepath_function
 import fv3core
 import fv3core._config as spec
 import fv3core.testing
@@ -82,35 +82,25 @@ def run(data_directory, halo_update, backend, time_steps, reference_run):
 
 
     state = get_state_from_input(grid, input_data)
-    # state.__dict__.update()
 
     acoutstics_object = AcousticDynamics(
         None,
         spec.namelist,
-        state,
         input_data["ak"],
         input_data["bk"],
         input_data["pfull"],
         input_data["phis"],
-        insert_temporaries=False
     )
+    state.__dict__.update(acoutstics_object._temporaries)
 
-    import time
-    def iterate(time_steps):
+    @computepath_function
+    def iterate(state: dace.constant, time_steps):
         # @Linus: make this call a dace program
-        start = time.time()
-        acoutstics_object.__call__()
-        mid=time.time()
         for _ in range(time_steps):
-            acoutstics_object.__call__()
-        end = time.time()
-
-        print('total time:',end-start)
-        print('iteration 1:',mid-start)
-        print(f'iterations 2-{time_steps+1}:',end-mid)
+            acoutstics_object(state, insert_temporaries=False)
 
     if reference_run:
-        iterate(time_steps)
+        iterate(state, time_steps)
     else:
         from fv3core.utils.global_config import set_dacemode
         set_dacemode(True)
@@ -121,9 +111,7 @@ def run(data_directory, halo_update, backend, time_steps, reference_run):
         pr.enable()
 
         try:
-            # compiled_iterate = computepath_function(iterate)
-            # compiled_iterate(time_steps)
-            iterate(time_steps)
+            iterate(state, time_steps)
         finally:
             pr.disable()
             s = io.StringIO()
@@ -159,7 +147,7 @@ def driver(
             ref_value = ref_value.storage
         if isinstance(value, fv3gfs.util.quantity.Quantity):
             value = value.storage
-        if hasattr(value, 'shape') and len(value.shape)==3:
+        if hasattr(value, 'shape') and len(value.shape) == 3:
             value = value[1:-1, 1:-1, :]
             ref_value = ref_value[1:-1, 1:-1, :]
         np.testing.assert_allclose(np.asarray(ref_value), np.asarray(value), err_msg=name)

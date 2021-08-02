@@ -127,11 +127,6 @@ class FiniteVolumeTransport:
             "y", self._corner_tmp
         )
         """Stencil responsible for doing corners updates in y-direction."""
-        self.damp_c_is_none = self._damp_c is None
-        self.nord_is_none = self._nord is None
-        import numpy as np
-        self.goelse = np.empty((1,), dtype=bool)
-
     @computepath_method
     def __call__(
         self,
@@ -142,9 +137,9 @@ class FiniteVolumeTransport:
         y_area_flux,
         fx,
         fy,
-        mass,
-        mfx,
-        mfy,
+        mass=None,
+        mfx=None,
+        mfy=None,
     ):
         """
         Calculate fluxes for horizontal finite volume transport.
@@ -186,24 +181,24 @@ class FiniteVolumeTransport:
         )
         self.y_piecewise_parabolic_outer(self._tmp_q_j, cry, fy)
 
-        self.goelse[0] = True
-        if mfx is not None:
-            if mfy is not None:
-                self.goelse[0] = False
-                self.stencil_transport_flux_x(
-                    fx,
-                    self._tmp_fx2,
-                    mfx,
-                )
-                self.stencil_transport_flux_y(
-                    fy,
-                    self._tmp_fy2,
-                    mfy,
-                )
-                if mass is not None:
-                    if (not self.nord_is_none) and (not self.damp_c_is_none):
-                        self.delnflux(q, fx, fy, None, mass)
-        if self.goelse[0]:
+        if mfx is not None and mfy is not None:
+            self.stencil_transport_flux_x(
+                fx,
+                self._tmp_fx2,
+                mfx,
+            )
+            self.stencil_transport_flux_y(
+                fy,
+                self._tmp_fy2,
+                mfy,
+            )
+            if (
+                (mass is not None)
+                and (self._nord is not None)
+                and (self._damp_c is not None)
+            ):
+                self.delnflux(q, fx, fy, None, mass=mass)
+        else:
             self.stencil_transport_flux_x(
                 fx,
                 self._tmp_fx2,
@@ -214,5 +209,5 @@ class FiniteVolumeTransport:
                 self._tmp_fy2,
                 y_area_flux,
             )
-            if (not self.nord_is_none) and (not self.damp_c_is_none):
-                self.delnflux(q, fx, fy, None, None)
+            if (self._nord is not None) and (self._damp_c is not None):
+                self.delnflux(q, fx, fy)

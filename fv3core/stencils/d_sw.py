@@ -808,7 +808,6 @@ class DGridShallowWaterLagrangianDynamics:
             yfx,
             self._tmp_fx,
             self._tmp_fy,
-            None, None, None,
         )
 
         self._flux_capacitor_stencil(
@@ -823,7 +822,6 @@ class DGridShallowWaterLagrangianDynamics:
                 self._tmp_fy2,
                 self._delnflux_damp_w,
                 self._tmp_wk,
-                None
             )
 
             self._heat_diss_stencil(
@@ -848,8 +846,8 @@ class DGridShallowWaterLagrangianDynamics:
                 self._tmp_gx,
                 self._tmp_gy,
                 None,
-                self._tmp_fx,
-                self._tmp_fy,
+                mfx=self._tmp_fx,
+                mfy=self._tmp_fy,
             )
 
             self._flux_adjust_stencil(
@@ -868,9 +866,9 @@ class DGridShallowWaterLagrangianDynamics:
             yfx,
             self._tmp_gx,
             self._tmp_gy,
-            delp,
-            self._tmp_fx,
-            self._tmp_fy,
+            mass=delp,
+            mfx=self._tmp_fx,
+            mfy=self._tmp_fy,
         )
 
         self._flux_adjust_stencil(
@@ -887,9 +885,9 @@ class DGridShallowWaterLagrangianDynamics:
             yfx,
             self._tmp_gx,
             self._tmp_gy,
-            delp,
-            self._tmp_fx,
-            self._tmp_fy,
+            mass=delp,
+            mfx=self._tmp_fx,
+            mfy=self._tmp_fy,
         )
 
         dt5 = 0.5 * dt
@@ -986,7 +984,7 @@ class DGridShallowWaterLagrangianDynamics:
         self._compute_vorticity_stencil(self._tmp_wk, self.grid.f0, zh, self._tmp_vort)
 
         self.fvtp2d_vt_nodelnflux(
-            self._tmp_vort, crx, cry, xfx, yfx, self._tmp_fx, self._tmp_fy, None, None, None
+            self._tmp_vort, crx, cry, xfx, yfx, self._tmp_fx, self._tmp_fy
         )
 
         self._u_from_ke_stencil(
@@ -1003,7 +1001,6 @@ class DGridShallowWaterLagrangianDynamics:
             self._tmp_vt,
             self._delnflux_damp_vt,
             self._tmp_vort,
-            None
         )
 
         self._heat_source_from_vorticity_damping_stencil(

@@ -468,54 +468,7 @@ class DivergenceDamping:
         wk,
         dt: float,
     ) -> None:
-        self._call_part1(
-            u,
-            v,
-            va,
-            ptc,
-            vort,
-            ua,
-            divg_d,
-            vc,
-            uc,
-            delpc,
-            ke,
-            wk,
-            dt)
-        self._call_part2(
-            u,
-            v,
-            va,
-            ptc,
-            vort,
-            ua,
-            divg_d,
-            vc,
-            uc,
-            delpc,
-            ke,
-            wk,
-            dt,
-            self._d2_bg_column,
-            self.grid.da_min_c,
-            self._dddmp,
-            self._dd8,)
 
-    @computepath_method
-    def _call_part1(self,
-            u,
-            v,
-            va,
-            ptc,
-            vort,
-            ua,
-            divg_d,
-            vc,
-            uc,
-            delpc,
-            ke,
-            wk,
-            dt: float):
         self.damping_zero_order(
             u, v, va, ptc, vort, ua, vc, uc, delpc, ke, self._d2_bg_column, dt
         )
@@ -528,7 +481,7 @@ class DivergenceDamping:
 
         if self.fillc1:
             self.fill_corners_bgrid_x(
-                divg_d, "x"
+                divg_d,
             )
         self._vc_from_divg_stencils1(
             divg_d,
@@ -537,7 +490,7 @@ class DivergenceDamping:
         )
         if self.fillc1:
             self.fill_corners_bgrid_y(
-                divg_d, "y"
+                divg_d,
             )
         self._uc_from_divg_stencils1(
             divg_d,
@@ -546,7 +499,7 @@ class DivergenceDamping:
         )
         if self.fillc1:
             corners.fill_corners_dgrid(
-                vc, uc, self.grid, -1.0, slice(self._nonzero_nord_k, None)
+                vc, uc, self.grid, -1.0, kslice=slice(self._nonzero_nord_k, None)
             )
         self._redo_divg_d_stencils1(uc, vc, divg_d)
         if self.grid.sw_corner:
@@ -577,7 +530,7 @@ class DivergenceDamping:
         # loop n = 2
         if self.fillc2:
             self.fill_corners_bgrid_x(
-                divg_d, "x"
+                divg_d,
             )
         self._vc_from_divg_stencils2(
             divg_d,
@@ -586,7 +539,7 @@ class DivergenceDamping:
         )
         if self.fillc2:
             self.fill_corners_bgrid_y(
-                divg_d, "y"
+                divg_d,
             )
         self._uc_from_divg_stencils2(
             divg_d,
@@ -595,7 +548,7 @@ class DivergenceDamping:
         )
         if self.fillc2:
             corners.fill_corners_dgrid(
-                vc, uc, self.grid, -1.0, slice(self._nonzero_nord_k, None)
+                vc, uc, self.grid, -1.0, kslice=slice(self._nonzero_nord_k, None)
             )
         self._redo_divg_d_stencils2(uc, vc, divg_d)
         if self.grid.sw_corner:
@@ -627,7 +580,7 @@ class DivergenceDamping:
         # loop n = 3
         if self.fillc3:
             self.fill_corners_bgrid_x(
-                divg_d, "x"
+                divg_d,
             )
         self._vc_from_divg_stencils3(
             divg_d,
@@ -636,7 +589,7 @@ class DivergenceDamping:
         )
         if self.fillc3:
             self.fill_corners_bgrid_y(
-                divg_d, "y"
+                divg_d,
             )
         self._uc_from_divg_stencils3(
             divg_d,
@@ -645,7 +598,7 @@ class DivergenceDamping:
         )
         if self.fillc3:
             corners.fill_corners_dgrid(
-                vc, uc, self.grid, -1.0, slice(self._nonzero_nord_k, None)
+                vc, uc, self.grid, -1.0, kslice=slice(self._nonzero_nord_k, None)
             )
         self._redo_divg_d_stencils3(uc, vc, divg_d)
         if self.grid.sw_corner:
@@ -675,43 +628,15 @@ class DivergenceDamping:
             )
         self.vorticity_calc(wk, vort, delpc, dt)
 
-
-
-
-    @computepath_method
-    def _call_part2(self,
-        u,
-        v,
-        va,
-        ptc,
-        vort,
-        ua,
-        divg_d,
-        vc,
-        uc,
-        delpc,
-        ke,
-        wk,
-        dt: float,
-        _d2_bg_column,
-        da_min_c,
-        _dddmp,
-        _dd8,):
-
-
         self._damping_nord_highorder_stencil(
             vort,
             ke,
             delpc,
             divg_d,
-            _d2_bg_column,
-            da_min_c,
-            _dddmp,
-            _dd8,
-            # self._d2_bg_column,
-            # self.grid.da_min_c,
-            # self._dddmp,
-            # self._dd8,
+            self._d2_bg_column,
+            self.grid.da_min_c,
+            self._dddmp,
+            self._dd8,
         )
 
     @computepath_method
