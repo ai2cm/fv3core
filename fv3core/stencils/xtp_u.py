@@ -62,12 +62,6 @@ def xtp_flux(
         flux = _get_flux(u, courant, rdx, bl, br)
 
 
-def zero_br_bl(br: FloatField, bl: FloatField):
-    with computation(PARALLEL), interval(...):
-        br = 0.0
-        bl = 0.0
-
-
 class XTP_U:
     def __init__(self, namelist):
         iord = spec.namelist.hord_mt
@@ -88,29 +82,7 @@ class XTP_U:
             origin=(self.grid.is_ - 1, self.grid.js, 0),
             domain=(self.grid.nic + 2, self.grid.njc + 1, self.grid.npz),
         )
-        corner_domain = (2, 1, self.grid.npz)
-        if self.grid.sw_corner:
-            self._zero_bl_br_sw_corner_stencil = FrozenStencil(
-                zero_br_bl,
-                origin=(self.grid.is_ - 1, self.grid.js, 0),
-                domain=corner_domain,
-            )
-        if self.grid.nw_corner:
-            self._zero_bl_br_nw_corner_stencil = FrozenStencil(
-                zero_br_bl,
-                origin=(self.grid.is_ - 1, self.grid.je + 1, 0),
-                domain=corner_domain,
-            )
-        if self.grid.se_corner:
-            self._zero_bl_br_se_corner_stencil = FrozenStencil(
-                zero_br_bl, origin=(self.grid.ie, self.grid.js, 0), domain=corner_domain
-            )
-        if self.grid.ne_corner:
-            self._zero_bl_br_ne_corner_stencil = FrozenStencil(
-                zero_br_bl,
-                origin=(self.grid.ie, self.grid.je + 1, 0),
-                domain=corner_domain,
-            )
+       
         self._xtp_flux = FrozenStencil(
             xtp_flux,
             externals={
@@ -136,14 +108,6 @@ class XTP_U:
 
         self._xppm.compute_al(u)
         self._bl_br_stencil(u, self._xppm._al, self._bl, self._br)
-        if self.grid.sw_corner:
-            self._zero_bl_br_sw_corner_stencil(self._bl, self._br)
-        if self.grid.nw_corner:
-            self._zero_bl_br_nw_corner_stencil(self._bl, self._br)
-        if self.grid.se_corner:
-            self._zero_bl_br_se_corner_stencil(self._bl, self._br)
-        if self.grid.ne_corner:
-            self._zero_bl_br_ne_corner_stencil(self._bl, self._br)
 
         self._xtp_flux(
             c,

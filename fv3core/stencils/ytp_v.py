@@ -85,32 +85,7 @@ class YTP_V:
             origin=(self.grid.is_, self.grid.js - 1, 0),
             domain=(self.grid.nic + 1, self.grid.njc + 2, self.grid.npz),
         )
-        corner_domain = (1, 2, self.grid.npz)
-        if self.grid.sw_corner:
-            self._zero_bl_br_sw_corner_stencil = FrozenStencil(
-                xtp_u.zero_br_bl,
-                origin=(self.grid.is_, self.grid.js - 1, 0),
-                domain=corner_domain,
-            )
-        if self.grid.nw_corner:
-            self._zero_bl_br_nw_corner_stencil = FrozenStencil(
-                xtp_u.zero_br_bl,
-                origin=(self.grid.is_, self.grid.je, 0),
-                domain=corner_domain,
-            )
-        if self.grid.se_corner:
-            self._zero_bl_br_se_corner_stencil = FrozenStencil(
-                xtp_u.zero_br_bl,
-                origin=(self.grid.ie + 1, self.grid.js - 1, 0),
-                domain=corner_domain,
-            )
-        if self.grid.ne_corner:
-            self._zero_bl_br_ne_corner_stencil = FrozenStencil(
-                xtp_u.zero_br_bl,
-                origin=(self.grid.ie + 1, self.grid.je, 0),
-                domain=corner_domain,
-            )
-
+       
         self.stencil = FrozenStencil(
             _ytp_v,
             externals={
@@ -142,12 +117,4 @@ class YTP_V:
         """
         self._yppm.compute_al(v)
         self._bl_br_stencil(v, self._yppm._al, self._bl, self._br)
-        if self.grid.sw_corner:
-            self._zero_bl_br_sw_corner_stencil(self._bl, self._br)
-        if self.grid.nw_corner:
-            self._zero_bl_br_nw_corner_stencil(self._bl, self._br)
-        if self.grid.se_corner:
-            self._zero_bl_br_se_corner_stencil(self._bl, self._br)
-        if self.grid.ne_corner:
-            self._zero_bl_br_ne_corner_stencil(self._bl, self._br)
         self.stencil(c, v, self._bl, self._br, flux, self.rdy)
