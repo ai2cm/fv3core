@@ -260,15 +260,19 @@ class FutureStencil:
     """
 
     # _thread_pool: StencilPool = StencilPool()
-    # _id_table: StencilTable = RedisTable()
+    _id_table: StencilTable = RedisTable()
     # _id_table: StencilTable = SqliteTable()
-    _id_table: StencilTable = WindowTable()
+    # _id_table: StencilTable = WindowTable()
 
     def __init__(self, builder: Optional["StencilBuilder"] = None):
         self._builder: Optional["StencilBuilder"] = builder
         self._stencil_object: Optional[StencilObject] = None
         self._sleep_time: float = 0.3
         self._timeout: float = 60.0
+
+    @classmethod
+    def clear(cls):
+        cls._id_table.clear()
 
     @property
     def is_built(self) -> bool:

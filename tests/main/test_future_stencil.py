@@ -79,7 +79,7 @@ def test_future_stencil(backend: str, rebuild: bool):
     q, q_ref = setup_data_vars()
     add1_object(q, origin=origin, domain=domain)
     q_ref[1:3, 1:3, :] = 2.0
-    np.testing.assert_array_equal(q.data, q_ref.data)
+    np.testing.assert_array_equal(q, q_ref)
 
 
 @pytest.mark.parallel
@@ -151,12 +151,14 @@ def test_one_sided_mpi():
     MPI is not None and MPI.COMM_WORLD.Get_size() == 1,
     reason="Not running in parallel with mpi",
 )
+@pytest.mark.parametrize("rebuild", (True,))
 @pytest.mark.parametrize("backend", ("numpy", "gtx86"))
-@pytest.mark.parametrize("rebuild", (True, False))
 def test_rank_adder(backend: str, rebuild: bool):
     comm = MPI.COMM_WORLD
-    rank = comm.Get_rank()
     size = comm.Get_size()
+
+    set_backend(backend)
+    FutureStencil.clear()
 
     origin = (0, 0, 0)
     domain = (1, 1, size)
@@ -164,8 +166,16 @@ def test_rank_adder(backend: str, rebuild: bool):
     out_field = gt_storage.zeros(
         shape=domain, default_origin=origin, dtype=np.int64, backend=backend
     )
+    ref_field = np.arange(1, size + 1, dtype=np.int64)
+
     for rank in range(0, size):
         stencil_object = stencil(
-            definition=add_rank, backend=backend, rebuild=rebuild, externals={"rank": rank}
+            definition=add_rank,
+            defer_function=FutureStencil,
+            backend=backend,
+            rebuild=rebuild,
+            externals={"rank": rank},
         )
         stencil_object(out_field, domain=domain, origin=origin)
+
+    np.testing.assert_array_equal(out_field[0, 0, :], ref_field)
