@@ -5,13 +5,14 @@ import random as rand
 import time
 
 from gt4py.gtscript import PARALLEL, computation, interval, stencil
+import gt4py.storage as gt_storage
 
 from fv3core.decorators import StencilConfig
 from fv3core.utils.future_stencil import FutureStencil, RedisTable, WindowTable
 from fv3core.utils.global_config import set_backend
 from fv3core.utils.gt4py_utils import make_storage_from_shape_uncached
 from fv3core.utils.mpi import MPI
-from fv3core.utils.typing import FloatField
+from fv3core.utils.typing import FloatField, IntField
 
 
 def copy_stencil(q_in: FloatField, q_out: FloatField):
@@ -23,6 +24,14 @@ def add1_stencil(q: FloatField):
     with computation(PARALLEL), interval(...):
         qin = q
         q = qin + 1.0
+
+
+def add_rank(out: IntField):
+    from __externals__ import rank
+
+    with computation(PARALLEL):
+        with interval(rank, rank + 1):
+            out = rank + 1.0
 
 
 def setup_data_vars():
@@ -135,3 +144,28 @@ def test_one_sided_mpi():
     win.Get(buffer, target_rank=0, target=target)
     win.Unlock(rank=0)
     assert np.all(buffer == [rank, rank + 1, 0])
+
+
+@pytest.mark.parallel
+@pytest.mark.skipif(
+    MPI is not None and MPI.COMM_WORLD.Get_size() == 1,
+    reason="Not running in parallel with mpi",
+)
+@pytest.mark.parametrize("backend", ("numpy", "gtx86"))
+@pytest.mark.parametrize("rebuild", (True, False))
+def test_rank_adder(backend: str, rebuild: bool):
+    comm = MPI.COMM_WORLD
+    rank = comm.Get_rank()
+    size = comm.Get_size()
+
+    origin = (0, 0, 0)
+    domain = (1, 1, size)
+
+    out_field = gt_storage.zeros(
+        shape=domain, default_origin=origin, dtype=np.int64, backend=backend
+    )
+    for rank in range(0, size):
+        stencil_object = stencil(
+            definition=add_rank, backend=backend, rebuild=rebuild, externals={"rank": rank}
+        )
+        stencil_object(out_field, domain=domain, origin=origin)
