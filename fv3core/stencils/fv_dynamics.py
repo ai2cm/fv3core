@@ -321,13 +321,22 @@ class DynamicalCore:
             comm,
             self.grid.grid_indexing,
             self.grid.grid_data,
-            self.namelist,
+            self.grid.damping_coefficients,
+            self.grid.grid_type,
+            self.grid.nested,
+            self.grid.stretched_grid,
+            self.namelist.acoustic_dynamics,
             self._ak,
             self._bk,
             self._pfull,
             self._phis,
         )
-        self._hyperdiffusion = HyperdiffusionDamping(self.grid, self.namelist.nf_omega)
+        self._hyperdiffusion = HyperdiffusionDamping(
+            self.grid.grid_indexing,
+            self.grid.damping_coefficients,
+            self.grid.rarea,
+            self.namelist.nf_omega,
+        )
         self._do_cubed_to_latlon = CubedToLatLon(self.grid, namelist)
 
         self._temporaries = fvdyn_temporaries(
@@ -342,11 +351,6 @@ class DynamicalCore:
         self._lagrangian_to_eulerian_obj = LagrangianToEulerian(
             self.grid, namelist, DynamicalCore.NQ, self._pfull
         )
-
-        phis_spec = self.grid.get_halo_update_spec(
-            phis.data.shape, phis.origin, utils.halo, phis.dims
-        )
-        self._phis_halo_updater = self.comm.get_scalar_halo_updater([phis_spec])
 
         full_xyz_spec = self.grid.get_halo_update_spec(
             self.grid.domain_shape_full(add=(1, 1, 1)),
@@ -410,8 +414,6 @@ class DynamicalCore:
         state.ak = self._ak
         state.bk = self._bk
         last_step = False
-        if self.do_halo_exchange:
-            self._phis_halo_updater.update([state.phis_quantity])
         compute_preamble(
             state,
             self.grid,
