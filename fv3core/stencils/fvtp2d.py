@@ -143,9 +143,6 @@ class FiniteVolumeTransport:
             mfy: ???
         """
         grid = self.grid
-        ii = 14
-        jj = 4
-        kk = 67
 
         self.y_piecewise_parabolic_inner(q, cry, self._tmp_fy2)
         self.stencil_q_i(
