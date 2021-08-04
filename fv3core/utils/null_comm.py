@@ -1,11 +1,16 @@
 class NullAsyncResult:
+    def __init__(self, recvbuf=None):
+        self._recvbuf = recvbuf
+
     def wait(self):
-        pass
+        if self._recvbuf is not None:
+            self._recvbuf[:] = 0.0
 
 
 class NullComm:
     """
-    A class with a subset of the mpi4py Comm API, but which does nothing.
+    A class with a subset of the mpi4py Comm API, but which
+    'receives' zeros instead of using MPI.
     """
 
     def __init__(self, rank, total_ranks):
@@ -28,10 +33,12 @@ class NullComm:
         return
 
     def Scatter(self, sendbuf, recvbuf, root=0, **kwargs):
-        pass
+        if recvbuf is not None:
+            recvbuf[:] = 0.0
 
     def Gather(self, sendbuf, recvbuf, root=0, **kwargs):
-        pass
+        if recvbuf is not None:
+            recvbuf[:] = 0.0
 
     def Send(self, sendbuf, dest, **kwargs):
         pass
@@ -40,7 +47,7 @@ class NullComm:
         return NullAsyncResult()
 
     def Recv(self, recvbuf, source, **kwargs):
-        pass
+        recvbuf[:] = 0.0
 
     def Irecv(self, recvbuf, source, **kwargs):
-        return NullAsyncResult()
+        return NullAsyncResult(recvbuf)
