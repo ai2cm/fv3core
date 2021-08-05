@@ -56,9 +56,13 @@ def fill_corners_delp_pt_w(
     from __externals__ import fill_corners_func
 
     with computation(PARALLEL), interval(...):
-        delp = fill_corners_func(delp)
-        pt = fill_corners_func(pt)
-        w = fill_corners_func(w)
+        delp_0 = delp
+        pt_0 = pt
+        w_0 = w
+    with computation(PARALLEL), interval(...):
+        delp = fill_corners_func(delp_0)
+        pt = fill_corners_func(pt_0)
+        w = fill_corners_func(w_0)
 
 
 def compute_nonhydro_fluxes_x(
