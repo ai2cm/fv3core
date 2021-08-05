@@ -17,12 +17,26 @@ from fv3core.utils.typing import FloatField, FloatFieldIJ, Index3D
 
 
 @gtscript.function
-def final_flux(courant, q, fx1, tmp):
-    return q[-1, 0, 0] + fx1 * tmp if courant > 0.0 else q + fx1 * tmp
+def final_flux(courant, q, fx1, mask):
+    """
+    Args:
+        courant: any value whose sign is the same as the sign of the x-wind
+        q: scalar being transported
+        fx1: ???
+        mask: fx1 is multiplied by this before being applied
+    """
+    return q[-1, 0, 0] + fx1 * mask if courant > 0.0 else q + fx1 * mask
 
 
 @gtscript.function
 def fx1_fn(courant, br, b0, bl):
+    """
+    Args:
+        courant: ???
+        br: ???
+        b0: br + bl
+        bl: ???
+    """
     if courant > 0.0:
         ret = (1.0 - courant) * (br[-1, 0, 0] - courant * b0[-1, 0, 0])
     else:
@@ -31,7 +45,7 @@ def fx1_fn(courant, br, b0, bl):
 
 
 @gtscript.function
-def get_tmp(bl, b0, br):
+def get_advection_mask(bl, b0, br):
     from __externals__ import mord
 
     if __INLINED(mord == 5):
@@ -40,11 +54,11 @@ def get_tmp(bl, b0, br):
         smt5 = (3.0 * abs(b0)) < abs(bl - br)
 
     if smt5[-1, 0, 0] or smt5[0, 0, 0]:
-        tmp = 1.0
+        advection_mask = 1.0
     else:
-        tmp = 0.0
+        advection_mask = 0.0
 
-    return tmp
+    return advection_mask
 
 
 @gtscript.function
@@ -53,9 +67,9 @@ def get_flux(q: FloatField, courant: FloatField, al: FloatField):
     br = al[1, 0, 0] - q[0, 0, 0]
     b0 = bl + br
 
-    tmp = get_tmp(bl, b0, br)
+    advection_mask = get_advection_mask(bl, b0, br)
     fx1 = fx1_fn(courant, br, b0, bl)
-    return final_flux(courant, q, fx1, tmp)  # noqa
+    return final_flux(courant, q, fx1, advection_mask)  # noqa
 
 
 @gtscript.function

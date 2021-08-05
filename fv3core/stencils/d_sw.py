@@ -39,20 +39,36 @@ def k_bounds():
 
 
 @gtscript.function
-def flux_component(gx, gy, rarea):
+def flux_increment(gx, gy, rarea):
+    """
+    Args:
+        gx: x-direction flux of some scalar q in units of q * area
+            defined on cell interfaces
+        gy: y-direction flux of some scalar q in units of q * area
+            defined on cell interfaces
+        rarea: 1 / area
+
+    Returns:
+        tendency increment in units of q defined on cell centers
+    """
     return (gx - gx[1, 0, 0] + gy - gy[0, 1, 0]) * rarea
 
 
-@gtscript.function
-def flux_integral(w, delp, gx, gy, rarea):
-    return w * delp + flux_component(gx, gy, rarea)
-
-
 def flux_adjust(
-    w: FloatField, delp: FloatField, gx: FloatField, gy: FloatField, rarea: FloatFieldIJ
+    q: FloatField, delp: FloatField, gx: FloatField, gy: FloatField, rarea: FloatFieldIJ
 ):
+    """
+    Update q according to fluxes gx and gy.
+
+    Args:
+        q: any scalar (inout)
+        delp: pressure thickness of layer (in)
+        gx: x-flux of w in units of w * Pa * area (in)
+        gy: y-flux of w in units of w * Pa * area (in)
+        rarea: 1 / area (in)
+    """
     with computation(PARALLEL), interval(...):
-        w = flux_integral(w, delp, gx, gy, rarea)
+        q = q * delp + flux_increment(gx, gy, rarea)
 
 
 def flux_capacitor(
@@ -125,10 +141,11 @@ def pressure_and_vbke(
         # TODO: only needed for d_sw validation
         if __INLINED(inline_q == 0):
             with horizontal(region[local_is : local_ie + 1, local_js : local_je + 1]):
-                pt = flux_integral(pt, delp, gx, gy, rarea)
-                delp = delp + flux_component(fx, fy, rarea)
+                # pt = flux_integral(pt, delp, gx, gy, rarea)
+                pt = pt * delp + flux_increment(gx, gy, rarea)
+                delp = delp + flux_increment(fx, fy, rarea)
                 pt = pt / delp
-        vb = vbke(vc, uc, cosa, rsina, vt, vb, dt4, dt5)
+        vb = vbke(vc, uc, cosa, rsina, vt, dt4, dt5)
 
 
 @gtscript.function
@@ -449,7 +466,7 @@ def get_column_namelist(config: DGridShallowWaterLagrangianDynamicsConfig, npz):
 
 
 @gtscript.function
-def ubke(uc, vc, cosa, rsina, ut, ub, dt4, dt5):
+def ubke(uc, vc, cosa, rsina, ut, dt4, dt5):
     from __externals__ import i_end, i_start, j_end, j_start
 
     ub = dt5 * (uc[0, -1, 0] + uc - (vc[-1, 0, 0] + vc) * cosa) * rsina
@@ -476,11 +493,11 @@ def mult_ubke(
 ):
     with computation(PARALLEL), interval(...):
         ke = vb * ub
-        ub = ubke(uc, vc, cosa, rsina, ut, ub, dt4, dt5)
+        ub = ubke(uc, vc, cosa, rsina, ut, dt4, dt5)
 
 
 @gtscript.function
-def vbke(vc, uc, cosa, rsina, vt, vb, dt4, dt5):
+def vbke(vc, uc, cosa, rsina, vt, dt4, dt5):
     from __externals__ import i_end, i_start, j_end, j_start
 
     vb = dt5 * (vc[-1, 0, 0] + vc - (uc[0, -1, 0] + uc) * cosa) * rsina
@@ -587,15 +604,6 @@ class DGridShallowWaterLagrangianDynamics:
             hord=config.hord_dp,
             nord=self._column_namelist["nord_t"],
             damp_c=self._column_namelist["damp_t"],
-        )
-        self.fvtp2d_vt = FiniteVolumeTransport(
-            grid_indexing=grid_indexing,
-            grid_data=grid_data,
-            damping_coefficients=damping_coefficients,
-            grid_type=config.grid_type,
-            hord=config.hord_vt,
-            nord=self._column_namelist["nord_v"],
-            damp_c=self._column_namelist["damp_vt"],
         )
         self.fvtp2d_tm = FiniteVolumeTransport(
             grid_indexing=grid_indexing,
@@ -810,6 +818,8 @@ class DGridShallowWaterLagrangianDynamics:
             yfx,
             self._tmp_fx,
             self._tmp_fy,
+            mfx=xfx,
+            mfy=yfx,
         )
 
         self._flux_capacitor_stencil(
@@ -839,7 +849,7 @@ class DGridShallowWaterLagrangianDynamics:
                 dt,
             )
 
-            self.fvtp2d_vt(
+            self.fvtp2d_vt_nodelnflux(
                 w,
                 crx,
                 cry,
@@ -912,7 +922,13 @@ class DGridShallowWaterLagrangianDynamics:
             dt5,
         )
 
-        self.ytp_v(self._tmp_vb, v, self._tmp_ub)
+        advected_v = self._tmp_ub
+
+        self.ytp_v(self._tmp_vb, v, advected_v)
+
+        # these should become separate variables when inside gt4py stencils,
+        # just aliasing memory here for "optimization" (that the Fortran does)
+        u_on_cell_corners = self._tmp_ub
 
         self._mult_ubke_stencil(
             self._tmp_vb,
@@ -922,7 +938,7 @@ class DGridShallowWaterLagrangianDynamics:
             self.grid.cosa,
             self.grid.rsina,
             self._tmp_ut,
-            self._tmp_ub,
+            advected_v,
             dt4,
             dt5,
         )
@@ -979,7 +995,15 @@ class DGridShallowWaterLagrangianDynamics:
         self._compute_vorticity_stencil(self._tmp_wk, self._f0, zh, self._tmp_vort)
 
         self.fvtp2d_vt_nodelnflux(
-            self._tmp_vort, crx, cry, xfx, yfx, self._tmp_fx, self._tmp_fy
+            self._tmp_vort,
+            crx,
+            cry,
+            xfx,
+            yfx,
+            self._tmp_fx,
+            self._tmp_fy,
+            mfx=xfx,
+            mfy=yfx,
         )
 
         self._u_and_v_from_ke_stencil(

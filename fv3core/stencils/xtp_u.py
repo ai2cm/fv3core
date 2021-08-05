@@ -45,13 +45,13 @@ def _get_flux(
     fx0 = xppm.fx1_fn(cfl, br, b0, bl)
 
     if __INLINED(iord < 8):
-        tmp = xppm.get_tmp(bl, b0, br)
+        advection_mask = xppm.get_advection_mask(bl, b0, br)
     else:
-        tmp = 1.0
-    return xppm.final_flux(courant, u, fx0, tmp)
+        advection_mask = 1.0
+    return xppm.final_flux(courant, u, fx0, advection_mask)
 
 
-def _xtp_u(
+def xtp_u_stencil_defn(
     courant: FloatField,
     u: FloatField,
     flux: FloatField,
@@ -59,39 +59,51 @@ def _xtp_u(
     dxa: FloatFieldIJ,
     rdx: FloatFieldIJ,
 ):
-    from __externals__ import i_end, i_start, iord, j_end, j_start
 
     with computation(PARALLEL), interval(...):
+        flux = xtp_u(courant, u, dx, dxa, rdx)
 
-        if __INLINED(iord < 8):
-            al = xppm.compute_al(u, dx)
 
-            bl = al[0, 0, 0] - u[0, 0, 0]
-            br = al[1, 0, 0] - u[0, 0, 0]
+@gtscript.function
+def xtp_u(
+    courant: FloatField,
+    u: FloatField,
+    dx: FloatFieldIJ,
+    dxa: FloatFieldIJ,
+    rdx: FloatFieldIJ,
+):
+    from __externals__ import i_end, i_start, iord, j_end, j_start
 
-        else:
-            dm = xppm.dm_iord8plus(u)
-            al = xppm.al_iord8plus(u, dm)
+    if __INLINED(iord < 8):
+        al = xppm.compute_al(u, dx)
 
-            compile_assert(iord == 8)
+        bl = al[0, 0, 0] - u[0, 0, 0]
+        br = al[1, 0, 0] - u[0, 0, 0]
 
-            bl, br = xppm.blbr_iord8(u, al, dm)
-            bl, br = xppm.bl_br_edges(bl, br, u, dxa, al, dm)
+    else:
+        dm = xppm.dm_iord8plus(u)
+        al = xppm.al_iord8plus(u, dm)
 
-            with horizontal(region[i_start + 1, :], region[i_end - 1, :]):
-                bl, br = yppm.pert_ppm_standard_constraint_fcn(u, bl, br)
+        compile_assert(iord == 8)
 
-        # Zero corners
-        with horizontal(
-            region[i_start - 1 : i_start + 1, j_start],
-            region[i_start - 1 : i_start + 1, j_end + 1],
-            region[i_end : i_end + 2, j_start],
-            region[i_end : i_end + 2, j_end + 1],
-        ):
-            bl = 0.0
-            br = 0.0
+        bl, br = xppm.blbr_iord8(u, al, dm)
+        bl, br = xppm.bl_br_edges(bl, br, u, dxa, al, dm)
 
-        flux = _get_flux(u, courant, rdx, bl, br)
+        with horizontal(region[i_start + 1, :], region[i_end - 1, :]):
+            bl, br = yppm.pert_ppm_standard_constraint_fcn(u, bl, br)
+
+    # Zero corners
+    with horizontal(
+        region[i_start - 1 : i_start + 1, j_start],
+        region[i_start - 1 : i_start + 1, j_end + 1],
+        region[i_end : i_end + 2, j_start],
+        region[i_end : i_end + 2, j_end + 1],
+    ):
+        bl = 0.0
+        br = 0.0
+
+    flux = _get_flux(u, courant, rdx, bl, br)
+    return flux
 
 
 class XTP_U:
@@ -115,7 +127,7 @@ class XTP_U:
         self._rdx = grid_data.rdx
         ax_offsets = axis_offsets(grid_indexing, origin, domain)
         self.stencil = FrozenStencil(
-            _xtp_u,
+            xtp_u_stencil_defn,
             externals={
                 "iord": iord,
                 "mord": iord,

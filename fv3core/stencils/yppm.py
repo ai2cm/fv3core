@@ -49,7 +49,7 @@ def fx1_fn(courant, br, b0, bl):
 
 
 @gtscript.function
-def get_tmp(bl, b0, br):
+def get_advection_mask(bl, b0, br):
     from __externals__ import mord
 
     if mord == 5:
@@ -58,11 +58,11 @@ def get_tmp(bl, b0, br):
         smt5 = (3.0 * abs(b0)) < abs(bl - br)
 
     if smt5[0, -1, 0] or smt5[0, 0, 0]:
-        tmp = 1.0
+        advection_mask = 1.0
     else:
-        tmp = 0.0
+        advection_mask = 0.0
 
-    return tmp
+    return advection_mask
 
 
 @gtscript.function
@@ -71,9 +71,9 @@ def get_flux(q: FloatField, courant: FloatField, al: FloatField):
     br = al[0, 1, 0] - q[0, 0, 0]
     b0 = bl + br
 
-    tmp = get_tmp(bl, b0, br)
+    advection_mask = get_advection_mask(bl, b0, br)
     fx1 = fx1_fn(courant, br, b0, bl)
-    return final_flux(courant, q, fx1, tmp)
+    return final_flux(courant, q, fx1, advection_mask)
 
 
 @gtscript.function

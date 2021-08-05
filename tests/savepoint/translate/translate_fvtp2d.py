@@ -34,7 +34,11 @@ class TranslateFvTp2d(TranslateFortranData2Py):
         inputs["fy"] = utils.make_storage_from_shape(
             self.maxshape, self.grid.full_origin()
         )
-        for optional_arg in ["mass", "mfx", "mfy"]:
+        if "mfx" not in inputs:
+            inputs["mfx"] = inputs["xfx"]
+        if "mfy" not in inputs:
+            inputs["mfy"] = inputs["yfx"]
+        for optional_arg in ["mass"]:
             if optional_arg not in inputs:
                 inputs[optional_arg] = None
         self.compute_func = FiniteVolumeTransport(

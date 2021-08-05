@@ -43,13 +43,13 @@ def _get_flux(
     fx0 = yppm.fx1_fn(cfl, br, b0, bl)
 
     if __INLINED(jord < 8):
-        tmp = yppm.get_tmp(bl, b0, br)
+        advection_mask = yppm.get_advection_mask(bl, b0, br)
     else:
-        tmp = 1.0
-    return yppm.final_flux(courant, v, fx0, tmp)
+        advection_mask = 1.0
+    return yppm.final_flux(courant, v, fx0, advection_mask)
 
 
-def _ytp_v(
+def ytp_v_stencil_defn(
     courant: FloatField,
     v: FloatField,
     flux: FloatField,
@@ -57,38 +57,51 @@ def _ytp_v(
     dya: FloatFieldIJ,
     rdy: FloatFieldIJ,
 ):
-    from __externals__ import i_end, i_start, j_end, j_start, jord
 
     with computation(PARALLEL), interval(...):
-        if __INLINED(jord < 8):
-            al = yppm.compute_al(v, dy)
+        flux = ytp_v(courant, v, dy, dya, rdy)
 
-            bl = al[0, 0, 0] - v[0, 0, 0]
-            br = al[0, 1, 0] - v[0, 0, 0]
 
-        else:
-            dm = yppm.dm_jord8plus(v)
-            al = yppm.al_jord8plus(v, dm)
+@gtscript.function
+def ytp_v(
+    courant: FloatField,
+    v: FloatField,
+    dy: FloatFieldIJ,
+    dya: FloatFieldIJ,
+    rdy: FloatFieldIJ,
+):
+    from __externals__ import i_end, i_start, j_end, j_start, jord
 
-            compile_assert(jord == 8)
+    if __INLINED(jord < 8):
+        al = yppm.compute_al(v, dy)
 
-            bl, br = yppm.blbr_jord8(v, al, dm)
-            bl, br = yppm.bl_br_edges(bl, br, v, dya, al, dm)
+        bl = al[0, 0, 0] - v[0, 0, 0]
+        br = al[0, 1, 0] - v[0, 0, 0]
 
-            with horizontal(region[:, j_start + 1], region[:, j_end - 1]):
-                bl, br = yppm.pert_ppm_standard_constraint_fcn(v, bl, br)
+    else:
+        dm = yppm.dm_jord8plus(v)
+        al = yppm.al_jord8plus(v, dm)
 
-        # Zero corners
-        with horizontal(
-            region[i_start, j_start - 1 : j_start + 1],
-            region[i_start, j_end : j_end + 2],
-            region[i_end + 1, j_start - 1 : j_start + 1],
-            region[i_end + 1, j_end : j_end + 2],
-        ):
-            bl = 0.0
-            br = 0.0
+        compile_assert(jord == 8)
 
-        flux = _get_flux(v, courant, rdy, bl, br)
+        bl, br = yppm.blbr_jord8(v, al, dm)
+        bl, br = yppm.bl_br_edges(bl, br, v, dya, al, dm)
+
+        with horizontal(region[:, j_start + 1], region[:, j_end - 1]):
+            bl, br = yppm.pert_ppm_standard_constraint_fcn(v, bl, br)
+
+    # Zero corners
+    with horizontal(
+        region[i_start, j_start - 1 : j_start + 1],
+        region[i_start, j_end : j_end + 2],
+        region[i_end + 1, j_start - 1 : j_start + 1],
+        region[i_end + 1, j_end : j_end + 2],
+    ):
+        bl = 0.0
+        br = 0.0
+
+    flux = _get_flux(v, courant, rdy, bl, br)
+    return flux
 
 
 class YTP_V:
@@ -113,7 +126,7 @@ class YTP_V:
         ax_offsets = axis_offsets(grid_indexing, origin, domain)
 
         self.stencil = FrozenStencil(
-            _ytp_v,
+            ytp_v_stencil_defn,
             externals={
                 "jord": jord,
                 "mord": jord,
