@@ -36,5 +36,8 @@ t_sub = 184.0  # min temp for sublimation of cloud ice
 DC_ICE = C_LIQ - C_ICE
 LI0 = HLF - DC_ICE * TICE
 
+#grid constants
 LON_OR_LAT_DIM = "lon_or_lat"
 TILE_DIM = "tile"
+N_TILES=6
+RIGHT_HAND_GRID = False

@@ -373,13 +373,13 @@ class TranslateGridGrid(ParallelTranslateGrid):
     max_error = 1e-14
     inputs: Dict[str, Any] = {
         "grid_global": {
-            "name": "grid_global",
+            "name": "grid",
             "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM, LON_OR_LAT_DIM, TILE_DIM],
             "units": "radians",}
     }
     outputs = {
-        "grid_global": {
-            "name": "grid_global",
+        "grid": {
+            "name": "grid",
             "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM, LON_OR_LAT_DIM, TILE_DIM],
             "units": "radians",
         },
@@ -443,6 +443,7 @@ class TranslateGridGrid(ParallelTranslateGrid):
             fill_corners_2d(
                 state["grid"].data[:, :, :], self.grid, gridtype="B", direction="x"
             )
+        print(state.keys())
         return self.outputs_list_from_state_list(state_list)
 
     def compute_parallel(self, inputs, communicator):
