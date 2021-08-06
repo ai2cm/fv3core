@@ -16,39 +16,45 @@ from fv3core.utils.typing import FloatField, FloatFieldIJ
 
 
 @gtscript.function
-def _get_flux(
+def advect_u(
     u: FloatField,
-    courant: FloatField,
+    u_on_cell_corners: FloatField,
     rdx: FloatFieldIJ,
     bl: FloatField,
     br: FloatField,
+    dt: float,
 ):
     """
-    Compute the x-dir flux of kinetic energy(?).
+    Advect covariant C-grid x-wind using contravariant x-wind on cell corners.
 
     Inputs:
-        u: x-dir wind
-        courant: Courant number in flux form
+        u: covariant x-wind on C grid
+        u_on_cell_corners: contravariant x-wind on cell corners
         rdx: 1.0 / dx
         bl: ???
         br: ???
+        dt: timestep in seconds
 
     Returns:
-        flux: Kinetic energy flux
+        updated_u: u having been advected by u_on_cell_corners
     """
     # Could try merging this with xppm version.
 
     from __externals__ import iord
 
     b0 = bl + br
-    cfl = courant * rdx[-1, 0] if courant > 0 else courant * rdx
+    cfl = (
+        u_on_cell_corners * dt * rdx[-1, 0]
+        if u_on_cell_corners > 0
+        else u_on_cell_corners * dt * rdx
+    )
     fx0 = xppm.fx1_fn(cfl, br, b0, bl)
 
     if __INLINED(iord < 8):
         advection_mask = xppm.get_advection_mask(bl, b0, br)
     else:
         advection_mask = 1.0
-    return xppm.final_flux(courant, u, fx0, advection_mask)
+    return xppm.apply_flux(u_on_cell_corners, u, fx0, advection_mask)
 
 
 def xtp_u_stencil_defn(
@@ -59,35 +65,38 @@ def xtp_u_stencil_defn(
     dxa: FloatFieldIJ,
     rdx: FloatFieldIJ,
 ):
-
     with computation(PARALLEL), interval(...):
-        flux = xtp_u(courant, u, dx, dxa, rdx)
+        flux = advect_u_along_x(courant, u, dx, dxa, rdx, 1.0)
 
 
 @gtscript.function
-def xtp_u(
-    courant: FloatField,
-    u: FloatField,
-    dx: FloatFieldIJ,
-    dxa: FloatFieldIJ,
-    rdx: FloatFieldIJ,
-):
+def get_bl_br(u, dx, dxa):
+    """
+    Args:
+        u: covariant x-wind on D-grid
+        dx: gridcell spacing in x-direction
+        dxa: gridcell spacing in x-direction on A-grid
+
+    Returns:
+        bl: ???
+        br: ???
+    """
     from __externals__ import i_end, i_start, iord, j_end, j_start
 
     if __INLINED(iord < 8):
-        al = xppm.compute_al(u, dx)
+        u_on_cell_corners = xppm.compute_al(u, dx)
 
-        bl = al[0, 0, 0] - u[0, 0, 0]
-        br = al[1, 0, 0] - u[0, 0, 0]
+        bl = u_on_cell_corners[0, 0, 0] - u[0, 0, 0]
+        br = u_on_cell_corners[1, 0, 0] - u[0, 0, 0]
 
     else:
         dm = xppm.dm_iord8plus(u)
-        al = xppm.al_iord8plus(u, dm)
+        u_on_cell_corners = xppm.al_iord8plus(u, dm)
 
         compile_assert(iord == 8)
 
-        bl, br = xppm.blbr_iord8(u, al, dm)
-        bl, br = xppm.bl_br_edges(bl, br, u, dxa, al, dm)
+        bl, br = xppm.blbr_iord8(u, u_on_cell_corners, dm)
+        bl, br = xppm.bl_br_edges(bl, br, u, dxa, u_on_cell_corners, dm)
 
         with horizontal(region[i_start + 1, :], region[i_end - 1, :]):
             bl, br = yppm.pert_ppm_standard_constraint_fcn(u, bl, br)
@@ -101,9 +110,36 @@ def xtp_u(
     ):
         bl = 0.0
         br = 0.0
+    return bl, br
 
-    flux = _get_flux(u, courant, rdx, bl, br)
-    return flux
+
+@gtscript.function
+def advect_u_along_x(
+    ub_contra: FloatField,
+    u: FloatField,
+    dx: FloatFieldIJ,
+    dxa: FloatFieldIJ,
+    rdx: FloatFieldIJ,
+    dt: float,
+):
+    """
+    Advect covariant x-wind on D-grid using contravariant x-wind on cell corners.
+
+    Named xtp_u in the original Fortran code.
+
+    Args:
+        u_on_cell_corners: contravariant x-wind on cell corners
+        u: covariant x-wind on D-grid
+        dx: gridcell spacing in x-direction
+        dxa: a-grid gridcell spacing in x-direction
+        rdx: 1 / dx
+        dt: timestep in seconds
+    """
+    # in the Fortran, dt is folded into ub_contra and called "courant"
+    bl, br = get_bl_br(u, dx, dxa)
+    # TODO: merge this function with advect_u by calling get_bl_br inside advect_u
+    updated_u = advect_u(u, ub_contra, rdx, bl, br, dt)
+    return updated_u
 
 
 class XTP_U:
@@ -143,7 +179,7 @@ class XTP_U:
         Compute flux of kinetic energy in x-dir.
 
         Args:
-            c (in): Courant number in flux form
+            c (in): product of x-dir wind on cell corners and timestep
             u (in): x-dir wind on D-grid
             flux (out): Flux of kinetic energy
         """

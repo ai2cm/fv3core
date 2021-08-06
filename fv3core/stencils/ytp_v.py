@@ -59,16 +59,17 @@ def ytp_v_stencil_defn(
 ):
 
     with computation(PARALLEL), interval(...):
-        flux = ytp_v(courant, v, dy, dya, rdy)
+        flux = ytp_v(courant, v, dy, dya, rdy, 1.0)
 
 
 @gtscript.function
 def ytp_v(
-    courant: FloatField,
+    v_on_cell_corners: FloatField,
     v: FloatField,
     dy: FloatFieldIJ,
     dya: FloatFieldIJ,
     rdy: FloatFieldIJ,
+    dt: float,
 ):
     from __externals__ import i_end, i_start, j_end, j_start, jord
 
@@ -100,6 +101,7 @@ def ytp_v(
         bl = 0.0
         br = 0.0
 
+    courant = v_on_cell_corners * dt
     flux = _get_flux(v, courant, rdy, bl, br)
     return flux
 
@@ -142,7 +144,7 @@ class YTP_V:
         Compute flux of kinetic energy in y-dir.
 
         Args:
-        c (in): Courant number in flux form
+        c (in): product of y-dir wind on cell corners and timestep
         v (in): y-dir wind on Arakawa D-grid
         flux (out): Flux of kinetic energy
         """

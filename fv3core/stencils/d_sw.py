@@ -10,17 +10,17 @@ from gt4py.gtscript import (
 
 import fv3core._config as spec
 import fv3core.stencils.delnflux as delnflux
-import fv3core.utils.corners as corners
 import fv3core.utils.global_constants as constants
 import fv3core.utils.gt4py_utils as utils
 from fv3core._config import DGridShallowWaterLagrangianDynamicsConfig
 from fv3core.decorators import FrozenStencil
+from fv3core.stencils.d2a2c_vect import contravariant
 from fv3core.stencils.delnflux import DelnFluxNoSG
 from fv3core.stencils.divergence_damping import DivergenceDamping
 from fv3core.stencils.fvtp2d import FiniteVolumeTransport
 from fv3core.stencils.fxadv import FiniteVolumeFluxPrep
-from fv3core.stencils.xtp_u import XTP_U, xtp_u
-from fv3core.stencils.ytp_v import YTP_V, ytp_v
+from fv3core.stencils.xtp_u import advect_u_along_x
+from fv3core.stencils.ytp_v import ytp_v
 from fv3core.utils.grid import DampingCoefficients, GridData, GridIndexing, axis_offsets
 from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
 from fv3gfs.util import X_DIM, X_INTERFACE_DIM, Y_DIM, Y_INTERFACE_DIM, Z_DIM
@@ -102,18 +102,43 @@ def flux_capacitor(
 
 
 @gtscript.function
+def corner_ke(
+    u,
+    v,
+    ut,
+    vt,
+    dt,
+    io1,
+    jo1,
+    io2,
+    vsign,
+):
+    dt6 = dt / 6.0
+
+    return dt6 * (
+        (ut[0, 0, 0] + ut[0, -1, 0]) * ((io1 + 1) * u[0, 0, 0] - (io1 * u[-1, 0, 0]))
+        + (vt[0, 0, 0] + vt[-1, 0, 0]) * ((jo1 + 1) * v[0, 0, 0] - (jo1 * v[0, -1, 0]))
+        + (
+            ((jo1 + 1) * ut[0, 0, 0] - (jo1 * ut[0, -1, 0]))
+            + vsign * ((io1 + 1) * vt[0, 0, 0] - (io1 * vt[-1, 0, 0]))
+        )
+        * ((io2 + 1) * u[0, 0, 0] - (io2 * u[-1, 0, 0]))
+    )
+
+
+@gtscript.function
 def all_corners_ke(ke, u, v, ut, vt, dt):
     from __externals__ import i_end, i_start, j_end, j_start
 
     # Assumption: not __INLINED(grid.nested)
     with horizontal(region[i_start, j_start]):
-        ke = corners.corner_ke(u, v, ut, vt, dt, 0, 0, -1, 1)
+        ke = corner_ke(u, v, ut, vt, dt, 0, 0, -1, 1)
     with horizontal(region[i_end + 1, j_start]):
-        ke = corners.corner_ke(u, v, ut, vt, dt, -1, 0, 0, -1)
+        ke = corner_ke(u, v, ut, vt, dt, -1, 0, 0, -1)
     with horizontal(region[i_end + 1, j_end + 1]):
-        ke = corners.corner_ke(u, v, ut, vt, dt, -1, -1, 0, 1)
+        ke = corner_ke(u, v, ut, vt, dt, -1, -1, 0, 1)
     with horizontal(region[i_start, j_end + 1]):
-        ke = corners.corner_ke(u, v, ut, vt, dt, 0, -1, -1, -1)
+        ke = corner_ke(u, v, ut, vt, dt, 0, -1, -1, -1)
 
     return ke
 
@@ -154,9 +179,9 @@ def kinetic_energy_update(
     cosa: FloatFieldIJ,
     rsina: FloatFieldIJ,
     v: FloatField,
-    vt: FloatField,
+    vc_contra: FloatField,
     u: FloatField,
-    ut: FloatField,
+    uc_contra: FloatField,
     ke: FloatField,
     dx: FloatFieldIJ,
     dxa: FloatFieldIJ,
@@ -166,14 +191,19 @@ def kinetic_energy_update(
     rdy: FloatFieldIJ,
     dt: float,
 ):
+
     with computation(PARALLEL), interval(...):
         pt, delp = pressure_update(gx, gy, rarea, fx, fy, pt, delp)
-        v_on_cell_corners = interpolate_v_to_cell_corners(vc, uc, cosa, rsina, vt, dt)
-        advected_v = ytp_v(v_on_cell_corners, v, dy, dya, rdy)
-        u_on_cell_corners = interpolate_u_to_cell_corners(uc, vc, cosa, rsina, ut, dt)
-        advected_u = xtp_u(u_on_cell_corners, u, dx, dxa, rdx)
-        ke = 0.5 * (u_on_cell_corners * advected_u + v_on_cell_corners * advected_v)
-        ke = all_corners_ke(ke, u, v, ut, vt, dt)
+        # vb_contra = interpolate_vc_to_cell_corners(vc, uc, cosa, rsina, vt)
+        ub_contra, vb_contra = interpolate_uc_vc_to_cell_corners(
+            uc, vc, cosa, rsina, uc_contra, vc_contra
+        )
+        advected_v = ytp_v(vb_contra, v, dy, dya, rdy, dt)
+        advected_u = advect_u_along_x(ub_contra, u, dx, dxa, rdx, dt)
+        # TODO: we see here that ke is not kinetic energy, but kinetic energy * timestep
+        #       refactor or rename to avoid this confusion
+        ke = 0.5 * dt * (ub_contra * advected_u + vb_contra * advected_v)
+        ke = all_corners_ke(ke, u, v, uc_contra, vc_contra, dt)
 
 
 def ub_vb_from_vort(
@@ -323,8 +353,8 @@ def heat_source_from_vorticity_damping(
         delp (in)
         rsin2 (in)
         cosa_s (in)
-        rdx (in): radius of Earth multiplied by x-direction gridcell width
-        rdy (in): radius of Earth multiplied by y-direction gridcell width
+        rdx (in): 1 / dx
+        rdy (in): 1 / dy
         heat_source (out): heat source from vorticity damping
             implied by energy conservation
         heat_source_total: (out) accumulated heat source
@@ -363,8 +393,7 @@ def heat_source_from_vorticity_damping(
         if __INLINED((d_con > dcon_threshold) or do_skeb):
             with horizontal(region[local_is : local_ie + 1, local_js : local_je + 1]):
                 heat_source_total = heat_source_total + heat_source
-                # do_skeb could be renamed to calculate_dissipation_estimate
-                # when d_sw is converted into a D_SW object
+                # TODO: do_skeb could be renamed to calculate_dissipation_estimate
                 if __INLINED(do_skeb == 1):
                     dissipation_estimate = diss_e - dampterm
     with computation(PARALLEL), interval(...):
@@ -474,31 +503,39 @@ def get_column_namelist(config: DGridShallowWaterLagrangianDynamicsConfig, npz):
 
 
 @gtscript.function
-def interpolate_u_to_cell_corners(uc, vc, cosa, rsina, ut, dt):
+def interpolate_uc_vc_to_cell_corners(
+    uc_cov, vc_cov, cosa, rsina, uc_contra, vc_contra
+):
+    """
+    Convert covariant C-grid winds to contravariant B-grid (cell-corner) winds.
+    """
     from __externals__ import i_end, i_start, j_end, j_start
 
-    ub = 0.5 * dt * (uc[0, -1, 0] + uc - (vc[-1, 0, 0] + vc) * cosa) * rsina
-    # if __INLINED(spec.namelist.grid_type < 3):
-    with horizontal(region[:, j_start], region[:, j_end + 1]):
-        ub = 0.25 * dt * (-ut[0, -2, 0] + 3.0 * (ut[0, -1, 0] + ut) - ut[0, 1, 0])
-    with horizontal(region[i_start, :], region[i_end + 1, :]):
-        ub = 0.5 * dt * (ut[0, -1, 0] + ut)
-
-    return ub
-
-
-@gtscript.function
-def interpolate_v_to_cell_corners(vc, uc, cosa, rsina, vt, dt):
-    from __externals__ import i_end, i_start, j_end, j_start
-
-    vb = 0.5 * dt * (vc[-1, 0, 0] + vc - (uc[0, -1, 0] + uc) * cosa) * rsina
+    # TODO: ask Lucas why we interpolate then convert to contravariant in tile center,
+    # but convert to contravariant and then interpolate on tile edges.
+    ub_cov = 0.5 * (uc_cov[0, -1, 0] + uc_cov)
+    vb_cov = 0.5 * (vc_cov[-1, 0, 0] + vc_cov)
+    ub_contra = contravariant(ub_cov, vb_cov, cosa, rsina)
+    vb_contra = contravariant(vb_cov, ub_cov, cosa, rsina)
     # ASSUME : if __INLINED(namelist.grid_type < 3):
-    with horizontal(region[i_start, :], region[i_end + 1, :]):
-        vb = 0.25 * dt * (-vt[-2, 0, 0] + 3.0 * (vt[-1, 0, 0] + vt) - vt[1, 0, 0])
     with horizontal(region[:, j_start], region[:, j_end + 1]):
-        vb = 0.5 * dt * (vt[-1, 0, 0] + vt)
+        ub_contra = 0.25 * (
+            -uc_contra[0, -2, 0]
+            + 3.0 * (uc_contra[0, -1, 0] + uc_contra)
+            - uc_contra[0, 1, 0]
+        )
+    with horizontal(region[i_start, :], region[i_end + 1, :]):
+        ub_contra = 0.5 * (uc_contra[0, -1, 0] + uc_contra)
+    with horizontal(region[i_start, :], region[i_end + 1, :]):
+        vb_contra = 0.25 * (
+            -vc_contra[-2, 0, 0]
+            + 3.0 * (vc_contra[-1, 0, 0] + vc_contra)
+            - vc_contra[1, 0, 0]
+        )
+    with horizontal(region[:, j_start], region[:, j_end + 1]):
+        vb_contra = 0.5 * (vc_contra[-1, 0, 0] + vc_contra)
 
-    return vb
+    return ub_contra, vb_contra
 
 
 class DGridShallowWaterLagrangianDynamics:
@@ -551,6 +588,8 @@ class DGridShallowWaterLagrangianDynamics:
         self._tmp_vb = utils.make_storage_from_shape(grid_indexing.max_shape)
         self._tmp_ke = utils.make_storage_from_shape(grid_indexing.max_shape)
         self._tmp_vort = utils.make_storage_from_shape(grid_indexing.max_shape)
+        self._uc_contra = utils.make_storage_from_shape(grid_indexing.max_shape)
+        self._vc_contra = utils.make_storage_from_shape(grid_indexing.max_shape)
         self._tmp_ut = utils.make_storage_from_shape(grid_indexing.max_shape)
         self._tmp_vt = utils.make_storage_from_shape(grid_indexing.max_shape)
         self._tmp_fx = utils.make_storage_from_shape(grid_indexing.max_shape)
@@ -615,18 +654,6 @@ class DGridShallowWaterLagrangianDynamics:
         self.fv_prep = FiniteVolumeFluxPrep(
             grid_indexing=grid_indexing,
             grid_data=grid_data,
-        )
-        self.ytp_v = YTP_V(
-            grid_indexing=grid_indexing,
-            grid_data=grid_data,
-            grid_type=config.grid_type,
-            jord=config.hord_mt,
-        )
-        self.xtp_u = XTP_U(
-            grid_indexing=grid_indexing,
-            grid_data=grid_data,
-            grid_type=config.grid_type,
-            iord=config.hord_mt,
         )
         self.divergence_damping = DivergenceDamping(
             grid_indexing,
@@ -796,8 +823,10 @@ class DGridShallowWaterLagrangianDynamics:
             diss_est: dissipation estimate (inout)
             dt: acoustic timestep in seconds (in)
         """
-
-        self.fv_prep(uc, vc, crx, cry, xfx, yfx, self._tmp_ut, self._tmp_vt, dt)
+        # uc_contra/vc_contra are ut/vt in the original Fortran
+        # TODO: uc_contra/vc_contra are only used inside kinetic_energy_update,
+        # refactor their computation into a function call
+        self.fv_prep(uc, vc, crx, cry, xfx, yfx, self._uc_contra, self._vc_contra, dt)
 
         self.fvtp2d_dp(
             delp,
@@ -903,9 +932,9 @@ class DGridShallowWaterLagrangianDynamics:
             self.grid.cosa,
             self.grid.rsina,
             v,
-            self._tmp_vt,
+            self._vc_contra,
             u,
-            self._tmp_ut,
+            self._uc_contra,
             self._tmp_ke,
             self.grid.dx,
             self.grid.dxa,

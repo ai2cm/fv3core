@@ -67,7 +67,8 @@ def ubke(
 ):
     with computation(PARALLEL), interval(...):
         dt = 2.0 * dt5
-        ub = d_sw.interpolate_u_to_cell_corners(uc, vc, cosa, rsina, ut, dt)
+        ub, _ = d_sw.interpolate_uc_vc_to_cell_corners(uc, vc, cosa, rsina, ut, ut)
+        ub = ub * dt
 
 
 class TranslateUbKE(TranslateFortranData2Py):
@@ -107,7 +108,8 @@ def vbke(
 ):
     with computation(PARALLEL), interval(...):
         dt = 2.0 * dt5
-        vb = d_sw.interpolate_v_to_cell_corners(vc, uc, cosa, rsina, vt, dt)
+        _, vb = d_sw.interpolate_uc_vc_to_cell_corners(uc, vc, cosa, rsina, vt, vt)
+        vb = vb * dt
 
 
 class TranslateVbKE(TranslateFortranData2Py):

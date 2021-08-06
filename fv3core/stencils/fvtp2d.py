@@ -235,7 +235,7 @@ class FiniteVolumeTransport:
         # up to here, fx and fy are in units of q * m^2
         # and are equal to F(q + 0.5 * g(q)) and G(q + 0.5 * f(q))
         # fy2 and fx2 are the inner advective updates (g(q) and f(q))
-        # stencil_transport_flux updates fx and fy units to q * mfx/y * m^2
+        # stencil_transport_flux updates fx and fy units to q * mfx * m^2
 
         self.stencil_transport_flux(
             fx,

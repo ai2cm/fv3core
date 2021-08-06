@@ -17,12 +17,13 @@ from fv3core.utils.typing import FloatField, FloatFieldIJ, Index3D
 
 
 @gtscript.function
-def final_flux(courant, q, fx1, mask):
+def apply_flux(courant, q, fx1, mask):
     """
     Args:
-        courant: any value whose sign is the same as the sign of the x-wind
-        q: scalar being transported
-        fx1: ???
+        courant: any value whose sign is the same as the sign of
+            the x-wind on cell corners
+        q: scalar being transported, on x-centers
+        fx1: flux of q in units of q, on x-interfaces
         mask: fx1 is multiplied by this before being applied
     """
     return q[-1, 0, 0] + fx1 * mask if courant > 0.0 else q + fx1 * mask
@@ -32,7 +33,7 @@ def final_flux(courant, q, fx1, mask):
 def fx1_fn(courant, br, b0, bl):
     """
     Args:
-        courant: ???
+        courant: courant number, u * dt / dx or similar for v/y (unitless)
         br: ???
         b0: br + bl
         bl: ???
@@ -69,7 +70,7 @@ def get_flux(q: FloatField, courant: FloatField, al: FloatField):
 
     advection_mask = get_advection_mask(bl, b0, br)
     fx1 = fx1_fn(courant, br, b0, bl)
-    return final_flux(courant, q, fx1, advection_mask)  # noqa
+    return apply_flux(courant, q, fx1, advection_mask)  # noqa
 
 
 @gtscript.function
@@ -78,7 +79,7 @@ def get_flux_ord8plus(
 ):
     b0 = bl + br
     fx1 = fx1_fn(courant, br, b0, bl)
-    return final_flux(courant, q, fx1, 1.0)
+    return apply_flux(courant, q, fx1, 1.0)
 
 
 @gtscript.function
@@ -150,11 +151,11 @@ def compute_al(q: FloatField, dxa: FloatFieldIJ):
     Interpolate q at interface.
 
     Inputs:
-        q: Transported scalar
+        q: transported scalar centered along the x-direction
         dxa: dx on A-grid (?)
 
     Returns:
-        Interpolated quantity
+        q interpolated to x-interfaces
     """
     from __externals__ import i_end, i_start, iord
 

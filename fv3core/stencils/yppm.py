@@ -197,11 +197,11 @@ def compute_al(q: FloatField, dya: FloatFieldIJ):
     Interpolate q at interface.
 
     Inputs:
-        q: Transported scalar
+        q: Transported scalar centered in y-direction
         dya: dy on A-grid (?)
 
     Returns:
-        Interpolated quantity
+        q interpolated to y interfaces
     """
     from __externals__ import j_end, j_start, jord
 
