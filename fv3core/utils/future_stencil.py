@@ -2,20 +2,16 @@
 import abc
 import datetime as dt
 import numpy as np
-import os
 import random
-import sqlite3
 import time
 
-from concurrent.futures import ThreadPoolExecutor
-from typing import Any, Dict, Optional, Set, Tuple
+from typing import Any, Callable, Dict, Optional, Set, Tuple
 
 from fv3core.utils.mpi import MPI
 
 from gt4py.definitions import FieldInfo
 from gt4py.stencil_builder import StencilBuilder
 from gt4py.stencil_object import StencilObject
-
 
 try:
     from redis_dict import RedisDict
@@ -31,26 +27,6 @@ class Container(type):
             cls._instances[cls] = super(Container, cls).__call__(*args, **kwargs)
             cls._instances[cls].clear()
         return cls._instances[cls]
-
-
-class StencilPool(object, metaclass=Container):
-    def __init__(self):
-        self._executor = ThreadPoolExecutor(max_workers=os.cpu_count())
-        self._futures: Dict[int, object] = {}
-
-    def __call__(self, stencil_id: int, builder: "StencilBuilder"):
-        if stencil_id not in self._futures:
-            self._futures[stencil_id] = self._executor.submit(builder.backend.generate)
-        return self._futures[stencil_id]
-
-    def __contains__(self, stencil_id: int):
-        return stencil_id in self._futures
-
-    def __getitem__(self, stencil_id: int) -> int:
-        return self._futures[stencil_id]
-
-    def clear(self) -> None:
-        self._futures.clear()
 
 
 class StencilTable(object, metaclass=Container):
@@ -106,40 +82,6 @@ class RedisTable(StencilTable):
 
     def __setitem__(self, key: int, value: int) -> None:
         self._dict[key] = value
-
-
-class SqliteTable(StencilTable):
-    def __init__(self, db_file: str = "gt4py.db"):
-        super().__init__()
-        self._conn = sqlite3.connect(db_file)
-        if self._conn:
-            create_table_sql = """CREATE TABLE IF NOT EXISTS stencils(
-                                    id integer PRIMARY KEY,
-                                    stencil integer NOT NULL,
-                                    node integer NOT NULL);"""
-            cursor = self._conn.cursor()
-            cursor.execute(create_table_sql)
-
-    def __del__(self):
-        if self._conn:
-            self._conn.close()
-
-    def __getitem__(self, key: int) -> int:
-        cursor = self._conn.cursor()
-        cursor.execute(f"SELECT node FROM stencils WHERE stencil={key}")
-        rows = cursor.fetchall()
-        if rows:
-            value = int(rows[0][0])
-            if value == self.DONE_STATE:
-                self._finished_keys.add(key)
-            return value
-        return self.NONE_STATE
-
-    def __setitem__(self, key: int, value: int) -> None:
-        sql = """INSERT INTO stencils(stencil, node) VALUES(?,?)"""
-        cursor = self._conn.cursor()
-        cursor.execute(sql, (key, value))
-        self._conn.commit()
 
 
 class WindowTable(StencilTable):
@@ -207,9 +149,9 @@ class WindowTable(StencilTable):
         self._key_nodes[key] = (self._node_id, index)
 
     def _initialize(self, value: int):
-        self._mpi_type = MPI.INT
+        self._mpi_type = MPI.LONG
         int_size = self._mpi_type.Get_size()
-        self._np_type = np.int32
+        self._np_type = np.int64
         self._window_size = (
             int_size * self._buffer_size * self._n_nodes if self._node_id == 0 else 0
         )
@@ -231,26 +173,16 @@ class WindowTable(StencilTable):
         return (node_id * self._buffer_size, self._buffer_size, self._mpi_type)
 
     def _set_buffer(self, buffer: np.ndarray):
-        target = self._get_target()
         self._window.Lock(rank=0)
-        self._window.Put(buffer, target_rank=0, target=target)
+        self._window.Put(buffer, target_rank=0, target=self._get_target())
         self._window.Unlock(rank=0)
-        # with open(f"./caching_r{self._node_id}.log", "a") as log:
-        #     log.write(
-        #         f"{dt.datetime.now()}: R{self._node_id}: W: {buffer}\n"
-        #     )
-        self._comm.Barrier()
 
     def _get_buffer(self, node_id: int = -1) -> np.ndarray:
         buffer = np.empty(self._buffer_size, dtype=self._np_type)
-        target = self._get_target(node_id)
         self._window.Lock(rank=0)
-        self._window.Get(buffer, target_rank=0, target=target)
+        self._window.Get(buffer, target_rank=0, target=self._get_target(node_id))
         self._window.Unlock(rank=0)
-        # with open(f"./caching_r{self._node_id}.log", "a") as log:
-        #     log.write(
-        #         f"{dt.datetime.now()}: R{self._node_id}: R: {buffer} from {node_id}\n"
-        #     )
+
         return buffer
 
 
@@ -259,10 +191,8 @@ class FutureStencil:
     A stencil object that is compiled by another node in a distributed context.
     """
 
-    # _thread_pool: StencilPool = StencilPool()
-    _id_table: StencilTable = RedisTable()
-    # _id_table: StencilTable = SqliteTable()
-    # _id_table: StencilTable = WindowTable()
+    # _id_table: StencilTable = RedisTable()
+    _id_table: StencilTable = WindowTable()
 
     def __init__(self, builder: Optional["StencilBuilder"] = None):
         self._builder: Optional["StencilBuilder"] = builder
@@ -275,87 +205,101 @@ class FutureStencil:
         cls._id_table.clear()
 
     @property
+    def cache_info_path(self) -> str:
+        return self._builder.caching.cache_info_path.stem
+
+    @property
     def is_built(self) -> bool:
         return self._stencil_object is not None
 
     @property
     def stencil_object(self) -> StencilObject:
         if self._stencil_object is None:
-            self.wait_for_stencil()
+            self._wait_for_stencil()
         return self._stencil_object
 
     @property
     def field_info(self) -> Dict[str, FieldInfo]:
         return self.stencil_object.field_info
 
-    def delay(self, factor: float = 1.0, use_random: bool = False) -> float:
+    def _delay(self, factor: float = 1.0, use_random: bool = False) -> float:
         delay_time = (random.random() if use_random else self._sleep_time) * factor
         time.sleep(delay_time)
         return delay_time
 
-    def wait_for_stencil(self):
+    def _compile_stencil(self, node_id: int, stencil_id: int) -> Callable:
+        # Stencil not yet compiled or in progress so claim it...
+        self._id_table[stencil_id] = node_id
+
+        with open(f"./caching_r{node_id}.log", "a") as log:
+            log.write(
+                f"{dt.datetime.now()}: R{node_id}: Compiling stencil '{self.cache_info_path}' ({stencil_id})\n"
+            )
+
+        stencil_class = self._builder.backend.generate()
+        self._id_table.set_done(stencil_id)  # Set to DONE...
+
+        return stencil_class
+
+    def _load_stencil(self, node_id: int, stencil_id: int) -> Callable:
+        if not self._id_table.is_done(stencil_id):
+            # Wait for stencil to be done...
+            with open(f"./caching_r{node_id}.log", "a") as log:
+                log.write(
+                    f"{dt.datetime.now()}: R{node_id}: Waiting for stencil '{self.cache_info_path}' ({stencil_id})\n"
+                )
+
+            time_elapsed: float = 0.0
+            while (
+                not self._id_table.is_done(stencil_id) and time_elapsed < self._timeout
+            ):
+                time_elapsed += self._delay()
+
+            if time_elapsed >= self._timeout:
+                error_message = f"Timeout while waiting for stencil '{self.cache_info_path}' to compile on R{node_id}"
+                with open(f"./caching_r{node_id}.log", "a") as log:
+                    log.write(
+                        f"{dt.datetime.now()}: R{node_id}: Timeout while waiting for stencil '{self.cache_info_path}'\n"
+                    )
+                raise RuntimeError(error_message)
+            # Wait a bit before loading...
+            self._delay(5.0)
+
+        with open(f"./caching_r{node_id}.log", "a") as log:
+            log.write(
+                f"{dt.datetime.now()}: R{node_id}: Loading stencil '{self.cache_info_path}' ({stencil_id})\n"
+            )
+        stencil_class = self._builder.backend.load()
+
+        return stencil_class
+
+    def _wait_for_stencil(self):
         builder = self._builder
-        cache_info_path = builder.caching.cache_info_path
         node_id = MPI.COMM_WORLD.Get_rank() if MPI else 0
         stencil_id = int(builder.stencil_id.version, 16)
         stencil_class = None if builder.options.rebuild else builder.backend.load()
 
         if not stencil_class:
             # Random delay before accessing distributed dict...
-            self.delay(0.25, True)
+            self._delay(0.25, True)
             if self._id_table.is_none(stencil_id):
-                # Stencil not yet compiled or in progress so claim it...
-                self._id_table[stencil_id] = node_id
-                stencil_class = builder.backend.generate()
-                # self._thread_pool(stencil_id, builder)
-                with open(f"./caching_r{node_id}.log", "a") as log:
-                    log.write(
-                        f"{dt.datetime.now()}: R{node_id}: Submitted stencil '{cache_info_path.stem}' ({stencil_id})\n"
-                    )
-                # Set to DONE...
-                self._id_table.set_done(stencil_id)
+                stencil_class = self._compile_stencil(node_id, stencil_id)
             else:
-                if not self._id_table.is_done(stencil_id):
-                    # Wait for stencil to be done...
-                    with open(f"./caching_r{node_id}.log", "a") as log:
-                        log.write(
-                            f"{dt.datetime.now()}: R{node_id}: Waiting for stencil '{cache_info_path.stem}' ({stencil_id})\n"
-                        )
-                    time_elapsed: float = 0.0
-                    while not self._id_table.is_done(stencil_id) and time_elapsed < self._timeout:
-                        time_elapsed += self.delay()
-                    if time_elapsed >= self._timeout:
-                        error_message = f"Timeout while waiting for stencil '{cache_info_path.stem}' to compile on R{node_id}"
-                        with open(f"./caching_r{node_id}.log", "a") as log:
-                            log.write(
-                                f"{dt.datetime.now()}: R{node_id}: Timeout while waiting for stencil '{cache_info_path.stem}'\n"
-                            )
-                        raise RuntimeError(error_message)
-                    # Wait a bit before loading...
-                    self.delay(5.0)
-
-                with open(f"./caching_r{node_id}.log", "a") as log:
-                    log.write(
-                        f"{dt.datetime.now()}: R{node_id}: Loading stencil '{cache_info_path.stem}' ({stencil_id})\n"
-                    )
-                stencil_class = builder.backend.load()
-
-            # if stencil_id in self._thread_pool:
-            #     future = self._thread_pool[stencil_id]
-            #     stencil_class = future.result()
-            #     # Set to DONE...
-            #     self._id_table.set_done(stencil_id)
+                stencil_class = self._load_stencil(node_id, stencil_id)
 
         if not stencil_class:
-            error_message = f"`stencil_class` is None '{cache_info_path.stem}' ({stencil_id})!"
+            error_message = (
+                f"`stencil_class` is None '{self.cache_info_path}' ({stencil_id})!"
+            )
             with open(f"./caching_r{node_id}.log", "a") as log:
                 log.write(f"{dt.datetime.now()}: R{node_id}: ERROR: {error_message}\n")
                 raise RuntimeError(error_message)
 
         with open(f"./caching_r{node_id}.log", "a") as log:
             log.write(
-                f"{dt.datetime.now()}: R{node_id}: Finished stencil '{cache_info_path.stem}' ({stencil_id})\n"
+                f"{dt.datetime.now()}: R{node_id}: Finished stencil '{self.cache_info_path}' ({stencil_id})\n"
             )
+
         self._stencil_object = stencil_class()
 
     def __call__(self, *args: Any, **kwargs: Any) -> None:

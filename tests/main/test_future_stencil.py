@@ -151,9 +151,20 @@ def test_one_sided_mpi():
     MPI is not None and MPI.COMM_WORLD.Get_size() == 1,
     reason="Not running in parallel with mpi",
 )
-@pytest.mark.parametrize("rebuild", (True,))
-@pytest.mark.parametrize("backend", ("numpy", "gtx86"))
-def test_rank_adder(backend: str, rebuild: bool):
+def test_rank_adder_numpy():
+    run_rank_adder_test("numpy", True)
+
+
+@pytest.mark.parallel
+@pytest.mark.skipif(
+    MPI is not None and MPI.COMM_WORLD.Get_size() == 1,
+    reason="Not running in parallel with mpi",
+)
+def test_rank_adder_gridtools():
+    run_rank_adder_test("gtx86", True)
+
+
+def run_rank_adder_test(backend: str, rebuild: bool):
     comm = MPI.COMM_WORLD
     size = comm.Get_size()
 
