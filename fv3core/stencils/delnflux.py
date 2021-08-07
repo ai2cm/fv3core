@@ -1161,8 +1161,8 @@ class DelnFluxNoSG:
 
         Args:
             q: Field for which to calculate damped fluxes (in)
-            fx2: diffusive x-flux on A grid (in/out)
-            fy2: diffusive y-flux on A grid (in/out)
+            fx2: x-flux on A grid to be damped (inout)
+            fy2: y-flux on A grid to be damped (inout)
             damp_c: damping coefficient for q (in)
             d2: A damped copy of the q field (in)
             mass: Mass to weight the diffusive flux by (in)

@@ -18,7 +18,7 @@ from fv3core.utils.typing import FloatField, FloatFieldIJ
 @gtscript.function
 def advect_u(
     u: FloatField,
-    u_on_cell_corners: FloatField,
+    ub_contra: FloatField,
     rdx: FloatFieldIJ,
     bl: FloatField,
     br: FloatField,
@@ -28,8 +28,8 @@ def advect_u(
     Advect covariant C-grid x-wind using contravariant x-wind on cell corners.
 
     Inputs:
-        u: covariant x-wind on C grid
-        u_on_cell_corners: contravariant x-wind on cell corners
+        u: covariant x-wind on D grid
+        ub_contra: contravariant x-wind on cell corners
         rdx: 1.0 / dx
         bl: ???
         br: ???
@@ -43,18 +43,14 @@ def advect_u(
     from __externals__ import iord
 
     b0 = bl + br
-    cfl = (
-        u_on_cell_corners * dt * rdx[-1, 0]
-        if u_on_cell_corners > 0
-        else u_on_cell_corners * dt * rdx
-    )
+    cfl = ub_contra * dt * rdx[-1, 0] if ub_contra > 0 else ub_contra * dt * rdx
     fx0 = xppm.fx1_fn(cfl, br, b0, bl)
 
     if __INLINED(iord < 8):
         advection_mask = xppm.get_advection_mask(bl, b0, br)
     else:
         advection_mask = 1.0
-    return xppm.apply_flux(u_on_cell_corners, u, fx0, advection_mask)
+    return xppm.apply_flux(ub_contra, u, fx0, advection_mask)
 
 
 def xtp_u_stencil_defn(
@@ -128,7 +124,7 @@ def advect_u_along_x(
     Named xtp_u in the original Fortran code.
 
     Args:
-        u_on_cell_corners: contravariant x-wind on cell corners
+        ub_contra: contravariant x-wind on cell corners
         u: covariant x-wind on D-grid
         dx: gridcell spacing in x-direction
         dxa: a-grid gridcell spacing in x-direction

@@ -20,7 +20,7 @@ from fv3core.stencils.divergence_damping import DivergenceDamping
 from fv3core.stencils.fvtp2d import FiniteVolumeTransport
 from fv3core.stencils.fxadv import FiniteVolumeFluxPrep
 from fv3core.stencils.xtp_u import advect_u_along_x
-from fv3core.stencils.ytp_v import ytp_v
+from fv3core.stencils.ytp_v import advect_v_along_y
 from fv3core.utils.grid import DampingCoefficients, GridData, GridIndexing, axis_offsets
 from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
 from fv3gfs.util import X_DIM, X_INTERFACE_DIM, Y_DIM, Y_INTERFACE_DIM, Z_DIM
@@ -198,7 +198,7 @@ def kinetic_energy_update(
         ub_contra, vb_contra = interpolate_uc_vc_to_cell_corners(
             uc, vc, cosa, rsina, uc_contra, vc_contra
         )
-        advected_v = ytp_v(vb_contra, v, dy, dya, rdy, dt)
+        advected_v = advect_v_along_y(vb_contra, v, dy, dya, rdy, dt)
         advected_u = advect_u_along_x(ub_contra, u, dx, dxa, rdx, dt)
         # TODO: we see here that ke is not kinetic energy, but kinetic energy * timestep
         #       refactor or rename to avoid this confusion
@@ -206,43 +206,51 @@ def kinetic_energy_update(
         ke = all_corners_ke(ke, u, v, uc_contra, vc_contra, dt)
 
 
-def ub_vb_from_vort(
+def vort_differencing_stencil_defn(
     vort: FloatField,
-    ub: FloatField,
-    vb: FloatField,
+    vort_x_delta: FloatField,
+    vort_y_delta: FloatField,
     dcon: FloatFieldK,
 ):
+    with computation(PARALLEL), interval(...):
+        vort_x_delta, vort_y_delta = vort_differencing(vort, dcon)
+
+
+@gtscript.function
+def vort_differencing(vort, dcon):
     from __externals__ import local_ie, local_is, local_je, local_js
 
-    with computation(PARALLEL), interval(...):
-        if dcon[0] > dcon_threshold:
-            # Creating a gtscript function for the ub/vb computation
-            # results in an "NotImplementedError" error for Jenkins
-            # Inlining the ub/vb computation in this stencil resolves the Jenkins error
-            with horizontal(region[local_is : local_ie + 1, local_js : local_je + 2]):
-                ub = vort - vort[1, 0, 0]
-            with horizontal(region[local_is : local_ie + 2, local_js : local_je + 1]):
-                vb = vort - vort[0, 1, 0]
+    # TODO: Why is this if statement here?
+    # Can/should it be moved outside this function?
+    if dcon[0] > dcon_threshold:
+        # Creating a gtscript function for the ub/vb computation
+        # results in an "NotImplementedError" error for Jenkins
+        # Inlining the ub/vb computation in this stencil resolves the Jenkins error
+        with horizontal(region[local_is : local_ie + 1, local_js : local_je + 2]):
+            vort_x_delta = vort - vort[1, 0, 0]
+        with horizontal(region[local_is : local_ie + 2, local_js : local_je + 1]):
+            vort_y_delta = vort - vort[0, 1, 0]
+    return vort_x_delta, vort_y_delta
 
 
 @gtscript.function
-def u_from_ke(ke, vt, fy):
-    return vt + ke - ke[1, 0, 0] + fy
+def u_from_ke(ke, u, dx, fy):
+    return u * dx + ke - ke[1, 0, 0] + fy
 
 
 @gtscript.function
-def v_from_ke(ke, ut, fx):
-    return ut + ke - ke[0, 1, 0] - fx
+def v_from_ke(ke, v, dy, fx):
+    return v * dy + ke - ke[0, 1, 0] - fx
 
 
 def u_and_v_from_ke(
     ke: FloatField,
-    ut: FloatField,
-    vt: FloatField,
     fx: FloatField,
     fy: FloatField,
     u: FloatField,
     v: FloatField,
+    dx: FloatFieldIJ,
+    dy: FloatFieldIJ,
 ):
     from __externals__ import local_ie, local_is, local_je, local_js
 
@@ -250,9 +258,9 @@ def u_and_v_from_ke(
         # TODO: may be able to remove local regions once this stencil and
         # heat_from_damping are in the same stencil
         with horizontal(region[local_is : local_ie + 1, local_js : local_je + 2]):
-            u = u_from_ke(ke, vt, fy)
+            u = u_from_ke(ke, u, dx, fy)
         with horizontal(region[local_is : local_ie + 2, local_js : local_je + 1]):
-            v = v_from_ke(ke, ut, fx)
+            v = v_from_ke(ke, v, dy, fx)
 
 
 # TODO: This is untested and the radius may be incorrect
@@ -323,10 +331,10 @@ def heat_diss(
 
 
 def heat_source_from_vorticity_damping(
-    ub: FloatField,
-    vb: FloatField,
-    ut: FloatField,
-    vt: FloatField,
+    vort_x_delta: FloatField,
+    vort_y_delta: FloatField,
+    damped_v_dy: FloatField,
+    damped_u_dx: FloatField,
     u: FloatField,
     v: FloatField,
     delp: FloatField,
@@ -344,10 +352,10 @@ def heat_source_from_vorticity_damping(
     Calculates heat source from vorticity damping implied by energy conservation.
     Updates u and v
     Args:
-        ub (in)
-        vb (in)
-        ut (in)
-        vt (in)
+        vort_x_delta (in)
+        vort_y_delta (in)
+        damped_v_dy (in)
+        damped_u_dx (in)
         u (in)
         v (in)
         delp (in)
@@ -371,10 +379,10 @@ def heat_source_from_vorticity_damping(
     with computation(PARALLEL), interval(...):
         heat_s = heat_source
         diss_e = dissipation_estimate
-        ubt = (ub + vt) * rdx
+        ubt = (vort_x_delta + damped_u_dx) * rdx
         fy = u * rdx
         gy = fy * ubt
-        vbt = (vb - ut) * rdy
+        vbt = (vort_y_delta - damped_v_dy) * rdy
         fx = v * rdy
         gx = fx * vbt
     with computation(PARALLEL), interval(...):
@@ -399,31 +407,31 @@ def heat_source_from_vorticity_damping(
     with computation(PARALLEL), interval(...):
         if damp_vt > 1e-5:
             with horizontal(region[local_is : local_ie + 1, local_js : local_je + 2]):
-                u = u + vt
+                u = u + damped_u_dx
             with horizontal(region[local_is : local_ie + 2, local_js : local_je + 1]):
-                v = v - ut
+                v = v - damped_v_dy
 
 
 def update_horizontal_vorticity(
     u: FloatField,
     v: FloatField,
-    ut: FloatField,
-    vt: FloatField,
+    v_dy: FloatField,
+    u_dx: FloatField,
     dx: FloatFieldIJ,
     dy: FloatFieldIJ,
     rarea: FloatFieldIJ,
     vorticity: FloatField,
 ):
     with computation(PARALLEL), interval(...):
-        vt = u * dx
-        ut = v * dy
+        u_dx = u * dx
+        v_dy = v * dy
     # TODO(rheag). This computation is required because
     # ut and vt are API fields. If the distinction
     # is removed, so can this computation.
     # Compute the area mean relative vorticity in the z-direction
     # from the D-grid winds.
     with computation(PARALLEL), interval(...):
-        vorticity = rarea * (vt - vt[0, 1, 0] - ut + ut[1, 0, 0])
+        vorticity = rarea * (u_dx - u_dx[0, 1, 0] - v_dy + v_dy[1, 0, 0])
 
 
 # Set the unique parameters for the smallest
@@ -584,14 +592,14 @@ class DGridShallowWaterLagrangianDynamics:
         # only compute for k-levels where this is true
         self.hydrostatic = config.hydrostatic
         self._tmp_heat_s = utils.make_storage_from_shape(grid_indexing.max_shape)
-        self._tmp_ub = utils.make_storage_from_shape(grid_indexing.max_shape)
-        self._tmp_vb = utils.make_storage_from_shape(grid_indexing.max_shape)
+        self._vort_x_delta = utils.make_storage_from_shape(grid_indexing.max_shape)
+        self._vort_y_delta = utils.make_storage_from_shape(grid_indexing.max_shape)
         self._tmp_ke = utils.make_storage_from_shape(grid_indexing.max_shape)
         self._tmp_vort = utils.make_storage_from_shape(grid_indexing.max_shape)
         self._uc_contra = utils.make_storage_from_shape(grid_indexing.max_shape)
         self._vc_contra = utils.make_storage_from_shape(grid_indexing.max_shape)
-        self._tmp_ut = utils.make_storage_from_shape(grid_indexing.max_shape)
-        self._tmp_vt = utils.make_storage_from_shape(grid_indexing.max_shape)
+        self._v_dy = utils.make_storage_from_shape(grid_indexing.max_shape)
+        self._u_dx = utils.make_storage_from_shape(grid_indexing.max_shape)
         self._tmp_fx = utils.make_storage_from_shape(grid_indexing.max_shape)
         self._tmp_fy = utils.make_storage_from_shape(grid_indexing.max_shape)
         self._tmp_gx = utils.make_storage_from_shape(grid_indexing.max_shape)
@@ -670,7 +678,6 @@ class DGridShallowWaterLagrangianDynamics:
         )
         full_origin = grid_indexing.origin_full()
         full_domain = grid_indexing.domain_full()
-        ax_offsets_full = axis_offsets(grid_indexing, full_origin, full_domain)
         b_origin, b_domain = grid_indexing.get_origin_domain(
             [X_INTERFACE_DIM, Y_INTERFACE_DIM, Z_DIM]
         )
@@ -699,8 +706,11 @@ class DGridShallowWaterLagrangianDynamics:
         self._flux_capacitor_stencil = FrozenStencil(
             flux_capacitor, origin=full_origin, domain=full_domain
         )
-        self._ub_vb_from_vort_stencil = FrozenStencil(
-            ub_vb_from_vort, externals=ax_offsets_b, origin=b_origin, domain=b_domain
+        self._vort_differencing_stencil = FrozenStencil(
+            vort_differencing_stencil_defn,
+            externals=ax_offsets_b,
+            origin=b_origin,
+            domain=b_domain,
         )
         self._u_and_v_from_ke_stencil = FrozenStencil(
             u_and_v_from_ke, externals=ax_offsets_b, origin=b_origin, domain=b_domain
@@ -948,8 +958,8 @@ class DGridShallowWaterLagrangianDynamics:
         self._update_horizontal_vorticity_stencil(
             u,
             v,
-            self._tmp_ut,
-            self._tmp_vt,
+            self._v_dy,
+            self._u_dx,
             self.grid.dx,
             self.grid.dy,
             self.grid.rarea,
@@ -976,8 +986,11 @@ class DGridShallowWaterLagrangianDynamics:
             dt,
         )
 
-        self._ub_vb_from_vort_stencil(
-            self._tmp_vort, self._tmp_ub, self._tmp_vb, self._column_namelist["d_con"]
+        self._vort_differencing_stencil(
+            self._tmp_vort,
+            self._vort_x_delta,
+            self._vort_y_delta,
+            self._column_namelist["d_con"],
         )
 
         # Vorticity transport
@@ -995,23 +1008,29 @@ class DGridShallowWaterLagrangianDynamics:
             mfy=yfx,
         )
 
+        # TODO: what is ke here? It isn't kinetic energy. What are the u and v outputs?
+        # they have units of speed * distance, so they are no longer x and y-wind
+        # unless before this point u has units of speed divided by distance
+        # and is not the x-wind?
         self._u_and_v_from_ke_stencil(
-            self._tmp_ke, self._tmp_ut, self._tmp_vt, self._tmp_fx, self._tmp_fy, u, v
+            self._tmp_ke, self._tmp_fx, self._tmp_fy, u, v, self.grid.dx, self.grid.dy
         )
 
         self.delnflux_nosg_v(
             self._tmp_wk,
-            self._tmp_ut,
-            self._tmp_vt,
+            self._v_dy,
+            self._u_dx,
             self._delnflux_damp_vt,
             self._tmp_vort,
         )
+        damped_v_dy = self._v_dy
+        damped_u_dx = self._u_dx
 
         self._heat_source_from_vorticity_damping_stencil(
-            self._tmp_ub,
-            self._tmp_vb,
-            self._tmp_ut,
-            self._tmp_vt,
+            self._vort_x_delta,
+            self._vort_y_delta,
+            damped_v_dy,
+            damped_u_dx,
             u,
             v,
             delp,

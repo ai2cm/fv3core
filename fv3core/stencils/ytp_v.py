@@ -16,40 +16,42 @@ from fv3core.utils.typing import FloatField, FloatFieldIJ
 
 
 @gtscript.function
-def _get_flux(
+def advect_v(
     v: FloatField,
-    courant: FloatField,
+    vb_contra: FloatField,
     rdy: FloatFieldIJ,
     bl: FloatField,
     br: FloatField,
+    dt: float,
 ):
     """
-    Compute the y-dir flux of kinetic energy(?).
+    Advect covariant C-grid y-wind using contravariant y-wind on cell corners.
 
     Inputs:
-        v: y-dir wind
-        courant: Courant number in flux form
+        v: covariant y-wind on D grid
+        vb_contra: contravariant y-wind on cell corners
         rdy: 1.0 / dy
         bl: ???
         br: ???
+        dt: timestep in seconds
 
     Returns:
-        Kinetic energy flux
+        updated_v: v having been advected by v_on_cell_corners
     """
     from __externals__ import jord
 
     b0 = bl + br
-    cfl = courant * rdy[0, -1] if courant > 0 else courant * rdy[0, 0]
+    cfl = vb_contra * dt * rdy[0, -1] if vb_contra > 0 else vb_contra * dt * rdy[0, 0]
     fx0 = yppm.fx1_fn(cfl, br, b0, bl)
 
     if __INLINED(jord < 8):
         advection_mask = yppm.get_advection_mask(bl, b0, br)
     else:
         advection_mask = 1.0
-    return yppm.final_flux(courant, v, fx0, advection_mask)
+    return yppm.final_flux(vb_contra, v, fx0, advection_mask)
 
 
-def ytp_v_stencil_defn(
+def advect_v_along_y_stencil_defn(
     courant: FloatField,
     v: FloatField,
     flux: FloatField,
@@ -59,18 +61,31 @@ def ytp_v_stencil_defn(
 ):
 
     with computation(PARALLEL), interval(...):
-        flux = ytp_v(courant, v, dy, dya, rdy, 1.0)
+        flux = advect_v_along_y(courant, v, dy, dya, rdy, 1.0)
 
 
 @gtscript.function
-def ytp_v(
-    v_on_cell_corners: FloatField,
+def advect_v_along_y(
+    vb_contra: FloatField,
     v: FloatField,
     dy: FloatFieldIJ,
     dya: FloatFieldIJ,
     rdy: FloatFieldIJ,
     dt: float,
 ):
+    """
+    Advect covariant y-wind on D-grid using contravariant y-wind on cell corners.
+
+    Named xtp_u in the original Fortran code.
+
+    Args:
+        vb_contra: contravariant y-wind on cell corners
+        u: covariant x-wind on D-grid
+        dy: gridcell spacing in y-direction
+        dya: a-grid gridcell spacing in y-direction
+        rdy: 1 / dy
+        dt: timestep in seconds
+    """
     from __externals__ import i_end, i_start, j_end, j_start, jord
 
     if __INLINED(jord < 8):
@@ -101,9 +116,7 @@ def ytp_v(
         bl = 0.0
         br = 0.0
 
-    courant = v_on_cell_corners * dt
-    flux = _get_flux(v, courant, rdy, bl, br)
-    return flux
+    return advect_v(v, vb_contra, rdy, bl, br, dt)
 
 
 class YTP_V:
@@ -116,7 +129,7 @@ class YTP_V:
     ):
         if jord not in (5, 6, 7, 8):
             raise NotImplementedError(
-                "Currently xtp_v is only supported for hord_mt == 5,6,7,8"
+                "Currently ytp_v is only supported for hord_mt == 5,6,7,8"
             )
         assert grid_type < 3
 
@@ -128,7 +141,7 @@ class YTP_V:
         ax_offsets = axis_offsets(grid_indexing, origin, domain)
 
         self.stencil = FrozenStencil(
-            ytp_v_stencil_defn,
+            advect_v_along_y_stencil_defn,
             externals={
                 "jord": jord,
                 "mord": jord,
