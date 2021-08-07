@@ -7,9 +7,10 @@ import fv3core.utils.corners as corners
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import FrozenStencil, get_stencils_with_varied_bounds
 from fv3core.stencils.a2b_ord4 import AGrid2BGridFourthOrder
+from fv3core.stencils.d2a2c_vect import contravariant
 from fv3core.utils.grid import DampingCoefficients, GridData, GridIndexing, axis_offsets
 from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
-from fv3gfs.util import X_DIM, X_INTERFACE_DIM, Y_DIM, Y_INTERFACE_DIM, Z_DIM
+from fv3gfs.util import X_INTERFACE_DIM, Y_INTERFACE_DIM, Z_DIM
 
 
 @gtscript.function
@@ -19,60 +20,56 @@ def damp_tmp(q, da_min_c, d2_bg, dddmp):
     return damp
 
 
-def ptc_computation(
+def get_delpc(
     u: FloatField,
-    va: FloatField,
-    vc: FloatField,
-    cosa_v: FloatFieldIJ,
-    sina_v: FloatFieldIJ,
-    dyc: FloatFieldIJ,
-    sin_sg2: FloatFieldIJ,
-    sin_sg4: FloatFieldIJ,
-    ptc: FloatField,
-):
-    """computation of pct"""
-    from __externals__ import j_end, j_start
-
-    with computation(PARALLEL), interval(...):
-        ptc = (u - 0.5 * (va[0, -1, 0] + va) * cosa_v) * dyc * sina_v
-        with horizontal(region[:, j_start], region[:, j_end + 1]):
-            ptc = u * dyc * sin_sg4[0, -1] if vc > 0 else u * dyc * sin_sg2
-
-
-def vorticity_computation(
     v: FloatField,
     ua: FloatField,
+    va: FloatField,
     cosa_u: FloatFieldIJ,
     sina_u: FloatFieldIJ,
     dxc: FloatFieldIJ,
-    vort: FloatField,
+    dyc: FloatFieldIJ,
     uc: FloatField,
-    sin_sg3: FloatFieldIJ,
+    vc: FloatField,
     sin_sg1: FloatFieldIJ,
-):
-    """computation of the vorticity"""
-    from __externals__ import i_end, i_start
-
-    with computation(PARALLEL), interval(...):
-        vort = (v - 0.5 * (ua[-1, 0, 0] + ua) * cosa_u) * dxc * sina_u
-        with horizontal(region[i_start, :], region[i_end + 1, :]):
-            vort = v * dxc * sin_sg3[-1, 0] if uc > 0 else v * dxc * sin_sg1
-
-
-def delpc_computation(
-    ptc: FloatField,
+    sin_sg2: FloatFieldIJ,
+    sin_sg3: FloatFieldIJ,
+    sin_sg4: FloatFieldIJ,
+    cosa_v: FloatFieldIJ,
+    sina_v: FloatFieldIJ,
     rarea_c: FloatFieldIJ,
     delpc: FloatField,
-    vort: FloatField,
+    u_contra_dyc: FloatField,
+    v_contra_dxc: FloatField,
 ):
     from __externals__ import i_end, i_start, j_end, j_start
 
     with computation(PARALLEL), interval(...):
-        delpc = vort[0, -1, 0] - vort + ptc[-1, 0, 0] - ptc
+        # TODO: why does uc_from_ua sometimes have different sign than uc?
+        uc_from_ua = 0.5 * (ua[-1, 0, 0] + ua)
+        # TODO: why do we use uc_from_ua and not just uc?
+        v_contra = contravariant(v, uc_from_ua, cosa_u, sina_u)
+        with horizontal(region[i_start, :], region[i_end + 1, :]):
+            v_contra = v * sin_sg3[-1, 0] if uc > 0 else v * sin_sg1
+        v_contra_dxc = v_contra * dxc
+
+        vc_from_va = 0.5 * (va[0, -1, 0] + va)
+        u_contra = contravariant(u, vc_from_va, cosa_v, sina_v)
+        u_contra = (u - 0.5 * (va[0, -1, 0] + va) * cosa_v) * sina_v
+        with horizontal(region[:, j_start], region[:, j_end + 1]):
+            u_contra = u * sin_sg4[0, -1] if vc > 0 else u * sin_sg2
+        u_contra_dyc = u_contra * dyc
+
+        delpc = (
+            v_contra_dxc[0, -1, 0]
+            - v_contra_dxc
+            + u_contra_dyc[-1, 0, 0]
+            - u_contra_dyc
+        )
         with horizontal(region[i_start, j_start], region[i_end + 1, j_start]):
-            delpc = ptc[-1, 0, 0] - ptc - vort
+            delpc = u_contra_dyc[-1, 0, 0] - u_contra_dyc - v_contra_dxc
         with horizontal(region[i_start, j_end + 1], region[i_end + 1, j_end + 1]):
-            delpc = vort[0, -1, 0] + ptc[-1, 0, 0] - ptc
+            delpc = v_contra_dxc[0, -1, 0] + u_contra_dyc[-1, 0, 0] - u_contra_dyc
         delpc = rarea_c * delpc
 
 
@@ -215,34 +212,16 @@ class DivergenceDamping:
         )
 
         origin, domain = low_k_idx.get_origin_domain(
-            dims=[X_DIM, Y_INTERFACE_DIM, Z_DIM], halos=(1, 0)
-        )
-        self._ptc_computation = FrozenStencil(
-            ptc_computation,
-            origin=origin,
-            domain=domain,
-            externals=axis_offsets(low_k_idx, origin, domain),
-        )
-
-        origin, domain = low_k_idx.get_origin_domain(
-            dims=[X_INTERFACE_DIM, Y_DIM, Z_DIM], halos=(0, 1)
-        )
-        self._vorticity_computation = FrozenStencil(
-            vorticity_computation,
-            origin=origin,
-            domain=domain,
-            externals=axis_offsets(low_k_idx, origin, domain),
-        )
-
-        origin, domain = low_k_idx.get_origin_domain(
             dims=[X_INTERFACE_DIM, Y_INTERFACE_DIM, Z_DIM], halos=(0, 0)
         )
-        self._delpc_computation_and_damping = FrozenStencil(
-            delpc_computation,
+
+        self._get_delpc = FrozenStencil(
+            get_delpc,
             origin=origin,
             domain=domain,
             externals=axis_offsets(self._idx, origin, domain),
         )
+
         self._damping = FrozenStencil(
             damping,
             origin=origin,
@@ -351,8 +330,26 @@ class DivergenceDamping:
         wk: FloatField,
         dt: float,
     ) -> None:
+        """
+        Args:
+            u (in)
+            v (in)
+            va (in)
+            ptc (out)
+            vort (out)
+            ua (in)
+            divg_d (inout)
+            vc (inout)
+            uc (inout)
+            delpc (out)
+            ke: gets vort added to it (inout)
+            wk: gets converted by a2b_ord4 and put into wk at end (in)
+            dt: timestep (in)
+        """
         if self._do_zero_order:
-            self.damping_zero_order(
+            # TODO: delpc is an output of this but is never used. Inside the helper
+            # function, use a stencil temporary or temporary storage instead
+            self._damping_zero_order(
                 u, v, va, ptc, vort, ua, vc, uc, delpc, ke, self._d2_bg_column, dt
             )
         self._copy_computeplus(
@@ -399,7 +396,7 @@ class DivergenceDamping:
                 uc, vc, divg_d, self._rarea_c, self._stretched_grid
             )
 
-        self.vorticity_calc(wk, vort, delpc, dt)
+        self._vorticity_calc(wk, vort, delpc, dt)
         self._damping_nord_highorder_stencil(
             vort,
             ke,
@@ -411,7 +408,7 @@ class DivergenceDamping:
             self._dd8,
         )
 
-    def damping_zero_order(
+    def _damping_zero_order(
         self,
         u: FloatField,
         v: FloatField,
@@ -426,39 +423,47 @@ class DivergenceDamping:
         d2_bg: FloatFieldK,
         dt: float,
     ) -> None:
-        # if nested
-        # TODO: ptc and vort are equivalent, but x vs y, consolidate if possible.
-        self._ptc_computation(
-            u,
-            va,
-            vc,
-            self._cosa_v,
-            self._sina_v,
-            self._dyc,
-            self._sin_sg2,
-            self._sin_sg4,
-            ptc,
-        )
+        """
+        Args:
+            u (in)
+            v (in)
+            va (in)
+            ptc (out)
+            vort (out)
+            ua (in)
+            vc (in)
+            uc (in)
+            delpc (out)
+            ke: gets vort added to it (inout)
+            d2_bg (in)
+            dt: timestep in seconds
+        """
+        # TODO: convert ptc and vort to gt4py temporaries using selective validation
+        # their outputs from get_delpc do not get used
 
-        self._vorticity_computation(
+        self._get_delpc(
+            u,
             v,
             ua,
+            va,
             self._cosa_u,
             self._sina_u,
             self._dxc,
-            vort,
+            self._dyc,
             uc,
-            self._sin_sg3,
+            vc,
             self._sin_sg1,
-        )
-        # end if nested
-
-        self._delpc_computation_and_damping(
-            ptc,
+            self._sin_sg2,
+            self._sin_sg3,
+            self._sin_sg4,
+            self._cosa_v,
+            self._sina_v,
             self._rarea_c,
             delpc,
+            ptc,
             vort,
         )
+
         self._damping(
             delpc,
             vort,
@@ -469,7 +474,7 @@ class DivergenceDamping:
             dt,
         )
 
-    def vorticity_calc(self, wk, vort, delpc, dt):
+    def _vorticity_calc(self, wk, vort, delpc, dt):
         if self._dddmp < 1e-5:
             self._set_value(vort, 0.0)
         else:
