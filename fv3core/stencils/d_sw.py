@@ -61,12 +61,14 @@ def flux_adjust(
     Update q according to fluxes gx and gy.
 
     Args:
-        q: any scalar (inout)
+        q: any scalar, is replaced with something in units of q * delp (inout)
         delp: pressure thickness of layer (in)
-        gx: x-flux of w in units of w * Pa * area (in)
-        gy: y-flux of w in units of w * Pa * area (in)
+        gx: x-flux of q in units of q * Pa * area (in)
+        gy: y-flux of q in units of q * Pa * area (in)
         rarea: 1 / area (in)
     """
+    # TODO: this function changes the units and therefore meaning of q,
+    # is there any way we can void doing so?
     with computation(PARALLEL), interval(...):
         q = q * delp + flux_increment(gx, gy, rarea)
 
@@ -253,6 +255,9 @@ def u_and_v_from_ke(
     dy: FloatFieldIJ,
 ):
     from __externals__ import local_ie, local_is, local_je, local_js
+
+    # TODO: this function does not return u and v, it returns something
+    # like u * dx and v * dy. Rename this function and its inouts.
 
     with computation(PARALLEL), interval(...):
         # TODO: may be able to remove local regions once this stencil and

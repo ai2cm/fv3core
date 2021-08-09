@@ -45,6 +45,14 @@ def get_delpc(
     from __externals__ import i_end, i_start, j_end, j_start
 
     with computation(PARALLEL), interval(...):
+        # TODO: why does vc_from_va sometimes have different sign than vc?
+        vc_from_va = 0.5 * (va[0, -1, 0] + va)
+        # TODO: why do we use vc_from_va and not just vc?
+        u_contra = contravariant(u, vc_from_va, cosa_v, sina_v)
+        with horizontal(region[:, j_start], region[:, j_end + 1]):
+            u_contra = u * sin_sg4[0, -1] if vc > 0 else u * sin_sg2
+        u_contra_dyc = u_contra * dyc
+
         # TODO: why does uc_from_ua sometimes have different sign than uc?
         uc_from_ua = 0.5 * (ua[-1, 0, 0] + ua)
         # TODO: why do we use uc_from_ua and not just uc?
@@ -52,13 +60,16 @@ def get_delpc(
         with horizontal(region[i_start, :], region[i_end + 1, :]):
             v_contra = v * sin_sg3[-1, 0] if uc > 0 else v * sin_sg1
         v_contra_dxc = v_contra * dxc
-
-        vc_from_va = 0.5 * (va[0, -1, 0] + va)
-        u_contra = contravariant(u, vc_from_va, cosa_v, sina_v)
-        u_contra = (u - 0.5 * (va[0, -1, 0] + va) * cosa_v) * sina_v
-        with horizontal(region[:, j_start], region[:, j_end + 1]):
-            u_contra = u * sin_sg4[0, -1] if vc > 0 else u * sin_sg2
-        u_contra_dyc = u_contra * dyc
+        with horizontal(
+            region[i_start, j_end + 1],
+            region[i_end + 1, j_end + 1],
+            region[i_start, j_start - 1],
+            region[i_end + 1, j_start - 1],
+        ):
+            # TODO: seems odd that this adjustment is only needed for `v_contra_dxc`
+            # but is not needed for `u_contra_dyc`. Is this a bug? Add a comment
+            # describing what this adjustment is doing and why.
+            v_contra_dxc = 0.0
 
         delpc = (
             v_contra_dxc[0, -1, 0]
@@ -66,10 +77,10 @@ def get_delpc(
             + u_contra_dyc[-1, 0, 0]
             - u_contra_dyc
         )
-        with horizontal(region[i_start, j_start], region[i_end + 1, j_start]):
-            delpc = u_contra_dyc[-1, 0, 0] - u_contra_dyc - v_contra_dxc
-        with horizontal(region[i_start, j_end + 1], region[i_end + 1, j_end + 1]):
-            delpc = v_contra_dxc[0, -1, 0] + u_contra_dyc[-1, 0, 0] - u_contra_dyc
+        # with horizontal(region[i_start, j_start], region[i_end + 1, j_start]):
+        #     delpc = u_contra_dyc[-1, 0, 0] - u_contra_dyc - v_contra_dxc
+        # with horizontal(region[i_start, j_end + 1], region[i_end + 1, j_end + 1]):
+        #     delpc = v_contra_dxc[0, -1, 0] + u_contra_dyc[-1, 0, 0] - u_contra_dyc
         delpc = rarea_c * delpc
 
 
@@ -319,8 +330,8 @@ class DivergenceDamping:
         u: FloatField,
         v: FloatField,
         va: FloatField,
-        ptc: FloatField,
-        vort: FloatField,
+        u_contra_dyc: FloatField,
+        v_contra_dxc: FloatField,
         ua: FloatField,
         divg_d: FloatField,
         vc: FloatField,
@@ -335,8 +346,8 @@ class DivergenceDamping:
             u (in)
             v (in)
             va (in)
-            ptc (out)
-            vort (out)
+            u_contra_dyc (out)
+            v_contra_dxc (out)
             ua (in)
             divg_d (inout)
             vc (inout)
@@ -346,11 +357,23 @@ class DivergenceDamping:
             wk: gets converted by a2b_ord4 and put into wk at end (in)
             dt: timestep (in)
         """
+        # in the original Fortran, u_contra_dyc is "ptc" and v_contra_dxc is "vort"
         if self._do_zero_order:
             # TODO: delpc is an output of this but is never used. Inside the helper
             # function, use a stencil temporary or temporary storage instead
             self._damping_zero_order(
-                u, v, va, ptc, vort, ua, vc, uc, delpc, ke, self._d2_bg_column, dt
+                u,
+                v,
+                va,
+                u_contra_dyc,
+                v_contra_dxc,
+                ua,
+                vc,
+                uc,
+                delpc,
+                ke,
+                self._d2_bg_column,
+                dt,
             )
         self._copy_computeplus(
             divg_d,
@@ -396,9 +419,9 @@ class DivergenceDamping:
                 uc, vc, divg_d, self._rarea_c, self._stretched_grid
             )
 
-        self._vorticity_calc(wk, vort, delpc, dt)
+        self._vorticity_calc(wk, v_contra_dxc, delpc, dt)
         self._damping_nord_highorder_stencil(
-            vort,
+            v_contra_dxc,
             ke,
             delpc,
             divg_d,
@@ -413,8 +436,8 @@ class DivergenceDamping:
         u: FloatField,
         v: FloatField,
         va: FloatField,
-        ptc: FloatField,
-        vort: FloatField,
+        u_contra_dyc: FloatField,
+        v_contra_dxc: FloatField,
         ua: FloatField,
         vc: FloatField,
         uc: FloatField,
@@ -460,13 +483,13 @@ class DivergenceDamping:
             self._sina_v,
             self._rarea_c,
             delpc,
-            ptc,
-            vort,
+            u_contra_dyc,
+            v_contra_dxc,
         )
 
         self._damping(
             delpc,
-            vort,
+            v_contra_dxc,
             ke,
             d2_bg,
             self._da_min_c,
