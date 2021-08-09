@@ -26,7 +26,9 @@ import fv3core._config as spec
 import fv3core.utils
 import fv3core.utils.global_config as global_config
 import fv3core.utils.grid
+from fv3core.utils.future_stencil import future_stencil
 from fv3core.utils.global_config import StencilConfig
+from fv3core.utils.mpi import MPI
 from fv3core.utils.typing import Index3D
 
 
@@ -113,7 +115,13 @@ class FrozenStencil:
         if externals is None:
             externals = {}
 
-        self.stencil_object: gt4py.StencilObject = gtscript.stencil(
+        stencil_function = (
+            future_stencil
+            if MPI is not None and MPI.COMM_WORLD.Get_size() > 1
+            else gtscript.stencil
+        )
+
+        self.stencil_object: gt4py.StencilObject = stencil_function(
             definition=func,
             externals=externals,
             **self.stencil_config.stencil_kwargs,
@@ -136,9 +144,7 @@ class FrozenStencil:
     ) -> None:
         if not self._field_origins:
             field_info = self.stencil_object.field_info
-            self._field_origins = compute_field_origins(
-                field_info, self.origin
-            )
+            self._field_origins = compute_field_origins(field_info, self.origin)
             self._stencil_run_kwargs = {
                 "_origin_": self._field_origins,
                 "_domain_": self.domain,
@@ -207,12 +213,16 @@ def get_written_fields(field_info) -> List[str]:
     Args:
         field_info: field_info attribute of gt4py stencil object
     """
-    write_fields = [
-        field_name
-        for field_name in field_info
-        if field_info[field_name]
-        and bool(field_info[field_name].access & gt4py.definitions.AccessKind.WRITE)
-    ] if global_config.is_gpu_backend() else []
+    write_fields = (
+        [
+            field_name
+            for field_name in field_info
+            if field_info[field_name]
+            and bool(field_info[field_name].access & gt4py.definitions.AccessKind.WRITE)
+        ]
+        if global_config.is_gpu_backend()
+        else []
+    )
     return write_fields
 
 

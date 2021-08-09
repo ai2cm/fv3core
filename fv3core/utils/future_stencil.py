@@ -9,7 +9,7 @@ from typing import Any, Callable, Dict, Optional, Set, Tuple
 
 from fv3core.utils.mpi import MPI
 
-from gt4py.definitions import FieldInfo
+from gt4py.definitions import BuildOptions, FieldInfo
 from gt4py.stencil_builder import StencilBuilder
 from gt4py.stencil_object import StencilObject
 
@@ -85,7 +85,7 @@ class RedisTable(StencilTable):
 
 
 class WindowTable(StencilTable):
-    def __init__(self, comm: Optional[Any] = None, max_size: int = 100):
+    def __init__(self, comm: Optional[Any] = None, max_size: int = 200):
         super().__init__()
         if not comm:
             comm = MPI.COMM_WORLD
@@ -96,6 +96,10 @@ class WindowTable(StencilTable):
         self._buffer_size = 2 * max_size + 1
         self._comm = comm
         self._initialize(self.NONE_STATE)
+
+    def clear(self) -> None:
+        super().clear()
+        self.__init__()
 
     def __getitem__(self, key: int) -> int:
         if key in self._finished_keys:
@@ -186,6 +190,63 @@ class WindowTable(StencilTable):
         return buffer
 
 
+def future_stencil(
+    backend: Optional[str] = None,
+    definition: Optional[Callable] = None,
+    *,
+    externals: Optional[Dict[str, Any]] = None,
+    rebuild: bool = False,
+    **kwargs: Any,
+):
+    """
+    Create a future stencil object with deferred building in a distributed context
+
+    Parameters
+    ----------
+        backend : `str`
+            Name of the implementation backend.
+
+        definition : `None` when used as a decorator, otherwise a `function` or a `:class:`gt4py.StencilObject`
+            Function object defining the stencil.
+
+        externals: `dict`, optional
+            Specify values for otherwise unbound symbols.
+
+        rebuild : `bool`, optional
+            Force rebuild of the :class:`gt4py.StencilObject` even if it is
+            found in the cache. (`False` by default).
+
+        **kwargs: `dict`, optional
+            Extra backend-specific options. Check the specific backend
+            documentation for further information.
+
+    Returns
+    -------
+        :class:`FutureStencil`
+            Wrapper around an instance of the dynamically-generated subclass of :class:`gt4py.StencilObject`.
+            Defers the generation step until the last moment and allows syntax checking independently.
+            Also gives access to a more fine grained generate / build process.
+    """
+    def _decorator(func):
+        options = BuildOptions(
+            **{
+                **StencilBuilder.default_options_dict(func),
+                **StencilBuilder.name_to_options_args(""),
+                "rebuild": rebuild,
+                "build_info": {},
+                **StencilBuilder.nest_impl_options(kwargs),
+            }
+        )
+        stencil = FutureStencil(
+            StencilBuilder(func, backend=backend, options=options).with_externals(externals or {})
+        )
+        return stencil
+
+    if definition is None:
+        return _decorator
+    return _decorator(definition)
+
+
 class FutureStencil:
     """
     A stencil object that is compiled by another node in a distributed context.
@@ -207,10 +268,6 @@ class FutureStencil:
     @property
     def cache_info_path(self) -> str:
         return self._builder.caching.cache_info_path.stem
-
-    @property
-    def is_built(self) -> bool:
-        return self._stencil_object is not None
 
     @property
     def stencil_object(self) -> StencilObject:
@@ -303,10 +360,7 @@ class FutureStencil:
         self._stencil_object = stencil_class()
 
     def __call__(self, *args: Any, **kwargs: Any) -> None:
-        # If args or kwargs supplied, call stencil object, instantiate otherwise
-        if args or kwargs:
-            return (self.stencil_object)(*args, **kwargs)
-        return self
+        return (self.stencil_object)(*args, **kwargs)
 
     def run(self, *args: Any, **kwargs: Any) -> None:
         self.stencil_object.run(*args, **kwargs)

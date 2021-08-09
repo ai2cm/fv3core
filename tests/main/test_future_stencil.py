@@ -1,14 +1,17 @@
-import datetime as dt
 import numpy as np
 import pytest
 import random as rand
 import time
 
-from gt4py.gtscript import PARALLEL, computation, interval, stencil
+from gt4py.gtscript import PARALLEL, computation, interval
 import gt4py.storage as gt_storage
 
-from fv3core.decorators import StencilConfig
-from fv3core.utils.future_stencil import FutureStencil, RedisTable, WindowTable
+from fv3core.utils.future_stencil import (
+    future_stencil,
+    FutureStencil,
+    RedisTable,
+    WindowTable,
+)
 from fv3core.utils.global_config import set_backend
 from fv3core.utils.gt4py_utils import make_storage_from_shape_uncached
 from fv3core.utils.mpi import MPI
@@ -51,29 +54,21 @@ def setup_data_vars():
 @pytest.mark.parametrize("backend", ("numpy", "gtx86"))
 @pytest.mark.parametrize("rebuild", (True, False))
 def test_future_stencil(backend: str, rebuild: bool):
-    config = StencilConfig(
-        backend=backend,
-        rebuild=rebuild,
-        validate_args=False,
-        format_source=False,
-        device_sync=False,
-    )
     set_backend(backend)
+    FutureStencil.clear()
 
     origin = (1, 1, 0)
     domain = (2, 2, 3)
 
-    add1_object = stencil(
+    add1_object = future_stencil(
         definition=add1_stencil,
-        defer_function=FutureStencil,
-        **config.stencil_kwargs,
+        backend=backend,
+        rebuild=rebuild,
     )
     assert isinstance(add1_object, FutureStencil)
-    assert not add1_object.is_built
 
     # Fetch `field_info` to force a build
     field_info = add1_object.field_info
-    assert add1_object.is_built
     assert len(field_info) == 1
 
     q, q_ref = setup_data_vars()
@@ -167,7 +162,6 @@ def test_rank_adder_gridtools():
 def run_rank_adder_test(backend: str, rebuild: bool):
     comm = MPI.COMM_WORLD
     size = comm.Get_size()
-
     set_backend(backend)
     FutureStencil.clear()
 
@@ -180,9 +174,8 @@ def run_rank_adder_test(backend: str, rebuild: bool):
     ref_field = np.arange(1, size + 1, dtype=np.int64)
 
     for rank in range(0, size):
-        stencil_object = stencil(
+        stencil_object = future_stencil(
             definition=add_rank,
-            defer_function=FutureStencil,
             backend=backend,
             rebuild=rebuild,
             externals={"rank": rank},
