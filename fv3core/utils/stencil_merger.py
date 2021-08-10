@@ -1,13 +1,21 @@
 # -*- coding: utf-8 -*-
 from collections import OrderedDict
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Set, Tuple
 
 import gt4py
 from gt4py.definitions import BuildOptions
 from gt4py.stencil_builder import StencilBuilder
 from gt4py.stencil_object import StencilObject
+from gt4py.storage import Storage
 
 # from fv3core.decorators import FrozenStencil
+
+
+def stencil_exists(stencil_group, stencil):
+    for other_stencil in stencil_group:
+        if stencil.name == other_stencil.name:
+            return True
+    return False
 
 
 class Container(type):
@@ -39,6 +47,7 @@ class StencilMerger(object, metaclass=Container):
         if stencil_group and (
             stencil.origin != stencil_group[-1].origin
             or stencil.domain != stencil_group[-1].domain
+            or stencil_exists(stencil_group, stencil)
         ):
             stencil_group = []
             self._stencil_groups.append(stencil_group)
@@ -67,6 +76,12 @@ class StencilMerger(object, metaclass=Container):
         merged_args = list(self._saved_args[stencil_names[0]]["args"])
         merged_kwargs = self._saved_args[stencil_names[0]]["kwargs"]
 
+        param_pos = -1
+        for i, arg in reversed(list(enumerate(merged_args))):
+            if isinstance(arg, Storage):
+                param_pos = i + 1
+                break
+
         for i in range(1, len(stencil_names)):
             args = self._saved_args[stencil_names[i]]["args"]
             for arg in args:
@@ -76,7 +91,14 @@ class StencilMerger(object, metaclass=Container):
                     if arg_found:
                         break
                 if not arg_found:
-                    merged_args.append(arg)
+                    if param_pos >= 0:
+                        if isinstance(arg, Storage):
+                            merged_args.insert(param_pos, arg)
+                            param_pos += 1
+                        else:
+                            merged_args.append(arg)
+                    else:
+                        merged_args.append(arg)
 
             kwargs = self._saved_args[stencil_names[i]]["kwargs"]
             merged_kwargs.update({name: value for name, value in kwargs.items()})
@@ -152,15 +174,17 @@ class StencilMerger(object, metaclass=Container):
         dest_ir.name = self._merge_names(dest_ir.name, source_ir.name)
         dest_ir.computations.extend(source_ir.computations)
         dest_ir.externals.update(source_ir.externals)
-        dest_ir.api_signature = self._merge_named_lists(
-            dest_ir.api_signature, source_ir.api_signature
-        )
         dest_ir.api_fields = self._merge_named_lists(
             dest_ir.api_fields, source_ir.api_fields
         )
         dest_ir.parameters = self._merge_named_lists(
             dest_ir.parameters, source_ir.parameters
         )
+        param_names = set([param.name for param in dest_ir.parameters])
+        dest_ir.api_signature = self._merge_api_signatures(
+            dest_ir.api_signature, source_ir.api_signature, param_names
+        )
+
         return dest_ir
 
     def _merge_names(self, dest_name: str, source_name: str) -> str:
@@ -171,10 +195,36 @@ class StencilMerger(object, metaclass=Container):
         return f"{module_name}.{dest_name}__{source_name}"
 
     def _merge_named_lists(
-        self, dest_list: List[object], source_list: List[object]
+        self,
+        dest_list: List[object],
+        source_list: List[object],
     ) -> List[object]:
         dest_items = OrderedDict({item.name: item for item in dest_list})
         for item in source_list:
             if item.name not in dest_items:
                 dest_items[item.name] = item
+
         return list(dest_items.values())
+
+    def _merge_api_signatures(
+        self,
+        dest_list: List[object],
+        source_list: List[object],
+        param_names: Set[str],
+    ) -> List[object]:
+        dest_fields = OrderedDict()
+        dest_params = OrderedDict()
+        for item in dest_list:
+            dest_dict = dest_params if item.name in param_names else dest_fields
+            dest_dict[item.name] = item
+
+        for item in source_list:
+            dest_dict = dest_params if item.name in param_names else dest_fields
+            if item.name not in dest_dict:
+                dest_dict[item.name] = item
+
+        new_api = dest_fields
+        for param_name in dest_params:
+            new_api[param_name] = dest_params[param_name]
+
+        return list(new_api.values())
