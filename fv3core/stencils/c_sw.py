@@ -116,52 +116,41 @@ def final_kineticenergy(
         ke = 0.5 * dt2 * (ua * ke + va * vort)
 
 
-def uf_main(
+
+
+def divergence_main(
     u: FloatField,
+    v: FloatField,
+    ua: FloatField,
     va: FloatField,
+    dxc: FloatFieldIJ,
     dyc: FloatFieldIJ,
+    sin_sg1: FloatFieldIJ,
     sin_sg2: FloatFieldIJ,
+    sin_sg3: FloatFieldIJ,
     sin_sg4: FloatFieldIJ,
+    cos_sg1: FloatFieldIJ,
     cos_sg2: FloatFieldIJ,
+    cos_sg3: FloatFieldIJ,
     cos_sg4: FloatFieldIJ,
-    uf: FloatField,
-):
+    rarea_c: FloatFieldIJ,
+    divg_d: FloatField):
     with computation(PARALLEL), interval(...):
         uf = (
             (u - 0.25 * (va[0, -1, 0] + va) * (cos_sg4[0, -1] + cos_sg2))
-            * dyc
+	    * dyc
             * 0.5
             * (sin_sg4[0, -1] + sin_sg2)
         )
-
-
-def vf_main(
-    v: FloatField,
-    ua: FloatField,
-    dxc: FloatFieldIJ,
-    sin_sg1: FloatFieldIJ,
-    sin_sg3: FloatFieldIJ,
-    cos_sg1: FloatFieldIJ,
-    cos_sg3: FloatFieldIJ,
-    vf: FloatField,
-):
-    with computation(PARALLEL), interval(...):
         vf = (
             (v - 0.25 * (ua[-1, 0, 0] + ua) * (cos_sg3[-1, 0] + cos_sg1))
             * dxc
             * 0.5
             * (sin_sg3[-1, 0] + sin_sg1)
-        )
+	)
+        divg_d = (vf[0, -1, 0] - vf + uf[-1, 0, 0] - uf) * rarea_c
 
 
-def divergence_main(uf: FloatField, vf: FloatField, divg_d: FloatField):
-    with computation(PARALLEL), interval(...):
-        divg_d = vf[0, -1, 0] - vf + uf[-1, 0, 0] - uf
-
-
-def divergence_main_final(rarea_c: FloatFieldIJ, divg_d: FloatField):
-    with computation(PARALLEL), interval(...):
-        divg_d *= rarea_c
 
 def update_vorticity(
     uc: FloatField,
@@ -260,24 +249,8 @@ class CGridShallowWaterDynamics:
         ax_offsets = axis_offsets(self.grid, origin, domain)
 
         if self.namelist.nord > 0:
-            self._uf_main = FrozenStencil(
-                uf_main,
-                origin=self.grid.compute_origin(add=(-1, 0, 0)),
-                domain=self.grid.domain_shape_compute(add=(2, 1, 0)),
-            )
-            self._vf_main = FrozenStencil(
-                vf_main,
-                origin=self.grid.compute_origin(add=(0, -1, 0)),
-                domain=self.grid.domain_shape_compute(add=(1, 2, 0)),
-            )
-
             self._divergence_main = FrozenStencil(
                 divergence_main,
-                origin=origin,
-                domain=domain,
-            )
-            self._divergence_main_final = FrozenStencil(
-                divergence_main_final,
                 origin=origin,
                 domain=domain,
             )
@@ -383,35 +356,27 @@ class CGridShallowWaterDynamics:
             dt2,
         )
 
-    def _circulation_cgrid(self, uc, vc):
-        self._update_vorticity(
-            uc, vc, self.grid.dxc, self.grid.dyc, self._vort
-        )
 
     def _divergence_corner(self, u, v, ua, va, divg_d):
-        self._uf_main(
-            u,
-            va,
-            self.grid.dyc,
-            self.grid.sin_sg2,
-            self.grid.sin_sg4,
-            self.grid.cos_sg2,
-            self.grid.cos_sg4,
-            self._tmp_uf,
-        )
-        self._vf_main(
+
+        self._divergence_main(
+             u,
             v,
             ua,
+            va,
             self.grid.dxc,
+            self.grid.dyc,
             self.grid.sin_sg1,
+            self.grid.sin_sg2,
             self.grid.sin_sg3,
+            self.grid.sin_sg4,
             self.grid.cos_sg1,
+            self.grid.cos_sg2,
             self.grid.cos_sg3,
-            self._tmp_vf,
-        )
-
-        self._divergence_main(self._tmp_uf, self._tmp_vf, divg_d)
-        self._divergence_main_final(self.grid.rarea_c, divg_d)
+            self.grid.cos_sg4,
+            self.grid.rarea_c,
+            divg_d)
+     
 
     def __call__(
         self,
@@ -507,7 +472,9 @@ class CGridShallowWaterDynamics:
         )
 
         self._final_ke(ua, va, self._vort, self._ke, dt2)
-        self._circulation_cgrid(uc, vc)
+        self._update_vorticity(
+            uc, vc, self.grid.dxc, self.grid.dyc, self._vort
+        )
         self._absolute_vorticity(
             self._vort,
             self.grid.fC,
