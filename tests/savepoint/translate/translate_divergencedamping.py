@@ -10,8 +10,8 @@ class TranslateDivergenceDamping(TranslateFortranData2Py):
             "u": {},
             "v": {},
             "va": {},
-            "ptc": {},
-            "vort": {},
+            "u_contra_dyc": {"serialname": "ptc"},
+            "v_contra_dxc": {"serialname": "vort"},
             "ua": {},
             "divg_d": {},
             "vc": {},
@@ -24,7 +24,7 @@ class TranslateDivergenceDamping(TranslateFortranData2Py):
         }
         self.in_vars["parameters"] = ["dt"]
         self.out_vars = {
-            "vort": {},
+            "v_contra_dxc": {"serialname": "vort"},
             "ke": {"iend": grid.ied + 1, "jend": grid.jed + 1},
             "delpc": {},
         }
