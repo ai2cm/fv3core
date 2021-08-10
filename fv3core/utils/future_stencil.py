@@ -259,7 +259,7 @@ class FutureStencil:
         self._builder: Optional["StencilBuilder"] = builder
         self._stencil_object: Optional[StencilObject] = None
         self._sleep_time: float = 0.3
-        self._timeout: float = 60.0
+        self._timeout: float = 180.0
 
     @classmethod
     def clear(cls):
@@ -287,6 +287,7 @@ class FutureStencil:
     def _compile_stencil(self, node_id: int, stencil_id: int) -> Callable:
         # Stencil not yet compiled or in progress so claim it...
         self._id_table[stencil_id] = node_id
+        self._delay(float(node_id))
 
         with open(f"./caching_r{node_id}.log", "a") as log:
             log.write(
@@ -320,7 +321,7 @@ class FutureStencil:
                     )
                 raise RuntimeError(error_message)
             # Wait a bit before loading...
-            self._delay(5.0)
+            self._delay(float(node_id))
 
         with open(f"./caching_r{node_id}.log", "a") as log:
             log.write(
@@ -337,8 +338,8 @@ class FutureStencil:
         stencil_class = None if builder.options.rebuild else builder.backend.load()
 
         if not stencil_class:
-            # Random delay before accessing distributed dict...
-            self._delay(0.25, True)
+            # Delay before accessing distributed cache...
+            self._delay(float(node_id))
             if self._id_table.is_none(stencil_id):
                 stencil_class = self._compile_stencil(node_id, stencil_id)
             else:
