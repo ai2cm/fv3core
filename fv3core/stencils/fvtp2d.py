@@ -188,6 +188,8 @@ class FiniteVolumeTransport:
         """
         Calculate fluxes for horizontal finite volume transport.
 
+        Defined in Putman and Lin 2007 (PL07).
+
         Args:
             q: scalar to be transported (in)
             crx: Courant number in x-direction
@@ -196,44 +198,43 @@ class FiniteVolumeTransport:
             y_area_flux: flux of area in y-direction, in units of m^2 (in)
             fx: transport flux of q in x-direction in units q * m^2 (out)
             fy: transport flux of q in y-direction in units q * m^2 (out)
-            mfx: weighting flux in x-direction, such as mass or area flux
-            mfy: weighting flux in x-direction, such as mass or area flux
+            mfx: weighting flux in x-direction, such as mass or area flux,
+                corresponds to F(rho^* = 1) in PL07 eq 17
+            mfy: weighting flux in x-direction, such as mass or area flux,
+                corresponds to G(rho^* = 1) in PL07 eq 18
             mass: ???
         """
-        # Comments will reference Lin and Rood 96 as LR96,
-        # "Multidimensional Flux-Form Semi-Lagrangian Transport Schemes"
         self._copy_corners_y(q)
 
         # TODO: unclear whether these are actually 0.5 * advective flux (f or g(q)),
         # or if it's 1 * advective flux. clarify this with Lucas and update comments
         # or remove this TODO
 
-        # computing F(q + 0.5 * g(q)) from LR96
         self.y_piecewise_parabolic_inner(q, cry, self._tmp_fy2)
+        # tmp_fy2 is now rho^n + G in PL07 eq 18
         self.stencil_q_i(
             q,
             self._area,
             y_area_flux,
             self._tmp_fy2,
-            self._tmp_q_i,  # tmp_q_i out is q + 0.5 * g(q)
+            self._tmp_q_i,  # tmp_q_i out is rho^y in eq 17 of PL07
         )
         self.x_piecewise_parabolic_outer(self._tmp_q_i, crx, fx)
-        # fx is now F(q + 0.5 * g(q))
+        # fx is now F(rho^y) in PL07 eq 16
 
         self._copy_corners_x(q)
 
-        # computing G(q + 0.5 * f(q)) from LR96
+        # similarly below for x<->y, F<->G from PL07
         self.x_piecewise_parabolic_inner(q, crx, self._tmp_fx2)
         self.stencil_q_j(
             q,
             self._area,
             x_area_flux,
             self._tmp_fx2,
-            self._tmp_q_j,  # tmp_q_j out is q + 0.5 * f(q)
+            self._tmp_q_j,
         )
         self.y_piecewise_parabolic_outer(self._tmp_q_j, cry, fy)
         # up to here, fx and fy are in units of q * m^2
-        # and are equal to F(q + 0.5 * g(q)) and G(q + 0.5 * f(q))
         # fy2 and fx2 are the inner advective updates (g(q) and f(q))
         # stencil_transport_flux updates fx and fy units to q * mfx * m^2
 
