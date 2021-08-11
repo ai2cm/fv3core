@@ -48,20 +48,19 @@ def get_flux(q: FloatField, courant: FloatField, al: FloatField):
     tmp = get_tmp(bl, b0, br)
     fx1 = fx1_fn(courant, br, b0, bl)
     return final_flux(courant, q, fx1, tmp)  # noqa
-
-def main_al(q: FloatField, al: FloatField):
-    with computation(PARALLEL), interval(...):
-        al = yppm.p1 * (q[-1, 0, 0] + q) + yppm.p2 * (q[-2, 0, 0] + q[1, 0, 0])
+@gtscript.function
+def main_al(q: FloatField):
+    return yppm.p1 * (q[-1, 0, 0] + q) + yppm.p2 * (q[-2, 0, 0] + q[1, 0, 0])
 
 
 def compute_x_flux(
     q: FloatField,
     courant: FloatField,
-    al: FloatField,
     dxa: FloatFieldIJ,
     xflux: FloatField,
 ):
     with computation(PARALLEL), interval(...):
+        al = main_al(q)
         xflux = get_flux(q, courant, al)
 
 
@@ -121,11 +120,11 @@ class XPiecewiseParabolic:
         self._al = utils.make_storage_from_shape(shape)
 
         if self._mord < 8:
-            self._main_al_stencil = FrozenStencil(
-                main_al,
-                origin=(is1, jfirst, 0),
-                domain=(ie3 - is1 + 1, jlast - jfirst + 1, self.grid.npz + 1),
-            )
+           # self._main_al_stencil = FrozenStencil(
+           #     main_al,
+           #     origin=(is1, jfirst, 0),
+           #     domain=(ie3 - is1 + 1, jlast - jfirst + 1, self.grid.npz + 1),
+           # )
 
             self._compute_flux_stencil = FrozenStencil(
                 func=compute_x_flux,
@@ -165,8 +164,8 @@ class XPiecewiseParabolic:
                 domain=flux_domain,
             )
 
-    def compute_al(self, q):
-        self._main_al_stencil(q, self._al)
+    #def compute_al(self, q):
+    #    self._main_al_stencil(q, self._al)
 
     def _compute_blbr_ord8plus(self, q):
         r3 = 1.0 / 3.0
@@ -198,8 +197,8 @@ class XPiecewiseParabolic:
             jlast: Final index of the J-dir compute domain
         """
         if self._mord < 8:
-            self.compute_al(q)
-            self._compute_flux_stencil(q, c, self._al, self._dxa, xflux)
+            #self.compute_al(q)
+            self._compute_flux_stencil(q, c, self._dxa, xflux)
         else:
             self._compute_blbr_ord8plus(q)
             self._finalflux_ord8plus_stencil(q, c, self._bl, self._br, xflux)

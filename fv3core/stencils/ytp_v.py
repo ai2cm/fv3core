@@ -51,13 +51,13 @@ def bl_br_main(v: FloatField, al: FloatField, bl: FloatField, br: FloatField):
 def _ytp_v(
     courant: FloatField,
     v: FloatField,
-    bl: FloatField,
-    br: FloatField,
     flux: FloatField,
     rdy: FloatFieldIJ,
 ):
     with computation(PARALLEL), interval(...):
-
+        al = yppm.main_al(v)
+        bl = al[0, 0, 0] - v[0, 0, 0]
+        br = al[0, 1, 0] - v[0, 0, 0]
         flux = _get_flux(v, courant, rdy, bl, br)
 
 
@@ -78,13 +78,13 @@ class YTP_V:
 
         assert namelist.grid_type < 3
         shape = self.grid.domain_shape_full(add=(1, 1, 1))
-        self._bl = utils.make_storage_from_shape(shape)
-        self._br = utils.make_storage_from_shape(shape)
-        self._bl_br_stencil = FrozenStencil(
-            bl_br_main,
-            origin=(self.grid.is_, self.grid.js - 1, 0),
-            domain=(self.grid.nic + 1, self.grid.njc + 2, self.grid.npz),
-        )
+        #self._bl = utils.make_storage_from_shape(shape)
+        #self._br = utils.make_storage_from_shape(shape)
+        #self._bl_br_stencil = FrozenStencil(
+        #    bl_br_main,
+        #    origin=(self.grid.is_, self.grid.js - 1, 0),
+        #    domain=(self.grid.nic + 1, self.grid.njc + 2, self.grid.npz),
+        #)
        
         self.stencil = FrozenStencil(
             _ytp_v,
@@ -95,7 +95,7 @@ class YTP_V:
             origin=self.grid.compute_origin(),
             domain=self.grid.domain_shape_compute(add=(1, 1, 0)),
         )
-
+        """
         self._yppm = yppm.YPiecewiseParabolic(
             namelist,
             jord,
@@ -105,6 +105,7 @@ class YTP_V:
             self.grid.js - 1,
             self.grid.je + 2,
         )
+        """
 
     def __call__(self, c: FloatField, v: FloatField, flux: FloatField):
         """
@@ -115,6 +116,6 @@ class YTP_V:
         v (in): y-dir wind on Arakawa D-grid
         flux (out): Flux of kinetic energy
         """
-        self._yppm.compute_al(v)
-        self._bl_br_stencil(v, self._yppm._al, self._bl, self._br)
-        self.stencil(c, v, self._bl, self._br, flux, self.rdy)
+        #self._yppm.compute_al(v)
+        #self._bl_br_stencil(v, self._yppm._al, self._bl, self._br)
+        self.stencil(c, v, flux, self.rdy)

@@ -74,20 +74,19 @@ def get_b0(bl, br):
     b0 = bl + br
     return b0
 
-
-def main_al(q: FloatField, al: FloatField):
-    with computation(PARALLEL), interval(...):
-        al = p1 * (q[0, -1, 0] + q) + p2 * (q[0, -2, 0] + q[0, 1, 0])
+@gtscript.function
+def main_al(q: FloatField):
+    return p1 * (q[0, -1, 0] + q) + p2 * (q[0, -2, 0] + q[0, 1, 0])
 
 
 def compute_y_flux(
     q: FloatField,
     courant: FloatField,
-    al: FloatField,
     dya: FloatFieldIJ,
     yflux: FloatField,
 ):
     with computation(PARALLEL), interval(...):
+        al = main_al(q)
         yflux = get_flux(q, courant, al)
 
 def finalflux_ord8plus(q: FloatField, c: FloatField, bl: FloatField, br: FloatField, flux: FloatField):
@@ -141,14 +140,9 @@ class YPiecewiseParabolic:
         else:
             self._dya = dya
         shape = self.grid.domain_shape_full(add=(1, 1, 1))
-        self._al = utils.make_storage_from_shape(shape)
        
         if self._mord < 8:
-            self._main_al_stencil = FrozenStencil(
-                main_al,
-                origin=(ifirst, js1, 0),
-                domain=(ilast - ifirst + 1, je3 - js1 + 1, self.grid.npz + 1),
-            )
+          
             self._compute_flux_stencil = FrozenStencil(
                 func=compute_y_flux,
                 externals={
@@ -160,6 +154,7 @@ class YPiecewiseParabolic:
         else:
             assert jord == 8
             je1 =self.grid.je + 1
+            self._al = utils.make_storage_from_shape(shape)
             self._bl = utils.make_storage_from_shape(shape)
             self._br = utils.make_storage_from_shape(shape)
             self._dm = utils.make_storage_from_shape(shape)
@@ -185,9 +180,6 @@ class YPiecewiseParabolic:
             )
               
 
-    def compute_al(self, q):
-        self._main_al_stencil(q, self._al)
-       
     def compute_blbr_ord8plus(self, q):
         r3 = 1.0 / 3.0
      
@@ -207,8 +199,7 @@ class YPiecewiseParabolic:
             ilast: Final index of the I-dir compute domain
         """
         if self._mord < 8:
-            self.compute_al(q)
-            self._compute_flux_stencil(q, c, self._al, self._dya, flux)
+            self._compute_flux_stencil(q, c, self._dya, flux)
         else:
             self.compute_blbr_ord8plus(q)
             self._finalflux_ord8plus_stencil(q, c, self._bl, self._br, flux)

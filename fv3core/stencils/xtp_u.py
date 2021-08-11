@@ -53,12 +53,13 @@ def bl_br_main(u: FloatField, al: FloatField, bl: FloatField, br: FloatField):
 def xtp_flux(
     courant: FloatField,
     u: FloatField,
-    bl: FloatField,
-    br: FloatField,
     flux: FloatField,
     rdx: FloatFieldIJ,
 ):
     with computation(PARALLEL), interval(...):
+        al = xppm.main_al(u)
+        bl = al[0, 0, 0] - u[0, 0, 0]
+        br = al[1, 0, 0] - u[0, 0, 0]
         flux = _get_flux(u, courant, rdx, bl, br)
 
 
@@ -75,14 +76,15 @@ class XTP_U:
         self.rdx = self.grid.rdx
         assert namelist.grid_type < 3
         shape = self.grid.domain_shape_full(add=(1, 1, 1))
-        self._bl = utils.make_storage_from_shape(shape)
-        self._br = utils.make_storage_from_shape(shape)
+        #self._bl = utils.make_storage_from_shape(shape)
+        #self._br = utils.make_storage_from_shape(shape)
+        """
         self._bl_br_stencil = FrozenStencil(
             bl_br_main,
             origin=(self.grid.is_ - 1, self.grid.js, 0),
             domain=(self.grid.nic + 2, self.grid.njc + 1, self.grid.npz),
         )
-       
+        """
         self._xtp_flux = FrozenStencil(
             xtp_flux,
             externals={
@@ -92,9 +94,9 @@ class XTP_U:
             origin=self.grid.compute_origin(),
             domain=self.grid.domain_shape_compute(add=(1, 1, 0)),
         )
-        self._xppm = xppm.XPiecewiseParabolic(
-            namelist, iord, self.grid.js, self.grid.je + 1, self.grid.dx
-        )
+        #self._xppm = xppm.XPiecewiseParabolic(
+        #    namelist, iord, self.grid.js, self.grid.je + 1, self.grid.dx
+        #)
 
     def __call__(self, c: FloatField, u: FloatField, flux: FloatField):
         """
@@ -106,14 +108,14 @@ class XTP_U:
             flux (out): Flux of kinetic energy
         """
 
-        self._xppm.compute_al(u)
-        self._bl_br_stencil(u, self._xppm._al, self._bl, self._br)
+        #self._xppm.compute_al(u)
+        #self._bl_br_stencil(u, self._xppm._al, self._bl, self._br)
 
         self._xtp_flux(
             c,
             u,
-            self._bl,
-            self._br,
+            #self._bl,
+            #self._br,
             flux,
             self.rdx,
         )
