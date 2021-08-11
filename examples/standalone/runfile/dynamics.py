@@ -1,3 +1,4 @@
+
 #!/usr/bin/env python3
 
 import copy
@@ -5,6 +6,7 @@ import json
 from argparse import ArgumentParser, Namespace
 from datetime import datetime
 from typing import Any, Dict, List
+from types import SimpleNamespace
 
 import numpy as np
 import yaml
@@ -16,7 +18,7 @@ import fv3core.testing
 import fv3core.utils.global_config as global_config
 import fv3gfs.util as util
 import serialbox
-
+import timing
 
 def parse_args() -> Namespace:
     usage = (
@@ -67,101 +69,25 @@ def parse_args() -> Namespace:
     return parser.parse_args()
 
 
-def set_experiment_info(
-    experiment_name: str, time_step: int, backend: str, git_hash: str
-) -> Dict[str, Any]:
-    experiment: Dict[str, Any] = {}
-    now = datetime.now()
-    dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
-    experiment["setup"] = {}
-    experiment["setup"]["timestamp"] = dt_string
-    experiment["setup"]["dataset"] = experiment_name
-    experiment["setup"]["timesteps"] = time_step
-    experiment["setup"]["hash"] = git_hash
-    experiment["setup"]["version"] = "python/" + backend
-    experiment["setup"]["format_version"] = 2
-    experiment["times"] = {}
-    return experiment
+def read_grid( serializer: serialbox.Serializer, rank: int = 0) -> fv3core.testing.TranslateGrid:
+    grid_savepoint = serializer.get_savepoint("Grid-Info")[0]
+    grid_data = {}
+    grid_fields = serializer.fields_at_savepoint(grid_savepoint)
+    for field in grid_fields:
+        grid_data[field] = serializer.read(field, grid_savepoint)
+        if len(grid_data[field].flatten()) == 1:
+            grid_data[field] = grid_data[field][0]
+    grid = fv3core.testing.TranslateGrid(grid_data, rank).python_grid()
+    return grid
 
-
-def collect_keys_from_data(times_per_step: List[Dict[str, float]]) -> List[str]:
-    """Collects all the keys in the list of dics and returns a sorted version"""
-    keys = set()
-    for data_point in times_per_step:
-        for k, _ in data_point.items():
-            keys.add(k)
-    sorted_keys = list(keys)
-    sorted_keys.sort()
-    return sorted_keys
-
-
-def gather_timing_data(
-    times_per_step: List[Dict[str, float]],
-    results: Dict[str, Any],
-    comm: MPI.Comm,
-    root: int = 0,
-) -> Dict[str, Any]:
-    """returns an updated version of  the results dictionary owned
-    by the root node to hold data on the substeps as well as the main loop timers"""
-    is_root = comm.Get_rank() == root
-    keys = collect_keys_from_data(times_per_step)
-    data: List[float] = []
-    for timer_name in keys:
-        data.clear()
-        for data_point in times_per_step:
-            if timer_name in data_point:
-                data.append(data_point[timer_name])
-
-        sendbuf = np.array(data)
-        recvbuf = None
-        if is_root:
-            recvbuf = np.array([data] * comm.Get_size())
-        comm.Gather(sendbuf, recvbuf, root=0)
-        if is_root:
-            results["times"][timer_name]["times"] = copy.deepcopy(recvbuf.tolist())
-    return results
-
-
-def write_global_timings(experiment: Dict[str, Any]) -> None:
-    now = datetime.now()
-    filename = now.strftime("%Y-%m-%d-%H-%M-%S")
-    with open(filename + ".json", "w") as outfile:
-        json.dump(experiment, outfile, sort_keys=True, indent=4)
-
-
-def gather_hit_counts(
-    hits_per_step: List[Dict[str, int]], results: Dict[str, Any]
-) -> Dict[str, Any]:
-    """collects the hit count across all timers called in a program execution"""
-    for data_point in hits_per_step:
-        for name, value in data_point.items():
-            if name not in results["times"]:
-                print(name)
-                results["times"][name] = {"hits": value, "times": []}
-            else:
-                results["times"][name]["hits"] += value
-    return results
-
-
-def collect_data_and_write_to_file(
-    args: Namespace, comm: MPI.Comm, hits_per_step, times_per_step, experiment_name
-) -> None:
-    """
-    collect the gathered data from all the ranks onto rank 0 and write the timing file
-    """
-    is_root = comm.Get_rank() == 0
-    results = None
-    if is_root:
-        print("Gathering Times")
-        results = set_experiment_info(
-            experiment_name, args.time_step, args.backend, args.hash
-        )
-        results = gather_hit_counts(hits_per_step, results)
-
-    results = gather_timing_data(times_per_step, results, comm)
-
-    if is_root:
-        write_global_timings(results)
+def read_input_data(grid, serializer, communicator):
+    savepoint_in = serializer.get_savepoint("FVDynamics-In")[0]
+    driver_object = fv3core.testing.TranslateFVDynamics([grid])
+    input_data = driver_object.collect_input_data(serializer, savepoint_in)
+    #driver_object._base.make_storage_data_input_vars(input_data)
+    input_data["comm"] = communicator
+    state = driver_object.state_from_inputs(input_data)
+    return input_data, state
 
 
 if __name__ == "__main__":
@@ -205,14 +131,7 @@ if __name__ == "__main__":
         )
 
         # get grid from serialized data
-        grid_savepoint = serializer.get_savepoint("Grid-Info")[0]
-        grid_data = {}
-        grid_fields = serializer.fields_at_savepoint(grid_savepoint)
-        for field in grid_fields:
-            grid_data[field] = serializer.read(field, grid_savepoint)
-            if len(grid_data[field].flatten()) == 1:
-                grid_data[field] = grid_data[field][0]
-        grid = fv3core.testing.TranslateGrid(grid_data, rank).python_grid()
+        grid = read_grid(serializer, rank)
         spec.set_grid(grid)
 
         # set up grid-dependent helper structures
@@ -221,11 +140,8 @@ if __name__ == "__main__":
         communicator = util.CubedSphereCommunicator(comm, partitioner)
 
         # create a state from serialized data
-        savepoint_in = serializer.get_savepoint("FVDynamics-In")[0]
-        driver_object = fv3core.testing.TranslateFVDynamics([grid])
-        input_data = driver_object.collect_input_data(serializer, savepoint_in)
-        input_data["comm"] = communicator
-        state = driver_object.state_from_inputs(input_data)
+        input_data, state = read_input_data(grid, serializer, communicator)
+
         dycore = fv3core.DynamicalCore(
             communicator,
             spec.namelist,
@@ -248,6 +164,7 @@ if __name__ == "__main__":
             input_data["n_split"],
             input_data["ks"],
         )
+
 
     if profiler is not None:
         profiler.enable()
@@ -290,7 +207,7 @@ if __name__ == "__main__":
     if not args.disable_json_dump:
         # Collect times and output statistics in json
         comm.Barrier()
-        collect_data_and_write_to_file(
+        timing.collect_data_and_write_to_file(
             args, comm, hits_per_step, times_per_step, experiment_name
         )
     else:
