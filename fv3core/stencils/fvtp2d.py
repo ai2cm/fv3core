@@ -39,6 +39,9 @@ def q_i_stencil(
     with computation(PARALLEL), interval(...):
         fyy = y_area_flux * fy2
         area_with_y_flux = apply_y_flux_divergence(area, y_area_flux)
+        # note the units of area cancel out, because area is present in all
+        # terms in the numerator and denominator of q_i
+        # corresponds to FV3 documentation eq 4.18, q_i = f(q)
         q_i = (q * area + fyy - fyy[0, 1, 0]) / area_with_y_flux
 
 
@@ -63,6 +66,7 @@ def transport_flux_xy(
     mfx: FloatField,
     mfy: FloatField,
 ):
+    """Corresponds to eq. 4.17 of FV3 documentation."""
     with computation(PARALLEL), interval(...):
         with horizontal(region[:, :-1]):
             fx = 0.5 * (fx + fx2) * mfx
@@ -188,7 +192,8 @@ class FiniteVolumeTransport:
         """
         Calculate fluxes for horizontal finite volume transport.
 
-        Defined in Putman and Lin 2007 (PL07).
+        Defined in Putman and Lin 2007 (PL07). Corresponds to equation 4.17
+        in the FV3 documentation.
 
         Args:
             q: scalar to be transported (in)
@@ -196,8 +201,10 @@ class FiniteVolumeTransport:
             cry: Courant number in y-direction
             x_area_flux: flux of area in x-direction, in units of m^2 (in)
             y_area_flux: flux of area in y-direction, in units of m^2 (in)
-            fx: transport flux of q in x-direction in units q * m^2 (out)
-            fy: transport flux of q in y-direction in units q * m^2 (out)
+            fx: transport flux of q in x-direction in units q * m^2,
+                corresponding to X in eq 4.17 of FV3 documentation (out)
+            fy: transport flux of q in y-direction in units q * m^2,
+                corresponding to Y in eq 4.17 of FV3 documentation (out)
             mfx: weighting flux in x-direction, such as mass or area flux,
                 corresponds to F(rho^* = 1) in PL07 eq 17
             mfy: weighting flux in x-direction, such as mass or area flux,
@@ -217,8 +224,8 @@ class FiniteVolumeTransport:
             self._area,
             y_area_flux,
             self._tmp_fy2,
-            self._tmp_q_i,  # tmp_q_i out is rho^y in eq 17 of PL07
-        )
+            self._tmp_q_i,
+        )  # tmp_q_i out is f(q) in eq 4.18 of FV3 documentation
         self.x_piecewise_parabolic_outer(self._tmp_q_i, crx, fx)
         # fx is now F(rho^y) in PL07 eq 16
 
