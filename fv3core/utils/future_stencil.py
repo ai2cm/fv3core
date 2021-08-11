@@ -240,12 +240,6 @@ def future_stencil(
         stencil = FutureStencil(
             StencilBuilder(func, backend=backend, options=options).with_externals(externals or {})
         )
-        if externals:
-            node_id = MPI.COMM_WORLD.Get_rank() if MPI else 0
-            with open(f"./externals_r{node_id}.log", "a") as log:
-                log.write(
-                    f"{dt.datetime.now()}: R{node_id}: {func}.externals = {externals}\n"
-                )
         return stencil
 
     if definition is None:
