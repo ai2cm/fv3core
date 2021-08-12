@@ -104,10 +104,15 @@ def driver(
     spec.set_grid(grid)
 
     input_data = read_input_data(grid, serializer)
-
     acoutstics_object = AcousticDynamics(
         None,
-        spec.namelist,
+        grid.grid_indexing,
+        grid.grid_data,
+        grid.damping_coefficients,
+        grid.grid_type,
+        grid.nested,
+        grid.stretched_grid,
+        spec.namelist.acoustic_dynamics,
         input_data["ak"],
         input_data["bk"],
         input_data["pfull"],
