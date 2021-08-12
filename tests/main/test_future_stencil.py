@@ -1,16 +1,12 @@
-import numpy as np
-import pytest
 import random as rand
 import time
 
-from gt4py.gtscript import PARALLEL, computation, interval
 import gt4py.storage as gt_storage
+import numpy as np
+import pytest
+from gt4py.gtscript import PARALLEL, computation, interval
 
-from fv3core.utils.future_stencil import (
-    future_stencil,
-    FutureStencil,
-    WindowTable,
-)
+from fv3core.utils.future_stencil import FutureStencil, WindowTable, future_stencil
 from fv3core.utils.global_config import set_backend
 from fv3core.utils.gt4py_utils import make_storage_from_shape_uncached
 from fv3core.utils.mpi import MPI

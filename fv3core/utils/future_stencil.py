@@ -1,19 +1,16 @@
-# -*- coding: utf-8 -*-
-import abc
-import numpy as np
 import time
+from typing import Any, Callable, Dict, Optional, Set, Tuple, Type
 
-from typing import Any, Callable, Dict, Optional, Set, Tuple
-
-from fv3core.utils.mpi import MPI
-
+import numpy as np
 from gt4py.definitions import BuildOptions, FieldInfo
 from gt4py.stencil_builder import StencilBuilder
 from gt4py.stencil_object import StencilObject
 
+from fv3core.utils.mpi import MPI
+
 
 class Container(type):
-    _instances = {}
+    _instances: Dict[Type["Container"], "Container"] = {}
 
     def __call__(cls, *args, **kwargs):
         if cls not in cls._instances:
@@ -25,21 +22,14 @@ class Container(type):
 class WindowTable(object, metaclass=Container):
     DONE_STATE: int = -1
     NONE_STATE: int = -2
+    MAX_SIZE: int = 200
 
-    def __init__(self, comm: Optional[Any] = None, max_size: int = 200):
-        if not comm:
-            comm = MPI.COMM_WORLD
-        self._finished_keys: Set[int] = set()
-        self._node_id = comm.Get_rank()
-        self._n_nodes = comm.Get_size()
-        self._key_nodes: Dict[int, int] = dict()
-
-        self._buffer_size = 2 * max_size + 1
-        self._comm = comm
-        self._initialize(self.NONE_STATE)
+    def __init__(self, comm: Optional[Any] = None, max_size: int = 0):
+        self._comm = comm if comm else MPI.COMM_WORLD
+        self._initialize(max_size)
 
     def clear(self) -> None:
-        self.__init__()
+        self._initialize()
 
     def set_done(self, key: int) -> None:
         self[key] = self.DONE_STATE
@@ -83,15 +73,15 @@ class WindowTable(object, metaclass=Container):
         return value
 
     def __setitem__(self, key: int, value: int) -> None:
+        buffer = self._get_buffer()
         if value == self.DONE_STATE:
             self._finished_keys.add(key)
 
-        buffer = self._get_buffer()
+        index: int = -1
         if key in self._key_nodes:
             index = self._key_nodes[key][1]
         else:
             n_items = buffer[0]
-            index: int = -1
             for n in range(n_items):
                 pos = n * 2 + 1
                 if buffer[pos] == key:
@@ -107,7 +97,14 @@ class WindowTable(object, metaclass=Container):
         self._set_buffer(buffer)
         self._key_nodes[key] = (self._node_id, index)
 
-    def _initialize(self, value: int):
+    def _initialize(self, max_size: int = 0):
+        max_size = max_size if max_size else self.MAX_SIZE
+        self._finished_keys: Set[int] = set()
+        self._node_id = self._comm.Get_rank()
+        self._n_nodes = self._comm.Get_size()
+        self._key_nodes: Dict[int, Tuple[int, int]] = dict()
+
+        self._buffer_size = 2 * max_size + 1
         self._mpi_type = MPI.LONG
         int_size = self._mpi_type.Get_size()
         self._np_type = np.int64
@@ -120,13 +117,13 @@ class WindowTable(object, metaclass=Container):
 
         if self._node_id == 0:
             buffer = np.frombuffer(self._window, dtype=self._np_type)
-            buffer[:] = np.full(len(buffer), value, dtype=self._np_type)
+            buffer[:] = np.full(len(buffer), self.NONE_STATE, dtype=self._np_type)
             for n in range(self._n_nodes):
                 buffer[n * self._buffer_size] = 0
 
         self._comm.Barrier()
 
-    def _get_target(self, node_id: int = -1) -> Tuple[int]:
+    def _get_target(self, node_id: int = -1) -> Tuple[int, int, MPI.Datatype]:
         if node_id < 0:
             node_id = self._node_id
         return (node_id * self._buffer_size, self._buffer_size, self._mpi_type)
@@ -161,7 +158,8 @@ def future_stencil(
         backend : `str`
             Name of the implementation backend.
 
-        definition : `None` when used as a decorator, otherwise a `function` or a `:class:`gt4py.StencilObject`
+        definition : `None` when used as a decorator, otherwise a `function` or a
+                     `:class:`gt4py.StencilObject`
             Function object defining the stencil.
 
         externals: `dict`, optional
@@ -178,8 +176,10 @@ def future_stencil(
     Returns
     -------
         :class:`FutureStencil`
-            Wrapper around an instance of the dynamically-generated subclass of :class:`gt4py.StencilObject`.
+            Wrapper around an instance of the dynamically-generated subclass
+            of :class:`gt4py.StencilObject`.
     """
+
     def _decorator(func):
         options = BuildOptions(
             **{
@@ -190,7 +190,9 @@ def future_stencil(
             }
         )
         stencil = FutureStencil(
-            StencilBuilder(func, backend=backend, options=options).with_externals(externals or {})
+            StencilBuilder(func, backend=backend, options=options).with_externals(
+                externals or {}
+            )
         )
         return stencil
 
@@ -254,8 +256,10 @@ class FutureStencil:
                 time_elapsed += self._delay()
 
             if time_elapsed >= self._timeout:
-                error_message = f"Timeout while waiting for stencil '{self.cache_info_path}' to compile on R{node_id}"
-                raise RuntimeError(error_message)
+                raise RuntimeError(
+                    f"Timeout while waiting for stencil '{self.cache_info_path}' "
+                    "to compile on R{node_id}"
+                )
             # Wait a bit before loading...
             self._delay(float(node_id))
 
@@ -278,10 +282,9 @@ class FutureStencil:
                 stencil_class = self._load_stencil(node_id, stencil_id)
 
         if not stencil_class:
-            error_message = (
+            raise RuntimeError(
                 f"`stencil_class` is None '{self.cache_info_path}' ({stencil_id})!"
             )
-            raise RuntimeError(error_message)
 
         self._stencil_object = stencil_class()
 
