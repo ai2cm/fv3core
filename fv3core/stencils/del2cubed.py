@@ -31,27 +31,31 @@ def update_q(
 def del2cubed1(
         q: FloatField, rarea: FloatFieldIJ, del_u: FloatFieldIJ, del_v: FloatFieldIJ,cd: float, ntimes: int):
     with computation(PARALLEL), interval(...):
-        fx = del_v * (q[-1, 0, 0] - q)
-        fy = del_u * (q[0, -1, 0] - q)
+        qtmp = q
+        fx = del_v * (qtmp[-1, 0, 0] - qtmp)
+        fy = del_u * (qtmp[0, -1, 0] - qtmp)
         # race condition
-        q = q + cd * rarea * (fx - fx[1, 0, 0] + fy - fy[0, 1, 0])
+        q = qtmp + cd * rarea * (fx - fx[1, 0, 0] + fy - fy[0, 1, 0])
 
 
 def del2cubed3(
         q: FloatField, rarea: FloatFieldIJ, del_u: FloatFieldIJ, del_v: FloatFieldIJ,cd: float, ntimes: int):
     with computation(PARALLEL), interval(...):
-        fx = del_v * (q[-1, 0, 0] - q)
-        fy = del_u * (q[0, -1, 0] - q)
+        qtmp = q
+        fx = del_v * (qtmp[-1, 0, 0] - qtmp)
+        fy = del_u * (qtmp[0, -1, 0] - qtmp)
         # race condition
-        q = q + cd * rarea * (fx - fx[1, 0, 0] + fy - fy[0, 1, 0])
+        q = qtmp + cd * rarea * (fx - fx[1, 0, 0] + fy - fy[0, 1, 0])
+        qtmp = q
         #if ntimes > 1:
-        fx = del_v * (q[-1, 0, 0] - q)
-        fy = del_u * (q[0, -1, 0] - q)
-        q = q + cd * rarea * (fx - fx[1, 0, 0] + fy - fy[0, 1, 0])
+        fx = del_v * (qtmp[-1, 0, 0] - q)
+        fy = del_u * (qtmp[0, -1, 0] - q)
+        q = qtmp + cd * rarea * (fx - fx[1, 0, 0] + fy - fy[0, 1, 0])
+        qtmp = q
         #if ntimes > 2:
-        fx = del_v * (q[-1, 0, 0] - q)
-        fy = del_u * (q[0, -1, 0] - q)
-        q = q + cd * rarea * (fx - fx[1, 0, 0] + fy - fy[0, 1, 0])
+        fx = del_v * (qtmp[-1, 0, 0] - q)
+        fy = del_u * (qtmp[0, -1, 0] - q)
+        q = qtmp + cd * rarea * (fx - fx[1, 0, 0] + fy - fy[0, 1, 0])
     
 class HyperdiffusionDamping:
     """
