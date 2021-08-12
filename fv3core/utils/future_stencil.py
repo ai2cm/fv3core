@@ -185,9 +185,8 @@ def future_stencil(
             **{
                 **StencilBuilder.default_options_dict(func),
                 **StencilBuilder.name_to_options_args(""),
-                "rebuild": rebuild,
-                "build_info": {},
                 **StencilBuilder.nest_impl_options(kwargs),
+                "rebuild": rebuild,
             }
         )
         stencil = FutureStencil(
