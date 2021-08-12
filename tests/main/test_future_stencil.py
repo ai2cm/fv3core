@@ -9,7 +9,6 @@ import gt4py.storage as gt_storage
 from fv3core.utils.future_stencil import (
     future_stencil,
     FutureStencil,
-    RedisTable,
     WindowTable,
 )
 from fv3core.utils.global_config import set_backend
@@ -74,7 +73,7 @@ def test_future_stencil(backend: str, rebuild: bool):
     q, q_ref = setup_data_vars()
     add1_object(q, origin=origin, domain=domain)
     q_ref[1:3, 1:3, :] = 2.0
-    np.testing.assert_array_equal(q, q_ref)
+    assert np.array_equal(q, q_ref)
 
 
 @pytest.mark.parallel
@@ -82,14 +81,12 @@ def test_future_stencil(backend: str, rebuild: bool):
     MPI is not None and MPI.COMM_WORLD.Get_size() == 1,
     reason="Not running in parallel with mpi",
 )
-# @pytest.mark.parametrize("table_type", ("redis", "window"))
-@pytest.mark.parametrize("table_type", ("window",))
 def test_distributed_table(table_type: str):
     comm = MPI.COMM_WORLD
     node_id = comm.Get_rank()
     n_nodes = comm.Get_size()
 
-    table = RedisTable() if table_type == "redis" else WindowTable(comm, n_nodes)
+    table = WindowTable(comm, n_nodes)
 
     rand.seed(node_id)
     random_int = rand.randint(0, n_nodes)
@@ -182,4 +179,4 @@ def run_rank_adder_test(backend: str, rebuild: bool):
         )
         stencil_object(out_field, domain=domain, origin=origin)
 
-    np.testing.assert_array_equal(out_field[0, 0, :], ref_field)
+    assert np.array_equal(out_field[0, 0, :], ref_field)
