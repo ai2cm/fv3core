@@ -7,7 +7,13 @@ class TranslateD2A2C_Vect(TranslateFortranData2Py):
     def __init__(self, grid):
         super().__init__(grid)
         dord4 = True
-        self.compute_func = DGrid2AGrid2CGridVectors(grid, spec.namelist, dord4)
+        self.compute_func = DGrid2AGrid2CGridVectors(
+            self.grid.grid_indexing,
+            self.grid.grid_data,
+            self.grid.nested,
+            spec.namelist.grid_type,
+            dord4,
+        )
         self.in_vars["data_vars"] = {
             "uc": {},
             "vc": {},

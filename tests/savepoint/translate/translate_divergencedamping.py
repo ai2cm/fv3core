@@ -31,7 +31,19 @@ class TranslateDivergenceDamping(TranslateFortranData2Py):
         self.max_error = 3.0e-11
 
     def compute_from_storage(self, inputs):
-        divdamp = DivergenceDamping(spec.namelist, inputs["nord_col"], inputs["d2_bg"])
+        divdamp = DivergenceDamping(
+            self.grid.grid_indexing,
+            self.grid.grid_data,
+            self.grid.damping_coefficients,
+            self.grid.nested,
+            self.grid.stretched_grid,
+            spec.namelist.dddmp,
+            spec.namelist.d4_bg,
+            spec.namelist.nord,
+            spec.namelist.grid_type,
+            inputs["nord_col"],
+            inputs["d2_bg"],
+        )
         del inputs["nord_col"]
         del inputs["d2_bg"]
         divdamp(**inputs)

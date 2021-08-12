@@ -1,14 +1,16 @@
+import dataclasses
 import functools
-from typing import Iterable, Mapping, Sequence, Tuple, Union
+from typing import Any, Iterable, List, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
 from gt4py import gtscript
 
 import fv3core.utils.global_config as global_config
-import fv3gfs.util as fv3util
+import fv3gfs.util
+from fv3gfs.util.halo_data_transformer import QuantityHaloSpec
 
 from . import gt4py_utils as utils
-from .typing import Index3D
+from .typing import FloatFieldIJ, Index3D
 
 
 class Grid:
@@ -22,7 +24,7 @@ class Grid:
 
     def __init__(self, indices, shape_params, rank, layout, data_fields={}):
         self.rank = rank
-        self.partitioner = fv3util.TilePartitioner(layout)
+        self.partitioner = fv3gfs.util.TilePartitioner(layout)
         self.subtile_index = self.partitioner.subtile_index(self.rank)
         self.layout = layout
         for s in self.shape_params:
@@ -69,7 +71,7 @@ class Grid:
         if self._sizer is None:
             # in the future this should use from_namelist, when we have a non-flattened
             # namelist
-            self._sizer = fv3util.SubtileGridSizer.from_tile_params(
+            self._sizer = fv3gfs.util.SubtileGridSizer.from_tile_params(
                 nx_tile=self.npx - 1,
                 ny_tile=self.npy - 1,
                 nz=self.npz,
@@ -82,7 +84,7 @@ class Grid:
     @property
     def quantity_factory(self):
         if self._quantity_factory is None:
-            self._quantity_factory = fv3util.QuantityFactory.from_backend(
+            self._quantity_factory = fv3gfs.util.QuantityFactory.from_backend(
                 self.sizer, backend=global_config.get_backend()
             )
         return self._quantity_factory
@@ -90,7 +92,7 @@ class Grid:
     def make_quantity(
         self,
         array,
-        dims=[fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_DIM],
+        dims=[fv3gfs.util.X_DIM, fv3gfs.util.Y_DIM, fv3gfs.util.Z_DIM],
         units="Unknown",
         origin=None,
         extent=None,
@@ -99,7 +101,7 @@ class Grid:
             origin = self.compute_origin()
         if extent is None:
             extent = self.domain_shape_compute()
-        return fv3util.Quantity(
+        return fv3gfs.util.Quantity(
             array, dims=dims, units=units, origin=origin, extent=extent
         )
 
@@ -107,7 +109,7 @@ class Grid:
         self,
         data_dict,
         varname,
-        dims=[fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_DIM],
+        dims=[fv3gfs.util.X_DIM, fv3gfs.util.Y_DIM, fv3gfs.util.Z_DIM],
         units="Unknown",
     ):
         data_dict[varname + "_quantity"] = self.quantity_wrap(
@@ -115,11 +117,14 @@ class Grid:
         )
 
     def quantity_wrap(
-        self, data, dims=[fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_DIM], units="Unknown"
+        self,
+        data,
+        dims=[fv3gfs.util.X_DIM, fv3gfs.util.Y_DIM, fv3gfs.util.Z_DIM],
+        units="Unknown",
     ):
         origin = self.sizer.get_origin(dims)
         extent = self.sizer.get_extent(dims)
-        return fv3util.Quantity(
+        return fv3gfs.util.Quantity(
             data, dims=dims, units=units, origin=origin, extent=extent
         )
 
@@ -345,15 +350,6 @@ class Grid:
         """Start of the full array including halo points (e.g. (0, 0, 0))"""
         return (self.isd + add[0], self.jsd + add[1], add[2])
 
-    def default_origin(self):
-        # This only exists as a reminder because devs might
-        # be used to writing "default origin"
-        # if it's no longer useful please delete this method
-        raise NotImplementedError(
-            "This has been renamed to `full_origin`, update your code!"
-        )
-
-    # TODO, expand to more cases
     def horizontal_starts_from_shape(self, shape):
         if shape[0:2] in [
             self.domain_shape_compute()[0:2],
@@ -367,9 +363,400 @@ class Grid:
         else:
             return 0, 0
 
+    def get_halo_update_spec(
+        self,
+        shape,
+        origin,
+        halo_points,
+        dims=[fv3gfs.util.X_DIM, fv3gfs.util.Y_DIM, fv3gfs.util.Z_DIM],
+    ) -> QuantityHaloSpec:
+        """Build memory specifications for the halo update."""
+        return self.grid_indexing.get_quantity_halo_spec(
+            shape, origin, dims=dims, n_halo=halo_points
+        )
+
     @property
     def grid_indexing(self) -> "GridIndexing":
         return GridIndexing.from_legacy_grid(self)
+
+    @property
+    def damping_coefficients(self) -> "DampingCoefficients":
+        return DampingCoefficients(
+            del6_u=self.del6_u,
+            del6_v=self.del6_v,
+            da_min=self.da_min,
+            da_min_c=self.da_min_c,
+        )
+
+    @property
+    def grid_data(self) -> "GridData":
+        horizontal = HorizontalGridData(
+            self.area,
+            self.rarea,
+            self.rarea_c,
+            self.dx,
+            self.dy,
+            self.dxc,
+            self.dyc,
+            self.dxa,
+            self.dya,
+            self.rdx,
+            self.rdy,
+            self.rdxc,
+            self.rdyc,
+            self.rdxa,
+            self.rdya,
+        )
+        vertical = VerticalGridData()
+        contravariant = ContravariantGridData(
+            self.cosa,
+            self.cosa_u,
+            self.cosa_v,
+            self.cosa_s,
+            self.sina_u,
+            self.sina_v,
+            self.rsina,
+            self.rsin_u,
+            self.rsin_v,
+            self.rsin2,
+        )
+        angle = AngleGridData(
+            self.sin_sg1,
+            self.sin_sg2,
+            self.sin_sg3,
+            self.sin_sg4,
+            self.cos_sg1,
+            self.cos_sg2,
+            self.cos_sg3,
+            self.cos_sg4,
+        )
+        return GridData(
+            horizontal_data=horizontal,
+            vertical_data=vertical,
+            contravariant_data=contravariant,
+            angle_data=angle,
+        )
+
+
+@dataclasses.dataclass(frozen=True)
+class HorizontalGridData:
+    """
+    Terms defining the horizontal grid.
+    """
+
+    area: FloatFieldIJ
+    rarea: FloatFieldIJ
+    # TODO: refactor this to "area_c" and invert where used
+    rarea_c: FloatFieldIJ
+    dx: FloatFieldIJ
+    dy: FloatFieldIJ
+    dxc: FloatFieldIJ
+    dyc: FloatFieldIJ
+    dxa: FloatFieldIJ
+    dya: FloatFieldIJ
+    # TODO: refactor usages to invert "normal" versions instead
+    rdx: FloatFieldIJ
+    rdy: FloatFieldIJ
+    rdxc: FloatFieldIJ
+    rdyc: FloatFieldIJ
+    rdxa: FloatFieldIJ
+    rdya: FloatFieldIJ
+
+    @property
+    def lon(self) -> FloatFieldIJ:
+        raise NotImplementedError()
+
+    @property
+    def lat(self) -> FloatFieldIJ:
+        raise NotImplementedError()
+
+
+@dataclasses.dataclass
+class VerticalGridData:
+    """
+    Terms defining the vertical grid.
+
+    Eulerian vertical grid is defined by p = ak + bk * p_ref
+    """
+
+    # TODO: make these non-optional, make FloatFieldK a true type and use it
+    ak: Optional[Any] = None
+    bk: Optional[Any] = None
+    p_ref: Optional[Any] = None
+    """
+    reference pressure (Pa) used to define pressure at vertical interfaces,
+    where p = ak + bk * p_ref
+    """
+
+    # TODO: refactor so we can init with this,
+    # instead of taking it as an argument to DynamicalCore
+    # we'll need to initialize this class for the physics
+    @property
+    def ptop(self) -> float:
+        """pressure at top of atmosphere"""
+        raise NotImplementedError()
+
+
+@dataclasses.dataclass(frozen=True)
+class ContravariantGridData:
+    """
+    Grid variables used for converting vectors from covariant to
+    contravariant components.
+    """
+
+    cosa: FloatFieldIJ
+    cosa_u: FloatFieldIJ
+    cosa_v: FloatFieldIJ
+    cosa_s: FloatFieldIJ
+    sina_u: FloatFieldIJ
+    sina_v: FloatFieldIJ
+    rsina: FloatFieldIJ
+    rsin_u: FloatFieldIJ
+    rsin_v: FloatFieldIJ
+    rsin2: FloatFieldIJ
+
+
+@dataclasses.dataclass(frozen=True)
+class AngleGridData:
+    """
+    sin and cos of certain angles used in metric calculations.
+
+    Corresponds in the fortran code to sin_sg and cos_sg.
+    """
+
+    sin_sg1: FloatFieldIJ
+    sin_sg2: FloatFieldIJ
+    sin_sg3: FloatFieldIJ
+    sin_sg4: FloatFieldIJ
+    cos_sg1: FloatFieldIJ
+    cos_sg2: FloatFieldIJ
+    cos_sg3: FloatFieldIJ
+    cos_sg4: FloatFieldIJ
+
+
+@dataclasses.dataclass(frozen=True)
+class DampingCoefficients:
+    """
+    Terms used to compute damping coefficients.
+    """
+
+    del6_u: FloatFieldIJ
+    del6_v: FloatFieldIJ
+    da_min: float
+    da_min_c: float
+
+
+class GridData:
+    # TODO: add docstrings to remaining properties
+
+    def __init__(
+        self,
+        horizontal_data: HorizontalGridData,
+        vertical_data: VerticalGridData,
+        contravariant_data: ContravariantGridData,
+        angle_data: AngleGridData,
+    ):
+        self._horizontal_data = horizontal_data
+        self._vertical_data = vertical_data
+        self._contravariant_data = contravariant_data
+        self._angle_data = angle_data
+
+    @property
+    def lon(self):
+        """longitude"""
+        return self._horizontal_data.lon
+
+    @property
+    def lat(self):
+        """latitude"""
+        return self._horizontal_data.lat
+
+    @property
+    def area(self):
+        """Gridcell area"""
+        return self._horizontal_data.area
+
+    @property
+    def rarea(self):
+        """1 / area"""
+        return self._horizontal_data.rarea
+
+    @property
+    def rarea_c(self):
+        return self._horizontal_data.rarea_c
+
+    @property
+    def dx(self):
+        """distance between cell corners in x-direction"""
+        return self._horizontal_data.dx
+
+    @property
+    def dy(self):
+        """distance between cell corners in y-direction"""
+        return self._horizontal_data.dy
+
+    @property
+    def dxc(self):
+        """distance between gridcell centers in x-direction"""
+        return self._horizontal_data.dxc
+
+    @property
+    def dyc(self):
+        """distance between gridcell centers in y-direction"""
+        return self._horizontal_data.dyc
+
+    @property
+    def dxa(self):
+        """distance between centers of west and east edges of gridcell"""
+        return self._horizontal_data.dxa
+
+    @property
+    def dya(self):
+        """distance between centers of north and south edges of gridcell"""
+        return self._horizontal_data.dya
+
+    @property
+    def rdx(self):
+        """1 / dx"""
+        return self._horizontal_data.rdx
+
+    @property
+    def rdy(self):
+        """1 / dy"""
+        return self._horizontal_data.rdy
+
+    @property
+    def rdxc(self):
+        """1 / dxc"""
+        return self._horizontal_data.rdxc
+
+    @property
+    def rdyc(self):
+        """1 / dyc"""
+        return self._horizontal_data.rdyc
+
+    @property
+    def rdxa(self):
+        """1 / dxa"""
+        return self._horizontal_data.rdxa
+
+    @property
+    def rdya(self):
+        """1 / dya"""
+        return self._horizontal_data.rdya
+
+    @property
+    def ptop(self):
+        """pressure at top of atmosphere (Pa)"""
+        return self._vertical_data.ptop
+
+    @property
+    def p_ref(self) -> float:
+        """
+        reference pressure (Pa) used to define pressure at vertical interfaces,
+        where p = ak + bk * p_ref
+        """
+        return self._vertical_data.p_ref
+
+    @p_ref.setter
+    def p_ref(self, value):
+        self._vertical_data.p_ref = value
+
+    @property
+    def ak(self):
+        """
+        constant used to define pressure at vertical interfaces,
+        where p = ak + bk * p_ref
+        """
+        return self._vertical_data.ak
+
+    @ak.setter
+    def ak(self, value):
+        self._vertical_data.ak = value
+
+    @property
+    def bk(self):
+        """
+        constant used to define pressure at vertical interfaces,
+        where p = ak + bk * p_ref
+        """
+        return self._vertical_data.bk
+
+    @bk.setter
+    def bk(self, value):
+        self._vertical_data.bk = value
+
+    @property
+    def cosa(self):
+        return self._contravariant_data.cosa
+
+    @property
+    def cosa_u(self):
+        return self._contravariant_data.cosa_u
+
+    @property
+    def cosa_v(self):
+        return self._contravariant_data.cosa_v
+
+    @property
+    def cosa_s(self):
+        return self._contravariant_data.cosa_s
+
+    @property
+    def sina_u(self):
+        return self._contravariant_data.sina_u
+
+    @property
+    def sina_v(self):
+        return self._contravariant_data.sina_v
+
+    @property
+    def rsina(self):
+        return self._contravariant_data.rsina
+
+    @property
+    def rsin_u(self):
+        return self._contravariant_data.rsin_u
+
+    @property
+    def rsin_v(self):
+        return self._contravariant_data.rsin_v
+
+    @property
+    def rsin2(self):
+        return self._contravariant_data.rsin2
+
+    @property
+    def sin_sg1(self):
+        return self._angle_data.sin_sg1
+
+    @property
+    def sin_sg2(self):
+        return self._angle_data.sin_sg2
+
+    @property
+    def sin_sg3(self):
+        return self._angle_data.sin_sg3
+
+    @property
+    def sin_sg4(self):
+        return self._angle_data.sin_sg4
+
+    @property
+    def cos_sg1(self):
+        return self._angle_data.cos_sg1
+
+    @property
+    def cos_sg2(self):
+        return self._angle_data.cos_sg2
+
+    @property
+    def cos_sg3(self):
+        return self._angle_data.cos_sg3
+
+    @property
+    def cos_sg4(self):
+        return self._angle_data.cos_sg4
 
 
 class GridIndexing:
@@ -401,28 +788,40 @@ class GridIndexing:
             east_edge: whether the current rank is on the east edge of a tile
         """
         self.origin = (n_halo, n_halo, 0)
-        self.domain = domain
         self.n_halo = n_halo
+        self.domain = domain
         self.south_edge = south_edge
         self.north_edge = north_edge
         self.west_edge = west_edge
         self.east_edge = east_edge
-        self._sizer = fv3util.SubtileGridSizer(
-            nx=self.domain[0],
-            ny=self.domain[1],
-            nz=self.domain[2],
+
+    @property
+    def domain(self):
+        return self._domain
+
+    @domain.setter
+    def domain(self, domain):
+        self._domain = domain
+        self._sizer = fv3gfs.util.SubtileGridSizer(
+            nx=domain[0],
+            ny=domain[1],
+            nz=domain[2],
             n_halo=self.n_halo,
             extra_dim_lengths={},
         )
 
     @classmethod
     def from_sizer_and_communicator(
-        cls, sizer: fv3util.GridSizer, cube: fv3util.CubedSphereCommunicator
+        cls, sizer: fv3gfs.util.GridSizer, cube: fv3gfs.util.CubedSphereCommunicator
     ) -> "GridIndexing":
         # TODO: if this class is refactored to split off the *_edge booleans,
         # this init routine can be refactored to require only a GridSizer
-        origin = sizer.get_origin([fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_DIM])
-        domain = sizer.get_extent([fv3util.X_DIM, fv3util.Y_DIM, fv3util.Z_DIM])
+        origin = sizer.get_origin(
+            [fv3gfs.util.X_DIM, fv3gfs.util.Y_DIM, fv3gfs.util.Z_DIM]
+        )
+        domain = sizer.get_extent(
+            [fv3gfs.util.X_DIM, fv3gfs.util.Y_DIM, fv3gfs.util.Z_DIM]
+        )
         south_edge = cube.tile.on_tile_bottom(cube.rank)
         north_edge = cube.tile.on_tile_top(cube.rank)
         west_edge = cube.tile.on_tile_left(cube.rank)
@@ -457,7 +856,9 @@ class GridIndexing:
         This should rarely be required, consider using appropriate calls to helper
         methods that get the correct shape for your particular variable.
         """
-        return self.domain_full(add=(1, 1, 1))
+        # need to add back origin as buffer points, what we're returning here
+        # isn't a domain - it's an array size
+        return self.domain_full(add=(1, 1, 1 + self.origin[2]))
 
     @property
     def isc(self):
@@ -466,8 +867,8 @@ class GridIndexing:
 
     @property
     def iec(self):
-        """end of the compute domain along the x-axis"""
-        return self.origin[0] + self.domain[0]
+        """last index of the compute domain along the x-axis"""
+        return self.origin[0] + self.domain[0] - 1
 
     @property
     def jsc(self):
@@ -476,18 +877,8 @@ class GridIndexing:
 
     @property
     def jec(self):
-        """end of the compute domain along the y-axis"""
-        return self.origin[1] + self.domain[1]
-
-    @property
-    def ks(self):
-        """start of the data domain along the z-axis"""
-        return self.origin[2]
-
-    @property
-    def ke(self):
-        """end of the data domain along the z-axis"""
-        return self.origin[2] + self.domain[2]
+        """last index of the compute domain along the y-axis"""
+        return self.origin[1] + self.domain[1] - 1
 
     @property
     def isd(self):
@@ -496,8 +887,8 @@ class GridIndexing:
 
     @property
     def ied(self):
-        """end of the full domain including halos along the x-axis"""
-        return self.isd + self.domain[0] + 2 * self.n_halo
+        """index of the last data point along the x-axis"""
+        return self.isd + self.domain[0] + 2 * self.n_halo - 1
 
     @property
     def jsd(self):
@@ -506,29 +897,45 @@ class GridIndexing:
 
     @property
     def jed(self):
-        """end of the full domain including halos along the y-axis"""
-        return self.jsd + self.domain[1] + 2 * self.n_halo
+        """index of the last data point along the y-axis"""
+        return self.jsd + self.domain[1] + 2 * self.n_halo - 1
+
+    @property
+    def nw_corner(self):
+        return self.north_edge and self.west_edge
+
+    @property
+    def sw_corner(self):
+        return self.south_edge and self.west_edge
+
+    @property
+    def ne_corner(self):
+        return self.north_edge and self.east_edge
+
+    @property
+    def se_corner(self):
+        return self.south_edge and self.east_edge
 
     def origin_full(self, add: Index3D = (0, 0, 0)):
         """
         Returns the origin of the full domain including halos, plus an optional offset.
         """
-        return (self.isd + add[0], self.jsd + add[1], self.ks + add[2])
+        return (self.isd + add[0], self.jsd + add[1], self.origin[2] + add[2])
 
     def origin_compute(self, add: Index3D = (0, 0, 0)):
         """
         Returns the origin of the compute domain, plus an optional offset
         """
-        return (self.isc + add[0], self.jsc + add[1], self.ks + add[2])
+        return (self.isc + add[0], self.jsc + add[1], self.origin[2] + add[2])
 
     def domain_full(self, add: Index3D = (0, 0, 0)):
         """
         Returns the shape of the full domain including halos, plus an optional offset.
         """
         return (
-            self.ied - self.isd + add[0],
-            self.jed - self.jsd + add[1],
-            self.ke - self.ks + add[2],
+            self.ied + 1 - self.isd + add[0],
+            self.jed + 1 - self.jsd + add[1],
+            self.domain[2] + add[2],
         )
 
     def domain_compute(self, add: Index3D = (0, 0, 0)):
@@ -536,9 +943,9 @@ class GridIndexing:
         Returns the shape of the compute domain, plus an optional offset.
         """
         return (
-            self.iec - self.isc + add[0],
-            self.jec - self.jsc + add[1],
-            self.ke - self.ks + add[2],
+            self.iec + 1 - self.isc + add[0],
+            self.jec + 1 - self.jsc + add[1],
+            self.domain[2] + add[2],
         )
 
     def axis_offsets(self, origin: Index3D, domain: Index3D):
@@ -559,12 +966,23 @@ class GridIndexing:
             origin: origin of the computation
             domain: shape of the computation
         """
-        origin = list(self._sizer.get_origin(dims))
+        origin = self._origin_from_dims(dims)
         domain = list(self._sizer.get_extent(dims))
         for i, n in enumerate(halos):
             origin[i] -= n
             domain[i] += 2 * n
         return tuple(origin), tuple(domain)
+
+    def _origin_from_dims(self, dims: Iterable[str]) -> List[int]:
+        return_origin = []
+        for dim in dims:
+            if dim in fv3gfs.util.X_DIMS:
+                return_origin.append(self.origin[0])
+            elif dim in fv3gfs.util.Y_DIMS:
+                return_origin.append(self.origin[1])
+            elif dim in fv3gfs.util.Z_DIMS:
+                return_origin.append(self.origin[2])
+        return return_origin
 
     def get_shape(
         self, dims: Sequence[str], halos: Sequence[int] = tuple()
@@ -585,11 +1003,104 @@ class GridIndexing:
         for i, d in enumerate(dims):
             # need n_halo points at the start of the domain, regardless of whether
             # they are read, so that data is aligned in memory
-            if d in (fv3util.X_DIMS + fv3util.Y_DIMS):
+            if d in (fv3gfs.util.X_DIMS + fv3gfs.util.Y_DIMS):
                 shape[i] += self.n_halo
         for i, n in enumerate(halos):
             shape[i] += n
         return tuple(shape)
+
+    def restrict_vertical(self, k_start=0, nk=None) -> "GridIndexing":
+        """
+        Returns a copy of itself with modified vertical origin and domain.
+
+        Args:
+            k_start: offset to apply to current vertical origin, must be
+                greater than 0 and less than the size of the vertical domain
+            nk: new vertical domain size as a number of grid cells,
+                defaults to remaining grid cells in the current domain,
+                can be at most the size of the vertical domain minus k_start
+        """
+        if k_start < 0:
+            raise ValueError("k_start must be positive")
+        if k_start > self.domain[2]:
+            raise ValueError(
+                "k_start must be less than the number of vertical levels "
+                f"(received {k_start} for {self.domain[2]} vertical levels"
+            )
+        if nk is None:
+            nk = self.domain[2] - k_start
+        elif nk < 0:
+            raise ValueError("number of vertical levels should be positive")
+        elif nk > (self.domain[2] - k_start):
+            raise ValueError(
+                "nk can be at most the size of the vertical domain minus k_start"
+            )
+
+        new = GridIndexing(
+            self.domain[:2] + (nk,),
+            self.n_halo,
+            self.south_edge,
+            self.north_edge,
+            self.west_edge,
+            self.east_edge,
+        )
+        new.origin = self.origin[:2] + (self.origin[2] + k_start,)
+        return new
+
+    def get_quantity_halo_spec(
+        self,
+        shape: Tuple[int, ...],
+        origin: Tuple[int, ...],
+        dims=[fv3gfs.util.X_DIM, fv3gfs.util.Y_DIM, fv3gfs.util.Z_DIM],
+        n_halo: Optional[int] = None,
+    ) -> QuantityHaloSpec:
+        """Build memory specifications for the halo update.
+
+        Args:
+            shape: the shape of the Quantity
+            origin: the origin of the compute domain
+            dims: dimensionality of the data
+            n_halo: number of halo points to update, defaults to self.n_halo
+        """
+
+        # TEMPORARY: we do a nasty temporary allocation here to read in the hardware
+        # memory layout. Further work in GT4PY will allow for deferred allocation
+        # which will give access to those information while making sure
+        # we don't allocate
+        # Refactor is filed in ticket DSL-820
+
+        temp_storage = utils.make_storage_from_shape(shape, origin)
+        temp_quantity = quantity_wrap(temp_storage, dims=dims, grid_indexing=self)
+        if n_halo is None:
+            n_halo = self.n_halo
+
+        spec = QuantityHaloSpec(
+            n_halo,
+            temp_quantity.data.strides,
+            temp_quantity.data.itemsize,
+            temp_quantity.data.shape,
+            temp_quantity.metadata.origin,
+            temp_quantity.metadata.extent,
+            temp_quantity.metadata.dims,
+            temp_quantity.np,
+            temp_quantity.metadata.dtype,
+        )
+
+        del temp_storage
+        del temp_quantity
+
+        return spec
+
+
+def quantity_wrap(storage, dims: Sequence[str], grid_indexing: GridIndexing):
+    origin, extent = grid_indexing.get_origin_domain(dims)
+    return fv3gfs.util.Quantity(
+        storage,
+        dims=dims,
+        units="unknown",
+        origin=origin,
+        extent=extent,
+    )
 
 
 # TODO: delete this routine in favor of grid_indexing.axis_offsets
@@ -597,7 +1108,7 @@ def axis_offsets(
     grid: Union[Grid, GridIndexing],
     origin: Iterable[int],
     domain: Iterable[int],
-) -> Mapping[str, gtscript._AxisOffset]:
+) -> Mapping[str, gtscript.AxisIndex]:
     """Return the axis offsets relative to stencil compute domain.
 
     Args:
@@ -624,7 +1135,7 @@ def _old_grid_axis_offsets(
     grid: Grid,
     origin: Tuple[int, ...],
     domain: Tuple[int, ...],
-) -> Mapping[str, gtscript._AxisOffset]:
+) -> Mapping[str, gtscript.AxisIndex]:
     if grid.west_edge:
         proc_offset = grid.is_ - grid.global_is
         origin_offset = grid.is_ - origin[0]
@@ -670,7 +1181,7 @@ def _grid_indexing_axis_offsets(
     grid: GridIndexing,
     origin: Tuple[int, ...],
     domain: Tuple[int, ...],
-) -> Mapping[str, gtscript._AxisOffset]:
+) -> Mapping[str, gtscript.AxisIndex]:
     if grid.west_edge:
         i_start = gtscript.I[0] + grid.origin[0] - origin[0]
     else:

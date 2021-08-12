@@ -50,25 +50,30 @@ functions_desc = [
         "name": get_name_from_frame,
     },
     {
-        "fn": "halo_update",
-        "file": None,
-        "name": "HaloEx: sync scalar",
-    },  # Synchroneous halo update
+        "fn": "wait",
+        "file": "fv3gfs/util/halo_updater.py",
+        "name": "HaloUpdater.wait",
+    },
     {
-        "fn": "vector_halo_update",
-        "file": None,
-        "name": "HaloEx: sync vector",
-    },  # Synchroneous vector halo update
+        "fn": "start",
+        "file": "fv3gfs/util/halo_updater.py",
+        "name": "HaloUpdater.start",
+    },
     {
-        "fn": "start_halo_update",
-        "file": None,
-        "name": "HaloEx: async scalar",
-    },  # Asynchroneous halo update
+        "fn": "async_pack",
+        "file": "fv3gfs/util/halo_data_transformer.py",
+        "name": "HaloDataTrf.async_pack",
+    },
     {
-        "fn": "start_vector_halo_update",
-        "file": None,
-        "name": "HaloEx: async vector",
-    },  # Asynchroneous vector halo update
+        "fn": "async_unpack",
+        "file": "fv3gfs/util/halo_data_transformer.py",
+        "name": "HaloDataTrf.async_unpack",
+    },
+    {
+        "fn": "synchronize",
+        "file": "fv3gfs/util/halo_data_transformer.py",
+        "name": "HaloDataTrf.synchronize",
+    },
 ]
 
 

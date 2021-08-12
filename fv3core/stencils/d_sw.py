@@ -13,6 +13,7 @@ import fv3core.stencils.delnflux as delnflux
 import fv3core.utils.corners as corners
 import fv3core.utils.global_constants as constants
 import fv3core.utils.gt4py_utils as utils
+from fv3core._config import DGridShallowWaterLagrangianDynamicsConfig
 from fv3core.decorators import FrozenStencil
 from fv3core.stencils.delnflux import DelnFluxNoSG
 from fv3core.stencils.divergence_damping import DivergenceDamping
@@ -20,8 +21,9 @@ from fv3core.stencils.fvtp2d import FiniteVolumeTransport
 from fv3core.stencils.fxadv import FiniteVolumeFluxPrep
 from fv3core.stencils.xtp_u import XTP_U
 from fv3core.stencils.ytp_v import YTP_V
-from fv3core.utils.grid import axis_offsets
+from fv3core.utils.grid import DampingCoefficients, GridData, GridIndexing, axis_offsets
 from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
+from fv3gfs.util import X_DIM, X_INTERFACE_DIM, Y_DIM, Y_INTERFACE_DIM, Z_DIM
 
 
 dcon_threshold = 1e-5
@@ -84,41 +86,18 @@ def flux_capacitor(
 
 
 @gtscript.function
-def horizontal_relative_vorticity_from_winds(u, v, ut, vt, dx, dy, rarea, vorticity):
-    """
-    Compute the area mean relative vorticity in the z-direction from the D-grid winds.
-
-    Args:
-        u (in): x-direction wind on D grid
-        v (in): y-direction wind on D grid
-        ut (out): u * dx
-        vt (out): v * dy
-        dx (in): gridcell width in x-direction
-        dy (in): gridcell width in y-direction
-        rarea (in): inverse of area
-        vorticity (out): area mean horizontal relative vorticity
-    """
-
-    vt = u * dx
-    ut = v * dy
-    vorticity = rarea * (vt - vt[0, 1, 0] - ut + ut[1, 0, 0])
-
-    return vt, ut, vorticity
-
-
-@gtscript.function
 def all_corners_ke(ke, u, v, ut, vt, dt):
     from __externals__ import i_end, i_start, j_end, j_start
 
     # Assumption: not __INLINED(grid.nested)
     with horizontal(region[i_start, j_start]):
-        ke = corners.corner_ke(ke, u, v, ut, vt, dt, 0, 0, -1, 1)
+        ke = corners.corner_ke(u, v, ut, vt, dt, 0, 0, -1, 1)
     with horizontal(region[i_end + 1, j_start]):
-        ke = corners.corner_ke(ke, u, v, ut, vt, dt, -1, 0, 0, -1)
+        ke = corners.corner_ke(u, v, ut, vt, dt, -1, 0, 0, -1)
     with horizontal(region[i_end + 1, j_end + 1]):
-        ke = corners.corner_ke(ke, u, v, ut, vt, dt, -1, -1, 0, 1)
+        ke = corners.corner_ke(u, v, ut, vt, dt, -1, -1, 0, 1)
     with horizontal(region[i_start, j_end + 1]):
-        ke = corners.corner_ke(ke, u, v, ut, vt, dt, 0, -1, -1, -1)
+        ke = corners.corner_ke(u, v, ut, vt, dt, 0, -1, -1, -1)
 
     return ke
 
@@ -320,7 +299,6 @@ def heat_source_from_vorticity_damping(
     from __externals__ import d_con, do_skeb, local_ie, local_is, local_je, local_js
 
     with computation(PARALLEL), interval(...):
-        # if (kinetic_energy_fraction_to_damp[0] > dcon_threshold) or do_skeb:
         heat_s = heat_source
         diss_e = dissipation_estimate
         ubt = (ub + vt) * rdx
@@ -357,7 +335,7 @@ def heat_source_from_vorticity_damping(
                 v = v - ut
 
 
-def ke_horizontal_vorticity(
+def update_ke(
     ke: FloatField,
     u: FloatField,
     v: FloatField,
@@ -365,18 +343,33 @@ def ke_horizontal_vorticity(
     vb: FloatField,
     ut: FloatField,
     vt: FloatField,
-    dx: FloatFieldIJ,
-    dy: FloatFieldIJ,
-    rarea: FloatFieldIJ,
-    vorticity: FloatField,
     dt: float,
 ):
     with computation(PARALLEL), interval(...):
         ke = ke_from_bwind(ke, ub, vb)
         ke = all_corners_ke(ke, u, v, ut, vt, dt)
-        vt, ut, vorticity = horizontal_relative_vorticity_from_winds(
-            u, v, ut, vt, dx, dy, rarea, vorticity
-        )
+
+
+def update_horizontal_vorticity(
+    u: FloatField,
+    v: FloatField,
+    ut: FloatField,
+    vt: FloatField,
+    dx: FloatFieldIJ,
+    dy: FloatFieldIJ,
+    rarea: FloatFieldIJ,
+    vorticity: FloatField,
+):
+    with computation(PARALLEL), interval(...):
+        vt = u * dx
+        ut = v * dy
+    # TODO(rheag). This computation is required because
+    # ut and vt are API fields. If the distinction
+    # is removed, so can this computation.
+    # Compute the area mean relative vorticity in the z-direction
+    # from the D-grid winds.
+    with computation(PARALLEL), interval(...):
+        vorticity = rarea * (vt - vt[0, 1, 0] - ut + ut[1, 0, 0])
 
 
 # Set the unique parameters for the smallest
@@ -401,7 +394,7 @@ def lowest_kvals(column, k, do_vort_damp):
     vorticity_damping_option(column, k, do_vort_damp)
 
 
-def get_column_namelist(namelist, npz):
+def get_column_namelist(config: DGridShallowWaterLagrangianDynamicsConfig, npz):
     """
     Generate a dictionary of columns that specify how parameters (such as nord, damp)
     used in several functions called by D_SW vary over the k-dimension.
@@ -429,28 +422,28 @@ def get_column_namelist(namelist, npz):
     for name in all_names:
         col[name] = utils.make_storage_from_shape((npz + 1,), (0,))
     for name in direct_namelist:
-        col[name][:] = getattr(namelist, name)
+        col[name][:] = getattr(config, name)
 
-    col["d2_divg"][:] = min(0.2, namelist.d2_bg)
+    col["d2_divg"][:] = min(0.2, config.d2_bg)
     col["nord_v"][:] = min(2, col["nord"][0])
     col["nord_w"][:] = col["nord_v"][0]
     col["nord_t"][:] = col["nord_v"][0]
-    if namelist.do_vort_damp:
-        col["damp_vt"][:] = namelist.vtdm4
+    if config.do_vort_damp:
+        col["damp_vt"][:] = config.vtdm4
     else:
         col["damp_vt"][:] = 0
     col["damp_w"][:] = col["damp_vt"][0]
     col["damp_t"][:] = col["damp_vt"][0]
-    if npz == 1 or namelist.n_sponge < 0:
-        col["d2_divg"][0] = namelist.d2_bg
+    if npz == 1 or config.n_sponge < 0:
+        col["d2_divg"][0] = config.d2_bg
     else:
-        col["d2_divg"][0] = max(0.01, namelist.d2_bg, namelist.d2_bg_k1)
-        lowest_kvals(col, 0, namelist.do_vort_damp)
-        if namelist.d2_bg_k2 > 0.01:
-            col["d2_divg"][1] = max(namelist.d2_bg, namelist.d2_bg_k2)
-            lowest_kvals(col, 1, namelist.do_vort_damp)
-        if namelist.d2_bg_k2 > 0.05:
-            col["d2_divg"][2] = max(namelist.d2_bg, 0.2 * namelist.d2_bg_k2)
+        col["d2_divg"][0] = max(0.01, config.d2_bg, config.d2_bg_k1)
+        lowest_kvals(col, 0, config.do_vort_damp)
+        if config.d2_bg_k2 > 0.01:
+            col["d2_divg"][1] = max(config.d2_bg, config.d2_bg_k2)
+            lowest_kvals(col, 1, config.do_vort_damp)
+        if config.d2_bg_k2 > 0.05:
+            col["d2_divg"][2] = max(config.d2_bg, 0.2 * config.d2_bg_k2)
             set_low_kvals(col, 2)
     return col
 
@@ -505,14 +498,36 @@ class DGridShallowWaterLagrangianDynamics:
     Fortran name is the d_sw subroutine
     """
 
-    def __init__(self, namelist, column_namelist):
-        self.grid = spec.grid
+    def __init__(
+        self,
+        grid_indexing: GridIndexing,
+        grid_data: GridData,
+        damping_coefficients: DampingCoefficients,
+        column_namelist,
+        nested: bool,
+        stretched_grid: bool,
+        config: DGridShallowWaterLagrangianDynamicsConfig
+        # dddmp,
+        # d4_bg,
+        # nord: int,
+        # grid_type: int,
+        # hydrostatic,
+        # d_ext: int,
+        # inline_q: bool,
+        # hord_dp: int,
+        # hord_tm: int,
+        # hord_mt: int,
+        # hord_vt: int,
+        # do_f3d: bool,
+        # do_skeb: bool,
+        # d_con,
+    ):
+        self._f0 = spec.grid.f0
+        self.grid = grid_data
+        assert config.grid_type < 3, "ubke and vbke only implemented for grid_type < 3"
+        assert not config.inline_q, "inline_q not yet implemented"
         assert (
-            namelist.grid_type < 3
-        ), "ubke and vbke only implemented for grid_type < 3"
-        assert not namelist.inline_q, "inline_q not yet implemented"
-        assert (
-            namelist.d_ext <= 0
+            config.d_ext <= 0
         ), "untested d_ext > 0. need to call a2b_ord2, not yet implemented"
         assert (column_namelist["damp_vt"] > dcon_threshold).all()
         # TODO: in theory, we should check if damp_vt > 1e-5 for each k-level and
@@ -522,99 +537,131 @@ class DGridShallowWaterLagrangianDynamics:
         # only compute delnflux for k-levels where this is true
 
         # only compute for k-levels where this is true
-        shape = self.grid.domain_shape_full(add=(1, 1, 1))
-        origin = self.grid.compute_origin()
-        self.hydrostatic = namelist.hydrostatic
-        self._tmp_heat_s = utils.make_storage_from_shape(shape, origin)
-        self._tmp_ub = utils.make_storage_from_shape(shape, origin)
-        self._tmp_vb = utils.make_storage_from_shape(shape, origin)
-        self._tmp_ke = utils.make_storage_from_shape(shape, origin)
-        self._tmp_vort = utils.make_storage_from_shape(shape, origin)
-        self._tmp_ut = utils.make_storage_from_shape(shape, origin)
-        self._tmp_vt = utils.make_storage_from_shape(shape, origin)
-        self._tmp_fx = utils.make_storage_from_shape(shape, origin)
-        self._tmp_fy = utils.make_storage_from_shape(shape, origin)
-        self._tmp_gx = utils.make_storage_from_shape(shape, origin)
-        self._tmp_gy = utils.make_storage_from_shape(shape, origin)
-        self._tmp_dw = utils.make_storage_from_shape(shape, origin)
-        self._tmp_wk = utils.make_storage_from_shape(shape, origin)
-        self._tmp_fx2 = utils.make_storage_from_shape(shape, origin)
-        self._tmp_fy2 = utils.make_storage_from_shape(shape, origin)
-        self._tmp_damp_3d = utils.make_storage_from_shape((1, 1, self.grid.npz))
+        self.hydrostatic = config.hydrostatic
+        self._tmp_heat_s = utils.make_storage_from_shape(grid_indexing.max_shape)
+        self._tmp_ub = utils.make_storage_from_shape(grid_indexing.max_shape)
+        self._tmp_vb = utils.make_storage_from_shape(grid_indexing.max_shape)
+        self._tmp_ke = utils.make_storage_from_shape(grid_indexing.max_shape)
+        self._tmp_vort = utils.make_storage_from_shape(grid_indexing.max_shape)
+        self._tmp_ut = utils.make_storage_from_shape(grid_indexing.max_shape)
+        self._tmp_vt = utils.make_storage_from_shape(grid_indexing.max_shape)
+        self._tmp_fx = utils.make_storage_from_shape(grid_indexing.max_shape)
+        self._tmp_fy = utils.make_storage_from_shape(grid_indexing.max_shape)
+        self._tmp_gx = utils.make_storage_from_shape(grid_indexing.max_shape)
+        self._tmp_gy = utils.make_storage_from_shape(grid_indexing.max_shape)
+        self._tmp_dw = utils.make_storage_from_shape(grid_indexing.max_shape)
+        self._tmp_wk = utils.make_storage_from_shape(grid_indexing.max_shape)
+        self._tmp_fx2 = utils.make_storage_from_shape(grid_indexing.max_shape)
+        self._tmp_fy2 = utils.make_storage_from_shape(grid_indexing.max_shape)
+        self._tmp_damp_3d = utils.make_storage_from_shape(
+            (1, 1, grid_indexing.domain[2])
+        )
         self._column_namelist = column_namelist
 
-        self.delnflux_nosg_w = DelnFluxNoSG(self._column_namelist["nord_w"])
-        self.delnflux_nosg_v = DelnFluxNoSG(self._column_namelist["nord_v"])
+        self.delnflux_nosg_w = DelnFluxNoSG(
+            grid_indexing,
+            damping_coefficients,
+            grid_data.rarea,
+            self._column_namelist["nord_w"],
+        )
+        self.delnflux_nosg_v = DelnFluxNoSG(
+            grid_indexing,
+            damping_coefficients,
+            grid_data.rarea,
+            self._column_namelist["nord_v"],
+        )
         self.fvtp2d_dp = FiniteVolumeTransport(
-            grid_indexing=self.grid.grid_indexing,
-            dxa=self.grid.dxa,
-            dya=self.grid.dya,
-            area=self.grid.area,
-            grid_type=namelist.grid_type,
-            hord=namelist.hord_dp,
+            grid_indexing=grid_indexing,
+            grid_data=grid_data,
+            damping_coefficients=damping_coefficients,
+            grid_type=config.grid_type,
+            hord=config.hord_dp,
             nord=self._column_namelist["nord_v"],
             damp_c=self._column_namelist["damp_vt"],
         )
         self.fvtp2d_dp_t = FiniteVolumeTransport(
-            grid_indexing=self.grid.grid_indexing,
-            dxa=self.grid.dxa,
-            dya=self.grid.dya,
-            area=self.grid.area,
-            grid_type=namelist.grid_type,
-            hord=namelist.hord_dp,
+            grid_indexing=grid_indexing,
+            grid_data=grid_data,
+            damping_coefficients=damping_coefficients,
+            grid_type=config.grid_type,
+            hord=config.hord_dp,
             nord=self._column_namelist["nord_t"],
             damp_c=self._column_namelist["damp_t"],
         )
         self.fvtp2d_vt = FiniteVolumeTransport(
-            grid_indexing=self.grid.grid_indexing,
-            dxa=self.grid.dxa,
-            dya=self.grid.dya,
-            area=self.grid.area,
-            grid_type=namelist.grid_type,
-            hord=namelist.hord_vt,
+            grid_indexing=grid_indexing,
+            grid_data=grid_data,
+            damping_coefficients=damping_coefficients,
+            grid_type=config.grid_type,
+            hord=config.hord_vt,
             nord=self._column_namelist["nord_v"],
             damp_c=self._column_namelist["damp_vt"],
         )
         self.fvtp2d_tm = FiniteVolumeTransport(
-            grid_indexing=self.grid.grid_indexing,
-            dxa=self.grid.dxa,
-            dya=self.grid.dya,
-            area=self.grid.area,
-            grid_type=namelist.grid_type,
-            hord=namelist.hord_tm,
+            grid_indexing=grid_indexing,
+            grid_data=grid_data,
+            damping_coefficients=damping_coefficients,
+            grid_type=config.grid_type,
+            hord=config.hord_tm,
             nord=self._column_namelist["nord_v"],
             damp_c=self._column_namelist["damp_vt"],
         )
         self.fvtp2d_vt_nodelnflux = FiniteVolumeTransport(
-            grid_indexing=self.grid.grid_indexing,
-            dxa=self.grid.dxa,
-            dya=self.grid.dya,
-            area=self.grid.area,
-            grid_type=namelist.grid_type,
-            hord=namelist.hord_vt,
+            grid_indexing=grid_indexing,
+            grid_data=grid_data,
+            damping_coefficients=damping_coefficients,
+            grid_type=config.grid_type,
+            hord=config.hord_vt,
         )
-        self.fv_prep = FiniteVolumeFluxPrep()
-        self.ytp_v = YTP_V(namelist)
-        self.xtp_u = XTP_U(namelist)
+        self.fv_prep = FiniteVolumeFluxPrep(
+            grid_indexing=grid_indexing,
+            grid_data=grid_data,
+        )
+        self.ytp_v = YTP_V(
+            grid_indexing=grid_indexing,
+            grid_data=grid_data,
+            grid_type=config.grid_type,
+            jord=config.hord_mt,
+        )
+        self.xtp_u = XTP_U(
+            grid_indexing=grid_indexing,
+            grid_data=grid_data,
+            grid_type=config.grid_type,
+            iord=config.hord_mt,
+        )
         self.divergence_damping = DivergenceDamping(
-            namelist, column_namelist["nord"], column_namelist["d2_divg"]
+            grid_indexing,
+            grid_data,
+            damping_coefficients,
+            nested,
+            stretched_grid,
+            config.dddmp,
+            config.d4_bg,
+            config.nord,
+            config.grid_type,
+            column_namelist["nord"],
+            column_namelist["d2_divg"],
         )
-        full_origin = self.grid.full_origin()
-        full_domain = self.grid.domain_shape_full()
-        ax_offsets_full = axis_offsets(self.grid, full_origin, full_domain)
-        b_origin = self.grid.compute_origin()
-        b_domain = self.grid.domain_shape_compute(add=(1, 1, 0))
-        ax_offsets_b = axis_offsets(self.grid, b_origin, b_domain)
+        full_origin = grid_indexing.origin_full()
+        full_domain = grid_indexing.domain_full()
+        ax_offsets_full = axis_offsets(grid_indexing, full_origin, full_domain)
+        b_origin, b_domain = grid_indexing.get_origin_domain(
+            [X_INTERFACE_DIM, Y_INTERFACE_DIM, Z_DIM]
+        )
+        ax_offsets_b = axis_offsets(grid_indexing, b_origin, b_domain)
         self._pressure_and_vbke_stencil = FrozenStencil(
             pressure_and_vbke,
-            externals={"inline_q": namelist.inline_q, **ax_offsets_b},
+            externals={"inline_q": config.inline_q, **ax_offsets_b},
             origin=b_origin,
             domain=b_domain,
         )
+        compute_origin, compute_domain = grid_indexing.get_origin_domain(
+            [X_DIM, Y_DIM, Z_DIM]
+        )
         self._flux_adjust_stencil = FrozenStencil(
             flux_adjust,
-            origin=self.grid.compute_origin(),
-            domain=self.grid.domain_shape_compute(),
+            origin=compute_origin,
+            domain=compute_domain,
         )
         self._flux_capacitor_stencil = FrozenStencil(
             flux_capacitor, origin=full_origin, domain=full_domain
@@ -629,7 +676,7 @@ class DGridShallowWaterLagrangianDynamics:
             compute_vorticity,
             externals={
                 "radius": constants.RADIUS,
-                "do_f3d": namelist.do_f3d,
+                "do_f3d": config.do_f3d,
                 "hydrostatic": self.hydrostatic,
             },
             origin=full_origin,
@@ -637,27 +684,32 @@ class DGridShallowWaterLagrangianDynamics:
         )
         self._adjust_w_and_qcon_stencil = FrozenStencil(
             adjust_w_and_qcon,
-            origin=self.grid.compute_origin(),
-            domain=self.grid.domain_shape_compute(),
+            origin=compute_origin,
+            domain=compute_domain,
         )
         self._heat_diss_stencil = FrozenStencil(
             heat_diss,
-            origin=self.grid.compute_origin(),
-            domain=self.grid.domain_shape_compute(),
+            origin=compute_origin,
+            domain=compute_domain,
         )
         self._heat_source_from_vorticity_damping_stencil = FrozenStencil(
             heat_source_from_vorticity_damping,
             externals={
-                "do_skeb": namelist.do_skeb,
-                "d_con": namelist.d_con,
+                "do_skeb": config.do_skeb,
+                "d_con": config.d_con,
                 **ax_offsets_b,
             },
             origin=b_origin,
             domain=b_domain,
         )
-        self._ke_horizontal_vorticity_stencil = FrozenStencil(
-            ke_horizontal_vorticity,
+        self._update_ke_stencil = FrozenStencil(
+            update_ke,
             externals=ax_offsets_full,
+            origin=full_origin,
+            domain=full_domain,
+        )
+        self._update_horizontal_vorticity_stencil = FrozenStencil(
+            update_horizontal_vorticity,
             origin=full_origin,
             domain=full_domain,
         )
@@ -665,27 +717,27 @@ class DGridShallowWaterLagrangianDynamics:
             mult_ubke, externals=ax_offsets_b, origin=b_origin, domain=b_domain
         )
         self._damping_factor_calculation_stencil = FrozenStencil(
-            delnflux.calc_damp, origin=(0, 0, 0), domain=(1, 1, self.grid.npz)
+            delnflux.calc_damp, origin=(0, 0, 0), domain=(1, 1, grid_indexing.domain[2])
         )
 
         self._damping_factor_calculation_stencil(
             self._tmp_damp_3d,
             self._column_namelist["nord_v"],
             self._column_namelist["damp_vt"],
-            self.grid.da_min_c,
+            damping_coefficients.da_min_c,
         )
         self._delnflux_damp_vt = utils.make_storage_data(
-            self._tmp_damp_3d[0, 0, :], (self.grid.npz,), (0,)
+            self._tmp_damp_3d[0, 0, :], (grid_indexing.domain[2],), (0,)
         )
 
         self._damping_factor_calculation_stencil(
             self._tmp_damp_3d,
             self._column_namelist["nord_w"],
             self._column_namelist["damp_w"],
-            self.grid.da_min_c,
+            damping_coefficients.da_min_c,
         )
         self._delnflux_damp_w = utils.make_storage_data(
-            self._tmp_damp_3d[0, 0, :], (self.grid.npz,), (0,)
+            self._tmp_damp_3d[0, 0, :], (grid_indexing.domain[2],), (0,)
         )
 
     def __call__(
@@ -877,7 +929,7 @@ class DGridShallowWaterLagrangianDynamics:
 
         self.xtp_u(self._tmp_ub, u, self._tmp_vb)
 
-        self._ke_horizontal_vorticity_stencil(
+        self._update_ke_stencil(
             self._tmp_ke,
             u,
             v,
@@ -885,11 +937,18 @@ class DGridShallowWaterLagrangianDynamics:
             self._tmp_vb,
             self._tmp_ut,
             self._tmp_vt,
+            dt,
+        )
+
+        self._update_horizontal_vorticity_stencil(
+            u,
+            v,
+            self._tmp_ut,
+            self._tmp_vt,
             self.grid.dx,
             self.grid.dy,
             self.grid.rarea,
             self._tmp_wk,
-            dt,
         )
 
         # TODO if namelist.d_f3d and ROT3 unimplemeneted
@@ -917,7 +976,7 @@ class DGridShallowWaterLagrangianDynamics:
         )
 
         # Vorticity transport
-        self._compute_vorticity_stencil(self._tmp_wk, self.grid.f0, zh, self._tmp_vort)
+        self._compute_vorticity_stencil(self._tmp_wk, self._f0, zh, self._tmp_vort)
 
         self.fvtp2d_vt_nodelnflux(
             self._tmp_vort, crx, cry, xfx, yfx, self._tmp_fx, self._tmp_fy

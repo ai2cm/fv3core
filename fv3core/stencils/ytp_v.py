@@ -9,10 +9,9 @@ from gt4py.gtscript import (
     region,
 )
 
-import fv3core._config as spec
 from fv3core.decorators import FrozenStencil
 from fv3core.stencils import yppm
-from fv3core.utils.grid import axis_offsets
+from fv3core.utils.grid import GridData, GridIndexing, axis_offsets
 from fv3core.utils.typing import FloatField, FloatFieldIJ
 
 
@@ -93,22 +92,25 @@ def _ytp_v(
 
 
 class YTP_V:
-    def __init__(self, namelist):
-        jord = spec.namelist.hord_mt
+    def __init__(
+        self,
+        grid_indexing: GridIndexing,
+        grid_data: GridData,
+        grid_type: int,
+        jord: int,
+    ):
         if jord not in (5, 6, 7, 8):
             raise NotImplementedError(
                 "Currently xtp_v is only supported for hord_mt == 5,6,7,8"
             )
-        assert namelist.grid_type < 3
+        assert grid_type < 3
 
-        grid = spec.grid
-        origin = grid.compute_origin()
-        domain = grid.domain_shape_compute(add=(1, 1, 0))
-        self.dy = grid.dy
-        self.dya = grid.dya
-        self.rdy = grid.rdy
-        ax_offsets = axis_offsets(grid, origin, domain)
-        assert namelist.grid_type < 3
+        origin = grid_indexing.origin_compute()
+        domain = grid_indexing.domain_compute(add=(1, 1, 0))
+        self._dy = grid_data.dy
+        self._dya = grid_data.dya
+        self._rdy = grid_data.rdy
+        ax_offsets = axis_offsets(grid_indexing, origin, domain)
 
         self.stencil = FrozenStencil(
             _ytp_v,
@@ -132,4 +134,4 @@ class YTP_V:
         flux (out): Flux of kinetic energy
         """
 
-        self.stencil(c, v, flux, self.dy, self.dya, self.rdy)
+        self.stencil(c, v, flux, self._dy, self._dya, self._rdy)

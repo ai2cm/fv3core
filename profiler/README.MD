@@ -28,9 +28,13 @@ compiled.
 
 Once ran the reproducer package all required files in a `repro_<STENCIL_NAME>_<TIMESTAMP>` folder.
 
+If multiple versions of the stencil are called the reproducer will extract all of them. To select the N-th single stencil version add `--call_number=N`.
+
 The reproducer will also write a `repro.py` script that runs a single computation of the stencil.
 
 Example command line: `python external_profiler.py --stencil=MY_STENCIL <TARGET PYTHON SCRIPT>.py <TARGET ARGS>`
+
+The `.py` file in the generated `original_code` directory includes `pyext_module = gt_utils.make_module_from_file`, which uses a hardcoded path to the generated `.so` files. If you move the `repro_XXXX` folder you'll have to change this hardcoded path.
 
 ### Using `ncu`
 
@@ -47,3 +51,24 @@ Lookup kernel name using `nsys` correlation id and the `sqlite` database
 Usage: `python nsys_id_kernel <NSYS_GENERATED.sqlite> <CORRELATION_ID> [--all]`
 
 Correlation id can be found on the tooltip when overring above a kernel in `nsys` ui.
+
+# `nsys` datbase mining
+
+`nsys` can generate a `sqlite` database from its internal `qdrep` format.
+
+This script is looking to mine data for _a single timestep_ of the dyncore. It will
+jump over the first timestep and record the second one.
+
+The database is mined for:
+* CUDA kernel cumulative time, median time, calls
+* Halo exchange exact time (if the `nsys` runs was done using the `external_profiler --nvtx` option)
+The script will print results and/or write CSV & plots.
+
+Usage: `nsys_mine.py <--csv> <--plots> <NSYS_GENERATED.sqlite>`
+* `<--csv>` will write down in .csv the results
+* `<--plots>` will plot the results (cumulative time, counts, median time, cumulative/call)
+
+## TODO list:
+
+* json configuration
+* record all versions of a stencil then `exit()` from the program
