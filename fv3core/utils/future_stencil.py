@@ -2,6 +2,7 @@ import time
 from typing import Any, Callable, Dict, Optional, Set, Tuple, Type
 
 import numpy as np
+from gt4py.backend import from_name as backend_from_name
 from gt4py.definitions import BuildOptions, FieldInfo
 from gt4py.stencil_builder import StencilBuilder
 from gt4py.stencil_object import StencilObject
@@ -190,9 +191,9 @@ def future_stencil(
             }
         )
         stencil = FutureStencil(
-            StencilBuilder(func, backend=backend, options=options).with_externals(
-                externals or {}
-            )
+            StencilBuilder(
+                func, backend=backend_from_name(backend), options=options
+            ).with_externals(externals or {})
         )
         return stencil
 
