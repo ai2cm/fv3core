@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 from gt4py.gtscript import PARALLEL, computation, interval
 
-from fv3core.utils.future_stencil import FutureStencil, WindowTable, future_stencil
+from fv3core.utils.future_stencil import FutureStencil, StencilTable, future_stencil
 from fv3core.utils.global_config import set_backend
 from fv3core.utils.gt4py_utils import make_storage_from_shape_uncached
 from fv3core.utils.mpi import MPI
@@ -82,7 +82,7 @@ def test_distributed_table(table_type: str):
     node_id = comm.Get_rank()
     n_nodes = comm.Get_size()
 
-    table = WindowTable(comm, n_nodes)
+    table = StencilTable(comm, n_nodes)
 
     rand.seed(node_id)
     random_int = rand.randint(0, n_nodes)

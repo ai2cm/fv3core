@@ -2,25 +2,23 @@ import time
 from typing import Any, Callable, Dict, Optional, Set, Tuple, Type
 
 import numpy as np
-from gt4py.backend import from_name as backend_from_name
-from gt4py.definitions import BuildOptions, FieldInfo
+from gt4py.definitions import FieldInfo
 from gt4py.stencil_builder import StencilBuilder
 from gt4py.stencil_object import StencilObject
 
 from fv3core.utils.mpi import MPI
 
 
-class Container(type):
-    _instances: Dict[Type["Container"], "Container"] = {}
+class Singleton(type):
+    _instances: Dict[Type["Singleton"], "Singleton"] = {}
 
     def __call__(cls, *args, **kwargs):
         if cls not in cls._instances:
-            cls._instances[cls] = super(Container, cls).__call__(*args, **kwargs)
-            cls._instances[cls].clear()
+            cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
         return cls._instances[cls]
 
 
-class WindowTable(object, metaclass=Container):
+class StencilTable(object, metaclass=Singleton):
     DONE_STATE: int = -1
     NONE_STATE: int = -2
     MAX_SIZE: int = 200
@@ -182,20 +180,21 @@ def future_stencil(
     """
 
     def _decorator(func):
-        options = BuildOptions(
-            **{
-                **StencilBuilder.default_options_dict(func),
-                **StencilBuilder.name_to_options_args(""),
-                **StencilBuilder.nest_impl_options(kwargs),
-                "rebuild": rebuild,
-            }
+        device_sync = kwargs.pop("device_sync", None)
+        backend_opts = {"device_sync": device_sync} if device_sync else {}
+        builder = (
+            StencilBuilder(func)
+            .with_backend(backend)
+            .with_externals(externals or {})
+            .with_options(
+                name=func.__name__,
+                module=func.__module__,
+                rebuild=rebuild,
+                backend_opts=backend_opts,
+                **kwargs,
+            )
         )
-        stencil = FutureStencil(
-            StencilBuilder(
-                func, backend=backend_from_name(backend), options=options
-            ).with_externals(externals or {})
-        )
-        return stencil
+        return FutureStencil(builder)
 
     if definition is None:
         return _decorator
@@ -207,7 +206,7 @@ class FutureStencil:
     A stencil object that is compiled by this node or another in a distributed context.
     """
 
-    _id_table = WindowTable()
+    _id_table = StencilTable()
 
     def __init__(self, builder: Optional["StencilBuilder"] = None):
         self._builder: Optional["StencilBuilder"] = builder
