@@ -48,17 +48,25 @@ def combined(q: FloatField, crx: FloatField, cry: FloatField, x_area_flux: Float
         # self.y_piecewise_parabolic_inner(q, cry, self._tmp_fy2)
         fy2 = yppm.y_flux(q, cry)
         # q_i_stencil
-        q_i = compute_q_i(q, area, y_area_flux, fy2)
+        #q_i = compute_q_i(q, area, y_area_flux, fy2)
+        fyy = y_area_flux * fy2
+        # apply y flux divergence 
+        area_with_y_flux = area + y_area_flux - y_area_flux[0, 1, 0]
+        q_i = (q * area + fyy - fyy[0, 1, 0]) / area_with_y_flux
         #self.x_piecewise_parabolic_outer(self._tmp_q_i, crx,fx)
-        fx = xppm.x_flux(q_i, crx)
+        fxt = xppm.x_flux(q_i, crx)
         #self.x_piecewise_parabolic_inner(q, crx,  self._tmp_fx2)
         fx2 = xppm.x_flux(q, crx)
         # q_j
-        q_j =  compute_q_j(q, area, x_area_flux, fx2)
+        # q_j =  compute_q_j(q, area, x_area_flux, fx2)
+        fx1 = x_area_flux * fx2
+        # apply x flux divergence
+        area_with_x_flux =  area + x_area_flux - x_area_flux[1, 0, 0]
+        q_j = (q * area + fx1 - fx1[1, 0, 0]) / area_with_x_flux
         # self.y_piecewise_parabolic_outer(self._tmp_q_j, cry,  fy)
-        fy = yppm.y_flux(q_j, cry)
-        fx =  transport_flux(fx, fx2, mfx)
-        fy =  transport_flux(fy, fy2, mfy)
+        fyt = yppm.y_flux(q_j, cry)
+        fx =  transport_flux(fxt, fx2, mfx)
+        fy =  transport_flux(fyt, fy2, mfy)
         
 class FiniteVolumeTransport:
     """
