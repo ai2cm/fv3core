@@ -131,7 +131,7 @@ def redo_divg_d(
     divg_d: FloatField,
     adjustment_factor: FloatFieldIJ,
 ):
-    from __externals__ import i_end, i_start, j_end, j_start, do_adjustment
+    from __externals__ import do_adjustment, i_end, i_start, j_end, j_start
 
     with computation(PARALLEL), interval(...):
         divg_d = uc[0, -1, 0] - uc + vc[-1, 0, 0] - vc

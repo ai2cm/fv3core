@@ -57,7 +57,7 @@ def ray_fast_wind_compute(
     rf_cutoff_nudge: float,
     ks: int,
 ):
-    from __externals__ import local_ie, local_je, hydrostatic, rf_cutoff, tau
+    from __externals__ import hydrostatic, local_ie, local_je, rf_cutoff, tau
 
     # dm_stencil
     with computation(PARALLEL), interval(...):
