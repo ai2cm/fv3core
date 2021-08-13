@@ -97,7 +97,7 @@ class FiniteVolumeTransport:
                 "mord": abs(hord), # TODO if hord == 10, inner vs outer
             },
             origin=self.grid.compute_origin(),
-            domain=self.grid.domain_shape_compute(add=(1,1,0)),
+            domain=self.grid.domain_shape_compute(add=(1,1,1)),
         )
 
     def __call__(
@@ -128,12 +128,12 @@ class FiniteVolumeTransport:
             mfx: ???
             mfy: ???
         """
-        grid = self.grid
+
         if mfx is None:
             mfx = x_area_flux
         if mfy is None:
             mfy = y_area_flux
-        self.stencil_combined(q, crx, cry,x_area_flux,y_area_flux,  mfx, mfy,fx, fy, grid.area)
+        self.stencil_combined(q, crx, cry,x_area_flux,y_area_flux,  mfx, mfy,fx, fy, self.grid.area)
       
         if (self._nord is not None) and (self._damp_c is not None):
             self.delnflux(q, fx, fy, mass=mass)
