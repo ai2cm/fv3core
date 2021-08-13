@@ -45,11 +45,17 @@ def combined(q: FloatField, crx: FloatField, cry: FloatField, x_area_flux: Float
     from __externals__ import mord
     with computation(PARALLEL), interval(...):
         fy2 = yppm.y_flux(q, cry)
+    with computation(PARALLEL), interval(...):
         q_i = compute_q_i(q, area, y_area_flux, fy2)
+    with computation(PARALLEL), interval(...):
         fxt = xppm.x_flux(q_i, crx)
+    with computation(PARALLEL), interval(...):
         fx2 = xppm.x_flux(q, crx)
+    with computation(PARALLEL), interval(...):
         q_j =  compute_q_j(q, area, x_area_flux, fx2)
+    with computation(PARALLEL), interval(...):
         fyt = yppm.y_flux(q_j, cry)
+    with computation(PARALLEL), interval(...):
         fx =  transport_flux(fxt, fx2, mfx)
         fy =  transport_flux(fyt, fy2, mfy)
         
