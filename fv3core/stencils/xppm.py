@@ -52,16 +52,17 @@ def get_flux(q: FloatField, courant: FloatField, al: FloatField):
 def main_al(q: FloatField):
     return yppm.p1 * (q[-1, 0, 0] + q) + yppm.p2 * (q[-2, 0, 0] + q[1, 0, 0])
 
-
+@gtscript.function
+def x_flux(q, courant):
+    al = main_al(q)
+    return get_flux(q, courant, al)
 def compute_x_flux(
     q: FloatField,
     courant: FloatField,
-    dxa: FloatFieldIJ,
     xflux: FloatField,
 ):
     with computation(PARALLEL), interval(...):
-        al = main_al(q)
-        xflux = get_flux(q, courant, al)
+        xflux = x_flux(q, courant)
 
 
 def finalflux_ord8plus(q: FloatField, c: FloatField, bl: FloatField, br: FloatField, flux: FloatField):
@@ -198,7 +199,7 @@ class XPiecewiseParabolic:
         """
         if self._mord < 8:
             #self.compute_al(q)
-            self._compute_flux_stencil(q, c, self._dxa, xflux)
+            self._compute_flux_stencil(q, c,  xflux)
         else:
             self._compute_blbr_ord8plus(q)
             self._finalflux_ord8plus_stencil(q, c, self._bl, self._br, xflux)

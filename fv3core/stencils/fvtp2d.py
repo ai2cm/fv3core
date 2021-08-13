@@ -25,11 +25,9 @@ def apply_y_flux_divergence(q: FloatField, q_y_flux: FloatField) -> FloatField:
     """
     return q + q_y_flux - q_y_flux[0, 1, 0]
 
-
+@gtscript.function
 def transport_flux(f: FloatField, f2: FloatField, mf: FloatField):
-    with computation(PARALLEL), interval(...):
-        ftmp = 0.5 * (f + f2) * mf
-        f = ftmp
+    return 0.5 * (f + f2) * mf
 
 @gtscript.function
 def compute_q_i(q, area, y_area_flux, fy2):
@@ -43,7 +41,7 @@ def compute_q_j(q, area, x_area_flux, fx2):
     area_with_x_flux = apply_x_flux_divergence(area, x_area_flux)
     return (q * area + fx1 - fx1[1, 0, 0]) / area_with_x_flux
 
-def combined(q: FloatField, crx: FloatField, cry: FloatField, x_area_flux: FloatField,y_area_flux: FloatField, fx2: FloatField, fy2: FloatField, fx:FloatField, fy:FloatField, area: FloatFieldIJ):
+def combined(q: FloatField, crx: FloatField, cry: FloatField, x_area_flux: FloatField,y_area_flux: FloatField, mfx: FloatField, mfy: FloatField, fx:FloatField, fy:FloatField, area: FloatFieldIJ):
     from __externals__ import mord
     with computation(PARALLEL), interval(...):
 
@@ -59,7 +57,9 @@ def combined(q: FloatField, crx: FloatField, cry: FloatField, x_area_flux: Float
         q_j =  compute_q_j(q, area, x_area_flux, fx2)
         # self.y_piecewise_parabolic_outer(self._tmp_q_j, cry,  fy)
         fy = yppm.y_flux(q_j, cry)
-
+        fx =  transport_flux(fx, fx2, mfx)
+        fy =  transport_flux(fy, fy2, mfy)
+        
 class FiniteVolumeTransport:
     """
     Equivalent of Fortran FV3 subroutine fv_tp_2d, done in 3 dimensions.
@@ -78,17 +78,8 @@ class FiniteVolumeTransport:
         self._nord = nord
         self._damp_c = damp_c
         ord_outer = hord
+        # TODO, not accounted for:
         ord_inner = 8 if hord == 10 else hord
-        self.stencil_transport_flux_x = FrozenStencil(
-            transport_flux,
-            origin=self.grid.compute_origin(),
-            domain=self.grid.domain_shape_compute(add=(1, 0, 1)),
-        )
-        self.stencil_transport_flux_y = FrozenStencil(
-            transport_flux,
-            origin=self.grid.compute_origin(),
-            domain=self.grid.domain_shape_compute(add=(0, 1, 1)),
-        )
         if (self._nord is not None) and (self._damp_c is not None):
             self.delnflux = DelnFlux(self._nord, self._damp_c)
 
@@ -134,18 +125,7 @@ class FiniteVolumeTransport:
             mfx = x_area_flux
         if mfy is None:
             mfy = y_area_flux
-        self.stencil_combined(q, crx, cry,x_area_flux,y_area_flux,  self._tmp_fx2, self._tmp_fy2,fx, fy, grid.area)
-
-        #if mfx is not None and mfy is not None:
-        self.stencil_transport_flux_x(
-            fx,
-            self._tmp_fx2,
-            mfx,
-        )
-        self.stencil_transport_flux_y(
-            fy,
-            self._tmp_fy2,
-            mfy,
-        )
+        self.stencil_combined(q, crx, cry,x_area_flux,y_area_flux,  mfx, mfy,fx, fy, grid.area)
+      
         if (self._nord is not None) and (self._damp_c is not None):
             self.delnflux(q, fx, fy, mass=mass)

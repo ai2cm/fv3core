@@ -78,16 +78,17 @@ def get_b0(bl, br):
 def main_al(q: FloatField):
     return p1 * (q[0, -1, 0] + q) + p2 * (q[0, -2, 0] + q[0, 1, 0])
 
-
+@gtscript.function
+def y_flux(q, courant):
+    al = main_al(q)
+    return get_flux(q, courant, al)
 def compute_y_flux(
     q: FloatField,
     courant: FloatField,
-    dya: FloatFieldIJ,
     yflux: FloatField,
 ):
     with computation(PARALLEL), interval(...):
-        al = main_al(q)
-        yflux = get_flux(q, courant, al)
+        yflux = y_flux(q, courant)
 
 def finalflux_ord8plus(q: FloatField, c: FloatField, bl: FloatField, br: FloatField, flux: FloatField):
     with computation(PARALLEL), interval(...):
@@ -199,7 +200,7 @@ class YPiecewiseParabolic:
             ilast: Final index of the I-dir compute domain
         """
         if self._mord < 8:
-            self._compute_flux_stencil(q, c, self._dya, flux)
+            self._compute_flux_stencil(q, c,  flux)
         else:
             self.compute_blbr_ord8plus(q)
             self._finalflux_ord8plus_stencil(q, c, self._bl, self._br, flux)
