@@ -80,9 +80,6 @@ class FiniteVolumeTransport:
         shape = self.grid.domain_shape_full(add=(1, 1, 1))
         origin = self.grid.compute_origin()
 
-        self._tmp_fx2 = utils.make_storage_from_shape(shape, origin)
-        self._tmp_fy2 = utils.make_storage_from_shape(shape, origin)
-
         self._nord = nord
         self._damp_c = damp_c
         ord_outer = hord
@@ -131,9 +128,15 @@ class FiniteVolumeTransport:
 
         if mfx is None:
             mfx = x_area_flux
+            use_mass = False
+        else:
+            use_mass = True
         if mfy is None:
             mfy = y_area_flux
         self.stencil_combined(q, crx, cry,x_area_flux,y_area_flux,  mfx, mfy,fx, fy, self.grid.area)
       
         if (self._nord is not None) and (self._damp_c is not None):
-            self.delnflux(q, fx, fy, mass=mass)
+            if (use_mass and mass is not None):
+                self.delnflux(q, fx, fy, mass=mass)
+            elif not use_mass:
+                self.delnflux(q, fx, fy)
