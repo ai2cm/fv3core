@@ -196,7 +196,13 @@ def driver(
     if print_timings:
         # Collect times and output statistics in json
         collect_data_and_write_to_file(
-            mpi_comm, hits_per_step, times_per_step, experiment_name, time_steps, backend
+            mpi_comm,
+            hits_per_step,
+            times_per_step,
+            experiment_name,
+            time_steps,
+            backend,
+            "acoustics",
         )
 
 

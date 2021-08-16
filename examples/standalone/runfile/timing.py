@@ -81,11 +81,15 @@ def gather_timing_data(
     return results
 
 
-def write_global_timings(backend, disabled_halos, experiment: Dict[str, Any]) -> None:
+def write_global_timings(
+    backend: str, disabled_halos: bool, experiment: Dict[str, Any], file_appendix: str
+) -> None:
     now = datetime.now()
     halo_str = "nohalos" if disabled_halos else ""
-    filename = now.strftime("%Y-%m-%d-%H-%M-%S")
-    with open(filename + backend + halo_str + ".json", "w") as outfile:
+    time_string = now.strftime("%Y-%m-%d-%H-%M-%S")
+    full_filename = "_".join([time_string, file_appendix, backend, halo_str]) + ".json"
+    full_filename = full_filename.replace(":", "")
+    with open(full_filename, "w") as outfile:
         json.dump(experiment, outfile, sort_keys=True, indent=4)
 
 
@@ -96,7 +100,6 @@ def gather_hit_counts(
     for data_point in hits_per_step:
         for name, value in data_point.items():
             if name not in results["times"]:
-                print(name)
                 results["times"][name] = {"hits": value, "times": []}
             else:
                 results["times"][name]["hits"] += value
@@ -110,6 +113,7 @@ def collect_data_and_write_to_file(
     experiment_name,
     time_step,
     backend,
+    file_appendix="",
     hash="",
 ) -> None:
     """
@@ -123,7 +127,6 @@ def collect_data_and_write_to_file(
 
     results = None
     if is_root:
-        print("Gathering Times")
         results = set_experiment_info(experiment_name, time_step, backend, hash)
         results = gather_hit_counts(hits_per_step, results)
 
@@ -133,4 +136,4 @@ def collect_data_and_write_to_file(
         results = put_data_into_dict(times_per_step, results)
 
     if is_root:
-        write_global_timings(backend, bool(comm), results)
+        write_global_timings(backend, bool(comm), results, file_appendix)
