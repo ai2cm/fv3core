@@ -9,18 +9,16 @@ import numpy as np
 from mpi4py import MPI
 
 
-def set_experiment_info(
-    experiment_name: str, time_step: int, backend: str, git_hash: str
-) -> Dict[str, Any]:
+def set_experiment_info(experiment_setup: Dict[str, Any]) -> Dict[str, Any]:
     experiment: Dict[str, Any] = {}
     now = datetime.now()
     dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
     experiment["setup"] = {}
     experiment["setup"]["timestamp"] = dt_string
-    experiment["setup"]["dataset"] = experiment_name
-    experiment["setup"]["timesteps"] = time_step
-    experiment["setup"]["hash"] = git_hash
-    experiment["setup"]["version"] = "python/" + backend
+    experiment["setup"]["dataset"] = experiment_setup["dataset"]
+    experiment["setup"]["timesteps"] = experiment_setup["timesteps"]
+    experiment["setup"]["hash"] = experiment_setup["hash"]
+    experiment["setup"]["version"] = "python/" + experiment_setup["backend"]
     experiment["setup"]["format_version"] = 2
     experiment["times"] = {}
     return experiment
@@ -81,12 +79,17 @@ def gather_timing_data(
 
 
 def write_global_timings(
-    backend: str, disabled_halos: bool, experiment: Dict[str, Any], file_appendix: str
+    experiment: Dict[str, Any], experiment_info: Dict[str, Any]
 ) -> None:
     now = datetime.now()
-    halo_str = "nohalos" if disabled_halos else ""
+    halo_str = "haloupade" if experiment_info["halo_update"] else "nohalo"
     time_string = now.strftime("%Y-%m-%d-%H-%M-%S")
-    full_filename = "_".join([time_string, file_appendix, backend, halo_str]) + ".json"
+    full_filename = (
+        "_".join(
+            [time_string, experiment_info["name"], experiment_info["backend"], halo_str]
+        )
+        + ".json"
+    )
     full_filename = full_filename.replace(":", "")
     with open(full_filename, "w") as outfile:
         json.dump(experiment, outfile, sort_keys=True, indent=4)
@@ -109,11 +112,7 @@ def collect_data_and_write_to_file(
     comm: Optional[MPI.Comm],
     hits_per_step,
     times_per_step,
-    experiment_name,
-    time_step,
-    backend,
-    file_appendix="",
-    hash="",
+    experiment_setup: Dict[str, Any],
 ) -> None:
     """
     collect the gathered data from all the ranks onto rank 0 and write the timing file
@@ -121,12 +120,14 @@ def collect_data_and_write_to_file(
     if comm:
         comm.Barrier()
         is_root = comm.Get_rank() == 0
+        print("here" + str(comm.Get_rank()))
     else:
         is_root = True
+        print("here")
 
     results = None
     if is_root:
-        results = set_experiment_info(experiment_name, time_step, backend, hash)
+        results = set_experiment_info(experiment_setup)
         results = gather_hit_counts(hits_per_step, results)
 
     if comm:
@@ -135,4 +136,4 @@ def collect_data_and_write_to_file(
         results = put_data_into_dict(times_per_step, results)
 
     if is_root:
-        write_global_timings(backend, bool(comm), results, file_appendix)
+        write_global_timings(results, experiment_setup)

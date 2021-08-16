@@ -99,11 +99,14 @@ def set_up_communicator(
 ) -> Tuple[Optional[MPI.Comm], Optional[util.CubedSphereCommunicator]]:
     layout = spec.namelist.layout
     partitioner = util.CubedSpherePartitioner(util.TilePartitioner(layout))
-    if not disable_halo_exchange:
+    if MPI is not None:
         comm = MPI.COMM_WORLD
-        cube_comm = util.CubedSphereCommunicator(comm, partitioner)
     else:
         comm = None
+    if not disable_halo_exchange:
+        assert comm is not None
+        cube_comm = util.CubedSphereCommunicator(comm, partitioner)
+    else:
         cube_comm = util.CubedSphereCommunicator(NullComm(0, 0), partitioner)
     return comm, cube_comm
 
@@ -137,7 +140,7 @@ def read_and_reset_timer(timestep_timer, times_per_step, hits_per_step):
 @click.argument("data_directory", required=True, nargs=1)
 @click.argument("time_steps", required=False, default="1")
 @click.argument("backend", required=False, default="gtc:gt:cpu_ifirst")
-@click.option("--disable_halo_exchange/--no-disable_halo_exchange", default=True)
+@click.option("--disable_halo_exchange/--no-disable_halo_exchange", default=False)
 @click.option("--print_timings/--no-print_timings", default=True)
 def driver(
     data_directory: str,
@@ -195,16 +198,18 @@ def driver(
         total_timer, times_per_step, hits_per_step
     )
 
+    experiment_info = {
+        "name": "acoustics",
+        "dataset": experiment_name,
+        "timesteps": time_steps,
+        "backend": backend,
+        "halo_update": not disable_halo_exchange,
+        "hash": "",
+    }
     if print_timings:
         # Collect times and output statistics in json
         collect_data_and_write_to_file(
-            mpi_comm,
-            hits_per_step,
-            times_per_step,
-            experiment_name,
-            time_steps,
-            backend,
-            "acoustics",
+            mpi_comm, hits_per_step, times_per_step, experiment_info
         )
 
 
