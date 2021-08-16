@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 from types import SimpleNamespace
-from typing import Any, Collection, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import click
 import serialbox
@@ -10,7 +10,6 @@ from timing import collect_data_and_write_to_file
 import fv3core
 import fv3core._config as spec
 import fv3core.testing
-import fv3core.utils.global_config as global_config
 import fv3gfs.util as util
 from fv3core.stencils.dyn_core import AcousticDynamics
 from fv3core.utils.grid import Grid
@@ -69,7 +68,9 @@ def read_input_data(grid: Grid, serializer: serialbox.Serializer) -> Dict[str, A
     return driver_object.collect_input_data(serializer, savepoint_in)
 
 
-def get_state_from_input(grid: Grid, input_data: Dict[str, Any]) -> Dict[str, SimpleNamespace]:
+def get_state_from_input(
+    grid: Grid, input_data: Dict[str, Any]
+) -> Dict[str, SimpleNamespace]:
     """
     Transforms the input data from the dictionary of strings
     to arrays into a state  we can pass in
@@ -181,7 +182,8 @@ def driver(
     # we set up a specific timer for each timestep
     # that is cleared after so we get individual statistics
     for _ in range(int(time_steps) - 1):
-        # this loop is not required, but make performance numbers comparable with FVDynamics
+        # this loop is not required
+        # but make performance numbers comparable with FVDynamics
         for _ in range(spec.namelist.k_split):
             with timestep_timer.clock("DynCore"):
                 acoustics_object(**state)
