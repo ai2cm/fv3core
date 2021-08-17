@@ -31,7 +31,7 @@ class TranslateFill4Corners(TranslateFortranData2Py):
                 origin=origin,
                 domain=domain,
             )
-        stencil(inputs["q4c"])
+        stencil(inputs["q4c"], inputs["q4c"])
         return self.slice_output(inputs, {"q4c": inputs["q4c"]})
 
 
