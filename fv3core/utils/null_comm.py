@@ -10,7 +10,7 @@ class NullAsyncResult:
 class NullComm:
     """
     A class with a subset of the mpi4py Comm API, but which
-    'receives' zeros instead of using MPI.
+    'receives' a fill value (default zero) instead of using MPI.
     """
 
     def __init__(self, rank, total_ranks, fill_value=0.0):
