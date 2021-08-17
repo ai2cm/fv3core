@@ -111,8 +111,6 @@ class TranslateFillCornersVector(TranslateFortranData2Py):
                     domain=domain,
                 )
                 vector_corner_fill(
-                    inputs["vc"],
-                    inputs["uc"],
-                    -1.0,
+                    inputs["vc"], inputs["vc"], inputs["uc"], inputs["uc"], -1.0
                 )
         return self.slice_output(inputs)

@@ -362,10 +362,7 @@ class DivergenceDamping:
             self.damping_zero_order(
                 u, v, va, ptc, vort, ua, vc, uc, delpc, ke, self._d2_bg_column, dt
             )
-        self._copy_computeplus(
-            divg_d,
-            delpc,
-        )
+        self._copy_computeplus(divg_d, delpc)
         for n in range(self._nonzero_nord):
             fillc = (
                 (n + 1 != self._nonzero_nord)
@@ -378,23 +375,11 @@ class DivergenceDamping:
                 )
             )
             if fillc:
-                self.fill_corners_bgrid_x(
-                    divg_d,
-                )
-            self._vc_from_divg_stencils[n](
-                divg_d,
-                self._divg_u,
-                vc,
-            )
+                self.fill_corners_bgrid_x(divg_d)
+            self._vc_from_divg_stencils[n](divg_d, self._divg_u, vc)
             if fillc:
-                self.fill_corners_bgrid_y(
-                    divg_d,
-                )
-            self._uc_from_divg_stencils[n](
-                divg_d,
-                self._divg_v,
-                uc,
-            )
+                self.fill_corners_bgrid_y(divg_d)
+            self._uc_from_divg_stencils[n](divg_d, self._divg_v, uc)
 
             if fillc:
                 self._fill_corners_dgrid_stencil(vc, vc, uc, uc, -1.0)
