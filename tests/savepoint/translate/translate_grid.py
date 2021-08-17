@@ -19,7 +19,7 @@ from fv3core.grid import (
     init_grid_utils,
 )
 
-from fv3core.utils.corners import fill_corners_2d, fill_corners_agrid, fill_corners_dgrid
+from fv3core.utils.corners import fill_corners_2d, fill_corners_agrid, fill_corners_dgrid, fill_corners_cgrid
 from fv3core.utils.global_constants import PI, RADIUS, LON_OR_LAT_DIM, TILE_DIM
 from fv3core.testing.parallel_translate import ParallelTranslateGrid
 
@@ -326,6 +326,43 @@ class TranslateMoreAreas(ParallelTranslateGrid):
         state_list = []
         for inputs, communicator in zip(inputs_list, communicator_list):
             state_list.append(self._compute_local(inputs, communicator))
+        req_list = []
+        for state, communicator in zip(state_list, communicator_list):
+            req_list.append(
+                communicator.start_vector_halo_update(
+                    state["dx_cgrid"], state["dy_cgrid"], n_points=self.grid.halo
+                )
+            )
+        for communicator, req in zip(communicator_list, req_list):
+            req.wait()
+        for state, grid in zip(state_list, self.rank_grids):
+            #TODO: Add support for unsigned vector halo updates instead of handling ad-hoc here
+            state["dx_cgrid"].data[state["dx_cgrid"].data < 0] *= -1
+            state["dy_cgrid"].data[state["dy_cgrid"].data < 0] *= -1
+
+            #TODO: fix issue with interface dimensions causing validation errors
+            fill_corners_cgrid(
+                state["dx_cgrid"].data[:, :, None],
+                state["dy_cgrid"].data[:, :, None],
+                grid,
+                vector=False,
+            )
+
+        req_list = []
+        for state, communicator in zip(state_list, communicator_list):
+            req_list.append(
+                communicator.start_halo_update(state["area_cgrid"], n_points=self.grid.halo)
+            )
+        for communicator, req in zip(communicator_list, req_list):
+            req.wait()
+
+        for i, state in enumerate(state_list):
+            fill_corners_2d(
+                state["area_cgrid"].data[:, :, None][:, :, None],
+                self.grid,
+                gridtype="B",
+                direction="x",
+            )
         return self.outputs_list_from_state_list(state_list)
 
     def _compute_local(self, inputs, communicator):
@@ -631,7 +668,7 @@ class TranslateAgrid(ParallelTranslateGrid):
 
     def _compute_local_part2(self, state):
         lon, lat = state["grid"].data[:, :, 0], state["grid"].data[:, :, 1]
-        lon_y_center, lat_y_center = lon_lat_midpoint(
+        lon_y_center, lat_y_center =  lon_lat_midpoint(
             lon[:, :-1], lon[:, 1:], lat[:, :-1], lat[:, 1:], state["grid"].np
         )
         dx_agrid = great_circle_distance_along_axis(

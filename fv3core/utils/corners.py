@@ -576,12 +576,10 @@ def fill_se_corner_2d_bgrid(q, i, j, direction, grid):
 
 
 def fill_ne_corner_2d_bgrid(q, i, j, direction, grid):
-    i_end = grid.halo + grid.npx - 2  # index of last value in compute domain
-    j_end = grid.halo + grid.npy - 2
     if direction == "x":
-        q[i_end + i, j_end + j, :] = q[i_end + j, j_end - i + 1, :]
+        q[grid.ie + 1 + i, grid.je + 1 + j :] = q[grid.ie + 1 + j, grid.je + 1 - i, :]
     if direction == "y":
-        q[i_end + j, j_end + i, :] = q[i_end - i + 1, j_end + j, :]
+        q[grid.ie + 1 + i, grid.je + 1 + j :] = q[grid.ie + 1 - i, grid.je + 1 + j, :]
 
 
 def fill_sw_corner_2d_agrid(q, i, j, direction, grid, kstart=0, nk=None):
@@ -674,7 +672,7 @@ def fill_corners_agrid(x, y, grid, vector):
             if grid.ne_corner:
                 x[i_end + i, j_end + j, :] = mysign * y[i_end + j, j_end - i + 1, :]
                 y[i_end + j, j_end + i, :] = mysign * x[i_end - i + 1, j_end + j, :]
-                
+
 
 def fill_sw_corner_vector_dgrid(x, y, i, j, grid, mysign):
     x[grid.is_ - i, grid.js - j, :] = mysign * y[grid.is_ - j, i + 2, :]
@@ -710,6 +708,42 @@ def fill_corners_dgrid(x, y, grid, vector):
                 fill_se_corner_vector_dgrid(x, y, i, j, grid)
             if grid.ne_corner:
                 fill_ne_corner_vector_dgrid(x, y, i, j, grid, mysign)
+
+
+def fill_sw_corner_vector_cgrid(x, y, i, j, grid):
+    x[grid.is_ - i, grid.js - j, :] = y[j + 2, grid.js - i, :]
+    y[grid.is_ - i, grid.js - j, :] = x[grid.is_ - j, i + 2, :]
+
+
+def fill_nw_corner_vector_cgrid(x, y, i, j, grid, mysign):
+    x[grid.is_ - i, grid.je + j, :]     = mysign * y[j + 2,        grid.je + 1 + i, :]
+    y[grid.is_ - i, grid.je + 1 + j, :] = mysign * x[grid.is_ - j, grid.je + 1 - i, :]
+
+
+def fill_se_corner_vector_cgrid(x, y, i, j, grid, mysign):
+    x[grid.ie + 1 + i, grid.js - j, :] = mysign * y[grid.ie + 1 - j, grid.js - i, :]
+    y[grid.ie + i, grid.js - j, :] = mysign * x[grid.ie + 1 + j, i + 2, :]
+
+
+def fill_ne_corner_vector_cgrid(x, y, i, j, grid):
+    x[grid.ie + 1 + i, grid.je + j, :] = y[grid.ie + 1 - j, grid.je + 1 + i, :]
+    y[grid.ie + i, grid.je + 1 + j, :] = x[grid.ie + 1 + j, grid.je + 1 - i, :]
+
+
+def fill_corners_cgrid(x, y, grid, vector):
+    mysign = 1.0
+    if vector:
+        mysign = -1.0
+    for i in range(1, 1 + grid.halo):
+        for j in range(1, 1 + grid.halo):
+            if grid.sw_corner:
+                fill_sw_corner_vector_cgrid(x, y, i, j, grid)
+            if grid.nw_corner:
+                fill_nw_corner_vector_cgrid(x, y, i, j, grid, mysign)
+            if grid.se_corner:
+                fill_se_corner_vector_cgrid(x, y, i, j, grid, mysign)
+            if grid.ne_corner:
+                fill_ne_corner_vector_cgrid(x, y, i, j, grid)
 
 
 def fill_corners_dgrid_defn(x: FloatField, y: FloatField, mysign: float):

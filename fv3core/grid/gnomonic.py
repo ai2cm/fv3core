@@ -1,3 +1,4 @@
+import typing
 from fv3core.utils.global_constants import PI
 
 def gnomonic_grid(grid_type: int, lon, lat, np):
@@ -430,16 +431,11 @@ def _set_c_grid_south_edge_area(xyz_dgrid, xyz_agrid, area_cgrid, radius, np):
 
 
 def _set_c_grid_southwest_corner_area(xyz_dgrid, xyz_agrid, area_cgrid, radius, np):
-    # p1 = normalize_xyz(0.5 * (xyz_dgrid[0, 0] + xyz_dgrid[1, 0]))
-    # p3 = normalize_xyz(0.5 * (xyz_dgrid[0, 0] + xyz_dgrid[0, 1]))
-    # area_cgrid[0, 0] = 3 * get_rectangle_area(
-    #     p1, xyz_agrid[0, 0, :], p3, xyz_dgrid[0, 0, :], radius, np
-    # )
-    lower_right = normalize_xyz(0.5 * (xyz_dgrid[0, 0] + xyz_dgrid[1, 0]))
+    lower_right = normalize_xyz((xyz_dgrid[0, 0] + xyz_dgrid[1, 0]))
     upper_right = xyz_agrid[0, 0, :]
-    upper_left = normalize_xyz(0.5 * (xyz_dgrid[0, 0] + xyz_dgrid[0, 1]))
+    upper_left = normalize_xyz((xyz_dgrid[0, 0] + xyz_dgrid[0, 1]))
     lower_left = xyz_dgrid[0, 0, :]
-    area_cgrid[0, 0] = 3 * get_rectangle_area(
+    area_cgrid[0, 0] = 3. * get_rectangle_area(
         lower_left, upper_left, upper_right, lower_right, radius, np
     )
 
@@ -470,7 +466,7 @@ def set_tile_border_dxc(xyz_dgrid, xyz_agrid, radius, dxc, tile_partitioner, ran
 
 
 def _set_tile_west_dxc(xyz_dgrid, xyz_agrid, radius, dxc, np):
-    tile_edge_point = xyz_midpoint(xyz_dgrid[0, 1:], xyz_dgrid[0, :-1])
+    tile_edge_point = 0.5*(xyz_dgrid[0, 1:] + xyz_dgrid[0, :-1])
     cell_center_point = xyz_agrid[0, :]
     dxc[0, :] = 2 * great_circle_distance_xyz(
         tile_edge_point, cell_center_point, radius, np
@@ -558,14 +554,6 @@ def spherical_angle(p_center, p2, p3, np):
     #    qz = e1(1)*e3(2) - e1(2)*e3(1)
     p = np.cross(p_center, p2)
     q = np.cross(p_center, p3)
-    # ddd = np.sum(p**2, axis=-1) * np.sum(q**2, axis=-1)
-    # ddd_negative = ddd <= 0.
-    # ddd = np.sum(p * q, axis=-1) / np.sqrt(ddd)
-    # angle = np.arccos(ddd)
-    # angle[ddd_negative] = 0.
-    # angle[np.abs(ddd) > 1] = 0.5 * PI
-    # angle[ddd < 0] = PI
-    # return angle
     return np.arccos(
         np.sum(p * q, axis=-1)
         / np.sqrt(np.sum(p ** 2, axis=-1) * np.sum(q ** 2, axis=-1))
