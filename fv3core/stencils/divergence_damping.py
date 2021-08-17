@@ -397,11 +397,7 @@ class DivergenceDamping:
             )
 
             if fillc:
-                self._fill_corners_dgrid_stencil(
-                    vc,
-                    uc,
-                    -1.0,
-                )
+                self._fill_corners_dgrid_stencil(vc, vc, uc, uc, -1.0)
             self._redo_divg_d_stencils[n](uc, vc, divg_d, self._rarea_c)
 
         self.vorticity_calc(wk, vort, delpc, dt)
