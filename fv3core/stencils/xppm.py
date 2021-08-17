@@ -171,6 +171,8 @@ def compute_al(q: FloatField, dxa: FloatFieldIJ):
 def bl_br_edges(bl, br, q, dxa, al, dm):
     from __externals__ import i_end, i_start
 
+    al_ip1 = al[1, 0, 0]
+
     with horizontal(region[i_start - 1, :]):
         # TODO(rheag) when possible
         # dm_left = dm_iord8plus(q[-1, 0, 0])
@@ -194,7 +196,7 @@ def bl_br_edges(bl, br, q, dxa, al, dm):
 
     with horizontal(region[i_start + 1, :]):
         xt_bl = yppm.s15 * q[-1, 0, 0] + yppm.s11 * q - yppm.s14 * dm
-        xt_br = al[1, 0, 0]
+        xt_br = al_ip1
 
     with horizontal(region[i_end - 1, :]):
         xt_bl = al
