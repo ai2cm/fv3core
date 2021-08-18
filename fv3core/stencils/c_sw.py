@@ -244,7 +244,6 @@ def divergence_corner(
         # in the future we could use gtscript functions when they support shifts
 
         with horizontal(region[i_start, :], region[i_end + 1, :]):
-            vf = v * dxc * 0.5 * (sin_sg3[-1, 0] + sin_sg1)
             vf1 = v[0, -1, 0] * dxc[0, -1] * 0.5 * (sin_sg3[-1, -1] + sin_sg1[0, -1])
             uf1 = (
                 (
@@ -257,10 +256,10 @@ def divergence_corner(
                 * 0.5
                 * (sin_sg4[-1, -1] + sin_sg2[-1, 0])
             )
-            divg_d = (vf1 - vf + uf1 - uf) * rarea_c
+            vf2 = v * dxc * 0.5 * (sin_sg3[-1, 0] + sin_sg1)
+            divg_d = (vf1 - vf2 + uf1 - uf) * rarea_c
 
         with horizontal(region[:, j_start], region[:, j_end + 1]):
-            uf = u * dyc * 0.5 * (sin_sg4[0, -1] + sin_sg2)
             uf1 = u[-1, 0, 0] * dyc[-1, 0] * 0.5 * (sin_sg4[-1, -1] + sin_sg2[-1, 0])
             vf1 = (
                 (
@@ -273,19 +272,20 @@ def divergence_corner(
                 * 0.5
                 * (sin_sg3[-1, -1] + sin_sg1[0, -1])
             )
-            divg_d = (vf1 - vf + uf1 - uf) * rarea_c
+            uf2 = u * dyc * 0.5 * (sin_sg4[0, -1] + sin_sg2)
+            divg_d = (vf1 - vf + uf1 - uf2) * rarea_c
 
         with horizontal(region[i_start, j_start], region[i_end + 1, j_start]):
-            vf = v * dxc * 0.5 * (sin_sg3[-1, 0] + sin_sg1)
-            uf = u * dyc * 0.5 * (sin_sg4[0, -1] + sin_sg2)
             uf1 = u[-1, 0, 0] * dyc[-1, 0] * 0.5 * (sin_sg4[-1, -1] + sin_sg2[-1, 0])
-            divg_d = (-vf + uf1 - uf) * rarea_c
+            vf2 = v * dxc * 0.5 * (sin_sg3[-1, 0] + sin_sg1)
+            uf2 = u * dyc * 0.5 * (sin_sg4[0, -1] + sin_sg2)
+            divg_d = (-vf2 + uf1 - uf2) * rarea_c
 
         with horizontal(region[i_end + 1, j_end + 1], region[i_start, j_end + 1]):
             vf1 = v[0, -1, 0] * dxc[0, -1] * 0.5 * (sin_sg3[-1, -1] + sin_sg1[0, -1])
             uf1 = u[-1, 0, 0] * dyc[-1, 0] * 0.5 * (sin_sg4[-1, -1] + sin_sg2[-1, 0])
-            uf = u * dyc * 0.5 * (sin_sg4[0, -1] + sin_sg2)
-            divg_d = (vf1 + uf1 - uf) * rarea_c
+            uf2 = u * dyc * 0.5 * (sin_sg4[0, -1] + sin_sg2)
+            divg_d = (vf1 + uf1 - uf2) * rarea_c
 
         # ---------
 
@@ -426,9 +426,7 @@ class CGridShallowWaterDynamics:
         if nord > 0:
             self._divergence_corner = FrozenStencil(
                 func=divergence_corner,
-                externals={
-                    **ax_offsets,
-                },
+                externals=ax_offsets,
                 origin=origin,
                 domain=domain,
             )
