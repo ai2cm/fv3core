@@ -107,17 +107,36 @@ def diffusive_damp(
         fy = fy + 0.5 * damp * (mass[0, -1, 0] + mass) * fy2
 
 
-def nord_split(nord_column, nord_nml):
-    nonzero_nord_k = 0
-    nonzero_nord = int(nord_nml)
-    for k in range(len(nord_column)):
-        if nord_column[k] > 0:
-            nonzero_nord_k = k
-            nonzero_nord = int(nord_column[k])
-            break
-    return nonzero_nord_k, nonzero_nord
-
-
+def delnflux_combined(
+    q: FloatField,
+    del6_u: FloatFieldIJ,
+    del6_v: FloatFieldIJ,
+    rarea: FloatFieldIJ,
+    d2: FloatField,
+    fx: FloatField,
+    fy: FloatField,
+    nord: FloatFieldK,
+    damp: FloatFieldK,
+    do_damp: bool
+):
+    with computation(PARALLEL), interval(...):
+        if do_damp:
+            d2 = damp * q
+        else:
+            d2 = q
+        d2copy = d2
+        fx1 = del6_v * (d2copy[-1, 0, 0] - d2copy)
+        fy1 = del6_u * (d2copy[0, -1, 0] - d2copy)
+        if nord > 0:
+            d2_2 = (fx1 - fx1[1, 0, 0] + fy1 - fy1[0, 1, 0]) * rarea
+            fx1 = -del6_v * (d2_2[-1, 0, 0] - d2_2)
+            fy1 = -del6_u * (d2_2[0, -1, 0] - d2_2)
+            d2 = (fx1 - fx1[1, 0, 0] + fy1 - fy1[0, 1, 0]) * rarea
+            fx = -del6_v * (d2[-1, 0, 0] - d2)
+            fy = -del6_u * (d2[0, -1, 0] - d2)
+        else:
+            fx = fx1
+            fy = fy1
 class DelnFlux:
     """
     Fortran name is deln_flux
@@ -148,7 +167,7 @@ class DelnFlux:
 
         shape = grid.domain_shape_full(add=(1, 1, 1))
         k_shape = (1, 1, nk)
-        self._nonzero_nord_k, self._nonzero_nord = nord_split(nord, spec.namelist.nord)
+
         self._damp_3d = utils.make_storage_from_shape(k_shape)
         # fields must be 3d to assign to them
         self._fx2 = utils.make_storage_from_shape(shape)
@@ -232,123 +251,28 @@ class DelnFluxNoSG:
 
         self._nmax = int(max(nord[:]))
         self._grid = spec.grid
-
-        i1 = self._grid.is_ - 1 - self._nmax
-        i2 = self._grid.ie + 1 + self._nmax
-        j1 = self._grid.js - 1 - self._nmax
-        j2 = self._grid.je + 1 + self._nmax
         if nk is None:
             nk = self._grid.npz
         self._nk = nk
-        nonzero_nord_k, nonzero_nord = nord_split(nord, spec.namelist.nord)
-        kstart = nonzero_nord_k
-        low_kstart = 0
-        nk = self._nk - kstart
-        low_nk = max(1, nonzero_nord_k)
-        origin_d2 = (i1, j1, 0)
-        domain_d2 = (i2 - i1 + 1, j2 - j1 + 1, self._nk)
-        f1_ny = self._grid.je - self._grid.js + 1 + 2 * self._nmax
-        f1_nx = self._grid.ie - self._grid.is_ + 2 + 2 * self._nmax
-        fx_origin = (self._grid.is_ - self._nmax, self._grid.js - self._nmax, 0)
         self._nord = nord
 
         if self._nk <= 3:
             raise Exception("nk must be more than 3 for DelnFluxNoSG")
-        self._k_bounds = [1, 1, 1, self._nk - 3]
 
         # nmax for this namelist is always 2
         # for n in range(self._nmax):
         # n = 0
-        nt = self._nmax - 1 - 0
-        nt_ny = self._grid.je - self._grid.js + 3 + 2 * nt
-        nt_nx = self._grid.ie - self._grid.is_ + 3 + 2 * nt
-        origin_d2 = (self._grid.is_ - nt - 1, self._grid.js - nt - 1, 0)
-        domain_d2 = (nt_nx, nt_ny, self._nk)
-        origin_flux = (self._grid.is_ - nt, self._grid.js - nt, 0)
-        domain_fx = (nt_nx - 1, nt_ny - 2, self._nk)
-        domain_fy = (nt_nx - 2, nt_ny - 1, self._nk)
-        self._d2_stencil0 = FrozenStencil(
-            d2_highorder_stencil,
-            origin_d2,
-            domain_d2,
-        )
-        self._column_conditional_fx_calculation0 = FrozenStencil(
-            fx_calc_stencil_column,
-            origin_flux,
-            domain_fx,
-        )
-        self._column_conditional_fy_calculation0 = FrozenStencil(
-            fy_calc_stencil_column,
-            origin_flux,
-            domain_fy,
-        )
+        #nt = self._nmax - 1 - 0
         # loop n = 1
-        nt = self._nmax - 1 - 1
-        nt_ny = self._grid.je - self._grid.js + 3 + 2 * nt
-        nt_nx = self._grid.ie - self._grid.is_ + 3 + 2 * nt
-        origin_d2 = (self._grid.is_ - nt - 1, self._grid.js - nt - 1, 0)
-        domain_d2 = (nt_nx, nt_ny, self._nk)
-        origin_flux = (self._grid.is_ - nt, self._grid.js - nt, 0)
-        domain_fx = (nt_nx - 1, nt_ny - 2, self._nk)
-        domain_fy = (nt_nx - 2, nt_ny - 1, self._nk)
+        #nt = self._nmax - 1 - 1
+        #nt_ny = self._grid.je - self._grid.js + 3 + 2 * nt
+        #nt_nx = self._grid.ie - self._grid.is_ + 3 + 2 * nt
+       
         self._d2_stencil1 = FrozenStencil(
-            d2_highorder_stencil,
-            origin_d2,
-            domain_d2,
-        )
-        self._column_conditional_fx_calculation1 = FrozenStencil(
-            fx_calc_stencil_column,
-            origin_flux,
-            domain_fx,
-        )
-        self._column_conditional_fy_calculation1 = FrozenStencil(
-            fy_calc_stencil_column,
-            origin_flux,
-            domain_fy,
-        )
-        self._d2_damp_low = FrozenStencil(
-            d2_damp_interval,
-            origin=(self._grid.is_ - 1, self._grid.js - 1, low_kstart),
-            domain=(self._grid.nic + 2, self._grid.njc + 2, low_nk),
-        )
-        self._d2_damp = FrozenStencil(
-            d2_damp_interval,
-            origin=(i1, j1, kstart),
-            domain=(i2 - i1 + 1, j2 - j1 + 1, nk),
-        )
-        self._copy_stencil_interval_low = FrozenStencil(
-            copy_defn,
-            origin=(self._grid.is_ - 1, self._grid.js - 1, low_kstart),
-            domain=(self._grid.nic + 2, self._grid.njc + 2, low_nk),
-        )
-        self._copy_stencil_interval = FrozenStencil(
-            copy_defn, origin=(i1, j1, kstart), domain=(i2 - i1 + 1, j2 - j1 + 1, nk)
-        )
-
-        self._fx_calc_stencil_low = FrozenStencil(
-            fx_calc_stencil,
-            origin=(self._grid.is_, self._grid.js, low_kstart),
-            domain=(self._grid.nic + 1, self._grid.njc, low_nk),
-        )
-        self._fx_calc_stencil = FrozenStencil(
-            fx_calc_stencil,
-            origin=(self._grid.is_ - self._nmax, self._grid.js - self._nmax, kstart),
-            domain=(f1_nx, f1_ny, nk),
-        )
-        self._fy_calc_stencil_low = FrozenStencil(
-            fy_calc_stencil,
-            origin=(self._grid.is_, self._grid.js, low_kstart),
-            domain=(self._grid.nic, self._grid.njc + 1, low_nk),
-        )
-        self._fy_calc_stencil = FrozenStencil(
-            fy_calc_stencil,
-            origin=(self._grid.is_ - self._nmax, self._grid.js - self._nmax, kstart),
-            domain=(f1_nx - 1, f1_ny + 1, nk),
-        )
-        self._copy_full_domain = FrozenStencil(
-            copy_defn,
-            origin=self._grid.full_origin(),
-            domain=(self._grid.nid, self._grid.njd, self._nk),
+            delnflux_combined,
+            origin=self._grid.full_origin(add=(1, 1, 0)),
+            domain=self._grid.domain_shape_full(add=(-2, -2, self._nk - self._grid.npz))
+            
         )
 
     def __call__(self, q, fx2, fy2, damp_c, d2, mass=None):
@@ -363,29 +287,5 @@ class DelnFluxNoSG:
             d2: A damped copy of the q field (in)
             mass: Mass to weight the diffusive flux by (in)
         """
-
-        if mass is None:
-            self._d2_damp_low(q, d2, damp_c)
-            self._d2_damp(q, d2, damp_c)
-        else:
-            self._copy_stencil_interval_low(q, d2)
-            self._copy_stencil_interval(q, d2)
-
-        self._fx_calc_stencil_low(d2, self._grid.del6_v, fx2)
-        self._fx_calc_stencil(d2, self._grid.del6_v, fx2)
-
-        self._fy_calc_stencil_low(d2, self._grid.del6_u, fy2)
-        self._fy_calc_stencil(d2, self._grid.del6_u, fy2)
-        #  for n in range(self._nmax):
-        self._d2_stencil0(fx2, fy2, self._grid.rarea, d2, self._nord)
-
-
-        self._column_conditional_fx_calculation0(d2, self._grid.del6_v, fx2, self._nord)
-
-        self._column_conditional_fy_calculation0(d2, self._grid.del6_u, fy2, self._nord)
-        # loop n = 1
-        self._d2_stencil1(fx2, fy2, self._grid.rarea, d2, self._nord)
-
-        self._column_conditional_fx_calculation1(d2, self._grid.del6_v, fx2, self._nord)
-
-        self._column_conditional_fy_calculation1(d2, self._grid.del6_u, fy2, self._nord)
+        do_damp = mass is None
+        self._d2_stencil1(q, self._grid.del6_u, self._grid.del6_v, self._grid.rarea, d2, fx2, fy2, self._nord, damp_c, do_damp)
