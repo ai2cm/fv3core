@@ -1,4 +1,4 @@
-from gt4py.gtscript import PARALLEL, computation, horizontal, interval, region
+from gt4py.gtscript import FORWARD, PARALLEL, computation, horizontal, interval, region
 
 import fv3core._config as spec
 import fv3core.utils.corners as corners
@@ -41,34 +41,30 @@ def corner_fill(q_in: FloatField, q_out: FloatField):
     from __externals__ import i_end, i_start, j_end, j_start
 
     # Fills the same scalar value into three locations in q for each corner
-    with computation(PARALLEL), interval(...):
-        with horizontal(region[i_start, j_start]):
-            q_out = (q_in[0, 0, 0] + q_in[-1, 0, 0] + q_in[0, -1, 0]) * (1.0 / 3.0)
-        with horizontal(region[i_start - 1, j_start]):
-            q_out = q_in[1, 0, 0]
-        with horizontal(region[i_start, j_start - 1]):
-            q_out = q_in[0, 1, 0]
-
-        with horizontal(region[i_end, j_start]):
-            q_out = (q_in[0, 0, 0] + q_in[1, 0, 0] + q_in[0, -1, 0]) * (1.0 / 3.0)
-        with horizontal(region[i_end + 1, j_start]):
-            q_out = q_in[-1, 0, 0]
-        with horizontal(region[i_end, j_start - 1]):
-            q_out = q_in[0, 1, 0]
-
-        with horizontal(region[i_end, j_end]):
-            q_out = (q_in[0, 0, 0] + q_in[1, 0, 0] + q_in[0, 1, 0]) * (1.0 / 3.0)
-        with horizontal(region[i_end + 1, j_end]):
-            q_out = q_in[-1, 0, 0]
-        with horizontal(region[i_end, j_end + 1]):
-            q_out = q_in[0, -1, 0]
-
-        with horizontal(region[i_start, j_end]):
-            q_out = (q_in[0, 0, 0] + q_in[-1, 0, 0] + q_in[0, 1, 0]) * (1.0 / 3.0)
-        with horizontal(region[i_start - 1, j_end]):
-            q_out = q_in[1, 0, 0]
-        with horizontal(region[i_start, j_end + 1]):
-            q_out = q_in[0, -1, 0]
+    with computation(PARALLEL), interval(...), horizontal(region[i_start, j_start]):
+        q_out = (q_in[0, 0, 0] + q_in[-1, 0, 0] + q_in[0, -1, 0]) * (1.0 / 3.0)
+    with computation(FORWARD), interval(...), horizontal(region[i_start - 1, j_start]):
+        q_out = q_in[1, 0, 0]
+    with computation(PARALLEL), interval(...), horizontal(region[i_start, j_start - 1]):
+        q_out = q_in[0, 1, 0]
+    with computation(FORWARD), interval(...), horizontal(region[i_end, j_start]):
+        q_out = (q_in[0, 0, 0] + q_in[1, 0, 0] + q_in[0, -1, 0]) * (1.0 / 3.0)
+    with computation(PARALLEL), interval(...), horizontal(region[i_end + 1, j_start]):
+        q_out = q_in[-1, 0, 0]
+    with computation(FORWARD), interval(...), horizontal(region[i_end, j_start - 1]):
+        q_out = q_in[0, 1, 0]
+    with computation(PARALLEL), interval(...), horizontal(region[i_end, j_end]):
+        q_out = (q_in[0, 0, 0] + q_in[1, 0, 0] + q_in[0, 1, 0]) * (1.0 / 3.0)
+    with computation(FORWARD), interval(...), horizontal(region[i_end + 1, j_end]):
+        q_out = q_in[-1, 0, 0]
+    with computation(PARALLEL), interval(...), horizontal(region[i_end, j_end + 1]):
+        q_out = q_in[0, -1, 0]
+    with computation(FORWARD), interval(...), horizontal(region[i_start, j_end]):
+        q_out = (q_in[0, 0, 0] + q_in[-1, 0, 0] + q_in[0, 1, 0]) * (1.0 / 3.0)
+    with computation(PARALLEL), interval(...), horizontal(region[i_start - 1, j_end]):
+        q_out = q_in[1, 0, 0]
+    with computation(FORWARD), interval(...), horizontal(region[i_start, j_end + 1]):
+        q_out = q_in[0, -1, 0]
 
 
 class HyperdiffusionDamping:
