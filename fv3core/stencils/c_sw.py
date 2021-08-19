@@ -256,8 +256,8 @@ def divergence_corner(
                 * 0.5
                 * (sin_sg4[-1, -1] + sin_sg2[-1, 0])
             )
-            vf2 = v * dxc * 0.5 * (sin_sg3[-1, 0] + sin_sg1)
-            divg_d = (vf1 - vf2 + uf1 - uf) * rarea_c
+            vf0 = v * dxc * 0.5 * (sin_sg3[-1, 0] + sin_sg1)
+            divg_d = (vf1 - vf0 + uf1 - uf) * rarea_c
 
         with horizontal(region[:, j_start], region[:, j_end + 1]):
             uf1 = u[-1, 0, 0] * dyc[-1, 0] * 0.5 * (sin_sg4[-1, -1] + sin_sg2[-1, 0])
@@ -272,20 +272,20 @@ def divergence_corner(
                 * 0.5
                 * (sin_sg3[-1, -1] + sin_sg1[0, -1])
             )
-            uf2 = u * dyc * 0.5 * (sin_sg4[0, -1] + sin_sg2)
-            divg_d = (vf1 - vf + uf1 - uf2) * rarea_c
+            uf0 = u * dyc * 0.5 * (sin_sg4[0, -1] + sin_sg2)
+            divg_d = (vf1 - vf + uf1 - uf0) * rarea_c
 
         with horizontal(region[i_start, j_start], region[i_end + 1, j_start]):
             uf1 = u[-1, 0, 0] * dyc[-1, 0] * 0.5 * (sin_sg4[-1, -1] + sin_sg2[-1, 0])
-            vf2 = v * dxc * 0.5 * (sin_sg3[-1, 0] + sin_sg1)
-            uf2 = u * dyc * 0.5 * (sin_sg4[0, -1] + sin_sg2)
-            divg_d = (-vf2 + uf1 - uf2) * rarea_c
+            vf0 = v * dxc * 0.5 * (sin_sg3[-1, 0] + sin_sg1)
+            uf0 = u * dyc * 0.5 * (sin_sg4[0, -1] + sin_sg2)
+            divg_d = (-vf0 + uf1 - uf0) * rarea_c
 
         with horizontal(region[i_end + 1, j_end + 1], region[i_start, j_end + 1]):
             vf1 = v[0, -1, 0] * dxc[0, -1] * 0.5 * (sin_sg3[-1, -1] + sin_sg1[0, -1])
             uf1 = u[-1, 0, 0] * dyc[-1, 0] * 0.5 * (sin_sg4[-1, -1] + sin_sg2[-1, 0])
-            uf2 = u * dyc * 0.5 * (sin_sg4[0, -1] + sin_sg2)
-            divg_d = (vf1 + uf1 - uf2) * rarea_c
+            uf0 = u * dyc * 0.5 * (sin_sg4[0, -1] + sin_sg2)
+            divg_d = (vf1 + uf1 - uf0) * rarea_c
 
         # ---------
 
