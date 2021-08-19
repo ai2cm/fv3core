@@ -49,20 +49,19 @@ def absolute_vorticity(vort: FloatField, fC: FloatFieldIJ, rarea_c: FloatFieldIJ
 
 
 def fill_corners_delp_pt_w(
-    delp: FloatField,
-    pt: FloatField,
-    w: FloatField,
+    delp_in: FloatField,
+    pt_in: FloatField,
+    w_in: FloatField,
+    delp_out: FloatField,
+    pt_out: FloatField,
+    w_out: FloatField,
 ):
     from __externals__ import fill_corners_func
 
     with computation(PARALLEL), interval(...):
-        delp_0 = delp
-        pt_0 = pt
-        w_0 = w
-    with computation(PARALLEL), interval(...):
-        delp = fill_corners_func(delp_0)
-        pt = fill_corners_func(pt_0)
-        w = fill_corners_func(w_0)
+        delp_out = fill_corners_func(delp_in)
+        pt_out = fill_corners_func(pt_in)
+        w_out = fill_corners_func(w_in)
 
 
 def compute_nonhydro_fluxes_x(
@@ -658,11 +657,11 @@ class CGridShallowWaterDynamics:
             dt2,
         )
 
-        self._fill_corners_x_delp_pt_w_stencil(delp, pt, w)
+        self._fill_corners_x_delp_pt_w_stencil(delp, pt, w, delp, pt, w)
         self._compute_nonhydro_fluxes_x_stencil(
             delp, pt, ut, w, self._tmp_fx, self._tmp_fx1, self._tmp_fx2
         )
-        self._fill_corners_y_delp_pt_w_stencil(delp, pt, w)
+        self._fill_corners_y_delp_pt_w_stencil(delp, pt, w, delp, pt, w)
         self._transportdelp_updatevorticity_and_ke(
             delp,
             pt,
