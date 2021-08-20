@@ -514,6 +514,7 @@ class RemapProfile:
         """
         The constraints on the spline are set by kord and iv.
         Arguments:
+            grid_indexing
             kord: ???
             iv: ???
             i1: The first i-element to compute on
