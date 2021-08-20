@@ -13,5 +13,5 @@ from .gnomonic import (
     set_tile_border_dyc,
 )
 #from .mesh_generator import generate_mesh
-from .mirror import mirror_grid
+from .mirror import mirror_grid, set_halo_nan
 from .generation import init_grid, init_grid_utils

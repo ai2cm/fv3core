@@ -268,12 +268,12 @@ def test_sequential_savepoint(
             passing_names.append(failing_names.pop())
     if len(failing_names) > 0:
         out_filename = os.path.join(OUTDIR, f"{test_name}.nc")
-        try:
-            save_netcdf(
-                testobj, [input_data], [output], ref_data, failing_names, out_filename
-            )
-        except Exception as error:
-            print(f'TestSequential SaveNetCDF Error: {error}')
+        # try:
+        save_netcdf(
+            testobj, [input_data], [output], ref_data, failing_names, out_filename
+        )
+        # except Exception as error:
+        #     print(f'TestSequential SaveNetCDF Error: {error}')
     assert failing_names == [], f"only the following variables passed: {passing_names}"
     assert len(passing_names) > 0, "No tests passed"
 
@@ -371,12 +371,12 @@ def test_mock_parallel_savepoint(
     failing_names = [item["varname"] for item in failing_names]
     if len(failing_names) > 0:
         out_filename = os.path.join(OUTDIR, f"{test_name}.nc")
-        try:
-            save_netcdf(
-                testobj, inputs_list, output_list, ref_data, failing_names, out_filename
-            )
-        except Exception as error:
-            print(f'TestMockParallel SaveNetCDF Error: {error}')
+        # try:
+        save_netcdf(
+            testobj, inputs_list, output_list, ref_data, failing_names, out_filename
+        )
+        # except Exception as error:
+        #     print(f'TestMockParallel SaveNetCDF Error: {error}')
     assert failing_names == [], f"names tested: {list(testobj.outputs.keys())}"
 
 

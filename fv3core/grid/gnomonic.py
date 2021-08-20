@@ -419,7 +419,7 @@ def _set_c_grid_north_edge_area(xyz_dgrid, xyz_agrid, area_cgrid, radius, np):
         xyz_dgrid[:, ::-1], xyz_agrid[:, ::-1], area_cgrid[:, ::-1], radius, np
     )
 
-
+ 
 def _set_c_grid_south_edge_area(xyz_dgrid, xyz_agrid, area_cgrid, radius, np):
     _set_c_grid_west_edge_area(
         xyz_dgrid.transpose(1, 0, 2),
@@ -431,9 +431,9 @@ def _set_c_grid_south_edge_area(xyz_dgrid, xyz_agrid, area_cgrid, radius, np):
 
 
 def _set_c_grid_southwest_corner_area(xyz_dgrid, xyz_agrid, area_cgrid, radius, np):
-    lower_right = normalize_xyz((xyz_dgrid[0, 0] + xyz_dgrid[1, 0]))
+    lower_right = normalize_xyz((xyz_dgrid[0, 0, :] + xyz_dgrid[1, 0, :]))
     upper_right = xyz_agrid[0, 0, :]
-    upper_left = normalize_xyz((xyz_dgrid[0, 0] + xyz_dgrid[0, 1]))
+    upper_left = normalize_xyz((xyz_dgrid[0, 0, :] + xyz_dgrid[0, 1, :]))
     lower_left = xyz_dgrid[0, 0, :]
     area_cgrid[0, 0] = 3. * get_rectangle_area(
         lower_left, upper_left, upper_right, lower_right, radius, np

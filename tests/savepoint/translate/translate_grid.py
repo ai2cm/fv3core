@@ -17,6 +17,7 @@ from fv3core.grid import (
     set_tile_border_dyc,
     init_grid,
     init_grid_utils,
+    set_halo_nan,
 )
 
 from fv3core.utils.corners import fill_corners_2d, fill_corners_agrid, fill_corners_dgrid, fill_corners_cgrid
@@ -417,10 +418,15 @@ class TranslateGridGrid(ParallelTranslateGrid):
     outputs = {
         "grid": {
             "name": "grid",
-            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM, LON_OR_LAT_DIM, TILE_DIM],
+            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM, LON_OR_LAT_DIM],
             "units": "radians",
         },
     }
+
+    def __init__(self, grids):
+        super().__init__(grids)
+        self.ignore_near_zero_errors = {}
+        self.ignore_near_zero_errors["grid"] = True
 
     def compute_sequential(self, inputs_list, communicator_list):
         shift_fac = 18
@@ -434,6 +440,7 @@ class TranslateGridGrid(ParallelTranslateGrid):
             "radians",
             dtype=float,
         )
+        # print(grid_global.np.shape(grid_global.data))
         lon = self.grid.quantity_factory.zeros(
             [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM], "radians", dtype=float
         )
@@ -480,17 +487,18 @@ class TranslateGridGrid(ParallelTranslateGrid):
             fill_corners_2d(
                 state["grid"].data[:, :, :], self.grid, gridtype="B", direction="x"
             )
-        print(state.keys())
+            state["grid"].data[:, :, :] = set_halo_nan(state["grid"].data[:, :, :], self.grid.halo, grid_global.np)
+        print(grid_global.np.shape(state_list))
         return self.outputs_list_from_state_list(state_list)
 
     def compute_parallel(self, inputs, communicator):
         raise NotImplementedError()
 
-    def compute(self, inputs):
-        state = self.state_from_inputs(inputs)
-        pass
-        outputs = self.outputs_from_state(state)
-        return outputs
+    # def compute(self, inputs):
+    #     state = self.state_from_inputs(inputs)
+    #     pass
+    #     outputs = self.outputs_from_state(state)
+    #     return outputs
 
 
 class TranslateDxDy(ParallelTranslateGrid):

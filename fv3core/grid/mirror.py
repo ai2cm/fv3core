@@ -188,3 +188,10 @@ def _cartesian_to_spherical(p, np):
     else:
         lat = np.arccos(z / r) - PI / 2.0
     return [lon, lat, r]
+
+def set_halo_nan(grid, ng: int, np):
+    grid[:ng, :, :] = np.nan #west edge
+    grid[:, :ng, :] = np.nan #south edge
+    grid[-ng:, :, :] = np.nan #east edge
+    grid[:, -ng:, :] = np.nan #north edge
+    return grid
