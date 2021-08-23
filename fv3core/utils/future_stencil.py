@@ -271,10 +271,13 @@ class FutureStencil:
         builder = self._builder
         node_id = MPI.COMM_WORLD.Get_rank() if MPI else 0
         stencil_id = int(builder.stencil_id.version, 16)
+
+        # Delay before accessing stencil cache on filesystem...
+        self._delay(float(node_id))
         stencil_class = None if builder.options.rebuild else builder.backend.load()
 
         if not stencil_class:
-            # Delay before accessing distributed cache...
+            # Delay before accessing distributed table...
             self._delay(float(node_id))
             if self._id_table.is_none(stencil_id):
                 stencil_class = self._compile_stencil(node_id, stencil_id)
