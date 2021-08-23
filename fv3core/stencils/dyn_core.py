@@ -370,6 +370,15 @@ class AcousticDynamics:
             config.d_grid_shallow_water, grid_indexing.domain[2]
         )
         if not config.hydrostatic:
+            # ak, bk, and phis are numpy arrays at this point and must
+            #   be converted into gt4py storages
+            ak, bk, phis = [
+                utils.make_storage_data(
+                    storage, storage.shape, len(storage.shape) * (0,)
+                )
+                for storage in (ak, bk, phis)
+            ]
+
             # To write lower dimensional storages, these need to be 3D
             # then converted to lower dimensional
             dp_ref_3d = utils.make_storage_from_shape(grid_indexing.max_shape)
