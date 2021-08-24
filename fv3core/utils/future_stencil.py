@@ -211,8 +211,9 @@ class FutureStencil:
     def __init__(self, builder: Optional["StencilBuilder"] = None):
         self._builder: Optional["StencilBuilder"] = builder
         self._stencil_object: Optional[StencilObject] = None
-        self._sleep_time: float = 0.1
+        self._sleep_time: float = 50e-3
         self._timeout: float = 180.0
+        self._node_id = MPI.COMM_WORLD.Get_rank() if MPI else 0
 
     @classmethod
     def clear(cls):
@@ -232,21 +233,21 @@ class FutureStencil:
     def field_info(self) -> Dict[str, FieldInfo]:
         return self.stencil_object.field_info
 
-    def _delay(self, factor: float = 1.0) -> float:
-        delay_time = self._sleep_time * factor
+    def _delay(self) -> float:
+        delay_time = self._sleep_time * float(self._node_id)
         time.sleep(delay_time)
         return delay_time
 
-    def _compile_stencil(self, node_id: int, stencil_id: int) -> Callable:
+    def _compile_stencil(self, stencil_id: int) -> Callable:
         # Stencil not yet compiled or in progress so claim it...
-        self._id_table[stencil_id] = node_id
-        self._delay(float(node_id))
+        self._id_table[stencil_id] = self._node_id
+        self._delay()
         stencil_class = self._builder.backend.generate()
         self._id_table.set_done(stencil_id)  # Set to DONE...
 
         return stencil_class
 
-    def _load_stencil(self, node_id: int, stencil_id: int) -> Callable:
+    def _load_stencil(self, stencil_id: int) -> Callable:
         if not self._id_table.is_done(stencil_id):
             # Wait for stencil to be done...
             time_elapsed: float = 0.0
@@ -258,31 +259,30 @@ class FutureStencil:
             if time_elapsed >= self._timeout:
                 raise RuntimeError(
                     f"Timeout while waiting for stencil '{self.cache_info_path}' "
-                    "to compile on R{node_id}"
+                    "to compile on R{self._node_id}"
                 )
-            # Wait a bit before loading...
-            self._delay(float(node_id))
 
+        # Delay before loading...
+        self._delay()
         stencil_class = self._builder.backend.load()
 
         return stencil_class
 
     def _wait_for_stencil(self):
         builder = self._builder
-        node_id = MPI.COMM_WORLD.Get_rank() if MPI else 0
         stencil_id = int(builder.stencil_id.version, 16)
 
         # Delay before accessing stencil cache on filesystem...
-        self._delay(float(node_id))
+        self._delay()
         stencil_class = None if builder.options.rebuild else builder.backend.load()
 
         if not stencil_class:
             # Delay before accessing distributed table...
-            self._delay(float(node_id))
+            self._delay()
             if self._id_table.is_none(stencil_id):
-                stencil_class = self._compile_stencil(node_id, stencil_id)
+                stencil_class = self._compile_stencil(stencil_id)
             else:
-                stencil_class = self._load_stencil(node_id, stencil_id)
+                stencil_class = self._load_stencil(stencil_id)
 
         if not stencil_class:
             raise RuntimeError(
