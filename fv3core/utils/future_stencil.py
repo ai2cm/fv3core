@@ -211,7 +211,7 @@ class FutureStencil:
     def __init__(self, builder: Optional["StencilBuilder"] = None):
         self._builder: Optional["StencilBuilder"] = builder
         self._stencil_object: Optional[StencilObject] = None
-        self._sleep_time: float = 50e-3
+        self._sleep_time: float = 25e-3
         self._timeout: float = 180.0
         self._node_id = MPI.COMM_WORLD.Get_rank() if MPI else 0
 
