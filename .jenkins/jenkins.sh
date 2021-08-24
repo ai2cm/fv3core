@@ -82,9 +82,6 @@ if [ -f ${scheduler_script} ] ; then
     fi
 fi
 
-# Default time to 3hr30min (GTC backends are slower to compile for now)
-sed -i 's|00:45:00|03:30:00|g' ${scheduler_script}
-
 # if this is a parallel job and the number of ranks is specified in the experiment argument, set NUM_RANKS
 # and update the scheduler script if there is one
 if grep -q "parallel" <<< "${script}"; then
@@ -98,6 +95,7 @@ if grep -q "parallel" <<< "${script}"; then
 	fi
 	if [ -f ${scheduler_script} ] ; then
 	    sed -i 's|<NTASKS>|<NTASKS>\n#SBATCH \-\-hint=multithread\n#SBATCH --ntasks-per-core=2|g' ${scheduler_script}
+	    sed -i 's|45|30|g' ${scheduler_script}
 	    if [ "$NUM_RANKS" -gt "6" ];then
             sed -i 's|cscsci|debug|g' ${scheduler_script}
         fi
@@ -117,6 +115,7 @@ if grep -q "fv_dynamics" <<< "${script}"; then
 	    export MPICH_RDMA_ENABLED_CUDA=0
 	fi
     sed -i 's|<NTASKS>|6\n#SBATCH \-\-hint=nomultithread|g' ${scheduler_script}
+    sed -i 's|00:45:00|03:30:00|g' ${scheduler_script}
     sed -i 's|<NTASKSPERNODE>|6|g' ${scheduler_script}
     sed -i 's/<CPUSPERTASK>/1/g' ${scheduler_script}
     export MPIRUN_CALL="srun"
@@ -201,7 +200,7 @@ if grep -q "fv_dynamics" <<< "${script}"; then
 	    export MPICH_RDMA_ENABLED_CUDA=0
 	fi
     sed -i 's|<NTASKS>|6\n#SBATCH \-\-hint=nomultithread|g' ${run_timing_script}
-    sed -i 's|00:45:00|00:15:00|g' ${run_timing_script} #We should be compiled, we can lower threshold timing
+    sed -i 's|00:45:00|00:15:00|g' ${run_timing_script}
     sed -i 's|<NTASKSPERNODE>|1|g' ${run_timing_script}
     sed -i 's/<CPUSPERTASK>/1/g' ${run_timing_script}
     sed -i 's|cscsci|debug|g' ${run_timing_script}
