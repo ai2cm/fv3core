@@ -116,9 +116,9 @@ class TranslateDynCore(ParallelTranslate2PyState):
         self.max_error = 2e-6
 
     def compute_parallel(self, inputs, communicator):
-        # ak, bk, and phis are numpy arrays at this point and must
-        #   be converted into gt4py storages
-        for name in ("ak", "bk", "phis"):
+        # ak, bk, pfull, and phis are numpy arrays at this point and
+        #   must be converted into gt4py storages
+        for name in ("ak", "bk", "pfull", "phis"):
             inputs[name] = utils.make_storage_data(
                 inputs[name], inputs[name].shape, len(inputs[name].shape) * (0,)
             )
