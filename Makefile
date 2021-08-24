@@ -60,8 +60,8 @@ update_submodules_base:
 
 update_submodules_venv: update_submodules_base
 	if [ ! -f $(CWD)/external/daint_venv/install.sh  ]; then \
-                git submodule update --init external/daint_venv; \
-        fi
+        git submodule update --init external/daint_venv; \
+    fi
 
 constraints.txt: requirements.txt requirements/requirements_wrapper.txt requirements/requirements_lint.txt
 	pip-compile $^ --output-file constraints.txt
