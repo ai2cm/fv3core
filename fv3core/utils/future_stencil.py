@@ -211,7 +211,7 @@ class FutureStencil:
     def __init__(self, builder: Optional["StencilBuilder"] = None):
         self._builder: Optional["StencilBuilder"] = builder
         self._stencil_object: Optional[StencilObject] = None
-        self._sleep_time: float = 0.2
+        self._sleep_time: float = 0.1
         self._timeout: float = 180.0
 
     @classmethod
