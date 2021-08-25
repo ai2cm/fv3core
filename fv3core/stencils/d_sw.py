@@ -10,8 +10,10 @@ from fv3core.stencils.delnflux import DelnFluxNoSG
 from fv3core.stencils.divergence_damping import DivergenceDamping
 from fv3core.stencils.fvtp2d import FiniteVolumeTransport
 from fv3core.stencils.fxadv import FiniteVolumeFluxPrep
-from fv3core.stencils.xtp_u import XTP_U
-from fv3core.stencils.ytp_v import YTP_V
+import fv3core.stencils.xtp_u as xtpu
+import fv3core.stencils.ytp_v as ytpv
+import fv3core.stencils.xppm as xppm
+import fv3core.stencils.yppm as yppm
 from fv3core.utils.grid import axis_offsets
 from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
 
@@ -201,6 +203,7 @@ def heat_diss(
 
 
 def heat_source_from_vorticity_damping(
+    #vort: FloatField,
     ub: FloatField,
     vb: FloatField,
     ut: FloatField,
@@ -218,6 +221,10 @@ def heat_source_from_vorticity_damping(
 ):
 
     from __externals__ import do_skeb
+    #with computation(PARALLEL), interval(...):
+    #    if kinetic_energy_fraction_to_damp[0] > dcon_threshold:
+    #        ub = vort - vort[1, 0, 0]
+    #        vb = vort - vort[0, 1, 0]
 
     with computation(PARALLEL), interval(...):
         ubt = (ub + vt) * rdx
@@ -283,13 +290,25 @@ def damped_v(
             v = v - ut
 
 
-def ke_from_bwind(
+def ke_and_vorticity(
     ke: FloatField,
     ub: FloatField,
     vb: FloatField,
+    u: FloatField,
+    v: FloatField,
+    ut: FloatField,
+    vt: FloatField,
+    dx: FloatFieldIJ,
+    dy: FloatFieldIJ,
+    rarea: FloatFieldIJ,
+    vorticity: FloatField,
 ):
     with computation(PARALLEL), interval(...):
         ke = 0.5 * (ke + ub * vb)
+        vt = u * dx
+        ut = v * dy
+    with computation(PARALLEL), interval(...):
+        vorticity = rarea * (vt - vt[0, 1, 0] - ut + ut[1, 0, 0])
 
 
 def horizontal_vorticity(
@@ -428,7 +447,40 @@ def main_ub(
     with computation(PARALLEL), interval(...):
         ub[0, 0, 0] = dt5 * (uc[0, -1, 0] + uc - (vc[-1, 0, 0] + vc) * cosa) * rsina
 
+def kinetic_energy_update(
+    vc: FloatField,
+    uc: FloatField,
+    cosa: FloatFieldIJ,
+    rsina: FloatFieldIJ,
+    v: FloatField,
+    u: FloatField,
+    ke: FloatField,
+    dx: FloatFieldIJ,
+    dxa: FloatFieldIJ,
+    rdx: FloatFieldIJ,
+    dy: FloatFieldIJ,
+    dya: FloatFieldIJ,
+    rdy: FloatFieldIJ,
+    dt5: float
+):
+    with computation(PARALLEL), interval(...):
+        #pt, delp = pressure_update(gx, gy, rarea, fx, fy, pt, delp)
 
+        ub = dt5 * (uc[0, -1, 0] + uc - (vc[-1, 0, 0] + vc) * cosa) * rsina
+        vb = dt5 * (vc[-1, 0, 0] + vc - (uc[0, -1, 0] + uc) * cosa) * rsina
+        #advected_v = ytp_v.ytpv_function(vb_contra, v, dy, dya, rdy)
+        #advected_u = xtp_u.xtpu_function(ub_contra, u, dx, dxa, rdx)
+        al = xppm.main_al(u)
+        bl = al - u
+        br = al[1, 0, 0] - u
+        advected_u = xtpu._get_flux(u, ub, rdx, bl, br)
+        al = yppm.main_al(v)
+        bl = al - v
+        br = al[0, 1, 0] - v
+        advected_v = ytpv._get_flux(v, vb, rdy, bl, br)
+        # TODO: we see here that ke is not kinetic energy, but kinetic energy * timestep
+        #       refactor or rename to avoid this confusion
+        ke = 0.5 * (ub * advected_u + vb * advected_v)
 class DGridShallowWaterLagrangianDynamics:
     """
     Fortran name is the d_sw subroutine
@@ -501,8 +553,8 @@ class DGridShallowWaterLagrangianDynamics:
         )
         self.fvtp2d_vt_nodelnflux = FiniteVolumeTransport(namelist, namelist.hord_vt)
         self.fv_prep = FiniteVolumeFluxPrep()
-        self.ytp_v = YTP_V(namelist)
-        self.xtp_u = XTP_U(namelist)
+        #self.ytp_v = YTP_V(namelist)
+        #self.xtp_u = XTP_U(namelist)
         self.divergence_damping = DivergenceDamping(
             namelist, column_namelist["nord"], column_namelist["d2_divg"]
         )
@@ -604,8 +656,8 @@ class DGridShallowWaterLagrangianDynamics:
             origin=self.grid.compute_origin(),
             domain=self.grid.domain_shape_compute(add=(1, 0, 0)),
         )
-        self._ke_from_bwind_stencil = FrozenStencil(
-            ke_from_bwind,
+        self._ke_and_vorticity_stencil = FrozenStencil(
+            ke_and_vorticity,
             origin=full_origin,
             domain=full_domain,
         )
@@ -624,11 +676,11 @@ class DGridShallowWaterLagrangianDynamics:
         idiff = ie1 - is2 + 1
         domain_y = (idiff, 1, self.grid.npz)
         domain_x = (1, self.grid.njc + 1, self.grid.npz)
-        self._ub_stencil = FrozenStencil(
-            main_ub,
-            origin=(is2, self.grid.js, 0),
-            domain=(idiff, self.grid.njc + 1, self.grid.npz),
-        )
+        #self._ub_stencil = FrozenStencil(
+        #    main_ub,
+        #    origin=(is2, self.grid.js, 0),
+        #    domain=(idiff, self.grid.njc + 1, self.grid.npz),
+        #)
         self._damping_factor_calculation_stencil = FrozenStencil(
             delnflux.calc_damp, origin=(0, 0, 0), domain=(1, 1, self.grid.npz)
         )
@@ -651,6 +703,17 @@ class DGridShallowWaterLagrangianDynamics:
         )
         self._delnflux_damp_w = utils.make_storage_data(
             self._tmp_damp_3d[0, 0, :], (self.grid.npz,), (0,)
+        )
+        self._kinetic_energy_update = FrozenStencil(
+            kinetic_energy_update,
+            externals={
+                "iord": namelist.hord_mt,
+                "jord": namelist.hord_mt,
+                "mord": namelist.hord_mt,
+                "xt_minmax": False,
+            },
+            origin=b_origin,
+            domain=b_domain,
         )
 
     def __call__(
@@ -817,17 +880,39 @@ class DGridShallowWaterLagrangianDynamics:
             delp,
         )
 
-        self._vb_stencil(vc, uc, self.grid.cosa, self.grid.rsina, self._tmp_vb, dt5)
+        #self._vb_stencil(vc, uc, self.grid.cosa, self.grid.rsina, self._tmp_vb, dt5)
         
-        self.ytp_v(self._tmp_vb, v, self._tmp_ub)
-        self._ke_stencil(self._tmp_ub, self._tmp_vb, self._tmp_ke)
+        #self.ytp_v(self._tmp_vb, v, self._tmp_ub)
+        #self._ke_stencil(self._tmp_ub, self._tmp_vb, self._tmp_ke)
 
-        self._ub_stencil(uc, vc, self.grid.cosa, self.grid.rsina, self._tmp_ub, dt5)
-        self.xtp_u(self._tmp_ub, u, self._tmp_vb)
-        self._ke_from_bwind_stencil(self._tmp_ke, self._tmp_ub, self._tmp_vb)
-        self._horizontal_vorticity_stencil(
-            u,
+        #self._ub_stencil(uc, vc, self.grid.cosa, self.grid.rsina, self._tmp_ub, dt5)
+        #self.xtp_u(self._tmp_ub, u, self._tmp_vb)
+        #self._ke_and_vorticity_stencil(self._tmp_ke, self._tmp_ub, self._tmp_vb, u, v,
+        #    self._tmp_ut,
+        #    self._tmp_vt,
+        #    self.grid.dx,
+        #    self.grid.dy,
+        #    self.grid.rarea,
+        #    self._tmp_wk,
+        #)
+        self._kinetic_energy_update(
+            vc,
+            uc,
+            self.grid.cosa,
+            self.grid.rsina,
             v,
+            u,
+            self._tmp_ke,
+            self.grid.dx,
+            self.grid.dxa,
+            self.grid.rdx,
+            self.grid.dy,
+            self.grid.dya,
+            self.grid.rdy,
+            dt5,
+        )
+        self._horizontal_vorticity_stencil(
+            u, v, 
             self._tmp_ut,
             self._tmp_vt,
             self.grid.dx,
@@ -835,6 +920,7 @@ class DGridShallowWaterLagrangianDynamics:
             self.grid.rarea,
             self._tmp_wk,
         )
+
 
         # TODO if namelist.d_f3d and ROT3 unimplemeneted
         self._adjust_w_and_qcon_stencil(
@@ -888,6 +974,7 @@ class DGridShallowWaterLagrangianDynamics:
         )
 
         self._heat_source_from_vorticity_damping_stencil(
+            #self._tmp_vort,
             self._tmp_ub,
             self._tmp_vb,
             self._tmp_ut,

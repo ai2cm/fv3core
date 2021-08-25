@@ -40,6 +40,10 @@ def main_vt(
 
 
 def fxadv_x_fluxes(
+    uc: FloatField,
+    vc: FloatField,
+    cosa_u: FloatFieldIJ,
+    rsin_u: FloatFieldIJ,
     sin_sg1: FloatFieldIJ,
     sin_sg3: FloatFieldIJ,
     rdxa: FloatFieldIJ,
@@ -51,6 +55,10 @@ def fxadv_x_fluxes(
 ):
 
     with computation(PARALLEL), interval(...):
+        ut = (
+            uc - 0.25 * cosa_u * (vc[-1, 0, 0] + vc + vc[-1, 1, 0] + vc[0, 1, 0])
+        ) * rsin_u
+        
         prod = dt * ut
         if prod > 0:
             crx = prod * rdxa[-1, 0]
@@ -61,6 +69,10 @@ def fxadv_x_fluxes(
 
 
 def fxadv_y_fluxes(
+    uc: FloatField,
+    vc: FloatField,
+    cosa_v: FloatFieldIJ,
+    rsin_v: FloatFieldIJ,
     sin_sg2: FloatFieldIJ,
     sin_sg4: FloatFieldIJ,
     rdya: FloatFieldIJ,
@@ -71,6 +83,9 @@ def fxadv_y_fluxes(
     dt: float,
 ):
     with computation(PARALLEL), interval(...):
+        vt = (
+            vc - 0.25 * cosa_v * (uc[0, -1, 0] + uc[1, -1, 0] + uc + uc[1, 0, 0])
+        ) * rsin_v
         prod = dt * vt
         if prod > 0:
             cry = prod * rdya[0, -1]
@@ -100,21 +115,19 @@ class FiniteVolumeFluxPrep:
             domain=self.grid.domain_shape_full(add=(1, 1, 1)),
         )
         # with horizontal(region[local_is - 1 : local_ie + 3, :]):
-        js = self.grid.jsd
-        je = self.grid.jed
-        self._main_ut_stencil = FrozenStencil(
-            main_ut,
-            origin=(self.grid.is_ - 1, self.grid.jsd, 0),
-            domain=(self.grid.nic + 3, self.grid.njd, self.grid.npz),
-        )
+
+        #self._main_ut_stencil = FrozenStencil(
+        #    main_ut,
+        #    origin=(self.grid.is_ - 1, self.grid.jsd, 0),
+        #    domain=(self.grid.nic + 3, self.grid.njd, self.grid.npz),
+        #)
         # with horizontal(region[:, local_js - 1 : local_je + 3]):
-        self._main_vt_stencil = FrozenStencil(
-            main_vt,
-            origin=(self.grid.isd, self.grid.js - 1, 0),
-            domain=(self.grid.nid, self.grid.njc + 3, self.grid.npz),
-        )
-        i1 = self.grid.is_ 
-        i2 = self.grid.ie + 1
+        #self._main_vt_stencil = FrozenStencil(
+        #    main_vt,
+        #    origin=(self.grid.isd, self.grid.js - 1, 0),
+        #    domain=(self.grid.nid, self.grid.njc + 3, self.grid.npz),
+        #)
+
 
         self._fxadv_x_fluxes_stencil = FrozenStencil(
             fxadv_x_fluxes,
@@ -162,23 +175,27 @@ class FiniteVolumeFluxPrep:
             cosa_u, cosa_v, rsin_u, rsin_v, sin_sg1,sin_sg2, sin_sg3, sin_sg4, dx, dy
         """
 
-        self._main_ut_stencil(
+        #self._main_ut_stencil(
+        #    uc,
+        #    vc,
+        #    self.grid.cosa_u,
+        #    self.grid.rsin_u,
+        #    ut,
+        #)
+
+        #self._main_vt_stencil(
+        #    uc,
+        #    vc,
+        #    self.grid.cosa_v,
+        #    self.grid.rsin_v,
+        #    vt,
+        #)
+
+        self._fxadv_x_fluxes_stencil(
             uc,
             vc,
             self.grid.cosa_u,
             self.grid.rsin_u,
-            ut,
-        )
-
-        self._main_vt_stencil(
-            uc,
-            vc,
-            self.grid.cosa_v,
-            self.grid.rsin_v,
-            vt,
-        )
-
-        self._fxadv_x_fluxes_stencil(
             self.grid.sin_sg1,
             self.grid.sin_sg3,
             self.grid.rdxa,
@@ -189,6 +206,10 @@ class FiniteVolumeFluxPrep:
             dt,
         )
         self._fxadv_y_fluxes_stencil(
+            uc,
+            vc,
+            self.grid.cosa_v,
+            self.grid.rsin_v,
             self.grid.sin_sg2,
             self.grid.sin_sg4,
             self.grid.rdya,
