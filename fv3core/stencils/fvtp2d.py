@@ -195,6 +195,14 @@ class FiniteVolumeTransport:
         Defined in Putman and Lin 2007 (PL07). Corresponds to equation 4.17
         in the FV3 documentation.
 
+        Divergence terms are handled by advecting the weighting used in
+        the units of the scalar, and dividing by its divergence. For example,
+        temperature (pt in the Fortran) and tracers are mass weighted, so
+        the final tendency is
+        e.g. (convergence of tracer) / (convergence of gridcell mass). This
+        is described in eq 17 of PL07. pressure thickness and vorticity
+        by contrast are area weighted.
+
         Args:
             q: scalar to be transported (in)
             crx: Courant number in x-direction
@@ -218,13 +226,13 @@ class FiniteVolumeTransport:
         if self.delnflux is not None and mass is None and (x_mass_flux is not None or y_mass_flux is not None):
             raise ValueError("when damping is enabled, mass must be given if mass flux is given")
         if x_mass_flux is None:
-            unit_flux = x_area_flux
+            x_unit_flux = x_area_flux
         else:
-            unit_flux = x_mass_flux
+            x_unit_flux = x_mass_flux
         if y_mass_flux is None:
-            unit_flux = y_area_flux
+            y_unit_flux = y_area_flux
         else:
-            unit_flux = y_mass_flux
+            y_unit_flux = y_mass_flux
         
         self._copy_corners_y(q)
 
@@ -254,15 +262,15 @@ class FiniteVolumeTransport:
         self.y_piecewise_parabolic_outer(self._tmp_q_j, cry, fy)
         # up to here, fx and fy are in units of q * m^2
         # fy2 and fx2 are the inner advective updates (g(q) and f(q))
-        # stencil_transport_flux updates fx and fy units to q * mfx * m^2
+        # stencil_transport_flux updates fx and fy units to q * unit_flux * m^2
 
         self.stencil_transport_flux(
             fx,
             self._tmp_fx2,
             fy,
             self._tmp_fy2,
-            unit_flux,
-            unit_flux,
+            x_unit_flux,
+            y_unit_flux,
         )
         if self.delnflux is not None:
             self.delnflux(q, fx, fy, mass=mass)

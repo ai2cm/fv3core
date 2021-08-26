@@ -893,8 +893,8 @@ class DGridShallowWaterLagrangianDynamics:
                 yfx,
                 self._tmp_gx,
                 self._tmp_gy,
-                mfx=self._tmp_fx,
-                mfy=self._tmp_fy,
+                x_mass_flux=self._tmp_fx,
+                y_mass_flux=self._tmp_fy,
             )
 
             self._flux_adjust_stencil(
@@ -914,8 +914,8 @@ class DGridShallowWaterLagrangianDynamics:
             self._tmp_gx,
             self._tmp_gy,
             mass=delp,
-            mfx=self._tmp_fx,
-            mfy=self._tmp_fy,
+            x_mass_flux=self._tmp_fx,
+            y_mass_flux=self._tmp_fy,
         )
 
         self._flux_adjust_stencil(
@@ -933,8 +933,8 @@ class DGridShallowWaterLagrangianDynamics:
             self._tmp_gx,
             self._tmp_gy,
             mass=delp,
-            mfx=self._tmp_fx,
-            mfy=self._tmp_fy,
+            x_mass_flux=self._tmp_fx,
+            y_mass_flux=self._tmp_fy,
         )
 
         self._kinetic_energy_update(
