@@ -266,12 +266,12 @@ def test_sequential_savepoint(
                 xy_indices=xy_indices,
             )
             passing_names.append(failing_names.pop())
-    # if len(failing_names) > 0:
-    out_filename = os.path.join(OUTDIR, f"{test_name}.nc")
+    if len(failing_names) > 0:
+        out_filename = os.path.join(OUTDIR, f"{test_name}.nc")
         # try:
-    save_netcdf(
-        testobj, [input_data], [output], ref_data, failing_names, out_filename
-    )
+        save_netcdf(
+            testobj, [input_data], [output], ref_data, failing_names, out_filename
+        )
         # except Exception as error:
         #     print(f'TestSequential SaveNetCDF Error: {error}')
     assert failing_names == [], f"only the following variables passed: {passing_names}"
