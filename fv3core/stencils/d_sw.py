@@ -68,8 +68,12 @@ def flux_adjust(
         rarea: 1 / area (in)
     """
     # TODO: this function changes the units and therefore meaning of q,
-    # is there any way we can void doing so?
+    # is there any way we can avoid doing so?
+    # the next time w and q_con (passed as q to this routine) are used
+    # is in adjust_w_and_qcon, where they are divided by an updated delp to return
+    # to the original units.
     with computation(PARALLEL), interval(...):
+        # in the original Fortran, this uses `w` instead of `q`
         q = q * delp + flux_increment(gx, gy, rarea)
 
 
@@ -146,24 +150,25 @@ def all_corners_ke(ke, u, v, ut, vt, dt):
 
 
 @gtscript.function
-def pressure_update(
-    gx: FloatField,
-    gy: FloatField,
+def apply_pt_delp_fluxes(
+    pt_x_flux: FloatField,
+    pt_y_flux: FloatField,
     rarea: FloatFieldIJ,
-    fx: FloatField,
-    fy: FloatField,
+    delp_x_flux: FloatField,
+    delp_y_flux: FloatField,
     pt: FloatField,
     delp: FloatField,
 ):
     from __externals__ import inline_q, local_ie, local_is, local_je, local_js
 
+    # original Fortran uses gx/gy for pt fluxes, fx/fy for delp fluxes
     # TODO: local region only needed for d_sw halo validation
     # use selective validation instead
     if __INLINED(inline_q == 0):
         with horizontal(region[local_is : local_ie + 1, local_js : local_je + 1]):
             # pt = flux_integral(pt, delp, gx, gy, rarea)
-            pt = pt * delp + flux_increment(gx, gy, rarea)
-            delp = delp + flux_increment(fx, fy, rarea)
+            pt = pt * delp + flux_increment(pt_x_flux, pt_y_flux, rarea)
+            delp = delp + flux_increment(delp_x_flux, delp_y_flux, rarea)
             pt = pt / delp
     return pt, delp
 
@@ -195,7 +200,7 @@ def kinetic_energy_update(
 ):
 
     with computation(PARALLEL), interval(...):
-        pt, delp = pressure_update(gx, gy, rarea, fx, fy, pt, delp)
+        pt, delp = apply_pt_delp_fluxes(gx, gy, rarea, fx, fy, pt, delp)
         # vb_contra = interpolate_vc_to_cell_corners(vc, uc, cosa, rsina, vt)
         ub_contra, vb_contra = interpolate_uc_vc_to_cell_corners(
             uc, vc, cosa, rsina, uc_contra, vc_contra
@@ -208,31 +213,23 @@ def kinetic_energy_update(
         ke = all_corners_ke(ke, u, v, uc_contra, vc_contra, dt)
 
 
-def vort_differencing_stencil_defn(
+def vort_differencing(
     vort: FloatField,
     vort_x_delta: FloatField,
     vort_y_delta: FloatField,
     dcon: FloatFieldK,
 ):
-    with computation(PARALLEL), interval(...):
-        vort_x_delta, vort_y_delta = vort_differencing(vort, dcon)
-
-
-@gtscript.function
-def vort_differencing(vort, dcon):
     from __externals__ import local_ie, local_is, local_je, local_js
 
-    # TODO: Why is this if statement here?
-    # Can/should it be moved outside this function?
-    if dcon[0] > dcon_threshold:
-        # Creating a gtscript function for the ub/vb computation
-        # results in an "NotImplementedError" error for Jenkins
-        # Inlining the ub/vb computation in this stencil resolves the Jenkins error
-        with horizontal(region[local_is : local_ie + 1, local_js : local_je + 2]):
-            vort_x_delta = vort - vort[1, 0, 0]
-        with horizontal(region[local_is : local_ie + 2, local_js : local_je + 1]):
-            vort_y_delta = vort - vort[0, 1, 0]
-    return vort_x_delta, vort_y_delta
+    with computation(PARALLEL), interval(...):
+        if dcon[0] > dcon_threshold:
+            # Creating a gtscript function for the ub/vb computation
+            # results in an "NotImplementedError" error for Jenkins
+            # Inlining the ub/vb computation in this stencil resolves the Jenkins error
+            with horizontal(region[local_is : local_ie + 1, local_js : local_je + 2]):
+                vort_x_delta = vort - vort[1, 0, 0]
+            with horizontal(region[local_is : local_ie + 2, local_js : local_je + 1]):
+                vort_y_delta = vort - vort[0, 1, 0]
 
 
 @gtscript.function
@@ -274,7 +271,7 @@ def coriolis_force_correction(zh, radius):
     return 1.0 + (zh + zh[0, 0, 1]) / radius
 
 
-def compute_vorticity(
+def compute_vort(
     wk: FloatField,
     f0: FloatFieldIJ,
     zh: FloatField,
@@ -417,7 +414,7 @@ def heat_source_from_vorticity_damping(
                 v = v - damped_v_dy
 
 
-def update_horizontal_vorticity(
+def compute_vorticity(
     u: FloatField,
     v: FloatField,
     v_dy: FloatField,
@@ -427,16 +424,31 @@ def update_horizontal_vorticity(
     rarea: FloatFieldIJ,
     vorticity: FloatField,
 ):
+    # # in the original Fortran, u_dx is called vt and v_dy is called ut
+    # # (yes, u/v are mixed up in the original Fortran)
+    # # TODO(rheag). This computation is required because
+    # # ut and vt are API fields. If the distinction
+    # # is removed, so can this computation.
+    # # Compute the area mean relative vorticity in the z-direction
+    # # from the D-grid winds.
+    # with computation(PARALLEL), interval(...):
+    #     vorticity = rarea * (u_dx - u_dx[0, 1, 0] - v_dy + v_dy[1, 0, 0])
+
+    # val = rarea * (u * dx - u[0, 1, 0] * dx[0, 1, 0])
+    # val = u * rarea * dx - u[0, 1, 0] * rarea * dx[0, 1, 0]
+    # val = (u - u[0, 1, 0]*dx[0, 1, 0]/dx) * (rarea * dx)
+
     with computation(PARALLEL), interval(...):
-        u_dx = u * dx
-        v_dy = v * dy
-    # TODO(rheag). This computation is required because
-    # ut and vt are API fields. If the distinction
-    # is removed, so can this computation.
-    # Compute the area mean relative vorticity in the z-direction
-    # from the D-grid winds.
-    with computation(PARALLEL), interval(...):
-        vorticity = rarea * (u_dx - u_dx[0, 1, 0] - v_dy + v_dy[1, 0, 0])
+        # TODO: ask Lucas why vorticity is computed with this particular treatment
+        # of dx, dy, and rarea. The original code read like:
+        #     u_dx = u * dx
+        #     v_dy = v * dy
+        #     vorticity = rarea * (u_dx - u_dx[0, 1, 0] - v_dy + v_dy[1, 0, 0])
+        rdy_tmp = rarea * dx
+        rdx_tmp = rarea * dy
+        vorticity = (u - u[0, 1, 0] * dx[0, 1] / dx) * rdy_tmp + (
+            v[1, 0, 0] * dy[1, 0] / dy - v
+        ) * rdx_tmp
 
 
 # Set the unique parameters for the smallest
@@ -712,7 +724,7 @@ class DGridShallowWaterLagrangianDynamics:
             flux_capacitor, origin=full_origin, domain=full_domain
         )
         self._vort_differencing_stencil = FrozenStencil(
-            vort_differencing_stencil_defn,
+            vort_differencing,
             externals=ax_offsets_b,
             origin=b_origin,
             domain=b_domain,
@@ -720,8 +732,8 @@ class DGridShallowWaterLagrangianDynamics:
         self._u_and_v_from_ke_stencil = FrozenStencil(
             u_and_v_from_ke, externals=ax_offsets_b, origin=b_origin, domain=b_domain
         )
-        self._compute_vorticity_stencil = FrozenStencil(
-            compute_vorticity,
+        self._compute_vort_stencil = FrozenStencil(
+            compute_vort,
             externals={
                 "radius": constants.RADIUS,
                 "do_f3d": config.do_f3d,
@@ -750,8 +762,8 @@ class DGridShallowWaterLagrangianDynamics:
             origin=b_origin,
             domain=b_domain,
         )
-        self._update_horizontal_vorticity_stencil = FrozenStencil(
-            update_horizontal_vorticity,
+        self._compute_vorticity_stencil = FrozenStencil(
+            compute_vorticity,
             origin=full_origin,
             domain=full_domain,
         )
@@ -960,7 +972,7 @@ class DGridShallowWaterLagrangianDynamics:
             dt,
         )
 
-        self._update_horizontal_vorticity_stencil(
+        self._compute_vorticity_stencil(
             u,
             v,
             self._v_dy,
@@ -999,7 +1011,7 @@ class DGridShallowWaterLagrangianDynamics:
         )
 
         # Vorticity transport
-        self._compute_vorticity_stencil(self._tmp_wk, self._f0, zh, self._tmp_vort)
+        self._compute_vort_stencil(self._tmp_wk, self._f0, zh, self._tmp_vort)
 
         self.fvtp2d_vt_nodelnflux(
             self._tmp_vort,
