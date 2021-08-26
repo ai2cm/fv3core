@@ -335,8 +335,8 @@ def heat_diss(
 def heat_source_from_vorticity_damping(
     vort_x_delta: FloatField,
     vort_y_delta: FloatField,
-    damped_v_dy: FloatField,
-    damped_u_dx: FloatField,
+    ut: FloatField,
+    vt: FloatField,
     u: FloatField,
     v: FloatField,
     delp: FloatField,
@@ -356,8 +356,8 @@ def heat_source_from_vorticity_damping(
     Args:
         vort_x_delta (in)
         vort_y_delta (in)
-        damped_v_dy (in)
-        damped_u_dx (in)
+        ut (in)
+        vt (in)
         u (in)
         v (in)
         delp (in)
@@ -381,10 +381,10 @@ def heat_source_from_vorticity_damping(
     with computation(PARALLEL), interval(...):
         heat_s = heat_source
         diss_e = dissipation_estimate
-        ubt = (vort_x_delta + damped_u_dx) * rdx
+        ubt = (vort_x_delta + vt) * rdx
         fy = u * rdx
         gy = fy * ubt
-        vbt = (vort_y_delta - damped_v_dy) * rdy
+        vbt = (vort_y_delta - ut) * rdy
         fx = v * rdy
         gx = fx * vbt
     with computation(PARALLEL), interval(...):
@@ -409,34 +409,19 @@ def heat_source_from_vorticity_damping(
     with computation(PARALLEL), interval(...):
         if damp_vt > 1e-5:
             with horizontal(region[local_is : local_ie + 1, local_js : local_je + 2]):
-                u = u + damped_u_dx
+                u = u + vt
             with horizontal(region[local_is : local_ie + 2, local_js : local_je + 1]):
-                v = v - damped_v_dy
+                v = v - ut
 
 
 def compute_vorticity(
     u: FloatField,
     v: FloatField,
-    v_dy: FloatField,
-    u_dx: FloatField,
     dx: FloatFieldIJ,
     dy: FloatFieldIJ,
     rarea: FloatFieldIJ,
     vorticity: FloatField,
 ):
-    # # in the original Fortran, u_dx is called vt and v_dy is called ut
-    # # (yes, u/v are mixed up in the original Fortran)
-    # # TODO(rheag). This computation is required because
-    # # ut and vt are API fields. If the distinction
-    # # is removed, so can this computation.
-    # # Compute the area mean relative vorticity in the z-direction
-    # # from the D-grid winds.
-    # with computation(PARALLEL), interval(...):
-    #     vorticity = rarea * (u_dx - u_dx[0, 1, 0] - v_dy + v_dy[1, 0, 0])
-
-    # val = rarea * (u * dx - u[0, 1, 0] * dx[0, 1, 0])
-    # val = u * rarea * dx - u[0, 1, 0] * rarea * dx[0, 1, 0]
-    # val = (u - u[0, 1, 0]*dx[0, 1, 0]/dx) * (rarea * dx)
 
     with computation(PARALLEL), interval(...):
         # TODO: ask Lucas why vorticity is computed with this particular treatment
@@ -615,8 +600,8 @@ class DGridShallowWaterLagrangianDynamics:
         self._tmp_vort = utils.make_storage_from_shape(grid_indexing.max_shape)
         self._uc_contra = utils.make_storage_from_shape(grid_indexing.max_shape)
         self._vc_contra = utils.make_storage_from_shape(grid_indexing.max_shape)
-        self._v_dy = utils.make_storage_from_shape(grid_indexing.max_shape)
-        self._u_dx = utils.make_storage_from_shape(grid_indexing.max_shape)
+        self._tmp_ut = utils.make_storage_from_shape(grid_indexing.max_shape)
+        self._tmp_vt = utils.make_storage_from_shape(grid_indexing.max_shape)
         self._tmp_fx = utils.make_storage_from_shape(grid_indexing.max_shape)
         self._tmp_fy = utils.make_storage_from_shape(grid_indexing.max_shape)
         self._tmp_gx = utils.make_storage_from_shape(grid_indexing.max_shape)
@@ -975,8 +960,6 @@ class DGridShallowWaterLagrangianDynamics:
         self._compute_vorticity_stencil(
             u,
             v,
-            self._v_dy,
-            self._u_dx,
             self.grid.dx,
             self.grid.dy,
             self.grid.rarea,
@@ -1035,19 +1018,17 @@ class DGridShallowWaterLagrangianDynamics:
 
         self.delnflux_nosg_v(
             self._tmp_wk,
-            self._v_dy,
-            self._u_dx,
+            self._tmp_ut,
+            self._tmp_vt,
             self._delnflux_damp_vt,
             self._tmp_vort,
         )
-        damped_v_dy = self._v_dy
-        damped_u_dx = self._u_dx
 
         self._heat_source_from_vorticity_damping_stencil(
             self._vort_x_delta,
             self._vort_y_delta,
-            damped_v_dy,
-            damped_u_dx,
+            self._tmp_ut,
+            self._tmp_vt,
             u,
             v,
             delp,
