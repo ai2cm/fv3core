@@ -3,7 +3,7 @@ from gt4py.gtscript import BACKWARD, FORWARD, PARALLEL, computation, interval
 
 import fv3core.utils.global_constants as constants
 import fv3core.utils.gt4py_utils as utils
-from fv3core.decorators import FrozenStencil
+from fv3core.decorators import FrozenStencil, clear_stencils, merge_stencils
 from fv3core.utils.typing import FloatField, FloatFieldIJ
 
 
@@ -316,13 +316,15 @@ class AdjustNegativeTracerMixingRatio:
             self._d0_vap = constants.CV_VAP - constants.C_LIQ
         self._lv00 = constants.HLV - self._d0_vap * constants.TICE
 
-        self._fix_neg_water = FrozenStencil(
-            func=fix_neg_water,
+        self._fillq = FrozenStencil(
+            func=fillq,
             origin=grid_indexing.origin_compute(),
             domain=grid_indexing.domain_compute(),
         )
-        self._fillq = FrozenStencil(
-            func=fillq,
+
+        clear_stencils()
+        self._fix_neg_water = FrozenStencil(
+            func=fix_neg_water,
             origin=grid_indexing.origin_compute(),
             domain=grid_indexing.domain_compute(),
         )
@@ -336,6 +338,7 @@ class AdjustNegativeTracerMixingRatio:
             origin=grid_indexing.origin_compute(),
             domain=grid_indexing.domain_compute(),
         )
+        merge_stencils()
 
     def __call__(
         self,
@@ -366,7 +369,7 @@ class AdjustNegativeTracerMixingRatio:
         )
         # TODO - optimisation: those could be merged into one stencil. To keep
         # the physical meaning we could keep the structure as @gtstencil.function
-        self._fillq(qgraupel, delp, self._sum1, self._sum2)
-        self._fillq(qrain, delp, self._sum1, self._sum2)
         self._fix_water_vapor_down(qvapor, delp)
         self._fix_neg_cloud(delp, qcld)
+        self._fillq(qgraupel, delp, self._sum1, self._sum2)
+        self._fillq(qrain, delp, self._sum1, self._sum2)

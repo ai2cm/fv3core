@@ -4,8 +4,8 @@ from gt4py.gtscript import BACKWARD, FORWARD, PARALLEL, computation, interval, l
 
 import fv3core.utils.global_constants as constants
 import fv3core.utils.gt4py_utils as utils
-from fv3core.decorators import FrozenStencil
-from fv3core.stencils.sim1_solver import Sim1Solver
+from fv3core.decorators import FrozenStencil, clear_stencils, merge_stencils
+from fv3core.stencils.sim1_solver import sim1_solver
 from fv3core.utils.grid import GridIndexing
 from fv3core.utils.typing import FloatField, FloatFieldIJ
 
@@ -82,25 +82,25 @@ class RiemannSolverC:
         self._gm = utils.make_storage_from_shape(shape, origin)
         self._dz = utils.make_storage_from_shape(shape, origin)
         self._pm = utils.make_storage_from_shape(shape, origin)
+        self._pfac = p_fac
 
+        clear_stencils()
         self._precompute_stencil = FrozenStencil(
             precompute,
             origin=origin,
             domain=domain,
         )
-        self._sim1_solve = Sim1Solver(
-            p_fac,
-            grid_indexing.isc - 1,
-            grid_indexing.iec + 1,
-            grid_indexing.jsc - 1,
-            grid_indexing.jec + 1,
-            grid_indexing.domain[2] + 1,
+        self._compute_sim1_solve = FrozenStencil(
+            func=sim1_solver,
+            origin=origin,
+            domain=domain,
         )
         self._finalize_stencil = FrozenStencil(
             finalize,
             origin=origin,
             domain=domain,
         )
+        merge_stencils()
 
     def __call__(
         self,
@@ -148,17 +148,20 @@ class RiemannSolverC:
             self._pm,
             ptop,
         )
-        self._sim1_solve(
-            dt2,
-            self._gm,
-            cappa,
-            self._pe,
-            self._dm,
-            self._pm,
-            self._pem,
+        self._compute_sim1_solve(
             self._w,
+            self._dm,
+            self._gm,
             self._dz,
             ptc,
+            self._pm,
+            self._pe,
+            self._pem,
             ws,
+            cappa,
+            dt2,
+            2.0 * dt2 * dt2,
+            1.0 / dt2,
+            self._pfac,
         )
         self._finalize_stencil(self._pe, self._pem, hs, self._dz, pef, gz, ptop)

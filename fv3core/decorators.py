@@ -27,6 +27,7 @@ import fv3core.utils
 import fv3core.utils.global_config as global_config
 import fv3core.utils.grid
 from fv3core.utils.global_config import StencilConfig
+from fv3core.utils.stencil_merger import StencilInterface, StencilMerger
 from fv3core.utils.typing import Index3D
 
 
@@ -76,7 +77,18 @@ def get_namespace(arg_specs, state):
     return types.SimpleNamespace(**namespace_kwargs)
 
 
-class FrozenStencil:
+_stencil_merger = StencilMerger()
+
+
+def clear_stencils():
+    _stencil_merger.clear()
+
+
+def merge_stencils():
+    _stencil_merger.merge()
+
+
+class FrozenStencil(StencilInterface):
     """
     Wrapper for gt4py stencils which stores origin and domain at compile time,
     and uses their stored values at call time.
@@ -113,9 +125,13 @@ class FrozenStencil:
         if externals is None:
             externals = {}
 
+        self.build_info: Dict[str, Any] = {}
+        self.definition_func: Callable = func
+
         self.stencil_object: gt4py.StencilObject = gtscript.stencil(
             definition=func,
             externals=externals,
+            build_info=self.build_info,
             **self.stencil_config.stencil_kwargs,
         )
         """generated stencil object returned from gt4py."""
@@ -138,17 +154,31 @@ class FrozenStencil:
 
         self._written_fields = get_written_fields(self.stencil_object.field_info)
 
-    def __call__(
-        self,
-        *args,
-        **kwargs,
-    ) -> None:
+        _stencil_merger.add(self)
+
+    def __call__(self, *args, **kwargs) -> None:
+        stencil_object = self.stencil_object
+        if _stencil_merger.is_merged(self):
+            # Save inputs for last call...
+            _stencil_merger.save_args(self, *args, **kwargs)
+            group_id, _, is_last_call = _stencil_merger.merged_position(self)
+            if not is_last_call:
+                return
+
+            top_stencil = _stencil_merger._stencil_groups[group_id][0]
+            self._argument_names = top_stencil.argument_names
+            self._field_origins = top_stencil.field_origins
+            self._stencil_run_kwargs["_origin_"] = self._field_origins
+
+            stencil_object = _stencil_merger.merged_stencil(group_id)
+            args, kwargs = _stencil_merger.merge_args(group_id)
+
         if self.stencil_config.validate_args:
             if __debug__ and "origin" in kwargs:
                 raise TypeError("origin cannot be passed to FrozenStencil call")
             if __debug__ and "domain" in kwargs:
                 raise TypeError("domain cannot be passed to FrozenStencil call")
-            self.stencil_object(
+            stencil_object(
                 *args,
                 **kwargs,
                 origin=self._field_origins,
@@ -157,7 +187,7 @@ class FrozenStencil:
             )
         else:
             args_as_kwargs = dict(zip(self._argument_names, args))
-            self.stencil_object.run(
+            stencil_object.run(
                 **args_as_kwargs, **kwargs, **self._stencil_run_kwargs, exec_info=None
             )
             self._mark_cuda_fields_written({**args_as_kwargs, **kwargs})
@@ -166,6 +196,25 @@ class FrozenStencil:
         if global_config.is_gpu_backend():
             for write_field in self._written_fields:
                 fields[write_field]._set_device_modified()
+
+    @property
+    def name(self) -> str:
+        return self.stencil_object._file_name.split("/")[-2]
+
+    @property
+    def argument_names(self) -> Tuple[str, ...]:
+        return self._argument_names
+
+    def set_argument_names(self, new_names: Tuple[str, ...]) -> None:
+        self._argument_names = new_names
+
+    @property
+    def field_origins(self) -> Dict[str, Tuple[int, ...]]:
+        return self._field_origins
+
+    @property
+    def written_fields(self) -> List[str]:
+        return self._written_fields
 
 
 def get_stencils_with_varied_bounds(

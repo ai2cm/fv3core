@@ -4,7 +4,7 @@ import gt4py.gtscript as gtscript
 from gt4py.gtscript import __INLINED, BACKWARD, FORWARD, PARALLEL, computation, interval
 
 import fv3core.utils.gt4py_utils as utils
-from fv3core.decorators import FrozenStencil
+from fv3core.decorators import FrozenStencil, clear_stencils, merge_stencils
 from fv3core.utils.grid import GridIndexing
 from fv3core.utils.typing import BoolField, FloatField, FloatFieldIJ
 
@@ -552,6 +552,8 @@ class RemapProfile:
         domain: Tuple[int, int, int] = (i_extent, j_extent, km)
         domain_extend: Tuple[int, int, int] = (i_extent, j_extent, km + 1)
 
+        clear_stencils()
+
         self._set_initial_values = FrozenStencil(
             func=set_initial_vals,
             externals={"iv": iv, "kord": abs(kord)},
@@ -572,6 +574,8 @@ class RemapProfile:
             origin=origin,
             domain=domain,
         )
+
+        merge_stencils()
 
     def __call__(
         self,
