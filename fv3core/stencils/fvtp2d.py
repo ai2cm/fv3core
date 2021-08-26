@@ -44,20 +44,91 @@ def compute_q_j(q, area, x_area_flux, fx2):
 def combined(q: FloatField, crx: FloatField, cry: FloatField, x_area_flux: FloatField,y_area_flux: FloatField, mfx: FloatField, mfy: FloatField, fx:FloatField, fy:FloatField, area: FloatFieldIJ):
     from __externals__ import mord
     with computation(PARALLEL), interval(...):
-        fy2 = yppm.y_flux(q, cry)
-    with computation(PARALLEL), interval(...):
-        q_i = compute_q_i(q, area, y_area_flux, fy2)
-    with computation(PARALLEL), interval(...):
-        fxt = xppm.x_flux(q_i, crx)
-    with computation(PARALLEL), interval(...):
-        fx2 = xppm.x_flux(q, crx)
-    with computation(PARALLEL), interval(...):
-        q_j =  compute_q_j(q, area, x_area_flux, fx2)
-    with computation(PARALLEL), interval(...):
-        fyt = yppm.y_flux(q_j, cry)
-    with computation(PARALLEL), interval(...):
-        fx =  transport_flux(fxt, fx2, mfx)
-        fy =  transport_flux(fyt, fy2, mfy)
+        #fy2 = yppm.y_flux(q, cry)
+        al = yppm.p1 * (q[0, -1, 0] + q) + yppm.p2 * (q[0, -2, 0] + q[0, 1, 0])
+        bl = al[0, 0, 0] - q
+        br = al[0, 1, 0] - q
+        b0 = bl + br
+
+        smt5 = (3.0 * abs(b0)) < abs(bl - br)
+        if smt5[0, -1, 0] or smt5:
+            tmp = 1.0
+        else:
+            tmp = 0.0
+
+        if cry > 0.0:
+            fx1 = (1.0 - cry) * (br[0, -1, 0] - cry * b0[0, -1, 0])
+        else:
+            fx1 = (1.0 + cry) * (bl + cry * b0)
+
+        fy2 = q[0, -1, 0] + fx1 * tmp if cry > 0.0 else q + fx1 * tmp
+        #q_i = compute_q_i(q, area, y_area_flux, fy2)
+        fyy = y_area_flux * fy2
+        #area_with_y_flux = area + y_area_flux - y_area_flux[0, 1, 0] 
+        q_i = (q * area + fyy - fyy[0, 1, 0]) / (area + y_area_flux - y_area_flux[0, 1, 0])
+
+        #fxt = xppm.x_flux(q_i, crx)
+        al = yppm.p1 * (q_i[-1, 0, 0] + q_i) + yppm.p2 * (q_i[-2, 0, 0] + q_i[1, 0, 0])
+        bl = al - q_i
+        br = al[1, 0, 0] - q_i
+        b0 = bl + br
+
+        smt5 = (3.0 * abs(b0)) < abs(bl - br)
+        if smt5[-1, 0, 0] or smt5[0, 0, 0]:
+            tmp = 1.0
+        else:
+            tmp = 0.0
+
+        if crx > 0.0:
+            fx1 = (1.0 - crx) * (br[-1, 0, 0] - crx * b0[-1, 0, 0])
+        else:
+            fx1 = (1.0 + crx) * (bl + crx * b0)
+        fxt =  q_i[-1, 0, 0] + fx1 * tmp if crx > 0.0 else q_i + fx1 * tmp
+
+        #fx2 = xppm.x_flux(q, crx)
+        al2 = yppm.p1 * (q[-1, 0, 0] + q) + yppm.p2 * (q[-2, 0, 0] + q[1, 0, 0])
+        bl2 = al2 - q
+        br2 = al2[1, 0, 0] - q
+        b02 = bl2 + br2
+
+        smt52 = (3.0 * abs(b02)) < abs(bl2 - br2)
+        if smt52[-1, 0, 0] or smt52[0, 0, 0]:
+            tmp2 = 1.0
+        else:
+            tmp2 = 0.0
+
+        if crx > 0.0:
+            fx12 = (1.0 - crx) * (br2[-1, 0, 0] - crx * b02[-1, 0, 0])
+        else:
+            fx12 = (1.0 + crx) * (bl2 + crx * b02)
+        fx2 =  q[-1, 0, 0] + fx12 * tmp2 if crx > 0.0 else q + fx12 * tmp2
+
+
+        #q_j =  compute_q_j(q, area, x_area_flux, fx2)
+        fx1q = x_area_flux * fx2
+        #area_with_x_flux = area + x_area_flux - x_area_flux[1, 0, 0]#apply_x_flux_divergence(area, x_area_flux)
+        q_j = (q * area + fx1q - fx1q[1, 0, 0]) / (area + x_area_flux - x_area_flux[1, 0, 0])
+        #fyt = yppm.y_flux(q_j, cry)
+        al2 = yppm.p1 * (q_j[0, -1, 0] + q_j) + yppm.p2 * (q_j[0, -2, 0] + q_j[0, 1, 0])
+        bl2 = al2[0, 0, 0] - q_j
+        br2 = al2[0, 1, 0] - q_j
+        b02 = bl2 + br2
+
+        smt52 = (3.0 * abs(b02)) < abs(bl2 - br2)
+        if smt52[0, -1, 0] or smt52:
+            tmp2 = 1.0
+        else:
+            tmp2 = 0.0
+
+        if cry > 0.0:
+            fx12 = (1.0 - cry) * (br2[0, -1, 0] - cry * b02[0, -1, 0])
+        else:
+            fx12 = (1.0 + cry) * (bl2 + cry * b02)
+
+        fyt = q_j[0, -1, 0] + fx12 * tmp2 if cry > 0.0 else q_j + fx12 * tmp2
+
+        fx =  0.5 * (fxt + fx2) * mfx #transport_flux(fxt, fx2, mfx)
+        fy =  0.5 * (fyt + fy2) * mfy #transport_flux(fyt, fy2, mfy)
         
 class FiniteVolumeTransport:
     """
