@@ -521,6 +521,11 @@ def interpolate_uc_vc_to_cell_corners(
     """
     from __externals__ import i_end, i_start, j_end, j_start
 
+    # In the original Fortran, this routine was given dt4 (0.25 * dt)
+    # and dt5 (0.5 * dt), and its outputs were wind times timestep. This has
+    # been refactored so the timestep is later explicitly multiplied, when
+    # the wind is integrated forward in time.
+
     # TODO: ask Lucas why we interpolate then convert to contravariant in tile center,
     # but convert to contravariant and then interpolate on tile edges.
     ub_cov = 0.5 * (uc_cov[0, -1, 0] + uc_cov)
@@ -579,7 +584,7 @@ class DGridShallowWaterLagrangianDynamics:
     ):
         self._f0 = spec.grid.f0
         self.grid = grid_data
-        assert config.grid_type < 3, "ubke and vbke only implemented for grid_type < 3"
+        assert config.grid_type < 3, "only implemented for grid_type < 3"
         assert not config.inline_q, "inline_q not yet implemented"
         assert (
             config.d_ext <= 0
@@ -836,8 +841,11 @@ class DGridShallowWaterLagrangianDynamics:
             dt: acoustic timestep in seconds (in)
         """
         # uc_contra/vc_contra are ut/vt in the original Fortran
-        # TODO: uc_contra/vc_contra are only used inside kinetic_energy_update,
-        # refactor their computation into a function call
+        # TODO: when these stencils can be merged investigate whether
+        # we can refactor fv_prep into two separate function calls,
+        # the chain looks something like:
+        #   uc_contra, vc_contra = f(uc, vc, ...)
+        #   xfx, yfx = g(uc_contra, vc_contra, ...)
         self.fv_prep(uc, vc, crx, cry, xfx, yfx, self._uc_contra, self._vc_contra, dt)
 
         self.fvtp2d_dp(
