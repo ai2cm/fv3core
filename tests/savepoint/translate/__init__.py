@@ -35,7 +35,7 @@ from .translate_fvtp2d import TranslateFvTp2d, TranslateFvTp2d_2
 from .translate_fxadv import TranslateFxAdv
 from .translate_grid import (
     TranslateGnomonicGrids,
-    TranslateAgrid,
+    TranslateAGrid,
     TranslateGridAreas,
     TranslateDxDy,
     TranslateGridGrid,
