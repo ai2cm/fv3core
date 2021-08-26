@@ -92,18 +92,16 @@ if grep -q "parallel" <<< "${script}"; then
     if grep -q "ranks" <<< "${experiment}"; then
 	export NUM_RANKS=`echo ${experiment} | grep -o -E '[0-9]+ranks' | grep -o -E '[0-9]+'`
 	echo "Setting NUM_RANKS=${NUM_RANKS}"
-	if [ grep -q "cuda" <<< "${backend}" ] || [ grep -q "gpu" <<< "${backend}" ] ; then
+	if grep -q "cuda\|gpu" <<< "${backend}"; then
 	    export MPICH_RDMA_ENABLED_CUDA=1
 	else
 	    export MPICH_RDMA_ENABLED_CUDA=0
 	fi
 	if [ -f ${scheduler_script} ] ; then
 	    sed -i 's|<NTASKS>|<NTASKS>\n#SBATCH \-\-hint=multithread\n#SBATCH --ntasks-per-core=2|g' ${scheduler_script}
-	    if [ "$NUM_RANKS" -gt "6" ];then
+	    sed -i 's|00:45:00|03:30:00|g' ${scheduler_script}
+        if [ "$NUM_RANKS" -gt "6" ];then
             sed -i 's|cscsci|debug|g' ${scheduler_script}
-            sed -i 's|00:45|00:30|g' ${scheduler_script}
-        else
-            sed -i 's|00:45:00|03:30:00|g' ${scheduler_script}
         fi
 	    sed -i 's|<NTASKS>|"'${NUM_RANKS}'"|g' ${scheduler_script}
 	    sed -i 's|<NTASKSPERNODE>|"24"|g' ${scheduler_script}
@@ -112,7 +110,7 @@ if grep -q "parallel" <<< "${script}"; then
 fi
 
 if grep -q "fv_dynamics" <<< "${script}"; then
-	if [ grep -q "cuda" <<< "${backend}" ] || [ grep -q "gpu" <<< "${backend}" ] ; then
+	if grep -q "cuda\|gpu" <<< "${backend}"; then
 	    export MPICH_RDMA_ENABLED_CUDA=1
 	    # This enables single node compilation
 	    # but will NOT work for c128
@@ -200,7 +198,7 @@ if grep -q "fv_dynamics" <<< "${script}"; then
     cp  ${run_timing_script} job_${action}_2.sh
     run_timing_script=job_${action}_2.sh
     export CRAY_CUDA_MPS=0
-	if [ grep -q "cuda" <<< "${backend}" ] || [ grep -q "gpu" <<< "${backend}" ] ; then
+    if grep -q "cuda\|gpu" <<< "${backend}"; then
 	    export MPICH_RDMA_ENABLED_CUDA=1
 	else
 	    export MPICH_RDMA_ENABLED_CUDA=0
