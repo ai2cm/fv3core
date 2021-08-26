@@ -185,8 +185,8 @@ class FiniteVolumeTransport:
         y_area_flux,
         fx,
         fy,
-        mfx,
-        mfy,
+        x_mass_flux=None,
+        y_mass_flux=None,
         mass=None,
     ):
         """
@@ -205,17 +205,28 @@ class FiniteVolumeTransport:
                 corresponding to X in eq 4.17 of FV3 documentation (out)
             fy: transport flux of q in y-direction in units q * m^2,
                 corresponding to Y in eq 4.17 of FV3 documentation (out)
-            mfx: weighting flux in x-direction, such as mass or area flux,
-                corresponds to F(rho^* = 1) in PL07 eq 17
-            mfy: weighting flux in x-direction, such as mass or area flux,
-                corresponds to G(rho^* = 1) in PL07 eq 18
-            mass: ???
+            x_mass_flux: mass flux in x-direction,
+                corresponds to F(rho^* = 1) in PL07 eq 17, if not given
+                then q is assumed to have per-area units
+            y_mass_flux: mass flux in x-direction,
+                corresponds to G(rho^* = 1) in PL07 eq 18, if not given
+                then q is assumed to have per-area units
+            mass: ??? passed along to damping code, if scalar is per-mass
+                (as opposed to per-area) this must be provided for
+                damping to be correct
         """
+        if self.delnflux is not None and mass is None and (x_mass_flux is not None or y_mass_flux is not None):
+            raise ValueError("when damping is enabled, mass must be given if mass flux is given")
+        if x_mass_flux is None:
+            unit_flux = x_area_flux
+        else:
+            unit_flux = x_mass_flux
+        if y_mass_flux is None:
+            unit_flux = y_area_flux
+        else:
+            unit_flux = y_mass_flux
+        
         self._copy_corners_y(q)
-
-        # TODO: unclear whether these are actually 0.5 * advective flux (f or g(q)),
-        # or if it's 1 * advective flux. clarify this with Lucas and update comments
-        # or remove this TODO
 
         self.y_piecewise_parabolic_inner(q, cry, self._tmp_fy2)
         # tmp_fy2 is now rho^n + G in PL07 eq 18
@@ -250,8 +261,8 @@ class FiniteVolumeTransport:
             self._tmp_fx2,
             fy,
             self._tmp_fy2,
-            mfx,
-            mfy,
+            unit_flux,
+            unit_flux,
         )
         if self.delnflux is not None:
             self.delnflux(q, fx, fy, mass=mass)

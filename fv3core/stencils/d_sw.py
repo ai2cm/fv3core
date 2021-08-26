@@ -856,8 +856,6 @@ class DGridShallowWaterLagrangianDynamics:
             yfx,
             self._tmp_fx,
             self._tmp_fy,
-            mfx=xfx,
-            mfy=yfx,
         )
 
         self._flux_capacitor_stencil(
@@ -1012,8 +1010,6 @@ class DGridShallowWaterLagrangianDynamics:
             yfx,
             self._tmp_fx,
             self._tmp_fy,
-            mfx=xfx,
-            mfy=yfx,
         )
 
         # TODO: what is ke here? It isn't kinetic energy. What are the u and v outputs?
