@@ -112,3 +112,9 @@ DynCore:
  - backend: gtc:cuda
    ignore_near_zero_errors:
      - wsd
+
+Tracer2D1L:
+ - backend: gtc:gt:gpu
+   max_error: 1e-9
+ - backend: gtc:cuda
+   max_error: 1e-9
