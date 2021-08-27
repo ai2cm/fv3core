@@ -3,7 +3,11 @@ from gt4py.gtscript import BACKWARD, FORWARD, PARALLEL, computation, interval
 
 import fv3core.utils.global_constants as constants
 import fv3core.utils.gt4py_utils as utils
-from fv3core.decorators import FrozenStencil, clear_stencils, merge_stencils
+from fv3core.decorators import (
+    FrozenStencil,
+    disable_merge_stencils,
+    enable_merge_stencils,
+)
 from fv3core.utils.typing import FloatField, FloatFieldIJ
 
 
@@ -322,7 +326,7 @@ class AdjustNegativeTracerMixingRatio:
             domain=grid_indexing.domain_compute(),
         )
 
-        clear_stencils()
+        enable_merge_stencils()
         self._fix_neg_water = FrozenStencil(
             func=fix_neg_water,
             origin=grid_indexing.origin_compute(),
@@ -338,7 +342,7 @@ class AdjustNegativeTracerMixingRatio:
             origin=grid_indexing.origin_compute(),
             domain=grid_indexing.domain_compute(),
         )
-        merge_stencils()
+        disable_merge_stencils()
 
     def __call__(
         self,

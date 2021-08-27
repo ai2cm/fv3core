@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 from gt4py.gtscript import PARALLEL, computation, interval, stencil
 
-from fv3core.decorators import clear_stencils, merge_stencils
+from fv3core.decorators import disable_merge_stencils, enable_merge_stencils
 from fv3core.utils.global_config import set_backend
 from fv3core.utils.gt4py_utils import make_storage_from_shape_uncached
 from fv3core.utils.mpi import MPI
@@ -63,7 +63,7 @@ def run_stencil_test(
     do_merge: bool,
 ):
     if do_merge:
-        clear_stencils()
+        enable_merge_stencils()
 
     copy_object = stencil(
         definition=copy_stencil,
@@ -78,7 +78,7 @@ def run_stencil_test(
     )
 
     if do_merge:
-        merge_stencils()
+        disable_merge_stencils()
 
     copy_object(q_in, q_out, origin=origin, domain=domain)
     add1_object(q_out, origin=origin, domain=domain)

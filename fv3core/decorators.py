@@ -80,12 +80,14 @@ def get_namespace(arg_specs, state):
 _stencil_merger = StencilMerger()
 
 
-def clear_stencils():
+def enable_merge_stencils():
+    _stencil_merger.enabled = True
     _stencil_merger.clear()
 
 
-def merge_stencils():
+def disable_merge_stencils():
     _stencil_merger.merge()
+    _stencil_merger.enabled = False
 
 
 class FrozenStencil(StencilInterface):
@@ -125,7 +127,9 @@ class FrozenStencil(StencilInterface):
         if externals is None:
             externals = {}
 
-        self.build_info: Dict[str, Any] = {}
+        self.build_info: Optional[Dict[str, Any]] = (
+            {} if _stencil_merger.enabled else None
+        )
         self.definition_func: Callable = func
 
         self.stencil_object: gt4py.StencilObject = gtscript.stencil(
@@ -154,7 +158,8 @@ class FrozenStencil(StencilInterface):
 
         self._written_fields = get_written_fields(self.stencil_object.field_info)
 
-        _stencil_merger.add(self)
+        if _stencil_merger.enabled:
+            _stencil_merger.add(self)
 
     def __call__(self, *args, **kwargs) -> None:
         stencil_object = self.stencil_object

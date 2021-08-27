@@ -64,6 +64,7 @@ class StencilMerger(object, metaclass=Singleton):
         self._merged_groups: Dict[int, List[str]] = {}
         self._merged_stencils: Dict[int, StencilInterface] = {}
         self._saved_args: Dict[str, Dict[str, Any]] = {}
+        self.enabled: bool = False
 
     def clear(self) -> None:
         self._stencil_groups.clear()
