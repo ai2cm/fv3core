@@ -1,4 +1,3 @@
-from fv3core.utils.grid import DampingCoefficients, GridData, GridIndexing
 import math
 
 import gt4py.gtscript as gtscript
@@ -11,6 +10,7 @@ import fv3core.utils.gt4py_utils as utils
 import fv3gfs.util
 from fv3core.decorators import FrozenStencil
 from fv3core.stencils.fvtp2d import FiniteVolumeTransport
+from fv3core.utils.grid import GridIndexing
 from fv3core.utils.typing import FloatField, FloatFieldIJ
 
 
@@ -123,7 +123,11 @@ class TracerAdvection:
     """
 
     def __init__(
-        self, grid_indexing: GridIndexing, transport: FiniteVolumeTransport, comm: fv3gfs.util.CubedSphereCommunicator, tracer_count
+        self,
+        grid_indexing: GridIndexing,
+        transport: FiniteVolumeTransport,
+        comm: fv3gfs.util.CubedSphereCommunicator,
+        tracer_count,
     ):
         self._tracer_count = tracer_count
         self.comm = comm
@@ -220,7 +224,11 @@ class TracerAdvection:
         #     self.grid.sin_sg5,
         #     self._tmp_cmax,
         #     origin=(grid_indexing.isc, self.grid_indexing.jsc, split),
-        #     domain=(grid_indexing.domain[0], self.grid_indexing.domain[1], grid_indexing.domain[2] - split + 1),
+        #     domain=(
+        #         grid_indexing.domain[0],
+        #         self.grid_indexing.domain[1],
+        #         grid_indexing.domain[2] - split + 1
+        #     ),
         # )
         # cmax_flat = np.amax(self._tmp_cmax, axis=(0, 1))
         # # cmax_flat is a gt4py storage still, but of dimension [npz+1]...

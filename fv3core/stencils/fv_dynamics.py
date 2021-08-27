@@ -8,7 +8,7 @@ import fv3core.utils.global_constants as constants
 import fv3core.utils.gt4py_utils as utils
 import fv3gfs.util
 from fv3core.decorators import ArgSpec, FrozenStencil, get_namespace
-from fv3core.stencils import tracer_2d_1l, fvtp2d
+from fv3core.stencils import fvtp2d, tracer_2d_1l
 from fv3core.stencils.basic_operations import copy_defn
 from fv3core.stencils.c2l_ord import CubedToLatLon
 from fv3core.stencils.del2cubed import HyperdiffusionDamping
