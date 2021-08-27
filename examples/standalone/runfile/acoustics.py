@@ -12,6 +12,8 @@ import fv3core
 import fv3core._config as spec
 import fv3core.testing
 import fv3core.utils.global_config as global_config
+from fv3core.utils.mpi import MPI
+from fv3gfs.util import CubedSphereCommunicator, CubedSpherePartitioner, TilePartitioner
 
 import fv3gfs
 import serialbox
@@ -76,6 +78,9 @@ def run(data_directory, halo_update, backend, time_steps, reference_run):
     initialize_fv3core(backend, halo_update)
     grid = read_grid(serializer)
     spec.set_grid(grid)
+    comm = CubedSphereCommunicator(
+        comm=MPI.COMM_WORLD, partitioner=CubedSpherePartitioner(TilePartitioner(spec.namelist.layout))
+    )
 
     input_data = read_input_data(grid, serializer)
 
@@ -83,21 +88,21 @@ def run(data_directory, halo_update, backend, time_steps, reference_run):
 
     state = get_state_from_input(grid, input_data)
 
-    acoutstics_object = AcousticDynamics(
-        None,
+    acoustics_object = AcousticDynamics(
+        comm,
         spec.namelist,
         input_data["ak"],
         input_data["bk"],
         input_data["pfull"],
         input_data["phis"],
     )
-    state.__dict__.update(acoutstics_object._temporaries)
+    state.__dict__.update(acoustics_object._temporaries)
 
-    @computepath_function
+    @computepath_function(skip_dacemode=True)
     def iterate(state: dace.constant, time_steps):
         # @Linus: make this call a dace program
         for _ in range(time_steps):
-            acoutstics_object(state, insert_temporaries=False)
+            acoustics_object(state, insert_temporaries=False)
 
     if reference_run:
         iterate(state, time_steps)

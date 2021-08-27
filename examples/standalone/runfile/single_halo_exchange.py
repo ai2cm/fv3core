@@ -303,6 +303,12 @@ class DaceHaloUpdater:
         )
 
 
+    @computepath_method(use_dace=True)
+    def do_halo_exchange(self):
+        self.start_halo_exchange()
+        self.finish_halo_exchange()
+
+
 def run(data_directory, backend):
     set_up_namelist(data_directory)
     serializer = initialize_serializer(data_directory)
@@ -326,6 +332,7 @@ def run(data_directory, backend):
     q_con_hex = do_halo_update(state, comm, grid)
 
     updater = DaceHaloUpdater(q_con2, comm, grid)
+    # ~ updater.do_halo_exchange()
     updater.start_halo_exchange()
     updater.finish_halo_exchange()
 
