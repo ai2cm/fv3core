@@ -1,7 +1,5 @@
 from types import SimpleNamespace
 
-import pytest
-
 import fv3core._config as spec
 import fv3core.stencils.fv_subgridz as fv_subgridz
 import fv3core.utils.gt4py_utils as utils
@@ -175,7 +173,11 @@ class TranslateFVSubgridZ(ParallelTranslateBaseSlicing):
     def compute_parallel(self, inputs, communicator):
         state = self.state_from_inputs(inputs)
         fvsubgridz = fv_subgridz.DryConvectiveAdjustment(
-            spec.namelist,
+            spec.grid.grid_indexing,
+            spec.namelist.nwat,
+            spec.namelist.fv_sg_adj,
+            spec.namelist.n_sponge,
+            spec.namelist.hydrostatic,
         )
         state = SimpleNamespace(**state)
         fvsubgridz(state, inputs["dt"])
@@ -183,4 +185,17 @@ class TranslateFVSubgridZ(ParallelTranslateBaseSlicing):
         return outputs
 
     def compute_sequential(self, inputs_list, communicator_list):
-        pytest.skip(f"{self.__class__} not running in mock-parallel")
+        outputs = []
+        for inputs, grid in zip(inputs_list, spec.grid):
+            state = self.state_from_inputs(inputs)
+            fvsubgridz = fv_subgridz.DryConvectiveAdjustment(
+                grid.grid_indexing,
+                spec.namelist.nwat,
+                spec.namelist.fv_sg_adj,
+                spec.namelist.n_sponge,
+                spec.namelist.hydrostatic,
+            )
+            state = SimpleNamespace(**state)
+            fvsubgridz(state, inputs["dt"])
+            outputs.append(self.outputs_from_state(state.__dict__))
+        return outputs
