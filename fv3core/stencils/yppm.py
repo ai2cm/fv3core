@@ -378,5 +378,5 @@ class YPiecewiseParabolic:
             ifirst: Starting index of the I-dir compute domain
             ilast: Final index of the I-dir compute domain
         """
-
+        # TODO: port readability improvements from xppm to yppm
         self._compute_flux_stencil(q, c, self._dya, flux)

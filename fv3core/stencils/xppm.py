@@ -311,16 +311,36 @@ class XPiecewiseParabolic:
             domain=domain,
         )
 
-    def __call__(self, q: FloatField, c: FloatField, xflux: FloatField):
+    def __call__(
+        self,
+        q_in: FloatField,
+        c: FloatField,
+        q_mean_advected_through_x_interface: FloatField,
+    ):
         """
-        Compute x-flux using the PPM method.
+        Determine the mean value of q_in to be advected along x-interfaces.
+
+        This is done by integrating a piecewise-parabolic subgrid reconstruction
+        of q_in along the x-direction over the segment of gridcell which
+        will be advected.
+
+        Multiplying this mean value by the area to be advected through the interface
+        would give the flux of q through that interface.
 
         Args:
-            q (in): Transported scalar
-            c (in): Courant number
-            xflux (out): Flux
-            jfirst: Starting index of the J-dir compute domain
-            jlast: Final index of the J-dir compute domain
+            q_in (in): scalar to be integrated
+            c (in): Courant number (u*dt/dx) in x-direction defined on x-interfaces,
+                indicates the fraction of the adjacent grid cell which will be
+                advected through the interface in one timestep
+            q_mean_advected_through_x_interface (out): defined on x-interfaces.
+                mean value of scalar within the segment of gridcell to be advected
+                through that interface in one timestep, in units of q_in
         """
-
-        self._compute_flux_stencil(q, c, self._dxa, xflux)
+        # in the Fortran version of this code, "x_advection" routines
+        # were called "get_flux", while the routine which got the flux was called
+        # fx1_fn. The final value was called xflux instead of q_out.
+        self._compute_flux_stencil(
+            q_in, c, self._dxa, q_mean_advected_through_x_interface
+        )
+        # bl and br are "edge perturbation values" as in equation 4.1
+        # of the FV3 documentation
