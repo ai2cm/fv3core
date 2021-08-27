@@ -525,7 +525,6 @@ def interpolate_uc_vc_to_cell_corners(
     # and dt5 (0.5 * dt), and its outputs were wind times timestep. This has
     # been refactored so the timestep is later explicitly multiplied, when
     # the wind is integrated forward in time.
-
     # TODO: ask Lucas why we interpolate then convert to contravariant in tile center,
     # but convert to contravariant and then interpolate on tile edges.
     ub_cov = 0.5 * (uc_cov[0, -1, 0] + uc_cov)
