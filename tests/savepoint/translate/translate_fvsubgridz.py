@@ -183,6 +183,6 @@ class TranslateFVSubgridZ(ParallelTranslateBaseSlicing):
         for state, grid in zip(state_list, self.rank_grids):
             state_namespace = SimpleNamespace(**state)
             spec.set_grid(grid)
-            fvsubgridz = fv_subgridz.FVSubgridZ(spec.namelist)
+            fvsubgridz = fv_subgridz.DryConvectiveAdjustment(spec.namelist)
             fvsubgridz(state_namespace, state_namespace.dt)
         return self.outputs_list_from_state_list(state_list)
