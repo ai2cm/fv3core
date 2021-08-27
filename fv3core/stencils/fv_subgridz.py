@@ -1,4 +1,3 @@
-import dataclasses
 from typing import Mapping
 
 import gt4py.gtscript as gtscript
