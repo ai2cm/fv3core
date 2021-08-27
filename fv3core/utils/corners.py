@@ -372,9 +372,10 @@ class FillCorners:
 
 @computepath_function
 def fill_sw_corner_vector_dgrid(x, y, i, j, grid: dace.constant, mysign, kslice: dace.constant):
-    x[grid.is_ - i, grid.js - j, kslice] = mysign * y[grid.is_ - j, i + 2, kslice]
-    y[grid.is_ - i, grid.js - j, kslice] = mysign * x[j + 2, grid.js - i, kslice]
-
+    x[grid.is_ - i, grid.js - j, kslice] = y[grid.is_ - j, i + 2, kslice]
+    x[grid.is_ - i, grid.js - j, kslice] *= mysign
+    y[grid.is_ - i, grid.js - j, kslice] = x[j + 2, grid.js - i, kslice]
+    y[grid.is_ - i, grid.js - j, kslice] *= mysign
 
 @computepath_function
 def fill_nw_corner_vector_dgrid(x, y, i, j, grid: dace.constant, kslice: dace.constant):
@@ -391,11 +392,13 @@ def fill_se_corner_vector_dgrid(x, y, i, j, grid: dace.constant, kslice: dace.co
 @computepath_function
 def fill_ne_corner_vector_dgrid(x, y, i, j, grid: dace.constant, mysign, kslice: dace.constant):
     x[grid.ie + i, grid.je + 1 + j, kslice] = (
-        mysign * y[grid.ie + 1 + j, grid.je - i + 1, kslice]
+        y[grid.ie + 1 + j, grid.je - i + 1, kslice]
     )
+    x[grid.ie + i, grid.je + 1 + j, kslice] *= mysign
     y[grid.ie + 1 + i, grid.je + j, kslice] = (
-        mysign * x[grid.ie - j + 1, grid.je + 1 + i, kslice]
+        x[grid.ie - j + 1, grid.je + 1 + i, kslice]
     )
+    y[grid.ie + 1 + i, grid.je + j, kslice] *= mysign
 
 @computepath_function
 def fill_corners_dgrid(x, y, grid: dace.constant, vector, kslice: dace.constant=slice(0, None)):

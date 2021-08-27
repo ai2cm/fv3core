@@ -589,11 +589,14 @@ class DGrid2AGrid2CGridVectors:
         # Xdir:
         if self.grid.sw_corner:
             for i in range(-2, 1):
-                self._utmp[i + 2, self.grid.js - 1, :] = -self._vtmp[
+                self._utmp[i + 2, self.grid.js - 1, :] = self._vtmp[
                     self.grid.is_ - 1, self.grid.js - i, :
                 ]
-            ua[self._i1 - 1, self._j1, :] = -va[self._i1, self._j1 + 2, :]
-            ua[self._i1, self._j1, :] = -va[self._i1, self._j1 + 1, :]
+                self._utmp[i + 2, self.grid.js - 1, :] *= -1
+            ua[self._i1 - 1, self._j1, :] = va[self._i1, self._j1 + 2, :]
+            ua[self._i1 - 1, self._j1, :] *= -1
+            ua[self._i1, self._j1, :] = va[self._i1, self._j1 + 1, :]
+            ua[self._i1, self._j1, :] *= -1
         if self.grid.se_corner:
             for i in range(0, 3):
                 self._utmp[self._nx + i, self.grid.js - 1, :] = self._vtmp[
@@ -603,11 +606,14 @@ class DGrid2AGrid2CGridVectors:
             ua[self._nx + 1, self._j1, :] = va[self._nx, self._j1 + 2, :]
         if self.grid.ne_corner:
             for i in range(0, 3):
-                self._utmp[self._nx + i, self._ny, :] = -self._vtmp[
+                self._utmp[self._nx + i, self._ny, :] = self._vtmp[
                     self._nx, self.grid.je - i, :
                 ]
-            ua[self._nx, self._ny, :] = -va[self._nx, self._ny - 1, :]
-            ua[self._nx + 1, self._ny, :] = -va[self._nx, self._ny - 2, :]
+                self._utmp[self._nx + i, self._ny, :] *= -1
+            ua[self._nx, self._ny, :] = va[self._nx, self._ny - 1, :]
+            ua[self._nx, self._ny, :] *= -1
+            ua[self._nx + 1, self._ny, :] = va[self._nx, self._ny - 2, :]
+            ua[self._nx + 1, self._ny, :] *= -1
         if self.grid.nw_corner:
             for i in range(-2, 1):
                 self._utmp[i + 2, self._ny, :] = self._vtmp[
@@ -653,11 +659,14 @@ class DGrid2AGrid2CGridVectors:
         # Ydir:
         if self.grid.sw_corner:
             for j in range(-2, 1):
-                self._vtmp[self.grid.is_ - 1, j + 2, :] = -self._utmp[
+                self._vtmp[self.grid.is_ - 1, j + 2, :] = self._utmp[
                     self.grid.is_ - j, self.grid.js - 1, :
                 ]
-            va[self._i1, self._j1 - 1, :] = -ua[self._i1 + 2, self._j1, :]
-            va[self._i1, self._j1, :] = -ua[self._i1 + 1, self._j1, :]
+                self._vtmp[self.grid.is_ - 1, j + 2, :] *= -1
+            va[self._i1, self._j1 - 1, :] = ua[self._i1 + 2, self._j1, :]
+            va[self._i1, self._j1 - 1, :] *= -1
+            va[self._i1, self._j1, :] = ua[self._i1 + 1, self._j1, :]
+            va[self._i1, self._j1, :] *= -1 
         if self.grid.nw_corner:
             for j in range(0, 3):
                 self._vtmp[self.grid.is_ - 1, self._ny + j, :] = self._utmp[
@@ -674,11 +683,14 @@ class DGrid2AGrid2CGridVectors:
             va[self._nx, self._j1 - 1, :] = ua[self._nx - 2, self._j1, :]
         if self.grid.ne_corner:
             for j in range(0, 3):
-                self._vtmp[self._nx, self._ny + j, :] = -self._utmp[
+                self._vtmp[self._nx, self._ny + j, :] = self._utmp[
                     self.grid.ie - j, self._ny, :
                 ]
-            va[self._nx, self._ny, :] = -ua[self._nx - 1, self._ny, :]
-            va[self._nx, self._ny + 1, :] = -ua[self._nx - 2, self._ny, :]
+                self._vtmp[self._nx, self._ny + j, :] *= -1
+            va[self._nx, self._ny, :] = ua[self._nx - 1, self._ny, :]
+            va[self._nx, self._ny, :] *= -1
+            va[self._nx, self._ny + 1, :] = ua[self._nx - 2, self._ny, :]
+            va[self._nx, self._ny + 1, :] *= -1
 
         if self.grid.south_edge:
             self._v_south_edge1(

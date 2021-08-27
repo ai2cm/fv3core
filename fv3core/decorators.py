@@ -187,7 +187,7 @@ class FrozenStencil(SDFGConvertible):
 
 
     def _mark_cuda_fields_written(self, fields: Mapping[str, Storage]):
-        if "cuda" in self.stencil_config.backend:
+        if "cuda" in self.stencil_config.backend or "gpu" in self.stencil_config.backend:
             for write_field in self._written_fields:
                 fields[write_field]._set_device_modified()
 

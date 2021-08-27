@@ -115,7 +115,7 @@ class StencilConfig(Hashable):
             "rebuild": self.rebuild,
             "format_source": self.format_source,
         }
-        if "cuda" in self.backend:
+        if "cuda" in self.backend or "gpu" in self.backend:
             kwargs["device_sync"] = self.device_sync
         return kwargs
 

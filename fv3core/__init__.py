@@ -8,4 +8,6 @@ from .utils.global_config import (
     set_backend,
     set_rebuild,
     set_validate_args,
+    set_device_sync,
+    set_dacemode,
 )
