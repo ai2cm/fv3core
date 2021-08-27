@@ -724,14 +724,6 @@ def finalize(
         qcld = q0_cld
 
 
-@dataclasses.dataclass
-class DryConvectiveAdjustmentConfig:
-    nwat: int
-    fv_sg_adj: bool
-    n_sponge: int
-    hydrostatic: bool
-
-
 class DryConvectiveAdjustment:
     """
     Corresponds to fv_subgrid_z in Fortran's fv_sg module
