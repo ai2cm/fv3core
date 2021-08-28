@@ -113,10 +113,6 @@ def combined(q: FloatField, crx: FloatField, cry: FloatField, x_area_flux: Float
         b02 = bl2 + br2
 
         smt52 = (3.0 * abs(b02)) < abs(bl2 - br2)
-        if smt52[0, -1, 0] or smt52:
-            tmp2 = 1.0
-        else:
-            tmp2 = 0.0
 
         if cry > 0.0:
             if smt52[0, -1, 0] or smt52:
