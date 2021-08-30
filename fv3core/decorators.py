@@ -19,7 +19,7 @@ from typing import (
 import dace
 import gt4py
 import gt4py.definitions
-from dace.frontend.python.common import SDFGConvertible
+from dace.frontend.python.common import SDFGConvertible, SDFGClosure
 from gt4py import gtscript
 from gt4py.storage.storage import Storage
 
@@ -30,7 +30,6 @@ import fv3core.utils.global_config as global_config
 import fv3core.utils.grid
 from fv3core.utils.global_config import StencilConfig
 from fv3core.utils.typing import Index3D
-
 
 ArgSpec = collections.namedtuple(
     "ArgSpec", ["arg_name", "standard_name", "units", "intent"]
@@ -183,11 +182,14 @@ class FrozenStencil(SDFGConvertible):
     def __sdfg_closure__(self, *args, **kwargs):
         return self.sdfg_wrapper.__sdfg_closure__(*args, **kwargs)
 
-
-
+    def closure_resolver(self, constant_args):
+        return SDFGClosure()
 
     def _mark_cuda_fields_written(self, fields: Mapping[str, Storage]):
-        if "cuda" in self.stencil_config.backend or "gpu" in self.stencil_config.backend:
+        if (
+            "cuda" in self.stencil_config.backend
+            or "gpu" in self.stencil_config.backend
+        ):
             for write_field in self._written_fields:
                 fields[write_field]._set_device_modified()
 
@@ -368,8 +370,8 @@ def get_non_frozen_stencil(func, externals) -> Callable[..., None]:
 
     return decorated
 
-class LazyComputepathFunction:
 
+class LazyComputepathFunction:
     def __init__(self, func, use_dace, skip_dacemode):
         self.func = func
         self._use_dace = use_dace
@@ -391,7 +393,9 @@ class LazyComputepathFunction:
         self.daceprog.global_vars = value
 
     def __sdfg__(self, *args, **kwargs):
-        return self.daceprog.to_sdfg(*args, **self.daceprog.__sdfg_closure__(), **kwargs, save=False)
+        return self.daceprog.to_sdfg(
+            *args, **self.daceprog.__sdfg_closure__(), **kwargs, save=False
+        )
 
     def __sdfg_closure__(self, *args, **kwargs):
         return self.daceprog.__sdfg_closure__(*args, **kwargs)
@@ -399,16 +403,21 @@ class LazyComputepathFunction:
     def __sdfg_signature__(self):
         return self.daceprog.argnames, self.daceprog.constant_args
 
+    def closure_resolver(self, constant_args):
+        return self.daceprog.closure_resolver(constant_args)
+
     @property
     def use_dace(self):
-        return self._use_dace or (global_config.get_dacemode() and not self._skip_dacemode)
+        return self._use_dace or (
+            global_config.get_dacemode() and not self._skip_dacemode
+        )
+
 
 class LazyComputepathMethod:
 
     bound_callables = dict()
 
     class SDFGEnabledCallable(SDFGConvertible):
-
         def __init__(self, lazy_method, obj_to_bind):
             methodwrapper = dace.method(lazy_method.func)
             self.obj_to_bind = obj_to_bind
@@ -422,6 +431,7 @@ class LazyComputepathMethod:
         @global_vars.setter
         def global_vars(self, value):
             self.daceprog.global_vars = value
+
         def __call__(self, *args, **kwargs):
             if self.lazy_method.use_dace:
                 return self.daceprog(*args, **kwargs)
@@ -429,7 +439,9 @@ class LazyComputepathMethod:
                 return self.lazy_method.func(self.obj_to_bind, *args, **kwargs)
 
         def __sdfg__(self, *args, **kwargs):
-            return self.daceprog.to_sdfg(*args, **self.daceprog.__sdfg_closure__(), **kwargs)
+            return self.daceprog.to_sdfg(
+                *args, **self.daceprog.__sdfg_closure__(), **kwargs
+            )
 
         def __sdfg_closure__(self, *args, **kwargs):
             return self.daceprog.__sdfg_closure__(*args, **kwargs)
@@ -437,6 +449,8 @@ class LazyComputepathMethod:
         def __sdfg_signature__(self):
             return self.daceprog.argnames, self.daceprog.constant_args
 
+        def closure_resolver(self, constant_args):
+            return self.daceprog.closure_resolver(constant_args)
 
     def __init__(self, func, use_dace, skip_dacemode):
         self.func = func
@@ -447,20 +461,25 @@ class LazyComputepathMethod:
 
         if (id(obj), id(self.func)) not in LazyComputepathMethod.bound_callables:
 
-            LazyComputepathMethod.bound_callables[(id(obj), id(self.func))] = LazyComputepathMethod.SDFGEnabledCallable(self, obj)
+            LazyComputepathMethod.bound_callables[
+                (id(obj), id(self.func))
+            ] = LazyComputepathMethod.SDFGEnabledCallable(self, obj)
 
         return LazyComputepathMethod.bound_callables[(id(obj), id(self.func))]
 
     @property
     def use_dace(self):
-        return self._use_dace or (global_config.get_dacemode() and not self._skip_dacemode)
+        return self._use_dace or (
+            global_config.get_dacemode() and not self._skip_dacemode
+        )
+
 
 def computepath_method(*args, **kwargs):
-    skip_dacemode = kwargs.get('skip_dacemode', False)
+    skip_dacemode = kwargs.get("skip_dacemode", False)
     if skip_dacemode:
-        use_dace = kwargs.get('use_dace', False)
+        use_dace = kwargs.get("use_dace", False)
     else:
-        use_dace = kwargs.get('use_dace', global_config.get_dacemode())
+        use_dace = kwargs.get("use_dace", global_config.get_dacemode())
 
     def _decorator(method):
         return LazyComputepathMethod(method, use_dace, skip_dacemode)
@@ -472,12 +491,15 @@ def computepath_method(*args, **kwargs):
         return _decorator
 
 
-def computepath_function(*args, **kwargs):
-    skip_dacemode = kwargs.get('skip_dacemode', False)
+def computepath_function(
+    *args, **kwargs
+) -> Union[Callable[..., Any], LazyComputepathFunction]:
+    skip_dacemode = kwargs.get("skip_dacemode", False)
     if skip_dacemode:
-        use_dace = kwargs.get('use_dace', False)
+        use_dace = kwargs.get("use_dace", False)
     else:
-        use_dace = kwargs.get('use_dace', global_config.get_dacemode())
+        use_dace = kwargs.get("use_dace", global_config.get_dacemode())
+
     def _decorator(function):
         return LazyComputepathFunction(function, use_dace, skip_dacemode)
 
