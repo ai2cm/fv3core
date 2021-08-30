@@ -1,84 +1,14 @@
-from types import SimpleNamespace
-
-import click
 import dace
 import numpy as np
 
-import serialbox
-from fv3gfs.util import CubedSphereCommunicator, CubedSpherePartitioner, TilePartitioner
 from fv3gfs.util import QuantityHaloSpec
 from fv3gfs.util import constants
 from fv3gfs.util.halo_data_transformer import HaloExchangeSpec
 
-import fv3core
-import fv3core._config as spec
-import fv3core.testing
-import fv3core.utils.global_config as global_config
 from fv3core.decorators import computepath_function, computepath_method
-from fv3core.utils.mpi import MPI
 
 
 MPI_Request = dace.opaque("MPI_Request")
-
-
-def set_up_namelist(data_directory: str) -> None:
-    spec.set_namelist(data_directory + "/input.nml")
-
-
-def initialize_serializer(data_directory: str, rank: int = 0) -> serialbox.Serializer:
-    return serialbox.Serializer(
-        serialbox.OpenModeKind.Read,
-        data_directory,
-        "Generator_rank" + str(rank),
-    )
-
-
-def read_grid(
-    serializer: serialbox.Serializer, rank: int = 0
-) -> fv3core.testing.TranslateGrid:
-    grid_savepoint = serializer.get_savepoint("Grid-Info")[0]
-    grid_data = {}
-    grid_fields = serializer.fields_at_savepoint(grid_savepoint)
-    for field in grid_fields:
-        grid_data[field] = serializer.read(field, grid_savepoint)
-        if len(grid_data[field].flatten()) == 1:
-            grid_data[field] = grid_data[field][0]
-    return fv3core.testing.TranslateGrid(grid_data, rank).python_grid()
-
-
-def initialize_fv3core(backend: str) -> None:
-    fv3core.set_backend(backend)
-    fv3core.set_rebuild(False)
-    fv3core.set_validate_args(False)
-    global_config.set_do_halo_exchange(True)
-
-
-def read_input_data(grid, serializer):
-    driver_object = fv3core.testing.TranslateDynCore([grid])
-    savepoint_in = serializer.get_savepoint("DynCore-In")[0]
-    return driver_object.collect_input_data(serializer, savepoint_in)
-
-
-def get_state_from_input(grid, input_data):
-    driver_object = fv3core.testing.TranslateDynCore([grid])
-    driver_object._base.make_storage_data_input_vars(input_data)
-
-    inputs = driver_object.inputs
-    for name, properties in inputs.items():
-        grid.quantity_dict_update(
-            input_data, name, dims=properties["dims"], units=properties["units"]
-        )
-
-    statevars = SimpleNamespace(**input_data)
-    return statevars
-
-
-def do_halo_update(state: dace.constant, comm: dace.constant, grid: dace.constant):
-    halo_request = comm.start_halo_update(
-        state.__getattribute__("q_con_quantity"), n_points=grid.halo
-    )
-    halo_request.wait()
-    return state.q_con_quantity
 
 
 def get_rot_config(dims):
@@ -218,7 +148,7 @@ class DaceHaloUpdater:
         self.y_in_y = rot_config["y_in_y"]
 
     @computepath_method(use_dace=True)
-    def start_halo_exchange(self):
+    def start_halo_update(self):
         req = np.empty((8,), dtype=MPI_Request)
 
         dace.comm.Isend(
@@ -288,7 +218,7 @@ class DaceHaloUpdater:
         dace.comm.Waitall(req)
 
     @computepath_method(use_dace=True)
-    def finish_halo_exchange(self):
+    def finish_halo_update(self):
         self.receive_slices[self.rank_0][:] = np.reshape(
             self.receive_buffers[self.rank_0], self.receive_slices[self.rank_0].shape
         )
@@ -304,56 +234,6 @@ class DaceHaloUpdater:
 
 
     @computepath_method(use_dace=True)
-    def do_halo_exchange(self):
-        self.start_halo_exchange()
-        self.finish_halo_exchange()
-
-
-def run(data_directory, backend):
-    set_up_namelist(data_directory)
-    serializer = initialize_serializer(data_directory)
-    initialize_fv3core(backend)
-    grid = read_grid(serializer)
-    spec.set_grid(grid)
-
-    input_data = read_input_data(grid, serializer)
-    state = get_state_from_input(grid, input_data)
-
-    input_data2 = read_input_data(grid, serializer)
-    state2 = get_state_from_input(grid, input_data2)
-    q_con2 = state2.q_con_quantity
-
-    layout = spec.namelist.layout
-
-    comm = CubedSphereCommunicator(
-        comm=MPI.COMM_WORLD, partitioner=CubedSpherePartitioner(TilePartitioner(layout))
-    )
-
-    q_con_hex = do_halo_update(state, comm, grid)
-
-    updater = DaceHaloUpdater(q_con2, comm, grid)
-    updater.do_halo_exchange()
-    # ~ updater.start_halo_exchange()
-    # ~ updater.finish_halo_exchange()
-
-    np.testing.assert_allclose(
-        np.asarray(q_con2.storage), np.asarray(q_con_hex.storage)
-    )
-
-    return state
-
-
-@click.command()
-@click.argument("data_directory", required=True, nargs=1)
-@click.argument("backend", required=False, default="gtc:gt:cpu_ifirst")
-def driver(
-    data_directory: str,
-    backend: str,
-):
-    state = run(data_directory, backend)
-    if MPI.COMM_WORLD.Get_rank() == 0:
-        click.echo("Done")
-
-
-if __name__ == "__main__":
-    driver()
+    def do_halo_update(self):
+        self.start_halo_update()
+        self.finish_halo_update()

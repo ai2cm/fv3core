@@ -4,6 +4,7 @@ import fv3core._config as spec
 import fv3gfs.util as fv3util
 from fv3core.testing import ParallelTranslate
 from fv3core.utils import gt4py_utils as utils
+from fv3core.utils.dace_halo_updater import DaceHaloUpdater
 
 
 logger = logging.getLogger("fv3ser")
@@ -35,25 +36,23 @@ class TranslateHaloUpdate(ParallelTranslate):
 
     def compute_parallel(self, inputs, communicator):
         state = self.state_from_inputs(inputs)
-        req = communicator.start_halo_update(
-            state[self.halo_update_varname], n_points=utils.halo
-        )
-        req.wait()
+        updater = DaceHaloUpdater(state[self.halo_update_varname], communicator, self.grid)
+        updater.start_halo_update()
+        updater.finish_halo_update()
         return self.outputs_from_state(state)
 
     def compute_sequential(self, inputs_list, communicator_list):
         state_list = self.state_list_from_inputs_list(inputs_list)
-        req_list = []
+        updaters = []
         for state, communicator in zip(state_list, communicator_list):
             logger.debug(f"starting on {communicator.rank}")
-            req_list.append(
-                communicator.start_halo_update(
-                    state[self.halo_update_varname], n_points=utils.halo
-                )
-            )
-        for communicator, req in zip(communicator_list, req_list):
+            updater = DaceHaloUpdater(state[self.halo_update_varname], communicator, self.grid)
+            updaters.append(updater)
+            updater.start_halo_update()
+
+        for communicator, updater in zip(communicator_list, updaters):
             logger.debug(f"finishing on {communicator.rank}")
-            req.wait()
+            updater.finish_halo_update()
         return self.outputs_list_from_state_list(state_list)
 
 
