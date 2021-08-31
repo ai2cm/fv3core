@@ -123,5 +123,5 @@ _BACKEND = None
 # if FALSE, caches will be checked and rebuild if code changes
 _REBUILD = getenv_bool("FV3_STENCIL_REBUILD_FLAG", "False")
 _FORMAT_SOURCE = getenv_bool("FV3_STENCIL_FORMAT_SOURCE", "False")
-_VALIDATE_ARGS = False
+_VALIDATE_ARGS = True
 _DEVICE_SYNC = False
