@@ -37,6 +37,14 @@ ArgSpec = collections.namedtuple(
 VALID_INTENTS = ["in", "out", "inout", "unknown"]
 
 
+def to_gpu(sdfg: dace.SDFG):
+    pass
+    #for array in sdfg.arrays.values():
+    #    if array.storage == dace.StorageType.Default:
+    #        array.storage = dace.StorageType.GPU_Global
+    #sdfg.apply_gpu_transformations(validate=False)
+
+
 def state_inputs(*arg_specs):
     for sp in arg_specs:
         if sp.intent not in VALID_INTENTS:
@@ -146,7 +154,7 @@ class FrozenStencil(SDFGConvertible):
             domain=domain,
             externals=externals,
             name=f"{__name__}.{func.__name__}",
-            **self._stencil_run_kwargs,
+            backend=self.stencil_config.backend,
         )
 
     def __call__(
@@ -154,6 +162,8 @@ class FrozenStencil(SDFGConvertible):
         *args,
         **kwargs,
     ) -> None:
+        if any(d == 0 for d in self.domain):
+            return
         if self.stencil_config.validate_args:
             if __debug__ and "origin" in kwargs:
                 raise TypeError("origin cannot be passed to FrozenStencil call")
@@ -380,7 +390,10 @@ class LazyComputepathFunction:
 
     def __call__(self, *args, **kwargs):
         if self.use_dace:
-            return self.daceprog(*args, **kwargs)
+            sdfg = self.__sdfg__(*args, **kwargs)
+            sdfg.validate()
+            sdfg.save('tmp.sdfg')
+            return sdfg(*args, **self.daceprog.__sdfg_closure__(), **kwargs)
         else:
             return self.func(*args, **kwargs)
 
@@ -393,9 +406,15 @@ class LazyComputepathFunction:
         self.daceprog.global_vars = value
 
     def __sdfg__(self, *args, **kwargs):
-        return self.daceprog.to_sdfg(
+        sdfg = self.daceprog.to_sdfg(
             *args, **self.daceprog.__sdfg_closure__(), **kwargs, save=False
         )
+        if (
+            "gpu" in global_config.get_backend()
+            or "cuda" in global_config.get_backend()
+        ):
+            to_gpu(sdfg)
+        return sdfg
 
     def __sdfg_closure__(self, *args, **kwargs):
         return self.daceprog.__sdfg_closure__(*args, **kwargs)
@@ -434,14 +453,23 @@ class LazyComputepathMethod:
 
         def __call__(self, *args, **kwargs):
             if self.lazy_method.use_dace:
-                return self.daceprog(*args, **kwargs)
+                sdfg = self.__sdfg__(*args, **kwargs)
+                sdfg.validate()
+                sdfg.save('tmp.sdfg')
+                return sdfg(*args, **self.daceprog.__sdfg_closure__(), **kwargs)
             else:
                 return self.lazy_method.func(self.obj_to_bind, *args, **kwargs)
 
         def __sdfg__(self, *args, **kwargs):
-            return self.daceprog.to_sdfg(
-                *args, **self.daceprog.__sdfg_closure__(), **kwargs
+            sdfg = self.daceprog.to_sdfg(
+                *args, **self.daceprog.__sdfg_closure__(), **kwargs, save=False
             )
+            if (
+                "gpu" in global_config.get_backend()
+                or "cuda" in global_config.get_backend()
+            ):
+                to_gpu(sdfg)
+            return sdfg
 
         def __sdfg_closure__(self, *args, **kwargs):
             return self.daceprog.__sdfg_closure__(*args, **kwargs)

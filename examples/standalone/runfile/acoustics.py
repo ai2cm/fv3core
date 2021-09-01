@@ -103,7 +103,21 @@ def run(data_directory, halo_update, backend, time_steps, reference_run):
             acoutstics_object(state, insert_temporaries=False)
 
     if reference_run:
-        iterate(state, time_steps)
+        import time
+        start = time.time()
+        pr = cProfile.Profile()
+        pr.enable()
+
+        try:
+            iterate(state, time_steps)
+        finally:
+            pr.disable()
+            s = io.StringIO()
+            sortby = SortKey.CUMULATIVE
+            ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
+            ps.print_stats()
+            print("\n".join(s.getvalue().split("\n")[:50]))
+        print(f"{backend} time:", time.time()-start)
     else:
         set_dacemode(True)
 
