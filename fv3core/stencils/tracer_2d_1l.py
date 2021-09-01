@@ -19,7 +19,9 @@ def flux_x(cx, dxa, dy, sin_sg3, sin_sg1, xfx):
     from __externals__ import local_ie, local_is, local_je, local_js
 
     with horizontal(region[local_is : local_ie + 2, local_js - 3 : local_je + 4]):
-        xfx = cx * dxa[-1, 0] * dy * sin_sg3[-1, 0] if cx > 0 else cx * dxa * dy * sin_sg1
+        xfx = (
+            cx * dxa[-1, 0] * dy * sin_sg3[-1, 0] if cx > 0 else cx * dxa * dy * sin_sg1
+        )
     return xfx
 
 
@@ -28,7 +30,9 @@ def flux_y(cy, dya, dx, sin_sg4, sin_sg2, yfx):
     from __externals__ import local_ie, local_is, local_je, local_js
 
     with horizontal(region[local_is - 3 : local_ie + 4, local_js : local_je + 2]):
-        yfx = cy * dya[0, -1] * dx * sin_sg4[0, -1] if cy > 0 else cy * dya * dx * sin_sg2
+        yfx = (
+            cy * dya[0, -1] * dx * sin_sg4[0, -1] if cy > 0 else cy * dya * dx * sin_sg2
+        )
     return yfx
 
 
@@ -76,7 +80,9 @@ def cmax_stencil1(cx: FloatField, cy: FloatField, cmax: FloatField):
         cmax = max(abs(cx), abs(cy))
 
 
-def cmax_stencil2(cx: FloatField, cy: FloatField, sin_sg5: FloatField, cmax: FloatField):
+def cmax_stencil2(
+    cx: FloatField, cy: FloatField, sin_sg5: FloatField, cmax: FloatField
+):
     with computation(PARALLEL), interval(...):
         cmax = max(abs(cx), abs(cy)) + 1.0 - sin_sg5
 
