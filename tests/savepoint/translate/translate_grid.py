@@ -425,8 +425,7 @@ class TranslateGridGrid(ParallelTranslateGrid):
 
     def __init__(self, grids):
         super().__init__(grids)
-        self.ignore_near_zero_errors = {}
-        self.ignore_near_zero_errors["grid"] = True
+        self.max_error = 1.e-13
 
     def compute_sequential(self, inputs_list, communicator_list):
         shift_fac = 18
@@ -487,7 +486,7 @@ class TranslateGridGrid(ParallelTranslateGrid):
             fill_corners_2d(
                 state["grid"].data[:, :, :], self.grid, gridtype="B", direction="x"
             )
-            state["grid"].data[:, :, :] = set_halo_nan(state["grid"].data[:, :, :], self.grid.halo, grid_global.np)
+            # state["grid"].data[:, :, :] = set_halo_nan(state["grid"].data[:, :, :], self.grid.halo, grid_global.np)
         return self.outputs_list_from_state_list(state_list)
 
     def compute_parallel(self, inputs, communicator):
@@ -848,6 +847,11 @@ cubedsphere=Atm(n)%gridstruct%latlon
             "units": "m",
         },
     }
+
+    def __init__(self, grids):
+        super().__init__(grids)
+        self.ignore_near_zero_errors = {}
+        self.ignore_near_zero_errors["grid"] = True
 
     def compute_sequential(self, inputs_list, communicator_list):
 

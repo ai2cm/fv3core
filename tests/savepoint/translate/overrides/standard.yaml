@@ -70,3 +70,8 @@ UpdateDzD:
 FVSubgridZ:
   - backend: gtcuda
     max_error: 1e-8
+
+GridGrid:
+  - backend: numpy
+    ignore_near_zero_errors:
+      grid: 1e-14

@@ -431,10 +431,10 @@ def _set_c_grid_south_edge_area(xyz_dgrid, xyz_agrid, area_cgrid, radius, np):
 
 
 def _set_c_grid_southwest_corner_area(xyz_dgrid, xyz_agrid, area_cgrid, radius, np):
-    lower_right = normalize_xyz((xyz_dgrid[0, 0, :] + xyz_dgrid[1, 0, :]))
-    upper_right = xyz_agrid[0, 0, :]
-    upper_left = normalize_xyz((xyz_dgrid[0, 0, :] + xyz_dgrid[0, 1, :]))
-    lower_left = xyz_dgrid[0, 0, :]
+    lower_right = normalize_xyz((xyz_dgrid[0, 0, :] + xyz_dgrid[1, 0, :])) #Fortran P2
+    upper_right = xyz_agrid[0, 0, :] #Fortran P3
+    upper_left = normalize_xyz((xyz_dgrid[0, 0, :] + xyz_dgrid[0, 1, :]))# Fortran P4
+    lower_left = xyz_dgrid[0, 0, :] #Fortran P1
     area_cgrid[0, 0] = 3. * get_rectangle_area(
         lower_left, upper_left, upper_right, lower_right, radius, np
     )
@@ -542,6 +542,7 @@ def spherical_angle(p_center, p2, p3, np):
 !         \
 !          \
 !           p2
+    This angle will always be less than Pi.
     """
 
     # ! Vector P:
