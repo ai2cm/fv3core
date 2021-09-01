@@ -10,6 +10,7 @@ import fv3core.utils.gt4py_utils as utils
 import fv3gfs.util
 from fv3core.decorators import FrozenStencil
 from fv3core.stencils.fvtp2d import FiniteVolumeTransport
+from fv3core.utils.grid import GridIndexing
 from fv3core.utils.typing import FloatField, FloatFieldIJ
 
 
@@ -18,9 +19,7 @@ def flux_x(cx, dxa, dy, sin_sg3, sin_sg1, xfx):
     from __externals__ import local_ie, local_is, local_je, local_js
 
     with horizontal(region[local_is : local_ie + 2, local_js - 3 : local_je + 4]):
-        xfx = (
-            cx * dxa[-1, 0] * dy * sin_sg3[-1, 0] if cx > 0 else cx * dxa * dy * sin_sg1
-        )
+        xfx = cx * dxa[-1, 0] * dy * sin_sg3[-1, 0] if cx > 0 else cx * dxa * dy * sin_sg1
     return xfx
 
 
@@ -29,9 +28,7 @@ def flux_y(cy, dya, dx, sin_sg4, sin_sg2, yfx):
     from __externals__ import local_ie, local_is, local_je, local_js
 
     with horizontal(region[local_is - 3 : local_ie + 4, local_js : local_je + 2]):
-        yfx = (
-            cy * dya[0, -1] * dx * sin_sg4[0, -1] if cy > 0 else cy * dya * dx * sin_sg2
-        )
+        yfx = cy * dya[0, -1] * dx * sin_sg4[0, -1] if cy > 0 else cy * dya * dx * sin_sg2
     return yfx
 
 
@@ -79,9 +76,7 @@ def cmax_stencil1(cx: FloatField, cy: FloatField, cmax: FloatField):
         cmax = max(abs(cx), abs(cy))
 
 
-def cmax_stencil2(
-    cx: FloatField, cy: FloatField, sin_sg5: FloatField, cmax: FloatField
-):
+def cmax_stencil2(cx: FloatField, cy: FloatField, sin_sg5: FloatField, cmax: FloatField):
     with computation(PARALLEL), interval(...):
         cmax = max(abs(cx), abs(cy)) + 1.0 - sin_sg5
 
@@ -122,12 +117,17 @@ class TracerAdvection:
     """
 
     def __init__(
-        self, comm: fv3gfs.util.CubedSphereCommunicator, namelist, tracers_count
+        self,
+        grid_indexing: GridIndexing,
+        transport: FiniteVolumeTransport,
+        comm: fv3gfs.util.CubedSphereCommunicator,
+        tracer_count,
     ):
+        self._tracer_count = tracer_count
         self.comm = comm
         self.grid = spec.grid
-        shape = self.grid.domain_shape_full(add=(1, 1, 1))
-        origin = self.grid.compute_origin()
+        shape = grid_indexing.domain_full(add=(1, 1, 1))
+        origin = grid_indexing.origin_compute()
         self._tmp_xfx = utils.make_storage_from_shape(shape, origin)
         self._tmp_yfx = utils.make_storage_from_shape(shape, origin)
         self._tmp_fx = utils.make_storage_from_shape(shape, origin)
@@ -139,7 +139,7 @@ class TracerAdvection:
         )
 
         ax_offsets = fv3core.utils.axis_offsets(
-            self.grid, self.grid.full_origin(), self.grid.domain_shape_full()
+            self.grid, grid_indexing.origin_full(), grid_indexing.domain_full()
         )
         local_axis_offsets = {}
         for axis_offset_name, axis_offset_value in ax_offsets.items():
@@ -148,35 +148,29 @@ class TracerAdvection:
 
         self._flux_compute = FrozenStencil(
             flux_compute,
-            origin=self.grid.full_origin(),
-            domain=self.grid.domain_shape_full(add=(1, 1, 0)),
+            origin=grid_indexing.origin_full(),
+            domain=grid_indexing.domain_full(add=(1, 1, 0)),
             externals=local_axis_offsets,
         )
         self._cmax_multiply_by_frac = FrozenStencil(
             cmax_multiply_by_frac,
-            origin=self.grid.full_origin(),
-            domain=self.grid.domain_shape_full(add=(1, 1, 0)),
+            origin=grid_indexing.origin_full(),
+            domain=grid_indexing.domain_full(add=(1, 1, 0)),
             externals=local_axis_offsets,
         )
         self._dp_fluxadjustment = FrozenStencil(
             dp_fluxadjustment,
-            origin=self.grid.compute_origin(),
-            domain=self.grid.domain_shape_compute(),
+            origin=grid_indexing.origin_compute(),
+            domain=grid_indexing.domain_compute(),
             externals=local_axis_offsets,
         )
         self._q_adjust = FrozenStencil(
             q_adjust,
-            origin=self.grid.compute_origin(),
-            domain=self.grid.domain_shape_compute(),
+            origin=grid_indexing.origin_compute(),
+            domain=grid_indexing.domain_compute(),
             externals=local_axis_offsets,
         )
-        self.finite_volume_transport = FiniteVolumeTransport(
-            grid_indexing=self.grid.grid_indexing,
-            grid_data=self.grid.grid_data,
-            damping_coefficients=self.grid.damping_coefficients,
-            grid_type=self.grid.grid_type,
-            hord=namelist.hord_tr,
-        )
+        self.finite_volume_transport: FiniteVolumeTransport = transport
         # If use AllReduce, will need something like this:
         # self._tmp_cmax = utils.make_storage_from_shape(shape, origin)
         # self._cmax_1 = FrozenStencil(cmax_stencil1)
@@ -185,10 +179,15 @@ class TracerAdvection:
         # Setup halo updater for tracers
         tracer_halo_spec = self.grid.get_halo_update_spec(shape, origin, utils.halo)
         self._tracers_halo_updater = self.comm.get_scalar_halo_updater(
-            [tracer_halo_spec] * tracers_count
+            [tracer_halo_spec] * tracer_count
         )
 
     def __call__(self, tracers, dp1, mfxd, mfyd, cxd, cyd, mdt):
+        if len(tracers) != self._tracer_count:
+            raise ValueError(
+                f"incorrect number of tracers, {self._tracer_count} was "
+                f"specified on init but {len(tracers)} were passed"
+            )
         # start HALO update on q (in dyn_core in fortran -- just has started when
         # this function is called...)
         self._flux_compute(
@@ -208,18 +207,22 @@ class TracerAdvection:
 
         # # TODO for if we end up using the Allreduce and compute cmax globally
         # (or locally). For now, hardcoded.
-        # split = int(self.grid.npz / 6)
+        # split = int(grid_indexing.domain[2] / 6)
         # self._cmax_1(
-        #     cxd, cyd, self._tmp_cmax, origin=self.grid.compute_origin(),
-        #     domain=(self.grid.nic, self.grid.njc, split)
+        #     cxd, cyd, self._tmp_cmax, origin=grid_indexing.origin_compute(),
+        #     domain=(grid_indexing.domain[0], self.grid_indexing.domain[1], split)
         # )
         # self._cmax_2(
         #     cxd,
         #     cyd,
         #     self.grid.sin_sg5,
         #     self._tmp_cmax,
-        #     origin=(self.grid.is_, self.grid.js, split),
-        #     domain=(self.grid.nic, self.grid.njc, self.grid.npz - split + 1),
+        #     origin=(grid_indexing.isc, self.grid_indexing.jsc, split),
+        #     domain=(
+        #         grid_indexing.domain[0],
+        #         self.grid_indexing.domain[1],
+        #         grid_indexing.domain[2] - split + 1
+        #     ),
         # )
         # cmax_flat = np.amax(self._tmp_cmax, axis=(0, 1))
         # # cmax_flat is a gt4py storage still, but of dimension [npz+1]...
@@ -257,7 +260,7 @@ class TracerAdvection:
                 self.grid.rarea,
                 dp2,
             )
-            for qname, q in tracers.items():
+            for q in tracers.values():
                 self.finite_volume_transport(
                     q.storage,
                     cxd,
