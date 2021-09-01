@@ -1017,6 +1017,7 @@ class DGridShallowWaterLagrangianDynamics:
             self._tmp_vort,
         )
 
+        # TODO(eddied): These stencils were split to ensure GTC verification
         self._heat_source_from_vorticity_damping_stencil(
             self._tmp_ub,
             self._tmp_vb,

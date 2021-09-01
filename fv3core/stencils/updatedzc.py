@@ -144,6 +144,7 @@ class UpdateGeopotentialHeightOnCGrid:
         # once regions bug is fixed
         self._double_copy_stencil(gz, self._gz_x, self._gz_y)
 
+        # TODO(eddied): We pass the same fields 2x to avoid GTC validation errors
         self._fill_corners_x_stencil(self._gz_x, self._gz_x)
         self._fill_corners_y_stencil(self._gz_y, self._gz_y)
 

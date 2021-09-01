@@ -234,6 +234,7 @@ def compute_al(q: FloatField, dya: FloatFieldIJ):
 def bl_br_edges(bl, br, q, dya, al, dm):
     from __externals__ import j_end, j_start
 
+    # TODO(eddied): This temporary prevents race conditions in regions
     al_jp1 = al[0, 1, 0]
 
     #  dm_jord8plus(q: FloatField)

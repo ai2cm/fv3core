@@ -381,6 +381,7 @@ class DivergenceDamping:
                 self.fill_corners_bgrid_y(divg_d)
             self._uc_from_divg_stencils[n](divg_d, self._divg_v, uc)
 
+            # TODO(eddied): We pass the same fields 2x to avoid GTC validation errors
             if fillc:
                 self._fill_corners_dgrid_stencil(vc, vc, uc, uc, -1.0)
             self._redo_divg_d_stencils[n](uc, vc, divg_d, self._rarea_c)

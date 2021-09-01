@@ -171,6 +171,7 @@ def compute_al(q: FloatField, dxa: FloatFieldIJ):
 def bl_br_edges(bl, br, q, dxa, al, dm):
     from __externals__ import i_end, i_start
 
+    # TODO(eddied): This temporary prevents race conditions in regions
     al_ip1 = al[1, 0, 0]
 
     with horizontal(region[i_start - 1, :]):

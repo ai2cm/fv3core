@@ -243,6 +243,7 @@ def divergence_corner(
         # in the future we could use gtscript functions when they support shifts
 
         with horizontal(region[i_start, :], region[i_end + 1, :]):
+            vf0 = v * dxc * 0.5 * (sin_sg3[-1, 0] + sin_sg1)
             vf1 = v[0, -1, 0] * dxc[0, -1] * 0.5 * (sin_sg3[-1, -1] + sin_sg1[0, -1])
             uf1 = (
                 (
@@ -255,10 +256,10 @@ def divergence_corner(
                 * 0.5
                 * (sin_sg4[-1, -1] + sin_sg2[-1, 0])
             )
-            vf0 = v * dxc * 0.5 * (sin_sg3[-1, 0] + sin_sg1)
             divg_d = (vf1 - vf0 + uf1 - uf) * rarea_c
 
         with horizontal(region[:, j_start], region[:, j_end + 1]):
+            uf0 = u * dyc * 0.5 * (sin_sg4[0, -1] + sin_sg2)
             uf1 = u[-1, 0, 0] * dyc[-1, 0] * 0.5 * (sin_sg4[-1, -1] + sin_sg2[-1, 0])
             vf1 = (
                 (
@@ -271,7 +272,6 @@ def divergence_corner(
                 * 0.5
                 * (sin_sg3[-1, -1] + sin_sg1[0, -1])
             )
-            uf0 = u * dyc * 0.5 * (sin_sg4[0, -1] + sin_sg2)
             divg_d = (vf1 - vf + uf1 - uf0) * rarea_c
 
         with horizontal(region[i_start, j_start], region[i_end + 1, j_start]):
@@ -657,6 +657,7 @@ class CGridShallowWaterDynamics:
             dt2,
         )
 
+        # TODO(eddied): We pass the same fields 2x to avoid GTC validation errors
         self._fill_corners_x_delp_pt_w_stencil(delp, pt, w, delp, pt, w)
         self._compute_nonhydro_fluxes_x_stencil(
             delp, pt, ut, w, self._tmp_fx, self._tmp_fx1, self._tmp_fx2

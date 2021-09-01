@@ -151,6 +151,7 @@ class HyperdiffusionDamping:
         for n in range(self._ntimes):
             nt = self._ntimes - (n + 1)
             # Fill in appropriate corner values
+            # TODO(eddied): We pass the same field 2x to avoid GTC validation errors
             self._corner_fill(qdel, qdel)
 
             if nt > 0:
