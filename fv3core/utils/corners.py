@@ -111,14 +111,14 @@ def fill_corners_2cells_mult_x(
     return q
 
 
-def fill_corners_2cells_x_stencil(q: FloatField, q_corner: FloatField):
+def fill_corners_2cells_x_stencil(q_out: FloatField, q_in: FloatField):
     with computation(PARALLEL), interval(...):
-        q = fill_corners_2cells_mult_x(q, q_corner, 1.0, 1.0, 1.0, 1.0)
+        q_out = fill_corners_2cells_mult_x(q_out, q_in, 1.0, 1.0, 1.0, 1.0)
 
 
-def fill_corners_2cells_y_stencil(q: FloatField, q_corner: FloatField):
+def fill_corners_2cells_y_stencil(q_out: FloatField, q_in: FloatField):
     with computation(PARALLEL), interval(...):
-        q = fill_corners_2cells_mult_y(q, q_corner, 1.0, 1.0, 1.0, 1.0)
+        q_out = fill_corners_2cells_mult_y(q_out, q_in, 1.0, 1.0, 1.0, 1.0)
 
 
 @gtscript.function
