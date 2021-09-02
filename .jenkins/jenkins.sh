@@ -38,10 +38,17 @@ T="$(date +%s)"
 test -n "$1" || exitError 1001 ${LINENO} "must pass an argument"
 test -n "${slave}" || exitError 1005 ${LINENO} "slave is not defined"
 
-# some global variables
+# GTC backend name fix: passed as gtc_gt_* but their real name are gtc:gt:*
+input_backend="$2"
+if [[ $input_backend = gtc_gt_* ]] ; then
+    input_backend=`echo $input_backend | sed 's/_/:/g'`
+fi
+
+# Read arguments
 action="$1"
-backend="$2"
+backend="$input_backend"
 experiment="$3"
+
 # check presence of env directory
 pushd `dirname $0` > /dev/null
 envloc=`/bin/pwd`
