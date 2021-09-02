@@ -43,9 +43,9 @@ def corner_fill(q_in: FloatField, q_out: FloatField):
 
     # Fills the same scalar value into three locations in q for each corner
     with computation(PARALLEL), interval(...):
-        q_out = q_in
-
         third = 1.0 / 3.0
+
+        q_out = q_in
         with horizontal(region[i_start, j_start]):
             q_out = (q_in[0, 0, 0] + q_in[-1, 0, 0] + q_in[0, -1, 0]) * third
         with horizontal(region[i_start - 1, j_start]):
