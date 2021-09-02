@@ -49,8 +49,6 @@ fi
 action="$1"
 backend="$input_backend"
 experiment="$3"
-echo $2 $input_backend $backend
-exit -1
 
 # check presence of env directory
 pushd `dirname $0` > /dev/null
