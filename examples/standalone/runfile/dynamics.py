@@ -11,11 +11,16 @@ import numpy as np
 import serialbox
 from mpi4py import MPI
 
+
+# isort: off
+import fv3gfs.util as util
+from fv3core.utils.null_comm import NullComm
+
+# isort: on
+
 import fv3core
 import fv3core._config as spec
 import fv3core.testing
-import fv3gfs.util as util
-from fv3core.utils.null_comm import NullComm
 
 
 def parse_args() -> Namespace:
