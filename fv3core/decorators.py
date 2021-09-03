@@ -20,6 +20,7 @@ import dace
 import gt4py
 import gt4py.definitions
 from dace.frontend.python.common import SDFGConvertible, SDFGClosure
+from dace.transformation.helpers import get_parent_map
 from gt4py import gtscript
 from gt4py.storage.storage import Storage
 
@@ -38,11 +39,22 @@ VALID_INTENTS = ["in", "out", "inout", "unknown"]
 
 
 def to_gpu(sdfg: dace.SDFG):
-    pass
-    #for array in sdfg.arrays.values():
-    #    if array.storage == dace.StorageType.Default:
-    #        array.storage = dace.StorageType.GPU_Global
-    #sdfg.apply_gpu_transformations(validate=False)
+    allmaps = [(me, state) for me, state in sdfg.all_nodes_recursive()
+                if isinstance(me, dace.nodes.MapEntry)]
+    topmaps = [(me, state) for me, state in allmaps
+                if get_parent_map(state, me) is None]
+
+    for sd, aname, arr in sdfg.arrays_recursive():
+        if arr.shape == (1, ):
+            arr.storage = dace.StorageType.Register
+        else:
+            arr.storage = dace.StorageType.GPU_Global
+
+    for mapentry, state in topmaps:
+        mapentry.schedule = dace.ScheduleType.GPU_Device
+
+    for sd in sdfg.all_sdfgs_recursive():
+        sd.openmp_sections = False
 
 
 def state_inputs(*arg_specs):
