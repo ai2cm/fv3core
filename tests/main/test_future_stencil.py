@@ -77,7 +77,7 @@ def test_future_stencil(backend: str, rebuild: bool):
     MPI is not None and MPI.COMM_WORLD.Get_size() == 1,
     reason="Not running in parallel with mpi",
 )
-def test_distributed_table(table_type: str):
+def test_distributed_table():
     comm = MPI.COMM_WORLD
     node_id = comm.Get_rank()
     n_nodes = comm.Get_size()
