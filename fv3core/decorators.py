@@ -403,8 +403,11 @@ class LazyComputepathFunction:
     def __call__(self, *args, **kwargs):
         if self.use_dace:
             sdfg = self.__sdfg__(*args, **kwargs)
-            sdfg.validate()
-            sdfg.save('tmp.sdfg')
+            if (
+                "gpu" in global_config.get_backend()
+                or "cuda" in global_config.get_backend()
+            ):
+                to_gpu(sdfg)
             return sdfg(*args, **self.daceprog.__sdfg_closure__(), **kwargs)
         else:
             return self.func(*args, **kwargs)
@@ -418,15 +421,9 @@ class LazyComputepathFunction:
         self.daceprog.global_vars = value
 
     def __sdfg__(self, *args, **kwargs):
-        sdfg = self.daceprog.to_sdfg(
+        return self.daceprog.to_sdfg(
             *args, **self.daceprog.__sdfg_closure__(), **kwargs, save=False
         )
-        if (
-            "gpu" in global_config.get_backend()
-            or "cuda" in global_config.get_backend()
-        ):
-            to_gpu(sdfg)
-        return sdfg
 
     def __sdfg_closure__(self, *args, **kwargs):
         return self.daceprog.__sdfg_closure__(*args, **kwargs)
@@ -466,22 +463,19 @@ class LazyComputepathMethod:
         def __call__(self, *args, **kwargs):
             if self.lazy_method.use_dace:
                 sdfg = self.__sdfg__(*args, **kwargs)
-                sdfg.validate()
-                sdfg.save('tmp.sdfg')
+                if (
+                    "gpu" in global_config.get_backend()
+                    or "cuda" in global_config.get_backend()
+                ):
+                    to_gpu(sdfg)
                 return sdfg(*args, **self.daceprog.__sdfg_closure__(), **kwargs)
             else:
                 return self.lazy_method.func(self.obj_to_bind, *args, **kwargs)
 
         def __sdfg__(self, *args, **kwargs):
-            sdfg = self.daceprog.to_sdfg(
+            return self.daceprog.to_sdfg(
                 *args, **self.daceprog.__sdfg_closure__(), **kwargs, save=False
             )
-            if (
-                "gpu" in global_config.get_backend()
-                or "cuda" in global_config.get_backend()
-            ):
-                to_gpu(sdfg)
-            return sdfg
 
         def __sdfg_closure__(self, *args, **kwargs):
             return self.daceprog.__sdfg_closure__(*args, **kwargs)
