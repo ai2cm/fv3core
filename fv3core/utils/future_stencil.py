@@ -146,6 +146,7 @@ def future_stencil(
     definition: Optional[Callable] = None,
     *,
     externals: Optional[Dict[str, Any]] = None,
+    wrapper: Optional[Callable] = None,
     rebuild: bool = False,
     **kwargs: Any,
 ):
@@ -194,7 +195,7 @@ def future_stencil(
                 **kwargs,
             )
         )
-        return FutureStencil(builder)
+        return FutureStencil(builder, wrapper)
 
     if definition is None:
         return _decorator
@@ -208,12 +209,15 @@ class FutureStencil:
 
     _id_table = StencilTable()
 
-    def __init__(self, builder: Optional["StencilBuilder"] = None):
+    def __init__(
+        self, builder: Optional["StencilBuilder"] = None, wrapper: Optional[Callable] = None
+    ):
         self._builder: Optional["StencilBuilder"] = builder
         self._stencil_object: Optional[StencilObject] = None
         self._sleep_time: float = 25e-3
         self._timeout: float = 180.0
         self._node_id = MPI.COMM_WORLD.Get_rank() if MPI else 0
+        self._wrapper = wrapper
 
     @classmethod
     def clear(cls):
@@ -290,6 +294,9 @@ class FutureStencil:
             )
 
         self._stencil_object = stencil_class()
+        # Assign wrapper's stencil_object (e.g,. FrozenStencil) if provided...
+        if self._wrapper:
+            self._wrapper.stencil_object = self._stencil_object
 
     def __call__(self, *args: Any, **kwargs: Any) -> None:
         return (self.stencil_object)(*args, **kwargs)
