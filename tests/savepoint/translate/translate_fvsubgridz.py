@@ -179,15 +179,10 @@ class TranslateFVSubgridZ(ParallelTranslateBaseSlicing):
             spec.namelist.n_sponge,
             spec.namelist.hydrostatic,
         )
-        state = SimpleNamespace(**state)
-        fvsubgridz(state, inputs["dt"])
-        outputs = self.outputs_from_state(state.__dict__)
-        return outputs
 
     def compute_sequential(self, inputs_list, communicator_list):
-        outputs = []
-        for inputs, grid in zip(inputs_list, spec.grid):
-            state = self.state_from_inputs(inputs)
+        state_list = self.state_list_from_inputs_list(inputs_list)
+        for state, grid in zip(state_list, spec.grid):
             fvsubgridz = fv_subgridz.DryConvectiveAdjustment(
                 grid.grid_indexing,
                 spec.namelist.nwat,
@@ -197,5 +192,4 @@ class TranslateFVSubgridZ(ParallelTranslateBaseSlicing):
             )
             state = SimpleNamespace(**state)
             fvsubgridz(state, inputs["dt"])
-            outputs.append(self.outputs_from_state(state.__dict__))
-        return outputs
+        return self.outputs_list_from_state_list(state_list)

@@ -2,20 +2,30 @@
 
 import copy
 import json
+import os
 from argparse import ArgumentParser, Namespace
 from datetime import datetime
 from typing import Any, Dict, List
 
 import numpy as np
 import serialbox
-import yaml
 from mpi4py import MPI
+
+
+# Dev note: the GTC toolchain fails if xarray is imported after gt4py
+# fv3gfs.util imports xarray if it's available in the env.
+# fv3core imports gt4py.
+# To avoid future conflict creeping back we make util imported prior to
+# fv3core. isort turned off to keep it that way.
+# isort: off
+import fv3gfs.util as util
+from fv3core.utils.null_comm import NullComm
+
+# isort: on
 
 import fv3core
 import fv3core._config as spec
 import fv3core.testing
-import fv3gfs.util as util
-from fv3core.utils.null_comm import NullComm
 
 
 def parse_args() -> Namespace:
@@ -182,12 +192,7 @@ if __name__ == "__main__":
 
         spec.set_namelist(args.data_dir + "/input.nml")
 
-        experiment_name = yaml.safe_load(
-            open(
-                args.data_dir + "/input.yml",
-                "r",
-            )
-        )["experiment_name"]
+        experiment_name = os.path.basename(os.path.normpath(args.data_dir))
 
         # set up of helper structures
         serializer = serialbox.Serializer(
