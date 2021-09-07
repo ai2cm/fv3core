@@ -210,7 +210,9 @@ class FutureStencil:
     _id_table = StencilTable()
 
     def __init__(
-        self, builder: Optional["StencilBuilder"] = None, wrapper: Optional[Callable] = None
+        self,
+        builder: Optional["StencilBuilder"] = None,
+        wrapper: Optional[Callable] = None,
     ):
         self._builder: Optional["StencilBuilder"] = builder
         self._stencil_object: Optional[StencilObject] = None

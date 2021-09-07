@@ -115,7 +115,7 @@ class FrozenStencil:
         if externals is None:
             externals = {}
 
-        is_parallel: bool = True  # MPI is not None and MPI.COMM_WORLD.Get_size() > 1
+        is_parallel: bool = MPI is not None and MPI.COMM_WORLD.Get_size() > 1
         stencil_function = future_stencil if is_parallel else gtscript.stencil
 
         kwargs = {**self.stencil_config.stencil_kwargs}
