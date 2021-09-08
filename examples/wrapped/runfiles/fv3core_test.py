@@ -258,6 +258,7 @@ if __name__ == "__main__":
     n_tracers = 6
 
     state = wrapper.get_state(allocator=allocator, names=initial_names)
+    cube_comm.halo_update(state["surface_geopotential"])
     dycore = fv3core.DynamicalCore(
         cube_comm,
         spec.namelist,
@@ -266,7 +267,7 @@ if __name__ == "__main__":
         state["surface_geopotential"],
     )
 
-    fvsubgridz = fv3core.FVSubgridZ(spec.namelist)
+    fvsubgridz = fv3core.DryConvectiveAdjustment(spec.namelist)
     # Step through time
     for i in range(wrapper.get_step_count()):
         print("STEP IS ", i)
