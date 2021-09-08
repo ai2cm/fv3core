@@ -4,6 +4,18 @@ except ModuleNotFoundError:
     cp = None
 
 
+def get_class_from_frame(frame):
+    try:
+        class_name = frame.f_locals["self"].__class__.__name__
+    except KeyError:
+        class_name = "Err: not an object"
+    return class_name
+
+
+def get_object_wrapper_name(frame, event, args) -> str:
+    return get_class_from_frame(frame)
+
+
 def get_stencil_name(frame, event, args) -> str:
     """Get the name of the stencil from within a call to FrozenStencil.__call__"""
     name = getattr(
@@ -34,51 +46,40 @@ functions_desc = [
         "name": get_stencil_name,
     },  # All call from StencilX decorators
     {
-        "fn": "__call__",
-        "file": "fv3core/stencils/dyn_core.py",
-        "name": "Acoustic timestep",
-    },
-    {
-        "fn": "__call__",
-        "file": "fv3core/stencils/tracer_2d_1l.py",
-        "name": "Tracer advection",
-    },
-    {"fn": "compute", "file": "fv3core/stencils/remapping.py", "name": "Remapping"},
-    {
         "fn": "step_dynamics",
         "file": "fv3core/stencils/fv_dynamics.py",
         "name": get_name_from_frame,
     },
     {
-        "fn": "halo_update",
-        "file": None,
-        "name": "HaloEx: sync scalar",
-    },  # Synchroneous halo update
-    {
-        "fn": "vector_halo_update",
-        "file": None,
-        "name": "HaloEx: sync vector",
-    },  # Synchroneous vector halo update
-    {
-        "fn": "start_halo_update",
-        "file": None,
-        "name": "HaloEx: async scalar",
-    },  # Asynchroneous halo update
-    {
-        "fn": "start_vector_halo_update",
-        "file": None,
-        "name": "HaloEx: async vector",
-    },  # Asynchroneous vector halo update
-    {
         "fn": "wait",
-        "file": "fv3gfs/util/communicator.py",
-        "name": "HaloEx: unpack and wait",
-    },  # Halo update finish
+        "file": "fv3gfs/util/halo_updater.py",
+        "name": "HaloUpdater.wait",
+    },
     {
-        "fn": "_device_synchronize",
-        "file": "fv3gfs/util/communicator.py",
-        "name": "Pre HaloEx",
-    },  # Synchronize all work prior to halo exchange
+        "fn": "start",
+        "file": "fv3gfs/util/halo_updater.py",
+        "name": "HaloUpdater.start",
+    },
+    {
+        "fn": "async_pack",
+        "file": "fv3gfs/util/halo_data_transformer.py",
+        "name": "HaloDataTrf.async_pack",
+    },
+    {
+        "fn": "async_unpack",
+        "file": "fv3gfs/util/halo_data_transformer.py",
+        "name": "HaloDataTrf.async_unpack",
+    },
+    {
+        "fn": "synchronize",
+        "file": "fv3gfs/util/halo_data_transformer.py",
+        "name": "HaloDataTrf.synchronize",
+    },
+    {
+        "fn": "__call__",
+        "file": "fv3core/stencils/",
+        "name": get_object_wrapper_name,
+    },
 ]
 
 
