@@ -1,9 +1,9 @@
 from gt4py.gtscript import PARALLEL, computation, interval
 
+import fv3core._config as spec
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import FrozenStencil
 from fv3core.stencils.a2b_ord4 import AGrid2BGridFourthOrder
-from fv3core.utils.grid import GridData, GridIndexing
 from fv3core.utils.typing import FloatField, FloatFieldIJ
 from fv3gfs.util import Z_INTERFACE_DIM
 
@@ -89,56 +89,86 @@ class NonHydrostaticPressureGradient:
     Fortran name is nh_p_grad
     """
 
-    def __init__(self, grid_indexing: GridIndexing, grid_data: GridData, grid_type):
-        self.orig = grid_indexing.origin_compute()
-        domain_full_k = grid_indexing.domain_compute(add=(1, 1, 0))
-        u_domain = grid_indexing.domain_compute(add=(0, 1, 0))
-        v_domain = grid_indexing.domain_compute(add=(1, 0, 0))
-        self.nk = grid_indexing.domain[2]
-        self._rdx = grid_data.rdx
-        self._rdy = grid_data.rdy
+    def __init__(self, grid_type):
+        grid = spec.grid
+        self.grid = spec.grid
+        self.orig = grid.compute_origin()
+        self.domain_full_k = grid.domain_shape_compute(add=(1, 1, 0))
+        self.domain_k1 = (grid.nic + 1, grid.njc + 1, 1)
+        self.u_domain = grid.domain_shape_compute(add=(0, 1, 0))
+        self.v_domain = grid.domain_shape_compute(add=(1, 0, 0))
+        self.nk = grid.npz
+        self.rdx = grid.rdx
+        self.rdy = grid.rdy
 
         self._tmp_wk = utils.make_storage_from_shape(
-            grid_indexing.domain_full(add=(0, 0, 1)), origin=self.orig
+            grid.domain_shape_full(add=(0, 0, 1)), origin=self.orig
         )  # pk3.shape
         self._tmp_wk1 = utils.make_storage_from_shape(
-            grid_indexing.domain_full(add=(0, 0, 1)), origin=self.orig
+            grid.domain_shape_full(add=(0, 0, 1)), origin=self.orig
         )  # pp.shape
 
         self._set_k0_and_calc_wk_stencil = FrozenStencil(
             set_k0_and_calc_wk,
             origin=self.orig,
-            domain=domain_full_k,
+            domain=self.domain_full_k,
         )
 
         self._calc_u_stencil = FrozenStencil(
             calc_u,
             origin=self.orig,
-            domain=u_domain,
+            domain=self.u_domain,
         )
 
         self._calc_v_stencil = FrozenStencil(
             calc_v,
             origin=self.orig,
-            domain=v_domain,
+            domain=self.v_domain,
         )
         self.a2b_k1 = AGrid2BGridFourthOrder(
-            grid_indexing.restrict_vertical(k_start=1),
-            grid_data,
+            self.grid.grid_indexing.restrict_vertical(k_start=1),
+            self.grid.agrid1,
+            self.grid.agrid2,
+            self.grid.bgrid1,
+            self.grid.bgrid2,
+            self.grid.dxa,
+            self.grid.dya,
+            self.grid.edge_n,
+            self.grid.edge_s,
+            self.grid.edge_e,
+            self.grid.edge_w,
             grid_type,
             z_dim=Z_INTERFACE_DIM,
             replace=True,
         )
         self.a2b_kbuffer = AGrid2BGridFourthOrder(
-            grid_indexing,
-            grid_data,
+            self.grid.grid_indexing,
+            self.grid.agrid1,
+            self.grid.agrid2,
+            self.grid.bgrid1,
+            self.grid.bgrid2,
+            self.grid.dxa,
+            self.grid.dya,
+            self.grid.edge_n,
+            self.grid.edge_s,
+            self.grid.edge_e,
+            self.grid.edge_w,
             grid_type,
             z_dim=Z_INTERFACE_DIM,
             replace=True,
         )
         self.a2b_kstandard = AGrid2BGridFourthOrder(
-            grid_indexing,
-            grid_data,
+            self.grid.grid_indexing,
+            self.grid.agrid1,
+            self.grid.agrid2,
+            self.grid.bgrid1,
+            self.grid.bgrid2,
+            self.grid.dxa,
+            self.grid.dya,
+            self.grid.edge_n,
+            self.grid.edge_s,
+            self.grid.edge_e,
+            self.grid.edge_w,
             grid_type,
             replace=False,
         )
@@ -189,7 +219,7 @@ class NonHydrostaticPressureGradient:
             gz,
             pk3,
             pp,
-            self._rdx,
+            self.rdx,
             dt,
         )
 
@@ -200,6 +230,6 @@ class NonHydrostaticPressureGradient:
             gz,
             pk3,
             pp,
-            self._rdy,
+            self.rdy,
             dt,
         )

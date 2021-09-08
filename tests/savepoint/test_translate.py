@@ -7,9 +7,9 @@ from typing import Union
 import numpy as np
 import pytest
 import serialbox as ser
+import xarray as xr
 
 import fv3core._config
-import fv3core.utils.global_config as config
 import fv3core.utils.gt4py_utils as gt_utils
 import fv3gfs.util as fv3util
 from fv3core.utils.mpi import MPI
@@ -230,7 +230,7 @@ def test_sequential_savepoint(
     if testobj is None:
         pytest.xfail(f"no translate object available for savepoint {test_name}")
     # Reduce error threshold for GPU
-    if config.is_gpu_backend():
+    if backend.endswith("cuda"):
         testobj.max_error = max(testobj.max_error, GPU_MAX_ERR)
         testobj.near_zero = max(testobj.near_zero, GPU_NEAR_ZERO)
     if threshold_overrides is not None:
@@ -248,15 +248,14 @@ def test_sequential_savepoint(
             ref_data = testobj.subset_output(varname, ref_data)
         with subtests.test(varname=varname):
             failing_names.append(varname)
-            output_data = gt_utils.asarray(output[varname])
             assert success(
-                output_data,
+                output[varname],
                 ref_data,
                 testobj.max_error,
                 ignore_near_zero,
                 testobj.near_zero,
             ), sample_wherefail(
-                output_data,
+                output[varname],
                 ref_data,
                 testobj.max_error,
                 print_failures,
@@ -329,7 +328,7 @@ def test_mock_parallel_savepoint(
     if testobj is None:
         pytest.xfail(f"no translate object available for savepoint {test_name}")
     # Reduce error threshold for GPU
-    if config.is_gpu_backend():
+    if backend.endswith("cuda"):
         testobj.max_error = max(testobj.max_error, GPU_MAX_ERR)
         testobj.near_zero = max(testobj.near_zero, GPU_NEAR_ZERO)
     if threshold_overrides is not None:
@@ -350,16 +349,15 @@ def test_mock_parallel_savepoint(
                 zip(savepoint_out_list, serializer_list, output_list)
             ):
                 with _subtest(failing_ranks, subtests, varname=varname, rank=rank):
-                    output_data = gt_utils.asarray(output[varname])
                     ref_data[varname].append(serializer.read(varname, savepoint_out))
                     assert success(
-                        output_data,
+                        gt_utils.asarray(output[varname]),
                         ref_data[varname][-1],
                         testobj.max_error,
                         ignore_near_zero,
                         testobj.near_zero,
                     ), sample_wherefail(
-                        output_data,
+                        output[varname],
                         ref_data[varname][-1],
                         testobj.max_error,
                         print_failures,
@@ -423,7 +421,7 @@ def test_parallel_savepoint(
     if testobj is None:
         pytest.xfail(f"no translate object available for savepoint {test_name}")
     # Increase minimum error threshold for GPU
-    if config.is_gpu_backend():
+    if backend.endswith("cuda"):
         testobj.max_error = max(testobj.max_error, GPU_MAX_ERR)
         testobj.near_zero = max(testobj.near_zero, GPU_NEAR_ZERO)
     if threshold_overrides is not None:
@@ -454,15 +452,14 @@ def test_parallel_savepoint(
         ignore_near_zero = testobj.ignore_near_zero_errors.get(varname, False)
         with subtests.test(varname=varname):
             failing_names.append(varname)
-            output_data = gt_utils.asarray(output[varname])
             assert success(
-                output_data,
+                output[varname],
                 ref_data[varname][0],
                 testobj.max_error,
                 ignore_near_zero,
                 testobj.near_zero,
             ), sample_wherefail(
-                output_data,
+                output[varname],
                 ref_data[varname][0],
                 testobj.max_error,
                 print_failures,
@@ -496,8 +493,6 @@ def _subtest(failure_list, subtests, **kwargs):
 def save_netcdf(
     testobj, inputs_list, output_list, ref_data, failing_names, out_filename
 ):
-    import xarray as xr
-
     data_vars = {}
     for i, varname in enumerate(failing_names):
         dims = [dim_name + f"_{i}" for dim_name in testobj.outputs[varname]["dims"]]

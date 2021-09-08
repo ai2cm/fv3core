@@ -9,7 +9,7 @@ from fv3core.decorators import FrozenStencil
 from fv3core.stencils.delnflux import DelnFlux
 from fv3core.stencils.xppm import XPiecewiseParabolic
 from fv3core.stencils.yppm import YPiecewiseParabolic
-from fv3core.utils.grid import DampingCoefficients, GridData, GridIndexing
+from fv3core.utils.grid import GridIndexing
 from fv3core.utils.typing import FloatField, FloatFieldIJ
 
 
@@ -85,8 +85,13 @@ class FiniteVolumeTransport:
     def __init__(
         self,
         grid_indexing: GridIndexing,
-        grid_data: GridData,
-        damping_coefficients: DampingCoefficients,
+        dxa,
+        dya,
+        area,
+        del6_u,
+        del6_v,
+        rarea,
+        da_min,
         grid_type: int,
         hord,
         nord=None,
@@ -94,7 +99,7 @@ class FiniteVolumeTransport:
     ):
         # use a shorter alias for grid_indexing here to avoid very verbose lines
         idx = grid_indexing
-        self._area = grid_data.area
+        self._area = area
         origin = idx.origin_compute()
         self._tmp_q_i = utils.make_storage_from_shape(idx.max_shape, origin)
         self._tmp_q_j = utils.make_storage_from_shape(idx.max_shape, origin)
@@ -125,18 +130,14 @@ class FiniteVolumeTransport:
         )
         if (self._nord is not None) and (self._damp_c is not None):
             self.delnflux: Optional[DelnFlux] = DelnFlux(
-                grid_indexing,
-                damping_coefficients,
-                grid_data.rarea,
-                self._nord,
-                self._damp_c,
+                grid_indexing, del6_u, del6_v, rarea, da_min, self._nord, self._damp_c
             )
         else:
             self.delnflux = None
 
         self.x_piecewise_parabolic_inner = XPiecewiseParabolic(
             grid_indexing=grid_indexing,
-            dxa=grid_data.dxa,
+            dxa=dxa,
             grid_type=grid_type,
             iord=ord_inner,
             origin=idx.origin_compute(add=(0, -idx.n_halo, 0)),
@@ -144,7 +145,7 @@ class FiniteVolumeTransport:
         )
         self.y_piecewise_parabolic_inner = YPiecewiseParabolic(
             grid_indexing=grid_indexing,
-            dya=grid_data.dya,
+            dya=dya,
             grid_type=grid_type,
             jord=ord_inner,
             origin=idx.origin_compute(add=(-idx.n_halo, 0, 0)),
@@ -152,7 +153,7 @@ class FiniteVolumeTransport:
         )
         self.x_piecewise_parabolic_outer = XPiecewiseParabolic(
             grid_indexing=grid_indexing,
-            dxa=grid_data.dxa,
+            dxa=dxa,
             grid_type=grid_type,
             iord=ord_outer,
             origin=idx.origin_compute(),
@@ -160,7 +161,7 @@ class FiniteVolumeTransport:
         )
         self.y_piecewise_parabolic_outer = YPiecewiseParabolic(
             grid_indexing=grid_indexing,
-            dya=grid_data.dya,
+            dya=dya,
             grid_type=grid_type,
             jord=ord_outer,
             origin=idx.origin_compute(),

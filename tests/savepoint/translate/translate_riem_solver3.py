@@ -6,15 +6,7 @@ from fv3core.testing import TranslateFortranData2Py
 class TranslateRiem_Solver3(TranslateFortranData2Py):
     def __init__(self, grid):
         super().__init__(grid)
-        self.compute_func = RiemannSolver3(
-            self.grid.grid_indexing,
-            spec.RiemannConfig(
-                p_fac=spec.namelist.p_fac,
-                a_imp=spec.namelist.a_imp,
-                use_logp=spec.namelist.use_logp,
-                beta=spec.namelist.beta,
-            ),
-        )
+        self.compute_func = RiemannSolver3(spec.namelist)
         self.in_vars["data_vars"] = {
             "cappa": {},
             "zs": {},

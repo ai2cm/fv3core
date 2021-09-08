@@ -1,14 +1,13 @@
 import math
 
 import gt4py.gtscript as gtscript
-from gt4py.gtscript import __INLINED, PARALLEL, computation, exp, floor, interval, log
+from gt4py.gtscript import FORWARD, PARALLEL, computation, exp, floor, interval, log
 
+import fv3core._config as spec
 import fv3core.utils.global_constants as constants
-from fv3core._config import SatAdjustConfig
 from fv3core.decorators import FrozenStencil
 from fv3core.stencils.basic_operations import dim
 from fv3core.stencils.moist_cv import compute_pkz_func
-from fv3core.utils.grid import GridIndexing
 from fv3core.utils.typing import FloatField, FloatFieldIJ
 
 
@@ -608,10 +607,9 @@ def satadjust(
         tintqs,
     )
 
-    with computation(PARALLEL), interval(1, None):
-        if __INLINED(hydrostatic):
-            delz_0 = delz[0, 0, -1]
-            delz = delz_0
+    with computation(FORWARD), interval(1, None):
+        if hydrostatic:
+            delz = delz[0, 0, -1]
     with computation(PARALLEL), interval(...):
         q_liq = ql + qr
         q_sol = qi + qs + qg
@@ -620,17 +618,18 @@ def satadjust(
         t0 = pt1  # true temperature
         qpz = qpz + qv  # total_wat conserved in this routine
         # define air density based on hydrostatical property
-        if __INLINED(hydrostatic):
-            den = dp / ((peln[0, 0, 1] - peln) * constants.RDGAS * pt)
-        else:
-            den = -dp / (constants.GRAV * delz)
+        den = (
+            dp / ((peln[0, 0, 1] - peln) * constants.RDGAS * pt)
+            if hydrostatic
+            else -dp / (constants.GRAV * delz)
+        )
         # define heat capacity and latend heat coefficient
         mc_air = (1.0 - qpz) * c_air
         cvm = compute_cvm(mc_air, qv, c_vap, q_liq, q_sol)
         lhi, icp2 = update_latent_heat_coefficient_i(pt1, cvm)
         #  fix energy conservation
         if consv_te:
-            if __INLINED(hydrostatic):
+            if hydrostatic:
                 te0 = -c_air * t0
             else:
                 te0 = -cvm * t0
@@ -784,14 +783,14 @@ def satadjust(
         q_con = q_liq + q_sol
         tmp = 1.0 + zvir * qv
         pt = pt1 * tmp * (1.0 - q_con)
-        tmp *= constants.RDGAS
+        tmp = constants.RDGAS * tmp
         cappa = tmp / (tmp + cvm)
         #  fix negative graupel with available cloud ice
         if qg < 0:
             maxtmp = max(0.0, qi)
-            mintmp = min(-qg, maxtmp)
-            qg = qg + mintmp
-            qi = qi - mintmp
+            tmp = min(-qg, maxtmp)
+            qg = qg + tmp
+            qi = qi - tmp
         else:
             qg = qg
         #  autoconversion from cloud ice to snow
@@ -802,7 +801,7 @@ def satadjust(
             qs = qs + sink
         # fix energy conservation
         if consv_te:
-            if __INLINED(hydrostatic):
+            if hydrostatic:
                 te0 = dp * (te0 + c_air * pt1)
             else:
                 te0 = dp * (te0 + cvm * pt1)
@@ -854,7 +853,7 @@ def satadjust(
             dw = dw_ocean + (dw_land - dw_ocean) * mindw
             # "scale - aware" subgrid variability: 100 - km as the base
             dbl_sqrt_area = dw * (area ** 0.5 / 100.0e3) ** 0.5
-            maxtmp = max(0.01, dbl_sqrt_area)
+            maxtmp = 0.01 if 0.01 > dbl_sqrt_area else dbl_sqrt_area
             hvar = min(0.2, maxtmp)
             # partial cloudiness by pdf:
             # assuming subgrid linear distribution in horizontal; this is
@@ -893,44 +892,38 @@ def satadjust(
             else:
                 qa = 0.0
 
-        if __INLINED(not hydrostatic):
+        if not hydrostatic:
             pkz = compute_pkz_func(dp, delz, pt, cappa)
 
 
 class SatAdjust3d:
-    def __init__(
-        self, grid_indexing: GridIndexing, config: SatAdjustConfig, area_64, kmp
-    ):
-        self._config = config
-        self._area_64 = area_64
+    def __init__(self, kmp):
+        self.grid = spec.grid
+        self.namelist = spec.namelist
 
         self._satadjust_stencil = FrozenStencil(
             func=satadjust,
             externals={
-                "hydrostatic": self._config.hydrostatic,
-                "rad_snow": self._config.rad_snow,
-                "rad_rain": self._config.rad_rain,
-                "rad_graupel": self._config.rad_graupel,
-                "tintqs": self._config.tintqs,
-                "sat_adj0": self._config.sat_adj0,
-                "ql_gen": self._config.ql_gen,
-                "qs_mlt": self._config.qs_mlt,
-                "ql0_max": self._config.ql0_max,
-                "t_sub": self._config.t_sub,
-                "qi_gen": self._config.qi_gen,
-                "qi_lim": self._config.qi_lim,
-                "qi0_max": self._config.qi0_max,
-                "dw_ocean": self._config.dw_ocean,
-                "dw_land": self._config.dw_land,
-                "icloud_f": self._config.icloud_f,
-                "cld_min": self._config.cld_min,
+                "hydrostatic": self.namelist.hydrostatic,
+                "rad_snow": self.namelist.rad_snow,
+                "rad_rain": self.namelist.rad_rain,
+                "rad_graupel": self.namelist.rad_graupel,
+                "tintqs": self.namelist.tintqs,
+                "sat_adj0": self.namelist.sat_adj0,
+                "ql_gen": self.namelist.ql_gen,
+                "qs_mlt": self.namelist.qs_mlt,
+                "ql0_max": self.namelist.ql0_max,
+                "t_sub": self.namelist.t_sub,
+                "qi_gen": self.namelist.qi_gen,
+                "qi_lim": self.namelist.qi_lim,
+                "qi0_max": self.namelist.qi0_max,
+                "dw_ocean": self.namelist.dw_ocean,
+                "dw_land": self.namelist.dw_land,
+                "icloud_f": self.namelist.icloud_f,
+                "cld_min": self.namelist.cld_min,
             },
-            origin=(grid_indexing.isc, grid_indexing.jsc, kmp),
-            domain=(
-                grid_indexing.domain[0],
-                grid_indexing.domain[1],
-                (grid_indexing.domain[2] - kmp),
-            ),
+            origin=(self.grid.is_, self.grid.js, kmp),
+            domain=(self.grid.nic, self.grid.njc, (self.grid.npz - kmp)),
         )
 
     def __call__(
@@ -960,21 +953,21 @@ class SatAdjust3d:
     ):
         sdt = 0.5 * mdt  # half remapping time step
         # define conversion scalar / factor
-        fac_i2s = 1.0 - math.exp(-mdt / self._config.tau_i2s)
-        fac_v2l = 1.0 - math.exp(-sdt / self._config.tau_v2l)
-        fac_r2g = 1.0 - math.exp(-mdt / self._config.tau_r2g)
-        fac_l2r = 1.0 - math.exp(-mdt / self._config.tau_l2r)
+        fac_i2s = 1.0 - math.exp(-mdt / self.namelist.tau_i2s)
+        fac_v2l = 1.0 - math.exp(-sdt / self.namelist.tau_v2l)
+        fac_r2g = 1.0 - math.exp(-mdt / self.namelist.tau_r2g)
+        fac_l2r = 1.0 - math.exp(-mdt / self.namelist.tau_l2r)
 
-        fac_l2v = 1.0 - math.exp(-sdt / self._config.tau_l2v)
-        fac_l2v = min(self._config.sat_adj0, fac_l2v)
+        fac_l2v = 1.0 - math.exp(-sdt / self.namelist.tau_l2v)
+        fac_l2v = min(self.namelist.sat_adj0, fac_l2v)
 
-        fac_imlt = 1.0 - math.exp(-sdt / self._config.tau_imlt)
-        fac_smlt = 1.0 - math.exp(-mdt / self._config.tau_smlt)
+        fac_imlt = 1.0 - math.exp(-sdt / self.namelist.tau_imlt)
+        fac_smlt = 1.0 - math.exp(-mdt / self.namelist.tau_smlt)
 
         # define heat capacity of dry air and water vapor based on hydrostatical
         # property
 
-        if self._config.hydrostatic:
+        if self.namelist.hydrostatic:
             c_air = constants.CP_AIR
             c_vap = constants.CP_VAP
         else:
@@ -1001,7 +994,7 @@ class SatAdjust3d:
             te,
             q_con,
             qcld,
-            self._area_64,
+            self.grid.area_64,
             hs,
             pkz,
             sdt,

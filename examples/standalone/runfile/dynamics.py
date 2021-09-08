@@ -2,34 +2,27 @@
 
 import copy
 import json
-import os
 from argparse import ArgumentParser, Namespace
 from datetime import datetime
 from typing import Any, Dict, List
 
 import numpy as np
 import serialbox
+import yaml
 from mpi4py import MPI
-
-
-# Dev note: the GTC toolchain fails if xarray is imported after gt4py
-# fv3gfs.util imports xarray if it's available in the env.
-# fv3core imports gt4py.
-# To avoid future conflict creeping back we make util imported prior to
-# fv3core. isort turned off to keep it that way.
-# isort: off
-import fv3gfs.util as util
-from fv3core.utils.null_comm import NullComm
-
-# isort: on
 
 import fv3core
 import fv3core._config as spec
 import fv3core.testing
+import fv3core.utils.global_config as global_config
+import fv3gfs.util as util
 
 
 def parse_args() -> Namespace:
-    parser = ArgumentParser()
+    usage = (
+        "usage: python %(prog)s <data_dir> <timesteps> <backend> <hash> <halo_exchange>"
+    )
+    parser = ArgumentParser(usage=usage)
 
     parser.add_argument(
         "data_dir",
@@ -47,7 +40,7 @@ def parse_args() -> Namespace:
         "backend",
         type=str,
         action="store",
-        help="gt4py backend to use",
+        help="path to the namelist",
     )
     parser.add_argument(
         "hash",
@@ -189,10 +182,16 @@ if __name__ == "__main__":
         fv3core.set_backend(args.backend)
         fv3core.set_rebuild(False)
         fv3core.set_validate_args(False)
+        global_config.set_do_halo_exchange(not args.disable_halo_exchange)
 
         spec.set_namelist(args.data_dir + "/input.nml")
 
-        experiment_name = os.path.basename(os.path.normpath(args.data_dir))
+        experiment_name = yaml.safe_load(
+            open(
+                args.data_dir + "/input.yml",
+                "r",
+            )
+        )["experiment_name"]
 
         # set up of helper structures
         serializer = serialbox.Serializer(
@@ -200,10 +199,10 @@ if __name__ == "__main__":
             args.data_dir,
             "Generator_rank" + str(rank),
         )
-        if args.disable_halo_exchange:
-            mpi_comm = NullComm(MPI.COMM_WORLD.Get_rank(), MPI.COMM_WORLD.Get_size())
-        else:
-            mpi_comm = MPI.COMM_WORLD
+        cube_comm = util.CubedSphereCommunicator(
+            comm,
+            util.CubedSpherePartitioner(util.TilePartitioner(spec.namelist.layout)),
+        )
 
         # get grid from serialized data
         grid_savepoint = serializer.get_savepoint("Grid-Info")[0]
@@ -219,7 +218,7 @@ if __name__ == "__main__":
         # set up grid-dependent helper structures
         layout = spec.namelist.layout
         partitioner = util.CubedSpherePartitioner(util.TilePartitioner(layout))
-        communicator = util.CubedSphereCommunicator(mpi_comm, partitioner)
+        communicator = util.CubedSphereCommunicator(comm, partitioner)
 
         # create a state from serialized data
         savepoint_in = serializer.get_savepoint("FVDynamics-In")[0]
@@ -290,9 +289,9 @@ if __name__ == "__main__":
     # Timings
     if not args.disable_json_dump:
         # Collect times and output statistics in json
-        MPI.COMM_WORLD.Barrier()
+        comm.Barrier()
         collect_data_and_write_to_file(
-            args, MPI.COMM_WORLD, hits_per_step, times_per_step, experiment_name
+            args, comm, hits_per_step, times_per_step, experiment_name
         )
     else:
         # Print a brief summary of timings

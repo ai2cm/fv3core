@@ -163,7 +163,7 @@ class FrozenStencil:
             self._mark_cuda_fields_written({**args_as_kwargs, **kwargs})
 
     def _mark_cuda_fields_written(self, fields: Mapping[str, Storage]):
-        if global_config.is_gpu_backend():
+        if "cuda" in self.stencil_config.backend:
             for write_field in self._written_fields:
                 fields[write_field]._set_device_modified()
 
@@ -209,7 +209,7 @@ def get_written_fields(field_info) -> List[str]:
         field_name
         for field_name in field_info
         if field_info[field_name]
-        and bool(field_info[field_name].access & gt4py.definitions.AccessKind.WRITE)
+        and field_info[field_name].access != gt4py.definitions.AccessKind.READ_ONLY
     ]
     return write_fields
 

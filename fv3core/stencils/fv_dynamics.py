@@ -4,11 +4,12 @@ from gt4py.gtscript import PARALLEL, computation, interval, log
 
 import fv3core._config as spec
 import fv3core.stencils.moist_cv as moist_cv
+import fv3core.utils.global_config as global_config
 import fv3core.utils.global_constants as constants
 import fv3core.utils.gt4py_utils as utils
 import fv3gfs.util
 from fv3core.decorators import ArgSpec, FrozenStencil, get_namespace
-from fv3core.stencils import fvtp2d, tracer_2d_1l
+from fv3core.stencils import tracer_2d_1l
 from fv3core.stencils.basic_operations import copy_defn
 from fv3core.stencils.c2l_ord import CubedToLatLon
 from fv3core.stencils.del2cubed import HyperdiffusionDamping
@@ -16,7 +17,6 @@ from fv3core.stencils.dyn_core import AcousticDynamics
 from fv3core.stencils.neg_adj3 import AdjustNegativeTracerMixingRatio
 from fv3core.stencils.remapping import LagrangianToEulerian
 from fv3core.utils.typing import FloatField, FloatFieldK
-from fv3gfs.util.halo_updater import HaloUpdater
 
 
 def pt_adjust(pkz: FloatField, dp1: FloatField, q_con: FloatField, pt: FloatField):
@@ -103,7 +103,6 @@ def post_remap(
     namelist,
     hyperdiffusion: HyperdiffusionDamping,
     set_omega_stencil: FrozenStencil,
-    omega_halo_updater: HaloUpdater,
 ):
     grid = grid
     if not namelist.hydrostatic:
@@ -120,7 +119,8 @@ def post_remap(
         if __debug__:
             if grid.rank == 0:
                 print("Del2Cubed")
-        omega_halo_updater.update([state.omga_quantity])
+        if global_config.get_do_halo_exchange():
+            comm.halo_update(state.omga_quantity, n_points=utils.halo)
         hyperdiffusion(state.omga, 0.18 * grid.da_min)
 
 
@@ -276,17 +276,9 @@ class DynamicalCore:
         self.comm = comm
         self.grid = spec.grid
         self.namelist = namelist
+        self.do_halo_exchange = global_config.get_do_halo_exchange()
 
-        tracer_transport = fvtp2d.FiniteVolumeTransport(
-            grid_indexing=spec.grid.grid_indexing,
-            grid_data=spec.grid.grid_data,
-            damping_coefficients=spec.grid.damping_coefficients,
-            grid_type=spec.grid.grid_type,
-            hord=spec.namelist.hord_tr,
-        )
-        self.tracer_advection = tracer_2d_1l.TracerAdvection(
-            spec.grid.grid_indexing, tracer_transport, comm, DynamicalCore.NQ
-        )
+        self.tracer_advection = tracer_2d_1l.TracerAdvection(comm, namelist)
         self._ak = ak.storage
         self._bk = bk.storage
         self._phis = phis.storage
@@ -322,28 +314,10 @@ class DynamicalCore:
             domain=self.grid.domain_shape_full(),
         )
         self.acoustic_dynamics = AcousticDynamics(
-            comm,
-            self.grid.grid_indexing,
-            self.grid.grid_data,
-            self.grid.damping_coefficients,
-            self.grid.grid_type,
-            self.grid.nested,
-            self.grid.stretched_grid,
-            self.namelist.acoustic_dynamics,
-            self._ak,
-            self._bk,
-            self._pfull,
-            self._phis,
+            comm, namelist, self._ak, self._bk, self._pfull, self._phis
         )
-        self._hyperdiffusion = HyperdiffusionDamping(
-            self.grid.grid_indexing,
-            self.grid.damping_coefficients,
-            self.grid.rarea,
-            self.namelist.nf_omega,
-        )
-        self._cubed_to_latlon = CubedToLatLon(
-            self.grid.grid_indexing, self.grid.grid_data, order=namelist.c2l_ord
-        )
+        self._hyperdiffusion = HyperdiffusionDamping(self.grid, self.namelist.nf_omega)
+        self._do_cubed_to_latlon = CubedToLatLon(self.grid, namelist)
 
         self._temporaries = fvdyn_temporaries(
             self.grid.domain_shape_full(add=(1, 1, 1)), self.grid
@@ -351,25 +325,12 @@ class DynamicalCore:
         if not (not self.namelist.inline_q and DynamicalCore.NQ != 0):
             raise NotImplementedError("tracer_2d not implemented, turn on z_tracer")
         self._adjust_tracer_mixing_ratio = AdjustNegativeTracerMixingRatio(
-            self.grid.grid_indexing,
-            self.namelist.check_negative,
-            self.namelist.hydrostatic,
+            self.grid, self.namelist
         )
 
         self._lagrangian_to_eulerian_obj = LagrangianToEulerian(
-            self.grid.grid_indexing,
-            namelist.remapping,
-            self.grid.area_64,
-            DynamicalCore.NQ,
-            self._pfull,
+            self.grid, namelist, DynamicalCore.NQ, self._pfull
         )
-
-        full_xyz_spec = self.grid.get_halo_update_spec(
-            self.grid.domain_shape_full(add=(1, 1, 1)),
-            self.grid.compute_origin(),
-            utils.halo,
-        )
-        self._omega_halo_updater = self.comm.get_scalar_halo_updater([full_xyz_spec])
 
     def step_dynamics(
         self,
@@ -426,6 +387,8 @@ class DynamicalCore:
         state.ak = self._ak
         state.bk = self._bk
         last_step = False
+        if self.do_halo_exchange:
+            self.comm.halo_update(state.phis_quantity, n_points=utils.halo)
         compute_preamble(
             state,
             self.grid,
@@ -499,14 +462,13 @@ class DynamicalCore:
                         self.namelist,
                         self._hyperdiffusion,
                         self._set_omega_stencil,
-                        self._omega_halo_updater,
                     )
         wrapup(
             state,
             self.comm,
             self.grid,
             self._adjust_tracer_mixing_ratio,
-            self._cubed_to_latlon,
+            self._do_cubed_to_latlon,
         )
 
     def _dyn(self, state, tracers, timer=fv3gfs.util.NullTimer()):

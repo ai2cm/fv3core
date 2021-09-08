@@ -1,6 +1,5 @@
 import gt4py.gtscript as gtscript
 from gt4py.gtscript import (
-    __INLINED,
     BACKWARD,
     FORWARD,
     PARALLEL,
@@ -15,9 +14,7 @@ from gt4py.gtscript import (
 import fv3core.utils.global_constants as constants
 from fv3core.decorators import FrozenStencil
 from fv3core.utils import axis_offsets
-from fv3core.utils.grid import GridIndexing
 from fv3core.utils.typing import FloatField, FloatFieldK
-from fv3gfs.util import X_INTERFACE_DIM, Y_INTERFACE_DIM, Z_DIM
 
 
 SDAY = 86400.0
@@ -56,8 +53,9 @@ def ray_fast_wind_compute(
     ptop: float,
     rf_cutoff_nudge: float,
     ks: int,
+    hydrostatic: bool,
 ):
-    from __externals__ import hydrostatic, local_ie, local_je, rf_cutoff, tau
+    from __externals__ import local_ie, local_je, rf_cutoff, tau
 
     # dm_stencil
     with computation(PARALLEL), interval(...):
@@ -123,9 +121,8 @@ def ray_fast_wind_compute(
     # ray_fast_w
     with computation(PARALLEL), interval(...):
         with horizontal(region[: local_ie + 1, : local_je + 1]):
-            if __INLINED(not hydrostatic):
-                if pfull < rf_cutoff:
-                    w *= rf
+            if not hydrostatic and pfull < rf_cutoff:
+                w *= rf
 
 
 class RayleighDamping:
@@ -142,13 +139,13 @@ class RayleighDamping:
     Fotran name: ray_fast.
     """
 
-    def __init__(self, grid_indexing: GridIndexing, rf_cutoff, tau, hydrostatic):
-        self._rf_cutoff = rf_cutoff
-        origin, domain = grid_indexing.get_origin_domain(
-            [X_INTERFACE_DIM, Y_INTERFACE_DIM, Z_DIM]
-        )
+    def __init__(self, grid, namelist):
+        self._rf_cutoff = namelist.rf_cutoff
+        self._hydrostatic = namelist.hydrostatic
+        origin = grid.compute_origin()
+        domain = (grid.nic + 1, grid.njc + 1, grid.npz)
 
-        ax_offsets = axis_offsets(grid_indexing, origin, domain)
+        ax_offsets = axis_offsets(grid, origin, domain)
         local_axis_offsets = {}
         for axis_offset_name, axis_offset_value in ax_offsets.items():
             if "local" in axis_offset_name:
@@ -159,9 +156,8 @@ class RayleighDamping:
             origin=origin,
             domain=domain,
             externals={
-                "hydrostatic": hydrostatic,
-                "rf_cutoff": rf_cutoff,
-                "tau": tau,
+                "rf_cutoff": namelist.rf_cutoff,
+                "tau": namelist.tau,
                 **local_axis_offsets,
             },
         )
@@ -189,4 +185,5 @@ class RayleighDamping:
             ptop,
             rf_cutoff_nudge,
             ks,
+            self._hydrostatic,
         )

@@ -45,6 +45,15 @@ def get_format_source() -> bool:
     return _FORMAT_SOURCE
 
 
+def set_do_halo_exchange(flag: bool):
+    global _DO_HALO_EXCHANGE
+    _DO_HALO_EXCHANGE = flag
+
+
+def get_do_halo_exchange() -> bool:
+    return _DO_HALO_EXCHANGE
+
+
 def set_device_sync(flag: bool):
     global _DEVICE_SYNC
     _DEVICE_SYNC = flag
@@ -52,10 +61,6 @@ def set_device_sync(flag: bool):
 
 def get_device_sync() -> bool:
     return _DEVICE_SYNC
-
-
-def is_gpu_backend() -> bool:
-    return get_backend().endswith("cuda") or get_backend().endswith("gpu")
 
 
 class StencilConfig(Hashable):
@@ -102,7 +107,7 @@ class StencilConfig(Hashable):
             "rebuild": self.rebuild,
             "format_source": self.format_source,
         }
-        if is_gpu_backend():
+        if "cuda" in self.backend:
             kwargs["device_sync"] = self.device_sync
         return kwargs
 
@@ -123,5 +128,6 @@ _BACKEND = None
 # if FALSE, caches will be checked and rebuild if code changes
 _REBUILD = getenv_bool("FV3_STENCIL_REBUILD_FLAG", "False")
 _FORMAT_SOURCE = getenv_bool("FV3_STENCIL_FORMAT_SOURCE", "False")
+_DO_HALO_EXCHANGE = True
 _VALIDATE_ARGS = True
 _DEVICE_SYNC = False

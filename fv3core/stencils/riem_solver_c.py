@@ -2,11 +2,11 @@ import typing
 
 from gt4py.gtscript import BACKWARD, FORWARD, PARALLEL, computation, interval, log
 
+import fv3core._config as spec
 import fv3core.utils.global_constants as constants
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import FrozenStencil
 from fv3core.stencils.sim1_solver import Sim1Solver
-from fv3core.utils.grid import GridIndexing
 from fv3core.utils.typing import FloatField, FloatFieldIJ
 
 
@@ -70,10 +70,11 @@ class RiemannSolverC:
     Fortran subroutine Riem_Solver_C
     """
 
-    def __init__(self, grid_indexing: GridIndexing, p_fac):
-        origin = grid_indexing.origin_compute(add=(-1, -1, 0))
-        domain = grid_indexing.domain_compute(add=(2, 2, 1))
-        shape = grid_indexing.max_shape
+    def __init__(self, namelist):
+        grid = spec.grid
+        origin = grid.compute_origin(add=(-1, -1, 0))
+        domain = grid.domain_shape_compute(add=(2, 2, 1))
+        shape = grid.domain_shape_full(add=(1, 1, 1))
 
         self._dm = utils.make_storage_from_shape(shape, origin)
         self._w = utils.make_storage_from_shape(shape, origin)
@@ -89,12 +90,12 @@ class RiemannSolverC:
             domain=domain,
         )
         self._sim1_solve = Sim1Solver(
-            p_fac,
-            grid_indexing.isc - 1,
-            grid_indexing.iec + 1,
-            grid_indexing.jsc - 1,
-            grid_indexing.jec + 1,
-            grid_indexing.domain[2] + 1,
+            namelist,
+            grid,
+            grid.is_ - 1,
+            grid.ie + 1,
+            grid.js - 1,
+            grid.je + 1,
         )
         self._finalize_stencil = FrozenStencil(
             finalize,

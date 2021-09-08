@@ -5,7 +5,7 @@ import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import FrozenStencil
 from fv3core.stencils.a2b_ord4 import a1, a2, lagrange_x_func, lagrange_y_func
 from fv3core.utils import corners
-from fv3core.utils.grid import GridData, GridIndexing, axis_offsets
+from fv3core.utils.grid import GridIndexing, axis_offsets
 from fv3core.utils.typing import FloatField, FloatFieldIJ
 
 
@@ -61,6 +61,7 @@ def east_west_edges(
         with horizontal(region[i_start - 1, local_js - 1 : local_je + 2]):
             uc = vol_conserv_cubic_interp_func_x(utmp)
 
+        faketmp = 0  # noqa
         with horizontal(region[i_start, local_js - 1 : local_je + 2]):
             utc = edge_interpolate4_x(ua, dxa)
             uc = utc * sin_sg3[-1, 0] if utc > 0 else utc * sin_sg1
@@ -108,6 +109,7 @@ def north_south_edges(
     from __externals__ import j_end, j_start, local_ie, local_is, local_je, local_js
 
     with computation(PARALLEL), interval(...):
+        faketmp = 0  # noqa
         with horizontal(
             region[local_is - 1 : local_ie + 2, local_js - 1 : local_je + 3]
         ):
@@ -378,23 +380,34 @@ class DGrid2AGrid2CGridVectors:
     def __init__(
         self,
         grid_indexing: GridIndexing,
-        grid_data: GridData,
+        cosa_s,
+        cosa_u,
+        cosa_v,
+        rsin_u,
+        rsin_v,
+        rsin2,
+        dxa,
+        dya,
+        sin_sg1,
+        sin_sg2,
+        sin_sg3,
+        sin_sg4,
         nested: bool,
         grid_type: int,
         dord4: bool,
     ):
-        self._cosa_s = grid_data.cosa_s
-        self._cosa_u = grid_data.cosa_u
-        self._cosa_v = grid_data.cosa_v
-        self._rsin_u = grid_data.rsin_u
-        self._rsin_v = grid_data.rsin_v
-        self._rsin2 = grid_data.rsin2
-        self._dxa = grid_data.dxa
-        self._dya = grid_data.dya
-        self._sin_sg1 = grid_data.sin_sg1
-        self._sin_sg2 = grid_data.sin_sg2
-        self._sin_sg3 = grid_data.sin_sg3
-        self._sin_sg4 = grid_data.sin_sg4
+        self._cosa_s = cosa_s
+        self._cosa_u = cosa_u
+        self._cosa_v = cosa_v
+        self._rsin_u = rsin_u
+        self._rsin_v = rsin_v
+        self._rsin2 = rsin2
+        self._dxa = dxa
+        self._dya = dya
+        self._sin_sg1 = sin_sg1
+        self._sin_sg2 = sin_sg2
+        self._sin_sg3 = sin_sg3
+        self._sin_sg4 = sin_sg4
 
         if grid_type >= 3:
             raise NotImplementedError("unimplemented grid_type >= 3")

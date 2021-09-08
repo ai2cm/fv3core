@@ -1,6 +1,5 @@
 import enum
 
-from .nsys_sql_version import NsysSQLVersion
 from .nsysreport import Report
 
 
@@ -77,7 +76,7 @@ WITH
     ORDER BY start;
 """
 
-    query_kernel_template = """
+    query_kernel = """
         SELECT
             start AS "start",
             end AS "end",
@@ -93,7 +92,7 @@ WITH
             dynamicSharedMemory AS "dsmembytes",
             localMemoryTotal AS "localMemoryTotal",
             sharedMemoryExecuted AS "sharedMemoryExecuted",
-            printf('%s (%d)', gpu.name, TPL_DEVICE_ID) AS "device",
+            printf('%s (%d)', gpu.name, deviceId) AS "device",
             contextId AS "context",
             streamId AS "stream",
             dmn.value AS "name",
@@ -104,31 +103,13 @@ WITH
             StringIds AS dmn
             ON CUPTI_ACTIVITY_KIND_KERNEL.demangledName = dmn.id
         LEFT JOIN
-            TPL_GPU_INFO_TABLE AS gpu
-            USING( TPL_DEVICE_ID )
+            TARGET_INFO_CUDA_GPU AS gpu
+            USING( deviceId )
 """
 
     query_union = """
         UNION ALL
 """
-
-    def __init__(self, dbfile, nsys_version, args):
-        if nsys_version == NsysSQLVersion.EARLY_2021:
-            TPL_DEVICE_ID = "deviceId"
-            TPL_GPU_INFO_TABLE = "TARGET_INFO_CUDA_GPU"
-        elif nsys_version == NsysSQLVersion.MID_2021:
-            TPL_DEVICE_ID = "id"
-            TPL_GPU_INFO_TABLE = "TARGET_INFO_GPU"
-        else:
-            raise NotImplementedError(
-                f"nsys SQL version {nsys_version} not implemented."
-            )
-
-        self._query_kernel = self.query_kernel_template.replace(
-            "TPL_DEVICE_ID", TPL_DEVICE_ID
-        ).replace("TPL_GPU_INFO_TABLE", TPL_GPU_INFO_TABLE)
-
-        super().__init__(dbfile, nsys_version, args=args)
 
     def setup(self):
         err = super().setup()
@@ -138,7 +119,7 @@ WITH
         sub_queries = []
 
         if self.table_exists("CUPTI_ACTIVITY_KIND_KERNEL"):
-            sub_queries.append(self._query_kernel)
+            sub_queries.append(self.query_kernel)
 
         if len(sub_queries) == 0:
             return "{DBFILE} does not contain GPU trace data."

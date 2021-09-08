@@ -6,11 +6,11 @@ from gt4py.gtscript import PARALLEL, computation, horizontal, interval, region
 import fv3core._config as spec
 import fv3core.stencils.fxadv
 import fv3core.utils
+import fv3core.utils.global_config as global_config
 import fv3core.utils.gt4py_utils as utils
 import fv3gfs.util
 from fv3core.decorators import FrozenStencil
 from fv3core.stencils.fvtp2d import FiniteVolumeTransport
-from fv3core.utils.grid import GridIndexing
 from fv3core.utils.typing import FloatField, FloatFieldIJ
 
 
@@ -122,18 +122,12 @@ class TracerAdvection:
     Corresponds to tracer_2D_1L in the Fortran code.
     """
 
-    def __init__(
-        self,
-        grid_indexing: GridIndexing,
-        transport: FiniteVolumeTransport,
-        comm: fv3gfs.util.CubedSphereCommunicator,
-        tracer_count,
-    ):
-        self._tracer_count = tracer_count
+    def __init__(self, comm: fv3gfs.util.CubedSphereCommunicator, namelist):
         self.comm = comm
         self.grid = spec.grid
-        shape = grid_indexing.domain_full(add=(1, 1, 1))
-        origin = grid_indexing.origin_compute()
+        self._do_halo_exchange = global_config.get_do_halo_exchange()
+        shape = self.grid.domain_shape_full(add=(1, 1, 1))
+        origin = self.grid.compute_origin()
         self._tmp_xfx = utils.make_storage_from_shape(shape, origin)
         self._tmp_yfx = utils.make_storage_from_shape(shape, origin)
         self._tmp_fx = utils.make_storage_from_shape(shape, origin)
@@ -145,7 +139,7 @@ class TracerAdvection:
         )
 
         ax_offsets = fv3core.utils.axis_offsets(
-            self.grid, grid_indexing.origin_full(), grid_indexing.domain_full()
+            self.grid, self.grid.full_origin(), self.grid.domain_shape_full()
         )
         local_axis_offsets = {}
         for axis_offset_name, axis_offset_value in ax_offsets.items():
@@ -154,46 +148,46 @@ class TracerAdvection:
 
         self._flux_compute = FrozenStencil(
             flux_compute,
-            origin=grid_indexing.origin_full(),
-            domain=grid_indexing.domain_full(add=(1, 1, 0)),
+            origin=self.grid.full_origin(),
+            domain=self.grid.domain_shape_full(add=(1, 1, 0)),
             externals=local_axis_offsets,
         )
         self._cmax_multiply_by_frac = FrozenStencil(
             cmax_multiply_by_frac,
-            origin=grid_indexing.origin_full(),
-            domain=grid_indexing.domain_full(add=(1, 1, 0)),
+            origin=self.grid.full_origin(),
+            domain=self.grid.domain_shape_full(add=(1, 1, 0)),
             externals=local_axis_offsets,
         )
         self._dp_fluxadjustment = FrozenStencil(
             dp_fluxadjustment,
-            origin=grid_indexing.origin_compute(),
-            domain=grid_indexing.domain_compute(),
+            origin=self.grid.compute_origin(),
+            domain=self.grid.domain_shape_compute(),
             externals=local_axis_offsets,
         )
         self._q_adjust = FrozenStencil(
             q_adjust,
-            origin=grid_indexing.origin_compute(),
-            domain=grid_indexing.domain_compute(),
+            origin=self.grid.compute_origin(),
+            domain=self.grid.domain_shape_compute(),
             externals=local_axis_offsets,
         )
-        self.finite_volume_transport: FiniteVolumeTransport = transport
+        self.finite_volume_transport = FiniteVolumeTransport(
+            grid_indexing=self.grid.grid_indexing,
+            dxa=self.grid.dxa,
+            dya=self.grid.dya,
+            area=self.grid.area,
+            da_min=self.grid.da_min,
+            del6_u=self.grid.del6_u,
+            del6_v=self.grid.del6_v,
+            rarea=self.grid.rarea,
+            grid_type=self.grid.grid_type,
+            hord=namelist.hord_tr,
+        )
         # If use AllReduce, will need something like this:
         # self._tmp_cmax = utils.make_storage_from_shape(shape, origin)
         # self._cmax_1 = FrozenStencil(cmax_stencil1)
         # self._cmax_2 = FrozenStencil(cmax_stencil2)
 
-        # Setup halo updater for tracers
-        tracer_halo_spec = self.grid.get_halo_update_spec(shape, origin, utils.halo)
-        self._tracers_halo_updater = self.comm.get_scalar_halo_updater(
-            [tracer_halo_spec] * tracer_count
-        )
-
     def __call__(self, tracers, dp1, mfxd, mfyd, cxd, cyd, mdt):
-        if len(tracers) != self._tracer_count:
-            raise ValueError(
-                f"incorrect number of tracers, {self._tracer_count} was "
-                f"specified on init but {len(tracers)} were passed"
-            )
         # start HALO update on q (in dyn_core in fortran -- just has started when
         # this function is called...)
         self._flux_compute(
@@ -213,22 +207,18 @@ class TracerAdvection:
 
         # # TODO for if we end up using the Allreduce and compute cmax globally
         # (or locally). For now, hardcoded.
-        # split = int(grid_indexing.domain[2] / 6)
+        # split = int(self.grid.npz / 6)
         # self._cmax_1(
-        #     cxd, cyd, self._tmp_cmax, origin=grid_indexing.origin_compute(),
-        #     domain=(grid_indexing.domain[0], self.grid_indexing.domain[1], split)
+        #     cxd, cyd, self._tmp_cmax, origin=self.grid.compute_origin(),
+        #     domain=(self.grid.nic, self.grid.njc, split)
         # )
         # self._cmax_2(
         #     cxd,
         #     cyd,
         #     self.grid.sin_sg5,
         #     self._tmp_cmax,
-        #     origin=(grid_indexing.isc, self.grid_indexing.jsc, split),
-        #     domain=(
-        #         grid_indexing.domain[0],
-        #         self.grid_indexing.domain[1],
-        #         grid_indexing.domain[2] - split + 1
-        #     ),
+        #     origin=(self.grid.is_, self.grid.js, split),
+        #     domain=(self.grid.nic, self.grid.njc, self.grid.npz - split + 1),
         # )
         # cmax_flat = np.amax(self._tmp_cmax, axis=(0, 1))
         # # cmax_flat is a gt4py storage still, but of dimension [npz+1]...
@@ -253,7 +243,13 @@ class TracerAdvection:
                 n_split,
             )
 
-        self._tracers_halo_updater.update(tracers.values())
+        reqs = []
+        if self._do_halo_exchange:
+            reqs.clear()
+            for q in tracers.values():
+                reqs.append(self.comm.start_halo_update(q, n_points=utils.halo))
+            for req in reqs:
+                req.wait()
 
         dp2 = self._tmp_dp
 
@@ -266,7 +262,7 @@ class TracerAdvection:
                 self.grid.rarea,
                 dp2,
             )
-            for q in tracers.values():
+            for qname, q in tracers.items():
                 self.finite_volume_transport(
                     q.storage,
                     cxd,
@@ -287,6 +283,12 @@ class TracerAdvection:
                     dp2,
                 )
             if not last_call:
-                self._tracers_halo_updater.update(tracers.values())
+                if self._do_halo_exchange:
+                    reqs.clear()
+                    for q in tracers.values():
+                        reqs.append(self.comm.start_halo_update(q, n_points=utils.halo))
+                    for req in reqs:
+                        req.wait()
+
                 # use variable assignment to avoid a data copy
                 dp1, dp2 = dp2, dp1

@@ -82,14 +82,13 @@ class Report:
     statements = []  # type: ignore
     query = "SELECT 1 AS 'ONE'"
 
-    def __init__(self, dbfile, nsys_version, args=[]):
+    def __init__(self, dbfile, args=[]):
         self._tables = None
         self._dbcon = None
         self._dbcur = None
         self._dbfile = dbfile
         self._args = args
         self._headers = []
-        self.nsys_version = (nsys_version,)
 
         # Check DB file
         if not os.path.exists(self._dbfile):
@@ -222,9 +221,9 @@ class Report:
         return klass.usage.format(SCRIPT=klass.get_short_name())
 
     @classmethod
-    def Report(klass, dbfile, nsys_version, args):
+    def Report(klass, dbfile, args):
         try:
-            report = klass(dbfile, nsys_version, args)
+            report = klass(dbfile, args)
         except (
             klass.Error_MissingDatabaseFile,
             klass.Error_InvalidDatabaseFile,
@@ -256,8 +255,8 @@ class Report:
         klass.Run(klass, dbfile, args)
 
     @classmethod
-    def Run(klass, dbfile, nsys_version, args):
-        report, exitval, errmsg = klass.Report(dbfile, nsys_version, args)
+    def Run(klass, dbfile, args):
+        report, exitval, errmsg = klass.Report(dbfile, args)
         if report is None:
             print(errmsg, file=sys.stderr)
             exit(exitval)

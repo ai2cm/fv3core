@@ -56,11 +56,7 @@ class TranslateFillz(TranslateFortranData2Py):
                     pad_field_in_j(value, self.grid.njd)
                 )
         run_fillz = fillz.FillNegativeTracerValues(
-            self.grid.grid_indexing,
-            inputs.pop("im"),
-            inputs.pop("jm"),
-            inputs.pop("km"),
-            inputs.pop("nq"),
+            inputs.pop("im"), inputs.pop("jm"), inputs.pop("km"), inputs.pop("nq")
         )
         run_fillz(**inputs)
         ds = self.grid.default_domain_dict()

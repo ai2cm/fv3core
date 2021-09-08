@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Dict, Optional, Tuple
 
 from gt4py.gtscript import FORWARD, PARALLEL, computation, interval
 
@@ -7,7 +7,6 @@ import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import FrozenStencil
 from fv3core.stencils.basic_operations import copy_defn
 from fv3core.stencils.remap_profile import RemapProfile
-from fv3core.utils.grid import GridIndexing
 from fv3core.utils.typing import FloatField, FloatFieldIJ, IntFieldIJ
 
 
@@ -30,9 +29,11 @@ def lagrangian_contributions(
     lev: IntFieldIJ,
 ):
     with computation(FORWARD), interval(...):
-        pl = (pe2 - pe1[0, 0, lev]) / dp1[0, 0, lev]
+        v_pe2 = pe2
+        v_pe1 = pe1[0, 0, lev]
+        pl = (v_pe2 - v_pe1) / dp1[0, 0, lev]
         if pe2[0, 0, 1] <= pe1[0, 0, lev + 1]:
-            pr = (pe2[0, 0, 1] - pe1[0, 0, lev]) / dp1[0, 0, lev]
+            pr = (pe2[0, 0, 1] - v_pe1) / dp1[0, 0, lev]
             q = (
                 q4_2[0, 0, lev]
                 + 0.5
@@ -73,20 +74,10 @@ class MapSingle:
     Fortran name is map_single, test classes are Map1_PPM_2d, Map_Scalar_2d
     """
 
-    def __init__(
-        self,
-        grid_indexing: GridIndexing,
-        kord: int,
-        mode: int,
-        i1: int,
-        i2: int,
-        j1: int,
-        j2: int,
-    ):
-        # TODO: consider refactoring to take in origin and domain
+    def __init__(self, kord: int, mode: int, i1: int, i2: int, j1: int, j2: int):
         grid = spec.grid
-        shape = grid_indexing.domain_full(add=(1, 1, 1))
-        origin = grid_indexing.origin_compute()
+        shape = grid.domain_shape_full(add=(1, 1, 1))
+        origin = grid.compute_origin()
 
         self._dp1 = utils.make_storage_from_shape(shape, origin=origin)
         self._q4_1 = utils.make_storage_from_shape(shape, origin=origin)
@@ -103,20 +94,20 @@ class MapSingle:
 
         self._extents = (i2 - i1 + 1, j2 - j1 + 1)
         origin = (i1, j1, 0)
-        domain = (*self._extents, grid_indexing.domain[2])
+        domain = (*self._extents, grid.npz)
 
         self._lagrangian_contributions = FrozenStencil(
             lagrangian_contributions,
             origin=origin,
             domain=domain,
         )
-        self._remap_profile = RemapProfile(grid_indexing, kord, mode, i1, i2, j1, j2)
+        self._remap_profile = RemapProfile(kord, mode, i1, i2, j1, j2)
 
         self._set_dp = FrozenStencil(set_dp, origin=origin, domain=domain)
         self._copy_stencil = FrozenStencil(
             copy_defn,
             origin=(0, 0, 0),
-            domain=grid_indexing.domain_full(),
+            domain=grid.domain_shape_full(),
         )
 
     @property
@@ -171,3 +162,17 @@ class MapSingle:
             self._lev,
         )
         return q1
+
+
+# TODO: move this class to the testing code, it is only used there
+class MapSingleFactory:
+    _object_pool: Dict[Tuple[int, ...], MapSingle] = {}
+    """Pool of MapSingle objects."""
+
+    def __call__(
+        self, kord: int, mode: int, i1: int, i2: int, j1: int, j2: int, *args, **kwargs
+    ):
+        key_tuple = (kord, mode, i1, i2, j1, j2)
+        if key_tuple not in self._object_pool:
+            self._object_pool[key_tuple] = MapSingle(*key_tuple)
+        return self._object_pool[key_tuple](*args, **kwargs)
