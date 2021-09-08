@@ -1,4 +1,5 @@
-import functools # noqa: F401
+import functools
+from fv3core.grid.utils import get_center_vector # noqa: F401
 from typing import Any, Dict
 
 import fv3gfs.util as fv3util
@@ -377,8 +378,8 @@ class TranslateMoreAreas(ParallelTranslateGrid):
             state["agrid"].np,
         )
         set_c_grid_tile_border_area(
-            xyz_dgrid[3:-3, 3:-3, :],
-            xyz_agrid[3:-3, 3:-3, :],
+            xyz_dgrid[2:-2, 2:-2, :],
+            xyz_agrid[2:-2, 2:-2, :],
             RADIUS,
             state["area_cgrid"].data[3:-3, 3:-3],
             communicator.tile.partitioner,
@@ -1180,8 +1181,8 @@ cubedsphere=Atm(n)%gridstruct%latlon
             state["agrid"].np,
         )
         set_c_grid_tile_border_area(
-            xyz_dgrid[3:-3, 3:-3, :],
-            xyz_agrid[3:-3, 3:-3, :],
+            xyz_dgrid[2:-2, 2:-2, :],
+            xyz_agrid[2:-2, 2:-2, :],
             RADIUS,
             state["area_cgrid"].data[3:-3, 3:-3],
             communicator.tile.partitioner,
@@ -1510,13 +1511,41 @@ nw_corner=Atm(n)%gridstruct%nw_corner"""
     }
 
     def compute_sequential(self, inputs_list, communicator_list):
-        outputs=[]
+        state_list = []
         for inputs in inputs_list:
-            outputs.append(self._compute_local(inputs))
-        return outputs
+            state_list.append(self._compute_local_eta(inputs))
+        for i, state in enumerate(state_list):
+            fill_corners_2d(
+                state["grid"].data[:, :, :], self.grid, gridtype="B", direction="x"
+            )
+            state_list[i] = _compute_local_part2(state)
+            
+        
 
-    def _compute_local(self, inputs):
+            
+        return self.outputs_list_from_state_list(state_list)
+
+
+    def _compute_local_eta(self, inputs):
         state = self.state_from_inputs(inputs)
-        init_grid_utils(state)
+        state["eta"] = set_eta(state)
+        return state
+
+    def _compute_local_part2(self, state):
+        xyz_dgrid = lon_lat_to_xyz(state["grid"].data[:,:,0], state["grid"].data[:,:,1], state["grid"].np)
+        center_vector1, center_vector2 = get_center_vector(xyz_dgrid, self.grid.halo)
+        center_vector1[:self.grid.halo, :self.grid.halo, :] = 1.e8
+        center_vector1[:self.grid.halo, -self.grid.halo:, :] = 1.e8
+        center_vector1[-self.grid.halo:, :self.grid.halo, :] = 1.e8
+        center_vector1[-self.grid.halo:, -self.grid.halo:, :] = 1.e8
+
+        center_vector2[:self.grid.halo, :self.grid.halo, :] = 1.e8
+        center_vector2[:self.grid.halo, -self.grid.halo:, :] = 1.e8
+        center_vector2[-self.grid.halo:, :self.grid.halo, :] = 1.e8
+        center_vector2[-self.grid.halo:, -self.grid.halo:, :] = 1.e8
+
+        return state
+
+    def _compute_outputs(self, state):
         outputs = self.outputs_from_state(state)
         return outputs

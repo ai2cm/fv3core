@@ -1,3 +1,4 @@
+from fv3core.grid.utils import set_eta, get_center_vector
 from .gnomonic import (
     get_area,
     gnomonic_grid,
@@ -12,6 +13,7 @@ from .gnomonic import (
 )
 
 from .mirror import mirror_grid, set_halo_nan
+from .utils import set_eta
 
 import fv3gfs.util as fv3util
 from fv3core.utils.corners import fill_corners_2d, fill_corners_agrid, fill_corners_dgrid, fill_corners_cgrid
@@ -129,4 +131,6 @@ def init_grid_sequential(grid_config, communicator_list):
     pass
 
 def init_grid_utils(state):
+    #init ak, bk, eta for cold start
+    set_eta(npz, ks, ptop, ak, bk)
     pass

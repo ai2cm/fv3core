@@ -372,36 +372,36 @@ def set_c_grid_tile_border_area(
     """
     if tile_partitioner.on_tile_left(rank):
         _set_c_grid_west_edge_area(xyz_dgrid, xyz_agrid, area_cgrid, radius, np)
-        if tile_partitioner.on_tile_top(rank):
-            _set_c_grid_northwest_corner_area(
-                xyz_dgrid, xyz_agrid, area_cgrid, radius, np
-            )
+        # if tile_partitioner.on_tile_top(rank):
+        #     _set_c_grid_northwest_corner_area(
+        #         xyz_dgrid, xyz_agrid, area_cgrid, radius, np
+        #     )
     if tile_partitioner.on_tile_top(rank):
         _set_c_grid_north_edge_area(xyz_dgrid, xyz_agrid, area_cgrid, radius, np)
-        if tile_partitioner.on_tile_right(rank):
-            _set_c_grid_northeast_corner_area(
-                xyz_dgrid, xyz_agrid, area_cgrid, radius, np
-            )
+        # if tile_partitioner.on_tile_right(rank):
+        #     _set_c_grid_northeast_corner_area(
+        #         xyz_dgrid, xyz_agrid, area_cgrid, radius, np
+        #     )
     if tile_partitioner.on_tile_right(rank):
         _set_c_grid_east_edge_area(xyz_dgrid, xyz_agrid, area_cgrid, radius, np)
-        if tile_partitioner.on_tile_bottom(rank):
-            _set_c_grid_southeast_corner_area(
-                xyz_dgrid, xyz_agrid, area_cgrid, radius, np
-            )
+        # if tile_partitioner.on_tile_bottom(rank):
+        #     _set_c_grid_southeast_corner_area(
+        #         xyz_dgrid, xyz_agrid, area_cgrid, radius, np
+        #     )
     if tile_partitioner.on_tile_bottom(rank):
         _set_c_grid_south_edge_area(xyz_dgrid, xyz_agrid, area_cgrid, radius, np)
-        if tile_partitioner.on_tile_left(rank):
-            _set_c_grid_southwest_corner_area(
-                xyz_dgrid, xyz_agrid, area_cgrid, radius, np
-            )
+        # if tile_partitioner.on_tile_left(rank):
+        #     _set_c_grid_southwest_corner_area(
+        #         xyz_dgrid, xyz_agrid, area_cgrid, radius, np
+        #     )
 
 
 def _set_c_grid_west_edge_area(xyz_dgrid, xyz_agrid, area_cgrid, radius, np):
-    xyz_y_center = 0.5 * (xyz_dgrid[0, :-1] + xyz_dgrid[0, 1:])
-    area_cgrid[0, 1:-1] = 2 * get_rectangle_area(
+    xyz_y_center = 0.5 * (xyz_dgrid[1, :-1] + xyz_dgrid[1, 1:])
+    area_cgrid[0, :] = 2 * get_rectangle_area(
         xyz_y_center[:-1],
-        xyz_agrid[0, :-1],
-        xyz_agrid[0, 1:],
+        xyz_agrid[1, :-1],
+        xyz_agrid[1, 1:],
         xyz_y_center[1:],
         radius,
         np,
@@ -560,7 +560,6 @@ def spherical_angle(p_center, p2, p3, np):
         / np.sqrt(np.sum(p ** 2, axis=-1) * np.sum(q ** 2, axis=-1))
     )
 
-
 #    ddd = (px*px+py*py+pz*pz)*(qx*qx+qy*qy+qz*qz)
 
 #    if ( ddd <= 0.0d0 ) then
@@ -581,3 +580,14 @@ def spherical_angle(p_center, p2, p3, np):
 #    endif
 
 #    spherical_angle = angle
+
+def spherical_cos(p_center, p2, p3, np):
+    """
+    As Spherical angle, but returns cos(angle)
+    """
+    p = np.cross(p_center, p2)
+    q = np.cross(p_center, p3)
+    return (
+        np.sum(p * q, axis=-1)
+        / np.sqrt(np.sum(p ** 2, axis=-1) * np.sum(q ** 2, axis=-1))
+    )
