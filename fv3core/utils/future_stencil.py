@@ -216,7 +216,7 @@ class FutureStencil:
     ):
         self._builder: Optional["StencilBuilder"] = builder
         self._stencil_object: Optional[StencilObject] = None
-        self._sleep_time: float = 0.1
+        self._sleep_time: float = 0.05
         self._timeout: float = 180.0
         self._node_id = MPI.COMM_WORLD.Get_rank() if MPI else 0
         self._wrapper = wrapper
