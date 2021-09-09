@@ -72,7 +72,6 @@ def corner_fill(grid: dace.constant, q):
         for k in range(grid.npz):
             q[grid.is_ - 1, grid.je, k] = q[grid.is_, grid.je, k]
 
-
         q[grid.is_, grid.je + 1, :] = q[grid.is_, grid.je, :]
 
 

@@ -127,6 +127,7 @@ class FiniteVolumeTransport:
             "y", self._corner_tmp
         )
         """Stencil responsible for doing corners updates in y-direction."""
+
     @computepath_method
     def __call__(
         self,

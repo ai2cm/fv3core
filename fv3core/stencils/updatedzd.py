@@ -333,7 +333,9 @@ class UpdateHeightOnDGrid:
             self._y_area_flux_interface,
             self._fx,
             self._fy,
-            None, None, None
+            None,
+            None,
+            None,
         )
 
         # TODO: in theory, we should check if damp_vt > 1e-5 for each k-level and
@@ -344,7 +346,7 @@ class UpdateHeightOnDGrid:
             self._height_y_diffusive_flux,
             self._column_namelist["damp_vt"],
             self._wk,
-            None
+            None,
         )
         self._apply_height_fluxes(
             self.grid.area,

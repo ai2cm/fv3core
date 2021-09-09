@@ -514,7 +514,6 @@ class DGrid2AGrid2CGridVectors:
             domain=(self.grid.nic + 2, jdiff, self.grid.npz),
         )
 
-
     @computepath_method
     def __call__(self, uc, vc, u, v, ua, va, utc, vtc):
         """
@@ -666,7 +665,7 @@ class DGrid2AGrid2CGridVectors:
             va[self._i1, self._j1 - 1, :] = ua[self._i1 + 2, self._j1, :]
             va[self._i1, self._j1 - 1, :] *= -1
             va[self._i1, self._j1, :] = ua[self._i1 + 1, self._j1, :]
-            va[self._i1, self._j1, :] *= -1 
+            va[self._i1, self._j1, :] *= -1
         if self.grid.nw_corner:
             for j in range(0, 3):
                 self._vtmp[self.grid.is_ - 1, self._ny + j, :] = self._utmp[

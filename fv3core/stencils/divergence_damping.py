@@ -163,7 +163,6 @@ class DivergenceDamping:
         self._nonzero_nord_k = 0
         self._nonzero_nord = int(namelist.nord)
 
-
         for k in range(len(self._nord_column)):
             if self._nord_column[k] > 0:
                 self._nonzero_nord_k = k
@@ -478,7 +477,6 @@ class DivergenceDamping:
         )
         # for n in range(self._nonzero_nord):
 
-
         if self.fillc1:
             self.fill_corners_bgrid_x(
                 divg_d,
@@ -755,5 +753,5 @@ class DivergenceDamping:
             self._smagorinksy_diffusion_approx_stencil(
                 delpc,
                 vort,
-                (dt*dt)**0.5,
+                (dt * dt) ** 0.5,
             )

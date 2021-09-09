@@ -703,7 +703,7 @@ class AcousticDynamics:
             self._hyperdiffusion(state.heat_source, cd)
             if not self.namelist.hydrostatic:
                 tmp = dt * self.namelist.delt_max
-                delt_time_factor = (tmp*tmp)**0.5
+                delt_time_factor = (tmp * tmp) ** 0.5
                 self._compute_pkz_tempadjust(
                     state.delp,
                     state.delz,
@@ -713,4 +713,3 @@ class AcousticDynamics:
                     state.pkz,
                     delt_time_factor,
                 )
-

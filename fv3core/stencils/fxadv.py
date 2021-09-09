@@ -8,6 +8,7 @@ from fv3core.utils.global_config import get_stencil_config
 from fv3core.utils.grid import axis_offsets
 from fv3core.utils.typing import FloatField, FloatFieldIJ
 
+
 def main_ut(
     uc: FloatField,
     vc: FloatField,

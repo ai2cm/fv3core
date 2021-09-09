@@ -31,6 +31,7 @@ import fv3core.utils.global_config as global_config
 import fv3core.utils.grid
 from fv3core.utils.global_config import StencilConfig
 from fv3core.utils.typing import Index3D
+from fv3core.utils.gt4py_utils import make_storage_from_shape
 
 ArgSpec = collections.namedtuple(
     "ArgSpec", ["arg_name", "standard_name", "units", "intent"]
@@ -39,13 +40,17 @@ VALID_INTENTS = ["in", "out", "inout", "unknown"]
 
 
 def to_gpu(sdfg: dace.SDFG):
-    allmaps = [(me, state) for me, state in sdfg.all_nodes_recursive()
-                if isinstance(me, dace.nodes.MapEntry)]
-    topmaps = [(me, state) for me, state in allmaps
-                if get_parent_map(state, me) is None]
+    allmaps = [
+        (me, state)
+        for me, state in sdfg.all_nodes_recursive()
+        if isinstance(me, dace.nodes.MapEntry)
+    ]
+    topmaps = [
+        (me, state) for me, state in allmaps if get_parent_map(state, me) is None
+    ]
 
     for sd, aname, arr in sdfg.arrays_recursive():
-        if arr.shape == (1, ):
+        if arr.shape == (1,):
             arr.storage = dace.StorageType.Register
         else:
             arr.storage = dace.StorageType.GPU_Global
@@ -55,6 +60,31 @@ def to_gpu(sdfg: dace.SDFG):
 
     for sd in sdfg.all_sdfgs_recursive():
         sd.openmp_sections = False
+
+
+def call_sdfg(sdfg: dace.SDFG, args, kwargs):
+    if "gpu" in global_config.get_backend() or "cuda" in global_config.get_backend():
+        to_gpu(sdfg)
+    args_iter = iter(args)
+    sdfg_kwargs = {}
+    for k in sdfg.signature_arglist(with_types=False):
+        if k.startswith("__return_"):
+            sdfg_kwargs[k] = make_storage_from_shape(sdfg.arrays[k].shape)
+        elif k in kwargs:
+            sdfg_kwargs[k] = kwargs[k]
+        else:
+            sdfg_kwargs[k] = next(args_iter)
+
+    for k, arg in sdfg_kwargs.items():
+        if isinstance(arg, gt4py.storage.Storage):
+            arg.host_to_device()
+    res = sdfg(**sdfg_kwargs)
+    for k, arg in sdfg_kwargs.items():
+        if isinstance(arg, gt4py.storage.Storage) and hasattr(
+            arg, "_set_device_modified"
+        ):
+            arg._set_device_modified()
+    return res
 
 
 def state_inputs(*arg_specs):
@@ -403,12 +433,12 @@ class LazyComputepathFunction:
     def __call__(self, *args, **kwargs):
         if self.use_dace:
             sdfg = self.__sdfg__(*args, **kwargs)
-            if (
-                "gpu" in global_config.get_backend()
-                or "cuda" in global_config.get_backend()
-            ):
-                to_gpu(sdfg)
-            return sdfg(*args, **self.daceprog.__sdfg_closure__(), **kwargs)
+            kwargs = {
+                **self.daceprog.default_args,
+                **self.daceprog.__sdfg_closure__(),
+                **kwargs,
+            }
+            return call_sdfg(sdfg, args, kwargs)
         else:
             return self.func(*args, **kwargs)
 
@@ -463,12 +493,12 @@ class LazyComputepathMethod:
         def __call__(self, *args, **kwargs):
             if self.lazy_method.use_dace:
                 sdfg = self.__sdfg__(*args, **kwargs)
-                if (
-                    "gpu" in global_config.get_backend()
-                    or "cuda" in global_config.get_backend()
-                ):
-                    to_gpu(sdfg)
-                return sdfg(*args, **self.daceprog.__sdfg_closure__(), **kwargs)
+                kwargs = {
+                    **self.daceprog.default_args,
+                    **self.daceprog.__sdfg_closure__(),
+                    **kwargs,
+                }
+                return call_sdfg(sdfg, args, kwargs)
             else:
                 return self.lazy_method.func(self.obj_to_bind, *args, **kwargs)
 
@@ -477,8 +507,8 @@ class LazyComputepathMethod:
                 *args, **self.daceprog.__sdfg_closure__(), **kwargs, save=False
             )
 
-        def __sdfg_closure__(self, *args, **kwargs):
-            return self.daceprog.__sdfg_closure__(*args, **kwargs)
+        def __sdfg_closure__(self):
+            return self.daceprog.__sdfg_closure__()
 
         def __sdfg_signature__(self):
             return self.daceprog.argnames, self.daceprog.constant_args

@@ -202,7 +202,6 @@ class DelnFlux:
         else:
             self.delnflux_nosg(q, self._fx2, self._fy2, self._damp, d2, mass)
 
-
         if mass is None:
             self._add_diffusive_stencil(fx, self._fx2, fy, self._fy2)
         else:

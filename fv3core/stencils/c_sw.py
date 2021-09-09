@@ -699,7 +699,7 @@ class CGridShallowWaterDynamics:
                 dt2,
             )
 
-    @computepath_method
+    @computepath_method(use_dace=True)
     def __call__(
         self,
         delp,

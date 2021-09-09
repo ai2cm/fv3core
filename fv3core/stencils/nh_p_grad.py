@@ -141,6 +141,7 @@ class NonHydrostaticPressureGradient:
             nk=self.nk,
             replace=False,
         )
+
     @computepath_method
     def __call__(
         self,

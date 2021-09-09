@@ -44,6 +44,7 @@ def set_format_source(flag: bool):
 def get_format_source() -> bool:
     return _FORMAT_SOURCE
 
+
 def set_dacemode(flag: bool):
     global _DACEMODE
     _DACEMODE = flag
