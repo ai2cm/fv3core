@@ -136,23 +136,27 @@ class FrozenStencil:
             len(self._argument_names) > 0
         ), "A stencil with no arguments? You may be double decorating"
 
-        self._field_origins: Dict[str, Tuple[int, ...]] = compute_field_origins(
-            self.stencil_object.field_info, self.origin
-        )
+        self._field_origins: Dict[str, Tuple[int, ...]] = {}
         """mapping from field names to field origins"""
 
-        self._stencil_run_kwargs = {
-            "_origin_": self._field_origins,
-            "_domain_": self.domain,
-        }
+        self._stencil_run_kwargs: Dict[str, Any] = {}
 
-        self._written_fields = get_written_fields(self.stencil_object.field_info)
+        self._written_fields: List[str] = []
 
     def __call__(
         self,
         *args,
         **kwargs,
     ) -> None:
+        if not self._field_origins:
+            field_info = self.stencil_object.field_info
+            self._field_origins = compute_field_origins(field_info, self.origin)
+            self._stencil_run_kwargs = {
+                "_origin_": self._field_origins,
+                "_domain_": self.domain,
+            }
+            self._written_fields = get_written_fields(field_info)
+
         if self.stencil_config.validate_args:
             if __debug__ and "origin" in kwargs:
                 raise TypeError("origin cannot be passed to FrozenStencil call")

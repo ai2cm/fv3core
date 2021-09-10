@@ -257,7 +257,7 @@ class FutureStencil:
         self,
         builder: Optional["StencilBuilder"] = None,
         wrapper: Optional[Callable] = None,
-        sleep_time: float = 50e-3,
+        sleep_time: float = 0.05,
         timeout: float = 600.0,
     ):
         """
@@ -293,8 +293,8 @@ class FutureStencil:
     def field_info(self) -> Dict[str, FieldInfo]:
         return self.stencil_object.field_info
 
-    def _delay(self) -> float:
-        delay_time = self._sleep_time * float(self._node_id) * 0.1
+    def _delay(self, factor: float = 0.2) -> float:
+        delay_time = self._sleep_time * float(self._node_id) * factor
         time.sleep(delay_time)
         return delay_time
 
@@ -310,7 +310,7 @@ class FutureStencil:
             if time_elapsed >= self._timeout:
                 raise RuntimeError(
                     f"Timeout while waiting for stencil '{self.cache_info_path}' "
-                    "to compile on R{self._node_id}"
+                    "to compile on node {self._node_id}"
                 )
 
         # Delay before loading...
@@ -323,9 +323,11 @@ class FutureStencil:
         builder = self._builder
         stencil_id = int(builder.stencil_id.version, 16)
 
-        # Delay before accessing stencil cache on filesystem...
-        self._delay()
-        stencil_class = None if builder.options.rebuild else builder.backend.load()
+        stencil_class = None
+        if not builder.options.rebuild:
+            # Delay before accessing stencil cache on filesystem...
+            self._delay(1.0)
+            stencil_class = builder.backend.load()
 
         if not stencil_class:
             # Delay before accessing distributed table...
