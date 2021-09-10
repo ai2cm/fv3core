@@ -115,17 +115,18 @@ class FrozenStencil:
         if externals is None:
             externals = {}
 
-        is_parallel: bool = MPI is not None and MPI.COMM_WORLD.Get_size() > 1
-        stencil_function = future_stencil if is_parallel else gtscript.stencil
+        stencil_function = gtscript.stencil
+        stencil_kwargs = {**self.stencil_config.stencil_kwargs}
 
-        kwargs = {**self.stencil_config.stencil_kwargs}
-        if is_parallel:
-            kwargs["wrapper"] = self
+        # Enable distributed compilation if running in parallel
+        if MPI is not None and MPI.COMM_WORLD.Get_size() > 1:
+            stencil_function = future_stencil
+            stencil_kwargs["wrapper"] = self
 
         self.stencil_object: gt4py.StencilObject = stencil_function(
             definition=func,
             externals=externals,
-            **kwargs,
+            **stencil_kwargs,
         )
         """generated stencil object returned from gt4py."""
 

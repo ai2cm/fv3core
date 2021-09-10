@@ -5,6 +5,7 @@ import gt4py.storage as gt_storage
 import numpy as np
 import pytest
 from gt4py.gtscript import PARALLEL, computation, interval
+from gt4py.stencil_object import StencilObject
 
 from fv3core.utils.future_stencil import FutureStencil, StencilTable, future_stencil
 from fv3core.utils.global_config import set_backend
@@ -48,23 +49,38 @@ def setup_data_vars():
 )
 @pytest.mark.parametrize("backend", ("numpy", "gtx86"))
 @pytest.mark.parametrize("rebuild", (True, False))
-def test_future_stencil(backend: str, rebuild: bool):
+@pytest.mark.parametrize("use_wrapper", (True, False))
+def test_future_stencil(backend: str, rebuild: bool, use_wrapper: bool):
+    class StencilWrapper:
+        def __init__(self):
+            self.stencil_object = None
+
+        def __call__(self, *args, **kwargs) -> None:
+            self.stencil_object(*args, **kwargs)
+
     set_backend(backend)
     FutureStencil.clear()
 
     origin = (1, 1, 0)
     domain = (2, 2, 3)
 
+    wrapper = StencilWrapper() if use_wrapper else None
+
     add1_object = future_stencil(
         definition=add1_stencil,
         backend=backend,
         rebuild=rebuild,
+        wrapper=wrapper,
     )
     assert isinstance(add1_object, FutureStencil)
 
     # Fetch `field_info` to force a build
     field_info = add1_object.field_info
     assert len(field_info) == 1
+
+    if use_wrapper:
+        add1_object = wrapper.stencil_object
+        assert isinstance(add1_object, StencilObject)
 
     q, q_ref = setup_data_vars()
     add1_object(q, origin=origin, domain=domain)

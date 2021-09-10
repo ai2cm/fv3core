@@ -10,6 +10,10 @@ from fv3core.utils.mpi import MPI
 
 
 class Singleton(type):
+    """
+    Metaclass that maintains a dictionary of singleton instances.
+    """
+
     _instances: Dict[Type["Singleton"], "Singleton"] = {}
 
     def __call__(cls, *args, **kwargs):
@@ -19,12 +23,33 @@ class Singleton(type):
 
 
 class StencilTable(object, metaclass=Singleton):
+    """
+    Distributed table to store the status of each stencil based on its ID.
+    The status can be one of the following values:
+
+    1. NONE: The stencil ID has not yet been accessed.
+    2. DONE: The stencil has been compiled and can be loaded by the calling node.
+    3. NODE_ID: The ID of the node that is compiling the requested stencil.
+
+    The table is implemented using one-sided MPI communication (MPI.Window) so
+    that nodes can function fully asynchronously. Some nodes may require different
+    stencil IDs so it cannot be assumed that all nodes will execute the same code.
+    The buffer is of size `max_entries * 2 + 1`, each entry consists of a stencil
+    ID and a state, and the first element of the array holds the current size.
+    Finished stencil IDs are cached to reduce communication overhead.
+    """
+
     DONE_STATE: int = -1
     NONE_STATE: int = -2
     MAX_SIZE: int = 200
 
     def __init__(self, comm: Optional[Any] = None, max_size: int = 0):
+        """
+        Args:
+            comm (Communicator): An MPI communicator (defaults to MPI.COMM_WORLD)
+        """
         self._comm = comm if comm else MPI.COMM_WORLD
+        self._locked: bool = False
         self._initialize(max_size)
 
     def clear(self) -> None:
@@ -44,6 +69,19 @@ class StencilTable(object, metaclass=Singleton):
 
     def is_none(self, key: int) -> bool:
         return self[key] == self.NONE_STATE
+
+    def set_if_none(self, key: int, value: int) -> bool:
+        self._window.Lock(rank=0)
+        self._locked = True
+
+        is_none: bool = self[key] == self.NONE_STATE
+        if is_none:
+            self[key] = value
+
+        self._window.Unlock(rank=0)
+        self._locked = False
+
+        return is_none
 
     def __getitem__(self, key: int) -> int:
         if key in self._finished_keys:
@@ -107,12 +145,14 @@ class StencilTable(object, metaclass=Singleton):
         self._mpi_type = MPI.LONG
         int_size = self._mpi_type.Get_size()
         self._np_type = np.int64
-        self._window_size = (
+
+        self._window_size: int = (
             int_size * self._buffer_size * self._n_nodes if self._node_id == 0 else 0
         )
         self._window = MPI.Win.Allocate(
             size=self._window_size, disp_unit=int_size, comm=self._comm
         )
+        self._locked = False
 
         if self._node_id == 0:
             buffer = np.frombuffer(self._window, dtype=self._np_type)
@@ -128,15 +168,19 @@ class StencilTable(object, metaclass=Singleton):
         return (node_id * self._buffer_size, self._buffer_size, self._mpi_type)
 
     def _set_buffer(self, buffer: np.ndarray):
-        self._window.Lock(rank=0)
+        if not self._locked:
+            self._window.Lock(rank=0)
         self._window.Put(buffer, target_rank=0, target=self._get_target())
-        self._window.Unlock(rank=0)
+        if not self._locked:
+            self._window.Unlock(rank=0)
 
     def _get_buffer(self, node_id: int = -1) -> np.ndarray:
         buffer = np.empty(self._buffer_size, dtype=self._np_type)
-        self._window.Lock(rank=0)
+        if not self._locked:
+            self._window.Lock(rank=0)
         self._window.Get(buffer, target_rank=0, target=self._get_target(node_id))
-        self._window.Unlock(rank=0)
+        if not self._locked:
+            self._window.Unlock(rank=0)
 
         return buffer
 
@@ -204,7 +248,7 @@ def future_stencil(
 
 class FutureStencil:
     """
-    A stencil object that is compiled by this node or another in a distributed context.
+    A wrapper that allows a stencil object to be compiled in a distributed context.
     """
 
     _id_table = StencilTable()
@@ -213,13 +257,23 @@ class FutureStencil:
         self,
         builder: Optional["StencilBuilder"] = None,
         wrapper: Optional[Callable] = None,
+        sleep_time: float = 50e-3,
+        timeout: float = 600.0,
     ):
-        self._builder: Optional["StencilBuilder"] = builder
-        self._stencil_object: Optional[StencilObject] = None
-        self._sleep_time: float = 0.05
-        self._timeout: float = 180.0
-        self._node_id = MPI.COMM_WORLD.Get_rank() if MPI else 0
+        """
+        Args:
+            builder: StencilBuilder object to build the stencil
+            wrapper: Another wrapper with a `stencil_object` attribute to which the
+                     compiled stencil can be passed
+            sleep_time: Amount of time to sleep between table checks (defaults to 50 ms)
+            timeout: Time to wait for a stencil to compile (defaults to 10 min)
+        """
+        self._builder = builder
         self._wrapper = wrapper
+        self._sleep_time = sleep_time
+        self._timeout = timeout
+        self._node_id: int = MPI.COMM_WORLD.Get_rank() if MPI else 0
+        self._stencil_object: Optional[StencilObject] = None
 
     @classmethod
     def clear(cls):
@@ -240,18 +294,9 @@ class FutureStencil:
         return self.stencil_object.field_info
 
     def _delay(self) -> float:
-        delay_time = self._sleep_time * float(self._node_id)
+        delay_time = self._sleep_time * float(self._node_id) * 0.1
         time.sleep(delay_time)
         return delay_time
-
-    def _compile_stencil(self, stencil_id: int) -> Callable:
-        # Stencil not yet compiled or in progress so claim it...
-        self._id_table[stencil_id] = self._node_id
-        self._delay()
-        stencil_class = self._builder.backend.generate()
-        self._id_table.set_done(stencil_id)  # Set to DONE...
-
-        return stencil_class
 
     def _load_stencil(self, stencil_id: int) -> Callable:
         if not self._id_table.is_done(stencil_id):
@@ -285,9 +330,12 @@ class FutureStencil:
         if not stencil_class:
             # Delay before accessing distributed table...
             self._delay()
-            if self._id_table.is_none(stencil_id):
-                stencil_class = self._compile_stencil(stencil_id)
+            if self._id_table.set_if_none(stencil_id, self._node_id):
+                # Compile stencil and mark as DONE...
+                stencil_class = self._builder.backend.generate()
+                self._id_table.set_done(stencil_id)
             else:
+                # Wait for stencil and load from cache...
                 stencil_class = self._load_stencil(stencil_id)
 
         if not stencil_class:
@@ -296,12 +344,13 @@ class FutureStencil:
             )
 
         self._stencil_object = stencil_class()
+
         # Assign wrapper's stencil_object (e.g,. FrozenStencil) if provided...
         if self._wrapper:
             self._wrapper.stencil_object = self._stencil_object
 
     def __call__(self, *args: Any, **kwargs: Any) -> None:
-        return (self.stencil_object)(*args, **kwargs)
+        return self.stencil_object(*args, **kwargs)
 
     def run(self, *args: Any, **kwargs: Any) -> None:
         self.stencil_object.run(*args, **kwargs)

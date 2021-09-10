@@ -15,8 +15,6 @@ try:
 except ImportError:
     cp = None
 
-logger = logging.getLogger("fv3core")
-
 # If True, automatically transfers memory between CPU and GPU (see gt4py.storage)
 managed_memory = True
 
@@ -36,6 +34,9 @@ tracer_variables = [
     "qsgs_tke",
     "qcld",
 ]
+
+# Logger instance
+logger = logging.getLogger("fv3core")
 
 
 # TODO remove when using quantities throughout model
