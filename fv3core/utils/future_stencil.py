@@ -49,7 +49,6 @@ class StencilTable(object, metaclass=Singleton):
             comm (Communicator): An MPI communicator (defaults to MPI.COMM_WORLD)
         """
         self._comm = comm if comm else MPI.COMM_WORLD
-        self._locked: bool = False
         self._initialize(max_size)
 
     def clear(self) -> None:
@@ -69,19 +68,6 @@ class StencilTable(object, metaclass=Singleton):
 
     def is_none(self, key: int) -> bool:
         return self[key] == self.NONE_STATE
-
-    def set_if_none(self, key: int, value: int) -> bool:
-        self._window.Lock(rank=0)
-        self._locked = True
-
-        is_none: bool = self[key] == self.NONE_STATE
-        if is_none:
-            self[key] = value
-
-        self._window.Unlock(rank=0)
-        self._locked = False
-
-        return is_none
 
     def __getitem__(self, key: int) -> int:
         if key in self._finished_keys:
@@ -152,7 +138,6 @@ class StencilTable(object, metaclass=Singleton):
         self._window = MPI.Win.Allocate(
             size=self._window_size, disp_unit=int_size, comm=self._comm
         )
-        self._locked = False
 
         if self._node_id == 0:
             buffer = np.frombuffer(self._window, dtype=self._np_type)
@@ -168,19 +153,15 @@ class StencilTable(object, metaclass=Singleton):
         return (node_id * self._buffer_size, self._buffer_size, self._mpi_type)
 
     def _set_buffer(self, buffer: np.ndarray):
-        if not self._locked:
-            self._window.Lock(rank=0)
+        self._window.Lock(rank=0)
         self._window.Put(buffer, target_rank=0, target=self._get_target())
-        if not self._locked:
-            self._window.Unlock(rank=0)
+        self._window.Unlock(rank=0)
 
     def _get_buffer(self, node_id: int = -1) -> np.ndarray:
         buffer = np.empty(self._buffer_size, dtype=self._np_type)
-        if not self._locked:
-            self._window.Lock(rank=0)
+        self._window.Lock(rank=0)
         self._window.Get(buffer, target_rank=0, target=self._get_target(node_id))
-        if not self._locked:
-            self._window.Unlock(rank=0)
+        self._window.Unlock(rank=0)
 
         return buffer
 
@@ -298,6 +279,14 @@ class FutureStencil:
         time.sleep(delay_time)
         return delay_time
 
+    def _compile_stencil(self, stencil_id: int) -> Callable:
+        # Stencil not yet compiled or in progress so claim it...
+        self._id_table[stencil_id] = self._node_id
+        stencil_class = self._builder.backend.generate()
+        self._id_table.set_done(stencil_id)
+
+        return stencil_class
+
     def _load_stencil(self, stencil_id: int) -> Callable:
         if not self._id_table.is_done(stencil_id):
             # Wait for stencil to be done...
@@ -326,16 +315,15 @@ class FutureStencil:
         stencil_class = None
         if not builder.options.rebuild:
             # Delay before accessing stencil cache on filesystem...
-            self._delay(1.0)
+            self._delay()
             stencil_class = builder.backend.load()
 
         if not stencil_class:
             # Delay before accessing distributed table...
             self._delay()
-            if self._id_table.set_if_none(stencil_id, self._node_id):
+            if self._id_table.is_none(stencil_id):
                 # Compile stencil and mark as DONE...
-                stencil_class = self._builder.backend.generate()
-                self._id_table.set_done(stencil_id)
+                stencil_class = self._compile_stencil(stencil_id)
             else:
                 # Wait for stencil and load from cache...
                 stencil_class = self._load_stencil(stencil_id)
