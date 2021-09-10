@@ -119,20 +119,25 @@ split_path=(${data_path//\// })
 experiment=${split_path[-1]}
 sample_cache=.gt_cache_000000
 
+echo "Using precomputed cache"
+echo $(pwd)/${sample_cache}
+
 if [ ! -d $(pwd)/${sample_cache} ] ; then
     premade_caches=/scratch/snx3000/olifu/jenkins/scratch/store_gt_caches/$experiment/$sanitized_backend
     if [ -d ${premade_caches}/${sample_cache} ] ; then
-	 version_file=${premade_caches}/GT4PY_VERSION.txt
-	 if [ -f ${version_file} ]; then
-             version=`cat ${version_file}`
-	 else
-             version=""
-	 fi
-	 if [ "$version" == "$GT4PY_VERSION" ]; then
-	     echo "copying premade GT4Py caches"
-             cp -r ${premade_caches}/.gt_cache_0000* .
-             find . -name m_\*.py -exec sed -i "s|\/scratch\/snx3000\/olifu\/jenkins_submit\/workspace\/fv3core-cache-setup\/backend\/$sanitized_backend\/experiment\/$experiment\/slave\/daint_submit|$(pwd)|g" {} +
-	 fi
+	    version_file=${premade_caches}/GT4PY_VERSION.txt
+	    if [ -f ${version_file} ]; then
+            version=`cat ${version_file}`
+	    else
+            version=""
+	    fi
+        echo "Cache version $version"
+        echo "Git fv3core's gt4py version $GT4PY_VERSION"
+	    if [ "$version" == "$GT4PY_VERSION" ]; then
+	        echo "copying premade GT4Py caches"
+            cp -r ${premade_caches}/.gt_cache_0000* .
+            find . -name m_\*.py -exec sed -i "s|\/scratch\/snx3000\/olifu\/jenkins_submit\/workspace\/fv3core-cache-setup\/backend\/$sanitized_backend\/experiment\/$experiment\/slave\/daint_submit|$(pwd)|g" {} +
+	    fi
    fi
 fi
 
