@@ -119,12 +119,9 @@ split_path=(${data_path//\// })
 experiment=${split_path[-1]}
 sample_cache=.gt_cache_000000
 
-echo "Using precomputed cache"
-echo $(pwd)/${sample_cache}
-
+echo "Attempting to use precomputed cache"
 if [ ! -d $(pwd)/${sample_cache} ] ; then
     premade_caches=/scratch/snx3000/olifu/jenkins/scratch/store_gt_caches/$experiment/$sanitized_backend
-    echo ${premade_caches}/${sample_cache}
     if [ -d ${premade_caches}/${sample_cache} ] ; then
 	    version_file=${premade_caches}/GT4PY_VERSION.txt
 	    if [ -f ${version_file} ]; then
@@ -132,17 +129,15 @@ if [ ! -d $(pwd)/${sample_cache} ] ; then
 	    else
             version=""
 	    fi
-        echo "Cache version $version"
-        echo "Git fv3core's gt4py version $GT4PY_VERSION"
 	    if [ "$version" == "$GT4PY_VERSION" ]; then
-	        echo "copying premade GT4Py caches"
+	        echo "Copying premade GT4Py caches"
             cp -r ${premade_caches}/.gt_cache_0000* .
             find . -name m_\*.py -exec sed -i "s|\/scratch\/snx3000\/olifu\/jenkins_submit\/workspace\/fv3core-cache-setup\/backend\/$sanitized_backend\/experiment\/$experiment\/slave\/daint_submit|$(pwd)|g" {} +
 	    fi
    fi
 fi
 
-echo "submitting script to do performance run"
+echo "Submitting script to do performance run"
 # Adapt batch script to run the code:
 sed -i "s/<NAME>/standalone/g" run.daint.slurm
 sed -i "s/<NTASKS>/$ranks/g" run.daint.slurm
