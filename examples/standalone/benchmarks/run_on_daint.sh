@@ -65,7 +65,7 @@ test -n "$2" || exitError 1002 ${LINENO} "must pass a number of ranks"
 ranks="$2"
 test -n "$3" || exitError 1003 ${LINENO} "must pass a backend"
 backend="$3"
-sanitized_backend=`echo $2 | sed 's/:/_/g'` #sanitize the backend from any ':'
+sanitized_backend=`echo $backend | sed 's/:/_/g'` #sanitize the backend from any ':'
 test -n "$4" || exitError 1004 ${LINENO} "must pass a data path"
 data_path="$4"
 py_args="$5"
