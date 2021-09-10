@@ -124,6 +124,7 @@ echo $(pwd)/${sample_cache}
 
 if [ ! -d $(pwd)/${sample_cache} ] ; then
     premade_caches=/scratch/snx3000/olifu/jenkins/scratch/store_gt_caches/$experiment/$sanitized_backend
+    echo ${premade_caches}/${sample_cache}
     if [ -d ${premade_caches}/${sample_cache} ] ; then
 	    version_file=${premade_caches}/GT4PY_VERSION.txt
 	    if [ -f ${version_file} ]; then
