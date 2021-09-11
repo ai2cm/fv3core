@@ -20,6 +20,7 @@ import dace
 import gt4py
 import gt4py.definitions
 from dace.frontend.python.common import SDFGConvertible, SDFGClosure
+from dace.frontend.python.parser import DaceProgram
 from dace.transformation.helpers import get_parent_map
 from gt4py import gtscript
 from gt4py.storage.storage import Storage
@@ -61,19 +62,24 @@ def to_gpu(sdfg: dace.SDFG):
     for sd in sdfg.all_sdfgs_recursive():
         sd.openmp_sections = False
 
-
-def call_sdfg(sdfg: dace.SDFG, args, kwargs):
+def call_sdfg(daceprog: DaceProgram, sdfg: dace.SDFG, args, kwargs):
     if "gpu" in global_config.get_backend() or "cuda" in global_config.get_backend():
         to_gpu(sdfg)
-    args_iter = iter(args)
-    sdfg_kwargs = {}
-    for k in sdfg.signature_arglist(with_types=False):
-        if k.startswith("__return_"):
-            sdfg_kwargs[k] = make_storage_from_shape(sdfg.arrays[k].shape)
-        elif k in kwargs:
-            sdfg_kwargs[k] = kwargs[k]
-        else:
-            sdfg_kwargs[k] = next(args_iter)
+    # args_iter = iter(args)
+    # sdfg_kwargs = {}
+    # for k in sdfg.signature_arglist(with_types=False):
+    #     if k.startswith("__return_"):
+    #         sdfg_kwargs[k] = make_storage_from_shape(sdfg.arrays[k].shape)
+    #     elif k in kwargs:
+    #         sdfg_kwargs[k] = kwargs[k]
+    #     else:
+    #         sdfg_kwargs[k] = next(args_iter)
+
+    sdfg_kwargs = daceprog._create_sdfg_args(sdfg, args, kwargs)
+    for k in daceprog.constant_args:
+        if k in sdfg_kwargs:
+            del sdfg_kwargs[k]
+    sdfg_kwargs = {k: v for k, v in sdfg_kwargs.items() if v is not None}
 
     for k, arg in sdfg_kwargs.items():
         if isinstance(arg, gt4py.storage.Storage):
@@ -433,12 +439,12 @@ class LazyComputepathFunction:
     def __call__(self, *args, **kwargs):
         if self.use_dace:
             sdfg = self.__sdfg__(*args, **kwargs)
-            kwargs = {
-                **self.daceprog.default_args,
-                **self.daceprog.__sdfg_closure__(),
-                **kwargs,
-            }
-            return call_sdfg(sdfg, args, kwargs)
+            # kwargs = {
+            #     **self.daceprog.default_args,
+            #     **self.daceprog.__sdfg_closure__(),
+            #     **kwargs,
+            # }
+            return call_sdfg(self.daceprog, sdfg, args, kwargs)
         else:
             return self.func(*args, **kwargs)
 
@@ -493,12 +499,12 @@ class LazyComputepathMethod:
         def __call__(self, *args, **kwargs):
             if self.lazy_method.use_dace:
                 sdfg = self.__sdfg__(*args, **kwargs)
-                kwargs = {
-                    **self.daceprog.default_args,
-                    **self.daceprog.__sdfg_closure__(),
-                    **kwargs,
-                }
-                return call_sdfg(sdfg, args, kwargs)
+                # kwargs = {
+                #     **self.daceprog.default_args,
+                #     **self.daceprog.__sdfg_closure__(),
+                #     **kwargs,
+                # }
+                return call_sdfg(self.daceprog, sdfg, args, kwargs)
             else:
                 return self.lazy_method.func(self.obj_to_bind, *args, **kwargs)
 

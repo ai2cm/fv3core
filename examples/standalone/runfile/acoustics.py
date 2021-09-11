@@ -17,7 +17,7 @@ import fv3gfs
 import serialbox
 from fv3core.stencils.dyn_core import AcousticDynamics
 
-from fv3core.utils.global_config import set_dacemode
+from fv3core.utils.global_config import set_dacemode, get_dacemode
 import cProfile, pstats, io
 from pstats import SortKey
 
@@ -103,6 +103,8 @@ def run(data_directory, halo_update, backend, time_steps, reference_run):
             acoutstics_object(state, insert_temporaries=False)
 
     if reference_run:
+        dacemode = get_dacemode()
+        set_dacemode(False)
         import time
         start = time.time()
         pr = cProfile.Profile()
@@ -116,7 +118,8 @@ def run(data_directory, halo_update, backend, time_steps, reference_run):
             sortby = SortKey.CUMULATIVE
             ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
             ps.print_stats()
-            print("\n".join(s.getvalue().split("\n")[:50]))
+            print(s.getvalue())
+            set_dacemode(dacemode)
         print(f"{backend} time:", time.time()-start)
     else:
         set_dacemode(True)
@@ -132,7 +135,7 @@ def run(data_directory, halo_update, backend, time_steps, reference_run):
             sortby = SortKey.CUMULATIVE
             ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
             ps.print_stats()
-            print("\n".join(s.getvalue().split("\n")[:50]))
+            print(s.getvalue())
             set_dacemode(False)
 
 
@@ -155,7 +158,7 @@ def driver(
         halo_update,
         time_steps=time_steps,
         backend=backend,
-        reference_run=not global_config.get_dacemode(),
+        reference_run=False,
     )
     ref_state = run(
         data_directory,
