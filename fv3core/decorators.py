@@ -149,6 +149,7 @@ class FrozenStencil:
         **kwargs,
     ) -> None:
         if not self._field_origins:
+            # Defer stencil object access until first call for distributed compilation
             field_info = self.stencil_object.field_info
             self._field_origins = compute_field_origins(field_info, self.origin)
             self._stencil_run_kwargs = {
