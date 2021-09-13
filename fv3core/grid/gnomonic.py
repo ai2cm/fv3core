@@ -591,3 +591,16 @@ def spherical_cos(p_center, p2, p3, np):
         np.sum(p * q, axis=-1)
         / np.sqrt(np.sum(p ** 2, axis=-1) * np.sum(q ** 2, axis=-1))
     )
+
+def get_unit_vector_direction(vector1, vector2, np):
+    """
+    Returms the unit vector pointing from xyz vector1 to xyz vector2
+    """
+    midpoint = xyz_midpoint(vector1, vector1)
+    p3 = np.cross(vector2, vector1)
+    return normalize_xyz(np.cross(midpoint, p3))
+
+def get_lonlat_vect(lonlat_grid, np):
+    lon_vector = np.array(-np.sin(lonlat_grid[0]), np.cos(lonlat_grid[0]), np.zeros(lonlat_grid[0].shape))
+    lat_vector = np.array(-np.sin(lonlat_grid[1])*np.cos(lonlat_grid[0]), -np.sin(lonlat_grid[1])*np.sin(lonlat_grid[0]), np.cos(lonlat_grid[1]))
+    return lon_vector, lat_vector

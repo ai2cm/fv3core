@@ -1,5 +1,5 @@
 import functools
-from fv3core.grid.utils import get_center_vector # noqa: F401
+from fv3core.grid.geometry import get_center_vector # noqa: F401
 from typing import Any, Dict
 
 import fv3gfs.util as fv3util

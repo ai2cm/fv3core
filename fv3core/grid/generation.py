@@ -1,4 +1,4 @@
-from fv3core.grid.utils import set_eta, get_center_vector
+from .geometry import set_eta, get_center_vector
 from .gnomonic import (
     get_area,
     gnomonic_grid,
@@ -13,7 +13,6 @@ from .gnomonic import (
 )
 
 from .mirror import mirror_grid, set_halo_nan
-from .geometry import set_eta
 
 import fv3gfs.util as fv3util
 from fv3core.utils.corners import fill_corners_2d, fill_corners_agrid, fill_corners_dgrid, fill_corners_cgrid

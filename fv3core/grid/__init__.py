@@ -15,3 +15,4 @@ from .gnomonic import (
 #from .mesh_generator import generate_mesh
 from .mirror import mirror_grid, set_halo_nan
 from .generation import init_grid_sequential, init_grid_utils
+from .geometry import get_center_vector
