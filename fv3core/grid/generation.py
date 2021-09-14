@@ -1,4 +1,5 @@
-from .geometry import set_eta, get_center_vector
+from .geometry import get_center_vector
+from .eta import set_eta
 from .gnomonic import (
     get_area,
     gnomonic_grid,
