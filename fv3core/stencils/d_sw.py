@@ -348,11 +348,9 @@ def heat_source_from_vorticity_damping(
     heat_source_total: FloatField,
     dissipation_estimate: FloatField,
     kinetic_energy_fraction_to_damp: FloatFieldK,
-    damp_vt: FloatFieldK,
 ):
     """
     Calculates heat source from vorticity damping implied by energy conservation.
-    Updates u and v
     Args:
         vort_x_delta (in)
         vort_y_delta (in)
@@ -374,21 +372,18 @@ def heat_source_from_vorticity_damping(
             the fraction of kinetic energy to explicitly damp and convert into heat.
             TODO: confirm this description is accurate, why is it multiplied
             by 0.25 below?
-        damp_vt: column scalar for damping vorticity
     """
     from __externals__ import d_con, do_skeb, local_ie, local_is, local_je, local_js
 
     with computation(PARALLEL), interval(...):
-        heat_s = heat_source
-        diss_e = dissipation_estimate
         ubt = (vort_x_delta + vt) * rdx
         fy = u * rdx
         gy = fy * ubt
         vbt = (vort_y_delta - ut) * rdy
         fx = v * rdy
         gx = fx * vbt
-    with computation(PARALLEL), interval(...):
-        if (kinetic_energy_fraction_to_damp[0] > dcon_threshold) or do_skeb:
+
+        if (kinetic_energy_fraction_to_damp > dcon_threshold) or do_skeb:
             u2 = fy + fy[0, 1, 0]
             du2 = ubt + ubt[0, 1, 0]
             v2 = fx + fx[1, 0, 0]
@@ -397,21 +392,44 @@ def heat_source_from_vorticity_damping(
                 ubt, vbt, gx, gy, rsin2, cosa_s, u2, v2, du2, dv2
             )
             heat_source = delp * (
-                heat_s - 0.25 * kinetic_energy_fraction_to_damp[0] * dampterm
+                heat_source - 0.25 * kinetic_energy_fraction_to_damp * dampterm
             )
-    with computation(PARALLEL), interval(...):
+
         if __INLINED((d_con > dcon_threshold) or do_skeb):
             with horizontal(region[local_is : local_ie + 1, local_js : local_je + 1]):
                 heat_source_total = heat_source_total + heat_source
                 # TODO: do_skeb could be renamed to calculate_dissipation_estimate
-                if __INLINED(do_skeb == 1):
-                    dissipation_estimate = diss_e - dampterm
+                if __INLINED(do_skeb):
+                    dissipation_estimate -= dampterm
+
+
+# TODO(eddied): Had to split this into a separate stencil to get this to validate
+#               with GTC, suspect a merging issue...
+def update_u_and_v(
+    ut: FloatField,
+    vt: FloatField,
+    u: FloatField,
+    v: FloatField,
+    damp_vt: FloatFieldK,
+):
+    """
+    Updates u and v after calculation of heat source from vorticity damping.
+    Args:
+        ut (in)
+        vt (in)
+        u (in/out)
+        v (in/out)
+        damp_vt (in): column scalar for damping vorticity
+    """
+
+    from __externals__ import local_ie, local_is, local_je, local_js
+
     with computation(PARALLEL), interval(...):
         if damp_vt > 1e-5:
             with horizontal(region[local_is : local_ie + 1, local_js : local_je + 2]):
-                u = u + vt
+                u += vt
             with horizontal(region[local_is : local_ie + 2, local_js : local_je + 1]):
-                v = v - ut
+                v -= ut
 
 
 def compute_vorticity(
@@ -756,6 +774,12 @@ class DGridShallowWaterLagrangianDynamics:
             origin=full_origin,
             domain=full_domain,
         )
+        self._update_u_and_v_stencil = FrozenStencil(
+            update_u_and_v,
+            externals=ax_offsets_b,
+            origin=b_origin,
+            domain=b_domain,
+        )
         self._damping_factor_calculation_stencil = FrozenStencil(
             delnflux.calc_damp, origin=(0, 0, 0), domain=(1, 1, grid_indexing.domain[2])
         )
@@ -922,7 +946,6 @@ class DGridShallowWaterLagrangianDynamics:
         )
 
         # Fortran #endif //USE_COND
-
         self.fvtp2d_tm(
             pt,
             crx,
@@ -971,7 +994,7 @@ class DGridShallowWaterLagrangianDynamics:
             self._tmp_wk,
         )
 
-        # TODO if namelist.d_f3d and ROT3 unimplemeneted
+        # TODO if namelist.d_f3d and ROT3 unimplemented
         self._adjust_w_and_qcon_stencil(
             w, delp, self._tmp_dw, q_con, self._column_namelist["damp_w"]
         )
@@ -1027,6 +1050,7 @@ class DGridShallowWaterLagrangianDynamics:
             self._tmp_vort,
         )
 
+        # TODO(eddied): These stencils were split to ensure GTC verification
         self._heat_source_from_vorticity_damping_stencil(
             self._vort_x_delta,
             self._vort_y_delta,
@@ -1043,5 +1067,12 @@ class DGridShallowWaterLagrangianDynamics:
             heat_source,
             diss_est,
             self._column_namelist["d_con"],
+        )
+
+        self._update_u_and_v_stencil(
+            self._tmp_ut,
+            self._tmp_vt,
+            u,
+            v,
             self._column_namelist["damp_vt"],
         )
