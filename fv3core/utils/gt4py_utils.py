@@ -427,9 +427,9 @@ def k_split_run(func, data, k_indices, splitvars_values):
         func(**data)
 
 
-def kslice_from_inputs(kstart, nk, grid):
+def kslice_from_inputs(kstart, nk, grid_indexer):
     if nk is None:
-        nk = grid.npz - kstart
+        nk = grid_indexer.domain[2] - kstart
     kslice = slice(kstart, kstart + nk)
     return [kslice, nk]
 

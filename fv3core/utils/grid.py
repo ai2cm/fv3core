@@ -14,9 +14,6 @@ from . import gt4py_utils as utils
 from .typing import FloatFieldIJ, Index3D
 from .global_constants import LON_OR_LAT_DIM, TILE_DIM
 
-
-
-
 class Grid:
     # indices = ["is_", "ie", "isd", "ied", "js", "je", "jsd", "jed"]
     index_pairs = [("is_", "js"), ("ie", "je"), ("isd", "jsd"), ("ied", "jed")]
@@ -468,6 +465,7 @@ class HorizontalGridData:
     rdyc: FloatFieldIJ
     rdxa: FloatFieldIJ
     rdya: FloatFieldIJ
+    
 
     @property
     def lon(self) -> FloatFieldIJ:
@@ -476,8 +474,7 @@ class HorizontalGridData:
     @property
     def lat(self) -> FloatFieldIJ:
         raise NotImplementedError()
-
-
+  
 @dataclasses.dataclass
 class VerticalGridData:
     """
@@ -829,12 +826,11 @@ class GridIndexing:
         domain = sizer.get_extent(
             [fv3gfs.util.X_DIM, fv3gfs.util.Y_DIM, fv3gfs.util.Z_DIM]
         )
-        south_edge = cube.tile.on_tile_bottom(cube.rank)
-        north_edge = cube.tile.on_tile_top(cube.rank)
-        west_edge = cube.tile.on_tile_left(cube.rank)
-        east_edge = cube.tile.on_tile_right(cube.rank)
+        south_edge = cube.tile.partitioner.on_tile_bottom(cube.rank)
+        north_edge = cube.tile.partitioner.on_tile_top(cube.rank)
+        west_edge = cube.tile.partitioner.on_tile_left(cube.rank)
+        east_edge = cube.tile.partitioner.on_tile_right(cube.rank)
         return cls(
-            origin=origin,
             domain=domain,
             n_halo=sizer.n_halo,
             south_edge=south_edge,
