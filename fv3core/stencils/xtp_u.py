@@ -16,56 +16,6 @@ from fv3core.utils.typing import FloatField, FloatFieldIJ
 
 
 @gtscript.function
-def advect_u(
-    u: FloatField,
-    ub_contra: FloatField,
-    rdx: FloatFieldIJ,
-    bl: FloatField,
-    br: FloatField,
-    dt: float,
-):
-    """
-    Advect covariant C-grid x-wind using contravariant x-wind on cell corners.
-
-    Inputs:
-        u: covariant x-wind on D grid
-        ub_contra: contravariant x-wind on cell corners
-        rdx: 1.0 / dx
-        bl: ???
-        br: ???
-        dt: timestep in seconds
-
-    Returns:
-        updated_u: u having been advected by u_on_cell_corners
-    """
-    # Could try merging this with xppm version.
-
-    from __externals__ import iord
-
-    b0 = bl + br
-    cfl = ub_contra * dt * rdx[-1, 0] if ub_contra > 0 else ub_contra * dt * rdx
-    fx0 = xppm.fx1_fn(cfl, br, b0, bl)
-
-    if __INLINED(iord < 8):
-        advection_mask = xppm.get_advection_mask(bl, b0, br)
-    else:
-        advection_mask = 1.0
-    return xppm.apply_flux(ub_contra, u, fx0, advection_mask)
-
-
-def xtp_u_stencil_defn(
-    courant: FloatField,
-    u: FloatField,
-    flux: FloatField,
-    dx: FloatFieldIJ,
-    dxa: FloatFieldIJ,
-    rdx: FloatFieldIJ,
-):
-    with computation(PARALLEL), interval(...):
-        flux = advect_u_along_x(courant, u, dx, dxa, rdx, 1.0)
-
-
-@gtscript.function
 def get_bl_br(u, dx, dxa):
     """
     Args:
@@ -111,11 +61,11 @@ def get_bl_br(u, dx, dxa):
 
 @gtscript.function
 def advect_u_along_x(
-    ub_contra: FloatField,
     u: FloatField,
+    ub_contra: FloatField,
+    rdx: FloatFieldIJ,
     dx: FloatFieldIJ,
     dxa: FloatFieldIJ,
-    rdx: FloatFieldIJ,
     dt: float,
 ):
     """
@@ -124,18 +74,42 @@ def advect_u_along_x(
     Named xtp_u in the original Fortran code.
 
     Args:
-        ub_contra: contravariant x-wind on cell corners
         u: covariant x-wind on D-grid
+        ub_contra: contravariant x-wind on cell corners
+        rdx: 1 / dx
         dx: gridcell spacing in x-direction
         dxa: a-grid gridcell spacing in x-direction
-        rdx: 1 / dx
         dt: timestep in seconds
+
+    Returns:
+        updated_u: u having been advected by u_on_cell_corners
     """
-    # in the Fortran, dt is folded into ub_contra and called "courant"
+    # Could try merging this with xppm version.
+
+    from __externals__ import iord
+
     bl, br = get_bl_br(u, dx, dxa)
-    # TODO: merge this function with advect_u by calling get_bl_br inside advect_u
-    updated_u = advect_u(u, ub_contra, rdx, bl, br, dt)
-    return updated_u
+    b0 = bl + br
+    cfl = ub_contra * dt * rdx[-1, 0] if ub_contra > 0 else ub_contra * dt * rdx
+    fx0 = xppm.fx1_fn(cfl, br, b0, bl)
+
+    if __INLINED(iord < 8):
+        advection_mask = xppm.get_advection_mask(bl, b0, br)
+    else:
+        advection_mask = 1.0
+    return xppm.apply_flux(ub_contra, u, fx0, advection_mask)
+
+
+def xtp_u_stencil_defn(
+    ub_contra_times_dt: FloatField,
+    u: FloatField,
+    updated_u: FloatField,
+    dx: FloatFieldIJ,
+    dxa: FloatFieldIJ,
+    rdx: FloatFieldIJ,
+):
+    with computation(PARALLEL), interval(...):
+        updated_u = advect_u_along_x(u, ub_contra_times_dt, rdx, dx, dxa, 1.0)
 
 
 class XTP_U:
