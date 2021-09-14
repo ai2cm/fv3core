@@ -232,9 +232,9 @@ class FiniteVolumeTransport:
             cry: Courant number in y-direction
             x_area_flux: flux of area in x-direction, in units of m^2 (in)
             y_area_flux: flux of area in y-direction, in units of m^2 (in)
-            fx: transport flux of q in x-direction in units q * m^2,
+            q_x_flux: transport flux of q in x-direction in units q * m^2,
                 corresponding to X in eq 4.17 of FV3 documentation (out)
-            fy: transport flux of q in y-direction in units q * m^2,
+            q_y_flux: transport flux of q in y-direction in units q * m^2,
                 corresponding to Y in eq 4.17 of FV3 documentation (out)
             x_mass_flux: mass flux in x-direction,
                 corresponds to F(rho^* = 1) in PL07 eq 17, if not given
