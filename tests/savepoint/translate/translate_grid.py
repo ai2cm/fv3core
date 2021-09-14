@@ -16,8 +16,6 @@ from fv3core.grid import (
     set_corner_area_to_triangle_area,
     set_tile_border_dxc,
     set_tile_border_dyc,
-    init_grid_sequential,
-    init_grid_utils,
     set_halo_nan,
 )
 
@@ -119,6 +117,7 @@ class TranslateGnomonicGrids(ParallelTranslateGrid):
             "n_halo": 0,
         },
     }
+
 
     def compute_sequential(self, inputs_list, communicator_list):
         outputs = []
@@ -854,6 +853,147 @@ cubedsphere=Atm(n)%gridstruct%latlon
         self.ignore_near_zero_errors = {}
         self.ignore_near_zero_errors["grid"] = True
 
+    def compute_parallel(self, inputs, communicator):
+
+        #Set up initial lat-lon d-grid
+        shift_fac = 18
+        grid_global = self.grid.quantity_factory.zeros(
+            [
+                fv3util.X_INTERFACE_DIM,
+                fv3util.Y_INTERFACE_DIM,
+                LON_OR_LAT_DIM,
+                TILE_DIM, #TODO, only compute for this tile
+            ],
+            "radians",
+            dtype=float,
+        )
+        # print(grid_global.np.shape(grid_global.data))
+        lon = self.grid.quantity_factory.zeros(
+            [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM], "radians", dtype=float
+        )
+        lat = self.grid.quantity_factory.zeros(
+            [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM], "radians", dtype=float
+        )
+        gnomonic_grid(
+            self.grid.grid_type,
+            lon.view[:],
+            lat.view[:],
+            lon.np,
+        )
+        # TODO, compute on every rank, or compute once and scatter?
+        grid_global.view[:, :, 0, 0] = lon.view[:]
+        grid_global.view[:, :, 1, 0] = lat.view[:]
+        mirror_grid(
+            grid_global.data,
+            self.grid.halo,
+            self.grid.npx,
+            self.grid.npy,
+            grid_global.np,
+        )
+        # Shift the corner away from Japan
+        # This will result in the corner close to east coast of China
+        grid_global.view[:, :, 0, :] -= PI / shift_fac
+        # TODO resctrict to ranks domain
+        lon = grid_global.data[:, :, 0, self.grid.rank]
+        lon[lon < 0] += 2 * PI
+        grid_global.data[grid_global.np.abs(grid_global.data[:]) < 1e-10] = 0.0
+        state = {}
+        state["grid"] = self.grid.quantity_factory.empty(
+            dims=[fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM, LON_OR_LAT_DIM],
+            units="radians",
+        )
+        state["grid"].data[:] = grid_global.data[:, :, :, self.grid.rank]
+        communicator.halo_update(state["grid"], n_points=self.grid.halo)
+        fill_corners_2d(
+            state["grid"].data[:, :, :], self.grid, gridtype="B", direction="x"
+        )
+
+
+        #calculate d-grid cell side lengths
+        
+        state = self._compute_local_dxdy(state)
+        # before the halo update, the Fortran calls a get_symmetry routine
+        # missing get_symmetry call in fv_grid_tools.F90, dy is set based on dx on
+        # the opposite grid face, as a result dy has errors
+        # (and dx in its halos from dy)
+        communicator.vector_halo_update(
+                    state["dx"], state["dy"], n_points=self.grid.halo
+        )
+
+        # at this point the Fortran code copies in the west and east edges from
+        # the halo for dy and performs a halo update,
+        # to ensure dx and dy mirror across the boundary.
+        # Not doing it here at the moment.
+        state["dx"].data[state["dx"].data < 0] *= -1
+        state["dy"].data[state["dy"].data < 0] *= -1
+        fill_corners_dgrid(
+            state["dx"].data[:, :, None],
+            state["dy"].data[:, :, None],
+            self.grid,
+            vector=False,
+        )
+        
+
+        #Set up lat-lon a-grid, calculate side lengths on a-grid
+        state = self._compute_local_agrid_part1(state)
+        communicator.halo_update(state["agrid"], n_points=self.grid.halo)
+
+        fill_corners_2d(
+            state["agrid"].data[:, :, 0][:, :, None],
+            self.grid,
+            gridtype="A",
+            direction="x",
+        )
+        fill_corners_2d(
+            state["agrid"].data[:, :, 1][:, :, None],
+            self.grid,
+            gridtype="A",
+            direction="y",
+        )
+        state = self._compute_local_agrid_part2(state)
+        communicator.vector_halo_update(
+            state["dx_agrid"], state["dy_agrid"], n_points=self.grid.halo
+        )
+        
+        # at this point the Fortran code copies in the west and east edges from
+        # the halo for dy and performs a halo update,
+        # to ensure dx and dy mirror across the boundary.
+        # Not doing it here at the moment.
+        state["dx_agrid"].data[state["dx_agrid"].data < 0] *= -1
+        state["dy_agrid"].data[state["dy_agrid"].data < 0] *= -1
+
+        #Calculate a-grid areas and initial c-grid area
+        state = self._compute_local_areas_pt1(state)
+            
+
+        #Finish c-grid areas, calculate sidelengths on the c-grid
+        state = self._compute_local_areas_pt2(state, communicator)
+        communicator.vector_halo_update(
+            state["dx_cgrid"], state["dy_cgrid"], n_points=self.grid.halo
+        )
+
+        #TODO: Add support for unsigned vector halo updates instead of handling ad-hoc here
+        state["dx_cgrid"].data[state["dx_cgrid"].data < 0] *= -1
+        state["dy_cgrid"].data[state["dy_cgrid"].data < 0] *= -1
+        
+        #TODO: fix issue with interface dimensions causing validation errors
+        fill_corners_cgrid(
+            state["dx_cgrid"].data[:, :, None],
+            state["dy_cgrid"].data[:, :, None],
+            self.grid,
+            vector=False,
+        )
+
+        communicator.halo_update(state["area"], n_points=self.grid.halo)
+        communicator.halo_update(state["area_cgrid"], n_points=self.grid.halo)
+        fill_corners_2d(
+            state["area_cgrid"].data[:, :, None][:, :, None],
+            self.grid,
+            gridtype="B",
+            direction="x",
+        )
+        return self.outputs_from_state(state)
+    
     def compute_sequential(self, inputs_list, communicator_list):
 
         #Set up initial lat-lon d-grid
