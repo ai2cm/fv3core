@@ -1,17 +1,7 @@
 from gt4py import gtscript
-from gt4py.gtscript import (
-    __INLINED,
-    PARALLEL,
-    compile_assert,
-    computation,
-    horizontal,
-    interval,
-    region,
-)
+from gt4py.gtscript import __INLINED, compile_assert, horizontal, region
 
-from fv3core.decorators import FrozenStencil
 from fv3core.stencils import xppm, yppm
-from fv3core.utils.grid import GridData, GridIndexing, axis_offsets
 from fv3core.utils.typing import FloatField, FloatFieldIJ
 
 
@@ -99,66 +89,3 @@ def advect_u_along_x(
     else:
         advection_mask = 1.0
     return xppm.apply_flux(ub_contra, u, fx0, advection_mask)
-
-
-def xtp_u_stencil_defn(
-    ub_contra_times_dt: FloatField,
-    u: FloatField,
-    updated_u: FloatField,
-    dx: FloatFieldIJ,
-    dxa: FloatFieldIJ,
-    rdx: FloatFieldIJ,
-):
-    with computation(PARALLEL), interval(...):
-        updated_u = advect_u_along_x(u, ub_contra_times_dt, rdx, dx, dxa, 1.0)
-
-
-class XTP_U:
-    def __init__(
-        self,
-        grid_indexing: GridIndexing,
-        grid_data: GridData,
-        grid_type: int,
-        iord: int,
-    ):
-        if iord not in (5, 6, 7, 8):
-            raise NotImplementedError(
-                "Currently xtp_v is only supported for hord_mt == 5,6,7,8"
-            )
-        assert grid_type < 3
-
-        origin = grid_indexing.origin_compute()
-        domain = grid_indexing.domain_compute(add=(1, 1, 0))
-        self._dx = grid_data.dx
-        self._dxa = grid_data.dxa
-        self._rdx = grid_data.rdx
-        ax_offsets = axis_offsets(grid_indexing, origin, domain)
-        self.stencil = FrozenStencil(
-            xtp_u_stencil_defn,
-            externals={
-                "iord": iord,
-                "mord": iord,
-                "xt_minmax": False,
-                **ax_offsets,
-            },
-            origin=origin,
-            domain=domain,
-        )
-
-    def __call__(self, c: FloatField, u: FloatField, flux: FloatField):
-        """
-        Compute flux of kinetic energy in x-dir.
-
-        Args:
-            c (in): product of x-dir wind on cell corners and timestep
-            u (in): x-dir wind on D-grid
-            flux (out): Flux of kinetic energy
-        """
-        self.stencil(
-            c,
-            u,
-            flux,
-            self._dx,
-            self._dxa,
-            self._rdx,
-        )
