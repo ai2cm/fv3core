@@ -501,6 +501,8 @@ class FiniteVolumeFluxPrep:
             dt: acoustic timestep in seconds
         """
 
+        # in the original Fortran code, uc_contra is named ut and vc_contra is vt
+
         self._main_uc_contra_stencil(
             uc,
             vc,

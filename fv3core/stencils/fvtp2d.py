@@ -243,7 +243,7 @@ class FiniteVolumeTransport:
                 corresponds to G(rho^* = 1) in PL07 eq 18, if not given
                 then q is assumed to have per-area units
             mass: ??? passed along to damping code, if scalar is per-mass
-                (as opposed to per-area) this must be provided for
+                (as opposed to per-area) then this must be provided for
                 damping to be correct
         """
         if (
@@ -284,7 +284,7 @@ class FiniteVolumeTransport:
         self.x_piecewise_parabolic_outer(
             self._q_advected_y, crx, self._q_advected_y_x_advected_mean
         )
-        # fx is now rho^n + F(rho^y) in PL07 eq 16
+        # q_advected_y_x_advected_mean is now rho^n + F(rho^y) in PL07 eq 16
 
         self._copy_corners_x(q)
 
@@ -300,9 +300,6 @@ class FiniteVolumeTransport:
         self.y_piecewise_parabolic_outer(
             self._q_advected_x, cry, self._q_advected_x_y_advected_mean
         )
-        # up to here, fx and fy are in units of q * m^2
-        # fy2 and fx2 are the inner advective updates (g(q) and f(q))
-        # stencil_transport_flux updates fx and fy units to q * unit_flux * m^2
 
         self.stencil_transport_flux(
             self._q_advected_y_x_advected_mean,
