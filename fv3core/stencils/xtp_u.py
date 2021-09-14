@@ -71,7 +71,8 @@ def advect_u_along_x(
     """
     Advect covariant x-wind on D-grid using contravariant x-wind on cell corners.
 
-    Named xtp_u in the original Fortran code.
+    Named xtp_u in the original Fortran code. In the Fortran, dt is folded
+    in to ub_contra and called "courant".
 
     Args:
         u: covariant x-wind on D-grid
