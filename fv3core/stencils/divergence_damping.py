@@ -84,10 +84,6 @@ def get_delpc(
             + u_contra_dyc[-1, 0, 0]
             - u_contra_dyc
         )
-        # with horizontal(region[i_start, j_start], region[i_end + 1, j_start]):
-        #     delpc = u_contra_dyc[-1, 0, 0] - u_contra_dyc - v_contra_dxc
-        # with horizontal(region[i_start, j_end + 1], region[i_end + 1, j_end + 1]):
-        #     delpc = v_contra_dxc[0, -1, 0] + u_contra_dyc[-1, 0, 0] - u_contra_dyc
         delpc = rarea_c * delpc
 
 
@@ -175,7 +171,7 @@ class DivergenceDamping:
         nord_col: FloatFieldK,
         d2_bg: FloatFieldK,
     ):
-        self._idx = grid_indexing
+        self.grid_indexing = grid_indexing
         assert not nested, "nested not implemented"
         assert grid_type < 3, "Not implemented, grid_type>=3, specifically smag_corner"
         # TODO: make dddmp a compile-time external, instead of runtime scalar
@@ -215,9 +211,9 @@ class DivergenceDamping:
                 self._nonzero_nord + 1
             )
         kstart = nonzero_nord_k
-        nk = self._idx.domain[2] - kstart
+        nk = self.grid_indexing.domain[2] - kstart
         self._do_zero_order = nonzero_nord_k > 0
-        low_k_idx = self._idx.restrict_vertical(k_start=0, nk=nonzero_nord_k)
+        low_k_idx = self.grid_indexing.restrict_vertical(k_start=0, nk=nonzero_nord_k)
         high_k_idx = grid_indexing.restrict_vertical(k_start=nonzero_nord_k)
         self.a2b_ord4 = AGrid2BGridFourthOrder(
             grid_indexing=high_k_idx,
@@ -234,7 +230,7 @@ class DivergenceDamping:
             get_delpc,
             origin=origin,
             domain=domain,
-            externals=axis_offsets(self._idx, origin, domain),
+            externals=axis_offsets(self.grid_indexing, origin, domain),
         )
 
         self._damping = FrozenStencil(
@@ -258,10 +254,10 @@ class DivergenceDamping:
         domains_u = []
         for n in range(1, self._nonzero_nord + 1):
             nt = self._nonzero_nord - n
-            nint = self._idx.domain[0] + 2 * nt + 1
-            njnt = self._idx.domain[1] + 2 * nt + 1
-            js = self._idx.jsc - nt
-            is_ = self._idx.isc - nt
+            nint = self.grid_indexing.domain[0] + 2 * nt + 1
+            njnt = self.grid_indexing.domain[1] + 2 * nt + 1
+            js = self.grid_indexing.jsc - nt
+            is_ = self.grid_indexing.isc - nt
             origins_v.append((is_ - 1, js, kstart))
             domains_v.append((nint + 1, njnt, nk))
             origins_u.append((is_, js - 1, kstart))
@@ -304,7 +300,7 @@ class DivergenceDamping:
 
         origin, domain = high_k_idx.get_origin_domain(
             dims=[X_INTERFACE_DIM, Y_INTERFACE_DIM, Z_DIM],
-            halos=(self._idx.n_halo, self._idx.n_halo),
+            halos=(self.grid_indexing.n_halo, self.grid_indexing.n_halo),
         )
         self._set_value = FrozenStencil(
             basic.set_value_defn,
@@ -312,11 +308,11 @@ class DivergenceDamping:
             domain=domain,
         )
 
-        self._corner_tmp = utils.make_storage_from_shape(self._idx.max_shape)
+        self._corner_tmp = utils.make_storage_from_shape(self.grid_indexing.max_shape)
 
         fill_origin, fill_domain = high_k_idx.get_origin_domain(
             [X_INTERFACE_DIM, Y_INTERFACE_DIM, Z_DIM],
-            halos=(self._idx.n_halo, self._idx.n_halo),
+            halos=(self.grid_indexing.n_halo, self.grid_indexing.n_halo),
         )
         self.fill_corners_bgrid_x = corners.FillCornersBGrid(
             "x", self._corner_tmp, origin=fill_origin, domain=fill_domain
@@ -324,7 +320,7 @@ class DivergenceDamping:
         self.fill_corners_bgrid_y = corners.FillCornersBGrid(
             "y", self._corner_tmp, origin=fill_origin, domain=fill_domain
         )
-        ax_offsets = axis_offsets(self._idx, fill_origin, fill_domain)
+        ax_offsets = axis_offsets(self.grid_indexing, fill_origin, fill_domain)
         self._fill_corners_dgrid_stencil = FrozenStencil(
             corners.fill_corners_dgrid_defn,
             externals=ax_offsets,
@@ -388,10 +384,10 @@ class DivergenceDamping:
                 (n + 1 != self._nonzero_nord)
                 and self._grid_type < 3
                 and (
-                    self._idx.sw_corner
-                    or self._idx.se_corner
-                    or self._idx.ne_corner
-                    or self._idx.nw_corner
+                    self.grid_indexing.sw_corner
+                    or self.grid_indexing.se_corner
+                    or self.grid_indexing.ne_corner
+                    or self.grid_indexing.nw_corner
                 )
             )
             if fillc:

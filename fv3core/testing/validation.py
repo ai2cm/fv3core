@@ -3,7 +3,9 @@ from typing import Callable, Mapping, Tuple
 
 import numpy as np
 
+import fv3core.stencils.divergence_damping
 import fv3core.stencils.updatedzd
+from fv3gfs.util.constants import X_INTERFACE_DIM, Y_INTERFACE_DIM, Z_DIM
 from fv3gfs.util.quantity import Quantity
 
 
@@ -134,6 +136,13 @@ def get_compute_domain_k_interfaces(
     return origin, domain
 
 
+def get_domain_func(dims):
+    def domain_func(instance):
+        return instance.grid_indexing.get_origin_domain(dims)
+
+    return domain_func
+
+
 def enable_selective_validation():
     """
     Replaces certain function-classes with wrapped versions that set data we aren't
@@ -151,7 +160,7 @@ def enable_selective_validation():
         {
             "height": get_compute_domain_k_interfaces,
             "zh": get_compute_domain_k_interfaces,
-        },  # must include both function and savepoint names
+        },  # must include both function argument and savepoint names
     )
     # make absolutely sure you don't write just the savepoint name, this would
     # selecively validate without making sure it's safe to do so
@@ -159,4 +168,12 @@ def enable_selective_validation():
     fv3core.stencils.tracer_2d_1l.TracerAdvection = get_selective_tracer_advection(
         fv3core.stencils.tracer_2d_1l.TracerAdvection,
         get_compute_domain_k_interfaces,
+    )
+
+    fv3core.stencils.divergence_damping.DivergenceDamping = get_selective_class(
+        fv3core.stencils.divergence_damping.DivergenceDamping,
+        {
+            "v_contra_dxc": get_domain_func([X_INTERFACE_DIM, Y_INTERFACE_DIM, Z_DIM]),
+            "vort": get_domain_func([X_INTERFACE_DIM, Y_INTERFACE_DIM, Z_DIM]),
+        },  # must include both function argument and savepoint names
     )
