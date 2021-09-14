@@ -27,7 +27,10 @@ def initialize_grid_data(state):
         agrid_lon,
         agrid_lat,
     )
-    
+
+# pass the quantities to be filled or create them during generate? don't pass backend if not generating here
+# dimensions information, specify ArgSpecs? duplicated with translate class
+# 54 ranks? 
 class InitGrid:
     def __init__(self, grid_type, rank, layout, npx, npy, npz, halo, communicator, backend):
         self.npx = npx
@@ -111,7 +114,7 @@ class InitGrid:
 
         #calculate d-grid cell side lengths
         
-        state = self._compute_local_dxdy(state)
+        self._compute_local_dxdy(state)
         # before the halo update, the Fortran calls a get_symmetry routine
         # missing get_symmetry call in fv_grid_tools.F90, dy is set based on dx on
         # the opposite grid face, as a result dy has errors
@@ -135,7 +138,7 @@ class InitGrid:
         
 
         #Set up lat-lon a-grid, calculate side lengths on a-grid
-        state = self._compute_local_agrid_part1(state)
+        self._compute_local_agrid_part1(state)
         self._comm.halo_update(state["agrid"], n_points=self.halo)
 
         fill_corners_2d(
@@ -150,7 +153,7 @@ class InitGrid:
             gridtype="A",
             direction="y",
         )
-        state = self._compute_local_agrid_part2(state)
+        self._compute_local_agrid_part2(state)
         self._comm.vector_halo_update(
             state["dx_agrid"], state["dy_agrid"], n_points=self.halo
         )
@@ -163,11 +166,11 @@ class InitGrid:
         state["dy_agrid"].data[state["dy_agrid"].data < 0] *= -1
 
         #Calculate a-grid areas and initial c-grid area
-        state = self._compute_local_areas_pt1(state)
+        self._compute_local_areas_pt1(state)
             
 
         #Finish c-grid areas, calculate sidelengths on the c-grid
-        state = self._compute_local_areas_pt2(state, self._comm)
+        self._compute_local_areas_pt2(state, self._comm)
         self._comm.vector_halo_update(
             state["dx_cgrid"], state["dy_cgrid"], n_points=self.halo
         )
@@ -215,7 +218,7 @@ class InitGrid:
             state["grid"].np,
             axis=1,
         )
-        return state
+        
 
 
     def _compute_local_agrid_part1(self, state):
@@ -228,7 +231,7 @@ class InitGrid:
             agrid_lon,
             agrid_lat,
         )
-        return state
+        
 
     def _compute_local_agrid_part2(self, state):
         state["dx_agrid"] = self._quantity_factory.zeros(
@@ -290,7 +293,7 @@ class InitGrid:
         state["dy_cgrid"].data[:-1, 0] = dy_cgrid[:, 0]
         state["dy_cgrid"].data[:-1, -1] = dy_cgrid[:, -1]
 
-        return state
+        
 
 
     def _compute_local_areas_pt1(self, state):
@@ -320,7 +323,7 @@ class InitGrid:
             radius=RADIUS,
             np=state["grid"].np,
         )
-        return state
+        
 
     def _compute_local_areas_pt2(self, state, communicator):
         xyz_dgrid = lon_lat_to_xyz(
@@ -358,4 +361,4 @@ class InitGrid:
             communicator.tile.rank,
             state["grid"].np,
         )
-        return state
+        
