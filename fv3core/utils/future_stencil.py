@@ -255,6 +255,7 @@ class FutureStencil:
         self._timeout = timeout
         self._node_id: int = MPI.COMM_WORLD.Get_rank() if MPI else 0
         self._stencil_object: Optional[StencilObject] = None
+        self._finished: bool = False
 
     @classmethod
     def clear(cls):
@@ -266,6 +267,8 @@ class FutureStencil:
 
     @property
     def stencil_object(self) -> StencilObject:
+        if self._finished:
+            raise RuntimeError("FutureStencil already called!")
         if self._stencil_object is None:
             self._wait_for_stencil()
         return self._stencil_object
@@ -338,6 +341,7 @@ class FutureStencil:
         # Assign wrapper's stencil_object (e.g,. FrozenStencil) if provided...
         if self._wrapper:
             self._wrapper.stencil_object = self._stencil_object
+            self._finished = True
 
     def __call__(self, *args: Any, **kwargs: Any) -> None:
         return self.stencil_object(*args, **kwargs)
