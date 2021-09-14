@@ -191,5 +191,5 @@ class TranslateFVSubgridZ(ParallelTranslateBaseSlicing):
                 spec.namelist.hydrostatic,
             )
             state = SimpleNamespace(**state)
-            fvsubgridz(state, state["dt"])
+            fvsubgridz(state, state.dt)
         return self.outputs_list_from_state_list(state_list)
