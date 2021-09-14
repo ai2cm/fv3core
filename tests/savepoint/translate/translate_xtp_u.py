@@ -41,7 +41,7 @@ class XTP_U:
         self._dxa = grid_data.dxa
         self._rdx = grid_data.rdx
         ax_offsets = axis_offsets(grid_indexing, origin, domain)
-        self.stencil = FrozenStencil(
+        self._stencil = FrozenStencil(
             xtp_u_stencil_defn,
             externals={
                 "iord": iord,
@@ -62,7 +62,7 @@ class XTP_U:
             u (in): x-dir wind on D-grid
             flux (out): Flux of kinetic energy
         """
-        self.stencil(
+        self._stencil(
             c,
             u,
             flux,
