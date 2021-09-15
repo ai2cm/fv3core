@@ -2,6 +2,7 @@ import logging
 from functools import wraps
 from typing import Any, Callable, Dict, Hashable, List, Optional, Tuple, Union
 
+import gt4py.gtscript as gt
 import gt4py.storage as gt_storage
 import numpy as np
 
@@ -538,3 +539,25 @@ def stack(tup, axis: int = 0, out=None):
 def device_sync() -> None:
     if cp and global_config.is_gpu_backend():
         cp.cuda.Device(0).synchronize()
+
+
+def serialize(file: str, **kwargs):
+    items = {}
+    if "externals" in kwargs:
+        kwargs["externals"] = {
+            name: (value.__dict__ if isinstance(value, gt.AxisIndex) else value)
+            for name, value in kwargs["externals"].items()
+        }
+    items = {
+        name: (
+            np.asarray(value.data) if isinstance(value, gt_storage.Storage) else value
+        )
+        for name, value in kwargs.items()
+    }
+    np.savez(file, **items)
+
+
+def deserialize(file: str):
+    if not file.endswith(".npz"):
+        file += ".npz"
+    return np.load(file, allow_pickle=True)
