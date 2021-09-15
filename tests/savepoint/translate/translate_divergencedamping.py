@@ -65,4 +65,4 @@ class TranslateDivergenceDamping(TranslateFortranData2Py):
         if self.divdamp is None:
             raise RuntimeError("must call compute_from_storage before subset_output")
         else:
-            return self.divdamp.subset_output(varname, output)
+            return self.divdamp.subset_output(varname, output)  # type: ignore
