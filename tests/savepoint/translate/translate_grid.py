@@ -1696,12 +1696,12 @@ class TranslateDivgDel6(ParallelTranslateGrid):
         "dyc": {
             "name": "dy_cgrid",
             "dims": [fv3util.X_DIM, fv3util.Y_INTERFACE_DIM],
-            "units": "m",
+            "units": "",
         },
         "divg_u": {
             "name": "divg_u",
             "dims": [fv3util.X_DIM, fv3util.Y_INTERFACE_DIM],
-            "units": "m",
+            "units": "",
         },
         "divg_v": {
             "name": "divg_v",
@@ -1711,34 +1711,34 @@ class TranslateDivgDel6(ParallelTranslateGrid):
         "del6_u": {
             "name": "del6_u",
             "dims": [fv3util.X_DIM, fv3util.Y_INTERFACE_DIM],
-            "units": "m",
+            "units": "",
         },
         "del6_v": {
             "name": "del6_v",
             "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM],
-            "units": "m",
+            "units": "",
         },
     }
     outputs: Dict[str, Any] = {
         "divg_u": {
             "name": "divg_u",
             "dims": [fv3util.X_DIM, fv3util.Y_INTERFACE_DIM],
-            "units": "m",
+            "units": "",
         },
         "divg_v": {
             "name": "divg_v",
             "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM],
-            "units": "m",
+            "units": "",
         },
         "del6_u": {
             "name": "del6_u",
             "dims": [fv3util.X_DIM, fv3util.Y_INTERFACE_DIM],
-            "units": "m",
+            "units": "",
         },
         "del6_v": {
             "name": "del6_v",
             "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM],
-            "units": "m",
+            "units": "",
         },
     }
     def compute_sequential(self, inputs_list, communicator_list):
@@ -2090,22 +2090,22 @@ class TranslateInitGridUtils(ParallelTranslateGrid):
         "del6_u": {
             "name": "del6_u",
             "dims": [fv3util.X_DIM, fv3util.Y_INTERFACE_DIM],
-            "units": "m",
+            "units": "",
         },
         "del6_v": {
             "name": "del6_v",
             "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM],
-            "units": "m",
+            "units": "",
         },
         "divg_u": {
             "name": "divg_u",
             "dims": [fv3util.X_DIM, fv3util.Y_INTERFACE_DIM],
-            "units": "m",
+            "units": "",
         },
         "divg_v": {
             "name": "divg_v",
             "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM],
-            "units": "m",
+            "units": "",
         },
         "cosa_u": {
             "name": "cosa_u",
@@ -2313,8 +2313,38 @@ class TranslateInitGridUtils(ParallelTranslateGrid):
         for i, state in enumerate(state_list):
             state_list[i] = self._compute_local_part2(state, communicator_list[i])
         
-        #TODO: implement reduction to get da_min, da_max, da_min_c, and da_max_c
-        #temporary hack is possible by looping over ranks here
+        #TODO: implement allreduce to get da_min, da_max, da_min_c, and da_max_c
+        #temporary hack is possible by looping over ranks here:
+        min_da = []
+        max_da = []
+        min_da_c = []
+        max_da_c = []
+        for state in state_list:
+            min_da.append(state["grid"].np.min(state["area"].data[:]))
+            max_da.append(state["grid"].np.max(state["area"].data[:]))
+            min_da_c.append(state["grid"].np.min(state["area_c"].data[:]))
+            max_da_c.append(state["grid"].np.max(state["area_c"].data[:]))
+        da_min = min(min_da)
+        da_max = max(max_da)
+        da_min_c = min(min_da_c)
+        da_max_c = max(max_da_c)
+        for i, state in enumerate(state_list):
+            state["da_min"] = self.grid.quantity_factory.zeros(
+                [], ""
+            )
+            state["da_min"].data[:] = da_min
+            state["da_max"] = self.grid.quantity_factory.zeros(
+                [], ""
+            )
+            state["da_max"].data[:] = da_max
+            state["da_min_c"] = self.grid.quantity_factory.zeros(
+                [], ""
+            )
+            state["da_min_c"].data[:] = da_min_c
+            state["da_max_c"] = self.grid.quantity_factory.zeros(
+                [], ""
+            )
+            state["da_max_c"].data[:] = da_max_c
 
         for i, state in enumerate(state_list):
             state_list[i] = self._compute_local_edges(state, communicator_list[i])
@@ -2439,7 +2469,98 @@ class TranslateInitGridUtils(ParallelTranslateGrid):
         return state
 
     def _compute_local_part2(self, state, communicator):
-        pass
+        state["del6_u"] = self.grid.quantity_factory.zeros(
+            [fv3util.X_DIM, fv3util.Y_INTERFACE_DIM], ""
+        )
+        state["del6_v"] = self.grid.quantity_factory.zeros(
+            [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM], ""
+        )
+        state["divg_u"] = self.grid.quantity_factory.zeros(
+            [fv3util.X_DIM, fv3util.Y_INTERFACE_DIM], ""
+        )
+        state["divg_v"] = self.grid.quantity_factory.zeros(
+            [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM], ""
+        )
+        state["divg_u"].data[:], state["divg_v"].data[:], state["del6_u"].data[:], state["del6_v"].data[:] = calculate_divg_del6(
+            state["sin_sg"].data[:], state["sina_u"].data[:], state["sina_v"].data[:], 
+            state["dx"].data[:], state["dy"].data[:], state["dxc"].data[:], state["dyc"].data[:], self.grid.halo, 
+            communicator.tile.partitioner, communicator.tile.rank, state["sin_sg"].np
+        )
+
+        state["vlon"] = self.grid.quantity_factory.zeros(
+            [fv3util.X_DIM, fv3util.Y_DIM, 3], ""
+        )
+        state["vlat"] = self.grid.quantity_factory.zeros(
+            [fv3util.X_DIM, fv3util.Y_DIM, 3], ""
+        )
+        state["vlon"].data[:], state["vlat"].data[:] = unit_vector_lonlat(state["agrid"].data[:], state["agrid"].np)
+
+        state["z11"] = self.grid.quantity_factory.zeros(
+            [fv3util.X_DIM, fv3util.Y_DIM], ""
+        )
+        state["z12"] = self.grid.quantity_factory.zeros(
+            [fv3util.X_DIM, fv3util.Y_DIM], ""
+        )
+        state["z21"] = self.grid.quantity_factory.zeros(
+            [fv3util.X_DIM, fv3util.Y_DIM], ""
+        )
+        state["z22"] = self.grid.quantity_factory.zeros(
+            [fv3util.X_DIM, fv3util.Y_DIM], ""
+        )
+        state["z11"].data[:], state["z12"].data[:], state["z21"].data[:], state["z22"].data[:] = calculate_grid_z(
+            state["ec1"].data, state["ec2"].data, state["vlon"].data, state["vlat"].data[:], state["agrid"].np
+        )
+
+        state["a11"] = self.grid.quantity_factory.zeros(
+            [fv3util.X_DIM, fv3util.Y_DIM], ""
+        )
+        state["a12"] = self.grid.quantity_factory.zeros(
+            [fv3util.X_DIM, fv3util.Y_DIM], ""
+        )
+        state["a21"] = self.grid.quantity_factory.zeros(
+            [fv3util.X_DIM, fv3util.Y_DIM], ""
+        )
+        state["a22"] = self.grid.quantity_factory.zeros(
+            [fv3util.X_DIM, fv3util.Y_DIM], ""
+        )
+        state["a11"].data[:], state["a12"].data[:], state["a21"].data[:], state["a22"].data[:] = calculate_grid_a(
+            state["z11"].data[:], state["z12"].data[:], state["z21"].data[:], state["z22"].data[:], state["sin_sg"].data[:], state["agrid"].np
+        )
+
+        return state
 
     def _compute_local_edges(self, state, communicator):
-        pass
+        state["edge_s"] = self.grid.quantity_factory.zeros(
+            [fv3util.X_DIM], ""
+        )
+        state["edge_n"] = self.grid.quantity_factory.zeros(
+            [fv3util.X_DIM], ""
+        )
+        state["edge_e"] = self.grid.quantity_factory.zeros(
+            [fv3util.Y_DIM], ""
+        )
+        state["edge_w"] = self.grid.quantity_factory.zeros(
+            [fv3util.Y_DIM], ""
+        )
+        state["edge_w"].data[:], state["edge_e"].data[:], state["edge_s"].data[:], state["edge_n"].data[:] = edge_factors(
+            state["grid"].data[:], state["agrid"].data[:], self.grid.grid_type, self.grid.halo, 
+            communicator.tile.partitioner, communicator.tile.rank, RADIUS, state["grid"].np
+        )
+
+        state["edge_vect_s"] = self.grid.quantity_factory.zeros(
+            [fv3util.X_DIM], ""
+        )
+        state["edge_vect_n"] = self.grid.quantity_factory.zeros(
+            [fv3util.X_DIM], ""
+        )
+        state["edge_vect_e"] = self.grid.quantity_factory.zeros(
+            [fv3util.Y_DIM], ""
+        )
+        state["edge_vect_w"] = self.grid.quantity_factory.zeros(
+            [fv3util.Y_DIM], ""
+        )
+        state["edge_vect_w"].data[:], state["edge_vect_e"].data[:], state["edge_vect_s"].data[:], state["edge_vect_n"].data[:] = efactor_a2c_v(
+            state["grid"].data[:], state["agrid"].data[:], self.grid.grid_type, self.grid.halo, 
+            communicator.tile.partitioner, communicator.tile.rank, RADIUS, state["grid"].np
+        )
+        return state
