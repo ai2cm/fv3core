@@ -415,22 +415,24 @@ class InitGrid:
             "radians",
             dtype=float,
         )
+        state = {}
         # print(grid_global.np.shape(grid_global.data))
-        lon = self._quantity_factory.zeros(
+        # TODO )npx, npy, not local DIMS)
+        tile0_lon = self._quantity_factory.zeros(
             [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM], "radians", dtype=float
         )
-        lat = self._quantity_factory.zeros(
+        tile0_lat = self._quantity_factory.zeros(
             [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM], "radians", dtype=float
         )
         gnomonic_grid(
             self.grid_type,
-            lon.view[:],
-            lat.view[:],
-            lon.np,
+            tile0_lon.view[:],
+            tile0_lat.view[:],
+            tile0_lon.np,
         )
-        # TODO, compute on every rank, or compute once and scatter?
-        grid_global.view[:, :, 0, 0] = lon.view[:]
-        grid_global.view[:, :, 1, 0] = lat.view[:]
+
+        grid_global.view[:, :, 0, 0] = tile0_lon.view[:]
+        grid_global.view[:, :, 1, 0] = tile0_lat.view[:]
         mirror_grid(
             grid_global.data,
             self.halo,
@@ -441,11 +443,11 @@ class InitGrid:
         # Shift the corner away from Japan
         # This will result in the corner close to east coast of China
         grid_global.view[:, :, 0, :] -= PI / shift_fac
-        # TODO resctrict to ranks domain
+        
         lon = grid_global.data[:, :, 0, self.rank]
         lon[lon < 0] += 2 * PI
         grid_global.data[grid_global.np.abs(grid_global.data[:]) < 1e-10] = 0.0
-        state = {}
+    
         state["grid"] = self._quantity_factory.empty(
             dims=[fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM, LON_OR_LAT_DIM],
             units="radians",
@@ -455,7 +457,13 @@ class InitGrid:
         fill_corners_2d(
             state["grid"].data[:, :, :], self.grid_indexer, gridtype="B", direction="x"
         )
-
+        state["lon"] = self._quantity_factory.zeros(
+            [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM], "radians", dtype=float
+        )
+        state["lat"] = self._quantity_factory.zeros(
+            [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM], "radians", dtype=float
+        )
+        state["lon"].data[:], state["lat"].data[:] = state["grid"].data[:, :, 0], state["grid"].data[:, :, 1]
  
         #calculate d-grid cell side lengths
         
@@ -550,17 +558,17 @@ class InitGrid:
             [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM], "m"
         )
         state["dx"].view[:, :] = great_circle_distance_along_axis(
-            state["grid"].view[:, :, 0],
-            state["grid"].view[:, :, 1],
+            state["lon"].view[:],#[:, :, 0],
+            state["lat"].view[:],#[:, :, 1],
             RADIUS,
-            state["grid"].np,
+            state["lon"].np,
             axis=0,
         )
         state["dy"].view[:, :] = great_circle_distance_along_axis(
-            state["grid"].view[:, :, 0],
-            state["grid"].view[:, :, 1],
+            state["lon"].view[:],
+            state["lat"].view[:],
             RADIUS,
-            state["grid"].np,
+            state["lon"].np,
             axis=1,
         )
         
@@ -570,8 +578,8 @@ class InitGrid:
         state["agrid"] = self._quantity_factory.zeros(
             [fv3util.X_DIM, fv3util.Y_DIM, LON_OR_LAT_DIM], "radians"
         )
-        lon, lat = state["grid"].data[:, :, 0], state["grid"].data[:, :, 1]
-        agrid_lon, agrid_lat = lon_lat_corner_to_cell_center(lon, lat, state["grid"].np)
+        #lon, lat = state["grid"].data[:, :, 0], state["grid"].data[:, :, 1]
+        agrid_lon, agrid_lat = lon_lat_corner_to_cell_center(state["lon"].data, state["lat"].data, state["grid"].np)
         state["agrid"].data[:-1, :-1, 0], state["agrid"].data[:-1, :-1, 1] = (
             agrid_lon,
             agrid_lat,
@@ -591,15 +599,15 @@ class InitGrid:
         state["dy_cgrid"] = self._quantity_factory.zeros(
             [fv3util.X_DIM, fv3util.Y_INTERFACE_DIM], "m"
         )
-        lon, lat = state["grid"].data[:, :, 0], state["grid"].data[:, :, 1]
+        #lon, lat = state["grid"].data[:, :, 0], state["grid"].data[:, :, 1]
         lon_y_center, lat_y_center =  lon_lat_midpoint(
-            lon[:, :-1], lon[:, 1:], lat[:, :-1], lat[:, 1:], state["grid"].np
+            state["lon"].data[:, :-1], state["lon"].data[:, 1:], state["lat"].data[:, :-1], state["lat"].data[:, 1:], state["grid"].np
         )
         dx_agrid = great_circle_distance_along_axis(
             lon_y_center, lat_y_center, RADIUS, state["grid"].np, axis=0
         )
         lon_x_center, lat_x_center = lon_lat_midpoint(
-            lon[:-1, :], lon[1:, :], lat[:-1, :], lat[1:, :], state["grid"].np
+            state["lon"].data[:-1, :],  state["lon"].data[1:, :], state["lat"].data[:-1, :], state["lat"].data[1:, :], state["grid"].np
         )
         dy_agrid = great_circle_distance_along_axis(
             lon_x_center, lat_x_center, RADIUS, state["grid"].np, axis=1
@@ -650,8 +658,8 @@ class InitGrid:
             [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM], "m^2"
         )
         state["area"].data[3:-4, 3:-4] = get_area(
-            state["grid"].data[3:-3, 3:-3, 0],
-            state["grid"].data[3:-3, 3:-3, 1],
+            state["lon"].data[3:-3, 3:-3],
+            state["lat"].data[3:-3, 3:-3],
             RADIUS,
             state["grid"].np,
         )
@@ -672,7 +680,7 @@ class InitGrid:
 
     def _compute_local_areas_pt2(self, state, communicator):
         xyz_dgrid = lon_lat_to_xyz(
-            state["grid"].data[:, :, 0], state["grid"].data[:, :, 1], state["grid"].np
+            state["lon"].data, state["lat"].data, state["grid"].np
         )
         xyz_agrid = lon_lat_to_xyz(
             state["agrid"].data[:-1, :-1, 0],
