@@ -16,9 +16,9 @@ from .gnomonic import (
 from .mirror import mirror_grid, set_halo_nan
 from .generation import init_grid_sequential, init_grid_utils
 from .geometry import (
-    get_center_vector, calc_ew, calc_es, calculate_cos_sin_sg, 
-    calculate_l2c_uv, calculate_trig_uv, sg_corner_transport, 
-    calculate_divg_del6, init_cubed_to_latlon, edge_factors,
-    efactor_a2c_v
+    get_center_vector, calc_unit_vector_west, calc_unit_vector_south, calculate_cos_sin_sg, 
+    calculate_l2c_vu, calculate_trig_uv, sg_corner_fix, 
+    calculate_divg_del6, edge_factors,
+    efactor_a2c_v, calculate_grid_z, calculate_grid_a
 )
 from .eta import set_eta

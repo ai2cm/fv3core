@@ -32,6 +32,3 @@ def set_eta(km):
         raise NotImplementedError("Only grids with 79 Vertical Levels have been implemented so far")
     ptop = ak[0]
     return ks, ptop, ak, bk   
-
-def var_hi(km, ak, bk, ptop, ks, pint, stretch_fac):
-    pass

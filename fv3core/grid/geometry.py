@@ -38,7 +38,10 @@ def get_center_vector(xyz_gridpoints, nhalo, np):
 
     return vector1, vector2
 
-def calc_ew(xyz_dgrid, xyz_agrid, nhalo, tile_partitioner, rank, np):
+def calc_unit_vector_west(xyz_dgrid, xyz_agrid, nhalo, tile_partitioner, rank, np):
+    """
+    Calculates the unit vector pointing west from every grid cell
+    """
     pp = xyz_midpoint(xyz_dgrid[1:-1,:-1,:3], xyz_dgrid[1:-1, 1:, :3])
     p2 = np.cross(xyz_agrid[:-1,:,:3], xyz_agrid[1:,:,:3])
     if tile_partitioner.on_tile_left(rank):
@@ -54,14 +57,24 @@ def calc_ew(xyz_dgrid, xyz_agrid, nhalo, tile_partitioner, rank, np):
 
     ew = np.stack((ew1, ew2), axis=-1)
 
-    ew[:nhalo, :nhalo, :, :] = 0.
-    ew[:nhalo, -nhalo:, :, :] = 0.
-    ew[-nhalo:, :nhalo, :, :] = 0.
-    ew[-nhalo:, -nhalo:, :, :] = 0.
+    #fill ghost on ew:
+    if tile_partitioner.on_tile_left(rank):
+        if tile_partitioner.on_tile_bottom(rank):
+            _fill_ghost(ew, 0., nhalo, "sw")
+        if tile_partitioner.on_tile_top(rank):
+            _fill_ghost(ew, 0., nhalo, "nw")
+    if tile_partitioner.on_tile_right(rank):
+        if tile_partitioner.on_tile_bottom(rank):
+            _fill_ghost(ew, 0., nhalo, "se")
+        if tile_partitioner.on_tile_top(rank):
+            _fill_ghost(ew, 0., nhalo, "ne")
     
     return ew
 
-def calc_es(xyz_dgrid, xyz_agrid, nhalo, tile_partitioner, rank, np):
+def calc_unit_vector_south(xyz_dgrid, xyz_agrid, nhalo, tile_partitioner, rank, np):
+    """
+    Calculates the unit vector pointing west from every grid cell
+    """
     pp = xyz_midpoint(xyz_dgrid[:-1, 1:-1, :3], xyz_dgrid[1:, 1:-1, :3])
     p2 = np.cross(xyz_agrid[:,:-1,:3], xyz_agrid[:, 1:, :3])
     if tile_partitioner.on_tile_bottom(rank):
@@ -76,10 +89,17 @@ def calc_es(xyz_dgrid, xyz_agrid, nhalo, tile_partitioner, rank, np):
 
     es = np.stack((es1, es2), axis=-1)
 
-    es[:nhalo, :nhalo, :, :] = 0.
-    es[:nhalo, -nhalo:, :, :] = 0.
-    es[-nhalo:, :nhalo, :, :] = 0.
-    es[-nhalo:, -nhalo:, :, :] = 0.
+    #fill ghost on es:
+    if tile_partitioner.on_tile_left(rank):
+        if tile_partitioner.on_tile_bottom(rank):
+            _fill_ghost(es, 0., nhalo, "sw")
+        if tile_partitioner.on_tile_top(rank):
+            _fill_ghost(es, 0., nhalo, "nw")
+    if tile_partitioner.on_tile_right(rank):
+        if tile_partitioner.on_tile_bottom(rank):
+            _fill_ghost(es, 0., nhalo, "se")
+        if tile_partitioner.on_tile_top(rank):
+            _fill_ghost(es, 0., nhalo, "ne")
     
     return es
 
@@ -93,7 +113,7 @@ def calculate_cos_sin_sg(xyz_dgrid, xyz_agrid, ec1, ec2, nhalo, tile_partitioner
     5---1---6
     """
     big_number = 1.e8
-    tiny_number = tiny_number
+    tiny_number = 1.e-8
 
     shape_a = xyz_agrid.shape
     cos_sg = np.zeros((shape_a[0], shape_a[1], 9))+big_number
@@ -138,7 +158,7 @@ def calculate_cos_sin_sg(xyz_dgrid, xyz_agrid, ec1, ec2, nhalo, tile_partitioner
 
     return cos_sg, sin_sg
 
-def calculate_l2c_uv(dgrid, xyz_dgrid, nhalo, np):
+def calculate_l2c_vu(dgrid, xyz_dgrid, nhalo, np):
     #AAM correction
         midpoint_y = np.array(lon_lat_midpoint(dgrid[nhalo:-nhalo, nhalo:-nhalo-1, 0], dgrid[nhalo:-nhalo, nhalo+1:-nhalo, 0], dgrid[nhalo:-nhalo, nhalo:-nhalo-1, 1], dgrid[nhalo:-nhalo, nhalo+1:-nhalo, 1], np))
         unit_dir_y = get_unit_vector_direction(xyz_dgrid[nhalo:-nhalo+1, nhalo:-nhalo, :], xyz_dgrid[nhalo:-nhalo+1, nhalo+1:-nhalo+1, :], np)
@@ -150,8 +170,7 @@ def calculate_l2c_uv(dgrid, xyz_dgrid, nhalo, np):
         ex, _ = get_lonlat_vect(midpoint_x)
         l2c_u = np.cos(midpoint_x[1] * np.sum(unit_dir_x * ex, axis=0))
 
-        return l2c_u, l2c_v
-
+        return l2c_v, l2c_u
 
 def calculate_trig_uv(xyz_dgrid, cos_sg, sin_sg, nhalo, tile_partitioner, rank, np):
     '''
@@ -179,7 +198,7 @@ def calculate_trig_uv(xyz_dgrid, cos_sg, sin_sg, nhalo, tile_partitioner, rank, 
         cross_vect_y[:, -1] = _vect_cross(xyz_dgrid[nhalo:-nhalo, -2, 0], xyz_dgrid[nhalo:-nhalo, -1, 0])
     unit_y_vector = normalize_xyz(_vect_cross(cross_vect_y, xyz_dgrid[nhalo:-nhalo, nhalo:-nhalo]))
 
-    if TEST_FP:
+    if False: #TEST_FP
         tmp1 = np.sum(unit_x_vector*unit_y_vector, axis=0)
         cosa[nhalo:-nhalo, nhalo:-nhalo] = np.clip(np.abs(tmp1), None, 1.)
         cosa[tmp1 < 0]*=-1
@@ -202,7 +221,17 @@ def calculate_trig_uv(xyz_dgrid, cos_sg, sin_sg, nhalo, tile_partitioner, rank, 
 
     rsina[nhalo:-nhalo+1, nhalo:-nhalo+1] = 1./sina[nhalo:-nhalo+1, nhalo:-nhalo+1]**2
 
-    #fill ghost on cosa_s
+    #fill ghost on cosa_s:
+    if tile_partitioner.on_tile_left(rank):
+        if tile_partitioner.on_tile_bottom(rank):
+            _fill_ghost(cosa_s, big_number, nhalo, "sw")
+        if tile_partitioner.on_tile_top(rank):
+            _fill_ghost(cosa_s, big_number, nhalo, "nw")
+    if tile_partitioner.on_tile_right(rank):
+        if tile_partitioner.on_tile_bottom(rank):
+            _fill_ghost(cosa_s, big_number, nhalo, "se")
+        if tile_partitioner.on_tile_top(rank):
+            _fill_ghost(cosa_s, big_number, nhalo, "ne")
 
     # Set special sin values at edges
     if tile_partitioner.on_tile_left(rank):
@@ -226,32 +255,43 @@ def calculate_trig_uv(xyz_dgrid, cos_sg, sin_sg, nhalo, tile_partitioner, rank, 
     rsin_u[rsin_u < tiny_number] = tiny_number
     rsin_v[rsin_v < tiny_number] = tiny_number
 
-    #fill ghost on sin_sg and cos_sg
+    return cosa, sina, cosa_u, cosa_v, cosa_s, sina_u, sina_v, rsin_u, rsin_v, rsina, rsin2, unit_x_vector, unit_y_vector
 
-    return cosa, sina, cosa_u, cosa_v, cosa_s, sina_u, sina_v, rsin_u, rsin_v, rsina, rsin2
-
-def sg_corner_transport(cos_sg, sin_sg, nhalo, tile_partitioner, rank):
+def sg_corner_fix(cos_sg, sin_sg, nhalo, tile_partitioner, rank):
     """
-    Rotates the corners of cos_sg and sin_sg
+    _fill_ghost overwrites some of the sin_sg 
+    values along the outward-facing edge of a tile in the corners, which is incorrect. 
+    This function resolves the issue by filling in the appropriate values after the _fill_ghost call
     """
+    big_number = 1.e8
+    tiny_number = 1.e-8
+    
     if tile_partitioner.on_tile_left(rank):
         if tile_partitioner.on_tile_bottom(rank):
+            _fill_ghost(sin_sg, tiny_number, nhalo, "sw")
+            _fill_ghost(cos_sg, tiny_number, nhalo, "sw")
             _rotate_trig_sg_sw_counterclockwise(sin_sg[:,:,1], sin_sg[:,:,2], nhalo)
             _rotate_trig_sg_sw_counterclockwise(cos_sg[:,:,1], cos_sg[:,:,2], nhalo)
             _rotate_trig_sg_sw_clockwise(sin_sg[:,:,0], sin_sg[:,:,3], nhalo)
             _rotate_trig_sg_sw_clockwise(cos_sg[:,:,0], cos_sg[:,:,3], nhalo)
         if tile_partitioner.on_tile_top(rank):
+            _fill_ghost(sin_sg, tiny_number, nhalo, "nw")
+            _fill_ghost(cos_sg, tiny_number, nhalo, "nw")
             _rotate_trig_sg_nw_counterclockwise(sin_sg[:,:,0], sin_sg[:,:,1], nhalo)
             _rotate_trig_sg_nw_counterclockwise(cos_sg[:,:,0], cos_sg[:,:,1], nhalo)
             _rotate_trig_sg_nw_clockwise(sin_sg[:,:,3], sin_sg[:,:,2], nhalo)
             _rotate_trig_sg_nw_clockwise(cos_sg[:,:,3], cos_sg[:,:,2], nhalo)
     if tile_partitioner.on_tile_right(rank):
         if tile_partitioner.on_tile_bottom(rank):
+            _fill_ghost(sin_sg, tiny_number, nhalo, "se")
+            _fill_ghost(cos_sg, tiny_number, nhalo, "se")
             _rotate_trig_sg_se_clockwise(sin_sg[:,:,1], sin_sg[:,:,0], nhalo)
             _rotate_trig_sg_se_clockwise(cos_sg[:,:,1], cos_sg[:,:,0], nhalo)
             _rotate_trig_sg_se_counterclockwise(sin_sg[:,:,2], sin_sg[:,:,3], nhalo)
             _rotate_trig_sg_se_counterclockwise(cos_sg[:,:,2], cos_sg[:,:,3], nhalo)
         if tile_partitioner.on_tile_top(rank):
+            _fill_ghost(sin_sg, tiny_number, nhalo, "ne")
+            _fill_ghost(cos_sg, tiny_number, nhalo, "ne")
             _rotate_trig_sg_ne_counterclockwise(sin_sg[:,:,3], sin_sg[:,:,0], nhalo)
             _rotate_trig_sg_ne_counterclockwise(cos_sg[:,:,3], cos_sg[:,:,0], nhalo)
             _rotate_trig_sg_ne_clockwise(sin_sg[:,:,2], sin_sg[:,:,1], nhalo)
@@ -283,7 +323,7 @@ def _rotate_trig_sg_ne_clockwise(sg_field_in, sg_field_out, nhalo):
     _rotate_trig_sg_sw_clockwise(sg_field_in[::-1,::-1], sg_field_out[::-1,::-1], nhalo)
 
 
-def calculate_divg_del6(sin_sg, sina_v, sina_u, dx, dy, dxc, dyc, nhalo, tile_partitioner, rank):
+def calculate_divg_del6(sin_sg, sina_u, sina_v, dx, dy, dxc, dyc, nhalo, tile_partitioner, rank):
     
     divg_u = sina_v * dyc / dx
     del6_u = sina_v * dx / dyc
@@ -305,32 +345,33 @@ def calculate_divg_del6(sin_sg, sina_v, sina_u, dx, dy, dxc, dyc, nhalo, tile_pa
 
     return divg_u, divg_v, del6_u, del6_v
 
-def init_cubed_to_latlon(agrid, ec1, ec2, sin_sg4, np):
-    vlon, vlat = unit_vector_lonlat(agrid, np)
-    
+def calculate_grid_z(ec1, ec2, vlon, vlat, np):
     z11 = np.sum(ec1 * vlon, axis=-1)
     z12 = np.sum(ec1 * vlat, axis=-1)
     z21 = np.sum(ec2 * vlon, axis=-1)
     z22 = np.sum(ec2 * vlat, axis=-1)
+    return z11, z12, z21, z22
 
-    a11 = 0.5*z22/sin_sg4
-    a12 = 0.5*z12/sin_sg4
-    a21 = 0.5*z21/sin_sg4
-    a22 = 0.5*z11/sin_sg4
+def calculate_grid_a(z11, z12, z21, z22,  sin_sg):
+    a11 = 0.5*z22/sin_sg[:,:,4]
+    a12 = 0.5*z12/sin_sg[:,:,4]
+    a21 = 0.5*z21/sin_sg[:,:,4]
+    a22 = 0.5*z11/sin_sg[:,:,4]
+    return a11, a12, a21, a22
 
-    return vlon, vlat, z11, z12, z21, z22, a11, a12, a21, a22
-
-def global_mx():
+def _global_mx():
     pass
 
-def global_mx_c():
+def _global_mx_c():
     pass
 
-def edge_factors(grid, agrid, nhalo, npx, npy, tile_partitioner, rank, radius, np):
+def edge_factors(grid, agrid, nhalo, tile_partitioner, rank, radius, np):
     """
     Creates interpolation factors from the A grid to the B grid on face edges
     """
     big_number = 1.e8
+    npx = agrid.shape[0]
+    npy = agrid.shape[1]
     edge_n, edge_s = np.zeros(npx)+big_number
     edge_e, edge_w = np.zeros(npy)+big_number
 
@@ -357,11 +398,13 @@ def edge_factors(grid, agrid, nhalo, npx, npy, tile_partitioner, rank, radius, n
 
     return edge_w, edge_e, edge_s, edge_n
 
-def efactor_a2c_v(grid, agrid, npx, npy, nhalo, tile_partitioner, rank, radius, np):
+def efactor_a2c_v(grid, agrid, nhalo, tile_partitioner, rank, radius, np):
     '''
     Creates interpolation factors at face edges to interpolate from A to C grids
     '''
     big_number = 1.e8
+    npx = agrid.shape[0]
+    npy = agrid.shape[1]
     if npx != npy: raise ValueError("npx must equal npy")
     if npx %2 == 0: raise ValueError("npx must be odd")
 
@@ -439,3 +482,24 @@ def unit_vector_lonlat(grid, np):
     unit_lat = np.array([-sin_lat*cos_lon, -sin_lat*sin_lon, cos_lat])
 
     return unit_lon, unit_lat
+
+def _fill_ghost(field, value: float, nhalo: int, corner: str):
+    """
+    Fills a tile halo corner (ghost cells) of a field with a set value along the first 2 axes
+    Args:
+        field: the field to fill in, assumed to have x and y as the first 2 dimensions
+        value: the value to fill
+        nhalo: the number of halo points in the field
+        corner: which corner to fill
+    """
+    if (corner == "sw") or (corner == "southwest"):
+        field[:nhalo, :nhalo] = value
+    elif (corner == "nw") or (corner == "northwest"):
+        field[:nhalo, -nhalo:] = value
+    elif (corner == "se") or (corner == "southeast"):
+        field[-nhalo:, :nhalo] = value
+    elif (corner == "ne") or (corner == "northeast"):
+        field[-nhalo:, -nhalo:] = value
+    else:
+        raise ValueError("fill ghost requires a corner to be one of: sw, se, nw, ne")
+    
