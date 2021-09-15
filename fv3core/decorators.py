@@ -159,7 +159,7 @@ class FrozenStencil:
     ) -> None:
         if kwargs.pop("serialize", False):
             self._serialize_data(*args, **kwargs)
-        exec_info = {} if kwargs.pop("profile", False) else None
+        exec_info: Dict[str, Any] = {} if kwargs.pop("profile", False) else None
 
         if self.stencil_config.validate_args:
             if __debug__ and "origin" in kwargs:
