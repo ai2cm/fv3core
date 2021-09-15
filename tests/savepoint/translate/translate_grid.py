@@ -19,6 +19,7 @@ from fv3core.grid import (
     set_tile_border_dyc,
     set_halo_nan,
     InitGrid,
+    MetricTerms
 )
 from fv3core.utils import gt4py_utils as utils
 from fv3core.utils.corners import fill_corners_2d, fill_corners_agrid, fill_corners_dgrid, fill_corners_cgrid
@@ -853,9 +854,28 @@ cubedsphere=Atm(n)%gridstruct%latlon
 
     def compute_parallel(self, inputs, communicator):
         namelist = spec.namelist
-        grid_generator = InitGrid(self.grid.grid_type, self.grid.rank, self.layout, namelist.npx, namelist.npy, namelist.npz, utils.halo, communicator,  backend=global_config.get_backend())
-        state = grid_generator.generate()
+        grid_generator = MetricTerms(self.grid.grid_type, self.grid.rank, self.layout, namelist.npx, namelist.npy, namelist.npz, utils.halo, communicator,  backend=global_config.get_backend())
+        state = {}
+        for metric_term, metadata in self.outputs.items():
+            if "grid" not in metric_term:
+                state[metadata["name"]] = getattr(grid_generator, metric_term)
+        for gridvar in ["gridvar", "agrid"]:
+            state[self.outputs[gridvar]["name"]] = grid_generator._quantity_factory.empty(
+                dims=self.outputs[gridvar]["dims"],
+                units=self.outputs[gridvar]["units"],
+            )
+           
+        state["grid"].data[:, :, 0] = grid_generator.lon.data
+        state["grid"].data[:, :, 1] = grid_generator.lat.data
+        state["agrid"].data[:, :, 0] = grid_generator.lon_agrid.data
+        state["agrid"].data[:, :, 1] = grid_generator.lat_agrid.data
         return self.outputs_from_state(state)
+    # InitGrid version
+    #def compute_parallel(self, inputs, communicator):
+    #    namelist = spec.namelist
+    #    grid_generator = InitGrid(self.grid.grid_type, self.grid.rank, self.layout, namelist.npx, namelist.npy, namelist.npz, utils.halo, communicator,  backend=global_config.get_backend())
+    #    state = grid_generator.generate()
+    #    return self.outputs_from_state(state)
     
     def compute_sequential(self, inputs_list, communicator_list):
 
