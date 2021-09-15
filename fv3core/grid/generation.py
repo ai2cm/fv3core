@@ -35,19 +35,14 @@ class MetricTerms:
         self._quantity_factory, sizer = self._make_quantity_factory(layout)
         self.grid_indexer = GridIndexing.from_sizer_and_communicator(sizer, self._comm)
        
-        self._lon = self._quantity_factory.zeros(
-            [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM], "radians", dtype=float
+        self._grid = self._quantity_factory.zeros(
+            [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM, LON_OR_LAT_DIM], "radians", dtype=float
         )
-        self._lat = self._quantity_factory.zeros(
-            [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM], "radians", dtype=float
+    
+        self._agrid = self._quantity_factory.zeros(
+            [fv3util.X_DIM, fv3util.Y_DIM, LON_OR_LAT_DIM], "radians", dtype=float
         )
-        self._lon_agrid = self._quantity_factory.zeros(
-            [fv3util.X_DIM, fv3util.Y_DIM], "radians", dtype=float
-        )
-        self._lat_agrid = self._quantity_factory.zeros(
-            [fv3util.X_DIM, fv3util.Y_DIM], "radians", dtype=float
-        )
-        self._np = self._lon.np
+        self._np = self._grid.np
         self._dx = None
         self._dy = None
         self._dx_agrid = None
@@ -62,20 +57,12 @@ class MetricTerms:
         self._init_agrid()
     
     @property
-    def lon(self):
-        return self._lon
-
+    def gridvar(self):
+        return self._grid
+    
     @property
-    def lat(self):
-        return self._lat
-
-    @property
-    def lon_agrid(self):
-        return self._lon_agrid
-
-    @property
-    def lat_agrid(self):
-        return self._lat_agrid
+    def agrid(self):
+        return self._agrid
     
     @property
     def dx(self):
@@ -124,6 +111,24 @@ class MetricTerms:
         if self._area_c is None:
             self._area_c = self._compute_area_c()
         return self._area_c
+
+    @property
+    def _dgrid_xyz(self):
+        if self._xyz_dgrid is None:
+            self._xyz_dgrid = lon_lat_to_xyz(
+                self._grid.data[:, :, 0], self._grid.data[:, :, 1], self._np
+            )
+        return self._xyz_dgrid
+    
+    @property
+    def _agrid_xyz(self):
+        if self._xyz_agrid is None: 
+            self._xyz_agrid = lon_lat_to_xyz(
+                self._agrid.data[:-1, :-1, 0],
+                self._agrid.data[:-1, :-1, 1],
+                self._np, 
+            )
+        return self._xyz_agrid
     
     def _make_quantity_factory(self, layout):
         sizer =  fv3util.SubtileGridSizer.from_tile_params(
@@ -186,32 +191,30 @@ class MetricTerms:
         tile0_lon[tile0_lon < 0] += 2 * PI
         grid_global.data[self._np.abs(grid_global.data[:]) < 1e-10] = 0.0
         # TODO, mpi scatter grid_global and subset grid_global for rank
-        self._lon.data[:] = grid_global.data[:, :, 0, self.rank]
-        self._lat.data[:] = grid_global.data[:, :, 1, self.rank]
-        self._comm.halo_update(self._lon, n_points=self.halo)
-        self._comm.halo_update(self._lat, n_points=self.halo)
+        self._grid.data[:] = grid_global.data[:, :, :, self.rank]
+        self._comm.halo_update(self._grid, n_points=self.halo)
+        
         fill_corners_2d(
-            self._lon.data[:, :, None], self.grid_indexer, gridtype="B", direction="x"
-        )
-        fill_corners_2d(
-            self._lat.data[:, :, None], self.grid_indexer, gridtype="B", direction="x"
+            self._grid.data, self.grid_indexer, gridtype="B", direction="x"
         )
 
     
     def _init_agrid(self):
         #Set up lat-lon a-grid, calculate side lengths on a-grid
-        self._lon_agrid.data[:-1, :-1], self._lat_agrid.data[:-1, :-1] = lon_lat_corner_to_cell_center(self._lon.data, self._lat.data, self._np)
-   
-        self._comm.halo_update(self._lon_agrid, n_points=self.halo)
-        self._comm.halo_update(self._lat_agrid, n_points=self.halo)
+        lon_agrid, lat_agrid = lon_lat_corner_to_cell_center(self._grid.data[:, :, 0], self._grid.data[:, :, 1], self._np)
+        self._agrid.data[:-1, :-1, 0], self._agrid.data[:-1, :-1, 1] = (
+            lon_agrid,
+            lat_agrid,
+        )
+        self._comm.halo_update(self._agrid, n_points=self.halo)
         fill_corners_2d(
-            self._lon_agrid.data[:, :, None],
+            self._agrid.data[:, :, 0][:, :, None],
             self.grid_indexer,
             gridtype="A",
             direction="x",
         )
         fill_corners_2d(
-            self._lat_agrid.data[:, :, None],
+            self._agrid.data[:, :, 1][:, :, None],
             self.grid_indexer,
             gridtype="A",
             direction="y",
@@ -225,8 +228,8 @@ class MetricTerms:
         )
        
         dx.view[:, :] = great_circle_distance_along_axis(
-            self._lon.view[:],
-            self._lat.view[:],
+            self._grid.view[:, :, 0],
+            self._grid.view[:, :, 1],
             RADIUS,
             self._np,
             axis=0,
@@ -235,8 +238,8 @@ class MetricTerms:
             [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM], "m"
         )
         dy.view[:, :] = great_circle_distance_along_axis(
-            self._lon.view[:],
-            self._lat.view[:],
+            self._grid.view[:, :, 0],
+            self._grid.view[:, :, 1],
             RADIUS,
             self._np,
             axis=1,
@@ -268,15 +271,15 @@ class MetricTerms:
        dy_agrid = self._quantity_factory.zeros(
             [fv3util.X_DIM, fv3util.Y_DIM], "m"
         )
-      
+       lon, lat = self._grid.data[:, :, 0], self._grid.data[:, :, 1]
        lon_y_center, lat_y_center =  lon_lat_midpoint(
-           self._lon.data[:, :-1], self._lon.data[:, 1:], self._lat.data[:, :-1], self._lat.data[:, 1:], self._np
+           lon[:, :-1], lon[:, 1:], lat[:, :-1], lat[:, 1:], self._np
        )
        dx_agrid_tmp = great_circle_distance_along_axis(
            lon_y_center, lat_y_center, RADIUS, self._np, axis=0
        )
        lon_x_center, lat_x_center = lon_lat_midpoint(
-           self._lon.data[:-1, :], self._lon.data[1:, :], self._lat.data[:-1, :], self._lat.data[1:, :], self._np
+           lon[:-1, :], lon[1:, :], lat[:-1, :], lat[1:, :], self._np
        )
        dy_agrid_tmp = great_circle_distance_along_axis(
            lon_x_center, lat_x_center, RADIUS, self._np, axis=1
@@ -300,57 +303,6 @@ class MetricTerms:
        dy_agrid.data[dy_agrid.data < 0] *= -1
        return dx_agrid, dy_agrid
     
-   
-    def _compute_area(self):
-        area = self._quantity_factory.zeros(
-            [fv3util.X_DIM, fv3util.Y_DIM], "m^2"
-        )
-        area.data[:, :] = -1.e8
-       
-        area.data[3:-4, 3:-4] = get_area(
-            self._lon.data[3:-3, 3:-3],
-            self._lat.data[3:-3, 3:-3],
-            RADIUS,
-            self._np,
-        )
-        self._comm.halo_update(area, n_points=self.halo)
-        return area
-     
-        
-    def _compute_area_c(self):
-        area_cgrid = self._quantity_factory.zeros(
-            [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM], "m^2"
-        )
-        area_cgrid.data[3:-3, 3:-3] = get_area(
-            self.lon_agrid.data[2:-3, 2:-3],
-            self.lat_agrid.data[2:-3, 2:-3],
-            RADIUS,
-            self._np,
-        )
-        set_corner_area_to_triangle_area(
-            lon=self.lon_agrid.data[2:-3, 2:-3],
-            lat=self.lat_agrid.data[2:-3, 2:-3],
-            area=area_cgrid.data[3:-3, 3:-3],
-            radius=RADIUS,
-            np=self._np,
-        )
-        set_c_grid_tile_border_area(
-           self._dgrid_xyz()[2:-2, 2:-2, :],
-           self._agrid_xyz()[2:-2, 2:-2, :],
-            RADIUS,
-            area_cgrid.data[3:-3, 3:-3],
-            self._comm.tile.partitioner,
-            self._comm.tile.rank,
-            self._np,
-        )
-        self._comm.halo_update(area_cgrid, n_points=self.halo)
-        fill_corners_2d(
-            area_cgrid.data[:, :, None],
-            self.grid_indexer,
-            gridtype="B",
-            direction="x",
-        )
-        return area_cgrid
 
     
     def _compute_dxdy_cgrid(self):
@@ -360,12 +312,13 @@ class MetricTerms:
         dy_cgrid = self._quantity_factory.zeros(
             [fv3util.X_DIM, fv3util.Y_INTERFACE_DIM], "m"
         )
-      
+
+        lon_agrid, lat_agrid = self._agrid.data[:-1, :-1, 0],self._agrid.data[:-1, :-1, 1]
         dx_cgrid_tmp = great_circle_distance_along_axis(
-            self._lon_agrid.data[:-1, :-1], self._lat_agrid.data[:-1, :-1], RADIUS, self._np, axis=0
+            lon_agrid.data, lat_agrid.data, RADIUS, self._np, axis=0
         )
         dy_cgrid_tmp = great_circle_distance_along_axis(
-            self._lon_agrid.data[:-1, :-1], self._lat_agrid.data[:-1, :-1], RADIUS, self._np, axis=1
+            lon_agrid.data, lat_agrid.data, RADIUS, self._np, axis=1
         )
         # copying the second-to-last values to the last values is what the Fortran
         # code does, but is this correct/valid?
@@ -379,8 +332,8 @@ class MetricTerms:
         dy_cgrid.data[:-1, -1] = dy_cgrid_tmp[:, -1]
 
         set_tile_border_dxc(
-            self._dgrid_xyz()[3:-3, 3:-3, :],
-            self._agrid_xyz()[3:-3, 3:-3, :],
+            self._dgrid_xyz[3:-3, 3:-3, :],
+            self._agrid_xyz[3:-3, 3:-3, :],
             RADIUS,
             dx_cgrid.data[3:-3, 3:-4],
             self._comm.tile.partitioner,
@@ -388,8 +341,8 @@ class MetricTerms:
             self._np,
         )
         set_tile_border_dyc(
-            self._dgrid_xyz()[3:-3, 3:-3, :],
-            self._agrid_xyz()[3:-3, 3:-3, :],
+            self._dgrid_xyz[3:-3, 3:-3, :],
+            self._agrid_xyz[3:-3, 3:-3, :],
             RADIUS,
             dy_cgrid.data[3:-4, 3:-3],
             self._comm.tile.partitioner,
@@ -414,22 +367,58 @@ class MetricTerms:
        
         return dx_cgrid, dy_cgrid
 
+    def _compute_area(self):
+        area = self._quantity_factory.zeros(
+            [fv3util.X_DIM, fv3util.Y_DIM], "m^2"
+        )
+        area.data[:, :] = -1.e8
+       
+        area.data[3:-4, 3:-4] = get_area(
+            self._grid.data[3:-3, 3:-3, 0],
+            self._grid.data[3:-3, 3:-3, 1],
+            RADIUS,
+            self._np,
+        )
+        self._comm.halo_update(area, n_points=self.halo)
+        return area
+     
+        
+    def _compute_area_c(self):
+        area_cgrid = self._quantity_factory.zeros(
+            [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM], "m^2"
+        )
+        area_cgrid.data[3:-3, 3:-3] = get_area(
+            self._agrid.data[2:-3, 2:-3, 0],
+            self._agrid.data[2:-3, 2:-3, 1],
+            RADIUS,
+            self._np,
+        )
+        set_corner_area_to_triangle_area(
+            lon=self._agrid.data[2:-3, 2:-3, 0],
+            lat=self._agrid.data[2:-3, 2:-3, 1],
+            area=area_cgrid.data[3:-3, 3:-3],
+            radius=RADIUS,
+            np=self._np,
+        )
+        set_c_grid_tile_border_area(
+           self._dgrid_xyz[2:-2, 2:-2, :],
+           self._agrid_xyz[2:-2, 2:-2, :],
+            RADIUS,
+            area_cgrid.data[3:-3, 3:-3],
+            self._comm.tile.partitioner,
+            self._comm.tile.rank,
+            self._np,
+        )
+        self._comm.halo_update(area_cgrid, n_points=self.halo)
+        fill_corners_2d(
+            area_cgrid.data[:, :, None],
+            self.grid_indexer,
+            gridtype="B",
+            direction="x",
+        )
+        return area_cgrid
     
-    def _dgrid_xyz(self):
-        if self._xyz_dgrid is None:
-            self._xyz_dgrid = lon_lat_to_xyz(
-                self._lon.data, self._lat.data, self._np
-            )
-        return self._xyz_dgrid
-    
-    def _agrid_xyz(self):
-        if self._xyz_agrid is None: 
-            self._xyz_agrid = lon_lat_to_xyz(
-                self._lon_agrid.data[:-1, :-1],
-                self._lat_agrid.data[:-1, :-1],
-                self._np, 
-            )
-        return self._xyz_agrid
+
        
      
 

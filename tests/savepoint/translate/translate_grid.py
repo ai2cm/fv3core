@@ -27,67 +27,6 @@ from fv3core.utils.global_constants import PI, RADIUS, LON_OR_LAT_DIM, TILE_DIM
 from fv3core.testing.parallel_translate import ParallelTranslateGrid
 
 
-# TODO: After metric term code is all ported, could refactor code to use this container
-# and prevent some of the back-and-forth conversion between lat/lon and x/y/z
-
-# def metric_term(generating_function):
-#     """Decorator which stores generated metric terms on `self` to be re-used in later
-#     calls."""
-
-#     @property
-#     @functools.wraps(generating_function)
-#     def wrapper(self):
-#         hidden_name = '_' + generating_function.__name__
-#         if not hasattr(self, hidden_name):
-#             setattr(self, hidden_name, generating_function(self))
-#         return getattr(self, hidden_name)
-#     wrapper.metric_term = True
-#     return wrapper
-
-
-# class MetricTermContainer:
-
-#     def __init__(self, **kwargs):
-#         for name, value in **kwargs:
-#             setattr(self, "_" + name, value)
-
-#     def lon(self):
-#         pass
-
-#     def lat(self):
-#         pass
-
-#     def lon_agrid(self):
-#         pass
-
-#     def lat_agrid(self):
-#         pass
-
-#     @metric_term
-#     def dx(self):
-#         pass
-
-#     @metric_term
-#     def dy(self):
-#         pass
-
-#     @metric_term
-#     def dx_agrid(self):
-#         pass
-
-#     @metric_term
-#     def dy_agrid(self):
-#         pass
-
-#     @metric_term
-#     def dx_cgrid(self):
-#         pass
-
-#     @metric_term
-#     def dy_cgrid(self):
-#         pass
-
-
 class TranslateGnomonicGrids(ParallelTranslateGrid):
 
     max_error = 2e-14
@@ -857,19 +796,10 @@ cubedsphere=Atm(n)%gridstruct%latlon
         grid_generator = MetricTerms(self.grid.grid_type, self.grid.rank, self.layout, namelist.npx, namelist.npy, namelist.npz, utils.halo, communicator,  backend=global_config.get_backend())
         state = {}
         for metric_term, metadata in self.outputs.items():
-            if "grid" not in metric_term:
-                state[metadata["name"]] = getattr(grid_generator, metric_term)
-        for gridvar in ["gridvar", "agrid"]:
-            state[self.outputs[gridvar]["name"]] = grid_generator._quantity_factory.empty(
-                dims=self.outputs[gridvar]["dims"],
-                units=self.outputs[gridvar]["units"],
-            )
-           
-        state["grid"].data[:, :, 0] = grid_generator.lon.data
-        state["grid"].data[:, :, 1] = grid_generator.lat.data
-        state["agrid"].data[:, :, 0] = grid_generator.lon_agrid.data
-        state["agrid"].data[:, :, 1] = grid_generator.lat_agrid.data
+            state[metadata["name"]] = getattr(grid_generator, metric_term)
         return self.outputs_from_state(state)
+
+    
     # InitGrid version
     #def compute_parallel(self, inputs, communicator):
     #    namelist = spec.namelist
