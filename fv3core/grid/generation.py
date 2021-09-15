@@ -19,14 +19,359 @@ from .utils import set_eta
 import fv3gfs.util as fv3util
 from fv3core.utils.corners import fill_corners_2d, fill_corners_agrid, fill_corners_dgrid, fill_corners_cgrid
 from fv3core.utils.global_constants import PI, RADIUS, LON_OR_LAT_DIM, TILE_DIM
+import functools
 
-def initialize_grid_data(state):
-    lon, lat = state["grid"].data[:, :, 0], state["grid"].data[:, :, 1]
-    agrid_lon, agrid_lat = lon_lat_corner_to_cell_center(lon, lat, state["grid"].np)
-    state["agrid"].data[:-1, :-1, 0], state["agrid"].data[:-1, :-1, 1] = (
-        agrid_lon,
-        agrid_lat,
-    )
+
+def metric_term(generating_function):
+     """ Decorator which stores generated metric terms on `self` to be re-used in later
+     calls.
+     """
+     @property
+     @functools.wraps(generating_function)
+     def wrapper(self):
+         hidden_name = '_' + generating_function.__name__
+         if not hasattr(self, hidden_name):
+             setattr(self, hidden_name, generating_function(self))
+         return getattr(self, hidden_name)
+     return wrapper
+class MetricTerms:
+
+    def __init__(self,  grid_type, rank, layout, npx, npy, npz, halo, communicator, backend):#**kwargs):
+        #for name, value in **kwargs:
+        #    setattr(self, "_" + name, value)
+        self.npx = npx
+        self.npy = npy
+        self.npz = npz
+        self.halo = halo
+        self.rank = rank
+        self.grid_type = grid_type
+        self.layout = layout
+        self._comm = communicator
+        self._sizer =  fv3util.SubtileGridSizer.from_tile_params(
+            nx_tile=self.npx - 1,
+            ny_tile=self.npy - 1,
+            nz=self.npz,
+            n_halo=self.halo,
+            extra_dim_lengths={
+                LON_OR_LAT_DIM: 2,
+                TILE_DIM: 6,
+            },
+            layout=self.layout,
+        )
+        self._quantity_factory = fv3util.QuantityFactory.from_backend(
+                self._sizer, backend=backend
+            )
+        self.grid_indexer = GridIndexing.from_sizer_and_communicator(self._sizer, self._comm)
+       
+        self._lon = self._quantity_factory.zeros(
+            [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM], "radians", dtype=float
+        )
+        self._lat = self._quantity_factory.zeros(
+            [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM], "radians", dtype=float
+        )
+
+   
+    def init_dgrid(self):
+        grid_global = self._quantity_factory.zeros(
+            [
+                fv3util.X_INTERFACE_DIM,
+                fv3util.Y_INTERFACE_DIM,
+                LON_OR_LAT_DIM,
+                TILE_DIM, #TODO, only compute for this tile?
+            ],
+            "radians",
+            dtype=float,
+        )
+        gnomonic_grid(
+            self.grid_type,
+            self._lon.view[:],
+            self._lat.view[:],
+            self._lon.np,
+        )
+        # TODO, compute on every rank, or compute once and scatter?
+        grid_global.view[:, :, 0, 0] = lon.view[:]
+        grid_global.view[:, :, 1, 0] = lat.view[:]
+        mirror_grid(
+            grid_global.data,
+            self.halo,
+            self.npx,
+            self.npy,
+            grid_global.np,
+        )
+        # Shift the corner away from Japan
+        # This will result in the corner close to east coast of China
+        grid_global.view[:, :, 0, :] -= PI / shift_fac
+        # TODO resctrict to ranks domain
+        self._lon.data[:] = grid_global.data[:, :, 0, self.rank]
+        self._lon[self._lon < 0] += 2 * PI
+        grid_global.data[grid_global.np.abs(grid_global.data[:]) < 1e-10] = 0.0
+        rank_grid = self._quantity_factory.empty(
+            dims=[fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM, LON_OR_LAT_DIM],
+            units="radians",
+        )
+        rank_grid.data[:] = grid_global.data[:, :, :, self.rank]
+        self._comm.halo_update(rank_grid, n_points=self.halo)
+        fill_corners_2d(
+            rank_grid.data[:, :, :], self.grid_indexer, gridtype="B", direction="x"
+        )
+        self._lon.data[:] = grid_global.data[:, :, 0, self.rank]
+        self._lat.data[:] = grid_global.data[:, :, 1, self.rank]
+    
+    def init_agrid(self):
+        #Set up lat-lon a-grid, calculate side lengths on a-grid
+        self._lon_agrid, self._lat_agrid = lon_lat_corner_to_cell_center(self._lon, self._lat, self._lon.np)
+        agrid = self._quantity_factory.zeros(
+            [fv3util.X_DIM, fv3util.Y_DIM, LON_OR_LAT_DIM], "radians"
+        )
+       
+        agrid.data[:-1, :-1, 0], agrid.data[:-1, :-1, 1] = (
+            self._lon_agrid,
+            self._lat_agrid,
+        )
+        self._comm.halo_update(agrid, n_points=self.halo)
+        fill_corners_2d(
+            agrid.data[:, :, 0][:, :, None],
+            self.grid_indexer,
+            gridtype="A",
+            direction="x",
+        )
+        fill_corners_2d(
+            agrid.data[:, :, 1][:, :, None],
+            self.grid_indexer,
+            gridtype="A",
+            direction="y",
+        )
+        self._lon_agrid, self._lat_agrid = (
+            agrid.data[:-1, :-1, 0],
+            agrid.data[:-1, :-1, 1],
+        )
+        
+    def lon(self):
+        return self._lon
+
+    def lat(self):
+        return self._lat
+
+    def lon_agrid(self):
+        return self._lon_agrid
+
+    def lat_agrid(self):
+        return self._lon_agrid
+
+    @metric_term
+    def dxdy(self):
+        dx = self._quantity_factory.zeros(
+            [fv3util.X_DIM, fv3util.Y_INTERFACE_DIM], "m"
+        )
+       
+        dx.view[:, :] = great_circle_distance_along_axis(
+            self.lon,
+            self.lat,
+            RADIUS,
+            self.lon.np,
+            axis=0,
+        )
+        dy = self._quantity_factory.zeros(
+            [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM], "m"
+        )
+        dy.view[:, :] = great_circle_distance_along_axis(
+            self.lon,
+            self.lat,
+            RADIUS,
+            self.lon.np,
+            axis=1,
+        )
+        self._comm.vector_halo_update(
+            dx, dy, n_points=self.halo
+        )
+
+        # at this point the Fortran code copies in the west and east edges from
+        # the halo for dy and performs a halo update,
+        # to ensure dx and dy mirror across the boundary.
+        # Not doing it here at the moment.
+        dx_data.data[dx_data.data < 0] *= -1
+        dy_data.data[dy_data.data < 0] *= -1
+        fill_corners_dgrid(
+            dx.data[:, :, None],
+            dy.data[:, :, None],
+            self.grid_indexer,
+            vector=False,
+        )
+        return dx, dy
+
+    
+    @metric_term
+    def dxdy_agrid(self):
+        
+       dx_agrid = self._quantity_factory.zeros(
+            [fv3util.X_DIM, fv3util.Y_DIM], "m"
+        )
+       dy_agrid = self._quantity_factory.zeros(
+            [fv3util.X_DIM, fv3util.Y_DIM], "m"
+        )
+      
+       #lon, lat = state["grid"].data[:, :, 0], state["grid"].data[:, :, 1]
+       lon_y_center, lat_y_center =  lon_lat_midpoint(
+           self.lon[:, :-1], self.lon[:, 1:], self.lat[:, :-1], self.lat[:, 1:], self.lon.np
+       )
+       dx_agrid.data[:-1, :-1] = great_circle_distance_along_axis(
+           lon_y_center, lat_y_center, RADIUS, state["grid"].np, axis=0
+       )
+       lon_x_center, lat_x_center = lon_lat_midpoint(
+           self.lon[:-1, :], self.lon[1:, :], self.lat[:-1, :], self.lat[1:, :], self.lon.np
+       )
+       dy_agrid.data[:-1, :-1] = great_circle_distance_along_axis(
+           lon_x_center, lat_x_center, RADIUS, state["grid"].np, axis=1
+       )
+       fill_corners_agrid(
+           dx_agrid[:, :, None], dy_agrid[:, :, None], self.grid_indexer, vector=False
+       )
+      
+       dx_agridn = self._quantity_factory.zeros(
+            [fv3util.X_DIM, fv3util.Y_DIM], "m"
+        )
+       dy_agridn = self._quantity_factory.zeros(
+            [fv3util.X_DIM, fv3util.Y_DIM], "m"
+        )
+       dx_agridn.data[:-1, :-1] = dx_agrid
+       dy_agridn.data[:-1, :-1] = dy_agrid
+       self._comm.vector_halo_update(
+           dx_agridn,dy_agrid, n_points=self.halo
+       )
+        
+        # at this point the Fortran code copies in the west and east edges from
+        # the halo for dy and performs a halo update,
+        # to ensure dx and dy mirror across the boundary.
+        # Not doing it here at the moment.
+       dx_agridn.data[dx_agridn.data < 0] *= -1
+       dy_agridn.data[dy_agridn.data < 0] *= -1
+       return dx_agridn, dy_agridn
+    
+   
+    @metric_term
+    def area(self):
+        area_dgrid = self._quantity_factory.zeros(
+            [fv3util.X_DIM, fv3util.Y_DIM], "m^2"
+        )
+        area_dgrid.data[:, :] = -1.e8
+       
+        area_drid.data[3:-4, 3:-4] = get_area(
+            self.lon.data[3:-3, 3:-3], #state["grid"].data[3:-3, 3:-3, 0],
+            self.lat.data[3:-3, 3:-3], #state["grid"].data[3:-3, 3:-3, 1],
+            RADIUS,
+            self.lon.np,
+        )
+        return area_dgrid
+        
+    @metric_term
+    def area_c(self):
+        area_cgrid = self._quantity_factory.zeros(
+            [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM], "m^2"
+        )
+        area_cgrid.data[3:-3, 3:-3] = get_area(
+            self.lon_agrid.data[2:-3, 2:-3], #state["agrid"].data[2:-3, 2:-3, 0],
+            self.lon_agrid.data[2:-3, 2:-3], #state["agrid"].data[2:-3, 2:-3, 1],
+            RADIUS,
+            state["grid"].np,
+        )
+        set_corner_area_to_triangle_area(
+            lon=self.lon_agrid.data[2:-3, 2:-3], #state["agrid"].data[2:-3, 2:-3, 0],
+            lat=self.lat_agrid.data[2:-3, 2:-3],# state["agrid"].data[2:-3, 2:-3, 1],
+            area=area_cgrid.data[3:-3, 3:-3],
+            radius=RADIUS,
+            np=self.lon_agrid.np,
+        )
+        set_c_grid_tile_border_area(
+           self.xyz_dgrid()[2:-2, 2:-2, :],
+           self.xyz_agrid()[2:-2, 2:-2, :],
+            RADIUS,
+            area_cgrid.data[3:-3, 3:-3],
+            self._comm.tile.partitioner,
+            self._comm.tile.rank,
+            state["grid"].np,
+        )
+        return area_cgrid
+    
+    @metric_term
+    def dxdy_cgrid(self):
+        dx_cgrid = self._quantity_factory.zeros(
+            [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM], "m"
+        )
+        dy_cgrid = self._quantity_factory.zeros(
+            [fv3util.X_DIM, fv3util.Y_INTERFACE_DIM], "m"
+        )
+        #lon_agrid, lat_agrid = (
+        #    agrid.data[:-1, :-1, 0],
+        #    agrid.data[:-1, :-1, 1],
+        #)
+        dx_cgrid_tmp = great_circle_distance_along_axis(
+            self.lon_agrid, lat_agrid, RADIUS, self.lon.np, axis=0
+        )
+        dy_cgrid_tmp = great_circle_distance_along_axis(
+            self.lon_agrid, lat_agrid, RADIUS, self.lon.np, axis=1
+        )
+        # copying the second-to-last values to the last values is what the Fortran
+        # code does, but is this correct/valid?
+        # Maybe we want to change this to use halo updates?
+        dx_cgrid.data[1:-1, :-1] = dx_cgrid_tmp
+        dx_cgrid.data[0, :-1] = dx_cgrid_tmp[0, :]
+        dx_cgrid.data[-1, :-1] = dx_cgrid_tmp[-1, :]
+        
+        dy_cgrid.data[:-1, 1:-1] = dy_cgrid_tmp
+        dy_cgrid.data[:-1, 0] = dy_cgrid_tmp[:, 0]
+        dy_cgrid.data[:-1, -1] = dy_cgrid_tmp[:, -1]
+
+        self._comm.vector_halo_update(
+            dx_cgrid, dy_cgrid, n_points=self.halo
+        )
+
+        #TODO: Add support for unsigned vector halo updates instead of handling ad-hoc here
+        dx_cgrid.data[dx_cgrid.data < 0] *= -1
+        dy_cgrid.data[dy_cgrid.data < 0] *= -1
+        
+        #TODO: fix issue with interface dimensions causing validation errors
+        fill_corners_cgrid(
+            dx_cgrid.data[:, :, None],
+            dy_cgrid.data[:, :, None],
+            self.grid_indexer,
+            vector=False,
+        )
+        set_tile_border_dxc(
+            self.xyz_dgrid()[3:-3, 3:-3, :],
+            self.xyz_agrid()[3:-3, 3:-3, :],
+            RADIUS,
+            dx_cgrid.data[3:-3, 3:-4],
+            self._comm.tile.partitioner,
+            self._comm.tile.rank,
+            self.lon.np,
+        )
+        set_tile_border_dyc(
+            self.xyz_dgrid()[3:-3, 3:-3, :],
+            self.xyz_agrid()[3:-3, 3:-3, :],
+            RADIUS,
+            dy_cgrid.data[3:-4, 3:-3],
+            self._comm.tile.partitioner,
+            self._comm.tile.rank,
+            self.lon.np,
+        )
+        
+        return dx_cgrid, dy_cgrid
+
+    @metric_term
+    def xyz_dgrid(self):
+        return lon_lat_to_xyz(
+            self.lon.data, self.lat.data, self.lon.np
+      )
+
+    @metric_term
+    def xyz_agrid(self):
+        return lon_lat_to_xyz(
+            self.lon_agrid.data[:-1, :-1, 0], #state["agrid"].data[:-1, :-1, 0],
+            self.lat_agrid.data[:-1, :-1, 0],#state["agrid"].data[:-1, :-1, 1],
+            self.lon.np, #state["agrid"].np,
+        )
+       
+     
 
 # pass the quantities to be filled or create them during generate? don't pass backend if not generating here
 # dimensions information, specify ArgSpecs? duplicated with translate class
@@ -56,7 +401,7 @@ class InitGrid:
                 self._sizer, backend=backend
             )
         self.grid_indexer = GridIndexing.from_sizer_and_communicator(self._sizer, self._comm)
-
+       
     def generate(self):
         #Set up initial lat-lon d-grid
         shift_fac = 18
@@ -111,7 +456,7 @@ class InitGrid:
             state["grid"].data[:, :, :], self.grid_indexer, gridtype="B", direction="x"
         )
 
-
+ 
         #calculate d-grid cell side lengths
         
         self._compute_local_dxdy(state)
@@ -340,7 +685,7 @@ class InitGrid:
             RADIUS,
             state["area_cgrid"].data[3:-3, 3:-3],
             communicator.tile.partitioner,
-            communicator.tile.rank,
+            self.rank,
             state["grid"].np,
         )
         set_tile_border_dxc(
@@ -349,7 +694,7 @@ class InitGrid:
             RADIUS,
             state["dx_cgrid"].data[3:-3, 3:-4],
             communicator.tile.partitioner,
-            communicator.tile.rank,
+            self.rank,
             state["grid"].np,
         )
         set_tile_border_dyc(
@@ -358,7 +703,7 @@ class InitGrid:
             RADIUS,
             state["dy_cgrid"].data[3:-4, 3:-3],
             communicator.tile.partitioner,
-            communicator.tile.rank,
+            self.rank,
             state["grid"].np,
         )
         
