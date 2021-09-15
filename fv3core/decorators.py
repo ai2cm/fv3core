@@ -188,8 +188,11 @@ class FrozenStencil:
             self._write_profile(exec_info)
 
     def _serialize_data(self, *args: Any, **kwargs: Any) -> str:
-        file_num: int = 0
         file_stub: str = self.stencil_object._file_name.replace(".py", "")
+        if MPI is not None and MPI.COMM_WORLD.Get_size() > 1:
+            file_stub += "_r%d" % MPI.COMM_WORLD.Get_rank()
+
+        file_num: int = 0
         file_name: str = f"{file_stub}_n{file_num}"
         while os.path.exists(file_name):
             file_num += 1
