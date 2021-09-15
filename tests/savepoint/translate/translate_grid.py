@@ -1,5 +1,6 @@
 import functools
 from typing import Any, Dict
+from fv3core import grid
 
 import fv3gfs.util as fv3util
 
@@ -27,12 +28,12 @@ from fv3core.grid.geometry import (
     calculate_l2c_vu,
     sg_corner_fix,
     calculate_divg_del6,
-    init_cubed_to_latlon,
     unit_vector_lonlat,
     calculate_grid_z, 
     calculate_grid_a,
     edge_factors,
-    efactor_a2c_v
+    efactor_a2c_v,
+    calculate_trig_uv
 )
 from fv3core.grid.eta import set_eta
 
@@ -1280,7 +1281,7 @@ class TranslateSetEta(ParallelTranslateGrid):
         return state
 
 
-class UtilVectors(ParallelTranslateGrid):
+class TranslateUtilVectors(ParallelTranslateGrid):
     inputs: Dict[str, Any] = {
         "grid": {
             "name": "grid",
@@ -1337,13 +1338,15 @@ class UtilVectors(ParallelTranslateGrid):
         state = self.state_from_inputs(inputs)
         xyz_dgrid = lon_lat_to_xyz(state["grid"].data[:,:,0], state["grid"].data[:,:,1], state["grid"].np)
         xyz_agrid = lon_lat_to_xyz(state["agrid"].data[:,:,0], state["agrid"].data[:,:,1], state["grid"].np)
-        state["ec1"].data[:], state["ec2"].data[:] = get_center_vector(xyz_dgrid, self.grid.halo, state["grid"].np)
+        state["ec1"].data[:], state["ec2"].data[:] = get_center_vector(xyz_dgrid, self.grid.grid_type, self.grid.halo,
+            communicator.tile.partitioner, communicator.tile.rank, state["grid"].np
+        )
         state["ew"].data[:] = calc_unit_vector_west(
-            xyz_dgrid, xyz_agrid, self.grid.halo, 
+            xyz_dgrid, xyz_agrid, self.grid.grid_type, self.grid.halo, 
             communicator.tile.partitioner, communicator.tile.rank, state["grid"].np
         )
         state["es"].data[:] = calc_unit_vector_south(
-            xyz_dgrid, xyz_agrid, self.grid.halo, 
+            xyz_dgrid, xyz_agrid, self.grid.grid_type, self.grid.halo, 
             communicator.tile.partitioner, communicator.tile.rank, state["grid"].np
         )
         return state
@@ -1402,7 +1405,7 @@ class TranslateTrigSg(ParallelTranslateGrid):
         state = self.state_from_inputs(inputs)
         xyz_agrid = lon_lat_to_xyz(state["agrid"].data[:,:,0], state["agrid"].data[:,:,1], state["agrid"].np)
         state["cos_sg"].data[:], state["sin_sg"].data[:] = calculate_cos_sin_sg(
-            state["grid3"].data[:], xyz_agrid, state["ec1"].data[:], state["ec2"].data[:], self.grid.halo, 
+            state["grid3"].data[:], xyz_agrid, state["ec1"].data[:], state["ec2"].data[:], self.grid.grid_type, self.grid.halo, 
             communicator.tile.partitioner, communicator.tile.rank, state["agrid"].np
         )
         return state
@@ -1418,22 +1421,24 @@ class TranslateAAMCorrection(ParallelTranslateGrid):
         "l2c_v": {
             "name": "l2c_v",
             "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM],
-            "units": "radians",
+            "units": "",
         },
         "l2c_u": {
             "name":"l2c_v",
-            "dims":[fv3util.X_DIM, fv3util.Y_INTERFACE_DIM]
+            "dims":[fv3util.X_DIM, fv3util.Y_INTERFACE_DIM],
+            "units": "",
         },
     }
     outputs: Dict[str, Any] = {
         "l2c_v": {
             "name": "l2c_v",
             "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM],
-            "units": "radians",
+            "units": "",
         },
         "l2c_u": {
             "name":"l2c_v",
-            "dims":[fv3util.X_DIM, fv3util.Y_INTERFACE_DIM]
+            "dims":[fv3util.X_DIM, fv3util.Y_INTERFACE_DIM],
+            "units": "",
         },
     }
     def compute_sequential(self, inputs_list):
@@ -1609,10 +1614,9 @@ class TranslateMoreTrig(ParallelTranslateGrid):
 
     def _compute_local(self, inputs, communicator):
         state = self.state_from_inputs(inputs)
-        xyz_agrid = lon_lat_to_xyz(state["agrid"].data[:,:,0], state["agrid"].data[:,:,1], state["agrid"].np)
-        state["cos_sg"].data[:], state["sin_sg"].data[:] = calculate_cos_sin_sg(
-            state["grid3"].data[:], xyz_agrid, state["ec1"].data[:], state["ec2"].data[:], self.grid.halo, 
-            communicator.tile.partitioner, communicator.tile.rank, state["agrid"].np
+        xyz_dgrid = lon_lat_to_xyz(state["grid"].data[:,:,0], state["grid"].data[:,:,1], state["grid"].np)
+        state["cosa"].data[:], state["sina"].data[:], state["cosa_u"].data[:], state["cosa_v"].data[:], state["cosa_s"].data[:], state["sina_u"].data[:], state["sina_v"].data[:], state["rsin_u"].data[:], state["rsin_v"].data[:], state["rsina"].data[:], state["rsin2"].data[:], state["ee1"].data[:], state["ee2"].data[:] = calculate_trig_uv(xyz_dgrid, state["cos_sg"].data[:], state["sin_sg"].data[:], self.grid.halo, 
+            communicator.tile.partitioner, communicator.tile.rank, state["grid"].np
         )
         return state
 
@@ -1979,33 +1983,17 @@ class TranslateEdgeFactors(ParallelTranslateGrid):
     def _compute_local(self, inputs, communicator):
         state = self.state_from_inputs(inputs)
         state["edge_w"].data[:], state["edge_e"].data[:], state["edge_s"].data[:], state["edge_n"].data[:] = edge_factors(
-            state["grid"].data[:], state["agrid"].data[:], self.grid.halo, 
+            state["grid"].data[:], state["agrid"].data[:], self.grid.grid_type, self.grid.halo, 
             communicator.tile.partitioner, communicator.tile.rank, RADIUS, state["grid"].np
         )
         state["edge_vect_w"].data[:], state["edge_vect_e"].data[:], state["edge_vect_s"].data[:], state["edge_vect_n"].data[:] = efactor_a2c_v(
-            state["grid"].data[:], state["agrid"].data[:], self.grid.halo, 
+            state["grid"].data[:], state["agrid"].data[:], self.grid.grid_type, self.grid.halo, 
             communicator.tile.partitioner, communicator.tile.rank, RADIUS, state["grid"].np
         )
         return state
 
 
 class TranslateInitGridUtils(ParallelTranslateGrid):
-
-    """!$ser
-    data
-    gridvar=Atm(n)%gridstruct%grid_64
-    agrid=Atm(n)%gridstruct%agrid_64
-    area=Atm(n)%gridstruct%area_64
-    area_c=Atm(n)%gridstruct%area_c_64
-    rarea=Atm(n)%gridstruct%rarea
-    rarea_c=Atm(n)%gridstruct%rarea_c
-    dx=Atm(n)%gridstruct%dx_64
-    dy=Atm(n)%gridstruct%dy_64
-    dxc=Atm(n)%gridstruct%dxc_64
-    dyc=Atm(n)%gridstruct%dyc_64
-    dxa=Atm(n)%gridstruct%dxa_64
-    dya=Atm(n)%gridstruct%dya_64"""
-
     inputs: Dict[str, Any] = {
         "grid": {
             "name": "grid",
@@ -2289,8 +2277,27 @@ class TranslateInitGridUtils(ParallelTranslateGrid):
             "name":"es",
             "dims":[fv3util.X_DIM, fv3util.Y_INTERFACE_DIM, 3, 2]
         },
+        "l2c_v": {
+            "name": "l2c_v",
+            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM],
+            "units": "",
+        },
+        "l2c_u": {
+            "name":"l2c_v",
+            "dims":[fv3util.X_DIM, fv3util.Y_INTERFACE_DIM],
+            "units": ""
+        },
+        "ee1": {
+            "name": "ee1",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM, 3],
+            "units": ""
+        },
+        "ee2": {
+            "name": "ee2",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM, 3],
+            "units": ""
+        },
     }
-
     def compute_sequential(self, inputs_list, communicator_list):
         state_list = []
         for inputs in inputs_list:
@@ -2299,34 +2306,140 @@ class TranslateInitGridUtils(ParallelTranslateGrid):
             fill_corners_2d(
                 state["grid"].data[:, :, :], self.grid, gridtype="B", direction="x"
             )
-            state_list[i] = _compute_local_part2(state)
-            
+            state_list[i] = self._compute_local_part_1(state, communicator_list[i])
         
+        #TODO: omega and norm_vect computation if needed
+        
+        for i, state in enumerate(state_list):
+            state_list[i] = self._compute_local_part2(state, communicator_list[i])
+        
+        #TODO: implement reduction to get da_min, da_max, da_min_c, and da_max_c
+        #temporary hack is possible by looping over ranks here
 
-            
+        for i, state in enumerate(state_list):
+            state_list[i] = self._compute_local_edges(state, communicator_list[i])
+
         return self.outputs_list_from_state_list(state_list)
 
 
     def _compute_local_eta(self, inputs):
         state = self.state_from_inputs(inputs)
-        state["eta"] = set_eta(state)
+        state["ks"] = self.grid.quantity_factory.zeros(
+            [], ""
+        )
+        state["ptop"] = self.grid.quantity_factory.zeros(
+            [], "mb"
+        )
+        state["ak"] = self.grid.quantity_factory.zeros(
+            [fv3util.Z_INTERFACE_DIM], "mb"
+        )
+        state["bk"] = self.grid.quantity_factory.zeros(
+            [fv3util.Z_INTERFACE_DIM], "mb"
+        )
+        state["ks"].data[:], state["ptop"].data[:], state["ak"].data[:], state["bk"].data[:] = set_eta(state)
         return state
 
-    def _compute_local_part2(self, state):
+    def _compute_local_part_1(self, state, communicator):
         xyz_dgrid = lon_lat_to_xyz(state["grid"].data[:,:,0], state["grid"].data[:,:,1], state["grid"].np)
-        center_vector1, center_vector2 = get_center_vector(xyz_dgrid, self.grid.halo)
-        center_vector1[:self.grid.halo, :self.grid.halo, :] = 1.e8
-        center_vector1[:self.grid.halo, -self.grid.halo:, :] = 1.e8
-        center_vector1[-self.grid.halo:, :self.grid.halo, :] = 1.e8
-        center_vector1[-self.grid.halo:, -self.grid.halo:, :] = 1.e8
+        state["ec1"] = self.grid.quantity_factory.zeros(
+            [fv3util.X_DIM, fv3util.Y_DIM, 3], ""
+        )
+        state["ec2"] = self.grid.quantity_factory.zeros(
+            [fv3util.X_DIM, fv3util.Y_DIM, 3], ""
+        )
+        state["ew"] = self.grid.quantity_factory.zeros(
+            [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM, 3, 2], ""
+        )
+        state["es"] = self.grid.quantity_factory.zeros(
+            [fv3util.X_DIM, fv3util.Y_INTERFACE_DIM, 3, 2], ""
+        )
+        xyz_dgrid = lon_lat_to_xyz(state["grid"].data[:,:,0], state["grid"].data[:,:,1], state["grid"].np)
+        xyz_agrid = lon_lat_to_xyz(state["agrid"].data[:,:,0], state["agrid"].data[:,:,1], state["grid"].np)
+        state["ec1"].data[:], state["ec2"].data[:] = get_center_vector(xyz_dgrid, self.grid.grid_type, self.grid.halo,
+            communicator.tile.partitioner, communicator.tile.rank, state["grid"].np
+        )
+        state["ew"].data[:] = calc_unit_vector_west(
+            xyz_dgrid, xyz_agrid, self.grid.grid_type, self.grid.halo, 
+            communicator.tile.partitioner, communicator.tile.rank, state["grid"].np
+        )
+        state["es"].data[:] = calc_unit_vector_south(
+            xyz_dgrid, xyz_agrid, self.grid.grid_type, self.grid.halo, 
+            communicator.tile.partitioner, communicator.tile.rank, state["grid"].np
+        )
 
-        center_vector2[:self.grid.halo, :self.grid.halo, :] = 1.e8
-        center_vector2[:self.grid.halo, -self.grid.halo:, :] = 1.e8
-        center_vector2[-self.grid.halo:, :self.grid.halo, :] = 1.e8
-        center_vector2[-self.grid.halo:, -self.grid.halo:, :] = 1.e8
+        state["cos_sg"] = self.grid.quantity_factory.zeros(
+            [fv3util.X_DIM, fv3util.Y_DIM, 9], ""
+        )
+        state["sin_sg"] = self.grid.quantity_factory.zeros(
+            [fv3util.X_DIM, fv3util.Y_DIM, 9], ""
+        )
+        state["cos_sg"].data[:], state["sin_sg"].data[:] = calculate_cos_sin_sg(
+            state["grid3"].data[:], xyz_agrid, state["ec1"].data[:], state["ec2"].data[:], self.grid.grid_type, self.grid.halo, 
+            communicator.tile.partitioner, communicator.tile.rank, state["agrid"].np
+        )
+
+        state["l2c_v"] = self.grid.quantity_factory.zeros(
+            [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM], ""
+        )
+        state["l2c_u"] = self.grid.quantity_factory.zeros(
+            [fv3util.X_DIM, fv3util.Y_INTERFACE_DIM], ""
+        )
+        state["l2c_v"].data[:], state["l2c_u"].data[:] = calculate_l2c_vu(
+            state["grid"].data[:], xyz_dgrid, self.grid.halo, state["grid"].np
+        )
+
+        state["cosa_u"] = self.grid.quantity_factory.zeros(
+            [fv3util.X_DIM, fv3util.Y_DIM], ""
+        )
+        state["cosa_v"] = self.grid.quantity_factory.zeros(
+            [fv3util.X_DIM, fv3util.Y_DIM], ""
+        )
+        state["cosa_s"] = self.grid.quantity_factory.zeros(
+            [fv3util.X_DIM, fv3util.Y_DIM], ""
+        )
+        state["sina_u"] = self.grid.quantity_factory.zeros(
+            [fv3util.X_DIM, fv3util.Y_DIM], ""
+        )
+        state["sina_v"] = self.grid.quantity_factory.zeros(
+            [fv3util.X_DIM, fv3util.Y_DIM], ""
+        )
+        state["rsin_u"] = self.grid.quantity_factory.zeros(
+            [fv3util.X_DIM, fv3util.Y_DIM], ""
+        )
+        state["rsin_v"] = self.grid.quantity_factory.zeros(
+            [fv3util.X_DIM, fv3util.Y_DIM], ""
+        )
+        state["rsina"] = self.grid.quantity_factory.zeros(
+            [fv3util.X_DIM, fv3util.Y_DIM], ""
+        )
+        state["rsin2"] = self.grid.quantity_factory.zeros(
+            [fv3util.X_DIM, fv3util.Y_DIM], ""
+        )
+        state["cosa"] = self.grid.quantity_factory.zeros(
+            [fv3util.X_DIM, fv3util.Y_DIM], ""
+        )
+        state["sina"] = self.grid.quantity_factory.zeros(
+            [fv3util.X_DIM, fv3util.Y_DIM], ""
+        )
+        state["ee1"] = self.grid.quantity_factory.zeros(
+            [fv3util.X_DIM, fv3util.Y_DIM, 3], ""
+        )
+        state["ee2"] = self.grid.quantity_factory.zeros(
+            [fv3util.X_DIM, fv3util.Y_DIM, 3], ""
+        )
+        state["cosa"].data[:], state["sina"].data[:], state["cosa_u"].data[:], state["cosa_v"].data[:], state["cosa_s"].data[:], state["sina_u"].data[:], state["sina_v"].data[:], state["rsin_u"].data[:], state["rsin_v"].data[:], state["rsina"].data[:], state["rsin2"].data[:], state["ee1"].data[:], state["ee2"].data[:] = calculate_trig_uv(xyz_dgrid, state["cos_sg"].data[:], state["sin_sg"].data[:], self.grid.halo, 
+            communicator.tile.partitioner, communicator.tile.rank, state["grid"].np
+        )
+
+        sg_corner_fix(
+            state["cos_sg"].data[:], state["sin_sg"].data[:], self.grid.halo, 
+            communicator.tile.partitioner, communicator.tile.rank, state["cos_sg"].np
+        )
 
         return state
 
-    def _compute_outputs(self, state):
-        outputs = self.outputs_from_state(state)
-        return outputs
+    def _compute_local_part2(self, state, communicator):
+        pass
+
+    def _compute_local_edges(self, state, communicator):
+        pass
