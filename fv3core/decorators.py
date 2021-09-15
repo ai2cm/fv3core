@@ -199,7 +199,10 @@ class FrozenStencil:
             file_name = f"{file_stub}_n{file_num}"
 
         args_as_kwargs = dict(zip(self._argument_names, args))
-        args_as_kwargs["externals"] = self._externals
+        args_as_kwargs.update(
+            {"externals": self._externals, "origin": self.origin, "domain": self.domain}
+        )
+
         serialize(file_name, **args_as_kwargs, **kwargs)
 
         return file_name
