@@ -78,6 +78,7 @@ def get_delpc(
             # describing what this adjustment is doing and why.
             v_contra_dxc = 0.0
 
+    with computation(PARALLEL), interval(...):
         delpc = (
             v_contra_dxc[0, -1, 0]
             - v_contra_dxc
