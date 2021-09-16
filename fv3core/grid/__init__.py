@@ -14,4 +14,4 @@ from .gnomonic import (
 )
 #from .mesh_generator import generate_mesh
 from .mirror import mirror_grid, set_halo_nan
-from .generation import InitGrid, MetricTerms
+from .generation import MetricTerms
