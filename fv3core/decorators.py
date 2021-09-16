@@ -97,6 +97,7 @@ class FrozenStencil:
         domain: Index3D,
         stencil_config: Optional[StencilConfig] = None,
         externals: Optional[Mapping[str, Any]] = None,
+        skip_passes: Optional[Tuple[str, ...]] = None,
     ):
         """
         Args:
@@ -105,6 +106,7 @@ class FrozenStencil:
             domain: gt4py domain to use at call time
             stencil_config: container for stencil configuration
             externals: compile-time external variables required by stencil
+            skip_passes: compiler passes to skip when building stencil
         """
         self.origin = origin
         self.domain = domain
@@ -125,6 +127,9 @@ class FrozenStencil:
         if MPI is not None and MPI.COMM_WORLD.Get_size() > 1:
             stencil_function = future_stencil
             stencil_kwargs["wrapper"] = self
+
+        if skip_passes:
+            stencil_kwargs["skip_passes"] = skip_passes
 
         self.stencil_object: gt4py.StencilObject = stencil_function(
             definition=func,
