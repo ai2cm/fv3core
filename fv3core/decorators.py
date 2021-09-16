@@ -128,10 +128,10 @@ class FrozenStencil:
             stencil_function = future_stencil
             stencil_kwargs["wrapper"] = self
 
-        if skip_passes:
+        if global_config.is_gtc_backend():
+            if not skip_passes:
+                skip_passes = ("graph_merge_horizontal_executions",)
             stencil_kwargs["skip_passes"] = skip_passes
-        else:
-            stencil_kwargs["skip_passes"] = ("graph_merge_horizontal_executions",)
 
         self.stencil_object: gt4py.StencilObject = stencil_function(
             definition=func,
