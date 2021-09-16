@@ -33,7 +33,7 @@ def apply_flux(courant, q, fx1, mask):
 def fx1_fn(courant, br, b0, bl):
     """
     Args:
-        courant: courant number, u * dt / dx or similar for v/y (unitless)
+        courant: courant number, u * dt / dx (unitless)
         br: ???
         b0: br + bl
         bl: ???
