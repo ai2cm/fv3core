@@ -10,7 +10,7 @@ from gt4py.gtscript import (
 )
 
 from fv3core.decorators import FrozenStencil
-from fv3core.stencils import yppm
+from fv3core.stencils import ppm
 from fv3core.stencils.basic_operations import sign
 from fv3core.utils.grid import GridIndexing
 from fv3core.utils.typing import FloatField, FloatFieldIJ, Index3D
@@ -161,14 +161,14 @@ def compute_al(q: FloatField, dxa: FloatFieldIJ):
 
     compile_assert(iord < 8)
 
-    al = yppm.p1 * (q[-1, 0, 0] + q) + yppm.p2 * (q[-2, 0, 0] + q[1, 0, 0])
+    al = ppm.p1 * (q[-1, 0, 0] + q) + ppm.p2 * (q[-2, 0, 0] + q[1, 0, 0])
 
     if __INLINED(iord < 0):
         compile_assert(False)
         al = max(al, 0.0)
 
     with horizontal(region[i_start - 1, :], region[i_end, :]):
-        al = yppm.c1 * q[-2, 0, 0] + yppm.c2 * q[-1, 0, 0] + yppm.c3 * q
+        al = ppm.c1 * q[-2, 0, 0] + ppm.c2 * q[-1, 0, 0] + ppm.c3 * q
     with horizontal(region[i_start, :], region[i_end + 1, :]):
         al = 0.5 * (
             ((2.0 * dxa[-1, 0] + dxa[-2, 0]) * q[-1, 0, 0] - dxa[-1, 0] * q[-2, 0, 0])
@@ -177,7 +177,7 @@ def compute_al(q: FloatField, dxa: FloatFieldIJ):
             / (dxa[0, 0] + dxa[1, 0])
         )
     with horizontal(region[i_start + 1, :], region[i_end + 2, :]):
-        al = yppm.c3 * q[-1, 0, 0] + yppm.c2 * q[0, 0, 0] + yppm.c1 * q[1, 0, 0]
+        al = ppm.c3 * q[-1, 0, 0] + ppm.c2 * q[0, 0, 0] + ppm.c1 * q[1, 0, 0]
 
     return al
 
@@ -196,7 +196,7 @@ def bl_br_edges(bl, br, q, dxa, al, dm):
         dqr = max(max(q[-1, 0, 0], q[-2, 0, 0]), q) - q[-1, 0, 0]
         dql = q[-1, 0, 0] - min(min(q[-1, 0, 0], q[-2, 0, 0]), q)
         dm_left = sign(min(min(abs(xt), dqr), dql), xt)
-        xt_bl = yppm.s14 * dm_left + yppm.s11 * (q[-1, 0, 0] - q) + q
+        xt_bl = ppm.s14 * dm_left + ppm.s11 * (q[-1, 0, 0] - q) + q
         xt_br = xt_dxa_edge_0(q, dxa)
 
     with horizontal(region[i_start, :]):
@@ -206,17 +206,17 @@ def bl_br_edges(bl, br, q, dxa, al, dm):
         dqr = max(max(q[1, 0, 0], q), q[2, 0, 0]) - q[1, 0, 0]
         dql = q[1, 0, 0] - min(min(q[1, 0, 0], q), q[2, 0, 0])
         dm_right = sign(min(min(abs(xt), dqr), dql), xt)
-        xt_bl = yppm.s14 * dm_left + yppm.s11 * (q[-1, 0, 0] - q) + q
+        xt_bl = ppm.s14 * dm_left + ppm.s11 * (q[-1, 0, 0] - q) + q
         xt_bl = xt_dxa_edge_1(q, dxa)
-        xt_br = yppm.s15 * q + yppm.s11 * q[1, 0, 0] - yppm.s14 * dm_right
+        xt_br = ppm.s15 * q + ppm.s11 * q[1, 0, 0] - ppm.s14 * dm_right
 
     with horizontal(region[i_start + 1, :]):
-        xt_bl = yppm.s15 * q[-1, 0, 0] + yppm.s11 * q - yppm.s14 * dm
+        xt_bl = ppm.s15 * q[-1, 0, 0] + ppm.s11 * q - ppm.s14 * dm
         xt_br = al_ip1
 
     with horizontal(region[i_end - 1, :]):
         xt_bl = al
-        xt_br = yppm.s15 * q[1, 0, 0] + yppm.s11 * q + yppm.s14 * dm
+        xt_br = ppm.s15 * q[1, 0, 0] + ppm.s11 * q + ppm.s14 * dm
 
     with horizontal(region[i_end, :]):
         # TODO(rheag) when possible
@@ -225,7 +225,7 @@ def bl_br_edges(bl, br, q, dxa, al, dm):
         dqr = max(max(q[-1, 0, 0], q[-2, 0, 0]), q) - q[-1, 0, 0]
         dql = q[-1, 0, 0] - min(min(q[-1, 0, 0], q[-2, 0, 0]), q)
         dm_left_end = sign(min(min(abs(xt), dqr), dql), xt)
-        xt_bl = yppm.s15 * q + yppm.s11 * q[-1, 0, 0] + yppm.s14 * dm_left_end
+        xt_bl = ppm.s15 * q + ppm.s11 * q[-1, 0, 0] + ppm.s14 * dm_left_end
         xt_br = xt_dxa_edge_0(q, dxa)
 
     with horizontal(region[i_end + 1, :]):
@@ -236,7 +236,7 @@ def bl_br_edges(bl, br, q, dxa, al, dm):
         dql = q[1, 0, 0] - min(min(q[1, 0, 0], q), q[2, 0, 0])
         dm_right_end = sign(min(min(abs(xt), dqr), dql), xt)
         xt_bl = xt_dxa_edge_1(q, dxa)
-        xt_br = yppm.s11 * (q[1, 0, 0] - q) - yppm.s14 * dm_right_end + q
+        xt_br = ppm.s11 * (q[1, 0, 0] - q) - ppm.s14 * dm_right_end + q
 
     with horizontal(
         region[i_start - 1 : i_start + 2, :], region[i_end - 1 : i_end + 2, :]
@@ -262,7 +262,7 @@ def compute_blbr_ord8plus(q: FloatField, dxa: FloatFieldIJ):
     with horizontal(
         region[i_start - 1 : i_start + 2, :], region[i_end - 1 : i_end + 2, :]
     ):
-        bl, br = yppm.pert_ppm_standard_constraint_fcn(q, bl, br)
+        bl, br = ppm.pert_ppm_standard_constraint_fcn(q, bl, br)
 
     return bl, br
 

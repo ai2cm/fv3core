@@ -206,8 +206,8 @@ def kinetic_energy_update(
         ub_contra, vb_contra = interpolate_uc_vc_to_cell_corners(
             uc, vc, cosa, rsina, uc_contra, vc_contra
         )
-        advected_v = advect_v_along_y(vb_contra, v, dy, dya, rdy, dt)
-        advected_u = advect_u_along_x(u, ub_contra, rdx, dx, dxa, dt)
+        advected_v = advect_v_along_y(v, vb_contra, rdy=rdy, dy=dy, dya=dya, dt=dt)
+        advected_u = advect_u_along_x(u, ub_contra, rdx=rdx, dx=dx, dxa=dxa, dt=dt)
         # TODO: we see here that ke is not kinetic energy, but kinetic energy * timestep
         #       refactor or rename to avoid this confusion
         ke = 0.5 * dt * (ub_contra * advected_u + vb_contra * advected_v)
@@ -715,6 +715,7 @@ class DGridShallowWaterLagrangianDynamics:
                 "jord": config.hord_mt,
                 "mord": config.hord_mt,
                 "xt_minmax": False,
+                "yt_minmax": False,
                 **ax_offsets_b,
             },
             origin=b_origin,

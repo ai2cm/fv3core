@@ -1,7 +1,7 @@
 from gt4py import gtscript
 from gt4py.gtscript import __INLINED, compile_assert, horizontal, region
 
-from fv3core.stencils import xppm, yppm
+from fv3core.stencils import ppm, xppm
 from fv3core.utils.typing import FloatField, FloatFieldIJ
 
 
@@ -35,7 +35,7 @@ def get_bl_br(u, dx, dxa):
         bl, br = xppm.bl_br_edges(bl, br, u, dxa, u_on_cell_corners, dm)
 
         with horizontal(region[i_start + 1, :], region[i_end - 1, :]):
-            bl, br = yppm.pert_ppm_standard_constraint_fcn(u, bl, br)
+            bl, br = ppm.pert_ppm_standard_constraint_fcn(u, bl, br)
 
     # Zero corners
     with horizontal(
