@@ -166,7 +166,6 @@ def apply_pt_delp_fluxes(
     # use selective validation instead
     if __INLINED(inline_q == 0):
         with horizontal(region[local_is : local_ie + 1, local_js : local_je + 1]):
-            # pt = flux_integral(pt, delp, gx, gy, rarea)
             pt = pt * delp + flux_increment(pt_x_flux, pt_y_flux, rarea)
             delp = delp + flux_increment(delp_x_flux, delp_y_flux, rarea)
             pt = pt / delp
@@ -584,21 +583,7 @@ class DGridShallowWaterLagrangianDynamics:
         column_namelist,
         nested: bool,
         stretched_grid: bool,
-        config: DGridShallowWaterLagrangianDynamicsConfig
-        # dddmp,
-        # d4_bg,
-        # nord: int,
-        # grid_type: int,
-        # hydrostatic,
-        # d_ext: int,
-        # inline_q: bool,
-        # hord_dp: int,
-        # hord_tm: int,
-        # hord_mt: int,
-        # hord_vt: int,
-        # do_f3d: bool,
-        # do_skeb: bool,
-        # d_con,
+        config: DGridShallowWaterLagrangianDynamicsConfig,
     ):
         self._f0 = spec.grid.f0
         self.grid = grid_data
