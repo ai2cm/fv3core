@@ -147,7 +147,7 @@ class StencilTable(object, metaclass=Singleton):
 
         self._comm.Barrier()
 
-    def _get_target(self, node_id: int = -1) -> Tuple[int, int, MPI.Datatype]:
+    def _get_target(self, node_id: int = -1) -> Tuple[int, int, Any]:
         if node_id < 0:
             node_id = self._node_id
         return (node_id * self._buffer_size, self._buffer_size, self._mpi_type)
