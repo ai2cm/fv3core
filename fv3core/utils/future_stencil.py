@@ -232,8 +232,6 @@ class FutureStencil:
     A wrapper that allows a stencil object to be compiled in a distributed context.
     """
 
-    _id_table = StencilTable()
-
     def __init__(
         self,
         builder: Optional["StencilBuilder"] = None,
@@ -253,6 +251,7 @@ class FutureStencil:
         self._wrapper = wrapper
         self._sleep_time = sleep_time
         self._timeout = timeout
+        self._id_table = StencilTable()
         self._node_id: int = MPI.COMM_WORLD.Get_rank() if MPI else 0
         self._stencil_object: Optional[StencilObject] = None
 
