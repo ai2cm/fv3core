@@ -527,23 +527,46 @@ class RemapProfile:
         km: int = grid_indexing.domain[2]
         self._kord = kord
 
+        utils.stencil_call_level += 1
+
         self._gam: FloatField = utils.make_storage_from_shape(
-            grid_indexing.domain_full(add=(0, 0, 1)), origin=full_orig
+            grid_indexing.domain_full(add=(0, 0, 1)),
+            origin=full_orig,
+            cache_key="_gam",
+            owner=self,
         )
         self._q: FloatField = utils.make_storage_from_shape(
-            grid_indexing.domain_full(add=(0, 0, 1)), origin=full_orig
+            grid_indexing.domain_full(add=(0, 0, 1)),
+            origin=full_orig,
+            cache_key="_q",
+            owner=self,
         )
         self._q_bot: FloatField = utils.make_storage_from_shape(
-            grid_indexing.domain_full(add=(0, 0, 1)), origin=full_orig
+            grid_indexing.domain_full(add=(0, 0, 1)),
+            origin=full_orig,
+            cache_key="_q_bot",
+            owner=self,
         )
         self._extm: BoolField = utils.make_storage_from_shape(
-            grid_indexing.domain_full(add=(0, 0, 1)), origin=full_orig, dtype=bool
+            grid_indexing.domain_full(add=(0, 0, 1)),
+            origin=full_orig,
+            dtype=bool,
+            cache_key="_extm",
+            owner=self,
         )
         self._ext5: BoolField = utils.make_storage_from_shape(
-            grid_indexing.domain_full(add=(0, 0, 1)), origin=full_orig, dtype=bool
+            grid_indexing.domain_full(add=(0, 0, 1)),
+            origin=full_orig,
+            dtype=bool,
+            cache_key="_ext5",
+            owner=self,
         )
         self._ext6: BoolField = utils.make_storage_from_shape(
-            grid_indexing.domain_full(add=(0, 0, 1)), origin=full_orig, dtype=bool
+            grid_indexing.domain_full(add=(0, 0, 1)),
+            origin=full_orig,
+            dtype=bool,
+            cache_key="_ext6",
+            owner=self,
         )
 
         i_extent: int = i2 - i1 + 1
@@ -572,6 +595,8 @@ class RemapProfile:
             origin=origin,
             domain=domain,
         )
+
+        utils.stencil_call_level -= 1
 
     def __call__(
         self,

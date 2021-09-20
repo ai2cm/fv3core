@@ -1,6 +1,6 @@
 import logging
 from functools import wraps
-from typing import Any, Callable, Dict, Hashable, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, Hashable, List, Optional, Set, Tuple, Union
 
 import gt4py.storage as gt_storage
 import numpy as np
@@ -269,7 +269,98 @@ def make_storage_from_shape_uncached(
     return storage
 
 
-storage_shape_outputs = {}
+class StoragePool:
+    def __init__(self):
+        self._pool: List[List[Any]] = []
+        self._used_storages: Set[int] = set()
+        self._total_size_allocated: int = 0
+
+    def clear_used(self):
+        self._used_storages.clear()
+
+    def get(self, request):
+        while request.call_level > len(self._pool):
+            self._pool.append([])
+
+        storages = self._pool[request.call_level - 1]
+        for storage in storages:
+            if (
+                storage.shape == request.shape
+                and request.dtype == storage.dtype
+                and id(storage) not in self._used_storages
+            ):
+                request._storage = storage
+                break
+
+        if request._storage is None:
+            request._storage = make_storage_from_shape_uncached(
+                request.shape,
+                request.origin,
+                dtype=request.dtype,
+                init=request.init,
+                mask=request._mask,
+            )
+            storages.append(request._storage)
+            self._total_size_allocated += (
+                request._storage.size * request._storage.itemsize
+            )
+
+        self._used_storages.add(id(request._storage))
+
+        return request._storage
+
+
+stencil_call_level: int = 0
+
+storage_pool = StoragePool()
+
+
+class FutureStorage:
+    def __init__(
+        self,
+        shape: Tuple[int, ...],
+        origin: Tuple[int, ...],
+        dtype: DTypes = np.float64,
+        *,
+        init: bool = False,
+        call_level: int = 0,
+        mask: Optional[Tuple[bool, bool, bool]] = None,
+        name: str = "",
+        owner: Optional[Callable] = None,
+        storage_pool: Optional[StoragePool] = None,
+    ):
+        self.shape = shape
+        self.origin = origin
+        self.dtype = dtype
+        self.init = init
+        self.call_level = call_level
+        self._mask = mask
+        self._name = name
+        self._owner = owner
+        self._storage_pool = storage_pool
+        self._storage: Optional[Any] = None
+
+    def allocate(self) -> Any:
+        # Search existing storages at this call level
+        self._storage = self._storage_pool.get(self)
+
+        # Assign storage to owner and remove self from the chain
+        with open("./storage_pool.log", "a") as log:
+            log.write(
+                f"Set storage {id(self._storage)} of shape "
+                f"{self._storage.shape}, dtype={self._storage.dtype} "
+                f"at level {self.call_level} to "
+                f"'{self._owner.__class__.__name__}.{self._name}'\n"
+            )
+        self._owner.__setattr__(self._name, self._storage)
+
+        return self._storage
+
+    @property
+    def storage(self):
+        if self._storage is None:
+            self.allocate()
+        return self._storage
 
 
 def make_storage_from_shape(
@@ -280,6 +371,7 @@ def make_storage_from_shape(
     init: bool = False,
     mask: Optional[Tuple[bool, bool, bool]] = None,
     cache_key: Optional[Hashable] = None,
+    owner: Optional[Callable] = None,
 ) -> Field:
     """Create a new gt4py storage of a given shape. Outputs are memoized
        using a provided cache_key
@@ -310,15 +402,17 @@ def make_storage_from_shape(
         return make_storage_from_shape_uncached(
             shape, origin, dtype=dtype, init=init, mask=mask
         )
-    full_key = (shape, origin, cache_key, dtype, init, mask)
-    if full_key not in storage_shape_outputs:
-        storage_shape_outputs[full_key] = make_storage_from_shape_uncached(
-            shape, origin, dtype=dtype, init=init, mask=mask
-        )
-    return_value = storage_shape_outputs[full_key]
-    if init:
-        return_value[:] = 0.0
-    return return_value
+    return FutureStorage(
+        shape,
+        origin,
+        dtype=dtype,
+        init=init,
+        call_level=stencil_call_level,
+        mask=mask,
+        name=cache_key,
+        owner=owner,
+        storage_pool=storage_pool,
+    )
 
 
 compiled_stencil_classes = {}

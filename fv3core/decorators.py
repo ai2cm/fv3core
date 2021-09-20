@@ -28,6 +28,7 @@ import fv3core.utils.global_config as global_config
 import fv3core.utils.grid
 from fv3core.utils.future_stencil import future_stencil
 from fv3core.utils.global_config import StencilConfig
+from fv3core.utils.gt4py_utils import FutureStorage
 from fv3core.utils.mpi import MPI
 from fv3core.utils.typing import Index3D
 
@@ -154,6 +155,14 @@ class FrozenStencil:
         *args,
         **kwargs,
     ) -> None:
+        args = tuple(
+            [arg.allocate() if isinstance(arg, FutureStorage) else arg for arg in args]
+        )
+        kwargs = {
+            name: arg.allocate() if isinstance(arg, FutureStorage) else arg
+            for name, arg in kwargs.items()
+        }
+
         if self.stencil_config.validate_args:
             if __debug__ and "origin" in kwargs:
                 raise TypeError("origin cannot be passed to FrozenStencil call")

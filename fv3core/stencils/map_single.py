@@ -2,7 +2,6 @@ from typing import Optional
 
 from gt4py.gtscript import FORWARD, PARALLEL, computation, interval
 
-import fv3core._config as spec
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import FrozenStencil
 from fv3core.stencils.basic_operations import copy_defn
@@ -84,21 +83,36 @@ class MapSingle:
         j2: int,
     ):
         # TODO: consider refactoring to take in origin and domain
-        grid = spec.grid
         shape = grid_indexing.domain_full(add=(1, 1, 1))
         origin = grid_indexing.origin_compute()
 
-        self._dp1 = utils.make_storage_from_shape(shape, origin=origin)
-        self._q4_1 = utils.make_storage_from_shape(shape, origin=origin)
-        self._q4_2 = utils.make_storage_from_shape(shape, origin=origin)
-        self._q4_3 = utils.make_storage_from_shape(shape, origin=origin)
-        self._q4_4 = utils.make_storage_from_shape(shape, origin=origin)
-        self._tmp_qs = utils.make_storage_from_shape(shape[0:2], origin=(0, 0))
+        utils.stencil_call_level += 1
+
+        self._dp1 = utils.make_storage_from_shape(
+            shape, origin=origin, cache_key="_dp1", owner=self
+        )
+        self._q4_1 = utils.make_storage_from_shape(
+            shape, origin=origin, cache_key="_q4_1", owner=self
+        )
+        self._q4_2 = utils.make_storage_from_shape(
+            shape, origin=origin, cache_key="_q4_2", owner=self
+        )
+        self._q4_3 = utils.make_storage_from_shape(
+            shape, origin=origin, cache_key="_q4_3", owner=self
+        )
+        self._q4_4 = utils.make_storage_from_shape(
+            shape, origin=origin, cache_key="_q4_4", owner=self
+        )
+        self._tmp_qs = utils.make_storage_from_shape(
+            shape[0:2], origin=(0, 0), cache_key="_tmp_qs", owner=self
+        )
         self._lev = utils.make_storage_from_shape(
             shape[:-1],
             origin=origin[:-1],
             mask=(True, True, False),
             dtype=int,
+            cache_key="_lev",
+            owner=self,
         )
 
         self._extents = (i2 - i1 + 1, j2 - j1 + 1)
@@ -118,6 +132,8 @@ class MapSingle:
             origin=(0, 0, 0),
             domain=grid_indexing.domain_full(),
         )
+
+        utils.stencil_call_level -= 1
 
     @property
     def i_extent(self):

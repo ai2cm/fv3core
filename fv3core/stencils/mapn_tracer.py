@@ -31,8 +31,11 @@ class MapNTracer:
         self._i2 = i2
         self._j1 = j1
         self._j2 = j2
+
+        utils.stencil_call_level += 1
+
         self._qs = utils.make_storage_from_shape(
-            grid_indexing.max_shape, origin=(0, 0, 0)
+            grid_indexing.max_shape, origin=(0, 0, 0), cache_key="_qs", owner=self
         )
 
         kord_tracer = [kord] * self._nq
@@ -54,6 +57,8 @@ class MapNTracer:
             )
         else:
             self._fill_negative_tracers = False
+
+        utils.stencil_call_level -= 1
 
     def __call__(
         self,
@@ -77,6 +82,7 @@ class MapNTracer:
         """
         for i, q in enumerate(utils.tracer_variables[0 : self._nq]):
             self._list_of_remap_objects[i](tracers[q], pe1, pe2, self._qs)
+            utils.storage_pool.clear_used()
 
         if self._fill_negative_tracers is True:
             self._fillz(dp2, tracers)

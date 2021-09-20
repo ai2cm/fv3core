@@ -122,13 +122,25 @@ class FillNegativeTracerValues:
         shape = grid_indexing.domain_full(add=(1, 1, 1))
         shape_ij = shape[0:2]
 
-        self._dm = utils.make_storage_from_shape(shape, origin=(0, 0, 0))
-        self._dm_pos = utils.make_storage_from_shape(shape, origin=(0, 0, 0))
+        utils.stencil_call_level += 1
+        self._dm = utils.make_storage_from_shape(
+            shape, origin=(0, 0, 0), cache_key="_dm", owner=self
+        )
+        self._dm_pos = utils.make_storage_from_shape(
+            shape, origin=(0, 0, 0), cache_key="_dm_pos", owner=self
+        )
         # Setting initial value of upper_fix to zero is only needed for validation.
         # The values in the compute domain are set to zero in the stencil.
-        self._zfix = utils.make_storage_from_shape(shape_ij, dtype=int, origin=(0, 0))
-        self._sum0 = utils.make_storage_from_shape(shape_ij, origin=(0, 0))
-        self._sum1 = utils.make_storage_from_shape(shape_ij, origin=(0, 0))
+        self._zfix = utils.make_storage_from_shape(
+            shape_ij, dtype=int, origin=(0, 0), cache_key="_zfix", owner=self
+        )
+        self._sum0 = utils.make_storage_from_shape(
+            shape_ij, origin=(0, 0), cache_key="_sum0", owner=self
+        )
+        self._sum1 = utils.make_storage_from_shape(
+            shape_ij, origin=(0, 0), cache_key="_sum1", owner=self
+        )
+        utils.stencil_call_level -= 1
 
     def __call__(
         self,
