@@ -392,11 +392,11 @@ def calculate_grid_z(ec1, ec2, vlon, vlat, np):
     z22 = np.sum(ec2 * vlat, axis=-1)
     return z11, z12, z21, z22
 
-def calculate_grid_a(z11, z12, z21, z22,  sin_sg):
-    a11 = 0.5*z22/sin_sg[:,:,4]
-    a12 = 0.5*z12/sin_sg[:,:,4]
-    a21 = 0.5*z21/sin_sg[:,:,4]
-    a22 = 0.5*z11/sin_sg[:,:,4]
+def calculate_grid_a(z11, z12, z21, z22,  sin_sg5):
+    a11 = 0.5*z22/sin_sg5
+    a12 = 0.5*z12/sin_sg5
+    a21 = 0.5*z21/sin_sg5
+    a22 = 0.5*z11/sin_sg5
     return a11, a12, a21, a22
 
 def _global_mx():
