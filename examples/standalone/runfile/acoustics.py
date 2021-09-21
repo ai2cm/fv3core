@@ -122,8 +122,6 @@ def run(data_directory, halo_update, backend, time_steps, reference_run):
             set_dacemode(dacemode)
         print(f"{backend} time:", time.time()-start)
     else:
-        set_dacemode(True)
-
         pr = cProfile.Profile()
         pr.enable()
 
@@ -136,8 +134,6 @@ def run(data_directory, halo_update, backend, time_steps, reference_run):
             ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
             ps.print_stats()
             print(s.getvalue())
-            set_dacemode(False)
-
 
     return state
 
@@ -158,31 +154,31 @@ def driver(
         halo_update,
         time_steps=time_steps,
         backend=backend,
-        reference_run=False,
+        reference_run=not get_dacemode(),
     )
-    #ref_state = run(
-    #    data_directory,
-    #    halo_update,
-    #    time_steps=time_steps,
-    #    backend="numpy",
-    #    reference_run=True,
-    #)
+    ref_state = run(
+        data_directory,
+        halo_update,
+        time_steps=time_steps,
+        backend="numpy",
+        reference_run=True,
+    )
 
-    #for name, ref_value in ref_state.__dict__.items():
+    for name, ref_value in ref_state.__dict__.items():
 
-    #    if name in {"mfxd", "mfyd"}:
-    #        continue
-    #    value = state.__dict__[name]
-    #    if isinstance(ref_value, fv3gfs.util.quantity.Quantity):
-    #        ref_value = ref_value.storage
-    #    if isinstance(value, fv3gfs.util.quantity.Quantity):
-    #        value = value.storage
-    #    if hasattr(value, "device_to_host"):
-    #        value.device_to_host()
-    #    if hasattr(value, "shape") and len(value.shape) == 3:
-    #        value = np.asarray(value)[1:-1, 1:-1, :]
-    #        ref_value = np.asarray(ref_value)[1:-1, 1:-1, :]
-    #    np.testing.assert_allclose(ref_value, value, err_msg=name)
+        if name in {"mfxd", "mfyd"}:
+            continue
+        value = state.__dict__[name]
+        if isinstance(ref_value, fv3gfs.util.quantity.Quantity):
+            ref_value = ref_value.storage
+        if isinstance(value, fv3gfs.util.quantity.Quantity):
+            value = value.storage
+        if hasattr(value, "device_to_host"):
+            value.device_to_host()
+        if hasattr(value, "shape") and len(value.shape) == 3:
+            value = np.asarray(value)[1:-1, 1:-1, :]
+            ref_value = np.asarray(ref_value)[1:-1, 1:-1, :]
+        np.testing.assert_allclose(ref_value, value, err_msg=name)
 
 
 if __name__ == "__main__":
