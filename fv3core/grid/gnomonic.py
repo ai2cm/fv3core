@@ -585,6 +585,7 @@ def spherical_cos(p_center, p2, p3, np):
     """
     As Spherical angle, but returns cos(angle)
     """
+    print(f"SHAPES ARE: {p_center.shape}, {p2.shape}, {p3.shape}\n!!!")
     p = np.cross(p_center, p2)
     q = np.cross(p_center, p3)
     return (

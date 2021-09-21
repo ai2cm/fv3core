@@ -39,5 +39,6 @@ LI0 = HLF - DC_ICE * TICE
 #grid constants
 LON_OR_LAT_DIM = "lon_or_lat"
 TILE_DIM = "tile"
+CARTESIAN_DIM = "xyz_direction"
 N_TILES=6
 RIGHT_HAND_GRID = False

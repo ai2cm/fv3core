@@ -4,25 +4,29 @@ from fv3core.utils.global_constants import PI
 from .gnomonic import lon_lat_to_xyz, xyz_midpoint, normalize_xyz, spherical_cos, get_unit_vector_direction, lon_lat_midpoint, get_lonlat_vect, _vect_cross, great_circle_distance_lon_lat
 
 def get_center_vector(xyz_gridpoints, grid_type, nhalo, tile_partitioner, rank, np):
-
+    '''
+    Calculates the unit vector pointing to the center of each grid cell.
+    vector1 comes from using the halfway points of the left and top cell edges, while
+    vector2 comes from using the halfway points of the bottom and right cell edges
+    '''
     if grid_type < 3:
         if False: #ifdef OLD_VECT
             vector1 = xyz_gridpoints[1:, :-1, :] + xyz_gridpoints[1:, 1:, :] - xyz_gridpoints[:-1, :-1, :] - xyz_gridpoints[:-1, 1:, :]
             vector2 = xyz_gridpoints[:-1, 1:, :] + xyz_gridpoints[1:, 1:, :] - xyz_gridpoints[:-1, :-1, :] - xyz_gridpoints[1:, :-1, :]
         else:
             center_points = xyz_midpoint(
-                xyz_gridpoints[:-1, :-1, 0],
-                xyz_gridpoints[1:, :-1, 0],
-                xyz_gridpoints[:-1, 1:, 0],
-                xyz_gridpoints[1:, 1:, 0])
+                xyz_gridpoints[:-1, :-1, :],
+                xyz_gridpoints[1:, :-1, :],
+                xyz_gridpoints[:-1, 1:, :],
+                xyz_gridpoints[1:, 1:, :])
             
-            p1 = xyz_midpoint(xyz_gridpoints[:-1, :-1, 0], xyz_gridpoints[:-1, 1:, ])
-            p2 = xyz_midpoint(xyz_gridpoints[1:, :-1, 0], xyz_gridpoints[1:, 1:, 0])
+            p1 = xyz_midpoint(xyz_gridpoints[:-1, :-1, :], xyz_gridpoints[:-1, 1:, :])
+            p2 = xyz_midpoint(xyz_gridpoints[1:, :-1, :], xyz_gridpoints[1:, 1:, :])
             p3 = np.cross(p1, p2)
             vector1 = normalize_xyz(np.cross( center_points, p3))
 
-            p1 = xyz_midpoint(xyz_gridpoints[:-1, :-1, 0], xyz_gridpoints[1:, :-1, 0])
-            p2 = xyz_midpoint(xyz_gridpoints[:-1, 1:, 0], xyz_gridpoints[1:, 1:, 0])
+            p1 = xyz_midpoint(xyz_gridpoints[:-1, :-1, :], xyz_gridpoints[1:, :-1, :])
+            p2 = xyz_midpoint(xyz_gridpoints[:-1, 1:, :], xyz_gridpoints[1:, 1:, :])
             p3 = np.cross(p1, p2)
             vector2 = normalize_xyz(np.cross( center_points, p3))
 
@@ -52,7 +56,9 @@ def get_center_vector(xyz_gridpoints, grid_type, nhalo, tile_partitioner, rank, 
 
 def calc_unit_vector_west(xyz_dgrid, xyz_agrid, grid_type, nhalo, tile_partitioner, rank, np):
     """
-    Calculates the unit vector pointing west from every grid cell
+    Calculates the cartesian unit vector pointing west from every grid cell.
+    The first set of values is the horizontal component, the second is the vertical component as 
+    defined by the cell edges -- in a non-spherical grid these will be x and y unit vectors.
     """
     if grid_type < 3:
         pp = xyz_midpoint(xyz_dgrid[1:-1,:-1,:3], xyz_dgrid[1:-1, 1:, :3])
@@ -65,7 +71,7 @@ def calc_unit_vector_west(xyz_dgrid, xyz_agrid, grid_type, nhalo, tile_partition
         
         ew1 = normalize_xyz(np.cross(p2, pp))
         
-        p1 = np.cross(xyz_dgrid[1:-1, :-1, 0], xyz_dgrid[1:-1, 1:, 0])
+        p1 = np.cross(xyz_dgrid[1:-1, :-1, :], xyz_dgrid[1:-1, 1:, :])
         ew2 = normalize_xyz(np.cross(p1, pp))
 
         ew = np.stack((ew1, ew2), axis=-1)
@@ -93,7 +99,9 @@ def calc_unit_vector_west(xyz_dgrid, xyz_agrid, grid_type, nhalo, tile_partition
 
 def calc_unit_vector_south(xyz_dgrid, xyz_agrid, grid_type, nhalo, tile_partitioner, rank, np):
     """
-    Calculates the unit vector pointing west from every grid cell
+    Calculates the cartesian unit vector pointing south from every grid cell.
+    The first set of values is the horizontal component, the second is the vertical component as 
+    defined by the cell edges -- in a non-spherical grid these will be x and y unit vectors.
     """
     if grid_type < 3:
         pp = xyz_midpoint(xyz_dgrid[:-1, 1:-1, :3], xyz_dgrid[1:, 1:-1, :3])
@@ -105,7 +113,7 @@ def calc_unit_vector_south(xyz_dgrid, xyz_agrid, grid_type, nhalo, tile_partitio
         
         es2 = normalize_xyz(np.cross(p2, pp))
         
-        p1 = np.cross(xyz_dgrid[:-1, 1:-1, 0], xyz_dgrid[1:, 1:-1, 0])
+        p1 = np.cross(xyz_dgrid[:-1, 1:-1, :], xyz_dgrid[1:, 1:-1, :])
         es1 = normalize_xyz(np.cross(p1, pp))
 
         es = np.stack((es1, es2), axis=-1)
@@ -130,14 +138,14 @@ def calc_unit_vector_south(xyz_dgrid, xyz_agrid, grid_type, nhalo, tile_partitio
     
     return es
 
-def calculate_cos_sin_sg(xyz_dgrid, xyz_agrid, ec1, ec2, grid_type, nhalo, tile_partitioner, rank, np):
+def calculate_supergrid_cos_sin(xyz_dgrid, xyz_agrid, ec1, ec2, grid_type, nhalo, tile_partitioner, rank, np):
     """
-    Calculates the cosine and sine of the corner and side angles at each of the following points:
-    8---3---7
+    Calculates the cosine and sine of the grid angles at each of the following points in a supergrid cell:
+    9---4---8
     |       |
-    0   4   2
+    1   5   3
     |       |
-    5---1---6
+    6---2---7
     """
     big_number = 1.e8
     tiny_number = 1.e-8
@@ -147,19 +155,19 @@ def calculate_cos_sin_sg(xyz_dgrid, xyz_agrid, ec1, ec2, grid_type, nhalo, tile_
     sin_sg = np.zeros((shape_a[0], shape_a[1], 9))+tiny_number
 
     if grid_type < 3:
-        cos_sg[:, :, 5] = spherical_cos(xyz_dgrid[:-1, :-1, 0], xyz_dgrid[1:, :-1, 0], xyz_dgrid[:-1, 1:, 0])
-        cos_sg[:, :, 6] = -1 * spherical_cos(xyz_dgrid[1:, :-1, 0], xyz_dgrid[:-1, :-1, 0], xyz_dgrid[1:, 1:, 0])
-        cos_sg[:, :, 7] = spherical_cos(xyz_dgrid[1:, 1:, 0], xyz_dgrid[1:, :-1, 0], xyz_dgrid[:-1, 1:, 0])
-        cos_sg[:, :, 8] = -1 * spherical_cos(xyz_dgrid[:-1, 1:, 0], xyz_dgrid[:-1, :-1, 0], xyz_dgrid[1:, 1:, 0])
+        cos_sg[:, :, 5] = spherical_cos(xyz_dgrid[:-1, :-1, :], xyz_dgrid[1:, :-1, :], xyz_dgrid[:-1, 1:, :], np)
+        cos_sg[:, :, 6] = -1 * spherical_cos(xyz_dgrid[1:, :-1, :], xyz_dgrid[:-1, :-1, :], xyz_dgrid[1:, 1:, :], np)
+        cos_sg[:, :, 7] = spherical_cos(xyz_dgrid[1:, 1:, :], xyz_dgrid[1:, :-1, :], xyz_dgrid[:-1, 1:, :], np)
+        cos_sg[:, :, 8] = -1 * spherical_cos(xyz_dgrid[:-1, 1:, :], xyz_dgrid[:-1, :-1, :], xyz_dgrid[1:, 1:, :], np)
 
-        midpoint = xyz_midpoint(xyz_dgrid[:-1, :-1, 0], xyz_dgrid[:-1, 1:, 0])
-        cos_sg[:, :, 0] = spherical_cos(midpoint, xyz_agrid[:, :, 0], xyz_dgrid[:-1, 1:, 0])
-        midpoint = xyz_midpoint(xyz_dgrid[:-1, :-1, 0], xyz_dgrid[1:, :-1, 0])
-        cos_sg[:, :, 1] = spherical_cos(midpoint, xyz_dgrid[1:, :-1, 0], xyz_agrid[:, :, 0])
-        midpoint = xyz_midpoint(xyz_dgrid[1:, :-1, 0], xyz_dgrid[1:, 1:, 0])
-        cos_sg[:, :, 2] = spherical_cos(midpoint, xyz_agrid[:, :, 0], xyz_dgrid[1:, :-1, 0])
-        midpoint = xyz_midpoint(xyz_dgrid[:-1, 1:, 0], xyz_dgrid[1:, 1:, 0])
-        cos_sg[:, :, 3] = spherical_cos(midpoint, xyz_dgrid[:-1, 1:, 0], xyz_agrid[:, :, 0])
+        midpoint = xyz_midpoint(xyz_dgrid[:-1, :-1, :], xyz_dgrid[:-1, 1:, :])
+        cos_sg[:, :, 0] = spherical_cos(midpoint, xyz_agrid[:, :, :], xyz_dgrid[:-1, 1:, :], np)
+        midpoint = xyz_midpoint(xyz_dgrid[:-1, :-1, :], xyz_dgrid[1:, :-1, :])
+        cos_sg[:, :, 1] = spherical_cos(midpoint, xyz_dgrid[1:, :-1, :], xyz_agrid[:, :, :], np)
+        midpoint = xyz_midpoint(xyz_dgrid[1:, :-1, :], xyz_dgrid[1:, 1:, :])
+        cos_sg[:, :, 2] = spherical_cos(midpoint, xyz_agrid[:, :, :], xyz_dgrid[1:, :-1, :], np)
+        midpoint = xyz_midpoint(xyz_dgrid[:-1, 1:, :], xyz_dgrid[1:, 1:, :])
+        cos_sg[:, :, 3] = spherical_cos(midpoint, xyz_dgrid[:-1, 1:, :], xyz_agrid[:, :, :], np)
 
         cos_sg[:, :, 4] = np.sum(ec1*ec2, axis=-1)
 
@@ -216,18 +224,18 @@ def calculate_trig_uv(xyz_dgrid, cos_sg, sin_sg, nhalo, tile_partitioner, rank, 
     cosa_u = sina_u = np.zeros(xyz_dgrid[:,:,0].shape)+big_number
     cosa_v = sina_v = np.zeros(xyz_dgrid[:,:,0].shape)+big_number
 
-    cross_vect_x = _vect_cross(xyz_dgrid[nhalo-1:-nhalo-1, nhalo:-nhalo, 0], xyz_dgrid[nhalo+1:-nhalo+1, nhalo:-nhalo, 0])
+    cross_vect_x = _vect_cross(xyz_dgrid[nhalo-1:-nhalo-1, nhalo:-nhalo, :], xyz_dgrid[nhalo+1:-nhalo+1, nhalo:-nhalo, :])
     if tile_partitioner.on_tile_left(rank):
-        cross_vect_x[0,:] = _vect_cross(xyz_dgrid[nhalo, nhalo:-nhalo,0], xyz_dgrid[nhalo+1, nhalo:-nhalo, 0])
+        cross_vect_x[0,:] = _vect_cross(xyz_dgrid[nhalo, nhalo:-nhalo, :], xyz_dgrid[nhalo+1, nhalo:-nhalo, :])
     if tile_partitioner.on_tile_right(rank):
-        cross_vect_x[-1, :] = _vect_cross(xyz_dgrid[-2, nhalo:-nhalo, 0], xyz_dgrid[-1, nhalo:-nhalo, 0])
+        cross_vect_x[-1, :] = _vect_cross(xyz_dgrid[-2, nhalo:-nhalo, :], xyz_dgrid[-1, nhalo:-nhalo, :])
     unit_x_vector = normalize_xyz(_vect_cross(cross_vect_x, xyz_dgrid[nhalo:-nhalo, nhalo:-nhalo]))
 
-    cross_vect_y = _vect_cross(xyz_dgrid[nhalo:-nhalo, nhalo-1:-nhalo-1, 0], xyz_dgrid[nhalo:-nhalo, nhalo+1:-nhalo+1, 0])
+    cross_vect_y = _vect_cross(xyz_dgrid[nhalo:-nhalo, nhalo-1:-nhalo-1, :], xyz_dgrid[nhalo:-nhalo, nhalo+1:-nhalo+1, :])
     if tile_partitioner.on_tile_bottom(rank):
-        cross_vect_y[:,0] = _vect_cross(xyz_dgrid[nhalo:-nhalo, nhalo, 0], xyz_dgrid[nhalo:-nhalo, nhalo+1, 0])
+        cross_vect_y[:,0] = _vect_cross(xyz_dgrid[nhalo:-nhalo, nhalo, :], xyz_dgrid[nhalo:-nhalo, nhalo+1, :])
     if tile_partitioner.on_tile_top(rank):
-        cross_vect_y[:, -1] = _vect_cross(xyz_dgrid[nhalo:-nhalo, -2, 0], xyz_dgrid[nhalo:-nhalo, -1, 0])
+        cross_vect_y[:, -1] = _vect_cross(xyz_dgrid[nhalo:-nhalo, -2, :], xyz_dgrid[nhalo:-nhalo, -1, :])
     unit_y_vector = normalize_xyz(_vect_cross(cross_vect_y, xyz_dgrid[nhalo:-nhalo, nhalo:-nhalo]))
 
     if False: #TEST_FP
@@ -289,7 +297,7 @@ def calculate_trig_uv(xyz_dgrid, cos_sg, sin_sg, nhalo, tile_partitioner, rank, 
 
     return cosa, sina, cosa_u, cosa_v, cosa_s, sina_u, sina_v, rsin_u, rsin_v, rsina, rsin2, unit_x_vector, unit_y_vector
 
-def sg_corner_fix(cos_sg, sin_sg, nhalo, tile_partitioner, rank):
+def supergrid_corner_fix(cos_sg, sin_sg, nhalo, tile_partitioner, rank):
     """
     _fill_ghost overwrites some of the sin_sg 
     values along the outward-facing edge of a tile in the corners, which is incorrect. 
