@@ -2,7 +2,6 @@ import collections
 import collections.abc
 import functools
 import inspect
-import os
 import types
 from typing import (
     Any,
@@ -29,7 +28,6 @@ import fv3core.utils.global_config as global_config
 import fv3core.utils.grid
 from fv3core.utils.future_stencil import future_stencil
 from fv3core.utils.global_config import StencilConfig
-from fv3core.utils.gt4py_utils import serialize
 from fv3core.utils.mpi import MPI
 from fv3core.utils.typing import Index3D
 
@@ -118,7 +116,6 @@ class FrozenStencil:
 
         if externals is None:
             externals = {}
-        self._externals = externals
 
         stencil_function = gtscript.stencil
         stencil_kwargs = {**self.stencil_config.stencil_kwargs}
@@ -164,10 +161,6 @@ class FrozenStencil:
         *args,
         **kwargs,
     ) -> None:
-        if kwargs.pop("serialize", False):
-            self._serialize_data(*args, **kwargs)
-        exec_info: Dict[str, Any] = {} if kwargs.pop("profile", False) else None
-
         if self.stencil_config.validate_args:
             if __debug__ and "origin" in kwargs:
                 raise TypeError("origin cannot be passed to FrozenStencil call")
@@ -179,67 +172,13 @@ class FrozenStencil:
                 origin=self._field_origins,
                 domain=self.domain,
                 validate_args=True,
-                exec_info=exec_info,
             )
         else:
             args_as_kwargs = dict(zip(self._argument_names, args))
             self.stencil_object.run(
-                **args_as_kwargs,
-                **kwargs,
-                **self._stencil_run_kwargs,
-                exec_info=exec_info,
+                **args_as_kwargs, **kwargs, **self._stencil_run_kwargs, exec_info=None
             )
             self._mark_cuda_fields_written({**args_as_kwargs, **kwargs})
-
-        if exec_info is not None:
-            self._write_profile(exec_info)
-
-    def _serialize_data(self, *args: Any, **kwargs: Any) -> str:
-        file_stub: str = self.stencil_object._file_name.replace(".py", "")
-        if MPI is not None and MPI.COMM_WORLD.Get_size() > 1:
-            file_stub += "_r%d" % MPI.COMM_WORLD.Get_rank()
-
-        file_num: int = 0
-        file_name: str = f"{file_stub}_n{file_num}"
-        while os.path.exists(file_name):
-            file_num += 1
-            file_name = f"{file_stub}_n{file_num}"
-
-        args_as_kwargs = dict(zip(self._argument_names, args))
-        args_as_kwargs.update(
-            {"externals": self._externals, "origin": self.origin, "domain": self.domain}
-        )
-
-        serialize(file_name, **args_as_kwargs, **kwargs)
-
-        return file_name
-
-    def _write_profile(self, exec_info: Dict[str, Any]) -> None:
-        file_stub: str = self.stencil_object._file_name.replace(".py", "")
-        csv_file: str = f"{file_stub}.csv"
-        stencil_name: str = file_stub.split("/")[-1]
-
-        if not os.path.exists(csv_file):
-            with open(csv_file, "w") as csv:
-                csv.write("stencil,call_time,run_time,cpp_time,py_diff\n")
-
-        run_time = exec_info["run_end_time"] - exec_info["run_start_time"]
-        call_time = (
-            exec_info["call_end_time"] - exec_info["call_start_time"]
-            if "call_end_time" in exec_info
-            else 0.0
-        )
-        cpp_time = (
-            exec_info["run_cpp_end_time"] - exec_info["run_cpp_start_time"]
-            if "run_cpp_end_time" in exec_info
-            else 0.0
-        )
-
-        with open(csv_file, "a") as csv:
-            csv.write(
-                "%s,%.6e,%.6e,%.6e,%.6e\n"
-                % (stencil_name, call_time, run_time, cpp_time, run_time - cpp_time)
-            )
 
     def _mark_cuda_fields_written(self, fields: Mapping[str, Storage]):
         if global_config.is_gpu_backend():
