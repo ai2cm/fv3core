@@ -65,10 +65,6 @@ shopt -s expand_aliases
 # Download the env
 . ${envloc}/env.sh
 
-# If the backend is a GTC backend we fetch the caches
-if [[ $backend != *numpy* ]];then
-    . ${envloc}/env/fetch_caches.sh $backend $experiment
-fi
 
 
 # setup module environment and default queue
@@ -78,6 +74,11 @@ export python_env=${python_env}
 echo "PYTHON env ${python_env}"
 # get root directory of where jenkins.sh is sitting
 export jenkins_dir=`dirname $0`
+
+# If the backend is a GTC backend we fetch the caches
+if [[ $backend != *numpy* ]];then
+    . ${jenkins_dir}/actions/fetch_caches.sh $backend $experiment
+fi
 
 # load machine dependent environment
 if [ ! -f ${envloc}/env/env.${host}.sh ] ; then
