@@ -21,8 +21,8 @@ exitError()
     exit $1
 }
 
-experiment=$1
-backend=$2
+backend=$1
+experiment=$2
 CACHE_DIR="/scratch/snx3000/olifu/jenkins/scratch/store_gt_caches/${experiment}/${backend}"
 
 test -n "${experiment}" || exitError 1001 ${LINENO} "experiment is not defined"
