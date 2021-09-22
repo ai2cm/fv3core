@@ -401,13 +401,17 @@ class MetricTerms:
             RADIUS,
             self._np,
         )
-        #set_corner_area_to_triangle_area(
-        #    lon=self._agrid.data[2:-3, 2:-3, 0],
-        #    lat=self._agrid.data[2:-3, 2:-3, 1],
-        #    area=area_cgrid.data[3:-3, 3:-3],
-        #    radius=RADIUS,
-        #    np=self._np,
-        #)
+        # TODO -- this does not seem to matter? running with or without does
+        # not change whether it validates
+        set_corner_area_to_triangle_area(
+            lon=self._agrid.data[2:-3, 2:-3, 0],
+            lat=self._agrid.data[2:-3, 2:-3, 1],
+            area=area_cgrid.data[3:-3, 3:-3],
+            tile_partitioner=self._comm.tile.partitioner,
+            rank = self._comm.rank,
+            radius=RADIUS,
+            np=self._np,
+        )
 
         set_c_grid_tile_border_area(
            self._dgrid_xyz[2:-2, 2:-2, :],

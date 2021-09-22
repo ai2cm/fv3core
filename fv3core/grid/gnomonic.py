@@ -1,6 +1,6 @@
 import typing
 from fv3core.utils.global_constants import PI
-
+import math
 def gnomonic_grid(grid_type: int, lon, lat, np):
     """
     Apply gnomonic grid to lon and lat arrays
@@ -141,7 +141,7 @@ def lon_lat_to_xyz(lon, lat, np):
     x = np.cos(lat) * np.cos(lon)
     y = np.cos(lat) * np.sin(lon)
     z = np.sin(lat)
-    x, y, z = normalize_vector(np, x, y, z)
+    #x, y, z = normalize_vector(np, x, y, z)
     xyz = np.concatenate([arr[:, :, None] for arr in (x, y, z)], axis=-1)
     return xyz
 
@@ -322,8 +322,7 @@ def get_area(lon, lat, radius, np):
         lower_left, upper_left, upper_right, lower_right, radius, np
     )
 
-
-def set_corner_area_to_triangle_area(lon, lat, area, radius,  tile_partitioner, rank,np):
+def set_corner_area_to_triangle_area(lon, lat, area, tile_partitioner, rank,radius, np):
     """
     Given latitude and longitude on cell corners, and an array of cell areas, set the
     four corner areas to the area of the inner triangle at those corners.
@@ -377,35 +376,19 @@ def set_c_grid_tile_border_area(
 
     if tile_partitioner.on_tile_left(rank):
         _set_c_grid_west_edge_area(xyz_dgrid, xyz_agrid, area_cgrid, radius, np)
-        """
-        if tile_partitioner.on_tile_top(rank):
-             _set_c_grid_northwest_corner_area(
-                 xyz_dgrid, xyz_agrid, area_cgrid, radius, np
-             )
-        if tile_partitioner.on_tile_bottom(rank):
-            _set_c_grid_southwest_corner_area_mod(
-                xyz_dgrid, xyz_agrid, area_cgrid, radius, np
-            )
-        """
+
     if tile_partitioner.on_tile_top(rank):
         _set_c_grid_north_edge_area(xyz_dgrid, xyz_agrid, area_cgrid, radius, np)
-        #if tile_partitioner.on_tile_right(rank):
-        #    _set_c_grid_northeast_corner_area(
-        #        xyz_dgrid, xyz_agrid, area_cgrid, radius, np
-        #    )
+      
     if tile_partitioner.on_tile_right(rank):
         _set_c_grid_east_edge_area(xyz_dgrid, xyz_agrid, area_cgrid, radius, np)
-        #if tile_partitioner.on_tile_bottom(rank):
-        #    _set_c_grid_southeast_corner_area(
-        #        xyz_dgrid, xyz_agrid, area_cgrid, radius, np
-        #    )
+       
     if tile_partitioner.on_tile_bottom(rank):
         _set_c_grid_south_edge_area(xyz_dgrid, xyz_agrid, area_cgrid, radius, np)
-        #if tile_partitioner.on_tile_left(rank):
-        #    _set_c_grid_southwest_corner_area_mod(
-        #        xyz_dgrid, xyz_agrid, area_cgrid, radius, np
-        #    )
+      
     """
+# TODO add these back if we change the fortran side, or 
+#  decide the 'if sw_corner' should happen
     if tile_partitioner.on_tile_left(rank):
         if tile_partitioner.on_tile_top(rank):
              _set_c_grid_northwest_corner_area(
@@ -425,6 +408,7 @@ def set_c_grid_tile_border_area(
                 xyz_dgrid, xyz_agrid, area_cgrid, radius, np
             )
     """
+
 def _set_c_grid_west_edge_area(xyz_dgrid, xyz_agrid, area_cgrid, radius, np):
     xyz_y_center = 0.5 * (xyz_dgrid[1, :-1] + xyz_dgrid[1, 1:])
     area_cgrid[0, :] = 2 * get_rectangle_area(
@@ -435,7 +419,6 @@ def _set_c_grid_west_edge_area(xyz_dgrid, xyz_agrid, area_cgrid, radius, np):
         radius,
         np,
     )
-
 
 def _set_c_grid_east_edge_area(xyz_dgrid, xyz_agrid, area_cgrid, radius, np):
     _set_c_grid_west_edge_area(
@@ -535,11 +518,14 @@ def _set_tile_south_dyc(xyz_dgrid, xyz_agrid, radius, dyc, np):
         np,
     )
 
-
 def get_rectangle_area(p1, p2, p3, p4, radius, np):
     """
     Given four point arrays whose last dimensions are x/y/z in clockwise or
     counterclockwise order, return an array of spherical rectangle areas.
+    NOTE, this is not the exact same order of operations as the Fortran code
+    This results in some errors in the last digit, but the spherical_angle
+    is an exact match. The errors in the last digit multipled out by the radius
+    end up causing relative errors larger than 1e-14, but still wtihin 1e-12.
     """
     total_angle = spherical_angle(p2, p3, p1, np)
     for (
@@ -548,6 +534,7 @@ def get_rectangle_area(p1, p2, p3, p4, radius, np):
         q3,
     ) in ((p3, p2, p4), (p4, p3, p1), (p1, p4, p2)):
         total_angle += spherical_angle(q1, q2, q3, np)
+    
     return (total_angle - 2 * PI) * radius ** 2
 
 
@@ -562,6 +549,53 @@ def get_triangle_area(p1, p2, p3, radius, np):
         total_angle += spherical_angle(q1, q2, q3, np)
     return (total_angle - PI) * radius ** 2
 
+def fortran_vector_spherical_angle(e1,e2,e3):
+    """
+   The Fortran version
+    Given x/y/z tuples, compute the spherical angle between
+    them according to:
+!           p3
+!         /
+!        /
+!       p_center ---> angle
+!         \
+!          \
+!           p2
+    This angle will always be less than Pi.
+    """
+
+    # ! Vector P:
+    #    px = e1(2)*e2(3) - e1(3)*e2(2)
+    #    py = e1(3)*e2(1) - e1(1)*e2(3)
+    #    pz = e1(1)*e2(2) - e1(2)*e2(1)
+    # ! Vector Q:
+    #    qx = e1(2)*e3(3) - e1(3)*e3(2)
+    #    qy = e1(3)*e3(1) - e1(1)*e3(3)
+    #    qz = e1(1)*e3(2) - e1(2)*e3(1)
+
+    # Vector P:
+    px = e1[1]*e2[2] - e1[2]*e2[1]
+    py = e1[2]*e2[0] - e1[0]*e2[2]
+    pz = e1[0]*e2[1] - e1[1]*e2[0]
+    # Vector Q:
+    qx = e1[1]*e3[2] - e1[2]*e3[1]
+    qy = e1[2]*e3[0] - e1[0]*e3[2]
+    qz = e1[0]*e3[1] - e1[1]*e3[0]
+    ddd = (px*px+py*py+pz*pz)*(qx*qx+qy*qy+qz*qz)
+    
+    if ddd <= 0.0:
+        angle = 0.0
+    else:
+        ddd = (px*qx+py*qy+pz*qz) / math.sqrt(ddd)
+        if abs(ddd) > 1.0:
+            # FIX (lmh) to correctly handle co-linear points (angle near pi or 0)
+            if ddd < 0.0:
+                angle = 4.0 * math.atan(1.0) # should be pi
+            else:
+                angle = 0.0
+        else:
+            angle = math.acos(ddd)
+    return angle
 
 def spherical_angle(p_center, p2, p3, np):
     """
@@ -585,13 +619,20 @@ def spherical_angle(p_center, p2, p3, np):
     #    qx = e1(2)*e3(3) - e1(3)*e3(2)
     #    qy = e1(3)*e3(1) - e1(1)*e3(3)
     #    qz = e1(1)*e3(2) - e1(2)*e3(1)
+
     p = np.cross(p_center, p2)
     q = np.cross(p_center, p3)
-    return np.arccos(
+    angle =  np.arccos(
         np.sum(p * q, axis=-1)
         / np.sqrt(np.sum(p ** 2, axis=-1) * np.sum(q ** 2, axis=-1))
     )
-
+    if not np.isscalar(angle):
+        angle[np.isnan(angle)] = 0.0
+    elif math.isnan(angle):
+        angle = 0.0
+    
+   
+    return angle 
 #    ddd = (px*px+py*py+pz*pz)*(qx*qx+qy*qy+qz*qz)
 
 #    if ( ddd <= 0.0d0 ) then

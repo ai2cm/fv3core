@@ -116,7 +116,7 @@ MoreAreas:
 
 GridAreas:
   - backend: numpy
-    max_error: 3e-14
+    max_error: 3e-12
     ignore_near_zero_errors:
       agrid: 3e-14
       dxc: 3e-14
@@ -132,7 +132,7 @@ DxDy:
 
 InitGrid:
   - backend: numpy
-    max_error: 3e-14
+    max_error: 3e-12
     ignore_near_zero_errors:
       gridvar: 3e-14
       agrid: 3e-14

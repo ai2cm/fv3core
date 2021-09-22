@@ -380,7 +380,6 @@ class TranslateGridGrid(ParallelTranslateGrid):
             "radians",
             dtype=float,
         )
-        # print(grid_global.np.shape(grid_global.data))
         lon = self.grid.quantity_factory.zeros(
             [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM], "radians", dtype=float
         )
@@ -733,12 +732,6 @@ latlon=Atm(n)%gridstruct%latlon
 cubedsphere=Atm(n)%gridstruct%latlon
     """
     outputs: Dict[str, Any] = {
-        "area_c": {
-            "name": "area_cgrid",
-            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM],
-            "units": "m^2",
-        },}
-    """
         "gridvar": {
             "name": "grid",
             "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM, LON_OR_LAT_DIM],
@@ -755,7 +748,11 @@ cubedsphere=Atm(n)%gridstruct%latlon
             "dims": [fv3util.X_DIM, fv3util.Y_DIM],
             "units": "m^2",
         },
-        
+         "area_c": {
+            "name": "area_cgrid",
+            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM],
+            "units": "m^2",
+        },
         
         "dx": {
             "name": "dx",
@@ -788,7 +785,6 @@ cubedsphere=Atm(n)%gridstruct%latlon
             "units": "m",
         },
     }
-     """
     
     
     def __init__(self, grids):
@@ -847,7 +843,6 @@ cubedsphere=Atm(n)%gridstruct%latlon
             "radians",
             dtype=float,
         )
-        # print(grid_global.np.shape(grid_global.data))
         lon = global_quantity_factory.zeros(
             [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM], "radians", dtype=float
         )
@@ -878,23 +873,8 @@ cubedsphere=Atm(n)%gridstruct%latlon
         # more global copying
         npx = self.grid.npx
         npy = self.grid.npy
-        """
-        grid_global.data[0, 0:npy, :, 1] = grid_global.data[npx, 0:npy, :, 0]
-        #for xi in range(npx - 1, -1, -1):
-        for yi in range(npy):
-            grid_global.data[0, yi, :, 2] = grid_global.data[npx - yi, grid.npy - 1, :, 0]
-        for xi in range(npx):
-            grid_global.data[xi, npy - 1, :, 4] = grid_global.data[0, npy - xi, :, 0]
-        grid_global.data[0:self.npx, npy - 1, :, 5] = grid_global.data[0:self.npx, 0, :, 0]
-
-        grid_global.data[0:self.npx, 0, :, 2] = grid_global.data[0:self.npx, npy - 1, :, 1]
-        for xi in range(npx):
-            grid_global.data[xi, 0, :, 3] = grid_global.data[npx - 1, npy - xi, :, 1]
-        for yi in range(npy):
-            grid_global.data[npx - 1, yi, :, 5] = grid_global.data[npx - yi, 0, :, 1]
-        """
-        print('global values', grid_global.data[0,0,0,0], grid_global.data[3,3,0,0],  grid_global.data[0,0,1,0], grid_global.data[3,3,1,0])
-        #  0.0 5.323254218582705 0.0 -0.6154797086703873
+        
+       
         state_list = []
         for i, inputs in enumerate(inputs_list):
             rank_grid = self.rank_grids[i]
@@ -903,7 +883,6 @@ cubedsphere=Atm(n)%gridstruct%latlon
                 dims=[fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM, LON_OR_LAT_DIM],
                 units="radians",dtype=float
             )
-            #print('hmmmm',grid.data.shape, grid_global.data.shape, rank_grid.global_is, rank_grid.global_ie+1, rank_grid.global_js, rank_grid.global_je+1, rank_grid.is_,rank_grid.ie+1, rank_grid.js,rank_grid.je+1,rank_grid.rank,  tile_index)
             this_grid.data[rank_grid.is_:rank_grid.ie+2, rank_grid.js:rank_grid.je+2, :] = grid_global.data[rank_grid.global_is:rank_grid.global_ie+2, rank_grid.global_js:rank_grid.global_je+2, :, tile_index]
         
             
@@ -1000,7 +979,7 @@ cubedsphere=Atm(n)%gridstruct%latlon
 
         #Calculate a-grid areas and initial c-grid area
         for i, state in enumerate(state_list):
-            self._compute_local_areas_pt1(state, local_quantity_factory)
+            self._compute_local_areas_pt1(state, communicator_list[i], local_quantity_factory)
             
 
         #Finish c-grid areas, calculate sidelengths on the c-grid
@@ -1150,7 +1129,7 @@ cubedsphere=Atm(n)%gridstruct%latlon
       
 
 
-    def _compute_local_areas_pt1(self, state, local_quantity_factory):
+    def _compute_local_areas_pt1(self, state, communicator, local_quantity_factory):
         state["area"] = local_quantity_factory.zeros(
             [fv3util.X_DIM, fv3util.Y_DIM], "m^2"
         )
@@ -1170,17 +1149,17 @@ cubedsphere=Atm(n)%gridstruct%latlon
             RADIUS,
             state["grid"].np,
         )
-        #set_corner_area_to_triangle_area(
-        #    lon=state["agrid"].data[2:-3, 2:-3, 0],
-        #    lat=state["agrid"].data[2:-3, 2:-3, 1],
-        #    area=state["area_cgrid"].data[3:-3, 3:-3],
-        #    radius=RADIUS,
-        # communicator.tile.partitioner,
-        #    communicator.rank,
-        #    np=state["grid"].np,
-        #)
+        set_corner_area_to_triangle_area(
+            lon=state["agrid"].data[2:-3, 2:-3, 0],
+            lat=state["agrid"].data[2:-3, 2:-3, 1],
+            area=state["area_cgrid"].data[3:-3, 3:-3],
+            tile_partitioner=communicator.tile.partitioner,
+            rank=communicator.rank,
+            radius=RADIUS,
+            np=state["grid"].np,
+        )
        
-
+# rank = 0  diff 0.0360107421875,  diff 0.0721435546875
     def _compute_local_areas_pt2(self, state, communicator):
         xyz_dgrid = lon_lat_to_xyz(
             state["grid"].data[:, :, 0], state["grid"].data[:, :, 1], state["grid"].np
