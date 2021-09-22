@@ -57,11 +57,6 @@ action="$1"
 backend="$input_backend"
 experiment="$3"
 
-# If the backend is a GTC backend we fetch the caches
-if [[ $backend != *numpy* ]];then
-    . ${envloc}/env/fetch_caches.sh $backend $experiment
-fi
-
 # check presence of env directory
 pushd `dirname $0` > /dev/null
 envloc=`/bin/pwd`
@@ -69,6 +64,12 @@ popd > /dev/null
 shopt -s expand_aliases
 # Download the env
 . ${envloc}/env.sh
+
+# If the backend is a GTC backend we fetch the caches
+if [[ $backend != *numpy* ]];then
+    . ${envloc}/env/fetch_caches.sh $backend $experiment
+fi
+
 
 # setup module environment and default queue
 test -f ${envloc}/env/machineEnvironment.sh || exitError 1201 ${LINENO} "cannot find machineEnvironment.sh script"
