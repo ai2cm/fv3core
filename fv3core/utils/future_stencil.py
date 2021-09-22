@@ -1,5 +1,5 @@
-import abc
 import time
+from abc import abstractmethod
 from typing import Any, Callable, Dict, Optional, Set, Tuple, Type
 
 import numpy as np
@@ -21,6 +21,10 @@ class Singleton(type):
         if cls not in cls._instances:
             cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
         return cls._instances[cls]
+
+    @classmethod
+    def clear(cls):
+        Singleton._instances.clear()
 
 
 class StencilTable(object, metaclass=Singleton):
@@ -45,16 +49,16 @@ class StencilTable(object, metaclass=Singleton):
     MAX_SIZE: int = 200
 
     @classmethod
-    def reset(cls):
-        if cls in Singleton._instances:
-            Singleton._instances[cls].clear()
+    def create(cls):
+        return (
+            SequentialTable()
+            if MPI is None or MPI.COMM_WORLD.Get_size() == 1
+            else DistributedTable()
+        )
 
     @classmethod
-    def create(cls):
-        return SequentialTable() if MPI is None else DistributedTable()
-
-    def clear(self) -> None:
-        self._initialize()
+    def clear(cls):
+        Singleton.clear()
 
     def set_done(self, key: int) -> None:
         self[key] = self.DONE_STATE
@@ -131,11 +135,11 @@ class StencilTable(object, metaclass=Singleton):
         self._node_id = 0
         self._n_nodes = 1
 
-    @abc.abstractmethod
+    @abstractmethod
     def _get_buffer(self, node_id: int = 0) -> np.ndarray:
         pass
 
-    @abc.abstractmethod
+    @abstractmethod
     def _set_buffer(self, buffer: np.ndarray):
         pass
 
