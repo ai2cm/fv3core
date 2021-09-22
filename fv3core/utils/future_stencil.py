@@ -1,3 +1,4 @@
+import abc
 import time
 from typing import Any, Callable, Dict, Optional, Set, Tuple, Type
 
@@ -48,13 +49,9 @@ class StencilTable(object, metaclass=Singleton):
         if cls in Singleton._instances:
             Singleton._instances[cls].clear()
 
-    def __init__(self, comm: Optional[Any] = None, max_size: int = 0):
-        """
-        Args:
-            comm (Communicator): An MPI communicator (defaults to MPI.COMM_WORLD)
-        """
-        self._comm = comm if comm or MPI is None else MPI.COMM_WORLD
-        self._initialize(max_size)
+    @classmethod
+    def create(cls):
+        return SequentialTable() if MPI is None else DistributedTable()
 
     def clear(self) -> None:
         self._initialize()
@@ -128,57 +125,89 @@ class StencilTable(object, metaclass=Singleton):
     def _initialize(self, max_size: int = 0):
         max_size = max_size if max_size else self.MAX_SIZE
         self._finished_keys: Set[int] = set()
-        self._node_id = self._comm.Get_rank() if self._comm else 0
-        self._n_nodes = self._comm.Get_size() if self._comm else 1
         self._key_nodes: Dict[int, Tuple[int, int]] = dict()
-
         self._buffer_size = 2 * max_size + 1
         self._np_type = np.int64
+        self._node_id = 0
+        self._n_nodes = 1
 
-        if self._comm:
-            self._mpi_type = MPI.LONG
-            int_size = self._mpi_type.Get_size()
-            window_size: int = (
-                int_size * self._buffer_size * self._n_nodes
-                if self._node_id == 0
-                else 0
-            )
-            self._window = MPI.Win.Allocate(
-                size=window_size, disp_unit=int_size, comm=self._comm
-            )
+    @abc.abstractmethod
+    def _get_buffer(self, node_id: int = 0) -> np.ndarray:
+        pass
 
-            if self._node_id == 0:
-                buffer = np.frombuffer(self._window, dtype=self._np_type)
-                buffer[:] = np.full(len(buffer), self.NONE_STATE, dtype=self._np_type)
-                for n in range(self._n_nodes):
-                    buffer[n * self._buffer_size] = 0
-            self._comm.Barrier()
-        else:
-            self._window = np.zeros(self._buffer_size, dtype=self._np_type)
+    @abc.abstractmethod
+    def _set_buffer(self, buffer: np.ndarray):
+        pass
+
+
+class SequentialTable(StencilTable):
+    def __init__(self, max_size: int = 0):
+        """
+        Args:
+            max_size (int): Maximum number of elements in table
+        """
+        self._initialize(max_size)
+
+    def _initialize(self, max_size: int = 0):
+        super()._initialize(max_size)
+        self._window = np.zeros(self._buffer_size, dtype=self._np_type)
+
+    def _get_buffer(self, node_id: int = 0) -> np.ndarray:
+        return self._window
+
+    def _set_buffer(self, buffer: np.ndarray):
+        self._window = buffer
+
+
+class DistributedTable(StencilTable):
+    def __init__(self, max_size: int = 0, comm: Optional[Any] = None):
+        """
+        Args:
+            max_size (int): Maximum number of elements in table
+            comm (Communicator): An MPI communicator (defaults to MPI.COMM_WORLD)
+        """
+        self._comm = comm if comm else MPI.COMM_WORLD
+        self._initialize(max_size)
+
+    def _initialize(self, max_size: int = 0):
+        super()._initialize(max_size)
+
+        self._node_id = self._comm.Get_rank()
+        self._n_nodes = self._comm.Get_size()
+
+        self._mpi_type = MPI.LONG
+        int_size = self._mpi_type.Get_size()
+        window_size: int = (
+            int_size * self._buffer_size * self._n_nodes if self._node_id == 0 else 0
+        )
+        self._window = MPI.Win.Allocate(
+            size=window_size, disp_unit=int_size, comm=self._comm
+        )
+
+        if self._node_id == 0:
+            buffer = np.frombuffer(self._window, dtype=self._np_type)
+            buffer[:] = np.full(len(buffer), self.NONE_STATE, dtype=self._np_type)
+            for n in range(self._n_nodes):
+                buffer[n * self._buffer_size] = 0
+
+        self._comm.Barrier()
+
+    def _get_buffer(self, node_id: int = -1) -> np.ndarray:
+        buffer = np.empty(self._buffer_size, dtype=self._np_type)
+        self._window.Lock(rank=0)
+        self._window.Get(buffer, target_rank=0, target=self._get_target(node_id))
+        self._window.Unlock(rank=0)
+        return buffer
+
+    def _set_buffer(self, buffer: np.ndarray):
+        self._window.Lock(rank=0)
+        self._window.Put(buffer, target_rank=0, target=self._get_target())
+        self._window.Unlock(rank=0)
 
     def _get_target(self, node_id: int = -1) -> Tuple[int, int, Any]:
         if node_id < 0:
             node_id = self._node_id
         return (node_id * self._buffer_size, self._buffer_size, self._mpi_type)
-
-    def _set_buffer(self, buffer: np.ndarray):
-        if self._comm:
-            self._window.Lock(rank=0)
-            self._window.Put(buffer, target_rank=0, target=self._get_target())
-            self._window.Unlock(rank=0)
-        else:
-            self._window = buffer
-
-    def _get_buffer(self, node_id: int = -1) -> np.ndarray:
-        if self._comm:
-            buffer = np.empty(self._buffer_size, dtype=self._np_type)
-            self._window.Lock(rank=0)
-            self._window.Get(buffer, target_rank=0, target=self._get_target(node_id))
-            self._window.Unlock(rank=0)
-        else:
-            buffer = self._window
-
-        return buffer
 
 
 def future_stencil(
@@ -266,7 +295,7 @@ class FutureStencil:
         self._wrapper = wrapper
         self._sleep_time = sleep_time
         self._timeout = timeout
-        self._id_table = StencilTable()
+        self._id_table = StencilTable.create()
         self._node_id: int = MPI.COMM_WORLD.Get_rank() if MPI else 0
         self._stencil_object: Optional[StencilObject] = None
 
