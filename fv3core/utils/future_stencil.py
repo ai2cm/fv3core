@@ -43,6 +43,11 @@ class StencilTable(object, metaclass=Singleton):
     NONE_STATE: int = -2
     MAX_SIZE: int = 200
 
+    @classmethod
+    def reset(cls):
+        if cls in Singleton._instances:
+            Singleton._instances[cls].clear()
+
     def __init__(self, comm: Optional[Any] = None, max_size: int = 0):
         """
         Args:
@@ -264,9 +269,6 @@ class FutureStencil:
         self._id_table = StencilTable()
         self._node_id: int = MPI.COMM_WORLD.Get_rank() if MPI else 0
         self._stencil_object: Optional[StencilObject] = None
-
-    def clear(self):
-        self._id_table.clear()
 
     @property
     def cache_info_path(self) -> str:
