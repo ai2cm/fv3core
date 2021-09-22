@@ -59,6 +59,7 @@ def test_future_stencil(backend: str, rebuild: bool, use_wrapper: bool):
             self.stencil_object(*args, **kwargs)
 
     set_backend(backend)
+    StencilTable.clear()
 
     origin = (1, 1, 0)
     domain = (2, 2, 3)
@@ -171,6 +172,7 @@ def run_rank_adder_test(backend: str, rebuild: bool):
     comm = MPI.COMM_WORLD
     size = comm.Get_size()
     set_backend(backend)
+    StencilTable.clear()
 
     origin = (0, 0, 0)
     domain = (1, 1, size)
