@@ -21,6 +21,13 @@ exitError()
     exit $1
 }
 
+experiment=$1
+backend=$2
+CACHE_DIR="/scratch/snx3000/olifu/jenkins/scratch/store_gt_caches/${experiment}/${backend}"
+
+test -n "${experiment}" || exitError 1001 ${LINENO} "experiment is not defined"
+test -n "${backend}" || exitError 1002 ${LINENO} "backend is not defined"
+
 # store cache artifacts (and remove caches afterwards)
 echo "Pruning cache to make sure no __pycache__ and *_pyext_BUILD dirs are present"
 find .gt_cache* -type d -name \*_pyext_BUILD -prune -exec \rm -rf {} \;
