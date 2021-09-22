@@ -21,9 +21,15 @@ import fv3gfs.util as fv3util
 from fv3core.utils.corners import fill_corners_2d, fill_corners_agrid, fill_corners_dgrid, fill_corners_cgrid
 from fv3core.utils.global_constants import PI, RADIUS, LON_OR_LAT_DIM, TILE_DIM
 from fv3gfs.util.constants import N_HALO_DEFAULT
+# TODO
+# use cached_property, just for properties that have a single output per function
+# pass in quantity factory, remove most other arguments
+# use the halo default, don't pass it n, probably won't work
+# get sizer from factory
+# can corners use sizer rather than gridIndexer
 class MetricTerms:
 
-    def __init__(self,  *, grid_type: int, layout: Tuple[int, int], npx: int, npy: int, npz: int, communicator, backend: str, halo=N_HALO_DEFAULT):
+    def __init__(self,  grid, *, grid_type: int, layout: Tuple[int, int], npx: int, npy: int, npz: int, communicator, backend: str, halo=N_HALO_DEFAULT):
        
         self._halo = halo
         self._comm = communicator
@@ -38,6 +44,7 @@ class MetricTerms:
         self._agrid = self._quantity_factory.zeros(
             [fv3util.X_DIM, fv3util.Y_DIM, LON_OR_LAT_DIM], "radians", dtype=float
         )
+        self.grid=grid
         self._np = self._grid.np
         self._dx = None
         self._dy = None
@@ -127,6 +134,7 @@ class MetricTerms:
         return self._xyz_agrid
     
     def _make_quantity_factory(self, layout: Tuple[int, int], npx: int, npy: int, npz: int):
+        #print('making quantity factory', npx, npy, self._halo, layout)
         sizer =  fv3util.SubtileGridSizer.from_tile_params(
             nx_tile=npx - 1,
             ny_tile=npy - 1,
@@ -145,6 +153,7 @@ class MetricTerms:
     
     def _init_dgrid(self, npx: int, npy: int, npz: int, grid_type: int):
         # TODO size npx, npy, not local dims
+
         global_quantity_factory, _ = self._make_quantity_factory((1,1), npx, npy, npz)
         grid_global = global_quantity_factory.zeros(
             [
@@ -156,6 +165,7 @@ class MetricTerms:
             "radians",
             dtype=float,
         )
+
         tile0_lon = global_quantity_factory.zeros(
             [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM], "radians", dtype=float
         )
@@ -168,7 +178,7 @@ class MetricTerms:
             tile0_lat.view[:], 
             self._np,
         )
-       
+    
         grid_global.view[:, :, 0, 0] = tile0_lon.view[:]
         grid_global.view[:, :, 1, 0] = tile0_lat.view[:]
         mirror_grid(
@@ -187,7 +197,9 @@ class MetricTerms:
         tile0_lon[tile0_lon < 0] += 2 * PI
         grid_global.data[self._np.abs(grid_global.data[:]) < 1e-10] = 0.0
         # TODO, mpi scatter grid_global and subset grid_global for rank
-        self._grid.data[:] = grid_global.data[:, :, :, self._comm.rank]
+        tile_index = self._comm.partitioner.tile_index(self._comm.rank)
+        #print('hmmmm',self._grid.data.shape, grid_global.data.shape, self.grid.global_is, self.grid.global_ie+1, self.grid.global_js, self.grid.global_je+1, self.grid.is_,self.grid.ie+1, self.grid.js,self.grid.je+1,self.grid.rank)
+        self._grid.data[self.grid.is_:self.grid.ie+2, self.grid.js:self.grid.je +2, :] = grid_global.data[self.grid.global_is:self.grid.global_ie+2, self.grid.global_js:self.grid.global_je+2, :, tile_index]
         self._comm.halo_update(self._grid, n_points=self._halo)
         
         fill_corners_2d(
@@ -389,13 +401,14 @@ class MetricTerms:
             RADIUS,
             self._np,
         )
-        set_corner_area_to_triangle_area(
-            lon=self._agrid.data[2:-3, 2:-3, 0],
-            lat=self._agrid.data[2:-3, 2:-3, 1],
-            area=area_cgrid.data[3:-3, 3:-3],
-            radius=RADIUS,
-            np=self._np,
-        )
+        #set_corner_area_to_triangle_area(
+        #    lon=self._agrid.data[2:-3, 2:-3, 0],
+        #    lat=self._agrid.data[2:-3, 2:-3, 1],
+        #    area=area_cgrid.data[3:-3, 3:-3],
+        #    radius=RADIUS,
+        #    np=self._np,
+        #)
+
         set_c_grid_tile_border_area(
            self._dgrid_xyz[2:-2, 2:-2, :],
            self._agrid_xyz[2:-2, 2:-2, :],
@@ -406,6 +419,7 @@ class MetricTerms:
             self._np,
         )
         self._comm.halo_update(area_cgrid, n_points=self._halo)
+
         fill_corners_2d(
             area_cgrid.data[:, :, None],
             self.grid_indexer,

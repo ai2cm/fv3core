@@ -1,7 +1,7 @@
 import functools
 from fv3core.grid.utils import get_center_vector # noqa: F401
 from typing import Any, Dict
-
+from fv3core.utils.grid import GridIndexing
 import fv3gfs.util as fv3util
 import fv3core.utils.global_config as global_config
 import fv3core._config as spec
@@ -733,6 +733,12 @@ latlon=Atm(n)%gridstruct%latlon
 cubedsphere=Atm(n)%gridstruct%latlon
     """
     outputs: Dict[str, Any] = {
+        "area_c": {
+            "name": "area_cgrid",
+            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM],
+            "units": "m^2",
+        },}
+    """
         "gridvar": {
             "name": "grid",
             "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM, LON_OR_LAT_DIM],
@@ -743,16 +749,14 @@ cubedsphere=Atm(n)%gridstruct%latlon
             "dims": [fv3util.X_DIM, fv3util.Y_DIM, LON_OR_LAT_DIM],
             "units": "radians",
         },
+    
         "area": {
             "name": "area",
             "dims": [fv3util.X_DIM, fv3util.Y_DIM],
             "units": "m^2",
         },
-        "area_c": {
-            "name": "area_cgrid",
-            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM],
-            "units": "m^2",
-        },
+        
+        
         "dx": {
             "name": "dx",
             "dims": [fv3util.X_DIM, fv3util.Y_INTERFACE_DIM],
@@ -784,7 +788,9 @@ cubedsphere=Atm(n)%gridstruct%latlon
             "units": "m",
         },
     }
-
+     """
+    
+    
     def __init__(self, grids):
         super().__init__(grids)
         self.ignore_near_zero_errors = {}
@@ -792,7 +798,7 @@ cubedsphere=Atm(n)%gridstruct%latlon
 
     def compute_parallel(self, inputs, communicator):
         namelist = spec.namelist
-        grid_generator = MetricTerms(grid_type=self.grid.grid_type, layout=self.layout, npx=namelist.npx, npy=namelist.npy, npz=namelist.npz, communicator=communicator,  backend=global_config.get_backend())
+        grid_generator = MetricTerms(self.grid,grid_type=self.grid.grid_type, layout=self.layout, npx=namelist.npx, npy=namelist.npy, npz=namelist.npz, communicator=communicator,  backend=global_config.get_backend())
         state = {}
         for metric_term, metadata in self.outputs.items():
             state[metadata["name"]] = getattr(grid_generator, metric_term)
@@ -801,10 +807,37 @@ cubedsphere=Atm(n)%gridstruct%latlon
     
     
     def compute_sequential(self, inputs_list, communicator_list):
-
+        local_sizer =  fv3util.SubtileGridSizer.from_tile_params(
+            nx_tile=self.grid.npx - 1,
+            ny_tile=self.grid.npy - 1,
+            nz=self.grid.npz,
+            n_halo=3,
+            extra_dim_lengths={
+                LON_OR_LAT_DIM: 2,
+                TILE_DIM: 6,
+            },
+            layout=spec.namelist.layout,
+        )
+        local_quantity_factory = fv3util.QuantityFactory.from_backend(
+            local_sizer, backend=global_config.get_backend()
+        )
+        global_sizer =  fv3util.SubtileGridSizer.from_tile_params(
+            nx_tile=self.grid.npx - 1,
+            ny_tile=self.grid.npy - 1,
+            nz=self.grid.npz,
+            n_halo=3,
+            extra_dim_lengths={
+                LON_OR_LAT_DIM: 2,
+                TILE_DIM: 6,
+            },
+            layout=(1,1),
+        )
+        global_quantity_factory = fv3util.QuantityFactory.from_backend(
+            global_sizer, backend=global_config.get_backend()
+        )
         #Set up initial lat-lon d-grid
         shift_fac = 18
-        grid_global = self.grid.quantity_factory.zeros(
+        grid_global = global_quantity_factory.zeros(
             [
                 fv3util.X_INTERFACE_DIM,
                 fv3util.Y_INTERFACE_DIM,
@@ -815,10 +848,10 @@ cubedsphere=Atm(n)%gridstruct%latlon
             dtype=float,
         )
         # print(grid_global.np.shape(grid_global.data))
-        lon = self.grid.quantity_factory.zeros(
+        lon = global_quantity_factory.zeros(
             [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM], "radians", dtype=float
         )
-        lat = self.grid.quantity_factory.zeros(
+        lat = global_quantity_factory.zeros(
             [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM], "radians", dtype=float
         )
         gnomonic_grid(
@@ -842,31 +875,59 @@ cubedsphere=Atm(n)%gridstruct%latlon
         lon = grid_global.data[:, :, 0, :]
         lon[lon < 0] += 2 * PI
         grid_global.data[grid_global.np.abs(grid_global.data[:]) < 1e-10] = 0.0
+        # more global copying
+        npx = self.grid.npx
+        npy = self.grid.npy
+        """
+        grid_global.data[0, 0:npy, :, 1] = grid_global.data[npx, 0:npy, :, 0]
+        #for xi in range(npx - 1, -1, -1):
+        for yi in range(npy):
+            grid_global.data[0, yi, :, 2] = grid_global.data[npx - yi, grid.npy - 1, :, 0]
+        for xi in range(npx):
+            grid_global.data[xi, npy - 1, :, 4] = grid_global.data[0, npy - xi, :, 0]
+        grid_global.data[0:self.npx, npy - 1, :, 5] = grid_global.data[0:self.npx, 0, :, 0]
+
+        grid_global.data[0:self.npx, 0, :, 2] = grid_global.data[0:self.npx, npy - 1, :, 1]
+        for xi in range(npx):
+            grid_global.data[xi, 0, :, 3] = grid_global.data[npx - 1, npy - xi, :, 1]
+        for yi in range(npy):
+            grid_global.data[npx - 1, yi, :, 5] = grid_global.data[npx - yi, 0, :, 1]
+        """
+        print('global values', grid_global.data[0,0,0,0], grid_global.data[3,3,0,0],  grid_global.data[0,0,1,0], grid_global.data[3,3,1,0])
+        #  0.0 5.323254218582705 0.0 -0.6154797086703873
         state_list = []
         for i, inputs in enumerate(inputs_list):
-            grid = self.grid.quantity_factory.empty(
+            rank_grid = self.rank_grids[i]
+            tile_index = communicator_list[i].partitioner.tile_index(i)
+            this_grid = local_quantity_factory.zeros(
                 dims=[fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM, LON_OR_LAT_DIM],
-                units="radians",
+                units="radians",dtype=float
             )
-            grid.data[:] = grid_global.data[:, :, :, i]
-            state_list.append({"grid": grid})
+            #print('hmmmm',grid.data.shape, grid_global.data.shape, rank_grid.global_is, rank_grid.global_ie+1, rank_grid.global_js, rank_grid.global_je+1, rank_grid.is_,rank_grid.ie+1, rank_grid.js,rank_grid.je+1,rank_grid.rank,  tile_index)
+            this_grid.data[rank_grid.is_:rank_grid.ie+2, rank_grid.js:rank_grid.je+2, :] = grid_global.data[rank_grid.global_is:rank_grid.global_ie+2, rank_grid.global_js:rank_grid.global_je+2, :, tile_index]
+        
+            
+            state_list.append({"grid": this_grid})
         req_list = []
+  
         for state, communicator in zip(state_list, communicator_list):
             req_list.append(
                 communicator.start_halo_update(state["grid"], n_points=self.grid.halo)
             )
         for communicator, req in zip(communicator_list, req_list):
             req.wait()
+        grid_indexers = []
         for i, state in enumerate(state_list):
+            grid_indexers.append(GridIndexing.from_sizer_and_communicator(local_sizer, communicator_list[i]))
             fill_corners_2d(
-                state["grid"].data[:, :, :], self.grid, gridtype="B", direction="x"
+                state["grid"].data[:, :, :], grid_indexers[i], gridtype="B", direction="x"
             )
             state_list[i] = state
 
-
+        
         #calculate d-grid cell side lengths
         for i, state in enumerate(state_list):
-            self._compute_local_dxdy(state)
+            self._compute_local_dxdy(state, local_quantity_factory)
         # before the halo update, the Fortran calls a get_symmetry routine
         # missing get_symmetry call in fv_grid_tools.F90, dy is set based on dx on
         # the opposite grid face, as a result dy has errors
@@ -884,20 +945,20 @@ cubedsphere=Atm(n)%gridstruct%latlon
             # the halo for dy and performs a halo update,
             # to ensure dx and dy mirror across the boundary.
             # Not doing it here at the moment.
-        for state, grid in zip(state_list, self.rank_grids):
+        for grid_indexer, state, grid in zip(grid_indexers, state_list, self.rank_grids):
             state["dx"].data[state["dx"].data < 0] *= -1
             state["dy"].data[state["dy"].data < 0] *= -1
             fill_corners_dgrid(
                 state["dx"].data[:, :, None],
                 state["dy"].data[:, :, None],
-                grid,
+                grid_indexer,
                 vector=False,
             )
         
 
         #Set up lat-lon a-grid, calculate side lengths on a-grid
         for i, state in enumerate(state_list):
-            self._compute_local_agrid_part1(state)
+            self._compute_local_agrid_part1(state, local_quantity_factory)
         req_list = []
         for state, communicator in zip(state_list, communicator_list):
             req_list.append(
@@ -908,17 +969,17 @@ cubedsphere=Atm(n)%gridstruct%latlon
         for i, state in enumerate(state_list):
             fill_corners_2d(
                 state["agrid"].data[:, :, 0][:, :, None],
-                self.grid,
+                grid_indexers[i],
                 gridtype="A",
                 direction="x",
             )
             fill_corners_2d(
                 state["agrid"].data[:, :, 1][:, :, None],
-                self.grid,
+                grid_indexers[i],
                 gridtype="A",
                 direction="y",
             )
-            self._compute_local_agrid_part2(state)
+            self._compute_local_agrid_part2(state, local_quantity_factory,grid_indexers[i] )
         req_list = []
         for state, communicator in zip(state_list, communicator_list):
             req_list.append(
@@ -939,7 +1000,7 @@ cubedsphere=Atm(n)%gridstruct%latlon
 
         #Calculate a-grid areas and initial c-grid area
         for i, state in enumerate(state_list):
-            self._compute_local_areas_pt1(state)
+            self._compute_local_areas_pt1(state, local_quantity_factory)
             
 
         #Finish c-grid areas, calculate sidelengths on the c-grid
@@ -954,7 +1015,7 @@ cubedsphere=Atm(n)%gridstruct%latlon
             )
         for communicator, req in zip(communicator_list, req_list):
             req.wait()
-        for state, grid in zip(state_list, self.rank_grids):
+        for grid_indexer,state, grid in zip(grid_indexers,state_list, self.rank_grids):
             #TODO: Add support for unsigned vector halo updates instead of handling ad-hoc here
             state["dx_cgrid"].data[state["dx_cgrid"].data < 0] *= -1
             state["dy_cgrid"].data[state["dy_cgrid"].data < 0] *= -1
@@ -963,7 +1024,7 @@ cubedsphere=Atm(n)%gridstruct%latlon
             fill_corners_cgrid(
                 state["dx_cgrid"].data[:, :, None],
                 state["dy_cgrid"].data[:, :, None],
-                grid,
+                grid_indexer,
                 vector=False,
             )
 
@@ -986,18 +1047,19 @@ cubedsphere=Atm(n)%gridstruct%latlon
         for i, state in enumerate(state_list):
             fill_corners_2d(
                 state["area_cgrid"].data[:, :, None][:, :, None],
-                self.grid,
+                grid_indexers[i],
                 gridtype="B",
                 direction="x",
             )
+        
         return self.outputs_list_from_state_list(state_list)
 
 
-    def _compute_local_dxdy(self, state):
-        state["dx"] = self.grid.quantity_factory.zeros(
+    def _compute_local_dxdy(self, state, local_quantity_factory):
+        state["dx"] = local_quantity_factory.zeros(
             [fv3util.X_DIM, fv3util.Y_INTERFACE_DIM], "m"
         )
-        state["dy"] = self.grid.quantity_factory.zeros(
+        state["dy"] = local_quantity_factory.zeros(
             [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM], "m"
         )
         state["dx"].view[:, :] = great_circle_distance_along_axis(
@@ -1017,8 +1079,8 @@ cubedsphere=Atm(n)%gridstruct%latlon
       
 
 
-    def _compute_local_agrid_part1(self, state):
-        state["agrid"] = self.grid.quantity_factory.zeros(
+    def _compute_local_agrid_part1(self, state, local_quantity_factory):
+        state["agrid"] = local_quantity_factory.zeros(
             [fv3util.X_DIM, fv3util.Y_DIM, LON_OR_LAT_DIM], "radians"
         )
         lon, lat = state["grid"].data[:, :, 0], state["grid"].data[:, :, 1]
@@ -1029,17 +1091,17 @@ cubedsphere=Atm(n)%gridstruct%latlon
         )
        
 
-    def _compute_local_agrid_part2(self, state):
-        state["dx_agrid"] = self.grid.quantity_factory.zeros(
+    def _compute_local_agrid_part2(self, state, local_quantity_factory, grid_indexer):
+        state["dx_agrid"] = local_quantity_factory.zeros(
             [fv3util.X_DIM, fv3util.Y_DIM], "m"
         )
-        state["dy_agrid"] = self.grid.quantity_factory.zeros(
+        state["dy_agrid"] = local_quantity_factory.zeros(
             [fv3util.X_DIM, fv3util.Y_DIM], "m"
         )
-        state["dx_cgrid"] = self.grid.quantity_factory.zeros(
+        state["dx_cgrid"] = local_quantity_factory.zeros(
             [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM], "m"
         )
-        state["dy_cgrid"] = self.grid.quantity_factory.zeros(
+        state["dy_cgrid"] = local_quantity_factory.zeros(
             [fv3util.X_DIM, fv3util.Y_INTERFACE_DIM], "m"
         )
         lon, lat = state["grid"].data[:, :, 0], state["grid"].data[:, :, 1]
@@ -1056,7 +1118,7 @@ cubedsphere=Atm(n)%gridstruct%latlon
             lon_x_center, lat_x_center, RADIUS, state["grid"].np, axis=1
         )
         fill_corners_agrid(
-            dx_agrid[:, :, None], dy_agrid[:, :, None], self.grid, vector=False
+            dx_agrid[:, :, None], dy_agrid[:, :, None], grid_indexer, vector=False
         )
         lon_agrid, lat_agrid = (
             state["agrid"].data[:-1, :-1, 0],
@@ -1068,9 +1130,9 @@ cubedsphere=Atm(n)%gridstruct%latlon
         dy_cgrid = great_circle_distance_along_axis(
             lon_agrid, lat_agrid, RADIUS, state["grid"].np, axis=1
         )
-        outputs = self.allocate_output_state()
-        for name in ("dx_agrid", "dy_agrid"):
-            state[name] = outputs[name]
+        #outputs = self.allocate_output_state()
+        #for name in ("dx_agrid", "dy_agrid"):
+        #    state[name] = outputs[name]
         state["dx_agrid"].data[:-1, :-1] = dx_agrid
         state["dy_agrid"].data[:-1, :-1] = dy_agrid
 
@@ -1088,12 +1150,12 @@ cubedsphere=Atm(n)%gridstruct%latlon
       
 
 
-    def _compute_local_areas_pt1(self, state):
-        state["area"] = self.grid.quantity_factory.zeros(
+    def _compute_local_areas_pt1(self, state, local_quantity_factory):
+        state["area"] = local_quantity_factory.zeros(
             [fv3util.X_DIM, fv3util.Y_DIM], "m^2"
         )
         state["area"].data[:, :] = -1.e8
-        state["area_cgrid"] = self.grid.quantity_factory.zeros(
+        state["area_cgrid"] = local_quantity_factory.zeros(
             [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM], "m^2"
         )
         state["area"].data[3:-4, 3:-4] = get_area(
@@ -1108,13 +1170,15 @@ cubedsphere=Atm(n)%gridstruct%latlon
             RADIUS,
             state["grid"].np,
         )
-        set_corner_area_to_triangle_area(
-            lon=state["agrid"].data[2:-3, 2:-3, 0],
-            lat=state["agrid"].data[2:-3, 2:-3, 1],
-            area=state["area_cgrid"].data[3:-3, 3:-3],
-            radius=RADIUS,
-            np=state["grid"].np,
-        )
+        #set_corner_area_to_triangle_area(
+        #    lon=state["agrid"].data[2:-3, 2:-3, 0],
+        #    lat=state["agrid"].data[2:-3, 2:-3, 1],
+        #    area=state["area_cgrid"].data[3:-3, 3:-3],
+        #    radius=RADIUS,
+        # communicator.tile.partitioner,
+        #    communicator.rank,
+        #    np=state["grid"].np,
+        #)
        
 
     def _compute_local_areas_pt2(self, state, communicator):
@@ -1132,7 +1196,7 @@ cubedsphere=Atm(n)%gridstruct%latlon
             RADIUS,
             state["area_cgrid"].data[3:-3, 3:-3],
             communicator.tile.partitioner,
-            communicator.tile.rank,
+            communicator.rank,
             state["grid"].np,
         )
         set_tile_border_dxc(
@@ -1141,7 +1205,7 @@ cubedsphere=Atm(n)%gridstruct%latlon
             RADIUS,
             state["dx_cgrid"].data[3:-3, 3:-4],
             communicator.tile.partitioner,
-            communicator.tile.rank,
+            communicator.rank,
             state["grid"].np,
         )
         set_tile_border_dyc(
@@ -1150,7 +1214,7 @@ cubedsphere=Atm(n)%gridstruct%latlon
             RADIUS,
             state["dy_cgrid"].data[3:-4, 3:-3],
             communicator.tile.partitioner,
-            communicator.tile.rank,
+            communicator.rank,
             state["grid"].np,
         )
        

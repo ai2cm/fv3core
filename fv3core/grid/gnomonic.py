@@ -323,7 +323,7 @@ def get_area(lon, lat, radius, np):
     )
 
 
-def set_corner_area_to_triangle_area(lon, lat, area, radius, np):
+def set_corner_area_to_triangle_area(lon, lat, area, radius,  tile_partitioner, rank,np):
     """
     Given latitude and longitude on cell corners, and an array of cell areas, set the
     four corner areas to the area of the inner triangle at those corners.
@@ -333,18 +333,22 @@ def set_corner_area_to_triangle_area(lon, lat, area, radius, np):
     lower_right = xyz[(slice(1, None), slice(None, -1), slice(None, None))]
     upper_left = xyz[(slice(None, -1), slice(1, None), slice(None, None))]
     upper_right = xyz[(slice(1, None), slice(1, None), slice(None, None))]
-    area[0, 0] = get_triangle_area(
-        upper_left[0, 0], upper_right[0, 0], lower_right[0, 0], radius, np
-    )
-    area[-1, 0] = get_triangle_area(
-        upper_right[-1, 0], upper_left[-1, 0], lower_left[-1, 0], radius, np
-    )
-    area[-1, -1] = get_triangle_area(
-        lower_right[-1, -1], lower_left[-1, -1], upper_left[-1, -1], radius, np
-    )
-    area[0, -1] = get_triangle_area(
-        lower_left[0, -1], lower_right[0, -1], upper_right[0, -1], radius, np
-    )
+    if tile_partitioner.on_tile_left(rank) and  tile_partitioner.on_tile_bottom(rank):
+        area[0, 0] = get_triangle_area(
+            upper_left[0, 0], upper_right[0, 0], lower_right[0, 0], radius, np
+        )
+    if tile_partitioner.on_tile_right(rank) and  tile_partitioner.on_tile_bottom(rank):
+        area[-1, 0] = get_triangle_area(
+            upper_right[-1, 0], upper_left[-1, 0], lower_left[-1, 0], radius, np
+        )
+    if tile_partitioner.on_tile_right(rank) and  tile_partitioner.on_tile_top(rank):
+        area[-1, -1] = get_triangle_area(
+            lower_right[-1, -1], lower_left[-1, -1], upper_left[-1, -1], radius, np
+        )
+    if tile_partitioner.on_tile_left(rank) and  tile_partitioner.on_tile_top(rank):
+        area[0, -1] = get_triangle_area(
+            lower_left[0, -1], lower_right[0, -1], upper_right[0, -1], radius, np
+        )
 
 
 def set_c_grid_tile_border_area(
@@ -370,32 +374,57 @@ def set_c_grid_tile_border_area(
         rank: rank of current tile
         np: numpy-like module to interact with arrays
     """
+
     if tile_partitioner.on_tile_left(rank):
         _set_c_grid_west_edge_area(xyz_dgrid, xyz_agrid, area_cgrid, radius, np)
-        # if tile_partitioner.on_tile_top(rank):
-        #     _set_c_grid_northwest_corner_area(
-        #         xyz_dgrid, xyz_agrid, area_cgrid, radius, np
-        #     )
+        """
+        if tile_partitioner.on_tile_top(rank):
+             _set_c_grid_northwest_corner_area(
+                 xyz_dgrid, xyz_agrid, area_cgrid, radius, np
+             )
+        if tile_partitioner.on_tile_bottom(rank):
+            _set_c_grid_southwest_corner_area_mod(
+                xyz_dgrid, xyz_agrid, area_cgrid, radius, np
+            )
+        """
     if tile_partitioner.on_tile_top(rank):
         _set_c_grid_north_edge_area(xyz_dgrid, xyz_agrid, area_cgrid, radius, np)
-        # if tile_partitioner.on_tile_right(rank):
-        #     _set_c_grid_northeast_corner_area(
-        #         xyz_dgrid, xyz_agrid, area_cgrid, radius, np
-        #     )
+        #if tile_partitioner.on_tile_right(rank):
+        #    _set_c_grid_northeast_corner_area(
+        #        xyz_dgrid, xyz_agrid, area_cgrid, radius, np
+        #    )
     if tile_partitioner.on_tile_right(rank):
         _set_c_grid_east_edge_area(xyz_dgrid, xyz_agrid, area_cgrid, radius, np)
-        # if tile_partitioner.on_tile_bottom(rank):
-        #     _set_c_grid_southeast_corner_area(
-        #         xyz_dgrid, xyz_agrid, area_cgrid, radius, np
-        #     )
+        #if tile_partitioner.on_tile_bottom(rank):
+        #    _set_c_grid_southeast_corner_area(
+        #        xyz_dgrid, xyz_agrid, area_cgrid, radius, np
+        #    )
     if tile_partitioner.on_tile_bottom(rank):
         _set_c_grid_south_edge_area(xyz_dgrid, xyz_agrid, area_cgrid, radius, np)
-        # if tile_partitioner.on_tile_left(rank):
-        #     _set_c_grid_southwest_corner_area(
-        #         xyz_dgrid, xyz_agrid, area_cgrid, radius, np
-        #     )
-
-
+        #if tile_partitioner.on_tile_left(rank):
+        #    _set_c_grid_southwest_corner_area_mod(
+        #        xyz_dgrid, xyz_agrid, area_cgrid, radius, np
+        #    )
+    """
+    if tile_partitioner.on_tile_left(rank):
+        if tile_partitioner.on_tile_top(rank):
+             _set_c_grid_northwest_corner_area(
+                 xyz_dgrid, xyz_agrid, area_cgrid, radius, np
+             )
+        if tile_partitioner.on_tile_bottom(rank):
+            _set_c_grid_southwest_corner_area_mod(
+                xyz_dgrid, xyz_agrid, area_cgrid, radius, np
+            )   
+    if tile_partitioner.on_tile_right(rank):
+        if tile_partitioner.on_tile_bottom(rank):
+            _set_c_grid_southeast_corner_area(
+                xyz_dgrid, xyz_agrid, area_cgrid, radius, np
+            )
+        if tile_partitioner.on_tile_top(rank):
+            _set_c_grid_northeast_corner_area(
+                xyz_dgrid, xyz_agrid, area_cgrid, radius, np
+            )
+    """
 def _set_c_grid_west_edge_area(xyz_dgrid, xyz_agrid, area_cgrid, radius, np):
     xyz_y_center = 0.5 * (xyz_dgrid[1, :-1] + xyz_dgrid[1, 1:])
     area_cgrid[0, :] = 2 * get_rectangle_area(
@@ -439,10 +468,13 @@ def _set_c_grid_southwest_corner_area(xyz_dgrid, xyz_agrid, area_cgrid, radius, 
         lower_left, upper_left, upper_right, lower_right, radius, np
     )
 
-
+def _set_c_grid_southwest_corner_area_mod(xyz_dgrid, xyz_agrid, area_cgrid, radius, np):
+    _set_c_grid_southwest_corner_area(
+        xyz_dgrid[1:, 1:], xyz_agrid[1:, 1:], area_cgrid[:, :], radius, np
+    )
 def _set_c_grid_northwest_corner_area(xyz_dgrid, xyz_agrid, area_cgrid, radius, np):
     _set_c_grid_southwest_corner_area(
-        xyz_dgrid[:, ::-1], xyz_agrid[:, ::-1], area_cgrid[:, ::-1], radius, np
+        xyz_dgrid[1:, ::-1], xyz_agrid[1:, ::-1], area_cgrid[:, ::-1], radius, np
     )
 
 
@@ -454,7 +486,7 @@ def _set_c_grid_northeast_corner_area(xyz_dgrid, xyz_agrid, area_cgrid, radius, 
 
 def _set_c_grid_southeast_corner_area(xyz_dgrid, xyz_agrid, area_cgrid, radius, np):
     _set_c_grid_southwest_corner_area(
-        xyz_dgrid[::-1, :], xyz_agrid[::-1, :], area_cgrid[::-1, :], radius, np
+        xyz_dgrid[::-1, 1:], xyz_agrid[::-1, 1:], area_cgrid[::-1, :], radius, np
     )
 
 
