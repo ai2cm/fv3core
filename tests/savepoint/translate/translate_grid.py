@@ -1310,7 +1310,7 @@ class TranslateUtilVectors(ParallelTranslateGrid):
                 "kend": 2,
                 "kaxis": 0,
             },
-        },
+        }
 
     inputs: Dict[str, Any] = {
         "grid": {
@@ -1390,27 +1390,67 @@ class TranslateUtilVectors(ParallelTranslateGrid):
         state_list = []
         for inputs, communicator in zip(inputs_list, communicator_list):
             state_list.append(self._compute_local(inputs, communicator))
+        outputs_list = []
+        for state in state_list:
+            outputs_list.append(self.outputs_from_state(state))
         return self.outputs_list_from_state_list(state_list)
 
     def _compute_local(self, inputs, communicator):
         state = self.state_from_inputs(inputs)
-        ec1shape = state["ec1"].data[:].shape
-        print(f"ec1 shape is {ec1shape}")
         xyz_dgrid = lon_lat_to_xyz(state["grid"].data[:,:,0], state["grid"].data[:,:,1], state["grid"].np)
-        xyz_agrid = lon_lat_to_xyz(state["agrid"].data[:,:,0], state["agrid"].data[:,:,1], state["grid"].np)
-        state["ec1"].data[:], state["ec2"].data[:] = get_center_vector(xyz_dgrid, self.grid.grid_type, self.grid.halo,
+        xyz_agrid = lon_lat_to_xyz(state["agrid"].data[:-1,:-1,0], state["agrid"].data[:-1,:-1,1], state["grid"].np)
+        state["ec1"].data[:-1,:-1,:3], state["ec2"].data[:-1,:-1,:3] = get_center_vector(xyz_dgrid, self.grid.grid_type, self.grid.halo,
             communicator.tile.partitioner, communicator.tile.rank, state["grid"].np
         )
-        state["ew"].data[:] = calc_unit_vector_west(
+        state["ew1"].data[1:-1,:-1,:3], state["ew2"].data[1:-1,:-1,:3] = calc_unit_vector_west(
             xyz_dgrid, xyz_agrid, self.grid.grid_type, self.grid.halo, 
             communicator.tile.partitioner, communicator.tile.rank, state["grid"].np
         )
-        state["es"].data[:] = calc_unit_vector_south(
+        state["es1"].data[:-1,1:-1,:3], state["es2"].data[:-1,1:-1,:3] = calc_unit_vector_south(
             xyz_dgrid, xyz_agrid, self.grid.grid_type, self.grid.halo, 
             communicator.tile.partitioner, communicator.tile.rank, state["grid"].np
         )
-        print(state["ec1"].data[:])
         return state
+
+    def state_from_inputs(self, inputs: dict, grid=None) -> dict:
+        if grid is None:
+            grid = self.grid
+        state = copy.copy(inputs)
+        self._base.make_storage_data_input_vars(state)
+        for name, properties in self.inputs.items():
+            if "name" not in properties:
+                properties["name"] = name
+            input_data = state[name]
+            if len(properties["dims"]) > 0:
+                dims = properties["dims"]
+                state[properties["name"]] = fv3util.Quantity(
+                    input_data,
+                    dims,
+                    properties["units"],
+                    origin=grid.sizer.get_origin(dims),
+                    extent=grid.sizer.get_extent(dims),
+                )
+            else:
+                state[properties["name"]] = input_data
+        return state
+
+    def outputs_from_state(self, state: dict):
+        return_dict: Dict[str, numpy.ndarray] = {}
+        if len(self.outputs) == 0:
+            return return_dict
+        for name, properties in self.outputs.items():
+            standard_name = properties["name"]
+            print(state[standard_name].data[:].shape, " before")
+            if "kaxis" in self._base.in_vars["data_vars"][name].keys():
+                kaxis = int(self._base.in_vars["data_vars"][name]["kaxis"])
+                data = numpy.moveaxis(state[standard_name].data[:], 2, kaxis)
+            
+            output_slice = _serialize_slice(
+                state[standard_name], properties.get("n_halo", utils.halo)
+            )                
+            return_dict[name] = state[standard_name].data[output_slice]
+            print(return_dict[name].shape, " after")
+        return return_dict
 
 
 
@@ -1633,15 +1673,15 @@ class TranslateTrigSg(ParallelTranslateGrid):
         state = self.state_from_inputs(inputs)
         xyz_dgrid = lon_lat_to_xyz(state["grid"].data[:,:,0], state["grid"].data[:,:,1], state["agrid"].np)
         xyz_agrid = lon_lat_to_xyz(state["agrid"].data[:,:,0], state["agrid"].data[:,:,1], state["agrid"].np)
-        csgs = state["cos_sg"].data[:].shape
-        print(csgs, state["grid"].data[:].shape, state["agrid"].data[:].shape)
+        # csgs = state["cos_sg1"].data[:].shape
+        # print(csgs, state["grid"].data[:].shape, state["agrid"].data[:].shape)
         cos_sg, sin_sg = calculate_supergrid_cos_sin(
             xyz_dgrid, xyz_agrid, state["ec1"].data[:], state["ec2"].data[:], self.grid.grid_type, self.grid.halo, 
             communicator.tile.partitioner, communicator.tile.rank, state["agrid"].np
         )
         for i in range(1,10):
-            state[f"cos_sg{i}"].data[:] = cos_sg[:,:,i-1]
-            state[f"sin_sg{i}"].data[:] = sin_sg[:,:,i-1]
+            state[f"cos_sg{i}"].data[:-1, :-1] = cos_sg[:,:,i-1]
+            state[f"sin_sg{i}"].data[:-1, :-1] = sin_sg[:,:,i-1]
         return state
 
     def state_from_inputs(self, inputs: dict, grid=None) -> dict:
@@ -1960,8 +2000,8 @@ class TranslateMoreTrig(ParallelTranslateGrid):
         cos_sg = []
         sin_sg = []
         for i in range(1, 10):
-            cos_sg.append(state[f"cos_sg{i}"].data[:])
-            sin_sg.append(state[f"sin_sg{i}"].data[:])
+            cos_sg.append(state[f"cos_sg{i}"].data[:-1, :-1])
+            sin_sg.append(state[f"sin_sg{i}"].data[:-1, :-1])
         state["cosa"].data[:], state["sina"].data[:], state["cosa_u"].data[:], state["cosa_v"].data[:], state["cosa_s"].data[:], state["sina_u"].data[:], state["sina_v"].data[:], state["rsin_u"].data[:], state["rsin_v"].data[:], state["rsina"].data[:], state["rsin2"].data[:], state["ee1"].data[:], state["ee2"].data[:] = calculate_trig_uv(xyz_dgrid, cos_sg, sin_sg, self.grid.halo, 
             communicator.tile.partitioner, communicator.tile.rank, state["grid"].np
         )
@@ -2210,17 +2250,17 @@ class TranslateFixSgCorners(ParallelTranslateGrid):
         cos_sg = []
         sin_sg = []
         for i in range(1, 10):
-            cos_sg.append(state[f"cos_sg{i}"].data[:])
-            sin_sg.append(state[f"sin_sg{i}"].data[:])
+            cos_sg.append(state[f"cos_sg{i}"].data[:-1, :-1])
+            sin_sg.append(state[f"sin_sg{i}"].data[:-1, :-1])
         cos_sg = state["cos_sg1"].np.array(cos_sg).transpose(1, 2, 0)
         sin_sg = state["cos_sg1"].np.array(sin_sg).transpose(1, 2, 0)
         supergrid_corner_fix(
             cos_sg, sin_sg, self.grid.halo, 
-            communicator.tile.partitioner, communicator.tile.rank, state["cos_sg1"].np
+            communicator.tile.partitioner, communicator.tile.rank
         )
         for i in range(1,10):
-            state[f"cos_sg{i}"].data[:] = cos_sg[:,:,i-1]
-            state[f"sin_sg{i}"].data[:] = sin_sg[:,:,i-1]
+            state[f"cos_sg{i}"].data[:-1, :-1] = cos_sg[:,:,i-1]
+            state[f"sin_sg{i}"].data[:-1, :-1] = sin_sg[:,:,i-1]
         return state
 
 
@@ -2329,12 +2369,12 @@ class TranslateDivgDel6(ParallelTranslateGrid):
         state = self.state_from_inputs(inputs)
         sin_sg = []
         for i in range(1, 10):
-            sin_sg.append(state[f"sin_sg{i}"].data[:])
+            sin_sg.append(state[f"sin_sg{i}"].data[:-1, :-1])
         sin_sg = state["sin_sg1"].np.array(sin_sg).transpose(1, 2, 0)
         state["divg_u"].data[:], state["divg_v"].data[:], state["del6_u"].data[:], state["del6_v"].data[:] = calculate_divg_del6(
-            state["sin_sg"].data[:], state["sina_u"].data[:], state["sina_v"].data[:], 
+            sin_sg, state["sina_u"].data[:], state["sina_v"].data[:], 
             state["dx"].data[:], state["dy"].data[:], state["dxc"].data[:], state["dyc"].data[:], self.grid.halo, 
-            communicator.tile.partitioner, communicator.tile.rank, state["sin_sg"].np
+            communicator.tile.partitioner, communicator.tile.rank, state["sin_sg1"].np
         )
         return state
 
@@ -2462,7 +2502,7 @@ class TranslateInitCubedtoLatLon(ParallelTranslateGrid):
             state["ec1"].data, state["ec2"].data, state["vlon"].data, state["vlat"].data[:], state["agrid"].np
         )
         state["a11"].data[:], state["a12"].data[:], state["a21"].data[:], state["a22"].data[:] = calculate_grid_a(
-            state["z11"].data[:], state["z12"].data[:], state["z21"].data[:], state["z22"].data[:], state["sin_sg5"].data[:], state["agrid"].np
+            state["z11"].data[:], state["z12"].data[:], state["z21"].data[:], state["z22"].data[:], state["sin_sg5"].data[:-1, :-1], state["agrid"].np
         )
         return state
 
@@ -2506,23 +2546,27 @@ class TranslateEdgeFactors(ParallelTranslateGrid):
         },
         "edge_s": {
             "name": "edge_s",
-            "dims": [fv3util.X_DIM],
+            "dims": [fv3util.X_INTERFACE_DIM],
             "units": "",
+            "n_halo": 0,
         },
         "edge_n": {
             "name": "edge_n",
-            "dims": [fv3util.X_DIM],
+            "dims": [fv3util.X_INTERFACE_DIM],
             "units": "",
+            "n_halo": 0,
         },
         "edge_e": {
             "name": "edge_e",
-            "dims": [fv3util.Y_DIM],
+            "dims": [fv3util.Y_INTERFACE_DIM],
             "units": "",
+            "n_halo": 0,
         },
         "edge_w": {
             "name": "edge_w",
-            "dims": [fv3util.Y_DIM],
+            "dims": [fv3util.Y_INTERFACE_DIM],
             "units": "",
+            "n_halo": 0,
         },
         "edge_vect_s": {
             "name": "edge_vect_s",
@@ -2548,23 +2592,27 @@ class TranslateEdgeFactors(ParallelTranslateGrid):
     outputs: Dict[str, Any] = {
         "edge_s": {
             "name": "edge_s",
-            "dims": [fv3util.X_DIM],
+            "dims": [fv3util.X_INTERFACE_DIM],
             "units": "",
+            "n_halo": 0,
         },
         "edge_n": {
             "name": "edge_n",
-            "dims": [fv3util.X_DIM],
+            "dims": [fv3util.X_INTERFACE_DIM],
             "units": "",
+            "n_halo": 0,
         },
         "edge_e": {
             "name": "edge_e",
-            "dims": [fv3util.Y_DIM],
+            "dims": [fv3util.Y_INTERFACE_DIM],
             "units": "",
+            "n_halo": 0,
         },
         "edge_w": {
             "name": "edge_w",
-            "dims": [fv3util.Y_DIM],
+            "dims": [fv3util.Y_INTERFACE_DIM],
             "units": "",
+            "n_halo": 0,
         },
         "edge_vect_s": {
             "name": "edge_vect_s",
@@ -2595,12 +2643,13 @@ class TranslateEdgeFactors(ParallelTranslateGrid):
 
     def _compute_local(self, inputs, communicator):
         state = self.state_from_inputs(inputs)
-        state["edge_w"].data[:], state["edge_e"].data[:], state["edge_s"].data[:], state["edge_n"].data[:] = edge_factors(
-            state["grid"].data[:], state["agrid"].data[:], self.grid.grid_type, self.grid.halo, 
+        nhalo = self.grid.halo
+        state["edge_w"].data[nhalo:-nhalo], state["edge_e"].data[nhalo:-nhalo], state["edge_s"].data[nhalo:-nhalo], state["edge_n"].data[nhalo:-nhalo] = edge_factors(
+            state["grid"].data[:], state["agrid"].data[:], self.grid.grid_type, nhalo, 
             communicator.tile.partitioner, communicator.tile.rank, RADIUS, state["grid"].np
         )
         state["edge_vect_w"].data[:], state["edge_vect_e"].data[:], state["edge_vect_s"].data[:], state["edge_vect_n"].data[:] = efactor_a2c_v(
-            state["grid"].data[:], state["agrid"].data[:], self.grid.grid_type, self.grid.halo, 
+            state["grid"].data[:], state["agrid"].data[:], self.grid.grid_type, nhalo, 
             communicator.tile.partitioner, communicator.tile.rank, RADIUS, state["grid"].np
         )
         return state
@@ -3167,17 +3216,17 @@ class TranslateInitGridUtils(ParallelTranslateGrid):
 
         supergrid_corner_fix(
             cos_sg, sin_sg, self.grid.halo, 
-            communicator.tile.partitioner, communicator.tile.rank, state["cos_sg"].np
+            communicator.tile.partitioner, communicator.tile.rank
         )
         for i in range(1,10):
             state[f"cos_sg{i}"] = self.grid.quantity_factory.zeros(
                 [fv3util.X_DIM, fv3util.Y_DIM], ""
             )
-            state[f"cos_sg{i}"].data[:] = cos_sg[:,:,i-1]
+            state[f"cos_sg{i}"].data[:-1, :-1] = cos_sg[:,:,i-1]
             state[f"sin_sg{i}"] = self.grid.quantity_factory.zeros(
                 [fv3util.X_DIM, fv3util.Y_DIM], ""
             )
-            state[f"sin_sg{i}"].data[:] = sin_sg[:,:,i-1]
+            state[f"sin_sg{i}"].data[:-1, :-1] = sin_sg[:,:,i-1]
 
         return state
 
@@ -3196,7 +3245,7 @@ class TranslateInitGridUtils(ParallelTranslateGrid):
         )
         sin_sg = []
         for i in range(1, 10):
-            sin_sg.append(state[f"sin_sg{i}"].data[:])
+            sin_sg.append(state[f"sin_sg{i}"].data[:-1, :-1])
         state["divg_u"].data[:], state["divg_v"].data[:], state["del6_u"].data[:], state["del6_v"].data[:] = calculate_divg_del6(
             sin_sg, state["sina_u"].data[:], state["sina_v"].data[:], 
             state["dx"].data[:], state["dy"].data[:], state["dxc"].data[:], state["dyc"].data[:], self.grid.halo, 
@@ -3240,7 +3289,7 @@ class TranslateInitGridUtils(ParallelTranslateGrid):
             [fv3util.X_DIM, fv3util.Y_DIM], ""
         )
         state["a11"].data[:], state["a12"].data[:], state["a21"].data[:], state["a22"].data[:] = calculate_grid_a(
-            state["z11"].data[:], state["z12"].data[:], state["z21"].data[:], state["z22"].data[:], state["sin_sg5"].data[:], state["agrid"].np
+            state["z11"].data[:], state["z12"].data[:], state["z21"].data[:], state["z22"].data[:], state["sin_sg5"].data[:-1, :-1], state["agrid"].np
         )
 
         return state

@@ -142,7 +142,10 @@ def lon_lat_to_xyz(lon, lat, np):
     y = np.cos(lat) * np.sin(lon)
     z = np.sin(lat)
     x, y, z = normalize_vector(np, x, y, z)
-    xyz = np.concatenate([arr[:, :, None] for arr in (x, y, z)], axis=-1)
+    if len(lon.shape) == 2:
+        xyz = np.concatenate([arr[:, :, None] for arr in (x, y, z)], axis=-1)
+    elif len(lon.shape) == 1:
+        xyz = np.concatenate([arr[:, None] for arr in (x, y, z)], axis=-1)
     return xyz
 
 
@@ -585,7 +588,6 @@ def spherical_cos(p_center, p2, p3, np):
     """
     As Spherical angle, but returns cos(angle)
     """
-    print(f"SHAPES ARE: {p_center.shape}, {p2.shape}, {p3.shape}\n!!!")
     p = np.cross(p_center, p2)
     q = np.cross(p_center, p3)
     return (
