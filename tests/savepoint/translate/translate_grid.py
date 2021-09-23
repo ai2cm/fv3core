@@ -1,4 +1,5 @@
 import functools
+from math import cos
 from typing import Any, Dict
 from fv3core import grid
 import numpy
@@ -1709,11 +1710,14 @@ class TranslateAAMCorrection(ParallelTranslateGrid):
             "name": "l2c_v",
             "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM],
             "units": "",
+            "n_halo": 0,
+
         },
         "l2c_u": {
-            "name":"l2c_v",
+            "name":"l2c_u",
             "dims":[fv3util.X_DIM, fv3util.Y_INTERFACE_DIM],
             "units": "",
+            "n_halo": 0,
         },
     }
     outputs: Dict[str, Any] = {
@@ -1721,11 +1725,13 @@ class TranslateAAMCorrection(ParallelTranslateGrid):
             "name": "l2c_v",
             "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM],
             "units": "",
+            "n_halo": 0,
         },
         "l2c_u": {
-            "name":"l2c_v",
+            "name":"l2c_u",
             "dims":[fv3util.X_DIM, fv3util.Y_INTERFACE_DIM],
             "units": "",
+            "n_halo": 0,
         },
     }
     def compute_sequential(self, inputs_list, communicator_list):
@@ -1736,9 +1742,9 @@ class TranslateAAMCorrection(ParallelTranslateGrid):
     
     def _compute_local(self, inputs):
         state = self.state_from_inputs(inputs)
-        xyz_dgrid = lon_lat_to_xyz(state["grid"].data[:,:,0], state["grid"].data[:,:,1], state["grid"].np)
-        state["l2c_v"].data[:], state["l2c_u"].data[:] = calculate_l2c_vu(
-            state["grid"].data[:], xyz_dgrid, self.grid.halo, state["grid"].np
+        nhalo = self.grid.halo
+        state["l2c_v"].data[nhalo:-nhalo, nhalo:-nhalo-1], state["l2c_u"].data[nhalo:-nhalo-1, nhalo:-nhalo] = calculate_l2c_vu(
+            state["grid"].data[:], nhalo, state["grid"].np
         )
         return state
 
@@ -2002,7 +2008,10 @@ class TranslateMoreTrig(ParallelTranslateGrid):
         for i in range(1, 10):
             cos_sg.append(state[f"cos_sg{i}"].data[:-1, :-1])
             sin_sg.append(state[f"sin_sg{i}"].data[:-1, :-1])
-        state["cosa"].data[:, :], state["sina"].data[:, :], state["cosa_u"].data[:, :-1], state["cosa_v"].data[:-1, :], state["cosa_s"].data[:-1, :-1], state["sina_u"].data[:, :-1], state["sina_v"].data[:-1, :], state["rsin_u"].data[:, :-1], state["rsin_v"].data[:-1, :], state["rsina"].data[:, :], state["rsin2"].data[:-1, :-1], state["ee1"].data[:-1, :-1, :], state["ee2"].data[:-1, :-1, :] = calculate_trig_uv(xyz_dgrid, cos_sg, sin_sg, self.grid.halo, 
+        cos_sg = state["grid"].np.array(cos_sg).transpose([1,2,0])
+        sin_sg = state["grid"].np.array(sin_sg).transpose([1,2,0])
+        nhalo = self.grid.halo
+        state["cosa"].data[:, :], state["sina"].data[:, :], state["cosa_u"].data[:, :-1], state["cosa_v"].data[:-1, :], state["cosa_s"].data[:-1, :-1], state["sina_u"].data[:, :-1], state["sina_v"].data[:-1, :], state["rsin_u"].data[:, :-1], state["rsin_v"].data[:-1, :], state["rsina"].data[nhalo:-nhalo, nhalo:-nhalo], state["rsin2"].data[:-1, :-1], state["ee1"].data[nhalo:-nhalo, nhalo:-nhalo, :], state["ee2"].data[nhalo:-nhalo, nhalo:-nhalo, :] = calculate_trig_uv(xyz_dgrid, cos_sg, sin_sg, self.grid.halo, 
             communicator.tile.partitioner, communicator.tile.rank, state["grid"].np
         )
         return state

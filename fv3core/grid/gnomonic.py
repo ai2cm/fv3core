@@ -603,6 +603,6 @@ def get_unit_vector_direction(vector1, vector2, np):
     return normalize_xyz(np.cross(midpoint, p3))
 
 def get_lonlat_vect(lonlat_grid, np):
-    lon_vector = np.array(-np.sin(lonlat_grid[0]), np.cos(lonlat_grid[0]), np.zeros(lonlat_grid[0].shape))
-    lat_vector = np.array(-np.sin(lonlat_grid[1])*np.cos(lonlat_grid[0]), -np.sin(lonlat_grid[1])*np.sin(lonlat_grid[0]), np.cos(lonlat_grid[1]))
+    lon_vector = np.array([-np.sin(lonlat_grid[0]), np.cos(lonlat_grid[0]), np.zeros(lonlat_grid[0].shape)]).transpose([1,2,0])
+    lat_vector = np.array([-np.sin(lonlat_grid[1])*np.cos(lonlat_grid[0]), -np.sin(lonlat_grid[1])*np.sin(lonlat_grid[0]), np.cos(lonlat_grid[1])]).transpose([1,2,0])
     return lon_vector, lat_vector
