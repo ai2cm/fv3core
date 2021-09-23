@@ -105,7 +105,7 @@ class FrozenStencil:
             stencil_config: container for stencil configuration
             externals: compile-time external variables required by stencil
             skip_passes: compiler passes to skip when building stencil
-                         (temporary option until config system implemented)
+                        (temporary option until config system implemented)
         """
         self.origin = origin
         self.domain = domain
