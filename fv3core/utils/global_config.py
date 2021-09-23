@@ -1,3 +1,4 @@
+import functools
 import hashlib
 import os
 from collections.abc import Hashable
@@ -13,6 +14,7 @@ def set_backend(new_backend: str):
     _BACKEND = new_backend
 
 
+@functools.lru_cache(maxsize=None)
 def get_backend() -> str:
     return _BACKEND
 
@@ -22,6 +24,7 @@ def set_rebuild(flag: bool):
     _REBUILD = flag
 
 
+@functools.lru_cache(maxsize=None)
 def get_rebuild() -> bool:
     return _REBUILD
 
@@ -32,6 +35,7 @@ def set_validate_args(new_validate_args: bool):
 
 
 # Set to "False" to skip validating gt4py stencil arguments
+@functools.lru_cache(maxsize=None)
 def get_validate_args() -> bool:
     return _VALIDATE_ARGS
 
@@ -41,6 +45,7 @@ def set_format_source(flag: bool):
     _FORMAT_SOURCE = flag
 
 
+@functools.lru_cache(maxsize=None)
 def get_format_source() -> bool:
     return _FORMAT_SOURCE
 
@@ -53,11 +58,12 @@ def set_device_sync(flag: bool):
 def get_device_sync() -> bool:
     return _DEVICE_SYNC
 
-
+@functools.lru_cache(maxsize=None)
 def is_gpu_backend() -> bool:
     return get_backend().endswith("cuda") or get_backend().endswith("gpu")
 
 
+@functools.lru_cache(maxsize=None)
 def is_gtc_backend() -> bool:
     return get_backend().startswith("gtc")
 
@@ -99,7 +105,7 @@ class StencilConfig(Hashable):
         except AttributeError:
             return False
 
-    @property
+    @functools.cached_property
     def stencil_kwargs(self):
         kwargs = {
             "backend": self.backend,
@@ -111,6 +117,7 @@ class StencilConfig(Hashable):
         return kwargs
 
 
+@functools.lru_cache(maxsize=None)
 def get_stencil_config():
     return StencilConfig(
         backend=get_backend(),
