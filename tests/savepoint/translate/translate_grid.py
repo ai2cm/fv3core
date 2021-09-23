@@ -1284,8 +1284,6 @@ class TranslateUtilVectors(ParallelTranslateGrid):
     def __init__(self, grids):
         super().__init__(grids)
         self._base.in_vars["data_vars"] = {
-            "grid" : {},
-            "agrid": {},
             "ec1" : {
                 "kend": 2,
                 "kaxis": 0,
@@ -1391,8 +1389,8 @@ class TranslateUtilVectors(ParallelTranslateGrid):
         for inputs, communicator in zip(inputs_list, communicator_list):
             state_list.append(self._compute_local(inputs, communicator))
         outputs_list = []
-        for state in state_list:
-            outputs_list.append(self.outputs_from_state(state))
+        # for state in state_list:
+        #     outputs_list.append(self.outputs_from_state(state))
         return self.outputs_list_from_state_list(state_list)
 
     def _compute_local(self, inputs, communicator):
@@ -1412,52 +1410,67 @@ class TranslateUtilVectors(ParallelTranslateGrid):
         )
         return state
 
-    def state_from_inputs(self, inputs: dict, grid=None) -> dict:
-        if grid is None:
-            grid = self.grid
-        state = copy.copy(inputs)
-        self._base.make_storage_data_input_vars(state)
-        for name, properties in self.inputs.items():
-            if "name" not in properties:
-                properties["name"] = name
-            input_data = state[name]
-            if len(properties["dims"]) > 0:
-                dims = properties["dims"]
-                state[properties["name"]] = fv3util.Quantity(
-                    input_data,
-                    dims,
-                    properties["units"],
-                    origin=grid.sizer.get_origin(dims),
-                    extent=grid.sizer.get_extent(dims),
-                )
-            else:
-                state[properties["name"]] = input_data
-        return state
 
-    def outputs_from_state(self, state: dict):
-        return_dict: Dict[str, numpy.ndarray] = {}
-        if len(self.outputs) == 0:
-            return return_dict
-        for name, properties in self.outputs.items():
-            standard_name = properties["name"]
-            print(state[standard_name].data[:].shape, " before")
-            if "kaxis" in self._base.in_vars["data_vars"][name].keys():
-                kaxis = int(self._base.in_vars["data_vars"][name]["kaxis"])
-                data = numpy.moveaxis(state[standard_name].data[:], 2, kaxis)
-            
-            output_slice = _serialize_slice(
-                state[standard_name], properties.get("n_halo", utils.halo)
-            )                
-            return_dict[name] = state[standard_name].data[output_slice]
-            print(return_dict[name].shape, " after")
-        return return_dict
+    # def state_from_inputs(self, inputs: dict, grid=None) -> dict:
+    #     if grid is None:
+    #         grid = self.grid
+    #     state = {}
+    #     for name, properties in self.inputs.items():
+    #         standard_name = properties.get("name", name)
+    #         if len(properties["dims"]) > 0:
+    #             state[standard_name] = grid.quantity_factory.empty(
+    #                 properties["dims"], properties["units"], dtype=inputs[name].dtype
+    #             )
+    #             input_slice = _serialize_slice(
+    #                 state[standard_name], properties.get("n_halo", utils.halo)
+    #             )
+    #             state[standard_name].data[input_slice] = inputs[name]
+    #             if len(properties["dims"]) > 0:
+    #                 state[standard_name].data[input_slice] = inputs[name]
+    #             else:
+    #                 state[standard_name].data[:] = inputs[name]
+    #             if "kaxis" in self._base.in_vars["data_vars"][name].keys():
+    #                 kaxis = int(self._base.in_vars["data_vars"][name]["kaxis"])
+    #                 dims = list(state[standard_name].dims)
+    #                 k_dim = dims.pop(kaxis)
+    #                 dims.insert(len(dims), k_dim)
+    #                 state[standard_name] = state[standard_name].transpose(dims)
+    #         else:
+    #             state[standard_name] = inputs[name]
+    #     return state
+
+    # def outputs_from_state(self, state: dict):
+    #     return_dict: Dict[str, numpy.ndarray] = {}
+    #     if len(self.outputs) == 0:
+    #         return return_dict
+    #     for name, properties in self.outputs.items():
+    #         standard_name = properties["name"]
+    #         if "kaxis" in self._base.in_vars["data_vars"][name].keys():
+    #             kaxis = int(self._base.in_vars["data_vars"][name]["kaxis"])
+    #             dims = list(state[standard_name].dims)
+    #             dims.insert(kaxis, dims.pop(-1))
+    #             state[standard_name] = state[standard_name].transpose(dims)
+    #         output_slice = _serialize_slice(
+    #             state[standard_name], properties.get("n_halo", utils.halo)
+    #         )                
+    #         return_dict[name] = state[standard_name].data[output_slice]
+    #     return return_dict
 
 
 
 class TranslateTrigSg(ParallelTranslateGrid):
     def __init__(self, grids):
         super().__init__(grids)
-        self.transpose_list = ["ec1", "ec2"]
+        self._base.in_vars["data_vars"] = {
+            "ec1" : {
+                "kend": 2,
+                "kaxis": 0,
+            },
+            "ec2" : {
+                "kend": 2,
+                "kaxis": 0,
+            },
+        }
 
     inputs: Dict[str, Any] = {
         "grid": {
@@ -1684,30 +1697,6 @@ class TranslateTrigSg(ParallelTranslateGrid):
             state[f"sin_sg{i}"].data[:-1, :-1] = sin_sg[:,:,i-1]
         return state
 
-    def state_from_inputs(self, inputs: dict, grid=None) -> dict:
-        if grid is None:
-            grid = self.grid
-        state = copy.copy(inputs)
-        self._base.make_storage_data_input_vars(state)
-        for name, properties in self.inputs.items():
-            if "name" not in properties:
-                properties["name"] = name
-            input_data = state[name]
-            if len(properties["dims"]) > 0:
-                if name in self.transpose_list:
-                    dims=[properties["dims"][1], properties["dims"][2], properties["dims"][0]]
-                else:
-                    dims = properties["dims"]
-                state[properties["name"]] = fv3util.Quantity(
-                    input_data,
-                    dims,
-                    properties["units"],
-                    origin=grid.sizer.get_origin(dims),
-                    extent=grid.sizer.get_extent(dims),
-                )
-            else:
-                state[properties["name"]] = input_data
-        return state
 
 class TranslateAAMCorrection(ParallelTranslateGrid):
     inputs: Dict[str, Any] = {
@@ -1757,7 +1746,16 @@ class TranslateAAMCorrection(ParallelTranslateGrid):
 class TranslateMoreTrig(ParallelTranslateGrid):
     def __init__(self, grids):
         super().__init__(grids)
-        self.transpose_list = ["ee1", "ee2"]
+        self._base.in_vars["data_vars"] = {
+            "ee1" : {
+                "kend": 2,
+                "kaxis": 0,
+            },
+            "ee2" : {
+                "kend": 2,
+                "kaxis": 0,
+            },
+        }
 
     inputs: Dict[str, Any] = {
         "grid": {
@@ -1857,22 +1855,22 @@ class TranslateMoreTrig(ParallelTranslateGrid):
         },
         "ee1": {
             "name": "ee1",
-            "dims": [CARTESIAN_DIM, fv3util.X_DIM, fv3util.Y_DIM],
+            "dims": [CARTESIAN_DIM, fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM],
             "units": ""
         },
         "ee2": {
             "name": "ee2",
-            "dims": [CARTESIAN_DIM, fv3util.X_DIM, fv3util.Y_DIM],
+            "dims": [CARTESIAN_DIM, fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM],
             "units": ""
         },
         "cosa_u": {
             "name": "cosa_u",
-            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM],
             "units": ""
         },
         "cosa_v": {
             "name": "cosa_v",
-            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "dims": [fv3util.X_DIM, fv3util.Y_INTERFACE_DIM],
             "units": ""
         },
         "cosa_s": {
@@ -1882,28 +1880,29 @@ class TranslateMoreTrig(ParallelTranslateGrid):
         },
         "sina_u": {
             "name": "sina_u",
-            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM],
             "units": ""
         },
         "sina_v": {
             "name": "sina_v",
-            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "dims": [fv3util.X_DIM, fv3util.Y_INTERFACE_DIM],
             "units": ""
         },
         "rsin_u": {
             "name": "rsin_u",
-            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM],
             "units": ""
         },
         "rsin_v": {
             "name": "rsin_v",
-            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "dims": [fv3util.X_DIM, fv3util.Y_INTERFACE_DIM],
             "units": ""
         },
         "rsina": {
             "name": "rsina",
-            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
-            "units": ""
+            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM],
+            "units": "",
+            "n_halo": 0,
         },
         "rsin2": {
             "name": "rsin2",
@@ -1912,34 +1911,34 @@ class TranslateMoreTrig(ParallelTranslateGrid):
         },
         "cosa": {
             "name": "cosa",
-            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
-            "units": ""
+            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM],
+            "units": "",
         },
         "sina": {
             "name": "sina",
-            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
-            "units": ""
+            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM],
+            "units": "",
         },
     }
     outputs: Dict[str, Any] = {
         "ee1": {
             "name": "ee1",
-            "dims": [CARTESIAN_DIM, fv3util.X_DIM, fv3util.Y_DIM],
+            "dims": [CARTESIAN_DIM, fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM],
             "units": ""
         },
         "ee2": {
             "name": "ee2",
-            "dims": [CARTESIAN_DIM, fv3util.X_DIM, fv3util.Y_DIM],
+            "dims": [CARTESIAN_DIM, fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM],
             "units": ""
         },
         "cosa_u": {
             "name": "cosa_u",
-            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM],
             "units": ""
         },
         "cosa_v": {
             "name": "cosa_v",
-            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "dims": [fv3util.X_DIM, fv3util.Y_INTERFACE_DIM],
             "units": ""
         },
         "cosa_s": {
@@ -1949,28 +1948,29 @@ class TranslateMoreTrig(ParallelTranslateGrid):
         },
         "sina_u": {
             "name": "sina_u",
-            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM],
             "units": ""
         },
         "sina_v": {
             "name": "sina_v",
-            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "dims": [fv3util.X_DIM, fv3util.Y_INTERFACE_DIM],
             "units": ""
         },
         "rsin_u": {
             "name": "rsin_u",
-            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM],
             "units": ""
         },
         "rsin_v": {
             "name": "rsin_v",
-            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "dims": [fv3util.X_DIM, fv3util.Y_INTERFACE_DIM],
             "units": ""
         },
         "rsina": {
             "name": "rsina",
-            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
-            "units": ""
+            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM],
+            "units": "",
+            "n_halo": 0,
         },
         "rsin2": {
             "name": "rsin2",
@@ -1979,13 +1979,13 @@ class TranslateMoreTrig(ParallelTranslateGrid):
         },
         "cosa": {
             "name": "cosa",
-            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
-            "units": ""
+            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM],
+            "units": "",
         },
         "sina": {
             "name": "sina",
-            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
-            "units": ""
+            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM],
+            "units": "",
         },
     }
     def compute_sequential(self, inputs_list, communicator_list):
@@ -2002,55 +2002,9 @@ class TranslateMoreTrig(ParallelTranslateGrid):
         for i in range(1, 10):
             cos_sg.append(state[f"cos_sg{i}"].data[:-1, :-1])
             sin_sg.append(state[f"sin_sg{i}"].data[:-1, :-1])
-        state["cosa"].data[:], state["sina"].data[:], state["cosa_u"].data[:], state["cosa_v"].data[:], state["cosa_s"].data[:], state["sina_u"].data[:], state["sina_v"].data[:], state["rsin_u"].data[:], state["rsin_v"].data[:], state["rsina"].data[:], state["rsin2"].data[:], state["ee1"].data[:], state["ee2"].data[:] = calculate_trig_uv(xyz_dgrid, cos_sg, sin_sg, self.grid.halo, 
+        state["cosa"].data[:, :], state["sina"].data[:, :], state["cosa_u"].data[:, :-1], state["cosa_v"].data[:-1, :], state["cosa_s"].data[:-1, :-1], state["sina_u"].data[:, :-1], state["sina_v"].data[:-1, :], state["rsin_u"].data[:, :-1], state["rsin_v"].data[:-1, :], state["rsina"].data[:, :], state["rsin2"].data[:-1, :-1], state["ee1"].data[:-1, :-1, :], state["ee2"].data[:-1, :-1, :] = calculate_trig_uv(xyz_dgrid, cos_sg, sin_sg, self.grid.halo, 
             communicator.tile.partitioner, communicator.tile.rank, state["grid"].np
         )
-        return state
-
-    def outputs_list_from_state_list(self, state_list):
-        outputs_list = []
-        for state in state_list:
-            outputs_list.append(self.outputs_from_state(state))
-        return outputs_list
-
-    def outputs_from_state(self, state: dict):
-        return_dict: Dict[str, numpy.ndarray] = {}
-        if len(self.outputs) == 0:
-            return return_dict
-        for name, properties in self.outputs.items():
-            standard_name = properties["name"]
-            output_slice = _serialize_slice(
-                state[standard_name], properties.get("n_halo", utils.halo)
-            )
-            if name in self.transpose_list:
-                return_dict[name] = state[standard_name].data[output_slice].transpose([2, 0, 1])
-            else:
-                return_dict[name] = state[standard_name].data[output_slice]
-        return return_dict
-
-    def state_from_inputs(self, inputs: dict, grid=None) -> dict:
-        if grid is None:
-            grid = self.grid
-        state = copy.copy(inputs)
-        self._base.make_storage_data_input_vars(state)
-        for name, properties in self.inputs.items():
-            if "name" not in properties:
-                properties["name"] = name
-            input_data = state[name]
-            if len(properties["dims"]) > 0:
-                if name in self.transpose_list:
-                    dims=[properties["dims"][1], properties["dims"][2], properties["dims"][0]]
-                else:
-                    dims = properties["dims"]
-                state[properties["name"]] = fv3util.Quantity(
-                    input_data,
-                    dims,
-                    properties["units"],
-                    origin=grid.sizer.get_origin(dims),
-                    extent=grid.sizer.get_extent(dims),
-                )
-            else:
-                state[properties["name"]] = input_data
         return state
 
 
@@ -2382,7 +2336,16 @@ class TranslateDivgDel6(ParallelTranslateGrid):
 class TranslateInitCubedtoLatLon(ParallelTranslateGrid):
     def __init__(self, grids):
         super().__init__(grids)
-        self.transpose_list = ["ec1", "ec2"]
+        self._base.in_vars["data_vars"] = {
+            "ec1" : {
+                "kend": 2,
+                "kaxis": 0,
+            },
+            "ec2" : {
+                "kend": 2,
+                "kaxis": 0,
+            },
+        }
 
     inputs: Dict[str, Any] = {
         "agrid": {
@@ -2504,31 +2467,6 @@ class TranslateInitCubedtoLatLon(ParallelTranslateGrid):
         state["a11"].data[:], state["a12"].data[:], state["a21"].data[:], state["a22"].data[:] = calculate_grid_a(
             state["z11"].data[:], state["z12"].data[:], state["z21"].data[:], state["z22"].data[:], state["sin_sg5"].data[:-1, :-1], state["agrid"].np
         )
-        return state
-
-    def state_from_inputs(self, inputs: dict, grid=None) -> dict:
-        if grid is None:
-            grid = self.grid
-        state = copy.copy(inputs)
-        self._base.make_storage_data_input_vars(state)
-        for name, properties in self.inputs.items():
-            if "name" not in properties:
-                properties["name"] = name
-            input_data = state[name]
-            if len(properties["dims"]) > 0:
-                if name in self.transpose_list:
-                    dims=[properties["dims"][1], properties["dims"][2], properties["dims"][0]]
-                else:
-                    dims = properties["dims"]
-                state[properties["name"]] = fv3util.Quantity(
-                    input_data,
-                    dims,
-                    properties["units"],
-                    origin=grid.sizer.get_origin(dims),
-                    extent=grid.sizer.get_extent(dims),
-                )
-            else:
-                state[properties["name"]] = input_data
         return state
 
 
@@ -2658,7 +2596,40 @@ class TranslateEdgeFactors(ParallelTranslateGrid):
 class TranslateInitGridUtils(ParallelTranslateGrid):
     def __init__(self, grids):
         super().__init__(grids)
-        self.transpose_list = ["ec1", "ec2", "ew1", "ew2", "es1", "es2", "ee1", "ee2"]
+        self._base.in_vars["data_vars"] = {
+            "ec1" : {
+                "kend": 2,
+                "kaxis": 0,
+            },
+            "ec2" : {
+                "kend": 2,
+                "kaxis": 0,
+            },
+            "ew1" : {
+                "kend": 2,
+                "kaxis": 0,
+            },
+            "ew2" : {
+                "kend": 2,
+                "kaxis": 0,
+            },
+            "es1" : {
+                "kend": 2,
+                "kaxis": 0,
+            },
+            "es2" : {
+                "kend": 2,
+                "kaxis": 0,
+            },
+            "ee1" : {
+                "kend": 2,
+                "kaxis": 0,
+            },
+            "ee2" : {
+                "kend": 2,
+                "kaxis": 0,
+            },
+        }
 
     inputs: Dict[str, Any] = {
         "gridvar": {
@@ -2775,12 +2746,12 @@ class TranslateInitGridUtils(ParallelTranslateGrid):
         },
         "cosa_u": {
             "name": "cosa_u",
-            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM],
             "units": ""
         },
         "cosa_v": {
             "name": "cosa_v",
-            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "dims": [fv3util.X_DIM, fv3util.Y_INTERFACE_DIM],
             "units": ""
         },
         "cosa_s": {
@@ -2790,28 +2761,29 @@ class TranslateInitGridUtils(ParallelTranslateGrid):
         },
         "sina_u": {
             "name": "sina_u",
-            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM],
             "units": ""
         },
         "sina_v": {
             "name": "sina_v",
-            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "dims": [fv3util.X_DIM, fv3util.Y_INTERFACE_DIM],
             "units": ""
         },
         "rsin_u": {
             "name": "rsin_u",
-            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM],
             "units": ""
         },
         "rsin_v": {
             "name": "rsin_v",
-            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "dims": [fv3util.X_DIM, fv3util.Y_INTERFACE_DIM],
             "units": ""
         },
         "rsina": {
             "name": "rsina",
-            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
-            "units": ""
+            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM],
+            "units": "",
+            "n_halo": 0,
         },
         "rsin2": {
             "name": "rsin2",
@@ -2820,13 +2792,13 @@ class TranslateInitGridUtils(ParallelTranslateGrid):
         },
         "cosa": {
             "name": "cosa",
-            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
-            "units": ""
+            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM],
+            "units": "",
         },
         "sina": {
             "name": "sina",
-            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
-            "units": ""
+            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM],
+            "units": "",
         },
         "cos_sg1": {
             "name": "cos_sg1",
@@ -3039,12 +3011,12 @@ class TranslateInitGridUtils(ParallelTranslateGrid):
         },
         "ee1": {
             "name": "ee1",
-            "dims": [CARTESIAN_DIM, fv3util.X_DIM, fv3util.Y_DIM],
+            "dims": [CARTESIAN_DIM, fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM],
             "units": ""
         },
         "ee2": {
             "name": "ee2",
-            "dims": [CARTESIAN_DIM, fv3util.X_DIM, fv3util.Y_DIM],
+            "dims": [CARTESIAN_DIM, fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM],
             "units": ""
         },
     }
@@ -3172,43 +3144,43 @@ class TranslateInitGridUtils(ParallelTranslateGrid):
         )
 
         state["cosa_u"] = self.grid.quantity_factory.zeros(
-            [fv3util.X_DIM, fv3util.Y_DIM], ""
+            [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM], ""
         )
         state["cosa_v"] = self.grid.quantity_factory.zeros(
-            [fv3util.X_DIM, fv3util.Y_DIM], ""
+            [fv3util.X_DIM, fv3util.Y_INTERFACE_DIM], ""
         )
         state["cosa_s"] = self.grid.quantity_factory.zeros(
             [fv3util.X_DIM, fv3util.Y_DIM], ""
         )
         state["sina_u"] = self.grid.quantity_factory.zeros(
-            [fv3util.X_DIM, fv3util.Y_DIM], ""
+            [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM], ""
         )
         state["sina_v"] = self.grid.quantity_factory.zeros(
-            [fv3util.X_DIM, fv3util.Y_DIM], ""
+            [fv3util.X_DIM, fv3util.Y_INTERFACE_DIM], ""
         )
         state["rsin_u"] = self.grid.quantity_factory.zeros(
-            [fv3util.X_DIM, fv3util.Y_DIM], ""
+            [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM], ""
         )
         state["rsin_v"] = self.grid.quantity_factory.zeros(
-            [fv3util.X_DIM, fv3util.Y_DIM], ""
+            [fv3util.X_DIM, fv3util.Y_INTERFACE_DIM], ""
         )
         state["rsina"] = self.grid.quantity_factory.zeros(
-            [fv3util.X_DIM, fv3util.Y_DIM], ""
+            [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM], ""
         )
         state["rsin2"] = self.grid.quantity_factory.zeros(
             [fv3util.X_DIM, fv3util.Y_DIM], ""
         )
         state["cosa"] = self.grid.quantity_factory.zeros(
-            [fv3util.X_DIM, fv3util.Y_DIM], ""
+            [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM], ""
         )
         state["sina"] = self.grid.quantity_factory.zeros(
-            [fv3util.X_DIM, fv3util.Y_DIM], ""
+            [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM], ""
         )
         state["ee1"] = self.grid.quantity_factory.zeros(
-            [fv3util.X_DIM, fv3util.Y_DIM, CARTESIAN_DIM], ""
+            [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM, CARTESIAN_DIM], ""
         )
         state["ee2"] = self.grid.quantity_factory.zeros(
-            [fv3util.X_DIM, fv3util.Y_DIM, CARTESIAN_DIM], ""
+            [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM, CARTESIAN_DIM], ""
         )
         state["cosa"].data[:], state["sina"].data[:], state["cosa_u"].data[:], state["cosa_v"].data[:], state["cosa_s"].data[:], state["sina_u"].data[:], state["sina_v"].data[:], state["rsin_u"].data[:], state["rsin_v"].data[:], state["rsina"].data[:], state["rsin2"].data[:], state["ee1"].data[:], state["ee2"].data[:] = calculate_trig_uv(xyz_dgrid, cos_sg, sin_sg, self.grid.halo, 
             communicator.tile.partitioner, communicator.tile.rank, state["grid"].np
@@ -3329,24 +3301,3 @@ class TranslateInitGridUtils(ParallelTranslateGrid):
             communicator.tile.partitioner, communicator.tile.rank, RADIUS, state["grid"].np
         )
         return state
-
-    def outputs_list_from_state_list(self, state_list):
-        outputs_list = []
-        for state in state_list:
-            outputs_list.append(self.outputs_from_state(state))
-        return outputs_list
-
-    def outputs_from_state(self, state: dict):
-        return_dict: Dict[str, numpy.ndarray] = {}
-        if len(self.outputs) == 0:
-            return return_dict
-        for name, properties in self.outputs.items():
-            standard_name = properties["name"]
-            output_slice = _serialize_slice(
-                state[standard_name], properties.get("n_halo", utils.halo)
-            )
-            if name in self.transpose_list:
-                return_dict[name] = state[standard_name].data[output_slice].transpose([2, 0, 1])
-            else:
-                return_dict[name] = state[standard_name].data[output_slice]
-        return return_dict
