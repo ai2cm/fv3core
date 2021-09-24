@@ -410,16 +410,10 @@ def calculate_grid_z(ec1, ec2, vlon, vlat, np):
 
 def calculate_grid_a(z11, z12, z21, z22,  sin_sg5):
     a11 = 0.5*z22/sin_sg5
-    a12 = 0.5*z12/sin_sg5
-    a21 = 0.5*z21/sin_sg5
+    a12 = -0.5*z12/sin_sg5
+    a21 = -0.5*z21/sin_sg5
     a22 = 0.5*z11/sin_sg5
     return a11, a12, a21, a22
-
-def _global_mx():
-    pass
-
-def _global_mx_c():
-    pass
 
 def edge_factors(grid, agrid, grid_type, nhalo, tile_partitioner, rank, radius, np):
     """
@@ -539,8 +533,8 @@ def unit_vector_lonlat(grid, np):
     sin_lat = np.sin(grid[:,:,1])
     cos_lat = np.cos(grid[:,:,1])
 
-    unit_lon = np.array([-sin_lon, cos_lon, np.zeros(grid[:,:,0].shape)])
-    unit_lat = np.array([-sin_lat*cos_lon, -sin_lat*sin_lon, cos_lat])
+    unit_lon = np.array([-sin_lon, cos_lon, np.zeros(grid[:,:,0].shape)]).transpose([1,2,0])
+    unit_lat = np.array([-sin_lat*cos_lon, -sin_lat*sin_lon, cos_lat]).transpose([1,2,0])
 
     return unit_lon, unit_lat
 

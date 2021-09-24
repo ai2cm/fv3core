@@ -2336,51 +2336,61 @@ class TranslateInitCubedtoLatLon(ParallelTranslateGrid):
             "name": "vlon",
             "dims": [fv3util.X_DIM, fv3util.Y_DIM, CARTESIAN_DIM],
             "units": "",
+            "n_halo": 2,
         },
         "vlat": {
             "name": "vlat",
             "dims": [fv3util.X_DIM, fv3util.Y_DIM, CARTESIAN_DIM],
             "units": "",
+            "n_halo": 2,
         },
         "z11": {
             "name": "z11",
             "dims": [fv3util.X_DIM, fv3util.Y_DIM],
             "units": "",
+            "n_halo": 1,
         },
         "z12": {
             "name": "z12",
             "dims": [fv3util.X_DIM, fv3util.Y_DIM],
             "units": "",
+            "n_halo": 1,
         },
         "z21": {
             "name": "z21",
             "dims": [fv3util.X_DIM, fv3util.Y_DIM],
             "units": "",
+            "n_halo": 1,
         },
         "z22": {
             "name": "z22",
             "dims": [fv3util.X_DIM, fv3util.Y_DIM],
             "units": "",
+            "n_halo": 1,
         },
         "a11": {
             "name": "a11",
             "dims": [fv3util.X_DIM, fv3util.Y_DIM],
             "units": "",
+            "n_halo": 1,
         },
         "a12": {
             "name": "a12",
             "dims": [fv3util.X_DIM, fv3util.Y_DIM],
             "units": "",
+            "n_halo": 1,
         },
         "a21": {
             "name": "a21",
             "dims": [fv3util.X_DIM, fv3util.Y_DIM],
             "units": "",
+            "n_halo": 1,
         },
         "a22": {
             "name": "a22",
             "dims": [fv3util.X_DIM, fv3util.Y_DIM],
             "units": "",
+            "n_halo": 1,
         },
     }
     def compute_sequential(self, inputs_list, communicator_list):
@@ -2422,12 +2432,12 @@ class TranslateInitCubedtoLatLon(ParallelTranslateGrid):
             [fv3util.X_DIM, fv3util.Y_DIM], ""
         )
 
-        state["vlon"].data[:], state["vlat"].data[:] = unit_vector_lonlat(state["agrid"].data[:], state["agrid"].np)
-        state["z11"].data[:], state["z12"].data[:], state["z21"].data[:], state["z22"].data[:] = calculate_grid_z(
-            state["ec1"].data, state["ec2"].data, state["vlon"].data, state["vlat"].data[:], state["agrid"].np
+        state["vlon"].data[:-1, :-1], state["vlat"].data[:-1, :-1] = unit_vector_lonlat(state["agrid"].data[:-1, :-1], state["agrid"].np)
+        state["z11"].data[:-1, :-1], state["z12"].data[:-1, :-1], state["z21"].data[:-1, :-1], state["z22"].data[:-1, :-1] = calculate_grid_z(
+            state["ec1"].data[:-1, :-1], state["ec2"].data[:-1, :-1], state["vlon"].data[:-1, :-1], state["vlat"].data[:-1, :-1], state["agrid"].np
         )
-        state["a11"].data[:], state["a12"].data[:], state["a21"].data[:], state["a22"].data[:] = calculate_grid_a(
-            state["z11"].data[:], state["z12"].data[:], state["z21"].data[:], state["z22"].data[:], state["sin_sg5"].data[:-1, :-1], state["agrid"].np
+        state["a11"].data[:-1, :-1], state["a12"].data[:-1, :-1], state["a21"].data[:-1, :-1], state["a22"].data[:-1, :-1] = calculate_grid_a(
+            state["z11"].data[:-1, :-1], state["z12"].data[:-1, :-1], state["z21"].data[:-1, :-1], state["z22"].data[:-1, :-1], state["sin_sg5"].data[:-1, :-1]
         )
         return state
 
