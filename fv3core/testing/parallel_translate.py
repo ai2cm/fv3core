@@ -180,6 +180,7 @@ class ParallelTranslateGrid(ParallelTranslate):
         state = {}
         for name, properties in self.inputs.items():
             standard_name = properties.get("name", name)
+            # print(standard_name)
             if len(properties["dims"]) > 0:
                 state[standard_name] = grid.quantity_factory.empty(
                     properties["dims"], properties["units"], dtype=inputs[name].dtype

@@ -2204,12 +2204,12 @@ class TranslateDivgDel6(ParallelTranslateGrid):
         },
         "sina_u": {
             "name": "sina_u",
-            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM],
             "units": ""
         },
         "sina_v": {
             "name": "sina_v",
-            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "dims": [fv3util.X_DIM, fv3util.Y_INTERFACE_DIM],
             "units": ""
         },
         "dx": {
@@ -2284,13 +2284,13 @@ class TranslateDivgDel6(ParallelTranslateGrid):
     def _compute_local(self, inputs, communicator):
         state = self.state_from_inputs(inputs)
         sin_sg = []
-        for i in range(1, 10):
+        for i in range(1, 5):
             sin_sg.append(state[f"sin_sg{i}"].data[:-1, :-1])
         sin_sg = state["sin_sg1"].np.array(sin_sg).transpose(1, 2, 0)
-        state["divg_u"].data[:], state["divg_v"].data[:], state["del6_u"].data[:], state["del6_v"].data[:] = calculate_divg_del6(
-            sin_sg, state["sina_u"].data[:], state["sina_v"].data[:], 
-            state["dx"].data[:], state["dy"].data[:], state["dxc"].data[:], state["dyc"].data[:], self.grid.halo, 
-            communicator.tile.partitioner, communicator.tile.rank, state["sin_sg1"].np
+        state["divg_u"].data[:-1, :], state["divg_v"].data[:, :-1], state["del6_u"].data[:-1, :], state["del6_v"].data[:, :-1] = calculate_divg_del6(
+            sin_sg, state["sina_u"].data[:,:-1], state["sina_v"].data[:-1,:], 
+            state["dx"].data[:-1, :], state["dy"].data[:, :-1], state["dx_cgrid"].data[:, :-1], state["dy_cgrid"].data[:-1, :], self.grid.halo, 
+            communicator.tile.partitioner, communicator.tile.rank
         )
         return state
 
