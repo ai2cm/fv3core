@@ -1412,53 +1412,6 @@ class TranslateUtilVectors(ParallelTranslateGrid):
         return state
 
 
-    # def state_from_inputs(self, inputs: dict, grid=None) -> dict:
-    #     if grid is None:
-    #         grid = self.grid
-    #     state = {}
-    #     for name, properties in self.inputs.items():
-    #         standard_name = properties.get("name", name)
-    #         if len(properties["dims"]) > 0:
-    #             state[standard_name] = grid.quantity_factory.empty(
-    #                 properties["dims"], properties["units"], dtype=inputs[name].dtype
-    #             )
-    #             input_slice = _serialize_slice(
-    #                 state[standard_name], properties.get("n_halo", utils.halo)
-    #             )
-    #             state[standard_name].data[input_slice] = inputs[name]
-    #             if len(properties["dims"]) > 0:
-    #                 state[standard_name].data[input_slice] = inputs[name]
-    #             else:
-    #                 state[standard_name].data[:] = inputs[name]
-    #             if "kaxis" in self._base.in_vars["data_vars"][name].keys():
-    #                 kaxis = int(self._base.in_vars["data_vars"][name]["kaxis"])
-    #                 dims = list(state[standard_name].dims)
-    #                 k_dim = dims.pop(kaxis)
-    #                 dims.insert(len(dims), k_dim)
-    #                 state[standard_name] = state[standard_name].transpose(dims)
-    #         else:
-    #             state[standard_name] = inputs[name]
-    #     return state
-
-    # def outputs_from_state(self, state: dict):
-    #     return_dict: Dict[str, numpy.ndarray] = {}
-    #     if len(self.outputs) == 0:
-    #         return return_dict
-    #     for name, properties in self.outputs.items():
-    #         standard_name = properties["name"]
-    #         if "kaxis" in self._base.in_vars["data_vars"][name].keys():
-    #             kaxis = int(self._base.in_vars["data_vars"][name]["kaxis"])
-    #             dims = list(state[standard_name].dims)
-    #             dims.insert(kaxis, dims.pop(-1))
-    #             state[standard_name] = state[standard_name].transpose(dims)
-    #         output_slice = _serialize_slice(
-    #             state[standard_name], properties.get("n_halo", utils.halo)
-    #         )                
-    #         return_dict[name] = state[standard_name].data[output_slice]
-    #     return return_dict
-
-
-
 class TranslateTrigSg(ParallelTranslateGrid):
     def __init__(self, grids):
         super().__init__(grids)
@@ -1686,11 +1639,11 @@ class TranslateTrigSg(ParallelTranslateGrid):
     def _compute_local(self, inputs, communicator):
         state = self.state_from_inputs(inputs)
         xyz_dgrid = lon_lat_to_xyz(state["grid"].data[:,:,0], state["grid"].data[:,:,1], state["agrid"].np)
-        xyz_agrid = lon_lat_to_xyz(state["agrid"].data[:,:,0], state["agrid"].data[:,:,1], state["agrid"].np)
+        xyz_agrid = lon_lat_to_xyz(state["agrid"].data[:-1,:-1,0], state["agrid"].data[:-1,:-1,1], state["agrid"].np)
         # csgs = state["cos_sg1"].data[:].shape
         # print(csgs, state["grid"].data[:].shape, state["agrid"].data[:].shape)
         cos_sg, sin_sg = calculate_supergrid_cos_sin(
-            xyz_dgrid, xyz_agrid, state["ec1"].data[:], state["ec2"].data[:], self.grid.grid_type, self.grid.halo, 
+            xyz_dgrid, xyz_agrid, state["ec1"].data[:-1, :-1], state["ec2"].data[:-1, :-1], self.grid.grid_type, self.grid.halo, 
             communicator.tile.partitioner, communicator.tile.rank, state["agrid"].np
         )
         for i in range(1,10):

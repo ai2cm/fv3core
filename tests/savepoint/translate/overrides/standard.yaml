@@ -103,3 +103,6 @@ InitGrid:
       gridvar: 3e-14
       agrid: 3e-14
   
+TrigSg:
+  - backend: numpy
+    max_error: 1e-14
