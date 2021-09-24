@@ -1277,7 +1277,7 @@ class TranslateSetEta(ParallelTranslateGrid):
 
     def _compute_local(self, inputs):
         state = self.state_from_inputs(inputs)
-        state["ks"].data[:], state["ptop"].data[:], state["ak"].data[:], state["bk"].data[:] = set_eta(state["npz"])
+        state["ks"], state["ptop"], state["ak"].data[:], state["bk"].data[:] = set_eta(state["npz"])
         return state
 
 
