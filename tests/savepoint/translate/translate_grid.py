@@ -2555,11 +2555,11 @@ class TranslateEdgeFactors(ParallelTranslateGrid):
         state = self.state_from_inputs(inputs)
         nhalo = self.grid.halo
         state["edge_w"].data[nhalo:-nhalo], state["edge_e"].data[nhalo:-nhalo], state["edge_s"].data[nhalo:-nhalo], state["edge_n"].data[nhalo:-nhalo] = edge_factors(
-            state["grid"].data[:], state["agrid"].data[:], self.grid.grid_type, nhalo, 
+            state["grid"].data[:], state["agrid"].data[:-1, :-1], self.grid.grid_type, nhalo, 
             communicator.tile.partitioner, communicator.tile.rank, RADIUS, state["grid"].np
         )
-        state["edge_vect_w"].data[:], state["edge_vect_e"].data[:], state["edge_vect_s"].data[:], state["edge_vect_n"].data[:] = efactor_a2c_v(
-            state["grid"].data[:], state["agrid"].data[:], self.grid.grid_type, nhalo, 
+        state["edge_vect_w"].data[:-1], state["edge_vect_e"].data[:-1], state["edge_vect_s"].data[:-1], state["edge_vect_n"].data[:-1] = efactor_a2c_v(
+            state["grid"].data[:], state["agrid"].data[:-1, :-1], self.grid.grid_type, nhalo, 
             communicator.tile.partitioner, communicator.tile.rank, RADIUS, state["grid"].np
         )
         return state
