@@ -26,8 +26,10 @@ import fv3core._config as spec
 import fv3core.utils
 import fv3core.utils.global_config as global_config
 import fv3core.utils.grid
+from fv3core.utils.future_stencil import future_stencil
 from fv3core.utils.global_config import StencilConfig
 from fv3core.utils.stencil_merger import StencilInterface, StencilMerger
+from fv3core.utils.mpi import MPI
 from fv3core.utils.typing import Index3D
 
 
@@ -107,6 +109,7 @@ class FrozenStencil(StencilInterface):
         domain: Index3D,
         stencil_config: Optional[StencilConfig] = None,
         externals: Optional[Mapping[str, Any]] = None,
+        skip_passes: Optional[Tuple[str, ...]] = None,
     ):
         """
         Args:
@@ -115,6 +118,8 @@ class FrozenStencil(StencilInterface):
             domain: gt4py domain to use at call time
             stencil_config: container for stencil configuration
             externals: compile-time external variables required by stencil
+            skip_passes: compiler passes to skip when building stencil
+                        (temporary option until config system implemented)
         """
         self.origin = origin
         self.domain = domain
@@ -132,11 +137,23 @@ class FrozenStencil(StencilInterface):
         )
         self.definition_func: Callable = func
 
-        self.stencil_object: gt4py.StencilObject = gtscript.stencil(
+        stencil_function = gtscript.stencil
+        stencil_kwargs = {**self.stencil_config.stencil_kwargs}
+
+        # Enable distributed compilation if running in parallel
+        if MPI is not None and MPI.COMM_WORLD.Get_size() > 1:
+            stencil_function = future_stencil
+            stencil_kwargs["wrapper"] = self
+
+        if global_config.is_gtc_backend():
+            if not skip_passes:
+                skip_passes = ("graph_merge_horizontal_executions",)
+            stencil_kwargs["skip_passes"] = skip_passes
+
+        self.stencil_object: gt4py.StencilObject = stencil_function(
             definition=func,
             externals=externals,
-            build_info=self.build_info,
-            **self.stencil_config.stencil_kwargs,
+            **stencil_kwargs,
         )
         """generated stencil object returned from gt4py."""
 
@@ -146,17 +163,18 @@ class FrozenStencil(StencilInterface):
             len(self._argument_names) > 0
         ), "A stencil with no arguments? You may be double decorating"
 
+        field_info = self.stencil_object.field_info
         self._field_origins: Dict[str, Tuple[int, ...]] = compute_field_origins(
-            self.stencil_object.field_info, self.origin
+            field_info, self.origin
         )
         """mapping from field names to field origins"""
 
-        self._stencil_run_kwargs = {
+        self._stencil_run_kwargs: Dict[str, Any] = {
             "_origin_": self._field_origins,
             "_domain_": self.domain,
         }
 
-        self._written_fields = get_written_fields(self.stencil_object.field_info)
+        self._written_fields: List[str] = get_written_fields(field_info)
 
         if _stencil_merger.enabled:
             _stencil_merger.add(self)
