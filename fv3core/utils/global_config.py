@@ -56,6 +56,7 @@ def set_device_sync(flag: bool):
 def get_device_sync() -> bool:
     return _DEVICE_SYNC
 
+
 @functools.lru_cache(maxsize=None)
 def is_gpu_backend() -> bool:
     return get_backend().endswith("cuda") or get_backend().endswith("gpu")
@@ -103,7 +104,7 @@ class StencilConfig(Hashable):
         except AttributeError:
             return False
 
-    @functools.cached_property
+    @property
     def stencil_kwargs(self):
         kwargs = {
             "backend": self.backend,
