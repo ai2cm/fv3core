@@ -106,3 +106,10 @@ InitGrid:
 TrigSg:
   - backend: numpy
     max_error: 1e-14
+
+MoreTrig:
+  - backend: numpy
+    max_error: 3e-14
+    ignore_near_zero_errors:
+      ee1: 3e-14
+      ee2: 3e-14

@@ -226,17 +226,18 @@ def calculate_l2c_vu(dgrid, nhalo, np):
 
 def generate_xy_unit_vectors(xyz_dgrid, nhalo, tile_partitioner, rank, np):
     cross_vect_x = np.cross(xyz_dgrid[nhalo-1:-nhalo-1, nhalo:-nhalo, :], xyz_dgrid[nhalo+1:-nhalo+1, nhalo:-nhalo, :])
+    # print(cross_vect_x.shape)
     if tile_partitioner.on_tile_left(rank):
         cross_vect_x[0,:] = np.cross(xyz_dgrid[nhalo, nhalo:-nhalo, :], xyz_dgrid[nhalo+1, nhalo:-nhalo, :])
     if tile_partitioner.on_tile_right(rank):
-        cross_vect_x[-1, :] = np.cross(xyz_dgrid[-2, nhalo:-nhalo, :], xyz_dgrid[-1, nhalo:-nhalo, :])
+        cross_vect_x[-1, :] = np.cross(xyz_dgrid[-nhalo-2, nhalo:-nhalo, :], xyz_dgrid[-nhalo-1, nhalo:-nhalo, :])
     unit_x_vector = normalize_xyz(np.cross(cross_vect_x, xyz_dgrid[nhalo:-nhalo, nhalo:-nhalo]))
 
     cross_vect_y = np.cross(xyz_dgrid[nhalo:-nhalo, nhalo-1:-nhalo-1, :], xyz_dgrid[nhalo:-nhalo, nhalo+1:-nhalo+1, :])
     if tile_partitioner.on_tile_bottom(rank):
         cross_vect_y[:,0] = np.cross(xyz_dgrid[nhalo:-nhalo, nhalo, :], xyz_dgrid[nhalo:-nhalo, nhalo+1, :])
     if tile_partitioner.on_tile_top(rank):
-        cross_vect_y[:, -1] = np.cross(xyz_dgrid[nhalo:-nhalo, -2, :], xyz_dgrid[nhalo:-nhalo, -1, :])
+        cross_vect_y[:, -1] = np.cross(xyz_dgrid[nhalo:-nhalo, -nhalo-2, :], xyz_dgrid[nhalo:-nhalo, -nhalo-1, :])
     unit_y_vector = normalize_xyz(np.cross(cross_vect_y, xyz_dgrid[nhalo:-nhalo, nhalo:-nhalo]))
 
     return unit_x_vector, unit_y_vector
