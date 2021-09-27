@@ -214,7 +214,7 @@ def calculate_l2c_vu(dgrid, nhalo, np):
 
     midpoint_y = np.array(lon_lat_midpoint(dgrid[nhalo:-nhalo, nhalo:-nhalo-1, 0], dgrid[nhalo:-nhalo, nhalo+1:-nhalo, 0], dgrid[nhalo:-nhalo, nhalo:-nhalo-1, 1], dgrid[nhalo:-nhalo, nhalo+1:-nhalo, 1], np))
     unit_dir_y = get_unit_vector_direction(xyz_dgrid[nhalo:-nhalo, nhalo:-nhalo-1, :], xyz_dgrid[nhalo:-nhalo, nhalo+1:-nhalo, :], np)
-    ex, _ = get_lonlat_vect(midpoint_y, np)
+    ex, ey = get_lonlat_vect(midpoint_y, np)
     l2c_v = np.cos(midpoint_y[1] * np.sum(unit_dir_y * ex, axis=-1))
 
     midpoint_x = np.array(lon_lat_midpoint(dgrid[nhalo:-nhalo-1, nhalo:-nhalo, 0], dgrid[nhalo+1:-nhalo, nhalo:-nhalo, 0], dgrid[nhalo:-nhalo-1, nhalo:-nhalo, 1], dgrid[nhalo+1:-nhalo, nhalo:-nhalo, 1], np))
@@ -224,25 +224,7 @@ def calculate_l2c_vu(dgrid, nhalo, np):
 
     return l2c_v, l2c_u
 
-def calculate_trig_uv(xyz_dgrid, cos_sg, sin_sg, nhalo, tile_partitioner, rank, np):
-    '''
-    Calculates more trig quantities
-    '''
-
-    big_number = 1.e8
-    tiny_number = 1.e-8
-
-    dgrid_shape_2d = xyz_dgrid[:,:,0].shape
-    cosa = np.zeros(dgrid_shape_2d)+big_number
-    sina = np.zeros(dgrid_shape_2d)+big_number
-    rsina = np.zeros((dgrid_shape_2d[0]-2*nhalo, dgrid_shape_2d[1]-2*nhalo))+big_number
-    cosa_u = np.zeros((dgrid_shape_2d[0], dgrid_shape_2d[1]-1))+big_number
-    sina_u = np.zeros((dgrid_shape_2d[0], dgrid_shape_2d[1]-1))+big_number
-    rsin_u = np.zeros((dgrid_shape_2d[0], dgrid_shape_2d[1]-1))+big_number
-    cosa_v = np.zeros((dgrid_shape_2d[0]-1, dgrid_shape_2d[1]))+big_number
-    sina_v = np.zeros((dgrid_shape_2d[0]-1, dgrid_shape_2d[1]))+big_number
-    rsin_v = np.zeros((dgrid_shape_2d[0]-1, dgrid_shape_2d[1]))+big_number
-
+def generate_xy_unit_vectors(xyz_dgrid, nhalo, tile_partitioner, rank, np):
     cross_vect_x = np.cross(xyz_dgrid[nhalo-1:-nhalo-1, nhalo:-nhalo, :], xyz_dgrid[nhalo+1:-nhalo+1, nhalo:-nhalo, :])
     if tile_partitioner.on_tile_left(rank):
         cross_vect_x[0,:] = np.cross(xyz_dgrid[nhalo, nhalo:-nhalo, :], xyz_dgrid[nhalo+1, nhalo:-nhalo, :])
@@ -257,26 +239,45 @@ def calculate_trig_uv(xyz_dgrid, cos_sg, sin_sg, nhalo, tile_partitioner, rank, 
         cross_vect_y[:, -1] = np.cross(xyz_dgrid[nhalo:-nhalo, -2, :], xyz_dgrid[nhalo:-nhalo, -1, :])
     unit_y_vector = normalize_xyz(np.cross(cross_vect_y, xyz_dgrid[nhalo:-nhalo, nhalo:-nhalo]))
 
-    if False: #TEST_FP
-        tmp1 = np.sum(unit_x_vector*unit_y_vector, axis=0)
-        cosa[nhalo:-nhalo, nhalo:-nhalo] = np.clip(np.abs(tmp1), None, 1.)
-        cosa[tmp1 < 0]*=-1
-        sina[nhalo:-nhalo, nhalo:-nhalo] = np.sqrt(np.clip(1.-cosa**2, 0., None))
-    else:
-        cosa[nhalo:-nhalo, nhalo:-nhalo] = 0.5*(cos_sg[nhalo-1:-nhalo, nhalo-1:-nhalo, 7] + cos_sg[nhalo:-nhalo+1, nhalo:-nhalo+1, 5])
-        sina[nhalo:-nhalo, nhalo:-nhalo] = 0.5*(sin_sg[nhalo-1:-nhalo, nhalo-1:-nhalo, 7] + sin_sg[nhalo:-nhalo+1, nhalo:-nhalo+1, 5])
+    return unit_x_vector, unit_y_vector
+
+def calculate_trig_uv(xyz_dgrid, cos_sg, sin_sg, nhalo, tile_partitioner, rank, np):
+    '''
+    Calculates more trig quantities
+    '''
+
+    big_number = 1.e8
+    tiny_number = 1.e-8
+
+    dgrid_shape_2d = xyz_dgrid[:,:,0].shape
+    cosa = np.zeros(dgrid_shape_2d)+big_number
+    sina = np.zeros(dgrid_shape_2d)+big_number
+    cosa_u = np.zeros((dgrid_shape_2d[0], dgrid_shape_2d[1]-1))+big_number
+    sina_u = np.zeros((dgrid_shape_2d[0], dgrid_shape_2d[1]-1))+big_number
+    rsin_u = np.zeros((dgrid_shape_2d[0], dgrid_shape_2d[1]-1))+big_number
+    cosa_v = np.zeros((dgrid_shape_2d[0]-1, dgrid_shape_2d[1]))+big_number
+    sina_v = np.zeros((dgrid_shape_2d[0]-1, dgrid_shape_2d[1]))+big_number
+    rsin_v = np.zeros((dgrid_shape_2d[0]-1, dgrid_shape_2d[1]))+big_number
+
+    cosa[nhalo:-nhalo, nhalo:-nhalo] = 0.5*(cos_sg[nhalo-1:-nhalo, nhalo-1:-nhalo, 7] + cos_sg[nhalo:-nhalo+1, nhalo:-nhalo+1, 5])
+    sina[nhalo:-nhalo, nhalo:-nhalo] = 0.5*(sin_sg[nhalo-1:-nhalo, nhalo-1:-nhalo, 7] + sin_sg[nhalo:-nhalo+1, nhalo:-nhalo+1, 5])
 
     cosa_u[1:-1,:] = 0.5*(cos_sg[:-1,:,2] + cos_sg[1:,:,0])
     sina_u[1:-1,:] = 0.5*(sin_sg[:-1,:,2] + sin_sg[1:,:,0])
-    rsin_u[1:-1,:] = 1./sina_u[1:-1,:]**2
+    sinu2 = sina_u[1:-1,:]**2
+    sinu2[sinu2 < tiny_number] = tiny_number
+    rsin_u[1:-1,:] = 1./sinu2
 
-    cosa_v[:,1:-1] = 0.5*(cos_sg[:,:-1,2] + cos_sg[:,1:,1])
-    sina_v[:,1:-1] = 0.5*(sin_sg[:,:-1,2] + sin_sg[:,1:,1])
-    rsin_v[:,1:-1] = 1./sina_v[:,1:-1]**2
+    cosa_v[:,1:-1] = 0.5*(cos_sg[:,:-1,3] + cos_sg[:,1:,1])
+    sina_v[:,1:-1] = 0.5*(sin_sg[:,:-1,3] + sin_sg[:,1:,1])
+    sinv2 = sina_v[:,1:-1]**2
+    sinv2[sinv2 < tiny_number] = tiny_number
+    rsin_v[:,1:-1] = 1./sinv2
 
     cosa_s = cos_sg[:,:,4]
-    rsin2 = 1./sin_sg[:,:,4]**2
-    rsin2[rsin2 < tiny_number] = tiny_number
+    sin2 = sin_sg[:,:,4]**2
+    sin2[sin2 < tiny_number] = tiny_number
+    rsin2 = 1./sin2
 
     #fill ghost on cosa_s:
     if tile_partitioner.on_tile_left(rank):
@@ -290,28 +291,33 @@ def calculate_trig_uv(xyz_dgrid, cos_sg, sin_sg, nhalo, tile_partitioner, rank, 
         if tile_partitioner.on_tile_top(rank):
             _fill_ghost(cosa_s, big_number, nhalo, "ne")
 
-
-    rsina = 1./sina[nhalo:-nhalo, nhalo:-nhalo]**2
+    sina2 = sina[nhalo:-nhalo, nhalo:-nhalo]**2
+    sina2[sina2 < tiny_number] = tiny_number
+    rsina = 1./sina2
 
     # Set special sin values at edges
     if tile_partitioner.on_tile_left(rank):
         rsina[0, :] = big_number
-        rsin_u[nhalo,:] = 1./sina_u[nhalo,:]
+        sina_u_limit = sina_u[nhalo,:]
+        sina_u_limit[abs(sina_u_limit) < tiny_number] = tiny_number * np.sign(sina_u_limit[abs(sina_u_limit) < tiny_number])
+        rsin_u[nhalo,:] = 1./sina_u_limit
     if tile_partitioner.on_tile_right(rank):
         rsina[-1, :] = big_number
-        rsin_u[-nhalo,:] = 1./sina_u[-nhalo,:]
+        sina_u_limit = sina_u[-nhalo,:]
+        sina_u_limit[abs(sina_u_limit) < tiny_number] = tiny_number * np.sign(sina_u_limit[abs(sina_u_limit) < tiny_number])
+        rsin_u[-nhalo,:] = 1./sina_u_limit
     if tile_partitioner.on_tile_bottom(rank):
         rsina[:, 0] = big_number
-        rsin_v[:,nhalo] = 1./sina_v[:,nhalo]
+        sina_v_limit = sina_v[:,nhalo]
+        sina_v_limit[abs(sina_v_limit) < tiny_number] = tiny_number * np.sign(sina_v_limit[abs(sina_v_limit) < tiny_number])
+        rsin_v[:,nhalo] = 1./sina_v_limit
     if tile_partitioner.on_tile_top(rank):
         rsina[:,-1] = big_number
-        rsin_v[:,-nhalo] = 1./sina_v[:,-nhalo]
-    
-    rsina[abs(rsina) > big_number] = big_number*np.sign(rsina[abs(rsina) > big_number])
-    rsin_u[abs(rsin_u) > big_number] = big_number*np.sign(rsin_u[abs(rsin_u) > big_number])
-    rsin_v[abs(rsin_v) > big_number] = big_number*np.sign(rsin_v[abs(rsin_v) > big_number])
+        sina_v_limit = sina_v[:,-nhalo]
+        sina_v_limit[abs(sina_v_limit) < tiny_number] = tiny_number * np.sign(sina_v_limit[abs(sina_v_limit) < tiny_number])
+        rsin_v[:,-nhalo] = 1./sina_v_limit
 
-    return cosa, sina, cosa_u, cosa_v, cosa_s, sina_u, sina_v, rsin_u, rsin_v, rsina, rsin2, unit_x_vector, unit_y_vector
+    return cosa, sina, cosa_u, cosa_v, cosa_s, sina_u, sina_v, rsin_u, rsin_v, rsina, rsin2
 
 def supergrid_corner_fix(cos_sg, sin_sg, nhalo, tile_partitioner, rank):
     """

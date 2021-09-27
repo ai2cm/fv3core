@@ -36,7 +36,8 @@ from fv3core.grid.geometry import (
     calculate_grid_a,
     edge_factors,
     efactor_a2c_v,
-    calculate_trig_uv
+    calculate_trig_uv,
+    generate_xy_unit_vectors
 )
 from fv3core.grid.eta import set_eta
 
@@ -1964,7 +1965,8 @@ class TranslateMoreTrig(ParallelTranslateGrid):
         cos_sg = state["grid"].np.array(cos_sg).transpose([1,2,0])
         sin_sg = state["grid"].np.array(sin_sg).transpose([1,2,0])
         nhalo = self.grid.halo
-        state["cosa"].data[:, :], state["sina"].data[:, :], state["cosa_u"].data[:, :-1], state["cosa_v"].data[:-1, :], state["cosa_s"].data[:-1, :-1], state["sina_u"].data[:, :-1], state["sina_v"].data[:-1, :], state["rsin_u"].data[:, :-1], state["rsin_v"].data[:-1, :], state["rsina"].data[nhalo:-nhalo, nhalo:-nhalo], state["rsin2"].data[:-1, :-1], state["ee1"].data[nhalo:-nhalo, nhalo:-nhalo, :], state["ee2"].data[nhalo:-nhalo, nhalo:-nhalo, :] = calculate_trig_uv(xyz_dgrid, cos_sg, sin_sg, self.grid.halo, 
+        state["ee1"].data[nhalo:-nhalo, nhalo:-nhalo, :], state["ee2"].data[nhalo:-nhalo, nhalo:-nhalo, :] = generate_xy_unit_vectors(xyz_dgrid, nhalo, communicator.tile.partitioner, communicator.tile.rank, state["grid"].np)
+        state["cosa"].data[:, :], state["sina"].data[:, :], state["cosa_u"].data[:, :-1], state["cosa_v"].data[:-1, :], state["cosa_s"].data[:-1, :-1], state["sina_u"].data[:, :-1], state["sina_v"].data[:-1, :], state["rsin_u"].data[:, :-1], state["rsin_v"].data[:-1, :], state["rsina"].data[nhalo:-nhalo, nhalo:-nhalo], state["rsin2"].data[:-1, :-1] = calculate_trig_uv(xyz_dgrid, cos_sg, sin_sg, nhalo, 
             communicator.tile.partitioner, communicator.tile.rank, state["grid"].np
         )
         return state

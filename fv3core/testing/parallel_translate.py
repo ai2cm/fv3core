@@ -82,7 +82,6 @@ class ParallelTranslate:
             return return_dict
         for name, properties in self.outputs.items():
             standard_name = properties["name"]
-            print(standard_name)
             if name in self._base.in_vars["data_vars"].keys():
                 if "kaxis" in self._base.in_vars["data_vars"][name].keys():
                     kaxis = int(self._base.in_vars["data_vars"][name]["kaxis"])
