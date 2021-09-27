@@ -866,16 +866,17 @@ cubedsphere=Atm(n)%gridstruct%latlon
                 "radians",
                 dtype=float,
             )
-            lon = local_quantity_factory.zeros(
-                [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM], "radians", dtype=float
-            )
-            lat = local_quantity_factory.zeros(
-                [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM], "radians", dtype=float
-            )
+            #lon = local_quantity_factory.zeros(
+            #    [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM], "radians", dtype=float
+            #)
+            #lat = local_quantity_factory.zeros(
+            #    [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM], "radians", dtype=float
+            #)
 
-            local_gnomonic_ed(lon.view[:], lat.view[:], old_grid, lon.np)
-            grid_section.view[:, :, 0] = lon.view[:]
-            grid_section.view[:, :, 1] = lat.view[:]
+            #local_gnomonic_ed(lon.view[:], lat.view[:], old_grid, lon.np)
+            local_gnomonic_ed( grid_section.view[:,:,0],  grid_section.view[:,:,1],  npx=old_grid.npx, west_edge=old_grid.west_edge, east_edge=old_grid.east_edge,sw_corner=old_grid.sw_corner, se_corner=old_grid.se_corner, nw_corner=old_grid.nw_corner, ne_corner=old_grid.ne_corner, global_is=old_grid.global_is, global_js=old_grid.global_js, np=grid_section.np)
+            #grid_section.view[:, :, 0] = lon.view[:]
+            #grid_section.view[:, :, 1] = lat.view[:]
             if not compare:
                 grid_global.data[old_grid.global_is:old_grid.global_ie+2, old_grid.global_js:old_grid.global_je+2, :, tile_index] = grid_section.data[old_grid.is_:old_grid.ie+2, old_grid.js:old_grid.je+2, :]
             sections[old_grid.rank] = grid_section

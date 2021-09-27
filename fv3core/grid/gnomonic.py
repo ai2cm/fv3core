@@ -92,10 +92,11 @@ def gnomonic_ed(lon, lat, np):
 def lat_tile_ew_edge(alpha, dely, south_north_tile_index):
     return  -alpha + dely * float(south_north_tile_index)
 
-def local_gnomonic_ed(lon, lat, grid, np):
+def local_gnomonic_ed(lon, lat,  npx, west_edge, east_edge,sw_corner, se_corner, nw_corner, ne_corner, global_is, global_js, np):
+    # tile_im, wedge_dict, corner_dict, global_is, global_js
     im = lon.shape[0] - 1
     alpha = np.arcsin(3 ** -0.5)
-    tile_im = grid.npx - 1
+    tile_im = npx - 1
     dely = 2.0 * alpha / float(tile_im)
     halo = 3
     pp = np.zeros((3, im + 1, im + 1))
@@ -112,17 +113,17 @@ def local_gnomonic_ed(lon, lat, grid, np):
     lat_south =  lat_tile_ew_edge(alpha, dely, 0)   
     lat_north =  lat_tile_ew_edge(alpha, dely, tile_im)
   
-    start_i = 1 if grid.west_edge else 0
-    end_i = im if grid.east_edge else im+1
+    start_i = 1 if west_edge else 0
+    end_i = im if east_edge else im+1
     
     lon_west_tile_edge[0, :]=  lon_west
     for j in range(0, im + 1):
-        lat_west_tile_edge[0, j] = lat_tile_ew_edge(alpha, dely, grid.global_js - halo +j)
-        lat_west_tile_edge_mirror[0, j] = lat_tile_ew_edge(alpha, dely, grid.global_is - halo +j)
+        lat_west_tile_edge[0, j] = lat_tile_ew_edge(alpha, dely, global_js - halo +j)
+        lat_west_tile_edge_mirror[0, j] = lat_tile_ew_edge(alpha, dely, global_is - halo +j)
 
-    if grid.east_edge:
+    if east_edge:
         lon_south_tile_edge[im, 0] = 1.25* PI
-        lat_south_tile_edge[im, 0] = lat_tile_ew_edge(alpha, dely, grid.global_js - halo)
+        lat_south_tile_edge[im, 0] = lat_tile_ew_edge(alpha, dely, global_js - halo)
        
     # Get North-South edges by symmetry
     for i in range(start_i, end_i):
@@ -134,18 +135,18 @@ def local_gnomonic_ed(lon, lat, grid, np):
             
     # set 4 corners
     
-    if grid.sw_corner:
+    if sw_corner:
         sw_xyz =  _latlon2xyz(lon_west,  lat_south, np)
         pp[:, 0, 0] =sw_xyz
         pp_west_tile_edge[:,0,0]= sw_xyz
         pp_south_tile_edge[:,0,0]= sw_xyz
-    if grid.se_corner:
+    if se_corner:
         se_xyz = _latlon2xyz(lon_east,  lat_south, np)
         pp_south_tile_edge[:,im,0]= se_xyz
-    if grid.nw_corner:
+    if nw_corner:
         nw_xyz =  _latlon2xyz(lon_west,  lat_north, np)
         pp_west_tile_edge[:,0,im]= nw_xyz
-    if grid.ne_corner:
+    if ne_corner:
         pp[:, im, im] = _latlon2xyz(lon_east,  lat_north, np)
     
     
@@ -155,7 +156,7 @@ def local_gnomonic_ed(lon, lat, grid, np):
         pp_west_tile_edge[:, i, j] = _latlon2xyz(lon_west_tile_edge[i, j], lat_west_tile_edge[i, j], np)
         pp_west_tile_edge[1, i, j] = -pp_west_tile_edge[1, i, j] * (3 ** -0.5) / pp_west_tile_edge[0, i, j]
         pp_west_tile_edge[2, i, j] = -pp_west_tile_edge[2, i, j] * (3 ** -0.5) / pp_west_tile_edge[0, i, j]
-    if grid.west_edge:
+    if west_edge:
         pp[:, 0,:] = pp_west_tile_edge[:, 0,:]
     
     j = 0
