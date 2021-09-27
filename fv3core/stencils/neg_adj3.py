@@ -97,18 +97,19 @@ def fillq(q: FloatField, dp: FloatField, sum1: FloatFieldIJ, sum2: FloatFieldIJ)
         sum1 = 0.0
         sum2 = 0.0
     with computation(FORWARD), interval(...):
-        sum1 += (q if q > 0.0 else 0.0) * dp
+        if q > 0:
+            sum1 = sum1 + q * dp
     with computation(BACKWARD), interval(...):
         if q < 0.0 and sum1 >= 0:
             dq = sum1 if sum1 < -q * dp else -q * dp
-            sum1 -= dq
-            sum2 += dq
-            q += dq / dp
+            sum1 = sum1 - dq
+            sum2 = sum2 + dq
+            q = q + dq / dp
     with computation(BACKWARD), interval(...):
         if q > 0.0 and sum1 >= 1e-12 and sum2 > 0:
             dq = sum2 if sum2 < q * dp else q * dp
-            sum2 -= dq
-            q -= dq / dp
+            sum2 = sum2 - dq
+            q = q - dq / dp
 
 
 def fix_neg_water(
