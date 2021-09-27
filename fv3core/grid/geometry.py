@@ -303,9 +303,9 @@ def calculate_trig_uv(xyz_dgrid, cos_sg, sin_sg, nhalo, tile_partitioner, rank, 
         rsin_u[nhalo,:] = 1./sina_u_limit
     if tile_partitioner.on_tile_right(rank):
         rsina[-1, :] = big_number
-        sina_u_limit = sina_u[-nhalo,:]
+        sina_u_limit = sina_u[-nhalo-1,:]
         sina_u_limit[abs(sina_u_limit) < tiny_number] = tiny_number * np.sign(sina_u_limit[abs(sina_u_limit) < tiny_number])
-        rsin_u[-nhalo,:] = 1./sina_u_limit
+        rsin_u[-nhalo-1,:] = 1./sina_u_limit
     if tile_partitioner.on_tile_bottom(rank):
         rsina[:, 0] = big_number
         sina_v_limit = sina_v[:,nhalo]
@@ -313,9 +313,9 @@ def calculate_trig_uv(xyz_dgrid, cos_sg, sin_sg, nhalo, tile_partitioner, rank, 
         rsin_v[:,nhalo] = 1./sina_v_limit
     if tile_partitioner.on_tile_top(rank):
         rsina[:,-1] = big_number
-        sina_v_limit = sina_v[:,-nhalo]
+        sina_v_limit = sina_v[:,-nhalo-1]
         sina_v_limit[abs(sina_v_limit) < tiny_number] = tiny_number * np.sign(sina_v_limit[abs(sina_v_limit) < tiny_number])
-        rsin_v[:,-nhalo] = 1./sina_v_limit
+        rsin_v[:,-nhalo-1] = 1./sina_v_limit
 
     return cosa, sina, cosa_u, cosa_v, cosa_s, sina_u, sina_v, rsin_u, rsin_v, rsina, rsin2
 
@@ -388,6 +388,7 @@ def _rotate_trig_sg_ne_clockwise(sg_field_in, sg_field_out, nhalo):
 def calculate_divg_del6(sin_sg, sina_u, sina_v, dx, dy, dxc, dyc, nhalo, tile_partitioner, rank):
     
     divg_u = sina_v * dyc / dx
+    # divg_u[:, -nhalo+1] = 1.e8
     del6_u = sina_v * dx / dyc
     divg_v = sina_u * dxc / dy
     del6_v = sina_u * dy / dxc
@@ -399,11 +400,11 @@ def calculate_divg_del6(sin_sg, sina_u, sina_v, dx, dy, dxc, dyc, nhalo, tile_pa
         divg_u[:, -nhalo] = 0.5*(sin_sg[:, -nhalo, 1] + sin_sg[:, -nhalo-1, 3])*dyc[:, -nhalo] / dx[:, -nhalo]
         del6_u[:, -nhalo] = 0.5*(sin_sg[:, -nhalo, 1] + sin_sg[:, -nhalo-1, 3])*dx[:, -nhalo] / dyc[:, -nhalo]
     if tile_partitioner.on_tile_left(rank):
-        divg_v[nhalo, :] = 0.5*(sin_sg[nhalo, :, 0] + sin_sg[nhalo, :, 2])*dxc[nhalo, :] / dy[nhalo, :]
-        del6_v[nhalo, :] = 0.5*(sin_sg[nhalo, :, 0] + sin_sg[nhalo, :, 2])*dy[nhalo, :] / dxc[nhalo, :]
+        divg_v[nhalo, :] = 0.5*(sin_sg[nhalo, :, 0] + sin_sg[nhalo-1, :, 2])*dxc[nhalo, :] / dy[nhalo, :]
+        del6_v[nhalo, :] = 0.5*(sin_sg[nhalo, :, 0] + sin_sg[nhalo-1, :, 2])*dy[nhalo, :] / dxc[nhalo, :]
     if tile_partitioner.on_tile_right(rank):
-        divg_v[-nhalo, :] = 0.5*(sin_sg[-nhalo-1, :, 0] + sin_sg[-nhalo-2, :, 2])*dxc[-nhalo, :] / dy[-nhalo, :]
-        del6_v[-nhalo, :] = 0.5*(sin_sg[-nhalo-1, :, 0] + sin_sg[-nhalo-2, :, 2])*dy[-nhalo, :] / dxc[-nhalo, :]
+        divg_v[-nhalo, :] = 0.5*(sin_sg[-nhalo, :, 0] + sin_sg[-nhalo-1, :, 2])*dxc[-nhalo, :] / dy[-nhalo, :]
+        del6_v[-nhalo, :] = 0.5*(sin_sg[-nhalo, :, 0] + sin_sg[-nhalo-1, :, 2])*dy[-nhalo, :] / dxc[-nhalo, :]
 
     return divg_u, divg_v, del6_u, del6_v
 
