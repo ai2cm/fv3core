@@ -24,7 +24,6 @@ def set_rebuild(flag: bool):
     _REBUILD = flag
 
 
-@functools.lru_cache(maxsize=None)
 def get_rebuild() -> bool:
     return _REBUILD
 
@@ -45,7 +44,6 @@ def set_format_source(flag: bool):
     _FORMAT_SOURCE = flag
 
 
-@functools.lru_cache(maxsize=None)
 def get_format_source() -> bool:
     return _FORMAT_SOURCE
 
@@ -117,7 +115,6 @@ class StencilConfig(Hashable):
         return kwargs
 
 
-@functools.lru_cache(maxsize=None)
 def get_stencil_config():
     return StencilConfig(
         backend=get_backend(),
