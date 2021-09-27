@@ -29,9 +29,9 @@ from fv3gfs.util.constants import N_HALO_DEFAULT
 # can corners use sizer rather than gridIndexer
 class MetricTerms:
 
-    def __init__(self,  grid, *, grid_type: int, layout: Tuple[int, int], npx: int, npy: int, npz: int, communicator, backend: str, halo=N_HALO_DEFAULT):
+    def __init__(self,  grid, *, grid_type: int, layout: Tuple[int, int], npx: int, npy: int, npz: int, communicator, backend: str):
        
-        self._halo = halo
+        self._halo = N_HALO_DEFAULT
         self._comm = communicator
         self._backend = backend
         self._quantity_factory, sizer = self._make_quantity_factory(layout, npx, npy, npz)
@@ -198,7 +198,7 @@ class MetricTerms:
         grid_global.data[self._np.abs(grid_global.data[:]) < 1e-10] = 0.0
         # TODO, mpi scatter grid_global and subset grid_global for rank
         tile_index = self._comm.partitioner.tile_index(self._comm.rank)
-        #print('hmmmm',self._grid.data.shape, grid_global.data.shape, self.grid.global_is, self.grid.global_ie+1, self.grid.global_js, self.grid.global_je+1, self.grid.is_,self.grid.ie+1, self.grid.js,self.grid.je+1,self.grid.rank)
+
         self._grid.data[self.grid.is_:self.grid.ie+2, self.grid.js:self.grid.je +2, :] = grid_global.data[self.grid.global_is:self.grid.global_ie+2, self.grid.global_js:self.grid.global_je+2, :, tile_index]
         self._comm.halo_update(self._grid, n_points=self._halo)
         
