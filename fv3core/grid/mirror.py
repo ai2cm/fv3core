@@ -130,7 +130,136 @@ def mirror_grid(grid_global, ng: int, npx: int, npy: int, np):
             grid_global[ng : ng + npx, ng + j, 1, nreg] = y2
 
     return grid_global
+def local_mirror_grid(grid_global, grid, tile_index, np):
+    ng = grid.halo
+    npx = grid.npx
+    npy = grid.npy
+    nreg = tile_index
+    # first fix base region
+    #if nreg == 0:
+    for j in range(0, math.ceil(npy / 2)):
+        for i in range(0, math.ceil(npx / 2)):
+            x1 = 0.25 * (
+                np.abs(grid_global[ng + i, ng + j, 0])
+                + np.abs(grid_global[ng + npx - (i + 1), ng + j, 0])
+                + np.abs(grid_global[ng + i, ng + npy - (j + 1), 0])
+                + np.abs(grid_global[ng + npx - (i + 1), ng + npy - (j + 1), 0])
+            )
+            grid_global[ng + i, ng + j, 0] = np.copysign(
+                x1, grid_global[ng + i, ng + j, 0]
+            )
+            grid_global[ng + npx - (i + 1), ng + j, 0] = np.copysign(
+                x1, grid_global[ng + npx - (i + 1), ng + j, 0]
+            )
+            grid_global[ng + i, ng + npy - (j + 1), 0] = np.copysign(
+                x1, grid_global[ng + i, ng + npy - (j + 1), 0]
+            )
+            grid_global[ng + npx - (i + 1), ng + npy - (j + 1), 0] = np.copysign(
+                x1, grid_global[ng + npx - (i + 1), ng + npy - (j + 1), 0]
+            )
+            
+            y1 = 0.25 * (
+                np.abs(grid_global[ng + i, ng + j, 1])
+                + np.abs(grid_global[ng + npx - (i + 1), ng + j, 1])
+                + np.abs(grid_global[ng + i, ng + npy - (j + 1), 1])
+                + np.abs(grid_global[ng + npx - (i + 1), ng + npy - (j + 1), 1])
+            )
+            grid_global[ng + i, ng + j, 1] = np.copysign(
+                y1, grid_global[ng + i, ng + j, 1]
+            )
+            grid_global[ng + npx - (i + 1), ng + j, 1] = np.copysign(
+                y1, grid_global[ng + npx - (i + 1), ng + j, 1]
+            )
+            grid_global[ng + i, ng + npy - (j + 1), 1] = np.copysign(
+                y1, grid_global[ng + i, ng + npy - (j + 1), 1]
+            )
+            grid_global[ng + npx - (i + 1), ng + npy - (j + 1), 1] = np.copysign(
+                y1, grid_global[ng + npx - (i + 1), ng + npy - (j + 1), 1]
+            )
+            
+            # force dateline/greenwich-meridion consitency
+            if npx % 2 != 0:
+                if i == ng + (npx - 1) // 2:
+                    grid_global[ng + i, ng + j, 0] = 0.0
+                    grid_global[ng + i, ng + npy - (j + 1), 0] = 0.0
+                        
+    i_mid = (npx - 1) // 2
+    j_mid = (npy - 1) // 2
+    #for nreg in range(1, N_TILES):
+    if nreg > 0:
+        
+        for j in range(0, npy):
+            x1 = grid_global[ng : ng + npx, ng + j, 0]
+            y1 = grid_global[ng : ng + npx, ng + j, 1]
+            z1 = RADIUS + 0.0 * x1
 
+            if nreg == 1:
+                ang = -90.0
+                x2, y2, z2 = _rot_3d(
+                    3, [x1, y1, z1], ang, np, degrees=True, convert=True
+                )
+            elif nreg == 2:
+                ang = -90.0
+                x2, y2, z2 = _rot_3d(
+                    3, [x1, y1, z1], ang, np, degrees=True, convert=True
+                )
+                ang = 90.0
+                x2, y2, z2 = _rot_3d(
+                    1, [x2, y2, z2], ang, np, degrees=True, convert=True
+                )
+                # force North Pole and dateline/Greenwich-Meridian consistency
+                if npx % 2 != 0:
+                    if j == i_mid:
+                        x2[i_mid] = 0.0
+                        y2[i_mid] = PI / 2.0
+                    if j == j_mid:
+                        x2[:i_mid] = 0.0
+                        x2[i_mid + 1] = PI
+            elif nreg == 3:
+                ang = -180.0
+                x2, y2, z2 = _rot_3d(
+                    3, [x1, y1, z1], ang, np, degrees=True, convert=True
+                )
+                ang = 90.0
+                x2, y2, z2 = _rot_3d(
+                    1, [x2, y2, z2], ang, np, degrees=True, convert=True
+                )
+                # force dateline/Greenwich-Meridian consistency
+                if npx % 2 != 0:
+                    if j == (npy - 1) // 2:
+                        x2[:] = PI
+            elif nreg == 4:
+                ang = 90.0
+                x2, y2, z2 = _rot_3d(
+                    3, [x1, y1, z1], ang, np, degrees=True, convert=True
+                )
+                ang = 90.0
+                x2, y2, z2 = _rot_3d(
+                    2, [x2, y2, z2], ang, np, degrees=True, convert=True
+                )
+            elif nreg == 5:
+                ang = 90.0
+                x2, y2, z2 = _rot_3d(
+                    2, [x1, y1, z1], ang, np, degrees=True, convert=True
+                )
+                ang = 0.0
+                x2, y2, z2 = _rot_3d(
+                    3, [x2, y2, z2], ang, np, degrees=True, convert=True
+                )
+                # force South Pole and dateline/Greenwich-Meridian consistency
+                if npx % 2 != 0:
+                    if j == i_mid:
+                        x2[i_mid] = 0.0
+                        y2[i_mid] = -PI / 2.0
+                    if j > j_mid:
+                        x2[i_mid] = 0.0
+                    elif j < j_mid:
+                        x2[i_mid] = PI
+
+            grid_global[ng : ng + npx, ng + j, 0] = x2
+            grid_global[ng : ng + npx, ng + j, 1] = y2
+
+    return grid_global
 
 def _rot_3d(axis, p, angle, np, degrees=False, convert=False):
 

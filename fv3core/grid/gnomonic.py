@@ -44,8 +44,8 @@ def gnomonic_ed(lon, lat, np):
 
     dely = 2.0 * alpha / float(im)
 
-    pp = np.empty((3, im + 1, im + 1))
-
+    pp = np.zeros((3, im + 1, im + 1))
+  
     for j in range(0, im + 1):
         lon[0, j] = 0.75 * PI  # West edge
         lon[im, j] = 1.25 * PI  # East edge
@@ -80,15 +80,149 @@ def gnomonic_ed(lon, lat, np):
         pp[2, i, j] = -pp[2, i, j] * (3 ** -0.5) / pp[0, i, j]
 
     pp[0, :, :] = -(3 ** -0.5)
-
     for j in range(1, im + 1):
         # copy y-z face of the cube along j=0
         pp[1, 1:, j] = pp[1, 1:, 0]
         # copy along i=0
         pp[2, 1:, j] = pp[2, 0, j]
-
+    
     _cart_to_latlon(im + 1, pp, lon, lat, np)
+ 
 
+def lat_tile_ew_edge(alpha, dely, south_north_tile_index):
+    return  -alpha + dely * float(south_north_tile_index)
+def local_gnomonic_ed(lon, lat, grid, np):
+    im = lon.shape[0] - 1
+    alpha = np.arcsin(3 ** -0.5)
+    #dely = 2.0 * alpha / float(im)
+    tile_im = grid.npx - 1
+    dely = 2.0 * alpha / float(tile_im)
+    pp = np.zeros((3, im + 1, im + 1))
+    pp_west_tile_edge = np.zeros((3, 1, im + 1))
+    pp_south_tile_edge = np.zeros((3, im + 1, 1))
+    lon_west_tile_edge = np.zeros((1, im + 1))
+    lon_south_tile_edge = np.zeros((im + 1, 1))
+    lat_west_tile_edge = np.zeros((1, im + 1))
+    lat_south_tile_edge = np.zeros((im + 1, 1))
+    lat_west_tile_edge_mirror = np.zeros((1, im + 1))
+   
+   
+    lon_sw_tile_corner =  0.75 * PI
+    lat_sw_tile_corner =  lat_tile_ew_edge(alpha, dely, 0)
+    lon_nw_tile_corner =  0.75 * PI
+    lat_nw_tile_corner =  lat_tile_ew_edge(alpha, dely, tile_im)
+    lon_ne_tile_corner = 1.25 * PI
+    lat_ne_tile_corner = lat_tile_ew_edge(alpha, dely, tile_im)
+    lon_se_tile_corner = 1.25 * PI
+    lat_se_tile_corner = lat_ne_tile_corner
+  
+    start_i = 1 if grid.west_edge else 0
+    end_i = im if grid.east_edge else im+1
+    start_j = 1 if grid.south_edge else 0
+    end_j = im if grid.north_edge else im+1
+    lon_west_tile_edge[0, :]=  0.75 * PI
+
+    for j in range(0, im + 1):
+        lat_west_tile_edge[0, j] = lat_tile_ew_edge(alpha, dely, grid.global_js - 3 +j)
+        lat_west_tile_edge_mirror[0, j] = lat_tile_ew_edge(alpha, dely, grid.global_is - 3 +j)
+    if grid.west_edge:  
+        for j in range(lon.shape[1]):
+            lon[0, j] = lon_west_tile_edge[0, j]
+            lat[0, j] = lat_west_tile_edge[0,j]
+     
+    if grid.east_edge:
+        lon[im, :] = 1.25 * PI
+       
+        for j in range(0, im + 1):
+            lat[im, j] = lat_tile_ew_edge(alpha, dely, grid.global_js - 3 + j)
+        lon_south_tile_edge[im, 0] = 1.25* PI
+        lat_south_tile_edge[im, 0] = lat_tile_ew_edge(alpha, dely, grid.global_js - 3)
+       
+    # Get North-South edges by symmetry
+    #if grid.south_edge or grid.north_edge:
+    for i in range(start_i, end_i):
+        tile_i =  grid.global_is - 3 +i
+        edge_lon, edge_lat =  _mirror_latlon(
+            lon_sw_tile_corner, lat_sw_tile_corner, lon_ne_tile_corner, lat_ne_tile_corner,   lon_west_tile_edge[0, i], lat_west_tile_edge_mirror[0, i], np
+        )
+        lon_south_tile_edge[i, 0] = edge_lon
+        lat_south_tile_edge[i, 0] = edge_lat
+        if grid.south_edge:
+            lon[i, 0], lat[i, 0] =  edge_lon, edge_lat
+        if grid.north_edge:
+            lon[i, im] = edge_lon
+            lat[i, im] = -edge_lat
+  
+    
+    # set 4 corners
+    """
+    if grid.sw_corner:
+        sw_xyz =  _latlon2xyz(lon[0, 0], lat[0, 0], np)
+        #pp[:, 0, 0] =sw_xyz
+        pp_west_tile_edge[:,0,0]= sw_xyz
+        pp_south_tile_edge[:,0,0]= sw_xyz
+    if grid.se_corner:
+        se_xyz = _latlon2xyz(lon[im, 0], lat[im, 0], np)
+        #pp[:, im, 0] =se_xyz
+        pp_south_tile_edge[:,im,0]= se_xyz
+    if grid.nw_corner:
+        nw_xyz =  _latlon2xyz(lon[0, im], lat[0, im], np)
+        #pp[:, 0, im] =nw_xyz
+        pp_west_tile_edge[:,0,im]= nw_xyz
+    if grid.ne_corner:
+        pp[:, im, im] = _latlon2xyz(lon[im, im], lat[im, im], np)
+    """
+    
+    # map edges on the sphere back to cube: intersection at x = -1/sqrt(3)
+
+   
+    i = 0
+    for j in range(im+1):#start_j, end_j):
+        pp_west_tile_edge[:, i, j] = _latlon2xyz(lon_west_tile_edge[i, j], lat_west_tile_edge[i, j], np)
+        pp_west_tile_edge[1, i, j] = -pp_west_tile_edge[1, i, j] * (3 ** -0.5) / pp_west_tile_edge[0, i, j]
+        pp_west_tile_edge[2, i, j] = -pp_west_tile_edge[2, i, j] * (3 ** -0.5) / pp_west_tile_edge[0, i, j]
+    if grid.west_edge:
+        pp[:, 0,:] = pp_west_tile_edge[:, 0,:]
+    j = 0
+
+    for i in range(im+1): #start_i, end_i):
+        pp_south_tile_edge[:, i, j] = _latlon2xyz(lon_south_tile_edge[i, j], lat_south_tile_edge[i, j], np)
+        pp_south_tile_edge[1, i, j] = -pp_south_tile_edge[1, i, j] * (3 ** -0.5) / pp_south_tile_edge[0, i, j]
+        pp_south_tile_edge[2, i, j] = -pp_south_tile_edge[2, i, j] * (3 ** -0.5) / pp_south_tile_edge[0, i, j]
+      
+    if grid.south_edge:
+        pp[:, :, 0] = pp_south_tile_edge[:, :, 0]
+    if grid.sw_corner:
+        sw_xyz =  _latlon2xyz(lon[0, 0], lat[0, 0], np)
+        pp[:, 0, 0] =sw_xyz
+        pp_west_tile_edge[:,0,0]= sw_xyz
+        pp_south_tile_edge[:,0,0]= sw_xyz
+    if grid.se_corner:
+        se_xyz = _latlon2xyz(lon[im, 0], lat[im, 0], np)
+        #pp[:, im, 0] =se_xyz
+        pp_south_tile_edge[:,im,0]= se_xyz
+    if grid.nw_corner:
+        nw_xyz =  _latlon2xyz(lon[0, im], lat[0, im], np)
+        #pp[:, 0, im] =nw_xyz
+        pp_west_tile_edge[:,0,im]= nw_xyz
+    if grid.ne_corner:
+        pp[:, im, im] = _latlon2xyz(lon[im, im], lat[im, im], np)
+   
+    pp[0, :, :] = -(3 ** -0.5)
+
+  
+    for j in range(im+1):
+        # copy y-z face of the cube along j=0
+        pp[1, start_i:, j] = pp_south_tile_edge[1, start_i:, 0] #pp[1,:,0]
+        # copy along i=0
+        pp[2, start_i:, j] = pp_west_tile_edge[2, 0, j] # pp[2,0,j]
+    
+  
+  
+    _cart_to_latlon(im + 1, pp, lon, lat, np)
+  
+    lon[:] -= PI
+   
 
 def _corner_to_center_mean(corner_array):
     """Given a 2D array on cell corners, return a 2D array on cell centers with the
