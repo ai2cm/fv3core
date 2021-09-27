@@ -14,7 +14,6 @@ def set_backend(new_backend: str):
     _BACKEND = new_backend
 
 
-@functools.lru_cache(maxsize=None)
 def get_backend() -> str:
     return _BACKEND
 
