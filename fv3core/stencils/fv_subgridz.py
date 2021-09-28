@@ -798,7 +798,6 @@ class DryConvectiveAdjustment:
                 grid_indexing.domain[1],
                 self._k_sponge + 1,
             ),
-            skip_passes=("KCacheDetection",),
         )
         self._m_loop_stencil = FrozenStencil(
             m_loop,

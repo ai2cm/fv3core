@@ -1,6 +1,21 @@
 import hashlib
 import os
 from collections.abc import Hashable
+from typing import Any, Callable, Dict
+
+
+_backend_options: Dict[str, Any] = {
+    "all": {
+        "skip_passes": ("graph_merge_horizontal_executions",),
+        "use_buffer_interface": True,
+    },
+    "fv_subgridz.init": {
+        "skip_passes": ("KCacheDetection",),
+    },
+    "ytp_v._ytp_v": {
+        "skip_passes": ("GreedyMerging",),
+    },
+}
 
 
 def getenv_bool(name: str, default: str) -> bool:
@@ -62,6 +77,19 @@ def is_gtc_backend() -> bool:
     return get_backend().startswith("gtc")
 
 
+def get_backend_opts(func: Callable) -> Dict[str, Any]:
+    backend_opts: Dict[str, Any] = {**_backend_options["all"]}
+
+    stencil_name = f"{func.__module__.split('.')[-1]}.{func.__name__}"
+    if stencil_name in _backend_options:
+        backend_opts.update(_backend_options[stencil_name])
+
+    if is_gpu_backend():
+        backend_opts["device_sync"] = get_device_sync()
+
+    return backend_opts
+
+
 class StencilConfig(Hashable):
     def __init__(
         self,
@@ -69,13 +97,13 @@ class StencilConfig(Hashable):
         rebuild: bool,
         validate_args: bool,
         format_source: bool,
-        device_sync: bool,
+        backend_opts: Dict[str, Any],
     ):
         self.backend = backend
         self.rebuild = rebuild
         self.validate_args = validate_args
         self.format_source = format_source
-        self.device_sync = device_sync
+        self.backend_opts = backend_opts
         self._hash = self._compute_hash()
 
     def _compute_hash(self):
@@ -85,7 +113,6 @@ class StencilConfig(Hashable):
             self.rebuild,
             self.validate_args,
             self.format_source,
-            self.device_sync,
         ):
             md5.update(bytes(attr))
         return int(md5.hexdigest(), base=16)
@@ -106,18 +133,18 @@ class StencilConfig(Hashable):
             "rebuild": self.rebuild,
             "format_source": self.format_source,
         }
-        if is_gpu_backend():
-            kwargs["device_sync"] = self.device_sync
+        if self.backend_opts:
+            kwargs.update(self.backend_opts)
         return kwargs
 
 
-def get_stencil_config():
+def get_stencil_config(func: Callable):
     return StencilConfig(
         backend=get_backend(),
         rebuild=get_rebuild(),
         validate_args=get_validate_args(),
         format_source=get_format_source(),
-        device_sync=get_device_sync(),
+        backend_opts=get_backend_opts(func),
     )
 
 

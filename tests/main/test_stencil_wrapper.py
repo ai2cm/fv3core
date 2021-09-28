@@ -106,7 +106,7 @@ def test_copy_frozen_stencil(
         rebuild=rebuild,
         validate_args=validate_args,
         format_source=format_source,
-        device_sync=device_sync,
+        backend_opts=dict(device_sync=device_sync),
     )
     stencil = FrozenStencil(
         copy_stencil,
@@ -138,7 +138,7 @@ def test_frozen_stencil_raises_if_given_origin(
         rebuild=rebuild,
         validate_args=True,
         format_source=format_source,
-        device_sync=device_sync,
+        backend_opts=dict(device_sync=device_sync),
     )
     stencil = FrozenStencil(
         copy_stencil,
@@ -168,7 +168,7 @@ def test_frozen_stencil_raises_if_given_domain(
         rebuild=rebuild,
         validate_args=True,
         format_source=format_source,
-        device_sync=device_sync,
+        backend_opts=dict(device_sync=device_sync),
     )
     stencil = FrozenStencil(
         copy_stencil,
@@ -199,7 +199,7 @@ def test_frozen_stencil_kwargs_passed_to_init(
         rebuild=rebuild,
         validate_args=validate_args,
         format_source=format_source,
-        device_sync=device_sync,
+        backend_opts=dict(device_sync=device_sync),
     )
     stencil_object = FrozenStencil(
         copy_stencil,
@@ -260,7 +260,7 @@ def test_copy_non_frozen_stencil(
         rebuild=rebuild,
         validate_args=validate_args,
         format_source=format_source,
-        device_sync=device_sync,
+        backend_opts=dict(device_sync=device_sync),
     )
     stencil = fv3core.decorators.gtstencil(
         copy_stencil,
@@ -296,7 +296,7 @@ def test_gtscript_with_origin_and_domain_gives_frozen_stencil(
         rebuild=rebuild,
         validate_args=validate_args,
         format_source=format_source,
-        device_sync=device_sync,
+        backend_opts=dict(device_sync=device_sync),
     )
     stencil = fv3core.decorators.gtstencil(
         copy_stencil,
@@ -324,7 +324,7 @@ def test_gtscript_with_origin_and_domain_does_not_rebuild(
         rebuild=rebuild,
         validate_args=validate_args,
         format_source=format_source,
-        device_sync=device_sync,
+        backend_opts=dict(device_sync=device_sync),
     )
     stencil = fv3core.decorators.gtstencil(
         copy_stencil,
@@ -367,7 +367,7 @@ def test_copy_non_frozen_stencil_does_not_rebuild(
         rebuild=rebuild,
         validate_args=validate_args,
         format_source=format_source,
-        device_sync=device_sync,
+        backend_opts=dict(device_sync=device_sync),
     )
     stencil = fv3core.decorators.gtstencil(
         copy_stencil,
@@ -417,7 +417,7 @@ def test_copy_non_frozen_stencil_rebuilds_for_new_origin(
         rebuild=rebuild,
         validate_args=validate_args,
         format_source=format_source,
-        device_sync=device_sync,
+        backend_opts=dict(device_sync=device_sync),
     )
     stencil = fv3core.decorators.gtstencil(
         copy_stencil,
@@ -466,7 +466,7 @@ def test_copy_non_frozen_stencil_rebuilds_for_new_domain(
         rebuild=rebuild,
         validate_args=validate_args,
         format_source=format_source,
-        device_sync=device_sync,
+        backend_opts=dict(device_sync=device_sync),
     )
     stencil = fv3core.decorators.gtstencil(
         copy_stencil,

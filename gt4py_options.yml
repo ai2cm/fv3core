@@ -1,0 +1,18 @@
+all:
+  - backend: "*(gpu|cuda)"
+    - device_sync: False
+  - backend: "gtc*"
+    - pass_order:
+      - graph_merge_horizontal_executions: -1
+    - gridtools_version: "eddie-c-davis:fast-python-sid-adapter"
+    - use_buffer_interface: True
+
+fv_subgridz.init:
+  - backend: "gtc*"
+    - pass_order:
+      - KCacheDetection: -1
+
+ytp_v._ytp_v:
+  - backend: "gtc*"
+    - pass_order:
+      - GreedyMerging: -1
