@@ -523,10 +523,22 @@ def efactor_a2c_v(grid, agrid, grid_type, nhalo, tile_partitioner, rank, radius,
     return edge_vect_w, edge_vect_e, edge_vect_s, edge_vect_n
     
 def calculate_west_edge_vectors(grid, agrid, jm2, nhalo, radius, np):
-    d2 = d1 = np.zeros(agrid.shape[0]-2*nhalo+2)
+    d2 = np.zeros(agrid.shape[0]-2*nhalo+2)
+    d1 = np.zeros(agrid.shape[0]-2*nhalo+2)
 
-    py0, py1 = lon_lat_midpoint(agrid[nhalo-1, nhalo-2:-nhalo+2, 0], agrid[nhalo, nhalo-2:-nhalo+2, 0], agrid[nhalo-1, nhalo-2:-nhalo+2, 1], agrid[nhalo, nhalo-2:-nhalo+2, 1], np)
-    p20, p21 = lon_lat_midpoint(grid[nhalo, nhalo-2:-nhalo+1, 0], grid[nhalo, nhalo-1:-nhalo+2, 0], grid[nhalo, nhalo-2:-nhalo+1, 1], grid[nhalo, nhalo-1:-nhalo+2, 1], np)
+    py0, py1 = lon_lat_midpoint(
+        agrid[nhalo-1, nhalo-2:-nhalo+2, 0], 
+        agrid[nhalo, nhalo-2:-nhalo+2, 0], 
+        agrid[nhalo-1, nhalo-2:-nhalo+2, 1], 
+        agrid[nhalo, nhalo-2:-nhalo+2, 1], np
+    )
+
+    p20, p21 = lon_lat_midpoint(
+        grid[nhalo, nhalo-2:-nhalo+1, 0], 
+        grid[nhalo, nhalo-1:-nhalo+2, 0], 
+        grid[nhalo, nhalo-2:-nhalo+1, 1], 
+        grid[nhalo, nhalo-1:-nhalo+2, 1], np
+    )
     
     py = np.array([py0, py1]).transpose([1,0])
     p2 = np.array([p20, p21]).transpose([1,0])
