@@ -98,10 +98,18 @@ DxDy:
 
 InitGrid:
   - backend: numpy
-    max_error: 3e-14
+    max_error: 3e-12
     ignore_near_zero_errors:
       gridvar: 3e-14
       agrid: 3e-14
+UtilVectors:
+  - backend: numpy
+    max_error: 3e-12
+    ignore_near_zero_errors:
+      ew1: 3e-14
+      ew2: 3e-14
+      es1: 3e-14
+      es2: 3e-14
   
 TrigSg:
   - backend: numpy

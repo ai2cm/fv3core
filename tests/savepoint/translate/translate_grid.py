@@ -1311,6 +1311,7 @@ class TranslateUtilVectors(ParallelTranslateGrid):
                 "kaxis": 0,
             },
         }
+       
 
     inputs: Dict[str, Any] = {
         "grid": {
@@ -1397,8 +1398,13 @@ class TranslateUtilVectors(ParallelTranslateGrid):
 
     def _compute_local(self, inputs, communicator):
         state = self.state_from_inputs(inputs)
+        # TODO why is the not necessary?
+        #fill_corners_2d(
+        #   state["grid"].data[:, :, :], self.grid, gridtype="B", direction="x"
+        #)
         xyz_dgrid = lon_lat_to_xyz(state["grid"].data[:,:,0], state["grid"].data[:,:,1], state["grid"].np)
         xyz_agrid = lon_lat_to_xyz(state["agrid"].data[:-1,:-1,0], state["agrid"].data[:-1,:-1,1], state["grid"].np)
+        
         state["ec1"].data[:-1,:-1,:3], state["ec2"].data[:-1,:-1,:3] = get_center_vector(xyz_dgrid, self.grid.grid_type, self.grid.halo,
             communicator.tile.partitioner, communicator.tile.rank, state["grid"].np
         )
