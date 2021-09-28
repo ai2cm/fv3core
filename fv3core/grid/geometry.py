@@ -31,7 +31,9 @@ def get_center_vector(xyz_gridpoints, grid_type, nhalo, tile_partitioner, rank, 
             p2 = xyz_midpoint(xyz_gridpoints[:-1, 1:, :], xyz_gridpoints[1:, 1:, :])
             p3 = np.cross(p1, p2)
             vector2 = normalize_xyz(np.cross( center_points, p3))
-
+        # TODO why if this factor not happening in one of the above steps?
+        vector1[:] *= -1.0
+        vector2[:] *= -1.0
         #fill ghost on ec1 and ec2:
         if tile_partitioner.on_tile_left(rank):
             if tile_partitioner.on_tile_bottom(rank):
@@ -53,7 +55,7 @@ def get_center_vector(xyz_gridpoints, grid_type, nhalo, tile_partitioner, rank, 
         vector2 = np.zeros((shape_dgrid[0]-1, shape_dgrid[1]-1, 3))
         vector1[:,:,0] = 1
         vector2[:,:,1] = 1
-
+    
     return vector1, vector2
 
 def calc_unit_vector_west(xyz_dgrid, xyz_agrid, grid_type, nhalo, tile_partitioner, rank, np):
@@ -61,24 +63,29 @@ def calc_unit_vector_west(xyz_dgrid, xyz_agrid, grid_type, nhalo, tile_partition
     Calculates the cartesian unit vector pointing west from every grid cell.
     The first set of values is the horizontal component, the second is the vertical component as 
     defined by the cell edges -- in a non-spherical grid these will be x and y unit vectors.
+
     """
+    ew1 = np.zeros((xyz_dgrid.shape[0], xyz_agrid.shape[1], 3))
+    ew2 = np.zeros((xyz_dgrid.shape[0], xyz_agrid.shape[1], 3))
     if grid_type < 3:
+      
         pp = xyz_midpoint(xyz_dgrid[1:-1,:-1,:3], xyz_dgrid[1:-1, 1:, :3])
+       
         p2 = np.cross(xyz_agrid[:-1,:,:3], xyz_agrid[1:,:,:3])
         if tile_partitioner.on_tile_left(rank):
-            p2[nhalo] = np.cross(pp[nhalo], xyz_agrid[nhalo,:,:3])
+            p2[nhalo - 1] = np.cross(pp[nhalo - 1], xyz_agrid[nhalo,:,:3])
         if tile_partitioner.on_tile_right(rank):
-            p2[-nhalo] = np.cross(pp[nhalo], xyz_agrid[-nhalo-1,:,:3])
+            p2[-nhalo] = np.cross(xyz_agrid[-nhalo - 1,:,:3], pp[-nhalo])
+        
 
-        
-        ew1 = normalize_xyz(np.cross(p2, pp))
-        
+        ew1[1:-1,:,:] = normalize_xyz(np.cross(p2, pp))
         p1 = np.cross(xyz_dgrid[1:-1, :-1, :], xyz_dgrid[1:-1, 1:, :])
-        ew2 = normalize_xyz(np.cross(p1, pp))
+        ew2[1:-1,:,:] = normalize_xyz(np.cross(p1, pp))
 
         # ew = np.stack((ew1, ew2), axis=-1)
-
+        
         #fill ghost on ew:
+        
         if tile_partitioner.on_tile_left(rank):
             if tile_partitioner.on_tile_bottom(rank):
                 _fill_ghost(ew1, 0., nhalo, "sw")
@@ -93,15 +100,13 @@ def calc_unit_vector_west(xyz_dgrid, xyz_agrid, grid_type, nhalo, tile_partition
             if tile_partitioner.on_tile_top(rank):
                 _fill_ghost(ew1, 0., nhalo, "ne")
                 _fill_ghost(ew2, 0., nhalo, "ne")
-    
+     
     else:
-        ew1 = np.zeros(xyz_dgrid.shape[0], xyz_agrid.shape[1], 3)
-        ew2 = np.zeros(xyz_dgrid.shape[0], xyz_agrid.shape[1], 3)
         ew1[:,:,1] = 1.
         ew2[:,:,2] = 1.
         # ew = np.stack((ew1, ew2), axis=-1)
     
-    return ew1, ew2
+    return ew1[1:-1,:,:], ew2[1:-1,:,:]
 
 def calc_unit_vector_south(xyz_dgrid, xyz_agrid, grid_type, nhalo, tile_partitioner, rank, np):
     """
@@ -109,21 +114,24 @@ def calc_unit_vector_south(xyz_dgrid, xyz_agrid, grid_type, nhalo, tile_partitio
     The first set of values is the horizontal component, the second is the vertical component as 
     defined by the cell edges -- in a non-spherical grid these will be x and y unit vectors.
     """
+    es1 = np.zeros((xyz_agrid.shape[0], xyz_dgrid.shape[1], 3))
+    es2 = np.zeros((xyz_agrid.shape[0], xyz_dgrid.shape[1], 3))
     if grid_type < 3:
+ 
         pp = xyz_midpoint(xyz_dgrid[:-1, 1:-1, :3], xyz_dgrid[1:, 1:-1, :3])
         p2 = np.cross(xyz_agrid[:,:-1,:3], xyz_agrid[:, 1:, :3])
         if tile_partitioner.on_tile_bottom(rank):
-            p2[:,nhalo] = np.cross(pp[:,nhalo], xyz_agrid[:, nhalo, :3])
+            p2[:,nhalo - 1] = np.cross(pp[:,nhalo - 1], xyz_agrid[:, nhalo, :3])
         if tile_partitioner.on_tile_top(rank):
-            p2[:,-nhalo] = np.cross(pp[:,-nhalo], xyz_agrid[:, -nhalo-1, :3])
+            p2[:,-nhalo] = np.cross(xyz_agrid[:, -nhalo - 1, :3], pp[:,-nhalo])
         
-        es2 = normalize_xyz(np.cross(p2, pp))
+        es2[:, 1:-1,:] = normalize_xyz(np.cross(p2, pp))
         
         p1 = np.cross(xyz_dgrid[:-1, 1:-1, :], xyz_dgrid[1:, 1:-1, :])
-        es1 = normalize_xyz(np.cross(p1, pp))
+        es1[:, 1:-1,:] = normalize_xyz(np.cross(p1, pp))
 
         # es = np.stack((es1, es2), axis=-1)
-
+       
         #fill ghost on es:
         if tile_partitioner.on_tile_left(rank):
             if tile_partitioner.on_tile_bottom(rank):
@@ -140,13 +148,11 @@ def calc_unit_vector_south(xyz_dgrid, xyz_agrid, grid_type, nhalo, tile_partitio
                 _fill_ghost(es1, 0., nhalo, "ne")
                 _fill_ghost(es2, 0., nhalo, "ne")
     else:
-        es1 = np.zeros(xyz_agrid.shape[0], xyz_dgrid.shape[1], 3)
-        es2 = np.zeros(xyz_agrid.shape[0], xyz_dgrid.shape[1], 3)
         es1[:,:,1] = 1.
         es2[:,:,2] = 1.
         # es = np.stack((es1, es2), axis=-1)
     
-    return es1, es2
+    return es1[:, 1:-1,:], es2[:, 1:-1,:]
 
 def calculate_supergrid_cos_sin(xyz_dgrid, xyz_agrid, ec1, ec2, grid_type, nhalo, tile_partitioner, rank, np):
     """
