@@ -397,14 +397,14 @@ def calculate_divg_del6(sin_sg, sina_u, sina_v, dx, dy, dxc, dyc, nhalo, tile_pa
         divg_u[:, nhalo] = 0.5*(sin_sg[:, nhalo, 1] + sin_sg[:, nhalo-1, 3])*dyc[:, nhalo] / dx[:, nhalo]
         del6_u[:, nhalo] = 0.5*(sin_sg[:, nhalo, 1] + sin_sg[:, nhalo-1, 3])*dx[:, nhalo] / dyc[:, nhalo]
     if tile_partitioner.on_tile_top(rank):
-        divg_u[:, -nhalo-1] = 0.5*(sin_sg[:, -nhalo-1, 1] + sin_sg[:, -nhalo-2, 3])*dyc[:, -nhalo-1] / dx[:, -nhalo-1]
-        del6_u[:, -nhalo-1] = 0.5*(sin_sg[:, -nhalo-1, 1] + sin_sg[:, -nhalo-2, 3])*dx[:, -nhalo-1] / dyc[:, -nhalo-1]
+        divg_u[:, -nhalo-1] = 0.5*(sin_sg[:, -nhalo, 1] + sin_sg[:, -nhalo-1, 3])*dyc[:, -nhalo-1] / dx[:, -nhalo-1]
+        del6_u[:, -nhalo-1] = 0.5*(sin_sg[:, -nhalo, 1] + sin_sg[:, -nhalo-1, 3])*dx[:, -nhalo-1] / dyc[:, -nhalo-1]
     if tile_partitioner.on_tile_left(rank):
         divg_v[nhalo, :] = 0.5*(sin_sg[nhalo, :, 0] + sin_sg[nhalo-1, :, 2])*dxc[nhalo, :] / dy[nhalo, :]
         del6_v[nhalo, :] = 0.5*(sin_sg[nhalo, :, 0] + sin_sg[nhalo-1, :, 2])*dy[nhalo, :] / dxc[nhalo, :]
     if tile_partitioner.on_tile_right(rank):
-        divg_v[-nhalo-1, :] = 0.5*(sin_sg[-nhalo-1, :, 0] + sin_sg[-nhalo-2, :, 2])*dxc[-nhalo-1, :] / dy[-nhalo-1, :]
-        del6_v[-nhalo-1, :] = 0.5*(sin_sg[-nhalo-1, :, 0] + sin_sg[-nhalo-2, :, 2])*dy[-nhalo-1, :] / dxc[-nhalo-1, :]
+        divg_v[-nhalo-1, :] = 0.5*(sin_sg[-nhalo, :, 0] + sin_sg[-nhalo-1, :, 2])*dxc[-nhalo-1, :] / dy[-nhalo-1, :]
+        del6_v[-nhalo-1, :] = 0.5*(sin_sg[-nhalo, :, 0] + sin_sg[-nhalo-1, :, 2])*dy[-nhalo-1, :] / dxc[-nhalo-1, :]
 
     return divg_u, divg_v, del6_u, del6_v
 
