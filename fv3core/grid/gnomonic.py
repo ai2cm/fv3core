@@ -605,6 +605,7 @@ def get_unit_vector_direction(p1, p2, np):
     p3 = np.cross(xyz2, xyz1)
     return normalize_xyz(np.cross(midpoint, p3))
 
+
 def get_lonlat_vect(lonlat_grid, np):
     """
     Calculates the unit vectors pointing in the longitude/latitude directions 
