@@ -216,17 +216,26 @@ def calculate_supergrid_cos_sin(xyz_dgrid, xyz_agrid, ec1, ec2, grid_type, nhalo
 
 def calculate_l2c_vu(dgrid, nhalo, np):
     #AAM correction
-    xyz_dgrid = lon_lat_to_xyz(dgrid[:,:,0], dgrid[:,:,1], np)
 
-    midpoint_y = np.array(lon_lat_midpoint(dgrid[nhalo:-nhalo, nhalo:-nhalo-1, 0], dgrid[nhalo:-nhalo, nhalo+1:-nhalo, 0], dgrid[nhalo:-nhalo, nhalo:-nhalo-1, 1], dgrid[nhalo:-nhalo, nhalo+1:-nhalo, 1], np))
-    unit_dir_y = get_unit_vector_direction(xyz_dgrid[nhalo:-nhalo, nhalo:-nhalo-1, :], xyz_dgrid[nhalo:-nhalo, nhalo+1:-nhalo, :], np)
-    ex, ey = get_lonlat_vect(midpoint_y, np)
-    l2c_v = np.cos(midpoint_y[1] * np.sum(unit_dir_y * ex, axis=-1))
+    point1v = dgrid[nhalo:-nhalo, nhalo:-nhalo-1, :]
+    point2v = dgrid[nhalo:-nhalo, nhalo+1:-nhalo, :]
+    midpoint_y = np.array(lon_lat_midpoint(
+        point1v[:, :, 0], point2v[:, :, 0], 
+        point1v[:, :, 1], point2v[:, :, 1], np
+    )).transpose([1,2,0])
+    unit_dir_y = get_unit_vector_direction(point1v, point2v, np)
+    exv, eyv = get_lonlat_vect(midpoint_y, np)
+    l2c_v = np.cos(midpoint_y[:,:,1]) * np.sum(unit_dir_y * exv, axis=-1)
 
-    midpoint_x = np.array(lon_lat_midpoint(dgrid[nhalo:-nhalo-1, nhalo:-nhalo, 0], dgrid[nhalo+1:-nhalo, nhalo:-nhalo, 0], dgrid[nhalo:-nhalo-1, nhalo:-nhalo, 1], dgrid[nhalo+1:-nhalo, nhalo:-nhalo, 1], np))
-    unit_dir_x = get_unit_vector_direction(xyz_dgrid[nhalo:-nhalo-1, nhalo:-nhalo, :], xyz_dgrid[nhalo:-nhalo-1, nhalo:-nhalo, :], np)
-    ex, ey = get_lonlat_vect(midpoint_x, np)
-    l2c_u = np.cos(midpoint_x[1] * np.sum(unit_dir_x * ex, axis=-1))
+    point1u = dgrid[nhalo:-nhalo-1, nhalo:-nhalo, :]
+    point2u = dgrid[nhalo+1:-nhalo, nhalo:-nhalo, :]
+    midpoint_x = np.array(lon_lat_midpoint(
+        point1u[:, :, 0], point2u[:, :, 0], 
+        point1u[:, :, 1], point2u[:, :, 1], np
+    )).transpose([1,2,0])
+    unit_dir_x = get_unit_vector_direction(point1u, point2u, np)
+    exu, eyu = get_lonlat_vect(midpoint_x, np)
+    l2c_u = np.cos(midpoint_x[:,:,1]) * np.sum(unit_dir_x * exu, axis=-1)
 
     return l2c_v, l2c_u
 
@@ -403,14 +412,14 @@ def calculate_divg_del6(sin_sg, sina_u, sina_v, dx, dy, dxc, dyc, nhalo, tile_pa
         divg_u[:, nhalo] = 0.5*(sin_sg[:, nhalo, 1] + sin_sg[:, nhalo-1, 3])*dyc[:, nhalo] / dx[:, nhalo]
         del6_u[:, nhalo] = 0.5*(sin_sg[:, nhalo, 1] + sin_sg[:, nhalo-1, 3])*dx[:, nhalo] / dyc[:, nhalo]
     if tile_partitioner.on_tile_top(rank):
-        divg_u[:, -nhalo-1] = 0.5*(sin_sg[:, -nhalo-1, 1] + sin_sg[:, -nhalo-2, 3])*dyc[:, -nhalo-1] / dx[:, -nhalo-1]
-        del6_u[:, -nhalo-1] = 0.5*(sin_sg[:, -nhalo-1, 1] + sin_sg[:, -nhalo-2, 3])*dx[:, -nhalo-1] / dyc[:, -nhalo-1]
+        divg_u[:, -nhalo-1] = 0.5*(sin_sg[:, -nhalo, 1] + sin_sg[:, -nhalo-1, 3])*dyc[:, -nhalo-1] / dx[:, -nhalo-1]
+        del6_u[:, -nhalo-1] = 0.5*(sin_sg[:, -nhalo, 1] + sin_sg[:, -nhalo-1, 3])*dx[:, -nhalo-1] / dyc[:, -nhalo-1]
     if tile_partitioner.on_tile_left(rank):
         divg_v[nhalo, :] = 0.5*(sin_sg[nhalo, :, 0] + sin_sg[nhalo-1, :, 2])*dxc[nhalo, :] / dy[nhalo, :]
         del6_v[nhalo, :] = 0.5*(sin_sg[nhalo, :, 0] + sin_sg[nhalo-1, :, 2])*dy[nhalo, :] / dxc[nhalo, :]
     if tile_partitioner.on_tile_right(rank):
-        divg_v[-nhalo-1, :] = 0.5*(sin_sg[-nhalo-1, :, 0] + sin_sg[-nhalo-2, :, 2])*dxc[-nhalo-1, :] / dy[-nhalo-1, :]
-        del6_v[-nhalo-1, :] = 0.5*(sin_sg[-nhalo-1, :, 0] + sin_sg[-nhalo-2, :, 2])*dy[-nhalo-1, :] / dxc[-nhalo-1, :]
+        divg_v[-nhalo-1, :] = 0.5*(sin_sg[-nhalo, :, 0] + sin_sg[-nhalo-1, :, 2])*dxc[-nhalo-1, :] / dy[-nhalo-1, :]
+        del6_v[-nhalo-1, :] = 0.5*(sin_sg[-nhalo, :, 0] + sin_sg[-nhalo-1, :, 2])*dy[-nhalo-1, :] / dxc[-nhalo-1, :]
 
     return divg_u, divg_v, del6_u, del6_v
 
@@ -488,60 +497,24 @@ def efactor_a2c_v(grid, agrid, grid_type, nhalo, tile_partitioner, rank, radius,
 
     if grid_type < 3:
         if tile_partitioner.on_tile_left(rank):
-            # py0, py1 = lon_lat_midpoint(agrid[nhalo-1, nhalo-2:-nhalo+2, 0], agrid[nhalo, nhalo-2:-nhalo+2, 0], agrid[nhalo-1, nhalo-2:-nhalo+2, 1], agrid[nhalo, nhalo-2:-nhalo+2, 1], np)
-            # p20, p21 = lon_lat_midpoint(grid[nhalo, nhalo-2:-nhalo+1, 0], grid[nhalo, nhalo-1:-nhalo+2, 0], grid[nhalo, nhalo-2:-nhalo+1, 1], grid[nhalo, nhalo-1:-nhalo+2, 1], np)
-            # py = np.array([py0, py1]).transpose([1,0])
-            # p2 = np.array([p20, p21]).transpose([1,0])
-            # d1[:jm2+1] = great_circle_distance_lon_lat(py[1:jm2+2, 0], p2[1:jm2+2, 0], py[1:jm2+2,1], p2[1:jm2+2,1], radius, np)
-            # d2[:jm2+1] = great_circle_distance_lon_lat(py[2:jm2+3, 0], p2[1:jm2+2, 0], py[2:jm2+3,1], p2[1:jm2+2,1], radius, np)
-            # d1[jm2+1:] = great_circle_distance_lon_lat(py[jm2+2:-1, 0], p2[jm2+2:-1, 0], py[jm2+2:-1,1], p2[jm2+2:-1,1], radius, np)
-            # d2[jm2+1:] = great_circle_distance_lon_lat(py[jm2+1:-2, 0], p2[jm2+2:-1, 0], py[jm2+1:-2,1], p2[jm2+2:-1,1], radius, np)
-            # edge_vect_w[2:-2] = d1/(d2+d1)
             edge_vect_w[2:-2] = calculate_west_edge_vectors(grid, agrid, jm2, nhalo, radius, np)
             if tile_partitioner.on_tile_bottom(rank):
                 edge_vect_w[nhalo-1] = edge_vect_w[nhalo]
             if tile_partitioner.on_tile_top(rank):
                 edge_vect_w[-nhalo] = edge_vect_w[-nhalo-1]
         if tile_partitioner.on_tile_right(rank):
-            # py0, py1 = lon_lat_midpoint(agrid[-nhalo-1, nhalo-2:-nhalo+2, 0], agrid[-nhalo, nhalo-2:-nhalo+2, 0], agrid[-nhalo-1, nhalo-2:-nhalo+2, 1], agrid[-nhalo, nhalo-2:-nhalo+2, 1], np)
-            # p20, p21 = lon_lat_midpoint(grid[-nhalo, nhalo-2:-nhalo+1, 0], grid[-nhalo, nhalo-1:-nhalo+2, 0], grid[-nhalo, nhalo-2:-nhalo+1, 1], grid[-nhalo, nhalo-1:-nhalo+2, 1], np)
-            # py = np.array([py0, py1]).transpose([1,0])
-            # p2 = np.array([p20, p21]).transpose([1,0])
-            # d1[:jm2+1] = great_circle_distance_lon_lat(py[1:jm2+2, 0], p2[1:jm2+2, 0], py[1:jm2+2,1], p2[1:jm2+2,1], radius, np)
-            # d2[:jm2+1] = great_circle_distance_lon_lat(py[2:jm2+3, 0], p2[1:jm2+2, 0], py[2:jm2+3,1], p2[1:jm2+2,1], radius, np)
-            # d1[jm2+1:] = great_circle_distance_lon_lat(py[jm2+2:-1, 0], p2[jm2+2:-1, 0], py[jm2+2:-1,1], p2[jm2+2:-1,1], radius, np)
-            # d2[jm2+1:] = great_circle_distance_lon_lat(py[jm2+1:-2, 0], p2[jm2+2:-1, 0], py[jm2+1:-2,1], p2[jm2+2:-1,1], radius, np)
-            # edge_vect_e[2:-2] = d1/(d2+d1)
             edge_vect_e[2:-2] = calculate_east_edge_vectors(grid, agrid, jm2, nhalo, radius, np)
             if tile_partitioner.on_tile_bottom(rank):
                 edge_vect_e[nhalo-1] = edge_vect_e[nhalo]
             if tile_partitioner.on_tile_top(rank):
                 edge_vect_e[-nhalo] = edge_vect_e[-nhalo-1]
         if tile_partitioner.on_tile_bottom(rank):
-            # px0, px1 = lon_lat_midpoint(agrid[nhalo-2:-nhalo+2, nhalo-1, 0], agrid[nhalo-2:-nhalo+2, nhalo, 0], agrid[nhalo-2:-nhalo+2, nhalo-1, 1], agrid[nhalo-2:-nhalo+2, nhalo, 1], np)
-            # p10, p11 = lon_lat_midpoint(grid[nhalo-2:-nhalo+1, nhalo, 0], grid[nhalo-1:-nhalo+2, nhalo, 0], grid[nhalo-2:-nhalo+1, nhalo, 1], grid[nhalo-1:-nhalo+2, nhalo, 1], np)
-            # px = np.array([px0, px1]).transpose([1,0])
-            # p1 = np.array([p10, p11]).transpose([1,0])
-            # d1[:im2+1] = great_circle_distance_lon_lat(px[1:im2+2,0], p1[1:im2+2,0], px[1:im2+2,1], p1[1:im2+2,1], radius, np)
-            # d2[:im2+1] = great_circle_distance_lon_lat(px[2:im2+3,0], p1[1:im2+2,0], px[2:im2+3,1], p1[1:im2+2,1], radius, np)
-            # d1[im2+1:] = great_circle_distance_lon_lat(px[im2+2:-1,0], p1[im2+2:-1,0], px[im2+2:-1,1], p1[im2+2:-1,1], radius, np)
-            # d2[im2+1:] = great_circle_distance_lon_lat(px[im2+1:-2,0], p1[im2+2:-1,0], px[im2+1:-2,1], p1[im2+2:-1,1], radius, np)
-            # edge_vect_s[2:-2] = d1/(d2+d1)
             edge_vect_s[2:-2] = calculate_south_edge_vectors(grid, agrid, im2, nhalo, radius, np)
             if tile_partitioner.on_tile_left(rank):
                 edge_vect_s[nhalo-1] = edge_vect_s[nhalo]
             if tile_partitioner.on_tile_right(rank):
                 edge_vect_s[-nhalo] = edge_vect_s[-nhalo-1]
         if tile_partitioner.on_tile_top(rank):
-            # px0, px1 = lon_lat_midpoint(agrid[nhalo-2:-nhalo+2, -nhalo-1, 0], agrid[nhalo-2:-nhalo+2, -nhalo, 0], agrid[nhalo-2:-nhalo+2, -nhalo-1, 1], agrid[nhalo-2:-nhalo+2, -nhalo, 1], np)
-            # p10, p11 = lon_lat_midpoint(grid[nhalo-2:-nhalo+1, -nhalo, 0], grid[nhalo-1:-nhalo+2, -nhalo, 0], grid[nhalo-2:-nhalo+1, -nhalo, 1], grid[nhalo-1:-nhalo+2, -nhalo, 1], np)
-            # px = np.array([px0, px1]).transpose([1,0])
-            # p1 = np.array([p10, p11]).transpose([1,0])
-            # d1[:im2+1] = great_circle_distance_lon_lat(px[1:im2+2,0], p1[1:im2+2,0], px[1:im2+2,1], p1[1:im2+2,1], radius, np)
-            # d2[:im2+1] = great_circle_distance_lon_lat(px[2:im2+3,0], p1[1:im2+2,0], px[2:im2+3,1], p1[1:im2+2,1], radius, np)
-            # d1[im2+1:] = great_circle_distance_lon_lat(px[im2+2:-1,0], p1[im2+2:-1,0], px[im2+2:-1,1], p1[im2+2:-1,1], radius, np)
-            # d2[im2+1:] = great_circle_distance_lon_lat(px[im2+1:-2,0], p1[im2+2:-1,0], px[im2+1:-2,1], p1[im2+2:-1,1], radius, np)
-            # edge_vect_n[2:-2] = d1/(d2+d1)
             edge_vect_n[2:-2] = calculate_north_edge_vectors(grid, agrid, im2, nhalo, radius, np)
             if tile_partitioner.on_tile_left(rank):
                 edge_vect_n[nhalo-1] = edge_vect_n[nhalo]
