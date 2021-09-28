@@ -59,7 +59,7 @@ def gnomonic_ed(lon, lat, np):
         )
         lon[i, im] = lon[i, 0]
         lat[i, im] = -lat[i, 0]
-
+    print("global pre corners pp",  'follow', pp[0,12,0])
     # set 4 corners
     pp[:, 0, 0] = _latlon2xyz(lon[0, 0], lat[0, 0], np)
     pp[:, im, 0] = _latlon2xyz(lon[im, 0], lat[im, 0], np)
@@ -68,31 +68,34 @@ def gnomonic_ed(lon, lat, np):
 
     # map edges on the sphere back to cube: intersection at x = -1/sqrt(3)
     i = 0
+    print("global pre i pp", pp[0,12,4], pp[1,12,4], pp[2,12,4], lon[12,4], lat[12,4], 'follow', pp[0,12,0])
     for j in range(1, im):
         pp[:, i, j] = _latlon2xyz(lon[i, j], lat[i, j], np)
         pp[1, i, j] = -pp[1, i, j] * (3 ** -0.5) / pp[0, i, j]
         pp[2, i, j] = -pp[2, i, j] * (3 ** -0.5) / pp[0, i, j]
 
     j = 0
+    print("global pre j++ pp", pp[0,12,4], pp[1,12,4], pp[2,12,4],'follow', pp[0,12,0], im)
     for i in range(1, im):
         pp[:, i, j] = _latlon2xyz(lon[i, j], lat[i, j], np)
         pp[1, i, j] = -pp[1, i, j] * (3 ** -0.5) / pp[0, i, j]
         pp[2, i, j] = -pp[2, i, j] * (3 ** -0.5) / pp[0, i, j]
 
     pp[0, :, :] = -(3 ** -0.5)
+    print("global pre copy pp",pp[0,12,4], pp[1,12,4], pp[2,12,4], 'follow', pp[0,12,0])
     for j in range(1, im + 1):
         # copy y-z face of the cube along j=0
         pp[1, 1:, j] = pp[1, 1:, 0]
         # copy along i=0
         pp[2, 1:, j] = pp[2, 0, j]
-    
+    print("global final pp", pp[0,12,4], pp[1,12,4], pp[2,12,4])
     _cart_to_latlon(im + 1, pp, lon, lat, np)
- 
+    print("global final lat", lat[12,4])
 
 def lat_tile_ew_edge(alpha, dely, south_north_tile_index):
     return  -alpha + dely * float(south_north_tile_index)
 
-def local_gnomonic_ed(lon, lat,  npx, west_edge, east_edge,sw_corner, se_corner, nw_corner, ne_corner, global_is, global_js, np):
+def local_gnomonic_ed(lon, lat,  npx, west_edge, east_edge, south_edge, north_edge, global_is, global_js, np, rank):
     # tile_im, wedge_dict, corner_dict, global_is, global_js
     im = lon.shape[0] - 1
     alpha = np.arcsin(3 ** -0.5)
@@ -115,7 +118,7 @@ def local_gnomonic_ed(lon, lat,  npx, west_edge, east_edge,sw_corner, se_corner,
   
     start_i = 1 if west_edge else 0
     end_i = im if east_edge else im+1
-    
+    start_j = 1 if south_edge else 0
     lon_west_tile_edge[0, :]=  lon_west
     for j in range(0, im + 1):
         lat_west_tile_edge[0, j] = lat_tile_ew_edge(alpha, dely, global_js - halo +j)
@@ -133,25 +136,15 @@ def local_gnomonic_ed(lon, lat,  npx, west_edge, east_edge,sw_corner, se_corner,
         lon_south_tile_edge[i, 0] = edge_lon
         lat_south_tile_edge[i, 0] = edge_lat
             
-    # set 4 corners
+ 
     
-    if sw_corner:
-        sw_xyz =  _latlon2xyz(lon_west,  lat_south, np)
-        pp[:, 0, 0] =sw_xyz
-        pp_west_tile_edge[:,0,0]= sw_xyz
-        pp_south_tile_edge[:,0,0]= sw_xyz
-    if se_corner:
-        se_xyz = _latlon2xyz(lon_east,  lat_south, np)
-        pp_south_tile_edge[:,im,0]= se_xyz
-    if nw_corner:
-        nw_xyz =  _latlon2xyz(lon_west,  lat_north, np)
-        pp_west_tile_edge[:,0,im]= nw_xyz
-    if ne_corner:
-        pp[:, im, im] = _latlon2xyz(lon_east,  lat_north, np)
+   
     
     
     # map edges on the sphere back to cube: intersection at x = -1/sqrt(3)
     i = 0
+    if rank == 5:
+        print("\nlocal pre i++ pp", pp[0,4,0], pp[1,4,0], pp[2,4,0], lon_south_tile_edge[4,0], lat_south_tile_edge[4,0])
     for j in range(im+1):
         pp_west_tile_edge[:, i, j] = _latlon2xyz(lon_west_tile_edge[i, j], lat_west_tile_edge[i, j], np)
         pp_west_tile_edge[1, i, j] = -pp_west_tile_edge[1, i, j] * (3 ** -0.5) / pp_west_tile_edge[0, i, j]
@@ -160,24 +153,51 @@ def local_gnomonic_ed(lon, lat,  npx, west_edge, east_edge,sw_corner, se_corner,
         pp[:, 0,:] = pp_west_tile_edge[:, 0,:]
     
     j = 0
+    if rank == 5:
+        print("local pre j++ pp", pp[0,4,0], pp[1,4,0], pp[2,4,0], pp_west_tile_edge[0,0,1],  pp_west_tile_edge[1,0,1],  pp_west_tile_edge[2,0,1])
     for i in range(im+1):
         pp_south_tile_edge[:, i, j] = _latlon2xyz(lon_south_tile_edge[i, j], lat_south_tile_edge[i, j], np)
         pp_south_tile_edge[1, i, j] = -pp_south_tile_edge[1, i, j] * (3 ** -0.5) / pp_south_tile_edge[0, i, j]
         pp_south_tile_edge[2, i, j] = -pp_south_tile_edge[2, i, j] * (3 ** -0.5) / pp_south_tile_edge[0, i, j]
-   
-    pp[0, :, :] = -(3 ** -0.5)
+    if south_edge:
+        pp[:, :,0] = pp_south_tile_edge[:, :,0]
+    
 
-  
-    for j in range(im+1):
+    # set 4 corners
+    if south_edge or west_edge:
+        sw_xyz =  _latlon2xyz(lon_west,  lat_south, np)
+        if south_edge and west_edge:
+            pp[:, 0, 0] =sw_xyz
+        if south_edge:
+            pp_west_tile_edge[:,0,0]= sw_xyz
+        if west_edge:
+            pp_south_tile_edge[:,0,0]= sw_xyz
+    if east_edge:
+        se_xyz = _latlon2xyz(lon_east,  lat_south, np)
+        pp_south_tile_edge[:,im,0]= se_xyz
+
+    if north_edge:
+        nw_xyz =  _latlon2xyz(lon_west,  lat_north, np)
+        pp_west_tile_edge[:,0,im]= nw_xyz
+       
+    if north_edge and east_edge:
+        pp[:, im, im] = _latlon2xyz(lon_east,  lat_north, np)
+
+    pp[0, :, :] = -(3 ** -0.5)
+    if rank == 5:
+        print("local pre copy pp", pp[0,4,0], pp[1,4,0], pp[2,4,0],pp_south_tile_edge[1, 4,0] )
+    for j in range(start_j, im+1):
         # copy y-z face of the cube along j=0
         pp[1, start_i:, j] = pp_south_tile_edge[1, start_i:, 0] #pp[1,:,0]
         # copy along i=0
-        pp[2, start_i:, j] = pp_west_tile_edge[2, 0, j] # pp[2,0,j]
-    
-  
-  
+        pp[2, start_i:, j] = pp_west_tile_edge[2, 0, j] # pp[4,0,j]
+
+   
+    if rank == 5:
+        print("local final pp", pp[0,4,0], pp[1,4,0], pp[2,4,0])
     _cart_to_latlon(im + 1, pp, lon, lat, np)
-  
+    if rank == 5:
+        print("local final lat", lat[4,0])
     lon[:] -= PI
    
 
