@@ -210,17 +210,20 @@ def calculate_supergrid_cos_sin(xyz_dgrid, xyz_agrid, ec1, ec2, grid_type, nhalo
 
 def calculate_l2c_vu(dgrid, nhalo, np):
     #AAM correction
-    xyz_dgrid = lon_lat_to_xyz(dgrid[:,:,0], dgrid[:,:,1], np)
 
-    midpoint_y = np.array(lon_lat_midpoint(dgrid[nhalo:-nhalo, nhalo:-nhalo-1, 0], dgrid[nhalo:-nhalo, nhalo+1:-nhalo, 0], dgrid[nhalo:-nhalo, nhalo:-nhalo-1, 1], dgrid[nhalo:-nhalo, nhalo+1:-nhalo, 1], np))
-    unit_dir_y = get_unit_vector_direction(xyz_dgrid[nhalo:-nhalo, nhalo:-nhalo-1, :], xyz_dgrid[nhalo:-nhalo, nhalo+1:-nhalo, :], np)
-    ex, ey = get_lonlat_vect(midpoint_y, np)
-    l2c_v = np.cos(midpoint_y[1] * np.sum(unit_dir_y * ex, axis=-1))
+    point1v = dgrid[nhalo:-nhalo, nhalo:-nhalo-1, :]
+    point2v = dgrid[nhalo:-nhalo, nhalo+1:-nhalo, :]
+    midpoint_y = np.array(lon_lat_midpoint(point1v[:, :, 0], point2v[:, :, 0], point1v[:, :, 1], point2v[:, :, 1], np)).transpose([1,2,0])
+    unit_dir_y = get_unit_vector_direction(point1v, point2v, np)
+    exv, eyv = get_lonlat_vect(midpoint_y, np)
+    l2c_v = np.cos(midpoint_y[:,:,1] * np.sum(unit_dir_y * exv, axis=-1))
 
-    midpoint_x = np.array(lon_lat_midpoint(dgrid[nhalo:-nhalo-1, nhalo:-nhalo, 0], dgrid[nhalo+1:-nhalo, nhalo:-nhalo, 0], dgrid[nhalo:-nhalo-1, nhalo:-nhalo, 1], dgrid[nhalo+1:-nhalo, nhalo:-nhalo, 1], np))
-    unit_dir_x = get_unit_vector_direction(xyz_dgrid[nhalo:-nhalo-1, nhalo:-nhalo, :], xyz_dgrid[nhalo:-nhalo-1, nhalo:-nhalo, :], np)
-    ex, ey = get_lonlat_vect(midpoint_x, np)
-    l2c_u = np.cos(midpoint_x[1] * np.sum(unit_dir_x * ex, axis=-1))
+    point1u = dgrid[nhalo:-nhalo-1, nhalo:-nhalo, :]
+    point2u = dgrid[nhalo+1:-nhalo, nhalo:-nhalo, :]
+    midpoint_x = np.array(lon_lat_midpoint(point1u[:, :, 0], point2u[:, :, 0], point1u[:, :, 1], point2u[:, :, 1], np)).transpose([1,2,0])
+    unit_dir_x = get_unit_vector_direction(point1u, point2u, np)
+    exu, eyu = get_lonlat_vect(midpoint_x, np)
+    l2c_u = np.cos(midpoint_x[:,:,1] * np.sum(unit_dir_x * exu, axis=-1))
 
     return l2c_v, l2c_u
 

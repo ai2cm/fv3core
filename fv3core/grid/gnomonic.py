@@ -594,15 +594,30 @@ def spherical_cos(p_center, p2, p3, np):
         / np.sqrt(np.sum(p ** 2, axis=-1) * np.sum(q ** 2, axis=-1))
     )
 
-def get_unit_vector_direction(vector1, vector2, np):
+
+def get_unit_vector_direction(p1, p2, np):
     """
-    Returms the unit vector pointing from xyz vector1 to xyz vector2
+    Returms the unit vector pointing from a set of lonlat points p1 to lonlat points p2
     """
-    midpoint = xyz_midpoint(vector1, vector1)
-    p3 = np.cross(vector2, vector1)
+    xyz1 = lon_lat_to_xyz(p1[:, :, 0], p1[:, :, 1], np)
+    xyz2 = lon_lat_to_xyz(p2[:, :, 0], p2[:, :, 1], np)
+    midpoint = xyz_midpoint(xyz1, xyz2)
+    p3 = np.cross(xyz2, xyz1)
     return normalize_xyz(np.cross(midpoint, p3))
 
 def get_lonlat_vect(lonlat_grid, np):
-    lon_vector = np.array([-np.sin(lonlat_grid[0]), np.cos(lonlat_grid[0]), np.zeros(lonlat_grid[0].shape)]).transpose([1,2,0])
-    lat_vector = np.array([-np.sin(lonlat_grid[1])*np.cos(lonlat_grid[0]), -np.sin(lonlat_grid[1])*np.sin(lonlat_grid[0]), np.cos(lonlat_grid[1])]).transpose([1,2,0])
+    """
+    Calculates the unit vectors pointing in the longitude/latitude directions 
+    for a set of longitude/latitude points
+    """
+    lon_vector = np.array(
+        [-np.sin(lonlat_grid[:,:,0]), 
+        np.cos(lonlat_grid[:,:,0]), 
+        np.zeros(lonlat_grid[:,:,0].shape)]
+    ).transpose([1,2,0])
+    lat_vector = np.array(
+        [-np.sin(lonlat_grid[:,:,1])*np.cos(lonlat_grid[:,:,0]), 
+        -np.sin(lonlat_grid[:,:,1])*np.sin(lonlat_grid[:,:,0]), 
+        np.cos(lonlat_grid[:,:,1])]
+    ).transpose([1,2,0])
     return lon_vector, lat_vector
