@@ -215,7 +215,7 @@ class MetricTerms:
                           np=self._grid.np, rank=self._comm.rank)
         
         tile_index = self._comm.partitioner.tile_index(self._comm.rank)
-        mirror_grid(self._grid.data,grid_mirror_ew.data, grid_mirror_ns.data, grid_mirror_diag.data, old_grid,tile_index, self._grid.np,)
+        mirror_grid(self._grid.data,grid_mirror_ew.data, grid_mirror_ns.data, grid_mirror_diag.data, tile_index,  old_grid.npx, old_grid.npy,  old_grid.nic+1, old_grid.njc+1, old_grid.global_is, old_grid.global_js, old_grid.halo,self._grid.np,)
        
         # Shift the corner away from Japan
         # This will result in the corner close to east coast of China

@@ -134,102 +134,91 @@ def global_mirror_grid(grid_global, ng: int, npx: int, npy: int, np):
 
     return grid_global
 
-def mirror_grid(grid_section, grid_mirror_ew, grid_mirror_ns, grid_mirror_diag, grid, tile_index, np):
-    ng = grid.halo
-    npx = grid.npx
-    npy = grid.npy
-    nreg = tile_index
-  
+def mirror_grid(grid_section, grid_mirror_ew, grid_mirror_ns, grid_mirror_diag, tile_index, npx, npy, x_subtile_width, y_subtile_width, global_is, global_js, ng, np):
+    istart = ng
+    iend = ng + x_subtile_width
+    jstart = ng
+    jend = ng + y_subtile_width
     # first fix base region
     x_center_tile = np.all(grid_section == grid_mirror_ew)
     y_center_tile = np.all(grid_section == grid_mirror_ns)
-    for j in range(grid.js, grid.je+2):
-        for i in range(grid.is_, grid.ie+2):
-           
-            # NOTE brute force way to make sure you alays have the same order of operations to compute y1 from different ranks,
+    for j in range(jstart, jend + 1):
+        for i in range(istart, iend + 1):
+            
+            # NOTE brute force way to make sure you always have the same order of operations to compute x1,y1 from different ranks,
             # so we aren't chasing error ghosts as much as we might otherwise. 
-            # shouldn't technically need this (the sum of 4 numbers is... the sum of 4 numbers), or could be way more clever about it
-            if grid.global_is + i - ng <  ng + npx / 2:
-                if grid.global_js + j - ng < ng + npy / 2:
-                    if grid.rank == 0 and i == 4 and j == 13:
-                        print('branch sw')
-                    ll = grid_section[i, j, :]
-                    lr = grid_mirror_ew[grid.ied+1 - i, j, :]
-                    ul = grid_mirror_ns[i, grid.jed+1 - j, :]
-                    ur = grid_mirror_diag[grid.ied+1 - i, grid.jed+1 - j, :]
-                else:
-                    if grid.rank == 0 and i == 4 and j == 13:
-                        print('branch nw')
-                    ll = grid_mirror_ns[i, grid.jed+1 - j, :]
-                    lr = grid_mirror_diag[grid.ied+1 - i, grid.jed+1 - j, :]
-                    ul = grid_section[i, j, :]
-                    ur = grid_mirror_ew[grid.ied+1 - i, j, :]
-            else:
-                if grid.global_js + j - ng < ng + npy / 2:
-                    if grid.rank == 0 and i == 4 and j == 13:
-                        print('branch se')
-                    ll = grid_mirror_ew[grid.ied+1 - i, j, :]
-                    lr = grid_section[i, j, :]
-                    ul = grid_mirror_diag[grid.ied+1 - i, grid.jed+1 - j, :]
-                    ur = grid_mirror_ns[i, grid.jed+1 - j, :]
-                else:
-                    if grid.rank == 0 and i == 4 and j == 13:
-                        print('branch ne')
-                    ll = grid_mirror_diag[grid.ied+1 - i, grid.jed+1 - j, :]
-                    lr = grid_mirror_ns[i, grid.jed+1 - j, :]
-                    ul = grid_mirror_ew[grid.ied+1 - i, j, :]
-                    ur = grid_section[i, j, :]
-            # TODO, we can do this, just not for now tiny error
+           
+            #if grid.global_is + i - ng <  ng + npx / 2:
+            #    if grid.global_js + j - ng < ng + npy / 2:
+            #        ll = grid_section[i, j, :]
+            #        lr = grid_mirror_ew[grid.ied+1 - i, j, :]
+            #        ul = grid_mirror_ns[i, grid.jed+1 - j, :]
+            #        ur = grid_mirror_diag[grid.ied+1 - i, grid.jed+1 - j, :]
+            #    else:
+            #        ll = grid_mirror_ns[i, grid.jed+1 - j, :]
+            #        lr = grid_mirror_diag[grid.ied+1 - i, grid.jed+1 - j, :]
+            #        ul = grid_section[i, j, :]
+            #        ur = grid_mirror_ew[grid.ied+1 - i, j, :]
+            #else:
+            #    if grid.global_js + j - ng < ng + npy / 2:
+            #        ll = grid_mirror_ew[grid.ied+1 - i, j, :]
+            #        lr = grid_section[i, j, :]
+            #        ul = grid_mirror_diag[grid.ied+1 - i, grid.jed+1 - j, :]
+            #        ur = grid_mirror_ns[i, grid.jed+1 - j, :]
+            #    else:
+            #        ll = grid_mirror_diag[grid.ied+1 - i, grid.jed+1 - j, :]
+            #        lr = grid_mirror_ns[i, grid.jed+1 - j, :]
+            #        ul = grid_mirror_ew[grid.ied+1 - i, j, :]
+            #        ur = grid_section[i, j, :]
+            # x1 = 0.25 * (abs(ll[0]) + abs(lr[0]) + abs(ul[0]) + abs(ur[0]))
+            # y1 = 0.25 * (abs(ll[1]) + abs(lr[1]) + abs(ul[1]) + abs(ur[1]))
+            iend_domain = iend - 1 + ng
+            jend_domain = jend - 1 + ng
             x1 = 0.25 * (
                 np.abs(grid_section[i, j, 0])
-                + np.abs(grid_mirror_ew[grid.ied + 1- i, j, 0])
-                + np.abs(grid_mirror_ns[i, grid.jed + 1 - j, 0])
-                + np.abs(grid_mirror_diag[grid.ied +1 - i, grid.jed+1 - j, 0])
+                + np.abs(grid_mirror_ew[iend_domain- i, j, 0])
+                + np.abs(grid_mirror_ns[i, jend_domain - j, 0])
+                + np.abs(grid_mirror_diag[iend_domain - i, jend_domain - j, 0])
             )
-            #x1 = 0.25 * (abs(ll[0]) + abs(lr[0]) + abs(ul[0]) + abs(ur[0]))
             grid_section[i, j, 0] = np.copysign(
                 x1, grid_section[i, j, 0]
             )
            
-            #y1 = 0.25 * (abs(ll[1]) + abs(lr[1]) + abs(ul[1]) + abs(ur[1]))
-            
             y1 = 0.25 * (
                 np.abs(grid_section[i, j, 1])
-                + np.abs(grid_mirror_ew[grid.ied+1 - i, j, 1])
-                + np.abs(grid_mirror_ns[i, grid.jed+1 - j, 1])
-                + np.abs(grid_mirror_diag[grid.ied+1 - i, grid.jed+1 - j, 1])
+                + np.abs(grid_mirror_ew[iend_domain - i, j, 1])
+                + np.abs(grid_mirror_ns[i, jend_domain - j, 1])
+                + np.abs(grid_mirror_diag[iend_domain - i, jend_domain - j, 1])
             )
-            
         
             grid_section[i, j, 1] = np.copysign(
                 y1, grid_section[i, j, 1]
             )
-
             
             # force dateline/greenwich-meridion consistency
             # TODO This seems to have no impact
             if npx % 2 != 0:
-                if x_center_tile and i == grid.is_ + (grid.ie+1 - grid.is_) // 2:
+                if x_center_tile and i == istart + (iend - istart) // 2:
                     #if i == (npx - 1) // 2:
                     grid_section[i, j, 0] = 0.0
 
                      
-    i_mid = (grid.ie+1 - grid.is_) // 2 
-    j_mid = (grid.je+1 - grid.js) // 2 
+    i_mid = (iend - istart) // 2 
+    j_mid = (jend - jstart) // 2 
    
-    if nreg > 0:
+    if tile_index > 0:
         
-        for j in range(grid.js, grid.je+2):
-            x1 = grid_section[grid.is_ : grid.ie+2, j, 0]
-            y1 = grid_section[grid.is_ : grid.ie+2, j, 1]
+        for j in range(jstart, jend + 1):
+            x1 = grid_section[istart : iend + 1, j, 0]
+            y1 = grid_section[istart : iend + 1, j, 1]
             z1 = RADIUS + 0.0 * x1
 
-            if nreg == 1:
+            if tile_index == 1:
                 ang = -90.0
                 x2, y2, z2 = _rot_3d(
                     3, [x1, y1, z1], ang, np, degrees=True, convert=True
                 )
-            elif nreg == 2:
+            elif tile_index == 2:
                 ang = -90.0
                 x2, y2, z2 = _rot_3d(
                     3, [x1, y1, z1], ang, np, degrees=True, convert=True
@@ -248,10 +237,10 @@ def mirror_grid(grid_section, grid_mirror_ew, grid_mirror_ns, grid_mirror_diag, 
                         if x_center_tile:
                             x2[:i_mid] = 0.0
                             x2[i_mid + 1] = PI
-                        elif grid.global_is + i_mid < ng + (npx - 1) / 2:
+                        elif global_is + i_mid < ng + (npx - 1) / 2:
                             x2[:] = 0.0
                         
-            elif nreg == 3:
+            elif tile_index == 3:
                 ang = -180.0
                 x2, y2, z2 = _rot_3d(
                     3, [x1, y1, z1], ang, np, degrees=True, convert=True
@@ -264,7 +253,7 @@ def mirror_grid(grid_section, grid_mirror_ew, grid_mirror_ns, grid_mirror_diag, 
                 if npx % 2 != 0:
                     if j == ng + j_mid and y_center_tile:
                         x2[:] = PI
-            elif nreg == 4:
+            elif tile_index == 4:
                 ang = 90.0
                 x2, y2, z2 = _rot_3d(
                     3, [x1, y1, z1], ang, np, degrees=True, convert=True
@@ -273,7 +262,7 @@ def mirror_grid(grid_section, grid_mirror_ew, grid_mirror_ns, grid_mirror_diag, 
                 x2, y2, z2 = _rot_3d(
                     2, [x2, y2, z2], ang, np, degrees=True, convert=True
                 )
-            elif nreg == 5:
+            elif tile_index == 5:
                 ang = 90.0
                 x2, y2, z2 = _rot_3d(
                     2, [x1, y1, z1], ang, np, degrees=True, convert=True
@@ -287,13 +276,13 @@ def mirror_grid(grid_section, grid_mirror_ew, grid_mirror_ns, grid_mirror_diag, 
                     if j == ng + i_mid and x_center_tile and y_center_tile:
                         x2[i_mid] = 0.0
                         y2[i_mid] = -PI / 2.0
-                    if grid.global_js + j_mid > ng+(npy - 1) / 2 and x_center_tile:
+                    if global_js + j_mid > ng+(npy - 1) / 2 and x_center_tile:
                         x2[i_mid] = 0.0
-                    elif grid.global_js + j_mid < ng+(npy - 1) / 2 and x_center_tile:
+                    elif global_js + j_mid < ng+(npy - 1) / 2 and x_center_tile:
                         x2[i_mid] = PI
 
-            grid_section[grid.is_ : grid.ie+2, j, 0] = x2
-            grid_section[grid.is_ : grid.ie+2, j, 1] = y2
+            grid_section[istart : iend + 1, j, 0] = x2
+            grid_section[istart : iend + 1, j, 1] = y2
 
     
 def _rot_3d(axis, p, angle, np, degrees=False, convert=False):
