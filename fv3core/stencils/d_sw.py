@@ -199,9 +199,7 @@ def kinetic_energy_update(
 ):
 
     with computation(PARALLEL), interval(...):
-        # gx, gy read with 1-offset in respective direction
         pt, delp = apply_pt_delp_fluxes(gx, gy, rarea, fx, fy, pt, delp)
-        # vb_contra = interpolate_vc_to_cell_corners(vc, uc, cosa, rsina, vt)
         ub_contra, vb_contra = interpolate_uc_vc_to_cell_corners(
             uc, vc, cosa, rsina, uc_contra, vc_contra
         )
