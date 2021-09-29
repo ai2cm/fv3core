@@ -95,6 +95,7 @@ class FrozenStencil:
         domain: Index3D,
         stencil_config: Optional[StencilConfig] = None,
         externals: Optional[Mapping[str, Any]] = None,
+        skip_passes: Optional[Tuple[str, ...]] = None,
     ):
         """
         Args:
@@ -103,6 +104,8 @@ class FrozenStencil:
             domain: gt4py domain to use at call time
             stencil_config: container for stencil configuration
             externals: compile-time external variables required by stencil
+            skip_passes: compiler passes to skip when building stencil
+                        (temporary option until config system implemented)
         """
         self.origin = origin
         self.domain = domain
@@ -123,6 +126,11 @@ class FrozenStencil:
             stencil_function = future_stencil
             stencil_kwargs["wrapper"] = self
 
+        if global_config.is_gtc_backend():
+            if not skip_passes:
+                skip_passes = ("graph_merge_horizontal_executions",)
+            stencil_kwargs["skip_passes"] = skip_passes
+
         self.stencil_object: gt4py.StencilObject = stencil_function(
             definition=func,
             externals=externals,
@@ -136,28 +144,24 @@ class FrozenStencil:
             len(self._argument_names) > 0
         ), "A stencil with no arguments? You may be double decorating"
 
-        self._field_origins: Dict[str, Tuple[int, ...]] = {}
+        field_info = self.stencil_object.field_info
+        self._field_origins: Dict[str, Tuple[int, ...]] = compute_field_origins(
+            field_info, self.origin
+        )
         """mapping from field names to field origins"""
 
-        self._stencil_run_kwargs: Dict[str, Any] = {}
+        self._stencil_run_kwargs: Dict[str, Any] = {
+            "_origin_": self._field_origins,
+            "_domain_": self.domain,
+        }
 
-        self._written_fields: List[str] = []
+        self._written_fields: List[str] = get_written_fields(field_info)
 
     def __call__(
         self,
         *args,
         **kwargs,
     ) -> None:
-        if not self._field_origins:
-            # Defer stencil object access until first call for distributed compilation
-            field_info = self.stencil_object.field_info
-            self._field_origins = compute_field_origins(field_info, self.origin)
-            self._stencil_run_kwargs = {
-                "_origin_": self._field_origins,
-                "_domain_": self.domain,
-            }
-            self._written_fields = get_written_fields(field_info)
-
         if self.stencil_config.validate_args:
             if __debug__ and "origin" in kwargs:
                 raise TypeError("origin cannot be passed to FrozenStencil call")
