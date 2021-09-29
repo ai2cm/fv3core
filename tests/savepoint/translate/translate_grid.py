@@ -846,6 +846,16 @@ cubedsphere=Atm(n)%gridstruct%latlon
             "radians",
             dtype=float,
         )
+        grid_global_local = global_quantity_factory.zeros(
+            [
+                fv3util.X_INTERFACE_DIM,
+                fv3util.Y_INTERFACE_DIM,
+                LON_OR_LAT_DIM,
+                TILE_DIM,
+            ],
+            "radians",
+            dtype=float,
+        )
         lon_global = global_quantity_factory.zeros(
             [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM], "radians", dtype=float
         )
@@ -854,7 +864,7 @@ cubedsphere=Atm(n)%gridstruct%latlon
         )
         state_list = []
         sections = {}
-        compare = True
+        compare = False
         for i, inputs in enumerate(inputs_list):
             partitioner =  communicator_list[i].partitioner
             old_grid = self.rank_grids[i]
@@ -940,9 +950,9 @@ cubedsphere=Atm(n)%gridstruct%latlon
                               global_js=global_js,
                               np=grid_section.np, rank=old_grid.rank)
             
-           
+
             local_mirror_grid(grid_section.data,grid_mirror_ew.data, grid_mirror_ns.data, grid_mirror_diag.data, old_grid,tile_index, grid_global.np,)
-            
+            grid_global_local.data[old_grid.global_is:old_grid.global_ie+2, old_grid.global_js:old_grid.global_je+2, :, tile_index] = grid_section.data[old_grid.is_:old_grid.ie+2, old_grid.js:old_grid.je+2, :]
             if not compare:
                 grid_global.data[old_grid.global_is:old_grid.global_ie+2, old_grid.global_js:old_grid.global_je+2, :, tile_index] = grid_section.data[old_grid.is_:old_grid.ie+2, old_grid.js:old_grid.je+2, :]
             sections[old_grid.rank] = grid_section
@@ -964,11 +974,12 @@ cubedsphere=Atm(n)%gridstruct%latlon
                             print(rank, i, j, g, s, g == s, glat, slat, glat == slat)
             """
             mirror_grid(grid_global.data,self.grid.halo,self.grid.npx,self.grid.npy,grid_global.np,)
+
             for rank in range(len(inputs_list)):
                 old_grid =  self.rank_grids[rank]
                 section = sections[rank]
-                tile = int(int(rank)/9)
-                print('tile', tile, 'rank', rank)
+                tile = int(int(rank)/(layout[0] * layout[1]))
+              
                 for i in range(old_grid.nic+1):
                     for j in range(old_grid.njc+1):
                         g = grid_global.data[old_grid.global_is + i, old_grid.global_js+j, 0, tile ]
@@ -977,7 +988,17 @@ cubedsphere=Atm(n)%gridstruct%latlon
                         slat = section.data[old_grid.is_ + i, old_grid.js + j, 1]
                         #if not (abs(g - s) < 1e-16 and  abs(glat - slat) < 1e-16):
                         if not (g == s and glat == slat):
-                            print(rank, i, j, g, s, g == s, glat, slat, glat == slat)
+                            print('tile', tile, 'rank', rank,'ij',  i,j, g, s, g == s, glat, slat, glat == slat)
+            #for tile in range(6):
+            #    for i in range(grid_global.data.shape[0]):
+            #        for j in range(grid_global.data.shape[1]):
+            #            g = grid_global.data[ i, j, 0, tile ]
+            #            glat = grid_global.data[i, j, 1, tile]
+            #            s = grid_global_local.data[ i, j, 0,  tile ]
+            #            slat =  grid_global_local.data[ i, j, 1, tile ]
+            #            if not (g == s and glat == slat):
+            #                print(rank, i, j, tile, g, s, g == s, glat, slat, glat == slat)
+                    
         
         #
         #mirror_grid(grid_global.data,self.grid.halo,self.grid.npx,self.grid.npy,grid_global.np,)
@@ -1005,13 +1026,14 @@ cubedsphere=Atm(n)%gridstruct%latlon
             
             state_list.append({"grid": this_grid})
         req_list = []
-  
+      
         for state, communicator in zip(state_list, communicator_list):
             req_list.append(
                 communicator.start_halo_update(state["grid"], n_points=self.grid.halo)
             )
         for communicator, req in zip(communicator_list, req_list):
             req.wait()
+       
         grid_indexers = []
         for i, state in enumerate(state_list):
             grid_indexers.append(GridIndexing.from_sizer_and_communicator(local_sizer, communicator_list[i]))
@@ -1020,7 +1042,7 @@ cubedsphere=Atm(n)%gridstruct%latlon
             )
             state_list[i] = state
 
-        
+       
         #calculate d-grid cell side lengths
         for i, state in enumerate(state_list):
             self._compute_local_dxdy(state, local_quantity_factory)

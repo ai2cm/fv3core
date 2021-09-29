@@ -252,11 +252,11 @@ MIRROR MIRROR 1 9
                     grid_section[i, j, 0] = 0.0
 
                      
-    i_mid = ng + (grid.ie+1 - grid.is_) // 2 #(npx - 1) // 2
-    j_mid = ng + (grid.je+1 - grid.js) // 2 #(npy - 1) // 2
+    i_mid = (grid.ie+1 - grid.is_) // 2 #(npx - 1) // 2
+    j_mid = (grid.je+1 - grid.js) // 2 #(npy - 1) // 2
    
     #for nreg in range(1, N_TILES):
-    """
+    print('weee',nreg, i_mid, j_mid, x_center_tile, y_center_tile)
     if nreg > 0:
         
         for j in range(grid.js, grid.je+2):
@@ -278,14 +278,28 @@ MIRROR MIRROR 1 9
                 x2, y2, z2 = _rot_3d(
                     1, [x2, y2, z2], ang, np, degrees=True, convert=True
                 )
+                """
                 # force North Pole and dateline/Greenwich-Meridian consistency
                 if npx % 2 != 0:
-                    if j == i_mid and x_center_tile:
+                    if j == i_mid:
                         x2[i_mid] = 0.0
                         y2[i_mid] = PI / 2.0
-                    if j == j_mid and y_center_tile:
+                    if j == j_mid:
                         x2[:i_mid] = 0.0
                         x2[i_mid + 1] = PI
+                """
+                # force North Pole and dateline/Greenwich-Meridian consistency
+                if npx % 2 != 0:
+                    if j == ng + i_mid and x_center_tile and y_center_tile:
+                        x2[i_mid] = 0.0
+                        y2[i_mid] = PI / 2.0
+                    if j == ng + j_mid and y_center_tile:
+                        if x_center_tile:
+                            x2[:i_mid] = 0.0
+                            x2[i_mid + 1] = PI
+                        elif grid.global_is + i_mid < ng + (npx - 1) / 2:
+                            x2[:] = 0.0
+                        
             elif nreg == 3:
                 ang = -180.0
                 x2, y2, z2 = _rot_3d(
@@ -297,7 +311,7 @@ MIRROR MIRROR 1 9
                 )
                 # force dateline/Greenwich-Meridian consistency
                 if npx % 2 != 0:
-                    if j == (npy - 1) // 2:
+                    if j == ng + j_mid and y_center_tile:
                         x2[:] = PI
             elif nreg == 4:
                 ang = 90.0
@@ -319,19 +333,19 @@ MIRROR MIRROR 1 9
                 )
                 # force South Pole and dateline/Greenwich-Meridian consistency
                 if npx % 2 != 0:
-                    if j == i_mid and x_center_tile:
+                    if j == ng + i_mid and x_center_tile and y_center_tile:
                         x2[i_mid] = 0.0
                         y2[i_mid] = -PI / 2.0
-                    if j > j_mid and y_center_tile:
+                    if grid.global_js + j_mid > ng+(npy - 1) / 2 and x_center_tile:
                         x2[i_mid] = 0.0
-                    elif j < j_mid and y_center_tile:
+                    elif grid.global_js + j_mid < ng+(npy - 1) / 2 and x_center_tile:
                         x2[i_mid] = PI
 
             grid_section[grid.is_ : grid.ie+2, j, 0] = x2
             grid_section[grid.is_ : grid.ie+2, j, 1] = y2
 
     #return grid_global
-    """
+    
 def _rot_3d(axis, p, angle, np, degrees=False, convert=False):
 
     if convert:
