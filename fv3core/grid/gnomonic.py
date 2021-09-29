@@ -12,7 +12,7 @@ def gnomonic_grid(grid_type: int, lon, lat, np):
     """
     _check_shapes(lon, lat)
     if grid_type == 0:
-        gnomonic_ed(lon, lat, np)
+        global_gnomonic_ed(lon, lat, np)
     elif grid_type == 1:
         gnomonic_dist(lon, lat)
     elif grid_type == 2:

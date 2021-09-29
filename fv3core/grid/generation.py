@@ -3,7 +3,7 @@ from fv3core.grid.utils import set_eta, get_center_vector
 from fv3core.utils.grid import GridIndexing
 from .gnomonic import (
     get_area,
-    gnomonic_grid,
+    local_gnomonic_ed,
     great_circle_distance_along_axis,
     lon_lat_corner_to_cell_center,
     lon_lat_midpoint,
@@ -29,14 +29,14 @@ from fv3gfs.util.constants import N_HALO_DEFAULT
 # can corners use sizer rather than gridIndexer
 class MetricTerms:
 
-    def __init__(self,  grid, *, grid_type: int, layout: Tuple[int, int], npx: int, npy: int, npz: int, communicator, backend: str):
+    def __init__(self,  old_grid, *, grid_type: int, layout: Tuple[int, int], npx: int, npy: int, npz: int, communicator, backend: str):
        
         self._halo = N_HALO_DEFAULT
         self._comm = communicator
         self._backend = backend
         self._quantity_factory, sizer = self._make_quantity_factory(layout, npx, npy, npz)
         self.grid_indexer = GridIndexing.from_sizer_and_communicator(sizer, self._comm)
-       
+        self._grid_dims = [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM, LON_OR_LAT_DIM]
         self._grid = self._quantity_factory.zeros(
             [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM, LON_OR_LAT_DIM], "radians", dtype=float
         )
@@ -44,7 +44,7 @@ class MetricTerms:
         self._agrid = self._quantity_factory.zeros(
             [fv3util.X_DIM, fv3util.Y_DIM, LON_OR_LAT_DIM], "radians", dtype=float
         )
-        self.grid=grid
+        self._old_grid=old_grid
         self._np = self._grid.np
         self._dx = None
         self._dy = None
@@ -56,7 +56,7 @@ class MetricTerms:
         self._area_c = None
         self._xyz_dgrid = None
         self._xyz_agrid = None
-        self._init_dgrid(npx, npy, npz, grid_type)
+        self._init_dgrid(layout)
         self._init_agrid()
     
     @property
@@ -134,7 +134,6 @@ class MetricTerms:
         return self._xyz_agrid
     
     def _make_quantity_factory(self, layout: Tuple[int, int], npx: int, npy: int, npz: int):
-        #print('making quantity factory', npx, npy, self._halo, layout)
         sizer =  fv3util.SubtileGridSizer.from_tile_params(
             nx_tile=npx - 1,
             ny_tile=npy - 1,
@@ -151,55 +150,82 @@ class MetricTerms:
         )
         return quantity_factory, sizer
     
-    def _init_dgrid(self, npx: int, npy: int, npz: int, grid_type: int):
-        # TODO size npx, npy, not local dims
+    def _init_dgrid(self, layout):
 
-        global_quantity_factory, _ = self._make_quantity_factory((1,1), npx, npy, npz)
-        grid_global = global_quantity_factory.zeros(
-            [
-                fv3util.X_INTERFACE_DIM,
-                fv3util.Y_INTERFACE_DIM,
-                LON_OR_LAT_DIM,
-                TILE_DIM, 
-            ],
+        grid_mirror_ew = self._quantity_factory.zeros(
+            self._grid_dims,
             "radians",
             dtype=float,
         )
-
-        tile0_lon = global_quantity_factory.zeros(
-            [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM], "radians", dtype=float
+        grid_mirror_ns = self._quantity_factory.zeros(
+            self._grid_dims,
+            "radians",
+            dtype=float,
         )
-        tile0_lat = global_quantity_factory.zeros(
-            [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM], "radians", dtype=float
+        grid_mirror_diag = self._quantity_factory.zeros(
+            self._grid_dims,
+            "radians",
+            dtype=float,
         )
-        gnomonic_grid(
-            grid_type,
-            tile0_lon.view[:],
-            tile0_lat.view[:], 
-            self._np,
-        )
-    
-        grid_global.view[:, :, 0, 0] = tile0_lon.view[:]
-        grid_global.view[:, :, 1, 0] = tile0_lat.view[:]
-        mirror_grid(
-            grid_global.data,
-            self._halo,
-            npx,
-            npy,
-            self._np,
-        )
+        # TODO replace using legacy grid with fv3gfs-utils partitioner functionality
+        old_grid = self._old_grid
+        local_gnomonic_ed( self._grid.view[:,:,0],  self._grid.view[:,:,1],  npx=old_grid.npx,
+                           west_edge=old_grid.west_edge,
+                           east_edge=old_grid.east_edge,
+                           south_edge=old_grid.south_edge,
+                           north_edge=old_grid.north_edge,
+                           global_is=old_grid.global_is,
+                           global_js=old_grid.global_js,
+                        np=self._grid.np, rank=self._comm.rank)
+        j_subtile_index, i_subtile_index = self._comm.partitioner.tile.subtile_index(self._comm.rank)
+        ew_i_subtile_index = layout[0] - i_subtile_index - 1
+        ns_j_subtile_index = layout[1] - j_subtile_index - 1
+        west_edge = True if old_grid.east_edge else False
+        east_edge = True if old_grid.west_edge else False
+        global_is = old_grid.local_to_global_1d(old_grid.is_, ew_i_subtile_index, old_grid.subtile_width_x)
+        local_gnomonic_ed(grid_mirror_ew.view[:,:,0],  grid_mirror_ew.view[:,:,1],  npx=old_grid.npx,
+                          west_edge=west_edge,
+                          east_edge=east_edge,
+                          south_edge=old_grid.south_edge,
+                          north_edge=old_grid.north_edge,
+                          global_is=global_is,
+                          global_js=old_grid.global_js,
+                          np=self._grid.np, rank=self._comm.rank)
+          
+        south_edge = True if old_grid.north_edge else False
+        north_edge = True if old_grid.south_edge else False
+        global_js = old_grid.local_to_global_1d(old_grid.js, ns_j_subtile_index, old_grid.subtile_width_x)
+           
+        local_gnomonic_ed(grid_mirror_ns.view[:,:,0],  grid_mirror_ns.view[:,:,1],  npx=old_grid.npx,
+                          west_edge=old_grid.west_edge,
+                          east_edge=old_grid.east_edge,
+                          south_edge=south_edge,
+                          north_edge=north_edge,
+                          global_is=old_grid.global_is,
+                          global_js=global_js,
+                          np=self._grid.np, rank=self._comm.rank)
+           
+        local_gnomonic_ed(grid_mirror_diag.view[:,:,0],  grid_mirror_diag.view[:,:,1],  npx=old_grid.npx,
+                          west_edge=west_edge,
+                          east_edge=east_edge,
+                          south_edge=south_edge,
+                          north_edge=north_edge,
+                          global_is=global_is,
+                          global_js=global_js,
+                          np=self._grid.np, rank=self._comm.rank)
+        
+        tile_index = self._comm.partitioner.tile_index(self._comm.rank)
+        mirror_grid(self._grid.data,grid_mirror_ew.data, grid_mirror_ns.data, grid_mirror_diag.data, old_grid,tile_index, self._grid.np,)
+       
         # Shift the corner away from Japan
         # This will result in the corner close to east coast of China
         # TODO if not config.do_schmidt and config.shift_fac > 1.0e-4
         shift_fac = 18
-        grid_global.view[:, :, 0, :] -= PI / shift_fac
-        tile0_lon = grid_global.data[:, :, 0, :]
+        self._grid.view[:, :, 0] -= PI / shift_fac
+        tile0_lon = self._grid.data[:, :, 0]
         tile0_lon[tile0_lon < 0] += 2 * PI
-        grid_global.data[self._np.abs(grid_global.data[:]) < 1e-10] = 0.0
-        # TODO, mpi scatter grid_global and subset grid_global for rank
-        tile_index = self._comm.partitioner.tile_index(self._comm.rank)
-
-        self._grid.data[self.grid.is_:self.grid.ie+2, self.grid.js:self.grid.je +2, :] = grid_global.data[self.grid.global_is:self.grid.global_ie+2, self.grid.global_js:self.grid.global_je+2, :, tile_index]
+        self._grid.data[self._np.abs(self._grid.data[:]) < 1e-10] = 0.0
+      
         self._comm.halo_update(self._grid, n_points=self._halo)
         
         fill_corners_2d(
