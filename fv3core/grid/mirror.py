@@ -5,8 +5,9 @@ from ..utils.global_constants import N_TILES, PI, RADIUS, RIGHT_HAND_GRID
 
 __all__ = ["mirror_grid"]
 
-
-def mirror_grid(grid_global, ng: int, npx: int, npy: int, np):
+# A tile global version of mirror_grid
+# Closer to the Fortran code
+def global_mirror_grid(grid_global, ng: int, npx: int, npy: int, np):
     # first fix base region
     nreg = 0
     for j in range(0, math.ceil(npy / 2)):
@@ -133,7 +134,7 @@ def mirror_grid(grid_global, ng: int, npx: int, npy: int, np):
 
     return grid_global
 
-def local_mirror_grid(grid_section, grid_mirror_ew, grid_mirror_ns, grid_mirror_diag, grid, tile_index, np):
+def mirror_grid(grid_section, grid_mirror_ew, grid_mirror_ns, grid_mirror_diag, grid, tile_index, np):
     ng = grid.halo
     npx = grid.npx
     npy = grid.npy

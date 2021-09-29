@@ -2,7 +2,8 @@
 
 from .gnomonic import (
     get_area,
-    gnomonic_grid, local_gnomonic_ed,
+    gnomonic_grid,
+    local_gnomonic_ed,
     great_circle_distance_along_axis,
     lon_lat_corner_to_cell_center,
     lon_lat_midpoint,
@@ -13,5 +14,5 @@ from .gnomonic import (
     set_tile_border_dyc,
 )
 #from .mesh_generator import generate_mesh
-from .mirror import mirror_grid, set_halo_nan, local_mirror_grid
+from .mirror import mirror_grid, set_halo_nan
 from .generation import MetricTerms

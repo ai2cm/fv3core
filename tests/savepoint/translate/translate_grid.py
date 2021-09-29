@@ -7,12 +7,12 @@ import fv3core.utils.global_config as global_config
 import fv3core._config as spec
 from fv3core.grid import (
     get_area,
-    gnomonic_grid, local_gnomonic_ed,
+    local_gnomonic_ed,
     great_circle_distance_along_axis,
     lon_lat_corner_to_cell_center,
     lon_lat_midpoint,
     lon_lat_to_xyz,
-    mirror_grid,local_mirror_grid,
+    mirror_grid,
     set_c_grid_tile_border_area,
     set_corner_area_to_triangle_area,
     set_tile_border_dxc,
@@ -819,51 +819,12 @@ cubedsphere=Atm(n)%gridstruct%latlon
         local_quantity_factory = fv3util.QuantityFactory.from_backend(
             local_sizer, backend=global_config.get_backend()
         )
-        global_sizer =  fv3util.SubtileGridSizer.from_tile_params(
-            nx_tile=self.grid.npx - 1,
-            ny_tile=self.grid.npy - 1,
-            nz=self.grid.npz,
-            n_halo=3,
-            extra_dim_lengths={
-                LON_OR_LAT_DIM: 2,
-                TILE_DIM: 6,
-            },
-            layout=(1,1),
-        )
-        global_quantity_factory = fv3util.QuantityFactory.from_backend(
-            global_sizer, backend=global_config.get_backend()
-        )
+       
         #Set up initial lat-lon d-grid
         shift_fac = 18
-        grid_global = global_quantity_factory.zeros(
-            [
-                fv3util.X_INTERFACE_DIM,
-                fv3util.Y_INTERFACE_DIM,
-                LON_OR_LAT_DIM,
-                TILE_DIM,
-            ],
-            "radians",
-            dtype=float,
-        )
-        grid_global_local = global_quantity_factory.zeros(
-            [
-                fv3util.X_INTERFACE_DIM,
-                fv3util.Y_INTERFACE_DIM,
-                LON_OR_LAT_DIM,
-                TILE_DIM,
-            ],
-            "radians",
-            dtype=float,
-        )
-        lon_global = global_quantity_factory.zeros(
-            [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM], "radians", dtype=float
-        )
-        lat_global = global_quantity_factory.zeros(
-            [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM], "radians", dtype=float
-        )
+       
         state_list = []
-        sections = {}
-        compare = False
+        
         for i, inputs in enumerate(inputs_list):
             partitioner =  communicator_list[i].partitioner
             old_grid = self.rank_grids[i]
@@ -893,12 +854,7 @@ cubedsphere=Atm(n)%gridstruct%latlon
                 "radians",
                 dtype=float,
             )
-            #print('global extent', partitioner.global_extent(grid_section.metadata))
-            #print('local extent', partitioner.tile.subtile_extent(grid_section.metadata))
-            #print('subtile index', i, partitioner.tile.subtile_index(i), partitioner.tile.on_tile_left(i), partitioner.tile.on_tile_right(i), partitioner.tile.on_tile_bottom(i), partitioner.tile.on_tile_top(i))
-        
-            #local_gnomonic_ed(lon.view[:], lat.view[:], old_grid, lon.np)
-            #print("\nmain", old_grid.rank, old_grid.west_edge,old_grid.east_edge,old_grid.south_edge,old_grid.north_edge, old_grid.global_is, old_grid.global_js)
+          
             local_gnomonic_ed( grid_section.view[:,:,0],  grid_section.view[:,:,1],  npx=old_grid.npx,
                                west_edge=old_grid.west_edge,
                                east_edge=old_grid.east_edge,
@@ -914,8 +870,8 @@ cubedsphere=Atm(n)%gridstruct%latlon
             east_edge = True if old_grid.west_edge else False
             
             global_is = old_grid.local_to_global_1d(old_grid.is_, ew_i_subtile_index, old_grid.subtile_width_x)
-            #print('ew', old_grid.rank, west_edge,east_edge, global_is, old_grid.global_js, ew_i_subtile_index,  ns_j_subtile_index)
-    
+            
+
             local_gnomonic_ed(grid_mirror_ew.view[:,:,0],  grid_mirror_ew.view[:,:,1],  npx=old_grid.npx,
                               west_edge=west_edge,
                               east_edge=east_edge,
@@ -928,7 +884,7 @@ cubedsphere=Atm(n)%gridstruct%latlon
             south_edge = True if old_grid.north_edge else False
             north_edge = True if old_grid.south_edge else False
             global_js = old_grid.local_to_global_1d(old_grid.js, ns_j_subtile_index, old_grid.subtile_width_x)
-            #print('nw', old_grid.rank, old_grid.west_edge,old_grid.east_edge,south_edge, north_edge, old_grid.global_is, global_js, ew_i_subtile_index, ns_j_subtile_index,  ew_i_subtile_index,  ns_j_subtile_index)
+           
             local_gnomonic_ed(grid_mirror_ns.view[:,:,0],  grid_mirror_ns.view[:,:,1],  npx=old_grid.npx,
                               west_edge=old_grid.west_edge,
                               east_edge=old_grid.east_edge,
@@ -937,8 +893,6 @@ cubedsphere=Atm(n)%gridstruct%latlon
                               global_is=old_grid.global_is,
                               global_js=global_js,
                               np=grid_section.np, rank=old_grid.rank)
-
-            #print('diag', old_grid.rank, west_edge,east_edge, south_edge, north_edge, global_is, global_js, ew_i_subtile_index, ns_j_subtile_index)
            
             local_gnomonic_ed(grid_mirror_diag.view[:,:,0],  grid_mirror_diag.view[:,:,1],  npx=old_grid.npx,
                               west_edge=west_edge,
@@ -950,80 +904,15 @@ cubedsphere=Atm(n)%gridstruct%latlon
                               np=grid_section.np, rank=old_grid.rank)
             
 
-            local_mirror_grid(grid_section.data,grid_mirror_ew.data, grid_mirror_ns.data, grid_mirror_diag.data, old_grid,tile_index, grid_global.np,)
-            grid_global_local.data[old_grid.global_is:old_grid.global_ie+2, old_grid.global_js:old_grid.global_je+2, :, tile_index] = grid_section.data[old_grid.is_:old_grid.ie+2, old_grid.js:old_grid.je+2, :]
-            if not compare:
-                grid_global.data[old_grid.global_is:old_grid.global_ie+2, old_grid.global_js:old_grid.global_je+2, :, tile_index] = grid_section.data[old_grid.is_:old_grid.ie+2, old_grid.js:old_grid.je+2, :]
-            sections[old_grid.rank] = grid_section
-        if compare:
-            gnomonic_grid(self.grid.grid_type,lon_global.view[:],lat_global.view[:],lon_global.np,)
-            grid_global.view[:, :, 0, 0] = lon_global.view[:]
-            grid_global.view[:, :, 1, 0] = lat_global.view[:]
-            """
-            for rank in range(min(9, len(inputs_list))):
-                old_grid =  self.rank_grids[rank]
-                section = sections[rank]
-                for i in range(old_grid.nic+1):
-                    for j in range(old_grid.njc+1):
-                        g = grid_global.data[old_grid.global_is + i, old_grid.global_js+j, 0, 0]
-                        glat = grid_global.data[old_grid.global_is + i, old_grid.global_js+j, 1, 0]
-                        s = section.data[old_grid.is_ + i, old_grid.js + j, 0]
-                        slat = section.data[old_grid.is_ + i, old_grid.js + j, 1]
-                        if not (abs(g - s) < 1e-14 and  abs(glat - slat) < 1e-14):
-                            print(rank, i, j, g, s, g == s, glat, slat, glat == slat)
-            """
-            mirror_grid(grid_global.data,self.grid.halo,self.grid.npx,self.grid.npy,grid_global.np,)
-
-            for rank in range(len(inputs_list)):
-                old_grid =  self.rank_grids[rank]
-                section = sections[rank]
-                tile = int(int(rank)/(layout[0] * layout[1]))
-              
-                for i in range(old_grid.nic+1):
-                    for j in range(old_grid.njc+1):
-                        g = grid_global.data[old_grid.global_is + i, old_grid.global_js+j, 0, tile ]
-                        glat = grid_global.data[old_grid.global_is + i, old_grid.global_js+j, 1, tile]
-                        s = section.data[old_grid.is_ + i, old_grid.js + j, 0]
-                        slat = section.data[old_grid.is_ + i, old_grid.js + j, 1]
-                        #if not (abs(g - s) < 1e-16 and  abs(glat - slat) < 1e-16):
-                        if not (g == s and glat == slat):
-                            print('tile', tile, 'rank', rank,'ij',  i,j, g, s, g == s, glat, slat, glat == slat)
-            #for tile in range(6):
-            #    for i in range(grid_global.data.shape[0]):
-            #        for j in range(grid_global.data.shape[1]):
-            #            g = grid_global.data[ i, j, 0, tile ]
-            #            glat = grid_global.data[i, j, 1, tile]
-            #            s = grid_global_local.data[ i, j, 0,  tile ]
-            #            slat =  grid_global_local.data[ i, j, 1, tile ]
-            #            if not (g == s and glat == slat):
-            #                print(rank, i, j, tile, g, s, g == s, glat, slat, glat == slat)
-                    
-        
-        #
-        #mirror_grid(grid_global.data,self.grid.halo,self.grid.npx,self.grid.npy,grid_global.np,)
-        # Shift the corner away from Japan
-        # This will result in the corner close to east coast of China
-        grid_global.view[:, :, 0, :] -= PI / shift_fac
-        lon = grid_global.data[:, :, 0, :]
-        lon[lon < 0] += 2 * PI
-        grid_global.data[grid_global.np.abs(grid_global.data[:]) < 1e-10] = 0.0
-        #state_list.append({"grid": grid_global})
-        # more global copying
-        #npx = self.grid.npx
-        #npy = self.grid.npy
-     
-        #state_list = []
-        for i, inputs in enumerate(inputs_list):
-            rank_grid = self.rank_grids[i]
-            tile_index = communicator_list[i].partitioner.tile_index(i)
-            this_grid = local_quantity_factory.zeros(
-                dims=[fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM, LON_OR_LAT_DIM],
-                units="radians",dtype=float
-            )
-            this_grid.data[rank_grid.is_:rank_grid.ie+2, rank_grid.js:rank_grid.je+2, :] = grid_global.data[rank_grid.global_is:rank_grid.global_ie+2, rank_grid.global_js:rank_grid.global_je+2, :, tile_index]
-        
-            
-            state_list.append({"grid": this_grid})
+            mirror_grid(grid_section.data,grid_mirror_ew.data, grid_mirror_ns.data, grid_mirror_diag.data, old_grid,tile_index, grid_section.np,)
+          
+            # Shift the corner away from Japan
+            # This will result in the corner close to east coast of China
+            grid_section.view[:, :, 0] -= PI / shift_fac
+            lon = grid_section.data[:, :, 0]
+            lon[lon < 0] += 2 * PI
+            grid_section.data[grid_section.np.abs(grid_section.data[:]) < 1e-10] = 0.0
+            state_list.append({"grid": grid_section})
         req_list = []
       
         for state, communicator in zip(state_list, communicator_list):

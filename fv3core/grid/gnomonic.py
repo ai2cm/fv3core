@@ -37,8 +37,9 @@ def _check_shapes(lon, lat):
             f"{lon.shape} and {lat.shape}"
         )
 
-
-def gnomonic_ed(lon, lat, np):
+# A tile global version of gnomonic_ed
+# closer to the Fortran code
+def global_gnomonic_ed(lon, lat, np):
     im = lon.shape[0] - 1
     alpha = np.arcsin(3 ** -0.5)
     dely = 2.0 * alpha / float(im)
@@ -89,6 +90,7 @@ def lat_tile_ew_edge(alpha, dely, south_north_tile_index):
     return  -alpha + dely * float(south_north_tile_index)
 
 def local_gnomonic_ed(lon, lat,  npx, west_edge, east_edge, south_edge, north_edge, global_is, global_js, np, rank):
+    _check_shapes(lon, lat)
     # tile_im, wedge_dict, corner_dict, global_is, global_js
     im = lon.shape[0] - 1
     alpha = np.arcsin(3 ** -0.5)
@@ -175,7 +177,10 @@ def local_gnomonic_ed(lon, lat,  npx, west_edge, east_edge, south_edge, north_ed
         pp[2, start_i:, j] = pp_west_tile_edge[2, 0, j] # pp[4,0,j]
    
     _cart_to_latlon(im + 1, pp, lon, lat, np)
-
+    # TODO replicating the last step of gnomonic_grid until api is finalized
+    # remove this if this method is called from gnomonic_grid
+    #if grid_type < 3:
+    symm_ed(lon, lat)
     lon[:] -= PI
    
 
