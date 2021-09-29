@@ -438,9 +438,6 @@ def get_parallel_mock_param(
     max_call_count,
     only_one_rank,
 ):
-    if only_one_rank is not None:
-        raise RuntimeError("Cannot use --which_rank with parallel tests.")
-
     return pytest.param(
         testobj,
         case.test_name,
