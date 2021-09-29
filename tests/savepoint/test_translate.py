@@ -24,10 +24,22 @@ GPU_NEAR_ZERO = 1e-15
 
 
 def compare_arr(computed_data, ref_data):
+    """Smooth error near zero values.
+    Inputs are arrays.
+    """
     denom = np.abs(ref_data) + np.abs(computed_data)
     compare = 2.0 * np.abs(computed_data - ref_data) / denom
     compare[denom == 0] = 0.0
     return compare
+
+
+def compare_scalar(computed_data: np.float64, ref_data: np.float64) -> np.float64:
+    """Smooth error near zero values. Scalar versions."""
+    denom = np.abs(ref_data) + np.abs(computed_data)
+    if denom == 0:
+        return np.float64(0.0)
+    else:
+        return 2.0 * np.abs(computed_data - ref_data) / denom
 
 
 def success_array(
@@ -94,25 +106,46 @@ def sample_wherefail(
     computed_failures = computed_data[found_indices]
     reference_failures = ref_data[found_indices]
 
+    # List all errors
     return_strings = []
     bad_indices_count = len(found_indices[0])
     if print_failures:
         for b in range(0, bad_indices_count, failure_stride):
             full_index = [f[b] for f in found_indices]
+            abs_err = abs(computed_failures[b] - reference_failures[b])
+            metric_err = compare_scalar(computed_failures[b], reference_failures[b])
             return_strings.append(
                 f"index: {full_index}, computed {computed_failures[b]}, "
                 f"reference {reference_failures[b]}, "
-                f"diff {abs(computed_failures[b] - reference_failures[b])}"
+                f"absolute diff {abs_err:.3e}, "
+                f"metric diff: {metric_err:.3e}"
             )
-    sample = [f[0] for f in found_indices]
-    fullcount = len(ref_data.flatten())
 
+    # Determine worst result
+    worst_err = 0
+    worst_idx = 0
+    worst_full_idx = 0
+    for b in range(0, bad_indices_count, failure_stride):
+        err = compare_scalar(computed_failures[b], reference_failures[b])
+        if worst_err < err:
+            worst_err = err
+            worst_idx = b
+            worst_full_idx = [f[b] for f in found_indices]
+
+    # Summary and worst result
+    fullcount = len(ref_data.flatten())
+    absolute_err = abs(computed_failures[worst_idx] - reference_failures[worst_idx])
+    metric_err = compare_scalar(
+        computed_failures[worst_idx], reference_failures[worst_idx]
+    )
     return_strings.append(
         f"Failed count: {bad_indices_count}/{fullcount} "
         f"({round(100.0 * (bad_indices_count / fullcount), 2)}%),\n"
-        f"first failed index {sample}, computed:{computed_failures[0]}, "
-        f"reference: {reference_failures[0]}, "
-        f"diff: {abs(computed_failures[0] - reference_failures[0])}\n"
+        f"Worst failed index {worst_full_idx}\n"
+        f"\tcomputed:{computed_failures[worst_idx]}\n"
+        f"\treference: {reference_failures[worst_idx]}\n"
+        f"\tabsolute diff: {absolute_err:.3e}\n"
+        f"\tmetric diff: {metric_err:.3e}\n"
     )
 
     if xy_indices:
