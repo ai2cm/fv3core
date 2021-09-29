@@ -7,7 +7,6 @@ from typing import Any, Callable, Dict
 _backend_options: Dict[str, Any] = {
     "all": {
         "skip_passes": ("graph_merge_horizontal_executions",),
-        "use_buffer_interface": True,
     },
     "fv_subgridz.init": {
         "skip_passes": ("KCacheDetection",),
