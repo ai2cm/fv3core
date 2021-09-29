@@ -889,7 +889,7 @@ cubedsphere=Atm(n)%gridstruct%latlon
             #print('subtile index', i, partitioner.tile.subtile_index(i), partitioner.tile.on_tile_left(i), partitioner.tile.on_tile_right(i), partitioner.tile.on_tile_bottom(i), partitioner.tile.on_tile_top(i))
         
             #local_gnomonic_ed(lon.view[:], lat.view[:], old_grid, lon.np)
-            #print("\nmain", old_grid.rank, old_grid.west_edge,old_grid.east_edge,old_grid.sw_corner,old_grid.se_corner,old_grid.nw_corner,old_grid.ne_corner, old_grid.global_is, old_grid.global_js)
+            #print("\nmain", old_grid.rank, old_grid.west_edge,old_grid.east_edge,old_grid.south_edge,old_grid.north_edge, old_grid.global_is, old_grid.global_js)
             local_gnomonic_ed( grid_section.view[:,:,0],  grid_section.view[:,:,1],  npx=old_grid.npx,
                                west_edge=old_grid.west_edge,
                                east_edge=old_grid.east_edge,
@@ -905,7 +905,7 @@ cubedsphere=Atm(n)%gridstruct%latlon
             east_edge = True if old_grid.west_edge else False
             
             global_is = old_grid.local_to_global_1d(old_grid.is_, ew_i_subtile_index, old_grid.subtile_width_x)
-            #print('ew', old_grid.rank, west_edge,east_edge,sw_corner,se_corner,nw_corner,ne_corner, global_is, old_grid.global_js, ew_i_subtile_index,  ns_j_subtile_index)
+            #print('ew', old_grid.rank, west_edge,east_edge, global_is, old_grid.global_js, ew_i_subtile_index,  ns_j_subtile_index)
     
             local_gnomonic_ed(grid_mirror_ew.view[:,:,0],  grid_mirror_ew.view[:,:,1],  npx=old_grid.npx,
                               west_edge=west_edge,
@@ -919,7 +919,7 @@ cubedsphere=Atm(n)%gridstruct%latlon
             south_edge = True if old_grid.north_edge else False
             north_edge = True if old_grid.south_edge else False
             global_js = old_grid.local_to_global_1d(old_grid.js, ns_j_subtile_index, old_grid.subtile_width_x)
-            #print('nw', old_grid.rank, old_grid.west_edge,old_grid.east_edge,sw_corner,se_corner,nw_corner,ne_corner, old_grid.global_is, global_js, ew_i_subtile_index, ns_j_subtile_index,  ew_i_subtile_index,  ns_j_subtile_index)
+            #print('nw', old_grid.rank, old_grid.west_edge,old_grid.east_edge,south_edge, north_edge, old_grid.global_is, global_js, ew_i_subtile_index, ns_j_subtile_index,  ew_i_subtile_index,  ns_j_subtile_index)
             local_gnomonic_ed(grid_mirror_ns.view[:,:,0],  grid_mirror_ns.view[:,:,1],  npx=old_grid.npx,
                               west_edge=old_grid.west_edge,
                               east_edge=old_grid.east_edge,
@@ -929,8 +929,8 @@ cubedsphere=Atm(n)%gridstruct%latlon
                               global_js=global_js,
                               np=grid_section.np, rank=old_grid.rank)
 
-            #print('diag', old_grid.rank, west_edge,east_edge,sw_corner,se_corner,nw_corner,ne_corner, global_is, global_js, ew_i_subtile_index, ns_j_subtile_index)
-    
+            #print('diag', old_grid.rank, west_edge,east_edge, south_edge, north_edge, global_is, global_js, ew_i_subtile_index, ns_j_subtile_index)
+           
             local_gnomonic_ed(grid_mirror_diag.view[:,:,0],  grid_mirror_diag.view[:,:,1],  npx=old_grid.npx,
                               west_edge=west_edge,
                               east_edge=east_edge,
@@ -939,7 +939,9 @@ cubedsphere=Atm(n)%gridstruct%latlon
                               global_is=global_is,
                               global_js=global_js,
                               np=grid_section.np, rank=old_grid.rank)
-            #local_mirror_grid(grid_global.data,old_grid,tile_index, grid_global.np,)
+            
+           
+            local_mirror_grid(grid_section.data,grid_mirror_ew.data, grid_mirror_ns.data, grid_mirror_diag.data, old_grid,tile_index, grid_global.np,)
             
             if not compare:
                 grid_global.data[old_grid.global_is:old_grid.global_ie+2, old_grid.global_js:old_grid.global_je+2, :, tile_index] = grid_section.data[old_grid.is_:old_grid.ie+2, old_grid.js:old_grid.je+2, :]
@@ -962,13 +964,15 @@ cubedsphere=Atm(n)%gridstruct%latlon
                             print(rank, i, j, g, s, g == s, glat, slat, glat == slat)
             """
             mirror_grid(grid_global.data,self.grid.halo,self.grid.npx,self.grid.npy,grid_global.np,)
-            for rank in range(min(9, len(inputs_list))):
+            for rank in range(len(inputs_list)):
                 old_grid =  self.rank_grids[rank]
                 section = sections[rank]
+                tile = int(int(rank)/9)
+                print('tile', tile, 'rank', rank)
                 for i in range(old_grid.nic+1):
                     for j in range(old_grid.njc+1):
-                        g = grid_global.data[old_grid.global_is + i, old_grid.global_js+j, 0, 0]
-                        glat = grid_global.data[old_grid.global_is + i, old_grid.global_js+j, 1, 0]
+                        g = grid_global.data[old_grid.global_is + i, old_grid.global_js+j, 0, tile ]
+                        glat = grid_global.data[old_grid.global_is + i, old_grid.global_js+j, 1, tile]
                         s = section.data[old_grid.is_ + i, old_grid.js + j, 0]
                         slat = section.data[old_grid.is_ + i, old_grid.js + j, 1]
                         #if not (abs(g - s) < 1e-16 and  abs(glat - slat) < 1e-16):
