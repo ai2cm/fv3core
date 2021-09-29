@@ -737,8 +737,7 @@ cubedsphere=Atm(n)%gridstruct%latlon
             "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM, LON_OR_LAT_DIM],
             "units": "radians",
         },
-    }
-    """
+    
         "agrid": {
             "name": "agrid",
             "dims": [fv3util.X_DIM, fv3util.Y_DIM, LON_OR_LAT_DIM],
@@ -787,7 +786,7 @@ cubedsphere=Atm(n)%gridstruct%latlon
             "units": "m",
         },
     }
-    """
+    
     
     def __init__(self, grids):
         super().__init__(grids)
