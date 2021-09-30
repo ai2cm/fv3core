@@ -193,7 +193,7 @@ class MetricTerms:
         
         # Next compute gnomonic for the mirrored ranks that'll be averaged
         j_subtile_index, i_subtile_index = self._tile_partitioner.subtile_index(self._rank)
-        # compute the global index starting points for the mirrored tiles
+        # compute the global index starting points for the mirrored ranks
         ew_global_is =  self._halo + (self._tile_partitioner.layout[0] - i_subtile_index - 1) * subtile_width_x
         ns_global_js =  self._halo +  (self._tile_partitioner.layout[1] - j_subtile_index - 1) * subtile_width_y
         
