@@ -40,7 +40,7 @@ def cached_property(func):
 # corners use sizer + partitioner rather than GridIndexer, requires fv3core clls to corners know what to do
 class MetricTerms:
 
-    def __init__(self,  *, quantity_factory, communicator, grid_type: int = 0):
+    def __init__(self,  *, quantity_factory: fv3util.QuantityFactory, communicator: fv3util.Communicator, grid_type: int = 0):
         assert(grid_type < 3)
         self._halo = N_HALO_DEFAULT
         self._comm = communicator
@@ -71,7 +71,7 @@ class MetricTerms:
         self._init_agrid()
 
     @classmethod
-    def from_tile_sizing(cls, npx: int, npy: int, npz: int, communicator, backend: str, grid_type: int = 0) -> "MetricTerm":
+    def from_tile_sizing(cls, npx: int, npy: int, npz: int, communicator: fv3util.Communicator, backend: str, grid_type: int = 0) -> "MetricTerm":
         sizer =  fv3util.SubtileGridSizer.from_tile_params(
             nx_tile=npx - 1,
             ny_tile=npy - 1,
