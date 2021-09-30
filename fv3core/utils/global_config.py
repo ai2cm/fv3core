@@ -45,11 +45,27 @@ def is_gpu_backend() -> bool:
 
 
 def read_backend_options_file():
-    abs_dir_name = os.path.dirname(os.path.abspath(__file__))
-    options_file = f"{abs_dir_name}/gt4py_options.yml"
+    options_file = "fv3core/gt4py_options.yml"
     if os.path.exists(options_file):
         return yaml.safe_load(open(options_file))
-    raise FileNotFoundError(f"gt4py options file '{options_file}' not found")
+    # TODO(eddied): Where to put YML file so `daint_submit` can find it?
+    # raise FileNotFoundError(f"gt4py options file '{options_file}' not found")
+    return {
+        "all": {
+            "device_sync": {"backend": ".*(gpu|cuda)$", "value": False},
+            "format_source": {"value": False},
+            "skip_passes": {
+                "backend": "^gtc:(gt|cuda)",
+                "value": ["graph_merge_horizontal_executions"],
+            },
+        },
+        "fv_subgridz.init": {
+            "skip_passes": {"backend": "^gtc:(gt|cuda)", "value": ["KCacheDetection"]}
+        },
+        "ytp_v._ytp_v": {
+            "skip_passes": {"backend": "^gtc:(gt|cuda)", "value": ["GreedyMerging"]}
+        },
+    }
 
 
 class StencilConfig(Hashable):
