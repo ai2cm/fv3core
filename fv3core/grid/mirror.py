@@ -139,9 +139,10 @@ def mirror_grid(mirror_data, tile_index, npx, npy, x_subtile_width, y_subtile_wi
     iend = ng + x_subtile_width
     jstart = ng
     jend = ng + y_subtile_width
+    x_center_tile = global_is < ng + (npx - 1) / 2 and global_is + x_subtile_width > ng + (npx - 1) / 2
+    y_center_tile = global_js < ng + (npy - 1) / 2 and global_js + y_subtile_width > ng + (npy - 1) / 2
+    
     # first fix base region
-    x_center_tile = np.all(mirror_data['local'] == mirror_data['east-west'])
-    y_center_tile = np.all(mirror_data['local'] == mirror_data['north-south'])
     for j in range(jstart, jend + 1):
         for i in range(istart, iend + 1):
             
