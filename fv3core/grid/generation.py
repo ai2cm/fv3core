@@ -37,7 +37,7 @@ def cached_property(func):
 
 
 # TODO
-# can corners use sizer rather than gridIndexer
+# corners use sizer + partitioner rather than GridIndexer, requires fv3core clls to corners know what to do
 class MetricTerms:
 
     def __init__(self,  *, quantity_factory, communicator, grid_type: int = 0):
@@ -178,7 +178,7 @@ class MetricTerms:
         section_global_js = self._halo + slice_y.start
         subtile_width_x = slice_x.stop - slice_x.start - 1
         subtile_width_y = slice_y.stop - slice_y.start - 1
-      
+
         # compute gnomonic grid for this rank
         local_gnomonic_ed( self._grid.view[:,:,0],
                            self._grid.view[:,:,1],
