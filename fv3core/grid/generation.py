@@ -29,8 +29,8 @@ from fv3gfs.util.constants import N_HALO_DEFAULT
 # can corners use sizer rather than gridIndexer
 class MetricTerms:
 
-    def __init__(self,  old_grid, *, grid_type: int, layout: Tuple[int, int], npx: int, npy: int, npz: int, communicator, backend: str):
-       
+    def __init__(self,  *, layout: Tuple[int, int], npx: int, npy: int, npz: int, communicator, backend: str, grid_type: int = 0):
+        assert(grid_type < 3)
         self._halo = N_HALO_DEFAULT
         self._comm = communicator
         self._backend = backend
@@ -45,7 +45,6 @@ class MetricTerms:
             [fv3util.X_DIM, fv3util.Y_DIM, LON_OR_LAT_DIM], "radians", dtype=float
         )
         self.layout = layout
-        self._old_grid=old_grid
         self._np = self._grid.np
         self._dx = None
         self._dy = None
