@@ -41,7 +41,6 @@ def test_get_stencils_with_varied_bounds(backend):
         rebuild=False,
         validate_args=False,
         format_source=False,
-        device_sync=False,
     )
     origins = [(2, 2, 0), (1, 1, 0)]
     domains = [(1, 1, 3), (2, 2, 3)]
@@ -67,7 +66,6 @@ def test_get_stencils_with_varied_bounds_and_regions(backend):
         rebuild=False,
         validate_args=False,
         format_source=False,
-        device_sync=False,
     )
     origins = [(3, 3, 0), (2, 2, 0)]
     domains = [(1, 1, 3), (2, 2, 3)]

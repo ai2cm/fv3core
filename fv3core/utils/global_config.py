@@ -45,7 +45,8 @@ def is_gpu_backend() -> bool:
 
 
 def read_backend_options_file():
-    options_file = "./gt4py_options.yml"
+    abs_dir_name = os.path.dirname(os.path.abspath(__file__))
+    options_file = f"{abs_dir_name}/gt4py_options.yml"
     if os.path.exists(options_file):
         return yaml.safe_load(open(options_file))
     raise FileNotFoundError(f"gt4py options file '{options_file}' not found")
@@ -77,7 +78,6 @@ class StencilConfig(Hashable):
             self.rebuild,
             self.validate_args,
             self.backend_opts["format_source"],
-            self.backend_opts["device_sync"],
         ):
             md5.update(bytes(attr))
         return int(md5.hexdigest(), base=16)
