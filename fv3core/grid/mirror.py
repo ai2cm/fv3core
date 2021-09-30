@@ -134,65 +134,38 @@ def global_mirror_grid(grid_global, ng: int, npx: int, npy: int, np):
 
     return grid_global
 
-def mirror_grid(grid_section, grid_mirror_ew, grid_mirror_ns, grid_mirror_diag, tile_index, npx, npy, x_subtile_width, y_subtile_width, global_is, global_js, ng, np):
+def mirror_grid(mirror_data, tile_index, npx, npy, x_subtile_width, y_subtile_width, global_is, global_js, ng, np):
     istart = ng
     iend = ng + x_subtile_width
     jstart = ng
     jend = ng + y_subtile_width
     # first fix base region
-    x_center_tile = np.all(grid_section == grid_mirror_ew)
-    y_center_tile = np.all(grid_section == grid_mirror_ns)
+    x_center_tile = np.all(mirror_data['local'] == mirror_data['east-west'])
+    y_center_tile = np.all(mirror_data['local'] == mirror_data['north-south'])
     for j in range(jstart, jend + 1):
         for i in range(istart, iend + 1):
             
-            # NOTE brute force way to make sure you always have the same order of operations to compute x1,y1 from different ranks,
-            # so we aren't chasing error ghosts as much as we might otherwise. 
-           
-            #if grid.global_is + i - ng <  ng + npx / 2:
-            #    if grid.global_js + j - ng < ng + npy / 2:
-            #        ll = grid_section[i, j, :]
-            #        lr = grid_mirror_ew[grid.ied+1 - i, j, :]
-            #        ul = grid_mirror_ns[i, grid.jed+1 - j, :]
-            #        ur = grid_mirror_diag[grid.ied+1 - i, grid.jed+1 - j, :]
-            #    else:
-            #        ll = grid_mirror_ns[i, grid.jed+1 - j, :]
-            #        lr = grid_mirror_diag[grid.ied+1 - i, grid.jed+1 - j, :]
-            #        ul = grid_section[i, j, :]
-            #        ur = grid_mirror_ew[grid.ied+1 - i, j, :]
-            #else:
-            #    if grid.global_js + j - ng < ng + npy / 2:
-            #        ll = grid_mirror_ew[grid.ied+1 - i, j, :]
-            #        lr = grid_section[i, j, :]
-            #        ul = grid_mirror_diag[grid.ied+1 - i, grid.jed+1 - j, :]
-            #        ur = grid_mirror_ns[i, grid.jed+1 - j, :]
-            #    else:
-            #        ll = grid_mirror_diag[grid.ied+1 - i, grid.jed+1 - j, :]
-            #        lr = grid_mirror_ns[i, grid.jed+1 - j, :]
-            #        ul = grid_mirror_ew[grid.ied+1 - i, j, :]
-            #        ur = grid_section[i, j, :]
-            # x1 = 0.25 * (abs(ll[0]) + abs(lr[0]) + abs(ul[0]) + abs(ur[0]))
-            # y1 = 0.25 * (abs(ll[1]) + abs(lr[1]) + abs(ul[1]) + abs(ur[1]))
             iend_domain = iend - 1 + ng
             jend_domain = jend - 1 + ng
             x1 = 0.25 * (
-                np.abs(grid_section[i, j, 0])
-                + np.abs(grid_mirror_ew[iend_domain- i, j, 0])
-                + np.abs(grid_mirror_ns[i, jend_domain - j, 0])
-                + np.abs(grid_mirror_diag[iend_domain - i, jend_domain - j, 0])
+                np.abs(mirror_data['local'][i, j, 0])
+                + np.abs(mirror_data['east-west'][iend_domain- i, j, 0])
+                + np.abs(mirror_data['north-south'][i, jend_domain - j, 0])
+                + np.abs(mirror_data['diagonal'][iend_domain - i, jend_domain - j, 0])
             )
-            grid_section[i, j, 0] = np.copysign(
-                x1, grid_section[i, j, 0]
+            mirror_data['local'][i, j, 0] = np.copysign(
+                x1, mirror_data['local'][i, j, 0]
             )
            
             y1 = 0.25 * (
-                np.abs(grid_section[i, j, 1])
-                + np.abs(grid_mirror_ew[iend_domain - i, j, 1])
-                + np.abs(grid_mirror_ns[i, jend_domain - j, 1])
-                + np.abs(grid_mirror_diag[iend_domain - i, jend_domain - j, 1])
+                np.abs(mirror_data['local'][i, j, 1])
+                + np.abs(mirror_data['east-west'][iend_domain - i, j, 1])
+                + np.abs(mirror_data['north-south'][i, jend_domain - j, 1])
+                + np.abs(mirror_data['diagonal'][iend_domain - i, jend_domain - j, 1])
             )
         
-            grid_section[i, j, 1] = np.copysign(
-                y1, grid_section[i, j, 1]
+            mirror_data['local'][i, j, 1] = np.copysign(
+                y1, mirror_data['local'][i, j, 1]
             )
             
             # force dateline/greenwich-meridion consistency
@@ -200,7 +173,7 @@ def mirror_grid(grid_section, grid_mirror_ew, grid_mirror_ns, grid_mirror_diag, 
             if npx % 2 != 0:
                 if x_center_tile and i == istart + (iend - istart) // 2:
                     #if i == (npx - 1) // 2:
-                    grid_section[i, j, 0] = 0.0
+                    mirror_data['local'][i, j, 0] = 0.0
 
                      
     i_mid = (iend - istart) // 2 
@@ -209,8 +182,8 @@ def mirror_grid(grid_section, grid_mirror_ew, grid_mirror_ns, grid_mirror_diag, 
     if tile_index > 0:
         
         for j in range(jstart, jend + 1):
-            x1 = grid_section[istart : iend + 1, j, 0]
-            y1 = grid_section[istart : iend + 1, j, 1]
+            x1 = mirror_data['local'][istart : iend + 1, j, 0]
+            y1 = mirror_data['local'][istart : iend + 1, j, 1]
             z1 = RADIUS + 0.0 * x1
 
             if tile_index == 1:
@@ -281,8 +254,8 @@ def mirror_grid(grid_section, grid_mirror_ew, grid_mirror_ns, grid_mirror_diag, 
                     elif global_js + j_mid < ng+(npy - 1) / 2 and x_center_tile:
                         x2[i_mid] = PI
 
-            grid_section[istart : iend + 1, j, 0] = x2
-            grid_section[istart : iend + 1, j, 1] = y2
+            mirror_data['local'][istart : iend + 1, j, 0] = x2
+            mirror_data['local'][istart : iend + 1, j, 1] = y2
 
     
 def _rot_3d(axis, p, angle, np, degrees=False, convert=False):

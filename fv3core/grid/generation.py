@@ -44,7 +44,6 @@ class MetricTerms:
         self._agrid = self._quantity_factory.zeros(
             [fv3util.X_DIM, fv3util.Y_DIM, LON_OR_LAT_DIM], "radians", dtype=float
         )
-        self.layout = layout
         self._np = self._grid.np
         self._dx = None
         self._dy = None
@@ -173,14 +172,16 @@ class MetricTerms:
         subtile_width_x = slice_x.stop - slice_x.start - 1
         subtile_width_y = slice_y.stop - slice_y.start - 1
         # compute gnomonic grid for this rank
-        local_gnomonic_ed( self._grid.view[:,:,0],  self._grid.view[:,:,1],  npx=npx,
+        local_gnomonic_ed( self._grid.view[:,:,0],
+                           self._grid.view[:,:,1],
+                           npx=npx,
                            west_edge=local_west_edge,
                            east_edge=local_east_edge,
                            south_edge=local_south_edge,
                            north_edge=local_north_edge,
                            global_is=section_global_is,
                            global_js=section_global_js,
-                           np=self._grid.np, rank=rank)
+                           np=self._np, rank=rank)
         
         # Next compute gnomonic for the mirrored ranks that'll be averaged
         j_subtile_index, i_subtile_index = partitioner.tile.subtile_index(rank)
@@ -190,38 +191,56 @@ class MetricTerms:
         # compute mirror in the east-west direction
         west_edge = True if local_east_edge else False
         east_edge = True if local_west_edge else False
-        local_gnomonic_ed(grid_mirror_ew.view[:,:,0],  grid_mirror_ew.view[:,:,1],  npx=npx,
+        local_gnomonic_ed(grid_mirror_ew.view[:,:,0],
+                          grid_mirror_ew.view[:,:,1],
+                          npx=npx,
                           west_edge=west_edge,
                           east_edge=east_edge,
                           south_edge=local_south_edge,
                           north_edge=local_north_edge,
                           global_is=ew_global_is,
                           global_js=section_global_js,
-                          np=self._grid.np, rank=rank)
+                          np=self._np, rank=rank)
 
         # compute mirror in the north-south direction
         south_edge = True if local_north_edge else False
         north_edge = True if local_south_edge else False
-        local_gnomonic_ed(grid_mirror_ns.view[:,:,0],  grid_mirror_ns.view[:,:,1],  npx=npx,
+        local_gnomonic_ed(grid_mirror_ns.view[:,:,0],
+                          grid_mirror_ns.view[:,:,1],
+                          npx=npx,
                           west_edge=local_west_edge,
                           east_edge=local_east_edge,
                           south_edge=south_edge,
                           north_edge=north_edge,
                           global_is=section_global_is,
                           global_js=ns_global_js,
-                          np=self._grid.np, rank=self._comm.rank)
+                          np=self._np,
+                          rank=self._comm.rank)
            
-        local_gnomonic_ed(grid_mirror_diag.view[:,:,0],  grid_mirror_diag.view[:,:,1],  npx=npx,
+        local_gnomonic_ed(grid_mirror_diag.view[:,:,0],
+                          grid_mirror_diag.view[:,:,1],
+                          npx=npx,
                           west_edge=west_edge,
                           east_edge=east_edge,
                           south_edge=south_edge,
                           north_edge=north_edge,
                           global_is=ew_global_is,
                           global_js=ns_global_js,
-                          np=self._grid.np, rank=self._comm.rank)
+                          np=self._np,
+                          rank=self._comm.rank)
         
         # Average the mirrored gnomonic grids
-        mirror_grid(self._grid.data, grid_mirror_ew.data, grid_mirror_ns.data, grid_mirror_diag.data, tile_index,  npx, npy,  subtile_width_x + 1,subtile_width_x + 1, section_global_is, section_global_js, self._halo,self._grid.np,)
+        mirror_data = {'local': self._grid.data, 'east-west': grid_mirror_ew.data, 'north-south': grid_mirror_ns.data, 'diagonal': grid_mirror_diag.data}
+        mirror_grid(mirror_data=mirror_data,
+                    tile_index=tile_index,
+                    npx=npx,
+                    npy=npy,
+                    x_subtile_width=subtile_width_x + 1,
+                    y_subtile_width=subtile_width_x + 1,
+                    global_is=section_global_is,
+                    global_js=section_global_js,
+                    ng=self._halo,
+                    np=self._grid.np,)
        
         # Shift the corner away from Japan
         # This will result in the corner close to east coast of China

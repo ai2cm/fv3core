@@ -904,7 +904,8 @@ cubedsphere=Atm(n)%gridstruct%latlon
                               np=grid_section.np, rank=rank)
             
             # Mirror
-            mirror_grid(grid_section.data,grid_mirror_ew.data, grid_mirror_ns.data, grid_mirror_diag.data, tile_index, npx, npy, subtile_width_x+1,subtile_width_x+1, section_global_is, section_global_js, halo,grid_section.np,)
+            mirror_data = {'local': grid_section.data, 'east-west': grid_mirror_ew.data, 'north-south': grid_mirror_ns.data, 'diagonal': grid_mirror_diag.data}
+            mirror_grid(mirror_data, tile_index, npx, npy, subtile_width_x+1,subtile_width_x+1, section_global_is, section_global_js, halo,grid_section.np,)
           
             # Shift the corner away from Japan
             # This will result in the corner close to east coast of China
