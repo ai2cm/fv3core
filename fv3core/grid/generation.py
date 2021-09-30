@@ -44,6 +44,7 @@ class MetricTerms:
         self._agrid = self._quantity_factory.zeros(
             [fv3util.X_DIM, fv3util.Y_DIM, LON_OR_LAT_DIM], "radians", dtype=float
         )
+        self.layout = layout
         self._old_grid=old_grid
         self._np = self._grid.np
         self._dx = None
@@ -56,7 +57,8 @@ class MetricTerms:
         self._area_c = None
         self._xyz_dgrid = None
         self._xyz_agrid = None
-        self._init_dgrid(layout)
+        
+        self._init_dgrid()
         self._init_agrid()
     
     @property
@@ -150,72 +152,77 @@ class MetricTerms:
         )
         return quantity_factory, sizer
     
-    def _init_dgrid(self, layout):
+    def _init_dgrid(self):
+        rank = self._comm.rank
+        partitioner = self._comm.partitioner
+        tile_index = partitioner.tile_index(self._comm.rank)
+        tile = partitioner.tile
+       
+        grid_mirror_ew = self._quantity_factory.zeros(self._grid_dims, "radians", dtype=float,)
+        grid_mirror_ns = self._quantity_factory.zeros(self._grid_dims, "radians", dtype=float,)
+        grid_mirror_diag = self._quantity_factory.zeros(self._grid_dims, "radians", dtype=float,)
+         
+        local_west_edge = tile.on_tile_left(rank)
+        local_east_edge = tile.on_tile_right(rank)
+        local_south_edge = tile.on_tile_bottom(rank)
+        local_north_edge = tile.on_tile_top(rank)
+        # information on position of subtile in full tile
+        npx, npy, ndims  = tile.global_extent(self._grid)
+        slice_x, slice_y = tile.subtile_slice(rank, self._grid.dims, (npx, npy), overlap=True)
+        section_global_is = self.grid_indexer.isc + slice_x.start
+        section_global_js = self.grid_indexer.jsc + slice_y.start
+        subtile_width_x = slice_x.stop - slice_x.start - 1
+        subtile_width_y = slice_y.stop - slice_y.start - 1
+        # compute gnomonic grid for this rank
+        local_gnomonic_ed( self._grid.view[:,:,0],  self._grid.view[:,:,1],  npx=npx,
+                           west_edge=local_west_edge,
+                           east_edge=local_east_edge,
+                           south_edge=local_south_edge,
+                           north_edge=local_north_edge,
+                           global_is=section_global_is,
+                           global_js=section_global_js,
+                           np=self._grid.np, rank=rank)
+        
+        # Next compute gnomonic for the mirrored ranks that'll be averaged
+        j_subtile_index, i_subtile_index = partitioner.tile.subtile_index(rank)
+        ew_global_is =  self.grid_indexer.isc + (tile.layout[0] - i_subtile_index - 1) * subtile_width_x
+        ns_global_js =  self.grid_indexer.jsc +  (tile.layout[1] - j_subtile_index - 1) * subtile_width_y
+        
+        # compute mirror in the east-west direction
+        west_edge = True if local_east_edge else False
+        east_edge = True if local_west_edge else False
+        local_gnomonic_ed(grid_mirror_ew.view[:,:,0],  grid_mirror_ew.view[:,:,1],  npx=npx,
+                          west_edge=west_edge,
+                          east_edge=east_edge,
+                          south_edge=local_south_edge,
+                          north_edge=local_north_edge,
+                          global_is=ew_global_is,
+                          global_js=section_global_js,
+                          np=self._grid.np, rank=rank)
 
-        grid_mirror_ew = self._quantity_factory.zeros(
-            self._grid_dims,
-            "radians",
-            dtype=float,
-        )
-        grid_mirror_ns = self._quantity_factory.zeros(
-            self._grid_dims,
-            "radians",
-            dtype=float,
-        )
-        grid_mirror_diag = self._quantity_factory.zeros(
-            self._grid_dims,
-            "radians",
-            dtype=float,
-        )
-        # TODO replace using legacy grid with fv3gfs-utils partitioner functionality
-        old_grid = self._old_grid
-        local_gnomonic_ed( self._grid.view[:,:,0],  self._grid.view[:,:,1],  npx=old_grid.npx,
-                           west_edge=old_grid.west_edge,
-                           east_edge=old_grid.east_edge,
-                           south_edge=old_grid.south_edge,
-                           north_edge=old_grid.north_edge,
-                           global_is=old_grid.global_is,
-                           global_js=old_grid.global_js,
-                        np=self._grid.np, rank=self._comm.rank)
-        j_subtile_index, i_subtile_index = self._comm.partitioner.tile.subtile_index(self._comm.rank)
-        ew_i_subtile_index = layout[0] - i_subtile_index - 1
-        ns_j_subtile_index = layout[1] - j_subtile_index - 1
-        west_edge = True if old_grid.east_edge else False
-        east_edge = True if old_grid.west_edge else False
-        global_is = old_grid.local_to_global_1d(old_grid.is_, ew_i_subtile_index, old_grid.subtile_width_x)
-        local_gnomonic_ed(grid_mirror_ew.view[:,:,0],  grid_mirror_ew.view[:,:,1],  npx=old_grid.npx,
-                          west_edge=west_edge,
-                          east_edge=east_edge,
-                          south_edge=old_grid.south_edge,
-                          north_edge=old_grid.north_edge,
-                          global_is=global_is,
-                          global_js=old_grid.global_js,
-                          np=self._grid.np, rank=self._comm.rank)
-          
-        south_edge = True if old_grid.north_edge else False
-        north_edge = True if old_grid.south_edge else False
-        global_js = old_grid.local_to_global_1d(old_grid.js, ns_j_subtile_index, old_grid.subtile_width_x)
-           
-        local_gnomonic_ed(grid_mirror_ns.view[:,:,0],  grid_mirror_ns.view[:,:,1],  npx=old_grid.npx,
-                          west_edge=old_grid.west_edge,
-                          east_edge=old_grid.east_edge,
+        # compute mirror in the north-south direction
+        south_edge = True if local_north_edge else False
+        north_edge = True if local_south_edge else False
+        local_gnomonic_ed(grid_mirror_ns.view[:,:,0],  grid_mirror_ns.view[:,:,1],  npx=npx,
+                          west_edge=local_west_edge,
+                          east_edge=local_east_edge,
                           south_edge=south_edge,
                           north_edge=north_edge,
-                          global_is=old_grid.global_is,
-                          global_js=global_js,
+                          global_is=section_global_is,
+                          global_js=ns_global_js,
                           np=self._grid.np, rank=self._comm.rank)
            
-        local_gnomonic_ed(grid_mirror_diag.view[:,:,0],  grid_mirror_diag.view[:,:,1],  npx=old_grid.npx,
+        local_gnomonic_ed(grid_mirror_diag.view[:,:,0],  grid_mirror_diag.view[:,:,1],  npx=npx,
                           west_edge=west_edge,
                           east_edge=east_edge,
                           south_edge=south_edge,
                           north_edge=north_edge,
-                          global_is=global_is,
-                          global_js=global_js,
+                          global_is=ew_global_is,
+                          global_js=ns_global_js,
                           np=self._grid.np, rank=self._comm.rank)
         
-        tile_index = self._comm.partitioner.tile_index(self._comm.rank)
-        mirror_grid(self._grid.data,grid_mirror_ew.data, grid_mirror_ns.data, grid_mirror_diag.data, tile_index,  old_grid.npx, old_grid.npy,  old_grid.nic+1, old_grid.njc+1, old_grid.global_is, old_grid.global_js, old_grid.halo,self._grid.np,)
+        # Average the mirrored gnomonic grids
+        mirror_grid(self._grid.data, grid_mirror_ew.data, grid_mirror_ns.data, grid_mirror_diag.data, tile_index,  npx, npy,  subtile_width_x + 1,subtile_width_x + 1, section_global_is, section_global_js, self._halo,self._grid.np,)
        
         # Shift the corner away from Japan
         # This will result in the corner close to east coast of China
