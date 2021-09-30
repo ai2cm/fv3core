@@ -1406,15 +1406,15 @@ class TranslateUtilVectors(ParallelTranslateGrid):
         xyz_agrid = lon_lat_to_xyz(state["agrid"].data[:-1,:-1,0], state["agrid"].data[:-1,:-1,1], state["grid"].np)
         
         state["ec1"].data[:-1,:-1,:3], state["ec2"].data[:-1,:-1,:3] = get_center_vector(xyz_dgrid, self.grid.grid_type, self.grid.halo,
-            communicator.tile.partitioner, communicator.tile.rank, state["grid"].np
+            communicator.tile.partitioner, communicator.rank, state["grid"].np
         )
         state["ew1"].data[1:-1,:-1,:3], state["ew2"].data[1:-1,:-1,:3] = calc_unit_vector_west(
             xyz_dgrid, xyz_agrid, self.grid.grid_type, self.grid.halo, 
-            communicator.tile.partitioner, communicator.tile.rank, state["grid"].np
+            communicator.partitioner.tile, communicator.rank, state["grid"].np
         )
         state["es1"].data[:-1,1:-1,:3], state["es2"].data[:-1,1:-1,:3] = calc_unit_vector_south(
             xyz_dgrid, xyz_agrid, self.grid.grid_type, self.grid.halo, 
-            communicator.tile.partitioner, communicator.tile.rank, state["grid"].np
+            communicator.partitioner.tile, communicator.rank, state["grid"].np
         )
         return state
 
