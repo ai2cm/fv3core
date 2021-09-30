@@ -37,26 +37,25 @@ def cached_property(func):
 
 
 # TODO
-# pass in quantity factory, remove most other arguments
-# get sizer from factory
 # can corners use sizer rather than gridIndexer
 class MetricTerms:
 
-    def __init__(self,  *, npx: int, npy: int, npz: int, communicator, backend: str, grid_type: int = 0):
+    def __init__(self,  *, quantity_factory, communicator, grid_type: int = 0):
         assert(grid_type < 3)
         self._halo = N_HALO_DEFAULT
         self._comm = communicator
-        self._backend = backend
-        self._npx = npx
-        self._npy = npy
-        self._npz = npz
-        self._quantity_factory, sizer = self._make_quantity_factory()
-        self.grid_indexer = GridIndexing.from_sizer_and_communicator(sizer, self._comm)
+        self._partitioner = self._comm.partitioner
+        self._tile_partitioner = self._partitioner.tile
+        self._rank = self._comm.rank
+        self._quantity_factory = quantity_factory
+        self._grid_indexer = GridIndexing.from_sizer_and_communicator(self._quantity_factory._sizer, self._comm)
         self._grid_dims = [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM, LON_OR_LAT_DIM]
         self._grid = self._quantity_factory.zeros(
             [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM, LON_OR_LAT_DIM], "radians", dtype=float
         )
-    
+        npx, npy, ndims  = self._tile_partitioner.global_extent(self._grid)
+        self._npx = npx
+        self._npy = npy
         self._agrid = self._quantity_factory.zeros(
             [fv3util.X_DIM, fv3util.Y_DIM, LON_OR_LAT_DIM], "radians", dtype=float
         )
@@ -70,7 +69,30 @@ class MetricTerms:
         
         self._init_dgrid()
         self._init_agrid()
-    
+
+    @classmethod
+    def from_tile_sizing(cls, npx: int, npy: int, npz: int, communicator, backend: str, grid_type: int = 0) -> "MetricTerm":
+        sizer =  fv3util.SubtileGridSizer.from_tile_params(
+            nx_tile=npx - 1,
+            ny_tile=npy - 1,
+            nz=npz,
+            n_halo=N_HALO_DEFAULT,
+            extra_dim_lengths={
+                LON_OR_LAT_DIM: 2,
+                TILE_DIM: 6,
+            },
+            layout=communicator.partitioner.tile.layout,
+        )
+        quantity_factory = fv3util.QuantityFactory.from_backend(
+            sizer, backend=backend
+        )
+        return cls(
+            quantity_factory=quantity_factory,
+            communicator=communicator,
+            grid_type=grid_type
+        )
+ 
+
     @property
     def gridvar(self):
         return self._grid
@@ -138,48 +160,25 @@ class MetricTerms:
             self._agrid.data[:-1, :-1, 1],
             self._np, 
         )
-    
-    def _make_quantity_factory(self):
-        sizer =  fv3util.SubtileGridSizer.from_tile_params(
-            nx_tile=self._npx - 1,
-            ny_tile=self._npy - 1,
-            nz=self._npz,
-            n_halo=self._halo,
-            extra_dim_lengths={
-                LON_OR_LAT_DIM: 2,
-                TILE_DIM: 6,
-            },
-            layout=self._comm.partitioner.tile.layout,
-        )
-        quantity_factory = fv3util.QuantityFactory.from_backend(
-            sizer, backend=self._backend
-        )
-        return quantity_factory, sizer
-
-   
-       
+     
         
     def _init_dgrid(self):
-        rank = self._comm.rank
-        partitioner = self._comm.partitioner
-        tile_index = partitioner.tile_index(self._comm.rank)
-        tile = partitioner.tile
-        
+     
         grid_mirror_ew = self._quantity_factory.zeros(self._grid_dims, "radians", dtype=float,)
         grid_mirror_ns = self._quantity_factory.zeros(self._grid_dims, "radians", dtype=float,)
         grid_mirror_diag = self._quantity_factory.zeros(self._grid_dims, "radians", dtype=float,)
       
-        local_west_edge = tile.on_tile_left(rank)
-        local_east_edge = tile.on_tile_right(rank)
-        local_south_edge = tile.on_tile_bottom(rank)
-        local_north_edge = tile.on_tile_top(rank)
+        local_west_edge = self._tile_partitioner.on_tile_left(self._rank)
+        local_east_edge = self._tile_partitioner.on_tile_right(self._rank)
+        local_south_edge = self._tile_partitioner.on_tile_bottom(self._rank)
+        local_north_edge = self._tile_partitioner.on_tile_top(self._rank)
         # information on position of subtile in full tile
-        #npx, npy, ndims  = tile.global_extent(self._grid)
-        slice_x, slice_y = tile.subtile_slice(rank, self._grid.dims, (self._npx, self._npy), overlap=True)
-        section_global_is = self.grid_indexer.isc + slice_x.start
-        section_global_js = self.grid_indexer.jsc + slice_y.start
+        slice_x, slice_y = self._tile_partitioner.subtile_slice(self._rank, self._grid.dims, (self._npx, self._npy), overlap=True)
+        section_global_is = self._halo + slice_x.start
+        section_global_js = self._halo + slice_y.start
         subtile_width_x = slice_x.stop - slice_x.start - 1
         subtile_width_y = slice_y.stop - slice_y.start - 1
+      
         # compute gnomonic grid for this rank
         local_gnomonic_ed( self._grid.view[:,:,0],
                            self._grid.view[:,:,1],
@@ -190,12 +189,13 @@ class MetricTerms:
                            north_edge=local_north_edge,
                            global_is=section_global_is,
                            global_js=section_global_js,
-                           np=self._np, rank=rank)
+                           np=self._np, rank=self._rank)
         
         # Next compute gnomonic for the mirrored ranks that'll be averaged
-        j_subtile_index, i_subtile_index = partitioner.tile.subtile_index(rank)
-        ew_global_is =  self.grid_indexer.isc + (tile.layout[0] - i_subtile_index - 1) * subtile_width_x
-        ns_global_js =  self.grid_indexer.jsc +  (tile.layout[1] - j_subtile_index - 1) * subtile_width_y
+        j_subtile_index, i_subtile_index = self._tile_partitioner.subtile_index(self._rank)
+        # compute the global index starting points for the mirrored tiles
+        ew_global_is =  self._halo + (self._tile_partitioner.layout[0] - i_subtile_index - 1) * subtile_width_x
+        ns_global_js =  self._halo +  (self._tile_partitioner.layout[1] - j_subtile_index - 1) * subtile_width_y
         
         # compute mirror in the east-west direction
         west_edge = True if local_east_edge else False
@@ -209,7 +209,7 @@ class MetricTerms:
                           north_edge=local_north_edge,
                           global_is=ew_global_is,
                           global_js=section_global_js,
-                          np=self._np, rank=rank)
+                          np=self._np, rank=self._rank)
 
         # compute mirror in the north-south direction
         south_edge = True if local_north_edge else False
@@ -224,7 +224,7 @@ class MetricTerms:
                           global_is=section_global_is,
                           global_js=ns_global_js,
                           np=self._np,
-                          rank=self._comm.rank)
+                          rank=self._rank)
            
         local_gnomonic_ed(grid_mirror_diag.view[:,:,0],
                           grid_mirror_diag.view[:,:,1],
@@ -236,9 +236,10 @@ class MetricTerms:
                           global_is=ew_global_is,
                           global_js=ns_global_js,
                           np=self._np,
-                          rank=self._comm.rank)
+                          rank=self._rank)
         
         # Average the mirrored gnomonic grids
+        tile_index = self._partitioner.tile_index(self._rank) 
         mirror_data = {'local': self._grid.data, 'east-west': grid_mirror_ew.data, 'north-south': grid_mirror_ns.data, 'diagonal': grid_mirror_diag.data}
         mirror_grid(mirror_data=mirror_data,
                     tile_index=tile_index,
@@ -264,7 +265,7 @@ class MetricTerms:
         self._comm.halo_update(self._grid, n_points=self._halo)
         
         fill_corners_2d(
-            self._grid.data, self.grid_indexer, gridtype="B", direction="x"
+            self._grid.data, self._grid_indexer, gridtype="B", direction="x"
         )
 
     
@@ -278,13 +279,13 @@ class MetricTerms:
         self._comm.halo_update(self._agrid, n_points=self._halo)
         fill_corners_2d(
             self._agrid.data[:, :, 0][:, :, None],
-            self.grid_indexer,
+            self._grid_indexer,
             gridtype="A",
             direction="x",
         )
         fill_corners_2d(
             self._agrid.data[:, :, 1][:, :, None],
-            self.grid_indexer,
+            self._grid_indexer,
             gridtype="A",
             direction="y",
         )
@@ -326,7 +327,7 @@ class MetricTerms:
         fill_corners_dgrid(
             dx.data[:, :, None],
             dy.data[:, :, None],
-            self.grid_indexer,
+            self._grid_indexer,
             vector=False,
         )
         return dx,dy
@@ -354,7 +355,7 @@ class MetricTerms:
            lon_x_center, lat_x_center, RADIUS, self._np, axis=1
        )
        fill_corners_agrid(
-           dx_agrid_tmp[:, :, None], dy_agrid_tmp[:, :, None], self.grid_indexer, vector=False
+           dx_agrid_tmp[:, :, None], dy_agrid_tmp[:, :, None], self._grid_indexer, vector=False
        )
       
       
@@ -405,8 +406,8 @@ class MetricTerms:
             self._agrid_xyz[3:-3, 3:-3, :],
             RADIUS,
             dx_cgrid.data[3:-3, 3:-4],
-            self._comm.tile.partitioner,
-            self._comm.rank,
+            self._tile_partitioner,
+            self._rank,
             self._np,
         )
         set_tile_border_dyc(
@@ -414,8 +415,8 @@ class MetricTerms:
             self._agrid_xyz[3:-3, 3:-3, :],
             RADIUS,
             dy_cgrid.data[3:-4, 3:-3],
-            self._comm.tile.partitioner,
-            self._comm.rank,
+            self._tile_partitioner,
+            self._rank,
             self._np,
         )
         self._comm.vector_halo_update(
@@ -430,7 +431,7 @@ class MetricTerms:
         fill_corners_cgrid(
             dx_cgrid.data[:, :, None],
             dy_cgrid.data[:, :, None],
-            self.grid_indexer,
+            self._grid_indexer,
             vector=False,
         )
        
@@ -468,8 +469,8 @@ class MetricTerms:
             lon=self._agrid.data[2:-3, 2:-3, 0],
             lat=self._agrid.data[2:-3, 2:-3, 1],
             area=area_cgrid.data[3:-3, 3:-3],
-            tile_partitioner=self._comm.tile.partitioner,
-            rank = self._comm.rank,
+            tile_partitioner=self._tile_partitioner,
+            rank = self._rank,
             radius=RADIUS,
             np=self._np,
         )
@@ -479,15 +480,15 @@ class MetricTerms:
            self._agrid_xyz[2:-2, 2:-2, :],
             RADIUS,
             area_cgrid.data[3:-3, 3:-3],
-            self._comm.tile.partitioner,
-            self._comm.rank,
+            self._tile_partitioner,
+            self._rank,
             self._np,
         )
         self._comm.halo_update(area_cgrid, n_points=self._halo)
 
         fill_corners_2d(
             area_cgrid.data[:, :, None],
-            self.grid_indexer,
+            self._grid_indexer,
             gridtype="B",
             direction="x",
         )

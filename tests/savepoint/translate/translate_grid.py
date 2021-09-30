@@ -809,7 +809,7 @@ cubedsphere=Atm(n)%gridstruct%latlon
 
     def compute_parallel(self, inputs, communicator):
         namelist = spec.namelist
-        grid_generator = MetricTerms(npx=namelist.npx, npy=namelist.npy, npz=namelist.npz, communicator=communicator,  backend=global_config.get_backend())
+        grid_generator = MetricTerms.from_tile_sizing(npx=namelist.npx, npy=namelist.npy, npz=namelist.npz, communicator=communicator,  backend=global_config.get_backend())
         state = {}
         for metric_term, metadata in self.outputs.items():
             state[metadata["name"]] = getattr(grid_generator, metric_term)
