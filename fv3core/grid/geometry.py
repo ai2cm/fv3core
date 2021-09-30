@@ -477,7 +477,8 @@ def set_north_edge_factor(grid, agrid, nhalo, radius, np):
 
 def efactor_a2c_v(grid, agrid, grid_type, nhalo, tile_partitioner, rank, radius, np):
     '''
-    Creates interpolation factors at face edges to interpolate from A to C grids
+    Creates interpolation factors at face edges 
+    for interpolating vectors from A to C grids
     '''
     big_number = 1.e8
     npx = grid.shape[0]-2*nhalo
@@ -488,10 +489,8 @@ def efactor_a2c_v(grid, agrid, grid_type, nhalo, tile_partitioner, rank, radius,
     im2 = int((npx-1)/2)
     jm2 = int((npy-1)/2)
 
-    d2 = d1 = np.zeros(npy+1)
-
-    edge_vect_s = edge_vect_n = np.zeros(grid.shape[0]-1)+ big_number
-    edge_vect_e = edge_vect_w = np.zeros(grid.shape[1]-1)+ big_number
+    edge_vect_s = edge_vect_n = np.zeros(grid.shape[0]-1) + big_number
+    edge_vect_e = edge_vect_w = np.zeros(grid.shape[1]-1) + big_number
 
     if grid_type < 3:
         if tile_partitioner.on_tile_left(rank):
@@ -522,15 +521,31 @@ def efactor_a2c_v(grid, agrid, grid_type, nhalo, tile_partitioner, rank, radius,
     return edge_vect_w, edge_vect_e, edge_vect_s, edge_vect_n
     
 def calculate_west_edge_vectors(grid, agrid, jm2, nhalo, radius, np):
-    d2 = d1 = np.zeros(grid.shape[0]-2*nhalo+1)
-    py0, py1 = lon_lat_midpoint(agrid[nhalo-1, nhalo-2:-nhalo+2, 0], agrid[nhalo, nhalo-2:-nhalo+2, 0], agrid[nhalo-1, nhalo-2:-nhalo+2, 1], agrid[nhalo, nhalo-2:-nhalo+2, 1], np)
-    p20, p21 = lon_lat_midpoint(grid[nhalo, nhalo-2:-nhalo+1, 0], grid[nhalo, nhalo-1:-nhalo+2, 0], grid[nhalo, nhalo-2:-nhalo+1, 1], grid[nhalo, nhalo-1:-nhalo+2, 1], np)
+    d2 = np.zeros(agrid.shape[0]-2*nhalo+2)
+    d1 = np.zeros(agrid.shape[0]-2*nhalo+2)
+
+    py0, py1 = lon_lat_midpoint(
+        agrid[nhalo-1, nhalo-2:-nhalo+2, 0], 
+        agrid[nhalo, nhalo-2:-nhalo+2, 0], 
+        agrid[nhalo-1, nhalo-2:-nhalo+2, 1], 
+        agrid[nhalo, nhalo-2:-nhalo+2, 1], np
+    )
+
+    p20, p21 = lon_lat_midpoint(
+        grid[nhalo, nhalo-2:-nhalo+1, 0], 
+        grid[nhalo, nhalo-1:-nhalo+2, 0], 
+        grid[nhalo, nhalo-2:-nhalo+1, 1], 
+        grid[nhalo, nhalo-1:-nhalo+2, 1], np
+    )
+    
     py = np.array([py0, py1]).transpose([1,0])
     p2 = np.array([p20, p21]).transpose([1,0])
+
     d1[:jm2+1] = great_circle_distance_lon_lat(py[1:jm2+2, 0], p2[1:jm2+2, 0], py[1:jm2+2, 1], p2[1:jm2+2, 1], radius, np)
     d2[:jm2+1] = great_circle_distance_lon_lat(py[2:jm2+3, 0], p2[1:jm2+2, 0], py[2:jm2+3, 1], p2[1:jm2+2, 1], radius, np)
     d1[jm2+1:] = great_circle_distance_lon_lat(py[jm2+2:-1, 0], p2[jm2+2:-1, 0], py[jm2+2:-1, 1], p2[jm2+2:-1, 1], radius, np)
     d2[jm2+1:] = great_circle_distance_lon_lat(py[jm2+1:-2, 0], p2[jm2+2:-1, 0], py[jm2+1:-2, 1], p2[jm2+2:-1, 1], radius, np)
+    
     return d1/(d2+d1)
 
 def calculate_east_edge_vectors(grid, agrid, jm2, nhalo, radius, np):
