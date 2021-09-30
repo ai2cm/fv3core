@@ -30,12 +30,15 @@ from fv3gfs.util.constants import N_HALO_DEFAULT
 # can corners use sizer rather than gridIndexer
 class MetricTerms:
 
-    def __init__(self,  *, layout: Tuple[int, int], npx: int, npy: int, npz: int, communicator, backend: str, grid_type: int = 0):
+    def __init__(self,  *, npx: int, npy: int, npz: int, communicator, backend: str, grid_type: int = 0):
         assert(grid_type < 3)
         self._halo = N_HALO_DEFAULT
         self._comm = communicator
         self._backend = backend
-        self._quantity_factory, sizer = self._make_quantity_factory(layout, npx, npy, npz)
+        self._npx = npx
+        self._npy = npy
+        self._npz = npz
+        self._quantity_factory, sizer = self._make_quantity_factory()
         self.grid_indexer = GridIndexing.from_sizer_and_communicator(sizer, self._comm)
         self._grid_dims = [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM, LON_OR_LAT_DIM]
         self._grid = self._quantity_factory.zeros(
@@ -134,40 +137,43 @@ class MetricTerms:
             )
         return self._xyz_agrid
     
-    def _make_quantity_factory(self, layout: Tuple[int, int], npx: int, npy: int, npz: int):
+    def _make_quantity_factory(self):
         sizer =  fv3util.SubtileGridSizer.from_tile_params(
-            nx_tile=npx - 1,
-            ny_tile=npy - 1,
-            nz=npz,
+            nx_tile=self._npx - 1,
+            ny_tile=self._npy - 1,
+            nz=self._npz,
             n_halo=self._halo,
             extra_dim_lengths={
                 LON_OR_LAT_DIM: 2,
                 TILE_DIM: 6,
             },
-            layout=layout,
+            layout=self._comm.partitioner.tile.layout,
         )
         quantity_factory = fv3util.QuantityFactory.from_backend(
             sizer, backend=self._backend
         )
         return quantity_factory, sizer
-    
+
+   
+       
+        
     def _init_dgrid(self):
         rank = self._comm.rank
         partitioner = self._comm.partitioner
         tile_index = partitioner.tile_index(self._comm.rank)
         tile = partitioner.tile
-       
+        
         grid_mirror_ew = self._quantity_factory.zeros(self._grid_dims, "radians", dtype=float,)
         grid_mirror_ns = self._quantity_factory.zeros(self._grid_dims, "radians", dtype=float,)
         grid_mirror_diag = self._quantity_factory.zeros(self._grid_dims, "radians", dtype=float,)
-         
+      
         local_west_edge = tile.on_tile_left(rank)
         local_east_edge = tile.on_tile_right(rank)
         local_south_edge = tile.on_tile_bottom(rank)
         local_north_edge = tile.on_tile_top(rank)
         # information on position of subtile in full tile
-        npx, npy, ndims  = tile.global_extent(self._grid)
-        slice_x, slice_y = tile.subtile_slice(rank, self._grid.dims, (npx, npy), overlap=True)
+        #npx, npy, ndims  = tile.global_extent(self._grid)
+        slice_x, slice_y = tile.subtile_slice(rank, self._grid.dims, (self._npx, self._npy), overlap=True)
         section_global_is = self.grid_indexer.isc + slice_x.start
         section_global_js = self.grid_indexer.jsc + slice_y.start
         subtile_width_x = slice_x.stop - slice_x.start - 1
@@ -175,7 +181,7 @@ class MetricTerms:
         # compute gnomonic grid for this rank
         local_gnomonic_ed( self._grid.view[:,:,0],
                            self._grid.view[:,:,1],
-                           npx=npx,
+                           npx=self._npx,
                            west_edge=local_west_edge,
                            east_edge=local_east_edge,
                            south_edge=local_south_edge,
@@ -194,7 +200,7 @@ class MetricTerms:
         east_edge = True if local_west_edge else False
         local_gnomonic_ed(grid_mirror_ew.view[:,:,0],
                           grid_mirror_ew.view[:,:,1],
-                          npx=npx,
+                          npx=self._npx,
                           west_edge=west_edge,
                           east_edge=east_edge,
                           south_edge=local_south_edge,
@@ -208,7 +214,7 @@ class MetricTerms:
         north_edge = True if local_south_edge else False
         local_gnomonic_ed(grid_mirror_ns.view[:,:,0],
                           grid_mirror_ns.view[:,:,1],
-                          npx=npx,
+                          npx=self._npx,
                           west_edge=local_west_edge,
                           east_edge=local_east_edge,
                           south_edge=south_edge,
@@ -220,7 +226,7 @@ class MetricTerms:
            
         local_gnomonic_ed(grid_mirror_diag.view[:,:,0],
                           grid_mirror_diag.view[:,:,1],
-                          npx=npx,
+                          npx=self._npx,
                           west_edge=west_edge,
                           east_edge=east_edge,
                           south_edge=south_edge,
@@ -234,15 +240,14 @@ class MetricTerms:
         mirror_data = {'local': self._grid.data, 'east-west': grid_mirror_ew.data, 'north-south': grid_mirror_ns.data, 'diagonal': grid_mirror_diag.data}
         mirror_grid(mirror_data=mirror_data,
                     tile_index=tile_index,
-                    npx=npx,
-                    npy=npy,
+                    npx=self._npx,
+                    npy=self._npy,
                     x_subtile_width=subtile_width_x + 1,
                     y_subtile_width=subtile_width_x + 1,
                     global_is=section_global_is,
                     global_js=section_global_js,
                     ng=self._halo,
                     np=self._grid.np,)
-       
         # Shift the corner away from Japan
         # This will result in the corner close to east coast of China
         # TODO if not config.do_schmidt and config.shift_fac > 1.0e-4
@@ -251,6 +256,8 @@ class MetricTerms:
         tile0_lon = self._grid.data[:, :, 0]
         tile0_lon[tile0_lon < 0] += 2 * PI
         self._grid.data[self._np.abs(self._grid.data[:]) < 1e-10] = 0.0
+       
+      
       
         self._comm.halo_update(self._grid, n_points=self._halo)
         
