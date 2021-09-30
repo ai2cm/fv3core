@@ -15,7 +15,7 @@ from .gnomonic import (
 )
 
 from .mirror import mirror_grid, set_halo_nan
-from .utils import set_eta
+from .geometry import set_eta
 
 import fv3gfs.util as fv3util
 from fv3core.utils.corners import fill_corners_2d, fill_corners_agrid, fill_corners_dgrid, fill_corners_cgrid
