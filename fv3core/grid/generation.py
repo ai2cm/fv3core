@@ -22,10 +22,22 @@ import fv3gfs.util as fv3util
 from fv3core.utils.corners import fill_corners_2d, fill_corners_agrid, fill_corners_dgrid, fill_corners_cgrid
 from fv3core.utils.global_constants import PI, RADIUS, LON_OR_LAT_DIM, TILE_DIM
 from fv3gfs.util.constants import N_HALO_DEFAULT
+import functools
+# TODO remove this when using python 3.8+ everywhere, it comes for free
+def cached_property(func):
+    cached = None
+    @property
+    @functools.wraps(func)
+    def wrapped(*args, **kwargs):
+        nonlocal cached
+        if cached is None:
+            cached = func(*args, **kwargs)
+        return cached
+    return wrapped
+
+
 # TODO
-# use cached_property, just for properties that have a single output per function
 # pass in quantity factory, remove most other arguments
-# use the halo default, don't pass it n, probably won't work
 # get sizer from factory
 # can corners use sizer rather than gridIndexer
 class MetricTerms:
@@ -55,10 +67,6 @@ class MetricTerms:
         self._dy_agrid = None
         self._dx_cgrid = None
         self._dy_cgrid = None
-        self._area = None
-        self._area_c = None
-        self._xyz_dgrid = None
-        self._xyz_agrid = None
         
         self._init_dgrid()
         self._init_agrid()
@@ -107,35 +115,29 @@ class MetricTerms:
             self._dx_cgrid, self._dy_cgrid = self._compute_dxdy_cgrid()
         return self._dy_cgrid
     
-    @property
+    @cached_property
     def area(self):
-        if self._area is None:
-            self._area = self._compute_area()
-        return self._area
+        return  self._compute_area()
     
-    @property
+    @cached_property
     def area_c(self):
-        if self._area_c is None:
-            self._area_c = self._compute_area_c()
-        return self._area_c
+        return self._compute_area_c()
+        
 
-    @property
+    @cached_property
     def _dgrid_xyz(self):
-        if self._xyz_dgrid is None:
-            self._xyz_dgrid = lon_lat_to_xyz(
-                self._grid.data[:, :, 0], self._grid.data[:, :, 1], self._np
-            )
-        return self._xyz_dgrid
+        return lon_lat_to_xyz(
+            self._grid.data[:, :, 0], self._grid.data[:, :, 1], self._np
+        )
+
     
-    @property
+    @cached_property
     def _agrid_xyz(self):
-        if self._xyz_agrid is None: 
-            self._xyz_agrid = lon_lat_to_xyz(
-                self._agrid.data[:-1, :-1, 0],
-                self._agrid.data[:-1, :-1, 1],
-                self._np, 
-            )
-        return self._xyz_agrid
+        return  lon_lat_to_xyz(
+            self._agrid.data[:-1, :-1, 0],
+            self._agrid.data[:-1, :-1, 1],
+            self._np, 
+        )
     
     def _make_quantity_factory(self):
         sizer =  fv3util.SubtileGridSizer.from_tile_params(
