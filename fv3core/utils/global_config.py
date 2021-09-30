@@ -1,20 +1,10 @@
 import hashlib
 import os
+import re
 from collections.abc import Hashable
-from typing import Any, Callable, Dict
+from typing import Any, Callable, Dict, Optional
 
-
-_backend_options: Dict[str, Any] = {
-    "all": {
-        "skip_passes": ("graph_merge_horizontal_executions",),
-    },
-    "fv_subgridz.init": {
-        "skip_passes": ("KCacheDetection",),
-    },
-    "ytp_v._ytp_v": {
-        "skip_passes": ("GreedyMerging",),
-    },
-}
+import yaml
 
 
 def getenv_bool(name: str, default: str) -> bool:
@@ -50,59 +40,34 @@ def get_validate_args() -> bool:
     return _VALIDATE_ARGS
 
 
-def set_format_source(flag: bool):
-    global _FORMAT_SOURCE
-    _FORMAT_SOURCE = flag
-
-
-def get_format_source() -> bool:
-    return _FORMAT_SOURCE
-
-
-def set_device_sync(flag: bool):
-    global _DEVICE_SYNC
-    _DEVICE_SYNC = flag
-
-
-def get_device_sync() -> bool:
-    return _DEVICE_SYNC
-
-
 def is_gpu_backend() -> bool:
     return get_backend().endswith("cuda") or get_backend().endswith("gpu")
 
 
-def is_gtc_backend() -> bool:
-    return get_backend().startswith("gtc")
-
-
-def get_backend_opts(func: Callable) -> Dict[str, Any]:
-    backend_opts: Dict[str, Any] = {**_backend_options["all"]}
-
-    stencil_name = f"{func.__module__.split('.')[-1]}.{func.__name__}"
-    if stencil_name in _backend_options:
-        backend_opts.update(_backend_options[stencil_name])
-
-    if is_gpu_backend():
-        backend_opts["device_sync"] = get_device_sync()
-
-    return backend_opts
+def read_backend_options_file():
+    options_file = "./gt4py_options.yml"
+    if os.path.exists(options_file):
+        return yaml.safe_load(open(options_file))
+    raise FileNotFoundError(f"gt4py options file '{options_file}' not found")
 
 
 class StencilConfig(Hashable):
+    _all_backend_opts: Optional[Dict[str, Any]] = None
+
     def __init__(
         self,
         backend: str,
         rebuild: bool,
         validate_args: bool,
-        format_source: bool,
-        backend_opts: Dict[str, Any],
+        format_source: Optional[bool] = None,
+        device_sync: Optional[bool] = None,
+        func: Optional[Callable] = None,
     ):
         self.backend = backend
         self.rebuild = rebuild
         self.validate_args = validate_args
         self.format_source = format_source
-        self.backend_opts = backend_opts
+        self.backend_opts = self._get_backend_opts(func, device_sync, format_source)
         self._hash = self._compute_hash()
 
     def _compute_hash(self):
@@ -111,7 +76,8 @@ class StencilConfig(Hashable):
         for attr in (
             self.rebuild,
             self.validate_args,
-            self.format_source,
+            self.backend_opts["format_source"],
+            self.backend_opts["device_sync"],
         ):
             md5.update(bytes(attr))
         return int(md5.hexdigest(), base=16)
@@ -125,25 +91,53 @@ class StencilConfig(Hashable):
         except AttributeError:
             return False
 
+    def _get_backend_opts(
+        self,
+        func: Optional[Callable] = None,
+        device_sync: Optional[bool] = None,
+        format_source: Optional[bool] = None,
+    ) -> Dict[str, Any]:
+        if not StencilConfig._all_backend_opts:
+            StencilConfig._all_backend_opts = read_backend_options_file()
+        all_backend_opts: Dict[str, Any] = StencilConfig._all_backend_opts
+
+        candidate_opts: Dict[str, Any] = {}
+        if "all" in all_backend_opts:
+            candidate_opts.update(all_backend_opts["all"])
+
+        if func is not None:
+            stencil_name = f"{func.__module__.split('.')[-1]}.{func.__name__}"
+            if stencil_name in all_backend_opts:
+                candidate_opts.update(all_backend_opts[stencil_name])
+
+        backend_opts: Dict[str, Any] = {}
+        for name, option in candidate_opts.items():
+            if "backend" not in option or re.match(option["backend"], get_backend()):
+                backend_opts[name] = option["value"]
+
+        if device_sync is not None:
+            backend_opts["device_sync"] = device_sync
+        if format_source is not None:
+            backend_opts["format_source"] = format_source
+
+        return backend_opts
+
     @property
     def stencil_kwargs(self):
-        kwargs = {
+        return {
             "backend": self.backend,
             "rebuild": self.rebuild,
             "format_source": self.format_source,
+            **self.backend_opts,
         }
-        if self.backend_opts:
-            kwargs.update(self.backend_opts)
-        return kwargs
 
 
-def get_stencil_config(func: Callable):
+def get_stencil_config(func: Optional[Callable] = None):
     return StencilConfig(
         backend=get_backend(),
         rebuild=get_rebuild(),
         validate_args=get_validate_args(),
-        format_source=get_format_source(),
-        backend_opts=get_backend_opts(func),
+        func=func,
     )
 
 
@@ -152,6 +146,4 @@ _BACKEND = None
 # If TRUE, all caches will bypassed and stencils recompiled
 # if FALSE, caches will be checked and rebuild if code changes
 _REBUILD = getenv_bool("FV3_STENCIL_REBUILD_FLAG", "False")
-_FORMAT_SOURCE = getenv_bool("FV3_STENCIL_FORMAT_SOURCE", "False")
 _VALIDATE_ARGS = True
-_DEVICE_SYNC = False

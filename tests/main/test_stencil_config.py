@@ -19,7 +19,7 @@ def test_same_config_equal(
         rebuild=rebuild,
         validate_args=validate_args,
         format_source=format_source,
-        backend_opts=dict(device_sync=device_sync),
+        device_sync=device_sync,
     )
     assert config == config
 
@@ -28,7 +28,7 @@ def test_same_config_equal(
         rebuild=rebuild,
         validate_args=validate_args,
         format_source=format_source,
-        backend_opts=dict(device_sync=device_sync),
+        device_sync=device_sync,
     )
     assert config == same_config
 
@@ -49,7 +49,7 @@ def test_different_backend_not_equal(
         rebuild=rebuild,
         validate_args=validate_args,
         format_source=format_source,
-        backend_opts=dict(device_sync=device_sync),
+        device_sync=device_sync,
     )
 
     different_config = StencilConfig(
@@ -57,7 +57,7 @@ def test_different_backend_not_equal(
         rebuild=rebuild,
         validate_args=validate_args,
         format_source=format_source,
-        backend_opts=dict(device_sync=device_sync),
+        device_sync=device_sync,
     )
     assert config != different_config
 
@@ -78,7 +78,7 @@ def test_different_rebuild_not_equal(
         rebuild=rebuild,
         validate_args=validate_args,
         format_source=format_source,
-        backend_opts=dict(device_sync=device_sync),
+        device_sync=device_sync,
     )
 
     different_config = StencilConfig(
@@ -86,7 +86,7 @@ def test_different_rebuild_not_equal(
         rebuild=not rebuild,
         validate_args=validate_args,
         format_source=format_source,
-        backend_opts=dict(device_sync=device_sync),
+        device_sync=device_sync,
     )
     assert config != different_config
 
@@ -107,7 +107,7 @@ def test_different_device_sync_not_equal(
         rebuild=rebuild,
         validate_args=validate_args,
         format_source=format_source,
-        backend_opts=dict(device_sync=device_sync),
+        device_sync=device_sync,
     )
 
     different_config = StencilConfig(
@@ -115,7 +115,7 @@ def test_different_device_sync_not_equal(
         rebuild=rebuild,
         validate_args=validate_args,
         format_source=format_source,
-        backend_opts=dict(device_sync=not device_sync),
+        device_sync=not device_sync,
     )
     assert config != different_config
 
@@ -136,7 +136,7 @@ def test_different_validate_args_not_equal(
         rebuild=rebuild,
         validate_args=validate_args,
         format_source=format_source,
-        backend_opts=dict(device_sync=device_sync),
+        device_sync=device_sync,
     )
 
     different_config = StencilConfig(
@@ -144,7 +144,7 @@ def test_different_validate_args_not_equal(
         rebuild=rebuild,
         validate_args=not validate_args,
         format_source=format_source,
-        backend_opts=dict(device_sync=device_sync),
+        device_sync=device_sync,
     )
     assert config != different_config
 
@@ -165,7 +165,7 @@ def test_different_format_source_not_equal(
         rebuild=rebuild,
         validate_args=validate_args,
         format_source=format_source,
-        backend_opts=dict(device_sync=device_sync),
+        device_sync=device_sync,
     )
 
     different_config = StencilConfig(
@@ -173,6 +173,6 @@ def test_different_format_source_not_equal(
         rebuild=rebuild,
         validate_args=validate_args,
         format_source=not format_source,
-        backend_opts=dict(device_sync=device_sync),
+        device_sync=device_sync,
     )
     assert config != different_config
