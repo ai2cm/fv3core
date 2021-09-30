@@ -11,6 +11,9 @@ from fv3gfs.util.halo_data_transformer import QuantityHaloSpec
 
 from . import gt4py_utils as utils
 
+from .typing import Index3D
+from .global_constants import LON_OR_LAT_DIM, TILE_DIM, CARTESIAN_DIM
+
 from .typing import FloatFieldIJ, Index3D
 from .global_constants import LON_OR_LAT_DIM, TILE_DIM
 
@@ -80,6 +83,7 @@ class Grid:
                 extra_dim_lengths={
                     LON_OR_LAT_DIM: 2,
                     TILE_DIM: 6,
+                    CARTESIAN_DIM: 3,
                 },
                 layout=self.layout,
             )

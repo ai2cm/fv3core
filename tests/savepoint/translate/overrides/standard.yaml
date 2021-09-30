@@ -151,3 +151,23 @@ Tracer2D1L:
  - backend: gtc:cuda
    max_error: 1e-9
 
+UtilVectors:
+  - backend: numpy
+    max_error: 3e-12
+    ignore_near_zero_errors:
+      ew1: 3e-14
+      ew2: 3e-14
+      es1: 3e-14
+      es2: 3e-14
+  
+TrigSg:
+  - backend: numpy
+    max_error: 1e-14
+
+MoreTrig:
+  - backend: numpy
+    max_error: 3e-14
+    ignore_near_zero_errors:
+      ee1: 3e-14
+      ee2: 3e-14
+

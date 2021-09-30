@@ -82,10 +82,19 @@ class ParallelTranslate:
             return return_dict
         for name, properties in self.outputs.items():
             standard_name = properties["name"]
-            output_slice = _serialize_slice(
-                state[standard_name], properties.get("n_halo", utils.halo)
-            )
-            return_dict[name] = np.asarray(state[standard_name].storage)[output_slice]
+            if name in self._base.in_vars["data_vars"].keys():
+                if "kaxis" in self._base.in_vars["data_vars"][name].keys():
+                    kaxis = int(self._base.in_vars["data_vars"][name]["kaxis"])
+                    dims = list(state[standard_name].dims)
+                    dims.insert(kaxis, dims.pop(-1))
+                    state[standard_name] = state[standard_name].transpose(dims)
+            if len(properties["dims"]) > 0:
+                output_slice = _serialize_slice(
+                    state[standard_name], properties.get("n_halo", utils.halo)
+                )                
+                return_dict[name] = state[standard_name].data[output_slice]
+            else:
+                return_dict[name] = state[standard_name]
         return return_dict
 
     def allocate_output_state(self):
@@ -186,6 +195,13 @@ class ParallelTranslateGrid(ParallelTranslate):
                     state[standard_name].data[input_slice] = inputs[name]
                 else:
                     state[standard_name].data[:] = inputs[name]
+                if name in self._base.in_vars["data_vars"].keys():
+                    if "kaxis" in self._base.in_vars["data_vars"][name].keys():
+                        kaxis = int(self._base.in_vars["data_vars"][name]["kaxis"])
+                        dims = list(state[standard_name].dims)
+                        k_dim = dims.pop(kaxis)
+                        dims.insert(len(dims), k_dim)
+                        state[standard_name] = state[standard_name].transpose(dims)
             else:
                 state[standard_name] = inputs[name]
         return state

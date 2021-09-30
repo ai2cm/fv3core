@@ -235,8 +235,11 @@ def lon_lat_to_xyz(lon, lat, np):
     x = np.cos(lat) * np.cos(lon)
     y = np.cos(lat) * np.sin(lon)
     z = np.sin(lat)
-    #x, y, z = normalize_vector(np, x, y, z)
-    xyz = np.concatenate([arr[:, :, None] for arr in (x, y, z)], axis=-1)
+    x, y, z = normalize_vector(np, x, y, z)
+    if len(lon.shape) == 2:
+        xyz = np.concatenate([arr[:, :, None] for arr in (x, y, z)], axis=-1)
+    elif len(lon.shape) == 1:
+        xyz = np.concatenate([arr[:, None] for arr in (x, y, z)], axis=-1)
     return xyz
 
 
@@ -343,7 +346,6 @@ def _vect_cross(p1, p2):
         p1[2] * p2[0] - p1[0] * p2[2],
         p1[0] * p2[1] - p1[1] * p2[0],
     ]
-
 
 def gnomonic_dist(lon, lat):
     raise NotImplementedError()
@@ -758,3 +760,33 @@ def spherical_cos(p_center, p2, p3, np):
         np.sum(p * q, axis=-1)
         / np.sqrt(np.sum(p ** 2, axis=-1) * np.sum(q ** 2, axis=-1))
     )
+
+
+def get_unit_vector_direction(p1, p2, np):
+    """
+    Returms the unit vector pointing from a set of lonlat points p1 to lonlat points p2
+    """
+    xyz1 = lon_lat_to_xyz(p1[:, :, 0], p1[:, :, 1], np)
+    xyz2 = lon_lat_to_xyz(p2[:, :, 0], p2[:, :, 1], np)
+    midpoint = xyz_midpoint(xyz1, xyz2)
+    p3 = np.cross(xyz2, xyz1)
+    return normalize_xyz(np.cross(midpoint, p3))
+
+
+def get_lonlat_vect(lonlat_grid, np):
+    """
+    Calculates the unit vectors pointing in the longitude/latitude directions 
+    for a set of longitude/latitude points
+    """
+    lon_vector = np.array(
+        [-np.sin(lonlat_grid[:,:,0]), 
+        np.cos(lonlat_grid[:,:,0]), 
+        np.zeros(lonlat_grid[:,:,0].shape)]
+    ).transpose([1,2,0])
+    lat_vector = np.array(
+        [-np.sin(lonlat_grid[:,:,1])*np.cos(lonlat_grid[:,:,0]), 
+        -np.sin(lonlat_grid[:,:,1])*np.sin(lonlat_grid[:,:,0]), 
+        np.cos(lonlat_grid[:,:,1])]
+    ).transpose([1,2,0])
+    return lon_vector, lat_vector
+

@@ -40,9 +40,18 @@ from .translate_grid import (
     TranslateDxDy,
     TranslateGridGrid,
     TranslateMoreAreas,
-    TranslateInitGridUtils,
-    TranslateInitGrid,
     TranslateMirrorGrid,
+    TranslateInitGrid,
+    TranslateInitGridUtils,
+    TranslateSetEta,
+    TranslateUtilVectors,
+    TranslateTrigSg,
+    TranslateAAMCorrection,
+    TranslateMoreTrig,
+    TranslateFixSgCorners,
+    TranslateDivgDel6,
+    TranslateInitCubedtoLatLon,
+    TranslateEdgeFactors
 )
 
 from .translate_haloupdate import (

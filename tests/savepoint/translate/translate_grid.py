@@ -1,7 +1,10 @@
 import functools
-from fv3core.grid.utils import get_center_vector # noqa: F401
+from math import cos
 from typing import Any, Dict
 from fv3core.utils.grid import GridIndexing
+from fv3core import grid
+import numpy
+import copy
 import fv3gfs.util as fv3util
 import fv3core.utils.global_config as global_config
 import fv3core._config as spec
@@ -20,10 +23,31 @@ from fv3core.grid import (
     set_halo_nan,
     MetricTerms
 )
+
 from fv3core.utils import gt4py_utils as utils
+
+from fv3core.grid.geometry import (
+    get_center_vector,
+    calc_unit_vector_west,
+    calc_unit_vector_south,
+    calculate_supergrid_cos_sin,
+    calculate_l2c_vu,
+    supergrid_corner_fix,
+    calculate_divg_del6,
+    unit_vector_lonlat,
+    calculate_grid_z, 
+    calculate_grid_a,
+    edge_factors,
+    efactor_a2c_v,
+    calculate_trig_uv,
+    generate_xy_unit_vectors
+)
+from fv3core.grid.eta import set_eta
+
 from fv3core.utils.corners import fill_corners_2d, fill_corners_agrid, fill_corners_dgrid, fill_corners_cgrid
-from fv3core.utils.global_constants import PI, RADIUS, LON_OR_LAT_DIM, TILE_DIM
-from fv3core.testing.parallel_translate import ParallelTranslateGrid
+from fv3core.utils.global_constants import PI, RADIUS, LON_OR_LAT_DIM, TILE_DIM, CARTESIAN_DIM
+from fv3core.utils import gt4py_utils as utils
+from fv3core.testing.parallel_translate import ParallelTranslateGrid, _serialize_slice
 
 
 class TranslateGnomonicGrids(ParallelTranslateGrid):
@@ -661,17 +685,7 @@ class TranslateAGrid(ParallelTranslateGrid):
 
 class TranslateInitGrid(ParallelTranslateGrid):
 
-    """need to add npx, npy, npz, ng
-    !$ser
-    data
-    grid_file=grid_file
-    ndims=ndims
-    nregions=ntiles
-    grid_name=grid_name
-    sw_corner=Atm(n)%gridstruct%sw_corner
-    se_corner=Atm(n)%gridstruct%se_corner
-    ne_corner=Atm(n)%gridstruct%ne_corner
-    nw_corner=Atm(n)%gridstruct%nw_corner
+    """need to add npx, npy, npz, ng?
     """
 
     inputs = {
@@ -819,6 +833,7 @@ cubedsphere=Atm(n)%gridstruct%latlon
         )
         local_quantity_factory = fv3util.QuantityFactory.from_backend(
             local_sizer, backend=global_config.get_backend()
+
         )
        
 
@@ -1226,22 +1241,1398 @@ cubedsphere=Atm(n)%gridstruct%latlon
         )
        
 
-class TranslateInitGridUtils(ParallelTranslateGrid):
 
-    """!$ser
-    data
-    gridvar=Atm(n)%gridstruct%grid_64
-    agrid=Atm(n)%gridstruct%agrid_64
-    area=Atm(n)%gridstruct%area_64
-    area_c=Atm(n)%gridstruct%area_c_64
-    rarea=Atm(n)%gridstruct%rarea
-    rarea_c=Atm(n)%gridstruct%rarea_c
-    dx=Atm(n)%gridstruct%dx_64
-    dy=Atm(n)%gridstruct%dy_64
-    dxc=Atm(n)%gridstruct%dxc_64
-    dyc=Atm(n)%gridstruct%dyc_64
-    dxa=Atm(n)%gridstruct%dxa_64
-    dya=Atm(n)%gridstruct%dya_64"""
+class TranslateSetEta(ParallelTranslateGrid):
+    inputs: Dict[str, Any] = {
+        "npz": {
+            "name": "npz",
+            "dims": [],
+            "units": "",
+        },
+        "ks": {
+            "name": "ks",
+            "dims": [],
+            "units": "",
+        },
+        "ptop": {
+            "name": "ptop",
+            "dims": [],
+            "units": "mb",
+        },
+        "ak": {
+            "name": "ak",
+            "dims": [fv3util.Z_INTERFACE_DIM],
+            "units": "mb",
+        },
+        "bk": {
+            "name": "bk",
+            "dims": [fv3util.Z_INTERFACE_DIM],
+            "units": "",
+        },
+    }
+    outputs: Dict[str, Any] = {
+        "ks": {
+            "name": "ks",
+            "dims": [],
+            "units": "",
+        },
+        "ptop": {
+            "name": "ptop",
+            "dims": [],
+            "units": "mb",
+        },
+        "ak": {
+            "name": "ak",
+            "dims": [fv3util.Z_INTERFACE_DIM],
+            "units": "mb",
+        },
+        "bk": {
+            "name": "bk",
+            "dims": [fv3util.Z_INTERFACE_DIM],
+            "units": "",
+        },
+    }
+
+    def compute_sequential(self, inputs_list, communicator_list):
+        state_list = []
+        for inputs in inputs_list:
+            state_list.append(self._compute_local(inputs))
+        return self.outputs_list_from_state_list(state_list)
+
+    def _compute_local(self, inputs):
+        state = self.state_from_inputs(inputs)
+        state["ks"], state["ptop"], state["ak"].data[:], state["bk"].data[:] = set_eta(state["npz"])
+        return state
+
+
+class TranslateUtilVectors(ParallelTranslateGrid):
+    def __init__(self, grids):
+        super().__init__(grids)
+        self._base.in_vars["data_vars"] = {
+            "ec1" : {
+                "kend": 2,
+                "kaxis": 0,
+            },
+            "ec2" : {
+                "kend": 2,
+                "kaxis": 0,
+            },
+            "ew1" : {
+                "kend": 2,
+                "kaxis": 0,
+            },
+            "ew2" : {
+                "kend": 2,
+                "kaxis": 0,
+            },
+            "es1" : {
+                "kend": 2,
+                "kaxis": 0,
+            },
+            "es2" : {
+                "kend": 2,
+                "kaxis": 0,
+            },
+        }
+       
+
+    inputs: Dict[str, Any] = {
+        "grid": {
+            "name": "grid",
+            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM, LON_OR_LAT_DIM],
+            "units": "radians",
+        },
+        "agrid": {
+            "name": "agrid",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM, LON_OR_LAT_DIM],
+            "units": "radians",
+        },
+        "ec1": {
+            "name":"ec1",
+            "dims":[CARTESIAN_DIM, fv3util.X_DIM, fv3util.Y_DIM],
+            "units": "",
+        },
+        "ec2": {
+            "name":"ec2",
+            "dims":[CARTESIAN_DIM, fv3util.X_DIM, fv3util.Y_DIM],
+            "units": "",
+        },
+        "ew1": {
+            "name":"ew1",
+            "dims":[CARTESIAN_DIM, fv3util.X_INTERFACE_DIM, fv3util.Y_DIM],
+            "units": "",
+        },
+        "ew2": {
+            "name":"ew2",
+            "dims":[CARTESIAN_DIM, fv3util.X_INTERFACE_DIM, fv3util.Y_DIM],
+            "units": "",
+        },
+        "es1": {
+            "name":"es1",
+            "dims":[CARTESIAN_DIM, fv3util.X_DIM, fv3util.Y_INTERFACE_DIM],
+            "units": "",
+        },
+        "es2": {
+            "name":"es2",
+            "dims":[CARTESIAN_DIM, fv3util.X_DIM, fv3util.Y_INTERFACE_DIM],
+            "units": "",
+        },
+    }
+    outputs: Dict[str, Any] = {
+        "ec1": {
+            "name":"ec1",
+            "dims":[CARTESIAN_DIM, fv3util.X_DIM, fv3util.Y_DIM],
+            "units": "",
+        },
+        "ec2": {
+            "name":"ec2",
+            "dims":[CARTESIAN_DIM, fv3util.X_DIM, fv3util.Y_DIM],
+            "units": "",
+        },
+        "ew1": {
+            "name":"ew1",
+            "dims":[CARTESIAN_DIM, fv3util.X_INTERFACE_DIM, fv3util.Y_DIM],
+            "units": "",
+        },
+        "ew2": {
+            "name":"ew2",
+            "dims":[CARTESIAN_DIM, fv3util.X_INTERFACE_DIM, fv3util.Y_DIM],
+            "units": "",
+        },
+        "es1": {
+            "name":"es1",
+            "dims":[CARTESIAN_DIM, fv3util.X_DIM, fv3util.Y_INTERFACE_DIM],
+            "units": "",
+        },
+        "es2": {
+            "name":"es2",
+            "dims":[CARTESIAN_DIM, fv3util.X_DIM, fv3util.Y_INTERFACE_DIM],
+            "units": "",
+        },
+    }
+    def compute_sequential(self, inputs_list, communicator_list):
+        state_list = []
+        for inputs, communicator in zip(inputs_list, communicator_list):
+            state_list.append(self._compute_local(inputs, communicator))
+        outputs_list = []
+        # for state in state_list:
+        #     outputs_list.append(self.outputs_from_state(state))
+        return self.outputs_list_from_state_list(state_list)
+
+    def _compute_local(self, inputs, communicator):
+        state = self.state_from_inputs(inputs)
+        # TODO why is the not necessary?
+        #fill_corners_2d(
+        #   state["grid"].data[:, :, :], self.grid, gridtype="B", direction="x"
+        #)
+        xyz_dgrid = lon_lat_to_xyz(state["grid"].data[:,:,0], state["grid"].data[:,:,1], state["grid"].np)
+        xyz_agrid = lon_lat_to_xyz(state["agrid"].data[:-1,:-1,0], state["agrid"].data[:-1,:-1,1], state["grid"].np)
+        
+        state["ec1"].data[:-1,:-1,:3], state["ec2"].data[:-1,:-1,:3] = get_center_vector(xyz_dgrid, self.grid.grid_type, self.grid.halo,
+            communicator.tile.partitioner, communicator.tile.rank, state["grid"].np
+        )
+        state["ew1"].data[1:-1,:-1,:3], state["ew2"].data[1:-1,:-1,:3] = calc_unit_vector_west(
+            xyz_dgrid, xyz_agrid, self.grid.grid_type, self.grid.halo, 
+            communicator.tile.partitioner, communicator.tile.rank, state["grid"].np
+        )
+        state["es1"].data[:-1,1:-1,:3], state["es2"].data[:-1,1:-1,:3] = calc_unit_vector_south(
+            xyz_dgrid, xyz_agrid, self.grid.grid_type, self.grid.halo, 
+            communicator.tile.partitioner, communicator.tile.rank, state["grid"].np
+        )
+        return state
+
+
+class TranslateTrigSg(ParallelTranslateGrid):
+    def __init__(self, grids):
+        super().__init__(grids)
+        self._base.in_vars["data_vars"] = {
+            "ec1" : {
+                "kend": 2,
+                "kaxis": 0,
+            },
+            "ec2" : {
+                "kend": 2,
+                "kaxis": 0,
+            },
+        }
+
+    inputs: Dict[str, Any] = {
+        "grid": {
+            "name": "grid",
+            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM, LON_OR_LAT_DIM],
+            "units": ""
+        },
+        "agrid": {
+            "name": "agrid",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM, LON_OR_LAT_DIM],
+            "units": "radians",
+        },
+        "cos_sg1": {
+            "name": "cos_sg1",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "sin_sg1": {
+            "name": "sin_sg1",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "cos_sg2": {
+            "name": "cos_sg2",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "sin_sg2": {
+            "name": "sin_sg2",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "cos_sg3": {
+            "name": "cos_sg3",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "sin_sg3": {
+            "name": "sin_sg3",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "cos_sg4": {
+            "name": "cos_sg4",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "sin_sg4": {
+            "name": "sin_sg4",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "cos_sg5": {
+            "name": "cos_sg5",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "sin_sg5": {
+            "name": "sin_sg5",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "cos_sg6": {
+            "name": "cos_sg6",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "sin_sg6": {
+            "name": "sin_sg6",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "cos_sg7": {
+            "name": "cos_sg7",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "sin_sg7": {
+            "name": "sin_sg7",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "cos_sg8": {
+            "name": "cos_sg8",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "sin_sg8": {
+            "name": "sin_sg8",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "cos_sg9": {
+            "name": "cos_sg9",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "sin_sg9": {
+            "name": "sin_sg9",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "ec1": {
+            "name":"ec1",
+            "dims":[CARTESIAN_DIM, fv3util.X_DIM, fv3util.Y_DIM],
+            "units": "",
+        },
+        "ec2": {
+            "name":"ec2",
+            "dims":[CARTESIAN_DIM, fv3util.X_DIM, fv3util.Y_DIM],
+            "units": "",
+        },
+    }
+    outputs: Dict[str, Any] = {
+        "cos_sg1": {
+            "name": "cos_sg1",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "sin_sg1": {
+            "name": "sin_sg1",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "cos_sg2": {
+            "name": "cos_sg2",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "sin_sg2": {
+            "name": "sin_sg2",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "cos_sg3": {
+            "name": "cos_sg3",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "sin_sg3": {
+            "name": "sin_sg3",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "cos_sg4": {
+            "name": "cos_sg4",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "sin_sg4": {
+            "name": "sin_sg4",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "cos_sg5": {
+            "name": "cos_sg5",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "sin_sg5": {
+            "name": "sin_sg5",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "cos_sg6": {
+            "name": "cos_sg6",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "sin_sg6": {
+            "name": "sin_sg6",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "cos_sg7": {
+            "name": "cos_sg7",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "sin_sg7": {
+            "name": "sin_sg7",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "cos_sg8": {
+            "name": "cos_sg8",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "sin_sg8": {
+            "name": "sin_sg8",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "cos_sg9": {
+            "name": "cos_sg9",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "sin_sg9": {
+            "name": "sin_sg9",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+    }
+    def compute_sequential(self, inputs_list, communicator_list):
+        state_list = []
+        for inputs, communicator in zip(inputs_list, communicator_list):
+            state_list.append(self._compute_local(inputs, communicator))
+        return self.outputs_list_from_state_list(state_list)
+
+    def _compute_local(self, inputs, communicator):
+        state = self.state_from_inputs(inputs)
+        xyz_dgrid = lon_lat_to_xyz(state["grid"].data[:,:,0], state["grid"].data[:,:,1], state["agrid"].np)
+        xyz_agrid = lon_lat_to_xyz(state["agrid"].data[:-1,:-1,0], state["agrid"].data[:-1,:-1,1], state["agrid"].np)
+        # csgs = state["cos_sg1"].data[:].shape
+        # print(csgs, state["grid"].data[:].shape, state["agrid"].data[:].shape)
+        cos_sg, sin_sg = calculate_supergrid_cos_sin(
+            xyz_dgrid, xyz_agrid, state["ec1"].data[:-1, :-1], state["ec2"].data[:-1, :-1], self.grid.grid_type, self.grid.halo, 
+            communicator.tile.partitioner, communicator.tile.rank, state["agrid"].np
+        )
+        for i in range(1,10):
+            state[f"cos_sg{i}"].data[:-1, :-1] = cos_sg[:,:,i-1]
+            state[f"sin_sg{i}"].data[:-1, :-1] = sin_sg[:,:,i-1]
+        return state
+
+
+class TranslateAAMCorrection(ParallelTranslateGrid):
+    inputs: Dict[str, Any] = {
+        "grid": {
+            "name": "grid",
+            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM, LON_OR_LAT_DIM],
+            "units": "radians",
+        },
+        "l2c_v": {
+            "name": "l2c_v",
+            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM],
+            "units": "",
+            "n_halo": 0,
+
+        },
+        "l2c_u": {
+            "name":"l2c_u",
+            "dims":[fv3util.X_DIM, fv3util.Y_INTERFACE_DIM],
+            "units": "",
+            "n_halo": 0,
+        },
+    }
+    outputs: Dict[str, Any] = {
+        "l2c_v": {
+            "name": "l2c_v",
+            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM],
+            "units": "",
+            "n_halo": 0,
+        },
+        "l2c_u": {
+            "name":"l2c_u",
+            "dims":[fv3util.X_DIM, fv3util.Y_INTERFACE_DIM],
+            "units": "",
+            "n_halo": 0,
+        },
+    }
+    def compute_sequential(self, inputs_list, communicator_list):
+        state_list = []
+        for inputs in inputs_list:
+            state_list.append(self._compute_local(inputs))
+        return self.outputs_list_from_state_list(state_list)
+    
+    def _compute_local(self, inputs):
+        state = self.state_from_inputs(inputs)
+        nhalo = self.grid.halo
+        state["l2c_v"].data[nhalo:-nhalo, nhalo:-nhalo-1], state["l2c_u"].data[nhalo:-nhalo-1, nhalo:-nhalo] = calculate_l2c_vu(
+            state["grid"].data[:], nhalo, state["grid"].np
+        )
+        return state
+
+
+class TranslateMoreTrig(ParallelTranslateGrid):
+    def __init__(self, grids):
+        super().__init__(grids)
+        self._base.in_vars["data_vars"] = {
+            "ee1" : {
+                "kend": 2,
+                "kaxis": 0,
+            },
+            "ee2" : {
+                "kend": 2,
+                "kaxis": 0,
+            },
+        }
+
+    inputs: Dict[str, Any] = {
+        "grid": {
+            "name": "grid",
+            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM, LON_OR_LAT_DIM],
+            "units": "radians",
+        },
+        "cos_sg1": {
+            "name": "cos_sg1",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "sin_sg1": {
+            "name": "sin_sg1",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "cos_sg2": {
+            "name": "cos_sg2",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "sin_sg2": {
+            "name": "sin_sg2",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "cos_sg3": {
+            "name": "cos_sg3",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "sin_sg3": {
+            "name": "sin_sg3",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "cos_sg4": {
+            "name": "cos_sg4",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "sin_sg4": {
+            "name": "sin_sg4",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "cos_sg5": {
+            "name": "cos_sg5",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "sin_sg5": {
+            "name": "sin_sg5",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "cos_sg6": {
+            "name": "cos_sg6",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "sin_sg6": {
+            "name": "sin_sg6",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "cos_sg7": {
+            "name": "cos_sg7",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "sin_sg7": {
+            "name": "sin_sg7",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "cos_sg8": {
+            "name": "cos_sg8",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "sin_sg8": {
+            "name": "sin_sg8",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "cos_sg9": {
+            "name": "cos_sg9",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "sin_sg9": {
+            "name": "sin_sg9",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "ee1": {
+            "name": "ee1",
+            "dims": [CARTESIAN_DIM, fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM],
+            "units": ""
+        },
+        "ee2": {
+            "name": "ee2",
+            "dims": [CARTESIAN_DIM, fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM],
+            "units": ""
+        },
+        "cosa_u": {
+            "name": "cosa_u",
+            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "cosa_v": {
+            "name": "cosa_v",
+            "dims": [fv3util.X_DIM, fv3util.Y_INTERFACE_DIM],
+            "units": ""
+        },
+        "cosa_s": {
+            "name": "cosa_s",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "sina_u": {
+            "name": "sina_u",
+            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "sina_v": {
+            "name": "sina_v",
+            "dims": [fv3util.X_DIM, fv3util.Y_INTERFACE_DIM],
+            "units": ""
+        },
+        "rsin_u": {
+            "name": "rsin_u",
+            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "rsin_v": {
+            "name": "rsin_v",
+            "dims": [fv3util.X_DIM, fv3util.Y_INTERFACE_DIM],
+            "units": ""
+        },
+        "rsina": {
+            "name": "rsina",
+            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM],
+            "units": "",
+            "n_halo": 0,
+        },
+        "rsin2": {
+            "name": "rsin2",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "cosa": {
+            "name": "cosa",
+            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM],
+            "units": "",
+        },
+        "sina": {
+            "name": "sina",
+            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM],
+            "units": "",
+        },
+    }
+    outputs: Dict[str, Any] = {
+        "ee1": {
+            "name": "ee1",
+            "dims": [CARTESIAN_DIM, fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM],
+            "units": ""
+        },
+        "ee2": {
+            "name": "ee2",
+            "dims": [CARTESIAN_DIM, fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM],
+            "units": ""
+        },
+        "cosa_u": {
+            "name": "cosa_u",
+            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "cosa_v": {
+            "name": "cosa_v",
+            "dims": [fv3util.X_DIM, fv3util.Y_INTERFACE_DIM],
+            "units": ""
+        },
+        "cosa_s": {
+            "name": "cosa_s",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "sina_u": {
+            "name": "sina_u",
+            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "sina_v": {
+            "name": "sina_v",
+            "dims": [fv3util.X_DIM, fv3util.Y_INTERFACE_DIM],
+            "units": ""
+        },
+        "rsin_u": {
+            "name": "rsin_u",
+            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "rsin_v": {
+            "name": "rsin_v",
+            "dims": [fv3util.X_DIM, fv3util.Y_INTERFACE_DIM],
+            "units": ""
+        },
+        "rsina": {
+            "name": "rsina",
+            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM],
+            "units": "",
+            "n_halo": 0,
+        },
+        "rsin2": {
+            "name": "rsin2",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "cosa": {
+            "name": "cosa",
+            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM],
+            "units": "",
+        },
+        "sina": {
+            "name": "sina",
+            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM],
+            "units": "",
+        },
+    }
+    def compute_sequential(self, inputs_list, communicator_list):
+        state_list = []
+        for inputs, communicator in zip(inputs_list, communicator_list):
+            state_list.append(self._compute_local(inputs, communicator))
+        return self.outputs_list_from_state_list(state_list)
+
+    def _compute_local(self, inputs, communicator):
+        state = self.state_from_inputs(inputs)
+        xyz_dgrid = lon_lat_to_xyz(state["grid"].data[:,:,0], state["grid"].data[:,:,1], state["grid"].np)
+        cos_sg = []
+        sin_sg = []
+        for i in range(1, 10):
+            cos_sg.append(state[f"cos_sg{i}"].data[:-1, :-1])
+            sin_sg.append(state[f"sin_sg{i}"].data[:-1, :-1])
+        cos_sg = state["grid"].np.array(cos_sg).transpose([1,2,0])
+        sin_sg = state["grid"].np.array(sin_sg).transpose([1,2,0])
+        nhalo = self.grid.halo
+        state["ee1"].data[nhalo:-nhalo, nhalo:-nhalo, :], state["ee2"].data[nhalo:-nhalo, nhalo:-nhalo, :] = generate_xy_unit_vectors(xyz_dgrid, nhalo, communicator.tile.partitioner, communicator.tile.rank, state["grid"].np)
+        state["cosa"].data[:, :], state["sina"].data[:, :], state["cosa_u"].data[:, :-1], state["cosa_v"].data[:-1, :], state["cosa_s"].data[:-1, :-1], state["sina_u"].data[:, :-1], state["sina_v"].data[:-1, :], state["rsin_u"].data[:, :-1], state["rsin_v"].data[:-1, :], state["rsina"].data[nhalo:-nhalo, nhalo:-nhalo], state["rsin2"].data[:-1, :-1] = calculate_trig_uv(xyz_dgrid, cos_sg, sin_sg, nhalo, 
+            communicator.tile.partitioner, communicator.tile.rank, state["grid"].np
+        )
+        return state
+
+
+class TranslateFixSgCorners(ParallelTranslateGrid):
+    inputs: Dict[str, Any] = {
+        "cos_sg1": {
+            "name": "cos_sg1",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "sin_sg1": {
+            "name": "sin_sg1",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "cos_sg2": {
+            "name": "cos_sg2",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "sin_sg2": {
+            "name": "sin_sg2",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "cos_sg3": {
+            "name": "cos_sg3",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "sin_sg3": {
+            "name": "sin_sg3",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "cos_sg4": {
+            "name": "cos_sg4",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "sin_sg4": {
+            "name": "sin_sg4",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "cos_sg5": {
+            "name": "cos_sg5",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "sin_sg5": {
+            "name": "sin_sg5",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "cos_sg6": {
+            "name": "cos_sg6",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "sin_sg6": {
+            "name": "sin_sg6",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "cos_sg7": {
+            "name": "cos_sg7",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "sin_sg7": {
+            "name": "sin_sg7",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "cos_sg8": {
+            "name": "cos_sg8",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "sin_sg8": {
+            "name": "sin_sg8",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "cos_sg9": {
+            "name": "cos_sg9",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "sin_sg9": {
+            "name": "sin_sg9",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+    }
+    outputs: Dict[str, Any] = {
+        "cos_sg1": {
+            "name": "cos_sg1",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "sin_sg1": {
+            "name": "sin_sg1",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "cos_sg2": {
+            "name": "cos_sg2",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "sin_sg2": {
+            "name": "sin_sg2",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "cos_sg3": {
+            "name": "cos_sg3",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "sin_sg3": {
+            "name": "sin_sg3",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "cos_sg4": {
+            "name": "cos_sg4",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "sin_sg4": {
+            "name": "sin_sg4",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "cos_sg5": {
+            "name": "cos_sg5",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "sin_sg5": {
+            "name": "sin_sg5",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "cos_sg6": {
+            "name": "cos_sg6",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "sin_sg6": {
+            "name": "sin_sg6",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "cos_sg7": {
+            "name": "cos_sg7",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "sin_sg7": {
+            "name": "sin_sg7",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "cos_sg8": {
+            "name": "cos_sg8",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "sin_sg8": {
+            "name": "sin_sg8",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "cos_sg9": {
+            "name": "cos_sg9",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "sin_sg9": {
+            "name": "sin_sg9",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+    }
+    def compute_sequential(self, inputs_list, communicator_list):
+        state_list = []
+        for inputs, communicator in zip(inputs_list, communicator_list):
+            state_list.append(self._compute_local(inputs, communicator))
+        return self.outputs_list_from_state_list(state_list)
+
+    def _compute_local(self, inputs, communicator):
+        state = self.state_from_inputs(inputs)
+        cos_sg = []
+        sin_sg = []
+        for i in range(1, 10):
+            cos_sg.append(state[f"cos_sg{i}"].data[:-1, :-1])
+            sin_sg.append(state[f"sin_sg{i}"].data[:-1, :-1])
+        cos_sg = state["cos_sg1"].np.array(cos_sg).transpose(1, 2, 0)
+        sin_sg = state["cos_sg1"].np.array(sin_sg).transpose(1, 2, 0)
+        supergrid_corner_fix(
+            cos_sg, sin_sg, self.grid.halo, 
+            communicator.tile.partitioner, communicator.tile.rank
+        )
+        for i in range(1,10):
+            state[f"cos_sg{i}"].data[:-1, :-1] = cos_sg[:,:,i-1]
+            state[f"sin_sg{i}"].data[:-1, :-1] = sin_sg[:,:,i-1]
+        return state
+
+
+class TranslateDivgDel6(ParallelTranslateGrid):
+    inputs: Dict[str, Any] = {
+        "sin_sg1": {
+            "name": "sin_sg1",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "sin_sg2": {
+            "name": "sin_sg2",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "sin_sg3": {
+            "name": "sin_sg3",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "sin_sg4": {
+            "name": "sin_sg4",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "sina_u": {
+            "name": "sina_u",
+            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "sina_v": {
+            "name": "sina_v",
+            "dims": [fv3util.X_DIM, fv3util.Y_INTERFACE_DIM],
+            "units": ""
+        },
+        "dx": {
+            "name": "dx",
+            "dims": [fv3util.X_DIM, fv3util.Y_INTERFACE_DIM],
+            "units": "m",
+        },
+        "dy": {
+            "name": "dy",
+            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM],
+            "units": "m",
+        },
+        "dxc": {
+            "name": "dx_cgrid",
+            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM],
+            "units": "m",
+        },
+        "dyc": {
+            "name": "dy_cgrid",
+            "dims": [fv3util.X_DIM, fv3util.Y_INTERFACE_DIM],
+            "units": "",
+        },
+        "divg_u": {
+            "name": "divg_u",
+            "dims": [fv3util.X_DIM, fv3util.Y_INTERFACE_DIM],
+            "units": "",
+        },
+        "divg_v": {
+            "name": "divg_v",
+            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM],
+            "units": "m",
+        },
+        "del6_u": {
+            "name": "del6_u",
+            "dims": [fv3util.X_DIM, fv3util.Y_INTERFACE_DIM],
+            "units": "",
+        },
+        "del6_v": {
+            "name": "del6_v",
+            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM],
+            "units": "",
+        },
+    }
+    outputs: Dict[str, Any] = {
+        "divg_u": {
+            "name": "divg_u",
+            "dims": [fv3util.X_DIM, fv3util.Y_INTERFACE_DIM],
+            "units": "",
+        },
+        "divg_v": {
+            "name": "divg_v",
+            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM],
+            "units": "",
+        },
+        "del6_u": {
+            "name": "del6_u",
+            "dims": [fv3util.X_DIM, fv3util.Y_INTERFACE_DIM],
+            "units": "",
+        },
+        "del6_v": {
+            "name": "del6_v",
+            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM],
+            "units": "",
+        },
+    }
+    def compute_sequential(self, inputs_list, communicator_list):
+        state_list = []
+        for inputs, communicator in zip(inputs_list, communicator_list):
+            state_list.append(self._compute_local(inputs, communicator))
+        return self.outputs_list_from_state_list(state_list)
+
+    def _compute_local(self, inputs, communicator):
+        state = self.state_from_inputs(inputs)
+        sin_sg = []
+        for i in range(1, 5):
+            sin_sg.append(state[f"sin_sg{i}"].data[:-1, :-1])
+        sin_sg = state["sin_sg1"].np.array(sin_sg).transpose(1, 2, 0)
+        state["divg_u"].data[:-1, :], state["divg_v"].data[:, :-1], state["del6_u"].data[:-1, :], state["del6_v"].data[:, :-1] = calculate_divg_del6(
+            sin_sg, state["sina_u"].data[:,:-1], state["sina_v"].data[:-1,:], 
+            state["dx"].data[:-1, :], state["dy"].data[:, :-1], state["dx_cgrid"].data[:, :-1], state["dy_cgrid"].data[:-1, :], self.grid.halo, 
+            communicator.tile.partitioner, communicator.tile.rank
+        )
+        return state
+
+
+class TranslateInitCubedtoLatLon(ParallelTranslateGrid):
+    def __init__(self, grids):
+        super().__init__(grids)
+        self._base.in_vars["data_vars"] = {
+            "ec1" : {
+                "kend": 2,
+                "kaxis": 0,
+            },
+            "ec2" : {
+                "kend": 2,
+                "kaxis": 0,
+            },
+        }
+
+    inputs: Dict[str, Any] = {
+        "agrid": {
+            "name": "agrid",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM, LON_OR_LAT_DIM],
+            "units": "radians",
+        },
+        "ec1": {
+            "name":"ec1",
+            "dims":[CARTESIAN_DIM, fv3util.X_DIM, fv3util.Y_DIM],
+            "units": "",
+        },
+        "ec2": {
+            "name":"ec2",
+            "dims":[CARTESIAN_DIM, fv3util.X_DIM, fv3util.Y_DIM],
+            "units": "",
+        },
+        "sin_sg5": {
+            "name": "sin_sg5",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+    }
+    outputs: Dict[str, Any] = {
+        "vlon": {
+            "name": "vlon",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM, CARTESIAN_DIM],
+            "units": "",
+            "n_halo": 2,
+        },
+        "vlat": {
+            "name": "vlat",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM, CARTESIAN_DIM],
+            "units": "",
+            "n_halo": 2,
+        },
+        "z11": {
+            "name": "z11",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": "",
+            "n_halo": 1,
+        },
+        "z12": {
+            "name": "z12",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": "",
+            "n_halo": 1,
+        },
+        "z21": {
+            "name": "z21",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": "",
+            "n_halo": 1,
+        },
+        "z22": {
+            "name": "z22",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": "",
+            "n_halo": 1,
+        },
+        "a11": {
+            "name": "a11",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": "",
+            "n_halo": 1,
+        },
+        "a12": {
+            "name": "a12",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": "",
+            "n_halo": 1,
+        },
+        "a21": {
+            "name": "a21",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": "",
+            "n_halo": 1,
+        },
+        "a22": {
+            "name": "a22",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": "",
+            "n_halo": 1,
+        },
+    }
+    def compute_sequential(self, inputs_list, communicator_list):
+        state_list = []
+        for inputs in inputs_list:
+            state_list.append(self._compute_local(inputs))
+        return self.outputs_list_from_state_list(state_list)
+    
+    def _compute_local(self, inputs):
+        state = self.state_from_inputs(inputs)
+        state["vlon"] = self.grid.quantity_factory.zeros(
+            [fv3util.X_DIM, fv3util.Y_DIM, CARTESIAN_DIM], ""
+        )
+        state["vlat"] = self.grid.quantity_factory.zeros(
+            [fv3util.X_DIM, fv3util.Y_DIM, CARTESIAN_DIM], ""
+        )
+        state["z11"] = self.grid.quantity_factory.zeros(
+            [fv3util.X_DIM, fv3util.Y_DIM], ""
+        )
+        state["z12"] = self.grid.quantity_factory.zeros(
+            [fv3util.X_DIM, fv3util.Y_DIM], ""
+        )
+        state["z21"] = self.grid.quantity_factory.zeros(
+            [fv3util.X_DIM, fv3util.Y_DIM], ""
+        )
+        state["z22"] = self.grid.quantity_factory.zeros(
+            [fv3util.X_DIM, fv3util.Y_DIM], ""
+        )
+        state["a11"] = self.grid.quantity_factory.zeros(
+            [fv3util.X_DIM, fv3util.Y_DIM], ""
+        )
+        state["a12"] = self.grid.quantity_factory.zeros(
+            [fv3util.X_DIM, fv3util.Y_DIM], ""
+        )
+        state["a21"] = self.grid.quantity_factory.zeros(
+            [fv3util.X_DIM, fv3util.Y_DIM], ""
+        )
+        state["a22"] = self.grid.quantity_factory.zeros(
+            [fv3util.X_DIM, fv3util.Y_DIM], ""
+        )
+
+        state["vlon"].data[:-1, :-1], state["vlat"].data[:-1, :-1] = unit_vector_lonlat(state["agrid"].data[:-1, :-1], state["agrid"].np)
+        state["z11"].data[:-1, :-1], state["z12"].data[:-1, :-1], state["z21"].data[:-1, :-1], state["z22"].data[:-1, :-1] = calculate_grid_z(
+            state["ec1"].data[:-1, :-1], state["ec2"].data[:-1, :-1], state["vlon"].data[:-1, :-1], state["vlat"].data[:-1, :-1], state["agrid"].np
+        )
+        state["a11"].data[:-1, :-1], state["a12"].data[:-1, :-1], state["a21"].data[:-1, :-1], state["a22"].data[:-1, :-1] = calculate_grid_a(
+            state["z11"].data[:-1, :-1], state["z12"].data[:-1, :-1], state["z21"].data[:-1, :-1], state["z22"].data[:-1, :-1], state["sin_sg5"].data[:-1, :-1]
+        )
+        return state
+
+
+class TranslateEdgeFactors(ParallelTranslateGrid):
+    inputs: Dict[str, Any] = {
+        "grid": {
+            "name": "grid",
+            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM, LON_OR_LAT_DIM],
+            "units": "radians",
+        },
+        "agrid": {
+            "name": "agrid",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM, LON_OR_LAT_DIM],
+            "units": "radians",
+        },
+        "edge_s": {
+            "name": "edge_s",
+            "dims": [fv3util.X_INTERFACE_DIM],
+            "units": "",
+            "n_halo": 0,
+        },
+        "edge_n": {
+            "name": "edge_n",
+            "dims": [fv3util.X_INTERFACE_DIM],
+            "units": "",
+            "n_halo": 0,
+        },
+        "edge_e": {
+            "name": "edge_e",
+            "dims": [fv3util.Y_INTERFACE_DIM],
+            "units": "",
+            "n_halo": 0,
+        },
+        "edge_w": {
+            "name": "edge_w",
+            "dims": [fv3util.Y_INTERFACE_DIM],
+            "units": "",
+            "n_halo": 0,
+        },
+        "edge_vect_s": {
+            "name": "edge_vect_s",
+            "dims": [fv3util.X_DIM],
+            "units": "",
+        },
+        "edge_vect_n": {
+            "name": "edge_vect_n",
+            "dims": [fv3util.X_DIM],
+            "units": "",
+        },
+        "edge_vect_e": {
+            "name": "edge_vect_e",
+            "dims": [fv3util.Y_DIM],
+            "units": "",
+        },
+        "edge_vect_w": {
+            "name": "edge_vect_w",
+            "dims": [fv3util.Y_DIM],
+            "units": "",
+        },
+    }
+    outputs: Dict[str, Any] = {
+        "edge_s": {
+            "name": "edge_s",
+            "dims": [fv3util.X_INTERFACE_DIM],
+            "units": "",
+            "n_halo": 0,
+        },
+        "edge_n": {
+            "name": "edge_n",
+            "dims": [fv3util.X_INTERFACE_DIM],
+            "units": "",
+            "n_halo": 0,
+        },
+        "edge_e": {
+            "name": "edge_e",
+            "dims": [fv3util.Y_INTERFACE_DIM],
+            "units": "",
+            "n_halo": 0,
+        },
+        "edge_w": {
+            "name": "edge_w",
+            "dims": [fv3util.Y_INTERFACE_DIM],
+            "units": "",
+            "n_halo": 0,
+        },
+        "edge_vect_s": {
+            "name": "edge_vect_s",
+            "dims": [fv3util.X_DIM],
+            "units": "",
+        },
+        "edge_vect_n": {
+            "name": "edge_vect_n",
+            "dims": [fv3util.X_DIM],
+            "units": "",
+        },
+        "edge_vect_e": {
+            "name": "edge_vect_e",
+            "dims": [fv3util.Y_DIM],
+            "units": "",
+        },
+        "edge_vect_w": {
+            "name": "edge_vect_w",
+            "dims": [fv3util.Y_DIM],
+            "units": "",
+        },
+    }
+    def compute_sequential(self, inputs_list, communicator_list):
+        state_list = []
+        for inputs, communicator in zip(inputs_list, communicator_list):
+            state_list.append(self._compute_local(inputs, communicator))
+        return self.outputs_list_from_state_list(state_list)
+
+    def _compute_local(self, inputs, communicator):
+        state = self.state_from_inputs(inputs)
+        nhalo = self.grid.halo
+        state["edge_w"].data[nhalo:-nhalo], state["edge_e"].data[nhalo:-nhalo], state["edge_s"].data[nhalo:-nhalo], state["edge_n"].data[nhalo:-nhalo] = edge_factors(
+            state["grid"].data[:], state["agrid"].data[:-1, :-1], self.grid.grid_type, nhalo, 
+            communicator.tile.partitioner, communicator.tile.rank, RADIUS, state["grid"].np
+        )
+        state["edge_vect_w"].data[:-1], state["edge_vect_e"].data[:-1], state["edge_vect_s"].data[:-1], state["edge_vect_n"].data[:-1] = efactor_a2c_v(
+            state["grid"].data[:], state["agrid"].data[:-1, :-1], self.grid.grid_type, nhalo, 
+            communicator.tile.partitioner, communicator.tile.rank, RADIUS, state["grid"].np
+        )
+        return state
+
+
+class TranslateInitGridUtils(ParallelTranslateGrid):
+    def __init__(self, grids):
+        super().__init__(grids)
+        self._base.in_vars["data_vars"] = {
+            "ec1" : {
+                "kend": 2,
+                "kaxis": 0,
+            },
+            "ec2" : {
+                "kend": 2,
+                "kaxis": 0,
+            },
+            "ew1" : {
+                "kend": 2,
+                "kaxis": 0,
+            },
+            "ew2" : {
+                "kend": 2,
+                "kaxis": 0,
+            },
+            "es1" : {
+                "kend": 2,
+                "kaxis": 0,
+            },
+            "es2" : {
+                "kend": 2,
+                "kaxis": 0,
+            },
+            "ee1" : {
+                "kend": 2,
+                "kaxis": 0,
+            },
+            "ee2" : {
+                "kend": 2,
+                "kaxis": 0,
+            },
+        }
 
     inputs: Dict[str, Any] = {
         "gridvar": {
@@ -1295,238 +2686,343 @@ class TranslateInitGridUtils(ParallelTranslateGrid):
             "units": "m",
         },
     }
-    """!$ser
-data
-edge_s=Atm(n)%gridstruct%edge_s
-edge_n=Atm(n)%gridstruct%edge_n
-edge_w=Atm(n)%gridstruct%edge_w
-edge_e=Atm(n)%gridstruct%edge_e
-del6_u=Atm(n)%gridstruct%del6_u
-del6_v=Atm(n)%gridstruct%del6_v
-divg_u=Atm(n)%gridstruct%divg_u
-divg_v=Atm(n)%gridstruct%divg_v
-cosa_u=Atm(n)%gridstruct%cosa_u
-cosa_v=Atm(n)%gridstruct%cosa_v
-cosa_s=Atm(n)%gridstruct%cosa_s
-cosa=Atm(n)%gridstruct%cosa
-sina_u=Atm(n)%gridstruct%sina_u
-sina_v=Atm(n)%gridstruct%sina_v
-rsin_u=Atm(n)%gridstruct%rsin_u
-rsin_v=Atm(n)%gridstruct%rsin_v
-rsina=Atm(n)%gridstruct%rsina
-rsin2=Atm(n)%gridstruct%rsin2
-sina=Atm(n)%gridstruct%sina
-sin_sg=Atm(n)%gridstruct%sin_sg
-cos_sg=Atm(n)%gridstruct%cos_sg
-ks=Atm(n)%ks
-ptop=Atm(n)%ptop
-ak=Atm(n)%ak
-bk=Atm(n)%bk
-a11=Atm(n)%gridstruct%a11
-a12=Atm(n)%gridstruct%a12
-a21=Atm(n)%gridstruct%a21
-a22=Atm(n)%gridstruct%a22
-da_min=Atm(n)%gridstruct%da_min
-da_max=Atm(n)%gridstruct%da_max
-da_min_c=Atm(n)%gridstruct%da_min_c
-da_max_c=Atm(n)%gridstruct%da_max_c
-sw_corner=Atm(n)%gridstruct%sw_corner
-se_corner=Atm(n)%gridstruct%se_corner
-ne_corner=Atm(n)%gridstruct%ne_corner
-nw_corner=Atm(n)%gridstruct%nw_corner"""
     outputs: Dict[str, Any] = {
-        "aaa": {
-            "name": "bbb",
-            "dims": [],
-            "units": "ccc"
-        },
         "edge_s": {
             "name": "edge_south",
-            "dims": [],
+            "dims": [fv3util.X_DIM],
             "units": ""
         },
         "edge_n": {
             "name": "edge_north",
-            "dims": [],
+            "dims": [fv3util.X_DIM],
             "units": ""
         },
         "edge_w": {
             "name": "edge_w",
-            "dims": [],
+            "dims": [fv3util.Y_DIM],
             "units": ""
         },
         "edge_e": {
             "name": "edge_e",
-            "dims": [],
+            "dims": [fv3util.Y_DIM],
+            "units": "ccc"
+        },
+        "edge_vect_s": {
+            "name": "edge_vect_south",
+            "dims": [fv3util.X_DIM],
+            "units": ""
+        },
+        "edge_vect_n": {
+            "name": "edge_vect_north",
+            "dims": [fv3util.X_DIM],
+            "units": ""
+        },
+        "edge_vect_w": {
+            "name": "edge_vect_w",
+            "dims": [fv3util.Y_DIM],
+            "units": ""
+        },
+        "edge_vect_e": {
+            "name": "edge_vect_e",
+            "dims": [fv3util.Y_DIM],
             "units": "ccc"
         },
         "del6_u": {
             "name": "del6_u",
-            "dims": [],
-            "units": ""
+            "dims": [fv3util.X_DIM, fv3util.Y_INTERFACE_DIM],
+            "units": "",
         },
         "del6_v": {
             "name": "del6_v",
-            "dims": [],
-            "units": ""
+            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM],
+            "units": "",
         },
         "divg_u": {
             "name": "divg_u",
-            "dims": [],
-            "units": ""
+            "dims": [fv3util.X_DIM, fv3util.Y_INTERFACE_DIM],
+            "units": "",
         },
         "divg_v": {
             "name": "divg_v",
-            "dims": [],
-            "units": ""
+            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM],
+            "units": "",
         },
         "cosa_u": {
             "name": "cosa_u",
-            "dims": [],
+            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM],
             "units": ""
         },
         "cosa_v": {
             "name": "cosa_v",
-            "dims": [],
+            "dims": [fv3util.X_DIM, fv3util.Y_INTERFACE_DIM],
             "units": ""
         },
         "cosa_s": {
             "name": "cosa_s",
-            "dims": [],
-            "units": ""
-        },
-        "cosa": {
-            "name": "cosa",
-            "dims": [],
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
             "units": ""
         },
         "sina_u": {
             "name": "sina_u",
-            "dims": [],
+            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM],
             "units": ""
         },
         "sina_v": {
             "name": "sina_v",
-            "dims": [],
+            "dims": [fv3util.X_DIM, fv3util.Y_INTERFACE_DIM],
             "units": ""
         },
         "rsin_u": {
             "name": "rsin_u",
-            "dims": [],
+            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM],
             "units": ""
         },
         "rsin_v": {
             "name": "rsin_v",
-            "dims": [],
+            "dims": [fv3util.X_DIM, fv3util.Y_INTERFACE_DIM],
             "units": ""
         },
         "rsina": {
             "name": "rsina",
-            "dims": [],
-            "units": ""
+            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM],
+            "units": "",
+            "n_halo": 0,
         },
         "rsin2": {
             "name": "rsin2",
-            "dims": [],
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
             "units": ""
+        },
+        "cosa": {
+            "name": "cosa",
+            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM],
+            "units": "",
         },
         "sina": {
             "name": "sina",
-            "dims": [],
+            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM],
+            "units": "",
+        },
+        "cos_sg1": {
+            "name": "cos_sg1",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
             "units": ""
         },
-        "sin_sg": {
-            "name": "sin_sg",
-            "dims": [],
+        "sin_sg1": {
+            "name": "sin_sg1",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
             "units": ""
         },
-        "cos_sg": {
-            "name": "cos_sg",
-            "dims": [],
+        "cos_sg2": {
+            "name": "cos_sg2",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "sin_sg2": {
+            "name": "sin_sg2",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "cos_sg3": {
+            "name": "cos_sg3",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "sin_sg3": {
+            "name": "sin_sg3",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "cos_sg4": {
+            "name": "cos_sg4",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "sin_sg4": {
+            "name": "sin_sg4",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "cos_sg5": {
+            "name": "cos_sg5",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "sin_sg5": {
+            "name": "sin_sg5",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "cos_sg6": {
+            "name": "cos_sg6",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "sin_sg6": {
+            "name": "sin_sg6",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "cos_sg7": {
+            "name": "cos_sg7",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "sin_sg7": {
+            "name": "sin_sg7",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "cos_sg8": {
+            "name": "cos_sg8",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "sin_sg8": {
+            "name": "sin_sg8",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "cos_sg9": {
+            "name": "cos_sg9",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": ""
+        },
+        "sin_sg9": {
+            "name": "sin_sg9",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
             "units": ""
         },
         "ks": {
             "name": "ks",
             "dims": [],
-            "units": ""
+            "units": "",
         },
         "ptop": {
             "name": "ptop",
             "dims": [],
-            "units": ""
+            "units": "mb",
         },
         "ak": {
             "name": "ak",
-            "dims": [],
-            "units": ""
+            "dims": [fv3util.Z_INTERFACE_DIM],
+            "units": "mb",
         },
         "bk": {
             "name": "bk",
-            "dims": [],
-            "units": ""
+            "dims": [fv3util.Z_INTERFACE_DIM],
+            "units": "",
+        },"vlon": {
+            "name": "vlon",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM, CARTESIAN_DIM],
+            "units": "",
+        },
+        "vlat": {
+            "name": "vlat",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM, CARTESIAN_DIM],
+            "units": "",
+        },
+        "z11": {
+            "name": "z11",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": "",
+        },
+        "z12": {
+            "name": "z12",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": "",
+        },
+        "z21": {
+            "name": "z21",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": "",
+        },
+        "z22": {
+            "name": "z22",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": "",
         },
         "a11": {
             "name": "a11",
-            "dims": [],
-            "units": ""
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": "",
         },
         "a12": {
             "name": "a12",
-            "dims": [],
-            "units": ""
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": "",
         },
         "a21": {
             "name": "a21",
-            "dims": [],
-            "units": ""
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": "",
         },
         "a22": {
             "name": "a22",
-            "dims": [],
-            "units": ""
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": "",
         },
         "da_min": {
             "name": "da_min",
             "dims": [],
-            "units": ""
+            "units": "m^2"
         },
         "da_max": {
             "name": "da_max",
             "dims": [],
-            "units": ""
+            "units": "m^2"
         },
         "da_min_c": {
             "name": "da_min_c",
             "dims": [],
-            "units": ""
+            "units": "m^2"
         },
         "da_max_c": {
             "name": "da_max_c",
             "dims": [],
+            "units": "m^2"
+        },
+        "ec1": {
+            "name":"ec1",
+            "dims":[CARTESIAN_DIM, fv3util.X_DIM, fv3util.Y_DIM],
+            "units": "",
+        },
+        "ec2": {
+            "name":"ec2",
+            "dims":[CARTESIAN_DIM, fv3util.X_DIM, fv3util.Y_DIM],
+            "units": "",
+        },
+        "ew": {
+            "name":"ew",
+            "dims":[CARTESIAN_DIM, fv3util.X_INTERFACE_DIM, fv3util.Y_DIM, LON_OR_LAT_DIM],
+            "units": "",
+        },
+        "es": {
+            "name":"es",
+            "dims":[CARTESIAN_DIM, fv3util.X_DIM, fv3util.Y_INTERFACE_DIM, LON_OR_LAT_DIM],
+            "units": "",
+        },
+        "l2c_v": {
+            "name": "l2c_v",
+            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM],
+            "units": "",
+        },
+        "l2c_u": {
+            "name":"l2c_v",
+            "dims":[fv3util.X_DIM, fv3util.Y_INTERFACE_DIM],
             "units": ""
         },
-        "sw_corner": {
-            "name": "sw_corner",
-            "dims": [],
+        "ee1": {
+            "name": "ee1",
+            "dims": [CARTESIAN_DIM, fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM],
             "units": ""
         },
-        "se_corner": {
-            "name": "se_corner",
-            "dims": [],
-            "units": ""
-        },
-        "nw_corner": {
-            "name": "nw_corner",
-            "dims": [],
-            "units": ""
-        },
-        "ne_corner": {
-            "name": "ne_corner",
-            "dims": [],
+        "ee2": {
+            "name": "ee2",
+            "dims": [CARTESIAN_DIM, fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM],
             "units": ""
         },
     }
-
     def compute_sequential(self, inputs_list, communicator_list):
         state_list = []
         for inputs in inputs_list:
@@ -1535,34 +3031,276 @@ nw_corner=Atm(n)%gridstruct%nw_corner"""
             fill_corners_2d(
                 state["grid"].data[:, :, :], self.grid, gridtype="B", direction="x"
             )
-            state_list[i] = _compute_local_part2(state)
-            
+            state_list[i] = self._compute_local_part_1(state, communicator_list[i])
         
+        #TODO: omega and norm_vect computation if needed
+        
+        for i, state in enumerate(state_list):
+            state_list[i] = self._compute_local_part2(state, communicator_list[i])
+        
+        #TODO: implement allreduce to get da_min, da_max, da_min_c, and da_max_c
+        #temporary hack is possible by looping over ranks here:
+        min_da = []
+        max_da = []
+        min_da_c = []
+        max_da_c = []
+        for state in state_list:
+            min_da.append(state["grid"].np.min(state["area"].data[:]))
+            max_da.append(state["grid"].np.max(state["area"].data[:]))
+            min_da_c.append(state["grid"].np.min(state["area_c"].data[:]))
+            max_da_c.append(state["grid"].np.max(state["area_c"].data[:]))
+        da_min = min(min_da)
+        da_max = max(max_da)
+        da_min_c = min(min_da_c)
+        da_max_c = max(max_da_c)
+        for i, state in enumerate(state_list):
+            state["da_min"] = self.grid.quantity_factory.zeros(
+                [], ""
+            )
+            state["da_min"].data[:] = da_min
+            state["da_max"] = self.grid.quantity_factory.zeros(
+                [], ""
+            )
+            state["da_max"].data[:] = da_max
+            state["da_min_c"] = self.grid.quantity_factory.zeros(
+                [], ""
+            )
+            state["da_min_c"].data[:] = da_min_c
+            state["da_max_c"] = self.grid.quantity_factory.zeros(
+                [], ""
+            )
+            state["da_max_c"].data[:] = da_max_c
 
-            
+        for i, state in enumerate(state_list):
+            state_list[i] = self._compute_local_edges(state, communicator_list[i])
+
         return self.outputs_list_from_state_list(state_list)
 
 
     def _compute_local_eta(self, inputs):
         state = self.state_from_inputs(inputs)
-        state["eta"] = set_eta(state)
+        state["ks"] = self.grid.quantity_factory.zeros(
+            [], ""
+        )
+        state["ptop"] = self.grid.quantity_factory.zeros(
+            [], "mb"
+        )
+        state["ak"] = self.grid.quantity_factory.zeros(
+            [fv3util.Z_INTERFACE_DIM], "mb"
+        )
+        state["bk"] = self.grid.quantity_factory.zeros(
+            [fv3util.Z_INTERFACE_DIM], "mb"
+        )
+        state["ks"].data[:], state["ptop"].data[:], state["ak"].data[:], state["bk"].data[:] = set_eta(self.grid.npz)
         return state
 
-    def _compute_local_part2(self, state):
+    def _compute_local_part_1(self, state, communicator):
         xyz_dgrid = lon_lat_to_xyz(state["grid"].data[:,:,0], state["grid"].data[:,:,1], state["grid"].np)
-        center_vector1, center_vector2 = get_center_vector(xyz_dgrid, self.grid.halo)
-        center_vector1[:self.grid.halo, :self.grid.halo, :] = 1.e8
-        center_vector1[:self.grid.halo, -self.grid.halo:, :] = 1.e8
-        center_vector1[-self.grid.halo:, :self.grid.halo, :] = 1.e8
-        center_vector1[-self.grid.halo:, -self.grid.halo:, :] = 1.e8
+        state["ec1"] = self.grid.quantity_factory.zeros(
+            [fv3util.X_DIM, fv3util.Y_DIM, CARTESIAN_DIM], ""
+        )
+        state["ec2"] = self.grid.quantity_factory.zeros(
+            [fv3util.X_DIM, fv3util.Y_DIM, CARTESIAN_DIM], ""
+        )
+        state["ew"] = self.grid.quantity_factory.zeros(
+            [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM, CARTESIAN_DIM, LON_OR_LAT_DIM], ""
+        )
+        state["es"] = self.grid.quantity_factory.zeros(
+            [fv3util.X_DIM, fv3util.Y_INTERFACE_DIM, CARTESIAN_DIM, LON_OR_LAT_DIM], ""
+        )
+        xyz_dgrid = lon_lat_to_xyz(state["grid"].data[:,:,0], state["grid"].data[:,:,1], state["grid"].np)
+        xyz_agrid = lon_lat_to_xyz(state["agrid"].data[:,:,0], state["agrid"].data[:,:,1], state["grid"].np)
+        state["ec1"].data[:], state["ec2"].data[:] = get_center_vector(xyz_dgrid, self.grid.grid_type, self.grid.halo,
+            communicator.tile.partitioner, communicator.tile.rank, state["grid"].np
+        )
+        state["ew"].data[:] = calc_unit_vector_west(
+            xyz_dgrid, xyz_agrid, self.grid.grid_type, self.grid.halo, 
+            communicator.tile.partitioner, communicator.tile.rank, state["grid"].np
+        )
+        state["es"].data[:] = calc_unit_vector_south(
+            xyz_dgrid, xyz_agrid, self.grid.grid_type, self.grid.halo, 
+            communicator.tile.partitioner, communicator.tile.rank, state["grid"].np
+        )
 
-        center_vector2[:self.grid.halo, :self.grid.halo, :] = 1.e8
-        center_vector2[:self.grid.halo, -self.grid.halo:, :] = 1.e8
-        center_vector2[-self.grid.halo:, :self.grid.halo, :] = 1.e8
-        center_vector2[-self.grid.halo:, -self.grid.halo:, :] = 1.e8
+        cos_sg, sin_sg = calculate_supergrid_cos_sin(
+            xyz_dgrid, xyz_agrid, state["ec1"].data[:], state["ec2"].data[:], self.grid.grid_type, self.grid.halo, 
+            communicator.tile.partitioner, communicator.tile.rank, state["agrid"].np
+        )
+        for i in range(1,10):
+            state[f"cos_sg{i}"] = self.grid.quantity_factory.zeros(
+                [fv3util.X_DIM, fv3util.Y_DIM], ""
+            )
+            state[f"cos_sg{i}"].data[:] = cos_sg[:,:,i-1]
+            state[f"sin_sg{i}"] = self.grid.quantity_factory.zeros(
+                [fv3util.X_DIM, fv3util.Y_DIM], ""
+            )
+            state[f"sin_sg{i}"].data[:] = sin_sg[:,:,i-1]
+
+        state["l2c_v"] = self.grid.quantity_factory.zeros(
+            [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM], ""
+        )
+        state["l2c_u"] = self.grid.quantity_factory.zeros(
+            [fv3util.X_DIM, fv3util.Y_INTERFACE_DIM], ""
+        )
+        state["l2c_v"].data[:], state["l2c_u"].data[:] = calculate_l2c_vu(
+            state["grid"].data[:], xyz_dgrid, self.grid.halo, state["grid"].np
+        )
+
+        state["cosa_u"] = self.grid.quantity_factory.zeros(
+            [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM], ""
+        )
+        state["cosa_v"] = self.grid.quantity_factory.zeros(
+            [fv3util.X_DIM, fv3util.Y_INTERFACE_DIM], ""
+        )
+        state["cosa_s"] = self.grid.quantity_factory.zeros(
+            [fv3util.X_DIM, fv3util.Y_DIM], ""
+        )
+        state["sina_u"] = self.grid.quantity_factory.zeros(
+            [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM], ""
+        )
+        state["sina_v"] = self.grid.quantity_factory.zeros(
+            [fv3util.X_DIM, fv3util.Y_INTERFACE_DIM], ""
+        )
+        state["rsin_u"] = self.grid.quantity_factory.zeros(
+            [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM], ""
+        )
+        state["rsin_v"] = self.grid.quantity_factory.zeros(
+            [fv3util.X_DIM, fv3util.Y_INTERFACE_DIM], ""
+        )
+        state["rsina"] = self.grid.quantity_factory.zeros(
+            [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM], ""
+        )
+        state["rsin2"] = self.grid.quantity_factory.zeros(
+            [fv3util.X_DIM, fv3util.Y_DIM], ""
+        )
+        state["cosa"] = self.grid.quantity_factory.zeros(
+            [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM], ""
+        )
+        state["sina"] = self.grid.quantity_factory.zeros(
+            [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM], ""
+        )
+        state["ee1"] = self.grid.quantity_factory.zeros(
+            [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM, CARTESIAN_DIM], ""
+        )
+        state["ee2"] = self.grid.quantity_factory.zeros(
+            [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM, CARTESIAN_DIM], ""
+        )
+        state["cosa"].data[:], state["sina"].data[:], state["cosa_u"].data[:], state["cosa_v"].data[:], state["cosa_s"].data[:], state["sina_u"].data[:], state["sina_v"].data[:], state["rsin_u"].data[:], state["rsin_v"].data[:], state["rsina"].data[:], state["rsin2"].data[:], state["ee1"].data[:], state["ee2"].data[:] = calculate_trig_uv(xyz_dgrid, cos_sg, sin_sg, self.grid.halo, 
+            communicator.tile.partitioner, communicator.tile.rank, state["grid"].np
+        )
+
+        supergrid_corner_fix(
+            cos_sg, sin_sg, self.grid.halo, 
+            communicator.tile.partitioner, communicator.tile.rank
+        )
+        for i in range(1,10):
+            state[f"cos_sg{i}"] = self.grid.quantity_factory.zeros(
+                [fv3util.X_DIM, fv3util.Y_DIM], ""
+            )
+            state[f"cos_sg{i}"].data[:-1, :-1] = cos_sg[:,:,i-1]
+            state[f"sin_sg{i}"] = self.grid.quantity_factory.zeros(
+                [fv3util.X_DIM, fv3util.Y_DIM], ""
+            )
+            state[f"sin_sg{i}"].data[:-1, :-1] = sin_sg[:,:,i-1]
 
         return state
 
-    def _compute_outputs(self, state):
-        outputs = self.outputs_from_state(state)
-        return outputs
+    def _compute_local_part2(self, state, communicator):
+        state["del6_u"] = self.grid.quantity_factory.zeros(
+            [fv3util.X_DIM, fv3util.Y_INTERFACE_DIM], ""
+        )
+        state["del6_v"] = self.grid.quantity_factory.zeros(
+            [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM], ""
+        )
+        state["divg_u"] = self.grid.quantity_factory.zeros(
+            [fv3util.X_DIM, fv3util.Y_INTERFACE_DIM], ""
+        )
+        state["divg_v"] = self.grid.quantity_factory.zeros(
+            [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM], ""
+        )
+        sin_sg = []
+        for i in range(1, 10):
+            sin_sg.append(state[f"sin_sg{i}"].data[:-1, :-1])
+        state["divg_u"].data[:], state["divg_v"].data[:], state["del6_u"].data[:], state["del6_v"].data[:] = calculate_divg_del6(
+            sin_sg, state["sina_u"].data[:], state["sina_v"].data[:], 
+            state["dx"].data[:], state["dy"].data[:], state["dxc"].data[:], state["dyc"].data[:], self.grid.halo, 
+            communicator.tile.partitioner, communicator.tile.rank, state["sin_sg"].np
+        )
+
+        state["vlon"] = self.grid.quantity_factory.zeros(
+            [fv3util.X_DIM, fv3util.Y_DIM, CARTESIAN_DIM], ""
+        )
+        state["vlat"] = self.grid.quantity_factory.zeros(
+            [fv3util.X_DIM, fv3util.Y_DIM, CARTESIAN_DIM], ""
+        )
+        state["vlon"].data[:], state["vlat"].data[:] = unit_vector_lonlat(state["agrid"].data[:], state["agrid"].np)
+
+        state["z11"] = self.grid.quantity_factory.zeros(
+            [fv3util.X_DIM, fv3util.Y_DIM], ""
+        )
+        state["z12"] = self.grid.quantity_factory.zeros(
+            [fv3util.X_DIM, fv3util.Y_DIM], ""
+        )
+        state["z21"] = self.grid.quantity_factory.zeros(
+            [fv3util.X_DIM, fv3util.Y_DIM], ""
+        )
+        state["z22"] = self.grid.quantity_factory.zeros(
+            [fv3util.X_DIM, fv3util.Y_DIM], ""
+        )
+        state["z11"].data[:], state["z12"].data[:], state["z21"].data[:], state["z22"].data[:] = calculate_grid_z(
+            state["ec1"].data, state["ec2"].data, state["vlon"].data, state["vlat"].data[:], state["agrid"].np
+        )
+
+        state["a11"] = self.grid.quantity_factory.zeros(
+            [fv3util.X_DIM, fv3util.Y_DIM], ""
+        )
+        state["a12"] = self.grid.quantity_factory.zeros(
+            [fv3util.X_DIM, fv3util.Y_DIM], ""
+        )
+        state["a21"] = self.grid.quantity_factory.zeros(
+            [fv3util.X_DIM, fv3util.Y_DIM], ""
+        )
+        state["a22"] = self.grid.quantity_factory.zeros(
+            [fv3util.X_DIM, fv3util.Y_DIM], ""
+        )
+        state["a11"].data[:], state["a12"].data[:], state["a21"].data[:], state["a22"].data[:] = calculate_grid_a(
+            state["z11"].data[:], state["z12"].data[:], state["z21"].data[:], state["z22"].data[:], state["sin_sg5"].data[:-1, :-1], state["agrid"].np
+        )
+
+        return state
+
+    def _compute_local_edges(self, state, communicator):
+        state["edge_s"] = self.grid.quantity_factory.zeros(
+            [fv3util.X_DIM], ""
+        )
+        state["edge_n"] = self.grid.quantity_factory.zeros(
+            [fv3util.X_DIM], ""
+        )
+        state["edge_e"] = self.grid.quantity_factory.zeros(
+            [fv3util.Y_DIM], ""
+        )
+        state["edge_w"] = self.grid.quantity_factory.zeros(
+            [fv3util.Y_DIM], ""
+        )
+        state["edge_w"].data[:], state["edge_e"].data[:], state["edge_s"].data[:], state["edge_n"].data[:] = edge_factors(
+            state["grid"].data[:], state["agrid"].data[:], self.grid.grid_type, self.grid.halo, 
+            communicator.tile.partitioner, communicator.tile.rank, RADIUS, state["grid"].np
+        )
+
+        state["edge_vect_s"] = self.grid.quantity_factory.zeros(
+            [fv3util.X_DIM], ""
+        )
+        state["edge_vect_n"] = self.grid.quantity_factory.zeros(
+            [fv3util.X_DIM], ""
+        )
+        state["edge_vect_e"] = self.grid.quantity_factory.zeros(
+            [fv3util.Y_DIM], ""
+        )
+        state["edge_vect_w"] = self.grid.quantity_factory.zeros(
+            [fv3util.Y_DIM], ""
+        )
+        state["edge_vect_w"].data[:], state["edge_vect_e"].data[:], state["edge_vect_s"].data[:], state["edge_vect_n"].data[:] = efactor_a2c_v(
+            state["grid"].data[:], state["agrid"].data[:], self.grid.grid_type, self.grid.halo, 
+            communicator.tile.partitioner, communicator.tile.rank, RADIUS, state["grid"].np
+        )
+        return state
