@@ -338,7 +338,6 @@ def test_copy_non_frozen_stencil_does_not_rebuild(
     rebuild: bool,
     validate_args: bool,
     format_source: bool,
-
 ):
     config = StencilConfig(
         backend=backend,
