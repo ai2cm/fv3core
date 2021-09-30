@@ -16,7 +16,6 @@ from .gnomonic import (
 #from .mesh_generator import generate_mesh
 from .mirror import mirror_grid, set_halo_nan
 from .generation import MetricTerms
-from .generation import init_grid_sequential, init_grid_utils
 from .geometry import (
     get_center_vector, calc_unit_vector_west, calc_unit_vector_south, calculate_supergrid_cos_sin, 
     calculate_l2c_vu, calculate_trig_uv, supergrid_corner_fix, 

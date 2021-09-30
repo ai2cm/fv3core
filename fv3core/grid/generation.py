@@ -1,5 +1,4 @@
 from typing import Tuple
-from fv3core.grid.utils import set_eta, get_center_vector
 from fv3core.utils.grid import GridIndexing
 from .geometry import get_center_vector
 from .eta import set_eta
