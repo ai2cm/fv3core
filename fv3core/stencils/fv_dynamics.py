@@ -261,6 +261,9 @@ class DynamicalCore:
         """
         Args:
             comm: object for cubed sphere inter-process communication
+            grid_data: metric terms defining the model grid
+            grid_indexing: indexing information needed for stencils
+            damping_coefficients: damping configuration/constants
             config: configuration of dynamical core
             ak: atmosphere hybrid a coordinate (Pa)
             bk: atmosphere hybrid b coordinate (dimensionless)
