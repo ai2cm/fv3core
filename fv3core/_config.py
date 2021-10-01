@@ -204,7 +204,7 @@ class AcousticDynamicsConfig:
 
 
 @dataclasses.dataclass
-class Namelist:
+class DynamicalCoreConfig:
     # data_set: Any
     # date_out_of_range: str
     # do_sst_pert: bool
@@ -594,7 +594,7 @@ class Namelist:
         )
 
 
-namelist = Namelist()
+namelist = DynamicalCoreConfig()
 
 
 def namelist_to_flatish_dict(nml_input):

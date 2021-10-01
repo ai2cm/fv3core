@@ -13,7 +13,7 @@ CONFIG_CLASSES = [
     fv3core._config.AcousticDynamicsConfig,
     fv3core._config.RiemannConfig,
     fv3core._config.DGridShallowWaterLagrangianDynamicsConfig,
-    fv3core._config.Namelist,
+    fv3core._config.DynamicalCoreConfig,
 ]
 
 
