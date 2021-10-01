@@ -6,6 +6,7 @@ from fv3core import grid
 import numpy
 import copy
 import fv3gfs.util as fv3util
+from fv3core.utils.null_comm import NullComm
 import fv3core.utils.global_config as global_config
 import fv3core._config as spec
 from fv3core.grid import (
@@ -133,6 +134,7 @@ class TranslateMirrorGrid(ParallelTranslateGrid):
             "n_halo": 3,
         },
     }
+   
 
     def compute_sequential(self, inputs_list, communicator_list):
         outputs = []
@@ -143,7 +145,7 @@ class TranslateMirrorGrid(ParallelTranslateGrid):
 
     def compute(self, inputs):
         state = self.state_from_inputs(inputs)
-        mirror_grid(
+        global_mirror_grid(
             state["grid_global"].data,
             state["n_ghost"],
             state["npx"],
@@ -190,14 +192,15 @@ class TranslateGridAreas(ParallelTranslateGrid):
             "units": "m^2",
         },
     }
+    
 
     def compute_sequential(self, inputs_list, communicator_list):
         state_list = []
-        for inputs in inputs_list:
-            state_list.append(self._compute_local(inputs))
+        for i,inputs in enumerate(inputs_list):
+            state_list.append(self._compute_local(inputs, communicator_list[i].partitioner.tile, i))
         return self.outputs_list_from_state_list(state_list)
 
-    def _compute_local(self, inputs):
+    def _compute_local(self, inputs, tile_partitioner, rank):
         state = self.state_from_inputs(inputs)
         state["area"].data[3:-4, 3:-4] = get_area(
             state["grid"].data[3:-3, 3:-3, 0],
@@ -215,6 +218,8 @@ class TranslateGridAreas(ParallelTranslateGrid):
             lon=state["agrid"].data[2:-3, 2:-3, 0],
             lat=state["agrid"].data[2:-3, 2:-3, 1],
             area=state["area_cgrid"].data[3:-3, 3:-3],
+            tile_partitioner=tile_partitioner,
+            rank = rank,
             radius=RADIUS,
             np=state["grid"].np,
         )
@@ -310,7 +315,7 @@ class TranslateMoreAreas(ParallelTranslateGrid):
             fill_corners_cgrid(
                 state["dx_cgrid"].data[:, :, None],
                 state["dy_cgrid"].data[:, :, None],
-                grid,
+                grid_indexer,
                 vector=False,
             )
 
@@ -809,7 +814,7 @@ cubedsphere=Atm(n)%gridstruct%latlon
 
     def compute_parallel(self, inputs, communicator):
         namelist = spec.namelist
-        grid_generator = MetricTerms.from_tile_sizing(npx=namelist.npx, npy=namelist.npy, npz=namelist.npz, communicator=communicator,  backend=global_config.get_backend())
+        grid_generator = MetricTerms.from_tile_sizing(npx=namelist.npx, npy=namelist.npy, npz=1, communicator=communicator,  backend=global_config.get_backend())
         state = {}
         for metric_term, metadata in self.outputs.items():
             state[metadata["name"]] = getattr(grid_generator, metric_term)
@@ -836,7 +841,7 @@ cubedsphere=Atm(n)%gridstruct%latlon
 
         )
        
-
+        
         grid_dims =  [
             fv3util.X_INTERFACE_DIM,
             fv3util.Y_INTERFACE_DIM,
@@ -845,7 +850,8 @@ cubedsphere=Atm(n)%gridstruct%latlon
         shift_fac = 18
        
         state_list = []
-        
+        namelist = spec.namelist
+       
         for i, inputs in enumerate(inputs_list):
             rank = communicator_list[i].rank
             partitioner =  communicator_list[i].partitioner
