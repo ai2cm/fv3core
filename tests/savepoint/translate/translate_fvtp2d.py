@@ -1,5 +1,5 @@
 import fv3core.utils.gt4py_utils as utils
-from fv3core.stencils.fvtp2d import FiniteVolumeTransport
+from fv3core.stencils.fvtp2d import AccessTimeCopiedCorners, FiniteVolumeTransport
 from fv3core.testing import TranslateFortranData2Py
 
 
@@ -49,7 +49,10 @@ class TranslateFvTp2d(TranslateFortranData2Py):
         del inputs["hord"]
         inputs["x_area_flux"] = inputs.pop("xfx")
         inputs["y_area_flux"] = inputs.pop("yfx")
+        q_storage = inputs["q"]
+        inputs["q"] = AccessTimeCopiedCorners(q_storage)
         self.compute_func(**inputs)
+        inputs["q"] = q_storage
         return inputs
 
 

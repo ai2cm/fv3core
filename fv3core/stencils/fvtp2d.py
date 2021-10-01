@@ -1,3 +1,4 @@
+import dataclasses
 from typing import Optional
 
 import gt4py.gtscript as gtscript
@@ -75,6 +76,60 @@ def transport_flux_xy(
             fy = transport_flux(fy, fy2, mfy)
 
 
+@dataclasses.dataclass
+class CopiedCorners:
+    """
+    Data container for storages with corners copied for differencing
+    along the x- and y-directions.
+
+    Attributes:
+        base: writeable version of storage with no guarantees about corner data
+        x_differenceable: read-only version of storage which can be differenced
+            along the x-direction
+        y_differenceable: read-only version of storage which can be differenced
+            along the y-direction
+    """
+
+    base: FloatField
+    x_differenceable: FloatField
+    y_differenceable: FloatField
+
+
+@dataclasses.dataclass
+class AccessTimeCopiedCorners(CopiedCorners):
+    """
+    Data container for storages with corners copied for differencing
+    along the x- and y-directions.
+
+    This version copies corners within the base storage at access time,
+    returning the base storage instead of a copy.
+
+    Attributes:
+        x_differenceable: version of storage which can be differenced
+            along the x-direction
+        y_differenceable: version of storage which can be differenced
+            along the y-direction
+    """
+
+    def __init__(self, base_storage):
+        self.base = base_storage
+        corner_tmp = utils.make_storage_from_shape(
+            base_storage.shape, origin=base_storage.default_origin
+        )
+        self._copy_corners_x: corners.CopyCorners = corners.CopyCorners("x", corner_tmp)
+        self._copy_corners_y: corners.CopyCorners = corners.CopyCorners("y", corner_tmp)
+
+    @property
+    def x_differenceable(self):
+        self._copy_corners_x(self.base)
+        return self.base
+
+    @property
+    def y_differenceable(self):
+        self._copy_corners_y(self.base)
+        return self.base
+
+
 class FiniteVolumeTransport:
     """
     Equivalent of Fortran FV3 subroutine fv_tp_2d, done in 3 dimensions.
@@ -100,10 +155,6 @@ class FiniteVolumeTransport:
         self._tmp_q_j = utils.make_storage_from_shape(idx.max_shape, origin)
         self._tmp_fx2 = utils.make_storage_from_shape(idx.max_shape, origin)
         self._tmp_fy2 = utils.make_storage_from_shape(idx.max_shape, origin)
-        self._corner_tmp = utils.make_storage_from_shape(
-            idx.max_shape, origin=idx.origin_full()
-        )
-        """Temporary field to use for corner computation in both x and y direction"""
         self._nord = nord
         self._damp_c = damp_c
         ord_outer = hord
@@ -167,19 +218,9 @@ class FiniteVolumeTransport:
             domain=idx.domain_compute(add=(1, 1, 1)),
         )
 
-        self._copy_corners_x: corners.CopyCorners = corners.CopyCorners(
-            "x", self._corner_tmp
-        )
-        """Stencil responsible for doing corners updates in x-direction."""
-
-        self._copy_corners_y: corners.CopyCorners = corners.CopyCorners(
-            "y", self._corner_tmp
-        )
-        """Stencil responsible for doing corners updates in y-direction."""
-
     def __call__(
         self,
-        q,
+        q: CopiedCorners,
         crx,
         cry,
         x_area_flux,
@@ -205,11 +246,9 @@ class FiniteVolumeTransport:
             mfx: ???
             mfy: ???
         """
-        self._copy_corners_y(q)
-
-        self.y_piecewise_parabolic_inner(q, cry, self._tmp_fy2)
+        self.y_piecewise_parabolic_inner(q.y_differenceable, cry, self._tmp_fy2)
         self.stencil_q_i(
-            q,
+            q.y_differenceable,
             self._area,
             y_area_flux,
             self._tmp_fy2,
@@ -217,11 +256,9 @@ class FiniteVolumeTransport:
         )
         self.x_piecewise_parabolic_outer(self._tmp_q_i, crx, fx)
 
-        self._copy_corners_x(q)
-
-        self.x_piecewise_parabolic_inner(q, crx, self._tmp_fx2)
+        self.x_piecewise_parabolic_inner(q.x_differenceable, crx, self._tmp_fx2)
         self.stencil_q_j(
-            q,
+            q.x_differenceable,
             self._area,
             x_area_flux,
             self._tmp_fx2,
@@ -238,7 +275,7 @@ class FiniteVolumeTransport:
                 mfy,
             )
             if (mass is not None) and self.delnflux is not None:
-                self.delnflux(q, fx, fy, mass=mass)
+                self.delnflux(q.base, fx, fy, mass=mass)
         else:
             self.stencil_transport_flux(
                 fx,
@@ -249,4 +286,4 @@ class FiniteVolumeTransport:
                 y_area_flux,
             )
             if self.delnflux is not None:
-                self.delnflux(q, fx, fy)
+                self.delnflux(q.base, fx, fy)

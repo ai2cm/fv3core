@@ -5,7 +5,7 @@ import fv3core.utils.global_constants as constants
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import FrozenStencil
 from fv3core.stencils.delnflux import DelnFluxNoSG
-from fv3core.stencils.fvtp2d import FiniteVolumeTransport
+from fv3core.stencils.fvtp2d import AccessTimeCopiedCorners, FiniteVolumeTransport
 from fv3core.utils.grid import DampingCoefficients, GridData, GridIndexing
 from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
 
@@ -346,7 +346,7 @@ class UpdateHeightOnDGrid:
             y_area_flux, self._y_area_flux_interface, self._gk, self._beta, self._gamma
         )
         self.finite_volume_transport(
-            height,
+            AccessTimeCopiedCorners(height),
             self._crx_interface,
             self._cry_interface,
             self._x_area_flux_interface,

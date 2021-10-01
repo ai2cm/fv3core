@@ -9,7 +9,7 @@ import fv3core.utils
 import fv3core.utils.gt4py_utils as utils
 import fv3gfs.util
 from fv3core.decorators import FrozenStencil
-from fv3core.stencils.fvtp2d import FiniteVolumeTransport
+from fv3core.stencils.fvtp2d import AccessTimeCopiedCorners, FiniteVolumeTransport
 from fv3core.utils.grid import GridIndexing
 from fv3core.utils.typing import FloatField, FloatFieldIJ
 
@@ -268,7 +268,7 @@ class TracerAdvection:
             )
             for q in tracers.values():
                 self.finite_volume_transport(
-                    q.storage,
+                    AccessTimeCopiedCorners(q.storage),
                     cxd,
                     cyd,
                     self._tmp_xfx,

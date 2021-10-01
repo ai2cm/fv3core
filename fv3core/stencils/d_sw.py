@@ -17,7 +17,7 @@ from fv3core._config import DGridShallowWaterLagrangianDynamicsConfig
 from fv3core.decorators import FrozenStencil
 from fv3core.stencils.delnflux import DelnFluxNoSG
 from fv3core.stencils.divergence_damping import DivergenceDamping
-from fv3core.stencils.fvtp2d import FiniteVolumeTransport
+from fv3core.stencils.fvtp2d import AccessTimeCopiedCorners, FiniteVolumeTransport
 from fv3core.stencils.fxadv import FiniteVolumeFluxPrep
 from fv3core.stencils.xtp_u import XTP_U
 from fv3core.stencils.ytp_v import YTP_V
@@ -827,7 +827,7 @@ class DGridShallowWaterLagrangianDynamics:
         self.fv_prep(uc, vc, crx, cry, xfx, yfx, self._tmp_ut, self._tmp_vt, dt)
 
         self.fvtp2d_dp(
-            delp,
+            AccessTimeCopiedCorners(delp),
             crx,
             cry,
             xfx,
@@ -864,7 +864,7 @@ class DGridShallowWaterLagrangianDynamics:
             )
 
             self.fvtp2d_vt(
-                w,
+                AccessTimeCopiedCorners(w),
                 crx,
                 cry,
                 xfx,
@@ -884,7 +884,7 @@ class DGridShallowWaterLagrangianDynamics:
             )
         # Fortran: #ifdef USE_COND
         self.fvtp2d_dp_t(
-            q_con,
+            AccessTimeCopiedCorners(q_con),
             crx,
             cry,
             xfx,
@@ -902,7 +902,7 @@ class DGridShallowWaterLagrangianDynamics:
 
         # Fortran #endif //USE_COND
         self.fvtp2d_tm(
-            pt,
+            AccessTimeCopiedCorners(pt),
             crx,
             cry,
             xfx,
@@ -1002,7 +1002,13 @@ class DGridShallowWaterLagrangianDynamics:
         self._compute_vorticity_stencil(self._tmp_wk, self._f0, zh, self._tmp_vort)
 
         self.fvtp2d_vt_nodelnflux(
-            self._tmp_vort, crx, cry, xfx, yfx, self._tmp_fx, self._tmp_fy
+            AccessTimeCopiedCorners(self._tmp_vort),
+            crx,
+            cry,
+            xfx,
+            yfx,
+            self._tmp_fx,
+            self._tmp_fy,
         )
 
         self._u_and_v_from_ke_stencil(
