@@ -187,7 +187,7 @@ def fix_water_vapor_nonstencil(grid, qvapor, dp):
                     + qvapor[i, j, k] * dp[i, j, k] / dp[i, j, k + 1]
                 )
 
-    kbot = grid.npz - 1
+    kbot = grid_indexing.domain[2] - 1
     for j in range(grid.js, grid.je + 1):
         for k in range(1, kbot - 1):
             for i in range(grid.is_, grid.ie + 1):
@@ -206,7 +206,7 @@ def fix_water_vapor_nonstencil(grid, qvapor, dp):
 
 
 def fix_water_vapor_bottom(grid, qvapor, dp):
-    kbot = grid.npz - 1
+    kbot = grid_indexing.domain[2] - 1
     for j in range(grid.js, grid.je + 1):
         for i in range(grid.is_, grid.ie + 1):
             if qvapor[i, j, kbot] < 0:
@@ -227,23 +227,24 @@ def fix_water_vapor_k_loop(i, j, kbot, qvapor, dp):
 
 # Stencil version
 def fix_water_vapor_down(qvapor: FloatField, dp: FloatField):
+    with computation(PARALLEL), interval(...):
+        upper_fix = 0.0  # type: FloatField
+        lower_fix = 0.0  # type: FloatField
     with computation(PARALLEL):
-        with interval(...):
-            upper_fix = 0.0  # type: FloatField
-            lower_fix = 0.0  # type: FloatField
         with interval(0, 1):
-            qvapor = qvapor if qvapor >= 0 else 0
+            if qvapor < 0.0:
+                qvapor = 0.0
         with interval(1, 2):
             if qvapor[0, 0, -1] < 0:
                 qvapor = qvapor + qvapor[0, 0, -1] * dp[0, 0, -1] / dp
     with computation(FORWARD), interval(1, -1):
         dq = qvapor[0, 0, -1] * dp[0, 0, -1]
         if lower_fix[0, 0, -1] != 0:
-            qvapor = qvapor + lower_fix[0, 0, -1] / dp
+            qvapor += lower_fix[0, 0, -1] / dp
         if (qvapor < 0) and (qvapor[0, 0, -1] > 0):
             dq = dq if dq < -qvapor * dp else -qvapor * dp
             upper_fix = dq
-            qvapor = qvapor + dq / dp
+            qvapor += dq / dp
         if qvapor < 0:
             lower_fix = qvapor * dp
             qvapor = 0
@@ -259,15 +260,12 @@ def fix_water_vapor_down(qvapor: FloatField, dp: FloatField):
         upper_fix = qvapor
         # If we didn't have to worry about float valitation and negative column
         # mass we could set qvapor[k_bot] to 0 here...
-        dp_bot = dp[0, 0, 0]
+        dp_bot = dp
     with computation(BACKWARD), interval(0, -1):
         dq = qvapor * dp
         if (upper_fix[0, 0, 1] < 0) and (qvapor > 0):
-            dq = (
-                dq
-                if dq < -upper_fix[0, 0, 1] * dp_bot
-                else -upper_fix[0, 0, 1] * dp_bot
-            )
+            if dq >= -upper_fix[0, 0, 1] * dp_bot:
+                dq = -upper_fix[0, 0, 1] * dp_bot
             qvapor = qvapor - dq / dp
             upper_fix = upper_fix[0, 0, 1] + dq / dp_bot
         else:
@@ -275,7 +273,7 @@ def fix_water_vapor_down(qvapor: FloatField, dp: FloatField):
     with computation(FORWARD), interval(1, None):
         upper_fix = upper_fix[0, 0, -1]
     with computation(PARALLEL), interval(-1, None):
-        qvapor[0, 0, 0] = upper_fix[0, 0, 0]
+        qvapor = upper_fix
 
 
 class AdjustNegativeTracerMixingRatio:
@@ -299,18 +297,19 @@ class AdjustNegativeTracerMixingRatio:
 
     def __init__(
         self,
-        grid,
-        namelist,
+        grid_indexing,
+        check_negative: bool,
+        hydrostatic: bool,
     ):
 
-        shape_ij = grid.domain_shape_full(add=(1, 1, 0))[:2]
+        shape_ij = grid_indexing.domain_full(add=(1, 1, 0))[:2]
         self._sum1 = utils.make_storage_from_shape(shape_ij, origin=(0, 0))
         self._sum2 = utils.make_storage_from_shape(shape_ij, origin=(0, 0))
-        if namelist.check_negative:
+        if check_negative:
             raise NotImplementedError(
                 "Unimplemented namelist value check_negative=True"
             )
-        if namelist.hydrostatic:
+        if hydrostatic:
             self._d0_vap = constants.CP_VAP - constants.C_LIQ
             raise NotImplementedError("Unimplemented namelist hydrostatic=True")
         else:
@@ -319,23 +318,23 @@ class AdjustNegativeTracerMixingRatio:
 
         self._fix_neg_water = FrozenStencil(
             func=fix_neg_water,
-            origin=grid.compute_origin(),
-            domain=grid.domain_shape_compute(),
+            origin=grid_indexing.origin_compute(),
+            domain=grid_indexing.domain_compute(),
         )
         self._fillq = FrozenStencil(
             func=fillq,
-            origin=grid.compute_origin(),
-            domain=grid.domain_shape_compute(),
+            origin=grid_indexing.origin_compute(),
+            domain=grid_indexing.domain_compute(),
         )
         self._fix_water_vapor_down = FrozenStencil(
             func=fix_water_vapor_down,
-            origin=grid.compute_origin(),
-            domain=grid.domain_shape_compute(),
+            origin=grid_indexing.origin_compute(),
+            domain=grid_indexing.domain_compute(),
         )
         self._fix_neg_cloud = FrozenStencil(
             func=fix_neg_cloud,
-            origin=grid.compute_origin(),
-            domain=grid.domain_shape_compute(),
+            origin=grid_indexing.origin_compute(),
+            domain=grid_indexing.domain_compute(),
         )
 
     def __call__(
