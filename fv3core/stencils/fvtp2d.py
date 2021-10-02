@@ -1,5 +1,5 @@
 import dataclasses
-from typing import Optional
+from typing import Optional, Sequence
 
 import gt4py.gtscript as gtscript
 from gt4py.gtscript import PARALLEL, computation, horizontal, interval, region
@@ -105,6 +105,7 @@ class AccessTimeCopiedCorners(CopiedCorners):
     returning the base storage instead of a copy.
 
     Attributes:
+        base: writeable version of storage with no guarantees about corner data
         x_differenceable: version of storage which can be differenced
             along the x-direction
         y_differenceable: version of storage which can be differenced
@@ -128,6 +129,30 @@ class AccessTimeCopiedCorners(CopiedCorners):
     def y_differenceable(self):
         self._copy_corners_y(self.base)
         return self.base
+
+
+@dataclasses.dataclass
+class PreAllocatedCopiedCornersFactory:
+    """
+    Creates CopiedCorners from a field, using an init-compiled stencil
+    and pre-allocated output fields.
+    """
+
+    def __init__(
+        self,
+        grid_indexing: GridIndexing,
+        dims: Sequence[str],
+        y_temporary: FloatField,
+    ):
+        self._copy_corners_xy = corners.CopyCornersXY(
+            grid_indexing, dims, y_field=y_temporary
+        )
+
+    def __call__(self, field: FloatFieldIJ):
+        x_field, y_field = self._copy_corners_xy(field)
+        return CopiedCorners(
+            base=field, x_differenceable=x_field, y_differenceable=y_field
+        )
 
 
 class FiniteVolumeTransport:
