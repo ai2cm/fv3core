@@ -2,6 +2,7 @@ import hashlib
 import os
 import re
 from collections.abc import Hashable
+from importlib import resources
 from typing import Any, Callable, Dict, Optional
 
 import yaml
@@ -45,27 +46,12 @@ def is_gpu_backend() -> bool:
 
 
 def read_backend_options_file():
-    options_file = "fv3core/gt4py_options.yml"
-    if os.path.exists(options_file):
-        return yaml.safe_load(open(options_file))
-    # TODO(eddied): Where to put YML file so `daint_submit` can find it?
-    # raise FileNotFoundError(f"gt4py options file '{options_file}' not found")
-    return {
-        "all": {
-            "device_sync": {"backend": ".*(gpu|cuda)$", "value": False},
-            "format_source": {"value": False},
-            "skip_passes": {
-                "backend": "^gtc:(gt|cuda)",
-                "value": ["graph_merge_horizontal_executions"],
-            },
-        },
-        "fv_subgridz.init": {
-            "skip_passes": {"backend": "^gtc:(gt|cuda)", "value": ["KCacheDetection"]}
-        },
-        "ytp_v._ytp_v": {
-            "skip_passes": {"backend": "^gtc:(gt|cuda)", "value": ["GreedyMerging"]}
-        },
-    }
+    file = resources.open_binary("fv3core", "gt4py_options.yml")
+    if file:
+        options = yaml.safe_load(file)
+        file.close()
+        return options
+    raise FileNotFoundError("config file 'fv3core/gt4py_options.yml' not found")
 
 
 class StencilConfig(Hashable):
@@ -83,7 +69,6 @@ class StencilConfig(Hashable):
         self.backend = backend
         self.rebuild = rebuild
         self.validate_args = validate_args
-        self.format_source = format_source
         self.backend_opts = self._get_backend_opts(func, device_sync, format_source)
         self._hash = self._compute_hash()
 
@@ -95,6 +80,9 @@ class StencilConfig(Hashable):
             self.validate_args,
             self.backend_opts["format_source"],
         ):
+            md5.update(bytes(attr))
+        attr = self.backend_opts.get("device_sync", None)
+        if attr:
             md5.update(bytes(attr))
         return int(md5.hexdigest(), base=16)
 
@@ -140,12 +128,14 @@ class StencilConfig(Hashable):
 
     @property
     def stencil_kwargs(self):
-        return {
+        kwargs = {
             "backend": self.backend,
             "rebuild": self.rebuild,
-            "format_source": self.format_source,
             **self.backend_opts,
         }
+        if not is_gpu_backend():
+            kwargs.pop("device_sync", None)
+        return kwargs
 
 
 def get_stencil_config(func: Optional[Callable] = None):
