@@ -1,11 +1,11 @@
 import contextlib
 import unittest.mock
-import yaml
 from importlib import resources
 
 import gt4py.gtscript
 import numpy as np
 import pytest
+import yaml
 from gt4py.gtscript import PARALLEL, computation, interval
 
 import fv3core.decorators
@@ -511,14 +511,14 @@ def test_backend_options(
     validate_args: bool,
 ):
     expected_options = {
-        'numpy': {'backend': 'numpy', 'rebuild': True, 'format_source': False},
-        'gtc:cuda': {
-            'backend': 'gtc:cuda',
-            'rebuild': True,
-            'device_sync': False,
-            'format_source': False,
-            'skip_passes': ['KCacheDetection'],
-        }
+        "numpy": {"backend": "numpy", "rebuild": True, "format_source": False},
+        "gtc:cuda": {
+            "backend": "gtc:cuda",
+            "rebuild": True,
+            "device_sync": False,
+            "format_source": False,
+            "skip_passes": ["KCacheDetection"],
+        },
     }
 
     StencilConfig._all_backend_opts = {
