@@ -1,6 +1,7 @@
 from math import sin
 import typing
 from fv3core.utils.global_constants import PI
+import fv3gfs.util as fv3util
 from .gnomonic import lon_lat_to_xyz, xyz_midpoint, normalize_xyz, spherical_cos, get_unit_vector_direction, lon_lat_midpoint, get_lonlat_vect, great_circle_distance_lon_lat
 
 def get_center_vector(xyz_gridpoints, grid_type, nhalo, tile_partitioner, rank, np):
@@ -442,12 +443,12 @@ def edge_factors(grid, agrid, grid_type, nhalo, tile_partitioner, rank, radius, 
     Creates interpolation factors from the A grid to the B grid on face edges
     """
     big_number = 1.e8
-    npx = grid[nhalo:-nhalo, nhalo:-nhalo].shape[0]
-    npy = grid[nhalo:-nhalo, nhalo:-nhalo].shape[1]
-    edge_n = np.zeros(npx)+big_number
-    edge_s = np.zeros(npx)+big_number
-    edge_e = np.zeros(npy)+big_number
-    edge_w = np.zeros(npy)+big_number
+    i_range = grid[nhalo:-nhalo, nhalo:-nhalo].shape[0]
+    j_range = grid[nhalo:-nhalo, nhalo:-nhalo].shape[1]
+    edge_n = np.zeros(i_range)+big_number
+    edge_s = np.zeros(i_range)+big_number
+    edge_e = np.zeros(j_range)+big_number
+    edge_w = np.zeros(j_range)+big_number
 
     if grid_type < 3:
         if tile_partitioner.on_tile_left(rank):
@@ -477,19 +478,39 @@ def set_south_edge_factor(grid, agrid, nhalo, radius, np):
 def set_north_edge_factor(grid, agrid, nhalo, radius, np):
     return set_west_edge_factor(grid[:, ::-1, :].transpose([1,0,2]), agrid[:, ::-1, :].transpose([1,0,2]), nhalo, radius, np)
 
-def efactor_a2c_v(grid, agrid, grid_type, nhalo, tile_partitioner, rank, radius, np):
+def efactor_a2c_v(grid_quantity, agrid, grid_type, nhalo, tile_partitioner, rank, radius, np):
     '''
     Creates interpolation factors at face edges 
     for interpolating vectors from A to C grids
     '''
     big_number = 1.e8
-    npx = grid.shape[0]-2*nhalo
-    npy = grid.shape[1]-2*nhalo
+    
+    grid = grid_quantity.data[:]
+    npx, npy, ndims  = tile_partitioner.global_extent(grid_quantity)
+    slice_x, slice_y = tile_partitioner.subtile_slice(rank, grid_quantity.dims, (npx, npy))
+    global_is = nhalo + slice_x.start
+    global_js = nhalo + slice_y.start
+
     if npx != npy: raise ValueError("npx must equal npy")
     if npx %2 == 0: raise ValueError("npx must be odd")
 
-    im2 = int((npx-1)/2)
-    jm2 = int((npy-1)/2)
+    i_midpoint = int((npx-1)/2)
+    j_midpoint = int((npy-1)/2)
+
+    i_indices = np.arange(agrid.shape[0])
+    j_indices = np.arange(agrid.shape[1])
+    i_selection = i_indices[global_is + i_indices <= nhalo + i_midpoint]
+    j_selection = j_indices[global_js + j_indices <= nhalo + j_midpoint]
+
+    if len(i_selection) > 0:
+        im2 = max(i_selection)
+    else:
+        im2 = len(i_selection)
+
+    if len(j_selection) > 0:
+        jm2 = max(j_selection)
+    else:
+        jm2 = len(j_selection)
 
     edge_vect_s = edge_vect_n = np.zeros(grid.shape[0]-1) + big_number
     edge_vect_e = edge_vect_w = np.zeros(grid.shape[1]-1) + big_number
