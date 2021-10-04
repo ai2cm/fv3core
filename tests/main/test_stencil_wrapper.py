@@ -1,5 +1,7 @@
 import contextlib
 import unittest.mock
+import yaml
+from importlib import resources
 
 import gt4py.gtscript
 import numpy as np
@@ -541,3 +543,13 @@ def test_backend_options(
         func=copy_stencil,
     ).stencil_kwargs
     assert stencil_kwargs == expected_options[backend]
+
+
+def test_import_resources():
+    file = resources.open_binary("fv3core", "gt4py_options.yml")
+    assert file is not None
+
+    options = yaml.safe_load(file)
+    assert options
+    assert "all" in options
+    file.close()
