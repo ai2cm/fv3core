@@ -8,6 +8,7 @@ from gt4py.gtscript import PARALLEL, computation, interval
 
 import fv3core.decorators
 from fv3core.decorators import FrozenStencil, StencilConfig
+from fv3core.utils.global_config import set_backend
 from fv3core.utils.gt4py_utils import make_storage_from_shape_uncached
 from fv3core.utils.typing import FloatField
 
@@ -497,3 +498,46 @@ def test_copy_non_frozen_stencil_rebuilds_for_new_domain(
             domain=(3, 3, 3),
         )
     assert mock_stencil.call_count == 2
+
+
+@pytest.mark.parametrize("backend", ("numpy", "gtc:cuda"))
+@pytest.mark.parametrize("rebuild", [True])
+@pytest.mark.parametrize("validate_args", [True])
+def test_backend_options(
+    backend: str,
+    rebuild: bool,
+    validate_args: bool,
+):
+    expected_options = {
+        'numpy': {'backend': 'numpy', 'rebuild': True, 'format_source': False},
+        'gtc:cuda': {
+            'backend': 'gtc:cuda',
+            'rebuild': True,
+            'device_sync': False,
+            'format_source': False,
+            'skip_passes': ['KCacheDetection'],
+        }
+    }
+
+    StencilConfig._all_backend_opts = {
+        "all": {
+            "device_sync": {"backend": ".*(gpu|cuda)$", "value": False},
+            "format_source": {"value": False},
+            "skip_passes": {
+                "backend": "^gtc:(gt|cuda)",
+                "value": ["graph_merge_horizontal_executions"],
+            },
+        },
+        "test_stencil_wrapper.copy_stencil": {
+            "skip_passes": {"backend": "^gtc:(gt|cuda)", "value": ["KCacheDetection"]}
+        },
+    }
+
+    set_backend(backend)
+    stencil_kwargs = StencilConfig(
+        backend=backend,
+        rebuild=rebuild,
+        validate_args=validate_args,
+        func=copy_stencil,
+    ).stencil_kwargs
+    assert stencil_kwargs == expected_options[backend]
