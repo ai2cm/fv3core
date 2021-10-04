@@ -91,6 +91,7 @@ def copy_stencil(q_in: FloatField, q_out: FloatField):
 
 
 @pytest.mark.parametrize("validate_args", [True, False])
+@pytest.mark.parametrize("device_sync", [True])
 @pytest.mark.parametrize("rebuild", [False])
 @pytest.mark.parametrize("format_source", [False])
 def test_copy_frozen_stencil(
@@ -98,12 +99,14 @@ def test_copy_frozen_stencil(
     rebuild: bool,
     validate_args: bool,
     format_source: bool,
+    device_sync: bool,
 ):
     config = StencilConfig(
         backend=backend,
         rebuild=rebuild,
         validate_args=validate_args,
         format_source=format_source,
+        device_sync=device_sync,
     )
     stencil = FrozenStencil(
         copy_stencil,
@@ -120,12 +123,14 @@ def test_copy_frozen_stencil(
     np.testing.assert_array_equal(q_in, q_out)
 
 
+@pytest.mark.parametrize("device_sync", [True])
 @pytest.mark.parametrize("rebuild", [False])
 @pytest.mark.parametrize("format_source", [False])
 def test_frozen_stencil_raises_if_given_origin(
     backend: str,
     rebuild: bool,
     format_source: bool,
+    device_sync: bool,
 ):
     # only guaranteed when validating args
     config = StencilConfig(
@@ -133,6 +138,7 @@ def test_frozen_stencil_raises_if_given_origin(
         rebuild=rebuild,
         validate_args=True,
         format_source=format_source,
+        device_sync=device_sync,
     )
     stencil = FrozenStencil(
         copy_stencil,
@@ -147,12 +153,14 @@ def test_frozen_stencil_raises_if_given_origin(
         stencil(q_in, q_out, origin=(0, 0, 0))
 
 
+@pytest.mark.parametrize("device_sync", [True])
 @pytest.mark.parametrize("rebuild", [False])
 @pytest.mark.parametrize("format_source", [False])
 def test_frozen_stencil_raises_if_given_domain(
     backend: str,
     rebuild: bool,
     format_source: bool,
+    device_sync: bool,
 ):
     # only guaranteed when validating args
     config = StencilConfig(
@@ -160,6 +168,7 @@ def test_frozen_stencil_raises_if_given_domain(
         rebuild=rebuild,
         validate_args=True,
         format_source=format_source,
+        device_sync=device_sync,
     )
     stencil = FrozenStencil(
         copy_stencil,
@@ -175,20 +184,22 @@ def test_frozen_stencil_raises_if_given_domain(
 
 
 @pytest.mark.parametrize(
-    "rebuild, validate_args, format_source",
-    [[False, False, False], [True, False, False]],
+    "rebuild, validate_args, format_source, device_sync",
+    [[False, False, False, False], [True, False, False, False]],
 )
 def test_frozen_stencil_kwargs_passed_to_init(
     backend: str,
     rebuild: bool,
     validate_args: bool,
     format_source: bool,
+    device_sync: bool,
 ):
     config = StencilConfig(
         backend=backend,
         rebuild=rebuild,
         validate_args=validate_args,
         format_source=format_source,
+        device_sync=device_sync,
     )
     stencil_object = FrozenStencil(
         copy_stencil,
@@ -222,6 +233,7 @@ def test_frozen_field_after_parameter(backend):
         rebuild=False,
         validate_args=False,
         format_source=False,
+        device_sync=False,
     )
     result = FrozenStencil(
         field_after_parameter_stencil,
@@ -233,6 +245,7 @@ def test_frozen_field_after_parameter(backend):
 
 
 @pytest.mark.parametrize("validate_args", [True, False])
+@pytest.mark.parametrize("device_sync", [True])
 @pytest.mark.parametrize("rebuild", [False])
 @pytest.mark.parametrize("format_source", [False])
 def test_copy_non_frozen_stencil(
@@ -240,12 +253,14 @@ def test_copy_non_frozen_stencil(
     rebuild: bool,
     validate_args: bool,
     format_source: bool,
+    device_sync: bool,
 ):
     config = StencilConfig(
         backend=backend,
         rebuild=rebuild,
         validate_args=validate_args,
         format_source=format_source,
+        device_sync=device_sync,
     )
     stencil = fv3core.decorators.gtstencil(
         copy_stencil,
@@ -266,6 +281,7 @@ def test_copy_non_frozen_stencil(
 
 
 @pytest.mark.parametrize("validate_args", [False])
+@pytest.mark.parametrize("device_sync", [True])
 @pytest.mark.parametrize("rebuild", [True])
 @pytest.mark.parametrize("format_source", [False])
 def test_gtscript_with_origin_and_domain_gives_frozen_stencil(
@@ -273,12 +289,14 @@ def test_gtscript_with_origin_and_domain_gives_frozen_stencil(
     rebuild: bool,
     validate_args: bool,
     format_source: bool,
+    device_sync: bool,
 ):
     config = StencilConfig(
         backend=backend,
         rebuild=rebuild,
         validate_args=validate_args,
         format_source=format_source,
+        device_sync=device_sync,
     )
     stencil = fv3core.decorators.gtstencil(
         copy_stencil,
@@ -291,6 +309,7 @@ def test_gtscript_with_origin_and_domain_gives_frozen_stencil(
 
 
 @pytest.mark.parametrize("validate_args", [True, False])
+@pytest.mark.parametrize("device_sync", [True])
 @pytest.mark.parametrize("rebuild", [False, True])  # even if rebuild=True for gt4py
 @pytest.mark.parametrize("format_source", [False])
 def test_gtscript_with_origin_and_domain_does_not_rebuild(
@@ -298,12 +317,14 @@ def test_gtscript_with_origin_and_domain_does_not_rebuild(
     rebuild: bool,
     validate_args: bool,
     format_source: bool,
+    device_sync: bool,
 ):
     config = StencilConfig(
         backend=backend,
         rebuild=rebuild,
         validate_args=validate_args,
         format_source=format_source,
+        device_sync=device_sync,
     )
     stencil = fv3core.decorators.gtstencil(
         copy_stencil,
@@ -331,6 +352,7 @@ def test_gtscript_with_origin_and_domain_does_not_rebuild(
 
 
 @pytest.mark.parametrize("validate_args", [True, False])
+@pytest.mark.parametrize("device_sync", [True])
 @pytest.mark.parametrize("rebuild", [False, True])  # even if rebuild=True for gt4py
 @pytest.mark.parametrize("format_source", [False])
 def test_copy_non_frozen_stencil_does_not_rebuild(
@@ -338,12 +360,14 @@ def test_copy_non_frozen_stencil_does_not_rebuild(
     rebuild: bool,
     validate_args: bool,
     format_source: bool,
+    device_sync: bool,
 ):
     config = StencilConfig(
         backend=backend,
         rebuild=rebuild,
         validate_args=validate_args,
         format_source=format_source,
+        device_sync=device_sync,
     )
     stencil = fv3core.decorators.gtstencil(
         copy_stencil,
@@ -378,6 +402,7 @@ def test_copy_non_frozen_stencil_does_not_rebuild(
 
 
 @pytest.mark.parametrize("validate_args", [True, False])
+@pytest.mark.parametrize("device_sync", [True])
 @pytest.mark.parametrize("rebuild", [False, True])  # even if rebuild=True for gt4py
 @pytest.mark.parametrize("format_source", [False])
 def test_copy_non_frozen_stencil_rebuilds_for_new_origin(
@@ -385,12 +410,14 @@ def test_copy_non_frozen_stencil_rebuilds_for_new_origin(
     rebuild: bool,
     validate_args: bool,
     format_source: bool,
+    device_sync: bool,
 ):
     config = StencilConfig(
         backend=backend,
         rebuild=rebuild,
         validate_args=validate_args,
         format_source=format_source,
+        device_sync=device_sync,
     )
     stencil = fv3core.decorators.gtstencil(
         copy_stencil,
@@ -424,6 +451,7 @@ def test_copy_non_frozen_stencil_rebuilds_for_new_origin(
 
 
 @pytest.mark.parametrize("validate_args", [True, False])
+@pytest.mark.parametrize("device_sync", [True])
 @pytest.mark.parametrize("rebuild", [False, True])  # even if rebuild=True for gt4py
 @pytest.mark.parametrize("format_source", [False])
 def test_copy_non_frozen_stencil_rebuilds_for_new_domain(
@@ -431,12 +459,14 @@ def test_copy_non_frozen_stencil_rebuilds_for_new_domain(
     rebuild: bool,
     validate_args: bool,
     format_source: bool,
+    device_sync: bool,
 ):
     config = StencilConfig(
         backend=backend,
         rebuild=rebuild,
         validate_args=validate_args,
         format_source=format_source,
+        device_sync=device_sync,
     )
     stencil = fv3core.decorators.gtstencil(
         copy_stencil,
