@@ -95,6 +95,7 @@ class FrozenStencil:
         domain: Index3D,
         stencil_config: Optional[StencilConfig] = None,
         externals: Optional[Mapping[str, Any]] = None,
+        skip_passes: Optional[Tuple[str, ...]] = None,
     ):
         """
         Args:
@@ -110,7 +111,7 @@ class FrozenStencil:
         if stencil_config is not None:
             self.stencil_config: StencilConfig = stencil_config
         else:
-            self.stencil_config = global_config.get_stencil_config(func)
+            self.stencil_config = global_config.get_stencil_config()
 
         if externals is None:
             externals = {}
@@ -122,6 +123,9 @@ class FrozenStencil:
         if MPI is not None and MPI.COMM_WORLD.Get_size() > 1:
             stencil_function = future_stencil
             stencil_kwargs["wrapper"] = self
+
+        if skip_passes and global_config.is_gtc_backend():
+            stencil_kwargs["skip_passes"] = skip_passes
 
         self.stencil_object: gt4py.StencilObject = stencil_function(
             definition=func,
@@ -296,7 +300,7 @@ def gtstencil(
     else:
         # TODO: delete this global default
         if stencil_config is None:
-            stencil_config = global_config.get_stencil_config(func)
+            stencil_config = global_config.get_stencil_config()
         stencil = FrozenStencil(
             func,
             origin=origin,
@@ -326,7 +330,7 @@ def get_non_frozen_stencil(func, externals) -> Callable[..., None]:
         try:
             stencil_config = stencil_config_holder[0]
         except IndexError:
-            stencil_config = global_config.get_stencil_config(func)
+            stencil_config = global_config.get_stencil_config()
             stencil_config_holder.append(stencil_config)
         try:  # works if origin is a Mapping
             origin_key: Hashable = tuple(

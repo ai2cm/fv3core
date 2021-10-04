@@ -3,7 +3,7 @@ import os
 import re
 from collections.abc import Hashable
 from importlib import resources
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Dict, Optional
 
 import yaml
 
@@ -45,6 +45,10 @@ def is_gpu_backend() -> bool:
     return get_backend().endswith("cuda") or get_backend().endswith("gpu")
 
 
+def is_gtc_backend() -> bool:
+    return get_backend().startswith("gtc")
+
+
 def read_backend_options_file():
     file = resources.open_binary("fv3core", "gt4py_options.yml")
     if file:
@@ -64,12 +68,11 @@ class StencilConfig(Hashable):
         validate_args: bool,
         format_source: Optional[bool] = None,
         device_sync: Optional[bool] = None,
-        func: Optional[Callable] = None,
     ):
         self.backend = backend
         self.rebuild = rebuild
         self.validate_args = validate_args
-        self.backend_opts = self._get_backend_opts(func, device_sync, format_source)
+        self.backend_opts = self._get_backend_opts(device_sync, format_source)
         self._hash = self._compute_hash()
 
     def _compute_hash(self):
@@ -97,7 +100,6 @@ class StencilConfig(Hashable):
 
     def _get_backend_opts(
         self,
-        func: Optional[Callable] = None,
         device_sync: Optional[bool] = None,
         format_source: Optional[bool] = None,
     ) -> Dict[str, Any]:
@@ -105,17 +107,8 @@ class StencilConfig(Hashable):
             StencilConfig._all_backend_opts = read_backend_options_file()
         all_backend_opts: Dict[str, Any] = StencilConfig._all_backend_opts
 
-        candidate_opts: Dict[str, Any] = {}
-        if "all" in all_backend_opts:
-            candidate_opts.update(all_backend_opts["all"])
-
-        if func is not None:
-            stencil_name = f"{func.__module__.split('.')[-1]}.{func.__name__}"
-            if stencil_name in all_backend_opts:
-                candidate_opts.update(all_backend_opts[stencil_name])
-
         backend_opts: Dict[str, Any] = {}
-        for name, option in candidate_opts.items():
+        for name, option in all_backend_opts.items():
             if "backend" not in option or re.match(option["backend"], get_backend()):
                 backend_opts[name] = option["value"]
 
@@ -138,12 +131,11 @@ class StencilConfig(Hashable):
         return kwargs
 
 
-def get_stencil_config(func: Optional[Callable] = None):
+def get_stencil_config():
     return StencilConfig(
         backend=get_backend(),
         rebuild=get_rebuild(),
         validate_args=get_validate_args(),
-        func=func,
     )
 
 

@@ -502,6 +502,15 @@ def test_copy_non_frozen_stencil_rebuilds_for_new_domain(
     assert mock_stencil.call_count == 2
 
 
+def test_import_gt4py_options():
+    file = resources.open_binary("fv3core", "gt4py_options.yml")
+    assert file is not None
+
+    options = yaml.safe_load(file)
+    file.close()
+    assert options
+
+
 @pytest.mark.parametrize("backend", ("numpy", "gtc:cuda"))
 @pytest.mark.parametrize("rebuild", [True])
 @pytest.mark.parametrize("validate_args", [True])
@@ -517,21 +526,7 @@ def test_backend_options(
             "rebuild": True,
             "device_sync": False,
             "format_source": False,
-            "skip_passes": ["KCacheDetection"],
-        },
-    }
-
-    StencilConfig._all_backend_opts = {
-        "all": {
-            "device_sync": {"backend": ".*(gpu|cuda)$", "value": False},
-            "format_source": {"value": False},
-            "skip_passes": {
-                "backend": "^gtc:(gt|cuda)",
-                "value": ["graph_merge_horizontal_executions"],
-            },
-        },
-        "test_stencil_wrapper.copy_stencil": {
-            "skip_passes": {"backend": "^gtc:(gt|cuda)", "value": ["KCacheDetection"]}
+            "skip_passes": ["graph_merge_horizontal_executions"],
         },
     }
 
@@ -540,16 +535,5 @@ def test_backend_options(
         backend=backend,
         rebuild=rebuild,
         validate_args=validate_args,
-        func=copy_stencil,
     ).stencil_kwargs
     assert stencil_kwargs == expected_options[backend]
-
-
-def test_import_resources():
-    file = resources.open_binary("fv3core", "gt4py_options.yml")
-    assert file is not None
-
-    options = yaml.safe_load(file)
-    assert options
-    assert "all" in options
-    file.close()

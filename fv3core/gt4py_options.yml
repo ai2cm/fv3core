@@ -1,22 +1,9 @@
-all:
-  device_sync:
-    backend: .*(gpu|cuda)$
-    value: false
-  format_source:
-    value: false
-  skip_passes:
-    backend: ^gtc:(gt|cuda)
-    value:
-    - graph_merge_horizontal_executions
-
-fv_subgridz.init:
-  skip_passes:
-    backend: ^gtc:(gt|cuda)
-    value:
-    - KCacheDetection
-
-ytp_v._ytp_v:
-  skip_passes:
-    backend: ^gtc:(gt|cuda)
-    value:
-    - GreedyMerging
+device_sync:
+  backend: .*(gpu|cuda)$
+  value: false
+format_source:
+  value: false
+skip_passes:
+  backend: ^gtc:(gt|cuda)
+  value:
+  - graph_merge_horizontal_executions
