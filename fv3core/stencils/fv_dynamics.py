@@ -275,6 +275,7 @@ class DynamicalCore:
         assert namelist.nwat == 6, "Only nwat=6 has been implemented and tested"
         self.comm = comm
         self.grid = spec.grid
+        self.grid_indexing = spec.grid.grid_indexing
         self.namelist = namelist
 
         tracer_transport = fvtp2d.FiniteVolumeTransport(
@@ -285,7 +286,7 @@ class DynamicalCore:
             hord=spec.namelist.hord_tr,
         )
         self.tracer_advection = tracer_2d_1l.TracerAdvection(
-            spec.grid.grid_indexing, tracer_transport, comm, DynamicalCore.NQ
+            spec.grid.grid_indexing, tracer_transport, comm, self.NQ
         )
         self._ak = ak.storage
         self._bk = bk.storage
@@ -348,7 +349,7 @@ class DynamicalCore:
         self._temporaries = fvdyn_temporaries(
             self.grid.domain_shape_full(add=(1, 1, 1)), self.grid
         )
-        if not (not self.namelist.inline_q and DynamicalCore.NQ != 0):
+        if not (not self.namelist.inline_q and self.NQ != 0):
             raise NotImplementedError("tracer_2d not implemented, turn on z_tracer")
         self._adjust_tracer_mixing_ratio = AdjustNegativeTracerMixingRatio(
             self.grid.grid_indexing,
@@ -360,7 +361,7 @@ class DynamicalCore:
             self.grid.grid_indexing,
             namelist.remapping,
             self.grid.area_64,
-            DynamicalCore.NQ,
+            self.NQ,
             self._pfull,
         )
 
@@ -419,7 +420,7 @@ class DynamicalCore:
     ):
         state.__dict__.update(self._temporaries)
         tracers = {}
-        for name in utils.tracer_variables[0 : DynamicalCore.NQ]:
+        for name in utils.tracer_variables[0 : self.NQ]:
             tracers[name] = state.__dict__[name + "_quantity"]
         tracer_storages = {name: quantity.storage for name, quantity in tracers.items()}
 
@@ -489,7 +490,7 @@ class DynamicalCore:
                         state.bdt / state.k_split,
                         state.bdt,
                         state.do_adiabatic_init,
-                        DynamicalCore.NQ,
+                        self.NQ,
                     )
                 if last_step:
                     post_remap(
