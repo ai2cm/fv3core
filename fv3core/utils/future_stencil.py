@@ -321,7 +321,7 @@ class FutureStencil:
     def field_info(self) -> Dict[str, FieldInfo]:
         return self.stencil_object.field_info
 
-    def _delay(self, factor: float = 0.5) -> float:
+    def _delay(self, factor: float = 0.25) -> float:
         delay_time = self._sleep_time * float(self._node_id) * factor
         time.sleep(delay_time)
         return delay_time
