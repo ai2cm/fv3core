@@ -25,16 +25,14 @@ def get_center_vector(xyz_gridpoints, grid_type, nhalo, tile_partitioner, rank, 
             
             p1 = xyz_midpoint(xyz_gridpoints[:-1, :-1, :], xyz_gridpoints[:-1, 1:, :])
             p2 = xyz_midpoint(xyz_gridpoints[1:, :-1, :], xyz_gridpoints[1:, 1:, :])
-            p3 = np.cross(p1, p2)
+            p3 = np.cross(p2, p1)
             vector1 = normalize_xyz(np.cross( center_points, p3))
 
             p1 = xyz_midpoint(xyz_gridpoints[:-1, :-1, :], xyz_gridpoints[1:, :-1, :])
             p2 = xyz_midpoint(xyz_gridpoints[:-1, 1:, :], xyz_gridpoints[1:, 1:, :])
-            p3 = np.cross(p1, p2)
+            p3 = np.cross(p2, p1)
             vector2 = normalize_xyz(np.cross( center_points, p3))
-        # TODO why if this factor not happening in one of the above steps?
-        vector1[:] *= -1.0
-        vector2[:] *= -1.0
+      
         #fill ghost on ec1 and ec2:
         if tile_partitioner.on_tile_left(rank):
             if tile_partitioner.on_tile_bottom(rank):

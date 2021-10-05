@@ -1,6 +1,6 @@
 import typing
 from fv3core.utils.global_constants import PI
-
+import math
 def gnomonic_grid(grid_type: int, lon, lat, np):
     """
     Apply gnomonic grid to lon and lat arrays
@@ -12,7 +12,7 @@ def gnomonic_grid(grid_type: int, lon, lat, np):
     """
     _check_shapes(lon, lat)
     if grid_type == 0:
-        gnomonic_ed(lon, lat, np)
+        global_gnomonic_ed(lon, lat, np)
     elif grid_type == 1:
         gnomonic_dist(lon, lat)
     elif grid_type == 2:
@@ -37,15 +37,14 @@ def _check_shapes(lon, lat):
             f"{lon.shape} and {lat.shape}"
         )
 
-
-def gnomonic_ed(lon, lat, np):
+# A tile global version of gnomonic_ed
+# closer to the Fortran code
+def global_gnomonic_ed(lon, lat, np):
     im = lon.shape[0] - 1
     alpha = np.arcsin(3 ** -0.5)
-
     dely = 2.0 * alpha / float(im)
-
-    pp = np.empty((3, im + 1, im + 1))
-
+    pp = np.zeros((3, im + 1, im + 1))
+  
     for j in range(0, im + 1):
         lon[0, j] = 0.75 * PI  # West edge
         lon[im, j] = 1.25 * PI  # East edge
@@ -80,15 +79,110 @@ def gnomonic_ed(lon, lat, np):
         pp[2, i, j] = -pp[2, i, j] * (3 ** -0.5) / pp[0, i, j]
 
     pp[0, :, :] = -(3 ** -0.5)
-
     for j in range(1, im + 1):
         # copy y-z face of the cube along j=0
         pp[1, 1:, j] = pp[1, 1:, 0]
         # copy along i=0
         pp[2, 1:, j] = pp[2, 0, j]
-
     _cart_to_latlon(im + 1, pp, lon, lat, np)
 
+def lat_tile_ew_edge(alpha, dely, south_north_tile_index):
+    return  -alpha + dely * float(south_north_tile_index)
+
+def local_gnomonic_ed(lon, lat,  npx, west_edge, east_edge, south_edge, north_edge, global_is, global_js, np, rank):
+    _check_shapes(lon, lat)
+    # tile_im, wedge_dict, corner_dict, global_is, global_js
+    im = lon.shape[0] - 1
+    alpha = np.arcsin(3 ** -0.5)
+    tile_im = npx - 1
+    dely = 2.0 * alpha / float(tile_im)
+    halo = 3
+    pp = np.zeros((3, im + 1, im + 1))
+    pp_west_tile_edge = np.zeros((3, 1, im + 1))
+    pp_south_tile_edge = np.zeros((3, im + 1, 1))
+    lon_west_tile_edge = np.zeros((1, im + 1))
+    lon_south_tile_edge = np.zeros((im + 1, 1))
+    lat_west_tile_edge = np.zeros((1, im + 1))
+    lat_south_tile_edge = np.zeros((im + 1, 1))
+    lat_west_tile_edge_mirror = np.zeros((1, im + 1))
+
+    lon_west = 0.75 * PI
+    lon_east = 1.25 * PI
+    lat_south =  lat_tile_ew_edge(alpha, dely, 0)   
+    lat_north =  lat_tile_ew_edge(alpha, dely, tile_im)
+  
+    start_i = 1 if west_edge else 0
+    end_i = im if east_edge else im+1
+    start_j = 1 if south_edge else 0
+    lon_west_tile_edge[0, :]=  lon_west
+    for j in range(0, im + 1):
+        lat_west_tile_edge[0, j] = lat_tile_ew_edge(alpha, dely, global_js - halo +j)
+        lat_west_tile_edge_mirror[0, j] = lat_tile_ew_edge(alpha, dely, global_is - halo +j)
+
+    if east_edge:
+        lon_south_tile_edge[im, 0] = 1.25* PI
+        lat_south_tile_edge[im, 0] = lat_tile_ew_edge(alpha, dely, global_js - halo)
+       
+    # Get North-South edges by symmetry
+    for i in range(start_i, end_i):
+        edge_lon, edge_lat =  _mirror_latlon(
+            lon_west, lat_south, lon_east, lat_north,   lon_west_tile_edge[0, i], lat_west_tile_edge_mirror[0, i], np
+        )
+        lon_south_tile_edge[i, 0] = edge_lon
+        lat_south_tile_edge[i, 0] = edge_lat
+    
+    # map edges on the sphere back to cube: intersection at x = -1/sqrt(3)
+    i = 0
+    for j in range(im+1):
+        pp_west_tile_edge[:, i, j] = _latlon2xyz(lon_west_tile_edge[i, j], lat_west_tile_edge[i, j], np)
+        pp_west_tile_edge[1, i, j] = -pp_west_tile_edge[1, i, j] * (3 ** -0.5) / pp_west_tile_edge[0, i, j]
+        pp_west_tile_edge[2, i, j] = -pp_west_tile_edge[2, i, j] * (3 ** -0.5) / pp_west_tile_edge[0, i, j]
+    if west_edge:
+        pp[:, 0,:] = pp_west_tile_edge[:, 0,:]
+    
+    j = 0
+    for i in range(im+1):
+        pp_south_tile_edge[:, i, j] = _latlon2xyz(lon_south_tile_edge[i, j], lat_south_tile_edge[i, j], np)
+        pp_south_tile_edge[1, i, j] = -pp_south_tile_edge[1, i, j] * (3 ** -0.5) / pp_south_tile_edge[0, i, j]
+        pp_south_tile_edge[2, i, j] = -pp_south_tile_edge[2, i, j] * (3 ** -0.5) / pp_south_tile_edge[0, i, j]
+    if south_edge:
+        pp[:, :,0] = pp_south_tile_edge[:, :,0]
+    
+
+    # set 4 corners
+    if south_edge or west_edge:
+        sw_xyz =  _latlon2xyz(lon_west,  lat_south, np)
+        if south_edge and west_edge:
+            pp[:, 0, 0] =sw_xyz
+        if south_edge:
+            pp_west_tile_edge[:,0,0]= sw_xyz
+        if west_edge:
+            pp_south_tile_edge[:,0,0]= sw_xyz
+    if east_edge:
+        se_xyz = _latlon2xyz(lon_east,  lat_south, np)
+        pp_south_tile_edge[:,im,0]= se_xyz
+
+    if north_edge:
+        nw_xyz =  _latlon2xyz(lon_west,  lat_north, np)
+        pp_west_tile_edge[:,0,im]= nw_xyz
+       
+    if north_edge and east_edge:
+        pp[:, im, im] = _latlon2xyz(lon_east,  lat_north, np)
+
+    pp[0, :, :] = -(3 ** -0.5)
+    for j in range(start_j, im+1):
+        # copy y-z face of the cube along j=0
+        pp[1, start_i:, j] = pp_south_tile_edge[1, start_i:, 0] #pp[1,:,0]
+        # copy along i=0
+        pp[2, start_i:, j] = pp_west_tile_edge[2, 0, j] # pp[4,0,j]
+   
+    _cart_to_latlon(im + 1, pp, lon, lat, np)
+    # TODO replicating the last step of gnomonic_grid until api is finalized
+    # remove this if this method is called from gnomonic_grid
+    #if grid_type < 3:
+    symm_ed(lon, lat)
+    lon[:] -= PI
+   
 
 def _corner_to_center_mean(corner_array):
     """Given a 2D array on cell corners, return a 2D array on cell centers with the
@@ -324,8 +418,7 @@ def get_area(lon, lat, radius, np):
         lower_left, upper_left, upper_right, lower_right, radius, np
     )
 
-
-def set_corner_area_to_triangle_area(lon, lat, area, radius, np):
+def set_corner_area_to_triangle_area(lon, lat, area, tile_partitioner, rank,radius, np):
     """
     Given latitude and longitude on cell corners, and an array of cell areas, set the
     four corner areas to the area of the inner triangle at those corners.
@@ -335,18 +428,22 @@ def set_corner_area_to_triangle_area(lon, lat, area, radius, np):
     lower_right = xyz[(slice(1, None), slice(None, -1), slice(None, None))]
     upper_left = xyz[(slice(None, -1), slice(1, None), slice(None, None))]
     upper_right = xyz[(slice(1, None), slice(1, None), slice(None, None))]
-    area[0, 0] = get_triangle_area(
-        upper_left[0, 0], upper_right[0, 0], lower_right[0, 0], radius, np
-    )
-    area[-1, 0] = get_triangle_area(
-        upper_right[-1, 0], upper_left[-1, 0], lower_left[-1, 0], radius, np
-    )
-    area[-1, -1] = get_triangle_area(
-        lower_right[-1, -1], lower_left[-1, -1], upper_left[-1, -1], radius, np
-    )
-    area[0, -1] = get_triangle_area(
-        lower_left[0, -1], lower_right[0, -1], upper_right[0, -1], radius, np
-    )
+    if tile_partitioner.on_tile_left(rank) and  tile_partitioner.on_tile_bottom(rank):
+        area[0, 0] = get_triangle_area(
+            upper_left[0, 0], upper_right[0, 0], lower_right[0, 0], radius, np
+        )
+    if tile_partitioner.on_tile_right(rank) and  tile_partitioner.on_tile_bottom(rank):
+        area[-1, 0] = get_triangle_area(
+            upper_right[-1, 0], upper_left[-1, 0], lower_left[-1, 0], radius, np
+        )
+    if tile_partitioner.on_tile_right(rank) and  tile_partitioner.on_tile_top(rank):
+        area[-1, -1] = get_triangle_area(
+            lower_right[-1, -1], lower_left[-1, -1], upper_left[-1, -1], radius, np
+        )
+    if tile_partitioner.on_tile_left(rank) and  tile_partitioner.on_tile_top(rank):
+        area[0, -1] = get_triangle_area(
+            lower_left[0, -1], lower_right[0, -1], upper_right[0, -1], radius, np
+        )
 
 
 def set_c_grid_tile_border_area(
@@ -372,31 +469,41 @@ def set_c_grid_tile_border_area(
         rank: rank of current tile
         np: numpy-like module to interact with arrays
     """
+
     if tile_partitioner.on_tile_left(rank):
         _set_c_grid_west_edge_area(xyz_dgrid, xyz_agrid, area_cgrid, radius, np)
-        # if tile_partitioner.on_tile_top(rank):
-        #     _set_c_grid_northwest_corner_area(
-        #         xyz_dgrid, xyz_agrid, area_cgrid, radius, np
-        #     )
+
     if tile_partitioner.on_tile_top(rank):
         _set_c_grid_north_edge_area(xyz_dgrid, xyz_agrid, area_cgrid, radius, np)
-        # if tile_partitioner.on_tile_right(rank):
-        #     _set_c_grid_northeast_corner_area(
-        #         xyz_dgrid, xyz_agrid, area_cgrid, radius, np
-        #     )
+      
     if tile_partitioner.on_tile_right(rank):
         _set_c_grid_east_edge_area(xyz_dgrid, xyz_agrid, area_cgrid, radius, np)
-        # if tile_partitioner.on_tile_bottom(rank):
-        #     _set_c_grid_southeast_corner_area(
-        #         xyz_dgrid, xyz_agrid, area_cgrid, radius, np
-        #     )
+       
     if tile_partitioner.on_tile_bottom(rank):
         _set_c_grid_south_edge_area(xyz_dgrid, xyz_agrid, area_cgrid, radius, np)
-        # if tile_partitioner.on_tile_left(rank):
-        #     _set_c_grid_southwest_corner_area(
-        #         xyz_dgrid, xyz_agrid, area_cgrid, radius, np
-        #     )
-
+      
+    """
+# TODO add these back if we change the fortran side, or 
+#  decide the 'if sw_corner' should happen
+    if tile_partitioner.on_tile_left(rank):
+        if tile_partitioner.on_tile_top(rank):
+             _set_c_grid_northwest_corner_area(
+                 xyz_dgrid, xyz_agrid, area_cgrid, radius, np
+             )
+        if tile_partitioner.on_tile_bottom(rank):
+            _set_c_grid_southwest_corner_area_mod(
+                xyz_dgrid, xyz_agrid, area_cgrid, radius, np
+            )   
+    if tile_partitioner.on_tile_right(rank):
+        if tile_partitioner.on_tile_bottom(rank):
+            _set_c_grid_southeast_corner_area(
+                xyz_dgrid, xyz_agrid, area_cgrid, radius, np
+            )
+        if tile_partitioner.on_tile_top(rank):
+            _set_c_grid_northeast_corner_area(
+                xyz_dgrid, xyz_agrid, area_cgrid, radius, np
+            )
+    """
 
 def _set_c_grid_west_edge_area(xyz_dgrid, xyz_agrid, area_cgrid, radius, np):
     xyz_y_center = 0.5 * (xyz_dgrid[1, :-1] + xyz_dgrid[1, 1:])
@@ -408,7 +515,6 @@ def _set_c_grid_west_edge_area(xyz_dgrid, xyz_agrid, area_cgrid, radius, np):
         radius,
         np,
     )
-
 
 def _set_c_grid_east_edge_area(xyz_dgrid, xyz_agrid, area_cgrid, radius, np):
     _set_c_grid_west_edge_area(
@@ -441,10 +547,13 @@ def _set_c_grid_southwest_corner_area(xyz_dgrid, xyz_agrid, area_cgrid, radius, 
         lower_left, upper_left, upper_right, lower_right, radius, np
     )
 
-
+def _set_c_grid_southwest_corner_area_mod(xyz_dgrid, xyz_agrid, area_cgrid, radius, np):
+    _set_c_grid_southwest_corner_area(
+        xyz_dgrid[1:, 1:], xyz_agrid[1:, 1:], area_cgrid[:, :], radius, np
+    )
 def _set_c_grid_northwest_corner_area(xyz_dgrid, xyz_agrid, area_cgrid, radius, np):
     _set_c_grid_southwest_corner_area(
-        xyz_dgrid[:, ::-1], xyz_agrid[:, ::-1], area_cgrid[:, ::-1], radius, np
+        xyz_dgrid[1:, ::-1], xyz_agrid[1:, ::-1], area_cgrid[:, ::-1], radius, np
     )
 
 
@@ -456,7 +565,7 @@ def _set_c_grid_northeast_corner_area(xyz_dgrid, xyz_agrid, area_cgrid, radius, 
 
 def _set_c_grid_southeast_corner_area(xyz_dgrid, xyz_agrid, area_cgrid, radius, np):
     _set_c_grid_southwest_corner_area(
-        xyz_dgrid[::-1, :], xyz_agrid[::-1, :], area_cgrid[::-1, :], radius, np
+        xyz_dgrid[::-1, 1:], xyz_agrid[::-1, 1:], area_cgrid[::-1, :], radius, np
     )
 
 
@@ -505,11 +614,14 @@ def _set_tile_south_dyc(xyz_dgrid, xyz_agrid, radius, dyc, np):
         np,
     )
 
-
 def get_rectangle_area(p1, p2, p3, p4, radius, np):
     """
     Given four point arrays whose last dimensions are x/y/z in clockwise or
     counterclockwise order, return an array of spherical rectangle areas.
+    NOTE, this is not the exact same order of operations as the Fortran code
+    This results in some errors in the last digit, but the spherical_angle
+    is an exact match. The errors in the last digit multipled out by the radius
+    end up causing relative errors larger than 1e-14, but still wtihin 1e-12.
     """
     total_angle = spherical_angle(p2, p3, p1, np)
     for (
@@ -518,6 +630,7 @@ def get_rectangle_area(p1, p2, p3, p4, radius, np):
         q3,
     ) in ((p3, p2, p4), (p4, p3, p1), (p1, p4, p2)):
         total_angle += spherical_angle(q1, q2, q3, np)
+    
     return (total_angle - 2 * PI) * radius ** 2
 
 
@@ -532,6 +645,53 @@ def get_triangle_area(p1, p2, p3, radius, np):
         total_angle += spherical_angle(q1, q2, q3, np)
     return (total_angle - PI) * radius ** 2
 
+def fortran_vector_spherical_angle(e1,e2,e3):
+    """
+   The Fortran version
+    Given x/y/z tuples, compute the spherical angle between
+    them according to:
+!           p3
+!         /
+!        /
+!       p_center ---> angle
+!         \
+!          \
+!           p2
+    This angle will always be less than Pi.
+    """
+
+    # ! Vector P:
+    #    px = e1(2)*e2(3) - e1(3)*e2(2)
+    #    py = e1(3)*e2(1) - e1(1)*e2(3)
+    #    pz = e1(1)*e2(2) - e1(2)*e2(1)
+    # ! Vector Q:
+    #    qx = e1(2)*e3(3) - e1(3)*e3(2)
+    #    qy = e1(3)*e3(1) - e1(1)*e3(3)
+    #    qz = e1(1)*e3(2) - e1(2)*e3(1)
+
+    # Vector P:
+    px = e1[1]*e2[2] - e1[2]*e2[1]
+    py = e1[2]*e2[0] - e1[0]*e2[2]
+    pz = e1[0]*e2[1] - e1[1]*e2[0]
+    # Vector Q:
+    qx = e1[1]*e3[2] - e1[2]*e3[1]
+    qy = e1[2]*e3[0] - e1[0]*e3[2]
+    qz = e1[0]*e3[1] - e1[1]*e3[0]
+    ddd = (px*px+py*py+pz*pz)*(qx*qx+qy*qy+qz*qz)
+    
+    if ddd <= 0.0:
+        angle = 0.0
+    else:
+        ddd = (px*qx+py*qy+pz*qz) / math.sqrt(ddd)
+        if abs(ddd) > 1.0:
+            # FIX (lmh) to correctly handle co-linear points (angle near pi or 0)
+            if ddd < 0.0:
+                angle = 4.0 * math.atan(1.0) # should be pi
+            else:
+                angle = 0.0
+        else:
+            angle = math.acos(ddd)
+    return angle
 
 def spherical_angle(p_center, p2, p3, np):
     """
@@ -555,13 +715,20 @@ def spherical_angle(p_center, p2, p3, np):
     #    qx = e1(2)*e3(3) - e1(3)*e3(2)
     #    qy = e1(3)*e3(1) - e1(1)*e3(3)
     #    qz = e1(1)*e3(2) - e1(2)*e3(1)
+
     p = np.cross(p_center, p2)
     q = np.cross(p_center, p3)
-    return np.arccos(
+    angle =  np.arccos(
         np.sum(p * q, axis=-1)
         / np.sqrt(np.sum(p ** 2, axis=-1) * np.sum(q ** 2, axis=-1))
     )
-
+    if not np.isscalar(angle):
+        angle[np.isnan(angle)] = 0.0
+    elif math.isnan(angle):
+        angle = 0.0
+    
+   
+    return angle 
 #    ddd = (px*px+py*py+pz*pz)*(qx*qx+qy*qy+qz*qz)
 
 #    if ( ddd <= 0.0d0 ) then
@@ -622,3 +789,4 @@ def get_lonlat_vect(lonlat_grid, np):
         np.cos(lonlat_grid[:,:,1])]
     ).transpose([1,2,0])
     return lon_vector, lat_vector
+
