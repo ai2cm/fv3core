@@ -294,6 +294,7 @@ class TranslateMoreAreas(ParallelTranslateGrid):
     }
 
     def compute_sequential(self, inputs_list, communicator_list):
+
         state_list = []
         for inputs, communicator in zip(inputs_list, communicator_list):
             state_list.append(self._compute_local(inputs, communicator))
@@ -315,7 +316,7 @@ class TranslateMoreAreas(ParallelTranslateGrid):
             fill_corners_cgrid(
                 state["dx_cgrid"].data[:, :, None],
                 state["dy_cgrid"].data[:, :, None],
-                grid_indexer,
+                self.grid,
                 vector=False,
             )
 
