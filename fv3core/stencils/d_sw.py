@@ -185,7 +185,7 @@ def apply_pt_delp_fluxes_stencil_defn(
         pt, delp = apply_pt_delp_fluxes(gx, gy, rarea, fx, fy, pt, delp)
 
 
-def kinetic_energy_update(
+def kinetic_energy_update_part_1(
     vc: FloatField,
     uc: FloatField,
     cosa: FloatFieldIJ,
@@ -194,13 +194,16 @@ def kinetic_energy_update(
     vc_contra: FloatField,
     u: FloatField,
     uc_contra: FloatField,
-    ke: FloatField,
     dx: FloatFieldIJ,
     dxa: FloatFieldIJ,
     rdx: FloatFieldIJ,
     dy: FloatFieldIJ,
     dya: FloatFieldIJ,
     rdy: FloatFieldIJ,
+    ub_contra: FloatField,
+    vb_contra: FloatField,
+    advected_u: FloatField,
+    advected_v: FloatField,
     dt: float,
 ):
 
@@ -210,6 +213,23 @@ def kinetic_energy_update(
         )
         advected_v = advect_v_along_y(v, vb_contra, rdy=rdy, dy=dy, dya=dya, dt=dt)
         advected_u = advect_u_along_x(u, ub_contra, rdx=rdx, dx=dx, dxa=dxa, dt=dt)
+
+
+def kinetic_energy_update_part_2(
+    ub_contra: FloatField,
+    advected_u: FloatField,
+    vb_contra: FloatField,
+    advected_v: FloatField,
+    v: FloatField,
+    vc_contra: FloatField,
+    u: FloatField,
+    uc_contra: FloatField,
+    ke: FloatField,
+    dt: float,
+):
+    # TODO: this is split from part 1 only because the compiled code asks for
+    # too much memory. Merge these when that's fixed.
+    with computation(PARALLEL), interval(...):
         # TODO: we see here that ke is not kinetic energy, but kinetic energy * timestep
         #       refactor or rename to avoid this confusion
         ke = 0.5 * dt * (ub_contra * advected_u + vb_contra * advected_v)
@@ -624,6 +644,10 @@ class DGridShallowWaterLagrangianDynamics:
         self._tmp_damp_3d = utils.make_storage_from_shape(
             (1, 1, grid_indexing.domain[2])
         )
+        self._advected_u = utils.make_storage_from_shape(grid_indexing.max_shape)
+        self._advected_v = utils.make_storage_from_shape(grid_indexing.max_shape)
+        self._ub_contra = utils.make_storage_from_shape(grid_indexing.max_shape)
+        self._vb_contra = utils.make_storage_from_shape(grid_indexing.max_shape)
         self._column_namelist = column_namelist
 
         self.delnflux_nosg_w = DelnFluxNoSG(
@@ -704,8 +728,21 @@ class DGridShallowWaterLagrangianDynamics:
             origin=b_origin,
             domain=b_domain,
         )
-        self._kinetic_energy_update = FrozenStencil(
-            kinetic_energy_update,
+        self._kinetic_energy_update_part_1 = FrozenStencil(
+            kinetic_energy_update_part_1,
+            externals={
+                "iord": config.hord_mt,
+                "jord": config.hord_mt,
+                "mord": config.hord_mt,
+                "xt_minmax": False,
+                "yt_minmax": False,
+                **ax_offsets_b,
+            },
+            origin=b_origin,
+            domain=b_domain,
+        )
+        self._kinetic_energy_update_part_2 = FrozenStencil(
+            kinetic_energy_update_part_2,
             externals={
                 "iord": config.hord_mt,
                 "jord": config.hord_mt,
@@ -966,23 +1003,38 @@ class DGridShallowWaterLagrangianDynamics:
             pt=pt,
             delp=delp,
         )
-        self._kinetic_energy_update(
-            vc,
-            uc,
-            self.grid.cosa,
-            self.grid.rsina,
-            v,
-            self._vc_contra,
-            u,
-            self._uc_contra,
-            self._tmp_ke,
-            self.grid.dx,
-            self.grid.dxa,
-            self.grid.rdx,
-            self.grid.dy,
-            self.grid.dya,
-            self.grid.rdy,
-            dt,
+        self._kinetic_energy_update_part_1(
+            vc=vc,
+            uc=uc,
+            cosa=self.grid.cosa,
+            rsina=self.grid.rsina,
+            v=v,
+            vc_contra=self._vc_contra,
+            u=u,
+            uc_contra=self._uc_contra,
+            dx=self.grid.dx,
+            dxa=self.grid.dxa,
+            rdx=self.grid.rdx,
+            dy=self.grid.dy,
+            dya=self.grid.dya,
+            rdy=self.grid.rdy,
+            ub_contra=self._ub_contra,
+            vb_contra=self._vb_contra,
+            advected_u=self._advected_u,
+            advected_v=self._advected_v,
+            dt=dt,
+        )
+        self._kinetic_energy_update_part_2(
+            ub_contra=self._ub_contra,
+            advected_u=self._advected_u,
+            vb_contra=self._vb_contra,
+            advected_v=self._advected_v,
+            v=v,
+            vc_contra=self._vc_contra,
+            u=u,
+            uc_contra=self._uc_contra,
+            ke=self._tmp_ke,
+            dt=dt,
         )
 
         self._compute_vorticity_stencil(

@@ -9,7 +9,7 @@ import fv3gfs.util as fv3util
 from fv3core.testing import ParallelTranslateBaseSlicing
 
 
-ADVECTED_TRACER_NAMES = utils.tracer_variables[: fv_dynamics.DynamicalCore.NQ]
+ADVECTED_TRACER_NAMES = utils.tracer_variables[: fv_dynamics.NQ]
 
 
 class TranslateFVDynamics(ParallelTranslateBaseSlicing):
