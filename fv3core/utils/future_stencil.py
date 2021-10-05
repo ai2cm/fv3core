@@ -290,7 +290,6 @@ class FutureStencil:
         wrapper: Optional[Callable] = None,
         sleep_time: float = 0.05,
         timeout: float = 600.0,
-        max_retries: int = 3,
     ):
         """
         Args:
@@ -299,13 +298,11 @@ class FutureStencil:
                      compiled stencil can be passed
             sleep_time: Amount of time to sleep between table checks (defaults to 50 ms)
             timeout: Time to wait for a stencil to compile (defaults to 10 min)
-            max_retries: Number of times to try loading existing stencil modules
         """
         self._builder = builder
         self._wrapper = wrapper
         self._sleep_time = sleep_time
         self._timeout = timeout
-        self._max_retries = max_retries
         self._id_table = StencilTable.create()
         self._node_id: int = MPI.COMM_WORLD.Get_rank() if MPI else 0
         self._stencil_object: Optional[StencilObject] = None
@@ -359,16 +356,15 @@ class FutureStencil:
         return stencil_class
 
     def _load_cached_stencil(self):
-        # Retry loop to prevent loading incomplete files...
         stencil_class: Callable = None
-        for _ in range(self._max_retries):
-            self._delay()
-            try:
-                stencil_class = self._builder.backend.load()
-                break
-            except AttributeError:
-                stencil_class = None
-                continue
+        self._delay()
+
+        # try/except block to prevent loading incomplete files...
+        try:
+            stencil_class = self._builder.backend.load()
+        except (AttributeError, FileNotFoundError):
+            stencil_class = None
+
         return stencil_class
 
     def _wait_for_stencil(self):
