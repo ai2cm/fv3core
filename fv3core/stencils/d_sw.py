@@ -172,14 +172,20 @@ def apply_pt_delp_fluxes(
     return pt, delp
 
 
-def kinetic_energy_update(
-    gx: FloatField,
-    gy: FloatField,
-    rarea: FloatFieldIJ,
+def apply_pt_delp_fluxes_stencil_defn(
     fx: FloatField,
     fy: FloatField,
     pt: FloatField,
     delp: FloatField,
+    gx: FloatField,
+    gy: FloatField,
+    rarea: FloatFieldIJ,
+):
+    with computation(PARALLEL), interval(...):
+        pt, delp = apply_pt_delp_fluxes(gx, gy, rarea, fx, fy, pt, delp)
+
+
+def kinetic_energy_update(
     vc: FloatField,
     uc: FloatField,
     cosa: FloatFieldIJ,
@@ -199,7 +205,6 @@ def kinetic_energy_update(
 ):
 
     with computation(PARALLEL), interval(...):
-        pt, delp = apply_pt_delp_fluxes(gx, gy, rarea, fx, fy, pt, delp)
         ub_contra, vb_contra = interpolate_uc_vc_to_cell_corners(
             uc, vc, cosa, rsina, uc_contra, vc_contra
         )
@@ -690,10 +695,18 @@ class DGridShallowWaterLagrangianDynamics:
             [X_INTERFACE_DIM, Y_INTERFACE_DIM, Z_DIM]
         )
         ax_offsets_b = axis_offsets(grid_indexing, b_origin, b_domain)
+        self._apply_pt_delp_fluxes = FrozenStencil(
+            apply_pt_delp_fluxes_stencil_defn,
+            externals={
+                "inline_q": config.inline_q,
+                **ax_offsets_b,
+            },
+            origin=b_origin,
+            domain=b_domain,
+        )
         self._kinetic_energy_update = FrozenStencil(
             kinetic_energy_update,
             externals={
-                "inline_q": config.inline_q,
                 "iord": config.hord_mt,
                 "jord": config.hord_mt,
                 "mord": config.hord_mt,
@@ -944,14 +957,16 @@ class DGridShallowWaterLagrangianDynamics:
             y_mass_flux=self._tmp_fy,
         )
 
+        self._apply_pt_delp_fluxes(
+            gx=self._tmp_gx,
+            gy=self._tmp_gy,
+            rarea=self.grid.rarea,
+            fx=self._tmp_fx,
+            fy=self._tmp_fy,
+            pt=pt,
+            delp=delp,
+        )
         self._kinetic_energy_update(
-            self._tmp_gx,
-            self._tmp_gy,
-            self.grid.rarea,
-            self._tmp_fx,
-            self._tmp_fy,
-            pt,
-            delp,
             vc,
             uc,
             self.grid.cosa,
