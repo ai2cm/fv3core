@@ -363,7 +363,7 @@ class FutureStencil:
         stencil_id = int(builder.stencil_id.version, 16)
 
         stencil_class: Callable = None
-        if not builder.options.rebuild and builder.caching.cache_info_path.exists():
+        if not builder.options.rebuild:
             # Retry loop to prevent loading incomplete files...
             for _ in range(self._max_retries):
                 self._delay()
