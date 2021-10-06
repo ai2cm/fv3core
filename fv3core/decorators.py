@@ -104,6 +104,7 @@ class FrozenStencil:
             domain: gt4py domain to use at call time
             stencil_config: container for stencil configuration
             externals: compile-time external variables required by stencil
+            skip_passes: compiler passes to skip when building stencil
         """
         self.origin = origin
         self.domain = domain
