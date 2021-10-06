@@ -1,6 +1,5 @@
 import fv3core.utils.gt4py_utils as utils
 from fv3core.stencils.fvtp2d import (
-    AccessTimeCopiedCorners,
     FiniteVolumeTransport,
     PreAllocatedCopiedCornersFactory,
 )
@@ -58,7 +57,7 @@ class TranslateFvTp2d(TranslateFortranData2Py):
         factory = PreAllocatedCopiedCornersFactory(
             self.grid.grid_indexing, dims=[X_DIM, Y_DIM, Z_DIM], y_temporary=None
         )
-        inputs["q"] = AccessTimeCopiedCorners(q_storage)
+        inputs["q"] = factory(q_storage)
         self.compute_func(**inputs)
         inputs["q"] = q_storage
         return inputs

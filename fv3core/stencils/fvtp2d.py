@@ -95,43 +95,6 @@ class CopiedCorners:
     y_differenceable: FloatField
 
 
-@dataclasses.dataclass
-class AccessTimeCopiedCorners(CopiedCorners):
-    """
-    Data container for storages with corners copied for differencing
-    along the x- and y-directions.
-
-    This version copies corners within the base storage at access time,
-    returning the base storage instead of a copy.
-
-    Attributes:
-        base: writeable version of storage with no guarantees about corner data
-        x_differenceable: version of storage which can be differenced
-            along the x-direction
-        y_differenceable: version of storage which can be differenced
-            along the y-direction
-    """
-
-    def __init__(self, base_storage):
-        self.base = base_storage
-        corner_tmp = utils.make_storage_from_shape(
-            base_storage.shape, origin=base_storage.default_origin
-        )
-        self._copy_corners_x: corners.CopyCorners = corners.CopyCorners("x", corner_tmp)
-        self._copy_corners_y: corners.CopyCorners = corners.CopyCorners("y", corner_tmp)
-
-    @property
-    def x_differenceable(self):
-        self._copy_corners_x(self.base)
-        return self.base
-
-    @property
-    def y_differenceable(self):
-        self._copy_corners_y(self.base)
-        return self.base
-
-
-@dataclasses.dataclass
 class PreAllocatedCopiedCornersFactory:
     """
     Creates CopiedCorners from a field, using an init-compiled stencil
@@ -145,6 +108,14 @@ class PreAllocatedCopiedCornersFactory:
         dims: Sequence[str],
         y_temporary: FloatField,
     ):
+        """
+        Args:
+            grid_indexing: information about grid size
+            dims: dimensionality of data to be copied
+            y_temporary: if given, storage to use for y-differenceable field
+                (x-differenceable field uses same memory as base storage),
+                if None then a storage is initialized based on max shape
+        """
         if y_temporary is None:
             y_temporary = utils.make_storage_from_shape(
                 grid_indexing.max_shape,
@@ -154,7 +125,7 @@ class PreAllocatedCopiedCornersFactory:
             grid_indexing, dims, y_field=y_temporary
         )
 
-    def __call__(self, field: FloatFieldIJ):
+    def __call__(self, field: FloatFieldIJ) -> CopiedCorners:
         x_field, y_field = self._copy_corners_xy(field)
         return CopiedCorners(
             base=field, x_differenceable=x_field, y_differenceable=y_field
