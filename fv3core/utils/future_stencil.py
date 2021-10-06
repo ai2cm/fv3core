@@ -359,7 +359,9 @@ class FutureStencil:
         stencil_class: Callable = None
         self._delay()
 
-        # try/except block to prevent loading incomplete files...
+        # try/except block to prevent loading incomplete files, either
+        #   Attribute errors due to missing 'run' or 'call' methods
+        #   File not found errors if an expected file does not yet exist
         try:
             stencil_class = self._builder.backend.load()
         except (AttributeError, FileNotFoundError):
