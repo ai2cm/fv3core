@@ -355,15 +355,25 @@ class FutureStencil:
 
         return stencil_class
 
+    def _load_cached_stencil(self):
+        stencil_class: Callable = None
+        self._delay()
+
+        # try/except block to prevent loading incomplete files...
+        try:
+            stencil_class = self._builder.backend.load()
+        except (AttributeError, FileNotFoundError):
+            stencil_class = None
+
+        return stencil_class
+
     def _wait_for_stencil(self):
         builder = self._builder
         stencil_id = int(builder.stencil_id.version, 16)
 
-        stencil_class = None
+        stencil_class: Callable = None
         if not builder.options.rebuild:
-            # Delay before accessing stencil cache on filesystem...
-            self._delay()
-            stencil_class = builder.backend.load()
+            stencil_class = self._load_cached_stencil()
 
         if not stencil_class:
             # Delay before accessing distributed table...
