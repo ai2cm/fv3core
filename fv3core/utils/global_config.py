@@ -1,12 +1,12 @@
 import functools
 import hashlib
 import os
-import pyximport
 import re
 from collections.abc import Hashable
 from importlib import resources
 from typing import Any, Dict, Optional
 
+import pyximport
 import yaml
 
 
@@ -66,13 +66,16 @@ def get_async_context():
             if use_cython:
                 pyximport.install(inplace=True)
                 from gt4py.runtime.gtgraph_fast import AsyncContextFast as AsyncContext
+
                 _async_context = AsyncContext(
                     50, concurrent=concurrent, blocking=blocking, sleep_time=0.0001
                 )
             else:
                 from gt4py.gtgraph import AsyncContext
+
                 _async_context = AsyncContext(
-                    50, name="fv3core",
+                    50,
+                    name="fv3core",
                     graph_record=False,
                     concurrent=concurrent,
                     blocking=blocking,

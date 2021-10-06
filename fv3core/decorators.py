@@ -171,11 +171,38 @@ class FrozenStencil:
                 validate_args=True,
             )
         else:
-            args_as_kwargs = dict(zip(self._argument_names, args))
-            self.stencil_object.run(
-                **args_as_kwargs, **kwargs, **self._stencil_run_kwargs, exec_info=None
-            )
-            self._mark_cuda_fields_written({**args_as_kwargs, **kwargs})
+            async_context = global_config.get_async_context()
+            if async_context:
+                # async_context.schedule(
+                #   self.stencil_object,
+                #   **args_as_kwargs,
+                #   **kwargs,
+                #   exec_info=None,
+                #   origin=self.origin,
+                #   domain=self.domain,
+                # )
+                async_context.schedule(
+                    self.stencil_object,
+                    *args,
+                    **kwargs,
+                    exec_info=None,
+                    origin=self.origin,
+                    domain=self.domain,
+                    fast_analysis_info=(
+                        self._argument_names,
+                        self._field_origins,
+                        self.domain,
+                    ),
+                )
+            else:
+                args_as_kwargs = dict(zip(self._argument_names, args))
+                self.stencil_object.run(
+                    **args_as_kwargs,
+                    **kwargs,
+                    **self._stencil_run_kwargs,
+                    exec_info=None,
+                )
+                self._mark_cuda_fields_written({**args_as_kwargs, **kwargs})
 
     def _mark_cuda_fields_written(self, fields: Mapping[str, Storage]):
         if global_config.is_gpu_backend():
