@@ -7,3 +7,5 @@ skip_passes:
   backend: ^gtc:(gt|cuda)
   value:
   - graph_merge_horizontal_executions
+verbose:
+  value: false
