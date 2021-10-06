@@ -329,6 +329,7 @@ class FutureStencil:
     def _compile_stencil(self, stencil_id: int) -> Callable:
         # Stencil not yet compiled or in progress so claim it...
         self._id_table[stencil_id] = self._node_id
+        self._delay()
         stencil_class = self._builder.backend.generate()
         self._id_table.set_done(stencil_id)
 
