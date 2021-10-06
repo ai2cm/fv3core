@@ -360,11 +360,12 @@ class FutureStencil:
         self._delay()
 
         # try/except block to prevent loading incomplete files, either
-        #   Attribute errors due to missing 'run' or 'call' methods
-        #   File not found errors if an expected file does not yet exist
+        #  1. Attribute errors due to missing 'run' or 'call' methods
+        #  2. The gt4py caching system tries to create existing directory
+        #  3. File not found errors if an expected file does not yet exist
         try:
             stencil_class = self._builder.backend.load()
-        except (AttributeError, FileNotFoundError):
+        except (AttributeError, FileExistsError, FileNotFoundError):
             stencil_class = None
 
         return stencil_class
