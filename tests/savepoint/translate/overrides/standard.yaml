@@ -162,7 +162,17 @@ UtilVectors:
   
 TrigSg:
   - backend: numpy
-    max_error: 1e-14
+    max_error: 3e-12
+    ignore_near_zero_errors:
+      cos_sg1: 3e-14
+      cos_sg2: 3e-14
+      cos_sg3: 3e-14
+      cos_sg4: 3e-14
+      cos_sg5: 3e-14
+      cos_sg6: 3e-14
+      cos_sg7: 3e-14
+      cos_sg8: 3e-14
+      cos_sg9: 3e-14
 
 EdgeFactors:
   - backend: numpy
@@ -179,4 +189,11 @@ MoreTrig:
     ignore_near_zero_errors:
       ee1: 3e-14
       ee2: 3e-14
+
+AAMCorrection:
+  - backend: numpy
+    max_error: 1e-14
+    ignore_near_zero_errors:
+      l2c_v: 1e-14
+      l2c_u: 1e-14
 
