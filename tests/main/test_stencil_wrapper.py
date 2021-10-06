@@ -527,6 +527,7 @@ def test_backend_options(
             "device_sync": False,
             "format_source": False,
             "skip_passes": ["graph_merge_horizontal_executions"],
+            "verbose": False,
         },
     }
 
