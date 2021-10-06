@@ -1,3 +1,5 @@
+from typing import Sequence
+
 from gt4py import gtscript
 from gt4py.gtscript import PARALLEL, computation, horizontal, interval, region
 
@@ -79,14 +81,15 @@ class CopyCornersXY:
     def __init__(
         self,
         grid_indexing: GridIndexing,
-        dims,
+        dims: Sequence[str],
         y_field,
     ) -> None:
         """
         Args:
-            origin: the origin of the compute domain
-            domain: the extent of the compute domain
-            y_field: storage to use for y-differenceable field
+            grid_indexing: information about the grid sizing
+            dims: dimensionality of the data to be copied
+            y_field: storage to use for y-differenceable field (x-differenceable
+                field uses same memory as base field)
         """
         origin, domain = grid_indexing.get_origin_domain(
             dims=dims, halos=(grid_indexing.n_halo, grid_indexing.n_halo)
@@ -95,7 +98,6 @@ class CopyCornersXY:
         self._y_field = y_field
 
         ax_offsets = axis_offsets(grid_indexing, origin, domain)
-        print(origin, domain, ax_offsets)
         self._copy_corners_xy = FrozenStencil(
             func=copy_corners_xy_stencil_defn,
             origin=origin,
@@ -118,6 +120,9 @@ class CopyCornersXY:
             y_differenceable: copy of input field which can be differenced
                 in y-direction
         """
+        # we could avoid aliasing field for the x-differenceable output, but this
+        # requires selectively validating the halos, since the Fortran code does the
+        # final (x-direction) corners copy directly on the base field
         self._copy_corners_xy(field, field, self._y_field)
         return field, self._y_field
 
