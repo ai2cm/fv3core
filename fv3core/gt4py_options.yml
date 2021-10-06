@@ -3,7 +3,7 @@ device_sync:
   value: false
 format_source:
   value: false
-skip_passes:
+pass_order:
   backend: ^gtc:(gt|cuda)
   value:
-  - graph_merge_horizontal_executions
+  - graph_merge_horizontal_executions: -1

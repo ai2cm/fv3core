@@ -104,6 +104,7 @@ class FrozenStencil:
             domain: gt4py domain to use at call time
             stencil_config: container for stencil configuration
             externals: compile-time external variables required by stencil
+            skip_passes: compiler passes to skip when building stencil
         """
         self.origin = origin
         self.domain = domain
@@ -125,7 +126,7 @@ class FrozenStencil:
             stencil_kwargs["wrapper"] = self
 
         if skip_passes and global_config.is_gtc_backend():
-            stencil_kwargs["skip_passes"] = skip_passes
+            stencil_kwargs["pass_order"] = {pass_name: -1 for pass_name in skip_passes}
 
         self.stencil_object: gt4py.StencilObject = stencil_function(
             definition=func,
