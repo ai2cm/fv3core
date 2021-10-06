@@ -141,9 +141,15 @@ class PreAllocatedCopiedCornersFactory:
     def __init__(
         self,
         grid_indexing: GridIndexing,
+        *,
         dims: Sequence[str],
         y_temporary: FloatField,
     ):
+        if y_temporary is None:
+            y_temporary = utils.make_storage_from_shape(
+                grid_indexing.max_shape,
+                origin=grid_indexing.origin_compute(),
+            )
         self._copy_corners_xy = corners.CopyCornersXY(
             grid_indexing, dims, y_field=y_temporary
         )

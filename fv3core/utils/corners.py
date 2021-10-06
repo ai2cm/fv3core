@@ -95,7 +95,6 @@ class CopyCornersXY:
         self._y_field = y_field
 
         ax_offsets = axis_offsets(grid_indexing, origin, domain)
-        print(origin, domain, ax_offsets)
         self._copy_corners_xy = FrozenStencil(
             func=copy_corners_xy_stencil_defn,
             origin=origin,
