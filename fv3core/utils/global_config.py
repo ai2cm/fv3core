@@ -63,7 +63,7 @@ def is_gpu_backend() -> bool:
 
 @functools.lru_cache(maxsize=None)
 def is_gtc_backend() -> bool:
-    return get_backend().startswith("gtc") and not get_backend().endswith("numpy")
+    return get_backend().startswith("gtc")
 
 
 class StencilConfig(Hashable):
