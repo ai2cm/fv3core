@@ -186,8 +186,10 @@ def calculate_supergrid_cos_sin(xyz_dgrid, xyz_agrid, ec1, ec2, grid_type, nhalo
 
         cos_sg[:, :, 4] = np.sum(ec1*ec2, axis=-1)
 
+        cos_sg[abs(1.-cos_sg) < 1e-15] = 1.
+
         sin_sg_tmp = 1.-cos_sg**2
-        sin_sg_tmp[sin_sg_tmp < 0.] = 0.
+        sin_sg_tmp[sin_sg_tmp < 0] = 0.
         sin_sg = np.sqrt(sin_sg_tmp)
         sin_sg[sin_sg > 1.] = 1.
 
