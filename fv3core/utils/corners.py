@@ -17,7 +17,7 @@ class CopyCorners:
     copy_corners_x or copy_corners_y respectively
     """
 
-    def __init__(self, direction: str, temporary_field=None) -> None:
+    def __init__(self, direction: str) -> None:
         self.grid = spec.grid
         """The grid for this stencil"""
 
@@ -26,20 +26,6 @@ class CopyCorners:
 
         domain = self.grid.domain_shape_full(add=(0, 0, 1))
         """The full domain required to do corner computation everywhere"""
-
-        if temporary_field is not None:
-            self._corner_tmp = temporary_field
-        else:
-            self._corner_tmp = utils.make_storage_from_shape(
-                self.grid.domain_shape_full(add=(1, 1, 1)), origin=origin
-            )
-
-        self._copy_full_domain = FrozenStencil(
-            func=copy_defn,
-            origin=origin,
-            domain=domain,
-        )
-        """Stencil Wrapper to do the copy of the input field to the temporary field"""
 
         ax_offsets = axis_offsets(spec.grid, origin, domain)
         if direction == "x":
@@ -68,8 +54,7 @@ class CopyCorners:
         Fills cell quantity field using corners from itself and multipliers
         in the dirction specified initialization of the instance of this class.
         """
-        self._copy_full_domain(field, self._corner_tmp)
-        self._copy_corners(self._corner_tmp, field)
+        self._copy_corners(field, field)
 
 
 class CopyCornersXY:
@@ -568,12 +553,6 @@ class FillCornersBGrid:
                 self.grid.domain_shape_full(add=(1, 1, 1)), origin=origin
             )
 
-        self._copy_full_domain = FrozenStencil(
-            func=copy_defn,
-            origin=origin,
-            domain=domain,
-        )
-
         """Stencil Wrapper to do the copy of the input field to the temporary field"""
 
         ax_offsets = axis_offsets(self.grid, origin, domain)
@@ -597,8 +576,7 @@ class FillCornersBGrid:
             raise ValueError("Direction must be either 'x' or 'y'")
 
     def __call__(self, field: FloatField):
-        self._copy_full_domain(field, self._corner_tmp)
-        self._fill_corners_bgrid(self._corner_tmp, field)
+        self._fill_corners_bgrid(field, field)
 
 
 def fill_corners_bgrid_x_defn(q_in: FloatField, q_out: FloatField):
