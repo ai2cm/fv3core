@@ -189,14 +189,10 @@ class FiniteVolumeTransport:
             domain=idx.domain_compute(add=(1, 1, 1)),
         )
 
-        self._copy_corners_x: corners.CopyCorners = corners.CopyCorners(
-            "x", self._corner_tmp
-        )
+        self._copy_corners_x: corners.CopyCorners = corners.CopyCorners("x")
         """Stencil responsible for doing corners updates in x-direction."""
 
-        self._copy_corners_y: corners.CopyCorners = corners.CopyCorners(
-            "y", self._corner_tmp
-        )
+        self._copy_corners_y: corners.CopyCorners = corners.CopyCorners("y")
         """Stencil responsible for doing corners updates in y-direction."""
 
     def __call__(
