@@ -407,8 +407,7 @@ class FutureStencil:
 
         stencil_class: Callable = None
         if not builder.options.rebuild:
-            # stencil_class = self._load_cached_stencil()
-            stencil_class = builder.backend.load()
+            stencil_class = self._load_cached_stencil()
 
         if not stencil_class:
             # Delay before accessing distributed table...
