@@ -112,7 +112,8 @@ class StencilConfig(Hashable):
 
         backend_opts: Dict[str, Any] = {}
         for name, option in all_backend_opts.items():
-            if "backend" not in option or re.match(option["backend"], get_backend()):
+            using_option_backend = re.match(option.get("backend", ""), get_backend())
+            if "backend" not in option or using_option_backend:
                 backend_opts[name] = option["value"]
 
         if device_sync is not None:
