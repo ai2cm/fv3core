@@ -1,8 +1,11 @@
+import os
+import shutil
 import time
 from abc import abstractmethod
 from typing import Any, Callable, Dict, Optional, Set, Tuple, Type
 
 import numpy as np
+from gt4py import config as gt_config
 from gt4py.definitions import FieldInfo
 from gt4py.stencil_builder import StencilBuilder
 from gt4py.stencil_object import StencilObject
@@ -321,6 +324,10 @@ class FutureStencil:
     def field_info(self) -> Dict[str, FieldInfo]:
         return self.stencil_object.field_info
 
+    @property
+    def temp_dir_name(self) -> str:
+        return "/dev/shm" if os.path.exists("/dev/shm") else "/tmp"
+
     def _delay(self, factor: float = 0.4) -> float:
         delay_time = self._sleep_time * float(self._node_id) * factor
         time.sleep(delay_time)
@@ -329,8 +336,31 @@ class FutureStencil:
     def _compile_stencil(self, stencil_id: int) -> Callable:
         # Stencil not yet compiled or in progress so claim it...
         self._id_table[stencil_id] = self._node_id
-        self._delay()
+
+        shared_dir_name = gt_config.cache_settings["dir_name"]
+        temp_dir_name = f"{self.temp_dir_name}/.gt_cache"
+        gt_config.cache_settings["dir_name"] = temp_dir_name
+
+        # Compile stencil using stencil builder...
         stencil_class = self._builder.backend.generate()
+
+        # Replace path in module file
+        stencil_file = stencil_class._file_name
+        temp_dir = os.path.dirname(stencil_file)
+        shared_dir = temp_dir.replace(temp_dir_name, shared_dir_name)
+
+        # with open(stencil_file, "r") as file:
+        #     contents = file.read()
+        # with open(stencil_file, "w") as file:
+        #     file.write(contents.replace(temp_dir, shared_dir))
+
+        # Move directory from temp to shared location
+        shutil.copytree(temp_dir, shared_dir, dirs_exist_ok=True)
+
+        # Reset directory location
+        gt_config.cache_settings["dir_name"] = shared_dir_name
+
+        # Mark stencil as DONE...
         self._id_table.set_done(stencil_id)
 
         return stencil_class
@@ -377,7 +407,8 @@ class FutureStencil:
 
         stencil_class: Callable = None
         if not builder.options.rebuild:
-            stencil_class = self._load_cached_stencil()
+            # stencil_class = self._load_cached_stencil()
+            stencil_class = builder.backend.load()
 
         if not stencil_class:
             # Delay before accessing distributed table...
