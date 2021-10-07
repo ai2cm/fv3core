@@ -294,6 +294,7 @@ class FutureStencil:
         wrapper: Optional[Callable] = None,
         sleep_time: float = 0.05,
         timeout: float = 600.0,
+        num_tries: int = 3,
     ):
         """
         Args:
@@ -302,11 +303,13 @@ class FutureStencil:
                      compiled stencil can be passed
             sleep_time: Amount of time to sleep between table checks (defaults to 50 ms)
             timeout: Time to wait for a stencil to compile (defaults to 10 min)
+            num_tries: Number of stencil load retries (defaults to 3 tries)
         """
         self._builder = builder
         self._wrapper = wrapper
         self._sleep_time = sleep_time
         self._timeout = timeout
+        self._num_tries = num_tries
         self._id_table = StencilTable.create()
         self._node_id: int = MPI.COMM_WORLD.Get_rank() if MPI else 0
         self._stencil_object: Optional[StencilObject] = None
@@ -360,7 +363,6 @@ class FutureStencil:
         gt_config.cache_settings["dir_name"] = shared_dir_name
 
         # Mark stencil as DONE...
-        self._delay()
         self._id_table.set_done(stencil_id)
 
         return stencil_class
@@ -380,9 +382,7 @@ class FutureStencil:
                     "to compile on node {self._node_id}"
                 )
 
-        # Delay before loading...
-        self._delay()
-        stencil_class = self._builder.backend.load()
+        stencil_class = self._load_cached_stencil()
 
         return stencil_class
 
@@ -394,10 +394,12 @@ class FutureStencil:
         #  1. Attribute errors due to missing 'run' or 'call' methods
         #  2. The gt4py caching system tries to create existing directory
         #  3. File not found errors if an expected file does not yet exist
-        try:
-            stencil_class = self._builder.backend.load()
-        except (AttributeError, FileExistsError, FileNotFoundError):
-            stencil_class = None
+        for _ in range(self._num_tries):
+            try:
+                stencil_class = self._builder.backend.load()
+                break
+            except (AttributeError, FileExistsError, FileNotFoundError):
+                stencil_class = None
 
         return stencil_class
 
