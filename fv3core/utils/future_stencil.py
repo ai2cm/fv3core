@@ -349,10 +349,11 @@ class FutureStencil:
         temp_dir = os.path.dirname(stencil_file)
         shared_dir = temp_dir.replace(temp_dir_name, shared_dir_name)
 
-        # with open(stencil_file, "r") as file:
-        #     contents = file.read()
-        # with open(stencil_file, "w") as file:
-        #     file.write(contents.replace(temp_dir, shared_dir))
+        with open(stencil_file, "r") as file:
+            contents = file.read()
+        if temp_dir in contents:
+            with open(stencil_file, "w") as file:
+                file.write(contents.replace(temp_dir, shared_dir))
 
         # Move directory from temp to shared location
         shutil.copytree(temp_dir, shared_dir, dirs_exist_ok=True)
