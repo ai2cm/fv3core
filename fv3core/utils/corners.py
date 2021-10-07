@@ -88,8 +88,8 @@ class CopyCornersXY:
         Args:
             grid_indexing: information about the grid sizing
             dims: dimensionality of the data to be copied
-            y_field: storage to use for y-differenceable field (x-differenceable
-                field uses same memory as base field)
+            y_field: 3D gt4py storage to use for y-differenceable field
+                (x-differenceable field uses same memory as base field)
         """
         origin, domain = grid_indexing.get_origin_domain(
             dims=dims, halos=(grid_indexing.n_halo, grid_indexing.n_halo)
