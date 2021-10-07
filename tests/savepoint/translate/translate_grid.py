@@ -22,12 +22,6 @@ from fv3core.grid import (
     set_tile_border_dxc,
     set_tile_border_dyc,
     set_halo_nan,
-    MetricTerms
-)
-
-from fv3core.utils import gt4py_utils as utils
-
-from fv3core.grid.geometry import (
     get_center_vector,
     calc_unit_vector_west,
     calc_unit_vector_south,
@@ -41,9 +35,12 @@ from fv3core.grid.geometry import (
     edge_factors,
     efactor_a2c_v,
     calculate_trig_uv,
-    generate_xy_unit_vectors
+    generate_xy_unit_vectors,
+    set_eta,
+    MetricTerms
 )
-from fv3core.grid.eta import set_eta
+
+from fv3core.utils import gt4py_utils as utils
 
 from fv3core.utils.corners import fill_corners_2d, fill_corners_agrid, fill_corners_dgrid, fill_corners_cgrid
 from fv3core.utils.global_constants import PI, RADIUS, LON_OR_LAT_DIM, TILE_DIM, CARTESIAN_DIM

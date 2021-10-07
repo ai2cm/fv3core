@@ -164,10 +164,6 @@ TrigSg:
   - backend: numpy
     max_error: 3e-11
     ignore_near_zero_errors:
-      cos_sg1: 1e-14
-      cos_sg2: 1e-14
-      cos_sg3: 1e-14
-      cos_sg4: 1e-14
       cos_sg5: 1e-14
       cos_sg6: 1e-14
       cos_sg7: 1e-14
@@ -177,11 +173,6 @@ TrigSg:
 EdgeFactors:
   - backend: numpy
     max_error: 3e-13
-    ignore_near_zero_errors:
-      edge_vect_s: 3e-13
-      edge_vect_w: 3e-13
-      edge_vect_e: 3e-13
-      edge_vect_n: 3e-13
 
 MoreTrig:
   - backend: numpy
@@ -197,3 +188,20 @@ AAMCorrection:
       l2c_v: 1e-14
       l2c_u: 1e-14
 
+InitGridUtils:
+  - backend: numpy
+    max_error: 3e-11
+    ignore_near_zero_errors:
+      l2c_v: 1e-14
+      l2c_u: 1e-14
+      ee1: 3e-14
+      ee2: 3e-14
+      ew1: 3e-14
+      ew2: 3e-14
+      es1: 3e-14
+      es2: 3e-14
+      cos_sg5: 1e-14
+      cos_sg6: 1e-14
+      cos_sg7: 1e-14
+      cos_sg8: 1e-14
+      cos_sg9: 1e-14
