@@ -360,6 +360,7 @@ class FutureStencil:
         gt_config.cache_settings["dir_name"] = shared_dir_name
 
         # Mark stencil as DONE...
+        self._delay()
         self._id_table.set_done(stencil_id)
 
         return stencil_class
