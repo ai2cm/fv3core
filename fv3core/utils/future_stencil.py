@@ -1,5 +1,6 @@
 import os
 import shutil
+import tempfile
 import time
 from abc import abstractmethod
 from typing import Any, Callable, Dict, Optional, Set, Tuple, Type
@@ -324,10 +325,6 @@ class FutureStencil:
     def field_info(self) -> Dict[str, FieldInfo]:
         return self.stencil_object.field_info
 
-    @property
-    def _temp_dir_name(self) -> str:
-        return "/dev/shm" if os.path.exists("/dev/shm") else "/tmp"
-
     def _delay(self, factor: float = 0.4) -> float:
         delay_time = self._sleep_time * float(self._node_id) * factor
         time.sleep(delay_time)
@@ -339,7 +336,7 @@ class FutureStencil:
 
         # Swap shared directory with temp directory
         shared_dir_name = gt_config.cache_settings["dir_name"]
-        temp_dir_name = f"{self._temp_dir_name}/.gt_cache"
+        temp_dir_name = f"{tempfile.gettempdir()}/.gt_cache"
         gt_config.cache_settings["dir_name"] = temp_dir_name
 
         # Compile stencil using stencil builder...
