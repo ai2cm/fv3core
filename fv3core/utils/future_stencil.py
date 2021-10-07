@@ -325,7 +325,7 @@ class FutureStencil:
         return self.stencil_object.field_info
 
     @property
-    def temp_dir_name(self) -> str:
+    def _temp_dir_name(self) -> str:
         return "/dev/shm" if os.path.exists("/dev/shm") else "/tmp"
 
     def _delay(self, factor: float = 0.4) -> float:
@@ -337,8 +337,9 @@ class FutureStencil:
         # Stencil not yet compiled or in progress so claim it...
         self._id_table[stencil_id] = self._node_id
 
+        # Swap shared directory with temp directory
         shared_dir_name = gt_config.cache_settings["dir_name"]
-        temp_dir_name = f"{self.temp_dir_name}/.gt_cache"
+        temp_dir_name = f"{self._temp_dir_name}/.gt_cache"
         gt_config.cache_settings["dir_name"] = temp_dir_name
 
         # Compile stencil using stencil builder...
@@ -355,10 +356,10 @@ class FutureStencil:
             with open(stencil_file, "w") as file:
                 file.write(contents.replace(temp_dir, shared_dir))
 
-        # Move directory from temp to shared location
+        # Copy directory from temp to shared location
         shutil.copytree(temp_dir, shared_dir, dirs_exist_ok=True)
 
-        # Reset directory location
+        # Restore shared directory location
         gt_config.cache_settings["dir_name"] = shared_dir_name
 
         # Mark stencil as DONE...
