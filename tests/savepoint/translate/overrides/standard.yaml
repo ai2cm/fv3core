@@ -176,12 +176,12 @@ TrigSg:
 
 EdgeFactors:
   - backend: numpy
-    max_error: 1e-14
+    max_error: 3e-13
     ignore_near_zero_errors:
-      edge_vect_s: 3e-14
-      edge_vect_w: 3e-14
-      edge_vect_e: 3e-14
-      edge_vect_n: 3e-14
+      edge_vect_s: 3e-13
+      edge_vect_w: 3e-13
+      edge_vect_e: 3e-13
+      edge_vect_n: 3e-13
 
 MoreTrig:
   - backend: numpy
