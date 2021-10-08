@@ -112,7 +112,7 @@ GridGrid:
 
 MoreAreas:
   - backend: numpy
-    max_error: 3e-14
+    max_error: 3e-12
 
 GridAreas:
   - backend: numpy
