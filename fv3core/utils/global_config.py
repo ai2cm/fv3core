@@ -147,8 +147,8 @@ def get_stencil_config():
 
 
 # Options: numpy, gtx86, gtcuda, debug
-_BACKEND = None
+_BACKEND: Optional[str] = None
 # If TRUE, all caches will bypassed and stencils recompiled
 # if FALSE, caches will be checked and rebuild if code changes
-_REBUILD = getenv_bool("FV3_STENCIL_REBUILD_FLAG", "False")
-_VALIDATE_ARGS = True
+_REBUILD: bool = getenv_bool("FV3_STENCIL_REBUILD_FLAG", "False")
+_VALIDATE_ARGS: bool = True

@@ -2,7 +2,7 @@ import numpy as np
 from gt4py.gtscript import PARALLEL, computation, horizontal, interval, region
 
 from fv3core.decorators import StencilConfig, get_stencils_with_varied_bounds
-from fv3core.utils.gt4py_utils import device_sync, make_storage_from_shape_uncached
+from fv3core.utils.gt4py_utils import make_storage_from_shape_uncached
 from fv3core.utils.typing import FloatField
 
 
