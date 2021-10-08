@@ -283,9 +283,16 @@ def future_stencil(
     return _decorator(definition)
 
 
-def copy_ignore_errors(src, dest, **kwargs):
+def copy_directory(src_dir: str, dest_dir: str, **kwargs: Any):
+    # TODO(eddied): Ignore OS errors because `dirs_exist_ok`
+    #               is not available until python 3.8
     try:
-        shutil.copy2(src, dest, **kwargs)
+        shutil.copytree(
+            src_dir,
+            dest_dir,
+            ignore=shutil.ignore_patterns("*.pyc.*"),
+            **kwargs,
+        )
     except OSError:
         return
 
@@ -364,14 +371,7 @@ class FutureStencil:
                 file.write(contents.replace(temp_dir, shared_dir))
 
         # Copy directory from temp to shared location
-        # TODO(eddied): copy_ignore_errors is used because `dirs_exist_ok`
-        #               is not available until python 3.8
-        shutil.copytree(
-            temp_dir,
-            shared_dir,
-            copy_function=copy_ignore_errors,
-            ignore=shutil.ignore_patterns("*.pyc.*"),
-        )
+        copy_directory(temp_dir, shared_dir)
 
         # Restore shared directory location
         gt_config.cache_settings["dir_name"] = shared_dir_name
