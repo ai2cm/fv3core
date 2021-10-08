@@ -357,7 +357,12 @@ class FutureStencil:
                 file.write(contents.replace(temp_dir, shared_dir))
 
         # Copy directory from temp to shared location
-        shutil.copytree(temp_dir, shared_dir, dirs_exist_ok=True)
+        shutil.copytree(
+            temp_dir,
+            shared_dir,
+            dirs_exist_ok=True,
+            ignore=shutil.ignore_patterns("*.pyc.*"),
+        )
 
         # Restore shared directory location
         gt_config.cache_settings["dir_name"] = shared_dir_name
