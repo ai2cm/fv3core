@@ -321,7 +321,7 @@ class FutureStencil:
     def field_info(self) -> Dict[str, FieldInfo]:
         return self.stencil_object.field_info
 
-    def _delay(self, factor: float = 0.5) -> float:
+    def _delay(self, factor: float = 0.4) -> float:
         delay_time = self._sleep_time * float(self._node_id) * factor
         time.sleep(delay_time)
         return delay_time
@@ -329,6 +329,7 @@ class FutureStencil:
     def _compile_stencil(self, stencil_id: int) -> Callable:
         # Stencil not yet compiled or in progress so claim it...
         self._id_table[stencil_id] = self._node_id
+        self._delay()
         stencil_class = self._builder.backend.generate()
         self._id_table.set_done(stencil_id)
 
@@ -359,10 +360,13 @@ class FutureStencil:
         stencil_class: Callable = None
         self._delay()
 
-        # try/except block to prevent loading incomplete files...
+        # try/except block to prevent loading incomplete files, either
+        #  1. Attribute errors due to missing 'run' or 'call' methods
+        #  2. The gt4py caching system tries to create existing directory
+        #  3. File not found errors if an expected file does not yet exist
         try:
             stencil_class = self._builder.backend.load()
-        except (AttributeError, FileNotFoundError):
+        except (AttributeError, FileExistsError, FileNotFoundError):
             stencil_class = None
 
         return stencil_class
