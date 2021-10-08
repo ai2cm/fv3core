@@ -2,7 +2,7 @@ import numpy as np
 from gt4py.gtscript import PARALLEL, computation, horizontal, interval, region
 
 from fv3core.decorators import StencilConfig, get_stencils_with_varied_bounds
-from fv3core.utils.gt4py_utils import make_storage_from_shape_uncached
+from fv3core.utils.gt4py_utils import device_sync, make_storage_from_shape_uncached
 from fv3core.utils.typing import FloatField
 
 
@@ -41,6 +41,7 @@ def test_get_stencils_with_varied_bounds(backend):
         rebuild=False,
         validate_args=False,
         format_source=False,
+        device_sync=False,
     )
     origins = [(2, 2, 0), (1, 1, 0)]
     domains = [(1, 1, 3), (2, 2, 3)]
@@ -66,6 +67,7 @@ def test_get_stencils_with_varied_bounds_and_regions(backend):
         rebuild=False,
         validate_args=False,
         format_source=False,
+        device_sync=False,
     )
     origins = [(3, 3, 0), (2, 2, 0)]
     domains = [(1, 1, 3), (2, 2, 3)]

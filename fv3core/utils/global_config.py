@@ -17,6 +17,8 @@ def getenv_bool(name: str, default: str) -> bool:
 def set_backend(new_backend: str):
     global _BACKEND
     _BACKEND = new_backend
+    for function in (is_gpu_backend, is_gtc_backend):
+        function.cache_clear()
 
 
 def get_backend() -> str:
