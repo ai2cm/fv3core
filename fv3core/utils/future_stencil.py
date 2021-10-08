@@ -283,6 +283,13 @@ def future_stencil(
     return _decorator(definition)
 
 
+def copy_ignore_errors(src, dest, **kwargs):
+    try:
+        shutil.copy2(src, dest, **kwargs)
+    except OSError:
+        return
+
+
 class FutureStencil:
     """
     A wrapper that allows a stencil object to be compiled in a distributed context.
@@ -357,9 +364,12 @@ class FutureStencil:
                 file.write(contents.replace(temp_dir, shared_dir))
 
         # Copy directory from temp to shared location
+        # TODO(eddied): copy_ignore_errors is used because `dirs_exist_ok`
+        #               is not available until python 3.8
         shutil.copytree(
             temp_dir,
             shared_dir,
+            copy_function=copy_ignore_errors,
             ignore=shutil.ignore_patterns("*.pyc.*"),
         )
 
