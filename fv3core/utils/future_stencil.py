@@ -360,7 +360,6 @@ class FutureStencil:
         shutil.copytree(
             temp_dir,
             shared_dir,
-            dirs_exist_ok=True,
             ignore=shutil.ignore_patterns("*.pyc.*"),
         )
 
