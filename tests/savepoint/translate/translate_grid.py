@@ -359,13 +359,14 @@ class TranslateMoreAreas(ParallelTranslateGrid):
             communicator.rank,
             state["grid"].np,
         )
+     
         set_tile_border_dxc(
             xyz_dgrid[3:-3, 3:-3, :],
             xyz_agrid[3:-3, 3:-3, :],
             RADIUS,
             state["dx_cgrid"].data[3:-3, 3:-4],
             communicator.tile.partitioner,
-            communicator.tile.rank,
+            communicator.rank,
             state["grid"].np,
         )
         set_tile_border_dyc(
@@ -374,7 +375,7 @@ class TranslateMoreAreas(ParallelTranslateGrid):
             RADIUS,
             state["dy_cgrid"].data[3:-4, 3:-3],
             communicator.tile.partitioner,
-            communicator.tile.rank,
+            communicator.rank,
             state["grid"].np,
         )
         return state
@@ -1653,7 +1654,7 @@ class TranslateTrigSg(ParallelTranslateGrid):
         # print(csgs, state["grid"].data[:].shape, state["agrid"].data[:].shape)
         cos_sg, sin_sg = calculate_supergrid_cos_sin(
             xyz_dgrid, xyz_agrid, state["ec1"].data[:-1, :-1], state["ec2"].data[:-1, :-1], self.grid.grid_type, self.grid.halo, 
-            communicator.tile.partitioner, communicator.tile.rank, state["agrid"].np
+            communicator.tile.partitioner, communicator.rank, state["agrid"].np
         )
         for i in range(1,10):
             state[f"cos_sg{i}"].data[:-1, :-1] = cos_sg[:,:,i-1]
@@ -1973,9 +1974,9 @@ class TranslateMoreTrig(ParallelTranslateGrid):
         cos_sg = state["grid"].np.array(cos_sg).transpose([1,2,0])
         sin_sg = state["grid"].np.array(sin_sg).transpose([1,2,0])
         nhalo = self.grid.halo
-        state["ee1"].data[nhalo:-nhalo, nhalo:-nhalo, :], state["ee2"].data[nhalo:-nhalo, nhalo:-nhalo, :] = generate_xy_unit_vectors(xyz_dgrid, nhalo, communicator.tile.partitioner, communicator.tile.rank, state["grid"].np)
+        state["ee1"].data[nhalo:-nhalo, nhalo:-nhalo, :], state["ee2"].data[nhalo:-nhalo, nhalo:-nhalo, :] = generate_xy_unit_vectors(xyz_dgrid, nhalo, communicator.tile.partitioner, communicator.rank, state["grid"].np)
         state["cosa"].data[:, :], state["sina"].data[:, :], state["cosa_u"].data[:, :-1], state["cosa_v"].data[:-1, :], state["cosa_s"].data[:-1, :-1], state["sina_u"].data[:, :-1], state["sina_v"].data[:-1, :], state["rsin_u"].data[:, :-1], state["rsin_v"].data[:-1, :], state["rsina"].data[nhalo:-nhalo, nhalo:-nhalo], state["rsin2"].data[:-1, :-1] = calculate_trig_uv(xyz_dgrid, cos_sg, sin_sg, nhalo, 
-            communicator.tile.partitioner, communicator.tile.rank, state["grid"].np
+            communicator.tile.partitioner, communicator.rank, state["grid"].np
         )
         return state
 
@@ -2182,7 +2183,7 @@ class TranslateFixSgCorners(ParallelTranslateGrid):
         sin_sg = state["cos_sg1"].np.array(sin_sg).transpose(1, 2, 0)
         supergrid_corner_fix(
             cos_sg, sin_sg, self.grid.halo, 
-            communicator.tile.partitioner, communicator.tile.rank
+            communicator.tile.partitioner, communicator.rank
         )
         for i in range(1,10):
             state[f"cos_sg{i}"].data[:-1, :-1] = cos_sg[:,:,i-1]
@@ -2300,7 +2301,7 @@ class TranslateDivgDel6(ParallelTranslateGrid):
         state["divg_u"].data[:-1, :], state["divg_v"].data[:, :-1], state["del6_u"].data[:-1, :], state["del6_v"].data[:, :-1] = calculate_divg_del6(
             sin_sg, state["sina_u"].data[:,:-1], state["sina_v"].data[:-1,:], 
             state["dx"].data[:-1, :], state["dy"].data[:, :-1], state["dx_cgrid"].data[:, :-1], state["dy_cgrid"].data[:-1, :], self.grid.halo, 
-            communicator.tile.partitioner, communicator.tile.rank
+            communicator.tile.partitioner, communicator.rank
         )
         return state
 
@@ -2566,11 +2567,11 @@ class TranslateEdgeFactors(ParallelTranslateGrid):
         nhalo = self.grid.halo
         state["edge_w"].data[nhalo:-nhalo], state["edge_e"].data[nhalo:-nhalo], state["edge_s"].data[nhalo:-nhalo], state["edge_n"].data[nhalo:-nhalo] = edge_factors(
             state["grid"].data[:], state["agrid"].data[:-1, :-1], self.grid.grid_type, nhalo, 
-            communicator.tile.partitioner, communicator.tile.rank, RADIUS, state["grid"].np
+            communicator.tile.partitioner, communicator.rank, RADIUS, state["grid"].np
         )
         state["edge_vect_w"].data[:-1], state["edge_vect_e"].data[:-1], state["edge_vect_s"].data[:-1], state["edge_vect_n"].data[:-1] = efactor_a2c_v(
             state["grid"], state["agrid"].data[:-1, :-1], self.grid.grid_type, nhalo, 
-            communicator.tile.partitioner, communicator.tile.rank, RADIUS, state["grid"].np
+            communicator.tile.partitioner, communicator.rank, RADIUS, state["grid"].np
         )
         return state
 
@@ -3130,20 +3131,20 @@ class TranslateInitGridUtils(ParallelTranslateGrid):
         xyz_agrid = lon_lat_to_xyz(state["agrid"].data[:-1,:-1,0], state["agrid"].data[:-1,:-1,1], state["grid"].np)
         
         state["ec1"].data[:-1,:-1,:3], state["ec2"].data[:-1,:-1,:3] = get_center_vector(xyz_dgrid, self.grid.grid_type, nhalo,
-            communicator.tile.partitioner, communicator.tile.rank, state["grid"].np
+            communicator.tile.partitioner, communicator.rank, state["grid"].np
         )
         state["ew1"].data[1:-1,:-1,:3], state["ew2"].data[1:-1,:-1,:3] = calc_unit_vector_west(
             xyz_dgrid, xyz_agrid, self.grid.grid_type, nhalo, 
-            communicator.tile.partitioner, communicator.tile.rank, state["grid"].np
+            communicator.tile.partitioner, communicator.rank, state["grid"].np
         )
         state["es1"].data[:-1,1:-1,:3], state["es2"].data[:-1,1:-1,:3] = calc_unit_vector_south(
             xyz_dgrid, xyz_agrid, self.grid.grid_type, nhalo, 
-            communicator.tile.partitioner, communicator.tile.rank, state["grid"].np
+            communicator.tile.partitioner, communicator.rank, state["grid"].np
         )
 
         cos_sg, sin_sg = calculate_supergrid_cos_sin(
             xyz_dgrid, xyz_agrid, state["ec1"].data[:-1, :-1], state["ec2"].data[:-1, :-1], self.grid.grid_type, nhalo, 
-            communicator.tile.partitioner, communicator.tile.rank, state["agrid"].np
+            communicator.tile.partitioner, communicator.rank, state["agrid"].np
         )
         for i in range(1,10):
             state[f"cos_sg{i}"] = self.grid.quantity_factory.zeros(
@@ -3204,14 +3205,14 @@ class TranslateInitGridUtils(ParallelTranslateGrid):
         state["ee2"] = self.grid.quantity_factory.zeros(
             [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM, CARTESIAN_DIM], ""
         )
-        state["ee1"].data[nhalo:-nhalo, nhalo:-nhalo, :], state["ee2"].data[nhalo:-nhalo, nhalo:-nhalo, :] = generate_xy_unit_vectors(xyz_dgrid, nhalo, communicator.tile.partitioner, communicator.tile.rank, state["grid"].np)
+        state["ee1"].data[nhalo:-nhalo, nhalo:-nhalo, :], state["ee2"].data[nhalo:-nhalo, nhalo:-nhalo, :] = generate_xy_unit_vectors(xyz_dgrid, nhalo, communicator.tile.partitioner, communicator.rank, state["grid"].np)
         state["cosa"].data[:, :], state["sina"].data[:, :], state["cosa_u"].data[:, :-1], state["cosa_v"].data[:-1, :], state["cosa_s"].data[:-1, :-1], state["sina_u"].data[:, :-1], state["sina_v"].data[:-1, :], state["rsin_u"].data[:, :-1], state["rsin_v"].data[:-1, :], state["rsina"].data[nhalo:-nhalo, nhalo:-nhalo], state["rsin2"].data[:-1, :-1] = calculate_trig_uv(xyz_dgrid, cos_sg, sin_sg, nhalo, 
-            communicator.tile.partitioner, communicator.tile.rank, state["grid"].np
+            communicator.tile.partitioner, communicator.rank, state["grid"].np
         )
 
         supergrid_corner_fix(
             cos_sg, sin_sg, nhalo, 
-            communicator.tile.partitioner, communicator.tile.rank
+            communicator.tile.partitioner, communicator.rank
         )
         for i in range(1,10):
             state[f"cos_sg{i}"].data[:-1, :-1] = cos_sg[:,:,i-1]
@@ -3240,7 +3241,7 @@ class TranslateInitGridUtils(ParallelTranslateGrid):
         state["divg_u"].data[:-1, :], state["divg_v"].data[:, :-1], state["del6_u"].data[:-1, :], state["del6_v"].data[:, :-1] = calculate_divg_del6(
             sin_sg, state["sina_u"].data[:,:-1], state["sina_v"].data[:-1,:], 
             state["dx"].data[:-1, :], state["dy"].data[:, :-1], state["dx_cgrid"].data[:, :-1], state["dy_cgrid"].data[:-1, :], nhalo, 
-            communicator.tile.partitioner, communicator.tile.rank
+            communicator.tile.partitioner, communicator.rank
         )
         state["vlon"] = self.grid.quantity_factory.zeros(
             [fv3util.X_DIM, fv3util.Y_DIM, CARTESIAN_DIM], ""
@@ -3299,7 +3300,7 @@ class TranslateInitGridUtils(ParallelTranslateGrid):
         )
         state["edge_w"].data[nhalo:-nhalo], state["edge_e"].data[nhalo:-nhalo], state["edge_s"].data[nhalo:-nhalo], state["edge_n"].data[nhalo:-nhalo] = edge_factors(
             state["grid"].data[:], state["agrid"].data[:-1, :-1], self.grid.grid_type, nhalo, 
-            communicator.tile.partitioner, communicator.tile.rank, RADIUS, state["grid"].np
+            communicator.tile.partitioner, communicator.rank, RADIUS, state["grid"].np
         )
 
         state["edge_vect_s"] = self.grid.quantity_factory.zeros(
@@ -3316,6 +3317,6 @@ class TranslateInitGridUtils(ParallelTranslateGrid):
         )
         state["edge_vect_w"].data[:-1], state["edge_vect_e"].data[:-1], state["edge_vect_s"].data[:-1], state["edge_vect_n"].data[:-1] = efactor_a2c_v(
             state["grid"], state["agrid"].data[:-1, :-1], self.grid.grid_type, nhalo, 
-            communicator.tile.partitioner, communicator.tile.rank, RADIUS, state["grid"].np
+            communicator.tile.partitioner, communicator.rank, RADIUS, state["grid"].np
         )
         return state
