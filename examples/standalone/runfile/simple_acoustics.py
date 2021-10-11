@@ -20,7 +20,8 @@ from fv3core.stencils.dyn_core import AcousticDynamics
 from fv3core.utils.global_config import set_dacemode, get_dacemode
 import cProfile, pstats, io
 from pstats import SortKey
-import fv3gfs.util as util
+
+from mpi4py import MPI
 
 def set_up_namelist(data_directory: str) -> None:
     spec.set_namelist(data_directory + "/input.nml")
@@ -82,9 +83,6 @@ def run(data_directory, halo_update, backend, time_steps, reference_run):
     spec.set_grid(grid)
 
     input_data = read_input_data(grid, serializer)
-
-
-
     state = get_state_from_input(grid, input_data)
 
     acoutstics_object = AcousticDynamics(
@@ -97,51 +95,33 @@ def run(data_directory, halo_update, backend, time_steps, reference_run):
     )
     state.__dict__.update(acoutstics_object._temporaries)
 
+    comm = MPI.COMM_WORLD
+    rank = comm.Get_rank()
+
     sdfg_path = "/scratch/snx3000/tobwi/sbox/dace_tests/c128experiment/.gt_cache_00000"+str(rank)+"/dacecache/iterate"
-    # 
     @computepath_function(load_sdfg=sdfg_path)
     def iterate(state: dace.constant, time_steps):
         # @Linus: make this call a dace program
         for _ in range(time_steps):
             acoutstics_object(state, insert_temporaries=False)
 
-    if reference_run:
-        dacemode = get_dacemode()
-        set_dacemode(False)
-        iterate(state, 1)
-        import time
-        start = time.time()
-        pr = cProfile.Profile()
-        pr.enable()
-
-        try:
-            iterate(state, time_steps)
-        finally:
-            pr.disable()
-            s = io.StringIO()
-            sortby = SortKey.CUMULATIVE
-            ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
-            ps.print_stats()
-            print(s.getvalue())
-            set_dacemode(dacemode)
-        print(f"{backend} time:", time.time()-start)
-    else:
-        pr = cProfile.Profile()
-        pr.enable()
-        iterate(state, 1)
-        import time
-        start = time.time()
-        try:
-            iterate(state, time_steps)
-        finally:
-            pr.disable()
-            s = io.StringIO()
-            sortby = SortKey.CUMULATIVE
-            ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
-            ps.print_stats()
-            print(s.getvalue())
-            print(f"{backend} time:", time.time()-start)
-
+    import time
+    iterate(state, 1)
+    start = time.time()
+    # pr = cProfile.Profile()
+    # pr.enable()
+    try:
+        iterate(state, time_steps)
+    finally:
+        # pr.disable()
+        # s = io.StringIO()
+        # sortby = SortKey.CUMULATIVE
+        # ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
+        # ps.print_stats()
+        # print(s.getvalue())
+        print(f"Total {backend} time on rank {rank} for {time_steps} steps:", time.time()-start)
+    
+    comm.Barrier()
     return state
 
 @click.command()
@@ -163,29 +143,29 @@ def driver(
         backend=backend,
         reference_run=not get_dacemode(),
     )
-    ref_state = run(
-        data_directory,
-        halo_update,
-        time_steps=time_steps,
-        backend="numpy",
-        reference_run=True,
-    )
+    # ref_state = run(
+    #     data_directory,
+    #     halo_update,
+    #     time_steps=time_steps,
+    #     backend="numpy",
+    #     reference_run=True,
+    # )
 
-    for name, ref_value in ref_state.__dict__.items():
+    # for name, ref_value in ref_state.__dict__.items():
 
-        if name in {"mfxd", "mfyd"}:
-            continue
-        value = state.__dict__[name]
-        if isinstance(ref_value, fv3gfs.util.quantity.Quantity):
-            ref_value = ref_value.storage
-        if isinstance(value, fv3gfs.util.quantity.Quantity):
-            value = value.storage
-        if hasattr(value, "device_to_host"):
-            value.device_to_host()
-        if hasattr(value, "shape") and len(value.shape) == 3:
-            value = np.asarray(value)[1:-1, 1:-1, :]
-            ref_value = np.asarray(ref_value)[1:-1, 1:-1, :]
-        np.testing.assert_allclose(ref_value, value, err_msg=name)
+    #     if name in {"mfxd", "mfyd"}:
+    #         continue
+    #     value = state.__dict__[name]
+    #     if isinstance(ref_value, fv3gfs.util.quantity.Quantity):
+    #         ref_value = ref_value.storage
+    #     if isinstance(value, fv3gfs.util.quantity.Quantity):
+    #         value = value.storage
+    #     if hasattr(value, "device_to_host"):
+    #         value.device_to_host()
+    #     if hasattr(value, "shape") and len(value.shape) == 3:
+    #         value = np.asarray(value)[1:-1, 1:-1, :]
+    #         ref_value = np.asarray(ref_value)[1:-1, 1:-1, :]
+    #     np.testing.assert_allclose(ref_value, value, err_msg=name)
 
 
 if __name__ == "__main__":

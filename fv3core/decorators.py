@@ -439,8 +439,9 @@ class LazyComputepathFunction:
         self._use_dace = use_dace
         self._skip_dacemode = skip_dacemode
         self._load_sdfg = load_sdfg
-        self._csdfg = None
         self.daceprog = dace.program(self.func)
+        self._sdfg_loaded = False
+        self._sdfg = None
 
     def __call__(self, *args, **kwargs):
         if self.use_dace:
@@ -463,11 +464,14 @@ class LazyComputepathFunction:
                 *args, **self.daceprog.__sdfg_closure__(), **kwargs, save=False
             )
         else:
-            if os.path.isfile(self._load_sdfg):
-                self.daceprog.load_sdfg(self._load_sdfg, *args, **kwargs)
-            else:
-                self.daceprog.load_precompiled_sdfg(self._load_sdfg, *args, **kwargs)
-            return self.daceprog.__sdfg__(*args, **kwargs)
+            if not self._sdfg_loaded:
+                if os.path.isfile(self._load_sdfg):
+                    self.daceprog.load_sdfg(self._load_sdfg, *args, **kwargs)
+                    self._sdfg_loaded = True
+                else:
+                    self.daceprog.load_precompiled_sdfg(self._load_sdfg, *args, **kwargs)
+                    self._sdfg_loaded = True
+            return next(iter(self.daceprog._cache.cache.values())).sdfg
 
     def __sdfg_closure__(self, *args, **kwargs):
         return self.daceprog.__sdfg_closure__(*args, **kwargs)
