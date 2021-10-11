@@ -148,6 +148,10 @@ class MetricTerms:
         self._edge_vect_e = None
         self._edge_vect_s = None
         self._edge_vect_n = None
+        self._da_min = None
+        self._da_max = None
+        self._da_min_c = None
+        self._da_max_c = None
         
         self._init_dgrid()
         self._init_agrid()
@@ -621,7 +625,38 @@ class MetricTerms:
             self._np, 
         )
      
-        
+    @cached_property
+    def rarea(self):
+        return 1./self.area
+
+    @cached_property
+    def rarea_c(self):
+        return 1./self.area_c
+
+    @cached_property
+    def rdx(self):
+        return 1./self.dx
+
+    @cached_property
+    def rdy(self):
+        return 1./self.dy
+
+    @cached_property
+    def rdxa(self):
+        return 1./self.dxa
+
+    @cached_property
+    def rdya(self):
+        return 1./self.dya
+
+    @cached_property
+    def rdxc(self):
+        return 1./self.dxc
+
+    @cached_property
+    def rdyc(self):
+        return 1./self.dyc
+
     def _init_dgrid(self):
      
         grid_mirror_ew = self._quantity_factory.zeros(self._grid_dims, "radians", dtype=float,)
