@@ -98,6 +98,7 @@ class FrozenStencil:
         stencil_config: Optional[StencilConfig] = None,
         externals: Optional[Mapping[str, Any]] = None,
         skip_passes: Optional[Tuple[str, ...]] = None,
+        profile: Optional[bool] = None,
     ):
         """
         Args:
@@ -128,10 +129,12 @@ class FrozenStencil:
             stencil_function = future_stencil
             stencil_kwargs["wrapper"] = self
 
-        if global_config.is_gtc_backend():
-            if not skip_passes:
-                skip_passes = ("graph_merge_horizontal_executions",)
+        if skip_passes and global_config.is_gtc_backend():
             stencil_kwargs["skip_passes"] = skip_passes
+
+        # Collect compilation times if profiling enabled
+        if profile:
+            stencil_kwargs["build_info"] = {}
 
         self.stencil_object: gt4py.StencilObject = stencil_function(
             definition=func,
