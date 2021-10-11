@@ -128,6 +128,10 @@ class FrozenStencil:
         if skip_passes and global_config.is_gtc_backend():
             stencil_kwargs["pass_order"] = {pass_name: -1 for pass_name in skip_passes}
 
+        self._async_context = global_config.get_async_context()
+        if self._async_context:
+            stencil_kwargs["async_launch"] = True
+
         self.stencil_object: gt4py.StencilObject = stencil_function(
             definition=func,
             externals=externals,
@@ -171,39 +175,37 @@ class FrozenStencil:
                 domain=self.domain,
                 validate_args=True,
             )
+        elif self._async_context:
+            # async_context.schedule(
+            #   self.stencil_object,
+            #   **args_as_kwargs,
+            #   **kwargs,
+            #   exec_info=None,
+            #   origin=self.origin,
+            #   domain=self.domain,
+            # )
+            self._async_context.schedule(
+                self.stencil_object,
+                *args,
+                **kwargs,
+                exec_info=None,
+                origin=self.origin,
+                domain=self.domain,
+                fast_analysis_info=(
+                    self._argument_names,
+                    self._field_origins,
+                    self.domain,
+                ),
+            )
         else:
-            async_context = global_config.get_async_context()
-            if async_context:
-                # async_context.schedule(
-                #   self.stencil_object,
-                #   **args_as_kwargs,
-                #   **kwargs,
-                #   exec_info=None,
-                #   origin=self.origin,
-                #   domain=self.domain,
-                # )
-                async_context.schedule(
-                    self.stencil_object,
-                    *args,
-                    **kwargs,
-                    exec_info=None,
-                    origin=self.origin,
-                    domain=self.domain,
-                    fast_analysis_info=(
-                        self._argument_names,
-                        self._field_origins,
-                        self.domain,
-                    ),
-                )
-            else:
-                args_as_kwargs = dict(zip(self._argument_names, args))
-                self.stencil_object.run(
-                    **args_as_kwargs,
-                    **kwargs,
-                    **self._stencil_run_kwargs,
-                    exec_info=None,
-                )
-                self._mark_cuda_fields_written({**args_as_kwargs, **kwargs})
+            args_as_kwargs = dict(zip(self._argument_names, args))
+            self.stencil_object.run(
+                **args_as_kwargs,
+                **kwargs,
+                **self._stencil_run_kwargs,
+                exec_info=None,
+            )
+            self._mark_cuda_fields_written({**args_as_kwargs, **kwargs})
 
     def _mark_cuda_fields_written(self, fields: Mapping[str, Storage]):
         if global_config.is_gpu_backend():

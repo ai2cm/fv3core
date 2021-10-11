@@ -61,7 +61,7 @@ def get_async_context():
     if not _async_context:
         blocking = False
         concurrent = True
-        use_cython = True
+        use_cython = False
         if get_backend() == "gtc:cuda":
             if use_cython:
                 pyximport.install(inplace=True)
@@ -180,4 +180,4 @@ _BACKEND = None
 # If TRUE, all caches will bypassed and stencils recompiled
 # if FALSE, caches will be checked and rebuild if code changes
 _REBUILD = getenv_bool("FV3_STENCIL_REBUILD_FLAG", "False")
-_VALIDATE_ARGS = True
+_VALIDATE_ARGS = False
