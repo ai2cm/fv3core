@@ -3031,6 +3031,15 @@ class TranslateInitGridUtils(ParallelTranslateGrid):
             "units": "m^2",
         },
     }
+
+    def compute_parallel(self, inputs, communicator):
+        namelist = spec.namelist
+        grid_generator = MetricTerms.from_tile_sizing(npx=namelist.npx, npy=namelist.npy, npz=1, communicator=communicator,  backend=global_config.get_backend())
+        state = {}
+        for metric_term, metadata in self.outputs.items():
+            state[metadata["name"]] = getattr(grid_generator, metric_term)
+        return self.outputs_from_state(state)
+
     def compute_sequential(self, inputs_list, communicator_list):
         state_list = []
         for inputs in inputs_list:
