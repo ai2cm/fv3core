@@ -3072,19 +3072,19 @@ class TranslateInitGridUtils(ParallelTranslateGrid):
         da_max_c = max(max_da_c)
         for i, state in enumerate(state_list):
             state["da_min"] = self.grid.quantity_factory.zeros(
-                [], ""
+                [], "m^2"
             )
             state["da_min"] = da_min
             state["da_max"] = self.grid.quantity_factory.zeros(
-                [], ""
+                [], "m^2"
             )
             state["da_max"] = da_max
             state["da_min_c"] = self.grid.quantity_factory.zeros(
-                [], ""
+                [], "m^2"
             )
             state["da_min_c"] = da_min_c
             state["da_max_c"] = self.grid.quantity_factory.zeros(
-                [], ""
+                [], "m^2"
             )
             state["da_max_c"] = da_max_c
 
