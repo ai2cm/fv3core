@@ -264,7 +264,8 @@ class DynamicalCore:
             grid_data: metric terms defining the model grid
             grid_indexing: indexing information needed for stencils
             damping_coefficients: damping configuration/constants
-            config: configuration of dynamical core
+            config: configuration of dynamical core, for example as would be set by
+                the namelist in the Fortran model
             ak: atmosphere hybrid a coordinate (Pa)
             bk: atmosphere hybrid b coordinate (dimensionless)
             phis: surface geopotential height
