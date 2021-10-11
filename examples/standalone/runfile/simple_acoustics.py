@@ -85,6 +85,7 @@ def run(data_directory, halo_update, backend, time_steps, reference_run):
     input_data = read_input_data(grid, serializer)
     state = get_state_from_input(grid, input_data)
 
+
     acoutstics_object = AcousticDynamics(
         None,
         spec.namelist,
