@@ -186,8 +186,10 @@ def calculate_supergrid_cos_sin(xyz_dgrid, xyz_agrid, ec1, ec2, grid_type, nhalo
 
         cos_sg[:, :, 4] = np.sum(ec1*ec2, axis=-1)
 
+        cos_sg[abs(1.-cos_sg) < 1e-15] = 1.
+
         sin_sg_tmp = 1.-cos_sg**2
-        sin_sg_tmp[sin_sg_tmp < 0.] = 0.
+        sin_sg_tmp[sin_sg_tmp < 0] = 0.
         sin_sg = np.sqrt(sin_sg_tmp)
         sin_sg[sin_sg > 1.] = 1.
 
@@ -198,7 +200,7 @@ def calculate_supergrid_cos_sin(xyz_dgrid, xyz_agrid, ec1, ec2, grid_type, nhalo
                 sin_sg[:nhalo, nhalo-1, 3] = sin_sg[nhalo, :nhalo, 0]
             if tile_partitioner.on_tile_top(rank): #northwest corner
                 sin_sg[nhalo -1, -nhalo:, 2] = sin_sg[:nhalo, -nhalo-1, 3][::-1]
-                sin_sg[:nhalo, -nhalo, 1] = sin_sg[nhalo, -nhalo-2:-nhalo+1, 0][::-1]
+                sin_sg[:nhalo, -nhalo, 1] = sin_sg[nhalo, -nhalo-2:-nhalo+1, 0]
         if tile_partitioner.on_tile_right(rank):
             if tile_partitioner.on_tile_bottom(rank): #southeast corner
                 sin_sg[-nhalo, :nhalo, 0]  = sin_sg[-nhalo:, nhalo, 1][::-1]

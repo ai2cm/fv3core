@@ -22,12 +22,6 @@ from fv3core.grid import (
     set_tile_border_dxc,
     set_tile_border_dyc,
     set_halo_nan,
-    MetricTerms
-)
-
-from fv3core.utils import gt4py_utils as utils
-
-from fv3core.grid.geometry import (
     get_center_vector,
     calc_unit_vector_west,
     calc_unit_vector_south,
@@ -41,9 +35,12 @@ from fv3core.grid.geometry import (
     edge_factors,
     efactor_a2c_v,
     calculate_trig_uv,
-    generate_xy_unit_vectors
+    generate_xy_unit_vectors,
+    set_eta,
+    MetricTerms
 )
-from fv3core.grid.eta import set_eta
+
+from fv3core.utils import gt4py_utils as utils
 
 from fv3core.utils.corners import fill_corners_2d, fill_corners_agrid, fill_corners_dgrid, fill_corners_cgrid
 from fv3core.utils.global_constants import PI, RADIUS, LON_OR_LAT_DIM, TILE_DIM, CARTESIAN_DIM
@@ -3035,6 +3032,15 @@ class TranslateInitGridUtils(ParallelTranslateGrid):
             "units": "m^2",
         },
     }
+
+    def compute_parallel(self, inputs, communicator):
+        namelist = spec.namelist
+        grid_generator = MetricTerms.from_tile_sizing(npx=namelist.npx, npy=namelist.npy, npz=1, communicator=communicator,  backend=global_config.get_backend())
+        state = {}
+        for metric_term, metadata in self.outputs.items():
+            state[metadata["name"]] = getattr(grid_generator, metric_term)
+        return self.outputs_from_state(state)
+
     def compute_sequential(self, inputs_list, communicator_list):
         state_list = []
         for inputs in inputs_list:
