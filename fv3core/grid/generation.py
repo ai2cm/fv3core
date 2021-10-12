@@ -157,7 +157,7 @@ class MetricTerms:
         self._init_agrid()
 
     @classmethod
-    def from_tile_sizing(cls, npx: int, npy: int, npz: int, communicator: fv3util.Communicator, backend: str, grid_type: int = 0) -> "MetricTerm":
+    def from_tile_sizing(cls, npx: int, npy: int, npz: int, communicator: fv3util.Communicator, backend: str, grid_type: int = 0) -> "MetricTerms":
         sizer =  fv3util.SubtileGridSizer.from_tile_params(
             nx_tile=npx - 1,
             ny_tile=npy - 1,
