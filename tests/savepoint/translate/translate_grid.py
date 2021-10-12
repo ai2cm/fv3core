@@ -3023,12 +3023,12 @@ class TranslateInitGridUtils(ParallelTranslateGrid):
             "units": "m^2",
         },
         "da_max": {
-            "name": "da_min",
+            "name": "da_max",
             "dims": [],
             "units": "m^2",
         },
         "da_max_c": {
-            "name": "da_min_c",
+            "name": "da_max_c",
             "dims": [],
             "units": "m^2",
         },
@@ -3085,7 +3085,12 @@ class TranslateInitGridUtils(ParallelTranslateGrid):
             req_list.append(communicator.start_vector_halo_update(state["del6_v"], state["del6_u"], n_points=self.grid.halo))
         for req in req_list:
             req.wait()
-      
+        # TODO workaround to vector_halo_update not having the SCALAR_PAIR option
+        for state, grid in zip(state_list, self.rank_grids):
+            state["divg_v"].data[state["divg_v"].data < 0] *= -1
+            state["divg_u"].data[state["divg_u"].data < 0] *= -1
+            state["del6_v"].data[state["del6_v"].data < 0] *= -1
+            state["del6_u"].data[state["del6_u"].data < 0] *= -1
         for i, state in enumerate(state_list):
             state_list[i] = self._compute_local_edges(state, communicator_list[i])
 
