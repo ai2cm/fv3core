@@ -1,5 +1,7 @@
+import glob
 import os
 import shutil
+import subprocess as sub
 import tempfile
 import time
 from abc import abstractmethod
@@ -283,18 +285,12 @@ def future_stencil(
     return _decorator(definition)
 
 
-def copy_directory(src_dir: str, dest_dir: str, **kwargs: Any):
-    # TODO(eddied): Ignore OS errors because `dirs_exist_ok`
-    #               is not available until python 3.8
-    try:
-        shutil.copytree(
-            src_dir,
-            dest_dir,
-            ignore=shutil.ignore_patterns("*.pyc.*"),
-            **kwargs,
-        )
-    except OSError:
-        return
+def copy_directory(source_dir: str, dest_dir: str):
+    # TODO(eddied): Custom copy directory method because `dirs_exist_ok` is
+    #               not available in `shutil.copytree` until python 3.8
+    if not os.path.exists(dest_dir):
+        os.makedirs(dest_dir)
+    sub.run(["cp", "-rf"] + glob.glob(f"{source_dir}/*") + [f"{dest_dir}"])
 
 
 class FutureStencil:
