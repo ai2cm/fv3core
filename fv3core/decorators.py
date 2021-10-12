@@ -97,6 +97,7 @@ class FrozenStencil:
         domain: Index3D,
         stencil_config: Optional[StencilConfig] = None,
         externals: Optional[Mapping[str, Any]] = None,
+        *,
         skip_passes: Optional[Tuple[str, ...]] = None,
         profile: Optional[bool] = None,
     ):
@@ -108,6 +109,7 @@ class FrozenStencil:
             stencil_config: container for stencil configuration
             externals: compile-time external variables required by stencil
             skip_passes: compiler passes to skip when building stencil
+            profile: enable compilation profiling
         """
         self.origin = origin
         self.domain = domain
