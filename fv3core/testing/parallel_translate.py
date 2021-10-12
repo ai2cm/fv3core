@@ -94,7 +94,7 @@ class ParallelTranslate:
                 )                
                 return_dict[name] = state[standard_name].data[output_slice]
             else:
-                return_dict[name] = state[standard_name]
+                return_dict[name] = [state[standard_name]]
         return return_dict
 
     def allocate_output_state(self):
@@ -206,7 +206,8 @@ class ParallelTranslateGrid(ParallelTranslate):
                 state[standard_name] = inputs[name]
         return state
 
-
+    
+    
 class ParallelTranslate2Py(ParallelTranslate):
     def collect_input_data(self, serializer, savepoint):
         input_data = super().collect_input_data(serializer, savepoint)
