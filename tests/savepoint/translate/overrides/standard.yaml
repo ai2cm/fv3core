@@ -205,3 +205,6 @@ InitGridUtils:
       cos_sg7: 1e-14
       cos_sg8: 1e-14
       cos_sg9: 1e-14
+      cosa_u: 1e-14
+      cosa_v: 1e-14
+      cosa: 1e-14
