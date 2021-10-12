@@ -58,7 +58,6 @@ def success_array(
                 np.abs(computed_data) < near_zero, np.abs(ref_data) < near_zero
             ),
         )
-
     return success
 
 
@@ -373,12 +372,12 @@ def test_mock_parallel_savepoint(
     failing_names = [item["varname"] for item in failing_names]
     if len(failing_names) > 0:
         out_filename = os.path.join(OUTDIR, f"{test_name}.nc")
-        # try:
-        save_netcdf(
-            testobj, inputs_list, output_list, ref_data, failing_names, out_filename
-        )
-        # except Exception as error:
-        #     print(f'TestMockParallel SaveNetCDF Error: {error}')
+        try:
+            save_netcdf(
+                testobj, inputs_list, output_list, ref_data, failing_names, out_filename
+            )
+        except Exception as error:
+            print(f'TestMockParallel SaveNetCDF Error: {error}')
     assert failing_names == [], f"names tested: {list(testobj.outputs.keys())}"
 
 
