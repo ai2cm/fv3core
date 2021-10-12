@@ -3081,8 +3081,8 @@ class TranslateInitGridUtils(ParallelTranslateGrid):
         req_list = []
         # TODO, this is producing the wrong answer (wrong sign on north/east edges)
         for state, communicator in zip(state_list, communicator_list):
-            req_list.append(communicator.start_vector_halo_update(state["divg_u"], state["divg_v"], n_points=self.grid.halo))
-            req_list.append(communicator.start_vector_halo_update(state["del6_u"], state["del6_v"], n_points=self.grid.halo))
+            req_list.append(communicator.start_vector_halo_update(state["divg_v"], state["divg_u"], n_points=self.grid.halo))
+            req_list.append(communicator.start_vector_halo_update(state["del6_v"], state["del6_u"], n_points=self.grid.halo))
         for req in req_list:
             req.wait()
       
