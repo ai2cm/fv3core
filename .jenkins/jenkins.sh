@@ -104,6 +104,12 @@ if [ -f ${scheduler_script} ] ; then
     fi
 fi
 
+
+# if the environment variable is set to long_job we skip timing restrictions:
+if [ -z "${LONG_EXECUTION}"]; then
+    sed -i 's|00:45:00|03:30:00|g' ${scheduler_script}
+fi
+
 # if this is a parallel job and the number of ranks is specified in the experiment argument, set NUM_RANKS
 # and update the scheduler script if there is one
 if grep -q "parallel" <<< "${script}"; then
