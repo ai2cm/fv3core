@@ -2887,6 +2887,7 @@ class TranslateInitGridUtils(ParallelTranslateGrid):
             "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM],
             "units": "",
         },
+        
         "divg_u": {
             "name": "divg_u",
             "dims": [fv3util.X_DIM, fv3util.Y_INTERFACE_DIM],
@@ -3063,32 +3064,28 @@ class TranslateInitGridUtils(ParallelTranslateGrid):
         min_da_c = []
         max_da_c = []
         for state in state_list:
-            min_da.append(state["grid"].np.min(state["area"].data[:]))
-            max_da.append(state["grid"].np.max(state["area"].data[:]))
-            min_da_c.append(state["grid"].np.min(state["area_cgrid"].data[:]))
-            max_da_c.append(state["grid"].np.max(state["area_cgrid"].data[:]))
+            min_da.append(state["grid"].np.min(state["area"].view[:]))
+            max_da.append(state["grid"].np.max(state["area"].view[:]))
+            min_da_c.append(state["grid"].np.min(state["area_cgrid"].view[:][:-1, :-1]))
+            max_da_c.append(state["grid"].np.max(state["area_cgrid"].view[:][:-1, :-1]))
         da_min = min(min_da)
         da_max = max(max_da)
         da_min_c = min(min_da_c)
         da_max_c = max(max_da_c)
+       
         for i, state in enumerate(state_list):
-            state["da_min"] = self.grid.quantity_factory.zeros(
-                [], ""
-            )
             state["da_min"] = da_min
-            state["da_max"] = self.grid.quantity_factory.zeros(
-                [], ""
-            )
             state["da_max"] = da_max
-            state["da_min_c"] = self.grid.quantity_factory.zeros(
-                [], ""
-            )
             state["da_min_c"] = da_min_c
-            state["da_max_c"] = self.grid.quantity_factory.zeros(
-                [], ""
-            )
             state["da_max_c"] = da_max_c
-
+        req_list = []
+        # TODO, this is producing the wrong answer (wrong sign on north/east edges)
+        for state, communicator in zip(state_list, communicator_list):
+            req_list.append(communicator.start_vector_halo_update(state["divg_u"], state["divg_v"], n_points=self.grid.halo))
+            req_list.append(communicator.start_vector_halo_update(state["del6_u"], state["del6_v"], n_points=self.grid.halo))
+        for req in req_list:
+            req.wait()
+      
         for i, state in enumerate(state_list):
             state_list[i] = self._compute_local_edges(state, communicator_list[i])
 
@@ -3121,18 +3118,23 @@ class TranslateInitGridUtils(ParallelTranslateGrid):
         state["ec2"] = self.grid.quantity_factory.zeros(
             [fv3util.X_DIM, fv3util.Y_DIM, CARTESIAN_DIM], ""
         )
+        nan = state["grid"].np.nan
         state["ew1"] = self.grid.quantity_factory.zeros(
             [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM, CARTESIAN_DIM], ""
         )
+        state["ew1"].data[:] = nan
         state["ew2"] = self.grid.quantity_factory.zeros(
             [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM, CARTESIAN_DIM], ""
         )
+        state["ew2"].data[:] = nan
         state["es1"] = self.grid.quantity_factory.zeros(
             [fv3util.X_DIM, fv3util.Y_INTERFACE_DIM, CARTESIAN_DIM], ""
         )
+        state["es1"].data[:] = nan
         state["es2"] = self.grid.quantity_factory.zeros(
             [fv3util.X_DIM, fv3util.Y_INTERFACE_DIM, CARTESIAN_DIM], ""
         )
+        state["es2"].data[:] = nan
         xyz_dgrid = lon_lat_to_xyz(state["grid"].data[:,:,0], state["grid"].data[:,:,1], state["grid"].np)
         xyz_agrid = lon_lat_to_xyz(state["agrid"].data[:-1,:-1,0], state["agrid"].data[:-1,:-1,1], state["grid"].np)
         
@@ -3175,6 +3177,7 @@ class TranslateInitGridUtils(ParallelTranslateGrid):
         state["cosa_u"] = self.grid.quantity_factory.zeros(
             [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM], ""
         )
+   
         state["cosa_v"] = self.grid.quantity_factory.zeros(
             [fv3util.X_DIM, fv3util.Y_INTERFACE_DIM], ""
         )
@@ -3208,9 +3211,11 @@ class TranslateInitGridUtils(ParallelTranslateGrid):
         state["ee1"] = self.grid.quantity_factory.zeros(
             [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM, CARTESIAN_DIM], ""
         )
+        state["ee1"].data[:] = nan
         state["ee2"] = self.grid.quantity_factory.zeros(
             [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM, CARTESIAN_DIM], ""
         )
+        state["ee2"].data[:] = nan
         state["ee1"].data[nhalo:-nhalo, nhalo:-nhalo, :], state["ee2"].data[nhalo:-nhalo, nhalo:-nhalo, :] = generate_xy_unit_vectors(xyz_dgrid, nhalo, communicator.tile.partitioner, communicator.rank, state["grid"].np)
         state["cosa"].data[:, :], state["sina"].data[:, :], state["cosa_u"].data[:, :-1], state["cosa_v"].data[:-1, :], state["cosa_s"].data[:-1, :-1], state["sina_u"].data[:, :-1], state["sina_v"].data[:-1, :], state["rsin_u"].data[:, :-1], state["rsin_v"].data[:-1, :], state["rsina"].data[nhalo:-nhalo, nhalo:-nhalo], state["rsin2"].data[:-1, :-1] = calculate_trig_uv(xyz_dgrid, cos_sg, sin_sg, nhalo, 
             communicator.tile.partitioner, communicator.rank, state["grid"].np
@@ -3293,16 +3298,17 @@ class TranslateInitGridUtils(ParallelTranslateGrid):
     def _compute_local_edges(self, state, communicator):
         nhalo = self.grid.halo
         state["edge_s"] = self.grid.quantity_factory.zeros(
-            [fv3util.X_DIM], ""
+            [fv3util.X_INTERFACE_DIM], ""
         )
+      
         state["edge_n"] = self.grid.quantity_factory.zeros(
-            [fv3util.X_DIM], ""
+            [fv3util.X_INTERFACE_DIM], ""
         )
         state["edge_e"] = self.grid.quantity_factory.zeros(
-            [fv3util.Y_DIM], ""
+            [fv3util.Y_INTERFACE_DIM], ""
         )
         state["edge_w"] = self.grid.quantity_factory.zeros(
-            [fv3util.Y_DIM], ""
+            [fv3util.Y_INTERFACE_DIM], ""
         )
         state["edge_w"].data[nhalo:-nhalo], state["edge_e"].data[nhalo:-nhalo], state["edge_s"].data[nhalo:-nhalo], state["edge_n"].data[nhalo:-nhalo] = edge_factors(
             state["grid"].data[:], state["agrid"].data[:-1, :-1], self.grid.grid_type, nhalo, 
