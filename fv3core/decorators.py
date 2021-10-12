@@ -119,7 +119,6 @@ class FrozenStencil(StencilInterface):
             stencil_config: container for stencil configuration
             externals: compile-time external variables required by stencil
             skip_passes: compiler passes to skip when building stencil
-                        (temporary option until config system implemented)
         """
         self.origin = origin
         self.domain = domain
@@ -145,9 +144,7 @@ class FrozenStencil(StencilInterface):
             stencil_function = future_stencil
             stencil_kwargs["wrapper"] = self
 
-        if global_config.is_gtc_backend():
-            if not skip_passes:
-                skip_passes = ("graph_merge_horizontal_executions",)
+        if skip_passes and global_config.is_gtc_backend():
             stencil_kwargs["skip_passes"] = skip_passes
 
         self.stencil_object: gt4py.StencilObject = stencil_function(
