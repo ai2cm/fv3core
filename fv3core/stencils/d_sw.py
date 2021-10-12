@@ -740,6 +740,7 @@ class DGridShallowWaterLagrangianDynamics:
             },
             origin=b_origin,
             domain=b_domain,
+            skip_passes=("GreedyMerging",),
         )
         self._kinetic_energy_update_part_2 = FrozenStencil(
             kinetic_energy_update_part_2,

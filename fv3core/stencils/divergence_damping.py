@@ -232,6 +232,7 @@ class DivergenceDamping:
             origin=origin,
             domain=domain,
             externals=axis_offsets(self.grid_indexing, origin, domain),
+            skip_passes=("GreedyMerging",),
         )
 
         self._damping = FrozenStencil(
