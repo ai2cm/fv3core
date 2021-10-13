@@ -242,7 +242,6 @@ def calculate_l2c_vu(dgrid, nhalo, np):
 
 def generate_xy_unit_vectors(xyz_dgrid, nhalo, tile_partitioner, rank, np):
     cross_vect_x = np.cross(xyz_dgrid[nhalo-1:-nhalo-1, nhalo:-nhalo, :], xyz_dgrid[nhalo+1:-nhalo+1, nhalo:-nhalo, :])
-    # print(cross_vect_x.shape)
     if tile_partitioner.on_tile_left(rank):
         cross_vect_x[0,:] = np.cross(xyz_dgrid[nhalo, nhalo:-nhalo, :], xyz_dgrid[nhalo+1, nhalo:-nhalo, :])
     if tile_partitioner.on_tile_right(rank):
@@ -462,7 +461,6 @@ def edge_factors(grid_quantity, agrid, grid_type, nhalo, tile_partitioner, rank,
     iend = min(npx+nhalo-1, global_ie+2) - global_is + nhalo
     if grid_type < 3:
         if tile_partitioner.on_tile_left(rank):
-            print( edge_w[jstart:jend].shape)
             edge_w[jstart-nhalo:jend-nhalo] = set_west_edge_factor(grid, agrid, nhalo, radius, jstart, jend,np)
         if tile_partitioner.on_tile_right(rank):
             edge_e[jstart-nhalo:jend-nhalo] = set_east_edge_factor(grid, agrid, nhalo, radius, jstart, jend, np)
@@ -505,26 +503,25 @@ def efactor_a2c_v(grid_quantity, agrid, grid_type, nhalo, tile_partitioner, rank
 
     if npx != npy: raise ValueError("npx must equal npy")
     if npx %2 == 0: raise ValueError("npx must be odd")
-
     i_midpoint = int((npx-1)/2)
     j_midpoint = int((npy-1)/2)
-    #print(agrid.shape, global_is, global_js)
-    i_indices = np.arange(agrid.shape[0] - 2 * nhalo) + global_is
-    j_indices = np.arange(agrid.shape[1] - 2 * nhalo) + global_js
+    i_indices = np.arange(agrid.shape[0] - nhalo + 1) + global_is - nhalo
+    j_indices = np.arange(agrid.shape[1] - nhalo + 1) + global_js - nhalo
     i_selection = i_indices[i_indices <= nhalo + i_midpoint]
     j_selection = j_indices[j_indices <= nhalo + j_midpoint]
-    #print('what', i_indices, global_is, global_js)
-    if len(i_selection) > 0:
-        im2 = max(i_selection) - global_is
-        #print(i_selection, im2)
+    if (len(i_selection) > 0) and (len(i_selection) < len(i_indices)):
+        im2 = max(i_selection) - global_is 
     else:
         im2 = len(i_selection)
 
-    if len(j_selection) > 0:
-        jm2 = max(j_selection) - global_js
+    if (len(j_selection) > 0) and (len(j_selection) < len(j_indices)) :
+        jm2 = max(j_selection) - global_js 
     else:
         jm2 = len(j_selection)
-
+  
+    im2 = max(im2, -1)
+    jm2 = max(jm2, -1)
+    
     edge_vect_s = np.zeros(grid.shape[0]-1) + big_number
     edge_vect_n = np.zeros(grid.shape[0]-1) + big_number
     edge_vect_e = np.zeros(grid.shape[1]-1) + big_number
@@ -536,6 +533,7 @@ def efactor_a2c_v(grid_quantity, agrid, grid_type, nhalo, tile_partitioner, rank
                 edge_vect_w[nhalo-1] = edge_vect_w[nhalo]
             if tile_partitioner.on_tile_top(rank):
                 edge_vect_w[-nhalo] = edge_vect_w[-nhalo-1]
+        
         if tile_partitioner.on_tile_right(rank):
             edge_vect_e[2:-2] = calculate_east_edge_vectors(grid, agrid, jm2, nhalo, radius, np)
             if tile_partitioner.on_tile_bottom(rank):
@@ -554,11 +552,12 @@ def efactor_a2c_v(grid_quantity, agrid, grid_type, nhalo, tile_partitioner, rank
                 edge_vect_n[nhalo-1] = edge_vect_n[nhalo]
             if tile_partitioner.on_tile_right(rank):
                 edge_vect_n[-nhalo] = edge_vect_n[-nhalo-1]
-
+        
+    
     return edge_vect_w, edge_vect_e, edge_vect_s, edge_vect_n
     
-def calculate_west_edge_vectors(grid, agrid, jm2, nhalo, radius, np):
-   
+def calculate_west_edge_vectors(grid, agrid, jm2_in, nhalo, radius, np):
+    jm2 = jm2_in# - nhalo - 1
     d2 = np.zeros(agrid.shape[0]-2*nhalo+2)
     d1 = np.zeros(agrid.shape[0]-2*nhalo+2)
    
@@ -575,21 +574,20 @@ def calculate_west_edge_vectors(grid, agrid, jm2, nhalo, radius, np):
         grid[nhalo, nhalo-2:-nhalo+1, 1], 
         grid[nhalo, nhalo-1:-nhalo+2, 1], np
     )
-    
+   
     py = np.array([py0, py1]).transpose([1,0])
     p2 = np.array([p20, p21]).transpose([1,0])
-
-    #for j in range(d1.shape[0]):
-    #    if j <= jm2:
-    #        d1[j] = great_circle_distance_lon_lat(py[j+1, 0], p2[j+1, 0], py[j+1, 1], p2[j+1, 1], radius, np)
-    #        d2[j] = great_circle_distance_lon_lat(py[j+2, 0], p2[j+1, 0], py[j+2, 1], p2[j+1, 1], radius, np)
-    #    else:
-    #        d1[j] = great_circle_distance_lon_lat(py[j-1, 0], p2[j-1, 0], py[j-1, 1], p2[j-1, 1], radius, np)
-    #        d2[j] = great_circle_distance_lon_lat(py[j-2, 0], p2[j-1, 0], py[j-2, 1], p2[j-1, 1], radius, np)
-    d1[:jm2+1] = great_circle_distance_lon_lat(py[1:jm2+2, 0], p2[1:jm2+2, 0], py[1:jm2+2, 1], p2[1:jm2+2, 1], radius, np)
-    d2[:jm2+1] = great_circle_distance_lon_lat(py[2:jm2+3, 0], p2[1:jm2+2, 0], py[2:jm2+3, 1], p2[1:jm2+2, 1], radius, np)
-    d1[jm2+1:] = great_circle_distance_lon_lat(py[jm2+2:-1, 0], p2[jm2+2:-1, 0], py[jm2+2:-1, 1], p2[jm2+2:-1, 1], radius, np)
-    d2[jm2+1:] = great_circle_distance_lon_lat(py[jm2+1:-2, 0], p2[jm2+2:-1, 0], py[jm2+1:-2, 1], p2[jm2+2:-1, 1], radius, np)
+    for j in range(d1.shape[0]):
+        d1[j] = great_circle_distance_lon_lat(py[j+1, 0], p2[j+1, 0], py[j+1, 1], p2[j+1, 1], radius, np)
+        if j <= jm2:
+            d2[j] = great_circle_distance_lon_lat(py[j+2, 0], p2[j+1, 0], py[j+2, 1], p2[j+1, 1], radius, np)
+        else:
+            d2[j] = great_circle_distance_lon_lat(py[j, 0], p2[j+1, 0], py[j, 1], p2[j+1, 1], radius, np)
+    # This does not work, but we would like to modify it to:
+    #d1[:jm2+1] = great_circle_distance_lon_lat(py[1:jm2+2, 0], p2[1:jm2+2, 0], py[1:jm2+2, 1], p2[1:jm2+2, 1], radius, np)
+    #d2[:jm2+1] = great_circle_distance_lon_lat(py[2:jm2+3, 0], p2[1:jm2+2, 0], py[2:jm2+3, 1], p2[1:jm2+2, 1], radius, np)
+    #d1[jm2+1:] = great_circle_distance_lon_lat(py[jm2+2:-1, 0], p2[jm2+2:-1, 0], py[jm2+2:-1, 1], p2[jm2+2:-1, 1], radius, np)
+    #d2[jm2+1:] = great_circle_distance_lon_lat(py[jm2+1:-2, 0], p2[jm2+2:-1, 0], py[jm2+1:-2, 1], p2[jm2+2:-1, 1], radius, np)
     
     return d1/(d2+d1)
 
