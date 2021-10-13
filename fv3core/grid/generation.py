@@ -204,7 +204,11 @@ class MetricTerms:
             communicator=communicator,
             grid_type=grid_type,
         )
-
+    
+    @property
+    def grid(self):
+        return self._grid
+    
     @property
     def gridvar(self):
         return self._grid
@@ -1146,6 +1150,8 @@ class MetricTerms:
         ec2 = self._quantity_factory.zeros(
             [fv3util.X_DIM, fv3util.Y_DIM, CARTESIAN_DIM], ""
         )
+        ec1.data[:] = self._np.nan
+        ec2.data[:] = self._np.nan
         ec1.data[:-1, :-1, :3], ec2.data[:-1, :-1, :3] = get_center_vector(
             self._dgrid_xyz,
             self._grid_type,
@@ -1163,6 +1169,8 @@ class MetricTerms:
         ew2 = self._quantity_factory.zeros(
             [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM, CARTESIAN_DIM], ""
         )
+        ew1.data[:] = self._np.nan
+        ew2.data[:] = self._np.nan
         ew1.data[1:-1, :-1, :3], ew2.data[1:-1, :-1, :3] = calc_unit_vector_west(
             self._dgrid_xyz,
             self._agrid_xyz,
@@ -1181,6 +1189,8 @@ class MetricTerms:
         es2 = self._quantity_factory.zeros(
             [fv3util.X_DIM, fv3util.Y_INTERFACE_DIM, CARTESIAN_DIM], ""
         )
+        es1.data[:] = self._np.nan
+        es2.data[:] = self._np.nan
         es1.data[:-1, 1:-1, :3], es2.data[:-1, 1:-1, :3] = calc_unit_vector_south(
             self._dgrid_xyz,
             self._agrid_xyz,
@@ -1377,6 +1387,8 @@ class MetricTerms:
         ee2 = self._quantity_factory.zeros(
             [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM, CARTESIAN_DIM], ""
         )
+        ee1.data[:] = self._np.nan
+        ee2.data[:] = self._np.nan
         (
             ee1.data[self._halo : -self._halo, self._halo : -self._halo, :],
             ee2.data[self._halo : -self._halo, self._halo : -self._halo, :],
@@ -1486,10 +1498,10 @@ class MetricTerms:
 
     def _calculate_edge_factors(self):
         nhalo = self._halo
-        edge_s = self._quantity_factory.zeros([fv3util.X_DIM], "")
-        edge_n = self._quantity_factory.zeros([fv3util.X_DIM], "")
-        edge_e = self._quantity_factory.zeros([fv3util.Y_DIM], "")
-        edge_w = self._quantity_factory.zeros([fv3util.Y_DIM], "")
+        edge_s = self._quantity_factory.zeros([fv3util.X_INTERFACE_DIM], "")
+        edge_n = self._quantity_factory.zeros([fv3util.X_INTERFACE_DIM], "")
+        edge_e = self._quantity_factory.zeros([fv3util.Y_INTERFACE_DIM], "")
+        edge_w = self._quantity_factory.zeros([fv3util.Y_INTERFACE_DIM], "")
         (
             edge_w.data[nhalo:-nhalo],
             edge_e.data[nhalo:-nhalo],
