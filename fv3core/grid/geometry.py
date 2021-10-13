@@ -457,10 +457,9 @@ def edge_factors(grid_quantity, agrid, grid_type, nhalo, tile_partitioner, rank,
     global_ie = nhalo + slice_x.stop - 1
     global_je = nhalo + slice_y.stop - 1
     jstart = max(4, global_js) - global_js + nhalo
-    jend = min(npy+nhalo+2, global_je+1) - global_js + nhalo
+    jend = min(npy+nhalo-1, global_je+2) - global_js + nhalo
     istart = max(4, global_is) - global_is + nhalo
-    iend = min(npx+nhalo+2, global_ie+1) - global_is + nhalo
-    print('starts and ends', rank, jstart, jend, istart, iend)
+    iend = min(npx+nhalo-1, global_ie+2) - global_is + nhalo
     if grid_type < 3:
         if tile_partitioner.on_tile_left(rank):
             print( edge_w[jstart:jend].shape)
@@ -469,7 +468,7 @@ def edge_factors(grid_quantity, agrid, grid_type, nhalo, tile_partitioner, rank,
             edge_e[jstart-nhalo:jend-nhalo] = set_east_edge_factor(grid, agrid, nhalo, radius, jstart, jend, np)
         if tile_partitioner.on_tile_bottom(rank):
             edge_s[istart-nhalo:iend-nhalo] = set_south_edge_factor(grid, agrid, nhalo, radius, istart, iend, np)
-        if tile_partitioner.on_tile_bottom(rank):
+        if tile_partitioner.on_tile_top(rank):
             edge_n[istart-nhalo:iend-nhalo] = set_north_edge_factor(grid, agrid, nhalo, radius, istart, iend, np)
 
     return edge_w, edge_e, edge_s, edge_n
