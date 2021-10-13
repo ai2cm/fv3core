@@ -106,7 +106,7 @@ fi
 
 
 # if the environment variable is set to long_job we skip timing restrictions:
-if [ -z "${LONG_EXECUTION}"]; then
+if [ -v LONG_EXECUTION ]; then
     sed -i 's|00:45:00|03:30:00|g' ${scheduler_script}
 fi
 
