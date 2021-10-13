@@ -2737,7 +2737,7 @@ class TranslateEdgeFactors(ParallelTranslateGrid):
             state["edge_s"].data[nhalo:-nhalo],
             state["edge_n"].data[nhalo:-nhalo],
         ) = edge_factors(
-            state["grid"].data[:],
+            state["grid"],
             state["agrid"].data[:-1, :-1],
             self.grid.grid_type,
             nhalo,
