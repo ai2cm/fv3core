@@ -509,19 +509,21 @@ def efactor_a2c_v(grid_quantity, agrid, grid_type, nhalo, tile_partitioner, rank
     j_indices = np.arange(agrid.shape[1] - nhalo + 1) + global_js - nhalo
     i_selection = i_indices[i_indices <= nhalo + i_midpoint]
     j_selection = j_indices[j_indices <= nhalo + j_midpoint]
-    if (len(i_selection) > 0) and (len(i_selection) < len(i_indices)):
+    if len(i_selection) > 0:
         im2 = max(i_selection) - global_is 
     else:
         im2 = len(i_selection)
-
-    if (len(j_selection) > 0) and (len(j_selection) < len(j_indices)) :
+    if  len(i_selection) == len(i_indices):
+        im2 = len(i_selection) - nhalo
+    if len(j_selection) > 0 :
         jm2 = max(j_selection) - global_js 
     else:
         jm2 = len(j_selection)
-  
+    if len(j_selection)  ==  len(j_indices):
+        jm2 = len(j_selection) - nhalo
     im2 = max(im2, -1)
     jm2 = max(jm2, -1)
-    
+   
     edge_vect_s = np.zeros(grid.shape[0]-1) + big_number
     edge_vect_n = np.zeros(grid.shape[0]-1) + big_number
     edge_vect_e = np.zeros(grid.shape[1]-1) + big_number
@@ -533,7 +535,6 @@ def efactor_a2c_v(grid_quantity, agrid, grid_type, nhalo, tile_partitioner, rank
                 edge_vect_w[nhalo-1] = edge_vect_w[nhalo]
             if tile_partitioner.on_tile_top(rank):
                 edge_vect_w[-nhalo] = edge_vect_w[-nhalo-1]
-        
         if tile_partitioner.on_tile_right(rank):
             edge_vect_e[2:-2] = calculate_east_edge_vectors(grid, agrid, jm2, nhalo, radius, np)
             if tile_partitioner.on_tile_bottom(rank):
@@ -553,11 +554,10 @@ def efactor_a2c_v(grid_quantity, agrid, grid_type, nhalo, tile_partitioner, rank
             if tile_partitioner.on_tile_right(rank):
                 edge_vect_n[-nhalo] = edge_vect_n[-nhalo-1]
         
-    
+        
     return edge_vect_w, edge_vect_e, edge_vect_s, edge_vect_n
     
-def calculate_west_edge_vectors(grid, agrid, jm2_in, nhalo, radius, np):
-    jm2 = jm2_in# - nhalo - 1
+def calculate_west_edge_vectors(grid, agrid, jm2, nhalo, radius, np):
     d2 = np.zeros(agrid.shape[0]-2*nhalo+2)
     d1 = np.zeros(agrid.shape[0]-2*nhalo+2)
    
@@ -577,8 +577,7 @@ def calculate_west_edge_vectors(grid, agrid, jm2_in, nhalo, radius, np):
    
     py = np.array([py0, py1]).transpose([1,0])
     p2 = np.array([p20, p21]).transpose([1,0])
-    if jm2 > len(d1):
-        jm2 = len(d1) - 1
+
     d1[:jm2+1] = great_circle_distance_lon_lat(py[1:jm2+2, 0], p2[1:jm2+2, 0], py[1:jm2+2, 1], p2[1:jm2+2, 1], radius, np)
     d2[:jm2+1] = great_circle_distance_lon_lat(py[2:jm2+3, 0], p2[1:jm2+2, 0], py[2:jm2+3, 1], p2[1:jm2+2, 1], radius, np)
     d1[jm2+1:] = great_circle_distance_lon_lat(py[jm2+2:-1, 0], p2[jm2+2:-1, 0], py[jm2+2:-1, 1], p2[jm2+2:-1, 1], radius, np)
