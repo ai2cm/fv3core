@@ -135,8 +135,13 @@ class FrozenStencil:
             stencil_kwargs["skip_passes"] = skip_passes
 
         # Collect compilation times if profiling enabled
+        self._build_info: Optional[Dict[str, Any]] = None
+        self._exec_info: Optional[Dict[str, Any]] = None
+
         if profile:
-            stencil_kwargs["build_info"] = {}
+            self._build_info = {}
+            self._exec_info = {}
+            stencil_kwargs["build_info"] = self._build_info
 
         self.stencil_object: gt4py.StencilObject = stencil_function(
             definition=func,
@@ -171,7 +176,7 @@ class FrozenStencil:
     ) -> None:
         if kwargs.pop("serialize", False):
             self._serialize_data(*args, **kwargs)
-        exec_info: Dict[str, Any] = {} if kwargs.pop("profile", False) else None
+        exec_info = self._exec_info
 
         if self.stencil_config.validate_args:
             if __debug__ and "origin" in kwargs:
