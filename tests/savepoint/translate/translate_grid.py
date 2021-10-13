@@ -3229,6 +3229,9 @@ class TranslateInitGridUtils(ParallelTranslateGrid):
             communicator=communicator,
             backend=global_config.get_backend(),
         )
+        input_state = self.state_from_inputs(inputs)
+        grid_generator._grid = input_state["grid"]
+        grid_generator._agrid = input_state["agrid"]
         state = {}
         for metric_term, metadata in self.outputs.items():
             state[metadata["name"]] = getattr(grid_generator, metric_term)
