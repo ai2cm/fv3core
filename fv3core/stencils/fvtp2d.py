@@ -100,15 +100,15 @@ class CopiedCorners:
 
     Attributes:
         base: writeable version of storage with no guarantees about corner data
-        x_differenceable: read-only version of storage which can be differenced
+        x_differentiable: read-only version of storage which can be differenced
             along the x-direction
-        y_differenceable: read-only version of storage which can be differenced
+        y_differentiable: read-only version of storage which can be differenced
             along the y-direction
     """
 
     base: FloatField
-    x_differenceable: FloatField
-    y_differenceable: FloatField
+    x_differentiable: FloatField
+    y_differentiable: FloatField
 
 
 class PreAllocatedCopiedCornersFactory:
@@ -144,7 +144,7 @@ class PreAllocatedCopiedCornersFactory:
     def __call__(self, field: FloatFieldIJ) -> CopiedCorners:
         x_field, y_field = self._copy_corners_xy(field)
         return CopiedCorners(
-            base=field, x_differenceable=x_field, y_differenceable=y_field
+            base=field, x_differentiable=x_field, y_differentiable=y_field
         )
 
 
@@ -316,13 +316,13 @@ class FiniteVolumeTransport:
         # yppm with q_i_stencil and xppm with q_j_stencil.
 
         self.y_piecewise_parabolic_inner(
-            q.y_differenceable, cry, self._q_y_advected_mean
+            q.y_differentiable, cry, self._q_y_advected_mean
         )
         # q_y_advected_mean is 1/Delta_area * curly-F, where curly-F is defined in
         # equation 4.3 of the FV3 documentation and Delta_area is the advected area
         # (y_area_flux)
         self.q_i_stencil(
-            q.y_differenceable,
+            q.y_differentiable,
             self._area,
             y_area_flux,
             self._q_y_advected_mean,
@@ -335,10 +335,10 @@ class FiniteVolumeTransport:
 
         # similarly below for x<->y
         self.x_piecewise_parabolic_inner(
-            q.x_differenceable, crx, self._q_x_advected_mean
+            q.x_differentiable, crx, self._q_x_advected_mean
         )
         self.q_j_stencil(
-            q.x_differenceable,
+            q.x_differentiable,
             self._area,
             x_area_flux,
             self._q_x_advected_mean,
