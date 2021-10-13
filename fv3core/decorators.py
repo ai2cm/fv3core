@@ -175,6 +175,9 @@ class FrozenStencil(StencilInterface):
 
         self._written_fields: List[str] = get_written_fields(field_info)
 
+        # TODO(eddied): Why is rebuild getting reset to True here?
+        self.stencil_object.options["rebuild"] = self.stencil_config.rebuild
+
         if _stencil_merger.enabled:
             _stencil_merger.add(self)
 
