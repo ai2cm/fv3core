@@ -3225,7 +3225,7 @@ class TranslateInitGridUtils(ParallelTranslateGrid):
         grid_generator = MetricTerms.from_tile_sizing(
             npx=namelist.npx,
             npy=namelist.npy,
-            npz=1,
+            npz=inputs["npz"],
             communicator=communicator,
             backend=global_config.get_backend(),
         )
@@ -3240,7 +3240,10 @@ class TranslateInitGridUtils(ParallelTranslateGrid):
             state_list.append(self._compute_local_eta(inputs))
         for i, state in enumerate(state_list):
             fill_corners_2d(
-                state["grid"].data[:, :, :], self.rank_grids[i], gridtype="B", direction="x"
+                state["grid"].data[:, :, :],
+                self.rank_grids[i],
+                gridtype="B",
+                direction="x",
             )
             state_list[i] = self._compute_local_part_1(state, communicator_list[i])
 

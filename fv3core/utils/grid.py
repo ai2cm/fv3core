@@ -10,12 +10,9 @@ import fv3gfs.util
 from fv3gfs.util.halo_data_transformer import QuantityHaloSpec
 
 from . import gt4py_utils as utils
-
-from .typing import Index3D
-from .global_constants import LON_OR_LAT_DIM, TILE_DIM, CARTESIAN_DIM
-
+from .global_constants import CARTESIAN_DIM, LON_OR_LAT_DIM, TILE_DIM
 from .typing import FloatFieldIJ, Index3D
-from .global_constants import LON_OR_LAT_DIM, TILE_DIM
+
 
 class Grid:
     # indices = ["is_", "ie", "isd", "ied", "js", "je", "jsd", "jed"]
@@ -197,7 +194,7 @@ class Grid:
     @property
     def n_halo(self):
         return self.halo
-    
+
     @property
     def isc(self):
         return self.is_
@@ -213,11 +210,11 @@ class Grid:
     @property
     def jec(self):
         return self.je
-    
+
     @property
     def domain(self):
         return self.domain_shape_full()
-    
+
     def compute_interface(self):
         return self.slice_dict(self.compute_dict())
 
@@ -495,7 +492,6 @@ class HorizontalGridData:
     rdyc: FloatFieldIJ
     rdxa: FloatFieldIJ
     rdya: FloatFieldIJ
-    
 
     @property
     def lon(self) -> FloatFieldIJ:
@@ -504,7 +500,8 @@ class HorizontalGridData:
     @property
     def lat(self) -> FloatFieldIJ:
         raise NotImplementedError()
-  
+
+
 @dataclasses.dataclass
 class VerticalGridData:
     """
