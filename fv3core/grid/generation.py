@@ -1496,7 +1496,7 @@ class MetricTerms:
             edge_s.data[nhalo:-nhalo],
             edge_n.data[nhalo:-nhalo],
         ) = edge_factors(
-            self.gridvar.data[:],
+            self.gridvar,
             self.agrid.data[:-1, :-1],
             self._grid_type,
             nhalo,
@@ -1530,10 +1530,10 @@ class MetricTerms:
         return edge_vect_w, edge_vect_e, edge_vect_s, edge_vect_n
 
     def _reduce_global_area_minmaxes(self):
-        min_area = self._np.min(self.area.data[:])
-        max_area = self._np.max(self.area.data[:])
-        min_area_c = self._np.min(self.area_c.data[:])
-        max_area_c = self._np.max(self.area_c.data[:])
+        min_area = self._np.min(self.area.view[:])
+        max_area = self._np.max(self.area.view[:])
+        min_area_c = self._np.min(self.area_c.view[:])
+        max_area_c = self._np.max(self.area_c.view[:])
 
         try:
             self._da_min = self._comm.comm.allreduce(min_area, min)
