@@ -176,26 +176,14 @@ class FrozenStencil:
                 validate_args=True,
             )
         elif self._async_context:
-            # async_context.schedule(
-            #   self.stencil_object,
-            #   **args_as_kwargs,
-            #   **kwargs,
-            #   exec_info=None,
-            #   origin=self.origin,
-            #   domain=self.domain,
-            # )
             self._async_context.schedule(
                 self.stencil_object,
                 *args,
                 **kwargs,
                 exec_info=None,
-                origin=self.origin,
+                origin=self._field_origins,
                 domain=self.domain,
-                fast_analysis_info=(
-                    self._argument_names,
-                    self._field_origins,
-                    self.domain,
-                ),
+                arg_names=self._argument_names,
             )
         else:
             args_as_kwargs = dict(zip(self._argument_names, args))

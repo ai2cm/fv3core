@@ -6,4 +6,4 @@ format_source:
 pass_order:
   backend: ^gtc:(gt|cuda)
   value:
-  - graph_merge_horizontal_executions: -1
+    graph_merge_horizontal_executions: -1

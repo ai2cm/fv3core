@@ -64,17 +64,21 @@ def get_async_context():
                     50, concurrent=concurrent, blocking=blocking, sleep_time=0.0001
                 )
             else:
-                from gt4py.gtgraph import AsyncContext
+                try:
+                    from gt4py.gtgraph import AsyncContext
 
-                _async_context = AsyncContext(
-                    50,
-                    name="fv3core",
-                    graph_record=False,
-                    concurrent=concurrent,
-                    blocking=blocking,
-                    region_analysis=False,
-                    sleep_time=0.0001,
-                )
+                    _async_context = AsyncContext(
+                        50,
+                        name="fv3core",
+                        graph_record=False,
+                        concurrent=concurrent,
+                        blocking=blocking,
+                        region_analysis=False,
+                        sleep_time=0.0001,
+                    )
+                except ModuleNotFoundError:
+                    _async_context = None
+
     return _async_context
 
 
@@ -184,4 +188,4 @@ _BACKEND: Optional[str] = None
 # If TRUE, all caches will bypassed and stencils recompiled
 # if FALSE, caches will be checked and rebuild if code changes
 _REBUILD: bool = getenv_bool("FV3_STENCIL_REBUILD_FLAG", "False")
-_VALIDATE_ARGS: bool = True
+_VALIDATE_ARGS: bool = False
