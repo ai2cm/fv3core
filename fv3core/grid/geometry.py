@@ -242,7 +242,6 @@ def calculate_l2c_vu(dgrid, nhalo, np):
 
 def generate_xy_unit_vectors(xyz_dgrid, nhalo, tile_partitioner, rank, np):
     cross_vect_x = np.cross(xyz_dgrid[nhalo-1:-nhalo-1, nhalo:-nhalo, :], xyz_dgrid[nhalo+1:-nhalo+1, nhalo:-nhalo, :])
-    # print(cross_vect_x.shape)
     if tile_partitioner.on_tile_left(rank):
         cross_vect_x[0,:] = np.cross(xyz_dgrid[nhalo, nhalo:-nhalo, :], xyz_dgrid[nhalo+1, nhalo:-nhalo, :])
     if tile_partitioner.on_tile_right(rank):
@@ -438,10 +437,11 @@ def calculate_grid_a(z11, z12, z21, z22,  sin_sg5):
     a22 = 0.5*z11/sin_sg5
     return a11, a12, a21, a22
 
-def edge_factors(grid, agrid, grid_type, nhalo, tile_partitioner, rank, radius, np):
+def edge_factors(grid_quantity, agrid, grid_type, nhalo, tile_partitioner, rank, radius, np):
     """
     Creates interpolation factors from the A grid to the B grid on face edges
     """
+    grid = grid_quantity.data[:]
     big_number = 1.e8
     i_range = grid[nhalo:-nhalo, nhalo:-nhalo].shape[0]
     j_range = grid[nhalo:-nhalo, nhalo:-nhalo].shape[1]
@@ -449,34 +449,44 @@ def edge_factors(grid, agrid, grid_type, nhalo, tile_partitioner, rank, radius, 
     edge_s = np.zeros(i_range)+big_number
     edge_e = np.zeros(j_range)+big_number
     edge_w = np.zeros(j_range)+big_number
-
+    npx, npy, ndims  = tile_partitioner.global_extent(grid_quantity)
+    slice_x, slice_y = tile_partitioner.subtile_slice(rank, grid_quantity.dims, (npx, npy))
+    global_is = nhalo + slice_x.start
+    global_js = nhalo + slice_y.start
+    global_ie = nhalo + slice_x.stop - 1
+    global_je = nhalo + slice_y.stop - 1
+    jstart = max(4, global_js) - global_js + nhalo
+    jend = min(npy+nhalo-1, global_je+2) - global_js + nhalo
+    istart = max(4, global_is) - global_is + nhalo
+    iend = min(npx+nhalo-1, global_ie+2) - global_is + nhalo
     if grid_type < 3:
         if tile_partitioner.on_tile_left(rank):
-            edge_w[1:-1] = set_west_edge_factor(grid, agrid, nhalo, radius, np)
+            edge_w[jstart-nhalo:jend-nhalo] = set_west_edge_factor(grid, agrid, nhalo, radius, jstart, jend,np)
         if tile_partitioner.on_tile_right(rank):
-            edge_e[1:-1] = set_east_edge_factor(grid, agrid, nhalo, radius, np)
+            edge_e[jstart-nhalo:jend-nhalo] = set_east_edge_factor(grid, agrid, nhalo, radius, jstart, jend, np)
         if tile_partitioner.on_tile_bottom(rank):
-            edge_s[1:-1] = set_south_edge_factor(grid, agrid, nhalo, radius, np)
-        if tile_partitioner.on_tile_bottom(rank):
-            edge_n[1:-1] = set_north_edge_factor(grid, agrid, nhalo, radius, np)
+            edge_s[istart-nhalo:iend-nhalo] = set_south_edge_factor(grid, agrid, nhalo, radius, istart, iend, np)
+        if tile_partitioner.on_tile_top(rank):
+            edge_n[istart-nhalo:iend-nhalo] = set_north_edge_factor(grid, agrid, nhalo, radius, istart, iend, np)
 
     return edge_w, edge_e, edge_s, edge_n
 
-def set_west_edge_factor(grid, agrid, nhalo, radius, np):
-    py0, py1 = lon_lat_midpoint(agrid[nhalo-1, nhalo:-nhalo, 0], agrid[nhalo, nhalo:-nhalo, 0], agrid[nhalo-1, nhalo:-nhalo, 1], agrid[nhalo, nhalo:-nhalo, 1], np)
-    d1 = great_circle_distance_lon_lat(py0[:-1], grid[nhalo,nhalo+1:-nhalo-1,0], py1[:-1], grid[nhalo,nhalo+1:-nhalo-1,1], radius, np)
-    d2 = great_circle_distance_lon_lat(py0[1:], grid[nhalo,nhalo+1:-nhalo-1,0], py1[1:], grid[nhalo,nhalo+1:-nhalo-1,1], radius, np)
+def set_west_edge_factor(grid, agrid, nhalo, radius, jstart, jend, np):
+    py0, py1 = lon_lat_midpoint(agrid[nhalo-1, jstart - 1:jend, 0], agrid[nhalo, jstart - 1:jend, 0], agrid[nhalo-1, jstart - 1:jend, 1], agrid[nhalo, jstart - 1:jend, 1], np)
+   
+    d1 = great_circle_distance_lon_lat(py0[:-1], grid[nhalo,jstart:jend,0], py1[:-1], grid[nhalo,jstart:jend,1], radius, np)
+    d2 = great_circle_distance_lon_lat(py0[1:], grid[nhalo,jstart:jend,0], py1[1:], grid[nhalo,jstart:jend,1], radius, np)
     west_edge_factor = d2/(d1+d2)
     return west_edge_factor
 
-def set_east_edge_factor(grid, agrid, nhalo, radius, np):
-    return set_west_edge_factor(grid[::-1, :, :], agrid[::-1, :, :], nhalo, radius, np)
+def set_east_edge_factor(grid, agrid, nhalo, radius, jstart, jend, np):
+    return set_west_edge_factor(grid[::-1, :, :], agrid[::-1, :, :], nhalo, radius, jstart, jend, np)
 
-def set_south_edge_factor(grid, agrid, nhalo, radius, np):
-    return set_west_edge_factor(grid.transpose([1,0,2]), agrid.transpose([1,0,2]), nhalo, radius, np)
+def set_south_edge_factor(grid, agrid, nhalo, radius, jstart, jend, np):
+    return set_west_edge_factor(grid.transpose([1,0,2]), agrid.transpose([1,0,2]), nhalo, radius, jstart, jend, np)
 
-def set_north_edge_factor(grid, agrid, nhalo, radius, np):
-    return set_west_edge_factor(grid[:, ::-1, :].transpose([1,0,2]), agrid[:, ::-1, :].transpose([1,0,2]), nhalo, radius, np)
+def set_north_edge_factor(grid, agrid, nhalo, radius, jstart, jend, np):
+    return set_west_edge_factor(grid[:, ::-1, :].transpose([1,0,2]), agrid[:, ::-1, :].transpose([1,0,2]), nhalo, radius, jstart, jend, np)
 
 def efactor_a2c_v(grid_quantity, agrid, grid_type, nhalo, tile_partitioner, rank, radius, np):
     '''
@@ -493,28 +503,31 @@ def efactor_a2c_v(grid_quantity, agrid, grid_type, nhalo, tile_partitioner, rank
 
     if npx != npy: raise ValueError("npx must equal npy")
     if npx %2 == 0: raise ValueError("npx must be odd")
-
     i_midpoint = int((npx-1)/2)
     j_midpoint = int((npy-1)/2)
-
-    i_indices = np.arange(agrid.shape[0])
-    j_indices = np.arange(agrid.shape[1])
-    i_selection = i_indices[global_is + i_indices <= nhalo + i_midpoint]
-    j_selection = j_indices[global_js + j_indices <= nhalo + j_midpoint]
-
+    i_indices = np.arange(agrid.shape[0] - nhalo + 1) + global_is - nhalo
+    j_indices = np.arange(agrid.shape[1] - nhalo + 1) + global_js - nhalo
+    i_selection = i_indices[i_indices <= nhalo + i_midpoint]
+    j_selection = j_indices[j_indices <= nhalo + j_midpoint]
     if len(i_selection) > 0:
-        im2 = max(i_selection)
+        im2 = max(i_selection) - global_is 
     else:
         im2 = len(i_selection)
-
-    if len(j_selection) > 0:
-        jm2 = max(j_selection)
+    if  len(i_selection) == len(i_indices):
+        im2 = len(i_selection) - nhalo
+    if len(j_selection) > 0 :
+        jm2 = max(j_selection) - global_js 
     else:
         jm2 = len(j_selection)
-
-    edge_vect_s = edge_vect_n = np.zeros(grid.shape[0]-1) + big_number
-    edge_vect_e = edge_vect_w = np.zeros(grid.shape[1]-1) + big_number
-
+    if len(j_selection)  ==  len(j_indices):
+        jm2 = len(j_selection) - nhalo
+    im2 = max(im2, -1)
+    jm2 = max(jm2, -1)
+   
+    edge_vect_s = np.zeros(grid.shape[0]-1) + big_number
+    edge_vect_n = np.zeros(grid.shape[0]-1) + big_number
+    edge_vect_e = np.zeros(grid.shape[1]-1) + big_number
+    edge_vect_w = np.zeros(grid.shape[1]-1) + big_number
     if grid_type < 3:
         if tile_partitioner.on_tile_left(rank):
             edge_vect_w[2:-2] = calculate_west_edge_vectors(grid, agrid, jm2, nhalo, radius, np)
@@ -540,13 +553,14 @@ def efactor_a2c_v(grid_quantity, agrid, grid_type, nhalo, tile_partitioner, rank
                 edge_vect_n[nhalo-1] = edge_vect_n[nhalo]
             if tile_partitioner.on_tile_right(rank):
                 edge_vect_n[-nhalo] = edge_vect_n[-nhalo-1]
-
+        
+        
     return edge_vect_w, edge_vect_e, edge_vect_s, edge_vect_n
     
 def calculate_west_edge_vectors(grid, agrid, jm2, nhalo, radius, np):
     d2 = np.zeros(agrid.shape[0]-2*nhalo+2)
     d1 = np.zeros(agrid.shape[0]-2*nhalo+2)
-
+   
     py0, py1 = lon_lat_midpoint(
         agrid[nhalo-1, nhalo-2:-nhalo+2, 0], 
         agrid[nhalo, nhalo-2:-nhalo+2, 0], 
@@ -560,7 +574,7 @@ def calculate_west_edge_vectors(grid, agrid, jm2, nhalo, radius, np):
         grid[nhalo, nhalo-2:-nhalo+1, 1], 
         grid[nhalo, nhalo-1:-nhalo+2, 1], np
     )
-    
+   
     py = np.array([py0, py1]).transpose([1,0])
     p2 = np.array([p20, p21]).transpose([1,0])
 

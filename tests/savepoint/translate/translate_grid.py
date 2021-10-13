@@ -1463,7 +1463,7 @@ class TranslateUtilVectors(ParallelTranslateGrid):
         state = self.state_from_inputs(inputs)
         # TODO why is the not necessary?
         # fill_corners_2d(
-        #   state["grid"].data[:, :, :], self.grid, gridtype="B", direction="x"
+        #   state["grid"].data[:, :, :], self.rank_grids[i], gridtype="B", direction="x"
         # )
         xyz_dgrid = lon_lat_to_xyz(
             state["grid"].data[:, :, 0], state["grid"].data[:, :, 1], state["grid"].np
@@ -2737,7 +2737,7 @@ class TranslateEdgeFactors(ParallelTranslateGrid):
             state["edge_s"].data[nhalo:-nhalo],
             state["edge_n"].data[nhalo:-nhalo],
         ) = edge_factors(
-            state["grid"].data[:],
+            state["grid"],
             state["agrid"].data[:-1, :-1],
             self.grid.grid_type,
             nhalo,
@@ -3240,7 +3240,10 @@ class TranslateInitGridUtils(ParallelTranslateGrid):
             state_list.append(self._compute_local_eta(inputs))
         for i, state in enumerate(state_list):
             fill_corners_2d(
-                state["grid"].data[:, :, :], self.grid, gridtype="B", direction="x"
+                state["grid"].data[:, :, :],
+                self.rank_grids[i],
+                gridtype="B",
+                direction="x",
             )
             state_list[i] = self._compute_local_part_1(state, communicator_list[i])
 
@@ -3613,7 +3616,7 @@ class TranslateInitGridUtils(ParallelTranslateGrid):
             state["edge_s"].data[nhalo:-nhalo],
             state["edge_n"].data[nhalo:-nhalo],
         ) = edge_factors(
-            state["grid"].data[:],
+            state["grid"],
             state["agrid"].data[:-1, :-1],
             self.grid.grid_type,
             nhalo,

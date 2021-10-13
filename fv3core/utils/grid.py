@@ -211,6 +211,10 @@ class Grid:
     def jec(self):
         return self.je
 
+    @property
+    def domain(self):
+        return self.domain_shape_full()
+
     def compute_interface(self):
         return self.slice_dict(self.compute_dict())
 
