@@ -18,6 +18,8 @@ def getenv_bool(name: str, default: str) -> bool:
 def set_backend(new_backend: str):
     global _BACKEND
     _BACKEND = new_backend
+    for function in (is_gpu_backend, is_gtc_backend):
+        function.cache_clear()
 
 
 def get_backend() -> str:
@@ -42,15 +44,6 @@ def set_validate_args(new_validate_args: bool):
 @functools.lru_cache(maxsize=None)
 def get_validate_args() -> bool:
     return _VALIDATE_ARGS
-
-
-def is_gpu_backend() -> bool:
-    return get_backend().endswith("cuda") or get_backend().endswith("gpu")
-
-
-@functools.lru_cache(maxsize=None)
-def is_gtc_backend() -> bool:
-    return get_backend().startswith("gtc")
 
 
 _async_context = None
@@ -83,6 +76,16 @@ def get_async_context():
                     sleep_time=0.0001,
                 )
     return _async_context
+
+
+@functools.lru_cache(maxsize=None)
+def is_gpu_backend() -> bool:
+    return get_backend().endswith("cuda") or get_backend().endswith("gpu")
+
+
+@functools.lru_cache(maxsize=None)
+def is_gtc_backend() -> bool:
+    return get_backend().startswith("gtc")
 
 
 def read_backend_options_file():
@@ -145,7 +148,8 @@ class StencilConfig(Hashable):
 
         backend_opts: Dict[str, Any] = {}
         for name, option in all_backend_opts.items():
-            if "backend" not in option or re.match(option["backend"], get_backend()):
+            using_option_backend = re.match(option.get("backend", ""), get_backend())
+            if "backend" not in option or using_option_backend:
                 backend_opts[name] = option["value"]
 
         if device_sync is not None:
@@ -176,8 +180,8 @@ def get_stencil_config():
 
 
 # Options: numpy, gtx86, gtcuda, debug
-_BACKEND = None
+_BACKEND: Optional[str] = None
 # If TRUE, all caches will bypassed and stencils recompiled
 # if FALSE, caches will be checked and rebuild if code changes
-_REBUILD = getenv_bool("FV3_STENCIL_REBUILD_FLAG", "False")
-_VALIDATE_ARGS = False
+_REBUILD: bool = getenv_bool("FV3_STENCIL_REBUILD_FLAG", "False")
+_VALIDATE_ARGS: bool = True
