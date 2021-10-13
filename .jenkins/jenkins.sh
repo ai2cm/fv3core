@@ -118,8 +118,10 @@ if grep -q "parallel" <<< "${script}"; then
 	echo "Setting NUM_RANKS=${NUM_RANKS}"
 	if grep -q "cuda\|gpu" <<< "${backend}" ; then
 	    export MPICH_RDMA_ENABLED_CUDA=1
+        export CRAY_CUDA_MPS=1
 	else
-	    export MPICH_RDMA_ENABLED_CUDA=0
+	    export MPICH_RDMA_ENABLED_CUDA=1
+        export CRAY_CUDA_MPS=1
 	fi
 	if [ -f ${scheduler_script} ] ; then
 	    sed -i 's|<NTASKS>|<NTASKS>\n#SBATCH \-\-hint=multithread\n#SBATCH --ntasks-per-core=2|g' ${scheduler_script}
@@ -140,7 +142,8 @@ if grep -q "fv_dynamics" <<< "${script}"; then
 	    # but will NOT work for c128
 	    export CRAY_CUDA_MPS=1
 	else
-	    export MPICH_RDMA_ENABLED_CUDA=0
+	    export MPICH_RDMA_ENABLED_CUDA=1
+        export CRAY_CUDA_MPS=1
 	fi
     sed -i 's|<NTASKS>|6\n#SBATCH \-\-hint=nomultithread|g' ${scheduler_script}
     sed -i 's|00:45:00|03:30:00|g' ${scheduler_script}
@@ -224,8 +227,10 @@ if grep -q "fv_dynamics" <<< "${script}"; then
     export CRAY_CUDA_MPS=0
 	if grep -q "cuda\|gpu" <<< "${backend}" ; then
 	    export MPICH_RDMA_ENABLED_CUDA=1
+        export CRAY_CUDA_MPS=1
 	else
 	    export MPICH_RDMA_ENABLED_CUDA=0
+        export CRAY_CUDA_MPS=1
 	fi
     sed -i 's|<NTASKS>|6\n#SBATCH \-\-hint=nomultithread|g' ${run_timing_script}
     sed -i 's|00:45:00|00:15:00|g' ${run_timing_script}
