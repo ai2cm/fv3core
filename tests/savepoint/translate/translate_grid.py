@@ -3225,7 +3225,7 @@ class TranslateInitGridUtils(ParallelTranslateGrid):
         grid_generator = MetricTerms.from_tile_sizing(
             npx=namelist.npx,
             npy=namelist.npy,
-            npz=1,
+            npz=inputs["npz"],
             communicator=communicator,
             backend=global_config.get_backend(),
         )

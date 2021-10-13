@@ -7,13 +7,7 @@ from fv3core.utils.corners import (
     fill_corners_cgrid,
     fill_corners_dgrid,
 )
-from fv3core.utils.global_constants import (
-    CARTESIAN_DIM,
-    LON_OR_LAT_DIM,
-    PI,
-    RADIUS,
-    TILE_DIM,
-)
+from fv3core.utils.global_constants import CARTESIAN_DIM, LON_OR_LAT_DIM, PI, RADIUS
 from fv3core.utils.grid import GridIndexing
 from fv3gfs.util.constants import N_HALO_DEFAULT
 
@@ -99,6 +93,7 @@ class MetricTerms:
         npx, npy, ndims = self._tile_partitioner.global_extent(self._grid)
         self._npx = npx
         self._npy = npy
+        self._npz = self._quantity_factory._sizer.get_extent(fv3util.Z_DIM)[0]
         self._agrid = self._quantity_factory.zeros(
             [fv3util.X_DIM, fv3util.Y_DIM, LON_OR_LAT_DIM], "radians", dtype=float
         )
@@ -199,7 +194,7 @@ class MetricTerms:
             n_halo=N_HALO_DEFAULT,
             extra_dim_lengths={
                 LON_OR_LAT_DIM: 2,
-                TILE_DIM: 6,
+                CARTESIAN_DIM: 3,
             },
             layout=communicator.partitioner.tile.layout,
         )
@@ -487,6 +482,18 @@ class MetricTerms:
         if self._l2c_u is None:
             self._l2c_v, self._l2c_u = self._calculate_latlon_momentum_correction()
         return self._l2c_u
+
+    @property
+    def es1(self):
+        if self._es1 is None:
+            self._es1, self._es2 = self._calculate_vectors_south()
+        return self._es1
+
+    @property
+    def es2(self):
+        if self._es2 is None:
+            self._es1, self._es2 = self._calculate_vectors_south()
+        return self._es2
 
     @property
     def ee1(self):
@@ -1129,7 +1136,7 @@ class MetricTerms:
         ptop = self._quantity_factory.zeros([], "mb")
         ak = self._quantity_factory.zeros([fv3util.Z_INTERFACE_DIM], "mb")
         bk = self._quantity_factory.zeros([fv3util.Z_INTERFACE_DIM], "mb")
-        ks, ptop, ak.data[:], bk.data[:] = set_eta(self.npz)
+        ks, ptop, ak.data[:], bk.data[:] = set_eta(self._npz)
         return ks, ptop, ak, bk
 
     def _calculate_center_vectors(self):
@@ -1143,7 +1150,7 @@ class MetricTerms:
             self._dgrid_xyz,
             self._grid_type,
             self._halo,
-            self._tile.partitioner,
+            self._tile_partitioner,
             self._rank,
             self._np,
         )
@@ -1161,7 +1168,7 @@ class MetricTerms:
             self._agrid_xyz,
             self._grid_type,
             self._halo,
-            self._tile.partitioner,
+            self._tile_partitioner,
             self._rank,
             self._np,
         )
@@ -1179,7 +1186,7 @@ class MetricTerms:
             self._agrid_xyz,
             self._grid_type,
             self._halo,
-            self._tile.partitioner,
+            self._tile_partitioner,
             self._rank,
             self._np,
         )
@@ -1232,7 +1239,7 @@ class MetricTerms:
             cos_sg,
             sin_sg,
             self._halo,
-            self._tile.partitioner,
+            self._tile_partitioner,
             self._rank,
             self._np,
         )
@@ -1289,7 +1296,7 @@ class MetricTerms:
             self._ec2.data[:-1, :-1],
             self._grid_type,
             self._halo,
-            self._tile.partitioner,
+            self._tile_partitioner,
             self._rank,
             self._np,
         )
@@ -1311,13 +1318,13 @@ class MetricTerms:
             cos_sg,
             sin_sg,
             self._halo,
-            self._tile.partitioner,
+            self._tile_partitioner,
             self._rank,
             self._np,
         )
 
         supergrid_corner_fix(
-            cos_sg, sin_sg, self._halo, self._tile.partitioner, self._rank
+            cos_sg, sin_sg, self._halo, self._tile_partitioner, self._rank
         )
 
         supergrid_trig = {}
@@ -1374,7 +1381,7 @@ class MetricTerms:
             ee1.data[self._halo : -self._halo, self._halo : -self._halo, :],
             ee2.data[self._halo : -self._halo, self._halo : -self._halo, :],
         ) = generate_xy_unit_vectors(
-            self._dgrid_xyz, self._halo, self._tile.partitioner, self._rank, self._np
+            self._dgrid_xyz, self._halo, self._tile_partitioner, self._rank, self._np
         )
         return ee1, ee2
 
@@ -1391,7 +1398,13 @@ class MetricTerms:
         divg_v = self._quantity_factory.zeros(
             [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM], ""
         )
-        sin_sg = [self.sin_sg1, self.sin_sg2, self.sin_sg3, self.sin_sg4, self.sin_sg5]
+        sin_sg = [
+            self.sin_sg1.data[:-1, :-1],
+            self.sin_sg2.data[:-1, :-1],
+            self.sin_sg3.data[:-1, :-1],
+            self.sin_sg4.data[:-1, :-1],
+            self.sin_sg5.data[:-1, :-1],
+        ]
         sin_sg = self._np.array(sin_sg).transpose(1, 2, 0)
         (
             divg_u.data[:-1, :],
@@ -1404,10 +1417,10 @@ class MetricTerms:
             self.sina_v.data[:-1, :],
             self.dx.data[:-1, :],
             self.dy.data[:, :-1],
-            self.dx_cgrid.data[:, :-1],
-            self.dy_cgrid.data[:-1, :],
+            self.dxc.data[:, :-1],
+            self.dyc.data[:-1, :],
             self._halo,
-            self._tile.partitioner,
+            self._tile_partitioner,
             self._rank,
         )
         self._comm.vector_halo_update(divg_v, divg_u, n_points=self._halo)
@@ -1428,7 +1441,9 @@ class MetricTerms:
             [fv3util.X_DIM, fv3util.Y_DIM, CARTESIAN_DIM], ""
         )
 
-        vlon, vlat = unit_vector_lonlat(self._agrid.data[:-1, :-1], self._np)
+        vlon.data[:-1, :-1], vlat.data[:-1, :-1] = unit_vector_lonlat(
+            self._agrid.data[:-1, :-1], self._np
+        )
         return vlon, vlat
 
     def _calculate_grid_z(self):
@@ -1512,18 +1527,19 @@ class MetricTerms:
             RADIUS,
             self._np,
         )
+        return edge_vect_w, edge_vect_e, edge_vect_s, edge_vect_n
 
     def _reduce_global_area_minmaxes(self):
-        min_area = self._np.min(self.area)
-        max_area = self._np.max(self.area)
-        min_area_c = self._np.min(self.area_c)
-        max_area_c = self._np.max(self.area_c)
+        min_area = self._np.min(self.area.data[:])
+        max_area = self._np.max(self.area.data[:])
+        min_area_c = self._np.min(self.area_c.data[:])
+        max_area_c = self._np.max(self.area_c.data[:])
 
         try:
-            self._da_min = self._comm.comm.allreduce(min_area, self._np.min)
-            self._da_max = self._comm.comm.allreduce(max_area, self._np.max)
-            self._da_min_c = self._comm.comm.allreduce(min_area_c, self._np.min)
-            self._da_max_c = self._comm.comm.allreduce(max_area_c, self._np.max)
+            self._da_min = self._comm.comm.allreduce(min_area, min)
+            self._da_max = self._comm.comm.allreduce(max_area, max)
+            self._da_min_c = self._comm.comm.allreduce(min_area_c, min)
+            self._da_max_c = self._comm.comm.allreduce(max_area_c, max)
         except AttributeError:
             self._da_min = min_area
             self._da_max = max_area
