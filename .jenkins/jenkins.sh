@@ -75,6 +75,10 @@ echo "PYTHON env ${python_env}"
 # get root directory of where jenkins.sh is sitting
 export jenkins_dir=`dirname $0`
 
+
+if [ -z "${GT4PY_VERSION}" ]; then
+    export GT4PY_VERSION=`cat GT4PY_VERSION.txt`
+fi
 # If the backend is a GTC backend we fetch the caches
 if [[ $backend != *numpy* ]];then
     . ${jenkins_dir}/actions/fetch_caches.sh $backend $experiment
@@ -156,9 +160,7 @@ module load daint-gpu
 module load ${installdir}/modulefiles/gcloud/303.0.0
 # get the test data version from the Makefile
 export DATA_VERSION=`grep "FORTRAN_SERIALIZED_DATA_VERSION=" Makefile  | cut -d '=' -f 2`
-if [ -z "${GT4PY_VERSION}" ]; then
-    export GT4PY_VERSION=`cat GT4PY_VERSION.txt`
-fi
+
 # Set the SCRATCH directory to the working directory if not set (e.g. for running on gce)
 if [ -z ${SCRATCH} ] ; then
     export SCRATCH=`pwd`
