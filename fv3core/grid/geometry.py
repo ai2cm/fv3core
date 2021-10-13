@@ -577,17 +577,12 @@ def calculate_west_edge_vectors(grid, agrid, jm2_in, nhalo, radius, np):
    
     py = np.array([py0, py1]).transpose([1,0])
     p2 = np.array([p20, p21]).transpose([1,0])
-    for j in range(d1.shape[0]):
-        d1[j] = great_circle_distance_lon_lat(py[j+1, 0], p2[j+1, 0], py[j+1, 1], p2[j+1, 1], radius, np)
-        if j <= jm2:
-            d2[j] = great_circle_distance_lon_lat(py[j+2, 0], p2[j+1, 0], py[j+2, 1], p2[j+1, 1], radius, np)
-        else:
-            d2[j] = great_circle_distance_lon_lat(py[j, 0], p2[j+1, 0], py[j, 1], p2[j+1, 1], radius, np)
-    # This does not work, but we would like to modify it to:
-    #d1[:jm2+1] = great_circle_distance_lon_lat(py[1:jm2+2, 0], p2[1:jm2+2, 0], py[1:jm2+2, 1], p2[1:jm2+2, 1], radius, np)
-    #d2[:jm2+1] = great_circle_distance_lon_lat(py[2:jm2+3, 0], p2[1:jm2+2, 0], py[2:jm2+3, 1], p2[1:jm2+2, 1], radius, np)
-    #d1[jm2+1:] = great_circle_distance_lon_lat(py[jm2+2:-1, 0], p2[jm2+2:-1, 0], py[jm2+2:-1, 1], p2[jm2+2:-1, 1], radius, np)
-    #d2[jm2+1:] = great_circle_distance_lon_lat(py[jm2+1:-2, 0], p2[jm2+2:-1, 0], py[jm2+1:-2, 1], p2[jm2+2:-1, 1], radius, np)
+    if jm2 > len(d1):
+        jm2 = len(d1) - 1
+    d1[:jm2+1] = great_circle_distance_lon_lat(py[1:jm2+2, 0], p2[1:jm2+2, 0], py[1:jm2+2, 1], p2[1:jm2+2, 1], radius, np)
+    d2[:jm2+1] = great_circle_distance_lon_lat(py[2:jm2+3, 0], p2[1:jm2+2, 0], py[2:jm2+3, 1], p2[1:jm2+2, 1], radius, np)
+    d1[jm2+1:] = great_circle_distance_lon_lat(py[jm2+2:-1, 0], p2[jm2+2:-1, 0], py[jm2+2:-1, 1], p2[jm2+2:-1, 1], radius, np)
+    d2[jm2+1:] = great_circle_distance_lon_lat(py[jm2+1:-2, 0], p2[jm2+2:-1, 0], py[jm2+1:-2, 1], p2[jm2+2:-1, 1], radius, np)
     
     return d1/(d2+d1)
 
