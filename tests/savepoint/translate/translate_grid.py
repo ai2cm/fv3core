@@ -3249,8 +3249,7 @@ class TranslateInitGridUtils(ParallelTranslateGrid):
         for i, state in enumerate(state_list):
             state_list[i] = self._compute_local_part2(state, communicator_list[i])
 
-        # TODO: implement allreduce to get da_min, da_max, da_min_c, and da_max_c
-        # temporary hack is possible by looping over ranks here:
+        # TODO: implement allreduce sequentially instead of this hack:
         min_da = []
         max_da = []
         min_da_c = []
