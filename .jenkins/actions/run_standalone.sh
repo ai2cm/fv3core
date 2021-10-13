@@ -44,7 +44,7 @@ if [ "${SAVE_CACHE}" != "true" -a "${DO_PROFILE}" != "true" ] ; then
 fi
 # check if we store the results of this run
 if [[ "$GIT_BRANCH" != "origin/master" ]]; then
-  SAVE_ARTIFACTS="false"
+    SAVE_ARTIFACTS="false"
 fi
 
 # configuration
@@ -76,6 +76,17 @@ if [ ! -d "${BENCHMARK_DIR}" ] ; then
 fi
 if [ "${SAVE_CACHE}" == "true" ] ; then
     TIMESTEPS=2
+fi
+
+# GTC backend name fix: passed as gtc_gt_* but their real name are gtc:gt:*
+#                       OR gtc_* but their real name is gtc:*
+if [[ $backend = gtc_gt_* ]] ; then
+    # sed explained: replace _ with :, two times
+    backend=`echo $backend | sed 's/_/:/;s/_/:/'`
+fi
+if [[ $backend = gtc_* ]] ; then
+    # sed explained: replace _ with :
+    backend=`echo $backend | sed 's/_/:/'`
 fi
 
 # echo config

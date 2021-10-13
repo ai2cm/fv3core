@@ -26,8 +26,10 @@ import fv3core._config as spec
 import fv3core.utils
 import fv3core.utils.global_config as global_config
 import fv3core.utils.grid
+from fv3core.utils.future_stencil import future_stencil
 from fv3core.utils.global_config import StencilConfig
-from fv3core.utils.stencil_merger import StencilMerger
+from fv3core.utils.stencil_merger import StencilInterface, StencilMerger
+from fv3core.utils.mpi import MPI
 from fv3core.utils.typing import Index3D
 
 
@@ -80,15 +82,17 @@ def get_namespace(arg_specs, state):
 _stencil_merger = StencilMerger()
 
 
-def clear_stencils():
+def enable_merge_stencils():
+    _stencil_merger.enabled = True
     _stencil_merger.clear()
 
 
-def merge_stencils():
+def disable_merge_stencils():
     _stencil_merger.merge()
+    _stencil_merger.enabled = False
 
 
-class FrozenStencil:
+class FrozenStencil(StencilInterface):
     """
     Wrapper for gt4py stencils which stores origin and domain at compile time,
     and uses their stored values at call time.
@@ -105,6 +109,7 @@ class FrozenStencil:
         domain: Index3D,
         stencil_config: Optional[StencilConfig] = None,
         externals: Optional[Mapping[str, Any]] = None,
+        skip_passes: Optional[Tuple[str, ...]] = None,
     ):
         """
         Args:
@@ -113,6 +118,7 @@ class FrozenStencil:
             domain: gt4py domain to use at call time
             stencil_config: container for stencil configuration
             externals: compile-time external variables required by stencil
+            skip_passes: compiler passes to skip when building stencil
         """
         self.origin = origin
         self.domain = domain
@@ -125,14 +131,28 @@ class FrozenStencil:
         if externals is None:
             externals = {}
 
-        self.build_info = {}
-        self.definition_func = func
+        stencil_function = gtscript.stencil
+        stencil_kwargs = {**self.stencil_config.stencil_kwargs}
 
-        self.stencil_object: gt4py.StencilObject = gtscript.stencil(
+        # Enable distributed compilation if running in parallel
+        if MPI is not None and MPI.COMM_WORLD.Get_size() > 1:
+            stencil_function = future_stencil
+            stencil_kwargs["wrapper"] = self
+
+        if skip_passes and global_config.is_gtc_backend():
+            stencil_kwargs["skip_passes"] = skip_passes
+
+        self.definition_func: Callable = func
+        self.build_info: Optional[Dict[str, Any]] = (
+            {} if _stencil_merger.enabled else None
+        )
+        if self.build_info is not None:
+            stencil_kwargs["build_info"] = self.build_info
+
+        self.stencil_object: gt4py.StencilObject = stencil_function(
             definition=func,
             externals=externals,
-            build_info=self.build_info,
-            **self.stencil_config.stencil_kwargs,
+            **stencil_kwargs,
         )
         """generated stencil object returned from gt4py."""
 
@@ -142,19 +162,21 @@ class FrozenStencil:
             len(self._argument_names) > 0
         ), "A stencil with no arguments? You may be double decorating"
 
+        field_info = self.stencil_object.field_info
         self._field_origins: Dict[str, Tuple[int, ...]] = compute_field_origins(
-            self.stencil_object.field_info, self.origin
+            field_info, self.origin
         )
         """mapping from field names to field origins"""
 
-        self._stencil_run_kwargs = {
+        self._stencil_run_kwargs: Dict[str, Any] = {
             "_origin_": self._field_origins,
             "_domain_": self.domain,
         }
 
-        self._written_fields = get_written_fields(self.stencil_object.field_info)
+        self._written_fields: List[str] = get_written_fields(field_info)
 
-        _stencil_merger.add(self)
+        if _stencil_merger.enabled:
+            _stencil_merger.add(self)
 
     def __call__(self, *args, **kwargs) -> None:
         stencil_object = self.stencil_object
@@ -164,8 +186,14 @@ class FrozenStencil:
             group_id, _, is_last_call = _stencil_merger.merged_position(self)
             if not is_last_call:
                 return
-            args, kwargs = _stencil_merger.merge_args(group_id)
+
+            top_stencil = _stencil_merger._stencil_groups[group_id][0]
+            self._argument_names = top_stencil.argument_names
+            self._field_origins = top_stencil.field_origins
+            self._stencil_run_kwargs["_origin_"] = self._field_origins
+
             stencil_object = _stencil_merger.merged_stencil(group_id)
+            args, kwargs = _stencil_merger.merge_args(group_id)
 
         if self.stencil_config.validate_args:
             if __debug__ and "origin" in kwargs:
@@ -194,6 +222,21 @@ class FrozenStencil:
     @property
     def name(self) -> str:
         return self.stencil_object._file_name.split("/")[-2]
+
+    @property
+    def argument_names(self) -> Tuple[str, ...]:
+        return self._argument_names
+
+    def set_argument_names(self, new_names: Tuple[str, ...]) -> None:
+        self._argument_names = new_names
+
+    @property
+    def field_origins(self) -> Dict[str, Tuple[int, ...]]:
+        return self._field_origins
+
+    @property
+    def written_fields(self) -> List[str]:
+        return self._written_fields
 
 
 def get_stencils_with_varied_bounds(

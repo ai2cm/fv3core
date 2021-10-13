@@ -15,8 +15,12 @@ from gt4py.gtscript import (
 import fv3core.utils.global_constants as constants
 import fv3core.utils.gt4py_utils as utils
 from fv3core._config import RiemannConfig
-from fv3core.decorators import FrozenStencil
-from fv3core.stencils.sim1_solver import Sim1Solver
+from fv3core.decorators import (
+    FrozenStencil,
+    disable_merge_stencils,
+    enable_merge_stencils,
+)
+from fv3core.stencils.sim1_solver import sim1_solver
 from fv3core.utils.grid import GridIndexing
 from fv3core.utils.typing import FloatField, FloatFieldIJ
 
@@ -31,7 +35,7 @@ def precompute(
     zh: FloatField,
     q_con: FloatField,
     pem: FloatField,
-    peln: FloatField,
+    peln_run: FloatField,
     pk3: FloatField,
     gm: FloatField,
     dz: FloatField,
@@ -46,25 +50,23 @@ def precompute(
     with computation(FORWARD):
         with interval(0, 1):
             pem = ptop
-            peln = peln1
+            peln_run = peln1
             pk3 = ptk
             peg = ptop
-            pelng = peln1
         with interval(1, None):
             # TODO consolidate with riem_solver_c, same functions, math functions
             pem = pem[0, 0, -1] + dm[0, 0, -1]
-            peln = log(pem)
+            peln_run = log(pem)
             # Excluding contribution from condensates
             # peln used during remap; pk3 used only for p_grad
             peg = peg[0, 0, -1] + dm[0, 0, -1] * (1.0 - q_con[0, 0, -1])
-            pelng = log(peg)
             # interface pk is using constant akap
-            pk3 = exp(constants.KAPPA * peln)
+            pk3 = exp(constants.KAPPA * peln_run)
     with computation(PARALLEL), interval(...):
         gm = 1.0 / (1.0 - cappa)
-        dm = dm * constants.RGRAV
+        dm *= constants.RGRAV
     with computation(PARALLEL), interval(0, -1):
-        pm = (peg[0, 0, 1] - peg) / (pelng[0, 0, 1] - pelng)
+        pm = (peg[0, 0, 1] - peg) / (log(peg[0, 0, 1]) - log(peg))
         dz = zh[0, 0, 1] - zh
 
 
@@ -110,27 +112,27 @@ class RiemannSolver3:
     """
 
     def __init__(self, grid_indexing: GridIndexing, config: RiemannConfig):
-        self._sim1_solve = Sim1Solver(
-            config.p_fac,
-            grid_indexing.isc,
-            grid_indexing.iec,
-            grid_indexing.jsc,
-            grid_indexing.jec,
-            grid_indexing.domain[2] + 1,
-        )
         if config.a_imp <= 0.999:
             raise NotImplementedError("a_imp <= 0.999 is not implemented")
         riemorigin = grid_indexing.origin_compute()
         domain = grid_indexing.domain_compute(add=(0, 0, 1))
         shape = grid_indexing.max_shape
+        self._p_fac = config.p_fac
         self._tmp_dm = utils.make_storage_from_shape(shape, riemorigin)
         self._tmp_pe_init = utils.make_storage_from_shape(shape, riemorigin)
         self._tmp_pm = utils.make_storage_from_shape(shape, riemorigin)
         self._tmp_pem = utils.make_storage_from_shape(shape, riemorigin)
         self._tmp_peln_run = utils.make_storage_from_shape(shape, riemorigin)
         self._tmp_gm = utils.make_storage_from_shape(shape, riemorigin)
+
+        enable_merge_stencils()
         self._precompute_stencil = FrozenStencil(
             precompute,
+            origin=riemorigin,
+            domain=domain,
+        )
+        self._compute_sim1_solve = FrozenStencil(
+            func=sim1_solver,
             origin=riemorigin,
             domain=domain,
         )
@@ -140,6 +142,7 @@ class RiemannSolver3:
             origin=riemorigin,
             domain=domain,
         )
+        disable_merge_stencils()
 
     def __call__(
         self,
@@ -211,18 +214,21 @@ class RiemannSolver3:
             ptk,
         )
 
-        self._sim1_solve(
-            dt,
-            self._tmp_gm,
-            cappa,
-            pe,
-            self._tmp_dm,
-            self._tmp_pm,
-            self._tmp_pem,
+        self._compute_sim1_solve(
             w,
+            self._tmp_dm,
+            self._tmp_gm,
             delz,
             pt,
+            self._tmp_pm,
+            pe,
+            self._tmp_pem,
             wsd,
+            cappa,
+            dt,
+            2.0 * dt * dt,
+            1.0 / dt,
+            self._p_fac,
         )
 
         self._finalize_stencil(

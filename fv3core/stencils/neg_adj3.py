@@ -3,7 +3,11 @@ from gt4py.gtscript import BACKWARD, FORWARD, PARALLEL, computation, interval
 
 import fv3core.utils.global_constants as constants
 import fv3core.utils.gt4py_utils as utils
-from fv3core.decorators import FrozenStencil, clear_stencils, merge_stencils
+from fv3core.decorators import (
+    FrozenStencil,
+    disable_merge_stencils,
+    enable_merge_stencils,
+)
 from fv3core.utils.typing import FloatField, FloatFieldIJ
 
 
@@ -187,7 +191,7 @@ def fix_water_vapor_nonstencil(grid, qvapor, dp):
                     + qvapor[i, j, k] * dp[i, j, k] / dp[i, j, k + 1]
                 )
 
-    kbot = grid.npz - 1
+    kbot = grid_indexing.domain[2] - 1
     for j in range(grid.js, grid.je + 1):
         for k in range(1, kbot - 1):
             for i in range(grid.is_, grid.ie + 1):
@@ -206,7 +210,7 @@ def fix_water_vapor_nonstencil(grid, qvapor, dp):
 
 
 def fix_water_vapor_bottom(grid, qvapor, dp):
-    kbot = grid.npz - 1
+    kbot = grid_indexing.domain[2] - 1
     for j in range(grid.js, grid.je + 1):
         for i in range(grid.is_, grid.ie + 1):
             if qvapor[i, j, kbot] < 0:
@@ -297,47 +301,48 @@ class AdjustNegativeTracerMixingRatio:
 
     def __init__(
         self,
-        grid,
-        namelist,
+        grid_indexing,
+        check_negative: bool,
+        hydrostatic: bool,
     ):
 
-        shape_ij = grid.domain_shape_full(add=(1, 1, 0))[:2]
+        shape_ij = grid_indexing.domain_full(add=(1, 1, 0))[:2]
         self._sum1 = utils.make_storage_from_shape(shape_ij, origin=(0, 0))
         self._sum2 = utils.make_storage_from_shape(shape_ij, origin=(0, 0))
-        if namelist.check_negative:
+        if check_negative:
             raise NotImplementedError(
                 "Unimplemented namelist value check_negative=True"
             )
-        if namelist.hydrostatic:
+        if hydrostatic:
             self._d0_vap = constants.CP_VAP - constants.C_LIQ
             raise NotImplementedError("Unimplemented namelist hydrostatic=True")
         else:
             self._d0_vap = constants.CV_VAP - constants.C_LIQ
         self._lv00 = constants.HLV - self._d0_vap * constants.TICE
 
-        clear_stencils()
+        self._fillq = FrozenStencil(
+            func=fillq,
+            origin=grid_indexing.origin_compute(),
+            domain=grid_indexing.domain_compute(),
+        )
+
+        enable_merge_stencils()
         self._fix_neg_water = FrozenStencil(
             func=fix_neg_water,
-            origin=grid.compute_origin(),
-            domain=grid.domain_shape_compute(),
+            origin=grid_indexing.origin_compute(),
+            domain=grid_indexing.domain_compute(),
         )
         self._fix_water_vapor_down = FrozenStencil(
             func=fix_water_vapor_down,
-            origin=grid.compute_origin(),
-            domain=grid.domain_shape_compute(),
+            origin=grid_indexing.origin_compute(),
+            domain=grid_indexing.domain_compute(),
         )
         self._fix_neg_cloud = FrozenStencil(
             func=fix_neg_cloud,
-            origin=grid.compute_origin(),
-            domain=grid.domain_shape_compute(),
+            origin=grid_indexing.origin_compute(),
+            domain=grid_indexing.domain_compute(),
         )
-        merge_stencils()
-
-        self._fillq = FrozenStencil(
-            func=fillq,
-            origin=grid.compute_origin(),
-            domain=grid.domain_shape_compute(),
-        )
+        disable_merge_stencils()
 
     def __call__(
         self,

@@ -1,14 +1,54 @@
-# -*- coding: utf-8 -*-
+import abc
 from collections import OrderedDict
-from typing import Any, Dict, List, Set, Tuple
+from typing import Any, Dict, List, Mapping, Set, Tuple, Union
 
 import gt4py
 from gt4py.definitions import BuildOptions
+from gt4py.ir import ArgumentInfo, StencilDefinition, VarDecl
 from gt4py.stencil_builder import StencilBuilder
 from gt4py.stencil_object import StencilObject
-from gt4py.storage import Storage
 
-# from fv3core.decorators import FrozenStencil
+from fv3core.utils.typing import Index3D
+
+
+class Singleton(type):
+    _instances: Dict[type, "Singleton"] = {}
+
+    def __call__(cls, *args, **kwargs):
+        if cls not in cls._instances:
+            cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
+        return cls._instances[cls]
+
+
+class StencilInterface(abc.ABC):
+    def __init__(self):
+        self.origin: Union[Index3D, Mapping[str, Tuple[int, ...]]] = None
+        self.domain: Index3D = None
+        self.build_info: Dict[str, Any] = {}
+
+    @property
+    @abc.abstractmethod
+    def name(self) -> str:
+        pass
+
+    @property
+    @abc.abstractmethod
+    def argument_names(self) -> Tuple[str, ...]:
+        pass
+
+    @abc.abstractmethod
+    def set_argument_names(self, new_names: Tuple[str, ...]) -> None:
+        pass
+
+    @property
+    @abc.abstractmethod
+    def field_origins(self) -> Dict[str, Tuple[int, ...]]:
+        pass
+
+    @property
+    @abc.abstractmethod
+    def written_fields(self) -> List[str]:
+        pass
 
 
 def stencil_exists(stencil_group, stencil):
@@ -18,27 +58,18 @@ def stencil_exists(stencil_group, stencil):
     return False
 
 
-class Container(type):
-    _instances = {}
-
-    def __call__(cls, *args, **kwargs):
-        if cls not in cls._instances:
-            cls._instances[cls] = super(Container, cls).__call__(*args, **kwargs)
-            cls._instances[cls].clear()
-        return cls._instances[cls]
-
-
-class StencilMerger(object, metaclass=Container):
+class StencilMerger(object, metaclass=Singleton):
     def __init__(self):
-        self._stencil_groups: List[List["FrozenStencil"]] = []
+        self._stencil_groups: List[List[StencilInterface]] = []
         self._merged_groups: Dict[int, List[str]] = {}
-        self._merged_stencils: Dict[int, "FrozenStencil"] = {}
+        self._merged_stencils: Dict[int, StencilInterface] = {}
         self._saved_args: Dict[str, Dict[str, Any]] = {}
+        self.enabled: bool = False
 
     def clear(self) -> None:
         self._stencil_groups.clear()
 
-    def add(self, stencil: "FrozenStencil") -> None:
+    def add(self, stencil: StencilInterface) -> None:
         assert "def_ir" in stencil.build_info
         if not self._stencil_groups:
             self._stencil_groups.append([])
@@ -54,13 +85,13 @@ class StencilMerger(object, metaclass=Container):
 
         stencil_group.append(stencil)
 
-    def is_merged(self, stencil: "FrozenStencil") -> bool:
+    def is_merged(self, stencil: StencilInterface) -> bool:
         for merged_names in self._merged_groups.values():
             if stencil.name in merged_names:
                 return True
         return False
 
-    def merged_position(self, stencil: "FrozenStencil") -> Tuple[int, int, int]:
+    def merged_position(self, stencil: StencilInterface) -> Tuple[int, int, int]:
         for group_id, merged_names in self._merged_groups.items():
             merged_index = merged_names.index(stencil.name)
             if merged_index >= 0:
@@ -71,48 +102,34 @@ class StencilMerger(object, metaclass=Container):
     def merged_stencil(self, group_id: int) -> "StencilObject":
         return self._merged_stencils[group_id]
 
-    def merge_args(self, group_id: int) -> Tuple[List[Any], Dict[str, Any]]:
+    def merge_args(self, group_id: int) -> Tuple[Tuple[Any, ...], Dict[Any, Any]]:
+        all_arg_names = self._stencil_groups[group_id][0].argument_names
+        merged_args: List[Any] = [None] * len(all_arg_names)
+        merged_kwargs: Dict[Any, Any] = {}
+
         stencil_names = self._merged_groups[group_id]
-        merged_args = list(self._saved_args[stencil_names[0]]["args"])
-        merged_kwargs = self._saved_args[stencil_names[0]]["kwargs"]
+        for stencil_name in stencil_names:
+            saved_args = self._saved_args[stencil_name]
+            merged_kwargs.update(saved_args["kwargs"])
 
-        param_pos = -1
-        for i, arg in reversed(list(enumerate(merged_args))):
-            if isinstance(arg, Storage):
-                param_pos = i + 1
-                break
+            for arg_index, arg_name in enumerate(saved_args["arg_names"]):
+                merged_index = all_arg_names.index(arg_name)
+                merged_args[merged_index] = saved_args["args"][arg_index]
 
-        for i in range(1, len(stencil_names)):
-            args = self._saved_args[stencil_names[i]]["args"]
-            for arg in args:
-                arg_found: bool = False
-                for merged_arg in merged_args:
-                    arg_found = id(arg) == id(merged_arg)
-                    if arg_found:
-                        break
-                if not arg_found:
-                    if param_pos >= 0:
-                        if isinstance(arg, Storage):
-                            merged_args.insert(param_pos, arg)
-                            param_pos += 1
-                        else:
-                            merged_args.append(arg)
-                    else:
-                        merged_args.append(arg)
+        return tuple(merged_args), merged_kwargs
 
-            kwargs = self._saved_args[stencil_names[i]]["kwargs"]
-            merged_kwargs.update({name: value for name, value in kwargs.items()})
-
-        self._saved_args.clear()
-        return merged_args, merged_kwargs
-
-    def save_args(self, stencil: "FrozenStencil", *args, **kwargs) -> None:
-        self._saved_args[stencil.name] = dict(args=args, kwargs=kwargs)
+    def save_args(self, stencil: StencilInterface, *args, **kwargs) -> None:
+        self._saved_args[stencil.name].update({"args": args, "kwargs": kwargs})
 
     def merge(self) -> None:
         self._merged_groups.clear()
         for group_id, stencil_group in enumerate(self._stencil_groups):
             if len(stencil_group) > 1:
+                for stencil in stencil_group:
+                    self._saved_args[stencil.name] = dict(
+                        arg_names=stencil.argument_names, args=[], kwargs={}
+                    )
+
                 top_stencil = stencil_group[0]
                 top_ir = top_stencil.build_info["def_ir"]
 
@@ -120,24 +137,18 @@ class StencilMerger(object, metaclass=Container):
                 for next_stencil in stencil_group[1:]:
                     next_ir = next_stencil.build_info["def_ir"]
                     top_ir = self._merge_irs(top_ir, next_ir)
-                    arg_names = [
-                        arg_name
-                        for arg_name in next_stencil._argument_names
-                        if arg_name not in top_stencil._argument_names
-                    ]
 
-                    top_stencil._argument_names += tuple(arg_names)
-                    top_stencil._field_origins.update(next_stencil._field_origins)
-                    written_fields = [
-                        written_field
-                        for written_field in next_stencil._written_fields
-                        if written_field not in top_stencil._written_fields
-                    ]
-                    top_stencil._written_fields.extend(written_fields)
-
-                    next_stencil._argument_names = top_stencil._argument_names
-                    next_stencil._field_origins = top_stencil._field_origins
-                    next_stencil._written_fields = top_stencil._written_fields
+                    top_stencil.set_argument_names(
+                        tuple([arg.name for arg in top_ir.api_signature])
+                    )
+                    top_stencil.field_origins.update(next_stencil.field_origins)
+                    top_stencil.written_fields.extend(
+                        [
+                            written_field
+                            for written_field in next_stencil.written_fields
+                            if written_field not in top_stencil.written_fields
+                        ]
+                    )
 
                     self._merged_groups[group_id].append(next_stencil.name)
 
@@ -169,18 +180,19 @@ class StencilMerger(object, metaclass=Container):
                 self._merged_stencils[group_id] = stencil_class()
 
     def _merge_irs(
-        self, dest_ir: "StencilDefinition", source_ir: "StencilDefinition"
-    ) -> "StencilDefinition":
+        self, dest_ir: StencilDefinition, source_ir: StencilDefinition
+    ) -> StencilDefinition:
         dest_ir.name = self._merge_names(dest_ir.name, source_ir.name)
         dest_ir.computations.extend(source_ir.computations)
         dest_ir.externals.update(source_ir.externals)
         dest_ir.api_fields = self._merge_named_lists(
             dest_ir.api_fields, source_ir.api_fields
         )
-        dest_ir.parameters = self._merge_named_lists(
+        dest_params: List[VarDecl] = self._merge_named_lists(
             dest_ir.parameters, source_ir.parameters
         )
-        param_names = set([param.name for param in dest_ir.parameters])
+        param_names = set([param.name for param in dest_params])
+        dest_ir.parameters = dest_params
         dest_ir.api_signature = self._merge_api_signatures(
             dest_ir.api_signature, source_ir.api_signature, param_names
         )
@@ -196,8 +208,8 @@ class StencilMerger(object, metaclass=Container):
 
     def _merge_named_lists(
         self,
-        dest_list: List[object],
-        source_list: List[object],
+        dest_list: List[ArgumentInfo],
+        source_list: List[ArgumentInfo],
     ) -> List[object]:
         dest_items = OrderedDict({item.name: item for item in dest_list})
         for item in source_list:
@@ -208,12 +220,12 @@ class StencilMerger(object, metaclass=Container):
 
     def _merge_api_signatures(
         self,
-        dest_list: List[object],
-        source_list: List[object],
+        dest_list: List[ArgumentInfo],
+        source_list: List[ArgumentInfo],
         param_names: Set[str],
     ) -> List[object]:
-        dest_fields = OrderedDict()
-        dest_params = OrderedDict()
+        dest_fields: Dict[str, ArgumentInfo] = OrderedDict()
+        dest_params: Dict[str, ArgumentInfo] = OrderedDict()
         for item in dest_list:
             dest_dict = dest_params if item.name in param_names else dest_fields
             dest_dict[item.name] = item
