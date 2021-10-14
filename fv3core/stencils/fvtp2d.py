@@ -148,62 +148,6 @@ class PreAllocatedCopiedCornersFactory:
         )
 
 
-@dataclasses.dataclass
-class CopiedCorners:
-    """
-    Data container for storages with corners copied for differencing
-    along the x- and y-directions.
-
-    Attributes:
-        base: writeable version of storage with no guarantees about corner data
-        x_differenceable: read-only version of storage which can be differenced
-            along the x-direction
-        y_differenceable: read-only version of storage which can be differenced
-            along the y-direction
-    """
-
-    base: FloatField
-    x_differenceable: FloatField
-    y_differenceable: FloatField
-
-
-class PreAllocatedCopiedCornersFactory:
-    """
-    Creates CopiedCorners from a field, using an init-compiled stencil
-    and pre-allocated output fields.
-    """
-
-    def __init__(
-        self,
-        grid_indexing: GridIndexing,
-        *,
-        dims: Sequence[str],
-        y_temporary: FloatField,
-    ):
-        """
-        Args:
-            grid_indexing: information about grid size
-            dims: dimensionality of data to be copied
-            y_temporary: if given, storage to use for y-differenceable field
-                (x-differenceable field uses same memory as base storage),
-                if None then a storage is initialized based on max shape
-        """
-        if y_temporary is None:
-            y_temporary = utils.make_storage_from_shape(
-                grid_indexing.max_shape,
-                origin=grid_indexing.origin_compute(),
-            )
-        self._copy_corners_xy = corners.CopyCornersXY(
-            grid_indexing, dims, y_field=y_temporary
-        )
-
-    def __call__(self, field: FloatFieldIJ) -> CopiedCorners:
-        x_field, y_field = self._copy_corners_xy(field)
-        return CopiedCorners(
-            base=field, x_differenceable=x_field, y_differenceable=y_field
-        )
-
-
 class FiniteVolumeTransport:
     """
     Equivalent of Fortran FV3 subroutine fv_tp_2d, done in 3 dimensions.
