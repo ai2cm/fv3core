@@ -556,62 +556,96 @@ def fill_corners_bgrid_y_defn(q_in: FloatField, q_out: FloatField):
 # TODO these can definitely be consolidated/made simpler
 def fill_sw_corner_2d_bgrid(q, i, j, direction, grid_indexer):
     if direction == "x":
-        q[grid_indexer.isc - i, grid_indexer.jsc - j, :] = q[grid_indexer.isc - j, grid_indexer.jsc + i, :]
+        q[grid_indexer.isc - i, grid_indexer.jsc - j, :] = q[
+            grid_indexer.isc - j, grid_indexer.jsc + i, :
+        ]
     if direction == "y":
-        q[grid_indexer.isc - j, grid_indexer.jsc - i, :] = q[grid_indexer.isc + i, grid_indexer.jsc - j, :]
+        q[grid_indexer.isc - j, grid_indexer.jsc - i, :] = q[
+            grid_indexer.isc + i, grid_indexer.jsc - j, :
+        ]
 
 
 def fill_nw_corner_2d_bgrid(q, i, j, direction, grid_indexer):
     if direction == "x":
-        q[grid_indexer.isc - i, grid_indexer.jec + 1 + j, :] = q[grid_indexer.isc - j, grid_indexer.jec + 1 - i, :]
+        q[grid_indexer.isc - i, grid_indexer.jec + 1 + j, :] = q[
+            grid_indexer.isc - j, grid_indexer.jec + 1 - i, :
+        ]
     if direction == "y":
-        q[grid_indexer.isc - j, grid_indexer.jec + 1 + i, :] = q[grid_indexer.isc + i, grid_indexer.jec + 1 + j, :]
+        q[grid_indexer.isc - j, grid_indexer.jec + 1 + i, :] = q[
+            grid_indexer.isc + i, grid_indexer.jec + 1 + j, :
+        ]
 
 
 def fill_se_corner_2d_bgrid(q, i, j, direction, grid_indexer):
     if direction == "x":
-        q[grid_indexer.iec + 1 + i, grid_indexer.jsc - j, :] = q[grid_indexer.iec + 1 + j, grid_indexer.jsc + i, :]
+        q[grid_indexer.iec + 1 + i, grid_indexer.jsc - j, :] = q[
+            grid_indexer.iec + 1 + j, grid_indexer.jsc + i, :
+        ]
     if direction == "y":
-        q[grid_indexer.iec + 1 + j, grid_indexer.jsc - i, :] = q[grid_indexer.iec + 1 - i, grid_indexer.jsc - j, :]
+        q[grid_indexer.iec + 1 + j, grid_indexer.jsc - i, :] = q[
+            grid_indexer.iec + 1 - i, grid_indexer.jsc - j, :
+        ]
 
 
 def fill_ne_corner_2d_bgrid(q, i, j, direction, grid_indexer):
     if direction == "x":
-        q[grid_indexer.iec + 1 + i, grid_indexer.jec + 1 + j :] = q[grid_indexer.iec + 1 + j, grid_indexer.jec + 1 - i, :]
+        q[grid_indexer.iec + 1 + i, grid_indexer.jec + 1 + j :] = q[
+            grid_indexer.iec + 1 + j, grid_indexer.jec + 1 - i, :
+        ]
     if direction == "y":
-        q[grid_indexer.iec + 1 + i, grid_indexer.jec + 1 + j :] = q[grid_indexer.iec + 1 - i, grid_indexer.jec + 1 + j, :]
+        q[grid_indexer.iec + 1 + i, grid_indexer.jec + 1 + j :] = q[
+            grid_indexer.iec + 1 - i, grid_indexer.jec + 1 + j, :
+        ]
 
 
 def fill_sw_corner_2d_agrid(q, i, j, direction, grid_indexer, kstart=0, nk=None):
     kslice, nk = utils.kslice_from_inputs(kstart, nk, grid_indexer)
     if direction == "x":
-        q[grid_indexer.isc - i, grid_indexer.jsc - j, kslice] = q[grid_indexer.isc - j, grid_indexer.jsc + i - 1, kslice]
+        q[grid_indexer.isc - i, grid_indexer.jsc - j, kslice] = q[
+            grid_indexer.isc - j, grid_indexer.jsc + i - 1, kslice
+        ]
     if direction == "y":
-        q[grid_indexer.isc - j, grid_indexer.jsc - i, kslice] = q[grid_indexer.isc + i - 1, grid_indexer.jsc - j, kslice]
+        q[grid_indexer.isc - j, grid_indexer.jsc - i, kslice] = q[
+            grid_indexer.isc + i - 1, grid_indexer.jsc - j, kslice
+        ]
 
 
 def fill_nw_corner_2d_agrid(q, i, j, direction, grid_indexer, kstart=0, nk=None):
     kslice, nk = utils.kslice_from_inputs(kstart, nk, grid_indexer)
     if direction == "x":
-        q[grid_indexer.isc - i, grid_indexer.jec + j, kslice] = q[grid_indexer.isc - j, grid_indexer.jec - i + 1, kslice]
+        q[grid_indexer.isc - i, grid_indexer.jec + j, kslice] = q[
+            grid_indexer.isc - j, grid_indexer.jec - i + 1, kslice
+        ]
     if direction == "y":
-        q[grid_indexer.isc - j, grid_indexer.jec + i, kslice] = q[grid_indexer.isc + i - 1, grid_indexer.jec + j, kslice]
+        q[grid_indexer.isc - j, grid_indexer.jec + i, kslice] = q[
+            grid_indexer.isc + i - 1, grid_indexer.jec + j, kslice
+        ]
 
 
 def fill_se_corner_2d_agrid(q, i, j, direction, grid_indexer, kstart=0, nk=None):
     kslice, nk = utils.kslice_from_inputs(kstart, nk, grid_indexer)
     if direction == "x":
-        q[grid_indexer.iec + i, grid_indexer.jsc - j, kslice] = q[grid_indexer.iec + j, grid_indexer.isc + i - 1, kslice]
+        q[grid_indexer.iec + i, grid_indexer.jsc - j, kslice] = q[
+            grid_indexer.iec + j, grid_indexer.isc + i - 1, kslice
+        ]
     if direction == "y":
-        q[grid_indexer.iec + j, grid_indexer.jsc - i, kslice] = q[grid_indexer.iec - i + 1, grid_indexer.jsc - j, kslice]
+        q[grid_indexer.iec + j, grid_indexer.jsc - i, kslice] = q[
+            grid_indexer.iec - i + 1, grid_indexer.jsc - j, kslice
+        ]
 
 
-def fill_ne_corner_2d_agrid(q, i, j, direction, grid_indexer, mysign=1.0, kstart=0, nk=None):
+def fill_ne_corner_2d_agrid(
+    q, i, j, direction, grid_indexer, mysign=1.0, kstart=0, nk=None
+):
     kslice, nk = utils.kslice_from_inputs(kstart, nk, grid_indexer)
     if direction == "x":
-        q[grid_indexer.iec + i, grid_indexer.jec + j, kslice] = q[grid_indexer.iec + j, grid_indexer.jec - i + 1, kslice]
+        q[grid_indexer.iec + i, grid_indexer.jec + j, kslice] = q[
+            grid_indexer.iec + j, grid_indexer.jec - i + 1, kslice
+        ]
     if direction == "y":
-        q[grid_indexer.iec + j, grid_indexer.jec + i, kslice] = q[grid_indexer.iec - i + 1, grid_indexer.jec + j, kslice]
+        q[grid_indexer.iec + j, grid_indexer.jec + i, kslice] = q[
+            grid_indexer.iec - i + 1, grid_indexer.jec + j, kslice
+        ]
 
 
 def fill_corners_2d(q, grid_indexer, gridtype, direction="x"):
@@ -621,6 +655,7 @@ def fill_corners_2d(q, grid_indexer, gridtype, direction="x"):
         fill_corners_2d_agrid(q, grid_indexer, gridtype, direction)
     else:
         raise NotImplementedError()
+
 
 def fill_corners_2d_bgrid(q, grid_indexer, gridtype, direction="x"):
     for i in range(1, 1 + grid_indexer.n_halo):
@@ -633,6 +668,7 @@ def fill_corners_2d_bgrid(q, grid_indexer, gridtype, direction="x"):
                 fill_se_corner_2d_bgrid(q, i, j, direction, grid_indexer)
             if grid_indexer.ne_corner:
                 fill_ne_corner_2d_bgrid(q, i, j, direction, grid_indexer)
+
 
 def fill_corners_2d_agrid(q, grid_indexer, gridtype, direction="x"):
     for i in range(1, 1 + grid_indexer.n_halo):
@@ -647,14 +683,14 @@ def fill_corners_2d_agrid(q, grid_indexer, gridtype, direction="x"):
                 fill_ne_corner_2d_agrid(q, i, j, direction, grid_indexer)
 
 
-
 def fill_corners_agrid(x, y, grid_indexer, vector):
     if vector:
         mysign = -1.0
     else:
         mysign = 1.0
-    #i_end = grid_indexer.n_halo + grid_indexer.npx - 2  # index of last value in compute domain
-    #j_end = grid_indexer.n_halo + grid_indexer.npy - 2
+    # i_end = grid_indexer.n_halo + grid_indexer.npx - 2
+    # ^index of last value in compute domain
+    # j_end = grid_indexer.n_halo + grid_indexer.npy - 2
     i_end = grid_indexer.iec
     j_end = grid_indexer.jec
     for i in range(1, 1 + grid_indexer.n_halo):
@@ -667,34 +703,58 @@ def fill_corners_agrid(x, y, grid_indexer, vector):
                     mysign * x[grid_indexer.n_halo - 1 + i, grid_indexer.n_halo - j, :]
                 )
             if grid_indexer.nw_corner:
-                x[grid_indexer.n_halo - i, j_end + j, :] = y[grid_indexer.n_halo - j, j_end - i + 1, :]
-                y[grid_indexer.n_halo - j, j_end + i, :] = x[grid_indexer.n_halo - 1 + i, j_end + j, :]
+                x[grid_indexer.n_halo - i, j_end + j, :] = y[
+                    grid_indexer.n_halo - j, j_end - i + 1, :
+                ]
+                y[grid_indexer.n_halo - j, j_end + i, :] = x[
+                    grid_indexer.n_halo - 1 + i, j_end + j, :
+                ]
             if grid_indexer.se_corner:
-                x[i_end + i, grid_indexer.n_halo - j, :] = y[i_end + j, grid_indexer.n_halo - 1 + i, :]
-                y[i_end + j, grid_indexer.n_halo - i, :] = x[i_end - i + 1, grid_indexer.n_halo - j, :]
+                x[i_end + i, grid_indexer.n_halo - j, :] = y[
+                    i_end + j, grid_indexer.n_halo - 1 + i, :
+                ]
+                y[i_end + j, grid_indexer.n_halo - i, :] = x[
+                    i_end - i + 1, grid_indexer.n_halo - j, :
+                ]
             if grid_indexer.ne_corner:
                 x[i_end + i, j_end + j, :] = mysign * y[i_end + j, j_end - i + 1, :]
                 y[i_end + j, j_end + i, :] = mysign * x[i_end - i + 1, j_end + j, :]
 
 
 def fill_sw_corner_vector_dgrid(x, y, i, j, grid_indexer, mysign):
-    x[grid_indexer.isc - i, grid_indexer.jsc - j, :] = mysign * y[grid_indexer.isc - j, i + 2, :]
-    y[grid_indexer.isc - i, grid_indexer.jsc - j, :] = mysign * x[j + 2, grid_indexer.jsc - i, :]
+    x[grid_indexer.isc - i, grid_indexer.jsc - j, :] = (
+        mysign * y[grid_indexer.isc - j, i + 2, :]
+    )
+    y[grid_indexer.isc - i, grid_indexer.jsc - j, :] = (
+        mysign * x[j + 2, grid_indexer.jsc - i, :]
+    )
 
 
 def fill_nw_corner_vector_dgrid(x, y, i, j, grid_indexer):
-    x[grid_indexer.isc - i, grid_indexer.jec + 1 + j, :] = y[grid_indexer.isc - j, grid_indexer.jec + 1 - i, :]
-    y[grid_indexer.isc - i, grid_indexer.jec + j, :] = x[j + 2, grid_indexer.jec + 1 + i, :]
+    x[grid_indexer.isc - i, grid_indexer.jec + 1 + j, :] = y[
+        grid_indexer.isc - j, grid_indexer.jec + 1 - i, :
+    ]
+    y[grid_indexer.isc - i, grid_indexer.jec + j, :] = x[
+        j + 2, grid_indexer.jec + 1 + i, :
+    ]
 
 
 def fill_se_corner_vector_dgrid(x, y, i, j, grid_indexer):
-    x[grid_indexer.iec + i, grid_indexer.jsc - j, :] = y[grid_indexer.iec + 1 + j, i + 2, :]
-    y[grid_indexer.iec + 1 + i, grid_indexer.jsc - j, :] = x[grid_indexer.iec - j + 1, grid_indexer.jsc - i, :]
+    x[grid_indexer.iec + i, grid_indexer.jsc - j, :] = y[
+        grid_indexer.iec + 1 + j, i + 2, :
+    ]
+    y[grid_indexer.iec + 1 + i, grid_indexer.jsc - j, :] = x[
+        grid_indexer.iec - j + 1, grid_indexer.jsc - i, :
+    ]
 
 
 def fill_ne_corner_vector_dgrid(x, y, i, j, grid_indexer, mysign):
-    x[grid_indexer.iec + i, grid_indexer.jec + 1 + j, :] = mysign * y[grid_indexer.iec + 1 + j, grid_indexer.jec - i + 1, :]
-    y[grid_indexer.iec + 1 + i, grid_indexer.jec + j, :] = mysign * x[grid_indexer.iec - j + 1, grid_indexer.jec + 1 + i, :]
+    x[grid_indexer.iec + i, grid_indexer.jec + 1 + j, :] = (
+        mysign * y[grid_indexer.iec + 1 + j, grid_indexer.jec - i + 1, :]
+    )
+    y[grid_indexer.iec + 1 + i, grid_indexer.jec + j, :] = (
+        mysign * x[grid_indexer.iec - j + 1, grid_indexer.jec + 1 + i, :]
+    )
 
 
 def fill_corners_dgrid(x, y, grid_indexer, vector):
@@ -719,18 +779,30 @@ def fill_sw_corner_vector_cgrid(x, y, i, j, grid_indexer):
 
 
 def fill_nw_corner_vector_cgrid(x, y, i, j, grid_indexer, mysign):
-    x[grid_indexer.isc - i, grid_indexer.jec + j, :]     = mysign * y[j + 2,        grid_indexer.jec + 1 + i, :]
-    y[grid_indexer.isc - i, grid_indexer.jec + 1 + j, :] = mysign * x[grid_indexer.isc - j, grid_indexer.jec + 1 - i, :]
+    x[grid_indexer.isc - i, grid_indexer.jec + j, :] = (
+        mysign * y[j + 2, grid_indexer.jec + 1 + i, :]
+    )
+    y[grid_indexer.isc - i, grid_indexer.jec + 1 + j, :] = (
+        mysign * x[grid_indexer.isc - j, grid_indexer.jec + 1 - i, :]
+    )
 
 
 def fill_se_corner_vector_cgrid(x, y, i, j, grid_indexer, mysign):
-    x[grid_indexer.iec + 1 + i, grid_indexer.jsc - j, :] = mysign * y[grid_indexer.iec + 1 - j, grid_indexer.jsc - i, :]
-    y[grid_indexer.iec + i, grid_indexer.jsc - j, :] = mysign * x[grid_indexer.iec + 1 + j, i + 2, :]
+    x[grid_indexer.iec + 1 + i, grid_indexer.jsc - j, :] = (
+        mysign * y[grid_indexer.iec + 1 - j, grid_indexer.jsc - i, :]
+    )
+    y[grid_indexer.iec + i, grid_indexer.jsc - j, :] = (
+        mysign * x[grid_indexer.iec + 1 + j, i + 2, :]
+    )
 
 
 def fill_ne_corner_vector_cgrid(x, y, i, j, grid_indexer):
-    x[grid_indexer.iec + 1 + i, grid_indexer.jec + j, :] = y[grid_indexer.iec + 1 - j, grid_indexer.jec + 1 + i, :]
-    y[grid_indexer.iec + i, grid_indexer.jec + 1 + j, :] = x[grid_indexer.iec + 1 + j, grid_indexer.jec + 1 - i, :]
+    x[grid_indexer.iec + 1 + i, grid_indexer.jec + j, :] = y[
+        grid_indexer.iec + 1 - j, grid_indexer.jec + 1 + i, :
+    ]
+    y[grid_indexer.iec + i, grid_indexer.jec + 1 + j, :] = x[
+        grid_indexer.iec + 1 + j, grid_indexer.jec + 1 - i, :
+    ]
 
 
 def fill_corners_cgrid(x, y, grid_indexer, vector):

@@ -136,7 +136,7 @@ InitGrid:
     ignore_near_zero_errors:
       gridvar: 3e-14
       agrid: 3e-14
-  
+
 DynCore:
  - backend: gtc:gt:gpu
    ignore_near_zero_errors:
@@ -159,7 +159,7 @@ UtilVectors:
       ew2: 3e-14
       es1: 3e-14
       es2: 3e-14
-  
+
 TrigSg:
   - backend: numpy
     max_error: 3e-11

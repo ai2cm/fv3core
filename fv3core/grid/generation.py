@@ -204,11 +204,11 @@ class MetricTerms:
             communicator=communicator,
             grid_type=grid_type,
         )
-    
+
     @property
     def grid(self):
         return self._grid
-    
+
     @property
     def gridvar(self):
         return self._grid

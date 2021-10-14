@@ -91,7 +91,7 @@ class ParallelTranslate:
             if len(properties["dims"]) > 0:
                 output_slice = _serialize_slice(
                     state[standard_name], properties.get("n_halo", utils.halo)
-                )                
+                )
                 return_dict[name] = state[standard_name].data[output_slice]
             else:
                 return_dict[name] = [state[standard_name]]
@@ -206,8 +206,7 @@ class ParallelTranslateGrid(ParallelTranslate):
                 state[standard_name] = inputs[name]
         return state
 
-    
-    
+
 class ParallelTranslate2Py(ParallelTranslate):
     def collect_input_data(self, serializer, savepoint):
         input_data = super().collect_input_data(serializer, savepoint)

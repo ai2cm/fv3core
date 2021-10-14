@@ -273,7 +273,7 @@ def test_sequential_savepoint(
                 testobj, [input_data], [output], ref_data, failing_names, out_filename
             )
         except Exception as error:
-            print(f'TestSequential SaveNetCDF Error: {error}')
+            print(f"TestSequential SaveNetCDF Error: {error}")
     assert failing_names == [], f"only the following variables passed: {passing_names}"
     assert len(passing_names) > 0, "No tests passed"
 
@@ -377,7 +377,7 @@ def test_mock_parallel_savepoint(
                 testobj, inputs_list, output_list, ref_data, failing_names, out_filename
             )
         except Exception as error:
-            print(f'TestMockParallel SaveNetCDF Error: {error}')
+            print(f"TestMockParallel SaveNetCDF Error: {error}")
     assert failing_names == [], f"names tested: {list(testobj.outputs.keys())}"
 
 
@@ -479,7 +479,7 @@ def test_parallel_savepoint(
                 testobj, [input_data], [output], ref_data, failing_names, out_filename
             )
         except Exception as error:
-            print(f'TestParallel SaveNetCDF Error: {error}')
+            print(f"TestParallel SaveNetCDF Error: {error}")
     assert failing_names == [], f"only the following variables passed: {passing_names}"
     assert len(passing_names) > 0, "No tests passed"
 

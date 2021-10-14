@@ -296,7 +296,7 @@ class TranslateGrid:
         for k, axis in TranslateGrid.edge_var_axis.items():
             if k in self.data:
                 self.data[k] = utils.make_storage_data(
-                    self.data[k],#[edge_slice],
+                    self.data[k],  # [edge_slice],
                     shape,
                     start=(0, 0, pygrid.halo),
                     axis=axis,
