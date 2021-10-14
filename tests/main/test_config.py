@@ -62,6 +62,16 @@ def assert_types_match(classes):
     }
 
 
+def assert_defaults_match(classes):
+    types = collections.defaultdict(set)
+    for cls in classes:
+        for name, field in cls.__dataclass_fields__.items():
+            types[name].add(field.default)
+    assert not any(len(type_list) > 1 for type_list in types.values()), {
+        key: value for key, value in types.items() if len(value) > 1
+    }
+
+
 def test_assert_types_match_compatible_types():
     assert_types_match([FirstConfigClass, CompatibleConfigClass])
 
