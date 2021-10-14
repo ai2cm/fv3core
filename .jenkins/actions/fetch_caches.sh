@@ -1,5 +1,4 @@
 #!/bin/bash
-set -e -x
 BACKEND=$1
 EXPNAME=$2
 SANITIZED_BACKEND=`echo $BACKEND | sed 's/:/_/g'` #sanitize the backend from any ':'
