@@ -3,8 +3,7 @@ set -e -x
 BACKEND=$1
 EXPNAME=$2
 SANITIZED_BACKEND=`echo $BACKEND | sed 's/:/_/g'` #sanitize the backend from any ':'
-CACHE_DIR="/scratch/snx3000/tobwi/sbox/test_pr/"
-# CACHE_DIR="/scratch/snx3000/olifu/jenkins/scratch/store_gt_caches/"
+CACHE_DIR="/scratch/snx3000/olifu/jenkins/scratch/store_gt_caches/"
 
 if [ ! -d $(pwd)/.gt_cache ]; then
     if [ -d ${CACHE_DIR}/${EXPNAME}/${SANITIZED_BACKEND} ]; then

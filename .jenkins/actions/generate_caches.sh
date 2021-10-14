@@ -24,8 +24,7 @@ exitError()
 backend=$1
 experiment=$2
 SANITIZED_BACKEND=`echo $backend | sed 's/:/_/g'` #sanitize the backend from any ':'
-# CACHE_DIR="/scratch/snx3000/olifu/jenkins/scratch/store_gt_caches/${experiment}/${SANITIZED_BACKEND}"
-CACHE_DIR="/scratch/snx3000/tobwi/sbox/test_pr/${experiment}/${SANITIZED_BACKEND}"
+CACHE_DIR="/scratch/snx3000/olifu/jenkins/scratch/store_gt_caches/${experiment}/${SANITIZED_BACKEND}"
 
 
 test -n "${experiment}" || exitError 1001 ${LINENO} "experiment is not defined"
