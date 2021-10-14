@@ -51,7 +51,6 @@ if [[ $input_backend = gtc_* ]] ; then
 fi
 
 
-
 # Read arguments
 action="$1"
 backend="$input_backend"
@@ -64,8 +63,6 @@ popd > /dev/null
 shopt -s expand_aliases
 # Download the env
 . ${envloc}/env.sh
-
-
 
 # setup module environment and default queue
 test -f ${envloc}/env/machineEnvironment.sh || exitError 1201 ${LINENO} "cannot find machineEnvironment.sh script"
