@@ -21,6 +21,13 @@ from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
 from fv3gfs.util.halo_updater import HaloUpdater
 
 
+# nq is actually given by ncnst - pnats, where those are given in atmosphere.F90 by:
+# ncnst = Atm(mytile)%ncnst
+# pnats = Atm(mytile)%flagstruct%pnats
+# here we hard-coded it because 8 is the only supported value, refactor this later!
+NQ = 8  # state.nq_tot - spec.namelist.dnats
+
+
 def pt_adjust(pkz: FloatField, dp1: FloatField, q_con: FloatField, pt: FloatField):
     with computation(PARALLEL), interval(...):
         pt = pt * (1.0 + dp1) * (1.0 - q_con) / pkz
@@ -187,12 +194,6 @@ class DynamicalCore:
     Corresponds to fv_dynamics in original Fortran sources.
     """
 
-    # nq is actually given by ncnst - pnats, where those are given in atmosphere.F90 by:
-    # ncnst = Atm(mytile)%ncnst
-    # pnats = Atm(mytile)%flagstruct%pnats
-    # here we hard-coded it because 8 is the only supported value, refactor this later!
-    NQ = 8  # state.nq_tot - spec.namelist.dnats
-
     arg_specs = (
         ArgSpec("qvapor", "specific_humidity", "kg/kg", intent="inout"),
         ArgSpec("qliquid", "cloud_water_mixing_ratio", "kg/kg", intent="inout"),
@@ -303,7 +304,7 @@ class DynamicalCore:
             hord=config.hord_tr,
         )
         self.tracer_advection = tracer_2d_1l.TracerAdvection(
-            grid_indexing, tracer_transport, comm, DynamicalCore.NQ
+            grid_indexing, tracer_transport, comm, NQ
         )
         self._ak = ak.storage
         self._bk = bk.storage
@@ -366,7 +367,7 @@ class DynamicalCore:
         self._temporaries = fvdyn_temporaries(
             quantity_factory, grid_indexing.domain_full(add=(1, 1, 1)), grid_data
         )
-        if not (not self.config.inline_q and DynamicalCore.NQ != 0):
+        if not (not self.config.inline_q and NQ != 0):
             raise NotImplementedError("tracer_2d not implemented, turn on z_tracer")
         self._adjust_tracer_mixing_ratio = AdjustNegativeTracerMixingRatio(
             grid_indexing,
@@ -378,7 +379,7 @@ class DynamicalCore:
             grid_indexing,
             config.remapping,
             grid_data.area_64,
-            DynamicalCore.NQ,
+            NQ,
             self._pfull,
         )
 
@@ -438,7 +439,7 @@ class DynamicalCore:
     ):
         state.__dict__.update(self._temporaries)
         tracers = {}
-        for name in utils.tracer_variables[0 : DynamicalCore.NQ]:
+        for name in utils.tracer_variables[0:NQ]:
             tracers[name] = state.__dict__[name + "_quantity"]
         tracer_storages = {name: quantity.storage for name, quantity in tracers.items()}
 
@@ -508,7 +509,7 @@ class DynamicalCore:
                         state.bdt / state.k_split,
                         state.bdt,
                         state.do_adiabatic_init,
-                        DynamicalCore.NQ,
+                        NQ,
                     )
                 if last_step:
                     post_remap(
