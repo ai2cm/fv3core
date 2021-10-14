@@ -209,11 +209,11 @@ class FrozenStencil:
         if MPI is not None and MPI.COMM_WORLD.Get_size() > 1:
             file_stub += "_r%d" % MPI.COMM_WORLD.Get_rank()
 
+        file_name: str = file_stub
         file_num: int = 0
-        file_name: str = f"{file_stub}_n{file_num}"
         while os.path.exists(file_name):
-            file_num += 1
             file_name = f"{file_stub}_n{file_num}"
+            file_num += 1
 
         args_as_kwargs = dict(zip(self._argument_names, args))
         args_as_kwargs.update(
