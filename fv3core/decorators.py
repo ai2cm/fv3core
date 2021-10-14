@@ -97,7 +97,9 @@ class FrozenStencil:
         domain: Index3D,
         stencil_config: Optional[StencilConfig] = None,
         externals: Optional[Mapping[str, Any]] = None,
+        *,
         skip_passes: Optional[Tuple[str, ...]] = None,
+        profile: Optional[bool] = None,
     ):
         """
         Args:
@@ -107,7 +109,7 @@ class FrozenStencil:
             stencil_config: container for stencil configuration
             externals: compile-time external variables required by stencil
             skip_passes: compiler passes to skip when building stencil
-                        (temporary option until config system implemented)
+            profile: enable compilation profiling
         """
         self.origin = origin
         self.domain = domain
@@ -129,10 +131,17 @@ class FrozenStencil:
             stencil_function = future_stencil
             stencil_kwargs["wrapper"] = self
 
-        if global_config.is_gtc_backend():
-            if not skip_passes:
-                skip_passes = ("graph_merge_horizontal_executions",)
+        if skip_passes and global_config.is_gtc_backend():
             stencil_kwargs["skip_passes"] = skip_passes
+
+        # Collect compilation times if profiling enabled
+        self._build_info: Optional[Dict[str, Any]] = None
+        self._exec_info: Optional[Dict[str, Any]] = None
+
+        if profile:
+            self._build_info = {}
+            self._exec_info = {}
+            stencil_kwargs["build_info"] = self._build_info
 
         self.stencil_object: gt4py.StencilObject = stencil_function(
             definition=func,
@@ -167,7 +176,7 @@ class FrozenStencil:
     ) -> None:
         if kwargs.pop("serialize", False):
             self._serialize_data(*args, **kwargs)
-        exec_info: Dict[str, Any] = {} if kwargs.pop("profile", False) else None
+        exec_info = self._exec_info
 
         if self.stencil_config.validate_args:
             if __debug__ and "origin" in kwargs:
