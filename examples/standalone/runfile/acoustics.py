@@ -97,9 +97,8 @@ def run(data_directory, halo_update, backend, time_steps, reference_run):
     )
     state.__dict__.update(acoutstics_object._temporaries)
 
-    sdfg_path = "/scratch/snx3000/tobwi/sbox/dace_tests/c128experiment/.gt_cache_00000"+str(rank)+"/dacecache/iterate"
     # 
-    @computepath_function(load_sdfg=sdfg_path)
+    @computepath_function
     def iterate(state: dace.constant, time_steps):
         # @Linus: make this call a dace program
         for _ in range(time_steps):
