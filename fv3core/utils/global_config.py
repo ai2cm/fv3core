@@ -64,27 +64,24 @@ def get_async_context():
                     50, concurrent=concurrent, blocking=blocking, sleep_time=0.0001
                 )
             else:
-                try:
-                    from gt4py.gtgraph import AsyncContext
+                from gt4py.gtgraph import AsyncContext
 
-                    _async_context = AsyncContext(
-                        50,
-                        name="fv3core",
-                        graph_record=False,
-                        concurrent=concurrent,
-                        blocking=blocking,
-                        region_analysis=False,
-                        sleep_time=0.0001,
-                    )
-                except ModuleNotFoundError:
-                    _async_context = None
+                _async_context = AsyncContext(
+                    50,
+                    name="fv3core",
+                    graph_record=False,
+                    concurrent=concurrent,
+                    blocking=blocking,
+                    region_analysis=False,
+                    sleep_time=0.0001,
+                )
 
     return _async_context
 
 
 def async_wait_finish():
     global _async_context
-    if _async_context:
+    if _async_context is not None:
         _async_context.wait_finish()
 
 

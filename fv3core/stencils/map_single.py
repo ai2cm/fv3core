@@ -11,6 +11,10 @@ from fv3core.utils.grid import GridIndexing
 from fv3core.utils.typing import FloatField, FloatFieldIJ, IntFieldIJ
 
 
+_num_lagrangian_calls: int = 0
+_max_lagrangian_calls: int = 11
+
+
 def set_dp(dp1: FloatField, pe1: FloatField, lev: IntFieldIJ):
     with computation(PARALLEL), interval(...):
         dp1 = pe1[0, 0, 1] - pe1
@@ -146,6 +150,8 @@ class MapSingle:
             jfirst: Starting index of the J-dir compute domain
             jlast: Final index of the J-dir compute domain
         """
+        global _num_lagrangian_calls
+
         if qs is None:
             qs = self._tmp_qs
         self._copy_stencil(q1, self._q4_1)
@@ -159,15 +165,17 @@ class MapSingle:
             self._dp1,
             qmin,
         )
-        self._lagrangian_contributions(
-            q1,
-            pe1,
-            pe2,
-            q4_1,
-            q4_2,
-            q4_3,
-            q4_4,
-            self._dp1,
-            self._lev,
-        )
+        if _num_lagrangian_calls < _max_lagrangian_calls:
+            self._lagrangian_contributions(
+                q1,
+                pe1,
+                pe2,
+                q4_1,
+                q4_2,
+                q4_3,
+                q4_4,
+                self._dp1,
+                self._lev,
+            )
+            _num_lagrangian_calls += 1
         return q1

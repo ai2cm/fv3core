@@ -129,7 +129,7 @@ class FrozenStencil:
             stencil_kwargs["pass_order"] = {pass_name: -1 for pass_name in skip_passes}
 
         self._async_context = global_config.get_async_context()
-        if self._async_context:
+        if self._async_context is not None:
             stencil_kwargs["async_launch"] = True
 
         self.stencil_object: gt4py.StencilObject = stencil_function(
