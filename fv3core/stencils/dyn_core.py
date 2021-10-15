@@ -19,6 +19,7 @@ import fv3core.stencils.ray_fast as ray_fast
 import fv3core.stencils.temperature_adjust as temperature_adjust
 import fv3core.stencils.updatedzc as updatedzc
 import fv3core.stencils.updatedzd as updatedzd
+import fv3core.utils.global_config as config
 import fv3core.utils.global_constants as constants
 import fv3core.utils.gt4py_utils as utils
 import fv3gfs.util
@@ -507,6 +508,7 @@ class AcousticDynamics:
         # m_split = 1. + abs(dt_atmos)/real(k_split*n_split*abs(p_split))
         # n_split = nint( real(n0split)/real(k_split*abs(p_split)) * stretch_fac + 0.5 )
         # NOTE: In Fortran model the halo update starts happens in fv_dynamics, not here
+        config.async_wait_finish()
         self._halo_updaters.q_con__cappa.start(
             [
                 state.q_con_quantity,
@@ -551,6 +553,7 @@ class AcousticDynamics:
             remap_step = False
             if self.config.breed_vortex_inline or (it == n_split - 1):
                 remap_step = True
+            config.async_wait_finish()
             if not self.config.hydrostatic:
                 self._halo_updaters.w.start([state.w_quantity])
                 if it == 0:
@@ -592,6 +595,7 @@ class AcousticDynamics:
                 dt2,
             )
 
+            config.async_wait_finish()
             if self.config.nord > 0:
                 self._halo_updaters.divgd.start([state.divgd_quantity])
             if not self.config.hydrostatic:
@@ -634,6 +638,7 @@ class AcousticDynamics:
                 state.gz,
                 dt2,
             )
+            config.async_wait_finish()
             self._halo_updaters.uc__vc.start([state.uc_quantity], [state.vc_quantity])
             if self.config.nord > 0:
                 self._halo_updaters.divgd.wait()
@@ -670,6 +675,7 @@ class AcousticDynamics:
             # note that uc and vc are not needed at all past this point.
             # they will be re-computed from scratch on the next acoustic timestep.
 
+            config.async_wait_finish()
             self._halo_updaters.delp__pt__q_con.update(
                 [state.delp_quantity, state.pt_quantity, state.q_con_quantity]
             )
@@ -709,6 +715,7 @@ class AcousticDynamics:
                     state.w,
                 )
 
+                config.async_wait_finish()
                 self._halo_updaters.zh.start([state.zh_quantity])
                 self._halo_updaters.pkc.start([state.pkc_quantity])
                 if remap_step:
@@ -720,6 +727,7 @@ class AcousticDynamics:
                 else:
                     self._pk3_halo(state.pk3, state.delp, state.ptop, akap)
             if not self.config.hydrostatic:
+                config.async_wait_finish()
                 self._halo_updaters.zh.wait()
                 self._compute_geopotential_stencil(
                     state.zh,
@@ -753,6 +761,7 @@ class AcousticDynamics:
                     state.ks,
                 )
 
+            config.async_wait_finish()
             if it != n_split - 1:
                 self._halo_updaters.u__v.start([state.u_quantity], [state.v_quantity])
             else:
@@ -762,6 +771,7 @@ class AcousticDynamics:
                     )
 
         if self._do_del2cubed:
+            config.async_wait_finish()
             self._halo_updaters.heat_source.update([state.heat_source_quantity])
             # TODO: move dependence on da_min into init of hyperdiffusion class
             cd = constants.CNST_0P20 * self._da_min

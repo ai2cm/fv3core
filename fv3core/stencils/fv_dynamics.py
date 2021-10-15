@@ -4,6 +4,7 @@ from gt4py.gtscript import PARALLEL, computation, interval, log
 
 import fv3core._config as spec
 import fv3core.stencils.moist_cv as moist_cv
+import fv3core.utils.global_config as config
 import fv3core.utils.global_constants as constants
 import fv3core.utils.gt4py_utils as utils
 import fv3gfs.util
@@ -127,6 +128,7 @@ def post_remap(
         if __debug__:
             if grid.rank == 0:
                 print("Del2Cubed")
+        config.async_wait_finish()
         omega_halo_updater.update([state.omga_quantity])
         hyperdiffusion(state.omga, 0.18 * grid.da_min)
 

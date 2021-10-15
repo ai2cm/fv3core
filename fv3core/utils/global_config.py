@@ -82,6 +82,12 @@ def get_async_context():
     return _async_context
 
 
+def async_wait_finish():
+    global _async_context
+    if _async_context:
+        _async_context.wait_finish()
+
+
 @functools.lru_cache(maxsize=None)
 def is_gpu_backend() -> bool:
     return get_backend().endswith("cuda") or get_backend().endswith("gpu")
