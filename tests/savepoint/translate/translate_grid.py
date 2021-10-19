@@ -1,5 +1,7 @@
 from typing import Any, Dict
 
+import pytest
+
 import fv3core._config as spec
 import fv3core.utils.global_config as global_config
 import fv3gfs.util as fv3util
@@ -133,6 +135,9 @@ class TranslateMirrorGrid(ParallelTranslateGrid):
             "n_halo": 3,
         },
     }
+
+    def compute_parallel(self, inputs, communicator):
+        pytest.skip(f"{self.__class__} not running in parallel")
 
     def compute_sequential(self, inputs_list, communicator_list):
         outputs = []

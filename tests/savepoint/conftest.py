@@ -276,7 +276,8 @@ def parallel_savepoint_cases(metafunc, data_path, mpi_rank):
     for test_name in sorted(list(savepoint_names)):
         input_savepoints = serializer.get_savepoint(f"{test_name}-In")
         output_savepoints = serializer.get_savepoint(f"{test_name}-Out")
-        check_savepoint_counts(test_name, input_savepoints, output_savepoints)
+        if len(input_savepoints) > 0 and len(output_savepoints) > 0:
+            check_savepoint_counts(test_name, input_savepoints, output_savepoints)
         return_list.append(
             SavepointCase(
                 test_name,
