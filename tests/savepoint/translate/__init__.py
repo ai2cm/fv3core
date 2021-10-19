@@ -46,7 +46,6 @@ from .translate_grid import (
     TranslateInitGrid,
     TranslateInitGridUtils,
     TranslateMirrorGrid,
-    TranslateMoreAreas,
     TranslateMoreTrig,
     TranslateSetEta,
     TranslateTrigSg,

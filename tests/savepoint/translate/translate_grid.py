@@ -177,6 +177,26 @@ class TranslateGridAreas(ParallelTranslateGrid):
             "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM],
             "units": "m^2",
         },
+        "dxa": {
+            "name": "dx_agrid",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": "m",
+        },
+        "dya": {
+            "name": "dy_agrid",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": "m",
+        },
+        "dxc": {
+            "name": "dx_cgrid",
+            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM],
+            "units": "m",
+        },
+        "dyc": {
+            "name": "dy_cgrid",
+            "dims": [fv3util.X_DIM, fv3util.Y_INTERFACE_DIM],
+            "units": "m",
+        },
     }
     outputs = {
         "area": {
@@ -188,6 +208,26 @@ class TranslateGridAreas(ParallelTranslateGrid):
             "name": "area_cgrid",
             "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM],
             "units": "m^2",
+        },
+        "dxa": {
+            "name": "dx_agrid",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": "m",
+        },
+        "dya": {
+            "name": "dy_agrid",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": "m",
+        },
+        "dxc": {
+            "name": "dx_cgrid",
+            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM],
+            "units": "m",
+        },
+        "dyc": {
+            "name": "dy_cgrid",
+            "dims": [fv3util.X_DIM, fv3util.Y_INTERFACE_DIM],
+            "units": "m",
         },
     }
 
@@ -195,108 +235,8 @@ class TranslateGridAreas(ParallelTranslateGrid):
         state_list = []
         for i, inputs in enumerate(inputs_list):
             state_list.append(
-                self._compute_local(inputs, communicator_list[i].partitioner.tile, i)
+                self._compute_local(inputs, communicator_list[i], self.rank_grids[i])
             )
-        return self.outputs_list_from_state_list(state_list)
-
-    def _compute_local(self, inputs, tile_partitioner, rank):
-        state = self.state_from_inputs(inputs)
-        state["area"].data[3:-4, 3:-4] = get_area(
-            state["grid"].data[3:-3, 3:-3, 0],
-            state["grid"].data[3:-3, 3:-3, 1],
-            RADIUS,
-            state["grid"].np,
-        )
-        state["area_cgrid"].data[3:-3, 3:-3] = get_area(
-            state["agrid"].data[2:-3, 2:-3, 0],
-            state["agrid"].data[2:-3, 2:-3, 1],
-            RADIUS,
-            state["grid"].np,
-        )
-        set_corner_area_to_triangle_area(
-            lon=state["agrid"].data[2:-3, 2:-3, 0],
-            lat=state["agrid"].data[2:-3, 2:-3, 1],
-            area=state["area_cgrid"].data[3:-3, 3:-3],
-            tile_partitioner=tile_partitioner,
-            rank=rank,
-            radius=RADIUS,
-            np=state["grid"].np,
-        )
-        return state
-
-
-class TranslateMoreAreas(ParallelTranslateGrid):
-
-    inputs = {
-        "gridvar": {
-            "name": "grid",
-            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM, LON_OR_LAT_DIM],
-            "units": "radians",
-        },
-        "agrid": {
-            "name": "agrid",
-            "dims": [fv3util.X_DIM, fv3util.Y_DIM, LON_OR_LAT_DIM],
-            "units": "radians",
-        },
-        "area": {
-            "name": "area",
-            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
-            "units": "m^2",
-        },
-        "area_c": {
-            "name": "area_cgrid",
-            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM],
-            "units": "m^2",
-        },
-        "rarea_c": {
-            "name": "rarea_cgrid",
-            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM],
-            "units": "m^2",
-        },
-        "dx": {
-            "name": "dx",
-            "dims": [fv3util.X_DIM, fv3util.Y_INTERFACE_DIM],
-            "units": "m",
-        },
-        "dy": {
-            "name": "dy",
-            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM],
-            "units": "m",
-        },
-        "dxc": {
-            "name": "dx_cgrid",
-            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM],
-            "units": "m",
-        },
-        "dyc": {
-            "name": "dy_cgrid",
-            "dims": [fv3util.X_DIM, fv3util.Y_INTERFACE_DIM],
-            "units": "m",
-        },
-    }
-    outputs = {
-        "area_cgrid": {
-            "name": "area_cgrid",
-            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM],
-            "units": "m^2",
-        },
-        "dxc": {
-            "name": "dx_cgrid",
-            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM],
-            "units": "m",
-        },
-        "dyc": {
-            "name": "dy_cgrid",
-            "dims": [fv3util.X_DIM, fv3util.Y_INTERFACE_DIM],
-            "units": "m",
-        },
-    }
-
-    def compute_sequential(self, inputs_list, communicator_list):
-
-        state_list = []
-        for inputs, communicator in zip(inputs_list, communicator_list):
-            state_list.append(self._compute_local(inputs, communicator))
         req_list = []
         for state, communicator in zip(state_list, communicator_list):
             req_list.append(
@@ -323,6 +263,14 @@ class TranslateMoreAreas(ParallelTranslateGrid):
         req_list = []
         for state, communicator in zip(state_list, communicator_list):
             req_list.append(
+                communicator.start_halo_update(state["area"], n_points=self.grid.halo)
+            )
+        for communicator, req in zip(communicator_list, req_list):
+            req.wait()
+
+        req_list = []
+        for state, communicator in zip(state_list, communicator_list):
+            req_list.append(
                 communicator.start_halo_update(
                     state["area_cgrid"], n_points=self.grid.halo
                 )
@@ -339,8 +287,75 @@ class TranslateMoreAreas(ParallelTranslateGrid):
             )
         return self.outputs_list_from_state_list(state_list)
 
-    def _compute_local(self, inputs, communicator):
+    def _compute_local(self, inputs, communicator, rank_grid):
         state = self.state_from_inputs(inputs)
+
+        lon, lat = state["grid"].data[:, :, 0], state["grid"].data[:, :, 1]
+        lon_y_center, lat_y_center = lon_lat_midpoint(
+            lon[:, :-1], lon[:, 1:], lat[:, :-1], lat[:, 1:], state["grid"].np
+        )
+        dx_agrid = great_circle_distance_along_axis(
+            lon_y_center, lat_y_center, RADIUS, state["grid"].np, axis=0
+        )
+        lon_x_center, lat_x_center = lon_lat_midpoint(
+            lon[:-1, :], lon[1:, :], lat[:-1, :], lat[1:, :], state["grid"].np
+        )
+        dy_agrid = great_circle_distance_along_axis(
+            lon_x_center, lat_x_center, RADIUS, state["grid"].np, axis=1
+        )
+        fill_corners_agrid(
+            dx_agrid[:, :, None], dy_agrid[:, :, None], rank_grid, vector=False
+        )
+        lon_agrid, lat_agrid = (
+            state["agrid"].data[:-1, :-1, 0],
+            state["agrid"].data[:-1, :-1, 1],
+        )
+        dx_cgrid = great_circle_distance_along_axis(
+            lon_agrid, lat_agrid, RADIUS, state["grid"].np, axis=0
+        )
+        dy_cgrid = great_circle_distance_along_axis(
+            lon_agrid, lat_agrid, RADIUS, state["grid"].np, axis=1
+        )
+        outputs = self.allocate_output_state()
+        for name in ("dx_agrid", "dy_agrid"):
+            state[name] = outputs[name]
+        state["dx_agrid"].data[:-1, :-1] = dx_agrid
+        state["dy_agrid"].data[:-1, :-1] = dy_agrid
+
+        # copying the second-to-last values to the last values is what the Fortran
+        # code does, but is this correct/valid?
+        # Maybe we want to change this to use halo updates?
+        state["dx_cgrid"].data[1:-1, :-1] = dx_cgrid
+        state["dx_cgrid"].data[0, :-1] = dx_cgrid[0, :]
+        state["dx_cgrid"].data[-1, :-1] = dx_cgrid[-1, :]
+
+        state["dy_cgrid"].data[:-1, 1:-1] = dy_cgrid
+        state["dy_cgrid"].data[:-1, 0] = dy_cgrid[:, 0]
+        state["dy_cgrid"].data[:-1, -1] = dy_cgrid[:, -1]
+
+        state["area"].data[:, :] = -1.0e8
+        state["area"].data[3:-4, 3:-4] = get_area(
+            state["grid"].data[3:-3, 3:-3, 0],
+            state["grid"].data[3:-3, 3:-3, 1],
+            RADIUS,
+            state["grid"].np,
+        )
+        state["area_cgrid"].data[3:-3, 3:-3] = get_area(
+            state["agrid"].data[2:-3, 2:-3, 0],
+            state["agrid"].data[2:-3, 2:-3, 1],
+            RADIUS,
+            state["grid"].np,
+        )
+        set_corner_area_to_triangle_area(
+            lon=state["agrid"].data[2:-3, 2:-3, 0],
+            lat=state["agrid"].data[2:-3, 2:-3, 1],
+            area=state["area_cgrid"].data[3:-3, 3:-3],
+            tile_partitioner=communicator.tile.partitioner,
+            rank=communicator.rank,
+            radius=RADIUS,
+            np=state["grid"].np,
+        )
+
         xyz_dgrid = lon_lat_to_xyz(
             state["grid"].data[:, :, 0], state["grid"].data[:, :, 1], state["grid"].np
         )
@@ -378,6 +393,7 @@ class TranslateMoreAreas(ParallelTranslateGrid):
             communicator.rank,
             state["grid"].np,
         )
+
         return state
 
 
@@ -573,16 +589,6 @@ class TranslateAGrid(ParallelTranslateGrid):
             "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM, LON_OR_LAT_DIM],
             "units": "radians",
         },
-        "dxc": {
-            "name": "dx_cgrid",
-            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM],
-            "units": "m",
-        },
-        "dyc": {
-            "name": "dy_cgrid",
-            "dims": [fv3util.X_DIM, fv3util.Y_INTERFACE_DIM],
-            "units": "m",
-        },
     }
     outputs = {
         "agrid": {
@@ -595,32 +601,12 @@ class TranslateAGrid(ParallelTranslateGrid):
             "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM, LON_OR_LAT_DIM],
             "units": "radians",
         },
-        "dxa": {
-            "name": "dx_agrid",
-            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
-            "units": "m",
-        },
-        "dya": {
-            "name": "dy_agrid",
-            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
-            "units": "m",
-        },
-        "dxc": {
-            "name": "dx_cgrid",
-            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM],
-            "units": "m",
-        },
-        "dyc": {
-            "name": "dy_cgrid",
-            "dims": [fv3util.X_DIM, fv3util.Y_INTERFACE_DIM],
-            "units": "m",
-        },
     }
 
     def compute_sequential(self, inputs_list, communicator_list):
         state_list = []
         for inputs in inputs_list:
-            state_list.append(self._compute_local_part1(inputs))
+            state_list.append(self._compute_local(inputs))
         req_list = []
         for state, communicator in zip(state_list, communicator_list):
             req_list.append(
@@ -641,10 +627,9 @@ class TranslateAGrid(ParallelTranslateGrid):
                 gridtype="A",
                 direction="y",
             )
-            state_list[i] = self._compute_local_part2(state, self.rank_grids[i])
         return self.outputs_list_from_state_list(state_list)
 
-    def _compute_local_part1(self, inputs):
+    def _compute_local(self, inputs):
         state = self.state_from_inputs(inputs)
         lon, lat = state["grid"].data[:, :, 0], state["grid"].data[:, :, 1]
         agrid_lon, agrid_lat = lon_lat_corner_to_cell_center(lon, lat, state["grid"].np)
@@ -652,52 +637,6 @@ class TranslateAGrid(ParallelTranslateGrid):
             agrid_lon,
             agrid_lat,
         )
-        return state
-
-    def _compute_local_part2(self, state, rank_grid):
-        lon, lat = state["grid"].data[:, :, 0], state["grid"].data[:, :, 1]
-        lon_y_center, lat_y_center = lon_lat_midpoint(
-            lon[:, :-1], lon[:, 1:], lat[:, :-1], lat[:, 1:], state["grid"].np
-        )
-        dx_agrid = great_circle_distance_along_axis(
-            lon_y_center, lat_y_center, RADIUS, state["grid"].np, axis=0
-        )
-        lon_x_center, lat_x_center = lon_lat_midpoint(
-            lon[:-1, :], lon[1:, :], lat[:-1, :], lat[1:, :], state["grid"].np
-        )
-        dy_agrid = great_circle_distance_along_axis(
-            lon_x_center, lat_x_center, RADIUS, state["grid"].np, axis=1
-        )
-        fill_corners_agrid(
-            dx_agrid[:, :, None], dy_agrid[:, :, None], rank_grid, vector=False
-        )
-        lon_agrid, lat_agrid = (
-            state["agrid"].data[:-1, :-1, 0],
-            state["agrid"].data[:-1, :-1, 1],
-        )
-        dx_cgrid = great_circle_distance_along_axis(
-            lon_agrid, lat_agrid, RADIUS, state["grid"].np, axis=0
-        )
-        dy_cgrid = great_circle_distance_along_axis(
-            lon_agrid, lat_agrid, RADIUS, state["grid"].np, axis=1
-        )
-        outputs = self.allocate_output_state()
-        for name in ("dx_agrid", "dy_agrid"):
-            state[name] = outputs[name]
-        state["dx_agrid"].data[:-1, :-1] = dx_agrid
-        state["dy_agrid"].data[:-1, :-1] = dy_agrid
-
-        # copying the second-to-last values to the last values is what the Fortran
-        # code does, but is this correct/valid?
-        # Maybe we want to change this to use halo updates?
-        state["dx_cgrid"].data[1:-1, :-1] = dx_cgrid
-        state["dx_cgrid"].data[0, :-1] = dx_cgrid[0, :]
-        state["dx_cgrid"].data[-1, :-1] = dx_cgrid[-1, :]
-
-        state["dy_cgrid"].data[:-1, 1:-1] = dy_cgrid
-        state["dy_cgrid"].data[:-1, 0] = dy_cgrid[:, 0]
-        state["dy_cgrid"].data[:-1, -1] = dy_cgrid[:, -1]
-
         return state
 
 

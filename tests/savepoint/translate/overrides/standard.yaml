@@ -110,10 +110,6 @@ GridGrid:
     ignore_near_zero_errors:
       grid: 1e-14
 
-MoreAreas:
-  - backend: numpy
-    max_error: 3e-12
-
 GridAreas:
   - backend: numpy
     max_error: 3e-12
@@ -124,7 +120,7 @@ GridAreas:
 
 AGrid:
   - backend: numpy
-    max_error: 3e-14
+    max_error: 1e-13
 
 DxDy:
   - backend: numpy
