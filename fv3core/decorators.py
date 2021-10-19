@@ -140,7 +140,9 @@ class FrozenStencil(StencilInterface):
             stencil_kwargs["wrapper"] = self
 
         if skip_passes and global_config.is_gtc_backend():
-            stencil_kwargs["skip_passes"] = skip_passes
+            stencil_kwargs["pass_order"] = {
+                pass_name: None for pass_name in skip_passes
+            }
 
         self.definition_func: Callable = func
         self.build_info: Optional[Dict[str, Any]] = (
