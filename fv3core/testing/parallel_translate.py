@@ -126,7 +126,7 @@ class ParallelTranslate:
 
     def compute_parallel(self, inputs, communicator):
         """Compute the outputs using one communicator operating in parallel."""
-        self.compute_sequential(self, [inputs], [communicator])
+        self.compute_sequential([inputs], [communicator])
 
 
 class ParallelTranslateBaseSlicing(ParallelTranslate):
