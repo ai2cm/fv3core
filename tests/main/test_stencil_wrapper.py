@@ -9,7 +9,8 @@ import yaml
 from gt4py.gtscript import PARALLEL, computation, interval
 
 import fv3core.decorators
-from fv3core.decorators import FrozenStencil, StencilConfig
+from fv3core import StencilConfig
+from fv3core.decorators import FrozenStencil
 from fv3core.utils.global_config import set_backend
 from fv3core.utils.gt4py_utils import make_storage_from_shape_uncached
 from fv3core.utils.typing import FloatField
