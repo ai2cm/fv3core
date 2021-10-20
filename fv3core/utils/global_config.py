@@ -46,15 +46,18 @@ def get_validate_args() -> bool:
     return _VALIDATE_ARGS
 
 
-_async_context = None
+_async_context: object = None
 
 
-def get_async_context():
+def get_async_context(
+    blocking: bool = False,
+    concurrent: bool = True,
+    use_cython: bool = False,
+    graph_record: bool = False,
+    region_analysis: bool = True,
+):
     global _async_context
-    if not _async_context:
-        blocking = False
-        concurrent = True
-        use_cython = False
+    if not _async_context and not get_validate_args():
         if get_backend() == "gtc:cuda":
             if use_cython:
                 pyximport.install(inplace=True)
@@ -69,10 +72,10 @@ def get_async_context():
                 _async_context = AsyncContext(
                     50,
                     name="fv3core",
-                    graph_record=False,
+                    graph_record=graph_record,
                     concurrent=concurrent,
                     blocking=blocking,
-                    region_analysis=False,
+                    region_analysis=region_analysis,
                     sleep_time=0.0001,
                 )
 

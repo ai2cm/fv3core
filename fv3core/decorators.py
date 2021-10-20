@@ -126,10 +126,12 @@ class FrozenStencil:
             stencil_kwargs["wrapper"] = self
 
         if skip_passes and global_config.is_gtc_backend():
-            stencil_kwargs["pass_order"] = {pass_name: -1 for pass_name in skip_passes}
+            stencil_kwargs["pass_order"] = {
+                pass_name: None for pass_name in skip_passes
+            }
 
         self._async_context = global_config.get_async_context()
-        if self._async_context is not None:
+        if self._async_context:
             stencil_kwargs["async_launch"] = True
 
         self.stencil_object: gt4py.StencilObject = stencil_function(
@@ -163,7 +165,17 @@ class FrozenStencil:
         *args,
         **kwargs,
     ) -> None:
-        if self.stencil_config.validate_args:
+        if self._async_context:
+            self._async_context.schedule(
+                self.stencil_object,
+                *args,
+                **kwargs,
+                exec_info=None,
+                origin=self._field_origins,
+                domain=self.domain,
+                arg_names=self._argument_names,
+            )
+        elif self.stencil_config.validate_args:
             if __debug__ and "origin" in kwargs:
                 raise TypeError("origin cannot be passed to FrozenStencil call")
             if __debug__ and "domain" in kwargs:
@@ -174,16 +186,6 @@ class FrozenStencil:
                 origin=self._field_origins,
                 domain=self.domain,
                 validate_args=True,
-            )
-        elif self._async_context:
-            self._async_context.schedule(
-                self.stencil_object,
-                *args,
-                **kwargs,
-                exec_info=None,
-                origin=self._field_origins,
-                domain=self.domain,
-                arg_names=self._argument_names,
             )
         else:
             args_as_kwargs = dict(zip(self._argument_names, args))
