@@ -261,19 +261,19 @@ class MetricTerms:
 
     @property
     def bk(self):
-        if self._ak is None:
+        if self._bk is None:
             self._ks, self._ptop, self._ak, self._bk = self._set_eta()
         return self._bk
 
     @property
     def ks(self):
-        if self._ak is None:
+        if self._ks is None:
             self._ks, self._ptop, self._ak, self._bk = self._set_eta()
         return self._ks
 
     @property
     def ptop(self):
-        if self._ak is None:
+        if self._ptop is None:
             self._ks, self._ptop, self._ak, self._bk = self._set_eta()
         return self._ptop
 
@@ -1302,8 +1302,8 @@ class MetricTerms:
         cos_sg, sin_sg = calculate_supergrid_cos_sin(
             self._dgrid_xyz,
             self._agrid_xyz,
-            self._ec1.data[:-1, :-1],
-            self._ec2.data[:-1, :-1],
+            self.ec1.data[:-1, :-1],
+            self.ec2.data[:-1, :-1],
             self._grid_type,
             self._halo,
             self._tile_partitioner,

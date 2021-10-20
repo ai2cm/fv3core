@@ -90,7 +90,7 @@ def global_gnomonic_ed(lon, lat, np):
     _cart_to_latlon(im + 1, pp, lon, lat, np)
 
 
-def lat_tile_ew_edge(alpha, dely, south_north_tile_index):
+def lat_tile_east_west_edge(alpha, dely, south_north_tile_index):
     return -alpha + dely * float(south_north_tile_index)
 
 
@@ -125,22 +125,26 @@ def local_gnomonic_ed(
 
     lon_west = 0.75 * PI
     lon_east = 1.25 * PI
-    lat_south = lat_tile_ew_edge(alpha, dely, 0)
-    lat_north = lat_tile_ew_edge(alpha, dely, tile_im)
+    lat_south = lat_tile_east_west_edge(alpha, dely, 0)
+    lat_north = lat_tile_east_west_edge(alpha, dely, tile_im)
 
     start_i = 1 if west_edge else 0
     end_i = im if east_edge else im + 1
     start_j = 1 if south_edge else 0
     lon_west_tile_edge[0, :] = lon_west
     for j in range(0, im + 1):
-        lat_west_tile_edge[0, j] = lat_tile_ew_edge(alpha, dely, global_js - halo + j)
-        lat_west_tile_edge_mirror[0, j] = lat_tile_ew_edge(
+        lat_west_tile_edge[0, j] = lat_tile_east_west_edge(
+            alpha, dely, global_js - halo + j
+        )
+        lat_west_tile_edge_mirror[0, j] = lat_tile_east_west_edge(
             alpha, dely, global_is - halo + j
         )
 
     if east_edge:
         lon_south_tile_edge[im, 0] = 1.25 * PI
-        lat_south_tile_edge[im, 0] = lat_tile_ew_edge(alpha, dely, global_js - halo)
+        lat_south_tile_edge[im, 0] = lat_tile_east_west_edge(
+            alpha, dely, global_js - halo
+        )
 
     # Get North-South edges by symmetry
     for i in range(start_i, end_i):
@@ -707,15 +711,6 @@ def fortran_vector_spherical_angle(e1, e2, e3):
     This angle will always be less than Pi.
     """
 
-    # ! Vector P:
-    #    px = e1(2)*e2(3) - e1(3)*e2(2)
-    #    py = e1(3)*e2(1) - e1(1)*e2(3)
-    #    pz = e1(1)*e2(2) - e1(2)*e2(1)
-    # ! Vector Q:
-    #    qx = e1(2)*e3(3) - e1(3)*e3(2)
-    #    qy = e1(3)*e3(1) - e1(1)*e3(3)
-    #    qz = e1(1)*e3(2) - e1(2)*e3(1)
-
     # Vector P:
     px = e1[1] * e2[2] - e1[2] * e2[1]
     py = e1[2] * e2[0] - e1[0] * e2[2]
@@ -755,15 +750,6 @@ def spherical_angle(p_center, p2, p3, np):
     This angle will always be less than Pi.
     """
 
-    # ! Vector P:
-    #    px = e1(2)*e2(3) - e1(3)*e2(2)
-    #    py = e1(3)*e2(1) - e1(1)*e2(3)
-    #    pz = e1(1)*e2(2) - e1(2)*e2(1)
-    # ! Vector Q:
-    #    qx = e1(2)*e3(3) - e1(3)*e3(2)
-    #    qy = e1(3)*e3(1) - e1(1)*e3(3)
-    #    qz = e1(1)*e3(2) - e1(2)*e3(1)
-
     p = np.cross(p_center, p2)
     q = np.cross(p_center, p3)
     angle = np.arccos(
@@ -776,28 +762,6 @@ def spherical_angle(p_center, p2, p3, np):
         angle = 0.0
 
     return angle
-
-
-#    ddd = (px*px+py*py+pz*pz)*(qx*qx+qy*qy+qz*qz)
-
-#    if ( ddd <= 0.0d0 ) then
-#         angle = 0.d0
-#    else
-#         ddd = (px*qx+py*qy+pz*qz) / sqrt(ddd)
-#         if ( abs(ddd)>1.d0) then
-#              angle = 2.d0*atan(1.0)    ! 0.5*pi
-#            !FIX (lmh) to correctly handle co-linear points (angle near pi or 0)
-#            if (ddd < 0.d0) then
-#               angle = 4.d0*atan(1.0d0) !should be pi
-#            else
-#               angle = 0.d0
-#            end if
-#         else
-#              angle = acos( ddd )
-#         endif
-#    endif
-
-#    spherical_angle = angle
 
 
 def spherical_cos(p_center, p2, p3, np):

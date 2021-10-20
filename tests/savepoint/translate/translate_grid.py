@@ -1138,9 +1138,6 @@ class TranslateInitGrid(ParallelTranslateGrid):
         dy_cgrid = great_circle_distance_along_axis(
             lon_agrid, lat_agrid, RADIUS, state["grid"].np, axis=1
         )
-        # outputs = self.allocate_output_state()
-        # for name in ("dx_agrid", "dy_agrid"):
-        #    state[name] = outputs[name]
         state["dx_agrid"].data[:-1, :-1] = dx_agrid
         state["dy_agrid"].data[:-1, :-1] = dy_agrid
 
@@ -1185,7 +1182,6 @@ class TranslateInitGrid(ParallelTranslateGrid):
             np=state["grid"].np,
         )
 
-    # rank = 0  diff 0.0360107421875,  diff 0.0721435546875
     def _compute_local_areas_pt2(self, state, communicator):
         xyz_dgrid = lon_lat_to_xyz(
             state["grid"].data[:, :, 0], state["grid"].data[:, :, 1], state["grid"].np
@@ -1398,9 +1394,6 @@ class TranslateUtilVectors(ParallelTranslateGrid):
         state_list = []
         for inputs, communicator in zip(inputs_list, communicator_list):
             state_list.append(self._compute_local(inputs, communicator))
-        outputs_list = []
-        # for state in state_list:
-        #     outputs_list.append(self.outputs_from_state(state))
         return self.outputs_list_from_state_list(state_list)
 
     def _compute_local(self, inputs, communicator):
