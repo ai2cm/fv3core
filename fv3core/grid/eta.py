@@ -177,7 +177,7 @@ def set_eta(km):
         ks = 18
     else:
         raise NotImplementedError(
-            "Only grids with 79 Vertical Levels have been implemented so far"
+            "Only a 79 vertical level grid has been implemented so far"
         )
     ptop = ak[0]
     return ks, ptop, ak, bk

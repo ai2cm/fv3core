@@ -50,20 +50,9 @@ def get_center_vector(xyz_gridpoints, grid_type, nhalo, tile_partitioner, rank, 
             vector2 = normalize_xyz(np.cross(center_points, p3))
 
         # fill ghost on ec1 and ec2:
-        if tile_partitioner.on_tile_left(rank):
-            if tile_partitioner.on_tile_bottom(rank):
-                _fill_ghost(vector1, big_number, nhalo, "sw")
-                _fill_ghost(vector2, big_number, nhalo, "sw")
-            if tile_partitioner.on_tile_top(rank):
-                _fill_ghost(vector1, big_number, nhalo, "nw")
-                _fill_ghost(vector2, big_number, nhalo, "nw")
-        if tile_partitioner.on_tile_right(rank):
-            if tile_partitioner.on_tile_bottom(rank):
-                _fill_ghost(vector1, big_number, nhalo, "se")
-                _fill_ghost(vector2, big_number, nhalo, "se")
-            if tile_partitioner.on_tile_top(rank):
-                _fill_ghost(vector1, big_number, nhalo, "ne")
-                _fill_ghost(vector2, big_number, nhalo, "ne")
+        _fill_halo_corners(vector1, big_number, nhalo, tile_partitioner, rank)
+        _fill_halo_corners(vector2, big_number, nhalo, tile_partitioner, rank)
+
     else:
         shape_dgrid = xyz_gridpoints.shape
         vector1 = np.zeros((shape_dgrid[0] - 1, shape_dgrid[1] - 1, 3))
@@ -100,29 +89,13 @@ def calc_unit_vector_west(
         p1 = np.cross(xyz_dgrid[1:-1, :-1, :], xyz_dgrid[1:-1, 1:, :])
         ew2[1:-1, :, :] = normalize_xyz(np.cross(p1, pp))
 
-        # ew = np.stack((ew1, ew2), axis=-1)
-
         # fill ghost on ew:
-
-        if tile_partitioner.on_tile_left(rank):
-            if tile_partitioner.on_tile_bottom(rank):
-                _fill_ghost(ew1, 0.0, nhalo, "sw")
-                _fill_ghost(ew2, 0.0, nhalo, "sw")
-            if tile_partitioner.on_tile_top(rank):
-                _fill_ghost(ew1, 0.0, nhalo, "nw")
-                _fill_ghost(ew2, 0.0, nhalo, "nw")
-        if tile_partitioner.on_tile_right(rank):
-            if tile_partitioner.on_tile_bottom(rank):
-                _fill_ghost(ew1, 0.0, nhalo, "se")
-                _fill_ghost(ew2, 0.0, nhalo, "se")
-            if tile_partitioner.on_tile_top(rank):
-                _fill_ghost(ew1, 0.0, nhalo, "ne")
-                _fill_ghost(ew2, 0.0, nhalo, "ne")
+        _fill_halo_corners(ew1, 0.0, nhalo, tile_partitioner, rank)
+        _fill_halo_corners(ew2, 0.0, nhalo, tile_partitioner, rank)
 
     else:
         ew1[:, :, 1] = 1.0
         ew2[:, :, 2] = 1.0
-        # ew = np.stack((ew1, ew2), axis=-1)
 
     return ew1[1:-1, :, :], ew2[1:-1, :, :]
 
@@ -152,27 +125,12 @@ def calc_unit_vector_south(
         p1 = np.cross(xyz_dgrid[:-1, 1:-1, :], xyz_dgrid[1:, 1:-1, :])
         es1[:, 1:-1, :] = normalize_xyz(np.cross(p1, pp))
 
-        # es = np.stack((es1, es2), axis=-1)
-
         # fill ghost on es:
-        if tile_partitioner.on_tile_left(rank):
-            if tile_partitioner.on_tile_bottom(rank):
-                _fill_ghost(es1, 0.0, nhalo, "sw")
-                _fill_ghost(es2, 0.0, nhalo, "sw")
-            if tile_partitioner.on_tile_top(rank):
-                _fill_ghost(es1, 0.0, nhalo, "nw")
-                _fill_ghost(es2, 0.0, nhalo, "nw")
-        if tile_partitioner.on_tile_right(rank):
-            if tile_partitioner.on_tile_bottom(rank):
-                _fill_ghost(es1, 0.0, nhalo, "se")
-                _fill_ghost(es2, 0.0, nhalo, "se")
-            if tile_partitioner.on_tile_top(rank):
-                _fill_ghost(es1, 0.0, nhalo, "ne")
-                _fill_ghost(es2, 0.0, nhalo, "ne")
+        _fill_halo_corners(es1, 0.0, nhalo, tile_partitioner, rank)
+        _fill_halo_corners(es2, 0.0, nhalo, tile_partitioner, rank)
     else:
         es1[:, :, 1] = 1.0
         es2[:, :, 2] = 1.0
-        # es = np.stack((es1, es2), axis=-1)
 
     return es1[:, 1:-1, :], es2[:, 1:-1, :]
 
@@ -370,16 +328,7 @@ def calculate_trig_uv(xyz_dgrid, cos_sg, sin_sg, nhalo, tile_partitioner, rank, 
     rsin2 = 1.0 / sin2
 
     # fill ghost on cosa_s:
-    if tile_partitioner.on_tile_left(rank):
-        if tile_partitioner.on_tile_bottom(rank):
-            _fill_ghost(cosa_s, big_number, nhalo, "sw")
-        if tile_partitioner.on_tile_top(rank):
-            _fill_ghost(cosa_s, big_number, nhalo, "nw")
-    if tile_partitioner.on_tile_right(rank):
-        if tile_partitioner.on_tile_bottom(rank):
-            _fill_ghost(cosa_s, big_number, nhalo, "se")
-        if tile_partitioner.on_tile_top(rank):
-            _fill_ghost(cosa_s, big_number, nhalo, "ne")
+    _fill_halo_corners(cosa_s, big_number, nhalo, tile_partitioner, rank)
 
     sina2 = sina[nhalo:-nhalo, nhalo:-nhalo] ** 2
     sina2[sina2 < tiny_number] = tiny_number
@@ -435,37 +384,37 @@ def supergrid_corner_fix(cos_sg, sin_sg, nhalo, tile_partitioner, rank):
     _fill_ghost overwrites some of the sin_sg
     values along the outward-facing edge of a tile in the corners, which is incorrect.
     This function resolves the issue by filling in the appropriate values
-    after the _fill_ghost call
+    after the _fill_single_halo_corner call
     """
     big_number = 1.0e8
     tiny_number = 1.0e-8
 
     if tile_partitioner.on_tile_left(rank):
         if tile_partitioner.on_tile_bottom(rank):
-            _fill_ghost(sin_sg, tiny_number, nhalo, "sw")
-            _fill_ghost(cos_sg, big_number, nhalo, "sw")
+            _fill_single_halo_corner(sin_sg, tiny_number, nhalo, "sw")
+            _fill_single_halo_corner(cos_sg, big_number, nhalo, "sw")
             _rotate_trig_sg_sw_counterclockwise(sin_sg[:, :, 1], sin_sg[:, :, 2], nhalo)
             _rotate_trig_sg_sw_counterclockwise(cos_sg[:, :, 1], cos_sg[:, :, 2], nhalo)
             _rotate_trig_sg_sw_clockwise(sin_sg[:, :, 0], sin_sg[:, :, 3], nhalo)
             _rotate_trig_sg_sw_clockwise(cos_sg[:, :, 0], cos_sg[:, :, 3], nhalo)
         if tile_partitioner.on_tile_top(rank):
-            _fill_ghost(sin_sg, tiny_number, nhalo, "nw")
-            _fill_ghost(cos_sg, big_number, nhalo, "nw")
+            _fill_single_halo_corner(sin_sg, tiny_number, nhalo, "nw")
+            _fill_single_halo_corner(cos_sg, big_number, nhalo, "nw")
             _rotate_trig_sg_nw_counterclockwise(sin_sg[:, :, 0], sin_sg[:, :, 1], nhalo)
             _rotate_trig_sg_nw_counterclockwise(cos_sg[:, :, 0], cos_sg[:, :, 1], nhalo)
             _rotate_trig_sg_nw_clockwise(sin_sg[:, :, 3], sin_sg[:, :, 2], nhalo)
             _rotate_trig_sg_nw_clockwise(cos_sg[:, :, 3], cos_sg[:, :, 2], nhalo)
     if tile_partitioner.on_tile_right(rank):
         if tile_partitioner.on_tile_bottom(rank):
-            _fill_ghost(sin_sg, tiny_number, nhalo, "se")
-            _fill_ghost(cos_sg, big_number, nhalo, "se")
+            _fill_single_halo_corner(sin_sg, tiny_number, nhalo, "se")
+            _fill_single_halo_corner(cos_sg, big_number, nhalo, "se")
             _rotate_trig_sg_se_clockwise(sin_sg[:, :, 1], sin_sg[:, :, 0], nhalo)
             _rotate_trig_sg_se_clockwise(cos_sg[:, :, 1], cos_sg[:, :, 0], nhalo)
             _rotate_trig_sg_se_counterclockwise(sin_sg[:, :, 2], sin_sg[:, :, 3], nhalo)
             _rotate_trig_sg_se_counterclockwise(cos_sg[:, :, 2], cos_sg[:, :, 3], nhalo)
         if tile_partitioner.on_tile_top(rank):
-            _fill_ghost(sin_sg, tiny_number, nhalo, "ne")
-            _fill_ghost(cos_sg, big_number, nhalo, "ne")
+            _fill_single_halo_corner(sin_sg, tiny_number, nhalo, "ne")
+            _fill_single_halo_corner(cos_sg, big_number, nhalo, "ne")
             _rotate_trig_sg_ne_counterclockwise(sin_sg[:, :, 3], sin_sg[:, :, 0], nhalo)
             _rotate_trig_sg_ne_counterclockwise(cos_sg[:, :, 3], cos_sg[:, :, 0], nhalo)
             _rotate_trig_sg_ne_clockwise(sin_sg[:, :, 2], sin_sg[:, :, 1], nhalo)
@@ -883,7 +832,24 @@ def unit_vector_lonlat(grid, np):
     return unit_lon, unit_lat
 
 
-def _fill_ghost(field, value: float, nhalo: int, corner: str):
+def _fill_halo_corners(field, value: float, nhalo: int, tile_partitioner, rank):
+    """
+    Fills a tile halo corners (ghost cells) of a field
+    with a set value along the first 2 axes
+    """
+    if tile_partitioner.on_tile_left(rank):
+        if tile_partitioner.on_tile_bottom(rank):  # SW corner
+            field[:nhalo, :nhalo] = value
+        if tile_partitioner.on_tile_top(rank):  # NW corner
+            field[:nhalo, -nhalo:] = value
+    if tile_partitioner.on_tile_right(rank):
+        if tile_partitioner.on_tile_bottom(rank):  # SE corner
+            field[-nhalo:, :nhalo] = value
+        if tile_partitioner.on_tile_top(rank):
+            field[-nhalo:, -nhalo:] = value  # NE corner
+
+
+def _fill_single_halo_corner(field, value: float, nhalo: int, corner: str):
     """
     Fills a tile halo corner (ghost cells) of a field
     with a set value along the first 2 axes
