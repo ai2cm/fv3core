@@ -53,7 +53,7 @@ def get_async_context(
     blocking: bool = False,
     concurrent: bool = True,
     use_cython: bool = False,
-    graph_record: bool = False,
+    graph_record: bool = True,
     region_analysis: bool = True,
 ):
     global _async_context

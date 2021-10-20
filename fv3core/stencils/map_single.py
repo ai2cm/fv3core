@@ -165,17 +165,17 @@ class MapSingle:
             self._dp1,
             qmin,
         )
-        if _num_lagrangian_calls < _max_lagrangian_calls:
-            self._lagrangian_contributions(
-                q1,
-                pe1,
-                pe2,
-                q4_1,
-                q4_2,
-                q4_3,
-                q4_4,
-                self._dp1,
-                self._lev,
-            )
-            _num_lagrangian_calls += 1
+        # if _num_lagrangian_calls < _max_lagrangian_calls:
+        self._lagrangian_contributions(
+            q1,
+            pe1,
+            pe2,
+            q4_1,
+            q4_2,
+            q4_3,
+            q4_4,
+            self._dp1,
+            self._lev,
+        )
+        # _num_lagrangian_calls += 1
         return q1

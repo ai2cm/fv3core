@@ -1,5 +1,6 @@
 from typing import Dict
 
+import fv3core.utils.global_config as config
 import fv3core.utils.gt4py_utils as utils
 from fv3core.stencils.fillz import FillNegativeTracerValues
 from fv3core.stencils.map_single import MapSingle
@@ -80,3 +81,5 @@ class MapNTracer:
 
         if self._fill_negative_tracers is True:
             self._fillz(dp2, tracers)
+
+        config.get_async_context().graph_save()
