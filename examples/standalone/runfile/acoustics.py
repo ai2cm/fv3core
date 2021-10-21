@@ -68,9 +68,7 @@ def read_input_data(grid: Grid, serializer: serialbox.Serializer) -> Dict[str, A
     return driver_object.collect_input_data(serializer, savepoint_in)
 
 
-def get_state_from_input(
-    grid: Grid, input_data: Dict[str, Any]
-) -> Dict[str, SimpleNamespace]:
+def get_state_from_input(grid: Grid, input_data: Dict[str, Any]) -> Dict[str, SimpleNamespace]:
     """
     Transforms the input data from the dictionary of strings
     to arrays into a state  we can pass in
@@ -178,6 +176,7 @@ def driver(
         state = get_state_from_input(grid, input_data)
 
         # warm-up timestep.
+        # comment
         # We're intentionally not passing the timer here to exclude
         # warmup/compilation from the internal timers
         acoustics_object(**state)
@@ -208,9 +207,7 @@ def driver(
     }
     if print_timings:
         # Collect times and output statistics in json
-        collect_data_and_write_to_file(
-            mpi_comm, hits_per_step, times_per_step, experiment_info
-        )
+        collect_data_and_write_to_file(mpi_comm, hits_per_step, times_per_step, experiment_info)
 
 
 if __name__ == "__main__":
