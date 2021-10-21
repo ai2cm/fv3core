@@ -532,4 +532,5 @@ def stack(tup, axis: int = 0, out=None):
 
 def device_sync() -> None:
     if cp and global_config.is_gpu_backend():
+        global_config.async_wait_finish()
         cp.cuda.Device(0).synchronize()

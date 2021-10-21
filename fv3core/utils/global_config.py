@@ -53,9 +53,9 @@ def get_async_context(
     blocking: bool = False,
     concurrent: bool = True,
     use_cython: bool = False,
-    graph_record: bool = True,
-    region_analysis: bool = True,
-    num_streams: int = 100,
+    graph_record: bool = False,
+    region_analysis: bool = False,
+    num_streams: int = 250,
 ):
     global _async_context
     if not _async_context and not get_validate_args():
