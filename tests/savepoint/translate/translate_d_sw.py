@@ -11,7 +11,7 @@ from fv3core.utils.typing import FloatField, FloatFieldIJ
 class TranslateD_SW(TranslateFortranData2Py):
     def __init__(self, grid):
         super().__init__(grid)
-        self.max_error = 6e-11
+        self.max_error = 3e-10
         column_namelist = d_sw.get_column_namelist(spec.namelist, grid.npz)
         self.compute_func = d_sw.DGridShallowWaterLagrangianDynamics(
             spec.grid.grid_indexing,
@@ -85,9 +85,7 @@ class TranslateUbKE(TranslateFortranData2Py):
         origin = self.grid.compute_origin()
         domain = self.grid.domain_shape_compute(add=(1, 1, 0))
         ax_offsets = axis_offsets(self.grid, origin, domain)
-        self.compute_func = FrozenStencil(
-            ubke, externals=ax_offsets, origin=origin, domain=domain
-        )
+        self.compute_func = FrozenStencil(ubke, externals=ax_offsets, origin=origin, domain=domain)
 
     def compute_from_storage(self, inputs):
         inputs["cosa"] = self.grid.cosa
@@ -126,9 +124,7 @@ class TranslateVbKE(TranslateFortranData2Py):
         origin = self.grid.compute_origin()
         domain = self.grid.domain_shape_compute(add=(1, 1, 0))
         ax_offsets = axis_offsets(self.grid, origin, domain)
-        self.compute_func = FrozenStencil(
-            vbke, externals=ax_offsets, origin=origin, domain=domain
-        )
+        self.compute_func = FrozenStencil(vbke, externals=ax_offsets, origin=origin, domain=domain)
 
     def compute_from_storage(self, inputs):
         inputs["cosa"] = self.grid.cosa
@@ -182,9 +178,7 @@ class TranslateHeatDiss(TranslateFortranData2Py):
         # TODO add these to the serialized data or remove the test
         inputs["damp_w"] = column_namelist["damp_w"]
         inputs["ke_bg"] = column_namelist["ke_bg"]
-        inputs["dt"] = (
-            spec.namelist.dt_atmos / spec.namelist.k_split / spec.namelist.n_split
-        )
+        inputs["dt"] = spec.namelist.dt_atmos / spec.namelist.k_split / spec.namelist.n_split
         inputs["rarea"] = self.grid.rarea
         heat_diss_stencil = FrozenStencil(
             d_sw.heat_diss,
