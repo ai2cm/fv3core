@@ -129,7 +129,7 @@ def corner_ke(
     io2,
     vsign,
 ):
-    dt6 = dt / 6.0
+    dt6 = dt / 1006.0
 
     return dt6 * (
         (ut[0, 0, 0] + ut[0, -1, 0]) * ((io1 + 1) * u[0, 0, 0] - (io1 * u[-1, 0, 0]))
