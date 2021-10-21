@@ -55,6 +55,7 @@ def get_async_context(
     use_cython: bool = False,
     graph_record: bool = True,
     region_analysis: bool = True,
+    num_streams: int = 100,
 ):
     global _async_context
     if not _async_context and not get_validate_args():
@@ -64,13 +65,16 @@ def get_async_context(
                 from gt4py.runtime.gtgraph_fast import AsyncContextFast as AsyncContext
 
                 _async_context = AsyncContext(
-                    50, concurrent=concurrent, blocking=blocking, sleep_time=0.0001
+                    num_streams,
+                    concurrent=concurrent,
+                    blocking=blocking,
+                    sleep_time=0.0001,
                 )
             else:
                 from gt4py.gtgraph import AsyncContext
 
                 _async_context = AsyncContext(
-                    50,
+                    num_streams,
                     name="fv3core",
                     graph_record=graph_record,
                     concurrent=concurrent,
@@ -194,4 +198,4 @@ _BACKEND: Optional[str] = None
 # If TRUE, all caches will bypassed and stencils recompiled
 # if FALSE, caches will be checked and rebuild if code changes
 _REBUILD: bool = getenv_bool("FV3_STENCIL_REBUILD_FLAG", "False")
-_VALIDATE_ARGS: bool = False
+_VALIDATE_ARGS: bool = getenv_bool("FV3_VALIDATE_ARGS_FLAG", "True")
