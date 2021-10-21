@@ -487,19 +487,10 @@ class TranslateGridGrid(ParallelTranslateGrid):
             fill_corners_2d(
                 state["grid"].data[:, :, :], rank_grid, gridtype="B", direction="x"
             )
-            # state["grid"].data[:, :, :] = set_halo_nan(
-            #     state["grid"].data[:, :, :], self.grid.halo, grid_global.np
-            # )
         return self.outputs_list_from_state_list(state_list)
 
     def compute_parallel(self, inputs, communicator):
         raise NotImplementedError()
-
-    # def compute(self, inputs):
-    #     state = self.state_from_inputs(inputs)
-    #     pass
-    #     outputs = self.outputs_from_state(state)
-    #     return outputs
 
 
 class TranslateDxDy(ParallelTranslateGrid):

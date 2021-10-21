@@ -36,7 +36,8 @@ t_sub = 184.0  # min temp for sublimation of cloud ice
 DC_ICE = C_LIQ - C_ICE
 LI0 = HLF - DC_ICE * TICE
 
-# grid constants
+# grid condtants
+# TODO: move these into the fv3core.grid namespace
 LON_OR_LAT_DIM = "lon_or_lat"
 TILE_DIM = "tile"
 CARTESIAN_DIM = "xyz_direction"

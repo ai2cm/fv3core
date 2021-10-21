@@ -1,3 +1,5 @@
+from fv3gfs.util import Quantity, TilePartitioner
+
 from .gnomonic import (
     get_lonlat_vect,
     get_unit_vector_direction,
@@ -543,7 +545,14 @@ def calculate_grid_a(z11, z12, z21, z22, sin_sg5):
 
 
 def edge_factors(
-    grid_quantity, agrid, grid_type, nhalo, tile_partitioner, rank, radius, np
+    grid_quantity: Quantity,
+    agrid,
+    grid_type: int,
+    nhalo: int,
+    tile_partitioner: TilePartitioner,
+    rank: int,
+    radius: float,
+    np,
 ):
     """
     Creates interpolation factors from the A grid to the B grid on face edges

@@ -7,7 +7,13 @@ from fv3core.utils.corners import (
     fill_corners_cgrid,
     fill_corners_dgrid,
 )
-from fv3core.utils.global_constants import CARTESIAN_DIM, LON_OR_LAT_DIM, PI, RADIUS
+from fv3core.utils.global_constants import (
+    CARTESIAN_DIM,
+    LON_OR_LAT_DIM,
+    PI,
+    RADIUS,
+    TILE_DIM,
+)
 from fv3core.utils.grid import GridIndexing
 from fv3gfs.util.constants import N_HALO_DEFAULT
 
@@ -77,6 +83,11 @@ class MetricTerms:
         self._tile_partitioner = self._partitioner.tile
         self._rank = self._comm.rank
         self._quantity_factory = quantity_factory
+        self._quantity_factory._sizer.extra_dim_lenths = {
+            LON_OR_LAT_DIM: 2,
+            TILE_DIM: 6,
+            CARTESIAN_DIM: 3,
+        }
         self._grid_indexer = GridIndexing.from_sizer_and_communicator(
             self._quantity_factory._sizer, self._comm
         )
@@ -192,10 +203,7 @@ class MetricTerms:
             ny_tile=npy - 1,
             nz=npz,
             n_halo=N_HALO_DEFAULT,
-            extra_dim_lengths={
-                LON_OR_LAT_DIM: 2,
-                CARTESIAN_DIM: 3,
-            },
+            extra_dim_lengths={LON_OR_LAT_DIM: 2, TILE_DIM: 6, CARTESIAN_DIM: 3},
             layout=communicator.partitioner.tile.layout,
         )
         quantity_factory = fv3util.QuantityFactory.from_backend(sizer, backend=backend)
