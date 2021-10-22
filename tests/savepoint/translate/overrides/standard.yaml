@@ -39,8 +39,8 @@ MapN_Tracer_2d:
 
   - backend: numpy  # 48_6ranks
     platform: metal
-      ignore_near_zero_errors:
-      - qtracers
+    ignore_near_zero_errors:
+    - qtracers
 
 
 NH_P_Grad:
