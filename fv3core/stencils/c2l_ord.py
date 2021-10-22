@@ -2,10 +2,11 @@ from gt4py.gtscript import PARALLEL, computation, horizontal, interval, region
 
 import fv3core._config as spec
 import fv3core.utils.gt4py_utils as utils
-from fv3core.utils.grid import GridData, axis_offsets
+from fv3core.utils.grid import GridData
 from fv3core.utils.stencil import StencilFactory
 from fv3core.utils.typing import FloatField, FloatFieldIJ
 from fv3gfs.util import CubedSphereCommunicator
+from fv3gfs.util.constants import X_DIM, X_INTERFACE_DIM, Y_DIM, Y_INTERFACE_DIM, Z_DIM
 from fv3gfs.util.quantity import Quantity
 
 
@@ -97,23 +98,16 @@ class CubedToLatLon:
         self._a22 = spec.grid.a22
         if order == 2:
             self._do_ord4 = False
-            self._compute_cubed_to_latlon = stencil_factory.from_origin_domain(
+            self._compute_cubed_to_latlon = stencil_factory.from_dims_halo(
                 func=c2l_ord2,
-                origin=grid_indexing.origin_compute(add=(-1, -1, 0)),
-                domain=grid_indexing.domain_compute(add=(2, 2, 0)),
+                dims=[X_INTERFACE_DIM, Y_INTERFACE_DIM, Z_DIM],
+                halos=(1, 1),
             )
         else:
             self._do_ord4 = True
-            origin = grid_indexing.origin_compute()
-            domain = grid_indexing.domain_compute()
-            ax_offsets = axis_offsets(grid_indexing, origin, domain)
-            self._compute_cubed_to_latlon = stencil_factory.from_origin_domain(
+            self._compute_cubed_to_latlon = stencil_factory.from_dims_halo(
                 func=ord4_transform,
-                externals={
-                    **ax_offsets,
-                },
-                origin=origin,
-                domain=domain,
+                dims=[X_DIM, Y_DIM, Z_DIM],
             )
 
     def __call__(

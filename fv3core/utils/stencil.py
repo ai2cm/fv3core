@@ -647,6 +647,10 @@ class StencilFactory:
         self.config: StencilConfig = config
         self.grid_indexing: GridIndexing = grid_indexing
 
+    @property
+    def n_halo_max(self) -> int:
+        return self.grid_indexing.n_halo
+
     def from_origin_domain(
         self,
         func: Callable[..., None],
@@ -677,6 +681,8 @@ class StencilFactory:
 
         Automatically injects axis_offsets into stencil externals.
         """
+        if externals is None:
+            externals = {}
         if len(dims) != 3:
             raise ValueError(f"must have 3 dimensions to create stencil, got {dims}")
         origin, domain = self.grid_indexing.get_origin_domain(dims=dims, halos=halos)

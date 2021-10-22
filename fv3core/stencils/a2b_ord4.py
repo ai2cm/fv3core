@@ -552,28 +552,12 @@ class AGrid2BGridFourthOrder:
             domain=(di2, 1, z_domain),
         )
 
-        origin_x, domain_x = self._idx.get_origin_domain(
-            dims=[X_INTERFACE_DIM, Y_DIM, z_dim], halos=(0, 2)
+        self._ppm_volume_mean_x_stencil = stencil_factory.from_dims_halo(
+            ppm_volume_mean_x, dims=[X_INTERFACE_DIM, Y_DIM, z_dim], halos=(0, 2)
         )
 
-        ax_offsets_x = axis_offsets(
-            self._idx,
-            origin_x,
-            domain_x,
-        )
-        self._ppm_volume_mean_x_stencil = stencil_factory.from_origin_domain(
-            ppm_volume_mean_x, externals=ax_offsets_x, origin=origin_x, domain=domain_x
-        )
-        origin_y, domain_y = self._idx.get_origin_domain(
-            dims=[X_DIM, Y_INTERFACE_DIM, z_dim], halos=(2, 0)
-        )
-        ax_offsets_y = axis_offsets(
-            self._idx,
-            origin_y,
-            domain_y,
-        )
-        self._ppm_volume_mean_y_stencil = stencil_factory.from_origin_domain(
-            ppm_volume_mean_y, externals=ax_offsets_y, origin=origin_y, domain=domain_y
+        self._ppm_volume_mean_y_stencil = stencil_factory.from_dims_halo(
+            ppm_volume_mean_y, dims=[X_DIM, Y_INTERFACE_DIM, z_dim], halos=(2, 0)
         )
 
         origin, domain = self._idx.get_origin_domain(
@@ -589,13 +573,8 @@ class AGrid2BGridFourthOrder:
         self._a2b_interpolation_stencil = stencil_factory.from_origin_domain(
             a2b_interpolation, externals=ax_offsets, origin=origin, domain=domain
         )
-        origin, domain = self._idx.get_origin_domain(
-            dims=[X_INTERFACE_DIM, Y_INTERFACE_DIM, z_dim]
-        )
-        self._copy_stencil = stencil_factory.from_origin_domain(
-            copy_defn,
-            origin=origin,
-            domain=domain,
+        self._copy_stencil = stencil_factory.from_dims_halo(
+            copy_defn, dims=[X_INTERFACE_DIM, Y_INTERFACE_DIM, z_dim]
         )
 
     def _exclude_tile_edges(self, origin, domain, dims=("x", "y")):
