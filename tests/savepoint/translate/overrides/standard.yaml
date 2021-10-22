@@ -36,7 +36,7 @@ MapN_Tracer_2d:
   - backend: numpy
     platform: docker
     max_error: 9e-9 # 48_6ranks
-    
+
   - backend: numpy  # 48_6ranks
     platform: metal
       ignore_near_zero_errors:
