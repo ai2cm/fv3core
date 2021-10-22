@@ -18,6 +18,7 @@ from fv3core.utils.grid import DampingCoefficients, axis_offsets
 from fv3core.utils.stencil import StencilFactory
 from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
 from fv3gfs.util import X_DIM, Y_DIM, Z_DIM
+from fv3gfs.util.constants import X_INTERFACE_DIM, Y_INTERFACE_DIM
 
 
 def calc_damp(damp4: FloatField, nord: FloatFieldK, damp_c: FloatFieldK, da_min: float):
@@ -939,20 +940,17 @@ class DelnFlux:
         self._fy2 = utils.make_storage_from_shape(shape)
         self._d2 = utils.make_storage_from_shape(grid_indexing.domain_full())
 
-        diffuse_origin = grid_indexing.origin_compute()
-        extended_domain = grid_indexing.domain_compute(add=(1, 1, 0))
-
-        self._damping_factor_calculation = stencil_factory.from_origin_domain(
+        damping_factor_calculation = stencil_factory.from_origin_domain(
             calc_damp, origin=(0, 0, 0), domain=k_shape
         )
-        self._add_diffusive_stencil = stencil_factory.from_origin_domain(
-            add_diffusive_component, origin=diffuse_origin, domain=extended_domain
+        self._add_diffusive_stencil = stencil_factory.from_dims_halo(
+            func=add_diffusive_component, dims=[X_INTERFACE_DIM, Y_INTERFACE_DIM, Z_DIM]
         )
-        self._diffusive_damp_stencil = stencil_factory.from_origin_domain(
-            diffusive_damp, origin=diffuse_origin, domain=extended_domain
+        self._diffusive_damp_stencil = stencil_factory.from_dims_halo(
+            func=diffusive_damp, dims=[X_INTERFACE_DIM, Y_INTERFACE_DIM, Z_DIM]
         )
 
-        self._damping_factor_calculation(
+        damping_factor_calculation(
             self._damp_3d, nord, damp_c, damping_coefficients.da_min
         )
         self._damp = utils.make_storage_data(self._damp_3d[0, 0, :], (nk,), (0,))

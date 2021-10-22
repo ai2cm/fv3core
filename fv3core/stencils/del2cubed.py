@@ -1,11 +1,10 @@
 from gt4py.gtscript import PARALLEL, computation, horizontal, interval, region
 
-import fv3core._config as spec
 import fv3core.utils.corners as corners
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import get_stencils_with_varied_bounds
 from fv3core.stencils.basic_operations import copy_defn
-from fv3core.utils.grid import DampingCoefficients, axis_offsets
+from fv3core.utils.grid import DampingCoefficients
 from fv3core.utils.stencil import StencilFactory
 from fv3core.utils.typing import FloatField, FloatFieldIJ, cast_to_index3d
 from fv3gfs.util import X_DIM, X_INTERFACE_DIM, Y_DIM, Y_INTERFACE_DIM, Z_DIM
@@ -96,19 +95,19 @@ class HyperdiffusionDamping:
         self._del6_u = damping_coefficients.del6_u
         self._del6_v = damping_coefficients.del6_v
         self._rarea = rarea
-        origin = grid_indexing.origin_full()
-        domain = grid_indexing.domain_full()
-        ax_offsets = axis_offsets(spec.grid, origin, domain)
         self._fx = utils.make_storage_from_shape(grid_indexing.max_shape)
         self._fy = utils.make_storage_from_shape(grid_indexing.max_shape)
         self._q = utils.make_storage_from_shape(grid_indexing.max_shape)
 
-        self._corner_fill = stencil_factory.from_origin_domain(
-            func=corner_fill, origin=origin, domain=domain, externals=ax_offsets
+        self._corner_fill = stencil_factory.from_dims_halo(
+            func=corner_fill,
+            dims=[X_DIM, Y_DIM, Z_DIM],
+            halos=(stencil_factory.n_halo_max, stencil_factory.n_halo_max),
         )
-
-        self._copy_stencil = stencil_factory.from_origin_domain(
-            func=copy_defn, origin=origin, domain=domain
+        self._copy_stencil = stencil_factory.from_dims_halo(
+            func=copy_defn,
+            dims=[X_DIM, Y_DIM, Z_DIM],
+            halos=(stencil_factory.n_halo_max, stencil_factory.n_halo_max),
         )
 
         self._ntimes = min(3, nmax)

@@ -15,7 +15,7 @@ import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import get_stencils_with_varied_bounds
 from fv3core.stencils.a2b_ord4 import AGrid2BGridFourthOrder
 from fv3core.stencils.d2a2c_vect import contravariant
-from fv3core.utils.grid import DampingCoefficients, GridData, axis_offsets
+from fv3core.utils.grid import DampingCoefficients, GridData
 from fv3core.utils.stencil import StencilFactory
 from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
 from fv3gfs.util import X_INTERFACE_DIM, Y_INTERFACE_DIM, Z_DIM
@@ -217,38 +217,36 @@ class DivergenceDamping:
         kstart = nonzero_nord_k
         nk = self.grid_indexing.domain[2] - kstart
         self._do_zero_order = nonzero_nord_k > 0
-        low_k_factory = stencil_factory.restrict_vertical(k_start=0, nk=nonzero_nord_k)
-        high_k_factory = stencil_factory.restrict_vertical(k_start=nonzero_nord_k)
+        low_k_stencil_factory = stencil_factory.restrict_vertical(
+            k_start=0, nk=nonzero_nord_k
+        )
+        high_k_stencil_factory = stencil_factory.restrict_vertical(
+            k_start=nonzero_nord_k
+        )
         self.a2b_ord4 = AGrid2BGridFourthOrder(
-            stencil_factory=high_k_factory,
+            stencil_factory=high_k_stencil_factory,
             grid_data=grid_data,
             grid_type=self._grid_type,
             replace=False,
         )
 
-        origin, domain = low_k_factory.grid_indexing.get_origin_domain(
-            dims=[X_INTERFACE_DIM, Y_INTERFACE_DIM, Z_DIM], halos=(0, 0)
+        self._get_delpc = low_k_stencil_factory.from_dims_halo(
+            func=get_delpc,
+            dims=[X_INTERFACE_DIM, Y_INTERFACE_DIM, Z_DIM],
+            halos=(0, 0),
+            skip_passes=("GreedyMerging"),
         )
 
-        self._get_delpc = stencil_factory.from_origin_domain(
-            get_delpc,
-            origin=origin,
-            domain=domain,
-            externals=axis_offsets(self.grid_indexing, origin, domain),
-            skip_passes=("GreedyMerging",),
-        )
-
-        self._damping = stencil_factory.from_origin_domain(
+        self._damping = low_k_stencil_factory.from_dims_halo(
             damping,
-            origin=origin,
-            domain=domain,
+            dims=[X_INTERFACE_DIM, Y_INTERFACE_DIM, Z_DIM],
+            halos=(0, 0),
         )
 
-        origin, domain = high_k_factory.grid_indexing.get_origin_domain(
-            dims=[X_INTERFACE_DIM, Y_INTERFACE_DIM, Z_DIM], halos=(0, 0)
-        )
-        self._copy_computeplus = stencil_factory.from_origin_domain(
-            basic.copy_defn, origin=origin, domain=domain
+        self._copy_computeplus = high_k_stencil_factory.from_dims_halo(
+            func=basic.copy_defn,
+            dims=[X_INTERFACE_DIM, Y_INTERFACE_DIM, Z_DIM],
+            halos=(0, 0),
         )
 
         origins = []
@@ -291,57 +289,41 @@ class DivergenceDamping:
             externals={"do_adjustment": not stretched_grid},
         )
 
-        origin, domain = high_k_factory.grid_indexing.get_origin_domain(
-            dims=[X_INTERFACE_DIM, Y_INTERFACE_DIM, Z_DIM], halos=(0, 0)
+        self._damping_nord_highorder_stencil = high_k_stencil_factory.from_dims_halo(
+            func=damping_nord_highorder_stencil,
+            dims=[X_INTERFACE_DIM, Y_INTERFACE_DIM, Z_DIM],
+            halos=(0, 0),
         )
-        self._damping_nord_highorder_stencil = stencil_factory.from_origin_domain(
-            damping_nord_highorder_stencil,
-            origin=origin,
-            domain=domain,
-        )
-
-        self._smagorinksy_diffusion_approx_stencil = stencil_factory.from_origin_domain(
-            smagorinksy_diffusion_approx,
-            origin=origin,
-            domain=domain,
+        self._smagorinksy_diffusion_approx_stencil = (
+            high_k_stencil_factory.from_dims_halo(
+                func=smagorinksy_diffusion_approx,
+                dims=[X_INTERFACE_DIM, Y_INTERFACE_DIM, Z_DIM],
+                halos=(0, 0),
+            )
         )
 
-        origin, domain = high_k_factory.grid_indexing.get_origin_domain(
+        self._set_value = high_k_stencil_factory.from_dims_halo(
+            func=basic.set_value_defn,
             dims=[X_INTERFACE_DIM, Y_INTERFACE_DIM, Z_DIM],
             halos=(self.grid_indexing.n_halo, self.grid_indexing.n_halo),
-        )
-        self._set_value = stencil_factory.from_origin_domain(
-            basic.set_value_defn,
-            origin=origin,
-            domain=domain,
         )
 
         self._corner_tmp = utils.make_storage_from_shape(self.grid_indexing.max_shape)
 
-        fill_origin, fill_domain = high_k_factory.grid_indexing.get_origin_domain(
-            [X_INTERFACE_DIM, Y_INTERFACE_DIM, Z_DIM],
-            halos=(self.grid_indexing.n_halo, self.grid_indexing.n_halo),
-        )
         self.fill_corners_bgrid_x = corners.FillCornersBGrid(
             direction="x",
             temporary_field=self._corner_tmp,
-            origin=fill_origin,
-            domain=fill_domain,
-            stencil_factory=stencil_factory,
+            stencil_factory=high_k_stencil_factory,
         )
         self.fill_corners_bgrid_y = corners.FillCornersBGrid(
             direction="y",
             temporary_field=self._corner_tmp,
-            origin=fill_origin,
-            domain=fill_domain,
-            stencil_factory=stencil_factory,
+            stencil_factory=high_k_stencil_factory,
         )
-        ax_offsets = axis_offsets(self.grid_indexing, fill_origin, fill_domain)
-        self._fill_corners_dgrid_stencil = stencil_factory.from_origin_domain(
-            corners.fill_corners_dgrid_defn,
-            externals=ax_offsets,
-            origin=fill_origin,
-            domain=fill_domain,
+        self._fill_corners_dgrid_stencil = high_k_stencil_factory.from_dims_halo(
+            func=corners.fill_corners_dgrid_defn,
+            dims=[X_INTERFACE_DIM, Y_INTERFACE_DIM, Z_DIM],
+            halos=(self.grid_indexing.n_halo, self.grid_indexing.n_halo),
         )
 
     def __call__(

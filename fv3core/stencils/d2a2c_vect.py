@@ -7,6 +7,7 @@ from fv3core.utils import corners
 from fv3core.utils.grid import GridData, axis_offsets
 from fv3core.utils.stencil import StencilFactory
 from fv3core.utils.typing import FloatField, FloatFieldIJ
+from fv3gfs.util import X_DIM, Y_DIM, Z_DIM
 
 
 c1 = -2.0 / 14.0
@@ -443,10 +444,10 @@ class DGrid2AGrid2CGridVectors:
         )
         jdiff = jlast - jfirst + 1
 
-        self._set_tmps = stencil_factory.from_origin_domain(
+        self._set_tmps = stencil_factory.from_dims_halo(
             func=set_tmps,
-            origin=grid_indexing.origin_full(),
-            domain=grid_indexing.domain_full(),
+            dims=[X_DIM, Y_DIM, Z_DIM],
+            halos=(stencil_factory.n_halo_max, stencil_factory.n_halo_max),
         )
 
         self._lagrange_interpolation_y_p1 = stencil_factory.from_origin_domain(
@@ -469,11 +470,11 @@ class DGrid2AGrid2CGridVectors:
         else:
             d2a2c_avg_offset = 3
 
-        self._avg_box = stencil_factory.from_origin_domain(
+        self._avg_box = stencil_factory.from_dims_halo(
             func=avg_box,
-            externals={"D2A2C_AVG_OFFSET": d2a2c_avg_offset, **ax_offsets},
-            origin=origin,
-            domain=domain,
+            externals={"D2A2C_AVG_OFFSET": d2a2c_avg_offset},
+            dims=[X_DIM, Y_DIM, Z_DIM],
+            halos=(stencil_factory.n_halo_max, stencil_factory.n_halo_max),
         )
 
         self._contravariant_components = stencil_factory.from_origin_domain(

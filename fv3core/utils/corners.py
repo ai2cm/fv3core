@@ -7,7 +7,13 @@ import fv3core.utils.gt4py_utils as utils
 from fv3core.utils.grid import axis_offsets
 from fv3core.utils.stencil import StencilFactory
 from fv3core.utils.typing import FloatField
-from fv3gfs.util.constants import X_DIM, Y_DIM, Z_INTERFACE_DIM
+from fv3gfs.util.constants import (
+    X_DIM,
+    X_INTERFACE_DIM,
+    Y_DIM,
+    Y_INTERFACE_DIM,
+    Z_INTERFACE_DIM,
+)
 
 
 class CopyCorners:
@@ -547,10 +553,10 @@ class FillCornersBGrid:
             default_origin,
             default_domain,
         ) = stencil_factory.grid_indexing.get_origin_domain(
-            dims=[X_DIM, Y_DIM, Z_INTERFACE_DIM], halos=(n_halo, n_halo)
+            dims=[X_INTERFACE_DIM, Y_INTERFACE_DIM, Z_INTERFACE_DIM],
+            halos=(n_halo, n_halo),
         )
 
-        """The grid for this stencil"""
         if origin is None:
             origin = default_origin
         """The origin for the corner computation"""
@@ -565,27 +571,18 @@ class FillCornersBGrid:
                 stencil_factory.grid_indexing.max_shape, origin=origin
             )
 
-        """Stencil Wrapper to do the copy of the input field to the temporary field"""
-
-        ax_offsets = axis_offsets(stencil_factory.grid_indexing, origin, domain)
-
         if direction == "x":
-            self._fill_corners_bgrid = stencil_factory.from_origin_domain(
-                func=fill_corners_bgrid_x_defn,
-                origin=origin,
-                domain=domain,
-                externals=ax_offsets,
-            )
+            defn = fill_corners_bgrid_x_defn
         elif direction == "y":
-            self._fill_corners_bgrid = stencil_factory.from_origin_domain(
-                func=fill_corners_bgrid_y_defn,
-                origin=origin,
-                domain=domain,
-                externals=ax_offsets,
-            )
-
+            defn = fill_corners_bgrid_y_defn
         else:
             raise ValueError("Direction must be either 'x' or 'y'")
+        externals = axis_offsets(
+            stencil_factory.grid_indexing, origin=origin, domain=domain
+        )
+        self._fill_corners_bgrid = stencil_factory.from_origin_domain(
+            func=defn, origin=origin, domain=domain, externals=externals
+        )
 
     def __call__(self, field: FloatField):
         self._fill_corners_bgrid(field, field)
