@@ -20,7 +20,7 @@ import fv3core._config as spec
 import fv3core.utils
 import fv3core.utils.global_config as global_config
 import fv3core.utils.grid
-from fv3core.utils.stencil import FrozenStencil, StencilConfig
+from fv3core.utils.stencil import FrozenStencil, StencilConfig, StencilFactory
 from fv3core.utils.typing import Index3D
 
 
@@ -74,7 +74,7 @@ def get_stencils_with_varied_bounds(
     func: Callable[..., None],
     origins: List[Index3D],
     domains: List[Index3D],
-    stencil_config: Optional[StencilConfig] = None,
+    stencil_factory: StencilFactory,
     externals: Optional[Mapping[str, Any]] = None,
 ) -> List[FrozenStencil]:
     assert len(origins) == len(domains), (
@@ -90,11 +90,10 @@ def get_stencils_with_varied_bounds(
     for origin, domain in zip(origins, domains):
         ax_offsets = fv3core.utils.grid.axis_offsets(spec.grid, origin, domain)
         stencils.append(
-            FrozenStencil(
+            stencil_factory.from_origin_domain(
                 func,
                 origin=origin,
                 domain=domain,
-                stencil_config=stencil_config,
                 externals={**externals, **ax_offsets},
             )
         )

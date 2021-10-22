@@ -13,6 +13,7 @@ from typing import (
     Sequence,
     Tuple,
     Union,
+    cast,
 )
 
 import gt4py
@@ -23,10 +24,9 @@ from gt4py.storage.storage import Storage
 import fv3gfs.util
 from fv3core.utils.future_stencil import future_stencil
 from fv3core.utils.mpi import MPI
-from fv3core.utils.typing import Index3D
+from fv3core.utils.typing import Index3D, cast_to_index3d
 from fv3gfs.util.halo_data_transformer import QuantityHaloSpec
 
-from .global_config import get_backend, get_rebuild, get_validate_args
 from .gt4py_utils import make_storage_from_shape
 
 
@@ -134,9 +134,9 @@ class FrozenStencil:
     def __init__(
         self,
         func: Callable[..., None],
-        origin: Union[Index3D, Mapping[str, Tuple[int, ...]]],
-        domain: Index3D,
-        stencil_config: Optional[StencilConfig] = None,
+        origin: Union[Tuple[int, ...], Mapping[str, Tuple[int, ...]]],
+        domain: Tuple[int, ...],
+        stencil_config: StencilConfig,
         externals: Optional[Mapping[str, Any]] = None,
         skip_passes: Optional[Tuple[str, ...]] = None,
     ):
@@ -149,17 +149,12 @@ class FrozenStencil:
             externals: compile-time external variables required by stencil
             skip_passes: compiler passes to skip when building stencil
         """
+        if isinstance(origin, tuple):
+            origin = cast_to_index3d(origin)
+        origin = cast(Union[Index3D, Mapping[str, Tuple[int, ...]]], origin)
         self.origin = origin
-        self.domain = domain
-
-        if stencil_config is not None:
-            self.stencil_config: StencilConfig = stencil_config
-        else:
-            self.stencil_config = StencilConfig(
-                backend=get_backend(),
-                rebuild=get_rebuild(),
-                validate_args=get_validate_args(),
-            )
+        self.domain: Index3D = cast_to_index3d(domain)
+        self.stencil_config: StencilConfig = stencil_config
 
         if externals is None:
             externals = {}
@@ -459,7 +454,7 @@ class GridIndexing:
             self.domain[2] + add[2],
         )
 
-    def axis_offsets(self, origin: Index3D, domain: Index3D):
+    def axis_offsets(self, origin: Index3D, domain: Index3D) -> Dict[str, Any]:
         if self.west_edge:
             i_start = gtscript.I[0] + self.origin[0] - origin[0]
         else:
@@ -648,15 +643,15 @@ class GridIndexing:
 
 
 class StencilFactory:
-    def __init__(self, config: StencilConfig, indexing: GridIndexing):
-        self.config = config
-        self.indexing = indexing
+    def __init__(self, config: StencilConfig, grid_indexing: GridIndexing):
+        self.config: StencilConfig = config
+        self.grid_indexing: GridIndexing = grid_indexing
 
     def from_origin_domain(
         self,
         func: Callable[..., None],
-        origin: Union[Index3D, Mapping[str, Tuple[int, ...]]],
-        domain: Index3D,
+        origin: Union[Tuple[int, ...], Mapping[str, Tuple[int, ...]]],
+        domain: Tuple[int, ...],
         externals: Optional[Mapping[str, Any]] = None,
         skip_passes: Optional[Tuple[str, ...]] = None,
     ) -> FrozenStencil:
@@ -677,11 +672,28 @@ class StencilFactory:
         externals: Optional[Mapping[str, Any]] = None,
         skip_passes: Optional[Tuple[str, ...]] = None,
     ) -> FrozenStencil:
-        origin, domain = self.indexing.get_origin_domain(dims=dims, halos=halos)
+        """
+        Initialize a stencil from dimensions and number of halo points.
+
+        Automatically injects axis_offsets into stencil externals.
+        """
+        if len(dims) != 3:
+            raise ValueError(f"must have 3 dimensions to create stencil, got {dims}")
+        origin, domain = self.grid_indexing.get_origin_domain(dims=dims, halos=halos)
+        origin = cast_to_index3d(origin)
+        domain = cast_to_index3d(domain)
+        all_externals = self.grid_indexing.axis_offsets(origin=origin, domain=domain)
+        all_externals.update(externals)
         return self.from_origin_domain(
             func=func,
             origin=origin,
             domain=domain,
-            externals=externals,
+            externals=all_externals,
             skip_passes=skip_passes,
+        )
+
+    def restrict_vertical(self, k_start=0, nk=None) -> "StencilFactory":
+        return StencilFactory(
+            config=self.config,
+            grid_indexing=self.grid_indexing.restrict_vertical(k_start=k_start, nk=nk),
         )

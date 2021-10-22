@@ -9,10 +9,10 @@ from gt4py.gtscript import (
 
 import fv3core._config as spec
 import fv3core.utils.gt4py_utils as utils
-from fv3core.decorators import FrozenStencil
 from fv3core.stencils.d2a2c_vect import DGrid2AGrid2CGridVectors
 from fv3core.utils import corners
-from fv3core.utils.grid import GridData, GridIndexing, axis_offsets
+from fv3core.utils.grid import GridData, axis_offsets
+from fv3core.utils.stencil import StencilFactory
 from fv3core.utils.typing import FloatField, FloatFieldIJ
 from fv3gfs.util import X_DIM, X_INTERFACE_DIM, Y_DIM, Y_INTERFACE_DIM, Z_DIM
 
@@ -383,18 +383,19 @@ class CGridShallowWaterDynamics:
 
     def __init__(
         self,
-        grid_indexing: GridIndexing,
+        stencil_factory: StencilFactory,
         grid_data: GridData,
         nested: bool,
         grid_type: int,
         nord: int,
     ):
+        grid_indexing = stencil_factory.grid_indexing
         self.grid_data = grid_data
         self._dord4 = True
         self._fC = spec.grid.fC
 
         self._D2A2CGrid_Vectors = DGrid2AGrid2CGridVectors(
-            grid_indexing,
+            stencil_factory,
             grid_data,
             nested,
             grid_type,
@@ -407,7 +408,7 @@ class CGridShallowWaterDynamics:
         self.ptc = utils.make_storage_from_shape(
             grid_indexing.max_shape, origin=origin_halo1
         )
-        self._initialize_delpc_ptc = FrozenStencil(
+        self._initialize_delpc_ptc = stencil_factory.from_origin_domain(
             func=initialize_delpc_ptc,
             origin=grid_indexing.origin_full(),
             domain=grid_indexing.domain_full(),
@@ -423,7 +424,7 @@ class CGridShallowWaterDynamics:
         ax_offsets = axis_offsets(grid_indexing, origin, domain)
 
         if nord > 0:
-            self._divergence_corner = FrozenStencil(
+            self._divergence_corner = stencil_factory.from_origin_domain(
                 func=divergence_corner,
                 externals=ax_offsets,
                 origin=origin,
@@ -434,7 +435,7 @@ class CGridShallowWaterDynamics:
         origin, domain = grid_indexing.get_origin_domain(
             [X_INTERFACE_DIM, Y_DIM, Z_DIM], halos=(1, 1)
         )
-        self._geoadjust_ut = FrozenStencil(
+        self._geoadjust_ut = stencil_factory.from_origin_domain(
             func=geoadjust_ut,
             origin=origin,
             domain=domain,
@@ -442,7 +443,7 @@ class CGridShallowWaterDynamics:
         origin, domain = grid_indexing.get_origin_domain(
             [X_DIM, Y_INTERFACE_DIM, Z_DIM], halos=(1, 1)
         )
-        self._geoadjust_vt = FrozenStencil(
+        self._geoadjust_vt = stencil_factory.from_origin_domain(
             func=geoadjust_vt,
             origin=origin,
             domain=domain,
@@ -452,7 +453,7 @@ class CGridShallowWaterDynamics:
         domain_full = grid_indexing.domain_full()
         ax_offsets_full = axis_offsets(grid_indexing, origin_full, domain_full)
 
-        self._fill_corners_x_delp_pt_w_stencil = FrozenStencil(
+        self._fill_corners_x_delp_pt_w_stencil = stencil_factory.from_origin_domain(
             fill_corners_delp_pt_w,
             externals={
                 "fill_corners_func": corners.fill_corners_2cells_x,
@@ -461,7 +462,7 @@ class CGridShallowWaterDynamics:
             origin=origin_full,
             domain=domain_full,
         )
-        self._fill_corners_y_delp_pt_w_stencil = FrozenStencil(
+        self._fill_corners_y_delp_pt_w_stencil = stencil_factory.from_origin_domain(
             fill_corners_delp_pt_w,
             externals={
                 "fill_corners_func": corners.fill_corners_2cells_y,
@@ -474,7 +475,7 @@ class CGridShallowWaterDynamics:
         origin, domain = grid_indexing.get_origin_domain(
             [X_INTERFACE_DIM, Y_DIM, Z_DIM], halos=(1, 1)
         )
-        self._compute_nonhydro_fluxes_x_stencil = FrozenStencil(
+        self._compute_nonhydro_fluxes_x_stencil = stencil_factory.from_origin_domain(
             compute_nonhydro_fluxes_x,
             origin=origin,
             domain=domain,
@@ -484,7 +485,7 @@ class CGridShallowWaterDynamics:
             [X_DIM, Y_DIM, Z_DIM], halos=(1, 1)
         )
         ax_offsets_transportdelp = axis_offsets(grid_indexing, origin, domain)
-        self._transportdelp_updatevorticity_and_ke = FrozenStencil(
+        self._transportdelp_updatevorticity_and_ke = stencil_factory.from_origin_domain(
             func=transportdelp_update_vorticity_and_kineticenergy,
             externals={
                 "grid_type": grid_type,
@@ -497,7 +498,7 @@ class CGridShallowWaterDynamics:
             [X_INTERFACE_DIM, Y_INTERFACE_DIM, Z_DIM]
         )
         ax_offsets = axis_offsets(grid_indexing, origin, domain)
-        self._circulation_cgrid = FrozenStencil(
+        self._circulation_cgrid = stencil_factory.from_origin_domain(
             func=circulation_cgrid,
             externals={
                 **ax_offsets,
@@ -505,7 +506,7 @@ class CGridShallowWaterDynamics:
             origin=origin,
             domain=domain,
         )
-        self._absolute_vorticity = FrozenStencil(
+        self._absolute_vorticity = stencil_factory.from_origin_domain(
             func=absolute_vorticity,
             origin=origin,
             domain=domain,
@@ -515,7 +516,7 @@ class CGridShallowWaterDynamics:
             [X_DIM, Y_INTERFACE_DIM, Z_DIM]
         )
         axis_offsets_y = axis_offsets(grid_indexing, origin, domain)
-        self._update_y_velocity = FrozenStencil(
+        self._update_y_velocity = stencil_factory.from_origin_domain(
             func=update_y_velocity,
             externals={
                 "grid_type": grid_type,
@@ -529,7 +530,7 @@ class CGridShallowWaterDynamics:
             [X_INTERFACE_DIM, Y_DIM, Z_DIM]
         )
         axis_offsets_x = axis_offsets(grid_indexing, origin, domain)
-        self._update_x_velocity = FrozenStencil(
+        self._update_x_velocity = stencil_factory.from_origin_domain(
             func=update_x_velocity,
             externals={
                 "grid_type": grid_type,

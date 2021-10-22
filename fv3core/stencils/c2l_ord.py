@@ -2,8 +2,8 @@ from gt4py.gtscript import PARALLEL, computation, horizontal, interval, region
 
 import fv3core._config as spec
 import fv3core.utils.gt4py_utils as utils
-from fv3core.decorators import FrozenStencil
-from fv3core.utils.grid import GridData, GridIndexing, axis_offsets
+from fv3core.utils.grid import GridData, axis_offsets
+from fv3core.utils.stencil import StencilFactory
 from fv3core.utils.typing import FloatField, FloatFieldIJ
 from fv3gfs.util import CubedSphereCommunicator
 from fv3gfs.util.quantity import Quantity
@@ -75,15 +75,18 @@ class CubedToLatLon:
     Fortan name is c2l_ord2
     """
 
-    def __init__(self, grid_indexing: GridIndexing, grid_data: GridData, order: int):
+    def __init__(
+        self, stencil_factory: StencilFactory, grid_data: GridData, order: int
+    ):
         """
         Initializes stencils to use either 2nd or 4th order of interpolation
         based on namelist setting
         Args:
-            grid_indexing: fv3core grid indexing object
+            stencil_factory: creates stencils
             grid_data: object with metric terms
             order: Order of interpolation, must be 2 or 4
         """
+        grid_indexing = stencil_factory.grid_indexing
         self._n_halo = grid_indexing.n_halo
         self._dx = grid_data.dx
         self._dy = grid_data.dy
@@ -94,7 +97,7 @@ class CubedToLatLon:
         self._a22 = spec.grid.a22
         if order == 2:
             self._do_ord4 = False
-            self._compute_cubed_to_latlon = FrozenStencil(
+            self._compute_cubed_to_latlon = stencil_factory.from_origin_domain(
                 func=c2l_ord2,
                 origin=grid_indexing.origin_compute(add=(-1, -1, 0)),
                 domain=grid_indexing.domain_compute(add=(2, 2, 0)),
@@ -104,7 +107,7 @@ class CubedToLatLon:
             origin = grid_indexing.origin_compute()
             domain = grid_indexing.domain_compute()
             ax_offsets = axis_offsets(grid_indexing, origin, domain)
-            self._compute_cubed_to_latlon = FrozenStencil(
+            self._compute_cubed_to_latlon = stencil_factory.from_origin_domain(
                 func=ord4_transform,
                 externals={
                     **ax_offsets,

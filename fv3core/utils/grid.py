@@ -10,7 +10,7 @@ import fv3gfs.util
 from fv3gfs.util.halo_data_transformer import QuantityHaloSpec
 
 from . import gt4py_utils as utils
-from .stencil import GridIndexing
+from .stencil import GridIndexing, StencilConfig, StencilFactory
 from .typing import FloatFieldIJ
 
 
@@ -385,6 +385,17 @@ class Grid:
             north_edge=self.north_edge,
             west_edge=self.west_edge,
             east_edge=self.east_edge,
+        )
+
+    @property
+    def stencil_factory(self) -> "StencilFactory":
+        return StencilFactory(
+            config=StencilConfig(
+                backend=global_config.get_backend(),
+                rebuild=global_config.get_rebuild(),
+                validate_args=global_config.get_validate_args(),
+            ),
+            grid_indexing=self.grid_indexing,
         )
 
     @property
