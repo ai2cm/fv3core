@@ -45,7 +45,7 @@ def get_stencil_factory(backend) -> StencilFactory:
         device_sync=False,
     )
     indexing = GridIndexing(
-        domain=[12, 12, 79],
+        domain=(12, 12, 79),
         n_halo=3,
         south_edge=False,
         north_edge=False,
