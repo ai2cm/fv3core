@@ -1,26 +1,19 @@
 #!/usr/bin/env python3
-import copy
 from types import SimpleNamespace
 
 import click
-
 import dace
+import serialbox
+from mpi4py import MPI
 
-import numpy as np
-from fv3core.decorators import computepath_function
 import fv3core
 import fv3core._config as spec
 import fv3core.testing
 import fv3core.utils.global_config as global_config
-
-import serialbox
+from fv3core.decorators import computepath_function
 from fv3core.stencils.dyn_core import AcousticDynamics
+from fv3core.utils.global_config import get_dacemode
 
-from fv3core.utils.global_config import set_dacemode, get_dacemode
-import cProfile, pstats, io
-from pstats import SortKey
-
-from mpi4py import MPI
 
 def set_up_namelist(data_directory: str) -> None:
     spec.set_namelist(data_directory + "/input.nml")
@@ -34,9 +27,7 @@ def initialize_serializer(data_directory: str, rank: int = 0) -> serialbox.Seria
     )
 
 
-def read_grid(
-    serializer: serialbox.Serializer, rank: int = 0
-) -> fv3core.testing.TranslateGrid:
+def read_grid(serializer: serialbox.Serializer, rank: int = 0) -> fv3core.testing.TranslateGrid:
     grid_savepoint = serializer.get_savepoint("Grid-Info")[0]
     grid_data = {}
     grid_fields = serializer.fields_at_savepoint(grid_savepoint)
@@ -84,7 +75,6 @@ def run(data_directory, halo_update, backend, time_steps, reference_run):
     input_data = read_input_data(grid, serializer)
     state = get_state_from_input(grid, input_data)
 
-
     acoutstics_object = AcousticDynamics(
         None,
         spec.namelist,
@@ -98,22 +88,29 @@ def run(data_directory, halo_update, backend, time_steps, reference_run):
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
 
-    sdfg_path = "/scratch/snx3000/tobwi/sbox/dace_tests/c128experiment/.gt_cache_00000"+str(rank)+"/dacecache/iterate"
-    @computepath_function(skip_dacemode=True) # load_sdfg=sdfg_path,
+    sdfg_path = (
+        "/scratch/snx3000/tobwi/sbox/dace_tests/c128experiment/.gt_cache_00000"
+        + str(rank)
+        + "/dacecache/iterate"
+    )
+
+    @computepath_function  # (load_sdfg=sdfg_path)
     def iterate(state: dace.constant, time_steps):
         for _ in range(time_steps):
             acoutstics_object(state, insert_temporaries=False)
 
     import time
+
     iterate(state, 1)
     start = time.time()
     try:
         iterate(state, time_steps)
     finally:
-        print(f"Total {backend} time on rank {rank} for {time_steps} steps:", time.time()-start)
-    
+        print(f"Total {backend} time on rank {rank} for {time_steps} steps:", time.time() - start)
+
     comm.Barrier()
     return state
+
 
 @click.command()
 @click.argument("data_directory", required=True, nargs=1)
@@ -126,7 +123,7 @@ def driver(
     backend: str,
     halo_update: bool,
 ):
-    import fv3core.utils.global_config as global_config
+
     state = run(
         data_directory,
         halo_update,
@@ -134,5 +131,7 @@ def driver(
         backend=backend,
         reference_run=not get_dacemode(),
     )
+
+
 if __name__ == "__main__":
     driver()
