@@ -73,8 +73,8 @@ def call_sdfg(daceprog: DaceProgram, sdfg: dace.SDFG, args, kwargs, sdfg_final=F
     for arg in list(args)+list(kwargs.values()):
         if isinstance(arg, gt4py.storage.Storage):
             arg.host_to_device()
-    
-    
+
+
     if not sdfg_final:
         sdfg_kwargs = daceprog._create_sdfg_args(sdfg, args, kwargs)
         for k in daceprog.constant_args:
@@ -244,7 +244,7 @@ class FrozenStencil(SDFGConvertible):
     def __sdfg_closure__(self, *args, **kwargs):
         return self.sdfg_wrapper.__sdfg_closure__(*args, **kwargs)
 
-    def closure_resolver(self, constant_args):
+    def closure_resolver(self, constant_args, parent_closure=None):
         return SDFGClosure()
 
     def _mark_cuda_fields_written(self, fields: Mapping[str, Storage]):
@@ -479,8 +479,8 @@ class LazyComputepathFunction:
     def __sdfg_signature__(self):
         return self.daceprog.argnames, self.daceprog.constant_args
 
-    def closure_resolver(self, constant_args):
-        return self.daceprog.closure_resolver(constant_args)
+    def closure_resolver(self, constant_args, parent_closure=None):
+        return self.daceprog.closure_resolver(constant_args, parent_closure)
 
     @property
     def use_dace(self):
@@ -527,14 +527,14 @@ class LazyComputepathMethod:
                     self.daceprog.load_precompiled_sdfg(self.lazy_method._load_sdfg, *args, **kwargs)
                 return self.daceprog.__sdfg__(*args, **kwargs)
 
-        def __sdfg_closure__(self):
-            return self.daceprog.__sdfg_closure__()
+        def __sdfg_closure__(self, reevaluate=None):
+            return self.daceprog.__sdfg_closure__(reevaluate)
 
         def __sdfg_signature__(self):
             return self.daceprog.argnames, self.daceprog.constant_args
 
-        def closure_resolver(self, constant_args):
-            return self.daceprog.closure_resolver(constant_args)
+        def closure_resolver(self, constant_args, parent_closure=None):
+            return self.daceprog.closure_resolver(constant_args, parent_closure)
 
     def __init__(self, func, use_dace, skip_dacemode, load_sdfg):
         self.func = func
