@@ -1,4 +1,4 @@
-import typing
+from typing import Any, no_type_check
 
 from gt4py.gtscript import BACKWARD, FORWARD, PARALLEL, computation, interval, log
 
@@ -14,7 +14,7 @@ from fv3core.utils.grid import GridIndexing
 from fv3core.utils.typing import FloatField, FloatFieldIJ
 
 
-@typing.no_type_check
+@no_type_check
 def precompute(
     delpc: FloatField,
     cappa: FloatField,
@@ -119,6 +119,7 @@ class RiemannSolverC:
         gz: FloatField,
         pef: FloatField,
         w3: FloatField,
+        **kwargs: Any,
     ):
         """
         Solves for the nonhydrostatic terms for vertical velocity (w)

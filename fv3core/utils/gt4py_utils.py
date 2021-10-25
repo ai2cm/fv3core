@@ -533,3 +533,14 @@ def stack(tup, axis: int = 0, out=None):
 def device_sync() -> None:
     if cp and global_config.is_gpu_backend():
         cp.cuda.Device(0).synchronize()
+
+
+def serialize(file_name: str, **kwargs):
+    arrays = {name: np.asarray(storage.data) for (name, storage) in kwargs.items()}
+    np.savez(file_name, **arrays)
+
+
+def deserialize(file_name: str):
+    if not file_name.endswith(".npz"):
+        file_name = f"{file_name}.npz"
+    return np.load(file_name)

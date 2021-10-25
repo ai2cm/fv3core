@@ -79,7 +79,23 @@ def get_namespace(arg_specs, state):
     return types.SimpleNamespace(**namespace_kwargs)
 
 
+_flow_graph: object = None
+
+
+def get_flow_graph():
+    return _flow_graph
+
+
+def set_flow_graph(flow_graph):
+    global _flow_graph
+    _flow_graph = flow_graph
+
+
 _stencil_merger = StencilMerger()
+
+
+def get_stencil_merger():
+    return _stencil_merger
 
 
 def enable_merge_stencils():
@@ -185,6 +201,7 @@ class FrozenStencil(StencilInterface):
 
     def __call__(self, *args, **kwargs) -> None:
         stencil_object = self.stencil_object
+        flow_graph = get_flow_graph()
         if _stencil_merger.is_merged(self):
             # Save inputs for last call...
             _stencil_merger.save_args(self, *args, **kwargs)
@@ -200,6 +217,10 @@ class FrozenStencil(StencilInterface):
             stencil_object = _stencil_merger.merged_stencil(group_id)
             args, kwargs = _stencil_merger.merge_args(group_id)
 
+        args_as_kwargs = dict(zip(self._argument_names, args))
+        if flow_graph:
+            flow_graph.update(stencil_object, **args_as_kwargs, **kwargs)
+
         if self.stencil_config.validate_args:
             if __debug__ and "origin" in kwargs:
                 raise TypeError("origin cannot be passed to FrozenStencil call")
@@ -213,7 +234,6 @@ class FrozenStencil(StencilInterface):
                 validate_args=True,
             )
         else:
-            args_as_kwargs = dict(zip(self._argument_names, args))
             stencil_object.run(
                 **args_as_kwargs, **kwargs, **self._stencil_run_kwargs, exec_info=None
             )
