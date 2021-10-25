@@ -38,7 +38,6 @@ from .translate_grid import (
     TranslateDivgDel6,
     TranslateDxDy,
     TranslateEdgeFactors,
-    TranslateFixSgCorners,
     TranslateGnomonicGrids,
     TranslateGridAreas,
     TranslateGridGrid,
@@ -46,9 +45,9 @@ from .translate_grid import (
     TranslateInitGrid,
     TranslateInitGridUtils,
     TranslateMirrorGrid,
-    TranslateMoreTrig,
     TranslateSetEta,
-    TranslateTrigSg,
+    TranslateTrigSubset,
+    TranslateTrigTerms,
     TranslateUtilVectors,
 )
 from .translate_haloupdate import (

@@ -166,11 +166,30 @@ TrigSg:
       cos_sg8: 1e-14
       cos_sg9: 1e-14
 
+TrigTerms:
+  - backend: numpy
+    max_error: 3e-11
+    ignore_near_zero_errors:
+      cos_sg5: 1e-14
+      cos_sg6: 1e-14
+      cos_sg7: 1e-14
+      cos_sg8: 1e-14
+      cos_sg9: 1e-14
+      ee1: 3e-14
+      ee2: 3e-14
+
 EdgeFactors:
   - backend: numpy
     max_error: 3e-13
 
 MoreTrig:
+  - backend: numpy
+    max_error: 3e-14
+    ignore_near_zero_errors:
+      ee1: 3e-14
+      ee2: 3e-14
+
+TrigSubset:
   - backend: numpy
     max_error: 3e-14
     ignore_near_zero_errors:

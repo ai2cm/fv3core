@@ -1375,6 +1375,86 @@ class MetricTerms:
         self._sin_sg8 = supergrid_trig["sin_sg8"]
         self._sin_sg9 = supergrid_trig["sin_sg9"]
 
+    def _calculate_derived_trig_terms_for_testing(self):
+        self._cosa_u = self._quantity_factory.zeros(
+            [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM], ""
+        )
+        self._cosa_v = self._quantity_factory.zeros(
+            [fv3util.X_DIM, fv3util.Y_INTERFACE_DIM], ""
+        )
+        self._cosa_s = self._quantity_factory.zeros([fv3util.X_DIM, fv3util.Y_DIM], "")
+        self._sina_u = self._quantity_factory.zeros(
+            [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM], ""
+        )
+        self._sina_v = self._quantity_factory.zeros(
+            [fv3util.X_DIM, fv3util.Y_INTERFACE_DIM], ""
+        )
+        self._rsin_u = self._quantity_factory.zeros(
+            [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM], ""
+        )
+        self._rsin_v = self._quantity_factory.zeros(
+            [fv3util.X_DIM, fv3util.Y_INTERFACE_DIM], ""
+        )
+        self._rsina = self._quantity_factory.zeros(
+            [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM], ""
+        )
+        self._rsin2 = self._quantity_factory.zeros([fv3util.X_DIM, fv3util.Y_DIM], "")
+        self._cosa = self._quantity_factory.zeros(
+            [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM], ""
+        )
+        self._sina = self._quantity_factory.zeros(
+            [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM], ""
+        )
+
+        cos_sg = self._np.array(
+            [
+                self.cos_sg1.data[:-1, :-1],
+                self.cos_sg2.data[:-1, :-1],
+                self.cos_sg3.data[:-1, :-1],
+                self.cos_sg4.data[:-1, :-1],
+                self.cos_sg5.data[:-1, :-1],
+                self.cos_sg6.data[:-1, :-1],
+                self.cos_sg7.data[:-1, :-1],
+                self.cos_sg8.data[:-1, :-1],
+                self.cos_sg9.data[:-1, :-1],
+            ]
+        ).transpose([1, 2, 0])
+        sin_sg = self._np.array(
+            [
+                self.sin_sg1.data[:-1, :-1],
+                self.sin_sg2.data[:-1, :-1],
+                self.sin_sg3.data[:-1, :-1],
+                self.sin_sg4.data[:-1, :-1],
+                self.sin_sg5.data[:-1, :-1],
+                self.sin_sg6.data[:-1, :-1],
+                self.sin_sg7.data[:-1, :-1],
+                self.sin_sg8.data[:-1, :-1],
+                self.sin_sg9.data[:-1, :-1],
+            ]
+        ).transpose([1, 2, 0])
+
+        (
+            self._cosa.data[:, :],
+            self._sina.data[:, :],
+            self._cosa_u.data[:, :-1],
+            self._cosa_v.data[:-1, :],
+            self._cosa_s.data[:-1, :-1],
+            self._sina_u.data[:, :-1],
+            self._sina_v.data[:-1, :],
+            self._rsin_u.data[:, :-1],
+            self._rsin_v.data[:-1, :],
+            self._rsina.data[self._halo : -self._halo, self._halo : -self._halo],
+            self._rsin2.data[:-1, :-1],
+        ) = calculate_trig_uv(
+            self._dgrid_xyz,
+            cos_sg,
+            sin_sg,
+            self._halo,
+            self._tile_partitioner,
+            self._rank,
+            self._np,
+        )
+
     def _calculate_latlon_momentum_correction(self):
         l2c_v = self._quantity_factory.zeros(
             [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM], ""

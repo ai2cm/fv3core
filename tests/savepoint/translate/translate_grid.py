@@ -401,6 +401,24 @@ class TranslateGridAreas(ParallelTranslateGrid):
 
         return state
 
+    def compute_parallel(self, inputs, communicator):
+        namelist = spec.namelist
+        grid_generator = MetricTerms.from_tile_sizing(
+            npx=namelist.npx,
+            npy=namelist.npy,
+            npz=1,
+            communicator=communicator,
+            backend=global_config.get_backend(),
+        )
+
+        in_state = self.state_from_inputs(inputs)
+        grid_generator._grid.data[:] = in_state["grid"].data[:]
+        grid_generator._agrid.data[:] = in_state["agrid"].data[:]
+        state = {}
+        for metric_term, metadata in self.outputs.items():
+            state[metadata["name"]] = getattr(grid_generator, metric_term)
+        return self.outputs_from_state(state)
+
 
 class TranslateGridGrid(ParallelTranslateGrid):
 
@@ -490,7 +508,19 @@ class TranslateGridGrid(ParallelTranslateGrid):
         return self.outputs_list_from_state_list(state_list)
 
     def compute_parallel(self, inputs, communicator):
-        raise NotImplementedError()
+        namelist = spec.namelist
+        grid_generator = MetricTerms.from_tile_sizing(
+            npx=namelist.npx,
+            npy=namelist.npy,
+            npz=1,
+            communicator=communicator,
+            backend=global_config.get_backend(),
+        )
+
+        state = {}
+        for metric_term, metadata in self.outputs.items():
+            state[metadata["name"]] = getattr(grid_generator, metric_term)
+        return self.outputs_from_state(state)
 
 
 class TranslateDxDy(ParallelTranslateGrid):
@@ -571,6 +601,23 @@ class TranslateDxDy(ParallelTranslateGrid):
         )
         return state
 
+    def compute_parallel(self, inputs, communicator):
+        namelist = spec.namelist
+        grid_generator = MetricTerms.from_tile_sizing(
+            npx=namelist.npx,
+            npy=namelist.npy,
+            npz=1,
+            communicator=communicator,
+            backend=global_config.get_backend(),
+        )
+
+        in_state = self.state_from_inputs(inputs)
+        grid_generator._grid.data[:] = in_state["grid"].data[:]
+        state = {}
+        for metric_term, metadata in self.outputs.items():
+            state[metadata["name"]] = getattr(grid_generator, metric_term)
+        return self.outputs_from_state(state)
+
 
 class TranslateAGrid(ParallelTranslateGrid):
 
@@ -634,6 +681,24 @@ class TranslateAGrid(ParallelTranslateGrid):
             agrid_lat,
         )
         return state
+
+    def compute_parallel(self, inputs, communicator):
+        namelist = spec.namelist
+        grid_generator = MetricTerms.from_tile_sizing(
+            npx=namelist.npx,
+            npy=namelist.npy,
+            npz=1,
+            communicator=communicator,
+            backend=global_config.get_backend(),
+        )
+
+        in_state = self.state_from_inputs(inputs)
+        grid_generator._grid.data[:] = in_state["grid"].data[:]
+        grid_generator._init_agrid()
+        state = {}
+        for metric_term, metadata in self.outputs.items():
+            state[metadata["name"]] = getattr(grid_generator, metric_term)
+        return self.outputs_from_state(state)
 
 
 class TranslateInitGrid(ParallelTranslateGrid):
@@ -1439,8 +1504,26 @@ class TranslateUtilVectors(ParallelTranslateGrid):
         )
         return state
 
+    def compute_parallel(self, inputs, communicator):
+        namelist = spec.namelist
+        grid_generator = MetricTerms.from_tile_sizing(
+            npx=namelist.npx,
+            npy=namelist.npy,
+            npz=1,
+            communicator=communicator,
+            backend=global_config.get_backend(),
+        )
 
-class TranslateTrigSg(ParallelTranslateGrid):
+        in_state = self.state_from_inputs(inputs)
+        grid_generator._grid.data[:] = in_state["grid"].data[:]
+        grid_generator._agrid.data[:] = in_state["agrid"].data[:]
+        state = {}
+        for metric_term, metadata in self.outputs.items():
+            state[metadata["name"]] = getattr(grid_generator, metric_term)
+        return self.outputs_from_state(state)
+
+
+class TranslateTrigTerms(ParallelTranslateGrid):
     def __init__(self, grids):
         super().__init__(grids)
         self._base.in_vars["data_vars"] = {
@@ -1449,6 +1532,14 @@ class TranslateTrigSg(ParallelTranslateGrid):
                 "kaxis": 0,
             },
             "ec2": {
+                "kend": 2,
+                "kaxis": 0,
+            },
+            "ee1": {
+                "kend": 2,
+                "kaxis": 0,
+            },
+            "ee2": {
                 "kend": 2,
                 "kaxis": 0,
             },
@@ -1565,6 +1656,68 @@ class TranslateTrigSg(ParallelTranslateGrid):
             "dims": [CARTESIAN_DIM, fv3util.X_DIM, fv3util.Y_DIM],
             "units": "",
         },
+        "ee1": {
+            "name": "ee1",
+            "dims": [CARTESIAN_DIM, fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM],
+            "units": "",
+        },
+        "ee2": {
+            "name": "ee2",
+            "dims": [CARTESIAN_DIM, fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM],
+            "units": "",
+        },
+        "cosa_u": {
+            "name": "cosa_u",
+            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM],
+            "units": "",
+        },
+        "cosa_v": {
+            "name": "cosa_v",
+            "dims": [fv3util.X_DIM, fv3util.Y_INTERFACE_DIM],
+            "units": "",
+        },
+        "cosa_s": {
+            "name": "cosa_s",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": "",
+        },
+        "sina_u": {
+            "name": "sina_u",
+            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM],
+            "units": "",
+        },
+        "sina_v": {
+            "name": "sina_v",
+            "dims": [fv3util.X_DIM, fv3util.Y_INTERFACE_DIM],
+            "units": "",
+        },
+        "rsin_u": {
+            "name": "rsin_u",
+            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM],
+            "units": "",
+        },
+        "rsin_v": {
+            "name": "rsin_v",
+            "dims": [fv3util.X_DIM, fv3util.Y_INTERFACE_DIM],
+            "units": "",
+        },
+        "rsina": {
+            "name": "rsina",
+            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM],
+            "units": "",
+            "n_halo": 0,
+        },
+        "rsin2": {"name": "rsin2", "dims": [fv3util.X_DIM, fv3util.Y_DIM], "units": ""},
+        "cosa": {
+            "name": "cosa",
+            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM],
+            "units": "",
+        },
+        "sina": {
+            "name": "sina",
+            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM],
+            "units": "",
+        },
     }
     outputs: Dict[str, Any] = {
         "cos_sg1": {
@@ -1657,41 +1810,89 @@ class TranslateTrigSg(ParallelTranslateGrid):
             "dims": [fv3util.X_DIM, fv3util.Y_DIM],
             "units": "",
         },
+        "ee1": {
+            "name": "ee1",
+            "dims": [CARTESIAN_DIM, fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM],
+            "units": "",
+        },
+        "ee2": {
+            "name": "ee2",
+            "dims": [CARTESIAN_DIM, fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM],
+            "units": "",
+        },
+        "cosa_u": {
+            "name": "cosa_u",
+            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM],
+            "units": "",
+        },
+        "cosa_v": {
+            "name": "cosa_v",
+            "dims": [fv3util.X_DIM, fv3util.Y_INTERFACE_DIM],
+            "units": "",
+        },
+        "cosa_s": {
+            "name": "cosa_s",
+            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
+            "units": "",
+        },
+        "sina_u": {
+            "name": "sina_u",
+            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM],
+            "units": "",
+        },
+        "sina_v": {
+            "name": "sina_v",
+            "dims": [fv3util.X_DIM, fv3util.Y_INTERFACE_DIM],
+            "units": "",
+        },
+        "rsin_u": {
+            "name": "rsin_u",
+            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM],
+            "units": "",
+        },
+        "rsin_v": {
+            "name": "rsin_v",
+            "dims": [fv3util.X_DIM, fv3util.Y_INTERFACE_DIM],
+            "units": "",
+        },
+        "rsina": {
+            "name": "rsina",
+            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM],
+            "units": "",
+            "n_halo": 0,
+        },
+        "rsin2": {"name": "rsin2", "dims": [fv3util.X_DIM, fv3util.Y_DIM], "units": ""},
+        "cosa": {
+            "name": "cosa",
+            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM],
+            "units": "",
+        },
+        "sina": {
+            "name": "sina",
+            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM],
+            "units": "",
+        },
     }
 
-    def compute_sequential(self, inputs_list, communicator_list):
-        state_list = []
-        for inputs, communicator in zip(inputs_list, communicator_list):
-            state_list.append(self._compute_local(inputs, communicator))
-        return self.outputs_list_from_state_list(state_list)
+    def compute_parallel(self, inputs, communicator):
+        namelist = spec.namelist
+        grid_generator = MetricTerms.from_tile_sizing(
+            npx=namelist.npx,
+            npy=namelist.npy,
+            npz=1,
+            communicator=communicator,
+            backend=global_config.get_backend(),
+        )
 
-    def _compute_local(self, inputs, communicator):
-        state = self.state_from_inputs(inputs)
-        xyz_dgrid = lon_lat_to_xyz(
-            state["grid"].data[:, :, 0], state["grid"].data[:, :, 1], state["agrid"].np
-        )
-        xyz_agrid = lon_lat_to_xyz(
-            state["agrid"].data[:-1, :-1, 0],
-            state["agrid"].data[:-1, :-1, 1],
-            state["agrid"].np,
-        )
-        # csgs = state["cos_sg1"].data[:].shape
-        # print(csgs, state["grid"].data[:].shape, state["agrid"].data[:].shape)
-        cos_sg, sin_sg = calculate_supergrid_cos_sin(
-            xyz_dgrid,
-            xyz_agrid,
-            state["ec1"].data[:-1, :-1],
-            state["ec2"].data[:-1, :-1],
-            self.grid.grid_type,
-            self.grid.halo,
-            communicator.tile.partitioner,
-            communicator.rank,
-            state["agrid"].np,
-        )
-        for i in range(1, 10):
-            state[f"cos_sg{i}"].data[:-1, :-1] = cos_sg[:, :, i - 1]
-            state[f"sin_sg{i}"].data[:-1, :-1] = sin_sg[:, :, i - 1]
-        return state
+        in_state = self.state_from_inputs(inputs)
+        grid_generator._grid.data[:] = in_state["grid"].data[:]
+        grid_generator._agrid.data[:] = in_state["agrid"].data[:]
+        grid_generator._ec1 = in_state["ec1"]
+        grid_generator._ec2 = in_state["ec2"]
+        state = {}
+        for metric_term, metadata in self.outputs.items():
+            state[metadata["name"]] = getattr(grid_generator, metric_term)
+        return self.outputs_from_state(state)
 
 
 class TranslateAAMCorrection(ParallelTranslateGrid):
@@ -1744,8 +1945,25 @@ class TranslateAAMCorrection(ParallelTranslateGrid):
         ) = calculate_l2c_vu(state["grid"].data[:], nhalo, state["grid"].np)
         return state
 
+    def compute_parallel(self, inputs, communicator):
+        namelist = spec.namelist
+        grid_generator = MetricTerms.from_tile_sizing(
+            npx=namelist.npx,
+            npy=namelist.npy,
+            npz=1,
+            communicator=communicator,
+            backend=global_config.get_backend(),
+        )
 
-class TranslateMoreTrig(ParallelTranslateGrid):
+        in_state = self.state_from_inputs(inputs)
+        grid_generator._grid.data[:] = in_state["grid"].data[:]
+        state = {}
+        for metric_term, metadata in self.outputs.items():
+            state[metadata["name"]] = getattr(grid_generator, metric_term)
+        return self.outputs_from_state(state)
+
+
+class TranslateTrigSubset(ParallelTranslateGrid):
     def __init__(self, grids):
         super().__init__(grids)
         self._base.in_vars["data_vars"] = {
@@ -2035,219 +2253,41 @@ class TranslateMoreTrig(ParallelTranslateGrid):
         )
         return state
 
-
-class TranslateFixSgCorners(ParallelTranslateGrid):
-    inputs: Dict[str, Any] = {
-        "cos_sg1": {
-            "name": "cos_sg1",
-            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
-            "units": "",
-        },
-        "sin_sg1": {
-            "name": "sin_sg1",
-            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
-            "units": "",
-        },
-        "cos_sg2": {
-            "name": "cos_sg2",
-            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
-            "units": "",
-        },
-        "sin_sg2": {
-            "name": "sin_sg2",
-            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
-            "units": "",
-        },
-        "cos_sg3": {
-            "name": "cos_sg3",
-            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
-            "units": "",
-        },
-        "sin_sg3": {
-            "name": "sin_sg3",
-            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
-            "units": "",
-        },
-        "cos_sg4": {
-            "name": "cos_sg4",
-            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
-            "units": "",
-        },
-        "sin_sg4": {
-            "name": "sin_sg4",
-            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
-            "units": "",
-        },
-        "cos_sg5": {
-            "name": "cos_sg5",
-            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
-            "units": "",
-        },
-        "sin_sg5": {
-            "name": "sin_sg5",
-            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
-            "units": "",
-        },
-        "cos_sg6": {
-            "name": "cos_sg6",
-            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
-            "units": "",
-        },
-        "sin_sg6": {
-            "name": "sin_sg6",
-            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
-            "units": "",
-        },
-        "cos_sg7": {
-            "name": "cos_sg7",
-            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
-            "units": "",
-        },
-        "sin_sg7": {
-            "name": "sin_sg7",
-            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
-            "units": "",
-        },
-        "cos_sg8": {
-            "name": "cos_sg8",
-            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
-            "units": "",
-        },
-        "sin_sg8": {
-            "name": "sin_sg8",
-            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
-            "units": "",
-        },
-        "cos_sg9": {
-            "name": "cos_sg9",
-            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
-            "units": "",
-        },
-        "sin_sg9": {
-            "name": "sin_sg9",
-            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
-            "units": "",
-        },
-    }
-    outputs: Dict[str, Any] = {
-        "cos_sg1": {
-            "name": "cos_sg1",
-            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
-            "units": "",
-        },
-        "sin_sg1": {
-            "name": "sin_sg1",
-            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
-            "units": "",
-        },
-        "cos_sg2": {
-            "name": "cos_sg2",
-            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
-            "units": "",
-        },
-        "sin_sg2": {
-            "name": "sin_sg2",
-            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
-            "units": "",
-        },
-        "cos_sg3": {
-            "name": "cos_sg3",
-            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
-            "units": "",
-        },
-        "sin_sg3": {
-            "name": "sin_sg3",
-            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
-            "units": "",
-        },
-        "cos_sg4": {
-            "name": "cos_sg4",
-            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
-            "units": "",
-        },
-        "sin_sg4": {
-            "name": "sin_sg4",
-            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
-            "units": "",
-        },
-        "cos_sg5": {
-            "name": "cos_sg5",
-            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
-            "units": "",
-        },
-        "sin_sg5": {
-            "name": "sin_sg5",
-            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
-            "units": "",
-        },
-        "cos_sg6": {
-            "name": "cos_sg6",
-            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
-            "units": "",
-        },
-        "sin_sg6": {
-            "name": "sin_sg6",
-            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
-            "units": "",
-        },
-        "cos_sg7": {
-            "name": "cos_sg7",
-            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
-            "units": "",
-        },
-        "sin_sg7": {
-            "name": "sin_sg7",
-            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
-            "units": "",
-        },
-        "cos_sg8": {
-            "name": "cos_sg8",
-            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
-            "units": "",
-        },
-        "sin_sg8": {
-            "name": "sin_sg8",
-            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
-            "units": "",
-        },
-        "cos_sg9": {
-            "name": "cos_sg9",
-            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
-            "units": "",
-        },
-        "sin_sg9": {
-            "name": "sin_sg9",
-            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
-            "units": "",
-        },
-    }
-
-    def compute_sequential(self, inputs_list, communicator_list):
-        state_list = []
-        for inputs, communicator in zip(inputs_list, communicator_list):
-            state_list.append(self._compute_local(inputs, communicator))
-        return self.outputs_list_from_state_list(state_list)
-
-    def _compute_local(self, inputs, communicator):
-        state = self.state_from_inputs(inputs)
-        cos_sg = []
-        sin_sg = []
-        for i in range(1, 10):
-            cos_sg.append(state[f"cos_sg{i}"].data[:-1, :-1])
-            sin_sg.append(state[f"sin_sg{i}"].data[:-1, :-1])
-        cos_sg = state["cos_sg1"].np.array(cos_sg).transpose(1, 2, 0)
-        sin_sg = state["cos_sg1"].np.array(sin_sg).transpose(1, 2, 0)
-        supergrid_corner_fix(
-            cos_sg,
-            sin_sg,
-            self.grid.halo,
-            communicator.tile.partitioner,
-            communicator.rank,
+    def compute_parallel(self, inputs, communicator):
+        namelist = spec.namelist
+        grid_generator = MetricTerms.from_tile_sizing(
+            npx=namelist.npx,
+            npy=namelist.npy,
+            npz=1,
+            communicator=communicator,
+            backend=global_config.get_backend(),
         )
-        for i in range(1, 10):
-            state[f"cos_sg{i}"].data[:-1, :-1] = cos_sg[:, :, i - 1]
-            state[f"sin_sg{i}"].data[:-1, :-1] = sin_sg[:, :, i - 1]
-        return state
+
+        in_state = self.state_from_inputs(inputs)
+        grid_generator._grid.data[:] = in_state["grid"].data[:]
+        grid_generator._cos_sg1 = in_state["cos_sg1"]
+        grid_generator._cos_sg2 = in_state["cos_sg2"]
+        grid_generator._cos_sg3 = in_state["cos_sg3"]
+        grid_generator._cos_sg4 = in_state["cos_sg4"]
+        grid_generator._cos_sg5 = in_state["cos_sg5"]
+        grid_generator._cos_sg6 = in_state["cos_sg6"]
+        grid_generator._cos_sg7 = in_state["cos_sg7"]
+        grid_generator._cos_sg8 = in_state["cos_sg8"]
+        grid_generator._cos_sg9 = in_state["cos_sg9"]
+        grid_generator._sin_sg1 = in_state["sin_sg1"]
+        grid_generator._sin_sg2 = in_state["sin_sg2"]
+        grid_generator._sin_sg3 = in_state["sin_sg3"]
+        grid_generator._sin_sg4 = in_state["sin_sg4"]
+        grid_generator._sin_sg5 = in_state["sin_sg5"]
+        grid_generator._sin_sg6 = in_state["sin_sg6"]
+        grid_generator._sin_sg7 = in_state["sin_sg7"]
+        grid_generator._sin_sg8 = in_state["sin_sg8"]
+        grid_generator._sin_sg9 = in_state["sin_sg9"]
+        state = {}
+        grid_generator._calculate_derived_trig_terms_for_testing()
+        for metric_term, metadata in self.outputs.items():
+            state[metadata["name"]] = getattr(grid_generator, metric_term)
+        return self.outputs_from_state(state)
 
 
 class TranslateDivgDel6(ParallelTranslateGrid):
@@ -2376,6 +2416,32 @@ class TranslateDivgDel6(ParallelTranslateGrid):
             communicator.rank,
         )
         return state
+
+    def compute_parallel(self, inputs, communicator):
+        namelist = spec.namelist
+        grid_generator = MetricTerms.from_tile_sizing(
+            npx=namelist.npx,
+            npy=namelist.npy,
+            npz=1,
+            communicator=communicator,
+            backend=global_config.get_backend(),
+        )
+
+        in_state = self.state_from_inputs(inputs)
+        grid_generator._sin_sg1 = in_state["sin_sg1"]
+        grid_generator._sin_sg2 = in_state["sin_sg2"]
+        grid_generator._sin_sg3 = in_state["sin_sg3"]
+        grid_generator._sin_sg4 = in_state["sin_sg4"]
+        grid_generator._sina_u = in_state["sina_u"]
+        grid_generator._sina_v = in_state["sina_v"]
+        grid_generator._dx = in_state["dx"]
+        grid_generator._dy = in_state["dy"]
+        grid_generator._dx_cgrid = in_state["dx_cgrid"]
+        grid_generator._dy_cgrid = in_state["dy_cgrid"]
+        state = {}
+        for metric_term, metadata in self.outputs.items():
+            state[metadata["name"]] = getattr(grid_generator, metric_term)
+        return self.outputs_from_state(state)
 
 
 class TranslateInitCubedtoLatLon(ParallelTranslateGrid):
@@ -2545,6 +2611,26 @@ class TranslateInitCubedtoLatLon(ParallelTranslateGrid):
         )
         return state
 
+    def compute_parallel(self, inputs, communicator):
+        namelist = spec.namelist
+        grid_generator = MetricTerms.from_tile_sizing(
+            npx=namelist.npx,
+            npy=namelist.npy,
+            npz=1,
+            communicator=communicator,
+            backend=global_config.get_backend(),
+        )
+
+        in_state = self.state_from_inputs(inputs)
+        grid_generator._sin_sg5 = in_state["sin_sg5"]
+        grid_generator._agrid.data[:] = in_state["agrid"].data[:]
+        grid_generator._ec1 = in_state["ec1"]
+        grid_generator._ec2 = in_state["ec2"]
+        state = {}
+        for metric_term, metadata in self.outputs.items():
+            state[metadata["name"]] = getattr(grid_generator, metric_term)
+        return self.outputs_from_state(state)
+
 
 class TranslateEdgeFactors(ParallelTranslateGrid):
     inputs: Dict[str, Any] = {
@@ -2690,6 +2776,24 @@ class TranslateEdgeFactors(ParallelTranslateGrid):
             state["grid"].np,
         )
         return state
+
+    def compute_parallel(self, inputs, communicator):
+        namelist = spec.namelist
+        grid_generator = MetricTerms.from_tile_sizing(
+            npx=namelist.npx,
+            npy=namelist.npy,
+            npz=1,
+            communicator=communicator,
+            backend=global_config.get_backend(),
+        )
+
+        in_state = self.state_from_inputs(inputs)
+        grid_generator._grid.data[:] = in_state["grid"].data[:]
+        grid_generator._agrid.data[:] = in_state["agrid"].data[:]
+        state = {}
+        for metric_term, metadata in self.outputs.items():
+            state[metadata["name"]] = getattr(grid_generator, metric_term)
+        return self.outputs_from_state(state)
 
 
 class TranslateInitGridUtils(ParallelTranslateGrid):
