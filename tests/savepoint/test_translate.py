@@ -111,7 +111,7 @@ def sample_wherefail(
         full_index = [f[b] for f in found_indices]
         metric_err = compare_scalar(computed_failures[b], reference_failures[b])
         abs_err = abs(computed_failures[b] - reference_failures[b])
-        if print_failures and b%failure_stride == 0:
+        if print_failures and b % failure_stride == 0:
             return_strings.append(
                 f"index: {full_index}, computed {computed_failures[b]}, "
                 f"reference {reference_failures[b]}, "
