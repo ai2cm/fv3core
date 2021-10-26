@@ -118,6 +118,11 @@ class TranslateMirrorGrid(ParallelTranslateGrid):
 
 
 class TranslateGridAreas(ParallelTranslateGrid):
+    def __init__(self, rank_grids):
+        super().__init__(rank_grids)
+        self.max_error = 3e-12
+        self.near_zero = 3e-14
+        self.ignore_near_zero_errors = {"agrid": True, "dxc": True, "dyc": True}
 
     inputs = {
         "grid": {
@@ -239,6 +244,8 @@ class TranslateGridGrid(ParallelTranslateGrid):
     def __init__(self, grids):
         super().__init__(grids)
         self.max_error = 1.0e-13
+        self.near_zero = 1e-14
+        self.ignore_near_zero_errors = {"grid": True}
 
     def compute_parallel(self, inputs, communicator):
         namelist = spec.namelist
@@ -257,6 +264,9 @@ class TranslateGridGrid(ParallelTranslateGrid):
 
 
 class TranslateDxDy(ParallelTranslateGrid):
+    def __init__(self, rank_grids):
+        super().__init__(rank_grids)
+        self.max_error = 3e-14
 
     inputs = {
         "grid": {
@@ -297,6 +307,9 @@ class TranslateDxDy(ParallelTranslateGrid):
 
 
 class TranslateAGrid(ParallelTranslateGrid):
+    def __init__(self, rank_grids):
+        super().__init__(rank_grids)
+        self.max_error = 1e-13
 
     inputs = {
         "agrid": {
@@ -425,8 +438,9 @@ class TranslateInitGrid(ParallelTranslateGrid):
 
     def __init__(self, grids):
         super().__init__(grids)
-        self.ignore_near_zero_errors = {}
-        self.ignore_near_zero_errors["grid"] = True
+        self.max_error = 3e-12
+        self.near_zero = 3e-14
+        self.ignore_near_zero_errors = {"gridvar": True, "agrid": True}
 
     def compute_parallel(self, inputs, communicator):
         namelist = spec.namelist
@@ -511,6 +525,14 @@ class TranslateSetEta(ParallelTranslateGrid):
 class TranslateUtilVectors(ParallelTranslateGrid):
     def __init__(self, grids):
         super().__init__(grids)
+        self.max_error = 3e-12
+        self.near_zero = 3e-14
+        self.ignore_near_zero_errors = {
+            "ew1": True,
+            "ew2": True,
+            "es1": True,
+            "es2": True,
+        }
         self._base.in_vars["data_vars"] = {
             "ec1": {
                 "kend": 2,
@@ -632,9 +654,18 @@ class TranslateUtilVectors(ParallelTranslateGrid):
         return self.outputs_from_state(state)
 
 
-class TranslateTrigTerms(ParallelTranslateGrid):
+class TranslateTrigSg(ParallelTranslateGrid):
     def __init__(self, grids):
         super().__init__(grids)
+        self.max_error = 3e-11
+        self.near_zero = 1e-14
+        self.ignore_near_zero_errors = {
+            "cos_sg5": True,
+            "cos_sg6": True,
+            "cos_sg7": True,
+            "cos_sg8": True,
+            "cos_sg9": True,
+        }
         self._base.in_vars["data_vars"] = {
             "ec1": {
                 "kend": 2,
@@ -765,68 +796,6 @@ class TranslateTrigTerms(ParallelTranslateGrid):
             "dims": [CARTESIAN_DIM, fv3util.X_DIM, fv3util.Y_DIM],
             "units": "",
         },
-        "ee1": {
-            "name": "ee1",
-            "dims": [CARTESIAN_DIM, fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM],
-            "units": "",
-        },
-        "ee2": {
-            "name": "ee2",
-            "dims": [CARTESIAN_DIM, fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM],
-            "units": "",
-        },
-        "cosa_u": {
-            "name": "cosa_u",
-            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM],
-            "units": "",
-        },
-        "cosa_v": {
-            "name": "cosa_v",
-            "dims": [fv3util.X_DIM, fv3util.Y_INTERFACE_DIM],
-            "units": "",
-        },
-        "cosa_s": {
-            "name": "cosa_s",
-            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
-            "units": "",
-        },
-        "sina_u": {
-            "name": "sina_u",
-            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM],
-            "units": "",
-        },
-        "sina_v": {
-            "name": "sina_v",
-            "dims": [fv3util.X_DIM, fv3util.Y_INTERFACE_DIM],
-            "units": "",
-        },
-        "rsin_u": {
-            "name": "rsin_u",
-            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM],
-            "units": "",
-        },
-        "rsin_v": {
-            "name": "rsin_v",
-            "dims": [fv3util.X_DIM, fv3util.Y_INTERFACE_DIM],
-            "units": "",
-        },
-        "rsina": {
-            "name": "rsina",
-            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM],
-            "units": "",
-            "n_halo": 0,
-        },
-        "rsin2": {"name": "rsin2", "dims": [fv3util.X_DIM, fv3util.Y_DIM], "units": ""},
-        "cosa": {
-            "name": "cosa",
-            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM],
-            "units": "",
-        },
-        "sina": {
-            "name": "sina",
-            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM],
-            "units": "",
-        },
     }
     outputs: Dict[str, Any] = {
         "cos_sg1": {
@@ -919,68 +888,6 @@ class TranslateTrigTerms(ParallelTranslateGrid):
             "dims": [fv3util.X_DIM, fv3util.Y_DIM],
             "units": "",
         },
-        "ee1": {
-            "name": "ee1",
-            "dims": [CARTESIAN_DIM, fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM],
-            "units": "",
-        },
-        "ee2": {
-            "name": "ee2",
-            "dims": [CARTESIAN_DIM, fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM],
-            "units": "",
-        },
-        "cosa_u": {
-            "name": "cosa_u",
-            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM],
-            "units": "",
-        },
-        "cosa_v": {
-            "name": "cosa_v",
-            "dims": [fv3util.X_DIM, fv3util.Y_INTERFACE_DIM],
-            "units": "",
-        },
-        "cosa_s": {
-            "name": "cosa_s",
-            "dims": [fv3util.X_DIM, fv3util.Y_DIM],
-            "units": "",
-        },
-        "sina_u": {
-            "name": "sina_u",
-            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM],
-            "units": "",
-        },
-        "sina_v": {
-            "name": "sina_v",
-            "dims": [fv3util.X_DIM, fv3util.Y_INTERFACE_DIM],
-            "units": "",
-        },
-        "rsin_u": {
-            "name": "rsin_u",
-            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM],
-            "units": "",
-        },
-        "rsin_v": {
-            "name": "rsin_v",
-            "dims": [fv3util.X_DIM, fv3util.Y_INTERFACE_DIM],
-            "units": "",
-        },
-        "rsina": {
-            "name": "rsina",
-            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM],
-            "units": "",
-            "n_halo": 0,
-        },
-        "rsin2": {"name": "rsin2", "dims": [fv3util.X_DIM, fv3util.Y_DIM], "units": ""},
-        "cosa": {
-            "name": "cosa",
-            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM],
-            "units": "",
-        },
-        "sina": {
-            "name": "sina",
-            "dims": [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM],
-            "units": "",
-        },
     }
 
     def compute_parallel(self, inputs, communicator):
@@ -1005,6 +912,12 @@ class TranslateTrigTerms(ParallelTranslateGrid):
 
 
 class TranslateAAMCorrection(ParallelTranslateGrid):
+    def __init__(self, rank_grids):
+        super().__init__(rank_grids)
+        self.max_error = 1e-14
+        self.near_zero = 1e-14
+        self.ignore_near_zero_errors = {"l2c_v": True, "l2c_u": True}
+
     inputs: Dict[str, Any] = {
         "grid": {
             "name": "grid",
@@ -1057,9 +970,12 @@ class TranslateAAMCorrection(ParallelTranslateGrid):
         return self.outputs_from_state(state)
 
 
-class TranslateTrigSubset(ParallelTranslateGrid):
+class TranslateDerivedTrig(ParallelTranslateGrid):
     def __init__(self, grids):
         super().__init__(grids)
+        self.max_error = 3e-14
+        self.near_zero = 3e-14
+        self.ignore_near_zero_errors = {"ee1": True, "ee2": True}
         self._base.in_vars["data_vars"] = {
             "ee1": {
                 "kend": 2,
@@ -1607,6 +1523,10 @@ class TranslateInitCubedtoLatLon(ParallelTranslateGrid):
 
 
 class TranslateEdgeFactors(ParallelTranslateGrid):
+    def __init__(self, rank_grids):
+        super().__init__(rank_grids)
+        self.max_error = 3e-13
+
     inputs: Dict[str, Any] = {
         "grid": {
             "name": "grid",
@@ -1732,6 +1652,26 @@ class TranslateEdgeFactors(ParallelTranslateGrid):
 class TranslateInitGridUtils(ParallelTranslateGrid):
     def __init__(self, grids):
         super().__init__(grids)
+        self.max_error = 3e-11
+        self.near_zero = 3e-14
+        self.ignore_near_zero_errors = {
+            "l2c_v": True,
+            "l2c_u": True,
+            "ee1": True,
+            "ee2": True,
+            "ew1": True,
+            "ew2": True,
+            "es1": True,
+            "es2": True,
+            "cos_sg5": True,
+            "cos_sg6": True,
+            "cos_sg7": True,
+            "cos_sg8": True,
+            "cos_sg9": True,
+            "cosa": True,
+            "cosa_u": True,
+            "cosa_v": True,
+        }
         self._base.in_vars["data_vars"] = {
             "ec1": {
                 "kend": 2,

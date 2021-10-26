@@ -35,6 +35,7 @@ from .translate_fxadv import TranslateFxAdv
 from .translate_grid import (
     TranslateAAMCorrection,
     TranslateAGrid,
+    TranslateDerivedTrig,
     TranslateDivgDel6,
     TranslateDxDy,
     TranslateEdgeFactors,
@@ -46,8 +47,7 @@ from .translate_grid import (
     TranslateInitGridUtils,
     TranslateMirrorGrid,
     TranslateSetEta,
-    TranslateTrigSubset,
-    TranslateTrigTerms,
+    TranslateTrigSg,
     TranslateUtilVectors,
 )
 from .translate_haloupdate import (
