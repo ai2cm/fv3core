@@ -206,6 +206,12 @@ class ParallelTranslateGrid(ParallelTranslate):
                 state[standard_name] = inputs[name]
         return state
 
+    def compute_sequential(self, *args, **kwargs):
+        pytest.skip(
+            f"{self.__class__} only has a mpirun implementation, "
+            "not running in mock-parallel"
+        )
+
 
 class ParallelTranslate2Py(ParallelTranslate):
     def collect_input_data(self, serializer, savepoint):
