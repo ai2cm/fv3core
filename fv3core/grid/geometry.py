@@ -13,9 +13,9 @@ from .gnomonic import (
 
 def get_center_vector(xyz_gridpoints, grid_type, nhalo, tile_partitioner, rank, np):
     """
-    Calculates the unit vector pointing to the center of each grid cell.
-    vector1 comes from using the halfway points of the left and top cell edges, while
-    vector2 comes from using the halfway points of the bottom and right cell edges
+    Calculates the unit vectors pointing to the center of each grid cell.
+    vector1 is the horizontal unit vector, while
+    vector2 is the vertical unit vector
     """
     big_number = 1.0e8
 

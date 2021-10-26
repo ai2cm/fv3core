@@ -66,7 +66,7 @@ def cached_property(func):
 
 # TODO
 # corners use sizer + partitioner rather than GridIndexer,
-# requires fv3core clls to corners know what to do
+# requires fv3core calls to corners know what to do
 class MetricTerms:
     def __init__(
         self,
@@ -97,7 +97,7 @@ class MetricTerms:
             LON_OR_LAT_DIM,
         ]
         self._grid = self._quantity_factory.zeros(
-            [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM, LON_OR_LAT_DIM],
+            self._grid_dims,
             "radians",
             dtype=float,
         )
@@ -218,6 +218,13 @@ class MetricTerms:
         return self._grid
 
     @property
+    def dgrid_lon_lat(self):
+        """
+        The longitudes and latitudes of the d-grid cell centers
+        """
+        return self._grid
+
+    @property
     def gridvar(self):
         return self._grid
 
@@ -226,301 +233,564 @@ class MetricTerms:
         return self._agrid
 
     @property
+    def agrid_lon_lat(self):
+        """
+        The longitudes and latitudes of the d-grid cell centers
+        """
+        return self._agrid
+
+    @property
     def dx(self):
+        """
+        The length of the d-grid cells along the x-direction
+        """
         if self._dx is None:
             self._dx, self._dy = self._compute_dxdy()
         return self._dx
 
     @property
     def dy(self):
+        """
+        The length of the d-grid cells along the y-direction
+        """
         if self._dy is None:
             self._dx, self._dy = self._compute_dxdy()
         return self._dy
 
     @property
     def dxa(self):
+        """
+        The length of the a-grid cells along the x-direction
+        """
         if self._dx_agrid is None:
             self._dx_agrid, self._dy_agrid = self._compute_dxdy_agrid()
         return self._dx_agrid
 
     @property
     def dya(self):
+        """
+        The length of the a-grid cells along the y-direction
+        """
         if self._dy_agrid is None:
             self._dx_agrid, self._dy_agrid = self._compute_dxdy_agrid()
         return self._dy_agrid
 
     @property
     def dxc(self):
+        """
+        The length of the c-grid cells along the x-direction
+        """
         if self._dx_cgrid is None:
             self._dx_cgrid, self._dy_cgrid = self._compute_dxdy_cgrid()
         return self._dx_cgrid
 
     @property
     def dyc(self):
+        """
+        The length of the c-grid cells along the y-direction
+        """
         if self._dy_cgrid is None:
             self._dx_cgrid, self._dy_cgrid = self._compute_dxdy_cgrid()
         return self._dy_cgrid
 
     @property
     def ak(self):
+        """
+        The ak coefficient used to calculate the pressure at a given k-level:
+        pk = ak + (bk * ps)
+        """
         if self._ak is None:
             self._ks, self._ptop, self._ak, self._bk = self._set_eta()
         return self._ak
 
     @property
     def bk(self):
+        """
+        The bk coefficient used to calculate the pressure at a given k-level:
+        pk = ak + (bk * ps)
+        """
         if self._bk is None:
             self._ks, self._ptop, self._ak, self._bk = self._set_eta()
         return self._bk
 
     @property
     def ks(self):
+        """
+        The number of pure-pressure layers at the top of the model
+        Also the level where model transitions from pure pressure to
+        hybrid pressure levels
+        """
         if self._ks is None:
             self._ks, self._ptop, self._ak, self._bk = self._set_eta()
         return self._ks
 
     @property
     def ptop(self):
+        """
+        The pressure of the top of atmosphere level
+        """
         if self._ptop is None:
             self._ks, self._ptop, self._ak, self._bk = self._set_eta()
         return self._ptop
 
     @property
     def ec1(self):
+        """
+        Horizontal component of the local vector pointing to each cell center
+        """
         if self._ec1 is None:
             self._ec1, self._ec2 = self._calculate_center_vectors()
         return self._ec1
 
     @property
     def ec2(self):
+        """
+        Vertical component of the local vector pointing to each cell center
+        """
         if self._ec2 is None:
             self._ec1, self._ec2 = self._calculate_center_vectors()
         return self._ec2
 
     @property
     def ew1(self):
+        """
+        Horizontal component of the local vector pointing west at each grid point
+        """
         if self._ew1 is None:
             self._ew1, self._ew2 = self._calculate_vectors_west()
         return self._ew1
 
     @property
     def ew2(self):
+        """
+        Vertical component of the local vector pointing west at each grid point
+        """
         if self._ew2 is None:
             self._ew1, self._ew2 = self._calculate_vectors_west()
         return self._ew2
 
     @property
     def cos_sg1(self):
+        """
+        Cosine of the angle at point 1 of the 'supergrid' that refines each grid cell:
+        9---4---8
+        |       |
+        1   5   3
+        |       |
+        6---2---7
+        """
         if self._cos_sg1 is None:
             self._init_cell_trigonometry()
         return self._cos_sg1
 
     @property
     def cos_sg2(self):
+        """
+        Cosine of the angle at point 2 of the 'supergrid' that refines each grid cell:
+        9---4---8
+        |       |
+        1   5   3
+        |       |
+        6---2---7
+        """
         if self._cos_sg2 is None:
             self._init_cell_trigonometry()
         return self._cos_sg2
 
     @property
     def cos_sg3(self):
+        """
+        Cosine of the angle at point 3 of the 'supergrid' that refines each grid cell:
+        9---4---8
+        |       |
+        1   5   3
+        |       |
+        6---2---7
+        """
         if self._cos_sg3 is None:
             self._init_cell_trigonometry()
         return self._cos_sg3
 
     @property
     def cos_sg4(self):
+        """
+        Cosine of the angle at point 4 of the 'supergrid' that refines each grid cell:
+        9---4---8
+        |       |
+        1   5   3
+        |       |
+        6---2---7
+        """
         if self._cos_sg4 is None:
             self._init_cell_trigonometry()
         return self._cos_sg4
 
     @property
     def cos_sg5(self):
+        """
+        Cosine of the angle at point 5 of the 'supergrid' that refines each grid cell:
+        9---4---8
+        |       |
+        1   5   3
+        |       |
+        6---2---7
+        The inner product of ec1 and ec2 for point 5
+        """
         if self._cos_sg5 is None:
             self._init_cell_trigonometry()
         return self._cos_sg5
 
     @property
     def cos_sg6(self):
+        """
+        Cosine of the angle at point 6 of the 'supergrid' that refines each grid cell:
+        9---4---8
+        |       |
+        1   5   3
+        |       |
+        6---2---7
+        """
         if self._cos_sg6 is None:
             self._init_cell_trigonometry()
         return self._cos_sg6
 
     @property
     def cos_sg7(self):
+        """
+        Cosine of the angle at point 7 of the 'supergrid' that refines each grid cell:
+        9---4---8
+        |       |
+        1   5   3
+        |       |
+        6---2---7
+        """
         if self._cos_sg7 is None:
             self._init_cell_trigonometry()
         return self._cos_sg7
 
     @property
     def cos_sg8(self):
+        """
+        Cosine of the angle at point 8 of the 'supergrid' that refines each grid cell:
+        9---4---8
+        |       |
+        1   5   3
+        |       |
+        6---2---7
+        """
         if self._cos_sg8 is None:
             self._init_cell_trigonometry()
         return self._cos_sg8
 
     @property
     def cos_sg9(self):
+        """
+        Cosine of the angle at point 9 of the 'supergrid' that refines each grid cell:
+        9---4---8
+        |       |
+        1   5   3
+        |       |
+        6---2---7
+        """
         if self._cos_sg9 is None:
             self._init_cell_trigonometry()
         return self._cos_sg9
 
     @property
     def sin_sg1(self):
+        """
+        Sine of the angle at point 1 of the 'supergrid' that refines each grid cell:
+        9---4---8
+        |       |
+        1   5   3
+        |       |
+        6---2---7
+        """
         if self._sin_sg1 is None:
             self._init_cell_trigonometry()
         return self._sin_sg1
 
     @property
     def sin_sg2(self):
+        """
+        Sine of the angle at point 2 of the 'supergrid' that refines each grid cell:
+        9---4---8
+        |       |
+        1   5   3
+        |       |
+        6---2---7
+        """
         if self._sin_sg2 is None:
             self._init_cell_trigonometry()
         return self._sin_sg2
 
     @property
     def sin_sg3(self):
+        """
+        Sine of the angle at point 3 of the 'supergrid' that refines each grid cell:
+        9---4---8
+        |       |
+        1   5   3
+        |       |
+        6---2---7
+        """
         if self._sin_sg3 is None:
             self._init_cell_trigonometry()
         return self._sin_sg3
 
     @property
     def sin_sg4(self):
+        """
+        Sine of the angle at point 4 of the 'supergrid' that refines each grid cell:
+        9---4---8
+        |       |
+        1   5   3
+        |       |
+        6---2---7
+        """
         if self._sin_sg4 is None:
             self._init_cell_trigonometry()
         return self._sin_sg4
 
     @property
     def sin_sg5(self):
+        """
+        Sine of the angle at point 5 of the 'supergrid' that refines each grid cell:
+        9---4---8
+        |       |
+        1   5   3
+        |       |
+        6---2---7
+        For the center point this is one minus the inner product of ec1 and ec2 squared
+        """
         if self._sin_sg5 is None:
             self._init_cell_trigonometry()
         return self._sin_sg5
 
     @property
     def sin_sg6(self):
+        """
+        Sine of the angle at point 6 of the 'supergrid' that refines each grid cell:
+        9---4---8
+        |       |
+        1   5   3
+        |       |
+        6---2---7
+        """
         if self._sin_sg6 is None:
             self._init_cell_trigonometry()
         return self._sin_sg6
 
     @property
     def sin_sg7(self):
+        """
+        Sine of the angle at point 7 of the 'supergrid' that refines each grid cell:
+        9---4---8
+        |       |
+        1   5   3
+        |       |
+        6---2---7
+        """
         if self._sin_sg7 is None:
             self._init_cell_trigonometry()
         return self._sin_sg7
 
     @property
     def sin_sg8(self):
+        """
+        Sine of the angle at point 8 of the 'supergrid' that refines each grid cell:
+        9---4---8
+        |       |
+        1   5   3
+        |       |
+        6---2---7
+        """
         if self._sin_sg8 is None:
             self._init_cell_trigonometry()
         return self._sin_sg8
 
     @property
     def sin_sg9(self):
+        """
+        Sine of the angle at point 9 of the 'supergrid' that refines each grid cell:
+        9---4---8
+        |       |
+        1   5   3
+        |       |
+        6---2---7
+        """
         if self._sin_sg9 is None:
             self._init_cell_trigonometry()
         return self._sin_sg9
 
     @property
     def cosa(self):
+        """
+        The inner product of ee1 and ee2
+        """
         if self._cosa is None:
             self._init_cell_trigonometry()
         return self._cosa
 
     @property
     def sina(self):
+        """
+        1-cosa**2
+        """
         if self._sina is None:
             self._init_cell_trigonometry()
         return self._sina
 
     @property
     def cosa_u(self):
+        """
+        The average curve along the left cell-edge
+        as measrued from the left and right sides
+        i.e. the average of cos_sg1[i,j] and cos_sg3[i-1, j]
+        """
         if self._cosa_u is None:
             self._init_cell_trigonometry()
         return self._cosa_u
 
     @property
     def cosa_v(self):
+        """
+        The average curve along the bottom cell-edge
+        as measrued from the left and right sides
+        i.e. the average of cos_sg2[i,j] and cos_sg4[i-1, j]
+        """
         if self._cosa_v is None:
             self._init_cell_trigonometry()
         return self._cosa_v
 
     @property
     def cosa_s(self):
+        """
+        Equivalent to cos_sg5, the inner product of ec1 and ec2
+        """
         if self._cosa_s is None:
             self._init_cell_trigonometry()
         return self._cosa_s
 
     @property
     def sina_u(self):
+        """
+        The average curve along the left cell-edge
+        as measrued from the left and right sides
+        i.e. the average of sin_sg1[i,j] and sin_sg3[i-1, j]
+        """
         if self._sina_u is None:
             self._init_cell_trigonometry()
         return self._sina_u
 
     @property
     def sina_v(self):
+        """
+        The average curve along the bottom cell-edge
+        as measrued from the left and right sides
+        i.e. the average of sin_sg2[i,j] and sin_sg4[i-1, j]
+        """
         if self._sina_v is None:
             self._init_cell_trigonometry()
         return self._sina_v
 
     @property
     def rsin_u(self):
+        """
+        1/sina_u**2
+        """
         if self._rsin_u is None:
             self._init_cell_trigonometry()
         return self._rsin_u
 
     @property
     def rsin_v(self):
+        """
+        1/sina_v**2
+        """
         if self._rsin_v is None:
             self._init_cell_trigonometry()
         return self._rsin_v
 
     @property
     def rsina(self):
+        """
+        1/sina**2
+        """
         if self._rsina is None:
             self._init_cell_trigonometry()
         return self._rsina
 
     @property
     def rsin2(self):
+        """
+        1/sin_sg5**2
+        """
         if self._rsin2 is None:
             self._init_cell_trigonometry()
         return self._rsin2
 
     @property
     def l2c_v(self):
+        """
+        Angular momentum correction for converting v-winds
+        from lat/lon to cartesian coordinates
+        """
         if self._l2c_v is None:
             self._l2c_v, self._l2c_u = self._calculate_latlon_momentum_correction()
         return self._l2c_v
 
     @property
     def l2c_u(self):
+        """
+        Angular momentum correction for converting u-winds
+        from lat/lon to cartesian coordinates
+        """
         if self._l2c_u is None:
             self._l2c_v, self._l2c_u = self._calculate_latlon_momentum_correction()
         return self._l2c_u
 
     @property
     def es1(self):
+        """
+        Horizontal component of the local vector pointing south at each grid point
+        """
         if self._es1 is None:
             self._es1, self._es2 = self._calculate_vectors_south()
         return self._es1
 
     @property
     def es2(self):
+        """
+        Vertical component of the local vector pointing south at each grid point
+        """
         if self._es2 is None:
             self._es1, self._es2 = self._calculate_vectors_south()
         return self._es2
 
     @property
     def ee1(self):
+        """
+        Horizontal component of the local vector pointing east at each grid point
+        """
         if self._ee1 is None:
             self._ee1, self._ee2 = self._calculate_xy_unit_vectors()
         return self._ee1
 
     @property
     def ee2(self):
+        """
+        Vertical component of the local vector pointing east at each grid point
+        """
         if self._ee2 is None:
             self._ee1, self._ee2 = self._calculate_xy_unit_vectors()
         return self._ee2
 
     @property
     def divg_u(self):
+        """
+        sina_v * dyc/dx
+        """
         if self._divg_u is None:
             (
                 self._del6_u,
@@ -532,6 +802,9 @@ class MetricTerms:
 
     @property
     def divg_v(self):
+        """
+        sina_u * dxc/dy
+        """
         if self._divg_v is None:
             (
                 self._del6_u,
@@ -543,6 +816,9 @@ class MetricTerms:
 
     @property
     def del6_u(self):
+        """
+        sina_v * dx/dyc
+        """
         if self._del6_u is None:
             (
                 self._del6_u,
@@ -554,6 +830,9 @@ class MetricTerms:
 
     @property
     def del6_v(self):
+        """
+        sina_u * dy/dxc
+        """
         if self._del6_v is None:
             (
                 self._del6_u,
@@ -565,36 +844,58 @@ class MetricTerms:
 
     @property
     def vlon(self):
+        """
+        Unit vector in longitude direction
+        """
         if self._vlon is None:
             self._vlon, self._vlat = self._calculate_unit_vectors_lonlat()
         return self._vlon
 
     @property
     def vlat(self):
+        """
+        Unit vector in latitude direction
+        """
         if self._vlat is None:
             self._vlon, self._vlat = self._calculate_unit_vectors_lonlat()
         return self._vlat
 
     @property
     def z11(self):
+        """
+        Vector product of horizontal component of the cell-center vector
+        with the unit longitude vector
+        """
         if self._z11 is None:
             self._z11, self._z12, self._z21, self._z22 = self._calculate_grid_z()
         return self._z11
 
     @property
     def z12(self):
+        """
+        Vector product of horizontal component of the cell-center vector
+        with the unit latitude vector
+        """
         if self._z12 is None:
             self._z11, self._z12, self._z21, self._z22 = self._calculate_grid_z()
         return self._z12
 
     @property
     def z21(self):
+        """
+        Vector product of vertical component of the cell-center vector
+        with the unit longitude vector
+        """
         if self._z21 is None:
             self._z11, self._z12, self._z21, self._z22 = self._calculate_grid_z()
         return self._z21
 
     @property
     def z22(self):
+        """
+        Vector product of vertical component of the cell-center vector
+        with the unit latitude vector
+        """
         if self._z22 is None:
             self._z11, self._z12, self._z21, self._z22 = self._calculate_grid_z()
         return self._z22
@@ -625,6 +926,9 @@ class MetricTerms:
 
     @property
     def edge_w(self):
+        """
+        Factor to interpolate scalars from a to c grid at the western grid edge
+        """
         if self._edge_w is None:
             (
                 self._edge_w,
@@ -636,6 +940,9 @@ class MetricTerms:
 
     @property
     def edge_e(self):
+        """
+        Factor to interpolate scalars from a to c grid at the eastern grid edge
+        """
         if self._edge_e is None:
             (
                 self._edge_w,
@@ -647,6 +954,9 @@ class MetricTerms:
 
     @property
     def edge_s(self):
+        """
+        Factor to interpolate scalars from a to c grid at the southern grid edge
+        """
         if self._edge_s is None:
             (
                 self._edge_w,
@@ -658,6 +968,9 @@ class MetricTerms:
 
     @property
     def edge_n(self):
+        """
+        Factor to interpolate scalars from a to c grid at the northern grid edge
+        """
         if self._edge_n is None:
             (
                 self._edge_w,
@@ -669,6 +982,9 @@ class MetricTerms:
 
     @property
     def edge_vect_w(self):
+        """
+        Factor to interpolate vectors from a to c grid at the western grid edge
+        """
         if self._edge_vect_w is None:
             (
                 self._edge_vect_w,
@@ -680,6 +996,9 @@ class MetricTerms:
 
     @property
     def edge_vect_e(self):
+        """
+        Factor to interpolate vectors from a to c grid at the eastern grid edge
+        """
         if self._edge_vect_e is None:
             (
                 self._edge_vect_w,
@@ -691,6 +1010,9 @@ class MetricTerms:
 
     @property
     def edge_vect_s(self):
+        """
+        Factor to interpolate vectors from a to c grid at the southern grid edge
+        """
         if self._edge_vect_s is None:
             (
                 self._edge_vect_w,
@@ -702,6 +1024,9 @@ class MetricTerms:
 
     @property
     def edge_vect_n(self):
+        """
+        Factor to interpolate vectors from a to c grid at the northern grid edge
+        """
         if self._edge_vect_n is None:
             (
                 self._edge_vect_w,
@@ -713,44 +1038,68 @@ class MetricTerms:
 
     @property
     def da_min(self):
+        """
+        The minimum agrid cell area across all ranks
+        """
         if self._da_min is None:
             self._reduce_global_area_minmaxes()
         return self._da_min
 
     @property
     def da_max(self):
+        """
+        The maximum agrid cell area across all ranks
+        """
         if self._da_max is None:
             self._reduce_global_area_minmaxes()
         return self._da_max
 
     @property
     def da_min_c(self):
+        """
+        The minimum cgrid cell area across all ranks
+        """
         if self._da_min_c is None:
             self._reduce_global_area_minmaxes()
         return self._da_min_c
 
     @property
     def da_max_c(self):
+        """
+        The maximum cgrid cell area across all ranks
+        """
         if self._da_max_c is None:
             self._reduce_global_area_minmaxes()
         return self._da_max_c
 
     @cached_property
     def area(self):
+        """
+        The area of each d-grid cell
+        """
         return self._compute_area()
 
     @cached_property
     def area_c(self):
+        """
+        The area of each c-grid cell
+        """
         return self._compute_area_c()
 
     @cached_property
     def _dgrid_xyz(self):
+        """
+        Cartesian coordinates of each dgrid cell center
+        """
         return lon_lat_to_xyz(
             self._grid.data[:, :, 0], self._grid.data[:, :, 1], self._np
         )
 
     @cached_property
     def _agrid_xyz(self):
+        """
+        Cartesian coordinates of each agrid cell center
+        """
         return lon_lat_to_xyz(
             self._agrid.data[:-1, :-1, 0],
             self._agrid.data[:-1, :-1, 1],
@@ -759,34 +1108,58 @@ class MetricTerms:
 
     @cached_property
     def rarea(self):
+        """
+        1/cell area
+        """
         return 1.0 / self.area
 
     @cached_property
     def rarea_c(self):
+        """
+        1/cgrid cell area
+        """
         return 1.0 / self.area_c
 
     @cached_property
     def rdx(self):
+        """
+        1/dx
+        """
         return 1.0 / self.dx
 
     @cached_property
     def rdy(self):
+        """
+        1/dy
+        """
         return 1.0 / self.dy
 
     @cached_property
     def rdxa(self):
+        """
+        1/dxa
+        """
         return 1.0 / self.dxa
 
     @cached_property
     def rdya(self):
+        """
+        1/dya
+        """
         return 1.0 / self.dya
 
     @cached_property
     def rdxc(self):
+        """
+        1/dxc
+        """
         return 1.0 / self.dxc
 
     @cached_property
     def rdyc(self):
+        """
+        1/dyc
+        """
         return 1.0 / self.dyc
 
     def _init_dgrid(self):
@@ -1147,7 +1520,7 @@ class MetricTerms:
         ks = self._quantity_factory.zeros([], "")
         ptop = self._quantity_factory.zeros([], "mb")
         ak = self._quantity_factory.zeros([fv3util.Z_INTERFACE_DIM], "mb")
-        bk = self._quantity_factory.zeros([fv3util.Z_INTERFACE_DIM], "mb")
+        bk = self._quantity_factory.zeros([fv3util.Z_INTERFACE_DIM], "")
         ks, ptop, ak.data[:], bk.data[:] = set_eta(self._npz)
         return ks, ptop, ak, bk
 
@@ -1306,6 +1679,14 @@ class MetricTerms:
         self._sina = self._quantity_factory.zeros(
             [fv3util.X_INTERFACE_DIM, fv3util.Y_INTERFACE_DIM], ""
         )
+
+        # This section calculates the cos_sg and sin_sg terms, which describe the
+        # angles of the corners and edges of each cell according to the supergrid:
+        #  9---4---8
+        #  |       |
+        #  1   5   3
+        #  |       |
+        #  6---2---7
 
         cos_sg, sin_sg = calculate_supergrid_cos_sin(
             self._dgrid_xyz,
