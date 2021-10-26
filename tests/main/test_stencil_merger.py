@@ -1,6 +1,9 @@
 from typing import Any, Callable, Dict, Tuple, Union
 
+import matplotlib.pyplot as plt
+import networkx as nx
 import numpy as np
+import os
 import pytest
 
 import gt4py
@@ -186,6 +189,47 @@ class FlowGraph(object):  # common.LocNode, common.SymbolTableTrait):
             if data_node is not None:
                 self.add_edge(compute_node, data_node, is_write)
 
+    def to_digraph(self) -> object:
+        graph = nx.DiGraph()
+        for node_name in self.compute_nodes:
+            graph.add_node(node_name)
+        for node_name in self.storage_nodes:
+            graph.add_node(node_name)
+        for node_name in self.scalar_nodes:
+            graph.add_node(node_name)
+
+        for from_edge in self.read_edges:
+            for to_edge in self.read_edges[from_edge]:
+                graph.add_edge(from_edge, to_edge)
+
+        for from_edge in self.write_edges:
+            for to_edge in self.write_edges[from_edge]:
+                graph.add_edge(from_edge, to_edge)
+
+        return graph
+
+    def draw(self, file_name: str) -> None:
+        options = {
+            "node_color": "white",
+            "edgecolors": "black",
+            "linewidths": 1,
+        }
+        nx.draw_networkx(self.to_digraph(), **options)
+
+        ax = plt.gca()
+        ax.margins(0.20)
+        plt.axis("off")
+        plt.show()
+        plt.savefig(f"{file_name}.png")
+
+    @property
+    def num_compute_nodes(self) -> int:
+        return len(self.compute_nodes)
+
+    @property
+    def num_data_nodes(self) -> int:
+        return len(self.storage_nodes) + len(self.scalar_nodes)
+
     def _count_edges(self, edges: Dict[str, str]) -> int:
         num_edges: int = 0
         for from_edge in edges:
@@ -199,6 +243,7 @@ class FlowGraph(object):  # common.LocNode, common.SymbolTableTrait):
     @property
     def num_write_edges(self) -> int:
         return self._count_edges(self.write_edges)
+
 
 class StencilClassVisitor(NodeVisitor):
     def visit(self, stencil_class: Callable, **kwargs: Any) -> None:
@@ -246,7 +291,8 @@ def test_stencil_class(backend: str, rebuild: bool):
     compute_func = RiemannSolverC(spec.grid, spec.namelist.p_fac)
     assert isinstance(compute_func, Callable)
 
-    call_data = deserialize("./riem_solver_c")
+    file_name: str = "riem_solver_c"
+    call_data = deserialize(file_name)
     call_kwargs = arrays_to_storages(call_data, backend)
 
     flow_graph = StencilClassVisitor.apply(compute_func, **call_kwargs)
@@ -254,9 +300,13 @@ def test_stencil_class(backend: str, rebuild: bool):
     compute_func(**call_kwargs)
 
     assert flow_graph.name == "RiemannSolverC"
-    assert len(flow_graph.scalar_nodes) == 3
-    assert len(flow_graph.compute_nodes) == 3
-    assert len(flow_graph.storage_nodes) == 16
-
+    assert flow_graph.num_compute_nodes == 3
+    assert flow_graph.num_data_nodes == 19
     assert flow_graph.num_read_edges == 19
     assert flow_graph.num_write_edges == 11
+
+    nx_graph = flow_graph.to_digraph()
+    assert nx_graph is not None
+
+    flow_graph.draw(file_name)
+    assert os.path.exists(f"{file_name}.png")
