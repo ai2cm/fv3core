@@ -645,7 +645,7 @@ class MetricTerms:
     def cosa_u(self):
         """
         The average curve along the left cell-edge
-        as measrued from the left and right sides
+        as measured from the left and right sides
         i.e. the average of cos_sg1[i,j] and cos_sg3[i-1, j]
         """
         if self._cosa_u is None:
@@ -656,7 +656,7 @@ class MetricTerms:
     def cosa_v(self):
         """
         The average curve along the bottom cell-edge
-        as measrued from the left and right sides
+        as measured from the left and right sides
         i.e. the average of cos_sg2[i,j] and cos_sg4[i-1, j]
         """
         if self._cosa_v is None:
@@ -676,7 +676,7 @@ class MetricTerms:
     def sina_u(self):
         """
         The average curve along the left cell-edge
-        as measrued from the left and right sides
+        as measured from the left and right sides
         i.e. the average of sin_sg1[i,j] and sin_sg3[i-1, j]
         """
         if self._sina_u is None:
@@ -687,7 +687,7 @@ class MetricTerms:
     def sina_v(self):
         """
         The average curve along the bottom cell-edge
-        as measrued from the left and right sides
+        as measured from the left and right sides
         i.e. the average of sin_sg2[i,j] and sin_sg4[i-1, j]
         """
         if self._sina_v is None:
