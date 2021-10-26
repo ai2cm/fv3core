@@ -1757,6 +1757,10 @@ class MetricTerms:
         self._sin_sg9 = supergrid_trig["sin_sg9"]
 
     def _calculate_derived_trig_terms_for_testing(self):
+        """
+        As _calculate_derived_trig_terms_for_testing but updates trig attributes
+        in-place without the halo updates. For use only in validation tests.
+        """
         self._cosa_u = self._quantity_factory.zeros(
             [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM], ""
         )
@@ -1904,15 +1908,63 @@ class MetricTerms:
             self._tile_partitioner,
             self._rank,
         )
-        self._comm.vector_halo_update(divg_v, divg_u, n_points=self._halo)
-        self._comm.vector_halo_update(del6_v, del6_u, n_points=self._halo)
-        # TODO: Add support for unsigned vector halo updates
-        # instead of handling ad-hoc here
-        divg_v.data[divg_v.data < 0] *= -1
-        divg_u.data[divg_u.data < 0] *= -1
-        del6_v.data[del6_v.data < 0] *= -1
-        del6_u.data[del6_u.data < 0] *= -1
+        if self._grid_type < 3:
+            self._comm.vector_halo_update(divg_v, divg_u, n_points=self._halo)
+            self._comm.vector_halo_update(del6_v, del6_u, n_points=self._halo)
+            # TODO: Add support for unsigned vector halo updates
+            # instead of handling ad-hoc here
+            divg_v.data[divg_v.data < 0] *= -1
+            divg_u.data[divg_u.data < 0] *= -1
+            del6_v.data[del6_v.data < 0] *= -1
+            del6_u.data[del6_u.data < 0] *= -1
         return del6_u, del6_v, divg_u, divg_v
+
+    def _calculate_divg_del6_nohalos_for_testing(self):
+        """
+        As _calculate_divg_del6 but updates self.divg and self.del6 attributes
+        in-place without the halo updates. For use only in validation tests.
+        """
+        del6_u = self._quantity_factory.zeros(
+            [fv3util.X_DIM, fv3util.Y_INTERFACE_DIM], ""
+        )
+        del6_v = self._quantity_factory.zeros(
+            [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM], ""
+        )
+        divg_u = self._quantity_factory.zeros(
+            [fv3util.X_DIM, fv3util.Y_INTERFACE_DIM], ""
+        )
+        divg_v = self._quantity_factory.zeros(
+            [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM], ""
+        )
+        sin_sg = [
+            self.sin_sg1.data[:-1, :-1],
+            self.sin_sg2.data[:-1, :-1],
+            self.sin_sg3.data[:-1, :-1],
+            self.sin_sg4.data[:-1, :-1],
+            self.sin_sg5.data[:-1, :-1],
+        ]
+        sin_sg = self._np.array(sin_sg).transpose(1, 2, 0)
+        (
+            divg_u.data[:-1, :],
+            divg_v.data[:, :-1],
+            del6_u.data[:-1, :],
+            del6_v.data[:, :-1],
+        ) = calculate_divg_del6(
+            sin_sg,
+            self.sina_u.data[:, :-1],
+            self.sina_v.data[:-1, :],
+            self.dx.data[:-1, :],
+            self.dy.data[:, :-1],
+            self.dxc.data[:, :-1],
+            self.dyc.data[:-1, :],
+            self._halo,
+            self._tile_partitioner,
+            self._rank,
+        )
+        self._divg_v = divg_v
+        self._divg_u = divg_u
+        self._del6_v = del6_v
+        self._del6_u = del6_u
 
     def _calculate_unit_vectors_lonlat(self):
         vlon = self._quantity_factory.zeros(

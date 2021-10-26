@@ -6,7 +6,6 @@ import fv3core._config as spec
 import fv3core.utils.global_config as global_config
 import fv3gfs.util as fv3util
 from fv3core.grid import MetricTerms, global_mirror_grid, gnomonic_grid, set_eta
-from fv3core.grid.geometry import calculate_divg_del6
 from fv3core.testing.parallel_translate import ParallelTranslateGrid
 from fv3core.utils.global_constants import CARTESIAN_DIM, LON_OR_LAT_DIM, TILE_DIM
 
@@ -1249,6 +1248,10 @@ class TranslateDerivedTrig(ParallelTranslateGrid):
 
 
 class TranslateDivgDel6(ParallelTranslateGrid):
+    def __init__(self, rank_grids):
+        super().__init__(rank_grids)
+        self.max_error = 4e-14
+
     inputs: Dict[str, Any] = {
         "sin_sg1": {
             "name": "sin_sg1",
@@ -1344,37 +1347,6 @@ class TranslateDivgDel6(ParallelTranslateGrid):
         },
     }
 
-    def compute_sequential(self, inputs_list, communicator_list):
-        state_list = []
-        for inputs, communicator in zip(inputs_list, communicator_list):
-            state_list.append(self._compute_local(inputs, communicator))
-        return self.outputs_list_from_state_list(state_list)
-
-    def _compute_local(self, inputs, communicator):
-        state = self.state_from_inputs(inputs)
-        sin_sg = []
-        for i in range(1, 5):
-            sin_sg.append(state[f"sin_sg{i}"].data[:-1, :-1])
-        sin_sg = state["sin_sg1"].np.array(sin_sg).transpose(1, 2, 0)
-        (
-            state["divg_u"].data[:-1, :],
-            state["divg_v"].data[:, :-1],
-            state["del6_u"].data[:-1, :],
-            state["del6_v"].data[:, :-1],
-        ) = calculate_divg_del6(
-            sin_sg,
-            state["sina_u"].data[:, :-1],
-            state["sina_v"].data[:-1, :],
-            state["dx"].data[:-1, :],
-            state["dy"].data[:, :-1],
-            state["dx_cgrid"].data[:, :-1],
-            state["dy_cgrid"].data[:-1, :],
-            self.grid.halo,
-            communicator.tile.partitioner,
-            communicator.rank,
-        )
-        return state
-
     def compute_parallel(self, inputs, communicator):
         namelist = spec.namelist
         grid_generator = MetricTerms.from_tile_sizing(
@@ -1396,6 +1368,7 @@ class TranslateDivgDel6(ParallelTranslateGrid):
         grid_generator._dy = in_state["dy"]
         grid_generator._dx_cgrid = in_state["dx_cgrid"]
         grid_generator._dy_cgrid = in_state["dy_cgrid"]
+        grid_generator._calculate_divg_del6_nohalos_for_testing()
         state = {}
         for metric_term, metadata in self.outputs.items():
             state[metadata["name"]] = getattr(grid_generator, metric_term)
