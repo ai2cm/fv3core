@@ -1,15 +1,24 @@
 #!/usr/bin/env python3
 
+import click
 import copy
+import cProfile
+import dace
+import io
 import json
 import os
-from argparse import ArgumentParser, Namespace
+import pstats
 from datetime import datetime
+from types import SimpleNamespace
 from typing import Any, Dict, List
 
 import numpy as np
 import serialbox
-from mpi4py import MPI
+
+try:
+    from mpi4py import MPI
+except ImportError:
+    MPI = None
 
 
 # Dev note: the GTC toolchain fails if xarray is imported after gt4py
@@ -19,6 +28,8 @@ from mpi4py import MPI
 # fv3core. isort turned off to keep it that way.
 # isort: off
 import fv3gfs.util as util
+from fv3core.decorators import computepath_function
+from fv3core.utils.global_config import set_dacemode, get_dacemode
 from fv3core.utils.null_comm import NullComm
 
 # isort: on
@@ -26,52 +37,6 @@ from fv3core.utils.null_comm import NullComm
 import fv3core
 import fv3core._config as spec
 import fv3core.testing
-
-
-def parse_args() -> Namespace:
-    parser = ArgumentParser()
-
-    parser.add_argument(
-        "data_dir",
-        type=str,
-        action="store",
-        help="directory containing data to run with",
-    )
-    parser.add_argument(
-        "time_step",
-        type=int,
-        action="store",
-        help="number of timesteps to execute",
-    )
-    parser.add_argument(
-        "backend",
-        type=str,
-        action="store",
-        help="gt4py backend to use",
-    )
-    parser.add_argument(
-        "hash",
-        type=str,
-        action="store",
-        help="git hash to store",
-    )
-    parser.add_argument(
-        "--disable_halo_exchange",
-        action="store_true",
-        help="enable or disable the halo exchange",
-    )
-    parser.add_argument(
-        "--disable_json_dump",
-        action="store_true",
-        help="enable or disable json dump",
-    )
-    parser.add_argument(
-        "--profile",
-        action="store_true",
-        help="enable performance profiling using cProfile",
-    )
-
-    return parser.parse_args()
 
 
 def set_experiment_info(
@@ -151,7 +116,7 @@ def gather_hit_counts(
 
 
 def collect_data_and_write_to_file(
-    args: Namespace, comm: MPI.Comm, hits_per_step, times_per_step, experiment_name
+    args: SimpleNamespace, comm: MPI.Comm, hits_per_step, times_per_step, experiment_name
 ) -> None:
     """
     collect the gathered data from all the ranks onto rank 0 and write the timing file
@@ -171,20 +136,42 @@ def collect_data_and_write_to_file(
         write_global_timings(results)
 
 
-if __name__ == "__main__":
+@click.command()
+@click.argument("data_directory", required=True, nargs=1)
+@click.argument("time_steps", required=False, default="1", type=int)
+@click.argument("backend", required=False, default="gtc:gt:cpu_ifirst")
+@click.argument("hash", required=False, default="")
+@click.option("--disable_halo_exchange/--no-disable_halo_exchange", default=False)
+@click.option("--disable_json_dump/--no-disable_json_dump", default=False)
+@click.option("--print_timings/--no-print_timings", default=True)
+@click.option("--profile/--no-profile", default=False)
+def driver(
+    data_directory: str,
+    time_steps: str,
+    backend: str,
+    hash: str,
+    disable_halo_exchange: bool,
+    disable_json_dump: bool,
+    print_timings: bool,
+    profile: bool,
+):
     timer = util.Timer()
     timer.start("total")
     with timer.clock("initialization"):
-        args = parse_args()
+        args = SimpleNamespace(
+            data_dir=data_directory,
+            time_step=int(time_steps),
+            backend=backend,
+            hash=hash,
+            disable_halo_exchange=disable_halo_exchange,
+            disable_json_dump=disable_json_dump,
+            print_timings=print_timings,
+            profile=profile,
+        )
         comm = MPI.COMM_WORLD
         rank = comm.Get_rank()
 
         profiler = None
-        if args.profile:
-            import cProfile
-
-            profiler = cProfile.Profile()
-            profiler.disable()
 
         fv3core.set_backend(args.backend)
         fv3core.set_rebuild(False)
@@ -227,6 +214,7 @@ if __name__ == "__main__":
         input_data = driver_object.collect_input_data(serializer, savepoint_in)
         input_data["comm"] = communicator
         state = driver_object.state_from_inputs(input_data)
+
         dycore = fv3core.DynamicalCore(
             comm=communicator,
             grid_data=spec.grid.grid_data,
@@ -238,12 +226,11 @@ if __name__ == "__main__":
             phis=state["surface_geopotential"],
         )
 
-        # warm-up timestep.
-        # We're intentionally not passing the timer here to exclude
-        # warmup/compilation from the internal timers
-        if rank == 0:
-            print("timestep 1")
-        dycore.step_dynamics(
+    @computepath_function
+    def iterate(state: dace.constant, time_steps: int):
+        # @Linus: make this call a dace program
+        for _ in range(time_steps):
+            dycore.step_dynamics(
             state,
             input_data["consv_te"],
             input_data["do_adiabatic_init"],
@@ -253,55 +240,49 @@ if __name__ == "__main__":
             input_data["ks"],
         )
 
-    if profiler is not None:
-        profiler.enable()
+    reference_run = False
+    if reference_run:
+        dacemode = get_dacemode()
+        set_dacemode(False)
+        import time
+        start = time.time()
+        pr = cProfile.Profile()
+        pr.enable()
 
-    times_per_step = []
-    hits_per_step = []
-    # we set up a specific timer for each timestep
-    # that is cleared after so we get individual statistics
-    timestep_timer = util.Timer()
-    for i in range(args.time_step - 1):
-        with timestep_timer.clock("mainloop"):
-            if rank == 0:
-                print(f"timestep {i+2}")
-            dycore.step_dynamics(
-                state,
-                input_data["consv_te"],
-                input_data["do_adiabatic_init"],
-                input_data["bdt"],
-                input_data["ptop"],
-                input_data["n_split"],
-                input_data["ks"],
-                timestep_timer,
-            )
-        times_per_step.append(timestep_timer.times)
-        hits_per_step.append(timestep_timer.hits)
-        timestep_timer.reset()
-
-    if profiler is not None:
-        profiler.disable()
-
-    timer.stop("total")
-    times_per_step.append(timer.times)
-    hits_per_step.append(timer.hits)
-
-    # output profiling data
-    if profiler is not None:
-        profiler.dump_stats(f"fv3core_{experiment_name}_{args.backend}_{rank}.prof")
-
-    # Timings
-    if not args.disable_json_dump:
-        # Collect times and output statistics in json
-        MPI.COMM_WORLD.Barrier()
-        collect_data_and_write_to_file(
-            args, MPI.COMM_WORLD, hits_per_step, times_per_step, experiment_name
-        )
+        try:
+            iterate(state, time_steps)
+        finally:
+            pr.disable()
+            s = io.StringIO()
+            sortby = pstats.SortKey.CUMULATIVE
+            ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
+            ps.print_stats()
+            print(s.getvalue())
+            set_dacemode(dacemode)
+        print(f"{backend} time:", time.time()-start)
     else:
-        # Print a brief summary of timings
-        # Dev Note: we especially do _not_ gather timings here to have a
-        # no-MPI-communication codepath
-        print(f"Rank {rank} done. Total time: {timer.times['total']}.")
+        if args.profile:
+            profiler = cProfile.Profile()
+            profiler.enable()
 
+        try:
+            iterate(state, time_steps)
+        finally:
+            if args.profile:
+                profiler.disable()
+                s = io.StringIO()
+                sortby = pstats.SortKey.CUMULATIVE
+                ps = pstats.Stats(profiler, stream=s).sort_stats(sortby)
+                ps.print_stats()
+                print(s.getvalue())
+                profiler.dump_stats(
+                    f"fv3core_{experiment_name}_{args.backend}_{rank}.prof"
+                )
+
+    MPI.COMM_WORLD.Barrier()
     if rank == 0:
         print("SUCCESS")
+
+
+if __name__ == "__main__":
+    driver()

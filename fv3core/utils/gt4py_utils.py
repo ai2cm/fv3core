@@ -2,6 +2,8 @@ import logging
 from functools import wraps
 from typing import Any, Callable, Dict, Hashable, List, Optional, Tuple, Union
 
+import dace
+import gt4py as gt
 import gt4py.storage as gt_storage
 import numpy as np
 
@@ -38,6 +40,30 @@ tracer_variables = [
 # Logger instance
 logger = logging.getLogger("fv3core")
 
+dace.Config.set(
+    "default_build_folder",
+    value="{gt_cache}/dacecache".format(gt_cache=gt.config.cache_settings["dir_name"]),
+)
+dace.Config.set("compiler", "allow_view_arguments", value=True)
+dace.Config.set(
+    "compiler",
+    "cpu",
+    "args",
+    value=" ".join(
+        [
+            "-std=c++14",
+            "-fPIC",
+            "-Wall",
+            "-Wextra",
+            "-O3",
+            "-fno-expensive-optimizations",
+            "-ggdb",
+            "-march=native",
+            "-Wno-unused-parameter",
+            "-Wno-unused-label",
+        ]
+    ),
+)
 
 def mark_untested(msg="This is not tested"):
     def inner(func) -> Callable[..., Any]:

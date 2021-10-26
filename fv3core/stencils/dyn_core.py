@@ -24,7 +24,7 @@ import fv3core.utils.gt4py_utils as utils
 import fv3gfs.util
 import fv3gfs.util as fv3util
 from fv3core._config import AcousticDynamicsConfig
-from fv3core.decorators import FrozenStencil
+from fv3core.decorators import FrozenStencil, computepath_method
 from fv3core.stencils.c_sw import CGridShallowWaterDynamics
 from fv3core.stencils.del2cubed import HyperdiffusionDamping
 from fv3core.stencils.pk3_halo import PK3Halo
@@ -494,6 +494,7 @@ class AcousticDynamics:
         # Halo updaters
         self._halo_updaters = AcousticDynamics._HaloUpdaters(self.comm, grid_indexing)
 
+    # @computepath_method
     def __call__(self, state):
         # u, v, w, delz, delp, pt, pe, pk, phis, wsd, omga, ua, va, uc, vc, mfxd,
         # mfyd, cxd, cyd, pkz, peln, q_con, ak, bk, diss_estd, cappa, mdt, n_split,

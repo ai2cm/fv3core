@@ -3,15 +3,22 @@ from types import SimpleNamespace
 from typing import Any, Dict, List, Optional, Tuple
 
 import click
+import cProfile
+import dace
+import io
+import numpy as np
+import pstats
+from pstats import SortKey
 import serialbox
 import yaml
-from timing import collect_data_and_write_to_file
 
 import fv3core
 import fv3core._config as spec
 import fv3core.testing
 import fv3gfs.util as util
+from fv3core.decorators import computepath_function
 from fv3core.stencils.dyn_core import AcousticDynamics
+from fv3core.utils.global_config import set_dacemode, get_dacemode
 from fv3core.utils.grid import Grid
 from fv3core.utils.null_comm import NullComm
 
@@ -136,9 +143,72 @@ def read_and_reset_timer(timestep_timer, times_per_step, hits_per_step):
     return times_per_step, hits_per_step
 
 
+def run(data_directory, halo_update, backend, time_steps, reference_run):
+    set_up_namelist(data_directory)
+    serializer = initialize_serializer(data_directory)
+    initialize_fv3core(backend, halo_update)
+    grid = read_grid(serializer)
+    spec.set_grid(grid)
+
+    input_data = read_input_data(grid, serializer)
+
+    state = get_state_from_input(grid, input_data)
+
+    acoustics_object = AcousticDynamics(
+        None,
+        spec.namelist,
+        input_data["ak"],
+        input_data["bk"],
+        input_data["pfull"],
+        input_data["phis"],
+    )
+    state.__dict__.update(acoustics_object._temporaries)
+
+    @computepath_function
+    def iterate(state: dace.constant, time_steps):
+        # @Linus: make this call a dace program
+        for _ in range(time_steps):
+            acoustics_object(state, insert_temporaries=False)
+
+    if reference_run:
+        dacemode = get_dacemode()
+        set_dacemode(False)
+        import time
+        start = time.time()
+        pr = cProfile.Profile()
+        pr.enable()
+
+        try:
+            iterate(state, time_steps)
+        finally:
+            pr.disable()
+            s = io.StringIO()
+            sortby = SortKey.CUMULATIVE
+            ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
+            ps.print_stats()
+            print(s.getvalue())
+            set_dacemode(dacemode)
+        print(f"{backend} time:", time.time()-start)
+    else:
+        pr = cProfile.Profile()
+        pr.enable()
+
+        try:
+            iterate(state, time_steps)
+        finally:
+            pr.disable()
+            s = io.StringIO()
+            sortby = SortKey.CUMULATIVE
+            ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
+            ps.print_stats()
+            print(s.getvalue())
+
+    return state
+
+
 @click.command()
 @click.argument("data_directory", required=True, nargs=1)
-@click.argument("time_steps", required=False, default="1")
+@click.argument("time_steps", required=False, default="1", type=int)
 @click.argument("backend", required=False, default="gtc:gt:cpu_ifirst")
 @click.option("--disable_halo_exchange/--no-disable_halo_exchange", default=False)
 @click.option("--print_timings/--no-print_timings", default=True)
@@ -149,68 +219,36 @@ def driver(
     disable_halo_exchange: bool,
     print_timings: bool,
 ):
-    total_timer, timestep_timer, times_per_step, hits_per_step = initialize_timers()
-    with total_timer.clock("initialization"):
-        set_up_namelist(data_directory)
-        serializer = initialize_serializer(data_directory)
-        initialize_fv3core(backend, disable_halo_exchange)
-        mpi_comm, communicator = set_up_communicator(disable_halo_exchange)
-        grid = read_grid(serializer)
-        spec.set_grid(grid)
-
-        input_data = read_input_data(grid, serializer)
-        experiment_name = get_experiment_name(data_directory)
-        acoustics_object = AcousticDynamics(
-            communicator,
-            grid.grid_indexing,
-            grid.grid_data,
-            grid.damping_coefficients,
-            grid.grid_type,
-            grid.nested,
-            grid.stretched_grid,
-            spec.namelist.dynamical_core.acoustic_dynamics,
-            input_data["ak"],
-            input_data["bk"],
-            input_data["pfull"],
-            input_data["phis"],
-        )
-
-        state = get_state_from_input(grid, input_data)
-
-        # warm-up timestep.
-        # We're intentionally not passing the timer here to exclude
-        # warmup/compilation from the internal timers
-        acoustics_object(**state)
-
-    # we set up a specific timer for each timestep
-    # that is cleared after so we get individual statistics
-    for _ in range(int(time_steps) - 1):
-        # this loop is not required
-        # but make performance numbers comparable with FVDynamics
-        for _ in range(spec.namelist.k_split):
-            with timestep_timer.clock("DynCore"):
-                acoustics_object(**state)
-        times_per_step, hits_per_step = read_and_reset_timer(
-            timestep_timer, times_per_step, hits_per_step
-        )
-    total_timer.stop("total")
-    times_per_step, hits_per_step = read_and_reset_timer(
-        total_timer, times_per_step, hits_per_step
+    state = run(
+        data_directory,
+        not disable_halo_exchange,
+        time_steps=time_steps,
+        backend=backend,
+        reference_run=not get_dacemode(),
+    )
+    ref_state = run(
+        data_directory,
+        not disable_halo_exchange,
+        time_steps=time_steps,
+        backend="numpy",
+        reference_run=True,
     )
 
-    experiment_info = {
-        "name": "acoustics",
-        "dataset": experiment_name,
-        "timesteps": time_steps,
-        "backend": backend,
-        "halo_update": not disable_halo_exchange,
-        "hash": "",
-    }
-    if print_timings:
-        # Collect times and output statistics in json
-        collect_data_and_write_to_file(
-            mpi_comm, hits_per_step, times_per_step, experiment_info
-        )
+    for name, ref_value in ref_state.__dict__.items():
+
+        if name in {"mfxd", "mfyd"}:
+            continue
+        value = state.__dict__[name]
+        if isinstance(ref_value, util.quantity.Quantity):
+            ref_value = ref_value.storage
+        if isinstance(value, util.quantity.Quantity):
+            value = value.storage
+        if hasattr(value, "device_to_host"):
+            value.device_to_host()
+        if hasattr(value, "shape") and len(value.shape) == 3:
+            value = np.asarray(value)[1:-1, 1:-1, :]
+            ref_value = np.asarray(ref_value)[1:-1, 1:-1, :]
+        np.testing.assert_allclose(ref_value, value, err_msg=name)
 
 
 if __name__ == "__main__":

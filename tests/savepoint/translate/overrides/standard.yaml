@@ -8,6 +8,9 @@ CS_Profile_2d:
   - backend: gtc:cuda
     max_error: 2.5e-9
     near_zero: 1.5e-14
+  - backend: gtc:dace:gpu
+    max_error: 2.5e-9
+    near_zero: 1.5e-14
 
 CS_Profile_2d-2:
   - backend: gtcuda
@@ -49,6 +52,8 @@ Riem_Solver3:
   - backend: gtc:gt:gpu
     max_error: 5e-6
   - backend: gtc:cuda
+    max_error: 5e-6
+  - backend: gtc:dace:gpu
     max_error: 5e-6
   - platform: metal
     backend: numpy
