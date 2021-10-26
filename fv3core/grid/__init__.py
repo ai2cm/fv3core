@@ -2,7 +2,6 @@
 
 from .eta import set_eta
 from .generation import MetricTerms
-from .geometry import calculate_divg_del6
 from .gnomonic import (
     global_gnomonic_ed,
     gnomonic_grid,

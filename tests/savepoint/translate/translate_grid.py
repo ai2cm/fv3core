@@ -5,13 +5,8 @@ import pytest
 import fv3core._config as spec
 import fv3core.utils.global_config as global_config
 import fv3gfs.util as fv3util
-from fv3core.grid import (
-    MetricTerms,
-    calculate_divg_del6,
-    global_mirror_grid,
-    gnomonic_grid,
-    set_eta,
-)
+from fv3core.grid import MetricTerms, global_mirror_grid, gnomonic_grid, set_eta
+from fv3core.grid.geometry import calculate_divg_del6
 from fv3core.testing.parallel_translate import ParallelTranslateGrid
 from fv3core.utils.global_constants import CARTESIAN_DIM, LON_OR_LAT_DIM, TILE_DIM
 
