@@ -107,6 +107,7 @@ def sample_wherefail(
     bad_indices_count = len(found_indices[0])
     # Determine worst result
     worst_metric_err = 0.0
+    worst_full_idx = 0
     for b in range(bad_indices_count):
         full_index = [f[b] for f in found_indices]
         metric_err = compare_scalar(computed_failures[b], reference_failures[b])
