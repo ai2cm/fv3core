@@ -643,7 +643,14 @@ class GridIndexing:
 
 
 class StencilFactory:
+    """Configurable class which creates stencil objects."""
+
     def __init__(self, config: StencilConfig, grid_indexing: GridIndexing):
+        """
+        Args:
+            config: gt4py-specific stencil configuration
+            grid_indexing: configuration for domain and halo indexing`
+        """
         self.config: StencilConfig = config
         self.grid_indexing: GridIndexing = grid_indexing
 
@@ -655,6 +662,15 @@ class StencilFactory:
         externals: Optional[Mapping[str, Any]] = None,
         skip_passes: Optional[Tuple[str, ...]] = None,
     ) -> FrozenStencil:
+        """
+        Args:
+            func: stencil definition function
+            origin: gt4py origin to use at call time
+            domain: gt4py domain to use at call time
+            stencil_config: container for stencil configuration
+            externals: compile-time external variables required by stencil
+            skip_passes: compiler passes to skip when building stencil
+        """
         return FrozenStencil(
             func=func,
             origin=origin,
@@ -676,6 +692,13 @@ class StencilFactory:
         Initialize a stencil from dimensions and number of halo points.
 
         Automatically injects axis_offsets into stencil externals.
+
+        Args:
+            func: stencil definition function
+            compute_dims: dimensionality of compute domain
+            compute_halos: number of halo points to include in compute domain
+            externals: compile-time external variables required by stencil
+            skip_passes: compiler passes to skip when building stencil
         """
         if externals is None:
             externals = {}
