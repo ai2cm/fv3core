@@ -6,7 +6,7 @@ from fv3core.utils.grid import GridData
 from fv3core.utils.stencil import StencilFactory
 from fv3core.utils.typing import FloatField, FloatFieldIJ
 from fv3gfs.util import CubedSphereCommunicator
-from fv3gfs.util.constants import X_DIM, X_INTERFACE_DIM, Y_DIM, Y_INTERFACE_DIM, Z_DIM
+from fv3gfs.util.constants import X_DIM, Y_DIM, Z_DIM
 from fv3gfs.util.quantity import Quantity
 
 
@@ -98,17 +98,15 @@ class CubedToLatLon:
         self._a22 = spec.grid.a22
         if order == 2:
             self._do_ord4 = False
-            self._compute_cubed_to_latlon = stencil_factory.from_dims_halo(
-                func=c2l_ord2,
-                dims=[X_INTERFACE_DIM, Y_INTERFACE_DIM, Z_DIM],
-                halos=(1, 1),
-            )
+            halos = (1, 1)
+            func = c2l_ord2
         else:
             self._do_ord4 = True
-            self._compute_cubed_to_latlon = stencil_factory.from_dims_halo(
-                func=ord4_transform,
-                dims=[X_DIM, Y_DIM, Z_DIM],
-            )
+            halos = (0, 0)
+            func = ord4_transform
+        self._compute_cubed_to_latlon = stencil_factory.from_dims_halo(
+            func=func, dims=[X_DIM, Y_DIM, Z_DIM], halos=halos
+        )
 
     def __call__(
         self,
