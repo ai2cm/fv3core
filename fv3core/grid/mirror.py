@@ -51,7 +51,7 @@ def global_mirror_grid(grid_global, ng: int, npx: int, npy: int, np):
                 y1, grid_global[ng + npx - (i + 1), ng + npy - (j + 1), 1, nreg]
             )
 
-            # force dateline/greenwich-meridion consitency
+            # force dateline/greenwich-meridion consistency
             if npx % 2 != 0:
                 # TODO: this seems to not make a difference
                 if i == (npx - 1) // 2:
