@@ -11,7 +11,14 @@ from .gnomonic import (
 )
 
 
-def get_center_vector(xyz_gridpoints, grid_type, nhalo, tile_partitioner, rank, np):
+def get_center_vector(
+    xyz_gridpoints,
+    grid_type: int,
+    nhalo: int,
+    tile_partitioner: TilePartitioner,
+    rank: int,
+    np,
+):
     """
     Calculates the unit vectors pointing to the center of each grid cell.
     vector1 is the horizontal unit vector, while
@@ -66,7 +73,13 @@ def get_center_vector(xyz_gridpoints, grid_type, nhalo, tile_partitioner, rank, 
 
 
 def calc_unit_vector_west(
-    xyz_dgrid, xyz_agrid, grid_type, nhalo, tile_partitioner, rank, np
+    xyz_dgrid,
+    xyz_agrid,
+    grid_type: int,
+    nhalo: int,
+    tile_partitioner: TilePartitioner,
+    rank: int,
+    np,
 ):
     """
     Calculates the cartesian unit vector pointing west from every grid cell.
@@ -103,7 +116,13 @@ def calc_unit_vector_west(
 
 
 def calc_unit_vector_south(
-    xyz_dgrid, xyz_agrid, grid_type, nhalo, tile_partitioner, rank, np
+    xyz_dgrid,
+    xyz_agrid,
+    grid_type: int,
+    nhalo: int,
+    tile_partitioner: TilePartitioner,
+    rank: int,
+    np,
 ):
     """
     Calculates the cartesian unit vector pointing south from every grid cell.
@@ -138,7 +157,15 @@ def calc_unit_vector_south(
 
 
 def calculate_supergrid_cos_sin(
-    xyz_dgrid, xyz_agrid, ec1, ec2, grid_type, nhalo, tile_partitioner, rank, np
+    xyz_dgrid,
+    xyz_agrid,
+    ec1,
+    ec2,
+    grid_type: int,
+    nhalo: int,
+    tile_partitioner: TilePartitioner,
+    rank: int,
+    np,
 ):
     """
     Calculates the cosine and sine of the grid angles at each of the following points
@@ -219,7 +246,7 @@ def calculate_supergrid_cos_sin(
     return cos_sg, sin_sg
 
 
-def calculate_l2c_vu(dgrid, nhalo, np):
+def calculate_l2c_vu(dgrid, nhalo: int, np):
     # AAM correction
 
     point1v = dgrid[nhalo:-nhalo, nhalo : -nhalo - 1, :]
@@ -247,7 +274,9 @@ def calculate_l2c_vu(dgrid, nhalo, np):
     return l2c_v, l2c_u
 
 
-def generate_xy_unit_vectors(xyz_dgrid, nhalo, tile_partitioner, rank, np):
+def generate_xy_unit_vectors(
+    xyz_dgrid, nhalo: int, tile_partitioner: TilePartitioner, rank: int, np
+):
     cross_vect_x = np.cross(
         xyz_dgrid[nhalo - 1 : -nhalo - 1, nhalo:-nhalo, :],
         xyz_dgrid[nhalo + 1 : -nhalo + 1, nhalo:-nhalo, :],
@@ -285,7 +314,15 @@ def generate_xy_unit_vectors(xyz_dgrid, nhalo, tile_partitioner, rank, np):
     return unit_x_vector, unit_y_vector
 
 
-def calculate_trig_uv(xyz_dgrid, cos_sg, sin_sg, nhalo, tile_partitioner, rank, np):
+def calculate_trig_uv(
+    xyz_dgrid,
+    cos_sg,
+    sin_sg,
+    nhalo: int,
+    tile_partitioner: TilePartitioner,
+    rank: int,
+    np,
+):
     """
     Calculates more trig quantities
     """
@@ -381,7 +418,9 @@ def calculate_trig_uv(xyz_dgrid, cos_sg, sin_sg, nhalo, tile_partitioner, rank, 
     )
 
 
-def supergrid_corner_fix(cos_sg, sin_sg, nhalo, tile_partitioner, rank):
+def supergrid_corner_fix(
+    cos_sg, sin_sg, nhalo: int, tile_partitioner: TilePartitioner, rank: int
+):
     """
     filling the ghost cells overwrites some of the sin_sg
     values along the outward-facing edge of a tile in the corners, which is incorrect.
@@ -464,7 +503,16 @@ def _rotate_trig_sg_ne_clockwise(sg_field_in, sg_field_out, nhalo):
 
 
 def calculate_divg_del6(
-    sin_sg, sina_u, sina_v, dx, dy, dxc, dyc, nhalo, tile_partitioner, rank
+    sin_sg,
+    sina_u,
+    sina_v,
+    dx,
+    dy,
+    dxc,
+    dyc,
+    nhalo: int,
+    tile_partitioner: TilePartitioner,
+    rank: int,
 ):
 
     divg_u = sina_v * dyc / dx
@@ -658,7 +706,14 @@ def set_north_edge_factor(grid, agrid, nhalo, radius, jstart, jend, np):
 
 
 def efactor_a2c_v(
-    grid_quantity, agrid, grid_type, nhalo, tile_partitioner, rank, radius, np
+    grid_quantity: Quantity,
+    agrid,
+    grid_type: int,
+    nhalo: int,
+    tile_partitioner: TilePartitioner,
+    rank: int,
+    radius: float,
+    np,
 ):
     """
     Creates interpolation factors at face edges
