@@ -5,6 +5,17 @@ import numpy as np
 
 @dataclass
 class hybrid_pressure_coefficients:
+    """
+    A simple data class to contain data related to the hybrid-pressure coordinate
+    The values it holds are:
+     - ks: The number of pure-pressure layers at the top of the model
+        Also the level where model transitions from pure pressure to
+        hybrid pressure levels
+     - ptop: The pressure at the top of the atmosphere
+     - ak: The additive coefficient in the pressure calculation
+     - bk: The multiplicative coefficient in the pressure calculation
+    """
+
     ks: int
     ptop: int
     ak: np.ndarray
