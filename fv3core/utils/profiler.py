@@ -119,6 +119,9 @@ class NoneProfiler(BaseProfiler):
     def __init__(self):
         pass
 
+    def __del__(self):
+        pass
+
     def add(self, hash, name: str) -> "BaseProfiler":
         return self
 
@@ -182,7 +185,7 @@ class CUDAProfiler(BaseProfiler):
             for key, events in stencils.items():
                 time_ms = cp.cuda.get_elapsed_time(events["start"], events["stop"])
                 self.log(hash, key, time_ms / 1000)
-                stencils = {}
+                events = {}
 
 
 class CPUProfiler(BaseProfiler):

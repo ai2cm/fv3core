@@ -191,4 +191,4 @@ _REBUILD: bool = getenv_bool("FV3_STENCIL_REBUILD_FLAG", "False")
 _PROFILE_LEVEL: ProfileLevel = init_profile_level()
 # Global profiler, defaulting to a no-op profiler, to be used
 # throughout the code
-_PROFILER: BaseProfiler = NoneProfiler
+_PROFILER: BaseProfiler = NoneProfiler()

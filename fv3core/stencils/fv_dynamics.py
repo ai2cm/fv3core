@@ -19,6 +19,7 @@ from fv3core.utils import global_config
 from fv3core.utils.grid import DampingCoefficients, GridData, GridIndexing
 from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
 from fv3gfs.util.halo_updater import HaloUpdater
+import fv3core.utils.profiler_decorators as fvprof
 
 
 # nq is actually given by ncnst - pnats, where those are given in atmosphere.F90 by:
@@ -432,12 +433,12 @@ class DynamicalCore:
         )
         self._compute(state, timer)
 
+    @fvprof.do_profile_timestep
     def _compute(
         self,
         state,
         timer: fv3gfs.util.NullTimer,
     ):
-        global_config.get_profiler().start_timestep()
         state.__dict__.update(self._temporaries)
         tracers = {}
         for name in utils.tracer_variables[0:NQ]:
@@ -529,7 +530,6 @@ class DynamicalCore:
             cubed_to_latlon_stencil=self._cubed_to_latlon,
             is_root_rank=self.comm.rank == 0,
         )
-        global_config.get_profiler().end_timestep()
 
     def _dyn(self, state, tracers, timer=fv3gfs.util.NullTimer()):
         self._copy_stencil(

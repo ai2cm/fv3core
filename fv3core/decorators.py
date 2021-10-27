@@ -32,6 +32,7 @@ from fv3core.utils.global_config import StencilConfig, get_profile_level, get_pr
 from fv3core.utils.gt4py_utils import serialize
 from fv3core.utils.mpi import MPI
 import fv3core.utils.profiler as fvprof
+import fv3core.utils.profiler_decorators as fvprof_decorators
 from fv3core.utils.typing import Index3D
 
 
@@ -138,7 +139,7 @@ class FrozenStencil:
         self._build_info: Optional[Dict[str, Any]] = None
         self._exec_info: Optional[Dict[str, Any]] = None
 
-        if get_profile_level() >= fvprof.ProfileLevel.NONE:
+        if get_profile_level() > fvprof.ProfileLevel.NONE:
             self._build_info = {}
             stencil_kwargs["build_info"] = self._build_info
         if get_profile_level() == fvprof.ProfileLevel.ALL:
@@ -172,13 +173,14 @@ class FrozenStencil:
 
         self._hash = self.stencil_object.__hash__()
 
-        if get_profile_level() >= fvprof.ProfileLevel.NONE:
+        if get_profile_level() > fvprof.ProfileLevel.NONE:
             get_profiler().add(self._hash, str(self.stencil_object))
             timed_keys = ["load_time", "codegen_time", "parse_time", "module_time"]
             for time_key in timed_keys:
                 if time_key in self._build_info.keys():
                     get_profiler().log(self._hash, time_key, self._build_info[time_key])
 
+    @fvprof_decorators.do_profile_object_hash("runtime")
     def __call__(
         self,
         *args,
@@ -193,7 +195,6 @@ class FrozenStencil:
                 raise TypeError("origin cannot be passed to FrozenStencil call")
             if __debug__ and "domain" in kwargs:
                 raise TypeError("domain cannot be passed to FrozenStencil call")
-            get_profiler().start(self._hash, "runtime")
             self.stencil_object(
                 *args,
                 **kwargs,
@@ -202,10 +203,8 @@ class FrozenStencil:
                 validate_args=True,
                 exec_info=exec_info,
             )
-            get_profiler().stop(self._hash, "runtime")
         else:
             args_as_kwargs = dict(zip(self._argument_names, args))
-            get_profiler().start(self._hash, "runtime")
             self.stencil_object.run(
                 **args_as_kwargs,
                 **kwargs,
@@ -213,7 +212,6 @@ class FrozenStencil:
                 exec_info=exec_info,
             )
             self._mark_cuda_fields_written({**args_as_kwargs, **kwargs})
-            get_profiler().stop(self._hash, "runtime")
 
         if exec_info is not None:
             self._write_profile(exec_info)
