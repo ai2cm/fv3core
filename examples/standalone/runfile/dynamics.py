@@ -7,6 +7,7 @@ from datetime import datetime
 from typing import Any, Dict, List
 
 import numpy as np
+import serialbox
 import yaml
 from mpi4py import MPI
 
@@ -15,7 +16,6 @@ import fv3core._config as spec
 import fv3core.testing
 import fv3core.utils.global_config as global_config
 import fv3gfs.util as util
-import serialbox
 
 
 def parse_args() -> Namespace:

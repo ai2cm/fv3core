@@ -1,4 +1,3 @@
-import dace
 from gt4py import gtscript
 from gt4py.gtscript import PARALLEL, computation, interval
 
