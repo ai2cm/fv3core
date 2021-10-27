@@ -3,7 +3,6 @@ from typing import Callable, Mapping, Tuple
 
 import numpy as np
 
-from fv3core.decorators import computepath_method
 import fv3core.stencils.divergence_damping
 import fv3core.stencils.updatedzd
 from fv3gfs.util.constants import X_DIM, X_INTERFACE_DIM, Y_DIM, Y_INTERFACE_DIM, Z_DIM
@@ -50,7 +49,6 @@ def get_selective_class(
             except TypeError:  # wrapped object is not callable
                 self._all_argument_names = None
 
-        @computepath_method
         def __call__(self, *args, **kwargs):
             kwargs.update(self._args_to_kwargs(args))
             self.wrapped(**kwargs)
@@ -109,7 +107,6 @@ def get_selective_tracer_advection(
             )
             assert "self" not in self._all_argument_names
 
-        @computepath_method
         def __call__(self, *args, **kwargs):
             if self._all_argument_names is not None:
                 kwargs.update(self._args_to_kwargs(args))

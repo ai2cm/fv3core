@@ -65,6 +65,7 @@ dace.Config.set(
     ),
 )
 
+
 def mark_untested(msg="This is not tested"):
     def inner(func) -> Callable[..., Any]:
         @wraps(func)

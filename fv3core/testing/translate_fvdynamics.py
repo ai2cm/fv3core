@@ -333,9 +333,13 @@ class TranslateFVDynamics(ParallelTranslateBaseSlicing):
                 "cannot call subset_output before calling compute_parallel "
                 "to initialize dycore"
             )
-        elif varname in self.dycore.selective_names:  # type: ignore
+        if hasattr(self.dycore, "selective_names") and (
+            varname in self.dycore.selective_names  # type: ignore
+        ):
             return_value = self.dycore.subset_output(varname, output)  # type: ignore
-        elif varname in ADVECTED_TRACER_NAMES:
+        if varname in ADVECTED_TRACER_NAMES and hasattr(
+            self.dycore.tracer_advection, "subset_output"
+        ):
             return_value = self.dycore.tracer_advection.subset_output(  # type: ignore
                 "tracers", output
             )

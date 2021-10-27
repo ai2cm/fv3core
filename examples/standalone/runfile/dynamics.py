@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
 
-import click
 import copy
 import cProfile
-import dace
 import io
 import json
 import os
@@ -12,8 +10,11 @@ from datetime import datetime
 from types import SimpleNamespace
 from typing import Any, Dict, List
 
+import click
+import dace
 import numpy as np
 import serialbox
+
 
 try:
     from mpi4py import MPI
@@ -116,7 +117,11 @@ def gather_hit_counts(
 
 
 def collect_data_and_write_to_file(
-    args: SimpleNamespace, comm: MPI.Comm, hits_per_step, times_per_step, experiment_name
+    args: SimpleNamespace,
+    comm: MPI.Comm,
+    hits_per_step,
+    times_per_step,
+    experiment_name,
 ) -> None:
     """
     collect the gathered data from all the ranks onto rank 0 and write the timing file
@@ -231,20 +236,21 @@ def driver(
         # @Linus: make this call a dace program
         for _ in range(time_steps):
             dycore.step_dynamics(
-            state,
-            input_data["consv_te"],
-            input_data["do_adiabatic_init"],
-            input_data["bdt"],
-            input_data["ptop"],
-            input_data["n_split"],
-            input_data["ks"],
-        )
+                state,
+                input_data["consv_te"],
+                input_data["do_adiabatic_init"],
+                input_data["bdt"],
+                input_data["ptop"],
+                input_data["n_split"],
+                input_data["ks"],
+            )
 
     reference_run = False
     if reference_run:
         dacemode = get_dacemode()
         set_dacemode(False)
         import time
+
         start = time.time()
         pr = cProfile.Profile()
         pr.enable()
@@ -259,7 +265,7 @@ def driver(
             ps.print_stats()
             print(s.getvalue())
             set_dacemode(dacemode)
-        print(f"{backend} time:", time.time()-start)
+        print(f"{backend} time:", time.time() - start)
     else:
         if args.profile:
             profiler = cProfile.Profile()

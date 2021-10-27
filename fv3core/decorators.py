@@ -20,7 +20,7 @@ from typing import (
 import dace
 import gt4py
 import gt4py.definitions
-from dace.frontend.python.common import SDFGConvertible, SDFGClosure
+from dace.frontend.python.common import SDFGClosure, SDFGConvertible
 from dace.frontend.python.parser import DaceProgram
 from dace.transformation.auto.auto_optimize import make_transients_persistent
 from dace.transformation.helpers import get_parent_map
@@ -66,6 +66,7 @@ def to_gpu(sdfg: dace.SDFG):
     for sd in sdfg.all_sdfgs_recursive():
         sd.openmp_sections = False
 
+
 def call_sdfg(daceprog: DaceProgram, sdfg: dace.SDFG, args, kwargs, sdfg_final=False):
     if not sdfg_final:
         if global_config.is_gpu_backend():
@@ -93,9 +94,22 @@ def call_sdfg(daceprog: DaceProgram, sdfg: dace.SDFG, args, kwargs, sdfg_final=F
             arg._set_device_modified()
     if res is not None:
         if global_config.is_gpu_backend():
-            res = [gt4py.storage.from_array(r, default_origin=(0, 0, 0), backend=global_config.get_backend(), managed_memory=True) for r in res]
+            res = [
+                gt4py.storage.from_array(
+                    r,
+                    default_origin=(0, 0, 0),
+                    backend=global_config.get_backend(),
+                    managed_memory=True,
+                )
+                for r in res
+            ]
         else:
-            res = [gt4py.storage.from_array(r, default_origin=(0, 0, 0), backend=global_config.get_backend()) for r in res]
+            res = [
+                gt4py.storage.from_array(
+                    r, default_origin=(0, 0, 0), backend=global_config.get_backend()
+                )
+                for r in res
+            ]
     return res
 
 
@@ -458,7 +472,13 @@ class LazyComputepathFunction:
     def __call__(self, *args, **kwargs):
         if self.use_dace:
             sdfg = self.__sdfg__(*args, **kwargs)
-            return call_sdfg(self.daceprog, sdfg, args, kwargs, sdfg_final=(self._load_sdfg is not None))
+            return call_sdfg(
+                self.daceprog,
+                sdfg,
+                args,
+                kwargs,
+                sdfg_final=(self._load_sdfg is not None),
+            )
         else:
             return self.func(*args, **kwargs)
 
@@ -481,7 +501,9 @@ class LazyComputepathFunction:
                     self.daceprog.load_sdfg(self._load_sdfg, *args, **kwargs)
                     self._sdfg_loaded = True
                 else:
-                    self.daceprog.load_precompiled_sdfg(self._load_sdfg, *args, **kwargs)
+                    self.daceprog.load_precompiled_sdfg(
+                        self._load_sdfg, *args, **kwargs
+                    )
                     self._sdfg_loaded = True
             return next(iter(self.daceprog._cache.cache.values())).sdfg
 
@@ -503,7 +525,7 @@ class LazyComputepathFunction:
 
 class LazyComputepathMethod:
 
-    bound_callables = dict()
+    bound_callables: Dict[Tuple[int, int], Callable] = dict()
 
     class SDFGEnabledCallable(SDFGConvertible):
         def __init__(self, lazy_method, obj_to_bind):
@@ -524,9 +546,11 @@ class LazyComputepathMethod:
             if self.lazy_method.use_dace:
                 sdfg = self.__sdfg__(*args, **kwargs)
                 return call_sdfg(
-                    self.daceprog, sdfg, args, kwargs, sdfg_final=(
-                        self.lazy_method._load_sdfg is not None
-                    )
+                    self.daceprog,
+                    sdfg,
+                    args,
+                    kwargs,
+                    sdfg_final=(self.lazy_method._load_sdfg is not None),
                 )
             else:
                 return self.lazy_method.func(self.obj_to_bind, *args, **kwargs)

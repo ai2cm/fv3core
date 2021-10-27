@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
+import cProfile
+import io
+import pstats
+from pstats import SortKey
 from types import SimpleNamespace
 from typing import Any, Dict, List, Optional, Tuple
 
 import click
-import cProfile
 import dace
-import io
 import numpy as np
-import pstats
-from pstats import SortKey
 import serialbox
 import yaml
 
@@ -18,7 +18,7 @@ import fv3core.testing
 import fv3gfs.util as util
 from fv3core.decorators import computepath_function
 from fv3core.stencils.dyn_core import AcousticDynamics
-from fv3core.utils.global_config import set_dacemode, get_dacemode
+from fv3core.utils.global_config import get_dacemode, set_dacemode
 from fv3core.utils.grid import Grid
 from fv3core.utils.null_comm import NullComm
 
@@ -174,6 +174,7 @@ def run(data_directory, halo_update, backend, time_steps, reference_run):
         dacemode = get_dacemode()
         set_dacemode(False)
         import time
+
         start = time.time()
         pr = cProfile.Profile()
         pr.enable()
@@ -188,7 +189,7 @@ def run(data_directory, halo_update, backend, time_steps, reference_run):
             ps.print_stats()
             print(s.getvalue())
             set_dacemode(dacemode)
-        print(f"{backend} time:", time.time()-start)
+        print(f"{backend} time:", time.time() - start)
     else:
         pr = cProfile.Profile()
         pr.enable()
