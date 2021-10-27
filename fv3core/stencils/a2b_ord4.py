@@ -553,11 +553,15 @@ class AGrid2BGridFourthOrder:
         )
 
         self._ppm_volume_mean_x_stencil = stencil_factory.from_dims_halo(
-            ppm_volume_mean_x, dims=[X_INTERFACE_DIM, Y_DIM, z_dim], halos=(0, 2)
+            ppm_volume_mean_x,
+            compute_dims=[X_INTERFACE_DIM, Y_DIM, z_dim],
+            compute_halos=(0, 2),
         )
 
         self._ppm_volume_mean_y_stencil = stencil_factory.from_dims_halo(
-            ppm_volume_mean_y, dims=[X_DIM, Y_INTERFACE_DIM, z_dim], halos=(2, 0)
+            ppm_volume_mean_y,
+            compute_dims=[X_DIM, Y_INTERFACE_DIM, z_dim],
+            compute_halos=(2, 0),
         )
 
         origin, domain = self._idx.get_origin_domain(
@@ -574,7 +578,7 @@ class AGrid2BGridFourthOrder:
             a2b_interpolation, externals=ax_offsets, origin=origin, domain=domain
         )
         self._copy_stencil = stencil_factory.from_dims_halo(
-            copy_defn, dims=[X_INTERFACE_DIM, Y_INTERFACE_DIM, z_dim]
+            copy_defn, compute_dims=[X_INTERFACE_DIM, Y_INTERFACE_DIM, z_dim]
         )
 
     def _exclude_tile_edges(self, origin, domain, dims=("x", "y")):

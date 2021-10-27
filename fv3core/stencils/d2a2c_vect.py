@@ -446,8 +446,8 @@ class DGrid2AGrid2CGridVectors:
 
         self._set_tmps = stencil_factory.from_dims_halo(
             func=set_tmps,
-            dims=[X_DIM, Y_DIM, Z_DIM],
-            halos=(stencil_factory.n_halo_max, stencil_factory.n_halo_max),
+            compute_dims=[X_DIM, Y_DIM, Z_DIM],
+            compute_halos=(stencil_factory.n_halo_max, stencil_factory.n_halo_max),
         )
 
         self._lagrange_interpolation_y_p1 = stencil_factory.from_origin_domain(
@@ -473,8 +473,8 @@ class DGrid2AGrid2CGridVectors:
         self._avg_box = stencil_factory.from_dims_halo(
             func=avg_box,
             externals={"D2A2C_AVG_OFFSET": d2a2c_avg_offset},
-            dims=[X_DIM, Y_DIM, Z_DIM],
-            halos=(stencil_factory.n_halo_max, stencil_factory.n_halo_max),
+            compute_dims=[X_DIM, Y_DIM, Z_DIM],
+            compute_halos=(stencil_factory.n_halo_max, stencil_factory.n_halo_max),
         )
 
         self._contravariant_components = stencil_factory.from_origin_domain(

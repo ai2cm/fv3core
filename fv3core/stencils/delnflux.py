@@ -944,10 +944,11 @@ class DelnFlux:
             calc_damp, origin=(0, 0, 0), domain=k_shape
         )
         self._add_diffusive_stencil = stencil_factory.from_dims_halo(
-            func=add_diffusive_component, dims=[X_INTERFACE_DIM, Y_INTERFACE_DIM, Z_DIM]
+            func=add_diffusive_component,
+            compute_dims=[X_INTERFACE_DIM, Y_INTERFACE_DIM, Z_DIM],
         )
         self._diffusive_damp_stencil = stencil_factory.from_dims_halo(
-            func=diffusive_damp, dims=[X_INTERFACE_DIM, Y_INTERFACE_DIM, Z_DIM]
+            func=diffusive_damp, compute_dims=[X_INTERFACE_DIM, Y_INTERFACE_DIM, Z_DIM]
         )
 
         damping_factor_calculation(

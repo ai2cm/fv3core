@@ -671,8 +671,8 @@ class StencilFactory:
     def from_dims_halo(
         self,
         func: Callable[..., None],
-        dims: Sequence[str],
-        halos: Sequence[int] = tuple(),
+        compute_dims: Sequence[str],
+        compute_halos: Sequence[int] = tuple(),
         externals: Optional[Mapping[str, Any]] = None,
         skip_passes: Optional[Tuple[str, ...]] = None,
     ) -> FrozenStencil:
@@ -683,9 +683,13 @@ class StencilFactory:
         """
         if externals is None:
             externals = {}
-        if len(dims) != 3:
-            raise ValueError(f"must have 3 dimensions to create stencil, got {dims}")
-        origin, domain = self.grid_indexing.get_origin_domain(dims=dims, halos=halos)
+        if len(compute_dims) != 3:
+            raise ValueError(
+                f"must have 3 dimensions to create stencil, got {compute_dims}"
+            )
+        origin, domain = self.grid_indexing.get_origin_domain(
+            dims=compute_dims, halos=compute_halos
+        )
         origin = cast_to_index3d(origin)
         domain = cast_to_index3d(domain)
         all_externals = self.grid_indexing.axis_offsets(origin=origin, domain=domain)

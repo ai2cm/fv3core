@@ -232,21 +232,21 @@ class DivergenceDamping:
 
         self._get_delpc = low_k_stencil_factory.from_dims_halo(
             func=get_delpc,
-            dims=[X_INTERFACE_DIM, Y_INTERFACE_DIM, Z_DIM],
-            halos=(0, 0),
+            compute_dims=[X_INTERFACE_DIM, Y_INTERFACE_DIM, Z_DIM],
+            compute_halos=(0, 0),
             skip_passes=("GreedyMerging",),
         )
 
         self._damping = low_k_stencil_factory.from_dims_halo(
             damping,
-            dims=[X_INTERFACE_DIM, Y_INTERFACE_DIM, Z_DIM],
-            halos=(0, 0),
+            compute_dims=[X_INTERFACE_DIM, Y_INTERFACE_DIM, Z_DIM],
+            compute_halos=(0, 0),
         )
 
         self._copy_computeplus = high_k_stencil_factory.from_dims_halo(
             func=basic.copy_defn,
-            dims=[X_INTERFACE_DIM, Y_INTERFACE_DIM, Z_DIM],
-            halos=(0, 0),
+            compute_dims=[X_INTERFACE_DIM, Y_INTERFACE_DIM, Z_DIM],
+            compute_halos=(0, 0),
         )
 
         origins = []
@@ -291,21 +291,21 @@ class DivergenceDamping:
 
         self._damping_nord_highorder_stencil = high_k_stencil_factory.from_dims_halo(
             func=damping_nord_highorder_stencil,
-            dims=[X_INTERFACE_DIM, Y_INTERFACE_DIM, Z_DIM],
-            halos=(0, 0),
+            compute_dims=[X_INTERFACE_DIM, Y_INTERFACE_DIM, Z_DIM],
+            compute_halos=(0, 0),
         )
         self._smagorinksy_diffusion_approx_stencil = (
             high_k_stencil_factory.from_dims_halo(
                 func=smagorinksy_diffusion_approx,
-                dims=[X_INTERFACE_DIM, Y_INTERFACE_DIM, Z_DIM],
-                halos=(0, 0),
+                compute_dims=[X_INTERFACE_DIM, Y_INTERFACE_DIM, Z_DIM],
+                compute_halos=(0, 0),
             )
         )
 
         self._set_value = high_k_stencil_factory.from_dims_halo(
             func=basic.set_value_defn,
-            dims=[X_INTERFACE_DIM, Y_INTERFACE_DIM, Z_DIM],
-            halos=(self.grid_indexing.n_halo, self.grid_indexing.n_halo),
+            compute_dims=[X_INTERFACE_DIM, Y_INTERFACE_DIM, Z_DIM],
+            compute_halos=(self.grid_indexing.n_halo, self.grid_indexing.n_halo),
         )
 
         self._corner_tmp = utils.make_storage_from_shape(self.grid_indexing.max_shape)
@@ -322,8 +322,8 @@ class DivergenceDamping:
         )
         self._fill_corners_dgrid_stencil = high_k_stencil_factory.from_dims_halo(
             func=corners.fill_corners_dgrid_defn,
-            dims=[X_INTERFACE_DIM, Y_INTERFACE_DIM, Z_DIM],
-            halos=(self.grid_indexing.n_halo, self.grid_indexing.n_halo),
+            compute_dims=[X_INTERFACE_DIM, Y_INTERFACE_DIM, Z_DIM],
+            compute_halos=(self.grid_indexing.n_halo, self.grid_indexing.n_halo),
         )
 
     def __call__(

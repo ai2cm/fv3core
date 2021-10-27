@@ -727,14 +727,14 @@ class DGridShallowWaterLagrangianDynamics:
 
         self._apply_pt_delp_fluxes = stencil_factory.from_dims_halo(
             func=apply_pt_delp_fluxes_stencil_defn,
-            dims=[X_INTERFACE_DIM, Y_INTERFACE_DIM, Z_DIM],
+            compute_dims=[X_INTERFACE_DIM, Y_INTERFACE_DIM, Z_DIM],
             externals={
                 "inline_q": config.inline_q,
             },
         )
         self._kinetic_energy_update_part_1 = stencil_factory.from_dims_halo(
             func=kinetic_energy_update_part_1,
-            dims=[X_INTERFACE_DIM, Y_INTERFACE_DIM, Z_DIM],
+            compute_dims=[X_INTERFACE_DIM, Y_INTERFACE_DIM, Z_DIM],
             externals={
                 "iord": config.hord_mt,
                 "jord": config.hord_mt,
@@ -746,7 +746,7 @@ class DGridShallowWaterLagrangianDynamics:
         )
         self._kinetic_energy_update_part_2 = stencil_factory.from_dims_halo(
             func=kinetic_energy_update_part_2,
-            dims=[X_INTERFACE_DIM, Y_INTERFACE_DIM, Z_DIM],
+            compute_dims=[X_INTERFACE_DIM, Y_INTERFACE_DIM, Z_DIM],
             externals={
                 "iord": config.hord_mt,
                 "jord": config.hord_mt,
@@ -757,19 +757,19 @@ class DGridShallowWaterLagrangianDynamics:
             skip_passes=("GreedyMerging",),
         )
         self._flux_adjust_stencil = stencil_factory.from_dims_halo(
-            func=flux_adjust, dims=[X_DIM, Y_DIM, Z_DIM]
+            func=flux_adjust, compute_dims=[X_DIM, Y_DIM, Z_DIM]
         )
         self._flux_capacitor_stencil = stencil_factory.from_dims_halo(
             func=flux_capacitor,
-            dims=[X_DIM, Y_DIM, Z_DIM],
-            halos=(stencil_factory.n_halo_max, stencil_factory.n_halo_max),
+            compute_dims=[X_DIM, Y_DIM, Z_DIM],
+            compute_halos=(stencil_factory.n_halo_max, stencil_factory.n_halo_max),
         )
         self._vort_differencing_stencil = stencil_factory.from_dims_halo(
             func=vort_differencing,
-            dims=[X_INTERFACE_DIM, Y_INTERFACE_DIM, Z_DIM],
+            compute_dims=[X_INTERFACE_DIM, Y_INTERFACE_DIM, Z_DIM],
         )
         self._u_and_v_from_ke_stencil = stencil_factory.from_dims_halo(
-            func=u_and_v_from_ke, dims=[X_INTERFACE_DIM, Y_INTERFACE_DIM, Z_DIM]
+            func=u_and_v_from_ke, compute_dims=[X_INTERFACE_DIM, Y_INTERFACE_DIM, Z_DIM]
         )
         self._compute_vort_stencil = stencil_factory.from_dims_halo(
             func=compute_vort,
@@ -778,21 +778,21 @@ class DGridShallowWaterLagrangianDynamics:
                 "do_f3d": config.do_f3d,
                 "hydrostatic": self.hydrostatic,
             },
-            dims=[X_DIM, Y_DIM, Z_DIM],
-            halos=(stencil_factory.n_halo_max, stencil_factory.n_halo_max),
+            compute_dims=[X_DIM, Y_DIM, Z_DIM],
+            compute_halos=(stencil_factory.n_halo_max, stencil_factory.n_halo_max),
         )
         self._adjust_w_and_qcon_stencil = stencil_factory.from_dims_halo(
             func=adjust_w_and_qcon,
-            dims=[X_DIM, Y_DIM, Z_DIM],
+            compute_dims=[X_DIM, Y_DIM, Z_DIM],
         )
         self._heat_diss_stencil = stencil_factory.from_dims_halo(
             func=heat_diss,
-            dims=[X_DIM, Y_DIM, Z_DIM],
+            compute_dims=[X_DIM, Y_DIM, Z_DIM],
         )
         self._heat_source_from_vorticity_damping_stencil = (
             stencil_factory.from_dims_halo(
                 func=heat_source_from_vorticity_damping,
-                dims=[X_INTERFACE_DIM, Y_INTERFACE_DIM, Z_DIM],
+                compute_dims=[X_INTERFACE_DIM, Y_INTERFACE_DIM, Z_DIM],
                 externals={
                     "do_skeb": config.do_skeb,
                     "d_con": config.d_con,
@@ -801,11 +801,11 @@ class DGridShallowWaterLagrangianDynamics:
         )
         self._compute_vorticity_stencil = stencil_factory.from_dims_halo(
             compute_vorticity,
-            dims=[X_DIM, Y_DIM, Z_DIM],
-            halos=(stencil_factory.n_halo_max, stencil_factory.n_halo_max),
+            compute_dims=[X_DIM, Y_DIM, Z_DIM],
+            compute_halos=(stencil_factory.n_halo_max, stencil_factory.n_halo_max),
         )
         self._update_u_and_v_stencil = stencil_factory.from_dims_halo(
-            update_u_and_v, dims=[X_INTERFACE_DIM, Y_INTERFACE_DIM, Z_DIM]
+            update_u_and_v, compute_dims=[X_INTERFACE_DIM, Y_INTERFACE_DIM, Z_DIM]
         )
         damping_factor_calculation_stencil = stencil_factory.from_origin_domain(
             delnflux.calc_damp,

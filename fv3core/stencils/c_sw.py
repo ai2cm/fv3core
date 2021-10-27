@@ -410,8 +410,8 @@ class CGridShallowWaterDynamics:
         )
         self._initialize_delpc_ptc = stencil_factory.from_dims_halo(
             initialize_delpc_ptc,
-            dims=[X_DIM, Y_DIM, Z_DIM],
-            halos=(stencil_factory.n_halo_max, stencil_factory.n_halo_max),
+            compute_dims=[X_DIM, Y_DIM, Z_DIM],
+            compute_halos=(stencil_factory.n_halo_max, stencil_factory.n_halo_max),
         )
 
         self._tmp_ke = utils.make_storage_from_shape(grid_indexing.max_shape)
@@ -422,55 +422,62 @@ class CGridShallowWaterDynamics:
 
         if nord > 0:
             self._divergence_corner = stencil_factory.from_dims_halo(
-                func=divergence_corner, dims=[X_INTERFACE_DIM, Y_INTERFACE_DIM, Z_DIM]
+                func=divergence_corner,
+                compute_dims=[X_INTERFACE_DIM, Y_INTERFACE_DIM, Z_DIM],
             )
         else:
             self._divergence_corner = None
 
         self._geoadjust_ut = stencil_factory.from_dims_halo(
-            func=geoadjust_ut, dims=[X_INTERFACE_DIM, Y_DIM, Z_DIM], halos=(1, 1)
+            func=geoadjust_ut,
+            compute_dims=[X_INTERFACE_DIM, Y_DIM, Z_DIM],
+            compute_halos=(1, 1),
         )
 
         self._geoadjust_vt = stencil_factory.from_dims_halo(
-            func=geoadjust_vt, dims=[X_DIM, Y_INTERFACE_DIM, Z_DIM], halos=(1, 1)
+            func=geoadjust_vt,
+            compute_dims=[X_DIM, Y_INTERFACE_DIM, Z_DIM],
+            compute_halos=(1, 1),
         )
 
         self._fill_corners_x_delp_pt_w_stencil = stencil_factory.from_dims_halo(
             fill_corners_delp_pt_w,
             externals={"fill_corners_func": corners.fill_corners_2cells_x},
-            dims=[X_DIM, Y_DIM, Z_DIM],
-            halos=(stencil_factory.n_halo_max, stencil_factory.n_halo_max),
+            compute_dims=[X_DIM, Y_DIM, Z_DIM],
+            compute_halos=(stencil_factory.n_halo_max, stencil_factory.n_halo_max),
         )
         self._fill_corners_y_delp_pt_w_stencil = stencil_factory.from_dims_halo(
             fill_corners_delp_pt_w,
             externals={"fill_corners_func": corners.fill_corners_2cells_y},
-            dims=[X_DIM, Y_DIM, Z_DIM],
-            halos=(stencil_factory.n_halo_max, stencil_factory.n_halo_max),
+            compute_dims=[X_DIM, Y_DIM, Z_DIM],
+            compute_halos=(stencil_factory.n_halo_max, stencil_factory.n_halo_max),
         )
 
         self._compute_nonhydro_fluxes_x_stencil = stencil_factory.from_dims_halo(
             compute_nonhydro_fluxes_x,
-            dims=[X_INTERFACE_DIM, Y_DIM, Z_DIM],
-            halos=(1, 1),
+            compute_dims=[X_INTERFACE_DIM, Y_DIM, Z_DIM],
+            compute_halos=(1, 1),
         )
 
         self._transportdelp_updatevorticity_and_ke = stencil_factory.from_dims_halo(
             func=transportdelp_update_vorticity_and_kineticenergy,
-            dims=[X_DIM, Y_DIM, Z_DIM],
-            halos=(1, 1),
+            compute_dims=[X_DIM, Y_DIM, Z_DIM],
+            compute_halos=(1, 1),
             externals={"grid_type": grid_type},
         )
 
         self._circulation_cgrid = stencil_factory.from_dims_halo(
-            func=circulation_cgrid, dims=[X_INTERFACE_DIM, Y_INTERFACE_DIM, Z_DIM]
+            func=circulation_cgrid,
+            compute_dims=[X_INTERFACE_DIM, Y_INTERFACE_DIM, Z_DIM],
         )
         self._absolute_vorticity = stencil_factory.from_dims_halo(
-            func=absolute_vorticity, dims=[X_INTERFACE_DIM, Y_INTERFACE_DIM, Z_DIM]
+            func=absolute_vorticity,
+            compute_dims=[X_INTERFACE_DIM, Y_INTERFACE_DIM, Z_DIM],
         )
 
         self._update_y_velocity = stencil_factory.from_dims_halo(
             func=update_y_velocity,
-            dims=[X_DIM, Y_INTERFACE_DIM, Z_DIM],
+            compute_dims=[X_DIM, Y_INTERFACE_DIM, Z_DIM],
             externals={
                 "grid_type": grid_type,
             },
@@ -478,7 +485,7 @@ class CGridShallowWaterDynamics:
 
         self._update_x_velocity = stencil_factory.from_dims_halo(
             func=update_x_velocity,
-            dims=[X_INTERFACE_DIM, Y_DIM, Z_DIM],
+            compute_dims=[X_INTERFACE_DIM, Y_DIM, Z_DIM],
             externals={"grid_type": grid_type},
         )
 

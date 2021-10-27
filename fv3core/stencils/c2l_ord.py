@@ -105,7 +105,7 @@ class CubedToLatLon:
             halos = (0, 0)
             func = ord4_transform
         self._compute_cubed_to_latlon = stencil_factory.from_dims_halo(
-            func=func, dims=[X_DIM, Y_DIM, Z_DIM], halos=halos
+            func=func, compute_dims=[X_DIM, Y_DIM, Z_DIM], compute_halos=halos
         )
 
     def __call__(
