@@ -762,7 +762,7 @@ class DGridShallowWaterLagrangianDynamics:
         self._flux_capacitor_stencil = stencil_factory.from_dims_halo(
             func=flux_capacitor,
             compute_dims=[X_DIM, Y_DIM, Z_DIM],
-            compute_halos=(stencil_factory.n_halo_max, stencil_factory.n_halo_max),
+            compute_halos=(3, 3),
         )
         self._vort_differencing_stencil = stencil_factory.from_dims_halo(
             func=vort_differencing,
@@ -779,7 +779,7 @@ class DGridShallowWaterLagrangianDynamics:
                 "hydrostatic": self.hydrostatic,
             },
             compute_dims=[X_DIM, Y_DIM, Z_DIM],
-            compute_halos=(stencil_factory.n_halo_max, stencil_factory.n_halo_max),
+            compute_halos=(3, 3),
         )
         self._adjust_w_and_qcon_stencil = stencil_factory.from_dims_halo(
             func=adjust_w_and_qcon,
@@ -802,7 +802,7 @@ class DGridShallowWaterLagrangianDynamics:
         self._compute_vorticity_stencil = stencil_factory.from_dims_halo(
             compute_vorticity,
             compute_dims=[X_DIM, Y_DIM, Z_DIM],
-            compute_halos=(stencil_factory.n_halo_max, stencil_factory.n_halo_max),
+            compute_halos=(3, 3),
         )
         self._update_u_and_v_stencil = stencil_factory.from_dims_halo(
             update_u_and_v, compute_dims=[X_INTERFACE_DIM, Y_INTERFACE_DIM, Z_DIM]

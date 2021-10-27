@@ -411,7 +411,7 @@ class CGridShallowWaterDynamics:
         self._initialize_delpc_ptc = stencil_factory.from_dims_halo(
             initialize_delpc_ptc,
             compute_dims=[X_DIM, Y_DIM, Z_DIM],
-            compute_halos=(stencil_factory.n_halo_max, stencil_factory.n_halo_max),
+            compute_halos=(3, 3),
         )
 
         self._tmp_ke = utils.make_storage_from_shape(grid_indexing.max_shape)
@@ -444,13 +444,13 @@ class CGridShallowWaterDynamics:
             fill_corners_delp_pt_w,
             externals={"fill_corners_func": corners.fill_corners_2cells_x},
             compute_dims=[X_DIM, Y_DIM, Z_DIM],
-            compute_halos=(stencil_factory.n_halo_max, stencil_factory.n_halo_max),
+            compute_halos=(3, 3),
         )
         self._fill_corners_y_delp_pt_w_stencil = stencil_factory.from_dims_halo(
             fill_corners_delp_pt_w,
             externals={"fill_corners_func": corners.fill_corners_2cells_y},
             compute_dims=[X_DIM, Y_DIM, Z_DIM],
-            compute_halos=(stencil_factory.n_halo_max, stencil_factory.n_halo_max),
+            compute_halos=(3, 3),
         )
 
         self._compute_nonhydro_fluxes_x_stencil = stencil_factory.from_dims_halo(

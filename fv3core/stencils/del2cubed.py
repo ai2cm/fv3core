@@ -102,12 +102,12 @@ class HyperdiffusionDamping:
         self._corner_fill = stencil_factory.from_dims_halo(
             func=corner_fill,
             compute_dims=[X_DIM, Y_DIM, Z_DIM],
-            compute_halos=(stencil_factory.n_halo_max, stencil_factory.n_halo_max),
+            compute_halos=(3, 3),
         )
         self._copy_stencil = stencil_factory.from_dims_halo(
             func=copy_defn,
             compute_dims=[X_DIM, Y_DIM, Z_DIM],
-            compute_halos=(stencil_factory.n_halo_max, stencil_factory.n_halo_max),
+            compute_halos=(3, 3),
         )
 
         self._ntimes = min(3, nmax)

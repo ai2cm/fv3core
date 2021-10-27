@@ -647,10 +647,6 @@ class StencilFactory:
         self.config: StencilConfig = config
         self.grid_indexing: GridIndexing = grid_indexing
 
-    @property
-    def n_halo_max(self) -> int:
-        return self.grid_indexing.n_halo
-
     def from_origin_domain(
         self,
         func: Callable[..., None],
