@@ -11,7 +11,7 @@ from fv3core.utils.typing import FloatField, FloatFieldIJ
 class TranslateD_SW(TranslateFortranData2Py):
     def __init__(self, grid):
         super().__init__(grid)
-        self.max_error = 6e-11
+        self.max_error = 3.2e-10
         column_namelist = d_sw.get_column_namelist(spec.namelist, grid.npz)
         self.compute_func = d_sw.DGridShallowWaterLagrangianDynamics(
             spec.grid.grid_indexing,
@@ -20,7 +20,7 @@ class TranslateD_SW(TranslateFortranData2Py):
             column_namelist,
             nested=spec.grid.nested,
             stretched_grid=spec.grid.stretched_grid,
-            config=spec.namelist.acoustic_dynamics.d_grid_shallow_water,
+            config=spec.namelist.dynamical_core.acoustic_dynamics.d_grid_shallow_water,
         )
         self.in_vars["data_vars"] = {
             "uc": grid.x3d_domain_dict(),
@@ -66,7 +66,9 @@ def ubke(
     dt5: float,
 ):
     with computation(PARALLEL), interval(...):
-        ub = d_sw.ubke(uc, vc, cosa, rsina, ut, ub, dt4, dt5)
+        dt = 2.0 * dt5
+        ub, _ = d_sw.interpolate_uc_vc_to_cell_corners(uc, vc, cosa, rsina, ut, ut)
+        ub = ub * dt
 
 
 class TranslateUbKE(TranslateFortranData2Py):
@@ -105,7 +107,9 @@ def vbke(
     dt5: float,
 ):
     with computation(PARALLEL), interval(...):
-        vb = d_sw.vbke(vc, uc, cosa, rsina, vt, vb, dt4, dt5)
+        dt = 2.0 * dt5
+        _, vb = d_sw.interpolate_uc_vc_to_cell_corners(uc, vc, cosa, rsina, vt, vt)
+        vb = vb * dt
 
 
 class TranslateVbKE(TranslateFortranData2Py):
@@ -194,8 +198,13 @@ class TranslateHeatDiss(TranslateFortranData2Py):
 class TranslateWdivergence(TranslateFortranData2Py):
     def __init__(self, grid):
         super().__init__(grid)
-        self.in_vars["data_vars"] = {"w": {}, "delp": {}, "gx": {}, "gy": {}}
-        self.out_vars = {"w": {}}
+        self.in_vars["data_vars"] = {
+            "q": {"serialname": "w"},
+            "delp": {},
+            "gx": {},
+            "gy": {},
+        }
+        self.out_vars = {"q": {"serialname": "w"}}
         self.compute_func = FrozenStencil(
             d_sw.flux_adjust,
             origin=self.grid.compute_origin(),

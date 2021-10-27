@@ -34,13 +34,14 @@ MapN_Tracer_2d:
     ignore_near_zero_errors:
       - qtracers
   - backend: numpy
-    platform: docker
     max_error: 9e-9 # 48_6ranks
+
 
 
 NH_P_Grad:
   - backend: gtcuda
     max_error: 2e-9
+
 
 Riem_Solver3:
   - backend: gtcuda
