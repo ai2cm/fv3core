@@ -526,7 +526,7 @@ def test_backend_options(
             "rebuild": True,
             "device_sync": False,
             "format_source": False,
-            "skip_passes": ["graph_merge_horizontal_executions"],
+            "pass_order": {"graph_merge_horizontal_executions": None},
             "verbose": False,
         },
     }

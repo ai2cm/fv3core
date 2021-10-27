@@ -201,7 +201,9 @@ class FrozenStencil(SDFGConvertible):
             stencil_kwargs["wrapper"] = self
 
         if skip_passes and global_config.is_gtc_backend():
-            stencil_kwargs["skip_passes"] = skip_passes
+            stencil_kwargs["pass_order"] = {
+                pass_name: None for pass_name in skip_passes
+            }
 
         self.stencil_object: gt4py.StencilObject = stencil_function(
             definition=func,
