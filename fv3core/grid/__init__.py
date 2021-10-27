@@ -1,6 +1,6 @@
 # flake8: noqa: F401
 
-from .eta import set_eta
+from .eta import set_hybrid_pressure_coefficients
 from .generation import MetricTerms
 from .gnomonic import (
     global_gnomonic_ed,

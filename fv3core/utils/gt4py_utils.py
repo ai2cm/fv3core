@@ -413,20 +413,6 @@ def k_split_run(func, data, k_indices, splitvars_values):
         func(**data)
 
 
-def kslice_from_inputs(kstart, nk, grid_indexer):
-    if nk is None:
-        nk = grid_indexer.domain[2] - kstart
-    kslice = slice(kstart, kstart + nk)
-    return [kslice, nk]
-
-
-def krange_from_slice(kslice, grid):
-    kstart = kslice.start
-    kend = kslice.stop
-    nk = grid.npz - kstart if kend is None else kend - kstart
-    return kstart, nk
-
-
 def asarray(array, to_type=np.ndarray, dtype=None, order=None):
     if isinstance(array, gt_storage.storage.Storage):
         array = array.data

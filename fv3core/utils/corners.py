@@ -111,6 +111,13 @@ class CopyCornersXY:
         return field, self._y_field
 
 
+def kslice_from_inputs(kstart, nk, grid_indexer: GridIndexing):
+    if nk is None:
+        nk = grid_indexer.domain[2] - kstart
+    kslice = slice(kstart, kstart + nk)
+    return [kslice, nk]
+
+
 @gtscript.function
 def fill_corners_2cells_mult_x(
     q: FloatField,
@@ -751,7 +758,7 @@ def fill_ne_corner_2d_bgrid(q, i, j, direction, grid_indexer):
 
 
 def fill_sw_corner_2d_agrid(q, i, j, direction, grid_indexer, kstart=0, nk=None):
-    kslice, nk = utils.kslice_from_inputs(kstart, nk, grid_indexer)
+    kslice, nk = kslice_from_inputs(kstart, nk, grid_indexer)
     if direction == "x":
         q[grid_indexer.isc - i, grid_indexer.jsc - j, kslice] = q[
             grid_indexer.isc - j, grid_indexer.jsc + i - 1, kslice
@@ -763,7 +770,7 @@ def fill_sw_corner_2d_agrid(q, i, j, direction, grid_indexer, kstart=0, nk=None)
 
 
 def fill_nw_corner_2d_agrid(q, i, j, direction, grid_indexer, kstart=0, nk=None):
-    kslice, nk = utils.kslice_from_inputs(kstart, nk, grid_indexer)
+    kslice, nk = kslice_from_inputs(kstart, nk, grid_indexer)
     if direction == "x":
         q[grid_indexer.isc - i, grid_indexer.jec + j, kslice] = q[
             grid_indexer.isc - j, grid_indexer.jec - i + 1, kslice
@@ -775,7 +782,7 @@ def fill_nw_corner_2d_agrid(q, i, j, direction, grid_indexer, kstart=0, nk=None)
 
 
 def fill_se_corner_2d_agrid(q, i, j, direction, grid_indexer, kstart=0, nk=None):
-    kslice, nk = utils.kslice_from_inputs(kstart, nk, grid_indexer)
+    kslice, nk = kslice_from_inputs(kstart, nk, grid_indexer)
     if direction == "x":
         q[grid_indexer.iec + i, grid_indexer.jsc - j, kslice] = q[
             grid_indexer.iec + j, grid_indexer.isc + i - 1, kslice
@@ -789,7 +796,7 @@ def fill_se_corner_2d_agrid(q, i, j, direction, grid_indexer, kstart=0, nk=None)
 def fill_ne_corner_2d_agrid(
     q, i, j, direction, grid_indexer, mysign=1.0, kstart=0, nk=None
 ):
-    kslice, nk = utils.kslice_from_inputs(kstart, nk, grid_indexer)
+    kslice, nk = kslice_from_inputs(kstart, nk, grid_indexer)
     if direction == "x":
         q[grid_indexer.iec + i, grid_indexer.jec + j, kslice] = q[
             grid_indexer.iec + j, grid_indexer.jec - i + 1, kslice

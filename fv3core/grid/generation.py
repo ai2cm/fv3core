@@ -17,7 +17,7 @@ from fv3core.utils.global_constants import (
 from fv3core.utils.grid import GridIndexing
 from fv3gfs.util.constants import N_HALO_DEFAULT
 
-from .eta import set_eta
+from .eta import set_hybrid_pressure_coefficients
 from .geometry import (
     calc_unit_vector_south,
     calc_unit_vector_west,
@@ -300,7 +300,12 @@ class MetricTerms:
         pk = ak + (bk * ps)
         """
         if self._ak is None:
-            self._ks, self._ptop, self._ak, self._bk = self._set_eta()
+            (
+                self._ks,
+                self._ptop,
+                self._ak,
+                self._bk,
+            ) = self._set_hybrid_pressure_coefficients()
         return self._ak
 
     @property
@@ -310,7 +315,12 @@ class MetricTerms:
         pk = ak + (bk * ps)
         """
         if self._bk is None:
-            self._ks, self._ptop, self._ak, self._bk = self._set_eta()
+            (
+                self._ks,
+                self._ptop,
+                self._ak,
+                self._bk,
+            ) = self._set_hybrid_pressure_coefficients()
         return self._bk
 
     @property
@@ -321,7 +331,12 @@ class MetricTerms:
         hybrid pressure levels
         """
         if self._ks is None:
-            self._ks, self._ptop, self._ak, self._bk = self._set_eta()
+            (
+                self._ks,
+                self._ptop,
+                self._ak,
+                self._bk,
+            ) = self._set_hybrid_pressure_coefficients()
         return self._ks
 
     @property
@@ -330,7 +345,12 @@ class MetricTerms:
         The pressure of the top of atmosphere level
         """
         if self._ptop is None:
-            self._ks, self._ptop, self._ak, self._bk = self._set_eta()
+            (
+                self._ks,
+                self._ptop,
+                self._ak,
+                self._bk,
+            ) = self._set_hybrid_pressure_coefficients()
         return self._ptop
 
     @property
@@ -1516,12 +1536,16 @@ class MetricTerms:
         )
         return area_cgrid
 
-    def _set_eta(self):
+    def _set_hybrid_pressure_coefficients(self):
         ks = self._quantity_factory.zeros([], "")
         ptop = self._quantity_factory.zeros([], "mb")
         ak = self._quantity_factory.zeros([fv3util.Z_INTERFACE_DIM], "mb")
         bk = self._quantity_factory.zeros([fv3util.Z_INTERFACE_DIM], "")
-        ks, ptop, ak.data[:], bk.data[:] = set_eta(self._npz)
+        pressure_coefficients = set_hybrid_pressure_coefficients(self._npz)
+        ks = pressure_coefficients.ks
+        ptop = pressure_coefficients.ptop
+        ak.data[:] = pressure_coefficients.ak
+        bk.data[:] = pressure_coefficients.bk
         return ks, ptop, ak, bk
 
     def _calculate_center_vectors(self):

@@ -1,9 +1,28 @@
+from dataclasses import dataclass
+
 import numpy as np
 
 
-def set_eta(km):
+@dataclass
+class hybrid_pressure_coefficients:
+    ks: int
+    ptop: int
+    ak: np.ndarray
+    bk: np.ndarray
+
+
+def set_hybrid_pressure_coefficients(km: int) -> hybrid_pressure_coefficients:
     """
-    Sets the hybrid pressure coordinate
+    Sets the information for the hybrid pressure coordinates.
+    The pressure of each k-level is calculated as Pk = ak + (bk * Ps)
+    where Ps is the surface pressure.
+    Returns a hybrid_pressure_coefficients dataclass containing:
+     - ks: The number of pure-pressure layers at the top of the model
+        Also the level where model transitions from pure pressure to
+        hybrid pressure levels
+     - ptop: The pressure at the top of the atmosphere
+     - ak: The additive coefficient in the pressure calculation
+     - bk: The multiplicative coefficient in the pressure calculation
     """
     if km == 79:
         ak = np.array(
@@ -180,4 +199,5 @@ def set_eta(km):
             "Only a 79 vertical level grid has been implemented so far"
         )
     ptop = ak[0]
-    return ks, ptop, ak, bk
+    pressure_data = hybrid_pressure_coefficients(ks, ptop, ak, bk)
+    return pressure_data

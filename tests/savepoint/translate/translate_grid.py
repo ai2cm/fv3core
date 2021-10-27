@@ -5,7 +5,12 @@ import pytest
 import fv3core._config as spec
 import fv3core.utils.global_config as global_config
 import fv3gfs.util as fv3util
-from fv3core.grid import MetricTerms, global_mirror_grid, gnomonic_grid, set_eta
+from fv3core.grid import (
+    MetricTerms,
+    global_mirror_grid,
+    gnomonic_grid,
+    set_hybrid_pressure_coefficients,
+)
 from fv3core.testing.parallel_translate import ParallelTranslateGrid
 from fv3core.utils.global_constants import CARTESIAN_DIM, LON_OR_LAT_DIM, TILE_DIM
 
@@ -518,9 +523,11 @@ class TranslateSetEta(ParallelTranslateGrid):
 
     def _compute_local(self, inputs):
         state = self.state_from_inputs(inputs)
-        state["ks"], state["ptop"], state["ak"].data[:], state["bk"].data[:] = set_eta(
-            state["npz"]
-        )
+        pressure_coefficients = set_hybrid_pressure_coefficients(state["npz"])
+        state["ks"] = pressure_coefficients.ks
+        state["ptop"] = pressure_coefficients.ptop
+        state["ak"].data[:] = pressure_coefficients.ak
+        state["bk"].data[:] = pressure_coefficients.bk
         return state
 
 
