@@ -43,6 +43,9 @@ class TranslateGnomonicGrids(ParallelTranslateGrid):
         },
     }
 
+    def compute_parallel(self, inputs, communicator):
+        pytest.skip(f"{self.__class__} not running in parallel")
+
     def compute_sequential(self, inputs_list, communicator_list):
         outputs = []
         for inputs in inputs_list:

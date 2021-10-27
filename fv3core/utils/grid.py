@@ -189,32 +189,6 @@ class Grid:
     def krange(self):
         return range(0, self.npz)
 
-    # Added for convenience passing the GridIndexer to the
-    # fill_corners, while some objects still use grid
-    @property
-    def n_halo(self):
-        return self.halo
-
-    @property
-    def isc(self):
-        return self.is_
-
-    @property
-    def iec(self):
-        return self.ie
-
-    @property
-    def jsc(self):
-        return self.js
-
-    @property
-    def jec(self):
-        return self.je
-
-    @property
-    def domain(self):
-        return self.domain_shape_full()
-
     def compute_interface(self):
         return self.slice_dict(self.compute_dict())
 

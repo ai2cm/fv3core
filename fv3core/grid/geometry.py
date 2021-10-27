@@ -383,7 +383,7 @@ def calculate_trig_uv(xyz_dgrid, cos_sg, sin_sg, nhalo, tile_partitioner, rank, 
 
 def supergrid_corner_fix(cos_sg, sin_sg, nhalo, tile_partitioner, rank):
     """
-    _fill_ghost overwrites some of the sin_sg
+    filling the ghost cells overwrites some of the sin_sg
     values along the outward-facing edge of a tile in the corners, which is incorrect.
     This function resolves the issue by filling in the appropriate values
     after the _fill_single_halo_corner call
