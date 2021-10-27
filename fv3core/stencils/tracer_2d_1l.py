@@ -8,7 +8,7 @@ import fv3core.stencils.fxadv
 import fv3core.utils
 import fv3core.utils.gt4py_utils as utils
 import fv3gfs.util
-from fv3core.decorators import FrozenStencil
+from fv3core.decorators import FrozenStencil, computepath_method
 from fv3core.stencils.fvtp2d import (
     FiniteVolumeTransport,
     PreAllocatedCopiedCornersFactory,
@@ -196,6 +196,7 @@ class TracerAdvection:
             y_temporary=None,
         )
 
+    @computepath_method
     def __call__(self, tracers, dp1, mfxd, mfyd, cxd, cyd, mdt):
         if len(tracers) != self._tracer_count:
             raise ValueError(

@@ -3,7 +3,9 @@ from gt4py.gtscript import PARALLEL, computation, horizontal, interval, region
 import fv3core._config as spec
 import fv3core.utils.corners as corners
 import fv3core.utils.gt4py_utils as utils
-from fv3core.decorators import FrozenStencil, get_stencils_with_varied_bounds
+from fv3core.decorators import (
+    FrozenStencil, computepath_method, get_stencils_with_varied_bounds
+)
 from fv3core.stencils.basic_operations import copy_defn
 from fv3core.utils.grid import DampingCoefficients, GridIndexing, axis_offsets
 from fv3core.utils.typing import FloatField, FloatFieldIJ
@@ -148,6 +150,7 @@ class HyperdiffusionDamping:
         self._copy_corners_y: corners.CopyCorners = corners.CopyCorners("y")
         """Stencil responsible for doing corners updates in y-direction."""
 
+    @computepath_method
     def __call__(self, qdel: FloatField, cd: float):
         """
         Perform hyperdiffusion damping/filtering

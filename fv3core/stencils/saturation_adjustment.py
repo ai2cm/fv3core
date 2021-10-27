@@ -5,7 +5,7 @@ from gt4py.gtscript import __INLINED, PARALLEL, computation, exp, floor, interva
 
 import fv3core.utils.global_constants as constants
 from fv3core._config import SatAdjustConfig
-from fv3core.decorators import FrozenStencil
+from fv3core.decorators import FrozenStencil, computepath_method
 from fv3core.stencils.basic_operations import dim
 from fv3core.stencils.moist_cv import compute_pkz_func
 from fv3core.utils.grid import GridIndexing
@@ -933,6 +933,7 @@ class SatAdjust3d:
             ),
         )
 
+    @computepath_method
     def __call__(
         self,
         te: FloatField,

@@ -12,7 +12,9 @@ import fv3core._config as spec
 import fv3core.stencils.basic_operations as basic
 import fv3core.utils.corners as corners
 import fv3core.utils.gt4py_utils as utils
-from fv3core.decorators import FrozenStencil, get_stencils_with_varied_bounds
+from fv3core.decorators import (
+    FrozenStencil, computepath_method, get_stencils_with_varied_bounds
+)
 from fv3core.stencils.a2b_ord4 import AGrid2BGridFourthOrder
 from fv3core.stencils.d2a2c_vect import contravariant
 from fv3core.utils.grid import DampingCoefficients, GridData, GridIndexing, axis_offsets
@@ -332,6 +334,7 @@ class DivergenceDamping:
             domain=fill_domain,
         )
 
+    @computepath_method
     def __call__(
         self,
         u: FloatField,

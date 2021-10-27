@@ -2,7 +2,7 @@ from gt4py.gtscript import PARALLEL, computation, horizontal, interval, region
 
 import fv3core._config as spec
 import fv3core.utils.gt4py_utils as utils
-from fv3core.decorators import FrozenStencil
+from fv3core.decorators import FrozenStencil, computepath_method
 from fv3core.utils.grid import GridData, GridIndexing, axis_offsets
 from fv3core.utils.typing import FloatField, FloatFieldIJ
 from fv3gfs.util import CubedSphereCommunicator
@@ -113,6 +113,7 @@ class CubedToLatLon:
                 domain=domain,
             )
 
+    @computepath_method
     def __call__(
         self,
         u: Quantity,

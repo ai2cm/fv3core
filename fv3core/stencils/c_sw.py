@@ -9,7 +9,7 @@ from gt4py.gtscript import (
 
 import fv3core._config as spec
 import fv3core.utils.gt4py_utils as utils
-from fv3core.decorators import FrozenStencil
+from fv3core.decorators import FrozenStencil, computepath_method
 from fv3core.stencils.d2a2c_vect import DGrid2AGrid2CGridVectors
 from fv3core.utils import corners
 from fv3core.utils.grid import GridData, GridIndexing, axis_offsets
@@ -582,6 +582,7 @@ class CGridShallowWaterDynamics:
             dt2,
         )
 
+    @computepath_method
     def __call__(
         self,
         delp: FloatField,

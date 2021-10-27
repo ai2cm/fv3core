@@ -13,7 +13,9 @@ from gt4py.gtscript import (
 )
 
 import fv3core.utils.gt4py_utils as utils
-from fv3core.decorators import FrozenStencil, get_stencils_with_varied_bounds
+from fv3core.decorators import (
+    FrozenStencil, computepath_method, get_stencils_with_varied_bounds
+)
 from fv3core.utils.grid import DampingCoefficients, GridIndexing, axis_offsets
 from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
 from fv3gfs.util import X_DIM, Y_DIM, Z_DIM
@@ -960,6 +962,7 @@ class DelnFlux:
             grid_indexing, damping_coefficients, rarea, nord, nk=nk
         )
 
+    @computepath_method
     def __call__(
         self,
         q: FloatField,
@@ -1149,6 +1152,7 @@ class DelnFluxNoSG:
             domain=corner_domain,
         )
 
+    @computepath_method
     def __call__(self, q, fx2, fy2, damp_c, d2, mass=None):
         """
         Computes flux fields which would apply del-n damping to q,

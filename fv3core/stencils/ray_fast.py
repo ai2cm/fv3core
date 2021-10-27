@@ -13,7 +13,7 @@ from gt4py.gtscript import (
 )
 
 import fv3core.utils.global_constants as constants
-from fv3core.decorators import FrozenStencil
+from fv3core.decorators import FrozenStencil, computepath_method
 from fv3core.utils import axis_offsets
 from fv3core.utils.grid import GridIndexing
 from fv3core.utils.typing import FloatField, FloatFieldK
@@ -166,6 +166,7 @@ class RayleighDamping:
             },
         )
 
+    @computepath_method
     def __call__(
         self,
         u: FloatField,

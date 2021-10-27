@@ -1,7 +1,7 @@
 from gt4py.gtscript import PARALLEL, computation, interval
 
 import fv3core.utils.gt4py_utils as utils
-from fv3core.decorators import FrozenStencil
+from fv3core.decorators import FrozenStencil, computepath_method
 from fv3core.stencils.a2b_ord4 import AGrid2BGridFourthOrder
 from fv3core.utils.grid import GridData, GridIndexing
 from fv3core.utils.typing import FloatField, FloatFieldIJ
@@ -143,6 +143,7 @@ class NonHydrostaticPressureGradient:
             replace=False,
         )
 
+    @computepath_method
     def __call__(
         self,
         u: FloatField,

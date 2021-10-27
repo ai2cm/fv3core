@@ -529,12 +529,6 @@ class LazyComputepathMethod:
                     )
                 )
             else:
-                # arg_names = tuple(inspect.getfullargspec(self.lazy_method.func).args)
-                # if arg_names[-1] == "state":
-                #     for quantity_name in ("q_con", "cappa"):
-                #         kwargs[f"{quantity_name}_quanity"] = kwargs.pop(quantity_name)
-                #     args = [types.SimpleNamespace(**kwargs)]
-                #     kwargs.clear()
                 return self.lazy_method.func(self.obj_to_bind, *args, **kwargs)
 
         def __sdfg__(self, *args, **kwargs):

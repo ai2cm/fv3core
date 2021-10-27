@@ -9,7 +9,7 @@ from gt4py.gtscript import (
     region,
 )
 
-from fv3core.decorators import FrozenStencil
+from fv3core.decorators import FrozenStencil, computepath_method
 from fv3core.stencils import ppm
 from fv3core.stencils.basic_operations import sign
 from fv3core.utils.grid import GridIndexing
@@ -314,6 +314,7 @@ class XPiecewiseParabolic:
             domain=domain,
         )
 
+    @computepath_method
     def __call__(
         self,
         q_in: FloatField,

@@ -2,7 +2,7 @@ import gt4py.gtscript as gtscript
 from gt4py.gtscript import PARALLEL, computation, horizontal, interval, region
 
 import fv3core.utils.gt4py_utils as utils
-from fv3core.decorators import FrozenStencil
+from fv3core.decorators import FrozenStencil, computepath_method
 from fv3core.stencils.a2b_ord4 import a1, a2, lagrange_x_func, lagrange_y_func
 from fv3core.utils import corners
 from fv3core.utils.grid import GridData, GridIndexing, axis_offsets
@@ -538,6 +538,7 @@ class DGrid2AGrid2CGridVectors:
             domain=(grid_indexing.domain[0] + 2, jdiff, grid_indexing.domain[2]),
         )
 
+    @computepath_method
     def __call__(self, uc, vc, u, v, ua, va, utc, vtc):
         """
         Calculate velocity vector from D-grid to A-grid to C-grid.

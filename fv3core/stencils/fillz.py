@@ -4,7 +4,7 @@ from typing import Any, Dict
 from gt4py.gtscript import FORWARD, PARALLEL, computation, interval
 
 import fv3core.utils.gt4py_utils as utils
-from fv3core.decorators import FrozenStencil
+from fv3core.decorators import FrozenStencil, computepath_method
 from fv3core.utils.grid import GridIndexing
 from fv3core.utils.typing import FloatField, FloatFieldIJ, IntFieldIJ
 
@@ -130,6 +130,7 @@ class FillNegativeTracerValues:
         self._sum0 = utils.make_storage_from_shape(shape_ij, origin=(0, 0))
         self._sum1 = utils.make_storage_from_shape(shape_ij, origin=(0, 0))
 
+    @computepath_method
     def __call__(
         self,
         dp2: FloatField,

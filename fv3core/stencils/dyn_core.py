@@ -494,7 +494,7 @@ class AcousticDynamics:
         # Halo updaters
         self._halo_updaters = AcousticDynamics._HaloUpdaters(self.comm, grid_indexing)
 
-    # @computepath_method
+    @computepath_method
     def __call__(self, state):
         # u, v, w, delz, delp, pt, pe, pk, phis, wsd, omga, ua, va, uc, vc, mfxd,
         # mfyd, cxd, cyd, pkz, peln, q_con, ak, bk, diss_estd, cappa, mdt, n_split,

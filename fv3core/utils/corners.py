@@ -5,7 +5,7 @@ from gt4py.gtscript import PARALLEL, computation, horizontal, interval, region
 
 import fv3core._config as spec
 import fv3core.utils.gt4py_utils as utils
-from fv3core.decorators import FrozenStencil
+from fv3core.decorators import FrozenStencil, computepath_method
 from fv3core.utils.grid import GridIndexing, axis_offsets
 from fv3core.utils.typing import FloatField
 
@@ -48,6 +48,7 @@ class CopyCorners:
         else:
             raise ValueError("Direction must be either 'x' or 'y'")
 
+    @computepath_method
     def __call__(self, field: FloatField):
         """
         Fills cell quantity field using corners from itself and multipliers
@@ -91,6 +92,7 @@ class CopyCornersXY:
             },
         )
 
+    @computepath_method
     def __call__(self, field: FloatField):
         """
         Fills cell quantity field using corners from itself.
@@ -574,6 +576,7 @@ class FillCornersBGrid:
         else:
             raise ValueError("Direction must be either 'x' or 'y'")
 
+    @computepath_method
     def __call__(self, field: FloatField):
         self._fill_corners_bgrid(field, field)
 

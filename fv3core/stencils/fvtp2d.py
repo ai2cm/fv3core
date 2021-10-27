@@ -6,7 +6,7 @@ from gt4py.gtscript import PARALLEL, computation, horizontal, interval, region
 
 import fv3core.utils.corners as corners
 import fv3core.utils.gt4py_utils as utils
-from fv3core.decorators import FrozenStencil
+from fv3core.decorators import FrozenStencil, computepath_method
 from fv3core.stencils.delnflux import DelnFlux
 from fv3core.stencils.xppm import XPiecewiseParabolic
 from fv3core.stencils.yppm import YPiecewiseParabolic
@@ -141,6 +141,7 @@ class PreAllocatedCopiedCornersFactory:
             grid_indexing, dims, y_field=y_temporary
         )
 
+    @computepath_method
     def __call__(self, field: FloatFieldIJ) -> CopiedCorners:
         x_field, y_field = self._copy_corners_xy(field)
         return CopiedCorners(
@@ -246,6 +247,7 @@ class FiniteVolumeTransport:
             domain=idx.domain_compute(add=(1, 1, 1)),
         )
 
+    @computepath_method
     def __call__(
         self,
         q: CopiedCorners,

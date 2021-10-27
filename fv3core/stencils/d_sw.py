@@ -13,7 +13,7 @@ import fv3core.stencils.delnflux as delnflux
 import fv3core.utils.global_constants as constants
 import fv3core.utils.gt4py_utils as utils
 from fv3core._config import DGridShallowWaterLagrangianDynamicsConfig
-from fv3core.decorators import FrozenStencil
+from fv3core.decorators import FrozenStencil, computepath_method
 from fv3core.stencils.d2a2c_vect import contravariant
 from fv3core.stencils.delnflux import DelnFluxNoSG
 from fv3core.stencils.divergence_damping import DivergenceDamping
@@ -857,6 +857,7 @@ class DGridShallowWaterLagrangianDynamics:
             grid_indexing, dims=[X_DIM, Y_DIM, Z_INTERFACE_DIM], y_temporary=y_temporary
         )
 
+    @computepath_method
     def __call__(
         self,
         delpc,

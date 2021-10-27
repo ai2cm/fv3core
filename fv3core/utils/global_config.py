@@ -55,6 +55,16 @@ def is_gtc_backend() -> bool:
     return get_backend().startswith("gtc")
 
 
+def get_dacemode() -> bool:
+    global _DACEMODE
+    return _DACEMODE
+
+
+def set_dacemode(dacemode: bool):
+    global _DACEMODE
+    _DACEMODE = dacemode
+
+
 def read_backend_options_file():
     file = resources.open_binary("fv3core", "gt4py_options.yml")
     if file:
@@ -151,4 +161,5 @@ _BACKEND: Optional[str] = None
 # If TRUE, all caches will bypassed and stencils recompiled
 # if FALSE, caches will be checked and rebuild if code changes
 _REBUILD: bool = getenv_bool("FV3_STENCIL_REBUILD_FLAG", "False")
+_DACEMODE: bool = getenv_bool("FV3_DACEMODE", "False")
 _VALIDATE_ARGS: bool = True

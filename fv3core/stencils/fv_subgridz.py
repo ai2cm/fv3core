@@ -5,7 +5,7 @@ from gt4py.gtscript import __INLINED, BACKWARD, PARALLEL, computation, interval
 
 import fv3core.utils.gt4py_utils as utils
 import fv3gfs.util
-from fv3core.decorators import ArgSpec, FrozenStencil
+from fv3core.decorators import ArgSpec, FrozenStencil, computepath_method
 from fv3core.stencils.basic_operations import dim
 from fv3core.utils.global_constants import (
     C_ICE,
@@ -831,6 +831,7 @@ class DryConvectiveAdjustment:
         self._tmp_cpm = utils.make_storage_from_shape(shape)
         self._ratios = {0: 0.25, 1: 0.5, 2: 0.999}
 
+    @computepath_method
     def __call__(self, state: Mapping[str, fv3gfs.util.Quantity], timestep: float):
         """
         Performs dry convective adjustment mixing on the subgrid vertical scale.

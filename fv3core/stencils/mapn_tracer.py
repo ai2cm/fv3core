@@ -1,6 +1,7 @@
 from typing import Dict
 
 import fv3core.utils.gt4py_utils as utils
+from fv3core.decorators import computepath_method
 from fv3core.stencils.fillz import FillNegativeTracerValues
 from fv3core.stencils.map_single import MapSingle
 from fv3core.utils.grid import GridIndexing
@@ -55,6 +56,7 @@ class MapNTracer:
         else:
             self._fill_negative_tracers = False
 
+    @computepath_method
     def __call__(
         self,
         pe1: FloatField,

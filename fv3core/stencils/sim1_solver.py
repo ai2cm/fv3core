@@ -3,7 +3,7 @@ import typing
 from gt4py.gtscript import BACKWARD, FORWARD, PARALLEL, computation, exp, interval, log
 
 import fv3core.utils.global_constants as constants
-from fv3core.decorators import FrozenStencil
+from fv3core.decorators import FrozenStencil, computepath_method
 from fv3core.utils.typing import FloatField, FloatFieldIJ
 
 
@@ -121,6 +121,7 @@ class Sim1Solver:
             domain=(nic, njc, nk),
         )
 
+    @computepath_method
     def __call__(
         self,
         dt: float,
