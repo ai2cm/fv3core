@@ -1,11 +1,9 @@
 import contextlib
 import unittest.mock
-from importlib import resources
 
 import gt4py.gtscript
 import numpy as np
 import pytest
-import yaml
 from gt4py.gtscript import PARALLEL, computation, interval
 
 from fv3core import StencilConfig
@@ -245,15 +243,6 @@ def test_frozen_field_after_parameter(backend):
         stencil_config=config,
         externals={},
     )
-
-
-def test_import_gt4py_options():
-    file = resources.open_binary("fv3core", "gt4py_options.yml")
-    assert file is not None
-
-    options = yaml.safe_load(file)
-    file.close()
-    assert options
 
 
 @pytest.mark.parametrize("backend", ("numpy", "gtc:cuda"))
