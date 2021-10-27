@@ -437,6 +437,7 @@ class DynamicalCore:
         state,
         timer: fv3gfs.util.NullTimer,
     ):
+        global_config.get_profiler().start_timestep()
         state.__dict__.update(self._temporaries)
         tracers = {}
         for name in utils.tracer_variables[0:NQ]:
@@ -528,6 +529,7 @@ class DynamicalCore:
             cubed_to_latlon_stencil=self._cubed_to_latlon,
             is_root_rank=self.comm.rank == 0,
         )
+        global_config.get_profiler().end_timestep()
 
     def _dyn(self, state, tracers, timer=fv3gfs.util.NullTimer()):
         self._copy_stencil(

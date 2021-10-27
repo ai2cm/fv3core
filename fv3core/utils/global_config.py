@@ -5,6 +5,13 @@ import re
 from collections.abc import Hashable
 from importlib import resources
 from typing import Any, Dict, Optional
+from .profiler import (
+    BaseProfiler,
+    NoneProfiler,
+    CPUProfiler,
+    CUDAProfiler,
+    ProfileLevel,
+)
 
 import yaml
 
@@ -20,6 +27,7 @@ def set_backend(new_backend: str):
     for function in (is_gpu_backend, is_gtc_backend):
         if hasattr(function, "cache_clear"):
             function.cache_clear()
+    set_profiler()
 
 
 def get_backend() -> str:
@@ -151,9 +159,36 @@ def get_stencil_config():
     )
 
 
+def init_profile_level():
+    getenv_bool("FV3_PROFILE", "False")
+    return ProfileLevel(int(os.getenv("FV3_PROFILE", 0)))
+
+
+def get_profile_level() -> ProfileLevel:
+    return _PROFILE_LEVEL
+
+
+def get_profiler():
+    return _PROFILER
+
+
+def set_profiler():
+    global _PROFILER
+    if get_profile_level() >= ProfileLevel.TIMINGS:
+        if is_gpu_backend():
+            _PROFILER = CUDAProfiler()
+        else:
+            _PROFILER = CPUProfiler()
+
+
 # Options: numpy, gtx86, gtcuda, debug
 _BACKEND: Optional[str] = None
 # If TRUE, all caches will bypassed and stencils recompiled
 # if FALSE, caches will be checked and rebuild if code changes
 _REBUILD: bool = getenv_bool("FV3_STENCIL_REBUILD_FLAG", "False")
-_VALIDATE_ARGS: bool = True
+# Profile level decide of the granularity of the profiler
+# Initialize by reading FV3_PROFILE=X with X an int of the level asked
+_PROFILE_LEVEL: ProfileLevel = init_profile_level()
+# Global profiler, defaulting to a no-op profiler, to be used
+# throughout the code
+_PROFILER: BaseProfiler = NoneProfiler

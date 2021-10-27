@@ -28,9 +28,10 @@ import fv3core.utils
 import fv3core.utils.global_config as global_config
 import fv3core.utils.grid
 from fv3core.utils.future_stencil import future_stencil
-from fv3core.utils.global_config import StencilConfig
+from fv3core.utils.global_config import StencilConfig, get_profile_level, get_profiler
 from fv3core.utils.gt4py_utils import serialize
 from fv3core.utils.mpi import MPI
+import fv3core.utils.profiler as fvprof
 from fv3core.utils.typing import Index3D
 
 
@@ -99,7 +100,6 @@ class FrozenStencil:
         externals: Optional[Mapping[str, Any]] = None,
         *,
         skip_passes: Optional[Tuple[str, ...]] = None,
-        profile: Optional[bool] = None,
     ):
         """
         Args:
@@ -138,10 +138,11 @@ class FrozenStencil:
         self._build_info: Optional[Dict[str, Any]] = None
         self._exec_info: Optional[Dict[str, Any]] = None
 
-        if profile:
+        if get_profile_level() >= fvprof.ProfileLevel.NONE:
             self._build_info = {}
-            self._exec_info = {}
             stencil_kwargs["build_info"] = self._build_info
+        if get_profile_level() == fvprof.ProfileLevel.ALL:
+            self._exec_info = {}
 
         self.stencil_object: gt4py.StencilObject = stencil_function(
             definition=func,
@@ -169,6 +170,15 @@ class FrozenStencil:
 
         self._written_fields: List[str] = get_written_fields(field_info)
 
+        self._hash = self.stencil_object.__hash__()
+
+        if get_profile_level() >= fvprof.ProfileLevel.NONE:
+            get_profiler().add(self._hash, str(self.stencil_object))
+            timed_keys = ["load_time", "codegen_time", "parse_time", "module_time"]
+            for time_key in timed_keys:
+                if time_key in self._build_info.keys():
+                    get_profiler().log(self._hash, time_key, self._build_info[time_key])
+
     def __call__(
         self,
         *args,
@@ -183,6 +193,7 @@ class FrozenStencil:
                 raise TypeError("origin cannot be passed to FrozenStencil call")
             if __debug__ and "domain" in kwargs:
                 raise TypeError("domain cannot be passed to FrozenStencil call")
+            get_profiler().start(self._hash, "runtime")
             self.stencil_object(
                 *args,
                 **kwargs,
@@ -191,8 +202,10 @@ class FrozenStencil:
                 validate_args=True,
                 exec_info=exec_info,
             )
+            get_profiler().stop(self._hash, "runtime")
         else:
             args_as_kwargs = dict(zip(self._argument_names, args))
+            get_profiler().start(self._hash, "runtime")
             self.stencil_object.run(
                 **args_as_kwargs,
                 **kwargs,
@@ -200,6 +213,7 @@ class FrozenStencil:
                 exec_info=exec_info,
             )
             self._mark_cuda_fields_written({**args_as_kwargs, **kwargs})
+            get_profiler().stop(self._hash, "runtime")
 
         if exec_info is not None:
             self._write_profile(exec_info)
