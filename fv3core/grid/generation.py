@@ -235,7 +235,7 @@ class MetricTerms:
     @property
     def agrid_lon_lat(self):
         """
-        The longitudes and latitudes of the d-grid cell centers
+        The longitudes and latitudes of the a-grid cell centers
         """
         return self._agrid
 
@@ -1075,7 +1075,7 @@ class MetricTerms:
     @cached_property
     def area(self):
         """
-        The area of each d-grid cell
+        The area of each a-grid cell
         """
         return self._compute_area()
 
