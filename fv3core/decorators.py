@@ -184,7 +184,6 @@ class FrozenStencil(SDFGConvertible):
             externals: compile-time external variables required by stencil
         """
         self.origin = origin
-
         self.domain = domain
 
         if stencil_config is not None:
@@ -195,10 +194,14 @@ class FrozenStencil(SDFGConvertible):
         if externals is None:
             externals = {}
 
+        stencil_kwargs = self.stencil_config.stencil_kwargs
+        if global_config.get_dacemode():
+            stencil_kwargs["disable_code_generation"] = True
+
         self.stencil_object: gt4py.StencilObject = gtscript.stencil(
             definition=func,
             externals=externals,
-            **self.stencil_config.stencil_kwargs,
+            **stencil_kwargs,
         )
         """generated stencil object returned from gt4py."""
 
