@@ -66,7 +66,7 @@ def cached_property(func):
 
 # TODO
 # corners use sizer + partitioner rather than GridIndexer,
-# requires fv3core calls to corners know what to do
+# have to refactor fv3core calls to corners to do this as well
 class MetricTerms:
     def __init__(
         self,
