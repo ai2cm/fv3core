@@ -160,6 +160,12 @@ class NoneProfiler(BaseProfiler):
     def stop(self, hash, key: str, profile_device=ProfileDevice.HARDWARE):
         pass
 
+    def start_timestep(self):
+        pass
+
+    def end_timestep(self):
+        pass
+
 
 class CUDAProfiler(BaseProfiler):
     """CUDAProfiler capabale of CUDA specific profiling
