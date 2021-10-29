@@ -91,6 +91,7 @@ def copy_stencil(q_in: FloatField, q_out: FloatField):
         q_out = q_in
 
 
+@pytest.mark.parametrize("backend", ["numpy"])
 @pytest.mark.parametrize("validate_args", [True, False])
 @pytest.mark.parametrize("device_sync", [True])
 @pytest.mark.parametrize("rebuild", [False])
@@ -124,6 +125,7 @@ def test_copy_frozen_stencil(
     np.testing.assert_array_equal(q_in, q_out)
 
 
+@pytest.mark.parametrize("backend", ["numpy"])
 @pytest.mark.parametrize("device_sync", [True])
 @pytest.mark.parametrize("rebuild", [False])
 @pytest.mark.parametrize("format_source", [False])
@@ -154,6 +156,7 @@ def test_frozen_stencil_raises_if_given_origin(
         stencil(q_in, q_out, origin=(0, 0, 0))
 
 
+@pytest.mark.parametrize("backend", ["numpy"])
 @pytest.mark.parametrize("device_sync", [True])
 @pytest.mark.parametrize("rebuild", [False])
 @pytest.mark.parametrize("format_source", [False])
@@ -184,6 +187,7 @@ def test_frozen_stencil_raises_if_given_domain(
         stencil(q_in, q_out, domain=(3, 3, 3))
 
 
+@pytest.mark.parametrize("backend", ["numpy"])
 @pytest.mark.parametrize(
     "rebuild, validate_args, format_source, device_sync",
     [[False, False, False, False], [True, False, False, False]],
