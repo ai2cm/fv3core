@@ -16,9 +16,9 @@ def gnomonic_grid(grid_type: int, lon, lat, np):
     if grid_type == 0:
         global_gnomonic_ed(lon, lat, np)
     elif grid_type == 1:
-        gnomonic_dist(lon, lat)
+        raise NotImplementedError()
     elif grid_type == 2:
-        gnomonic_angl(lon, lat)
+        raise NotImplementedError()
     if grid_type < 3:
         symm_ed(lon, lat)
         lon[:] -= PI
@@ -386,14 +386,6 @@ def _vect_cross(p1, p2):
         p1[2] * p2[0] - p1[0] * p2[2],
         p1[0] * p2[1] - p1[1] * p2[0],
     ]
-
-
-def gnomonic_dist(lon, lat):
-    raise NotImplementedError()
-
-
-def gnomonic_angl(lon, lat):
-    raise NotImplementedError()
 
 
 def symm_ed(lon, lat):
