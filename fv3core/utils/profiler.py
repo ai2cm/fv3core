@@ -1,10 +1,11 @@
-import time
 import abc
-from enum import Enum
-from datetime import datetime
 import json
+import time
+from datetime import datetime
+from enum import Enum
 
 from mpi4py import MPI
+
 
 try:
     import cupy as cp
@@ -15,7 +16,8 @@ import copy
 
 
 class OrderedEnum(Enum):
-    """As per Python documentation https://docs.python.org/3/library/enum.html#orderedenum"""
+    """As per Python documentation
+    https://docs.python.org/3/library/enum.html#orderedenum"""
 
     def __ge__(self, other):
         if self.__class__ is other.__class__:
@@ -75,7 +77,8 @@ class BaseProfiler(abc.ABC):
         self._timesteps = {"timestep": []}
         # Open the files here rather than in _dump to go around the order
         # of teardown error raised by using __del__
-        self._filename = f"{datetime.now().strftime('%Y-%m-%d-%H-%M-%S')}_r{MPI.COMM_WORLD.Get_rank()}"
+        now_formatted = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+        self._filename = f"{now_formatted}_r{MPI.COMM_WORLD.Get_rank()}"
         self._outfile_times = open(f"{self._filename}_times.json", "w")
         self._outfile_names = open(f"{self._filename}_names.json", "w")
 

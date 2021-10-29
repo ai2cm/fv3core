@@ -5,6 +5,7 @@ from gt4py.gtscript import PARALLEL, computation, interval, log
 import fv3core.stencils.moist_cv as moist_cv
 import fv3core.utils.global_constants as constants
 import fv3core.utils.gt4py_utils as utils
+import fv3core.utils.profiler_decorators as fvprof
 import fv3gfs.util
 from fv3core._config import DynamicalCoreConfig
 from fv3core.decorators import ArgSpec, FrozenStencil, get_namespace
@@ -16,10 +17,10 @@ from fv3core.stencils.dyn_core import AcousticDynamics
 from fv3core.stencils.neg_adj3 import AdjustNegativeTracerMixingRatio
 from fv3core.stencils.remapping import LagrangianToEulerian
 from fv3core.utils import global_config
-from fv3core.utils.grid import DampingCoefficients, GridData, GridIndexing
+from fv3core.utils.grid import DampingCoefficients, GridData
+from fv3core.utils.stencil import StencilFactory
 from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
 from fv3gfs.util.halo_updater import HaloUpdater
-import fv3core.utils.profiler_decorators as fvprof
 
 
 # nq is actually given by ncnst - pnats, where those are given in atmosphere.F90 by:
@@ -253,7 +254,7 @@ class DynamicalCore:
         self,
         comm: fv3gfs.util.CubedSphereCommunicator,
         grid_data: GridData,
-        grid_indexing: GridIndexing,
+        stencil_factory: StencilFactory,
         damping_coefficients: DampingCoefficients,
         config: DynamicalCoreConfig,
         ak: fv3gfs.util.Quantity,
@@ -264,7 +265,7 @@ class DynamicalCore:
         Args:
             comm: object for cubed sphere inter-process communication
             grid_data: metric terms defining the model grid
-            grid_indexing: indexing information needed for stencils
+            stencil_factory: creates stencils
             damping_coefficients: damping configuration/constants
             config: configuration of dynamical core, for example as would be set by
                 the namelist in the Fortran model
@@ -276,6 +277,7 @@ class DynamicalCore:
         # have not implemented, so they are hard-coded here.
         nested = False
         stretched_grid = False
+        grid_indexing = stencil_factory.grid_indexing
         sizer = fv3gfs.util.SubtileGridSizer.from_tile_params(
             nx_tile=config.npx - 1,
             ny_tile=config.npy - 1,
@@ -298,26 +300,26 @@ class DynamicalCore:
         self.config = config
 
         tracer_transport = fvtp2d.FiniteVolumeTransport(
-            grid_indexing=grid_indexing,
+            stencil_factory=stencil_factory,
             grid_data=grid_data,
             damping_coefficients=damping_coefficients,
             grid_type=config.grid_type,
             hord=config.hord_tr,
         )
         self.tracer_advection = tracer_2d_1l.TracerAdvection(
-            grid_indexing, tracer_transport, comm, NQ
+            stencil_factory, tracer_transport, comm, NQ
         )
         self._ak = ak.storage
         self._bk = bk.storage
         self._phis = phis.storage
-        pfull_stencil = FrozenStencil(
+        pfull_stencil = stencil_factory.from_origin_domain(
             init_pfull, origin=(0, 0, 0), domain=(1, 1, grid_indexing.domain[2])
         )
         pfull = utils.make_storage_from_shape((1, 1, self._ak.shape[0]))
         pfull_stencil(self._ak, self._bk, pfull, self.config.p_ref)
         # workaround because cannot write to FieldK storage in stencil
         self._pfull = utils.make_storage_data(pfull[0, 0, :], self._ak.shape, (0,))
-        self._fv_setup_stencil = FrozenStencil(
+        self._fv_setup_stencil = stencil_factory.from_origin_domain(
             moist_cv.fv_setup,
             externals={
                 "nwat": self.config.nwat,
@@ -326,24 +328,24 @@ class DynamicalCore:
             origin=grid_indexing.origin_compute(),
             domain=grid_indexing.domain_compute(),
         )
-        self._pt_adjust_stencil = FrozenStencil(
+        self._pt_adjust_stencil = stencil_factory.from_origin_domain(
             pt_adjust,
             origin=grid_indexing.origin_compute(),
             domain=grid_indexing.domain_compute(),
         )
-        self._set_omega_stencil = FrozenStencil(
+        self._set_omega_stencil = stencil_factory.from_origin_domain(
             set_omega,
             origin=grid_indexing.origin_compute(),
             domain=grid_indexing.domain_compute(),
         )
-        self._copy_stencil = FrozenStencil(
+        self._copy_stencil = stencil_factory.from_origin_domain(
             copy_defn,
             origin=grid_indexing.origin_full(),
             domain=grid_indexing.domain_full(),
         )
         self.acoustic_dynamics = AcousticDynamics(
             comm,
-            grid_indexing,
+            stencil_factory,
             grid_data,
             damping_coefficients,
             config.grid_type,
@@ -356,13 +358,13 @@ class DynamicalCore:
             self._phis,
         )
         self._hyperdiffusion = HyperdiffusionDamping(
-            grid_indexing,
+            stencil_factory,
             damping_coefficients,
             grid_data.rarea,
             self.config.nf_omega,
         )
         self._cubed_to_latlon = CubedToLatLon(
-            grid_indexing, grid_data, order=config.c2l_ord
+            stencil_factory, grid_data, order=config.c2l_ord
         )
 
         self._temporaries = fvdyn_temporaries(
@@ -371,13 +373,13 @@ class DynamicalCore:
         if not (not self.config.inline_q and NQ != 0):
             raise NotImplementedError("tracer_2d not implemented, turn on z_tracer")
         self._adjust_tracer_mixing_ratio = AdjustNegativeTracerMixingRatio(
-            grid_indexing,
+            stencil_factory,
             self.config.check_negative,
             self.config.hydrostatic,
         )
 
         self._lagrangian_to_eulerian_obj = LagrangianToEulerian(
-            grid_indexing,
+            stencil_factory,
             config.remapping,
             grid_data.area_64,
             NQ,
