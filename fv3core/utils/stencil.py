@@ -20,6 +20,7 @@ import gt4py
 import numpy as np
 from gt4py import gtscript
 from gt4py.storage.storage import Storage
+from gtc.passes.oir_pipeline import DefaultPipeline, OirPipeline
 
 import fv3gfs.util
 from fv3core.utils.future_stencil import future_stencil
@@ -170,6 +171,11 @@ class FrozenStencil:
         if skip_passes and self.stencil_config.is_gtc_backend:
             stencil_kwargs["skip_passes"] = skip_passes
 
+        if "skip_passes" in stencil_kwargs:
+            stencil_kwargs["oir_pipeline"] = FrozenStencil._get_pass_pipeline(
+                stencil_kwargs.pop("skip_passes")
+            )
+
         self.stencil_object: gt4py.StencilObject = stencil_function(
             definition=func,
             externals=externals,
@@ -275,6 +281,12 @@ class FrozenStencil:
             and bool(field_info[field_name].access & gt4py.definitions.AccessKind.WRITE)
         ]
         return write_fields
+
+    @classmethod
+    def _get_pass_pipeline(cls, skip_passes: Sequence[str]) -> OirPipeline:
+        step_map = {step.__name__: step for step in DefaultPipeline.all_steps()}
+        skip_steps = [step_map[pass_name] for pass_name in skip_passes]
+        return DefaultPipeline(skip=skip_steps)
 
 
 class GridIndexing:
