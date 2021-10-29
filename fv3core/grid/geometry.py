@@ -84,8 +84,8 @@ def calc_unit_vector_west(
     """
     Calculates the cartesian unit vector pointing west from every grid cell.
     The first set of values is the horizontal component,
-    the second is the vertical component as defined by the cell edges
-    -- in a non-spherical grid these will be x and y unit vectors.
+    the second is the vertical component.
+    In a non-spherical grid these will be x and y unit vectors.
 
     """
     ew1 = np.zeros((xyz_dgrid.shape[0], xyz_agrid.shape[1], 3))
@@ -127,8 +127,8 @@ def calc_unit_vector_south(
     """
     Calculates the cartesian unit vector pointing south from every grid cell.
     The first set of values is the horizontal component, the second is the vertical
-    component as defined by the cell edges -- in a non-spherical grid these will be
-    x and y unit vectors.
+    component.
+    In a non-spherical grid these will be x and y unit vectors.
     """
     es1 = np.zeros((xyz_agrid.shape[0], xyz_dgrid.shape[1], 3))
     es2 = np.zeros((xyz_agrid.shape[0], xyz_dgrid.shape[1], 3))
@@ -274,7 +274,7 @@ def calculate_l2c_vu(dgrid, nhalo: int, np):
     return l2c_v, l2c_u
 
 
-def generate_xy_unit_vectors(
+def calculate_xy_unit_vectors(
     xyz_dgrid, nhalo: int, tile_partitioner: TilePartitioner, rank: int, np
 ):
     cross_vect_x = np.cross(
@@ -603,7 +603,7 @@ def edge_factors(
     np,
 ):
     """
-    Creates interpolation factors from the A grid to the B grid on face edges
+    Creates interpolation factors from the A grid to the B grid on tile edges
     """
     grid = grid_quantity.data[:]
     big_number = 1.0e8
@@ -716,7 +716,7 @@ def efactor_a2c_v(
     np,
 ):
     """
-    Creates interpolation factors at face edges
+    Creates interpolation factors at tile edges
     for interpolating vectors from A to C grids
     """
     big_number = 1.0e8

@@ -4,10 +4,9 @@ import numpy as np
 
 
 @dataclass
-class hybrid_pressure_coefficients:
+class HybridPressureCoefficients:
     """
-    A simple data class to contain data related to the hybrid-pressure coordinate
-    The values it holds are:
+    Attributes:
      - ks: The number of pure-pressure layers at the top of the model
         Also the level where model transitions from pure pressure to
         hybrid pressure levels
@@ -22,18 +21,19 @@ class hybrid_pressure_coefficients:
     bk: np.ndarray
 
 
-def set_hybrid_pressure_coefficients(km: int) -> hybrid_pressure_coefficients:
+def set_hybrid_pressure_coefficients(km: int) -> HybridPressureCoefficients:
     """
-    Sets the information for the hybrid pressure coordinates.
+    Sets the coefficients describing the hybrid pressure coordinates.
+
     The pressure of each k-level is calculated as Pk = ak + (bk * Ps)
-    where Ps is the surface pressure.
-    Returns a hybrid_pressure_coefficients dataclass containing:
-     - ks: The number of pure-pressure layers at the top of the model
-        Also the level where model transitions from pure pressure to
-        hybrid pressure levels
-     - ptop: The pressure at the top of the atmosphere
-     - ak: The additive coefficient in the pressure calculation
-     - bk: The multiplicative coefficient in the pressure calculation
+    where Ps is the surface pressure. Values are currently stored in
+    lookup tables.
+
+    Args:
+        km: The number of vertical levels in the model
+
+    Returns:
+        a HybridPressureCoefficients dataclass
     """
     if km == 79:
         ak = np.array(
@@ -204,11 +204,14 @@ def set_hybrid_pressure_coefficients(km: int) -> hybrid_pressure_coefficients:
                 1,
             ]
         )
-        ks = 18
     else:
         raise NotImplementedError(
             "Only a 79 vertical level grid has been implemented so far"
         )
-    ptop = ak[0]
-    pressure_data = hybrid_pressure_coefficients(ks, ptop, ak, bk)
+    if 0.0 in bk:
+        ks = np.where(bk == 0)[0][-1]
+        ptop = ak[0]
+    else:
+        raise ValueError("bk must contain at least one 0.")
+    pressure_data = HybridPressureCoefficients(ks, ptop, ak, bk)
     return pressure_data

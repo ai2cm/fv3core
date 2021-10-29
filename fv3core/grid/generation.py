@@ -27,9 +27,9 @@ from .geometry import (
     calculate_l2c_vu,
     calculate_supergrid_cos_sin,
     calculate_trig_uv,
+    calculate_xy_unit_vectors,
     edge_factors,
     efactor_a2c_v,
-    generate_xy_unit_vectors,
     get_center_vector,
     supergrid_corner_fix,
     unit_vector_lonlat,
@@ -88,7 +88,7 @@ class MetricTerms:
             TILE_DIM: 6,
             CARTESIAN_DIM: 3,
         }
-        self._grid_indexer = GridIndexing.from_sizer_and_communicator(
+        self._grid_indexing = GridIndexing.from_sizer_and_communicator(
             self._quantity_factory._sizer, self._comm
         )
         self._grid_dims = [
@@ -220,7 +220,7 @@ class MetricTerms:
     @property
     def dgrid_lon_lat(self):
         """
-        The longitudes and latitudes of the d-grid cell centers
+        the longitudes and latitudes of the d-grid cell centers
         """
         return self._grid
 
@@ -235,14 +235,14 @@ class MetricTerms:
     @property
     def agrid_lon_lat(self):
         """
-        The longitudes and latitudes of the a-grid cell centers
+        the longitudes and latitudes of the a-grid cell centers
         """
         return self._agrid
 
     @property
     def dx(self):
         """
-        The length of the d-grid cells along the x-direction
+        the length of the d-grid cells along the x-direction
         """
         if self._dx is None:
             self._dx, self._dy = self._compute_dxdy()
@@ -251,7 +251,7 @@ class MetricTerms:
     @property
     def dy(self):
         """
-        The length of the d-grid cells along the y-direction
+        the length of the d-grid cells along the y-direction
         """
         if self._dy is None:
             self._dx, self._dy = self._compute_dxdy()
@@ -260,7 +260,7 @@ class MetricTerms:
     @property
     def dxa(self):
         """
-        The length of the a-grid cells along the x-direction
+        the length of the a-grid cells along the x-direction
         """
         if self._dx_agrid is None:
             self._dx_agrid, self._dy_agrid = self._compute_dxdy_agrid()
@@ -269,7 +269,7 @@ class MetricTerms:
     @property
     def dya(self):
         """
-        The length of the a-grid cells along the y-direction
+        the length of the a-grid cells along the y-direction
         """
         if self._dy_agrid is None:
             self._dx_agrid, self._dy_agrid = self._compute_dxdy_agrid()
@@ -278,7 +278,7 @@ class MetricTerms:
     @property
     def dxc(self):
         """
-        The length of the c-grid cells along the x-direction
+        the length of the c-grid cells along the x-direction
         """
         if self._dx_cgrid is None:
             self._dx_cgrid, self._dy_cgrid = self._compute_dxdy_cgrid()
@@ -287,7 +287,7 @@ class MetricTerms:
     @property
     def dyc(self):
         """
-        The length of the c-grid cells along the y-direction
+        the length of the c-grid cells along the y-direction
         """
         if self._dy_cgrid is None:
             self._dx_cgrid, self._dy_cgrid = self._compute_dxdy_cgrid()
@@ -296,7 +296,7 @@ class MetricTerms:
     @property
     def ak(self):
         """
-        The ak coefficient used to calculate the pressure at a given k-level:
+        the ak coefficient used to calculate the pressure at a given k-level:
         pk = ak + (bk * ps)
         """
         if self._ak is None:
@@ -311,7 +311,7 @@ class MetricTerms:
     @property
     def bk(self):
         """
-        The bk coefficient used to calculate the pressure at a given k-level:
+        the bk coefficient used to calculate the pressure at a given k-level:
         pk = ak + (bk * ps)
         """
         if self._bk is None:
@@ -323,11 +323,13 @@ class MetricTerms:
             ) = self._set_hybrid_pressure_coefficients()
         return self._bk
 
+    # TODO: can ks and ptop just be derived from ak and bk instead of being returned
+    # as part of _set_hybrid_pressure_coefficients?
     @property
     def ks(self):
         """
-        The number of pure-pressure layers at the top of the model
-        Also the level where model transitions from pure pressure to
+        the number of pure-pressure layers at the top of the model
+        also the level where model transitions from pure pressure to
         hybrid pressure levels
         """
         if self._ks is None:
@@ -342,7 +344,7 @@ class MetricTerms:
     @property
     def ptop(self):
         """
-        The pressure of the top of atmosphere level
+        the pressure of the top of atmosphere level
         """
         if self._ptop is None:
             (
@@ -356,7 +358,8 @@ class MetricTerms:
     @property
     def ec1(self):
         """
-        Horizontal component of the local vector pointing to each cell center
+        horizontal component of the local vector pointing to each cell center
+        3d array whose last dimension is length 3 and indicates x/y/z value
         """
         if self._ec1 is None:
             self._ec1, self._ec2 = self._calculate_center_vectors()
@@ -365,7 +368,8 @@ class MetricTerms:
     @property
     def ec2(self):
         """
-        Vertical component of the local vector pointing to each cell center
+        vertical component of the local vector pointing to each cell center
+        3d array whose last dimension is length 3 and indicates x/y/z value
         """
         if self._ec2 is None:
             self._ec1, self._ec2 = self._calculate_center_vectors()
@@ -374,7 +378,8 @@ class MetricTerms:
     @property
     def ew1(self):
         """
-        Horizontal component of the local vector pointing west at each grid point
+        horizontal component of the local vector pointing west at each grid point
+        3d array whose last dimension is length 3 and indicates x/y/z value
         """
         if self._ew1 is None:
             self._ew1, self._ew2 = self._calculate_vectors_west()
@@ -383,7 +388,8 @@ class MetricTerms:
     @property
     def ew2(self):
         """
-        Vertical component of the local vector pointing west at each grid point
+        vertical component of the local vector pointing west at each grid point
+        3d array whose last dimension is length 3 and indicates x/y/z value
         """
         if self._ew2 is None:
             self._ew1, self._ew2 = self._calculate_vectors_west()
@@ -664,7 +670,7 @@ class MetricTerms:
     @property
     def cosa_u(self):
         """
-        The average curve along the left cell-edge
+        the average curve along the left cell-edge
         as measured from the left and right sides
         i.e. the average of cos_sg1[i,j] and cos_sg3[i-1, j]
         """
@@ -675,7 +681,7 @@ class MetricTerms:
     @property
     def cosa_v(self):
         """
-        The average curve along the bottom cell-edge
+        the average curve along the bottom cell-edge
         as measured from the left and right sides
         i.e. the average of cos_sg2[i,j] and cos_sg4[i-1, j]
         """
@@ -686,7 +692,7 @@ class MetricTerms:
     @property
     def cosa_s(self):
         """
-        Equivalent to cos_sg5, the inner product of ec1 and ec2
+        equivalent to cos_sg5, the inner product of ec1 and ec2
         """
         if self._cosa_s is None:
             self._init_cell_trigonometry()
@@ -695,7 +701,7 @@ class MetricTerms:
     @property
     def sina_u(self):
         """
-        The average curve along the left cell-edge
+        the average curve along the left cell-edge
         as measured from the left and right sides
         i.e. the average of sin_sg1[i,j] and sin_sg3[i-1, j]
         """
@@ -706,7 +712,7 @@ class MetricTerms:
     @property
     def sina_v(self):
         """
-        The average curve along the bottom cell-edge
+        the average curve along the bottom cell-edge
         as measured from the left and right sides
         i.e. the average of sin_sg2[i,j] and sin_sg4[i-1, j]
         """
@@ -753,7 +759,7 @@ class MetricTerms:
     @property
     def l2c_v(self):
         """
-        Angular momentum correction for converting v-winds
+        angular momentum correction for converting v-winds
         from lat/lon to cartesian coordinates
         """
         if self._l2c_v is None:
@@ -763,7 +769,7 @@ class MetricTerms:
     @property
     def l2c_u(self):
         """
-        Angular momentum correction for converting u-winds
+        angular momentum correction for converting u-winds
         from lat/lon to cartesian coordinates
         """
         if self._l2c_u is None:
@@ -773,7 +779,8 @@ class MetricTerms:
     @property
     def es1(self):
         """
-        Horizontal component of the local vector pointing south at each grid point
+        horizontal component of the local vector pointing south at each grid point
+        3d array whose last dimension is length 3 and indicates x/y/z value
         """
         if self._es1 is None:
             self._es1, self._es2 = self._calculate_vectors_south()
@@ -782,7 +789,8 @@ class MetricTerms:
     @property
     def es2(self):
         """
-        Vertical component of the local vector pointing south at each grid point
+        vertical component of the local vector pointing south at each grid point
+        3d array whose last dimension is length 3 and indicates x/y/z value
         """
         if self._es2 is None:
             self._es1, self._es2 = self._calculate_vectors_south()
@@ -791,7 +799,8 @@ class MetricTerms:
     @property
     def ee1(self):
         """
-        Horizontal component of the local vector pointing east at each grid point
+        horizontal component of the local vector pointing east at each grid point
+        3d array whose last dimension is length 3 and indicates x/y/z value
         """
         if self._ee1 is None:
             self._ee1, self._ee2 = self._calculate_xy_unit_vectors()
@@ -800,7 +809,8 @@ class MetricTerms:
     @property
     def ee2(self):
         """
-        Vertical component of the local vector pointing east at each grid point
+        vertical component of the local vector pointing east at each grid point
+        3d array whose last dimension is length 3 and indicates x/y/z value
         """
         if self._ee2 is None:
             self._ee1, self._ee2 = self._calculate_xy_unit_vectors()
@@ -865,7 +875,8 @@ class MetricTerms:
     @property
     def vlon(self):
         """
-        Unit vector in longitude direction
+        unit vector in longitude direction
+        3d array whose last dimension is length 3 and indicates x/y/z value
         """
         if self._vlon is None:
             self._vlon, self._vlat = self._calculate_unit_vectors_lonlat()
@@ -874,7 +885,8 @@ class MetricTerms:
     @property
     def vlat(self):
         """
-        Unit vector in latitude direction
+        unit vector in latitude direction
+        3d array whose last dimension is length 3 and indicates x/y/z value
         """
         if self._vlat is None:
             self._vlon, self._vlat = self._calculate_unit_vectors_lonlat()
@@ -883,7 +895,7 @@ class MetricTerms:
     @property
     def z11(self):
         """
-        Vector product of horizontal component of the cell-center vector
+        vector product of horizontal component of the cell-center vector
         with the unit longitude vector
         """
         if self._z11 is None:
@@ -893,7 +905,7 @@ class MetricTerms:
     @property
     def z12(self):
         """
-        Vector product of horizontal component of the cell-center vector
+        vector product of horizontal component of the cell-center vector
         with the unit latitude vector
         """
         if self._z12 is None:
@@ -903,7 +915,7 @@ class MetricTerms:
     @property
     def z21(self):
         """
-        Vector product of vertical component of the cell-center vector
+        vector product of vertical component of the cell-center vector
         with the unit longitude vector
         """
         if self._z21 is None:
@@ -913,7 +925,7 @@ class MetricTerms:
     @property
     def z22(self):
         """
-        Vector product of vertical component of the cell-center vector
+        vector product of vertical component of the cell-center vector
         with the unit latitude vector
         """
         if self._z22 is None:
@@ -922,24 +934,36 @@ class MetricTerms:
 
     @property
     def a11(self):
+        """
+        0.5*z22/sin_sg5
+        """
         if self._a11 is None:
             self._a11, self._a12, self._a21, self._a22 = self._calculate_grid_a()
         return self._a11
 
     @property
     def a12(self):
+        """
+        0.5*z21/sin_sg5
+        """
         if self._a12 is None:
             self._a11, self._a12, self._a21, self._a22 = self._calculate_grid_a()
         return self._a12
 
     @property
     def a21(self):
+        """
+        0.5*z12/sin_sg5
+        """
         if self._a21 is None:
             self._a11, self._a12, self._a21, self._a22 = self._calculate_grid_a()
         return self._a21
 
     @property
     def a22(self):
+        """
+        0.5*z11/sin_sg5
+        """
         if self._a22 is None:
             self._a11, self._a12, self._a21, self._a22 = self._calculate_grid_a()
         return self._a22
@@ -947,7 +971,7 @@ class MetricTerms:
     @property
     def edge_w(self):
         """
-        Factor to interpolate scalars from a to c grid at the western grid edge
+        factor to interpolate scalars from a to c grid at the western grid edge
         """
         if self._edge_w is None:
             (
@@ -961,7 +985,7 @@ class MetricTerms:
     @property
     def edge_e(self):
         """
-        Factor to interpolate scalars from a to c grid at the eastern grid edge
+        factor to interpolate scalars from a to c grid at the eastern grid edge
         """
         if self._edge_e is None:
             (
@@ -975,7 +999,7 @@ class MetricTerms:
     @property
     def edge_s(self):
         """
-        Factor to interpolate scalars from a to c grid at the southern grid edge
+        factor to interpolate scalars from a to c grid at the southern grid edge
         """
         if self._edge_s is None:
             (
@@ -989,7 +1013,7 @@ class MetricTerms:
     @property
     def edge_n(self):
         """
-        Factor to interpolate scalars from a to c grid at the northern grid edge
+        factor to interpolate scalars from a to c grid at the northern grid edge
         """
         if self._edge_n is None:
             (
@@ -1003,7 +1027,7 @@ class MetricTerms:
     @property
     def edge_vect_w(self):
         """
-        Factor to interpolate vectors from a to c grid at the western grid edge
+        factor to interpolate vectors from a to c grid at the western grid edge
         """
         if self._edge_vect_w is None:
             (
@@ -1017,7 +1041,7 @@ class MetricTerms:
     @property
     def edge_vect_e(self):
         """
-        Factor to interpolate vectors from a to c grid at the eastern grid edge
+        factor to interpolate vectors from a to c grid at the eastern grid edge
         """
         if self._edge_vect_e is None:
             (
@@ -1031,7 +1055,7 @@ class MetricTerms:
     @property
     def edge_vect_s(self):
         """
-        Factor to interpolate vectors from a to c grid at the southern grid edge
+        factor to interpolate vectors from a to c grid at the southern grid edge
         """
         if self._edge_vect_s is None:
             (
@@ -1045,7 +1069,7 @@ class MetricTerms:
     @property
     def edge_vect_n(self):
         """
-        Factor to interpolate vectors from a to c grid at the northern grid edge
+        factor to interpolate vectors from a to c grid at the northern grid edge
         """
         if self._edge_vect_n is None:
             (
@@ -1059,7 +1083,9 @@ class MetricTerms:
     @property
     def da_min(self):
         """
-        The minimum agrid cell area across all ranks
+        the minimum agrid cell area across all ranks
+        if mpi is not present and the communicator is a DummyComm this will be
+        the minimum on the local rank
         """
         if self._da_min is None:
             self._reduce_global_area_minmaxes()
@@ -1068,7 +1094,9 @@ class MetricTerms:
     @property
     def da_max(self):
         """
-        The maximum agrid cell area across all ranks
+        the maximum agrid cell area across all ranks
+        if mpi is not present and the communicator is a DummyComm this will be
+        the maximum on the local rank
         """
         if self._da_max is None:
             self._reduce_global_area_minmaxes()
@@ -1077,7 +1105,9 @@ class MetricTerms:
     @property
     def da_min_c(self):
         """
-        The minimum cgrid cell area across all ranks
+        the minimum cgrid cell area across all ranks
+        if mpi is not present and the communicator is a DummyComm this will be
+        the minimum on the local rank
         """
         if self._da_min_c is None:
             self._reduce_global_area_minmaxes()
@@ -1086,7 +1116,9 @@ class MetricTerms:
     @property
     def da_max_c(self):
         """
-        The maximum cgrid cell area across all ranks
+        the maximum cgrid cell area across all ranks
+        if mpi is not present and the communicator is a DummyComm this will be
+        the maximum on the local rank
         """
         if self._da_max_c is None:
             self._reduce_global_area_minmaxes()
@@ -1095,21 +1127,21 @@ class MetricTerms:
     @cached_property
     def area(self):
         """
-        The area of each a-grid cell
+        the area of each a-grid cell
         """
         return self._compute_area()
 
     @cached_property
     def area_c(self):
         """
-        The area of each c-grid cell
+        the area of each c-grid cell
         """
         return self._compute_area_c()
 
     @cached_property
     def _dgrid_xyz(self):
         """
-        Cartesian coordinates of each dgrid cell center
+        cartesian coordinates of each dgrid cell center
         """
         return lon_lat_to_xyz(
             self._grid.data[:, :, 0], self._grid.data[:, :, 1], self._np
@@ -1118,7 +1150,7 @@ class MetricTerms:
     @cached_property
     def _agrid_xyz(self):
         """
-        Cartesian coordinates of each agrid cell center
+        cartesian coordinates of each agrid cell center
         """
         return lon_lat_to_xyz(
             self._agrid.data[:-1, :-1, 0],
@@ -1322,7 +1354,7 @@ class MetricTerms:
         self._comm.halo_update(self._grid, n_points=self._halo)
 
         fill_corners_2d(
-            self._grid.data, self._grid_indexer, gridtype="B", direction="x"
+            self._grid.data, self._grid_indexing, gridtype="B", direction="x"
         )
 
     def _init_agrid(self):
@@ -1337,13 +1369,13 @@ class MetricTerms:
         self._comm.halo_update(self._agrid, n_points=self._halo)
         fill_corners_2d(
             self._agrid.data[:, :, 0][:, :, None],
-            self._grid_indexer,
+            self._grid_indexing,
             gridtype="A",
             direction="x",
         )
         fill_corners_2d(
             self._agrid.data[:, :, 1][:, :, None],
-            self._grid_indexer,
+            self._grid_indexing,
             gridtype="A",
             direction="y",
         )
@@ -1377,7 +1409,7 @@ class MetricTerms:
         fill_corners_dgrid(
             dx.data[:, :, None],
             dy.data[:, :, None],
-            self._grid_indexer,
+            self._grid_indexing,
             vector=False,
         )
         return dx, dy
@@ -1402,7 +1434,7 @@ class MetricTerms:
         fill_corners_agrid(
             dx_agrid_tmp[:, :, None],
             dy_agrid_tmp[:, :, None],
-            self._grid_indexer,
+            self._grid_indexing,
             vector=False,
         )
 
@@ -1476,7 +1508,7 @@ class MetricTerms:
         fill_corners_cgrid(
             dx_cgrid.data[:, :, None],
             dy_cgrid.data[:, :, None],
-            self._grid_indexer,
+            self._grid_indexing,
             vector=False,
         )
 
@@ -1530,7 +1562,7 @@ class MetricTerms:
 
         fill_corners_2d(
             area_cgrid.data[:, :, None],
-            self._grid_indexer,
+            self._grid_indexing,
             gridtype="B",
             direction="x",
         )
@@ -1889,7 +1921,7 @@ class MetricTerms:
         (
             ee1.data[self._halo : -self._halo, self._halo : -self._halo, :],
             ee2.data[self._halo : -self._halo, self._halo : -self._halo, :],
-        ) = generate_xy_unit_vectors(
+        ) = calculate_xy_unit_vectors(
             self._dgrid_xyz, self._halo, self._tile_partitioner, self._rank, self._np
         )
         return ee1, ee2
