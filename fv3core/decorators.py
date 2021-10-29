@@ -195,7 +195,10 @@ class FrozenStencil(SDFGConvertible):
             externals = {}
 
         stencil_kwargs = self.stencil_config.stencil_kwargs
-        if global_config.get_dacemode():
+        if (
+            global_config.get_dacemode()
+            and not global_config.is_dacemode_codegen_whitelisted(func)
+        ):
             stencil_kwargs["disable_code_generation"] = True
 
         self.stencil_object: gt4py.StencilObject = gtscript.stencil(
