@@ -1633,7 +1633,7 @@ class TranslateEdgeFactors(ParallelTranslateGrid):
 class TranslateInitGridUtils(ParallelTranslateGrid):
     def __init__(self, grids):
         super().__init__(grids)
-        self.max_error = 5e-11
+        self.max_error = 1e-10
         self.near_zero = 5e-14
         self.ignore_near_zero_errors = {
             "l2c_v": True,
