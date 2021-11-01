@@ -1,7 +1,7 @@
 import hashlib
 import os
 from collections.abc import Hashable
-from typing import Callable, List
+from typing import Callable
 
 
 def getenv_bool(name: str, default: str) -> bool:
@@ -55,7 +55,7 @@ def get_dacemode() -> bool:
     return _DACEMODE
 
 
-def is_dacemode_codegen_whitelisted(func: Callable[..., None]) -> List[str]:
+def is_dacemode_codegen_whitelisted(func: Callable[..., None]) -> bool:
     """Whitelist of stencil function that need code generation in DACE mode.
     Some stencils are called within the __init__ and therefore will need to
     be pre-compiled nonetheless.

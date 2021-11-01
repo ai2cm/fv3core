@@ -32,7 +32,9 @@ import fv3core._config as spec
 import fv3core.utils
 import fv3core.utils.global_config as global_config
 import fv3core.utils.grid
+from fv3core.utils.future_stencil import future_stencil
 from fv3core.utils.global_config import StencilConfig
+from fv3core.utils.mpi import MPI
 from fv3core.utils.typing import Index3D
 
 
@@ -194,6 +196,7 @@ class FrozenStencil(SDFGConvertible):
         if externals is None:
             externals = {}
 
+        stencil_function = gtscript.stencil
         stencil_kwargs = self.stencil_config.stencil_kwargs
         if (
             global_config.get_dacemode()
@@ -201,7 +204,12 @@ class FrozenStencil(SDFGConvertible):
         ):
             stencil_kwargs["disable_code_generation"] = True
 
-        self.stencil_object: gt4py.StencilObject = gtscript.stencil(
+        # Enable distributed compilation if running in parallel
+        if MPI is not None and MPI.COMM_WORLD.Get_size() > 1:
+            stencil_function = future_stencil
+            stencil_kwargs["wrapper"] = self
+
+        self.stencil_object: gt4py.StencilObject = stencil_function(
             definition=func,
             externals=externals,
             **stencil_kwargs,

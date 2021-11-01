@@ -46,7 +46,7 @@ class StencilTable(object, metaclass=Singleton):
 
     DONE_STATE: int = -1
     NONE_STATE: int = -2
-    MAX_SIZE: int = 200
+    MAX_SIZE: int = 300
 
     @classmethod
     def create(cls):
@@ -256,7 +256,12 @@ def future_stencil(
     def _decorator(func):
         # Move backend options to `backend_opts`
         backend_opts: Dict[str, Any] = {}
-        for backend_opt in ("device_sync", "pass_order", "verbose"):
+        for backend_opt in (
+            "device_sync",
+            "disable_code_generation",
+            "oir_pipeline",
+            "verbose",
+        ):
             if backend_opt in kwargs:
                 backend_opts[backend_opt] = kwargs.pop(backend_opt)
 

@@ -303,10 +303,11 @@ class TranslateFVDynamics(ParallelTranslateBaseSlicing):
             inputs["ks"],
         )
         outputs = self.outputs_from_state(state)
-        for name in ADVECTED_TRACER_NAMES:
-            outputs[name] = self.dycore.tracer_advection.subset_output(
-                "tracers", outputs[name]
-            )
+        if hasattr(self.dycore.tracer_advection, "subset_output"):
+            for name in ADVECTED_TRACER_NAMES:
+                outputs[name] = self.dycore.tracer_advection.subset_output(
+                    "tracers", outputs[name]
+                )
         return outputs
 
     def compute_sequential(self, *args, **kwargs):
@@ -325,7 +326,9 @@ class TranslateFVDynamics(ParallelTranslateBaseSlicing):
                 "cannot call subset_output before calling compute_parallel "
                 "to initialize dycore"
             )
-        if varname in ADVECTED_TRACER_NAMES:
+        if varname in ADVECTED_TRACER_NAMES and hasattr(
+            self.dycore.tracer_advection, "subset_output"
+        ):
             return self.dycore.tracer_advection.subset_output(  # type: ignore
                 "tracers", output
             )
