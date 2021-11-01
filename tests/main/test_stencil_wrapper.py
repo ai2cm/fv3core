@@ -103,6 +103,7 @@ def test_copy_frozen_stencil(
     format_source: bool,
     device_sync: bool,
 ):
+    set_backend(backend)
     config = StencilConfig(
         backend=backend,
         rebuild=rebuild,
@@ -135,6 +136,7 @@ def test_frozen_stencil_raises_if_given_origin(
     format_source: bool,
     device_sync: bool,
 ):
+    set_backend(backend)
     # only guaranteed when validating args
     config = StencilConfig(
         backend=backend,
@@ -166,6 +168,7 @@ def test_frozen_stencil_raises_if_given_domain(
     format_source: bool,
     device_sync: bool,
 ):
+    set_backend(backend)
     # only guaranteed when validating args
     config = StencilConfig(
         backend=backend,
