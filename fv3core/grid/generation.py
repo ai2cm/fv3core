@@ -14,7 +14,7 @@ from fv3core.utils.global_constants import (
     RADIUS,
     TILE_DIM,
 )
-from fv3core.utils.grid import GridIndexing
+from fv3core.utils.stencil import GridIndexing
 from fv3gfs.util.constants import N_HALO_DEFAULT
 
 from .eta import set_hybrid_pressure_coefficients
