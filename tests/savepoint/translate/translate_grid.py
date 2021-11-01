@@ -1385,6 +1385,7 @@ class TranslateDivgDel6(ParallelTranslateGrid):
 class TranslateInitCubedtoLatLon(ParallelTranslateGrid):
     def __init__(self, grids):
         super().__init__(grids)
+        self.max_error = 3.0e-14
         self._base.in_vars["data_vars"] = {
             "ec1": {
                 "kend": 2,
@@ -1632,8 +1633,8 @@ class TranslateEdgeFactors(ParallelTranslateGrid):
 class TranslateInitGridUtils(ParallelTranslateGrid):
     def __init__(self, grids):
         super().__init__(grids)
-        self.max_error = 3e-11
-        self.near_zero = 3e-14
+        self.max_error = 5e-11
+        self.near_zero = 5e-14
         self.ignore_near_zero_errors = {
             "l2c_v": True,
             "l2c_u": True,
