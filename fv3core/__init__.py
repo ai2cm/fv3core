@@ -6,8 +6,8 @@ from .utils.global_config import (
     get_rebuild,
     get_validate_args,
     set_backend,
+    set_dacemode,
+    set_device_sync,
     set_rebuild,
     set_validate_args,
-    set_device_sync,
-    set_dacemode,
 )

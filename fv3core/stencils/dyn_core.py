@@ -1,6 +1,5 @@
 import dace
 from gt4py.gtscript import __INLINED, BACKWARD, FORWARD, PARALLEL, computation, interval
-import numpy as np
 
 import fv3core._config as spec
 import fv3core.stencils.basic_operations as basic

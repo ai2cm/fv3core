@@ -227,10 +227,10 @@ def fix_water_vapor_k_loop(i, j, kbot, qvapor, dp):
 
 # Stencil version
 def fix_water_vapor_down(qvapor: FloatField, dp: FloatField):
+    with computation(PARALLEL), interval(...):
+        upper_fix = 0.0  # type: FloatField
+        lower_fix = 0.0  # type: FloatField
     with computation(PARALLEL):
-        with interval(...):
-            upper_fix = 0.0  # type: FloatField
-            lower_fix = 0.0  # type: FloatField
         with interval(0, 1):
             qvapor = qvapor if qvapor >= 0 else 0
         with interval(1, 2):

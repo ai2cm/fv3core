@@ -61,4 +61,8 @@ class TranslateUpdateDzD(TranslateFortranData2Py):
         Given an output array, return the slice of the array which we'd
         like to validate against reference data
         """
-        return self.updatedzd.subset_output(varname, output)
+        return (
+            self.updatedzd.subset_output(varname, output)
+            if hasattr(self.updatedzd, "subset_output")
+            else output
+        )

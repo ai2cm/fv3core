@@ -39,95 +39,9 @@ class TranslateC_SW(TranslateFortranData2Py):
 
     def compute(self, inputs):
         self.make_storage_data_input_vars(inputs)
-        delpc, ptc = self.compute_func(**inputs)
-        #return self.slice_output(inputs, {"delpcd": delpc, "ptcd": ptc})
-        return self.slice_output(inputs, {"delpcd": self.compute_func.delpc, "ptcd": self.compute_func.ptc})
-
-
-class TranslateDivergenceCorner(TranslateFortranData2Py):
-    def __init__(self, grid):
-        super().__init__(grid)
-        self.cgrid_sw_lagrangian_dynamics = CGridShallowWaterDynamics(
-            grid, spec.namelist
-        )
-        self.in_vars["data_vars"] = {
-            "u": {
-                "istart": grid.isd,
-                "iend": grid.ied,
-                "jstart": grid.jsd,
-                "jend": grid.jed + 1,
-            },
-            "v": {
-                "istart": grid.isd,
-                "iend": grid.ied + 1,
-                "jstart": grid.jsd,
-                "jend": grid.jed,
-            },
-            "ua": {},
-            "va": {},
-            "divg_d": {},
-        }
-        self.out_vars = {
-            "divg_d": {
-                "istart": grid.isd,
-                "iend": grid.ied + 1,
-                "jstart": grid.jsd,
-                "jend": grid.jed + 1,
-            }
-        }
-
-    def compute(self, inputs):
-        self.make_storage_data_input_vars(inputs)
-        self.cgrid_sw_lagrangian_dynamics._divergence_corner(
-            **inputs,
-            dxc=self.grid.dxc,
-            dyc=self.grid.dyc,
-            sin_sg1=self.grid.sin_sg1,
-            sin_sg2=self.grid.sin_sg2,
-            sin_sg3=self.grid.sin_sg3,
-            sin_sg4=self.grid.sin_sg4,
-            cos_sg1=self.grid.cos_sg1,
-            cos_sg2=self.grid.cos_sg2,
-            cos_sg3=self.grid.cos_sg3,
-            cos_sg4=self.grid.cos_sg4,
-            rarea_c=self.grid.rarea_c,
-        )
-        return self.slice_output({"divg_d": inputs["divg_d"]})
-
-
-class TranslateCirculation_Cgrid(TranslateFortranData2Py):
-    def __init__(self, grid):
-        super().__init__(grid)
-        self.cgrid_sw_lagrangian_dynamics = CGridShallowWaterDynamics(
-            grid, spec.namelist
-        )
-        self.in_vars["data_vars"] = {
-            "uc": {},
-            "vc": {},
-            "vort_c": {
-                "istart": grid.is_ - 1,
-                "iend": grid.ie + 1,
-                "jstart": grid.js - 1,
-                "jend": grid.je + 1,
-            },
-        }
-        self.out_vars = {
-            "vort_c": {
-                "istart": grid.is_ - 1,
-                "iend": grid.ie + 1,
-                "jstart": grid.js - 1,
-                "jend": grid.je + 1,
-            }
-        }
-
-    def compute(self, inputs):
-        self.make_storage_data_input_vars(inputs)
-        self.cgrid_sw_lagrangian_dynamics._circulation_cgrid(
-            **inputs,
-            dxc=self.grid.dxc,
-            dyc=self.grid.dyc,
-        )
-        return self.slice_output({"vort_c": inputs["vort_c"]})
+        self.compute_func(**inputs)
+        outputs = {"delpcd": self.compute_func.delpc, "ptcd": self.compute_func.ptc}
+        return self.slice_output(inputs, outputs)
 
 
 class TranslateVorticityTransport_Cgrid(TranslateFortranData2Py):

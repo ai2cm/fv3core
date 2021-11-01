@@ -108,7 +108,7 @@ def corner_ke(
 @computepath_function
 def fill_4corners(q, direction: dace.constant, grid: dace.constant):
     if direction == "x":
-        for k in dace.map[0:q.shape[2]]:
+        for k in dace.map[0 : q.shape[2]]:
             if grid.sw_corner:
                 q[grid.is_ - 2, grid.js - 1, k] = q[grid.is_ - 1, grid.js + 1, k]
                 q[grid.is_ - 1, grid.js - 1, k] = q[grid.is_ - 1, grid.js, k]
@@ -122,7 +122,7 @@ def fill_4corners(q, direction: dace.constant, grid: dace.constant):
                 q[grid.ie + 1, grid.je + 1, k] = q[grid.ie + 1, grid.je, k]
                 q[grid.ie + 2, grid.je + 1, k] = q[grid.ie + 1, grid.je - 1, k]
     elif direction == "y":
-        for k in dace.map[0:q.shape[2]]:
+        for k in dace.map[0 : q.shape[2]]:
             if grid.sw_corner:
                 q[grid.is_ - 1, grid.js - 1, k] = q[grid.is_, grid.js - 1, k]
                 q[grid.is_ - 1, grid.js - 2, k] = q[grid.is_ + 1, grid.js - 1, k]
@@ -142,7 +142,7 @@ def fill_4corners(q, direction: dace.constant, grid: dace.constant):
 @computepath_function
 def fill2_4corners(q1, q2, direction: dace.constant, grid: dace.constant):
     if direction == "x":
-        for k in dace.map[0:q1.shape[2]]:
+        for k in dace.map[0 : q1.shape[2]]:
             if grid.sw_corner:
                 q1[grid.is_ - 2, grid.js - 1, k] = q1[grid.is_ - 1, grid.js + 1, k]
                 q1[grid.is_ - 1, grid.js - 1, k] = q1[grid.is_ - 1, grid.js, k]
@@ -164,7 +164,7 @@ def fill2_4corners(q1, q2, direction: dace.constant, grid: dace.constant):
                 q2[grid.ie + 1, grid.je + 1, k] = q2[grid.ie + 1, grid.je, k]
                 q2[grid.ie + 2, grid.je + 1, k] = q2[grid.ie + 1, grid.je - 1, k]
     elif direction == "y":
-        for k in dace.map[0:q1.shape[2]]:
+        for k in dace.map[0 : q1.shape[2]]:
             if grid.sw_corner:
                 q1[grid.is_ - 1, grid.js - 1, k] = q1[grid.is_, grid.js - 1, k]
                 q1[grid.is_ - 1, grid.js - 2, k] = q1[grid.is_ + 1, grid.js - 1, k]
