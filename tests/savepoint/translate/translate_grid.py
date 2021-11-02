@@ -6,8 +6,7 @@ import fv3core._config as spec
 import fv3core.utils.global_config as global_config
 import fv3gfs.util as fv3util
 from fv3core.grid import MetricTerms, set_hybrid_pressure_coefficients
-from fv3core.grid.gnomonic import gnomonic_grid
-from fv3core.grid.mirror import global_mirror_grid
+from fv3core.grid.global_setup import global_mirror_grid, gnomonic_grid
 from fv3core.testing.parallel_translate import ParallelTranslateGrid
 from fv3core.utils.global_constants import CARTESIAN_DIM, LON_OR_LAT_DIM, TILE_DIM
 

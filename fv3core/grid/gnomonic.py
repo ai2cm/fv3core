@@ -3,27 +3,6 @@ import math
 from fv3core.utils.global_constants import PI
 
 
-def gnomonic_grid(grid_type: int, lon, lat, np):
-    """
-    Apply gnomonic grid to lon and lat arrays
-
-    args:
-        grid_type: type of grid to apply
-        lon: longitute array with dimensions [x, y]
-        lat: latitude array with dimensionos [x, y]
-    """
-    _check_shapes(lon, lat)
-    if grid_type == 0:
-        global_gnomonic_ed(lon, lat, np)
-    elif grid_type == 1:
-        raise NotImplementedError()
-    elif grid_type == 2:
-        raise NotImplementedError()
-    if grid_type < 3:
-        symm_ed(lon, lat)
-        lon[:] -= PI
-
-
 def _check_shapes(lon, lat):
     if len(lon.shape) != 2:
         raise ValueError(f"longitude must be 2D, has shape {lon.shape}")
@@ -38,56 +17,6 @@ def _check_shapes(lon, lat):
             "longitude and latitude must have same shape, but they are "
             f"{lon.shape} and {lat.shape}"
         )
-
-
-# A tile global version of gnomonic_ed
-# closer to the Fortran code
-def global_gnomonic_ed(lon, lat, np):
-    im = lon.shape[0] - 1
-    alpha = np.arcsin(3 ** -0.5)
-    dely = 2.0 * alpha / float(im)
-    pp = np.zeros((3, im + 1, im + 1))
-
-    for j in range(0, im + 1):
-        lon[0, j] = 0.75 * PI  # West edge
-        lon[im, j] = 1.25 * PI  # East edge
-        lat[0, j] = -alpha + dely * float(j)  # West edge
-        lat[im, j] = lat[0, j]  # East edge
-
-    # Get North-South edges by symmetry
-    for i in range(1, im):
-        lon[i, 0], lat[i, 0] = _mirror_latlon(
-            lon[0, 0], lat[0, 0], lon[im, im], lat[im, im], lon[0, i], lat[0, i], np
-        )
-        lon[i, im] = lon[i, 0]
-        lat[i, im] = -lat[i, 0]
-
-    # set 4 corners
-    pp[:, 0, 0] = _latlon2xyz(lon[0, 0], lat[0, 0], np)
-    pp[:, im, 0] = _latlon2xyz(lon[im, 0], lat[im, 0], np)
-    pp[:, 0, im] = _latlon2xyz(lon[0, im], lat[0, im], np)
-    pp[:, im, im] = _latlon2xyz(lon[im, im], lat[im, im], np)
-
-    # map edges on the sphere back to cube: intersection at x = -1/sqrt(3)
-    i = 0
-    for j in range(1, im):
-        pp[:, i, j] = _latlon2xyz(lon[i, j], lat[i, j], np)
-        pp[1, i, j] = -pp[1, i, j] * (3 ** -0.5) / pp[0, i, j]
-        pp[2, i, j] = -pp[2, i, j] * (3 ** -0.5) / pp[0, i, j]
-
-    j = 0
-    for i in range(1, im):
-        pp[:, i, j] = _latlon2xyz(lon[i, j], lat[i, j], np)
-        pp[1, i, j] = -pp[1, i, j] * (3 ** -0.5) / pp[0, i, j]
-        pp[2, i, j] = -pp[2, i, j] * (3 ** -0.5) / pp[0, i, j]
-
-    pp[0, :, :] = -(3 ** -0.5)
-    for j in range(1, im + 1):
-        # copy y-z face of the cube along j=0
-        pp[1, 1:, j] = pp[1, 1:, 0]
-        # copy along i=0
-        pp[2, 1:, j] = pp[2, 0, j]
-    _cart_to_latlon(im + 1, pp, lon, lat, np)
 
 
 def lat_tile_east_west_edge(alpha, dely, south_north_tile_index):

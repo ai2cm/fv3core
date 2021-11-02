@@ -875,7 +875,7 @@ class MetricTerms:
     @property
     def vlon(self):
         """
-        unit vector in longitude direction
+        unit vector in eastward longitude direction
         3d array whose last dimension is length 3 and indicates x/y/z value
         """
         if self._vlon is None:
@@ -885,7 +885,7 @@ class MetricTerms:
     @property
     def vlat(self):
         """
-        unit vector in latitude direction
+        unit vector in northward latitude direction
         3d array whose last dimension is length 3 and indicates x/y/z value
         """
         if self._vlat is None:
