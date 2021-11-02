@@ -589,11 +589,12 @@ class LazyComputepathMethod:
         def closure_resolver(self, constant_args, parent_closure=None):
             return self.daceprog.closure_resolver(constant_args, parent_closure)
 
-    def __init__(self, func, use_dace, skip_dacemode, load_sdfg):
+    def __init__(self, func, use_dace, skip_dacemode, load_sdfg, argspec):
         self.func = func
         self._use_dace = use_dace
         self._skip_dacemode = skip_dacemode
         self._load_sdfg = load_sdfg
+        self.argspec = argspec
 
     def __get__(self, obj, objype=None):
 
@@ -616,9 +617,12 @@ def computepath_method(*args, **kwargs):
     skip_dacemode = kwargs.get("skip_dacemode", False)
     load_sdfg = kwargs.get("load_sdfg", None)
     use_dace = kwargs.get("use_dace", False)
-
+    if len(args) == 1:
+        argspec = inspect.getfullargspec(args[0])
+    else:
+        argspec = None
     def _decorator(method):
-        return LazyComputepathMethod(method, use_dace, skip_dacemode, load_sdfg)
+        return LazyComputepathMethod(method, use_dace, skip_dacemode, load_sdfg, argspec)
 
     if len(args) == 1 and not kwargs and callable(args[0]):
         return _decorator(args[0])
