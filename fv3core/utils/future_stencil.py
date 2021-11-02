@@ -9,6 +9,7 @@ from gt4py.stencil_object import StencilObject
 
 from fv3core.utils.mpi import MPI
 
+
 if TYPE_CHECKING:
     from gt4py.backend import ModuleData
 
@@ -262,19 +263,19 @@ def future_stencil(
     def _decorator(func):
         # Move backend options to `backend_opts`
         backend_opts: Dict[str, Any] = {}
+        for backend_opt in (
+            "device_sync",
+            "disable_code_generation",
+            "oir_pipeline",
+            "verbose",
+        ):
+            if backend_opt in kwargs:
+                backend_opts[backend_opt] = kwargs.pop(backend_opt)
+
         if "name" not in kwargs:
             kwargs["name"] = func.__name__
         if "module" not in kwargs:
             kwargs["module"] = func.__module__
-
-        for backend_opt in (
-            "device_sync",
-            "oir_pipeline",
-            "verbose",
-            "disable_code_generation",
-        ):
-            if backend_opt in kwargs:
-                backend_opts[backend_opt] = kwargs.pop(backend_opt)
 
         builder = (
             StencilBuilder(func)

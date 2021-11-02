@@ -272,8 +272,13 @@ class FrozenStencil(SDFGConvertible):
     def __sdfg__(self, *args, **kwargs):
         # Enable distributed compilation if running in parallel
         if MPI is not None and MPI.COMM_WORLD.Get_size() > 1:
-            kwargs.update({"stencil_function": future_stencil, "wrapper": self})
-        kwargs["use_disk_sdfg"] = False
+            kwargs.update(
+                dict(
+                    stencil_function=future_stencil,
+                    wrapper=self,
+                    use_disk_sdfg=False,
+                )
+            )
         return self.sdfg_wrapper.__sdfg__(*args, **kwargs)
 
     def __sdfg_signature__(self):
@@ -625,8 +630,11 @@ def computepath_method(*args, **kwargs):
         argspec = inspect.getfullargspec(args[0])
     else:
         argspec = None
+
     def _decorator(method):
-        return LazyComputepathMethod(method, use_dace, skip_dacemode, load_sdfg, argspec)
+        return LazyComputepathMethod(
+            method, use_dace, skip_dacemode, load_sdfg, argspec
+        )
 
     if len(args) == 1 and not kwargs and callable(args[0]):
         return _decorator(args[0])
