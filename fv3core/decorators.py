@@ -273,6 +273,7 @@ class FrozenStencil(SDFGConvertible):
         # Enable distributed compilation if running in parallel
         if MPI is not None and MPI.COMM_WORLD.Get_size() > 1:
             kwargs.update({"stencil_function": future_stencil, "wrapper": self})
+        kwargs["use_disk_sdfg"] = False
         return self.sdfg_wrapper.__sdfg__(*args, **kwargs)
 
     def __sdfg_signature__(self):
