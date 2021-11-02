@@ -386,7 +386,8 @@ class YPiecewiseParabolic:
             self._al_north_0_stencil(q, self._al)
             self._al_north_1_stencil(q, self._dya, self._al)
             self._al_north_2_stencil(q, self._dya, self._al)
-    
+
+    @computepath_method
     def compute_blbr_ord8plus(self, q):
         r3 = 1.0 / 3.0
      
