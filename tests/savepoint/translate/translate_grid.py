@@ -665,7 +665,7 @@ class TranslateUtilVectors(ParallelTranslateGrid):
 class TranslateTrigSg(ParallelTranslateGrid):
     def __init__(self, grids):
         super().__init__(grids)
-        self.max_error = 3e-11
+        self.max_error = 6e-11
         self.near_zero = 1e-14
         self.ignore_near_zero_errors = {
             "cos_sg5": True,
