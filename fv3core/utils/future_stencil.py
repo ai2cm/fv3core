@@ -221,6 +221,7 @@ def future_stencil(
     externals: Optional[Dict[str, Any]] = None,
     wrapper: Optional[Callable] = None,
     rebuild: bool = False,
+    dtypes: Optional[Dict[str, Any]] = None,
     **kwargs: Any,
 ):
     """
@@ -265,13 +266,16 @@ def future_stencil(
             if backend_opt in kwargs:
                 backend_opts[backend_opt] = kwargs.pop(backend_opt)
 
+        if "name" not in kwargs:
+            kwargs["name"] = func.__name__
+        if "module" not in kwargs:
+            kwargs["module"] = func.__module__
+
         builder = (
             StencilBuilder(func)
             .with_backend(backend)
             .with_externals(externals or {})
             .with_options(
-                name=func.__name__,
-                module=func.__module__,
                 rebuild=rebuild,
                 backend_opts=backend_opts,
                 **kwargs,
@@ -325,6 +329,10 @@ class FutureStencil:
     @property
     def field_info(self) -> Dict[str, FieldInfo]:
         return self.stencil_object.field_info
+
+    @property
+    def _file_name(self) -> str:
+        return self.stencil_object._file_name
 
     def _delay(self, factor: float = 0.4) -> float:
         delay_time = self._sleep_time * float(self._node_id) * factor
