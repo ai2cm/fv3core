@@ -9,7 +9,7 @@ from fv3core.grid import MetricTerms, set_hybrid_pressure_coefficients
 from fv3core.grid.global_setup import global_mirror_grid, gnomonic_grid
 from fv3core.testing.parallel_translate import ParallelTranslateGrid
 from fv3core.utils.global_constants import CARTESIAN_DIM, LON_OR_LAT_DIM, TILE_DIM
-
+import fv3core.utils.gt4py_utils as utils
 
 class TranslateGnomonicGrids(ParallelTranslateGrid):
 
@@ -525,8 +525,9 @@ class TranslateSetEta(ParallelTranslateGrid):
         pressure_coefficients = set_hybrid_pressure_coefficients(state["npz"])
         state["ks"] = pressure_coefficients.ks
         state["ptop"] = pressure_coefficients.ptop
-        state["ak"].data[:] = pressure_coefficients.ak
-        state["bk"].data[:] = pressure_coefficients.bk
+        array_type = type(state["ak"].data[:])
+        state["ak"].data[:] = utils.asarray(pressure_coefficients.ak, to_type=array_type)
+        state["bk"].data[:] = utils.asarray(pressure_coefficients.bk, to_type=array_type)
         return state
 
 

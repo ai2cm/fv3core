@@ -92,7 +92,7 @@ class ParallelTranslate:
                 output_slice = _serialize_slice(
                     state[standard_name], properties.get("n_halo", utils.halo)
                 )
-                return_dict[name] = state[standard_name].data[output_slice]
+                return_dict[name] = utils.asarray(state[standard_name].data[output_slice])
             else:
                 return_dict[name] = [state[standard_name]]
         return return_dict
@@ -190,9 +190,8 @@ class ParallelTranslateGrid(ParallelTranslate):
                 input_slice = _serialize_slice(
                     state[standard_name], properties.get("n_halo", utils.halo)
                 )
-                state[standard_name].data[input_slice] = inputs[name]
                 if len(properties["dims"]) > 0:
-                    state[standard_name].data[input_slice] = inputs[name]
+                    state[standard_name].data[input_slice] = utils.asarray(inputs[name], to_type=type(state[standard_name].data))
                 else:
                     state[standard_name].data[:] = inputs[name]
                 if name in self._base.in_vars["data_vars"].keys():
