@@ -197,7 +197,7 @@ class FrozenStencil(SDFGConvertible):
             externals = {}
 
         stencil_function = gtscript.stencil
-        stencil_kwargs = self.stencil_config.stencil_kwargs
+        stencil_kwargs = {**self.stencil_config.stencil_kwargs}
         if (
             global_config.get_dacemode()
             and not global_config.is_dacemode_codegen_whitelisted(func)
@@ -205,9 +205,10 @@ class FrozenStencil(SDFGConvertible):
             stencil_kwargs["disable_code_generation"] = True
 
         # Enable distributed compilation if running in parallel
-        if MPI is not None and MPI.COMM_WORLD.Get_size() > 1:
-            stencil_function = future_stencil
-            stencil_kwargs["wrapper"] = self
+        # TODO(eddied): Debug validation errors due to future_stencil
+        # if MPI is not None and MPI.COMM_WORLD.Get_size() > 1:
+        #     stencil_function = future_stencil
+        #     stencil_kwargs["wrapper"] = self
 
         self.stencil_object: gt4py.StencilObject = stencil_function(
             definition=func,
