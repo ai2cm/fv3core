@@ -338,7 +338,9 @@ class FutureStencil:
 
     @property
     def field_info(self) -> Dict[str, FieldInfo]:
-        return self.arg_data.field_info
+        # TODO(eddied): Determine why externals are wrong if this is enabled
+        # return self.arg_data.field_info
+        return self.stencil_object.field_info
 
     @property
     def parameter_info(self) -> Dict[str, Optional[ParameterInfo]]:

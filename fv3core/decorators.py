@@ -205,10 +205,9 @@ class FrozenStencil(SDFGConvertible):
             stencil_kwargs["disable_code_generation"] = True
 
         # Enable distributed compilation if running in parallel
-        # TODO(eddied): Debug validation errors due to future_stencil
-        # if MPI is not None and MPI.COMM_WORLD.Get_size() > 1:
-        #     stencil_function = future_stencil
-        #     stencil_kwargs["wrapper"] = self
+        if MPI is not None and MPI.COMM_WORLD.Get_size() > 1:
+            stencil_function = future_stencil
+            stencil_kwargs["wrapper"] = self
 
         self.stencil_object: gt4py.StencilObject = stencil_function(
             definition=func,
