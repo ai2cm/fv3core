@@ -4,8 +4,10 @@ import time
 from datetime import datetime
 from enum import Enum
 
-from mpi4py import MPI
-
+try:
+    from mpi4py import MPI
+except ModuleNotFoundError:
+    MPI = None
 
 try:
     import cupy as cp
