@@ -113,8 +113,8 @@ class MetricTerms:
         self._dy = None
         self._dx_agrid = None
         self._dy_agrid = None
-        self._dx_cgrid = None
-        self._dy_cgrid = None
+        self._dx_center = None
+        self._dy_center = None
         self._ak = None
         self._bk = None
         self._ks = None
@@ -220,7 +220,7 @@ class MetricTerms:
     @property
     def dgrid_lon_lat(self):
         """
-        the longitudes and latitudes of the d-grid cell centers
+        the longitudes and latitudes of the cell corners
         """
         return self._grid
 
@@ -235,14 +235,14 @@ class MetricTerms:
     @property
     def agrid_lon_lat(self):
         """
-        the longitudes and latitudes of the a-grid cell centers
+        the longitudes and latitudes of the cell centers
         """
         return self._agrid
 
     @property
     def dx(self):
         """
-        the length of the d-grid cells along the x-direction
+        the distance between grid corners along the x-direction
         """
         if self._dx is None:
             self._dx, self._dy = self._compute_dxdy()
@@ -251,7 +251,7 @@ class MetricTerms:
     @property
     def dy(self):
         """
-        the length of the d-grid cells along the y-direction
+        the distance between grid corners along the y-direction
         """
         if self._dy is None:
             self._dx, self._dy = self._compute_dxdy()
@@ -260,7 +260,7 @@ class MetricTerms:
     @property
     def dxa(self):
         """
-        the length of the a-grid cells along the x-direction
+        the with of each grid cell along the x-direction
         """
         if self._dx_agrid is None:
             self._dx_agrid, self._dy_agrid = self._compute_dxdy_agrid()
@@ -269,7 +269,7 @@ class MetricTerms:
     @property
     def dya(self):
         """
-        the length of the a-grid cells along the y-direction
+        the with of each grid cell along the y-direction
         """
         if self._dy_agrid is None:
             self._dx_agrid, self._dy_agrid = self._compute_dxdy_agrid()
@@ -278,20 +278,20 @@ class MetricTerms:
     @property
     def dxc(self):
         """
-        the length of the c-grid cells along the x-direction
+        the distance between cell centers along the x-direction
         """
-        if self._dx_cgrid is None:
-            self._dx_cgrid, self._dy_cgrid = self._compute_dxdy_cgrid()
-        return self._dx_cgrid
+        if self._dx_center is None:
+            self._dx_center, self._dy_center = self._compute_dxdy_center()
+        return self._dx_center
 
     @property
     def dyc(self):
         """
-        the length of the c-grid cells along the y-direction
+        the distance between cell centers along the y-direction
         """
-        if self._dy_cgrid is None:
-            self._dx_cgrid, self._dy_cgrid = self._compute_dxdy_cgrid()
-        return self._dy_cgrid
+        if self._dy_center is None:
+            self._dx_center, self._dy_center = self._compute_dxdy_center()
+        return self._dy_center
 
     @property
     def ak(self):
@@ -358,8 +358,9 @@ class MetricTerms:
     @property
     def ec1(self):
         """
-        horizontal component of the local vector pointing to each cell center
-        3d array whose last dimension is length 3 and indicates x/y/z value
+        cartesian components of the local unit vetcor
+        in the x-direation at the cell centers
+        3d array whose last dimension is length 3 and indicates cartesian x/y/z value
         """
         if self._ec1 is None:
             self._ec1, self._ec2 = self._calculate_center_vectors()
@@ -368,8 +369,9 @@ class MetricTerms:
     @property
     def ec2(self):
         """
-        vertical component of the local vector pointing to each cell center
-        3d array whose last dimension is length 3 and indicates x/y/z value
+        cartesian components of the local unit vetcor
+        in the y-direation at the cell centers
+        3d array whose last dimension is length 3 and indicates cartesian x/y/z value
         """
         if self._ec2 is None:
             self._ec1, self._ec2 = self._calculate_center_vectors()
@@ -378,8 +380,9 @@ class MetricTerms:
     @property
     def ew1(self):
         """
-        horizontal component of the local vector pointing west at each grid point
-        3d array whose last dimension is length 3 and indicates x/y/z value
+        cartesian components of the local unit vetcor
+        in the x-direation at the left/right cell edges
+        3d array whose last dimension is length 3 and indicates cartesian x/y/z value
         """
         if self._ew1 is None:
             self._ew1, self._ew2 = self._calculate_vectors_west()
@@ -388,8 +391,9 @@ class MetricTerms:
     @property
     def ew2(self):
         """
-        vertical component of the local vector pointing west at each grid point
-        3d array whose last dimension is length 3 and indicates x/y/z value
+        cartesian components of the local unit vetcor
+        in the y-direation at the left/right cell edges
+        3d array whose last dimension is length 3 and indicates cartesian x/y/z value
         """
         if self._ew2 is None:
             self._ew1, self._ew2 = self._calculate_vectors_west()
@@ -652,7 +656,8 @@ class MetricTerms:
     @property
     def cosa(self):
         """
-        The inner product of ee1 and ee2
+        cosine of angle between coordinate lines at the cell corners
+        averahed to ensure consistent answers
         """
         if self._cosa is None:
             self._init_cell_trigonometry()
@@ -661,7 +666,7 @@ class MetricTerms:
     @property
     def sina(self):
         """
-        1-cosa**2
+        as cosa but sine
         """
         if self._sina is None:
             self._init_cell_trigonometry()
@@ -670,9 +675,7 @@ class MetricTerms:
     @property
     def cosa_u(self):
         """
-        the average curve along the left cell-edge
-        as measured from the left and right sides
-        i.e. the average of cos_sg1[i,j] and cos_sg3[i-1, j]
+        as cosa but defined at the left and right cell edges
         """
         if self._cosa_u is None:
             self._init_cell_trigonometry()
@@ -681,9 +684,7 @@ class MetricTerms:
     @property
     def cosa_v(self):
         """
-        the average curve along the bottom cell-edge
-        as measured from the left and right sides
-        i.e. the average of cos_sg2[i,j] and cos_sg4[i-1, j]
+        as cosa but defined at the top and bottom cell edges
         """
         if self._cosa_v is None:
             self._init_cell_trigonometry()
@@ -692,7 +693,7 @@ class MetricTerms:
     @property
     def cosa_s(self):
         """
-        equivalent to cos_sg5, the inner product of ec1 and ec2
+        as cosa but defined at cell centers
         """
         if self._cosa_s is None:
             self._init_cell_trigonometry()
@@ -701,9 +702,7 @@ class MetricTerms:
     @property
     def sina_u(self):
         """
-        the average curve along the left cell-edge
-        as measured from the left and right sides
-        i.e. the average of sin_sg1[i,j] and sin_sg3[i-1, j]
+        as cosa_u but with sine
         """
         if self._sina_u is None:
             self._init_cell_trigonometry()
@@ -712,9 +711,7 @@ class MetricTerms:
     @property
     def sina_v(self):
         """
-        the average curve along the bottom cell-edge
-        as measured from the left and right sides
-        i.e. the average of sin_sg2[i,j] and sin_sg4[i-1, j]
+        as cosa_v but with sine
         """
         if self._sina_v is None:
             self._init_cell_trigonometry()
@@ -724,6 +721,7 @@ class MetricTerms:
     def rsin_u(self):
         """
         1/sina_u**2
+        defined as the inverse-squrared as it is only used as such
         """
         if self._rsin_u is None:
             self._init_cell_trigonometry()
@@ -733,6 +731,7 @@ class MetricTerms:
     def rsin_v(self):
         """
         1/sina_v**2
+        defined as the inverse-squrared as it is only used as such
         """
         if self._rsin_v is None:
             self._init_cell_trigonometry()
@@ -742,6 +741,7 @@ class MetricTerms:
     def rsina(self):
         """
         1/sina**2
+        defined as the inverse-squrared as it is only used as such
         """
         if self._rsina is None:
             self._init_cell_trigonometry()
@@ -751,6 +751,7 @@ class MetricTerms:
     def rsin2(self):
         """
         1/sin_sg5**2
+        defined as the inverse-squrared as it is only used as such
         """
         if self._rsin2 is None:
             self._init_cell_trigonometry()
@@ -779,8 +780,9 @@ class MetricTerms:
     @property
     def es1(self):
         """
-        horizontal component of the local vector pointing south at each grid point
-        3d array whose last dimension is length 3 and indicates x/y/z value
+        cartesian components of the local unit vetcor
+        in the x-direation at the top/bottom cell edges
+        3d array whose last dimension is length 3 and indicates cartesian x/y/z value
         """
         if self._es1 is None:
             self._es1, self._es2 = self._calculate_vectors_south()
@@ -789,8 +791,9 @@ class MetricTerms:
     @property
     def es2(self):
         """
-        vertical component of the local vector pointing south at each grid point
-        3d array whose last dimension is length 3 and indicates x/y/z value
+        cartesian components of the local unit vetcor
+        in the y-direation at the top/bottom cell edges
+        3d array whose last dimension is length 3 and indicates cartesian x/y/z value
         """
         if self._es2 is None:
             self._es1, self._es2 = self._calculate_vectors_south()
@@ -799,8 +802,9 @@ class MetricTerms:
     @property
     def ee1(self):
         """
-        horizontal component of the local vector pointing east at each grid point
-        3d array whose last dimension is length 3 and indicates x/y/z value
+        cartesian components of the local unit vetcor
+        in the x-direation at the cell corners
+        3d array whose last dimension is length 3 and indicates cartesian x/y/z value
         """
         if self._ee1 is None:
             self._ee1, self._ee2 = self._calculate_xy_unit_vectors()
@@ -809,8 +813,9 @@ class MetricTerms:
     @property
     def ee2(self):
         """
-        vertical component of the local vector pointing east at each grid point
-        3d array whose last dimension is length 3 and indicates x/y/z value
+        cartesian components of the local unit vetcor
+        in the y-direation at the cell corners
+        3d array whose last dimension is length 3 and indicates cartesian x/y/z value
         """
         if self._ee2 is None:
             self._ee1, self._ee2 = self._calculate_xy_unit_vectors()
@@ -1450,11 +1455,11 @@ class MetricTerms:
         dy_agrid.data[dy_agrid.data < 0] *= -1
         return dx_agrid, dy_agrid
 
-    def _compute_dxdy_cgrid(self):
-        dx_cgrid = self._quantity_factory.zeros(
+    def _compute_dxdy_center(self):
+        dx_center = self._quantity_factory.zeros(
             [fv3util.X_INTERFACE_DIM, fv3util.Y_DIM], "m"
         )
-        dy_cgrid = self._quantity_factory.zeros(
+        dy_center = self._quantity_factory.zeros(
             [fv3util.X_DIM, fv3util.Y_INTERFACE_DIM], "m"
         )
 
@@ -1462,28 +1467,28 @@ class MetricTerms:
             self._agrid.data[:-1, :-1, 0],
             self._agrid.data[:-1, :-1, 1],
         )
-        dx_cgrid_tmp = great_circle_distance_along_axis(
+        dx_center_tmp = great_circle_distance_along_axis(
             lon_agrid.data, lat_agrid.data, RADIUS, self._np, axis=0
         )
-        dy_cgrid_tmp = great_circle_distance_along_axis(
+        dy_center_tmp = great_circle_distance_along_axis(
             lon_agrid.data, lat_agrid.data, RADIUS, self._np, axis=1
         )
         # copying the second-to-last values to the last values is what the Fortran
         # code does, but is this correct/valid?
         # Maybe we want to change this to use halo updates?
-        dx_cgrid.data[1:-1, :-1] = dx_cgrid_tmp
-        dx_cgrid.data[0, :-1] = dx_cgrid_tmp[0, :]
-        dx_cgrid.data[-1, :-1] = dx_cgrid_tmp[-1, :]
+        dx_center.data[1:-1, :-1] = dx_center_tmp
+        dx_center.data[0, :-1] = dx_center_tmp[0, :]
+        dx_center.data[-1, :-1] = dx_center_tmp[-1, :]
 
-        dy_cgrid.data[:-1, 1:-1] = dy_cgrid_tmp
-        dy_cgrid.data[:-1, 0] = dy_cgrid_tmp[:, 0]
-        dy_cgrid.data[:-1, -1] = dy_cgrid_tmp[:, -1]
+        dy_center.data[:-1, 1:-1] = dy_center_tmp
+        dy_center.data[:-1, 0] = dy_center_tmp[:, 0]
+        dy_center.data[:-1, -1] = dy_center_tmp[:, -1]
 
         set_tile_border_dxc(
             self._dgrid_xyz[3:-3, 3:-3, :],
             self._agrid_xyz[3:-3, 3:-3, :],
             RADIUS,
-            dx_cgrid.data[3:-3, 3:-4],
+            dx_center.data[3:-3, 3:-4],
             self._tile_partitioner,
             self._rank,
             self._np,
@@ -1492,27 +1497,27 @@ class MetricTerms:
             self._dgrid_xyz[3:-3, 3:-3, :],
             self._agrid_xyz[3:-3, 3:-3, :],
             RADIUS,
-            dy_cgrid.data[3:-4, 3:-3],
+            dy_center.data[3:-4, 3:-3],
             self._tile_partitioner,
             self._rank,
             self._np,
         )
-        self._comm.vector_halo_update(dx_cgrid, dy_cgrid, n_points=self._halo)
+        self._comm.vector_halo_update(dx_center, dy_center, n_points=self._halo)
 
         # TODO: Add support for unsigned vector halo updates
         # instead of handling ad-hoc here
-        dx_cgrid.data[dx_cgrid.data < 0] *= -1
-        dy_cgrid.data[dy_cgrid.data < 0] *= -1
+        dx_center.data[dx_center.data < 0] *= -1
+        dy_center.data[dy_center.data < 0] *= -1
 
         # TODO: fix issue with interface dimensions causing validation errors
         fill_corners_cgrid(
-            dx_cgrid.data[:, :, None],
-            dy_cgrid.data[:, :, None],
+            dx_center.data[:, :, None],
+            dy_center.data[:, :, None],
             self._grid_indexing,
             vector=False,
         )
 
-        return dx_cgrid, dy_cgrid
+        return dx_center, dy_center
 
     def _compute_area(self):
         area = self._quantity_factory.zeros([fv3util.X_DIM, fv3util.Y_DIM], "m^2")
