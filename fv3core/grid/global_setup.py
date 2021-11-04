@@ -40,7 +40,7 @@ def gnomonic_grid(grid_type: int, lon, lat, np):
 def global_gnomonic_ed(lon, lat, np):
     im = lon.shape[0] - 1
     alpha = np.arcsin(3 ** -0.5)
-    dely = 2.0 * alpha / float(im)
+    dely = np.multiply(2.0, alpha) / float(im)
     pp = np.zeros((3, im + 1, im + 1))
 
     for j in range(0, im + 1):
@@ -98,11 +98,12 @@ def global_mirror_grid(grid_global, ng: int, npx: int, npy: int, np):
     nreg = 0
     for j in range(0, math.ceil(npy / 2)):
         for i in range(0, math.ceil(npx / 2)):
-            x1 = 0.25 * (
+            x1 = np.multiply(
+                0.25,
                 np.abs(grid_global[ng + i, ng + j, 0, nreg])
                 + np.abs(grid_global[ng + npx - (i + 1), ng + j, 0, nreg])
                 + np.abs(grid_global[ng + i, ng + npy - (j + 1), 0, nreg])
-                + np.abs(grid_global[ng + npx - (i + 1), ng + npy - (j + 1), 0, nreg])
+                + np.abs(grid_global[ng + npx - (i + 1), ng + npy - (j + 1), 0, nreg]),
             )
             grid_global[ng + i, ng + j, 0, nreg] = np.copysign(
                 x1, grid_global[ng + i, ng + j, 0, nreg]
@@ -117,11 +118,12 @@ def global_mirror_grid(grid_global, ng: int, npx: int, npy: int, np):
                 x1, grid_global[ng + npx - (i + 1), ng + npy - (j + 1), 0, nreg]
             )
 
-            y1 = 0.25 * (
+            y1 = np.multiply(
+                0.25,
                 np.abs(grid_global[ng + i, ng + j, 1, nreg])
                 + np.abs(grid_global[ng + npx - (i + 1), ng + j, 1, nreg])
                 + np.abs(grid_global[ng + i, ng + npy - (j + 1), 1, nreg])
-                + np.abs(grid_global[ng + npx - (i + 1), ng + npy - (j + 1), 1, nreg])
+                + np.abs(grid_global[ng + npx - (i + 1), ng + npy - (j + 1), 1, nreg]),
             )
 
             grid_global[ng + i, ng + j, 1, nreg] = np.copysign(
@@ -150,7 +152,7 @@ def global_mirror_grid(grid_global, ng: int, npx: int, npy: int, np):
         for j in range(0, npy):
             x1 = grid_global[ng : ng + npx, ng + j, 0, 0]
             y1 = grid_global[ng : ng + npx, ng + j, 1, 0]
-            z1 = RADIUS + 0.0 * x1
+            z1 = np.add(RADIUS, np.multiply(0.0, x1))
 
             if nreg == 1:
                 ang = -90.0

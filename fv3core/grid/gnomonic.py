@@ -165,8 +165,10 @@ def _corner_to_center_mean(corner_array):
 
 
 def normalize_vector(np, *vector_components):
-    scale = 1 / sum(item ** 2 for item in vector_components) ** 0.5
-    return [item * scale for item in vector_components]
+    scale = np.divide(
+        1.0, np.sum(np.asarray([item ** 2.0 for item in vector_components])) ** 0.5
+    )
+    return np.asarray([item * scale for item in vector_components])
 
 
 def normalize_xyz(xyz):
@@ -277,7 +279,7 @@ def _cart_to_latlon(im, q, xs, ys, np):
                 lon = np.arctan2(p[1], p[0])  # range [-PI, PI]
 
             if lon < 0.0:
-                lon = 2.0 * PI + lon
+                lon = np.add(2.0 * PI, lon)
 
             lat = np.arcsin(p[2])
 
@@ -298,7 +300,7 @@ def _mirror_latlon(lon1, lat1, lon2, lat2, lon0, lat0, np):
     nb = nb / pdot
 
     pdot = p0[0] * nb[0] + p0[1] * nb[1] + p0[2] * nb[2]
-    pp = p0 - 2.0 * pdot * nb
+    pp = p0 - np.multiply(2.0, pdot) * nb
 
     lon3 = np.empty((1, 1))
     lat3 = np.empty((1, 1))
