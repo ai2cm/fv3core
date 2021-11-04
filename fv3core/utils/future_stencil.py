@@ -1,11 +1,16 @@
 import time
 from abc import abstractmethod
-from typing import Any, Callable, Dict, Optional, Set, Tuple, Type
+from functools import cached_property
+from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Set, Tuple, Type
 
 import numpy as np
-from gt4py.definitions import FieldInfo
+from gt4py.definitions import FieldInfo, ParameterInfo
 from gt4py.stencil_builder import StencilBuilder
 from gt4py.stencil_object import StencilObject
+
+
+if TYPE_CHECKING:
+    from gt4py.backend import ModuleData
 
 from fv3core.utils.mpi import MPI
 
@@ -256,7 +261,12 @@ def future_stencil(
     def _decorator(func):
         # Move backend options to `backend_opts`
         backend_opts: Dict[str, Any] = {}
-        for backend_opt in ("device_sync", "oir_pipeline", "verbose"):
+        for backend_opt in (
+            "device_sync",
+            "disable_code_generation",
+            "oir_pipeline",
+            "verbose",
+        ):
             if backend_opt in kwargs:
                 backend_opts[backend_opt] = kwargs.pop(backend_opt)
 
@@ -317,9 +327,23 @@ class FutureStencil:
             self._wait_for_stencil()
         return self._stencil_object
 
+    @cached_property
+    def arg_data(self) -> "ModuleData":
+        return self._builder.backend.make_args_data()
+
     @property
     def field_info(self) -> Dict[str, FieldInfo]:
+        # TODO(eddied): Determine why externals are wrong if this is enabled
+        # return self.arg_data.field_info
         return self.stencil_object.field_info
+
+    @property
+    def parameter_info(self) -> Dict[str, Optional[ParameterInfo]]:
+        return self.arg_data.parameter_info
+
+    @property
+    def file_name(self) -> str:
+        return self._builder.backend.file_name
 
     def _delay(self, factor: float = 0.4) -> float:
         delay_time = self._sleep_time * float(self._node_id) * factor
