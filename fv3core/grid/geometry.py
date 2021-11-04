@@ -20,7 +20,7 @@ def get_center_vector(
     np,
 ):
     """
-    Calculates the unit vectors pointing to the center of each grid cell.
+    Calculates the cartesian unit vectors at the center of each grid cell.
     vector1 is the horizontal unit vector, while
     vector2 is the vertical unit vector
     """
@@ -82,10 +82,9 @@ def calc_unit_vector_west(
     np,
 ):
     """
-    Calculates the cartesian unit vector pointing west from every grid cell.
-    The first set of values is the horizontal component,
-    the second is the vertical component.
-    In a non-spherical grid these will be x and y unit vectors.
+    Calculates the cartesian unit vectors at the left/right edges of each grid cell.
+    vector1 is the horizontal unit vector, while
+    vector2 is the vertical unit vector
 
     """
     ew1 = np.zeros((xyz_dgrid.shape[0], xyz_agrid.shape[1], 3))
@@ -125,10 +124,9 @@ def calc_unit_vector_south(
     np,
 ):
     """
-    Calculates the cartesian unit vector pointing south from every grid cell.
-    The first set of values is the horizontal component, the second is the vertical
-    component.
-    In a non-spherical grid these will be x and y unit vectors.
+    Calculates the cartesian unit vectors at the top/bottom edges of each grid cell.
+    vector1 is the horizontal unit vector, while
+    vector2 is the vertical unit vector
     """
     es1 = np.zeros((xyz_agrid.shape[0], xyz_dgrid.shape[1], 3))
     es2 = np.zeros((xyz_agrid.shape[0], xyz_dgrid.shape[1], 3))
@@ -277,6 +275,11 @@ def calculate_l2c_vu(dgrid, nhalo: int, np):
 def calculate_xy_unit_vectors(
     xyz_dgrid, nhalo: int, tile_partitioner: TilePartitioner, rank: int, np
 ):
+    """
+    Calculates the cartesian unit vectors at the corners of each grid cell.
+    vector1 is the horizontal unit vector, while
+    vector2 is the vertical unit vector
+    """
     cross_vect_x = np.cross(
         xyz_dgrid[nhalo - 1 : -nhalo - 1, nhalo:-nhalo, :],
         xyz_dgrid[nhalo + 1 : -nhalo + 1, nhalo:-nhalo, :],
