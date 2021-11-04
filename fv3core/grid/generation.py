@@ -14,6 +14,7 @@ from fv3core.utils.global_constants import (
     RADIUS,
     TILE_DIM,
 )
+from fv3core.utils.gt4py_utils import asarray
 from fv3core.utils.stencil import GridIndexing
 from fv3gfs.util.constants import N_HALO_DEFAULT
 
@@ -1468,10 +1469,10 @@ class MetricTerms:
             self._agrid.data[:-1, :-1, 1],
         )
         dx_center_tmp = great_circle_distance_along_axis(
-            lon_agrid.data, lat_agrid.data, RADIUS, self._np, axis=0
+            lon_agrid, lat_agrid, RADIUS, self._np, axis=0
         )
         dy_center_tmp = great_circle_distance_along_axis(
-            lon_agrid.data, lat_agrid.data, RADIUS, self._np, axis=1
+            lon_agrid, lat_agrid, RADIUS, self._np, axis=1
         )
         # copying the second-to-last values to the last values is what the Fortran
         # code does, but is this correct/valid?
@@ -1581,8 +1582,8 @@ class MetricTerms:
         pressure_coefficients = set_hybrid_pressure_coefficients(self._npz)
         ks = pressure_coefficients.ks
         ptop = pressure_coefficients.ptop
-        ak.data[:] = pressure_coefficients.ak
-        bk.data[:] = pressure_coefficients.bk
+        ak.data[:] = asarray(pressure_coefficients.ak, type(ak.data))
+        bk.data[:] = asarray(pressure_coefficients.bk, type(bk.data))
         return ks, ptop, ak, bk
 
     def _calculate_center_vectors(self):
