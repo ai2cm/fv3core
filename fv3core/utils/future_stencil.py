@@ -1,6 +1,6 @@
+import functools
 import time
 from abc import abstractmethod
-from functools import cached_property
 from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Set, Tuple, Type
 
 import numpy as np
@@ -327,7 +327,7 @@ class FutureStencil:
             self._wait_for_stencil()
         return self._stencil_object
 
-    @cached_property
+    @functools.cached_property
     def arg_data(self) -> "ModuleData":
         return self._builder.backend.make_args_data()
 
