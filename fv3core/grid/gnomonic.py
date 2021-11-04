@@ -292,7 +292,7 @@ def _mirror_latlon(lon1, lat1, lon2, lat2, lon0, lat0, np):
     p0 = _latlon2xyz(lon0, lat0, np)
     p1 = _latlon2xyz(lon1, lat1, np)
     p2 = _latlon2xyz(lon2, lat2, np)
-    nb = _vect_cross(p1, p2)
+    nb = _vect_cross(p1, p2, np)
 
     pdot = np.sqrt(nb[0] ** 2 + nb[1] ** 2 + nb[2] ** 2)
     nb = nb / pdot
@@ -309,12 +309,14 @@ def _mirror_latlon(lon1, lat1, lon2, lat2, lon0, lat0, np):
     return lon3[0, 0], lat3[0, 0]
 
 
-def _vect_cross(p1, p2):
-    return [
-        p1[1] * p2[2] - p1[2] * p2[1],
-        p1[2] * p2[0] - p1[0] * p2[2],
-        p1[0] * p2[1] - p1[1] * p2[0],
-    ]
+def _vect_cross(p1, p2, np):
+    return np.asarray(
+        [
+            p1[1] * p2[2] - p1[2] * p2[1],
+            p1[2] * p2[0] - p1[0] * p2[2],
+            p1[0] * p2[1] - p1[1] * p2[0],
+        ]
+    )
 
 
 def symm_ed(lon, lat):
