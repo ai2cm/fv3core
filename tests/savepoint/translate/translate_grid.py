@@ -671,7 +671,7 @@ class TranslateUtilVectors(ParallelTranslateGrid):
 class TranslateTrigSg(ParallelTranslateGrid):
     def __init__(self, grids):
         super().__init__(grids)
-        self.max_error = 1e-10
+        self.max_error = 2.5e-10
         self.near_zero = 1e-14
         self.ignore_near_zero_errors = {
             "cos_sg5": True,
@@ -987,7 +987,7 @@ class TranslateAAMCorrection(ParallelTranslateGrid):
 class TranslateDerivedTrig(ParallelTranslateGrid):
     def __init__(self, grids):
         super().__init__(grids)
-        self.max_error = 3e-14
+        self.max_error = 8.5e-14
         self.near_zero = 3e-14
         self.ignore_near_zero_errors = {"ee1": True, "ee2": True}
         self._base.in_vars["data_vars"] = {
@@ -1641,7 +1641,7 @@ class TranslateEdgeFactors(ParallelTranslateGrid):
 class TranslateInitGridUtils(ParallelTranslateGrid):
     def __init__(self, grids):
         super().__init__(grids)
-        self.max_error = 1e-10
+        self.max_error = 2.5e-10
         self.near_zero = 5e-14
         self.ignore_near_zero_errors = {
             "l2c_v": True,
