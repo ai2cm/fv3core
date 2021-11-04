@@ -35,21 +35,23 @@ def mirror_grid(
 
             iend_domain = iend - 1 + ng
             jend_domain = jend - 1 + ng
-            x1 = 0.25 * (
+            x1 = np.multiply(
+                0.25,
                 np.abs(mirror_data["local"][i, j, 0])
                 + np.abs(mirror_data["east-west"][iend_domain - i, j, 0])
                 + np.abs(mirror_data["north-south"][i, jend_domain - j, 0])
-                + np.abs(mirror_data["diagonal"][iend_domain - i, jend_domain - j, 0])
+                + np.abs(mirror_data["diagonal"][iend_domain - i, jend_domain - j, 0]),
             )
             mirror_data["local"][i, j, 0] = np.copysign(
                 x1, mirror_data["local"][i, j, 0]
             )
 
-            y1 = 0.25 * (
+            y1 = np.multiply(
+                0.25,
                 np.abs(mirror_data["local"][i, j, 1])
                 + np.abs(mirror_data["east-west"][iend_domain - i, j, 1])
                 + np.abs(mirror_data["north-south"][i, jend_domain - j, 1])
-                + np.abs(mirror_data["diagonal"][iend_domain - i, jend_domain - j, 1])
+                + np.abs(mirror_data["diagonal"][iend_domain - i, jend_domain - j, 1]),
             )
 
             mirror_data["local"][i, j, 1] = np.copysign(
@@ -71,7 +73,7 @@ def mirror_grid(
         for j in range(jstart, jend + 1):
             x1 = mirror_data["local"][istart : iend + 1, j, 0]
             y1 = mirror_data["local"][istart : iend + 1, j, 1]
-            z1 = RADIUS + 0.0 * x1
+            z1 = np.add(RADIUS, np.multiply(0.0, x1))
 
             if tile_index == 1:
                 ang = -90.0

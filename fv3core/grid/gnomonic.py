@@ -41,7 +41,7 @@ def local_gnomonic_ed(
     im = lon.shape[0] - 1
     alpha = np.arcsin(3 ** -0.5)
     tile_im = npx - 1
-    dely = 2.0 * alpha / float(tile_im)
+    dely = np.multiply(2.0, alpha / float(tile_im))
     halo = 3
     pp = np.zeros((3, im + 1, im + 1))
     pp_west_tile_edge = np.zeros((3, 1, im + 1))
