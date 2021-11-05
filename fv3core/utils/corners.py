@@ -1,11 +1,12 @@
+from typing import Sequence
+
 from gt4py import gtscript
 from gt4py.gtscript import PARALLEL, computation, horizontal, interval, region
 
 import fv3core._config as spec
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import FrozenStencil
-from fv3core.stencils.basic_operations import copy_defn
-from fv3core.utils.grid import axis_offsets
+from fv3core.utils.grid import GridIndexing, axis_offsets
 from fv3core.utils.typing import FloatField
 
 
@@ -15,7 +16,7 @@ class CopyCorners:
     copy_corners_x or copy_corners_y respectively
     """
 
-    def __init__(self, direction: str, temporary_field=None) -> None:
+    def __init__(self, direction: str) -> None:
         self.grid = spec.grid
         """The grid for this stencil"""
 
@@ -24,20 +25,6 @@ class CopyCorners:
 
         domain = self.grid.domain_shape_full(add=(0, 0, 1))
         """The full domain required to do corner computation everywhere"""
-
-        if temporary_field is not None:
-            self._corner_tmp = temporary_field
-        else:
-            self._corner_tmp = utils.make_storage_from_shape(
-                self.grid.domain_shape_full(add=(1, 1, 1)), origin=origin
-            )
-
-        self._copy_full_domain = FrozenStencil(
-            func=copy_defn,
-            origin=origin,
-            domain=domain,
-        )
-        """Stencil Wrapper to do the copy of the input field to the temporary field"""
 
         ax_offsets = axis_offsets(spec.grid, origin, domain)
         if direction == "x":
@@ -66,8 +53,62 @@ class CopyCorners:
         Fills cell quantity field using corners from itself and multipliers
         in the dirction specified initialization of the instance of this class.
         """
-        self._copy_full_domain(field, self._corner_tmp)
-        self._copy_corners(self._corner_tmp, field)
+        self._copy_corners(field, field)
+
+
+class CopyCornersXY:
+    """
+    Helper-class to copy corners corresponding to the Fortran functions
+    copy_corners_x and copy_corners_y
+    """
+
+    def __init__(
+        self,
+        grid_indexing: GridIndexing,
+        dims: Sequence[str],
+        y_field,
+    ) -> None:
+        """
+        Args:
+            grid_indexing: information about the grid sizing
+            dims: dimensionality of the data to be copied
+            y_field: 3D gt4py storage to use for y-differenceable field
+                (x-differenceable field uses same memory as base field)
+        """
+        origin, domain = grid_indexing.get_origin_domain(
+            dims=dims, halos=(grid_indexing.n_halo, grid_indexing.n_halo)
+        )
+
+        self._y_field = y_field
+
+        ax_offsets = axis_offsets(grid_indexing, origin, domain)
+        self._copy_corners_xy = FrozenStencil(
+            func=copy_corners_xy_stencil_defn,
+            origin=origin,
+            domain=domain,
+            externals={
+                **ax_offsets,
+            },
+        )
+
+    def __call__(self, field: FloatField):
+        """
+        Fills cell quantity field using corners from itself.
+
+        Args:
+            field: field to fill corners
+
+        Returns:
+            x_differenceable: input field, updated so it can be differenced
+                in x-direction
+            y_differenceable: copy of input field which can be differenced
+                in y-direction
+        """
+        # we could avoid aliasing field for the x-differenceable output, but this
+        # requires selectively validating the halos, since the Fortran code does the
+        # final (x-direction) corners copy directly on the base field
+        self._copy_corners_xy(field, field, self._y_field)
+        return field, self._y_field
 
 
 @gtscript.function
@@ -111,14 +152,14 @@ def fill_corners_2cells_mult_x(
     return q
 
 
-def fill_corners_2cells_x_stencil(q: FloatField):
+def fill_corners_2cells_x_stencil(q_out: FloatField, q_in: FloatField):
     with computation(PARALLEL), interval(...):
-        q = fill_corners_2cells_mult_x(q, q, 1.0, 1.0, 1.0, 1.0)
+        q_out = fill_corners_2cells_mult_x(q_out, q_in, 1.0, 1.0, 1.0, 1.0)
 
 
-def fill_corners_2cells_y_stencil(q: FloatField):
+def fill_corners_2cells_y_stencil(q_out: FloatField, q_in: FloatField):
     with computation(PARALLEL), interval(...):
-        q = fill_corners_2cells_mult_y(q, q, 1.0, 1.0, 1.0, 1.0)
+        q_out = fill_corners_2cells_mult_y(q_out, q_in, 1.0, 1.0, 1.0, 1.0)
 
 
 @gtscript.function
@@ -368,6 +409,124 @@ def copy_corners_y_stencil_defn(q_in: FloatField, q_out: FloatField):
             q_out = q_in[-3, -2, 0]
 
 
+def copy_corners_xy_stencil_defn(
+    q_in: FloatField, q_out_x: FloatField, q_out_y: FloatField
+):
+    from __externals__ import i_end, i_start, j_end, j_start
+
+    with computation(PARALLEL), interval(...):
+        q_out_x = q_in
+        q_out_y = q_in
+        with horizontal(
+            region[i_start - 3, j_start - 3], region[i_end + 3, j_start - 3]
+        ):
+            q_out_x = q_in[0, 5, 0]
+        with horizontal(
+            region[i_start - 2, j_start - 3], region[i_end + 3, j_start - 2]
+        ):
+            q_out_x = q_in[-1, 4, 0]
+        with horizontal(
+            region[i_start - 1, j_start - 3], region[i_end + 3, j_start - 1]
+        ):
+            q_out_x = q_in[-2, 3, 0]
+        with horizontal(
+            region[i_start - 3, j_start - 2], region[i_end + 2, j_start - 3]
+        ):
+            q_out_x = q_in[1, 4, 0]
+        with horizontal(
+            region[i_start - 2, j_start - 2], region[i_end + 2, j_start - 2]
+        ):
+            q_out_x = q_in[0, 3, 0]
+        with horizontal(
+            region[i_start - 1, j_start - 2], region[i_end + 2, j_start - 1]
+        ):
+            q_out_x = q_in[-1, 2, 0]
+        with horizontal(
+            region[i_start - 3, j_start - 1], region[i_end + 1, j_start - 3]
+        ):
+            q_out_x = q_in[2, 3, 0]
+        with horizontal(
+            region[i_start - 2, j_start - 1], region[i_end + 1, j_start - 2]
+        ):
+            q_out_x = q_in[1, 2, 0]
+        with horizontal(
+            region[i_start - 1, j_start - 1], region[i_end + 1, j_start - 1]
+        ):
+            q_out_x = q_in[0, 1, 0]
+        with horizontal(region[i_start - 3, j_end + 1], region[i_end + 1, j_end + 3]):
+            q_out_x = q_in[2, -3, 0]
+        with horizontal(region[i_start - 2, j_end + 1], region[i_end + 1, j_end + 2]):
+            q_out_x = q_in[1, -2, 0]
+        with horizontal(region[i_start - 1, j_end + 1], region[i_end + 1, j_end + 1]):
+            q_out_x = q_in[0, -1, 0]
+        with horizontal(region[i_start - 3, j_end + 2], region[i_end + 2, j_end + 3]):
+            q_out_x = q_in[1, -4, 0]
+        with horizontal(region[i_start - 2, j_end + 2], region[i_end + 2, j_end + 2]):
+            q_out_x = q_in[0, -3, 0]
+        with horizontal(region[i_start - 1, j_end + 2], region[i_end + 2, j_end + 1]):
+            q_out_x = q_in[-1, -2, 0]
+        with horizontal(region[i_start - 3, j_end + 3], region[i_end + 3, j_end + 3]):
+            q_out_x = q_in[0, -5, 0]
+        with horizontal(region[i_start - 2, j_end + 3], region[i_end + 3, j_end + 2]):
+            q_out_x = q_in[-1, -4, 0]
+        with horizontal(region[i_start - 1, j_end + 3], region[i_end + 3, j_end + 1]):
+            q_out_x = q_in[-2, -3, 0]
+        with horizontal(
+            region[i_start - 3, j_start - 3], region[i_start - 3, j_end + 3]
+        ):
+            q_out_y = q_in[5, 0, 0]
+        with horizontal(
+            region[i_start - 2, j_start - 3], region[i_start - 3, j_end + 2]
+        ):
+            q_out_y = q_in[4, 1, 0]
+        with horizontal(
+            region[i_start - 1, j_start - 3], region[i_start - 3, j_end + 1]
+        ):
+            q_out_y = q_in[3, 2, 0]
+        with horizontal(
+            region[i_start - 3, j_start - 2], region[i_start - 2, j_end + 3]
+        ):
+            q_out_y = q_in[4, -1, 0]
+        with horizontal(
+            region[i_start - 2, j_start - 2], region[i_start - 2, j_end + 2]
+        ):
+            q_out_y = q_in[3, 0, 0]
+        with horizontal(
+            region[i_start - 1, j_start - 2], region[i_start - 2, j_end + 1]
+        ):
+            q_out_y = q_in[2, 1, 0]
+        with horizontal(
+            region[i_start - 3, j_start - 1], region[i_start - 1, j_end + 3]
+        ):
+            q_out_y = q_in[3, -2, 0]
+        with horizontal(
+            region[i_start - 2, j_start - 1], region[i_start - 1, j_end + 2]
+        ):
+            q_out_y = q_in[2, -1, 0]
+        with horizontal(
+            region[i_start - 1, j_start - 1], region[i_start - 1, j_end + 1]
+        ):
+            q_out_y = q_in[1, 0, 0]
+        with horizontal(region[i_end + 1, j_start - 3], region[i_end + 3, j_end + 1]):
+            q_out_y = q_in[-3, 2, 0]
+        with horizontal(region[i_end + 2, j_start - 3], region[i_end + 3, j_end + 2]):
+            q_out_y = q_in[-4, 1, 0]
+        with horizontal(region[i_end + 3, j_start - 3], region[i_end + 3, j_end + 3]):
+            q_out_y = q_in[-5, 0, 0]
+        with horizontal(region[i_end + 1, j_start - 2], region[i_end + 2, j_end + 1]):
+            q_out_y = q_in[-2, 1, 0]
+        with horizontal(region[i_end + 2, j_start - 2], region[i_end + 2, j_end + 2]):
+            q_out_y = q_in[-3, 0, 0]
+        with horizontal(region[i_end + 3, j_start - 2], region[i_end + 2, j_end + 3]):
+            q_out_y = q_in[-4, -1, 0]
+        with horizontal(region[i_end + 1, j_start - 1], region[i_end + 1, j_end + 1]):
+            q_out_y = q_in[-1, 0, 0]
+        with horizontal(region[i_end + 2, j_start - 1], region[i_end + 1, j_end + 2]):
+            q_out_y = q_in[-2, -1, 0]
+        with horizontal(region[i_end + 3, j_start - 1], region[i_end + 1, j_end + 3]):
+            q_out_y = q_in[-3, -2, 0]
+
+
 class FillCornersBGrid:
     """
     Helper-class to fill corners corresponding to the fortran function
@@ -393,12 +552,6 @@ class FillCornersBGrid:
                 self.grid.domain_shape_full(add=(1, 1, 1)), origin=origin
             )
 
-        self._copy_full_domain = FrozenStencil(
-            func=copy_defn,
-            origin=origin,
-            domain=domain,
-        )
-
         """Stencil Wrapper to do the copy of the input field to the temporary field"""
 
         ax_offsets = axis_offsets(self.grid, origin, domain)
@@ -422,8 +575,7 @@ class FillCornersBGrid:
             raise ValueError("Direction must be either 'x' or 'y'")
 
     def __call__(self, field: FloatField):
-        self._copy_full_domain(field, self._corner_tmp)
-        self._fill_corners_bgrid(self._corner_tmp, field)
+        self._fill_corners_bgrid(field, field)
 
 
 def fill_corners_bgrid_x_defn(q_in: FloatField, q_out: FloatField):
@@ -595,180 +747,161 @@ def fill_corners_2d_agrid(q, grid, gridtype, direction="x"):
                 fill_ne_corner_2d_agrid(q, i, j, direction, grid)
 
 
-def fill_corners_dgrid_defn(x: FloatField, y: FloatField, mysign: float):
+def fill_corners_dgrid_defn(
+    x_in: FloatField,
+    x_out: FloatField,
+    y_in: FloatField,
+    y_out: FloatField,
+    mysign: float,
+):
     from __externals__ import i_end, i_start, j_end, j_start
 
     with computation(PARALLEL), interval(...):
         # sw corner
         with horizontal(region[i_start - 1, j_start - 1]):
-            x = mysign * y[0, 1, 0]
+            x_out = mysign * y_in[0, 1, 0]
         with horizontal(region[i_start - 1, j_start - 1]):
-            y = mysign * x[1, 0, 0]
+            y_out = mysign * x_in[1, 0, 0]
         with horizontal(region[i_start - 1, j_start - 2]):
-            x = mysign * y[-1, 2, 0]
+            x_out = mysign * y_in[-1, 2, 0]
         with horizontal(region[i_start - 1, j_start - 2]):
-            y = mysign * x[2, 1, 0]
+            y_out = mysign * x_in[2, 1, 0]
         with horizontal(region[i_start - 1, j_start - 3]):
-            x = mysign * y[-2, 3, 0]
+            x_out = mysign * y_in[-2, 3, 0]
         with horizontal(region[i_start - 1, j_start - 3]):
-            y = mysign * x[3, 2, 0]
+            y_out = mysign * x_in[3, 2, 0]
         with horizontal(region[i_start - 2, j_start - 1]):
-            x = mysign * y[1, 2, 0]
+            x_out = mysign * y_in[1, 2, 0]
         with horizontal(region[i_start - 2, j_start - 1]):
-            y = mysign * x[2, -1, 0]
+            y_out = mysign * x_in[2, -1, 0]
         with horizontal(region[i_start - 2, j_start - 2]):
-            x = mysign * y[0, 3, 0]
+            x_out = mysign * y_in[0, 3, 0]
         with horizontal(region[i_start - 2, j_start - 2]):
-            y = mysign * x[3, 0, 0]
+            y_out = mysign * x_in[3, 0, 0]
         with horizontal(region[i_start - 2, j_start - 3]):
-            x = mysign * y[-1, 4, 0]
+            x_out = mysign * y_in[-1, 4, 0]
         with horizontal(region[i_start - 2, j_start - 3]):
-            y = mysign * x[4, 1, 0]
+            y_out = mysign * x_in[4, 1, 0]
         with horizontal(region[i_start - 3, j_start - 1]):
-            x = mysign * y[2, 3, 0]
+            x_out = mysign * y_in[2, 3, 0]
         with horizontal(region[i_start - 3, j_start - 1]):
-            y = mysign * x[3, -2, 0]
+            y_out = mysign * x_in[3, -2, 0]
         with horizontal(region[i_start - 3, j_start - 2]):
-            x = mysign * y[1, 4, 0]
+            x_out = mysign * y_in[1, 4, 0]
         with horizontal(region[i_start - 3, j_start - 2]):
-            y = mysign * x[4, -1, 0]
+            y_out = mysign * x_in[4, -1, 0]
         with horizontal(region[i_start - 3, j_start - 3]):
-            x = mysign * y[0, 5, 0]
+            x_out = mysign * y_in[0, 5, 0]
         with horizontal(region[i_start - 3, j_start - 3]):
-            y = mysign * x[5, 0, 0]
+            y_out = mysign * x_in[5, 0, 0]
         # ne corner
         with horizontal(region[i_end + 1, j_end + 2]):
-            x = mysign * y[1, -2, 0]
+            x_out = mysign * y_in[1, -2, 0]
         with horizontal(region[i_end + 2, j_end + 1]):
-            y = mysign * x[-2, 1, 0]
+            y_out = mysign * x_in[-2, 1, 0]
         with horizontal(region[i_end + 1, j_end + 3]):
-            x = mysign * y[2, -3, 0]
+            x_out = mysign * y_in[2, -3, 0]
         with horizontal(region[i_end + 2, j_end + 2]):
-            y = mysign * x[-3, 0, 0]
+            y_out = mysign * x_in[-3, 0, 0]
         with horizontal(region[i_end + 1, j_end + 4]):
-            x = mysign * y[3, -4, 0]
+            x_out = mysign * y_in[3, -4, 0]
         with horizontal(region[i_end + 2, j_end + 3]):
-            y = mysign * x[-4, -1, 0]
+            y_out = mysign * x_in[-4, -1, 0]
         with horizontal(region[i_end + 2, j_end + 2]):
-            x = mysign * y[0, -3, 0]
+            x_out = mysign * y_in[0, -3, 0]
         with horizontal(region[i_end + 3, j_end + 1]):
-            y = mysign * x[-3, 2, 0]
+            y_out = mysign * x_in[-3, 2, 0]
         with horizontal(region[i_end + 2, j_end + 3]):
-            x = mysign * y[1, -4, 0]
+            x_out = mysign * y_in[1, -4, 0]
         with horizontal(region[i_end + 3, j_end + 2]):
-            y = mysign * x[-4, 1, 0]
+            y_out = mysign * x_in[-4, 1, 0]
         with horizontal(region[i_end + 2, j_end + 4]):
-            x = mysign * y[2, -5, 0]
+            x_out = mysign * y_in[2, -5, 0]
         with horizontal(region[i_end + 3, j_end + 3]):
-            y = mysign * x[-5, 0, 0]
+            y_out = mysign * x_in[-5, 0, 0]
         with horizontal(region[i_end + 3, j_end + 2]):
-            x = mysign * y[-1, -4, 0]
+            x_out = mysign * y_in[-1, -4, 0]
         with horizontal(region[i_end + 4, j_end + 1]):
-            y = mysign * x[-4, 3, 0]
+            y_out = mysign * x_in[-4, 3, 0]
         with horizontal(region[i_end + 3, j_end + 3]):
-            x = mysign * y[0, -5, 0]
+            x_out = mysign * y_in[0, -5, 0]
         with horizontal(region[i_end + 4, j_end + 2]):
-            y = mysign * x[-5, 2, 0]
+            y_out = mysign * x_in[-5, 2, 0]
         with horizontal(region[i_end + 3, j_end + 4]):
-            x = mysign * y[1, -6, 0]
+            x_out = mysign * y_in[1, -6, 0]
         with horizontal(region[i_end + 4, j_end + 3]):
-            y = mysign * x[-6, 1, 0]
+            y_out = mysign * x_in[-6, 1, 0]
         # nw corner
         with horizontal(region[i_start - 1, j_end + 2]):
-            x = y[0, -2, 0]
+            x_out = y_in[0, -2, 0]
         with horizontal(region[i_start - 1, j_end + 1]):
-            y = x[1, 1, 0]
+            y_out = x_in[1, 1, 0]
         with horizontal(region[i_start - 1, j_end + 3]):
-            x = y[-1, -3, 0]
+            x_out = y_in[-1, -3, 0]
         with horizontal(region[i_start - 1, j_end + 2]):
-            y = x[2, 0, 0]
+            y_out = x_in[2, 0, 0]
         with horizontal(region[i_start - 1, j_end + 4]):
-            x = y[-2, -4, 0]
+            x_out = y_in[-2, -4, 0]
         with horizontal(region[i_start - 1, j_end + 3]):
-            y = x[3, -1, 0]
+            y_out = x_in[3, -1, 0]
         with horizontal(region[i_start - 2, j_end + 2]):
-            x = y[1, -3, 0]
+            x_out = y_in[1, -3, 0]
         with horizontal(region[i_start - 2, j_end + 1]):
-            y = x[2, 2, 0]
+            y_out = x_in[2, 2, 0]
         with horizontal(region[i_start - 2, j_end + 3]):
-            x = y[0, -4, 0]
+            x_out = y_in[0, -4, 0]
         with horizontal(region[i_start - 2, j_end + 2]):
-            y = x[3, 1, 0]
+            y_out = x_in[3, 1, 0]
         with horizontal(region[i_start - 2, j_end + 4]):
-            x = y[-1, -5, 0]
+            x_out = y_in[-1, -5, 0]
         with horizontal(region[i_start - 2, j_end + 3]):
-            y = x[4, 0, 0]
+            y_out = x_in[4, 0, 0]
         with horizontal(region[i_start - 3, j_end + 2]):
-            x = y[2, -4, 0]
+            x_out = y_in[2, -4, 0]
         with horizontal(region[i_start - 3, j_end + 1]):
-            y = x[3, 3, 0]
+            y_out = x_in[3, 3, 0]
         with horizontal(region[i_start - 3, j_end + 3]):
-            x = y[1, -5, 0]
+            x_out = y_in[1, -5, 0]
         with horizontal(region[i_start - 3, j_end + 2]):
-            y = x[4, 2, 0]
+            y_out = x_in[4, 2, 0]
         with horizontal(region[i_start - 3, j_end + 4]):
-            x = y[0, -6, 0]
+            x_out = y_in[0, -6, 0]
         with horizontal(region[i_start - 3, j_end + 3]):
-            y = x[5, 1, 0]
+            y_out = x_in[5, 1, 0]
         # se corner
         with horizontal(region[i_end + 1, j_start - 1]):
-            x = y[1, 1, 0]
+            x_out = y_in[1, 1, 0]
         with horizontal(region[i_end + 2, j_start - 1]):
-            y = x[-2, 0, 0]
+            y_out = x_in[-2, 0, 0]
         with horizontal(region[i_end + 1, j_start - 2]):
-            x = y[2, 2, 0]
+            x_out = y_in[2, 2, 0]
         with horizontal(region[i_end + 2, j_start - 2]):
-            y = x[-3, 1, 0]
+            y_out = x_in[-3, 1, 0]
         with horizontal(region[i_end + 1, j_start - 3]):
-            x = y[3, 3, 0]
+            x_out = y_in[3, 3, 0]
         with horizontal(region[i_end + 2, j_start - 3]):
-            y = x[-4, 2, 0]
+            y_out = x_in[-4, 2, 0]
         with horizontal(region[i_end + 2, j_start - 1]):
-            x = y[0, 2, 0]
+            x_out = y_in[0, 2, 0]
         with horizontal(region[i_end + 3, j_start - 1]):
-            y = x[-3, -1, 0]
+            y_out = x_in[-3, -1, 0]
         with horizontal(region[i_end + 2, j_start - 2]):
-            x = y[1, 3, 0]
+            x_out = y_in[1, 3, 0]
         with horizontal(region[i_end + 3, j_start - 2]):
-            y = x[-4, 0, 0]
+            y_out = x_in[-4, 0, 0]
         with horizontal(region[i_end + 2, j_start - 3]):
-            x = y[2, 4, 0]
+            x_out = y_in[2, 4, 0]
         with horizontal(region[i_end + 3, j_start - 3]):
-            y = x[-5, 1, 0]
+            y_out = x_in[-5, 1, 0]
         with horizontal(region[i_end + 3, j_start - 1]):
-            x = y[-1, 3, 0]
+            x_out = y_in[-1, 3, 0]
         with horizontal(region[i_end + 4, j_start - 1]):
-            y = x[-4, -2, 0]
+            y_out = x_in[-4, -2, 0]
         with horizontal(region[i_end + 3, j_start - 2]):
-            x = y[0, 4, 0]
+            x_out = y_in[0, 4, 0]
         with horizontal(region[i_end + 4, j_start - 2]):
-            y = x[-5, -1, 0]
+            y_out = x_in[-5, -1, 0]
         with horizontal(region[i_end + 3, j_start - 3]):
-            x = y[1, 5, 0]
+            x_out = y_in[1, 5, 0]
         with horizontal(region[i_end + 4, j_start - 3]):
-            y = x[-6, 0, 0]
-
-
-@gtscript.function
-def corner_ke(
-    u,
-    v,
-    ut,
-    vt,
-    dt,
-    io1,
-    jo1,
-    io2,
-    vsign,
-):
-    dt6 = dt / 6.0
-
-    return dt6 * (
-        (ut[0, 0, 0] + ut[0, -1, 0]) * ((io1 + 1) * u[0, 0, 0] - (io1 * u[-1, 0, 0]))
-        + (vt[0, 0, 0] + vt[-1, 0, 0]) * ((jo1 + 1) * v[0, 0, 0] - (jo1 * v[0, -1, 0]))
-        + (
-            ((jo1 + 1) * ut[0, 0, 0] - (jo1 * ut[0, -1, 0]))
-            + vsign * ((io1 + 1) * vt[0, 0, 0] - (io1 * vt[-1, 0, 0]))
-        )
-        * ((io2 + 1) * u[0, 0, 0] - (io2 * u[-1, 0, 0]))
-    )
+            y_out = x_in[-6, 0, 0]

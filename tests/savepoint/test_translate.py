@@ -7,7 +7,6 @@ from typing import Union
 import numpy as np
 import pytest
 import serialbox as ser
-import xarray as xr
 
 import fv3core._config
 import fv3core.utils.global_config as config
@@ -25,10 +24,19 @@ GPU_NEAR_ZERO = 1e-15
 
 
 def compare_arr(computed_data, ref_data):
+    """Smooth error near zero values.
+    Inputs are arrays.
+    """
     denom = np.abs(ref_data) + np.abs(computed_data)
     compare = 2.0 * np.abs(computed_data - ref_data) / denom
     compare[denom == 0] = 0.0
     return compare
+
+
+def compare_scalar(computed_data: np.float64, ref_data: np.float64) -> np.float64:
+    """Smooth error near zero values. Scalar versions."""
+    err_as_array = compare_arr(np.atleast_1d(computed_data), np.atleast_1d(ref_data))
+    return err_as_array[0]
 
 
 def success_array(
@@ -95,25 +103,37 @@ def sample_wherefail(
     computed_failures = computed_data[found_indices]
     reference_failures = ref_data[found_indices]
 
+    # List all errors
     return_strings = []
     bad_indices_count = len(found_indices[0])
     if print_failures:
         for b in range(0, bad_indices_count, failure_stride):
             full_index = [f[b] for f in found_indices]
+            abs_err = abs(computed_failures[b] - reference_failures[b])
+            metric_err = compare_scalar(computed_failures[b], reference_failures[b])
             return_strings.append(
                 f"index: {full_index}, computed {computed_failures[b]}, "
                 f"reference {reference_failures[b]}, "
-                f"diff {abs(computed_failures[b] - reference_failures[b])}"
+                f"absolute diff {abs_err:.3e}, "
+                f"metric diff: {metric_err:.3e}"
             )
-    sample = [f[0] for f in found_indices]
-    fullcount = len(ref_data.flatten())
 
+    # Determine worst result
+    err = compare_arr(computed_data, ref_data)
+    worst_full_idx = np.unravel_index(np.argmax(err, axis=None), err.shape)
+
+    # Summary and worst result
+    fullcount = len(ref_data.flatten())
+    abs_err = abs(computed_data[worst_full_idx] - ref_data[worst_full_idx])
+    metric_err = compare_scalar(computed_data[worst_full_idx], ref_data[worst_full_idx])
     return_strings.append(
         f"Failed count: {bad_indices_count}/{fullcount} "
         f"({round(100.0 * (bad_indices_count / fullcount), 2)}%),\n"
-        f"first failed index {sample}, computed:{computed_failures[0]}, "
-        f"reference: {reference_failures[0]}, "
-        f"diff: {abs(computed_failures[0] - reference_failures[0])}\n"
+        f"Worst failed index {worst_full_idx}\n"
+        f"\tcomputed:{computed_data[worst_full_idx]}\n"
+        f"\treference: {ref_data[worst_full_idx]}\n"
+        f"\tabsolute diff: {abs_err:.3e}\n"
+        f"\tmetric diff: {metric_err:.3e}\n"
     )
 
     if xy_indices:
@@ -249,14 +269,15 @@ def test_sequential_savepoint(
             ref_data = testobj.subset_output(varname, ref_data)
         with subtests.test(varname=varname):
             failing_names.append(varname)
+            output_data = gt_utils.asarray(output[varname])
             assert success(
-                output[varname],
+                output_data,
                 ref_data,
                 testobj.max_error,
                 ignore_near_zero,
                 testobj.near_zero,
             ), sample_wherefail(
-                output[varname],
+                output_data,
                 ref_data,
                 testobj.max_error,
                 print_failures,
@@ -342,15 +363,16 @@ def test_mock_parallel_savepoint(
                 zip(savepoint_out_list, serializer_list, output_list)
             ):
                 with _subtest(failing_ranks, subtests, varname=varname, rank=rank):
+                    output_data = gt_utils.asarray(output[varname])
                     ref_data[varname].append(serializer.read(varname, savepoint_out))
                     assert success(
-                        gt_utils.asarray(output[varname]),
+                        output_data,
                         ref_data[varname][-1],
                         testobj.max_error,
                         ignore_near_zero,
                         testobj.near_zero,
                     ), sample_wherefail(
-                        output[varname],
+                        output_data,
                         ref_data[varname][-1],
                         testobj.max_error,
                         print_failures,
@@ -384,7 +406,7 @@ def hash_result_data(result, data_keys):
 
 @pytest.mark.parallel
 @pytest.mark.skipif(
-    MPI is not None and MPI.COMM_WORLD.Get_size() == 1,
+    MPI is None or MPI.COMM_WORLD.Get_size() == 1,
     reason="Not running in parallel with mpi",
 )
 def test_parallel_savepoint(
@@ -445,14 +467,15 @@ def test_parallel_savepoint(
         ignore_near_zero = testobj.ignore_near_zero_errors.get(varname, False)
         with subtests.test(varname=varname):
             failing_names.append(varname)
+            output_data = gt_utils.asarray(output[varname])
             assert success(
-                output[varname],
+                output_data,
                 ref_data[varname][0],
                 testobj.max_error,
                 ignore_near_zero,
                 testobj.near_zero,
             ), sample_wherefail(
-                output[varname],
+                output_data,
                 ref_data[varname][0],
                 testobj.max_error,
                 print_failures,
@@ -486,6 +509,8 @@ def _subtest(failure_list, subtests, **kwargs):
 def save_netcdf(
     testobj, inputs_list, output_list, ref_data, failing_names, out_filename
 ):
+    import xarray as xr
+
     data_vars = {}
     for i, varname in enumerate(failing_names):
         dims = [dim_name + f"_{i}" for dim_name in testobj.outputs[varname]["dims"]]

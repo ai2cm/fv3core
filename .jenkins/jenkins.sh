@@ -38,10 +38,24 @@ T="$(date +%s)"
 test -n "$1" || exitError 1001 ${LINENO} "must pass an argument"
 test -n "${slave}" || exitError 1005 ${LINENO} "slave is not defined"
 
-# some global variables
+# GTC backend name fix: passed as gtc_gt_* but their real name are gtc:gt:*
+#                       OR gtc_* but their real name is gtc:*
+input_backend="$2"
+if [[ $input_backend = gtc_gt_* ]] ; then
+    # sed explained: replace _ with :, two times
+    input_backend=`echo $input_backend | sed 's/_/:/;s/_/:/'`
+fi
+if [[ $input_backend = gtc_* ]] ; then
+    # sed explained: replace _ with :
+    input_backend=`echo $input_backend | sed 's/_/:/'`
+fi
+
+
+# Read arguments
 action="$1"
-backend="$2"
+backend="$input_backend"
 experiment="$3"
+
 # check presence of env directory
 pushd `dirname $0` > /dev/null
 envloc=`/bin/pwd`
@@ -57,6 +71,15 @@ export python_env=${python_env}
 echo "PYTHON env ${python_env}"
 # get root directory of where jenkins.sh is sitting
 export jenkins_dir=`dirname $0`
+
+
+if [ -z "${GT4PY_VERSION}" ]; then
+    export GT4PY_VERSION=`cat GT4PY_VERSION.txt`
+fi
+# If the backend is a GTC backend we fetch the caches
+if [[ $backend != *numpy* ]];then
+    . ${jenkins_dir}/actions/fetch_caches.sh $backend $experiment
+fi
 
 # load machine dependent environment
 if [ ! -f ${envloc}/env/env.${host}.sh ] ; then
@@ -82,16 +105,24 @@ if [ -f ${scheduler_script} ] ; then
     fi
 fi
 
+
+# if the environment variable is set to long_job we skip timing restrictions:
+if [ -v LONG_EXECUTION ]; then
+    sed -i 's|00:45:00|03:30:00|g' ${scheduler_script}
+fi
+
 # if this is a parallel job and the number of ranks is specified in the experiment argument, set NUM_RANKS
 # and update the scheduler script if there is one
 if grep -q "parallel" <<< "${script}"; then
     if grep -q "ranks" <<< "${experiment}"; then
 	export NUM_RANKS=`echo ${experiment} | grep -o -E '[0-9]+ranks' | grep -o -E '[0-9]+'`
 	echo "Setting NUM_RANKS=${NUM_RANKS}"
-	if grep -q "cuda" <<< "${backend}" ; then
+	if grep -q "cuda\|gpu" <<< "${backend}" ; then
 	    export MPICH_RDMA_ENABLED_CUDA=1
+        export CRAY_CUDA_MPS=1
 	else
 	    export MPICH_RDMA_ENABLED_CUDA=0
+        export CRAY_CUDA_MPS=0
 	fi
 	if [ -f ${scheduler_script} ] ; then
 	    sed -i 's|<NTASKS>|<NTASKS>\n#SBATCH \-\-hint=multithread\n#SBATCH --ntasks-per-core=2|g' ${scheduler_script}
@@ -106,13 +137,14 @@ if grep -q "parallel" <<< "${script}"; then
 fi
 
 if grep -q "fv_dynamics" <<< "${script}"; then
-	if grep -q "cuda" <<< "${backend}" ; then
+	if grep -q "cuda\|gpu" <<< "${backend}" ; then
 	    export MPICH_RDMA_ENABLED_CUDA=1
 	    # This enables single node compilation
 	    # but will NOT work for c128
 	    export CRAY_CUDA_MPS=1
 	else
 	    export MPICH_RDMA_ENABLED_CUDA=0
+        export CRAY_CUDA_MPS=0
 	fi
     sed -i 's|<NTASKS>|6\n#SBATCH \-\-hint=nomultithread|g' ${scheduler_script}
     sed -i 's|00:45:00|03:30:00|g' ${scheduler_script}
@@ -125,9 +157,7 @@ module load daint-gpu
 module load ${installdir}/modulefiles/gcloud/303.0.0
 # get the test data version from the Makefile
 export DATA_VERSION=`grep "FORTRAN_SERIALIZED_DATA_VERSION=" Makefile  | cut -d '=' -f 2`
-if [ -z "${GT4PY_VERSION}" ]; then
-    export GT4PY_VERSION=`cat GT4PY_VERSION.txt`
-fi
+
 # Set the SCRATCH directory to the working directory if not set (e.g. for running on gce)
 if [ -z ${SCRATCH} ] ; then
     export SCRATCH=`pwd`
@@ -172,7 +202,7 @@ if [ ${python_env} == "virtualenv" ]; then
     fi
     export FV3_PATH="${envloc}/../"
     export TEST_DATA_RUN_LOC=${TEST_DATA_HOST}
-    export PYTHONPATH=${installdir}/serialbox2_master/gnu/python:$PYTHONPATH
+    export PYTHONPATH=${installdir}/serialbox/gnu/python:$PYTHONPATH
 fi
 
 G2G="false"
@@ -194,10 +224,12 @@ if grep -q "fv_dynamics" <<< "${script}"; then
     cp  ${run_timing_script} job_${action}_2.sh
     run_timing_script=job_${action}_2.sh
     export CRAY_CUDA_MPS=0
-	if grep -q "cuda" <<< "${backend}" ; then
+	if grep -q "cuda\|gpu" <<< "${backend}" ; then
 	    export MPICH_RDMA_ENABLED_CUDA=1
+        export CRAY_CUDA_MPS=1
 	else
 	    export MPICH_RDMA_ENABLED_CUDA=0
+        export CRAY_CUDA_MPS=0
 	fi
     sed -i 's|<NTASKS>|6\n#SBATCH \-\-hint=nomultithread|g' ${run_timing_script}
     sed -i 's|00:45:00|00:15:00|g' ${run_timing_script}
