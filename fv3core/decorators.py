@@ -273,7 +273,9 @@ class FrozenStencil(SDFGConvertible):
 
     def __sdfg__(self, *args, **kwargs):
         # Enable distributed compilation if running in parallel
-        if MPI is not None and MPI.COMM_WORLD.Get_size() > 1:
+        # if MPI is not None and MPI.COMM_WORLD.Get_size() > 1:
+        # TODO(eddied): Debug `future_stencil` errors with dace...
+        if False:
             kwargs.update(
                 dict(
                     stencil_function=future_stencil,
