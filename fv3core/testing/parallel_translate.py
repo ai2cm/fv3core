@@ -96,7 +96,7 @@ class ParallelTranslate:
                     state[standard_name].data[output_slice]
                 )
             else:
-                return_dict[name] = [state[standard_name]]
+                return_dict[name] = state[standard_name]
         return return_dict
 
     def allocate_output_state(self):
