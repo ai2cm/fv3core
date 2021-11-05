@@ -10,8 +10,12 @@ make get_test_data
 
 if [ ${python_env} == "virtualenv" ]; then
     export TEST_ARGS="${TEST_ARGS} --junitxml=${jenkins_dir}/${XML_REPORT}"
-    CONTAINER_CMD="srun" make tests savepoint_tests
+    export CONTAINER_CMD="srun"
+    COVERAGE=y make tests
+    make savepoint_tests
 else
     export TEST_ARGS="${TEST_ARGS} --junitxml=/.jenkins/${XML_REPORT}"
-    VOLUMES="-v ${pwd}/.jenkins:/.jenkins" make tests savepoint_tests
+    export VOLUMES="-v ${pwd}/.jenkins:/.jenkins"
+    COVERAGE=y make tests
+    make savepoint_tests
 fi
