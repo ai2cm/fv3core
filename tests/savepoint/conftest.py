@@ -177,6 +177,11 @@ def get_ranks(metafunc, layout):
         return [int(only_rank)]
 
 
+def _has_savepoints(input_savepoints, output_savepoints) -> bool:
+    savepoints_exist = not (len(input_savepoints) == 0 and len(output_savepoints) == 0)
+    return savepoints_exist
+
+
 SavepointCase = collections.namedtuple(
     "SavepointCase",
     [
@@ -204,7 +209,7 @@ def sequential_savepoint_cases(metafunc, data_path):
         for test_name in sorted(list(savepoint_names)):
             input_savepoints = serializer.get_savepoint(f"{test_name}-In")
             output_savepoints = serializer.get_savepoint(f"{test_name}-Out")
-            if len(input_savepoints) > 0 and len(output_savepoints) > 0:
+            if _has_savepoints(input_savepoints, output_savepoints):
                 check_savepoint_counts(test_name, input_savepoints, output_savepoints)
                 return_list.append(
                     SavepointCase(
@@ -259,7 +264,7 @@ def mock_parallel_savepoint_cases(metafunc, data_path):
             serializer_list.append(serializer)
             input_savepoints = serializer.get_savepoint(f"{test_name}-In")
             output_savepoints = serializer.get_savepoint(f"{test_name}-Out")
-            if len(input_savepoints) > 0 and len(output_savepoints) > 0:
+            if _has_savepoints(input_savepoints, output_savepoints):
                 check_savepoint_counts(test_name, input_savepoints, output_savepoints)
                 input_list.append(input_savepoints)
                 output_list.append(output_savepoints)
@@ -290,7 +295,7 @@ def parallel_savepoint_cases(metafunc, data_path, mpi_rank):
     for test_name in sorted(list(savepoint_names)):
         input_savepoints = serializer.get_savepoint(f"{test_name}-In")
         output_savepoints = serializer.get_savepoint(f"{test_name}-Out")
-        if len(input_savepoints) > 0 and len(output_savepoints) > 0:
+        if _has_savepoints(input_savepoints, output_savepoints):
             check_savepoint_counts(test_name, input_savepoints, output_savepoints)
         return_list.append(
             SavepointCase(

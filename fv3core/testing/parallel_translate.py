@@ -99,16 +99,6 @@ class ParallelTranslate:
                 return_dict[name] = [state[standard_name]]
         return return_dict
 
-    def allocate_output_state(self):
-        state = {}
-        for name, properties in self.outputs.items():
-            if len(properties["dims"]) > 0:
-                state[properties["name"]] = self.grid.quantity_factory.empty(
-                    properties["dims"],
-                    properties["units"],
-                )
-        return state
-
     @property
     def rank_grids(self):
         return self._rank_grids

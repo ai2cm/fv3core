@@ -59,7 +59,6 @@ def mirror_grid(
             )
 
             # force dateline/greenwich-meridion consistency
-            # TODO This seems to have no impact
             if npx % 2 != 0:
                 if x_center_tile and i == istart + (iend - istart) // 2:
                     # if i == (npx - 1) // 2:
