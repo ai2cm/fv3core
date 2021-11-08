@@ -12,7 +12,7 @@ import fv3core.testing
 import fv3core.utils.global_config as global_config
 from fv3core.decorators import computepath_function
 from fv3core.stencils.dyn_core import AcousticDynamics
-from fv3core.utils.global_config import get_dacemode
+import fv3gfs.util as util
 
 
 def set_up_namelist(data_directory: str) -> None:
@@ -47,13 +47,13 @@ def initialize_fv3core(backend: str, do_halo_updates: bool) -> None:
     global_config.set_do_halo_exchange(do_halo_updates)
 
 
-def read_input_data(grid, serializer):
+def read_input_data(grid, serializer) -> dict:
     driver_object = fv3core.testing.TranslateDynCore([grid])
     savepoint_in = serializer.get_savepoint("DynCore-In")[0]
     return driver_object.collect_input_data(serializer, savepoint_in)
 
 
-def get_state_from_input(grid, input_data):
+def get_state_from_input(grid, input_data) -> SimpleNamespace:
     driver_object = fv3core.testing.TranslateDynCore([grid])
     driver_object._base.make_storage_data_input_vars(input_data)
 
@@ -67,7 +67,13 @@ def get_state_from_input(grid, input_data):
     return statevars
 
 
-def run(data_directory, halo_update, backend, time_steps, reference_run):
+def run(
+    data_directory: str,
+    halo_update: bool,
+    backend: str,
+    time_steps: int,
+    sdfg_path: str,
+) -> SimpleNamespace:
     set_up_namelist(data_directory)
     serializer = initialize_serializer(data_directory)
     initialize_fv3core(backend, halo_update)
@@ -76,6 +82,13 @@ def run(data_directory, halo_update, backend, time_steps, reference_run):
 
     input_data = read_input_data(grid, serializer)
     state = get_state_from_input(grid, input_data)
+
+    # set the communicator
+    comm = MPI.COMM_WORLD
+    rank = comm.Get_rank()
+    layout = spec.namelist.layout
+    partitioner = util.CubedSpherePartitioner(util.TilePartitioner(layout))
+    communicator = util.CubedSphereCommunicator(comm, partitioner)
 
     acoutstics_object = AcousticDynamics(
         None,
@@ -87,16 +100,12 @@ def run(data_directory, halo_update, backend, time_steps, reference_run):
     )
     state.__dict__.update(acoutstics_object._temporaries)
 
-    comm = MPI.COMM_WORLD
-    rank = comm.Get_rank()
+    if sdfg_path != "":
+        sdfg_path = sdfg_path + str(rank) + "/dacecache/iterate"
+    else:
+        sdfg_path = None
 
-    sdfg_path = (
-        "/scratch/snx3000/tobwi/sbox/dace_tests/c128experiment/.gt_cache_00000"
-        + str(rank)
-        + "/dacecache/iterate"
-    )
-
-    @computepath_function  # (load_sdfg=sdfg_path)
+    @computepath_function(load_sdfg=sdfg_path)
     def iterate(state: dace.constant, time_steps):
         for _ in range(time_steps):
             acoutstics_object(state, insert_temporaries=False)
@@ -122,11 +131,13 @@ def run(data_directory, halo_update, backend, time_steps, reference_run):
 @click.argument("time_steps", required=False, default=1, type=int)
 @click.argument("backend", required=False, default="gtc:gt:cpu_ifirst")
 @click.option("--halo_update/--no-halo_update", default=False)
+@click.argument("sdfg_path", required=False, default="")
 def driver(
     data_directory: str,
-    time_steps: str,
+    time_steps: int,
     backend: str,
     halo_update: bool,
+    sdfg_path: str,
 ):
 
     state = run(
@@ -134,7 +145,7 @@ def driver(
         halo_update,
         time_steps=time_steps,
         backend=backend,
-        reference_run=not get_dacemode(),
+        sdfg_path=sdfg_path,
     )
 
 
