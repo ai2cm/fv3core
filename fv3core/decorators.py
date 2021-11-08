@@ -176,6 +176,7 @@ class FrozenStencil(SDFGConvertible):
         domain: Index3D,
         stencil_config: Optional[StencilConfig] = None,
         externals: Optional[Mapping[str, Any]] = None,
+        disable_code_generation: Optional[bool] = None,
     ):
         """
         Args:
@@ -198,16 +199,21 @@ class FrozenStencil(SDFGConvertible):
 
         stencil_function = gtscript.stencil
         stencil_kwargs = {**self.stencil_config.stencil_kwargs}
-        if (
-            global_config.get_dacemode()
-            and not global_config.is_dacemode_codegen_whitelisted(func)
-        ):
+
+        if disable_code_generation is None:
+            disable_code_generation = (
+                global_config.get_dacemode()
+                and not global_config.is_dacemode_codegen_whitelisted(func)
+            )
+        if disable_code_generation:
             stencil_kwargs["disable_code_generation"] = True
 
         # Enable distributed compilation if running in parallel
-        # if MPI is not None and MPI.COMM_WORLD.Get_size() > 1:
         # TODO(eddied): Debug `future_stencil` errors with dace...
-        if False:
+        do_distributed_comp = (
+            False and MPI is not None and MPI.COMM_WORLD.Get_size() > 1
+        )
+        if do_distributed_comp:
             stencil_function = future_stencil
             stencil_kwargs["wrapper"] = self
 
