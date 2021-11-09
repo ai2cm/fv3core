@@ -10,9 +10,9 @@ import fv3core
 import fv3core._config as spec
 import fv3core.testing
 import fv3core.utils.global_config as global_config
+import fv3gfs.util as util
 from fv3core.decorators import computepath_function
 from fv3core.stencils.dyn_core import AcousticDynamics
-import fv3gfs.util as util
 
 
 def set_up_namelist(data_directory: str) -> None:
@@ -97,34 +97,14 @@ def run(
         input_data["bk"],
         input_data["pfull"],
         input_data["phis"],
+        sdfg_path=sdfg_path,
     )
     state.__dict__.update(acoutstics_object._temporaries)
-
-    sdfg_paths = {
-        "sdfg1_data_init": None,
-        "sdfg2_c_sw": None,
-        "sdfg3_c_grid": None,
-        "sdfg4_d_sw": None,
-        "sdfg5_updatedzd": None,
-        "sdfg6_pk3_halo": None,
-        "sdfg8_nh_p_grad": None,
-        "sdfg9_hyperdiffusion": None,
-    }
-    if sdfg_path != "":
-        if MPI.COMM_WORLD.Get_size() > 1:
-            sdfg_path_base = sdfg_path + str(rank) + "/dacecache/"
-        else:
-            sdfg_path_base = sdfg_path + "/dacecache/"
-        for key, value in sdfg_paths.items():
-            sdfg_paths[key] = f"{sdfg_path_base}/{key}"
-    else:
-        for key, value in sdfg_paths.items():
-            sdfg_paths[key] = None
 
     @computepath_function(skip_dacemode=True)
     def iterate(state: dace.constant, time_steps):
         for _ in range(time_steps):
-            acoutstics_object(state, insert_temporaries=False, sdfg_paths=sdfg_paths)
+            acoutstics_object(state, insert_temporaries=False)
 
     import time
 

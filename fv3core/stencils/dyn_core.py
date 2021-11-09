@@ -21,6 +21,7 @@ from fv3core.stencils.del2cubed import HyperdiffusionDamping
 from fv3core.stencils.pk3_halo import PK3Halo
 from fv3core.stencils.riem_solver3 import RiemannSolver3
 from fv3core.stencils.riem_solver_c import RiemannSolverC
+from fv3core.utils.mpi import MPI
 from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
 
 
@@ -219,6 +220,7 @@ class AcousticDynamics:
         bk: FloatFieldK,
         pfull: FloatFieldK,
         phis: FloatFieldIJ,
+        sdfg_path: str = "",
     ):
         """
         Args:
@@ -375,13 +377,45 @@ class AcousticDynamics:
             disable_code_generation=False,
         )
 
+        self._sdfg_paths = self._get_sdfg_paths(sdfg_path)
+
+    def _get_sdfg_paths(self, sdfg_path: str):
+        sdfg_paths = {
+            "sdfg1_data_init": None,
+            "sdfg2_c_sw": None,
+            "sdfg3_c_grid": None,
+            "sdfg4_d_sw": None,
+            "sdfg5_updatedzd": None,
+            "sdfg6_pk3_halo": None,
+            "sdfg8_nh_p_grad": None,
+            "sdfg9_hyperdiffusion": None,
+        }
+        if sdfg_path != "":
+            rank = (
+                MPI.COMM_WORLD.Get_rank()
+                if MPI and MPI.COMM_WORLD.Get_size() > 1
+                else None
+            )
+            if rank is not None:
+                sdfg_path_base = sdfg_path + str(rank) + "/dacecache/"
+            else:
+                sdfg_path_base = sdfg_path + "/dacecache/"
+            for key, value in sdfg_paths.items():
+                sdfg_paths[key] = f"{sdfg_path_base}/{key}"
+        else:
+            for key, value in sdfg_paths.items():
+                sdfg_paths[key] = None
+
+        return sdfg_paths
+
     @computepath_method(skip_dacemode=True)
     def __call__(
         self,
         state: dace.constant,
         insert_temporaries: dace.constant = True,
-        sdfg_paths=[],
     ):
+        sdfg_paths = self._sdfg_paths
+
         # u, v, w, delz, delp, pt, pe, pk, phis, wsd, omga, ua, va, uc, vc, mfxd,
         # mfyd, cxd, cyd, pkz, peln, q_con, ak, bk, diss_estd, cappa, mdt, n_split,
         # akap, ptop, n_map, comm):
