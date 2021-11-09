@@ -105,7 +105,7 @@ def run(
     else:
         sdfg_path = None
 
-    @computepath_function(load_sdfg=sdfg_path)
+    @computepath_function(load_sdfg=sdfg_path, skip_dacemode=True)
     def iterate(state: dace.constant, time_steps):
         for _ in range(time_steps):
             acoutstics_object(state, insert_temporaries=False)

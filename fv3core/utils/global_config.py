@@ -60,7 +60,15 @@ def is_dacemode_codegen_whitelisted(func: Callable[..., None]) -> bool:
     Some stencils are called within the __init__ and therefore will need to
     be pre-compiled nonetheless.
     """
-    whitelist = ["dp_ref_compute", "cubic_spline_interpolation_constants", "calc_damp"]
+    whitelist = [
+        "dp_ref_compute",
+        "cubic_spline_interpolation_constants",
+        "calc_damp",
+        "set_gz",
+        "set_pem",
+        "copy_defn",
+        "compute_geopotential",
+    ]
     return any(func.__name__ in name for name in whitelist)
 
 
