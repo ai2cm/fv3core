@@ -100,15 +100,31 @@ def run(
     )
     state.__dict__.update(acoutstics_object._temporaries)
 
+    sdfg_paths = {
+        "sdfg1_data_init": None,
+        "sdfg2_c_sw": None,
+        "sdfg3_c_grid": None,
+        "sdfg4_d_sw": None,
+        "sdfg5_updatedzd": None,
+        "sdfg6_pk3_halo": None,
+        "sdfg8_nh_p_grad": None,
+        "sdfg9_hyperdiffusion": None,
+    }
     if sdfg_path != "":
-        sdfg_path = sdfg_path + str(rank) + "/dacecache/iterate"
+        if MPI.COMM_WORLD.Get_size() > 1:
+            sdfg_path_base = sdfg_path + str(rank) + "/dacecache/"
+        else:
+            sdfg_path_base = sdfg_path + "/dacecache/"
+        for key, value in sdfg_paths.items():
+            sdfg_paths[key] = f"{sdfg_path_base}/{key}"
     else:
-        sdfg_path = None
+        for key, value in sdfg_paths.items():
+            sdfg_paths[key] = None
 
-    @computepath_function(load_sdfg=sdfg_path, skip_dacemode=True)
+    @computepath_function(skip_dacemode=True)
     def iterate(state: dace.constant, time_steps):
         for _ in range(time_steps):
-            acoutstics_object(state, insert_temporaries=False)
+            acoutstics_object(state, insert_temporaries=False, sdfg_paths=sdfg_paths)
 
     import time
 

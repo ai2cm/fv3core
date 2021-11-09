@@ -376,7 +376,12 @@ class AcousticDynamics:
         )
 
     @computepath_method(skip_dacemode=True)
-    def __call__(self, state: dace.constant, insert_temporaries: dace.constant = True):
+    def __call__(
+        self,
+        state: dace.constant,
+        insert_temporaries: dace.constant = True,
+        sdfg_paths=[],
+    ):
         # u, v, w, delz, delp, pt, pe, pk, phis, wsd, omga, ua, va, uc, vc, mfxd,
         # mfyd, cxd, cyd, pkz, peln, q_con, ak, bk, diss_estd, cappa, mdt, n_split,
         # akap, ptop, n_map, comm):
@@ -413,7 +418,7 @@ class AcousticDynamics:
             reqs["cappa_quantity"].wait()
 
         # sdfg1 (data_init)
-        @computepath_function
+        @computepath_function(load_sdfg=sdfg_paths["sdfg1_data_init"])
         def sdfg1_data_init():
             if insert_temporaries:
                 state.__dict__.update(self._temporaries)
@@ -483,7 +488,7 @@ class AcousticDynamics:
 
             # compute the c-grid winds at t + 1/2 timestep
             # sdfg2 (c_sw)
-            @computepath_function
+            @computepath_function(load_sdfg=sdfg_paths["sdfg2_c_sw"])
             def sdfg2_c_sw():
                 delpc, ptc = self.cgrid_shallow_water_lagrangian_dynamics(
                     state.delp,
@@ -524,7 +529,7 @@ class AcousticDynamics:
                     )
 
             # sdfg3 (updatedzc, riem_solver_c, p_grad_c)
-            @computepath_function
+            @computepath_function(load_sdfg=sdfg_paths["sdfg3_c_grid"])
             def sdfg3_c_grid():
                 if not self.namelist.hydrostatic:
                     self.update_geopotential_height_on_c_grid(
@@ -575,7 +580,7 @@ class AcousticDynamics:
             # by 1 timestep
 
             # sdfg4 (d_sw)
-            @computepath_function
+            @computepath_function(load_sdfg=sdfg_paths["sdfg4_d_sw"])
             def sdfg4_d_sw():
                 self.dgrid_shallow_water_lagrangian_dynamics(
                     state.vt,
@@ -622,7 +627,7 @@ class AcousticDynamics:
 
             if not self.namelist.hydrostatic:
                 # sdfg5 (updatedzd)
-                @computepath_function
+                @computepath_function(load_sdfg=sdfg_paths["sdfg5_updatedzd"])
                 def sdfg5_updatedzd():
                     self.update_height_on_d_grid(
                         self._zs,
@@ -671,7 +676,7 @@ class AcousticDynamics:
                         )
 
                 # sdfg6 (updatedzd)
-                @computepath_function
+                @computepath_function(load_sdfg=sdfg_paths["sdfg6_pk3_halo"])
                 def sdfg6_pk3_halo():
                     if remap_step:
                         self._edge_pe_west_stencil(state.pe, state.delp, state.ptop)
@@ -701,7 +706,7 @@ class AcousticDynamics:
                     reqs["pkc_quantity"].wait()
 
             # sdfg8 (nh_p_grad)
-            @computepath_function
+            @computepath_function(load_sdfg=sdfg_paths["sdfg8_nh_p_grad"])
             def sdfg8_nh_p_grad():
                 if not self.namelist.hydrostatic:
                     self.nonhydrostatic_pressure_gradient(
@@ -752,7 +757,7 @@ class AcousticDynamics:
                 )
 
             # sdfg9 (hyperdiffusion)
-            @computepath_function
+            @computepath_function(load_sdfg=sdfg_paths["sdfg9_hyperdiffusion"])
             def sdfg9_hyperdiffusion():
                 cd = constants.CNST_0P20 * self.grid.da_min
                 self._hyperdiffusion(state.heat_source, cd)
