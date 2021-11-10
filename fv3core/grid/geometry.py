@@ -21,8 +21,10 @@ def get_center_vector(
 ):
     """
     Calculates the cartesian unit vectors at the center of each grid cell.
-    vector1 is the horizontal unit vector, while
-    vector2 is the vertical unit vector
+
+    Returns:
+        vector1: the horizontal unit vector
+        vector2: the vertical unit vector
     """
     big_number = 1.0e8
 
@@ -83,8 +85,10 @@ def calc_unit_vector_west(
 ):
     """
     Calculates the cartesian unit vectors at the left/right edges of each grid cell.
-    vector1 is the horizontal unit vector, while
-    vector2 is the vertical unit vector
+
+    Returns:
+        vector1: the horizontal unit vector
+        vector2: the vertical unit vector
 
     """
     ew1 = np.zeros((xyz_dgrid.shape[0], xyz_agrid.shape[1], 3))
@@ -125,8 +129,10 @@ def calc_unit_vector_south(
 ):
     """
     Calculates the cartesian unit vectors at the top/bottom edges of each grid cell.
-    vector1 is the horizontal unit vector, while
-    vector2 is the vertical unit vector
+
+    Returns:
+        vector1: the horizontal unit vector
+        vector2: the vertical unit vector
     """
     es1 = np.zeros((xyz_agrid.shape[0], xyz_dgrid.shape[1], 3))
     es2 = np.zeros((xyz_agrid.shape[0], xyz_dgrid.shape[1], 3))

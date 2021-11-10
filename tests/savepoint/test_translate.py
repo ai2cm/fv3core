@@ -530,7 +530,7 @@ def save_netcdf(
                 attrs=attrs,
             )
         except KeyError as error:
-            print(f"skipping inputs because {error} is not an input field")
+            print(f"No input data found for {error}")
         data_vars[f"{varname}_ref"] = xr.DataArray(
             np.stack(ref_data[varname]), dims=("rank",) + tuple(dims), attrs=attrs
         )

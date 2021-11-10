@@ -403,7 +403,7 @@ class MetricTerms:
     @property
     def cos_sg1(self):
         """
-        Cosine of the angle at point 1 of the 'supergrid' that refines each grid cell:
+        Cosine of the angle at point 1 of the 'supergrid' within each grid cell:
         9---4---8
         |       |
         1   5   3
@@ -417,7 +417,7 @@ class MetricTerms:
     @property
     def cos_sg2(self):
         """
-        Cosine of the angle at point 2 of the 'supergrid' that refines each grid cell:
+        Cosine of the angle at point 2 of the 'supergrid' within each grid cell:
         9---4---8
         |       |
         1   5   3
@@ -431,7 +431,7 @@ class MetricTerms:
     @property
     def cos_sg3(self):
         """
-        Cosine of the angle at point 3 of the 'supergrid' that refines each grid cell:
+        Cosine of the angle at point 3 of the 'supergrid' within each grid cell:
         9---4---8
         |       |
         1   5   3
@@ -445,7 +445,7 @@ class MetricTerms:
     @property
     def cos_sg4(self):
         """
-        Cosine of the angle at point 4 of the 'supergrid' that refines each grid cell:
+        Cosine of the angle at point 4 of the 'supergrid' within each grid cell:
         9---4---8
         |       |
         1   5   3
@@ -459,7 +459,7 @@ class MetricTerms:
     @property
     def cos_sg5(self):
         """
-        Cosine of the angle at point 5 of the 'supergrid' that refines each grid cell:
+        Cosine of the angle at point 5 of the 'supergrid' within each grid cell:
         9---4---8
         |       |
         1   5   3
@@ -474,7 +474,7 @@ class MetricTerms:
     @property
     def cos_sg6(self):
         """
-        Cosine of the angle at point 6 of the 'supergrid' that refines each grid cell:
+        Cosine of the angle at point 6 of the 'supergrid' within each grid cell:
         9---4---8
         |       |
         1   5   3
@@ -488,7 +488,7 @@ class MetricTerms:
     @property
     def cos_sg7(self):
         """
-        Cosine of the angle at point 7 of the 'supergrid' that refines each grid cell:
+        Cosine of the angle at point 7 of the 'supergrid' within each grid cell:
         9---4---8
         |       |
         1   5   3
@@ -502,7 +502,7 @@ class MetricTerms:
     @property
     def cos_sg8(self):
         """
-        Cosine of the angle at point 8 of the 'supergrid' that refines each grid cell:
+        Cosine of the angle at point 8 of the 'supergrid' within each grid cell:
         9---4---8
         |       |
         1   5   3
@@ -516,7 +516,7 @@ class MetricTerms:
     @property
     def cos_sg9(self):
         """
-        Cosine of the angle at point 9 of the 'supergrid' that refines each grid cell:
+        Cosine of the angle at point 9 of the 'supergrid' within each grid cell:
         9---4---8
         |       |
         1   5   3
@@ -530,7 +530,7 @@ class MetricTerms:
     @property
     def sin_sg1(self):
         """
-        Sine of the angle at point 1 of the 'supergrid' that refines each grid cell:
+        Sine of the angle at point 1 of the 'supergrid' within each grid cell:
         9---4---8
         |       |
         1   5   3
@@ -544,7 +544,7 @@ class MetricTerms:
     @property
     def sin_sg2(self):
         """
-        Sine of the angle at point 2 of the 'supergrid' that refines each grid cell:
+        Sine of the angle at point 2 of the 'supergrid' within each grid cell:
         9---4---8
         |       |
         1   5   3
@@ -558,7 +558,7 @@ class MetricTerms:
     @property
     def sin_sg3(self):
         """
-        Sine of the angle at point 3 of the 'supergrid' that refines each grid cell:
+        Sine of the angle at point 3 of the 'supergrid' within each grid cell:
         9---4---8
         |       |
         1   5   3
@@ -572,7 +572,7 @@ class MetricTerms:
     @property
     def sin_sg4(self):
         """
-        Sine of the angle at point 4 of the 'supergrid' that refines each grid cell:
+        Sine of the angle at point 4 of the 'supergrid' within each grid cell:
         9---4---8
         |       |
         1   5   3
@@ -586,7 +586,7 @@ class MetricTerms:
     @property
     def sin_sg5(self):
         """
-        Sine of the angle at point 5 of the 'supergrid' that refines each grid cell:
+        Sine of the angle at point 5 of the 'supergrid' within each grid cell:
         9---4---8
         |       |
         1   5   3
@@ -601,7 +601,7 @@ class MetricTerms:
     @property
     def sin_sg6(self):
         """
-        Sine of the angle at point 6 of the 'supergrid' that refines each grid cell:
+        Sine of the angle at point 6 of the 'supergrid' within each grid cell:
         9---4---8
         |       |
         1   5   3
@@ -615,7 +615,7 @@ class MetricTerms:
     @property
     def sin_sg7(self):
         """
-        Sine of the angle at point 7 of the 'supergrid' that refines each grid cell:
+        Sine of the angle at point 7 of the 'supergrid' within each grid cell:
         9---4---8
         |       |
         1   5   3
@@ -629,7 +629,7 @@ class MetricTerms:
     @property
     def sin_sg8(self):
         """
-        Sine of the angle at point 8 of the 'supergrid' that refines each grid cell:
+        Sine of the angle at point 8 of the 'supergrid' within each grid cell:
         9---4---8
         |       |
         1   5   3
@@ -643,7 +643,7 @@ class MetricTerms:
     @property
     def sin_sg9(self):
         """
-        Sine of the angle at point 9 of the 'supergrid' that refines each grid cell:
+        Sine of the angle at point 9 of the 'supergrid' within each grid cell:
         9---4---8
         |       |
         1   5   3
@@ -658,7 +658,7 @@ class MetricTerms:
     def cosa(self):
         """
         cosine of angle between coordinate lines at the cell corners
-        averahed to ensure consistent answers
+        averaged to ensure consistent answers
         """
         if self._cosa is None:
             self._init_cell_trigonometry()
@@ -721,7 +721,7 @@ class MetricTerms:
     @property
     def rsin_u(self):
         """
-        1/sina_u**2
+        1/sina_u**2,
         defined as the inverse-squrared as it is only used as such
         """
         if self._rsin_u is None:
@@ -731,7 +731,7 @@ class MetricTerms:
     @property
     def rsin_v(self):
         """
-        1/sina_v**2
+        1/sina_v**2,
         defined as the inverse-squrared as it is only used as such
         """
         if self._rsin_v is None:
@@ -741,7 +741,7 @@ class MetricTerms:
     @property
     def rsina(self):
         """
-        1/sina**2
+        1/sina**2,
         defined as the inverse-squrared as it is only used as such
         """
         if self._rsina is None:
@@ -751,7 +751,7 @@ class MetricTerms:
     @property
     def rsin2(self):
         """
-        1/sin_sg5**2
+        1/sin_sg5**2,
         defined as the inverse-squrared as it is only used as such
         """
         if self._rsin2 is None:
@@ -782,7 +782,7 @@ class MetricTerms:
     def es1(self):
         """
         cartesian components of the local unit vetcor
-        in the x-direation at the top/bottom cell edges
+        in the x-direation at the top/bottom cell edges,
         3d array whose last dimension is length 3 and indicates cartesian x/y/z value
         """
         if self._es1 is None:
@@ -793,7 +793,7 @@ class MetricTerms:
     def es2(self):
         """
         cartesian components of the local unit vetcor
-        in the y-direation at the top/bottom cell edges
+        in the y-direation at the top/bottom cell edges,
         3d array whose last dimension is length 3 and indicates cartesian x/y/z value
         """
         if self._es2 is None:
@@ -804,7 +804,7 @@ class MetricTerms:
     def ee1(self):
         """
         cartesian components of the local unit vetcor
-        in the x-direation at the cell corners
+        in the x-direation at the cell corners,
         3d array whose last dimension is length 3 and indicates cartesian x/y/z value
         """
         if self._ee1 is None:
@@ -815,7 +815,7 @@ class MetricTerms:
     def ee2(self):
         """
         cartesian components of the local unit vetcor
-        in the y-direation at the cell corners
+        in the y-direation at the cell corners,
         3d array whose last dimension is length 3 and indicates cartesian x/y/z value
         """
         if self._ee2 is None:
@@ -881,7 +881,7 @@ class MetricTerms:
     @property
     def vlon(self):
         """
-        unit vector in eastward longitude direction
+        unit vector in eastward longitude direction,
         3d array whose last dimension is length 3 and indicates x/y/z value
         """
         if self._vlon is None:
@@ -891,7 +891,7 @@ class MetricTerms:
     @property
     def vlat(self):
         """
-        unit vector in northward latitude direction
+        unit vector in northward latitude direction,
         3d array whose last dimension is length 3 and indicates x/y/z value
         """
         if self._vlat is None:
@@ -1089,7 +1089,7 @@ class MetricTerms:
     @property
     def da_min(self):
         """
-        the minimum agrid cell area across all ranks
+        the minimum agrid cell area across all ranks,
         if mpi is not present and the communicator is a DummyComm this will be
         the minimum on the local rank
         """
@@ -1100,7 +1100,7 @@ class MetricTerms:
     @property
     def da_max(self):
         """
-        the maximum agrid cell area across all ranks
+        the maximum agrid cell area across all ranks,
         if mpi is not present and the communicator is a DummyComm this will be
         the maximum on the local rank
         """
@@ -1111,7 +1111,7 @@ class MetricTerms:
     @property
     def da_min_c(self):
         """
-        the minimum cgrid cell area across all ranks
+        the minimum cgrid cell area across all ranks,
         if mpi is not present and the communicator is a DummyComm this will be
         the minimum on the local rank
         """
@@ -1122,7 +1122,7 @@ class MetricTerms:
     @property
     def da_max_c(self):
         """
-        the maximum cgrid cell area across all ranks
+        the maximum cgrid cell area across all ranks,
         if mpi is not present and the communicator is a DummyComm this will be
         the maximum on the local rank
         """
