@@ -1,26 +1,28 @@
 #!/usr/bin/env python3
 import copy
+import cProfile
+import io
+import pstats
+from pstats import SortKey
 from types import SimpleNamespace
 
 import click
-
 import dace
-
 import numpy as np
-from fv3core.decorators import computepath_function
+import serialbox
+
 import fv3core
 import fv3core._config as spec
 import fv3core.testing
 import fv3core.utils.global_config as global_config
-
 import fv3gfs
-import serialbox
-from fv3core.stencils.dyn_core import AcousticDynamics
-
-from fv3core.utils.global_config import set_dacemode, get_dacemode
-import cProfile, pstats, io
-from pstats import SortKey
 import fv3gfs.util as util
+from fv3core.decorators import computepath_function
+from fv3core.stencils.dyn_core import AcousticDynamics
+from fv3core.utils.global_config import get_dacemode, set_dacemode
+from fv3core.utils.mpi import MPI
+from fv3gfs.util import CubedSphereCommunicator, CubedSpherePartitioner, TilePartitioner
+
 
 def set_up_namelist(data_directory: str) -> None:
     spec.set_namelist(data_directory + "/input.nml")
@@ -34,9 +36,7 @@ def initialize_serializer(data_directory: str, rank: int = 0) -> serialbox.Seria
     )
 
 
-def read_grid(
-    serializer: serialbox.Serializer, rank: int = 0
-) -> fv3core.testing.TranslateGrid:
+def read_grid(serializer: serialbox.Serializer, rank: int = 0) -> fv3core.testing.TranslateGrid:
     grid_savepoint = serializer.get_savepoint("Grid-Info")[0]
     grid_data = {}
     grid_fields = serializer.fields_at_savepoint(grid_savepoint)
@@ -80,35 +80,37 @@ def run(data_directory, halo_update, backend, time_steps, reference_run):
     initialize_fv3core(backend, halo_update)
     grid = read_grid(serializer)
     spec.set_grid(grid)
+    comm = CubedSphereCommunicator(
+        comm=MPI.COMM_WORLD,
+        partitioner=CubedSpherePartitioner(TilePartitioner(spec.namelist.layout)),
+    )
 
     input_data = read_input_data(grid, serializer)
 
-
-
     state = get_state_from_input(grid, input_data)
 
-    acoutstics_object = AcousticDynamics(
-        None,
+    acoustics_object = AcousticDynamics(
+        comm,
         spec.namelist,
         input_data["ak"],
         input_data["bk"],
         input_data["pfull"],
         input_data["phis"],
     )
-    state.__dict__.update(acoutstics_object._temporaries)
+    state.__dict__.update(acoustics_object._temporaries)
 
-    # 
-    @computepath_function
+    @computepath_function(skip_dacemode=True)
     def iterate(state: dace.constant, time_steps):
         # @Linus: make this call a dace program
         for _ in range(time_steps):
-            acoutstics_object(state, insert_temporaries=False)
+            acoustics_object(state, insert_temporaries=False)
 
     if reference_run:
         dacemode = get_dacemode()
         set_dacemode(False)
         iterate(state, 1)
         import time
+
         start = time.time()
         pr = cProfile.Profile()
         pr.enable()
@@ -123,12 +125,13 @@ def run(data_directory, halo_update, backend, time_steps, reference_run):
             ps.print_stats()
             print(s.getvalue())
             set_dacemode(dacemode)
-        print(f"{backend} time:", time.time()-start)
+        print(f"{backend} time:", time.time() - start)
     else:
         pr = cProfile.Profile()
         pr.enable()
         iterate(state, 1)
         import time
+
         start = time.time()
         try:
             iterate(state, time_steps)
@@ -139,9 +142,10 @@ def run(data_directory, halo_update, backend, time_steps, reference_run):
             ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
             ps.print_stats()
             print(s.getvalue())
-            print(f"{backend} time:", time.time()-start)
+            print(f"{backend} time:", time.time() - start)
 
     return state
+
 
 @click.command()
 @click.argument("data_directory", required=True, nargs=1)
@@ -155,6 +159,7 @@ def driver(
     halo_update: bool,
 ):
     import fv3core.utils.global_config as global_config
+
     state = run(
         data_directory,
         halo_update,
