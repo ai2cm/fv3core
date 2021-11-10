@@ -1,3 +1,5 @@
+from collections import namedtuple
+
 import dace
 from gt4py.gtscript import __INLINED, BACKWARD, FORWARD, PARALLEL, computation, interval
 import numpy as np
@@ -23,6 +25,7 @@ from fv3core.stencils.pk3_halo import PK3Halo
 from fv3core.stencils.riem_solver3 import RiemannSolver3
 from fv3core.stencils.riem_solver_c import RiemannSolverC
 from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
+from fv3core.utils.dace_halo_updater import DaceHaloUpdater
 
 
 HUGE_R = 1.0e40
@@ -395,21 +398,20 @@ class AcousticDynamics:
         # shape = state.delz.shape
         # NOTE: In Fortran model the halo update starts happens in fv_dynamics, not here
         if self.do_halo_exchange:
-            reqs = {}
+            updaters = {}
             for halovar in [
                 "q_con_quantity",
                 "cappa_quantity",
                 "delp_quantity",
                 "pt_quantity",
             ]:
-                reqs[halovar] = self.comm.start_halo_update(
-                    state.__getattribute__(halovar), n_points=self.grid.halo
-                )
+                updaters[halovar] = DaceHaloUpdater(state.__getattribute__(halovar), self.comm, self.grid)
+                updaters[halovar].start_halo_update()
             reqs_vector = self.comm.start_vector_halo_update(
                 state.u_quantity, state.v_quantity, n_points=self.grid.halo
             )
-            reqs["q_con_quantity"].wait()
-            reqs["cappa_quantity"].wait()
+            updaters["q_con_quantity"].finish_halo_update()
+            updaters["cappa_quantity"].finish_halo_update()
 
         if insert_temporaries:
             state.__dict__.update(self._temporaries)
@@ -449,9 +451,8 @@ class AcousticDynamics:
                 remap_step = True
             if not self.namelist.hydrostatic:
                 if self.do_halo_exchange:
-                    reqs["w_quantity"] = self.comm.start_halo_update(
-                        state.w_quantity, n_points=self.grid.halo
-                    )
+                    updaters["w_quantity"] = DaceHaloUpdater(state.w_quantity, self.comm, self.grid)
+                    updaters["w_quantity"].start_halo_update()
                 if it == 0:
                     self._set_gz(
                         self._zs,
@@ -459,13 +460,12 @@ class AcousticDynamics:
                         state.gz,
                     )
                     if self.do_halo_exchange:
-                        reqs["gz_quantity"] = self.comm.start_halo_update(
-                            state.gz_quantity, n_points=self.grid.halo
-                        )
+                        updaters["gz_quantity"] = DaceHaloUpdater(state.gz_quantity, self.comm, self.grid)
+                        updaters["gz_quantity"].start_halo_update()
             if it == 0:
                 if self.do_halo_exchange:
-                    reqs["delp_quantity"].wait()
-                    reqs["pt_quantity"].wait()
+                    updaters["delp_quantity"].finish_halo_update()
+                    updaters["pt_quantity"].finish_halo_update()
 
             if it == n_split - 1 and end_step:
                 if self.namelist.use_old_omega:
@@ -477,7 +477,7 @@ class AcousticDynamics:
             if self.do_halo_exchange:
                 reqs_vector.wait()
                 if not self.namelist.hydrostatic:
-                    reqs["w_quantity"].wait()
+                    updaters["w_quantity"].finish_halo_update()
 
             # compute the c-grid winds at t + 1/2 timestep
             delpc, ptc = self.cgrid_shallow_water_lagrangian_dynamics(
@@ -498,13 +498,14 @@ class AcousticDynamics:
             )
 
             if self.namelist.nord > 0 and self.do_halo_exchange:
-                reqs["divgd_quantity"] = self.comm.start_halo_update(
-                    state.divgd_quantity, n_points=self.grid.halo
+                updaters["divgd_quantity"] = DaceHaloUpdater(
+                    state.divgd_quantity, self.comm, self.grid
                 )
+                updaters["divgd_quantity"].start_halo_update()
             if not self.namelist.hydrostatic:
                 if it == 0:
                     if self.do_halo_exchange:
-                        reqs["gz_quantity"].wait()
+                        updaters["gz_quantity"].finish_halo_update()
                     self._copy_stencil(
                         state.gz,
                         state.zh,
@@ -547,7 +548,7 @@ class AcousticDynamics:
                     state.uc_quantity, state.vc_quantity, n_points=self.grid.halo
                 )
                 if self.namelist.nord > 0:
-                    reqs["divgd_quantity"].wait()
+                    updaters["divgd_quantity"].finish_halo_update()
                 req_vector_c_grid.wait()
             # use the computed c-grid winds to evolve the d-grid winds forward
             # by 1 timestep
@@ -623,17 +624,20 @@ class AcousticDynamics:
                 )
 
                 if self.do_halo_exchange:
-                    reqs["zh_quantity"] = self.comm.start_halo_update(
-                        state.zh_quantity, n_points=self.grid.halo
+                    updaters["zh_quantity"] = DaceHaloUpdater(
+                        state.zh_quantity, self.comm, self.grid
                     )
+                    updaters["zh_quantity"].start_halo_update()
                     if self.grid.npx == self.grid.npy:
-                        reqs["pkc_quantity"] = self.comm.start_halo_update(
-                            state.pkc_quantity, n_points=2
+                        updaters["pkc_quantity"] = DaceHaloUpdater(
+                            state.pkc_quantity, self.comm, namedtuple("grid", ("halo", ))(2)
                         )
+                        updaters["pkc_quantity"].start_halo_update()
                     else:
-                        reqs["pkc_quantity"] = self.comm.start_halo_update(
-                            state.pkc_quantity, n_points=self.grid.halo
+                        updaters["pkc_quantity"] = DaceHaloUpdater(
+                            state.pkc_quantity, self.comm, self.grid
                         )
+                        updaters["pkc_quantity"].start_halo_update()
                 if remap_step:
                     self._edge_pe_west_stencil(state.pe, state.delp, state.ptop)
                     self._edge_pe_east_stencil(state.pe, state.delp, state.ptop)
@@ -647,15 +651,15 @@ class AcousticDynamics:
                     self._pk3_halo(state.pk3, state.delp, state.ptop, akap)
             if not self.namelist.hydrostatic:
                 if self.do_halo_exchange:
-                    reqs["zh_quantity"].wait()
+                    updaters["zh_quantity"].finish_halo_update()
                     if self.grid.npx != self.grid.npy:
-                        reqs["pkc_quantity"].wait()
+                        updaters["pkc_quantity"].finish_halo_update()
                 self._compute_geopotential_stencil(
                     state.zh,
                     state.gz,
                 )
                 if self.grid.npx == self.grid.npy and self.do_halo_exchange:
-                    reqs["pkc_quantity"].wait()
+                    updaters["pkc_quantity"].finish_halo_update()
 
                 self.nonhydrostatic_pressure_gradient(
                     state.u,
