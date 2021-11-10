@@ -1,4 +1,3 @@
-import dace
 from gt4py.gtscript import FORWARD, computation, interval
 
 import fv3core.utils.gt4py_utils as utils

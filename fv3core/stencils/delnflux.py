@@ -1,6 +1,5 @@
 from typing import Optional
 
-import dace
 import gt4py.gtscript as gtscript
 import numpy as np
 from gt4py.gtscript import FORWARD, PARALLEL, computation, interval

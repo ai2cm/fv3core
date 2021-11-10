@@ -40,7 +40,7 @@ def get_selective_class(
                     for start, n in zip(variable_origin, variable_domain)
                 )
 
-            if hasattr(self.wrapped.__call__, 'lazy_method'):
+            if hasattr(self.wrapped.__call__, "lazy_method"):
                 self._all_argument_names = tuple(
                     self.wrapped.__call__.lazy_method.argspec.args[1:]
                 )

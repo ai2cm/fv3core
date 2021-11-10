@@ -3,12 +3,7 @@ from types import SimpleNamespace
 import click
 import dace
 import numpy as np
-
 import serialbox
-from fv3gfs.util import CubedSphereCommunicator, CubedSpherePartitioner, TilePartitioner
-from fv3gfs.util import QuantityHaloSpec
-from fv3gfs.util import constants
-from fv3gfs.util.halo_data_transformer import HaloExchangeSpec
 
 import fv3core
 import fv3core._config as spec
@@ -16,6 +11,14 @@ import fv3core.testing
 import fv3core.utils.global_config as global_config
 from fv3core.decorators import computepath_function, computepath_method
 from fv3core.utils.mpi import MPI
+from fv3gfs.util import (
+    CubedSphereCommunicator,
+    CubedSpherePartitioner,
+    QuantityHaloSpec,
+    TilePartitioner,
+    constants,
+)
+from fv3gfs.util.halo_data_transformer import HaloExchangeSpec
 
 
 MPI_Request = dace.opaque("MPI_Request")
@@ -301,7 +304,6 @@ class DaceHaloUpdater:
         self.receive_slices[self.rank_3][:] = np.reshape(
             self.receive_buffers[self.rank_3], self.receive_slices[self.rank_3].shape
         )
-
 
     @computepath_method(use_dace=True)
     def do_halo_exchange(self):

@@ -1,11 +1,9 @@
 import dace
 import numpy as np
 
-from fv3gfs.util import QuantityHaloSpec
-from fv3gfs.util import constants
-from fv3gfs.util.halo_data_transformer import HaloExchangeSpec
-
 from fv3core.decorators import computepath_function, computepath_method
+from fv3gfs.util import QuantityHaloSpec, constants
+from fv3gfs.util.halo_data_transformer import HaloExchangeSpec
 
 
 MPI_Request = dace.opaque("MPI_Request")
@@ -231,7 +229,6 @@ class DaceHaloUpdater:
         self.receive_slices[self.rank_3][:] = np.reshape(
             self.receive_buffers[self.rank_3], self.receive_slices[self.rank_3].shape
         )
-
 
     @computepath_method(use_dace=True)
     def do_halo_update(self):

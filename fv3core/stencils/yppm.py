@@ -4,8 +4,9 @@ from gt4py.gtscript import PARALLEL, computation, interval
 import fv3core._config as spec
 import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import FrozenStencil, computepath_method
-from fv3core.utils.typing import FloatField, FloatFieldIJ
 from fv3core.stencils.basic_operations import sign
+from fv3core.utils.typing import FloatField, FloatFieldIJ
+
 
 input_vars = ["q", "c"]
 inputs_params = ["jord", "ifirst", "ilast"]
@@ -67,6 +68,7 @@ def get_flux(q: FloatField, courant: FloatField, al: FloatField):
     fx1 = fx1_fn(courant, br, b0, bl)
     return final_flux(courant, q, fx1, tmp)
 
+
 @gtscript.function
 def xt_dya_edge_0_base(q, dya):
     return 0.5 * (
@@ -74,13 +76,12 @@ def xt_dya_edge_0_base(q, dya):
         + ((2.0 * dya[0, 1] + dya[0, 2]) * q[0, 1, 0] - dya[0, 1] * q[0, 2, 0])
         / (dya[0, 1] + dya[0, 2])
     )
+
+
 @gtscript.function
 def xt_dya_edge_1_base(q, dya):
     return 0.5 * (
-        (
-            (2.0 * dya[0, -1] + dya[0, -2]) * q[0, -1, 0]
-            - dya[0, -1] * q[0, -2, 0]
-        )
+        ((2.0 * dya[0, -1] + dya[0, -2]) * q[0, -1, 0] - dya[0, -1] * q[0, -2, 0])
         / (dya[0, -2] + dya[0, -1])
         + ((2.0 * dya + dya[0, 1]) * q - dya * q[0, 1, 0]) / (dya + dya[0, 1])
     )
@@ -104,7 +105,6 @@ def xt_dya_edge_1(q, dya, xt_minmax):
         maxq = max(max(max(q[0, -2, 0], q[0, -1, 0]), q), q[0, 1, 0])
         xt = min(max(xt, minq), maxq)
     return xt
-
 
 
 @gtscript.function
@@ -148,11 +148,15 @@ def compute_y_flux(
     with computation(PARALLEL), interval(...):
         yflux = get_flux(q, courant, al)
 
-def finalflux_ord8plus(q: FloatField, c: FloatField, bl: FloatField, br: FloatField, flux: FloatField):
+
+def finalflux_ord8plus(
+    q: FloatField, c: FloatField, bl: FloatField, br: FloatField, flux: FloatField
+):
     with computation(PARALLEL), interval(...):
         b0 = get_b0(bl, br)
         fx1 = fx1_fn(c, br, b0, bl)
         flux = q[0, -1, 0] + fx1 if c > 0.0 else q + fx1
+
 
 def dm_jord8plus(q: FloatField, al: FloatField, dm: FloatField):
     with computation(PARALLEL), interval(...):
@@ -161,11 +165,15 @@ def dm_jord8plus(q: FloatField, al: FloatField, dm: FloatField):
         dql = q - min(min(q, q[0, -1, 0]), q[0, 1, 0])
         dm = sign(min(min(abs(xt), dqr), dql), xt)
 
+
 def al_jord8plus(q: FloatField, al: FloatField, dm: FloatField, r3: float):
     with computation(PARALLEL), interval(...):
         al = 0.5 * (q[0, -1, 0] + q) + r3 * (dm[0, -1, 0] - dm)
 
-def blbr_jord8(q: FloatField, al: FloatField, bl: FloatField, br: FloatField, dm: FloatField):
+
+def blbr_jord8(
+    q: FloatField, al: FloatField, bl: FloatField, br: FloatField, dm: FloatField
+):
     with computation(PARALLEL), interval(...):
         xt = 2.0 * dm
         aldiff = al - q
@@ -173,15 +181,29 @@ def blbr_jord8(q: FloatField, al: FloatField, bl: FloatField, br: FloatField, dm
         bl = -1.0 * sign(min(abs(xt), abs(aldiff)), xt)
         br = sign(min(abs(xt), abs(aldiffj)), xt)
 
-def south_edge_jord8plus_0(q: FloatField, dya: FloatFieldIJ, dm: FloatField, bl: FloatField, br: FloatField, xt_minmax: bool):
+
+def south_edge_jord8plus_0(
+    q: FloatField,
+    dya: FloatFieldIJ,
+    dm: FloatField,
+    bl: FloatField,
+    br: FloatField,
+    xt_minmax: bool,
+):
     with computation(PARALLEL), interval(...):
         bl = s14 * dm[0, -1, 0] + s11 * (q[0, -1, 0] - q)
         xt = xt_dya_edge_0(q, dya, xt_minmax)
         br = xt - q
 
 
-
-def south_edge_jord8plus_1(q: FloatField, dya: FloatFieldIJ, dm: FloatField, bl: FloatField, br: FloatField, xt_minmax: bool):
+def south_edge_jord8plus_1(
+    q: FloatField,
+    dya: FloatFieldIJ,
+    dm: FloatField,
+    bl: FloatField,
+    br: FloatField,
+    xt_minmax: bool,
+):
     with computation(PARALLEL), interval(...):
         xt = xt_dya_edge_1(q, dya, xt_minmax)
         bl = xt - q
@@ -189,24 +211,42 @@ def south_edge_jord8plus_1(q: FloatField, dya: FloatFieldIJ, dm: FloatField, bl:
         br = xt - q
 
 
-
-def south_edge_jord8plus_2(q: FloatField, dya: FloatFieldIJ, dm: FloatField, al: FloatField, bl: FloatField, br: FloatField):
+def south_edge_jord8plus_2(
+    q: FloatField,
+    dya: FloatFieldIJ,
+    dm: FloatField,
+    al: FloatField,
+    bl: FloatField,
+    br: FloatField,
+):
     with computation(PARALLEL), interval(...):
         xt = s15 * q[0, -1, 0] + s11 * q - s14 * dm
         bl = xt - q
         br = al[0, 1, 0] - q
 
 
-
-def north_edge_jord8plus_0(q: FloatField, dya: FloatFieldIJ, dm: FloatField, al: FloatField, bl: FloatField, br: FloatField):
+def north_edge_jord8plus_0(
+    q: FloatField,
+    dya: FloatFieldIJ,
+    dm: FloatField,
+    al: FloatField,
+    bl: FloatField,
+    br: FloatField,
+):
     with computation(PARALLEL), interval(...):
         bl = al - q
         xt = s15 * q[0, 1, 0] + s11 * q + s14 * dm
         br = xt - q
 
 
-
-def north_edge_jord8plus_1(q: FloatField, dya: FloatFieldIJ, dm: FloatField, bl: FloatField, br: FloatField, xt_minmax: bool):
+def north_edge_jord8plus_1(
+    q: FloatField,
+    dya: FloatFieldIJ,
+    dm: FloatField,
+    bl: FloatField,
+    br: FloatField,
+    xt_minmax: bool,
+):
     with computation(PARALLEL), interval(...):
         xt = s15 * q + s11 * q[0, -1, 0] + s14 * dm[0, -1, 0]
         bl = xt - q
@@ -214,13 +254,18 @@ def north_edge_jord8plus_1(q: FloatField, dya: FloatFieldIJ, dm: FloatField, bl:
         br = xt - q
 
 
-
-def north_edge_jord8plus_2(q: FloatField, dya: FloatFieldIJ, dm: FloatField, bl: FloatField, br: FloatField, xt_minmax: bool):
+def north_edge_jord8plus_2(
+    q: FloatField,
+    dya: FloatFieldIJ,
+    dm: FloatField,
+    bl: FloatField,
+    br: FloatField,
+    xt_minmax: bool,
+):
     with computation(PARALLEL), interval(...):
         xt = xt_dya_edge_1(q, dya, xt_minmax)
         bl = xt - q
         br = s11 * (q[0, 1, 0] - q) - s14 * dm[0, 1, 0]
-
 
 
 def pert_ppm_standard_constraint(a0: FloatField, al: FloatField, ar: FloatField):
@@ -240,6 +285,7 @@ def pert_ppm_standard_constraint(a0: FloatField, al: FloatField, ar: FloatField)
             # effect of dm=0 included here
             al = 0.0
             ar = 0.0
+
 
 class YPiecewiseParabolic:
     """
@@ -313,10 +359,13 @@ class YPiecewiseParabolic:
             di = ilast - ifirst + 1
             self._dm_jord8plus_stencil = FrozenStencil(
                 dm_jord8plus,
-                origin=(ifirst, self.grid.js - 2, 0), domain=(di, self.grid.njc + 4, self.grid.npz + 1)
+                origin=(ifirst, self.grid.js - 2, 0),
+                domain=(di, self.grid.njc + 4, self.grid.npz + 1),
             )
             self._al_jord8plus_stencil = FrozenStencil(
-                 al_jord8plus, origin=(ifirst, js1, 0), domain=(di, je1 - js1 + 2, self.grid.npz + 1)
+                al_jord8plus,
+                origin=(ifirst, js1, 0),
+                domain=(di, je1 - js1 + 2, self.grid.npz + 1),
             )
             self._blbr_jord8_stencil = FrozenStencil(
                 blbr_jord8,
@@ -338,12 +387,13 @@ class YPiecewiseParabolic:
                 )
                 self._south_edge_jord8plus_2_stencil = FrozenStencil(
                     south_edge_jord8plus_2,
-                    origin=(ifirst, self.grid.js+1, 0),
+                    origin=(ifirst, self.grid.js + 1, 0),
                     domain=x_edge_domain,
                 )
                 self._pert_ppm_south_stencil = FrozenStencil(
                     pert_ppm_standard_constraint,
-                    origin=(ifirst, self.grid.js - 1, 0), domain=(di, 3, self.grid.npz+1)
+                    origin=(ifirst, self.grid.js - 1, 0),
+                    domain=(di, 3, self.grid.npz + 1),
                 )
 
             if self.grid.north_edge:
@@ -364,15 +414,15 @@ class YPiecewiseParabolic:
                 )
                 self._pert_ppm_north_stencil = FrozenStencil(
                     pert_ppm_standard_constraint,
-                   origin=(ifirst, self.grid.je - 1, 0), domain=(di, 3, self.grid.npz+1)
+                    origin=(ifirst, self.grid.je - 1, 0),
+                    domain=(di, 3, self.grid.npz + 1),
                 )
 
-            self._finalflux_ord8plus_stencil =  FrozenStencil(
+            self._finalflux_ord8plus_stencil = FrozenStencil(
                 finalflux_ord8plus,
                 origin=flux_origin,
                 domain=flux_domain,
             )
-
 
     @computepath_method
     def compute_al(self, q):
@@ -444,7 +494,7 @@ class YPiecewiseParabolic:
                 self._bl,
                 self._br,
                 self._do_xt_minmax,
-                )
+            )
 
             self._pert_ppm_north_stencil(q, self._bl, self._br)
 

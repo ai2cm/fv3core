@@ -40,8 +40,10 @@ class TranslateC_SW(TranslateFortranData2Py):
     def compute(self, inputs):
         self.make_storage_data_input_vars(inputs)
         delpc, ptc = self.compute_func(**inputs)
-        #return self.slice_output(inputs, {"delpcd": delpc, "ptcd": ptc})
-        return self.slice_output(inputs, {"delpcd": self.compute_func.delpc, "ptcd": self.compute_func.ptc})
+        # return self.slice_output(inputs, {"delpcd": delpc, "ptcd": ptc})
+        return self.slice_output(
+            inputs, {"delpcd": self.compute_func.delpc, "ptcd": self.compute_func.ptc}
+        )
 
 
 class TranslateDivergenceCorner(TranslateFortranData2Py):

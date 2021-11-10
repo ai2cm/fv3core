@@ -2,7 +2,6 @@ from collections import namedtuple
 
 import dace
 from gt4py.gtscript import __INLINED, BACKWARD, FORWARD, PARALLEL, computation, interval
-import numpy as np
 
 import fv3core._config as spec
 import fv3core.stencils.basic_operations as basic
@@ -24,8 +23,8 @@ from fv3core.stencils.del2cubed import HyperdiffusionDamping
 from fv3core.stencils.pk3_halo import PK3Halo
 from fv3core.stencils.riem_solver3 import RiemannSolver3
 from fv3core.stencils.riem_solver_c import RiemannSolverC
-from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
 from fv3core.utils.dace_halo_updater import DaceHaloUpdater
+from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
 
 
 HUGE_R = 1.0e40
@@ -405,7 +404,9 @@ class AcousticDynamics:
                 "delp_quantity",
                 "pt_quantity",
             ]:
-                updaters[halovar] = DaceHaloUpdater(state.__getattribute__(halovar), self.comm, self.grid)
+                updaters[halovar] = DaceHaloUpdater(
+                    state.__getattribute__(halovar), self.comm, self.grid
+                )
                 updaters[halovar].start_halo_update()
             reqs_vector = self.comm.start_vector_halo_update(
                 state.u_quantity, state.v_quantity, n_points=self.grid.halo
@@ -451,7 +452,9 @@ class AcousticDynamics:
                 remap_step = True
             if not self.namelist.hydrostatic:
                 if self.do_halo_exchange:
-                    updaters["w_quantity"] = DaceHaloUpdater(state.w_quantity, self.comm, self.grid)
+                    updaters["w_quantity"] = DaceHaloUpdater(
+                        state.w_quantity, self.comm, self.grid
+                    )
                     updaters["w_quantity"].start_halo_update()
                 if it == 0:
                     self._set_gz(
@@ -460,7 +463,9 @@ class AcousticDynamics:
                         state.gz,
                     )
                     if self.do_halo_exchange:
-                        updaters["gz_quantity"] = DaceHaloUpdater(state.gz_quantity, self.comm, self.grid)
+                        updaters["gz_quantity"] = DaceHaloUpdater(
+                            state.gz_quantity, self.comm, self.grid
+                        )
                         updaters["gz_quantity"].start_halo_update()
             if it == 0:
                 if self.do_halo_exchange:
@@ -630,7 +635,9 @@ class AcousticDynamics:
                     updaters["zh_quantity"].start_halo_update()
                     if self.grid.npx == self.grid.npy:
                         updaters["pkc_quantity"] = DaceHaloUpdater(
-                            state.pkc_quantity, self.comm, namedtuple("grid", ("halo", ))(2)
+                            state.pkc_quantity,
+                            self.comm,
+                            namedtuple("grid", ("halo",))(2),
                         )
                         updaters["pkc_quantity"].start_halo_update()
                     else:

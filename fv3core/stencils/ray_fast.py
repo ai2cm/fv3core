@@ -1,4 +1,3 @@
-import dace
 import gt4py.gtscript as gtscript
 from gt4py.gtscript import (
     __INLINED,

@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-import copy
 import cProfile
 import io
 import pstats
@@ -16,7 +15,6 @@ import fv3core._config as spec
 import fv3core.testing
 import fv3core.utils.global_config as global_config
 import fv3gfs
-import fv3gfs.util as util
 from fv3core.decorators import computepath_function
 from fv3core.stencils.dyn_core import AcousticDynamics
 from fv3core.utils.global_config import get_dacemode, set_dacemode
@@ -36,7 +34,9 @@ def initialize_serializer(data_directory: str, rank: int = 0) -> serialbox.Seria
     )
 
 
-def read_grid(serializer: serialbox.Serializer, rank: int = 0) -> fv3core.testing.TranslateGrid:
+def read_grid(
+    serializer: serialbox.Serializer, rank: int = 0
+) -> fv3core.testing.TranslateGrid:
     grid_savepoint = serializer.get_savepoint("Grid-Info")[0]
     grid_data = {}
     grid_fields = serializer.fields_at_savepoint(grid_savepoint)
@@ -158,8 +158,6 @@ def driver(
     backend: str,
     halo_update: bool,
 ):
-    import fv3core.utils.global_config as global_config
-
     state = run(
         data_directory,
         halo_update,

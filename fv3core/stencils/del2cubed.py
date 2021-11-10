@@ -51,7 +51,7 @@ def corner_fill(grid: dace.constant, q):
         q[grid.ie, grid.js, :] += q[grid.ie, grid.js - 1, :]
         q[grid.ie, grid.js, :] *= r3
         q[grid.ie + 1, grid.js, :] = q[grid.ie, grid.js, :]
-        for k in dace.map[0:grid.npz]:
+        for k in dace.map[0 : grid.npz]:
             q[grid.ie, grid.js - 1, k] = q[grid.ie, grid.js, k]
 
     if grid.ne_corner:
@@ -65,7 +65,7 @@ def corner_fill(grid: dace.constant, q):
         q[grid.is_, grid.je, :] += q[grid.is_ - 1, grid.je, :]
         q[grid.is_, grid.je, :] += q[grid.is_, grid.je + 1, :]
         q[grid.is_, grid.je, :] *= r3
-        for k in dace.map[0:grid.npz]:
+        for k in dace.map[0 : grid.npz]:
             q[grid.is_ - 1, grid.je, k] = q[grid.is_, grid.je, k]
 
         q[grid.is_, grid.je + 1, :] = q[grid.is_, grid.je, :]

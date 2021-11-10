@@ -1,6 +1,5 @@
 import typing
 
-import dace
 from gt4py.gtscript import BACKWARD, FORWARD, PARALLEL, computation, exp, interval, log
 
 import fv3core.utils.global_constants as constants

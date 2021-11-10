@@ -36,7 +36,9 @@ class TranslateHaloUpdate(ParallelTranslate):
 
     def compute_parallel(self, inputs, communicator):
         state = self.state_from_inputs(inputs)
-        updater = DaceHaloUpdater(state[self.halo_update_varname], communicator, self.grid)
+        updater = DaceHaloUpdater(
+            state[self.halo_update_varname], communicator, self.grid
+        )
         updater.start_halo_update()
         updater.finish_halo_update()
         return self.outputs_from_state(state)
@@ -46,7 +48,9 @@ class TranslateHaloUpdate(ParallelTranslate):
         updaters = []
         for state, communicator in zip(state_list, communicator_list):
             logger.debug(f"starting on {communicator.rank}")
-            updater = DaceHaloUpdater(state[self.halo_update_varname], communicator, self.grid)
+            updater = DaceHaloUpdater(
+                state[self.halo_update_varname], communicator, self.grid
+            )
             updaters.append(updater)
             updater.start_halo_update()
 
