@@ -8,6 +8,7 @@ from gt4py import gtscript
 import fv3core.utils.global_config as global_config
 import fv3gfs.util
 from fv3gfs.util.halo_data_transformer import QuantityHaloSpec
+from fv3core.grid inmport MetricTerms
 
 from . import gt4py_utils as utils
 from .stencil import GridIndexing, StencilConfig, StencilFactory
@@ -517,18 +518,15 @@ class VerticalGridData:
     ak: Optional[Any] = None
     bk: Optional[Any] = None
     p_ref: Optional[Any] = None
+    ptop: float
+    ks: : int
     """
     reference pressure (Pa) used to define pressure at vertical interfaces,
     where p = ak + bk * p_ref
+    ptop is the top of the atmosphere and ks is the lowest index (highest layer) for 
+    which rayleigh friction
+  
     """
-
-    # TODO: refactor so we can init with this,
-    # instead of taking it as an argument to DynamicalCore
-    # we'll need to initialize this class for the physics
-    @property
-    def ptop(self) -> float:
-        """pressure at top of atmosphere"""
-        raise NotImplementedError()
 
 
 @dataclasses.dataclass(frozen=True)
@@ -594,7 +592,36 @@ class GridData:
         self._vertical_data = vertical_data
         self._contravariant_data = contravariant_data
         self._angle_data = angle_data
-
+    
+    @classmethod
+    def new_from_metric_terms(cls, metric_terms: MetricTerms):
+        horizontal_data =  HorizontalGridData(
+            area=metric_terms.area,
+            area_64=metric_terms.area,
+            rarea=metric_terms.rarea,
+            rarea_c=metric_terms.rarea_c,
+            dx=metric_terms.dx,
+            dy=metric_terms.dy,
+            dxc=metric_terms.dxc,
+            dyc=metric_terms.dyc,
+            dxa=metric_terms.dxa,
+            dya=metric_terms.dya,
+            rdx=metric_terms.rdx,
+            rdy=metric_terms.rdy,
+            rdxc=metric_terms.rdxc,
+            rdyc=metric_terms.rdyc,
+            rdxa=metric_terms.rdxa,
+            rdya=metric_terms.rdya,)
+        vertical_data =  VerticalGridData(
+            ak: Optional[Any] = None
+            bk: Optional[Any] = None
+            p_ref: Optional[Any] = None
+            ptop=metric_terms.ptop
+            ks=metric_terms.ks)
+        contravariant_data =  ContravariantGridData()
+        angle_data = AngleGridData()
+        return cls(horizontal_data, vertical_data, contravariant, angle_data)
+    
     @property
     def lon(self):
         """longitude"""
