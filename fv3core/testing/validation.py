@@ -40,9 +40,14 @@ def get_selective_class(
                     for start, n in zip(variable_origin, variable_domain)
                 )
 
-            self._all_argument_names = tuple(
-                inspect.getfullargspec(self.wrapped).args[1:]
-            )
+            if hasattr(self.wrapped.__call__, 'lazy_method'):
+                self._all_argument_names = tuple(
+                    self.wrapped.__call__.lazy_method.argspec.args[1:]
+                )
+            else:
+                self._all_argument_names = tuple(
+                    inspect.getfullargspec(self.wrapped).args[1:]
+                )
             assert "self" not in self._all_argument_names
 
         def __call__(self, *args, **kwargs):
