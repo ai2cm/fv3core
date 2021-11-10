@@ -1,4 +1,5 @@
-from ..utils.global_constants import PI, RADIUS, RIGHT_HAND_GRID
+from ..utils.global_constants import PI, RADIUS
+from ..utils.grid import RIGHT_HAND_GRID
 
 
 __all__ = ["mirror_grid"]

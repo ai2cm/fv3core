@@ -7,13 +7,8 @@ from fv3core.utils.corners import (
     fill_corners_cgrid,
     fill_corners_dgrid,
 )
-from fv3core.utils.global_constants import (
-    CARTESIAN_DIM,
-    LON_OR_LAT_DIM,
-    PI,
-    RADIUS,
-    TILE_DIM,
-)
+from fv3core.utils.global_constants import PI, RADIUS
+from fv3core.utils.grid import CARTESIAN_DIM, LON_OR_LAT_DIM, TILE_DIM
 from fv3core.utils.gt4py_utils import asarray
 from fv3core.utils.stencil import GridIndexing
 from fv3gfs.util.constants import N_HALO_DEFAULT

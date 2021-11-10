@@ -10,9 +10,17 @@ import fv3gfs.util
 from fv3gfs.util.halo_data_transformer import QuantityHaloSpec
 
 from . import gt4py_utils as utils
-from .global_constants import CARTESIAN_DIM, LON_OR_LAT_DIM, TILE_DIM
 from .stencil import GridIndexing, StencilConfig, StencilFactory
 from .typing import FloatFieldIJ
+
+
+# grid constants
+# TODO: move these into the fv3core.grid namespace
+LON_OR_LAT_DIM = "lon_or_lat"
+TILE_DIM = "tile"
+CARTESIAN_DIM = "xyz_direction"
+N_TILES = 6
+RIGHT_HAND_GRID = False
 
 
 class Grid:
