@@ -67,7 +67,13 @@ def get_state_from_input(grid, input_data):
     return statevars
 
 
-def run(data_directory, halo_update, backend, time_steps, reference_run):
+def run(
+    data_directory: str,
+    halo_update: bool,
+    backend: str,
+    time_steps: int,
+    sdfg_path: str,
+):
     set_up_namelist(data_directory)
     serializer = initialize_serializer(data_directory)
     initialize_fv3core(backend, halo_update)
@@ -89,14 +95,13 @@ def run(data_directory, halo_update, backend, time_steps, reference_run):
 
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
+    if sdfg_path != "":
+        if MPI.COMM_WORLD.Get_size() > 1:
+            sdfg_path = f"{sdfg_path}{str(rank)}/dacecache/iterate"
+        else:
+            sdfg_path = f"{sdfg_path}/dacecache/iterate"
 
-    sdfg_path = (
-        "/scratch/snx3000/tobwi/sbox/dace_tests/c128experiment/.gt_cache_00000"
-        + str(rank)
-        + "/dacecache/iterate"
-    )
-
-    @computepath_function  # (load_sdfg=sdfg_path)
+    @computepath_function(load_sdfg=sdfg_path)
     def iterate(state: dace.constant, time_steps):
         for _ in range(time_steps):
             acoutstics_object(state, insert_temporaries=False)
@@ -108,9 +113,11 @@ def run(data_directory, halo_update, backend, time_steps, reference_run):
     try:
         iterate(state, time_steps)
     finally:
+        elapsed = time.time() - start
+        per_timestep = elapsed / time_steps
         print(
-            f"Total {backend} time on rank {rank} for {time_steps} steps:",
-            time.time() - start,
+            f"Total {backend} time on rank {rank} for {time_steps} steps: "
+            f"{elapsed}s ({per_timestep}s /timestep)"
         )
 
     comm.Barrier()
@@ -122,11 +129,13 @@ def run(data_directory, halo_update, backend, time_steps, reference_run):
 @click.argument("time_steps", required=False, default=1, type=int)
 @click.argument("backend", required=False, default="gtc:gt:cpu_ifirst")
 @click.option("--halo_update/--no-halo_update", default=False)
+@click.argument("sdfg_path", required=False, default="")
 def driver(
     data_directory: str,
-    time_steps: str,
+    time_steps: int,
     backend: str,
     halo_update: bool,
+    sdfg_path: str,
 ):
 
     state = run(
@@ -134,7 +143,7 @@ def driver(
         halo_update,
         time_steps=time_steps,
         backend=backend,
-        reference_run=not get_dacemode(),
+        sdfg_path=sdfg_path,
     )
 
 
