@@ -8,20 +8,14 @@ from gt4py import gtscript
 import fv3core.utils.global_config as global_config
 import fv3gfs.util
 from fv3gfs.util.halo_data_transformer import QuantityHaloSpec
-from fv3core.grid inmport MetricTerms
+from fv3core.grid import MetricTerms
 
 from . import gt4py_utils as utils
 from .stencil import GridIndexing, StencilConfig, StencilFactory
 from .typing import FloatFieldIJ
+from fv3core.utils.global_constants import LON_OR_LAT_DIM, TILE_DIM, CARTESIAN_DIM
 
 
-# grid constants
-# TODO: move these into the fv3core.grid namespace
-LON_OR_LAT_DIM = "lon_or_lat"
-TILE_DIM = "tile"
-CARTESIAN_DIM = "xyz_direction"
-N_TILES = 6
-RIGHT_HAND_GRID = False
 
 
 class Grid:
@@ -441,7 +435,7 @@ class Grid:
             rdxa=self.rdxa,
             rdya=self.rdya,
         )
-        vertical = VerticalGridData()
+        vertical = VerticalGridData(ptop=300.0, ks=18)
         contravariant = ContravariantGridData(
             self.cosa,
             self.cosa_u,
@@ -515,11 +509,11 @@ class VerticalGridData:
     """
 
     # TODO: make these non-optional, make FloatFieldK a true type and use it
+    ptop: float
+    ks: int
     ak: Optional[Any] = None
     bk: Optional[Any] = None
     p_ref: Optional[Any] = None
-    ptop: float
-    ks: : int
     """
     reference pressure (Pa) used to define pressure at vertical interfaces,
     where p = ak + bk * p_ref
@@ -596,31 +590,49 @@ class GridData:
     @classmethod
     def new_from_metric_terms(cls, metric_terms: MetricTerms):
         horizontal_data =  HorizontalGridData(
-            area=metric_terms.area,
-            area_64=metric_terms.area,
-            rarea=metric_terms.rarea,
-            rarea_c=metric_terms.rarea_c,
-            dx=metric_terms.dx,
-            dy=metric_terms.dy,
-            dxc=metric_terms.dxc,
-            dyc=metric_terms.dyc,
-            dxa=metric_terms.dxa,
-            dya=metric_terms.dya,
-            rdx=metric_terms.rdx,
-            rdy=metric_terms.rdy,
-            rdxc=metric_terms.rdxc,
-            rdyc=metric_terms.rdyc,
-            rdxa=metric_terms.rdxa,
-            rdya=metric_terms.rdya,)
+            area=metric_terms.area.storage,
+            area_64=metric_terms.area.storage,
+            rarea=metric_terms.rarea.storage,
+            rarea_c=metric_terms.rarea_c.storage,
+            dx=metric_terms.dx.storage,
+            dy=metric_terms.dy.storage,
+            dxc=metric_terms.dxc.storage,
+            dyc=metric_terms.dyc.storage,
+            dxa=metric_terms.dxa.storage,
+            dya=metric_terms.dya.storage,
+            rdx=metric_terms.rdx.storage,
+            rdy=metric_terms.rdy.storage,
+            rdxc=metric_terms.rdxc.storage,
+            rdyc=metric_terms.rdyc.storage,
+            rdxa=metric_terms.rdxa.storage,
+            rdya=metric_terms.rdya.storage,)
         vertical_data =  VerticalGridData(
-            ak: Optional[Any] = None
-            bk: Optional[Any] = None
-            p_ref: Optional[Any] = None
-            ptop=metric_terms.ptop
+            ak=metric_terms.ak.storage,
+            bk=metric_terms.bk.storage,
+            ptop=metric_terms.ptop,
             ks=metric_terms.ks)
-        contravariant_data =  ContravariantGridData()
-        angle_data = AngleGridData()
-        return cls(horizontal_data, vertical_data, contravariant, angle_data)
+        contravariant_data =  ContravariantGridData(
+            cosa=metric_terms.cosa.storage,
+            cosa_u=metric_terms.cosa_u.storage,
+            cosa_v=metric_terms.cosa_v.storage,
+            cosa_s=metric_terms.cosa_s.storage,
+            sina_u=metric_terms.sina_u.storage,
+            sina_v=metric_terms.sina_v.storage,
+            rsina=metric_terms.rsina.storage,
+            rsin_u=metric_terms.rsin_u.storage,
+            rsin_v=metric_terms.rsin_v.storage,
+            rsin2=metric_terms.rsin2.storage,)
+        angle_data = AngleGridData(
+            sin_sg1=metric_terms.sin_sg1.storage,
+            sin_sg2=metric_terms.sin_sg1.storage,
+            sin_sg3=metric_terms.sin_sg1.storage,
+            sin_sg4=metric_terms.sin_sg1.storage,
+            cos_sg1=metric_terms.cos_sg1.storage,
+            cos_sg2=metric_terms.cos_sg1.storage,
+            cos_sg3=metric_terms.cos_sg1.storage,
+            cos_sg4=metric_terms.cos_sg1.storage,
+        )
+        return cls(horizontal_data, vertical_data, contravariant_data, angle_data)
     
     @property
     def lon(self):

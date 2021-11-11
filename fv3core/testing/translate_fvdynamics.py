@@ -7,7 +7,9 @@ import fv3core.stencils.fv_dynamics as fv_dynamics
 import fv3core.utils.gt4py_utils as utils
 import fv3gfs.util as fv3util
 from fv3core.testing import ParallelTranslateBaseSlicing
-
+import fv3core.utils.global_config as global_config
+from fv3core.grid import MetricTerms
+from fv3core.utils.grid import GridData
 
 ADVECTED_TRACER_NAMES = utils.tracer_variables[: fv_dynamics.NQ]
 
@@ -293,9 +295,19 @@ class TranslateFVDynamics(ParallelTranslateBaseSlicing):
 
         inputs["comm"] = communicator
         state = self.state_from_inputs(inputs)
+        namelist = spec.namelist
+       
+        metric_terms = MetricTerms.from_tile_sizing(
+            npx=namelist.npx,
+            npy=namelist.npy,
+            npz=namelist.npz,
+            communicator=communicator,
+            backend=global_config.get_backend()
+        )
+        grid_data = GridData.new_from_metric_terms(metric_terms)
         self.dycore = fv_dynamics.DynamicalCore(
             comm=communicator,
-            grid_data=spec.grid.grid_data,
+            grid_data=grid_data# spec.grid.grid_data,
             stencil_factory=spec.grid.stencil_factory,
             damping_coefficients=spec.grid.damping_coefficients,
             config=spec.namelist.dynamical_core,

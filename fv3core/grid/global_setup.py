@@ -1,7 +1,7 @@
 import math
 
-from ..utils.global_constants import PI, RADIUS
-from ..utils.grid import N_TILES
+from ..utils.global_constants import PI, RADIUS, N_TILES
+
 from .gnomonic import (
     _cart_to_latlon,
     _check_shapes,

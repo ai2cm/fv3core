@@ -306,7 +306,7 @@ class DynamicalCore:
             hord=config.hord_tr,
         )
         self.tracer_advection = tracer_2d_1l.TracerAdvection(
-            stencil_factory, tracer_transport, comm, NQ
+            stencil_factory, tracer_transport, self.grid_data, comm, NQ
         )
         self._ak = ak.storage
         self._bk = bk.storage

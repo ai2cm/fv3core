@@ -7,8 +7,7 @@ from fv3core.utils.corners import (
     fill_corners_cgrid,
     fill_corners_dgrid,
 )
-from fv3core.utils.global_constants import PI, RADIUS
-from fv3core.utils.grid import CARTESIAN_DIM, LON_OR_LAT_DIM, TILE_DIM
+from fv3core.utils.global_constants import PI, RADIUS, CARTESIAN_DIM, LON_OR_LAT_DIM, TILE_DIM
 from fv3core.utils.gt4py_utils import asarray
 from fv3core.utils.stencil import GridIndexing
 from fv3gfs.util.constants import N_HALO_DEFAULT
@@ -1164,56 +1163,96 @@ class MetricTerms:
         """
         1/cell area
         """
-        return 1.0 / self.area
+        return fv3util.Quantity(
+            data=1.0 / self.area.data,
+            dims=self.area.dims,
+            units="m^-1",
+            gt4py_backend=self.area.gt4py_backend
+        )
 
     @cached_property
     def rarea_c(self):
         """
         1/cgrid cell area
         """
-        return 1.0 / self.area_c
-
+        return fv3util.Quantity(
+            data=1.0 / self.area_c.data,
+            dims=self.area_c.dims,
+            units="m^-1",
+            gt4py_backend=self.area_c.gt4py_backend
+        )
+    
     @cached_property
     def rdx(self):
         """
         1/dx
         """
-        return 1.0 / self.dx
+        return fv3util.Quantity(
+            data=1.0 / self.dx.data,
+            dims=self.dx.dims,
+            units="m^-1",
+            gt4py_backend=self.dx.gt4py_backend
+        )
 
     @cached_property
     def rdy(self):
         """
         1/dy
         """
-        return 1.0 / self.dy
+        return fv3util.Quantity(
+            data=1.0 / self.dy.data,
+            dims=self.dy.dims,
+            units="m^-1",
+            gt4py_backend=self.dy.gt4py_backend
+        )
 
     @cached_property
     def rdxa(self):
         """
         1/dxa
         """
-        return 1.0 / self.dxa
+        return fv3util.Quantity(
+            data=1.0 / self.dxa.data,
+            dims=self.dxa.dims,
+            units="m^-1",
+            gt4py_backend=self.dxa.gt4py_backend
+        )
 
     @cached_property
     def rdya(self):
         """
         1/dya
         """
-        return 1.0 / self.dya
+        return fv3util.Quantity(
+            data=1.0 / self.dya.data,
+            dims=self.dya.dims,
+            units="m^-1",
+            gt4py_backend=self.dya.gt4py_backend
+        )
 
     @cached_property
     def rdxc(self):
         """
         1/dxc
         """
-        return 1.0 / self.dxc
+        return fv3util.Quantity(
+            data=1.0 / self.dxc.data,
+            dims=self.dxc.dims,
+            units="m^-1",
+            gt4py_backend=self.dxc.gt4py_backend
+        )
 
     @cached_property
     def rdyc(self):
         """
         1/dyc
         """
-        return 1.0 / self.dyc
+        return fv3util.Quantity(
+            data=1.0 / self.dyc.data,
+            dims=self.dyc.dims,
+            units="m^-1",
+            gt4py_backend=self.dyc.gt4py_backend
+        )
 
     def _init_dgrid(self):
 
