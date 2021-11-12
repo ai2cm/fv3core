@@ -100,6 +100,8 @@ def run(
             sdfg_path = f"{sdfg_path}{str(rank)}/dacecache/iterate"
         else:
             sdfg_path = f"{sdfg_path}/dacecache/iterate"
+    else:
+        sdfg_path = None
 
     @computepath_function(load_sdfg=sdfg_path)
     def iterate(state: dace.constant, time_steps):
