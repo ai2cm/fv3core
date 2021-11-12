@@ -144,3 +144,9 @@ gt4py/
 # Run outputs
 examples/wrapped/output/
 examples/wrapped/plots/
+
+#Dace
+_dacegraphs/
+.gt_cache*
+tickets/
+.dacecache/
