@@ -624,13 +624,13 @@ class GridData:
             rsin2=metric_terms.rsin2.storage,)
         angle_data = AngleGridData(
             sin_sg1=metric_terms.sin_sg1.storage,
-            sin_sg2=metric_terms.sin_sg1.storage,
-            sin_sg3=metric_terms.sin_sg1.storage,
-            sin_sg4=metric_terms.sin_sg1.storage,
+            sin_sg2=metric_terms.sin_sg2.storage,
+            sin_sg3=metric_terms.sin_sg3.storage,
+            sin_sg4=metric_terms.sin_sg4.storage,
             cos_sg1=metric_terms.cos_sg1.storage,
-            cos_sg2=metric_terms.cos_sg1.storage,
-            cos_sg3=metric_terms.cos_sg1.storage,
-            cos_sg4=metric_terms.cos_sg1.storage,
+            cos_sg2=metric_terms.cos_sg2.storage,
+            cos_sg3=metric_terms.cos_sg3.storage,
+            cos_sg4=metric_terms.cos_sg4.storage,
         )
         return cls(horizontal_data, vertical_data, contravariant_data, angle_data)
     

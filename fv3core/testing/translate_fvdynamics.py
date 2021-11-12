@@ -307,7 +307,7 @@ class TranslateFVDynamics(ParallelTranslateBaseSlicing):
         grid_data = GridData.new_from_metric_terms(metric_terms)
         self.dycore = fv_dynamics.DynamicalCore(
             comm=communicator,
-            grid_data=grid_data# spec.grid.grid_data,
+            grid_data=grid_data,
             stencil_factory=spec.grid.stencil_factory,
             damping_coefficients=spec.grid.damping_coefficients,
             config=spec.namelist.dynamical_core,
