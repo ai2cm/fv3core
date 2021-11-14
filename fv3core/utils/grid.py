@@ -70,7 +70,7 @@ class Grid:
         self.add_data(data_fields)
         self._sizer = None
         self._quantity_factory = None
-
+        self._new_grid_data = None
     @property
     def sizer(self):
         if self._sizer is None:
@@ -221,7 +221,8 @@ class Grid:
                 for i in range(ndim)
             ]
         )
-
+    def set_grid_data(self, grid_data):
+        self._new_grid_data = grid_data
     def default_domain_dict(self):
         return {
             "istart": self.isd,
@@ -418,6 +419,10 @@ class Grid:
     @property
     def grid_data(self) -> "GridData":
         horizontal = HorizontalGridData(
+            lon=self.bgrid1,
+            lat=self.bgrid2,
+            lon_agrid=self.agrid1,
+            lat_agrid=self.agrid2,
             area=self.area,
             area_64=self.area_64,
             rarea=self.rarea,
@@ -434,6 +439,10 @@ class Grid:
             rdyc=self.rdyc,
             rdxa=self.rdxa,
             rdya=self.rdya,
+            a11=self.a11,
+            a12=self.a12,
+            a21=self.a21,
+            a22=self.a22,
         )
         vertical = VerticalGridData(ptop=300.0, ks=18)
         contravariant = ContravariantGridData(
@@ -471,7 +480,10 @@ class HorizontalGridData:
     """
     Terms defining the horizontal grid.
     """
-
+    lon: FloatFieldIJ
+    lat: FloatFieldIJ
+    lon_agrid: FloatFieldIJ
+    lat_agrid: FloatFieldIJ
     area: FloatFieldIJ
     area_64: FloatFieldIJ
     rarea: FloatFieldIJ
@@ -490,14 +502,10 @@ class HorizontalGridData:
     rdyc: FloatFieldIJ
     rdxa: FloatFieldIJ
     rdya: FloatFieldIJ
-
-    @property
-    def lon(self) -> FloatFieldIJ:
-        raise NotImplementedError()
-
-    @property
-    def lat(self) -> FloatFieldIJ:
-        raise NotImplementedError()
+    a11: FloatFieldIJ
+    a12: FloatFieldIJ
+    a21: FloatFieldIJ
+    a22: FloatFieldIJ
 
 
 @dataclasses.dataclass
@@ -558,7 +566,7 @@ class AngleGridData:
     cos_sg2: FloatFieldIJ
     cos_sg3: FloatFieldIJ
     cos_sg4: FloatFieldIJ
-
+    
 
 @dataclasses.dataclass(frozen=True)
 class DampingCoefficients:
@@ -589,7 +597,12 @@ class GridData:
     
     @classmethod
     def new_from_metric_terms(cls, metric_terms: MetricTerms):
+                  
         horizontal_data =  HorizontalGridData(
+            lon=metric_terms.lon.storage,
+            lat=metric_terms.lat.storage,
+            lon_agrid=metric_terms.lon_agrid.storage,
+            lat_agrid=metric_terms.lat_agrid.storage,
             area=metric_terms.area.storage,
             area_64=metric_terms.area.storage,
             rarea=metric_terms.rarea.storage,
@@ -605,7 +618,11 @@ class GridData:
             rdxc=metric_terms.rdxc.storage,
             rdyc=metric_terms.rdyc.storage,
             rdxa=metric_terms.rdxa.storage,
-            rdya=metric_terms.rdya.storage,)
+            rdya=metric_terms.rdya.storage,
+            a11=metric_terms.a11.storage,
+            a12=metric_terms.a11.storage,
+            a21=metric_terms.a11.storage,
+            a22=metric_terms.a11.storage,)
         vertical_data =  VerticalGridData(
             ak=metric_terms.ak.storage,
             bk=metric_terms.bk.storage,
@@ -631,18 +648,29 @@ class GridData:
             cos_sg2=metric_terms.cos_sg2.storage,
             cos_sg3=metric_terms.cos_sg3.storage,
             cos_sg4=metric_terms.cos_sg4.storage,
+           
         )
         return cls(horizontal_data, vertical_data, contravariant_data, angle_data)
     
     @property
     def lon(self):
-        """longitude"""
+        """longitude of cell corners"""
         return self._horizontal_data.lon
 
     @property
     def lat(self):
-        """latitude"""
+        """latitude of cell corners"""
         return self._horizontal_data.lat
+
+    @property
+    def lon_agrid(self):
+        """longitude on the A-grid (cell centers)"""
+        return self._horizontal_data.lon_agrid
+
+    @property
+    def lat_agrid(self):
+        """latitude on the A-grid (cell centers)"""
+        return self._horizontal_data.lat_agrid
 
     @property
     def area(self):
@@ -723,6 +751,22 @@ class GridData:
         """1 / dya"""
         return self._horizontal_data.rdya
 
+    @property
+    def a11(self):
+        return self._horizontal_data.a11
+
+    @property
+    def a12(self):
+        return self._horizontal_data.a12
+
+    @property
+    def a21(self):
+        return self._horizontal_data.a21
+
+    @property
+    def a22(self):
+        return self._horizontal_data.a22
+    
     @property
     def ptop(self):
         """pressure at top of atmosphere (Pa)"""
