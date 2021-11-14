@@ -235,6 +235,39 @@ class MetricTerms:
         return self._agrid
 
     @property
+    def lon(self):
+        return fv3util.Quantity(data=self.grid.data[:, :, 0],
+                                dims=self.grid.dims[0:2],
+                                units=self.grid.units,
+                                gt4py_backend=self.grid.gt4py_backend
+                                )
+
+    @property
+    def lat(self):
+        return fv3util.Quantity(data=self.grid.data[:, :, 1],
+                                dims=self.grid.dims[0:2],
+                                units=self.grid.units,
+                                gt4py_backend=self.grid.gt4py_backend
+                                )
+    
+    @property
+    def lon_agrid(self):
+        return fv3util.Quantity(data=self.agrid.data[:, :, 0],
+                                dims=self.agrid.dims[0:2],
+                                units=self.agrid.units,
+                                gt4py_backend=self.agrid.gt4py_backend
+                                )
+
+    @property
+    def lat_agrid(self):
+        return fv3util.Quantity(data=self.agrid.data[:, :, 1],
+                                dims=self.agrid.dims[0:2],
+                                units=self.agrid.units,
+                                gt4py_backend=self.agrid.gt4py_backend
+                                )
+   
+
+    @property
     def dx(self):
         """
         the distance between grid corners along the x-direction

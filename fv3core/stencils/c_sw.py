@@ -7,11 +7,11 @@ from gt4py.gtscript import (
     region,
 )
 
-import fv3core._config as spec
 import fv3core.utils.gt4py_utils as utils
 from fv3core.stencils.d2a2c_vect import DGrid2AGrid2CGridVectors
 from fv3core.utils import corners
 from fv3core.utils.grid import GridData
+from fv3core.utils.global_constants import OMEGA
 from fv3core.utils.stencil import StencilFactory
 from fv3core.utils.typing import FloatField, FloatFieldIJ
 from fv3gfs.util import X_DIM, X_INTERFACE_DIM, Y_DIM, Y_INTERFACE_DIM, Z_DIM
@@ -375,6 +375,10 @@ def initialize_delpc_ptc(delpc: FloatField, ptc: FloatField):
         delpc = 0.0
         ptc = 0.0
 
+def compute_fC(lon, lat, np):
+    alpha = 0
+    fC = 2. * OMEGA * (-1.*np.cos(lon) * np.cos(lat) * np.sin(alpha) + np.sin(lat) * np.cos(alpha) )
+    return fC
 
 class CGridShallowWaterDynamics:
     """
@@ -392,8 +396,7 @@ class CGridShallowWaterDynamics:
         grid_indexing = stencil_factory.grid_indexing
         self.grid_data = grid_data
         self._dord4 = True
-        self._fC = spec.grid.fC
-
+        self._fC = compute_fC(self.grid_data.lon, self.grid_data.lat,  stencil_factory.config.np)
         self._D2A2CGrid_Vectors = DGrid2AGrid2CGridVectors(
             stencil_factory,
             grid_data,

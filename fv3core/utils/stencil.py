@@ -28,7 +28,11 @@ from fv3core.utils.typing import Index3D, cast_to_index3d
 from fv3gfs.util.halo_data_transformer import QuantityHaloSpec
 
 from .gt4py_utils import make_storage_from_shape
-
+import numpy
+try:
+    import cupy
+except ImportError:
+    cupy = np
 
 class StencilConfig(Hashable):
     _all_backend_opts: Optional[Dict[str, Any]] = {
@@ -119,7 +123,13 @@ class StencilConfig(Hashable):
     @property
     def is_gtc_backend(self) -> bool:
         return self.backend.startswith("gtc")
-
+    
+    @property
+    def np(self):
+        if self.is_gpu_backend:
+            return cupy
+        else:
+            return numpy
 
 class FrozenStencil:
     """

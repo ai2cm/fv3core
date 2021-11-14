@@ -8,7 +8,6 @@ from gt4py.gtscript import (
     region,
 )
 
-import fv3core._config as spec
 import fv3core.stencils.delnflux as delnflux
 import fv3core.utils.global_constants as constants
 import fv3core.utils.gt4py_utils as utils
@@ -584,6 +583,12 @@ def interpolate_uc_vc_to_cell_corners(
 
     return ub_contra, vb_contra
 
+def compute_f0(lon_agrid, lat_agrid, np):
+    alpha = 0
+    f0 = 2. * constants.OMEGA * (-1. * np.cos(lon_agrid) * np.cos(lat_agrid) * np.sin(alpha) + np.sin(lat_agrid)*np.cos(alpha) )
+    # TODO: Fortran then calls a halo update and fill_corners(YDir) on f0. appears unnecessary
+    # is it? 
+    return f0
 
 class DGridShallowWaterLagrangianDynamics:
     """
@@ -600,8 +605,9 @@ class DGridShallowWaterLagrangianDynamics:
         stretched_grid: bool,
         config: DGridShallowWaterLagrangianDynamicsConfig,
     ):
-        self._f0 = spec.grid.f0
-        self.grid = grid_data
+        self.grid_data = grid_data
+        self._f0 = compute_f0(self.grid_data.lon_agrid, self.grid_data.lat_agrid,  stencil_factory.config.np)
+       
         self.grid_indexing = stencil_factory.grid_indexing
         assert config.grid_type < 3, "ubke and vbke only implemented for grid_type < 3"
         assert not config.inline_q, "inline_q not yet implemented"
@@ -917,7 +923,7 @@ class DGridShallowWaterLagrangianDynamics:
                 self._tmp_fx2,
                 self._tmp_fy2,
                 w,
-                self.grid.rarea,
+                self.grid_data.rarea,
                 self._tmp_heat_s,
                 diss_est,
                 self._tmp_dw,
@@ -943,7 +949,7 @@ class DGridShallowWaterLagrangianDynamics:
                 delp,
                 self._tmp_gx,
                 self._tmp_gy,
-                self.grid.rarea,
+                self.grid_data.rarea,
             )
         # Fortran: #ifdef USE_COND
         self.fvtp2d_dp_t(
@@ -960,7 +966,7 @@ class DGridShallowWaterLagrangianDynamics:
         )
 
         self._flux_adjust_stencil(
-            q_con, delp, self._tmp_gx, self._tmp_gy, self.grid.rarea
+            q_con, delp, self._tmp_gx, self._tmp_gy, self.grid_data.rarea
         )
 
         # Fortran #endif //USE_COND
@@ -980,7 +986,7 @@ class DGridShallowWaterLagrangianDynamics:
         self._apply_pt_delp_fluxes(
             gx=self._tmp_gx,
             gy=self._tmp_gy,
-            rarea=self.grid.rarea,
+            rarea=self.grid_data.rarea,
             fx=self._tmp_fx,
             fy=self._tmp_fy,
             pt=pt,
@@ -989,18 +995,18 @@ class DGridShallowWaterLagrangianDynamics:
         self._kinetic_energy_update_part_1(
             vc=vc,
             uc=uc,
-            cosa=self.grid.cosa,
-            rsina=self.grid.rsina,
+            cosa=self.grid_data.cosa,
+            rsina=self.grid_data.rsina,
             v=v,
             vc_contra=self._vc_contra,
             u=u,
             uc_contra=self._uc_contra,
-            dx=self.grid.dx,
-            dxa=self.grid.dxa,
-            rdx=self.grid.rdx,
-            dy=self.grid.dy,
-            dya=self.grid.dya,
-            rdy=self.grid.rdy,
+            dx=self.grid_data.dx,
+            dxa=self.grid_data.dxa,
+            rdx=self.grid_data.rdx,
+            dy=self.grid_data.dy,
+            dya=self.grid_data.dya,
+            rdy=self.grid_data.rdy,
             ub_contra=self._ub_contra,
             vb_contra=self._vb_contra,
             advected_u=self._advected_u,
@@ -1023,9 +1029,9 @@ class DGridShallowWaterLagrangianDynamics:
         self._compute_vorticity_stencil(
             u,
             v,
-            self.grid.dx,
-            self.grid.dy,
-            self.grid.rarea,
+            self.grid_data.dx,
+            self.grid_data.dy,
+            self.grid_data.rarea,
             self._tmp_wk,
         )
 
@@ -1074,7 +1080,7 @@ class DGridShallowWaterLagrangianDynamics:
         # unless before this point u has units of speed divided by distance
         # and is not the x-wind?
         self._u_and_v_from_ke_stencil(
-            self._tmp_ke, self._tmp_fx, self._tmp_fy, u, v, self.grid.dx, self.grid.dy
+            self._tmp_ke, self._tmp_fx, self._tmp_fy, u, v, self.grid_data.dx, self.grid_data.dy
         )
 
         self.delnflux_nosg_v(
@@ -1094,10 +1100,10 @@ class DGridShallowWaterLagrangianDynamics:
             u,
             v,
             delp,
-            self.grid.rsin2,
-            self.grid.cosa_s,
-            self.grid.rdx,
-            self.grid.rdy,
+            self.grid_data.rsin2,
+            self.grid_data.cosa_s,
+            self.grid_data.rdx,
+            self.grid_data.rdy,
             self._tmp_heat_s,
             heat_source,
             diss_est,
