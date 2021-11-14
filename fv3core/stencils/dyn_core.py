@@ -374,7 +374,6 @@ class AcousticDynamics:
                 config.hord_tm,
                 self._dp_ref,
                 column_namelist,
-                d_sw.k_bounds(),
             )
             self.riem_solver3 = RiemannSolver3(stencil_factory, config.riemann)
             self.riem_solver_c = RiemannSolverC(stencil_factory, p_fac=config.p_fac)

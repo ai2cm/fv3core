@@ -38,16 +38,6 @@ from fv3gfs.util import (
 
 dcon_threshold = 1e-5
 
-# NOTE leaving the refrence to spec.grid here on purpose
-# k_bounds should be refactored out of existence
-def k_bounds():
-    # UpdatedzD needs to go one k level higher than D_SW, to the buffer point that
-    # usually isn't used. To reuse the same 'column_namelist' and remove the
-    # specification of 'kstart' and 'nk in many methods, we just make all of the
-    # column namelist calculations go to the top of the array
-    return [[0, 1], [1, 1], [2, 1], [3, spec.grid.npz - 2]]
-
-
 @gtscript.function
 def flux_increment(gx, gy, rarea):
     """
@@ -514,14 +504,6 @@ def get_column_namelist(config: DGridShallowWaterLagrangianDynamicsConfig, npz):
     Generate a dictionary of columns that specify how parameters (such as nord, damp)
     used in several functions called by D_SW vary over the k-dimension.
 
-    In a near-future PR, the need for this will disappear as we refactor
-    individual modules to apply this parameter variation explicitly in the
-    stencils themselves. If it doesn't, we should compute it only in the init phase.
-    The unique set of all column parameters is specified by k_bounds. For each k range
-    as specified by (kstart, nk) this sets what several different parameters are.
-    It previously was a dictionary with the k value as the key, the value being another
-    dictionary of values, but this did not work when we removed the k loop from some
-    modules and instead wanted to push the whole column ingestion down a level.
     """
     direct_namelist = ["ke_bg", "d_con", "nord"]
     all_names = direct_namelist + [
