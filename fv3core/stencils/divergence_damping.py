@@ -197,9 +197,8 @@ class DivergenceDamping:
         self._dxc = grid_data.dxc
         self._dyc = grid_data.dyc
 
-        # TODO: calculate these locally based on grid_data
-        self._divg_u = spec.grid.divg_u
-        self._divg_v = spec.grid.divg_v
+        self._divg_u = damping_coefficients.divg_u
+        self._divg_v = damping_coefficients.divg_v
 
         nonzero_nord_k = 0
         self._nonzero_nord = int(nord)

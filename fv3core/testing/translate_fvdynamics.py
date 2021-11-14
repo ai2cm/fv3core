@@ -9,7 +9,7 @@ import fv3gfs.util as fv3util
 from fv3core.testing import ParallelTranslateBaseSlicing
 import fv3core.utils.global_config as global_config
 from fv3core.grid import MetricTerms
-from fv3core.utils.grid import GridData
+from fv3core.utils.grid import GridData, DampingCoefficients
 
 ADVECTED_TRACER_NAMES = utils.tracer_variables[: fv_dynamics.NQ]
 
@@ -305,11 +305,12 @@ class TranslateFVDynamics(ParallelTranslateBaseSlicing):
             backend=global_config.get_backend()
         )
         grid_data = GridData.new_from_metric_terms(metric_terms)
+        damping_data = DampingCoefficients.new_from_metric_terms(metric_terms)
         self.dycore = fv_dynamics.DynamicalCore(
             comm=communicator,
             grid_data=grid_data,
             stencil_factory=spec.grid.stencil_factory,
-            damping_coefficients=spec.grid.damping_coefficients,
+            damping_coefficients=damping_data,#spec.grid.damping_coefficients,
             config=spec.namelist.dynamical_core,
             ak=state["atmosphere_hybrid_a_coordinate"],
             bk=state["atmosphere_hybrid_b_coordinate"],

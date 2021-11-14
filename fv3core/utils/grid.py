@@ -221,8 +221,7 @@ class Grid:
                 for i in range(ndim)
             ]
         )
-    def set_grid_data(self, grid_data):
-        self._new_grid_data = grid_data
+   
     def default_domain_dict(self):
         return {
             "istart": self.isd,
@@ -410,6 +409,8 @@ class Grid:
     @property
     def damping_coefficients(self) -> "DampingCoefficients":
         return DampingCoefficients(
+            divg_u=self.divg_u,
+            divg_v=self.divg_v,
             del6_u=self.del6_u,
             del6_v=self.del6_v,
             da_min=self.da_min,
@@ -573,12 +574,21 @@ class DampingCoefficients:
     """
     Terms used to compute damping coefficients.
     """
-
+    divg_u: FloatFieldIJ
+    divg_v: FloatFieldIJ
     del6_u: FloatFieldIJ
     del6_v: FloatFieldIJ
     da_min: float
     da_min_c: float
 
+    @classmethod
+    def new_from_metric_terms(cls, metric_terms: MetricTerms):
+        return cls(divg_u=metric_terms.divg_u.storage,
+                   divg_v=metric_terms.divg_v.storage,
+                   del6_u=metric_terms.del6_u.storage,
+                   del6_v=metric_terms.del6_v.storage,
+                   da_min=metric_terms.da_min,
+                   da_min_c=metric_terms.da_min_c)
 
 class GridData:
     # TODO: add docstrings to remaining properties
@@ -620,9 +630,9 @@ class GridData:
             rdxa=metric_terms.rdxa.storage,
             rdya=metric_terms.rdya.storage,
             a11=metric_terms.a11.storage,
-            a12=metric_terms.a11.storage,
-            a21=metric_terms.a11.storage,
-            a22=metric_terms.a11.storage,)
+            a12=metric_terms.a12.storage,
+            a21=metric_terms.a21.storage,
+            a22=metric_terms.a22.storage,)
         vertical_data =  VerticalGridData(
             ak=metric_terms.ak.storage,
             bk=metric_terms.bk.storage,
