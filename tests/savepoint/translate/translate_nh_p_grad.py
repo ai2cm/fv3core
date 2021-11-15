@@ -24,7 +24,7 @@ class TranslateNH_P_Grad(TranslateFortranData2Py):
             "delp": {},
         }
         # From compute edge grid variables in a2b_ord4
-        self.max_error = 1e-12
+        self.max_error = 1e-11
 
     def compute(self, inputs):
         self.compute_func = NH_P_Grad.NonHydrostaticPressureGradient(
