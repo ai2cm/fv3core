@@ -287,7 +287,7 @@ def mock_parallel_savepoint_cases(metafunc, data_path):
     return return_list
 
 
-def grid_data_from_scratch(metafunc, grid):
+def compute_grid_data(metafunc, grid):
     backend=metafunc.config.getoption("backend")
     metric_terms = MetricTerms.from_tile_sizing(
         npx=fv3core._config.namelist.npx,
@@ -305,7 +305,7 @@ def parallel_savepoint_cases(metafunc, data_path, mpi_rank):
     grid_savepoint = serializer.get_savepoint(GRID_SAVEPOINT_NAME)[0]
     grid = process_grid_savepoint(serializer, grid_savepoint, mpi_rank)
     if metafunc.config.getoption("compute_grid"):
-        grid_data_from_scratch(metafunc, grid)
+        compute_grid_data(metafunc, grid)
     savepoint_names = get_parallel_savepoint_names(metafunc, data_path)
     return_list = []
     layout = fv3core._config.namelist.layout

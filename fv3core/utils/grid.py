@@ -407,6 +407,7 @@ class Grid:
             ),
             grid_indexing=self.grid_indexing,
         )
+    
     @property
     def damping_coefficients(self) -> "DampingCoefficients":
         if self._damping_coefficients is not None:
@@ -421,7 +422,7 @@ class Grid:
         )
         return self._damping_coefficients
 
-    def set_damping_coefficients(self, damping_coefficients):
+    def set_damping_coefficients(self, damping_coefficients: "DampingCoefficients"):
         self._damping_coefficients = damping_coefficients
         
    
@@ -486,7 +487,7 @@ class Grid:
         )
         return self._grid_data
 
-    def set_grid_data(self, grid_data):
+    def set_grid_data(self, grid_data: "GridData"):
         self._grid_data = grid_data
 
 
