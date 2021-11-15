@@ -490,6 +490,16 @@ class Grid:
     def set_grid_data(self, grid_data: "GridData"):
         self._grid_data = grid_data
 
+    def make_grid_data(self, npx, npy, npz, communicator, backend):
+        metric_terms = MetricTerms.from_tile_sizing(
+            npx=npx,
+            npy=npy,
+            npz=npz,
+            communicator=communicator,
+            backend=backend
+        )
+        self.set_grid_data(GridData.new_from_metric_terms(metric_terms))
+        self.set_damping_coefficients(DampingCoefficients.new_from_metric_terms(metric_terms))
 
 @dataclasses.dataclass(frozen=True)
 class HorizontalGridData:

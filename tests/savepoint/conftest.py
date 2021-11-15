@@ -12,8 +12,7 @@ import fv3core.testing
 import fv3core.utils.gt4py_utils
 import fv3gfs.util as fv3util
 from fv3core.testing import ParallelTranslate, TranslateGrid
-from fv3core.utils.grid import GridData, DampingCoefficients
-from fv3core.grid import MetricTerms
+
 from fv3core.utils.mpi import MPI
 
 from . import translate
@@ -288,16 +287,16 @@ def mock_parallel_savepoint_cases(metafunc, data_path):
 
 
 def compute_grid_data(metafunc, grid):
-    backend=metafunc.config.getoption("backend")
-    metric_terms = MetricTerms.from_tile_sizing(
-        npx=fv3core._config.namelist.npx,
-        npy=fv3core._config.namelist.npy,
-        npz=fv3core._config.namelist.npz,
-        communicator=get_communicator(MPI.COMM_WORLD, fv3core._config.namelist.layout),
+    backend = metafunc.config.getoption("backend")
+    namelist = fv3core._config.namelist
+    grid.make_grid_data(
+        npx=namelist.npx,
+        npy=namelist.npy,
+        npz=namelist.npz,
+        communicator=get_communicator(MPI.COMM_WORLD, namelist.layout),
         backend=backend
     )
-    grid.set_grid_data(GridData.new_from_metric_terms(metric_terms))
-    grid.set_damping_coefficients(DampingCoefficients.new_from_metric_terms(metric_terms))
+
 
 
 def parallel_savepoint_cases(metafunc, data_path, mpi_rank):

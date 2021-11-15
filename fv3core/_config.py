@@ -5,8 +5,8 @@ from typing import Tuple
 import f90nml
 
 import fv3core.utils.gt4py_utils as utils
-from fv3core.utils.grid import Grid
-
+from fv3core.utils.grid import Grid, GridData, DampingCoefficients
+from fv3core.grid import MetricTerms
 
 grid = None
 
@@ -866,8 +866,6 @@ def namelist_to_flatish_dict(nml_input):
     return flatter_namelist
 
 
-# TODO: Before this can be used, we need to write a module to make the grid data
-# from files on disk and call it
 def make_grid_from_namelist(namelist, rank):
     shape_params = {}
     for narg in ["npx", "npy", "npz"]:
@@ -884,6 +882,15 @@ def make_grid_from_namelist(namelist, rank):
     }
     return Grid(indices, shape_params, rank, namelist.layout)
 
+def make_grid_with_data_from_namelist(namelist, rank, communicator, backend):
+    grid = make_grid_from_namelist(namelist, rank)
+    grid.make_grid_data(
+        npx=namelist.npx,
+        npy=namelist.npy,
+        npz=namelist.npz,
+        communicator=communicator,
+        backend=backend)
+    return grid
 
 def set_grid(in_grid):
     """Updates the global grid given another.
