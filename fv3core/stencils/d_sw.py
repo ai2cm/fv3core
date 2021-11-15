@@ -15,6 +15,7 @@ from fv3core._config import DGridShallowWaterLagrangianDynamicsConfig
 from fv3core.stencils.d2a2c_vect import contravariant
 from fv3core.stencils.delnflux import DelnFluxNoSG
 from fv3core.stencils.divergence_damping import DivergenceDamping
+from fv3core.stencils.basic_operations import compute_coriolis_parameter_defn
 from fv3core.stencils.fvtp2d import (
     FiniteVolumeTransport,
     PreAllocatedCopiedCornersFactory,
@@ -582,12 +583,15 @@ def interpolate_uc_vc_to_cell_corners(
         vb_contra = 0.5 * (vc_contra[-1, 0, 0] + vc_contra)
 
     return ub_contra, vb_contra
-
-def compute_f0(lon_agrid, lat_agrid, np):
-    alpha = 0
-    f0 = 2. * constants.OMEGA * (-1. * np.cos(lon_agrid) * np.cos(lat_agrid) * np.sin(alpha) + np.sin(lat_agrid)*np.cos(alpha) )
-    # TODO: Fortran then calls a halo update and fill_corners(YDir) on f0. appears unnecessary
-    # is it? 
+        
+def compute_f0(stencil_factory: StencilFactory, lon_agrid: FloatFieldIJ, lat_agrid: FloatFieldIJ):
+    f0 =  utils.make_storage_from_shape(lon_agrid.shape)
+    f0_stencil = stencil_factory.from_dims_halo(
+            compute_coriolis_parameter_defn,
+            compute_dims=[X_DIM, Y_DIM, Z_DIM],
+            compute_halos=(3, 3),
+    )
+    f0_stencil(f0, lon_agrid, lat_agrid, 0.0)
     return f0
 
 class DGridShallowWaterLagrangianDynamics:
@@ -606,7 +610,7 @@ class DGridShallowWaterLagrangianDynamics:
         config: DGridShallowWaterLagrangianDynamicsConfig,
     ):
         self.grid_data = grid_data
-        self._f0 = compute_f0(self.grid_data.lon_agrid, self.grid_data.lat_agrid,  stencil_factory.config.np)
+        self._f0 = compute_f0(stencil_factory, self.grid_data.lon_agrid, self.grid_data.lat_agrid)
        
         self.grid_indexing = stencil_factory.grid_indexing
         assert config.grid_type < 3, "ubke and vbke only implemented for grid_type < 3"

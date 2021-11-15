@@ -2,7 +2,7 @@ import gt4py.gtscript as gtscript
 from gt4py.gtscript import PARALLEL, computation, interval
 
 from fv3core.utils.typing import FloatField, FloatFieldIJ
-
+from fv3core.utils.global_constants import OMEGA
 
 def copy_defn(q_in: FloatField, q_out: FloatField):
     """Copy q_in to q_out.
@@ -30,6 +30,10 @@ def adjust_divide_stencil(adjustment: FloatField, q_out: FloatField):
         q_out = q_out / adjustment
 
 
+def compute_coriolis_parameter_defn(f: FloatFieldIJ, lon: FloatFieldIJ, lat: FloatFieldIJ, alpha: float):
+    with computation(FORWARD), interval(0, 1):
+        f =  2. * OMEGA * (-1. * cos(lon) * cos(lat) * sin(alpha) + sin(lat) * cos(alpha) )
+        
 @gtscript.function
 def sign(a, b):
     asignb = abs(a)
@@ -44,3 +48,6 @@ def sign(a, b):
 def dim(a, b):
     diff = a - b if a - b > 0 else 0
     return diff
+
+
+
