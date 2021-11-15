@@ -9,8 +9,6 @@ import fv3gfs.util as fv3util
 from fv3core.testing import ParallelTranslate
 
 import fv3core.utils.global_config as global_config
-from fv3core.grid import MetricTerms
-from fv3core.utils.grid import GridData
 
 
 class TranslateTracer2D1L(ParallelTranslate):
@@ -55,19 +53,10 @@ class TranslateTracer2D1L(ParallelTranslate):
         )
         namelist = spec.namelist
        
-        metric_terms = MetricTerms.from_tile_sizing(
-            npx=namelist.npx,
-            npy=namelist.npy,
-            npz=namelist.npz,
-            communicator=communicator,
-            backend=global_config.get_backend()
-        )
-        grid_data = GridData.new_from_metric_terms(metric_terms)
-
         self.tracer_advection = fv3core.stencils.tracer_2d_1l.TracerAdvection(
             self.grid.stencil_factory,
             transport,
-            grid_data,#spec.grid.grid_data,
+            spec.grid.grid_data,
             communicator,
             fv_dynamics.NQ,
         )

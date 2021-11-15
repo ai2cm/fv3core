@@ -16,6 +16,7 @@ ADVECTED_TRACER_NAMES = utils.tracer_variables[: fv_dynamics.NQ]
 
 class TranslateFVDynamics(ParallelTranslateBaseSlicing):
     python_regression = True
+    compute_grid_option = True
     inputs = {
         "q_con": {
             "name": "total_condensate_mixing_ratio",
@@ -295,22 +296,29 @@ class TranslateFVDynamics(ParallelTranslateBaseSlicing):
 
         inputs["comm"] = communicator
         state = self.state_from_inputs(inputs)
-        namelist = spec.namelist
-       
-        metric_terms = MetricTerms.from_tile_sizing(
-            npx=namelist.npx,
-            npy=namelist.npy,
-            npz=namelist.npz,
-            communicator=communicator,
-            backend=global_config.get_backend()
-        )
-        grid_data = GridData.new_from_metric_terms(metric_terms)
-        damping_data = DampingCoefficients.new_from_metric_terms(metric_terms)
+        #namelist = spec.namelist
+        """
+        if compute_grid:
+            metric_terms = MetricTerms.from_tile_sizing(
+                npx=namelist.npx,
+                npy=namelist.npy,
+                npz=namelist.npz,
+                communicator=communicator,
+                backend=global_config.get_backend()
+            )
+            grid_data = GridData.new_from_metric_terms(metric_terms)
+            damping_data = DampingCoefficients.new_from_metric_terms(metric_terms)
+            print('computed the grid')
+
+        else:
+            grid_data=spec.grid.grid_data
+            damping_data=spec.grid.damping_coefficients
+        """
         self.dycore = fv_dynamics.DynamicalCore(
             comm=communicator,
-            grid_data=grid_data,
+            grid_data=spec.grid.grid_data,#grid_data,
             stencil_factory=spec.grid.stencil_factory,
-            damping_coefficients=damping_data,#spec.grid.damping_coefficients,
+            damping_coefficients=spec.grid.damping_coefficients,#damping_data,
             config=spec.namelist.dynamical_core,
             ak=state["atmosphere_hybrid_a_coordinate"],
             bk=state["atmosphere_hybrid_b_coordinate"],

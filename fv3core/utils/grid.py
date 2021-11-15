@@ -70,7 +70,9 @@ class Grid:
         self.add_data(data_fields)
         self._sizer = None
         self._quantity_factory = None
-        self._new_grid_data = None
+        self._grid_data = None
+        self._damping_coefficients = None
+        
     @property
     def sizer(self):
         if self._sizer is None:
@@ -405,10 +407,11 @@ class Grid:
             ),
             grid_indexing=self.grid_indexing,
         )
-
     @property
     def damping_coefficients(self) -> "DampingCoefficients":
-        return DampingCoefficients(
+        if self._damping_coefficients is not None:
+            return  self._damping_coefficients
+        self._damping_coefficients = DampingCoefficients(
             divg_u=self.divg_u,
             divg_v=self.divg_v,
             del6_u=self.del6_u,
@@ -416,9 +419,16 @@ class Grid:
             da_min=self.da_min,
             da_min_c=self.da_min_c,
         )
+        return self._damping_coefficients
 
+    def set_damping_coefficients(self, damping_coefficients):
+        self._damping_coefficients = damping_coefficients
+        
+   
     @property
     def grid_data(self) -> "GridData":
+        if self._grid_data is not None:
+            return self._grid_data
         horizontal = HorizontalGridData(
             lon=self.bgrid1,
             lat=self.bgrid2,
@@ -468,12 +478,16 @@ class Grid:
             self.cos_sg3,
             self.cos_sg4,
         )
-        return GridData(
+        self._grid_data =  GridData(
             horizontal_data=horizontal,
             vertical_data=vertical,
             contravariant_data=contravariant,
             angle_data=angle,
         )
+        return self._grid_data
+
+    def set_grid_data(self, grid_data):
+        self._grid_data = grid_data
 
 
 @dataclasses.dataclass(frozen=True)

@@ -12,6 +12,8 @@ import fv3core.testing
 import fv3core.utils.gt4py_utils
 import fv3gfs.util as fv3util
 from fv3core.testing import ParallelTranslate, TranslateGrid
+from fv3core.utils.grid import GridData, DampingCoefficients
+from fv3core.grid import MetricTerms
 from fv3core.utils.mpi import MPI
 
 from . import translate
@@ -285,10 +287,25 @@ def mock_parallel_savepoint_cases(metafunc, data_path):
     return return_list
 
 
+def grid_data_from_scratch(metafunc, grid):
+    backend=metafunc.config.getoption("backend")
+    metric_terms = MetricTerms.from_tile_sizing(
+        npx=fv3core._config.namelist.npx,
+        npy=fv3core._config.namelist.npy,
+        npz=fv3core._config.namelist.npz,
+        communicator=get_communicator(MPI.COMM_WORLD, fv3core._config.namelist.layout),
+        backend=backend
+    )
+    grid.set_grid_data(GridData.new_from_metric_terms(metric_terms))
+    grid.set_damping_coefficients(DampingCoefficients.new_from_metric_terms(metric_terms))
+
+
 def parallel_savepoint_cases(metafunc, data_path, mpi_rank):
     serializer = get_serializer(data_path, mpi_rank)
     grid_savepoint = serializer.get_savepoint(GRID_SAVEPOINT_NAME)[0]
     grid = process_grid_savepoint(serializer, grid_savepoint, mpi_rank)
+    if metafunc.config.getoption("compute_grid"):
+        grid_data_from_scratch(metafunc, grid)
     savepoint_names = get_parallel_savepoint_names(metafunc, data_path)
     return_list = []
     layout = fv3core._config.namelist.layout
@@ -565,3 +582,7 @@ def print_domains(pytestconfig):
 @pytest.fixture()
 def python_regression(pytestconfig):
     return pytestconfig.getoption("python_regression")
+
+@pytest.fixture()
+def compute_grid(pytestconfig):
+    return pytestconfig.getoption("compute_grid")
