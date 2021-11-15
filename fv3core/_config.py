@@ -5,8 +5,8 @@ from typing import Tuple
 import f90nml
 
 import fv3core.utils.gt4py_utils as utils
-from fv3core.utils.grid import Grid, GridData, DampingCoefficients
-from fv3core.grid import MetricTerms
+from fv3core.utils.grid import Grid
+
 
 grid = None
 
@@ -882,6 +882,7 @@ def make_grid_from_namelist(namelist, rank):
     }
     return Grid(indices, shape_params, rank, namelist.layout)
 
+
 def make_grid_with_data_from_namelist(namelist, rank, communicator, backend):
     grid = make_grid_from_namelist(namelist, rank)
     grid.make_grid_data(
@@ -889,8 +890,10 @@ def make_grid_with_data_from_namelist(namelist, rank, communicator, backend):
         npy=namelist.npy,
         npz=namelist.npz,
         communicator=communicator,
-        backend=backend)
+        backend=backend,
+    )
     return grid
+
 
 def set_grid(in_grid):
     """Updates the global grid given another.

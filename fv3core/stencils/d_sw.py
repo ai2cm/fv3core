@@ -12,10 +12,10 @@ import fv3core.stencils.delnflux as delnflux
 import fv3core.utils.global_constants as constants
 import fv3core.utils.gt4py_utils as utils
 from fv3core._config import DGridShallowWaterLagrangianDynamicsConfig
+from fv3core.stencils.basic_operations import compute_coriolis_parameter_defn
 from fv3core.stencils.d2a2c_vect import contravariant
 from fv3core.stencils.delnflux import DelnFluxNoSG
 from fv3core.stencils.divergence_damping import DivergenceDamping
-from fv3core.stencils.basic_operations import compute_coriolis_parameter_defn
 from fv3core.stencils.fvtp2d import (
     FiniteVolumeTransport,
     PreAllocatedCopiedCornersFactory,
@@ -37,6 +37,7 @@ from fv3gfs.util import (
 
 
 dcon_threshold = 1e-5
+
 
 @gtscript.function
 def flux_increment(gx, gy, rarea):
@@ -583,16 +584,20 @@ def interpolate_uc_vc_to_cell_corners(
         vb_contra = 0.5 * (vc_contra[-1, 0, 0] + vc_contra)
 
     return ub_contra, vb_contra
-        
-def compute_f0(stencil_factory: StencilFactory, lon_agrid: FloatFieldIJ, lat_agrid: FloatFieldIJ):
-    f0 =  utils.make_storage_from_shape(lon_agrid.shape)
+
+
+def compute_f0(
+    stencil_factory: StencilFactory, lon_agrid: FloatFieldIJ, lat_agrid: FloatFieldIJ
+):
+    f0 = utils.make_storage_from_shape(lon_agrid.shape)
     f0_stencil = stencil_factory.from_dims_halo(
-            compute_coriolis_parameter_defn,
-            compute_dims=[X_DIM, Y_DIM, Z_DIM],
-            compute_halos=(3, 3),
+        compute_coriolis_parameter_defn,
+        compute_dims=[X_DIM, Y_DIM, Z_DIM],
+        compute_halos=(3, 3),
     )
     f0_stencil(f0, lon_agrid, lat_agrid, 0.0)
     return f0
+
 
 class DGridShallowWaterLagrangianDynamics:
     """
@@ -610,8 +615,10 @@ class DGridShallowWaterLagrangianDynamics:
         config: DGridShallowWaterLagrangianDynamicsConfig,
     ):
         self.grid_data = grid_data
-        self._f0 = compute_f0(stencil_factory, self.grid_data.lon_agrid, self.grid_data.lat_agrid)
-       
+        self._f0 = compute_f0(
+            stencil_factory, self.grid_data.lon_agrid, self.grid_data.lat_agrid
+        )
+
         self.grid_indexing = stencil_factory.grid_indexing
         assert config.grid_type < 3, "ubke and vbke only implemented for grid_type < 3"
         assert not config.inline_q, "inline_q not yet implemented"
@@ -1084,7 +1091,13 @@ class DGridShallowWaterLagrangianDynamics:
         # unless before this point u has units of speed divided by distance
         # and is not the x-wind?
         self._u_and_v_from_ke_stencil(
-            self._tmp_ke, self._tmp_fx, self._tmp_fy, u, v, self.grid_data.dx, self.grid_data.dy
+            self._tmp_ke,
+            self._tmp_fx,
+            self._tmp_fy,
+            u,
+            v,
+            self.grid_data.dx,
+            self.grid_data.dy,
         )
 
         self.delnflux_nosg_v(

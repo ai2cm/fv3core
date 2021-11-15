@@ -128,7 +128,7 @@ class TracerAdvection:
         self,
         stencil_factory: StencilFactory,
         transport: FiniteVolumeTransport,
-        grid_data, 
+        grid_data,
         comm: fv3gfs.util.CubedSphereCommunicator,
         tracer_count,
     ):

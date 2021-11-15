@@ -7,15 +7,13 @@ from gt4py import gtscript
 
 import fv3core.utils.global_config as global_config
 import fv3gfs.util
-from fv3gfs.util.halo_data_transformer import QuantityHaloSpec
 from fv3core.grid import MetricTerms
+from fv3core.utils.global_constants import CARTESIAN_DIM, LON_OR_LAT_DIM, TILE_DIM
+from fv3gfs.util.halo_data_transformer import QuantityHaloSpec
 
 from . import gt4py_utils as utils
 from .stencil import GridIndexing, StencilConfig, StencilFactory
 from .typing import FloatFieldIJ
-from fv3core.utils.global_constants import LON_OR_LAT_DIM, TILE_DIM, CARTESIAN_DIM
-
-
 
 
 class Grid:
@@ -72,7 +70,7 @@ class Grid:
         self._quantity_factory = None
         self._grid_data = None
         self._damping_coefficients = None
-        
+
     @property
     def sizer(self):
         if self._sizer is None:
@@ -223,7 +221,7 @@ class Grid:
                 for i in range(ndim)
             ]
         )
-   
+
     def default_domain_dict(self):
         return {
             "istart": self.isd,
@@ -407,11 +405,11 @@ class Grid:
             ),
             grid_indexing=self.grid_indexing,
         )
-    
+
     @property
     def damping_coefficients(self) -> "DampingCoefficients":
         if self._damping_coefficients is not None:
-            return  self._damping_coefficients
+            return self._damping_coefficients
         self._damping_coefficients = DampingCoefficients(
             divg_u=self.divg_u,
             divg_v=self.divg_v,
@@ -424,8 +422,7 @@ class Grid:
 
     def set_damping_coefficients(self, damping_coefficients: "DampingCoefficients"):
         self._damping_coefficients = damping_coefficients
-        
-   
+
     @property
     def grid_data(self) -> "GridData":
         if self._grid_data is not None:
@@ -479,7 +476,7 @@ class Grid:
             self.cos_sg3,
             self.cos_sg4,
         )
-        self._grid_data =  GridData(
+        self._grid_data = GridData(
             horizontal_data=horizontal,
             vertical_data=vertical,
             contravariant_data=contravariant,
@@ -492,20 +489,20 @@ class Grid:
 
     def make_grid_data(self, npx, npy, npz, communicator, backend):
         metric_terms = MetricTerms.from_tile_sizing(
-            npx=npx,
-            npy=npy,
-            npz=npz,
-            communicator=communicator,
-            backend=backend
+            npx=npx, npy=npy, npz=npz, communicator=communicator, backend=backend
         )
         self.set_grid_data(GridData.new_from_metric_terms(metric_terms))
-        self.set_damping_coefficients(DampingCoefficients.new_from_metric_terms(metric_terms))
+        self.set_damping_coefficients(
+            DampingCoefficients.new_from_metric_terms(metric_terms)
+        )
+
 
 @dataclasses.dataclass(frozen=True)
 class HorizontalGridData:
     """
     Terms defining the horizontal grid.
     """
+
     lon: FloatFieldIJ
     lat: FloatFieldIJ
     lon_agrid: FloatFieldIJ
@@ -551,9 +548,9 @@ class VerticalGridData:
     """
     reference pressure (Pa) used to define pressure at vertical interfaces,
     where p = ak + bk * p_ref
-    ptop is the top of the atmosphere and ks is the lowest index (highest layer) for 
+    ptop is the top of the atmosphere and ks is the lowest index (highest layer) for
     which rayleigh friction
-  
+
     """
 
 
@@ -592,13 +589,14 @@ class AngleGridData:
     cos_sg2: FloatFieldIJ
     cos_sg3: FloatFieldIJ
     cos_sg4: FloatFieldIJ
-    
+
 
 @dataclasses.dataclass(frozen=True)
 class DampingCoefficients:
     """
     Terms used to compute damping coefficients.
     """
+
     divg_u: FloatFieldIJ
     divg_v: FloatFieldIJ
     del6_u: FloatFieldIJ
@@ -608,12 +606,15 @@ class DampingCoefficients:
 
     @classmethod
     def new_from_metric_terms(cls, metric_terms: MetricTerms):
-        return cls(divg_u=metric_terms.divg_u.storage,
-                   divg_v=metric_terms.divg_v.storage,
-                   del6_u=metric_terms.del6_u.storage,
-                   del6_v=metric_terms.del6_v.storage,
-                   da_min=metric_terms.da_min,
-                   da_min_c=metric_terms.da_min_c)
+        return cls(
+            divg_u=metric_terms.divg_u.storage,
+            divg_v=metric_terms.divg_v.storage,
+            del6_u=metric_terms.del6_u.storage,
+            del6_v=metric_terms.del6_v.storage,
+            da_min=metric_terms.da_min,
+            da_min_c=metric_terms.da_min_c,
+        )
+
 
 class GridData:
     # TODO: add docstrings to remaining properties
@@ -629,11 +630,11 @@ class GridData:
         self._vertical_data = vertical_data
         self._contravariant_data = contravariant_data
         self._angle_data = angle_data
-    
+
     @classmethod
     def new_from_metric_terms(cls, metric_terms: MetricTerms):
-                  
-        horizontal_data =  HorizontalGridData(
+
+        horizontal_data = HorizontalGridData(
             lon=metric_terms.lon.storage,
             lat=metric_terms.lat.storage,
             lon_agrid=metric_terms.lon_agrid.storage,
@@ -657,13 +658,15 @@ class GridData:
             a11=metric_terms.a11.storage,
             a12=metric_terms.a12.storage,
             a21=metric_terms.a21.storage,
-            a22=metric_terms.a22.storage,)
-        vertical_data =  VerticalGridData(
+            a22=metric_terms.a22.storage,
+        )
+        vertical_data = VerticalGridData(
             ak=metric_terms.ak.storage,
             bk=metric_terms.bk.storage,
             ptop=metric_terms.ptop,
-            ks=metric_terms.ks)
-        contravariant_data =  ContravariantGridData(
+            ks=metric_terms.ks,
+        )
+        contravariant_data = ContravariantGridData(
             cosa=metric_terms.cosa.storage,
             cosa_u=metric_terms.cosa_u.storage,
             cosa_v=metric_terms.cosa_v.storage,
@@ -673,7 +676,8 @@ class GridData:
             rsina=metric_terms.rsina.storage,
             rsin_u=metric_terms.rsin_u.storage,
             rsin_v=metric_terms.rsin_v.storage,
-            rsin2=metric_terms.rsin2.storage,)
+            rsin2=metric_terms.rsin2.storage,
+        )
         angle_data = AngleGridData(
             sin_sg1=metric_terms.sin_sg1.storage,
             sin_sg2=metric_terms.sin_sg2.storage,
@@ -683,10 +687,9 @@ class GridData:
             cos_sg2=metric_terms.cos_sg2.storage,
             cos_sg3=metric_terms.cos_sg3.storage,
             cos_sg4=metric_terms.cos_sg4.storage,
-           
         )
         return cls(horizontal_data, vertical_data, contravariant_data, angle_data)
-    
+
     @property
     def lon(self):
         """longitude of cell corners"""
@@ -801,7 +804,7 @@ class GridData:
     @property
     def a22(self):
         return self._horizontal_data.a22
-    
+
     @property
     def ptop(self):
         """pressure at top of atmosphere (Pa)"""

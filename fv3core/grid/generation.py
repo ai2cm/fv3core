@@ -7,7 +7,13 @@ from fv3core.utils.corners import (
     fill_corners_cgrid,
     fill_corners_dgrid,
 )
-from fv3core.utils.global_constants import PI, RADIUS, CARTESIAN_DIM, LON_OR_LAT_DIM, TILE_DIM
+from fv3core.utils.global_constants import (
+    CARTESIAN_DIM,
+    LON_OR_LAT_DIM,
+    PI,
+    RADIUS,
+    TILE_DIM,
+)
 from fv3core.utils.gt4py_utils import asarray
 from fv3core.utils.stencil import GridIndexing
 from fv3gfs.util.constants import N_HALO_DEFAULT
@@ -236,36 +242,39 @@ class MetricTerms:
 
     @property
     def lon(self):
-        return fv3util.Quantity(data=self.grid.data[:, :, 0],
-                                dims=self.grid.dims[0:2],
-                                units=self.grid.units,
-                                gt4py_backend=self.grid.gt4py_backend
-                                )
+        return fv3util.Quantity(
+            data=self.grid.data[:, :, 0],
+            dims=self.grid.dims[0:2],
+            units=self.grid.units,
+            gt4py_backend=self.grid.gt4py_backend,
+        )
 
     @property
     def lat(self):
-        return fv3util.Quantity(data=self.grid.data[:, :, 1],
-                                dims=self.grid.dims[0:2],
-                                units=self.grid.units,
-                                gt4py_backend=self.grid.gt4py_backend
-                                )
-    
+        return fv3util.Quantity(
+            data=self.grid.data[:, :, 1],
+            dims=self.grid.dims[0:2],
+            units=self.grid.units,
+            gt4py_backend=self.grid.gt4py_backend,
+        )
+
     @property
     def lon_agrid(self):
-        return fv3util.Quantity(data=self.agrid.data[:, :, 0],
-                                dims=self.agrid.dims[0:2],
-                                units=self.agrid.units,
-                                gt4py_backend=self.agrid.gt4py_backend
-                                )
+        return fv3util.Quantity(
+            data=self.agrid.data[:, :, 0],
+            dims=self.agrid.dims[0:2],
+            units=self.agrid.units,
+            gt4py_backend=self.agrid.gt4py_backend,
+        )
 
     @property
     def lat_agrid(self):
-        return fv3util.Quantity(data=self.agrid.data[:, :, 1],
-                                dims=self.agrid.dims[0:2],
-                                units=self.agrid.units,
-                                gt4py_backend=self.agrid.gt4py_backend
-                                )
-   
+        return fv3util.Quantity(
+            data=self.agrid.data[:, :, 1],
+            dims=self.agrid.dims[0:2],
+            units=self.agrid.units,
+            gt4py_backend=self.agrid.gt4py_backend,
+        )
 
     @property
     def dx(self):
@@ -1200,7 +1209,7 @@ class MetricTerms:
             data=1.0 / self.area.data,
             dims=self.area.dims,
             units="m^-1",
-            gt4py_backend=self.area.gt4py_backend
+            gt4py_backend=self.area.gt4py_backend,
         )
 
     @cached_property
@@ -1212,9 +1221,9 @@ class MetricTerms:
             data=1.0 / self.area_c.data,
             dims=self.area_c.dims,
             units="m^-1",
-            gt4py_backend=self.area_c.gt4py_backend
+            gt4py_backend=self.area_c.gt4py_backend,
         )
-    
+
     @cached_property
     def rdx(self):
         """
@@ -1224,7 +1233,7 @@ class MetricTerms:
             data=1.0 / self.dx.data,
             dims=self.dx.dims,
             units="m^-1",
-            gt4py_backend=self.dx.gt4py_backend
+            gt4py_backend=self.dx.gt4py_backend,
         )
 
     @cached_property
@@ -1236,7 +1245,7 @@ class MetricTerms:
             data=1.0 / self.dy.data,
             dims=self.dy.dims,
             units="m^-1",
-            gt4py_backend=self.dy.gt4py_backend
+            gt4py_backend=self.dy.gt4py_backend,
         )
 
     @cached_property
@@ -1248,7 +1257,7 @@ class MetricTerms:
             data=1.0 / self.dxa.data,
             dims=self.dxa.dims,
             units="m^-1",
-            gt4py_backend=self.dxa.gt4py_backend
+            gt4py_backend=self.dxa.gt4py_backend,
         )
 
     @cached_property
@@ -1260,7 +1269,7 @@ class MetricTerms:
             data=1.0 / self.dya.data,
             dims=self.dya.dims,
             units="m^-1",
-            gt4py_backend=self.dya.gt4py_backend
+            gt4py_backend=self.dya.gt4py_backend,
         )
 
     @cached_property
@@ -1272,7 +1281,7 @@ class MetricTerms:
             data=1.0 / self.dxc.data,
             dims=self.dxc.dims,
             units="m^-1",
-            gt4py_backend=self.dxc.gt4py_backend
+            gt4py_backend=self.dxc.gt4py_backend,
         )
 
     @cached_property
@@ -1284,7 +1293,7 @@ class MetricTerms:
             data=1.0 / self.dyc.data,
             dims=self.dyc.dims,
             units="m^-1",
-            gt4py_backend=self.dyc.gt4py_backend
+            gt4py_backend=self.dyc.gt4py_backend,
         )
 
     def _init_dgrid(self):

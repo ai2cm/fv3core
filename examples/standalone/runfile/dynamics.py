@@ -205,15 +205,16 @@ if __name__ == "__main__":
         else:
             mpi_comm = MPI.COMM_WORLD
 
-      
         namelist = spec.namelist
         # set up grid-dependent helper structures
         partitioner = util.CubedSpherePartitioner(util.TilePartitioner(namelist.layout))
         communicator = util.CubedSphereCommunicator(mpi_comm, partitioner)
         # generate the grid
-        grid = spec.make_grid_with_data_from_namelist(namelist, rank, communicator, backend)
+        grid = spec.make_grid_with_data_from_namelist(
+            namelist, rank, communicator, args.backend
+        )
         spec.set_grid(grid)
-        
+
         # create a state from serialized data
         savepoint_in = serializer.get_savepoint("FVDynamics-In")[0]
         driver_object = fv3core.testing.TranslateFVDynamics([grid])

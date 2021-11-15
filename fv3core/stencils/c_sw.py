@@ -8,8 +8,8 @@ from gt4py.gtscript import (
 )
 
 import fv3core.utils.gt4py_utils as utils
-from fv3core.stencils.d2a2c_vect import DGrid2AGrid2CGridVectors
 from fv3core.stencils.basic_operations import compute_coriolis_parameter_defn
+from fv3core.stencils.d2a2c_vect import DGrid2AGrid2CGridVectors
 from fv3core.utils import corners
 from fv3core.utils.grid import GridData
 from fv3core.utils.stencil import StencilFactory
@@ -375,15 +375,17 @@ def initialize_delpc_ptc(delpc: FloatField, ptc: FloatField):
         delpc = 0.0
         ptc = 0.0
 
+
 def compute_fC(stencil_factory: StencilFactory, lon: FloatFieldIJ, lat: FloatFieldIJ):
-    fC =  utils.make_storage_from_shape(lon.shape)
+    fC = utils.make_storage_from_shape(lon.shape)
     fC_stencil = stencil_factory.from_dims_halo(
-            compute_coriolis_parameter_defn,
-            compute_dims=[X_INTERFACE_DIM, Y_INTERFACE_DIM, Z_DIM],
-            compute_halos=(3, 3),
+        compute_coriolis_parameter_defn,
+        compute_dims=[X_INTERFACE_DIM, Y_INTERFACE_DIM, Z_DIM],
+        compute_halos=(3, 3),
     )
     fC_stencil(fC, lon, lat, 0.0)
     return fC
+
 
 class CGridShallowWaterDynamics:
     """

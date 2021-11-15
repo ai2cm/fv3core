@@ -452,7 +452,7 @@ def test_parallel_savepoint(
         process_override(threshold_overrides, testobj, test_name, backend)
     if compute_grid and not testobj.compute_grid_option:
         pytest.xfail(f"compute_grid option not used for test {test_name}")
-   
+
     fv3core._config.set_grid(grid[0])
     input_data = testobj.collect_input_data(serializer, savepoint_in)
     # run python version of functionality
