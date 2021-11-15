@@ -606,7 +606,6 @@ class DampingCoefficients:
 
     @classmethod
     def new_from_metric_terms(cls, metric_terms: MetricTerms):
-        print("huh", type(metric_terms.da_min))
         return cls(
             divg_u=metric_terms.divg_u.storage,
             divg_v=metric_terms.divg_v.storage,
