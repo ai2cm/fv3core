@@ -211,7 +211,7 @@ if __name__ == "__main__":
         communicator = util.CubedSphereCommunicator(mpi_comm, partitioner)
         # generate the grid
         grid = spec.make_grid_with_data_from_namelist(
-            namelist, rank, communicator, args.backend
+            namelist, communicator, args.backend
         )
         spec.set_grid(grid)
 

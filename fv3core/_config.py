@@ -883,8 +883,8 @@ def make_grid_from_namelist(namelist, rank):
     return Grid(indices, shape_params, rank, namelist.layout)
 
 
-def make_grid_with_data_from_namelist(namelist, rank, communicator, backend):
-    grid = make_grid_from_namelist(namelist, rank)
+def make_grid_with_data_from_namelist(namelist, communicator, backend):
+    grid = make_grid_from_namelist(namelist, communicator.rank)
     grid.make_grid_data(
         npx=namelist.npx,
         npy=namelist.npy,
