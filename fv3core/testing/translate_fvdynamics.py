@@ -42,16 +42,6 @@ class TranslateFVDynamics(ParallelTranslateBaseSlicing):
             "units": "Pa",
             "n_halo": 1,
         },
-        "ak": {
-            "name": "atmosphere_hybrid_a_coordinate",
-            "dims": [fv3util.Z_INTERFACE_DIM],
-            "units": "Pa",
-        },
-        "bk": {
-            "name": "atmosphere_hybrid_b_coordinate",
-            "dims": [fv3util.Z_INTERFACE_DIM],
-            "units": "",
-        },
         "pk": {
             "name": "interface_pressure_raised_to_power_of_kappa",
             "units": "unknown",
@@ -195,11 +185,7 @@ class TranslateFVDynamics(ParallelTranslateBaseSlicing):
             "units": "Pa/s",
         },
         "do_adiabatic_init": {"dims": []},
-        "consv_te": {"dims": []},
         "bdt": {"dims": []},
-        "ptop": {"dims": []},
-        "n_split": {"dims": []},
-        "ks": {"dims": []},
     }
 
     outputs = inputs.copy()
@@ -208,11 +194,7 @@ class TranslateFVDynamics(ParallelTranslateBaseSlicing):
         "do_adiabatic_init",
         "consv_te",
         "bdt",
-        "ptop",
         "n_split",
-        "ak",
-        "bk",
-        "ks",
     ):
         outputs.pop(name)
 
@@ -261,8 +243,6 @@ class TranslateFVDynamics(ParallelTranslateBaseSlicing):
             "va": {},
             "uc": grid.x3d_domain_dict(),
             "vc": grid.y3d_domain_dict(),
-            "ak": {},
-            "bk": {},
             "mfxd": grid.x3d_compute_dict(),
             "mfyd": grid.y3d_compute_dict(),
             "cxd": grid.x3d_compute_domain_y_dict(),
@@ -271,8 +251,6 @@ class TranslateFVDynamics(ParallelTranslateBaseSlicing):
         }
 
         self._base.out_vars = self._base.in_vars["data_vars"].copy()
-        for var in ["ak", "bk"]:
-            self._base.out_vars.pop(var)
         self._base.out_vars["ps"] = {"kstart": grid.npz - 1, "kend": grid.npz - 1}
         self._base.out_vars["phis"] = {"kstart": grid.npz - 1, "kend": grid.npz - 1}
 
@@ -285,14 +263,10 @@ class TranslateFVDynamics(ParallelTranslateBaseSlicing):
         self.dycore: Optional[fv_dynamics.DynamicalCore] = None
 
     def compute_parallel(self, inputs, communicator):
-        # ak, bk, and phis are numpy arrays at this point and
-        #   must be converted into gt4py storages
-        for name in ("ak", "bk", "phis"):
-            inputs[name] = utils.make_storage_data(
-                inputs[name], inputs[name].shape, len(inputs[name].shape) * (0,)
-            )
+        inputs["phis"] = utils.make_storage_data(
+            inputs["phis"], inputs["phis"].shape, len(inputs["phis"].shape) * (0,)
+        )
 
-        inputs["comm"] = communicator
         state = self.state_from_inputs(inputs)
         self.dycore = fv_dynamics.DynamicalCore(
             comm=communicator,
@@ -300,18 +274,16 @@ class TranslateFVDynamics(ParallelTranslateBaseSlicing):
             stencil_factory=spec.grid.stencil_factory,
             damping_coefficients=spec.grid.damping_coefficients,  # damping_data,
             config=spec.namelist.dynamical_core,
-            ak=state["atmosphere_hybrid_a_coordinate"],
-            bk=state["atmosphere_hybrid_b_coordinate"],
             phis=state["surface_geopotential"],
         )
         self.dycore.step_dynamics(
             state,
-            inputs["consv_te"],
+            spec.namelist.consv_te,
             inputs["do_adiabatic_init"],
             inputs["bdt"],
-            inputs["ptop"],
-            inputs["n_split"],
-            inputs["ks"],
+            spec.grid.grid_data.ptop,
+            spec.namelist.n_split,
+            spec.grid.rid_data.ks,
         )
         outputs = self.outputs_from_state(state)
         for name, value in outputs.items():

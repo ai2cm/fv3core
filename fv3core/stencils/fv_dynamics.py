@@ -235,9 +235,7 @@ class DynamicalCore:
         ),
         ArgSpec("ps", "surface_pressure", "Pa", intent="inout"),
         ArgSpec("omga", "vertical_pressure_velocity", "Pa/s", intent="inout"),
-        ArgSpec("ak", "atmosphere_hybrid_a_coordinate", "Pa", intent="in"),
-        ArgSpec("bk", "atmosphere_hybrid_b_coordinate", "", intent="in"),
-        ArgSpec("mfxd", "accumulated_x_mass_flux", "unknown", intent="inout"),
+                ArgSpec("mfxd", "accumulated_x_mass_flux", "unknown", intent="inout"),
         ArgSpec("mfyd", "accumulated_y_mass_flux", "unknown", intent="inout"),
         ArgSpec("cxd", "accumulated_x_courant_number", "", intent="inout"),
         ArgSpec("cyd", "accumulated_y_courant_number", "", intent="inout"),
@@ -256,8 +254,6 @@ class DynamicalCore:
         stencil_factory: StencilFactory,
         damping_coefficients: DampingCoefficients,
         config: DynamicalCoreConfig,
-        ak: fv3gfs.util.Quantity,
-        bk: fv3gfs.util.Quantity,
         phis: fv3gfs.util.Quantity,
     ):
         """
@@ -268,8 +264,6 @@ class DynamicalCore:
             damping_coefficients: damping configuration/constants
             config: configuration of dynamical core, for example as would be set by
                 the namelist in the Fortran model
-            ak: atmosphere hybrid a coordinate (Pa)
-            bk: atmosphere hybrid b coordinate (dimensionless)
             phis: surface geopotential height
         """
         # nested and stretched_grid are options in the Fortran code which we
@@ -308,8 +302,8 @@ class DynamicalCore:
         self.tracer_advection = tracer_2d_1l.TracerAdvection(
             stencil_factory, tracer_transport, self.grid_data, comm, NQ
         )
-        self._ak = ak.storage
-        self._bk = bk.storage
+        self._ak = grid_data.ak
+        self._bk = grid_data.bk
         self._phis = phis.storage
         pfull_stencil = stencil_factory.from_origin_domain(
             init_pfull, origin=(0, 0, 0), domain=(1, 1, grid_indexing.domain[2])

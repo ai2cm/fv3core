@@ -1642,24 +1642,6 @@ class TranslateEdgeFactors(ParallelTranslateGrid):
                 state[metadata["name"]] = getattr(grid_generator, metric_term)
             else:
                 qnp = in_state[metric_term].np
-                print(
-                    "geeze",
-                    type(in_state[metric_term].data[:]),
-                    type(grid_generator._grid.data[:]),
-                    type(qnp.asarray(getattr(a2b, "_" + metric_term).data[:])),
-                    qnp.asarray(getattr(a2b, "_" + metric_term).data[:]).shape,
-                    in_state[metric_term].data[:].shape,
-                )
-                reshaped = qnp.reshape(
-                    qnp.asarray(getattr(a2b, "_" + metric_term).data[:]),
-                    in_state[metric_term].data[:].shape,
-                )
-                print(reshaped.shape)
-                print(
-                    qnp.squeeze(
-                        qnp.asarray(getattr(a2b, "_" + metric_term).data[:])
-                    ).shape
-                )
                 in_state[metric_term].data[:] = qnp.squeeze(
                     qnp.asarray(getattr(a2b, "_" + metric_term).data[:])
                 )
