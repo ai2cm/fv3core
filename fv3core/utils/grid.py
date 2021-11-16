@@ -453,7 +453,7 @@ class Grid:
             a21=self.a21,
             a22=self.a22,
         )
-        vertical = VerticalGridData(ptop=300.0, ks=18)
+        vertical = VerticalGridData(ptop=-1.0e7, ks=-1)
         contravariant = ContravariantGridData(
             self.cosa,
             self.cosa_u,
@@ -660,9 +660,14 @@ class GridData:
             a21=metric_terms.a21.storage,
             a22=metric_terms.a22.storage,
         )
+        ak = metric_terms.ak.data
+        bk = metric_terms.bk.data
+        # TODO fix <Quantity>.storage mask for FieldK
+        ak = utils.make_storage_data(ak, ak.shape, len(ak.shape) * (0,))
+        bk = utils.make_storage_data(bk, bk.shape, len(bk.shape) * (0,))
         vertical_data = VerticalGridData(
-            ak=metric_terms.ak.storage,
-            bk=metric_terms.bk.storage,
+            ak=ak,
+            bk=bk,
             ptop=metric_terms.ptop,
             ks=metric_terms.ks,
         )
@@ -806,11 +811,6 @@ class GridData:
         return self._horizontal_data.a22
 
     @property
-    def ptop(self):
-        """pressure at top of atmosphere (Pa)"""
-        return self._vertical_data.ptop
-
-    @property
     def p_ref(self) -> float:
         """
         reference pressure (Pa) used to define pressure at vertical interfaces,
@@ -845,6 +845,23 @@ class GridData:
     @bk.setter
     def bk(self, value):
         self._vertical_data.bk = value
+
+    @property
+    def ks(self):
+        return self._vertical_data.ks
+
+    @ks.setter
+    def ks(self, value):
+        self._vertical_data.ks = value
+
+    @property
+    def ptop(self):
+        """pressure at top of atmosphere (Pa)"""
+        return self._vertical_data.ptop
+
+    @ptop.setter
+    def ptop(self, value):
+        self._vertical_data.ptop = value
 
     @property
     def cosa(self):

@@ -223,12 +223,10 @@ if __name__ == "__main__":
         state = driver_object.state_from_inputs(input_data)
         dycore = fv3core.DynamicalCore(
             comm=communicator,
-            grid_data=spec.grid.grid_data,
-            stencil_factory=spec.grid.stencil_factory,
-            damping_coefficients=spec.grid.damping_coefficients,
+            grid_data=grid.grid_data,
+            stencil_factory=grid.stencil_factory,
+            damping_coefficients=grid.damping_coefficients,
             config=spec.namelist.dynamical_core,
-            ak=state["atmosphere_hybrid_a_coordinate"],
-            bk=state["atmosphere_hybrid_b_coordinate"],
             phis=state["surface_geopotential"],
         )
 
@@ -239,12 +237,10 @@ if __name__ == "__main__":
             print("timestep 1")
         dycore.step_dynamics(
             state,
-            input_data["consv_te"],
+            namelist.consv_te,
             input_data["do_adiabatic_init"],
             input_data["bdt"],
-            input_data["ptop"],
-            input_data["n_split"],
-            input_data["ks"],
+            namelist.n_split,
         )
 
     if profiler is not None:
@@ -261,12 +257,10 @@ if __name__ == "__main__":
                 print(f"timestep {i+2}")
             dycore.step_dynamics(
                 state,
-                input_data["consv_te"],
+                namelist.consv_te,
                 input_data["do_adiabatic_init"],
                 input_data["bdt"],
-                input_data["ptop"],
-                input_data["n_split"],
-                input_data["ks"],
+                namelist.n_split,
                 timestep_timer,
             )
         times_per_step.append(timestep_timer.times)

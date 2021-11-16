@@ -42,6 +42,16 @@ class TranslateFVDynamics(ParallelTranslateBaseSlicing):
             "units": "Pa",
             "n_halo": 1,
         },
+        "ak": {
+            "name": "atmosphere_hybrid_a_coordinate",
+            "dims": [fv3util.Z_INTERFACE_DIM],
+            "units": "Pa",
+        },
+        "bk": {
+            "name": "atmosphere_hybrid_b_coordinate",
+            "dims": [fv3util.Z_INTERFACE_DIM],
+            "units": "",
+        },
         "pk": {
             "name": "interface_pressure_raised_to_power_of_kappa",
             "units": "unknown",
@@ -186,16 +196,13 @@ class TranslateFVDynamics(ParallelTranslateBaseSlicing):
         },
         "do_adiabatic_init": {"dims": []},
         "bdt": {"dims": []},
+        "ptop": {"dims": []},
+        "ks": {"dims": []},
     }
 
     outputs = inputs.copy()
 
-    for name in (
-        "do_adiabatic_init",
-        "consv_te",
-        "bdt",
-        "n_split",
-    ):
+    for name in ("do_adiabatic_init", "bdt", "ak", "bk", "ks", "ptop"):
         outputs.pop(name)
 
     def __init__(self, grids, *args, **kwargs):
@@ -263,14 +270,23 @@ class TranslateFVDynamics(ParallelTranslateBaseSlicing):
         self.dycore: Optional[fv_dynamics.DynamicalCore] = None
 
     def compute_parallel(self, inputs, communicator):
-        inputs["phis"] = utils.make_storage_data(
-            inputs["phis"], inputs["phis"].shape, len(inputs["phis"].shape) * (0,)
-        )
+        for name in ("ak", "bk", "phis"):
+            inputs[name] = utils.make_storage_data(
+                inputs[name], inputs[name].shape, len(inputs[name].shape) * (0,)
+            )
+        grid_data = spec.grid.grid_data
+        # These aren't in the Grid-Info savepoint, but are in the generated grid
+        if grid_data.ak is None or grid_data.bk is None:
+            grid_data.ak = inputs["ak"]
+            grid_data.bk = inputs["bk"]
+            grid_data.ptop = inputs["ptop"]
+            grid_data.ks = inputs["ks"]
 
         state = self.state_from_inputs(inputs)
+
         self.dycore = fv_dynamics.DynamicalCore(
             comm=communicator,
-            grid_data=spec.grid.grid_data,  # grid_data,
+            grid_data=grid_data,  # grid_data,
             stencil_factory=spec.grid.stencil_factory,
             damping_coefficients=spec.grid.damping_coefficients,  # damping_data,
             config=spec.namelist.dynamical_core,
@@ -281,9 +297,7 @@ class TranslateFVDynamics(ParallelTranslateBaseSlicing):
             spec.namelist.consv_te,
             inputs["do_adiabatic_init"],
             inputs["bdt"],
-            spec.grid.grid_data.ptop,
             spec.namelist.n_split,
-            spec.grid.rid_data.ks,
         )
         outputs = self.outputs_from_state(state)
         for name, value in outputs.items():

@@ -295,9 +295,6 @@ class AcousticDynamics:
         nested,
         stretched_grid,
         config: AcousticDynamicsConfig,
-        # TODO: move ak, bk, pfull, and phis into GridData
-        ak: FloatFieldK,
-        bk: FloatFieldK,
         pfull: FloatFieldK,
         phis: FloatFieldIJ,
     ):
@@ -311,8 +308,6 @@ class AcousticDynamics:
             nested: ???
             stretched_grid: ???
             config: configuration settings
-            ak: atmosphere hybrid a coordinate (Pa)
-            bk: atmosphere hybrid b coordinate (dimensionless)
             pfull: atmospheric Eulerian grid reference pressure (Pa)
             phis: surface geopotential height
         """
@@ -354,8 +349,8 @@ class AcousticDynamics:
                 domain=grid_indexing.domain_full(add=(0, 0, 1)),
             )
             dp_ref_stencil(
-                ak,
-                bk,
+                self.grid_data.ak,
+                self.grid_data.bk,
                 phis,
                 dp_ref_3d,
                 zs_3d,
