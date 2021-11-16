@@ -1,3 +1,4 @@
+import copy
 import collections
 import collections.abc
 import functools
@@ -34,7 +35,6 @@ import fv3core.utils.global_config as global_config
 import fv3core.utils.grid
 from fv3core.utils.global_config import StencilConfig
 from fv3core.utils.typing import Index3D
-
 
 ArgSpec = collections.namedtuple(
     "ArgSpec", ["arg_name", "standard_name", "units", "intent"]
@@ -227,14 +227,11 @@ class FrozenStencil(SDFGConvertible):
 
         self._written_fields = get_written_fields(self.stencil_object.field_info)
 
-        self.sdfg_wrapper = gtscript.SDFGWrapper(
-            definition=func,
-            origin=origin,
-            domain=domain,
-            externals=externals,
-            name=f"{__name__}.{func.__name__}",
-            backend=self.stencil_config.backend,
+        self._frozen_stencil = self.stencil_object.freeze(
+            origin=self._field_origins,
+            domain=self.domain,
         )
+        self._sdfg = self._frozen_stencil.__sdfg__()
 
     def __call__(
         self,
@@ -263,16 +260,18 @@ class FrozenStencil(SDFGConvertible):
             self._mark_cuda_fields_written({**args_as_kwargs, **kwargs})
 
     def __sdfg__(self, *args, **kwargs):
-        return self.sdfg_wrapper.__sdfg__(*args, **kwargs)
+        return copy.deepcopy(self._sdfg)
 
     def __sdfg_signature__(self):
-        return self.sdfg_wrapper.__sdfg_signature__()
+        return self._frozen_stencil.__sdfg_signature__()
 
     def __sdfg_closure__(self, *args, **kwargs):
-        return self.sdfg_wrapper.__sdfg_closure__(*args, **kwargs)
+        return self._frozen_stencil.__sdfg_closure__(*args, **kwargs)
 
     def closure_resolver(self, constant_args, parent_closure=None):
-        return SDFGClosure()
+        return self._frozen_stencil.closure_resolver(
+            constant_args, parent_closure=parent_closure
+        )
 
     def _mark_cuda_fields_written(self, fields: Mapping[str, Storage]):
         if (
