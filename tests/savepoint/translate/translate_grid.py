@@ -1643,7 +1643,7 @@ class TranslateEdgeFactors(ParallelTranslateGrid):
             else:
                 in_state[metadata["name"]].data[:] = getattr(
                     a2b, "_" + metric_term
-                ).data
+                ).data[:]
                 state[metadata["name"]] = in_state[metadata["name"]]
 
         return self.outputs_from_state(state)
