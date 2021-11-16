@@ -1641,8 +1641,27 @@ class TranslateEdgeFactors(ParallelTranslateGrid):
             if "vect" in metric_term:
                 state[metadata["name"]] = getattr(grid_generator, metric_term)
             else:
-                in_state[metric_term].data[:] = in_state[metric_term].np.asarray(
-                    getattr(a2b, "_" + metric_term).data[:]
+                qnp = in_state[metric_term].np
+                print(
+                    "geeze",
+                    type(in_state[metric_term].data[:]),
+                    type(grid_generator._grid.data[:]),
+                    type(qnp.asarray(getattr(a2b, "_" + metric_term).data[:])),
+                    qnp.asarray(getattr(a2b, "_" + metric_term).data[:]).shape,
+                    in_state[metric_term].data[:].shape,
+                )
+                reshaped = qnp.reshape(
+                    qnp.asarray(getattr(a2b, "_" + metric_term).data[:]),
+                    in_state[metric_term].data[:].shape,
+                )
+                print(reshaped.shape)
+                print(
+                    qnp.squeeze(
+                        qnp.asarray(getattr(a2b, "_" + metric_term).data[:])
+                    ).shape
+                )
+                in_state[metric_term].data[:] = qnp.squeeze(
+                    qnp.asarray(getattr(a2b, "_" + metric_term).data[:])
                 )
                 state[metadata["name"]] = in_state[metric_term]
 
