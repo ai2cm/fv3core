@@ -1534,24 +1534,24 @@ class TranslateEdgeFactors(ParallelTranslateGrid):
             "units": "",
             "n_halo": 0,
         },
-        "edge_n": {
-            "name": "edge_n",
-            "dims": [fv3util.X_INTERFACE_DIM],
-            "units": "",
-            "n_halo": 0,
-        },
-        "edge_e": {
-            "name": "edge_e",
-            "dims": [fv3util.Y_INTERFACE_DIM],
-            "units": "",
-            "n_halo": 0,
-        },
-        "edge_w": {
-            "name": "edge_w",
-            "dims": [fv3util.Y_INTERFACE_DIM],
-            "units": "",
-            "n_halo": 0,
-        },
+        # "edge_n": {
+        #    "name": "edge_n",
+        #    "dims": [fv3util.X_INTERFACE_DIM],
+        #    "units": "",
+        #    "n_halo": 0,
+        # },
+        # "edge_e": {
+        #    "name": "edge_e",
+        #    "dims": [fv3util.Y_INTERFACE_DIM],
+        #    "units": "",
+        #    "n_halo": 0,
+        # },
+        # "edge_w": {
+        #    "name": "edge_w",
+        #    "dims": [fv3util.Y_INTERFACE_DIM],
+        #    "units": "",
+        #    "n_halo": 0,
+        # },
         "edge_vect_s": {
             "name": "edge_vect_s",
             "dims": [fv3util.X_DIM],
@@ -1574,30 +1574,30 @@ class TranslateEdgeFactors(ParallelTranslateGrid):
         },
     }
     outputs: Dict[str, Any] = {
-        "edge_s": {
-            "name": "edge_s",
-            "dims": [fv3util.X_INTERFACE_DIM],
-            "units": "",
-            "n_halo": 0,
-        },
-        "edge_n": {
-            "name": "edge_n",
-            "dims": [fv3util.X_INTERFACE_DIM],
-            "units": "",
-            "n_halo": 0,
-        },
-        "edge_e": {
-            "name": "edge_e",
-            "dims": [fv3util.Y_INTERFACE_DIM],
-            "units": "",
-            "n_halo": 0,
-        },
-        "edge_w": {
-            "name": "edge_w",
-            "dims": [fv3util.Y_INTERFACE_DIM],
-            "units": "",
-            "n_halo": 0,
-        },
+        # "edge_s": {
+        #    "name": "edge_s",
+        #    "dims": [fv3util.X_INTERFACE_DIM],
+        #    "units": "",
+        #    "n_halo": 0,
+        # },
+        # "edge_n": {
+        #    "name": "edge_n",
+        #    "dims": [fv3util.X_INTERFACE_DIM],
+        #    "units": "",
+        #    "n_halo": 0,
+        # },
+        # "edge_e": {
+        #    "name": "edge_e",
+        #    "dims": [fv3util.Y_INTERFACE_DIM],
+        #    "units": "",
+        #    "n_halo": 0,
+        # },
+        # "edge_w": {
+        #    "name": "edge_w",
+        #    "dims": [fv3util.Y_INTERFACE_DIM],
+        #    "units": "",
+        #    "n_halo": 0,
+        # },
         "edge_vect_s": {
             "name": "edge_vect_s",
             "dims": [fv3util.X_DIM],
@@ -1640,11 +1640,11 @@ class TranslateEdgeFactors(ParallelTranslateGrid):
         for metric_term, metadata in self.outputs.items():
             if "vect" in metric_term:
                 state[metadata["name"]] = getattr(grid_generator, metric_term)
-            else:
-                in_state[metadata["name"]].data[:] = getattr(
-                    a2b, "_" + metric_term
-                ).data[:]
-                state[metadata["name"]] = in_state[metadata["name"]]
+            # else:
+            #    in_state[metadata["name"]].data[:] = getattr(
+            #        a2b, "_" + metric_term
+            #    ).data[:]
+            #    state[metadata["name"]] = in_state[metadata["name"]]
 
         return self.outputs_from_state(state)
 
@@ -2058,30 +2058,6 @@ class TranslateInitGridUtils(ParallelTranslateGrid):
             "dims": [fv3util.X_DIM, fv3util.Y_DIM],
             "units": "",
             "n_halo": 1,
-        },
-        "edge_s": {
-            "name": "edge_s",
-            "dims": [fv3util.X_INTERFACE_DIM],
-            "units": "",
-            "n_halo": 0,
-        },
-        "edge_n": {
-            "name": "edge_n",
-            "dims": [fv3util.X_INTERFACE_DIM],
-            "units": "",
-            "n_halo": 0,
-        },
-        "edge_e": {
-            "name": "edge_e",
-            "dims": [fv3util.Y_INTERFACE_DIM],
-            "units": "",
-            "n_halo": 0,
-        },
-        "edge_w": {
-            "name": "edge_w",
-            "dims": [fv3util.Y_INTERFACE_DIM],
-            "units": "",
-            "n_halo": 0,
         },
         "edge_vect_s": {
             "name": "edge_vect_s",
