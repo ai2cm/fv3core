@@ -227,11 +227,12 @@ class FrozenStencil(SDFGConvertible):
 
         self._written_fields = get_written_fields(self.stencil_object.field_info)
 
-        self._frozen_stencil = self.stencil_object.freeze(
-            origin=self._field_origins,
-            domain=self.domain,
-        )
-        self._sdfg = self._frozen_stencil.__sdfg__()
+        if "dace" in global_config.get_backend():
+            self._frozen_stencil = self.stencil_object.freeze(
+                origin=self._field_origins,
+                domain=self.domain,
+            )
+            self._sdfg = self._frozen_stencil.__sdfg__()
 
     def __call__(
         self,
@@ -587,7 +588,7 @@ class LazyComputepathMethod:
         self._load_sdfg = load_sdfg
         self.argspec = argspec
 
-    def __get__(self, obj, objype=None):
+    def __get__(self, obj, obj_type=None):
 
         if (id(obj), id(self.func)) not in LazyComputepathMethod.bound_callables:
 
