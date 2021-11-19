@@ -388,12 +388,10 @@ class AcousticDynamics:
         akap = constants.KAPPA
         dt = state.mdt / self.namelist.n_split
         dt2 = 0.5 * dt
-        rgrav = 1.0 / constants.GRAV
         n_split = self.namelist.n_split
         # TODO: When the namelist values are set to 0, use these instead:
         # m_split = 1. + abs(dt_atmos)/real(k_split*n_split*abs(p_split))
         # n_split = nint( real(n0split)/real(k_split*abs(p_split)) * stretch_fac + 0.5 )
-        ms = max(1, self.namelist.m_split / 2.0)
         # shape = state.delz.shape
         # NOTE: In Fortran model the halo update starts happens in fv_dynamics, not here
         if self.do_halo_exchange:
