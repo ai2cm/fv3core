@@ -19,7 +19,7 @@ from fv3gfs.util import (
     constants,
 )
 from fv3gfs.util.halo_data_transformer import HaloExchangeSpec
-
+from fv3core.utils.dace_halo_updater import DaceHaloUpdater
 
 MPI_Request = dace.opaque("MPI_Request")
 
@@ -76,12 +76,31 @@ def get_state_from_input(grid, input_data):
     return statevars
 
 
-def do_halo_update(state: dace.constant, comm: dace.constant, grid: dace.constant):
-    halo_request = comm.start_halo_update(
-        state.__getattribute__("q_con_quantity"), n_points=grid.halo
-    )
+def do_halo_update_scalar(
+    state: dace.constant, comm: dace.constant, grid: dace.constant
+):
+    halo_request = comm.start_halo_update(state.q_con_quantity, n_points=grid.halo)
     halo_request.wait()
     return state.q_con_quantity
+
+
+def do_halo_update_vector(
+    state: dace.constant, comm: dace.constant, grid: dace.constant
+):
+    halo_request = comm.start_vector_halo_update(
+        state.u_quantity,
+        state.v_quantity,
+        n_points=grid.halo,
+    )
+    halo_request.wait()
+    return state.u_quantity, state.v_quantity
+
+
+def do_halo_update_vector_interface(
+    state: dace.constant, comm: dace.constant, grid: dace.constant
+):
+    comm.synchronize_vector_interfaces(state.u_quantity, state.v_quantity)
+    return state.u_quantity, state.v_quantity
 
 
 def get_rot_config(dims):
@@ -167,150 +186,6 @@ def rot_scalar_flatten(
     return result
 
 
-class DaceHaloUpdater:
-    def __init__(self, quantity, comm, grid):
-        # store quantity
-        self.quantity = quantity
-
-        # intermediates
-        spec = QuantityHaloSpec(
-            n_points=grid.halo,
-            shape=quantity.data.shape,
-            strides=quantity.data.strides,
-            itemsize=quantity.data.itemsize,
-            origin=quantity.origin,
-            extent=quantity.extent,
-            dims=quantity.dims,
-            numpy_module=quantity.np,
-            dtype=quantity.metadata.dtype,
-        )
-        exchange_specs = {
-            boundary.to_rank: HaloExchangeSpec(
-                spec,
-                boundary.send_slice(spec),
-                boundary.n_clockwise_rotations,
-                boundary.recv_slice(spec),
-            )
-            for boundary in comm.boundaries.values()
-        }
-        exchange_ranks = [boundary.to_rank for boundary in comm.boundaries.values()]
-        rot_config = get_rot_config(quantity.dims)
-
-        # attributes to use in dace programs
-        self.rank_0, self.rank_1, self.rank_2, self.rank_3 = exchange_ranks
-        self.send_slices = {
-            rank: quantity.data[exchange_specs[rank].pack_slices]
-            for rank in exchange_ranks
-        }
-        self.receive_slices = {
-            rank: quantity.data[exchange_specs[rank].unpack_slices]
-            for rank in exchange_ranks
-        }
-        self.receive_buffers = {
-            rank: np.zeros((recv_slice.size,))
-            for rank, recv_slice in self.receive_slices.items()
-        }
-        self.n_rotations = {
-            rank: -exchange_specs[rank].pack_clockwise_rotation % 4
-            for rank in exchange_ranks
-        }
-        self.x_dim = rot_config["x_dim"]
-        self.y_dim = rot_config["y_dim"]
-        self.n_horizontal = rot_config["n_horizontal"]
-        self.x_in_x = rot_config["x_in_x"]
-        self.y_in_y = rot_config["y_in_y"]
-
-    @computepath_method(use_dace=True)
-    def start_halo_exchange(self):
-        req = np.empty((8,), dtype=MPI_Request)
-
-        dace.comm.Isend(
-            rot_scalar_flatten(
-                self.send_slices[self.rank_0],
-                self.n_rotations[self.rank_0],
-                self.x_dim,
-                self.y_dim,
-                self.n_horizontal,
-                self.x_in_x,
-                self.y_in_y,
-            ),
-            self.rank_0,
-            0,
-            req[0],
-        )
-        dace.comm.Irecv(self.receive_buffers[self.rank_0], self.rank_0, 0, req[1])
-
-        dace.comm.Isend(
-            rot_scalar_flatten(
-                self.send_slices[self.rank_1],
-                self.n_rotations[self.rank_1],
-                self.x_dim,
-                self.y_dim,
-                self.n_horizontal,
-                self.x_in_x,
-                self.y_in_y,
-            ),
-            self.rank_1,
-            0,
-            req[2],
-        )
-        dace.comm.Irecv(self.receive_buffers[self.rank_1], self.rank_1, 0, req[3])
-
-        dace.comm.Isend(
-            rot_scalar_flatten(
-                self.send_slices[self.rank_2],
-                self.n_rotations[self.rank_2],
-                self.x_dim,
-                self.y_dim,
-                self.n_horizontal,
-                self.x_in_x,
-                self.y_in_y,
-            ),
-            self.rank_2,
-            0,
-            req[4],
-        )
-        dace.comm.Irecv(self.receive_buffers[self.rank_2], self.rank_2, 0, req[5])
-
-        dace.comm.Isend(
-            rot_scalar_flatten(
-                self.send_slices[self.rank_3],
-                self.n_rotations[self.rank_3],
-                self.x_dim,
-                self.y_dim,
-                self.n_horizontal,
-                self.x_in_x,
-                self.y_in_y,
-            ),
-            self.rank_3,
-            0,
-            req[6],
-        )
-        dace.comm.Irecv(self.receive_buffers[self.rank_3], self.rank_3, 0, req[7])
-
-        dace.comm.Waitall(req)
-
-    @computepath_method(use_dace=True)
-    def finish_halo_exchange(self):
-        self.receive_slices[self.rank_0][:] = np.reshape(
-            self.receive_buffers[self.rank_0], self.receive_slices[self.rank_0].shape
-        )
-        self.receive_slices[self.rank_1][:] = np.reshape(
-            self.receive_buffers[self.rank_1], self.receive_slices[self.rank_1].shape
-        )
-        self.receive_slices[self.rank_2][:] = np.reshape(
-            self.receive_buffers[self.rank_2], self.receive_slices[self.rank_2].shape
-        )
-        self.receive_slices[self.rank_3][:] = np.reshape(
-            self.receive_buffers[self.rank_3], self.receive_slices[self.rank_3].shape
-        )
-
-    @computepath_method(use_dace=True)
-    def do_halo_exchange(self):
-        self.start_halo_exchange()
-        self.finish_halo_exchange()
-
-
 def run(data_directory, backend):
     set_up_namelist(data_directory)
     serializer = initialize_serializer(data_directory)
@@ -323,7 +198,6 @@ def run(data_directory, backend):
 
     input_data2 = read_input_data(grid, serializer)
     state2 = get_state_from_input(grid, input_data2)
-    q_con2 = state2.q_con_quantity
 
     layout = spec.namelist.layout
 
@@ -331,16 +205,50 @@ def run(data_directory, backend):
         comm=MPI.COMM_WORLD, partitioner=CubedSpherePartitioner(TilePartitioner(layout))
     )
 
-    q_con_hex = do_halo_update(state, comm, grid)
+    if _SCALAR:
+        if MPI.COMM_WORLD.Get_rank() == 0:
+            click.echo("Scalar")
 
-    updater = DaceHaloUpdater(q_con2, comm, grid)
-    updater.do_halo_exchange()
-    # ~ updater.start_halo_exchange()
-    # ~ updater.finish_halo_exchange()
+        q_con_DACE = state2.q_con_quantity
+        q_con_GTC = do_halo_update_scalar(state, comm, grid)
+        updater = DaceHaloUpdater(q_con_DACE, None, comm, grid)
+        updater.do_halo_update()
 
-    np.testing.assert_allclose(
-        np.asarray(q_con2.storage), np.asarray(q_con_hex.storage)
-    )
+        np.testing.assert_allclose(
+            np.asarray(q_con_DACE.storage), np.asarray(q_con_GTC.storage)
+        )
+
+    if _VECTOR:
+        if MPI.COMM_WORLD.Get_rank() == 0:
+            click.echo("Vector")
+
+        u_DACE, v_DACE = state2.u_quantity, state2.v_quantity
+        u_GTC, v_GTC = do_halo_update_vector(state, comm, grid)
+        updater = DaceHaloUpdater(u_DACE, v_DACE, comm, grid)
+        updater.do_halo_vector_update()
+
+        np.testing.assert_allclose(
+            np.asarray(u_DACE.storage), np.asarray(u_GTC.storage)
+        )
+        np.testing.assert_allclose(
+            np.asarray(v_DACE.storage), np.asarray(v_GTC.storage)
+        )
+
+    if _VECTOR_INTERFACE:
+        if MPI.COMM_WORLD.Get_rank() == 0:
+            click.echo("Vector Interface")
+
+        u_DACE, v_DACE = state2.u_quantity, state2.v_quantity
+        u_GTC, v_GTC = do_halo_update_vector_interface(state, comm, grid)
+        updater = DaceHaloUpdater(u_DACE, v_DACE, comm, grid, interface=True)
+        updater.do_halo_vector_interface_update()
+
+        np.testing.assert_allclose(
+            np.asarray(u_DACE.storage), np.asarray(u_GTC.storage)
+        )
+        np.testing.assert_allclose(
+            np.asarray(v_DACE.storage), np.asarray(v_GTC.storage)
+        )
 
     return state
 
@@ -356,6 +264,10 @@ def driver(
     if MPI.COMM_WORLD.Get_rank() == 0:
         click.echo("Done")
 
+
+_SCALAR = True
+_VECTOR = True
+_VECTOR_INTERFACE = True
 
 if __name__ == "__main__":
     driver()
