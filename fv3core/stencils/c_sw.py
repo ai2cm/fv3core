@@ -5,7 +5,6 @@ import fv3core.utils.gt4py_utils as utils
 from fv3core.decorators import FrozenStencil, computepath_method
 from fv3core.stencils.d2a2c_vect import DGrid2AGrid2CGridVectors
 from fv3core.utils import corners
-from fv3core.utils.grid import axis_offsets
 from fv3core.utils.typing import FloatField, FloatFieldIJ
 
 
@@ -368,7 +367,6 @@ class CGridShallowWaterDynamics:
             self.grid, self.namelist, self._dord4
         )
         grid_type = self.namelist.grid_type
-        origin_halo1 = (self.grid.is_ - 1, self.grid.js - 1, 0)
         shape = self.grid.domain_shape_full(add=(1, 1, 1))
         self.delpc = utils.make_storage_from_shape(shape)
         self.ptc = utils.make_storage_from_shape(shape)
@@ -385,11 +383,13 @@ class CGridShallowWaterDynamics:
             domain=self.grid.domain_shape_full(),
         )
 
+        # ke_c: kinetic energy on C-grid (input)
         self._ke = utils.make_storage_from_shape(shape)
+        # vort_c: Vorticity on C-grid (input)
         self._vort = utils.make_storage_from_shape(shape)
+
         origin = self.grid.compute_origin()
         domain = self.grid.domain_shape_compute(add=(1, 1, 0))
-        ax_offsets = axis_offsets(self.grid, origin, domain)
 
         if self.namelist.nord > 0:
             self._uf_main = FrozenStencil(
@@ -625,8 +625,6 @@ class CGridShallowWaterDynamics:
         self,
         uc,
         vc,
-        vort_c,
-        ke_c,
         v,
         u,
         dt2: float,
@@ -636,15 +634,13 @@ class CGridShallowWaterDynamics:
         Args:
             uc: x-velocity on C-grid (input, output)
             vc: y-velocity on C-grid (input, output)
-            vort_c: Vorticity on C-grid (input)
-            ke_c: kinetic energy on C-grid (input)
             v: y-velocity on D-grid (input)
             u: x-velocity on D-grid (input)
             dt2: timestep (input)
         """
         self._update_y_velocity(
-            vort_c,
-            ke_c,
+            self._vort,
+            self._ke,
             u,
             vc,
             self.grid.cosa_v,
@@ -654,8 +650,8 @@ class CGridShallowWaterDynamics:
         )
         if self.grid.south_edge:
             self._update_south_velocity(
-                vort_c,
-                ke_c,
+                self._vort,
+                self._ke,
                 u,
                 vc,
                 self.grid.rdyc,
@@ -663,16 +659,16 @@ class CGridShallowWaterDynamics:
             )
         if self.grid.north_edge:
             self._update_north_velocity(
-                vort_c,
-                ke_c,
+                self._vort,
+                self._ke,
                 u,
                 vc,
                 self.grid.rdyc,
                 dt2,
             )
         self._update_x_velocity(
-            vort_c,
-            ke_c,
+            self._vort,
+            self._ke,
             v,
             uc,
             self.grid.cosa_u,
@@ -682,8 +678,8 @@ class CGridShallowWaterDynamics:
         )
         if self.grid.west_edge:
             self._update_west_velocity(
-                vort_c,
-                ke_c,
+                self._vort,
+                self._ke,
                 v,
                 uc,
                 self.grid.rdxc,
@@ -691,8 +687,8 @@ class CGridShallowWaterDynamics:
             )
         if self.grid.west_edge:
             self._update_east_velocity(
-                vort_c,
-                ke_c,
+                self._vort,
+                self._ke,
                 v,
                 uc,
                 self.grid.rdxc,
@@ -885,5 +881,5 @@ class CGridShallowWaterDynamics:
             self.grid.fC,
             self.grid.rarea_c,
         )
-        self._vorticitytransport_cgrid(uc, vc, self._vort, self._ke, v, u, dt2)
+        self._vorticitytransport_cgrid(uc, vc, v, u, dt2)
         return self.delpc, self.ptc
