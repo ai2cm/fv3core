@@ -1,7 +1,7 @@
 import dace
 import numpy as np
 
-from fv3core.decorators import computepath_method
+from fv3core.decorators import computepath_function, computepath_method
 from fv3gfs.util import QuantityHaloSpec, constants, Quantity
 from fv3gfs.util.halo_data_transformer import HaloExchangeSpec
 
@@ -30,6 +30,7 @@ def get_rot_config(dims):
     }
 
 
+@computepath_function
 def rot_scalar_flatten(
     data,
     ncr: dace.int32,
@@ -90,6 +91,7 @@ def rot_scalar_flatten(
     return result
 
 
+@computepath_function
 def rot_vector_flatten(
     data_x,
     data_y,
