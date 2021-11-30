@@ -134,6 +134,8 @@ class TranslateDynCore(ParallelTranslate2Py):
                 inputs, name, dims=properties["dims"], units=properties["units"]
             )
         statevars = SimpleNamespace(**inputs)
+        statevars.__dict__.update(self._base.compute_func._temporaries)
+        self._base.compute_func.prepare_dace_halo_exchanger(statevars)
         state = {"state": statevars}
         self._base.compute_func(**state)
         return self._base.slice_output(vars(state["state"]))
