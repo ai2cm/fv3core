@@ -16,7 +16,7 @@ from gt4py.gtscript import (
 import fv3core.stencils.moist_cv as moist_cv
 import fv3core.utils.global_constants as constants
 import fv3core.utils.gt4py_utils as utils
-from fv3core.decorators import FrozenStencil
+from fv3core.decorators import FrozenStencil, computepath_method
 from fv3core.stencils.basic_operations import adjust_divide_stencil
 from fv3core.stencils.map_single import MapSingle
 from fv3core.stencils.mapn_tracer import MapNTracer
@@ -342,6 +342,7 @@ class LagrangianToEulerian:
             domain=(grid.nic, grid.njc, grid.npz - self.kmp),
         )
 
+    @computepath_method
     def __call__(
         self,
         tracers: Dict[str, "FloatField"],
