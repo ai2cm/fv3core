@@ -537,26 +537,29 @@ class RemapProfile:
         origin: Tuple[int, int, int] = (i1, j1, 0)
         domain: Tuple[int, int, int] = (i_extent, j_extent, km)
         domain_extend: Tuple[int, int, int] = (i_extent, j_extent, km + 1)
+        externals = {"iv": iv, "kord": abs(kord)}
 
         self._set_initial_values = FrozenStencil(
             func=set_initial_vals,
-            externals={"iv": iv, "kord": abs(kord)},
+            externals=externals,
             origin=origin,
             domain=domain_extend,
         )
 
         self._apply_constraints = FrozenStencil(
             func=apply_constraints,
-            externals={"iv": iv, "kord": abs(kord)},
+            externals=externals,
             origin=origin,
             domain=domain,
         )
 
+        # TODO(eddied): Skip dace horizontal merging pass to prevent infinite loop.
         self._set_interpolation_coefficients = FrozenStencil(
             func=set_interpolation_coefficients,
-            externals={"iv": iv, "kord": abs(kord)},
+            externals=externals,
             origin=origin,
             domain=domain,
+            skip_passes=("graph_merge_horizontal_executions",),
         )
 
     @computepath_method

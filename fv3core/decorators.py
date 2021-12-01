@@ -13,6 +13,7 @@ from typing import (
     List,
     Mapping,
     Optional,
+    Sequence,
     Tuple,
     Union,
     cast,
@@ -27,6 +28,7 @@ from dace.transformation.auto.auto_optimize import make_transients_persistent
 from dace.transformation.helpers import get_parent_map
 from gt4py import gtscript
 from gt4py.storage.storage import Storage
+from gtc.passes.oir_pipeline import DefaultPipeline, OirPipeline
 
 import fv3core
 import fv3core._config as spec
@@ -175,6 +177,7 @@ class FrozenStencil(SDFGConvertible):
         domain: Index3D,
         stencil_config: Optional[StencilConfig] = None,
         externals: Optional[Mapping[str, Any]] = None,
+        skip_passes: Optional[Tuple[str, ...]] = None,
     ):
         """
         Args:
@@ -183,9 +186,9 @@ class FrozenStencil(SDFGConvertible):
             domain: gt4py domain to use at call time
             stencil_config: container for stencil configuration
             externals: compile-time external variables required by stencil
+            skip_passes: compiler passes to skip when building stencil
         """
         self.origin = origin
-
         self.domain = domain
 
         if stencil_config is not None:
@@ -202,6 +205,13 @@ class FrozenStencil(SDFGConvertible):
             and not global_config.is_dacemode_codegen_whitelisted(func)
         ):
             stencil_kwargs["disable_code_generation"] = True
+
+        if skip_passes and global_config.get_backend().startswith("gtc:"):
+            stencil_kwargs["skip_passes"] = skip_passes
+        if "skip_passes" in stencil_kwargs:
+            stencil_kwargs["oir_pipeline"] = FrozenStencil._get_oir_pipeline(
+                stencil_kwargs.pop("skip_passes")
+            )
 
         self.stencil_object: gt4py.StencilObject = gtscript.stencil(
             definition=func,
@@ -282,6 +292,12 @@ class FrozenStencil(SDFGConvertible):
         ):
             for write_field in self._written_fields:
                 fields[write_field]._set_device_modified()
+
+    @classmethod
+    def _get_oir_pipeline(cls, skip_passes: Sequence[str]) -> OirPipeline:
+        step_map = {step.__name__: step for step in DefaultPipeline.all_steps()}
+        skip_steps = [step_map[pass_name] for pass_name in skip_passes]
+        return DefaultPipeline(skip=skip_steps)
 
 
 def get_stencils_with_varied_bounds(
