@@ -10,6 +10,7 @@ import fv3core._config as spec
 import fv3core.testing
 import fv3core.utils.global_config as global_config
 from fv3core.decorators import computepath_function, computepath_method
+from fv3core.utils.dace_halo_updater import DaceHaloUpdater
 from fv3core.utils.mpi import MPI
 from fv3gfs.util import (
     CubedSphereCommunicator,
@@ -19,7 +20,7 @@ from fv3gfs.util import (
     constants,
 )
 from fv3gfs.util.halo_data_transformer import HaloExchangeSpec
-from fv3core.utils.dace_halo_updater import DaceHaloUpdater
+
 
 MPI_Request = dace.opaque("MPI_Request")
 

@@ -1,6 +1,6 @@
-import copy
 import collections
 import collections.abc
+import copy
 import functools
 import inspect
 import os.path
@@ -21,7 +21,7 @@ from typing import (
 import dace
 import gt4py
 import gt4py.definitions
-from dace.frontend.python.common import SDFGClosure, SDFGConvertible
+from dace.frontend.python.common import SDFGConvertible
 from dace.frontend.python.parser import DaceProgram
 from dace.transformation.auto.auto_optimize import make_transients_persistent
 from dace.transformation.helpers import get_parent_map
@@ -35,6 +35,7 @@ import fv3core.utils.global_config as global_config
 import fv3core.utils.grid
 from fv3core.utils.global_config import StencilConfig
 from fv3core.utils.typing import Index3D
+
 
 ArgSpec = collections.namedtuple(
     "ArgSpec", ["arg_name", "standard_name", "units", "intent"]

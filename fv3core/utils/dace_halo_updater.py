@@ -2,8 +2,9 @@ import dace
 import numpy as np
 
 from fv3core.decorators import computepath_function, computepath_method
-from fv3gfs.util import QuantityHaloSpec, constants, Quantity
+from fv3gfs.util import Quantity, QuantityHaloSpec, constants
 from fv3gfs.util.halo_data_transformer import HaloExchangeSpec
+
 
 MPI_Request = dace.opaque("MPI_Request")
 

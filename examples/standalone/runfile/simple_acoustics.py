@@ -10,10 +10,9 @@ import fv3core
 import fv3core._config as spec
 import fv3core.testing
 import fv3core.utils.global_config as global_config
+import fv3gfs.util as fv3util
 from fv3core.decorators import computepath_function
 from fv3core.stencils.dyn_core import AcousticDynamics
-from fv3core.utils.global_config import get_dacemode
-import fv3gfs.util as fv3util
 
 
 def set_up_namelist(data_directory: str) -> None:
