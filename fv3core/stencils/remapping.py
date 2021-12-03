@@ -177,17 +177,16 @@ def pressures_mapv(
 
 
 def update_ua(pe2: FloatField, ua: FloatField):
-    from __externals__ import local_je
-
-    with computation(PARALLEL), interval(...):
+    with computation(PARALLEL), interval(0, -1):
         ua = pe2[0, 0, 1]
 
+
+def update_ua_edge_y(pe2: FloatField, ua: FloatField):
     # pe2[:, je+1, 1:npz] should equal pe2[:, je, 1:npz] as in the Fortran model,
     # but the extra j-elements are only used here, so we can just directly assign ua.
     # Maybe we can eliminate this later?
     with computation(PARALLEL), interval(0, -1):
-        with horizontal(region[:, local_je + 1]):
-            ua = pe2[0, -1, 1]
+        ua = pe2[0, -1, 1]
 
 
 def copy_from_below(a: FloatField, b: FloatField):
@@ -298,14 +297,16 @@ class LagrangianToEulerian:
             self._kord_mt, -1, grid.is_, grid.ie + 1, grid.js, grid.je
         )
 
-        ax_offsets_jextra = axis_offsets(
-            grid, grid.compute_origin(), grid.domain_shape_compute(add=(0, 1, 0))
-        )
         self._update_ua = FrozenStencil(
             update_ua,
             origin=grid.compute_origin(),
-            domain=grid.domain_shape_compute(add=(0, 1, 0)),
-            externals={**ax_offsets_jextra},
+            domain=self._domain_jextra,
+        )
+        compute_origin = grid.compute_origin()
+        self._update_ua_edge_y = FrozenStencil(
+            update_ua_edge_y,
+            origin=(compute_origin[0], self._domain_jextra[1] + 2, compute_origin[2]),
+            domain=(self._domain_jextra[0], 1, self._domain_jextra[2] - 1),
         )
 
         self._copy_from_below_stencil = FrozenStencil(
@@ -490,6 +491,7 @@ class LagrangianToEulerian:
         self._map_single_v(v, self._pe0, self._pe3)
 
         self._update_ua(self._pe2, ua)
+        self._update_ua_edge_y(self._pe2, ua)
 
         self._copy_from_below_stencil(ua, pe)
         dtmp = 0.0

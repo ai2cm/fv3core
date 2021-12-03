@@ -924,6 +924,7 @@ class SatAdjust3d:
             },
             origin=(self.grid.is_, self.grid.js, kmp),
             domain=(self.grid.nic, self.grid.njc, (self.grid.npz - kmp)),
+            skip_passes=("graph_merge_horizontal_executions",),
         )
 
     def __call__(
