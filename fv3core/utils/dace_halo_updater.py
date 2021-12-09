@@ -2,11 +2,15 @@ import dace
 import numpy as np
 
 from fv3core.decorators import computepath_function, computepath_method
-from fv3gfs.util import Quantity, QuantityHaloSpec, constants
+from fv3gfs.util import Quantity, QuantityHaloSpec, constants, CubedSphereCommunicator
 from fv3gfs.util.halo_data_transformer import HaloExchangeSpec
 
 
 MPI_Request = dace.opaque("MPI_Request")
+
+
+def dace_inhibitor(f):
+    return f
 
 
 def get_rot_config(dims):
@@ -137,7 +141,68 @@ def rot_vector_flatten(
 
 class DaceHaloUpdater:
     def __init__(
-        self, quantity_x: Quantity, quantity_y: Quantity, comm, grid, interface=False
+        self,
+        quantity_x: Quantity,
+        quantity_y: Quantity,
+        comm: CubedSphereCommunicator,
+        grid,
+        interface=False,
+        original=True,
+    ):
+        self._comm = comm
+        self.original_updater = None
+        if original:
+            self.__init_original_updater(quantity_x, quantity_y, comm, grid, interface)
+        else:
+            self.__init_dace_halos(quantity_x, quantity_y, comm, grid, interface)
+
+    def __init_original_updater(
+        self,
+        quantity_x: Quantity,
+        quantity_y: Quantity,
+        comm: CubedSphereCommunicator,
+        grid,
+        interface,
+    ):
+        # store quantity
+        self.quantity_x = quantity_x
+        self.quantity_y = quantity_y
+
+        spec_x = QuantityHaloSpec(
+            n_points=grid.halo,
+            shape=quantity_x.data.shape,
+            strides=quantity_x.data.strides,
+            itemsize=quantity_x.data.itemsize,
+            origin=quantity_x.origin,
+            extent=quantity_x.extent,
+            dims=quantity_x.dims,
+            numpy_module=quantity_x.np,
+            dtype=quantity_x.metadata.dtype,
+        )
+
+        if quantity_y is None:
+            self.original_updater = comm.get_scalar_halo_updater([spec_x])
+        else:
+            spec_y = QuantityHaloSpec(
+                n_points=grid.halo,
+                shape=quantity_y.data.shape,
+                strides=quantity_y.data.strides,
+                itemsize=quantity_y.data.itemsize,
+                origin=quantity_y.origin,
+                extent=quantity_y.extent,
+                dims=quantity_y.dims,
+                numpy_module=quantity_y.np,
+                dtype=quantity_y.metadata.dtype,
+            )
+            self.original_updater = comm.get_vector_halo_updater([spec_x], [spec_y])
+
+    def __init_dace_halos(
+        self,
+        quantity_x: Quantity,
+        quantity_y: Quantity,
+        comm,
+        grid,
+        interface,
     ):
         # store quantity
         self.quantity_x = quantity_x
@@ -274,177 +339,221 @@ class DaceHaloUpdater:
         self.east_buffer = np.zeros(self.east_data.shape).flatten()
         self.north_buffer = np.zeros(self.north_data.shape).flatten()
 
+    @dace_inhibitor
+    def original_start_halo_update(self):
+        if self.quantity_y is None:
+            self.original_updater.start([self.quantity_x])
+        else:
+            self.original_updater.start([self.quantity_x], [self.quantity_y])
+
+    @dace_inhibitor
+    def original_finish_halo_update(self):
+        self.original_updater.wait()
+
+    @dace_inhibitor
+    def original_vector_interface_update(self):
+        self._comm.synchronize_vector_interfaces(self.quantity_x, self.quantity_y)
+
     @computepath_method(use_dace=True)
     def start_halo_update(self):
+        if self.original_updater is not None:
+            self.original_start_halo_update()
+        else:
+            # Scalar
+            if self.quantity_y is None:
+                req = np.empty((8,), dtype=MPI_Request)
+                dace.comm.Isend(
+                    rot_scalar_flatten(
+                        self.send_slices[self.rank_0],
+                        self.n_rotations[self.rank_0],
+                        self.x_dim,
+                        self.y_dim,
+                        self.n_horizontal,
+                        self.x_in_x,
+                        self.y_in_y,
+                    ),
+                    self.rank_0,
+                    0,
+                    req[0],
+                )
+                dace.comm.Irecv(
+                    self.receive_buffers[self.rank_0], self.rank_0, 0, req[1]
+                )
 
-        # Scalar
-        if self.quantity_y is None:
-            req = np.empty((8,), dtype=MPI_Request)
-            dace.comm.Isend(
-                rot_scalar_flatten(
+                dace.comm.Isend(
+                    rot_scalar_flatten(
+                        self.send_slices[self.rank_1],
+                        self.n_rotations[self.rank_1],
+                        self.x_dim,
+                        self.y_dim,
+                        self.n_horizontal,
+                        self.x_in_x,
+                        self.y_in_y,
+                    ),
+                    self.rank_1,
+                    0,
+                    req[2],
+                )
+                dace.comm.Irecv(
+                    self.receive_buffers[self.rank_1], self.rank_1, 0, req[3]
+                )
+
+                dace.comm.Isend(
+                    rot_scalar_flatten(
+                        self.send_slices[self.rank_2],
+                        self.n_rotations[self.rank_2],
+                        self.x_dim,
+                        self.y_dim,
+                        self.n_horizontal,
+                        self.x_in_x,
+                        self.y_in_y,
+                    ),
+                    self.rank_2,
+                    0,
+                    req[4],
+                )
+                dace.comm.Irecv(
+                    self.receive_buffers[self.rank_2], self.rank_2, 0, req[5]
+                )
+
+                dace.comm.Isend(
+                    rot_scalar_flatten(
+                        self.send_slices[self.rank_3],
+                        self.n_rotations[self.rank_3],
+                        self.x_dim,
+                        self.y_dim,
+                        self.n_horizontal,
+                        self.x_in_x,
+                        self.y_in_y,
+                    ),
+                    self.rank_3,
+                    0,
+                    req[6],
+                )
+                dace.comm.Irecv(
+                    self.receive_buffers[self.rank_3], self.rank_3, 0, req[7]
+                )
+
+                dace.comm.Waitall(req)
+
+            else:  # Vector
+                req = np.empty((16,), dtype=MPI_Request)
+                x_0, y_0 = rot_vector_flatten(
                     self.send_slices[self.rank_0],
+                    self.send_slices_y[self.rank_0],
                     self.n_rotations[self.rank_0],
                     self.x_dim,
                     self.y_dim,
                     self.n_horizontal,
                     self.x_in_x,
                     self.y_in_y,
-                ),
-                self.rank_0,
-                0,
-                req[0],
-            )
-            dace.comm.Irecv(self.receive_buffers[self.rank_0], self.rank_0, 0, req[1])
+                )
+                dace.comm.Isend(x_0, self.rank_0, 0, req[0])
+                dace.comm.Irecv(
+                    self.receive_buffers[self.rank_0], self.rank_0, 0, req[1]
+                )
+                dace.comm.Isend(y_0, self.rank_0, 0, req[2])
+                dace.comm.Irecv(
+                    self.receive_buffers_y[self.rank_0], self.rank_0, 0, req[3]
+                )
 
-            dace.comm.Isend(
-                rot_scalar_flatten(
+                x_1, y_1 = rot_vector_flatten(
                     self.send_slices[self.rank_1],
+                    self.send_slices_y[self.rank_1],
                     self.n_rotations[self.rank_1],
                     self.x_dim,
                     self.y_dim,
                     self.n_horizontal,
                     self.x_in_x,
                     self.y_in_y,
-                ),
-                self.rank_1,
-                0,
-                req[2],
-            )
-            dace.comm.Irecv(self.receive_buffers[self.rank_1], self.rank_1, 0, req[3])
+                )
+                dace.comm.Isend(x_1, self.rank_1, 0, req[4])
+                dace.comm.Irecv(
+                    self.receive_buffers[self.rank_1], self.rank_1, 0, req[5]
+                )
+                dace.comm.Isend(y_1, self.rank_1, 0, req[6])
+                dace.comm.Irecv(
+                    self.receive_buffers_y[self.rank_1], self.rank_1, 0, req[7]
+                )
 
-            dace.comm.Isend(
-                rot_scalar_flatten(
+                x_2, y_2 = rot_vector_flatten(
                     self.send_slices[self.rank_2],
+                    self.send_slices_y[self.rank_2],
                     self.n_rotations[self.rank_2],
                     self.x_dim,
                     self.y_dim,
                     self.n_horizontal,
                     self.x_in_x,
                     self.y_in_y,
-                ),
-                self.rank_2,
-                0,
-                req[4],
-            )
-            dace.comm.Irecv(self.receive_buffers[self.rank_2], self.rank_2, 0, req[5])
+                )
+                dace.comm.Isend(x_2, self.rank_2, 0, req[8])
+                dace.comm.Irecv(
+                    self.receive_buffers[self.rank_2], self.rank_2, 0, req[9]
+                )
+                dace.comm.Isend(y_2, self.rank_2, 0, req[10])
+                dace.comm.Irecv(
+                    self.receive_buffers_y[self.rank_2], self.rank_2, 0, req[11]
+                )
 
-            dace.comm.Isend(
-                rot_scalar_flatten(
+                x_3, y_3 = rot_vector_flatten(
                     self.send_slices[self.rank_3],
+                    self.send_slices_y[self.rank_3],
                     self.n_rotations[self.rank_3],
                     self.x_dim,
                     self.y_dim,
                     self.n_horizontal,
                     self.x_in_x,
                     self.y_in_y,
-                ),
-                self.rank_3,
-                0,
-                req[6],
-            )
-            dace.comm.Irecv(self.receive_buffers[self.rank_3], self.rank_3, 0, req[7])
+                )
+                dace.comm.Isend(x_3, self.rank_3, 0, req[12])
+                dace.comm.Irecv(
+                    self.receive_buffers[self.rank_3], self.rank_3, 0, req[13]
+                )
+                dace.comm.Isend(y_3, self.rank_3, 0, req[14])
+                dace.comm.Irecv(
+                    self.receive_buffers_y[self.rank_3], self.rank_3, 0, req[15]
+                )
 
-            dace.comm.Waitall(req)
-
-        else:  # Vector
-            req = np.empty((16,), dtype=MPI_Request)
-            x_0, y_0 = rot_vector_flatten(
-                self.send_slices[self.rank_0],
-                self.send_slices_y[self.rank_0],
-                self.n_rotations[self.rank_0],
-                self.x_dim,
-                self.y_dim,
-                self.n_horizontal,
-                self.x_in_x,
-                self.y_in_y,
-            )
-            dace.comm.Isend(x_0, self.rank_0, 0, req[0])
-            dace.comm.Irecv(self.receive_buffers[self.rank_0], self.rank_0, 0, req[1])
-            dace.comm.Isend(y_0, self.rank_0, 0, req[2])
-            dace.comm.Irecv(self.receive_buffers_y[self.rank_0], self.rank_0, 0, req[3])
-
-            x_1, y_1 = rot_vector_flatten(
-                self.send_slices[self.rank_1],
-                self.send_slices_y[self.rank_1],
-                self.n_rotations[self.rank_1],
-                self.x_dim,
-                self.y_dim,
-                self.n_horizontal,
-                self.x_in_x,
-                self.y_in_y,
-            )
-            dace.comm.Isend(x_1, self.rank_1, 0, req[4])
-            dace.comm.Irecv(self.receive_buffers[self.rank_1], self.rank_1, 0, req[5])
-            dace.comm.Isend(y_1, self.rank_1, 0, req[6])
-            dace.comm.Irecv(self.receive_buffers_y[self.rank_1], self.rank_1, 0, req[7])
-
-            x_2, y_2 = rot_vector_flatten(
-                self.send_slices[self.rank_2],
-                self.send_slices_y[self.rank_2],
-                self.n_rotations[self.rank_2],
-                self.x_dim,
-                self.y_dim,
-                self.n_horizontal,
-                self.x_in_x,
-                self.y_in_y,
-            )
-            dace.comm.Isend(x_2, self.rank_2, 0, req[8])
-            dace.comm.Irecv(self.receive_buffers[self.rank_2], self.rank_2, 0, req[9])
-            dace.comm.Isend(y_2, self.rank_2, 0, req[10])
-            dace.comm.Irecv(
-                self.receive_buffers_y[self.rank_2], self.rank_2, 0, req[11]
-            )
-
-            x_3, y_3 = rot_vector_flatten(
-                self.send_slices[self.rank_3],
-                self.send_slices_y[self.rank_3],
-                self.n_rotations[self.rank_3],
-                self.x_dim,
-                self.y_dim,
-                self.n_horizontal,
-                self.x_in_x,
-                self.y_in_y,
-            )
-            dace.comm.Isend(x_3, self.rank_3, 0, req[12])
-            dace.comm.Irecv(self.receive_buffers[self.rank_3], self.rank_3, 0, req[13])
-            dace.comm.Isend(y_3, self.rank_3, 0, req[14])
-            dace.comm.Irecv(
-                self.receive_buffers_y[self.rank_3], self.rank_3, 0, req[15]
-            )
-
-            dace.comm.Waitall(req)
+                dace.comm.Waitall(req)
 
     @computepath_method(use_dace=True)
     def finish_halo_update(self):
-        self.receive_slices[self.rank_0][:] = np.reshape(
-            self.receive_buffers[self.rank_0], self.receive_slices[self.rank_0].shape
-        )
-        self.receive_slices[self.rank_1][:] = np.reshape(
-            self.receive_buffers[self.rank_1], self.receive_slices[self.rank_1].shape
-        )
-        self.receive_slices[self.rank_2][:] = np.reshape(
-            self.receive_buffers[self.rank_2], self.receive_slices[self.rank_2].shape
-        )
-        self.receive_slices[self.rank_3][:] = np.reshape(
-            self.receive_buffers[self.rank_3], self.receive_slices[self.rank_3].shape
-        )
-        if self.quantity_y is not None:
-            self.receive_slices_y[self.rank_0][:] = np.reshape(
-                self.receive_buffers_y[self.rank_0],
-                self.receive_slices_y[self.rank_0].shape,
+        if self.original_updater is not None:
+            self.original_finish_halo_update()
+        else:
+            self.receive_slices[self.rank_0][:] = np.reshape(
+                self.receive_buffers[self.rank_0],
+                self.receive_slices[self.rank_0].shape,
             )
-            self.receive_slices_y[self.rank_1][:] = np.reshape(
-                self.receive_buffers_y[self.rank_1],
-                self.receive_slices_y[self.rank_1].shape,
+            self.receive_slices[self.rank_1][:] = np.reshape(
+                self.receive_buffers[self.rank_1],
+                self.receive_slices[self.rank_1].shape,
             )
-            self.receive_slices_y[self.rank_2][:] = np.reshape(
-                self.receive_buffers_y[self.rank_2],
-                self.receive_slices_y[self.rank_2].shape,
+            self.receive_slices[self.rank_2][:] = np.reshape(
+                self.receive_buffers[self.rank_2],
+                self.receive_slices[self.rank_2].shape,
             )
-            self.receive_slices_y[self.rank_3][:] = np.reshape(
-                self.receive_buffers_y[self.rank_3],
-                self.receive_slices_y[self.rank_3].shape,
+            self.receive_slices[self.rank_3][:] = np.reshape(
+                self.receive_buffers[self.rank_3],
+                self.receive_slices[self.rank_3].shape,
             )
+            if self.quantity_y is not None:
+                self.receive_slices_y[self.rank_0][:] = np.reshape(
+                    self.receive_buffers_y[self.rank_0],
+                    self.receive_slices_y[self.rank_0].shape,
+                )
+                self.receive_slices_y[self.rank_1][:] = np.reshape(
+                    self.receive_buffers_y[self.rank_1],
+                    self.receive_slices_y[self.rank_1].shape,
+                )
+                self.receive_slices_y[self.rank_2][:] = np.reshape(
+                    self.receive_buffers_y[self.rank_2],
+                    self.receive_slices_y[self.rank_2].shape,
+                )
+                self.receive_slices_y[self.rank_3][:] = np.reshape(
+                    self.receive_buffers_y[self.rank_3],
+                    self.receive_slices_y[self.rank_3].shape,
+                )
 
     @computepath_method(use_dace=True)
     def do_halo_update(self):
@@ -456,8 +565,7 @@ class DaceHaloUpdater:
         self.start_halo_update()
         self.finish_halo_update()
 
-    @computepath_method(use_dace=True)
-    def do_halo_vector_interface_update(self):
+    def _dace_vector_interface(self):
         req = np.empty((4,), dtype=MPI_Request)
         south_data_rotated = rot_scalar_flatten(
             self.south_data,
@@ -491,3 +599,10 @@ class DaceHaloUpdater:
 
         self.east_data[:] = np.reshape(self.east_buffer, self.east_data.shape)
         self.north_data[:] = np.reshape(self.north_buffer, self.north_data.shape)
+
+    @computepath_method(use_dace=True)
+    def do_halo_vector_interface_update(self, original=True):
+        if original:
+            self.original_vector_interface_update()
+        else:
+            self._dace_vector_interface()
