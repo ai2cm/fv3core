@@ -1,6 +1,9 @@
+import io
+import os
+import tarfile
 import time
 from abc import abstractmethod
-from typing import Any, Callable, Dict, Optional, Set, Tuple, Type
+from typing import Any, Callable, Dict, Optional, Sequence, Set, Tuple, Type
 
 import numpy as np
 from gt4py.definitions import FieldInfo
@@ -405,3 +408,44 @@ class FutureStencil:
 
     def run(self, *args: Any, **kwargs: Any) -> None:
         self.stencil_object.run(*args, **kwargs)
+
+    def deserialize(self, bytes_array: Sequence[int]) -> StencilObject:
+        bytes_repr: bytes = bytes_array.tobytes()
+        bytes_io = io.BytesIO(bytes_repr)
+
+        with tarfile.open(fileobj=bytes_io, mode="r:gz") as tar:
+            tar.extractall()
+
+        stencil_class = self._builder.backend.load()
+
+        return stencil_class()
+
+    def serialize(self, file_object=None) -> Sequence[int]:
+        module_file: str = self._stencil_object._file_name
+        module_prefix: str = module_file.replace(".py", "")
+        module_name = module_prefix.split("/")[-1]
+        cache_file: str = f"{module_prefix}.cacheinfo"
+        # TODO(eddied): Search for actual .so (or .py) in the case of gtc:numpy
+        object_file: str = f"{module_prefix}_pyext.cpython-38-x86_64-linux-gnu.so"
+
+        bytes_io = io.BytesIO()
+        with tarfile.open(fileobj=bytes_io, mode="w:gz") as tar:
+            for stencil_file in (module_file, cache_file, object_file):
+                if os.path.isfile(stencil_file):
+                    file = open(stencil_file, "rb")
+                    file.seek(0, 2)  # go to file end
+                    data_len = file.tell()
+                    file.seek(0)
+
+                    info = tarfile.TarInfo(stencil_file)
+                    info.size = data_len
+                    tar.addfile(info, file)
+                    file.close()
+
+        bytes_io.seek(0)
+        byte_array = bytearray(bytes_io.getvalue())
+        np_bytes = np.frombuffer(byte_array, dtype=np.byte)
+        if file_object:
+            file_object.write(np_bytes)
+
+        return np_bytes

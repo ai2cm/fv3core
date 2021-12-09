@@ -1,5 +1,6 @@
 import random as rand
 import time
+from typing import Callable, Tuple
 
 import gt4py.storage as gt_storage
 import numpy as np
@@ -192,3 +193,40 @@ def run_rank_adder_test(backend: str, rebuild: bool):
         stencil_object(out_field, domain=domain, origin=origin)
 
     assert np.array_equal(out_field[0, 0, :], ref_field)
+
+
+def create_future_stencil(definition: Callable = add_rank, backend="numpy") -> FutureStencil:
+    origin: Tuple[int, int, int] = (0, 0, 0)
+    domain: Tuple[int, int, int] = (1, 1, 10)
+    out_field = gt_storage.zeros(
+        shape=domain, default_origin=origin, dtype=np.int64, backend=backend
+    )
+
+    stencil_object = future_stencil(
+        definition=definition,
+        backend=backend,
+        rebuild=True,
+        externals={"rank": 0},
+    )
+    stencil_object(out_field, domain=domain, origin=origin)
+
+    return stencil_object
+
+
+@pytest.mark.sequential
+@pytest.mark.skipif(
+    MPI is not None and MPI.COMM_WORLD.Get_size() > 1,
+    reason="Running in parallel with mpi",
+)
+def test_stencil_serialization():
+    future_stencil = create_future_stencil(backend="numpy")
+
+    # Serialize stencil to numpy byte array
+    bytes_array = future_stencil.serialize()
+    assert isinstance(bytes_array, np.ndarray)
+    assert bytes_array.size == 1655
+
+    # Deserialize the bytes array into a stencil object
+    deserialized_stencil = future_stencil.deserialize(bytes_array)
+    stencil_object = future_stencil.stencil_object
+    assert stencil_object._file_name == deserialized_stencil._file_name
