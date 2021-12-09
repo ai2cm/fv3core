@@ -1,5 +1,6 @@
 import dace
 import numpy as np
+import os
 
 from fv3core.decorators import computepath_function, computepath_method
 from fv3gfs.util import Quantity, QuantityHaloSpec, constants, CubedSphereCommunicator
@@ -147,11 +148,11 @@ class DaceHaloUpdater:
         comm: CubedSphereCommunicator,
         grid,
         interface=False,
-        original=True,
     ):
+        self._callback_to_original_code = os.getenv("FV3_DACEHALOEX_CALLBACK", True)
         self._comm = comm
         self.original_updater = None
-        if original:
+        if self._callback_to_original_code:
             self.__init_original_updater(quantity_x, quantity_y, comm, grid, interface)
         else:
             self.__init_dace_halos(quantity_x, quantity_y, comm, grid, interface)
@@ -356,7 +357,7 @@ class DaceHaloUpdater:
 
     @computepath_method(use_dace=True)
     def start_halo_update(self):
-        if self.original_updater is not None:
+        if self._callback_to_original_code:
             self.original_start_halo_update()
         else:
             # Scalar
@@ -518,7 +519,7 @@ class DaceHaloUpdater:
 
     @computepath_method(use_dace=True)
     def finish_halo_update(self):
-        if self.original_updater is not None:
+        if self._callback_to_original_code:
             self.original_finish_halo_update()
         else:
             self.receive_slices[self.rank_0][:] = np.reshape(
@@ -601,8 +602,8 @@ class DaceHaloUpdater:
         self.north_data[:] = np.reshape(self.north_buffer, self.north_data.shape)
 
     @computepath_method(use_dace=True)
-    def do_halo_vector_interface_update(self, original=True):
-        if original:
+    def do_halo_vector_interface_update(self):
+        if self._callback_to_original_code:
             self.original_vector_interface_update()
         else:
             self._dace_vector_interface()
