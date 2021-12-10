@@ -250,7 +250,7 @@ def test_stencil_serialization():
     MPI is not None and MPI.COMM_WORLD.Get_size() > 1,
     reason="Running in parallel with mpi",
 )
-def test_sequential_transmission():
+def test_sequential_serialization():
     # Redirect cache to temporary directory
     gt_cache_dir_name: str = gt.config.cache_settings["dir_name"]
     gt.config.cache_settings["dir_name"] = get_temp_dir()

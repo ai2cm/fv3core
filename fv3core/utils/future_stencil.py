@@ -150,7 +150,7 @@ class StencilTable(object, metaclass=Singleton):
         pass
 
     @abstractmethod
-    def read_stencil(self, node_id: int = 0) -> Sequence[int]:
+    def read_stencil(self, node_id: int = 0) -> Optional[Sequence[int]]:
         pass
 
     @abstractmethod
@@ -169,7 +169,7 @@ class SequentialTable(StencilTable):
     def _initialize(self, max_size: int = 0):
         super()._initialize(max_size)
         self._window = np.zeros(self._buffer_size, dtype=self._np_type)
-        self._stencil_bytes = np.zeros(self._max_stencil_bytes, self._byte_type)
+        self._stencil_bytes: Optional[Sequence[int]] = None
 
     def _get_buffer(self, node_id: int = 0) -> np.ndarray:
         return self._window
@@ -177,7 +177,7 @@ class SequentialTable(StencilTable):
     def _set_buffer(self, buffer: np.ndarray):
         self._window = buffer
 
-    def read_stencil(self, node_id: int = 0) -> Sequence[int]:
+    def read_stencil(self, node_id: int = 0) -> Optional[Sequence[int]]:
         return self._stencil_bytes
 
     def write_stencil(self, stencil_bytes: Sequence[int]) -> None:
@@ -432,9 +432,8 @@ class FutureStencil:
         self.stencil_object.run(*args, **kwargs)
 
     def deserialize(self, bytes_array: Sequence[int]) -> StencilObject:
-        bytes_repr: bytes = bytes_array.tobytes()
-        bytes_io = io.BytesIO(bytes_repr)
-
+        # TODO(eddied): Move this into `stencil_table.read_stencil` and call here.
+        bytes_io = io.BytesIO(bytes_array.tobytes())
         with tarfile.open(fileobj=bytes_io, mode="r:gz") as tar:
             tar.extractall()
 
@@ -443,6 +442,9 @@ class FutureStencil:
         return stencil_class()
 
     def serialize(self, file_object=None) -> Sequence[int]:
+        # TODO(eddied): Move this into `stencil_table.write_stencil` and call here.
+        #   * If writing a stencil but the buffer is not None, flush to gt_cache.
+
         module_file: str = self._stencil_object._file_name
         module_prefix: str = module_file.replace(".py", "")
         cache_file: str = f"{module_prefix}.cacheinfo"
