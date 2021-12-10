@@ -50,6 +50,7 @@ class StencilTable(object, metaclass=Singleton):
     DONE_STATE: int = -1
     NONE_STATE: int = -2
     MAX_SIZE: int = 200
+    MAX_STENCIL_BYTES: int = 10000
 
     @classmethod
     def create(cls):
@@ -137,6 +138,8 @@ class StencilTable(object, metaclass=Singleton):
         self._np_type = np.int64
         self._node_id = 0
         self._n_nodes = 1
+        self._max_stencil_bytes = self.MAX_STENCIL_BYTES
+        self._byte_type = np.byte
 
     @abstractmethod
     def _get_buffer(self, node_id: int = 0) -> np.ndarray:
@@ -144,6 +147,14 @@ class StencilTable(object, metaclass=Singleton):
 
     @abstractmethod
     def _set_buffer(self, buffer: np.ndarray):
+        pass
+
+    @abstractmethod
+    def read_stencil(self, node_id: int = 0) -> Sequence[int]:
+        pass
+
+    @abstractmethod
+    def write_stencil(self, stencil_bytes: Sequence[int]) -> None:
         pass
 
 
@@ -158,12 +169,19 @@ class SequentialTable(StencilTable):
     def _initialize(self, max_size: int = 0):
         super()._initialize(max_size)
         self._window = np.zeros(self._buffer_size, dtype=self._np_type)
+        self._stencil_bytes = np.zeros(self._max_stencil_bytes, self._byte_type)
 
     def _get_buffer(self, node_id: int = 0) -> np.ndarray:
         return self._window
 
     def _set_buffer(self, buffer: np.ndarray):
         self._window = buffer
+
+    def read_stencil(self, node_id: int = 0) -> Sequence[int]:
+        return self._stencil_bytes
+
+    def write_stencil(self, stencil_bytes: Sequence[int]) -> None:
+        self._stencil_bytes = stencil_bytes
 
 
 class DistributedTable(StencilTable):
@@ -324,6 +342,10 @@ class FutureStencil:
     def field_info(self) -> Dict[str, FieldInfo]:
         return self.stencil_object.field_info
 
+    @property
+    def stencil_table(self) -> StencilTable:
+        return self._id_table
+
     def _delay(self, factor: float = 0.4) -> float:
         delay_time = self._sleep_time * float(self._node_id) * factor
         time.sleep(delay_time)
@@ -423,7 +445,6 @@ class FutureStencil:
     def serialize(self, file_object=None) -> Sequence[int]:
         module_file: str = self._stencil_object._file_name
         module_prefix: str = module_file.replace(".py", "")
-        module_name = module_prefix.split("/")[-1]
         cache_file: str = f"{module_prefix}.cacheinfo"
         # TODO(eddied): Search for actual .so (or .py) in the case of gtc:numpy
         object_file: str = f"{module_prefix}_pyext.cpython-38-x86_64-linux-gnu.so"
