@@ -3,8 +3,9 @@ import os
 import tarfile
 import time
 from abc import abstractmethod
-from typing import Any, Callable, Dict, Optional, Sequence, Set, Tuple, Type
+from typing import Any, Callable, Dict, Optional, Set, Tuple, Type
 
+import gt4py as gt
 import numpy as np
 from gt4py.definitions import FieldInfo
 from gt4py.stencil_builder import StencilBuilder
@@ -141,6 +142,40 @@ class StencilTable(object, metaclass=Singleton):
         self._max_stencil_bytes = self.MAX_STENCIL_BYTES
         self._byte_type = np.byte
 
+    def _deserialize(self, bytes_array: np.ndarray) -> None:
+        bytes_io = io.BytesIO(bytes_array.tobytes())
+        with tarfile.open(fileobj=bytes_io, mode="r:gz") as tar:
+            tar.extractall()
+
+    def _serialize(self, stencil_object: StencilObject, file_object=None) -> np.ndarray:
+        module_file: str = stencil_object._file_name
+        module_prefix: str = module_file.replace(".py", "")
+        cache_file: str = f"{module_prefix}.cacheinfo"
+        # TODO(eddied): Search for actual .so (or .py) in the case of gtc:numpy
+        object_file: str = f"{module_prefix}_pyext.cpython-38-x86_64-linux-gnu.so"
+
+        bytes_io = io.BytesIO()
+        with tarfile.open(fileobj=bytes_io, mode="w:gz") as tar:
+            for stencil_file in (module_file, cache_file, object_file):
+                if os.path.isfile(stencil_file):
+                    file = open(stencil_file, "rb")
+                    file.seek(0, 2)  # go to file end
+                    data_len = file.tell()
+                    file.seek(0)
+
+                    info = tarfile.TarInfo(stencil_file)
+                    info.size = data_len
+                    tar.addfile(info, file)
+                    file.close()
+
+        bytes_io.seek(0)
+        byte_array = bytearray(bytes_io.getvalue())
+        np_bytes = np.frombuffer(byte_array, dtype=np.byte)
+        if file_object:
+            file_object.write(np_bytes)
+
+        return np_bytes
+
     @abstractmethod
     def _get_buffer(self, node_id: int = 0) -> np.ndarray:
         pass
@@ -150,11 +185,11 @@ class StencilTable(object, metaclass=Singleton):
         pass
 
     @abstractmethod
-    def read_stencil(self, node_id: int = 0) -> Optional[Sequence[int]]:
+    def read_stencil(self, node_id: int = 0) -> Optional[np.ndarray]:
         pass
 
     @abstractmethod
-    def write_stencil(self, stencil_bytes: Sequence[int]) -> None:
+    def write_stencil(self, stencil_object: StencilObject) -> np.ndarray:
         pass
 
 
@@ -169,7 +204,7 @@ class SequentialTable(StencilTable):
     def _initialize(self, max_size: int = 0):
         super()._initialize(max_size)
         self._window = np.zeros(self._buffer_size, dtype=self._np_type)
-        self._stencil_bytes: Optional[Sequence[int]] = None
+        self._stencil_bytes: Optional[np.ndarray] = None
 
     def _get_buffer(self, node_id: int = 0) -> np.ndarray:
         return self._window
@@ -177,11 +212,15 @@ class SequentialTable(StencilTable):
     def _set_buffer(self, buffer: np.ndarray):
         self._window = buffer
 
-    def read_stencil(self, node_id: int = 0) -> Optional[Sequence[int]]:
+    def read_stencil(self, node_id: int = 0) -> Optional[np.ndarray]:
+        if self._stencil_bytes is not None:
+            self._deserialize(self._stencil_bytes)
         return self._stencil_bytes
 
-    def write_stencil(self, stencil_bytes: Sequence[int]) -> None:
-        self._stencil_bytes = stencil_bytes
+    def write_stencil(self, stencil_object: StencilObject) -> np.ndarray:
+        # TODO(eddied): If buffer is not None, flush to gt_cache before writing
+        self._stencil_bytes = self._serialize(stencil_object)
+        return self._stencil_bytes
 
 
 class DistributedTable(StencilTable):
@@ -351,12 +390,17 @@ class FutureStencil:
         time.sleep(delay_time)
         return delay_time
 
+    def _get_temporary_directory(self) -> str:
+        return "%s/.gt_cache" % ("/dev/shm" if os.path.isdir("/dev/shm") else "/tmp")
+
     def _compile_stencil(self, stencil_id: int) -> Callable:
         # Stencil not yet compiled or in progress so claim it...
         self._id_table[stencil_id] = self._node_id
         self._delay()
+
         stencil_class = self._builder.backend.generate()
         self._id_table.set_done(stencil_id)
+        self._id_table.write_stencil(stencil_class)
 
         return stencil_class
 
@@ -377,6 +421,7 @@ class FutureStencil:
 
         # Delay before loading...
         self._delay()
+        self._id_table.read_stencil()
         stencil_class = self._builder.backend.load()
 
         return stencil_class
@@ -404,6 +449,10 @@ class FutureStencil:
         if not builder.options.rebuild:
             stencil_class = self._load_cached_stencil()
 
+        # Redirect cache to temporary directory
+        gt_cache_dir_name: str = gt.config.cache_settings["dir_name"]
+        gt.config.cache_settings["dir_name"] = self._get_temporary_directory()
+
         if not stencil_class:
             # Delay before accessing distributed table...
             self._delay()
@@ -413,6 +462,9 @@ class FutureStencil:
             else:
                 # Wait for stencil and load from cache...
                 stencil_class = self._load_stencil(stencil_id)
+
+        # Restore cache location
+        gt.config.cache_settings["dir_name"] = gt_cache_dir_name
 
         if not stencil_class:
             raise RuntimeError(
@@ -430,45 +482,3 @@ class FutureStencil:
 
     def run(self, *args: Any, **kwargs: Any) -> None:
         self.stencil_object.run(*args, **kwargs)
-
-    def deserialize(self, bytes_array: Sequence[int]) -> StencilObject:
-        # TODO(eddied): Move this into `stencil_table.read_stencil` and call here.
-        bytes_io = io.BytesIO(bytes_array.tobytes())
-        with tarfile.open(fileobj=bytes_io, mode="r:gz") as tar:
-            tar.extractall()
-
-        stencil_class = self._builder.backend.load()
-
-        return stencil_class()
-
-    def serialize(self, file_object=None) -> Sequence[int]:
-        # TODO(eddied): Move this into `stencil_table.write_stencil` and call here.
-        #   * If writing a stencil but the buffer is not None, flush to gt_cache.
-
-        module_file: str = self._stencil_object._file_name
-        module_prefix: str = module_file.replace(".py", "")
-        cache_file: str = f"{module_prefix}.cacheinfo"
-        # TODO(eddied): Search for actual .so (or .py) in the case of gtc:numpy
-        object_file: str = f"{module_prefix}_pyext.cpython-38-x86_64-linux-gnu.so"
-
-        bytes_io = io.BytesIO()
-        with tarfile.open(fileobj=bytes_io, mode="w:gz") as tar:
-            for stencil_file in (module_file, cache_file, object_file):
-                if os.path.isfile(stencil_file):
-                    file = open(stencil_file, "rb")
-                    file.seek(0, 2)  # go to file end
-                    data_len = file.tell()
-                    file.seek(0)
-
-                    info = tarfile.TarInfo(stencil_file)
-                    info.size = data_len
-                    tar.addfile(info, file)
-                    file.close()
-
-        bytes_io.seek(0)
-        byte_array = bytearray(bytes_io.getvalue())
-        np_bytes = np.frombuffer(byte_array, dtype=np.byte)
-        if file_object:
-            file_object.write(np_bytes)
-
-        return np_bytes

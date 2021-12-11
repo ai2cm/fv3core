@@ -4,7 +4,6 @@ import shutil
 import time
 from typing import Callable, Tuple
 
-import gt4py as gt
 import gt4py.storage as gt_storage
 import numpy as np
 import pytest
@@ -198,7 +197,9 @@ def run_rank_adder_test(backend: str, rebuild: bool):
     assert np.array_equal(out_field[0, 0, :], ref_field)
 
 
-def create_future_stencil(definition: Callable = add_rank, backend="numpy") -> FutureStencil:
+def create_future_stencil(
+    definition: Callable = add_rank, backend="numpy"
+) -> FutureStencil:
     origin: Tuple[int, int, int] = (0, 0, 0)
     domain: Tuple[int, int, int] = (1, 1, 10)
     out_field = gt_storage.zeros(
@@ -216,68 +217,27 @@ def create_future_stencil(definition: Callable = add_rank, backend="numpy") -> F
     return stencil_object
 
 
-def get_temp_dir() -> str:
-    return "%s/.gt_cache" % ("/dev/shm" if os.path.isdir("/dev/shm") else "/tmp")
-
-
-@pytest.mark.sequential
-@pytest.mark.skipif(
-    MPI is not None and MPI.COMM_WORLD.Get_size() > 1,
-    reason="Running in parallel with mpi",
-)
-def test_stencil_serialization():
-    future_stencil = create_future_stencil(backend="numpy")
-
-    # Serialize stencil to numpy byte array
-    bytes_array = future_stencil.serialize()
-    assert isinstance(bytes_array, np.ndarray)
-    assert bytes_array.size == 1655
-
-    # Deserialize the bytes array into a stencil object
-    deserialized_stencil = future_stencil.deserialize(bytes_array)
-    stencil_object = future_stencil.stencil_object
-    assert stencil_object._file_name == deserialized_stencil._file_name
-
-    # TODO(eddied): Next steps...
-    #   1. How to transmit the serialized numpy bytes array via MPI one sided-comm
-    #      * Add send/recv abstract methods to StencilTable?
-    #   2. Redirect cache directory to /dev/shm for writing stencils
-    #   3. One node writes to scratch filesystem (original .gt_cache dir), stencil_id % n_nodes?
-
-
 @pytest.mark.sequential
 @pytest.mark.skipif(
     MPI is not None and MPI.COMM_WORLD.Get_size() > 1,
     reason="Running in parallel with mpi",
 )
 def test_sequential_serialization():
-    # Redirect cache to temporary directory
-    gt_cache_dir_name: str = gt.config.cache_settings["dir_name"]
-    gt.config.cache_settings["dir_name"] = get_temp_dir()
-
     # Serialize stencil to numpy byte array
     future_stencil = create_future_stencil(backend="numpy")
-    stencil_bytes = future_stencil.serialize()
 
     # Upload stencil bytes to stencil table...
+    stencil_object = future_stencil.stencil_object
     stencil_table = future_stencil._id_table
-    stencil_table.write_stencil(stencil_bytes)
+    stencil_bytes = stencil_table.write_stencil(stencil_object)
 
     # Remove local cache directory to simulate other node...
-    stencil_object = future_stencil.stencil_object
     stencil_path = os.path.dirname(stencil_object._file_name)
     shutil.rmtree(stencil_path)
 
     # Fetch stencil from stencil table
     received_bytes = stencil_table.read_stencil()
     np.testing.assert_array_equal(stencil_bytes, received_bytes)
-
-    # Deserialize stencil from received bytes
-    deserialized_stencil = future_stencil.deserialize(received_bytes)
-    assert stencil_object._file_name == deserialized_stencil._file_name
-
-    # Restore cache location
-    gt.config.cache_settings["dir_name"] = gt_cache_dir_name
 
 
 @pytest.mark.parallel
@@ -286,4 +246,5 @@ def test_sequential_serialization():
     reason="Not running in parallel with mpi",
 )
 def test_parallel_transmission():
+    # TODO(eddied): Write parallel test!
     pass
