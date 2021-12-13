@@ -54,11 +54,11 @@ class StencilTable(object, metaclass=Singleton):
     MAX_STENCIL_BYTES: int = 10000
 
     @classmethod
-    def create(cls):
+    def create(cls, *args: Any, **kwargs: Any) -> "StencilTable":
         return (
-            SequentialTable()
+            SequentialTable(*args, **kwargs)
             if MPI is None or MPI.COMM_WORLD.Get_size() == 1
-            else DistributedTable()
+            else DistributedTable(*args, **kwargs)
         )
 
     @classmethod

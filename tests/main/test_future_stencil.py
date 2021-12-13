@@ -101,7 +101,7 @@ def test_distributed_table():
     node_id = comm.Get_rank()
     n_nodes = comm.Get_size()
 
-    table = StencilTable(comm, n_nodes)
+    table = StencilTable.create(comm=comm)
 
     rand.seed(node_id)
     random_int = rand.randint(0, n_nodes)
