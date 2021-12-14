@@ -184,13 +184,15 @@ class StencilTable(object, metaclass=Singleton):
     def _set_buffer(self, buffer: np.ndarray):
         pass
 
-    @abstractmethod
     def read_stencil(self, node_id: int = 0) -> Optional[np.ndarray]:
-        pass
+        if self._stencil_bytes is not None:
+            self._deserialize(self._stencil_bytes)
+        return self._stencil_bytes
 
-    @abstractmethod
     def write_stencil(self, stencil_object: StencilObject) -> np.ndarray:
-        pass
+        # TODO(eddied): If buffer is not None, flush to gt_cache before writing
+        self._stencil_bytes = self._serialize(stencil_object)
+        return self._stencil_bytes
 
 
 class SequentialTable(StencilTable):
@@ -211,16 +213,6 @@ class SequentialTable(StencilTable):
 
     def _set_buffer(self, buffer: np.ndarray):
         self._window = buffer
-
-    def read_stencil(self, node_id: int = 0) -> Optional[np.ndarray]:
-        if self._stencil_bytes is not None:
-            self._deserialize(self._stencil_bytes)
-        return self._stencil_bytes
-
-    def write_stencil(self, stencil_object: StencilObject) -> np.ndarray:
-        # TODO(eddied): If buffer is not None, flush to gt_cache before writing
-        self._stencil_bytes = self._serialize(stencil_object)
-        return self._stencil_bytes
 
 
 class DistributedTable(StencilTable):
@@ -248,11 +240,24 @@ class DistributedTable(StencilTable):
             size=window_size, disp_unit=int_size, comm=self._comm
         )
 
+        byte_size: int = MPI.BYTE.Get_size()
+        window_size = (
+            byte_size * self._max_stencil_bytes * self._n_nodes if self._node_id == 0 else 0
+        )
+        self._byte_window = MPI.Win.Allocate(
+            size=window_size, disp_unit=byte_size, comm=self._comm
+        )
+
         if self._node_id == 0:
+            # Rank -> Stencil ID mapping table
             buffer = np.frombuffer(self._window, dtype=self._np_type)
             buffer[:] = np.full(len(buffer), self.NONE_STATE, dtype=self._np_type)
             for n in range(self._n_nodes):
                 buffer[n * self._buffer_size] = 0
+
+            # Rank -> Stencil Bytes table
+            buffer = np.frombuffer(self._byte_window, dtype=np.byte)
+            buffer[:] = np.full(len(buffer), 0, dtype=np.byte)
 
         self._comm.Barrier()
 
@@ -272,6 +277,36 @@ class DistributedTable(StencilTable):
         if node_id < 0:
             node_id = self._node_id
         return (node_id * self._buffer_size, self._buffer_size, self._mpi_type)
+
+    def read_stencil(self, node_id: int = 0) -> Optional[np.ndarray]:
+        # Read bytes from window
+        buffer = np.empty(self._max_stencil_bytes, dtype=np.byte)
+        self._byte_window.Lock(rank=0)
+        self._byte_window.Get(buffer, target_rank=0, target=self._get_target(node_id))
+        self._byte_window.Unlock(rank=0)
+
+        # Read first two bytes to get stencil size
+        n_stencil_bytes: int = int.from_bytes(buffer[0:2].tobytes(), "big")
+        self._stencil_bytes = buffer[2:n_stencil_bytes + 2]
+
+        return super().read_stencil(node_id)
+
+    def write_stencil(self, stencil_object: StencilObject) -> np.ndarray:
+        # Serialize the stencil
+        stencil_bytes = super().write_stencil(stencil_object)
+
+        # First two bytes store the size
+        buffer: np.ndarray = np.empty(stencil_bytes.size + 2, dtype=np.byte)
+        size_bytes = stencil_bytes.size.to_bytes(2, "big")
+        buffer[0:2] = list(size_bytes)
+        buffer[2:] = stencil_bytes
+
+        # Write the bytes to one-sided memory window
+        self._byte_window.Lock(rank=0)
+        self._byte_window.Put(buffer, target_rank=0, target=self._get_target())
+        self._byte_window.Unlock(rank=0)
+
+        return stencil_bytes
 
 
 def future_stencil(
