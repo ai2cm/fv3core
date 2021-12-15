@@ -2,9 +2,10 @@ import gt4py.gtscript as gtscript
 from gt4py.gtscript import PARALLEL, computation, interval
 
 import fv3core.utils.gt4py_utils as utils
-from fv3core.decorators import FrozenStencil, computepath_method
+from fv3core.decorators import FrozenStencil
 from fv3core.stencils.d2a2c_vect import DGrid2AGrid2CGridVectors
 from fv3core.utils import corners
+from fv3core.utils.grid import axis_offsets
 from fv3core.utils.typing import FloatField, FloatFieldIJ
 
 
@@ -109,7 +110,7 @@ def transportdelp_update_vorticity_and_kineticenergy(
         delpc = delp + (fx1 - fx1[1, 0, 0] + fy1 - fy1[0, 1, 0]) * rarea
         ptc = (pt * delp + (fx - fx[1, 0, 0] + fy - fy[0, 1, 0]) * rarea) / delpc
         wc = (w * delp + (fx2 - fx2[1, 0, 0] + fy2 - fy2[0, 1, 0]) * rarea) / delpc
-    with computation(PARALLEL), interval(...):
+
         # update vorticity and kinetic energy
         ke = uc if ua > 0.0 else uc[1, 0, 0]
         vort = vc if va > 0.0 else vc[0, 1, 0]
@@ -245,14 +246,12 @@ def divergence_main_final(rarea_c: FloatFieldIJ, divg_d: FloatField):
     with computation(PARALLEL), interval(...):
         divg_d *= rarea_c
 
-
 def update_vorticity(
     uc: FloatField,
     vc: FloatField,
     dxc: FloatFieldIJ,
     dyc: FloatFieldIJ,
     vort_c: FloatField,
-    fy: FloatField,
 ):
     """Update vort_c.
 
@@ -266,26 +265,26 @@ def update_vorticity(
 
     with computation(PARALLEL), interval(...):
         fx = dxc * uc
-    with computation(PARALLEL), interval(...):
         fy = dyc * vc
-    with computation(PARALLEL), interval(...):
         vort_c = fx[0, -1, 0] - fx - fy[-1, 0, 0] + fy
 
 
 def vorticity_west_corner(
-    fy: FloatField,
+    vc: FloatField,
+    dyc: FloatFieldIJ,
     vort_c: FloatField,
 ):
     with computation(PARALLEL), interval(...):
-        vort_c += fy[-1, 0, 0]
+        vort_c += dyc[-1, 0] * vc[-1, 0, 0]
 
 
 def vorticity_east_corner(
-    fy: FloatField,
+    vc: FloatField,
+    dyc: FloatFieldIJ,
     vort_c: FloatField,
 ):
     with computation(PARALLEL), interval(...):
-        vort_c -= fy[0, 0, 0]
+        vort_c -= dyc * vc
 
 
 def update_x_velocity(
@@ -373,7 +372,6 @@ class CGridShallowWaterDynamics:
         self.ptc = utils.make_storage_from_shape(shape)
         self._tmp_uf = utils.make_storage_from_shape(shape)
         self._tmp_vf = utils.make_storage_from_shape(shape)
-        self._tmp_fy = utils.make_storage_from_shape(shape)
         self._tmp_fx = utils.make_storage_from_shape(shape)
         self._tmp_fx1 = utils.make_storage_from_shape(shape)
         self._tmp_fx2 = utils.make_storage_from_shape(shape)
@@ -384,11 +382,8 @@ class CGridShallowWaterDynamics:
             domain=self.grid.domain_shape_full(),
         )
 
-        # ke_c: kinetic energy on C-grid (input)
         self._ke = utils.make_storage_from_shape(shape)
-        # vort_c: Vorticity on C-grid (input)
         self._vort = utils.make_storage_from_shape(shape)
-
         origin = self.grid.compute_origin()
         domain = self.grid.domain_shape_compute(add=(1, 1, 0))
 
@@ -621,13 +616,14 @@ class CGridShallowWaterDynamics:
                 domain=(1, self.grid.njc, self.grid.npz),
             )
 
-    @computepath_method
     def _vorticitytransport_cgrid(
         self,
-        uc,
-        vc,
-        v,
-        u,
+        uc: FloatField,
+        vc: FloatField,
+        vort_c: FloatField,
+        ke_c: FloatField,
+        v: FloatField,
+        u: FloatField,
         dt2: float,
     ):
         """Update the C-Grid x and y velocity fields.
@@ -635,13 +631,15 @@ class CGridShallowWaterDynamics:
         Args:
             uc: x-velocity on C-grid (input, output)
             vc: y-velocity on C-grid (input, output)
+            vort_c: Vorticity on C-grid (input)
+            ke_c: kinetic energy on C-grid (input)
             v: y-velocity on D-grid (input)
             u: x-velocity on D-grid (input)
             dt2: timestep (input)
         """
         self._update_y_velocity(
-            self._vort,
-            self._ke,
+            vort_c,
+            ke_c,
             u,
             vc,
             self.grid.cosa_v,
@@ -651,8 +649,8 @@ class CGridShallowWaterDynamics:
         )
         if self.grid.south_edge:
             self._update_south_velocity(
-                self._vort,
-                self._ke,
+                vort_c,
+                ke_c,
                 u,
                 vc,
                 self.grid.rdyc,
@@ -660,16 +658,16 @@ class CGridShallowWaterDynamics:
             )
         if self.grid.north_edge:
             self._update_north_velocity(
-                self._vort,
-                self._ke,
+                vort_c,
+                ke_c,
                 u,
                 vc,
                 self.grid.rdyc,
                 dt2,
             )
         self._update_x_velocity(
-            self._vort,
-            self._ke,
+            vort_c,
+            ke_c,
             v,
             uc,
             self.grid.cosa_u,
@@ -679,39 +677,99 @@ class CGridShallowWaterDynamics:
         )
         if self.grid.west_edge:
             self._update_west_velocity(
-                self._vort,
-                self._ke,
+                vort_c,
+                ke_c,
                 v,
                 uc,
                 self.grid.rdxc,
                 dt2,
             )
-        if self.grid.west_edge:
+        if self.grid.east_edge:
             self._update_east_velocity(
-                self._vort,
-                self._ke,
+                vort_c,
+                ke_c,
                 v,
                 uc,
                 self.grid.rdxc,
                 dt2,
             )
 
-    @computepath_method
+    def _circulation_cgrid(self, uc, vc):
+        self._update_vorticity(
+            uc, vc, self.grid.dxc, self.grid.dyc, self._vort
+        )
+        if self.grid.sw_corner:
+            self._sw_corner_vorticity(vc, self.grid.dyc, self._vort)
+        if self.grid.nw_corner:
+            self._nw_corner_vorticity(vc, self.grid.dyc, self._vort)
+        if self.grid.se_corner:
+            self._se_corner_vorticity(vc, self.grid.dyc, self._vort)
+        if self.grid.ne_corner:
+            self._ne_corner_vorticity(vc, self.grid.dyc, self._vort)
+
+    def _divergence_corner(self, u, v, ua, va, divg_d):
+        self._uf_main(
+            u,
+            va,
+            self.grid.dyc,
+            self.grid.sin_sg2,
+            self.grid.sin_sg4,
+            self.grid.cos_sg2,
+            self.grid.cos_sg4,
+            self._tmp_uf,
+        )
+        self._vf_main(
+            v,
+            ua,
+            self.grid.dxc,
+            self.grid.sin_sg1,
+            self.grid.sin_sg3,
+            self.grid.cos_sg1,
+            self.grid.cos_sg3,
+            self._tmp_vf,
+        )
+        if self.grid.south_edge:
+            self._uf_south_edge(
+                u, self._tmp_uf, self.grid.sin_sg2, self.grid.sin_sg4, self.grid.dyc
+            )
+        if self.grid.north_edge:
+            self._uf_north_edge(
+                u, self._tmp_uf, self.grid.sin_sg2, self.grid.sin_sg4, self.grid.dyc
+            )
+        if self.grid.west_edge:
+            self._vf_west_edge(
+                v, self._tmp_vf, self.grid.sin_sg1, self.grid.sin_sg3, self.grid.dxc
+            )
+        if self.grid.east_edge:
+            self._vf_east_edge(
+                v, self._tmp_vf, self.grid.sin_sg1, self.grid.sin_sg3, self.grid.dxc
+            )
+        self._divergence_main(self._tmp_uf, self._tmp_vf, divg_d)
+        if self.grid.sw_corner:
+            self._divergence_sw_corner(self._tmp_vf, divg_d)
+        if self.grid.se_corner:
+            self._divergence_se_corner(self._tmp_vf, divg_d)
+        if self.grid.nw_corner:
+            self._divergence_nw_corner(self._tmp_vf, divg_d)
+        if self.grid.ne_corner:
+            self._divergence_ne_corner(self._tmp_vf, divg_d)
+        self._divergence_main_final(self.grid.rarea_c, divg_d)
+
     def __call__(
         self,
-        delp,
-        pt,
-        u,
-        v,
-        w,
-        uc,
-        vc,
-        ua,
-        va,
-        ut,
-        vt,
-        divgd,
-        omga,
+        delp: FloatField,
+        pt: FloatField,
+        u: FloatField,
+        v: FloatField,
+        w: FloatField,
+        uc: FloatField,
+        vc: FloatField,
+        ua: FloatField,
+        va: FloatField,
+        ut: FloatField,
+        vt: FloatField,
+        divgd: FloatField,
+        omga: FloatField,
         dt2: float,
     ):
         """
@@ -740,52 +798,7 @@ class CGridShallowWaterDynamics:
         )
         self._D2A2CGrid_Vectors(uc, vc, u, v, ua, va, ut, vt)
         if self.namelist.nord > 0:
-            self._uf_main(
-                u,
-                va,
-                self.grid.dyc,
-                self.grid.sin_sg2,
-                self.grid.sin_sg4,
-                self.grid.cos_sg2,
-                self.grid.cos_sg4,
-                self._tmp_uf,
-            )
-            self._vf_main(
-                v,
-                ua,
-                self.grid.dxc,
-                self.grid.sin_sg1,
-                self.grid.sin_sg3,
-                self.grid.cos_sg1,
-                self.grid.cos_sg3,
-                self._tmp_vf,
-            )
-            if self.grid.south_edge:
-                self._uf_south_edge(
-                    u, self._tmp_uf, self.grid.sin_sg2, self.grid.sin_sg4, self.grid.dyc
-                )
-            if self.grid.north_edge:
-                self._uf_north_edge(
-                    u, self._tmp_uf, self.grid.sin_sg2, self.grid.sin_sg4, self.grid.dyc
-                )
-            if self.grid.west_edge:
-                self._vf_west_edge(
-                    v, self._tmp_vf, self.grid.sin_sg1, self.grid.sin_sg3, self.grid.dxc
-                )
-            if self.grid.east_edge:
-                self._vf_east_edge(
-                    v, self._tmp_vf, self.grid.sin_sg1, self.grid.sin_sg3, self.grid.dxc
-                )
-            self._divergence_main(self._tmp_uf, self._tmp_vf, divgd)
-            if self.grid.sw_corner:
-                self._divergence_sw_corner(self._tmp_vf, divgd)
-            if self.grid.se_corner:
-                self._divergence_se_corner(self._tmp_vf, divgd)
-            if self.grid.nw_corner:
-                self._divergence_nw_corner(self._tmp_vf, divgd)
-            if self.grid.ne_corner:
-                self._divergence_ne_corner(self._tmp_vf, divgd)
-            self._divergence_main_final(self.grid.rarea_c, divgd)
+            self._divergence_corner(u, v, ua, va, divgd)
         self._geoadjust_ut(
             ut,
             self.grid.dy,
@@ -866,21 +879,11 @@ class CGridShallowWaterDynamics:
                 v, ua, self._ke, self.grid.sin_sg1, self.grid.cos_sg1
             )
         self._final_ke(ua, va, self._vort, self._ke, dt2)
-        self._update_vorticity(
-            uc, vc, self.grid.dxc, self.grid.dyc, self._vort, self._tmp_fy
-        )
-        if self.grid.sw_corner:
-            self._sw_corner_vorticity(self._tmp_fy, self._vort)
-        if self.grid.nw_corner:
-            self._nw_corner_vorticity(self._tmp_fy, self._vort)
-        if self.grid.se_corner:
-            self._se_corner_vorticity(self._tmp_fy, self._vort)
-        if self.grid.ne_corner:
-            self._ne_corner_vorticity(self._tmp_fy, self._vort)
+        self._circulation_cgrid(uc, vc)
         self._absolute_vorticity(
             self._vort,
             self.grid.fC,
             self.grid.rarea_c,
         )
-        self._vorticitytransport_cgrid(uc, vc, v, u, dt2)
+        self._vorticitytransport_cgrid(uc, vc, self._vort, self._ke, v, u, dt2)
         return self.delpc, self.ptc
