@@ -206,6 +206,8 @@ class FrozenStencil(SDFGConvertible):
         ):
             stencil_kwargs["disable_code_generation"] = True
 
+        if not skip_passes:
+            skip_passes = ("graph_merge_horizontal_executions",)
         if skip_passes and global_config.get_backend().startswith("gtc:"):
             stencil_kwargs["skip_passes"] = skip_passes
         if "skip_passes" in stencil_kwargs:

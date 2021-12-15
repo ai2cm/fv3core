@@ -559,7 +559,6 @@ class RemapProfile:
             externals=externals,
             origin=origin,
             domain=domain,
-            skip_passes=("graph_merge_horizontal_executions",),
         )
 
     @computepath_method
