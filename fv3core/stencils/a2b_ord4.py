@@ -290,9 +290,7 @@ def qx_west_edge2(
             ((2.0 + g_inleft) * qin[-1, 0, 0] - qin) / (1.0 + g_inleft)
             + ((2.0 + g_ouleft) * qin[-2, 0, 0] - qin[-3, 0, 0]) / (1.0 + g_ouleft)
         )
-
-        qxright = ppm_volume_mean_x_fn(qin[1, 0, 0])
-
+        qxright = b2 * (qin[-1, 0, 0] + qin[2, 0, 0]) + b1 * (qin + qin[1, 0, 0])
         qx = (
             3.0 * (g_in * qin[-1, 0, 0] + qin)
             - (g_in * qxleft + qxright)
@@ -326,7 +324,7 @@ def qx_east_edge2(
             ((2.0 + g_inright) * qin - qin[-1, 0, 0]) / (1.0 + g_inright)
             + ((2.0 + g_ouright) * qin[1, 0, 0] - qin[2, 0, 0]) / (1.0 + g_ouright)
         )
-        qxleft = ppm_volume_mean_x_fn(qin[-1, 0, 0])
+        qxleft = b2 * (qin[-3, 0, 0] + qin) + b1 * (qin[-2, 0, 0] + qin[-1, 0, 0])
         qx = (
             3.0 * (qin[-1, 0, 0] + g_in * qin)
             - (g_in * qxright + qxleft)
@@ -375,7 +373,7 @@ def qy_south_edge2(
             ((2.0 + g_inlower) * qin[0, -1, 0] - qin) / (1.0 + g_inlower)
             + ((2.0 + g_oulower) * qin[0, -2, 0] - qin[0, -3, 0]) / (1.0 + g_oulower)
         )
-        qyupper = ppm_volume_mean_y_fn(qin[0, 1, 0])
+        qyupper = b2 * (qin[0, -1, 0] + qin[0, 2, 0]) + b1 * (qin + qin[0, 1, 0])
         qy = (
             3.0 * (g_in * qin[0, -1, 0] + qin)
             - (g_in * qylower + qyupper)
@@ -403,7 +401,7 @@ def qy_north_edge2(
 ):
     with computation(PARALLEL), interval(...):
         g_in = dya[0, -1] / dya
-        qylower =  ppm_volume_mean_y_fn(qin[0, -1, 0])
+        qylower = b2 * (qin[0, -3, 0] + qin) + b1 * (qin[0, -2, 0] + qin[0, -1, 0])
         # qyupper = qy_north_edge_fn(qin[0, 1, 0], dya[0, 1])
         g_in_upper = dya[0, -1] / dya
         g_ou_upper = dya[0, 2] / dya[0, 1]
@@ -434,8 +432,8 @@ def qxx_edge_south(
     qxx: FloatField,
 ):
     with computation(PARALLEL), interval(...):
-        qxx_upper = lagrange_y_func(qx[0, 1, 0])
-        qxx = cubic_interpolation_y_fn(qx, qout[0, -1, 0], qxx_upper)
+        qxx_upper =  a2 * (qx[0, -1, 0] + qx[0, 2, 0]) + a1 * (qx + qx[0, 1, 0])
+        qxx = c1 * (qx[0, -1, 0] + qx) + c2 * (qout[0, -1, 0] + qxx_upper)
 
 def qxx_edge_north(
     qout: FloatField,
@@ -443,8 +441,8 @@ def qxx_edge_north(
     qxx: FloatField,
 ):
     with computation(PARALLEL), interval(...):
-        qxx_lower = lagrange_y_func(qx[0, -1, 0])
-        qxx = cubic_interpolation_y_fn(qx, qout[0, 1, 0], qxx_lower)
+        qxx_lower = a2 * (qx[0, -3, 0] + qx) + a1 * (qx[0, -2, 0] + qx[0, -1, 0])
+        qxx = c1 * (qx[0, -1, 0] + qx) + c2 * (qout[0, 1, 0] + qxx_lower)
 
 
 def qyy_edge_west(
@@ -453,8 +451,8 @@ def qyy_edge_west(
     qyy: FloatField,
 ):
     with computation(PARALLEL), interval(...):
-        qyy_right = lagrange_x_func(qy[1, 0, 0])
-        qyy = cubic_interpolation_x_fn(qy, qout[-1, 0, 0], qyy_right)
+        qyy_right = a2 * (qy[-1, 0, 0] + qy[2, 0, 0]) + a1 * (qy + qy[1, 0, 0])
+        qyy = c1 * (qy[-1, 0, 0] + qy) + c2 * (qout[-1, 0, 0] + qyy_right)
 
 
 
@@ -464,8 +462,8 @@ def qyy_edge_east(
     qyy: FloatField,
 ):
     with computation(PARALLEL), interval(...):
-        qyy_left = lagrange_x_func(qy[-1, 0, 0])
-        qyy = cubic_interpolation_x_fn(qy, qout[1, 0, 0], qyy_left)
+        qyy_left = a2 * (qy[-3, 0, 0] + qy) + a1 * (qy[-2, 0, 0] + qy[-1, 0, 0])
+        qyy = c1 * (qy[-1, 0, 0] + qy) + c2 * (qout[1, 0, 0] + qyy_left)
 
 
 def final_qout(
