@@ -238,13 +238,3 @@ def test_sequential_serialization():
     # Fetch stencil from stencil table
     received_bytes = stencil_table.read_stencil()
     np.testing.assert_array_equal(stencil_bytes, received_bytes)
-
-
-@pytest.mark.parallel
-@pytest.mark.skipif(
-    MPI is None or MPI.COMM_WORLD.Get_size() == 1,
-    reason="Not running in parallel with mpi",
-)
-def test_parallel_transmission():
-    # TODO(eddied): Write parallel test!
-    pass
