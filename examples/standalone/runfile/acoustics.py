@@ -16,11 +16,11 @@ import fv3core
 import fv3core._config as spec
 import fv3core.testing
 import fv3gfs.util as util
-from fv3core.decorators import computepath_function
 from fv3core.stencils.dyn_core import AcousticDynamics
 from fv3core.utils.global_config import get_dacemode, set_dacemode
 from fv3core.utils.grid import Grid
 from fv3core.utils.null_comm import NullComm
+from fv3core.utils.stencil import computepath_function
 
 
 try:

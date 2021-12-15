@@ -2,11 +2,10 @@ import gt4py.gtscript as gtscript
 from gt4py.gtscript import PARALLEL, computation, horizontal, interval, region
 
 import fv3core.utils.gt4py_utils as utils
-from fv3core.decorators import computepath_method
 from fv3core.stencils.a2b_ord4 import a1, a2, lagrange_x_func, lagrange_y_func
 from fv3core.utils import corners
 from fv3core.utils.grid import GridData, axis_offsets
-from fv3core.utils.stencil import StencilFactory
+from fv3core.utils.stencil import StencilFactory, computepath_method
 from fv3core.utils.typing import FloatField, FloatFieldIJ
 from fv3gfs.util import X_DIM, Y_DIM, Z_DIM
 

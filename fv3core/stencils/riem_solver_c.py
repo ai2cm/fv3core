@@ -4,9 +4,8 @@ from gt4py.gtscript import BACKWARD, FORWARD, PARALLEL, computation, interval, l
 
 import fv3core.utils.global_constants as constants
 import fv3core.utils.gt4py_utils as utils
-from fv3core.decorators import computepath_method
 from fv3core.stencils.sim1_solver import Sim1Solver
-from fv3core.utils.stencil import StencilFactory
+from fv3core.utils.stencil import StencilFactory, computepath_method
 from fv3core.utils.typing import FloatField, FloatFieldIJ
 
 

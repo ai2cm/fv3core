@@ -13,9 +13,9 @@ from gt4py.gtscript import (
 )
 
 import fv3core.utils.gt4py_utils as utils
-from fv3core.decorators import computepath_method, get_stencils_with_varied_bounds
+from fv3core.decorators import get_stencils_with_varied_bounds
 from fv3core.utils.grid import DampingCoefficients, axis_offsets
-from fv3core.utils.stencil import StencilFactory
+from fv3core.utils.stencil import StencilFactory, computepath_method
 from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
 from fv3gfs.util import X_DIM, Y_DIM, Z_DIM
 from fv3gfs.util.constants import X_INTERFACE_DIM, Y_INTERFACE_DIM

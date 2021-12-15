@@ -4,9 +4,8 @@ from gt4py import gtscript
 from gt4py.gtscript import PARALLEL, computation, horizontal, interval, region
 
 import fv3core.utils.gt4py_utils as utils
-from fv3core.decorators import computepath_method
 from fv3core.utils.grid import axis_offsets
-from fv3core.utils.stencil import GridIndexing, StencilFactory
+from fv3core.utils.stencil import GridIndexing, StencilFactory, computepath_method
 from fv3core.utils.typing import FloatField
 from fv3gfs.util.constants import (
     X_DIM,

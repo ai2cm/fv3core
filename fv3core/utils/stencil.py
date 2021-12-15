@@ -18,10 +18,13 @@ from typing import (
 )
 
 import dace
-from dace.frontend.python.common import SDFGClosure, SDFGConvertible
-
 import gt4py
+import gt4py.definitions
 import numpy as np
+from dace.frontend.python.common import SDFGClosure, SDFGConvertible
+from dace.frontend.python.parser import DaceProgram
+from dace.transformation.auto.auto_optimize import make_transients_persistent
+from dace.transformation.helpers import get_parent_map
 from gt4py import gtscript
 from gt4py.storage.storage import Storage
 from gtc.passes.oir_pipeline import DefaultPipeline, OirPipeline
@@ -34,6 +37,75 @@ from fv3core.utils.typing import Index3D, cast_to_index3d
 from fv3gfs.util.halo_data_transformer import QuantityHaloSpec
 
 from .gt4py_utils import make_storage_from_shape
+
+
+def to_gpu(sdfg: dace.SDFG):
+    allmaps = [
+        (me, state)
+        for me, state in sdfg.all_nodes_recursive()
+        if isinstance(me, dace.nodes.MapEntry)
+    ]
+    topmaps = [
+        (me, state) for me, state in allmaps if get_parent_map(state, me) is None
+    ]
+
+    for sd, aname, arr in sdfg.arrays_recursive():
+        if arr.shape == (1,):
+            arr.storage = dace.StorageType.Register
+        else:
+            arr.storage = dace.StorageType.GPU_Global
+
+    for mapentry, state in topmaps:
+        mapentry.schedule = dace.ScheduleType.GPU_Device
+
+    for sd in sdfg.all_sdfgs_recursive():
+        sd.openmp_sections = False
+
+
+def call_sdfg(daceprog: DaceProgram, sdfg: dace.SDFG, args, kwargs, sdfg_final=False):
+    if not sdfg_final:
+        if global_config.is_gpu_backend():
+            to_gpu(sdfg)
+            make_transients_persistent(sdfg=sdfg, device=dace.dtypes.DeviceType.GPU)
+        else:
+            make_transients_persistent(sdfg=sdfg, device=dace.dtypes.DeviceType.CPU)
+    for arg in list(args) + list(kwargs.values()):
+        if isinstance(arg, gt4py.storage.Storage):
+            arg.host_to_device()
+
+    if not sdfg_final:
+        sdfg_kwargs = daceprog._create_sdfg_args(sdfg, args, kwargs)
+        for k in daceprog.constant_args:
+            if k in sdfg_kwargs:
+                del sdfg_kwargs[k]
+        sdfg_kwargs = {k: v for k, v in sdfg_kwargs.items() if v is not None}
+        res = sdfg(**sdfg_kwargs)
+    else:
+        res = daceprog(*args, **kwargs)
+    for arg in list(args) + list(kwargs.values()):
+        if isinstance(arg, gt4py.storage.Storage) and hasattr(
+            arg, "_set_device_modified"
+        ):
+            arg._set_device_modified()
+    if res is not None:
+        if global_config.is_gpu_backend():
+            res = [
+                gt4py.storage.from_array(
+                    r,
+                    default_origin=(0, 0, 0),
+                    backend=global_config.get_backend(),
+                    managed_memory=True,
+                )
+                for r in res
+            ]
+        else:
+            res = [
+                gt4py.storage.from_array(
+                    r, default_origin=(0, 0, 0), backend=global_config.get_backend()
+                )
+                for r in res
+            ]
+    return res
 
 
 class StencilConfig(Hashable):

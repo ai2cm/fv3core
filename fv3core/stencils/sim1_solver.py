@@ -3,8 +3,7 @@ import typing
 from gt4py.gtscript import BACKWARD, FORWARD, PARALLEL, computation, exp, interval, log
 
 import fv3core.utils.global_constants as constants
-from fv3core.decorators import computepath_method
-from fv3core.utils.stencil import StencilFactory
+from fv3core.utils.stencil import StencilFactory, computepath_method
 from fv3core.utils.typing import FloatField, FloatFieldIJ
 
 

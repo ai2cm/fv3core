@@ -29,9 +29,9 @@ except ImportError:
 # fv3core. isort turned off to keep it that way.
 # isort: off
 import fv3gfs.util as util
-from fv3core.decorators import computepath_function
 from fv3core.utils.global_config import set_dacemode, get_dacemode
 from fv3core.utils.null_comm import NullComm
+from fv3core.utils.stencil import computepath_function
 
 # isort: on
 
