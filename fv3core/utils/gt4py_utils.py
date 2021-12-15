@@ -9,6 +9,7 @@ import numpy as np
 
 import fv3core._config as spec
 import fv3core.utils.global_config as global_config
+from fv3core.utils.mpi import MPI
 from fv3core.utils.typing import DTypes, Field, Float
 
 
@@ -39,6 +40,12 @@ tracer_variables = [
 
 # Logger instance
 logger = logging.getLogger("fv3core")
+
+# 1 indexing to 0 and halos: -2, -1, 0 --> 0, 1,2
+if MPI is not None and MPI.COMM_WORLD.Get_size() > 1:
+    gt.config.cache_settings["dir_name"] = ".gt_cache_{:0>6d}".format(
+        MPI.COMM_WORLD.Get_rank()
+    )
 
 dace.Config.set(
     "default_build_folder",
@@ -440,23 +447,20 @@ def k_split_run(func, data, k_indices, splitvars_values):
         func(**data)
 
 
-def kslice_from_inputs(kstart, nk, grid):
-    if nk is None:
-        nk = grid.npz - kstart
-    kslice = slice(kstart, kstart + nk)
-    return [kslice, nk]
-
-
-def krange_from_slice(kslice, grid):
-    kstart = kslice.start
-    kend = kslice.stop
-    nk = grid.npz - kstart if kend is None else kend - kstart
-    return kstart, nk
-
-
 def asarray(array, to_type=np.ndarray, dtype=None, order=None):
     if isinstance(array, gt_storage.storage.Storage):
         array = array.data
+    if cp and (isinstance(array, list)):
+        if to_type is np.ndarray:
+            order = "F" if order is None else order
+            return cp.asnumpy(array, order=order)
+        else:
+            return cp.asarray(array, dtype, order)
+    elif isinstance(array, list):
+        if to_type is np.ndarray:
+            return np.asarray(array, dtype, order)
+        else:
+            return cp.asarray(array, dtype, order)
     if cp and (
         isinstance(array, memoryview)
         or isinstance(array.data, (cp.ndarray, cp.cuda.memory.MemoryPointer))
