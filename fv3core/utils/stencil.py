@@ -38,6 +38,8 @@ from fv3gfs.util.halo_data_transformer import QuantityHaloSpec
 
 from .gt4py_utils import make_storage_from_shape
 
+MPI = None
+
 
 def to_gpu(sdfg: dace.SDFG):
     allmaps = [
