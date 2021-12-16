@@ -36,15 +36,17 @@ def get_selective_class(
 
             for arg_name, func in name_to_origin_domain_function.items():
                 variable_origin, variable_domain = func(self.wrapped)
-
                 self._validation_slice[arg_name] = tuple(
                     slice(start, start + n)
                     for start, n in zip(variable_origin, variable_domain)
                 )
             try:
-                self._all_argument_names = tuple(
-                    inspect.getfullargspec(self.wrapped).args[1:]
-                )
+                if hasattr(self.wrapped.__call__, "lazy_method"):
+                    arg_spec = self.wrapped.__call__.lazy_method.arg_spec
+                else:
+                    arg_spec = inspect.getfullargspec(self.wrapped)
+
+                self._all_argument_names = tuple(arg_spec.args[1:])
                 assert "self" not in self._all_argument_names
             except TypeError:  # wrapped object is not callable
                 self._all_argument_names = None

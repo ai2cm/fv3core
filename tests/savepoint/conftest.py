@@ -25,8 +25,7 @@ import serialbox  # noqa: E402
 GRID_SAVEPOINT_NAME = "Grid-Info"
 
 # this must happen before any classes from fv3core are instantiated
-if os.environ.get("FV3_SELECTIVE_VALIDATION", "True") == "True":
-    fv3core.testing.enable_selective_validation()
+fv3core.testing.enable_selective_validation()
 
 
 class ReplaceRepr:
