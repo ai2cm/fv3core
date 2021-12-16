@@ -17,7 +17,7 @@ from fv3core.stencils.neg_adj3 import AdjustNegativeTracerMixingRatio
 from fv3core.stencils.remapping import LagrangianToEulerian
 from fv3core.utils import global_config
 from fv3core.utils.grid import DampingCoefficients, GridData
-from fv3core.utils.stencil import StencilFactory
+from fv3core.utils.stencil import StencilFactory, computepath_function, computepath_method
 from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
 from fv3gfs.util.halo_updater import HaloUpdater
 
@@ -51,6 +51,7 @@ def init_pfull(
         pfull = (ph2 - ph1) / log(ph2 / ph1)
 
 
+@computepath_function
 def compute_preamble(
     state,
     is_root_rank: bool,
@@ -106,6 +107,7 @@ def compute_preamble(
         )
 
 
+@computepath_function
 def post_remap(
     state,
     is_root_rank: bool,
@@ -133,6 +135,7 @@ def post_remap(
         hyperdiffusion(state.omga, 0.18 * da_min)
 
 
+@computepath_function
 def wrapup(
     state,
     comm: fv3gfs.util.CubedSphereCommunicator,
@@ -393,6 +396,11 @@ class DynamicalCore:
         )
         self._omega_halo_updater = self.comm.get_scalar_halo_updater([full_xyz_spec])
 
+    @computepath_method
+    def __call__(self, *args, **kwargs):
+        return self.step_dynamics(*args, **kwargs)
+
+    @computepath_method
     def step_dynamics(
         self,
         state: Mapping[str, fv3gfs.util.Quantity],
@@ -434,6 +442,7 @@ class DynamicalCore:
         )
         self._compute(state, timer)
 
+    @computepath_method
     def _compute(
         self,
         state,
@@ -531,6 +540,7 @@ class DynamicalCore:
             is_root_rank=self.comm.rank == 0,
         )
 
+    @computepath_method
     def _dyn(self, state, tracers, timer=fv3gfs.util.NullTimer()):
         self._copy_stencil(
             state.delp,
