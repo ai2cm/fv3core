@@ -9,6 +9,12 @@ from fv3gfs.util.constants import X_DIM, X_INTERFACE_DIM, Y_DIM, Y_INTERFACE_DIM
 from fv3gfs.util.quantity import Quantity
 
 
+def get_arg_spec(wrapped: Callable):
+    if hasattr(wrapped.__call__, "lazy_method"):
+        return wrapped.__call__.lazy_method.arg_spec
+    return inspect.getfullargspec(wrapped)
+
+
 def get_selective_class(
     cls: type,
     name_to_origin_domain_function: Mapping[
@@ -40,16 +46,9 @@ def get_selective_class(
                     slice(start, start + n)
                     for start, n in zip(variable_origin, variable_domain)
                 )
-            try:
-                if hasattr(self.wrapped.__call__, "lazy_method"):
-                    arg_spec = self.wrapped.__call__.lazy_method.arg_spec
-                else:
-                    arg_spec = inspect.getfullargspec(self.wrapped)
-
-                self._all_argument_names = tuple(arg_spec.args[1:])
-                assert "self" not in self._all_argument_names
-            except TypeError:  # wrapped object is not callable
-                self._all_argument_names = None
+            arg_spec = get_arg_spec(self.wrapped)
+            self._all_argument_names = tuple(arg_spec.args[1:])
+            assert "self" not in self._all_argument_names
 
         def __call__(self, *args, **kwargs):
             kwargs.update(self._args_to_kwargs(args))
@@ -104,9 +103,8 @@ def get_selective_tracer_advection(
             self._validation_slice = tuple(
                 slice(start, start + n) for start, n in zip(origin, domain)
             )
-            self._all_argument_names = tuple(
-                inspect.getfullargspec(self.wrapped).args[1:]
-            )
+            arg_spec = get_arg_spec(self.wrapped)
+            self._all_argument_names = tuple(arg_spec.args[1:])
             assert "self" not in self._all_argument_names
 
         def __call__(self, *args, **kwargs):
