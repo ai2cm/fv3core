@@ -19,6 +19,9 @@ CS_Profile_2d-2:
   - backend: gtc:gt:gpu
     max_error: 3e-8
     near_zero: 1.5e-14
+  - backend: gtc:dace:gpu
+    max_error: 3e-8
+    near_zero: 1.5e-14
   - backend: gtc:cuda
     max_error: 3e-8
     near_zero: 1.5e-14
@@ -83,6 +86,11 @@ UpdateDzC:
     near_zero: 4.5e-15
     ignore_near_zero_errors:
       - ws
+  - backend: gtc:dace:gpu
+    max_error: 5e-10
+    near_zero: 4.5e-15
+    ignore_near_zero_errors:
+      - ws
   - backend: gtc:cuda
     max_error: 5e-10
     near_zero: 4.5e-15
@@ -98,6 +106,10 @@ UpdateDzD:
     max_error: 5e-10
     ignore_near_zero_errors:
       - wsd
+  - backend: gtc:dace:gpu
+    max_error: 5e-10
+    ignore_near_zero_errors:
+      - wsd
   - backend: gtc:cuda
     max_error: 5e-10
     ignore_near_zero_errors:
@@ -108,11 +120,16 @@ FVSubgridZ:
     max_error: 1e-8
   - backend: gtc:gt:gpu
     max_error: 1e-8
+  - backend: gtc:dace:gpu
+    max_error: 1e-8
   - backend: gtc:cuda
     max_error: 1e-8
 
 DynCore:
  - backend: gtc:gt:gpu
+   ignore_near_zero_errors:
+     - wsd
+- backend: gtc:dace:gpu
    ignore_near_zero_errors:
      - wsd
  - backend: gtc:cuda
@@ -121,6 +138,8 @@ DynCore:
 
 Tracer2D1L:
  - backend: gtc:gt:gpu
+   max_error: 1e-9
+ - backend: gtc:dace:gpu
    max_error: 1e-9
  - backend: gtc:cuda
    max_error: 1e-9
