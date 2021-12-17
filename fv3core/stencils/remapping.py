@@ -180,13 +180,13 @@ def pressures_mapv(
 def update_ua(pe2: FloatField, ua: FloatField):
     from __externals__ import local_je
 
-    with computation(PARALLEL), interval(...):
+    with computation(PARALLEL), interval(0, -1):
         ua = pe2[0, 0, 1]
 
     # pe2[:, je+1, 1:npz] should equal pe2[:, je, 1:npz] as in the Fortran model,
     # but the extra j-elements are only used here, so we can just directly assign ua.
     # Maybe we can eliminate this later?
-    with computation(PARALLEL), interval(0, -1):
+    with computation(PARALLEL), interval(0, -2):
         with horizontal(region[:, local_je + 1]):
             ua = pe2[0, -1, 1]
 
@@ -360,12 +360,12 @@ class LagrangianToEulerian:
         ax_offsets_jextra = axis_offsets(
             grid_indexing,
             grid_indexing.origin_compute(),
-            grid_indexing.domain_compute(add=(0, 1, 0)),
+            self._domain_jextra,
         )
         self._update_ua = stencil_factory.from_origin_domain(
             update_ua,
             origin=grid_indexing.origin_compute(),
-            domain=grid_indexing.domain_compute(add=(0, 1, 0)),
+            domain=self._domain_jextra,
             externals={**ax_offsets_jextra},
         )
 
