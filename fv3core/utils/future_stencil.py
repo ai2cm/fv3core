@@ -51,7 +51,7 @@ class StencilTable(object, metaclass=Singleton):
     DONE_STATE: int = -1
     NONE_STATE: int = -2
     MAX_SIZE: int = 200
-    MAX_STENCIL_BYTES: int = 10000
+    MAX_STENCIL_BYTES: int = 100000
 
     @classmethod
     def create(cls, *args: Any, **kwargs: Any) -> "StencilTable":
@@ -144,6 +144,8 @@ class StencilTable(object, metaclass=Singleton):
 
     def _deserialize(self, bytes_array: np.ndarray) -> None:
         bytes_io = io.BytesIO(bytes_array.tobytes())
+        with open(f"./future_stencil_r{MPI.COMM_WORLD.Get_rank()}.log", "a") as log:
+            log.write(f"_deserialize: bytes_array.size = {bytes_array.size}\n")
         with tarfile.open(fileobj=bytes_io, mode="r:gz") as tar:
             tar.extractall()
 
@@ -310,10 +312,11 @@ class DistributedTable(StencilTable):
         size_bytes = stencil_bytes.size.to_bytes(2, "big")
         offset = self._max_stencil_bytes * self._node_id
         buffer[offset:offset + 2] = list(size_bytes)
-        buffer[offset + 2:stencil_bytes.size + offset + 2] = stencil_bytes
 
         with open(f"./future_stencil_r{MPI.COMM_WORLD.Get_rank()}.log", "a") as log:
-            log.write(f"write_stencil: size_bytes = {size_bytes}, len(buffer) = {buffer.size}\n")
+            log.write(f"write_stencil: size_bytes = {size_bytes}, len(buffer) = {buffer.size}, offset = {offset}, buffer[offset + 2:stencil_bytes.size + offset + 2].size = {buffer[offset + 2:stencil_bytes.size + offset + 2].size}, stencil_bytes.size = {stencil_bytes.size}\n")
+
+        buffer[offset + 2:stencil_bytes.size + offset + 2] = stencil_bytes
 
         # Write the bytes to one-sided memory window
         self._byte_window.Lock(rank=0)
