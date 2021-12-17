@@ -121,7 +121,7 @@ class StencilConfig(Hashable):
             "value": False,
         },
         "skip_passes": {
-            "backend": r"^gtc:(gt|cuda|dace)",
+            "backend": r"^gtc:(gt|cuda)",
             "value": ["graph_merge_horizontal_executions"],
         },
         "verbose": {"backend": r"^gtc:(gt|cuda)", "value": False},
