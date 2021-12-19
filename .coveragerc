@@ -1,0 +1,5 @@
+[report]
+omit =
+    *fv3core/stencils/*
+    */setup.py
+    */tests/*
