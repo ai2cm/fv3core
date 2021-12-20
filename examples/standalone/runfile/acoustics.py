@@ -21,6 +21,7 @@ from fv3core.utils.global_config import get_dacemode, set_dacemode
 from fv3core.utils.grid import Grid
 from fv3core.utils.null_comm import NullComm
 from fv3core.utils.stencil import computepath_function
+import fv3gfs.util as fv3util
 
 
 try:
@@ -143,7 +144,7 @@ def read_and_reset_timer(timestep_timer, times_per_step, hits_per_step):
     return times_per_step, hits_per_step
 
 
-def run(data_directory, halo_update, backend, time_steps, reference_run):
+def run(data_directory, halo_update, backend, time_steps):
     set_up_namelist(data_directory)
     serializer = initialize_serializer(data_directory)
     initialize_fv3core(backend, halo_update)
@@ -154,55 +155,49 @@ def run(data_directory, halo_update, backend, time_steps, reference_run):
 
     state = get_state_from_input(grid, input_data)
 
-    acoustics_object = AcousticDynamics(
-        None,
-        spec.namelist,
-        input_data["ak"],
-        input_data["bk"],
-        input_data["pfull"],
-        input_data["phis"],
+    # Network communicator
+    comm = MPI.COMM_WORLD
+    cube_comm = fv3util.CubedSphereCommunicator(
+        comm,
+        fv3util.CubedSpherePartitioner(fv3util.TilePartitioner(spec.namelist.layout)),
     )
-    state.__dict__.update(acoustics_object._temporaries)
+
+    acoustics_dynamics = AcousticDynamics(
+        comm=cube_comm,
+        stencil_factory=spec.grid.stencil_factory,
+        grid_data=grid,
+        damping_coefficients=spec.grid.damping_coefficients,
+        grid_type=spec.namelist.dynamical_core.grid_type,
+        nested=False,
+        stretched_grid=False,
+        config=spec.namelist.dynamical_core.acoustic_dynamics,
+        ak=input_data["ak"],
+        bk=input_data["bk"],
+        pfull=input_data["pfull"],
+        phis=input_data["phis"],
+    )
+    state.__dict__.update(acoustics_dynamics._temporaries)
 
     @computepath_function
-    def iterate(state: dace.constant, time_steps):
-        # @Linus: make this call a dace program
+    def acoustics_loop(state: dace.constant, time_steps):
         for _ in range(time_steps):
-            acoustics_object(state, insert_temporaries=False)
+            acoustics_dynamics(state, insert_temporaries=False)
 
-    if reference_run:
-        dacemode = get_dacemode()
-        set_dacemode(False)
-        import time
+    # Get Rank
+    rank = comm.Get_rank()
 
-        start = time.time()
-        pr = cProfile.Profile()
-        pr.enable()
+    # Simulate
+    import time
 
-        try:
-            iterate(state, time_steps)
-        finally:
-            pr.disable()
-            s = io.StringIO()
-            sortby = SortKey.CUMULATIVE
-            ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
-            ps.print_stats()
-            print(s.getvalue())
-            set_dacemode(dacemode)
-        print(f"{backend} time:", time.time() - start)
-    else:
-        pr = cProfile.Profile()
-        pr.enable()
+    start = time.time()
+    acoustics_loop(state, time_steps)
 
-        try:
-            iterate(state, time_steps)
-        finally:
-            pr.disable()
-            s = io.StringIO()
-            sortby = SortKey.CUMULATIVE
-            ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
-            ps.print_stats()
-            print(s.getvalue())
+    elapsed = time.time() - start
+    per_timestep = elapsed / time_steps
+    print(
+        f"Total {backend} time on rank {rank} for {time_steps} steps: "
+        f"{elapsed}s ({per_timestep}s /timestep)"
+    )
 
     return state
 
@@ -211,45 +206,47 @@ def run(data_directory, halo_update, backend, time_steps, reference_run):
 @click.argument("data_directory", required=True, nargs=1)
 @click.argument("time_steps", required=False, default="1", type=int)
 @click.argument("backend", required=False, default="gtc:gt:cpu_ifirst")
-@click.option("--disable_halo_exchange/--no-disable_halo_exchange", default=False)
-@click.option("--print_timings/--no-print_timings", default=True)
+@click.argument("sdfg_path", required=False, default="")
+@click.option("--halo_update/--no-halo_update", default=False)
+@click.option("--check_against_numpy/--no-check_against_numpy", default=False)
 def driver(
     data_directory: str,
     time_steps: str,
     backend: str,
-    disable_halo_exchange: bool,
-    print_timings: bool,
+    sdfg_path: str,
+    halo_update: bool,
+    check_against_numpy: bool,
 ):
     state = run(
         data_directory,
-        not disable_halo_exchange,
+        halo_update,
         time_steps=time_steps,
         backend=backend,
-        reference_run=not get_dacemode(),
     )
-    ref_state = run(
-        data_directory,
-        not disable_halo_exchange,
-        time_steps=time_steps,
-        backend="numpy",
-        reference_run=True,
-    )
+    if check_against_numpy:
+        ref_state = run(
+            data_directory,
+            halo_update,
+            time_steps=time_steps,
+            backend="numpy",
+        )
 
-    for name, ref_value in ref_state.__dict__.items():
+    if check_against_numpy:
+        for name, ref_value in ref_state.__dict__.items():
 
-        if name in {"mfxd", "mfyd"}:
-            continue
-        value = state.__dict__[name]
-        if isinstance(ref_value, util.quantity.Quantity):
-            ref_value = ref_value.storage
-        if isinstance(value, util.quantity.Quantity):
-            value = value.storage
-        if hasattr(value, "device_to_host"):
-            value.device_to_host()
-        if hasattr(value, "shape") and len(value.shape) == 3:
-            value = np.asarray(value)[1:-1, 1:-1, :]
-            ref_value = np.asarray(ref_value)[1:-1, 1:-1, :]
-        np.testing.assert_allclose(ref_value, value, err_msg=name)
+            if name in {"mfxd", "mfyd"}:
+                continue
+            value = state.__dict__[name]
+            if isinstance(ref_value, util.quantity.Quantity):
+                ref_value = ref_value.storage
+            if isinstance(value, util.quantity.Quantity):
+                value = value.storage
+            if hasattr(value, "device_to_host"):
+                value.device_to_host()
+            if hasattr(value, "shape") and len(value.shape) == 3:
+                value = np.asarray(value)[1:-1, 1:-1, :]
+                ref_value = np.asarray(ref_value)[1:-1, 1:-1, :]
+            np.testing.assert_allclose(ref_value, value, err_msg=name)
 
 
 if __name__ == "__main__":
