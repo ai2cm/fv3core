@@ -55,9 +55,10 @@ Riem_Solver3:
     max_error: 5e-6
   - backend: gtc:dace:gpu
     max_error: 5e-6
-  - platform: metal
-    backend: numpy
-    max_error: 1e-11 # 48_6ranks
+  - backend: gtc:dace
+    max_error: 5e-10
+  - backend: numpy
+    max_error: 5e-10
 
 Remapping:
   - backend: gtcuda
