@@ -375,13 +375,13 @@ class FrozenStencil(SDFGConvertible):
         return DefaultPipeline(skip=skip_steps)
 
     def __sdfg__(self, *args, **kwargs):
-        return self.sdfg_wrapper.__sdfg__(*args, **kwargs)
+        return self._frozen_stencil.__sdfg__(*args, **kwargs)
 
     def __sdfg_signature__(self):
-        return self.sdfg_wrapper.__sdfg_signature__()
+        return self._frozen_stencil.__sdfg_signature__()
 
     def __sdfg_closure__(self, *args, **kwargs):
-        return self.sdfg_wrapper.__sdfg_closure__(*args, **kwargs)
+        return self._frozen_stencil.__sdfg_closure__(*args, **kwargs)
 
     def closure_resolver(self, constant_args, parent_closure=None):
         return SDFGClosure()
