@@ -251,7 +251,9 @@ class DistributedTable(StencilTable):
 
         byte_size: int = MPI.BYTE.Get_size()
         window_size = (
-            byte_size * self._max_stencil_bytes * self._n_nodes if self._node_id == 0 else 0
+            byte_size * self._max_stencil_bytes * self._n_nodes
+            if self._node_id == 0
+            else 0
         )
         self._byte_window = MPI.Win.Allocate(
             size=window_size, disp_unit=byte_size, comm=self._comm
@@ -288,18 +290,28 @@ class DistributedTable(StencilTable):
         return (node_id * self._buffer_size, self._buffer_size, self._mpi_type)
 
     def read_stencil(self, node_id: int = -1) -> Optional[np.ndarray]:
-        node_id = self._node_id if node_id < 0 else node_id
+        # TODO(eddied): Get node ID from table and pass to `read_stencil`
+        node_id = 0  # self._node_id if node_id < 0 else node_id
+        offset: int = self._max_stencil_bytes * node_id
+        buffer_size: int = self._max_stencil_bytes * self._n_nodes
 
         # Read bytes from window
-        buffer: np.ndarray = np.empty(self._max_stencil_bytes * self._n_nodes, dtype=np.byte)
+        buffer: np.ndarray = np.empty(buffer_size, dtype=np.byte)
+        target = (offset, buffer_size, MPI.BYTE)
         self._byte_window.Lock(rank=0)
-        self._byte_window.Get(buffer, target_rank=0, target=self._get_target(node_id))
+        self._byte_window.Get(buffer, target_rank=0, target=target)
         self._byte_window.Unlock(rank=0)
 
         # Read first two bytes to get stencil size
-        offset = self._max_stencil_bytes * node_id
-        n_stencil_bytes: int = int.from_bytes(buffer[offset:offset + 2].tobytes(), "big")
-        self._stencil_bytes = buffer[offset + 2:n_stencil_bytes + offset + 2]
+        n_stencil_bytes: int = int.from_bytes(
+            buffer[offset : offset + 2].tobytes(), "big"
+        )
+        self._stencil_bytes = buffer[offset + 2 : n_stencil_bytes + offset + 2]
+
+        with open(f"./future_stencil_r{MPI.COMM_WORLD.Get_rank()}.log", "a") as log:
+            log.write(
+                f"read_stencil: node_id = {node_id}, n_stencil_bytes = {n_stencil_bytes}, len(buffer) = {buffer.size}, offset = {offset}, buffer[offset + 2:stencil_bytes.size + offset + 2].size = {buffer[offset + 2:self._stencil_bytes.size + offset + 2].size}, stencil_bytes.size = {self._stencil_bytes.size}\n"
+            )
 
         return super().read_stencil(node_id)
 
@@ -308,19 +320,23 @@ class DistributedTable(StencilTable):
         stencil_bytes = super().write_stencil(stencil_object)
 
         # First two bytes store the size
-        buffer: np.ndarray = np.empty(self._max_stencil_bytes * self._n_nodes, dtype=np.byte)
+        offset: int = self._max_stencil_bytes * self._node_id
+        buffer_size: int = self._max_stencil_bytes * self._n_nodes
+        buffer: np.ndarray = np.empty(buffer_size, dtype=np.byte)
         size_bytes = stencil_bytes.size.to_bytes(2, "big")
-        offset = self._max_stencil_bytes * self._node_id
-        buffer[offset:offset + 2] = list(size_bytes)
+        buffer[offset : offset + 2] = list(size_bytes)
 
         with open(f"./future_stencil_r{MPI.COMM_WORLD.Get_rank()}.log", "a") as log:
-            log.write(f"write_stencil: size_bytes = {size_bytes}, len(buffer) = {buffer.size}, offset = {offset}, buffer[offset + 2:stencil_bytes.size + offset + 2].size = {buffer[offset + 2:stencil_bytes.size + offset + 2].size}, stencil_bytes.size = {stencil_bytes.size}\n")
+            log.write(
+                f"write_stencil: node_id = {self._node_id}, size_bytes = {size_bytes}, len(buffer) = {buffer.size}, offset = {offset}, buffer[offset + 2:stencil_bytes.size + offset + 2].size = {buffer[offset + 2:stencil_bytes.size + offset + 2].size}, stencil_bytes.size = {stencil_bytes.size}\n"
+            )
 
-        buffer[offset + 2:stencil_bytes.size + offset + 2] = stencil_bytes
+        buffer[offset + 2 : stencil_bytes.size + offset + 2] = stencil_bytes
 
         # Write the bytes to one-sided memory window
+        target = (offset, buffer_size, MPI.BYTE)
         self._byte_window.Lock(rank=0)
-        self._byte_window.Put(buffer, target_rank=0, target=self._get_target())
+        self._byte_window.Put(buffer, target_rank=0, target=target)
         self._byte_window.Unlock(rank=0)
 
         return stencil_bytes
