@@ -39,11 +39,6 @@ tracer_variables = [
 logger = logging.getLogger("fv3core")
 
 
-# TODO remove when using quantities throughout model
-def quantity_name(name):
-    return name + "_quantity"
-
-
 def mark_untested(msg="This is not tested"):
     def inner(func) -> Callable[..., Any]:
         @wraps(func)
@@ -418,23 +413,20 @@ def k_split_run(func, data, k_indices, splitvars_values):
         func(**data)
 
 
-def kslice_from_inputs(kstart, nk, grid):
-    if nk is None:
-        nk = grid.npz - kstart
-    kslice = slice(kstart, kstart + nk)
-    return [kslice, nk]
-
-
-def krange_from_slice(kslice, grid):
-    kstart = kslice.start
-    kend = kslice.stop
-    nk = grid.npz - kstart if kend is None else kend - kstart
-    return kstart, nk
-
-
 def asarray(array, to_type=np.ndarray, dtype=None, order=None):
     if isinstance(array, gt_storage.storage.Storage):
         array = array.data
+    if cp and (isinstance(array, list)):
+        if to_type is np.ndarray:
+            order = "F" if order is None else order
+            return cp.asnumpy(array, order=order)
+        else:
+            return cp.asarray(array, dtype, order)
+    elif isinstance(array, list):
+        if to_type is np.ndarray:
+            return np.asarray(array, dtype, order)
+        else:
+            return cp.asarray(array, dtype, order)
     if cp and (
         isinstance(array, memoryview)
         or isinstance(array.data, (cp.ndarray, cp.cuda.memory.MemoryPointer))

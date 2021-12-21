@@ -2,7 +2,6 @@ from gt4py.gtscript import PARALLEL, computation, interval
 
 import fv3core._config as spec
 import fv3core.stencils.d_sw as d_sw
-from fv3core.decorators import FrozenStencil
 from fv3core.testing import TranslateFortranData2Py
 from fv3core.utils.grid import axis_offsets
 from fv3core.utils.typing import FloatField, FloatFieldIJ
@@ -11,16 +10,16 @@ from fv3core.utils.typing import FloatField, FloatFieldIJ
 class TranslateD_SW(TranslateFortranData2Py):
     def __init__(self, grid):
         super().__init__(grid)
-        self.max_error = 6e-11
+        self.max_error = 3.2e-10
         column_namelist = d_sw.get_column_namelist(spec.namelist, grid.npz)
         self.compute_func = d_sw.DGridShallowWaterLagrangianDynamics(
-            spec.grid.grid_indexing,
+            spec.grid.stencil_factory,
             spec.grid.grid_data,
             spec.grid.damping_coefficients,
             column_namelist,
             nested=spec.grid.nested,
             stretched_grid=spec.grid.stretched_grid,
-            config=spec.namelist.acoustic_dynamics.d_grid_shallow_water,
+            config=spec.namelist.dynamical_core.acoustic_dynamics.d_grid_shallow_water,
         )
         self.in_vars["data_vars"] = {
             "uc": grid.x3d_domain_dict(),
@@ -66,7 +65,9 @@ def ubke(
     dt5: float,
 ):
     with computation(PARALLEL), interval(...):
-        ub = d_sw.ubke(uc, vc, cosa, rsina, ut, ub, dt4, dt5)
+        dt = 2.0 * dt5
+        ub, _ = d_sw.interpolate_uc_vc_to_cell_corners(uc, vc, cosa, rsina, ut, ut)
+        ub = ub * dt
 
 
 class TranslateUbKE(TranslateFortranData2Py):
@@ -83,7 +84,7 @@ class TranslateUbKE(TranslateFortranData2Py):
         origin = self.grid.compute_origin()
         domain = self.grid.domain_shape_compute(add=(1, 1, 0))
         ax_offsets = axis_offsets(self.grid, origin, domain)
-        self.compute_func = FrozenStencil(
+        self.compute_func = self.grid.stencil_factory.from_origin_domain(
             ubke, externals=ax_offsets, origin=origin, domain=domain
         )
 
@@ -105,7 +106,9 @@ def vbke(
     dt5: float,
 ):
     with computation(PARALLEL), interval(...):
-        vb = d_sw.vbke(vc, uc, cosa, rsina, vt, vb, dt4, dt5)
+        dt = 2.0 * dt5
+        _, vb = d_sw.interpolate_uc_vc_to_cell_corners(uc, vc, cosa, rsina, vt, vt)
+        vb = vb * dt
 
 
 class TranslateVbKE(TranslateFortranData2Py):
@@ -122,7 +125,7 @@ class TranslateVbKE(TranslateFortranData2Py):
         origin = self.grid.compute_origin()
         domain = self.grid.domain_shape_compute(add=(1, 1, 0))
         ax_offsets = axis_offsets(self.grid, origin, domain)
-        self.compute_func = FrozenStencil(
+        self.compute_func = self.grid.stencil_factory.from_origin_domain(
             vbke, externals=ax_offsets, origin=origin, domain=domain
         )
 
@@ -149,7 +152,7 @@ class TranslateFluxCapacitor(TranslateFortranData2Py):
         self.out_vars = {}
         for outvar in ["cx", "cy", "xflux", "yflux"]:
             self.out_vars[outvar] = self.in_vars["data_vars"][outvar]
-        self.compute_func = FrozenStencil(
+        self.compute_func = grid.stencil_factory.from_origin_domain(
             d_sw.flux_capacitor,
             origin=grid.full_origin(),
             domain=grid.domain_shape_full(),
@@ -182,7 +185,7 @@ class TranslateHeatDiss(TranslateFortranData2Py):
             spec.namelist.dt_atmos / spec.namelist.k_split / spec.namelist.n_split
         )
         inputs["rarea"] = self.grid.rarea
-        heat_diss_stencil = FrozenStencil(
+        heat_diss_stencil = self.grid.stencil_factory.from_origin_domain(
             d_sw.heat_diss,
             origin=self.grid.compute_origin(),
             domain=self.grid.domain_shape_compute(),
@@ -194,9 +197,14 @@ class TranslateHeatDiss(TranslateFortranData2Py):
 class TranslateWdivergence(TranslateFortranData2Py):
     def __init__(self, grid):
         super().__init__(grid)
-        self.in_vars["data_vars"] = {"w": {}, "delp": {}, "gx": {}, "gy": {}}
-        self.out_vars = {"w": {}}
-        self.compute_func = FrozenStencil(
+        self.in_vars["data_vars"] = {
+            "q": {"serialname": "w"},
+            "delp": {},
+            "gx": {},
+            "gy": {},
+        }
+        self.out_vars = {"q": {"serialname": "w"}}
+        self.compute_func = self.grid.stencil_factory.from_origin_domain(
             d_sw.flux_adjust,
             origin=self.grid.compute_origin(),
             domain=self.grid.domain_shape_compute(),

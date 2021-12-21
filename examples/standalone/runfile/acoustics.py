@@ -162,13 +162,13 @@ def driver(
         experiment_name = get_experiment_name(data_directory)
         acoustics_object = AcousticDynamics(
             communicator,
-            grid.grid_indexing,
+            grid.stencil_factory,
             grid.grid_data,
             grid.damping_coefficients,
             grid.grid_type,
             grid.nested,
             grid.stretched_grid,
-            spec.namelist.acoustic_dynamics,
+            spec.namelist.dynamical_core.acoustic_dynamics,
             input_data["ak"],
             input_data["bk"],
             input_data["pfull"],

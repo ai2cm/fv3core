@@ -128,13 +128,13 @@ class TranslateDynCore(ParallelTranslate2PyState):
         grid_data.bk = inputs["bk"]
         self._base.compute_func = dyn_core.AcousticDynamics(
             communicator,
-            spec.grid.grid_indexing,
+            spec.grid.stencil_factory,
             grid_data,
             spec.grid.damping_coefficients,
             spec.grid.grid_type,
             spec.grid.nested,
             spec.grid.stretched_grid,
-            spec.namelist.acoustic_dynamics,
+            spec.namelist.dynamical_core.acoustic_dynamics,
             inputs["ak"],
             inputs["bk"],
             inputs["pfull"],
