@@ -76,9 +76,7 @@ def read_input_data(grid: Grid, serializer: serialbox.Serializer) -> Dict[str, A
     return driver_object.collect_input_data(serializer, savepoint_in)
 
 
-def get_state_from_input(
-    grid: Grid, input_data: Dict[str, Any]
-) -> Dict[str, SimpleNamespace]:
+def get_state_from_input(grid: Grid, input_data: Dict[str, Any]):
     """
     Transforms the input data from the dictionary of strings
     to arrays into a state  we can pass in
@@ -99,7 +97,7 @@ def get_state_from_input(
         )
 
     statevars = SimpleNamespace(**input_data)
-    return {"state": statevars}
+    return statevars
 
 
 def set_up_communicator(
@@ -175,13 +173,14 @@ def run(data_directory, halo_update, backend, time_steps):
         bk=input_data["bk"],
         pfull=input_data["pfull"],
         phis=input_data["phis"],
+        state=state,
     )
     state.__dict__.update(acoustics_dynamics._temporaries)
 
     @computepath_function
     def acoustics_loop(state: dace.constant, time_steps):
         for _ in range(time_steps):
-            acoustics_dynamics(state, insert_temporaries=False)
+            acoustics_dynamics(state, update_temporaries=False)
 
     # Get Rank
     rank = comm.Get_rank()

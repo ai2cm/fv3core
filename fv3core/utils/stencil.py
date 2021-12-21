@@ -384,7 +384,9 @@ class FrozenStencil(SDFGConvertible):
         return self._frozen_stencil.__sdfg_closure__(*args, **kwargs)
 
     def closure_resolver(self, constant_args, parent_closure=None):
-        return SDFGClosure()
+        return self._frozen_stencil.closure_resolver(
+            constant_args, parent_closure=parent_closure
+        )
 
 
 class GridIndexing:
@@ -845,6 +847,11 @@ class LazyComputepathFunction:
         self._skip_dacemode = skip_dacemode
         self._load_sdfg = load_sdfg
         self.daceprog = dace.program(self.func)
+        # Removing all the annotation because FloatField.__descriptor__
+        # might cause conflict. Proper solution is to refactor FloatField
+        for pval in self.daceprog.signature.parameters.values():
+            if "Field<[" in str(pval.annotation):
+                pval._annotation = Any
         self._sdfg_loaded = False
         self._sdfg = None
 
@@ -912,6 +919,11 @@ class LazyComputepathMethod:
             self.obj_to_bind = obj_to_bind
             self.lazy_method = lazy_method
             self.daceprog = methodwrapper.__get__(obj_to_bind)
+            # Removing all the annotation because FloatField.__descriptor__
+            # might cause conflict. Proper solution is to refactor FloatField
+            for pval in self.daceprog.signature.parameters.values():
+                if "Field<[" in str(pval.annotation):
+                    pval._annotation = Any
 
         @property
         def global_vars(self):
