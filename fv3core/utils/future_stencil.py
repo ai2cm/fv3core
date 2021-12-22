@@ -52,6 +52,9 @@ class StencilTable(object, metaclass=Singleton):
     NONE_STATE: int = -2
     MAX_SIZE: int = 200
     MAX_STENCIL_BYTES: int = 100000
+    NUM_COUNT_BYTES = 2
+    NUM_SIZE_BYTES = 4
+    NUM_ID_BYTES = 6
 
     @classmethod
     def create(cls, *args: Any, **kwargs: Any) -> "StencilTable":
@@ -145,7 +148,7 @@ class StencilTable(object, metaclass=Singleton):
     def _deserialize(self, bytes_array: np.ndarray) -> None:
         bytes_io = io.BytesIO(bytes_array.tobytes())
         with open(f"./future_stencil_r{MPI.COMM_WORLD.Get_rank()}.log", "a") as log:
-            log.write(f"_deserialize: bytes_array.size = {bytes_array.size}\n")
+            log.write(f"{time.time()} [_deserialize]: bytes_array.size = {bytes_array.size}\n")
         with tarfile.open(fileobj=bytes_io, mode="r:gz") as tar:
             tar.extractall()
 
@@ -158,7 +161,7 @@ class StencilTable(object, metaclass=Singleton):
         stencil_files = (module_file, cache_file, object_file)
 
         with open(f"./future_stencil_r{MPI.COMM_WORLD.Get_rank()}.log", "a") as log:
-            log.write(f"_serialize: stencil_files = {stencil_files}\n")
+            log.write(f"{time.time()} [_serialize]: stencil_files = {stencil_files}\n")
 
         bytes_io = io.BytesIO()
         with tarfile.open(fileobj=bytes_io, mode="w:gz") as tar:
@@ -181,7 +184,7 @@ class StencilTable(object, metaclass=Singleton):
             file_object.write(np_bytes)
 
         with open(f"./future_stencil_r{MPI.COMM_WORLD.Get_rank()}.log", "a") as log:
-            log.write(f"_serialize: len(np_bytes) = {np_bytes.size}\n")
+            log.write(f"{time.time()} [_serialize]: len(np_bytes) = {np_bytes.size}\n")
 
         return np_bytes
 
@@ -193,14 +196,14 @@ class StencilTable(object, metaclass=Singleton):
     def _set_buffer(self, buffer: np.ndarray):
         pass
 
-    def read_stencil(self, node_id: int = 0) -> Optional[np.ndarray]:
+    def read_stencil(self, stencil_id: int = 0) -> Optional[np.ndarray]:
         if self._stencil_bytes is not None:
             self._deserialize(self._stencil_bytes)
         return self._stencil_bytes
 
-    def write_stencil(self, stencil_object: StencilObject) -> np.ndarray:
+    def write_stencil(self, stencil_class: Type[StencilObject]) -> np.ndarray:
         # TODO(eddied): If buffer is not None, flush to gt_cache before writing
-        self._stencil_bytes = self._serialize(stencil_object)
+        self._stencil_bytes = self._serialize(stencil_class)
         return self._stencil_bytes
 
 
@@ -266,7 +269,7 @@ class DistributedTable(StencilTable):
             for n in range(self._n_nodes):
                 buffer[n * self._buffer_size] = 0
 
-            # Rank -> Stencil Bytes table
+            # Rank -> Stencil Bytes table -- init to zero
             buffer = np.frombuffer(self._byte_window, dtype=np.byte)
             buffer[:] = np.full(len(buffer), 0, dtype=np.byte)
 
@@ -289,55 +292,128 @@ class DistributedTable(StencilTable):
             node_id = self._node_id
         return (node_id * self._buffer_size, self._buffer_size, self._mpi_type)
 
-    def read_stencil(self, node_id: int = -1) -> Optional[np.ndarray]:
-        # TODO(eddied): Get node ID from table and pass to `read_stencil`
-        node_id = self._node_id if node_id < 0 else node_id
-        offset: int = self._max_stencil_bytes * node_id
+    def _read_byte_window(self) -> np.ndarray:
         buffer_size: int = self._max_stencil_bytes * self._n_nodes
-
-        # Read bytes from window
         buffer: np.ndarray = np.empty(buffer_size, dtype=np.byte)
+        offset: int = self._max_stencil_bytes * self._node_id
         target = (offset, buffer_size, MPI.BYTE)
+
         self._byte_window.Lock(rank=0)
         self._byte_window.Get(buffer, target_rank=0, target=target)
         self._byte_window.Unlock(rank=0)
 
-        # Read first two bytes to get stencil size
-        n_stencil_bytes: int = int.from_bytes(
-            buffer[offset : offset + 2].tobytes(), "big"
-        )
-        self._stencil_bytes = buffer[offset + 2 : n_stencil_bytes + offset + 2]
+        return buffer
 
-        with open(f"./future_stencil_r{MPI.COMM_WORLD.Get_rank()}.log", "a") as log:
-            log.write(
-                f"read_stencil: node_id = {node_id}, n_stencil_bytes = {n_stencil_bytes}, len(buffer) = {buffer.size}, offset = {offset}, buffer[offset + 2:stencil_bytes.size + offset + 2].size = {buffer[offset + 2:self._stencil_bytes.size + offset + 2].size}, stencil_bytes.size = {self._stencil_bytes.size}\n"
-            )
-
-        return super().read_stencil(node_id)
-
-    def write_stencil(self, stencil_object: StencilObject) -> np.ndarray:
-        # Serialize the stencil
-        stencil_bytes = super().write_stencil(stencil_object)
-
-        # First two bytes store the size
-        offset: int = self._max_stencil_bytes * self._node_id
+    def _write_byte_window(self, buffer: np.ndarray) -> None:
         buffer_size: int = self._max_stencil_bytes * self._n_nodes
-        buffer: np.ndarray = np.empty(buffer_size, dtype=np.byte)
-        size_bytes = stencil_bytes.size.to_bytes(2, "big")
-        buffer[offset : offset + 2] = list(size_bytes)
-
-        with open(f"./future_stencil_r{MPI.COMM_WORLD.Get_rank()}.log", "a") as log:
-            log.write(
-                f"write_stencil: node_id = {self._node_id}, size_bytes = {size_bytes}, len(buffer) = {buffer.size}, offset = {offset}, buffer[offset + 2:stencil_bytes.size + offset + 2].size = {buffer[offset + 2:stencil_bytes.size + offset + 2].size}, stencil_bytes.size = {stencil_bytes.size}\n"
-            )
-
-        buffer[offset + 2 : stencil_bytes.size + offset + 2] = stencil_bytes
-
-        # Write the bytes to one-sided memory window
+        offset: int = self._max_stencil_bytes * self._node_id
         target = (offset, buffer_size, MPI.BYTE)
+
         self._byte_window.Lock(rank=0)
         self._byte_window.Put(buffer, target_rank=0, target=target)
         self._byte_window.Unlock(rank=0)
+
+    def read_stencil(self, stencil_id: int = 0) -> Optional[np.ndarray]:
+        # Read bytes from window
+        buffer = self._read_byte_window()
+
+        endian: str = "big"
+        count_bytes: bytes = buffer[0 : self.NUM_COUNT_BYTES].tobytes()
+        n_stencils: int = int.from_bytes(count_bytes, endian)
+        offset: int = self.NUM_COUNT_BYTES
+        n_stencil_bytes: int = 0
+
+        with open(f"./future_stencil_r{MPI.COMM_WORLD.Get_rank()}.log", "a") as log:
+            log.write(
+                f"{time.time()} [read_stencil]: stencil_id = {stencil_id}, n_stencils = {n_stencils}, len(buffer) = {buffer.size}, offset = {offset}\n"
+            )
+
+        # Find the stencil with the matching stencil ID
+        stencil_found: bool = False
+        for _ in range(n_stencils):
+            # Next six bytes store the stencil ID
+            curr_stencil_id: int = int.from_bytes(
+                buffer[offset : offset + self.NUM_ID_BYTES].tobytes(), endian
+            )
+            offset += self.NUM_ID_BYTES
+
+            # Next four bytes store the size of the serialized stencil
+            n_stencil_bytes = int.from_bytes(
+                buffer[offset : offset + self.NUM_SIZE_BYTES].tobytes(), endian
+            )
+            offset += self.NUM_SIZE_BYTES
+
+            stencil_found = curr_stencil_id == stencil_id
+            if stencil_found:
+                break
+
+            # Increase offset by size bytes
+            offset += n_stencil_bytes
+
+        assert stencil_found
+
+        self._stencil_bytes = buffer[offset : offset + n_stencil_bytes]
+
+        with open(f"./future_stencil_r{MPI.COMM_WORLD.Get_rank()}.log", "a") as log:
+            log.write(
+                f"{time.time()} [read_stencil]: stencil_id = {stencil_id}, n_stencil_bytes = {n_stencil_bytes}, len(buffer) = {buffer.size}, offset = {offset}, buffer[offset + 2:stencil_bytes.size + offset + 2].size = {buffer[offset + 2:self._stencil_bytes.size + offset + 2].size}, stencil_bytes.size = {self._stencil_bytes.size}\n"
+            )
+
+        return super().read_stencil(stencil_id)
+
+    def write_stencil(self, stencil_class: Type[StencilObject]) -> np.ndarray:
+        # Serialize the stencil
+        stencil_bytes = super().write_stencil(stencil_class)
+
+        # Read bytes from window
+        buffer = self._read_byte_window()
+
+        # First two bytes store the number of stencils
+        endian: str = "big"
+        n_stencils: int = int.from_bytes(
+            buffer[0 : self.NUM_COUNT_BYTES].tobytes(), endian
+        )
+        offset: int = self.NUM_COUNT_BYTES
+
+        # Find the next available offset location
+        for _ in range(n_stencils):
+            # Skip stencil ID bytes
+            offset += self.NUM_ID_BYTES
+
+            # Next four bytes store the size of the serialized stencil
+            n_stencil_bytes: int = int.from_bytes(
+                buffer[offset : offset + self.NUM_SIZE_BYTES].tobytes(), endian
+            )
+
+            # Increase offset by size bytes
+            offset += self.NUM_SIZE_BYTES + n_stencil_bytes
+
+        # Write the stencil ID
+        stencil_id = int(stencil_class._gt_id_, 16)
+        id_bytes: bytes = stencil_id.to_bytes(self.NUM_ID_BYTES, endian)
+        buffer[offset : offset + self.NUM_ID_BYTES] = list(id_bytes)
+        offset += self.NUM_ID_BYTES
+
+        # Write the size of this stencil
+        size_bytes: bytes = stencil_bytes.size.to_bytes(self.NUM_SIZE_BYTES, endian)
+        buffer[offset : offset + self.NUM_SIZE_BYTES] = list(size_bytes)
+        offset += self.NUM_SIZE_BYTES
+
+        # Write the stencil bytes
+        buffer[offset : offset + stencil_bytes.size] = stencil_bytes
+
+        # Increment the stencil count
+        n_stencils += 1
+        count_bytes: bytes = n_stencils.to_bytes(2, endian)
+        buffer[0 : self.NUM_COUNT_BYTES] = list(count_bytes)
+
+        with open(f"./future_stencil_r{MPI.COMM_WORLD.Get_rank()}.log", "a") as log:
+            log.write(
+                f"{time.time()} [write_stencil]: stencil_id = {stencil_id}, size_bytes = {size_bytes}, len(buffer) = {buffer.size}, offset = {offset}, buffer[offset + 2:stencil_bytes.size + offset + 2].size = {buffer[offset + 2:stencil_bytes.size + offset + 2].size}, stencil_bytes.size = {stencil_bytes.size}, n_stencils = {n_stencils}\n"
+            )
+
+        # Write the buffer to the one-sided byte window
+        self._write_byte_window(buffer)
 
         return stencil_bytes
 
@@ -473,7 +549,6 @@ class FutureStencil:
         return stencil_class
 
     def _load_stencil(self, stencil_id: int) -> Callable:
-        node_id: int = self._id_table[stencil_id]
         if not self._id_table.is_done(stencil_id):
             # Wait for stencil to be done...
             time_elapsed: float = 0.0
@@ -490,7 +565,7 @@ class FutureStencil:
 
         # Delay before loading...
         self._delay()
-        self._id_table.read_stencil(node_id)
+        self._id_table.read_stencil(stencil_id)
         stencil_class = self._builder.backend.load()
 
         return stencil_class
