@@ -853,7 +853,7 @@ class LazyComputepathFunction:
         # might cause conflict. Proper solution is to refactor FloatField
         for pval in self.daceprog.signature.parameters.values():
             if "Field<[" in str(pval.annotation):
-                pval._annotation = Any
+                pval._annotation = None
         self._sdfg_loaded = False
         self._sdfg = None
 
@@ -926,7 +926,7 @@ class LazyComputepathMethod:
             # might cause conflict. Proper solution is to refactor FloatField
             for pval in self.daceprog.signature.parameters.values():
                 if "Field<[" in str(pval.annotation):
-                    pval._annotation = Any
+                    pval._annotation = None
 
         @property
         def global_vars(self):
