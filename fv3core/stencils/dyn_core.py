@@ -373,38 +373,6 @@ class AcousticDynamics:
                 None, state, ["u_quantity"], ["v_quantity"], comm=comm
             )
 
-    def _tmp(self, state, grid_data, nested, config, stencil_factory, grid_indexing):
-        self._zero_data = stencil_factory.from_origin_domain(
-            zero_data,
-            origin=grid_indexing.origin_full(),
-            domain=grid_indexing.domain_full(),
-        )
-        self.cgrid_shallow_water_lagrangian_dynamics = CGridShallowWaterDynamics(
-            stencil_factory,
-            grid_data,
-            nested,
-            config.grid_type,
-            config.nord,
-        )
-        self._set_gz = stencil_factory.from_origin_domain(
-            set_gz,
-            origin=grid_indexing.origin_compute(),
-            domain=grid_indexing.domain_compute(add=(0, 0, 1)),
-        )
-        self._set_pem = stencil_factory.from_origin_domain(
-            set_pem,
-            origin=grid_indexing.origin_compute(add=(-1, -1, 0)),
-            domain=grid_indexing.domain_compute(add=(2, 2, 0)),
-        )
-
-        zs_3d = utils.make_storage_from_shape(grid_indexing.max_shape)
-        self._zs = utils.make_storage_data(zs_3d[:, :, 0], zs_3d.shape[0:2], (0, 0))
-
-        # Halo updaters
-        self._halo_updaters = AcousticDynamics._HaloUpdaters(
-            self.comm, grid_indexing, state
-        )
-
     def __init__(
         self,
         comm: fv3gfs.util.CubedSphereCommunicator,
@@ -459,9 +427,6 @@ class AcousticDynamics:
         self._temporaries["gz"][:] = HUGE_R
         if not config.hydrostatic:
             self._temporaries["pk3"][:] = HUGE_R
-
-        self._tmp(state, grid_data, nested, config, stencil_factory, grid_indexing)
-        return
 
         column_namelist = d_sw.get_column_namelist(
             config.d_grid_shallow_water, grid_indexing.domain[2]
@@ -690,7 +655,6 @@ class AcousticDynamics:
                 state.omga,
                 dt2,
             )
-        """
             if self.config.nord > 0:
                 self._halo_updaters.divgd.start()
             if not self.config.hydrostatic:
@@ -872,4 +836,3 @@ class AcousticDynamics:
                     state.pkz,
                     delt_time_factor,
                 )
-        """
