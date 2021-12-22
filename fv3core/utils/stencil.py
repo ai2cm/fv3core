@@ -39,6 +39,7 @@ from fv3gfs.util.halo_data_transformer import QuantityHaloSpec
 from .gt4py_utils import make_storage_from_shape
 
 
+# [DaCe] Deacticate, the distributed compilation
 MPI = None
 
 
@@ -847,6 +848,7 @@ class LazyComputepathFunction:
         self._skip_dacemode = skip_dacemode
         self._load_sdfg = load_sdfg
         self.daceprog = dace.program(self.func)
+        # [DaCe]
         # Removing all the annotation because FloatField.__descriptor__
         # might cause conflict. Proper solution is to refactor FloatField
         for pval in self.daceprog.signature.parameters.values():
@@ -919,6 +921,7 @@ class LazyComputepathMethod:
             self.obj_to_bind = obj_to_bind
             self.lazy_method = lazy_method
             self.daceprog = methodwrapper.__get__(obj_to_bind)
+            # [DaCe]
             # Removing all the annotation because FloatField.__descriptor__
             # might cause conflict. Proper solution is to refactor FloatField
             for pval in self.daceprog.signature.parameters.values():
