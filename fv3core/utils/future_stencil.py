@@ -291,7 +291,7 @@ class DistributedTable(StencilTable):
 
     def read_stencil(self, node_id: int = -1) -> Optional[np.ndarray]:
         # TODO(eddied): Get node ID from table and pass to `read_stencil`
-        node_id = 0  # self._node_id if node_id < 0 else node_id
+        node_id = self._node_id if node_id < 0 else node_id
         offset: int = self._max_stencil_bytes * node_id
         buffer_size: int = self._max_stencil_bytes * self._n_nodes
 
@@ -473,6 +473,7 @@ class FutureStencil:
         return stencil_class
 
     def _load_stencil(self, stencil_id: int) -> Callable:
+        node_id: int = self._id_table[stencil_id]
         if not self._id_table.is_done(stencil_id):
             # Wait for stencil to be done...
             time_elapsed: float = 0.0
@@ -489,7 +490,7 @@ class FutureStencil:
 
         # Delay before loading...
         self._delay()
-        self._id_table.read_stencil()
+        self._id_table.read_stencil(node_id)
         stencil_class = self._builder.backend.load()
 
         return stencil_class
