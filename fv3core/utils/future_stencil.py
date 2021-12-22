@@ -148,7 +148,9 @@ class StencilTable(object, metaclass=Singleton):
     def _deserialize(self, bytes_array: np.ndarray) -> None:
         bytes_io = io.BytesIO(bytes_array.tobytes())
         with open(f"./future_stencil_r{MPI.COMM_WORLD.Get_rank()}.log", "a") as log:
-            log.write(f"{time.time()} [_deserialize]: bytes_array.size = {bytes_array.size}\n")
+            log.write(
+                f"{time.time()} [_deserialize]: bytes_array.size = {bytes_array.size}\n"
+            )
         with tarfile.open(fileobj=bytes_io, mode="r:gz") as tar:
             tar.extractall()
 
@@ -295,23 +297,23 @@ class DistributedTable(StencilTable):
     def _read_byte_window(self) -> np.ndarray:
         buffer_size: int = self._max_stencil_bytes * self._n_nodes
         buffer: np.ndarray = np.empty(buffer_size, dtype=np.byte)
-        offset: int = self._max_stencil_bytes * self._node_id
-        target = (offset, buffer_size, MPI.BYTE)
+        rank: int = 0
+        target = (rank, buffer_size, MPI.BYTE)
 
-        self._byte_window.Lock(rank=0)
-        self._byte_window.Get(buffer, target_rank=0, target=target)
-        self._byte_window.Unlock(rank=0)
+        self._byte_window.Lock(rank=rank)
+        self._byte_window.Get(buffer, target_rank=rank, target=target)
+        self._byte_window.Unlock(rank=rank)
 
         return buffer
 
     def _write_byte_window(self, buffer: np.ndarray) -> None:
         buffer_size: int = self._max_stencil_bytes * self._n_nodes
-        offset: int = self._max_stencil_bytes * self._node_id
-        target = (offset, buffer_size, MPI.BYTE)
+        rank: int = 0
+        target = (rank, buffer_size, MPI.BYTE)
 
-        self._byte_window.Lock(rank=0)
-        self._byte_window.Put(buffer, target_rank=0, target=target)
-        self._byte_window.Unlock(rank=0)
+        self._byte_window.Lock(rank=rank)
+        self._byte_window.Put(buffer, target_rank=rank, target=target)
+        self._byte_window.Unlock(rank=rank)
 
     def read_stencil(self, stencil_id: int = 0) -> Optional[np.ndarray]:
         # Read bytes from window
@@ -407,13 +409,13 @@ class DistributedTable(StencilTable):
         count_bytes: bytes = n_stencils.to_bytes(2, endian)
         buffer[0 : self.NUM_COUNT_BYTES] = list(count_bytes)
 
+        # Write the buffer to the one-sided byte window
+        self._write_byte_window(buffer)
+
         with open(f"./future_stencil_r{MPI.COMM_WORLD.Get_rank()}.log", "a") as log:
             log.write(
                 f"{time.time()} [write_stencil]: stencil_id = {stencil_id}, size_bytes = {size_bytes}, len(buffer) = {buffer.size}, offset = {offset}, buffer[offset + 2:stencil_bytes.size + offset + 2].size = {buffer[offset + 2:stencil_bytes.size + offset + 2].size}, stencil_bytes.size = {stencil_bytes.size}, n_stencils = {n_stencils}\n"
             )
-
-        # Write the buffer to the one-sided byte window
-        self._write_byte_window(buffer)
 
         return stencil_bytes
 
@@ -543,8 +545,8 @@ class FutureStencil:
         self._delay()
 
         stencil_class = self._builder.backend.generate()
-        self._id_table.set_done(stencil_id)
         self._id_table.write_stencil(stencil_class)
+        self._id_table.set_done(stencil_id)
 
         return stencil_class
 
