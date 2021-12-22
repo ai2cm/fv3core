@@ -1,6 +1,7 @@
 import io
 import os
 import tarfile
+import tempfile
 import time
 from abc import abstractmethod
 from typing import Any, Callable, Dict, Optional, Set, Tuple, Type
@@ -147,12 +148,13 @@ class StencilTable(object, metaclass=Singleton):
 
     def _deserialize(self, bytes_array: np.ndarray) -> None:
         bytes_io = io.BytesIO(bytes_array.tobytes())
-        with open(f"./future_stencil_r{MPI.COMM_WORLD.Get_rank()}.log", "a") as log:
-            log.write(
-                f"{time.time()} [_deserialize]: bytes_array.size = {bytes_array.size}\n"
-            )
         with tarfile.open(fileobj=bytes_io, mode="r:gz") as tar:
-            tar.extractall()
+            with open(f"./future_stencil_r{MPI.COMM_WORLD.Get_rank()}.log", "a") as log:
+                log.write(
+                    f"{time.time()} [_deserialize]: bytes_array.size = {bytes_array.size}, tar.firstmember = {tar.firstmember.path}\n"
+                )
+            # TODO(eddied): Disable for now as causing seg faults
+            # tar.extractall()
 
     def _serialize(self, stencil_object: StencilObject, file_object=None) -> np.ndarray:
         module_file: str = stencil_object._file_name
@@ -352,7 +354,10 @@ class DistributedTable(StencilTable):
             # Increase offset by size bytes
             offset += n_stencil_bytes
 
-        assert stencil_found
+        if not stencil_found:
+            raise RuntimeError(
+                f"Stencil ID {stencil_id} not found in distributed table"
+            )
 
         self._stencil_bytes = buffer[offset : offset + n_stencil_bytes]
 
@@ -536,9 +541,6 @@ class FutureStencil:
         time.sleep(delay_time)
         return delay_time
 
-    def _get_temporary_directory(self) -> str:
-        return "%s/.gt_cache" % ("/dev/shm" if os.path.isdir("/dev/shm") else "/tmp")
-
     def _compile_stencil(self, stencil_id: int) -> Callable:
         # Stencil not yet compiled or in progress so claim it...
         self._id_table[stencil_id] = self._node_id
@@ -597,7 +599,7 @@ class FutureStencil:
 
         # Redirect cache to temporary directory
         gt_cache_dir_name: str = gt.config.cache_settings["dir_name"]
-        gt.config.cache_settings["dir_name"] = self._get_temporary_directory()
+        gt.config.cache_settings["dir_name"] = f"{tempfile.gettempdir()}/.gt_cache"
 
         if not stencil_class:
             # Delay before accessing distributed table...
