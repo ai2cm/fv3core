@@ -1,6 +1,7 @@
 import glob
 import io
 import os
+import shutil
 import tarfile
 import tempfile
 import time
@@ -146,16 +147,7 @@ class StencilTable(object, metaclass=Singleton):
         self._n_nodes = 1
         self._max_stencil_bytes = self.MAX_STENCIL_BYTES
         self._byte_type = np.byte
-
-    def _deserialize(self, bytes_array: np.ndarray) -> None:
-        bytes_io = io.BytesIO(bytes_array.tobytes())
-        with tarfile.open(fileobj=bytes_io, mode="r:gz") as tar:
-            with open(f"./future_stencil_r{MPI.COMM_WORLD.Get_rank()}.log", "a") as log:
-                log.write(
-                    f"{time.time()} [_deserialize]: bytes_array.size = {bytes_array.size}, tar.firstmember = {tar.firstmember.path}\n"
-                )
-            # TODO(eddied): Disable for now as causing seg faults
-            # tar.extractall()
+        self._stencil_bytes: Optional[np.ndarray] = None
 
     def _get_stencil_files(self, stencil_object: StencilObject) -> List[str]:
         module_file: str = stencil_object._file_name
@@ -170,7 +162,9 @@ class StencilTable(object, metaclass=Singleton):
 
         # Add computation python file (e.g, gtc:numpy)
         suffix = module_file.split("__")[-1]
-        computation_file: str = f"{os.path.dirname(module_prefix)}/m_computation__{suffix}"
+        computation_file: str = (
+            f"{os.path.dirname(module_prefix)}/m_computation__{suffix}"
+        )
         if os.path.exists(computation_file):
             stencil_files.append(computation_file)
 
@@ -206,6 +200,23 @@ class StencilTable(object, metaclass=Singleton):
 
         return np_bytes
 
+    def _deserialize(self, bytes_array: np.ndarray, extract_dir: str = "") -> None:
+        bytes_io = io.BytesIO(bytes_array.tobytes())
+        with tarfile.open(fileobj=bytes_io, mode="r:gz") as tar:
+            for member in tar.getmembers():
+                # TODO(eddied): Disable for now as causing seg faults
+                # tar.extract(member)
+                if extract_dir:
+                    # TODO(eddied): Certainly this code could be more elegant...
+                    cache_pos: int = member.path.find(".gt_cache")
+                    sub_path: str = member.path[cache_pos + len(".gt_cache") + 1 :]
+                    new_path: str = f"{extract_dir}/{sub_path}"
+                    if member.path != new_path:
+                        dir_name: str = os.path.dirname(new_path)
+                        if not os.path.exists(dir_name):
+                            os.makedirs(dir_name, exist_ok=True)
+                        shutil.copy2(member.path, new_path)
+
     @abstractmethod
     def _get_buffer(self, node_id: int = 0) -> np.ndarray:
         pass
@@ -220,9 +231,9 @@ class StencilTable(object, metaclass=Singleton):
         return self._stencil_bytes
 
     def write_stencil(self, stencil_class: Type[StencilObject]) -> np.ndarray:
+        # Flush previous stencil to gt_cache
         if self._stencil_bytes is not None:
-            # TODO(eddied): If buffer is not None, flush to gt_cache before writing
-            pass
+            self._deserialize(self._stencil_bytes, gt.config.cache_settings["dir_name"])
         self._stencil_bytes = self._serialize(stencil_class)
         return self._stencil_bytes
 
@@ -238,7 +249,6 @@ class SequentialTable(StencilTable):
     def _initialize(self, max_size: int = 0):
         super()._initialize(max_size)
         self._window = np.zeros(self._buffer_size, dtype=self._np_type)
-        self._stencil_bytes: Optional[np.ndarray] = None
 
     def _get_buffer(self, node_id: int = 0) -> np.ndarray:
         return self._window
@@ -302,7 +312,7 @@ class DistributedTable(StencilTable):
         self._window.Unlock(rank=0)
         return buffer
 
-    def _set_buffer(self, buffer: np.ndarray):
+    def _set_buffer(self, buffer: np.ndarray) -> None:
         self._window.Lock(rank=0)
         self._window.Put(buffer, target_rank=0, target=self._get_target())
         self._window.Unlock(rank=0)
@@ -342,11 +352,6 @@ class DistributedTable(StencilTable):
         n_stencils: int = int.from_bytes(count_bytes, endian)
         offset: int = self.NUM_COUNT_BYTES
         n_stencil_bytes: int = 0
-
-        with open(f"./future_stencil_r{MPI.COMM_WORLD.Get_rank()}.log", "a") as log:
-            log.write(
-                f"{time.time()} [read_stencil]: stencil_id = {stencil_id}, n_stencils = {n_stencils}, len(buffer) = {buffer.size}, offset = {offset}\n"
-            )
 
         # Find the stencil with the matching stencil ID
         stencil_found: bool = False
