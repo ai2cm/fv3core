@@ -1,10 +1,11 @@
+import glob
 import io
 import os
 import tarfile
 import tempfile
 import time
 from abc import abstractmethod
-from typing import Any, Callable, Dict, Optional, Set, Tuple, Type
+from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Type
 
 import gt4py as gt
 import numpy as np
@@ -156,18 +157,34 @@ class StencilTable(object, metaclass=Singleton):
             # TODO(eddied): Disable for now as causing seg faults
             # tar.extractall()
 
-    def _serialize(self, stencil_object: StencilObject, file_object=None) -> np.ndarray:
+    def _get_stencil_files(self, stencil_object: StencilObject) -> List[str]:
         module_file: str = stencil_object._file_name
         module_prefix: str = module_file.replace(".py", "")
         cache_file: str = f"{module_prefix}.cacheinfo"
-        # TODO(eddied): Search for actual .so (or .py) in the case of gtc:numpy
-        object_file: str = f"{module_prefix}_pyext.cpython-38-x86_64-linux-gnu.so"
-        stencil_files = (module_file, cache_file, object_file)
+        stencil_files = [module_file, cache_file]
 
-        with open(f"./future_stencil_r{MPI.COMM_WORLD.Get_rank()}.log", "a") as log:
-            log.write(f"{time.time()} [_serialize]: stencil_files = {stencil_files}\n")
+        # Add object file (compiled backends)
+        object_files: List[str] = glob.glob(f"{module_prefix}_pyext*.so")
+        if object_files:
+            stencil_files.append(object_files[0])
 
+        # Add computation python file (e.g, gtc:numpy)
+        suffix = module_file.split("__")[-1]
+        computation_file: str = f"{os.path.dirname(module_prefix)}/m_computation__{suffix}"
+        if os.path.exists(computation_file):
+            stencil_files.append(computation_file)
+
+        # Add SDFG file (DaCe backends)
+        sdfg_file: str = f"{module_prefix}.sdfg"
+        if os.path.exists(sdfg_file):
+            stencil_files.append(sdfg_file)
+
+        return stencil_files
+
+    def _serialize(self, stencil_object: StencilObject, file_object=None) -> np.ndarray:
         bytes_io = io.BytesIO()
+        stencil_files: List[str] = self._get_stencil_files(stencil_object)
+
         with tarfile.open(fileobj=bytes_io, mode="w:gz") as tar:
             for stencil_file in stencil_files:
                 if os.path.isfile(stencil_file):
@@ -187,9 +204,6 @@ class StencilTable(object, metaclass=Singleton):
         if file_object:
             file_object.write(np_bytes)
 
-        with open(f"./future_stencil_r{MPI.COMM_WORLD.Get_rank()}.log", "a") as log:
-            log.write(f"{time.time()} [_serialize]: len(np_bytes) = {np_bytes.size}\n")
-
         return np_bytes
 
     @abstractmethod
@@ -206,7 +220,9 @@ class StencilTable(object, metaclass=Singleton):
         return self._stencil_bytes
 
     def write_stencil(self, stencil_class: Type[StencilObject]) -> np.ndarray:
-        # TODO(eddied): If buffer is not None, flush to gt_cache before writing
+        if self._stencil_bytes is not None:
+            # TODO(eddied): If buffer is not None, flush to gt_cache before writing
+            pass
         self._stencil_bytes = self._serialize(stencil_class)
         return self._stencil_bytes
 
