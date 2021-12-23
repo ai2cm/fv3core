@@ -110,6 +110,10 @@ class CopiedCorners:
     x_differentiable: FloatField
     y_differentiable: FloatField
 
+    # [DaCe] Make CopiedCorners hashable (might be overkill)
+    def __hash__(self) -> int:
+        return hash((self.base, self.x_differentiable, self.y_differentiable))
+
 
 class PreAllocatedCopiedCornersFactory:
     """
@@ -141,12 +145,12 @@ class PreAllocatedCopiedCornersFactory:
             stencil_factory, dims, y_field=y_temporary
         )
 
+    # [DaCe] Unroll CopiedCorners to avoid constructor at runtime which
+    # fails DaCe parsing
     @computepath_method
-    def __call__(self, field: FloatFieldIJ) -> CopiedCorners:
-        x_field, y_field = self._copy_corners_xy(field)
-        return CopiedCorners(
-            base=field, x_differentiable=x_field, y_differentiable=y_field
-        )
+    def __call__(self, corner_base, corner_x, corner_y, field: FloatFieldIJ):
+        corner_x, corner_y = self._copy_corners_xy(field)
+        corner_base = field
 
 
 class FiniteVolumeTransport:
@@ -250,7 +254,9 @@ class FiniteVolumeTransport:
     @computepath_method
     def __call__(
         self,
-        q: CopiedCorners,
+        q_base,  # [DaCe] Unrolling CopiedCorners
+        q_x_differentiable,  # [DaCe] Unrolling CopiedCorners
+        q_y_differentiable,  # [DaCe] Unrolling CopiedCorners
         crx,
         cry,
         x_area_flux,
@@ -318,13 +324,13 @@ class FiniteVolumeTransport:
         # yppm with q_i_stencil and xppm with q_j_stencil.
 
         self.y_piecewise_parabolic_inner(
-            q.y_differentiable, cry, self._q_y_advected_mean
+            q_y_differentiable, cry, self._q_y_advected_mean
         )
         # q_y_advected_mean is 1/Delta_area * curly-F, where curly-F is defined in
         # equation 4.3 of the FV3 documentation and Delta_area is the advected area
         # (y_area_flux)
         self.q_i_stencil(
-            q.y_differentiable,
+            q_y_differentiable,
             self._area,
             y_area_flux,
             self._q_y_advected_mean,
@@ -337,10 +343,10 @@ class FiniteVolumeTransport:
 
         # similarly below for x<->y
         self.x_piecewise_parabolic_inner(
-            q.x_differentiable, crx, self._q_x_advected_mean
+            q_x_differentiable, crx, self._q_x_advected_mean
         )
         self.q_j_stencil(
-            q.x_differentiable,
+            q_x_differentiable,
             self._area,
             x_area_flux,
             self._q_x_advected_mean,
@@ -361,4 +367,4 @@ class FiniteVolumeTransport:
             q_y_flux,
         )
         if self.delnflux is not None:
-            self.delnflux(q.base, q_x_flux, q_y_flux, mass=mass)
+            self.delnflux(q_base, q_x_flux, q_y_flux, mass=mass)
