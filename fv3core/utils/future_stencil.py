@@ -235,6 +235,7 @@ class StencilTable(object, metaclass=Singleton):
         if self._stencil_bytes is not None:
             self._deserialize(self._stencil_bytes, gt.config.cache_settings["dir_name"])
         self._stencil_bytes = self._serialize(stencil_class)
+        # TODO(eddied): What if the final stencil is never written to cache?
         return self._stencil_bytes
 
 
@@ -324,9 +325,9 @@ class DistributedTable(StencilTable):
 
     def _read_byte_window(self) -> np.ndarray:
         buffer_size: int = self._max_stencil_bytes * self._n_nodes
-        buffer: np.ndarray = np.empty(buffer_size, dtype=np.byte)
         rank: int = 0
         target = (rank, buffer_size, MPI.BYTE)
+        buffer: np.ndarray = np.empty(buffer_size, dtype=np.byte)
 
         self._byte_window.Lock(rank=rank)
         self._byte_window.Get(buffer, target_rank=rank, target=target)
