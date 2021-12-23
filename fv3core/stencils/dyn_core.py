@@ -251,9 +251,11 @@ class AcousticDynamics:
 
         @dace_inhibitor
         def interface(self):
+            assert len(self._qtx_x_names) == 1
+            assert len(self._qtx_y_names) == 1
             self._comm.synchronize_vector_interfaces(
-                [self._state.__getattribute__(x) for x in self._qtx_x_names],
-                [self._state.__getattribute__(y) for y in self._qtx_y_names],
+                self._state.__getattribute__(self._qtx_x_names[0]),
+                self._state.__getattribute__(self._qtx_y_names[0]),
             )
 
     class _HaloUpdaters(object):
@@ -486,6 +488,17 @@ class AcousticDynamics:
                 config.d_grid_shallow_water,
             )
         )
+
+        # [DaCe] Pre-allocated delpc/ptc fields that are temporary to the
+        # acoustics computation. Before they were dynamically added to state
+        # which DaCe can't parse during orchestration
+        self.delpc = utils.make_storage_from_shape(
+            grid_indexing.domain_full(add=(1, 1, 1))
+        )
+        self.ptc = utils.make_storage_from_shape(
+            grid_indexing.domain_full(add=(1, 1, 1))
+        )
+
         self.cgrid_shallow_water_lagrangian_dynamics = CGridShallowWaterDynamics(
             stencil_factory,
             grid_data,
@@ -567,7 +580,11 @@ class AcousticDynamics:
         )
 
     @computepath_method
-    def __call__(self, state: dace.constant, update_temporaries: dace.constant = True):
+    def __call__(
+        self,
+        state: dace.constant,
+        update_temporaries: dace.constant = True,
+    ):
         # u, v, w, delz, delp, pt, pe, pk, phis, wsd, omga, ua, va, uc, vc, mfxd,
         # mfyd, cxd, cyd, pkz, peln, q_con, ak, bk, diss_estd, cappa, mdt, n_split,
         # akap, ptop, n_map, comm):
@@ -585,6 +602,8 @@ class AcousticDynamics:
         self._halo_updaters.u__v.start()
         self._halo_updaters.q_con__cappa.wait()
 
+        # [DaCe] update to the state is done outside of the loop
+        # to fix limitation in DaCe parser
         if update_temporaries:
             state.__dict__.update(self._temporaries)
 
@@ -639,7 +658,7 @@ class AcousticDynamics:
                 self._halo_updaters.w.wait()
 
             # compute the c-grid winds at t + 1/2 timestep
-            state.delpc, state.ptc = self.cgrid_shallow_water_lagrangian_dynamics(
+            self.delpc, self.ptc = self.cgrid_shallow_water_lagrangian_dynamics(
                 state.delp,
                 state.pt,
                 state.u,
@@ -679,9 +698,9 @@ class AcousticDynamics:
                     state.ptop,
                     state.phis,
                     state.ws3,
-                    state.ptc,
+                    self.ptc,
                     state.q_con,
-                    state.delpc,
+                    self.delpc,
                     state.gz,
                     state.pkc,
                     state.omga,
@@ -692,7 +711,7 @@ class AcousticDynamics:
                 self.grid_data.rdyc,
                 state.uc,
                 state.vc,
-                state.delpc,
+                self.delpc,
                 state.pkc,
                 state.gz,
                 dt2,
@@ -706,7 +725,7 @@ class AcousticDynamics:
             self.dgrid_shallow_water_lagrangian_dynamics(
                 state.vt,
                 state.delp,
-                state.ptc,
+                self.ptc,
                 state.pt,
                 state.u,
                 state.v,

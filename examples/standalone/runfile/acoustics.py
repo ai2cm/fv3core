@@ -178,9 +178,15 @@ def run(data_directory, halo_update, backend, time_steps):
     state.__dict__.update(acoustics_dynamics._temporaries)
 
     @computepath_function
-    def acoustics_loop(state: dace.constant, time_steps):
+    def acoustics_loop(
+        state: dace.constant,
+        time_steps,
+    ):
         for _ in range(time_steps):
             acoustics_dynamics(state, update_temporaries=False)
+
+    # Cache warm up
+    acoustics_loop(state, 1)
 
     # Get Rank
     rank = comm.Get_rank()
