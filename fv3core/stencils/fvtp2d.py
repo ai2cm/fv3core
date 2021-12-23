@@ -92,6 +92,9 @@ def final_fluxes(
             )
 
 
+# [DaCe] DaCe is not happy with the CopiedCorners pattern.
+# Unrolling it is not enough - the data analysis fails on parsing
+# Removed.
 @dataclasses.dataclass
 class CopiedCorners:
     """
@@ -109,10 +112,6 @@ class CopiedCorners:
     base: FloatField
     x_differentiable: FloatField
     y_differentiable: FloatField
-
-    # [DaCe] Make CopiedCorners hashable (might be overkill)
-    def __hash__(self) -> int:
-        return hash((self.base, self.x_differentiable, self.y_differentiable))
 
 
 class PreAllocatedCopiedCornersFactory:
@@ -148,9 +147,11 @@ class PreAllocatedCopiedCornersFactory:
     # [DaCe] Unroll CopiedCorners to avoid constructor at runtime which
     # fails DaCe parsing
     @computepath_method
-    def __call__(self, corner_base, corner_x, corner_y, field: FloatFieldIJ):
-        corner_x, corner_y = self._copy_corners_xy(field)
-        corner_base = field
+    def __call__(self, field: FloatFieldIJ) -> CopiedCorners:
+        x_field, y_field = self._copy_corners_xy(field)
+        return CopiedCorners(
+            base=field, x_differentiable=x_field, y_differentiable=y_field
+        )
 
 
 class FiniteVolumeTransport:
@@ -251,12 +252,18 @@ class FiniteVolumeTransport:
             domain=idx.domain_compute(add=(1, 1, 1)),
         )
 
+        # [DaCe] Remove CopiedCorners - restore previous corner copy pattern
+        self._copy_corners_x: corners.CopyCorners = corners.CopyCorners(
+            "x", stencil_factory
+        )
+        self._copy_corners_y: corners.CopyCorners = corners.CopyCorners(
+            "y", stencil_factory
+        )
+
     @computepath_method
     def __call__(
         self,
-        q_base,  # [DaCe] Unrolling CopiedCorners
-        q_x_differentiable,  # [DaCe] Unrolling CopiedCorners
-        q_y_differentiable,  # [DaCe] Unrolling CopiedCorners
+        q,  # [DaCe] Remove CopiedCorners
         crx,
         cry,
         x_area_flux,
@@ -301,14 +308,15 @@ class FiniteVolumeTransport:
                 (as opposed to per-area) then this must be provided for
                 damping to be correct
         """
-        if (
-            self.delnflux is not None
-            and mass is None
-            and (x_mass_flux is not None or y_mass_flux is not None)
-        ):
-            raise ValueError(
-                "when damping is enabled, mass must be given if mass flux is given"
-            )
+        # [DaCe] dace.frontend.python.common.DaceSyntaxError: Keyword "Raise" disallowed
+        # if (
+        #     self.delnflux is not None
+        #     and mass is None
+        #     and (x_mass_flux is not None or y_mass_flux is not None)
+        # ):
+        #     raise ValueError(
+        #         "when damping is enabled, mass must be given if mass flux is given"
+        #     )
         if x_mass_flux is None:
             x_unit_flux = x_area_flux
         else:
@@ -323,14 +331,14 @@ class FiniteVolumeTransport:
         # easier to understand than the current output. This would be like merging
         # yppm with q_i_stencil and xppm with q_j_stencil.
 
-        self.y_piecewise_parabolic_inner(
-            q_y_differentiable, cry, self._q_y_advected_mean
-        )
+        # [DaCe] Previous copy_corners
+        self._copy_corners_y(q)
+        self.y_piecewise_parabolic_inner(q, cry, self._q_y_advected_mean)
         # q_y_advected_mean is 1/Delta_area * curly-F, where curly-F is defined in
         # equation 4.3 of the FV3 documentation and Delta_area is the advected area
         # (y_area_flux)
         self.q_i_stencil(
-            q_y_differentiable,
+            q,
             self._area,
             y_area_flux,
             self._q_y_advected_mean,
@@ -341,12 +349,13 @@ class FiniteVolumeTransport:
         )
         # q_advected_y_x_advected_mean is now rho^n + F(rho^y) in PL07 eq 16
 
+        # [DaCe] Previous copy_corners
+        self._copy_corners_x(q)
+
         # similarly below for x<->y
-        self.x_piecewise_parabolic_inner(
-            q_x_differentiable, crx, self._q_x_advected_mean
-        )
+        self.x_piecewise_parabolic_inner(q, crx, self._q_x_advected_mean)
         self.q_j_stencil(
-            q_x_differentiable,
+            q,
             self._area,
             x_area_flux,
             self._q_x_advected_mean,
@@ -367,4 +376,4 @@ class FiniteVolumeTransport:
             q_y_flux,
         )
         if self.delnflux is not None:
-            self.delnflux(q_base, q_x_flux, q_y_flux, mass=mass)
+            self.delnflux(q, q_x_flux, q_y_flux, mass=mass)

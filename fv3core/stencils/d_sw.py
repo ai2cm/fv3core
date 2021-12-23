@@ -17,7 +17,6 @@ from fv3core.stencils.d2a2c_vect import contravariant
 from fv3core.stencils.delnflux import DelnFluxNoSG
 from fv3core.stencils.divergence_damping import DivergenceDamping
 from fv3core.stencils.fvtp2d import (
-    CopiedCorners,
     FiniteVolumeTransport,
     PreAllocatedCopiedCornersFactory,
 )
@@ -840,13 +839,6 @@ class DGridShallowWaterLagrangianDynamics:
             dims=[X_DIM, Y_DIM, Z_INTERFACE_DIM],
             y_temporary=y_temporary,
         )
-        # [DaCe] Pre-allocate CopiedCorners to avoid assignment to new variable
-        # during parsing
-        self._corner_delp = CopiedCorners(None, None, None)
-        self._corner_w = CopiedCorners(None, None, None)
-        self._corner_q_con = CopiedCorners(None, None, None)
-        self._corner_pt = CopiedCorners(None, None, None)
-        self._corner_tmp_vort = CopiedCorners(None, None, None)
 
     @computepath_method
     def __call__(
@@ -916,17 +908,9 @@ class DGridShallowWaterLagrangianDynamics:
         #   xfx, yfx = g(uc_contra, vc_contra, ...)
         self.fv_prep(uc, vc, crx, cry, xfx, yfx, self._uc_contra, self._vc_contra, dt)
 
-        # [DaCe] Unroll CopiedCorners see __init__
-        self._copy_corners(
-            self._corner_delp.base,
-            self._corner_delp.x_differentiable,
-            self._corner_delp.y_differentiable,
-            delp,
-        ),
+        # [DaCe] Remove CopiedCorners
         self.fvtp2d_dp(
-            self._corner_delp.base,
-            self._corner_delp.x_differentiable,
-            self._corner_delp.y_differentiable,
+            delp,
             crx,
             cry,
             xfx,
@@ -962,17 +946,9 @@ class DGridShallowWaterLagrangianDynamics:
                 dt,
             )
 
-            # [DaCe] Unroll CopiedCorners see __init__
-            self._copy_corners(
-                self._corner_w.base,
-                self._corner_w.x_differentiable,
-                self._corner_w.y_differentiable,
-                w,
-            )
+            # [DaCe] Remove CopiedCorners
             self.fvtp2d_vt_nodelnflux(
-                self._corner_w.base,
-                self._corner_w.x_differentiable,
-                self._corner_w.y_differentiable,
+                w,
                 crx,
                 cry,
                 xfx,
@@ -992,17 +968,9 @@ class DGridShallowWaterLagrangianDynamics:
             )
         # Fortran: #ifdef USE_COND
 
-        # [DaCe] Unroll CopiedCorners see __init__
-        self._copy_corners(
-            self._corner_q_con.base,
-            self._corner_q_con.x_differentiable,
-            self._corner_q_con.y_differentiable,
-            q_con,
-        )
+        # [DaCe] Remove CopiedCorners
         self.fvtp2d_dp_t(
-            self._corner_q_con.base,
-            self._corner_q_con.x_differentiable,
-            self._corner_q_con.y_differentiable,
+            q_con,
             crx,
             cry,
             xfx,
@@ -1020,17 +988,9 @@ class DGridShallowWaterLagrangianDynamics:
 
         # Fortran #endif //USE_COND
 
-        # [DaCe] Unroll CopiedCorners see __init__
-        self._copy_corners(
-            self._corner_pt.base,
-            self._corner_pt.x_differentiable,
-            self._corner_pt.y_differentiable,
-            pt,
-        )
+        # [DaCe] Remove CopiedCorners
         self.fvtp2d_tm(
-            self._corner_pt.base,
-            self._corner_pt.x_differentiable,
-            self._corner_pt.y_differentiable,
+            pt,
             crx,
             cry,
             xfx,
