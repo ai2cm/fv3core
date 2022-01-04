@@ -981,10 +981,16 @@ class DelnFlux:
         if self._no_compute is True:
             return fx, fy
 
+        # [DaCe] Optional d2 gets reduced to subset 0 in DaCe parsing leading to a
+        # parsing error
+        # Original code:
+        # if d2 is None
+        #    d2 = self._d2
+        # delnflux_nosg call
         if d2 is None:
-            d2 = self._d2
-
-        self.delnflux_nosg(q, self._fx2, self._fy2, self._damp, d2, mass)
+            self.delnflux_nosg(q, self._fx2, self._fy2, self._damp, self._d2, mass)
+        else:
+            self.delnflux_nosg(q, self._fx2, self._fy2, self._damp, d2, mass)
 
         if mass is None:
             self._add_diffusive_stencil(fx, self._fx2, fy, self._fy2)
