@@ -1,5 +1,6 @@
 from typing import Optional
 
+import dace
 import gt4py.gtscript as gtscript
 import numpy as np
 from gt4py.gtscript import (
@@ -966,8 +967,8 @@ class DelnFlux:
         q: FloatField,
         fx: FloatField,
         fy: FloatField,
-        d2: Optional["FloatField"] = None,
-        mass: Optional["FloatField"] = None,
+        d2=None,  # [DaCe] FloatField annotation is removed which, removes the None indication. Restore Optional["FloatField"] = None when FloatField is a proper type
+        mass=None,  # [DaCe] idem as above
     ):
         """
         Del-n damping for fluxes, where n = 2 * nord + 2
@@ -1190,6 +1191,8 @@ class DelnFluxNoSG:
 
         self._fy_calc_stencil(d2, self._del6_u, fy2)
 
+        # [DaCe] list + for is causing parsing problems. Under investigations
+        """
         for n in range(self._nmax):
             self._d2_stencil[n](
                 fx2,
@@ -1213,3 +1216,4 @@ class DelnFluxNoSG:
                 self._del6_u,
                 fy2,
             )
+        """

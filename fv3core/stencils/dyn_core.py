@@ -301,6 +301,8 @@ class AcousticDynamics:
             # but because of call overlap between different variable, we kept the
             # straighforward solution of one HaloUpdater per group of updated variable.
             # It also makes the code in call() more readable
+            # [DaCe] Wrapping call to a DaCe readable halo updater
+            #        Biggest parsing issue is that DaCe cannot do quantities at runtime paradigm
             self.q_con__cappa = AcousticDynamics._WrappedHaloUpdater(
                 comm.get_scalar_halo_updater([full_size_xyz_halo_spec] * 2),
                 state,
@@ -390,7 +392,8 @@ class AcousticDynamics:
         bk: FloatFieldK,
         pfull: FloatFieldK,
         phis: FloatFieldIJ,
-        state,  # DaCe hack to get around SimpleNamespace & List unshable in callbacks
+        state,  # [DaCe] hack to get around SimpleNamespace & List unshable in callbacks,
+        #        and deal with quantity as parameters not available for halo updates
     ):
         """
         Args:
@@ -597,6 +600,7 @@ class AcousticDynamics:
         # m_split = 1. + abs(dt_atmos)/real(k_split*n_split*abs(p_split))
         # n_split = nint( real(n0split)/real(k_split*abs(p_split)) * stretch_fac + 0.5 )
         # NOTE: In Fortran model the halo update starts happens in fv_dynamics, not here
+        # [DaCe] This and all others _halo_updaters.XX.YY() call are filtered through a wrapper
         self._halo_updaters.q_con__cappa.start()
         self._halo_updaters.delp__pt.start()
         self._halo_updaters.u__v.start()
