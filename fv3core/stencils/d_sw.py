@@ -1085,16 +1085,8 @@ class DGridShallowWaterLagrangianDynamics:
         self._compute_vort_stencil(self._tmp_wk, self._f0, zh, self._tmp_vort)
 
         # [DaCe] Unroll CopiedCorners see __init__
-        self._copy_corners(
-            self._corner_tmp_vort.base,
-            self._corner_tmp_vort.x_differentiable,
-            self._corner_tmp_vort.y_differentiable,
-            self._tmp_vort,
-        )
         self.fvtp2d_vt_nodelnflux(
-            self._corner_tmp_vort.base,
-            self._corner_tmp_vort.x_differentiable,
-            self._corner_tmp_vort.y_differentiable,
+            self._tmp_vort,
             crx,
             cry,
             xfx,

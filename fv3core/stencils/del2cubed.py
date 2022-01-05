@@ -160,6 +160,8 @@ class HyperdiffusionDamping:
             cd: Damping coeffcient
         """
 
+        # [DaCe] List + for loop cause parsing problem - see Delnflux
+        """
         for n in range(self._ntimes):
             nt = self._ntimes - (n + 1)
 
@@ -180,3 +182,4 @@ class HyperdiffusionDamping:
 
             # Update q values
             self._update_q[n](qdel, self._rarea, self._fx, self._fy, cd)
+        """

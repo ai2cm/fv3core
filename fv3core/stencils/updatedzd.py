@@ -360,8 +360,9 @@ class UpdateHeightOnDGrid:
         self._interpolate_to_layer_interface(
             y_area_flux, self._y_area_flux_interface, self._gk, self._beta, self._gamma
         )
+        # [DaCe] Unroll copied corners in fvtp2d
         self.finite_volume_transport(
-            self._copy_corners(height),
+            height,
             self._crx_interface,
             self._cry_interface,
             self._x_area_flux_interface,

@@ -209,6 +209,7 @@ class FiniteVolumeTransport:
             domain=idx.domain_compute(add=(1, 1, 1)),
         )
         if (self._nord is not None) and (self._damp_c is not None):
+            self._do_delnflux = True
             self.delnflux: Optional[DelnFlux] = DelnFlux(
                 stencil_factory=stencil_factory,
                 damping_coefficients=damping_coefficients,
@@ -217,7 +218,8 @@ class FiniteVolumeTransport:
                 damp_c=self._damp_c,
             )
         else:
-            self.delnflux = None
+            # [DaCe] Use _do_delnflux instead of a None function to have DaCe parsing working
+            self._do_delnflux = False
 
         self.x_piecewise_parabolic_inner = XPiecewiseParabolic(
             stencil_factory=stencil_factory,
@@ -375,5 +377,5 @@ class FiniteVolumeTransport:
             q_x_flux,
             q_y_flux,
         )
-        if self.delnflux is not None:
+        if self._do_delnflux:
             self.delnflux(q, q_x_flux, q_y_flux, mass=mass)

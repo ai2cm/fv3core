@@ -151,9 +151,10 @@ def redo_divg_d(
             divg_d = divg_d * adjustment_factor
 
 
-def smagorinksy_diffusion_approx(delpc: FloatField, vort: FloatField, absdt: float):
+# [DaCe] Move abs(dt) down in the compute, was previously passed in
+def smagorinksy_diffusion_approx(delpc: FloatField, vort: FloatField, dt: float):
     with computation(PARALLEL), interval(...):
-        vort = absdt * (delpc ** 2.0 + vort ** 2.0) ** 0.5
+        vort = abs(dt) * (delpc ** 2.0 + vort ** 2.0) ** 0.5
 
 
 class DivergenceDamping:
@@ -378,6 +379,8 @@ class DivergenceDamping:
                 dt,
             )
         self._copy_computeplus(divg_d, delpc)
+        # [DaCe] for loop issue, see DelnFluxNoSG
+        """
         for n in range(self._nonzero_nord):
             fillc = (
                 (n + 1 != self._nonzero_nord)
@@ -400,6 +403,7 @@ class DivergenceDamping:
             if fillc:
                 self._fill_corners_dgrid_stencil(vc, vc, uc, uc, -1.0)
             self._redo_divg_d_stencils[n](uc, vc, divg_d, self._rarea_c)
+        """
 
         self._vorticity_calc(wk, v_contra_dxc, delpc, dt)
         self._damping_nord_highorder_stencil(
@@ -413,6 +417,7 @@ class DivergenceDamping:
             self._dd8,
         )
 
+    @computepath_method  # [DaCe] decorate to cleanup the FloatField allocation (see stencil.py)
     def _damping_zero_order(
         self,
         u: FloatField,
@@ -487,5 +492,5 @@ class DivergenceDamping:
             self._smagorinksy_diffusion_approx_stencil(
                 delpc,
                 vort,
-                abs(dt),
+                dt,  # [DaCe] Move abs() down in the stencil due to a DaCe parse failure
             )

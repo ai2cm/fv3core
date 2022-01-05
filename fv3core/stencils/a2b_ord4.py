@@ -676,6 +676,7 @@ class AGrid2BGridFourthOrder:
                 qin,
             )
 
+    @computepath_method  # [DaCe] decorate to cleanup the FloatField allocation (see stencil.py)
     def _compute_qout_edges(self, qin: FloatField, qout: FloatField):
         if self._idx.west_edge:
             self._qout_x_edge_west(
