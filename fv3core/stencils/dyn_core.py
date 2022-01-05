@@ -321,6 +321,15 @@ class AcousticDynamics:
                 ["u_quantity"],
                 ["v_quantity"],
             )
+            # [DaCe] bad parameters where generated when re-using the above updater. Duplicating
+            self.u__v_on_split = AcousticDynamics._WrappedHaloUpdater(
+                comm.get_vector_halo_updater(
+                    [full_size_xyiz_halo_spec], [full_size_xiyz_halo_spec]
+                ),
+                state,
+                ["u_quantity"],
+                ["v_quantity"],
+            )
             self.w = AcousticDynamics._WrappedHaloUpdater(
                 comm.get_scalar_halo_updater([full_size_xyz_halo_spec]),
                 state,
@@ -838,7 +847,9 @@ class AcousticDynamics:
                 )
 
             if it != n_split - 1:
-                self._halo_updaters.u__v.start()
+                # [DaCe] this should be a reuse of self._halo_updaters.u__v but it creates
+                #        parameter generation issues, and therefore has been duplicated
+                self._halo_updaters.u__v_on_split.start()
             else:
                 if self.config.grid_type < 4:
                     self._halo_updaters.interface_uc__vc.interface()
