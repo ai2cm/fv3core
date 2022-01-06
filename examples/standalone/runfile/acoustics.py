@@ -142,7 +142,7 @@ def read_and_reset_timer(timestep_timer, times_per_step, hits_per_step):
     return times_per_step, hits_per_step
 
 
-def run(data_directory, halo_update, backend, time_steps):
+def run(data_directory, halo_update, backend, time_steps, sdfg_path=None):
     set_up_namelist(data_directory)
     serializer = initialize_serializer(data_directory)
     initialize_fv3core(backend, halo_update)
@@ -177,7 +177,16 @@ def run(data_directory, halo_update, backend, time_steps):
     )
     state.__dict__.update(acoustics_dynamics._temporaries)
 
-    @computepath_function
+    rank = comm.Get_rank()
+    if sdfg_path != "":
+        if MPI.COMM_WORLD.Get_size() > 1:
+            sdfg_path = f"{sdfg_path}{str(rank)}/dacecache/acoustics_loop"
+        else:
+            sdfg_path = f"{sdfg_path}/dacecache/acoustics_loop"
+    else:
+        sdfg_path = None
+
+    @computepath_function(load_sdfg=sdfg_path)
     def acoustics_loop(
         state: dace.constant,
         time_steps,
@@ -227,6 +236,7 @@ def driver(
         halo_update,
         time_steps=time_steps,
         backend=backend,
+        sdfg_path=sdfg_path,
     )
     if check_against_numpy:
         ref_state = run(
