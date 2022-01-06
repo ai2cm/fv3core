@@ -860,9 +860,7 @@ class AcousticDynamics:
             cd = constants.CNST_0P20 * self._da_min
             self._hyperdiffusion(state.heat_source, cd)
             if not self.config.hydrostatic:
-                delt_time_factor = (
-                    dt * self.config.delt_max
-                )  # [DaCe] Can't part `abs` so it has been moved down in the stencil
+                delt_time_factor = abs(dt * self.config.delt_max)
                 self._compute_pkz_tempadjust(
                     state.delp,
                     state.delz,

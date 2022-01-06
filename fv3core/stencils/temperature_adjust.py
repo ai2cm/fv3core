@@ -4,7 +4,7 @@ import fv3core.utils.global_constants as constants
 from fv3core.stencils.basic_operations import sign
 from fv3core.utils.typing import FloatField
 
-# [DaCe] abs(delt_time_factor) was done outside of the stencil but fails parsing. Moved in-stencil for now
+
 def compute_pkz_tempadjust(
     delp: FloatField,
     delz: FloatField,
@@ -34,11 +34,11 @@ def compute_pkz_tempadjust(
         dtmp = heat_source / (constants.CV_AIR * delp)
     with computation(PARALLEL):
         with interval(0, 1):
-            deltmin = sign(min(abs(delt_time_factor) * 0.1, abs(dtmp)), dtmp)
+            deltmin = sign(min(delt_time_factor * 0.1, abs(dtmp)), dtmp)
             pt = pt + deltmin / pkz
         with interval(1, 2):
-            deltmin = sign(min(abs(delt_time_factor) * 0.5, abs(dtmp)), dtmp)
+            deltmin = sign(min(delt_time_factor * 0.5, abs(dtmp)), dtmp)
             pt = pt + deltmin / pkz
         with interval(2, None):
-            deltmin = sign(min(abs(delt_time_factor), abs(dtmp)), dtmp)
+            deltmin = sign(min(delt_time_factor, abs(dtmp)), dtmp)
             pt = pt + deltmin / pkz

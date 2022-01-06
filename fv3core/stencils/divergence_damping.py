@@ -151,10 +151,9 @@ def redo_divg_d(
             divg_d = divg_d * adjustment_factor
 
 
-# [DaCe] Move abs(dt) down in the compute, was previously passed in
 def smagorinksy_diffusion_approx(delpc: FloatField, vort: FloatField, dt: float):
     with computation(PARALLEL), interval(...):
-        vort = abs(dt) * (delpc ** 2.0 + vort ** 2.0) ** 0.5
+        vort = dt * (delpc ** 2.0 + vort ** 2.0) ** 0.5
 
 
 class DivergenceDamping:
@@ -492,5 +491,5 @@ class DivergenceDamping:
             self._smagorinksy_diffusion_approx_stencil(
                 delpc,
                 vort,
-                dt,  # [DaCe] Move abs() down in the stencil due to a DaCe parse failure
+                abs(dt),
             )
