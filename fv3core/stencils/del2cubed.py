@@ -140,6 +140,24 @@ class HyperdiffusionDamping:
             update_q, origins, domains, stencil_factory=stencil_factory
         )
 
+        # [DaCe] List + for loop cause parsing problem - unrolling
+        if self._ntimes > 0:
+            self._compute_zonal_flux_0 = self._compute_zonal_flux[0]
+            self._compute_meridional_flux_0 = self._compute_meridional_flux[0]
+            self._update_q_0 = self._update_q[0]
+        if self._ntimes > 1:
+            self._compute_zonal_flux_1 = self._compute_zonal_flux[1]
+            self._compute_meridional_flux_1 = self._compute_meridional_flux[1]
+            self._update_q_1 = self._update_q[1]
+        if self._ntimes > 2:
+            self._compute_zonal_flux_2 = self._compute_zonal_flux[2]
+            self._compute_meridional_flux_2 = self._compute_meridional_flux[2]
+            self._update_q_2 = self._update_q[2]
+        if self._ntimes > 3:
+            self._compute_zonal_flux_3 = self._compute_zonal_flux[3]
+            self._compute_meridional_flux_3 = self._compute_meridional_flux[3]
+            self._update_q_3 = self._update_q[3]
+
         self._copy_corners_x: corners.CopyCorners = corners.CopyCorners(
             direction="x", stencil_factory=stencil_factory
         )
@@ -148,6 +166,95 @@ class HyperdiffusionDamping:
             direction="y", stencil_factory=stencil_factory
         )
         """Stencil responsible for doing corners updates in y-direction."""
+
+    # [DaCe] List + for loop cause parsing problem - unrolling
+    @computepath_method
+    def unroll_n_times_0(self, n, qdel, cd):
+        nt = self._ntimes - (n + 1)
+
+        # Fill in appropriate corner values
+        self._corner_fill(qdel, self._q)
+
+        if nt > 0:
+            self._copy_corners_x(self._q)
+
+        self._compute_zonal_flux_0(self._fx, self._q, self._del6_v)
+
+        if nt > 0:
+            self._copy_corners_y(self._q)
+
+        self._compute_meridional_flux_0(self._fy, self._q, self._del6_u)
+
+        self._copy_stencil(self._q, qdel)
+
+        # Update q values
+        self._update_q_0(qdel, self._rarea, self._fx, self._fy, cd)
+
+    @computepath_method
+    def unroll_n_times_1(self, n, qdel, cd):
+        nt = self._ntimes - (n + 1)
+
+        # Fill in appropriate corner values
+        self._corner_fill(qdel, self._q)
+
+        if nt > 0:
+            self._copy_corners_x(self._q)
+
+        self._compute_zonal_flux_1(self._fx, self._q, self._del6_v)
+
+        if nt > 0:
+            self._copy_corners_y(self._q)
+
+        self._compute_meridional_flux_1(self._fy, self._q, self._del6_u)
+
+        self._copy_stencil(self._q, qdel)
+
+        # Update q values
+        self._update_q_0(qdel, self._rarea, self._fx, self._fy, cd)
+
+    @computepath_method
+    def unroll_n_times_2(self, n, qdel, cd):
+        nt = self._ntimes - (n + 1)
+
+        # Fill in appropriate corner values
+        self._corner_fill(qdel, self._q)
+
+        if nt > 0:
+            self._copy_corners_x(self._q)
+
+        self._compute_zonal_flux_2(self._fx, self._q, self._del6_v)
+
+        if nt > 0:
+            self._copy_corners_y(self._q)
+
+        self._compute_meridional_flux_2(self._fy, self._q, self._del6_u)
+
+        self._copy_stencil(self._q, qdel)
+
+        # Update q values
+        self._update_q_0(qdel, self._rarea, self._fx, self._fy, cd)
+
+    @computepath_method
+    def unroll_n_times_3(self, n, qdel, cd):
+        nt = self._ntimes - (n + 1)
+
+        # Fill in appropriate corner values
+        self._corner_fill(qdel, self._q)
+
+        if nt > 0:
+            self._copy_corners_x(self._q)
+
+        self._compute_zonal_flux_3(self._fx, self._q, self._del6_v)
+
+        if nt > 0:
+            self._copy_corners_y(self._q)
+
+        self._compute_meridional_flux_3(self._fy, self._q, self._del6_u)
+
+        self._copy_stencil(self._q, qdel)
+
+        # Update q values
+        self._update_q_0(qdel, self._rarea, self._fx, self._fy, cd)
 
     @computepath_method
     def __call__(self, qdel: FloatField, cd: float):
@@ -183,3 +290,11 @@ class HyperdiffusionDamping:
             # Update q values
             self._update_q[n](qdel, self._rarea, self._fx, self._fy, cd)
         """
+        if self._ntimes > 0:
+            self.unroll_n_times_0(0, qdel, cd)
+        if self._ntimes > 1:
+            self.unroll_n_times_1(1, qdel, cd)
+        if self._ntimes > 2:
+            self.unroll_n_times_2(2, qdel, cd)
+        if self._ntimes > 3:
+            self.unroll_n_times_3(3, qdel, cd)

@@ -1112,6 +1112,17 @@ class DelnFluxNoSG:
             stencil_factory=stencil_factory,
             externals={**nord_dictionary},
         )
+
+        # [DaCe] List + for loop cause parsing problem - unrolling
+        if self._nmax > 0:
+            self._d2_stencil_0 = self._d2_stencil[0]
+        if self._nmax > 1:
+            self._d2_stencil_1 = self._d2_stencil[1]
+        if self._nmax > 2:
+            self._d2_stencil_2 = self._d2_stencil[2]
+        if self._nmax > 3:
+            self._d2_stencil_3 = self._d2_stencil[3]
+
         self._column_conditional_fx_calculation = get_stencils_with_varied_bounds(
             fx_calc_stencil_column,
             origins_flux,
@@ -1119,6 +1130,25 @@ class DelnFluxNoSG:
             stencil_factory=stencil_factory,
             externals={**nord_dictionary},
         )
+
+        # [DaCe] List + for loop cause parsing problem - unrolling
+        if self._nmax > 0:
+            self._column_conditional_fx_calculation_0 = (
+                self._column_conditional_fx_calculation[0]
+            )
+        if self._nmax > 1:
+            self._column_conditional_fx_calculation_1 = (
+                self._column_conditional_fx_calculation[1]
+            )
+        if self._nmax > 2:
+            self._column_conditional_fx_calculation_2 = (
+                self._column_conditional_fx_calculation[2]
+            )
+        if self._nmax > 3:
+            self._column_conditional_fx_calculation_3 = (
+                self._column_conditional_fx_calculation[3]
+            )
+
         self._column_conditional_fy_calculation = get_stencils_with_varied_bounds(
             fy_calc_stencil_column,
             origins_flux,
@@ -1126,6 +1156,25 @@ class DelnFluxNoSG:
             stencil_factory=stencil_factory,
             externals={**nord_dictionary},
         )
+
+        # [DaCe] List + for loop cause parsing problem - unrolling
+        if self._nmax > 0:
+            self._column_conditional_fy_calculation_0 = (
+                self._column_conditional_fy_calculation[0]
+            )
+        if self._nmax > 1:
+            self._column_conditional_fy_calculation_1 = (
+                self._column_conditional_fy_calculation[1]
+            )
+        if self._nmax > 2:
+            self._column_conditional_fy_calculation_2 = (
+                self._column_conditional_fy_calculation[2]
+            )
+        if self._nmax > 3:
+            self._column_conditional_fy_calculation_3 = (
+                self._column_conditional_fy_calculation[3]
+            )
+
         self._fx_calc_stencil = stencil_factory.from_origin_domain(
             fx_calc_stencil_nord,
             externals={**fx_ax_offsets, **nord_dictionary},
@@ -1161,6 +1210,107 @@ class DelnFluxNoSG:
             domain=corner_domain,
         )
 
+    # [DaCe] List + for loop cause parsing problem - unrolling
+    @computepath_method
+    def unroll_nord_loop_0(self, fx2, fy2, d2):
+        self._d2_stencil_0(
+            fx2,
+            fy2,
+            self._rarea,
+            d2,
+        )
+
+        self._copy_corners_x_nord(d2, d2)
+
+        self._column_conditional_fx_calculation_0(
+            d2,
+            self._del6_v,
+            fx2,
+        )
+
+        self._copy_corners_y_nord(d2, d2)
+
+        self._column_conditional_fy_calculation_0(
+            d2,
+            self._del6_u,
+            fy2,
+        )
+
+    @computepath_method
+    def unroll_nord_loop_1(self, fx2, fy2, d2):
+        self._d2_stencil_1(
+            fx2,
+            fy2,
+            self._rarea,
+            d2,
+        )
+
+        self._copy_corners_x_nord(d2, d2)
+
+        self._column_conditional_fx_calculation_1(
+            d2,
+            self._del6_v,
+            fx2,
+        )
+
+        self._copy_corners_y_nord(d2, d2)
+
+        self._column_conditional_fy_calculation_1(
+            d2,
+            self._del6_u,
+            fy2,
+        )
+
+    @computepath_method
+    def unroll_nord_loop_2(self, fx2, fy2, d2):
+        self._d2_stencil_2(
+            fx2,
+            fy2,
+            self._rarea,
+            d2,
+        )
+
+        self._copy_corners_x_nord(d2, d2)
+
+        self._column_conditional_fx_calculation_2(
+            d2,
+            self._del6_v,
+            fx2,
+        )
+
+        self._copy_corners_y_nord(d2, d2)
+
+        self._column_conditional_fy_calculation_2(
+            d2,
+            self._del6_u,
+            fy2,
+        )
+
+    @computepath_method
+    def unroll_nord_loop_3(self, fx2, fy2, d2):
+        self._d2_stencil_3(
+            fx2,
+            fy2,
+            self._rarea,
+            d2,
+        )
+
+        self._copy_corners_x_nord(d2, d2)
+
+        self._column_conditional_fx_calculation_3(
+            d2,
+            self._del6_v,
+            fx2,
+        )
+
+        self._copy_corners_y_nord(d2, d2)
+
+        self._column_conditional_fy_calculation_3(
+            d2,
+            self._del6_u,
+            fy2,
+        )
+
     @computepath_method
     def __call__(self, q, fx2, fy2, damp_c, d2, mass=None):
         """
@@ -1192,8 +1342,9 @@ class DelnFluxNoSG:
         self._fy_calc_stencil(d2, self._del6_u, fy2)
 
         # [DaCe] list + for is causing parsing problems. Under investigations
+        # Orignal code:
         """
-        for n in range(self._nmax):
+        for n in dace.unroll(range(self._nmax)):
             self._d2_stencil[n](
                 fx2,
                 fy2,
@@ -1217,3 +1368,12 @@ class DelnFluxNoSG:
                 fy2,
             )
         """
+        # [DaCe] List + for loop cause parsing problem - unrolling
+        if self._nmax > 0:
+            self.unroll_nord_loop_0(fx2, fy2, d2)
+        if self._nmax > 1:
+            self.unroll_nord_loop_1(fx2, fy2, d2)
+        if self._nmax > 2:
+            self.unroll_nord_loop_2(fx2, fy2, d2)
+        if self._nmax > 3:
+            self.unroll_nord_loop_3(fx2, fy2, d2)

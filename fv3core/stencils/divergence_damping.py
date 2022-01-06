@@ -267,12 +267,21 @@ class DivergenceDamping:
             domains_u.append((nint, njnt + 1, nk))
             origins.append((is_, js, kstart))
             domains.append((nint, njnt, nk))
+
         self._vc_from_divg_stencils = get_stencils_with_varied_bounds(
             vc_from_divg,
             origins=origins_v,
             domains=domains_v,
             stencil_factory=stencil_factory,
         )
+        # [DaCe] List + for loop cause parsing problem - unrolling
+        self._n_vc_from_divg = len(self._vc_from_divg_stencils)
+        if self._n_vc_from_divg > 0:
+            self._vc_from_divg_stencils_0 = self._vc_from_divg_stencils[0]
+        if self._n_vc_from_divg > 1:
+            self._vc_from_divg_stencils_1 = self._vc_from_divg_stencils[1]
+        if self._n_vc_from_divg > 2:
+            self._vc_from_divg_stencils_2 = self._vc_from_divg_stencils[2]
 
         self._uc_from_divg_stencils = get_stencils_with_varied_bounds(
             uc_from_divg,
@@ -281,6 +290,15 @@ class DivergenceDamping:
             stencil_factory=stencil_factory,
         )
 
+        # [DaCe] List + for loop cause parsing problem - unrolling
+        self._n_uc_from_divg = len(self._uc_from_divg_stencils)
+        if self._n_uc_from_divg > 0:
+            self._uc_from_divg_stencils_0 = self._uc_from_divg_stencils[0]
+        if self._n_uc_from_divg > 1:
+            self._uc_from_divg_stencils_1 = self._uc_from_divg_stencils[1]
+        if self._n_uc_from_divg > 2:
+            self._uc_from_divg_stencils_2 = self._uc_from_divg_stencils[2]
+
         self._redo_divg_d_stencils = get_stencils_with_varied_bounds(
             redo_divg_d,
             origins=origins,
@@ -288,6 +306,15 @@ class DivergenceDamping:
             stencil_factory=stencil_factory,
             externals={"do_adjustment": not stretched_grid},
         )
+
+        # [DaCe] List + for loop cause parsing problem - unrolling
+        self._n_redo_divg_d = len(self._uc_from_divg_stencils)
+        if self._n_redo_divg_d > 0:
+            self._redo_divg_d_stencils_0 = self._redo_divg_d_stencils[0]
+        if self._n_redo_divg_d > 1:
+            self._redo_divg_d_stencils_1 = self._redo_divg_d_stencils[1]
+        if self._n_redo_divg_d > 2:
+            self._redo_divg_d_stencils_2 = self._redo_divg_d_stencils[2]
 
         self._damping_nord_highorder_stencil = high_k_stencil_factory.from_dims_halo(
             func=damping_nord_highorder_stencil,
@@ -325,6 +352,160 @@ class DivergenceDamping:
             compute_dims=[X_INTERFACE_DIM, Y_INTERFACE_DIM, Z_DIM],
             compute_halos=(self.grid_indexing.n_halo, self.grid_indexing.n_halo),
         )
+
+    # [DaCe] List + for loop cause parsing problem - unrolling
+    @computepath_method
+    def unroll_nonzero_nord_0(self, divg_d, vc, uc):
+        # fillc = (
+        #     (0 + 1 != self._nonzero_nord)
+        #     and self._grid_type < 3
+        #     and (
+        #         self.grid_indexing.sw_corner
+        #         or self.grid_indexing.se_corner
+        #         or self.grid_indexing.ne_corner
+        #         or self.grid_indexing.nw_corner
+        #     )
+        # )
+        if (
+            (0 + 1 != self._nonzero_nord)
+            and self._grid_type < 3
+            and (
+                self.grid_indexing.sw_corner
+                or self.grid_indexing.se_corner
+                or self.grid_indexing.ne_corner
+                or self.grid_indexing.nw_corner
+            )
+        ):
+            self.fill_corners_bgrid_x(divg_d)
+        self._vc_from_divg_stencils_0(divg_d, self._divg_u, vc)
+        if (
+            (0 + 1 != self._nonzero_nord)
+            and self._grid_type < 3
+            and (
+                self.grid_indexing.sw_corner
+                or self.grid_indexing.se_corner
+                or self.grid_indexing.ne_corner
+                or self.grid_indexing.nw_corner
+            )
+        ):
+            self.fill_corners_bgrid_y(divg_d)
+        self._uc_from_divg_stencils_0(divg_d, self._divg_v, uc)
+
+        # TODO(eddied): We pass the same fields 2x to avoid GTC validation errors
+        if (
+            (0 + 1 != self._nonzero_nord)
+            and self._grid_type < 3
+            and (
+                self.grid_indexing.sw_corner
+                or self.grid_indexing.se_corner
+                or self.grid_indexing.ne_corner
+                or self.grid_indexing.nw_corner
+            )
+        ):
+            self._fill_corners_dgrid_stencil(vc, vc, uc, uc, -1.0)
+        self._redo_divg_d_stencils_0(uc, vc, divg_d, self._rarea_c)
+
+    @computepath_method
+    def unroll_nonzero_nord_1(self, divg_d, vc, uc):
+        # fillc = (
+        #     (1 + 1 != self._nonzero_nord)
+        #     and self._grid_type < 3
+        #     and (
+        #         self.grid_indexing.sw_corner
+        #         or self.grid_indexing.se_corner
+        #         or self.grid_indexing.ne_corner
+        #         or self.grid_indexing.nw_corner
+        #     )
+        # )
+        if (
+            (1 + 1 != self._nonzero_nord)
+            and self._grid_type < 3
+            and (
+                self.grid_indexing.sw_corner
+                or self.grid_indexing.se_corner
+                or self.grid_indexing.ne_corner
+                or self.grid_indexing.nw_corner
+            )
+        ):
+            self.fill_corners_bgrid_x(divg_d)
+        self._vc_from_divg_stencils_1(divg_d, self._divg_u, vc)
+        if (
+            (1 + 1 != self._nonzero_nord)
+            and self._grid_type < 3
+            and (
+                self.grid_indexing.sw_corner
+                or self.grid_indexing.se_corner
+                or self.grid_indexing.ne_corner
+                or self.grid_indexing.nw_corner
+            )
+        ):
+            self.fill_corners_bgrid_y(divg_d)
+        self._uc_from_divg_stencils_1(divg_d, self._divg_v, uc)
+
+        # TODO(eddied): We pass the same fields 2x to avoid GTC validation errors
+        if (
+            (1 + 1 != self._nonzero_nord)
+            and self._grid_type < 3
+            and (
+                self.grid_indexing.sw_corner
+                or self.grid_indexing.se_corner
+                or self.grid_indexing.ne_corner
+                or self.grid_indexing.nw_corner
+            )
+        ):
+            self._fill_corners_dgrid_stencil(vc, vc, uc, uc, -1.0)
+        self._redo_divg_d_stencils_1(uc, vc, divg_d, self._rarea_c)
+
+    @computepath_method
+    def unroll_nonzero_nord_2(self, divg_d, vc, uc):
+        # fillc = (
+        #     (2 + 1 != self._nonzero_nord)
+        #     and self._grid_type < 3
+        #     and (
+        #         self.grid_indexing.sw_corner
+        #         or self.grid_indexing.se_corner
+        #         or self.grid_indexing.ne_corner
+        #         or self.grid_indexing.nw_corner
+        #     )
+        # )
+        if (
+            (2 + 1 != self._nonzero_nord)
+            and self._grid_type < 3
+            and (
+                self.grid_indexing.sw_corner
+                or self.grid_indexing.se_corner
+                or self.grid_indexing.ne_corner
+                or self.grid_indexing.nw_corner
+            )
+        ):
+            self.fill_corners_bgrid_x(divg_d)
+        self._vc_from_divg_stencils_2(divg_d, self._divg_u, vc)
+        if (
+            (2 + 1 != self._nonzero_nord)
+            and self._grid_type < 3
+            and (
+                self.grid_indexing.sw_corner
+                or self.grid_indexing.se_corner
+                or self.grid_indexing.ne_corner
+                or self.grid_indexing.nw_corner
+            )
+        ):
+            self.fill_corners_bgrid_y(divg_d)
+        self._uc_from_divg_stencils_2(divg_d, self._divg_v, uc)
+
+        # TODO(eddied): We pass the same fields 2x to avoid GTC validation errors
+        if (
+            (2 + 1 != self._nonzero_nord)
+            and self._grid_type < 3
+            and (
+                self.grid_indexing.sw_corner
+                or self.grid_indexing.se_corner
+                or self.grid_indexing.ne_corner
+                or self.grid_indexing.nw_corner
+            )
+        ):
+            self._fill_corners_dgrid_stencil(vc, vc, uc, uc, -1.0)
+        self._redo_divg_d_stencils_2(uc, vc, divg_d, self._rarea_c)
 
     @computepath_method
     def __call__(
@@ -379,6 +560,7 @@ class DivergenceDamping:
             )
         self._copy_computeplus(divg_d, delpc)
         # [DaCe] for loop issue, see DelnFluxNoSG
+        # Original code:
         """
         for n in range(self._nonzero_nord):
             fillc = (
@@ -403,6 +585,12 @@ class DivergenceDamping:
                 self._fill_corners_dgrid_stencil(vc, vc, uc, uc, -1.0)
             self._redo_divg_d_stencils[n](uc, vc, divg_d, self._rarea_c)
         """
+        if self._n_vc_from_divg > 0:
+            self.unroll_nonzero_nord_0(divg_d, vc, uc)
+        if self._n_vc_from_divg > 1:
+            self.unroll_nonzero_nord_1(divg_d, vc, uc)
+        if self._n_vc_from_divg > 2:
+            self.unroll_nonzero_nord_2(divg_d, vc, uc)
 
         self._vorticity_calc(wk, v_contra_dxc, delpc, dt)
         self._damping_nord_highorder_stencil(
