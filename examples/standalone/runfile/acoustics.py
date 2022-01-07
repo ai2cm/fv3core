@@ -187,12 +187,25 @@ def run(data_directory, halo_update, backend, time_steps, sdfg_path=None):
     else:
         sdfg_path = None
 
-    def numpy_acoustics_loop(state, time_steps):
+    # Non orchestrated loop for all backends
+    def acoustics_loop_non_orchestrated(state, time_steps):
         for _ in range(time_steps):
             acoustics_dynamics(state, update_temporaries=False)
 
+    # CPU backend with orchestration (same code as GPU, but named different for
+    # caching purposed)
     @computepath_function(load_sdfg=sdfg_path)
-    def acoustics_loop(
+    def acoustics_loop_on_cpu(
+        state: dace.constant,
+        time_steps,
+    ):
+        for _ in range(time_steps):
+            acoustics_dynamics(state, update_temporaries=False)
+
+    # GPU backend with orchestration (same code as GPU, but named different for
+    # caching purposed)
+    @computepath_function(load_sdfg=sdfg_path)
+    def acoustics_loop_on_gpu(
         state: dace.constant,
         time_steps,
     ):
@@ -200,13 +213,15 @@ def run(data_directory, halo_update, backend, time_steps, sdfg_path=None):
             acoustics_dynamics(state, update_temporaries=False)
 
     # Cache warm up
-    if backend == "numpy":
+    if backend == "gtc:dace":
+        acoustics_loop_on_cpu(state, 1)
+    elif backend == "gtc:dace:gpu":
+        acoustics_loop_on_gpu(state, 1)
+    else:
         dacemode = get_dacemode()
         set_dacemode(False)
-        numpy_acoustics_loop(state, 1)
+        acoustics_loop_non_orchestrated(state, 1)
         set_dacemode(dacemode)
-    else:
-        acoustics_loop(state, 1)
 
     # Get Rank
     rank = comm.Get_rank()
@@ -215,13 +230,15 @@ def run(data_directory, halo_update, backend, time_steps, sdfg_path=None):
     import time
 
     start = time.time()
-    if backend == "numpy":
+    if backend == "gtc:dace":
+        acoustics_loop_on_cpu(state, time_steps)
+    elif backend == "gtc:dace:gpu":
+        acoustics_loop_on_gpu(state, time_steps)
+    else:
         dacemode = get_dacemode()
         set_dacemode(False)
-        numpy_acoustics_loop(state, time_steps)
+        acoustics_loop_non_orchestrated(state, time_steps)
         set_dacemode(dacemode)
-    else:
-        acoustics_loop(state, time_steps)
 
     elapsed = time.time() - start
     per_timestep = elapsed / (time_steps if time_steps != 0 else 1)
