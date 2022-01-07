@@ -729,7 +729,11 @@ class AcousticDynamics:
                 state.gz,
                 dt2,
             )
-            self._halo_updaters.uc__vc.start()
+            # [DaCe] see below need for `u__v_on_split` which leads to having to switch on the wait
+            if it == 0:
+                self._halo_updaters.uc__vc.start()
+            else:
+                self._halo_updaters.u__v_on_split.start()
             if self.config.nord > 0:
                 self._halo_updaters.divgd.wait()
             self._halo_updaters.uc__vc.wait()
