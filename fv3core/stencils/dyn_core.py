@@ -612,7 +612,7 @@ class AcousticDynamics:
         # [DaCe] This and all others _halo_updaters.XX.YY() call are filtered through a wrapper
         self._halo_updaters.q_con__cappa.start()
         self._halo_updaters.delp__pt.start()
-        self._halo_updaters.u__v.start()
+        self._halo_updaters.u__v.update()
         self._halo_updaters.q_con__cappa.wait()
 
         # [DaCe] update to the state is done outside of the loop
@@ -666,7 +666,7 @@ class AcousticDynamics:
                         state.pem,
                         state.ptop,
                     )
-            self._halo_updaters.u__v.wait()
+            # [DaCe] u__v move to a sync'ed update() at the bottom of the for loop
             if not self.config.hydrostatic:
                 self._halo_updaters.w.wait()
 
@@ -729,11 +729,7 @@ class AcousticDynamics:
                 state.gz,
                 dt2,
             )
-            # [DaCe] see below need for `u__v_on_split` which leads to having to switch on the wait
-            if it == 0:
-                self._halo_updaters.uc__vc.start()
-            else:
-                self._halo_updaters.u__v_on_split.start()
+            self._halo_updaters.uc__vc.start()
             if self.config.nord > 0:
                 self._halo_updaters.divgd.wait()
             self._halo_updaters.uc__vc.wait()
@@ -853,7 +849,7 @@ class AcousticDynamics:
             if it != n_split - 1:
                 # [DaCe] this should be a reuse of self._halo_updaters.u__v but it creates
                 #        parameter generation issues, and therefore has been duplicated
-                self._halo_updaters.u__v_on_split.start()
+                self._halo_updaters.u__v_on_split.update()
             else:
                 if self.config.grid_type < 4:
                     self._halo_updaters.interface_uc__vc.interface()

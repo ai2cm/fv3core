@@ -143,6 +143,7 @@ def read_and_reset_timer(timestep_timer, times_per_step, hits_per_step):
 
 
 def run(data_directory, halo_update, backend, time_steps, sdfg_path=None):
+    print(f"Running {backend}")
     set_up_namelist(data_directory)
     serializer = initialize_serializer(data_directory)
     initialize_fv3core(backend, halo_update)
@@ -186,6 +187,10 @@ def run(data_directory, halo_update, backend, time_steps, sdfg_path=None):
     else:
         sdfg_path = None
 
+    def numpy_acoustics_loop(state, time_steps):
+        for _ in range(time_steps):
+            acoustics_dynamics(state, update_temporaries=False)
+
     @computepath_function(load_sdfg=sdfg_path)
     def acoustics_loop(
         state: dace.constant,
@@ -195,7 +200,13 @@ def run(data_directory, halo_update, backend, time_steps, sdfg_path=None):
             acoustics_dynamics(state, update_temporaries=False)
 
     # Cache warm up
-    acoustics_loop(state, 1)
+    if backend == "numpy":
+        dacemode = get_dacemode()
+        set_dacemode(False)
+        numpy_acoustics_loop(state, 1)
+        set_dacemode(dacemode)
+    else:
+        acoustics_loop(state, 1)
 
     # Get Rank
     rank = comm.Get_rank()
@@ -204,10 +215,16 @@ def run(data_directory, halo_update, backend, time_steps, sdfg_path=None):
     import time
 
     start = time.time()
-    acoustics_loop(state, time_steps)
+    if backend == "numpy":
+        dacemode = get_dacemode()
+        set_dacemode(False)
+        numpy_acoustics_loop(state, time_steps)
+        set_dacemode(dacemode)
+    else:
+        acoustics_loop(state, time_steps)
 
     elapsed = time.time() - start
-    per_timestep = elapsed / time_steps
+    per_timestep = elapsed / (time_steps if time_steps != 0 else 1)
     print(
         f"Total {backend} time on rank {rank} for {time_steps} steps: "
         f"{elapsed}s ({per_timestep}s /timestep)"
