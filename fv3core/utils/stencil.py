@@ -287,7 +287,6 @@ class FrozenStencil(SDFGConvertible):
                 origin=self._field_origins,
                 domain=self.domain,
             )
-            self._sdfg = self._frozen_stencil.__sdfg__()
 
     def __call__(
         self,
@@ -860,6 +859,11 @@ class LazyComputepathFunction:
     def __call__(self, *args, **kwargs):
         if self.use_dace:
             sdfg = self.__sdfg__(*args, **kwargs)
+            from dace.sdfg.analysis import scalar_to_symbol as scal2sym
+
+            for sd in sdfg.all_sdfgs_recursive():
+                scal2sym.promote_scalars_to_symbols(sd)
+            sdfg.coarsen_dataflow(validate=False)
             return call_sdfg(
                 self.daceprog,
                 sdfg,
@@ -881,7 +885,11 @@ class LazyComputepathFunction:
     def __sdfg__(self, *args, **kwargs):
         if self._load_sdfg is None:
             return self.daceprog.to_sdfg(
-                *args, **self.daceprog.__sdfg_closure__(), **kwargs, save=False
+                *args,
+                **self.daceprog.__sdfg_closure__(),
+                **kwargs,
+                save=False,
+                coarsen=False,
             )
         else:
             if not self._sdfg_loaded:
@@ -952,7 +960,11 @@ class LazyComputepathMethod:
         def __sdfg__(self, *args, **kwargs):
             if self.lazy_method._load_sdfg is None:
                 return self.daceprog.to_sdfg(
-                    *args, **self.daceprog.__sdfg_closure__(), **kwargs, save=False
+                    *args,
+                    **self.daceprog.__sdfg_closure__(),
+                    **kwargs,
+                    save=False,
+                    coarsen=False,
                 )
             else:
                 if os.path.isfile(self.lazy_method._load_sdfg):
