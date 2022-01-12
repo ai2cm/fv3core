@@ -85,7 +85,7 @@ def call_sdfg(daceprog: DaceProgram, sdfg: dace.SDFG, args, kwargs, sdfg_final=F
         sdfg_kwargs = {k: v for k, v in sdfg_kwargs.items() if v is not None}
         for k, tup in daceprog.resolver.closure_arrays.items():
             if k in sdfg_kwargs and tup[1].transient:
-                pass
+                del sdfg_kwargs[k]
         res = sdfg(**sdfg_kwargs)
     else:
         res = daceprog(*args, **kwargs)
