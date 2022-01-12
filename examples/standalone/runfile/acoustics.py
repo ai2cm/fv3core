@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import cProfile
 import io
+from logging import warn
 import pstats
 from pstats import SortKey
 from types import SimpleNamespace
@@ -144,23 +145,25 @@ def read_and_reset_timer(timestep_timer, times_per_step, hits_per_step):
 
 def run(data_directory, halo_update, backend, time_steps, sdfg_path=None):
     print(f"Running {backend}")
+
+    # Read grid & build state from input_data read from savepoint
     set_up_namelist(data_directory)
     serializer = initialize_serializer(data_directory)
     initialize_fv3core(backend, halo_update)
     grid = read_grid(serializer)
     spec.set_grid(grid)
-
     input_data = read_input_data(grid, serializer)
-
     state = get_state_from_input(grid, input_data)
 
     # Network communicator
     comm = MPI.COMM_WORLD
+    rank = comm.Get_rank()
     cube_comm = fv3util.CubedSphereCommunicator(
         comm,
         fv3util.CubedSpherePartitioner(fv3util.TilePartitioner(spec.namelist.layout)),
     )
 
+    # Init acoustics
     acoustics_dynamics = AcousticDynamics(
         comm=cube_comm,
         stencil_factory=spec.grid.stencil_factory,
@@ -178,12 +181,15 @@ def run(data_directory, halo_update, backend, time_steps, sdfg_path=None):
     )
     state.__dict__.update(acoustics_dynamics._temporaries)
 
-    rank = comm.Get_rank()
+    # Build SDFG_PATH if option given and specialize for the right backend
     if sdfg_path != "":
+        loop_name = "acoustics_loop_on_cpu"  # gtc:dace
+        if backend == "gtc:dace:gpu":
+            loop_name = "acoustics_loop_on_gpu"
+        rank_str = ""
         if MPI.COMM_WORLD.Get_size() > 1:
-            sdfg_path = f"{sdfg_path}{str(rank)}/dacecache/acoustics_loop"
-        else:
-            sdfg_path = f"{sdfg_path}/dacecache/acoustics_loop"
+            rank_str = str(rank)
+        sdfg_path = f"{sdfg_path}{rank_str}/dacecache/{loop_name}"
     else:
         sdfg_path = None
 
@@ -212,40 +218,48 @@ def run(data_directory, halo_update, backend, time_steps, sdfg_path=None):
         for _ in range(time_steps):
             acoustics_dynamics(state, update_temporaries=False)
 
-    # Cache warm up
-    if backend == "gtc:dace":
-        acoustics_loop_on_cpu(state, 1)
-    elif backend == "gtc:dace:gpu":
-        acoustics_loop_on_gpu(state, 1)
+    # Cache warm up and loop function selection
+    if time_steps == 0:
+        if backend == "gtc:dace":
+            acoustics_loop_on_cpu(state, 1)
+        elif backend == "gtc:dace:gpu":
+            acoustics_loop_on_gpu(state, 1)
+        else:
+            dacemode = get_dacemode()
+            set_dacemode(False)
+            acoustics_loop_non_orchestrated(state, 1)
+            set_dacemode(dacemode)
+        print("Cached built - no loop run")
     else:
-        dacemode = get_dacemode()
-        set_dacemode(False)
-        acoustics_loop_non_orchestrated(state, 1)
-        set_dacemode(dacemode)
+        if sdfg_path == None:
+            warn(
+                f"Running loop {time_steps} times but not SDFG was"
+                f"given, performance will be poor."
+            )
 
-    # Get Rank
-    rank = comm.Get_rank()
+        # Get Rank
+        rank = comm.Get_rank()
 
-    # Simulate
-    import time
+        # Simulate
+        import time
 
-    start = time.time()
-    if backend == "gtc:dace":
-        acoustics_loop_on_cpu(state, time_steps)
-    elif backend == "gtc:dace:gpu":
-        acoustics_loop_on_gpu(state, time_steps)
-    else:
-        dacemode = get_dacemode()
-        set_dacemode(False)
-        acoustics_loop_non_orchestrated(state, time_steps)
-        set_dacemode(dacemode)
+        start = time.time()
+        if backend == "gtc:dace":
+            acoustics_loop_on_cpu(state, time_steps)
+        elif backend == "gtc:dace:gpu":
+            acoustics_loop_on_gpu(state, time_steps)
+        else:
+            dacemode = get_dacemode()
+            set_dacemode(False)
+            acoustics_loop_non_orchestrated(state, time_steps)
+            set_dacemode(dacemode)
 
-    elapsed = time.time() - start
-    per_timestep = elapsed / (time_steps if time_steps != 0 else 1)
-    print(
-        f"Total {backend} time on rank {rank} for {time_steps} steps: "
-        f"{elapsed}s ({per_timestep}s /timestep)"
-    )
+        elapsed = time.time() - start
+        per_timestep = elapsed / (time_steps if time_steps != 0 else 1)
+        print(
+            f"Total {backend} time on rank {rank} for {time_steps} steps: "
+            f"{elapsed}s ({per_timestep}s /timestep)"
+        )
 
     return state
 
