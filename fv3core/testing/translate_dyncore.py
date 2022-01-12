@@ -1,3 +1,4 @@
+from types import SimpleNamespace
 import fv3core._config as spec
 import fv3core.stencils.dyn_core as dyn_core
 import fv3core.utils.gt4py_utils as utils
@@ -116,28 +117,33 @@ class TranslateDynCore(ParallelTranslate2PyState):
         self.max_error = 2e-6
 
     def compute_parallel(self, inputs, communicator):
-        # ak, bk, pfull, and phis are numpy arrays at this point and
-        #   must be converted into gt4py storages
-        for name in ("ak", "bk", "pfull", "phis"):
-            inputs[name] = utils.make_storage_data(
-                inputs[name], inputs[name].shape, len(inputs[name].shape) * (0,)
+        # [DaCe] adaptation of modified signature for acoustics calling code
+        #        with update_temporaries done externally prior to call
+
+        self._base.make_storage_data_input_vars(inputs)
+        for name, properties in self.inputs.items():
+            self.grid.quantity_dict_update(
+                inputs, name, dims=properties["dims"], units=properties["units"]
             )
 
-        grid_data = spec.grid.grid_data
-        grid_data.ak = inputs["ak"]
-        grid_data.bk = inputs["bk"]
-        self._base.compute_func = dyn_core.AcousticDynamics(
-            communicator,
-            spec.grid.stencil_factory,
-            grid_data,
-            spec.grid.damping_coefficients,
-            spec.grid.grid_type,
-            spec.grid.nested,
-            spec.grid.stretched_grid,
-            spec.namelist.dynamical_core.acoustic_dynamics,
-            inputs["ak"],
-            inputs["bk"],
-            inputs["pfull"],
-            inputs["phis"],
+        statevars = SimpleNamespace(**inputs)
+
+        acoustics = dyn_core.AcousticDynamics(
+            comm=communicator,
+            stencil_factory=spec.grid.stencil_factory,
+            grid_data=spec.grid.grid_data,
+            damping_coefficients=spec.grid.damping_coefficients,
+            grid_type=spec.namelist.dynamical_core.grid_type,
+            nested=False,
+            stretched_grid=False,
+            config=spec.namelist.dynamical_core.acoustic_dynamics,
+            ak=inputs["ak"],
+            bk=inputs["bk"],
+            pfull=inputs["pfull"],
+            phis=inputs["phis"],
+            state=statevars,
         )
-        return super().compute_parallel(inputs, communicator)
+        statevars.__dict__.update(acoustics._temporaries)
+
+        acoustics(state=statevars, update_temporaries=False)
+        return self._base.slice_output(vars(statevars))

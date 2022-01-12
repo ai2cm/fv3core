@@ -167,13 +167,15 @@ def enable_selective_validation():
     # to enable selective validation for a new class, add a new monkeypatch
     # this should require only a new function for (origin, domain)
     # note we have not implemented disabling selective validation once enabled
-    fv3core.stencils.updatedzd.UpdateHeightOnDGrid = get_selective_class(
-        fv3core.stencils.updatedzd.UpdateHeightOnDGrid,
-        {
-            "height": get_compute_domain_k_interfaces,
-            "zh": get_compute_domain_k_interfaces,
-        },  # must include both function argument and savepoint names
-    )
+    # [DaCe] the selective validation wrapper _set_nans() can't be parsed (bad annotation) on UpdateHeightOnDGrid
+    #        We would either flag _set_nans() with @computepath_method OR do selective validation differently
+    # fv3core.stencils.updatedzd.UpdateHeightOnDGrid = get_selective_class(
+    # fv3core.stencils.updatedzd.UpdateHeightOnDGrid,
+    # {
+    # "height": get_compute_domain_k_interfaces,
+    # "zh": get_compute_domain_k_interfaces,
+    # },  # must include both function argument and savepoint names
+    # )
     # make absolutely sure you don't write just the savepoint name, this would
     # selecively validate without making sure it's safe to do so
 
