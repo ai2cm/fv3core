@@ -256,6 +256,12 @@ class FrozenStencil(SDFGConvertible):
                 stencil_kwargs.pop("skip_passes")
             )
 
+        if (
+            global_config.get_dacemode()
+            and not global_config.is_dacemode_codegen_whitelisted(func)
+        ):
+            stencil_kwargs["disable_code_generation"] = True
+
         self.stencil_object: gt4py.StencilObject = stencil_function(
             definition=func,
             externals=externals,
