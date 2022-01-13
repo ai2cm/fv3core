@@ -504,12 +504,12 @@ class AcousticDynamics:
         # [DaCe] Pre-allocated delpc/ptc fields that are temporary to the
         # acoustics computation. Before they were dynamically added to state
         # which DaCe can't parse during orchestration
-        self.delpc = utils.make_storage_from_shape(
-            grid_indexing.domain_full(add=(1, 1, 1))
-        )
-        self.ptc = utils.make_storage_from_shape(
-            grid_indexing.domain_full(add=(1, 1, 1))
-        )
+        # self.delpc = utils.make_storage_from_shape(
+        #     grid_indexing.domain_full(add=(1, 1, 1))
+        # )
+        # self.ptc = utils.make_storage_from_shape(
+        #     grid_indexing.domain_full(add=(1, 1, 1))
+        # )
 
         self.cgrid_shallow_water_lagrangian_dynamics = CGridShallowWaterDynamics(
             stencil_factory,
@@ -676,7 +676,9 @@ class AcousticDynamics:
 
             # compute the c-grid winds at t + 1/2 timestep
             # [DaCe] pass delpc and ptc to go around a return value bug in DaCe (fixed)
-            self.delpc, self.ptc = self.cgrid_shallow_water_lagrangian_dynamics(
+            #        We leverage the c_sw inner allocated delpc/ptc
+            # Original code: self.delpc, self.ptc = self.cgrid_shallow_water_lagrangian_dynamics(...)
+            self.cgrid_shallow_water_lagrangian_dynamics(
                 state.delp,
                 state.pt,
                 state.u,
@@ -717,9 +719,9 @@ class AcousticDynamics:
                     state.ptop,
                     state.phis,
                     state.ws3,
-                    self.ptc,
+                    self.cgrid_shallow_water_lagrangian_dynamics.ptc,  # [DaCe] inner usage of c_sw
                     state.q_con,
-                    self.delpc,
+                    self.cgrid_shallow_water_lagrangian_dynamics.delpc,  # [DaCe] inner usage of c_sw
                     state.gz,
                     state.pkc,
                     state.omga,
@@ -730,7 +732,7 @@ class AcousticDynamics:
                 self.grid_data.rdyc,
                 state.uc,
                 state.vc,
-                self.delpc,
+                self.cgrid_shallow_water_lagrangian_dynamics.delpc,  # [DaCe] inner usage of c_sw
                 state.pkc,
                 state.gz,
                 dt2,
@@ -745,7 +747,7 @@ class AcousticDynamics:
             self.dgrid_shallow_water_lagrangian_dynamics(
                 state.vt,
                 state.delp,
-                self.ptc,
+                self.cgrid_shallow_water_lagrangian_dynamics.ptc,  # [DaCe] inner usage of c_sw
                 state.pt,
                 state.u,
                 state.v,
