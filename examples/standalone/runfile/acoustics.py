@@ -196,7 +196,9 @@ def run(data_directory, halo_update, backend, time_steps, sdfg_path=None):
     # Non orchestrated loop for all backends
     def acoustics_loop_non_orchestrated(state, time_steps):
         for _ in range(time_steps):
-            acoustics_dynamics(state, update_temporaries=False)
+            acoustics_dynamics(
+                state, update_temporaries=False, do_halo_exchange=halo_update
+            )
 
     # CPU backend with orchestration (same code as GPU, but named different for
     # caching purposed)
@@ -206,7 +208,9 @@ def run(data_directory, halo_update, backend, time_steps, sdfg_path=None):
         time_steps,
     ):
         for _ in range(time_steps):
-            acoustics_dynamics(state, update_temporaries=False)
+            acoustics_dynamics(
+                state, update_temporaries=False, do_halo_exchange=halo_update
+            )
 
     # GPU backend with orchestration (same code as GPU, but named different for
     # caching purposed)
@@ -216,7 +220,9 @@ def run(data_directory, halo_update, backend, time_steps, sdfg_path=None):
         time_steps,
     ):
         for _ in range(time_steps):
-            acoustics_dynamics(state, update_temporaries=False)
+            acoustics_dynamics(
+                state, update_temporaries=False, do_halo_exchange=halo_update
+            )
 
     # Cache warm up and loop function selection
     if time_steps == 0:

@@ -596,6 +596,7 @@ class AcousticDynamics:
         self,
         state: dace.constant,
         update_temporaries: dace.constant = True,
+        do_halo_exchange: dace.constant = True,
     ):
         # u, v, w, delz, delp, pt, pe, pk, phis, wsd, omga, ua, va, uc, vc, mfxd,
         # mfyd, cxd, cyd, pkz, peln, q_con, ak, bk, diss_estd, cappa, mdt, n_split,
@@ -610,10 +611,11 @@ class AcousticDynamics:
         # n_split = nint( real(n0split)/real(k_split*abs(p_split)) * stretch_fac + 0.5 )
         # NOTE: In Fortran model the halo update starts happens in fv_dynamics, not here
         # [DaCe] This and all others _halo_updaters.XX.YY() call are filtered through a wrapper
-        self._halo_updaters.q_con__cappa.start()
-        self._halo_updaters.delp__pt.start()
-        self._halo_updaters.u__v.update()
-        self._halo_updaters.q_con__cappa.wait()
+        if do_halo_exchange:
+            self._halo_updaters.q_con__cappa.start()
+            self._halo_updaters.delp__pt.start()
+            self._halo_updaters.u__v.update()
+            self._halo_updaters.q_con__cappa.wait()
 
         # [DaCe] update to the state is done outside of the loop
         # to fix limitation in DaCe parser
@@ -648,14 +650,16 @@ class AcousticDynamics:
             if self.config.breed_vortex_inline or (it == n_split - 1):
                 remap_step = True
             if not self.config.hydrostatic:
-                self._halo_updaters.w.start()
+                if do_halo_exchange:
+                    self._halo_updaters.w.start()
                 if it == 0:
                     self._set_gz(
                         self._zs,
                         state.delz,
                         state.gz,
                     )
-                    self._halo_updaters.gz.start()
+                    if do_halo_exchange:
+                        self._halo_updaters.gz.start()
             if it == 0:
                 self._halo_updaters.delp__pt.wait()
 
@@ -671,6 +675,7 @@ class AcousticDynamics:
                 self._halo_updaters.w.wait()
 
             # compute the c-grid winds at t + 1/2 timestep
+            # [DaCe] pass delpc and ptc to go around a return value bug in DaCe (fixed)
             self.delpc, self.ptc = self.cgrid_shallow_water_lagrangian_dynamics(
                 state.delp,
                 state.pt,
@@ -688,7 +693,8 @@ class AcousticDynamics:
                 dt2,
             )
             if self.config.nord > 0:
-                self._halo_updaters.divgd.start()
+                if do_halo_exchange:
+                    self._halo_updaters.divgd.start()
             if not self.config.hydrostatic:
                 if it == 0:
                     self._halo_updaters.gz.wait()
@@ -729,7 +735,8 @@ class AcousticDynamics:
                 state.gz,
                 dt2,
             )
-            self._halo_updaters.uc__vc.start()
+            if do_halo_exchange:
+                self._halo_updaters.uc__vc.start()
             if self.config.nord > 0:
                 self._halo_updaters.divgd.wait()
             self._halo_updaters.uc__vc.wait()
@@ -764,8 +771,8 @@ class AcousticDynamics:
             )
             # note that uc and vc are not needed at all past this point.
             # they will be re-computed from scratch on the next acoustic timestep.
-
-            self._halo_updaters.delp__pt__q_con.update()
+            if do_halo_exchange:
+                self._halo_updaters.delp__pt__q_con.update()
 
             # Not used unless we implement other betas and alternatives to nh_p_grad
             # if self.namelist.d_ext > 0:
@@ -801,9 +808,9 @@ class AcousticDynamics:
                     state.peln,
                     state.w,
                 )
-
-                self._halo_updaters.zh.start()
-                self._halo_updaters.pkc.start()
+                if do_halo_exchange:
+                    self._halo_updaters.zh.start()
+                    self._halo_updaters.pkc.start()
                 if remap_step:
                     self._edge_pe_stencil(state.pe, state.delp, state.ptop)
                 if self.config.use_logp:
@@ -849,13 +856,16 @@ class AcousticDynamics:
             if it != n_split - 1:
                 # [DaCe] this should be a reuse of self._halo_updaters.u__v but it creates
                 #        parameter generation issues, and therefore has been duplicated
-                self._halo_updaters.u__v_on_split.update()
+                if do_halo_exchange:
+                    self._halo_updaters.u__v_on_split.update()
             else:
                 if self.config.grid_type < 4:
-                    self._halo_updaters.interface_uc__vc.interface()
+                    if do_halo_exchange:
+                        self._halo_updaters.interface_uc__vc.interface()
 
         if self._do_del2cubed:
-            self._halo_updaters.heat_source.update()
+            if do_halo_exchange:
+                self._halo_updaters.heat_source.update()
             # TODO: move dependence on da_min into init of hyperdiffusion class
             cd = constants.CNST_0P20 * self._da_min
             self._hyperdiffusion(state.heat_source, cd)
