@@ -53,7 +53,7 @@ class PK3Halo:
         )
         shape_2D = grid_indexing.domain_full(add=(1, 1, 1))[0:2]
         self._pe_tmp = utils.make_storage_from_shape(
-            shape_2D, grid_indexing.origin_full(), is_temporary=True
+            shape_2D, grid_indexing.origin_full(), is_temporary=False
         )
 
     @computepath_method

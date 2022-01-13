@@ -577,7 +577,9 @@ class FillCornersBGrid:
             self._corner_tmp = temporary_field
         else:
             self._corner_tmp = utils.make_storage_from_shape(
-                stencil_factory.grid_indexing.max_shape, origin=origin, is_temporary=True
+                stencil_factory.grid_indexing.max_shape,
+                origin=origin,
+                is_temporary=False,
             )
 
         if direction == "x":

@@ -336,7 +336,7 @@ class DivergenceDamping:
         )
 
         self._corner_tmp = utils.make_storage_from_shape(
-            self.grid_indexing.max_shape, is_temporary=True
+            self.grid_indexing.max_shape, is_temporary=False
         )
 
         self.fill_corners_bgrid_x = corners.FillCornersBGrid(

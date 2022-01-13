@@ -304,10 +304,10 @@ class AdjustNegativeTracerMixingRatio:
         grid_indexing = stencil_factory.grid_indexing
         shape_ij = grid_indexing.domain_full(add=(1, 1, 0))[:2]
         self._sum1 = utils.make_storage_from_shape(
-            shape_ij, origin=(0, 0), is_temporary=True
+            shape_ij, origin=(0, 0), is_temporary=False
         )
         self._sum2 = utils.make_storage_from_shape(
-            shape_ij, origin=(0, 0), is_temporary=True
+            shape_ij, origin=(0, 0), is_temporary=False
         )
         if check_negative:
             raise NotImplementedError(

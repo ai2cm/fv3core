@@ -489,13 +489,13 @@ class AGrid2BGridFourthOrder:
         self.replace = replace
 
         self._tmp_qx = utils.make_storage_from_shape(
-            self._idx.max_shape, is_temporary=True
+            self._idx.max_shape, is_temporary=False
         )
         self._tmp_qy = utils.make_storage_from_shape(
-            self._idx.max_shape, is_temporary=True
+            self._idx.max_shape, is_temporary=False
         )
         self._tmp_qout_edges = utils.make_storage_from_shape(
-            self._idx.max_shape, is_temporary=True
+            self._idx.max_shape, is_temporary=False
         )
         _, (z_domain,) = self._idx.get_origin_domain([z_dim])
         corner_domain = (1, 1, z_domain)
