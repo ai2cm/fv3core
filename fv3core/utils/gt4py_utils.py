@@ -97,6 +97,7 @@ def make_storage_data(
     axis: int = 2,
     max_dim: int = 3,
     read_only: bool = True,
+    is_temporary: bool = False,
 ) -> Field:
     """Create a new gt4py storage from the given data.
 
@@ -163,6 +164,8 @@ def make_storage_data(
         mask=mask,
         managed_memory=managed_memory,
     )
+    if is_temporary:
+        storage._istransient = True
     return storage
 
 

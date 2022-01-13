@@ -139,6 +139,7 @@ class PreAllocatedCopiedCornersFactory:
             y_temporary = utils.make_storage_from_shape(
                 stencil_factory.grid_indexing.max_shape,
                 origin=stencil_factory.grid_indexing.origin_compute(),
+                is_temporary=True,
             )
         self._copy_corners_xy = corners.CopyCornersXY(
             stencil_factory, dims, y_field=y_temporary
@@ -175,18 +176,26 @@ class FiniteVolumeTransport:
         idx = stencil_factory.grid_indexing
         self._area = grid_data.area
         origin = idx.origin_compute()
-        self._q_advected_y = utils.make_storage_from_shape(idx.max_shape, origin)
-        self._q_advected_x = utils.make_storage_from_shape(idx.max_shape, origin)
-        self._q_x_advected_mean = utils.make_storage_from_shape(idx.max_shape, origin)
-        self._q_y_advected_mean = utils.make_storage_from_shape(idx.max_shape, origin)
+        self._q_advected_y = utils.make_storage_from_shape(
+            idx.max_shape, origin, is_temporary=True
+        )
+        self._q_advected_x = utils.make_storage_from_shape(
+            idx.max_shape, origin, is_temporary=True
+        )
+        self._q_x_advected_mean = utils.make_storage_from_shape(
+            idx.max_shape, origin, is_temporary=True
+        )
+        self._q_y_advected_mean = utils.make_storage_from_shape(
+            idx.max_shape, origin, is_temporary=True
+        )
         self._q_advected_x_y_advected_mean = utils.make_storage_from_shape(
-            idx.max_shape, origin
+            idx.max_shape, origin, is_temporary=True
         )
         self._q_advected_y_x_advected_mean = utils.make_storage_from_shape(
-            idx.max_shape, origin
+            idx.max_shape, origin, is_temporary=True
         )
         self._corner_tmp = utils.make_storage_from_shape(
-            idx.max_shape, origin=idx.origin_full()
+            idx.max_shape, origin=idx.origin_full(), is_temporary=True
         )
         """Temporary field to use for corner computation in both x and y direction"""
         self._nord = nord

@@ -258,33 +258,37 @@ class UpdateHeightOnDGrid:
         self._crx_interface = utils.make_storage_from_shape(
             largest_possible_shape,
             grid_indexing.origin_compute(add=(0, -grid_indexing.n_halo, 0)),
+            is_temporary=True,
         )
         self._cry_interface = utils.make_storage_from_shape(
             largest_possible_shape,
             grid_indexing.origin_compute(add=(-grid_indexing.n_halo, 0, 0)),
+            is_temporary=True,
         )
         self._x_area_flux_interface = utils.make_storage_from_shape(
             largest_possible_shape,
             grid_indexing.origin_compute(add=(0, -grid_indexing.n_halo, 0)),
+            is_temporary=True,
         )
         self._y_area_flux_interface = utils.make_storage_from_shape(
             largest_possible_shape,
             grid_indexing.origin_compute(add=(-grid_indexing.n_halo, 0, 0)),
+            is_temporary=True,
         )
         self._wk = utils.make_storage_from_shape(
-            largest_possible_shape, grid_indexing.origin_full()
+            largest_possible_shape, grid_indexing.origin_full(), is_temporary=True
         )
         self._height_x_diffusive_flux = utils.make_storage_from_shape(
-            largest_possible_shape, grid_indexing.origin_full()
+            largest_possible_shape, grid_indexing.origin_full(), is_temporary=True
         )
         self._height_y_diffusive_flux = utils.make_storage_from_shape(
-            largest_possible_shape, grid_indexing.origin_full()
+            largest_possible_shape, grid_indexing.origin_full(), is_temporary=True
         )
         self._fx = utils.make_storage_from_shape(
-            largest_possible_shape, grid_indexing.origin_full()
+            largest_possible_shape, grid_indexing.origin_full(), is_temporary=True
         )
         self._fy = utils.make_storage_from_shape(
-            largest_possible_shape, grid_indexing.origin_full()
+            largest_possible_shape, grid_indexing.origin_full(), is_temporary=True
         )
 
     def _initialize_interpolation_constants(

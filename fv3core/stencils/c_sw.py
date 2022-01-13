@@ -414,11 +414,21 @@ class CGridShallowWaterDynamics:
             compute_halos=(3, 3),
         )
 
-        self._tmp_ke = utils.make_storage_from_shape(grid_indexing.max_shape)
-        self._tmp_vort = utils.make_storage_from_shape(grid_indexing.max_shape)
-        self._tmp_fx = utils.make_storage_from_shape(grid_indexing.max_shape)
-        self._tmp_fx1 = utils.make_storage_from_shape(grid_indexing.max_shape)
-        self._tmp_fx2 = utils.make_storage_from_shape(grid_indexing.max_shape)
+        self._tmp_ke = utils.make_storage_from_shape(
+            grid_indexing.max_shape, is_temporary=True
+        )
+        self._tmp_vort = utils.make_storage_from_shape(
+            grid_indexing.max_shape, is_temporary=True
+        )
+        self._tmp_fx = utils.make_storage_from_shape(
+            grid_indexing.max_shape, is_temporary=True
+        )
+        self._tmp_fx1 = utils.make_storage_from_shape(
+            grid_indexing.max_shape, is_temporary=True
+        )
+        self._tmp_fx2 = utils.make_storage_from_shape(
+            grid_indexing.max_shape, is_temporary=True
+        )
 
         if nord > 0:
             # [DaCe] testing object is None fails below

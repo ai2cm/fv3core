@@ -335,7 +335,9 @@ class DivergenceDamping:
             compute_halos=(self.grid_indexing.n_halo, self.grid_indexing.n_halo),
         )
 
-        self._corner_tmp = utils.make_storage_from_shape(self.grid_indexing.max_shape)
+        self._corner_tmp = utils.make_storage_from_shape(
+            self.grid_indexing.max_shape, is_temporary=True
+        )
 
         self.fill_corners_bgrid_x = corners.FillCornersBGrid(
             direction="x",

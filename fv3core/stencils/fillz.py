@@ -123,13 +123,23 @@ class FillNegativeTracerValues:
         shape = stencil_factory.grid_indexing.domain_full(add=(1, 1, 1))
         shape_ij = shape[0:2]
 
-        self._dm = utils.make_storage_from_shape(shape, origin=(0, 0, 0))
-        self._dm_pos = utils.make_storage_from_shape(shape, origin=(0, 0, 0))
+        self._dm = utils.make_storage_from_shape(
+            shape, origin=(0, 0, 0), is_temporary=True
+        )
+        self._dm_pos = utils.make_storage_from_shape(
+            shape, origin=(0, 0, 0), is_temporary=True
+        )
         # Setting initial value of upper_fix to zero is only needed for validation.
         # The values in the compute domain are set to zero in the stencil.
-        self._zfix = utils.make_storage_from_shape(shape_ij, dtype=int, origin=(0, 0))
-        self._sum0 = utils.make_storage_from_shape(shape_ij, origin=(0, 0))
-        self._sum1 = utils.make_storage_from_shape(shape_ij, origin=(0, 0))
+        self._zfix = utils.make_storage_from_shape(
+            shape_ij, dtype=int, origin=(0, 0), is_temporary=True
+        )
+        self._sum0 = utils.make_storage_from_shape(
+            shape_ij, origin=(0, 0), is_temporary=True
+        )
+        self._sum1 = utils.make_storage_from_shape(
+            shape_ij, origin=(0, 0), is_temporary=True
+        )
 
     @computepath_method
     def __call__(

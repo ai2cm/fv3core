@@ -734,7 +734,7 @@ class GridIndexing:
         # we don't allocate
         # Refactor is filed in ticket DSL-820
 
-        temp_storage = make_storage_from_shape(shape, origin)
+        temp_storage = make_storage_from_shape(shape, origin, is_temporary=True)
         origin, extent = self.get_origin_domain(dims)
         temp_quantity = fv3gfs.util.Quantity(
             temp_storage,
