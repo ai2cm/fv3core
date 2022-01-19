@@ -87,29 +87,29 @@ class MapSingle:
         origin = grid_indexing.origin_compute()
 
         self._dp1 = utils.make_storage_from_shape(
-            shape, origin=origin, is_temporary=False
+            shape, origin=origin, is_temporary=True
         )
         self._q4_1 = utils.make_storage_from_shape(
-            shape, origin=origin, is_temporary=False
+            shape, origin=origin, is_temporary=True
         )
         self._q4_2 = utils.make_storage_from_shape(
-            shape, origin=origin, is_temporary=False
+            shape, origin=origin, is_temporary=True
         )
         self._q4_3 = utils.make_storage_from_shape(
-            shape, origin=origin, is_temporary=False
+            shape, origin=origin, is_temporary=True
         )
         self._q4_4 = utils.make_storage_from_shape(
-            shape, origin=origin, is_temporary=False
+            shape, origin=origin, is_temporary=True
         )
         self._tmp_qs = utils.make_storage_from_shape(
-            shape[0:2], origin=(0, 0), is_temporary=False
+            shape[0:2], origin=(0, 0), is_temporary=True
         )
         self._lev = utils.make_storage_from_shape(
             shape[:-1],
             origin=origin[:-1],
             mask=(True, True, False),
             dtype=int,
-            is_temporary=False,
+            is_temporary=True,
         )
 
         self._extents = (i2 - i1 + 1, j2 - j1 + 1)

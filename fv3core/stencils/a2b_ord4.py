@@ -487,7 +487,7 @@ class AGrid2BGridFourthOrder:
         self._edge_w = spec.grid.edge_w
 
         self.replace = replace
-
+        # [DACE] these can't be temoraries, otherwise validation fails
         self._tmp_qx = utils.make_storage_from_shape(
             self._idx.max_shape, is_temporary=False
         )
