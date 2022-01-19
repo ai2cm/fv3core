@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 import os
 from logging import warn
-import pstats
-from pstats import SortKey
 from types import SimpleNamespace
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -181,16 +179,17 @@ def run(data_directory, halo_update, backend, time_steps, sdfg_path=None):
     print(f"Running {backend} with n={acoustics_dynamics.config.n_split}")
 
     # Build SDFG_PATH if option given and specialize for the right backend
-    if sdfg_path != "":
-        loop_name = "acoustics_loop_on_cpu"  # gtc:dace
-        if backend == "gtc:dace:gpu":
-            loop_name = "acoustics_loop_on_gpu"
-        rank_str = ""
-        if MPI.COMM_WORLD.Get_size() > 1:
-            rank_str = str(rank)
-        sdfg_path = f"{sdfg_path}{rank_str}/dacecache/{loop_name}"
-    else:
-        sdfg_path = None
+    if not os.path.isfile(sdfg_path):
+        if sdfg_path != "":
+            loop_name = "acoustics_loop_on_cpu"  # gtc:dace
+            if backend == "gtc:dace:gpu":
+                loop_name = "acoustics_loop_on_gpu"
+            rank_str = ""
+            if MPI.COMM_WORLD.Get_size() > 1:
+                rank_str = f"_00000{str(rank)}"
+            sdfg_path = f"{sdfg_path}{rank_str}/dacecache/{loop_name}"
+        else:
+            sdfg_path = None
 
     # Non orchestrated loop for all backends
     def acoustics_loop_non_orchestrated(state, time_steps):
