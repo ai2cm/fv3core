@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-import cProfile
-import io
+import os
 from logging import warn
 import pstats
 from pstats import SortKey
@@ -144,8 +143,6 @@ def read_and_reset_timer(timestep_timer, times_per_step, hits_per_step):
 
 
 def run(data_directory, halo_update, backend, time_steps, sdfg_path=None):
-    print(f"Running {backend}")
-
     # Read grid & build state from input_data read from savepoint
     set_up_namelist(data_directory)
     serializer = initialize_serializer(data_directory)
@@ -180,6 +177,8 @@ def run(data_directory, halo_update, backend, time_steps, sdfg_path=None):
         state=state,
     )
     state.__dict__.update(acoustics_dynamics._temporaries)
+
+    print(f"Running {backend} with n={acoustics_dynamics.config.n_split}")
 
     # Build SDFG_PATH if option given and specialize for the right backend
     if sdfg_path != "":
@@ -225,23 +224,24 @@ def run(data_directory, halo_update, backend, time_steps, sdfg_path=None):
             )
 
     # Cache warm up and loop function selection
-    if time_steps == 0:
-        if backend == "gtc:dace":
-            acoustics_loop_on_cpu(state, 1)
-        elif backend == "gtc:dace:gpu":
-            acoustics_loop_on_gpu(state, 1)
-        else:
-            dacemode = get_dacemode()
-            set_dacemode(False)
-            acoustics_loop_non_orchestrated(state, 1)
-            set_dacemode(dacemode)
-        print("Cached built - no loop run")
+    print("Cache warming run")
+    if backend == "gtc:dace":
+        acoustics_loop_on_cpu(state, 1)
+    elif backend == "gtc:dace:gpu":
+        acoustics_loop_on_gpu(state, 1)
     else:
-        if sdfg_path == None:
-            warn(
-                f"Running loop {time_steps} times but not SDFG was"
-                f"given, performance will be poor."
-            )
+        dacemode = get_dacemode()
+        set_dacemode(False)
+        acoustics_loop_non_orchestrated(state, 1)
+        set_dacemode(dacemode)
+
+    if time_steps == 0:
+        print("Cached built only - no benchmarked run")
+    elif 'dace' in backend:
+        warn(
+            f"Running loop {time_steps} times but not SDFG was"
+            f"given, performance will be poor."
+        )
 
         # Get Rank
         rank = comm.Get_rank()
