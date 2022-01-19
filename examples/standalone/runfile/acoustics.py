@@ -236,35 +236,36 @@ def run(data_directory, halo_update, backend, time_steps, sdfg_path=None):
 
     if time_steps == 0:
         print("Cached built only - no benchmarked run")
+        return
     elif 'dace' in backend:
         warn(
             f"Running loop {time_steps} times but not SDFG was"
             f"given, performance will be poor."
         )
 
-        # Get Rank
-        rank = comm.Get_rank()
+    # Get Rank
+    rank = comm.Get_rank()
 
-        # Simulate
-        import time
+    # Simulate
+    import time
 
-        start = time.time()
-        if backend == "gtc:dace":
-            acoustics_loop_on_cpu(state, time_steps)
-        elif backend == "gtc:dace:gpu":
-            acoustics_loop_on_gpu(state, time_steps)
-        else:
-            dacemode = get_dacemode()
-            set_dacemode(False)
-            acoustics_loop_non_orchestrated(state, time_steps)
-            set_dacemode(dacemode)
+    start = time.time()
+    if backend == "gtc:dace":
+        acoustics_loop_on_cpu(state, time_steps)
+    elif backend == "gtc:dace:gpu":
+        acoustics_loop_on_gpu(state, time_steps)
+    else:
+        dacemode = get_dacemode()
+        set_dacemode(False)
+        acoustics_loop_non_orchestrated(state, time_steps)
+        set_dacemode(dacemode)
 
-        elapsed = time.time() - start
-        per_timestep = elapsed / (time_steps if time_steps != 0 else 1)
-        print(
-            f"Total {backend} time on rank {rank} for {time_steps} steps: "
-            f"{elapsed}s ({per_timestep}s /timestep)"
-        )
+    elapsed = time.time() - start
+    per_timestep = elapsed / (time_steps if time_steps != 0 else 1)
+    print(
+        f"Total {backend} time on rank {rank} for {time_steps} steps: "
+        f"{elapsed}s ({per_timestep}s /timestep)"
+    )
 
     return state
 
