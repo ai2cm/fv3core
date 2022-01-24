@@ -20,8 +20,6 @@ from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
 from fv3gfs.util import X_DIM, Y_DIM, Z_DIM
 from fv3gfs.util.constants import X_INTERFACE_DIM, Y_INTERFACE_DIM
 
-# [DaCe] temporary import
-import dace
 
 def calc_damp(damp4: FloatField, nord: FloatFieldK, damp_c: FloatFieldK, da_min: float):
     with computation(FORWARD), interval(...):
@@ -1195,8 +1193,7 @@ class DelnFluxNoSG:
 
         self._fy_calc_stencil(d2, self._del6_u, fy2)
 
-        # [DaCe] list + for is causing parsing problems. adding `dace.unroll`
-        for n in dace.unroll(range(self._nmax)):
+        for n in range(self._nmax):
             self._d2_stencil[n](
                 fx2,
                 fy2,

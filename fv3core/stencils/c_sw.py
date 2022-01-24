@@ -421,15 +421,11 @@ class CGridShallowWaterDynamics:
         self._tmp_fx2 = utils.make_storage_from_shape(grid_indexing.max_shape)
 
         if nord > 0:
-            # [DaCe] testing object is None fails below
-            self._do_divergence_corner = True
             self._divergence_corner = stencil_factory.from_dims_halo(
                 func=divergence_corner,
                 compute_dims=[X_INTERFACE_DIM, Y_INTERFACE_DIM, Z_DIM],
             )
         else:
-            # [DaCe] testing object is None fails below
-            self._do_divergence_corner = False
             self._divergence_corner = None
 
         self._geoadjust_ut = stencil_factory.from_dims_halo(
@@ -578,10 +574,7 @@ class CGridShallowWaterDynamics:
             self.ptc,
         )
         self._D2A2CGrid_Vectors(uc, vc, u, v, ua, va, ut, vt)
-        # [DaCe] testing object is None fails during DaCe parsing
-        # of the full orchestration.
-        # Old code: if self._divergence_corner is not None:
-        if self._do_divergence_corner:
+        if self._divergence_corner is not None:
             self._divergence_corner(
                 u,
                 v,

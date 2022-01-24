@@ -9,9 +9,6 @@ from fv3core.utils.stencil import StencilFactory, computepath_method
 from fv3core.utils.typing import FloatField, FloatFieldIJ, cast_to_index3d
 from fv3gfs.util import X_DIM, X_INTERFACE_DIM, Y_DIM, Y_INTERFACE_DIM, Z_DIM
 
-# [DaCe] temporary import
-import dace
-
 #
 # Flux value stencils
 # ---------------------
@@ -162,8 +159,7 @@ class HyperdiffusionDamping:
             cd: Damping coeffcient
         """
 
-        # [DaCe] List + for loop cause parsing problem. Added `dace.unroll`
-        for n in dace.unroll(range(self._ntimes)):
+        for n in range(self._ntimes):
             nt = self._ntimes - (n + 1)
 
             # Fill in appropriate corner values

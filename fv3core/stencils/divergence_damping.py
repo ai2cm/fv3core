@@ -274,14 +274,6 @@ class DivergenceDamping:
             domains=domains_v,
             stencil_factory=stencil_factory,
         )
-        # [DaCe] List + for loop cause parsing problem - unrolling
-        self._n_vc_from_divg = len(self._vc_from_divg_stencils)
-        if self._n_vc_from_divg > 0:
-            self._vc_from_divg_stencils_0 = self._vc_from_divg_stencils[0]
-        if self._n_vc_from_divg > 1:
-            self._vc_from_divg_stencils_1 = self._vc_from_divg_stencils[1]
-        if self._n_vc_from_divg > 2:
-            self._vc_from_divg_stencils_2 = self._vc_from_divg_stencils[2]
 
         self._uc_from_divg_stencils = get_stencils_with_varied_bounds(
             uc_from_divg,
@@ -290,15 +282,6 @@ class DivergenceDamping:
             stencil_factory=stencil_factory,
         )
 
-        # [DaCe] List + for loop cause parsing problem - unrolling
-        self._n_uc_from_divg = len(self._uc_from_divg_stencils)
-        if self._n_uc_from_divg > 0:
-            self._uc_from_divg_stencils_0 = self._uc_from_divg_stencils[0]
-        if self._n_uc_from_divg > 1:
-            self._uc_from_divg_stencils_1 = self._uc_from_divg_stencils[1]
-        if self._n_uc_from_divg > 2:
-            self._uc_from_divg_stencils_2 = self._uc_from_divg_stencils[2]
-
         self._redo_divg_d_stencils = get_stencils_with_varied_bounds(
             redo_divg_d,
             origins=origins,
@@ -306,15 +289,6 @@ class DivergenceDamping:
             stencil_factory=stencil_factory,
             externals={"do_adjustment": not stretched_grid},
         )
-
-        # [DaCe] List + for loop cause parsing problem - unrolling
-        self._n_redo_divg_d = len(self._uc_from_divg_stencils)
-        if self._n_redo_divg_d > 0:
-            self._redo_divg_d_stencils_0 = self._redo_divg_d_stencils[0]
-        if self._n_redo_divg_d > 1:
-            self._redo_divg_d_stencils_1 = self._redo_divg_d_stencils[1]
-        if self._n_redo_divg_d > 2:
-            self._redo_divg_d_stencils_2 = self._redo_divg_d_stencils[2]
 
         self._damping_nord_highorder_stencil = high_k_stencil_factory.from_dims_halo(
             func=damping_nord_highorder_stencil,
@@ -559,9 +533,6 @@ class DivergenceDamping:
                 dt,
             )
         self._copy_computeplus(divg_d, delpc)
-        # [DaCe] for loop issue, see DelnFluxNoSG
-        # Original code:
-        """
         for n in range(self._nonzero_nord):
             fillc = (
                 (n + 1 != self._nonzero_nord)
@@ -584,14 +555,6 @@ class DivergenceDamping:
             if fillc:
                 self._fill_corners_dgrid_stencil(vc, vc, uc, uc, -1.0)
             self._redo_divg_d_stencils[n](uc, vc, divg_d, self._rarea_c)
-        """
-        if self._n_vc_from_divg > 0:
-            self.unroll_nonzero_nord_0(divg_d, vc, uc)
-        if self._n_vc_from_divg > 1:
-            self.unroll_nonzero_nord_1(divg_d, vc, uc)
-        if self._n_vc_from_divg > 2:
-            self.unroll_nonzero_nord_2(divg_d, vc, uc)
-
         self._vorticity_calc(wk, v_contra_dxc, delpc, dt)
         self._damping_nord_highorder_stencil(
             v_contra_dxc,
