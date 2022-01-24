@@ -88,7 +88,7 @@ def call_sdfg(daceprog: DaceProgram, sdfg: dace.SDFG, args, kwargs, sdfg_final=F
 
         for sd in sdfg.all_sdfgs_recursive():
             scal2sym.promote_scalars_to_symbols(sd)
-        sdfg.coarsen_dataflow(validate=False)
+        sdfg.simplify(validate=False)
         res = sdfg(**sdfg_kwargs)
     else:
         res = daceprog(*args, **kwargs)
@@ -897,7 +897,7 @@ class LazyComputepathFunction:
                 **self.daceprog.__sdfg_closure__(),
                 **kwargs,
                 save=False,
-                coarsen=False,
+                simplify=False,
             )
         else:
             if not self._sdfg_loaded:
@@ -972,7 +972,7 @@ class LazyComputepathMethod:
                     **self.daceprog.__sdfg_closure__(),
                     **kwargs,
                     save=False,
-                    coarsen=False,
+                    simplify=False,
                 )
             else:
                 if os.path.isfile(self.lazy_method._load_sdfg):
