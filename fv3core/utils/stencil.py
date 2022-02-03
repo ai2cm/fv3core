@@ -43,6 +43,10 @@ from .gt4py_utils import make_storage_from_shape
 MPI = None
 
 
+def dace_inhibitor(f):
+    return f
+
+
 def to_gpu(sdfg: dace.SDFG):
     allmaps = [
         (me, state)
