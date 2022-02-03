@@ -53,7 +53,7 @@ class TranslateTracer2D1L(ParallelTranslate):
             self.grid.stencil_factory,
             transport,
             communicator,
-            fv_dynamics.NQ,
+            inputs["tracers"],
         )
         self.tracer_advection(**inputs)
         inputs[

@@ -1,4 +1,5 @@
 import math
+from typing import Dict
 
 import gt4py.gtscript as gtscript
 from gt4py.gtscript import PARALLEL, computation, horizontal, interval, region
@@ -14,6 +15,11 @@ from fv3core.stencils.fvtp2d import (
 )
 from fv3core.utils.stencil import StencilFactory, computepath_method
 from fv3core.utils.typing import FloatField, FloatFieldIJ
+from fv3core.stencils.dyn_core import AcousticDynamics
+
+# [DaCe] import dace & halo updater
+from dace import constant as dace_constant
+from fv3gfs.util import Quantity
 
 
 @gtscript.function
@@ -129,11 +135,10 @@ class TracerAdvection:
         stencil_factory: StencilFactory,
         transport: FiniteVolumeTransport,
         comm: fv3gfs.util.CubedSphereCommunicator,
-        tracer_count,
+        tracers: Dict[str, Quantity],
     ):
         grid_indexing = stencil_factory.grid_indexing
-        self._tracer_count = tracer_count
-        self.comm = comm
+        self._tracer_count = len(tracers)
         self.grid = spec.grid
         shape = grid_indexing.domain_full(add=(1, 1, 1))
         origin = grid_indexing.origin_compute()
@@ -187,22 +192,27 @@ class TracerAdvection:
 
         # Setup halo updater for tracers
         tracer_halo_spec = self.grid.get_halo_update_spec(shape, origin, utils.halo)
-        self._tracers_halo_updater = self.comm.get_scalar_halo_updater(
-            [tracer_halo_spec] * tracer_count
+        # [DaCe] Wrapping halo updater to a DaCe callback
+        self._tracers_halo_updater = AcousticDynamics._WrappedHaloUpdater(
+            comm.get_scalar_halo_updater([tracer_halo_spec] * self._tracer_count),
+            tracers,
+            [t for t in tracers.keys()],
         )
-        self._copy_corners = PreAllocatedCopiedCornersFactory(
-            stencil_factory=stencil_factory,
-            dims=[fv3gfs.util.X_DIM, fv3gfs.util.Y_DIM, fv3gfs.util.Z_DIM],
-            y_temporary=None,
-        )
+        # [DaCe] copy corners unrolled
+        # self._copy_corners = PreAllocatedCopiedCornersFactory(
+        #     stencil_factory=stencil_factory,
+        #     dims=[fv3gfs.util.X_DIM, fv3gfs.util.Y_DIM, fv3gfs.util.Z_DIM],
+        #     y_temporary=None,
+        # )
 
     @computepath_method
-    def __call__(self, tracers, dp1, mfxd, mfyd, cxd, cyd, mdt):
-        if len(tracers) != self._tracer_count:
-            raise ValueError(
-                f"incorrect number of tracers, {self._tracer_count} was "
-                f"specified on init but {len(tracers)} were passed"
-            )
+    def __call__(self, tracers: dace_constant, dp1, mfxd, mfyd, cxd, cyd, mdt):
+        # [DaCe] parsing unhapy, len callbacked
+        # if len(tracers) != self._tracer_count:
+        #     raise ValueError(
+        #         f"incorrect number of tracers, {self._tracer_count} was "
+        #         f"specified on init but {len(tracers)} were passed"
+        #     )
         # start HALO update on q (in dyn_core in fortran -- just has started when
         # this function is called...)
         self._flux_compute(
@@ -262,11 +272,13 @@ class TracerAdvection:
                 n_split,
             )
 
-        self._tracers_halo_updater.update(tracers.values())
+        # [DaCe] Wrapped halo update callback-style
+        self._tracers_halo_updater.update()
 
+        # [DaCe] aliasing doesn't parse
         dp2 = self._tmp_dp
 
-        for it in range(int(n_split)):
+        for it in range(n_split):
             last_call = it == n_split - 1
             self._dp_fluxadjustment(
                 dp1,
@@ -275,9 +287,11 @@ class TracerAdvection:
                 self.grid.rarea,
                 dp2,
             )
-            for q in tracers.values():
+            # [DaCe] unrolling for due to dict/list parsing issue when auto-unroll
+            # for tracer in tracers.values():
+            for tracer_name in tracers.keys():
                 self.finite_volume_transport(
-                    self._copy_corners(q.storage),
+                    tracers[tracer_name].storage,
                     cxd,
                     cyd,
                     self._tmp_xfx,
@@ -288,7 +302,7 @@ class TracerAdvection:
                     y_mass_flux=mfyd,
                 )
                 self._q_adjust(
-                    q.storage,
+                    tracers[tracer_name].storage,
                     dp1,
                     self._tmp_fx,
                     self._tmp_fy,
@@ -296,6 +310,10 @@ class TracerAdvection:
                     dp2,
                 )
             if not last_call:
-                self._tracers_halo_updater.update(tracers.values())
+                self._tracers_halo_updater.update()
                 # use variable assignment to avoid a data copy
-                dp1, dp2 = dp2, dp1
+                # [DaCe] : one liner swap is not dace parse friendly
+                # dp1, dp2 = dp2, dp1
+                tmp_dp = dp1
+                dp1 = dp2
+                dp2 = tmp_dp

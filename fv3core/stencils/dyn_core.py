@@ -1,3 +1,4 @@
+from types import SimpleNamespace
 from typing import Dict, Any
 
 from gt4py.gtscript import (
@@ -36,7 +37,7 @@ from fv3core.utils.grid import (
     axis_offsets,
     quantity_wrap,
 )
-from fv3core.utils.stencil import StencilFactory, computepath_method
+from fv3core.utils.stencil import StencilFactory, computepath_method, dace_inhibitor
 from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
 from fv3gfs.util import X_DIM, Y_DIM, Z_DIM, Z_INTERFACE_DIM
 
@@ -208,10 +209,6 @@ def dyncore_temporaries(grid_indexing: GridIndexing):
     return tmps
 
 
-def dace_inhibitor(f):
-    return f
-
-
 class AcousticDynamics:
     """
     Fortran name is dyn_core
@@ -231,14 +228,27 @@ class AcousticDynamics:
         @dace_inhibitor
         def start(self):
             if self._qtx_y_names is None:
-                self._updater.start(
-                    [self._state.__getattribute__(x) for x in self._qtx_x_names]
-                )
+                if isinstance(self._state, SimpleNamespace):
+                    self._updater.start(
+                        [self._state.__getattribute__(x) for x in self._qtx_x_names]
+                    )
+                elif isinstance(self._state, dict):
+                    self._updater.start([self._state[x] for x in self._qtx_x_names])
+                else:
+                    raise NotImplementedError
             else:
-                self._updater.start(
-                    [self._state.__getattribute__(x) for x in self._qtx_x_names],
-                    [self._state.__getattribute__(y) for y in self._qtx_y_names],
-                )
+                if isinstance(self._state, SimpleNamespace):
+                    self._updater.start(
+                        [self._state.__getattribute__(x) for x in self._qtx_x_names],
+                        [self._state.__getattribute__(y) for y in self._qtx_y_names],
+                    )
+                elif isinstance(self._state, dict):
+                    self._updater.start(
+                        [self._state[x] for x in self._qtx_x_names],
+                        [self._state[y] for y in self._qtx_y_names],
+                    )
+                else:
+                    raise NotImplementedError
 
         @dace_inhibitor
         def wait(self):
@@ -420,7 +430,7 @@ class AcousticDynamics:
             phis: surface geopotential height
         """
         grid_indexing = stencil_factory.grid_indexing
-        self.comm = comm
+        # [DaCe] comm is not used directly by dyn_core, only the updaters but those are callbacked
         self.config = config
         assert config.d_ext == 0, "d_ext != 0 is not implemented"
         assert config.beta == 0, "beta != 0 is not implemented"
@@ -587,21 +597,21 @@ class AcousticDynamics:
             domain=grid_indexing.domain_full(add=(0, 0, 1)),
         )
         # Halo updaters
-        self._halo_updaters = AcousticDynamics._HaloUpdaters(
-            self.comm, grid_indexing, state
-        )
+        self._halo_updaters = AcousticDynamics._HaloUpdaters(comm, grid_indexing, state)
 
     @computepath_method
     def __call__(
         self,
         state: dace.constant,
+        n_map=0,
         update_temporaries: dace.constant = True,
         do_halo_exchange: dace.constant = True,
     ):
         # u, v, w, delz, delp, pt, pe, pk, phis, wsd, omga, ua, va, uc, vc, mfxd,
         # mfyd, cxd, cyd, pkz, peln, q_con, ak, bk, diss_estd, cappa, mdt, n_split,
         # akap, ptop, n_map, comm):
-        end_step = state.n_map == self.config.k_split
+        # [DaCe] n_map issue
+        end_step = n_map == self.config.k_split
         akap = constants.KAPPA
         dt = state.mdt / self.config.n_split
         dt2 = 0.5 * dt
@@ -622,13 +632,15 @@ class AcousticDynamics:
         if update_temporaries:
             state.__dict__.update(self._temporaries)
 
+        # [DaCe]
+        # Orig: state.n_map == 1
         self._zero_data(
             state.mfxd,
             state.mfyd,
             state.cxd,
             state.cyd,
             state.diss_estd,
-            state.n_map == 1,
+            n_map == 1,
         )
 
         # "acoustic" loop
