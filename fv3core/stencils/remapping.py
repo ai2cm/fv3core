@@ -26,6 +26,9 @@ from fv3core.utils.grid import axis_offsets
 from fv3core.utils.stencil import StencilFactory, computepath_method
 from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
 
+# [DaCe] import
+from dace import constant as dace_constant
+from fv3gfs.util import Quantity
 
 CONSV_MIN = 0.001
 
@@ -196,10 +199,10 @@ def copy_from_below(a: FloatField, b: FloatField):
         b = a[0, 0, -1]
 
 
-def sum_te(te: FloatField, te0_2d: FloatField):
+def sum_te(te: FloatField, te0_2d: FloatFieldIJ):
     with computation(FORWARD):
         with interval(0, None):
-            te0_2d = te0_2d[0, 0, -1] + te
+            te0_2d = te0_2d + te
 
 
 class LagrangianToEulerian:
@@ -214,6 +217,7 @@ class LagrangianToEulerian:
         area_64,
         nq,
         pfull,
+        tracers: Dict[str, Quantity],
     ):
         grid_indexing = stencil_factory.grid_indexing
         if config.kord_tm >= 0:
@@ -288,6 +292,7 @@ class LagrangianToEulerian:
             grid_indexing.jsc,
             grid_indexing.jec,
             fill=config.fill,
+            tracers=tracers,
         )
 
         self._kord_wz = config.kord_wz
@@ -416,7 +421,7 @@ class LagrangianToEulerian:
     @computepath_method
     def __call__(
         self,
-        tracers: Dict[str, "FloatField"],
+        tracers: dace_constant,
         pt: FloatField,
         delp: FloatField,
         delz: FloatField,
