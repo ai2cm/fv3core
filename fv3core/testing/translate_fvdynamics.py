@@ -302,15 +302,19 @@ class TranslateFVDynamics(ParallelTranslateBaseSlicing):
             ak=state["atmosphere_hybrid_a_coordinate"],
             bk=state["atmosphere_hybrid_b_coordinate"],
             phis=state["surface_geopotential"],
+            state=state,
         )
-        self.dycore.step_dynamics(
-            state,
+        state = self.dycore.update_state(
             inputs["consv_te"],
             inputs["do_adiabatic_init"],
             inputs["bdt"],
             inputs["ptop"],
             inputs["n_split"],
             inputs["ks"],
+            state,
+        )
+        self.dycore.step_dynamics(
+            state,
         )
         outputs = self.outputs_from_state(state)
         for name, value in outputs.items():
