@@ -147,6 +147,7 @@ class TracerAdvection:
         self._tmp_fx = utils.make_storage_from_shape(shape, origin)
         self._tmp_fy = utils.make_storage_from_shape(shape, origin)
         self._tmp_dp = utils.make_storage_from_shape(shape, origin)
+        self._tmp_dp2 = utils.make_storage_from_shape(shape, origin)
         self._tmp_qn2 = self.grid.quantity_wrap(
             utils.make_storage_from_shape(shape, origin),
             units="kg/m^2",
@@ -289,9 +290,9 @@ class TracerAdvection:
             )
             # [DaCe] unrolling for due to dict/list parsing issue when auto-unroll
             # for tracer in tracers.values():
-            for tracer_name in tracers.keys():
+            for tracer in tracers.values():
                 self.finite_volume_transport(
-                    tracers[tracer_name].storage,
+                    tracer.storage,
                     cxd,
                     cyd,
                     self._tmp_xfx,
@@ -302,7 +303,7 @@ class TracerAdvection:
                     y_mass_flux=mfyd,
                 )
                 self._q_adjust(
-                    tracers[tracer_name].storage,
+                    tracer.storage,
                     dp1,
                     self._tmp_fx,
                     self._tmp_fy,
@@ -314,6 +315,6 @@ class TracerAdvection:
                 # use variable assignment to avoid a data copy
                 # [DaCe] : one liner swap is not dace parse friendly
                 # dp1, dp2 = dp2, dp1
-                tmp_dp = dp1
-                dp1 = dp2
-                dp2 = tmp_dp
+                self._tmp_dp2[:] = dp1
+                dp1[:] = dp2
+                dp2[:] = self._tmp_dp2
