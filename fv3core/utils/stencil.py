@@ -400,9 +400,9 @@ class FrozenStencil(SDFGConvertible):
     def __sdfg_closure__(self, *args, **kwargs):
         return self._frozen_stencil.__sdfg_closure__(*args, **kwargs)
 
-    def closure_resolver(self, constant_args, parent_closure=None):
+    def closure_resolver(self, constant_args, given_args, parent_closure=None):
         return self._frozen_stencil.closure_resolver(
-            constant_args, parent_closure=parent_closure
+            constant_args, given_args, parent_closure=parent_closure
         )
 
 
@@ -864,12 +864,6 @@ class LazyComputepathFunction:
         self._skip_dacemode = skip_dacemode
         self._load_sdfg = load_sdfg
         self.daceprog = dace.program(self.func)
-        # [DaCe]
-        # Removing all the annotation because FloatField.__descriptor__
-        # might cause conflict. Proper solution is to refactor FloatField
-        for pval in self.daceprog.signature.parameters.values():
-            if "Field<[" in str(pval.annotation):
-                pval._annotation = None
         self._sdfg_loaded = False
         self._sdfg = None
 
@@ -921,8 +915,8 @@ class LazyComputepathFunction:
     def __sdfg_signature__(self):
         return self.daceprog.argnames, self.daceprog.constant_args
 
-    def closure_resolver(self, constant_args, parent_closure=None):
-        return self.daceprog.closure_resolver(constant_args, parent_closure)
+    def closure_resolver(self, constant_args, given_args, parent_closure=None):
+        return self.daceprog.closure_resolver(constant_args, given_args, parent_closure)
 
     @property
     def use_dace(self):
@@ -941,12 +935,6 @@ class LazyComputepathMethod:
             self.obj_to_bind = obj_to_bind
             self.lazy_method = lazy_method
             self.daceprog = methodwrapper.__get__(obj_to_bind)
-            # [DaCe]
-            # Removing all the annotation because FloatField.__descriptor__
-            # might cause conflict. Proper solution is to refactor FloatField
-            for pval in self.daceprog.signature.parameters.values():
-                if "Field<[" in str(pval.annotation):
-                    pval._annotation = None
 
         @property
         def global_vars(self):
@@ -995,8 +983,10 @@ class LazyComputepathMethod:
         def __sdfg_signature__(self):
             return self.daceprog.argnames, self.daceprog.constant_args
 
-        def closure_resolver(self, constant_args, parent_closure=None):
-            return self.daceprog.closure_resolver(constant_args, parent_closure)
+        def closure_resolver(self, constant_args, given_args, parent_closure=None):
+            return self.daceprog.closure_resolver(
+                constant_args, given_args, parent_closure
+            )
 
     def __init__(self, func, use_dace, skip_dacemode, load_sdfg, arg_spec):
         self.func = func

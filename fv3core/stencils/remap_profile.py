@@ -281,7 +281,6 @@ def apply_constraints(
 
 
 def set_interpolation_coefficients(
-    q: FloatField,
     gam: FloatField,
     a4_1: FloatField,
     a4_2: FloatField,
@@ -624,7 +623,6 @@ class RemapProfile:
             )
 
             self._set_interpolation_coefficients(
-                self._q,
                 self._gam,
                 a4_1,
                 a4_2,
