@@ -1,4 +1,5 @@
 from typing import Mapping
+from types import SimpleNamespace
 
 from gt4py.gtscript import PARALLEL, computation, interval, log
 
@@ -79,12 +80,10 @@ def fvdyn_temporaries(quantity_factory: fv3gfs.util.QuantityFactory, shape, grid
     return tmps
 
 
-class DynamicalCore:
-    """
-    Corresponds to fv_dynamics in original Fortran sources.
-    """
-
-    arg_specs = (
+# [DaCe] Split the argspec out to reference it without needing to reference
+# dycore itself
+class DynamicalCoreArgSpec:
+    values = (
         ArgSpec("qvapor", "specific_humidity", "kg/kg", intent="inout"),
         ArgSpec("qliquid", "cloud_water_mixing_ratio", "kg/kg", intent="inout"),
         ArgSpec("qrain", "rain_mixing_ratio", "kg/kg", intent="inout"),
@@ -138,6 +137,12 @@ class DynamicalCore:
         ),
     )
 
+
+class DynamicalCore:
+    """
+    Corresponds to fv_dynamics in original Fortran sources.
+    """
+
     def __init__(
         self,
         comm: fv3gfs.util.CubedSphereCommunicator,
@@ -148,7 +153,7 @@ class DynamicalCore:
         ak: fv3gfs.util.Quantity,
         bk: fv3gfs.util.Quantity,
         phis: fv3gfs.util.Quantity,
-        state: Mapping[str, fv3gfs.util.Quantity],
+        state: SimpleNamespace,
     ):
         """
         Args:
@@ -199,7 +204,6 @@ class DynamicalCore:
         )
 
         # [DaCe] Build tracers names & storages
-        state = get_namespace(self.arg_specs, state)
         self.tracers = {}
         for name in utils.tracer_variables[0:NQ]:
             self.tracers[name] = state.__dict__[name + "_quantity"]
@@ -313,10 +317,9 @@ class DynamicalCore:
         ptop,
         n_split,
         ks,
-        state,
+        state: SimpleNamespace,
     ):
-        # Namespacify & update state
-        state = get_namespace(self.arg_specs, state)
+        # [DaCe] Update state
         state.__dict__.update(
             {
                 "consv_te": conserve_total_energy,
@@ -331,7 +334,6 @@ class DynamicalCore:
         )
         state.__dict__.update(self._temporaries)
         state.__dict__.update(self.acoustic_dynamics._temporaries)
-        return state
 
     # [DaCe] move compute_preamble inside the class to go around an issue
     #       with passing stencils as a parameter

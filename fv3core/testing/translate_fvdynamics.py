@@ -8,6 +8,8 @@ import fv3core.utils.gt4py_utils as utils
 import fv3gfs.util as fv3util
 from fv3core.testing import ParallelTranslateBaseSlicing
 
+# [DaCe]
+from fv3core.decorators import get_namespace
 
 ADVECTED_TRACER_NAMES = utils.tracer_variables[: fv_dynamics.NQ]
 
@@ -292,19 +294,20 @@ class TranslateFVDynamics(ParallelTranslateBaseSlicing):
             )
 
         inputs["comm"] = communicator
-        state = self.state_from_inputs(inputs)
+        dict_state = self.state_from_inputs(inputs)
+        state = get_namespace(fv_dynamics.DynamicalCoreArgSpec.values, dict_state)
         self.dycore = fv_dynamics.DynamicalCore(
             comm=communicator,
             grid_data=spec.grid.grid_data,
             stencil_factory=spec.grid.stencil_factory,
             damping_coefficients=spec.grid.damping_coefficients,
             config=spec.namelist.dynamical_core,
-            ak=state["atmosphere_hybrid_a_coordinate"],
-            bk=state["atmosphere_hybrid_b_coordinate"],
-            phis=state["surface_geopotential"],
+            ak=dict_state["atmosphere_hybrid_a_coordinate"],
+            bk=dict_state["atmosphere_hybrid_b_coordinate"],
+            phis=dict_state["surface_geopotential"],
             state=state,
         )
-        state = self.dycore.update_state(
+        self.dycore.update_state(
             inputs["consv_te"],
             inputs["do_adiabatic_init"],
             inputs["bdt"],
@@ -316,7 +319,9 @@ class TranslateFVDynamics(ParallelTranslateBaseSlicing):
         self.dycore.step_dynamics(
             state,
         )
-        outputs = self.outputs_from_state(state)
+        # [DaCe] Go back to dict for output sampling
+        dict_state.update(state.__dict__)
+        outputs = self.outputs_from_state(dict_state)
         for name, value in outputs.items():
             outputs[name] = self.subset_output(name, value)
         return outputs
@@ -341,12 +346,36 @@ class TranslateFVDynamics(ParallelTranslateBaseSlicing):
             varname in self.dycore.selective_names  # type: ignore
         ):
             return_value = self.dycore.subset_output(varname, output)  # type: ignore
-        if varname in ADVECTED_TRACER_NAMES and hasattr(
-            self.dycore.tracer_advection, "subset_output"
-        ):
-            return_value = self.dycore.tracer_advection.subset_output(  # type: ignore
-                "tracers", output
+
+        if varname in ADVECTED_TRACER_NAMES:
+            # [DaCe] Unroll tracer selective validation
+            # Original code
+            # if varname in ADVECTED_TRACER_NAMES and hasattr(
+            #     self.dycore.tracer_advection, "subset_output"
+            # ):
+            #     return_value = self.dycore.tracer_advection.subset_output(  # type: ignore
+            #         "tracers", output
+            #     )
+            # else:
+            #     return_value = output
+            def get_compute_domain_k_interfaces(
+                instance,
+            ):
+                try:
+                    origin = instance.grid_indexing.origin_compute()
+                    domain = instance.grid_indexing.domain_compute(add=(0, 0, 1))
+                except AttributeError:
+                    origin = instance.grid.compute_origin()
+                    domain = instance.grid.domain_shape_compute(add=(0, 0, 1))
+                return origin, domain
+
+            origin, domain = get_compute_domain_k_interfaces(
+                self.dycore.tracer_advection
             )
+            self._validation_slice = tuple(
+                slice(start, start + n) for start, n in zip(origin, domain)
+            )
+            return_value = output[self._validation_slice]
         else:
             return_value = output
         return return_value

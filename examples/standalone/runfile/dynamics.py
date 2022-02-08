@@ -40,6 +40,11 @@ import fv3core
 import fv3core._config as spec
 import fv3core.testing
 
+# [DaCe] Transform state outside of FV_Dynamics in order to have valid references
+# in halo ex callbacks
+from fv3core.decorators import get_namespace
+import fv3core.stencils.fv_dynamics as fv_dynamics
+
 
 def set_experiment_info(
     experiment_name: str, time_step: int, backend: str, git_hash: str
@@ -221,7 +226,10 @@ def driver(
         driver_object = fv3core.testing.TranslateFVDynamics([grid])
         input_data = driver_object.collect_input_data(serializer, savepoint_in)
         input_data["comm"] = communicator
-        state = driver_object.state_from_inputs(input_data)
+        dict_state = driver_object.state_from_inputs(input_data)
+        # [DaCe] Transform state outside of FV_Dynamics in order to have valid references
+        # in halo ex callbacks
+        state = get_namespace(fv_dynamics.DynamicalCoreArgSpec.values, dict_state)
 
         dycore = fv3core.DynamicalCore(
             comm=communicator,
@@ -229,12 +237,12 @@ def driver(
             stencil_factory=spec.grid.stencil_factory,
             damping_coefficients=spec.grid.damping_coefficients,
             config=spec.namelist.dynamical_core,
-            ak=state["atmosphere_hybrid_a_coordinate"],
-            bk=state["atmosphere_hybrid_b_coordinate"],
-            phis=state["surface_geopotential"],
+            ak=dict_state["atmosphere_hybrid_a_coordinate"],
+            bk=dict_state["atmosphere_hybrid_b_coordinate"],
+            phis=dict_state["surface_geopotential"],
             state=state,
         )
-        state = dycore.update_state(
+        dycore.update_state(
             input_data["consv_te"],
             input_data["do_adiabatic_init"],
             input_data["bdt"],
@@ -269,24 +277,12 @@ def driver(
         for _ in range(time_steps):
             dycore.step_dynamics(
                 state,
-                input_data["consv_te"],
-                input_data["do_adiabatic_init"],
-                input_data["bdt"],
-                input_data["ptop"],
-                input_data["n_split"],
-                input_data["ks"],
             )
 
     def dycore_loop_non_orchestrated(state: dace.constant, time_steps: int):
         for _ in range(time_steps):
             dycore.step_dynamics(
                 state,
-                input_data["consv_te"],
-                input_data["do_adiabatic_init"],
-                input_data["bdt"],
-                input_data["ptop"],
-                input_data["n_split"],
-                input_data["ks"],
             )
 
     # Cache warm up and loop function selection

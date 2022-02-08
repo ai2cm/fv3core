@@ -179,7 +179,7 @@ def enable_selective_validation():
     # make absolutely sure you don't write just the savepoint name, this would
     # selecively validate without making sure it's safe to do so
 
-    # [DaCe] can't parse set_nans, see above
+    # [DaCe] can't parse set_nans, see above. Actual selective slicing moved to TranslateFVDynamics
     # fv3core.stencils.tracer_2d_1l.TracerAdvection = get_selective_tracer_advection(
     #     fv3core.stencils.tracer_2d_1l.TracerAdvection,
     #     get_compute_domain_k_interfaces,
