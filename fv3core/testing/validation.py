@@ -179,10 +179,11 @@ def enable_selective_validation():
     # make absolutely sure you don't write just the savepoint name, this would
     # selecively validate without making sure it's safe to do so
 
-    fv3core.stencils.tracer_2d_1l.TracerAdvection = get_selective_tracer_advection(
-        fv3core.stencils.tracer_2d_1l.TracerAdvection,
-        get_compute_domain_k_interfaces,
-    )
+    # [DaCe] can't parse set_nans, see above
+    # fv3core.stencils.tracer_2d_1l.TracerAdvection = get_selective_tracer_advection(
+    #     fv3core.stencils.tracer_2d_1l.TracerAdvection,
+    #     get_compute_domain_k_interfaces,
+    # )
 
     fv3core.stencils.divergence_damping.DivergenceDamping = get_selective_class(
         fv3core.stencils.divergence_damping.DivergenceDamping,
