@@ -144,6 +144,5 @@ class TranslateDynCore(ParallelTranslate2PyState):
             state=statevars,
         )
         statevars.__dict__.update(acoustics._temporaries)
-
-        acoustics(state=statevars, update_temporaries=False)
+        acoustics(state=statevars, update_temporaries=False, n_map=statevars.n_map)
         return self._base.slice_output(vars(statevars))
