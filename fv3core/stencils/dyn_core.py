@@ -41,6 +41,7 @@ from fv3core.utils.stencil import StencilFactory, computepath_method, dace_inhib
 from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
 from fv3gfs.util import X_DIM, Y_DIM, Z_DIM, Z_INTERFACE_DIM
 
+# [DaCe] import
 import dace
 
 HUGE_R = 1.0e40
@@ -603,7 +604,7 @@ class AcousticDynamics:
     def __call__(
         self,
         state: dace.constant,
-        n_map=0,
+        n_map=1,
         update_temporaries: dace.constant = True,
         do_halo_exchange: dace.constant = True,
     ):

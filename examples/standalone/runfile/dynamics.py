@@ -147,17 +147,7 @@ def collect_data_and_write_to_file(
         write_global_timings(results)
 
 
-@click.command()
-@click.argument("data_directory", required=True, nargs=1)
-@click.argument("time_steps", required=False, default="1", type=int)
-@click.argument("backend", required=False, default="gtc:gt:cpu_ifirst")
-@click.argument("hash", required=False, default="")
-@click.argument("sdfg_path", required=False, default="")
-@click.option("--disable_halo_exchange/--no-disable_halo_exchange", default=False)
-@click.option("--disable_json_dump/--no-disable_json_dump", default=False)
-@click.option("--print_timings/--no-print_timings", default=True)
-@click.option("--profile/--no-profile", default=False)
-def driver(
+def run(
     data_directory: str,
     time_steps: str,
     backend: str,
@@ -244,8 +234,8 @@ def driver(
         )
         dycore.update_state(
             input_data["consv_te"],
-            input_data["do_adiabatic_init"],
             input_data["bdt"],
+            input_data["do_adiabatic_init"],
             input_data["ptop"],
             input_data["n_split"],
             input_data["ks"],
@@ -286,17 +276,26 @@ def driver(
             )
 
     # Cache warm up and loop function selection
+    dace_orchestrated_backend = "dace" in backend and get_dacemode()
+    print(f"DaCe orchestration: {dace_orchestrated_backend}")
     print("Cache warming run")
+
     dycore_fn = None
-    if backend == "gtc:dace":
+    if dace_orchestrated_backend and backend == "gtc:dace":
         dycore_fn = dycore_loop_on_cpu
-    elif backend == "gtc:dace:gpu":
+    elif dace_orchestrated_backend and backend == "gtc:dace:gpu":
         dycore_fn = dycore_loop_on_gpu
     else:
+        dycore_fn = dycore_loop_non_orchestrated
+
+    if not dace_orchestrated_backend:
+        print("Running non-orchestrated")
         dacemode = get_dacemode()
         set_dacemode(False)
-        dycore_fn = dycore_loop_non_orchestrated
-    dycore_fn(state, 1)
+        dycore_fn(state, 1)
+        set_dacemode(dacemode)
+    else:
+        dycore_fn(state, 1)
 
     if time_steps == 0:
         print("Cached built only - no benchmarked run")
@@ -307,10 +306,23 @@ def driver(
             f"given, performance will be poor."
         )
 
-    reference_run = False
-    if reference_run:
-        dacemode = get_dacemode()
-        set_dacemode(False)
+    if dace_orchestrated_backend:
+        if args.profile:
+            profiler = cProfile.Profile()
+            profiler.enable()
+
+        try:
+            dycore_fn(state, time_steps)
+        finally:
+            if args.profile:
+                profiler.disable()
+                s = io.StringIO()
+                sortby = pstats.SortKey.CUMULATIVE
+                ps = pstats.Stats(profiler, stream=s).sort_stats(sortby)
+                ps.print_stats()
+                print(s.getvalue())
+                profiler.dump_stats(f"fv3core_{experiment_name}_{backend}_{rank}.prof")
+    else:
         import time
 
         start = time.time()
@@ -328,26 +340,77 @@ def driver(
             print(s.getvalue())
             set_dacemode(dacemode)
         print(f"{backend} time:", time.time() - start)
-    else:
-        if args.profile:
-            profiler = cProfile.Profile()
-            profiler.enable()
-
-        try:
-            dycore_fn(state, time_steps)
-        finally:
-            if args.profile:
-                profiler.disable()
-                s = io.StringIO()
-                sortby = pstats.SortKey.CUMULATIVE
-                ps = pstats.Stats(profiler, stream=s).sort_stats(sortby)
-                ps.print_stats()
-                print(s.getvalue())
-                profiler.dump_stats(f"fv3core_{experiment_name}_{backend}_{rank}.prof")
 
     MPI.COMM_WORLD.Barrier()
     if rank == 0:
         print("SUCCESS")
+
+    return state
+
+
+@click.command()
+@click.argument("data_directory", required=True, nargs=1)
+@click.argument("time_steps", required=False, default="1", type=int)
+@click.argument("backend", required=False, default="gtc:gt:cpu_ifirst")
+@click.argument("hash", required=False, default="")
+@click.argument("sdfg_path", required=False, default="")
+@click.option("--disable_halo_exchange/--no-disable_halo_exchange", default=False)
+@click.option("--disable_json_dump/--no-disable_json_dump", default=False)
+@click.option("--print_timings/--no-print_timings", default=True)
+@click.option("--profile/--no-profile", default=False)
+@click.option("--check_against_numpy/--no-check_against_numpy", default=False)
+def driver(
+    data_directory: str,
+    time_steps: str,
+    backend: str,
+    hash: str,
+    sdfg_path: str,
+    disable_halo_exchange: bool,
+    disable_json_dump: bool,
+    print_timings: bool,
+    profile: bool,
+    check_against_numpy: bool,
+):
+    state = run(
+        data_directory=data_directory,
+        time_steps=time_steps,
+        backend=backend,
+        hash=hash,
+        sdfg_path=sdfg_path,
+        disable_halo_exchange=disable_halo_exchange,
+        disable_json_dump=disable_json_dump,
+        print_timings=print_timings,
+        profile=profile,
+    )
+    if check_against_numpy:
+        ref_state = run(
+            data_directory=data_directory,
+            time_steps=time_steps,
+            backend="numpy",
+            hash=hash + "_numpy",
+            sdfg_path=sdfg_path,
+            disable_halo_exchange=disable_halo_exchange,
+            disable_json_dump=disable_json_dump,
+            print_timings=print_timings,
+            profile=profile,
+        )
+
+    if check_against_numpy:
+        for name, ref_value in ref_state.__dict__.items():
+
+            if name in {"mfxd", "mfyd"}:
+                continue
+            value = state.__dict__[name]
+            if isinstance(ref_value, util.quantity.Quantity):
+                ref_value = ref_value.storage
+            if isinstance(value, util.quantity.Quantity):
+                value = value.storage
+            if hasattr(value, "device_to_host"):
+                value.device_to_host()
+            if hasattr(value, "shape") and len(value.shape) == 3:
+                value = np.asarray(value)[1:-1, 1:-1, :]
+                ref_value = np.asarray(ref_value)[1:-1, 1:-1, :]
+            np.testing.assert_allclose(ref_value, value, err_msg=name)
 
 
 if __name__ == "__main__":
