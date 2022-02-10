@@ -17,6 +17,7 @@ def copy_stencil(q_in: FloatField, q_out: FloatField):
     with computation(PARALLEL), interval(...):
         q_out = q_in
 
+
 def add_stencil(q_in: FloatField, q_out: FloatField):
     with computation(PARALLEL), interval(...):
         q_out = q_in + 1
@@ -33,8 +34,8 @@ def test_computepath(
     format_source: bool,
     device_sync: bool,
 ):
-    if 'dace' not in backend:
-        pytest.skip(f'DaCe backend must be used, {backend} given')
+    if "dace" not in backend:
+        pytest.skip(f"DaCe backend must be used, {backend} given")
     config = StencilConfig(
         backend=backend,
         rebuild=rebuild,
@@ -45,24 +46,31 @@ def test_computepath(
     print(backend)
     stencil1 = FrozenStencil(
         copy_stencil,
-        origin=(0, 0, 0),
-        domain=(3, 3, 3),
+        origin=(3, 3, 0),
+        domain=(12, 12, 79),
         stencil_config=config,
         externals={},
     )
     stencil2 = FrozenStencil(
         add_stencil,
-        origin=(0, 0, 0),
-        domain=(3, 3, 3),
+        origin=(3, 3, 0),
+        domain=(12, 12, 79),
         stencil_config=config,
         externals={},
     )
-    q_in = make_storage_from_shape_uncached((3, 3, 3))
+    q_in = make_storage_from_shape_uncached((19, 19, 80), (3, 3, 0))
     q_in[:] = 1.0
-    q_interim = make_storage_from_shape_uncached((3, 3, 3))
+    q_interim = make_storage_from_shape_uncached((19, 19, 80), (3, 3, 0))
     q_interim[:] = 2.0
-    q_out = make_storage_from_shape_uncached((3, 3, 3))
+    q_out = make_storage_from_shape_uncached((19, 19, 80), (3, 3, 0))
     q_out[:] = 3.0
+
+    import cupy as cp
+
+    expected_interim = cp.asnumpy(q_interim.copy())
+    expected_interim[3:15, 3:15, 0:79] = q_in[3:15, 3:15, 0:79]
+    expected_out = cp.asnumpy(q_out.copy())
+    expected_out[3:15, 3:15, 0:79] = expected_interim[3:15, 3:15, 0:79] + 1
 
     @computepath_function
     def orchestrated(q_in, q_interim, q_out):
@@ -71,8 +79,8 @@ def test_computepath(
 
     orchestrated(q_in, q_interim, q_out)
 
-    assert np.allclose(q_in, q_interim)
-    assert np.allclose(q_in + 1, q_out)
+    assert np.allclose(q_interim, expected_interim)
+    assert np.allclose(q_out, expected_out)
 
 
 @pytest.mark.parametrize("rebuild", [False])
@@ -86,8 +94,8 @@ def test_computepath_return(
     format_source: bool,
     device_sync: bool,
 ):
-    if 'dace' not in backend:
-        pytest.skip(f'DaCe backend must be used, {backend} given')
+    if "dace" not in backend:
+        pytest.skip(f"DaCe backend must be used, {backend} given")
     config = StencilConfig(
         backend=backend,
         rebuild=rebuild,
@@ -98,24 +106,31 @@ def test_computepath_return(
     print(backend)
     stencil1 = FrozenStencil(
         copy_stencil,
-        origin=(0, 0, 0),
-        domain=(3, 3, 3),
+        origin=(3, 3, 0),
+        domain=(12, 12, 79),
         stencil_config=config,
         externals={},
     )
     stencil2 = FrozenStencil(
         add_stencil,
-        origin=(0, 0, 0),
-        domain=(3, 3, 3),
+        origin=(3, 3, 0),
+        domain=(12, 12, 79),
         stencil_config=config,
         externals={},
     )
-    q_in = make_storage_from_shape_uncached((3, 3, 3))
+    q_in = make_storage_from_shape_uncached((19, 19, 80), (3, 3, 0))
     q_in[:] = 1.0
-    gq_interim = make_storage_from_shape_uncached((3, 3, 3))
+    gq_interim = make_storage_from_shape_uncached((19, 19, 80), (3, 3, 0))
     gq_interim[:] = 2.0
-    q_out = make_storage_from_shape_uncached((3, 3, 3))
+    q_out = make_storage_from_shape_uncached((19, 19, 80), (3, 3, 0))
     q_out[:] = 3.0
+
+    import cupy as cp
+
+    expected_interim = cp.asnumpy(gq_interim.copy())
+    expected_interim[3:15, 3:15, 0:79] = q_in[3:15, 3:15, 0:79]
+    expected_out = cp.asnumpy(q_out.copy())
+    expected_out[3:15, 3:15, 0:79] = expected_interim[3:15, 3:15, 0:79] + 1
 
     def nested(q_in):
         stencil1(q_in, gq_interim)
@@ -123,10 +138,10 @@ def test_computepath_return(
 
     @computepath_function
     def orchestrated(q_in, q_out):
-        q_interim = nested(q_in)       
+        q_interim = nested(q_in)
         stencil2(q_interim, q_out)
 
     orchestrated(q_in, q_out)
 
-    assert np.allclose(q_in, gq_interim)
-    assert np.allclose(q_in + 1, q_out)
+    assert np.allclose(gq_interim, expected_interim)
+    assert np.allclose(q_out, expected_out)
