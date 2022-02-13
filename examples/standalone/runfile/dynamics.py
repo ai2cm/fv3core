@@ -255,14 +255,17 @@ def run(
         else:
             sdfg_path = None
 
-    @computepath_function(sdfg_path=sdfg_path)
+    if sdfg_path != "":
+        print(f"Loading SDFG {sdfg_path}")
+
+    @computepath_function(load_sdfg=sdfg_path)
     def dycore_loop_on_cpu(state: dace.constant, time_steps: int):
         for _ in range(time_steps):
             dycore.step_dynamics(
                 state,
             )
 
-    @computepath_function(sdfg_path=sdfg_path)
+    @computepath_function(load_sdfg=sdfg_path)
     def dycore_loop_on_gpu(state: dace.constant, time_steps: int):
         for _ in range(time_steps):
             dycore.step_dynamics(
