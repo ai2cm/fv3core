@@ -59,6 +59,9 @@ def set_dacemode(dacemode: bool):
     _DACEMODE = dacemode
 
 
+# [DaCe] See description below. Dangerous, should be refactored out
+# Either we can JIT properly via GTC or the compute path need to be able
+# to trigger compilation at call time properly if you haven't anyone above you
 def is_dacemode_codegen_whitelisted(func: Callable[..., None]) -> bool:
     """Whitelist of stencil function that need code generation in DACE mode.
     Some stencils are called within the __init__ and therefore will need to
@@ -72,6 +75,8 @@ def is_dacemode_codegen_whitelisted(func: Callable[..., None]) -> bool:
         "set_pem",
         "copy_defn",
         "compute_geopotential",
+        # DynamicalCore
+        "init_pfull",
     ]
     return any(func.__name__ in name for name in whitelist)
 
