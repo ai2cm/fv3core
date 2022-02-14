@@ -29,6 +29,7 @@ from fv3gfs.util.halo_updater import HaloUpdater
 
 # [DaCe] dace.constant
 from dace import constant as dace_constant
+from dace.frontend.python.interface import nounroll as dace_no_unroll
 
 # nq is actually given by ncnst - pnats, where those are given in atmosphere.F90 by:
 # ncnst = Atm(mytile)%ncnst
@@ -431,7 +432,8 @@ class DynamicalCore:
             is_root_rank=self.comm_rank == 0,
         )
 
-        for k_split in range(state.k_split):
+        # [DaCe] Do not unroll this top-level loop to contain compile time
+        for k_split in dace_no_unroll(range(state.k_split)):
             # [DaCe] can't change the global state (declared constant), can't pass it down to acoustics substep (bad types at parsing dace.Scalar)
             # state.n_map = k_split + 1
             n_map = k_split + 1

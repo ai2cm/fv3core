@@ -43,6 +43,7 @@ from fv3gfs.util import X_DIM, Y_DIM, Z_DIM, Z_INTERFACE_DIM
 
 # [DaCe] import
 import dace
+from dace.frontend.python.interface import nounroll as dace_nounroll
 
 HUGE_R = 1.0e40
 
@@ -512,15 +513,12 @@ class AcousticDynamics:
             )
         )
 
-        # [DaCe] Pre-allocated delpc/ptc fields that are temporary to the
-        # acoustics computation. Before they were dynamically added to state
-        # which DaCe can't parse during orchestration
-        # self.delpc = utils.make_storage_from_shape(
-        #     grid_indexing.domain_full(add=(1, 1, 1))
-        # )
-        # self.ptc = utils.make_storage_from_shape(
-        #     grid_indexing.domain_full(add=(1, 1, 1))
-        # )
+        self.delpc = utils.make_storage_from_shape(
+            grid_indexing.domain_full(add=(1, 1, 1))
+        )
+        self.ptc = utils.make_storage_from_shape(
+            grid_indexing.domain_full(add=(1, 1, 1))
+        )
 
         self.cgrid_shallow_water_lagrangian_dynamics = CGridShallowWaterDynamics(
             stencil_factory,
@@ -648,7 +646,8 @@ class AcousticDynamics:
         # called this because its timestep is usually limited by horizontal sound-wave
         # processes. Note this is often not the limiting factor near the poles, where
         # the speed of the polar night jets can exceed two-thirds of the speed of sound.
-        for it in range(n_split):
+        # [DaCe] Do not unroll this top-level loop to contain compile time
+        for it in dace_nounroll(range(n_split)):
             # the Lagrangian dynamics have two parts. First we advance the C-grid winds
             # by half a time step (c_sw). Then the C-grid winds are used to define
             # advective fluxes to advance the D-grid prognostic fields a full time step
@@ -688,10 +687,7 @@ class AcousticDynamics:
                 self._halo_updaters.w.wait()
 
             # compute the c-grid winds at t + 1/2 timestep
-            # [DaCe] pass delpc and ptc to go around a return value bug in DaCe (fixed)
-            #        We leverage the c_sw inner allocated delpc/ptc
-            # Original code: self.delpc, self.ptc = self.cgrid_shallow_water_lagrangian_dynamics(...)
-            self.cgrid_shallow_water_lagrangian_dynamics(
+            self.delpc, self.ptc = self.cgrid_shallow_water_lagrangian_dynamics(
                 state.delp,
                 state.pt,
                 state.u,
@@ -732,9 +728,9 @@ class AcousticDynamics:
                     state.ptop,
                     state.phis,
                     state.ws3,
-                    self.cgrid_shallow_water_lagrangian_dynamics.ptc,  # [DaCe] inner usage of c_sw
+                    self.ptc,
                     state.q_con,
-                    self.cgrid_shallow_water_lagrangian_dynamics.delpc,  # [DaCe] inner usage of c_sw
+                    self.delpc,
                     state.gz,
                     state.pkc,
                     state.omga,
@@ -745,7 +741,7 @@ class AcousticDynamics:
                 self.grid_data.rdyc,
                 state.uc,
                 state.vc,
-                self.cgrid_shallow_water_lagrangian_dynamics.delpc,  # [DaCe] inner usage of c_sw
+                self.delpc,  # [DaCe] inner usage of c_sw
                 state.pkc,
                 state.gz,
                 dt2,
@@ -760,7 +756,7 @@ class AcousticDynamics:
             self.dgrid_shallow_water_lagrangian_dynamics(
                 state.vt,
                 state.delp,
-                self.cgrid_shallow_water_lagrangian_dynamics.ptc,  # [DaCe] inner usage of c_sw
+                self.ptc,
                 state.pt,
                 state.u,
                 state.v,
