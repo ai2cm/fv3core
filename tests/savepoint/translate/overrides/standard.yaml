@@ -130,6 +130,9 @@ DynCore:
  - backend: gtc:dace:gpu
    ignore_near_zero_errors:
      - wsd
+ - backend: gtc:dace
+   ignore_near_zero_errors:
+     - wsd
  - backend: gtc:cuda
    ignore_near_zero_errors:
      - wsd

@@ -139,7 +139,7 @@ dmypy.json
 .vscode/
 
 # GT4Py
-**/.gt_cache/
+**/.gt_cache*/
 gt4py/
 
 # Run outputs
