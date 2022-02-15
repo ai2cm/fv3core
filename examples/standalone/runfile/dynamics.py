@@ -308,6 +308,9 @@ def run(
     else:
         dycore_fn(state, 1)
 
+    # Ready to time
+    timer.reset()
+
     if time_steps == 0:
         print("Cached built only - no benchmarked run")
         return
@@ -318,40 +321,12 @@ def run(
         )
 
     if dace_orchestrated_backend:
-        if args.profile:
-            profiler = cProfile.Profile()
-            profiler.enable()
-
-        try:
-            with timer.clock("mainloop_orchestrated"):
-                dycore_fn(state, time_steps)
-        finally:
-            if args.profile:
-                profiler.disable()
-                s = io.StringIO()
-                sortby = pstats.SortKey.CUMULATIVE
-                ps = pstats.Stats(profiler, stream=s).sort_stats(sortby)
-                ps.print_stats()
-                print(s.getvalue())
-                profiler.dump_stats(f"fv3core_{experiment_name}_{backend}_{rank}.prof")
-    else:
-        import time
-
-        start = time.time()
-        pr = cProfile.Profile()
-        pr.enable()
-
-        try:
+        with timer.clock("mainloop_orchestrated"):
             dycore_fn(state, time_steps)
-        finally:
-            pr.disable()
-            s = io.StringIO()
-            sortby = pstats.SortKey.CUMULATIVE
-            ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
-            ps.print_stats()
-            print(s.getvalue())
-            set_dacemode(dacemode)
-        print(f"{backend} time:", time.time() - start)
+    else:
+        with timer.clock("mainloop_not_orchestrated"):
+            dycore_fn(state, time_steps)
+        set_dacemode(dacemode)
 
     timer.stop("total")
 
