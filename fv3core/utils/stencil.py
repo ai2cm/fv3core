@@ -31,6 +31,8 @@ from gtc.passes.oir_pipeline import DefaultPipeline, OirPipeline
 
 import fv3gfs.util
 from fv3core.utils import global_config
+# [DaCe] import
+from fv3core.utils.dace.sdfg_opt_passes import refine_permute_arrays
 from fv3core.utils.future_stencil import future_stencil
 from fv3core.utils.mpi import MPI
 from fv3core.utils.typing import Index3D, cast_to_index3d
@@ -38,9 +40,6 @@ from fv3gfs.util.halo_data_transformer import QuantityHaloSpec
 
 from .gt4py_utils import make_storage_from_shape
 
-
-# [DaCe] import
-from fv3core.utils.dace.sdfg_opt_passes import refine_permute_arrays
 
 # [DaCe] Deacticate, the distributed compilation
 MPI = None
@@ -90,6 +89,9 @@ def call_sdfg(daceprog: DaceProgram, sdfg: dace.SDFG, args, kwargs, sdfg_final=F
             if k in sdfg_kwargs:
                 del sdfg_kwargs[k]
         sdfg_kwargs = {k: v for k, v in sdfg_kwargs.items() if v is not None}
+        for k, tup in daceprog.resolver.closure_arrays.items():
+            if k in sdfg_kwargs and tup[1].transient:
+                del sdfg_kwargs[k]
 
         # Promote scalar
         from dace.sdfg.analysis import scalar_to_symbol as scal2sym
