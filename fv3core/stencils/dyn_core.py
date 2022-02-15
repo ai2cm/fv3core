@@ -602,14 +602,13 @@ class AcousticDynamics:
     def __call__(
         self,
         state: dace.constant,
-        n_map=1,
+        n_map=1,  # [DaCe] replaces state.n_map
         update_temporaries: dace.constant = True,
         do_halo_exchange: dace.constant = True,
     ):
         # u, v, w, delz, delp, pt, pe, pk, phis, wsd, omga, ua, va, uc, vc, mfxd,
         # mfyd, cxd, cyd, pkz, peln, q_con, ak, bk, diss_estd, cappa, mdt, n_split,
         # akap, ptop, n_map, comm):
-        # [DaCe] n_map issue
         end_step = n_map == self.config.k_split
         akap = constants.KAPPA
         dt = state.mdt / self.config.n_split
@@ -631,8 +630,6 @@ class AcousticDynamics:
         if update_temporaries:
             state.__dict__.update(self._temporaries)
 
-        # [DaCe]
-        # Orig: state.n_map == 1
         self._zero_data(
             state.mfxd,
             state.mfyd,
@@ -741,7 +738,7 @@ class AcousticDynamics:
                 self.grid_data.rdyc,
                 state.uc,
                 state.vc,
-                self.delpc,  # [DaCe] inner usage of c_sw
+                self.delpc,
                 state.pkc,
                 state.gz,
                 dt2,

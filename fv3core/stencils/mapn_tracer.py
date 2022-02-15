@@ -48,15 +48,6 @@ class MapNTracer:
             MapSingle(stencil_factory, kord_tracer[i], 0, i1, i2, j1, j2)
             for i in range(len(kord_tracer))
         ]
-        # [DaCe] unroll the list_of_remap_objects
-        self._remap_qvapor = self._list_of_remap_objects[0]
-        self._remap_qliquid = self._list_of_remap_objects[1]
-        self._remap_qrain = self._list_of_remap_objects[2]
-        self._remap_qice = self._list_of_remap_objects[3]
-        self._remap_qsnow = self._list_of_remap_objects[4]
-        self._remap_qgraupel = self._list_of_remap_objects[5]
-        self._remap_qo3mr = self._list_of_remap_objects[6]
-        self._remap_qsgs_tke = self._list_of_remap_objects[7]
 
         if fill:
             self._fill_negative_tracers = True
@@ -93,16 +84,8 @@ class MapNTracer:
             jlast: Final index of the J-dir compute domain
         """
         # [DaCe] enumerate and tracer retrieval was moved to __init__ in a new dict
-        # for i, q in enumerate(utils.tracer_variables[0 : self._nq]):
-        #     self._list_of_remap_objects[i](tracers[q], pe1, pe2, self._qs)
-        self._remap_qvapor(tracers["qvapor"], pe1, pe2, self._qs)
-        self._remap_qliquid(tracers["qliquid"], pe1, pe2, self._qs)
-        self._remap_qrain(tracers["qrain"], pe1, pe2, self._qs)
-        self._remap_qice(tracers["qice"], pe1, pe2, self._qs)
-        self._remap_qsnow(tracers["qsnow"], pe1, pe2, self._qs)
-        self._remap_qgraupel(tracers["qgraupel"], pe1, pe2, self._qs)
-        self._remap_qo3mr(tracers["qo3mr"], pe1, pe2, self._qs)
-        self._remap_qsgs_tke(tracers["qsgs_tke"], pe1, pe2, self._qs)
+        for i, q in enumerate(utils.tracer_variables[0 : self._nq]):
+            self._list_of_remap_objects[i](tracers[q], pe1, pe2, self._qs)
 
         if self._fill_negative_tracers is True:
             self._fillz(dp2, tracers)
