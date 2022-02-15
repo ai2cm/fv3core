@@ -966,8 +966,8 @@ class DelnFlux:
         q: FloatField,
         fx: FloatField,
         fy: FloatField,
-        d2=None,  # [DaCe] FloatField annotation is removed which, removes the None indication. Restore Optional["FloatField"] = None when FloatField is a proper type
-        mass=None,  # [DaCe] idem as above
+        d2: Optional["FloatField"] = None,
+        mass: Optional["FloatField"] = None,
     ):
         """
         Del-n damping for fluxes, where n = 2 * nord + 2
