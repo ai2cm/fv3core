@@ -158,6 +158,14 @@ def run(data_directory, halo_update, backend, time_steps, sdfg_path=None):
         fv3util.CubedSpherePartitioner(fv3util.TilePartitioner(spec.namelist.layout)),
     )
 
+    print(
+        f"Config\n"
+        f"\tBackend {backend}\n"
+        f"\tOrchestration: {'dace' if get_dacemode() else 'python'}\n"
+        f"\tN split: {spec.namelist.dynamical_core.n_split}\n"
+        f"\tK split: {spec.namelist.dynamical_core.k_split}\n"
+    )
+
     # Init acoustics
     acoustics_dynamics = AcousticDynamics(
         comm=cube_comm,
@@ -175,8 +183,6 @@ def run(data_directory, halo_update, backend, time_steps, sdfg_path=None):
         state=state,
     )
     state.__dict__.update(acoustics_dynamics._temporaries)
-
-    print(f"Running {backend} with n={acoustics_dynamics.config.n_split}")
 
     # Build SDFG_PATH if option given and specialize for the right backend
     if not os.path.isfile(sdfg_path):
@@ -237,7 +243,7 @@ def run(data_directory, halo_update, backend, time_steps, sdfg_path=None):
     if time_steps == 0:
         print("Cached built only - no benchmarked run")
         return
-    elif 'dace' in backend:
+    elif "dace" in backend:
         warn(
             f"Running loop {time_steps} times but not SDFG was"
             f"given, performance will be poor."
@@ -274,6 +280,7 @@ def run(data_directory, halo_update, backend, time_steps, sdfg_path=None):
 @click.argument("data_directory", required=True, nargs=1)
 @click.argument("time_steps", required=False, default="1", type=int)
 @click.argument("backend", required=False, default="gtc:gt:cpu_ifirst")
+@click.argument("hash", required=False, default="")
 @click.argument("sdfg_path", required=False, default="")
 @click.option("--halo_update/--no-halo_update", default=False)
 @click.option("--check_against_numpy/--no-check_against_numpy", default=False)
@@ -281,6 +288,7 @@ def driver(
     data_directory: str,
     time_steps: str,
     backend: str,
+    hash: str,
     sdfg_path: str,
     halo_update: bool,
     check_against_numpy: bool,

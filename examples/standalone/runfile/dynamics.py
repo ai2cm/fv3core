@@ -221,6 +221,14 @@ def run(
         # in halo ex callbacks
         state = get_namespace(fv_dynamics.DynamicalCoreArgSpec.values, dict_state)
 
+        print(
+            f"Config\n"
+            f"\tBackend {backend}\n"
+            f"\tOrchestration: {'dace' if get_dacemode() else 'python'}\n"
+            f"\tN split: {spec.namelist.dynamical_core.n_split}\n"
+            f"\tK split: {spec.namelist.dynamical_core.k_split}\n"
+        )
+
         dycore = fv3core.DynamicalCore(
             comm=communicator,
             grid_data=spec.grid.grid_data,
@@ -231,6 +239,7 @@ def run(
             bk=dict_state["atmosphere_hybrid_b_coordinate"],
             phis=dict_state["surface_geopotential"],
             state=state,
+            timer=timer,
         )
         dycore.update_state(
             input_data["consv_te"],
@@ -245,9 +254,9 @@ def run(
     # Build SDFG_PATH if option given and specialize for the right backend
     if not os.path.isfile(sdfg_path):
         if sdfg_path != "":
-            loop_name = "acoustics_loop_on_cpu"  # gtc:dace
+            loop_name = "dycore_loop_on_cpu"  # gtc:dace
             if backend == "gtc:dace:gpu":
-                loop_name = "acoustics_loop_on_gpu"
+                loop_name = "dycore_loop_on_gpu"
             rank_str = ""
             if MPI.COMM_WORLD.Get_size() > 1:
                 rank_str = f"_00000{str(rank)}"
@@ -280,7 +289,6 @@ def run(
 
     # Cache warm up and loop function selection
     dace_orchestrated_backend = "dace" in backend and get_dacemode()
-    print(f"DaCe orchestration: {dace_orchestrated_backend}")
     print("Cache warming run")
 
     dycore_fn = None
@@ -315,7 +323,8 @@ def run(
             profiler.enable()
 
         try:
-            dycore_fn(state, time_steps)
+            with timer.clock("mainloop_orchestrated"):
+                dycore_fn(state, time_steps)
         finally:
             if args.profile:
                 profiler.disable()
@@ -343,6 +352,14 @@ def run(
             print(s.getvalue())
             set_dacemode(dacemode)
         print(f"{backend} time:", time.time() - start)
+
+    timer.stop("total")
+
+    # Timings
+    # Print a brief summary of timings
+    # Dev Note: we especially do _not_ gather timings here to have a
+    # no-MPI-communication codepath
+    print(f"Rank {rank} done. Timer: {timer.times} {timer.hits}.")
 
     MPI.COMM_WORLD.Barrier()
     if rank == 0:
