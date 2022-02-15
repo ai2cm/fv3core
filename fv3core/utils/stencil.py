@@ -39,6 +39,9 @@ from fv3gfs.util.halo_data_transformer import QuantityHaloSpec
 from .gt4py_utils import make_storage_from_shape
 
 
+# [DaCe] import
+from fv3core.utils.dace.sdfg_opt_passes import refine_permute_arrays
+
 # [DaCe] Deacticate, the distributed compilation
 MPI = None
 
@@ -87,12 +90,20 @@ def call_sdfg(daceprog: DaceProgram, sdfg: dace.SDFG, args, kwargs, sdfg_final=F
             if k in sdfg_kwargs:
                 del sdfg_kwargs[k]
         sdfg_kwargs = {k: v for k, v in sdfg_kwargs.items() if v is not None}
-        # Coarsen data flow & promote scalar
+
+        # Promote scalar
         from dace.sdfg.analysis import scalar_to_symbol as scal2sym
 
         for sd in sdfg.all_sdfgs_recursive():
             scal2sym.promote_scalars_to_symbols(sd)
+
+        # Simplify the SDFG (automatic optimization)
         sdfg.simplify(validate=False)
+
+        # Here we insert optimization passes that don't exists in Simplify yet
+        refine_permute_arrays(sdfg)
+
+        # Call
         res = sdfg(**sdfg_kwargs)
     else:
         res = daceprog(*args, **kwargs)

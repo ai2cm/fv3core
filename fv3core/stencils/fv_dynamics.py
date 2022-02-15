@@ -155,6 +155,7 @@ class DynamicalCore:
         bk: fv3gfs.util.Quantity,
         phis: fv3gfs.util.Quantity,
         state: SimpleNamespace,
+        timer: fv3gfs.util.Timer = fv3gfs.util.NullTimer(),
     ):
         """
         Args:
@@ -309,6 +310,35 @@ class DynamicalCore:
         # [DaCe] make a scalar to track n_split current loop count (e.g. state.n_map)
         self.n_map = 0
 
+        # [DaCe] avoid parsing Timer as an argument
+        self.timer = timer
+
+    # [DaCe] Unroll all timers as callbacks to get around issues with parsing
+    # context and parsing paramters of callbacks
+    @dace_inhibitor
+    def timer_start_remapping(self):
+        self.timer.start("Remapping")
+
+    @dace_inhibitor
+    def timer_stop_remapping(self):
+        self.timer.stop("Remapping")
+
+    @dace_inhibitor
+    def timer_start_dycore(self):
+        self.timer.start("DynCore")
+
+    @dace_inhibitor
+    def timer_stop_dycore(self):
+        self.timer.stop("DynCore")
+
+    @dace_inhibitor
+    def timer_start_tracers(self):
+        self.timer.start("TracerAdvection")
+
+    @dace_inhibitor
+    def timer_stop_tracers(self):
+        self.timer.stop("TracerAdvection")
+
     # [DaCe] new function allowing pos-constructor state update from caller code
     def update_state(
         self,
@@ -458,7 +488,7 @@ class DynamicalCore:
                     if self.comm_rank == 0:
                         print("Remapping")
                 # [DaCe] Context manager are unimplemented
-                # with timer.clock("Remapping"):
+                self.timer_start_remapping()
                 self._lagrangian_to_eulerian_obj(
                     self.tracer_storages,
                     state.pt,
@@ -501,6 +531,7 @@ class DynamicalCore:
                         is_root_rank=self.comm_rank == 0,
                         da_min=self._da_min,
                     )
+                self.timer_stop_remapping()
         self.wrapup(
             state,
             is_root_rank=self.comm_rank == 0,
@@ -516,18 +547,19 @@ class DynamicalCore:
             if self.comm_rank == 0:
                 print("DynCore")
         # [DaCe] context mananger fails parsing
-        # with timer.clock("DynCore"):
+        self.timer_start_dycore()
         self.acoustic_dynamics(
             state,
             n_map=n_map,
             update_temporaries=False,
         )
+        self.timer_stop_dycore()
         if self.config.z_tracer:
             if __debug__:
                 if self.comm_rank == 0:
                     print("TracerAdvection")
             # [DaCe] context mananger fails parsing
-            # with timer.clock("TracerAdvection"):
+            self.timer_start_tracers()
             self.tracer_advection(
                 tracers,
                 state.dp1,
@@ -537,6 +569,7 @@ class DynamicalCore:
                 state.cyd,
                 state.mdt,
             )
+            self.timer_stop_tracers()
 
     # [DaCe] moving post_remap inside the class to workaround an issue passing stencils as parameters
     @computepath_method
