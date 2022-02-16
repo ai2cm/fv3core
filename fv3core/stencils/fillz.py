@@ -1,14 +1,13 @@
 import typing
 from typing import Any, Dict
 
+# [DaCe] import
+from dace import constant as dace_constant
 from gt4py.gtscript import FORWARD, PARALLEL, computation, interval
 
 import fv3core.utils.gt4py_utils as utils
 from fv3core.utils.stencil import StencilFactory, computepath_method
 from fv3core.utils.typing import FloatField, FloatFieldIJ, IntFieldIJ
-
-# [DaCe] import
-from dace import constant as dace_constant
 from fv3gfs.util import Quantity
 
 
@@ -129,13 +128,23 @@ class FillNegativeTracerValues:
         shape = stencil_factory.grid_indexing.domain_full(add=(1, 1, 1))
         shape_ij = shape[0:2]
 
-        self._dm = utils.make_storage_from_shape(shape, origin=(0, 0, 0))
-        self._dm_pos = utils.make_storage_from_shape(shape, origin=(0, 0, 0))
+        self._dm = utils.make_storage_from_shape(
+            shape, origin=(0, 0, 0), is_temporary=False
+        )
+        self._dm_pos = utils.make_storage_from_shape(
+            shape, origin=(0, 0, 0), is_temporary=False
+        )
         # Setting initial value of upper_fix to zero is only needed for validation.
         # The values in the compute domain are set to zero in the stencil.
-        self._zfix = utils.make_storage_from_shape(shape_ij, dtype=int, origin=(0, 0))
-        self._sum0 = utils.make_storage_from_shape(shape_ij, origin=(0, 0))
-        self._sum1 = utils.make_storage_from_shape(shape_ij, origin=(0, 0))
+        self._zfix = utils.make_storage_from_shape(
+            shape_ij, dtype=int, origin=(0, 0), is_temporary=False
+        )
+        self._sum0 = utils.make_storage_from_shape(
+            shape_ij, origin=(0, 0), is_temporary=False
+        )
+        self._sum1 = utils.make_storage_from_shape(
+            shape_ij, origin=(0, 0), is_temporary=False
+        )
 
         # [DaCe] linearlize tracers dict into a list at __init__ time
         self._filtered_tracer_dict = {

@@ -31,6 +31,7 @@ from gtc.passes.oir_pipeline import DefaultPipeline, OirPipeline
 
 import fv3gfs.util
 from fv3core.utils import global_config
+
 # [DaCe] import
 from fv3core.utils.dace.sdfg_opt_passes import refine_permute_arrays
 from fv3core.utils.future_stencil import future_stencil
@@ -754,7 +755,7 @@ class GridIndexing:
         # we don't allocate
         # Refactor is filed in ticket DSL-820
 
-        temp_storage = make_storage_from_shape(shape, origin)
+        temp_storage = make_storage_from_shape(shape, origin, is_temporary=False)
         origin, extent = self.get_origin_domain(dims)
         temp_quantity = fv3gfs.util.Quantity(
             temp_storage,

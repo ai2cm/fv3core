@@ -535,7 +535,7 @@ def get_column_namelist(config: DGridShallowWaterLagrangianDynamicsConfig, npz):
     ]
     col = {}
     for name in all_names:
-        col[name] = utils.make_storage_from_shape((npz + 1,), (0,))
+        col[name] = utils.make_storage_from_shape((npz + 1,), (0,), is_temporary=False)
     for name in direct_namelist:
         col[name][:] = getattr(config, name)
 
@@ -635,30 +635,72 @@ class DGridShallowWaterLagrangianDynamics:
 
         # only compute for k-levels where this is true
         self.hydrostatic = config.hydrostatic
-        self._tmp_heat_s = utils.make_storage_from_shape(self.grid_indexing.max_shape)
-        self._vort_x_delta = utils.make_storage_from_shape(self.grid_indexing.max_shape)
-        self._vort_y_delta = utils.make_storage_from_shape(self.grid_indexing.max_shape)
-        self._tmp_ke = utils.make_storage_from_shape(self.grid_indexing.max_shape)
-        self._tmp_vort = utils.make_storage_from_shape(self.grid_indexing.max_shape)
-        self._uc_contra = utils.make_storage_from_shape(self.grid_indexing.max_shape)
-        self._vc_contra = utils.make_storage_from_shape(self.grid_indexing.max_shape)
-        self._tmp_ut = utils.make_storage_from_shape(self.grid_indexing.max_shape)
-        self._tmp_vt = utils.make_storage_from_shape(self.grid_indexing.max_shape)
-        self._tmp_fx = utils.make_storage_from_shape(self.grid_indexing.max_shape)
-        self._tmp_fy = utils.make_storage_from_shape(self.grid_indexing.max_shape)
-        self._tmp_gx = utils.make_storage_from_shape(self.grid_indexing.max_shape)
-        self._tmp_gy = utils.make_storage_from_shape(self.grid_indexing.max_shape)
-        self._tmp_dw = utils.make_storage_from_shape(self.grid_indexing.max_shape)
-        self._tmp_wk = utils.make_storage_from_shape(self.grid_indexing.max_shape)
-        self._tmp_fx2 = utils.make_storage_from_shape(self.grid_indexing.max_shape)
-        self._tmp_fy2 = utils.make_storage_from_shape(self.grid_indexing.max_shape)
-        self._tmp_damp_3d = utils.make_storage_from_shape(
-            (1, 1, self.grid_indexing.domain[2])
+        self._tmp_heat_s = utils.make_storage_from_shape(
+            self.grid_indexing.max_shape, is_temporary=True
         )
-        self._advected_u = utils.make_storage_from_shape(self.grid_indexing.max_shape)
-        self._advected_v = utils.make_storage_from_shape(self.grid_indexing.max_shape)
-        self._ub_contra = utils.make_storage_from_shape(self.grid_indexing.max_shape)
-        self._vb_contra = utils.make_storage_from_shape(self.grid_indexing.max_shape)
+        self._vort_x_delta = utils.make_storage_from_shape(
+            self.grid_indexing.max_shape, is_temporary=True
+        )
+        self._vort_y_delta = utils.make_storage_from_shape(
+            self.grid_indexing.max_shape, is_temporary=True
+        )
+        self._tmp_ke = utils.make_storage_from_shape(
+            self.grid_indexing.max_shape, is_temporary=True
+        )
+        self._tmp_vort = utils.make_storage_from_shape(
+            self.grid_indexing.max_shape, is_temporary=True
+        )
+        self._uc_contra = utils.make_storage_from_shape(
+            self.grid_indexing.max_shape, is_temporary=True
+        )
+        self._vc_contra = utils.make_storage_from_shape(
+            self.grid_indexing.max_shape, is_temporary=True
+        )
+        self._tmp_ut = utils.make_storage_from_shape(
+            self.grid_indexing.max_shape, is_temporary=True
+        )
+        self._tmp_vt = utils.make_storage_from_shape(
+            self.grid_indexing.max_shape, is_temporary=True
+        )
+        self._tmp_fx = utils.make_storage_from_shape(
+            self.grid_indexing.max_shape, is_temporary=True
+        )
+        self._tmp_fy = utils.make_storage_from_shape(
+            self.grid_indexing.max_shape, is_temporary=True
+        )
+        self._tmp_gx = utils.make_storage_from_shape(
+            self.grid_indexing.max_shape, is_temporary=True
+        )
+        self._tmp_gy = utils.make_storage_from_shape(
+            self.grid_indexing.max_shape, is_temporary=True
+        )
+        self._tmp_dw = utils.make_storage_from_shape(
+            self.grid_indexing.max_shape, is_temporary=True
+        )
+        self._tmp_wk = utils.make_storage_from_shape(
+            self.grid_indexing.max_shape, is_temporary=True
+        )
+        self._tmp_fx2 = utils.make_storage_from_shape(
+            self.grid_indexing.max_shape, is_temporary=True
+        )
+        self._tmp_fy2 = utils.make_storage_from_shape(
+            self.grid_indexing.max_shape, is_temporary=True
+        )
+        self._tmp_damp_3d = utils.make_storage_from_shape(
+            (1, 1, self.grid_indexing.domain[2]), is_temporary=True
+        )
+        self._advected_u = utils.make_storage_from_shape(
+            self.grid_indexing.max_shape, is_temporary=True
+        )
+        self._advected_v = utils.make_storage_from_shape(
+            self.grid_indexing.max_shape, is_temporary=True
+        )
+        self._ub_contra = utils.make_storage_from_shape(
+            self.grid_indexing.max_shape, is_temporary=True
+        )
+        self._vb_contra = utils.make_storage_from_shape(
+            self.grid_indexing.max_shape, is_temporary=True
+        )
         self._column_namelist = column_namelist
 
         self.delnflux_nosg_w = DelnFluxNoSG(
@@ -832,7 +874,9 @@ class DGridShallowWaterLagrangianDynamics:
             self._tmp_damp_3d[0, 0, :], (self.grid_indexing.domain[2],), (0,)
         )
         y_temporary = utils.make_storage_from_shape(
-            shape=self.grid_indexing.max_shape, origin=self.grid_indexing.origin
+            shape=self.grid_indexing.max_shape,
+            origin=self.grid_indexing.origin,
+            is_temporary=False,
         )
         self._copy_corners = PreAllocatedCopiedCornersFactory(
             stencil_factory,

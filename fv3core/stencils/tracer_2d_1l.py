@@ -2,6 +2,9 @@ import math
 from typing import Dict
 
 import gt4py.gtscript as gtscript
+
+# [DaCe] import dace & halo updater
+from dace import constant as dace_constant
 from gt4py.gtscript import PARALLEL, computation, horizontal, interval, region
 
 import fv3core._config as spec
@@ -9,16 +12,13 @@ import fv3core.stencils.fxadv
 import fv3core.utils
 import fv3core.utils.gt4py_utils as utils
 import fv3gfs.util
+from fv3core.stencils.dyn_core import AcousticDynamics
 from fv3core.stencils.fvtp2d import (
     FiniteVolumeTransport,
     PreAllocatedCopiedCornersFactory,
 )
 from fv3core.utils.stencil import StencilFactory, computepath_method
 from fv3core.utils.typing import FloatField, FloatFieldIJ
-from fv3core.stencils.dyn_core import AcousticDynamics
-
-# [DaCe] import dace & halo updater
-from dace import constant as dace_constant
 from fv3gfs.util import Quantity
 
 
@@ -142,14 +142,14 @@ class TracerAdvection:
         self.grid = spec.grid
         shape = grid_indexing.domain_full(add=(1, 1, 1))
         origin = grid_indexing.origin_compute()
-        self._tmp_xfx = utils.make_storage_from_shape(shape, origin)
-        self._tmp_yfx = utils.make_storage_from_shape(shape, origin)
-        self._tmp_fx = utils.make_storage_from_shape(shape, origin)
-        self._tmp_fy = utils.make_storage_from_shape(shape, origin)
-        self._tmp_dp = utils.make_storage_from_shape(shape, origin)
-        self._tmp_dp2 = utils.make_storage_from_shape(shape, origin)
+        self._tmp_xfx = utils.make_storage_from_shape(shape, origin, is_temporary=False)
+        self._tmp_yfx = utils.make_storage_from_shape(shape, origin, is_temporary=False)
+        self._tmp_fx = utils.make_storage_from_shape(shape, origin, is_temporary=False)
+        self._tmp_fy = utils.make_storage_from_shape(shape, origin, is_temporary=False)
+        self._tmp_dp = utils.make_storage_from_shape(shape, origin, is_temporary=False)
+        self._tmp_dp2 = utils.make_storage_from_shape(shape, origin, is_temporary=False)
         self._tmp_qn2 = self.grid.quantity_wrap(
-            utils.make_storage_from_shape(shape, origin),
+            utils.make_storage_from_shape(shape, origin, is_temporary=False),
             units="kg/m^2",
         )
 
