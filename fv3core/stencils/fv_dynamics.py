@@ -309,8 +309,6 @@ class DynamicalCore:
             state,
             ["omga_quantity"],
         )
-        # [DaCe] make a scalar to track n_split current loop count (e.g. state.n_map)
-        self.n_map = 0
 
         # [DaCe] avoid parsing Timer as an argument
         self.timer = timer
@@ -409,10 +407,9 @@ class DynamicalCore:
                 "unimplemented namelist options adiabatic with positive kord_tm"
             )
         else:
-            # [DaCe]
-            # if __debug__:
-            #     if is_root_rank:
-            #         print("Adjust pt")
+            if __debug__:
+                if is_root_rank:
+                    print("Adjust pt")
             self._pt_adjust_stencil(
                 state.pkz,
                 state.dp1,

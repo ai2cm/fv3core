@@ -415,7 +415,6 @@ class DivergenceDamping:
             self._dd8,
         )
 
-    @computepath_method  # [DaCe] decorate to cleanup the FloatField allocation (see stencil.py)
     def _damping_zero_order(
         self,
         u: FloatField,

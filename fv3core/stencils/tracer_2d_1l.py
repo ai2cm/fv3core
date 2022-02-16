@@ -276,7 +276,6 @@ class TracerAdvection:
         # [DaCe] Wrapped halo update callback-style
         self._tracers_halo_updater.update()
 
-        # [DaCe] aliasing doesn't parse
         dp2 = self._tmp_dp
 
         for it in range(n_split):
@@ -288,8 +287,6 @@ class TracerAdvection:
                 self.grid.rarea,
                 dp2,
             )
-            # [DaCe] unrolling for due to dict/list parsing issue when auto-unroll
-            # for tracer in tracers.values():
             for tracer in tracers.values():
                 self.finite_volume_transport(
                     tracer.storage,
@@ -314,6 +311,7 @@ class TracerAdvection:
                 self._tracers_halo_updater.update()
                 # use variable assignment to avoid a data copy
                 # [DaCe] : one liner swap is not dace parse friendly
+                # Original code:
                 # dp1, dp2 = dp2, dp1
                 self._tmp_dp2[:] = dp1
                 dp1[:] = dp2

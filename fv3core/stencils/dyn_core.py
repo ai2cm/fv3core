@@ -44,6 +44,9 @@ from fv3core.utils.stencil import StencilFactory, computepath_method, dace_inhib
 from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
 from fv3gfs.util import X_DIM, Y_DIM, Z_DIM, Z_INTERFACE_DIM
 
+# [DaCe] Import
+import dace
+from dace.frontend.python.interface import nounroll as dace_nounroll
 
 HUGE_R = 1.0e40
 
@@ -333,15 +336,6 @@ class AcousticDynamics:
                 ["u_quantity"],
                 ["v_quantity"],
             )
-            # [DaCe] bad parameters where generated when re-using the above updater. Duplicating
-            self.u__v_on_split = AcousticDynamics._WrappedHaloUpdater(
-                comm.get_vector_halo_updater(
-                    [full_size_xyiz_halo_spec], [full_size_xiyz_halo_spec]
-                ),
-                state,
-                ["u_quantity"],
-                ["v_quantity"],
-            )
             self.w = AcousticDynamics._WrappedHaloUpdater(
                 comm.get_scalar_halo_updater([full_size_xyz_halo_spec]),
                 state,
@@ -606,14 +600,13 @@ class AcousticDynamics:
     def __call__(
         self,
         state: dace.constant,
-        n_map=1,
+        n_map=1,  # [DaCe] replaces state.n_map
         update_temporaries: dace.constant = True,
         do_halo_exchange: dace.constant = True,
     ):
         # u, v, w, delz, delp, pt, pe, pk, phis, wsd, omga, ua, va, uc, vc, mfxd,
         # mfyd, cxd, cyd, pkz, peln, q_con, ak, bk, diss_estd, cappa, mdt, n_split,
         # akap, ptop, n_map, comm):
-        # [DaCe] n_map issue
         end_step = n_map == self.config.k_split
         akap = constants.KAPPA
         dt = state.mdt / self.config.n_split
@@ -635,8 +628,6 @@ class AcousticDynamics:
         if update_temporaries:
             state.__dict__.update(self._temporaries)
 
-        # [DaCe]
-        # Orig: state.n_map == 1
         self._zero_data(
             state.mfxd,
             state.mfyd,
@@ -745,7 +736,7 @@ class AcousticDynamics:
                 self.grid_data.rdyc,
                 state.uc,
                 state.vc,
-                self.delpc,  # [DaCe] inner usage of c_sw
+                self.delpc,
                 state.pkc,
                 state.gz,
                 dt2,
@@ -872,7 +863,7 @@ class AcousticDynamics:
                 # [DaCe] this should be a reuse of self._halo_updaters.u__v but it creates
                 #        parameter generation issues, and therefore has been duplicated
                 if do_halo_exchange:
-                    self._halo_updaters.u__v_on_split.update()
+                    self._halo_updaters.u__v.update()
             else:
                 if self.config.grid_type < 4:
                     if do_halo_exchange:

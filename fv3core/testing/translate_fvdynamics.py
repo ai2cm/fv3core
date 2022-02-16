@@ -8,7 +8,7 @@ import fv3core.utils.gt4py_utils as utils
 import fv3gfs.util as fv3util
 from fv3core.testing import ParallelTranslateBaseSlicing
 
-# [DaCe]
+# [DaCe] Import required to get state into a working namespace
 from fv3core.decorators import get_namespace
 
 ADVECTED_TRACER_NAMES = utils.tracer_variables[: fv_dynamics.NQ]

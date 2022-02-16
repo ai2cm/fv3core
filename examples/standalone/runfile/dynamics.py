@@ -40,8 +40,8 @@ import fv3core
 import fv3core._config as spec
 import fv3core.testing
 
-# [DaCe] Transform state outside of FV_Dynamics in order to have valid references
-# in halo ex callbacks
+# [DaCe] `get_namespace`: Transform state outside of FV_Dynamics in order to
+#        have valid references in halo ex callbacks
 from fv3core.decorators import get_namespace
 import fv3core.stencils.fv_dynamics as fv_dynamics
 
@@ -217,8 +217,8 @@ def run(
         input_data = driver_object.collect_input_data(serializer, savepoint_in)
         input_data["comm"] = communicator
         dict_state = driver_object.state_from_inputs(input_data)
-        # [DaCe] Transform state outside of FV_Dynamics in order to have valid references
-        # in halo ex callbacks
+        # [DaCe] `get_namespace`: Transform state outside of FV_Dynamics in order to
+        #        have valid references in halo ex callbacks
         state = get_namespace(fv_dynamics.DynamicalCoreArgSpec.values, dict_state)
 
         print(

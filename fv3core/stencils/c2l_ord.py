@@ -9,7 +9,7 @@ from fv3gfs.util import CubedSphereCommunicator
 from fv3gfs.util.constants import X_DIM, Y_DIM, Z_DIM
 from fv3gfs.util.quantity import Quantity
 
-# [DaCe] import for wrapped halo updater
+# [DaCe] Imports for wrapped halo updater
 from fv3core.stencils.dyn_core import AcousticDynamics
 import fv3gfs.util as fv3util
 
@@ -79,7 +79,7 @@ class CubedToLatLon:
     Fortan name is c2l_ord2
     """
 
-    # [DaCe] comm required for cached wrapped halo updater
+    # [DaCe] Comm required for cached wrapped halo updater
     def __init__(
         self,
         state,
@@ -141,7 +141,7 @@ class CubedToLatLon:
             ["v_quantity"],
         )
 
-    # [DaCe] u/v are no longer needed to be quantity, reverted to FloatFiled for compuation
+    # [DaCe] u/v are no longer needed to be quantity, reverted to FloatField for compuation
     @computepath_method
     def __call__(
         self,
