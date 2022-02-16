@@ -527,22 +527,37 @@ class RemapProfile:
         self._kord = kord
 
         self._gam: FloatField = utils.make_storage_from_shape(
-            grid_indexing.domain_full(add=(0, 0, 1)), origin=full_orig
+            grid_indexing.domain_full(add=(0, 0, 1)),
+            origin=full_orig,
+            is_temporary=False,
         )
         self._q: FloatField = utils.make_storage_from_shape(
-            grid_indexing.domain_full(add=(0, 0, 1)), origin=full_orig
+            grid_indexing.domain_full(add=(0, 0, 1)),
+            origin=full_orig,
+            is_temporary=False,
         )
         self._q_bot: FloatField = utils.make_storage_from_shape(
-            grid_indexing.domain_full(add=(0, 0, 1)), origin=full_orig
+            grid_indexing.domain_full(add=(0, 0, 1)),
+            origin=full_orig,
+            is_temporary=False,
         )
         self._extm: BoolField = utils.make_storage_from_shape(
-            grid_indexing.domain_full(add=(0, 0, 1)), origin=full_orig, dtype=bool
+            grid_indexing.domain_full(add=(0, 0, 1)),
+            origin=full_orig,
+            dtype=bool,
+            is_temporary=False,
         )
         self._ext5: BoolField = utils.make_storage_from_shape(
-            grid_indexing.domain_full(add=(0, 0, 1)), origin=full_orig, dtype=bool
+            grid_indexing.domain_full(add=(0, 0, 1)),
+            origin=full_orig,
+            dtype=bool,
+            is_temporary=False,
         )
         self._ext6: BoolField = utils.make_storage_from_shape(
-            grid_indexing.domain_full(add=(0, 0, 1)), origin=full_orig, dtype=bool
+            grid_indexing.domain_full(add=(0, 0, 1)),
+            origin=full_orig,
+            dtype=bool,
+            is_temporary=False,
         )
 
         i_extent: int = i2 - i1 + 1

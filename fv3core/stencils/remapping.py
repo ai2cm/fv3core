@@ -1,5 +1,7 @@
 from typing import Dict
 
+# [DaCe] import
+from dace import constant as dace_constant
 from gt4py.gtscript import (
     __INLINED,
     BACKWARD,
@@ -25,10 +27,8 @@ from fv3core.stencils.saturation_adjustment import SatAdjust3d
 from fv3core.utils.grid import axis_offsets
 from fv3core.utils.stencil import StencilFactory, computepath_method
 from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
-
-# [DaCe] import
-from dace import constant as dace_constant
 from fv3gfs.util import Quantity
+
 
 CONSV_MIN = 0.001
 
@@ -236,18 +236,18 @@ class LagrangianToEulerian:
             grid_indexing.domain[2] + 1,
         )
 
-        self._pe1 = utils.make_storage_from_shape(shape_kplus)
-        self._pe2 = utils.make_storage_from_shape(shape_kplus)
-        self._dp2 = utils.make_storage_from_shape(shape_kplus)
-        self._pn2 = utils.make_storage_from_shape(shape_kplus)
-        self._pe0 = utils.make_storage_from_shape(shape_kplus)
-        self._pe3 = utils.make_storage_from_shape(shape_kplus)
+        self._pe1 = utils.make_storage_from_shape(shape_kplus, is_temporary=False)
+        self._pe2 = utils.make_storage_from_shape(shape_kplus, is_temporary=False)
+        self._dp2 = utils.make_storage_from_shape(shape_kplus, is_temporary=False)
+        self._pn2 = utils.make_storage_from_shape(shape_kplus, is_temporary=False)
+        self._pe0 = utils.make_storage_from_shape(shape_kplus, is_temporary=False)
+        self._pe3 = utils.make_storage_from_shape(shape_kplus, is_temporary=False)
 
         self._gz: FloatField = utils.make_storage_from_shape(
-            shape_kplus, grid_indexing.origin_compute()
+            shape_kplus, grid_indexing.origin_compute(), is_temporary=False
         )
         self._cvm: FloatField = utils.make_storage_from_shape(
-            shape_kplus, grid_indexing.origin_compute()
+            shape_kplus, grid_indexing.origin_compute(), is_temporary=False
         )
 
         self._init_pe = stencil_factory.from_origin_domain(

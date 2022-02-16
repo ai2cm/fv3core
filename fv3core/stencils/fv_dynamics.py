@@ -1,6 +1,9 @@
-from typing import Mapping
 from types import SimpleNamespace
+from typing import Mapping
 
+# [DaCe] dace.constant
+from dace import constant as dace_constant
+from dace.frontend.python.interface import nounroll as dace_no_unroll
 from gt4py.gtscript import PARALLEL, computation, interval, log
 
 import fv3core.stencils.moist_cv as moist_cv
@@ -27,9 +30,6 @@ from fv3core.utils.stencil import (
 from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
 from fv3gfs.util.halo_updater import HaloUpdater
 
-# [DaCe] dace.constant
-from dace import constant as dace_constant
-from dace.frontend.python.interface import nounroll as dace_no_unroll
 
 # nq is actually given by ncnst - pnats, where those are given in atmosphere.F90 by:
 # ncnst = Atm(mytile)%ncnst
@@ -222,7 +222,9 @@ class DynamicalCore:
         pfull_stencil = stencil_factory.from_origin_domain(
             init_pfull, origin=(0, 0, 0), domain=(1, 1, grid_indexing.domain[2])
         )
-        pfull = utils.make_storage_from_shape((1, 1, self._ak.shape[0]))
+        pfull = utils.make_storage_from_shape(
+            (1, 1, self._ak.shape[0]), is_temporary=False
+        )
         pfull_stencil(self._ak, self._bk, pfull, self.config.p_ref)
         # workaround because cannot write to FieldK storage in stencil
         self._pfull = utils.make_storage_data(pfull[0, 0, :], self._ak.shape, (0,))

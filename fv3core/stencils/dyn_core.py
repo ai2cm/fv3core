@@ -1,6 +1,9 @@
 from types import SimpleNamespace
-from typing import Dict, Any
+from typing import Any, Dict
 
+# [DaCe] import
+import dace
+from dace.frontend.python.interface import nounroll as dace_nounroll
 from gt4py.gtscript import (
     __INLINED,
     BACKWARD,
@@ -451,8 +454,12 @@ class AcousticDynamics:
         if not config.hydrostatic:
             # To write lower dimensional storages, these need to be 3D
             # then converted to lower dimensional
-            dp_ref_3d = utils.make_storage_from_shape(grid_indexing.max_shape)
-            zs_3d = utils.make_storage_from_shape(grid_indexing.max_shape)
+            dp_ref_3d = utils.make_storage_from_shape(
+                grid_indexing.max_shape, is_temporary=False
+            )
+            zs_3d = utils.make_storage_from_shape(
+                grid_indexing.max_shape, is_temporary=False
+            )
 
             dp_ref_stencil = stencil_factory.from_origin_domain(
                 dp_ref_compute,
@@ -505,10 +512,10 @@ class AcousticDynamics:
         )
 
         self.delpc = utils.make_storage_from_shape(
-            grid_indexing.domain_full(add=(1, 1, 1))
+            grid_indexing.domain_full(add=(1, 1, 1)), is_temporary=False
         )
         self.ptc = utils.make_storage_from_shape(
-            grid_indexing.domain_full(add=(1, 1, 1))
+            grid_indexing.domain_full(add=(1, 1, 1)), is_temporary=False
         )
 
         self.cgrid_shallow_water_lagrangian_dynamics = CGridShallowWaterDynamics(

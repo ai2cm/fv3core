@@ -258,33 +258,37 @@ class UpdateHeightOnDGrid:
         self._crx_interface = utils.make_storage_from_shape(
             largest_possible_shape,
             grid_indexing.origin_compute(add=(0, -grid_indexing.n_halo, 0)),
+            is_temporary=False,
         )
         self._cry_interface = utils.make_storage_from_shape(
             largest_possible_shape,
             grid_indexing.origin_compute(add=(-grid_indexing.n_halo, 0, 0)),
+            is_temporary=False,
         )
         self._x_area_flux_interface = utils.make_storage_from_shape(
             largest_possible_shape,
             grid_indexing.origin_compute(add=(0, -grid_indexing.n_halo, 0)),
+            is_temporary=False,
         )
         self._y_area_flux_interface = utils.make_storage_from_shape(
             largest_possible_shape,
             grid_indexing.origin_compute(add=(-grid_indexing.n_halo, 0, 0)),
+            is_temporary=False,
         )
         self._wk = utils.make_storage_from_shape(
-            largest_possible_shape, grid_indexing.origin_full()
+            largest_possible_shape, grid_indexing.origin_full(), is_temporary=False
         )
         self._height_x_diffusive_flux = utils.make_storage_from_shape(
-            largest_possible_shape, grid_indexing.origin_full()
+            largest_possible_shape, grid_indexing.origin_full(), is_temporary=False
         )
         self._height_y_diffusive_flux = utils.make_storage_from_shape(
-            largest_possible_shape, grid_indexing.origin_full()
+            largest_possible_shape, grid_indexing.origin_full(), is_temporary=False
         )
         self._fx = utils.make_storage_from_shape(
-            largest_possible_shape, grid_indexing.origin_full()
+            largest_possible_shape, grid_indexing.origin_full(), is_temporary=False
         )
         self._fy = utils.make_storage_from_shape(
-            largest_possible_shape, grid_indexing.origin_full()
+            largest_possible_shape, grid_indexing.origin_full(), is_temporary=False
         )
 
     def _initialize_interpolation_constants(
@@ -293,13 +297,13 @@ class UpdateHeightOnDGrid:
         # because stencils only work on 3D at the moment, need to compute in 3D
         # and then make these 1D
         gk_3d = utils.make_storage_from_shape(
-            (1, 1, grid_indexing.domain[2] + 1), (0, 0, 0)
+            (1, 1, grid_indexing.domain[2] + 1), (0, 0, 0), is_temporary=False
         )
         gamma_3d = utils.make_storage_from_shape(
-            (1, 1, grid_indexing.domain[2] + 1), (0, 0, 0)
+            (1, 1, grid_indexing.domain[2] + 1), (0, 0, 0), is_temporary=False
         )
         beta_3d = utils.make_storage_from_shape(
-            (1, 1, grid_indexing.domain[2] + 1), (0, 0, 0)
+            (1, 1, grid_indexing.domain[2] + 1), (0, 0, 0), is_temporary=False
         )
 
         _cubic_spline_interpolation_constants = stencil_factory.from_origin_domain(
