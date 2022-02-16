@@ -6,7 +6,8 @@ from fv3core.stencils.map_single import MapSingle
 from fv3core.utils.stencil import StencilFactory, computepath_method
 from fv3core.utils.typing import FloatField
 
-# [DaCe] import
+# [DaCe] Import.
+#        Quantity required for type hints
 from fv3gfs.util import Quantity
 from dace import constant as dace_constant
 
@@ -83,7 +84,6 @@ class MapNTracer:
             jfirst: Starting index of the J-dir compute domain
             jlast: Final index of the J-dir compute domain
         """
-        # [DaCe] enumerate and tracer retrieval was moved to __init__ in a new dict
         for i, q in enumerate(utils.tracer_variables[0 : self._nq]):
             self._list_of_remap_objects[i](tracers[q], pe1, pe2, self._qs)
 

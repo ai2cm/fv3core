@@ -311,6 +311,7 @@ class TracerAdvection:
                 self._tracers_halo_updater.update()
                 # use variable assignment to avoid a data copy
                 # [DaCe] : one liner swap is not dace parse friendly
+                # Original code:
                 # dp1, dp2 = dp2, dp1
                 self._tmp_dp2[:] = dp1
                 dp1[:] = dp2

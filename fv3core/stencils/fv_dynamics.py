@@ -307,8 +307,6 @@ class DynamicalCore:
             state,
             ["omga_quantity"],
         )
-        # [DaCe] make a scalar to track n_split current loop count (e.g. state.n_map)
-        self.n_map = 0
 
         # [DaCe] avoid parsing Timer as an argument
         self.timer = timer
