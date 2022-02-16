@@ -403,10 +403,10 @@ class CGridShallowWaterDynamics:
         )
         origin_halo1 = (grid_indexing.isc - 1, grid_indexing.jsc - 1, 0)
         self.delpc = utils.make_storage_from_shape(
-            grid_indexing.max_shape, origin=origin_halo1
+            grid_indexing.max_shape, origin=origin_halo1, is_temporary=False
         )
         self.ptc = utils.make_storage_from_shape(
-            grid_indexing.max_shape, origin=origin_halo1
+            grid_indexing.max_shape, origin=origin_halo1, is_temporary=False
         )
         self._initialize_delpc_ptc = stencil_factory.from_dims_halo(
             initialize_delpc_ptc,
@@ -414,11 +414,21 @@ class CGridShallowWaterDynamics:
             compute_halos=(3, 3),
         )
 
-        self._tmp_ke = utils.make_storage_from_shape(grid_indexing.max_shape)
-        self._tmp_vort = utils.make_storage_from_shape(grid_indexing.max_shape)
-        self._tmp_fx = utils.make_storage_from_shape(grid_indexing.max_shape)
-        self._tmp_fx1 = utils.make_storage_from_shape(grid_indexing.max_shape)
-        self._tmp_fx2 = utils.make_storage_from_shape(grid_indexing.max_shape)
+        self._tmp_ke = utils.make_storage_from_shape(
+            grid_indexing.max_shape, is_temporary=False
+        )
+        self._tmp_vort = utils.make_storage_from_shape(
+            grid_indexing.max_shape, is_temporary=False
+        )
+        self._tmp_fx = utils.make_storage_from_shape(
+            grid_indexing.max_shape, is_temporary=False
+        )
+        self._tmp_fx1 = utils.make_storage_from_shape(
+            grid_indexing.max_shape, is_temporary=False
+        )
+        self._tmp_fx2 = utils.make_storage_from_shape(
+            grid_indexing.max_shape, is_temporary=False
+        )
 
         if nord > 0:
             self._divergence_corner = stencil_factory.from_dims_halo(
