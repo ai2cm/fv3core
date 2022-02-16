@@ -518,10 +518,10 @@ class AcousticDynamics:
         )
 
         self.delpc = utils.make_storage_from_shape(
-            grid_indexing.domain_full(add=(1, 1, 1), is_temporary=False)
+            grid_indexing.domain_full(add=(1, 1, 1)), is_temporary=False
         )
         self.ptc = utils.make_storage_from_shape(
-            grid_indexing.domain_full(add=(1, 1, 1), is_temporary=False)
+            grid_indexing.domain_full(add=(1, 1, 1)), is_temporary=False
         )
 
         self.cgrid_shallow_water_lagrangian_dynamics = CGridShallowWaterDynamics(
