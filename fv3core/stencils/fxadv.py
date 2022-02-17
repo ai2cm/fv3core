@@ -2,9 +2,11 @@ from gt4py.gtscript import PARALLEL, computation, horizontal, interval, region
 
 from fv3core.stencils.d2a2c_vect import contravariant
 from fv3core.utils.grid import GridData, axis_offsets
-from fv3core.utils.stencil import StencilFactory, computepath_method
+from fv3core.utils.stencil import StencilFactory
 from fv3core.utils.typing import FloatField, FloatFieldIJ
 
+# [DaCe] Import
+from fv3core.utils.dace.computepath import computepath_method
 
 # TODO: the mix of local and global regions is strange here
 # it's a workaround to specify DON'T do this calculation if on the tile edge

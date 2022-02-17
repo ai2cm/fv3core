@@ -40,12 +40,13 @@ from fv3core.utils.grid import (
     axis_offsets,
     quantity_wrap,
 )
-from fv3core.utils.stencil import StencilFactory, computepath_method, dace_inhibitor
+from fv3core.utils.stencil import StencilFactory
 from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
 from fv3gfs.util import X_DIM, Y_DIM, Z_DIM, Z_INTERFACE_DIM
 
 # [DaCe] Import
 import dace
+from fv3core.utils.dace.computepath import computepath_method, dace_inhibitor
 from dace.frontend.python.interface import nounroll as dace_nounroll
 
 HUGE_R = 1.0e40

@@ -16,9 +16,12 @@ from fv3core.decorators import get_stencils_with_varied_bounds
 from fv3core.stencils.a2b_ord4 import AGrid2BGridFourthOrder
 from fv3core.stencils.d2a2c_vect import contravariant
 from fv3core.utils.grid import DampingCoefficients, GridData
-from fv3core.utils.stencil import StencilFactory, computepath_method
+from fv3core.utils.stencil import StencilFactory
 from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
 from fv3gfs.util import X_INTERFACE_DIM, Y_INTERFACE_DIM, Z_DIM
+
+# [DaCe] Import
+from fv3core.utils.dace.computepath import computepath_method
 
 
 @gtscript.function

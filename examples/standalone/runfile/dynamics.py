@@ -32,7 +32,6 @@ except ImportError:
 import fv3gfs.util as util
 from fv3core.utils.global_config import set_dacemode, get_dacemode
 from fv3core.utils.null_comm import NullComm
-from fv3core.utils.stencil import computepath_function
 
 # isort: on
 
@@ -44,6 +43,7 @@ import fv3core.testing
 #        have valid references in halo ex callbacks
 from fv3core.decorators import get_namespace
 import fv3core.stencils.fv_dynamics as fv_dynamics
+from fv3core.utils.dace.computepath import computepath_function
 
 
 def set_experiment_info(

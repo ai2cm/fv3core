@@ -212,7 +212,7 @@ class AcousticDynamicsConfig:
         return self.riemann.use_logp
 
 
-# [DaCe] froze the dataclass to allow hashability, used by parsing for type inference
+# [DaCe] Froze the dataclass to allow hashability, used by parsing for type inference
 @dataclasses.dataclass(frozen=True)
 class DynamicalCoreConfig:
     dt_atmos: int

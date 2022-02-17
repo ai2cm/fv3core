@@ -10,9 +10,11 @@ from fv3core.stencils.fvtp2d import (
     PreAllocatedCopiedCornersFactory,
 )
 from fv3core.utils.grid import DampingCoefficients, GridData, GridIndexing
-from fv3core.utils.stencil import StencilFactory, computepath_method
+from fv3core.utils.stencil import StencilFactory
 from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
 
+# [DaCe] Import
+from fv3core.utils.dace.computepath import computepath_method
 
 DZ_MIN = constants.DZ_MIN
 

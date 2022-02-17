@@ -3,9 +3,12 @@ from gt4py.gtscript import PARALLEL, computation, interval
 import fv3core.utils.gt4py_utils as utils
 from fv3core.stencils.a2b_ord4 import AGrid2BGridFourthOrder
 from fv3core.utils.grid import GridData
-from fv3core.utils.stencil import StencilFactory, computepath_method
+from fv3core.utils.stencil import StencilFactory
 from fv3core.utils.typing import FloatField, FloatFieldIJ
 from fv3gfs.util import Z_INTERFACE_DIM
+
+# [DaCe] Import
+from fv3core.utils.dace.computepath import computepath_method
 
 
 def set_k0_and_calc_wk(

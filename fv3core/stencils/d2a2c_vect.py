@@ -5,9 +5,12 @@ import fv3core.utils.gt4py_utils as utils
 from fv3core.stencils.a2b_ord4 import a1, a2, lagrange_x_func, lagrange_y_func
 from fv3core.utils import corners
 from fv3core.utils.grid import GridData, axis_offsets
-from fv3core.utils.stencil import StencilFactory, computepath_method
+from fv3core.utils.stencil import StencilFactory
 from fv3core.utils.typing import FloatField, FloatFieldIJ
 from fv3gfs.util import X_DIM, Y_DIM, Z_DIM
+
+# [DaCe] Import
+from fv3core.utils.dace.computepath import computepath_method
 
 
 c1 = -2.0 / 14.0

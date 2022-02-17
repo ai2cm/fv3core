@@ -11,8 +11,11 @@ from gt4py.gtscript import (
 
 from fv3core.stencils import ppm
 from fv3core.stencils.basic_operations import sign
-from fv3core.utils.stencil import StencilFactory, computepath_method
+from fv3core.utils.stencil import StencilFactory
 from fv3core.utils.typing import FloatField, FloatFieldIJ, Index3D
+
+# [DaCe] Import
+from fv3core.utils.dace.computepath import computepath_method
 
 
 @gtscript.function

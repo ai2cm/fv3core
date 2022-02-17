@@ -18,9 +18,10 @@ from fv3core.stencils.dyn_core import AcousticDynamics
 from fv3core.utils.global_config import get_dacemode, set_dacemode
 from fv3core.utils.grid import Grid
 from fv3core.utils.null_comm import NullComm
-from fv3core.utils.stencil import computepath_function
 import fv3gfs.util as fv3util
 
+# [DaCe] Import
+from fv3core.utils.dace.computepath import computepath_function
 
 try:
     from mpi4py import MPI
