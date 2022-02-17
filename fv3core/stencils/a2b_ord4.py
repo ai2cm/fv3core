@@ -16,10 +16,12 @@ import fv3core.utils.gt4py_utils as utils
 from fv3core.stencils.basic_operations import copy_defn
 from fv3core.utils import axis_offsets
 from fv3core.utils.grid import GridData, GridIndexing
-from fv3core.utils.stencil import StencilFactory, computepath_method
+from fv3core.utils.stencil import StencilFactory
 from fv3core.utils.typing import FloatField, FloatFieldI, FloatFieldIJ
 from fv3gfs.util import X_DIM, X_INTERFACE_DIM, Y_DIM, Y_INTERFACE_DIM, Z_DIM
 
+# [DaCe] Import
+from fv3core.utils.dace.computepath import computepath_method
 
 # comact 4-pt cubic interpolation
 c1 = 2.0 / 3.0

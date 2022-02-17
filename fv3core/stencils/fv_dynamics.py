@@ -4,6 +4,8 @@ from typing import Mapping
 # [DaCe] dace.constant
 from dace import constant as dace_constant
 from dace.frontend.python.interface import nounroll as dace_no_unroll
+from fv3core.utils.dace.computepath import computepath_method, dace_inhibitor
+
 from gt4py.gtscript import PARALLEL, computation, interval, log
 
 import fv3core.stencils.moist_cv as moist_cv
@@ -21,15 +23,9 @@ from fv3core.stencils.neg_adj3 import AdjustNegativeTracerMixingRatio
 from fv3core.stencils.remapping import LagrangianToEulerian
 from fv3core.utils import global_config
 from fv3core.utils.grid import DampingCoefficients, GridData
-from fv3core.utils.stencil import (
-    StencilFactory,
-    computepath_function,
-    computepath_method,
-    dace_inhibitor,
-)
+from fv3core.utils.stencil import StencilFactory
 from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
 from fv3gfs.util.halo_updater import HaloUpdater
-
 
 # nq is actually given by ncnst - pnats, where those are given in atmosphere.F90 by:
 # ncnst = Atm(mytile)%ncnst

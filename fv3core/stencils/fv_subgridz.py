@@ -18,9 +18,11 @@ from fv3core.utils.global_constants import (
     RDGAS,
     ZVIR,
 )
-from fv3core.utils.stencil import StencilFactory, computepath_method
+from fv3core.utils.stencil import StencilFactory
 from fv3core.utils.typing import FloatField
 
+# [DaCe] Import
+from fv3core.utils.dace.computepath import computepath_method
 
 RK = CP_AIR / RDGAS + 1.0
 G2 = 0.5 * GRAV

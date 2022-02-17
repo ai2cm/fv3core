@@ -4,9 +4,11 @@ from gt4py.gtscript import BACKWARD, FORWARD, PARALLEL, computation, interval
 import fv3core.utils.global_constants as constants
 from fv3core.utils import corners, gt4py_utils
 from fv3core.utils.grid import axis_offsets
-from fv3core.utils.stencil import StencilFactory, computepath_method
+from fv3core.utils.stencil import StencilFactory
 from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
 
+# [DaCe] Import
+from fv3core.utils.dace.computepath import computepath_method
 
 DZ_MIN = constants.DZ_MIN
 

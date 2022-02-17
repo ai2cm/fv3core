@@ -17,9 +17,12 @@ from fv3core.stencils.fvtp2d import (
     FiniteVolumeTransport,
     PreAllocatedCopiedCornersFactory,
 )
-from fv3core.utils.stencil import StencilFactory, computepath_method
+from fv3core.utils.stencil import StencilFactory
 from fv3core.utils.typing import FloatField, FloatFieldIJ
 from fv3gfs.util import Quantity
+
+# [DaCe] Import
+from fv3core.utils.dace.computepath import computepath_method
 
 
 @gtscript.function
