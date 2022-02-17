@@ -488,12 +488,15 @@ class AGrid2BGridFourthOrder:
 
         self.replace = replace
 
+        # Dace this can't be tmp, why?
         self._tmp_qx = utils.make_storage_from_shape(
             self._idx.max_shape, is_temporary=False
         )
+        # Dace this can't be tmp, why?
         self._tmp_qy = utils.make_storage_from_shape(
             self._idx.max_shape, is_temporary=False
         )
+        # Dace this can't be tmp, why?
         self._tmp_qout_edges = utils.make_storage_from_shape(
             self._idx.max_shape, is_temporary=False
         )
