@@ -122,7 +122,6 @@ class UpdateGeopotentialHeightOnCGrid:
             update_dz_c,
             origin=grid_indexing.origin_compute(add=(-1, -1, 0)),
             domain=grid_indexing.domain_compute(add=(2, 2, 1)),
-            skip_passes=("graph_merge_horizontal_executions",),
         )
 
     @computepath_method

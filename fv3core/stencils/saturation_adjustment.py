@@ -933,7 +933,6 @@ class SatAdjust3d:
                 grid_indexing.domain[1],
                 (grid_indexing.domain[2] - kmp),
             ),
-            skip_passes=("graph_merge_horizontal_executions",),
         )
 
     @computepath_method
