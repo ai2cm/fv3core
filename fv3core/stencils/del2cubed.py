@@ -96,13 +96,13 @@ class HyperdiffusionDamping:
         self._del6_v = damping_coefficients.del6_v
         self._rarea = rarea
         self._fx = utils.make_storage_from_shape(
-            grid_indexing.max_shape, is_temporary=False
+            grid_indexing.max_shape, is_temporary=True
         )
         self._fy = utils.make_storage_from_shape(
-            grid_indexing.max_shape, is_temporary=False
+            grid_indexing.max_shape, is_temporary=True
         )
         self._q = utils.make_storage_from_shape(
-            grid_indexing.max_shape, is_temporary=False
+            grid_indexing.max_shape, is_temporary=True
         )
 
         self._corner_fill = stencil_factory.from_dims_halo(
