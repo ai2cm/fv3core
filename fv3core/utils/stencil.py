@@ -308,7 +308,8 @@ class FrozenStencil(SDFGConvertible):
         return DefaultPipeline(skip=skip_steps)
 
     def __sdfg__(self, *args, **kwargs):
-        return self._frozen_stencil.__sdfg__(*args, **kwargs)
+        args_as_kwargs = dict(zip(self._argument_names, args))
+        return self._frozen_stencil.__sdfg__(**args_as_kwargs, **kwargs)
 
     def __sdfg_signature__(self):
         return self._frozen_stencil.__sdfg_signature__()
