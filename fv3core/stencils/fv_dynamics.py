@@ -5,6 +5,7 @@ from typing import Mapping
 from dace import constant as dace_constant
 from dace.frontend.python.interface import nounroll as dace_no_unroll
 from fv3core.utils.dace.computepath import computepath_method, dace_inhibitor
+import fv3core._config as spec
 
 from gt4py.gtscript import PARALLEL, computation, interval, log
 
@@ -208,6 +209,13 @@ class DynamicalCore:
         self.tracer_storages = {
             name: quantity.storage for name, quantity in self.tracers.items()
         }
+
+        # [DaCe] setup temporaries
+        self._temporaries = fvdyn_temporaries(
+            quantity_factory, grid_indexing.domain_full(add=(1, 1, 1)), grid_data
+        )
+        state.__dict__.update(self._temporaries)
+
         # Build advection stencils
         self.tracer_advection = tracer_2d_1l.TracerAdvection(
             stencil_factory, tracer_transport, comm, self.tracers
@@ -273,9 +281,7 @@ class DynamicalCore:
             state, stencil_factory, grid_data, order=config.c2l_ord, comm=comm
         )
 
-        self._temporaries = fvdyn_temporaries(
-            quantity_factory, grid_indexing.domain_full(add=(1, 1, 1)), grid_data
-        )
+        
         if not (not self.config.inline_q and NQ != 0):
             raise NotImplementedError("tracer_2d not implemented, turn on z_tracer")
         self._adjust_tracer_mixing_ratio = AdjustNegativeTracerMixingRatio(
@@ -304,6 +310,8 @@ class DynamicalCore:
             comm.get_scalar_halo_updater([full_xyz_spec]),
             state,
             ["omga_quantity"],
+            comm=comm,
+            grid=spec.grid,
         )
 
         # [DaCe] avoid parsing Timer as an argument

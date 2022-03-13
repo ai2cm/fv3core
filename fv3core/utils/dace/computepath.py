@@ -7,8 +7,13 @@ from dace.frontend.python.common import SDFGConvertible
 from dace.frontend.python.parser import DaceProgram
 from dace.transformation.auto.auto_optimize import make_transients_persistent
 from dace.transformation.helpers import get_parent_map
+from dace.transformation.interstate.state_elimination import (
+    DeadStateElimination,
+    FalseConditionElimination,
+)
+from dace.transformation.transformation import simplification_transformations
 
-from fv3core.utils.dace.sdfg_opt_passes import refine_permute_arrays
+from fv3core.utils.dace.sdfg_opt_passes import refine_permute_arrays, simple_cprop
 from fv3core.utils import global_config
 
 import gt4py.storage
@@ -34,10 +39,12 @@ def to_gpu(sdfg: dace.SDFG):
     for sd, _aname, arr in sdfg.arrays_recursive():
         if arr.shape == (1,):
             arr.storage = dace.StorageType.Register
+        elif isinstance(arr.dtype, dace.opaque):
+            continue
         else:
             arr.storage = dace.StorageType.GPU_Global
 
-    for mapentry, state in topmaps:
+    for mapentry, _state in topmaps:
         mapentry.schedule = dace.ScheduleType.GPU_Device
 
     # Deactivate OpenMP sections
@@ -51,6 +58,9 @@ def call_sdfg(daceprog: DaceProgram, sdfg: dace.SDFG, args, kwargs, sdfg_final=F
             to_gpu(sdfg)
             make_transients_persistent(sdfg=sdfg, device=dace.dtypes.DeviceType.GPU)
         else:
+            for sd, _aname, arr in sdfg.arrays_recursive():
+                if arr.shape == (1,):
+                    arr.storage = dace.StorageType.Register
             make_transients_persistent(sdfg=sdfg, device=dace.dtypes.DeviceType.CPU)
     for arg in list(args) + list(kwargs.values()):
         if isinstance(arg, gt4py.storage.Storage):
@@ -72,11 +82,19 @@ def call_sdfg(daceprog: DaceProgram, sdfg: dace.SDFG, args, kwargs, sdfg_final=F
         for sd in sdfg.all_sdfgs_recursive():
             scal2sym.promote_scalars_to_symbols(sd)
 
+        for sd in sdfg.all_sdfgs_recursive():
+            simple_cprop(sd)
+
         # Simplify the SDFG (automatic optimization)
         sdfg.simplify(validate=False)
 
+        sdfg.apply_transformations_repeated(
+            [DeadStateElimination, FalseConditionElimination]
+            + simplification_transformations()
+        )
+
         # Here we insert optimization passes that don't exists in Simplify yet
-        refine_permute_arrays(sdfg)
+        # refine_permute_arrays(sdfg)
 
         # Call
         res = sdfg(**sdfg_kwargs)

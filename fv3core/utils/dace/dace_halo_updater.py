@@ -52,28 +52,33 @@ def rot_scalar_flatten(
     result = np.zeros((data.size,), dtype=data.dtype)
 
     if n_clockwise_rotations == 0:
-        tmp_00 = np.zeros(data.shape, dtype=data.dtype)
-        tmp_00[:] = data[:]
-        result[:] = tmp_00.flatten()
+        tmp_0 = np.zeros(data.shape, dtype=data.dtype)
+        tmp_0[:] = data[:]
+        result[:] = tmp_0.flatten()
 
     elif n_clockwise_rotations == 1 or n_clockwise_rotations == 3:
         if x_in_x & y_in_y:
             if n_clockwise_rotations == 1:
-                tmp_0 = np.rot90(data, axes=(y_dim, x_dim))
-                result[:] = tmp_0.flatten()
-            if n_clockwise_rotations == 3:
-                tmp_1 = np.rot90(data, axes=(x_dim, y_dim))
+                tmp_1 = np.rot90(data, axes=(y_dim, x_dim))
                 result[:] = tmp_1.flatten()
+            if n_clockwise_rotations == 3:
+                tmp_3 = np.rot90(data, axes=(x_dim, y_dim))
+                result[:] = tmp_3.flatten()
 
         elif x_in_x:
             if n_clockwise_rotations == 1:
-                tmp_2 = np.flip(data, axis=x_dim)
-                result[:] = tmp_2.flatten()
+                tmp_1x = np.empty_like(data)
+                tmp_1x = np.flip(data, axis=x_dim)
+                result[:] = tmp_1x.flatten()
 
         elif y_in_y:
             if n_clockwise_rotations == 3:
-                tmp_3 = np.flip(data, axis=y_dim)
-                result[:] = tmp_3.flatten()
+                tmp_3y = np.empty_like(data)
+                tmp_3y = np.flip(data, axis=y_dim)
+                result[:] = tmp_3y.flatten()
+
+        else:
+            raise RuntimeError(f"Unexpected rotation {n_clockwise_rotations}")
     elif n_clockwise_rotations == 2:
         if n_horizontal == 1:
             tmp_4 = np.empty_like(data)
@@ -89,6 +94,8 @@ def rot_scalar_flatten(
             tmp_6 = np.empty_like(data)
             tmp_6[:] = np.flip(data, axis=(0, 1, 2))
             result[:] = tmp_6.flatten()
+        else:
+            raise RuntimeError(f"Unexpected rotation {n_clockwise_rotations}")
 
     else:
         raise RuntimeError(f"Unexpected rotation {n_clockwise_rotations}")
@@ -593,10 +600,7 @@ class DaceHaloUpdater:
 
     @computepath_method(use_dace=True)
     def do_halo_vector_interface_update(self):
-        if self._callback_to_original_code:
-            self.original_vector_interface_update()
-        else:
-            self._dace_vector_interface()
+        self._dace_vector_interface()
 
     @computepath_method
     def do_rot_0_cpu(self):
