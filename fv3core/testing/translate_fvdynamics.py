@@ -302,8 +302,8 @@ class TranslateFVDynamics(ParallelTranslateBaseSlicing):
             stencil_factory=spec.grid.stencil_factory,
             damping_coefficients=spec.grid.damping_coefficients,
             config=spec.namelist.dynamical_core,
-            ak=dict_state["atmosphere_hybrid_a_coordinate"],
-            bk=dict_state["atmosphere_hybrid_b_coordinate"],
+            ak=dict_state["ak"],
+            bk=dict_state["bk"],
             phis=dict_state["surface_geopotential"],
             state=state,
         )

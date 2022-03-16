@@ -120,8 +120,6 @@ class DynamicalCoreArgSpec:
         ),
         ArgSpec("ps", "surface_pressure", "Pa", intent="inout"),
         ArgSpec("omga", "vertical_pressure_velocity", "Pa/s", intent="inout"),
-        ArgSpec("ak", "atmosphere_hybrid_a_coordinate", "Pa", intent="in"),
-        ArgSpec("bk", "atmosphere_hybrid_b_coordinate", "", intent="in"),
         ArgSpec("mfxd", "accumulated_x_mass_flux", "unknown", intent="inout"),
         ArgSpec("mfyd", "accumulated_y_mass_flux", "unknown", intent="inout"),
         ArgSpec("cxd", "accumulated_x_courant_number", "", intent="inout"),
@@ -147,8 +145,8 @@ class DynamicalCore:
         stencil_factory: StencilFactory,
         damping_coefficients: DampingCoefficients,
         config: DynamicalCoreConfig,
-        ak: fv3gfs.util.Quantity,
-        bk: fv3gfs.util.Quantity,
+        ak: FloatField,
+        bk: FloatField,
         phis: fv3gfs.util.Quantity,
         state: SimpleNamespace,
         timer: fv3gfs.util.Timer = fv3gfs.util.NullTimer(),
@@ -210,10 +208,10 @@ class DynamicalCore:
         }
         # Build advection stencils
         self.tracer_advection = tracer_2d_1l.TracerAdvection(
-            stencil_factory, tracer_transport, comm, self.tracers
+            stencil_factory, tracer_transport, comm, self.tracers, grid_data
         )
-        self._ak = ak.storage
-        self._bk = bk.storage
+        self._ak = ak
+        self._bk = bk
         self._phis = phis.storage
         pfull_stencil = stencil_factory.from_origin_domain(
             init_pfull, origin=(0, 0, 0), domain=(1, 1, grid_indexing.domain[2])

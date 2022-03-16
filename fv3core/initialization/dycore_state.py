@@ -351,5 +351,12 @@ class DycoreState:
                 inputs[_field.name] = quantity
         return cls(**inputs, do_adiabatic_init=do_adiabatic_init, bdt=bdt, mdt=mdt)
 
+    def get_state_dict(self):
+        state_dict = {}
+        for _field in fields(DycoreState):
+            if "dims" in _field.metadata.keys():
+                state_dict[_field.metadata["name"]] = getattr(self, _field.name)
+                state_dict[_field.name] = getattr(self, _field.name)
+        return state_dict
     def __getitem__(self, item):
         return getattr(self, item)

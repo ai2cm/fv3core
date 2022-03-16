@@ -20,6 +20,7 @@ from fv3core.stencils.fvtp2d import (
 from fv3core.utils.stencil import StencilFactory
 from fv3core.utils.typing import FloatField, FloatFieldIJ
 from fv3gfs.util import Quantity
+from fv3core.utils.grid import GridData
 
 # [DaCe] Import
 from fv3core.utils.dace.computepath import computepath_method
@@ -139,10 +140,12 @@ class TracerAdvection:
         transport: FiniteVolumeTransport,
         comm: fv3gfs.util.CubedSphereCommunicator,
         tracers: Dict[str, Quantity],
+        grid_data: GridData,
     ):
         grid_indexing = stencil_factory.grid_indexing
         self._tracer_count = len(tracers)
         self.grid = spec.grid
+        self.grid_data = grid_data
         shape = grid_indexing.domain_full(add=(1, 1, 1))
         origin = grid_indexing.origin_compute()
         self._tmp_xfx = utils.make_storage_from_shape(shape, origin, is_temporary=False)
@@ -222,14 +225,14 @@ class TracerAdvection:
         self._flux_compute(
             cxd,
             cyd,
-            self.grid.dxa,
-            self.grid.dya,
-            self.grid.dx,
-            self.grid.dy,
-            self.grid.sin_sg1,
-            self.grid.sin_sg2,
-            self.grid.sin_sg3,
-            self.grid.sin_sg4,
+            self.grid_data.dxa,
+            self.grid_data.dya,
+            self.grid_data.dx,
+            self.grid_data.dy,
+            self.grid_data.sin_sg1,
+            self.grid_data.sin_sg2,
+            self.grid_data.sin_sg3,
+            self.grid_data.sin_sg4,
             self._tmp_xfx,
             self._tmp_yfx,
         )
@@ -287,7 +290,7 @@ class TracerAdvection:
                 dp1,
                 mfxd,
                 mfyd,
-                self.grid.rarea,
+                self.grid_data.rarea,
                 dp2,
             )
             for tracer in tracers.values():
@@ -307,7 +310,7 @@ class TracerAdvection:
                     dp1,
                     self._tmp_fx,
                     self._tmp_fy,
-                    self.grid.rarea,
+                    self.grid_data.rarea,
                     dp2,
                 )
             if not last_call:

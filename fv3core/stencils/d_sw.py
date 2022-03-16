@@ -34,10 +34,9 @@ from fv3gfs.util import (
     Z_DIM,
     Z_INTERFACE_DIM,
 )
-
+from fv3core.stencils.basic_operations import compute_coriolis_parameter_defn
 # [DaCe] Import
 from fv3core.utils.dace.computepath import computepath_method
-
 dcon_threshold = 1e-5
 
 # NOTE leaving the refrence to spec.grid here on purpose
@@ -604,6 +603,20 @@ def interpolate_uc_vc_to_cell_corners(
 
     return ub_contra, vb_contra
 
+def compute_f0(
+    stencil_factory: StencilFactory, lon_agrid: FloatFieldIJ, lat_agrid: FloatFieldIJ
+):
+    """
+    Compute the coriolis parameter on the D-grid
+    """
+    f0 = utils.make_storage_from_shape(lon_agrid.shape)
+    f0_stencil = stencil_factory.from_dims_halo(
+        compute_coriolis_parameter_defn,
+        compute_dims=[X_DIM, Y_DIM, Z_DIM],
+        compute_halos=(3, 3),
+    )
+    f0_stencil(f0, lon_agrid, lat_agrid, 0.0)
+    return f0
 
 class DGridShallowWaterLagrangianDynamics:
     """
@@ -620,8 +633,11 @@ class DGridShallowWaterLagrangianDynamics:
         stretched_grid: bool,
         config: DGridShallowWaterLagrangianDynamicsConfig,
     ):
-        self._f0 = spec.grid.f0
+       
         self.grid = grid_data
+        self._f0 = compute_f0(
+            stencil_factory, self.grid.lon_agrid, self.grid.lat_agrid
+        )
         self.grid_indexing = stencil_factory.grid_indexing
         assert config.grid_type < 3, "ubke and vbke only implemented for grid_type < 3"
         assert not config.inline_q, "inline_q not yet implemented"

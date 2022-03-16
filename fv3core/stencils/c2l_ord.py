@@ -102,10 +102,10 @@ class CubedToLatLon:
         self._dx = grid_data.dx
         self._dy = grid_data.dy
         # TODO: define these based on data from grid_data
-        self._a11 = spec.grid.a11
-        self._a12 = spec.grid.a12
-        self._a21 = spec.grid.a21
-        self._a22 = spec.grid.a22
+        self._a11 = grid_data.a11
+        self._a12 = grid_data.a12
+        self._a21 = grid_data.a21
+        self._a22 = grid_data.a22
         if order == 2:
             self._do_ord4 = False
             halos = (1, 1)
