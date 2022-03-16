@@ -145,14 +145,14 @@ class TracerAdvection:
         self.grid = spec.grid
         shape = grid_indexing.domain_full(add=(1, 1, 1))
         origin = grid_indexing.origin_compute()
-        self._tmp_xfx = utils.make_storage_from_shape(shape, origin, is_temporary=False)
-        self._tmp_yfx = utils.make_storage_from_shape(shape, origin, is_temporary=False)
-        self._tmp_fx = utils.make_storage_from_shape(shape, origin, is_temporary=False)
-        self._tmp_fy = utils.make_storage_from_shape(shape, origin, is_temporary=False)
-        self._tmp_dp = utils.make_storage_from_shape(shape, origin, is_temporary=False)
-        self._tmp_dp2 = utils.make_storage_from_shape(shape, origin, is_temporary=False)
+        self._tmp_xfx = utils.make_storage_from_shape(shape, origin, is_temporary=True)
+        self._tmp_yfx = utils.make_storage_from_shape(shape, origin, is_temporary=True)
+        self._tmp_fx = utils.make_storage_from_shape(shape, origin, is_temporary=True)
+        self._tmp_fy = utils.make_storage_from_shape(shape, origin, is_temporary=True)
+        self._tmp_dp = utils.make_storage_from_shape(shape, origin, is_temporary=True)
+        self._tmp_dp2 = utils.make_storage_from_shape(shape, origin, is_temporary=True)
         self._tmp_qn2 = self.grid.quantity_wrap(
-            utils.make_storage_from_shape(shape, origin, is_temporary=False),
+            utils.make_storage_from_shape(shape, origin, is_temporary=True),
             units="kg/m^2",
         )
 
