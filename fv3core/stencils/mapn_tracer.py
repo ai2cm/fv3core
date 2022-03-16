@@ -41,7 +41,7 @@ class MapNTracer:
         self._j1 = j1
         self._j2 = j2
         self._qs = utils.make_storage_from_shape(
-            grid_indexing.max_shape, origin=(0, 0, 0), is_temporary=False
+            grid_indexing.max_shape, origin=(0, 0, 0), is_temporary=True
         )
 
         kord_tracer = [kord] * self._nq
