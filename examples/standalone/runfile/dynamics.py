@@ -12,6 +12,8 @@ from typing import Any, Dict, List
 
 import click
 import dace
+import sys
+sys.path.append("/usr/local/serialbox/python")
 import numpy as np
 import serialbox
 from warnings import warn
@@ -23,6 +25,9 @@ except ImportError:
     MPI = None
 
 
+# mpirun -np 6 fv3core/examples/standalone/runfile/dynamics.py /test_data/ 3 numpy testhash
+from fv3core.grid import MetricTerms
+from fv3core.initialization.baroclinic import init_baroclinic_state
 # Dev note: the GTC toolchain fails if xarray is imported after gt4py
 # fv3gfs.util imports xarray if it's available in the env.
 # fv3core imports gt4py.
@@ -210,7 +215,13 @@ def run(
         layout = spec.namelist.layout
         partitioner = util.CubedSpherePartitioner(util.TilePartitioner(layout))
         communicator = util.CubedSphereCommunicator(mpi_comm, partitioner)
-
+        metric_terms = MetricTerms.from_tile_sizing(
+            npx=spec.namelist.npx,
+            npy=spec.namelist.npy,
+            npz=spec.namelist.npz,
+            communicator=communicator,
+            backend=args.backend
+        )
         # create a state from serialized data
         savepoint_in = serializer.get_savepoint("FVDynamics-In")[0]
         driver_object = fv3core.testing.TranslateFVDynamics([grid])
@@ -240,6 +251,13 @@ def run(
             phis=dict_state["surface_geopotential"],
             state=state,
             timer=timer,
+        )
+        baro_state = init_baroclinic_state(
+            metric_terms,
+            adiabatic=spec.namelist.adiabatic,
+            hydrostatic=spec.namelist.hydrostatic,
+            moist_phys=spec.namelist.moist_phys,
+            comm=communicator,
         )
         dycore.update_state(
             input_data["consv_te"],

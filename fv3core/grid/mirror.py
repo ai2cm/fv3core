@@ -1,8 +1,9 @@
-from ..utils.global_constants import PI, RADIUS
-from ..utils.grid import RIGHT_HAND_GRID
+from fv3core.utils.global_constants import PI, RADIUS
 
 
 __all__ = ["mirror_grid"]
+
+RIGHT_HAND_GRID = False
 
 
 def mirror_grid(
@@ -16,19 +17,23 @@ def mirror_grid(
     global_js,
     ng,
     np,
+    right_hand_grid,
 ):
     istart = ng
     iend = ng + x_subtile_width
     jstart = ng
     jend = ng + y_subtile_width
     x_center_tile = (
-        global_is < ng + (npx - 1) / 2
+        global_is <= ng + (npx - 1) / 2
         and global_is + x_subtile_width > ng + (npx - 1) / 2
     )
     y_center_tile = (
-        global_js < ng + (npy - 1) / 2
+        global_js <= ng + (npy - 1) / 2
         and global_js + y_subtile_width > ng + (npy - 1) / 2
     )
+
+    i_mid = npx // 2 - global_is + istart
+    j_mid = npy // 2 - global_js + jstart
 
     # first fix base region
     for j in range(jstart, jend + 1):
@@ -61,12 +66,9 @@ def mirror_grid(
 
             # force dateline/greenwich-meridion consistency
             if npx % 2 != 0:
-                if x_center_tile and i == istart + (iend - istart) // 2:
-                    # if i == (npx - 1) // 2:
+                if x_center_tile and i == ng + i_mid:
                     mirror_data["local"][i, j, 0] = 0.0
-
-    i_mid = (iend - istart) // 2
-    j_mid = (jend - jstart) // 2
+                    mirror_data["north-south"][i, -(j + 1), 0] = 0
 
     if tile_index > 0:
 
@@ -78,38 +80,74 @@ def mirror_grid(
             if tile_index == 1:
                 ang = -90.0
                 x2, y2, z2 = _rot_3d(
-                    3, [x1, y1, z1], ang, np, degrees=True, convert=True
+                    3,
+                    [x1, y1, z1],
+                    ang,
+                    np,
+                    right_hand_grid,
+                    degrees=True,
+                    convert=True,
                 )
             elif tile_index == 2:
                 ang = -90.0
                 x2, y2, z2 = _rot_3d(
-                    3, [x1, y1, z1], ang, np, degrees=True, convert=True
+                    3,
+                    [x1, y1, z1],
+                    ang,
+                    np,
+                    right_hand_grid,
+                    degrees=True,
+                    convert=True,
                 )
                 ang = 90.0
                 x2, y2, z2 = _rot_3d(
-                    1, [x2, y2, z2], ang, np, degrees=True, convert=True
+                    1,
+                    [x2, y2, z2],
+                    ang,
+                    np,
+                    right_hand_grid,
+                    degrees=True,
+                    convert=True,
                 )
 
                 # force North Pole and dateline/Greenwich-Meridian consistency
                 if npx % 2 != 0:
-                    if j == ng + i_mid and x_center_tile and y_center_tile:
+                    if (
+                        j == ng + j_mid
+                        and x_center_tile
+                        and y_center_tile
+                        and i_mid == j_mid
+                    ):
                         x2[i_mid] = 0.0
                         y2[i_mid] = PI / 2.0
                     if j == ng + j_mid and y_center_tile:
                         if x_center_tile:
-                            x2[:i_mid] = 0.0
-                            x2[i_mid + 1] = PI
+                            x2[: i_mid + 1] = 0.0
+                            x2[i_mid + 1 :] = PI
                         elif global_is + i_mid < ng + (npx - 1) / 2:
                             x2[:] = 0.0
-
+                        elif global_is + i_mid > ng + (npx - 1) / 2:
+                            x2[:] = PI
             elif tile_index == 3:
                 ang = -180.0
                 x2, y2, z2 = _rot_3d(
-                    3, [x1, y1, z1], ang, np, degrees=True, convert=True
+                    3,
+                    [x1, y1, z1],
+                    ang,
+                    np,
+                    right_hand_grid,
+                    degrees=True,
+                    convert=True,
                 )
                 ang = 90.0
                 x2, y2, z2 = _rot_3d(
-                    1, [x2, y2, z2], ang, np, degrees=True, convert=True
+                    1,
+                    [x2, y2, z2],
+                    ang,
+                    np,
+                    right_hand_grid,
+                    degrees=True,
+                    convert=True,
                 )
                 # force dateline/Greenwich-Meridian consistency
                 if npx % 2 != 0:
@@ -118,24 +156,53 @@ def mirror_grid(
             elif tile_index == 4:
                 ang = 90.0
                 x2, y2, z2 = _rot_3d(
-                    3, [x1, y1, z1], ang, np, degrees=True, convert=True
+                    3,
+                    [x1, y1, z1],
+                    ang,
+                    np,
+                    right_hand_grid,
+                    degrees=True,
+                    convert=True,
                 )
                 ang = 90.0
                 x2, y2, z2 = _rot_3d(
-                    2, [x2, y2, z2], ang, np, degrees=True, convert=True
+                    2,
+                    [x2, y2, z2],
+                    ang,
+                    np,
+                    right_hand_grid,
+                    degrees=True,
+                    convert=True,
                 )
             elif tile_index == 5:
                 ang = 90.0
                 x2, y2, z2 = _rot_3d(
-                    2, [x1, y1, z1], ang, np, degrees=True, convert=True
+                    2,
+                    [x1, y1, z1],
+                    ang,
+                    np,
+                    right_hand_grid,
+                    degrees=True,
+                    convert=True,
                 )
                 ang = 0.0
                 x2, y2, z2 = _rot_3d(
-                    3, [x2, y2, z2], ang, np, degrees=True, convert=True
+                    3,
+                    [x2, y2, z2],
+                    ang,
+                    np,
+                    right_hand_grid,
+                    degrees=True,
+                    convert=True,
                 )
                 # force South Pole and dateline/Greenwich-Meridian consistency
                 if npx % 2 != 0:
-                    if j == ng + i_mid and x_center_tile and y_center_tile:
+                    if (
+                        i == ng + i_mid
+                        and x_center_tile
+                        and y_center_tile
+                        and i_mid == j_mid
+                    ):
                         x2[i_mid] = 0.0
                         y2[i_mid] = -PI / 2.0
                     if global_js + j_mid > ng + (npy - 1) / 2 and x_center_tile:
@@ -147,10 +214,10 @@ def mirror_grid(
             mirror_data["local"][istart : iend + 1, j, 1] = y2
 
 
-def _rot_3d(axis, p, angle, np, degrees=False, convert=False):
+def _rot_3d(axis, p, angle, np, right_hand_grid, degrees=False, convert=False):
 
     if convert:
-        p1 = _spherical_to_cartesian(p, np)
+        p1 = _spherical_to_cartesian(p, np, right_hand_grid)
     else:
         p1 = p
 
@@ -176,29 +243,29 @@ def _rot_3d(axis, p, angle, np, degrees=False, convert=False):
         assert False, "axis must be in [1,2,3]"
 
     if convert:
-        p2 = _cartesian_to_spherical([x2, y2, z2], np)
+        p2 = _cartesian_to_spherical([x2, y2, z2], np, right_hand_grid)
     else:
         p2 = [x2, y2, z2]
 
     return p2
 
 
-def _spherical_to_cartesian(p, np):
+def _spherical_to_cartesian(p, np, right_hand_grid):
     lon, lat, r = p
     x = r * np.cos(lon) * np.cos(lat)
     y = r * np.sin(lon) * np.cos(lat)
-    if RIGHT_HAND_GRID:
+    if right_hand_grid:
         z = r * np.sin(lat)
     else:
         z = -r * np.sin(lat)
     return [x, y, z]
 
 
-def _cartesian_to_spherical(p, np):
+def _cartesian_to_spherical(p, np, right_hand_grid):
     x, y, z = p
     r = np.sqrt(x * x + y * y + z * z)
     lon = np.where(np.abs(x) + np.abs(y) < 1.0e-10, 0.0, np.arctan2(y, x))
-    if RIGHT_HAND_GRID:
+    if right_hand_grid:
         lat = np.arcsin(z / r)
     else:
         lat = np.arccos(z / r) - PI / 2.0

@@ -1,5 +1,4 @@
 from fv3gfs.util import Quantity, TilePartitioner
-
 from .gnomonic import (
     get_lonlat_vect,
     get_unit_vector_direction,
@@ -652,7 +651,7 @@ def edge_factors(
                 grid, agrid, nhalo, radius, istart, iend, np
             )
 
-    return edge_w, edge_e, edge_s, edge_n
+    return edge_w[np.newaxis, :], edge_e[np.newaxis, :], edge_s, edge_n
 
 
 def set_west_edge_factor(grid, agrid, nhalo, radius, jstart, jend, np):
