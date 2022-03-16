@@ -2,6 +2,7 @@ import dace
 from typing import List, Dict
 from dace import subsets
 from dace import data
+from dace.sdfg import graph
 import collections
 
 
@@ -111,3 +112,46 @@ def refine_permute_arrays(sdfg: dace.SDFG):
 
     print("Refined:", refined)
     print("Permuted:", permuted)
+
+
+from dace.sdfg.analysis import scalar_to_symbol as s2s
+
+
+def simple_cprop(sdfg: dace.SDFG):
+    from dace import symbolic
+
+    while True:
+        var_to_edge: Dict[str, graph.Edge[dace.InterstateEdge]] = {}
+        skip = set()
+        for ise in sdfg.edges():
+            for aname in ise.data.assignments.keys():
+                # Appears more than once? Skip
+                if aname in var_to_edge:
+                    skip.add(aname)
+                else:
+                    var_to_edge[aname] = ise
+
+        # Replace as necessary
+        repldict = {}
+        for var, ise in var_to_edge.items():
+            if var in skip:
+                continue
+            # If depends on non-global values, skip
+            fsyms = symbolic.free_symbols_and_functions(ise.data.assignments[var])
+            if len(fsyms - sdfg.symbols.keys()) > 0:
+                continue
+            repldict[var] = ise.data.assignments[var]
+            del ise.data.assignments[var]
+            if var in sdfg.symbols:
+                del sdfg.symbols[var]
+            break
+        # Propagate
+        for k, v in repldict.items():
+            for s in sdfg.nodes():
+                s.replace(k, v)
+            for e in sdfg.edges():
+                e.data.replace(k, v, replace_keys=False)
+        if len(repldict) == 0:
+            # No more replacements done
+            break
+    s2s.remove_symbol_indirection(sdfg)

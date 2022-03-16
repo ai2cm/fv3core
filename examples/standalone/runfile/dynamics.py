@@ -23,6 +23,11 @@ except ImportError:
     MPI = None
 
 
+try:
+    import cupy as cp
+except ImportError:
+    cp = None
+
 # Dev note: the GTC toolchain fails if xarray is imported after gt4py
 # fv3gfs.util imports xarray if it's available in the env.
 # fv3core imports gt4py.
@@ -320,6 +325,9 @@ def run(
             f"given, performance will be poor."
         )
 
+    if cp is not None:
+        cp.cuda.nvtx.RangePush("Performance Run")
+
     if dace_orchestrated_backend:
         with timer.clock("mainloop_orchestrated"):
             dycore_fn(state, time_steps)
@@ -329,6 +337,9 @@ def run(
         set_dacemode(dacemode)
 
     timer.stop("total")
+
+    if cp is not None:
+        cp.cuda.nvtx.RangePop()
 
     # Timings
     # Print a brief summary of timings
