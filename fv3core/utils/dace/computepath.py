@@ -7,16 +7,16 @@ from dace.frontend.python.common import SDFGConvertible
 from dace.frontend.python.parser import DaceProgram
 from dace.transformation.auto.auto_optimize import make_transients_persistent
 from dace.transformation.helpers import get_parent_map
-from dace.transformation.interstate.state_elimination import (
-    DeadStateElimination,
-    FalseConditionElimination,
-)
-from dace.transformation.transformation import simplification_transformations
 
-from fv3core.utils.dace.sdfg_opt_passes import refine_permute_arrays, simple_cprop
+from dace.transformation.transformation import simplification_transformations
+from fv3core.utils.dace.utils import BuildProgress
+
 from fv3core.utils import global_config
 
 import gt4py.storage
+
+
+_CONSTANT_PROPAGATION = False
 
 
 def dace_inhibitor(fn: Callable):
@@ -79,24 +79,44 @@ def call_sdfg(daceprog: DaceProgram, sdfg: dace.SDFG, args, kwargs, sdfg_final=F
         # Promote scalar
         from dace.sdfg.analysis import scalar_to_symbol as scal2sym
 
-        for sd in sdfg.all_sdfgs_recursive():
-            scal2sym.promote_scalars_to_symbols(sd)
+        with BuildProgress("Scalar promotion"):
+            for sd in sdfg.all_sdfgs_recursive():
+                scal2sym.promote_scalars_to_symbols(sd)
 
-        for sd in sdfg.all_sdfgs_recursive():
-            simple_cprop(sd)
+        if _CONSTANT_PROPAGATION:
+            # Constant propagation - part 1
+            with BuildProgress("Constant propagation"):
+                from fv3core.utils.dace.sdfg_opt_passes import simple_cprop
 
-        # Simplify the SDFG (automatic optimization)
-        sdfg.simplify(validate=False)
+                for sd in sdfg.all_sdfgs_recursive():
+                    simple_cprop(sd)
 
-        sdfg.apply_transformations_repeated(
-            [DeadStateElimination, FalseConditionElimination]
-            + simplification_transformations()
-        )
+        if _CONSTANT_PROPAGATION:
+            # Constant propagation - part 2
+            from dace.transformation.interstate.state_elimination import (
+                DeadStateElimination,
+                FalseConditionElimination,
+            )
 
-        # Here we insert optimization passes that don't exists in Simplify yet
-        # refine_permute_arrays(sdfg)
+            with BuildProgress("Simplify + DeadState / FalsCond elimination"):
+
+                sdfg.apply_transformations_repeated(
+                    [DeadStateElimination, FalseConditionElimination]
+                    + simplification_transformations()
+                )
+        else:
+            sdfg.simplify(validate=False)
+
+        # Expand the stencil computation Library Nodes with the right expansion
+        with BuildProgress("Expand"):
+            sdfg.expand_library_nodes()
+
+        # Simplify again after expansion
+        with BuildProgress("Simplify (final)"):
+            sdfg.simplify(validate=False)
 
         # Call
+        print("=== Codegen + Compile + Run ===")
         res = sdfg(**sdfg_kwargs)
     else:
         res = daceprog(*args, **kwargs)

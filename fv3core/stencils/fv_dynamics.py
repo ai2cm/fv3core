@@ -5,6 +5,10 @@ from typing import Mapping
 from dace import constant as dace_constant
 from dace.frontend.python.interface import nounroll as dace_no_unroll
 from fv3core.utils.dace.computepath import computepath_method, dace_inhibitor
+from fv3core.utils.dace.utils import (
+    cb_nvtx_range_pop,
+    cb_nvtx_range_push_dynsteps,
+)
 import fv3core._config as spec
 
 from gt4py.gtscript import PARALLEL, computation, interval, log
@@ -281,7 +285,6 @@ class DynamicalCore:
             state, stencil_factory, grid_data, order=config.c2l_ord, comm=comm
         )
 
-        
         if not (not self.config.inline_q and NQ != 0):
             raise NotImplementedError("tracer_2d not implemented, turn on z_tracer")
         self._adjust_tracer_mixing_ratio = AdjustNegativeTracerMixingRatio(
@@ -446,8 +449,10 @@ class DynamicalCore:
                 and other rayleigh computations are done
             timer: if given, use for timing model execution
         """
+        cb_nvtx_range_push_dynsteps()
         # [DaCe] Updating states outside runtime path (__dict__.update)
         self._compute(state)
+        cb_nvtx_range_pop()
 
     @computepath_method
     def _compute(self, state: dace_constant):

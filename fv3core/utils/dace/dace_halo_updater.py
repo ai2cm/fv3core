@@ -48,38 +48,37 @@ def rot_scalar_flatten(
     * the rest of the inputs can be obtained through `get_rot_config` by passing
         the `dims` argument to it. Unfortunately they can not be passed as **kwargs.
     """
-    n_clockwise_rotations = ncr % 4
     result = np.zeros((data.size,), dtype=data.dtype)
 
-    if n_clockwise_rotations == 0:
+    if ncr == 0:
         tmp_0 = np.zeros(data.shape, dtype=data.dtype)
         tmp_0[:] = data[:]
         result[:] = tmp_0.flatten()
 
-    elif n_clockwise_rotations == 1 or n_clockwise_rotations == 3:
+    elif ncr == 1 or ncr == 3:
         if x_in_x & y_in_y:
-            if n_clockwise_rotations == 1:
+            if ncr == 1:
                 tmp_1 = np.rot90(data, axes=(y_dim, x_dim))
                 result[:] = tmp_1.flatten()
-            if n_clockwise_rotations == 3:
+            if ncr == 3:
                 tmp_3 = np.rot90(data, axes=(x_dim, y_dim))
                 result[:] = tmp_3.flatten()
 
         elif x_in_x:
-            if n_clockwise_rotations == 1:
+            if ncr == 1:
                 tmp_1x = np.empty_like(data)
                 tmp_1x = np.flip(data, axis=x_dim)
                 result[:] = tmp_1x.flatten()
 
         elif y_in_y:
-            if n_clockwise_rotations == 3:
+            if ncr == 3:
                 tmp_3y = np.empty_like(data)
                 tmp_3y = np.flip(data, axis=y_dim)
                 result[:] = tmp_3y.flatten()
 
         else:
-            raise RuntimeError(f"Unexpected rotation {n_clockwise_rotations}")
-    elif n_clockwise_rotations == 2:
+            raise RuntimeError(f"Unexpected rotation {ncr}")
+    elif ncr == 2:
         if n_horizontal == 1:
             tmp_4 = np.empty_like(data)
             tmp_4[:] = np.flip(data, axis=0)
@@ -95,10 +94,10 @@ def rot_scalar_flatten(
             tmp_6[:] = np.flip(data, axis=(0, 1, 2))
             result[:] = tmp_6.flatten()
         else:
-            raise RuntimeError(f"Unexpected rotation {n_clockwise_rotations}")
+            raise RuntimeError(f"Unexpected rotation {ncr}")
 
     else:
-        raise RuntimeError(f"Unexpected rotation {n_clockwise_rotations}")
+        raise RuntimeError(f"Unexpected rotation {ncr}")
     return result
 
 
