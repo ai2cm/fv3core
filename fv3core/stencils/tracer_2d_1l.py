@@ -204,6 +204,8 @@ class TracerAdvection:
             comm.get_scalar_halo_updater([tracer_halo_spec] * self._tracer_count),
             tracers,
             [t for t in tracers.keys()],
+            comm=comm,
+            grid=spec.grid,
         )
         # [DaCe] copy corners unrolled
         # self._copy_corners = PreAllocatedCopiedCornersFactory(

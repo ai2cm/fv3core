@@ -9,7 +9,8 @@ from gt4py.gtscript import PARALLEL, computation, interval
 from fv3core import StencilConfig
 from fv3core.utils.global_config import set_backend
 from fv3core.utils.gt4py_utils import make_storage_from_shape_uncached
-from fv3core.utils.stencil import FrozenStencil, computepath_function
+from fv3core.utils.stencil import FrozenStencil
+from fv3core.utils.dace.computepath import computepath_function
 from fv3core.utils.typing import FloatField
 
 

@@ -24,8 +24,11 @@ try:
 except ImportError:
     MPI = None
 
+try:
+    import cupy as cp
+except ImportError:
+    cp = None
 
-# mpirun -np 6 fv3core/examples/standalone/runfile/dynamics.py /test_data/ 3 numpy testhash
 
 from fv3core.initialization.baroclinic import init_baroclinic_state
 # Dev note: the GTC toolchain fails if xarray is imported after gt4py
@@ -365,6 +368,9 @@ def run(
             f"given, performance will be poor."
         )
 
+    if cp is not None:
+        cp.cuda.nvtx.RangePush("Performance Run")
+
     if dace_orchestrated_backend:
         with timer.clock("mainloop_orchestrated"):
             dycore_fn(state, time_steps)
@@ -374,6 +380,9 @@ def run(
         set_dacemode(dacemode)
 
     timer.stop("total")
+
+    if cp is not None:
+        cp.cuda.nvtx.RangePop()
 
     # Timings
     # Print a brief summary of timings

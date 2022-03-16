@@ -140,6 +140,8 @@ class CubedToLatLon:
             state,
             ["u_quantity"],
             ["v_quantity"],
+            comm=comm,
+            grid=spec.grid,
         )
 
     # [DaCe] u/v are no longer needed to be quantity, reverted to FloatField for compuation
