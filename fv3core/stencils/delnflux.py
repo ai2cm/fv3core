@@ -937,12 +937,12 @@ class DelnFlux:
         shape = grid_indexing.max_shape
         k_shape = (1, 1, nk)
 
-        self._damp_3d = utils.make_storage_from_shape(k_shape, is_temporary=False)
+        self._damp_3d = utils.make_storage_from_shape(k_shape, is_temporary=True)
         # fields must be 3d to assign to them
-        self._fx2 = utils.make_storage_from_shape(shape, is_temporary=False)
-        self._fy2 = utils.make_storage_from_shape(shape, is_temporary=False)
+        self._fx2 = utils.make_storage_from_shape(shape, is_temporary=True)
+        self._fy2 = utils.make_storage_from_shape(shape, is_temporary=True)
         self._d2 = utils.make_storage_from_shape(
-            grid_indexing.domain_full(), is_temporary=False
+            grid_indexing.domain_full(), is_temporary=True
         )
 
         damping_factor_calculation = stencil_factory.from_origin_domain(
