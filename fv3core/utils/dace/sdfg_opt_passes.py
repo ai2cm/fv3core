@@ -155,3 +155,24 @@ def simple_cprop(sdfg: dace.SDFG):
             # No more replacements done
             break
     s2s.remove_symbol_indirection(sdfg)
+
+
+def splittable_region_expansion(sdfg: dace.SDFG):
+    """
+    Set certain StencilComputation library nodes to expand to a different
+    schedule if they contain small splittable regions.
+    """
+    from gtc.dace.nodes import StencilComputation
+
+    for node, _ in sdfg.all_nodes_recursive():
+        if isinstance(node, StencilComputation):
+            if node.has_splittable_regions() and 'corner' in node.label:
+                node.expansion_specification = [
+                    "Sections",
+                    "Stages",
+                    "J",
+                    "I",
+                    "K",
+                ]
+                print('Reordered schedule for', node.label)
+

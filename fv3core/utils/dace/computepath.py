@@ -12,6 +12,7 @@ from dace.transformation.transformation import simplification_transformations
 from fv3core.utils.dace.utils import BuildProgress
 
 from fv3core.utils import global_config
+from fv3core.utils.dace.sdfg_opt_passes import splittable_region_expansion
 
 import gt4py.storage
 
@@ -107,6 +108,9 @@ def call_sdfg(daceprog: DaceProgram, sdfg: dace.SDFG, args, kwargs, sdfg_final=F
         else:
             with BuildProgress("Simplify (1 of 2)"):
                 sdfg.simplify(validate=False)
+
+        # Perform pre-expansion fine tuning
+        splittable_region_expansion(sdfg)
 
         # Expand the stencil computation Library Nodes with the right expansion
         with BuildProgress("Expand"):
