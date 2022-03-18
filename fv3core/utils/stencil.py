@@ -35,7 +35,6 @@ from fv3core.utils import global_config
 # [DaCe] import
 from fv3core.utils.dace.sdfg_opt_passes import refine_permute_arrays
 from fv3core.utils.future_stencil import future_stencil
-from fv3core.utils.mpi import MPI
 from fv3core.utils.typing import Index3D, cast_to_index3d
 from fv3gfs.util.halo_data_transformer import QuantityHaloSpec
 
@@ -73,42 +72,92 @@ def to_gpu(sdfg: dace.SDFG):
         sd.openmp_sections = False
 
 
+def is_first_tile(rank: int, size: int) -> bool:
+    return rank % int(size / 6) == rank
+
+
+def determine_compiling_ranks() -> Tuple[bool, Any]:
+    is_compiling = False
+    rank = 0
+    size = 1
+    try:
+        from fv3core.utils.mpi import MPI
+
+        if MPI:
+            comm = MPI.COMM_WORLD
+            rank = comm.Get_rank()
+            size = comm.Get_size()
+    finally:
+        if is_first_tile(rank, size):
+            is_compiling = True
+        MPI = None
+        # We need to set MPI to none again to turn off distributed compilation
+    return is_compiling, comm
+
+
+def unblock_waiting_tiles(comm, sdfg_path: str) -> None:
+    if comm.Get_size() > 1:
+        for tile in range(1, 6):
+            tilesize = comm.Get_size() / 6
+            comm.send(sdfg_path, dest=tile * tilesize + comm.Get_rank())
+
+
 def call_sdfg(daceprog: DaceProgram, sdfg: dace.SDFG, args, kwargs, sdfg_final=False):
+
     if not sdfg_final:
-        if global_config.is_gpu_backend():
-            to_gpu(sdfg)
-            make_transients_persistent(sdfg=sdfg, device=dace.dtypes.DeviceType.GPU)
+        is_compiling, comm = determine_compiling_ranks()
+        if is_compiling:
+            if global_config.is_gpu_backend():
+                to_gpu(sdfg)
+                make_transients_persistent(sdfg=sdfg, device=dace.dtypes.DeviceType.GPU)
+            else:
+                make_transients_persistent(sdfg=sdfg, device=dace.dtypes.DeviceType.CPU)
+
+            for arg in list(args) + list(kwargs.values()):
+                if isinstance(arg, gt4py.storage.Storage):
+                    arg.host_to_device()
+
+            sdfg_kwargs = daceprog._create_sdfg_args(sdfg, args, kwargs)
+            for k in daceprog.constant_args:
+                if k in sdfg_kwargs:
+                    del sdfg_kwargs[k]
+            sdfg_kwargs = {k: v for k, v in sdfg_kwargs.items() if v is not None}
+            for k, tup in daceprog.resolver.closure_arrays.items():
+                if k in sdfg_kwargs and tup[1].transient:
+                    del sdfg_kwargs[k]
+
+            # Promote scalar
+            from dace.sdfg.analysis import scalar_to_symbol as scal2sym
+
+            for sd in sdfg.all_sdfgs_recursive():
+                scal2sym.promote_scalars_to_symbols(sd)
+
+            # Simplify the SDFG (automatic optimization)
+            sdfg.simplify(validate=False)
+
+            # Here we insert optimization passes that don't exists in Simplify yet
+            refine_permute_arrays(sdfg)
+
+            # Here we should have the final sdfg for all ranks:
+            csdfg = sdfg.compile()
+            unblock_waiting_tiles(comm, csdfg.sdfg.build_folder)
+            # Call
+            res = csdfg(*args, **sdfg_kwargs)
         else:
-            make_transients_persistent(sdfg=sdfg, device=dace.dtypes.DeviceType.CPU)
-    for arg in list(args) + list(kwargs.values()):
-        if isinstance(arg, gt4py.storage.Storage):
-            arg.host_to_device()
+            tilesize = comm.Get_size() / 6
+            my_rank = comm.Get_rank()
+            # wait for compilation to be done
+            sdfg_path = comm.recv(source=my_rank % tilesize)
+            daceprog.load_precompiled_sdfg(sdfg_path, *args, **kwargs)
+            for arg in list(args) + list(kwargs.values()):
+                if isinstance(arg, gt4py.storage.Storage):
+                    arg.host_to_device()
+            res = daceprog(*args, **kwargs)
 
-    if not sdfg_final:
-        sdfg_kwargs = daceprog._create_sdfg_args(sdfg, args, kwargs)
-        for k in daceprog.constant_args:
-            if k in sdfg_kwargs:
-                del sdfg_kwargs[k]
-        sdfg_kwargs = {k: v for k, v in sdfg_kwargs.items() if v is not None}
-        for k, tup in daceprog.resolver.closure_arrays.items():
-            if k in sdfg_kwargs and tup[1].transient:
-                del sdfg_kwargs[k]
-
-        # Promote scalar
-        from dace.sdfg.analysis import scalar_to_symbol as scal2sym
-
-        for sd in sdfg.all_sdfgs_recursive():
-            scal2sym.promote_scalars_to_symbols(sd)
-
-        # Simplify the SDFG (automatic optimization)
-        sdfg.simplify(validate=False)
-
-        # Here we insert optimization passes that don't exists in Simplify yet
-        refine_permute_arrays(sdfg)
-
-        # Call
-        res = sdfg(**sdfg_kwargs)
     else:
+        for arg in list(args) + list(kwargs.values()):
+            if isinstance(arg, gt4py.storage.Storage):
+                arg.host_to_device()
         res = daceprog(*args, **kwargs)
     for arg in list(args) + list(kwargs.values()):
         if isinstance(arg, gt4py.storage.Storage) and hasattr(
