@@ -105,7 +105,8 @@ def call_sdfg(daceprog: DaceProgram, sdfg: dace.SDFG, args, kwargs, sdfg_final=F
                     + simplification_transformations()
                 )
         else:
-            sdfg.simplify(validate=False)
+            with BuildProgress("Simplify (1 of 2)"):
+                sdfg.simplify(validate=False)
 
         # Expand the stencil computation Library Nodes with the right expansion
         with BuildProgress("Expand"):
