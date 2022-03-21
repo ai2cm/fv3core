@@ -659,11 +659,27 @@ class GridData:
 
     @classmethod
     def new_from_metric_terms(cls, metric_terms):
-        edge_n = metric_terms.edge_n.storage
-        edge_s = metric_terms.edge_s.storage
-        edge_e = metric_terms.edge_e.storage
-        edge_w = metric_terms.edge_w.storage
-
+        shape = metric_terms.lon.data.shape
+        edge_n = utils.make_storage_data(
+            metric_terms.edge_n.data,
+            (shape[0],),
+            axis=0,
+        )
+        edge_s = utils.make_storage_data(
+            metric_terms.edge_s.data,
+            (shape[0],),
+            axis=0,
+        )
+        edge_e = utils.make_storage_data(
+            metric_terms.edge_e.data[0,:],
+            (1, shape[1]),
+            axis=1,
+        )
+        edge_w = utils.make_storage_data(
+            metric_terms.edge_w.data[0,:],
+            (1, shape[1]),
+            axis=1,
+        )
         horizontal_data = HorizontalGridData(
             lon=metric_terms.lon.storage,
             lat=metric_terms.lat.storage,
@@ -857,6 +873,7 @@ class GridData:
     def edge_n(self):
         return self._horizontal_data.edge_n
 
+    
     @property
     def p_ref(self) -> float:
         """
