@@ -15,8 +15,6 @@ import dace
 
 import numpy as np
 
-from fv3core.utils import global_config
-
 from warnings import warn
 
 
