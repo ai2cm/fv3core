@@ -356,7 +356,7 @@ class DycoreState:
         for _field in fields(DycoreState):
             if "dims" in _field.metadata.keys():
                 state_dict[_field.metadata["name"]] = getattr(self, _field.name)
-                state_dict[_field.name] = getattr(self, _field.name)
+                state_dict[_field.name] = getattr(self, _field.name).storage
         return state_dict
     def __getitem__(self, item):
         return getattr(self, item)
