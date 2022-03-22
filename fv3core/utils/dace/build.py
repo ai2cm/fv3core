@@ -39,7 +39,7 @@ def unblock_waiting_tiles(comm, sdfg_path: str) -> None:
             comm.send(sdfg_path, dest=tile * tilesize + comm.Get_rank())
 
 
-def my_sdfg_rank(comm):
+def source_sdfg_rank(comm):
     tilesize = comm.Get_size() / 6
     my_rank = comm.Get_rank()
     return my_rank % tilesize
@@ -111,7 +111,7 @@ def build_sdfg_path(program_name: str, sdfg_file_path: Optional[str] = None) -> 
     from gt4py import config as gt_config
 
     if MPI.COMM_WORLD.Get_size() > 1:
-        rank_str = f"_00000{str(MPI.COMM_WORLD.Get_rank())}"
+        rank_str = f"_{int(source_sdfg_rank(MPI.COMM_WORLD)):06d}"
     else:
         rank_str = ""
 

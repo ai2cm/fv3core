@@ -9,7 +9,12 @@ from dace.transformation.auto.auto_optimize import make_transients_persistent
 from dace.transformation.helpers import get_parent_map
 
 from dace.transformation.transformation import simplification_transformations
-from fv3core.utils.dace.build import load_sdfg_once
+from fv3core.utils.dace.build import (
+    load_sdfg_once,
+    determine_compiling_ranks,
+    source_sdfg_rank,
+    unblock_waiting_tiles,
+)
 from fv3core.utils.dace.utils import DaCeProgress
 
 from fv3core.utils import global_config
@@ -92,88 +97,101 @@ def run_sdfg(daceprog: DaceProgram, sdfg: dace.SDFG, args, kwargs):
 
 
 def build_sdfg(daceprog: DaceProgram, sdfg: dace.SDFG, args, kwargs):
+    is_compiling, comm = determine_compiling_ranks()
+    if is_compiling:
+        # Make the transients array persistents
+        if global_config.is_gpu_backend():
+            to_gpu(sdfg)
+            make_transients_persistent(sdfg=sdfg, device=dace.dtypes.DeviceType.GPU)
+        else:
+            for sd, _aname, arr in sdfg.arrays_recursive():
+                if arr.shape == (1,):
+                    arr.storage = dace.StorageType.Register
+            make_transients_persistent(sdfg=sdfg, device=dace.dtypes.DeviceType.CPU)
 
-    # Make the transients array persistents
-    if global_config.is_gpu_backend():
-        to_gpu(sdfg)
-        make_transients_persistent(sdfg=sdfg, device=dace.dtypes.DeviceType.GPU)
-    else:
-        for sd, _aname, arr in sdfg.arrays_recursive():
-            if arr.shape == (1,):
-                arr.storage = dace.StorageType.Register
-        make_transients_persistent(sdfg=sdfg, device=dace.dtypes.DeviceType.CPU)
+        # Upload args to device
+        upload_to_device(list(args) + list(kwargs.values()))
 
-    # Upload args to device
-    upload_to_device(list(args) + list(kwargs.values()))
+        # Build non-constants & non-transients from the sdfg_kwargs
+        sdfg_kwargs = daceprog._create_sdfg_args(sdfg, args, kwargs)
+        for k in daceprog.constant_args:
+            if k in sdfg_kwargs:
+                del sdfg_kwargs[k]
+        sdfg_kwargs = {k: v for k, v in sdfg_kwargs.items() if v is not None}
+        for k, tup in daceprog.resolver.closure_arrays.items():
+            if k in sdfg_kwargs and tup[1].transient:
+                del sdfg_kwargs[k]
 
-    # Build non-constants & non-transients from the sdfg_kwargs
-    sdfg_kwargs = daceprog._create_sdfg_args(sdfg, args, kwargs)
-    for k in daceprog.constant_args:
-        if k in sdfg_kwargs:
-            del sdfg_kwargs[k]
-    sdfg_kwargs = {k: v for k, v in sdfg_kwargs.items() if v is not None}
-    for k, tup in daceprog.resolver.closure_arrays.items():
-        if k in sdfg_kwargs and tup[1].transient:
-            del sdfg_kwargs[k]
+        # Promote scalar
+        from dace.sdfg.analysis import scalar_to_symbol as scal2sym
 
-    # Promote scalar
-    from dace.sdfg.analysis import scalar_to_symbol as scal2sym
-
-    with DaCeProgress("Scalar promotion"):
-        for sd in sdfg.all_sdfgs_recursive():
-            scal2sym.promote_scalars_to_symbols(sd)
-
-    if _CONSTANT_PROPAGATION:
-        # Constant propagation - part 1
-        with DaCeProgress("Constant propagation"):
-            from fv3core.utils.dace.sdfg_opt_passes import simple_cprop
-
+        with DaCeProgress("Scalar promotion"):
             for sd in sdfg.all_sdfgs_recursive():
-                simple_cprop(sd)
+                scal2sym.promote_scalars_to_symbols(sd)
 
-    if _CONSTANT_PROPAGATION:
-        # Constant propagation - part 2
-        from dace.transformation.interstate.state_elimination import (
-            DeadStateElimination,
-            FalseConditionElimination,
-        )
+        if _CONSTANT_PROPAGATION:
+            # Constant propagation - part 1
+            with DaCeProgress("Constant propagation"):
+                from fv3core.utils.dace.sdfg_opt_passes import simple_cprop
 
-        with DaCeProgress("Simplify + DeadState / FalsCond elimination"):
+                for sd in sdfg.all_sdfgs_recursive():
+                    simple_cprop(sd)
 
-            sdfg.apply_transformations_repeated(
-                [DeadStateElimination, FalseConditionElimination]
-                + simplification_transformations()
+        if _CONSTANT_PROPAGATION:
+            # Constant propagation - part 2
+            from dace.transformation.interstate.state_elimination import (
+                DeadStateElimination,
+                FalseConditionElimination,
             )
-    else:
-        with DaCeProgress("Simplify (1 of 2)"):
+
+            with DaCeProgress("Simplify + DeadState / FalsCond elimination"):
+
+                sdfg.apply_transformations_repeated(
+                    [DeadStateElimination, FalseConditionElimination]
+                    + simplification_transformations()
+                )
+        else:
+            with DaCeProgress("Simplify (1 of 2)"):
+                sdfg.simplify(validate=False)
+
+        # Perform pre-expansion fine tuning
+        splittable_region_expansion(sdfg)
+
+        # Expand the stencil computation Library Nodes with the right expansion
+        with DaCeProgress("Expand"):
+            sdfg.expand_library_nodes()
+
+        # Simplify again after expansion
+        with DaCeProgress("Simplify (final)"):
             sdfg.simplify(validate=False)
 
-    # Perform pre-expansion fine tuning
-    splittable_region_expansion(sdfg)
+        # Compile
+        with DaCeProgress("Codegen & compile"):
+            sdfg.compile()
 
-    # Expand the stencil computation Library Nodes with the right expansion
-    with DaCeProgress("Expand"):
-        sdfg.expand_library_nodes()
-
-    # Simplify again after expansion
-    with DaCeProgress("Simplify (final)"):
-        sdfg.simplify(validate=False)
-
-    # Compile
-    with DaCeProgress("Codegen & compile"):
-        sdfg.compile()
-
+    # Compilation done, either exit or scatter/gather and run
     if global_config.get_dacemode() == global_config.DaCeOrchestration.Build:
         DaCeProgress.log("Compilation finished and saved, exiting.")
         exit(0)
     elif global_config.get_dacemode() == global_config.DaCeOrchestration.BuildAndRun:
+        if is_compiling:
+            unblock_waiting_tiles(comm, sdfg.build_folder)
+        else:
+            source_rank = source_sdfg_rank(comm)
+            # wait for compilation to be done
+            sdfg_path = comm.recv(source=source_rank)
+            daceprog.load_precompiled_sdfg(sdfg_path, *args, **kwargs)
+
         with DaCeProgress("Run"):
             res = run_sdfg(daceprog, sdfg, args, kwargs)
         return res
 
 
 def call_sdfg(daceprog: DaceProgram, sdfg: dace.SDFG, args, kwargs):
-    if global_config.get_dacemode() == global_config.DaCeOrchestration.Build:
+    if (
+        global_config.get_dacemode() == global_config.DaCeOrchestration.Build
+        or global_config.get_dacemode() == global_config.DaCeOrchestration.BuildAndRun
+    ):
         return build_sdfg(daceprog, sdfg, args, kwargs)
     elif global_config.get_dacemode() == global_config.DaCeOrchestration.Run:
         return run_sdfg(daceprog, sdfg, args, kwargs)
