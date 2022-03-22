@@ -13,6 +13,7 @@ from typing import Any, Dict, List
 import click
 import dace
 import numpy as np
+from fv3core.utils import global_config
 import serialbox
 from warnings import warn
 
@@ -256,32 +257,45 @@ def run(
             state,
         )
 
-    # Build SDFG_PATH if option given and specialize for the right backend
-    from fv3core.utils.dace.utils import get_sdfg_path
-
-    if sdfg_path is not None:
-        if backend == "gtc:dace:gpu":
-            sdfg_path = get_sdfg_path(sdfg_path, "dycore_loop_on_gpu")
-            # sdfg_path = get_sdfg_path(sdfg_path, "c_sw_loop_on_gpu")
-        else:
-            sdfg_path = get_sdfg_path(sdfg_path, "dycore_loop_on_cpu")
-
-    @computepath_function(load_sdfg=sdfg_path)
+    @computepath_function
     def dycore_loop_on_cpu(state: dace.constant, time_steps: int):
         for _ in dace.nounroll(range(time_steps)):
             dycore.step_dynamics(
                 state,
             )
 
-    @computepath_function(load_sdfg=sdfg_path)
+    @computepath_function
     def dycore_loop_on_gpu(state: dace.constant, time_steps: int):
         for _ in dace.nounroll(range(time_steps)):
             dycore.step_dynamics(
                 state,
             )
 
-    @computepath_function(load_sdfg=sdfg_path)
+    @computepath_function
     def c_sw_loop_on_gpu(state: dace.constant, time_steps: int):
+        for _ in dace.nounroll(range(time_steps)):
+            # -- C_SW -- #
+            dt = state.mdt / dycore.config.n_split
+            dt2 = 0.5 * dt
+            dycore.acoustic_dynamics.cgrid_shallow_water_lagrangian_dynamics(
+                state.delp,
+                state.pt,
+                state.u,
+                state.v,
+                state.w,
+                state.uc,
+                state.vc,
+                state.ua,
+                state.va,
+                state.ut,
+                state.vt,
+                state.divgd,
+                state.omga,
+                dt2,
+            )
+
+    @computepath_function
+    def c_sw_loop_on_cpu(state: dace.constant, time_steps: int):
         for _ in dace.nounroll(range(time_steps)):
             # -- C_SW -- #
             dt = state.mdt / dycore.config.n_split
@@ -310,12 +324,15 @@ def run(
             )
 
     # Cache warm up and loop function selection
-    dace_orchestrated_backend = "dace" in backend and get_dacemode()
+    dace_orchestrated_backend = (
+        "dace" in backend and global_config.is_dace_orchestrated()
+    )
     print("Cache warming run")
 
     dycore_fn = None
     if dace_orchestrated_backend and backend == "gtc:dace":
         dycore_fn = dycore_loop_on_cpu
+        # dycore_fn = c_sw_loop_on_gpu
     elif dace_orchestrated_backend and backend == "gtc:dace:gpu":
         dycore_fn = dycore_loop_on_gpu
         # dycore_fn = c_sw_loop_on_gpu
@@ -337,11 +354,6 @@ def run(
     if time_steps == 0:
         print("Cached built only - no benchmarked run")
         return
-    elif "dace" in backend:
-        warn(
-            f"Running loop {time_steps} times but not SDFG was"
-            f"given, performance will be poor."
-        )
 
     if cp is not None:
         cp.cuda.nvtx.RangePush("Performance Run")

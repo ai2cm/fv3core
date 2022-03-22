@@ -183,7 +183,7 @@ class FrozenStencil(SDFGConvertible):
             )
 
         if (
-            global_config.get_dacemode()
+            global_config.is_dace_orchestrated()
             and not global_config.is_dacemode_codegen_whitelisted(func)
             and "dace" in global_config.get_backend()
         ):
