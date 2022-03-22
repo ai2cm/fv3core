@@ -49,6 +49,16 @@ def is_gtc_backend() -> bool:
     return get_backend().startswith("gtc")
 
 
+def get_dacemode() -> bool:
+    global _DACEMODE
+    return _DACEMODE
+
+
+def set_dacemode(dacemode: bool):
+    global _DACEMODE
+    _DACEMODE = dacemode
+
+
 # [DaCe] See description below. Dangerous, should be refactored out
 # Either we can JIT properly via GTC or the compute path need to be able
 # to trigger compilation at call time properly if you haven't anyone above you
@@ -76,39 +86,5 @@ _BACKEND: Optional[str] = None
 # If TRUE, all caches will bypassed and stencils recompiled
 # if FALSE, caches will be checked and rebuild if code changes
 _REBUILD: bool = getenv_bool("FV3_STENCIL_REBUILD_FLAG", "False")
+_DACEMODE: bool = getenv_bool("FV3_DACEMODE", "False")
 _VALIDATE_ARGS: bool = True
-
-
-import enum
-
-
-class DaCeOrchestration(enum.Enum):
-    Python = 0
-    Build = 1
-    BuildAndRun = 2
-    Run = 3
-
-
-def load_dace_orchestration() -> DaCeOrchestration:
-    return DaCeOrchestration[os.getenv("FV3_DACEMODE", "Python")]
-
-
-def get_dacemode() -> DaCeOrchestration:
-    global _DACEMODE
-    return _DACEMODE
-
-
-def is_dace_orchestrated() -> bool:
-    return _DACEMODE != DaCeOrchestration.Python
-
-
-def set_dacemode(dacemode: DaCeOrchestration):
-    global _DACEMODE
-    _DACEMODE = dacemode
-
-
-# Python: python orchestration
-# Build: compile & save SDFG only
-# BuildAndRun: compile & save SDFG, then run
-# Run: load from .so and run, will fail if .so is not available
-_DACEMODE: DaCeOrchestration = load_dace_orchestration()

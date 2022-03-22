@@ -1,5 +1,5 @@
 import os
-from typing import Dict, Tuple, Callable, Union, Any, List
+from typing import Dict, Tuple, Callable, Union, Any
 import inspect
 
 import dace
@@ -9,8 +9,7 @@ from dace.transformation.auto.auto_optimize import make_transients_persistent
 from dace.transformation.helpers import get_parent_map
 
 from dace.transformation.transformation import simplification_transformations
-from fv3core.utils.dace.build import load_sdfg_once
-from fv3core.utils.dace.utils import DaCeProgress
+from fv3core.utils.dace.utils import BuildProgress
 
 from fv3core.utils import global_config
 from fv3core.utils.dace.sdfg_opt_passes import splittable_region_expansion
@@ -54,17 +53,78 @@ def to_gpu(sdfg: dace.SDFG):
         sd.openmp_sections = False
 
 
-def upload_to_device(host_data: List[Any]):
-    """Make sure any data that are still a gt4py.storage gets uploaded to device"""
-    for data in host_data:
-        if isinstance(data, gt4py.storage.Storage):
-            data.host_to_device()
+def call_sdfg(daceprog: DaceProgram, sdfg: dace.SDFG, args, kwargs, sdfg_final=False):
+    if not sdfg_final:
+        if global_config.is_gpu_backend():
+            to_gpu(sdfg)
+            make_transients_persistent(sdfg=sdfg, device=dace.dtypes.DeviceType.GPU)
+        else:
+            for sd, _aname, arr in sdfg.arrays_recursive():
+                if arr.shape == (1,):
+                    arr.storage = dace.StorageType.Register
+            make_transients_persistent(sdfg=sdfg, device=dace.dtypes.DeviceType.CPU)
+    for arg in list(args) + list(kwargs.values()):
+        if isinstance(arg, gt4py.storage.Storage):
+            arg.host_to_device()
 
+    if not sdfg_final:
+        sdfg_kwargs = daceprog._create_sdfg_args(sdfg, args, kwargs)
+        for k in daceprog.constant_args:
+            if k in sdfg_kwargs:
+                del sdfg_kwargs[k]
+        sdfg_kwargs = {k: v for k, v in sdfg_kwargs.items() if v is not None}
+        for k, tup in daceprog.resolver.closure_arrays.items():
+            if k in sdfg_kwargs and tup[1].transient:
+                del sdfg_kwargs[k]
 
-def run_sdfg(daceprog: DaceProgram, sdfg: dace.SDFG, args, kwargs):
-    """Production mode: .so should exist and be"""
-    upload_to_device(list(args) + list(kwargs.values()))
-    res = daceprog(*args, **kwargs)
+        # Promote scalar
+        from dace.sdfg.analysis import scalar_to_symbol as scal2sym
+
+        with BuildProgress("Scalar promotion"):
+            for sd in sdfg.all_sdfgs_recursive():
+                scal2sym.promote_scalars_to_symbols(sd)
+
+        if _CONSTANT_PROPAGATION:
+            # Constant propagation - part 1
+            with BuildProgress("Constant propagation"):
+                from fv3core.utils.dace.sdfg_opt_passes import simple_cprop
+
+                for sd in sdfg.all_sdfgs_recursive():
+                    simple_cprop(sd)
+
+        if _CONSTANT_PROPAGATION:
+            # Constant propagation - part 2
+            from dace.transformation.interstate.state_elimination import (
+                DeadStateElimination,
+                FalseConditionElimination,
+            )
+
+            with BuildProgress("Simplify + DeadState / FalsCond elimination"):
+
+                sdfg.apply_transformations_repeated(
+                    [DeadStateElimination, FalseConditionElimination]
+                    + simplification_transformations()
+                )
+        else:
+            with BuildProgress("Simplify (1 of 2)"):
+                sdfg.simplify(validate=False)
+
+        # Perform pre-expansion fine tuning
+        splittable_region_expansion(sdfg)
+
+        # Expand the stencil computation Library Nodes with the right expansion
+        with BuildProgress("Expand"):
+            sdfg.expand_library_nodes()
+
+        # Simplify again after expansion
+        with BuildProgress("Simplify (final)"):
+            sdfg.simplify(validate=False)
+
+        # Call
+        print("=== Codegen + Compile + Run ===")
+        res = sdfg(**sdfg_kwargs)
+    else:
+        res = daceprog(*args, **kwargs)
     for arg in list(args) + list(kwargs.values()):
         if isinstance(arg, gt4py.storage.Storage) and hasattr(
             arg, "_set_device_modified"
@@ -91,103 +151,12 @@ def run_sdfg(daceprog: DaceProgram, sdfg: dace.SDFG, args, kwargs):
     return res
 
 
-def build_sdfg(daceprog: DaceProgram, sdfg: dace.SDFG, args, kwargs):
-
-    # Make the transients array persistents
-    if global_config.is_gpu_backend():
-        to_gpu(sdfg)
-        make_transients_persistent(sdfg=sdfg, device=dace.dtypes.DeviceType.GPU)
-    else:
-        for sd, _aname, arr in sdfg.arrays_recursive():
-            if arr.shape == (1,):
-                arr.storage = dace.StorageType.Register
-        make_transients_persistent(sdfg=sdfg, device=dace.dtypes.DeviceType.CPU)
-
-    # Upload args to device
-    upload_to_device(list(args) + list(kwargs.values()))
-
-    # Build non-constants & non-transients from the sdfg_kwargs
-    sdfg_kwargs = daceprog._create_sdfg_args(sdfg, args, kwargs)
-    for k in daceprog.constant_args:
-        if k in sdfg_kwargs:
-            del sdfg_kwargs[k]
-    sdfg_kwargs = {k: v for k, v in sdfg_kwargs.items() if v is not None}
-    for k, tup in daceprog.resolver.closure_arrays.items():
-        if k in sdfg_kwargs and tup[1].transient:
-            del sdfg_kwargs[k]
-
-    # Promote scalar
-    from dace.sdfg.analysis import scalar_to_symbol as scal2sym
-
-    with DaCeProgress("Scalar promotion"):
-        for sd in sdfg.all_sdfgs_recursive():
-            scal2sym.promote_scalars_to_symbols(sd)
-
-    if _CONSTANT_PROPAGATION:
-        # Constant propagation - part 1
-        with DaCeProgress("Constant propagation"):
-            from fv3core.utils.dace.sdfg_opt_passes import simple_cprop
-
-            for sd in sdfg.all_sdfgs_recursive():
-                simple_cprop(sd)
-
-    if _CONSTANT_PROPAGATION:
-        # Constant propagation - part 2
-        from dace.transformation.interstate.state_elimination import (
-            DeadStateElimination,
-            FalseConditionElimination,
-        )
-
-        with DaCeProgress("Simplify + DeadState / FalsCond elimination"):
-
-            sdfg.apply_transformations_repeated(
-                [DeadStateElimination, FalseConditionElimination]
-                + simplification_transformations()
-            )
-    else:
-        with DaCeProgress("Simplify (1 of 2)"):
-            sdfg.simplify(validate=False)
-
-    # Perform pre-expansion fine tuning
-    splittable_region_expansion(sdfg)
-
-    # Expand the stencil computation Library Nodes with the right expansion
-    with DaCeProgress("Expand"):
-        sdfg.expand_library_nodes()
-
-    # Simplify again after expansion
-    with DaCeProgress("Simplify (final)"):
-        sdfg.simplify(validate=False)
-
-    # Compile
-    with DaCeProgress("Codegen & compile"):
-        sdfg.compile()
-
-    if global_config.get_dacemode() == global_config.DaCeOrchestration.Build:
-        DaCeProgress.log("Compilation finished and saved, exiting.")
-        exit(1)
-    elif global_config.get_dacemode() == global_config.DaCeOrchestration.BuildAndRun:
-        with DaCeProgress("Run"):
-            res = run_sdfg(daceprog, sdfg, args, kwargs)
-        return res
-
-
-def call_sdfg(daceprog: DaceProgram, sdfg: dace.SDFG, args, kwargs):
-    if global_config.get_dacemode() == global_config.DaCeOrchestration.Build:
-        return build_sdfg(daceprog, sdfg, args, kwargs)
-    elif global_config.get_dacemode() == global_config.DaCeOrchestration.Run:
-        return run_sdfg(daceprog, sdfg, args, kwargs)
-    else:
-        raise NotImplementedError(
-            f"Mode {global_config.get_dacemode()} unimplemented at call time"
-        )
-
-
 class LazyComputepathFunction:
-    def __init__(self, func, use_dace, skip_dacemode):
+    def __init__(self, func, use_dace, skip_dacemode, load_sdfg):
         self.func = func
         self._use_dace = use_dace
         self._skip_dacemode = skip_dacemode
+        self._load_sdfg = load_sdfg
         self.daceprog = dace.program(self.func)
         self._sdfg_loaded = False
         self._sdfg = None
@@ -200,6 +169,7 @@ class LazyComputepathFunction:
                 sdfg,
                 args,
                 kwargs,
+                sdfg_final=(self._load_sdfg is not None),
             )
         else:
             return self.func(*args, **kwargs)
@@ -213,8 +183,7 @@ class LazyComputepathFunction:
         self.daceprog.global_vars = value
 
     def __sdfg__(self, *args, **kwargs):
-        sdfg_path = load_sdfg_once(self.func)
-        if sdfg_path is None:
+        if self._load_sdfg is None:
             return self.daceprog.to_sdfg(
                 *args,
                 **self.daceprog.__sdfg_closure__(),
@@ -224,11 +193,13 @@ class LazyComputepathFunction:
             )
         else:
             if not self._sdfg_loaded:
-                if os.path.isfile(sdfg_path):
-                    self.daceprog.load_sdfg(sdfg_path, *args, **kwargs)
+                if os.path.isfile(self._load_sdfg):
+                    self.daceprog.load_sdfg(self._load_sdfg, *args, **kwargs)
                     self._sdfg_loaded = True
                 else:
-                    self.daceprog.load_precompiled_sdfg(sdfg_path, *args, **kwargs)
+                    self.daceprog.load_precompiled_sdfg(
+                        self._load_sdfg, *args, **kwargs
+                    )
                     self._sdfg_loaded = True
             return next(iter(self.daceprog._cache.cache.values())).sdfg
 
@@ -244,7 +215,7 @@ class LazyComputepathFunction:
     @property
     def use_dace(self):
         return self._use_dace or (
-            global_config.is_dace_orchestrated() and not self._skip_dacemode
+            global_config.get_dacemode() and not self._skip_dacemode
         )
 
 
@@ -275,13 +246,13 @@ class LazyComputepathMethod:
                     sdfg,
                     args,
                     kwargs,
+                    sdfg_final=(self.lazy_method._load_sdfg is not None),
                 )
             else:
                 return self.lazy_method.func(self.obj_to_bind, *args, **kwargs)
 
         def __sdfg__(self, *args, **kwargs):
-            sdfg_path = load_sdfg_once(self.lazy_method.func)
-            if sdfg_path is None:
+            if self.lazy_method._load_sdfg is None:
                 return self.daceprog.to_sdfg(
                     *args,
                     **self.daceprog.__sdfg_closure__(),
@@ -290,10 +261,14 @@ class LazyComputepathMethod:
                     simplify=False,
                 )
             else:
-                if os.path.isfile(sdfg_path):
-                    self.daceprog.load_sdfg(sdfg_path, *args, **kwargs)
+                if os.path.isfile(self.lazy_method._load_sdfg):
+                    self.daceprog.load_sdfg(
+                        self.lazy_method._load_sdfg, *args, **kwargs
+                    )
                 else:
-                    self.daceprog.load_precompiled_sdfg(sdfg_path, *args, **kwargs)
+                    self.daceprog.load_precompiled_sdfg(
+                        self.lazy_method._load_sdfg, *args, **kwargs
+                    )
                 return self.daceprog.__sdfg__(*args, **kwargs)
 
         def __sdfg_closure__(self, reevaluate=None):
@@ -307,10 +282,11 @@ class LazyComputepathMethod:
                 constant_args, given_args, parent_closure
             )
 
-    def __init__(self, func, use_dace, skip_dacemode, arg_spec):
+    def __init__(self, func, use_dace, skip_dacemode, load_sdfg, arg_spec):
         self.func = func
         self._use_dace = use_dace
         self._skip_dacemode = skip_dacemode
+        self._load_sdfg = load_sdfg
         self.arg_spec = arg_spec
 
     def __get__(self, obj, objype=None):
@@ -326,17 +302,20 @@ class LazyComputepathMethod:
     @property
     def use_dace(self):
         return self._use_dace or (
-            global_config.is_dace_orchestrated() and not self._skip_dacemode
+            global_config.get_dacemode() and not self._skip_dacemode
         )
 
 
 def computepath_method(*args, **kwargs):
     skip_dacemode = kwargs.get("skip_dacemode", False)
+    load_sdfg = kwargs.get("load_sdfg", None)
     use_dace = kwargs.get("use_dace", False)
     arg_spec = inspect.getfullargspec(args[0]) if len(args) == 1 else None
 
     def _decorator(method):
-        return LazyComputepathMethod(method, use_dace, skip_dacemode, arg_spec)
+        return LazyComputepathMethod(
+            method, use_dace, skip_dacemode, load_sdfg, arg_spec
+        )
 
     if len(args) == 1 and not kwargs and callable(args[0]):
         return _decorator(args[0])
@@ -349,10 +328,11 @@ def computepath_function(
     *args, **kwargs
 ) -> Union[Callable[..., Any], LazyComputepathFunction]:
     skip_dacemode = kwargs.get("skip_dacemode", False)
+    load_sdfg = kwargs.get("load_sdfg", None)
     use_dace = kwargs.get("use_dace", False)
 
     def _decorator(function):
-        return LazyComputepathFunction(function, use_dace, skip_dacemode)
+        return LazyComputepathFunction(function, use_dace, skip_dacemode, load_sdfg)
 
     if len(args) == 1 and not kwargs and callable(args[0]):
         return _decorator(args[0])
