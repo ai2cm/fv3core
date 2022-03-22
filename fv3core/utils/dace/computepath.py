@@ -165,7 +165,7 @@ def build_sdfg(daceprog: DaceProgram, sdfg: dace.SDFG, args, kwargs):
 
     if global_config.get_dacemode() == global_config.DaCeOrchestration.Build:
         DaCeProgress.log("Compilation finished and saved, exiting.")
-        exit(1)
+        exit(0)
     elif global_config.get_dacemode() == global_config.DaCeOrchestration.BuildAndRun:
         with DaCeProgress("Run"):
             res = run_sdfg(daceprog, sdfg, args, kwargs)
