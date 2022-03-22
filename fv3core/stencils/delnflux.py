@@ -937,12 +937,12 @@ class DelnFlux:
         shape = grid_indexing.max_shape
         k_shape = (1, 1, nk)
 
-        self._damp_3d = utils.make_storage_from_shape(k_shape, is_temporary=False)
+        self._damp_3d = utils.make_storage_from_shape(k_shape, is_temporary=True)
         # fields must be 3d to assign to them
-        self._fx2 = utils.make_storage_from_shape(shape, is_temporary=False)
-        self._fy2 = utils.make_storage_from_shape(shape, is_temporary=False)
+        self._fx2 = utils.make_storage_from_shape(shape, is_temporary=True)
+        self._fy2 = utils.make_storage_from_shape(shape, is_temporary=True)
         self._d2 = utils.make_storage_from_shape(
-            grid_indexing.domain_full(), is_temporary=False
+            grid_indexing.domain_full(), is_temporary=True
         )
 
         damping_factor_calculation = stencil_factory.from_origin_domain(
@@ -1153,7 +1153,7 @@ class DelnFluxNoSG:
         corner_axis_offsets = axis_offsets(grid_indexing, corner_origin, corner_domain)
 
         self._corner_tmp = utils.make_storage_from_shape(
-            corner_domain, origin=corner_origin, is_temporary=False
+            corner_domain, origin=corner_origin, is_temporary=True
         )
         self._copy_corners_x_nord = stencil_factory.from_origin_domain(
             copy_corners_x_nord,

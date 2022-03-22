@@ -238,18 +238,18 @@ class LagrangianToEulerian:
             grid_indexing.domain[2] + 1,
         )
 
-        self._pe1 = utils.make_storage_from_shape(shape_kplus, is_temporary=False)
-        self._pe2 = utils.make_storage_from_shape(shape_kplus, is_temporary=False)
-        self._dp2 = utils.make_storage_from_shape(shape_kplus, is_temporary=False)
-        self._pn2 = utils.make_storage_from_shape(shape_kplus, is_temporary=False)
-        self._pe0 = utils.make_storage_from_shape(shape_kplus, is_temporary=False)
-        self._pe3 = utils.make_storage_from_shape(shape_kplus, is_temporary=False)
+        self._pe1 = utils.make_storage_from_shape(shape_kplus, is_temporary=True)
+        self._pe2 = utils.make_storage_from_shape(shape_kplus, is_temporary=True)
+        self._dp2 = utils.make_storage_from_shape(shape_kplus, is_temporary=True)
+        self._pn2 = utils.make_storage_from_shape(shape_kplus, is_temporary=True)
+        self._pe0 = utils.make_storage_from_shape(shape_kplus, is_temporary=True)
+        self._pe3 = utils.make_storage_from_shape(shape_kplus, is_temporary=True)
 
         self._gz: FloatField = utils.make_storage_from_shape(
-            shape_kplus, grid_indexing.origin_compute(), is_temporary=False
+            shape_kplus, grid_indexing.origin_compute(), is_temporary=True
         )
         self._cvm: FloatField = utils.make_storage_from_shape(
-            shape_kplus, grid_indexing.origin_compute(), is_temporary=False
+            shape_kplus, grid_indexing.origin_compute(), is_temporary=True
         )
 
         self._init_pe = stencil_factory.from_origin_domain(

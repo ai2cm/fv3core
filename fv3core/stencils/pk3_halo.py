@@ -32,7 +32,7 @@ def edge_pe_update(
                 region[local_is - 2 : local_ie + 3, local_je + 1 : local_je + 3],
             ):
                 pe = pe + delp[0, 0, -1]
-                pk3 = pe ** akap
+                pk3 = pe**akap
 
 
 class PK3Halo:
@@ -55,7 +55,7 @@ class PK3Halo:
         )
         shape_2D = grid_indexing.domain_full(add=(1, 1, 1))[0:2]
         self._pe_tmp = utils.make_storage_from_shape(
-            shape_2D, grid_indexing.origin_full(), is_temporary=False
+            shape_2D, grid_indexing.origin_full(), is_temporary=True
         )
 
     @computepath_method
