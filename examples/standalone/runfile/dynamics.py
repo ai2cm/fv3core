@@ -311,50 +311,33 @@ def run(
         )
 
     # Build SDFG_PATH if option given and specialize for the right backend
-    from fv3core.utils.dace.utils import get_sdfg_path
-
-    if sdfg_path is not None:
-        if backend == "gtc:dace:gpu":
-            sdfg_path = get_sdfg_path(sdfg_path, "dycore_loop_on_gpu")
-            # sdfg_path = get_sdfg_path(sdfg_path, "c_sw_loop_on_gpu")
+    if not os.path.isfile(sdfg_path):
+        if sdfg_path != "":
+            loop_name = "dycore_loop_on_cpu"  # gtc:dace
+            if backend == "gtc:dace:gpu":
+                loop_name = "dycore_loop_on_gpu"
+            rank_str = ""
+            if MPI.COMM_WORLD.Get_size() > 1:
+                rank_str = f"_00000{str(rank)}"
+            sdfg_path = f"{sdfg_path}{rank_str}/dacecache/{loop_name}"
         else:
-            sdfg_path = get_sdfg_path(sdfg_path, "dycore_loop_on_cpu")
+            sdfg_path = None
+
+    if sdfg_path != "":
+        print(f"Loading SDFG {sdfg_path}")
 
     @computepath_function(load_sdfg=sdfg_path)
     def dycore_loop_on_cpu(state: dace.constant, time_steps: int):
-        for _ in dace.nounroll(range(time_steps)):
+        for _ in range(time_steps):
             dycore.step_dynamics(
                 state,
             )
 
     @computepath_function(load_sdfg=sdfg_path)
     def dycore_loop_on_gpu(state: dace.constant, time_steps: int):
-        for _ in dace.nounroll(range(time_steps)):
+        for _ in range(time_steps):
             dycore.step_dynamics(
                 state,
-            )
-
-    @computepath_function(load_sdfg=sdfg_path)
-    def c_sw_loop_on_gpu(state: dace.constant, time_steps: int):
-        for _ in dace.nounroll(range(time_steps)):
-            # -- C_SW -- #
-            dt = state.mdt / dycore.config.n_split
-            dt2 = 0.5 * dt
-            dycore.acoustic_dynamics.cgrid_shallow_water_lagrangian_dynamics(
-                state.delp,
-                state.pt,
-                state.u,
-                state.v,
-                state.w,
-                state.uc,
-                state.vc,
-                state.ua,
-                state.va,
-                state.ut,
-                state.vt,
-                state.divgd,
-                state.omga,
-                dt2,
             )
 
     def dycore_loop_non_orchestrated(state: dace.constant, time_steps: int):
@@ -372,7 +355,6 @@ def run(
         dycore_fn = dycore_loop_on_cpu
     elif dace_orchestrated_backend and backend == "gtc:dace:gpu":
         dycore_fn = dycore_loop_on_gpu
-        # dycore_fn = c_sw_loop_on_gpu
     else:
         dycore_fn = dycore_loop_non_orchestrated
 
