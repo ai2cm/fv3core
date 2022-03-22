@@ -269,7 +269,7 @@ def run(
         print(
             f"Config\n"
             f"\tBackend {backend}\n"
-            f"\tOrchestration: {'dace' if get_dacemode() else 'python'}\n"
+            f"\tOrchestration: {get_dacemode()}\n"
             f"\tN split: {spec.namelist.dynamical_core.n_split}\n"
             f"\tK split: {spec.namelist.dynamical_core.k_split}\n"
         )
@@ -384,7 +384,7 @@ def run(
     dycore_fn = None
     if dace_orchestrated_backend and backend == "gtc:dace":
         dycore_fn = dycore_loop_on_cpu
-        # dycore_fn = c_sw_loop_on_gpu
+        # dycore_fn = c_sw_loop_on_cpu
     elif dace_orchestrated_backend and backend == "gtc:dace:gpu":
         dycore_fn = dycore_loop_on_gpu
         # dycore_fn = c_sw_loop_on_gpu
