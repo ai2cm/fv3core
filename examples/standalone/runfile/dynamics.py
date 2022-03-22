@@ -276,6 +276,16 @@ def run(
         # [DaCe] `get_namespace`: Transform state outside of FV_Dynamics in order to
         #        have valid references in halo ex callbacks
         state = get_namespace(fv_dynamics.DynamicalCoreArgSpec.values, dict_state)
+        if not args.serialized_init: # and not srf_init
+            from fv3core.stencils.c2l_ord import CubedToLatLon
+            cubed = CubedToLatLon(
+                state, spec.grid.stencil_factory, grid_data, order=spec.namelist.c2l_ord, comm=communicator
+            )
+            cubed(state.u,state.v,state.ua,state.va)
+            # u_srf = ua[:, :, npz]
+            # v_srf = va[:, :, npz]
+            #srf_init = True
+
         dycore = fv3core.DynamicalCore(
             comm=communicator,
             grid_data=grid_data,
