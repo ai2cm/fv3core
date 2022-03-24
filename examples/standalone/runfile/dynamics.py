@@ -53,9 +53,7 @@ import fv3core.stencils.fv_dynamics as fv_dynamics
 from fv3core.utils.dace.computepath import computepath_function
 
 
-def set_experiment_info(
-    experiment_name: str, time_step: int, backend: str, git_hash: str
-) -> Dict[str, Any]:
+def set_experiment_info(experiment_name: str, time_step: int, backend: str, git_hash: str) -> Dict[str, Any]:
     experiment: Dict[str, Any] = {}
     now = datetime.now()
     dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
@@ -153,7 +151,6 @@ def collect_data_and_write_to_file(
     if is_root:
         write_global_timings(results)
 
-
 def run(
     data_directory: str,
     time_steps: str,
@@ -185,7 +182,7 @@ def run(
 
         profiler = None
 
-        fv3core.set_backend(backend)
+        fv3core.set_backend("gtc:dace")
         fv3core.set_rebuild(False)
         fv3core.set_validate_args(False)
 
@@ -205,8 +202,9 @@ def run(
         layout = spec.namelist.layout
         partitioner = util.CubedSpherePartitioner(util.TilePartitioner(layout))
         communicator = util.CubedSphereCommunicator(mpi_comm, partitioner)
+        grid = Grid.from_namelist(spec.namelist, communicator.rank)
+        spec.set_grid(grid)
 
-        
         if args.serialized_init:
             print("Starting from serialized grid and initial state data")
             import serialbox
@@ -216,7 +214,7 @@ def run(
                 args.data_dir,
                 "Generator_rank" + str(rank),
             )
-             # get grid from serialized data
+            # get grid from serialized data
             grid_savepoint = serializer.get_savepoint("Grid-Info")[0]
             grid_data = {}
             grid_fields = serializer.fields_at_savepoint(grid_savepoint)
@@ -226,6 +224,7 @@ def run(
                     grid_data[field] = grid_data[field][0]
             grid = fv3core.testing.TranslateGrid(grid_data, rank).python_grid()
             spec.set_grid(grid)
+            
             # create a state from serialized data
             savepoint_in = serializer.get_savepoint("FVDynamics-In")[0]
             driver_object = fv3core.testing.TranslateFVDynamics([grid])
@@ -238,28 +237,37 @@ def run(
             grid_data.ks = input_data["ks"]
             bdt = input_data["bdt"]
             do_adiabatic_init = input_data["do_adiabatic_init"]
-          
+
         else:
             print("Computing grid and initial state data")
-            grid = Grid.from_namelist(spec.namelist, communicator.rank)
-            spec.set_grid(grid)
-            metric_terms = MetricTerms.from_tile_sizing(
+            metric_terms_cpu = MetricTerms.from_tile_sizing(
                 npx=spec.namelist.npx,
                 npy=spec.namelist.npy,
                 npz=spec.namelist.npz,
                 communicator=communicator,
-                backend=args.backend
+                backend="gtc:dace"
             )
-            grid_data = GridData.new_from_metric_terms(metric_terms)
-            damping_coefficients = DampingCoefficients.new_from_metric_terms(metric_terms)
-            dict_state = init_baroclinic_state(
-                metric_terms,
+            
+            dict_state_cpu = init_baroclinic_state(
+                metric_terms_cpu,
                 adiabatic=spec.namelist.adiabatic,
                 hydrostatic=spec.namelist.hydrostatic,
                 moist_phys=spec.namelist.moist_phys,
                 comm=communicator,
-            ).get_state_dict()
-               
+            )
+            fv3core.set_backend(backend)
+            metric_terms_gpu = MetricTerms.from_tile_sizing(
+                npx=spec.namelist.npx,
+                npy=spec.namelist.npy,
+                npz=spec.namelist.npz,
+                communicator=communicator,
+                backend=backend
+            )
+
+            dict_state = dict_state_cpu.get_state_dict(metric_terms_gpu.quantity_factory._sizer, backend)
+            grid_data = GridData.new_from_metric_terms(metric_terms_gpu)
+            damping_coefficients = DampingCoefficients.new_from_metric_terms(metric_terms_gpu)
+            
             dict_state["ak"]= grid_data.ak
             dict_state["bk"]= grid_data.bk
             bdt = 225.0
