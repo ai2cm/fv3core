@@ -350,21 +350,21 @@ def run(
 
     @computepath_function
     def dycore_loop_on_cpu(state: dace.constant, time_steps: int):
-        for _ in dace.nounroll(range(time_steps)):
+        for _ in range(time_steps):
             dycore.step_dynamics(
                 state,
             )
 
     @computepath_function
     def dycore_loop_on_gpu(state: dace.constant, time_steps: int):
-        for _ in dace.nounroll(range(time_steps)):
+        for _ in range(time_steps):
             dycore.step_dynamics(
                 state,
             )
 
     @computepath_function
     def c_sw_loop_on_gpu(state: dace.constant, time_steps: int):
-        for _ in dace.nounroll(range(time_steps)):
+        for _ in range(time_steps):
             # -- C_SW -- #
             dt = state.mdt / dycore.config.n_split
             dt2 = 0.5 * dt
@@ -387,7 +387,7 @@ def run(
 
     @computepath_function
     def c_sw_loop_on_cpu(state: dace.constant, time_steps: int):
-        for _ in dace.nounroll(range(time_steps)):
+        for _ in range(time_steps):
             # -- C_SW -- #
             dt = state.mdt / dycore.config.n_split
             dt2 = 0.5 * dt
@@ -445,6 +445,8 @@ def run(
     if time_steps == 0:
         print("Cached built only - no benchmarked run")
         return
+
+    print("Performance run")
 
     if cp is not None:
         cp.cuda.nvtx.RangePush("Performance Run")
