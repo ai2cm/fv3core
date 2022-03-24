@@ -145,7 +145,7 @@ class CubedToLatLon:
         )
 
     # [DaCe] u/v are no longer needed to be quantity, reverted to FloatField for compuation
-    @computepath_method
+    # @computepath_method
     def __call__(
         self,
         u: FloatField,
