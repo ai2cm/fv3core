@@ -142,6 +142,12 @@ dmypy.json
 **/.gt_cache*/
 gt4py/
 
+
 # Run outputs
 examples/wrapped/output/
 examples/wrapped/plots/
+data/
+opt_sdfg/
+wip/
+**/.dacecache/
+_dacegraphs/

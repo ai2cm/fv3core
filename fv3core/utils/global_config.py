@@ -67,6 +67,9 @@ def is_dacemode_codegen_whitelisted(func: Callable[..., None]) -> bool:
         "compute_geopotential",
         # DynamicalCore
         "init_pfull",
+        # CubedToLatLon for Metric/Grid/State calculation see dynamics
+        "ord4_transform",
+        "c2l_ord2",
     ]
     return any(func.__name__ in name for name in whitelist)
 

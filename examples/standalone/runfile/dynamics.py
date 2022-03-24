@@ -1,20 +1,17 @@
 #!/usr/bin/env python3
 
 import copy
-import cProfile
-import io
 import json
 import os
-import pstats
 from datetime import datetime
 from types import SimpleNamespace
 from typing import Any, Dict, List
 
 import click
 import dace
-import numpy as np
 from fv3core.utils import global_config
-import serialbox
+import numpy as np
+
 from warnings import warn
 
 
@@ -23,11 +20,13 @@ try:
 except ImportError:
     MPI = None
 
-
 try:
     import cupy as cp
 except ImportError:
     cp = None
+
+
+from fv3core.initialization.baroclinic import init_baroclinic_state
 
 # Dev note: the GTC toolchain fails if xarray is imported after gt4py
 # fv3gfs.util imports xarray if it's available in the env.
@@ -38,18 +37,22 @@ except ImportError:
 import fv3gfs.util as util
 from fv3core.utils.global_config import set_dacemode, get_dacemode
 from fv3core.utils.null_comm import NullComm
+from fv3core.utils.grid import GridData, Grid, DampingCoefficients
 
 # isort: on
 
 import fv3core
 import fv3core._config as spec
 import fv3core.testing
+from fv3core.grid import MetricTerms
 
 # [DaCe] `get_namespace`: Transform state outside of FV_Dynamics in order to
 #        have valid references in halo ex callbacks
 from fv3core.decorators import get_namespace
 import fv3core.stencils.fv_dynamics as fv_dynamics
 from fv3core.utils.dace.computepath import computepath_function
+
+from fv3core.utils.dace.utils import DaceProgress
 
 
 def set_experiment_info(
@@ -153,6 +156,85 @@ def collect_data_and_write_to_file(
         write_global_timings(results)
 
 
+def serialized_grid_state(args, rank, communicator):
+    print("Starting from serialized grid and initial state data")
+    import serialbox
+
+    # set up of helper structures
+    serializer = serialbox.Serializer(
+        serialbox.OpenModeKind.Read,
+        args.data_dir,
+        "Generator_rank" + str(rank),
+    )
+    # get grid from serialized data
+    grid_savepoint = serializer.get_savepoint("Grid-Info")[0]
+    grid_data = {}
+    grid_fields = serializer.fields_at_savepoint(grid_savepoint)
+    for field in grid_fields:
+        grid_data[field] = serializer.read(field, grid_savepoint)
+        if len(grid_data[field].flatten()) == 1:
+            grid_data[field] = grid_data[field][0]
+    grid = fv3core.testing.TranslateGrid(grid_data, rank).python_grid()
+    spec.set_grid(grid)
+    # create a state from serialized data
+    savepoint_in = serializer.get_savepoint("FVDynamics-In")[0]
+    driver_object = fv3core.testing.TranslateFVDynamics([grid])
+    input_data = driver_object.collect_input_data(serializer, savepoint_in)
+    input_data["comm"] = communicator
+    dict_state = driver_object.state_from_inputs(input_data)
+    grid_data = grid.grid_data
+    damping_coefficients = grid.damping_coefficients
+    grid_data.ptop = input_data["ptop"]
+    grid_data.ks = input_data["ks"]
+    bdt = input_data["bdt"]
+    do_adiabatic_init = input_data["do_adiabatic_init"]
+    return grid_data, dict_state, damping_coefficients, bdt, do_adiabatic_init
+
+
+def computed_grid_state(args, communicator):
+    print("Computing grid and initial state data")
+    grid = Grid.from_namelist(spec.namelist, communicator.rank)
+    spec.set_grid(grid)
+
+    # Build state fully with host memory
+    host_metric_terms = MetricTerms.from_tile_sizing(
+        npx=spec.namelist.npx,
+        npy=spec.namelist.npy,
+        npz=spec.namelist.npz,
+        communicator=communicator,
+        backend=args.host_backend,
+    )
+    host_state = init_baroclinic_state(
+        host_metric_terms,
+        adiabatic=spec.namelist.adiabatic,
+        hydrostatic=spec.namelist.hydrostatic,
+        moist_phys=spec.namelist.moist_phys,
+        comm=communicator,
+    )
+
+    # Move metric terms and state on device memory
+    metric_terms = MetricTerms.from_tile_sizing(
+        npx=spec.namelist.npx,
+        npy=spec.namelist.npy,
+        npz=spec.namelist.npz,
+        communicator=communicator,
+        backend=args.backend,
+    )
+    dict_state = host_state.get_state_dict(
+        sizer=metric_terms.quantity_factory._sizer, backend=args.backend
+    )
+
+    # Finish calculating grid data & damping coeff on device
+    grid_data = GridData.new_from_metric_terms(metric_terms)
+    damping_coefficients = DampingCoefficients.new_from_metric_terms(metric_terms)
+
+    dict_state["ak"] = grid_data.ak
+    dict_state["bk"] = grid_data.bk
+    bdt = 225.0
+    do_adiabatic_init = False
+    return grid_data, dict_state, damping_coefficients, bdt, do_adiabatic_init
+
+
 def run(
     data_directory: str,
     time_steps: str,
@@ -163,97 +245,108 @@ def run(
     disable_json_dump: bool,
     print_timings: bool,
     profile: bool,
+    serialized_init: bool,
 ):
     timer = util.Timer()
     timer.start("total")
+
+    args = SimpleNamespace(
+        data_dir=data_directory,
+        time_step=int(time_steps),
+        backend=backend,
+        host_backend="gtc:dace",
+        hash=hash,
+        disable_halo_exchange=disable_halo_exchange,
+        disable_json_dump=disable_json_dump,
+        print_timings=print_timings,
+        profile=profile,
+        serialized_init=serialized_init,
+    )
+
+    spec.set_namelist(args.data_dir + "/input.nml")
+
+    print(
+        f"Config\n"
+        f"\tBackend {args.backend}\n"
+        f"\tOrchestration: {'dace' if get_dacemode() else 'python'}\n"
+        f"\tN split: {spec.namelist.dynamical_core.n_split}\n"
+        f"\tK split: {spec.namelist.dynamical_core.k_split}\n"
+    )
+
     with timer.clock("initialization"):
-        args = SimpleNamespace(
-            data_dir=data_directory,
-            time_step=int(time_steps),
-            backend=backend,
-            hash=hash,
-            disable_halo_exchange=disable_halo_exchange,
-            disable_json_dump=disable_json_dump,
-            print_timings=print_timings,
-            profile=profile,
-        )
         comm = MPI.COMM_WORLD
         rank = comm.Get_rank()
 
-        profiler = None
-
-        fv3core.set_backend(backend)
+        fv3core.set_backend(args.backend)
         fv3core.set_rebuild(False)
         fv3core.set_validate_args(False)
 
-        spec.set_namelist(args.data_dir + "/input.nml")
-
-        experiment_name = os.path.basename(os.path.normpath(args.data_dir))
-
-        # set up of helper structures
-        serializer = serialbox.Serializer(
-            serialbox.OpenModeKind.Read,
-            args.data_dir,
-            "Generator_rank" + str(rank),
-        )
         if args.disable_halo_exchange:
             mpi_comm = NullComm(MPI.COMM_WORLD.Get_rank(), MPI.COMM_WORLD.Get_size())
         else:
             mpi_comm = MPI.COMM_WORLD
-
-        # get grid from serialized data
-        grid_savepoint = serializer.get_savepoint("Grid-Info")[0]
-        grid_data = {}
-        grid_fields = serializer.fields_at_savepoint(grid_savepoint)
-        for field in grid_fields:
-            grid_data[field] = serializer.read(field, grid_savepoint)
-            if len(grid_data[field].flatten()) == 1:
-                grid_data[field] = grid_data[field][0]
-        grid = fv3core.testing.TranslateGrid(grid_data, rank).python_grid()
-        spec.set_grid(grid)
 
         # set up grid-dependent helper structures
         layout = spec.namelist.layout
         partitioner = util.CubedSpherePartitioner(util.TilePartitioner(layout))
         communicator = util.CubedSphereCommunicator(mpi_comm, partitioner)
 
-        # create a state from serialized data
-        savepoint_in = serializer.get_savepoint("FVDynamics-In")[0]
-        driver_object = fv3core.testing.TranslateFVDynamics([grid])
-        input_data = driver_object.collect_input_data(serializer, savepoint_in)
-        input_data["comm"] = communicator
-        dict_state = driver_object.state_from_inputs(input_data)
+        if args.serialized_init:
+            (
+                grid_data,
+                dict_state,
+                damping_coefficients,
+                bdt,
+                do_adiabatic_init,
+            ) = serialized_grid_state(args, rank, communicator)
+        else:
+            (
+                grid_data,
+                dict_state,
+                damping_coefficients,
+                bdt,
+                do_adiabatic_init,
+            ) = computed_grid_state(args, communicator)
+
         # [DaCe] `get_namespace`: Transform state outside of FV_Dynamics in order to
         #        have valid references in halo ex callbacks
         state = get_namespace(fv_dynamics.DynamicalCoreArgSpec.values, dict_state)
 
-        print(
-            f"Config\n"
-            f"\tBackend {backend}\n"
-            f"\tOrchestration: {get_dacemode()}\n"
-            f"\tN split: {spec.namelist.dynamical_core.n_split}\n"
-            f"\tK split: {spec.namelist.dynamical_core.k_split}\n"
-        )
+        if not args.serialized_init:  # and not srf_init
+            from fv3core.stencils.c2l_ord import CubedToLatLon
+
+            cubed = CubedToLatLon(
+                state,
+                spec.grid.stencil_factory,
+                grid_data,
+                order=spec.namelist.c2l_ord,
+                comm=communicator,
+            )
+            cubed(state.u, state.v, state.ua, state.va)
+            # u_srf = ua[:, :, npz]
+            # v_srf = va[:, :, npz]
+            # srf_init = True
 
         dycore = fv3core.DynamicalCore(
             comm=communicator,
-            grid_data=spec.grid.grid_data,
+            grid_data=grid_data,
             stencil_factory=spec.grid.stencil_factory,
-            damping_coefficients=spec.grid.damping_coefficients,
+            damping_coefficients=damping_coefficients,
             config=spec.namelist.dynamical_core,
-            ak=dict_state["atmosphere_hybrid_a_coordinate"],
-            bk=dict_state["atmosphere_hybrid_b_coordinate"],
+            ak=dict_state["ak"],
+            bk=dict_state["bk"],
             phis=dict_state["surface_geopotential"],
             state=state,
             timer=timer,
         )
+
         dycore.update_state(
-            input_data["consv_te"],
-            input_data["bdt"],
-            input_data["do_adiabatic_init"],
-            input_data["ptop"],
-            input_data["n_split"],
-            input_data["ks"],
+            spec.namelist.consv_te,
+            bdt,
+            do_adiabatic_init,
+            grid_data.ptop,
+            spec.namelist.n_split,
+            grid_data.ks,
             state,
         )
 
@@ -395,6 +488,7 @@ def run(
 @click.option("--print_timings/--no-print_timings", default=True)
 @click.option("--profile/--no-profile", default=False)
 @click.option("--check_against_numpy/--no-check_against_numpy", default=False)
+@click.option("--serialized_init/--no-serialized_init", default=False)
 def driver(
     data_directory: str,
     time_steps: str,
@@ -406,6 +500,7 @@ def driver(
     print_timings: bool,
     profile: bool,
     check_against_numpy: bool,
+    serialized_init: bool,
 ):
     state = run(
         data_directory=data_directory,
@@ -417,6 +512,7 @@ def driver(
         disable_json_dump=disable_json_dump,
         print_timings=print_timings,
         profile=profile,
+        serialized_init=serialized_init,
     )
     if check_against_numpy:
         ref_state = run(
@@ -429,6 +525,7 @@ def driver(
             disable_json_dump=disable_json_dump,
             print_timings=print_timings,
             profile=profile,
+            serialized_init=serialized_init,
         )
 
     if check_against_numpy:
