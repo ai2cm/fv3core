@@ -32,6 +32,12 @@ from fv3core.utils.stencil import StencilFactory
 from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
 from fv3gfs.util.halo_updater import HaloUpdater
 
+
+try:
+    import cupy as cp
+except ModuleNotFoundError:
+    cp = None
+
 # nq is actually given by ncnst - pnats, where those are given in atmosphere.F90 by:
 # ncnst = Atm(mytile)%ncnst
 # pnats = Atm(mytile)%flagstruct%pnats
@@ -322,26 +328,38 @@ class DynamicalCore:
     # context and parsing paramters of callbacks
     @dace_inhibitor
     def timer_start_remapping(self):
+        if cp:
+            cp.cuda.runtime.deviceSynchronize()
         self.timer.start("Remapping")
 
     @dace_inhibitor
     def timer_stop_remapping(self):
+        if cp:
+            cp.cuda.runtime.deviceSynchronize()
         self.timer.stop("Remapping")
 
     @dace_inhibitor
     def timer_start_dycore(self):
+        if cp:
+            cp.cuda.runtime.deviceSynchronize()
         self.timer.start("DynCore")
 
     @dace_inhibitor
     def timer_stop_dycore(self):
+        if cp:
+            cp.cuda.runtime.deviceSynchronize()
         self.timer.stop("DynCore")
 
     @dace_inhibitor
     def timer_start_tracers(self):
+        if cp:
+            cp.cuda.runtime.deviceSynchronize()
         self.timer.start("TracerAdvection")
 
     @dace_inhibitor
     def timer_stop_tracers(self):
+        if cp:
+            cp.cuda.runtime.deviceSynchronize()
         self.timer.stop("TracerAdvection")
 
     # [DaCe] new function allowing pos-constructor state update from caller code
