@@ -52,8 +52,6 @@ from fv3core.decorators import get_namespace
 import fv3core.stencils.fv_dynamics as fv_dynamics
 from fv3core.utils.dace.computepath import computepath_function
 
-from fv3core.utils.dace.utils import DaceProgress
-
 
 def set_experiment_info(
     experiment_name: str, time_step: int, backend: str, git_hash: str
