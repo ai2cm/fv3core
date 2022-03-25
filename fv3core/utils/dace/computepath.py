@@ -19,6 +19,7 @@ from fv3core.utils.dace.utils import DaCeProgress
 
 from fv3core.utils import global_config
 from fv3core.utils.dace.sdfg_opt_passes import splittable_region_expansion
+from fv3core.utils.mpi import MPI
 
 import gt4py.storage
 
@@ -175,6 +176,7 @@ def build_sdfg(daceprog: DaceProgram, sdfg: dace.SDFG, args, kwargs):
 
     # Compilation done, either exit or scatter/gather and run
     if global_config.get_dacemode() == global_config.DaCeOrchestration.Build:
+        MPI.COMM_WORLD.Barrier()
         DaCeProgress.log("Compilation finished and saved, exiting.")
         exit(0)
     elif global_config.get_dacemode() == global_config.DaCeOrchestration.BuildAndRun:
