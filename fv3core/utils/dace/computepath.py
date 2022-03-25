@@ -66,11 +66,8 @@ def upload_to_device(host_data: List[Any]):
             data.host_to_device()
 
 
-def run_sdfg(daceprog: DaceProgram, sdfg: dace.SDFG, args, kwargs):
-    """Production mode: .so should exist and be"""
-    upload_to_device(list(args) + list(kwargs.values()))
-    res = daceprog(*args, **kwargs)
-    for arg in list(args) + list(kwargs.values()):
+def download_results_from_dace(res, args):
+    for arg in args:
         if isinstance(arg, gt4py.storage.Storage) and hasattr(
             arg, "_set_device_modified"
         ):
@@ -94,6 +91,13 @@ def run_sdfg(daceprog: DaceProgram, sdfg: dace.SDFG, args, kwargs):
                 for r in res
             ]
     return res
+
+
+def run_sdfg(daceprog: DaceProgram, sdfg: dace.SDFG, args, kwargs):
+    """Production mode: .so should exist and be"""
+    upload_to_device(list(args) + list(kwargs.values()))
+    res = daceprog(*args, **kwargs)
+    return download_results_from_dace(res, list(args) + list(kwargs.values()))
 
 
 def build_sdfg(daceprog: DaceProgram, sdfg: dace.SDFG, args, kwargs):
@@ -176,14 +180,19 @@ def build_sdfg(daceprog: DaceProgram, sdfg: dace.SDFG, args, kwargs):
     elif global_config.get_dacemode() == global_config.DaCeOrchestration.BuildAndRun:
         if is_compiling:
             unblock_waiting_tiles(comm, sdfg.build_folder)
+            with DaCeProgress("Run"):
+                res = sdfg(**sdfg_kwargs)
+                res = download_results_from_dace(
+                    res, list(args) + list(kwargs.values())
+                )
         else:
             source_rank = source_sdfg_rank(comm)
             # wait for compilation to be done
             sdfg_path = comm.recv(source=source_rank)
             daceprog.load_precompiled_sdfg(sdfg_path, *args, **kwargs)
+            with DaCeProgress("Run"):
+                res = run_sdfg(daceprog, sdfg, args, kwargs)
 
-        with DaCeProgress("Run"):
-            res = run_sdfg(daceprog, sdfg, args, kwargs)
         return res
 
 
