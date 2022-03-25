@@ -1,26 +1,25 @@
-import os
-from typing import Dict, Tuple, Callable, Union, Any, List
 import inspect
+import os
+from typing import Any, Callable, Dict, List, Tuple, Union
 
 import dace
+import gt4py.storage
 from dace.frontend.python.common import SDFGConvertible
 from dace.frontend.python.parser import DaceProgram
 from dace.transformation.auto.auto_optimize import make_transients_persistent
 from dace.transformation.helpers import get_parent_map
-
 from dace.transformation.transformation import simplification_transformations
-from fv3core.utils.dace.build import (
-    load_sdfg_once,
-    determine_compiling_ranks,
-    source_sdfg_rank,
-    unblock_waiting_tiles,
-)
-from fv3core.utils.dace.utils import DaCeProgress
 
 from fv3core.utils import global_config
+from fv3core.utils.dace.build import (
+    determine_compiling_ranks,
+    load_sdfg_once,
+    read_target_rank,
+    unblock_waiting_tiles,
+    write_decomposition,
+)
 from fv3core.utils.dace.sdfg_opt_passes import splittable_region_expansion
-
-import gt4py.storage
+from fv3core.utils.dace.utils import DaCeProgress
 
 
 _CONSTANT_PROPAGATION = False
@@ -99,6 +98,8 @@ def run_sdfg(daceprog: DaceProgram, sdfg: dace.SDFG, args, kwargs):
 def build_sdfg(daceprog: DaceProgram, sdfg: dace.SDFG, args, kwargs):
     is_compiling, comm = determine_compiling_ranks()
     if is_compiling:
+        if comm.Get_rank() == 0:
+            write_decomposition()
         # Make the transients array persistents
         if global_config.is_gpu_backend():
             to_gpu(sdfg)
@@ -177,7 +178,12 @@ def build_sdfg(daceprog: DaceProgram, sdfg: dace.SDFG, args, kwargs):
         if is_compiling:
             unblock_waiting_tiles(comm, sdfg.build_folder)
         else:
-            source_rank = source_sdfg_rank(comm)
+            from gt4py import config as gt_config
+
+            config_path = (
+                f"{gt_config.cache_settings['root_path']}/.layout/decomposition.yml"
+            )
+            source_rank = read_target_rank(comm.Get_rank(), config_path)
             # wait for compilation to be done
             sdfg_path = comm.recv(source=source_rank)
             daceprog.load_precompiled_sdfg(sdfg_path, *args, **kwargs)

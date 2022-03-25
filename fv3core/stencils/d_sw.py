@@ -23,6 +23,9 @@ from fv3core.stencils.fvtp2d import (
 from fv3core.stencils.fxadv import FiniteVolumeFluxPrep
 from fv3core.stencils.xtp_u import advect_u_along_x
 from fv3core.stencils.ytp_v import advect_v_along_y
+
+# [DaCe] Import
+from fv3core.utils.dace.computepath import computepath_method
 from fv3core.utils.grid import DampingCoefficients, GridData
 from fv3core.utils.stencil import StencilFactory
 from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
@@ -35,8 +38,6 @@ from fv3gfs.util import (
     Z_INTERFACE_DIM,
 )
 
-# [DaCe] Import
-from fv3core.utils.dace.computepath import computepath_method
 
 dcon_threshold = 1e-5
 
