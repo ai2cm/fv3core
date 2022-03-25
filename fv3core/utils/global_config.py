@@ -70,6 +70,8 @@ def is_dacemode_codegen_whitelisted(func: Callable[..., None]) -> bool:
         # CubedToLatLon for Metric/Grid/State calculation see dynamics
         "ord4_transform",
         "c2l_ord2",
+        # Expanded grid variable
+        "compute_coriolis_parameter_defn",
     ]
     return any(func.__name__ in name for name in whitelist)
 
