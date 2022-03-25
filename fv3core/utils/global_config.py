@@ -1,6 +1,8 @@
 import functools
 import os
-from typing import Optional, Callable
+from typing import Callable, Optional
+
+import fv3gfs.util as util
 
 
 def getenv_bool(name: str, default: str) -> bool:
@@ -117,3 +119,28 @@ def set_dacemode(dacemode: DaCeOrchestration):
 # BuildAndRun: compile & save SDFG, then run
 # Run: load from .so and run, will fail if .so is not available
 _DACEMODE: DaCeOrchestration = load_dace_orchestration()
+
+
+def get_partitioner() -> Optional[util.CubedSpherePartitioner]:
+    print("partitioner is used")
+    global _PARTITIONER
+    return _PARTITIONER
+
+
+def set_partitioner(partitioner: Optional[util.CubedSpherePartitioner]) -> None:
+    global _PARTITIONER
+    if _PARTITIONER is not None:
+        print("re-setting the partitioner, why is that?")
+    _PARTITIONER = partitioner
+    print("partitioner is set")
+
+
+def set_partitioner_once(partitioner: Optional[util.CubedSpherePartitioner]) -> None:
+    global _PARTITIONER
+    if _PARTITIONER is not None:
+        _PARTITIONER = partitioner
+        print("partitioner is set")
+
+
+# Partitioner from fv3core
+_PARTITIONER: Optional[util.CubedSpherePartitioner] = None

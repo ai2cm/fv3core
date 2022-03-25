@@ -1,9 +1,14 @@
-from typing import Callable, Tuple, Any, Optional
+import os.path
+from typing import Any, Callable, Optional, Tuple
+from unicodedata import decomposition
 
+import yaml
+from numpy import partition
+
+from fv3core.utils import global_config
+from fv3core.utils.global_config import DaCeOrchestration, get_dacemode
 from fv3core.utils.mpi import MPI
 
-from fv3core.utils.global_config import get_dacemode, DaCeOrchestration
-import os.path
 
 ################################################
 # Distributed compilation
@@ -37,10 +42,112 @@ def unblock_waiting_tiles(comm, sdfg_path: str) -> None:
             comm.send(sdfg_path, dest=tile * tilesize + comm.Get_rank())
 
 
-def source_sdfg_rank(comm):
-    tilesize = comm.Get_size() / 6
-    my_rank = comm.Get_rank()
-    return my_rank % tilesize
+def top_tile_rank_from_decomposition_string(string):
+    partitioner = global_config.get_partitioner()
+    tilesize = partitioner.total_ranks / 6
+    if tilesize == 1:
+        return 0
+    for rank in range(partitioner.total_ranks):
+        if (
+            string == "00"
+            and partitioner.tile.on_tile_bottom(rank)
+            and partitioner.tile.on_tile_left(rank)
+        ):
+            return rank % tilesize
+        if (
+            string == "01"
+            and partitioner.tile.on_tile_bottom(rank)
+            and not partitioner.tile.on_tile_left(rank)
+            and not partitioner.tile.on_tile_right(rank)
+        ):
+            return rank % tilesize
+        if (
+            string == "02"
+            and partitioner.tile.on_tile_bottom(rank)
+            and partitioner.tile.on_tile_right(rank)
+        ):
+            return rank % tilesize
+        if (
+            string == "10"
+            and not partitioner.tile.on_tile_bottom(rank)
+            and not partitioner.tile.on_tile_top(rank)
+            and partitioner.tile.on_tile_left(rank)
+        ):
+            return rank % tilesize
+        if (
+            string == "11"
+            and not partitioner.tile.on_tile_bottom(rank)
+            and not partitioner.tile.on_tile_top(rank)
+            and not partitioner.tile.on_tile_left(rank)
+            and not partitioner.tile.on_tile_right(rank)
+        ):
+            return rank % tilesize
+        if (
+            string == "12"
+            and not partitioner.tile.on_tile_bottom(rank)
+            and not partitioner.tile.on_tile_top(rank)
+            and partitioner.tile.on_tile_right(rank)
+        ):
+            return rank % tilesize
+        if (
+            string == "20"
+            and partitioner.tile.on_tile_top(rank)
+            and partitioner.tile.on_tile_left(rank)
+        ):
+            return rank % tilesize
+        if (
+            string == "21"
+            and partitioner.tile.on_tile_top(rank)
+            and not partitioner.tile.on_tile_left(rank)
+            and not partitioner.tile.on_tile_right(rank)
+        ):
+            return rank % tilesize
+        if (
+            string == "22"
+            and partitioner.tile.on_tile_top(rank)
+            and partitioner.tile.on_tile_right(rank)
+        ):
+            return rank % tilesize
+
+    return None
+
+
+def top_tile_rank_to_decomposition_string(rank):
+    partitioner = global_config.get_partitioner()
+    if partitioner.tile.on_tile_bottom(rank):
+        if partitioner.tile.on_tile_left(rank):
+            return "00"
+        if partitioner.tile.on_tile_right(rank):
+            return "20"
+        else:
+            return "10"
+    if partitioner.tile.on_tile_top(rank):
+        if partitioner.tile.on_tile_left(rank):
+            return "02"
+        if partitioner.tile.on_tile_right(rank):
+            return "22"
+        else:
+            return "12"
+    else:
+        if partitioner.tile.on_tile_left(rank):
+            return "01"
+        if partitioner.tile.on_tile_right(rank):
+            return "21"
+        else:
+            return "11"
+
+
+def read_target_rank(rank, filename=None):
+    partitioner = global_config.get_partitioner()
+    top_tile_rank = top_tile_equivalent(rank, partitioner.total_ranks)
+    with open(filename) as decomposition:
+        parsed_file = yaml.safe_load(decomposition)
+        return parsed_file[top_tile_rank_to_decomposition_string(top_tile_rank)]
+
+
+def top_tile_equivalent(rank, size):
+    tilesize = size / 6
+    return rank % tilesize
 
 
 ################################################
@@ -53,6 +160,23 @@ def source_sdfg_rank(comm):
 """
 
 _loaded_sdfg_once = False
+
+
+def write_decomposition():
+    from gt4py import config as gt_config
+
+    path = f"{gt_config.cache_settings['root_path']}/.layout/"
+    config_path = path + "decomposition.yml"
+    os.makedirs(path, exist_ok=True)
+    decomposition = {}
+    partitioner = global_config.get_partitioner()
+    for string in ["00", "01", "02", "10", "11", "12", "20", "21", "22"]:
+        target_rank = top_tile_rank_from_decomposition_string(string)
+        if target_rank is not None:
+            decomposition.setdefault(string, target_rank)
+
+    with open(config_path, "w") as outfile:
+        yaml.dump(decomposition, outfile)
 
 
 def load_sdfg_once(
@@ -90,7 +214,7 @@ def build_sdfg_path(program_name: str, sdfg_file_path: Optional[str] = None) -> 
         sdfg_file_path: absolute path to a .sdfg file
     """
 
-    # Guarding agaisnt bad usage of this function
+    # Guarding against bad usage of this function
     if get_dacemode() != DaCeOrchestration.Run:
         raise RuntimeError(
             "Coding mistaked: sdfg path ask but DaCe orchestration is != Production"
@@ -106,10 +230,13 @@ def build_sdfg_path(program_name: str, sdfg_file_path: Optional[str] = None) -> 
 
     # Case of loading a precompiled .so - lookup using GT_CACHE
     import os
+
     from gt4py import config as gt_config
 
-    if MPI.COMM_WORLD.Get_size() > 1:
-        rank_str = f"_{int(source_sdfg_rank(MPI.COMM_WORLD)):06d}"
+    comm = MPI.COMM_WORLD
+    config_path = f"{gt_config.cache_settings['root_path']}/.layout/decomposition.yml"
+    if comm.Get_size() > 1:
+        rank_str = f"_{read_target_rank(comm.Get_rank(), config_path):06d}"
     else:
         rank_str = ""
 
@@ -122,3 +249,57 @@ def build_sdfg_path(program_name: str, sdfg_file_path: Optional[str] = None) -> 
     )
 
     return sdfg_dir_path
+
+
+def test_read():
+    import fv3gfs.util as util
+
+    layout = (3, 3)
+    partitioner = util.CubedSpherePartitioner(util.TilePartitioner(layout))
+    global_config.set_partitioner(partitioner)
+    for i in range(54):
+        selfrank = read_target_rank(
+            "/home/tobiasw/work/fv3core/fv3core/utils/dace/decomposition.yml", i
+        )
+        assert (i % 9) == selfrank
+    layout = (4, 4)
+    partitioner2 = util.CubedSpherePartitioner(util.TilePartitioner(layout))
+    global_config.set_partitioner(partitioner2)
+    for i in range(96):
+        output = read_target_rank(
+            "/home/tobiasw/work/fv3core/fv3core/utils/dace/decomposition.yml", i
+        )
+        facei = i % 16
+        if facei in [0]:
+            assert output == 0
+        if facei in [1, 2]:
+            assert output == 1
+        if facei in [3]:
+            assert output == 2
+        if facei in [4, 8]:
+            assert output == 3
+        if facei in [5, 6, 9, 10]:
+            assert output == 4
+        if facei in [7, 11]:
+            assert output == 5
+        if facei in [12]:
+            assert output == 6
+        if facei in [13, 14]:
+            assert output == 7
+        if facei in [15]:
+            assert output == 8
+    print("success")
+
+
+def test_write():
+    import fv3gfs.util as util
+
+    layout = (4, 4)
+    partitioner = util.CubedSpherePartitioner(util.TilePartitioner(layout))
+    global_config.set_partitioner(partitioner)
+    write_decomposition()
+
+
+if __name__ == "__main__":
+    # test_read()
+    test_write()

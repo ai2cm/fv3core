@@ -2,6 +2,12 @@ from gt4py.gtscript import PARALLEL, computation, horizontal, interval, region
 
 import fv3core._config as spec
 import fv3core.utils.gt4py_utils as utils
+import fv3gfs.util as fv3util
+
+# [DaCe] Imports for wrapped halo updater
+from fv3core.stencils.dyn_core import AcousticDynamics
+from fv3core.utils import global_config
+from fv3core.utils.dace.computepath import computepath_method
 from fv3core.utils.grid import GridData
 from fv3core.utils.stencil import StencilFactory
 from fv3core.utils.typing import FloatField, FloatFieldIJ
@@ -9,10 +15,6 @@ from fv3gfs.util import CubedSphereCommunicator
 from fv3gfs.util.constants import X_DIM, Y_DIM, Z_DIM
 from fv3gfs.util.quantity import Quantity
 
-# [DaCe] Imports for wrapped halo updater
-from fv3core.stencils.dyn_core import AcousticDynamics
-import fv3gfs.util as fv3util
-from fv3core.utils.dace.computepath import computepath_method
 
 C1 = 1.125
 C2 = -0.125
@@ -97,6 +99,7 @@ class CubedToLatLon:
             grid_data: object with metric terms
             order: Order of interpolation, must be 2 or 4
         """
+        global_config.set_partitioner_once(comm)
         grid_indexing = stencil_factory.grid_indexing
         self._n_halo = grid_indexing.n_halo
         self._dx = grid_data.dx

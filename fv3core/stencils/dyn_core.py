@@ -1,6 +1,7 @@
 from types import SimpleNamespace
 from typing import Dict, List
 
+# [DaCe] Import
 # [DaCe] import
 import dace
 from dace.frontend.python.interface import nounroll as dace_nounroll
@@ -15,6 +16,7 @@ from gt4py.gtscript import (
     region,
 )
 
+import fv3core._config as spec
 import fv3core.stencils.basic_operations as basic
 import fv3core.stencils.d_sw as d_sw
 import fv3core.stencils.nh_p_grad as nh_p_grad
@@ -33,6 +35,9 @@ from fv3core.stencils.del2cubed import HyperdiffusionDamping
 from fv3core.stencils.pk3_halo import PK3Halo
 from fv3core.stencils.riem_solver3 import RiemannSolver3
 from fv3core.stencils.riem_solver_c import RiemannSolverC
+from fv3core.utils import global_config
+from fv3core.utils.dace.computepath import computepath_method, dace_inhibitor
+from fv3core.utils.dace.dace_halo_updater import DaceHaloUpdater
 from fv3core.utils.grid import (
     DampingCoefficients,
     GridData,
@@ -44,12 +49,6 @@ from fv3core.utils.stencil import StencilFactory
 from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
 from fv3gfs.util import X_DIM, Y_DIM, Z_DIM, Z_INTERFACE_DIM
 
-# [DaCe] Import
-import dace
-from fv3core.utils.dace.computepath import computepath_method, dace_inhibitor
-from dace.frontend.python.interface import nounroll as dace_nounroll
-from fv3core.utils.dace.dace_halo_updater import DaceHaloUpdater
-import fv3core._config as spec
 
 HUGE_R = 1.0e40
 
@@ -518,6 +517,7 @@ class AcousticDynamics:
             pfull: atmospheric Eulerian grid reference pressure (Pa)
             phis: surface geopotential height
         """
+        global_config.set_partitioner_once(comm)
         grid_indexing = stencil_factory.grid_indexing
         # [DaCe] comm is not used directly by dyn_core, only the updaters but those are callbacked
         self.config = config
