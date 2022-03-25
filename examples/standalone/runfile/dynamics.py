@@ -228,7 +228,7 @@ def computed_grid_state(args, communicator):
 
     dict_state["ak"] = grid_data.ak
     dict_state["bk"] = grid_data.bk
-    bdt = 225.0
+    bdt = spec.namelist.dt_atmos
     do_adiabatic_init = False
     return grid_data, dict_state, damping_coefficients, bdt, do_adiabatic_init
 
