@@ -266,9 +266,10 @@ def run(
     print(
         f"Config\n"
         f"\tBackend {args.backend}\n"
-        f"\tOrchestration: {'dace' if get_dacemode() else 'python'}\n"
+        f"\tOrchestration: {get_dacemode()}\n"
         f"\tN split: {spec.namelist.dynamical_core.n_split}\n"
         f"\tK split: {spec.namelist.dynamical_core.k_split}\n"
+        f"\tdt atmos: {spec.namelist.dynamical_core.dt_atmos}\n"
     )
 
     with timer.clock("initialization"):

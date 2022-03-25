@@ -232,7 +232,7 @@ class LazyComputepathFunction:
 
     def __sdfg__(self, *args, **kwargs):
         sdfg_path = load_sdfg_once(self.func)
-        if sdfg_path is None:
+        if not self._sdfg_loaded and sdfg_path is None:
             return self.daceprog.to_sdfg(
                 *args,
                 **self.daceprog.__sdfg_closure__(),
