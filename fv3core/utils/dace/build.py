@@ -9,10 +9,6 @@ import os.path
 # Distributed compilation
 
 
-def is_first_tile(rank: int, size: int) -> bool:
-    return rank % int(size / 6) == rank
-
-
 def determine_compiling_ranks() -> Tuple[bool, Any]:
     is_compiling = False
     rank = 0
@@ -25,7 +21,9 @@ def determine_compiling_ranks() -> Tuple[bool, Any]:
             rank = comm.Get_rank()
             size = comm.Get_size()
     finally:
-        if is_first_tile(rank, size):
+        if int(size / 6) == 0:
+            is_compiling = True
+        elif rank % int(size / 6) == rank:
             is_compiling = True
         MPI = None
         # We need to set MPI to none again to turn off distributed compilation
@@ -119,6 +117,8 @@ def build_sdfg_path(program_name: str, sdfg_file_path: Optional[str] = None) -> 
     if not os.path.isdir(sdfg_dir_path):
         raise RuntimeError(f"Precompiled SDFG is missing at {sdfg_dir_path}")
 
-    print(f"[DaCe Config] Rank {MPI.COMM_WORLD.Get_rank()} loading SDFG {sdfg_dir_path}")
+    print(
+        f"[DaCe Config] Rank {MPI.COMM_WORLD.Get_rank()} loading SDFG {sdfg_dir_path}"
+    )
 
     return sdfg_dir_path
