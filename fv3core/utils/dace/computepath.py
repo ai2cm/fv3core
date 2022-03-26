@@ -177,10 +177,11 @@ def build_sdfg(daceprog: DaceProgram, sdfg: dace.SDFG, args, kwargs):
 
     # Compilation done, either exit or scatter/gather and run
     if global_config.get_dacemode() == global_config.DaCeOrchestration.Build:
-        MPI.COMM_WORLD.Barrier()
+        MPI.COMM_WORLD.Barrier() #Protect against early exist which kill SLURM jobs
         DaCeProgress.log("Compilation finished and saved, exiting.")
         exit(0)
     elif global_config.get_dacemode() == global_config.DaCeOrchestration.BuildAndRun:
+        MPI.COMM_WORLD.Barrier()
         if is_compiling:
             unblock_waiting_tiles(comm, sdfg.build_folder)
             with DaCeProgress("Run"):
