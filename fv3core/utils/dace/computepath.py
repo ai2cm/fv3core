@@ -103,8 +103,8 @@ def run_sdfg(daceprog: DaceProgram, sdfg: dace.SDFG, args, kwargs):
 def build_sdfg(daceprog: DaceProgram, sdfg: dace.SDFG, args, kwargs):
     is_compiling, comm = determine_compiling_ranks()
     if is_compiling:
-        if comm.Get_rank() == 0:
-            write_decomposition()
+        # if comm.Get_rank() == 0:
+        #     write_decomposition()
         # Make the transients array persistents
         if global_config.is_gpu_backend():
             to_gpu(sdfg)
@@ -177,7 +177,7 @@ def build_sdfg(daceprog: DaceProgram, sdfg: dace.SDFG, args, kwargs):
 
     # Compilation done, either exit or scatter/gather and run
     if global_config.get_dacemode() == global_config.DaCeOrchestration.Build:
-        MPI.COMM_WORLD.Barrier() #Protect against early exist which kill SLURM jobs
+        MPI.COMM_WORLD.Barrier()  # Protect against early exist which kill SLURM jobs
         DaCeProgress.log("Compilation finished and saved, exiting.")
         exit(0)
     elif global_config.get_dacemode() == global_config.DaCeOrchestration.BuildAndRun:
