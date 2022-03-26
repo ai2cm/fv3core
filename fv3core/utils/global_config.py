@@ -120,9 +120,10 @@ def set_dacemode(dacemode: DaCeOrchestration):
 # Run: load from .so and run, will fail if .so is not available
 _DACEMODE: DaCeOrchestration = load_dace_orchestration()
 
+_PARTITIONER = None
+
 
 def get_partitioner() -> Optional[util.CubedSpherePartitioner]:
-    print("partitioner is used")
     global _PARTITIONER
     return _PARTITIONER
 
@@ -132,14 +133,12 @@ def set_partitioner(partitioner: Optional[util.CubedSpherePartitioner]) -> None:
     if _PARTITIONER is not None:
         print("re-setting the partitioner, why is that?")
     _PARTITIONER = partitioner
-    print("partitioner is set")
 
 
 def set_partitioner_once(partitioner: Optional[util.CubedSpherePartitioner]) -> None:
     global _PARTITIONER
-    if _PARTITIONER is not None:
+    if _PARTITIONER is None:
         _PARTITIONER = partitioner
-        print("partitioner is set")
 
 
 # Partitioner from fv3core

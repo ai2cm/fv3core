@@ -517,7 +517,7 @@ class AcousticDynamics:
             pfull: atmospheric Eulerian grid reference pressure (Pa)
             phis: surface geopotential height
         """
-        global_config.set_partitioner_once(comm)
+        global_config.set_partitioner_once(comm.partitioner)
         grid_indexing = stencil_factory.grid_indexing
         # [DaCe] comm is not used directly by dyn_core, only the updaters but those are callbacked
         self.config = config
