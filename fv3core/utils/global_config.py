@@ -120,8 +120,6 @@ def set_dacemode(dacemode: DaCeOrchestration):
 # Run: load from .so and run, will fail if .so is not available
 _DACEMODE: DaCeOrchestration = load_dace_orchestration()
 
-_PARTITIONER = None
-
 
 def get_partitioner() -> Optional[util.CubedSpherePartitioner]:
     global _PARTITIONER
