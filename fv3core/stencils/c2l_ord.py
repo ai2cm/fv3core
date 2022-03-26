@@ -99,7 +99,6 @@ class CubedToLatLon:
             grid_data: object with metric terms
             order: Order of interpolation, must be 2 or 4
         """
-        global_config.set_partitioner_once(comm)
         grid_indexing = stencil_factory.grid_indexing
         self._n_halo = grid_indexing.n_halo
         self._dx = grid_data.dx
