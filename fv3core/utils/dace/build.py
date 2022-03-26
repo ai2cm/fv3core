@@ -169,7 +169,6 @@ def write_decomposition():
     config_path = path + "decomposition.yml"
     os.makedirs(path, exist_ok=True)
     decomposition = {}
-    partitioner = global_config.get_partitioner()
     for string in ["00", "01", "02", "10", "11", "12", "20", "21", "22"]:
         target_rank = top_tile_rank_from_decomposition_string(string)
         if target_rank is not None:
