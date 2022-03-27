@@ -32,6 +32,8 @@ Fillz:
     near_zero: 3e-15
   - backend: gtc:gt:gpu
     max_error: 5e-6
+  - backend: gtc:dace:gpu
+    max_error: 5e-6
 
 MapN_Tracer_2d:
   - backend: gtcuda
