@@ -84,7 +84,6 @@ class Grid:
             f"  s: {self.south_edge}\n"
             f"  n: {self.north_edge}\n"
         )
-        exit(1)
 
         self.j_offset = self.js - self.jsd - 1
         self.i_offset = self.is_ - self.isd - 1

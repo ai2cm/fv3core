@@ -261,7 +261,7 @@ def run(
     # Make grid (with proper rank)
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
-    spec.set_namelist(args.data_dir + "/input.nml", rank)
+    spec.set_namelist(args.data_dir + "/input.nml")
 
     with timer.clock("initialization"):
         fv3core.set_backend(args.backend)
