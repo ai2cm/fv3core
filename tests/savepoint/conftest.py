@@ -532,6 +532,7 @@ def get_mock_communicator_list(layout):
 def get_communicator(comm, layout):
     partitioner = fv3util.CubedSpherePartitioner(fv3util.TilePartitioner(layout))
     communicator = fv3util.CubedSphereCommunicator(comm, partitioner)
+    fv3core.set_partitioner(partitioner)
     return communicator
 
 

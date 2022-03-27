@@ -264,10 +264,6 @@ def run(
     spec.set_namelist(args.data_dir + "/input.nml")
 
     with timer.clock("initialization"):
-        fv3core.set_backend(args.backend)
-        fv3core.set_rebuild(False)
-        fv3core.set_validate_args(False)
-
         if args.disable_halo_exchange:
             mpi_comm = NullComm(MPI.COMM_WORLD.Get_rank(), MPI.COMM_WORLD.Get_size())
         else:
@@ -277,6 +273,11 @@ def run(
         layout = spec.namelist.layout
         partitioner = util.CubedSpherePartitioner(util.TilePartitioner(layout))
         communicator = util.CubedSphereCommunicator(mpi_comm, partitioner)
+
+        fv3core.set_backend(args.backend)
+        fv3core.set_partitioner(partitioner)
+        fv3core.set_rebuild(False)
+        fv3core.set_validate_args(False)
 
         if args.serialized_init:
             (

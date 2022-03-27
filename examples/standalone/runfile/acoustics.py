@@ -55,12 +55,17 @@ def read_grid(serializer: serialbox.Serializer, rank: int = 0) -> Grid:
     return fv3core.testing.TranslateGrid(grid_data, rank).python_grid()
 
 
-def initialize_fv3core(backend: str, disable_halo_exchange: bool) -> None:
+def initialize_fv3core(
+    backend: str,
+    disable_halo_exchange: bool,
+    partitioner: fv3util.partitioner.Partitioner,
+) -> None:
     """
     Initializes globalfv3core config to the arguments for single runs
     with the given backend and choice of halo updates
     """
     fv3core.set_backend(backend)
+    fv3core.set_partitioner(partitioner)
     fv3core.set_rebuild(False)
     fv3core.set_validate_args(False)
 
@@ -142,7 +147,8 @@ def run(data_directory, halo_update, backend, time_steps, sdfg_path=None):
     # Read grid & build state from input_data read from savepoint
     set_up_namelist(data_directory)
     serializer = initialize_serializer(data_directory)
-    initialize_fv3core(backend, halo_update)
+    partitioner = fv3util.TilePartitioner(spec.namelist.layout)
+    initialize_fv3core(backend, halo_update, partitioner)
     grid = read_grid(serializer)
     spec.set_grid(grid)
     input_data = read_input_data(grid, serializer)
@@ -153,7 +159,7 @@ def run(data_directory, halo_update, backend, time_steps, sdfg_path=None):
     rank = comm.Get_rank()
     cube_comm = fv3util.CubedSphereCommunicator(
         comm,
-        fv3util.CubedSpherePartitioner(fv3util.TilePartitioner(spec.namelist.layout)),
+        fv3util.CubedSpherePartitioner(partitioner),
     )
 
     print(
