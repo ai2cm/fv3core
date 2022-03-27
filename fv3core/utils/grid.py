@@ -72,18 +72,6 @@ class Grid:
         self.east_edge = self.global_ie == self.npx + self.halo - 2
         self.south_edge = self.global_js == self.halo
         self.north_edge = self.global_je == self.npy + self.halo - 2
-        print(
-            "Computed edges\n"
-            f"  subtile index: {self.subtile_index} \n"
-            f"  global is: {self.global_is}\n"
-            f"  global ie: {self.global_ie}\n"
-            f"  global js: {self.global_js}\n"
-            f"  global je: {self.global_je}\n"
-            f"  w: {self.west_edge}\n"
-            f"  e: {self.east_edge}\n"
-            f"  s: {self.south_edge}\n"
-            f"  n: {self.north_edge}\n"
-        )
 
         self.j_offset = self.js - self.jsd - 1
         self.i_offset = self.is_ - self.isd - 1
