@@ -2,12 +2,13 @@ from typing import Any, Mapping
 
 
 class NullAsyncResult:
-    def __init__(self, recvbuf=None):
+    def __init__(self, recvbuf=None, fill_value=0.0):
         self._recvbuf = recvbuf
+        self._fill_value = fill_value
 
     def wait(self):
         if self._recvbuf is not None:
-            self._recvbuf[:] = 0.0
+            self._recvbuf[:] = self._fill_value
 
 
 class NullComm:
@@ -44,6 +45,9 @@ class NullComm:
     def barrier(self):
         return
 
+    def Barrier(self):
+        return
+
     def Scatter(self, sendbuf, recvbuf, root=0, **kwargs):
         if recvbuf is not None:
             recvbuf[:] = self._fill_value
@@ -52,17 +56,20 @@ class NullComm:
         if recvbuf is not None:
             recvbuf[:] = self._fill_value
 
+    def allreduce(self, buf, *args, **kwargs):
+        return buf
+
     def Send(self, sendbuf, dest, **kwargs):
         pass
 
     def Isend(self, sendbuf, dest, **kwargs):
-        return NullAsyncResult()
+        return NullAsyncResult(fill_value=self._fill_value)
 
     def Recv(self, recvbuf, source, **kwargs):
         recvbuf[:] = self._fill_value
 
     def Irecv(self, recvbuf, source, **kwargs):
-        return NullAsyncResult(recvbuf)
+        return NullAsyncResult(recvbuf, fill_value=self._fill_value)
 
     def Split(self, color, key):
         # key argument is ignored, assumes we're calling the ranks from least to

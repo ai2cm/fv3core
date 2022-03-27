@@ -4,7 +4,7 @@ import numpy as np
 from fv3core.utils.dace.computepath import computepath_function, computepath_method
 from fv3gfs.util import Quantity, QuantityHaloSpec, constants, CubedSphereCommunicator
 from fv3gfs.util.halo_data_transformer import HaloExchangeSpec
-from mpi4py import MPI
+from fv3core.utils.mpi import MPI
 
 MPI_Request = dace.opaque("MPI_Request")
 
