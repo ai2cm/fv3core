@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 import numpy as np
-from mpi4py import MPI
+from fv3core.utils.mpi import MPI
 
 
 def set_experiment_info(experiment_setup: Dict[str, Any]) -> Dict[str, Any]:

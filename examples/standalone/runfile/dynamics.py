@@ -15,10 +15,7 @@ import numpy as np
 from warnings import warn
 
 
-try:
-    from mpi4py import MPI
-except ImportError:
-    MPI = None
+from fv3core.utils.mpi import MPI
 
 try:
     import cupy as cp

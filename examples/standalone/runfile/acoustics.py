@@ -23,10 +23,7 @@ import fv3gfs.util as fv3util
 # [DaCe] Import
 from fv3core.utils.dace.computepath import computepath_function
 
-try:
-    from mpi4py import MPI
-except ImportError:
-    MPI = None
+from fv3core.utils.mpi import MPI
 
 
 def set_up_namelist(data_directory: str) -> None:
