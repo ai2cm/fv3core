@@ -258,21 +258,12 @@ def run(
         serialized_init=serialized_init,
     )
 
-    spec.set_namelist(args.data_dir + "/input.nml")
-
-    print(
-        f"Config\n"
-        f"\tBackend {args.backend}\n"
-        f"\tOrchestration: {get_dacemode()}\n"
-        f"\tN split: {spec.namelist.dynamical_core.n_split}\n"
-        f"\tK split: {spec.namelist.dynamical_core.k_split}\n"
-        f"\tdt atmos: {spec.namelist.dynamical_core.dt_atmos}\n"
-    )
+    # Make grid (with proper rank)
+    comm = MPI.COMM_WORLD
+    rank = comm.Get_rank()
+    spec.set_namelist(args.data_dir + "/input.nml", rank)
 
     with timer.clock("initialization"):
-        comm = MPI.COMM_WORLD
-        rank = comm.Get_rank()
-
         fv3core.set_backend(args.backend)
         fv3core.set_rebuild(False)
         fv3core.set_validate_args(False)
@@ -303,6 +294,21 @@ def run(
                 bdt,
                 do_adiabatic_init,
             ) = computed_grid_state(args, communicator)
+
+        print(
+            f"Config\n"
+            f"\tBackend {args.backend}\n"
+            f"\tOrchestration: {get_dacemode()}\n"
+            f"\tN split: {spec.namelist.dynamical_core.n_split}\n"
+            f"\tK split: {spec.namelist.dynamical_core.k_split}\n"
+            f"\tdt atmos: {spec.namelist.dynamical_core.dt_atmos}\n"
+            f"\tresolution: {spec.namelist.npx} - {spec.namelist.npy} - {spec.namelist.npz}\n"
+            f"\tedge layout:"
+            f"\t  north: {spec.grid.north_edge}"
+            f"\t  east: {spec.grid.east_edge}"
+            f"\t  south {spec.grid.south_edge}"
+            f"\t  west: {spec.grid.west_edge}"
+        )
 
         # [DaCe] `get_namespace`: Transform state outside of FV_Dynamics in order to
         #        have valid references in halo ex callbacks

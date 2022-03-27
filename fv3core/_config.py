@@ -908,8 +908,6 @@ def set_namelist(filename):
     for name, value in namelist_dict.items():
         setattr(namelist, name, value)
 
-    grid = make_grid_from_namelist(namelist, 0)
-
 
 if "NAMELIST_FILENAME" in os.environ:
     set_namelist(os.environ["NAMELIST_FILENAME"])

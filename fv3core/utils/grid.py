@@ -42,14 +42,19 @@ class Grid:
             setattr(self, s, int(shape_params[s]))
         self.subtile_width_x = int((self.npx - 1) / self.layout[0])
         self.subtile_width_y = int((self.npy - 1) / self.layout[1])
-        for ivar, jvar in self.index_pairs:
-            local_i, local_j = self.global_to_local_indices(
-                int(indices[ivar]), int(indices[jvar])
-            )
-            if not local_indices:
-                local_i, local_j = self.global_to_local_indices(local_i, local_j)
-            setattr(self, ivar, local_i)
-            setattr(self, jvar, local_j)
+        # Modify indices to be local if coming from local
+        # straigth copy if there are not
+        if not local_indices:
+            for ivar, jvar in self.index_pairs:
+                local_i, local_j = self.global_to_local_indices(
+                    int(indices[ivar]), int(indices[jvar])
+                )
+                setattr(self, ivar, local_i)
+                setattr(self, jvar, local_j)
+        else:
+            for ivar, jvar in self.index_pairs:
+                setattr(self, ivar, indices[ivar])
+                setattr(self, jvar, indices[jvar])
         self.nid = int(self.ied - self.isd + 1)
         self.njd = int(self.jed - self.jsd + 1)
         self.nic = int(self.ie - self.is_ + 1)
@@ -67,6 +72,19 @@ class Grid:
         self.east_edge = self.global_ie == self.npx + self.halo - 2
         self.south_edge = self.global_js == self.halo
         self.north_edge = self.global_je == self.npy + self.halo - 2
+        print(
+            "Computed edges\n"
+            f"  subtile index: {self.subtile_index} \n"
+            f"  global is: {self.global_is}\n"
+            f"  global ie: {self.global_ie}\n"
+            f"  global js: {self.global_js}\n"
+            f"  global je: {self.global_je}\n"
+            f"  w: {self.west_edge}\n"
+            f"  e: {self.east_edge}\n"
+            f"  s: {self.south_edge}\n"
+            f"  n: {self.north_edge}\n"
+        )
+        exit(1)
 
         self.j_offset = self.js - self.jsd - 1
         self.i_offset = self.is_ - self.isd - 1
@@ -671,12 +689,12 @@ class GridData:
             axis=0,
         )
         edge_e = utils.make_storage_data(
-            metric_terms.edge_e.data[0,:],
+            metric_terms.edge_e.data[0, :],
             (1, shape[1]),
             axis=1,
         )
         edge_w = utils.make_storage_data(
-            metric_terms.edge_w.data[0,:],
+            metric_terms.edge_w.data[0, :],
             (1, shape[1]),
             axis=1,
         )
@@ -873,7 +891,6 @@ class GridData:
     def edge_n(self):
         return self._horizontal_data.edge_n
 
-    
     @property
     def p_ref(self) -> float:
         """
