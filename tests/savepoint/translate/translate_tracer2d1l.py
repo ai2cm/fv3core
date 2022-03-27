@@ -54,6 +54,7 @@ class TranslateTracer2D1L(ParallelTranslate):
             transport,
             communicator,
             inputs["tracers"],
+            grid_data=spec.grid.grid_data,
         )
         self.tracer_advection(**inputs)
         inputs[
