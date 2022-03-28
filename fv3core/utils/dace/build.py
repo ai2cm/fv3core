@@ -1,14 +1,12 @@
 import os.path
 from typing import Any, Callable, Optional, Tuple
-from unicodedata import decomposition
 
 import yaml
-from numpy import partition
 
 from fv3core.utils import global_config
 from fv3core.utils.global_config import DaCeOrchestration, get_dacemode
 from fv3core.utils.mpi import MPI
-
+import fv3gfs.util as util
 
 ################################################
 # Distributed compilation
@@ -42,8 +40,7 @@ def unblock_waiting_tiles(comm, sdfg_path: str) -> None:
             comm.send(sdfg_path, dest=tile * tilesize + comm.Get_rank())
 
 
-def top_tile_rank_from_decomposition_string(string):
-    partitioner = global_config.get_partitioner()
+def top_tile_rank_from_decomposition_string(string, partitioner):
     tilesize = partitioner.total_ranks / 6
     if tilesize == 1:
         return 0
@@ -55,20 +52,20 @@ def top_tile_rank_from_decomposition_string(string):
         ):
             return rank % tilesize
         if (
-            string == "01"
+            string == "10"
             and partitioner.tile.on_tile_bottom(rank)
             and not partitioner.tile.on_tile_left(rank)
             and not partitioner.tile.on_tile_right(rank)
         ):
             return rank % tilesize
         if (
-            string == "02"
+            string == "20"
             and partitioner.tile.on_tile_bottom(rank)
             and partitioner.tile.on_tile_right(rank)
         ):
             return rank % tilesize
         if (
-            string == "10"
+            string == "01"
             and not partitioner.tile.on_tile_bottom(rank)
             and not partitioner.tile.on_tile_top(rank)
             and partitioner.tile.on_tile_left(rank)
@@ -83,20 +80,20 @@ def top_tile_rank_from_decomposition_string(string):
         ):
             return rank % tilesize
         if (
-            string == "12"
+            string == "21"
             and not partitioner.tile.on_tile_bottom(rank)
             and not partitioner.tile.on_tile_top(rank)
             and partitioner.tile.on_tile_right(rank)
         ):
             return rank % tilesize
         if (
-            string == "20"
+            string == "02"
             and partitioner.tile.on_tile_top(rank)
             and partitioner.tile.on_tile_left(rank)
         ):
             return rank % tilesize
         if (
-            string == "21"
+            string == "12"
             and partitioner.tile.on_tile_top(rank)
             and not partitioner.tile.on_tile_left(rank)
             and not partitioner.tile.on_tile_right(rank)
@@ -142,7 +139,7 @@ def read_target_rank(rank, filename=None):
     top_tile_rank = top_tile_equivalent(rank, partitioner.total_ranks)
     with open(filename) as decomposition:
         parsed_file = yaml.safe_load(decomposition)
-        return parsed_file[top_tile_rank_to_decomposition_string(top_tile_rank)]
+        return int(parsed_file[top_tile_rank_to_decomposition_string(top_tile_rank)])
 
 
 def top_tile_equivalent(rank, size):
@@ -165,14 +162,16 @@ _loaded_sdfg_once = False
 def write_decomposition():
     from gt4py import config as gt_config
 
+    partitioner = global_config.get_partitioner()
     path = f"{gt_config.cache_settings['root_path']}/.layout/"
     config_path = path + "decomposition.yml"
     os.makedirs(path, exist_ok=True)
     decomposition = {}
-    for string in ["00", "01", "02", "10", "11", "12", "20", "21", "22"]:
-        target_rank = top_tile_rank_from_decomposition_string(string)
+    decomposition["layout"] = partitioner.layout
+    for string in ["00", "10", "20", "01", "11", "21", "02", "12", "22"]:
+        target_rank = top_tile_rank_from_decomposition_string(string, partitioner)
         if target_rank is not None:
-            decomposition.setdefault(string, target_rank)
+            decomposition.setdefault(string, int(target_rank))
 
     with open(config_path, "w") as outfile:
         yaml.dump(decomposition, outfile)
@@ -248,3 +247,45 @@ def build_sdfg_path(program_name: str, sdfg_file_path: Optional[str] = None) -> 
     )
 
     return sdfg_dir_path
+
+
+def set_distribued_caches(
+    comm: util.CubedSphereCommunicator,
+):
+    """In Run mode, check required file then point current rank cache to source cache"""
+
+    orchestration_mode = get_dacemode()
+
+    # Check that we have all the file we need to early out in case
+    # of issues.
+    if orchestration_mode == DaCeOrchestration.Run:
+        from gt4py import config as gt_config
+        import os
+
+        rank = comm.comm.Get_rank()
+
+        # Check layout
+        layout_filepath = (
+            f"{gt_config.cache_settings['root_path']}/.layout/decomposition.yml"
+        )
+        if not os.path.exists(layout_filepath):
+            raise RuntimeError(
+                f"{orchestration_mode} error: Could not find layout at {layout_filepath}"
+            )
+
+        # Check our cache exist
+        if comm.comm.Get_size() > 1:
+            rank_str = f"_{read_target_rank(rank, layout_filepath):06d}"
+        else:
+            rank_str = ""
+        cache_filepath = f"{gt_config.cache_settings['root_path']}/.gt_cache{rank_str}"
+        if not os.path.exists(cache_filepath):
+            raise RuntimeError(
+                f"{orchestration_mode} error: Could not find caches for rank {rank} at {cache_filepath}"
+            )
+
+        # All, good set this rank cache to the source cache
+        gt_config.cache_settings["dir_name"] = f".gt_cache{rank_str}"
+        print(
+            f"[{orchestration_mode}] Rank {rank} reading cache {gt_config.cache_settings['dir_name']}"
+        )

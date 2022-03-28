@@ -2,7 +2,6 @@
 
 import copy
 import json
-import os
 from datetime import datetime
 from types import SimpleNamespace
 from typing import Any, Dict, List
@@ -11,9 +10,6 @@ import click
 import dace
 from fv3core.utils import global_config
 import numpy as np
-
-from warnings import warn
-
 
 from fv3core.utils.mpi import MPI
 
@@ -48,6 +44,7 @@ from fv3core.grid import MetricTerms
 from fv3core.decorators import get_namespace
 import fv3core.stencils.fv_dynamics as fv_dynamics
 from fv3core.utils.dace.computepath import computepath_function
+from fv3core.utils.dace.build import set_distribued_caches
 
 
 def set_experiment_info(
@@ -278,6 +275,7 @@ def run(
         fv3core.set_partitioner(partitioner)
         fv3core.set_rebuild(False)
         fv3core.set_validate_args(False)
+        set_distribued_caches(communicator)
 
         if args.serialized_init:
             (
@@ -296,14 +294,16 @@ def run(
                 do_adiabatic_init,
             ) = computed_grid_state(args, communicator)
 
+        # Verbose the experiment detail
+        total_ranks = communicator.Get_size()
         rank_grid_points_x = int(spec.namelist.npx / spec.namelist.layout[0])
         ranks_per_cube_edge = int(
-            comm.Get_size() / spec.namelist.layout[0] / spec.namelist.layout[1]
+            total_ranks / spec.namelist.layout[0] / spec.namelist.layout[1]
         )
         print(
-            f"Experiment c{spec.namelist.npx}_{comm.Get_size()}ranks:\n"
+            f"Experiment c{spec.namelist.npx}_{total_ranks}ranks:\n"
             f"  Rank {rank}\n"
-            f"  Backend {args.backend}\n"
+            f"  Backend {backend}\n"
             f"  Orchestration: {get_dacemode()}\n"
             f"  N split: {spec.namelist.dynamical_core.n_split}\n"
             f"  K split: {spec.namelist.dynamical_core.k_split}\n"
