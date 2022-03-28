@@ -172,8 +172,6 @@ class DynamicalCore:
         """
         # nested and stretched_grid are options in the Fortran code which we
         # have not implemented, so they are hard-coded here.
-        global_config.set_partitioner(comm.partitioner)
-
         nested = False
         stretched_grid = False
         grid_indexing = stencil_factory.grid_indexing
