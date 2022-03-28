@@ -295,19 +295,26 @@ def run(
                 do_adiabatic_init,
             ) = computed_grid_state(args, communicator)
 
+        rank_grid_points_x = int(spec.namelist.npx / spec.namelist.layout[0])
+        ranks_per_cube_edge = int(
+            comm.Get_size() / spec.namelist.layout[0] / spec.namelist.layout[1]
+        )
         print(
-            f"Config\n"
-            f"\tBackend {args.backend}\n"
-            f"\tOrchestration: {get_dacemode()}\n"
-            f"\tN split: {spec.namelist.dynamical_core.n_split}\n"
-            f"\tK split: {spec.namelist.dynamical_core.k_split}\n"
-            f"\tdt atmos: {spec.namelist.dynamical_core.dt_atmos}\n"
-            f"\tresolution: {spec.namelist.npx} - {spec.namelist.npy} - {spec.namelist.npz}\n"
-            f"\tedge layout:"
-            f"\t  north: {spec.grid.north_edge}"
-            f"\t  east: {spec.grid.east_edge}"
-            f"\t  south {spec.grid.south_edge}"
-            f"\t  west: {spec.grid.west_edge}"
+            f"Experiment c{spec.namelist.npx}_{comm.Get_size()}ranks:\n"
+            f"  Rank {rank}\n"
+            f"  Backend {args.backend}\n"
+            f"  Orchestration: {get_dacemode()}\n"
+            f"  N split: {spec.namelist.dynamical_core.n_split}\n"
+            f"  K split: {spec.namelist.dynamical_core.k_split}\n"
+            f"  dt atmos: {spec.namelist.dynamical_core.dt_atmos}\n"
+            f"  Layout: {spec.namelist.layout}\n"
+            f"  Grid points: {spec.namelist.npx} - {spec.namelist.npy} - {spec.namelist.npz}\n"
+            f"  Resolution / grid point: {9220/ranks_per_cube_edge/rank_grid_points_x:.0f}km\n"
+            f"  Edge layout for this rank:\n"
+            f"    north: {spec.grid.north_edge}\n"
+            f"    east: {spec.grid.east_edge}\n"
+            f"    south: {spec.grid.south_edge}\n"
+            f"    west: {spec.grid.west_edge}\n"
         )
 
         # [DaCe] `get_namespace`: Transform state outside of FV_Dynamics in order to
