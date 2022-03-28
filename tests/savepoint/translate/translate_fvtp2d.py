@@ -50,7 +50,7 @@ class TranslateFvTp2d(TranslateFortranData2Py):
             grid_data=self.grid.grid_data,
             damping_coefficients=self.grid.damping_coefficients,
             grid_type=self.grid.grid_type,
-            hord=int(inputs["hord"]),
+            hord=int(inputs.pop("hord")),
             nord=inputs.pop("nord"),
             damp_c=inputs.pop("damp_c"),
         )

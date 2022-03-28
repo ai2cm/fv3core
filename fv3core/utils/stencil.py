@@ -1,5 +1,7 @@
+import copy
 import hashlib
 import inspect
+import os
 import re
 from typing import (
     Any,
@@ -30,12 +32,14 @@ from fv3core.utils.mpi import MPI
 from fv3core.utils.typing import Index3D, cast_to_index3d
 from fv3gfs.util.halo_data_transformer import QuantityHaloSpec
 
+from .dace.computepath import SDFGConvertible
 from .gt4py_utils import make_storage_from_shape
 
-from .dace.computepath import SDFGConvertible
 
-# [DaCe] Deacticate, the distributed compilation
+# [DaCe] Deactivate distributed compilation
 MPI = None
+
+FV3CORE_CHECK_AGAINST_NUMPY = int(os.environ.get("FV3CORE_CHECK_AGAINST_NUMPY", 0)) == 1
 
 
 class StencilConfig(Hashable):
@@ -129,6 +133,50 @@ class StencilConfig(Hashable):
         return self.backend.startswith("gtc")
 
 
+def compare_arr(computed_data, ref_data):
+    """
+    Smooth error near zero values.
+    Inputs are arrays.
+    """
+    denom = np.abs(ref_data) + np.abs(computed_data)
+    compare = 2.0 * np.abs(computed_data - ref_data) / denom
+    compare[denom == 0] = 0.0
+    return compare
+
+
+def report_diff(arg: np.ndarray, numpy_arg: np.ndarray) -> str:
+    metric_err = compare_arr(arg, numpy_arg)
+    nans_match = np.logical_and(np.isnan(arg), np.isnan(numpy_arg))
+    n_points = np.product(arg.shape)
+    failures_14 = n_points - np.sum(
+        np.logical_or(
+            nans_match,
+            metric_err < 1e-14,
+        )
+    )
+    failures_10 = n_points - np.sum(
+        np.logical_or(
+            nans_match,
+            metric_err < 1e-10,
+        )
+    )
+    failures_8 = n_points - np.sum(
+        np.logical_or(
+            nans_match,
+            metric_err < 1e-10,
+        )
+    )
+    greatest_error = np.max(metric_err[~np.isnan(metric_err)])
+    report = f"max_err={greatest_error}"
+    if failures_14 > 0:
+        report += f" 1e-14 failures: {failures_14}"
+    if failures_10 > 0:
+        report += f" 1e-10 failures: {failures_10}"
+    if failures_8 > 0:
+        report += f" 1e-8 failures: {failures_8}"
+    return report
+
+
 class FrozenStencil(SDFGConvertible):
     """
     Wrapper for gt4py stencils which stores origin and domain at compile time,
@@ -157,6 +205,25 @@ class FrozenStencil(SDFGConvertible):
             externals: compile-time external variables required by stencil
             skip_passes: compiler passes to skip when building stencil
         """
+        if FV3CORE_CHECK_AGAINST_NUMPY and stencil_config.backend != "numpy":
+            numpy_stencil_config = StencilConfig(
+                backend="numpy",
+                rebuild=stencil_config.rebuild,
+                validate_args=stencil_config.validate_args,
+                format_source=None,
+                device_sync=None,
+            )
+            self._numpy_frozen_stencil: Optional[FrozenStencil] = FrozenStencil(
+                func=func,
+                origin=origin,
+                domain=domain,
+                stencil_config=numpy_stencil_config,
+                externals=externals,
+                skip_passes=None,
+            )
+        else:
+            self._numpy_frozen_stencil = None
+        self._func_name = func.__name__
         if isinstance(origin, tuple):
             origin = cast_to_index3d(origin)
         origin = cast(Union[Index3D, Mapping[str, Tuple[int, ...]]], origin)
@@ -226,6 +293,10 @@ class FrozenStencil(SDFGConvertible):
         *args,
         **kwargs,
     ) -> None:
+        if self._numpy_frozen_stencil is not None:
+            args_copy = copy.deepcopy(args)
+            kwargs_copy = copy.deepcopy(kwargs)
+            self._numpy_frozen_stencil(*args_copy, **kwargs_copy)
         if self.stencil_config.validate_args:
             if __debug__ and "origin" in kwargs:
                 raise TypeError("origin cannot be passed to FrozenStencil call")
@@ -244,6 +315,18 @@ class FrozenStencil(SDFGConvertible):
                 **args_as_kwargs, **kwargs, **self._stencil_run_kwargs, exec_info=None
             )
             self._mark_cuda_fields_written({**args_as_kwargs, **kwargs})
+        if self._numpy_frozen_stencil is not None:
+            report = f"comparing against numpy for func {self._func_name}:"
+            for i, (arg, numpy_arg) in enumerate(zip(args, args_copy)):
+                if isinstance(arg, np.ndarray):
+                    report += f"\n    arg {i}: "
+                    report += report_diff(arg.data, numpy_arg.data)
+            for name in kwargs:
+                if isinstance(kwargs[name], np.ndarray):
+                    report += f"\n    kwarg {name}: "
+                    report += report_diff(kwargs[name].data, kwargs_copy[name].data)
+            print("")  # newline
+            print(report)
 
     def _mark_cuda_fields_written(self, fields: Mapping[str, Storage]):
         if self.stencil_config.is_gpu_backend:
