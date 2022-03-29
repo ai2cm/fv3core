@@ -151,3 +151,4 @@ opt_sdfg/
 wip/
 **/.dacecache/
 _dacegraphs/
+model_output/

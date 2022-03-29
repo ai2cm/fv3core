@@ -12,6 +12,9 @@ from fv3core.utils import global_config
 import numpy as np
 
 from fv3core.utils.mpi import MPI
+import zarr
+import fv3gfs.util
+from datetime import datetime, timedelta
 
 try:
     import cupy as cp
@@ -224,7 +227,17 @@ def computed_grid_state(args, communicator):
     dict_state["bk"] = grid_data.bk
     bdt = spec.namelist.dt_atmos
     do_adiabatic_init = False
-    return grid_data, dict_state, damping_coefficients, bdt, do_adiabatic_init
+    lat = metric_terms.lat
+    lon = metric_terms.lon
+    return grid_data, dict_state, damping_coefficients, bdt, do_adiabatic_init, lat, lon
+
+
+def write_data(monitor, time, state):
+    zarr_state = {"time": time}
+    names = ["u", "v", "pt"]
+    for name in names:
+        zarr_state[name] = state.__dict__[name + "_quantity"]
+    monitor.store(zarr_state)
 
 
 def run(
@@ -284,6 +297,8 @@ def run(
                 damping_coefficients,
                 bdt,
                 do_adiabatic_init,
+                lat,
+                lon,
             ) = serialized_grid_state(args, rank, communicator)
         else:
             (
@@ -292,6 +307,8 @@ def run(
                 damping_coefficients,
                 bdt,
                 do_adiabatic_init,
+                lat,
+                lon,
             ) = computed_grid_state(args, communicator)
 
         # Verbose the experiment detail
@@ -317,6 +334,18 @@ def run(
         # [DaCe] `get_namespace`: Transform state outside of FV_Dynamics in order to
         #        have valid references in halo ex callbacks
         state = get_namespace(fv_dynamics.DynamicalCoreArgSpec.values, dict_state)
+
+        # Write out initial state, lat, lon
+        store = zarr.storage.DirectoryStore(path="model_output")
+        current_time = datetime(2000, 1, 1)
+        diagnostics = fv3gfs.util.ZarrMonitor(
+            store=store, partitioner=partitioner, mpi_comm=communicator.comm
+        )
+        zarr_grid = {}
+        zarr_grid["lat"] = lat
+        zarr_grid["lon"] = lon
+        diagnostics.store_constant(zarr_grid)
+        write_data(diagnostics, current_time, state)
 
         if not args.serialized_init:  # and not srf_init
             from fv3core.stencils.c2l_ord import CubedToLatLon
@@ -468,6 +497,10 @@ def run(
         set_dacemode(dacemode)
 
     timer.stop("total")
+
+    # Write out last state
+    current_time = current_time + timedelta(seconds=bdt * time_steps)
+    write_data(diagnostics, current_time, state)
 
     if cp is not None:
         cp.cuda.nvtx.RangePop()
