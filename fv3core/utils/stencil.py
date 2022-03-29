@@ -316,7 +316,7 @@ class FrozenStencil(SDFGConvertible):
             )
             self._mark_cuda_fields_written({**args_as_kwargs, **kwargs})
         if self._numpy_frozen_stencil is not None:
-            report = f"comparing against numpy for func {self._func_name}:"
+            report = f"comparing against numpy for func {self._func_name} {self.stencil_object._gt_id_}:"
             for i, (arg, numpy_arg) in enumerate(zip(args, args_copy)):
                 if isinstance(arg, np.ndarray):
                     report += f"\n    arg {i}: "
