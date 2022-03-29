@@ -341,11 +341,17 @@ def run(
         diagnostics = fv3gfs.util.ZarrMonitor(
             store=store, partitioner=partitioner, mpi_comm=communicator.comm
         )
+        write_data(diagnostics, current_time, state)
+
+        grid_diagostics = fv3gfs.util.ZarrMonitor(
+            store=zarr.storage.DirectoryStore(path="grid_output"),
+            partitioner=partitioner,
+            mpi_comm=communicator.comm,
+        )
         zarr_grid = {}
         zarr_grid["lat"] = lat
         zarr_grid["lon"] = lon
-        diagnostics.store_constant(zarr_grid)
-        write_data(diagnostics, current_time, state)
+        grid_diagostics.store_constant(zarr_grid)
 
         if not args.serialized_init:  # and not srf_init
             from fv3core.stencils.c2l_ord import CubedToLatLon
