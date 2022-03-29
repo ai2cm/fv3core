@@ -103,7 +103,7 @@ def run_sdfg(daceprog: DaceProgram, sdfg: dace.SDFG, args, kwargs):
 def build_sdfg(daceprog: DaceProgram, sdfg: dace.SDFG, args, kwargs):
     is_compiling, comm = determine_compiling_ranks()
     if is_compiling:
-        if comm.Get_rank() == 0:
+        if comm.Get_rank() == 0 and comm.Get_size() > 1:
             write_decomposition()
         # Make the transients array persistents
         if global_config.is_gpu_backend():

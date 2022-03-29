@@ -295,11 +295,7 @@ def run(
             ) = computed_grid_state(args, communicator)
 
         # Verbose the experiment detail
-        total_ranks = communicator.Get_size()
-        rank_grid_points_x = int(spec.namelist.npx / spec.namelist.layout[0])
-        ranks_per_cube_edge = int(
-            total_ranks / spec.namelist.layout[0] / spec.namelist.layout[1]
-        )
+        total_ranks = communicator.comm.Get_size()
         print(
             f"Experiment c{spec.namelist.npx}_{total_ranks}ranks:\n"
             f"  Rank {rank}\n"
@@ -310,7 +306,7 @@ def run(
             f"  dt atmos: {spec.namelist.dynamical_core.dt_atmos}\n"
             f"  Layout: {spec.namelist.layout}\n"
             f"  Grid points: {spec.namelist.npx} - {spec.namelist.npy} - {spec.namelist.npz}\n"
-            f"  Resolution / grid point: {9220/ranks_per_cube_edge/rank_grid_points_x:.0f}km\n"
+            f"  Grid spacing (Dx,mean): {9000/(spec.namelist.npx-1):.2f}km\n"  # Per FV3 decomposition PDF
             f"  Edge layout for this rank:\n"
             f"    north: {spec.grid.north_edge}\n"
             f"    east: {spec.grid.east_edge}\n"
