@@ -55,7 +55,7 @@ class TranslateFvTp2d(TranslateFortranData2Py):
             damp_c=inputs.pop("damp_c"),
         )
         # [DaCe] Remove CopiedCorners
-        # del inputs["hord"]
+        del inputs["hord"]
         # q_storage = inputs["q"]
         # factory = PreAllocatedCopiedCornersFactory(
         #     self.grid.stencil_factory, dims=[X_DIM, Y_DIM, Z_DIM], y_temporary=None
