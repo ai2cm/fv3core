@@ -454,6 +454,10 @@ def run(
         print("Cached built only - no benchmarked run")
         return
 
+    # Sync all nodes before running performance
+    if MPI is not None:
+        comm.Barrier()
+
     print("Performance run")
 
     if cp is not None:
