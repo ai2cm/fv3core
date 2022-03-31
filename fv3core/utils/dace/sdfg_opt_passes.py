@@ -13,12 +13,17 @@ def al_and_ar_are_evil(sdfg: dace.SDFG):
         ):
             for e in state.all_edges(node):
                 tasklet = None
-                if isinstance(state.memlet_path(e)[-1].dst, dace.nodes.Tasklet):
+                if isinstance(state.memlet_path(e)[0].src, dace.nodes.Tasklet):
+                    conn = state.memlet_path(e)[0].src_conn
+                    tasklet = state.memlet_path(e)[0].src
+                elif isinstance(state.memlet_path(e)[-1].dst, dace.nodes.Tasklet):
                     conn = state.memlet_path(e)[-1].dst_conn
                     tasklet = state.memlet_path(e)[-1].dst
                 if tasklet is not None:
                     code_str = tasklet.code.as_string
-                    code_str = code_str.replace(conn, "0.0")
+                    dtype = state.parent.arrays[e.data.data].dtype
+                    code_str = f"{conn}: {dtype.to_string()}\n" + code_str
+                    # code_str = code_str.replace(conn, "0.0")
                     tasklet.code.as_string = code_str
                 state.remove_memlet_path(e, True)
 
