@@ -18,7 +18,10 @@ from fv3core.utils.dace.build import (
     unblock_waiting_tiles,
     write_decomposition,
 )
-from fv3core.utils.dace.sdfg_opt_passes import splittable_region_expansion
+from fv3core.utils.dace.sdfg_opt_passes import (
+    splittable_region_expansion,
+    refine_arrays,
+)
 from fv3core.utils.dace.utils import DaCeProgress
 from fv3core.utils.mpi import MPI
 
@@ -170,6 +173,10 @@ def build_sdfg(daceprog: DaceProgram, sdfg: dace.SDFG, args, kwargs):
         # Simplify again after expansion
         with DaCeProgress("Simplify (final)"):
             sdfg.simplify(validate=False)
+
+        # Trying to lower VRAM per removing temporaries
+        with DaCeProgress("Refine arrays (lower VRAM)"):
+            refine_arrays(sdfg)
 
         # Compile
         with DaCeProgress("Codegen & compile"):

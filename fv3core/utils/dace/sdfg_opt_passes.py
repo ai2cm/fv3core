@@ -6,12 +6,11 @@ from dace.sdfg import graph
 import collections
 
 
-def refine_permute_arrays(sdfg: dace.SDFG):
+def refine_arrays(sdfg: dace.SDFG):
     """
     Insert after sdfg.simplify(...)
     """
     refined = 0
-    permuted = 0
 
     # Collect all nodes that appear exactly twice: before and after a nested SDFG, and nowhere else
     names: Dict[str, List[dace.nodes.AccessNode]] = collections.defaultdict(list)
@@ -95,23 +94,7 @@ def refine_permute_arrays(sdfg: dace.SDFG):
                 cursdfg.remove_data(e.data.data)
                 refined += 1
 
-        if (
-            isinstance(node, dace.nodes.MapEntry)
-            and node.map.params[-1] == "k"
-            and len(node.map.params) == 3
-        ):
-            permuted += 1
-            node.map.params = [
-                node.map.params[-1],
-                node.map.params[0],
-                node.map.params[1],
-            ]
-            node.map.range = subsets.Range(
-                [node.map.range[-1], node.map.range[0], node.map.range[1]]
-            )
-
     print("Refined:", refined)
-    print("Permuted:", permuted)
 
 
 from dace.sdfg.analysis import scalar_to_symbol as s2s
@@ -166,7 +149,7 @@ def splittable_region_expansion(sdfg: dace.SDFG):
 
     for node, _ in sdfg.all_nodes_recursive():
         if isinstance(node, StencilComputation):
-            if node.has_splittable_regions() and 'corner' in node.label:
+            if node.has_splittable_regions() and "corner" in node.label:
                 node.expansion_specification = [
                     "Sections",
                     "Stages",
@@ -174,5 +157,4 @@ def splittable_region_expansion(sdfg: dace.SDFG):
                     "I",
                     "K",
                 ]
-                print('Reordered schedule for', node.label)
-
+                print("Reordered schedule for", node.label)
