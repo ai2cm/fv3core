@@ -175,7 +175,7 @@ def build_sdfg(daceprog: DaceProgram, sdfg: dace.SDFG, args, kwargs):
             sdfg.simplify(validate=False)
 
         with DaCeProgress(
-            "Removed al & ar (to lower VRAM and because of their evilness)"
+            "Removed of compute_x_flux transients (to lower VRAM and because of their evilness)"
         ):
             al_and_ar_are_evil(sdfg)
 

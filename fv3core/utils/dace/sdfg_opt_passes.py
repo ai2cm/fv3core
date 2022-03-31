@@ -22,8 +22,7 @@ def al_and_ar_are_evil(sdfg: dace.SDFG):
                 if tasklet is not None:
                     code_str = tasklet.code.as_string
                     dtype = state.parent.arrays[e.data.data].dtype
-                    code_str = f"{conn}: {dtype.to_string()}\n" + code_str
-                    # code_str = code_str.replace(conn, "0.0")
+                    code_str = f"{conn}: dace.{dtype.to_string()}\n" + code_str
                     tasklet.code.as_string = code_str
                 state.remove_memlet_path(e, True)
 
