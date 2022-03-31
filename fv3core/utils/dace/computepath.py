@@ -174,9 +174,9 @@ def build_sdfg(daceprog: DaceProgram, sdfg: dace.SDFG, args, kwargs):
         with DaCeProgress("Simplify (final)"):
             sdfg.simplify(validate=False)
 
-        # Trying to lower VRAM per removing temporaries
-        with DaCeProgress("Refine arrays (lower VRAM)"):
-            refine_arrays(sdfg)
+        # # Trying to lower VRAM per removing temporaries
+        # with DaCeProgress("Refine arrays (lower VRAM)"):
+        #     refine_arrays(sdfg)
 
         # Compile
         with DaCeProgress("Codegen & compile"):
