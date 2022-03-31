@@ -6,6 +6,15 @@ from dace.sdfg import graph
 import collections
 
 
+def al_and_ar_are_evil(sdfg: dace.SDFG):
+    for node, state in sdfg.all_nodes_recursive():
+        if isinstance(node, dace.nodes.AccessNode) and (
+            "al__" in node.data or "ar__" in node.data
+        ):
+            for e in state.all_edges(node):
+                state.remove_memlet_path(e, False)
+
+
 def refine_arrays(sdfg: dace.SDFG):
     """
     Insert after sdfg.simplify(...)

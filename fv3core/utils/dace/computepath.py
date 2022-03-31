@@ -20,7 +20,7 @@ from fv3core.utils.dace.build import (
 )
 from fv3core.utils.dace.sdfg_opt_passes import (
     splittable_region_expansion,
-    refine_arrays,
+    al_and_ar_are_evil,
 )
 from fv3core.utils.dace.utils import DaCeProgress
 from fv3core.utils.mpi import MPI
@@ -174,9 +174,10 @@ def build_sdfg(daceprog: DaceProgram, sdfg: dace.SDFG, args, kwargs):
         with DaCeProgress("Simplify (final)"):
             sdfg.simplify(validate=False)
 
-        # # Trying to lower VRAM per removing temporaries
-        # with DaCeProgress("Refine arrays (lower VRAM)"):
-        #     refine_arrays(sdfg)
+        with DaCeProgress(
+            "Removed al & ar (to lower VRAM and because of their evilness)"
+        ):
+            al_and_ar_are_evil(sdfg)
 
         # Compile
         with DaCeProgress("Codegen & compile"):
