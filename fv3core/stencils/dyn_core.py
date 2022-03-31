@@ -603,12 +603,12 @@ class AcousticDynamics:
             )
         )
 
-        self.delpc = utils.make_storage_from_shape(
-            grid_indexing.domain_full(add=(1, 1, 1)), is_temporary=False
-        )
-        self.ptc = utils.make_storage_from_shape(
-            grid_indexing.domain_full(add=(1, 1, 1)), is_temporary=False
-        )
+        # self.delpc = utils.make_storage_from_shape(
+        #     grid_indexing.domain_full(add=(1, 1, 1)), is_temporary=False
+        # )
+        # self.ptc = utils.make_storage_from_shape(
+        #     grid_indexing.domain_full(add=(1, 1, 1)), is_temporary=False
+        # )
 
         self.cgrid_shallow_water_lagrangian_dynamics = CGridShallowWaterDynamics(
             stencil_factory,
@@ -777,7 +777,7 @@ class AcousticDynamics:
                 self._halo_updaters.w.wait()
 
             # compute the c-grid winds at t + 1/2 timestep
-            self.delpc, self.ptc = self.cgrid_shallow_water_lagrangian_dynamics(
+            self.cgrid_shallow_water_lagrangian_dynamics(
                 state.delp,
                 state.pt,
                 state.u,
@@ -818,9 +818,9 @@ class AcousticDynamics:
                     state.ptop,
                     state.phis,
                     state.ws3,
-                    self.ptc,
+                    self.cgrid_shallow_water_lagrangian_dynamics.ptc,
                     state.q_con,
-                    self.delpc,
+                    self.cgrid_shallow_water_lagrangian_dynamics.delpc,
                     state.gz,
                     state.pkc,
                     state.omga,
@@ -831,7 +831,7 @@ class AcousticDynamics:
                 self.grid_data.rdyc,
                 state.uc,
                 state.vc,
-                self.delpc,
+                self.cgrid_shallow_water_lagrangian_dynamics.delpc,
                 state.pkc,
                 state.gz,
                 dt2,
@@ -846,7 +846,7 @@ class AcousticDynamics:
             self.dgrid_shallow_water_lagrangian_dynamics(
                 state.vt,
                 state.delp,
-                self.ptc,
+                self.cgrid_shallow_water_lagrangian_dynamics.ptc,
                 state.pt,
                 state.u,
                 state.v,
