@@ -1,11 +1,18 @@
 import typing
 from typing import Any, Dict
 
+# [DaCe] import
+from dace import constant as dace_constant
 from gt4py.gtscript import FORWARD, PARALLEL, computation, interval
 
 import fv3core.utils.gt4py_utils as utils
 from fv3core.utils.stencil import StencilFactory
 from fv3core.utils.typing import FloatField, FloatFieldIJ, IntFieldIJ
+
+# [DaCe] Import
+from dace import constant as dace_constant
+from fv3gfs.util import Quantity
+from fv3core.utils.dace.computepath import computepath_method
 
 
 @typing.no_type_check
@@ -105,6 +112,7 @@ class FillNegativeTracerValues:
     Fortran name is `fillz`
     """
 
+    # [DaCe] filter tracers in __init__ instead of runtime
     def __init__(
         self,
         stencil_factory: StencilFactory,
@@ -112,6 +120,7 @@ class FillNegativeTracerValues:
         jm: int,
         km: int,
         nq: int,
+        tracers: Dict[str, Quantity],
     ):
         self._nq = nq
         self._fix_tracer_stencil = stencil_factory.from_origin_domain(
@@ -123,23 +132,42 @@ class FillNegativeTracerValues:
         shape = stencil_factory.grid_indexing.domain_full(add=(1, 1, 1))
         shape_ij = shape[0:2]
 
-        self._dm = utils.make_storage_from_shape(shape, origin=(0, 0, 0))
-        self._dm_pos = utils.make_storage_from_shape(shape, origin=(0, 0, 0))
+        self._dm = utils.make_storage_from_shape(
+            shape, origin=(0, 0, 0), is_temporary=False
+        )
+        self._dm_pos = utils.make_storage_from_shape(
+            shape, origin=(0, 0, 0), is_temporary=False
+        )
         # Setting initial value of upper_fix to zero is only needed for validation.
         # The values in the compute domain are set to zero in the stencil.
-        self._zfix = utils.make_storage_from_shape(shape_ij, dtype=int, origin=(0, 0))
-        self._sum0 = utils.make_storage_from_shape(shape_ij, origin=(0, 0))
-        self._sum1 = utils.make_storage_from_shape(shape_ij, origin=(0, 0))
+        self._zfix = utils.make_storage_from_shape(
+            shape_ij, dtype=int, origin=(0, 0), is_temporary=False
+        )
+        self._sum0 = utils.make_storage_from_shape(
+            shape_ij, origin=(0, 0), is_temporary=False
+        )
+        self._sum1 = utils.make_storage_from_shape(
+            shape_ij, origin=(0, 0), is_temporary=False
+        )
 
+        # [DaCe] linearlize tracers dict into a list at __init__ time
+        self._filtered_tracer_dict = {
+            name: tracers[name] for name in utils.tracer_variables[0 : self._nq]
+        }
+
+    @computepath_method
     def __call__(
         self,
         dp2: FloatField,
-        tracers: Dict[str, Any],
+        tracers: dace_constant,
     ):
-        tracer_list = [tracers[name] for name in utils.tracer_variables[0 : self._nq]]
-        for tracer in tracer_list:
+        # [DaCe] runtime tracers is deactivate, was cached in __init__
+
+        # [DaCe] return value is not used
+        # [DaCe] dict.values/dict.items bug - using key indexing
+        for tracer_name in self._filtered_tracer_dict.keys():
             self._fix_tracer_stencil(
-                tracer,
+                tracers[tracer_name],
                 dp2,
                 self._dm,
                 self._dm_pos,
@@ -147,4 +175,4 @@ class FillNegativeTracerValues:
                 self._sum0,
                 self._sum1,
             )
-        return tracer_list
+        # [DaCe] unused return value was removed

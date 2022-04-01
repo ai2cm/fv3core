@@ -20,6 +20,8 @@ from fv3core.utils.stencil import StencilFactory
 from fv3core.utils.typing import FloatField, FloatFieldI, FloatFieldIJ
 from fv3gfs.util import X_DIM, X_INTERFACE_DIM, Y_DIM, Y_INTERFACE_DIM, Z_DIM
 
+# [DaCe] Import
+from fv3core.utils.dace.computepath import computepath_method
 
 # comact 4-pt cubic interpolation
 c1 = 2.0 / 3.0
@@ -477,20 +479,26 @@ class AGrid2BGridFourthOrder:
         self._dxa = grid_data.dxa
         self._dya = grid_data.dya
         # TODO: calculate these here based on grid_data
-        self._agrid1 = spec.grid.agrid1
-        self._agrid2 = spec.grid.agrid2
-        self._bgrid1 = spec.grid.bgrid1
-        self._bgrid2 = spec.grid.bgrid2
-        self._edge_n = spec.grid.edge_n
-        self._edge_s = spec.grid.edge_s
-        self._edge_e = spec.grid.edge_e
-        self._edge_w = spec.grid.edge_w
+        self._agrid1 = grid_data.lon_agrid
+        self._agrid2 = grid_data.lat_agrid
+        self._bgrid1 = grid_data.lon 
+        self._bgrid2 = grid_data.lat 
+        self._edge_n = grid_data.edge_n
+        self._edge_s = grid_data.edge_s
+        self._edge_e = grid_data.edge_e
+        self._edge_w = grid_data.edge_w
 
         self.replace = replace
 
-        self._tmp_qx = utils.make_storage_from_shape(self._idx.max_shape)
-        self._tmp_qy = utils.make_storage_from_shape(self._idx.max_shape)
-        self._tmp_qout_edges = utils.make_storage_from_shape(self._idx.max_shape)
+        self._tmp_qx = utils.make_storage_from_shape(
+            self._idx.max_shape, is_temporary=True
+        )
+        self._tmp_qy = utils.make_storage_from_shape(
+            self._idx.max_shape, is_temporary=True
+        )
+        self._tmp_qout_edges = utils.make_storage_from_shape(
+            self._idx.max_shape, is_temporary=True
+        )
         _, (z_domain,) = self._idx.get_origin_domain([z_dim])
         corner_domain = (1, 1, z_domain)
 
@@ -603,6 +611,7 @@ class AGrid2BGridFourthOrder:
             domain[0] -= 1
         return tuple(origin), tuple(domain)
 
+    @computepath_method
     def __call__(self, qin: FloatField, qout: FloatField):
         """Converts qin from A-grid to B-grid in qout.
         In some cases, qin is also updated to the B grid.

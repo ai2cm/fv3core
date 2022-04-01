@@ -9,6 +9,9 @@ from fv3core.utils.stencil import StencilFactory
 from fv3core.utils.typing import FloatField, FloatFieldIJ
 from fv3gfs.util import X_DIM, Y_DIM, Z_DIM
 
+# [DaCe] Import
+from fv3core.utils.dace.computepath import computepath_method
+
 
 c1 = -2.0 / 14.0
 c2 = 11.0 / 14.0
@@ -411,11 +414,10 @@ class DGrid2AGrid2CGridVectors:
         if npt > grid_indexing.domain[0] - 1 or npt > grid_indexing.domain[1] - 1:
             npt = 0
         self._utmp = utils.make_storage_from_shape(
-            grid_indexing.max_shape,
-            grid_indexing.origin_full(),
+            grid_indexing.max_shape, grid_indexing.origin_full(), is_temporary=True
         )
         self._vtmp = utils.make_storage_from_shape(
-            grid_indexing.max_shape, grid_indexing.origin_full()
+            grid_indexing.max_shape, grid_indexing.origin_full(), is_temporary=True
         )
 
         js1 = npt + OFFSET if grid_indexing.south_edge else grid_indexing.jsc - 1
@@ -540,6 +542,7 @@ class DGrid2AGrid2CGridVectors:
             domain=(grid_indexing.domain[0] + 2, jdiff, grid_indexing.domain[2]),
         )
 
+    @computepath_method
     def __call__(self, uc, vc, u, v, ua, va, utc, vtc):
         """
         Calculate velocity vector from D-grid to A-grid to C-grid.

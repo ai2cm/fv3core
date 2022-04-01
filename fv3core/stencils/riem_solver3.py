@@ -19,6 +19,9 @@ from fv3core.stencils.sim1_solver import Sim1Solver
 from fv3core.utils.stencil import StencilFactory
 from fv3core.utils.typing import FloatField, FloatFieldIJ
 
+# [DaCe] Import
+from fv3core.utils.dace.computepath import computepath_method
+
 
 @typing.no_type_check
 def precompute(
@@ -124,12 +127,24 @@ class RiemannSolver3:
         riemorigin = grid_indexing.origin_compute()
         domain = grid_indexing.domain_compute(add=(0, 0, 1))
         shape = grid_indexing.max_shape
-        self._tmp_dm = utils.make_storage_from_shape(shape, riemorigin)
-        self._tmp_pe_init = utils.make_storage_from_shape(shape, riemorigin)
-        self._tmp_pm = utils.make_storage_from_shape(shape, riemorigin)
-        self._tmp_pem = utils.make_storage_from_shape(shape, riemorigin)
-        self._tmp_peln_run = utils.make_storage_from_shape(shape, riemorigin)
-        self._tmp_gm = utils.make_storage_from_shape(shape, riemorigin)
+        self._tmp_dm = utils.make_storage_from_shape(
+            shape, riemorigin, is_temporary=True
+        )
+        self._tmp_pe_init = utils.make_storage_from_shape(
+            shape, riemorigin, is_temporary=True
+        )
+        self._tmp_pm = utils.make_storage_from_shape(
+            shape, riemorigin, is_temporary=True
+        )
+        self._tmp_pem = utils.make_storage_from_shape(
+            shape, riemorigin, is_temporary=True
+        )
+        self._tmp_peln_run = utils.make_storage_from_shape(
+            shape, riemorigin, is_temporary=True
+        )
+        self._tmp_gm = utils.make_storage_from_shape(
+            shape, riemorigin, is_temporary=True
+        )
         self._precompute_stencil = stencil_factory.from_origin_domain(
             precompute,
             origin=riemorigin,
@@ -142,6 +157,7 @@ class RiemannSolver3:
             domain=domain,
         )
 
+    @computepath_method
     def __call__(
         self,
         last_call: bool,

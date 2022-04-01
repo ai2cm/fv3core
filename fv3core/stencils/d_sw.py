@@ -13,6 +13,7 @@ import fv3core.stencils.delnflux as delnflux
 import fv3core.utils.global_constants as constants
 import fv3core.utils.gt4py_utils as utils
 from fv3core._config import DGridShallowWaterLagrangianDynamicsConfig
+from fv3core.stencils.basic_operations import compute_coriolis_parameter_defn
 from fv3core.stencils.d2a2c_vect import contravariant
 from fv3core.stencils.delnflux import DelnFluxNoSG
 from fv3core.stencils.divergence_damping import DivergenceDamping
@@ -23,6 +24,9 @@ from fv3core.stencils.fvtp2d import (
 from fv3core.stencils.fxadv import FiniteVolumeFluxPrep
 from fv3core.stencils.xtp_u import advect_u_along_x
 from fv3core.stencils.ytp_v import advect_v_along_y
+# [DaCe] Import
+# [DaCe] Import
+from fv3core.utils.dace.computepath import computepath_method
 from fv3core.utils.grid import DampingCoefficients, GridData
 from fv3core.utils.stencil import StencilFactory
 from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
@@ -535,7 +539,7 @@ def get_column_namelist(config: DGridShallowWaterLagrangianDynamicsConfig, npz):
     ]
     col = {}
     for name in all_names:
-        col[name] = utils.make_storage_from_shape((npz + 1,), (0,))
+        col[name] = utils.make_storage_from_shape((npz + 1,), (0,), is_temporary=False)
     for name in direct_namelist:
         col[name][:] = getattr(config, name)
 
@@ -602,6 +606,20 @@ def interpolate_uc_vc_to_cell_corners(
 
     return ub_contra, vb_contra
 
+def compute_f0(
+    stencil_factory: StencilFactory, lon_agrid: FloatFieldIJ, lat_agrid: FloatFieldIJ
+):
+    """
+    Compute the coriolis parameter on the D-grid
+    """
+    f0 = utils.make_storage_from_shape(lon_agrid.shape)
+    f0_stencil = stencil_factory.from_dims_halo(
+        compute_coriolis_parameter_defn,
+        compute_dims=[X_DIM, Y_DIM, Z_DIM],
+        compute_halos=(3, 3),
+    )
+    f0_stencil(f0, lon_agrid, lat_agrid, 0.0)
+    return f0
 
 class DGridShallowWaterLagrangianDynamics:
     """
@@ -618,8 +636,11 @@ class DGridShallowWaterLagrangianDynamics:
         stretched_grid: bool,
         config: DGridShallowWaterLagrangianDynamicsConfig,
     ):
-        self._f0 = spec.grid.f0
+       
         self.grid = grid_data
+        self._f0 = compute_f0(
+            stencil_factory, self.grid.lon_agrid, self.grid.lat_agrid
+        )
         self.grid_indexing = stencil_factory.grid_indexing
         assert config.grid_type < 3, "ubke and vbke only implemented for grid_type < 3"
         assert not config.inline_q, "inline_q not yet implemented"
@@ -635,30 +656,72 @@ class DGridShallowWaterLagrangianDynamics:
 
         # only compute for k-levels where this is true
         self.hydrostatic = config.hydrostatic
-        self._tmp_heat_s = utils.make_storage_from_shape(self.grid_indexing.max_shape)
-        self._vort_x_delta = utils.make_storage_from_shape(self.grid_indexing.max_shape)
-        self._vort_y_delta = utils.make_storage_from_shape(self.grid_indexing.max_shape)
-        self._tmp_ke = utils.make_storage_from_shape(self.grid_indexing.max_shape)
-        self._tmp_vort = utils.make_storage_from_shape(self.grid_indexing.max_shape)
-        self._uc_contra = utils.make_storage_from_shape(self.grid_indexing.max_shape)
-        self._vc_contra = utils.make_storage_from_shape(self.grid_indexing.max_shape)
-        self._tmp_ut = utils.make_storage_from_shape(self.grid_indexing.max_shape)
-        self._tmp_vt = utils.make_storage_from_shape(self.grid_indexing.max_shape)
-        self._tmp_fx = utils.make_storage_from_shape(self.grid_indexing.max_shape)
-        self._tmp_fy = utils.make_storage_from_shape(self.grid_indexing.max_shape)
-        self._tmp_gx = utils.make_storage_from_shape(self.grid_indexing.max_shape)
-        self._tmp_gy = utils.make_storage_from_shape(self.grid_indexing.max_shape)
-        self._tmp_dw = utils.make_storage_from_shape(self.grid_indexing.max_shape)
-        self._tmp_wk = utils.make_storage_from_shape(self.grid_indexing.max_shape)
-        self._tmp_fx2 = utils.make_storage_from_shape(self.grid_indexing.max_shape)
-        self._tmp_fy2 = utils.make_storage_from_shape(self.grid_indexing.max_shape)
-        self._tmp_damp_3d = utils.make_storage_from_shape(
-            (1, 1, self.grid_indexing.domain[2])
+        self._tmp_heat_s = utils.make_storage_from_shape(
+            self.grid_indexing.max_shape, is_temporary=True
         )
-        self._advected_u = utils.make_storage_from_shape(self.grid_indexing.max_shape)
-        self._advected_v = utils.make_storage_from_shape(self.grid_indexing.max_shape)
-        self._ub_contra = utils.make_storage_from_shape(self.grid_indexing.max_shape)
-        self._vb_contra = utils.make_storage_from_shape(self.grid_indexing.max_shape)
+        self._vort_x_delta = utils.make_storage_from_shape(
+            self.grid_indexing.max_shape, is_temporary=True
+        )
+        self._vort_y_delta = utils.make_storage_from_shape(
+            self.grid_indexing.max_shape, is_temporary=True
+        )
+        self._tmp_ke = utils.make_storage_from_shape(
+            self.grid_indexing.max_shape, is_temporary=True
+        )
+        self._tmp_vort = utils.make_storage_from_shape(
+            self.grid_indexing.max_shape, is_temporary=True
+        )
+        self._uc_contra = utils.make_storage_from_shape(
+            self.grid_indexing.max_shape, is_temporary=True
+        )
+        self._vc_contra = utils.make_storage_from_shape(
+            self.grid_indexing.max_shape, is_temporary=True
+        )
+        self._tmp_ut = utils.make_storage_from_shape(
+            self.grid_indexing.max_shape, is_temporary=True
+        )
+        self._tmp_vt = utils.make_storage_from_shape(
+            self.grid_indexing.max_shape, is_temporary=True
+        )
+        self._tmp_fx = utils.make_storage_from_shape(
+            self.grid_indexing.max_shape, is_temporary=True
+        )
+        self._tmp_fy = utils.make_storage_from_shape(
+            self.grid_indexing.max_shape, is_temporary=True
+        )
+        self._tmp_gx = utils.make_storage_from_shape(
+            self.grid_indexing.max_shape, is_temporary=True
+        )
+        self._tmp_gy = utils.make_storage_from_shape(
+            self.grid_indexing.max_shape, is_temporary=True
+        )
+        self._tmp_dw = utils.make_storage_from_shape(
+            self.grid_indexing.max_shape, is_temporary=True
+        )
+        self._tmp_wk = utils.make_storage_from_shape(
+            self.grid_indexing.max_shape, is_temporary=True
+        )
+        self._tmp_fx2 = utils.make_storage_from_shape(
+            self.grid_indexing.max_shape, is_temporary=True
+        )
+        self._tmp_fy2 = utils.make_storage_from_shape(
+            self.grid_indexing.max_shape, is_temporary=True
+        )
+        self._tmp_damp_3d = utils.make_storage_from_shape(
+            (1, 1, self.grid_indexing.domain[2]), is_temporary=True
+        )
+        self._advected_u = utils.make_storage_from_shape(
+            self.grid_indexing.max_shape, is_temporary=True
+        )
+        self._advected_v = utils.make_storage_from_shape(
+            self.grid_indexing.max_shape, is_temporary=True
+        )
+        self._ub_contra = utils.make_storage_from_shape(
+            self.grid_indexing.max_shape, is_temporary=True
+        )
+        self._vb_contra = utils.make_storage_from_shape(
+            self.grid_indexing.max_shape, is_temporary=True
+        )
         self._column_namelist = column_namelist
 
         self.delnflux_nosg_w = DelnFluxNoSG(
@@ -832,7 +895,9 @@ class DGridShallowWaterLagrangianDynamics:
             self._tmp_damp_3d[0, 0, :], (self.grid_indexing.domain[2],), (0,)
         )
         y_temporary = utils.make_storage_from_shape(
-            shape=self.grid_indexing.max_shape, origin=self.grid_indexing.origin
+            shape=self.grid_indexing.max_shape,
+            origin=self.grid_indexing.origin,
+            is_temporary=False,
         )
         self._copy_corners = PreAllocatedCopiedCornersFactory(
             stencil_factory,
@@ -840,6 +905,7 @@ class DGridShallowWaterLagrangianDynamics:
             y_temporary=y_temporary,
         )
 
+    @computepath_method
     def __call__(
         self,
         delpc,
@@ -907,8 +973,9 @@ class DGridShallowWaterLagrangianDynamics:
         #   xfx, yfx = g(uc_contra, vc_contra, ...)
         self.fv_prep(uc, vc, crx, cry, xfx, yfx, self._uc_contra, self._vc_contra, dt)
 
+        # [DaCe] Remove CopiedCorners
         self.fvtp2d_dp(
-            self._copy_corners(delp),
+            delp,
             crx,
             cry,
             xfx,
@@ -944,8 +1011,9 @@ class DGridShallowWaterLagrangianDynamics:
                 dt,
             )
 
+            # [DaCe] Remove CopiedCorners
             self.fvtp2d_vt_nodelnflux(
-                self._copy_corners(w),
+                w,
                 crx,
                 cry,
                 xfx,
@@ -964,8 +1032,10 @@ class DGridShallowWaterLagrangianDynamics:
                 self.grid.rarea,
             )
         # Fortran: #ifdef USE_COND
+
+        # [DaCe] Remove CopiedCorners
         self.fvtp2d_dp_t(
-            self._copy_corners(q_con),
+            q_con,
             crx,
             cry,
             xfx,
@@ -982,8 +1052,10 @@ class DGridShallowWaterLagrangianDynamics:
         )
 
         # Fortran #endif //USE_COND
+
+        # [DaCe] Remove CopiedCorners
         self.fvtp2d_tm(
-            self._copy_corners(pt),
+            pt,
             crx,
             cry,
             xfx,
@@ -1077,8 +1149,9 @@ class DGridShallowWaterLagrangianDynamics:
         # Vorticity transport
         self._compute_vort_stencil(self._tmp_wk, self._f0, zh, self._tmp_vort)
 
+        # [DaCe] Unroll CopiedCorners see __init__
         self.fvtp2d_vt_nodelnflux(
-            self._copy_corners(self._tmp_vort),
+            self._tmp_vort,
             crx,
             cry,
             xfx,

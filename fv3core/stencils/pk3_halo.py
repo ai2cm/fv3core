@@ -5,6 +5,8 @@ from fv3core.utils.grid import axis_offsets
 from fv3core.utils.stencil import StencilFactory
 from fv3core.utils.typing import FloatField, FloatFieldIJ
 
+# [DaCe] Import
+from fv3core.utils.dace.computepath import computepath_method
 
 # TODO merge with pe_halo? reuse partials?
 # NOTE: This is different from fv3core.stencils.pe_halo.edge_pe
@@ -30,7 +32,7 @@ def edge_pe_update(
                 region[local_is - 2 : local_ie + 3, local_je + 1 : local_je + 3],
             ):
                 pe = pe + delp[0, 0, -1]
-                pk3 = pe ** akap
+                pk3 = pe**akap
 
 
 class PK3Halo:
@@ -53,9 +55,10 @@ class PK3Halo:
         )
         shape_2D = grid_indexing.domain_full(add=(1, 1, 1))[0:2]
         self._pe_tmp = utils.make_storage_from_shape(
-            shape_2D, grid_indexing.origin_full()
+            shape_2D, grid_indexing.origin_full(), is_temporary=True
         )
 
+    @computepath_method
     def __call__(self, pk3: FloatField, delp: FloatField, ptop: float, akap: float):
         """Update pressure (pk3) in halo region
 

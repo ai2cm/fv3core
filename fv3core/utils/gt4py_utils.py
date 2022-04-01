@@ -2,11 +2,14 @@ import logging
 from functools import wraps
 from typing import Any, Callable, Dict, Hashable, List, Optional, Tuple, Union
 
+import dace
+import gt4py as gt
 import gt4py.storage as gt_storage
 import numpy as np
 
 import fv3core._config as spec
 import fv3core.utils.global_config as global_config
+from fv3core.utils.mpi import MPI
 from fv3core.utils.typing import DTypes, Field, Float
 
 
@@ -37,6 +40,37 @@ tracer_variables = [
 
 # Logger instance
 logger = logging.getLogger("fv3core")
+
+# 1 indexing to 0 and halos: -2, -1, 0 --> 0, 1,2
+if MPI is not None and MPI.COMM_WORLD.Get_size() > 1:
+    gt.config.cache_settings["dir_name"] = ".gt_cache_{:0>6d}".format(
+        MPI.COMM_WORLD.Get_rank()
+    )
+
+dace.Config.set(
+    "default_build_folder",
+    value="{gt_cache}/dacecache".format(gt_cache=gt.config.cache_settings["dir_name"]),
+)
+dace.Config.set("compiler", "allow_view_arguments", value=True)
+dace.Config.set(
+    "compiler",
+    "cpu",
+    "args",
+    value=" ".join(
+        [
+            "-std=c++14",
+            "-fPIC",
+            "-Wall",
+            "-Wextra",
+            "-O3",
+            "-fno-expensive-optimizations",
+            "-ggdb",
+            "-march=native",
+            "-Wno-unused-parameter",
+            "-Wno-unused-label",
+        ]
+    ),
+)
 
 
 def mark_untested(msg="This is not tested"):
@@ -225,6 +259,7 @@ def make_storage_from_shape_uncached(
     dtype: DTypes = np.float64,
     init: bool = False,
     mask: Optional[Tuple[bool, bool, bool]] = None,
+    is_temporary: bool = False,
 ) -> Field:
     """Create a new gt4py storage of a given shape. Do not memoize outputs.
 
@@ -261,6 +296,8 @@ def make_storage_from_shape_uncached(
         mask=mask,
         managed_memory=managed_memory,
     )
+    if is_temporary:
+        storage._istransient = True
     return storage
 
 
@@ -275,6 +312,7 @@ def make_storage_from_shape(
     init: bool = False,
     mask: Optional[Tuple[bool, bool, bool]] = None,
     cache_key: Optional[Hashable] = None,
+    is_temporary: bool = False,
 ) -> Field:
     """Create a new gt4py storage of a given shape. Outputs are memoized
        using a provided cache_key
@@ -303,12 +341,12 @@ def make_storage_from_shape(
     # the line.
     if cache_key is None:
         return make_storage_from_shape_uncached(
-            shape, origin, dtype=dtype, init=init, mask=mask
+            shape, origin, dtype=dtype, init=init, mask=mask, is_temporary=is_temporary
         )
     full_key = (shape, origin, cache_key, dtype, init, mask)
     if full_key not in storage_shape_outputs:
         storage_shape_outputs[full_key] = make_storage_from_shape_uncached(
-            shape, origin, dtype=dtype, init=init, mask=mask
+            shape, origin, dtype=dtype, init=init, mask=mask, is_temporary=is_temporary
         )
     return_value = storage_shape_outputs[full_key]
     if init:

@@ -7,6 +7,9 @@ from fv3core.utils.stencil import StencilFactory
 from fv3core.utils.typing import FloatField, FloatFieldIJ
 from fv3gfs.util import Z_INTERFACE_DIM
 
+# [DaCe] Import
+from fv3core.utils.dace.computepath import computepath_method
+
 
 def set_k0_and_calc_wk(
     pp: FloatField, pk3: FloatField, wk: FloatField, top_value: float
@@ -100,10 +103,14 @@ class NonHydrostaticPressureGradient:
         self._rdy = grid_data.rdy
 
         self._tmp_wk = utils.make_storage_from_shape(
-            grid_indexing.domain_full(add=(0, 0, 1)), origin=self.orig
+            grid_indexing.domain_full(add=(0, 0, 1)),
+            origin=self.orig,
+            is_temporary=False,
         )  # pk3.shape
         self._tmp_wk1 = utils.make_storage_from_shape(
-            grid_indexing.domain_full(add=(0, 0, 1)), origin=self.orig
+            grid_indexing.domain_full(add=(0, 0, 1)),
+            origin=self.orig,
+            is_temporary=False,
         )  # pp.shape
 
         self._set_k0_and_calc_wk_stencil = stencil_factory.from_origin_domain(
@@ -144,6 +151,7 @@ class NonHydrostaticPressureGradient:
             replace=False,
         )
 
+    @computepath_method
     def __call__(
         self,
         u: FloatField,

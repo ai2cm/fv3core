@@ -2,6 +2,12 @@ from gt4py.gtscript import PARALLEL, computation, horizontal, interval, region
 
 import fv3core._config as spec
 import fv3core.utils.gt4py_utils as utils
+import fv3gfs.util as fv3util
+
+# [DaCe] Imports for wrapped halo updater
+from fv3core.stencils.dyn_core import AcousticDynamics
+from fv3core.utils import global_config
+from fv3core.utils.dace.computepath import computepath_method
 from fv3core.utils.grid import GridData
 from fv3core.utils.stencil import StencilFactory
 from fv3core.utils.typing import FloatField, FloatFieldIJ
@@ -76,8 +82,14 @@ class CubedToLatLon:
     Fortan name is c2l_ord2
     """
 
+    # [DaCe] Comm required for cached wrapped halo updater
     def __init__(
-        self, stencil_factory: StencilFactory, grid_data: GridData, order: int
+        self,
+        state,
+        stencil_factory: StencilFactory,
+        grid_data: GridData,
+        order: int,
+        comm: CubedSphereCommunicator,
     ):
         """
         Initializes stencils to use either 2nd or 4th order of interpolation
@@ -92,10 +104,10 @@ class CubedToLatLon:
         self._dx = grid_data.dx
         self._dy = grid_data.dy
         # TODO: define these based on data from grid_data
-        self._a11 = spec.grid.a11
-        self._a12 = spec.grid.a12
-        self._a21 = spec.grid.a21
-        self._a22 = spec.grid.a22
+        self._a11 = grid_data.a11
+        self._a12 = grid_data.a12
+        self._a21 = grid_data.a21
+        self._a22 = grid_data.a22
         if order == 2:
             self._do_ord4 = False
             halos = (1, 1)
@@ -108,13 +120,40 @@ class CubedToLatLon:
             func=func, compute_dims=[X_DIM, Y_DIM, Z_DIM], compute_halos=halos
         )
 
+        # [DaCe] wrapped halo updater
+        origin = grid_indexing.origin_compute()
+        shape = grid_indexing.max_shape
+        full_size_xyiz_halo_spec = grid_indexing.get_quantity_halo_spec(
+            shape,
+            origin,
+            dims=[fv3util.X_DIM, fv3util.Y_INTERFACE_DIM, fv3util.Z_DIM],
+            n_halo=grid_indexing.n_halo,
+        )
+        full_size_xiyz_halo_spec = grid_indexing.get_quantity_halo_spec(
+            shape,
+            origin,
+            dims=[fv3util.X_INTERFACE_DIM, fv3util.Y_DIM, fv3util.Z_DIM],
+            n_halo=grid_indexing.n_halo,
+        )
+        self.u__v = AcousticDynamics._WrappedHaloUpdater(
+            comm.get_vector_halo_updater(
+                [full_size_xyiz_halo_spec], [full_size_xiyz_halo_spec]
+            ),
+            state,
+            ["u_quantity"],
+            ["v_quantity"],
+            comm=comm,
+            grid=spec.grid,
+        )
+
+    # [DaCe] u/v are no longer needed to be quantity, reverted to FloatField for compuation
+    # @computepath_method - Deactivating the orchestration for Metric/Grid/State calculation see dynamics.py
     def __call__(
         self,
-        u: Quantity,
-        v: Quantity,
+        u: FloatField,
+        v: FloatField,
         ua: FloatField,
         va: FloatField,
-        comm: CubedSphereCommunicator,
     ):
         """
         Interpolate D-grid to A-grid winds at latitude-longitude coordinates.
@@ -126,10 +165,10 @@ class CubedToLatLon:
             comm: Cubed-sphere communicator
         """
         if self._do_ord4:
-            comm.vector_halo_update(u, v, n_points=self._n_halo)
+            self.u__v.update()
         self._compute_cubed_to_latlon(
-            u.storage,
-            v.storage,
+            u,
+            v,
             self._dx,
             self._dy,
             self._a11,

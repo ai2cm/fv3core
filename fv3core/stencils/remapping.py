@@ -1,5 +1,7 @@
 from typing import Dict
 
+# [DaCe] import
+from dace import constant as dace_constant
 from gt4py.gtscript import (
     __INLINED,
     BACKWARD,
@@ -25,7 +27,10 @@ from fv3core.stencils.saturation_adjustment import SatAdjust3d
 from fv3core.utils.grid import axis_offsets
 from fv3core.utils.stencil import StencilFactory
 from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
+from fv3gfs.util import Quantity
 
+# [DaCe] Import
+from fv3core.utils.dace.computepath import computepath_method
 
 CONSV_MIN = 0.001
 
@@ -180,13 +185,13 @@ def pressures_mapv(
 def update_ua(pe2: FloatField, ua: FloatField):
     from __externals__ import local_je
 
-    with computation(PARALLEL), interval(...):
+    with computation(PARALLEL), interval(0, -1):
         ua = pe2[0, 0, 1]
 
     # pe2[:, je+1, 1:npz] should equal pe2[:, je, 1:npz] as in the Fortran model,
     # but the extra j-elements are only used here, so we can just directly assign ua.
     # Maybe we can eliminate this later?
-    with computation(PARALLEL), interval(0, -1):
+    with computation(PARALLEL), interval(0, -2):
         with horizontal(region[:, local_je + 1]):
             ua = pe2[0, -1, 1]
 
@@ -196,10 +201,10 @@ def copy_from_below(a: FloatField, b: FloatField):
         b = a[0, 0, -1]
 
 
-def sum_te(te: FloatField, te0_2d: FloatField):
+def sum_te(te: FloatField, te0_2d: FloatFieldIJ):
     with computation(FORWARD):
         with interval(0, None):
-            te0_2d = te0_2d[0, 0, -1] + te
+            te0_2d = te0_2d + te
 
 
 class LagrangianToEulerian:
@@ -214,6 +219,7 @@ class LagrangianToEulerian:
         area_64,
         nq,
         pfull,
+        tracers: Dict[str, Quantity],
     ):
         grid_indexing = stencil_factory.grid_indexing
         if config.kord_tm >= 0:
@@ -232,18 +238,18 @@ class LagrangianToEulerian:
             grid_indexing.domain[2] + 1,
         )
 
-        self._pe1 = utils.make_storage_from_shape(shape_kplus)
-        self._pe2 = utils.make_storage_from_shape(shape_kplus)
-        self._dp2 = utils.make_storage_from_shape(shape_kplus)
-        self._pn2 = utils.make_storage_from_shape(shape_kplus)
-        self._pe0 = utils.make_storage_from_shape(shape_kplus)
-        self._pe3 = utils.make_storage_from_shape(shape_kplus)
+        self._pe1 = utils.make_storage_from_shape(shape_kplus, is_temporary=True)
+        self._pe2 = utils.make_storage_from_shape(shape_kplus, is_temporary=True)
+        self._dp2 = utils.make_storage_from_shape(shape_kplus, is_temporary=True)
+        self._pn2 = utils.make_storage_from_shape(shape_kplus, is_temporary=True)
+        self._pe0 = utils.make_storage_from_shape(shape_kplus, is_temporary=True)
+        self._pe3 = utils.make_storage_from_shape(shape_kplus, is_temporary=True)
 
         self._gz: FloatField = utils.make_storage_from_shape(
-            shape_kplus, grid_indexing.origin_compute()
+            shape_kplus, grid_indexing.origin_compute(), is_temporary=True
         )
         self._cvm: FloatField = utils.make_storage_from_shape(
-            shape_kplus, grid_indexing.origin_compute()
+            shape_kplus, grid_indexing.origin_compute(), is_temporary=True
         )
 
         self._init_pe = stencil_factory.from_origin_domain(
@@ -288,6 +294,7 @@ class LagrangianToEulerian:
             grid_indexing.jsc,
             grid_indexing.jec,
             fill=config.fill,
+            tracers=tracers,
         )
 
         self._kord_wz = config.kord_wz
@@ -360,12 +367,12 @@ class LagrangianToEulerian:
         ax_offsets_jextra = axis_offsets(
             grid_indexing,
             grid_indexing.origin_compute(),
-            grid_indexing.domain_compute(add=(0, 1, 0)),
+            self._domain_jextra,
         )
         self._update_ua = stencil_factory.from_origin_domain(
             update_ua,
             origin=grid_indexing.origin_compute(),
-            domain=grid_indexing.domain_compute(add=(0, 1, 0)),
+            domain=self._domain_jextra,
             externals={**ax_offsets_jextra},
         )
 
@@ -413,9 +420,10 @@ class LagrangianToEulerian:
             ),
         )
 
+    @computepath_method
     def __call__(
         self,
-        tracers: Dict[str, "FloatField"],
+        tracers: dace_constant,
         pt: FloatField,
         delp: FloatField,
         delz: FloatField,

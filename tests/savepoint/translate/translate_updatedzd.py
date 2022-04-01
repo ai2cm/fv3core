@@ -56,7 +56,8 @@ class TranslateUpdateDzD(TranslateFortranData2Py):
         )
         self.updatedzd(**inputs)
         outputs = self.slice_output(inputs)
-        outputs["zh"] = self.subset_output("zh", outputs["zh"])
+        if hasattr(self.updatedzd, "subset_output"):
+            outputs["zh"] = self.subset_output("zh", outputs["zh"])
         return outputs
 
     def subset_output(self, varname: str, output: np.ndarray) -> np.ndarray:
@@ -64,4 +65,6 @@ class TranslateUpdateDzD(TranslateFortranData2Py):
         Given an output array, return the slice of the array which we'd
         like to validate against reference data
         """
-        return self.updatedzd.subset_output(varname, output)
+        if hasattr(self.updatedzd, "subset_output"):
+            return self.updatedzd.subset_output(varname, output)
+        return output

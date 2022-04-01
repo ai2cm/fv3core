@@ -20,6 +20,9 @@ from fv3core.utils.stencil import StencilFactory
 from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
 from fv3gfs.util import X_INTERFACE_DIM, Y_INTERFACE_DIM, Z_DIM
 
+# [DaCe] Import
+from fv3core.utils.dace.computepath import computepath_method
+
 
 @gtscript.function
 def damp_tmp(q, da_min_c, d2_bg, dddmp):
@@ -151,9 +154,9 @@ def redo_divg_d(
             divg_d = divg_d * adjustment_factor
 
 
-def smagorinksy_diffusion_approx(delpc: FloatField, vort: FloatField, absdt: float):
+def smagorinksy_diffusion_approx(delpc: FloatField, vort: FloatField, dt: float):
     with computation(PARALLEL), interval(...):
-        vort = absdt * (delpc ** 2.0 + vort ** 2.0) ** 0.5
+        vort = dt * (delpc ** 2.0 + vort ** 2.0) ** 0.5
 
 
 class DivergenceDamping:
@@ -198,8 +201,8 @@ class DivergenceDamping:
         self._dyc = grid_data.dyc
 
         # TODO: calculate these locally based on grid_data
-        self._divg_u = spec.grid.divg_u
-        self._divg_v = spec.grid.divg_v
+        self._divg_u = damping_coefficients.divg_u
+        self._divg_v = damping_coefficients.divg_v
 
         nonzero_nord_k = 0
         self._nonzero_nord = int(nord)
@@ -267,6 +270,7 @@ class DivergenceDamping:
             domains_u.append((nint, njnt + 1, nk))
             origins.append((is_, js, kstart))
             domains.append((nint, njnt, nk))
+
         self._vc_from_divg_stencils = get_stencils_with_varied_bounds(
             vc_from_divg,
             origins=origins_v,
@@ -308,7 +312,9 @@ class DivergenceDamping:
             compute_halos=(self.grid_indexing.n_halo, self.grid_indexing.n_halo),
         )
 
-        self._corner_tmp = utils.make_storage_from_shape(self.grid_indexing.max_shape)
+        self._corner_tmp = utils.make_storage_from_shape(
+            self.grid_indexing.max_shape, is_temporary=True
+        )
 
         self.fill_corners_bgrid_x = corners.FillCornersBGrid(
             direction="x",
@@ -326,6 +332,7 @@ class DivergenceDamping:
             compute_halos=(self.grid_indexing.n_halo, self.grid_indexing.n_halo),
         )
 
+    @computepath_method
     def __call__(
         self,
         u: FloatField,
@@ -399,7 +406,6 @@ class DivergenceDamping:
             if fillc:
                 self._fill_corners_dgrid_stencil(vc, vc, uc, uc, -1.0)
             self._redo_divg_d_stencils[n](uc, vc, divg_d, self._rarea_c)
-
         self._vorticity_calc(wk, v_contra_dxc, delpc, dt)
         self._damping_nord_highorder_stencil(
             v_contra_dxc,

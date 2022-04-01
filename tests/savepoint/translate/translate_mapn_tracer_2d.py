@@ -50,6 +50,7 @@ class TranslateMapN_Tracer_2d(TranslateFortranData2Py):
             inputs.pop("j1"),
             inputs.pop("j2"),
             fill=spec.namelist.fill,
+            tracers=inputs["tracers"],
         )
         self.compute_func(**inputs)
         return self.slice_output(inputs)

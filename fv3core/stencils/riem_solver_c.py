@@ -8,6 +8,9 @@ from fv3core.stencils.sim1_solver import Sim1Solver
 from fv3core.utils.stencil import StencilFactory
 from fv3core.utils.typing import FloatField, FloatFieldIJ
 
+# [DaCe] Import
+from fv3core.utils.dace.computepath import computepath_method
+
 
 @typing.no_type_check
 def precompute(
@@ -75,13 +78,13 @@ class RiemannSolverC:
         domain = grid_indexing.domain_compute(add=(2, 2, 1))
         shape = grid_indexing.max_shape
 
-        self._dm = utils.make_storage_from_shape(shape, origin)
-        self._w = utils.make_storage_from_shape(shape, origin)
-        self._pem = utils.make_storage_from_shape(shape, origin)
-        self._pe = utils.make_storage_from_shape(shape, origin)
-        self._gm = utils.make_storage_from_shape(shape, origin)
-        self._dz = utils.make_storage_from_shape(shape, origin)
-        self._pm = utils.make_storage_from_shape(shape, origin)
+        self._dm = utils.make_storage_from_shape(shape, origin, is_temporary=True)
+        self._w = utils.make_storage_from_shape(shape, origin, is_temporary=True)
+        self._pem = utils.make_storage_from_shape(shape, origin, is_temporary=True)
+        self._pe = utils.make_storage_from_shape(shape, origin, is_temporary=True)
+        self._gm = utils.make_storage_from_shape(shape, origin, is_temporary=True)
+        self._dz = utils.make_storage_from_shape(shape, origin, is_temporary=True)
+        self._pm = utils.make_storage_from_shape(shape, origin, is_temporary=True)
 
         self._precompute_stencil = stencil_factory.from_origin_domain(
             precompute,
@@ -103,6 +106,7 @@ class RiemannSolverC:
             domain=domain,
         )
 
+    @computepath_method
     def __call__(
         self,
         dt2: float,

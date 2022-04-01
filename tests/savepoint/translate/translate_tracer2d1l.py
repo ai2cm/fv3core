@@ -53,7 +53,8 @@ class TranslateTracer2D1L(ParallelTranslate):
             self.grid.stencil_factory,
             transport,
             communicator,
-            fv_dynamics.NQ,
+            inputs["tracers"],
+            grid_data=spec.grid.grid_data,
         )
         self.tracer_advection(**inputs)
         inputs[
@@ -88,4 +89,25 @@ class TranslateTracer2D1L(ParallelTranslate):
         Given an output array, return the slice of the array which we'd
         like to validate against reference data
         """
-        return self.tracer_advection.subset_output(varname, output)
+
+        def get_compute_domain_k_interfaces(
+            instance,
+        ):
+            try:
+                origin = instance.grid_indexing.origin_compute()
+                domain = instance.grid_indexing.domain_compute(add=(0, 0, 1))
+            except AttributeError:
+                origin = instance.grid.compute_origin()
+                domain = instance.grid.domain_shape_compute(add=(0, 0, 1))
+            return origin, domain
+
+        origin, domain = get_compute_domain_k_interfaces(self.tracer_advection)
+        self._validation_slice = tuple(
+            slice(start, start + n) for start, n in zip(origin, domain)
+        )
+        if varname == "tracers":
+            return output[self._validation_slice]
+        return output
+        # [DaCe] unroll selective validation for tracers
+        # Original code:
+        # return self.tracer_advection.subset_output(varname, output)

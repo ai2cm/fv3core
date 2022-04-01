@@ -20,6 +20,9 @@ from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
 from fv3gfs.util import X_DIM, Y_DIM, Z_DIM
 from fv3gfs.util.constants import X_INTERFACE_DIM, Y_INTERFACE_DIM
 
+# [DaCe] Import
+from fv3core.utils.dace.computepath import computepath_method
+
 
 def calc_damp(damp4: FloatField, nord: FloatFieldK, damp_c: FloatFieldK, da_min: float):
     with computation(FORWARD), interval(...):
@@ -934,11 +937,13 @@ class DelnFlux:
         shape = grid_indexing.max_shape
         k_shape = (1, 1, nk)
 
-        self._damp_3d = utils.make_storage_from_shape(k_shape)
+        self._damp_3d = utils.make_storage_from_shape(k_shape, is_temporary=True)
         # fields must be 3d to assign to them
-        self._fx2 = utils.make_storage_from_shape(shape)
-        self._fy2 = utils.make_storage_from_shape(shape)
-        self._d2 = utils.make_storage_from_shape(grid_indexing.domain_full())
+        self._fx2 = utils.make_storage_from_shape(shape, is_temporary=True)
+        self._fy2 = utils.make_storage_from_shape(shape, is_temporary=True)
+        self._d2 = utils.make_storage_from_shape(
+            grid_indexing.domain_full(), is_temporary=True
+        )
 
         damping_factor_calculation = stencil_factory.from_origin_domain(
             calc_damp, origin=(0, 0, 0), domain=k_shape
@@ -960,6 +965,7 @@ class DelnFlux:
             stencil_factory, damping_coefficients, rarea, nord, nk=nk
         )
 
+    @computepath_method
     def __call__(
         self,
         q: FloatField,
@@ -980,10 +986,16 @@ class DelnFlux:
         if self._no_compute is True:
             return fx, fy
 
+        # [DaCe] Optional d2 gets reduced to subset 0 in DaCe parsing leading to a
+        # parsing error
+        # Original code:
+        # if d2 is None
+        #    d2 = self._d2
+        # delnflux_nosg call
         if d2 is None:
-            d2 = self._d2
-
-        self.delnflux_nosg(q, self._fx2, self._fy2, self._damp, d2, mass)
+            self.delnflux_nosg(q, self._fx2, self._fy2, self._damp, self._d2, mass)
+        else:
+            self.delnflux_nosg(q, self._fx2, self._fy2, self._damp, d2, mass)
 
         if mass is None:
             self._add_diffusive_stencil(fx, self._fx2, fy, self._fy2)
@@ -1104,6 +1116,7 @@ class DelnFluxNoSG:
             stencil_factory=stencil_factory,
             externals={**nord_dictionary},
         )
+
         self._column_conditional_fx_calculation = get_stencils_with_varied_bounds(
             fx_calc_stencil_column,
             origins_flux,
@@ -1111,6 +1124,7 @@ class DelnFluxNoSG:
             stencil_factory=stencil_factory,
             externals={**nord_dictionary},
         )
+
         self._column_conditional_fy_calculation = get_stencils_with_varied_bounds(
             fy_calc_stencil_column,
             origins_flux,
@@ -1118,6 +1132,7 @@ class DelnFluxNoSG:
             stencil_factory=stencil_factory,
             externals={**nord_dictionary},
         )
+
         self._fx_calc_stencil = stencil_factory.from_origin_domain(
             fx_calc_stencil_nord,
             externals={**fx_ax_offsets, **nord_dictionary},
@@ -1138,7 +1153,7 @@ class DelnFluxNoSG:
         corner_axis_offsets = axis_offsets(grid_indexing, corner_origin, corner_domain)
 
         self._corner_tmp = utils.make_storage_from_shape(
-            corner_domain, origin=corner_origin
+            corner_domain, origin=corner_origin, is_temporary=True
         )
         self._copy_corners_x_nord = stencil_factory.from_origin_domain(
             copy_corners_x_nord,
@@ -1153,6 +1168,7 @@ class DelnFluxNoSG:
             domain=corner_domain,
         )
 
+    @computepath_method
     def __call__(self, q, fx2, fy2, damp_c, d2, mass=None):
         """
         Computes flux fields which would apply del-n damping to q,

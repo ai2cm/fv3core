@@ -212,7 +212,8 @@ class AcousticDynamicsConfig:
         return self.riemann.use_logp
 
 
-@dataclasses.dataclass
+# [DaCe] Froze the dataclass to allow hashability, used by parsing for type inference
+@dataclasses.dataclass(frozen=True)
 class DynamicalCoreConfig:
     dt_atmos: int
     a_imp: float
@@ -906,8 +907,6 @@ def set_namelist(filename):
     namelist_dict.update(namelist_to_flatish_dict(f90nml.read(filename).items()))
     for name, value in namelist_dict.items():
         setattr(namelist, name, value)
-
-    grid = make_grid_from_namelist(namelist, 0)
 
 
 if "NAMELIST_FILENAME" in os.environ:

@@ -8,6 +8,9 @@ from fv3core.stencils.remap_profile import RemapProfile
 from fv3core.utils.stencil import StencilFactory
 from fv3core.utils.typing import FloatField, FloatFieldIJ, IntFieldIJ
 
+# [DaCe] Import
+from fv3core.utils.dace.computepath import computepath_method
+
 
 def set_dp(dp1: FloatField, pe1: FloatField, lev: IntFieldIJ):
     with computation(PARALLEL), interval(...):
@@ -86,17 +89,30 @@ class MapSingle:
         shape = grid_indexing.domain_full(add=(1, 1, 1))
         origin = grid_indexing.origin_compute()
 
-        self._dp1 = utils.make_storage_from_shape(shape, origin=origin)
-        self._q4_1 = utils.make_storage_from_shape(shape, origin=origin)
-        self._q4_2 = utils.make_storage_from_shape(shape, origin=origin)
-        self._q4_3 = utils.make_storage_from_shape(shape, origin=origin)
-        self._q4_4 = utils.make_storage_from_shape(shape, origin=origin)
-        self._tmp_qs = utils.make_storage_from_shape(shape[0:2], origin=(0, 0))
+        self._dp1 = utils.make_storage_from_shape(
+            shape, origin=origin, is_temporary=True
+        )
+        self._q4_1 = utils.make_storage_from_shape(
+            shape, origin=origin, is_temporary=True
+        )
+        self._q4_2 = utils.make_storage_from_shape(
+            shape, origin=origin, is_temporary=True
+        )
+        self._q4_3 = utils.make_storage_from_shape(
+            shape, origin=origin, is_temporary=True
+        )
+        self._q4_4 = utils.make_storage_from_shape(
+            shape, origin=origin, is_temporary=True
+        )
+        self._tmp_qs = utils.make_storage_from_shape(
+            shape[0:2], origin=(0, 0), is_temporary=True
+        )
         self._lev = utils.make_storage_from_shape(
             shape[:-1],
             origin=origin[:-1],
             mask=(True, True, False),
             dtype=int,
+            is_temporary=True,
         )
 
         self._extents = (i2 - i1 + 1, j2 - j1 + 1)
@@ -127,6 +143,7 @@ class MapSingle:
     def j_extent(self):
         return self._extents[1]
 
+    @computepath_method
     def __call__(
         self,
         q1: FloatField,
@@ -146,27 +163,39 @@ class MapSingle:
             jfirst: Starting index of the J-dir compute domain
             jlast: Final index of the J-dir compute domain
         """
-        if qs is None:
-            qs = self._tmp_qs
+        # [DaCe] Cannot reassign variable - unroll
+        # if qs is None:
+        #     qs = self._tmp_qs
         self._copy_stencil(q1, self._q4_1)
         self._set_dp(self._dp1, pe1, self._lev)
-        q4_1, q4_2, q4_3, q4_4 = self._remap_profile(
-            qs,
-            self._q4_1,
-            self._q4_2,
-            self._q4_3,
-            self._q4_4,
-            self._dp1,
-            qmin,
-        )
+        if qs is None:
+            self._remap_profile(
+                self._tmp_qs,
+                self._q4_1,
+                self._q4_2,
+                self._q4_3,
+                self._q4_4,
+                self._dp1,
+                qmin,
+            )
+        else:
+            self._remap_profile(
+                qs,
+                self._q4_1,
+                self._q4_2,
+                self._q4_3,
+                self._q4_4,
+                self._dp1,
+                qmin,
+            )
         self._lagrangian_contributions(
             q1,
             pe1,
             pe2,
-            q4_1,
-            q4_2,
-            q4_3,
-            q4_4,
+            self._q4_1,
+            self._q4_2,
+            self._q4_3,
+            self._q4_4,
             self._dp1,
             self._lev,
         )

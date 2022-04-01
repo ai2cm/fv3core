@@ -17,17 +17,25 @@ from typing import (
 )
 
 import gt4py
+import gt4py.definitions
 import numpy as np
 from gt4py import gtscript
 from gt4py.storage.storage import Storage
+from gtc.passes.oir_pipeline import DefaultPipeline, OirPipeline
 
 import fv3gfs.util
+from fv3core.utils import global_config
 from fv3core.utils.future_stencil import future_stencil
 from fv3core.utils.mpi import MPI
 from fv3core.utils.typing import Index3D, cast_to_index3d
 from fv3gfs.util.halo_data_transformer import QuantityHaloSpec
 
 from .gt4py_utils import make_storage_from_shape
+
+from .dace.computepath import SDFGConvertible
+
+# [DaCe] Deacticate, the distributed compilation
+MPI = None
 
 
 class StencilConfig(Hashable):
@@ -121,7 +129,7 @@ class StencilConfig(Hashable):
         return self.backend.startswith("gtc")
 
 
-class FrozenStencil:
+class FrozenStencil(SDFGConvertible):
     """
     Wrapper for gt4py stencils which stores origin and domain at compile time,
     and uses their stored values at call time.
@@ -169,6 +177,17 @@ class FrozenStencil:
 
         if skip_passes and self.stencil_config.is_gtc_backend:
             stencil_kwargs["skip_passes"] = skip_passes
+        if "skip_passes" in stencil_kwargs:
+            stencil_kwargs["oir_pipeline"] = FrozenStencil._get_oir_pipeline(
+                stencil_kwargs.pop("skip_passes")
+            )
+
+        if (
+            global_config.is_dace_orchestrated()
+            and not global_config.is_dacemode_codegen_whitelisted(func)
+            and "dace" in global_config.get_backend()
+        ):
+            stencil_kwargs["disable_code_generation"] = True
 
         self.stencil_object: gt4py.StencilObject = stencil_function(
             definition=func,
@@ -195,6 +214,12 @@ class FrozenStencil:
         }
 
         self._written_fields: List[str] = FrozenStencil._get_written_fields(field_info)
+
+        if "dace" in global_config.get_backend():
+            self._frozen_stencil = self.stencil_object.freeze(
+                origin=self._field_origins,
+                domain=self.domain,
+            )
 
     def __call__(
         self,
@@ -275,6 +300,27 @@ class FrozenStencil:
             and bool(field_info[field_name].access & gt4py.definitions.AccessKind.WRITE)
         ]
         return write_fields
+
+    @classmethod
+    def _get_oir_pipeline(cls, skip_passes: Sequence[str]) -> OirPipeline:
+        step_map = {step.__name__: step for step in DefaultPipeline.all_steps()}
+        skip_steps = [step_map[pass_name] for pass_name in skip_passes]
+        return DefaultPipeline(skip=skip_steps)
+
+    def __sdfg__(self, *args, **kwargs):
+        args_as_kwargs = dict(zip(self._argument_names, args))
+        return self._frozen_stencil.__sdfg__(**args_as_kwargs, **kwargs)
+
+    def __sdfg_signature__(self):
+        return self._frozen_stencil.__sdfg_signature__()
+
+    def __sdfg_closure__(self, *args, **kwargs):
+        return self._frozen_stencil.__sdfg_closure__(*args, **kwargs)
+
+    def closure_resolver(self, constant_args, given_args, parent_closure=None):
+        return self._frozen_stencil.closure_resolver(
+            constant_args, given_args, parent_closure=parent_closure
+        )
 
 
 class GridIndexing:
@@ -612,7 +658,7 @@ class GridIndexing:
         # we don't allocate
         # Refactor is filed in ticket DSL-820
 
-        temp_storage = make_storage_from_shape(shape, origin)
+        temp_storage = make_storage_from_shape(shape, origin, is_temporary=False)
         origin, extent = self.get_origin_domain(dims)
         temp_quantity = fv3gfs.util.Quantity(
             temp_storage,

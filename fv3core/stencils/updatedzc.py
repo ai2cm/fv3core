@@ -7,6 +7,8 @@ from fv3core.utils.grid import axis_offsets
 from fv3core.utils.stencil import StencilFactory
 from fv3core.utils.typing import FloatField, FloatFieldIJ, FloatFieldK
 
+# [DaCe] Import
+from fv3core.utils.dace.computepath import computepath_method
 
 DZ_MIN = constants.DZ_MIN
 
@@ -88,10 +90,12 @@ class UpdateGeopotentialHeightOnCGrid:
         self._gz_x = gt4py_utils.make_storage_from_shape(
             largest_possible_shape,
             grid_indexing.origin_compute(add=(0, -grid_indexing.n_halo, 0)),
+            is_temporary=False,
         )
         self._gz_y = gt4py_utils.make_storage_from_shape(
             largest_possible_shape,
             grid_indexing.origin_compute(add=(0, -grid_indexing.n_halo, 0)),
+            is_temporary=False,
         )
         full_origin = grid_indexing.origin_full()
         full_domain = grid_indexing.domain_full(add=(0, 0, 1))
@@ -120,6 +124,7 @@ class UpdateGeopotentialHeightOnCGrid:
             domain=grid_indexing.domain_compute(add=(2, 2, 1)),
         )
 
+    @computepath_method
     def __call__(
         self,
         dp_ref: FloatFieldK,

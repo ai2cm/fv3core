@@ -15,6 +15,9 @@ from fv3gfs.util.constants import (
     Z_INTERFACE_DIM,
 )
 
+# [DaCe] Import
+from fv3core.utils.dace.computepath import computepath_method
+
 
 class CopyCorners:
     """
@@ -53,6 +56,7 @@ class CopyCorners:
         else:
             raise ValueError("Direction must be either 'x' or 'y'")
 
+    @computepath_method
     def __call__(self, field: FloatField):
         """
         Fills cell quantity field using corners from itself and multipliers
@@ -97,6 +101,7 @@ class CopyCornersXY:
             },
         )
 
+    @computepath_method
     def __call__(self, field: FloatField):
         """
         Fills cell quantity field using corners from itself.
@@ -575,7 +580,9 @@ class FillCornersBGrid:
             self._corner_tmp = temporary_field
         else:
             self._corner_tmp = utils.make_storage_from_shape(
-                stencil_factory.grid_indexing.max_shape, origin=origin
+                stencil_factory.grid_indexing.max_shape,
+                origin=origin,
+                is_temporary=False,
             )
 
         if direction == "x":
@@ -591,6 +598,7 @@ class FillCornersBGrid:
             func=defn, origin=origin, domain=domain, externals=externals
         )
 
+    @computepath_method
     def __call__(self, field: FloatField):
         self._fill_corners_bgrid(field, field)
 

@@ -14,6 +14,9 @@ from fv3core.stencils.basic_operations import sign
 from fv3core.utils.stencil import StencilFactory
 from fv3core.utils.typing import FloatField, FloatFieldIJ, Index3D
 
+# [DaCe] Import
+from fv3core.utils.dace.computepath import computepath_method
+
 
 @gtscript.function
 def apply_flux(courant, q, fx1, mask):
@@ -313,6 +316,7 @@ class XPiecewiseParabolic:
             domain=domain,
         )
 
+    @computepath_method
     def __call__(
         self,
         q_in: FloatField,

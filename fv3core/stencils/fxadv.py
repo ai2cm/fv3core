@@ -5,6 +5,8 @@ from fv3core.utils.grid import GridData, axis_offsets
 from fv3core.utils.stencil import StencilFactory
 from fv3core.utils.typing import FloatField, FloatFieldIJ
 
+# [DaCe] Import
+from fv3core.utils.dace.computepath import computepath_method
 
 # TODO: the mix of local and global regions is strange here
 # it's a workaround to specify DON'T do this calculation if on the tile edge
@@ -485,6 +487,7 @@ class FiniteVolumeFluxPrep:
             fxadv_fluxes_stencil, **kwargs
         )
 
+    @computepath_method
     def __call__(
         self,
         uc,

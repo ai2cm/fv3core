@@ -6,6 +6,8 @@ import fv3core.utils.gt4py_utils as utils
 from fv3core.utils.stencil import StencilFactory
 from fv3core.utils.typing import FloatField, FloatFieldIJ
 
+# [DaCe] Import
+from fv3core.utils.dace.computepath import computepath_method
 
 ZVIR = constants.RVGAS / constants.RDGAS - 1.0
 
@@ -303,8 +305,12 @@ class AdjustNegativeTracerMixingRatio:
     ):
         grid_indexing = stencil_factory.grid_indexing
         shape_ij = grid_indexing.domain_full(add=(1, 1, 0))[:2]
-        self._sum1 = utils.make_storage_from_shape(shape_ij, origin=(0, 0))
-        self._sum2 = utils.make_storage_from_shape(shape_ij, origin=(0, 0))
+        self._sum1 = utils.make_storage_from_shape(
+            shape_ij, origin=(0, 0), is_temporary=False
+        )
+        self._sum2 = utils.make_storage_from_shape(
+            shape_ij, origin=(0, 0), is_temporary=False
+        )
         if check_negative:
             raise NotImplementedError(
                 "Unimplemented namelist value check_negative=True"
@@ -337,6 +343,7 @@ class AdjustNegativeTracerMixingRatio:
             domain=grid_indexing.domain_compute(),
         )
 
+    @computepath_method
     def __call__(
         self,
         qvapor,

@@ -1,10 +1,17 @@
 from typing import Dict
 
+from dace import constant as dace_constant
+
 import fv3core.utils.gt4py_utils as utils
 from fv3core.stencils.fillz import FillNegativeTracerValues
 from fv3core.stencils.map_single import MapSingle
 from fv3core.utils.stencil import StencilFactory
 from fv3core.utils.typing import FloatField
+
+# [DaCe] Import.
+#        Quantity required for type hints
+from fv3gfs.util import Quantity
+from fv3core.utils.dace.computepath import computepath_method
 
 
 class MapNTracer:
@@ -22,6 +29,7 @@ class MapNTracer:
         j1: int,
         j2: int,
         fill: bool,
+        tracers: Dict[str, Quantity],
     ):
         grid_indexing = stencil_factory.grid_indexing
         self._origin = (i1, j1, 0)
@@ -33,7 +41,7 @@ class MapNTracer:
         self._j1 = j1
         self._j2 = j2
         self._qs = utils.make_storage_from_shape(
-            grid_indexing.max_shape, origin=(0, 0, 0)
+            grid_indexing.max_shape, origin=(0, 0, 0), is_temporary=True
         )
 
         kord_tracer = [kord] * self._nq
@@ -52,16 +60,18 @@ class MapNTracer:
                 self._list_of_remap_objects[0].j_extent,
                 self._nk,
                 self._nq,
+                tracers,
             )
         else:
             self._fill_negative_tracers = False
 
+    @computepath_method
     def __call__(
         self,
         pe1: FloatField,
         pe2: FloatField,
         dp2: FloatField,
-        tracers: Dict[str, "FloatField"],
+        tracers: dace_constant,
         q_min: float,
     ):
         """

@@ -1,25 +1,29 @@
 #!/usr/bin/env python3
+import os
+from logging import warn
 from types import SimpleNamespace
 from typing import Any, Dict, List, Optional, Tuple
 
 import click
+import dace
+import numpy as np
 import serialbox
 import yaml
-from timing import collect_data_and_write_to_file
 
 import fv3core
 import fv3core._config as spec
 import fv3core.testing
 import fv3gfs.util as util
 from fv3core.stencils.dyn_core import AcousticDynamics
+from fv3core.utils.global_config import get_dacemode, set_dacemode
 from fv3core.utils.grid import Grid
 from fv3core.utils.null_comm import NullComm
+import fv3gfs.util as fv3util
 
+# [DaCe] Import
+from fv3core.utils.dace.computepath import computepath_function
 
-try:
-    from mpi4py import MPI
-except ImportError:
-    MPI = None
+from fv3core.utils.mpi import MPI
 
 
 def set_up_namelist(data_directory: str) -> None:
@@ -51,12 +55,17 @@ def read_grid(serializer: serialbox.Serializer, rank: int = 0) -> Grid:
     return fv3core.testing.TranslateGrid(grid_data, rank).python_grid()
 
 
-def initialize_fv3core(backend: str, disable_halo_exchange: bool) -> None:
+def initialize_fv3core(
+    backend: str,
+    disable_halo_exchange: bool,
+    partitioner: fv3util.partitioner.Partitioner,
+) -> None:
     """
     Initializes globalfv3core config to the arguments for single runs
     with the given backend and choice of halo updates
     """
     fv3core.set_backend(backend)
+    fv3core.set_partitioner(partitioner)
     fv3core.set_rebuild(False)
     fv3core.set_validate_args(False)
 
@@ -68,9 +77,7 @@ def read_input_data(grid: Grid, serializer: serialbox.Serializer) -> Dict[str, A
     return driver_object.collect_input_data(serializer, savepoint_in)
 
 
-def get_state_from_input(
-    grid: Grid, input_data: Dict[str, Any]
-) -> Dict[str, SimpleNamespace]:
+def get_state_from_input(grid: Grid, input_data: Dict[str, Any]):
     """
     Transforms the input data from the dictionary of strings
     to arrays into a state  we can pass in
@@ -91,7 +98,7 @@ def get_state_from_input(
         )
 
     statevars = SimpleNamespace(**input_data)
-    return {"state": statevars}
+    return statevars
 
 
 def set_up_communicator(
@@ -136,81 +143,191 @@ def read_and_reset_timer(timestep_timer, times_per_step, hits_per_step):
     return times_per_step, hits_per_step
 
 
+def run(data_directory, halo_update, backend, time_steps, sdfg_path=None):
+    # Read grid & build state from input_data read from savepoint
+    set_up_namelist(data_directory)
+    serializer = initialize_serializer(data_directory)
+    partitioner = fv3util.TilePartitioner(spec.namelist.layout)
+    initialize_fv3core(backend, halo_update, partitioner)
+    grid = read_grid(serializer)
+    spec.set_grid(grid)
+    input_data = read_input_data(grid, serializer)
+    state = get_state_from_input(grid, input_data)
+
+    # Network communicator
+    comm = MPI.COMM_WORLD
+    rank = comm.Get_rank()
+    cube_comm = fv3util.CubedSphereCommunicator(
+        comm,
+        fv3util.CubedSpherePartitioner(partitioner),
+    )
+
+    print(
+        f"Config\n"
+        f"\tBackend {backend}\n"
+        f"\tOrchestration: {'dace' if get_dacemode() else 'python'}\n"
+        f"\tN split: {spec.namelist.dynamical_core.n_split}\n"
+        f"\tK split: {spec.namelist.dynamical_core.k_split}\n"
+    )
+
+    # Init acoustics
+    acoustics_dynamics = AcousticDynamics(
+        comm=cube_comm,
+        stencil_factory=spec.grid.stencil_factory,
+        grid_data=grid,
+        damping_coefficients=spec.grid.damping_coefficients,
+        grid_type=spec.namelist.dynamical_core.grid_type,
+        nested=False,
+        stretched_grid=False,
+        config=spec.namelist.dynamical_core.acoustic_dynamics,
+        ak=input_data["ak"],
+        bk=input_data["bk"],
+        pfull=input_data["pfull"],
+        phis=input_data["phis"],
+        state=state,
+    )
+    state.__dict__.update(acoustics_dynamics._temporaries)
+
+    # Build SDFG_PATH if option given and specialize for the right backend
+    if not os.path.isfile(sdfg_path):
+        if sdfg_path != "":
+            loop_name = "acoustics_loop_on_cpu"  # gtc:dace
+            if backend == "gtc:dace:gpu":
+                loop_name = "acoustics_loop_on_gpu"
+            rank_str = ""
+            if MPI.COMM_WORLD.Get_size() > 1:
+                rank_str = f"_00000{str(rank)}"
+            sdfg_path = f"{sdfg_path}{rank_str}/dacecache/{loop_name}"
+        else:
+            sdfg_path = None
+
+    # Non orchestrated loop for all backends
+    def acoustics_loop_non_orchestrated(state, time_steps):
+        for _ in range(time_steps):
+            acoustics_dynamics(
+                state, update_temporaries=False, do_halo_exchange=halo_update
+            )
+
+    # CPU backend with orchestration (same code as GPU, but named different for
+    # caching purposed)
+    @computepath_function(load_sdfg=sdfg_path)
+    def acoustics_loop_on_cpu(
+        state: dace.constant,
+        time_steps,
+    ):
+        for _ in range(time_steps):
+            acoustics_dynamics(
+                state, update_temporaries=False, do_halo_exchange=halo_update
+            )
+
+    # GPU backend with orchestration (same code as GPU, but named different for
+    # caching purposed)
+    @computepath_function(load_sdfg=sdfg_path)
+    def acoustics_loop_on_gpu(
+        state: dace.constant,
+        time_steps,
+    ):
+        for _ in range(time_steps):
+            acoustics_dynamics(
+                state, update_temporaries=False, do_halo_exchange=halo_update
+            )
+
+    # Cache warm up and loop function selection
+    print("Cache warming run")
+    if backend == "gtc:dace":
+        acoustics_loop_on_cpu(state, 1)
+    elif backend == "gtc:dace:gpu":
+        acoustics_loop_on_gpu(state, 1)
+    else:
+        dacemode = get_dacemode()
+        set_dacemode(False)
+        acoustics_loop_non_orchestrated(state, 1)
+        set_dacemode(dacemode)
+
+    if time_steps == 0:
+        print("Cached built only - no benchmarked run")
+        return
+    elif "dace" in backend:
+        warn(
+            f"Running loop {time_steps} times but not SDFG was"
+            f"given, performance will be poor."
+        )
+
+    # Get Rank
+    rank = comm.Get_rank()
+
+    # Simulate
+    import time
+
+    start = time.time()
+    if backend == "gtc:dace":
+        acoustics_loop_on_cpu(state, time_steps)
+    elif backend == "gtc:dace:gpu":
+        acoustics_loop_on_gpu(state, time_steps)
+    else:
+        dacemode = get_dacemode()
+        set_dacemode(False)
+        acoustics_loop_non_orchestrated(state, time_steps)
+        set_dacemode(dacemode)
+
+    elapsed = time.time() - start
+    per_timestep = elapsed / (time_steps if time_steps != 0 else 1)
+    print(
+        f"Total {backend} time on rank {rank} for {time_steps} steps: "
+        f"{elapsed}s ({per_timestep}s /timestep)"
+    )
+
+    return state
+
+
 @click.command()
 @click.argument("data_directory", required=True, nargs=1)
-@click.argument("time_steps", required=False, default="1")
+@click.argument("time_steps", required=False, default="1", type=int)
 @click.argument("backend", required=False, default="gtc:gt:cpu_ifirst")
-@click.option("--disable_halo_exchange/--no-disable_halo_exchange", default=False)
-@click.option("--print_timings/--no-print_timings", default=True)
+@click.argument("hash", required=False, default="")
+@click.argument("sdfg_path", required=False, default="")
+@click.option("--halo_update/--no-halo_update", default=False)
+@click.option("--check_against_numpy/--no-check_against_numpy", default=False)
 def driver(
     data_directory: str,
     time_steps: str,
     backend: str,
-    disable_halo_exchange: bool,
-    print_timings: bool,
+    hash: str,
+    sdfg_path: str,
+    halo_update: bool,
+    check_against_numpy: bool,
 ):
-    total_timer, timestep_timer, times_per_step, hits_per_step = initialize_timers()
-    with total_timer.clock("initialization"):
-        set_up_namelist(data_directory)
-        serializer = initialize_serializer(data_directory)
-        initialize_fv3core(backend, disable_halo_exchange)
-        mpi_comm, communicator = set_up_communicator(disable_halo_exchange)
-        grid = read_grid(serializer)
-        spec.set_grid(grid)
-
-        input_data = read_input_data(grid, serializer)
-        experiment_name = get_experiment_name(data_directory)
-        acoustics_object = AcousticDynamics(
-            communicator,
-            grid.stencil_factory,
-            grid.grid_data,
-            grid.damping_coefficients,
-            grid.grid_type,
-            grid.nested,
-            grid.stretched_grid,
-            spec.namelist.dynamical_core.acoustic_dynamics,
-            input_data["ak"],
-            input_data["bk"],
-            input_data["pfull"],
-            input_data["phis"],
-        )
-
-        state = get_state_from_input(grid, input_data)
-
-        # warm-up timestep.
-        # We're intentionally not passing the timer here to exclude
-        # warmup/compilation from the internal timers
-        acoustics_object(**state)
-
-    # we set up a specific timer for each timestep
-    # that is cleared after so we get individual statistics
-    for _ in range(int(time_steps) - 1):
-        # this loop is not required
-        # but make performance numbers comparable with FVDynamics
-        for _ in range(spec.namelist.k_split):
-            with timestep_timer.clock("DynCore"):
-                acoustics_object(**state)
-        times_per_step, hits_per_step = read_and_reset_timer(
-            timestep_timer, times_per_step, hits_per_step
-        )
-    total_timer.stop("total")
-    times_per_step, hits_per_step = read_and_reset_timer(
-        total_timer, times_per_step, hits_per_step
+    state = run(
+        data_directory,
+        halo_update,
+        time_steps=time_steps,
+        backend=backend,
+        sdfg_path=sdfg_path,
     )
-
-    experiment_info = {
-        "name": "acoustics",
-        "dataset": experiment_name,
-        "timesteps": time_steps,
-        "backend": backend,
-        "halo_update": not disable_halo_exchange,
-        "hash": "",
-    }
-    if print_timings:
-        # Collect times and output statistics in json
-        collect_data_and_write_to_file(
-            mpi_comm, hits_per_step, times_per_step, experiment_info
+    if check_against_numpy:
+        ref_state = run(
+            data_directory,
+            halo_update,
+            time_steps=time_steps,
+            backend="numpy",
         )
+
+    if check_against_numpy:
+        for name, ref_value in ref_state.__dict__.items():
+
+            if name in {"mfxd", "mfyd"}:
+                continue
+            value = state.__dict__[name]
+            if isinstance(ref_value, util.quantity.Quantity):
+                ref_value = ref_value.storage
+            if isinstance(value, util.quantity.Quantity):
+                value = value.storage
+            if hasattr(value, "device_to_host"):
+                value.device_to_host()
+            if hasattr(value, "shape") and len(value.shape) == 3:
+                value = np.asarray(value)[1:-1, 1:-1, :]
+                ref_value = np.asarray(ref_value)[1:-1, 1:-1, :]
+            np.testing.assert_allclose(ref_value, value, err_msg=name)
 
 
 if __name__ == "__main__":

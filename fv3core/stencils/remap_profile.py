@@ -7,6 +7,9 @@ import fv3core.utils.gt4py_utils as utils
 from fv3core.utils.stencil import StencilFactory
 from fv3core.utils.typing import BoolField, FloatField, FloatFieldIJ
 
+# [DaCe] Import
+from fv3core.utils.dace.computepath import computepath_method
+
 
 @gtscript.function
 def limit_minmax(q, a4):
@@ -281,7 +284,6 @@ def apply_constraints(
 
 
 def set_interpolation_coefficients(
-    q: FloatField,
     gam: FloatField,
     a4_1: FloatField,
     a4_2: FloatField,
@@ -528,22 +530,37 @@ class RemapProfile:
         self._kord = kord
 
         self._gam: FloatField = utils.make_storage_from_shape(
-            grid_indexing.domain_full(add=(0, 0, 1)), origin=full_orig
+            grid_indexing.domain_full(add=(0, 0, 1)),
+            origin=full_orig,
+            is_temporary=True,
         )
         self._q: FloatField = utils.make_storage_from_shape(
-            grid_indexing.domain_full(add=(0, 0, 1)), origin=full_orig
+            grid_indexing.domain_full(add=(0, 0, 1)),
+            origin=full_orig,
+            is_temporary=True,
         )
         self._q_bot: FloatField = utils.make_storage_from_shape(
-            grid_indexing.domain_full(add=(0, 0, 1)), origin=full_orig
+            grid_indexing.domain_full(add=(0, 0, 1)),
+            origin=full_orig,
+            is_temporary=True,
         )
         self._extm: BoolField = utils.make_storage_from_shape(
-            grid_indexing.domain_full(add=(0, 0, 1)), origin=full_orig, dtype=bool
+            grid_indexing.domain_full(add=(0, 0, 1)),
+            origin=full_orig,
+            dtype=bool,
+            is_temporary=True,
         )
         self._ext5: BoolField = utils.make_storage_from_shape(
-            grid_indexing.domain_full(add=(0, 0, 1)), origin=full_orig, dtype=bool
+            grid_indexing.domain_full(add=(0, 0, 1)),
+            origin=full_orig,
+            dtype=bool,
+            is_temporary=True,
         )
         self._ext6: BoolField = utils.make_storage_from_shape(
-            grid_indexing.domain_full(add=(0, 0, 1)), origin=full_orig, dtype=bool
+            grid_indexing.domain_full(add=(0, 0, 1)),
+            origin=full_orig,
+            dtype=bool,
+            is_temporary=True,
         )
 
         i_extent: int = i2 - i1 + 1
@@ -573,6 +590,7 @@ class RemapProfile:
             domain=domain,
         )
 
+    @computepath_method
     def __call__(
         self,
         qs: FloatFieldIJ,
@@ -623,7 +641,6 @@ class RemapProfile:
             )
 
             self._set_interpolation_coefficients(
-                self._q,
                 self._gam,
                 a4_1,
                 a4_2,

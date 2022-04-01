@@ -9,6 +9,8 @@ from fv3core.utils.stencil import StencilFactory
 from fv3core.utils.typing import FloatField, FloatFieldIJ, cast_to_index3d
 from fv3gfs.util import X_DIM, X_INTERFACE_DIM, Y_DIM, Y_INTERFACE_DIM, Z_DIM
 
+# [DaCe] Import
+from fv3core.utils.dace.computepath import computepath_method
 
 #
 # Flux value stencils
@@ -95,9 +97,15 @@ class HyperdiffusionDamping:
         self._del6_u = damping_coefficients.del6_u
         self._del6_v = damping_coefficients.del6_v
         self._rarea = rarea
-        self._fx = utils.make_storage_from_shape(grid_indexing.max_shape)
-        self._fy = utils.make_storage_from_shape(grid_indexing.max_shape)
-        self._q = utils.make_storage_from_shape(grid_indexing.max_shape)
+        self._fx = utils.make_storage_from_shape(
+            grid_indexing.max_shape, is_temporary=False
+        )
+        self._fy = utils.make_storage_from_shape(
+            grid_indexing.max_shape, is_temporary=False
+        )
+        self._q = utils.make_storage_from_shape(
+            grid_indexing.max_shape, is_temporary=False
+        )
 
         self._corner_fill = stencil_factory.from_dims_halo(
             func=corner_fill,
@@ -149,6 +157,7 @@ class HyperdiffusionDamping:
         )
         """Stencil responsible for doing corners updates in y-direction."""
 
+    @computepath_method
     def __call__(self, qdel: FloatField, cd: float):
         """
         Perform hyperdiffusion damping/filtering

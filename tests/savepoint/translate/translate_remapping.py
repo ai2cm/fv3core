@@ -112,12 +112,14 @@ class TranslateRemapping(TranslateFortranData2Py):
         wsd_2d[:, :] = inputs["wsd"][:, :, 0]
         inputs["wsd"] = wsd_2d
         inputs["q_cld"] = inputs["tracers"]["qcld"]
+        # [DaCe] update init
         l_to_e_obj = LagrangianToEulerian(
             spec.grid.stencil_factory,
             spec.namelist.dynamical_core.remapping,
             spec.grid.area_64,
             inputs["nq"],
             inputs["pfull"],
+            inputs["tracers"],
         )
         l_to_e_obj(**inputs)
         inputs.pop("q_cld")
