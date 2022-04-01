@@ -333,6 +333,12 @@ def run(
             # v_srf = va[:, :, npz]
             # srf_init = True
 
+        if cp is not None:
+            cp.cuda.runtime.deviceSynchronize()
+
+        if MPI is not None:
+            comm.Barrier()
+
         dycore = fv3core.DynamicalCore(
             comm=communicator,
             grid_data=grid_data,
@@ -422,6 +428,12 @@ def run(
                 state,
             )
 
+    if cp is not None:
+        cp.cuda.runtime.deviceSynchronize()
+
+    if MPI is not None:
+        comm.Barrier()
+
     # Cache warm up and loop function selection
     dace_orchestrated_backend = (
         "dace" in backend and global_config.is_dace_orchestrated()
@@ -455,6 +467,9 @@ def run(
         return
 
     # Sync all nodes before running performance
+    if cp is not None:
+        cp.cuda.runtime.deviceSynchronize()
+
     if MPI is not None:
         comm.Barrier()
 
