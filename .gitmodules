@@ -10,3 +10,6 @@
 [submodule "external/daint_venv"]
 	path = external/daint_venv
 	url = git@github.com:VulcanClimateModeling/daint_venv.git
+[submodule "external/pace"]
+	path = external/pace
+	url = git@github.com:ai2cm/pace.git
