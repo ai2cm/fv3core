@@ -19,7 +19,7 @@ except ImportError:
     cp = None
 
 # If True, automatically transfers memory between CPU and GPU (see gt4py.storage)
-managed_memory = True
+managed_memory = False
 
 # Number of halo lines for each field and default origin
 halo = 3

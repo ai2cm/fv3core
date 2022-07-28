@@ -19,8 +19,8 @@ from fv3core.utils.dace.build import (
     write_decomposition,
 )
 from fv3core.utils.dace.sdfg_opt_passes import (
-    splittable_region_expansion,
     al_and_ar_are_evil,
+    splittable_region_expansion,
 )
 from fv3core.utils.dace.utils import DaCeProgress
 from fv3core.utils.mpi import MPI
@@ -82,7 +82,7 @@ def download_results_from_dace(res, args):
                     r,
                     default_origin=(0, 0, 0),
                     backend=global_config.get_backend(),
-                    managed_memory=True,
+                    managed_memory=False,
                 )
                 for r in res
             ]
